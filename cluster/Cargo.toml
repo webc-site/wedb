@@ -1,0 +1,46 @@
+[package]
+name = "wedb_cluster"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Distributed cluster server library for WeDb"
+
+[dependencies]
+aok = "0.1.18"
+async-broadcast = "0.7.2"
+async-lock = "3.4.2"
+async-watch = "0.3.1"
+bitcode = { version = "0.6.9", default-features = false, features = ["std", "derive"] }
+bytes = "1.12.1"
+coarsetime = "0.1.37"
+compio = { version = "0.19.2", features = ["macros", "signal", "time", "runtime"] }
+crossfire = { version = "3.1.19", default-features = false }
+fastrand = "2.5.0"
+futures-timer = "3.0.4"
+futures-util = "0.3.34"
+hipstr = { version = "0.8.0", default-features = false, features = ["std"] }
+itoa = "1.0.18"
+log = "0.4.34"
+memchr = "2.8.3"
+papaya = "0.2.5"
+rapidhash = "4.5.1"
+ryu = "1.0.23"
+serde = { version = "1.0.229", features = ["derive"] }
+sonic-rs = "0.5.8"
+ts_ = { version = "0.1.4", features = ["sec"] }
+webc_cmd = { version = "0.1.0", path = "../cmd" }
+wedb_embed = { version = "0.1.0", path = "../../wedb_embed/embed" }
+wedb_raft = { version = "0.1.0", path = "../raft" }
+wedb_resp = { version = "0.1.0", path = "../resp" }
+zenoh = "1.10.0"
+zenoh-runtime = "1.10.0"
+zenoh_raft = { version = "0.1.4", path = "../../zenoh_raft/raft" }
+zmij = "1.0.23"
+
+[dev-dependencies]
+ctor = "1.0.13"
+log_init = "0.1.39"
+redis = { version = "1.6", default-features = false, features = ["acl", "bytes", "geospatial", "num-bigint", "script", "streams"] }
+tempfile = "3.27.0"

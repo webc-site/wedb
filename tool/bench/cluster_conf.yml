@@ -1,0 +1,62 @@
+cloud_provider: Google Cloud Platform (GCP)
+resource_prefix: wedb-bench-
+region: us-central1
+zone: us-central1-a
+arch: arm64 # CPU 架构：arm64 (Ampere Altra ARM 芯片) | x86_64
+machine_type: t2a-standard-4 # 实例机型: t2a-standard-4 (4 ARM vCPU, Spot 抢占实例)
+memory: 16.0 GB # 内存容量配置: 16.0 GB DDR4/DDR5 ECC 高速物理内存
+toolchain_manager: mise # 统一使用 mise 管理 Rust 与 Bun 工具链 (mise use -g rust@latest bun@latest)
+build_mode: release+native # 编译模式: 服务器本机 mise 托管最新稳定版 rustc + RUSTFLAGS="-C target-cpu=native"
+compiler: rustc latest stable (Edition 2024, LTO=fat, Codegen-Units=1, Target-CPU=native via mise)
+os_image:
+  family: ubuntu-2404-lts-arm64 # 最新 Ubuntu 24.04 LTS (Noble Numbat)
+  project: ubuntu-os-cloud
+container_engine: podman # 统一使用 Podman 容器运行时 (无守护进程、轻量级、更安全)
+storage: Physical Local NVMe SSD (Ext4, PCIe Direct, 800k+ ~ 1.6M+ IOPS)
+pricing:
+  spot_per_node_hour: "$0.038"
+  estimated_run_cost: "< $0.015 (测试后立即自动全部销毁)"
+standalone_server:
+  name: wedb-bench-standalone
+  ip: 10.128.0.10
+  storage: /mnt/nvme (Local NVMe SSD)
+  description: 云端单机性能基准测试实例 (Ubuntu 24.04 LTS + ARMv8.2 + Podman + NVMe)
+cluster_servers:
+  node_count: 3
+  storage: /mnt/nvme (Local NVMe SSD 各节点独立挂载)
+  network:
+    vpc: default
+    subnet: 10.128.0.0/20
+    intra_vpc_latency: "< 0.3 ms"
+  nodes:
+    - id: 1
+      name: wedb-bench-cluster-1
+      ip: 10.128.0.11
+      wedb_redis_port: 4909
+      wedb_raft_port: 4910
+      role: Leader / Initial Node
+      redis_cluster_port: 6379
+      redis_slots: 0-5460
+      kvrocks_cluster_port: 6666
+    - id: 2
+      name: wedb-bench-cluster-2
+      ip: 10.128.0.12
+      wedb_redis_port: 4909
+      wedb_raft_port: 4910
+      role: Follower 1
+      redis_cluster_port: 6379
+      redis_slots: 5461-10922
+      kvrocks_cluster_port: 6666
+    - id: 3
+      name: wedb-bench-cluster-3
+      ip: 10.128.0.13
+      wedb_redis_port: 4909
+      wedb_raft_port: 4910
+      role: Follower 2
+      redis_cluster_port: 6379
+      redis_slots: 10923-16383
+      kvrocks_cluster_port: 6666
+lifecycle:
+  auto_cleanup: true
+  destroy_filter: name:wedb-bench-*
+  guaranteed_zero_idle_cost: true

@@ -1,0 +1,35 @@
+[package]
+name = "wedb_raft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "zenoh-raft replication engine for WeDb"
+
+[dependencies]
+bitcode = { version = "0.6.9", default-features = false, features = ["std", "derive"] }
+bytes = "1.12.1"
+coarsetime = "0.1.37"
+compio = { version = "0.19.2", features = ["runtime", "time", "macros", "fs", "io"] }
+derive_more = { version = "2.1.1", features = ["full"] }
+fjall = "3.1.10"
+futures = "0.3.34"
+futures-channel = "0.3.34"
+futures-util = "0.3.34"
+hickory-resolver = "0.26.1"
+log = "0.4.34"
+papaya = "0.2.5"
+thiserror = "2.0.20"
+webc_cmd = { version = "0.1.0", path = "../cmd" }
+wedb_embed = { version = "0.1.0", path = "../../wedb_embed/embed" }
+zenoh = { version = "1.10.0", default-features = false, features = ["transport_quic", "transport_tcp", "transport_udp"] }
+zenoh_raft = { version = "0.1.4", path = "../../zenoh_raft/raft" }
+zstd = "0.13.3"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.19.2", features = ["runtime", "time", "macros", "fs", "io"] }
+ctor = "1.0.13"
+log_init = "0.1.39"
+tempfile = "3.27.0"

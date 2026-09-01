@@ -1,0 +1,17 @@
+# 多节点列表 Join 测试配置
+ip: 127.0.0.1
+
+server:
+  port: 4909
+
+raft:
+  port: 4910
+  heartbeat: 100
+  join:
+    - 10.0.1.1:4910
+    - 10.0.1.2:4910
+    - 10.0.1.3:4910
+
+fjall:
+  data_dir: wedb
+  compression: lz4

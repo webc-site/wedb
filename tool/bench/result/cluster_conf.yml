@@ -1,0 +1,14 @@
+nodes_count: 3
+topology: 3-Node Multi-Raft Partitioned Cluster
+storage: Physical Local NVMe SSD (PCIe Gen3/4, 800k+ ~ 1.6M+ IOPS)
+consensus: Multi-Raft with Leader Leasing & Zero-Copy Log Batching
+nodes:
+  - node_id: 1
+    role: Leader / Voter
+    endpoint: 127.0.0.1:4909
+  - node_id: 2
+    role: Follower / Voter
+    endpoint: 10.128.0.7:4909
+  - node_id: 3
+    role: Follower / Voter
+    endpoint: 10.128.0.8:4909

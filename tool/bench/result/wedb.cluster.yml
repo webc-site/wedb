@@ -1,0 +1,92 @@
+timestamp: '2026-08-30T00:20:36.900Z'
+results:
+  SET:
+    group: String
+    qps: 133156
+    avg_us: 248
+    p50_us: 175
+    p90_us: 615
+    p95_us: 615
+    p99_us: 1023
+    min_us: 32
+    max_us: 12527
+  GET:
+    group: String
+    qps: 132979
+    avg_us: 187
+    p50_us: 143
+    p90_us: 407
+    p95_us: 407
+    p99_us: 615
+    min_us: 16
+    max_us: 5239
+  INCR:
+    group: String
+    qps: 133156
+    avg_us: 264
+    p50_us: 191
+    p90_us: 671
+    p95_us: 671
+    p99_us: 1247
+    min_us: 24
+    max_us: 5711
+  HSET:
+    group: Hash
+    qps: 132979
+    avg_us: 240
+    p50_us: 175
+    p90_us: 551
+    p95_us: 551
+    p99_us: 895
+    min_us: 24
+    max_us: 5751
+  HGET:
+    group: Hash
+    qps: 199203
+    avg_us: 203
+    p50_us: 167
+    p90_us: 383
+    p95_us: 383
+    p99_us: 615
+    min_us: 56
+    max_us: 12303
+  SADD:
+    group: Set
+    qps: 133156
+    avg_us: 223
+    p50_us: 143
+    p90_us: 687
+    p95_us: 687
+    p99_us: 1623
+    min_us: 32
+    max_us: 9383
+  SISMEMBER:
+    group: Set
+    qps: 133156
+    avg_us: 237
+    p50_us: 183
+    p90_us: 487
+    p95_us: 487
+    p99_us: 855
+    min_us: 56
+    max_us: 2231
+  ZADD:
+    group: ZSet
+    qps: 132979
+    avg_us: 215
+    p50_us: 151
+    p90_us: 519
+    p95_us: 519
+    p99_us: 1015
+    min_us: 24
+    max_us: 9799
+  ZRANGE:
+    group: ZSet
+    qps: 133156
+    avg_us: 329
+    p50_us: 239
+    p90_us: 687
+    p95_us: 687
+    p99_us: 799
+    min_us: 64
+    max_us: 2671

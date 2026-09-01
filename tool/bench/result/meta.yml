@@ -1,0 +1,35 @@
+benchmark_tool: redis-benchmark (official Redis C client)
+system:
+  os: Ubuntu 24.04.4 LTS (Kernel 6.17.0-1022-gcp)
+  arch: arm64
+  cpu:
+    model: unknown
+    cores: 4
+  memory:
+    total: 15.6 GB
+  storage: High-Performance NVMe pd-ssd (50 GB)
+  container_runtime: Podman 4.9.3
+  compiler: rustc 1.98.0 (Edition 2024)
+  build_flags: -C target-cpu=native -C opt-level=3 -C lto=fat -C codegen-units=1
+engine:
+  wedb: 0.1.0
+  redis: 8.10.1
+  kvrocks: 2.16.0
+test_parameters:
+  standalone:
+    clients: 50
+    requests: 200000
+    threads: 4
+    pipeline: 1
+    random_key_space: 100000
+    data_size_bytes: 128
+    cluster_mode: false
+  cluster:
+    nodes: 3
+    clients: 50
+    requests: 100000
+    threads: 4
+    pipeline: 1
+    random_key_space: 100000
+    data_size_bytes: 128
+    cluster_mode: true

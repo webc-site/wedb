@@ -1,0 +1,19 @@
+[package]
+name = "wedb_resp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "RESP3/RESP2 network protocol and data types for WeDb"
+
+[dependencies]
+bytes = "1.12.1"
+fast-float = "0.2.0"
+itoa = "1.0.18"
+memchr = "2.8.3"
+rapidhash = "4.5.1"
+ryu = "1.0.23"
+sonic-rs = "0.5.8"
+thiserror = "2.0.20"
+zmij = "1.0.23"

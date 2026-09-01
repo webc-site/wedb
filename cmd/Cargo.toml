@@ -1,0 +1,26 @@
+[package]
+name = "webc_cmd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Command execution engine for WeDb"
+
+[dependencies]
+async-broadcast = "0.7.2"
+bitcode = { version = "0.6.9", default-features = false, features = ["std", "derive"] }
+bytes = "1.12.1"
+compio = { version = "0.19.2", features = ["runtime", "net", "macros"] }
+crc32fast = "1.5.1"
+crossfire = "3.1.19"
+futures-util = "0.3.34"
+hipstr = "0.8.0"
+log = "0.4.34"
+memchr = "2.8.3"
+quick_cache = "0.7.0"
+rapidhash = "4.5.1"
+socket2 = "0.6.5"
+sonic-rs = "0.5.8"
+wedb_embed = { version = "0.1.0", path = "../../wedb_embed/embed" }
+wedb_resp = { version = "0.1.0", path = "../resp" }

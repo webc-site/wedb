@@ -1,0 +1,252 @@
+timestamp: '2026-08-30T00:08:22.441Z'
+results:
+  PING:
+    group: String
+    qps: 133156
+    avg_us: 339
+    p50_us: 327
+    p90_us: 479
+    p95_us: 479
+    p99_us: 647
+    min_us: 48
+    max_us: 1359
+  SET:
+    group: String
+    qps: 99850
+    avg_us: 434
+    p50_us: 415
+    p90_us: 631
+    p95_us: 631
+    p99_us: 839
+    min_us: 48
+    max_us: 2271
+  GET:
+    group: String
+    qps: 99850
+    avg_us: 421
+    p50_us: 407
+    p90_us: 583
+    p95_us: 583
+    p99_us: 807
+    min_us: 104
+    max_us: 3215
+  INCR:
+    group: String
+    qps: 114155
+    avg_us: 412
+    p50_us: 391
+    p90_us: 599
+    p95_us: 599
+    p99_us: 775
+    min_us: 48
+    max_us: 2447
+  MSET:
+    group: String
+    qps: 99850
+    avg_us: 476
+    p50_us: 447
+    p90_us: 687
+    p95_us: 687
+    p99_us: 863
+    min_us: 104
+    max_us: 3415
+  MGET:
+    group: String
+    qps: 114155
+    avg_us: 417
+    p50_us: 391
+    p90_us: 607
+    p95_us: 607
+    p99_us: 767
+    min_us: 96
+    max_us: 2079
+  SETBIT:
+    group: Bitmap
+    qps: 114090
+    avg_us: 413
+    p50_us: 399
+    p90_us: 583
+    p95_us: 583
+    p99_us: 791
+    min_us: 128
+    max_us: 2135
+  GETBIT:
+    group: Bitmap
+    qps: 114155
+    avg_us: 412
+    p50_us: 399
+    p90_us: 583
+    p95_us: 583
+    p99_us: 807
+    min_us: 80
+    max_us: 2839
+  BITCOUNT:
+    group: Bitmap
+    qps: 114155
+    avg_us: 407
+    p50_us: 391
+    p90_us: 567
+    p95_us: 567
+    p99_us: 791
+    min_us: 88
+    max_us: 2135
+  HSET:
+    group: Hash
+    qps: 88810
+    avg_us: 483
+    p50_us: 455
+    p90_us: 703
+    p95_us: 703
+    p99_us: 927
+    min_us: 56
+    max_us: 2503
+  HGET:
+    group: Hash
+    qps: 114090
+    avg_us: 407
+    p50_us: 391
+    p90_us: 583
+    p95_us: 583
+    p99_us: 783
+    min_us: 88
+    max_us: 2823
+  HLEN:
+    group: Hash
+    qps: 114155
+    avg_us: 395
+    p50_us: 375
+    p90_us: 551
+    p95_us: 551
+    p99_us: 735
+    min_us: 96
+    max_us: 2519
+  LPUSH:
+    group: List
+    qps: 99850
+    avg_us: 432
+    p50_us: 407
+    p90_us: 607
+    p95_us: 607
+    p99_us: 791
+    min_us: 120
+    max_us: 1423
+  LPOP:
+    group: List
+    qps: 99850
+    avg_us: 434
+    p50_us: 415
+    p90_us: 615
+    p95_us: 615
+    p99_us: 831
+    min_us: 104
+    max_us: 3271
+  LRANGE:
+    group: List
+    qps: 114090
+    avg_us: 409
+    p50_us: 391
+    p90_us: 575
+    p95_us: 575
+    p99_us: 783
+    min_us: 64
+    max_us: 2767
+  SADD:
+    group: Set
+    qps: 99537
+    avg_us: 447
+    p50_us: 423
+    p90_us: 639
+    p95_us: 639
+    p99_us: 855
+    min_us: 104
+    max_us: 2175
+  SISMEMBER:
+    group: Set
+    qps: 99536
+    avg_us: 426
+    p50_us: 407
+    p90_us: 607
+    p95_us: 607
+    p99_us: 815
+    min_us: 88
+    max_us: 2135
+  SCARD:
+    group: Set
+    qps: 99950
+    avg_us: 425
+    p50_us: 407
+    p90_us: 591
+    p95_us: 591
+    p99_us: 823
+    min_us: 112
+    max_us: 2815
+  ZADD:
+    group: ZSet
+    qps: 99850
+    avg_us: 452
+    p50_us: 431
+    p90_us: 639
+    p95_us: 639
+    p99_us: 847
+    min_us: 96
+    max_us: 2759
+  ZSCORE:
+    group: ZSet
+    qps: 99850
+    avg_us: 426
+    p50_us: 407
+    p90_us: 599
+    p95_us: 599
+    p99_us: 815
+    min_us: 64
+    max_us: 2799
+  ZRANGE:
+    group: ZSet
+    qps: 99950
+    avg_us: 447
+    p50_us: 431
+    p90_us: 631
+    p95_us: 631
+    p99_us: 863
+    min_us: 120
+    max_us: 1855
+  XADD:
+    group: Stream
+    qps: 79936
+    avg_us: 555
+    p50_us: 519
+    p90_us: 823
+    p95_us: 823
+    p99_us: 1031
+    min_us: 200
+    max_us: 2103
+  XLEN:
+    group: Stream
+    qps: 114090
+    avg_us: 413
+    p50_us: 399
+    p90_us: 583
+    p95_us: 583
+    p99_us: 807
+    min_us: 96
+    max_us: 2799
+  GEOADD:
+    group: Geo
+    qps: 88771
+    avg_us: 490
+    p50_us: 463
+    p90_us: 711
+    p95_us: 711
+    p99_us: 919
+    min_us: 80
+    max_us: 1935
+  GEODIST:
+    group: Geo
+    qps: 114090
+    avg_us: 385
+    p50_us: 367
+    p90_us: 535
+    p95_us: 535
+    p99_us: 751
+    min_us: 80
+    max_us: 2351

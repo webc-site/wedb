@@ -1,0 +1,29 @@
+[package]
+name = "wedb_standalone"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Standalone server library for WeDb"
+
+[dependencies]
+aok = "0.1.18"
+coarsetime = "0.1.37"
+compio = { version = "0.19.2", features = ["macros", "runtime", "signal", "time"], default-features = false }
+fast-glob = "1.1.1"
+hipstr = "0.8.0"
+itoa = "1.0.18"
+log = "0.4.34"
+rapidhash = "4.5.1"
+ryu = "1.0.23"
+sonic-rs = "0.5.8"
+webc_cmd = { version = "0.1.0", path = "../cmd" }
+wedb_embed = { version = "0.1.0", path = "../../wedb_embed/embed" }
+wedb_resp = { version = "0.1.0", path = "../resp" }
+zmij = "1.0.23"
+
+[dev-dependencies]
+ctor = "1.0.13"
+log_init = "0.1.39"
+tempfile = "3.27.0"

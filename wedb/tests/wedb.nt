@@ -1,0 +1,31 @@
+# WeDb 分布式节点标准配置文件 (NestedText 分块层级格式)
+
+# 全局通用 IP (各子模块自动继承)
+ip: 127.0.0.1
+
+server:
+  port: 6379
+
+cluster:
+  node_id: 1
+  weight: 100
+
+raft:
+  port: 4910
+  heartbeat: 50
+  join:
+    - 127.0.0.1:4911
+    - 127.0.0.1:4912
+
+fjall:
+  data_dir: ./data
+  compression: lz4
+  journal_compression: none
+  manual_journal_persist: false
+  cache_size: 67108864
+
+topology:
+  region: cn-beijing
+  zone: zone-a
+  rack: rack-01
+  host: 10.0.1.10

@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "@3-/cargo_upgrade": "^0.1.4",
+    "@google-cloud/compute": "^7.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "eta": "^4.6.0",
+    "js-yaml": "^5.4.1",
+    "zx": "^8.8.5"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
+  }
+}

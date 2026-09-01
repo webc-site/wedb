@@ -1,0 +1,30 @@
+# WeDb 层级分块配置文件示例 (NestedText 格式，无需任何冗余后缀)
+
+# 全局通用 IP (各子模块自动继承)
+ip: 0.0.0.0
+
+cluster:
+  node_id: 2
+  weight: 200
+
+topology:
+  region: us-west
+  zone: us-west-1a
+  rack: rack-99
+  host: 192.168.1.2
+
+server:
+  port: 6380
+
+raft:
+  port: 4920
+  heartbeat: 50
+  join:
+    - 192.168.1.1:4920
+
+fjall:
+  data_dir: /tmp/wedb_node2_data
+  compression: none
+  journal_compression: lz4
+  manual_journal_persist: true
+  cache_size: 134217728

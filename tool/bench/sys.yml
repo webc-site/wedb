@@ -1,0 +1,6 @@
+# 云厂商实例与硬件规格静态元数据 (无法在机器内部直接探查的云产品信息)
+cloud_provider: Google Cloud Platform (GCP)
+machine_type: t2a-standard-4
+provisioning_model: SPOT
+storage_type: Physical Local NVMe SSD (PCIe Direct)
+

@@ -1,0 +1,342 @@
+timestamp: '2026-08-30T00:07:30.403Z'
+results:
+  PING:
+    group: String
+    qps: 159744
+    avg_us: 233
+    p50_us: 143
+    p90_us: 727
+    p95_us: 727
+    p99_us: 1207
+    min_us: 8
+    max_us: 5447
+  SET:
+    group: String
+    qps: 79904
+    avg_us: 571
+    p50_us: 447
+    p90_us: 1487
+    p95_us: 1487
+    p99_us: 2383
+    min_us: 16
+    max_us: 7175
+  GET:
+    group: String
+    qps: 133156
+    avg_us: 308
+    p50_us: 215
+    p90_us: 847
+    p95_us: 847
+    p99_us: 1271
+    min_us: 16
+    max_us: 3727
+  INCR:
+    group: String
+    qps: 79904
+    avg_us: 540
+    p50_us: 487
+    p90_us: 1143
+    p95_us: 1143
+    p99_us: 1791
+    min_us: 24
+    max_us: 4375
+  MSET:
+    group: String
+    qps: 44385
+    avg_us: 1051
+    p50_us: 887
+    p90_us: 2479
+    p95_us: 2479
+    p99_us: 3479
+    min_us: 32
+    max_us: 10023
+  MGET:
+    group: String
+    qps: 99527
+    avg_us: 447
+    p50_us: 335
+    p90_us: 1231
+    p95_us: 1231
+    p99_us: 2007
+    min_us: 24
+    max_us: 4151
+  SETBIT:
+    group: Bitmap
+    qps: 88810
+    avg_us: 496
+    p50_us: 439
+    p90_us: 1063
+    p95_us: 1063
+    p99_us: 1719
+    min_us: 24
+    max_us: 4647
+  GETBIT:
+    group: Bitmap
+    qps: 114025
+    avg_us: 358
+    p50_us: 287
+    p90_us: 863
+    p95_us: 863
+    p99_us: 1183
+    min_us: 24
+    max_us: 2839
+  BITCOUNT:
+    group: Bitmap
+    qps: 114090
+    avg_us: 352
+    p50_us: 271
+    p90_us: 887
+    p95_us: 887
+    p99_us: 1239
+    min_us: 16
+    max_us: 3423
+  HSET:
+    group: Hash
+    qps: 53234
+    avg_us: 898
+    p50_us: 711
+    p90_us: 1415
+    p95_us: 1415
+    p99_us: 1927
+    min_us: 40
+    max_us: 522751
+  HGET:
+    group: Hash
+    qps: 99532
+    avg_us: 423
+    p50_us: 319
+    p90_us: 1119
+    p95_us: 1119
+    p99_us: 1679
+    min_us: 24
+    max_us: 3855
+  HLEN:
+    group: Hash
+    qps: 114090
+    avg_us: 357
+    p50_us: 263
+    p90_us: 951
+    p95_us: 951
+    p99_us: 1471
+    min_us: 16
+    max_us: 3743
+  LPUSH:
+    group: List
+    qps: 57094
+    avg_us: 837
+    p50_us: 799
+    p90_us: 1439
+    p95_us: 1439
+    p99_us: 2279
+    min_us: 32
+    max_us: 5415
+  LPOP:
+    group: List
+    qps: 66578
+    avg_us: 712
+    p50_us: 551
+    p90_us: 1247
+    p95_us: 1247
+    p99_us: 1783
+    min_us: 32
+    max_us: 380927
+  LRANGE:
+    group: List
+    qps: 88652
+    avg_us: 470
+    p50_us: 367
+    p90_us: 1223
+    p95_us: 1223
+    p99_us: 1879
+    min_us: 24
+    max_us: 4631
+  SADD:
+    group: Set
+    qps: 49925
+    avg_us: 924
+    p50_us: 847
+    p90_us: 1479
+    p95_us: 1479
+    p99_us: 1895
+    min_us: 56
+    max_us: 203647
+  SISMEMBER:
+    group: Set
+    qps: 79872
+    avg_us: 546
+    p50_us: 383
+    p90_us: 1519
+    p95_us: 1519
+    p99_us: 2343
+    min_us: 32
+    max_us: 4167
+  SCARD:
+    group: Set
+    qps: 99751
+    avg_us: 435
+    p50_us: 319
+    p90_us: 1207
+    p95_us: 1207
+    p99_us: 1823
+    min_us: 24
+    max_us: 3367
+  ZADD:
+    group: ZSet
+    qps: 42061
+    avg_us: 1117
+    p50_us: 1095
+    p90_us: 1759
+    p95_us: 1759
+    p99_us: 2143
+    min_us: 72
+    max_us: 6903
+  ZSCORE:
+    group: ZSet
+    qps: 99459
+    avg_us: 427
+    p50_us: 311
+    p90_us: 1151
+    p95_us: 1151
+    p99_us: 1687
+    min_us: 24
+    max_us: 10367
+  ZRANGE:
+    group: ZSet
+    qps: 79840
+    avg_us: 576
+    p50_us: 455
+    p90_us: 1487
+    p95_us: 1487
+    p99_us: 2311
+    min_us: 24
+    max_us: 5207
+  XADD:
+    group: Stream
+    qps: 42052
+    avg_us: 1159
+    p50_us: 887
+    p90_us: 2055
+    p95_us: 2055
+    p99_us: 3615
+    min_us: 40
+    max_us: 524799
+  XLEN:
+    group: Stream
+    qps: 114155
+    avg_us: 340
+    p50_us: 279
+    p90_us: 815
+    p95_us: 815
+    p99_us: 1151
+    min_us: 16
+    max_us: 3055
+  GEOADD:
+    group: Geo
+    qps: 66556
+    avg_us: 708
+    p50_us: 679
+    p90_us: 1335
+    p95_us: 1335
+    p99_us: 1767
+    min_us: 40
+    max_us: 3567
+  GEODIST:
+    group: Geo
+    qps: 114090
+    avg_us: 311
+    p50_us: 255
+    p90_us: 735
+    p95_us: 735
+    p99_us: 1015
+    min_us: 16
+    max_us: 2599
+  JSON.SET:
+    group: JSON
+    qps: 61463
+    avg_us: 758
+    p50_us: 559
+    p90_us: 1351
+    p95_us: 1351
+    p99_us: 2095
+    min_us: 24
+    max_us: 523007
+  JSON.GET:
+    group: JSON
+    qps: 18114
+    avg_us: 2690
+    p50_us: 2767
+    p90_us: 4911
+    p95_us: 4911
+    p99_us: 5855
+    min_us: 24
+    max_us: 31839
+  BF.ADD:
+    group: Bloom
+    qps: 53262
+    avg_us: 854
+    p50_us: 791
+    p90_us: 1311
+    p95_us: 1311
+    p99_us: 1735
+    min_us: 56
+    max_us: 193023
+  BF.EXISTS:
+    group: Bloom
+    qps: 88771
+    avg_us: 464
+    p50_us: 327
+    p90_us: 1303
+    p95_us: 1303
+    p99_us: 2047
+    min_us: 24
+    max_us: 4151
+  CF.ADD:
+    group: Cuckoo
+    qps: 13748
+    avg_us: 3548
+    p50_us: 2831
+    p90_us: 6191
+    p95_us: 6191
+    p99_us: 7879
+    min_us: 48
+    max_us: 446463
+  CF.EXISTS:
+    group: Cuckoo
+    qps: 61406
+    avg_us: 737
+    p50_us: 583
+    p90_us: 1871
+    p95_us: 1871
+    p99_us: 2703
+    min_us: 24
+    max_us: 4615
+  TS.GET:
+    group: TimeSeries
+    qps: 133156
+    avg_us: 282
+    p50_us: 231
+    p90_us: 687
+    p95_us: 687
+    p99_us: 1007
+    min_us: 16
+    max_us: 3719
+  SIADD:
+    group: SortedInt
+    qps: 61501
+    avg_us: 714
+    p50_us: 655
+    p90_us: 1415
+    p95_us: 1415
+    p99_us: 1863
+    min_us: 24
+    max_us: 3919
+  SICARD:
+    group: SortedInt
+    qps: 88731
+    avg_us: 471
+    p50_us: 343
+    p90_us: 1287
+    p95_us: 1287
+    p99_us: 2007
+    min_us: 24
+    max_us: 6615

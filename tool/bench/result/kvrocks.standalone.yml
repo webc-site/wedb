@@ -1,0 +1,312 @@
+timestamp: '2026-08-30T00:10:45.877Z'
+results:
+  PING:
+    group: String
+    qps: 99850
+    avg_us: 332
+    p50_us: 247
+    p90_us: 903
+    p95_us: 903
+    p99_us: 1503
+    min_us: 16
+    max_us: 5687
+  SET:
+    group: String
+    qps: 36324
+    avg_us: 1357
+    p50_us: 1159
+    p90_us: 3199
+    p95_us: 3199
+    p99_us: 4095
+    min_us: 40
+    max_us: 11431
+  GET:
+    group: String
+    qps: 72595
+    avg_us: 649
+    p50_us: 343
+    p90_us: 2167
+    p95_us: 2167
+    p99_us: 4471
+    min_us: 24
+    max_us: 13655
+  INCR:
+    group: String
+    qps: 34740
+    avg_us: 1416
+    p50_us: 1287
+    p90_us: 3039
+    p95_us: 3039
+    p99_us: 3919
+    min_us: 40
+    max_us: 6783
+  MSET:
+    group: String
+    qps: 30722
+    avg_us: 1564
+    p50_us: 1487
+    p90_us: 2687
+    p95_us: 2687
+    p99_us: 3535
+    min_us: 64
+    max_us: 52127
+  MGET:
+    group: String
+    qps: 61312
+    avg_us: 739
+    p50_us: 303
+    p90_us: 2823
+    p95_us: 2823
+    p99_us: 5863
+    min_us: 32
+    max_us: 24591
+  SETBIT:
+    group: Bitmap
+    qps: 30746
+    avg_us: 1562
+    p50_us: 1487
+    p90_us: 2751
+    p95_us: 2751
+    p99_us: 3535
+    min_us: 48
+    max_us: 6199
+  GETBIT:
+    group: Bitmap
+    qps: 79872
+    avg_us: 603
+    p50_us: 247
+    p90_us: 2279
+    p95_us: 2279
+    p99_us: 4727
+    min_us: 24
+    max_us: 27167
+  BITCOUNT:
+    group: Bitmap
+    qps: 72648
+    avg_us: 617
+    p50_us: 311
+    p90_us: 2215
+    p95_us: 2215
+    p99_us: 4167
+    min_us: 24
+    max_us: 8967
+  HSET:
+    group: Hash
+    qps: 29608
+    avg_us: 1653
+    p50_us: 1583
+    p90_us: 3007
+    p95_us: 3007
+    p99_us: 3839
+    min_us: 56
+    max_us: 6959
+  HGET:
+    group: Hash
+    qps: 72595
+    avg_us: 627
+    p50_us: 359
+    p90_us: 2143
+    p95_us: 2143
+    p99_us: 4063
+    min_us: 24
+    max_us: 10095
+  HLEN:
+    group: Hash
+    qps: 79904
+    avg_us: 538
+    p50_us: 183
+    p90_us: 2231
+    p95_us: 2231
+    p99_us: 5511
+    min_us: 24
+    max_us: 57407
+  LPUSH:
+    group: List
+    qps: 29595
+    avg_us: 1614
+    p50_us: 1479
+    p90_us: 2959
+    p95_us: 2959
+    p99_us: 3879
+    min_us: 64
+    max_us: 10263
+  LPOP:
+    group: List
+    qps: 38081
+    avg_us: 1288
+    p50_us: 1199
+    p90_us: 2687
+    p95_us: 2687
+    p99_us: 3583
+    min_us: 24
+    max_us: 7007
+  LRANGE:
+    group: List
+    qps: 72516
+    avg_us: 654
+    p50_us: 311
+    p90_us: 2455
+    p95_us: 2455
+    p99_us: 4207
+    min_us: 24
+    max_us: 8911
+  SADD:
+    group: Set
+    qps: 29608
+    avg_us: 1642
+    p50_us: 1599
+    p90_us: 3399
+    p95_us: 3399
+    p99_us: 4471
+    min_us: 40
+    max_us: 9623
+  SISMEMBER:
+    group: Set
+    qps: 79840
+    avg_us: 591
+    p50_us: 223
+    p90_us: 2399
+    p95_us: 2399
+    p99_us: 6559
+    min_us: 24
+    max_us: 35551
+  SCARD:
+    group: Set
+    qps: 79904
+    avg_us: 551
+    p50_us: 215
+    p90_us: 2207
+    p95_us: 2207
+    p99_us: 4343
+    min_us: 24
+    max_us: 12231
+  ZADD:
+    group: ZSet
+    qps: 25793
+    avg_us: 1860
+    p50_us: 1727
+    p90_us: 3791
+    p95_us: 3791
+    p99_us: 4751
+    min_us: 64
+    max_us: 8591
+  ZSCORE:
+    group: ZSet
+    qps: 72595
+    avg_us: 652
+    p50_us: 215
+    p90_us: 2567
+    p95_us: 2567
+    p99_us: 6183
+    min_us: 24
+    max_us: 12295
+  ZRANGE:
+    group: ZSet
+    qps: 61406
+    avg_us: 759
+    p50_us: 287
+    p90_us: 2367
+    p95_us: 2367
+    p99_us: 9239
+    min_us: 24
+    max_us: 15311
+  XADD:
+    group: Stream
+    qps: 29586
+    avg_us: 1654
+    p50_us: 1519
+    p90_us: 3039
+    p95_us: 3039
+    p99_us: 3983
+    min_us: 56
+    max_us: 7287
+  XLEN:
+    group: Stream
+    qps: 79904
+    avg_us: 545
+    p50_us: 271
+    p90_us: 1903
+    p95_us: 1903
+    p99_us: 3415
+    min_us: 24
+    max_us: 219391
+  GEOADD:
+    group: Geo
+    qps: 27563
+    avg_us: 1777
+    p50_us: 1615
+    p90_us: 4079
+    p95_us: 4079
+    p99_us: 5151
+    min_us: 32
+    max_us: 8431
+  GEODIST:
+    group: Geo
+    qps: 79936
+    avg_us: 580
+    p50_us: 183
+    p90_us: 2511
+    p95_us: 2511
+    p99_us: 5879
+    min_us: 24
+    max_us: 14663
+  JSON.SET:
+    group: JSON
+    qps: 26635
+    avg_us: 1827
+    p50_us: 1503
+    p90_us: 4615
+    p95_us: 4615
+    p99_us: 6015
+    min_us: 56
+    max_us: 9567
+  JSON.GET:
+    group: JSON
+    qps: 57110
+    avg_us: 804
+    p50_us: 623
+    p90_us: 2271
+    p95_us: 2271
+    p99_us: 3607
+    min_us: 24
+    max_us: 11255
+  BF.ADD:
+    group: Bloom
+    qps: 22821
+    avg_us: 2168
+    p50_us: 2103
+    p90_us: 3687
+    p95_us: 3687
+    p99_us: 5287
+    min_us: 72
+    max_us: 10687
+  BF.EXISTS:
+    group: Bloom
+    qps: 66578
+    avg_us: 684
+    p50_us: 287
+    p90_us: 2527
+    p95_us: 2527
+    p99_us: 5343
+    min_us: 24
+    max_us: 34047
+  SIADD:
+    group: SortedInt
+    qps: 44375
+    avg_us: 1091
+    p50_us: 927
+    p90_us: 2743
+    p95_us: 2743
+    p99_us: 3751
+    min_us: 32
+    max_us: 11775
+  SICARD:
+    group: SortedInt
+    qps: 79904
+    avg_us: 551
+    p50_us: 279
+    p90_us: 1959
+    p95_us: 1959
+    p99_us: 3671
+    min_us: 24
+    max_us: 14127

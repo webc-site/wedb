@@ -1,0 +1,2175 @@
+meta:
+  generated_at: "2026-08-29T06:05:55.504Z"
+  source_scan_path: cmd/src/parse/*.rs
+  total_wedb_commands: 384
+  compatible_count: 245
+  extension_count: 139
+  unsupported_redis_count: 216
+  total_redis_commands: 459
+modules:
+  - id: string
+    title: 字符串与位图
+    description: 提供高吞吐的字符串存储、数值原子增减、位图与任意位宽位段操作，并内置支持条件增减 (INCREX)、条件删除 (DELEX)、原子 CAS/CAD 与极速哈希 (DIGEST) 等扩展命令。
+    count: 35
+    commands:
+      - name: APPEND
+        syntax: APPEND key value
+        status: 支持
+      - name: BITCOUNT
+        syntax: BITCOUNT key [start end [BYTE | BIT]]
+        status: 支持
+      - name: BITFIELD
+        syntax: BITFIELD key [[encoding offset] | [[WRAP | SAT | FAIL] [[encoding offset value] | [encoding offset increment]]]] [operation ...]
+        status: 支持
+      - name: BITFIELD_RO
+        syntax: BITFIELD_RO key [encoding offset] [get-block ...]
+        status: 支持
+      - name: BITOP
+        syntax: BITOP [AND | OR | XOR | NOT | DIFF | DIFF1 | ANDOR | ONE] destkey key [key ...]
+        status: 支持
+      - name: BITPOS
+        syntax: BITPOS key bit [start [end [BYTE | BIT]]]
+        status: 支持
+      - name: CAD
+        syntax: CAD key oldval
+        status: 扩展命令
+      - name: CAS
+        syntax: CAS key oldval newval [EX sec | PX ms]
+        status: 扩展命令
+      - name: DECR
+        syntax: DECR key
+        status: 支持
+      - name: DECRBY
+        syntax: DECRBY key decrement
+        status: 支持
+      - name: DELEX
+        syntax: DELEX key [IFEQ ifeq-value | IFNE ifne-value | IFDEQ ifdeq-digest | IFDNE ifdne-digest]
+        status: 扩展命令
+      - name: DIGEST
+        syntax: DIGEST key
+        status: 扩展命令
+      - name: GET
+        syntax: GET key
+        status: 支持
+      - name: GETBIT
+        syntax: GETBIT key offset
+        status: 支持
+      - name: GETDEL
+        syntax: GETDEL key
+        status: 支持
+      - name: GETEX
+        syntax: GETEX key [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | PERSIST]
+        status: 支持
+      - name: GETRANGE
+        syntax: GETRANGE key start end
+        status: 支持
+      - name: GETSET
+        syntax: GETSET key value
+        status: 支持
+      - name: INCR
+        syntax: INCR key
+        status: 支持
+      - name: INCRBY
+        syntax: INCRBY key increment
+        status: 支持
+      - name: INCRBYFLOAT
+        syntax: INCRBYFLOAT key increment
+        status: 支持
+      - name: INCREX
+        syntax: INCREX key [BYFLOAT float | BYINT integer] [SATURATE] [LBOUND lowerbound] [UBOUND upperbound] [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | PERSIST] [ENX]
+        status: 扩展命令
+      - name: LCS
+        syntax: LCS key1 key2 [LEN] [IDX] [MINMATCHLEN min-match-len] [WITHMATCHLEN]
+        status: 支持
+      - name: MGET
+        syntax: MGET key [key ...]
+        status: 支持
+      - name: MSET
+        syntax: MSET [key value] [data ...]
+        status: 支持
+      - name: MSETEX
+        syntax: MSETEX numkeys [key value] [data ...] [NX | XX] [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | KEEPTTL]
+        status: 支持
+      - name: MSETNX
+        syntax: MSETNX [key value] [data ...]
+        status: 支持
+      - name: PSETEX
+        syntax: PSETEX key milliseconds value
+        status: 支持
+      - name: SET
+        syntax: SET key value [NX | XX | IFEQ ifeq-value | IFNE ifne-value | IFDEQ ifdeq-digest | IFDNE ifdne-digest] [GET] [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | KEEPTTL]
+        status: 支持
+      - name: SETBIT
+        syntax: SETBIT key offset value
+        status: 支持
+      - name: SETEX
+        syntax: SETEX key seconds value
+        status: 支持
+      - name: SETNX
+        syntax: SETNX key value
+        status: 支持
+      - name: SETRANGE
+        syntax: SETRANGE key offset value
+        status: 支持
+      - name: STRLEN
+        syntax: STRLEN key
+        status: 支持
+      - name: SUBSTR
+        syntax: SUBSTR key start end
+        status: 支持
+  - id: hash
+    title: 哈希字典
+    description: 基于 LSM-Tree 二级索引编码的紧凑哈希表结构，支持字段级独立 TTL 过期机制 (HEXPIRE/HTTL)、原子提取删除 (HGETDEL)、原子提取延期 (HGETEX) 以及字典序前缀范围扫描 (HRANGEBYLEX)。
+    count: 30
+    commands:
+      - name: HDEL
+        syntax: HDEL key field [field ...]
+        status: 支持
+      - name: HEXISTS
+        syntax: HEXISTS key field
+        status: 支持
+      - name: HEXPIRE
+        syntax: HEXPIRE key seconds [NX | XX | GT | LT] [numfields field [field ...]]
+        status: 支持
+      - name: HEXPIREAT
+        syntax: HEXPIREAT key unix-time-seconds [NX | XX | GT | LT] [numfields field [field ...]]
+        status: 支持
+      - name: HEXPIRETIME
+        syntax: HEXPIRETIME key [numfields field [field ...]]
+        status: 支持
+      - name: HGET
+        syntax: HGET key field
+        status: 支持
+      - name: HGETALL
+        syntax: HGETALL key
+        status: 支持
+      - name: HGETDEL
+        syntax: HGETDEL key [numfields field [field ...]]
+        status: 扩展命令
+      - name: HGETEX
+        syntax: HGETEX key [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | PERSIST] [numfields field [field ...]]
+        status: 扩展命令
+      - name: HINCRBY
+        syntax: HINCRBY key field increment
+        status: 支持
+      - name: HINCRBYFLOAT
+        syntax: HINCRBYFLOAT key field increment
+        status: 支持
+      - name: HKEYS
+        syntax: HKEYS key
+        status: 支持
+      - name: HLEN
+        syntax: HLEN key
+        status: 支持
+      - name: HMGET
+        syntax: HMGET key field [field ...]
+        status: 支持
+      - name: HMSET
+        syntax: HMSET key [field value] [data ...]
+        status: 支持
+      - name: HPERSIST
+        syntax: HPERSIST key [numfields field [field ...]]
+        status: 支持
+      - name: HPEXPIRE
+        syntax: HPEXPIRE key milliseconds [NX | XX | GT | LT] [numfields field [field ...]]
+        status: 支持
+      - name: HPEXPIREAT
+        syntax: HPEXPIREAT key unix-time-milliseconds [NX | XX | GT | LT] [numfields field [field ...]]
+        status: 支持
+      - name: HPEXPIRETIME
+        syntax: HPEXPIRETIME key [numfields field [field ...]]
+        status: 支持
+      - name: HPTTL
+        syntax: HPTTL key [numfields field [field ...]]
+        status: 支持
+      - name: HRANDFIELD
+        syntax: HRANDFIELD key [count [WITHVALUES]]
+        status: 支持
+      - name: HRANGEBYLEX
+        syntax: HRANGEBYLEX key min max [LIMIT offset count]
+        status: 扩展命令
+      - name: HSCAN
+        syntax: HSCAN key cursor [MATCH pattern] [COUNT] [NOVALUES]
+        status: 支持
+      - name: HSET
+        syntax: HSET key [field value] [data ...]
+        status: 支持
+      - name: HSETEX
+        syntax: HSETEX key [FNX | FXX] [EX seconds | PX milliseconds | EXAT unix-time-seconds | PXAT unix-time-milliseconds | KEEPTTL] [numfields [field value] [data ...]]
+        status: 支持
+      - name: HSETEXPIRE
+        syntax: HSETEXPIRE [args ...]
+        status: 支持
+      - name: HSETNX
+        syntax: HSETNX key field value
+        status: 支持
+      - name: HSTRLEN
+        syntax: HSTRLEN key field
+        status: 支持
+      - name: HTTL
+        syntax: HTTL key [numfields field [field ...]]
+        status: 支持
+      - name: HVALS
+        syntax: HVALS key
+        status: 支持
+  - id: list
+    title: 双向列表
+    description: 支持双端队列的高速推入弹出 (LPUSH/RPOP)、阻塞弹出 (BLPOP/BRPOP)、多列表弹出 (LMPOP/BLMPOP)、范围截取 (LRANGE/LTRIM) 与跨列表原子移动 (LMOVE/BLMOVE)。
+    count: 24
+    commands:
+      - name: BLMOVE
+        syntax: BLMOVE source destination [LEFT | RIGHT] [LEFT | RIGHT] timeout
+        status: 支持
+      - name: BLMOVEM
+        syntax: BLMOVEM source destination [LEFT | RIGHT] [LEFT | RIGHT] timeout [[COUNT | EXACTLY] [OBO | BULK]]
+        status: 支持
+      - name: BLMPOP
+        syntax: BLMPOP timeout numkeys key [key ...] [LEFT | RIGHT] [COUNT]
+        status: 支持
+      - name: BLPOP
+        syntax: BLPOP key [key ...] timeout
+        status: 支持
+      - name: BRPOP
+        syntax: BRPOP key [key ...] timeout
+        status: 支持
+      - name: BRPOPLPUSH
+        syntax: BRPOPLPUSH source destination timeout
+        status: 支持
+      - name: LINDEX
+        syntax: LINDEX key index
+        status: 支持
+      - name: LINSERT
+        syntax: LINSERT key [BEFORE | AFTER] pivot element
+        status: 支持
+      - name: LLEN
+        syntax: LLEN key
+        status: 支持
+      - name: LMOVE
+        syntax: LMOVE source destination [LEFT | RIGHT] [LEFT | RIGHT]
+        status: 支持
+      - name: LMOVEM
+        syntax: LMOVEM source destination [LEFT | RIGHT] [LEFT | RIGHT] [[COUNT | EXACTLY] [OBO | BULK]]
+        status: 支持
+      - name: LMPOP
+        syntax: LMPOP numkeys key [key ...] [LEFT | RIGHT] [COUNT]
+        status: 支持
+      - name: LPOP
+        syntax: LPOP key [count]
+        status: 支持
+      - name: LPOS
+        syntax: LPOS key element [RANK] [COUNT num-matches] [MAXLEN len]
+        status: 支持
+      - name: LPUSH
+        syntax: LPUSH key element [element ...]
+        status: 支持
+      - name: LPUSHX
+        syntax: LPUSHX key element [element ...]
+        status: 支持
+      - name: LRANGE
+        syntax: LRANGE key start stop
+        status: 支持
+      - name: LREM
+        syntax: LREM key count element
+        status: 支持
+      - name: LSET
+        syntax: LSET key index element
+        status: 支持
+      - name: LTRIM
+        syntax: LTRIM key start stop
+        status: 支持
+      - name: RPOP
+        syntax: RPOP key [count]
+        status: 支持
+      - name: RPOPLPUSH
+        syntax: RPOPLPUSH source destination
+        status: 支持
+      - name: RPUSH
+        syntax: RPUSH key element [element ...]
+        status: 支持
+      - name: RPUSHX
+        syntax: RPUSHX key element [element ...]
+        status: 支持
+  - id: set
+    title: 无序集合
+    description: 支持高性能集合成员判定 (SISMEMBER/SMISMEMBER)、随机抽样 (SRANDMEMBER/SPOP)、增量游标迭代 (SSCAN)，以及多集合交集/并集/差集的基数计算与存储 (SINTER/SUNION/SDIFF)。
+    count: 19
+    commands:
+      - name: SADD
+        syntax: SADD key member [member ...]
+        status: 支持
+      - name: SCARD
+        syntax: SCARD key
+        status: 支持
+      - name: SDIFF
+        syntax: SDIFF key [key ...]
+        status: 支持
+      - name: SDIFFCARD
+        syntax: SDIFFCARD numkeys key [key ...] [LIMIT]
+        status: 支持
+      - name: SDIFFSTORE
+        syntax: SDIFFSTORE destination key [key ...]
+        status: 支持
+      - name: SINTER
+        syntax: SINTER key [key ...]
+        status: 扩展命令
+      - name: SINTERCARD
+        syntax: SINTERCARD numkeys key [key ...] [LIMIT]
+        status: 扩展命令
+      - name: SINTERSTORE
+        syntax: SINTERSTORE destination key [key ...]
+        status: 扩展命令
+      - name: SISMEMBER
+        syntax: SISMEMBER key member
+        status: 扩展命令
+      - name: SMEMBERS
+        syntax: SMEMBERS key
+        status: 支持
+      - name: SMISMEMBER
+        syntax: SMISMEMBER key member [member ...]
+        status: 支持
+      - name: SMOVE
+        syntax: SMOVE source destination member
+        status: 支持
+      - name: SPOP
+        syntax: SPOP key [count]
+        status: 支持
+      - name: SRANDMEMBER
+        syntax: SRANDMEMBER key [count]
+        status: 支持
+      - name: SREM
+        syntax: SREM key member [member ...]
+        status: 支持
+      - name: SSCAN
+        syntax: SSCAN key cursor [MATCH pattern] [COUNT]
+        status: 支持
+      - name: SUNION
+        syntax: SUNION key [key ...]
+        status: 支持
+      - name: SUNIONCARD
+        syntax: SUNIONCARD numkeys key [key ...] [APPROX] [LIMIT]
+        status: 支持
+      - name: SUNIONSTORE
+        syntax: SUNIONSTORE destination key [key ...]
+        status: 支持
+  - id: zset
+    title: 有序集合
+    description: 基于跳表与分数-成员双向复合键编码的高性能有序集合，支持按分数 (BYSCORE)、字典序 (BYLEX) 与索引范围检索，支持多集合加权聚合 (ZUNION/ZINTER/ZDIFF) 与阻塞极值弹出 (BZPOPMIN/BZMPOP)。
+    count: 35
+    commands:
+      - name: BZMPOP
+        syntax: BZMPOP timeout numkeys key [key ...] [MIN | MAX] [COUNT]
+        status: 支持
+      - name: BZPOPMAX
+        syntax: BZPOPMAX key [key ...] timeout
+        status: 支持
+      - name: BZPOPMIN
+        syntax: BZPOPMIN key [key ...] timeout
+        status: 支持
+      - name: ZADD
+        syntax: ZADD key [NX | XX] [GT | LT] [CH change] [INCR increment] [score member] [data ...]
+        status: 支持
+      - name: ZCARD
+        syntax: ZCARD key
+        status: 支持
+      - name: ZCOUNT
+        syntax: ZCOUNT key min max
+        status: 支持
+      - name: ZDIFF
+        syntax: ZDIFF numkeys key [key ...] [WITHSCORES]
+        status: 支持
+      - name: ZDIFFSTORE
+        syntax: ZDIFFSTORE destination numkeys key [key ...]
+        status: 支持
+      - name: ZINCRBY
+        syntax: ZINCRBY key increment member
+        status: 支持
+      - name: ZINTER
+        syntax: ZINTER numkeys key [key ...] [WEIGHTS weight] [weight ...] [SUM | MIN | MAX | COUNT] [WITHSCORES]
+        status: 支持
+      - name: ZINTERCARD
+        syntax: ZINTERCARD numkeys key [key ...] [LIMIT]
+        status: 支持
+      - name: ZINTERSTORE
+        syntax: ZINTERSTORE destination numkeys key [key ...] [WEIGHTS weight] [weight ...] [SUM | MIN | MAX | COUNT]
+        status: 支持
+      - name: ZLEXCOUNT
+        syntax: ZLEXCOUNT key min max
+        status: 支持
+      - name: ZMPOP
+        syntax: ZMPOP numkeys key [key ...] [MIN | MAX] [COUNT]
+        status: 支持
+      - name: ZMSCORE
+        syntax: ZMSCORE key member [member ...]
+        status: 支持
+      - name: ZPOPMAX
+        syntax: ZPOPMAX key [count]
+        status: 支持
+      - name: ZPOPMIN
+        syntax: ZPOPMIN key [count]
+        status: 支持
+      - name: ZRANDMEMBER
+        syntax: ZRANDMEMBER key [count [WITHSCORES]]
+        status: 支持
+      - name: ZRANGE
+        syntax: ZRANGE key start stop [BYSCORE | BYLEX] [REV] [offset count] [WITHSCORES]
+        status: 支持
+      - name: ZRANGEBYLEX
+        syntax: ZRANGEBYLEX key min max [offset count]
+        status: 支持
+      - name: ZRANGEBYSCORE
+        syntax: ZRANGEBYSCORE key min max [WITHSCORES] [offset count]
+        status: 支持
+      - name: ZRANGESTORE
+        syntax: ZRANGESTORE dst src min max [BYSCORE | BYLEX] [REV] [offset count]
+        status: 支持
+      - name: ZRANK
+        syntax: ZRANK key member [WITHSCORE]
+        status: 支持
+      - name: ZREM
+        syntax: ZREM key member [member ...]
+        status: 支持
+      - name: ZREMRANGEBYLEX
+        syntax: ZREMRANGEBYLEX key min max
+        status: 支持
+      - name: ZREMRANGEBYRANK
+        syntax: ZREMRANGEBYRANK key start stop
+        status: 支持
+      - name: ZREMRANGEBYSCORE
+        syntax: ZREMRANGEBYSCORE key min max
+        status: 支持
+      - name: ZREVRANGE
+        syntax: ZREVRANGE key start stop [WITHSCORES]
+        status: 支持
+      - name: ZREVRANGEBYLEX
+        syntax: ZREVRANGEBYLEX key max min [offset count]
+        status: 支持
+      - name: ZREVRANGEBYSCORE
+        syntax: ZREVRANGEBYSCORE key max min [WITHSCORES] [offset count]
+        status: 支持
+      - name: ZREVRANK
+        syntax: ZREVRANK key member [WITHSCORE]
+        status: 支持
+      - name: ZSCAN
+        syntax: ZSCAN key cursor [MATCH pattern] [COUNT]
+        status: 支持
+      - name: ZSCORE
+        syntax: ZSCORE key member
+        status: 支持
+      - name: ZUNION
+        syntax: ZUNION numkeys key [key ...] [WEIGHTS weight] [weight ...] [SUM | MIN | MAX | COUNT] [WITHSCORES]
+        status: 支持
+      - name: ZUNIONSTORE
+        syntax: ZUNIONSTORE destination numkeys key [key ...] [WEIGHTS weight] [weight ...] [SUM | MIN | MAX | COUNT]
+        status: 支持
+  - id: geo
+    title: 空间地理位置
+    description: 基于 52 位 Geohash 编码与 Haversine 大圆距离公式，支持经纬度坐标写入、位置距离与哈希值计算、以及现代矩形与半径范围搜索 (GEOSEARCH/GEOSEARCHSTORE)。
+    count: 10
+    commands:
+      - name: GEOADD
+        syntax: GEOADD key [NX | XX] [CH change] [longitude latitude member] [data ...]
+        status: 支持
+      - name: GEODIST
+        syntax: GEODIST key member1 member2 [m | km | ft | mi]
+        status: 支持
+      - name: GEOHASH
+        syntax: GEOHASH key [member] [member ...]
+        status: 支持
+      - name: GEOPOS
+        syntax: GEOPOS key [member] [member ...]
+        status: 支持
+      - name: GEORADIUS
+        syntax: GEORADIUS key longitude latitude radius [m | km | ft | mi] [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT [ANY]] [ASC | DESC] [STORE storekey | STOREDIST storedistkey]
+        status: 支持
+      - name: GEORADIUS_RO
+        syntax: GEORADIUS_RO key longitude latitude radius [m | km | ft | mi] [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT [ANY]] [ASC | DESC]
+        status: 支持
+      - name: GEORADIUSBYMEMBER
+        syntax: GEORADIUSBYMEMBER key member radius [m | km | ft | mi] [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT [ANY]] [ASC | DESC] [STORE storekey | STOREDIST storedistkey]
+        status: 支持
+      - name: GEORADIUSBYMEMBER_RO
+        syntax: GEORADIUSBYMEMBER_RO key member radius [m | km | ft | mi] [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT [ANY]] [ASC | DESC]
+        status: 支持
+      - name: GEOSEARCH
+        syntax: GEOSEARCH key [FROMMEMBER member | [longitude latitude]] [[BYRADIUS radius [m | km | ft | mi]] | [BYBOX width height [m | km | ft | mi]]] [ASC | DESC] [COUNT [ANY]] [WITHCOORD] [WITHDIST] [WITHHASH]
+        status: 支持
+      - name: GEOSEARCHSTORE
+        syntax: GEOSEARCHSTORE destination source [FROMMEMBER member | [longitude latitude]] [[BYRADIUS radius [m | km | ft | mi]] | [BYBOX width height [m | km | ft | mi]]] [ASC | DESC] [COUNT [ANY]] [STOREDIST]
+        status: 支持
+  - id: hll
+    title: 基数统计
+    description: 基于 14 位寄存器分桶与偏差修正算法的概率性基数统计引擎，支持稀疏与密集编码自适应转换，支持千万级独立元素去重统计与多键合并 (PFMERGE)。
+    count: 4
+    commands:
+      - name: PFADD
+        syntax: PFADD key [element] [element ...]
+        status: 支持
+      - name: PFCOUNT
+        syntax: PFCOUNT key [key ...]
+        status: 支持
+      - name: PFMERGE
+        syntax: PFMERGE destkey [sourcekey] [sourcekey ...]
+        status: 支持
+      - name: PFSELFTEST
+        syntax: PFSELFTEST
+        status: 支持
+  - id: stream
+    title: 消息流与消费者组
+    description: 支持持久化消息追加、毫秒级唯一 ID 自动递增、多流阻塞订阅 (XREAD)、消费者组与待处理条目表 PEL 管理 (XREADGROUP/XPENDING/XCLAIM/XAUTOCLAIM)，以及原子确认删除 (XACKDEL) 扩展命令。
+    count: 16
+    commands:
+      - name: XACK
+        syntax: XACK key group ID [ID ...]
+        status: 支持
+      - name: XACKDEL
+        syntax: XACKDEL key group [KEEPREF | DELREF | ACKED] [numids id [id ...]]
+        status: 扩展命令
+      - name: XADD
+        syntax: XADD key [NOMKSTREAM] [KEEPREF | DELREF | ACKED] [IDMPAUTO pid | [pid iid]] [[MAXLEN | MINID] [= equal | ~ approximately] threshold [LIMIT count]] [* auto-id | id] [field value] [data ...]
+        status: 支持
+      - name: XAUTOCLAIM
+        syntax: XAUTOCLAIM key group consumer min-idle-time start [COUNT] [JUSTID]
+        status: 支持
+      - name: XCLAIM
+        syntax: XCLAIM key group consumer min-idle-time ID [ID ...] [IDLE ms] [TIME unix-time-milliseconds] [RETRYCOUNT count] [FORCE] [JUSTID] [LASTID]
+        status: 支持
+      - name: XDEL
+        syntax: XDEL key ID [ID ...]
+        status: 支持
+      - name: XDELEX
+        syntax: XDELEX key [KEEPREF | DELREF | ACKED] [numids id [id ...]]
+        status: 扩展命令
+      - name: XLEN
+        syntax: XLEN key
+        status: 支持
+      - name: XNACK
+        syntax: XNACK key group [SILENT | FAIL | FATAL] [numids id [id ...]] [RETRYCOUNT count] [FORCE]
+        status: 扩展命令
+      - name: XPENDING
+        syntax: XPENDING key group [[IDLE min-idle-time] start end count [consumer]]
+        status: 支持
+      - name: XRANGE
+        syntax: XRANGE key start end [COUNT]
+        status: 支持
+      - name: XREAD
+        syntax: XREAD [COUNT] [MAXCOUNT] [MAXSIZE] [BLOCK milliseconds] [key [key ...] ID [ID ...]]
+        status: 支持
+      - name: XREADGROUP
+        syntax: XREADGROUP [group consumer] [COUNT] [MAXCOUNT] [MAXSIZE] [BLOCK milliseconds] [CLAIM min-idle-time] [NOACK] [key [key ...] ID [ID ...]]
+        status: 支持
+      - name: XREVRANGE
+        syntax: XREVRANGE key end start [COUNT]
+        status: 支持
+      - name: XSETID
+        syntax: XSETID key last-id [ENTRIESADDED entries-added] [MAXDELETEDID max-deleted-id]
+        status: 支持
+      - name: XTRIM
+        syntax: XTRIM key [[MAXLEN | MINID] [= equal | ~ approximately] threshold [LIMIT count] [KEEPREF | DELREF | ACKED]]
+        status: 支持
+  - id: generic
+    title: 通用键与生命周期
+    description: 管理键级别的生命周期，包含毫秒级 TTL/PTTL 过期、持久化、重命名、类型检测、通用排序 (SORT)、以及基于底层 LSM 前缀索引的高速扫描扩展命令 (SCANPREFIX)。
+    count: 29
+    commands:
+      - name: COPY
+        syntax: COPY source destination [DB destination-db] [REPLACE]
+        status: 支持
+      - name: DBSIZE
+        syntax: DBSIZE
+        status: 支持
+      - name: DEL
+        syntax: DEL key [key ...]
+        status: 支持
+      - name: EXISTS
+        syntax: EXISTS key [key ...]
+        status: 支持
+      - name: EXPIRE
+        syntax: EXPIRE key seconds [NX | XX | GT | LT]
+        status: 支持
+      - name: EXPIREAT
+        syntax: EXPIREAT key unix-time-seconds [NX | XX | GT | LT]
+        status: 支持
+      - name: EXPIRETIME
+        syntax: EXPIRETIME key
+        status: 支持
+      - name: FLUSHALL
+        syntax: FLUSHALL [ASYNC | SYNC]
+        status: 支持
+      - name: FLUSHDB
+        syntax: FLUSHDB [ASYNC | SYNC]
+        status: 支持
+      - name: KEYS
+        syntax: KEYS pattern
+        status: 支持
+      - name: KMETADATA
+        syntax: KMETADATA key
+        status: 扩展命令
+      - name: OBJECT
+        syntax: OBJECT
+        status: 支持
+      - name: PERSIST
+        syntax: PERSIST key
+        status: 支持
+      - name: PEXPIRE
+        syntax: PEXPIRE key milliseconds [NX | XX | GT | LT]
+        status: 支持
+      - name: PEXPIREAT
+        syntax: PEXPIREAT key unix-time-milliseconds [NX | XX | GT | LT]
+        status: 支持
+      - name: PEXPIRETIME
+        syntax: PEXPIRETIME key
+        status: 支持
+      - name: PREFIX
+        syntax: PREFIX [args ...]
+        status: 支持
+      - name: PTTL
+        syntax: PTTL key
+        status: 支持
+      - name: RANDOMKEY
+        syntax: RANDOMKEY
+        status: 支持
+      - name: RENAME
+        syntax: RENAME key newkey
+        status: 支持
+      - name: RENAMENX
+        syntax: RENAMENX key newkey
+        status: 支持
+      - name: SCAN
+        syntax: SCAN cursor [MATCH pattern] [COUNT] [TYPE]
+        status: 支持
+      - name: SCANPREFIX
+        syntax: SCANPREFIX prefix cursor [COUNT count]
+        status: 扩展命令
+      - name: SORT
+        syntax: SORT key [BY by-pattern] [offset count] [GET get-pattern] [get-pattern ...] [ASC | DESC] [ALPHA sorting] [STORE destination]
+        status: 支持
+      - name: SORT_RO
+        syntax: SORT_RO key [BY by-pattern] [offset count] [GET get-pattern] [get-pattern ...] [ASC | DESC] [ALPHA sorting]
+        status: 支持
+      - name: TOUCH
+        syntax: TOUCH key [key ...]
+        status: 支持
+      - name: TTL
+        syntax: TTL key
+        status: 支持
+      - name: TYPE
+        syntax: TYPE key
+        status: 支持
+      - name: UNLINK
+        syntax: UNLINK key [key ...]
+        status: 支持
+  - id: conn_server
+    title: 连接与服务器管理
+    description: 包含客户端连接保活 (PING)、鉴权 (AUTH)、多库切换 (SELECT)、运行时配置动态调整 (CONFIG)、集群角色查询 (ROLE)、LSM 物理压缩 (COMPACT) 与实例统计信息 (INFO)。
+    count: 42
+    commands:
+      - name: APPLYBATCH
+        syntax: APPLYBATCH [args ...]
+        status: 支持
+      - name: AUTH
+        syntax: AUTH [username] password
+        status: 支持
+      - name: BGSAVE
+        syntax: BGSAVE [SCHEDULE]
+        status: 支持
+      - name: COMMAND
+        syntax: COMMAND
+        status: 支持
+      - name: COMPACT
+        syntax: COMPACT
+        status: 扩展命令
+      - name: DEBUG
+        syntax: DEBUG
+        status: 支持
+      - name: DISK
+        syntax: DISK [args ...]
+        status: 支持
+      - name: DUMP
+        syntax: DUMP key
+        status: 支持
+      - name: ECHO
+        syntax: ECHO message
+        status: 支持
+      - name: EVAL
+        syntax: EVAL script numkeys [key] [key ...] [arg] [arg ...]
+        status: 支持
+      - name: EVAL_RO
+        syntax: EVAL_RO script numkeys [key] [key ...] [arg] [arg ...]
+        status: 支持
+      - name: EVALSHA
+        syntax: EVALSHA sha1 numkeys [key] [key ...] [arg] [arg ...]
+        status: 支持
+      - name: EVALSHA_RO
+        syntax: EVALSHA_RO sha1 numkeys [key] [key ...] [arg] [arg ...]
+        status: 支持
+      - name: FLUSHBACKUP
+        syntax: FLUSHBACKUP [args ...]
+        status: 支持
+      - name: FLUSHBLOCKCACHE
+        syntax: FLUSHBLOCKCACHE [args ...]
+        status: 支持
+      - name: FLUSHMEMTABLE
+        syntax: FLUSHMEMTABLE [args ...]
+        status: 支持
+      - name: HELLO
+        syntax: HELLO [protover [username password] [SETNAME clientname]]
+        status: 支持
+      - name: INFO
+        syntax: INFO [section] [section ...]
+        status: 支持
+      - name: KPROFILE
+        syntax: KPROFILE [args ...]
+        status: 支持
+      - name: LASTSAVE
+        syntax: LASTSAVE
+        status: 支持
+      - name: LATENCY
+        syntax: LATENCY
+        status: 支持
+      - name: MEMORY
+        syntax: MEMORY
+        status: 支持
+      - name: MONITOR
+        syntax: MONITOR
+        status: 支持
+      - name: MOVE
+        syntax: MOVE key db
+        status: 支持
+      - name: MOVEX
+        syntax: MOVEX key src_db dst_db
+        status: 扩展命令
+      - name: PERFLOG
+        syntax: PERFLOG [args ...]
+        status: 支持
+      - name: PING
+        syntax: PING [message]
+        status: 支持
+      - name: POLLUPDATES
+        syntax: POLLUPDATES [args ...]
+        status: 支持
+      - name: QUIT
+        syntax: QUIT
+        status: 支持
+      - name: RDB
+        syntax: RDB [args ...]
+        status: 支持
+      - name: REPLICAOF
+        syntax: REPLICAOF [[host port] | [NO ONE]]
+        status: 支持
+      - name: RESET
+        syntax: RESET
+        status: 支持
+      - name: RESTORE
+        syntax: RESTORE key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]
+        status: 支持
+      - name: ROLE
+        syntax: ROLE
+        status: 支持
+      - name: SELECT
+        syntax: SELECT index
+        status: 支持
+      - name: SHUTDOWN
+        syntax: SHUTDOWN [NOSAVE | SAVE] [NOW] [FORCE] [ABORT]
+        status: 支持
+      - name: SLAVEOF
+        syntax: SLAVEOF [[host port] | [NO ONE]]
+        status: 支持
+      - name: SLOWLOG
+        syntax: SLOWLOG
+        status: 支持
+      - name: SST
+        syntax: SST [args ...]
+        status: 支持
+      - name: STATS
+        syntax: STATS [args ...]
+        status: 支持
+      - name: SWAPDB
+        syntax: SWAPDB index1 index2
+        status: 支持
+      - name: TIME
+        syntax: TIME
+        status: 支持
+  - id: pubsub
+    title: 发布订阅
+    description: 支持经典频道与模式匹配广播 (PUBLISH/SUBSCRIBE/PSUBSCRIBE)、分片发布订阅 (SPUBLISH/SSUBSCRIBE)，以及单网络往返多频道批量发布扩展命令 (MPUBLISH)。
+    count: 9
+    commands:
+      - name: MPUBLISH
+        syntax: MPUBLISH channel message [channel message ...]
+        status: 扩展命令
+      - name: PSUBSCRIBE
+        syntax: PSUBSCRIBE pattern [pattern ...]
+        status: 支持
+      - name: PUBLISH
+        syntax: PUBLISH channel message
+        status: 支持
+      - name: PUNSUBSCRIBE
+        syntax: PUNSUBSCRIBE [pattern] [pattern ...]
+        status: 支持
+      - name: SPUBLISH
+        syntax: SPUBLISH shardchannel message
+        status: 支持
+      - name: SSUBSCRIBE
+        syntax: SSUBSCRIBE shardchannel [shardchannel ...]
+        status: 支持
+      - name: SUBSCRIBE
+        syntax: SUBSCRIBE channel [channel ...]
+        status: 支持
+      - name: SUNSUBSCRIBE
+        syntax: SUNSUBSCRIBE [shardchannel] [shardchannel ...]
+        status: 支持
+      - name: UNSUBSCRIBE
+        syntax: UNSUBSCRIBE [channel] [channel ...]
+        status: 支持
+  - id: txn
+    title: 事务与批量引擎
+    description: 提供乐观锁事务块 (MULTI/EXEC/WATCH) 以及单往返原子多操作批量写入执行引擎 (BATCH) 与跨分片分布式事务扩展命令 (TXN)。
+    count: 5
+    commands:
+      - name: DISCARD
+        syntax: DISCARD
+        status: 支持
+      - name: EXEC
+        syntax: EXEC
+        status: 支持
+      - name: MULTI
+        syntax: MULTI
+        status: 支持
+      - name: UNWATCH
+        syntax: UNWATCH
+        status: 支持
+      - name: WATCH
+        syntax: WATCH key [key ...]
+        status: 支持
+  - id: cluster_raft
+    title: 分布式集群与共识
+    description: 完全兼容 Redis Cluster 拓扑发现协议 (CLUSTER NODES/SLOTS/SHARDS)，底层深度集成 Raft 强一致性共识状态机扩展命令 (RAFT LEADER/CLUSTER_INFO/MEMBERSHIP)。
+    count: 33
+    commands:
+      - name: ASKING
+        syntax: ASKING
+        status: 支持
+      - name: BATCH
+        syntax: BATCH <op> <args...> [OP ...]
+        status: 扩展命令
+      - name: CLUSTERX
+        syntax: CLUSTERX [args ...]
+        status: 支持
+      - name: PSYNC
+        syntax: PSYNC replicationid offset
+        status: 支持
+      - name: RAFT ADD_LEARNER
+        syntax: RAFT ADD_LEARNER node_id addr
+        status: 扩展命令
+      - name: RAFT CHANGE_MEMBERSHIP
+        syntax: RAFT CHANGE_MEMBERSHIP [node_id ...]
+        status: 扩展命令
+      - name: RAFT CLUSTER_INFO
+        syntax: RAFT CLUSTER_INFO
+        status: 扩展命令
+      - name: RAFT HEALTH
+        syntax: RAFT HEALTH
+        status: 扩展命令
+      - name: RAFT JOIN
+        syntax: RAFT JOIN node_id addr
+        status: 扩展命令
+      - name: RAFT LEADER
+        syntax: RAFT LEADER
+        status: 扩展命令
+      - name: RAFT LEAVE
+        syntax: RAFT LEAVE node_id
+        status: 扩展命令
+      - name: RAFT MEMBERS
+        syntax: RAFT MEMBERS
+        status: 扩展命令
+      - name: RAFT METRICS
+        syntax: RAFT METRICS
+        status: 扩展命令
+      - name: RAFT PURGE
+        syntax: RAFT PURGE [upto]
+        status: 扩展命令
+      - name: RAFT SNAPSHOT
+        syntax: RAFT SNAPSHOT
+        status: 扩展命令
+      - name: RAFT SNAPSHOT_STATUS
+        syntax: RAFT SNAPSHOT_STATUS
+        status: 扩展命令
+      - name: RAFT STATUS
+        syntax: RAFT STATUS
+        status: 扩展命令
+      - name: RAFT.BATCH
+        syntax: RAFT.BATCH [args ...]
+        status: 扩展命令
+      - name: RAFT.HEALTH
+        syntax: RAFT.HEALTH [args ...]
+        status: 扩展命令
+      - name: RAFT.JOIN
+        syntax: RAFT.JOIN [args ...]
+        status: 扩展命令
+      - name: RAFT.LEAVE
+        syntax: RAFT.LEAVE [args ...]
+        status: 扩展命令
+      - name: RAFT.MEMBERS
+        syntax: RAFT.MEMBERS [args ...]
+        status: 扩展命令
+      - name: RAFT.METRICS
+        syntax: RAFT.METRICS [args ...]
+        status: 扩展命令
+      - name: RAFT.PURGE
+        syntax: RAFT.PURGE [args ...]
+        status: 扩展命令
+      - name: RAFT.SNAPSHOT
+        syntax: RAFT.SNAPSHOT [args ...]
+        status: 扩展命令
+      - name: RAFT.SNAPSHOT_STATUS
+        syntax: RAFT.SNAPSHOT_STATUS [args ...]
+        status: 扩展命令
+      - name: RAFT.STATUS
+        syntax: RAFT.STATUS [args ...]
+        status: 扩展命令
+      - name: RAFT.TXN
+        syntax: RAFT.TXN [args ...]
+        status: 扩展命令
+      - name: READONLY
+        syntax: READONLY
+        status: 支持
+      - name: READWRITE
+        syntax: READWRITE
+        status: 支持
+      - name: REPLCONF
+        syntax: REPLCONF
+        status: 支持
+      - name: TXN
+        syntax: TXN
+        status: 扩展命令
+      - name: WAIT
+        syntax: WAIT numreplicas timeout
+        status: 支持
+  - id: bloom
+    title: 布隆与布谷鸟过滤器
+    description: 提供可伸缩链式布隆过滤器 (Bloom Filter) 与支持动态删除的布谷鸟过滤器 (Cuckoo Filter) 扩展命令，以极小内存开销实现超大规模数据集的高速存在性过滤。
+    count: 18
+    commands:
+      - name: BF.ADD
+        syntax: BF.ADD [args ...]
+        status: 扩展命令
+      - name: BF.CARD
+        syntax: BF.CARD [args ...]
+        status: 扩展命令
+      - name: BF.EXISTS
+        syntax: BF.EXISTS [args ...]
+        status: 扩展命令
+      - name: BF.INFO
+        syntax: BF.INFO [args ...]
+        status: 扩展命令
+      - name: BF.INSERT
+        syntax: BF.INSERT [args ...]
+        status: 扩展命令
+      - name: BF.MADD
+        syntax: BF.MADD [args ...]
+        status: 扩展命令
+      - name: BF.MEXISTS
+        syntax: BF.MEXISTS [args ...]
+        status: 扩展命令
+      - name: BF.RESERVE
+        syntax: BF.RESERVE [args ...]
+        status: 扩展命令
+      - name: CF.ADD
+        syntax: CF.ADD [args ...]
+        status: 扩展命令
+      - name: CF.ADDNX
+        syntax: CF.ADDNX [args ...]
+        status: 扩展命令
+      - name: CF.COUNT
+        syntax: CF.COUNT [args ...]
+        status: 扩展命令
+      - name: CF.DEL
+        syntax: CF.DEL [args ...]
+        status: 扩展命令
+      - name: CF.EXISTS
+        syntax: CF.EXISTS [args ...]
+        status: 扩展命令
+      - name: CF.INFO
+        syntax: CF.INFO [args ...]
+        status: 扩展命令
+      - name: CF.INSERT
+        syntax: CF.INSERT [args ...]
+        status: 扩展命令
+      - name: CF.INSERTNX
+        syntax: CF.INSERTNX [args ...]
+        status: 扩展命令
+      - name: CF.MEXISTS
+        syntax: CF.MEXISTS [args ...]
+        status: 扩展命令
+      - name: CF.RESERVE
+        syntax: CF.RESERVE [args ...]
+        status: 扩展命令
+  - id: json
+    title: JSON 文档引擎
+    description: 提供符合 RFC 7396 / RFC 6901 标准的原生 JSON 文档存储扩展命令，支持复杂的 JSONPath 表达式查询、局部路径就地修改、数字乘加与类型转换。
+    count: 25
+    commands:
+      - name: JSON.ARRAPPEND
+        syntax: JSON.ARRAPPEND [args ...]
+        status: 扩展命令
+      - name: JSON.ARRINDEX
+        syntax: JSON.ARRINDEX [args ...]
+        status: 扩展命令
+      - name: JSON.ARRINSERT
+        syntax: JSON.ARRINSERT [args ...]
+        status: 扩展命令
+      - name: JSON.ARRLEN
+        syntax: JSON.ARRLEN [args ...]
+        status: 扩展命令
+      - name: JSON.ARRPOP
+        syntax: JSON.ARRPOP [args ...]
+        status: 扩展命令
+      - name: JSON.ARRTRIM
+        syntax: JSON.ARRTRIM key path start stop
+        status: 扩展命令
+      - name: JSON.CLEAR
+        syntax: JSON.CLEAR [args ...]
+        status: 扩展命令
+      - name: JSON.DEBUG
+        syntax: JSON.DEBUG [args ...]
+        status: 扩展命令
+      - name: JSON.DEL
+        syntax: JSON.DEL [args ...]
+        status: 扩展命令
+      - name: JSON.FORGET
+        syntax: JSON.FORGET [args ...]
+        status: 扩展命令
+      - name: JSON.GET
+        syntax: JSON.GET [args ...]
+        status: 扩展命令
+      - name: JSON.INFO
+        syntax: JSON.INFO key
+        status: 扩展命令
+      - name: JSON.MERGE
+        syntax: JSON.MERGE [args ...]
+        status: 扩展命令
+      - name: JSON.MGET
+        syntax: JSON.MGET [args ...]
+        status: 扩展命令
+      - name: JSON.MSET
+        syntax: JSON.MSET key path value [key path value ...]
+        status: 扩展命令
+      - name: JSON.NUMINCRBY
+        syntax: JSON.NUMINCRBY [args ...]
+        status: 扩展命令
+      - name: JSON.NUMMULTBY
+        syntax: JSON.NUMMULTBY [args ...]
+        status: 扩展命令
+      - name: JSON.OBJKEYS
+        syntax: JSON.OBJKEYS [args ...]
+        status: 扩展命令
+      - name: JSON.OBJLEN
+        syntax: JSON.OBJLEN [args ...]
+        status: 扩展命令
+      - name: JSON.RESP
+        syntax: JSON.RESP key [path]
+        status: 扩展命令
+      - name: JSON.SET
+        syntax: JSON.SET [args ...]
+        status: 扩展命令
+      - name: JSON.STRAPPEND
+        syntax: JSON.STRAPPEND [args ...]
+        status: 扩展命令
+      - name: JSON.STRLEN
+        syntax: JSON.STRLEN [args ...]
+        status: 扩展命令
+      - name: JSON.TOGGLE
+        syntax: JSON.TOGGLE [args ...]
+        status: 扩展命令
+      - name: JSON.TYPE
+        syntax: JSON.TYPE [args ...]
+        status: 扩展命令
+  - id: search
+    title: 全文与向量检索
+    description: 支持对 Hash 和 JSON 文档建立倒排索引、数值与标签过滤、同义词解析、聚合分析管道，以及基于 HNSW 图索引的高维向量近邻相似度检索扩展命令。
+    count: 12
+    commands:
+      - name: FT._LIST
+        syntax: FT._LIST
+        status: 扩展命令
+      - name: FT.ALIASADD
+        syntax: FT.ALIASADD [args ...]
+        status: 扩展命令
+      - name: FT.ALIASDEL
+        syntax: FT.ALIASDEL [args ...]
+        status: 扩展命令
+      - name: FT.CREATE
+        syntax: FT.CREATE [args ...]
+        status: 扩展命令
+      - name: FT.DROPINDEX
+        syntax: FT.DROPINDEX [args ...]
+        status: 扩展命令
+      - name: FT.EXPLAIN
+        syntax: FT.EXPLAIN [args ...]
+        status: 扩展命令
+      - name: FT.EXPLAINSQL
+        syntax: FT.EXPLAINSQL index query
+        status: 扩展命令
+      - name: FT.INFO
+        syntax: FT.INFO [args ...]
+        status: 扩展命令
+      - name: FT.LIST
+        syntax: FT.LIST [args ...]
+        status: 扩展命令
+      - name: FT.SEARCH
+        syntax: FT.SEARCH [args ...]
+        status: 扩展命令
+      - name: FT.SEARCHSQL
+        syntax: FT.SEARCHSQL index query
+        status: 扩展命令
+      - name: FT.TAGVALS
+        syntax: FT.TAGVALS index field_name
+        status: 扩展命令
+  - id: timeseries
+    title: 高性能时序引擎
+    description: 专为时序数据设计的高吞吐分块存储，内置 Gorilla 双重增量压缩算法、多时间序列标签过滤、滑动窗口聚合与自动降采样连续聚合规则扩展命令。
+    count: 16
+    commands:
+      - name: TS.ADD
+        syntax: TS.ADD [args ...]
+        status: 扩展命令
+      - name: TS.ALTER
+        syntax: TS.ALTER [args ...]
+        status: 扩展命令
+      - name: TS.CREATE
+        syntax: TS.CREATE [args ...]
+        status: 扩展命令
+      - name: TS.CREATERULE
+        syntax: TS.CREATERULE [args ...]
+        status: 扩展命令
+      - name: TS.DECRBY
+        syntax: TS.DECRBY [args ...]
+        status: 扩展命令
+      - name: TS.DEL
+        syntax: TS.DEL [args ...]
+        status: 扩展命令
+      - name: TS.GET
+        syntax: TS.GET [args ...]
+        status: 扩展命令
+      - name: TS.INCRBY
+        syntax: TS.INCRBY [args ...]
+        status: 扩展命令
+      - name: TS.INFO
+        syntax: TS.INFO [args ...]
+        status: 扩展命令
+      - name: TS.MADD
+        syntax: TS.MADD [args ...]
+        status: 扩展命令
+      - name: TS.MGET
+        syntax: TS.MGET [args ...]
+        status: 扩展命令
+      - name: TS.MRANGE
+        syntax: TS.MRANGE [args ...]
+        status: 扩展命令
+      - name: TS.MREVRANGE
+        syntax: TS.MREVRANGE [args ...]
+        status: 扩展命令
+      - name: TS.QUERYINDEX
+        syntax: TS.QUERYINDEX [args ...]
+        status: 扩展命令
+      - name: TS.RANGE
+        syntax: TS.RANGE [args ...]
+        status: 扩展命令
+      - name: TS.REVRANGE
+        syntax: TS.REVRANGE [args ...]
+        status: 扩展命令
+  - id: tdigest
+    title: 分位数统计草图
+    description: 基于质心聚类与缩放函数的流式高精度分位数估计扩展命令，支持极值准确保留、百分位数估计、累积分布概率 (CDF)、排位估计与草图合并。
+    count: 14
+    commands:
+      - name: TDIGEST.ADD
+        syntax: TDIGEST.ADD [args ...]
+        status: 扩展命令
+      - name: TDIGEST.BYRANK
+        syntax: TDIGEST.BYRANK [args ...]
+        status: 扩展命令
+      - name: TDIGEST.BYREVRANK
+        syntax: TDIGEST.BYREVRANK [args ...]
+        status: 扩展命令
+      - name: TDIGEST.CDF
+        syntax: TDIGEST.CDF [args ...]
+        status: 扩展命令
+      - name: TDIGEST.CREATE
+        syntax: TDIGEST.CREATE [args ...]
+        status: 扩展命令
+      - name: TDIGEST.INFO
+        syntax: TDIGEST.INFO [args ...]
+        status: 扩展命令
+      - name: TDIGEST.MAX
+        syntax: TDIGEST.MAX [args ...]
+        status: 扩展命令
+      - name: TDIGEST.MERGE
+        syntax: TDIGEST.MERGE [args ...]
+        status: 扩展命令
+      - name: TDIGEST.MIN
+        syntax: TDIGEST.MIN [args ...]
+        status: 扩展命令
+      - name: TDIGEST.QUANTILE
+        syntax: TDIGEST.QUANTILE [args ...]
+        status: 扩展命令
+      - name: TDIGEST.RANK
+        syntax: TDIGEST.RANK [args ...]
+        status: 扩展命令
+      - name: TDIGEST.RESET
+        syntax: TDIGEST.RESET [args ...]
+        status: 扩展命令
+      - name: TDIGEST.REVRANK
+        syntax: TDIGEST.REVRANK [args ...]
+        status: 扩展命令
+      - name: TDIGEST.TRIMMED_MEAN
+        syntax: TDIGEST.TRIMMED_MEAN [args ...]
+        status: 扩展命令
+  - id: sortedint
+    title: 紧凑有序整型集合
+    description: 专为千万级 64 位无符号大整数（ID 集合）深度优化的紧凑去重与排序扩展命令，支持按值开闭区间极速分页查询与存在性统计。
+    count: 8
+    commands:
+      - name: SIADD
+        syntax: SIADD key id [id ...]
+        status: 扩展命令
+      - name: SICARD
+        syntax: SICARD key
+        status: 扩展命令
+      - name: SIEXISTS
+        syntax: SIEXISTS key id [id ...]
+        status: 扩展命令
+      - name: SIRANGE
+        syntax: SIRANGE key offset count
+        status: 扩展命令
+      - name: SIRANGEBYVALUE
+        syntax: SIRANGEBYVALUE key min max [LIMIT offset count]
+        status: 扩展命令
+      - name: SIREM
+        syntax: SIREM key id [id ...]
+        status: 扩展命令
+      - name: SIREVRANGE
+        syntax: SIREVRANGE key offset count
+        status: 扩展命令
+      - name: SIREVRANGEBYVALUE
+        syntax: SIREVRANGEBYVALUE key max min [LIMIT offset count]
+        status: 扩展命令
+  - id: namespace
+    title: 多租户命名空间隔离
+    description: 原生内置企业级多租户虚拟化隔离扩展命令，支持为不同租户分配独立命名空间、Token 鉴权、配额控制与整租户数据毫秒级原子销毁。
+    count: 0
+    commands:
+[]
+unsupported_redis_commands:
+  title: 不支持的命令
+  description: 以下命令为 Redis 官方定义但 WeDB 当前尚未支持的命令：
+  total_count: 216
+  groups:
+    - group: server
+      title: 服务运维与权限
+      count: 72
+      commands:
+        - name: ACL
+          group: server
+          syntax: ACL
+          status: 不支持
+        - name: ACL CAT
+          group: server
+          syntax: ACL CAT [category]
+          status: 不支持
+        - name: ACL DELUSER
+          group: server
+          syntax: ACL DELUSER username [username ...]
+          status: 不支持
+        - name: ACL DRYRUN
+          group: server
+          syntax: ACL DRYRUN username command [arg] [arg ...]
+          status: 不支持
+        - name: ACL GENPASS
+          group: server
+          syntax: ACL GENPASS [bits]
+          status: 不支持
+        - name: ACL GETUSER
+          group: server
+          syntax: ACL GETUSER username
+          status: 不支持
+        - name: ACL HELP
+          group: server
+          syntax: ACL HELP
+          status: 不支持
+        - name: ACL LIST
+          group: server
+          syntax: ACL LIST
+          status: 不支持
+        - name: ACL LOAD
+          group: server
+          syntax: ACL LOAD
+          status: 不支持
+        - name: ACL LOG
+          group: server
+          syntax: ACL LOG [count | RESET]
+          status: 不支持
+        - name: ACL SAVE
+          group: server
+          syntax: ACL SAVE
+          status: 不支持
+        - name: ACL SETUSER
+          group: server
+          syntax: ACL SETUSER username [rule] [rule ...]
+          status: 不支持
+        - name: ACL USERS
+          group: server
+          syntax: ACL USERS
+          status: 不支持
+        - name: ACL WHOAMI
+          group: server
+          syntax: ACL WHOAMI
+          status: 不支持
+        - name: BACKUP
+          group: server
+          syntax: BACKUP
+          status: 不支持
+        - name: BACKUP ABORT
+          group: server
+          syntax: BACKUP ABORT
+          status: 不支持
+        - name: BACKUP CLEANUP
+          group: server
+          syntax: BACKUP CLEANUP
+          status: 不支持
+        - name: BACKUP HELP
+          group: server
+          syntax: BACKUP HELP
+          status: 不支持
+        - name: BACKUP LIST
+          group: server
+          syntax: BACKUP LIST
+          status: 不支持
+        - name: BACKUP SEAL
+          group: server
+          syntax: BACKUP SEAL
+          status: 不支持
+        - name: BACKUP START
+          group: server
+          syntax: BACKUP START
+          status: 不支持
+        - name: BACKUP STATUS
+          group: server
+          syntax: BACKUP STATUS
+          status: 不支持
+        - name: BGREWRITEAOF
+          group: server
+          syntax: BGREWRITEAOF
+          status: 不支持
+        - name: COMMAND COUNT
+          group: server
+          syntax: COMMAND COUNT
+          status: 不支持
+        - name: COMMAND DOCS
+          group: server
+          syntax: COMMAND DOCS [command-name] [command-name ...]
+          status: 不支持
+        - name: COMMAND GETKEYS
+          group: server
+          syntax: COMMAND GETKEYS command [arg] [arg ...]
+          status: 不支持
+        - name: COMMAND GETKEYSANDFLAGS
+          group: server
+          syntax: COMMAND GETKEYSANDFLAGS command [arg] [arg ...]
+          status: 不支持
+        - name: COMMAND HELP
+          group: server
+          syntax: COMMAND HELP
+          status: 不支持
+        - name: COMMAND INFO
+          group: server
+          syntax: COMMAND INFO [command-name] [command-name ...]
+          status: 不支持
+        - name: COMMAND LIST
+          group: server
+          syntax: COMMAND LIST [MODULE module-name | ACLCAT category | PATTERN]
+          status: 不支持
+        - name: CONFIG
+          group: server
+          syntax: CONFIG
+          status: 不支持
+        - name: CONFIG GET
+          group: server
+          syntax: CONFIG GET parameter [parameter ...]
+          status: 不支持
+        - name: CONFIG HELP
+          group: server
+          syntax: CONFIG HELP
+          status: 不支持
+        - name: CONFIG RESETSTAT
+          group: server
+          syntax: CONFIG RESETSTAT
+          status: 不支持
+        - name: CONFIG REWRITE
+          group: server
+          syntax: CONFIG REWRITE
+          status: 不支持
+        - name: CONFIG SET
+          group: server
+          syntax: CONFIG SET [parameter value] [data ...]
+          status: 不支持
+        - name: FAILOVER
+          group: server
+          syntax: FAILOVER [host port [FORCE]] [ABORT] [TIMEOUT milliseconds]
+          status: 不支持
+        - name: HOTKEYS
+          group: server
+          syntax: HOTKEYS
+          status: 不支持
+        - name: HOTKEYS GET
+          group: server
+          syntax: HOTKEYS GET
+          status: 不支持
+        - name: HOTKEYS HELP
+          group: server
+          syntax: HOTKEYS HELP
+          status: 不支持
+        - name: HOTKEYS RESET
+          group: server
+          syntax: HOTKEYS RESET
+          status: 不支持
+        - name: HOTKEYS START
+          group: server
+          syntax: HOTKEYS START [count [CPU] [NET]] [COUNT k] [DURATION seconds] [SAMPLE ratio] [count slot [slot ...]]
+          status: 不支持
+        - name: HOTKEYS STOP
+          group: server
+          syntax: HOTKEYS STOP
+          status: 不支持
+        - name: LATENCY DOCTOR
+          group: server
+          syntax: LATENCY DOCTOR
+          status: 不支持
+        - name: LATENCY GRAPH
+          group: server
+          syntax: LATENCY GRAPH event
+          status: 不支持
+        - name: LATENCY HELP
+          group: server
+          syntax: LATENCY HELP
+          status: 不支持
+        - name: LATENCY HISTOGRAM
+          group: server
+          syntax: LATENCY HISTOGRAM [COMMAND] [COMMAND ...]
+          status: 不支持
+        - name: LATENCY HISTORY
+          group: server
+          syntax: LATENCY HISTORY event
+          status: 不支持
+        - name: LATENCY LATEST
+          group: server
+          syntax: LATENCY LATEST
+          status: 不支持
+        - name: LATENCY RESET
+          group: server
+          syntax: LATENCY RESET [event] [event ...]
+          status: 不支持
+        - name: LOLWUT
+          group: server
+          syntax: LOLWUT [VERSION]
+          status: 不支持
+        - name: MALLOC STATS
+          group: server
+          syntax: MALLOC STATS
+          status: 不支持
+        - name: MEMORY DOCTOR
+          group: server
+          syntax: MEMORY DOCTOR
+          status: 不支持
+        - name: MEMORY HELP
+          group: server
+          syntax: MEMORY HELP
+          status: 不支持
+        - name: MEMORY PURGE
+          group: server
+          syntax: MEMORY PURGE
+          status: 不支持
+        - name: MEMORY STATS
+          group: server
+          syntax: MEMORY STATS
+          status: 不支持
+        - name: MEMORY USAGE
+          group: server
+          syntax: MEMORY USAGE key [SAMPLES count]
+          status: 不支持
+        - name: MODULE
+          group: server
+          syntax: MODULE
+          status: 不支持
+        - name: MODULE HELP
+          group: server
+          syntax: MODULE HELP
+          status: 不支持
+        - name: MODULE LIST
+          group: server
+          syntax: MODULE LIST
+          status: 不支持
+        - name: MODULE LOAD
+          group: server
+          syntax: MODULE LOAD path [arg] [arg ...]
+          status: 不支持
+        - name: MODULE LOADEX
+          group: server
+          syntax: MODULE LOADEX path [name value] [configs ...] [ARGS] [args ...]
+          status: 不支持
+        - name: MODULE UNLOAD
+          group: server
+          syntax: MODULE UNLOAD name
+          status: 不支持
+        - name: RESTORE ASKING
+          group: server
+          syntax: RESTORE ASKING key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]
+          status: 不支持
+        - name: SAVE
+          group: server
+          syntax: SAVE
+          status: 不支持
+        - name: SFLUSH
+          group: server
+          syntax: SFLUSH [slot-start slot-last] [data ...] [ASYNC | SYNC]
+          status: 不支持
+        - name: SLOWLOG GET
+          group: server
+          syntax: SLOWLOG GET [count]
+          status: 不支持
+        - name: SLOWLOG HELP
+          group: server
+          syntax: SLOWLOG HELP
+          status: 不支持
+        - name: SLOWLOG LEN
+          group: server
+          syntax: SLOWLOG LEN
+          status: 不支持
+        - name: SLOWLOG RESET
+          group: server
+          syntax: SLOWLOG RESET
+          status: 不支持
+        - name: SYNC
+          group: server
+          syntax: SYNC
+          status: 不支持
+        - name: TRIMSLOTS
+          group: server
+          syntax: TRIMSLOTS [numranges [startslot endslot] [slots ...]]
+          status: 不支持
+    - group: cluster
+      title: 集群运维与槽位迁移
+      count: 32
+      commands:
+        - name: CLUSTER
+          group: cluster
+          syntax: CLUSTER
+          status: 不支持
+        - name: CLUSTER ADDSLOTS
+          group: cluster
+          syntax: CLUSTER ADDSLOTS slot [slot ...]
+          status: 不支持
+        - name: CLUSTER ADDSLOTSRANGE
+          group: cluster
+          syntax: CLUSTER ADDSLOTSRANGE [start-slot end-slot] [range ...]
+          status: 不支持
+        - name: CLUSTER BUMPEPOCH
+          group: cluster
+          syntax: CLUSTER BUMPEPOCH
+          status: 不支持
+        - name: CLUSTER COUNTKEYSINSLOT
+          group: cluster
+          syntax: CLUSTER COUNTKEYSINSLOT slot
+          status: 不支持
+        - name: CLUSTER DELSLOTS
+          group: cluster
+          syntax: CLUSTER DELSLOTS slot [slot ...]
+          status: 不支持
+        - name: CLUSTER DELSLOTSRANGE
+          group: cluster
+          syntax: CLUSTER DELSLOTSRANGE [start-slot end-slot] [range ...]
+          status: 不支持
+        - name: CLUSTER FAILOVER
+          group: cluster
+          syntax: CLUSTER FAILOVER [FORCE | TAKEOVER]
+          status: 不支持
+        - name: CLUSTER FLUSHSLOTS
+          group: cluster
+          syntax: CLUSTER FLUSHSLOTS
+          status: 不支持
+        - name: CLUSTER FORGET
+          group: cluster
+          syntax: CLUSTER FORGET node-id
+          status: 不支持
+        - name: CLUSTER GETKEYSINSLOT
+          group: cluster
+          syntax: CLUSTER GETKEYSINSLOT slot count
+          status: 不支持
+        - name: CLUSTER HELP
+          group: cluster
+          syntax: CLUSTER HELP
+          status: 不支持
+        - name: CLUSTER INFO
+          group: cluster
+          syntax: CLUSTER INFO
+          status: 不支持
+        - name: CLUSTER KEYSLOT
+          group: cluster
+          syntax: CLUSTER KEYSLOT key
+          status: 不支持
+        - name: CLUSTER LINKS
+          group: cluster
+          syntax: CLUSTER LINKS
+          status: 不支持
+        - name: CLUSTER MEET
+          group: cluster
+          syntax: CLUSTER MEET ip port [cluster-bus-port]
+          status: 不支持
+        - name: CLUSTER MIGRATION
+          group: cluster
+          syntax: CLUSTER MIGRATION [[start-slot end-slot] [import ...] | [ID task-id | ALL] | [[ID task-id] | [ALL]]]
+          status: 不支持
+        - name: CLUSTER MYID
+          group: cluster
+          syntax: CLUSTER MYID
+          status: 不支持
+        - name: CLUSTER MYSHARDID
+          group: cluster
+          syntax: CLUSTER MYSHARDID
+          status: 不支持
+        - name: CLUSTER NODES
+          group: cluster
+          syntax: CLUSTER NODES
+          status: 不支持
+        - name: CLUSTER REPLICAS
+          group: cluster
+          syntax: CLUSTER REPLICAS node-id
+          status: 不支持
+        - name: CLUSTER REPLICATE
+          group: cluster
+          syntax: CLUSTER REPLICATE node-id
+          status: 不支持
+        - name: CLUSTER RESET
+          group: cluster
+          syntax: CLUSTER RESET [HARD | SOFT]
+          status: 不支持
+        - name: CLUSTER SAVECONFIG
+          group: cluster
+          syntax: CLUSTER SAVECONFIG
+          status: 不支持
+        - name: CLUSTER SETSLOT
+          group: cluster
+          syntax: CLUSTER SETSLOT slot [IMPORTING | MIGRATING | NODE | STABLE]
+          status: 不支持
+        - name: CLUSTER SHARDS
+          group: cluster
+          syntax: CLUSTER SHARDS
+          status: 不支持
+        - name: CLUSTER SLAVES
+          group: cluster
+          syntax: CLUSTER SLAVES node-id
+          status: 不支持
+        - name: CLUSTER SLOTS
+          group: cluster
+          syntax: CLUSTER SLOTS
+          status: 不支持
+        - name: CLUSTER SYNCSLOTS
+          group: cluster
+          syntax: CLUSTER SYNCSLOTS [[task-id [start-slot end-slot] [slot-range ...]] | RDBCHANNEL task-id | SNAPSHOT-EOF | STREAM-EOF | [state offset] | FAIL error | [option [option ...] value [value ...]]]
+          status: 不支持
+        - name: COUNT FAILURE REPORTS
+          group: cluster
+          syntax: COUNT FAILURE REPORTS node-id
+          status: 不支持
+        - name: SET CONFIG EPOCH
+          group: cluster
+          syntax: SET CONFIG EPOCH config-epoch
+          status: 不支持
+        - name: SLOT STATS
+          group: cluster
+          syntax: SLOT STATS [[start-slot end-slot] | [metric [LIMIT] [ASC | DESC]]]
+          status: 不支持
+    - group: sentinel
+      title: 哨兵系统
+      count: 22
+      commands:
+        - name: GET MASTER ADDR BY NAME
+          group: sentinel
+          syntax: GET MASTER ADDR BY NAME master-name
+          status: 不支持
+        - name: INFO CACHE
+          group: sentinel
+          syntax: INFO CACHE nodename [nodename ...]
+          status: 不支持
+        - name: IS MASTER DOWN BY ADDR
+          group: sentinel
+          syntax: IS MASTER DOWN BY ADDR ip port current-epoch runid
+          status: 不支持
+        - name: PENDING SCRIPTS
+          group: sentinel
+          syntax: PENDING SCRIPTS
+          status: 不支持
+        - name: SENTINEL
+          group: sentinel
+          syntax: SENTINEL
+          status: 不支持
+        - name: SENTINEL CKQUORUM
+          group: sentinel
+          syntax: SENTINEL CKQUORUM master-name
+          status: 不支持
+        - name: SENTINEL CONFIG
+          group: sentinel
+          syntax: SENTINEL CONFIG [[parameter value] [set ...] | GET parameter [parameter ...]]
+          status: 不支持
+        - name: SENTINEL DEBUG
+          group: sentinel
+          syntax: SENTINEL DEBUG [parameter value] [data ...]
+          status: 不支持
+        - name: SENTINEL FAILOVER
+          group: sentinel
+          syntax: SENTINEL FAILOVER master-name
+          status: 不支持
+        - name: SENTINEL FLUSHCONFIG
+          group: sentinel
+          syntax: SENTINEL FLUSHCONFIG
+          status: 不支持
+        - name: SENTINEL HELP
+          group: sentinel
+          syntax: SENTINEL HELP
+          status: 不支持
+        - name: SENTINEL MASTER
+          group: sentinel
+          syntax: SENTINEL MASTER master-name
+          status: 不支持
+        - name: SENTINEL MASTERS
+          group: sentinel
+          syntax: SENTINEL MASTERS
+          status: 不支持
+        - name: SENTINEL MONITOR
+          group: sentinel
+          syntax: SENTINEL MONITOR name ip port quorum
+          status: 不支持
+        - name: SENTINEL MYID
+          group: sentinel
+          syntax: SENTINEL MYID
+          status: 不支持
+        - name: SENTINEL REMOVE
+          group: sentinel
+          syntax: SENTINEL REMOVE master-name
+          status: 不支持
+        - name: SENTINEL REPLICAS
+          group: sentinel
+          syntax: SENTINEL REPLICAS master-name
+          status: 不支持
+        - name: SENTINEL RESET
+          group: sentinel
+          syntax: SENTINEL RESET pattern
+          status: 不支持
+        - name: SENTINEL SENTINELS
+          group: sentinel
+          syntax: SENTINEL SENTINELS master-name
+          status: 不支持
+        - name: SENTINEL SET
+          group: sentinel
+          syntax: SENTINEL SET master-name [option value] [data ...]
+          status: 不支持
+        - name: SENTINEL SLAVES
+          group: sentinel
+          syntax: SENTINEL SLAVES master-name
+          status: 不支持
+        - name: SIMULATE FAILURE
+          group: sentinel
+          syntax: SIMULATE FAILURE [crash-after-election | crash-after-promotion | help] [mode ...]
+          status: 不支持
+    - group: connection
+      title: 连接追踪与控制
+      count: 19
+      commands:
+        - name: CLIENT
+          group: connection
+          syntax: CLIENT
+          status: 不支持
+        - name: CLIENT CACHING
+          group: connection
+          syntax: CLIENT CACHING [YES | NO]
+          status: 不支持
+        - name: CLIENT GETNAME
+          group: connection
+          syntax: CLIENT GETNAME
+          status: 不支持
+        - name: CLIENT GETREDIR
+          group: connection
+          syntax: CLIENT GETREDIR
+          status: 不支持
+        - name: CLIENT HELP
+          group: connection
+          syntax: CLIENT HELP
+          status: 不支持
+        - name: CLIENT ID
+          group: connection
+          syntax: CLIENT ID
+          status: 不支持
+        - name: CLIENT INFO
+          group: connection
+          syntax: CLIENT INFO
+          status: 不支持
+        - name: CLIENT KILL
+          group: connection
+          syntax: CLIENT KILL [old-format | [[ID client-id] | [normal | master | slave | replica | pubsub] | [USER username] | [ADDR] | [LADDR] | [YES | NO] | [MAXAGE]] [new-format ...]]
+          status: 不支持
+        - name: CLIENT LIST
+          group: connection
+          syntax: CLIENT LIST [normal | master | replica | pubsub] [ID client-id] [client-id ...]
+          status: 不支持
+        - name: CLIENT PAUSE
+          group: connection
+          syntax: CLIENT PAUSE timeout [WRITE | ALL]
+          status: 不支持
+        - name: CLIENT REPLY
+          group: connection
+          syntax: CLIENT REPLY [ON | OFF | SKIP]
+          status: 不支持
+        - name: CLIENT SETINFO
+          group: connection
+          syntax: CLIENT SETINFO [lib-name libname | lib-ver libver]
+          status: 不支持
+        - name: CLIENT SETNAME
+          group: connection
+          syntax: CLIENT SETNAME connection-name
+          status: 不支持
+        - name: CLIENT TRACKING
+          group: connection
+          syntax: CLIENT TRACKING [ON | OFF] [REDIRECT client-id] [PREFIX] [prefix ...] [BCAST] [OPTIN] [OPTOUT] [NOLOOP]
+          status: 不支持
+        - name: CLIENT TRACKINGINFO
+          group: connection
+          syntax: CLIENT TRACKINGINFO
+          status: 不支持
+        - name: CLIENT UNBLOCK
+          group: connection
+          syntax: CLIENT UNBLOCK client-id [TIMEOUT | ERROR]
+          status: 不支持
+        - name: CLIENT UNPAUSE
+          group: connection
+          syntax: CLIENT UNPAUSE
+          status: 不支持
+        - name: NO EVICT
+          group: connection
+          syntax: NO EVICT [ON | OFF]
+          status: 不支持
+        - name: NO TOUCH
+          group: connection
+          syntax: NO TOUCH [ON | OFF]
+          status: 不支持
+    - group: scripting
+      title: 脚本与函数库
+      count: 19
+      commands:
+        - name: FCALL
+          group: scripting
+          syntax: FCALL function numkeys [key] [key ...] [arg] [arg ...]
+          status: 不支持
+        - name: FCALL_RO
+          group: scripting
+          syntax: FCALL_RO function numkeys [key] [key ...] [arg] [arg ...]
+          status: 不支持
+        - name: FUNCTION
+          group: scripting
+          syntax: FUNCTION
+          status: 不支持
+        - name: FUNCTION DELETE
+          group: scripting
+          syntax: FUNCTION DELETE library-name
+          status: 不支持
+        - name: FUNCTION DUMP
+          group: scripting
+          syntax: FUNCTION DUMP
+          status: 不支持
+        - name: FUNCTION FLUSH
+          group: scripting
+          syntax: FUNCTION FLUSH [ASYNC | SYNC]
+          status: 不支持
+        - name: FUNCTION HELP
+          group: scripting
+          syntax: FUNCTION HELP
+          status: 不支持
+        - name: FUNCTION KILL
+          group: scripting
+          syntax: FUNCTION KILL
+          status: 不支持
+        - name: FUNCTION LIST
+          group: scripting
+          syntax: FUNCTION LIST [LIBRARYNAME library-name-pattern] [WITHCODE]
+          status: 不支持
+        - name: FUNCTION LOAD
+          group: scripting
+          syntax: FUNCTION LOAD [REPLACE] function-code
+          status: 不支持
+        - name: FUNCTION RESTORE
+          group: scripting
+          syntax: FUNCTION RESTORE serialized-value [FLUSH | APPEND | REPLACE]
+          status: 不支持
+        - name: FUNCTION STATS
+          group: scripting
+          syntax: FUNCTION STATS
+          status: 不支持
+        - name: SCRIPT
+          group: scripting
+          syntax: SCRIPT
+          status: 不支持
+        - name: SCRIPT DEBUG
+          group: scripting
+          syntax: SCRIPT DEBUG [YES | SYNC | NO]
+          status: 不支持
+        - name: SCRIPT EXISTS
+          group: scripting
+          syntax: SCRIPT EXISTS sha1 [sha1 ...]
+          status: 不支持
+        - name: SCRIPT FLUSH
+          group: scripting
+          syntax: SCRIPT FLUSH [ASYNC | SYNC]
+          status: 不支持
+        - name: SCRIPT HELP
+          group: scripting
+          syntax: SCRIPT HELP
+          status: 不支持
+        - name: SCRIPT KILL
+          group: scripting
+          syntax: SCRIPT KILL
+          status: 不支持
+        - name: SCRIPT LOAD
+          group: scripting
+          syntax: SCRIPT LOAD script
+          status: 不支持
+    - group: array
+      title: 数组扩展
+      count: 18
+      commands:
+        - name: ARCOUNT
+          group: array
+          syntax: ARCOUNT key
+          status: 不支持
+        - name: ARDEL
+          group: array
+          syntax: ARDEL key index [index ...]
+          status: 不支持
+        - name: ARDELRANGE
+          group: array
+          syntax: ARDELRANGE key [start end] [range ...]
+          status: 不支持
+        - name: ARGET
+          group: array
+          syntax: ARGET key index
+          status: 不支持
+        - name: ARGETRANGE
+          group: array
+          syntax: ARGETRANGE key start end
+          status: 不支持
+        - name: ARGREP
+          group: array
+          syntax: ARGREP key start end [[EXACT string] | [MATCH string] | [GLOB pattern] | [RE pattern]] [predicate ...] [AND | OR | LIMIT | WITHVALUES | NOCASE] [options ...]
+          status: 不支持
+        - name: ARINFO
+          group: array
+          syntax: ARINFO key [FULL]
+          status: 不支持
+        - name: ARINSERT
+          group: array
+          syntax: ARINSERT key value [value ...]
+          status: 不支持
+        - name: ARLASTITEMS
+          group: array
+          syntax: ARLASTITEMS key count [REV]
+          status: 不支持
+        - name: ARLEN
+          group: array
+          syntax: ARLEN key
+          status: 不支持
+        - name: ARMGET
+          group: array
+          syntax: ARMGET key index [index ...]
+          status: 不支持
+        - name: ARMSET
+          group: array
+          syntax: ARMSET key [index value] [data ...]
+          status: 不支持
+        - name: ARNEXT
+          group: array
+          syntax: ARNEXT key
+          status: 不支持
+        - name: AROP
+          group: array
+          syntax: AROP key start end [SUM | MIN | MAX | AND | OR | XOR | [MATCH value] | USED]
+          status: 不支持
+        - name: ARRING
+          group: array
+          syntax: ARRING key size value [value ...]
+          status: 不支持
+        - name: ARSCAN
+          group: array
+          syntax: ARSCAN key start end [LIMIT]
+          status: 不支持
+        - name: ARSEEK
+          group: array
+          syntax: ARSEEK key index
+          status: 不支持
+        - name: ARSET
+          group: array
+          syntax: ARSET key index value [value ...]
+          status: 不支持
+    - group: stream
+      title: 流消息运维
+      count: 14
+      commands:
+        - name: XCFGSET
+          group: stream
+          syntax: XCFGSET key [IDMP-DURATION] [IDMP-MAXSIZE]
+          status: 不支持
+        - name: XGROUP
+          group: stream
+          syntax: XGROUP
+          status: 不支持
+        - name: XGROUP CREATE
+          group: stream
+          syntax: XGROUP CREATE key group [id | $ new-id] [MKSTREAM] [ENTRIESREAD]
+          status: 不支持
+        - name: XGROUP CREATECONSUMER
+          group: stream
+          syntax: XGROUP CREATECONSUMER key group consumer
+          status: 不支持
+        - name: XGROUP DELCONSUMER
+          group: stream
+          syntax: XGROUP DELCONSUMER key group consumer
+          status: 不支持
+        - name: XGROUP DESTROY
+          group: stream
+          syntax: XGROUP DESTROY key group
+          status: 不支持
+        - name: XGROUP HELP
+          group: stream
+          syntax: XGROUP HELP
+          status: 不支持
+        - name: XGROUP SETID
+          group: stream
+          syntax: XGROUP SETID key group [id | $ new-id] [ENTRIESREAD]
+          status: 不支持
+        - name: XIDMPRECORD
+          group: stream
+          syntax: XIDMPRECORD key pid iid stream-id
+          status: 不支持
+        - name: XINFO
+          group: stream
+          syntax: XINFO
+          status: 不支持
+        - name: XINFO CONSUMERS
+          group: stream
+          syntax: XINFO CONSUMERS key group
+          status: 不支持
+        - name: XINFO GROUPS
+          group: stream
+          syntax: XINFO GROUPS key
+          status: 不支持
+        - name: XINFO HELP
+          group: stream
+          syntax: XINFO HELP
+          status: 不支持
+        - name: XINFO STREAM
+          group: stream
+          syntax: XINFO STREAM key [FULL [COUNT]]
+          status: 不支持
+    - group: generic
+      title: 通用键运维
+      count: 7
+      commands:
+        - name: MIGRATE
+          group: generic
+          syntax: "MIGRATE host port [key | \"\" empty-string] destination-db timeout [COPY] [REPLACE] [AUTH | [username password]] [KEYS] [keys ...]"
+          status: 不支持
+        - name: OBJECT ENCODING
+          group: generic
+          syntax: OBJECT ENCODING key
+          status: 不支持
+        - name: OBJECT FREQ
+          group: generic
+          syntax: OBJECT FREQ key
+          status: 不支持
+        - name: OBJECT HELP
+          group: generic
+          syntax: OBJECT HELP
+          status: 不支持
+        - name: OBJECT IDLETIME
+          group: generic
+          syntax: OBJECT IDLETIME key
+          status: 不支持
+        - name: OBJECT REFCOUNT
+          group: generic
+          syntax: OBJECT REFCOUNT key
+          status: 不支持
+        - name: WAITAOF
+          group: generic
+          syntax: WAITAOF numlocal numreplicas timeout
+          status: 不支持
+    - group: pubsub
+      title: 发布订阅控制
+      count: 7
+      commands:
+        - name: PUBSUB
+          group: pubsub
+          syntax: PUBSUB
+          status: 不支持
+        - name: PUBSUB CHANNELS
+          group: pubsub
+          syntax: PUBSUB CHANNELS [pattern]
+          status: 不支持
+        - name: PUBSUB HELP
+          group: pubsub
+          syntax: PUBSUB HELP
+          status: 不支持
+        - name: PUBSUB NUMPAT
+          group: pubsub
+          syntax: PUBSUB NUMPAT
+          status: 不支持
+        - name: PUBSUB NUMSUB
+          group: pubsub
+          syntax: PUBSUB NUMSUB [channel] [channel ...]
+          status: 不支持
+        - name: PUBSUB SHARDCHANNELS
+          group: pubsub
+          syntax: PUBSUB SHARDCHANNELS [pattern]
+          status: 不支持
+        - name: PUBSUB SHARDNUMSUB
+          group: pubsub
+          syntax: PUBSUB SHARDNUMSUB [shardchannel] [shardchannel ...]
+          status: 不支持
+    - group: hash
+      title: 哈希扩展
+      count: 5
+      commands:
+        - name: HIMPORT
+          group: hash
+          syntax: HIMPORT
+          status: 不支持
+        - name: HIMPORT DISCARD
+          group: hash
+          syntax: HIMPORT DISCARD fieldset-name
+          status: 不支持
+        - name: HIMPORT DISCARDALL
+          group: hash
+          syntax: HIMPORT DISCARDALL
+          status: 不支持
+        - name: HIMPORT PREPARE
+          group: hash
+          syntax: HIMPORT PREPARE fieldset-name field [field ...]
+          status: 不支持
+        - name: HIMPORT SET
+          group: hash
+          syntax: HIMPORT SET key fieldset-name value [value ...]
+          status: 不支持
+    - group: hyperloglog
+      title: 基数统计扩展
+      count: 1
+      commands:
+        - name: PFDEBUG
+          group: hyperloglog
+          syntax: PFDEBUG subcommand key
+          status: 不支持

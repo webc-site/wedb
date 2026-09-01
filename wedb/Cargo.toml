@@ -1,0 +1,36 @@
+[package]
+name = "wedb"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb"
+description = "wedb server binary"
+readme = "README.md"
+
+[dependencies]
+aok = "0.1.18"
+clap_args = { version = "0.1.9", features = ["macro"] }
+compio = { version = "0.19.2", features = ["runtime", "time", "macros"] }
+log = "0.4.34"
+log_init = "0.1.39"
+mimalloc = "0.1.52"
+nested-text = "0.1.0"
+serde = { version = "1.0.229", features = ["derive"] }
+wedb_cluster = { version = "0.1.0", path = "../cluster", optional = true }
+wedb_standalone = { version = "0.1.0", path = "../standalone", optional = true }
+
+[features]
+default = ["standalone", "cluster"]
+standalone = ["dep:wedb_standalone"]
+cluster = ["dep:wedb_cluster"]
+
+[[bin]]
+name = "wedb_standalone"
+path = "src/bin/standalone.rs"
+required-features = ["standalone"]
+
+[[bin]]
+name = "wedb_cluster"
+path = "src/bin/cluster.rs"
+required-features = ["cluster"]
