@@ -6,6 +6,7 @@ use std::{
   time::Duration,
 };
 
+use compio::runtime::spawn;
 use parking_lot::RwLock;
 
 use crate::server::{
@@ -106,7 +107,7 @@ impl FailoverManager {
     *self.current_failover_session.write() = Some(Arc::clone(&session));
 
     let this = Arc::clone(self);
-    compio::runtime::spawn(async move {
+    spawn(async move {
       let success = session.begin_async_replica_failover_async().await;
       *this.last_failover_status.write() = if success {
         FailoverStatus::FailoverCompleted
@@ -146,7 +147,7 @@ impl FailoverManager {
     *self.current_failover_session.write() = Some(Arc::clone(&session));
 
     let this = Arc::clone(self);
-    compio::runtime::spawn(async move {
+    spawn(async move {
       let _ = session.begin_async_primary_failover_async().await;
       session.dispose();
       *this.current_failover_session.write() = None;
@@ -159,6 +160,8 @@ impl FailoverManager {
 
 #[cfg(test)]
 mod tests {
+  use compio::{runtime::Runtime, time::sleep};
+
   use super::*;
 
   /// 轮询等待后台会话任务收敛（mock 会话数毫秒内完成）
@@ -167,7 +170,7 @@ mod tests {
       if m.get_last_failover_status() == expect {
         return;
       }
-      compio::time::sleep(Duration::from_millis(5)).await;
+      sleep(Duration::from_millis(5)).await;
     }
     panic!("后台会话未收敛: last={}", m.get_last_failover_status());
   }
@@ -175,7 +178,7 @@ mod tests {
   /// DEFAULT 副本 failover 全流程：终态 completed、会话摘除、任务锁释放
   #[test]
   fn replica_failover_completes_and_releases_lock() -> aok::Void {
-    compio::runtime::Runtime::new()?.block_on(async {
+    Runtime::new()?.block_on(async {
       let m = Arc::new(FailoverManager::new(Arc::new(ClusterProvider {})));
       assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::ZERO));
       wait_until(&m, "failover-completed").await;
@@ -191,22 +194,73 @@ mod tests {
   /// 主端发起的 failover：C# 主路径不回写 lastFailoverStatus
   #[test]
   fn primary_failover_leaves_last_status() -> aok::Void {
-    compio::runtime::Runtime::new()?.block_on(async {
+    Runtime::new()?.block_on(async {
       let m = Arc::new(FailoverManager::new(Arc::new(ClusterProvider {})));
-      assert!(
-        m.try_start_primary_failover("10.0.0.2", 7000, FailoverOption::Takeover, Duration::ZERO)
-      );
+      assert!(m.try_start_primary_failover(
+        "10.0.0.2",
+        7000,
+        FailoverOption::Takeover,
+        Duration::ZERO
+      ));
       // 等会话跑完（状态归位 no-failover 即任务已收敛）
       for _ in 0..200 {
         if m.get_failover_status() == "no-failover"
-          && m.last_failover_status.read().eq(&FailoverStatus::NoFailover)
+          && m
+            .last_failover_status
+            .read()
+            .eq(&FailoverStatus::NoFailover)
         {
           break;
         }
-        compio::time::sleep(Duration::from_millis(5)).await;
+        sleep(Duration::from_millis(5)).await;
       }
       assert_eq!(m.get_failover_status(), "no-failover");
       assert_eq!(m.get_last_failover_status(), "no-failover");
+      aok::OK
+    })
+  }
+
+  /// 运行中互斥：任务锁在发起时同步获取，后台任务收敛释放前二次启动被拒
+  #[test]
+  fn concurrent_start_rejected_until_task_finishes() -> aok::Void {
+    Runtime::new()?.block_on(async {
+      let m = Arc::new(FailoverManager::new(Arc::new(ClusterProvider {})));
+      assert!(m.try_start_replica_failover(FailoverOption::Takeover, Duration::ZERO));
+      // spawn 的后台任务尚未被调度，任务锁必被持有：二次启动确定性被拒
+      assert!(
+        !m.try_start_replica_failover(FailoverOption::Takeover, Duration::ZERO),
+        "任务运行期间互斥"
+      );
+      // 被拒路径不回写终态，仍停在发起态
+      assert_eq!(m.get_last_failover_status(), "begin-failover");
+
+      wait_until(&m, "failover-completed").await;
+      // 锁释放后可再次发起
+      assert!(m.try_start_replica_failover(FailoverOption::Takeover, Duration::ZERO));
+      wait_until(&m, "failover-completed").await;
+      aok::OK
+    })
+  }
+
+  /// 中止：abort 摘除会话引用（状态查询立归 no-failover），后台任务仍收敛
+  /// 并释放任务锁，管理器回到可服务状态
+  #[test]
+  fn abort_detaches_session_and_lock_recovers() -> aok::Void {
+    Runtime::new()?.block_on(async {
+      let m = Arc::new(FailoverManager::new(Arc::new(ClusterProvider {})));
+      assert!(m.try_start_replica_failover(FailoverOption::Takeover, Duration::ZERO));
+
+      // abort 在任务调度前调用：会话被同步摘除
+      m.try_abort_replica_failover();
+      assert_eq!(m.get_failover_status(), "no-failover", "会话摘除后状态归位");
+
+      // 后台任务持有会话 Arc 照常收敛：终态回写、任务锁释放
+      wait_until(&m, "failover-completed").await;
+      assert!(
+        m.try_start_replica_failover(FailoverOption::Takeover, Duration::ZERO),
+        "abort 后任务锁最终释放"
+      );
+      wait_until(&m, "failover-completed").await;
       aok::OK
     })
   }

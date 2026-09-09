@@ -343,4 +343,180 @@ mod tests {
     assert!(info.contains("cluster_size:1"));
     assert!(info.contains("cluster_my_epoch:3"));
   }
+
+  /// recover 模式恢复既有身份并仅更新端点；fresh 模式生成全新身份
+  /// （flush 落盘前的内存回环：持久化面由 config 线格式测试覆盖）
+  #[test]
+  fn init_local_recover_keeps_identity() {
+    let src = manager_with("n1", 4);
+    {
+      let mut config = src.current_config.write();
+      config.assign_slots(&[1, 2], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    }
+
+    // recover=true：node id/epoch/槽位回放，地址端口换新
+    let m = ClusterManager::new(Arc::new(ClusterProvider {}));
+    {
+      let mut config = m.current_config.write();
+      let old = src.current_config.read();
+      // 模拟落盘恢复：把持久化身份灌入后再 init_local 重放端点
+      config.initialize_local_worker(LocalWorkerSpec {
+        node_id: old.local_node_id().unwrap_or_default(),
+        address: "0.0.0.0",
+        port: 0,
+        config_epoch: old.local_node_config_epoch(),
+        role: old.local_node_role(),
+        replica_of_node_id: None,
+        hostname: None,
+      });
+      let slots = old.get_slot_list(LOCAL_WORKER_ID as u16);
+      config.assign_slots(&slots, LOCAL_WORKER_ID as u16, SlotState::Stable);
+    }
+    m.init_local("10.9.9.9", 7200, true);
+    {
+      let config = m.current_config.read();
+      assert_eq!(
+        config.local_node_id(),
+        src.current_config.read().local_node_id(),
+        "恢复后节点 id 不变"
+      );
+      assert_eq!(config.local_node_config_epoch(), 4);
+      assert_eq!(config.get_worker_id_from_slot(2), LOCAL_WORKER_ID);
+      assert_eq!(
+        (config.local_node_ip(), config.local_node_port()),
+        ("10.9.9.9", 7200),
+        "端点更新身份保留"
+      );
+    }
+
+    // fresh：生成 32 位 hex 新 id
+    let fresh = ClusterManager::new(Arc::new(ClusterProvider {}));
+    fresh.init_local("10.0.0.1", 7000, false);
+    assert_eq!(
+      fresh
+        .current_config
+        .read()
+        .local_node_id()
+        .unwrap_or_default()
+        .len(),
+      32
+    );
+  }
+
+  /// 接管门控：副本接管成功（槽位转移+epoch 自增），主节点拒绝
+  #[test]
+  fn take_over_gates_and_moves_slots() {
+    // 主节点：无可接管对象
+    let primary = manager_with("n1", 3);
+    assert!(!primary.try_take_over_for_primary());
+
+    // 副本 n2 of n1：主持槽 0..=1
+    let replica = ClusterManager::new(Arc::new(ClusterProvider {}));
+    {
+      let mut config = replica.current_config.write();
+      config.initialize_local_worker(LocalWorkerSpec {
+        node_id: "n2",
+        address: "10.0.0.2",
+        port: 7002,
+        config_epoch: 0,
+        role: NodeRole::Replica,
+        replica_of_node_id: Some("n1"),
+        hostname: None,
+      });
+      let n1 = {
+        config.workers.push(Worker {
+          nodeid: Some("n1".to_string()),
+          address: "10.0.0.1".to_string(),
+          port: 7001,
+          config_epoch: 3,
+          role: NodeRole::Primary,
+          replica_of_node_id: None,
+          replication_offset: 0,
+          hostname: None,
+        });
+        (config.workers.len() - 1) as u16
+      };
+      config.assign_slots(&[0, 1], n1, SlotState::Stable);
+    }
+
+    assert!(replica.try_take_over_for_primary());
+    {
+      let config = replica.current_config.read();
+      assert!(config.is_primary());
+      assert_eq!(config.local_node_primary_id(), None);
+      for slot in [0, 1] {
+        assert_eq!(config.get_worker_id_from_slot(slot), LOCAL_WORKER_ID);
+        assert_eq!(config.get_state(slot), SlotState::Stable);
+      }
+      assert!(
+        config.local_node_config_epoch() > 3,
+        "接管后 epoch 越过旧主"
+      );
+    }
+  }
+
+  /// 副本复位与角色改写：epoch 取全员最大 +1 单调推进
+  #[test]
+  fn reset_replica_and_epoch_bump_manager_level() {
+    let m = manager_with("n1", 1);
+    {
+      let mut config = m.current_config.write();
+      config.make_replica_of(Some("n9"));
+      config.workers.push(Worker {
+        nodeid: Some("n9".to_string()),
+        address: "10.0.0.9".to_string(),
+        port: 7009,
+        config_epoch: 10,
+        role: NodeRole::Primary,
+        replica_of_node_id: None,
+        replication_offset: 0,
+        hostname: None,
+      });
+    }
+
+    // bump 对齐全员最大 epoch
+    assert!(m.try_bump_cluster_epoch());
+    assert_eq!(m.current_config.read().local_node_config_epoch(), 11);
+
+    // 角色改写同样携带 bump
+    m.try_set_local_node_role(NodeRole::Replica);
+    {
+      let config = m.current_config.read();
+      assert!(config.is_replica());
+      assert_eq!(config.local_node_config_epoch(), 12);
+    }
+
+    // 副本复位：解除复制关系转主
+    m.try_reset_replica();
+    {
+      let config = m.current_config.read();
+      assert!(config.is_primary());
+      assert_eq!(config.local_node_primary_id(), None);
+      assert_eq!(config.local_node_config_epoch(), 13);
+    }
+  }
+
+  /// 槽区间合并：连续段折叠为 start-end，离散段以单点区间列出
+  #[test]
+  fn get_range_merges_contiguous_slots() {
+    assert_eq!(
+      ClusterManager::get_range(&[0, 1, 2, 5, 9, 10]),
+      "> 0-2 5-5 9-10 "
+    );
+    assert_eq!(ClusterManager::get_range(&[7]), "> 7-7 ");
+    assert_eq!(ClusterManager::get_range(&[]), "> ");
+  }
+
+  /// 纯内存模式：flush 只递增计数，不触碰文件系统
+  #[test]
+  fn flush_config_counts_persist_requests() {
+    let m = manager_with("n1", 1);
+    let before = m.flush_count.load(Ordering::SeqCst);
+    m.try_bump_cluster_epoch();
+    m.try_set_local_node_role(NodeRole::Primary);
+    assert!(
+      m.flush_count.load(Ordering::SeqCst) >= before + 2,
+      "每次配置变更都发起一次持久化请求"
+    );
+  }
 }
