@@ -17,6 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 
 [dependencies]
+compio-driver = { version = "0.12.5", default-features = false, features = ["sync"] }
 futures-util = { workspace = true, default-features = false, features = ["alloc"] }
 gxhash.workspace = true
 itoa = { workspace = true }
