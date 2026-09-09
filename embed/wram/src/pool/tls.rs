@@ -121,12 +121,10 @@ impl TlsPoolManager {
   }
 
   pub(crate) fn get_or_create<'a>(&'a mut self, pool: &Arc<BufferPool>) -> &'a mut TlsPoolEntry {
-    if self
-      .fast
-      .as_ref()
-      .is_some_and(|e| e.pool_id == pool.pool_id)
+    if let Some(entry) = self.fast.as_mut()
+      && entry.pool_id == pool.pool_id
     {
-      return self.fast.as_mut().unwrap();
+      return entry;
     }
 
     // fast 槽位校验：已关闭则清扫释放，池已消亡则直接丢弃，仍存活则降级入 others

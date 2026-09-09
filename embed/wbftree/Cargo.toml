@@ -21,7 +21,7 @@ bf-tree = { workspace = true }
 fastrand = { workspace = true }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
-wbase = { workspace = true, features = ["align", "backoff", "base32", "striped"] }
+wbase = { workspace = true, features = ["align", "backoff", "base32", "striped", "time"] }
 whasher = { workspace = true }
 
 [dev-dependencies]

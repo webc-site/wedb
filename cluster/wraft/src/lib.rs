@@ -18,6 +18,6 @@ pub use consensus::{
   ConsensusEngine, Error as ConsensusError, NoopConsensus, Result as ConsensusResult,
 };
 pub use election::{
-  ElectionState, ElectionTransport, Error as ElectionError, NodeId, Result as ElectionResult, Role,
-  Term, VoteReply, VoteRequest,
+  ElectionState, ElectionTransport, Error as ElectionError, Result as ElectionResult, Role,
+  VoteReply, VoteRequest,
 };

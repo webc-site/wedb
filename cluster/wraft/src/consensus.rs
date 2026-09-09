@@ -13,13 +13,13 @@
 
 use std::{io, result, sync::atomic};
 
-use crate::election::{NodeId, Role};
+use crate::election::Role;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   /// 非 Leader 拒绝提案（附带已知 Leader，供重定向）
   #[error("not leader, redirect to {leader:?}")]
-  NotLeader { leader: Option<NodeId> },
+  NotLeader { leader: Option<u64> },
   /// 提案未在多数派达成确认
   #[error("proposal not committed: index {index}")]
   NotCommitted { index: u64 },
@@ -39,7 +39,7 @@ pub trait ConsensusEngine: Send + Sync {
   fn role(&self) -> Role;
 
   /// 已知 Leader（未知为 None）
-  fn leader(&self) -> Option<NodeId>;
+  fn leader(&self) -> Option<u64>;
 
   /// 追加一条日志并等待多数派确认，返回日志索引
   ///
@@ -63,7 +63,7 @@ impl ConsensusEngine for NoopConsensus {
     Role::Leader
   }
 
-  fn leader(&self) -> Option<NodeId> {
+  fn leader(&self) -> Option<u64> {
     Some(0)
   }
 

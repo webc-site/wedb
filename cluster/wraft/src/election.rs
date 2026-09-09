@@ -8,13 +8,9 @@
 //! - 租约选主（lease-based）：以 `now_ms` 注入点做租约过期判定
 //! - 预投票（pre-vote）防抖：在 [`ElectionTransport`] 增设 prevote RPC
 
-use std::{collections::HashSet, io, result};
+use std::{io, result};
 
-/// 集群节点 ID
-pub type NodeId = u64;
-
-/// 任期号（全集群单调递增）
-pub type Term = u64;
+use gxhash::HashSet;
 
 /// 节点角色
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,16 +27,16 @@ pub enum Role {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VoteRequest {
   /// 候选人任期
-  pub term: Term,
+  pub term: u64,
   /// 候选人 ID
-  pub candidate: NodeId,
+  pub candidate: u64,
 }
 
 /// 投票应答
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VoteReply {
   /// 应答方当前任期（大于请求任期则候选人应立即退位）
-  pub term: Term,
+  pub term: u64,
   /// 是否授票
   pub granted: bool,
 }
@@ -52,7 +48,7 @@ pub trait ElectionTransport {
   /// 向目标节点发起投票请求
   fn request_vote(
     &self,
-    target: NodeId,
+    target: u64,
     req: VoteRequest,
   ) -> impl Future<Output = io::Result<VoteReply>> + Send;
 }
@@ -61,7 +57,7 @@ pub trait ElectionTransport {
 pub enum Error {
   /// Leader 角色下发起选举被拒
   #[error("already leader of term {term}, resign first")]
-  AlreadyLeader { term: Term },
+  AlreadyLeader { term: u64 },
   /// 选票未过半
   #[error("vote not granted by quorum: got {got}, need {need}")]
   NoQuorum { got: usize, need: usize },
@@ -81,24 +77,24 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug, Clone)]
 pub struct ElectionState {
   /// 本节点 ID
-  pub self_id: NodeId,
+  pub self_id: u64,
   /// 全体节点（含自身），多数派按此集合计算
-  pub peers: HashSet<NodeId>,
+  pub peers: HashSet<u64>,
   /// 当前任期
-  pub term: Term,
+  pub term: u64,
   /// 本任期投给谁（Some(自己) = 作为候选人自投）
-  pub voted_for: Option<NodeId>,
+  pub voted_for: Option<u64>,
   /// 当前角色
   pub role: Role,
   /// 已知的当主（Follower 视角）
-  pub leader: Option<NodeId>,
+  pub leader: Option<u64>,
   /// 当前任期收到的选票（Candidate 视角，含自投）
-  pub votes: HashSet<NodeId>,
+  pub votes: HashSet<u64>,
 }
 
 impl ElectionState {
   /// 以 Follower 身份初始化
-  pub fn new(self_id: NodeId, peers: impl IntoIterator<Item = NodeId>) -> Self {
+  pub fn new(self_id: u64, peers: impl IntoIterator<Item = u64>) -> Self {
     Self {
       self_id,
       peers: peers.into_iter().collect(),
@@ -106,7 +102,7 @@ impl ElectionState {
       voted_for: None,
       role: Role::Follower,
       leader: None,
-      votes: HashSet::new(),
+      votes: HashSet::default(),
     }
   }
 
@@ -121,7 +117,7 @@ impl ElectionState {
   /// Follower 直接发起；Candidate 选举超时后经此进入更高任期重选
   /// （Raft 语义：新任期即新的投票窗口，`voted_for` 重置合法）。
   /// Leader 须先 [`Self::resign`]，直接发起报错
-  pub fn start_election(&mut self) -> Result<(Term, VoteRequest)> {
+  pub fn start_election(&mut self) -> Result<(u64, VoteRequest)> {
     if self.role == Role::Leader {
       return Err(Error::AlreadyLeader { term: self.term });
     }
@@ -149,7 +145,7 @@ impl ElectionState {
   }
 
   /// 处理选票应答（Candidate 视角）；过半即当选 Leader
-  pub fn tally_vote(&mut self, from: NodeId, reply: VoteReply) -> Result<Role> {
+  pub fn tally_vote(&mut self, from: u64, reply: VoteReply) -> Result<Role> {
     if reply.term > self.term {
       self.observe_higher_term(reply.term);
       return Ok(self.role);
@@ -187,7 +183,7 @@ impl ElectionState {
   }
 
   /// 收到合法 Leader 心跳：回 Follower 并记当主（同任期下）
-  pub fn accept_leader(&mut self, term: Term, leader: NodeId) {
+  pub fn accept_leader(&mut self, term: u64, leader: u64) {
     if term > self.term {
       self.observe_higher_term(term);
     }
@@ -198,7 +194,7 @@ impl ElectionState {
   }
 
   /// 观察到更高任期：无条件退位、清除投票记忆
-  fn observe_higher_term(&mut self, term: Term) {
+  fn observe_higher_term(&mut self, term: u64) {
     debug_assert!(term > self.term);
     self.term = term;
     self.voted_for = None;

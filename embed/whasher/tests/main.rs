@@ -2,11 +2,11 @@ use core::hash::{BuildHasher, Hash, Hasher};
 
 use aok::{OK, Result};
 use whasher::{
-  DefaultBuildHasher, Entry, GxBuildHasher, GxHasher, GxPapayaMap, GxPapayaSet, HashSet,
-  StreamHasher, compute_checksum, compute_checksum_with_seed, fast_hash, fast_hash_u64,
-  fast_hash_with_seed, fast_hash128, hash_map_with_capacity, hash_set_with_capacity, hash_value,
-  hash_value_with_seed, hash128, hash128_with_seed, new_hash_map, new_hash_set, new_papaya_map,
-  new_papaya_set, papaya_map_with_capacity, papaya_set_with_capacity,
+  Entry, GxBuildHasher, GxHasher, GxPapayaMap, GxPapayaSet, HashSet, StreamHasher,
+  compute_checksum, compute_checksum_with_seed, fast_hash, fast_hash_u64, fast_hash_with_seed,
+  fast_hash128, hash_map_with_capacity, hash_set_with_capacity, hash_value, hash_value_with_seed,
+  hash128, hash128_with_seed, new_hash_map, new_hash_set, new_papaya_map, new_papaya_set,
+  papaya_map_with_capacity, papaya_set_with_capacity,
 };
 
 #[ctor::ctor(unsafe)]
@@ -62,7 +62,7 @@ fn test_hashmap_and_hashset() -> Result<()> {
   assert_eq!(hash_set_with_capacity::<u64>(64).len(), 0);
 
   // 验证 GxBuildHasher 与 GxHasher 重导出
-  let def_hasher = DefaultBuildHasher::default();
+  let def_hasher = GxBuildHasher::default();
   let _gx_hasher: GxHasher = BuildHasher::build_hasher(&def_hasher);
   let _gx_builder = GxBuildHasher::default();
 

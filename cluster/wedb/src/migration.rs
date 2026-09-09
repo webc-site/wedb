@@ -64,7 +64,8 @@ impl<'a> TreeChunkFrame<'a> {
         got: buf.len(),
       });
     }
-    let key_len = u32::from_le_bytes(buf[0..4].try_into().unwrap()) as usize;
+    let key_len =
+      u32::from_le_bytes(unsafe { buf.get_unchecked(0..4).try_into().unwrap_unchecked() }) as usize;
     let key_end = 4 + key_len;
     let fixed_end = key_end + 9; // seq 4 + last 1 + chunk_len 4
     if buf.len() < fixed_end {
@@ -74,9 +75,19 @@ impl<'a> TreeChunkFrame<'a> {
       });
     }
     let key = &buf[4..key_end];
-    let seq = u32::from_le_bytes(buf[key_end..key_end + 4].try_into().unwrap());
+    let seq = u32::from_le_bytes(unsafe {
+      buf
+        .get_unchecked(key_end..key_end + 4)
+        .try_into()
+        .unwrap_unchecked()
+    });
     let last = buf[key_end + 4] != 0;
-    let chunk_len = u32::from_le_bytes(buf[key_end + 5..key_end + 9].try_into().unwrap()) as usize;
+    let chunk_len = u32::from_le_bytes(unsafe {
+      buf
+        .get_unchecked(key_end + 5..key_end + 9)
+        .try_into()
+        .unwrap_unchecked()
+    }) as usize;
     let chunk_end = fixed_end + chunk_len;
     if buf.len() < chunk_end {
       return Err(Error::Truncated {

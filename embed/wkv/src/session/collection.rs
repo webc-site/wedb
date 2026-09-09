@@ -61,7 +61,9 @@ impl<D: Device> StoreSession<D> {
         for k in &batch {
           let _ = self.store.bftree.delete(k);
         }
-        let last = batch.last().unwrap();
+        let Some(last) = batch.last() else {
+          break;
+        };
         if last.as_slice() <= cursor.as_slice() {
           break;
         }
