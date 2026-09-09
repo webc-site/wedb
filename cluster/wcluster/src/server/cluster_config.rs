@@ -51,7 +51,7 @@ impl ClusterConfig {
     let slot_map = Box::new(from_fn(|_| HashSlot::default()));
     let workers = vec![Worker::default(); 2];
     let mut config = Self { slot_map, workers };
-    config.init_reserved_worker();
+    config.initialize_unassigned_worker();
     config
   }
 
@@ -59,8 +59,8 @@ impl ClusterConfig {
     Self { slot_map, workers }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:InitReservedWorker
-  fn init_reserved_worker(&mut self) {
+  /// garnet相对路径:Server:ClusterConfig:InitializeUnassignedWorker
+  fn initialize_unassigned_worker(&mut self) {
     self.workers[RESERVED_WORKER_ID].nodeid = None;
     self.workers[RESERVED_WORKER_ID].address = String::new();
     self.workers[RESERVED_WORKER_ID].port = 0;
