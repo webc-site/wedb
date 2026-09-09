@@ -1,7 +1,6 @@
 fn:
   - IsIntermediate
   - IsError
-  - Make
   - MakeIntermediate
   - RemoveIntermediate
   - Equal

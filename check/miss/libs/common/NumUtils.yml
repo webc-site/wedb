@@ -5,8 +5,3 @@ fn:
   - TryReadInt64
   - TryReadDouble
   - WriteInt32
-  - CountDigits
-  - CountCharsInDouble
-  - TryParse
-  - TryParseWithInfinity
-  - GetNextOffset

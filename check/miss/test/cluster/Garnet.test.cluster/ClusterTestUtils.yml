@@ -24,7 +24,6 @@ fn:
   - ClusterResponse
   - ExecuteTxnForShard
   - ClusterTestUtils
-  - HashSlot
   - BackOff
   - BackOffAsync
   - Connect

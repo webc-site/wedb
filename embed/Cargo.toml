@@ -13,7 +13,7 @@ members = [
   "windex",
   "wkv",
   "wram",
-  "wrecord",
+  "wrecord", "wresp",
   "wreviv", "wutil",
   "wval",
 ]

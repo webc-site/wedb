@@ -1,5 +1,4 @@
 fn:
-  - SessionParseState
   - InitializeWithArgument
   - InitializeWithArguments
   - EnsureCapacity
