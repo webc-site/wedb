@@ -1,0 +1,32 @@
+fn:
+  - Setup
+  - TearDown
+  - WriteInto
+  - Callback
+  - IOCallback
+  - AllocateAlignedBuffer
+  - AssertBufferContents
+  - CreateDeviceForTest
+  - ProbeUringWorks
+  - CreateNativeForTest
+  - Cb
+  - SubmitReadsFromThreads
+test:
+  - IDevice_ReadAsyncBeforeInitialize_UsesCtorDefaults
+  - IDevice_WriteAsyncBeforeInitialize_UsesCtorDefaults
+  - IDevice_Initialize_OmitSegmentIdFromFilename_WithoutMinusOne_Throws
+  - NativeStorageDevice_DisposeBeforeInitialize_IsNoOp
+  - NativeStorageDevice_DisposeTwice_IsIdempotent
+  - NativeStorageDevice_InitializeTwice_Idempotent
+  - NativeStorageDevice_SectorSize_IsStableAcrossOpens
+  - DeviceSectorSize_IsConsistentAcrossDeviceTypes
+  - Native_Backend_RoundTrip
+  - Native_Backend_Parallel_64Reads
+  - Native_MultiCompletionThreads_ParallelMixed
+  - Native_MultipleDevices_MultiThread_NoCrossShardIndexReuse
+  - Native_HighThrottle_HighInFlight
+  - Native_ThrottleAboveMax_IsClampedAndStillWorks
+  - Native_ExplicitIoContexts_DefaultDepth_MultiRing
+  - Native_ExplicitQueueDepth_RoundTrips
+  - Native_Uring_SqPoll_RoundTrips
+  - Native_TryComplete_DoesNotThrow_BeforeAndAfterIO

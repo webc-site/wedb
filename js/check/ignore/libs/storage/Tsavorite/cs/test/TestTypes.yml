@@ -1,0 +1,17 @@
+fn:
+  - ToString
+  - GetHashCode64
+  - Equals
+  - RMWCompletionCallback
+  - ReadCompletionCallback
+  - InitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+  - InitialWriter
+  - InPlaceWriter
+  - SimpleLongSimpleFunctions
+  - SimpleIntSimpleFunctions
+  - SimpleIntegerFunctionsBase

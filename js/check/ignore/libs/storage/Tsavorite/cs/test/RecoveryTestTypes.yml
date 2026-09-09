@@ -1,0 +1,8 @@
+fn:
+  - ToString
+  - GetHashCode64
+  - Equals
+  - InitialUpdater
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo

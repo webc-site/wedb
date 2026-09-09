@@ -1,0 +1,17 @@
+fn:
+  - Setup
+  - TearDown
+  - PopulateLog
+  - PopulateUncommittedLog
+  - Consume
+test:
+  - ScanBasicDefaultTest
+  - ScanBehindBeginAddressTest
+  - ScanConsumerTest
+  - ScanNoDefaultTest
+  - ScanByNameTest
+  - ScanWithoutRecoverTest
+  - ScanBufferingModeDoublePageTest
+  - ScanBufferingModeSinglePageTest
+  - ScanUncommittedTest
+  - ScanUncommittedEndsOnCompleteLogTest

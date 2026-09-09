@@ -1,0 +1,10 @@
+fn:
+  - CleanStaleRunDirs
+  - Load
+  - RunWorkers
+  - DumpDistribution
+  - RunIteration
+  - PoolStatsSampleWindow
+  - PrintPoolStatsTable
+  - SumScoreboard
+  - SumLongs

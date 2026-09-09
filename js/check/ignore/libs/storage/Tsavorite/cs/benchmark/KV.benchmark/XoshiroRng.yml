@@ -1,0 +1,5 @@
+fn:
+  - XoshiroRng
+  - Rotl
+  - NextUInt64
+  - NextUInt32

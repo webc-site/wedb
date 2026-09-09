@@ -1,0 +1,20 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - CreateStore
+test:
+  - DefaultIORecordSizeConstantTest
+  - UseDefaultInitialIORecordSizeConstantTest
+  - StoreLevel_InitialIORecordSizeTest
+  - StoreLevel_DefaultTest
+  - SessionLevel_InitialIORecordSizeTest
+  - ReadOptions_InitialIORecordSizeTest
+  - RMWOptions_InitialIORecordSizeTest
+  - NullDevice_SectorSizeTest
+  - GetExpectedIORecordSize_BasicTest
+  - GetExpectedIORecordSize_WithOptionalsTest
+  - GetExpectedIORecordSize_WithObjectTest
+  - GetExpectedIORecordSize_WithNamespaceTest
+  - GetExpectedIORecordSize_AlignmentTest

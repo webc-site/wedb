@@ -1,0 +1,20 @@
+fn:
+  - DeleteDirectory
+  - when
+  - RecreateDirectory
+  - CreateLoggerFactoryInstance
+  - IgnoreIfNotRunningAzureTests
+  - CreateTestDevice
+  - ConvertedClassName
+  - EnsureExtendedLengthPathIfNeeded
+  - GetSinglePendingResult
+  - DoTwoThreadRandomKeyTest
+  - verification
+  - FindHashBucketEntryForKey
+  - OnTearDown
+  - Equals
+  - GetHashCode64
+  - LongKeyComparerModulo
+  - SpanByteKeyComparerModulo
+  - AsSliceRef
+  - SetSlice

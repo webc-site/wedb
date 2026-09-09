@@ -1,0 +1,13 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+test:
+  - NativeHashIndexInsertReadRoundTrips
+  - NativeFullModeLogPagesEvictAndRead
+  - NativeFullModeLogPageMemoryStaysBounded
+  - NativeFullModeFlushEvictCyclesStayBounded
+  - NativeFullModeScanFrameMemoryStaysBounded
+  - NativeIndexGrowFreesSupersededTables
+  - NativeConstructionFailureDoesNotLeak
+  - IndexCheckpointIoUnitReleaseIsExactlyOnce

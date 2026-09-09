@@ -1,0 +1,20 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - UpdateRecordSizeInfo
+  - GetTotalFillerLength
+  - InitializeKeyAndValue
+  - PopulateBoundarySizeInfo
+  - InitializeRecord
+  - ConvertToOverflow
+  - RestoreToOriginal
+  - ConvertToObject
+test:
+  - InlineHeaderTests
+  - InlineBasicTest
+  - ConversionTest
+  - MaxInlineKeyAtLimitStaysInline
+  - KeyAboveMaxInlineKeyBecomesOverflow
+  - MaxInlineValueAtLimitStaysInline
+  - ValueAboveMaxInlineValueBecomesOverflow

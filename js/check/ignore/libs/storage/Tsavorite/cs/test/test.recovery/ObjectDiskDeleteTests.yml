@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+test:
+  - DiskDeleteBasicTest1
+  - DiskDeleteBasicTest2

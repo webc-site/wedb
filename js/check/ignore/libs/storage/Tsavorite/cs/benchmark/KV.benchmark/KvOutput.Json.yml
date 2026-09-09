@@ -1,0 +1,5 @@
+fn:
+  - EmitResultJson
+  - AppendLine
+  - EmitAggregateJson
+  - BuildResultJson

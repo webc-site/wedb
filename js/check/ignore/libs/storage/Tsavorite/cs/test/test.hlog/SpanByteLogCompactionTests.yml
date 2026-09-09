@@ -1,0 +1,9 @@
+fn:
+  - HashModuloKeyStructComparer
+  - Equals
+  - GetHashCode64
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - drainPending

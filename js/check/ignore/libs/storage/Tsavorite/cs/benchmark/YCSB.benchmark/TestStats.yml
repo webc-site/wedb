@@ -1,0 +1,11 @@
+fn:
+  - TestStats
+  - AddResult
+  - ShowAllStats
+  - ShowStats
+  - ShowTrimmedStats
+  - discardHiLo
+  - GetTotalOpsString
+  - GetLoadingTimeLine
+  - GetAddressesLine
+  - GetStatsLine

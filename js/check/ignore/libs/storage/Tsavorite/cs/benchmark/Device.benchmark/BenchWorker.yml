@@ -1,0 +1,6 @@
+fn:
+  - BenchmarkOperation
+  - FreeBuffer
+  - BenchWorker
+  - Callback
+  - Run

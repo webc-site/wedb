@@ -1,0 +1,18 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - OnStart
+  - OnException
+  - OnStop
+  - IterationCollisionTestFunctions
+  - iterateAndVerify
+  - scanAndVerify
+  - LocalScan
+  - LocalUpdate
+test:
+  - SpanByteIterationBasicTest
+  - SpanByteIterationPushStopTest
+  - SpanByteIterationPushLockTest
+  - SpanByteIterateLookupSnapshotBasicCorrectness

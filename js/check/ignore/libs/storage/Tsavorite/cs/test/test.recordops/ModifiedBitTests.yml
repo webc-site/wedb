@@ -1,0 +1,14 @@
+fn:
+  - Setup
+  - TearDown
+  - OnTearDown
+  - Populate
+  - AssertLockandModified
+test:
+  - LockAndNotModify
+  - ResetModifyForNonExistingKey
+  - ModifyClientSession
+  - ModifyLUC
+  - ModifyUC
+  - ModifyLC
+  - CopyToTailAndVerifyResetTest

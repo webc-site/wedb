@@ -1,0 +1,12 @@
+fn:
+  - Setup
+  - TearDown
+  - RentBurstAndReturn
+  - PopulateLocalCache
+test:
+  - CompletionOnlyThreadCreatesNoShard
+  - LocalByteCapIsSharedFairlyAcrossClasses
+  - MixedClassBurstStaysWithinOneThreadSlice
+  - DoubleReturnIsCaughtInDebug
+  - LegacyPathStillWorksWhenOriginReturnDisabled
+  - UnpinOnReturnModeRepinsAndReusesAcrossThreads

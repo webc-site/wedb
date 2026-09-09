@@ -1,0 +1,24 @@
+fn:
+  - GetHashCode64
+  - Equals
+  - ToString
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - NewKeyStruct
+  - NewValueStruct
+  - NewInputStruct
+  - NewContextStruct
+  - VerifyStructs
+  - IsFirst
+  - DeferPending
+  - Process
+  - VerifyNoDeferredPending
+  - VerifyOneNotFound
+  - ReadCompletionCallback
+test:
+  - ReadAndCompleteWithPendingOutput
+  - ReadPendingWithNewSameKey
+  - ReadPendingWithNewDifferentKeyInChain
+  - ReadPendingWithNoNewKey

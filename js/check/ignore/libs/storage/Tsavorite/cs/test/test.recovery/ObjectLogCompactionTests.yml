@@ -1,0 +1,11 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+test:
+  - LogCompactBasicTest
+  - LogCompactTestNewEntries
+  - LogCompactAfterDeleteTest
+  - LogCompactBasicCustomFctnTest
+  - LogCompactCopyInPlaceCustomFctnTest

@@ -1,0 +1,29 @@
+fn:
+  - TestObjectValueComparerModulo
+  - Equals
+  - GetHashCode64
+  - OverflowTestKey
+  - Serialize
+  - WriteType
+  - CacheSerializedObjectData
+  - ClearSerializedObjectData
+  - Deserialize
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - OnStart
+  - OnException
+  - OnStop
+  - scanAndVerify
+  - OnCompleted
+  - OnError
+  - OnNext
+  - InitialWriter
+test:
+  - SerializedObjectCleanupTest
+  - CleanupWithoutCachedDataTest
+  - DiskWriteScanBasicTest
+  - BlittableScanJumpToBeginAddressTest
+  - ObjectScanCursorTest
+  - ObjectScanCursorFilterTest

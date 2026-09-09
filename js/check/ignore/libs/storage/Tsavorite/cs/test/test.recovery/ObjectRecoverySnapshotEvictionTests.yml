@@ -1,0 +1,9 @@
+fn:
+  - Setup
+  - RecreateDirectory
+  - TearDown
+  - Prepare
+  - Destroy
+test:
+  - SnapshotRecoveryDeferredObjectLoad
+  - SnapshotRecoveryThenCompactTruncate

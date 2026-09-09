@@ -1,0 +1,10 @@
+fn:
+  - Setup_MallocFixedPageSizeRecoveryTest
+  - Finish_MallocFixedPageSizeRecoveryTest
+  - Setup_FuzzyIndexRecoveryTest
+  - Finish_FuzzyIndexRecoveryTest
+test:
+  - MallocFixedPageSizeRecoveryTest
+  - MallocFixedPageSizeRecoveryAsyncTest
+  - FuzzyIndexRecoveryTest
+  - FuzzyIndexRecoveryAsyncTest

@@ -1,0 +1,16 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - AssertCompleted
+  - CompletePendingResult
+test:
+  - NativeInMemWriteRead2
+  - TestShiftHeadAddressUC
+  - NativeInMemRMWRefKeys
+  - NativeInMemRMWNoRefKeys
+  - ReadNoRefKeyInputOutput
+  - ReadNoRefKey
+  - ReadWithoutInput
+  - ReadBareMinParams

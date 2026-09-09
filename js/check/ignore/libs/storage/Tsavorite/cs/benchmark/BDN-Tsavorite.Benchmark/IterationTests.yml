@@ -1,0 +1,11 @@
+fn:
+  - FlushAndEvictProvider
+  - SetupStore
+  - PopulateStore
+  - SetupPopulatedStore
+  - TearDown
+  - Cursor
+  - ScanFunctions
+  - OnStart
+  - OnStop
+  - OnException

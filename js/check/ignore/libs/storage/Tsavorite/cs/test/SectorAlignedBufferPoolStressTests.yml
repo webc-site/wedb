@@ -1,0 +1,11 @@
+fn:
+  - Setup
+  - TearDown
+  - RunTightLoop
+  - RunAsymmetric
+  - Percentiles
+test:
+  - ScalingThroughputAcrossBackends
+  - CrossThreadReturnLatencyAndReuse
+  - ReuseEfficiencyAllocTracksWorkingSet
+  - HeavySoakWithChurn

@@ -1,0 +1,8 @@
+fn:
+  - DeleteDirectory
+  - MultiRead
+  - ReadKey
+test:
+  - SpanByteTest1
+  - MultiRead_SpanByte_Test
+  - ShouldSkipEmptySpaceAtEndOfPage

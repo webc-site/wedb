@@ -1,0 +1,8 @@
+fn:
+  - Equals
+  - ConcurrentDictionary_YcsbBenchmark
+  - RunYcsb
+  - Run
+  - SetupYcsb
+  - DoContinuousMeasurements
+  - CreateKeyVectors

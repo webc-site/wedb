@@ -1,0 +1,9 @@
+fn:
+  - Setup
+  - TearDown
+  - Populate
+  - Test
+  - CopyDirectory
+  - IsDirectoryEmpty
+test:
+  - SharedLogDirectory

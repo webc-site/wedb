@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - Populate
+test:
+  - LowMemConcurrentUpsertReadTest
+  - LowMemConcurrentUpsertRMWReadTest

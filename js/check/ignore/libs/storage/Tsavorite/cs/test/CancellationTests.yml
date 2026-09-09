@@ -1,0 +1,22 @@
+fn:
+  - NeedInitialUpdate
+  - NeedCopyUpdate
+  - CopyUpdater
+  - InitialUpdater
+  - InitialWriter
+  - InPlaceWriter
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+  - Setup
+  - DeleteDirectory
+  - TearDown
+  - OnTearDown
+  - Populate
+  - do_it
+test:
+  - InitialUpdaterTest
+  - CopyUpdaterTest
+  - InPlaceUpdaterTest
+  - InitialWriterTest
+  - InPlaceWriterTest

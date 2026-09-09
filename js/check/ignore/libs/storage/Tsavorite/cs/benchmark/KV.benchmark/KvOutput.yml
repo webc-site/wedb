@@ -1,0 +1,16 @@
+fn:
+  - KvOutput
+  - EmitConfigHuman
+  - EmitPhaseHuman
+  - EmitAggregateHuman
+  - TrimmedMean
+  - EmitFinalSummary
+  - Rate
+  - EmitRunPhaseBlock
+  - EffectiveHashpack
+  - Dbl
+  - JsonString
+  - PrettyJson
+  - TryReadFirstLine
+  - TryGitSha
+  - AppendLine

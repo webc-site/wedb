@@ -1,0 +1,4 @@
+fn:
+  - FixedLengthTransactionalKeyStruct
+  - Sort
+  - ToString

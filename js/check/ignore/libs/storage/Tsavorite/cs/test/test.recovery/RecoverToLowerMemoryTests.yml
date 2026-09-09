@@ -1,0 +1,9 @@
+fn:
+  - Setup
+  - RecreateDirectory
+  - TearDown
+  - CreateStore
+  - CreateObjectStore
+test:
+  - RecoverSnapshotToLowerMemoryInlineOnly
+  - RecoverSnapshotToLowerMemoryWithObjects

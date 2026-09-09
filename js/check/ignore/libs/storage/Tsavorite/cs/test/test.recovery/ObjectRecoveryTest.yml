@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - TearDown
+  - PrepareToRecover
+  - Populate
+  - Verify
+test:
+  - ObjectRecoveryTest1

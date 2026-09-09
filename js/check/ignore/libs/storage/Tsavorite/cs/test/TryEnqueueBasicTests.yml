@@ -1,0 +1,7 @@
+fn:
+  - ReadOnlySpanBatch
+  - TotalEntries
+  - Setup
+  - TearDown
+test:
+  - TryEnqueueBasicTest

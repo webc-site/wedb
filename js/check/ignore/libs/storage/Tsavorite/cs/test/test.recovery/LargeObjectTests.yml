@@ -1,0 +1,10 @@
+fn:
+  - Setup
+  - RecreateDirectory
+  - TearDown
+  - OnTearDown
+  - DoRead
+  - CreateKVSettings
+test:
+  - LargeObjectTest
+  - MultiListObjectTest
