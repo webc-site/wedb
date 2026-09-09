@@ -1,6 +1,7 @@
 pub mod hash;
 pub mod itembroker;
 pub mod list;
+pub mod parse_utils;
 pub mod set;
 pub mod sorted_set_comparer;
 pub mod sortedset;

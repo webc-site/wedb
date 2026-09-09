@@ -1,4 +1,4 @@
-//! RESP 对象命令层的同步信封读写辅助
+//! RESP 对象命令层：同步信封读写辅助 + 命令中止工具
 //!
 //! 信封编码（[1 字节类型标签][wobject bitcode 载荷]）与 storage 层一处定义共享
 //! （`storage/session/objectstore/common.rs`，对标 libs/server/Storage/Session/
@@ -7,16 +7,52 @@
 //!
 //! 降级约定与命令层一致：磁盘候选 / 环形页翻转须异步裁决时读侧返回 `Ok(None)`、
 //! 写侧返回 `Ok(false)`，由调用方整体转异步重放。
+//!
+//! 中止工具对标 libs/server/Resp/Objects/ObjectStoreUtils.cs（C# 为 RespServerSession
+//! partial）：`AbortWithWrongNumberOfArgumentsOrUnknownSubcommand` 已由
+//! resp::admin_commands 在 RespServerSession 上实现（同映射注释），此处不再重复定义。
 
 use wdev::Device;
 use wkv::BatchStoreSession;
 
-use crate::resp::{cmd_strings as cs, cmd_strings::write_error_raw, parser::resp_ext::RespVecExt};
+use crate::resp::{
+  cmd_strings as cs, cmd_strings::write_error_raw, parser::resp_ext::RespVecExt,
+  resp_server_session::RespServerSession,
+};
 pub(crate) use crate::storage::session::objectstore::common::{
-  OBJ_TAG_HASH, OBJ_TAG_LIST, OBJ_TAG_SET, OBJ_TAG_SORTED_SET, format_score, obj_decode, obj_encode,
+  OBJ_TAG_HASH, OBJ_TAG_LIST, OBJ_TAG_SET, obj_decode, obj_encode,
 };
 
-/// 对象键同步读取三态（WrongType 供命令层直接回 WRONGTYPE 错误）
+/// ERR wrong number of arguments for '{0}' command
+const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for '{name}' command";
+
+impl RespServerSession {
+  /// 参数数量错误中止（始终消费完整命令，返回 true）
+  ///
+  /// libs/server/Resp/Objects/ObjectStoreUtils.cs:AbortWithWrongNumberOfArguments
+  pub fn abort_with_wrong_number_of_arguments(
+    &mut self,
+    cmd_name: &str,
+    output: &mut Vec<u8>,
+  ) -> bool {
+    write_error_raw(
+      output,
+      &GENERIC_ERR_WRONG_NUM_ARGS.replace("{name}", cmd_name),
+    );
+    true
+  }
+
+  /// 以给定错误信息中止
+  ///
+  /// libs/server/Resp/Objects/ObjectStoreUtils.cs:AbortWithErrorMessage
+  /// （C# 置 commandErrorWritten 后经 RespWriteUtils 写错误帧）
+  pub fn abort_with_error_message(&mut self, error_message: &[u8], output: &mut Vec<u8>) -> bool {
+    output.push(b'-');
+    output.extend_from_slice(error_message);
+    output.extend_from_slice(b"\r\n");
+    true
+  }
+}
 pub(super) enum SyncObj {
   /// 键不存在
   Missing,
@@ -95,4 +131,24 @@ pub(super) fn obj_save_or_gc_sync<D: Device>(
     return Ok(store.try_delete_sync(key)?.is_ok());
   }
   obj_save_sync(store, key, tag, payload)
+}
+
+#[cfg(test)]
+mod abort_tests {
+  use super::*;
+
+  #[test]
+  fn abort_frames_match_csharp_text() {
+    let mut sess = RespServerSession;
+    let mut out = Vec::new();
+    assert!(sess.abort_with_wrong_number_of_arguments("ZADD", &mut out));
+    assert_eq!(
+      out,
+      b"-ERR wrong number of arguments for 'ZADD' command\r\n"
+    );
+
+    out.clear();
+    assert!(sess.abort_with_error_message(b"ERR custom", &mut out));
+    assert_eq!(out, b"-ERR custom\r\n");
+  }
 }

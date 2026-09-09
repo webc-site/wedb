@@ -880,10 +880,7 @@ mod tests {
       service.insert(b"long_enough_key", b""),
       BfTreeInsertResult::InvalidKV
     );
-    assert_eq!(
-      service.insert(b"k", b""),
-      BfTreeInsertResult::InvalidKV
-    );
+    assert_eq!(service.insert(b"k", b""), BfTreeInsertResult::InvalidKV);
     // 空值插入不得产生任何残留条目
     let (res, v) = service.read(b"long_enough_key");
     assert_eq!(res, BfTreeReadResult::NotFound);
