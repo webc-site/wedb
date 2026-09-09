@@ -2,9 +2,7 @@ use compio::net::TcpStream;
 use crossfire::{mpsc, oneshot};
 
 use crate::{
-  Error,
-  Result,
-  network,
+  Error, Result, network,
   types::{CHANNEL_CAP, ChannelTx, CommandItem, ReplyTx, roundtrip},
 };
 
@@ -37,7 +35,10 @@ impl GarnetClientSession {
 
   /// 请求通道引用（未连接即报错）
   fn channel(&self) -> Result<&ChannelTx> {
-    self.tx.as_ref().ok_or_else(|| Error::Other("Not connected".into()))
+    self
+      .tx
+      .as_ref()
+      .ok_or_else(|| Error::Other("Not connected".into()))
   }
 
   /// libs/client/ClientSession/GarnetClientSession.cs:ConnectAsync

@@ -70,23 +70,23 @@ impl HashObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Operate
-  pub fn operate(&self, op_code: u8, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
+  pub fn operate(&self, op: HashOperation, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
     let pin = self.hash.pin();
-    match op_code {
-      0 /* HSET */ => {
+    match op {
+      HashOperation::HSET => {
         pin.insert(key.to_vec(), value.to_vec());
         None
       }
-      2 /* HGET */ => pin.get(key).cloned(),
-      5 /* HDEL */ => pin.remove(key).cloned(),
-      6 /* HLEN */ => {
-          let mut buffer = itoa::Buffer::new();
-          let len_str = buffer.format(pin.len());
-          Some(len_str.as_bytes().to_vec())
+      HashOperation::HGET => pin.get(key).cloned(),
+      HashOperation::HDEL => pin.remove(key).cloned(),
+      HashOperation::HLEN => {
+        let mut buffer = itoa::Buffer::new();
+        let len_str = buffer.format(pin.len());
+        Some(len_str.as_bytes().to_vec())
       }
-      7 /* HEXISTS */ => {
-          let exists = if pin.contains_key(key) { b"1" } else { b"0" };
-          Some(exists.to_vec())
+      HashOperation::HEXISTS => {
+        let exists = if pin.contains_key(key) { b"1" } else { b"0" };
+        Some(exists.to_vec())
       }
       _ => None,
     }

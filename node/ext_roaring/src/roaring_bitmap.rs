@@ -37,7 +37,11 @@ impl RoaringBitmapObj {
   pub fn bit_pos(&self, bit: bool, from: u32) -> i64 {
     if bit {
       // 首个 >= from 的置位位：range 经容器级 advance_to 定位，免去逐容器跳扫
-      self.bitmap.range(from..).next().map_or(-1, |pos| pos as i64)
+      self
+        .bitmap
+        .range(from..)
+        .next()
+        .map_or(-1, |pos| pos as i64)
     } else {
       // Find first unset bit >= from
       let mut current = from;

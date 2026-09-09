@@ -16,7 +16,10 @@ impl RespReadResponseUtils {
 
   pub fn try_read_integer(ptr: &mut &[u8]) -> Result<Option<i64>> {
     match read_token_line(ptr, b':')? {
-      Some(s) => s.parse().map(Some).map_err(|_| Error::Other("Invalid integer".into())),
+      Some(s) => s
+        .parse()
+        .map(Some)
+        .map_err(|_| Error::Other("Invalid integer".into())),
       None => Ok(None),
     }
   }
@@ -174,7 +177,10 @@ mod tests {
   #[test]
   fn integer_parses_without_intermediate_string() {
     let mut data = &b":12345\r\n"[..];
-    assert_eq!(RespReadResponseUtils::try_read_integer(&mut data).unwrap(), Some(12345));
+    assert_eq!(
+      RespReadResponseUtils::try_read_integer(&mut data).unwrap(),
+      Some(12345)
+    );
     assert_eq!(data, b"");
 
     let mut data = &b":nope\r\n"[..];

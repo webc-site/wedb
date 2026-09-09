@@ -3,7 +3,7 @@ use std::{collections::HashSet, io::Cursor};
 use aok::{OK, Void};
 use log::info;
 use wobject::{
-  hash::hash_object::HashObject,
+  hash::hash_object::{HashObject, HashOperation},
   list::list_object::{ListObject, ListOperation},
   set::set_object::{SetObject, SetOperation},
   sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation},
@@ -24,11 +24,17 @@ fn test() -> Void {
 #[test]
 fn hash_operate_and_roundtrip() -> Void {
   let obj = HashObject::new();
-  assert_eq!(obj.operate(0 /* HSET */, b"k1", b"v1"), None);
-  assert_eq!(obj.operate(2 /* HGET */, b"k1", b""), Some(b"v1".to_vec()));
-  assert_eq!(obj.operate(6 /* HLEN */, b"", b""), Some(b"1".to_vec()));
+  assert_eq!(obj.operate(HashOperation::HSET, b"k1", b"v1"), None);
   assert_eq!(
-    obj.operate(7 /* HEXISTS */, b"k1", b""),
+    obj.operate(HashOperation::HGET, b"k1", b""),
+    Some(b"v1".to_vec())
+  );
+  assert_eq!(
+    obj.operate(HashOperation::HLEN, b"", b""),
+    Some(b"1".to_vec())
+  );
+  assert_eq!(
+    obj.operate(HashOperation::HEXISTS, b"k1", b""),
     Some(b"1".to_vec())
   );
 
@@ -36,11 +42,11 @@ fn hash_operate_and_roundtrip() -> Void {
   obj.serialize(&mut buf)?;
   let restored = HashObject::deserialize(&mut Cursor::new(&buf))?;
   assert_eq!(
-    restored.operate(2 /* HGET */, b"k1", b""),
+    restored.operate(HashOperation::HGET, b"k1", b""),
     Some(b"v1".to_vec())
   );
   assert_eq!(
-    restored.operate(6 /* HLEN */, b"", b""),
+    restored.operate(HashOperation::HLEN, b"", b""),
     Some(b"1".to_vec())
   );
   OK

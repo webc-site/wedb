@@ -19,8 +19,7 @@ use crossfire::{AsyncRx, mpsc};
 use itoa::Buffer;
 
 use crate::{
-  Error,
-  Result,
+  Error, Result,
   parser::{RespReadResponseUtils, unexpected_token},
   types::{CommandItem, ReplyTx},
 };
@@ -86,8 +85,9 @@ fn encode_command(out: &mut Vec<u8>, cmd: &[String], num: &mut Buffer) {
 fn parse_scalar(data: &mut &[u8]) -> Result<Option<Result<String>>> {
   match data[0] {
     b'+' => RespReadResponseUtils::try_read_simple_string(data).map(|s| s.map(Ok)),
-    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
-      .map(|e| e.map(|e| Err(Error::Other(e)))),
+    b'-' => {
+      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
+    }
     b':' => RespReadResponseUtils::try_read_integer_as_string(data).map(|s| s.map(Ok)),
     b'$' => RespReadResponseUtils::try_read_string_with_length_header(data)
       .map(|s| s.map(|s| Ok(s.unwrap_or_default()))),
@@ -100,8 +100,9 @@ fn parse_array(data: &mut &[u8]) -> Result<Option<Result<Vec<String>>>> {
   match data[0] {
     b'*' => RespReadResponseUtils::try_read_string_array_with_length_header(data)
       .map(|a| a.map(|a| Ok(a.unwrap_or_default()))),
-    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
-      .map(|e| e.map(|e| Err(Error::Other(e)))),
+    b'-' => {
+      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
+    }
     b => Err(unexpected_token(b)),
   }
 }

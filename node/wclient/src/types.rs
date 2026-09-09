@@ -1,6 +1,5 @@
 use crossfire::{
-  MAsyncTx,
-  mpsc,
+  MAsyncTx, mpsc,
   oneshot::{RxOneshot, TxOneshot},
 };
 
