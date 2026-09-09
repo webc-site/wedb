@@ -7,3 +7,6 @@ pub mod worker;
 pub mod migration;
 pub mod failover;
 pub mod replication;
+pub mod cluster_manager_slot_state;
+pub mod cluster_manager_worker_state;
+pub mod cluster_utils;
