@@ -137,12 +137,13 @@ fn test_ri_create_with_defaults_and_all_options() -> Void {
     session
       .range_index_create(b"idx_def", StorageBackend::Std, defaults)
       .await?;
+    let big_value = vec![b'v'; 128];
     session
-      .range_index_set(b"idx_def", b"field", b"value")
+      .range_index_set(b"idx_def", b"field", &big_value)
       .await?;
     assert_eq!(
       session.range_index_get(b"idx_def", b"field").await?,
-      Some(b"value".to_vec())
+      Some(big_value)
     );
 
     // 解析后的默认值已固化进存根 (对标 C#)：min=64/max=1024/max_key=128
