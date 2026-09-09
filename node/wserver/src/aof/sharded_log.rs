@@ -1,7 +1,12 @@
 //! 物理子日志集合的访问位图锁（对标 libs/server/AOF/ShardedLog.cs:ShardedLog
 //! 的 LockSublogs / UnlockSublogs 子集）。
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::{
+  hint,
+  sync::atomic::{AtomicU64, Ordering},
+  thread,
+  time::Duration,
+};
 
 /// CAS 位图锁：`log_access_bitmap` 的每个置位位对应一个物理子日志；
 /// 请求的位全空闲（与 lockMap 无交集）时原子占位。
@@ -41,7 +46,7 @@ impl ShardedLogLockMap {
           return;
         }
       }
-      std::hint::spin_loop();
+      hint::spin_loop();
     }
   }
 
@@ -84,11 +89,11 @@ mod tests {
     let map2 = map.clone();
     let acquired = Arc::new(AtomicU64::new(0));
     let acquired2 = acquired.clone();
-    let handle = std::thread::spawn(move || {
+    let handle = thread::spawn(move || {
       map2.lock_sublogs(0b11);
       acquired2.store(1, Ordering::Release);
     });
-    std::thread::sleep(std::time::Duration::from_millis(5));
+    thread::sleep(Duration::from_millis(5));
     assert_eq!(acquired.load(Ordering::Acquire), 0);
 
     map.unlock_sublogs(0b1);

@@ -67,9 +67,8 @@ impl AofAddress {
   pub fn from_span(span: &[u8]) -> Self {
     let length = (span.len() >> 3).min(MAX_SUBLOG_COUNT);
     let mut result = AofAddress::new(length as i32);
-    for (i, chunk) in span.chunks_exact(8).take(length).enumerate() {
-      result.addresses[i] =
-        i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
+    for (i, chunk) in span.as_chunks::<8>().0.iter().take(length).enumerate() {
+      result.addresses[i] = i64::from_le_bytes(*chunk);
     }
     result
   }
@@ -91,9 +90,14 @@ impl AofAddress {
       return Self::default();
     };
     let mut result = AofAddress::new(i32::from(length.min(MAX_SUBLOG_COUNT as u8)));
-    for (i, chunk) in data[1..].chunks_exact(8).take(length as usize).enumerate() {
-      result.addresses[i] =
-        i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
+    for (i, chunk) in data[1..]
+      .as_chunks::<8>()
+      .0
+      .iter()
+      .take(length as usize)
+      .enumerate()
+    {
+      result.addresses[i] = i64::from_le_bytes(*chunk);
     }
     result
   }

@@ -4,7 +4,7 @@
 //! v4 起写入块改为稠密编号，回放时经 `from_v3` 翻译到当前编号。
 //! 表以编译期常量构建，全部成员静态可解析（rename 回归由单测拦截）。
 
-use std::sync::LazyLock;
+use std::{iter, sync::LazyLock};
 
 use crate::types::RespCommand;
 
@@ -374,6 +374,7 @@ pub const V3_ORDER: [&str; 358] = [
 /// 自枚举移除且未持久化的 v3 命令（只读/管理命令折叠进 DEBUG 等场景），
 /// 其 v3 数字槽位永不回读，映射为 NONE。
 ///（libs/server/AOF/LegacyRespCommand.cs:RemovedNonPersistedV3Commands）
+#[cfg(test)]
 const REMOVED_NON_PERSISTED_V3_COMMANDS: [&str; 1] = ["PURGEBP"];
 
 /// v3 编号 → 当前编号映射表（下标 0 = NONE）。
@@ -387,7 +388,7 @@ impl LegacyRespCommand {
   /// 构建映射表；已移除且未持久化的成员映射为 NONE。
   fn build_map() -> Vec<RespCommand> {
     // 槽位 0 = NONE（对齐 C# map[0] = RespCommand.NONE），其后 v3 值 1..N。
-    std::iter::once(RespCommand::None)
+    iter::once(RespCommand::None)
       .chain(vec![
         RespCommand::Bitcount,
         RespCommand::BitfieldRo,

@@ -8,8 +8,11 @@
 //! - SingleLogTransactionHeader（50B）：单物理日志多回放的协调操作
 //!   （+ participantCount + replayTaskAccessVector，用日志地址排序）
 //! - ShardedLogTransactionHeader（58B）：多物理日志的协调操作
+//!
 //! 非事务类型另有分块变体（大对象值跨多条目），低两位与基础类型一致，
-//! ChunkedRecordFlag（0b0100）置位。
+//! 且 ChunkedRecordFlag（0b0100）置位。
+
+use std::mem::size_of;
 
 /// 头类型判别值（对齐 C# AofHeaderType）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -296,10 +299,9 @@ pub struct AofChunkHeader {
 
 impl AofChunkHeader {
   /// 头尺寸。
-  pub const TOTAL_SIZE: usize =
-    3 * std::mem::size_of::<u32>() + std::mem::size_of::<u64>() + std::mem::size_of::<i64>();
+  pub const TOTAL_SIZE: usize = 3 * size_of::<u32>() + size_of::<u64>() + size_of::<i64>();
   /// objectId 字段偏移。
-  pub const OBJECT_ID_OFFSET: usize = 3 * std::mem::size_of::<u32>();
+  pub const OBJECT_ID_OFFSET: usize = 3 * size_of::<u32>();
 
   /// 解析。
   pub fn parse(entry: &[u8]) -> Option<Self> {

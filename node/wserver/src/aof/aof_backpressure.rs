@@ -3,9 +3,13 @@
 //! 以"每子日志已发布（ship）水位 + 每子日志字节预算"实现：
 //! 追加方在尾部地址领先水位超过预算时自旋等待复制端发布水位。
 
-use std::sync::{
-  Arc,
-  atomic::{AtomicBool, AtomicI64, Ordering},
+use std::{
+  sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicI64, Ordering},
+  },
+  thread,
+  time::Duration,
 };
 
 use parking_lot::Mutex;
@@ -120,7 +124,7 @@ impl AofBackpressure {
       if live_tail - watermark <= self.per_sublog_budget.load(Ordering::Relaxed) {
         break;
       }
-      std::thread::sleep(std::time::Duration::from_millis(POLL_INTERVAL_MS));
+      thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
     }
   }
 

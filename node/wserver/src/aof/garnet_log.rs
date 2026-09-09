@@ -9,10 +9,16 @@
 //! `回放任务 = hash / physicalSublogCount % replayTaskCount`，
 //! `虚拟子日志 = 物理子日志 * replayTaskCount + 回放任务`。
 
-use std::sync::{
-  Arc,
-  atomic::{AtomicI64, Ordering},
+use std::{
+  sync::{
+    Arc,
+    atomic::{AtomicI64, Ordering},
+  },
+  thread,
+  time::Duration,
 };
+
+use parking_lot::Mutex;
 
 use super::{
   aof_address::AofAddress,
@@ -166,7 +172,7 @@ pub struct GarnetLog {
   /// 主侧背压闸门（可选）。
   backpressure: Option<Arc<AofBackpressure>>,
   /// 日志平移回调（尾地址前移通知）。
-  shift_tail_callback: parking_lot::Mutex<Option<Box<dyn Fn(i64) + Send + Sync>>>,
+  shift_tail_callback: Mutex<Option<ShiftTailCallback>>,
   /// 尾部见证地址（复制对齐用）。
   tail_witness: AtomicI64,
 }
@@ -198,7 +204,7 @@ impl GarnetLog {
         physical_sublog_count,
         server_options.aof_sync_max_lag_bytes,
       ))),
-      shift_tail_callback: parking_lot::Mutex::new(None),
+      shift_tail_callback: Mutex::new(None),
       tail_witness: AtomicI64::new(0),
     }
   }
@@ -264,7 +270,7 @@ impl GarnetLog {
   ///
   /// 全部子日志的访问位图。
   pub fn all_logs_bitmask(&self) -> u64 {
-    ((1u64 << self.size()) - 1) as u64
+    (1u64 << self.size()) - 1
   }
 
   /// libs/server/AOF/GarnetLog.cs:LockSublogs
@@ -396,7 +402,7 @@ impl GarnetLog {
   /// 阻塞直至提交水位达到 `address`（内存拓扑提交即时可见，直接返回）。
   pub fn wait_for_commit(&self, sublog_idx: usize, address: i64) {
     while self.sublog(sublog_idx).committed_until_address(sublog_idx) < address {
-      std::thread::sleep(std::time::Duration::from_micros(50));
+      thread::sleep(Duration::from_micros(50));
     }
   }
 
@@ -454,16 +460,16 @@ impl GarnetLog {
 
   /// 头编码 + 负载拼装的通用入队：按拓扑选择 Basic/Sharded 头，
   /// 返回逻辑地址。
-  fn enqueue_with_header(
-    &self,
-    op_type: AofEntryType,
-    version: i64,
-    session_id: i32,
-    key: &[u8],
-    value: &[u8],
-    input: &[u8],
-    database_id: u8,
-  ) -> i64 {
+  fn enqueue_with_header(&self, record: &RecordShape<'_>) -> i64 {
+    let RecordShape {
+      op_type,
+      version,
+      session_id,
+      key,
+      value,
+      input,
+      database_id,
+    } = *record;
     let using_single_physical_log = self.single_log.is_some();
     let physical_sublog_idx = if using_single_physical_log {
       0
@@ -509,36 +515,31 @@ impl GarnetLog {
   /// libs/server/AOF/GarnetLog.cs:Enqueue（upsert/RMW/delete 通用形状）
   ///
   /// 背压等待 → 大记录分块（此处按不可分块形状直写）→ 头编码入队。
-  pub fn enqueue(
-    &self,
-    op_type: AofEntryType,
-    version: i64,
-    session_id: i32,
-    key: &[u8],
-    value: &[u8],
-    input: &[u8],
-    database_id: u8,
-  ) -> i64 {
-    self.backpressure_wait_key(key);
-    self.enqueue_with_header(op_type, version, session_id, key, value, input, database_id)
+  pub fn enqueue(&self, record: &RecordShape<'_>) -> i64 {
+    self.backpressure_wait_key(record.key);
+    self.enqueue_with_header(record)
   }
 
   /// libs/server/AOF/GarnetLog.cs:EnqueueSpanChunked
   ///
   /// 大记录分块写入：全量长度预先盖入分块头，使读取器可按组件预分配。
   /// `write_value` / `write_input` 选择组件（key 恒写）。
-  pub fn enqueue_span_chunked(
-    &self,
-    op_type: AofEntryType,
-    version: i64,
-    session_id: i32,
-    key: &[u8],
-    value: &[u8],
-    write_value: bool,
-    input: &[u8],
-    write_input: bool,
-    database_id: u8,
-  ) -> i64 {
+  pub fn enqueue_span_chunked(&self, chunk: &ChunkedShape<'_>) -> i64 {
+    let ChunkedShape {
+      record:
+        RecordShape {
+          op_type,
+          version,
+          session_id,
+          key,
+          value,
+          input,
+          database_id,
+        },
+      write_value,
+      write_input,
+    } = *chunk;
+    self.backpressure_wait_key_hash(Self::hash(key));
     let chunk_header = super::aof_header::AofChunkHeader {
       overflow_key_length: key.len() as u32,
       overflow_value_length: if write_value { value.len() as u32 } else { 0 },
@@ -588,11 +589,11 @@ impl GarnetLog {
 
     let remaining = if write_value { value } else { &[][..] };
     for piece in remaining.chunks(page_payload.max(1)) {
-      let mut piece_chunk = Vec::with_capacity(piece.len());
+      let piece_chunk = Vec::with_capacity(piece.len());
       emit(piece_chunk, &[], piece);
     }
     if write_input {
-      let mut input_chunk = Vec::with_capacity(input.len());
+      let input_chunk = Vec::with_capacity(input.len());
       emit(input_chunk, &[], input);
     }
 
@@ -613,28 +614,11 @@ impl GarnetLog {
   /// libs/server/AOF/GarnetLog.cs:EnqueueObjectChunked
   ///
   /// 对象值分块写入（值组件流式，读取器累积）。
-  pub fn enqueue_object_chunked(
-    &self,
-    op_type: AofEntryType,
-    version: i64,
-    session_id: i32,
-    key: &[u8],
-    value: &[u8],
-    input: &[u8],
-    write_input: bool,
-    database_id: u8,
-  ) -> i64 {
-    self.enqueue_span_chunked(
-      op_type,
-      version,
-      session_id,
-      key,
-      value,
-      true,
-      input,
-      write_input,
-      database_id,
-    )
+  pub fn enqueue_object_chunked(&self, chunk: &ChunkedShape<'_>) -> i64 {
+    self.enqueue_span_chunked(&ChunkedShape {
+      write_value: true,
+      ..chunk.clone()
+    })
   }
 
   /// libs/server/AOF/GarnetLog.cs:ChunkBufferSize
@@ -663,8 +647,15 @@ impl GarnetLog {
   ) -> i64 {
     self.backpressure_wait_vector(physical_sublog_access_vector);
     self.lock_sublogs(physical_sublog_access_vector);
-    let result =
-      self.enqueue_with_header(op_type, version, session_id, &[], body, &[], procedure_id);
+    let result = self.enqueue_with_header(&RecordShape {
+      op_type,
+      version,
+      session_id,
+      key: &[],
+      value: body,
+      input: &[],
+      database_id: procedure_id,
+    });
     self.unlock_sublogs(physical_sublog_access_vector);
     result
   }
@@ -694,7 +685,15 @@ impl GarnetLog {
   ///
   /// 广播条目（复制元数据等）。
   pub fn enqueue_broadcast_entry(&self, op_type: AofEntryType, version: i64, body: &[u8]) -> i64 {
-    self.enqueue_with_header(op_type, version, 0, &[], body, &[], 0)
+    self.enqueue_with_header(&RecordShape {
+      op_type,
+      version,
+      session_id: 0,
+      key: &[],
+      value: body,
+      input: &[],
+      database_id: 0,
+    })
   }
 
   /// libs/server/AOF/GarnetLog.cs:EnqueueDatabaseCommit
@@ -726,6 +725,39 @@ impl GarnetLog {
   }
 }
 
+/// 分块写入形状：记录形状 + 组件选择标志。
+#[derive(Clone)]
+pub struct ChunkedShape<'a> {
+  /// 记录形状。
+  pub record: RecordShape<'a>,
+  /// 是否写 value 组件。
+  pub write_value: bool,
+  /// 是否写 input 组件。
+  pub write_input: bool,
+}
+
+/// 入队记录形状（头字段 + 负载组件）。
+#[derive(Clone)]
+pub struct RecordShape<'a> {
+  /// 操作类型。
+  pub op_type: AofEntryType,
+  /// 存储版本。
+  pub version: i64,
+  /// 会话 id。
+  pub session_id: i32,
+  /// key。
+  pub key: &'a [u8],
+  /// value。
+  pub value: &'a [u8],
+  /// input。
+  pub input: &'a [u8],
+  /// 数据库 id。
+  pub database_id: u8,
+}
+
+/// 日志尾移回调句柄。
+type ShiftTailCallback = Box<dyn Fn(i64) + Send + Sync>;
+
 /// TsavoriteLog.MinPartialAllocSize 的等价常量（超过即分块）。
 pub const MIN_PARTIAL_ALLOC_SIZE: i64 = 8 * 1024 * 1024;
 
@@ -733,7 +765,7 @@ pub const MIN_PARTIAL_ALLOC_SIZE: i64 = 8 * 1024 * 1024;
 mod tests {
   use std::sync::Arc;
 
-  use super::{GarnetLog, InMemorySublog, SublogBackend};
+  use super::{ChunkedShape, GarnetLog, InMemorySublog, RecordShape, SublogBackend};
   use crate::{
     aof::{aof_address::AofAddress, aof_entry_type::AofEntryType},
     config::runtime_server_options::RuntimeServerOptions,
@@ -765,7 +797,15 @@ mod tests {
   #[test]
   fn enqueue_scan_roundtrip() {
     let log = log_with(1, 1);
-    let address = log.enqueue(AofEntryType::StoreUpsert, 1, 7, b"key1", b"value1", &[], 0);
+    let address = log.enqueue(&RecordShape {
+      op_type: AofEntryType::StoreUpsert,
+      version: 1,
+      session_id: 7,
+      key: b"key1",
+      value: b"value1",
+      input: &[],
+      database_id: 0,
+    });
     assert!(address > 0);
 
     let records = log.scan_single(0, 1, i64::MAX);
@@ -780,7 +820,15 @@ mod tests {
   fn commit_and_bitmask() {
     let log = log_with(2, 1);
     assert_eq!(log.all_logs_bitmask(), 0b11);
-    let address = log.enqueue(AofEntryType::StoreUpsert, 1, 1, b"k", b"v", &[], 0);
+    let address = log.enqueue(&RecordShape {
+      op_type: AofEntryType::StoreUpsert,
+      version: 1,
+      session_id: 1,
+      key: b"k",
+      value: b"v",
+      input: &[],
+      database_id: 0,
+    });
     // 记录落在 hash 路由的子日志；对全拓扑提交并校验尾推进。
     let physical = log.get_physical_sublog_idx(GarnetLog::hash(b"k"));
     let tail = log.commit(physical);
@@ -794,16 +842,19 @@ mod tests {
   fn chunked_write_reassembles() {
     let log = log_with(1, 1);
     let value = vec![b'x'; 200];
-    let address = log.enqueue_object_chunked(
-      AofEntryType::ObjectStoreUpsert,
-      3,
-      9,
-      b"big",
-      &value,
-      b"",
-      false,
-      0,
-    );
+    let address = log.enqueue_object_chunked(&ChunkedShape {
+      record: RecordShape {
+        op_type: AofEntryType::ObjectStoreUpsert,
+        version: 3,
+        session_id: 9,
+        key: b"big",
+        value: &value,
+        input: &[],
+        database_id: 0,
+      },
+      write_value: true,
+      write_input: false,
+    });
     assert!(address > 0);
     let records = log.scan_single(0, 1, i64::MAX);
     // 分块头 + 至少一个数据块。
