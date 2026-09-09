@@ -54,9 +54,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
       Ok(_) => {
         let added = self
           .set_rmw(key, |obj| {
+            // operate(Sadd) 返回 true 即新插入：SADD 计数为新增成员（对齐 Redis）
             let mut n = 0i64;
             for m in members {
-              if !obj.operate(SetOperation::Sadd, m) {
+              if obj.operate(SetOperation::Sadd, m) {
                 n += 1;
               }
             }

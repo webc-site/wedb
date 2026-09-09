@@ -167,6 +167,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
         let keys = obj.get_keys();
+        // 空哈希（删空竞态窗口内的残留信封）：负计数随机下标无处可采，
+        // 与键缺失同应答空列表，杜绝 fastrand 空区间 panic
+        if keys.is_empty() {
+          return Ok((GarnetStatus::Ok, Vec::new()));
+        }
         let pin = obj.hash.pin();
         if count < 0 {
           // 负计数：允许重复取样 |count| 个，按 Redis 口径不带值
