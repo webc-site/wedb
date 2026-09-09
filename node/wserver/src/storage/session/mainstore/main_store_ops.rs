@@ -220,25 +220,23 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LCS：两串最长公共子序列入口（`len_only` 仅返回长度）
   ///
+  /// 任一键缺失：返回 OK + 空结果（总长 0、无匹配段）——C# LCSInternal 在
+  /// NOTFOUND 时照常写出空应答（lenOnly 写 0 / withIndices 写空表 /
+  /// 默认写空 bulk string），不返回 NOTFOUND。
+  ///
   /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:LCS
+  /// （工作体：libs/server/Storage/Session/MainStore/MainStoreOps.cs:LCSInternal）
   pub async fn lcs(
     &self,
     key1: &[u8],
     key2: &[u8],
   ) -> wkv::Result<(GarnetStatus, Option<LcsResult>)> {
-    // 任一键缺失即视为 NotFound（C# 侧以空串参与计算后由 RESP 层做空响应）
+    // 任一键缺失：OK + 空输出（对齐 C# status != OK 分支的空应答写出）
     let result = match (self.read_string(key1).await?, self.read_string(key2).await?) {
       (Some(v1), Some(v2)) => Some(lcs_internal(&v1, &v2)),
-      _ => None,
+      _ => Some((0, Vec::new())),
     };
-    Ok((
-      if result.is_some() {
-        GarnetStatus::Ok
-      } else {
-        GarnetStatus::NotFound
-      },
-      result,
-    ))
+    Ok((GarnetStatus::Ok, result))
   }
 
   /// 计算两串 LCS 长度（纯函数）

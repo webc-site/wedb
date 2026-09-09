@@ -55,6 +55,11 @@ impl CacheSizeTracker {
     self.stopped.store(true, Relaxed);
   }
 
+  /// 启动采样任务（清除停止标志，对标 C# 任务重启后新建追踪器的可用态）
+  pub fn restart(&self) {
+    self.stopped.store(false, Relaxed);
+  }
+
   /// 是否已停止
   pub fn is_stopped(&self) -> bool {
     self.stopped.load(Relaxed)

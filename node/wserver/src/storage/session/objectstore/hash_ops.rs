@@ -9,7 +9,10 @@ use wdev::Device;
 use wobject::hash::hash_object::{HashObject, HashOperation};
 
 use super::{super::storage_session::StorageSession, common::ObjState};
-use crate::api::garnet_status::GarnetStatus;
+use crate::{
+  api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput,
+  resp::parser::session_parse_state::strict_f64,
+};
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 哈希对象读-改-写：载荷解码为 HashObject 后交闭包变更，返回前自动回写
@@ -151,10 +154,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、可重复且不带值；
-  /// 为正返回至多 `count` 个不重复字段，`with_values` 附带值）
+  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、可重复；为正返回
+  /// 至多 `count` 个不重复字段；`with_values` 不分正负一律附带值——对齐 C#
+  /// HashObjectImpl.HashRandomField：负计数路径同样写 pair.Value，不忽略 WITHVALUES）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashRandomField
+  /// （工作体：libs/server/Objects/Hash/HashObjectImpl.cs:HashRandomField）
   pub async fn hash_random_field(
     &self,
     key: &[u8],
@@ -174,12 +179,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
         }
         let pin = obj.hash.pin();
         if count < 0 {
-          // 负计数：允许重复取样 |count| 个，按 Redis 口径不带值
+          // 负计数：允许重复取样 |count| 个；WITHVALUES 照常带值（C# 语义，
+          // 非 Redis CLI 口径——Garnet 不因计数为负而忽略 withValues）
           let n = count.unsigned_abs() as usize;
           let out = (0..n)
             .map(|_| {
               let k = keys[fastrand::usize(..keys.len())].clone();
-              (k, None)
+              let v = with_values.then(|| pin.get(&k).cloned()).flatten();
+              (k, v)
             })
             .collect();
           return Ok((GarnetStatus::Ok, out));
@@ -271,9 +278,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HINCRBY/HINCRBYFLOAT：字段数值增减（`float` 走 f64 口径），回吐新值文本
   ///
-  /// 字段存在但非数值 → WRONGTYPE（不覆盖写）；数值溢出 → WRONGTYPE。
+  /// 字段存在但非数值 → WRONGTYPE（不覆盖写）。对齐 C# HashIncrement /
+  /// HashIncrementFloat：字段缺失时原样存增量实参文本（incrSlice.ToArray()）；
+  /// 浮点增量 NaN 字面量拒绝、±INF 先解析后报错；结果以最短往返文本落存
+  /// （TryFormat 默认格式，非 17 位定点）。
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashIncrement
+  /// （工作体：libs/server/Objects/Hash/HashObjectImpl.cs:HashIncrement /
+  /// HashIncrementFloat）
   pub async fn hash_increment(
     &self,
     key: &[u8],
@@ -281,10 +293,6 @@ impl<'a, D: Device> StorageSession<'a, D> {
     delta: &[u8],
     float: bool,
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
-    let delta_str = match str::from_utf8(delta) {
-      Ok(s) => s,
-      Err(_) => return Ok((GarnetStatus::WrongType, None)),
-    };
     if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
       return Ok((GarnetStatus::WrongType, None));
     }
@@ -292,54 +300,56 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .hash_rmw(key, |obj| {
         let current = obj.operate(HashOperation::HGET, field, b"");
         if float {
-          // 字段存在但非浮点文本：拒绝增减（不当作 0 覆盖）
-          let cur = match current.as_deref() {
-            None => 0.0,
-            Some(b) => {
-              match str::from_utf8(b)
-                .ok()
-                .and_then(|s| s.trim().parse::<f64>().ok())
-              {
-                Some(v) => v,
-                None => return (false, None),
-              }
-            }
-          };
-          let Some(d) = delta_str.trim().parse::<f64>().ok() else {
+          // 浮点分支（HashIncrementFloat）：增量按 C# TryGetDouble 严格解析
+          //（NaN 拒绝，±INF 白名单接受），随后 IsInfinity 检查报错
+          let Some(d) = strict_f64(delta, true) else {
             return (false, None);
           };
-          let new = cur + d;
-          let text = format!("{new:.17}");
-          obj.operate(HashOperation::HSET, field, text.as_bytes());
-          (true, Some(text.into_bytes()))
-        } else {
-          // 字段存在但非整数文本：拒绝增减（不当作 0 覆盖）
-          let cur = match current.as_deref() {
-            None => None,
-            Some(b) => {
-              match str::from_utf8(b)
-                .ok()
-                .and_then(|s| s.trim().parse::<i64>().ok())
-              {
-                Some(v) => Some(v),
-                None => return (false, None),
-              }
-            }
-          };
-          let Ok(d) = delta_str.trim().parse::<i64>() else {
-            return (false, None);
-          };
-          match cur {
-            Some(c) => match c.checked_add(d) {
-              Some(n) => {
-                let text = n.to_string();
-                obj.operate(HashOperation::HSET, field, text.as_bytes());
-                (true, Some(text.into_bytes()))
-              }
-              None => (false, None), // 溢出：不写入
-            },
+          if d.is_infinite() {
+            return (false, None); // RESP_ERR_GENERIC_NAN_INFINITY
+          }
+          match current.as_deref() {
+            // 字段缺失：原样存增量文本（C# incrSlice.ToArray()），不归零计算
             None => {
-              let text = d.to_string();
+              obj.operate(HashOperation::HSET, field, delta);
+              (true, Some(delta.to_vec()))
+            }
+            Some(b) => {
+              // 现值按 TryParseWithInfinity 同口径解析；∞ 现值拒绝增减
+              let Some(cur) = strict_f64(b, true) else {
+                return (false, None); // RESP_ERR_HASH_VALUE_IS_NOT_FLOAT
+              };
+              if cur.is_infinite() {
+                return (false, None); // RESP_ERR_GENERIC_NAN_INFINITY_INCR
+              }
+              let new = cur + d;
+              // 最短往返文本落存（C# double.TryFormat 默认格式）
+              let text = ObjectOutput::format_double(new);
+              obj.operate(HashOperation::HSET, field, text.as_bytes());
+              (true, Some(text.into_bytes()))
+            }
+          }
+        } else {
+          // 整数分支（HashIncrement）：增量按 NumUtils.TryParse 整体消费解析
+          //（Utf8Parser 默认口径：接受前导零，不容空白，非 strict 族）
+          let parse_i64 = |b: &[u8]| -> Option<i64> {
+            str::from_utf8(b).ok().and_then(|s| s.parse::<i64>().ok())
+          };
+          let Some(d) = parse_i64(delta) else {
+            return (false, None); // RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER
+          };
+          match current.as_deref() {
+            // 字段缺失：原样存增量文本（C# incrSlice.ToArray()）
+            None => {
+              obj.operate(HashOperation::HSET, field, delta);
+              (true, Some(delta.to_vec()))
+            }
+            Some(b) => {
+              let Some(cur) = parse_i64(b) else {
+                return (false, None); // RESP_ERR_HASH_VALUE_IS_NOT_INTEGER
+              };
+              // C# `result += incr` 默认 unchecked：溢出回绕，非拒绝
+              let text = cur.wrapping_add(d).to_string();
               obj.operate(HashOperation::HSET, field, text.as_bytes());
               (true, Some(text.into_bytes()))
             }

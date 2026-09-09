@@ -421,7 +421,7 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
 
   fn start_size_trackers(&self) {
     for (_, db) in self.databases.pin().iter() {
-      let _ = db.size_tracker.is_stopped();
+      db.size_tracker.restart();
     }
   }
 
