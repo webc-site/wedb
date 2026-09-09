@@ -76,6 +76,22 @@ fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
 /// 自旋耗尽的极端在途记录本轮漏扫、后续扫描轮次自愈（GC/过期清理均为周期性扫描）；
 /// 需要强一致快照的调用方（checkpoint/恢复）须先冻结写入（shift_read_only_to_tail +
 /// 纪元排空，同 flush 崩溃一致性契约）。
+///
+/// # 页读失败原子性（对标上游 d20d63993 修复 ScanIteratorBase.BufferAndLoad）
+/// C# 的 `BufferAndLoad` 经 `nextLoadedPages` 预占 frame 后把页读挂到
+/// `BumpCurrentEpoch` 延迟执行，同步失败会留下「frame 被占而 loadedPages 停在 -1」
+/// 的中间态（CAS 死循环 / 等待者永久挂起 / 异常逃逸进无关线程的 drain pass），上游
+/// 以 `FailFrameLoad` + interlocked latch 修复。本实现结构性不存在该缺陷类：
+/// - 无 frame 预占状态机（无 nextLoadedPages/loadedPages/pendingDrainCallbacks 等
+///   对应物），页读为调用方驱动 `read_range(...).await`，失败经 `?` 原地传播给
+///   扫描调用方，无「已预占但永不完成」的中间态；
+/// - 读不依赖纪元延迟执行（无 BumpCurrentEpoch(Action) 挂载点），不存在「异常
+///   逃逸进无关线程 drain pass」的通道；
+/// - 单页磁盘缓存先 `take()` 后读（见 [Self::next_ref] 分支 1），读失败时缓存
+///   已出列且不回填，绝不残留指向失败页的毒化缓存；
+/// - 迭代器游标仅在成功消费后推进（[Self::advance]），失败重入自动重试当前页。
+///
+/// 回归测试见 `tests/hlog/flaky_device.rs`（对标 C# test.hlog/FlakyDeviceTests.cs）。
 pub struct ScanIterator<'a, D: Device> {
   hlog: &'a HybridLog<D>,
   curr_addr: u64,

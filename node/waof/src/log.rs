@@ -139,7 +139,7 @@ impl<D: Device> WalLog<D> {
 
   /// 打开或恢复已有 WAL 日志实例，自动扫描磁盘段文件恢复有效位点
   pub async fn open(device: Arc<D>, config: WalConfig) -> Result<Self> {
-    let log = Self::new(Arc::clone(&device), config)?;
+    let log = Self::new(device, config)?;
     log.recover().await?;
     Ok(log)
   }

@@ -1,10 +1,38 @@
 use bitcode::{Decode, Encode};
+use wbase::buf::put_header_payload;
 
 use crate::{
   buf::stack_heap_buf,
   error::{Error, Result},
   tag::{CollectionType, KeyTag},
 };
+
+/// 元数据大端布局中读取位于 `offset` 处的 u64（const fn，调用方保证长度充足）
+#[inline(always)]
+const fn read_be_u64_at(slice: &[u8], offset: usize) -> u64 {
+  u64::from_be_bytes([
+    slice[offset],
+    slice[offset + 1],
+    slice[offset + 2],
+    slice[offset + 3],
+    slice[offset + 4],
+    slice[offset + 5],
+    slice[offset + 6],
+    slice[offset + 7],
+  ])
+}
+
+/// 校验切片长度至少为 `need`，不足则返回 [`Error::BufferTooShort`]
+#[inline(always)]
+const fn ensure_len(slice: &[u8], need: usize) -> Result<()> {
+  if slice.len() < need {
+    return Err(Error::BufferTooShort {
+      expected: need,
+      actual: slice.len(),
+    });
+  }
+  Ok(())
+}
 
 /// collection_type 字段在 32B 元数据大端布局中的字节偏移
 const TYPE_OFFSET: usize = 8;
@@ -179,53 +207,26 @@ impl MetaValue {
   /// 从只读切片快速读取集合版本号（零解析其他字段，const fn）
   #[inline(always)]
   pub const fn read_version(slice: &[u8]) -> Result<u64> {
-    if slice.len() < VERSION_OFFSET + U64_LEN {
-      return Err(Error::BufferTooShort {
-        expected: VERSION_OFFSET + U64_LEN,
-        actual: slice.len(),
-      });
+    match ensure_len(slice, VERSION_OFFSET + U64_LEN) {
+      Ok(()) => Ok(read_be_u64_at(slice, VERSION_OFFSET)),
+      Err(e) => Err(e),
     }
-    Ok(u64::from_be_bytes([
-      slice[VERSION_OFFSET],
-      slice[VERSION_OFFSET + 1],
-      slice[VERSION_OFFSET + 2],
-      slice[VERSION_OFFSET + 3],
-      slice[VERSION_OFFSET + 4],
-      slice[VERSION_OFFSET + 5],
-      slice[VERSION_OFFSET + 6],
-      slice[VERSION_OFFSET + 7],
-    ]))
   }
 
   /// 从只读切片快速读取元素总数（零解析其他字段，const fn）
   #[inline(always)]
   pub const fn read_size(slice: &[u8]) -> Result<u64> {
-    if slice.len() < SIZE_OFFSET + U64_LEN {
-      return Err(Error::BufferTooShort {
-        expected: SIZE_OFFSET + U64_LEN,
-        actual: slice.len(),
-      });
+    match ensure_len(slice, SIZE_OFFSET + U64_LEN) {
+      Ok(()) => Ok(read_be_u64_at(slice, SIZE_OFFSET)),
+      Err(e) => Err(e),
     }
-    Ok(u64::from_be_bytes([
-      slice[SIZE_OFFSET],
-      slice[SIZE_OFFSET + 1],
-      slice[SIZE_OFFSET + 2],
-      slice[SIZE_OFFSET + 3],
-      slice[SIZE_OFFSET + 4],
-      slice[SIZE_OFFSET + 5],
-      slice[SIZE_OFFSET + 6],
-      slice[SIZE_OFFSET + 7],
-    ]))
   }
 
   /// 从只读切片快速读取逻辑集合类型（const fn）
   #[inline(always)]
   pub const fn read_collection_type(slice: &[u8]) -> Result<CollectionType> {
-    if slice.len() < TYPE_OFFSET + 1 {
-      return Err(Error::BufferTooShort {
-        expected: TYPE_OFFSET + 1,
-        actual: slice.len(),
-      });
+    if let Err(e) = ensure_len(slice, TYPE_OFFSET + 1) {
+      return Err(e);
     }
     match CollectionType::from_u8(slice[TYPE_OFFSET]) {
       Some(t) => Ok(t),
@@ -236,11 +237,8 @@ impl MetaValue {
   /// 从只读切片直接解码元数据记录（单次越界检查，const fn，零堆分配，4×64位并行展开提取）
   #[inline(always)]
   pub const fn from_slice(slice: &[u8]) -> Result<Self> {
-    if slice.len() < META_VALUE_SIZE {
-      return Err(Error::BufferTooShort {
-        expected: META_VALUE_SIZE,
-        actual: slice.len(),
-      });
+    if let Err(e) = ensure_len(slice, META_VALUE_SIZE) {
+      return Err(e);
     }
 
     let key_id = u64::from_be_bytes([
@@ -253,33 +251,13 @@ impl MetaValue {
     let reserved = [
       slice[9], slice[10], slice[11], slice[12], slice[13], slice[14], slice[15],
     ];
-    let version = u64::from_be_bytes([
-      slice[VERSION_OFFSET],
-      slice[VERSION_OFFSET + 1],
-      slice[VERSION_OFFSET + 2],
-      slice[VERSION_OFFSET + 3],
-      slice[VERSION_OFFSET + 4],
-      slice[VERSION_OFFSET + 5],
-      slice[VERSION_OFFSET + 6],
-      slice[VERSION_OFFSET + 7],
-    ]);
-    let size = u64::from_be_bytes([
-      slice[SIZE_OFFSET],
-      slice[SIZE_OFFSET + 1],
-      slice[SIZE_OFFSET + 2],
-      slice[SIZE_OFFSET + 3],
-      slice[SIZE_OFFSET + 4],
-      slice[SIZE_OFFSET + 5],
-      slice[SIZE_OFFSET + 6],
-      slice[SIZE_OFFSET + 7],
-    ]);
 
     Ok(Self {
       key_id,
       collection_type,
       reserved,
-      version,
-      size,
+      version: read_be_u64_at(slice, VERSION_OFFSET),
+      size: read_be_u64_at(slice, SIZE_OFFSET),
     })
   }
 
@@ -708,22 +686,14 @@ impl SubKeyCodec {
     dst: &mut [u8],
   ) -> Result<usize> {
     Self::ensure_subkey(tag)?;
-    let total_len = match SUBKEY_HEADER_SIZE.checked_add(payload.len()) {
-      Some(l) => l,
-      None => return Err(Error::RecordSizeOverflow),
-    };
-    if dst.len() < total_len {
-      return Err(Error::BufferTooShort {
-        expected: total_len,
-        actual: dst.len(),
-      });
-    }
-
+    let total_len = SUBKEY_HEADER_SIZE
+      .checked_add(payload.len())
+      .ok_or(Error::RecordSizeOverflow)?;
     let header = Self::encode_header(tag, key_id, version);
-    dst[..SUBKEY_HEADER_SIZE].copy_from_slice(&header);
-    dst[SUBKEY_HEADER_SIZE..total_len].copy_from_slice(payload);
-
-    Ok(total_len)
+    put_header_payload(dst, &header, payload).ok_or(Error::BufferTooShort {
+      expected: total_len,
+      actual: dst.len(),
+    })
   }
 
   /// 编码子键为优先栈分配的缓冲区（消除短 payload 堆分配）
@@ -735,23 +705,13 @@ impl SubKeyCodec {
     payload: &[u8],
   ) -> Result<SubKeyBuf> {
     Self::ensure_subkey(tag)?;
-    let total_len = match SUBKEY_HEADER_SIZE.checked_add(payload.len()) {
-      Some(l) => l,
-      None => return Err(Error::RecordSizeOverflow),
-    };
-    if total_len <= SUBKEY_STACK_CAP {
-      let mut buf = [0u8; SUBKEY_STACK_CAP];
-      let header = Self::encode_header(tag, key_id, version);
-      buf[..SUBKEY_HEADER_SIZE].copy_from_slice(&header);
-      buf[SUBKEY_HEADER_SIZE..total_len].copy_from_slice(payload);
-      Ok(SubKeyBuf::Stack(buf, total_len as u8))
-    } else {
-      let mut vec = Vec::with_capacity(total_len);
-      let header = Self::encode_header(tag, key_id, version);
-      vec.extend_from_slice(&header);
-      vec.extend_from_slice(payload);
-      Ok(SubKeyBuf::Heap(vec))
-    }
+    SUBKEY_HEADER_SIZE
+      .checked_add(payload.len())
+      .ok_or(Error::RecordSizeOverflow)?;
+    Ok(SubKeyBuf::from_header_parts(
+      &Self::encode_header(tag, key_id, version),
+      payload,
+    ))
   }
 
   /// 尝试预分配容量并编码为 Vec<u8>，若溢出则返回错误

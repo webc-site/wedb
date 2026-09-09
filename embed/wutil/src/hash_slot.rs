@@ -23,6 +23,9 @@ const CRC16_TABLE: [u16; 256] = [
   0x2E93, 0x3EB2, 0x0ED1, 0x1EF0,
 ];
 
+/// Redis 集群槽位上限 (CRC16 结果掩码，槽数 16384)
+pub const HASH_SLOT_MAX: u16 = 16383;
+
 /// garnet/libs/common/HashSlotUtils.cs:Hash
 pub fn hash(data: &[u8]) -> u16 {
   let mut result: u16 = 0;
@@ -39,7 +42,7 @@ pub fn hash_slot(key: &[u8]) -> u16 {
     && let Some(end_offset) = key[start + 1..].iter().position(|&b| b == b'}')
     && end_offset > 0
   {
-    return hash(&key[start + 1..start + 1 + end_offset]) & 16383;
+    return hash(&key[start + 1..start + 1 + end_offset]) & HASH_SLOT_MAX;
   }
-  hash(key) & 16383
+  hash(key) & HASH_SLOT_MAX
 }

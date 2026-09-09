@@ -21,14 +21,15 @@ impl RoaringBitmapObject {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SetBit
+  ///
+  /// insert/remove 的返回值即旧值语义（insert：true=原先不存在；remove：true=原先存在），
+  /// 单次查找完成读取旧值 + 置位/清除，免除 get+set 两次树下降
   pub fn set_bit(&mut self, value: u32, set: bool) -> bool {
-    let previous = self.bitmap.get_bit(value);
     if set {
-      self.bitmap.set_bit(value);
+      !self.bitmap.set_bit(value)
     } else {
-      self.bitmap.remove(value);
+      self.bitmap.remove(value)
     }
-    previous
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:GetBit

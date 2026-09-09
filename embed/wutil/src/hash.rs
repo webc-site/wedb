@@ -18,11 +18,11 @@ pub fn murmur_hash3_x64_a(b_string: &[u8], seed: u32) -> u64 {
   let mut k1: u64;
 
   let len = b_string.len();
-  let num_blocks = len >> 3;
 
-  for i in 0..num_blocks {
-    let block = &b_string[i * 8..(i + 1) * 8];
-    k1 = u64::from_le_bytes(block.try_into().unwrap());
+  // 8 字节整块：as_chunks 消除索引边界检查，剩余尾部一次性给出
+  let (blocks, suffix) = b_string.as_chunks::<8>();
+  for block in blocks {
+    k1 = u64::from_le_bytes(*block);
 
     k1 = k1.wrapping_mul(c1);
     k1 = k1.rotate_left(31);
@@ -33,8 +33,7 @@ pub fn murmur_hash3_x64_a(b_string: &[u8], seed: u32) -> u64 {
     h1 = h1.wrapping_mul(5).wrapping_add(0x52dce729);
   }
 
-  let suffix_len = len & 7;
-  let suffix = &b_string[num_blocks * 8..];
+  let suffix_len = suffix.len();
   k1 = 0;
 
   if suffix_len >= 7 {
@@ -64,9 +63,7 @@ pub fn murmur_hash3_x64_a(b_string: &[u8], seed: u32) -> u64 {
   }
 
   h1 ^= len as u64;
-  h1 = fmix64(h1);
-
-  h1
+  fmix64(h1)
 }
 
 /// garnet/libs/common/HashUtils.cs:MurmurHash3x64
@@ -89,12 +86,13 @@ pub fn murmur_hash3_x128(b_string: &[u8], seed: u32) -> (u64, u64) {
   let mut k2: u64;
 
   let len = b_string.len();
-  let num_blocks = len >> 4;
 
-  for i in 0..num_blocks {
-    let block = &b_string[i * 16..(i + 1) * 16];
-    k1 = u64::from_le_bytes(block[0..8].try_into().unwrap());
-    k2 = u64::from_le_bytes(block[8..16].try_into().unwrap());
+  // 16 字节整块：as_chunks 消除索引边界检查，剩余尾部一次性给出
+  let (blocks, suffix) = b_string.as_chunks::<16>();
+  for block in blocks {
+    // SAFETY: 块长恒为 16 字节，前后两个 8 字节半块读取恒在界内，零边界检查
+    k1 = unsafe { (block.as_ptr() as *const u64).read_unaligned() };
+    k2 = unsafe { (block.as_ptr().add(8) as *const u64).read_unaligned() };
 
     k1 = k1.wrapping_mul(c1);
     k1 = k1.rotate_left(31);
@@ -113,8 +111,7 @@ pub fn murmur_hash3_x128(b_string: &[u8], seed: u32) -> (u64, u64) {
     h2 = h2.wrapping_mul(5).wrapping_add(0x38495ab5);
   }
 
-  let suffix_len = len & 15;
-  let suffix = &b_string[num_blocks * 16..];
+  let suffix_len = suffix.len();
   k1 = 0;
   k2 = 0;
 
@@ -192,11 +189,11 @@ pub fn murmur_hash2_x64_a(b_string: &[u8], seed: u32) -> u64 {
   let r = 47;
   let len = b_string.len();
   let mut h = (seed as u64) ^ ((len as u64).wrapping_mul(m));
-  let num_blocks = len / 8;
 
-  for i in 0..num_blocks {
-    let block = &b_string[i * 8..(i + 1) * 8];
-    let mut k = u64::from_le_bytes(block.try_into().unwrap());
+  // 8 字节整块：as_chunks 消除索引边界检查，剩余尾部一次性给出
+  let (blocks, suffix) = b_string.as_chunks::<8>();
+  for block in blocks {
+    let mut k = u64::from_le_bytes(*block);
 
     k = k.wrapping_mul(m);
     k ^= k >> r;
@@ -205,8 +202,7 @@ pub fn murmur_hash2_x64_a(b_string: &[u8], seed: u32) -> u64 {
     h = h.wrapping_mul(m);
   }
 
-  let cs = len & 7;
-  let suffix = &b_string[num_blocks * 8..];
+  let cs = suffix.len();
 
   if cs >= 7 {
     h ^= (suffix[6] as u64) << 48;

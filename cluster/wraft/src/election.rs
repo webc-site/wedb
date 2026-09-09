@@ -116,7 +116,8 @@ impl ElectionState {
   ///
   /// Follower 直接发起；Candidate 选举超时后经此进入更高任期重选
   /// （Raft 语义：新任期即新的投票窗口，`voted_for` 重置合法）。
-  /// Leader 须先 [`Self::resign`]，直接发起报错
+  /// Leader 须先 [`Self::resign`]，直接发起报错。
+  /// 单节点集群自投即构成多数派，立即当选（标准 Raft 行为）
   pub fn start_election(&mut self) -> Result<(u64, VoteRequest)> {
     if self.role == Role::Leader {
       return Err(Error::AlreadyLeader { term: self.term });
@@ -127,6 +128,7 @@ impl ElectionState {
     self.leader = None;
     self.votes.clear();
     self.votes.insert(self.self_id);
+    self.win_on_quorum();
     Ok((
       self.term,
       VoteRequest {
@@ -153,14 +155,18 @@ impl ElectionState {
     if self.role != Role::Candidate || reply.term < self.term {
       return Ok(self.role);
     }
-    if reply.granted
-      && self.peers.contains(&from)
-      && self.votes.insert(from)
-      && self.votes.len() >= self.quorum()
-    {
-      self.role = Role::Leader;
+    if reply.granted && self.peers.contains(&from) && self.votes.insert(from) {
+      self.win_on_quorum();
     }
     Ok(self.role)
+  }
+
+  /// 选票达多数派门槛即转 Leader（幂等：已当选则无变化）
+  #[inline]
+  fn win_on_quorum(&mut self) {
+    if self.role == Role::Candidate && self.votes.len() >= self.quorum() {
+      self.role = Role::Leader;
+    }
   }
 
   /// 处理他方投票请求（Follower/Candidate/过期 Leader 视角）
@@ -391,5 +397,18 @@ mod tests {
     assert_eq!(three_nodes().quorum(), 2);
     assert_eq!(ElectionState::new(1, [1, 2, 3, 4, 5]).quorum(), 3);
     assert_eq!(ElectionState::new(1, [1]).quorum(), 1);
+  }
+
+  /// 单节点集群：自投即多数派，发起选举后立即当选，无需任何应答
+  #[test]
+  fn single_node_cluster_wins_immediately() {
+    let mut s = ElectionState::new(7, [7]);
+    let (term, _) = s.start_election().unwrap();
+    assert_eq!((term, s.role, s.leader), (1, Role::Leader, None));
+    // 当选后重选仍须先退位（与多节点一致的门控）
+    assert!(matches!(
+      s.start_election(),
+      Err(Error::AlreadyLeader { term: 1 })
+    ));
   }
 }

@@ -125,10 +125,7 @@ impl<D: Device> StoreSession<D> {
     if let Some(addr) = self.store.index.find_tag(key) {
       let begin_addr = self.store.begin_address();
       if !is_read_cache_addr(addr) && addr >= begin_addr && self.store.hlog.is_mutable(addr) {
-        let ok = self
-          .store
-          .hlog
-          .try_modify_record_with_slack(addr, key, new_val)?;
+        let ok = self.store.hlog.try_update_in_place(addr, key, new_val)?;
         if ok {
           self.notify_write_listener(key, new_val, false);
         }
@@ -853,6 +850,9 @@ impl<D: Device> StoreSession<D> {
         // 1. 若启用了 ReadCache，优先将冷数据挂入纯 DRAM 只读非脏页内存日志（零持久化开销、零写放大）；
         // 2. 否则若开启 copy_reads_to_tail，则回退到追加 Tail 内存活跃区晋升。
         // （匹配记录非链头时索引更新自然失配为 no-op，RC 挂链由环形覆盖自然回收）
+        // 晋升帧走紧缩搬迁同款旁路写监听（append_record_compacted）：帧内容为已存在的
+        // 旧值，属物理布局优化而非用户写效果，镜像入 AOF 会在并发写下造成恢复回退
+        // （旧值帧晚于并发新值帧入队，重放序错乱，见 append_record_compacted 注释）
         let _guard = self.participant.enter();
         if self.store.read_cache.is_enabled {
           if let Some(rc_addr) =
@@ -864,7 +864,9 @@ impl<D: Device> StoreSession<D> {
             let _ = self.store.index.update_address(key, cur, rc_addr);
           }
         } else if self.copy_reads_to_tail()
-          && let Ok(new_addr) = self.append_record(key, val_slice, cur, false).await
+          && let Ok(new_addr) = self
+            .append_record_compacted(key, val_slice, cur, false)
+            .await
           && !self.store.index.update_address(key, cur, new_addr)
           && self.store.config.enable_revivification
         {
@@ -1004,43 +1006,15 @@ impl<D: Device> StoreSession<D> {
       return Ok(());
     }
 
-    let mask = self.store.index.mask;
     let mut next_batch_ix = 0;
     // 批间复用同一缓冲区：仅首次命中磁盘候选时分配一次，多批次 MGET 场景消除反复分配
     let mut pending: Vec<(usize, CandidateAddresses)> = Vec::new();
 
     while next_batch_ix < count {
       let batch_len = (count - next_batch_ix).min(BATCH_READ_PREFETCH_SIZE);
-      let mut hashes = [0u64; BATCH_READ_PREFETCH_SIZE];
-      let mut first_addrs = [None; BATCH_READ_PREFETCH_SIZE];
 
       let guard = Some(self.participant.enter());
-
-      // 1. 第一级硬件预取：计算 64 位哈希值并将对应哈希桶（64 字节）拉入 CPU L1 数据缓存
-      for (i, hash_slot) in hashes[..batch_len].iter_mut().enumerate() {
-        let key = unsafe { keys.get_unchecked(next_batch_ix + i) }.as_ref();
-        let hash = HashIndex::hash_key(key);
-        *hash_slot = hash;
-        let bucket_idx = (hash as usize) & mask;
-        let bucket_ptr = unsafe { self.store.index.buckets.as_ptr().add(bucket_idx) };
-        prefetch_read_l1(bucket_ptr);
-      }
-
-      // 2. 第二级硬件预取：探测 FindTag 对应地址，若驻留在内存有效区间，预取记录物理内存
-      let head_addr = self.store.head_address();
-      let tail_addr = self.store.hlog.tail_address();
-      for (i, addr_slot) in first_addrs[..batch_len].iter_mut().enumerate() {
-        let hash = hashes[i];
-        let addr_opt = self.store.index.find_tag_by_hash(hash);
-        *addr_slot = addr_opt;
-        if let Some(addr) = addr_opt
-          && addr >= head_addr
-          && addr < tail_addr
-        {
-          let phys_ptr = unsafe { self.store.hlog.get_physical_address(addr) };
-          prefetch_read_l1(phys_ptr);
-        }
-      }
+      let first_addrs = self.prefetch_batch_addrs(keys, next_batch_ix, batch_len);
 
       // 3. 内存快路径同步直读；磁盘候选统一收集后并发提交批量收割
       //    （对标 C# CompletePending：compio 完成制模型下首轮 poll 提交、单线程重叠多路磁盘 I/O）
@@ -1151,39 +1125,11 @@ impl<D: Device> StoreSession<D> {
     }
 
     let _guard = self.participant.enter();
-    let mask = self.store.index.mask;
-    let head_addr = self.store.head_address();
-    let tail_addr = self.store.hlog.tail_address();
 
     let mut next_batch_ix = 0;
     while next_batch_ix < count {
       let batch_len = (count - next_batch_ix).min(BATCH_READ_PREFETCH_SIZE);
-      let mut hashes = [0u64; BATCH_READ_PREFETCH_SIZE];
-      let mut first_addrs = [None; BATCH_READ_PREFETCH_SIZE];
-
-      // 1. 第一级预取：哈希桶
-      for (i, hash_slot) in hashes[..batch_len].iter_mut().enumerate() {
-        let key = unsafe { keys.get_unchecked(next_batch_ix + i) }.as_ref();
-        let hash = HashIndex::hash_key(key);
-        *hash_slot = hash;
-        let bucket_idx = (hash as usize) & mask;
-        let bucket_ptr = unsafe { self.store.index.buckets.as_ptr().add(bucket_idx) };
-        prefetch_read_l1(bucket_ptr);
-      }
-
-      // 2. 第二级预取：记录物理地址
-      for (i, addr_slot) in first_addrs[..batch_len].iter_mut().enumerate() {
-        let hash = hashes[i];
-        let addr_opt = self.store.index.find_tag_by_hash(hash);
-        *addr_slot = addr_opt;
-        if let Some(addr) = addr_opt
-          && addr >= head_addr
-          && addr < tail_addr
-        {
-          let phys_ptr = unsafe { self.store.hlog.get_physical_address(addr) };
-          prefetch_read_l1(phys_ptr);
-        }
-      }
+      let first_addrs = self.prefetch_batch_addrs(keys, next_batch_ix, batch_len);
 
       // 3. 执行底层物理同步内存读取
       for (i, &first_addr) in first_addrs[..batch_len].iter().enumerate() {
@@ -1202,6 +1148,55 @@ impl<D: Device> StoreSession<D> {
     }
 
     Ok(())
+  }
+
+  /// 批量读单批两级硬件预取（异步/同步批量读共用，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch）
+  ///
+  /// 1. 第一级：计算 64 位哈希并将对应哈希桶（64 字节 cacheline）拉入 CPU L1 数据缓存；
+  /// 2. 第二级：探测 FindTag 首地址，若驻留内存有效区间 `[head, tail)` 则预取记录物理内存。
+  ///
+  /// 返回首地址探针数组（有效长度 `batch_len`，调用方须已处于纪元保护下）。
+  #[inline]
+  fn prefetch_batch_addrs<K>(
+    &self,
+    keys: &[K],
+    base_ix: usize,
+    batch_len: usize,
+  ) -> [Option<u64>; BATCH_READ_PREFETCH_SIZE]
+  where
+    K: AsRef<[u8]>,
+  {
+    let mut hashes = [0u64; BATCH_READ_PREFETCH_SIZE];
+    let mut first_addrs = [None; BATCH_READ_PREFETCH_SIZE];
+    let mask = self.store.index.mask;
+
+    // 1. 第一级硬件预取：哈希桶 cacheline
+    for (i, hash_slot) in hashes[..batch_len].iter_mut().enumerate() {
+      let key = unsafe { keys.get_unchecked(base_ix + i) }.as_ref();
+      let hash = HashIndex::hash_key(key);
+      *hash_slot = hash;
+      let bucket_idx = (hash as usize) & mask;
+      let bucket_ptr = unsafe { self.store.index.buckets.as_ptr().add(bucket_idx) };
+      prefetch_read_l1(bucket_ptr);
+    }
+
+    // 2. 第二级硬件预取：记录物理地址（仅内存驻留区间内的地址有意义）
+    let head_addr = self.store.head_address();
+    let tail_addr = self.store.hlog.tail_address();
+    for (i, addr_slot) in first_addrs[..batch_len].iter_mut().enumerate() {
+      let addr_opt = self.store.index.find_tag_by_hash(hashes[i]);
+      *addr_slot = addr_opt;
+      if let Some(addr) = addr_opt
+        && addr >= head_addr
+        && addr < tail_addr
+      {
+        // SAFETY: addr ∈ [head, tail) 必然驻留内存，且调用方持纪元守卫保证页不被回收
+        let phys_ptr = unsafe { self.store.hlog.get_physical_address(addr) };
+        prefetch_read_l1(phys_ptr);
+      }
+    }
+
+    first_addrs
   }
 
   /// 纯同步快速路径物理删除单个键（严格对标 libs/server/Resp/ArrayCommands.cs:NetworkDEL & InternalDelete）
@@ -1416,20 +1411,38 @@ impl<D: Device> StoreSession<D> {
   /// 沿链跳过碰撞键语义），确保被 Tag 碰撞键掩埋的冷记录也能真实删除。
   /// 盲墓碑以「链头（槽位地址）」为前驱追加并 CAS 槽位：哈希链 prev 语义即
   /// 「插入时刻的槽位地址」，与快路径 prev_link 口径一致；碰撞键经墓碑前驱仍可达。
+  ///
+  /// 纪元守卫纪律（对齐 read_from_disk 冷读协议）：索引探测与墓碑追加/挂载为
+  /// 共享内存结构访问，持短守卫分段执行；磁盘区记录读取走免纪元 `read_disk_record`
+  /// 纯设备路径，绝不持守卫跨越磁盘 I/O await——否则冷删除链回溯全程钉住本线程
+  /// 纪元，阻塞其他会话的 safe_head 推进与页回收
   async fn delete_raw_disk_slow(&self, key: &[u8]) -> Result<bool> {
-    let _guard = self.participant.enter();
     let begin_addr = self.store.begin_address();
-    let addrs = self.store.index.lookup_candidates(key);
+    let addrs = {
+      let _guard = self.participant.enter();
+      self.store.index.lookup_candidates(key)
+    };
     for cand in addrs {
       // cand 为槽位原始地址（可能为 ReadCache 虚拟地址）：墓碑 CAS 挂载必须以它为
       // old_address；prev 链接顺链解析后的首个主日志地址（跳过易失 RC 环节）
-      let main_head = self.store.read_cache.skip_read_cache(cand);
+      let main_head = {
+        let _guard = self.participant.enter();
+        self.store.read_cache.skip_read_cache(cand)
+      };
       if main_head == 0 {
         continue;
       }
       let mut cur = main_head;
       while cur >= begin_addr {
-        let record = match self.store.hlog.read_record(cur).await {
+        // 磁盘区（cur < head）免纪元纯设备读；内存驻留（含过渡区罕见回退）守卫内
+        // 读取，read_record 内存命中路径纯同步完成、无实际让出
+        let record = if self.store.hlog.is_on_disk(cur) {
+          self.store.hlog.read_disk_record(cur).await
+        } else {
+          let _guard = self.participant.enter();
+          self.store.hlog.read_record(cur).await
+        };
+        let record = match record {
           Ok(r) => r,
           Err(_) => break,
         };
@@ -1442,9 +1455,12 @@ impl<D: Device> StoreSession<D> {
         if record.is_tombstone().unwrap_or(false) {
           return Ok(false);
         }
-        let new_addr = self.append_record(key, &[], main_head, true).await?;
-        if self.store.index.update_address(key, cand, new_addr) {
-          return Ok(true);
+        {
+          let _guard = self.participant.enter();
+          let new_addr = self.append_record(key, &[], main_head, true).await?;
+          if self.store.index.update_address(key, cand, new_addr) {
+            return Ok(true);
+          }
         }
         break;
       }

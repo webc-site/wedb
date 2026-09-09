@@ -302,16 +302,10 @@ impl TaggedKeyBuf {
     self.inner.is_empty()
   }
 
-  /// 转换为持有所有权的 `Vec<u8>`
+  /// 转换为持有所有权的 `Vec<u8>`（栈/堆路径复用 [`KeyBufRepr::into_vec`] 单一真源）
   #[inline]
   pub fn into_vec(self) -> Vec<u8> {
-    match self.inner {
-      KeyBufRepr::Stack(buf, len) => {
-        let len = (len as usize).min(STACK_KEY_CAP);
-        buf[..len].to_vec()
-      }
-      KeyBufRepr::Heap(vec) => vec,
-    }
+    self.inner.into_vec()
   }
 }
 
@@ -392,12 +386,8 @@ impl PartialEq<&[u8]> for TaggedKeyBuf {
 impl From<Vec<u8>> for TaggedKeyBuf {
   #[inline]
   fn from(vec: Vec<u8>) -> Self {
-    if vec.len() <= STACK_KEY_CAP {
-      let mut buf = [0u8; STACK_KEY_CAP];
-      buf[..vec.len()].copy_from_slice(&vec);
-      Self::from_stack(buf, vec.len() as u8)
-    } else {
-      Self::from_heap(vec)
+    Self {
+      inner: KeyBufRepr::from(vec),
     }
   }
 }
@@ -405,12 +395,8 @@ impl From<Vec<u8>> for TaggedKeyBuf {
 impl From<&[u8]> for TaggedKeyBuf {
   #[inline]
   fn from(slice: &[u8]) -> Self {
-    if slice.len() <= STACK_KEY_CAP {
-      let mut buf = [0u8; STACK_KEY_CAP];
-      buf[..slice.len()].copy_from_slice(slice);
-      Self::from_stack(buf, slice.len() as u8)
-    } else {
-      Self::from_heap(slice.to_vec())
+    Self {
+      inner: KeyBufRepr::from(slice),
     }
   }
 }

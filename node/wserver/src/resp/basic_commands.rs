@@ -20,8 +20,9 @@ use super::{
   },
 };
 
-/// 字符串类命令负载上限（libs/server/Resp/Bitmap/BitmapManager.cs:MaxBitmapPayloadBytes）
-const MAX_STRING_PAYLOAD_BYTES: usize = 512 * 1024 * 1024;
+/// 字符串类命令负载上限（libs/server/Resp/Bitmap/BitmapManager.cs:MaxBitmapPayloadBytes，
+/// Bitmap 域共用）
+pub(crate) const MAX_STRING_PAYLOAD_BYTES: usize = 512 * 1024 * 1024;
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER
 const ERR_NOT_INTEGER: &str = cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER;
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_OFFSETOUTOFRANGE
@@ -1685,31 +1686,10 @@ fn parse_set_options<'p>(parse_state: &[&'p [u8]], output: &mut Vec<u8>) -> Opti
 
 #[cfg(test)]
 mod tests {
-  use std::sync::Arc;
-
-  use compio::runtime::Runtime;
-  use wdev::SegmentedDevice;
-  use wkv::{StoreConfig, WedbStore};
-
-  use super::{super::ttl_sync::ttl_of_sync, *};
-
-  type Batch<'a> = wkv::BatchStoreSession<'a, SegmentedDevice>;
-
-  /// 独立临时库 + 批处理纪元上下文（纯内存同步路径闭环，无磁盘 I/O）
-  fn with_batch(f: impl FnOnce(&mut RespServerSession, &Batch)) {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-      let dir = tempfile::tempdir().unwrap();
-      let device = Arc::new(SegmentedDevice::single_file(dir.path().join("basic.db")).unwrap());
-      let mut config = StoreConfig::new(1024, 4096, 16, 0.5).unwrap();
-      config.gc.enabled = false;
-      let store = Arc::new(WedbStore::open(config, device).unwrap());
-      let session = store.new_session().unwrap();
-      let batch = session.enter_batch();
-      let mut s = RespServerSession::default();
-      f(&mut s, &batch);
-    });
-  }
+  use super::{
+    super::{batch_harness::with_batch, ttl_sync::ttl_of_sync},
+    *,
+  };
 
   #[test]
   fn set_get_roundtrip_and_null() {

@@ -1,10 +1,26 @@
+//! 集合命令（SADD/SREM/SCARD/SMEMBERS/SISMEMBER/SPOP/SRANDMEMBER）
+//!
+//! 同步快路径：经 [`super::object_store_utils`] 信封读写 wobject [`SetObject`]，
+//! 磁盘候选等须异步裁决时返回 `Ok(false)` 交调用方降级。
+
 use std::io::Cursor;
 
 use wobject::set::set_object::{SetObject, SetOperation};
 
-use crate::resp::resp_server_session::RespServerSession;
+use super::object_store_utils::{
+  OBJ_TAG_SET, SyncObj, obj_load_sync, obj_save_or_gc_sync, obj_save_sync, read_object_or_reply,
+};
+use crate::resp::{
+  cmd_strings as cs,
+  cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw},
+  parser::resp_ext::{RespSliceExt, RespVecExt},
+  resp_server_session::RespServerSession,
+};
 
 impl RespServerSession {
+  /// libs/server/Resp/Objects/SetCommands.cs:SetAdd
+  ///
+  /// 返回新增成员数（已存在成员不计入）
   pub fn set_add<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -12,21 +28,29 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SADD' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SADD");
       return Ok(true);
     }
     let key = parse_state[0];
     let members = &parse_state[1..];
 
-    let set_obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        SetObject::deserialize(&mut cursor).unwrap_or_else(|_| SetObject::new())
+    let set_obj = match obj_load_sync(store, key, OBJ_TAG_SET) {
+      Ok(None) => return Ok(false),
+      Ok(Some(SyncObj::Missing)) => SetObject::new(),
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
       }
-      _ => SetObject::new(),
+      Ok(Some(SyncObj::Present(p))) => {
+        SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
     };
 
-    let mut added = 0;
+    let mut added = 0i64;
     for member in members {
       if set_obj.operate(SetOperation::Sadd, member) {
         added += 1;
@@ -34,16 +58,27 @@ impl RespServerSession {
     }
 
     if added > 0 {
-      let mut out_bytes = Vec::new();
-      let _ = set_obj.serialize(&mut out_bytes);
-      let _ = store.try_upsert_sync(key, &out_bytes);
+      let mut payload = Vec::new();
+      if set_obj.serialize(&mut payload).is_err() {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+      match obj_save_sync(store, key, OBJ_TAG_SET, &payload) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
     }
-
-    let count_str = format!(":{}\r\n", added);
-    output.extend_from_slice(count_str.as_bytes());
+    output.write_resp_int(added);
     Ok(true)
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetRemove
+  ///
+  /// 删空后整键回收（对齐 storage 层 finalize_removal）
   pub fn set_remove<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -51,43 +86,54 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SREM' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SREM");
       return Ok(true);
     }
     let key = parse_state[0];
     let members = &parse_state[1..];
 
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          let mut removed = 0;
-          for member in members {
-            if set_obj.operate(SetOperation::Srem, member) {
-              removed += 1;
-            }
-          }
-          if removed > 0 {
-            let mut out_bytes = Vec::new();
-            let _ = set_obj.serialize(&mut out_bytes);
-            let _ = store.try_upsert_sync(key, &out_bytes);
-          }
-          let count_str = format!(":{}\r\n", removed);
-          output.extend_from_slice(count_str.as_bytes());
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
-      }
-      Ok(Some(None)) => output.extend_from_slice(b":0\r\n"),
+    let set_obj = match obj_load_sync(store, key, OBJ_TAG_SET) {
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Ok(Some(SyncObj::Missing)) => {
+        output.write_resp_int(0);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::Present(p))) => {
+        SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut removed = 0i64;
+    for member in members {
+      if set_obj.operate(SetOperation::Srem, member) {
+        removed += 1;
+      }
     }
+    if removed > 0 {
+      let mut payload = Vec::new();
+      if set_obj.serialize(&mut payload).is_err() {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+      match obj_save_or_gc_sync(store, key, OBJ_TAG_SET, &payload, set_obj.count() == 0) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      }
+    }
+    output.write_resp_int(removed);
     Ok(true)
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetLength
   pub fn set_length<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -95,31 +141,25 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SCARD' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SCARD");
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          let count = set_obj.count();
-          let count_str = format!(":{}\r\n", count);
-          output.extend_from_slice(count_str.as_bytes());
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
-      }
-      Ok(Some(None)) => output.extend_from_slice(b":0\r\n"),
-      Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SET,
+      output,
+      |o| o.write_resp_int(0),
+      |p, o| {
+        let set_obj = SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        o.write_resp_int(set_obj.count() as i64);
+      },
+    ))
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetMembers
   pub fn set_members<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -127,37 +167,29 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SMEMBERS' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SMEMBERS");
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          let members = set_obj.get_keys();
-          let arr_len = format!("*{}\r\n", members.len());
-          output.extend_from_slice(arr_len.as_bytes());
-          for m in members {
-            let len_str = format!("${}\r\n", m.len());
-            output.extend_from_slice(len_str.as_bytes());
-            output.extend_from_slice(&m);
-            output.extend_from_slice(b"\r\n");
-          }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
+
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SET,
+      output,
+      |o| o.write_resp_array_len(0),
+      |p, o| {
+        let set_obj = SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        let members = set_obj.get_keys();
+        o.write_resp_array_len(members.len());
+        for m in members {
+          o.write_resp_bulk_string(&m);
         }
-      }
-      Ok(Some(None)) => output.extend_from_slice(b"*0\r\n"),
-      Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+      },
+    ))
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetIsMember
   pub fn set_is_member<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -165,76 +197,117 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SISMEMBER' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SISMEMBER");
       return Ok(true);
     }
     let key = parse_state[0];
     let member = parse_state[1];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          if set_obj.operate(SetOperation::Sismember, member) {
-            output.extend_from_slice(b":1\r\n");
-          } else {
-            output.extend_from_slice(b":0\r\n");
-          }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
-      }
-      Ok(Some(None)) => output.extend_from_slice(b":0\r\n"),
-      Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SET,
+      output,
+      |o| o.write_resp_int(0),
+      |p, o| {
+        let set_obj = SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        let is_member = set_obj.operate(SetOperation::Sismember, member);
+        o.write_resp_int(i64::from(is_member));
+      },
+    ))
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetPop
+  ///
+  /// 无 count：单成员 bulk 应答（键缺失 nil）；带 count：成员数组应答。
+  /// 弹空后整键回收
   pub fn set_pop<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      // Redis SPOP supports count but Garnet's basic implementation sometimes handles count differently
-      // Let's do simple pop for 1 element
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SPOP' command\r\n");
+    if parse_state.is_empty() || parse_state.len() > 2 {
+      abort_with_wrong_number_of_arguments(output, "SPOP");
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          if let Some(m) = set_obj.pop() {
-            let mut out_bytes = Vec::new();
-            let _ = set_obj.serialize(&mut out_bytes);
-            let _ = store.try_upsert_sync(key, &out_bytes);
-            let len_str = format!("${}\r\n", m.len());
-            output.extend_from_slice(len_str.as_bytes());
-            output.extend_from_slice(&m);
-            output.extend_from_slice(b"\r\n");
-          } else {
-            output.extend_from_slice(b"$-1\r\n");
-          }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
+
+    // C#：count 解析失败或负数 → 非整数错误；0 → 空数组
+    let mut count = 1usize;
+    if parse_state.len() == 2 {
+      match parse_state[1].try_parse_i64() {
+        Some(c) if c >= 0 => count = c as usize,
+        _ => {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+          return Ok(true);
         }
       }
-      Ok(Some(None)) => output.extend_from_slice(b"$-1\r\n"),
+      if count == 0 {
+        output.write_resp_array_len(0);
+        return Ok(true);
+      }
+    }
+
+    let set_obj = match obj_load_sync(store, key, OBJ_TAG_SET) {
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      // C# NOTFOUND → nil
+      Ok(Some(SyncObj::Missing)) => {
+        output.write_resp_null();
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::Present(p))) => {
+        SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut popped = Vec::new();
+    for _ in 0..count {
+      match set_obj.pop() {
+        Some(m) => popped.push(m),
+        None => break,
+      }
+    }
+
+    if !popped.is_empty() {
+      let mut payload = Vec::new();
+      if set_obj.serialize(&mut payload).is_err() {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+      match obj_save_or_gc_sync(store, key, OBJ_TAG_SET, &payload, set_obj.count() == 0) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      }
+    }
+
+    // 无 count 形态：单 bulk；带 count 形态：数组
+    if parse_state.len() == 2 {
+      output.write_resp_array_len(popped.len());
+      for m in popped {
+        output.write_resp_bulk_string(&m);
+      }
+    } else {
+      match popped.into_iter().next() {
+        Some(m) => output.write_resp_bulk_string(&m),
+        None => output.write_resp_null(),
+      }
     }
     Ok(true)
   }
 
+  /// libs/server/Resp/Objects/SetCommands.cs:SetRandomMember
+  ///
+  /// 仅单成员形态（count 形态未实现）；随机采样不弹出
   pub fn set_random_member<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -242,34 +315,25 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SRANDMEMBER' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "SRANDMEMBER");
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
-          if let Some(m) = set_obj.random_member() {
-            let len_str = format!("${}\r\n", m.len());
-            output.extend_from_slice(len_str.as_bytes());
-            output.extend_from_slice(&m);
-            output.extend_from_slice(b"\r\n");
-          } else {
-            output.extend_from_slice(b"$-1\r\n");
-          }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
+
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SET,
+      output,
+      |o| o.write_resp_null(),
+      |p, o| {
+        let set_obj = SetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        match set_obj.random_member() {
+          Some(m) => o.write_resp_bulk_string(&m),
+          None => o.write_resp_null(),
         }
-      }
-      Ok(Some(None)) => output.extend_from_slice(b"$-1\r\n"),
-      Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+      },
+    ))
   }
 
   pub fn set_intersect() {
@@ -295,5 +359,106 @@ impl RespServerSession {
   }
   pub fn set_diff_store() {
     unimplemented!()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::super::super::batch_harness::with_batch;
+
+  /// WRONGTYPE 错误应答帧
+  const WRONGTYPE: &[u8] =
+    b"-WRONGTYPE Operation against a key holding the wrong kind of value.\r\n";
+
+  #[test]
+  fn sadd_srem_scard_sismember() {
+    with_batch(|s, batch| {
+      let mut out = Vec::new();
+      let _ = s
+        .set_add(&[b"st", b"a", b"b", b"a"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":2\r\n");
+
+      let mut out = Vec::new();
+      let _ = s.set_length(&[b"st"], batch, &mut out).unwrap();
+      assert_eq!(out, b":2\r\n");
+      let mut out = Vec::new();
+      let _ = s.set_is_member(&[b"st", b"a"], batch, &mut out).unwrap();
+      assert_eq!(out, b":1\r\n");
+      let mut out = Vec::new();
+      let _ = s.set_is_member(&[b"st", b"nx"], batch, &mut out).unwrap();
+      assert_eq!(out, b":0\r\n");
+
+      let mut out = Vec::new();
+      let _ = s
+        .set_remove(&[b"st", b"a", b"nx"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":1\r\n");
+
+      // 字符串键 → WRONGTYPE
+      let _ = s
+        .network_set(&[b"str", b"v"], batch, &mut Vec::new())
+        .unwrap();
+      let mut out = Vec::new();
+      let _ = s.set_add(&[b"str", b"m"], batch, &mut out).unwrap();
+      assert_eq!(out, WRONGTYPE);
+    });
+  }
+
+  #[test]
+  fn srem_recycles_empty_set() {
+    with_batch(|s, batch| {
+      let _ = s.set_add(&[b"st", b"m"], batch, &mut Vec::new()).unwrap();
+      let mut out = Vec::new();
+      let _ = s.set_remove(&[b"st", b"m"], batch, &mut out).unwrap();
+      assert_eq!(out, b":1\r\n");
+      assert_eq!(
+        batch.try_read_sync(b"st", |_| ()).unwrap(),
+        Some(None::<()>)
+      );
+    });
+  }
+
+  #[test]
+  fn spop_forms_and_validation() {
+    with_batch(|s, batch| {
+      let _ = s
+        .set_add(&[b"st", b"a", b"b"], batch, &mut Vec::new())
+        .unwrap();
+
+      // count=0 → 空数组；负 count / 非整数 → 错误
+      let mut out = Vec::new();
+      let _ = s.set_pop(&[b"st", b"0"], batch, &mut out).unwrap();
+      assert_eq!(out, b"*0\r\n");
+      let mut out = Vec::new();
+      let _ = s.set_pop(&[b"st", b"-1"], batch, &mut out).unwrap();
+      assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
+
+      // 带 count：数组形态；弹空整键回收
+      let mut out = Vec::new();
+      let _ = s.set_pop(&[b"st", b"10"], batch, &mut out).unwrap();
+      assert!(out.starts_with(b"*2\r\n"));
+      assert_eq!(
+        batch.try_read_sync(b"st", |_| ()).unwrap(),
+        Some(None::<()>)
+      );
+
+      // 键缺失：无 count / 带 count 均 nil（C# NOTFOUND → WriteNull）
+      let mut out = Vec::new();
+      let _ = s.set_pop(&[b"nk"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$-1\r\n");
+      let mut out = Vec::new();
+      let _ = s.set_pop(&[b"nk", b"5"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$-1\r\n");
+    });
+  }
+
+  #[test]
+  fn srandmember_missing_key_nil() {
+    with_batch(|s, batch| {
+      let mut out = Vec::new();
+      let _ = s.set_random_member(&[b"nk"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$-1\r\n");
+    });
   }
 }

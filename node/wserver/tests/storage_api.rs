@@ -162,12 +162,29 @@ fn test_object_stores() -> aok::Void {
     );
 
     // 集合：SADD / SINTER / SDIFF
-    ss.set_add(b"sa", &[b"1", b"2", b"3"]).await?;
+    // SADD 返回新增成员数：已有成员不计入（对齐 Redis）
+    assert_eq!(
+      ss.set_add(b"sa", &[b"1", b"2", b"3"]).await?,
+      (GarnetStatus::Ok, 3)
+    );
+    assert_eq!(
+      ss.set_add(b"sa", &[b"2", b"4"]).await?,
+      (GarnetStatus::Ok, 1)
+    );
     ss.set_add(b"sb", &[b"2", b"3", b"4"]).await?;
     let (_, inter) = ss.set_intersect(&[b"sa", b"sb"]).await?;
-    assert_eq!(inter.len(), 2);
+    assert_eq!(inter.len(), 3);
     let (_, diff) = ss.set_diff(&[b"sa", b"sb"]).await?;
     assert_eq!(diff, vec![b"1".to_vec()]);
+    // SUNIONSTORE / SDIFFSTORE 返回结果集基数
+    assert_eq!(
+      ss.set_union_store(b"su", &[b"sa", b"sb"]).await?,
+      (GarnetStatus::Ok, 4)
+    );
+    assert_eq!(
+      ss.set_diff_store(b"sd", &[b"sa", b"sb"]).await?,
+      (GarnetStatus::Ok, 1)
+    );
 
     // 列表：LPUSH / LRANGE / LPOP / 弹空回收
     ss.list_push(b"l", &[b"b", b"a"], OperationDirection::Left, false)
@@ -385,6 +402,36 @@ fn test_multi_database_manager() -> aok::Void {
   })
 }
 
+/// 已持久化库编号枚举的错误语义（对标上游 d20d63993 对
+/// libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds 的恢复可见性修复）：
+/// 根目录不存在为良性全新启动态（空集，恢复静默跳过，上游 `Directory.Exists` 守卫）；
+/// 真实枚举失败必须显式报错，绝不静默空集恢复
+#[test]
+fn test_multi_saved_database_ids_error_semantics() -> aok::Void {
+  use std::fs;
+
+  use wserver::databases::multi_database_manager::MultiDatabaseManager;
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (dir, store) = open_store("ids.db")?;
+
+    // 1. 根目录不存在：良性空集，recover_checkpoint_async 静默成功且不注册任何库
+    let manager = MultiDatabaseManager::new(Arc::clone(&store), dir.path().join("checkpoints"));
+    assert_eq!(manager.try_get_saved_database_ids()?, Vec::<i64>::new());
+    manager.recover_checkpoint_async(false, None).await?;
+    assert!(manager.get_databases_snapshot().is_empty());
+
+    // 2. 根目录路径被普通文件占用：枚举真实失败，须显式报错而非静默空集
+    let blocked = dir.path().join("blocked");
+    fs::write(&blocked, b"not a directory")?;
+    let manager = MultiDatabaseManager::new(Arc::clone(&store), blocked);
+    assert!(manager.try_get_saved_database_ids().is_err());
+    assert!(manager.recover_checkpoint_async(false, None).await.is_err());
+    Ok(())
+  })
+}
+
 /// 哈希对象载荷兼容（wobject 序列化往返）
 #[test]
 fn test_wobject_roundtrip() -> aok::Void {
@@ -399,4 +446,191 @@ fn test_wobject_roundtrip() -> aok::Void {
     Some(b"v".as_slice())
   );
   Ok(())
+}
+
+/// review r1 回归：SCAN 游标推进 / 弹空与删空保留结果 / 排他端点 /
+/// WRONGTYPE 传播 / 空结果不物化 / BITCOUNT 空值 / WATCH 登记语义
+#[test]
+fn test_review_r1_regressions() -> aok::Void {
+  use wserver::{api::i_garnet_api::IGarnetApi, storage::session::storage_session::StoreType};
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store) = open_store("r1.db")?;
+    let session = store.new_session()?;
+    let ss = storage_session(&session);
+
+    // ---- SCAN 游标推进：分页必须前进且终止（修复游标死循环） ----
+    ss.set_add(b"set", &[b"a", b"b", b"c", b"d"]).await?;
+    let mut cursor = Vec::new();
+    let mut got: Vec<Vec<u8>> = Vec::new();
+    for _ in 0..10 {
+      let (s, c, page) = IGarnetApi::set_scan(&ss, b"set", &cursor, b"", 2).await?;
+      assert_eq!(s, GarnetStatus::Ok);
+      got.extend(page);
+      if c.is_empty() {
+        break;
+      }
+      cursor = c;
+    }
+    let mut want = vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec(), b"d".to_vec()];
+    want.sort();
+    assert_eq!(got, want, "SSCAN 三页应收全 4 成员");
+
+    // ZSCAN 同链路分页
+    let zm = [
+      (b"z1".as_slice(), 1.0),
+      (b"z2".as_slice(), 2.0),
+      (b"z3".as_slice(), 3.0),
+    ];
+    ss.sorted_set_add(b"zscan", &zm, false, false, false, false)
+      .await?;
+    let (s, c1, p1) = IGarnetApi::sorted_set_scan(&ss, b"zscan", b"", b"", 2).await?;
+    assert_eq!((s, p1.len()), (GarnetStatus::Ok, 2));
+    let (s, c2, p2) = IGarnetApi::sorted_set_scan(&ss, b"zscan", &c1, b"", 2).await?;
+    assert_eq!((s, p2.len(), c2.is_empty()), (GarnetStatus::Ok, 1, true));
+
+    // db_scan：游标键在两页之间被删仍可续扫
+    for k in ["k1", "k2", "k3"] {
+      ss.upsert_string(k.as_bytes(), b"v").await?;
+    }
+    let (c1, p1) = ss.db_scan(b"k*", false, b"", 1).await?;
+    assert_eq!(p1, vec![b"k1".to_vec()]);
+    ss.delete_string(b"k1").await?;
+    let (c2, p2) = ss.db_scan(b"k*", false, &c1, 1).await?;
+    assert_eq!((p2, c2), (vec![b"k2".to_vec()], b"k2".to_vec()));
+
+    // ---- 弹空 / 删空：返回值不丢失 ----
+    ss.list_push(b"l1", &[b"x"], OperationDirection::Left, false)
+      .await?;
+    let (s, v) = ss.list_pop(b"l1", OperationDirection::Left).await?;
+    assert_eq!((s, v), (GarnetStatus::Ok, Some(b"x".to_vec())));
+    assert_eq!(ss.list_length(b"l1").await?, (GarnetStatus::Ok, 0));
+
+    ss.sorted_set_add(b"zp", &[(b"m".as_slice(), 1.0)], false, false, false, false)
+      .await?;
+    let (s, popped) = ss.sorted_set_pop(b"zp", 1, true).await?;
+    assert_eq!(
+      (s, popped),
+      (GarnetStatus::Ok, vec![(b"m".to_vec(), 1.0)]),
+      "ZPOPMIN 弹空须回吐被弹成员"
+    );
+    assert_eq!(ss.exists(b"zp").await?, GarnetStatus::NotFound);
+
+    // ZINCRBY：增量语义（修复 wobject Zincrby no-op）
+    ss.sorted_set_add(b"zi", &[(b"m".as_slice(), 1.0)], false, false, false, false)
+      .await?;
+    let (s, v) = ss.sorted_set_increment(b"zi", b"m", 4.0).await?;
+    assert_eq!((s, v), (GarnetStatus::Ok, Some(5.0)));
+    assert_eq!(ss.sorted_set_score(b"zi", b"m").await?.1, Some(5.0));
+
+    ss.sorted_set_add(b"zr", &[(b"m".as_slice(), 1.0)], false, false, false, false)
+      .await?;
+    let (_, n) = ss.sorted_set_remove(b"zr", &[b"m"]).await?;
+    assert_eq!(n, 1, "ZREM 删空须回吐真实计数");
+
+    let (_, n) = ss.list_remove(b"lr", b"a", 0).await?;
+    // lr 键不存在：0
+    assert_eq!(n, 0);
+
+    // ---- ZREMRANGEBYSCORE 排他端点 ----
+    ss.sorted_set_add(
+      b"zex",
+      &[(b"a".as_slice(), 5.0), (b"b".as_slice(), 6.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    let (s, n) = ss
+      .sorted_set_remove_range_by_score(b"zex", b"(5", b"+inf")
+      .await?;
+    assert_eq!((s, n), (GarnetStatus::Ok, 1), "(5 排他：5.0 成员保留");
+    assert_eq!(
+      ss.sorted_set_score(b"zex", b"a").await?,
+      (GarnetStatus::Ok, Some(5.0))
+    );
+
+    // ---- BITCOUNT 空值不 panic ----
+    ss.upsert_string(b"empty", b"").await?;
+    assert_eq!(
+      ss.string_bit_count(b"empty", 0, -1, false).await?,
+      (GarnetStatus::Ok, 0)
+    );
+
+    // ---- WRONGTYPE 传播 ----
+    ss.upsert_string(b"str", b"plain").await?;
+    let (s, _) = ss
+      .hash_set(b"str", &[(b"f".as_slice(), b"v".as_slice())], false)
+      .await?;
+    assert_eq!(s, GarnetStatus::WrongType, "HSET 错误类型键须 WRONGTYPE");
+
+    ss.hash_set(b"h2", &[(b"num".as_slice(), b"abc".as_slice())], false)
+      .await?;
+    let (s, _) = ss.hash_increment(b"h2", b"num", b"1", false).await?;
+    assert_eq!(s, GarnetStatus::WrongType, "非数值字段增减须 WRONGTYPE");
+    assert_eq!(
+      ss.hash_get(b"h2", b"num").await?.1,
+      Some(b"abc".to_vec()),
+      "非数值字段不得被覆盖"
+    );
+
+    ss.set_add(b"st", &[b"x"]).await?;
+    let (s, _) = ss.set_intersect(&[b"st", b"str"]).await?;
+    assert_eq!(s, GarnetStatus::WrongType, "SINTER 错误类型键须 WRONGTYPE");
+
+    // ---- *STORE 空结果不物化空对象键 ----
+    ss.upsert_string(b"dest", b"old").await?;
+    let (s, n) = ss.set_union_store(b"dest", &[b"no_such_set"]).await?;
+    assert_eq!((s, n), (GarnetStatus::Ok, 0));
+    assert_eq!(
+      ss.exists(b"dest").await?,
+      GarnetStatus::NotFound,
+      "空并集须回收目标键"
+    );
+
+    // ---- HRANDFIELD 负计数：|count| 个、可重复、不带值 ----
+    ss.hash_set(
+      b"h3",
+      &[
+        (b"f1".as_slice(), b"1".as_slice()),
+        (b"f2".as_slice(), b"2".as_slice()),
+      ],
+      false,
+    )
+    .await?;
+    let (_, out) = ss.hash_random_field(b"h3", -5, true).await?;
+    assert_eq!(out.len(), 5);
+    assert!(out.iter().all(|(_, v)| v.is_none()));
+
+    // ---- LTRIM 裁剪至空：Ok + 整键回收 ----
+    ss.list_push(b"l2", &[b"a"], OperationDirection::Left, false)
+      .await?;
+    assert_eq!(ss.list_trim(b"l2", 5, 10).await?, GarnetStatus::Ok);
+    assert_eq!(ss.list_length(b"l2").await?, (GarnetStatus::Ok, 0));
+
+    // ---- ZUNION 结果按 (score, member) 排名序 ----
+    ss.sorted_set_add(
+      "zu".as_ref(),
+      &[(b"low".as_slice(), 1.0), (b"high".as_slice(), 9.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    let (_, u) = ss
+      .sorted_set_union(&[b"zu"], &[1.0], ZSetAggregate::Sum)
+      .await?;
+    assert_eq!(u.first().map(|(m, _)| m.clone()), Some(b"low".to_vec()));
+    assert_eq!(u.last().map(|(m, _)| m.clone()), Some(b"high".to_vec()));
+
+    // ---- WATCH：C# void 语义，任意 StoreType 均登记 ----
+    IGarnetApi::watch(&ss, b"k1", StoreType::None);
+    assert!(ss.watched_version(b"k1").is_some());
+    ss.clear_watches();
+
+    Ok(())
+  })
 }

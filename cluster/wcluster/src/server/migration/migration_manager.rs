@@ -5,7 +5,8 @@ use gxhash::HashSet;
 use crate::server::{
   cluster_provider::ClusterProvider,
   migration::{
-    migrate_session::MigrateSession, migrate_session_task_store::MigrateSessionTaskStore,
+    migrate_session::{MigrateSession, MigrateTaskSpec},
+    migrate_session_task_store::MigrateSessionTaskStore,
     sketch::Sketch,
   },
 };
@@ -50,36 +51,17 @@ impl MigrationManager {
   }
 
   /// libs/cluster/Server/Migration/MigrationManager.cs:TryAddMigrationTask
-  #[allow(clippy::too_many_arguments)]
   pub fn try_add_migration_task(
     &self,
-    source_node_id: &str,
-    target_address: &str,
-    target_port: i32,
-    target_node_id: &str,
-    username: &str,
-    passwd: &str,
-    copy_option: bool,
-    replace_option: bool,
-    timeout: i32,
+    spec: MigrateTaskSpec<'_>,
     slots: HashSet<i32>,
     sketch: Sketch,
-    transfer_option: TransferOption,
   ) -> Option<Arc<MigrateSession>> {
     self.migration_task_store.try_add_migrate_session(
-      self.cluster_provider.clone(),
-      source_node_id,
-      target_address,
-      target_port,
-      target_node_id,
-      username,
-      passwd,
-      copy_option,
-      replace_option,
-      timeout,
+      Arc::clone(&self.cluster_provider),
+      spec,
       slots,
       sketch,
-      transfer_option,
     )
   }
 

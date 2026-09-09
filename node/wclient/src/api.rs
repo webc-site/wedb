@@ -1,4 +1,7 @@
-use crate::{GarnetClient, Result};
+use itoa::Buffer as IntBuf;
+use zmij::Buffer as FloatBuf;
+
+use crate::{Error, GarnetClient, Result};
 
 pub enum InfoMetricsType {
   Default,
@@ -26,6 +29,12 @@ impl InfoMetricsType {
 
 pub struct SortedSetPairCollection {
   pub entries: Vec<(f64, String)>,
+}
+
+/// RESP 整数应答统一解析（收敛重复的 parse + 错误包装）
+fn to_i64(s: String) -> Result<i64> {
+  s.parse()
+    .map_err(|_| Error::Other("Invalid integer".into()))
 }
 
 impl GarnetClient {
@@ -62,18 +71,12 @@ impl GarnetClient {
 
   /// libs/client/GarnetClientAPI/GarnetClientBasicRespCommands.cs:StringIncrement
   pub async fn string_increment(&self, key: &str) -> Result<i64> {
-    let res = self.execute_for_string_result_async(&["INCR", key]).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&["INCR", key]).await?)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientBasicRespCommands.cs:StringDecrement
   pub async fn string_decrement(&self, key: &str) -> Result<i64> {
-    let res = self.execute_for_string_result_async(&["DECR", key]).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&["DECR", key]).await?)
   }
 
   // Admin Commands
@@ -93,8 +96,9 @@ impl GarnetClient {
 
   /// libs/client/GarnetClientAPI/GarnetClientAdminCommands.cs:ReplicaOf
   pub async fn replica_of(&self, address: &str, port: u16) -> Result<String> {
+    let mut port_buf = IntBuf::new();
     self
-      .execute_for_string_result_async(&["REPLICAOF", address, &port.to_string()])
+      .execute_for_string_result_async(&["REPLICAOF", address, port_buf.format(port)])
       .await
   }
 
@@ -104,52 +108,43 @@ impl GarnetClient {
   pub async fn list_left_push_async(&self, key: &str, elements: &[&str]) -> Result<i64> {
     let mut cmd = vec!["LPUSH", key];
     cmd.extend(elements);
-    let res = self.execute_for_string_result_async(&cmd).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&cmd).await?)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientListCommands.cs:ListRightPushAsync
   pub async fn list_right_push_async(&self, key: &str, elements: &[&str]) -> Result<i64> {
     let mut cmd = vec!["RPUSH", key];
     cmd.extend(elements);
-    let res = self.execute_for_string_result_async(&cmd).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&cmd).await?)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientListCommands.cs:ListRangeAsync
   pub async fn list_range_async(&self, key: &str, start: i32, stop: i32) -> Result<Vec<String>> {
+    let (mut start_buf, mut stop_buf) = (IntBuf::new(), IntBuf::new());
     self
       .execute_for_string_array_result_async(&[
         "LRANGE",
         key,
-        &start.to_string(),
-        &stop.to_string(),
+        start_buf.format(start),
+        stop_buf.format(stop),
       ])
       .await
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientListCommands.cs:ListLengthAsync
   pub async fn list_length_async(&self, key: &str) -> Result<i64> {
-    let res = self.execute_for_string_result_async(&["LLEN", key]).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&["LLEN", key]).await?)
   }
 
   // Sorted Set Commands
 
   /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetAddAsync
   pub async fn sorted_set_add_async(&self, key: &str, member: &str, score: f64) -> Result<i64> {
+    let mut score_buf = FloatBuf::new();
     let res = self
-      .execute_for_string_result_async(&["ZADD", key, &score.to_string(), member])
+      .execute_for_string_result_async(&["ZADD", key, score_buf.format(score), member])
       .await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(res)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetAddAsync
@@ -158,16 +153,20 @@ impl GarnetClient {
     key: &str,
     entries: &SortedSetPairCollection,
   ) -> Result<i64> {
-    let mut cmd = vec!["ZADD".to_string(), key.to_string()];
-    for (score, member) in &entries.entries {
-      cmd.push(score.to_string());
-      cmd.push(member.clone());
+    // 分数先栈上格式化收敛为字符串，成员与分数以引用表组装，避免逐成员克隆
+    let scores: Vec<String> = entries
+      .entries
+      .iter()
+      .map(|(score, _)| FloatBuf::new().format(*score).to_string())
+      .collect();
+    let mut cmd: Vec<&str> = Vec::with_capacity(2 + entries.entries.len() * 2);
+    cmd.push("ZADD");
+    cmd.push(key);
+    for ((_, member), score) in entries.entries.iter().zip(&scores) {
+      cmd.push(score);
+      cmd.push(member);
     }
-    let refs: Vec<&str> = cmd.iter().map(|s| s.as_str()).collect();
-    let res = self.execute_for_string_result_async(&refs).await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(self.execute_for_string_result_async(&cmd).await?)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetRemoveAsync
@@ -175,18 +174,15 @@ impl GarnetClient {
     let res = self
       .execute_for_string_result_async(&["ZREM", key, member])
       .await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(res)
   }
 
   /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetLengthAsync
   pub async fn sorted_set_length_async(&self, key: &str) -> Result<i64> {
-    let res = self
-      .execute_for_string_result_async(&["ZCARD", key])
-      .await?;
-    res
-      .parse()
-      .map_err(|_| crate::Error::Other("Invalid integer".into()))
+    to_i64(
+      self
+        .execute_for_string_result_async(&["ZCARD", key])
+        .await?,
+    )
   }
 }

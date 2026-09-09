@@ -112,9 +112,29 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
+  /// 移除族收尾（各对象类型共用）：集合被删空时整键回收并保留真实结果
+  ///
+  /// `removed` 为闭包产出的 `(结果, 是否已删空)`；`None` 表示放弃写回（无变更），
+  /// 返回 `fallback`。
+  pub(crate) async fn finalize_removal<R>(
+    &self,
+    key: &[u8],
+    removed: Option<(R, bool)>,
+    fallback: R,
+  ) -> wkv::Result<R> {
+    match removed {
+      Some((r, true)) => {
+        let _ = self.delete_string(key).await?;
+        Ok(r)
+      }
+      Some((r, false)) => Ok(r),
+      None => Ok(fallback),
+    }
+  }
+
   /// 对象键 SCAN（SCAN 语义：游标 = 上次返回的最后一个成员）
   ///
-  /// `members_of` 由各类型操作面提供（按成员字节序排序后交付）
+  /// `members_of` 由各类型操作面提供（只需返回全部成员，内部统一排序）
   ///
   /// libs/server/Storage/Session/ObjectStore/Common.cs:ObjectScan
   pub(crate) async fn object_scan(
@@ -135,11 +155,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
     members.sort();
     let mut items = Vec::new();
     let mut last: Option<Vec<u8>> = None;
+    // 本页是否因 count 截断：仅截断时报告新游标，自然收尽返回空游标（终态）
+    let mut truncated = false;
     for m in members {
-      if last.is_none() && !cursor.is_empty() && m == cursor {
+      // 成员已按字节序升序：跳过游标及之前的全部成员（游标成员可能在两页
+      // 之间被删，按 <= 比较可从其后的首个成员无缝续扫）
+      if !cursor.is_empty() && m.as_slice() <= cursor {
         continue;
       }
       if items.len() >= count {
+        truncated = true;
         break;
       }
       if pattern.is_empty()
@@ -149,7 +174,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
       }
       last = Some(m);
     }
-    Ok((GarnetStatus::Ok, last.unwrap_or_default(), items))
+    let next = if truncated {
+      last.unwrap_or_default()
+    } else {
+      Vec::new()
+    };
+    Ok((GarnetStatus::Ok, next, items))
   }
 
   /// 删除对象存键（不区分类型，含信封整体删除）

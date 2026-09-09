@@ -57,6 +57,14 @@ pub trait Device: Send + Sync + 'static {
   ) -> impl Future<Output = (Result<usize>, AlignedBuf)>;
 
   /// 读取扇区对齐的内存块，要求 offset 是 sector_size 的整数倍
+  ///
+  /// 传输计数契约（对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:
+  /// DeviceIOCompletionCallback 委托的 `numBytes` 参数文档澄清，上游 d20d63993）：
+  /// 实现可以返回小于请求
+  /// 长度的实际传输计数（如文件在请求范围内结束的短读），`Ok(短计数)` 不代表完整
+  /// 读取；调用方不得以传输计数之外的方式假设请求长度全部到位。默认
+  /// [`Device::read_range_pooled`] 已把短传输统一归一为
+  /// [`Error::UnexpectedEof`] 错误。
   fn read_aligned(
     &self,
     offset: u64,

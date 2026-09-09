@@ -3,7 +3,7 @@ use core::{
   hash::{Hash, Hasher},
 };
 
-use wbase::float;
+use wbase::{buf::put_header_payload, float};
 
 use crate::{
   bftag::BfTag,
@@ -421,16 +421,11 @@ impl ZSetSubKeyCodec {
     dst: &mut [u8],
   ) -> Result<usize> {
     let total_len = check_member_len(member.len(), MEMBER_KEY_HEADER_SIZE)?;
-    if dst.len() < total_len {
-      return Err(Error::BufferTooShort {
-        expected: total_len,
-        actual: dst.len(),
-      });
-    }
     let header = Self::encode_member_header(key_id, version);
-    dst[..MEMBER_KEY_HEADER_SIZE].copy_from_slice(&header);
-    dst[MEMBER_KEY_HEADER_SIZE..total_len].copy_from_slice(member);
-    Ok(total_len)
+    put_header_payload(dst, &header, member).ok_or(Error::BufferTooShort {
+      expected: total_len,
+      actual: dst.len(),
+    })
   }
 
   /// 编码有序集合成员子键为全新 Vec<u8>（单次堆分配）
@@ -447,20 +442,11 @@ impl ZSetSubKeyCodec {
   /// 编码有序集合成员子键为优先栈分配的缓冲区（消除短 member 堆分配）
   #[inline]
   pub fn encode_member_key_buf(key_id: u64, version: u64, member: &[u8]) -> Result<ZSetSubKeyBuf> {
-    let total_len = check_member_len(member.len(), MEMBER_KEY_HEADER_SIZE)?;
-    if total_len <= ZSET_SUBKEY_STACK_CAP {
-      let mut buf = [0u8; ZSET_SUBKEY_STACK_CAP];
-      let header = Self::encode_member_header(key_id, version);
-      buf[..MEMBER_KEY_HEADER_SIZE].copy_from_slice(&header);
-      buf[MEMBER_KEY_HEADER_SIZE..total_len].copy_from_slice(member);
-      Ok(ZSetSubKeyBuf::Stack(buf, total_len as u8))
-    } else {
-      let mut vec = Vec::with_capacity(total_len);
-      let header = Self::encode_member_header(key_id, version);
-      vec.extend_from_slice(&header);
-      vec.extend_from_slice(member);
-      Ok(ZSetSubKeyBuf::Heap(vec))
-    }
+    check_member_len(member.len(), MEMBER_KEY_HEADER_SIZE)?;
+    Ok(ZSetSubKeyBuf::from_header_parts(
+      &Self::encode_member_header(key_id, version),
+      member,
+    ))
   }
 
   /// 零拷贝解码有序集合成员子键（const fn）
@@ -491,16 +477,11 @@ impl ZSetSubKeyCodec {
     dst: &mut [u8],
   ) -> Result<usize> {
     let total_len = check_member_len(member.len(), SCORE_KEY_HEADER_SIZE)?;
-    if dst.len() < total_len {
-      return Err(Error::BufferTooShort {
-        expected: total_len,
-        actual: dst.len(),
-      });
-    }
     let header = Self::encode_score_header(key_id, version, score);
-    dst[..SCORE_KEY_HEADER_SIZE].copy_from_slice(&header);
-    dst[SCORE_KEY_HEADER_SIZE..total_len].copy_from_slice(member);
-    Ok(total_len)
+    put_header_payload(dst, &header, member).ok_or(Error::BufferTooShort {
+      expected: total_len,
+      actual: dst.len(),
+    })
   }
 
   /// 编码有序集合分值子键为全新 Vec<u8>（单次堆分配）
@@ -522,20 +503,11 @@ impl ZSetSubKeyCodec {
     score: f64,
     member: &[u8],
   ) -> Result<ZSetSubKeyBuf> {
-    let total_len = check_member_len(member.len(), SCORE_KEY_HEADER_SIZE)?;
-    if total_len <= ZSET_SUBKEY_STACK_CAP {
-      let mut buf = [0u8; ZSET_SUBKEY_STACK_CAP];
-      let header = Self::encode_score_header(key_id, version, score);
-      buf[..SCORE_KEY_HEADER_SIZE].copy_from_slice(&header);
-      buf[SCORE_KEY_HEADER_SIZE..total_len].copy_from_slice(member);
-      Ok(ZSetSubKeyBuf::Stack(buf, total_len as u8))
-    } else {
-      let mut vec = Vec::with_capacity(total_len);
-      let header = Self::encode_score_header(key_id, version, score);
-      vec.extend_from_slice(&header);
-      vec.extend_from_slice(member);
-      Ok(ZSetSubKeyBuf::Heap(vec))
-    }
+    check_member_len(member.len(), SCORE_KEY_HEADER_SIZE)?;
+    Ok(ZSetSubKeyBuf::from_header_parts(
+      &Self::encode_score_header(key_id, version, score),
+      member,
+    ))
   }
 
   /// 零拷贝解码有序集合分值子键（const fn）
