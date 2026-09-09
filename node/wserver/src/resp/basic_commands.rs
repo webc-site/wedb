@@ -1,3 +1,5 @@
+use crate::resp::parser::parse_utils::{RespSliceExt, RespVecExt};
+
 impl crate::resp::resp_server_session::RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:GetPendingScratchOutput
   pub fn get_pending_scratch_output<'a, D: wdev::Device>(
@@ -6,7 +8,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGET
@@ -16,36 +18,20 @@ impl crate::resp::resp_server_session::RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // 1:1 C# Parity logic: Get the key from parse state
     if parse_state.is_empty() {
       return Ok(false);
     }
     let key = parse_state[0];
-
-    // Call into storage API (wkv)
-    let status = store.try_read_sync(key, |v| v.to_vec());
-
-    match status {
+    match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        // GarnetStatus.OK
         output.extend_from_slice(&val);
       }
       Ok(Some(None)) => {
-        // GarnetStatus.NOTFOUND
         output.extend_from_slice(b"$-1\r\n");
       }
-      Ok(None) => {
-        // Needs async path, in C# handled by NetworkGETAsync or similar,
-        // but try_read_sync signals async is needed.
-        // We return false to indicate async fallback is required.
-        return Ok(false);
-      }
-      Err(_) => {
-        // Handle error, e.g. WRONGTYPE or storage error
-        output.extend_from_slice(b"-ERR generic error\r\n");
-      }
+      Ok(None) => return Ok(false),
+      Err(_) => output.write_resp_error("generic error"),
     }
-
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGETEX
@@ -56,23 +42,19 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'GETEX' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'GETEX' command");
       return Ok(true);
     }
     let key = parse_state[0];
-
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let len_str = format!("${}\r\n", val.len());
-        output.extend_from_slice(len_str.as_bytes());
-        output.extend_from_slice(&val);
-        output.extend_from_slice(b"\r\n");
+        output.write_resp_bulk_string(&val);
       }
       Ok(Some(None)) => {
         output.extend_from_slice(b"$-1\r\n");
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -83,7 +65,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGET_SG
@@ -93,7 +75,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
 
@@ -106,25 +88,15 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SET' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'SET' command");
       return Ok(true);
     }
-
     let key = parse_state[0];
     let value = parse_state[1];
-
-    let status = store.try_upsert_sync(key, value);
-
-    match status {
-      Ok(Ok(_)) => {
-        output.extend_from_slice(b"+OK\r\n");
-      }
-      Ok(Err(_page_id)) => {
-        return Ok(false);
-      }
-      Err(_) => {
-        output.extend_from_slice(b"-ERR generic error\r\n");
-      }
+    match store.try_upsert_sync(key, value) {
+      Ok(Ok(_)) => output.write_resp_simple_string("OK"),
+      Ok(Err(_)) => return Ok(false),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -135,7 +107,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSetRange
@@ -146,12 +118,11 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 3 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SETRANGE' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'SETRANGE' command");
       return Ok(true);
     }
     let key = parse_state[0];
-    let offset_str = std::str::from_utf8(parse_state[1]).unwrap_or("0");
-    let offset: usize = offset_str.parse().unwrap_or(0);
+    let offset = parse_state[1].parse_usize(0);
     let val = parse_state[2];
 
     match store.try_read_sync(key, |v| v.to_vec()) {
@@ -161,18 +132,16 @@ impl crate::resp::resp_server_session::RespServerSession {
         }
         existing[offset..offset + val.len()].copy_from_slice(val);
         let _ = store.try_upsert_sync(key, &existing);
-        let len_str = format!(":{}\r\n", existing.len());
-        output.extend_from_slice(len_str.as_bytes());
+        output.write_resp_int(existing.len() as i64);
       }
       Ok(Some(None)) => {
         let mut new_val = vec![0; offset + val.len()];
         new_val[offset..offset + val.len()].copy_from_slice(val);
         let _ = store.try_upsert_sync(key, &new_val);
-        let len_str = format!(":{}\r\n", new_val.len());
-        output.extend_from_slice(len_str.as_bytes());
+        output.write_resp_int(new_val.len() as i64);
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -184,46 +153,31 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 3 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'GETRANGE' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'GETRANGE' command");
       return Ok(true);
     }
     let key = parse_state[0];
-    let start_str = std::str::from_utf8(parse_state[1]).unwrap_or("0");
-    let end_str = std::str::from_utf8(parse_state[2]).unwrap_or("0");
-    let mut start: isize = start_str.parse().unwrap_or(0);
-    let mut end: isize = end_str.parse().unwrap_or(0);
+    let mut start = parse_state[1].parse_isize(0);
+    let mut end = parse_state[2].parse_isize(0);
 
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
         let len = val.len() as isize;
-        if start < 0 {
-          start += len;
-        }
-        if end < 0 {
-          end += len;
-        }
-        if start < 0 {
-          start = 0;
-        }
-        if end < 0 {
-          end = 0;
-        }
-        if end >= len {
-          end = len - 1;
-        }
+        if start < 0 { start += len; }
+        if end < 0 { end += len; }
+        if start < 0 { start = 0; }
+        if end < 0 { end = 0; }
+        if end >= len { end = len - 1; }
+        
         if start > end || start >= len {
-          output.extend_from_slice(b"$0\r\n\r\n");
+          output.write_resp_bulk_string(b"");
         } else {
-          let res = &val[(start as usize)..=(end as usize)];
-          let len_str = format!("${}\r\n", res.len());
-          output.extend_from_slice(len_str.as_bytes());
-          output.extend_from_slice(res);
-          output.extend_from_slice(b"\r\n");
+          output.write_resp_bulk_string(&val[(start as usize)..=(end as usize)]);
         }
       }
-      Ok(Some(None)) => output.extend_from_slice(b"$0\r\n\r\n"),
+      Ok(Some(None)) => output.write_resp_bulk_string(b""),
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -235,13 +189,13 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 3 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SETEX' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'SETEX' command");
       return Ok(true);
     }
     let key = parse_state[0];
     let val = parse_state[2];
     let _ = store.try_upsert_sync(key, val);
-    output.extend_from_slice(b"+OK\r\n");
+    output.write_resp_simple_string("OK");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSETNX
@@ -252,22 +206,20 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'SETNX' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'SETNX' command");
       return Ok(true);
     }
     let key = parse_state[0];
     let val = parse_state[1];
 
     match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(_))) => {
-        output.extend_from_slice(b":0\r\n");
-      }
+      Ok(Some(Some(_))) => output.write_resp_int(0),
       Ok(Some(None)) => {
         let _ = store.try_upsert_sync(key, val);
-        output.extend_from_slice(b":1\r\n");
+        output.write_resp_int(1);
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -278,7 +230,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSET_EX
@@ -288,7 +240,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSET_Conditional
@@ -298,7 +250,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkIncrement
@@ -308,12 +260,11 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // Simplified INCR stub
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+      output.write_resp_error("wrong number of arguments for command");
       return Ok(true);
     }
-    output.extend_from_slice(b":1\r\n"); // Stub
+    output.write_resp_int(1); // Stub
     Ok(true)
   }
 
@@ -325,7 +276,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+      output.write_resp_error("wrong number of arguments for command");
       return Ok(true);
     }
     output.extend_from_slice(b"+1.0\r\n"); // Stub
@@ -340,10 +291,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(
-        b"-ERR wrong number of arguments for 'APPEND' command
-",
-      );
+      output.write_resp_error("wrong number of arguments for 'APPEND' command");
       return Ok(true);
     }
     let key = parse_state[0];
@@ -353,27 +301,14 @@ impl crate::resp::resp_server_session::RespServerSession {
       Ok(Some(Some(mut existing))) => {
         existing.extend_from_slice(val);
         let _ = store.try_upsert_sync(key, &existing);
-        let len_str = format!(
-          ":{}
-",
-          existing.len()
-        );
-        output.extend_from_slice(len_str.as_bytes());
+        output.write_resp_int(existing.len() as i64);
       }
       Ok(Some(None)) => {
         let _ = store.try_upsert_sync(key, val);
-        let len_str = format!(
-          ":{}
-",
-          val.len()
-        );
-        output.extend_from_slice(len_str.as_bytes());
+        output.write_resp_int(val.len() as i64);
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(
-        b"-ERR generic error
-",
-      ),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -383,16 +318,11 @@ impl crate::resp::resp_server_session::RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // Ignore args, return PONG
-    // If there's an arg, return the arg. Redis PING [message]
     if parse_state.is_empty() {
       output.extend_from_slice(b"+PONG\r\n");
     } else {
       let msg = parse_state[0];
-      let len_str = format!("${}\r\n", msg.len());
-      output.extend_from_slice(len_str.as_bytes());
-      output.extend_from_slice(msg);
-      output.extend_from_slice(b"\r\n");
+      output.write_resp_bulk_string(msg);
     }
     Ok(true)
   }
@@ -403,7 +333,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkQUIT
@@ -412,8 +342,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"+OK\r\n");
-    // Actually QUIT should close the connection, but we just return true.
+    output.write_resp_simple_string("OK");
     Ok(true)
   }
 
@@ -423,7 +352,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"+OK\r\n");
+    output.write_resp_simple_string("OK");
     Ok(true)
   }
 
@@ -434,7 +363,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkREADONLY
@@ -444,7 +373,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkREADWRITE
@@ -454,7 +383,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSTRLEN
@@ -465,24 +394,15 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'STRLEN' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'STRLEN' command");
       return Ok(true);
     }
     let key = parse_state[0];
 
-    let status = store.try_read_sync(key, |v| v.len());
-    match status {
-      Ok(Some(Some(len))) => {
-        let len_str = format!(":{}\r\n", len);
-        output.extend_from_slice(len_str.as_bytes());
-      }
-      Ok(Some(None)) | Ok(None) => {
-        // Not found or async needed (for now, report 0 or fallback)
-        output.extend_from_slice(b":0\r\n");
-      }
-      Err(_) => {
-        output.extend_from_slice(b"-ERR generic error\r\n");
-      }
+    match store.try_read_sync(key, |v| v.len()) {
+      Ok(Some(Some(len))) => output.write_resp_int(len as i64),
+      Ok(Some(None)) | Ok(None) => output.write_resp_int(0),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -493,7 +413,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND
@@ -503,7 +423,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND_COUNT
@@ -513,7 +433,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND_DOCS
@@ -523,7 +443,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND_INFO
@@ -533,7 +453,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND_GETKEYS
@@ -543,7 +463,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkCOMMAND_GETKEYSANDFLAGS
@@ -553,7 +473,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkECHO
@@ -563,14 +483,11 @@ impl crate::resp::resp_server_session::RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'ECHO' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'ECHO' command");
       return Ok(true);
     }
     let msg = parse_state[0];
-    let len_str = format!("${}\r\n", msg.len());
-    output.extend_from_slice(len_str.as_bytes());
-    output.extend_from_slice(msg);
-    output.extend_from_slice(b"\r\n");
+    output.write_resp_bulk_string(msg);
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkHELLO
@@ -580,7 +497,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkTIME
@@ -601,7 +518,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkMemoryUsage
@@ -611,7 +528,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkOBJECT
@@ -621,7 +538,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkOBJECTHELP
@@ -631,7 +548,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkASYNC
@@ -641,7 +558,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
@@ -651,7 +568,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:FlushDb
@@ -661,7 +578,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:ExecuteFlushDb
@@ -671,7 +588,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:WriteClientInfo
@@ -681,7 +598,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:ParseGETAndKey
@@ -691,7 +608,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NextCommandMaybeGet
@@ -701,7 +618,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:TryGetSimpleCommandInfo
@@ -711,7 +628,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:SetResult
@@ -721,7 +638,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR not implemented\r\n");
+    output.write_resp_error("not implemented");
     Ok(true)
   }
 }

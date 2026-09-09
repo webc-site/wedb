@@ -1,3 +1,4 @@
+use crate::resp::parser::parse_utils::RespSliceExt;
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
 
 impl crate::resp::resp_server_session::RespServerSession {
@@ -23,8 +24,8 @@ impl crate::resp::resp_server_session::RespServerSession {
 
     let mut added = 0;
     for i in (1..parse_state.len()).step_by(2) {
-      let score_str = std::str::from_utf8(parse_state[i]).unwrap_or("");
-      if let Ok(score) = score_str.parse::<f64>() {
+      let score = parse_state[i].parse_f64(0.0);
+      if true {
         let member = parse_state[i + 1];
         let old_score = zset.operate(SortedSetOperation::Zscore, member, 0.0);
         zset.operate(SortedSetOperation::Zadd, member, score);

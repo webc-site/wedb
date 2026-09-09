@@ -1,6 +1,7 @@
 use std::{
+  cmp::Ordering,
   collections::BTreeSet,
-  io::{Read, Write},
+  io::{self, Read, Write},
   sync::RwLock,
 };
 
@@ -71,13 +72,13 @@ pub struct SortedSetEntry {
 }
 
 impl PartialOrd for SortedSetEntry {
-  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 
 impl Ord for SortedSetEntry {
-  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+  fn cmp(&self, other: &Self) -> Ordering {
     self
       .score
       .cmp(&other.score)
@@ -100,7 +101,7 @@ impl SortedSetObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
-  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+  pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let count = reader.read_i32::<LittleEndian>()?;
     let dict = HashMap::with_hasher(GxBuildHasher::default());
     let pin = dict.pin();
@@ -127,7 +128,7 @@ impl SortedSetObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Serialize
-  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.dict.pin();
     writer.write_i32::<LittleEndian>(pin.len() as i32)?;
     for (member, score) in pin.iter() {

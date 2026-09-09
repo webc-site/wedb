@@ -1,4 +1,5 @@
 use std::{
+  cell::Cell,
   sync::atomic::{AtomicI32, Ordering},
   thread,
 };
@@ -61,7 +62,7 @@ pub struct ReadOptimizedLock {
 }
 
 thread_local! {
-    static PROCESSOR_HINT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static PROCESSOR_HINT: Cell<usize> = const { Cell::new(0) };
 }
 
 #[inline]
@@ -70,7 +71,7 @@ fn get_processor_hint() -> usize {
     let mut val = hint.get();
     if val == 0 {
       // we use the thread id as a simple hint, hash it a bit
-      let tid = std::thread::current().id();
+      let tid = thread::current().id();
       // A simple hash of thread id string representation to get a number
       // since ThreadId doesn't expose integer natively in stable yet
       let tid_str = format!("{:?}", tid);

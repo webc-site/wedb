@@ -1,3 +1,4 @@
+use crate::resp::parser::parse_utils::RespSliceExt;
 pub struct ClientCommands;
 
 impl ClientCommands {
@@ -101,7 +102,7 @@ impl ClientCommands {
       return Ok(true);
     }
     // Parse client id
-    let id_str = std::str::from_utf8(parse_state[0]).unwrap_or("");
+    let id_str = parse_state[0].as_str_safe();
     if id_str.parse::<i64>().is_err() {
       output.extend_from_slice(b"-ERR value is not an integer or out of range\r\n");
       return Ok(true);

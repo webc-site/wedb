@@ -1,7 +1,6 @@
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use fastrand;
 use gxhash::GxBuildHasher;
 use papaya::HashSet;
 
@@ -39,7 +38,7 @@ impl SetObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
-  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+  pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let count = reader.read_i32::<LittleEndian>()?;
     let set = HashSet::with_hasher(GxBuildHasher::default());
     let pin = set.pin();
@@ -54,7 +53,7 @@ impl SetObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Serialize
-  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.set.pin();
     writer.write_i32::<LittleEndian>(pin.len() as i32)?;
     for item in pin.iter() {

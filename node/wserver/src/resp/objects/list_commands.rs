@@ -1,3 +1,4 @@
+use crate::resp::parser::parse_utils::RespSliceExt;
 use wobject::list::list_object::{ListObject, ListOperation};
 
 impl crate::resp::resp_server_session::RespServerSession {
@@ -131,10 +132,8 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let start_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
-    let end_str = std::str::from_utf8(parse_state[2]).unwrap_or("");
-    let start = start_str.parse::<isize>().unwrap_or(0);
-    let stop = end_str.parse::<isize>().unwrap_or(-1);
+    let start = parse_state[1].parse_isize(0);
+    let stop = parse_state[2].parse_isize(-1);
 
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
@@ -173,8 +172,7 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let idx_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
-    let idx = idx_str.parse::<isize>().unwrap_or(0);
+    let idx = parse_state[1].parse_isize(0);
 
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
@@ -212,10 +210,8 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let start_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
-    let end_str = std::str::from_utf8(parse_state[2]).unwrap_or("");
-    let start = start_str.parse::<isize>().unwrap_or(0);
-    let stop = end_str.parse::<isize>().unwrap_or(-1);
+    let start = parse_state[1].parse_isize(0);
+    let stop = parse_state[2].parse_isize(-1);
 
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {

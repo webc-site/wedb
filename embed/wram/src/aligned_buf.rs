@@ -4,7 +4,7 @@ use std::{
   fmt::{self, Debug, Formatter},
   mem::{ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
-  ptr::{NonNull, copy_nonoverlapping},
+  ptr::{NonNull, copy_nonoverlapping, eq},
   slice::{from_raw_parts, from_raw_parts_mut},
   sync::Arc,
 };
@@ -128,7 +128,7 @@ impl AlignedBuf {
   #[inline]
   /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
   pub fn is_allocated(&self) -> bool {
-    self.cap > 0 && !std::ptr::eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
+    self.cap > 0 && !eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
   }
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset

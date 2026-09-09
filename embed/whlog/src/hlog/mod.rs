@@ -1,4 +1,5 @@
 use std::{
+  io::{Error as IoError, ErrorKind},
   ops::Deref,
   slice::from_raw_parts_mut,
   sync::{Arc, atomic::AtomicU64},
@@ -214,8 +215,8 @@ impl<D: Device> HybridLog<D> {
   pub(crate) fn verify_compatible_sector_size(config: &HybridLogConfig, device: &D) -> Result<()> {
     let sector_size = device.sector_size();
     if !config.page_size.is_multiple_of(sector_size) {
-      return Err(Error::Io(std::io::Error::new(
-        std::io::ErrorKind::InvalidInput,
+      return Err(Error::Io(IoError::new(
+        ErrorKind::InvalidInput,
         format!(
           "Allocator with page size {} cannot flush to device with sector size {}",
           config.page_size, sector_size

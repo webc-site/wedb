@@ -1,7 +1,8 @@
 use std::{
-  cmp::Reverse,
+  cmp::{Ordering, Reverse},
   collections::BinaryHeap,
-  io::{Read, Write},
+  io::{self, Read, Write},
+  str,
   sync::Mutex,
 };
 
@@ -16,13 +17,13 @@ pub struct ExpirationEntry {
 }
 
 impl PartialOrd for ExpirationEntry {
-  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 
 impl Ord for ExpirationEntry {
-  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+  fn cmp(&self, other: &Self) -> Ordering {
     self
       .expiration
       .cmp(&other.expiration)
@@ -69,7 +70,7 @@ impl HashObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
-  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+  pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let count = reader.read_i32::<LittleEndian>()?;
     let hash = HashMap::with_hasher(GxBuildHasher::default());
     let pin = hash.pin();
@@ -93,7 +94,7 @@ impl HashObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Serialize
-  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.hash.pin();
     writer.write_i32::<LittleEndian>(pin.len() as i32)?;
     for (k, v) in pin.iter() {
@@ -150,7 +151,7 @@ impl HashObject {
     let pin = self.hash.pin();
     let mut current_val = 0.0;
     if let Some(v) = pin.get(key)
-      && let Ok(s) = std::str::from_utf8(v)
+      && let Ok(s) = str::from_utf8(v)
       && let Ok(parsed) = s.parse::<f64>()
     {
       current_val = parsed;

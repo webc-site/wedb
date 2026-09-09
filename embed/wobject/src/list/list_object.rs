@@ -1,9 +1,10 @@
 use std::{
   collections::VecDeque,
-  io::{Read, Write},
+  io::{self, Read, Write},
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use parking_lot::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -39,18 +40,18 @@ pub enum OperationDirection {
 /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListObject
 pub struct ListObject {
   // Using VecDeque instead of LinkedList for better cache locality and performance
-  pub list: parking_lot::Mutex<VecDeque<Vec<u8>>>,
+  pub list: Mutex<VecDeque<Vec<u8>>>,
 }
 
 impl ListObject {
   pub fn new() -> Self {
     Self {
-      list: parking_lot::Mutex::new(VecDeque::new()),
+      list: Mutex::new(VecDeque::new()),
     }
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
-  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+  pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let count = reader.read_i32::<LittleEndian>()?;
     let mut list = VecDeque::with_capacity(count as usize);
     for _ in 0..count {
@@ -61,12 +62,12 @@ impl ListObject {
     }
 
     Ok(Self {
-      list: parking_lot::Mutex::new(list),
+      list: Mutex::new(list),
     })
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Serialize
-  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let list = self.list.lock();
     writer.write_i32::<LittleEndian>(list.len() as i32)?;
     for item in list.iter() {
