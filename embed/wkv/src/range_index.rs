@@ -562,12 +562,14 @@ impl<D: Device> StoreSession<D> {
     let _ = fs::remove_file(&new_path);
     {
       let old_hash = RangeIndexManager::key_hash_of(old_key);
+      // 锁由本任务持有跨 await：span 锁不跨线程，compio 任务不迁移，安全
+      // (整树 CPR 快照含 fsync 属重操作，已卸载阻塞线程)
+      #[allow(clippy::await_holding_lock)]
       let _xlock = self.store.range_index.locks().write(old_hash);
       let mgr = Arc::clone(&self.store.range_index);
       let snap_key = old_key.to_vec();
       let snap_tree = Arc::clone(&old_tree);
       let snap_dest = new_path.clone();
-      #[allow(clippy::await_holding_lock)]
       range_index_blocking(move || {
         mgr.snapshot_tree_to_path_locked(&snap_key, &snap_tree, &snap_dest)
       })
