@@ -29,8 +29,8 @@ impl PubSubCommands {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 2 {
-        output.extend_from_slice(b"-ERR wrong number of arguments for 'publish' command\r\n");
-        return Ok(true);
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'publish' command\r\n");
+      return Ok(true);
     }
     output.extend_from_slice(b"-ERR PUBLISH is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
@@ -43,8 +43,8 @@ impl PubSubCommands {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-        output.extend_from_slice(b"-ERR wrong number of arguments for 'subscribe' command\r\n");
-        return Ok(true);
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'subscribe' command\r\n");
+      return Ok(true);
     }
     output.extend_from_slice(b"-ERR SUBSCRIBE is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
@@ -57,8 +57,8 @@ impl PubSubCommands {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-        output.extend_from_slice(b"-ERR wrong number of arguments for 'psubscribe' command\r\n");
-        return Ok(true);
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'psubscribe' command\r\n");
+      return Ok(true);
     }
     output.extend_from_slice(b"-ERR PSUBSCRIBE is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
@@ -91,10 +91,11 @@ impl PubSubCommands {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() > 1 {
-        output.extend_from_slice(b"-ERR wrong number of arguments for 'pubsub channels' command\r\n");
-        return Ok(true);
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'pubsub channels' command\r\n");
+      return Ok(true);
     }
-    output.extend_from_slice(b"-ERR PUBSUB CHANNELS is disabled, enable it with --pubsub option.\r\n");
+    output
+      .extend_from_slice(b"-ERR PUBSUB CHANNELS is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
   }
   /// libs/server/Resp/PubSubCommands.cs:NetworkPUBSUB_NUMPAT
@@ -105,10 +106,11 @@ impl PubSubCommands {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if !parse_state.is_empty() {
-        output.extend_from_slice(b"-ERR wrong number of arguments for 'pubsub numpat' command\r\n");
-        return Ok(true);
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'pubsub numpat' command\r\n");
+      return Ok(true);
     }
-    output.extend_from_slice(b"-ERR PUBSUB NUMPAT is disabled, enable it with --pubsub option.\r\n");
+    output
+      .extend_from_slice(b"-ERR PUBSUB NUMPAT is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
   }
   /// libs/server/Resp/PubSubCommands.cs:NetworkPUBSUB_NUMSUB
@@ -118,7 +120,8 @@ impl PubSubCommands {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    output.extend_from_slice(b"-ERR PUBSUB NUMSUB is disabled, enable it with --pubsub option.\r\n");
+    output
+      .extend_from_slice(b"-ERR PUBSUB NUMSUB is disabled, enable it with --pubsub option.\r\n");
     Ok(true)
   }
 }

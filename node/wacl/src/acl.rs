@@ -41,15 +41,9 @@ impl AclParser {
   pub fn parse_rules(user: &mut User, rules: &[&str]) -> Result<()> {
     for rule in rules {
       if let Some(cmd) = rule.strip_prefix('+') {
-        user
-          .permissions
-          .allowed_commands
-          .insert(cmd.to_string());
+        user.permissions.allowed_commands.insert(cmd.to_string());
       } else if let Some(cmd) = rule.strip_prefix('-') {
-        user
-          .permissions
-          .allowed_commands
-          .remove(cmd);
+        user.permissions.allowed_commands.remove(cmd);
       } else if *rule == "on" {
         user.is_enabled = true;
       } else if *rule == "off" {
