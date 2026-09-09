@@ -26,6 +26,9 @@ pub enum Error {
   /// 槽位状态字节非法
   #[error("invalid slot state byte: {0}")]
   SlotState(u8),
+  /// RLE 槽位段指向不存在的 worker 下标（越界属主会击穿槽位投影方法）
+  #[error("slot segment references unknown worker id: {0}")]
+  SlotWorkerId(u16),
   /// 集群 worker 尚未初始化（无本地节点）
   #[error("workers not initialized")]
   NoWorkers,
