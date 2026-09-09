@@ -27,7 +27,7 @@ aok = { workspace = true }
 ctor = { workspace = true }
 log_init = { workspace = true }
 parking_lot = { workspace = true }
-wram = { workspace = true }
+wram.workspace = true
 
 [lints]
 workspace = true
