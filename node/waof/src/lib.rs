@@ -17,9 +17,3 @@ pub use iterator::WalScanIterator;
 pub use log::{WalLog, WalLogInner};
 pub use record::WalRecord;
 pub use ring_buffer::RingBuffer;
-
-pub type AofConfig = WalConfig;
-pub type AofLog<D> = WalLog<D>;
-pub type AofLogInner<D> = WalLogInner<D>;
-pub type AofRecord = WalRecord;
-pub type AofScanIterator<D> = WalScanIterator<D>;

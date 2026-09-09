@@ -13,11 +13,11 @@ use std::{
     Arc,
     atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
   },
-  time::{Duration, Instant},
 };
 
 use bf_tree::{BfTree, ConfigError, LeafInsertResult, LeafReadResult, ScanIter, ScanIterError};
 use parking_lot::RwLock;
+use wbase::time::{Duration, Instant};
 
 use crate::{
   error::{Error, Result},
@@ -887,7 +887,7 @@ mod tests {
     });
 
     // 排空未完成：引擎实例尚未摘除 (屏障与 disposed 已置位)
-    sleep(Duration::from_millis(100));
+    sleep(Duration::from_millis(100).into());
     assert!(!done.load(Ordering::Acquire));
     assert!(service.tree.read().is_some());
 

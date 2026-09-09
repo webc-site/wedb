@@ -72,9 +72,6 @@ impl<'a> ExactSizeIterator for CompactZSetIter<'a> {
 
 impl<'a> FusedIterator for CompactZSetIter<'a> {}
 
-/// 紧凑有序集合范围流式切片迭代器类型别名
-pub type CompactZSetRangeIter<'a> = CompactZSetIter<'a>;
-
 /// 紧凑有序集合元素总数前缀字节数（2 字节大端整数）
 pub const COMPACT_ZSET_COUNT_SIZE: usize = 2;
 /// 紧凑有序集合保序分值字节数（8 字节）
@@ -617,7 +614,7 @@ impl CompactZSetCodec {
 
   /// 获取指定分值范围的切片流式迭代器（闭区间 [min, max]）
   #[inline(always)]
-  pub fn range(slice: &[u8], min: f64, max: f64) -> CompactZSetRangeIter<'_> {
+  pub fn range(slice: &[u8], min: f64, max: f64) -> CompactZSetIter<'_> {
     Self::range_with_options(slice, min, true, max, true)
   }
 
@@ -628,8 +625,8 @@ impl CompactZSetCodec {
     min_inclusive: bool,
     max: f64,
     max_inclusive: bool,
-  ) -> CompactZSetRangeIter<'_> {
-    let empty_iter = CompactZSetRangeIter {
+  ) -> CompactZSetIter<'_> {
+    let empty_iter = CompactZSetIter {
       slice,
       offset: slice.len(),
       remaining: 0,
@@ -644,7 +641,7 @@ impl CompactZSetCodec {
     };
 
     match Self::score_range_span(slice, count, min, min_inclusive, max, max_inclusive) {
-      Ok((start_offset, remaining)) => CompactZSetRangeIter {
+      Ok((start_offset, remaining)) => CompactZSetIter {
         slice,
         offset: start_offset,
         remaining,
@@ -823,7 +820,7 @@ impl CompactZSet {
 
   /// 分值范围流式切片迭代
   #[inline(always)]
-  pub fn range(&self, min: f64, max: f64) -> CompactZSetRangeIter<'_> {
+  pub fn range(&self, min: f64, max: f64) -> CompactZSetIter<'_> {
     CompactZSetCodec::range(&self.raw, min, max)
   }
 
@@ -835,7 +832,7 @@ impl CompactZSet {
     min_inclusive: bool,
     max: f64,
     max_inclusive: bool,
-  ) -> CompactZSetRangeIter<'_> {
+  ) -> CompactZSetIter<'_> {
     CompactZSetCodec::range_with_options(&self.raw, min, min_inclusive, max, max_inclusive)
   }
 

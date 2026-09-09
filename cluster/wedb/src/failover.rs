@@ -12,7 +12,7 @@
 
 use std::result;
 
-use wraft::{ConsensusEngine, NodeId, Role};
+use wraft::{ConsensusEngine, Role};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -21,7 +21,7 @@ pub enum Error {
   /// 刻意不复用 `wraft::ConsensusError::NotLeader`：那是引擎提案被拒的
   /// 算法层语义，本变体是数据面入口的准入拒绝，字段同形但演进独立
   #[error("not leader, redirect to {leader:?}")]
-  NotLeader { leader: Option<NodeId> },
+  NotLeader { leader: Option<u64> },
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -48,7 +48,7 @@ impl<E: ConsensusEngine> FailoverManager<E> {
 
   /// 已知 Leader（未知为 None）
   #[inline]
-  pub fn leader(&self) -> Option<NodeId> {
+  pub fn leader(&self) -> Option<u64> {
     self.engine.leader()
   }
 
@@ -100,7 +100,7 @@ mod tests {
     fn role(&self) -> Role {
       Role::Follower
     }
-    fn leader(&self) -> Option<NodeId> {
+    fn leader(&self) -> Option<u64> {
       Some(7)
     }
     async fn propose(&self, _entry: &[u8]) -> wraft::ConsensusResult<u64> {
@@ -118,7 +118,7 @@ mod tests {
     fn role(&self) -> Role {
       Role::Candidate
     }
-    fn leader(&self) -> Option<NodeId> {
+    fn leader(&self) -> Option<u64> {
       Some(7)
     }
     async fn propose(&self, _entry: &[u8]) -> wraft::ConsensusResult<u64> {
