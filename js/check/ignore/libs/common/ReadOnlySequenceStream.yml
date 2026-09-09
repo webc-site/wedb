@@ -1,3 +1,4 @@
+# C# Write 抛 NotSupportedException（只读流的哨兵实现，.NET Stream 基类管道）；
+# rust 无 Stream 继承体系，无对应物
 fn:
-  - ReadByte
-  - Seek
+  - Write

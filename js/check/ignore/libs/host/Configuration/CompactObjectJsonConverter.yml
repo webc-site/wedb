@@ -1,0 +1,4 @@
+# C# Newtonsoft.Json 契约转换器（配置对象 JSON 导出管道）；
+# rust 配置走 sonic-rs/serde 派生，无自定义转换器
+fn:
+  - Write

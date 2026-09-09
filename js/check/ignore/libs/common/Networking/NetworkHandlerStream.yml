@@ -1,3 +1,4 @@
+# C# 对 INetworkHandler 的 Stream 包装（CanWrite/Write 委托）；
+# rust compio TcpStream 直接写，无 Stream 包装层
 fn:
-  - Seek
-  - ReadAsyncInternalAsync
+  - Write

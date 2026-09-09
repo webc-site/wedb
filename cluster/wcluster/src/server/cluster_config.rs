@@ -1,10 +1,10 @@
-use std::{array::from_fn, cmp::Ordering, net::SocketAddr, result::Result as StdResult};
+use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
 
 // if needed
 use log::warn;
 
 use crate::{
-  error::Result,
+  error::{Error, Result},
   server::{
     hash_slot::{HashSlot, SLOT_STATE_KINDS, SlotState},
     worker::{LocalWorkerSpec, NodeRole, Worker},
@@ -581,9 +581,11 @@ impl ClusterConfig {
           slot.worker_id = RESERVED_WORKER_ID as u16;
           slot.state = SlotState::Offline;
         }
-      } else if slot.eff_worker_id() as usize > worker_id {
-        // 与 C# 一致用 eff id 比较：Migrating 槽 eff 恒为 LOCAL(1)，
-        // 不会被误当作"高位 worker"而错误递减迁移目标
+      } else if wid > worker_id {
+        // 与 C# 不同处：此处按 raw id 递减。C# 用 eff id 比较，Migrating
+        // 槽 eff 恒为 LOCAL(1)，移除低位节点时高位迁移目标的 raw id 不随
+        // workers 收缩前移，留下指向越界下标的悬空引用；raw 递减对
+        // Migrating 槽同样安全——raw==被删节点已在前面分支处理
         slot.worker_id -= 1;
       }
     }
@@ -635,17 +637,13 @@ impl ClusterConfig {
   ///
   /// 先整体校验再占位：与 C# 的"新配置上试错"等价的 all-or-nothing 语义，
   /// 但无需整份克隆
-  pub fn try_add_slots(
-    &mut self,
-    slots: Option<&HashSet<usize>>,
-    state: SlotState,
-  ) -> StdResult<(), usize> {
+  pub fn try_add_slots(&mut self, slots: Option<&HashSet<usize>>, state: SlotState) -> Result<()> {
     let Some(s) = slots else {
       return Ok(());
     };
     for &slot in s {
       if self.slot_map[slot].eff_worker_id() != 0 {
-        return Err(slot);
+        return Err(Error::SlotNotFree(slot));
       }
     }
     for &slot in s {
@@ -667,13 +665,13 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryRemoveSlots
-  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> StdResult<(), usize> {
+  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> Result<()> {
     let Some(s) = slots else {
       return Ok(());
     };
     for &slot in s {
       if self.slot_map[slot].eff_worker_id() == 0 {
-        return Err(slot);
+        return Err(Error::SlotNotLocal(slot));
       }
     }
     for &slot in s {
@@ -1458,8 +1456,6 @@ impl ClusterConfig {
 
 use bitcode::{Decode, Encode};
 
-use crate::error::Error;
-
 /// 集群配置线格式（bitcode 编码）
 ///
 /// 槽位图以 RLE 段传输（连续同 (worker_id, state) 的槽数远多于段数，
@@ -1558,5 +1554,414 @@ impl ClusterConfig {
     workers[1..].clone_from_slice(&wire.workers);
 
     Ok(Self { slot_map, workers })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::server::{connection_info::ConnectionInfo, worker::LocalWorkerSpec};
+
+  /// 仅保留位的空配置
+  fn empty() -> ClusterConfig {
+    ClusterConfig::new()
+  }
+
+  /// 初始化本地 worker 的配置
+  fn local(id: &str, epoch: i64, role: NodeRole) -> ClusterConfig {
+    let mut c = empty();
+    c.initialize_local_worker(LocalWorkerSpec {
+      node_id: id,
+      address: "127.0.0.1",
+      port: 7000,
+      config_epoch: epoch,
+      role,
+      replica_of_node_id: None,
+      hostname: None,
+    });
+    c
+  }
+
+  /// 追加一个远端 worker
+  fn remote(config: &mut ClusterConfig, id: &str, role: NodeRole, replica_of: Option<&str>) -> u16 {
+    config.workers.push(Worker {
+      nodeid: Some(id.to_string()),
+      address: "10.0.0.1".to_string(),
+      port: 7000,
+      config_epoch: 0,
+      role,
+      replica_of_node_id: replica_of.map(String::from),
+      replication_offset: 0,
+      hostname: None,
+    });
+    (config.workers.len() - 1) as u16
+  }
+
+  #[test]
+  fn initialize_local_worker_sets_identity() {
+    let mut c = empty();
+    c.initialize_local_worker(LocalWorkerSpec {
+      node_id: "n1",
+      address: "1.2.3.4",
+      port: 7000,
+      config_epoch: 7,
+      role: NodeRole::Primary,
+      replica_of_node_id: None,
+      hostname: Some("h1"),
+    });
+    assert_eq!(c.local_node_id(), Some("n1"));
+    assert_eq!((c.local_node_ip(), c.local_node_port()), ("1.2.3.4", 7000));
+    assert_eq!(c.local_node_config_epoch(), 7);
+    assert!(c.is_primary() && !c.is_replica());
+    assert_eq!(c.local_node_id_short(), "n1");
+    // 保留位保持 unassigned
+    assert!(c.workers[RESERVED_WORKER_ID].nodeid.is_none());
+  }
+
+  #[test]
+  fn local_node_id_short_handles_short_and_multibyte() {
+    let mut c = empty();
+    c.workers[LOCAL_WORKER_ID].nodeid = Some("abc".to_string());
+    assert_eq!(c.local_node_id_short(), "abc");
+    // 非 ASCII：字节 8 恰为边界时按字节截断
+    c.workers[LOCAL_WORKER_ID].nodeid = Some("汉汉AB汉汉汉汉".to_string());
+    assert_eq!(c.local_node_id_short(), "汉汉AB");
+    // 截断点落在多字节字符中间：get 返回 None，整体返回而不 panic
+    c.workers[LOCAL_WORKER_ID].nodeid = Some("汉字汉字汉字汉字汉字".to_string());
+    assert_eq!(c.local_node_id_short(), "汉字汉字汉字汉字汉字");
+    c.workers[LOCAL_WORKER_ID].nodeid = None;
+    assert_eq!(c.local_node_id_short(), "");
+  }
+
+  #[test]
+  fn slot_assign_all_or_nothing() {
+    let mut c = local("n1", 0, NodeRole::Primary);
+    let slots: gxhash::HashSet<usize> = [1usize, 2].into_iter().collect();
+    c.try_add_slots(Some(&slots), SlotState::Stable).unwrap();
+    assert_eq!(c.get_worker_id_from_slot(1), LOCAL_WORKER_ID);
+    assert_eq!(c.get_state(2), SlotState::Stable);
+    // 已占用槽 → 报错且不留下半占状态
+    let bad: gxhash::HashSet<usize> = [2usize, 99].into_iter().collect();
+    assert!(matches!(
+      c.try_add_slots(Some(&bad), SlotState::Stable),
+      Err(Error::SlotNotFree(2))
+    ));
+    assert_eq!(c.get_worker_id_from_slot(99), 0);
+    // 移除后槽位回 Offline
+    c.try_remove_slots(Some(&slots)).unwrap();
+    assert_eq!(c.get_state(1), SlotState::Offline);
+  }
+
+  #[test]
+  fn set_config_epoch_only_from_zero_then_bump() {
+    let mut c = local("n1", 0, NodeRole::Primary);
+    // 非 0 初始化被拒
+    assert!(!c.set_local_worker_config_epoch(0));
+    assert!(c.set_local_worker_config_epoch(5));
+    assert_eq!(c.local_node_config_epoch(), 5);
+    // 非 0 epoch 不可覆写，单调递增只能 bump
+    assert!(!c.set_local_worker_config_epoch(9));
+    // bump 取全员最大 +1
+    remote(&mut c, "n2", NodeRole::Primary, None);
+    c.workers[2].config_epoch = 10;
+    c.bump_local_node_config_epoch();
+    assert_eq!(c.local_node_config_epoch(), 11);
+  }
+
+  #[test]
+  fn epoch_collision_bumps_only_for_greater_sender() {
+    let mut c = local("bbb", 5, NodeRole::Primary);
+    let lesser = local("aaa", 5, NodeRole::Primary);
+    assert!(!c.handle_config_epoch_collision(&lesser));
+    assert_eq!(c.local_node_config_epoch(), 5);
+    let greater = local("ccc", 5, NodeRole::Primary);
+    assert!(c.handle_config_epoch_collision(&greater));
+    assert_eq!(c.local_node_config_epoch(), 6);
+    // epoch 不同则互不理会
+    let other = local("ccc", 9, NodeRole::Primary);
+    assert!(!c.handle_config_epoch_collision(&other));
+  }
+
+  #[test]
+  fn merge_adopts_worker_and_claims_slot_by_epoch() {
+    let mut c = local("n1", 1, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.assign_slots(&[10, 11], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    // sender n2 自称 epoch 5 并认领槽 10
+    let mut s = local("n2", 5, NodeRole::Primary);
+    s.assign_slots(&[10], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    let merged = c.merge(&s, &gxhash::HashMap::default()).unwrap();
+    // worker 元数据随 gossip 更新
+    assert_eq!(merged.workers[n2 as usize].config_epoch, 5);
+    // 槽 10 因 sender epoch 更高移交 sender
+    assert_eq!(merged.get_worker_id_from_slot(10), n2 as usize);
+    assert_eq!(merged.get_state(10), SlotState::Stable);
+    // 槽 11 未被 sender 稳定持有，仍属本地
+    assert_eq!(merged.get_worker_id_from_slot(11), LOCAL_WORKER_ID);
+  }
+
+  #[test]
+  fn merge_rejects_stale_claim_and_noop_sender() {
+    let mut c = local("n1", 9, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.assign_slots(&[3], n2, SlotState::Stable);
+
+    // sender n2 epoch 更低仍认领自家槽 → epoch 检查挡下，属主不变
+    let mut s = local("n2", 2, NodeRole::Primary);
+    s.assign_slots(&[3], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    let merged = c.merge(&s, &gxhash::HashMap::default()).unwrap();
+    assert_eq!(merged.get_worker_id_from_slot(3), n2 as usize);
+    assert_eq!(merged.get_state(3), SlotState::Stable);
+
+    // 完全一致的槽位图且 worker epoch 不增长 → 无变化返回 None
+    let mut same = local("n2", 0, NodeRole::Primary);
+    same.assign_slots(&[3], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    assert!(c.merge(&same, &gxhash::HashMap::default()).is_none());
+  }
+
+  #[test]
+  fn merge_bans_listed_node() {
+    let c = local("n1", 3, NodeRole::Primary);
+    let s = local("evil", 9, NodeRole::Primary);
+    let mut ban = gxhash::HashMap::default();
+    ban.insert("evil".to_string(), 1);
+    assert!(c.merge(&s, &ban).is_none());
+  }
+
+  /// 迁移完成路径：本地持 Migrating 槽（raw=目标），目标节点以更高 epoch
+  /// gossip 认领时应直接移交而非重置 Offline（eff-id 语义回归测试）
+  #[test]
+  fn merge_hands_migrating_slot_to_claiming_target() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.update_slot_state(5, n2, SlotState::Migrating);
+
+    let mut s = local("n2", 5, NodeRole::Primary);
+    s.assign_slots(&[5], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    let merged = c.merge(&s, &gxhash::HashMap::default()).unwrap();
+    assert_eq!(merged.get_state(5), SlotState::Stable);
+    assert_eq!(merged.get_worker_id_from_slot(5), n2 as usize);
+  }
+
+  #[test]
+  fn remove_worker_frees_slots_and_shifts_ids() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    let n3 = remote(&mut c, "n3", NodeRole::Primary, None);
+    c.assign_slots(&[1], n2, SlotState::Stable);
+    c.assign_slots(&[2], n3, SlotState::Stable);
+    // n2 迁出槽 3 给 n3，n3 迁入槽 1 来自 n2
+    c.update_slot_state(3, n3, SlotState::Migrating);
+    c.update_slot_state(4, n2, SlotState::Importing);
+
+    let after = c.remove_worker("n2");
+    // n2 的 Stable 槽释放为 Offline
+    assert_eq!(after.get_state(1), SlotState::Offline);
+    assert_eq!(after.get_worker_id_from_slot(1), RESERVED_WORKER_ID);
+    // n3 相关槽位 id 前移一位
+    assert_eq!(after.get_worker_id_from_slot(2), n2 as usize);
+    assert_eq!(after.slot_map[3].worker_id, n2);
+    assert_eq!(after.slot_map[3].state, SlotState::Migrating);
+    // Importing 槽（源为 n2）释放
+    assert_eq!(after.get_state(4), SlotState::Offline);
+    // workers 收缩且 n3 前移
+    assert_eq!(after.workers.len(), c.workers.len() - 1);
+    assert_eq!(after.workers[n2 as usize].nodeid.as_deref(), Some("n3"));
+    // 未知名原样返回
+    let untouched = c.remove_worker("ghost");
+    assert_eq!(untouched.workers.len(), c.workers.len());
+    assert_eq!(untouched.slot_map[1].state, SlotState::Stable);
+  }
+
+  #[test]
+  fn takeover_moves_primary_slots_to_replica() {
+    // 副本接管：主 n1 的槽全部转为本地下
+    let mut primary = local("n1", 3, NodeRole::Primary);
+    primary.assign_slots(&[7, 8], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    let mut replica = local("n2", 0, NodeRole::Replica);
+    replica.workers[LOCAL_WORKER_ID].replica_of_node_id = Some("n1".to_string());
+    let n1 = remote(&mut replica, "n1", NodeRole::Primary, None);
+    // 副本视角下槽位归属主节点（远端 worker 下标），并感知主的 epoch
+    replica.workers[n1 as usize].config_epoch = 3;
+    replica.assign_slots(&[7, 8], n1, SlotState::Stable);
+
+    assert!(replica.is_replica());
+    replica
+      .take_over_from_primary()
+      .bump_local_node_config_epoch();
+    assert!(replica.is_primary());
+    assert_eq!(replica.local_node_primary_id(), None);
+    assert_eq!(replica.get_worker_id_from_slot(7), LOCAL_WORKER_ID);
+    assert_eq!(replica.get_state(8), SlotState::Stable);
+    assert!(replica.local_node_config_epoch() > 3);
+  }
+
+  #[test]
+  fn replica_read_path_sees_primary_slots() {
+    let mut primary = local("n1", 3, NodeRole::Primary);
+    primary.assign_slots(&[9], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    let mut replica = local("n2", 0, NodeRole::Replica);
+    replica.workers[LOCAL_WORKER_ID].replica_of_node_id = Some("n1".to_string());
+    remote(&mut replica, "n1", NodeRole::Primary, None);
+    replica.update_slot_state(9, 2, SlotState::Stable);
+
+    // 读写会话允许读主的槽；只读会话不允许
+    assert!(replica.is_local(9, true));
+    assert!(!replica.is_local(9, false));
+    // 主自身恒 local
+    assert!(primary.is_local(9, true));
+    // 非属主且非副本读路径
+    assert!(!replica.is_local(10, true));
+  }
+
+  #[test]
+  fn config_wire_round_trip() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    c.workers[LOCAL_WORKER_ID].hostname = Some("host-a".to_string());
+    c.workers[LOCAL_WORKER_ID].replication_offset = 42;
+    let n2 = remote(&mut c, "n2", NodeRole::Replica, Some("n1"));
+    c.workers[n2 as usize].config_epoch = 1;
+    c.assign_slots(&[0, 1, 2], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    c.update_slot_state(3, n2, SlotState::Migrating);
+    c.update_slot_state(4, n2, SlotState::Importing);
+
+    let bytes = c.to_byte_array();
+    assert_eq!(
+      ClusterConfig::try_peek_version(&bytes),
+      Some(CLUSTER_CONFIG_VERSION)
+    );
+    let back = ClusterConfig::from_byte_array(&bytes).unwrap();
+    assert_eq!(back.slot_map.len(), MAX_HASH_SLOT_VALUE);
+    for (a, b) in c.slot_map.iter().zip(back.slot_map.iter()) {
+      assert_eq!(a.worker_id, b.worker_id);
+      assert_eq!(a.state, b.state);
+    }
+    assert_eq!(back.workers.len(), c.workers.len());
+    assert_eq!(back.workers[RESERVED_WORKER_ID].nodeid, None);
+    for (a, b) in c.workers.iter().skip(1).zip(back.workers.iter().skip(1)) {
+      assert_eq!(a.nodeid, b.nodeid);
+      assert_eq!(a.address, b.address);
+      assert_eq!(a.port, b.port);
+      assert_eq!(a.config_epoch, b.config_epoch);
+      assert_eq!(a.role, b.role);
+      assert_eq!(a.replica_of_node_id, b.replica_of_node_id);
+      assert_eq!(a.hostname, b.hostname);
+    }
+    // RLE 有效：纯稳定图远小于整图展开
+    let mut flat = empty();
+    flat.assign_slots(
+      &(0..MAX_HASH_SLOT_VALUE).collect::<Vec<_>>(),
+      LOCAL_WORKER_ID as u16,
+      SlotState::Stable,
+    );
+    assert!(flat.to_byte_array().len() < 64);
+  }
+
+  #[test]
+  fn config_wire_rejects_bad_payload() {
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&[]),
+      Err(Error::PayloadTooShort)
+    ));
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&[CLUSTER_CONFIG_VERSION.wrapping_sub(1), 0]),
+      Err(Error::Version { got: 1, expect: 2 })
+    ));
+    // 版本对但载荷损坏 → Codec 而非静默成功
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&[CLUSTER_CONFIG_VERSION, 0xff, 0xff]),
+      Err(Error::Codec(_))
+    ));
+    // 越界 RLE：覆盖超 16384 槽
+    let mut payload = vec![CLUSTER_CONFIG_VERSION];
+    payload.extend_from_slice(&bitcode::encode(&ConfigWire {
+      segments: vec![SlotSegmentWire {
+        count: u16::MAX,
+        worker_id: 1,
+        state: SlotState::Stable as u8,
+      }],
+      workers: vec![],
+    }));
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&payload),
+      Err(Error::SlotOverflow)
+    ));
+    // 非法状态字节
+    let mut payload = vec![CLUSTER_CONFIG_VERSION];
+    payload.extend_from_slice(&bitcode::encode(&ConfigWire {
+      segments: vec![SlotSegmentWire {
+        count: 1,
+        worker_id: 1,
+        state: 0xee,
+      }],
+      workers: vec![],
+    }));
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&payload),
+      Err(Error::SlotState(0xee))
+    ));
+  }
+
+  #[test]
+  fn cluster_info_reports_slot_groupings() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Replica, Some("n1"));
+    c.assign_slots(&[0, 1, 2], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    c.update_slot_state(3, n2, SlotState::Migrating);
+    // 迁移槽经 eff id 解析仍归属源节点
+    assert_eq!(c.get_node_id_from_slot(3).as_deref(), Some("n1"));
+    // raw 属主是迁移目标
+    assert_eq!(c.slot_map[3].worker_id, n2);
+
+    let counts = c.slot_state_counts();
+    assert_eq!(counts[SlotState::Stable as usize], 3);
+    assert_eq!(counts[SlotState::Migrating as usize], 1);
+    assert_eq!(counts[SlotState::Offline as usize], MAX_HASH_SLOT_VALUE - 4);
+
+    // CLUSTER NODES：Migrating 槽归源节点名下，且带 [slot->-target] 标注
+    let node_info = c.get_node_info(LOCAL_WORKER_ID, &ConnectionInfo::default());
+    assert!(node_info.contains("0-3"));
+    assert!(node_info.contains("[3->-n2]"));
+    assert!(node_info.contains("myself,master"));
+
+    // CLUSTER SLOTS：Migrating 槽按 eff id 报在源节点
+    let slots = c.get_slots_info(ClusterPreferredEndpointType::Ip);
+    assert!(slots.contains("*4\r\n:0\r\n:3\r\n"));
+
+    // CLUSTER SHARDS：槽范围含迁移槽
+    let shards = c.get_shards_info(None, ClusterPreferredEndpointType::Ip);
+    assert!(shards.contains(":0\r\n:3"));
+  }
+
+  #[test]
+  fn shard_ranges_and_replica_queries() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Replica, Some("n1"));
+    c.assign_slots(&[5, 6], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    c.assign_slots(&[10], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    assert_eq!(c.get_shard_ranges(LOCAL_WORKER_ID), vec![(5, 6), (10, 10)]);
+    assert!(c.has_assigned_slots(LOCAL_WORKER_ID as u16));
+    assert!(!c.has_assigned_slots(16383));
+    assert_eq!(c.get_replica_ids("n1"), vec!["n2".to_string()]);
+    assert_eq!(c.get_local_node_replica_ids(), vec!["n2".to_string()]);
+    // 副本 id 对应的 worker 即追加的 n2
+    assert_eq!(c.get_node_role_from_node_id("n2"), NodeRole::Replica);
+    assert_eq!(
+      c.get_worker_id_from_node_id("n2"),
+      n2,
+      "副本 id 解析回其 worker 下标"
+    );
+    assert_eq!(c.get_slot_list(LOCAL_WORKER_ID as u16), vec![5, 6, 10]);
+    assert_eq!(c.get_primary_count(), 1);
+    assert_eq!(c.num_workers(), 2);
+    assert!(c.is_known("N2"), "节点 id 比较大小写不敏感");
+    assert_eq!(
+      c.get_endpoint_from_node_id("n2").unwrap().to_string(),
+      "10.0.0.1:7000"
+    );
   }
 }

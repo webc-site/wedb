@@ -65,6 +65,11 @@ impl GarnetClientSession {
   }
 
   /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync
+  /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsyncBatch
+  ///
+  /// C# ExecuteAsyncBatch(params string[]) 为单命令变长参数入队 + TCS 等待，
+  /// 与 ExecuteAsync 同构 (rust 无 TCS 队列，由 network_loop 按需泵出)，
+  /// 故两者共用此实现
   pub async fn execute_async(&self, command: &[&str]) -> Result<String> {
     let (resp_tx, resp_rx) = oneshot::oneshot();
     let cmd = command.iter().map(|s| s.to_string()).collect();

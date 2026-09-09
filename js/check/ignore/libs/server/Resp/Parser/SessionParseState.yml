@@ -1,2 +1,4 @@
+# C# Slice(idxOffset[, count]) 返回子解析状态；rust 命令签名直接以
+# &[&[u8]] 切片传参，子切片为语言固有操作 &parse_state[idx..]，无独立函数
 fn:
-  - EnsureCapacity
+  - Slice

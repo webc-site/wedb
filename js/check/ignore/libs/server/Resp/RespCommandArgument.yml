@@ -1,0 +1,4 @@
+# C# Write 为 Utf8JsonWriter 命令元数据导出转换器（CONFIG 导出管道）；
+# rust COMMAND 元数据经 resp_command_info_simplified_structs 直接序列化
+fn:
+  - Write

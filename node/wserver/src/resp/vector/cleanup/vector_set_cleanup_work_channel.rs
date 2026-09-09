@@ -5,6 +5,10 @@ impl VectorSetCleanupWorkChannel {
   pub fn try_publish() {
     unimplemented!()
   }
+  /// libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkChannel.cs:TryRead
+  pub fn try_read() {
+    unimplemented!()
+  }
   /// libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkChannel.cs:WaitToReadAsync
   pub fn wait_to_read_async() {
     unimplemented!()
