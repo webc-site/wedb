@@ -34,6 +34,29 @@ use crate::{
   types::RespCommand,
 };
 
+/// AOF 重放域错误（C# GarnetException 回放路径的 rust 形态）。
+#[derive(Debug, thiserror::Error)]
+pub enum AofReplayError {
+  /// 重放语义错误（损坏条目 / 未接线子域 / 存储失败）。
+  #[error("AOF replay: {0}")]
+  Replay(String),
+  /// 存储面错误（wkv 透传）。
+  #[error(transparent)]
+  Store(#[from] wkv::Error),
+}
+
+impl From<String> for AofReplayError {
+  fn from(message: String) -> Self {
+    Self::Replay(message)
+  }
+}
+
+impl From<&str> for AofReplayError {
+  fn from(message: &str) -> Self {
+    Self::Replay(message.to_string())
+  }
+}
+
 /// 单条回放负载的头部（C# RespInputHeader + StringInput 参数区的组合形态）：
 /// `[cmd u16][flags u8][subId u8][pad u8][arg1 i64][arg2 i64][arg3 i64]
 ///  [args_count u32][args 原文字节...]`。
@@ -65,7 +88,8 @@ impl ReplayInput {
     into.extend_from_slice(&raw.to_le_bytes());
     into.push(self.flags);
     into.push(self.sub_id);
-    into.push(0);
+    // 对齐 8 字节参数区起点（arg1 位于偏移 8，与 Deserialize 面一致）
+    into.extend_from_slice(&[0u8; 4]);
     into.extend_from_slice(&self.arg1.to_le_bytes());
     into.extend_from_slice(&self.arg2.to_le_bytes());
     into.extend_from_slice(&self.arg3.to_le_bytes());
@@ -82,9 +106,18 @@ impl ReplayInput {
       return None;
     }
     let cmd = RespCommand::try_from(u16::from_le_bytes([bytes[0], bytes[1]])).ok()?;
-    let mut args = Vec::new();
+    // 参数区：[count u32][逐参 (len u32 + bytes)]，起点 = 固定头 32
     let mut cursor = REPLAY_INPUT_HEADER_SIZE;
-    while cursor + 4 <= bytes.len() {
+    if cursor + 4 > bytes.len() {
+      return None;
+    }
+    let args_count = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
+    cursor += 4;
+    let mut args = Vec::with_capacity(args_count);
+    for _ in 0..args_count {
+      if cursor + 4 > bytes.len() {
+        return None;
+      }
       let len = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
       cursor += 4;
       if cursor + len > bytes.len() {
@@ -284,14 +317,42 @@ impl AofProcessor {
     as_replica: bool,
     log_address_sequence_number: i64,
     target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<bool, String> {
+  ) -> Result<bool, AofReplayError> {
+    // 顺序布局：存在进行中分块记录时，本条目必为纯数据续块
+    if self
+      .coordinator
+      .context(virtual_sublog_idx)
+      .has_in_progress_chunk()
+    {
+      let completed = self
+        .coordinator
+        .context(virtual_sublog_idx)
+        .chunked_reader
+        .read_chunk(entry);
+      if let Some(acc) = completed {
+        return super::aof_processor__chunk_replay::process_chunked_record(
+          self,
+          virtual_sublog_idx,
+          acc,
+          as_replica,
+          log_address_sequence_number,
+          target,
+        )
+        .await;
+      }
+      return Ok(false);
+    }
+
     let header = AofHeader::parse(entry).ok_or("AOF 条目头损坏")?;
     if header.aof_header_version > AofHeader::MAX_SUPPORTED_AOF_HEADER_VERSION {
-      return Err(format!(
-        "Unsupported AOF header version {}; this build supports up to version {}",
-        header.aof_header_version,
-        AofHeader::MAX_SUPPORTED_AOF_HEADER_VERSION
-      ));
+      return Err(
+        format!(
+          "Unsupported AOF header version {}; this build supports up to version {}",
+          header.aof_header_version,
+          AofHeader::MAX_SUPPORTED_AOF_HEADER_VERSION
+        )
+        .into(),
+      );
     }
 
     // 分块记录：累积至完成即直接分派（不物化连续镜像）
@@ -445,7 +506,7 @@ impl AofProcessor {
     &self,
     sublog_idx: usize,
     target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let operations = self.coordinator.take_fuzzy_region_operations(sublog_idx);
     for op in operations {
       match op {
@@ -468,7 +529,7 @@ impl AofProcessor {
     &self,
     sublog_idx: usize,
     target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let Some(group) = self.coordinator.dequeue_txn_group(sublog_idx) else {
       return Ok(());
     };
@@ -502,7 +563,7 @@ impl AofProcessor {
               )
               .await
           }
-          None => Err("模糊区条目头损坏".to_string()),
+          None => Err("模糊区条目头损坏".to_string().into()),
         },
         ReplayOperation::Chunk(acc) => {
           super::aof_processor__chunk_replay::replay_chunk(
@@ -529,7 +590,7 @@ impl AofProcessor {
     as_replica: bool,
     log_address_sequence_number: i64,
     target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let op_type = AofEntryType::try_from(header.op_type).map_err(|_| "未知 AOF 操作类型")?;
     let skip = self.should_skip_record(virtual_sublog_idx, entry, as_replica, target.store_version);
     if !self.begin_replay_op(skip) {
@@ -560,7 +621,7 @@ impl AofProcessor {
     prepared: PreparedParameters,
     legacy_cmd_format: bool,
     target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let PreparedParameters {
       key,
       key_hash: _,
@@ -594,14 +655,21 @@ impl AofProcessor {
           Self::split_value_input(&payload).ok_or("UnifiedStoreObjectUpsert 负载损坏")?;
         Self::object_store_upsert(target.session, &key, value).await
       }
+      // C# UnifiedStoreRMW / UnifiedStoreDelete：wkv 统一面下与主存 RMW /
+      // delete 同形
       AofEntryType::UnifiedStoreRMW => {
         Self::store_rmw(target.session, &key, &payload, legacy_cmd_format).await
       }
       AofEntryType::UnifiedStoreDelete => Self::store_delete(target.session, &key).await,
-      AofEntryType::RangeIndexStreamChunk => {
-        Err("RangeIndexPreview disabled; Replay failed".to_string())
-      }
-      _ => Err(format!("Unknown AOF header operation type {op_type:?}")),
+      // libs/server/AOF/AofProcessor.cs:HandleRangeIndexStreamChunk
+      //（范围索引流块重放须 RangeIndexManager（并行域），未接线即按
+      // C# 同文案失败）
+      AofEntryType::RangeIndexStreamChunk => Err(
+        "RangeIndexPreview disabled; Replay failed"
+          .to_string()
+          .into(),
+      ),
+      _ => Err(format!("Unknown AOF header operation type {op_type:?}").into()),
     }
   }
 
@@ -612,7 +680,7 @@ impl AofProcessor {
     value: &[u8],
     input: &[u8],
     legacy_cmd_format: bool,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let mut input = ReplayInput::deserialize(input).ok_or("StoreUpsert input 损坏")?;
     if legacy_cmd_format {
       input.cmd = LegacyRespCommand::from_v3(input.cmd);
@@ -622,7 +690,7 @@ impl AofProcessor {
     session
       .upsert_string(key, value)
       .await
-      .map_err(|e| format!("StoreUpsert replay failed: {e}"))
+      .map_err(AofReplayError::Store)
   }
 
   /// libs/server/AOF/AofProcessor.cs:StoreRMW
@@ -631,7 +699,7 @@ impl AofProcessor {
     key: &[u8],
     input: &[u8],
     legacy_cmd_format: bool,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let mut input = ReplayInput::deserialize(input).ok_or("StoreRMW input 损坏")?;
     if legacy_cmd_format {
       input.cmd = LegacyRespCommand::from_v3(input.cmd);
@@ -641,14 +709,22 @@ impl AofProcessor {
       input.cmd,
       RespCommand::Vadd | RespCommand::Vrem | RespCommand::Vsetattr
     ) {
-      return Err("vector replay requires vector domain; unsupported".to_string());
+      return Err(
+        "vector replay requires vector domain; unsupported"
+          .to_string()
+          .into(),
+      );
     }
     // 范围索引族须实际执行（缺口见汇报：RangeIndexManager 为并行域）
     if matches!(
       input.cmd,
       RespCommand::Ricreate | RespCommand::Riset | RespCommand::Ridel
     ) {
-      return Err("RangeIndexPreview disabled; Replay failed".to_string());
+      return Err(
+        "RangeIndexPreview disabled; Replay failed"
+          .to_string()
+          .into(),
+      );
     }
     let op = match input.cmd {
       RespCommand::Incr | RespCommand::Incrby => StringRMWOp::Incr { delta: input.arg1 },
@@ -683,7 +759,7 @@ impl AofProcessor {
   pub async fn store_delete<D: Device>(
     session: &StorageSession<'_, D>,
     key: &[u8],
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     session
       .delete_string(key)
       .await
@@ -696,16 +772,16 @@ impl AofProcessor {
     session: &StorageSession<'_, D>,
     key: &[u8],
     value: &[u8],
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     // 对象信封：[tag u8][payload]（C# 值 = GarnetObjectSerializer 位码；
     // wkv 信封以类型标签 + 剥壳载荷存储）
     let Some((&tag, payload)) = value.split_first() else {
-      return Err("ObjectStoreUpsert 值缺少类型标签".to_string());
+      return Err("ObjectStoreUpsert 值缺少类型标签".to_string().into());
     };
     session
       .obj_save(key, tag, payload)
       .await
-      .map_err(|e| format!("ObjectStoreUpsert replay failed: {e}"))
+      .map_err(AofReplayError::Store)
   }
 
   /// libs/server/AOF/AofProcessor.cs:ObjectStoreRMW
@@ -714,7 +790,7 @@ impl AofProcessor {
     key: &[u8],
     input: &[u8],
     legacy_cmd_format: bool,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     let mut input = ReplayInput::deserialize(input).ok_or("ObjectStoreRMW input 损坏")?;
     if legacy_cmd_format {
       // 旧版对象头把子操作 id 装入 flags 低 5 位（C# RelocateLegacyObjectSubId）
@@ -731,7 +807,7 @@ impl AofProcessor {
   pub async fn object_store_delete<D: Device>(
     session: &StorageSession<'_, D>,
     key: &[u8],
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     session
       .delete_object_store(key)
       .await
@@ -746,7 +822,7 @@ impl AofProcessor {
     value: &[u8],
     input: &[u8],
     legacy_cmd_format: bool,
-  ) -> Result<(), String> {
+  ) -> Result<(), AofReplayError> {
     // 统一存字符串上 ups 与主存 upsert 同形（wkv 单一面）；RENAME 向量特例
     // 须向量域承接（缺口见汇报）
     Self::store_upsert(session, key, value, input, legacy_cmd_format).await
@@ -968,4 +1044,44 @@ pub mod encode {
 /// 无效地址向量便捷构造（恢复面对齐 C# AofAddress.Create(len, -1)）。
 pub fn invalid_aof_address(physical_sublog_count: usize) -> AofAddress {
   AofAddress::create(physical_sublog_count as i32, -1)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn replay_input_parses_integration_bytes() {
+    let bytes: Vec<u8> = [
+      0x4a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00,
+      0x76, 0x31,
+    ]
+    .to_vec();
+    let parsed = ReplayInput::deserialize(&bytes).expect("集成字节应可解析");
+    assert_eq!(parsed.cmd, RespCommand::Set);
+    assert_eq!(parsed.args, vec![b"k".to_vec(), b"v1".to_vec()]);
+  }
+
+  #[test]
+  fn replay_input_roundtrip() {
+    let input = ReplayInput {
+      cmd: RespCommand::Set,
+      flags: 0,
+      sub_id: 0,
+      arg1: 32,
+      arg2: 0,
+      arg3: 0,
+      args: vec![b"cnt".to_vec(), b"32".to_vec()],
+    };
+    let mut bytes = Vec::new();
+    input.serialize(&mut bytes);
+    // 头 8B 元信息 + 24B 参数区 + 4B 计数 + 逐参长度前缀
+    assert_eq!(bytes.len(), 8 + 24 + 4 + (4 + 3) + (4 + 2));
+    let parsed = ReplayInput::deserialize(&bytes).expect("应可反序列化");
+    assert_eq!(parsed.cmd, RespCommand::Set);
+    assert_eq!(parsed.arg1, 32);
+    assert_eq!(parsed.args, vec![b"cnt".to_vec(), b"32".to_vec()]);
+  }
 }

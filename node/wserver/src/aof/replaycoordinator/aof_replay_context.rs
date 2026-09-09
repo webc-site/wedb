@@ -141,6 +141,11 @@ impl AofReplayContext {
     self.fuzzy_region_ops.len()
   }
 
+  /// 是否有进行中的分块记录（顺序续块路由判定）。
+  pub fn has_in_progress_chunk(&self) -> bool {
+    self.chunked_reader.in_progress_count() > 0
+  }
+
   /// 清空模糊区缓冲（C# ClearFuzzyRegionBuffer）。
   pub fn clear_fuzzy_region_buffer(&mut self) {
     self.fuzzy_region_ops.clear();

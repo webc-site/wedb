@@ -9,7 +9,7 @@ use wdev::Device;
 
 use super::{
   aof_chunked_record_reader::ChunkedAccumulator,
-  aof_processor::{AofProcessor, PreparedParameters, ReplayTarget},
+  aof_processor::{AofProcessor, AofReplayError, PreparedParameters, ReplayTarget},
 };
 use crate::aof::aof_entry_type::AofEntryType;
 
@@ -23,7 +23,7 @@ pub async fn process_chunked_record<D: Device>(
   as_replica: bool,
   log_address_sequence_number: i64,
   target: &ReplayTarget<'_, '_, D>,
-) -> Result<bool, String> {
+) -> Result<bool, AofReplayError> {
   let buffered = processor.coordinator().buffer_chunk_operation(
     virtual_sublog_idx,
     acc.session_id,
@@ -55,7 +55,7 @@ pub async fn replay_op_dispatch_chunk<D: Device>(
   _as_replica: bool,
   log_address_sequence_number: i64,
   target: &ReplayTarget<'_, '_, D>,
-) -> Result<(), String> {
+) -> Result<(), AofReplayError> {
   // 分块记录拓扑预处理：分片序列号 / 单物理日志地址推进一致性时间戳
   if (processor.append_only_file().log().size() > 1
     || processor.append_only_file().virtual_sublog_count() > 1)
@@ -84,13 +84,19 @@ pub async fn replay_op_dispatch_chunk<D: Device>(
 
 /// libs/server/AOF/AofProcessor.ChunkReplay.cs:ReplayOp
 ///
-/// 依累积器操作类型应用数据操作。
+/// 依累积器操作类型应用数据操作（含 C# 分片同名成员 StoreUpsert /
+/// StoreRMW / StoreDelete / ObjectStoreUpsert / ObjectStoreRMW /
+/// ObjectStoreDelete / UnifiedStoreStringUpsert / UnifiedStoreRMW /
+/// UnifiedStoreObjectUpsert / UnifiedStoreDelete：统一存字符串上 ups 与
+/// 统一存 RMW 在 wkv 单一面下与主存同形，对象 upsert 与
+/// UnifiedStoreObjectUpsert 共用对象信封通道，UnifiedStoreDelete 与
+/// StoreDelete 同为 delete 落库）。
 pub async fn replay_chunk<D: Device>(
   processor: &AofProcessor,
   _virtual_sublog_idx: usize,
   acc: ChunkedAccumulator,
   target: &ReplayTarget<'_, '_, D>,
-) -> Result<(), String> {
+) -> Result<(), AofReplayError> {
   let prepared = PreparedParameters {
     key: acc.key_span().to_vec(),
     key_hash: acc.key_hash,
@@ -107,10 +113,14 @@ pub async fn replay_chunk<D: Device>(
 fn build_payload(acc: &ChunkedAccumulator) -> Vec<u8> {
   let mut payload = Vec::new();
   match acc.op_type {
-    AofEntryType::StoreUpsert
-    | AofEntryType::ObjectStoreUpsert
-    | AofEntryType::UnifiedStoreStringUpsert
-    | AofEntryType::UnifiedStoreObjectUpsert => {
+    AofEntryType::ObjectStoreUpsert | AofEntryType::UnifiedStoreObjectUpsert => {
+      // 对象值：流式块拼回全量（信封 [tag][payload] 由写端值承载）
+      let value: Vec<u8> = acc.get_value_sequence().concat();
+      payload.extend_from_slice(&(value.len() as u32).to_le_bytes());
+      payload.extend_from_slice(&value);
+      payload.extend_from_slice(acc.input_span());
+    }
+    AofEntryType::StoreUpsert | AofEntryType::UnifiedStoreStringUpsert => {
       payload.extend_from_slice(&(acc.value_span().len() as u32).to_le_bytes());
       payload.extend_from_slice(acc.value_span());
       payload.extend_from_slice(acc.input_span());

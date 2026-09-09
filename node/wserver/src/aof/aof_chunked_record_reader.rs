@@ -195,7 +195,9 @@ impl ChunkedAccumulator {
     key_full && value_full && input_full
   }
 
-  /// 块数据流式装填：依声明长度自动跨越组件边界；越界数据为损坏
+  /// 块数据流式装填（C# AppendChunk 的顺序消费形态；组件写入经
+  /// CopyInto 等价语义——越界即损坏返回 false）。依声明长度自动跨越
+  /// 组件边界；越界数据为损坏
   ///（返回 false，调用方弃置该记录）。
   pub(crate) fn feed(&mut self, mut data: &[u8]) -> bool {
     while !data.is_empty() {

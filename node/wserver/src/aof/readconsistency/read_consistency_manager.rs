@@ -133,7 +133,7 @@ impl ReadConsistencyManager {
       .get_key_sequence_number(hash)
   }
 
-  /// 前沿序列号（哈希形态）。
+  /// libs/server/AOF/ReadConsistency/ReadConsistencyManager.cs:GetSublogFrontierSequenceNumber
   pub fn get_sublog_frontier_sequence_number(&self, hash: i64) -> i64 {
     self
       .vsr(self.virtual_sublog_idx_of_hash(hash))
