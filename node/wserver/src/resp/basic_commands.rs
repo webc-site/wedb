@@ -3,6 +3,15 @@ use crate::resp::{
   resp_server_session::RespServerSession,
 };
 
+/// 字符串类命令负载上限（libs/server/Resp/Bitmap/BitmapManager.cs:MaxBitmapPayloadBytes）
+const MAX_STRING_PAYLOAD_BYTES: usize = 512 * 1024 * 1024;
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER
+const ERR_NOT_INTEGER: &str = "ERR value is not an integer or out of range.";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_OFFSETOUTOFRANGE
+const ERR_OFFSET_OUT_OF_RANGE: &str = "ERR offset is out of range";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_STRING_EXCEEDS_MAX_SIZE
+const ERR_STRING_EXCEEDS_MAX: &str = "ERR string exceeds maximum allowed size (proto-max-bulk-len)";
+
 impl RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:GetPendingScratchOutput
   pub fn get_pending_scratch_output<'a, D: wdev::Device>(
@@ -27,7 +36,7 @@ impl RespServerSession {
     let key = parse_state[0];
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        output.extend_from_slice(&val);
+        output.write_resp_bulk_string(&val);
       }
       Ok(Some(None)) => {
         output.extend_from_slice(b"$-1\r\n");
@@ -120,13 +129,27 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
+    if parse_state.len() != 3 {
       output.write_resp_error("wrong number of arguments for 'SETRANGE' command");
       return Ok(true);
     }
     let key = parse_state[0];
-    let offset = parse_state[1].parse_usize(0);
+    // 对标 C#：偏移须为可解析整数，负值越界报错，offset + value 不得越过
+    // 512MB 负载上限（全程 i64 口径，杜绝 usize 溢出 panic）
+    let Some(offset) = parse_state[1].try_parse_i64() else {
+      output.write_resp_error(ERR_NOT_INTEGER);
+      return Ok(true);
+    };
     let val = parse_state[2];
+    if offset < 0 {
+      output.write_resp_error(ERR_OFFSET_OUT_OF_RANGE);
+      return Ok(true);
+    }
+    if offset as u64 + val.len() as u64 > MAX_STRING_PAYLOAD_BYTES as u64 {
+      output.write_resp_error(ERR_STRING_EXCEEDS_MAX);
+      return Ok(true);
+    }
+    let offset = offset as usize;
 
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(mut existing))) => {
@@ -155,28 +178,33 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
+    if parse_state.len() != 3 {
       output.write_resp_error("wrong number of arguments for 'GETRANGE' command");
       return Ok(true);
     }
+    // 对标 C#：start/end 须可解析为整数，否则报 value is not an integer
+    let Some(mut start) = parse_state[1].try_parse_i64() else {
+      output.write_resp_error(ERR_NOT_INTEGER);
+      return Ok(true);
+    };
+    let Some(mut end) = parse_state[2].try_parse_i64() else {
+      output.write_resp_error(ERR_NOT_INTEGER);
+      return Ok(true);
+    };
     let key = parse_state[0];
-    let mut start = parse_state[1].parse_isize(0);
-    let mut end = parse_state[2].parse_isize(0);
 
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let len = val.len() as isize;
+        let len = val.len() as i64;
+        // 负下标归一化用 saturating_add：调用方可传任意 i64，杜绝溢出 panic
         if start < 0 {
-          start += len;
+          start = start.saturating_add(len);
         }
         if end < 0 {
-          end += len;
+          end = end.saturating_add(len);
         }
         if start < 0 {
           start = 0;
-        }
-        if end < 0 {
-          end = 0;
         }
         if end >= len {
           end = len - 1;
