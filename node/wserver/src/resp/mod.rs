@@ -31,3 +31,33 @@ pub mod resp_server_session_slot_verify;
 pub mod session_logger;
 pub mod ttl_sync;
 pub mod vector;
+
+/// 单测共用装具：临时单文件库 + 批处理纪元会话（各命令文件的 #[cfg(test)] 共享，
+/// 一处定义避免逐文件复制）
+#[cfg(test)]
+pub(crate) mod batch_harness {
+  use std::sync::Arc;
+
+  use compio::runtime::Runtime;
+  use wdev::SegmentedDevice;
+  use wkv::{StoreConfig, WedbStore};
+
+  use super::resp_server_session::RespServerSession;
+
+  pub(crate) type Batch<'a> = wkv::BatchStoreSession<'a, SegmentedDevice>;
+
+  pub(crate) fn with_batch(f: impl FnOnce(&mut RespServerSession, &Batch)) {
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async {
+      let dir = tempfile::tempdir().unwrap();
+      let device = Arc::new(SegmentedDevice::single_file(dir.path().join("resp.db")).unwrap());
+      let mut config = StoreConfig::new(1024, 4096, 16, 0.5).unwrap();
+      config.gc.enabled = false;
+      let store = Arc::new(WedbStore::open(config, device).unwrap());
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let mut s = RespServerSession;
+      f(&mut s, &batch);
+    });
+  }
+}

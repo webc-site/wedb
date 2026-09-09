@@ -6,7 +6,7 @@
 use std::{io::Cursor, str, sync::atomic::Ordering::Relaxed};
 
 use wdev::Device;
-use wobject::hash::hash_object::HashObject;
+use wobject::hash::hash_object::{HashObject, HashOperation};
 
 use super::{super::storage_session::StorageSession, common::ObjState};
 use crate::api::garnet_status::GarnetStatus;
@@ -48,7 +48,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
           .hash_rmw(key, |obj| {
             let mut n = 0i64;
             for field in fields {
-              if obj.operate(5 /* HDEL */, field, b"").is_some() {
+              if obj.operate(HashOperation::HDEL, field, b"").is_some() {
                 n += 1;
               }
             }
@@ -75,7 +75,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
       ObjState::WrongType => Ok((GarnetStatus::WrongType, None)),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
-        Ok((GarnetStatus::Ok, obj.operate(2 /* HGET */, field, b"")))
+        Ok((
+          GarnetStatus::Ok,
+          obj.operate(HashOperation::HGET, field, b""),
+        ))
       }
     }
   }
@@ -246,11 +249,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
         let mut n = 0i64;
         for (field, value) in fields {
           // 单次查询判定新增：HSET 返回 None 即字段原先不存在
-          let existed = obj.operate(2 /* HGET */, field, b"").is_some();
+          let existed = obj.operate(HashOperation::HGET, field, b"").is_some();
           if nx && existed {
             continue;
           }
-          obj.operate(0 /* HSET */, field, value);
+          obj.operate(HashOperation::HSET, field, value);
           if !existed {
             n += 1;
           }
@@ -282,7 +285,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
     match self
       .hash_rmw(key, |obj| {
-        let current = obj.operate(2 /* HGET */, field, b"");
+        let current = obj.operate(HashOperation::HGET, field, b"");
         if float {
           // 字段存在但非浮点文本：拒绝增减（不当作 0 覆盖）
           let cur = match current.as_deref() {
@@ -302,7 +305,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
           };
           let new = cur + d;
           let text = format!("{new:.17}");
-          obj.operate(0 /* HSET */, field, text.as_bytes());
+          obj.operate(HashOperation::HSET, field, text.as_bytes());
           (true, Some(text.into_bytes()))
         } else {
           // 字段存在但非整数文本：拒绝增减（不当作 0 覆盖）
@@ -325,14 +328,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
             Some(c) => match c.checked_add(d) {
               Some(n) => {
                 let text = n.to_string();
-                obj.operate(0 /* HSET */, field, text.as_bytes());
+                obj.operate(HashOperation::HSET, field, text.as_bytes());
                 (true, Some(text.into_bytes()))
               }
               None => (false, None), // 溢出：不写入
             },
             None => {
               let text = d.to_string();
-              obj.operate(0 /* HSET */, field, text.as_bytes());
+              obj.operate(HashOperation::HSET, field, text.as_bytes());
               (true, Some(text.into_bytes()))
             }
           }
