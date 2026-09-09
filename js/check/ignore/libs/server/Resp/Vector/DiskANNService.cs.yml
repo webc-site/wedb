@@ -1,0 +1,22 @@
+# 理由：C# DiskANNService 全部经由 NativeDiskANNMethods P/Invoke 调用原生
+# diskann_garnet 库（create_index/drop_index/insert/remove/search_vector/
+# search_element/continue_search/card/check_internal_id_valid/
+# check_external_id_valid/set_attribute/build_quant_table/backfill_quant_vectors）。
+# Rust 侧以域内自建 HNSW（resp/vector/hnsw.rs）直接实现同一语义，
+# P/Invoke 互操作层本身无承接对象；ContinueSearch 在 C# 侧亦为
+# NotImplementedException 占位，Rust 对齐为 Err。
+fn:
+  - ContinueSearch
+  - create_index
+  - drop_index
+  - insert
+  - remove
+  - search_vector
+  - search_element
+  - continue_search
+  - card
+  - check_internal_id_valid
+  - check_external_id_valid
+  - set_attribute
+  - build_quant_table
+  - backfill_quant_vectors
