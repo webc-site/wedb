@@ -651,7 +651,9 @@ impl BufferPool {
     let mut hold = Some(node);
     let _ = TLS_POOLS.try_with(|mgr| match mgr.borrow_mut().find_mut(self.pool_id) {
       Some(entry) if entry.local[cls].len() < MAX_LOCAL_PER_CLASS => {
-        entry.local[cls].push(hold.take().unwrap());
+        if let Some(node) = hold.take() {
+          entry.local[cls].push(node);
+        }
       }
       _ => {}
     });

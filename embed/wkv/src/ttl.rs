@@ -172,29 +172,42 @@ impl<D: Device> StoreSession<D> {
   ///
   /// 返回码（对齐 Redis 7.4）：-2 key 不存在；0 NX/XX/GT/LT 条件不满足；
   /// 1 成功；2 已过期并立即物理删除。
-  /// 判序对齐 Redis 与 wedb_hash::hexpire：先键存活、再选项校验、最后过去时间戳删除，
-  /// 条件不满足时绝不误删 key。持本键独占桶锁串行化读改写窗口（对齐 hexpire 先例）
+  ///
+  /// 融合遍历（原 3 次压至 2 次）：1 次[`Self::contains_key_ignore_ttl`]裸数据存活
+  /// 判定（剥离 TTL 探测）+ 1 次 TTL 记录读取，后者同时服务「TTL 记录存在且已到期
+  /// = 键已过期 = 视同不存在」的存活修正与 NX/XX/GT/LT 条件判定。语义不变式：
+  /// - 判序对齐 Redis 与 wedb_hash::hexpire：先键存活、再选项校验、最后过去时间戳
+  ///   删除，条件不满足时绝不误删 key；
+  /// - TTL 记录不存在不代表键不存在（键可能从未设 TTL），存活判定始终以数据记录为
+  ///   准，孤儿 TTL 记录（数据已亡）绝不误判存活；
+  /// - TTL 记录已到期的键先 `purge_expired`（先删 TTL 记录再删数据）再返回 -2，
+  ///   与 contains_key 的惰性过期口径一致；
+  /// - 持本键独占桶锁串行化读改写窗口（对齐 hexpire 先例），锁内记录遍历由 3 压至 2
   pub async fn expire_at(&self, user_key: &[u8], expire_at_ms: u64, opt: TtlOpt) -> Result<i32> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
-    // 键存活判定（惰性过期在 contains_key 内闭环，已过期即视同不存在）
-    if !self.contains_key(user_key).await? {
+    // 遍历 1/2：裸数据存活判定（无 TTL 探测，本键 TTL 裁决统一收敛到遍历 2）
+    if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(-2);
     }
-    let curr = self.ttl_of(user_key).await?;
-    if let Some(c) = curr {
-      if opt.nx {
-        return Ok(0);
+    // 遍历 2/2：单次 TTL 记录读取，同时完成「已过期」存活修正与 NX/XX/GT/LT 判定
+    match self.ttl_of(user_key).await? {
+      // TTL 记录已到期：惰性过期即视同不存在，物理清除（先删 TTL 再删数据）后 -2
+      Some(c) if c <= now_ms() => {
+        self.purge_expired(user_key).await?;
+        Ok(-2)
       }
-      if opt.gt && expire_at_ms <= c {
-        return Ok(0);
-      }
-      if opt.lt && expire_at_ms >= c {
-        return Ok(0);
-      }
-    } else if opt.xx || opt.gt {
-      return Ok(0);
+      // 已设未到期 TTL：NX 禁设、GT/LT 按当前值比较（多项同设须全部满足才放行）
+      Some(c) if opt.nx || (opt.gt && expire_at_ms <= c) || (opt.lt && expire_at_ms >= c) => Ok(0),
+      Some(_) => self.expire_at_apply(user_key, expire_at_ms).await,
+      // 从未设 TTL：XX/GT 无当前值可比，一律不满足
+      None if opt.xx || opt.gt => Ok(0),
+      None => self.expire_at_apply(user_key, expire_at_ms).await,
     }
-    // 过去时间戳：条件已通过，立即物理删除（数据 + TTL 记录）
+  }
+
+  /// expire_at 尾段公共体：条件全部通过后写 TTL，或过去时间戳立即物理删除
+  async fn expire_at_apply(&self, user_key: &[u8], expire_at_ms: u64) -> Result<i32> {
+    // 过去时间戳：立即物理删除（数据 + TTL 记录，先删 TTL 再删数据）
     if expire_at_ms <= now_ms() {
       self.purge_expired(user_key).await?;
       return Ok(2);
@@ -204,12 +217,28 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 移除 key 的过期时间 (PERSIST)。返回 1=移除成功；0=key 不存在或未设 TTL
+  ///
+  /// 融合遍历（原 contains_key 内嵌惰性过期裁决 + 独立 ttl_of 共 3 次压至 2 次）：
+  /// 1 次[`Self::contains_key_ignore_ttl`]裸数据存活判定 + 1 次 TTL 记录读取，
+  /// 后者同时完成「已到期视同不存在」存活修正与有无 TTL 判定；语义不变式与
+  /// [`Self::expire_at`]一致（已到期键先 purge_expired 再返回 0，先删 TTL 再删数据）
   pub async fn persist(&self, user_key: &[u8]) -> Result<i32> {
-    if !self.contains_key(user_key).await? || self.ttl_of(user_key).await?.is_none() {
+    if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(0);
     }
-    self.del_ttl(user_key).await?;
-    Ok(1)
+    match self.ttl_of(user_key).await? {
+      // 从未设 TTL：无可移除
+      None => Ok(0),
+      // TTL 已到期：键视同不存在，惰性物理清除后返回 0（对齐原 contains_key 口径）
+      Some(c) if c <= now_ms() => {
+        self.purge_expired(user_key).await?;
+        Ok(0)
+      }
+      Some(_) => {
+        self.del_ttl(user_key).await?;
+        Ok(1)
+      }
+    }
   }
 
   /// 查询 key 剩余过期毫秒数 (TTL / PTTL 语义)。-2 无 key；-1 无 TTL；否则 >0

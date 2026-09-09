@@ -7,6 +7,7 @@ repository.workspace = true
 description = "WeDB 共识算法库：Raft 风格选主状态机与可插拔共识引擎接口（纯逻辑、零 IO、零引擎依赖）"
 
 [dependencies]
+gxhash = "3.5.0"
 thiserror = { workspace = true }
 
 [dev-dependencies]

@@ -45,11 +45,12 @@ pub const fn decode_f32(bytes: [u8; 4]) -> f32 {
 
 /// 将 `f64` 保序写入目标切片（至少 8 字节）
 #[inline(always)]
-pub fn encode_f64_to_slice(val: f64, dst: &mut [u8]) {
+pub fn encode_f64_to_slice(val: f64, dst: &mut [u8]) -> bool {
   if let Some(chunk) = dst.first_chunk_mut::<8>() {
     *chunk = encode_f64(val);
+    true
   } else {
-    panic!("切片长度不足 8 字节");
+    false
   }
 }
 
@@ -66,11 +67,12 @@ pub const fn decode_f64_from_slice(src: &[u8]) -> Option<f64> {
 
 /// 将 `f32` 保序写入目标切片（至少 4 字节）
 #[inline(always)]
-pub fn encode_f32_to_slice(val: f32, dst: &mut [u8]) {
+pub fn encode_f32_to_slice(val: f32, dst: &mut [u8]) -> bool {
   if let Some(chunk) = dst.first_chunk_mut::<4>() {
     *chunk = encode_f32(val);
+    true
   } else {
-    panic!("切片长度不足 4 字节");
+    false
   }
 }
 

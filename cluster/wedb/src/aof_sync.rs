@@ -83,9 +83,10 @@ impl<D: Device, T: AofTransport> AofSyncDriver<D, T> {
 
 #[cfg(test)]
 mod tests {
-  use std::{io, sync::Mutex};
+  use std::io;
 
   use compio::runtime::Runtime;
+  use parking_lot::Mutex;
   use tempfile::tempdir;
   use wdev::SegmentedDevice;
   use wnode::WalConfig;
@@ -97,7 +98,7 @@ mod tests {
 
   impl AofTransport for MemoryTransport {
     async fn send_frame(&self, frame: &[u8]) -> io::Result<()> {
-      self.0.lock().unwrap().push(frame.to_vec());
+      self.0.lock().push(frame.to_vec());
       Ok(())
     }
   }
@@ -121,7 +122,7 @@ mod tests {
       let next = driver.ship_since(addr_a).await?;
 
       {
-        let sent = transport.0.lock().unwrap();
+        let sent = transport.0.lock();
         assert_eq!(sent.len(), 2);
         assert_eq!(sent[0], a);
         assert_eq!(sent[1], b);

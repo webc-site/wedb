@@ -108,7 +108,8 @@ impl<'a> AofEntryRef<'a> {
       });
     }
     let op = AofOp::try_from(buf[0])?;
-    let version = u32::from_le_bytes(buf[4..8].try_into().unwrap());
+    let version =
+      u32::from_le_bytes(unsafe { buf.get_unchecked(4..8).try_into().unwrap_unchecked() });
 
     let key_len = read_len_prefix(buf, AOF_HEADER_LEN, KEY_LEN_PREFIX)?;
     let key_end = AOF_HEADER_LEN + KEY_LEN_PREFIX + key_len;
@@ -149,7 +150,10 @@ fn read_len_prefix(buf: &[u8], offset: usize, width: usize) -> AofResult<usize> 
       got: buf.len(),
     });
   }
-  Ok(u32::from_le_bytes(buf[offset..end].try_into().unwrap()) as usize)
+  Ok(
+    u32::from_le_bytes(unsafe { buf.get_unchecked(offset..end).try_into().unwrap_unchecked() })
+      as usize,
+  )
 }
 
 /// 回放分发契约（对标 Garnet `AofProcessor` 的条目分发口）

@@ -306,32 +306,28 @@ pub fn compute_checksum_with_seed(data: &[u8], seed: u64) -> u64 {
   hasher.finish()
 }
 
-/// 默认构建哈希器（gxhash 硬件向量加速，默认实例随机种子抗哈希洪泛，
-/// 对标 C# Dictionary/HashSet 默认的随机化哈希防御）
-pub type DefaultBuildHasher = GxBuildHasher;
-
 /// 创建使用默认硬件向量加速构建器的空 HashMap
 #[inline]
 pub fn new_hash_map<K, V>() -> HashMap<K, V> {
-  HashMap::with_hasher(DefaultBuildHasher::default())
+  HashMap::with_hasher(GxBuildHasher::default())
 }
 
 /// 创建带初始容量的 HashMap
 #[inline]
 pub fn hash_map_with_capacity<K, V>(capacity: usize) -> HashMap<K, V> {
-  HashMap::with_capacity_and_hasher(capacity, DefaultBuildHasher::default())
+  HashMap::with_capacity_and_hasher(capacity, GxBuildHasher::default())
 }
 
 /// 创建使用默认硬件向量加速构建器的空 HashSet
 #[inline]
 pub fn new_hash_set<T>() -> HashSet<T> {
-  HashSet::with_hasher(DefaultBuildHasher::default())
+  HashSet::with_hasher(GxBuildHasher::default())
 }
 
 /// 创建带初始容量的 HashSet
 #[inline]
 pub fn hash_set_with_capacity<T>(capacity: usize) -> HashSet<T> {
-  HashSet::with_capacity_and_hasher(capacity, DefaultBuildHasher::default())
+  HashSet::with_capacity_and_hasher(capacity, GxBuildHasher::default())
 }
 
 /// 基于硬件向量加速 gxhash 构建器的无锁高并发字典类型

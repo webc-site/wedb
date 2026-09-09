@@ -867,6 +867,10 @@ impl<D: Device> StoreSession<D> {
 
   /// 底层无包装零拷贝读取物理键的值（Read Raw With Closure）
   ///
+  /// 无 TTL 守卫的裸读内核：load_meta / ttl_of / contains_key_ignore_ttl 等已在上层
+  /// 完成 TTL 裁决的调用链统一走此处，绝不嵌套二次裁决（读路径 TTL 探测收敛不变式：
+  /// 同一同步调用链内同一用户键的 TTL 裁决只在唯一入口做一次）。
+  ///
   /// - **同步内存直读快路径**：首先尝试纯同步内存零拷贝直读（`try_read_raw_in_memory`），
   ///   若在内存中精准命中或确认不存在（墓碑/无候选），纳秒级同步返回，彻底规避异步 Future 状态机开销。
   /// - **异步磁盘扫描回退**：仅当数据位于磁盘区时，才进入 `read_from_disk` 异步 I/O 等待。
@@ -896,7 +900,8 @@ impl<D: Device> StoreSession<D> {
   /// 等入口均经此处获得惰性过期语义。
   /// f 可能带副作用（如直写响应缓冲），TTL 裁决必须前移到闭包执行前，
   /// 杜绝过期键"先执行读闭包后回 None"的双写；has_ttl_tag 为单次哈希探针，
-  /// 无 TTL 记录时保持快路径零额外 I/O
+  /// 无 TTL 记录时保持快路径零额外 I/O。本守卫是本键在整条同步调用链内的
+  /// 唯一 TTL 裁决点，内部裸读（read_raw_with）不再重复探测
   #[inline]
   pub async fn read_with<R>(
     &self,

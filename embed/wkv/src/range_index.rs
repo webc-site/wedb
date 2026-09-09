@@ -5,6 +5,7 @@ use std::{
   sync::{Arc, atomic::Ordering},
 };
 
+use compio::runtime::spawn_blocking;
 use thiserror::Error as ThisError;
 use wbftree::{
   BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexManager,
@@ -87,7 +88,7 @@ const DEFAULT_MAX_KEY_LEN: usize = 128;
 pub(crate) async fn range_index_blocking<T: Send + 'static>(
   op: impl FnOnce() -> T + Send + 'static,
 ) -> T {
-  compio::runtime::spawn_blocking(op)
+  spawn_blocking(op)
     .await
     .expect("RangeIndex 阻塞任务异常退出")
 }
@@ -563,9 +564,7 @@ impl<D: Device> StoreSession<D> {
   /// 删除旧键之间的残留窗口由调用方紧随的 delete 收口），再从新文件恢复独立
   /// 树实例并按新键注册到管理器，最后写入新键元数据记录。
   ///
-  /// 锁纪律：旧键条带写锁由本任务持有跨 await——span 锁不跨线程边界，compio
-  /// 任务不迁移线程，安全；快照 I/O 已卸载阻塞线程，锁窗口内无慢操作
-  #[allow(clippy::await_holding_lock)]
+  /// 锁纪律：旧键条带写锁在阻塞任务内部获取与释放，严禁持同步锁跨 await
   pub async fn rename_range_index(&self, old_key: &[u8], new_key: &[u8]) -> Result<()> {
     // 读取旧键存根（调用方已确认 RI 元记录存在且 size > 0；缺失或畸形则无索引可迁移，
     // 防御性直接返回，交由调用方常规清理旧键）
@@ -590,20 +589,20 @@ impl<D: Device> StoreSession<D> {
     };
 
     // 旧键条带写锁 + 防重入 claim 下整树快照写入新键数据文件路径
-    // (整树 CPR 快照含 fsync 属重操作，锁由本任务持有跨 await，卸载阻塞线程)
+    // (整树 CPR 快照含 fsync 属重操作，在阻塞任务内持锁执行，不阻塞调度核)
     let new_path = self.store.range_index.data_file_path_for_key(new_key);
     if let Some(parent) = new_path.parent() {
       let _ = fs::create_dir_all(parent);
     }
     let _ = fs::remove_file(&new_path);
     {
-      let old_hash = RangeIndexManager::key_hash_of(old_key);
-      let _xlock = self.store.range_index.locks().write(old_hash);
       let mgr = Arc::clone(&self.store.range_index);
       let snap_key = old_key.to_vec();
       let snap_tree = Arc::clone(&old_tree);
       let snap_dest = new_path.clone();
       range_index_blocking(move || {
+        let old_hash = RangeIndexManager::key_hash_of(&snap_key);
+        let _xlock = mgr.locks().write(old_hash);
         mgr.snapshot_tree_to_path_locked(&snap_key, &snap_tree, &snap_dest)
       })
       .await?;

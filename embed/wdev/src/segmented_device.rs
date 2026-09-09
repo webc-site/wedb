@@ -816,8 +816,9 @@ impl SegmentedDevice {
     }
 
     // 快速路径 2：单段高频场景（WAL 顺序追加写尾段），免除 join 堆内存分配
-    if files.len() == 1 {
-      let file = files.values().next().unwrap();
+    if files.len() == 1
+      && let Some(file) = files.values().next()
+    {
       let res = if datasync {
         file.sync_data().await
       } else {

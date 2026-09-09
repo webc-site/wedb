@@ -4,6 +4,7 @@
 //! 消除 `std::time::Instant` 或常规系统调用的上下文切换开销。
 
 use coarsetime::Clock;
+pub use coarsetime::{Duration, Instant};
 
 /// 获取自 UNIX 纪元以来的当前毫秒时间戳（u64）
 #[inline(always)]

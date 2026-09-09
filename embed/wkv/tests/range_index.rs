@@ -16,15 +16,13 @@
 
 use std::sync::Arc;
 
-use aok::{OK, Void};
-use compio::runtime::Runtime;
+use aok::{OK, Result, Void};
+use compio::runtime::{Runtime, spawn};
 use tempfile::tempdir;
 use wbftree::{ScanReturnField, StorageBackend, TreeTuning};
 use wcpr::CheckpointType;
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, RangeIndexError, StoreConfig, WedbStore};
-
-type AokResult<T> = std::result::Result<T, aok::Error>;
 
 /// 与 C# 测试一致的默认树调优：min_record=8 / max_record=1024 / max_key_len=128
 const TUNE: TreeTuning = TreeTuning {
@@ -36,7 +34,7 @@ const TUNE: TreeTuning = TreeTuning {
 };
 
 /// 构造独立临时目录中的全新引擎与会话
-fn open_store(dir: &tempfile::TempDir, name: &str) -> AokResult<Arc<WedbStore<SegmentedDevice>>> {
+fn open_store(dir: &tempfile::TempDir, name: &str) -> Result<Arc<WedbStore<SegmentedDevice>>> {
   let config = StoreConfig::new(1024, 64 * 1024, 16, 0.5)?
     .with_range_index_dir(dir.path().join("range_indexes"));
   let device = Arc::new(SegmentedDevice::single_file(dir.path().join(name))?);
@@ -451,7 +449,7 @@ fn test_ri_concurrent_multi_client() -> Void {
     let mut handles = Vec::new();
     for c in 0..CLIENTS {
       let store = Arc::clone(&store);
-      handles.push(compio::runtime::spawn(async move {
+      handles.push(spawn(async move {
         let session = store.new_session()?;
         for i in 0..FIELDS_PER_CLIENT {
           let field = format!("c{c:02}_f{i:03}");

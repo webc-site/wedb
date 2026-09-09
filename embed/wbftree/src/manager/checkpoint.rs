@@ -1,11 +1,8 @@
 //! 检查点屏障与全树 CPR 快照 (1:1 对标 Garnet SetCheckpointBarrier / SnapshotAllTreesForCheckpoint)
 
-use std::{
-  fs,
-  path::Path,
-  sync::atomic::Ordering,
-  time::{Duration, Instant},
-};
+use std::{fs, path::Path, sync::atomic::Ordering};
+
+use wbase::time::{Duration, Instant};
 
 use super::RangeIndexManager;
 use crate::{
