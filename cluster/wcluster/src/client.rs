@@ -43,19 +43,3 @@ impl Default for GarnetClient {
     Self::new()
   }
 }
-
-pub struct AofAddress;
-
-impl AofAddress {
-  pub fn from_string(_s: &str) -> Self {
-    Self
-  }
-
-  pub fn equals_all(&self, _other: u64) -> bool {
-    true
-  }
-
-  pub fn any_greater(&self, _other: u64) -> bool {
-    false
-  }
-}

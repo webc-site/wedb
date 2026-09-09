@@ -18,10 +18,6 @@ pub use log::{WalLog, WalLogInner};
 pub use record::WalRecord;
 pub use ring_buffer::RingBuffer;
 
-mod file;
-mod processor;
 mod types;
 
-pub use file::GarnetAppendOnlyFile;
-pub use processor::AofProcessor;
-pub use types::{AofAddress, AofEntryType, AofHeader};
+pub use types::{AofEntryType, AofHeader};

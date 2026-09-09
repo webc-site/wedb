@@ -6,10 +6,6 @@ use thiserror::Error;
 pub enum Error {
   #[error("Integer overflow during RESP parsing at offset {offset}")]
   IntegerOverflow { offset: usize },
-  #[error("Invalid integer during RESP parsing")]
-  InvalidInteger,
-  #[error("Unexpected end of RESP input")]
-  UnexpectedEnd,
   #[error("Unexpected token {0}")]
   UnexpectedToken(u8),
   #[error("Invalid string length {0}")]
