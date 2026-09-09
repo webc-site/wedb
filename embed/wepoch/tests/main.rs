@@ -172,6 +172,39 @@ fn participant_long_guard_drain_list_exhaustion() -> Void {
   OK
 }
 
+/// 回归测试：同一线程 TLS 与 Participant 双机制并存时注册延迟动作不活锁
+///
+/// 修复前 help_drain 仅刷新 TLS 优先命中的单条保护条目，Participant 槽公布的旧纪元
+/// 自钉 safe_to_reclaim_epoch，drain_list 耗尽后 bump_current_epoch_action 注册路径
+/// 永久自旋（活锁）；修复后 help_drain 全量刷新本线程以任一机制持有的保护条目
+#[test]
+fn mixed_tls_participant_drain_no_livelock() -> Void {
+  info!("验证同线程 TLS+Participant 双机制并存时注册延迟动作不活锁");
+
+  let epoch = Arc::new(LightEpoch::new(8));
+  let p = epoch.register()?;
+  // Participant 槽公布纪元 1（长期会话守卫）
+  let _pg = p.enter();
+
+  // 2 倍 drain_list 容量：修复前第二轮注册必活锁
+  const ACTIONS: usize = 2 * wepoch::DRAIN_LIST_SIZE;
+  let fired = Arc::new(AtomicUsize::new(0));
+
+  {
+    // TLS 槽与 Participant 槽并存，两条公布纪元均为 1
+    let _tls = epoch.protected_scope();
+    for _ in 0..ACTIONS {
+      let f = Arc::clone(&fired);
+      epoch.bump_current_epoch_action(move || {
+        f.fetch_add(1, Ordering::SeqCst);
+      });
+    }
+  }
+
+  assert_eq!(fired.load(Ordering::Acquire), ACTIONS);
+  OK
+}
+
 /// 验证线程退出未释放槽位时的 TLS 自动兜底回收 (Drop / TLS cleanup)
 #[test]
 fn thread_exit_tls_cleanup() -> Void {
