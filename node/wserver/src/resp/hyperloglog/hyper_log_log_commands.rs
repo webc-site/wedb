@@ -253,7 +253,7 @@ mod tests {
   fn pfadd_pfcount_pfmerge_flow() {
     let (_dir, _store, session) = fixture("hll.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // PFADD 新键：寄存器变更 → :1
@@ -345,7 +345,7 @@ mod tests {
   fn pfmerge_empty_source_no_underflow() {
     let (_dir, _store, session) = fixture("hll3.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // 全缺失源：目标落为空 HLL
@@ -398,7 +398,7 @@ mod tests {
   fn dense_upgrade_and_merge_monotonic() {
     let (_dir, _store, session) = fixture("hll2.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
 
     let elements: Vec<Vec<u8>> = (0..1000)
       .map(|i| format!("elem-{i}").into_bytes())

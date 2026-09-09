@@ -1831,7 +1831,7 @@ mod tests {
   fn rmw_writeback_contract() {
     let (_dir, _store, session) = fixture("zsetwb.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // ZREM 变更必须落库（此前 result1-only 操作从不回写）
@@ -1967,7 +1967,7 @@ mod tests {
   fn zadd_options_and_score_roundtrip() {
     let (_dir, _store, session) = fixture("zset.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // ZADD 基础
@@ -2029,7 +2029,7 @@ mod tests {
   fn zrange_and_lex_variants() {
     let (_dir, _store, session) = fixture("zrange.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -2100,7 +2100,7 @@ mod tests {
   fn rank_pop_and_random() {
     let (_dir, _store, session) = fixture("zrank.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -2163,7 +2163,7 @@ mod tests {
   fn diff_intersect_union() {
     let (_dir, _store, session) = fixture("zcombo.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -2241,7 +2241,7 @@ mod tests {
   fn expire_family_and_mpop() {
     let (_dir, _store, session) = fixture("zexp.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -2307,7 +2307,7 @@ mod tests {
   fn blocking_pop_immediate_path() {
     let (_dir, _store, session) = fixture("zblock.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess

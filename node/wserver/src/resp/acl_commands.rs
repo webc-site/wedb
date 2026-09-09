@@ -553,7 +553,7 @@ mod tests {
   /// 拒绝路径：无 ACL 认证器（对标 ValidateACLAuthenticator）
   #[test]
   fn rejects_without_acl_authenticator() {
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
     let mut out = Vec::new();
     let _ = session
       .network_acl_list(&bare_ctx(), &[], &mut out)
@@ -574,7 +574,7 @@ mod tests {
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
     let settings = acl_settings(None);
     let ctx = ctx_for(&auth, &settings, None);
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // 仅用户名的 SETUSER 创建 off 用户（对标 BasicListTest 的 SETUSER testuser）
     let mut out = Vec::new();
@@ -616,7 +616,7 @@ mod tests {
     let auth = GarnetAclWithPasswordAuthenticator::new(acl);
     let settings = acl_settings(None);
     let ctx = ctx_for(&auth, &settings, None);
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     let mut out = Vec::new();
     let _ = session.network_acl_cat(&ctx, &[], &mut out).unwrap();
@@ -638,7 +638,7 @@ mod tests {
   fn whoami_returns_authenticated_user() {
     let acl = Arc::new(AccessControlList::new("", None).unwrap());
     let mut auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     assert!(auth.authenticate(b"x", b""));
     let settings = acl_settings(None);
@@ -674,7 +674,7 @@ mod tests {
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
     let settings = acl_settings(None);
     let ctx = ctx_for(&auth, &settings, None);
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // 默认 64 字符小写十六进制
     let mut out = Vec::new();
@@ -735,7 +735,7 @@ mod tests {
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
     let settings = acl_settings(None);
     let ctx = ctx_for(&auth, &settings, None);
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     let mut out = Vec::new();
     let _ = session
@@ -776,7 +776,7 @@ mod tests {
   fn setuser_and_deluser() {
     let acl = Arc::new(AccessControlList::new("", None).unwrap());
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // 创建用户并赋权
     let settings = acl_settings(None);
@@ -844,7 +844,7 @@ mod tests {
     }
 
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // 已注册名放行
     let settings = acl_settings(None);
@@ -884,7 +884,7 @@ mod tests {
 
     let acl = Arc::new(AccessControlList::new("", None).unwrap());
     let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // LOAD：重载文件（default 保持 nopass）
     let settings = acl_settings(Some(file.display().to_string()));
@@ -919,7 +919,7 @@ mod tests {
   #[test]
   fn load_save_require_acl_file_config() {
     let acl = Arc::new(AccessControlList::new("", None).unwrap());
-    let mut session = RespServerSession;
+    let mut session = RespServerSession::default();
 
     // 无认证器 → ACL Authenticator is disabled
     let mut out = Vec::new();

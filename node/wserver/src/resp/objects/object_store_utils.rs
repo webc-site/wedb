@@ -139,7 +139,7 @@ mod abort_tests {
 
   #[test]
   fn abort_frames_match_csharp_text() {
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
     assert!(sess.abort_with_wrong_number_of_arguments("ZADD", &mut out));
     assert_eq!(

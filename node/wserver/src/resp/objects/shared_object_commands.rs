@@ -79,7 +79,7 @@ mod tests {
 
   #[test]
   fn object_scan_validates_args() {
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // 参数不足：中止返回 true（命令已完整消费，对齐 C# Abort 语义）

@@ -25,7 +25,9 @@ pub enum Error {
   /// 丢掉 `[from, begin)`，副本却按从 `from` 起续传记账，产生不可恢复的
   /// 位点错位——显式拒绝并要求全量重同步（对标 C# 主端对过期 AOF 位点
   /// 回全量同步指示而非部分发货的语义）
-  #[error("aof range expired: from {from:#x} already truncated (begin {begin:#x}), full resync required")]
+  #[error(
+    "aof range expired: from {from:#x} already truncated (begin {begin:#x}), full resync required"
+  )]
   Expired { from: u64, begin: u64 },
 }
 
@@ -196,7 +198,10 @@ mod tests {
       assert!(matches!(err, Error::Expired { .. }));
       assert!(transport.0.lock().is_empty(), "过期区间不得发出任何帧");
       // 合法区间（>= begin）仍可正常续传
-      assert_eq!(driver.ship_since(addr_b).await?, wal.committed_until_address());
+      assert_eq!(
+        driver.ship_since(addr_b).await?,
+        wal.committed_until_address()
+      );
       aok::OK
     })
   }

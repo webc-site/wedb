@@ -729,7 +729,7 @@ impl RespServerSession {
         self.output.extend_from_slice(b"\r\n");
         self.command_error_written = true;
       } else {
-        self.abort_with_error_message(cs::RESP_ERR_GENERIC_UNK_CMD);
+        self.abort_error_message(cs::RESP_ERR_GENERIC_UNK_CMD);
       }
     }
     Some(cmd)

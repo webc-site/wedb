@@ -669,7 +669,7 @@ mod tests {
   fn geoadd_geohash_geopos_geodist_flow() {
     let (_dir, _store, session) = fixture("geo.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     // GEOADD
@@ -792,7 +792,7 @@ mod tests {
   fn geosearch_keyword_grammar() {
     let (_dir, _store, session) = fixture("gsearch.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -934,7 +934,7 @@ mod tests {
   fn georadius_positional_and_store() {
     let (_dir, _store, session) = fixture("gradius.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess
@@ -1062,7 +1062,7 @@ mod tests {
   fn geosearchstore_dest_is_first_arg() {
     let (_dir, _store, session) = fixture("gstore.db");
     let batch = session.enter_batch();
-    let mut sess = RespServerSession;
+    let mut sess = RespServerSession::default();
     let mut out = Vec::new();
 
     sess

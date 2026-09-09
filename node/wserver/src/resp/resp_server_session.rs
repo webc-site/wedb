@@ -574,7 +574,7 @@ impl RespServerSession {
     }
     if cmd == RespCommand::ClientId && self.parse_state.count != 0 {
       // C# NetworkCLIENTID 的参数校验在会话侧（AbortWithWrongNumberOfArguments）
-      self.abort_with_wrong_number_of_arguments("client|id");
+      self.abort_wrong_num_args("client|id");
       return true;
     }
     if cmd == RespCommand::ClientId {
@@ -625,7 +625,7 @@ impl RespServerSession {
     let count = self.parse_state.count;
     let CustomCommandRef { name, arity, .. } = &custom;
     if !is_command_arity_valid_checked(arity, count) {
-      self.abort_with_wrong_number_of_arguments(name);
+      self.abort_wrong_num_args(name);
       return true;
     }
     let owned = self.collect_args();
@@ -653,7 +653,7 @@ impl RespServerSession {
   /// 失败时按 C# GenericErrWrongNumArgs 写出错误应答。
   pub fn is_command_arity_valid(&mut self, cmd_name: &str, arity: i32, count: usize) -> bool {
     if !is_command_arity_valid_checked(&arity, count) {
-      self.abort_with_wrong_number_of_arguments(cmd_name);
+      self.abort_wrong_num_args(cmd_name);
       return false;
     }
     true
@@ -958,7 +958,7 @@ impl RespServerSession {
   }
 
   /// 写错误应答并置 commandErrorWritten（C# AbortWithErrorMessage）
-  pub fn abort_with_error_message(&mut self, message: &str) {
+  pub fn abort_error_message(&mut self, message: &str) {
     self.output.extend_from_slice(b"-");
     self.output.extend_from_slice(message.as_bytes());
     self.output.extend_from_slice(b"\r\n");
@@ -966,8 +966,8 @@ impl RespServerSession {
   }
 
   /// C# AbortWithWrongNumberOfArguments：GenericErrWrongNumArgs
-  pub fn abort_with_wrong_number_of_arguments(&mut self, cmd_name: &str) {
-    self.abort_with_error_message(&format!(
+  pub fn abort_wrong_num_args(&mut self, cmd_name: &str) {
+    self.abort_error_message(&format!(
       "ERR wrong number of arguments for '{cmd_name}' command"
     ));
   }
@@ -975,7 +975,7 @@ impl RespServerSession {
   /// C# WriteError（直接错误写出，无 commandErrorWritten 置位路径差异由
   /// 调用方维护；此处统一置位，覆盖面以 WriteError/Abort 族为准）
   fn write_error_response(&mut self, message: &str) {
-    self.abort_with_error_message(message);
+    self.abort_error_message(message);
   }
 
   /// 汇集解析态参数（分派入参；托管副本解除 self 双重借用）
@@ -1085,7 +1085,7 @@ impl RespServerSession {
   fn run_lua_command(&mut self, cmd: RespCommand) -> bool {
     let Some(mut session_cache) = self.session_script_cache.take() else {
       // C# CheckLuaEnabled：未启用直接回错
-      self.abort_with_error_message("ERR Lua is disabled.");
+      self.abort_error_message("ERR Lua is disabled.");
       return true;
     };
     let store_cache = Arc::clone(&self.store_script_cache);
