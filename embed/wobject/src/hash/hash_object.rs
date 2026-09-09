@@ -39,6 +39,34 @@ impl HashObject {
       expiration_queue: Mutex::new(BinaryHeap::new()),
     }
   }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Operate
+  pub fn operate(&self, op_code: u8, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
+    match op_code {
+      // HSET
+      0 => {
+        self.hash.pin().insert(key.to_vec(), value.to_vec());
+        None
+      }
+      // HGET
+      1 => self.hash.pin().get(key).cloned(),
+      // HDEL
+      2 => self.hash.pin().remove(key).cloned(),
+      _ => None,
+    }
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:GetKeys
+  pub fn get_keys(&self) -> Vec<Vec<u8>> {
+    let pin = self.hash.pin();
+    pin.iter().map(|(k, _)| k.clone()).collect()
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:GetValues
+  pub fn get_values(&self) -> Vec<Vec<u8>> {
+    let pin = self.hash.pin();
+    pin.iter().map(|(_, v)| v.clone()).collect()
+  }
 }
 
 impl Default for HashObject {
