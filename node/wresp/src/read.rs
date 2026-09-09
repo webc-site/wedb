@@ -280,9 +280,10 @@ pub fn try_read_signed_length_header(
     });
   }
 
-  // Convert to signed value
+  // Convert to signed value（经 i64 取负：value == 2^31 时 as i32 即 i32::MIN，
+  // 若在 i32 域直接取负 debug 构建会溢出 panic）
   *length = if negative {
-    -(value as i32)
+    -(value as i64) as i32
   } else {
     value as i32
   };
