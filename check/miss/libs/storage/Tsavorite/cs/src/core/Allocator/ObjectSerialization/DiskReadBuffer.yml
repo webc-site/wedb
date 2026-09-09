@@ -1,6 +1,0 @@
-fn:
-  - GetTailSpan
-  - ReadFromDevice
-  - IncrementOrResetCountdown
-  - WaitForDataAvailable
-  - GetCurrentFilePosition

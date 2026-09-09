@@ -571,3 +571,122 @@ pub fn try_write_empty_set(curr: &mut &mut [u8]) -> bool {
   advance(curr, 4);
   true
 }
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteVerbatimString
+#[inline]
+pub fn try_write_verbatim_string(str_bytes: &[u8], ext: &[u8], curr: &mut &mut [u8]) -> bool {
+  debug_assert_eq!(ext.len(), 3);
+
+  let actual_length = 3 + 1 + str_bytes.len();
+  let mut buffer = itoa::Buffer::new();
+  let s = buffer.format(actual_length).as_bytes();
+
+  let total_len = 1 + s.len() + 2 + actual_length + 2;
+  if curr.len() < total_len {
+    return false;
+  }
+
+  curr[0] = b'=';
+  curr[1..1 + s.len()].copy_from_slice(s);
+  advance(curr, 1 + s.len());
+  write_newline(curr);
+
+  curr[0..3].copy_from_slice(ext);
+  advance(curr, 3);
+  curr[0] = b':';
+  advance(curr, 1);
+
+  curr[0..str_bytes.len()].copy_from_slice(str_bytes);
+  advance(curr, str_bytes.len());
+  write_newline(curr);
+
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteVerbatimStringHeader
+#[inline]
+pub fn try_write_verbatim_string_header(
+  str_bytes: &[u8],
+  ext: &[u8],
+  curr: &mut &mut [u8],
+) -> bool {
+  debug_assert_eq!(ext.len(), 3);
+
+  let actual_length = 3 + 1 + str_bytes.len();
+  let mut buffer = itoa::Buffer::new();
+  let s = buffer.format(actual_length).as_bytes();
+
+  let header_len = 1 + s.len() + 2 + 3 + 1;
+  if curr.len() < header_len {
+    return false;
+  }
+
+  curr[0] = b'=';
+  curr[1..1 + s.len()].copy_from_slice(s);
+  advance(curr, 1 + s.len());
+  write_newline(curr);
+
+  curr[0..3].copy_from_slice(ext);
+  advance(curr, 3);
+  curr[0] = b':';
+  advance(curr, 1);
+
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteTrue
+#[inline]
+pub fn try_write_true(curr: &mut &mut [u8]) -> bool {
+  if curr.len() < 4 {
+    return false;
+  }
+  curr[0..4].copy_from_slice(b"#t\r\n");
+  advance(curr, 4);
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteFalse
+#[inline]
+pub fn try_write_false(curr: &mut &mut [u8]) -> bool {
+  if curr.len() < 4 {
+    return false;
+  }
+  curr[0..4].copy_from_slice(b"#f\r\n");
+  advance(curr, 4);
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteZero
+#[inline]
+pub fn try_write_zero(curr: &mut &mut [u8]) -> bool {
+  if curr.len() < 4 {
+    return false;
+  }
+  curr[0..4].copy_from_slice(b":0\r\n");
+  advance(curr, 4);
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:TryWriteOne
+#[inline]
+pub fn try_write_one(curr: &mut &mut [u8]) -> bool {
+  if curr.len() < 4 {
+    return false;
+  }
+  curr[0..4].copy_from_slice(b":1\r\n");
+  advance(curr, 4);
+  true
+}
+
+/// garnet/libs/common/RespWriteUtils.cs:WriteEtagValArray
+#[inline]
+pub fn write_etag_val_array(etag: i64, value: &[u8], curr: &mut &mut [u8], write_direct: bool) {
+  try_write_array_length(2, curr);
+  try_write_i64(etag, curr);
+
+  if write_direct {
+    try_write_direct(value, curr);
+  } else {
+    try_write_bulk_string(value, curr);
+  }
+}

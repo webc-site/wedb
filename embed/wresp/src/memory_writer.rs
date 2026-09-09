@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::write::*;
 
 /// libs/common/RespMemoryWriter.cs:RespMemoryWriter
@@ -30,7 +28,7 @@ impl<'a> RespMemoryWriter<'a> {
         self.output.set_len(cap);
       }
 
-      let mut slice = &mut self.output[old_len..];
+      let slice = &mut self.output[old_len..];
       let mut curr = slice;
       let success = f(&mut curr);
       let remaining = curr.len();
@@ -106,16 +104,16 @@ impl<'a> RespMemoryWriter<'a> {
   /// libs/common/RespMemoryWriter.cs:WriteEmptyArray
   #[inline]
   pub fn write_empty_array(&mut self) {
-    self.write_with(4, |curr| try_write_empty_array(curr));
+    self.write_with(4, try_write_empty_array);
   }
 
   /// libs/common/RespMemoryWriter.cs:WriteEmptyMap
   #[inline]
   pub fn write_empty_map(&mut self) {
     if self.resp3 {
-      self.write_with(4, |curr| try_write_empty_map(curr));
+      self.write_with(4, try_write_empty_map);
     } else {
-      self.write_with(4, |curr| try_write_empty_array(curr));
+      self.write_with(4, try_write_empty_array);
     }
   }
 
@@ -131,9 +129,9 @@ impl<'a> RespMemoryWriter<'a> {
   #[inline]
   pub fn try_write_false(&mut self) {
     if self.resp3 {
-      self.write_with(4, |curr| try_write_false(curr));
+      self.write_with(4, try_write_false);
     } else {
-      self.write_with(4, |curr| try_write_zero(curr));
+      self.write_with(4, try_write_zero);
     }
   }
 
@@ -172,23 +170,23 @@ impl<'a> RespMemoryWriter<'a> {
   /// libs/common/RespMemoryWriter.cs:WriteNewLine
   #[inline]
   pub fn write_newline(&mut self) {
-    self.write_with(2, |curr| try_write_new_line(curr));
+    self.write_with(2, try_write_new_line);
   }
 
   /// libs/common/RespMemoryWriter.cs:WriteNull
   #[inline]
   pub fn write_null(&mut self) {
     if self.resp3 {
-      self.write_with(3, |curr| try_write_resp3_null(curr));
+      self.write_with(3, try_write_resp3_null);
     } else {
-      self.write_with(5, |curr| try_write_null(curr));
+      self.write_with(5, try_write_null);
     }
   }
 
   /// libs/common/RespMemoryWriter.cs:WriteNullArray
   #[inline]
   pub fn write_null_array(&mut self) {
-    self.write_with(5, |curr| try_write_null_array(curr));
+    self.write_with(5, try_write_null_array);
   }
 
   /// libs/common/RespMemoryWriter.cs:WritePushLength
@@ -215,9 +213,9 @@ impl<'a> RespMemoryWriter<'a> {
   #[inline]
   pub fn write_true(&mut self) {
     if self.resp3 {
-      self.write_with(4, |curr| try_write_true(curr));
+      self.write_with(4, try_write_true);
     } else {
-      self.write_with(4, |curr| try_write_one(curr));
+      self.write_with(4, try_write_one);
     }
   }
 
@@ -240,79 +238,47 @@ impl<'a> RespMemoryWriter<'a> {
   /// libs/common/RespMemoryWriter.cs:WriteZero
   #[inline]
   pub fn write_zero(&mut self) {
-    self.write_with(4, |curr| try_write_zero(curr));
+    self.write_with(4, try_write_zero);
   }
 
   /// libs/common/RespMemoryWriter.cs:WriteOne
   #[inline]
   pub fn write_one(&mut self) {
-    self.write_with(4, |curr| try_write_one(curr));
+    self.write_with(4, try_write_one);
   }
-}
+  pub fn decrease_array_length(&mut self, new_count: i32, old_total_array_header_len: usize) {
+    let mut header_buf = itoa::Buffer::new();
+    let header_str = header_buf.format(new_count).as_bytes();
+    let new_total_array_header_len = 1 + header_str.len() + 2;
 
-/// libs/common/RespMemoryWriter.cs:Realloc
-pub fn realloc(&mut self, total_len_hint: usize) {
-  if self.output.capacity() < total_len_hint {
-    self.output.reserve(total_len_hint - self.output.capacity());
-  }
-}
+    debug_assert!(old_total_array_header_len >= new_total_array_header_len);
 
-/// libs/common/RespMemoryWriter.cs:ReallocateOutput
-pub fn reallocate_output(&mut self, extra_len_hint: usize, lower_minimum: bool) {
-  let mut length = self.output.capacity();
-  if !lower_minimum {
-    if length < 1024 {
-      length = 512;
+    self.output[0] = b'*';
+    self.output[1..1 + header_str.len()].copy_from_slice(header_str);
+    self.output[1 + header_str.len()..1 + header_str.len() + 2].copy_from_slice(b"\r\n");
+
+    if old_total_array_header_len != new_total_array_header_len {
+      let diff = old_total_array_header_len - new_total_array_header_len;
+      let len = self.output.len();
+      self
+        .output
+        .copy_within(old_total_array_header_len..len, new_total_array_header_len);
+      self.output.truncate(len - diff);
     }
-  } else {
-    if length < 16 {
-      length = 8;
-    }
   }
 
-  if length < extra_len_hint {
-    let total = extra_len_hint + length;
-    length = total.next_power_of_two();
-  } else {
-    length <<= 1;
+  /// libs/common/RespMemoryWriter.cs:AsReadOnlySpan
+  pub fn as_read_only_span(&self) -> &[u8] {
+    self.output.as_slice()
   }
 
-  self.output.reserve(length - self.output.capacity());
-}
-
-/// libs/common/RespMemoryWriter.cs:DecreaseArrayLength
-pub fn decrease_array_length(&mut self, new_count: i32, old_total_array_header_len: usize) {
-  let mut header_buf = itoa::Buffer::new();
-  let header_str = header_buf.format(new_count).as_bytes();
-  let new_total_array_header_len = 1 + header_str.len() + 2;
-
-  debug_assert!(old_total_array_header_len >= new_total_array_header_len);
-
-  self.output[0] = b'*';
-  self.output[1..1 + header_str.len()].copy_from_slice(header_str);
-  self.output[1 + header_str.len()..1 + header_str.len() + 2].copy_from_slice(b"\r\n");
-
-  if old_total_array_header_len != new_total_array_header_len {
-    let diff = old_total_array_header_len - new_total_array_header_len;
-    let len = self.output.len();
-    self
-      .output
-      .copy_within(old_total_array_header_len..len, new_total_array_header_len);
-    self.output.truncate(len - diff);
+  /// libs/common/RespMemoryWriter.cs:GetPosition
+  pub fn get_position(&self) -> usize {
+    self.output.len()
   }
-}
 
-/// libs/common/RespMemoryWriter.cs:AsReadOnlySpan
-pub fn as_read_only_span(&self) -> &[u8] {
-  self.output.as_slice()
-}
-
-/// libs/common/RespMemoryWriter.cs:GetPosition
-pub fn get_position(&self) -> usize {
-  self.output.len()
-}
-
-/// libs/common/RespMemoryWriter.cs:ResetPosition
-pub fn reset_position(&mut self) {
-  self.output.clear();
+  /// libs/common/RespMemoryWriter.cs:ResetPosition
+  pub fn reset_position(&mut self) {
+    self.output.clear();
+  }
 }

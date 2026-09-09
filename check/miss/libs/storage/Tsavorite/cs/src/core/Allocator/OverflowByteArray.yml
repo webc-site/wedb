@@ -1,9 +1,0 @@
-fn:
-  - AsReadOnlySpan
-  - AsSpan
-  - AsMemory
-  - AllocateData
-  - AdjustOffsetFromStart
-  - AdjustOffsetFromEnd
-  - SetOffsets
-  - Pin

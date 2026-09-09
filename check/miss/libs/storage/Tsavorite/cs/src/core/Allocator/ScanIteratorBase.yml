@@ -1,9 +1,0 @@
-fn:
-  - InitializeForReads
-  - InitializeReadBuffers
-  - BufferAndLoad
-  - DoReadPage
-  - NeedBufferAndLoad
-  - AsyncReadPageFromDeviceToFrame
-  - AsyncReadPageFromDeviceToFrameCallback
-  - WaitForFrameLoad

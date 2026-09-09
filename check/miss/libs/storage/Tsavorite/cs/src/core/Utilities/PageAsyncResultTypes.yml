@@ -1,8 +1,0 @@
-fn:
-  - DisposeHandle
-  - TryClaimSnapshotUnitRelease
-  - bstr
-  - SetRefCountedHandle
-  - SetBufferCountdownEvent
-  - RecordError
-  - AddRef

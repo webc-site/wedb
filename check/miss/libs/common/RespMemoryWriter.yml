@@ -2,6 +2,3 @@ fn:
   - Realloc
   - ReallocateOutput
   - DecreaseArrayLength
-  - AsReadOnlySpan
-  - GetPosition
-  - ResetPosition

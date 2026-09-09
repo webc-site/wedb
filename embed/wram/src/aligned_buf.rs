@@ -124,11 +124,9 @@ impl AlignedBuf {
     self.len
   }
 
-  /// 缓冲区总容量（字节数）
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
+  /// 缓冲区是否已分配
   #[inline]
-
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
-
   pub fn is_allocated(&self) -> bool {
     self.cap > 0 && !std::ptr::eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
   }

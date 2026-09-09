@@ -1,9 +1,0 @@
-fn:
-  - FlushAndReset
-  - GetNextRecordStartPosition
-  - OnBeginPartialFlush
-  - OnPartialFlushComplete
-  - WriteRecordObjects
-  - CopyRecoveredObjectBytes
-  - OnBufferComplete
-  - OnSerializeComplete

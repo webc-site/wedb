@@ -1,8 +1,2 @@
 fn:
-  - TryWriteVerbatimString
-  - TryWriteVerbatimStringHeader
-  - TryWriteTrue
-  - TryWriteZero
-  - TryWriteOne
-  - WriteEtagValArray
   - WriteBytes

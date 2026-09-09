@@ -1,8 +1,0 @@
-fn:
-  - FreeAllAllocatedPages
-  - AllocatePage
-  - ReturnPage
-  - FreePage
-  - VerifyRecordFromDiskCallback
-  - ScanCursor
-  - AsyncReadPageFromDeviceToFrame

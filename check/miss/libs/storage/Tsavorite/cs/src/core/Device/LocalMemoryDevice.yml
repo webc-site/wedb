@@ -1,9 +1,0 @@
-fn:
-  - EnsureSegment
-  - EnsureSegmentSlow
-  - Enqueue
-  - WaitLatency
-  - AssignRingIdx
-  - ProcessorLoop
-  - RemoveSegmentAsync
-  - GetAllocatedBytes

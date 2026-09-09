@@ -1,4 +1,3 @@
 fn:
-  - AsReadOnlySpan
   - GetHashCode64
   - Equals

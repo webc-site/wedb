@@ -1,7 +1,6 @@
 fn:
   - ToPointer
   - Invalidate
-  - AsReadOnlySpan
   - AsSpan
   - ToArray
   - FromPinnedSpan

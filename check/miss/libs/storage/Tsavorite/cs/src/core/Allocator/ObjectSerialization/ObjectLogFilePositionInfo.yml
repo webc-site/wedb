@@ -1,6 +1,0 @@
-fn:
-  - Deserialize
-  - SetReuseObjectIdForSize
-  - GetReuseObjectIdForSize
-  - Advance
-  - AdvanceToNextSegment
