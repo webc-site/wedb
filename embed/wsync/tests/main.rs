@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use std::thread;
+use std::{sync::Arc, thread};
 
 use aok::{OK, Void};
 use log::info;

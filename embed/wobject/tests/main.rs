@@ -2,10 +2,12 @@ use std::io::Cursor;
 
 use aok::{OK, Void};
 use log::info;
-use wobject::hash::hash_object::HashObject;
-use wobject::list::list_object::{ListObject, ListOperation};
-use wobject::set::set_object::{SetObject, SetOperation};
-use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
+use wobject::{
+  hash::hash_object::HashObject,
+  list::list_object::{ListObject, ListOperation},
+  set::set_object::{SetObject, SetOperation},
+  sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation},
+};
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {
@@ -33,8 +35,14 @@ fn hash_operate_and_roundtrip() -> Void {
   let mut buf = Vec::new();
   obj.serialize(&mut buf)?;
   let restored = HashObject::deserialize(&mut Cursor::new(&buf))?;
-  assert_eq!(restored.operate(2 /* HGET */, b"k1", b""), Some(b"v1".to_vec()));
-  assert_eq!(restored.operate(6 /* HLEN */, b"", b""), Some(b"1".to_vec()));
+  assert_eq!(
+    restored.operate(2 /* HGET */, b"k1", b""),
+    Some(b"v1".to_vec())
+  );
+  assert_eq!(
+    restored.operate(6 /* HLEN */, b"", b""),
+    Some(b"1".to_vec())
+  );
   OK
 }
 
@@ -91,16 +99,13 @@ fn sorted_set_ops() -> Void {
   assert_eq!(obj.operate(SortedSetOperation::Zadd, b"m3", 3.0), None);
   assert_eq!(obj.count(), 3);
   // 同 member 改分：树与字典同步迁移
+  assert_eq!(obj.operate(SortedSetOperation::Zadd, b"m1", 2.5), None);
   assert_eq!(
-    obj.operate(SortedSetOperation::Zadd, b"m1", 2.5),
-    None
+    obj.operate(SortedSetOperation::Zscore, b"m1", 0.0),
+    Some(2.5)
   );
-  assert_eq!(obj.operate(SortedSetOperation::Zscore, b"m1", 0.0), Some(2.5));
 
-  assert_eq!(
-    obj.pop_min(),
-    Some((b"m2".to_vec(), -0.5))
-  );
+  assert_eq!(obj.pop_min(), Some((b"m2".to_vec(), -0.5)));
   assert_eq!(obj.pop_max(), Some((b"m3".to_vec(), 3.0)));
   assert_eq!(obj.count(), 1);
   OK

@@ -1,7 +1,9 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
-use crate::error::{Error, Result};
-use crate::semaphore::Semaphore;
+use crate::{
+  error::{Error, Result},
+  semaphore::Semaphore,
+};
 
 /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
 pub struct DoubleTurnstileBarrier {
