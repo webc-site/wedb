@@ -4,3 +4,4 @@ pub mod cluster_provider;
 pub mod connection_info;
 pub mod hash_slot;
 pub mod worker;
+pub mod migration;
