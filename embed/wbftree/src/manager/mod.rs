@@ -82,6 +82,11 @@ pub struct RangeIndexFileEntry {
 }
 
 /// 单树条目 (1:1 对标 Garnet TreeEntry)
+///
+/// 与 C# 的差异：C# `TreeEntry.HashPrefix` 为 `readonly string` (32 字符十六进制
+/// 前缀，每条目一次堆分配)；Rust 版采用 [`Base32Buf128`] ([u8; 26] 内联栈缓冲，
+/// `Deref<Target = str>` 可直接按 `&str` 使用)，前缀本就是 128 位 key_id 的确定性
+/// 定长编码，无需堆字符串——每条目省一次分配 + 一次构造期克隆。
 pub struct TreeEntry {
   /// 托管的在线 BfTreeService 实例
   pub tree: RwLock<Option<Arc<BfTreeService>>>,
@@ -89,8 +94,8 @@ pub struct TreeEntry {
   pub key_hash: u64,
   /// 128 位唯一键 ID
   pub key_id: u128,
-  /// 26 字符 Base32 前缀
-  pub hash_prefix: String,
+  /// 26 字符 Base32 前缀 (key_id 的内联定长编码，`Deref` 至 `str`)
+  pub hash_prefix: Base32Buf128,
   /// 是否处于快照中
   pub snapshot_pending: AtomicBool,
   /// 快照防重入原子锁
@@ -103,7 +108,7 @@ impl TreeEntry {
     tree: Option<Arc<BfTreeService>>,
     key_hash: u64,
     key_id: u128,
-    hash_prefix: String,
+    hash_prefix: Base32Buf128,
   ) -> Self {
     Self {
       tree: RwLock::new(tree),
@@ -346,7 +351,11 @@ impl RangeIndexManager {
   /// 获取所有活跃与就绪的索引条目快照
   pub(crate) fn live_entries(&self) -> Vec<Arc<TreeEntry>> {
     let pin = self.live_indexes.pin();
-    pin.values().cloned().collect()
+    // 以 pin 时点字典长度预留容量：快照路径逐条目 Arc 克隆，预分配消除逐个
+    // push 的倍增搬家 (并发注册晚于 pin 时容量仅是低估提示，不影响正确性)
+    let mut entries = Vec::with_capacity(pin.len());
+    entries.extend(pin.values().cloned());
+    entries
   }
 
   /// 获取在线树实例（快速共享读路径，1:1 对标 Garnet liveIndexes.TryGetValue）

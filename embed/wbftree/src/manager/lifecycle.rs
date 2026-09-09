@@ -7,6 +7,8 @@ use std::{
   sync::Arc,
 };
 
+use wbase::base32::Base32Buf128;
+
 use super::{RangeIndexManager, TreeEntry};
 use crate::{
   error::{Error, Result},
@@ -27,7 +29,7 @@ impl RangeIndexManager {
     let _stripe_lock = self.locks.write(key_hash);
     let key_id = Self::key_id_of(key);
     let hash_prefix = Self::base32_prefix_of(key);
-    self.create_bftree_internal(key_id, key_hash, &hash_prefix, storage_backend, tuning)
+    self.create_bftree_internal(key_id, key_hash, hash_prefix, storage_backend, tuning)
   }
 
   /// 仅构建 BfTreeService 实例，不操作 live_indexes 字典
@@ -88,7 +90,7 @@ impl RangeIndexManager {
     &self,
     key_id: u128,
     key_hash: u64,
-    hash_prefix: &str,
+    hash_prefix: Base32Buf128,
     storage_backend: StorageBackend,
     tuning: TreeTuning,
   ) -> Result<Arc<BfTreeService>> {
@@ -98,12 +100,12 @@ impl RangeIndexManager {
       return Err(Error::IndexExists);
     }
 
-    let tree = self.instantiate_tree(hash_prefix, storage_backend, tuning)?;
+    let tree = self.instantiate_tree(&hash_prefix, storage_backend, tuning)?;
     let entry = Arc::new(TreeEntry::new(
       Some(Arc::clone(&tree)),
       key_hash,
       key_id,
-      hash_prefix.to_string(),
+      hash_prefix,
     ));
 
     pin.insert(key_id, entry);
@@ -126,7 +128,8 @@ impl RangeIndexManager {
       }
     }
 
-    let hash_prefix = Self::hash_prefix_of(key);
+    // 内联 Base32 前缀贯穿整个恢复路径：路径拼接经 Deref 走 &str，注册条目零克隆
+    let hash_prefix = Self::base32_prefix_of(key);
     let backend = StorageBackendType::from_u8(stub.storage_backend);
     let data_path = self.data_file_path(&hash_prefix);
     let flush_path = self.bare_flush_path(&hash_prefix);
@@ -226,7 +229,7 @@ impl RangeIndexManager {
     let key_hash = Self::key_hash_of(key);
     let _stripe_lock = self.locks.write(key_hash);
     let key_id = Self::key_id_of(key);
-    let hash_prefix = Self::hash_prefix_of(key);
+    let hash_prefix = Self::base32_prefix_of(key);
     let snapshot_path = self.log_flush_path(&hash_prefix, src_flush_address);
     // 复制接收端预置带地址刷盘文件，重新开启恢复扫描通道
     self.notice_addr_flush_files();
@@ -331,7 +334,7 @@ impl RangeIndexManager {
     if let Some(existing) = pin.get(&key_id) {
       *existing.tree.write() = Some(tree);
     } else {
-      let hash_prefix = Self::hash_prefix_of(key);
+      let hash_prefix = Self::base32_prefix_of(key);
       let entry = Arc::new(TreeEntry::new(Some(tree), key_hash, key_id, hash_prefix));
       pin.insert(key_id, entry);
     }
@@ -359,7 +362,7 @@ impl RangeIndexManager {
   ) -> Result<Arc<BfTreeService>> {
     let key_hash = Self::key_hash_of(key);
     let key_id = Self::key_id_of(key);
-    let hash_prefix = Self::hash_prefix_of(key);
+    let hash_prefix = Self::base32_prefix_of(key);
     let data_path = self.data_file_path(&hash_prefix);
 
     // 锁内复查注册表：并发发布已被调用方条带锁串行化，此处是最终裁决点

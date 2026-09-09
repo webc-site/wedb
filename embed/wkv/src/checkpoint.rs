@@ -142,10 +142,11 @@ impl<D: Device> WedbStore<D> {
                 self.index.update_address(key, addr, new_addr);
               }
 
-              // 在 RangeIndexManager 中注册 pending 条目 (tree=None，惰性恢复)
+              // 在 RangeIndexManager 中注册 pending 条目 (tree=None，惰性恢复)。
+              // 前缀用内联 Base32Buf128 构造，注册路径零堆分配
               let key_id = RangeIndexManager::key_id_of(user_key);
               let key_hash = RangeIndexManager::key_hash_of(user_key);
-              let hash_prefix = RangeIndexManager::hash_prefix_of(user_key);
+              let hash_prefix = RangeIndexManager::base32_prefix_of(user_key);
 
               let is_registered = self.range_index.live_indexes().pin().contains_key(&key_id);
 

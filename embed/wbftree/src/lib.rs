@@ -67,3 +67,5 @@ pub use types::{
   BfTreeConfig, BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, ScanRecord,
   ScanReturnField, StorageBackend, StorageBackendType, TreeTuning,
 };
+// TreeEntry.hash_prefix 字段类型的转发再导出：下游无需依赖 wbase 即可具名该字段类型
+pub use wbase::base32::Base32Buf128;

@@ -131,6 +131,11 @@ impl RangeIndexManager {
     let _ = fs::create_dir_all(&token_snapshot_dir);
 
     let mut snapshot_count = 0;
+    // 文件名缓冲提到循环外复用 (时间/分配优化)：前缀恒为 26 字符 Base32 定长编码，
+    // 每轮 clear() 后重写，N 树检查点快照从 N 次 String 堆分配降为 1 次
+    // (对标 C# string.Concat 每条目一次分配的 HashPrefix + ".bftree" 拼接)
+    let mut dest_file_name =
+      String::with_capacity(super::HASH_PREFIX_LEN + super::TREE_FILE_SUFFIX.len());
     for entry in &entries {
       // 仅快照屏障设置时已存在的条目参与检查点快照；屏障之后新注册的条目
       // snapshot_pending == false 直接跳过 (1:1 对标 C# SnapshotPending == 0 → continue)，
@@ -140,9 +145,8 @@ impl RangeIndexManager {
       }
       let _pending_guard = SnapshotPendingGuard(entry);
       let tree_opt = entry.tree.read().as_ref().cloned();
-      let mut dest_file_name =
-        String::with_capacity(entry.hash_prefix.len() + super::TREE_FILE_SUFFIX.len());
-      dest_file_name.push_str(&entry.hash_prefix);
+      dest_file_name.clear();
+      dest_file_name.push_str(entry.hash_prefix.as_str());
       dest_file_name.push_str(super::TREE_FILE_SUFFIX);
       let token_dest = token_snapshot_dir.join(&dest_file_name);
 

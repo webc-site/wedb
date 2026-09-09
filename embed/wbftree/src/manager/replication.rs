@@ -8,7 +8,7 @@ use std::{
   sync::Arc,
 };
 
-use wbase::base32::{decode_u64, decode_u128, is_base32};
+use wbase::base32::{decode_u64, decode_u128, encode_u128, is_base32};
 
 use super::{HASH_PREFIX_LEN, RangeIndexFileEntry, RangeIndexManager, TreeEntry};
 use crate::error::Result;
@@ -55,6 +55,9 @@ impl RangeIndexManager {
     hlog_start_address: i64,
     hlog_end_address: i64,
   ) -> Result<Vec<RangeIndexFileEntry>> {
+    // 结果集不做容量预估：两个来源均经 fs::read_dir 流式枚举，Unix 目录流不提供
+    // 前置条目数，预估只能拍脑袋；且复制窗口内的刷盘文件受 on_truncate 按地址
+    // 回收约束，规模天然有界小，Vec 倍增摊销成本可忽略 (对标 C# List{} 无容量版本)
     let mut result = Vec::new();
 
     // 1. 扫描 ri_log_root 下的 *.flush.bftree 文件
@@ -192,8 +195,11 @@ impl RangeIndexManager {
               continue;
             }
             // 仅注册 pending 条目 (tree=None)，引擎实例交给 get_or_open_tree 惰性恢复
-            // (1:1 对标 C# RebuildFromSnapshotIfPending 只预置不开树)
-            let tree_entry = Arc::new(TreeEntry::new(None, key_hash, key_id, stem.to_string()));
+            // (1:1 对标 C# RebuildFromSnapshotIfPending 只预置不开树)。
+            // 前缀取 stem 解码出的 key_id 再规范编码：stem 本就是 key_id 的 Base32
+            // 规范编码 (检查点文件名恒为小写)，round-trip 恒等且零堆分配 (对标 C#
+            // 直接截取文件名前缀 name[..HashPrefixLength])
+            let tree_entry = Arc::new(TreeEntry::new(None, key_hash, key_id, encode_u128(key_id)));
             // try_insert：锁内 contains 与插入间唯一竞争方是 fast_hash(原始 key)
             // 条带的 get_or_open_tree (恢复期契约排除)，失败即拒绝兜底不覆盖
             if pin.try_insert(key_id, tree_entry).is_ok() {
