@@ -30,8 +30,27 @@ impl RoaringBitmapObj {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:BitPos
-  pub fn bit_pos(&self) -> i64 {
-    unimplemented!()
+  pub fn bit_pos(&self, bit: bool, from: u32) -> i64 {
+    if bit {
+      // Find first set bit >= from
+      if let Some(pos) = self.bitmap.iter().find(|&x| x >= from) {
+        return pos as i64;
+      }
+      -1
+    } else {
+      // Find first unset bit >= from
+      let mut current = from;
+      for set_bit in self.bitmap.iter().skip_while(|&x| x < from) {
+        if set_bit > current {
+          return current as i64;
+        }
+        if current == u32::MAX {
+          return -1;
+        }
+        current += 1;
+      }
+      current as i64
+    }
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Enumerate
@@ -44,28 +63,15 @@ impl RoaringBitmapObj {
     self.bitmap.iter()
   }
 
+  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Serialize
+  pub fn serialize<W: std::io::Write>(&self, writer: &mut W) {
+    self.bitmap.serialize_into(writer).unwrap();
+  }
+
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Deserialize
-  pub fn deserialize(_reader: &[u8]) -> Self {
-    unimplemented!()
-  }
-
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:InsertChunk
-  pub fn insert_chunk(&mut self) {
-    unimplemented!()
-  }
-
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:RemoveChunk
-  pub fn remove_chunk(&mut self) {
-    unimplemented!()
-  }
-
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:EnsureChunkCapacity
-  pub fn ensure_chunk_capacity(&mut self) {
-    unimplemented!()
-  }
-
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:GetChunkKind
-  pub fn get_chunk_kind(&self) -> u8 {
-    unimplemented!()
+  pub fn deserialize<R: std::io::Read>(reader: &mut R) -> Self {
+    Self {
+      bitmap: roaring::RoaringBitmap::deserialize_from(reader).unwrap(),
+    }
   }
 }

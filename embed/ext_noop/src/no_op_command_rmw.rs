@@ -5,7 +5,7 @@ impl NoOpCommandRmw {
   /// 读取器
   /// garnet相对路径:garnet/modules/NoOpModule/NoOpCommandRMW.cs:Reader
   pub fn reader(&self, _key: &[u8], _input: &[u8], _value: &[u8]) -> bool {
-    unimplemented!()
+    panic!("InvalidOperationException")
   }
 
   /// 是否需要初始更新
@@ -17,13 +17,13 @@ impl NoOpCommandRmw {
   /// 获取初始长度
   /// garnet相对路径:garnet/modules/NoOpModule/NoOpCommandRMW.cs:GetInitialLength
   pub fn get_initial_length(&self, _input: &[u8]) -> usize {
-    unimplemented!()
+    panic!("InvalidOperationException")
   }
 
   /// 初始更新器
   /// garnet相对路径:garnet/modules/NoOpModule/NoOpCommandRMW.cs:InitialUpdater
   pub fn initial_updater(&self, _key: &[u8], _input: &[u8], _value: &mut [u8]) -> bool {
-    unimplemented!()
+    panic!("InvalidOperationException")
   }
 
   /// 原地更新器

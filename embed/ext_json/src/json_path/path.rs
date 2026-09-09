@@ -3,94 +3,94 @@ pub struct JsonPath;
 impl JsonPath {
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:IsStaticPath
   pub fn is_static_path() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:Evaluate
   pub fn evaluate() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseMain
   pub fn parse_main() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParsePath
   pub fn parse_path() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:CreatePathFilter
   pub fn create_path_filter() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseIndexer
   pub fn parse_indexer() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseArrayIndexer
   pub fn parse_array_indexer() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:EatWhitespace
   pub fn eat_whitespace() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:TryParseIndex
   pub fn try_parse_index() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseQuery
   pub fn parse_query() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:TryParseExpression
   pub fn try_parse_expression() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:CreateUnexpectedCharacterException
   pub fn create_unexpected_character_exception() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseSide
   pub fn parse_side() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseExpression
   pub fn parse_expression() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:TryParseValue
   pub fn try_parse_value() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:TryParseArrayLiteral
   pub fn try_parse_array_literal() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ReadQuotedString
   pub fn read_quoted_string() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:TryParseEscapedCodepoint
   pub fn try_parse_escaped_codepoint() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:IsValidHex
   pub fn is_valid_hex() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ReadRegexString
   pub fn read_regex_string() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseOperator
   pub fn parse_operator() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:ParseQuotedField
   pub fn parse_quoted_field() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/JsonPath.cs:EnsureLength
   pub fn ensure_length() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
 }
