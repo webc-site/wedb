@@ -12,13 +12,14 @@ use crate::{
 
 /// libs/cluster/Server/Migration/MigrateSession.cs:MigrateSession
 pub struct MigrateSession {
-  cluster_provider: Arc<ClusterProvider>,
+  _cluster_provider: Arc<ClusterProvider>,
   pub target_node_id: String,
   slots: HashSet<i32>,
   pub status: MigrateState,
 }
 
 impl MigrateSession {
+  #[allow(clippy::too_many_arguments)]
   pub fn new(
     cluster_provider: Arc<ClusterProvider>,
     _source_node_id: &str,
@@ -35,7 +36,7 @@ impl MigrateSession {
     _transfer_option: TransferOption,
   ) -> Self {
     Self {
-      cluster_provider,
+      _cluster_provider: cluster_provider,
       target_node_id: target_node_id.to_string(),
       slots,
       status: MigrateState::Pending,

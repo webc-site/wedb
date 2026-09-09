@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+  Arc,
+  atomic::{AtomicI32, Ordering},
+};
 
 use log::trace;
 use parking_lot::RwLock;
@@ -12,7 +15,7 @@ use crate::server::{
 pub struct ClusterManager {
   current_config: RwLock<ClusterConfig>,
   pub cluster_provider: Arc<ClusterProvider>,
-  flush_count: std::sync::atomic::AtomicI32,
+  flush_count: AtomicI32,
   // Other fields omitted for simplicity in transpilation until full I/O is ready
 }
 
@@ -24,7 +27,7 @@ impl ClusterManager {
     Self {
       current_config,
       cluster_provider,
-      flush_count: std::sync::atomic::AtomicI32::new(0),
+      flush_count: AtomicI32::new(0),
     }
   }
 
@@ -36,7 +39,7 @@ impl ClusterManager {
 
   /// garnet相对路径:Server:ClusterManager:InitLocal
   pub fn init_local(&self, address: &str, port: i32, recover_config: bool) {
-    let hostname = ""; // Format.GetHostName() equivalent
+    let hostname: Option<&str> = None; // Format.GetHostName() equivalent
     let mut config = self.current_config.write();
     if recover_config {
       let conf = config.clone();
@@ -47,11 +50,7 @@ impl ClusterManager {
         conf.local_node_config_epoch(),
         conf.local_node_role(),
         conf.local_node_primary_id(),
-        if hostname.is_empty() {
-          None
-        } else {
-          Some(hostname)
-        },
+        hostname,
       );
     } else {
       *config = config.initialize_local_worker(
@@ -61,11 +60,7 @@ impl ClusterManager {
         0,
         NodeRole::Primary,
         None,
-        if hostname.is_empty() {
-          None
-        } else {
-          Some(hostname)
-        },
+        hostname,
       );
     }
   }
@@ -93,12 +88,11 @@ impl ClusterManager {
   /// garnet相对路径:Server:ClusterManager:FlushConfig
   pub fn flush_config(&self) {
     // mock
-    self
-      .flush_count
-      .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    self.flush_count.fetch_add(1, Ordering::SeqCst);
   }
 
   /// garnet相对路径:Server:ClusterManager:TryInitializeLocalWorker
+  #[allow(clippy::too_many_arguments)]
   pub fn try_initialize_local_worker(
     &self,
     node_id: &str,

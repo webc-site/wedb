@@ -14,9 +14,9 @@ use crate::{
 
 /// libs/cluster/Server/Failover/FailoverSession.cs:FailoverSession
 pub struct FailoverSession {
-  cluster_provider: Arc<ClusterProvider>,
-  cluster_timeout: Duration,
-  failover_timeout: Duration,
+  _cluster_provider: Arc<ClusterProvider>,
+  _cluster_timeout: Duration,
+  _failover_timeout: Duration,
   option: FailoverOption,
   clients: Vec<Option<Arc<GarnetClient>>>,
   failover_deadline: Instant,
@@ -50,9 +50,9 @@ impl FailoverSession {
     };
 
     Self {
-      cluster_provider,
-      cluster_timeout,
-      failover_timeout,
+      _cluster_provider: cluster_provider,
+      _cluster_timeout: cluster_timeout,
+      _failover_timeout: failover_timeout,
       option,
       clients,
       failover_deadline: Instant::now() + failover_timeout,
@@ -86,6 +86,7 @@ impl FailoverSession {
   // --- PrimaryFailoverSession.cs ---
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:CheckReplicaSyncAsync
+  #[allow(dead_code)]
   async fn check_replica_sync_async(&self, gclient: Arc<GarnetClient>) -> Option<String> {
     if !gclient.is_connected {
       gclient.connect_async().await;

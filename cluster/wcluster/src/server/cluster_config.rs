@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
 
 // if needed
 use log::warn;
@@ -48,34 +48,22 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:ClusterConfig
   pub fn new() -> Self {
-    let mut slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
-    for i in 0..MAX_HASH_SLOT_VALUE {
-      slot_map[i].state = SlotState::Offline;
-      slot_map[i].worker_id = 0;
-    }
+    let slot_map = Box::new(from_fn(|_| HashSlot::default()));
     let workers = vec![Worker::default(); 2];
     let mut config = Self { slot_map, workers };
-    config.initialize_unassigned_worker();
+    config.init_reserved_worker();
     config
   }
 
-  /// garnet相对路径:Server:ClusterConfig:ClusterConfig
   pub fn with_data(slot_map: Box<[HashSlot; MAX_HASH_SLOT_VALUE]>, workers: Vec<Worker>) -> Self {
-    let mut config = Self { slot_map, workers };
-    config.initialize_unassigned_worker();
-    config
+    Self { slot_map, workers }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:Copy
-  pub fn copy_config(&self) -> Self {
-    self.clone()
-  }
-
-  /// garnet相对路径:Server:ClusterConfig:InitializeUnassignedWorker
-  fn initialize_unassigned_worker(&mut self) {
-    self.workers[RESERVED_WORKER_ID].address = "unassigned".to_string();
-    self.workers[RESERVED_WORKER_ID].port = 0;
+  /// garnet相对路径:Server:ClusterConfig:InitReservedWorker
+  fn init_reserved_worker(&mut self) {
     self.workers[RESERVED_WORKER_ID].nodeid = None;
+    self.workers[RESERVED_WORKER_ID].address = String::new();
+    self.workers[RESERVED_WORKER_ID].port = 0;
     self.workers[RESERVED_WORKER_ID].config_epoch = 0;
     self.workers[RESERVED_WORKER_ID].role = NodeRole::Unassigned;
     self.workers[RESERVED_WORKER_ID].replica_of_node_id = None;
@@ -84,6 +72,7 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeLocalWorker
+  #[allow(clippy::too_many_arguments)]
   pub fn initialize_local_worker(
     &self,
     node_id: &str,
@@ -143,14 +132,11 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:IsKnown
   pub fn is_known(&self, nodeid: &str) -> bool {
-    for i in 1..=self.num_workers() {
-      if let Some(ref id) = self.workers[i].nodeid
-        && id.eq_ignore_ascii_case(nodeid)
-      {
-        return true;
-      }
-    }
-    false
+    self.workers[1..=self.num_workers()].iter().any(|w| {
+      w.nodeid
+        .as_deref()
+        .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
+    })
   }
 
   /// garnet相对路径:Server:ClusterConfig:IsPrimary
@@ -238,13 +224,13 @@ impl ClusterConfig {
   pub fn get_local_node_replica_endpoints(&self) -> Vec<SocketAddr> {
     let mut replicas = Vec::new();
     let local_id = self.local_node_id();
-    for i in 2..self.workers.len() {
-      if let Some(ref replica_of) = self.workers[i].replica_of_node_id
+    for worker in self.workers.iter().skip(2) {
+      if let Some(ref replica_of) = worker.replica_of_node_id
         && let Some(id) = local_id
         && replica_of.eq_ignore_ascii_case(id)
-        && let Ok(ip) = self.workers[i].address.parse()
+        && let Ok(ip) = worker.address.parse()
       {
-        replicas.push(SocketAddr::new(ip, self.workers[i].port as u16));
+        replicas.push(SocketAddr::new(ip, worker.port as u16));
       }
     }
     replicas
@@ -262,18 +248,18 @@ impl ClusterConfig {
     };
     let mut primaries = Vec::new();
     let mut first = None;
-    for i in 2..self.workers.len() {
-      if let Some(node_id) = &self.workers[i].nodeid {
-        if self.workers[i].role == NodeRole::Primary
+    for worker in self.workers.iter().skip(2) {
+      if let Some(node_id) = &worker.nodeid {
+        if worker.role == NodeRole::Primary
           && !node_id.eq_ignore_ascii_case(my_primary_id)
-          && let Ok(ip) = self.workers[i].address.parse()
+          && let Ok(ip) = worker.address.parse()
         {
-          primaries.push(SocketAddr::new(ip, self.workers[i].port as u16));
+          primaries.push(SocketAddr::new(ip, worker.port as u16));
         }
         if node_id.eq_ignore_ascii_case(my_primary_id)
-          && let Ok(ip) = self.workers[i].address.parse()
+          && let Ok(ip) = worker.address.parse()
         {
-          first = Some(SocketAddr::new(ip, self.workers[i].port as u16));
+          first = Some(SocketAddr::new(ip, worker.port as u16));
         }
       }
     }
@@ -304,30 +290,33 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetMaxConfigEpoch
   pub fn get_max_config_epoch(&self) -> i64 {
-    let mut mx = 0;
-    for i in 1..=self.num_workers() {
-      if self.workers[i].config_epoch > mx {
-        mx = self.workers[i].config_epoch;
-      }
-    }
-    mx
+    self.workers[1..=self.num_workers()]
+      .iter()
+      .map(|w| w.config_epoch)
+      .max()
+      .unwrap_or(0)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetRemoteNodeIds
   pub fn get_remote_node_ids(&self) -> Vec<String> {
-    let mut remote_node_ids = Vec::new();
-    for i in 2..self.workers.len() {
-      if let Some(id) = &self.workers[i].nodeid {
-        remote_node_ids.push(id.clone());
-      }
-    }
-    remote_node_ids
+    self
+      .workers
+      .iter()
+      .skip(2)
+      .filter_map(|w| w.nodeid.clone())
+      .collect()
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
   pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
-    for i in 1..=self.num_workers() {
-      if let Some(id) = &self.workers[i].nodeid
+    for (i, worker) in self
+      .workers
+      .iter()
+      .enumerate()
+      .take(self.num_workers() + 1)
+      .skip(1)
+    {
+      if let Some(id) = &worker.nodeid
         && id.eq_ignore_ascii_case(node_id)
       {
         return i as u16;
@@ -504,10 +493,10 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetReplicaIds
   pub fn get_replica_ids(&self, nodeid: &str) -> Vec<String> {
     let mut replicas = Vec::new();
-    for i in 1..self.workers.len() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
+    for worker in self.workers.iter().skip(1) {
+      if let Some(ref rep_of) = worker.replica_of_node_id
         && rep_of.eq_ignore_ascii_case(nodeid)
-        && let Some(ref id) = self.workers[i].nodeid
+        && let Some(ref id) = worker.nodeid
       {
         replicas.push(id.clone());
       }
@@ -518,11 +507,11 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetReplicaEndpoints
   pub fn get_replica_endpoints(&self, nodeid: &str) -> Vec<(String, i32)> {
     let mut endpoints = Vec::new();
-    for i in 1..self.workers.len() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
+    for worker in self.workers.iter().skip(1) {
+      if let Some(ref rep_of) = worker.replica_of_node_id
         && rep_of.eq_ignore_ascii_case(nodeid)
       {
-        endpoints.push((self.workers[i].address.clone(), self.workers[i].port));
+        endpoints.push((worker.address.clone(), worker.port));
       }
     }
     endpoints
@@ -538,13 +527,9 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetWorkerInfoForGossip
   pub fn get_worker_info_for_gossip(&self) -> Vec<(String, String, i32)> {
     let mut result = Vec::new();
-    for i in 2..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid {
-        result.push((
-          id.clone(),
-          self.workers[i].address.clone(),
-          self.workers[i].port,
-        ));
+    for worker in self.workers.iter().skip(2) {
+      if let Some(ref id) = worker.nodeid {
+        result.push((id.clone(), worker.address.clone(), worker.port));
       }
     }
     result
@@ -563,23 +548,18 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetPrimaryCount
   pub fn get_primary_count(&self) -> usize {
-    let mut count = 0;
-    for i in 1..=self.num_workers() {
-      if self.workers[i].role == NodeRole::Primary {
-        count += 1;
-      }
-    }
-    count
+    self.workers[1..=self.num_workers()]
+      .iter()
+      .filter(|w| w.role == NodeRole::Primary)
+      .count()
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddress
   pub fn get_worker_node_id_from_address(&self, address: &str, port: i32) -> Option<String> {
-    for i in 1..=self.num_workers() {
-      if self.workers[i].address == address && self.workers[i].port == port {
-        return self.workers[i].nodeid.clone();
-      }
-    }
-    None
+    self.workers[1..=self.num_workers()]
+      .iter()
+      .find(|w| w.address == address && w.port == port)
+      .and_then(|w| w.nodeid.clone())
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddressOrHostname
@@ -588,13 +568,12 @@ impl ClusterConfig {
     address: &str,
     port: i32,
   ) -> Option<String> {
-    for i in 2..=self.num_workers() {
-      let w = &self.workers[i];
-      if w.port == port && (w.address == address || w.hostname.as_deref() == Some(address)) {
-        return w.nodeid.clone();
-      }
-    }
-    None
+    self
+      .workers
+      .get(2..=self.num_workers())?
+      .iter()
+      .find(|w| w.port == port && (w.address == address || w.hostname.as_deref() == Some(address)))
+      .and_then(|w| w.nodeid.clone())
   }
 
   /// garnet相对路径:Server:ClusterConfig:LazyUpdateLocalReplicationOffset
@@ -606,15 +585,18 @@ impl ClusterConfig {
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:RemoveWorker
   pub fn remove_worker(&self, nodeid: &str) -> Self {
-    let mut worker_id = 0;
-    for i in 1..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid
-        && id.eq_ignore_ascii_case(nodeid)
-      {
-        worker_id = i;
-        break;
-      }
-    }
+    let worker_id = self
+      .workers
+      .iter()
+      .enumerate()
+      .skip(1)
+      .find(|(_, w)| {
+        w.nodeid
+          .as_deref()
+          .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
+      })
+      .map(|(i, _)| i)
+      .unwrap_or(0);
 
     let mut new_slot_map = self.slot_map.clone();
     for i in 0..MAX_HASH_SLOT_VALUE {
@@ -639,12 +621,13 @@ impl ClusterConfig {
       }
     }
 
-    let mut new_workers = Vec::with_capacity(self.workers.len() - 1);
-    for i in 0..self.workers.len() {
-      if i != worker_id {
-        new_workers.push(self.workers[i].clone());
-      }
-    }
+    let new_workers = self
+      .workers
+      .iter()
+      .enumerate()
+      .filter(|&(i, _)| i != worker_id)
+      .map(|(_, w)| w.clone())
+      .collect();
 
     Self {
       slot_map: new_slot_map,
@@ -898,8 +881,8 @@ impl ClusterConfig {
     let local_id = self.local_node_id();
     let mut new_config = self.clone();
 
-    for i in 1..=sender_config.num_workers() {
-      if let Some(ref sid) = sender_config.workers[i].nodeid {
+    for worker in &sender_config.workers[1..=sender_config.num_workers()] {
+      if let Some(ref sid) = worker.nodeid {
         if let Some(lid) = local_id
           && lid.eq_ignore_ascii_case(sid)
         {
@@ -908,7 +891,7 @@ impl ClusterConfig {
         if worker_ban_list.contains_key(sid) {
           continue;
         }
-        new_config = new_config.merge_worker_info(&sender_config.workers[i]);
+        new_config = new_config.merge_worker_info(worker);
       }
     }
 
@@ -927,7 +910,7 @@ impl ClusterConfig {
     let sender_node_id = sender_config.local_node_id().unwrap_or("");
     let local_node_id = self.local_node_id().unwrap_or("");
 
-    if sender_node_id.cmp(local_node_id) != std::cmp::Ordering::Greater {
+    if sender_node_id.cmp(local_node_id) != Ordering::Greater {
       return self.clone();
     }
 
@@ -1110,25 +1093,29 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetWorkerReplicas
   pub fn get_worker_replicas(&self, worker_id: usize) -> Vec<usize> {
     let primary_id = self.workers[worker_id].nodeid.clone().unwrap_or_default();
-    let mut replica_worker_ids = Vec::new();
-    for i in 1..=self.num_workers() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
-        && rep_of.eq_ignore_ascii_case(&primary_id)
-      {
-        replica_worker_ids.push(i);
-      }
-    }
-    replica_worker_ids
+    self
+      .workers
+      .iter()
+      .enumerate()
+      .take(self.num_workers() + 1)
+      .skip(1)
+      .filter(|(_, w)| {
+        w.replica_of_node_id
+          .as_deref()
+          .is_some_and(|rep_of| rep_of.eq_ignore_ascii_case(&primary_id))
+      })
+      .map(|(i, _)| i)
+      .collect()
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetAllNodeIds
   pub fn get_all_node_ids(&self) -> Vec<(String, SocketAddr)> {
     let mut all_node_ids = Vec::new();
-    for i in 2..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid
-        && let Ok(ip) = self.workers[i].address.parse()
+    for worker in self.workers.iter().skip(2) {
+      if let Some(ref id) = worker.nodeid
+        && let Ok(ip) = worker.address.parse()
       {
-        all_node_ids.push((id.clone(), SocketAddr::new(ip, self.workers[i].port as u16)));
+        all_node_ids.push((id.clone(), SocketAddr::new(ip, worker.port as u16)));
       }
     }
     all_node_ids
@@ -1143,26 +1130,19 @@ impl ClusterConfig {
     };
 
     let mut shard_node_ids = Vec::new();
-    for i in 2..self.workers.len() {
+    for worker in self.workers.iter().skip(2) {
       if let Some(ref pid) = primary_id {
-        let is_replica_of_primary = self.workers[i]
+        let is_replica_of_primary = worker
           .replica_of_node_id
           .as_deref()
           .map(|s| s.eq_ignore_ascii_case(pid))
           .unwrap_or(false);
-        let is_primary = self.workers[i]
-          .nodeid
-          .as_deref()
-          .map(|s| pid.eq(s))
-          .unwrap_or(false);
+        let is_primary = worker.nodeid.as_deref().map(|s| pid.eq(s)).unwrap_or(false);
         if (is_replica_of_primary || is_primary)
-          && let Some(ref nid) = self.workers[i].nodeid
-          && let Ok(ip) = self.workers[i].address.parse()
+          && let Some(ref nid) = worker.nodeid
+          && let Ok(ip) = worker.address.parse()
         {
-          shard_node_ids.push((
-            nid.clone(),
-            SocketAddr::new(ip, self.workers[i].port as u16),
-          ));
+          shard_node_ids.push((nid.clone(), SocketAddr::new(ip, worker.port as u16)));
         }
       }
     }
@@ -1370,6 +1350,7 @@ impl ClusterConfig {
     sb
   }
 
+  #[allow(clippy::too_many_arguments)]
   fn append_formatted_slot_info(
     &self,
     sb: &mut String,
@@ -1503,9 +1484,7 @@ impl ClusterConfig {
     // Serialize worker info
     ms.write_i32::<LittleEndian>(self.workers.len() as i32)
       .unwrap();
-    for i in 1..self.workers.len() {
-      let worker = &self.workers[i];
-
+    for worker in self.workers.iter().skip(1) {
       write_string(&mut ms, worker.nodeid.as_deref().unwrap_or(""));
       write_string(&mut ms, &worker.address);
       ms.write_i32::<LittleEndian>(worker.port).unwrap();
@@ -1584,23 +1563,23 @@ impl ClusterConfig {
     let num_workers = reader.read_i32::<LittleEndian>().unwrap_or(0);
     let mut new_workers = vec![Worker::default(); num_workers as usize];
 
-    for i in 1..(num_workers as usize) {
-      new_workers[i].nodeid = Some(read_string(&mut reader));
-      new_workers[i].address = read_string(&mut reader);
-      new_workers[i].port = reader.read_i32::<LittleEndian>().unwrap_or(0);
-      new_workers[i].config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
-      new_workers[i].role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
+    for worker in new_workers.iter_mut().skip(1) {
+      worker.nodeid = Some(read_string(&mut reader));
+      worker.address = read_string(&mut reader);
+      worker.port = reader.read_i32::<LittleEndian>().unwrap_or(0);
+      worker.config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
+      worker.role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
 
       let is_null = reader.read_u8().unwrap_or(0);
       if is_null > 0 {
-        new_workers[i].replica_of_node_id = Some(read_string(&mut reader));
+        worker.replica_of_node_id = Some(read_string(&mut reader));
       }
 
-      new_workers[i].replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
+      worker.replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
 
       let is_null = reader.read_u8().unwrap_or(0);
       if is_null > 0 {
-        new_workers[i].hostname = Some(read_string(&mut reader));
+        worker.hostname = Some(read_string(&mut reader));
       }
     }
 

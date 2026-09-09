@@ -17,7 +17,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-bitcode.workspace = true
 bitflags = "2.13.1"
 byteorder = "1.5.0"
 fastrand.workspace = true

@@ -55,9 +55,7 @@ impl ObjectInput {
   }
 
   pub fn serialized_length(&self) -> usize {
-    RespInputHeader::SIZE
-      + (2 * std::mem::size_of::<i32>())
-      + self.parse_state.get_serialized_length()
+    RespInputHeader::SIZE + (2 * size_of::<i32>()) + self.parse_state.get_serialized_length()
   }
 
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
@@ -65,7 +63,7 @@ impl ObjectInput {
       debug_assert!(length >= self.serialized_length());
       let mut curr = dest;
 
-      std::ptr::copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
+      copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       *(curr as *mut i32) = self.arg1;
@@ -86,7 +84,7 @@ impl ObjectInput {
     unsafe {
       let mut curr = src;
 
-      std::ptr::copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
+      copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       self.arg1 = *(curr as *const i32);

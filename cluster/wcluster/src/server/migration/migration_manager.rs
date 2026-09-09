@@ -50,6 +50,7 @@ impl MigrationManager {
   }
 
   /// libs/cluster/Server/Migration/MigrationManager.cs:TryAddMigrationTask
+  #[allow(clippy::too_many_arguments)]
   pub fn try_add_migration_task(
     &self,
     source_node_id: &str,

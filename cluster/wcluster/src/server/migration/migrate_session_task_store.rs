@@ -55,6 +55,7 @@ impl MigrateSessionTaskStore {
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryAddMigrateSession
+  #[allow(clippy::too_many_arguments)]
   pub fn try_add_migrate_session(
     &self,
     cluster_provider: Arc<ClusterProvider>,
@@ -146,5 +147,11 @@ impl MigrateSessionTaskStore {
     } else {
       true
     }
+  }
+}
+
+impl Default for MigrateSessionTaskStore {
+  fn default() -> Self {
+    Self::new()
   }
 }

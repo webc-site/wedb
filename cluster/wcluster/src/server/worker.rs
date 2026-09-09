@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use strum::{EnumString, FromRepr, IntoStaticStr};
 
 /// garnet相对路径:Server:NodeRole
@@ -23,9 +25,9 @@ pub struct Worker {
   pub hostname: Option<String>,
 }
 
-impl std::fmt::Display for Worker {
+impl Display for Worker {
   /// garnet相对路径:Server:Worker:ToString
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     write!(
       f,
       "{} {} {} {} {:?} {}",

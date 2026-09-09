@@ -1,5 +1,7 @@
 use std::io::Cursor;
 
+use wobject::hash::hash_object::HashObject;
+
 use crate::resp::resp_server_session::RespServerSession;
 
 impl RespServerSession {

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, time::Duration};
 
 /// libs/server/Transaction/TxnKeyEntry.cs:LockType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,7 +85,7 @@ impl TxnKeyEntries {
   }
 
   /// libs/server/Transaction/TxnKeyEntry.cs:TryLockAllKeys
-  pub fn try_lock_all_keys(&mut self, _lock_timeout: std::time::Duration) -> bool {
+  pub fn try_lock_all_keys(&mut self, _lock_timeout: Duration) -> bool {
     self.phase = 1;
     self.keys.sort_by_key(|k| k.key_hash);
     if !self.keys.is_empty() {
