@@ -16,9 +16,6 @@ default = []
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[dependencies]
-thiserror = "2.0.20"
-
 [dev-dependencies]
 aok = "0.1.18"
 ctor = "1.0.13"
