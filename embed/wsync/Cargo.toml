@@ -20,6 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 event-listener = "5.4.2"
 parking_lot.workspace = true
 thiserror = "2.0.20"
+wbase = { workspace = true, features = ["thread"] }
 
 [dev-dependencies]
 aok = "0.1.18"

@@ -1,8 +1,6 @@
-use std::{
-  sync::atomic::{AtomicI32, Ordering},
-  time::Duration,
-};
+use std::sync::atomic::{AtomicI32, Ordering};
 
+use crate::error::{Error, Result};
 use crate::semaphore::Semaphore;
 
 /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
@@ -15,14 +13,19 @@ pub struct DoubleTurnstileBarrier {
 
 impl DoubleTurnstileBarrier {
   /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
-  pub fn new(participant_count: i32) -> Self {
-    assert!(participant_count >= 1);
-    Self {
+  ///
+  /// 刻意差异（对照 C#）：C# 以 `ArgumentOutOfRangeException` 校验参数，此处以
+  /// 类型化 [`Error::InvalidParticipantCount`] 上抛，杜绝 panic。
+  pub fn new(participant_count: i32) -> Result<Self> {
+    if participant_count < 1 {
+      return Err(Error::InvalidParticipantCount(participant_count));
+    }
+    Ok(Self {
       participant_count,
       worker_count: AtomicI32::new(0),
       work_ready: Semaphore::new(0),
       work_complete: Semaphore::new(0),
-    }
+    })
   }
 
   fn signal_work_ready_internal(&self) -> bool {
@@ -39,23 +42,20 @@ impl DoubleTurnstileBarrier {
   }
 
   /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWait
-  pub fn signal_work_ready_wait(&self, _timeout: Option<Duration>) -> Result<(), String> {
+  ///
+  /// 刻意差异（对照 C#）：C# 支持 timeout/cancellationToken 超时失败，Rust 侧
+  /// [`Semaphore`] 暂无超时能力，等待恒为无限期汇合，故不含超时参数。
+  pub fn signal_work_ready_wait(&self) {
     if self.signal_work_ready_internal() {
-      // Note: Currently ignores timeout. Add timeout logic to semaphore if needed.
       self.work_ready.wait();
     }
-    Ok(())
   }
 
   /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWaitAsync
-  pub async fn signal_work_ready_wait_async(
-    &self,
-    _timeout: Option<Duration>,
-  ) -> Result<(), String> {
+  pub async fn signal_work_ready_wait_async(&self) {
     if self.signal_work_ready_internal() {
       self.work_ready.wait_async().await;
     }
-    Ok(())
   }
 
   fn signal_work_completed_internal(&self) -> bool {
@@ -72,21 +72,16 @@ impl DoubleTurnstileBarrier {
   }
 
   /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWait
-  pub fn signal_work_completed_wait(&self, _timeout: Option<Duration>) -> Result<(), String> {
+  pub fn signal_work_completed_wait(&self) {
     if self.signal_work_completed_internal() {
       self.work_complete.wait();
     }
-    Ok(())
   }
 
   /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWaitAsync
-  pub async fn signal_work_completed_wait_async(
-    &self,
-    _timeout: Option<Duration>,
-  ) -> Result<(), String> {
+  pub async fn signal_work_completed_wait_async(&self) {
     if self.signal_work_completed_internal() {
       self.work_complete.wait_async().await;
     }
-    Ok(())
   }
 }

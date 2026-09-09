@@ -1,8 +1,9 @@
 use std::{
-  cell::Cell,
   sync::atomic::{AtomicI32, Ordering},
   thread,
 };
+
+use wbase::thread::current_thread_id;
 
 /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:LockType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,32 +62,15 @@ pub struct ReadOptimizedLock {
   lock_counts: Vec<AtomicI32>,
 }
 
-thread_local! {
-    static PROCESSOR_HINT: Cell<usize> = const { Cell::new(0) };
-}
-
-#[inline]
+/// 核心选择提示：复用 wbase 全局唯一线程 ID 原语（TLS 纯寄存器读取，< 1ns）
+///
+/// 刻意差异（对照 C# `[ThreadStatic] ProcessorHint` 哈希 Thread.CurrentThread.ManagedThreadId）：
+/// wbase 线程 ID 自 1 起单调递增且线程内恒定，天然无碰撞地散布到各核心条带，
+/// 免去 C# 的哈希混淆与 Rust 侧 format! 字符串哈希的堆分配（ThreadId 稳定通道
+/// 尚未提供整数视图时的历史 workaround）
+#[inline(always)]
 fn get_processor_hint() -> usize {
-  PROCESSOR_HINT.with(|hint| {
-    let mut val = hint.get();
-    if val == 0 {
-      // we use the thread id as a simple hint, hash it a bit
-      let tid = thread::current().id();
-      // A simple hash of thread id string representation to get a number
-      // since ThreadId doesn't expose integer natively in stable yet
-      let tid_str = format!("{:?}", tid);
-      let mut h: usize = 0;
-      for b in tid_str.bytes() {
-        h = h.wrapping_mul(31).wrapping_add(b as usize);
-      }
-      if h == 0 {
-        h = 1;
-      }
-      hint.set(h);
-      val = h;
-    }
-    val
-  })
+  current_thread_id() as usize
 }
 
 impl ReadOptimizedLock {

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use parking_lot::{Condvar, Mutex};
 
+use crate::error::{Error, Result};
+
 struct State {
   arrived_count: i32,
   first_released: bool,
@@ -32,13 +34,17 @@ impl LeaderBarrier {
   }
 
   /// garnet相对路径:garnet/libs/common/Synchronization/LeaderBarrier.cs:TrySignalOrWait
-  pub fn try_signal_or_wait(&self, timeout: Option<Duration>) -> Result<bool, String> {
+  ///
+  /// 刻意差异（对照 C#）：错误以类型化 [`Error`] 上抛（C# 经 out Exception 传字符串化
+  /// 异常）；超时判定为 [`Error::Timeout`]——C# 忽略 ManualResetEventSlim.Wait 的超时
+  /// 结果（依赖 CancellationToken 取消），此处按调用方传入的 timeout 语义如实失败。
+  pub fn try_signal_or_wait(&self, timeout: Option<Duration>) -> Result<bool> {
     let mut state = self.state.lock();
     let new_value = state.arrived_count - 1;
     state.arrived_count = new_value;
 
     if new_value < 0 {
-      return Err("Invalid count value < 0".to_string());
+      return Err(Error::CountUnderflow(new_value));
     }
 
     if new_value == self.participant_count - 1 {
@@ -48,7 +54,7 @@ impl LeaderBarrier {
           if let Some(t) = timeout {
             let res = self.cond_first.wait_for(&mut state, t);
             if res.timed_out() && !state.first_released {
-              return Err("Timeout".to_string());
+              return Err(Error::Timeout);
             }
           } else {
             self.cond_first.wait(&mut state);
@@ -69,7 +75,7 @@ impl LeaderBarrier {
       if let Some(t) = timeout {
         let res = self.cond_all.wait_for(&mut state, t);
         if res.timed_out() && !state.all_released {
-          return Err("Timeout".to_string());
+          return Err(Error::Timeout);
         }
       } else {
         self.cond_all.wait(&mut state);
