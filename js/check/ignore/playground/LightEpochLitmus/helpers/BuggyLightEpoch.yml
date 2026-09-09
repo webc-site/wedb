@@ -1,15 +1,11 @@
 fn:
   - GetRef
-  - BuggyLightEpoch
   - SelectInstance
   - ActiveInstanceCount
   - ResetAllInstances
-  - triggerAction
   - ComputeNewSafeToReclaimEpoch
-  - trigger_action
-  - ReserveEntryForThread
   - TryAcquireEntry
   - ReserveEntry
   - ReserveEntryWait
-  - ToString
+  - ReserveEntryForThread
   - UserWordRef

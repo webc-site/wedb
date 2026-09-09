@@ -6,7 +6,7 @@ fn:
   - LookupHit
   - LookupMiss
   - LoadOuterHit
-  - LoadScript
   - LoadInnerHit
   - LoadMiss
   - Digest
+  - LoadScript

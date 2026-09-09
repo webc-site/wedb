@@ -11,15 +11,15 @@ fn:
   - MakeHashFieldBytes
   - OperateOnSlotTask
   - AssertMOVEDorASK
-  - OperateOnExistingKey
   - OperateOnNonExistentKey
+  - OperateOnExistingKey
   - WriteWorkload
   - ClusterMigrateExpirationWithVaryingPayload
-  - SetupInstances
-  - MigrateSlots
   - MigrateKeys
-  - SetSlot
+  - MigrateSlots
+  - SetupInstances
   - ValidateConfig
+  - SetSlot
   - AssertSlotState
 test:
   - ClusterSimpleInitialize

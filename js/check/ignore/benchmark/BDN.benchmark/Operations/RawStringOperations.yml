@@ -1,7 +1,5 @@
 fn:
   - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
   - SetEx
   - SetNx
   - SetXx

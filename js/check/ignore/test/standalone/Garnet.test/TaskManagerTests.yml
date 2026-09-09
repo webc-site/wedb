@@ -2,8 +2,8 @@ fn:
   - taskFactory
   - DummyTask
   - primaryCategoryTaskFactory
-  - PrimaryCategoryTask
   - allCategoryTaskFactory
+  - PrimaryCategoryTask
   - AllCategoryTask
   - ThrowingTaskFactory
 test:

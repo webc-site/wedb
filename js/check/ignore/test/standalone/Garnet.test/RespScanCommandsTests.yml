@@ -1,8 +1,6 @@
 fn:
   - Setup
   - TearDown
-  - ScanOptionKeywordAsLastTokenReturnsSyntaxError
-  - ScanWithCompleteOptionsReturnsCursorAndItems
 test:
   - SeDbsizeTest
   - SeKeysTest
@@ -24,4 +22,6 @@ test:
   - CanUseScanKeysAndObjects
   - CanUseScanKeysTypeAndMatch
   - CustomObjectScanCommandTest
+  - ScanOptionKeywordAsLastTokenReturnsSyntaxError
+  - ScanWithCompleteOptionsReturnsCursorAndItems
   - CanUsePatternsInKeysTestLC

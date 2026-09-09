@@ -6,7 +6,6 @@ fn:
   - OneTimeSetUp
   - OneTimeTearDown
   - ClusterState
-  - GetNodeInfo
   - SERedisClusterDown
   - GarnetClientSessionClusterDown
   - SERedisOKTest

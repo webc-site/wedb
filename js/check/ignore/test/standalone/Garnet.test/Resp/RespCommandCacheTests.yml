@@ -4,6 +4,5 @@ fn:
   - CreateArguments
   - AppendBulkString
   - Connect
-  - SendAsync
 test:
   - CachedCommandDoesNotTruncateArgumentCount

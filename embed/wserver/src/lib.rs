@@ -33,3 +33,5 @@ pub mod custom;
 pub mod servers;
 pub mod acl;
 pub mod aof;
+pub mod tsavorite;
+pub mod main_stubs;

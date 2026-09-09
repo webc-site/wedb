@@ -1,5 +1,4 @@
 fn:
-  - TaskScaling
   - CreateClients
   - Run
   - PrintHistogram

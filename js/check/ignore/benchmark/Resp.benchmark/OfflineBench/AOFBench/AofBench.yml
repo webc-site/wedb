@@ -1,6 +1,5 @@
 fn:
   - GetServerOptions
-  - AofBench
   - GenerateData
   - Run
   - RunAofEnqueueBench

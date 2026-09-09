@@ -7,14 +7,11 @@ fn:
   - VectorSetDimensions
   - ElementEmbedding
   - AssertVectorSetsMatch
-  - WaitForReplication
   - WaitForVectorReplay
+  - WaitForReplication
   - ReadPersistedIndexPtr
-  - ReadPersistedIndexFields
   - ReadPersistedContext
-  - OnException
-  - OnStart
-  - OnStop
+  - ReadPersistedIndexFields
   - CensusNamespacedRecords
   - RecordsHeldForContext
   - WaitForContextDrained

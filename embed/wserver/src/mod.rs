@@ -8,3 +8,4 @@ pub mod migration_chunk_writer_accumulator;
 pub mod store_wrapper;
 pub mod session_parse_state_extensions;
 pub mod garnet_checkpoint_manager;
+pub mod garnetserver;

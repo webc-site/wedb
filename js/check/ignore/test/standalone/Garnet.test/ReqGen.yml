@@ -1,9 +1,8 @@
 fn:
-  - ReqGen
   - LongRandom
   - GenSingleKeyValueReqs
-  - WriteStringBytes
-  - WriteOpLong
   - GenSingleKeyValueRequest
   - GenArrayKeyValueRequest
   - GenSingleKeyRequest
+  - WriteStringBytes
+  - WriteOpLong

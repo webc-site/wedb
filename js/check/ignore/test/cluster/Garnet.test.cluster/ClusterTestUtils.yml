@@ -4,7 +4,6 @@ fn:
   - IgnoreIfExceptionInjectionDisabled
   - GetEndpoints
   - GetEndpointsWithout
-  - Execute
   - ExecuteAsync
   - NodesV2Async
   - NodesMyself
@@ -21,10 +20,7 @@ fn:
   - SimpleSetupCluster
   - SimpleSetupClusterAsync
   - CreateClusterTransaction
-  - ClusterResponse
   - ExecuteTxnForShard
-  - ClusterTestUtils
-  - HashSlot
   - BackOff
   - BackOffAsync
   - Connect
@@ -47,8 +43,8 @@ fn:
   - GetEndPoint
   - GetEndPointFromPort
   - RandomBytesRestrictedToSlot
-  - RandomBytes
   - InitRandom
+  - RandomBytes
   - RandomList
   - RandomHset
   - RandomStr
@@ -56,7 +52,6 @@ fn:
   - LightReceive
   - ParseRespToString
   - ParseResponseState
-  - GetEndPointFromResponse
   - CreateLightRequestConnections
   - GetSlotPortMapFromNode
   - GetSlotPortMapFromServer
@@ -78,10 +73,9 @@ fn:
   - GetConfigEpochOfNodeFromNodeIndex
   - GetConfigEpoch
   - WaitAll
-  - IsKnown
   - WaitUntilNodeIsKnown
-  - WaitUntilNodeIdIsKnown
   - WaitUntilNodeIsKnownByAllNodes
+  - WaitUntilNodeIdIsKnown
   - WaitUntilNodeIdIsKnownAsync
   - CountKeysInSlot
   - GetKeysInSlot
@@ -91,10 +85,10 @@ fn:
   - GetMovedAddress
   - GetEndPointIndexFromPort
   - GetSourceNodeIndexFromSlot
+  - GetEndPointFromResponse
   - AddDelSlots
   - AddDelSlotsRange
   - SetSlot
-  - SlotState
   - MigrateSlotsIndex
   - MigrateSlots
   - MigrateKeys
@@ -107,8 +101,6 @@ fn:
   - MeetAndAssignSlots
   - AdvancePrimaryPastReplicaAofWindow
   - AttachReplicaToPrimary
-  - WaitForReplicaRecovery
-  - WaitForReplicaAofSync
   - ResetReplica
   - ClusterReplicate
   - ClusterReplicateAsync
@@ -119,7 +111,6 @@ fn:
   - ClusterKeySlot
   - FlushAll
   - ClusterStatus
-  - GetNodeInfo
   - ClusterNodes
   - ClusterNodesAsync
   - WaitClusterNodesSync
@@ -151,13 +142,13 @@ fn:
   - ProcessReplicationInfo
   - GetStoreCurrentVersion
   - GetStoreInfo
-  - GetInfo
   - WaitForAofSyncDriverDipose
+  - WaitForReplicaAofSync
   - WaitForConnectedReplicaCountAsync
+  - WaitForReplicaRecovery
   - WaitForNoFailover
   - WaitForFailoverCompleted
   - WaitForPrimaryRole
-  - when
   - LastSave
   - WaitUntilNextSecond
   - WaitCheckpoint

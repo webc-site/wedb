@@ -1,17 +1,16 @@
 fn:
-  - OnlineReqGen
   - InitializeRNG
   - GenerateKeyRandom
-  - GenerateKeyBytesRandom
   - GenerateKey
-  - GenerateKeyBytes
   - GenerateObjectKeyRandom
-  - GenerateObjectKeyBytesRandom
   - GenerateExactKey
+  - GenerateKeyBytesRandom
+  - GenerateKeyBytes
   - GenerateObjectEntry
   - GenerateObjectEntryBytesRandom
   - GenerateObjectEntryScore
   - GenerateObjectEntryScoreBytes
+  - GenerateObjectKeyBytesRandom
   - GenerateValue
   - GenerateValueBytes
   - PadRandom

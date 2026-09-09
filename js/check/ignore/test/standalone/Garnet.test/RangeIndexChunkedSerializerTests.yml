@@ -48,7 +48,6 @@ test:
   - CorruptedFileDataFailsChecksumInTrailer
   - KeyHeaderAloneInChunk
   - RoundTrip_SingleChunk
-  - AssertRoundTripAsync
   - RoundTrip_MultiChunk
   - RoundTrip_KeyLargerThanChunk
   - RoundTrip_SmallChunk

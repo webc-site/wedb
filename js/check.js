@@ -1,4 +1,5 @@
-#!/usr/bin/env -S bun
+#!/usr/bin/env node
+import fs from 'fs';
 
 import { mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
@@ -63,7 +64,7 @@ const missSync = async (miss_dir, active_miss_map) => {
   for (const [rel_path, data] of active_miss_map.entries()) {
     const target_file = join(miss_dir, rel_path),
       content = yaml.stringify(data),
-      target_file_obj = Bun.file(target_file);
+      target_file_obj = fs.readFileSync(target_file);
 
     if (await target_file_obj.exists()) {
       const old_content = await target_file_obj.text();
@@ -83,7 +84,7 @@ const ignoreLoad = async () => {
     yml_file_li = await ymlWalk(IGNORE_DIR);
 
   for (const yml_path of yml_file_li) {
-    const content = await Bun.file(yml_path).text(),
+    const content = fs.readFileSync(yml_path, 'utf-8'),
       data = yaml.parse(content);
 
     if (!data) continue;
@@ -124,7 +125,7 @@ const ignoreLoad = async () => {
   }
 
   const root_ignore = join(import.meta.dirname, "check/ignore.yml"),
-    root_file = Bun.file(root_ignore);
+    root_file = fs.readFileSync(root_ignore);
 
   if (await root_file.exists()) {
     const root_data = yaml.parse(await root_file.text());

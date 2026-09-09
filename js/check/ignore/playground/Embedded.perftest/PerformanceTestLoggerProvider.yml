@@ -1,7 +1,5 @@
 fn:
-  - PerformanceTestLoggerProvider
   - CreateLogger
-  - PerformanceTestLogger
   - BeginScope
   - IsEnabled
   - GetLevelStr

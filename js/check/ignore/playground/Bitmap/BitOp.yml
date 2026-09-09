@@ -1,5 +1,7 @@
 fn:
+  - alloc_aligned
   - dispose_aligned
+  - alloc_unaligned_memory_pool_buffers
   - InitializeInputAlignedMemoryPool
   - DisposeInputAlignedMemoryPool
   - InitializeInputUnalignedMemoryPool

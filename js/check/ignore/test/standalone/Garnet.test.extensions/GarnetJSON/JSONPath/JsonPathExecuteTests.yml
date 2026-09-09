@@ -7,7 +7,6 @@ test:
   - GreaterThanWithIntegerParameterAndStringValue
   - GreaterThanWithStringParameterAndIntegerValue
   - RecursiveWildcard
-  - ScanFilter
   - FilterTrue
   - ScanFilterTrue
   - ScanQuoted

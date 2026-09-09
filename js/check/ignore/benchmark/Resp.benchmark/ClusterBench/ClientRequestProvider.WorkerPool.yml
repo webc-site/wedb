@@ -1,6 +1,5 @@
 fn:
   - InitializeConnections
-  - GetReadOperationType
   - ExecuteSingleOnlineOperation
   - ExecuteSingleLightClient
   - SendSingleLightClient

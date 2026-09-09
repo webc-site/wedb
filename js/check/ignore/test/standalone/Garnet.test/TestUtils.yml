@@ -1,5 +1,4 @@
 fn:
-  - ValuesPrefixAttribute
   - GetData
   - SetTestPort
   - AssertEqualUpToExpectedLength
@@ -18,14 +17,11 @@ fn:
   - GetGarnetServerOptions
   - IsPortAvailable
   - GetConfig
-  - GetGarnetClient
   - GetGarnetClientSession
   - CreateRequest
-  - GetHostName
   - GetShardEndPoints
   - UnitTestWorkingDir
   - DeleteDirectory
-  - when
   - FlushAndWaitForStoreAsync
   - ValidateServerCertificate
   - CreateTestLibrary

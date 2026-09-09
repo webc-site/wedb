@@ -1,12 +1,9 @@
 fn:
   - TryParseEndPoint
   - TryParseInt32
-  - ClientClusterNode
-  - ClientClusterConfig
   - GetSlotSequence
   - AddWorker
   - GetOrderedClusterInfo
-  - GetNodeInfo
   - GetSlotRange
   - PrintOrderedConfigList
   - PrintConfig

@@ -3,7 +3,6 @@ fn:
   - TearDown
   - GetVectorSetCommands
   - GetNonVectorSetCommands
-  - GetOverwritingCommands
   - RunCommandAsync
   - RunCommandByElement
   - RunCommandByVector
@@ -30,8 +29,6 @@ fn:
 test:
   - AllVectorSetCommandsCovered
   - AllOtherCommandsCovered
-  - VADDAsync
-  - VREMAsync
   - VCARDAsync
   - VDIMAsync
   - VEMBAsync

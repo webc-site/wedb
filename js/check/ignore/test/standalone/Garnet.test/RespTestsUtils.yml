@@ -1,4 +1,3 @@
 fn:
   - SetUpTestObjects
   - CheckCommandOnWrongTypeObjectSE
-  - testAction

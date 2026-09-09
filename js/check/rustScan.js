@@ -1,4 +1,5 @@
-#!/usr/bin/env -S bun
+#!/usr/bin/env node
+import fs from 'fs';
 
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
@@ -133,7 +134,7 @@ const rustScan = async (root_dir = resolve(import.meta.dirname, "../..")) => {
     parser = await rsParser();
 
   for (const file_path of file_li) {
-    const code = await Bun.file(file_path).text(),
+    const code = fs.readFileSync(file_path, 'utf-8'),
       file_rel = relative(root_dir, file_path),
       [sub_fn_doc_li, sub_doc_set, doc_text] = rsDocExtract(code, file_rel, doc_file_fn_map, parser);
 

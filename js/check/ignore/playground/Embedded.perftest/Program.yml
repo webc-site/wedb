@@ -1,4 +1,3 @@
 fn:
-  - Main
-  - PrintBenchmarkConfig
   - CreateLoggerFactory
+  - PrintBenchmarkConfig

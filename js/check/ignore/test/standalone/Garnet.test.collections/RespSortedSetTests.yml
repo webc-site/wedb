@@ -1,18 +1,6 @@
 fn:
   - Setup
   - TearDown
-  - CanDoZRevRangeByLex
-  - CanDoZRevRangeByLexWithoutLimit
-  - CheckSortedSetRangeStoreSE
-  - CheckSortedSetRangeStoreByScoreSE
-  - CheckSortedSetRangeStoreByLexSE
-  - SortedSetMultiPopWithOptionsTest
-  - CanDoZInterWithSE
-  - CanUseZUnionWithAggregateOption
-  - CanUseZUnionWithWeights
-  - CanUseZUnionStoreWithAggregateOption
-  - CanUseZUnionStoreWithWeights
-  - CheckSortedSetRangeStoreLC
   - SendCommandWithoutKey
   - UpdateSortedSetKey
   - FormatWrongNumOfArgsError
@@ -50,13 +38,23 @@ test:
   - CanDoZDiff
   - CheckSortedSetDifferenceStoreSE
   - CheckSortedSetDifferenceStoreWithNoMatchSE
+  - CanDoZRevRangeByLex
+  - CanDoZRevRangeByLexWithoutLimit
+  - CheckSortedSetRangeStoreSE
+  - CheckSortedSetRangeStoreByScoreSE
+  - CheckSortedSetRangeStoreByLexSE
   - TestCheckSortedSetRangeStoreWithExistingDestinationKeySE
   - SortedSetMultiPopTest
+  - SortedSetMultiPopWithOptionsTest
   - SortedSetMultiPopWithFirstKeyEmptyOnSecondPopTest
   - CanDoZInterWithSE
   - CanDoZInterCardWithSE
   - CanDoZInterStoreWithSE
+  - CanUseZUnionWithAggregateOption
+  - CanUseZUnionWithWeights
+  - CanUseZUnionStoreWithAggregateOption
   - CanUseZUnionStoreWithNonEmptyDestinationKey
+  - CanUseZUnionStoreWithWeights
   - CanDoSortedSetCollect
   - CanDoSortedSetExpire
   - CanDoSortedSetExpireAndRemove
@@ -104,6 +102,7 @@ test:
   - CanHaveEqualScores
   - CanDoZCountLC
   - CanDoZRangeByIndexLC
+  - CheckSortedSetRangeStoreLC
   - CanDoZRangeByScoreLC
   - CanDoZRangeByScoreReverseLC
   - CanDoZRangeByScoreWithLimitLC

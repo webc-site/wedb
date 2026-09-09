@@ -9,7 +9,7 @@
     "@3-/cargo_upgrade": "^0.1.4",
     "husky": "^9.1.7",
     "tree-sitter-wasms": "^0.1.13",
-    "web-tree-sitter": "0.24.7"
+    "web-tree-sitter": "^0.24.7"
   },
   "dependencies": {
     "yaml": "^2.9.0"

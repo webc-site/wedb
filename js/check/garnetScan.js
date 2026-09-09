@@ -1,4 +1,5 @@
-#!/usr/bin/env -S bun
+#!/usr/bin/env node
+import fs from 'fs';
 
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
@@ -70,7 +71,7 @@ const garnetScan = async (garnet_dir = resolve(import.meta.dirname, "../../garne
     parser = await csParser();
 
   for (const file_path of file_li) {
-    const code = await Bun.file(file_path).text(),
+    const code = fs.readFileSync(file_path, 'utf-8'),
       [fn_li, test_li] = csExtract(code, parser),
       rel_path = relative(garnet_dir, file_path);
 

@@ -1,5 +1,4 @@
 fn:
-  - EmbeddedRespServer
   - GetRespSession
   - GetRespSessions
   - GetNetworkHandler

@@ -1,19 +1,17 @@
 fn:
-  - RespVectorSetTests
   - Setup
   - TearDown
-  - AssertSameIds
   - MatchedIds
   - ExpectIds
-  - Format
+  - AssertSameIds
   - SeedMoviesForAdvancedFiltering
   - InterruptedVectorSetDelete
   - InterruptedVectorSetDeleteRecoveryAsync
   - GenerateVADDOptions
   - BuildDictionaryFromResponse
   - ExpectSuccess
-  - AssertExpectedHashSlot
   - DoRenameAsync
+  - AssertExpectedHashSlot
   - CreateVectorSetAsync
   - ReadVectorSetAsync
   - CheckRAWAsync
@@ -45,16 +43,13 @@ test:
   - VSIMBadFilters
   - VSIMComplexJsonAttributes
   - VSIMErrors
-  - DeleteVectorSet
   - FlushDB
   - ExpirationAsync
   - InterruptedVectorSetDelete_BeforeMark
-  - InterruptedVectorSetDelete
   - InterruptedVectorSetDelete_DuringCleanup
   - InterruptedVectorSetDelete_AfterCleanup
   - InterruptedVectorSetDelete_AfterMark
   - InterruptedVectorSetDelete_BeforeMark_RecoveryAsync
-  - InterruptedVectorSetDeleteRecoveryAsync
   - InteterruptedVectorSetDelete_DuringCleanup_RecoveryAsync
   - InteterruptedVectorSetDelete_AfterCleanup_RecoveryAsync
   - InteterruptedVectorSetDelete_AfterMark_RecoveryAsync

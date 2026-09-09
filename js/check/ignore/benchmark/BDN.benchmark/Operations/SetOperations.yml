@@ -1,7 +1,5 @@
 fn:
   - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
   - SAddRem
   - SAddPopSingle
   - SCard
