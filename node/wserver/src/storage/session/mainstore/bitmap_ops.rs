@@ -226,6 +226,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// BITFIELD 写路径（SET/INCRBY，支持 WRAP/SAT 溢出策略），回吐每个子操作结果
   ///
+  /// 写子操作共享同一缓冲就地变更，循环结束后统一落盘一次（对标 C# RMW
+  /// 单次写回，避免逐子操作全量重写）。
+  ///
   /// libs/server/Storage/Session/MainStore/BitmapOps.cs:StringBitField
   pub async fn string_bit_field(
     &self,
@@ -234,18 +237,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Vec<Option<i64>>)> {
     let mut buf = self.read_string(key).await?.unwrap_or_default();
     let mut results = Vec::with_capacity(ops.len());
+    let mut dirty = false;
     for op in ops {
-      match *op {
-        BitFieldOp::Get { .. } => {
-          let r = bit_field_apply(&mut buf, *op);
-          results.push(r);
-        }
-        _ => {
-          let r = bit_field_apply(&mut buf, *op);
-          results.push(r);
-          self.upsert_string(key, &buf).await?;
-        }
-      }
+      let is_write = !matches!(op, BitFieldOp::Get { .. });
+      let r = bit_field_apply(&mut buf, *op);
+      results.push(r);
+      dirty |= is_write;
+    }
+    if dirty {
+      self.upsert_string(key, &buf).await?;
     }
     Ok((GarnetStatus::Ok, results))
   }

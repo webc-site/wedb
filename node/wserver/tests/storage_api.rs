@@ -744,7 +744,7 @@ fn test_review_r10_regressions() -> aok::Void {
       GarnetStatus::NotFound
     );
 
-    // ---- SMOVE：成员缺失 (Ok,false)，同键成功且不误删 ----
+    // ---- SMOVE：成员缺失 (Ok,false)；同键对齐 C# 恒返 0 且不误删 ----
     ss.set_add(b"sm", &[b"x"]).await?;
     assert_eq!(
       ss.set_move(b"sm", b"sm2", b"missing").await?,
@@ -752,7 +752,7 @@ fn test_review_r10_regressions() -> aok::Void {
     );
     assert_eq!(
       ss.set_move(b"sm", b"sm", b"x").await?,
-      (GarnetStatus::Ok, true)
+      (GarnetStatus::Ok, false)
     );
     assert_eq!(ss.set_length(b"sm").await?, (GarnetStatus::Ok, 1));
 
@@ -770,4 +770,204 @@ fn test_review_r10_regressions() -> aok::Void {
 fn parse_stored_f64(bytes: &[u8]) -> Option<f64> {
   use std::str;
   str::from_utf8(bytes).ok()?.trim().parse::<f64>().ok()
+}
+
+/// review rr1 语义对齐回归：SMOVE 判定序 / *STORE 空键列表 / ZINTER NaN→0 /
+/// HINCRBYFLOAT 缺失字段原样存与最短往返 / LCS 缺键 OK+空输出
+#[test]
+fn test_review_rr1_csharp_semantics() -> aok::Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store) = open_store("rr1.db")?;
+    let session = store.new_session()?;
+    let ss = storage_session(&session);
+
+    // ---- SMOVE：对齐 C# SetMove 三态判定序 ----
+    // 源键缺失 → NOTFOUND
+    assert_eq!(
+      ss.set_move(b"no_src", b"no_dst", b"m").await?,
+      (GarnetStatus::NotFound, false)
+    );
+    ss.set_add(b"src", &[b"m"]).await?;
+    // 源==目标：恒返 0，不查成员（成员在场也不搬移）
+    assert_eq!(
+      ss.set_move(b"src", b"src", b"m").await?,
+      (GarnetStatus::Ok, false)
+    );
+    assert_eq!(ss.set_members(b"src").await?.1, vec![b"m".to_vec()]);
+    // 目标类型错 → WRONGTYPE 且源不被改动
+    ss.upsert_string(b"str", b"plain").await?;
+    assert_eq!(
+      ss.set_move(b"src", b"str", b"m").await?,
+      (GarnetStatus::WrongType, false)
+    );
+    assert_eq!(ss.set_members(b"src").await?.1, vec![b"m".to_vec()]);
+    // 成员不在源集合 → OK/0
+    assert_eq!(
+      ss.set_move(b"src", b"dst", b"absent").await?,
+      (GarnetStatus::Ok, false)
+    );
+    // 正常搬移 → OK/1，源删空回收
+    assert_eq!(
+      ss.set_move(b"src", b"dst", b"m").await?,
+      (GarnetStatus::Ok, true)
+    );
+    assert_eq!(ss.set_members(b"dst").await?.1, vec![b"m".to_vec()]);
+    assert_eq!(ss.exists(b"src").await?, GarnetStatus::NotFound);
+
+    // ---- *STORE 空键列表：提前返回 OK，不动目标键 ----
+    ss.upsert_string(b"keep", b"old").await?;
+    assert_eq!(
+      ss.set_union_store(b"keep", &[]).await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.set_intersect_store(b"keep", &[]).await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.set_diff_store(b"keep", &[]).await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_union_store(b"keep", &[], &[], ZSetAggregate::Sum)
+        .await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_intersect_store(b"keep", &[], &[], ZSetAggregate::Sum)
+        .await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_difference_store(b"keep", &[]).await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.read_string(b"keep").await?,
+      Some(b"old".to_vec()),
+      "空键列表不得删除目标键"
+    );
+
+    // ---- ZINTER NaN→0：+inf 与 -inf 聚合产生 NaN 时归零（C# 缺陷兼容）----
+    ss.sorted_set_add(
+      b"zi1",
+      &[(b"x".as_slice(), f64::INFINITY), (b"y".as_slice(), 1.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    ss.sorted_set_add(
+      b"zi2",
+      &[(b"x".as_slice(), f64::NEG_INFINITY), (b"y".as_slice(), 2.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    let (_, inter) = ss
+      .sorted_set_intersect(&[b"zi1", b"zi2"], &[1.0, 1.0], ZSetAggregate::Sum)
+      .await?;
+    assert_eq!(
+      inter,
+      vec![(b"x".to_vec(), 0.0), (b"y".to_vec(), 3.0)],
+      "NaN 须归零（ZINTER 专属，ZUNION 无此逻辑）"
+    );
+    let (_, union) = ss
+      .sorted_set_union(&[b"zi1", b"zi2"], &[1.0, 1.0], ZSetAggregate::Sum)
+      .await?;
+    assert!(
+      union
+        .iter()
+        .any(|(m, s)| m.as_slice() == b"x" && s.is_nan()),
+      "ZUNION 聚合 NaN 原样保留"
+    );
+
+    // ---- HINCRBYFLOAT：缺失字段原样存增量文本；结果最短往返 ----
+    let (s, v) = ss.hash_increment(b"hf", b"miss", b"0.1", true).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"0.1".as_slice()))
+    );
+    // 0.1 + 0.2 → 0.30000000000000004（非 {:.17} 定点）
+    let (s, v) = ss.hash_increment(b"hf", b"miss", b"0.2", true).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"0.30000000000000004".as_slice()))
+    );
+    // 增量 ±INF → 拒绝（C# IsInfinity(incr) 检查）
+    assert_eq!(
+      ss.hash_increment(b"hf", b"inf", b"inf", true).await?,
+      (GarnetStatus::WrongType, None)
+    );
+    // 现值溢出为 ∞ 后（结果照 C# 落存 ∞ 文本），下一次增减拒绝
+    ss.hash_increment(b"hf", b"big", b"1e308", true).await?;
+    let (s, v) = ss.hash_increment(b"hf", b"big", b"1e308", true).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"inf".as_slice()))
+    );
+    assert_eq!(
+      ss.hash_increment(b"hf", b"big", b"1", true).await?,
+      (GarnetStatus::WrongType, None),
+      "现值已为 ∞：拒绝增减"
+    );
+
+    // ---- HINCRBY：缺失字段原样存增量文本（含前导零）；溢出回绕（C# unchecked +=）----
+    let (s, v) = ss.hash_increment(b"hi", b"c", b"007", false).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"007".as_slice()))
+    );
+    let (s, v) = ss.hash_increment(b"hi", b"c", b"5", false).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"12".as_slice()))
+    );
+    let (s, v) = ss
+      .hash_increment(b"hi", b"w", b"9223372036854775807", false)
+      .await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"9223372036854775807".as_slice()))
+    );
+    let (s, v) = ss.hash_increment(b"hi", b"w", b"1", false).await?;
+    assert_eq!(
+      (s, v.as_deref()),
+      (GarnetStatus::Ok, Some(b"-9223372036854775808".as_slice())),
+      "i64 溢出按 C# unchecked 回绕"
+    );
+
+    // ---- LCS：任一键缺失 → OK + 空输出（C# 不返回 NOTFOUND）----
+    assert_eq!(
+      ss.lcs(b"no_a", b"no_b").await?,
+      (GarnetStatus::Ok, Some((0, Vec::new())))
+    );
+
+    // ---- BITFIELD：跨字节位域写入一次补齐缓冲（16 位域不得被截断）----
+    let (_, out) = ss
+      .string_bit_field(
+        b"bf16",
+        &[BitFieldOp::Set {
+          is_signed: false,
+          bits: 16,
+          offset: 0,
+          value: 0xABCD,
+          wrap: false,
+          sat: false,
+        }],
+      )
+      .await?;
+    assert_eq!(out, vec![Some(0xABCD)]);
+    assert_eq!(
+      ss.read_string(b"bf16").await?,
+      Some(vec![0xAB, 0xCD]),
+      "u16 位域须完整落盘两个字节"
+    );
+
+    Ok(())
+  })
 }
