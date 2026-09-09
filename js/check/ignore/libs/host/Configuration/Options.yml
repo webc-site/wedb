@@ -3,3 +3,4 @@ fn:
   - GetDeviceType
   - GetAuthenticationSettings
   - GetFastAofTruncate
+  - IsValid

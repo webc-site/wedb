@@ -16,7 +16,7 @@ strum = { version = "0.28.0", features = ["derive"] }
 uuid = { version = "1.26.0", features = ["v4"] }
 
 [dependencies.wserver]
-path = "../../embed/wserver"
+path = "../../node/wserver"
 
 [dependencies.wutil]
 path = "../../embed/wutil"
