@@ -130,8 +130,11 @@ impl<D: Device> MultiDatabaseManager<D> {
   ///
   /// 两分支对标 libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds
   /// 与 :RecoverCheckpointAsync / :RecoverAOFAsync 中包裹它的 try/catch：
-  /// - 目录不存在属良性全新启动态（上游 `Directory.Exists` 为 false 时直接返回
-  ///   false，恢复流程静默跳过），此处同样返回空集而非报错；
+  /// - 根目录不存在属良性全新启动态，此处返回空集而非报错（debug 级日志留痕）。
+  ///   注意上游的良性守卫 `Directory.Exists` 对 stat 级失败一律返回 false——除不存在
+  ///   外还包括路径被普通文件占用（NotADirectory）、父目录不可穿越（PermissionDenied）
+  ///   等，上游均静默跳过恢复；本实现有意把良性集收窄为仅 NotFound，上述其余 stat 级
+  ///   失败落入 fail-loud 分支（部署错误必须可见，而非静默零恢复）；
   /// - 其余枚举失败必须显式报错而非静默返回空集：空集会让 `--recover` 在没有任何
   ///   库被恢复的情况下看似健康地启动（上游 d20d63993 修复的"静默错误恢复"类缺陷，
   ///   日志从 LogInformation 提级到 LogError 并尊重 FailOnRecoveryError 抛出）。
@@ -141,7 +144,8 @@ impl<D: Device> MultiDatabaseManager<D> {
     let mut ids = Vec::new();
     let entries = match fs::read_dir(&self.checkpoint_root) {
       Ok(entries) => entries,
-      // 根目录尚未创建：无任何已持久化库可枚举，良性空集（上游 Directory.Exists 守卫）
+      // 根目录尚未创建：无任何已持久化库可枚举，良性空集（上游 Directory.Exists 守卫；
+      // 上游对其它 stat 级失败也静默，本实现有意报错，见函数文档的良性集收窄说明）
       Err(e) if e.kind() == io::ErrorKind::NotFound => {
         log::debug!(
           "检查点根目录不存在，按空集处理: checkpoint_root = {}",
