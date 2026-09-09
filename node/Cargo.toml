@@ -31,18 +31,9 @@ wepoch = { path = "../embed/wepoch" }
 whlog = { path = "../embed/whlog" }
 whasher = { path = "../embed/whasher" }
 wval = { path = "../embed/wval" }
-wrecord = { path = "../embed/wrecord" }
-wsync = { path = "../embed/wsync" }
-wutil = { path = "../embed/wutil" }
 
 waof = { path = "waof" }
 wresp = { path = "wresp" }
-wserver = { path = "wserver" }
-wacl = { path = "wacl" }
-wlua = { path = "wlua" }
-wclient = { path = "wclient" }
-whost = { path = "whost" }
-wnative = { path = "wnative" }
 
 async-lock = "3.4.2"
 event-listener = "5.4.2"
@@ -56,7 +47,6 @@ tempfile = "3.27.0"
 compio = "0.19.2"
 coarsetime = "0.1.37"
 parking_lot = "0.12.3"
-gxhash = "3.5.0"
 sonic-rs = "0.5.4"
 
 [workspace.lints.clippy]
