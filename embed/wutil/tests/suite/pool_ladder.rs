@@ -7,7 +7,7 @@
 
 use aok::{OK, Void};
 use log::info;
-use wram::{
+use wutil::{
   BufferPool, CLASS_CAPACITIES_SECTORS, DEFAULT_SECTOR_SIZE, DEPOT_STRIPE_CAP, MAX_LOCAL_PER_CLASS,
   MAX_POOLED_SECTORS, MIN_SECTOR_SIZE, NUM_CLASSES, class_capacity_sectors, class_of_sectors,
 };

@@ -10,7 +10,7 @@ use std::{sync::Arc, thread};
 use aok::{OK, Void};
 use compio_buf::{IoBuf, IoBufMut, SetLen};
 use log::info;
-use wram::{AlignedBuf, DEFAULT_SECTOR_SIZE, Error, MIN_SECTOR_SIZE, SectorRange, is_aligned};
+use wutil::{AlignedBuf, DEFAULT_SECTOR_SIZE, Error, MIN_SECTOR_SIZE, SectorRange, is_aligned};
 
 /// 对齐指针必须满足指定扇区大小的对齐要求
 #[test]
@@ -127,7 +127,7 @@ fn zeroed_buffer_len_equals_capacity_and_all_zero() -> Void {
 fn from_slice_deref_mut_and_clone_independence() -> Void {
   info!("验证 from_slice 数据拷贝、DerefMut 原地修改与深拷贝克隆互不影响");
 
-  let sample = b"hello wram storage engine";
+  let sample = b"hello wutil storage engine";
   let mut buf = AlignedBuf::from_slice(sample, DEFAULT_SECTOR_SIZE)?;
   assert_eq!(buf.len(), sample.len());
   assert_eq!(buf.capacity(), sample.len());

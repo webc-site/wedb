@@ -18,7 +18,7 @@ use std::{
 
 use aok::{OK, Void};
 use log::info;
-use wram::{AlignedBuf, BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE};
+use wutil::{AlignedBuf, BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE};
 
 /// 多线程高并发混合尺寸获取与归还压力
 #[test]
