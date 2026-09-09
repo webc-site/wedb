@@ -11,7 +11,7 @@ use std::{
   io::Error as IoError,
   ops::Range,
   ptr,
-  slice::{from_raw_parts, from_raw_parts_mut},
+  slice::from_raw_parts,
   sync::OnceLock,
 };
 
