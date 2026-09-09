@@ -1,5 +1,3 @@
-
-
 impl crate::resp::resp_server_session::RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:GetPendingScratchOutput
   pub fn get_pending_scratch_output() {
@@ -7,42 +5,42 @@ impl crate::resp::resp_server_session::RespServerSession {
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGET
   pub fn network_get<'a, D: wdev::Device>(
-      &mut self,
-      parse_state: &[&[u8]],
-      store: &wkv::BatchStoreSession<'a, D>,
-      output: &mut Vec<u8>
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-      // 1:1 C# Parity logic: Get the key from parse state
-      if parse_state.is_empty() {
-          return Ok(false);
+    // 1:1 C# Parity logic: Get the key from parse state
+    if parse_state.is_empty() {
+      return Ok(false);
+    }
+    let key = parse_state[0];
+
+    // Call into storage API (wkv)
+    let status = store.try_read_sync(key, |v| v.to_vec());
+
+    match status {
+      Ok(Some(Some(val))) => {
+        // GarnetStatus.OK
+        output.extend_from_slice(&val);
       }
-      let key = parse_state[0];
-      
-      // Call into storage API (wkv)
-      let status = store.try_read_sync(key, |v| v.to_vec());
-      
-      match status {
-          Ok(Some(Some(val))) => {
-              // GarnetStatus.OK
-              output.extend_from_slice(&val);
-          }
-          Ok(Some(None)) => {
-              // GarnetStatus.NOTFOUND
-              output.extend_from_slice(b"$-1\r\n");
-          }
-          Ok(None) => {
-              // Needs async path, in C# handled by NetworkGETAsync or similar, 
-              // but try_read_sync signals async is needed.
-              // We return false to indicate async fallback is required.
-              return Ok(false);
-          }
-          Err(_) => {
-              // Handle error, e.g. WRONGTYPE or storage error
-              output.extend_from_slice(b"-ERR generic error\r\n");
-          }
+      Ok(Some(None)) => {
+        // GarnetStatus.NOTFOUND
+        output.extend_from_slice(b"$-1\r\n");
       }
-      
-      Ok(true)
+      Ok(None) => {
+        // Needs async path, in C# handled by NetworkGETAsync or similar,
+        // but try_read_sync signals async is needed.
+        // We return false to indicate async fallback is required.
+        return Ok(false);
+      }
+      Err(_) => {
+        // Handle error, e.g. WRONGTYPE or storage error
+        output.extend_from_slice(b"-ERR generic error\r\n");
+      }
+    }
+
+    Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGETEX
   pub fn network_getex() {
@@ -56,7 +54,39 @@ impl crate::resp::resp_server_session::RespServerSession {
   pub fn network_get_sg() {
     unimplemented!()
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkGETSET
+  /// libs/server/Resp/BasicCommands.cs:NetworkSET
+  pub fn network_set<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 2 {
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'SET' command\r\n");
+      return Ok(true);
+    }
+
+    let key = parse_state[0];
+    let value = parse_state[1];
+
+    let status = store.try_upsert_sync(key, value);
+
+    match status {
+      Ok(Ok(_)) => {
+        output.extend_from_slice(b"+OK\r\n");
+      }
+      Ok(Err(_page_id)) => {
+        return Ok(false);
+      }
+      Err(_) => {
+        output.extend_from_slice(b"-ERR generic error\r\n");
+      }
+    }
+    Ok(true)
+  }
+
   pub fn network_getset() {
     unimplemented!()
   }
@@ -101,8 +131,23 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkPING
-  pub fn network_ping() {
-    unimplemented!()
+  pub fn network_ping(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    // Ignore args, return PONG
+    // If there's an arg, return the arg. Redis PING [message]
+    if parse_state.is_empty() {
+      output.extend_from_slice(b"+PONG\r\n");
+    } else {
+      let msg = parse_state[0];
+      let len_str = format!("${}\r\n", msg.len());
+      output.extend_from_slice(len_str.as_bytes());
+      output.extend_from_slice(msg);
+      output.extend_from_slice(b"\r\n");
+    }
+    Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkASKING
   pub fn network_asking() {
@@ -129,8 +174,33 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSTRLEN
-  pub fn network_strlen() {
-    unimplemented!()
+  pub fn network_strlen<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() != 1 {
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'STRLEN' command\r\n");
+      return Ok(true);
+    }
+    let key = parse_state[0];
+
+    let status = store.try_read_sync(key, |v| v.len());
+    match status {
+      Ok(Some(Some(len))) => {
+        let len_str = format!(":{}\r\n", len);
+        output.extend_from_slice(len_str.as_bytes());
+      }
+      Ok(Some(None)) | Ok(None) => {
+        // Not found or async needed (for now, report 0 or fallback)
+        output.extend_from_slice(b":0\r\n");
+      }
+      Err(_) => {
+        output.extend_from_slice(b"-ERR generic error\r\n");
+      }
+    }
+    Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:WriteCOMMANDResponse
   pub fn write_command_response() {
@@ -161,8 +231,21 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkECHO
-  pub fn network_echo() {
-    unimplemented!()
+  pub fn network_echo(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() != 1 {
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'ECHO' command\r\n");
+      return Ok(true);
+    }
+    let msg = parse_state[0];
+    let len_str = format!("${}\r\n", msg.len());
+    output.extend_from_slice(len_str.as_bytes());
+    output.extend_from_slice(msg);
+    output.extend_from_slice(b"\r\n");
+    Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkHELLO
   pub fn network_hello() {
