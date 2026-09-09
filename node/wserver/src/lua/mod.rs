@@ -14,4 +14,6 @@ pub mod lua_tracked_allocator;
 pub mod native_methods;
 pub mod scratch_buffer_network_sender;
 pub mod script_hash_key;
+pub mod scripting_api;
 pub mod session_script_cache;
+pub mod storage_scripting_api;

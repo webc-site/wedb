@@ -30,6 +30,7 @@ num_enum = "0.7.6"
 papaya = "0.2.5"
 parking_lot = "0.12"
 sha1_smol = "1"
+sonic-rs.workspace = true
 thiserror = "2.0.20"
 waof.workspace = true
 wdev.workspace = true
