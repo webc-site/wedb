@@ -24,8 +24,8 @@ parking_lot = { workspace = true }
 thiserror = { workspace = true }
 wdev = { workspace = true }
 wepoch = { workspace = true }
-wram = { workspace = true }
 wrecord = { workspace = true }
+wutil = { version = "0.1.0", path = "../wutil" }
 zmij = { workspace = true }
 
 [dependencies.compio]

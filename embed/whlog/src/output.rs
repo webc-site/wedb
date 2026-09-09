@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
-use wram::AlignedBuf;
 use wrecord::{RecordHeader, RecordRef};
+use wutil::AlignedBuf;
 
 use crate::error::Result;
 

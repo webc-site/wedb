@@ -1,8 +1,8 @@
 use std::{hint::spin_loop, sync::atomic::Ordering, thread::yield_now};
 
 use wdev::Device;
-use wram::AlignedBuf;
 use wrecord::{HEADER_SIZE, RecordHeader, RecordRef};
+use wutil::AlignedBuf;
 
 use crate::{
   address::AddressManager,

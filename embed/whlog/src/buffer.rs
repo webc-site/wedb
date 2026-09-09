@@ -4,7 +4,7 @@ use std::{
 };
 
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use wram::AlignedBuf;
+use wutil::AlignedBuf;
 
 use crate::{
   config::{HybridLogConfig, SECTOR_ALIGNMENT},
