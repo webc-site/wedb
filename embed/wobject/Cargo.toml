@@ -1,11 +1,11 @@
 [package]
-name = "wserver"
+name = "wobject"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
-homepage = "https://github.com/webc-site/wedb/tree/main/wserver"
-description = "wserver"
+homepage = "https://github.com/webc-site/wedb/tree/main/wobject"
+description = "wobject"
 keywords = []
 categories = []
 
@@ -17,17 +17,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-bitflags = "2.13.1"
-coarsetime.workspace = true
-num_enum = "0.7.6"
+gxhash.workspace = true
+ordered-float = "5.5.0"
+papaya.workspace = true
 thiserror = "2.0.20"
-wbase.workspace = true
-wdev.workspace = true
-wepoch.workspace = true
-whasher.workspace = true
-whlog.workspace = true
-wkv = { version = "0.1.0", path = "../wkv" }
-wval.workspace = true
 
 [dev-dependencies]
 aok = "0.1.18"

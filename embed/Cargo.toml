@@ -16,6 +16,7 @@ members = [
   "wrecord", "wresp",
   "wreviv", "wutil",
   "wval",
+  "wserver", "wobject", "waof", "wacl",
 ]
 
 [workspace.dependencies]
