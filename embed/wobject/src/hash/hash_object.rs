@@ -1,34 +1,10 @@
 use std::{
-  cmp::{Ordering, Reverse},
-  collections::BinaryHeap,
   io::{self, Read, Write},
   str,
-  sync::Mutex,
 };
 
 use gxhash::GxBuildHasher;
 use papaya::HashMap;
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ExpirationEntry {
-  pub expiration: i64,
-  pub key: Vec<u8>,
-}
-
-impl PartialOrd for ExpirationEntry {
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl Ord for ExpirationEntry {
-  fn cmp(&self, other: &Self) -> Ordering {
-    self
-      .expiration
-      .cmp(&other.expiration)
-      .then_with(|| self.key.cmp(&other.key))
-  }
-}
 
 /// garnet相对路径:garnet/libs/server/Objects/Hash/HashOperation.cs:HashOperation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,18 +29,18 @@ pub enum HashOperation {
 }
 
 /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject
+///
+/// 刻意差异（对照 C#）：C# 携带 `expirationTimes`/`expirationQueue` 字段支撑
+/// HEXPIRE/HTTL 字段级过期；Rust 侧过期统一由 wkv TTL 记录层承担，本结构
+/// 不再冗余持有永不读写的过期容器（cycle2 遗留死字段，已清除）
 pub struct HashObject {
   pub hash: HashMap<Vec<u8>, Vec<u8>, GxBuildHasher>,
-  pub expiration_times: HashMap<Vec<u8>, i64, GxBuildHasher>,
-  pub expiration_queue: Mutex<BinaryHeap<Reverse<ExpirationEntry>>>,
 }
 
 impl HashObject {
   pub fn new() -> Self {
     Self {
       hash: HashMap::with_hasher(GxBuildHasher::default()),
-      expiration_times: HashMap::with_hasher(GxBuildHasher::default()),
-      expiration_queue: Mutex::new(BinaryHeap::new()),
     }
   }
 
@@ -82,11 +58,7 @@ impl HashObject {
     }
 
     drop(pin);
-    Ok(Self {
-      hash,
-      expiration_times: HashMap::with_hasher(GxBuildHasher::default()),
-      expiration_queue: Mutex::new(BinaryHeap::new()),
-    })
+    Ok(Self { hash })
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Serialize

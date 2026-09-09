@@ -18,11 +18,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 bitcode.workspace = true
+fastrand.workspace = true
 gxhash.workspace = true
 itoa.workspace = true
 papaya.workspace = true
 parking_lot.workspace = true
-thiserror = "2.0.20"
 zmij.workspace = true
 
 [dev-dependencies]
