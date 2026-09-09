@@ -16,7 +16,7 @@ members = [
   "wrecord", "wresp",
   "wreviv", "wutil",
   "wval",
-  "wserver", "wobject", "waof", "wacl", "wsync", "ext_noop", "ext_roaring", "ext_json",
+  "wserver", "wobject", "waof", "wacl", "wsync", "ext_noop", "ext_roaring", "ext_json", "wlua",
 ]
 
 [workspace.dependencies]
