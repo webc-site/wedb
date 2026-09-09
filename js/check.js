@@ -94,12 +94,17 @@ const ignoreLoad = async () => {
 
 const check = async () => {
   const { fn_map, test_map } = await garnetScan(GARNET_DIR),
-    { doc_set } = await rustScan(ROOT_DIR),
+    { doc_set, doc_file_fn_map } = await rustScan(ROOT_DIR),
     { file_ignore_map, global_ignore_set } = await ignoreLoad(),
     isIgnored = (rel_path, name) => {
       if (global_ignore_set.has(name)) return true;
       const file_set = file_ignore_map.get(rel_path);
       if (file_set?.has(name)) return true;
+      return false;
+    },
+    isDocumented = (rel_path, name) => {
+      if (doc_file_fn_map?.get(rel_path)?.has(name)) return true;
+      if (doc_set.has(name)) return true;
       return false;
     };
 
@@ -115,8 +120,8 @@ const check = async () => {
   for (const rel_path of all_file_set) {
     const fn_li = fn_map[rel_path] ?? [],
       test_li = test_map[rel_path] ?? [],
-      miss_fn_li = fn_li.filter((name) => !doc_set.has(name) && !isIgnored(rel_path, name)),
-      miss_test_li = test_li.filter((name) => !doc_set.has(name) && !isIgnored(rel_path, name));
+      miss_fn_li = fn_li.filter((name) => !isDocumented(rel_path, name) && !isIgnored(rel_path, name)),
+      miss_test_li = test_li.filter((name) => !isDocumented(rel_path, name) && !isIgnored(rel_path, name));
 
     if (miss_fn_li.length === 0 && miss_test_li.length === 0) continue;
 

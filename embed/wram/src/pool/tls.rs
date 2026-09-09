@@ -16,7 +16,7 @@ use super::{
 /// 线程私有单池缓存 (对标 C# ThreadShard)
 pub(crate) struct TlsPoolEntry {
   pub(crate) pool_id: u64,
-  /// 创建本条目的线程 ID (线程退出时按自身条带分流 Depot，对标 C# ThreadStripe()，
+  /// 创建本条目的线程 ID (线程退出时按自身条带分流 Depot，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ThreadStripe()，
   /// 避免所有退出线程挤占同一条带)；在 get_or_create 正常上下文中采集，规避 TLS 析构期访问其他 TLS
   pub(crate) tid: u64,
   pub(crate) pool_weak: Weak<BufferPool>,
@@ -38,7 +38,7 @@ impl TlsPoolEntry {
   /// 统一清扫：密封收件箱并清空本地栈，逐 class 处置在途与缓存缓冲
   ///
   /// `retire = true`（线程退出）：池存活且未关闭时溢出转移至全局条带仓库，否则释放许可；
-  /// `retire = false`（池关闭拆除）：全部就地释放许可 (对标 C# `SealAndDrainShard`)
+  /// `retire = false`（池关闭拆除）：全部就地释放许可 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:SealAndDrainShard)
   fn sweep(&mut self, pool: Option<&BufferPool>, retire: bool) {
     let tid = self.tid;
     for cls in 0..NUM_CLASSES {
@@ -73,7 +73,7 @@ impl TlsPoolEntry {
     }
   }
 
-  /// 清空并释放当前 entry 中属于该池的所有本地及在途缓冲许可 (对标 C# `SealAndDrainShard`)
+  /// 清空并释放当前 entry 中属于该池的所有本地及在途缓冲许可 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:SealAndDrainShard)
   pub(crate) fn drain_and_release(&mut self, pool: &BufferPool) {
     self.sweep(Some(pool), false);
   }

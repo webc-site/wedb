@@ -16,7 +16,7 @@ pub const DEFAULT_INITIAL_ADDRESS: u64 = 64;
 pub const SECTOR_ALIGNMENT: usize = 4096;
 
 /// 单页容量的合法上界（Pad 填充标记头的 `val_len` 为 u32 字段，
-/// 页容量超出会使剩余空间长度编码静默截断；对标 C# AllocatorBase.pageSize 为 int 的约束）
+/// 页容量超出会使剩余空间长度编码静默截断；对标 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:pageSize 为 int 的约束）
 const MAX_PAGE_SIZE: usize = (u32::MAX as usize) + 1;
 
 /// ReadOnlyAddress 滞后比例定点化的小数位宽（20 位定点，分辨率约百万分之一）

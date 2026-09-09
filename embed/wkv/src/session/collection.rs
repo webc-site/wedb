@@ -309,7 +309,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 快速检查是否存在集合对象元数据（纯同步无锁内存探测，严格对标 Garnet NetworkSET）
+  /// 快速检查是否存在集合对象元数据（纯同步无锁内存探测，严格对标 libs/server/Resp/BasicCommands.cs:NetworkSET）
   /// - Ok(Some(true)): 明确存在对象元数据（需要报错 WRONGTYPE 或走异步处理）
   /// - Ok(Some(false)): 明确不存在对象元数据（可安全执行纯同步快速写）
   /// - Ok(None): 冷数据可能驻留磁盘，需回退异步深层加载

@@ -119,7 +119,7 @@ impl<D: Device> StoreSession<D> {
     self.copy_reads_to_tail.load(Relaxed)
   }
 
-  /// 设置是否开启记录脱钩剔除回收 (对标 C# Garnet RevivificationSettings.EnableRecordElision)
+  /// 设置是否开启记录脱钩剔除回收 (对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs:EnableRecordElision)
   #[inline]
   pub fn set_record_elision(&self, enable: bool) {
     self.record_elision.store(enable, Relaxed);
@@ -131,7 +131,7 @@ impl<D: Device> StoreSession<D> {
     self.record_elision.load(Relaxed)
   }
 
-  /// 进入批处理纪元保护上下文（严格对标 C# Garnet IUnsafeContext.BeginUnsafe）
+  /// 进入批处理纪元保护上下文（严格对标 libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs:BeginUnsafe）
   #[inline]
   pub fn enter_batch(&self) -> BatchStoreSession<'_, D> {
     let guard = self.participant.enter();
@@ -194,7 +194,7 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
     self.session.try_modify_in_place_unprotected(key, f)
   }
 
-  /// 在批处理已有纪元保护下尝试利用动态松弛原位覆写记录的值（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan）
+  /// 在批处理已有纪元保护下尝试利用动态松弛原位覆写记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
   #[inline(always)]
   pub fn try_modify_with_slack(&self, key: &[u8], new_val: &[u8]) -> Result<bool> {
     self.session.try_modify_with_slack_unprotected(key, new_val)

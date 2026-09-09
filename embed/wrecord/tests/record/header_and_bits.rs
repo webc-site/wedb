@@ -33,7 +33,7 @@ fn test_header_layout_and_field_offsets() -> Void {
   assert_eq!(raw_klen, 32);
   assert_eq!(raw_vlen, 128);
 
-  // 对标 C# RecordInfo.IsNull 与 RecordDataHeader.GetRecordLength 零头守卫
+  // 对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsNull 与 RecordDataHeader.GetRecordLength 零头守卫
   let null_hdr = RecordHeader::default();
   assert!(null_hdr.is_null());
   assert!(!header.is_null());

@@ -9,7 +9,7 @@ use std::{
 
 /// 48 位绝对地址掩码（第 0..47 位，去除了第 47 位的 ReadCache 标志）
 pub use addr::ABSOLUTE_ADDRESS_MASK;
-/// ReadCache 虚拟地址指示位掩码（第 47 位，严格对标 Garnet LogAddress.kIsReadCacheBitMask）
+/// ReadCache 虚拟地址指示位掩码（第 47 位，严格对标 libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs:kIsReadCacheBitMask）
 pub use addr::READ_CACHE_BIT;
 use itoa::Buffer;
 use parking_lot::Mutex;
@@ -127,7 +127,7 @@ impl ReadCache {
     self.head_address.load(Acquire)
   }
 
-  /// 向 ReadCache 追加一条只读缓存记录（严格对标 Garnet TryCopyToReadCache）
+  /// 向 ReadCache 追加一条只读缓存记录（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs:TryCopyToReadCache）
   ///
   /// 返回打上 `READ_CACHE_BIT` 的虚拟地址；若未启用或单记录超出一页大小则返回 None
   pub fn append(
@@ -256,7 +256,7 @@ impl ReadCache {
     }
   }
 
-  /// 零拷贝直读 ReadCache 记录（严格对标 Garnet FindInReadCache 与 AllocatorBase 无锁指针直读）
+  /// 零拷贝直读 ReadCache 记录（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:FindInReadCache 与 AllocatorBase 无锁指针直读）
   pub fn with_record<R>(
     &self,
     tagged_addr: u64,

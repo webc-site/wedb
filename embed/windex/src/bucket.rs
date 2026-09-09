@@ -314,7 +314,7 @@ impl HashBucket {
     }
   }
 
-  /// 查找当前桶内第一个匹配指定 Tag 的有效地址（严格对标 C# Garnet FindTag 首项快速探针）
+  /// 查找当前桶内第一个匹配指定 Tag 的有效地址（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 首项快速探针）
   ///
   /// 内存序论证（本 crate 桶扫描通用基线）：扫描阶段仅做 tag/address 过滤，
   /// u64 对齐原子加载无撕裂，Relaxed 足矣；真正需要 happens-before 的是

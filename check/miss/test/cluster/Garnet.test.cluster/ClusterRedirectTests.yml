@@ -10,7 +10,6 @@ fn:
   - SendToImportingNode
   - SendToMigratingNode
   - KeyForSlot
-  - Resp
   - SendReadReplies
   - ReadLine
   - ReadN

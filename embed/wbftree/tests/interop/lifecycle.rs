@@ -6,7 +6,7 @@ use wbftree::{
 
 use super::common::TempTreeGuard;
 
-/// 测试创建磁盘支持的 BfTree 实例及安全释放（对照 C# Garnet: BfTreeInteropTests.CreateAndDispose）
+/// 测试创建磁盘支持的 BfTree 实例及安全释放（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:CreateAndDispose）
 #[test]
 fn test_create_and_dispose() -> Result<()> {
   let path = TempTreeGuard::new("create_dispose");
@@ -17,7 +17,7 @@ fn test_create_and_dispose() -> Result<()> {
   OK
 }
 
-/// 测试使用自定义配置创建 BfTree 实例（对照 C# Garnet: BfTreeInteropTests.CreateWithCustomConfig）
+/// 测试使用自定义配置创建 BfTree 实例（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:CreateWithCustomConfig）
 #[test]
 fn test_create_with_custom_config() -> Result<()> {
   let path = TempTreeGuard::new("custom_cfg");
@@ -36,7 +36,7 @@ fn test_create_with_custom_config() -> Result<()> {
   OK
 }
 
-/// 测试创建纯内存 BfTree 实例及基础读写（对照 C# Garnet: BfTreeInteropTests.CreateMemoryOnly）
+/// 测试创建纯内存 BfTree 实例及基础读写（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:CreateMemoryOnly）
 #[test]
 fn test_create_memory_only() -> Result<()> {
   let tree = BfTreeService::open_memory(4)?;
@@ -49,7 +49,7 @@ fn test_create_memory_only() -> Result<()> {
   OK
 }
 
-/// 测试磁盘后端缺失文件路径时抛出配置错误（对照 C# Garnet: BfTreeInteropTests.CreateDiskBacked_MissingPath_Throws）
+/// 测试磁盘后端缺失文件路径时抛出配置错误（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:CreateDiskBacked_MissingPath_Throws）
 #[test]
 fn test_create_disk_backed_missing_path_throws() -> Result<()> {
   let mut config = BfTreeConfig::default();
@@ -59,7 +59,7 @@ fn test_create_disk_backed_missing_path_throws() -> Result<()> {
   OK
 }
 
-/// 测试对已释放的 BfTree 重复调用 dispose 具备幂等性（对照 C# Garnet: BfTreeInteropTests.DoubleDispose_DoesNotThrow）
+/// 测试对已释放的 BfTree 重复调用 dispose 具备幂等性（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:DoubleDispose_DoesNotThrow）
 #[test]
 fn test_double_dispose_does_not_throw() -> Result<()> {
   let path = TempTreeGuard::new("double_dispose");
@@ -69,7 +69,7 @@ fn test_double_dispose_does_not_throw() -> Result<()> {
   OK
 }
 
-/// 测试对已释放的 BfTree 执行读写删除操作均被安全拒绝（对照 C# Garnet: BfTreeInteropTests.OperationsOnDisposedTree_Throw）
+/// 测试对已释放的 BfTree 执行读写删除操作均被安全拒绝（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:OperationsOnDisposedTree_Throw）
 #[test]
 fn test_operations_on_disposed_tree_throw() -> Result<()> {
   let path = TempTreeGuard::new("op_disposed");

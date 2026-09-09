@@ -636,7 +636,7 @@ fn test_ri_delete_after_recovery() -> Void {
   OK
 }
 
-/// 索引淘汰与注册表生命周期（对标 RIEvictionFreesEvictedTreeButKeepsLiveTest 的
+/// 索引淘汰与注册表生命周期（对标 test/standalone/Garnet.test.rangeindex/RespRangeIndexTests.cs:RIEvictionFreesEvictedTreeButKeepsLiveTest 的
 /// 树实例语义；数据面保留由惰性恢复承担，C# 的数据保留依赖 flush 快照体系，
 /// wedb 为预留未接线，故此处只验证注册表驱逐与重新打开闭环）
 #[test]

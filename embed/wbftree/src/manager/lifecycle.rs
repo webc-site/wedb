@@ -1,5 +1,5 @@
 //! 树实例生命周期：创建 / 惰性恢复 / 注册 / 注销 / 删除 / 迁移发布
-//! (1:1 对标 Garnet CreateBfTree、RestoreTree、RegisterIndex、UnregisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
+//! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、UnregisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
 use std::{
   fs,
@@ -178,7 +178,7 @@ impl RangeIndexManager {
         }
       }
 
-      // 1:1 对标 C# RestoreTree：pre-stage 不变量保证 TreeHandle=0 的存根必有已预置的
+      // 1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree：pre-stage 不变量保证 TreeHandle=0 的存根必有已预置的
       // data.bftree；缺失说明不变量被破坏（pre-stage 失败或文件被外部删除）。
       // 返回错误显式暴露数据丢失，绝不静默创建空树掩盖问题。
       if !data_path.exists() {
@@ -189,13 +189,13 @@ impl RangeIndexManager {
     }
 
     // 魔数预检统一走 file_has_cpr_magic：调引擎前拦截损坏文件，避免依赖 unwind。
-    // 刻意不以 stub 后端门控 (1:1 对标 C# RestoreTree 一律 RecoverFromCprSnapshot)：
+    // 刻意不以 stub 后端门控 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree 一律 RecoverFromCprSnapshot)：
     // 检查点恢复流程会把 Memory 后端树的快照同样预置为 data.bftree，此时必须从
     // 快照恢复数据，而非按 Memory 语义新建空树丢失全部字段；stub 后端仅作为
     // 恢复实例的标签透传。
     let is_cpr = data_path.exists() && file_has_cpr_magic(&data_path);
 
-    // 1:1 对标 Garnet RestoreTree: 如果磁盘上已存在数据文件且为快照，严格从快照恢复，否则以已有文件重新打开
+    // 1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree: 如果磁盘上已存在数据文件且为快照，严格从快照恢复，否则以已有文件重新打开
     let tree = if is_cpr {
       Arc::new(BfTreeService::recover_from_cpr_snapshot(
         &data_path, true, backend,
@@ -220,7 +220,7 @@ impl RangeIndexManager {
     Ok(tree)
   }
 
-  /// 预分阶段复制并注册就绪条目 (1:1 对标 Garnet PreStageAndRegisterPending)
+  /// 预分阶段复制并注册就绪条目 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:PreStageAndRegisterPending)
   ///
   /// 源刷盘快照缺失属于不变量破坏 (1:1 对标 C# 不变量 violation 处理)：绝不回退到其他
   /// 刷盘文件以免恢复出错误树版本，且不注册 pending 条目，让后续 get_or_open_tree
@@ -248,14 +248,14 @@ impl RangeIndexManager {
   ///
   /// 仅做注册表摘除 (调用方须已持条带写锁)；排空释放交由调用方在锁外执行——
   /// 排空时长取决于在途写者 (可能慢 I/O)，持锁排空会长时间阻塞同条带的
-  /// 生命周期操作 (1:1 对标 C# DisposeTreeUnderLock 锁内移除、锁外 epoch 排空)。
+  /// 生命周期操作 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 锁内移除、锁外 epoch 排空)。
   #[inline]
   fn remove_and_take_tree(&self, key_id: u128) -> Option<Arc<BfTreeService>> {
     let entry = self.live_indexes.pin().remove(&key_id)?.clone();
     entry.tree.write().take()
   }
 
-  /// 注销并释放指定树条目 (1:1 对标 Garnet UnregisterIndex)
+  /// 注销并释放指定树条目 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:UnregisterIndex)
   ///
   /// 锁内摘除注册表条目 (并发恢复/快照立即不可见)，锁外屏障排空在途写者后
   /// 释放引擎实例；排空超时上抛且条目保持已移除态 (引擎句柄由 Arc 归零兜底)。
@@ -270,9 +270,9 @@ impl RangeIndexManager {
     Ok(true)
   }
 
-  /// 删除指定索引并彻底清理磁盘文件 (1:1 对标 Garnet DisposeTreeUnderLock deleteFiles=true)
+  /// 删除指定索引并彻底清理磁盘文件 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock deleteFiles=true)
   ///
-  /// 时序对标 C# DisposeAndDeleteFilesDeferred：锁内摘除条目 → 锁外屏障排空在途
+  /// 时序对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeAndDeleteFilesDeferred：锁内摘除条目 → 锁外屏障排空在途
   /// 写者并释放引擎实例 → 树静稳后才删除工作文件。绝不持锁删文件——那会与仍在
   /// 旧树上执行 insert 的写者撕裂 (写入已成功应答却落入正被 unlink 的 inode，
   /// 客户端收到成功而数据消失于进程内可见窗口之外的磁盘上)。刷盘快照文件保留，
@@ -298,7 +298,7 @@ impl RangeIndexManager {
     Ok(true)
   }
 
-  /// 销毁并释放指定树条目 (1:1 对标 Garnet DisposeTreeUnderLock)
+  /// 销毁并释放指定树条目 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock)
   ///
   /// delete_file=true (DEL/UNLINK) 时同时删除工作文件 data.bftree (刷盘快照保留，
   /// 由 on_truncate 按日志地址回收)；false (淘汰) 时仅注销条目保留文件供惰性恢复
@@ -310,7 +310,7 @@ impl RangeIndexManager {
     }
   }
 
-  /// 销毁并释放指定树条目，校验存根转移标志 (1:1 对标 Garnet DisposeTreeUnderLock)
+  /// 销毁并释放指定树条目，校验存根转移标志 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock)
   pub fn dispose_tree_under_lock(
     &self,
     key: &[u8],
@@ -323,7 +323,7 @@ impl RangeIndexManager {
     self.dispose_tree(key, delete_files)
   }
 
-  /// 注册已存在的 BfTreeService 实例到管理器中 (1:1 对标 Garnet RegisterIndex)
+  /// 注册已存在的 BfTreeService 实例到管理器中 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:RegisterIndex)
   ///
   /// 持有条带互斥写锁，与 RestoreTree / UnregisterIndex / 检查点快照等路径串行化
   pub fn register_tree(&self, key: &[u8], tree: Arc<BfTreeService>) {

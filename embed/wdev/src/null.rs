@@ -21,7 +21,7 @@ use crate::{
 /// 避免池化缓冲残留脏数据被调用方当作"成功读取"的有效数据。
 pub struct NullDevice {
   sector_size: usize,
-  /// 起始有效段编号（截断单调推进，对标 C# StorageDeviceBase.startSegment）
+  /// 起始有效段编号（截断单调推进，对标 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:startSegment）
   start_segment: AtomicU32,
   pool: Arc<BufferPool>,
 }
@@ -102,7 +102,7 @@ impl Device for NullDevice {
     Ok(u64::MAX)
   }
 
-  /// 截断为单调推进起始段编号（对标 C# Utility.MonotonicUpdate，物理删除无操作）
+  /// 截断为单调推进起始段编号（对标 libs/client/Utility.cs:MonotonicUpdate，物理删除无操作）
   async fn truncate_until_segment(&self, segment_id: u32) -> Result<()> {
     self.start_segment.fetch_max(segment_id, SeqCst);
     Ok(())

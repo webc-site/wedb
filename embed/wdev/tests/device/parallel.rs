@@ -19,7 +19,7 @@ use wram::AlignedBuf;
 
 use crate::support::make_pattern_data;
 
-/// 对标 C# `IDevice_Parallel_32ConcurrentWrites`：32 个并发任务同时写入互不重叠的
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Parallel_32ConcurrentWrites：32 个并发任务同时写入互不重叠的
 /// 8KB 块（模式 `(j ^ (id * 17)) & 0xFF`），全部完成后逐块回读校验。
 /// C# 段尺寸 64MiB，此处等比缩小为 1MiB，全部写入仍落在段 0。
 #[test]
@@ -73,7 +73,7 @@ fn idevice_parallel_32_concurrent_writes() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_Parallel_64ConcurrentReads`：预写 64 个 4KB 块（每块独立模式
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Parallel_64ConcurrentReads：预写 64 个 4KB 块（每块独立模式
 /// `(blk * 31 + off) & 0xFF`），随后 64 个并发读取并逐块校验内容。
 #[test]
 fn idevice_parallel_64_concurrent_reads() -> Void {
@@ -122,9 +122,9 @@ fn idevice_parallel_64_concurrent_reads() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_Parallel_MixedReadsAndWrites`：同时向互不重叠区域发起
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Parallel_MixedReadsAndWrites：同时向互不重叠区域发起
 /// 16 个读取与 16 个写入，校验读写互不干扰；并验证截断后
-/// start_segment 单调推进（对标 IDevice.StartSegment 属性语义）。
+/// start_segment 单调推进（对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:StartSegment 属性语义）。
 #[test]
 fn idevice_parallel_mixed_reads_and_writes() -> Void {
   let rt = Runtime::new()?;
@@ -208,7 +208,7 @@ fn idevice_parallel_mixed_reads_and_writes() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_Parallel_BurstyTraffic`：10 轮突发，每轮并发提交 10 个互不重叠的
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Parallel_BurstyTraffic：10 轮突发，每轮并发提交 10 个互不重叠的
 /// 4KB 写入（模式 `(j + globalIdx) & 0xFF`），轮末全量等待后再进下一轮。
 #[test]
 fn idevice_parallel_bursty_traffic() -> Void {
@@ -252,7 +252,7 @@ fn idevice_parallel_bursty_traffic() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_Parallel_StressBurst_100Writes`：100 个并发 4KB 写入
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Parallel_StressBurst_100Writes：100 个并发 4KB 写入
 /// （模式 `(j * 5 + id) & 0xFF`），每 5 块抽读校验全部字节，并断言
 /// end_segment 精确覆盖末字节所在段。
 #[test]
@@ -445,7 +445,7 @@ fn concurrent_cold_open_race_without_zombie_revival() -> Void {
   OK
 }
 
-/// 对标 C# `Native_HighConcurrency_ManyThreads_NoHang`：多个 OS 线程各自运行独立
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:Native_HighConcurrency_ManyThreads_NoHang：多个 OS 线程各自运行独立
 /// compio Runtime 共享同一设备实例。写入句柄按 (线程ID, 段号) 键控（thread-per-core），
 /// sync 为全局屏障：任一线程调用即覆盖全部线程的在表句柄。本用例验证跨线程无句柄
 /// 串扰、无死锁，各线程独占段的数据写读一致，且任一线程 sync 后全部段持久化可见。

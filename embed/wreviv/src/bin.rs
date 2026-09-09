@@ -5,9 +5,9 @@ use std::{
 
 use crate::record::{FreeRecord, SetStatus};
 
-/// 首次适配（First-Fit）：取首个满足尺寸的槽位（对标 C# RevivificationBin.UseFirstFit = 0）
+/// 首次适配（First-Fit）：取首个满足尺寸的槽位（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs:UseFirstFit = 0）
 pub const USE_FIRST_FIT: usize = 0;
-/// 全局最优适配（Best-Fit Scan All）：扫描全桶寻找最小浪费槽位（对标 C# RevivificationBin.BestFitScanAll）
+/// 全局最优适配（Best-Fit Scan All）：扫描全桶寻找最小浪费槽位（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs:BestFitScanAll）
 pub const BEST_FIT_SCAN_ALL: usize = usize::MAX;
 
 /// 定长分桶（管理特定尺寸范围的空闲槽位，支持原子 CAS 存取，防止并发锁争用）
@@ -191,7 +191,7 @@ impl FreeRecordBin {
     (None, purged)
   }
 
-  /// 带扫描上限的最优适配原子取出（对标 C# TryTakeBestFit）
+  /// 带扫描上限的最优适配原子取出（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:TryTakeBestFit）
   ///
   /// 扫描分桶内槽位：
   /// - 遇到低于 `min_address` 的失效槽位，就地原子 CAS 清零淘汰并计入 `purged`
@@ -240,7 +240,7 @@ impl FreeRecordBin {
                 first_fit_idx = Some(i);
               }
 
-              // 精确匹配：零浪费，作为最优候选立即停止扫描（对标 C# TryPeek 返回 exact match 逻辑）
+              // 精确匹配：零浪费，作为最优候选立即停止扫描（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:TryPeek 返回 exact match 逻辑）
               if size == required_size {
                 best_idx = Some(i);
                 best_raw = current;

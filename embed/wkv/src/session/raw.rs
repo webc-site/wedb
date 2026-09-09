@@ -43,7 +43,7 @@ enum TraceBackResult<T> {
   TraceBack(u64),
 }
 
-/// 内存直读内部结果（严格对照 C# Garnet InternalRead 单遍分类，附加磁盘候选透传）
+/// 内存直读内部结果（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类，附加磁盘候选透传）
 enum MemRead<R> {
   /// 内存阶段已闭环：`Some` 为命中值，`None` 为确认不存在（含墓碑，对应 `NOTFOUND`）
   Done(Option<R>),
@@ -52,7 +52,7 @@ enum MemRead<R> {
 }
 
 impl<D: Device> StoreSession<D> {
-  /// 尝试在内存可变区原位读-改-写记录（严格对标 C# Garnet InternalRMW.cs & InPlaceUpdaterWorker）
+  /// 尝试在内存可变区原位读-改-写记录（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs:InternalRMW.cs & InPlaceUpdaterWorker）
   ///
   /// 利用单趟探针定位槽位后，若记录处于内存可变区且键匹配非墓碑，直接持有页写锁在物理内存切片上执行闭包原地修改。
   /// 若原地修改成功返回 `Ok(Some(R))`，完全 0 堆分配、0 HLog 追加、0 哈希表 CAS！
@@ -112,7 +112,7 @@ impl<D: Device> StoreSession<D> {
     self.try_modify_raw_in_place_unprotected(&str_k, f)
   }
 
-  /// 在单次纪元保护下尝试利用动态松弛原位覆写当前会话字符串记录的值（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan）
+  /// 在单次纪元保护下尝试利用动态松弛原位覆写当前会话字符串记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
   #[inline]
   pub fn try_modify_with_slack(&self, user_key: &[u8], new_val: &[u8]) -> Result<bool> {
     let _guard = self.participant.enter();
@@ -138,7 +138,7 @@ impl<D: Device> StoreSession<D> {
     Ok(false)
   }
 
-  /// 在已有纪元保护下尝试在内存可变区基于动态松弛原位覆写当前会话普通字符串记录的值（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan）
+  /// 在已有纪元保护下尝试在内存可变区基于动态松弛原位覆写当前会话普通字符串记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
   #[inline]
   pub fn try_modify_with_slack_unprotected(&self, user_key: &[u8], new_val: &[u8]) -> Result<bool> {
     let str_k = self.session_string_key(user_key);
@@ -328,7 +328,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 底层物理纯同步快速路径写入（Raw，严格对标 C# Garnet NetworkSET & InternalUpsert）
+  /// 底层物理纯同步快速路径写入（Raw，严格对标 libs/server/Resp/BasicCommands.cs:NetworkSET & InternalUpsert）
   pub fn try_upsert_raw_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<u64, u64>> {
     let _guard = self.participant.enter();
     self.try_upsert_raw_sync_unprotected(key, val)
@@ -436,7 +436,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 纯同步快速路径写入当前会话普通字符串键（严格对标 C# Garnet NetworkSET & InternalUpsert）
+  /// 纯同步快速路径写入当前会话普通字符串键（严格对标 libs/server/Resp/BasicCommands.cs:NetworkSET & InternalUpsert）
   ///
   /// SET 语义同步清除既有 key 级 TTL 记录：TTL 记录驻留可变区时墓碑同步闭环；
   /// 需异步驱逐（PageNotReady）或冷数据确认时返回 Ok(Err(u64::MAX))，
@@ -496,7 +496,7 @@ impl<D: Device> StoreSession<D> {
     self.upsert_raw(&str_k, val).await
   }
 
-  /// 基于预先获得的首地址探针执行底层物理同步内存直读快路径（Raw，严格对照 C# Garnet InternalRead 与 FindTag）
+  /// 基于预先获得的首地址探针执行底层物理同步内存直读快路径（Raw，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 与 FindTag）
   ///
   /// # 注意
   /// 调用方须确保当前线程处于 LightEpoch 纪元保护下。
@@ -560,7 +560,7 @@ impl<D: Device> StoreSession<D> {
     self.try_read_raw_in_memory_with_addr(&str_k, first_addr, f)
   }
 
-  /// 当前会话普通字符串同步内存直读快路径（严格对照 C# Garnet InternalRead 与 FindTag 实现）
+  /// 当前会话普通字符串同步内存直读快路径（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 与 FindTag 实现）
   #[inline]
   pub fn try_read_in_memory<R>(
     &self,
@@ -571,7 +571,7 @@ impl<D: Device> StoreSession<D> {
     self.try_read_in_memory_unprotected(user_key, f)
   }
 
-  /// 内存直读核心路径（调用方须处于纪元保护下，严格对照 C# Garnet InternalRead 单遍分类）
+  /// 内存直读核心路径（调用方须处于纪元保护下，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类）
   ///
   /// - **首项快速探针（FindTag）**：绝大多数情况下（99.9%）哈希索引首个槽位即命中，
   ///   直接进行单次内存记录解析并零拷贝执行闭包 `f` 返回。
@@ -594,7 +594,7 @@ impl<D: Device> StoreSession<D> {
     let head_addr = self.store.head_address();
     let begin_addr = self.store.begin_address();
 
-    // 1. ReadCache 内存直读快路径（严格对标 Garnet ReadCache: DRAM 纳秒级纯内存直读）
+    // 1. ReadCache 内存直读快路径（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:DRAM 纳秒级纯内存直读）
     while is_read_cache_addr(curr_addr) {
       let mut next_addr = 0;
       let matched = self
@@ -621,7 +621,7 @@ impl<D: Device> StoreSession<D> {
 
     // 2. 内存常态快路径（99%+ 场景）：处于 HLog 内存驻留区，直接单点探针与回溯
     if !is_read_cache_addr(curr_addr) && curr_addr >= head_addr {
-      // 严格对照 C# Garnet TraceBackForKeyMatch 实现反向链表回溯
+      // 严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TraceBackForKeyMatch 实现反向链表回溯
       while curr_addr >= head_addr {
         let probed = self.store.hlog.with_memory_record(curr_addr, |rec| {
           if rec.matches_key(key) {
@@ -640,7 +640,7 @@ impl<D: Device> StoreSession<D> {
 
         match probed {
           Some(TraceBackResult::Found(val)) => {
-            // 不可变区命中：对齐 C# InternalRead.CopyFromImmutable 预提升挂入 ReadCache，
+            // 不可变区命中：对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable 预提升挂入 ReadCache，
             // 后续读取直接命中纯 DRAM 缓存，免重复回溯主日志
             if !self.store.hlog.is_mutable(curr_addr) {
               self.promote_immutable_to_read_cache(curr_addr, key);
@@ -767,7 +767,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 不可变区命中预提升：将内存驻留的只读记录挂入 ReadCache（严格对照 C# Garnet InternalRead.CopyFromImmutable）
+  /// 不可变区命中预提升：将内存驻留的只读记录挂入 ReadCache（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable）
   ///
   /// - ReadCache 为非脏 DRAM 日志，追加零持久化成本、零写放大；
   /// - 与磁盘读回填路径天然去重：提升后索引地址已 CAS 指向 RC，后续读取直接命中 RC，不再触达磁盘回填；
@@ -808,7 +808,7 @@ impl<D: Device> StoreSession<D> {
   ///   彻底消除单次冷读阻塞纪元推进与页回收的尾延迟隐患；
   /// - 读取走 `read_disk_record` 纯设备路径（不触碰内存页缓冲），无守卫读取安全性成立；
   /// - 磁盘链回溯：Tag 碰撞键不匹配时沿记录 `prev_address` 前驱链继续冷读
-  ///   （严格对照 C# AllocatorBase.AsyncGetFromDiskCallback "skips colliding keys by
+  ///   （严格对照 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:AsyncGetFromDiskCallback "skips colliding keys by
   ///   following the .PreviousAddress chain"；链地址在磁盘区内严格单调下降，
   ///   直至链尽 0 或低于截断线 begin_address）。
   #[cold]
@@ -848,7 +848,7 @@ impl<D: Device> StoreSession<D> {
         let result = func(val_slice);
 
         // 回填阶段重新进入纪元保护（ReadCache 挂链与索引地址更新均为共享内存结构变更）；
-        // 严格对照 C# Garnet TryCopyToReadCache 与 TryCopyToTail：
+        // 严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs:TryCopyToReadCache 与 TryCopyToTail：
         // 1. 若启用了 ReadCache，优先将冷数据挂入纯 DRAM 只读非脏页内存日志（零持久化开销、零写放大）；
         // 2. 否则若开启 copy_reads_to_tail，则回退到追加 Tail 内存活跃区晋升。
         // （匹配记录非链头时索引更新自然失配为 no-op，RC 挂链由环形覆盖自然回收）
@@ -956,7 +956,7 @@ impl<D: Device> StoreSession<D> {
     move |i, v| cb(base + i, v)
   }
 
-  /// 批量读取当前会话普通字符串记录（严格对照 C# Garnet ContextReadWithPrefetch 实现 12 项硬件流水线预取）
+  /// 批量读取当前会话普通字符串记录（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch 实现 12 项硬件流水线预取）
   ///
   /// 按预取窗口常量分块，`TaggedKeyBuf`（Copy）在单个栈上数组内编码后逐块调用底层批量读，
   /// 任意批量规模全程零堆物化（仅磁盘候选收割冷路径按需分配）。
@@ -1107,7 +1107,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 同步纯内存批量直读当前会话普通字符串记录（严格对照 C# Garnet ContextReadWithPrefetch 12 项流水线预取）
+  /// 同步纯内存批量直读当前会话普通字符串记录（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch 12 项流水线预取）
   ///
   /// 与异步版一致按预取窗口常量分块栈上编码，任意批量规模全程零堆分配。
   pub fn try_read_batch_in_memory<K, F>(&self, keys: &[K], mut on_item: F) -> Result<()>
@@ -1131,7 +1131,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 底层物理同步纯内存批量直读（Raw，严格对照 C# Garnet ContextReadWithPrefetch 12 项流水线预取）
+  /// 底层物理同步纯内存批量直读（Raw，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch 12 项流水线预取）
   ///
   /// - 适用于纯内存驻留读场景或快速内存筛选；
   /// - 若记录处于内存中且存在，调用 `on_item(idx, Some(val))`；
@@ -1201,7 +1201,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 纯同步快速路径物理删除单个键（严格对标 C# Garnet NetworkDEL & InternalDelete）
+  /// 纯同步快速路径物理删除单个键（严格对标 libs/server/Resp/ArrayCommands.cs:NetworkDEL & InternalDelete）
   ///
   /// 语义与安全边界详见 [`Self::try_delete_raw_sync_unprotected`]
   pub fn try_delete_raw_sync(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
@@ -1218,7 +1218,7 @@ impl<D: Device> StoreSession<D> {
   /// - 仅当追加墓碑遭遇环形缓冲区翻转（PageNotReady）时返回 Ok(Err(page_id))，交由外层异步驱逐；
   /// - 冷数据需磁盘确认时返回 Ok(Err(u64::MAX))，调用方降级全异步路径。
   ///
-  /// # 设计边界（对标 C# TrySeal 的刻意裁剪）
+  /// # 设计边界（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:TrySeal 的刻意裁剪）
   /// Record Elision 路径未移植 C# `InfoRef.TrySeal(invalidate: true)` 的记录头密封协议
   /// （裁决见 wreviv::FreeRecord 并发模型注释）：脱钩后槽位立即入池，可能在其他核心
   /// 的在途读者完成解析前被复活改写。安全性依赖 wreviv 声明的"单写者 + 页写锁 +
@@ -1238,7 +1238,7 @@ impl<D: Device> StoreSession<D> {
       }
 
       let addr = hei.address();
-      // ReadCache 链头分流（严格对标 C# InternalDelete.cs：TryFindRecordForUpdate 的
+      // ReadCache 链头分流（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs:InternalDelete.cs：TryFindRecordForUpdate 的
       // 键匹配链遍历 + HasReadCacheSrc → CreateNewRecord 盲插墓碑）
       let mut cur = addr;
       if is_read_cache_addr(addr) {
@@ -1375,7 +1375,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 纯同步快速删除键（支持普通键快速路径，严格对标 Garnet NetworkDEL）
+  /// 纯同步快速删除键（支持普通键快速路径，严格对标 libs/server/Resp/ArrayCommands.cs:NetworkDEL）
   ///
   /// - 若为普通键且内存命中：纯同步直接返回 Ok(Ok(deleted))；
   /// - 若遭遇环形页翻转：返回 Ok(Err(page_id))；
@@ -1409,7 +1409,7 @@ impl<D: Device> StoreSession<D> {
   /// 磁盘冷数据异步删除慢路径
   ///
   /// ReadCache 条目顺链解析为首个主日志地址（键归属由 fast_key_eq 校验兜底）后，
-  /// 沿记录 `prev_address` 前驱链回溯（严格对照 C# AllocatorBase.AsyncGetFromDiskCallback
+  /// 沿记录 `prev_address` 前驱链回溯（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:AsyncGetFromDiskCallback
   /// 沿链跳过碰撞键语义），确保被 Tag 碰撞键掩埋的冷记录也能真实删除。
   /// 盲墓碑以「链头（槽位地址）」为前驱追加并 CAS 槽位：哈希链 prev 语义即
   /// 「插入时刻的槽位地址」，与快路径 prev_link 口径一致；碰撞键经墓碑前驱仍可达。
@@ -1450,7 +1450,7 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 底层检查指定物理键是否存在且未被墓碑删除（Contains Key Raw）
-  /// 对标 C# Garnet InternalContainsKeyInMemory 与完整读路径：
+  /// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs:InternalContainsKeyInMemory 与完整读路径：
   /// 基于 zero-copy 闭包读取，0 堆分配，严格沿 prev_address 反向链回溯处理 Tag 碰撞
   #[inline]
   pub async fn contains_key_raw(&self, key: &[u8]) -> Result<bool> {

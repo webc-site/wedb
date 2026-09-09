@@ -17,7 +17,7 @@ use wepoch::LightEpoch;
 
 use super::support::{ParkedReaderThread, join_all};
 
-/// 对标 Garnet DrainTests: ActionRunsImmediatelyWhenNobodyElseIsProtected
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:ActionRunsImmediatelyWhenNobodyElseIsProtected
 ///
 /// 无其他线程受保护时，注册的延迟动作对应的纪元立即处于安全状态并同步执行
 #[test]
@@ -43,7 +43,7 @@ fn action_runs_immediately_when_nobody_else_is_protected() -> Void {
   OK
 }
 
-/// 对标 Garnet DrainTests: TheLastThreadToSuspendRunsPendingActions
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:TheLastThreadToSuspendRunsPendingActions
 ///
 /// 有常驻读者阻止回收时动作暂不执行；最后一个挂起的读者在退出时代为清空已就绪动作
 #[test]
@@ -80,7 +80,7 @@ fn the_last_thread_to_suspend_runs_pending_actions() -> Void {
   OK
 }
 
-/// 对标 Garnet DrainTests: EveryActionRunsExactlyOnceWhenTheDrainListFills
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:EveryActionRunsExactlyOnceWhenTheDrainListFills
 ///
 /// 填满整个延迟动作队列（容量上限），常驻读者退出后所有延迟动作恰好各自执行一次
 #[test]
@@ -123,7 +123,7 @@ fn every_action_runs_exactly_once_when_drain_list_fills() -> Void {
   OK
 }
 
-/// 对标 Garnet DrainTests: RegisteringBlocksWhileTheDrainListIsFullAndCompletesAfterwards
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:RegisteringBlocksWhileTheDrainListIsFullAndCompletesAfterwards
 ///
 /// 延迟队列占满且无槽位可回收时，新注册线程阻塞，待阻碍读者退出后解除阻塞并完成注册
 #[test]
@@ -201,7 +201,7 @@ fn registering_blocks_while_drain_list_is_full_and_completes_afterwards() -> Voi
   OK
 }
 
-/// 对标 Garnet DrainTests: ActionsRunInEpochOrder
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:ActionsRunInEpochOrder
 ///
 /// 跨递增纪元注册的多个动作，在回收时严格按照纪元单调推进顺序排队触发
 #[test]
@@ -238,7 +238,7 @@ fn actions_run_in_epoch_order() -> Void {
   OK
 }
 
-/// 对标 Garnet DrainTests: ManyThreadsRegisteringActionsAllRunExactlyOnce
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:ManyThreadsRegisteringActionsAllRunExactlyOnce
 ///
 /// 多线程高并发注册延迟清理动作，所有动作全量且仅执行一次
 #[test]
@@ -292,7 +292,7 @@ fn many_threads_registering_actions_all_run_exactly_once() -> Void {
   OK
 }
 
-/// 对标 Garnet DrainTests: ActionDoesNotRunWhileAnotherThreadIsProtected
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/DrainTests.cs:ActionDoesNotRunWhileAnotherThreadIsProtected
 ///
 /// 只要其他线程仍处于受保护纪元，延迟动作绝不提前触发；挂起后正常执行
 #[test]
@@ -458,7 +458,7 @@ fn bump_and_wait_drains_queued_actions_without_manual_drain() -> Void {
 /// 高频交错下每个延迟动作全量恰好执行一次、终态计数精确归零
 ///
 /// 锁定 `LightEpoch::drain` 与 `bump_current_epoch_action` 的镜像计数协议
-/// （注册：先加计数后公布纪元；消费：先减计数后发布 FREE）——对照 C# LightEpoch.Drain
+/// （注册：先加计数后公布纪元；消费：先减计数后发布 FREE）——对照 libs/client/LightEpoch.cs:Drain
 /// 的非镜像次序（可交换 RMW 下总量仍守恒，仅存在瞬时观测偏差），本不变式压力测试
 /// 守护任意交错下「动作恰好一次 + 终态计数归零」的核心契约
 #[test]

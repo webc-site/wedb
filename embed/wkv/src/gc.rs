@@ -20,7 +20,7 @@
 //! 扫描观测对标 Garnet `ExpiredKeyDeletionScan` 的 `(numExpiredKeysFound,
 //! totalRecordsScanned)` 双口径（见 [`GcStatsSnapshot`]）。
 //!
-//! 第三段：hash 字段级过期收集（对标 Garnet StoreWrapper.ObjectCollectTaskAsync
+//! 第三段：hash 字段级过期收集（对标 libs/server/StoreWrapper.cs:ObjectCollectTaskAsync
 //! 按 EXPIRED_OBJECT_COLLECTION_FREQ 周期驱动 storageSession.HashCollect 收集
 //! 对象内过期成员）。与 Garnet 的差异：Garnet 为独立频率配置的独立后台任务，
 //! 直接遍历内存对象内的过期 field；wedb 的字段 TTL 以紧凑载荷内联存储，本引擎

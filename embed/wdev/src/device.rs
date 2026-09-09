@@ -132,7 +132,7 @@ pub trait Device: Send + Sync + 'static {
 
   /// 全局刷盘同步：遍历设备上全部在表段句柄（按段号去重）逐 inode fsync/fdatasync
   ///
-  /// 语义对齐 C# `LocalStorageDevice`（句柄表进程级共享、任意线程可 sync）：任意线程
+  /// 语义对齐 libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs:LocalStorageDevice（句柄表进程级共享、任意线程可 sync）：任意线程
   /// 调用即覆盖所有线程在 sync 发起前完成的写入，release 构建无"他线程写入漏刷"的
   /// 静默丢失窗口。跨线程 fsync 可行性：fd 属进程级 files_struct，fsync 按 inode
   /// 全量生效、无线程亲和（`compio-driver/sync` feature 保证句柄本身可跨线程共享）。
@@ -151,18 +151,18 @@ pub trait Device: Send + Sync + 'static {
     self.sync()
   }
 
-  /// 获取指定段的文件大小（字节，若段文件不存在或已截断返回 0，对标 C# IDevice.GetFileSize）
+  /// 获取指定段的文件大小（字节，若段文件不存在或已截断返回 0，对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:GetFileSize）
   #[inline]
   fn get_file_size(&self, _segment_id: u32) -> Result<u64> {
     Ok(0)
   }
 
-  /// 物理删除单个段文件并从句柄缓存中移除（对标 C# IDevice.RemoveSegment）
+  /// 物理删除单个段文件并从句柄缓存中移除（对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:RemoveSegment）
   fn remove_segment(&self, _segment_id: u32) -> impl Future<Output = Result<()>> {
     async move { Ok(()) }
   }
 
-  /// 重置设备句柄缓存（关闭并遗忘所有当前打开的文件句柄，对标 C# IDevice.Reset）
+  /// 重置设备句柄缓存（关闭并遗忘所有当前打开的文件句柄，对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:Reset）
   #[inline]
   fn reset(&self) {}
 
@@ -170,7 +170,7 @@ pub trait Device: Send + Sync + 'static {
   fn truncate_until_segment(&self, segment_id: u32) -> impl Future<Output = Result<()>>;
 
   /// 根据逻辑地址截断历史段文件（截断至该地址所在的段边界之前，删除该段之前的所有段文件）
-  /// 对照 C# IDevice.TruncateUntilAddress 语义
+  /// 对照 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:TruncateUntilAddress 语义
   fn truncate_until_address(&self, to_address: u64) -> impl Future<Output = Result<()>> {
     async move {
       if let Some(seg_size) = self.segment_size() {

@@ -20,7 +20,7 @@ const TOTAL_RECORDS: usize = 2000;
 const CUT_OFFSET: usize = 1000;
 const OVERWRITE_COUNT: usize = 500;
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest1 (Lookup 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest1 (Lookup 模式)
 ///
 /// 写入 2000 条记录，在 1000 条处记录紧缩点，刷盘并驱逐至磁盘，
 /// 执行 Lookup 紧缩后验证 begin_address 推进至截断点，2000 条记录全部完整可读。
@@ -67,7 +67,7 @@ fn spanbyte_compaction_test1_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest1 (Scan 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest1 (Scan 模式)
 ///
 /// 相同 2000 条记录落盘流程，采用 Scan 模式紧缩，验证紧缩推进及全量数据准确性。
 #[test]
@@ -113,7 +113,7 @@ fn spanbyte_compaction_test1_scan() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest2 (Lookup 多层冷热模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest2 (Lookup 多层冷热模式)
 ///
 /// 写入 2000 条后落盘，在内存中覆写前 500 条（Level 1 内存热区 + Level 2 磁盘冷区），
 /// 紧缩后验证旧版本安全丢弃，新版本与未修改记录全部准确回读。
@@ -186,7 +186,7 @@ fn spanbyte_compaction_test2_multilevel_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest2 (Scan 多层冷热模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest2 (Scan 多层冷热模式)
 #[test]
 fn spanbyte_compaction_test2_multilevel_scan() -> Void {
   let rt = Runtime::new()?;
@@ -255,7 +255,7 @@ fn spanbyte_compaction_test2_multilevel_scan() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest3 (Lookup 穿插删除模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest3 (Lookup 穿插删除模式)
 ///
 /// 写入过程中穿插删除键，紧缩后验证被删除键读空，其余记录完整存活。
 #[test]
@@ -321,7 +321,7 @@ fn spanbyte_compaction_test3_with_deletions_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionTest3 (Scan 穿插删除模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest3 (Scan 穿插删除模式)
 #[test]
 fn spanbyte_compaction_test3_with_deletions_scan() -> Void {
   let rt = Runtime::new()?;
@@ -385,7 +385,7 @@ fn spanbyte_compaction_test3_with_deletions_scan() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionCustomFunctionsTest1 (Lookup 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest1 (Lookup 模式)
 ///
 /// 自定义谓词：奇数值记录判定为已删除。紧缩后奇数项清除，偶数项存活迁移，紧缩区外不受影响。
 #[test]
@@ -446,7 +446,7 @@ fn spanbyte_compaction_custom_filter_test1_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionCustomFunctionsTest1 (Scan 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest1 (Scan 模式)
 #[test]
 fn spanbyte_compaction_custom_filter_test1_scan() -> Void {
   let rt = Runtime::new()?;
@@ -505,7 +505,7 @@ fn spanbyte_compaction_custom_filter_test1_scan() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionCustomFunctionsTest2 (Lookup 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest2 (Lookup 模式)
 ///
 /// 写入同一 Key 的多个版本并刷盘落盘，紧缩至 TailAddress，确保最终读取到的是最新版本值。
 #[test]
@@ -548,7 +548,7 @@ fn spanbyte_compaction_custom_functions_test2_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet SpanByteLogCompactionTests: SpanByteLogCompactionCustomFunctionsTest2 (Scan 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest2 (Scan 模式)
 #[test]
 fn spanbyte_compaction_custom_functions_test2_scan() -> Void {
   let rt = Runtime::new()?;

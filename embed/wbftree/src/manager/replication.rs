@@ -1,5 +1,5 @@
 //! 刷盘文件枚举、日志截断回收与检查点全量恢复
-//! (1:1 对标 Garnet EnumerateFilesForReplication / OnTruncateImpl / RecoverAllTreesFromCheckpoint)
+//! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:EnumerateFilesForReplication / OnTruncateImpl / RecoverAllTreesFromCheckpoint)
 
 use std::{
   fs,
@@ -28,7 +28,7 @@ impl RangeIndexManager {
     Some((prefix, addr))
   }
 
-  /// 日志截断清理：删除逻辑地址小于 new_begin_address 的历史刷盘快照文件 (1:1 对标 Garnet OnTruncateImpl)
+  /// 日志截断清理：删除逻辑地址小于 new_begin_address 的历史刷盘快照文件 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:OnTruncateImpl)
   pub fn on_truncate(&self, new_begin_address: i64) -> Result<()> {
     if !self.ri_log_root.exists() {
       return Ok(());
@@ -48,7 +48,7 @@ impl RangeIndexManager {
     Ok(())
   }
 
-  /// 收集指定检查点与 HybridLog 地址范围内需要进行主从复制的文件 (1:1 对标 Garnet EnumerateFilesForReplication)
+  /// 收集指定检查点与 HybridLog 地址范围内需要进行主从复制的文件 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:EnumerateFilesForReplication)
   pub fn enumerate_files_for_replication(
     &self,
     checkpoint_token: &str,
@@ -195,7 +195,7 @@ impl RangeIndexManager {
               continue;
             }
             // 仅注册 pending 条目 (tree=None)，引擎实例交给 get_or_open_tree 惰性恢复
-            // (1:1 对标 C# RebuildFromSnapshotIfPending 只预置不开树)。
+            // (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:RebuildFromSnapshotIfPending 只预置不开树)。
             // 前缀取 stem 解码出的 key_id 再规范编码：stem 本就是 key_id 的 Base32
             // 规范编码 (检查点文件名恒为小写)，round-trip 恒等且零堆分配 (对标 C#
             // 直接截取文件名前缀 name[..HashPrefixLength])

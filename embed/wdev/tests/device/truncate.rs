@@ -18,7 +18,7 @@ use wram::AlignedBuf;
 
 /// 对标 C# `StorageDeviceBase.TruncateUntilSegment`：截断后小于目标段的文件必须
 /// 从文件系统物理删除、get_file_size 返回 0、保留段数据完好；
-/// 单调回退截断为安全无操作（对标 Utility.MonotonicUpdate）；
+/// 单调回退截断为安全无操作（对标 libs/client/Utility.cs:MonotonicUpdate）；
 /// 单文件无界模式截断为无操作且不删除主文件。
 #[test]
 fn truncate_until_segment_removes_prior_segments() -> Void {
@@ -127,7 +127,7 @@ fn truncate_until_address_deletes_all_prior_segments() -> Void {
   OK
 }
 
-/// 对标 C# `Native_RemoveSegment_RemovesPersistedData`：删除单段后磁盘文件移除，
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:Native_RemoveSegment_RemovesPersistedData：删除单段后磁盘文件移除，
 /// 后续查询不崩溃且报告空尺寸。
 #[test]
 fn remove_segment_removes_persisted_data() -> Void {
@@ -155,7 +155,7 @@ fn remove_segment_removes_persisted_data() -> Void {
   OK
 }
 
-/// 对标 C# `Native_GetFileSize_ReflectsWrites`：写入前段尺寸为 0，
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:Native_GetFileSize_ReflectsWrites：写入前段尺寸为 0，
 /// 写入后 get_file_size 反映实际写入量。
 #[test]
 fn get_file_size_reflects_writes() -> Void {
@@ -182,7 +182,7 @@ fn get_file_size_reflects_writes() -> Void {
   OK
 }
 
-/// 对标 C# `Native_Reset_ClosesSegments_DeviceRemainsUsable`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:Native_Reset_ClosesSegments_DeviceRemainsUsable：
 /// Reset 关闭全部段句柄后，设备必须按需惰性重开并保证数据完好。
 #[test]
 fn reset_closes_segments_and_device_remains_usable() -> Void {

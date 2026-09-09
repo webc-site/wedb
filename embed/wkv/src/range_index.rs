@@ -94,7 +94,7 @@ pub(crate) async fn range_index_blocking<T: Send + 'static>(
 }
 
 impl<D: Device> StoreSession<D> {
-  /// 创建新的 RangeIndex 索引 (1:1 对标 Garnet StorageSession.RangeIndexCreate)
+  /// 创建新的 RangeIndex 索引 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexCreate)
   pub async fn range_index_create(
     &self,
     key: &[u8],
@@ -235,7 +235,7 @@ impl<D: Device> StoreSession<D> {
     Ok(Some((meta, stub)))
   }
 
-  /// 获取在线 BfTree 实例及其条带共享读锁 (1:1 对标 Garnet ReadRangeIndex 与 ReadRangeIndexLock)
+  /// 获取在线 BfTree 实例及其条带共享读锁 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:ReadRangeIndex 与 ReadRangeIndexLock)
   ///
   /// 先在无锁/共享锁状态下快速命中（稳态 O(1)：一次 volatile 读 + 一次注册表
   /// 查找），若树未激活则释放读锁后调用 get_or_open_tree（文件 I/O + 快照解析
@@ -269,7 +269,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 设置字段值 (1:1 对标 Garnet StorageSession.RangeIndexSet)
+  /// 设置字段值 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexSet)
   pub async fn range_index_set(
     &self,
     key: &[u8],
@@ -317,7 +317,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 读取字段值 (1:1 对标 Garnet StorageSession.RangeIndexGet)
+  /// 读取字段值 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexGet)
   pub async fn range_index_get(
     &self,
     key: &[u8],
@@ -340,7 +340,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 删除字段 (1:1 对标 Garnet StorageSession.RangeIndexDel)
+  /// 删除字段 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexDel)
   pub async fn range_index_del(
     &self,
     key: &[u8],
@@ -392,7 +392,7 @@ impl<D: Device> StoreSession<D> {
     Ok(tree.scan_with_count_callback(start, count, return_field, on_record)?)
   }
 
-  /// 扫描指定数量的记录 (1:1 对标 Garnet StorageSession.RangeIndexScan，基于零分配流式底层构建)
+  /// 扫描指定数量的记录 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexScan，基于零分配流式底层构建)
   pub async fn range_index_scan(
     &self,
     key: &[u8],
@@ -439,7 +439,7 @@ impl<D: Device> StoreSession<D> {
     Ok(tree.scan_with_end_key_callback(start, end, return_field, on_record)?)
   }
 
-  /// 范围查询闭区间 [start, end] (1:1 对标 Garnet StorageSession.RangeIndexRange，基于零分配流式底层构建)
+  /// 范围查询闭区间 [start, end] (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexRange，基于零分配流式底层构建)
   pub async fn range_index_range(
     &self,
     key: &[u8],
@@ -460,7 +460,7 @@ impl<D: Device> StoreSession<D> {
     Ok(records)
   }
 
-  /// 检查索引是否存在且为 RangeIndex (1:1 对标 Garnet StorageSession.RangeIndexExists)
+  /// 检查索引是否存在且为 RangeIndex (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexExists)
   pub async fn range_index_exists(&self, key: &[u8]) -> Result<bool> {
     if let Some(meta) = self.load_meta(key).await?
       && meta.size > 0
@@ -471,7 +471,7 @@ impl<D: Device> StoreSession<D> {
     Ok(false)
   }
 
-  /// 获取索引配置 (1:1 对标 Garnet StorageSession.RangeIndexConfig)
+  /// 获取索引配置 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexConfig)
   pub async fn range_index_config(&self, key: &[u8]) -> StdResult<RangeIndexStub, RangeIndexError> {
     let (_, stub) = self
       .load_range_index_stub(key)
@@ -480,7 +480,7 @@ impl<D: Device> StoreSession<D> {
     Ok(stub)
   }
 
-  /// 获取索引指标与运行状态 (1:1 对标 Garnet StorageSession.RangeIndexMetrics)
+  /// 获取索引指标与运行状态 (1:1 对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexMetrics)
   pub async fn range_index_metrics(
     &self,
     key: &[u8],
@@ -500,7 +500,7 @@ impl<D: Device> StoreSession<D> {
     Ok((tree_handle, is_live, stub.is_flushed(), stub.is_recovered()))
   }
 
-  /// 发布迁移或分块重组后的 RangeIndex (1:1 对标 Garnet PublishMigratedIndex)
+  /// 发布迁移或分块重组后的 RangeIndex (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:PublishMigratedIndex)
   ///
   /// 全程持该键条带互斥写锁 (对标 C# 调用方持 RangeIndex X 锁发布)：存在性判定 →
   /// 旧树排空释放 → 快照文件原子换入 → 恢复注册 → 存根落盘，构成对同键并发

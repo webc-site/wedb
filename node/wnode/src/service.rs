@@ -99,7 +99,7 @@ impl<D: Device> NodeService<D> {
     &self.wal
   }
 
-  /// 创建范围索引并预写 WAL（apply → log，对标 StorageSession.RangeIndexOps + AOF）
+  /// 创建范围索引并预写 WAL（apply → log，对标 libs/server/Storage/Session/MainStore/BitmapOps.cs:RangeIndexOps + AOF）
   pub async fn ri_create(
     &self,
     key: &[u8],

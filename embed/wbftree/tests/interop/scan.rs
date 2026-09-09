@@ -3,7 +3,7 @@ use wbftree::{BfTreeInsertResult, BfTreeService, ScanReturnField};
 
 use super::common::{TempTreeGuard, insert_test_data};
 
-/// 测试限制数量扫描返回指定条数的结果（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_ReturnsCorrectCount）
+/// 测试限制数量扫描返回指定条数的结果（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_ReturnsCorrectCount）
 #[test]
 fn test_scan_with_count_returns_correct_count() -> Result<()> {
   let path = TempTreeGuard::new("scan_count");
@@ -16,7 +16,7 @@ fn test_scan_with_count_returns_correct_count() -> Result<()> {
   OK
 }
 
-/// 测试扫描同时返回键和值数据（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_ReturnsKeyAndValue）
+/// 测试扫描同时返回键和值数据（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_ReturnsKeyAndValue）
 #[test]
 fn test_scan_with_count_returns_key_and_value() -> Result<()> {
   let path = TempTreeGuard::new("scan_kv");
@@ -34,7 +34,7 @@ fn test_scan_with_count_returns_key_and_value() -> Result<()> {
   OK
 }
 
-/// 测试扫描仅返回键而不返回多余的值数据（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_KeyOnly）
+/// 测试扫描仅返回键而不返回多余的值数据（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_KeyOnly）
 #[test]
 fn test_scan_with_count_key_only() -> Result<()> {
   let path = TempTreeGuard::new("scan_key_only");
@@ -52,7 +52,7 @@ fn test_scan_with_count_key_only() -> Result<()> {
   OK
 }
 
-/// 测试扫描仅返回值而不返回多余的键数据（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_ValueOnly）
+/// 测试扫描仅返回值而不返回多余的键数据（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_ValueOnly）
 #[test]
 fn test_scan_with_count_value_only() -> Result<()> {
   let path = TempTreeGuard::new("scan_val_only");
@@ -70,7 +70,7 @@ fn test_scan_with_count_value_only() -> Result<()> {
   OK
 }
 
-/// 测试扫描返回结果保持键升序排列（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_Ordering）
+/// 测试扫描返回结果保持键升序排列（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_Ordering）
 #[test]
 fn test_scan_with_count_ordering() -> Result<()> {
   let path = TempTreeGuard::new("scan_order");
@@ -87,7 +87,7 @@ fn test_scan_with_count_ordering() -> Result<()> {
   OK
 }
 
-/// 测试从中间键起始执行限制数量扫描（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_StartKeyInMiddle）
+/// 测试从中间键起始执行限制数量扫描（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_StartKeyInMiddle）
 #[test]
 fn test_scan_with_count_start_key_in_middle() -> Result<()> {
   let path = TempTreeGuard::new("scan_mid");
@@ -101,7 +101,7 @@ fn test_scan_with_count_start_key_in_middle() -> Result<()> {
   OK
 }
 
-/// 测试空树执行限制数量扫描返回空集合（对照 C# Garnet: BfTreeInteropTests.ScanWithCount_EmptyTree）
+/// 测试空树执行限制数量扫描返回空集合（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCount_EmptyTree）
 #[test]
 fn test_scan_with_count_empty_tree() -> Result<()> {
   let path = TempTreeGuard::new("scan_empty");
@@ -113,7 +113,7 @@ fn test_scan_with_count_empty_tree() -> Result<()> {
   OK
 }
 
-/// 测试闭区间范围扫描返回指定区间内条目（对照 C# Garnet: BfTreeInteropTests.ScanWithEndKey_InclusiveRange）
+/// 测试闭区间范围扫描返回指定区间内条目（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithEndKey_InclusiveRange）
 #[test]
 fn test_scan_with_end_key_inclusive_range() -> Result<()> {
   let path = TempTreeGuard::new("scan_end_key");
@@ -128,7 +128,7 @@ fn test_scan_with_end_key_inclusive_range() -> Result<()> {
   OK
 }
 
-/// 测试范围扫描覆盖树中所有条目（对照 C# Garnet: BfTreeInteropTests.ScanWithEndKey_AllEntries）
+/// 测试范围扫描覆盖树中所有条目（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithEndKey_AllEntries）
 #[test]
 fn test_scan_with_end_key_all_entries() -> Result<()> {
   let path = TempTreeGuard::new("scan_end_all");
@@ -141,7 +141,7 @@ fn test_scan_with_end_key_all_entries() -> Result<()> {
   OK
 }
 
-/// 测试起始键大于结束键时的逆向空区间扫描返回空集合（对照 C# Garnet: BfTreeInteropTests.ScanWithEndKey_EmptyRange）
+/// 测试起始键大于结束键时的逆向空区间扫描返回空集合（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithEndKey_EmptyRange）
 #[test]
 fn test_scan_with_end_key_empty_range() -> Result<()> {
   let path = TempTreeGuard::new("scan_end_empty");
@@ -154,7 +154,7 @@ fn test_scan_with_end_key_empty_range() -> Result<()> {
   OK
 }
 
-/// 测试全量扫描返回树中所有条目（对照 C# Garnet: BfTreeInteropTests.ScanAll_ReturnsAllEntries）
+/// 测试全量扫描返回树中所有条目（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanAll_ReturnsAllEntries）
 #[test]
 fn test_scan_all_returns_all_entries() -> Result<()> {
   let path = TempTreeGuard::new("scan_all");
@@ -167,7 +167,7 @@ fn test_scan_all_returns_all_entries() -> Result<()> {
   OK
 }
 
-/// 测试空树全量扫描返回空集合（对照 C# Garnet: BfTreeInteropTests.ScanAll_EmptyTree）
+/// 测试空树全量扫描返回空集合（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanAll_EmptyTree）
 #[test]
 fn test_scan_all_empty_tree() -> Result<()> {
   let path = TempTreeGuard::new("scan_all_empty");
@@ -179,7 +179,7 @@ fn test_scan_all_empty_tree() -> Result<()> {
   OK
 }
 
-/// 测试全量扫描仅投影键字段（对照 C# Garnet: BfTreeInteropTests.ScanAll_KeyOnly）
+/// 测试全量扫描仅投影键字段（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanAll_KeyOnly）
 #[test]
 fn test_scan_all_key_only() -> Result<()> {
   let path = TempTreeGuard::new("scan_all_key_only");
@@ -197,7 +197,7 @@ fn test_scan_all_key_only() -> Result<()> {
   OK
 }
 
-/// 测试回调闭包遍历扫描实现零堆分配（对照 C# Garnet: BfTreeInteropTests.ScanWithCallback_ZeroAlloc）
+/// 测试回调闭包遍历扫描实现零堆分配（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCallback_ZeroAlloc）
 #[test]
 fn test_scan_with_callback_zero_alloc() -> Result<()> {
   let path = TempTreeGuard::new("scan_cb_zero");
@@ -216,7 +216,7 @@ fn test_scan_with_callback_zero_alloc() -> Result<()> {
   OK
 }
 
-/// 测试回调闭包提前返回 false 能够及时终止扫描（对照 C# Garnet: BfTreeInteropTests.ScanWithCallback_EarlyStop）
+/// 测试回调闭包提前返回 false 能够及时终止扫描（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ScanWithCallback_EarlyStop）
 #[test]
 fn test_scan_with_callback_early_stop() -> Result<()> {
   let path = TempTreeGuard::new("scan_cb_stop");
@@ -235,7 +235,7 @@ fn test_scan_with_callback_early_stop() -> Result<()> {
   OK
 }
 
-/// 测试大规模插入后扫描所有条目的正确性（对照 C# Garnet: BfTreeInteropTests.LargeInsertAndScan）
+/// 测试大规模插入后扫描所有条目的正确性（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:LargeInsertAndScan）
 #[test]
 fn test_large_insert_and_scan() -> Result<()> {
   let path = TempTreeGuard::new("large_scan");

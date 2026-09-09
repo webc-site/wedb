@@ -244,7 +244,7 @@ async fn ri_get(
   Ok(session.range_index_get(key, field).await?)
 }
 
-/// RIAofReplayTest 移植 (对标 C# RespRangeIndexTests.RIAofReplayTest)
+/// RIAofReplayTest 移植 (对标 test/standalone/Garnet.test.rangeindex/RespRangeIndexTests.cs:RIAofReplayTest)
 ///
 /// C# 流程：主节点写基态 (RI.CREATE + key1..key3) → SAVE 建立检查点基线 →
 /// 提交检查点后变更 (key4 新增 / key1 更新 / key2 删除) → COMMITAOF →

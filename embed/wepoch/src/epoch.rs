@@ -84,7 +84,7 @@ pub struct LightEpoch {
   _pad1: [u8; 56],
   /// 待触发 drain 动作计数
   pub drain_count: AtomicU32,
-  /// 用户字已占用槽位掩码（CAS 原子分配与回收，对照 C# LightEpoch.userWordMask）
+  /// 用户字已占用槽位掩码（CAS 原子分配与回收，对照 libs/client/LightEpoch.cs:userWordMask）
   pub user_word_mask: AtomicU32,
   _pad2: [u8; 56],
   /// 参与者条目表（每个元素独占 64 字节 Cacheline）
@@ -196,7 +196,7 @@ impl LightEpoch {
     true
   }
 
-  /// 当前线程进入受保护的纪元区（对照 C# LightEpoch.Resume）
+  /// 当前线程进入受保护的纪元区（对照 libs/client/LightEpoch.cs:Resume）
   ///
   /// 单一扫描状态机：
   /// 1. 重入快路径：本线程已持有本实例保护槽位时仅递增重入计数（单槽缓存 O(1) 优先）；
@@ -242,7 +242,7 @@ impl LightEpoch {
     }
   }
 
-  /// 当前线程退出受保护的纪元区（对照 C# LightEpoch.Suspend）
+  /// 当前线程退出受保护的纪元区（对照 libs/client/LightEpoch.cs:Suspend）
   pub fn suspend(&self) {
     let Some(entry) = self.tls_protected_entry(current_thread_id()) else {
       return;
@@ -268,7 +268,7 @@ impl LightEpoch {
     }
   }
 
-  /// 若当前线程处于保护区则退出并返回 true，否则返回 false（对照 C# LightEpoch.TrySuspend）
+  /// 若当前线程处于保护区则退出并返回 true，否则返回 false（对照 libs/client/LightEpoch.cs:TrySuspend）
   pub fn try_suspend(&self) -> bool {
     if self.this_instance_protected() {
       self.suspend();
@@ -278,7 +278,7 @@ impl LightEpoch {
     }
   }
 
-  /// 若当前线程尚未受保护则进入并返回 true，否则返回 false（对照 C# LightEpoch.ResumeIfNotProtected）
+  /// 若当前线程尚未受保护则进入并返回 true，否则返回 false（对照 libs/client/LightEpoch.cs:ResumeIfNotProtected）
   pub fn resume_if_not_protected(&self) -> bool {
     if self.this_instance_protected() {
       false
@@ -288,7 +288,7 @@ impl LightEpoch {
     }
   }
 
-  /// 检查当前线程在此 LightEpoch 实例中是否正处于保护区（对照 C# LightEpoch.ThisInstanceProtected）
+  /// 检查当前线程在此 LightEpoch 实例中是否正处于保护区（对照 libs/client/LightEpoch.cs:ThisInstanceProtected）
   ///
   /// 仅覆盖 TLS `resume`/`suspend` 配对路径；显式 `Participant::enter` 的保护请用 [`Self::thread_protected`]。
   pub fn this_instance_protected(&self) -> bool {
@@ -328,13 +328,13 @@ impl LightEpoch {
       .find(|entry| entry.is_protected() && entry.thread_id() == tid)
   }
 
-  /// 当前线程先挂起再重新恢复保护，赋予其他等待线程调度机会（对照 C# LightEpoch.SuspendResume）
+  /// 当前线程先挂起再重新恢复保护，赋予其他等待线程调度机会（对照 libs/client/LightEpoch.cs:SuspendResume）
   pub fn suspend_resume(&self) {
     self.suspend();
     self.resume();
   }
 
-  /// 刷新当前线程在条目表中公布的纪元至全局最新值，并触发就绪的延迟动作（对照 C# LightEpoch.ProtectAndDrain）
+  /// 刷新当前线程在条目表中公布的纪元至全局最新值，并触发就绪的延迟动作（对照 libs/client/LightEpoch.cs:ProtectAndDrain）
   pub fn protect_and_drain(&self) {
     let Some(idx) = self.active_idx() else {
       debug_assert!(false, "试图刷新未受保护的纪元");
@@ -352,12 +352,12 @@ impl LightEpoch {
     self.drain_if_pending();
   }
 
-  /// 获取基于 RAII 作用域自动管理生命周期的保护守卫（对照 C# LightEpoch.ProtectedScope）
+  /// 获取基于 RAII 作用域自动管理生命周期的保护守卫（对照 libs/client/LightEpoch.cs:ProtectedScope）
   pub fn protected_scope(&self) -> ProtectedScope<'_> {
     ProtectedScope::new(self)
   }
 
-  /// 递增全局当前纪元并尝试触发安全回收（对照 C# LightEpoch.BumpCurrentEpoch）
+  /// 递增全局当前纪元并尝试触发安全回收（对照 libs/client/LightEpoch.cs:BumpCurrentEpoch）
   ///
   /// 刻意差异：C# 版 Debug.Assert 要求调用线程必须处于保护区，此处放宽为任意线程
   /// 可推进（无 panic 约束），保护态仅作为上游使用约定而非本层强制。
@@ -381,7 +381,7 @@ impl LightEpoch {
   /// 以本线程所能尽力推进延迟清理：全量刷新本线程以任一机制持有的保护条目至
   /// 全局最新纪元，再收割就绪延迟动作
   ///
-  /// 对照 C# LightEpoch.ProtectAndDrain：刷新本线程公布纪元以解除对旧纪元的自钉，
+  /// 对照 libs/client/LightEpoch.cs:ProtectAndDrain：刷新本线程公布纪元以解除对旧纪元的自钉，
   /// 再收割就绪延迟动作。C# 单一保护机制下刷新 entry 即完整覆盖；Rust 存在 TLS
   /// 作用域与 `Participant` 显式句柄双轨保护，同一线程可能同时以两条机制持有多条
   /// 保护条目（如 TLS 短临界区嵌套长期 Participant 会话守卫），必须全量刷新——
@@ -402,7 +402,7 @@ impl LightEpoch {
     self.drain();
   }
 
-  /// 递增全局纪元并将关联动作注册到前置纪元，等待前置纪元安全回收时执行（对照 C# LightEpoch.BumpCurrentEpoch(Action)）
+  /// 递增全局纪元并将关联动作注册到前置纪元，等待前置纪元安全回收时执行（对照 libs/client/LightEpoch.cs:BumpCurrentEpoch(Action)）
   pub fn bump_current_epoch_action<F>(&self, on_drain: F)
   where
     F: FnOnce() + Send + 'static,
@@ -513,7 +513,7 @@ impl LightEpoch {
         .is_ok()
   }
 
-  /// 扫描延迟清理列表并触发所有达到安全回收纪元的动作（对照 C# LightEpoch.Drain）
+  /// 扫描延迟清理列表并触发所有达到安全回收纪元的动作（对照 libs/client/LightEpoch.cs:Drain）
   ///
   /// 与 C# 的顺序差异（行为等价，协议美化）：C# 先 `epoch = long.MaxValue` 再
   /// `Decrement`，与注册侧「先发布纪元后 Increment」非镜像——加/减计数虽为可交换
@@ -542,7 +542,7 @@ impl LightEpoch {
     }
   }
 
-  /// 当最后一个受保护的线程挂起时，代为执行所有未完成的延迟动作（对照 C# LightEpoch.SuspendDrain）
+  /// 当最后一个受保护的线程挂起时，代为执行所有未完成的延迟动作（对照 libs/client/LightEpoch.cs:SuspendDrain）
   ///
   /// 此时已无人受保护，安全纪元必为 current-1，全部就绪动作均可直接收割，
   /// 等价于 C# 的 Resume/Release 循环但免除额外的槽位占用与原子开销。
@@ -604,13 +604,13 @@ impl LightEpoch {
     self.drain_count.load(Ordering::Acquire) > 0
   }
 
-  /// 获取当前线程分配到的条目槽位（1-based，0 表示未分配，对照 C# LightEpoch.TestHookThisThreadEntry）
+  /// 获取当前线程分配到的条目槽位（1-based，0 表示未分配，对照 libs/client/LightEpoch.cs:TestHookThisThreadEntry）
   #[inline]
   pub fn test_hook_this_thread_entry(&self) -> usize {
     get_thread_entry(self.id)
   }
 
-  /// 获取当前线程公布的纪元号（0 表示未保护，对照 C# LightEpoch.TestHookThisThreadAnnouncedEpoch）
+  /// 获取当前线程公布的纪元号（0 表示未保护，对照 libs/client/LightEpoch.cs:TestHookThisThreadAnnouncedEpoch）
   #[inline]
   pub fn test_hook_this_thread_announced_epoch(&self) -> u64 {
     self
@@ -619,7 +619,7 @@ impl LightEpoch {
       .unwrap_or(0)
   }
 
-  /// 获取指定槽位公布的纪元号（1-based，对照 C# LightEpoch.TestHookAnnouncedEpochAt）
+  /// 获取指定槽位公布的纪元号（1-based，对照 libs/client/LightEpoch.cs:TestHookAnnouncedEpochAt）
   #[inline]
   pub fn test_hook_announced_epoch_at(&self, entry: usize) -> u64 {
     if entry == 0 || entry > self.entries.len() {
@@ -629,7 +629,7 @@ impl LightEpoch {
     }
   }
 
-  /// 获取指定槽位绑定的线程 ID（1-based，对照 C# LightEpoch.TestHookThreadIdAt）
+  /// 获取指定槽位绑定的线程 ID（1-based，对照 libs/client/LightEpoch.cs:TestHookThreadIdAt）
   #[inline]
   pub fn test_hook_thread_id_at(&self, entry: usize) -> u64 {
     if entry == 0 || entry > self.entries.len() {
@@ -639,25 +639,25 @@ impl LightEpoch {
     }
   }
 
-  /// 获取延迟清理列表总容量（对照 C# LightEpoch.TestHookDrainListCapacity）
+  /// 获取延迟清理列表总容量（对照 libs/client/LightEpoch.cs:TestHookDrainListCapacity）
   #[inline]
   pub fn test_hook_drain_list_capacity(&self) -> usize {
     DRAIN_LIST_SIZE
   }
 
-  /// 获取条目表容量（对照 C# LightEpoch.EntryCount）
+  /// 获取条目表容量（对照 libs/client/LightEpoch.cs:EntryCount）
   #[inline]
   pub fn entry_count(&self) -> usize {
     self.entries.len()
   }
 
-  /// 获取支持的最大用户字槽位数量（对照 C# LightEpoch.MaxUserWords）
+  /// 获取支持的最大用户字槽位数量（对照 libs/client/LightEpoch.cs:MaxUserWords）
   #[inline]
   pub fn test_hook_max_user_words(&self) -> usize {
     MAX_USER_WORDS
   }
 
-  /// 分配一个全局用户字槽位并将其初始化为 initial_value（对照 C# LightEpoch.AllocateUserWord）
+  /// 分配一个全局用户字槽位并将其初始化为 initial_value（对照 libs/client/LightEpoch.cs:AllocateUserWord）
   pub fn allocate_user_word(&self, initial_value: i64) -> Result<usize> {
     loop {
       let mask = self.user_word_mask.load(Ordering::Acquire);
@@ -681,7 +681,7 @@ impl LightEpoch {
     }
   }
 
-  /// 释放先前分配的用户字槽位（对照 C# LightEpoch.ReleaseUserWord）
+  /// 释放先前分配的用户字槽位（对照 libs/client/LightEpoch.cs:ReleaseUserWord）
   pub fn release_user_word(&self, word_index: usize) -> Result<()> {
     if word_index >= MAX_USER_WORDS {
       return Err(Error::InvalidUserWordIndex(word_index));
@@ -699,7 +699,7 @@ impl LightEpoch {
     }
   }
 
-  /// 获取当前线程对应用户字的原子引用（对照 C# LightEpoch.ThisThreadUserWord）
+  /// 获取当前线程对应用户字的原子引用（对照 libs/client/LightEpoch.cs:ThisThreadUserWord）
   ///
   /// 须在本线程经 `resume`/`protected_scope` 进入保护区后调用。
   #[inline]
@@ -719,7 +719,7 @@ impl LightEpoch {
     }
   }
 
-  /// 获取当前线程对应的用户字（对照 C# LightEpoch.ThisThreadUserWord）
+  /// 获取当前线程对应的用户字（对照 libs/client/LightEpoch.cs:ThisThreadUserWord）
   #[inline]
   pub fn this_thread_user_word(&self, word_index: usize) -> Result<i64> {
     Ok(
@@ -738,7 +738,7 @@ impl LightEpoch {
     Ok(())
   }
 
-  /// 扫描所有活跃条目并返回指定用户字的最小值（对照 C# LightEpoch.GetMinUserWord）
+  /// 扫描所有活跃条目并返回指定用户字的最小值（对照 libs/client/LightEpoch.cs:GetMinUserWord）
   pub fn get_min_user_word(&self, word_index: usize) -> Result<i64> {
     if word_index >= MAX_USER_WORDS {
       return Err(Error::InvalidUserWordIndex(word_index));

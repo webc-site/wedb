@@ -20,7 +20,7 @@ use log::info;
 use wreviv::{Error, FreeRecord, FreeRecordBin, FreeRecordPool, SetStatus, USE_FIRST_FIT};
 
 /// 验证分桶容量满载时的展开与溢出丢弃机制
-/// 对标 C# `UnelideTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:UnelideTest
 ///
 /// 1. 分桶容量达到上限时，多余放入的记录被拒绝并计入 drop 计数；
 /// 2. 取出记录腾出空位后，新记录可以再次放入。

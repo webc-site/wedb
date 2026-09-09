@@ -22,7 +22,7 @@ use wram::AlignedBuf;
 
 use crate::support::make_pattern_data;
 
-/// 对标 C# `NativeStorageDevice_Recovery_MatchingSegmentSize_Succeeds`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_Recovery_MatchingSegmentSize_Succeeds：
 /// 以相同段尺寸重开设备并恢复元数据后，原有数据完好可读。
 #[test]
 fn recovery_matching_segment_size_succeeds() -> Void {
@@ -76,7 +76,7 @@ fn recovery_matching_segment_size_succeeds() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_Recovery_LargerExistingSegment_DetectsMismatch`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_Recovery_LargerExistingSegment_DetectsMismatch：
 /// 已存在段文件超过新配置段尺寸时，恢复校验必须报 SegmentSizeMismatch，
 /// 严禁静默放行（C# 在首次 I/O 报错，Rust 在 recover() 同步返回错误）。
 #[test]
@@ -118,7 +118,7 @@ fn recovery_larger_existing_segment_detects_mismatch() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_Recovery_SmallerExistingSegment_Succeeds`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_Recovery_SmallerExistingSegment_Succeeds：
 /// 已存在段文件不大于新配置段尺寸时恢复放行。
 #[test]
 fn recovery_smaller_existing_segment_succeeds() -> Void {

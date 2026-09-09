@@ -25,7 +25,7 @@ pub(crate) struct FreeNode {
   pub(crate) dirty: bool,
 }
 
-/// 密封哨兵指针：指示属主线程已退出 (对标 C# SectorAlignedBufferPool.Sealed)
+/// 密封哨兵指针：指示属主线程已退出 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:Sealed)
 pub(crate) const SEALED: *mut FreeNode = usize::MAX as *mut FreeNode;
 
 /// 单个 class 的跨线程栈顶指针
@@ -38,7 +38,7 @@ pub(crate) const SEALED: *mut FreeNode = usize::MAX as *mut FreeNode;
 #[repr(align(64))]
 pub(crate) struct Head(AtomicPtr<FreeNode>);
 
-/// 跨线程 MPSC 无锁归还收件箱 (对标 C# Bucket.crossThreadHead)
+/// 跨线程 MPSC 无锁归还收件箱 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:crossThreadHead)
 pub(crate) struct CrossThreadInbox {
   heads: [Head; NUM_CLASSES],
 }
@@ -50,7 +50,7 @@ impl CrossThreadInbox {
     }
   }
 
-  /// 跨线程归还：通过 CAS 推入单向栈，若已密封则返回 false (对标 C# TryPushCrossThread)
+  /// 跨线程归还：通过 CAS 推入单向栈，若已密封则返回 false (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:TryPushCrossThread)
   pub(crate) fn try_push(&self, cls: usize, node: *mut FreeNode) -> bool {
     let head_ptr = &self.heads[cls].0;
     let mut head = head_ptr.load(Acquire);
@@ -66,7 +66,7 @@ impl CrossThreadInbox {
     }
   }
 
-  /// 属主线程批量收割整条链表：1 次原子 CAS，无 ABA 隐患 (对标 C# ClaimCrossThread)
+  /// 属主线程批量收割整条链表：1 次原子 CAS，无 ABA 隐患 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ClaimCrossThread)
   pub(crate) fn claim(&self, cls: usize) -> *mut FreeNode {
     let head_ptr = &self.heads[cls].0;
     let mut head = head_ptr.load(Acquire);
@@ -136,7 +136,7 @@ mod tests {
 
   use super::{CrossThreadInbox, Head};
 
-  /// 缓存行隔离回归 (对标 C# `BucketHeadsAreOnSeparateCacheLines`)：
+  /// 缓存行隔离回归 (对标 libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:BucketHeadsAreOnSeparateCacheLines)：
   /// 每个 class 的跨线程栈顶独占 64B 缓存行，跨 class 并发推入/收割互不伪共享
   #[test]
   fn class_heads_are_on_separate_cache_lines() {

@@ -6,7 +6,7 @@
 //! - [`RangeIndexManager`]：多树注册表、惰性恢复、刷盘/检查点/截断/复制枚举 (对标 RangeIndexManager.cs*)
 //! - [`RangeIndexChunkedSerializer`] / [`RangeIndexChunkedDeserializer`] / [`RangeIndexMigrationReader`]：
 //!   迁移分块流协议状态机 (对标 RangeIndexChunkedSerializer/Deserializer/MigrationReader.cs)
-//! - [`RangeIndexStub`]：主存储日志中的 35 字节定长存根 (对标 RangeIndexManager.Index.cs)
+//! - [`RangeIndexStub`]：主存储日志中的 35 字节定长存根 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:Index.cs)
 //!
 //! # 并发模型 (thread-per-core 契合，见 sync.md)
 //! 全 crate 仅提供同步 API，无运行时依赖，天然契合 compio 线程每核模型：
@@ -28,7 +28,7 @@
 //!   C# LightEpoch 延迟释放语义，此处由引用计数天然承担)；删除路径另经
 //!   [`BfTreeService::dispose_quiesced`] 屏障排空在途写者后才释放树并删除
 //!   数据文件，杜绝「写入已成功应答却落入正被 unlink 的 inode」的撕裂窗口
-//!   (对标 C# DisposeTreeUnderLock 经 storeEpoch 排空后才删文件的语义)。
+//!   (对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经 storeEpoch 排空后才删文件的语义)。
 //!
 //! # 键语义与名字空间隔离 (见 sync.md)
 //! - 键全程 `&[u8]` 二进制安全，零拷贝透传引擎。

@@ -1,4 +1,4 @@
-//! RangeIndex 检查点快照与故障恢复模块 (1:1 对标 Garnet SnapshotAllTreesForCheckpoint 与 RebuildFromSnapshotIfPending)
+//! RangeIndex 检查点快照与故障恢复模块 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint 与 RebuildFromSnapshotIfPending)
 
 use std::{
   error::Error as StdError,
@@ -56,7 +56,7 @@ fn cpr_err(e: Error) -> wcpr::Error {
 
 impl<D: Device> WedbStore<D> {
   /// 遍历并为所有在线与待激活的 RangeIndex 执行 CPR 检查点快照落盘
-  /// (1:1 对标 Garnet SnapshotAllTreesForCheckpoint)
+  /// (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
   pub fn take_range_index_checkpoints(
     &self,
     checkpoint_dir: impl AsRef<Path>,
@@ -130,7 +130,7 @@ impl<D: Device> WedbStore<D> {
           {
             let stub_slice = &val[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];
             if let Ok(mut stub) = RangeIndexStub::decode(stub_slice) {
-              // 标记已从检查点恢复 (1:1 对标 Garnet MarkRecoveredFromCheckpoint)
+              // 标记已从检查点恢复 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
               stub.mark_recovered_from_checkpoint();
 
               // 更新记录中的存根并落盘 (定长 51 字节，纯栈分配零堆开销)
@@ -174,7 +174,7 @@ impl<D: Device> WedbStore<D> {
 
     Ok(count)
   }
-  /// 为共享 BfTree 执行 CPR 检查点快照落盘 (1:1 对标 Garnet SnapshotAllTreesForCheckpoint 共享树部分)
+  /// 为共享 BfTree 执行 CPR 检查点快照落盘 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint 共享树部分)
   ///
   /// 未配置 `bftree_path`（临时内存树，无持久化承诺）时跳过返回 0；成功返回 1。
   /// 配置了 `bftree_path` 但引擎退化为非磁盘后端属异常状态：静默跳过会让后续
@@ -203,7 +203,7 @@ impl<D: Device> WedbStore<D> {
     Ok(1)
   }
 
-  /// 从 Checkpoint 快照恢复共享 BfTree (1:1 对标 Garnet RebuildFromSnapshotIfPending + RestoreTree)
+  /// 从 Checkpoint 快照恢复共享 BfTree (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:RebuildFromSnapshotIfPending + RestoreTree)
   ///
   /// 快照存在：经临时文件安全换树恢复（活动基文件最终重命名至持久工作路径，
   /// 绝不引用会被 purge 回收的 token 目录内文件）；快照不存在：保持 open 时

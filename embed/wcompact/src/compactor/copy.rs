@@ -1,4 +1,4 @@
-//! 条件迁移：存活记录原子复制至日志尾部（对标 C# CompactionConditionalCopyToTail）
+//! 条件迁移：存活记录原子复制至日志尾部（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs:CompactionConditionalCopyToTail）
 
 use wrecord::record_size;
 

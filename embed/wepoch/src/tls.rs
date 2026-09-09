@@ -1,6 +1,6 @@
 //! 线程本地 (TLS) 纪元槽位登记与单槽快速缓存
 //!
-//! 对照 C# LightEpoch.Metadata（[ThreadStatic] Entries 按 instanceId 索引）：
+//! 对照 libs/client/LightEpoch.cs:Metadata（[ThreadStatic] Entries 按 instanceId 索引）：
 //! Rust 以 `LocalEpochEntries` 按实例 ID 登记每线程槽位，免去 `ThreadLocal<T>`
 //! 开销；`FastEntry` 单槽缓存将 resume/suspend 热路径降为 O(1)。
 

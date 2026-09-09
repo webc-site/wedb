@@ -13,7 +13,7 @@
 //!      （避免多线程膨胀），并承载 L1/L2 溢出与线程退出时的安全回池与工作窃取；
 //!      条带锁保证「关闭标志 + 推入」原子（对标 C# lock + closed 设计），`Free` 与并发归还
 //!      竞态时迟到的推入必然失败并就地释放许可，绝不滞留配额。
-//! - **分级容量表 1:1 对标 C# `ClassCapacitySectors`/`ClassOfSectors`**：
+//! - **分级容量表 1:1 对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ClassCapacitySectors/`ClassOfSectors`**：
 //!   2 个精确级 (512B/1KB) + 4 个线性级 (2KB..8KB，步长 2KB) + 22 个几何级
 //!   (每倍频 2 级：1.5x/2x，8KB..16MB@512B 扇区)；超出 [`MAX_POOLED_SECTORS`] 走精确容量 bypass 分配。
 //! - **归还清零策略 (对标 C# `clearOnReturn`)**：默认归还即清零；读目的地等覆写场景通过
@@ -87,7 +87,7 @@ pub(crate) const DEPOT_STRIPE_MASK: usize = DEPOT_STRIPES - 1;
 /// 单 class 缓存总量 = 条带数 × 容量 = 64，与 [`MAX_LOCAL_PER_CLASS`] 同量级)
 pub const DEPOT_STRIPE_CAP: usize = 8;
 
-/// 指定 class 的扇区容量 (对标 C# `ClassCapacitySectors`，1:1 算术)
+/// 指定 class 的扇区容量 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ClassCapacitySectors，1:1 算术)
 ///
 /// 越界 class（`cls >= NUM_CLASSES`）为防御性处理：合法 class 的移位量 <= 15，
 /// 越界 class 的移位量经上界守卫 + `checked_shl` 饱和为 `usize::MAX`，
@@ -135,7 +135,7 @@ pub const fn class_capacity_bytes(cls: usize, sector_size: usize) -> usize {
   class_capacity_sectors(cls).saturating_mul(sector_size)
 }
 
-/// 按扇区数选择 size class；超出可池化范围返回 None (走 bypass，对标 C# `ClassOfSectors`)
+/// 按扇区数选择 size class；超出可池化范围返回 None (走 bypass，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ClassOfSectors)
 #[inline]
 #[must_use]
 pub const fn class_of_sectors(sectors: usize) -> Option<usize> {
@@ -530,7 +530,7 @@ impl BufferPool {
     self.issue_new(cls, required_bytes, clear_on_return, tid, None)
   }
 
-  /// 记录一次绕过池缓存的直配 (对标 C# `RecordBypassAlloc`：超界与关闭态路径)
+  /// 记录一次绕过池缓存的直配 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:RecordBypassAlloc：超界与关闭态路径)
   #[inline]
   fn record_bypass(&self, bytes: usize) {
     self.bypass_alloc_count.fetch_add(1, Relaxed);
@@ -605,7 +605,7 @@ impl BufferPool {
     Ok(buf)
   }
 
-  /// 归还缓冲区 (由 [`AlignedBuf::drop`] 的 RAII 路径调用，对标 C# `ReturnOriginReturn`)
+  /// 归还缓冲区 (由 [`AlignedBuf::drop`] 的 RAII 路径调用，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ReturnOriginReturn)
   pub(crate) fn return_buf(&self, ptr: NonNull<u8>, cap: usize, align: usize, meta: BufMeta) {
     let BufMeta {
       cls,
@@ -626,14 +626,14 @@ impl BufferPool {
       return;
     }
 
-    // 若池已关闭，直接释放内存并交还预算许可 (对标 C# ReturnOfInFlightBufferAfterFreeIsSafe)
+    // 若池已关闭，直接释放内存并交还预算许可 (对标 libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:ReturnOfInFlightBufferAfterFreeIsSafe)
     if self.is_closed.load(Acquire) {
       self.budget_for(cls).release(cap as i64);
       dealloc(ptr);
       return;
     }
 
-    // 归还即清零 (对标 C# FinalizeForReturn)；免清零归还则标记脏位，交由后续借方惰性清零
+    // 归还即清零 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:FinalizeForReturn)；免清零归还则标记脏位，交由后续借方惰性清零
     if clear_on_return {
       unsafe { write_bytes(ptr.as_ptr(), 0, cap) };
     }
@@ -663,7 +663,7 @@ impl BufferPool {
   }
 
   /// 溢出转移：推入全局条带仓库供跨线程工作窃取复用；仓库已满则永久丢弃并释放许可
-  /// (node drop 自动触发 dealloc，对标 C# DepotPush 失败 → DropBuffer)
+  /// (node drop 自动触发 dealloc，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:DepotPush 失败 → DropBuffer)
   fn spill_to_depot(&self, cls: usize, node: CachedBuf, tid: u64) {
     let cap = node.cap;
     if !self.depot.push(cls, node, tid) {
@@ -673,7 +673,7 @@ impl BufferPool {
 
   /// 小容量 class 属主同源归还：0 锁、0 原子操作推入 TLS 私有栈；
   /// 栈满、查无属主条目或线程 TLS 已进入析构则溢出转移至全局条带仓库
-  /// (对标 C# PushLocal 溢出 DepotPush → DropBuffer)
+  /// (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:PushLocal 溢出 DepotPush → DropBuffer)
   fn return_owner(&self, cls: usize, node: CachedBuf, tid: u64) {
     // `hold` 以可变借用被闭包捕获：已入本地栈则留空，否则取回溢出转移。
     // `try_with` 容错：属主线程退出窗口中缓冲随其 thread_local 析构时，TLS 已不可访问，
@@ -729,7 +729,7 @@ impl BufferPool {
     self.spill_to_depot(cls, node, tid);
   }
 
-  /// 大容量 class 走独立大额预算 (对标 C# `BudgetFor`)
+  /// 大容量 class 走独立大额预算 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:BudgetFor)
   #[inline]
   pub(crate) fn budget_for(&self, cls: usize) -> &Budget {
     if cls >= self.first_large_class {

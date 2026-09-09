@@ -149,7 +149,7 @@ impl<D: Device> WalLog<D> {
   /// WARNING: 须在日志静默（无并发 enqueue/commit/truncate）后调用，对标 C# RecoverAsync
   /// （其同样要求恢复先于任何写入；并发恢复会与在途写入竞争位点原子量）
   ///
-  /// 恢复策略（对标 C# AofProcessor.Recover 的报错 vs 截断取舍）：
+  /// 恢复策略（对标 libs/server/AOF/Recover/AofRecover.cs:Recover 的报错 vs 截断取舍）：
   /// - EOF/残缺头/校验和失败/全零填充 → 保守截断至最后一条完整记录（自动容错）；
   /// - 其他底层 I/O 错误（段缺失、介质错误等异常）→ 显式上抛（快速失败），
   ///   绝不静默清空位点伪装成空日志；
@@ -356,7 +356,7 @@ impl<D: Device> WalLog<D> {
 
   /// 原样写入完整记录帧（8 字节记录头 + 负载），返回起始逻辑地址
   ///
-  /// 对标 C# UnsafeTryEnqueueRaw：不重算记录头，帧字节逐字进日志。服务于
+  /// 对标 libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:UnsafeTryEnqueueRaw：不重算记录头，帧字节逐字进日志。服务于
   /// 复制从节点对主节点记录的保真落盘——只要主从帧序列一致且起始位点一致，
   /// 预占地址序列即逐条一致；调用方须以返回地址校验主从位点同步。
   /// 帧头须自洽（非全零且 entry_len 与负载长度一致），错位帧会使恢复链
@@ -578,7 +578,7 @@ impl<D: Device> WalLog<D> {
     }
   }
 
-  /// 追加写入并等待提交持久化（对照 C# EnqueueAndWaitForCommitAsync）
+  /// 追加写入并等待提交持久化（对照 libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:EnqueueAndWaitForCommitAsync）
   pub async fn enqueue_and_wait_for_commit(&self, payload: &[u8]) -> Result<u64> {
     let addr = self.enqueue(payload)?;
     // u64 口径计算记录末端，规避 32 位平台上 +RECORD_HEADER_LEN 的 usize 溢出
@@ -621,7 +621,7 @@ impl<D: Device> WalLog<D> {
   /// 复活旧记录（与 C# TsavoriteLog.Reset 后未打检查点即崩溃的恢复语义一致）。
   /// 调用方要么 reset 后立即 truncate 物理清理，要么接受该复活窗口。
   ///
-  /// WARNING: 须在日志静默（无并发读写）后调用，对标 C# TsavoriteLog.Reset。
+  /// WARNING: 须在日志静默（无并发读写）后调用，对标 libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:Reset。
   pub async fn reset(&self) -> Result<()> {
     log::warn!(
       "WAL reset：磁盘历史数据未清零，崩溃后恢复可能复活旧记录（begin={begin:#x}）",

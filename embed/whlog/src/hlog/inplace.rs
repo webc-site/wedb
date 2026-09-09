@@ -5,7 +5,7 @@ use super::HybridLog;
 use crate::error::{Error, Result};
 
 impl<D: Device> HybridLog<D> {
-  /// 尝试在可变区原位更新记录的值（基于 FillerWords 与动态松弛，严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan & InternalRMW.cs）
+  /// 尝试在可变区原位更新记录的值（基于 FillerWords 与动态松弛，严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
   ///
   /// 若记录处于内存可变区且新值长度在物理容量容纳范围内（val_len + filler_bytes），
   /// 校验 expected_key 匹配后直接原位覆写并调整松弛填充，零追加、零换页、零 I/O。
@@ -38,7 +38,7 @@ impl<D: Device> HybridLog<D> {
     })
   }
 
-  /// 尝试在可变区原位读-改-写记录的值（严格对标 C# Garnet InPlaceUpdaterWorker & InternalRMW.cs）
+  /// 尝试在可变区原位读-改-写记录的值（严格对标 libs/server/Storage/Functions/MainStore/RMWMethods.cs:InPlaceUpdaterWorker & InternalRMW.cs）
   ///
   /// - 若记录处于内存可变区且非墓碑记录，并校验键与 `expected_key` 匹配（使用 SIMD 高效比对）；
   /// - 在持有页面写锁期间，向闭包 `f` 暴露底层物理内存可变切片 `&mut [u8]` 执行就地读-改-写；
@@ -59,7 +59,7 @@ impl<D: Device> HybridLog<D> {
     })
   }
 
-  /// 尝试在可变区基于动态松弛原位覆写记录的值（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan & InternalRMW.cs）
+  /// 尝试在可变区基于动态松弛原位覆写记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
   #[inline]
   pub fn try_modify_record_with_slack(
     &self,

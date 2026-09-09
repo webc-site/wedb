@@ -47,7 +47,7 @@ impl OverflowPool {
 
   /// 原子分配一个新的溢出桶，返回从 1 开始的 1-based 索引
   ///
-  /// 优先复用 free-list 中回收的桶，完全对齐 Garnet MallocFixedPageSize。
+  /// 优先复用 free-list 中回收的桶，完全对齐 libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:MallocFixedPageSize。
   pub fn allocate(&self) -> Result<u64> {
     // 1. 优先尝试从无锁空闲单向栈（Treiber Stack with 32-bit ABA Tag）中复用已回收的溢出桶
     let mut curr = self.free_head.load(Ordering::Acquire);
@@ -97,7 +97,7 @@ impl OverflowPool {
     Ok(id)
   }
 
-  /// 归还/回收一个未被成功挂载的溢出桶（对标 Garnet MallocFixedPageSize.Free）
+  /// 归还/回收一个未被成功挂载的溢出桶（对标 libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:Free）
   ///
   /// 使用基于 AtomicU64 的无锁单向栈与 32 位代数计数器（Tag），彻底杜绝 ABA 问题。
   pub fn free(&self, id: u64) {

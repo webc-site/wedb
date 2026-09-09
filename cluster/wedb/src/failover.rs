@@ -1,6 +1,6 @@
 //! 主从切换决策：以共识引擎的角色裁决数据面行为
 //!
-//! 对标 Garnet `Failover/FailoverManager.cs`。差异：Garnet 的故障转移
+//! 对标 libs/client/GarnetClientAPI/GarnetClientClusterCommands.cs:Failover/FailoverManager.cs`。差异：Garnet 的故障转移
 //! 由 ClusterConfig 配置驱动（人工/管理面裁决），本实现把裁决权交给
 //! [`ConsensusEngine`]——数据面（AOF 发货、写接受、请求重定向）统一
 //! 从这里取行为依据，不再各自判角色。

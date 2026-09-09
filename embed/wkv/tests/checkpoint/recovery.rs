@@ -75,7 +75,7 @@ fn test_simple_recovery_foldover() -> Void {
       assert_eq!(recovered.entry_count(), num_ops);
 
       // FoldOver 恢复语义：ReadOnlyAddress 必须精确对齐 TailAddress，全部历史封印只读
-      // （对标 C# DoPostRecovery 中 FoldOver 分支 readOnlyAddress = tailAddress）
+      // （对标 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:DoPostRecovery 中 FoldOver 分支 readOnlyAddress = tailAddress）
       assert_eq!(
         recovered.read_only_address(),
         recovered.tail_address(),
@@ -163,7 +163,7 @@ fn test_simple_recovery_snapshot() -> Void {
       let session = recovered.new_session()?;
 
       // Snapshot 恢复语义：ReadOnlyAddress 依 mutable_fraction 重建（严格低于 Tail），
-      // 必须保留内存可变区（对标 C# DoPostRecovery 中 CalculateReadOnlyAddress 分支）
+      // 必须保留内存可变区（对标 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:DoPostRecovery 中 CalculateReadOnlyAddress 分支）
       assert!(
         recovered.read_only_address() < recovered.tail_address(),
         "Snapshot 恢复后必须保留内存可变区: ro={:#x}, tail={:#x}",

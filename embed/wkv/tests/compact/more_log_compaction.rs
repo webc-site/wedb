@@ -20,7 +20,7 @@ const TOTAL_RECORDS: usize = 2000;
 const DELETE_COUNT: usize = 1000;
 const CUT_RECORD_INDEX: usize = 1010;
 
-/// 对标 Garnet MoreLogCompactionTests: DeleteCompactLookup (Lookup 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/MoreLogCompactionTests.cs:DeleteCompactLookup (Lookup 模式)
 ///
 /// 写入 2000 条记录，在第 1010 条记录处记录紧缩点，随后删除前半部分 1000 条记录；
 /// 刷盘并驱逐后执行 Lookup 紧缩，验证前 1000 条全部读空，未删除记录准确完整。
@@ -88,7 +88,7 @@ fn more_log_compaction_delete_lookup() -> Void {
   OK
 }
 
-/// 对标 Garnet MoreLogCompactionTests: DeleteCompactLookup (Scan 模式)
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/MoreLogCompactionTests.cs:DeleteCompactLookup (Scan 模式)
 #[test]
 fn more_log_compaction_delete_scan() -> Void {
   let rt = Runtime::new()?;
@@ -348,7 +348,7 @@ fn more_log_compaction_multiversion_single_key_many_updates() -> Void {
   OK
 }
 
-/// 对标 Garnet MoreLogCompactionTests: Scan 模式阶段 2 全覆盖提前终止优化
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/MoreLogCompactionTests.cs:Scan 模式阶段 2 全覆盖提前终止优化
 #[test]
 fn more_log_compaction_scan_mode_stage2_early_termination() -> Void {
   let rt = Runtime::new()?;

@@ -15,7 +15,7 @@ const fn byte_eq(a: u8, b: u8, ignore_case: bool) -> bool {
 
 /// 区间包含辅助：支持可选大小写忽略与逆序区间自适应 (const fn)
 ///
-/// 端点交换严格对齐 C# GlobUtils.Match：先按原始字节序交换，再小写化，
+/// 端点交换严格对齐 libs/server/GlobUtils.cs:Match：先按原始字节序交换，再小写化，
 /// 不做小写化后的回退排序——ignoreCase 下逆序字母区间（如 `[k-M]`）经小写化产生
 /// 逆序端点（m..k），与 C# 一致判恒不匹配。
 #[inline(always)]

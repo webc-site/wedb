@@ -118,7 +118,7 @@ fn test_fast_hash_and_hash_value() -> Result<()> {
   assert_eq!(hash_value(&"test string"), hash_value(&"test string"));
   assert_eq!(hash_value(&(1i32, 2i32)), hash_value(&(1i32, 2i32)));
   assert_ne!(hash_value(&(1i32, 2i32)), hash_value(&(2i32, 1i32)));
-  // 整数哈希 fast_hash_u64 对标 C# Utility.GetHashCode(long)；i64 与 u64 按位同型
+  // 整数哈希 fast_hash_u64 对标 libs/client/Utility.cs:GetHashCode(long)；i64 与 u64 按位同型
   for val in [0u64, 1, 42, 0x1234_5678_9abc_def0, u64::MAX] {
     assert_eq!(fast_hash_u64(val), fast_hash(&val.to_le_bytes()));
   }

@@ -3,9 +3,9 @@
 //! 负责协调 BfTree 的生命周期、数据文件预分阶段 (Pre-Stage)、检查点 CPR 快照与全量故障恢复。
 //!
 //! 模块划分（对标 C# partial class 文件组织）：
-//! - [`checkpoint`]：全局检查点屏障与全树快照（对标 SnapshotAllTreesForCheckpoint 等）
-//! - [`lifecycle`]：创建 / 惰性恢复 / 注册 / 注销 / 删除（对标 CreateBfTree、RestoreTree、DisposeTreeUnderLock 等）
-//! - [`flush`]：刷盘事件触发的单树快照（对标 SnapshotTreeForFlush）
+//! - [`checkpoint`]：全局检查点屏障与全树快照（对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint 等）
+//! - [`lifecycle`]：创建 / 惰性恢复 / 注册 / 注销 / 删除（对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、DisposeTreeUnderLock 等）
+//! - [`flush`]：刷盘事件触发的单树快照（对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotTreeForFlush）
 //! - [`replication`]：刷盘文件枚举、截断回收与全量恢复（对标 Replication/OnTruncate/RecoverAllTrees）
 
 mod checkpoint;
@@ -57,9 +57,9 @@ pub(crate) const CPR_MAGIC: &[u8; 16] = b"BF-TREE-V0-BEGIN";
 /// 条带化 [RangeIndexManager.cs]，此处固定 128 为刻意差异，仅影响竞争粒度)
 pub const NUM_LOCK_STRIPES: usize = 128;
 
-/// 默认迁移分块大小 (256KB，1:1 对标 Garnet RangeIndexManager.DefaultMigrationChunkSize)
+/// 默认迁移分块大小 (256KB，1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:DefaultMigrationChunkSize)
 pub const DEFAULT_MIGRATION_CHUNK_SIZE: usize = 256 * 1024;
-/// 索引存根字节大小 (35 字节，1:1 对标 Garnet RangeIndexManager.IndexSizeBytes)
+/// 索引存根字节大小 (35 字节，1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:IndexSizeBytes)
 pub const INDEX_SIZE_BYTES: usize = RANGE_INDEX_STUB_SIZE;
 
 /// 缓存行对齐的读写锁包装器类型（统一由 wbase::striped 提供）
@@ -135,7 +135,7 @@ impl TreeEntry {
     self.snapshot_in_progress.store(false, Ordering::Release);
   }
 
-  /// 在防重入快照锁保护下执行 CPR 快照 (1:1 对标 Garnet TreeEntry.SnapshotUnderClaim)
+  /// 在防重入快照锁保护下执行 CPR 快照 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotUnderClaim)
   ///
   /// claim 自旋采用退避阶梯 (spin → yield → 微睡)；C# 为纯 Thread.Yield。
   /// claim 持有者是 [`BfTreeService::cpr_snapshot`](BfTreeService::cpr_snapshot)
@@ -183,7 +183,7 @@ pub struct RangeIndexManager {
 }
 
 impl RangeIndexManager {
-  /// 从根目录创建管理器实例 (cpr 目录默认为 ri_log_root/cpr，1:1 对标 Garnet new RangeIndexManager(rootPath, null))
+  /// 从根目录创建管理器实例 (cpr 目录默认为 ri_log_root/cpr，1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new RangeIndexManager(rootPath, null))
   pub fn from_root(ri_log_root: impl Into<PathBuf>) -> Self {
     let root = ri_log_root.into();
     let cpr = root.join("cpr");
@@ -237,7 +237,7 @@ impl RangeIndexManager {
     self.addr_flush_scan_pending.store(true, Ordering::Release);
   }
 
-  /// 生成临时迁移文件路径 ({ri_log_root}/migration-tmp/{random_id}.bftree) (1:1 对标 Garnet DeriveTempMigrationPath)
+  /// 生成临时迁移文件路径 ({ri_log_root}/migration-tmp/{random_id}.bftree) (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:DeriveTempMigrationPath)
   #[inline]
   pub fn derive_temp_migration_path(&self) -> PathBuf {
     let rand_id = fastrand::u128(..);
@@ -268,20 +268,20 @@ impl RangeIndexManager {
     &self.locks
   }
 
-  /// 计算键的 128 位唯一 ID (零堆分配，用于内存字典极速索引，1:1 对标 Garnet KeyId)
+  /// 计算键的 128 位唯一 ID (零堆分配，用于内存字典极速索引，1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:KeyId)
   #[inline]
   pub fn key_id_of(key: &[u8]) -> u128 {
     hash128(key, PREFIX_SEED_1, PREFIX_SEED_2)
   }
 
-  /// 根据键计算 26 字符 Base32 前缀（零堆分配，对标 Garnet HashKeyToPrefix）
+  /// 根据键计算 26 字符 Base32 前缀（零堆分配，对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:HashKeyToPrefix）
   #[inline]
   pub fn base32_prefix_of(key: &[u8]) -> Base32Buf128 {
     let id = Self::key_id_of(key);
     encode_u128(id)
   }
 
-  /// 根据键计算 26 字符 Base32 前缀字符串 (对标 Garnet HashKeyToPrefix)
+  /// 根据键计算 26 字符 Base32 前缀字符串 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:HashKeyToPrefix)
   #[inline]
   pub fn hash_prefix_of(key: &[u8]) -> String {
     Self::base32_prefix_of(key).to_string()
@@ -293,7 +293,7 @@ impl RangeIndexManager {
     fast_hash(key)
   }
 
-  /// 根据最大记录大小动态计算叶子页面大小 (1:1 对标 Garnet ComputeLeafPageSize)
+  /// 根据最大记录大小动态计算叶子页面大小 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:ComputeLeafPageSize)
   ///
   /// ≤2KB → 4KB；否则 2.5 倍封顶 32KB 后向上取 2 的幂 (纯整数运算，floor(5n/2) 与 C# 浮点截断一致)
   #[inline]
@@ -312,7 +312,7 @@ impl RangeIndexManager {
     self.ri_log_root.join(file_name)
   }
 
-  /// 根据原始 key 获取数据文件标准路径 (零堆分配 Base32 转换，1:1 对标 Garnet LogDataPathFor)
+  /// 根据原始 key 获取数据文件标准路径 (零堆分配 Base32 转换，1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:LogDataPathFor)
   #[inline]
   pub fn data_file_path_for_key(&self, key: &[u8]) -> PathBuf {
     let hash_prefix = Self::base32_prefix_of(key);

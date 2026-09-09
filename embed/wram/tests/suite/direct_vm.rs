@@ -79,7 +79,7 @@ fn direct_vm_allocate_is_zeroed_aligned_writable() -> Void {
   OK
 }
 
-/// 对标 C# `DirectVmTrackerReflectsAllocation`：显式 Free 时的内存追踪
+/// 对标 libs/storage/Tsavorite/cs/test/NativeAllocatorTests.cs:DirectVmTrackerReflectsAllocation：显式 Free 时的内存追踪
 #[test]
 fn direct_vm_tracker_reflects_allocation() -> Void {
   info!("对标 DirectVmTrackerReflectsAllocation：显式 Free 前后 tracker 状态校验");

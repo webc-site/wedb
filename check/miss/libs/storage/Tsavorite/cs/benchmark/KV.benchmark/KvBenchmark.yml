@@ -1,5 +1,4 @@
 fn:
-  - KvBenchmark
   - CleanStaleRunDirs
   - Load
   - RunWorkers

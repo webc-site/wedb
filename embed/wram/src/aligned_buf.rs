@@ -304,7 +304,7 @@ impl Drop for AlignedBuf {
       return;
     }
     if let Some((pool, meta)) = self.pooled.take() {
-      // RAII 归还：按 Origin-Return 路由归还入池复用 (对标 C# ReturnOriginReturn)
+      // RAII 归还：按 Origin-Return 路由归还入池复用 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ReturnOriginReturn)
       pool.return_buf(self.ptr, self.cap, self.align, meta);
       return;
     }

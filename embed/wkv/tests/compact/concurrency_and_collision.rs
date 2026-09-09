@@ -403,7 +403,7 @@ fn read_cache_compaction_scan() -> Void {
 
 /// 良性 CAS 竞争回归压力测试：紧缩期间并发读触发 ReadCache 挂链提升与驱逐回写，
 /// 索引槽位被良性改写（主日志地址 <-> RC 虚拟地址）时存活记录必须经复核重试成功迁移，
-/// 绝不随截断物理丢弃（对标 C# ConditionalCopyToTail 重试环的语义：仅真并发覆盖才放弃）
+/// 绝不随截断物理丢弃（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs:ConditionalCopyToTail 重试环的语义：仅真并发覆盖才放弃）
 #[test]
 fn compaction_with_concurrent_read_rc_index_rewrite() -> Void {
   let rt = Runtime::new()?;

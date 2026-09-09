@@ -16,7 +16,7 @@ pub const PAD_KEY_LEN: u32 = u32::MAX;
 /// 48 位逻辑地址掩码与位宽（统一由 wbase 提供）
 pub use wbase::addr::{ADDRESS_BITS, ADDRESS_MASK};
 
-/// 8 位填充词偏移量（bits 48..55，每词 8 字节，最多 255 * 8 = 2040 字节松弛空间，对标 Garnet RecordDataHeader.FillerWords）
+/// 8 位填充词偏移量（bits 48..55，每词 8 字节，最多 255 * 8 = 2040 字节松弛空间，对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords）
 pub(crate) const FILLER_WORDS_SHIFT: u32 = ADDRESS_BITS;
 pub(crate) const FILLER_WORDS_MASK: u64 = 0xFFu64 << FILLER_WORDS_SHIFT;
 
@@ -59,7 +59,7 @@ const _: () = assert!(
 );
 
 // 编译期静态断言 2：内存布局与磁盘序列化布局严格一致（16 字节、8 字节对齐，
-// 对标 C# Constants.FixedHeaderSize = RecordInfo.Size + RecordDataHeader.Size 与 kRecordAlignment）
+// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs:FixedHeaderSize = RecordInfo.Size + RecordDataHeader.Size 与 kRecordAlignment）
 const _: () = assert!(size_of::<RecordHeader>() == HEADER_SIZE);
 const _: () = assert!(align_of::<RecordHeader>() == 8);
 
@@ -116,7 +116,7 @@ impl RecordHeader {
     (self.prev_address & TOMBSTONE_BIT) != 0
   }
 
-  /// 是否带有修改标记（对标 C# RecordInfo.Modified）
+  /// 是否带有修改标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:Modified）
   #[inline(always)]
   pub const fn is_modified(&self) -> bool {
     (self.prev_address & MODIFIED_BIT) != 0
@@ -132,7 +132,7 @@ impl RecordHeader {
     }
   }
 
-  /// 是否带有密封标记（对标 C# RecordInfo.IsSealed / TrySeal）
+  /// 是否带有密封标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsSealed / TrySeal）
   #[inline(always)]
   pub const fn is_sealed(&self) -> bool {
     (self.prev_address & SEALED_BIT) != 0
@@ -148,7 +148,7 @@ impl RecordHeader {
     }
   }
 
-  /// 是否属于 Checkpoint 新版本纪元（对标 C# RecordInfo.IsInNewVersion）
+  /// 是否属于 Checkpoint 新版本纪元（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsInNewVersion）
   #[inline(always)]
   pub const fn is_in_new_version(&self) -> bool {
     (self.prev_address & IN_NEW_VERSION_BIT) != 0
@@ -164,7 +164,7 @@ impl RecordHeader {
     }
   }
 
-  /// 是否标记为读缓存记录（对标 C# RecordInfo.IsReadCache / LogAddress.kIsReadCacheBitMask）
+  /// 是否标记为读缓存记录（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsReadCache / LogAddress.kIsReadCacheBitMask）
   #[inline(always)]
   pub const fn is_read_cache(&self) -> bool {
     (self.prev_address & READ_CACHE_BIT) != 0
@@ -180,7 +180,7 @@ impl RecordHeader {
     }
   }
 
-  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 Garnet RecordDataHeader.FillerWords）
+  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords）
   #[inline(always)]
   pub const fn filler_words(&self) -> u8 {
     ((self.prev_address & FILLER_WORDS_MASK) >> FILLER_WORDS_SHIFT) as u8
@@ -372,7 +372,7 @@ impl RecordHeader {
     }
   }
 
-  /// 头部是否为全零空记录（对标 C# RecordInfo.IsNull 与 RecordDataHeader.GetRecordLength 零头守卫）
+  /// 头部是否为全零空记录（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsNull 与 RecordDataHeader.GetRecordLength 零头守卫）
   ///
   /// Rust 将 C# 的 RecordInfo（8B）与长度字段（RDH）合并为 16 字节头，故空记录判定覆盖
   /// 前驱地址、键长、值长三者同时为零（前驱地址为 0 但键值非零属合法创世记录，不算空头）。

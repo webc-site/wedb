@@ -71,7 +71,7 @@ pub fn create_read_cache_store(
   Ok((dir, store, session))
 }
 
-/// 批量回读校验辅助函数：验证区间记录与删除断言（对标 Garnet VerifyRead）
+/// 批量回读校验辅助函数：验证区间记录与删除断言（对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:VerifyRead）
 pub async fn verify_records<F>(
   session: &StoreSession<SegmentedDevice>,
   prefix: &str,

@@ -90,7 +90,7 @@ pub struct RangeIndexChunkedSerializer {
 }
 
 impl RangeIndexChunkedSerializer {
-  /// 创建新的分块序列化器 (1:1 对标 Garnet new RangeIndexChunkedSerializer(key, stub, totalFileBytes))
+  /// 创建新的分块序列化器 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new RangeIndexChunkedSerializer(key, stub, totalFileBytes))
   pub fn new(key: &[u8], stub: &[u8], total_file_bytes: u64) -> Self {
     Self {
       key_bytes: key.to_vec(),
@@ -245,7 +245,7 @@ impl RangeIndexChunkedSerializer {
   }
 }
 
-/// 反序列化状态机阶段 (1:1 对标 Garnet RangeIndexChunkedDeserializer.State)
+/// 反序列化状态机阶段 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexChunkedDeserializer.cs:State)
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum DeserializerState {
   WaitingForKeyHeader,
@@ -338,7 +338,7 @@ impl RangeIndexChunkedDeserializer {
     &self.temp_path
   }
 
-  /// 处理传入的数据块切片 (1:1 对标 Garnet ProcessChunk)
+  /// 处理传入的数据块切片 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexChunkedDeserializer.cs:ProcessChunk)
   pub fn process_chunk(&mut self, mut data: &[u8]) -> Result<bool> {
     loop {
       match self.state {

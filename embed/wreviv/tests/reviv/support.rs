@@ -2,16 +2,16 @@
 
 use wreviv::{FreeRecordBin, FreeRecordPool, Result, SetStatus};
 
-/// 基础申请记录尺寸，对标 C# RevivificationTests.TakeRecordSize = 40
+/// 基础申请记录尺寸，对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:TakeRecordSize = 40
 pub const TAKE_RECORD_SIZE: u32 = 40;
 
-/// 记录对齐字节数，对标 C# Constants.kRecordAlignment = 8
+/// 记录对齐字节数，对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs:kRecordAlignment = 8
 pub const RECORD_ALIGNMENT: u32 = 8;
 
-/// 测试地址基底偏移增量，对标 C# RevivificationTests.AddressIncrement = 1,000,000
+/// 测试地址基底偏移增量，对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:AddressIncrement = 1,000,000
 pub const ADDRESS_INCREMENT: u64 = 1_000_000;
 
-/// 创建单分桶测试池夹具，对标 C# RevivificationTestUtils.CreateSingleBinFreeRecordPool
+/// 创建单分桶测试池夹具，对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:CreateSingleBinFreeRecordPool
 pub fn create_single_bin_pool(
   record_size: u32,
   capacity: usize,
@@ -20,7 +20,7 @@ pub fn create_single_bin_pool(
   FreeRecordPool::with_bin_sizes_and_scan_limit(&[record_size], capacity, scan_limit)
 }
 
-/// 填充 6 条 Best-Fit 测试基准记录，对标 C# CreateBestFitTestPool
+/// 填充 6 条 Best-Fit 测试基准记录，对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:CreateBestFitTestPool
 ///
 /// 依次存入:
 /// - 槽位 0: `base_addr + 1`, 尺寸 `take_size + 1`

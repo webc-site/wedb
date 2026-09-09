@@ -1,4 +1,4 @@
-//! 检查点屏障与全树 CPR 快照 (1:1 对标 Garnet SetCheckpointBarrier / SnapshotAllTreesForCheckpoint)
+//! 检查点屏障与全树 CPR 快照 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier / SnapshotAllTreesForCheckpoint)
 
 use std::{fs, path::Path, sync::atomic::Ordering};
 
@@ -10,7 +10,7 @@ use crate::{
   service::{BfTreeService, backoff},
 };
 
-/// 单树快照等待的总超时上限 (对照 C# WaitForTreeCheckpoint 纯 Thread.Yield 无超时：
+/// 单树快照等待的总超时上限 (对照 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:WaitForTreeCheckpoint 纯 Thread.Yield 无超时：
 /// thread-per-core 下屏障持有者卡慢 I/O 时纯自旋烧整核，超时以错误显式暴露)
 const CHECKPOINT_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -31,7 +31,7 @@ impl Drop for SnapshotPendingGuard<'_> {
 }
 
 impl RangeIndexManager {
-  /// 设置全局检查点屏障 (1:1 对标 Garnet SetCheckpointBarrier)
+  /// 设置全局检查点屏障 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
   ///
   /// 将所有在线与就绪条目的 snapshot_pending 设为 true，并设置 checkpoint_in_progress 为 true
   pub fn set_checkpoint_barrier(&self) {
@@ -42,7 +42,7 @@ impl RangeIndexManager {
     self.checkpoint_in_progress.store(true, Ordering::SeqCst);
   }
 
-  /// 清除全局检查点屏障 (1:1 对标 Garnet ClearCheckpointBarrier)
+  /// 清除全局检查点屏障 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:ClearCheckpointBarrier)
   ///
   /// 将 checkpoint_in_progress 设为 false，并将所有条目的 snapshot_pending 设为 false
   pub fn clear_checkpoint_barrier(&self) {
@@ -53,7 +53,7 @@ impl RangeIndexManager {
     }
   }
 
-  /// 等待单树快照完成屏障 (1:1 对标 Garnet WaitForTreeCheckpoint)
+  /// 等待单树快照完成屏障 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:WaitForTreeCheckpoint)
   ///
   /// 返回 `Ok(true)` 表示该树正在被快照且已等待其完成，调用方必须重试整次操作；
   /// `Ok(false)` 表示无需等待。等待采用退避阶梯，超过
@@ -97,7 +97,7 @@ impl RangeIndexManager {
     }
   }
 
-  /// 为全局检查点快照所有活跃与就绪的 BfTree (1:1 对标 Garnet SnapshotAllTreesForCheckpoint)
+  /// 为全局检查点快照所有活跃与就绪的 BfTree (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
   pub fn snapshot_all_trees_for_checkpoint(&self, checkpoint_token: &str) -> Result<()> {
     self.snapshot_all_trees_to_dir(&self.cpr_dir, checkpoint_token)?;
     Ok(())

@@ -129,7 +129,7 @@ fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
   }
   assert_eq!(pool.reserved_bytes(), 0, "超界缓冲不得消耗字节预算");
 
-  // bypass 直配可观测：次数与字节数精确计入独立计数 (对标 C# Stats.BypassAllocs)
+  // bypass 直配可观测：次数与字节数精确计入独立计数 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:BypassAllocs)
   let stats = pool.stats();
   assert_eq!(
     stats.bypass_alloc_count, 2,

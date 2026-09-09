@@ -1,4 +1,4 @@
-//! RangeIndex 存根结构 (1:1 对标 Garnet RangeIndexManager.Index.cs 中 RangeIndexStub)
+//! RangeIndex 存根结构 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:Index.cs 中 RangeIndexStub)
 //!
 //! 定长 35 字节二进制结构，存储于底层 Tsavorite / HybridLog 主存储日志中，记录 BfTree 配置与在线实例指针。
 
@@ -7,7 +7,7 @@ use crate::{
   types::StorageBackendType,
 };
 
-/// 存根字节总长度 (1:1 对标 Garnet RangeIndexStub.Size = 35)
+/// 存根字节总长度 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:Size = 35)
 pub const RANGE_INDEX_STUB_SIZE: usize = 35;
 
 /// 字段偏移量 (小端定长布局)
@@ -126,19 +126,19 @@ impl RangeIndexStub {
     }
   }
 
-  /// 重置所有标志位为 0 (1:1 对标 Garnet ResetFlags)
+  /// 重置所有标志位为 0 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:ResetFlags)
   #[inline]
   pub fn reset_flags(&mut self) {
     self.flags = 0;
   }
 
-  /// 清零树句柄裸指针 (1:1 对标 Garnet ClearTreeHandle)
+  /// 清零树句柄裸指针 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:ClearTreeHandle)
   #[inline]
   pub fn clear_tree_handle(&mut self) {
     self.tree_handle = 0;
   }
 
-  /// 标记已从检查点恢复并清零句柄 (1:1 对标 Garnet MarkRecoveredFromCheckpoint)
+  /// 标记已从检查点恢复并清零句柄 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
   #[inline]
   pub fn mark_recovered_from_checkpoint(&mut self) {
     self.tree_handle = 0;
@@ -355,7 +355,7 @@ impl RangeIndexStub {
     }
   }
 
-  /// 直接在二进制切片上就地清零树指针 (1:1 对标 Garnet ClearTreeHandle / InvalidateStub)
+  /// 直接在二进制切片上就地清零树指针 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:ClearTreeHandle / InvalidateStub)
   #[inline]
   pub fn slice_clear_tree_handle(slice: &mut [u8]) -> Result<()> {
     if slice.len() < CACHE_SIZE_OFFSET {
@@ -365,7 +365,7 @@ impl RangeIndexStub {
     Ok(())
   }
 
-  /// 直接在二进制切片上就地置位刷盘标志 (1:1 对标 Garnet SetFlushedFlag)
+  /// 直接在二进制切片上就地置位刷盘标志 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:SetFlushedFlag)
   #[inline]
   pub fn slice_set_flushed(slice: &mut [u8], flushed: bool) -> Result<()> {
     Self::validate_slice(slice)?;
@@ -377,7 +377,7 @@ impl RangeIndexStub {
     Ok(())
   }
 
-  /// 直接在二进制切片上就地置位转移标志 (1:1 对标 Garnet SetTransferredFlag)
+  /// 直接在二进制切片上就地置位转移标志 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:SetTransferredFlag)
   #[inline]
   pub fn slice_set_transferred(slice: &mut [u8], transferred: bool) -> Result<()> {
     Self::validate_slice(slice)?;
@@ -389,7 +389,7 @@ impl RangeIndexStub {
     Ok(())
   }
 
-  /// 直接在二进制切片上标记从检查点恢复 (1:1 对标 Garnet MarkRecoveredFromCheckpoint)
+  /// 直接在二进制切片上标记从检查点恢复 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
   #[inline]
   pub fn slice_mark_recovered_from_checkpoint(slice: &mut [u8]) -> Result<()> {
     Self::validate_slice(slice)?;

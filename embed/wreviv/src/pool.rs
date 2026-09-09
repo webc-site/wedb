@@ -213,7 +213,7 @@ impl FreeRecordPool {
     })
   }
 
-  /// 将删除或缩减释放的记录槽位归还入池（对标 C# FreeRecordPool.TryAdd）
+  /// 将删除或缩减释放的记录槽位归还入池（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:TryAdd）
   ///
   /// 前置条件：调用方（wedb_hlog / wedb_store 层）须已将该地址的记录墓碑化或确认其已失效
   /// （对标 C# TryAdd 前置的 `InfoRef.TrySeal(invalidate: true)`，见 [`FreeRecord`] 并发模型说明）。

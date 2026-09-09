@@ -2,7 +2,7 @@
 //!
 //! 对标 C# 测试文件：
 //! `/Users/z/git/db/garnet/libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs`
-//! （跨段读写对标 `IDevice_RoundTrip_AcrossSegmentBoundary` 的多边界延展）；
+//! （跨段读写对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_RoundTrip_AcrossSegmentBoundary 的多边界延展）；
 //! 整数溢出与超大段号拦截为 Rust 补齐的 `checked_add` / `u32::try_from`
 //! 防御语义（对标 C# unchecked 域外的上界防护）。
 
@@ -114,7 +114,7 @@ fn integer_overflow_defense_on_offset_and_segment_number() -> Void {
 }
 
 /// 按地址截断的 u64::MAX 防御：不得整数回绕，须安全钳位至 u32::MAX
-/// （对标 C# Utility.MonotonicUpdate 单调推进语义）。
+/// （对标 libs/client/Utility.cs:MonotonicUpdate 单调推进语义）。
 #[test]
 fn truncate_until_address_u64_max_is_clamped_safely() -> Void {
   let rt = Runtime::new()?;

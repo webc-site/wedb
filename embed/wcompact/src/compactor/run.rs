@@ -1,5 +1,5 @@
-//! 两种紧缩模式实现：Lookup 逐记录判活迁移（对标 CompactLookup）与
-//! Scan 三阶段候选去重迁移（对标 CompactScan）
+//! 两种紧缩模式实现：Lookup 逐记录判活迁移（对标 libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs:CompactLookup）与
+//! Scan 三阶段候选去重迁移（对标 libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs:CompactScan）
 
 use wbase::time::now_ms;
 use whasher::{HashMap, new_hash_map};

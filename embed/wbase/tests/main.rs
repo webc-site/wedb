@@ -30,7 +30,7 @@ fn test_addr_primitives() {
   assert_eq!(u64::from(log_addr), rc_addr);
   assert_eq!(LogAddress::from(rc_addr), log_addr);
 
-  // Display 对齐 C# AddressString：rc:N / kInvalid / kTempInvalid / log:N（十进制）
+  // Display 对齐 libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs:AddressString：rc:N / kInvalid / kTempInvalid / log:N（十进制）
   assert_eq!(format!("{log_addr}"), format!("rc:{raw}"));
   assert_eq!(format!("{}", LogAddress::INVALID), "kInvalid");
   assert_eq!(
@@ -67,7 +67,7 @@ fn test_align_primitives() {
   assert_eq!(align_up(4096, 4096), 4096);
   assert_eq!(checked_align_up(u64::MAX - 10, 4096), None);
 
-  // 前置 2 的幂（对齐 C# Utility.PreviousPowerOf2）
+  // 前置 2 的幂（对齐 libs/client/Utility.cs:PreviousPowerOf2）
   assert_eq!(prev_power_of2(0), 0);
   assert_eq!(prev_power_of2(1), 1);
   assert_eq!(prev_power_of2(2), 2);

@@ -26,7 +26,6 @@ lua 用 luau
 
 在 rust 函数文档注释中写清楚和 c# 的映射关系，格式如: 在 garnet 中的相对路径:函数名
 
-
 只能使用 cargo add 添加依赖，禁改 Cargo.toml
 
 让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
@@ -38,3 +37,5 @@ lua 用 luau
 子代理开发，要效率最大化，分析拓扑，并发启动
 
 开发与审查流水线重叠（一边审查上一层 crate，一边开发下一层 crate）
+
+不断循环，开新子代理 code review ，直到连续三次子代理认为完备完整的实现了 garnet 的代码，并且实现达到了生产级别

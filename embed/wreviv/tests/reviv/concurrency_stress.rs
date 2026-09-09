@@ -24,7 +24,7 @@ use wreviv::{FreeRecordBin, FreeRecordPool};
 use super::support::ADDRESS_INCREMENT;
 
 /// 验证单条记录在多线程高频争抢下的互斥性与状态完整性
-/// 对标 C# `ArtificialThreadContentionOnOneRecordTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:ArtificialThreadContentionOnOneRecordTest
 ///
 /// 8 个高并发线程同时对池中唯一的单条记录进行激烈的竞争争抢：
 /// - 每个线程循环 10,000 次；
@@ -102,7 +102,7 @@ fn thread_contention_on_single_record() -> Void {
 }
 
 /// 多生产者、多消费者深度并发压力测试
-/// 对标 C# `ArtificialFreeBinThreadStressTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:ArtificialFreeBinThreadStressTest
 ///
 /// 验证多线程组合下，每条添加的记录恰好被取出一次，无任何遗留标志或槽位。
 #[test]

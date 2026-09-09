@@ -3,7 +3,7 @@ use wbftree::{BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, BfTreeSe
 
 use super::common::TempTreeGuard;
 
-/// 测试基础键值插入与读取往返一致性（对照 C# Garnet: BfTreeInteropTests.InsertAndRead_BasicRoundTrip）
+/// 测试基础键值插入与读取往返一致性（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:InsertAndRead_BasicRoundTrip）
 #[test]
 fn test_insert_and_read_basic_round_trip() -> Result<()> {
   let path = TempTreeGuard::new("basic_roundtrip");
@@ -20,7 +20,7 @@ fn test_insert_and_read_basic_round_trip() -> Result<()> {
   OK
 }
 
-/// 测试相同键重复插入覆盖后返回最新值（对照 C# Garnet: BfTreeInteropTests.InsertOverwrite_ReturnsUpdatedValue）
+/// 测试相同键重复插入覆盖后返回最新值（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:InsertOverwrite_ReturnsUpdatedValue）
 #[test]
 fn test_insert_overwrite_returns_updated_value() -> Result<()> {
   let path = TempTreeGuard::new("overwrite");
@@ -37,7 +37,7 @@ fn test_insert_overwrite_returns_updated_value() -> Result<()> {
   OK
 }
 
-/// 测试批量插入多个键值对后均可正确读取（对照 C# Garnet: BfTreeInteropTests.InsertMultiple_AllReadable）
+/// 测试批量插入多个键值对后均可正确读取（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:InsertMultiple_AllReadable）
 #[test]
 fn test_insert_multiple_all_readable() -> Result<()> {
   let path = TempTreeGuard::new("multi_read");
@@ -60,7 +60,7 @@ fn test_insert_multiple_all_readable() -> Result<()> {
   OK
 }
 
-/// 测试读取不存在的键安全返回 NotFound（对照 C# Garnet: BfTreeInteropTests.ReadNotFound）
+/// 测试读取不存在的键安全返回 NotFound（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ReadNotFound）
 #[test]
 fn test_read_not_found() -> Result<()> {
   let path = TempTreeGuard::new("not_found");
@@ -73,7 +73,7 @@ fn test_read_not_found() -> Result<()> {
   OK
 }
 
-/// 测试删除已存在的键后读取返回 Deleted（对照 C# Garnet: BfTreeInteropTests.ReadAfterDelete_ReturnsDeleted）
+/// 测试删除已存在的键后读取返回 Deleted（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ReadAfterDelete_ReturnsDeleted）
 #[test]
 fn test_read_after_delete_returns_deleted() -> Result<()> {
   let path = TempTreeGuard::new("read_after_del");
@@ -90,7 +90,7 @@ fn test_read_after_delete_returns_deleted() -> Result<()> {
   OK
 }
 
-/// 测试将值零分配直接读入目标切片缓冲区（对照 C# Garnet: BfTreeInteropTests.ReadIntoSpan_ZeroAlloc）
+/// 测试将值零分配直接读入目标切片缓冲区（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ReadIntoSpan_ZeroAlloc）
 #[test]
 fn test_read_into_span_zero_alloc() -> Result<()> {
   let path = TempTreeGuard::new("read_into");
@@ -108,7 +108,7 @@ fn test_read_into_span_zero_alloc() -> Result<()> {
   OK
 }
 
-/// 测试零分配读取不存在的键返回 NotFound 且读取长度为 0（对照 C# Garnet: BfTreeInteropTests.ReadIntoSpan_NotFound）
+/// 测试零分配读取不存在的键返回 NotFound 且读取长度为 0（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:ReadIntoSpan_NotFound）
 #[test]
 fn test_read_into_span_not_found() -> Result<()> {
   let path = TempTreeGuard::new("read_into_nf");
@@ -122,7 +122,7 @@ fn test_read_into_span_not_found() -> Result<()> {
   OK
 }
 
-/// 测试删除已存在的键成功返回 Success（对照 C# Garnet: BfTreeInteropTests.DeleteExistingKey）
+/// 测试删除已存在的键成功返回 Success（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:DeleteExistingKey）
 #[test]
 fn test_delete_existing_key() -> Result<()> {
   let path = TempTreeGuard::new("del_exist");
@@ -138,7 +138,7 @@ fn test_delete_existing_key() -> Result<()> {
   OK
 }
 
-/// 测试删除不存在的键安全返回 Success（对照 C# Garnet: BfTreeInteropTests.DeleteNonExistentKey_ReturnsSuccess）
+/// 测试删除不存在的键安全返回 Success（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:DeleteNonExistentKey_ReturnsSuccess）
 #[test]
 fn test_delete_non_existent_key_returns_success() -> Result<()> {
   let path = TempTreeGuard::new("del_ghost");

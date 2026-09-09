@@ -70,7 +70,7 @@ impl<'a> RecordRef<'a> {
     Ok((rec, remaining))
   }
 
-  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 Garnet RecordDataHeader.FillerWords）
+  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords）
   #[inline(always)]
   pub const fn filler_words(&self) -> u8 {
     self.header.filler_words()
@@ -136,25 +136,25 @@ impl<'a> RecordRef<'a> {
     self.header.is_tombstone()
   }
 
-  /// 是否带有修改标记（对标 C# RecordInfo.Modified）
+  /// 是否带有修改标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:Modified）
   #[inline(always)]
   pub const fn is_modified(&self) -> bool {
     self.header.is_modified()
   }
 
-  /// 是否带有密封标记（对标 C# RecordInfo.IsSealed / TrySeal）
+  /// 是否带有密封标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsSealed / TrySeal）
   #[inline(always)]
   pub const fn is_sealed(&self) -> bool {
     self.header.is_sealed()
   }
 
-  /// 是否属于 Checkpoint 新版本纪元（对标 C# RecordInfo.IsInNewVersion）
+  /// 是否属于 Checkpoint 新版本纪元（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsInNewVersion）
   #[inline(always)]
   pub const fn is_in_new_version(&self) -> bool {
     self.header.is_in_new_version()
   }
 
-  /// 是否标记为读缓存记录（对标 C# RecordInfo.IsReadCache）
+  /// 是否标记为读缓存记录（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsReadCache）
   #[inline(always)]
   pub const fn is_read_cache(&self) -> bool {
     self.header.is_read_cache()

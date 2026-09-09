@@ -186,7 +186,7 @@ impl Drop for WriteGuard<'_> {
   }
 }
 
-/// BfTree 写入屏障 RAII 守卫 (对标 Garnet SetCheckpointBarrier)
+/// BfTree 写入屏障 RAII 守卫 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
 ///
 /// 持有期间屏障计数 > 0，全部 insert/delete 自旋等待；丢弃时递减计数，
 /// 写者阻塞至最外层守卫丢弃。持有着必须保证屏障窗口内不做任何跨线程
@@ -258,7 +258,7 @@ impl BfTreeService {
     config
   }
 
-  /// 便捷创建磁盘文件后端树实例 (1:1 对标 Garnet new BfTreeService(filePath: path, ...))
+  /// 便捷创建磁盘文件后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new BfTreeService(filePath: path, ...))
   pub fn open_disk(path: impl AsRef<Path>, cb_min_record_size: usize) -> Result<Self> {
     let p = path.as_ref();
     if p.as_os_str().is_empty() {
@@ -280,7 +280,7 @@ impl BfTreeService {
     )
   }
 
-  /// 便捷创建纯内存后端树实例 (1:1 对标 Garnet new BfTreeService(storageBackend: Memory, ...))
+  /// 便捷创建纯内存后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new BfTreeService(storageBackend: Memory, ...))
   pub fn open_memory(cb_min_record_size: usize) -> Result<Self> {
     let mut config = Self::preset_config(cb_min_record_size);
     config.cache_only(true);
@@ -625,7 +625,7 @@ impl BfTreeService {
     Ok(scanned)
   }
 
-  /// 排空全部在途写者 (对标 Garnet SnapshotUnderClaim 的 claim 等待)
+  /// 排空全部在途写者 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotUnderClaim 的 claim 等待)
   ///
   /// 必须在 [`write_barrier`](Self::write_barrier) 置位后调用：等待已越过双检的
   /// 在途写者全部退出，此后 writers == 0 即树对写静稳，可安全换树/释放。
@@ -649,7 +649,7 @@ impl BfTreeService {
     Ok(())
   }
 
-  /// 开启写入屏障并返回 RAII 守卫 (对标 Garnet SetCheckpointBarrier)
+  /// 开启写入屏障并返回 RAII 守卫 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
   ///
   /// 计数式屏障：嵌套叠加时写者阻塞至最外层守卫丢弃；守卫丢弃递减计数。
   /// ⚠️ 持有窗口内严禁跨 await / 依赖同线程 I/O 事件（见类型文档）。
@@ -688,7 +688,7 @@ impl BfTreeService {
       .map_err(|_| Error::Snapshot("底层引擎异常 (快照未启用或内部状态异常)".into()))
   }
 
-  /// 从 CPR 快照原地换入恢复树 (1:1 对标 Garnet RestoreTree 的句柄重锚定)
+  /// 从 CPR 快照原地换入恢复树 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree 的句柄重锚定)
   ///
   /// 恢复流程（保证任何时刻都不破坏仍存活的旧树，且任一步失败状态自洽）：
   /// 1. 快照拷贝至 `work_path.recovering` 临时文件（绝不覆盖旧树正在使用的 `work_path`）；
@@ -823,7 +823,7 @@ impl BfTreeService {
     }
   }
 
-  /// 屏障内排空在途写者后释放实例 (对标 C# DisposeTreeUnderLock 经 LightEpoch
+  /// 屏障内排空在途写者后释放实例 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经 LightEpoch
   /// 延迟 dispose 的排空语义)
   ///
   /// C# 依赖 storeEpoch 把「摘树 + 删文件」推迟到所有在途 reader/writer 越过之后；
@@ -867,7 +867,7 @@ mod tests {
     BfTreeService::open_memory(0).unwrap()
   }
 
-  /// 排空必须等在途写者退出后才摘树：对标 C# DisposeTreeUnderLock 经
+  /// 排空必须等在途写者退出后才摘树：对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经
   /// storeEpoch 排空后才 dispose + 删文件的顺序语义
   #[test]
   fn test_dispose_quiesced_waits_inflight_writer() {

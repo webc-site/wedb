@@ -241,7 +241,7 @@ impl<S: CprStore> CprStore for &S {
 /// io_uring 下真正的磁盘 I/O 由内核完成，reactor 线程仅提交请求与收割完成事件，不会阻塞；
 /// 序列化与 CRC32 累积属微秒级纯计算，按 thread-per-core 模型留在 reactor 线程执行。
 ///
-/// `rc_skip` 为 ReadCache 易失指针解析闭包（对标 C# SkipReadCacheBucket，见
+/// `rc_skip` 为 ReadCache 易失指针解析闭包（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:SkipReadCacheBucket，见
 /// [`crate::write_index_checkpoint`]）；无 ReadCache 时传恒等闭包 `|addr| addr`。
 pub async fn take_index_checkpoint(
   index: &HashIndex,
@@ -617,7 +617,7 @@ impl<D: Device> CheckpointManager<D> {
     store.flush_all().await?;
 
     // 5. 同步遍历 store 为所有 RangeIndex 执行 CPR 快照
-    //    (1:1 对标 Garnet SnapshotAllTreesForCheckpoint)
+    //    (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
     let _ri_count = store.take_range_index_checkpoints(dir, token)?;
 
     // 5.0.1 共享 BfTree CPR 快照：Flattened ZSet 成员与 ACL/集群元数据的持久化闭环
@@ -635,7 +635,7 @@ impl<D: Device> CheckpointManager<D> {
     // 6. 原子刷写 Index Checkpoint（纯 compio 异步定位 I/O：io_uring 下磁盘 I/O 由内核
     //    完成，reactor 仅提交/收割完成事件，大索引刷盘不再需要线程池中转）。
     //    传入 ReadCache 解析闭包：指向易失读缓存的索引条目在快照前必须顺链回写为主日志
-    //    真实地址（对标 C# SkipReadCacheBucket），否则恢复后这些键将永久不可见
+    //    真实地址（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:SkipReadCacheBucket），否则恢复后这些键将永久不可见
     let index_meta =
       take_index_checkpoint(store.index(), store.entry_count(), dir, token, |addr| {
         store.skip_read_cache(addr)

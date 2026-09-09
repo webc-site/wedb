@@ -90,7 +90,7 @@ fn opt_out_clear_then_default_get_is_zeroed() -> Void {
   OK
 }
 
-/// 运行时动态切换 clear_on_return 策略 (对标 C# SectorAlignedMemory.clearOnReturn 属性)
+/// 运行时动态切换 clear_on_return 策略 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:clearOnReturn 属性)
 #[test]
 fn clear_on_return_dynamic_switch() -> Void {
   info!("验证租借期间动态切换归还清零策略后，复用方仍获得全零缓冲区");

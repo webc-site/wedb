@@ -47,7 +47,7 @@ use crate::{
   host::CompactStore,
 };
 
-/// CAS 迁移竞争重试上限（对标 C# `ConditionalCopyToTail` 的 `while (true)` 重试环；
+/// CAS 迁移竞争重试上限（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs:ConditionalCopyToTail 的 `while (true)` 重试环；
 /// 良性竞争需在纳秒级 CAS 窗口内连续命中 8 次，概率趋近零。与 C# 的刻意差异：
 /// 耗尽时不无界重试也不弃迁存活数据，而是以 [`CopyOutcome::Retain`] 做记录级保守
 /// 保留——截断点下界回退至该记录起始边界，紧缩扫描继续推进——有界工作量与

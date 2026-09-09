@@ -20,7 +20,7 @@ use super::support::{
 };
 
 /// 验证单分桶简单存取流程
-/// 对标 C# `ArtificialSimpleTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:ArtificialSimpleTest
 ///
 /// 1. 初始化容量 64、尺寸 TakeRecordSize + 8 的首次适配分桶池；
 /// 2. 存入有效记录并以 min_address 校验取出；
@@ -48,7 +48,7 @@ fn simple_allocation() -> Void {
 }
 
 /// 验证 Best-Fit 最佳适配与精确匹配优先逻辑
-/// 对标 C# `ArtificialBestFitTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:ArtificialBestFitTest
 ///
 /// 存入 6 条记录：
 /// - 槽位 0: TakeSize + 1 (41) -> 地址 1_000_001
@@ -109,7 +109,7 @@ fn best_fit_allocation_sequence() -> Void {
 }
 
 /// 验证 First-Fit 首次适配按槽位顺序分配逻辑
-/// 对标 C# `ArtificialFirstFitTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:ArtificialFirstFitTest
 ///
 /// 当 scan_limit 为 USE_FIRST_FIT 时，按物理槽位顺序依次取出。
 #[test]
@@ -143,7 +143,7 @@ fn first_fit_allocation_sequence() -> Void {
 }
 
 /// 验证低于 min_address 的记录在存入时被拦截
-/// 对标 C# `SimpleMinAddressAddTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:SimpleMinAddressAddTest
 #[test]
 fn min_address_put_boundary() -> Void {
   info!("> min_address_put_boundary [对标 C# SimpleMinAddressAddTest]");
@@ -165,7 +165,7 @@ fn min_address_put_boundary() -> Void {
 }
 
 /// 验证 min_address 推进导致记录过期并在取出时就地淘汰
-/// 对标 C# `SimpleMinAddressTakeTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:SimpleMinAddressTakeTest
 #[test]
 fn min_address_take_invalidation() -> Void {
   info!("> min_address_take_invalidation [对标 C# SimpleMinAddressTakeTest]");
@@ -186,7 +186,7 @@ fn min_address_take_invalidation() -> Void {
 }
 
 /// 验证二分查找分桶阶梯边界映射
-/// 对标 C# `BinSelectionTest`
+/// 对标 libs/storage/Tsavorite/cs/test/test.recordops/RevivificationTests.cs:BinSelectionTest
 #[test]
 fn bin_selection_partition_point() -> Void {
   info!("> bin_selection_partition_point [对标 C# BinSelectionTest]");

@@ -8,7 +8,7 @@ use wbftree::{
 
 use super::common::{TempTreeGuard, insert_test_data};
 
-/// 测试 CPR 快照保存与磁盘恢复完整往返（对照 C# Garnet: BfTreeInteropTests.SnapshotAndRecover_RoundTrip）
+/// 测试 CPR 快照保存与磁盘恢复完整往返（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:SnapshotAndRecover_RoundTrip）
 #[test]
 fn test_snapshot_and_recover_round_trip() -> Result<()> {
   let tree_path = TempTreeGuard::new("snap_origin");
@@ -39,7 +39,7 @@ fn test_snapshot_and_recover_round_trip() -> Result<()> {
   OK
 }
 
-/// 测试从快照恢复后执行范围扫描（对照 C# Garnet: BfTreeInteropTests.SnapshotAndRecover_ScanAfterRestore）
+/// 测试从快照恢复后执行范围扫描（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:SnapshotAndRecover_ScanAfterRestore）
 #[test]
 fn test_snapshot_and_recover_scan_after_restore() -> Result<()> {
   let tree_path = TempTreeGuard::new("snap_scan_origin");
@@ -65,7 +65,7 @@ fn test_snapshot_and_recover_scan_after_restore() -> Result<()> {
   OK
 }
 
-/// 测试从不存在的快照文件恢复时抛出错误（对照 C# Garnet: BfTreeInteropTests.RecoverNonExistentFile_Throws）
+/// 测试从不存在的快照文件恢复时抛出错误（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:RecoverNonExistentFile_Throws）
 #[test]
 fn test_recover_non_existent_file_throws() -> Result<()> {
   let path = TempTreeGuard::new("noexist");
@@ -74,7 +74,7 @@ fn test_recover_non_existent_file_throws() -> Result<()> {
   OK
 }
 
-/// 测试纯内存实例保存 CPR 快照并恢复（对照 C# Garnet: BfTreeInteropTests.MemoryOnly_SnapshotAndRecover_RoundTrip）
+/// 测试纯内存实例保存 CPR 快照并恢复（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:MemoryOnly_SnapshotAndRecover_RoundTrip）
 #[test]
 fn test_memory_only_snapshot_and_recover_round_trip() -> Result<()> {
   let snap_path = TempTreeGuard::new("mem_snap");
@@ -102,7 +102,7 @@ fn test_memory_only_snapshot_and_recover_round_trip() -> Result<()> {
   OK
 }
 
-/// 测试纯内存恢复模式下快照文件不存在时抛出错误（对照 C# Garnet: BfTreeInteropTests.MemoryOnly_RecoverFromNonExistentFile_Throws）
+/// 测试纯内存恢复模式下快照文件不存在时抛出错误（对照 test/standalone/BfTreeInterop.test/BfTreeInteropTests.cs:MemoryOnly_RecoverFromNonExistentFile_Throws）
 #[test]
 fn test_memory_only_recover_from_non_existent_file_throws() -> Result<()> {
   let path = TempTreeGuard::new("mem_noexist");

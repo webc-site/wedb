@@ -31,14 +31,32 @@ const walkRs = async (dir_path) => {
   return file_li;
 };
 
-const extractDocTokens = (text, doc_set) => {
+const CS_REF_REGEX =
+  /(?:^|[^\w./])([a-zA-Z0-9_\-./]+\.cs)::?([A-Za-z0-9_]+)/g;
+
+const extractDocTokens = (text, doc_set, doc_file_fn_map) => {
   const word_li = text.match(/[A-Za-z_][A-Za-z0-9_]*/g);
   if (word_li) {
     for (const w of word_li) doc_set.add(w);
   }
+  for (const m of text.matchAll(CS_REF_REGEX)) {
+    let cs_path = m[1];
+    const fn_name = m[2];
+
+    const idx = cs_path.indexOf("garnet/");
+    if (idx !== -1) {
+      cs_path = cs_path.slice(idx + 7);
+    }
+    cs_path = cs_path.replace(/^\.?\//, "");
+
+    const fn_set = doc_file_fn_map.get(cs_path) ?? new Set();
+    fn_set.add(fn_name);
+    doc_file_fn_map.set(cs_path, fn_set);
+    doc_set.add(fn_name);
+  }
 };
 
-const rsDocExtract = (code, file_rel) => {
+const rsDocExtract = (code, file_rel, doc_file_fn_map) => {
   const line_li = code.split("\n"),
     fn_doc_li = [],
     doc_set = new Set(),
@@ -59,7 +77,7 @@ const rsDocExtract = (code, file_rel) => {
         const full_block = block_buf.join(" ");
         pending_doc.push(full_block);
         all_doc_li.push(full_block);
-        extractDocTokens(full_block, doc_set);
+        extractDocTokens(full_block, doc_set, doc_file_fn_map);
         block_buf = [];
       } else {
         block_buf.push(trimmed);
@@ -72,7 +90,7 @@ const rsDocExtract = (code, file_rel) => {
         const doc = trimmed.slice(3, trimmed.indexOf("*/")).trim();
         pending_doc.push(doc);
         all_doc_li.push(doc);
-        extractDocTokens(doc, doc_set);
+        extractDocTokens(doc, doc_set, doc_file_fn_map);
       } else {
         in_block_doc = true;
         block_buf = [trimmed.slice(3).trim()];
@@ -84,14 +102,14 @@ const rsDocExtract = (code, file_rel) => {
       const doc = trimmed.replace(/^\/\/[/!]\s*/, "");
       pending_doc.push(doc);
       all_doc_li.push(doc);
-      extractDocTokens(doc, doc_set);
+      extractDocTokens(doc, doc_set, doc_file_fn_map);
       continue;
     }
 
     if (trimmed.startsWith("//")) {
       const comment = trimmed.replace(/^\/\/\s*/, "");
       all_doc_li.push(comment);
-      extractDocTokens(comment, doc_set);
+      extractDocTokens(comment, doc_set, doc_file_fn_map);
       continue;
     }
 
@@ -131,12 +149,13 @@ const rustScan = async (root_dir = resolve(import.meta.dirname, "../..")) => {
   const file_li = await walkRs(root_dir),
     fn_doc_li = [],
     doc_set = new Set(),
+    doc_file_fn_map = new Map(),
     text_li = [];
 
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),
       file_rel = relative(root_dir, file_path),
-      res = rsDocExtract(code, file_rel);
+      res = rsDocExtract(code, file_rel, doc_file_fn_map);
 
     fn_doc_li.push(...res.fn_doc_li);
     for (const token of res.doc_set) doc_set.add(token);
@@ -146,6 +165,7 @@ const rustScan = async (root_dir = resolve(import.meta.dirname, "../..")) => {
   return {
     fn_doc_li,
     doc_set,
+    doc_file_fn_map,
     doc_text: text_li.join("\n")
   };
 };
@@ -154,11 +174,11 @@ export default rustScan;
 
 if (import.meta.main) {
   const t0 = performance.now(),
-    { fn_doc_li, doc_set } = await rustScan(),
+    { fn_doc_li, doc_set, doc_file_fn_map } = await rustScan(),
     doc_fn_count = fn_doc_li.filter((x) => x.doc.length > 0).length,
     elapsed_ms = (performance.now() - t0).toFixed(1);
 
   console.log(
-    `[rustScan] 耗时 ${elapsed_ms}ms，扫描 ${fn_doc_li.length} 个函数（${doc_fn_count} 个含文档注释），提取 ${doc_set.size} 个文档符号`
+    `[rustScan] 耗时 ${elapsed_ms}ms，扫描 ${fn_doc_li.length} 个函数（${doc_fn_count} 个含文档注释），提取 ${doc_set.size} 个文档符号，识别 ${doc_file_fn_map.size} 个精准映射文件`
   );
 }

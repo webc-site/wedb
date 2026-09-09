@@ -89,13 +89,13 @@ impl HashBucketEntry {
     self.0 != 0 && !self.is_tentative()
   }
 
-  /// ReadCache 逻辑地址指示位掩码（第 47 位，严格对齐 C# Garnet LogAddress.kIsReadCacheBitMask）
+  /// ReadCache 逻辑地址指示位掩码（第 47 位，严格对齐 libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs:kIsReadCacheBitMask）
   pub const READ_CACHE_BIT: u64 = addr::READ_CACHE_BIT;
 
   /// 47 位绝对物理地址掩码（低 48 位中去除最高位 ReadCache 标记位）
   pub const ABSOLUTE_ADDRESS_MASK: u64 = addr::ABSOLUTE_ADDRESS_MASK;
 
-  /// 判定条目是否属于 ReadCache 独立只读内存缓存（严格对齐 C# Garnet HashBucketEntry.IsReadCache）
+  /// 判定条目是否属于 ReadCache 独立只读内存缓存（严格对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucketEntry.cs:IsReadCache）
   #[inline]
   pub const fn is_read_cache(&self) -> bool {
     (self.0 & Self::READ_CACHE_BIT) != 0

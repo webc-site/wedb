@@ -18,7 +18,7 @@ use wram::AlignedBuf;
 
 use crate::support::make_pattern_data;
 
-/// 对标 C# `NativeDeviceTest1`：512 字节最小扇区的对齐写入与回读
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeDeviceTest1：512 字节最小扇区的对齐写入与回读
 /// （C# entryLength = MinDeviceSectorSize * 2 = 1024，内容为 `(byte)i`）。
 #[test]
 fn native_device_test1() -> Void {
@@ -48,7 +48,7 @@ fn native_device_test1() -> Void {
   OK
 }
 
-/// 对标 C# `NativeDeviceTest2`：4096 扇区下 64KB 数据写入回读，并在多个偏移上
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeDeviceTest2：4096 扇区下 64KB 数据写入回读，并在多个偏移上
 /// 多轮迭代写入校验（C# 迭代 50 轮，此处按 CI 预算缩为 10 轮）。
 #[test]
 fn native_device_test2() -> Void {
@@ -91,7 +91,7 @@ fn native_device_test2() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_RoundTrip_BasicReadWrite`：单次对齐写入后立即回读的闭环校验
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_RoundTrip_BasicReadWrite：单次对齐写入后立即回读的闭环校验
 /// （C# 为 64MiB 段 + 64KB 数据，模式 `(i * 7) & 0xFF`；此处等比缩小段尺寸）。
 #[test]
 fn idevice_round_trip_basic_read_write() -> Void {
@@ -118,7 +118,7 @@ fn idevice_round_trip_basic_read_write() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_RoundTrip_AcrossSegmentBoundary`：换段边界处的跨段连续读写
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_RoundTrip_AcrossSegmentBoundary：换段边界处的跨段连续读写
 /// （C# 直接指定 segmentId=1；Rust 以逻辑偏移 60KB 起 16KB 等价覆盖段 0 尾部与段 1 头部）。
 #[test]
 fn idevice_round_trip_across_segment_boundary() -> Void {
@@ -165,7 +165,7 @@ fn idevice_round_trip_across_segment_boundary() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_RoundTrip_VariousSegmentSizes`：多种段尺寸参数化回读
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_RoundTrip_VariousSegmentSizes：多种段尺寸参数化回读
 /// （C# 参数为 64/256/1024 MiB；此处等比缩小为 1/4 MiB 并覆盖跨段边界与非对齐切片）。
 #[test]
 fn idevice_round_trip_various_segment_sizes() -> Void {
@@ -207,7 +207,7 @@ fn idevice_round_trip_various_segment_sizes() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_Initialize_SegmentSizeMinusOne_UnboundedSingleSegment` 与
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Initialize_SegmentSizeMinusOne_UnboundedSingleSegment 与
 /// `IDevice_Initialize_OmitSegmentIdFromFilename_BareFileName`：
 /// Rust 单文件模式等价二者并集——所有 I/O 路由到段 0，物理文件为裸名（无 `.0` 段号后缀），
 /// 任何正段尺寸下本应跨段的高偏移写入完整落入单一增长文件。

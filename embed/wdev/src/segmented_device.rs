@@ -73,7 +73,7 @@ pub struct SegmentedDevice {
   pub files: FileMap,
   /// 起始有效段编号（小于此编号的段已被截断，禁止访问；对齐 Garnet begin_segment_）
   pub start_segment: AtomicU32,
-  /// 已写入的最高段编号（-1 表示尚未写入；对齐 C# StorageDeviceBase.endSegment）
+  /// 已写入的最高段编号（-1 表示尚未写入；对齐 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:endSegment）
   pub end_segment: AtomicI32,
   /// 是否启用 Direct I/O（对齐 C# 设备族默认策略：Linux 原生设备 O_DIRECT，
   /// 其余平台 Managed 设备缓冲 I/O）
@@ -344,7 +344,7 @@ impl SegmentedDevice {
   /// 获取指定段编号对应的实际文件路径
   pub fn segment_path(&self, segment_id: u32) -> PathBuf {
     match self.segment_size {
-      // OsString 拼接保证非 UTF-8 路径的字节精确性（对标 C# GetSegmentFilename）
+      // OsString 拼接保证非 UTF-8 路径的字节精确性（对标 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:GetSegmentFilename）
       Some(_) => {
         let mut itoa_buf = Buffer::new();
         let seg_str = itoa_buf.format(segment_id);
@@ -642,7 +642,7 @@ impl SegmentedDevice {
 
   /// 从磁盘恢复设备元数据（须在首次 I/O 前调用）
   ///
-  /// 对标 C# LocalStorageDevice.RecoverFiles + Native ValidateRecoveredSegments：
+  /// 对标 libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs:RecoverFiles + Native ValidateRecoveredSegments：
   /// 1. 扫描 `<base_path>.<id>` 段文件并解析段号；
   /// 2. 校验已存在段文件大小不超过配置段大小（超过返回 SegmentSizeMismatch）；
   /// 3. 段号出现空隙处即恢复后的 start_segment（空隙前的段视为已被截断删除，
@@ -697,7 +697,7 @@ impl SegmentedDevice {
     Ok(())
   }
 
-  /// 有界容量设备的段逐出（对标 C# StorageDeviceBase.HandleCapacity）：
+  /// 有界容量设备的段逐出（对标 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:HandleCapacity）：
   /// 写入新段时单调推进 end_segment，若容量有限则截断至
   /// `end_segment - capacity/segment_size` 之前以腾出空间
   async fn handle_capacity(&self, segment: u32) -> Result<()> {
@@ -755,7 +755,7 @@ impl SegmentedDevice {
 
   /// 刷盘同步设备上全部在表段文件句柄（全量落盘，包含数据与元数据 fsync）
   ///
-  /// 语义对齐 C# `LocalStorageDevice`：句柄表进程级共享，任意线程的 sync 覆盖设备上
+  /// 语义对齐 libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs:LocalStorageDevice：句柄表进程级共享，任意线程的 sync 覆盖设备上
   /// 全部线程已打开的句柄（遍历全集并按段号去重——fsync 按 inode 全量生效，同段多个
   /// fd 仅需一次 fsync，调用线程不再重复刷其他线程已刷过的同一 inode）。sync 返回
   /// 即保证：调用发起前已在任意线程完成的全部写入持久化，release 构建不存在
@@ -1187,7 +1187,7 @@ impl Device for SegmentedDevice {
     #[cfg(windows)]
     self.retry_pending_removes().await;
 
-    // 0. 单调更新起始段编号（对齐 C# Utility.MonotonicUpdate）：
+    // 0. 单调更新起始段编号（对齐 libs/client/Utility.cs:MonotonicUpdate）：
     //    未推进则视为无操作快速返回，跳过句柄清理与目录扫描
     if self.start_segment.fetch_max(segment_id, Ordering::SeqCst) >= segment_id {
       return Ok(());

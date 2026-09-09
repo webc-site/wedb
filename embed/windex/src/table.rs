@@ -81,7 +81,7 @@ impl<'a> ChainWalker<'a> {
 /// 哈希槽位精确定位句柄（严格对标 C# Garnet HashEntryInfo）
 ///
 /// 封装单趟遍历定位出的哈希桶指针、槽位索引、旧条目与 Tag，
-/// 支持无需二次哈希、无需重新扫描桶链的定点原子 CAS（对标 Garnet HashEntryInfo.TryCAS）。
+/// 支持无需二次哈希、无需重新扫描桶链的定点原子 CAS（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs:TryCAS）。
 #[derive(Debug)]
 pub struct HashEntryInfo<'a> {
   pub(crate) bucket: &'a HashBucket,
@@ -103,7 +103,7 @@ impl<'a> HashEntryInfo<'a> {
     HashBucketEntry::from_raw(self.raw).address()
   }
 
-  /// 直接在已知槽位上尝试原子 CAS 写入新地址（严格对标 Garnet HashEntryInfo.TryCAS）
+  /// 直接在已知槽位上尝试原子 CAS 写入新地址（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs:TryCAS）
   ///
   /// - 若为新 Key（`!is_found()`，即 `raw == 0`）：执行 CAS 0 -> new_raw
   /// - 若为已有 Key 更新：执行 CAS old_raw -> new_raw
@@ -606,7 +606,7 @@ impl HashIndex {
     fast_hash(key)
   }
 
-  /// 快速单槽位探针查找（严格对照 C# Garnet TsavoriteBase.FindTag）
+  /// 快速单槽位探针查找（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag）
   ///
   /// 一旦遇到第 1 个匹配 tag 且非 tentative、address != 0 的 entry，立即返回其逻辑地址。
   /// 绝大多数情况下（99.9%）哈希桶第 0 或第 1 槽位即命中，完全规避全桶 7 槽位扫描原子加载与候选数组分配开销。
@@ -692,7 +692,7 @@ impl HashIndex {
   ///
   /// 寻找空位或沿溢出链插入，采用两阶段试探性标记确保并发插入安全，链遍历以步数上限防死循环。
   /// 注意：本方法不做同 Tag 查重——键已存在时会产生多候选（同键多版本场景），需要查重语义的
-  /// 调用方请使用 `find_tag_or_insert` / `find_or_create_tag`（对标 C# FindOrCreateTag）。
+  /// 调用方请使用 `find_tag_or_insert` / `find_or_create_tag`（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）。
   #[inline]
   pub fn insert(&self, key: &[u8], address: u64) -> Result<()> {
     self.insert_by_hash(Self::hash_key(key), address)
@@ -700,7 +700,7 @@ impl HashIndex {
 
   /// 基于哈希值插入逻辑地址（并发冲突时自动归还冗余溢出桶，杜绝泄漏）
   ///
-  /// 试探性 CAS 被并发竞争者抢占时，从链头重走寻找下一个空槽位（严格对标 C# FindOrCreateTag
+  /// 试探性 CAS 被并发竞争者抢占时，从链头重走寻找下一个空槽位（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag
   /// 的整链重试协议），避免链头附近留下永久空洞、推高溢出链深度恶化探测复杂度。
   pub fn insert_by_hash(&self, hash: u64, address: u64) -> Result<()> {
     if address == HashBucketEntry::INVALID_ADDRESS {
@@ -755,7 +755,7 @@ impl HashIndex {
                   _ => return Err(Error::OverflowPoolExhausted),
                 }
               } else {
-                // 并发冲突：另一线程已抢先挂载，归还冗余桶并沿赢家桶深入（对标 MallocFixedPageSize.Free）
+                // 并发冲突：另一线程已抢先挂载，归还冗余桶并沿赢家桶深入（对标 libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:Free）
                 self.overflow_pool.free(new_overflow_idx);
                 match walker.advance(&self.overflow_pool) {
                   ChainStep::Next => {}
@@ -770,7 +770,7 @@ impl HashIndex {
     }
   }
 
-  /// 单次遍历执行查找或试探性插入（严格对标 Garnet TsavoriteBase.FindOrCreateTag）
+  /// 单次遍历执行查找或试探性插入（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）
   ///
   /// 若已存在匹配 tag 且有效非试探的非零地址，直接返回 `Ok((Some(existing_addr), false))`；
   /// 若未找到，则在首个空槽位原子 CAS 插入 `(address, tag)` 并返回 `Ok((None, true))`。
@@ -800,13 +800,13 @@ impl HashIndex {
     }
   }
 
-  /// 单次遍历查找或插入键（对标 Garnet FindOrCreateTag）
+  /// 单次遍历查找或插入键（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）
   #[inline]
   pub fn find_tag_or_insert(&self, key: &[u8], address: u64) -> Result<(Option<u64>, bool)> {
     self.find_tag_or_insert_by_hash(Self::hash_key(key), address)
   }
 
-  /// 单趟遍历定位匹配 Tag 槽位或首个可用空闲槽位（严格对标 C# Garnet FindOrCreateTag / HashEntryInfo）
+  /// 单趟遍历定位匹配 Tag 槽位或首个可用空闲槽位（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag / HashEntryInfo）
   #[inline]
   pub fn find_or_create_tag(&self, key: &[u8]) -> Result<HashEntryInfo<'_>> {
     self.find_or_create_tag_with_min_addr(key, 0)
@@ -965,7 +965,7 @@ impl HashIndex {
     self.update_address_by_hash(Self::hash_key(key), old_address, new_address)
   }
 
-  /// 基于哈希值原子 CAS 更新逻辑地址（严格对标 C# FindTag 定位 + HashEntryInfo.TryCAS）
+  /// 基于哈希值原子 CAS 更新逻辑地址（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 定位 + HashEntryInfo.TryCAS）
   pub fn update_address_by_hash(&self, hash: u64, old_address: u64, new_address: u64) -> bool {
     if new_address == HashBucketEntry::INVALID_ADDRESS
       || new_address > HashBucketEntry::ADDRESS_MASK
@@ -985,7 +985,7 @@ impl HashIndex {
     self.delete_by_hash(Self::hash_key(key), address)
   }
 
-  /// 基于哈希值原子置零删除指定条目（严格对标 C# FindTag 定位 + HashEntryInfo.TryElide 记录脱钩）
+  /// 基于哈希值原子置零删除指定条目（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 定位 + HashEntryInfo.TryElide 记录脱钩）
   pub fn delete_by_hash(&self, hash: u64, address: u64) -> bool {
     if address == HashBucketEntry::INVALID_ADDRESS {
       return false;
@@ -996,7 +996,7 @@ impl HashIndex {
     hei.try_elide()
   }
 
-  /// 沿溢出链定位精确匹配 `(tag, address)` 的已提交条目（严格对标 C# FindTag + HashEntryInfo 装载）
+  /// 沿溢出链定位精确匹配 `(tag, address)` 的已提交条目（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag + HashEntryInfo 装载）
   ///
   /// 复用 [`HashBucket::find_entry_by_address`] 单桶定位与步数上限链遍历，产出可定点
   /// [`HashEntryInfo::try_cas`] / [`HashEntryInfo::try_elide`] 的哈希槽位句柄。
@@ -1266,7 +1266,7 @@ impl HashIndex {
     self.acquire_bucket_locks(keys.iter().map(|k| (self.bucket_index_for_key(k), true)))
   }
 
-  /// 获取多个哈希值对应的桶锁（支持读写混合锁，排他锁优先，对标 Garnet TxnKeyEntry.LockAllKeys）
+  /// 获取多个哈希值对应的桶锁（支持读写混合锁，排他锁优先，对标 libs/server/Transaction/TxnKeyEntry.cs:LockAllKeys）
   #[inline]
   pub fn acquire_hash_locks(&self, items: &[(u64, bool)]) -> Result<MultiBucketGuard<'_>> {
     self.acquire_bucket_locks(

@@ -24,7 +24,7 @@ const CLAIMED_PAGE_ID: u64 = u64::MAX - 1;
 pub struct CircularPageBuffer {
   /// 环形页缓冲区数组
   pub pages: Box<[RwLock<AlignedBuf>]>,
-  /// 各槽位物理页首地址缓存（严格对标 C# Garnet AllocatorBase.cs values 裸指针数组，消除多级指针寻址）
+  /// 各槽位物理页首地址缓存（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs values 裸指针数组，消除多级指针寻址）
   raw_pages: Box<[*mut u8]>,
   /// 各槽位当前承载的逻辑页号
   page_ids: Box<[AtomicU64]>,
@@ -232,7 +232,7 @@ impl CircularPageBuffer {
     }
   }
 
-  /// 尝试无锁直读指定逻辑页的切片数据（严格对标 C# Garnet AllocatorBase.cs 纯指针无锁直读）
+  /// 尝试无锁直读指定逻辑页的切片数据（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs 纯指针无锁直读）
   ///
   /// 结合 double-check 逻辑页号 `page_ids` 验证有效性，
   /// 完全绕过 `RwLock` 读锁的原子计数器（`fetch_add`/`fetch_sub`）开销，杜绝多线程热页读取下的 CPU 缓存行颠簸。
@@ -277,7 +277,7 @@ impl CircularPageBuffer {
     }
   }
 
-  /// 获取槽位物理页的可变首地址裸指针（严格对标 C# Garnet AllocatorBase.cs 写入物理切片）
+  /// 获取槽位物理页的可变首地址裸指针（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs 写入物理切片）
   ///
   /// # Safety
   /// 调用方必须确保对切片的写入互不重叠或有并发同步保护。

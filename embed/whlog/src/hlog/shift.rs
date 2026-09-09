@@ -73,7 +73,7 @@ impl<D: Device> HybridLog<D> {
   /// 纪元语义，与索引层"前台持旧表桶引用期间切表"所需的 epoch/quiesce 为同一
   /// 原语；hlog 自身不持有任何索引结构引用，切表时序由 store/session 层保证。
   pub fn shift_head_address(&self, new_head: u64) {
-    // 对齐 C# AllocatorBase.ShiftHeadAddress：head 钳制到最后已刷盘地址，
+    // 对齐 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:ShiftHeadAddress：head 钳制到最后已刷盘地址，
     // 驱逐不越过持久化前缀（维持 head <= flushed_until 不变式）
     let new_head = new_head.min(self.addresses.flushed_until());
     let old_head = self.addresses.shift_head_address(new_head);
@@ -232,7 +232,7 @@ impl<D: Device> HybridLog<D> {
     self.addresses.tail()
   }
 
-  /// 将 ReadOnlyAddress 迅速推进至当前 TailAddress（对标 Garnet ShiftReadOnlyToTail，使当前所有数据瞬间变为只读不可变）
+  /// 将 ReadOnlyAddress 迅速推进至当前 TailAddress（对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:ShiftReadOnlyToTail，使当前所有数据瞬间变为只读不可变）
   #[inline]
   pub fn shift_read_only_to_tail(&self) -> u64 {
     let tail = self.addresses.tail();

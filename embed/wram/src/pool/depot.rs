@@ -106,7 +106,7 @@ impl Depot {
       .sum()
   }
 
-  /// 原子关闭所有条带并清空缓冲，回调释放许可 (对标 C# `foreach (var stripe in depot) stripe.Close(DropBuffer)`)
+  /// 原子关闭所有条带并清空缓冲，回调释放许可 (对标 libs/host/Configuration/PopulateObjectJsonConverter.cs:foreach (var stripe in depot) stripe.Close(DropBuffer)`)
   pub(crate) fn clear(&self, mut on_drop: impl FnMut(usize, usize)) {
     for cls in 0..NUM_CLASSES {
       let base = cls * DEPOT_STRIPES;

@@ -18,7 +18,7 @@ use tempfile::tempdir;
 use wdev::{Device, Error, SegmentedDevice};
 use wram::AlignedBuf;
 
-/// 对标 C# `NativeStorageDevice_UnalignedOffset_ReadAsync_Throws`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_UnalignedOffset_ReadAsync_Throws：
 /// 偏移量不是扇区大小整数倍的读取必须同步拒绝，并指明未对齐输入。
 #[test]
 fn unaligned_offset_read_async_throws() -> Void {
@@ -73,7 +73,7 @@ fn unaligned_offset_write_async_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_UnalignedLength_WriteAsync_Throws`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_UnalignedLength_WriteAsync_Throws：
 /// 长度不是扇区大小整数倍的写入必须拒绝（4097 字节，非 4096 整数倍）。
 #[test]
 fn unaligned_length_write_async_throws() -> Void {
@@ -100,7 +100,7 @@ fn unaligned_length_write_async_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_UnalignedBuffer_WriteAsync_Throws`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_UnalignedBuffer_WriteAsync_Throws：
 /// 缓冲区内存地址未对齐到扇区边界的读写必须拒绝。
 /// 分配器不保证产出未对齐地址，故循环尝试 100 次，未遇到则视为环境满足对齐。
 #[test]
@@ -146,7 +146,7 @@ fn unaligned_buffer_write_async_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_NonPowerOfTwoSegmentSize_Throws`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_NonPowerOfTwoSegmentSize_Throws：
 /// 非 2 的幂段尺寸（3MiB）必须在初始化时拒绝。
 #[test]
 fn non_power_of_two_segment_size_throws() -> Void {
@@ -165,7 +165,7 @@ fn non_power_of_two_segment_size_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_SegmentSizeSmallerThanSector_Throws`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_SegmentSizeSmallerThanSector_Throws：
 /// 小于扇区尺寸的段尺寸会造成上层偏移算术错乱，必须拒绝。
 #[test]
 fn segment_size_smaller_than_sector_throws() -> Void {
@@ -190,7 +190,7 @@ fn segment_size_smaller_than_sector_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_ZeroSegmentSize_Throws`：0 段尺寸必须拒绝
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_ZeroSegmentSize_Throws：0 段尺寸必须拒绝
 /// （Rust 中 None 表示单文件无界模式，与 0 语义不同）。
 #[test]
 fn zero_segment_size_throws() -> Void {
@@ -209,7 +209,7 @@ fn zero_segment_size_throws() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512：
 /// 扇区尺寸必须为 2 的幂且不小于 512；非法值（256/500/3000）必须拒绝。
 #[test]
 fn sector_size_is_power_of_two_at_least_512() -> Void {

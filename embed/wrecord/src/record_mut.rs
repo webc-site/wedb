@@ -127,7 +127,7 @@ impl<'a> RecordMut<'a> {
     Ok(())
   }
 
-  /// 基于 FillerWords 与动态松弛写入新值的公共实现（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan & InternalRMW.cs）
+  /// 基于 FillerWords 与动态松弛写入新值的公共实现（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
   ///
   /// - 校验新值长度不超过槽位物理容量（val_capacity）且富余松弛可被头部完整表达；
   /// - 原位覆写值内容，富余空间折算为单字节精度的松弛填充；
@@ -168,7 +168,7 @@ impl<'a> RecordMut<'a> {
     Ok(())
   }
 
-  /// 基于 FillerWords 与动态松弛的原位值更新（严格对标 C# Garnet LogRecord.TrySetPinnedValueSpan & InternalRMW.cs）
+  /// 基于 FillerWords 与动态松弛的原位值更新（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
   ///
   /// - 若新值长度不超过槽位当前物理容纳容量（val_capacity），直接原位更新，零追加、零换页；
   /// - 腾出的富余空间自动折算为单字节高精度的松弛填充并写回记录头，绝对保证物理槽位大小恒定；
@@ -237,7 +237,7 @@ impl<'a> RecordMut<'a> {
     self.header.is_tombstone()
   }
 
-  /// 是否带有修改标记（对标 C# RecordInfo.Modified）
+  /// 是否带有修改标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:Modified）
   #[inline(always)]
   pub const fn is_modified(&self) -> bool {
     self.header.is_modified()
@@ -250,7 +250,7 @@ impl<'a> RecordMut<'a> {
     self.sync_word();
   }
 
-  /// 是否带有密封标记（对标 C# RecordInfo.IsSealed / TrySeal）
+  /// 是否带有密封标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsSealed / TrySeal）
   #[inline(always)]
   pub const fn is_sealed(&self) -> bool {
     self.header.is_sealed()
@@ -263,7 +263,7 @@ impl<'a> RecordMut<'a> {
     self.sync_word();
   }
 
-  /// 是否属于 Checkpoint 新版本纪元（对标 C# RecordInfo.IsInNewVersion）
+  /// 是否属于 Checkpoint 新版本纪元（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsInNewVersion）
   #[inline(always)]
   pub const fn is_in_new_version(&self) -> bool {
     self.header.is_in_new_version()
@@ -276,7 +276,7 @@ impl<'a> RecordMut<'a> {
     self.sync_word();
   }
 
-  /// 是否标记为读缓存记录（对标 C# RecordInfo.IsReadCache）
+  /// 是否标记为读缓存记录（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsReadCache）
   #[inline(always)]
   pub const fn is_read_cache(&self) -> bool {
     self.header.is_read_cache()
@@ -307,7 +307,7 @@ impl<'a> RecordMut<'a> {
     self.slice
   }
 
-  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 Garnet RecordDataHeader.FillerWords）
+  /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords）
   #[inline(always)]
   pub const fn filler_words(&self) -> u8 {
     self.header.filler_words()

@@ -8,7 +8,7 @@ use wepoch::{LightEpoch, ProtectedScope};
 
 use super::support::{assert_not_send, assert_not_sync, assert_protected_at};
 
-/// 对标 Garnet ProtectionTests: UnprotectedThreadHoldsNoSlot
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:UnprotectedThreadHoldsNoSlot
 ///
 /// 未受保护的线程不占用任何 entry 槽位，try_suspend 返回 false
 #[test]
@@ -24,7 +24,7 @@ fn unprotected_thread_holds_no_slot() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: AProtectedThreadOwnsAValidSlot
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:AProtectedThreadOwnsAValidSlot
 ///
 /// 进入 ProtectedScope 后当前线程拥有合法槽位，且公布的纪元与全局 current_epoch 一致
 #[test]
@@ -40,7 +40,7 @@ fn protected_thread_owns_valid_slot() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: SuspendLeavesTheSlotCompletelyFree
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:SuspendLeavesTheSlotCompletelyFree
 ///
 /// 挂起后原槽位的 announced_epoch、thread_id 以及当前线程的 entry 索引完全清零
 #[test]
@@ -68,7 +68,7 @@ fn suspend_leaves_slot_completely_free() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: SuspendResumeKeepsTheThreadProtected
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:SuspendResumeKeepsTheThreadProtected
 ///
 /// 在保护作用域内调用 suspend_resume，当前线程仍维持合法保护槽位
 #[test]
@@ -89,7 +89,7 @@ fn suspend_resume_keeps_thread_protected() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: RefreshRepublishesTheLatestEpochEveryTime
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:RefreshRepublishesTheLatestEpochEveryTime
 ///
 /// 循环推进全局纪元，调用 protect_and_drain 每次均正确公布最新全局纪元
 #[test]
@@ -121,7 +121,7 @@ fn refresh_republishes_latest_epoch_every_time() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: ProtectionSurvivesRepeatedResumeSuspendCycles
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:ProtectionSurvivesRepeatedResumeSuspendCycles
 ///
 /// 连续经历 128 次 resume/suspend 循环，保护状态准确切换
 #[test]
@@ -140,7 +140,7 @@ fn protection_survives_repeated_resume_suspend_cycles() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: ResumeAndSuspendTrackProtectionState
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:ResumeAndSuspendTrackProtectionState
 ///
 /// 显式调用 resume 和 suspend，this_instance_protected 正确反映保护状态
 #[test]
@@ -159,7 +159,7 @@ fn resume_and_suspend_track_protection_state() -> Void {
   OK
 }
 
-/// 对标 Garnet ProtectionTests: ResumeIfNotProtectedIsIdempotent
+/// 对标 libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:ResumeIfNotProtectedIsIdempotent
 ///
 /// resume_if_not_protected 与 try_suspend 具备幂等性与正确的布尔返回值
 #[test]

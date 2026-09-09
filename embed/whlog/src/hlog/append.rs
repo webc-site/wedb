@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 impl<D: Device> HybridLog<D> {
   /// 检查目标逻辑页槽位是否可以安全分配与初始化（防止覆盖尚未驱逐的旧页或活跃读者）
   ///
-  /// 对标 C# NeedToWaitForFlush / NeedToWaitForClose：环形回绕复用槽位前，
+  /// 对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:NeedToWaitForFlush / NeedToWaitForClose：环形回绕复用槽位前，
   /// 旧页必须同时满足已落盘（flushed_until）、已驱逐（head）且纪元排空（safe_head，
   /// 保证所有 epoch 保护下的读者已退出）。C# 通过 flushEvent 挂起等待，此处
   /// 在线程每核模型下改为返回 [Error::PageNotReady] 交由调用方异步刷盘后重试。
@@ -45,7 +45,7 @@ impl<D: Device> HybridLog<D> {
   ///
   /// - 计算记录大小，若当前活跃页剩余空间不足以容纳，进入换页逻辑写入 Pad 标记并跳到下一页开头
   ///   （保证记录决不跨页边界，严格对齐 Tsavorite 行为）；
-  /// - 严格对标 C# Garnet AllocatorBase.cs TryAllocate / HandlePageOverflow：
+  /// - 严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs TryAllocate / HandlePageOverflow：
   ///   - 页内空间充足时：通过原子 CAS ([AtomicU64::compare_exchange_weak]) 独占瓜分物理空间，
   ///     直接使用裸指针无锁并发写入，彻底消除全局串行锁；
   ///   - 跨页边界时：仅在换页时获取轻量 page_turn_lock，由首个跨越线程负责打 Pad、

@@ -46,7 +46,7 @@ impl FreeRecord {
   pub const SIZE_SHIFT: u32 = Self::ADDRESS_BITS;
   /// 尺寸掩码（由 SIZE_BITS 编译期推导，0xFFFF）
   pub const SIZE_MASK: u64 = (1 << Self::SIZE_BITS) - 1;
-  /// 最大支持的内联尺寸（65535 字节；对标 C# FreeRecord.kSizeMask）
+  /// 最大支持的内联尺寸（65535 字节；对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:kSizeMask）
   pub const MAX_INLINE_SIZE: u32 = Self::SIZE_MASK as u32;
 
   /// 空槽位原始值（0L，对齐 Tsavorite LogAddress.kInvalidAddress）
@@ -137,7 +137,7 @@ impl FreeRecord {
     self.raw() == Self::EMPTY_WORD
   }
 
-  /// 尝试将记录归还入该槽位（对标 C# FreeRecord.Set）
+  /// 尝试将记录归还入该槽位（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:Set）
   ///
   /// - `SetStatus::InsertedEmpty`：成功写入原为空的槽位
   /// - `SetStatus::ReplacedExpired`：成功覆盖已过期的槽位

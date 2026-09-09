@@ -2,7 +2,7 @@
 //!
 //! 对标 C#：libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs 的
 //! `LadderIsMonotonicAndBounded`（阶梯单调、容量充分、浪费有界、超界 bypass）；
-//! 线程本地保留上限为 Rust 特有语义（对标 C# `LocalRetentionIsBoundedByThePerThreadByteCap`，
+//! 线程本地保留上限为 Rust 特有语义（对标 libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:LocalRetentionIsBoundedByThePerThreadByteCap，
 //! Rust 以 per-class 槽位数计而非 per-thread 字节上限）。
 
 use aok::{OK, Void};

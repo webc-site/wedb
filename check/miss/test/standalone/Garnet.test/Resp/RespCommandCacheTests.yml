@@ -2,7 +2,6 @@ fn:
   - Setup
   - TearDown
   - CreateArguments
-  - Resp
   - AppendBulkString
   - Connect
   - SendAsync

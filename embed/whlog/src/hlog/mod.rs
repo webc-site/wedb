@@ -23,9 +23,9 @@ use crate::{
 
 /// 追加与换页（对标 C# Garnet TryAllocate / HandlePageOverflow）
 mod append;
-/// 原位更新 / 墓碑标记 / RMW / 复活（对标 C# InternalRMW / InternalDelete / InternalUpsert / BlockAllocate）
+/// 原位更新 / 墓碑标记 / RMW / 复活（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs:InternalRMW / InternalDelete / InternalUpsert / BlockAllocate）
 mod inplace;
-/// 读路径与批量刷盘 I/O（对标 C# InternalRead / AsyncGetFromDisk / AsyncFlushPages）
+/// 读路径与批量刷盘 I/O（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead / AsyncGetFromDisk / AsyncFlushPages）
 mod io;
 /// 地址滑动与截断（对标 C# ShiftReadOnlyAddress / ShiftHeadAddress / ShiftBeginAddress）
 mod shift;
@@ -224,7 +224,7 @@ impl<D: Device> HybridLog<D> {
     Ok(Self::assemble(config, device, epoch, addresses, buffer))
   }
 
-  /// 基于持久化快照恢复已存在的 HybridLog 状态（严格对标 Garnet Recovery: AsyncReadPagesForRecovery）
+  /// 基于持久化快照恢复已存在的 HybridLog 状态（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:AsyncReadPagesForRecovery）
   ///
   /// # 崩溃一致性契约（恢复可见前缀）
   /// - 调用方必须在构造 `snapshot` 前完成 `flush_all` + `sync`，保证 `flushed_until`
@@ -292,7 +292,7 @@ impl<D: Device> HybridLog<D> {
       let span = (config.page_start_address(tail_page.saturating_add(1)) - first_start) as usize;
 
       // 段级批量预热：单次 I/O 读取 [head_page 起点, tail_page 末尾) 整段连续区间，
-      // 消除逐页串行 I/O 往返（对标 Garnet AsyncReadPagesForRecovery 的连续页读合并）
+      // 消除逐页串行 I/O 往返（对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadPagesForRecovery 的连续页读合并）
       let span_buf = match device.read_range(first_start, span).await {
         Ok(buf) => Some(buf),
         Err(e) => {

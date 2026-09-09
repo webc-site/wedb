@@ -1,7 +1,7 @@
 //! sync 持久化契约：全局 sync 覆盖他线程写入、跨线程 fsync 可行性实验、
 //! 删段/截断免责与守护位图清空。
 //!
-//! 对标 C# `LocalStorageDevice`：句柄表进程级共享（`SafeConcurrentDictionary<int,
+//! 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:LocalStorageDevice：句柄表进程级共享（`SafeConcurrentDictionary<int,
 //! SafeFileHandle>` 按段键控）、任意线程可对全设备 sync。Rust 侧可行性依赖
 //! `compio-driver/sync` feature（SharedFd 为 `Arc`，fd 无线程亲和，fsync 按 inode 全量生效）。
 //!

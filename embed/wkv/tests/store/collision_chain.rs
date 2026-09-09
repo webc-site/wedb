@@ -110,7 +110,7 @@ fn test_disk_collision_chain_read_and_delete() -> Void {
   OK
 }
 
-/// ReadCache 链头与 Tag 碰撞链交叉场景（对标 C# InternalDelete 的 HasReadCacheSrc 分流
+/// ReadCache 链头与 Tag 碰撞链交叉场景（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs:InternalDelete 的 HasReadCacheSrc 分流
 /// 与 AllocatorBase.AsyncGetFromDiskCallback 沿 PreviousAddress 链跳过碰撞键）：
 /// 1. RC 链头脱钩盲插（upsert）后，被掩埋键冷读沿磁盘链回溯仍命中；
 /// 2. 槽位头为碰撞键 RC 缓存条目时删除被掩埋键，必须真实生效且碰撞键保持可达。

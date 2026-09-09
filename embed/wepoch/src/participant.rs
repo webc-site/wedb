@@ -48,7 +48,7 @@ impl Participant {
     }
   }
 
-  /// 刷新当前参与者公布的纪元至最新值，并触发就绪的延迟动作（对照 C# LightEpoch.ProtectAndDrain）
+  /// 刷新当前参与者公布的纪元至最新值，并触发就绪的延迟动作（对照 libs/client/LightEpoch.cs:ProtectAndDrain）
   #[inline]
   pub fn refresh(&self) {
     let entry = unsafe { self.epoch.entries.get_unchecked(self.entry_idx) };
@@ -217,7 +217,7 @@ impl fmt::Debug for EpochGuard<'_> {
   }
 }
 
-/// 基于 RAII 作用域自动管理生命周期的保护守卫（对照 C# EpochProtection.Scope）
+/// 基于 RAII 作用域自动管理生命周期的保护守卫（对照 libs/storage/Tsavorite/cs/test/test.epoch/helpers/EpochProtection.cs:Scope）
 ///
 /// 绑定当前线程的受保护作用域，离开作用域 Drop 时自动调用 `LightEpoch::suspend()`。
 /// 由于底层槽位与线程 ID 绑定，此守卫严禁跨线程转移 (`!Send + !Sync`)。

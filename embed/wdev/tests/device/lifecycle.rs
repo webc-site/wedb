@@ -64,7 +64,7 @@ fn sync_persists_data_and_handles_reopen_after_reset() -> Void {
   OK
 }
 
-/// 对标 C# `IDevice_PermissionDeniedAtFirstWrite_CallbackGetsError`：
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_PermissionDeniedAtFirstWrite_CallbackGetsError：
 /// 设备在首次 I/O 才惰性打开段文件，open() 失败（父目录 chmod 0）必须以
 /// 错误结果传播给调用方——严禁吞错、严禁挂死。
 /// 特权环境 (root) 下 chmod 不生效，自动跳过断言（对标 C# root-skip）。

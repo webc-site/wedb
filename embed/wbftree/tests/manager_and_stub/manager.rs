@@ -460,7 +460,7 @@ fn test_get_or_open_tree_copy_failure_propagates() -> Result<()> {
 }
 
 /// 迁移发布：快照文件换入数据路径、恢复注册、replace 语义与锁内原子性
-/// (1:1 对标 Garnet PublishMigratedIndex；调用方持条带写锁契约)
+/// (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:PublishMigratedIndex；调用方持条带写锁契约)
 #[test]
 fn test_publish_tree_from_snapshot_locked() -> Result<()> {
   let env = ManagerEnvGuard::new("publish");

@@ -59,7 +59,7 @@ impl PendingFlushList {
     self.list.lock().push(range);
   }
 
-  /// 移除并返回 until_address 等于指定地址的前相邻区间（对标 Garnet RemovePreviousAdjacent）
+  /// 移除并返回 until_address 等于指定地址的前相邻区间（对标 libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs:RemovePreviousAdjacent）
   pub fn remove_previous_adjacent(&self, address: u64) -> Option<PageFlushRange> {
     let mut list = self.list.lock();
     list
@@ -68,7 +68,7 @@ impl PendingFlushList {
       .map(|pos| list.swap_remove(pos))
   }
 
-  /// 移除并返回 from_address 等于指定地址的后相邻区间（对标 Garnet RemoveNextAdjacent）
+  /// 移除并返回 from_address 等于指定地址的后相邻区间（对标 libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs:RemoveNextAdjacent）
   pub fn remove_next_adjacent(&self, address: u64) -> Option<PageFlushRange> {
     let mut list = self.list.lock();
     list
@@ -99,7 +99,7 @@ impl PendingFlushList {
 
   /// 标记某段刷盘区间已成功写入介质，并尽可能连续推进 FlushedUntilAddress
   ///
-  /// 严格对标 Garnet ShiftFlushedUntilAddress 与 PageStatusIndicator：
+  /// 严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:ShiftFlushedUntilAddress 与 PageStatusIndicator：
   /// - 若该区间起始紧随当前 flushed_until，则直接推进并级联吸收后续已完成但乱序到达的区间；
   /// - 若该区间与当前 flushed_until 存在空洞（前序区间正在异步落盘中），则暂存至 completed 集合，
   ///   确保 FlushedUntilAddress 永远表示一条绝对连续、无空洞的已落盘逻辑前缀，杜绝覆写未落盘脏页；
