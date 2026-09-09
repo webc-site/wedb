@@ -18,3 +18,5 @@ fn:
   - Run_mWayMergeSIMDx128V3
   - Run_mWayMergeSIMDx256V3
   - RunBitOpBenchmark
+  - alloc_aligned
+  - alloc_unaligned_memory_pool_buffers

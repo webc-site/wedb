@@ -35,6 +35,7 @@ fn:
   - runThread
   - runDeleteThread
   - runUpdateThread
+  - AllocateRecordAndInitializeSize
 test:
   - SimpleFixedLenTest
   - SpanByteNoRevivLengthTest

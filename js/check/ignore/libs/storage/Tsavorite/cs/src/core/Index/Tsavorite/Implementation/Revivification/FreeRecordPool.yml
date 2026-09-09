@@ -6,3 +6,4 @@ fn:
   - ScanForEmpty
   - GetBinIndex
   - TryAddToBin
+  - GetRecord

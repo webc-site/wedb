@@ -2,3 +2,6 @@ fn:
   - Signal
   - ResetStatus
   - ThrowConcurrentWaitersNotSupported
+  - GetStatus
+  - OnCompleted
+  - GetResult

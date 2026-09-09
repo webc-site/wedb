@@ -6,3 +6,4 @@ fn:
   - RunBitCountSIMD_AVX
   - RunBitCountSIMD_AVX_aligned
   - RunBitCountBenchmark
+  - alloc_aligned

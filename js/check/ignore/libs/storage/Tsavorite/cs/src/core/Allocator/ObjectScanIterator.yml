@@ -10,3 +10,5 @@ fn:
   - GetRecordFieldInfo
   - CalculateHeapMemorySize
   - AsyncReadPageFromDeviceToFrame
+  - BeginGetPrevInMemory
+  - EndGetPrevInMemory

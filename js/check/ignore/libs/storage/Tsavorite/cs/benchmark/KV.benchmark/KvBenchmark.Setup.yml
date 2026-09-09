@@ -5,3 +5,4 @@ fn:
   - IsPidAlive
   - CreateDevice
   - RumdHasDeletes
+  - TryReadOwnerPid

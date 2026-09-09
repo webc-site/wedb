@@ -1,2 +1,3 @@
 fn:
   - Print
+  - GetValidPointer

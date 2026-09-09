@@ -7,3 +7,4 @@ fn:
   - Unmap
   - TryPin
   - PinFailed
+  - MapPage
