@@ -19,7 +19,7 @@ use std::{
   str,
   sync::{
     Arc,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
   },
 };
 
@@ -169,13 +169,22 @@ pub struct RangeIndexManager {
   pub(crate) live_indexes: GxPapayaMap<u128, Arc<TreeEntry>>,
   /// 全局检查点进行中标记
   pub(crate) checkpoint_in_progress: AtomicBool,
-  /// 带地址刷盘文件存在疑似标记 (惰性恢复的目录扫描门控)
+  /// 带地址刷盘文件存在疑似标记 (生成计数，惰性恢复的目录扫描门控)
   ///
   /// `get_or_open_tree` 选最新带地址刷盘文件需 O(目录条目数) 扫描；未接线
-  /// on_flush 的常态部署下该类文件恒不存在，逐次全目录扫描纯属浪费。保守初值
-  /// true (首例恢复做一次扫描证伪)，证伪后关闭扫描通道恢复 O(1) stat 路径；
-  /// `on_flush_address` / 预分阶段路径产生此类文件时重新开启。
-  pub(crate) addr_flush_scan_pending: AtomicBool,
+  /// on_flush 的常态部署下该类文件恒不存在，逐次全目录扫描纯属浪费。生成计数
+  /// 单调递增 ([`Self::notice_addr_flush_files`] 每次自增)，`settled_gen` 落后于
+  /// `gen` 即表示存在未扫描的新文件。初值 gen=1 > settled=0 (保守开启，首例恢复
+  /// 做一次扫描证伪)，证伪后关闭扫描通道恢复 O(1) stat 路径。
+  ///
+  /// 竞态闭环：notice 先于刷盘文件创建发生 (on_flush_address / 预分阶段)，扫描
+  /// 证伪以「开始到结束 gen 不变」为前提——扫描期间恰有 notice (文件即将产生)
+  /// 则放弃证伪、保持扫描通道开启。工作文件仅含引擎环形缓冲已写回的部分页，
+  /// 快照才是恢复点权威版本 (见 [`super::replication`] 预置覆盖论证)，跳过即将
+  /// 诞生的刷盘文件意味着从陈旧工作文件恢复丢失已刷数据，此窗口必须闭合。
+  pub(crate) addr_flush_gen: AtomicU64,
+  /// 已证伪封存的扫描代号 (仅由 [`Self::settle_addr_flush_scan`] 在 gen 不变时推进)
+  pub(crate) addr_flush_settled_gen: AtomicU64,
   /// 键哈希分段读写条带锁
   pub(crate) locks: RangeIndexLocks,
 }
@@ -208,31 +217,41 @@ impl RangeIndexManager {
       migration_temp_dir,
       live_indexes: new_papaya_map(),
       checkpoint_in_progress: AtomicBool::new(false),
-      addr_flush_scan_pending: AtomicBool::new(true),
+      addr_flush_gen: AtomicU64::new(1),
+      addr_flush_settled_gen: AtomicU64::new(0),
       locks: RangeIndexLocks::new(),
     }
   }
 
-  /// 是否需要扫描带地址刷盘文件 (惰性恢复路径的 O(1) 门控探针)
+  /// 是否需要扫描带地址刷盘文件 (惰性恢复的 O(1) 门控探针)
   #[inline]
   pub(crate) fn addr_flush_scan_pending(&self) -> bool {
-    self.addr_flush_scan_pending.load(Ordering::Acquire)
+    self.addr_flush_gen.load(Ordering::Acquire)
+      != self.addr_flush_settled_gen.load(Ordering::Acquire)
   }
 
-  /// 全量扫描未发现任何带地址刷盘文件，关闭扫描通道
-  ///
-  /// 良性竞态：关闭瞬间恰有 `on_flush_address` 产出新文件的窗口内，并发恢复可能
-  /// 跳过该刷盘文件而回退到 data.bftree——工作文件是实时 pwrite 的活跃副本，永不
-  /// 陈旧于任何刷盘快照，恢复结果只会更新，不会丢失数据。
+  /// 读取扫描起始代号 (证伪前提：本次扫描全程生成号不变)
   #[inline]
-  pub(crate) fn settle_addr_flush_scan(&self) {
-    self.addr_flush_scan_pending.store(false, Ordering::Release);
+  pub(crate) fn addr_flush_scan_token(&self) -> u64 {
+    self.addr_flush_gen.load(Ordering::Acquire)
   }
 
-  /// 带地址刷盘文件已产生 (on_flush_address / 预分阶段)，重新开启恢复扫描
+  /// 全量扫描未发现任何带地址刷盘文件且扫描期间无新文件产生 (`token` 未变)，
+  /// 关闭扫描通道；代号已变则放弃证伪，保持扫描通道开启等待下轮复扫
+  #[inline]
+  pub(crate) fn settle_addr_flush_scan(&self, token: u64) {
+    if self.addr_flush_gen.load(Ordering::Acquire) == token {
+      self.addr_flush_settled_gen.store(token, Ordering::Release);
+    }
+  }
+
+  /// 带地址刷盘文件已产生 (on_flush_address / 预分阶段)，生成号自增重新开启恢复扫描
+  ///
+  /// 调用方必须在文件创建/换入**之前**调用：扫描侧凭生成号不变证伪，先 notice
+  /// 后建文件保证「文件即将诞生」期间任何扫描都无法证伪 (见字段文档竞态闭环)
   #[inline]
   pub(crate) fn notice_addr_flush_files(&self) {
-    self.addr_flush_scan_pending.store(true, Ordering::Release);
+    self.addr_flush_gen.fetch_add(1, Ordering::AcqRel);
   }
 
   /// 生成临时迁移文件路径 ({ri_log_root}/migration-tmp/{random_id}.bftree) (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:DeriveTempMigrationPath)

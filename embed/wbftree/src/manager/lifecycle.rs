@@ -155,6 +155,7 @@ impl RangeIndexManager {
       } else if self.addr_flush_scan_pending() {
         // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
         // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
+        let scan_token = self.addr_flush_scan_token();
         let mut found_flush = false;
         if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
           // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
@@ -175,7 +176,7 @@ impl RangeIndexManager {
           }
         }
         if !found_flush {
-          self.settle_addr_flush_scan();
+          self.settle_addr_flush_scan(scan_token);
         }
       }
 
