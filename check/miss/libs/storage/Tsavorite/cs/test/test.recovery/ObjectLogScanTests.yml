@@ -15,7 +15,6 @@ fn:
   - OnCompleted
   - OnError
   - OnNext
-  - InitialWriter
 test:
   - SerializedObjectCleanupTest
   - CleanupWithoutCachedDataTest

@@ -10,7 +10,6 @@ fn:
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - ConvertOutputToHeap
 test:
   - InlineKeyInlineValueCopyToTail
   - InlineKeyOverflowValueCopyToTail

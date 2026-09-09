@@ -2,4 +2,3 @@ fn:
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - ConvertOutputToHeap

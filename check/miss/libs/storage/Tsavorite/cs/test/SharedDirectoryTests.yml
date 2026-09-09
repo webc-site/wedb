@@ -2,7 +2,6 @@ fn:
   - Setup
   - TearDown
   - Populate
-  - Test
   - IsDirectoryEmpty
   - CopyDirectory
 test:

@@ -4,7 +4,6 @@ fn:
   - OperationThread
   - DoCheckpointVersionSwitchEquivalenceCheck
   - DoGrowIndexVersionSwitchEquivalenceCheck
-  - CopyUpdater
   - Fuzz
   - Setup
   - TearDown

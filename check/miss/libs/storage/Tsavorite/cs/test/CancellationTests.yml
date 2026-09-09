@@ -1,10 +1,4 @@
 fn:
-  - NeedInitialUpdate
-  - NeedCopyUpdate
-  - CopyUpdater
-  - InitialUpdater
-  - InitialWriter
-  - InPlaceWriter
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo

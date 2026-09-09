@@ -3,7 +3,6 @@ fn:
   - GetHashCode64
   - Setup
   - TearDown
-  - InitialWriter
   - CheckForRCU
   - OnException
   - OnStart

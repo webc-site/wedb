@@ -3,7 +3,6 @@ fn:
   - TearDown
   - LocalWrite
   - LocalRead
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo

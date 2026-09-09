@@ -1,9 +1,6 @@
 fn:
   - GetInitialLength
-  - InitialUpdater
-  - NeedCopyUpdate
   - GetLength
-  - CopyUpdater
   - Create
   - Deserialize
   - CloneObject

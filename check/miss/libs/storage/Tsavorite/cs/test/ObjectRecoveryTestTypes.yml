@@ -3,7 +3,5 @@ fn:
   - WriteType
   - Deserialize
   - Serialize
-  - InitialUpdater
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo

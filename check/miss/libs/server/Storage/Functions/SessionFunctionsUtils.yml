@@ -1,6 +1,4 @@
 fn:
   - EvaluateExpire
-  - InPlaceWriterForSpanValue
   - InPlaceWriterForHeapObjectValue
-  - InPlaceWriterForLogRecordValue
   - UpdateExpiration

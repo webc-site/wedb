@@ -5,13 +5,10 @@ fn:
   - OnRecovery
   - OnCheckpoint
   - RecordDispose
-  - NeedCopyUpdate
   - GetRMWInitialFieldInfo
-  - InitialUpdater
   - Setup
   - TearDown
   - UpsertKey
-  - CopyUpdater
   - UpsertObj
 test:
   - DisposeOnMutableDeleteTest

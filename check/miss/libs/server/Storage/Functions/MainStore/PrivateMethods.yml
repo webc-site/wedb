@@ -12,6 +12,4 @@ fn:
   - TryCopyValueLengthToOutput
   - CopyRespWithEtagData
   - WriteValAndEtagToDst
-  - WriteLogUpsert
-  - WriteLogDelete
   - GetBitFieldArguments

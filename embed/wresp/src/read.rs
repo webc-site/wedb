@@ -463,3 +463,392 @@ pub fn try_skip_byte_array_with_length_header(ptr: &mut &[u8]) -> Result<bool> {
   *ptr = &ptr[skip_len..];
   Ok(true)
 }
+
+/// garnet/libs/common/RespReadUtils.cs:TrySliceWithLengthHeader
+#[inline]
+pub fn try_slice_with_length_header<'a>(result: &mut &'a [u8], ptr: &mut &'a [u8]) -> Result<bool> {
+  *result = &[];
+
+  let mut length = 0;
+  if !try_read_unsigned_length_header(&mut length, ptr, b'$')? {
+    return Ok(false);
+  }
+
+  let skip_len = length as usize + 2;
+  if ptr.len() < skip_len {
+    return Ok(false);
+  }
+
+  if &ptr[length as usize..skip_len] != b"\r\n" {
+    return Err(Error::UnexpectedToken(ptr[length as usize]));
+  }
+
+  *result = &ptr[0..length as usize];
+  *ptr = &ptr[skip_len..];
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadByteArrayWithLengthHeader
+#[inline]
+pub fn try_read_byte_array_with_length_header(
+  result: &mut Vec<u8>,
+  ptr: &mut &[u8],
+) -> Result<bool> {
+  result.clear();
+  let mut result_span = &[][..];
+  if !try_slice_with_length_header(&mut result_span, ptr)? {
+    return Ok(false);
+  }
+
+  result.extend_from_slice(result_span);
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadBoolWithLengthHeader
+#[inline]
+pub fn try_read_bool_with_length_header(result: &mut bool, ptr: &mut &[u8]) -> Result<bool> {
+  *result = false;
+
+  if ptr.len() < 7 {
+    return Ok(false);
+  }
+
+  // Fast path: RESP string header should have length 1
+  if ptr.starts_with(b"$1\r\n") {
+    *ptr = &ptr[4..];
+  } else {
+    let mut length = 0;
+    if !try_read_unsigned_length_header(&mut length, ptr, b'$')? {
+      return Ok(false);
+    }
+
+    if length != 1 {
+      return Err(Error::InvalidStringLength(length));
+    }
+  }
+
+  *result = ptr[0] == b'1';
+
+  if ptr.len() < 3 || &ptr[1..3] != b"\r\n" {
+    let unexpected = ptr.get(1).copied().unwrap_or(0);
+    return Err(Error::UnexpectedToken(unexpected));
+  }
+
+  *ptr = &ptr[3..];
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadSpanWithLengthHeader
+#[inline]
+pub fn try_read_span_with_length_header<'a>(
+  result: &mut &'a [u8],
+  ptr: &mut &'a [u8],
+) -> Result<bool> {
+  *result = &[];
+
+  if ptr.len() < 3 {
+    return Ok(false);
+  }
+
+  let mut length = 0;
+  if !try_read_unsigned_length_header(&mut length, ptr, b'$')? {
+    return Ok(false);
+  }
+
+  let skip_len = length as usize + 2;
+  if ptr.len() < skip_len {
+    return Ok(false);
+  }
+
+  if &ptr[length as usize..skip_len] != b"\r\n" {
+    return Err(Error::UnexpectedToken(ptr[length as usize]));
+  }
+
+  *result = &ptr[0..length as usize];
+  *ptr = &ptr[skip_len..];
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadStringWithLengthHeader
+#[inline]
+pub fn try_read_string_with_length_header(result: &mut String, ptr: &mut &[u8]) -> Result<bool> {
+  let mut result_span = &[][..];
+  // 1:1 parity (bug fixed: checked return value)
+  if !try_read_span_with_length_header(&mut result_span, ptr)? {
+    return Ok(false);
+  }
+
+  *result = String::from_utf8_lossy(result_span).into_owned();
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadPtrWithSignedLengthHeader
+#[inline]
+pub fn try_read_ptr_with_signed_length_header<'a>(
+  result: &mut Option<&'a [u8]>,
+  ptr: &mut &'a [u8],
+) -> Result<bool> {
+  let mut length = 0;
+  if !try_read_signed_length_header(&mut length, ptr, b'$')? {
+    return Ok(false);
+  }
+
+  if length < 0 {
+    *result = None;
+    return Ok(true);
+  }
+
+  let skip_len = length as usize + 2;
+  if ptr.len() < skip_len {
+    return Ok(false);
+  }
+
+  if &ptr[length as usize..skip_len] != b"\r\n" {
+    return Err(Error::UnexpectedToken(ptr[length as usize]));
+  }
+
+  *result = Some(&ptr[0..length as usize]);
+  *ptr = &ptr[skip_len..];
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadStringResponseWithLengthHeader
+#[inline]
+pub fn try_read_string_response_with_length_header(
+  result: &mut Option<String>,
+  ptr: &mut &[u8],
+) -> Result<bool> {
+  *result = None;
+
+  let mut result_span = None;
+  if !try_read_ptr_with_signed_length_header(&mut result_span, ptr)? {
+    return Ok(false);
+  }
+
+  if let Some(span) = result_span {
+    *result = Some(String::from_utf8_lossy(span).into_owned());
+  }
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadAsSpan
+#[inline]
+pub fn try_read_as_span<'a>(result: &mut &'a [u8], ptr: &mut &'a [u8]) -> Result<bool> {
+  *result = &[];
+
+  if ptr.len() < 2 {
+    return Ok(false);
+  }
+
+  let mut i = 0;
+  while i < ptr.len() - 1 {
+    if ptr[i] == b'\r' && ptr[i + 1] == b'\n' {
+      *result = &ptr[0..i];
+      *ptr = &ptr[i + 2..];
+      return Ok(true);
+    }
+    i += 1;
+  }
+
+  Ok(false)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadString
+#[inline]
+pub fn try_read_string(result: &mut String, ptr: &mut &[u8]) -> Result<bool> {
+  let mut result_span = &[][..];
+  if !try_read_as_span(&mut result_span, ptr)? {
+    return Ok(false);
+  }
+
+  *result = String::from_utf8_lossy(result_span).into_owned();
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadSimpleString
+#[inline]
+pub fn try_read_simple_string(result: &mut String, ptr: &mut &[u8]) -> Result<bool> {
+  if ptr.len() < 2 {
+    return Ok(false);
+  }
+
+  if ptr[0] != b'+' {
+    return Err(Error::UnexpectedToken(ptr[0]));
+  }
+
+  *ptr = &ptr[1..];
+  try_read_string(result, ptr)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadErrorAsString
+#[inline]
+pub fn try_read_error_as_string(result: &mut String, ptr: &mut &[u8]) -> Result<bool> {
+  if ptr.len() < 2 {
+    return Ok(false);
+  }
+
+  if ptr[0] != b'-' {
+    return Err(Error::UnexpectedToken(ptr[0]));
+  }
+
+  *ptr = &ptr[1..];
+  try_read_string(result, ptr)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadErrorAsSpan
+#[inline]
+pub fn try_read_error_as_span<'a>(result: &mut &'a [u8], ptr: &mut &'a [u8]) -> Result<bool> {
+  *result = &[];
+  if ptr.len() < 2 {
+    return Ok(false);
+  }
+
+  if ptr[0] != b'-' {
+    return Ok(false); // Note: C# returns false instead of throwing for this one!
+  }
+
+  *ptr = &ptr[1..];
+  try_read_as_span(result, ptr)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadIntegerAsSpan
+#[inline]
+pub fn try_read_integer_as_span<'a>(result: &mut &'a [u8], ptr: &mut &'a [u8]) -> Result<bool> {
+  *result = &[];
+  if ptr.len() < 2 {
+    return Ok(false);
+  }
+
+  if ptr[0] != b':' {
+    return Err(Error::UnexpectedToken(ptr[0]));
+  }
+
+  *ptr = &ptr[1..];
+  try_read_as_span(result, ptr)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadIntegerAsString
+#[inline]
+pub fn try_read_integer_as_string(result: &mut String, ptr: &mut &[u8]) -> Result<bool> {
+  let mut result_span = &[][..];
+  let success = try_read_integer_as_span(&mut result_span, ptr)?;
+  if success {
+    *result = String::from_utf8_lossy(result_span).into_owned();
+  }
+  Ok(success)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadStringArrayWithLengthHeader
+#[inline]
+pub fn try_read_string_array_with_length_header(
+  result: &mut Vec<String>,
+  ptr: &mut &[u8],
+) -> Result<bool> {
+  result.clear();
+
+  let mut length = 0;
+  if !try_read_unsigned_array_length(&mut length, ptr)? {
+    return Ok(false);
+  }
+
+  for _ in 0..length {
+    if ptr.is_empty() {
+      return Ok(false);
+    }
+
+    let mut item = String::new();
+    if ptr[0] == b'$' {
+      if !try_read_string_with_length_header(&mut item, ptr)? {
+        return Ok(false);
+      }
+    } else {
+      if !try_read_integer_as_string(&mut item, ptr)? {
+        return Ok(false);
+      }
+    }
+    result.push(item);
+  }
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadDoubleWithLengthHeader
+#[inline]
+pub fn try_read_double_with_length_header(
+  result: &mut f64,
+  parsed: &mut bool,
+  ptr: &mut &[u8],
+) -> Result<bool> {
+  *result = 0.0;
+  *parsed = false;
+
+  let mut result_bytes = &[][..];
+  if !try_slice_with_length_header(&mut result_bytes, ptr)? {
+    return Ok(false);
+  }
+
+  if let Ok(s) = std::str::from_utf8(result_bytes)
+    && let Ok(val) = s.parse::<f64>()
+  {
+    *result = val;
+    *parsed = true;
+  }
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:TryReadPtrWithLengthHeader
+#[inline]
+pub fn try_read_ptr_with_length_header<'a>(
+  result: &mut &'a [u8],
+  len: &mut i32,
+  ptr: &mut &'a [u8],
+) -> Result<bool> {
+  *result = &[];
+
+  if !try_read_unsigned_length_header(len, ptr, b'$')? {
+    return Ok(false);
+  }
+
+  let skip_len = *len as usize + 2;
+  if ptr.len() < skip_len {
+    return Ok(false);
+  }
+
+  if &ptr[*len as usize..skip_len] != b"\r\n" {
+    return Err(Error::UnexpectedToken(ptr[*len as usize]));
+  }
+
+  *result = &ptr[0..*len as usize];
+  *ptr = &ptr[skip_len..];
+
+  Ok(true)
+}
+
+/// garnet/libs/common/RespReadUtils.cs:GetSerializedRecordSpan
+#[inline]
+pub fn get_serialized_record_span<'a>(
+  record_span: &mut &'a [u8],
+  ptr: &mut &'a [u8],
+) -> Result<bool> {
+  if ptr.len() < 4 {
+    *record_span = &[];
+    return Ok(false);
+  }
+
+  let record_length = i32::from_le_bytes(ptr[0..4].try_into().unwrap());
+  *ptr = &ptr[4..];
+
+  if record_length < 0 || record_length as usize > ptr.len() {
+    *record_span = &[];
+    return Ok(false);
+  }
+
+  *record_span = &ptr[0..record_length as usize];
+  *ptr = &ptr[record_length as usize..];
+
+  Ok(true)
+}

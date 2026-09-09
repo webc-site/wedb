@@ -1,7 +1,6 @@
 fn:
   - Equals
   - GetHashCode64
-  - PostInitialDeleter
   - IncrementX
   - DecrementX
   - IncrementS

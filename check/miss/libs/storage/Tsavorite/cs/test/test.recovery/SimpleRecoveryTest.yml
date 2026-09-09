@@ -4,9 +4,6 @@ fn:
   - TearDown
   - SimpleRecoveryTest1_Worker
   - ReadCompletionCallback
-  - InitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
 test:

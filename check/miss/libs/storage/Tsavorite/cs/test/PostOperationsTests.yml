@@ -1,10 +1,4 @@
 fn:
-  - PostInitialWriter
-  - InitialUpdater
-  - PostInitialUpdater
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostInitialDeleter
   - Setup
   - TearDown
   - Populate

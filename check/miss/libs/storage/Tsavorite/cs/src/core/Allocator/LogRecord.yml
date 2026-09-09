@@ -18,7 +18,6 @@ fn:
   - TrySetContentLengths
   - TrySetContentLengthsAndPrepareOptionals
   - TrySetPinnedValueLength
-  - TrySetValueSpanAndPrepareOptionals
   - TryReinitializeValueLength
   - TrySetValueObjectAndPrepareOptionals
   - TrySetValueObject
@@ -37,7 +36,6 @@ fn:
   - GetValueHeapMemorySize
   - CanGrowPinnedValue
   - TryCopyOptionals
-  - ClearOptionals
   - ClearValueIfHeap
   - ClearHeapFields
   - PrepareForRevivification

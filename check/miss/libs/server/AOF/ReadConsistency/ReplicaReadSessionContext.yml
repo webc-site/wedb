@@ -3,7 +3,3 @@ fn:
   - GetPowerOfTwoSize
   - ExpandKeyHashCache
   - ShrinkKeyHashCache
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback

@@ -1,12 +1,5 @@
 fn:
-  - NeedInitialUpdate
-  - InitialUpdater
-  - PostInitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
-  - PostCopyUpdater
   - HandleExpireCopyUpdate
   - HandleExpireInPlaceUpdate
   - HandlePersistCopyUpdate
   - HandlePersistInPlaceUpdate
-  - PostRMWOperation

@@ -3,4 +3,3 @@ fn:
   - GetCustomObjectFactory
   - GetCustomObjectSubCommandFunctions
   - CopyDefaultResp
-  - CopyRespNumber

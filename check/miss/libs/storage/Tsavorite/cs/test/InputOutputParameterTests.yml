@@ -1,9 +1,4 @@
 fn:
-  - InPlaceWriter
-  - InitialWriter
-  - PostInitialWriter
-  - InitialUpdater
-  - PostInitialUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - Setup

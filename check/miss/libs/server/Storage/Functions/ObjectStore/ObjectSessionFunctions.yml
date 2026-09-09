@@ -1,6 +1,0 @@
-fn:
-  - ConvertOutputToHeap
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback

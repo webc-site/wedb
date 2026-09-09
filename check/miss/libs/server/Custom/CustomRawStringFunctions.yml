@@ -1,8 +1,5 @@
 fn:
   - GetNextArg
   - GetFirstArg
-  - NeedCopyUpdate
   - GetInitialLength
   - GetLength
-  - InitialUpdater
-  - CopyUpdater

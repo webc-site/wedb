@@ -13,7 +13,6 @@ fn:
   - CheckConsistencyManagerVersion
   - VerifyKeyFreshness
   - BoundReplayDrift
-  - PreSingleKeyConsistentRead
   - PostSingleKeyConsistentRead
   - PreBatchKeyConsistentRead
   - PostBatchKeyConsistentReadValidate
