@@ -291,12 +291,15 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetMaxConfigEpoch
+  ///
+  /// 对齐 C# 以 0 为下界折叠（`mx = Math.Max(epoch, mx=0)`）：负 epoch 不参与
+  /// 最大值竞争。`[1..]` 等价于 `1..=num_workers()`（num_workers = len-1），
+  /// 但对 len==1 的退化配置不 panic
   pub fn get_max_config_epoch(&self) -> i64 {
-    self.workers[1..=self.num_workers()]
+    self.workers[1..]
       .iter()
       .map(|w| w.config_epoch)
-      .max()
-      .unwrap_or(0)
+      .fold(0, i64::max)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetRemoteNodeIds
@@ -529,7 +532,7 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetPrimaryCount
   pub fn get_primary_count(&self) -> usize {
-    self.workers[1..=self.num_workers()]
+    self.workers[1..]
       .iter()
       .filter(|w| w.role == NodeRole::Primary)
       .count()
@@ -537,7 +540,7 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddress
   pub fn get_worker_node_id_from_address(&self, address: &str, port: i32) -> Option<String> {
-    self.workers[1..=self.num_workers()]
+    self.workers[1..]
       .iter()
       .find(|w| w.address == address && w.port == port)
       .and_then(|w| w.nodeid.clone())
@@ -1565,6 +1568,13 @@ impl ClusterConfig {
       offset = end;
     }
 
+    // 线格式自 1 号本地 worker 起序列化，空列表即结构损坏：放行会产出无本地
+    // 位的配置，后续 LOCAL_WORKER_ID 索引 panic（C# 同场景在解码后首次访问
+    // workers[1] 时才崩溃，此处前置为解码期 fail-loud）
+    if wire.workers.is_empty() {
+      return Err(Error::MissingWorkers);
+    }
+
     // 0 号保留位不在线格式内，按 default 重建（对应 C# skip(1) 布局）
     let mut workers = vec![Worker::default(); wire.workers.len() + 1];
     workers[1..].clone_from_slice(&wire.workers);
@@ -1891,6 +1901,16 @@ mod tests {
       ClusterConfig::from_byte_array(&[CLUSTER_CONFIG_VERSION, 0xff, 0xff]),
       Err(Error::Codec(_))
     ));
+    // 空 workers 列表：结构损坏（缺本地 worker 位）→ 解码期 fail-loud
+    let mut payload = vec![CLUSTER_CONFIG_VERSION];
+    payload.extend_from_slice(&bitcode::encode(&ConfigWire {
+      segments: vec![],
+      workers: vec![],
+    }));
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&payload),
+      Err(Error::MissingWorkers)
+    ));
     // 越界 RLE：覆盖超 16384 槽（worker_id 取保留位 0，专测 count 溢出分支）
     let mut payload = vec![CLUSTER_CONFIG_VERSION];
     payload.extend_from_slice(&bitcode::encode(&ConfigWire {
@@ -1899,13 +1919,13 @@ mod tests {
         worker_id: 0,
         state: SlotState::Stable as u8,
       }],
-      workers: vec![],
+      workers: vec![Worker::default()],
     }));
     assert!(matches!(
       ClusterConfig::from_byte_array(&payload),
       Err(Error::SlotOverflow)
     ));
-    // 非法状态字节
+    // 非法状态字节（携带合法 worker，单独验证状态字节校验）
     let mut payload = vec![CLUSTER_CONFIG_VERSION];
     payload.extend_from_slice(&bitcode::encode(&ConfigWire {
       segments: vec![SlotSegmentWire {
@@ -1913,7 +1933,7 @@ mod tests {
         worker_id: 1,
         state: 0xee,
       }],
-      workers: vec![],
+      workers: vec![Worker::default()],
     }));
     assert!(matches!(
       ClusterConfig::from_byte_array(&payload),

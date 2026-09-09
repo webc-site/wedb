@@ -21,6 +21,12 @@ pub enum Error {
   /// 发货期间未提交数据被环形覆写，扫描提前终止（位点不推进，需全量重同步）
   #[error("wal overwritten while shipping: {skipped} record(s) lost")]
   Overwritten { skipped: u64 },
+  /// 请求的起始位点已被环形截断物理回收：扫描器会把起点钳制到 begin 静默
+  /// 丢掉 `[from, begin)`，副本却按从 `from` 起续传记账，产生不可恢复的
+  /// 位点错位——显式拒绝并要求全量重同步（对标 C# 主端对过期 AOF 位点
+  /// 回全量同步指示而非部分发货的语义）
+  #[error("aof range expired: from {from:#x} already truncated (begin {begin:#x}), full resync required")]
+  Expired { from: u64, begin: u64 },
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -59,10 +65,14 @@ impl<D: Device, T: AofTransport> AofSyncDriver<D, T> {
   /// 发货 `[from, committed_until)` 区间的已提交记录
   ///
   /// 区间为空时返回 `from` 本身；未提交的尾部数据不发货。
-  /// 环形缓冲覆写导致扫描提前终止时显式报错，位点不推进——
-  /// 缺数据必须显式暴露，绝不容静默缺帧
+  /// `from` 已被环形截断回收时报 [`Error::Expired`]，绝不静默缺帧；
+  /// 环形缓冲覆写导致扫描提前终止时同样显式报错，位点不推进
   pub async fn ship_since(&self, from: u64) -> Result<u64> {
     let committed = self.wal.committed_until_address();
+    let begin = self.wal.begin_address();
+    if from < begin {
+      return Err(Error::Expired { from, begin });
+    }
     if from >= committed {
       return Ok(from);
     }
@@ -130,6 +140,63 @@ mod tests {
       // 位点推进到已提交尾部，重复发货为空
       assert_eq!(next, wal.committed_until_address());
       assert_eq!(driver.ship_since(next).await?, next);
+      aok::OK
+    })
+  }
+
+  /// 未提交的尾部数据不发货
+  #[test]
+  fn skips_uncommitted_tail() -> aok::Void {
+    let rt = Runtime::new()?;
+    rt.block_on(async {
+      let dir = tempdir()?;
+      let device = Arc::new(SegmentedDevice::single_file(dir.path().join("sync.wal"))?);
+      let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
+
+      let a = wnode::encode_entry(wnode::AofOp::RiCreate, 1, b"k1", b"blob-a");
+      let addr_a = wal.enqueue(&a)?;
+      wal.commit().await?;
+      // 已提交后追加第二条，但不提交：处于未提交尾部
+      let b = wnode::encode_entry(wnode::AofOp::RiSet, 2, b"k1", b"blob-b");
+      wal.enqueue(&b)?;
+
+      let transport = Arc::new(MemoryTransport::default());
+      let driver = AofSyncDriver::new(Arc::clone(&wal), Arc::clone(&transport));
+      let next = driver.ship_since(addr_a).await?;
+      let sent = transport.0.lock();
+      assert_eq!(sent.len(), 1, "未提交尾部不得越界发货");
+      assert_eq!(sent[0], a);
+      assert_eq!(next, wal.committed_until_address(), "位点止于已提交边界");
+      aok::OK
+    })
+  }
+
+  /// 起始位点已被环形截断回收：显式报 Expired 拒绝发货，绝不静默缺帧
+  #[test]
+  fn rejects_truncated_range() -> aok::Void {
+    let rt = Runtime::new()?;
+    rt.block_on(async {
+      let dir = tempdir()?;
+      let device = Arc::new(SegmentedDevice::single_file(dir.path().join("sync.wal"))?);
+      let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
+
+      let a = wnode::encode_entry(wnode::AofOp::RiCreate, 1, b"k1", b"blob-a");
+      let addr_a = wal.enqueue(&a)?;
+      let b = wnode::encode_entry(wnode::AofOp::RiSet, 2, b"k1", b"blob-b");
+      let addr_b = wal.enqueue(&b)?;
+      wal.commit().await?;
+
+      // 物理截断越过 addr_a，[addr_a, addr_b) 区间已不可得
+      wal.truncate(addr_b).await?;
+      assert!(wal.begin_address() >= addr_b);
+
+      let transport = Arc::new(MemoryTransport::default());
+      let driver = AofSyncDriver::new(Arc::clone(&wal), Arc::clone(&transport));
+      let err = driver.ship_since(addr_a).await.unwrap_err();
+      assert!(matches!(err, Error::Expired { .. }));
+      assert!(transport.0.lock().is_empty(), "过期区间不得发出任何帧");
+      // 合法区间（>= begin）仍可正常续传
+      assert_eq!(driver.ship_since(addr_b).await?, wal.committed_until_address());
       aok::OK
     })
   }

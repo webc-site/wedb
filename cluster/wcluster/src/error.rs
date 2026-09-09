@@ -17,6 +17,10 @@ pub enum Error {
   /// 配置载荷为空（不足以容纳版本字节）
   #[error("cluster config payload too short to contain a version")]
   PayloadTooShort,
+  /// 配置载荷缺失 worker 条目（线格式自 1 号本地 worker 起序列化，空列表即结构
+  /// 损坏；放行会产出无本地位的配置，后续 LOCAL_WORKER_ID 索引将 panic）
+  #[error("cluster config payload has no workers")]
+  MissingWorkers,
   /// 配置格式版本不兼容
   #[error("incompatible cluster config version: got {got}, expect {expect}")]
   Version { got: u8, expect: u8 },
