@@ -127,13 +127,13 @@ impl AlignedBuf {
   /// 缓冲区总容量（字节数）
   #[inline]
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
   #[inline]
   pub fn is_allocated(&self) -> bool {
     self.cap > 0 && self.ptr.as_ptr() as usize != dangling(self.align).as_ptr() as usize
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset
   #[inline]
   pub fn get_array_and_unaligned_offset(&self) -> (*const u8, usize) {
     (self.ptr.as_ptr(), 0)

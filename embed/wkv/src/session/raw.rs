@@ -474,6 +474,7 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 底层物理写入单个键值对（Upsert Raw）
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalUpsert.cs:InternalUpsertAtAddress
   pub async fn upsert_raw(&self, key: &[u8], val: &[u8]) -> Result<u64> {
     loop {
       match self.try_upsert_raw_sync(key, val)? {
@@ -891,6 +892,7 @@ impl<D: Device> StoreSession<D> {
   ///   若在内存中精准命中或确认不存在（墓碑/无候选），纳秒级同步返回，彻底规避异步 Future 状态机开销。
   /// - **异步磁盘扫描回退**：仅当数据位于磁盘区时，才进入 `read_from_disk` 异步 I/O 等待。
   #[inline]
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalReadAtAddress
   pub async fn read_raw_with<R>(
     &self,
     key: &[u8],

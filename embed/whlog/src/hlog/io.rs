@@ -86,10 +86,10 @@ impl<D: Device> HybridLog<D> {
   /// - 若在内存驻留区：不可变区纯指针直读，可变区页读锁保护，返回 `RecordOutput::Memory`；
   /// - 若在磁盘区或已落盘但当前未驻留内存的页面：调用底层 `device.read_range`
   ///   异步读取扇区并解析为 `RecordOutput::Disk`（免纪元保护，不阻塞页回收）。
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadRecordToMemory
   pub async fn read_record(&self, addr: u64) -> Result<RecordOutput> {
     if let Some(bytes) = self.probe_resident(addr)? {
       let offset = self.config.page_offset(addr);
@@ -148,10 +148,10 @@ impl<D: Device> HybridLog<D> {
   ///   段文件，begin 以下地址再也无法通过前置守卫（`is_on_disk` 要求 `addr >= begin`，
   ///   过渡区要求 `addr >= head >= begin`），陈旧槽位永远不会被命中，无需失效回调；
   ///   64 位逻辑地址单调不复用，无页号 ABA 风险（[Self::last_probe_page] 同理，无需清空）。
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
   pub async fn read_disk_record(&self, addr: u64) -> Result<RecordOutput> {
     if !self.disk_readable(addr) {
       return Err(Error::PageNotReady(self.config.page_id(addr)));
@@ -259,10 +259,10 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 异步将指定逻辑页落盘到 Device（移除非必要单页硬件 fsync，对标 Garnet 零阻塞 Direct I/O）
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsyncToDeviceForSnapshot
   pub async fn flush_page(&self, page_id: u64) -> Result<()> {
     self.flush_pages_range(page_id, page_id).await
   }
@@ -298,9 +298,9 @@ impl<D: Device> HybridLog<D> {
   /// - 错误路径（中途 PageNotReady / I/O 失败 / 设备短写）必须将合并区间按当前
   ///   `flushed_until` 钳制后回填 `pending_flush`，保证后续刷盘请求仍可与之合并，
   ///   同时杜绝已被持久化前缀覆盖的陈旧区间滞留（吸收后触碰已驱逐页的永久卡死）。
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForSnapshot
   pub async fn flush_pages_range(&self, start_page: u64, end_page: u64) -> Result<()> {
     if start_page > end_page {
       return Ok(());
@@ -447,8 +447,8 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 显式触发底层存储设备硬件物理刷盘（对标 Garnet Commit / Checkpoint 同步屏障）
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForRecovery
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForRecovery
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForRecovery
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncFlushPagesForRecovery
   pub async fn sync(&self) -> Result<()> {
     self.device.sync().await.map_err(Error::from)
   }
@@ -465,7 +465,7 @@ impl<D: Device> HybridLog<D> {
   ///
   /// 从给定起始逻辑地址 `start_addr` 开始沿着 `prev_address` 反向追溯历史版本，
   /// 每条记录调用闭包 `f(addr, record)`，若闭包返回 `Ok(false)` 则提前终止回溯。
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs:IterateHashChain
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs:IterateHashChain
   pub async fn iterate_version_chain<F>(&self, start_addr: u64, mut f: F) -> Result<()>
   where
     F: FnMut(u64, &RecordOutput) -> Result<bool>,

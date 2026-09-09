@@ -136,7 +136,7 @@ impl HybridLogConfig {
 
   /// 单页地址偏移所占位数（例如 64KB 为 16 位）
   #[inline]
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:LogPageSizeBits
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:LogPageSizeBits
   pub const fn page_bits(&self) -> u32 {
     self.page_size.trailing_zeros()
   }
@@ -161,21 +161,21 @@ impl HybridLogConfig {
 
   /// 根据逻辑地址计算所在逻辑页号
   #[inline]
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageSize
   #[inline]
   pub const fn page_size(&self) -> usize {
     1 << self.page_bits()
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetAddressOfStartOfPageOfAddress
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetAddressOfStartOfPageOfAddress
   #[inline]
   pub const fn get_address_of_start_of_page(&self, addr: u64) -> u64 {
     addr & !self.page_mask()
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetFirstValidLogicalAddressOnPage
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetFirstValidLogicalAddressOnPage
   #[inline]
   pub const fn get_first_valid_logical_address_on_page(&self, page_id: u64) -> u64 {
     let mut addr = page_id << self.page_bits();
@@ -186,14 +186,14 @@ impl HybridLogConfig {
     addr
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
   pub const fn page_id(&self, addr: u64) -> u64 {
     addr >> self.page_bits()
   }
 
   /// 根据逻辑地址计算其在页内的字节偏移
   #[inline]
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnPage
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnPage
   pub const fn page_offset(&self, addr: u64) -> usize {
     (addr & self.page_mask()) as usize
   }
@@ -215,7 +215,7 @@ impl HybridLogConfig {
   ///
   /// 滞后比例已定点化（`ro_lag_num`，2^20 分母），热路径零 f64 乘除；
   /// u128 中间乘法杜绝大跨度地址空间的乘法溢出。
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:CalculateReadOnlyAddress
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:CalculateReadOnlyAddress
   pub const fn calculate_read_only_address(&self, head: u64, tail: u64) -> u64 {
     if head >= tail {
       return tail;

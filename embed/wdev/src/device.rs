@@ -160,6 +160,7 @@ pub trait Device: Send + Sync + 'static {
   }
 
   /// 物理删除单个段文件并从句柄缓存中移除（对标 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:RemoveSegment）
+  /// libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:RemoveSegmentAsync
   fn remove_segment(&self, _segment_id: u32) -> impl Future<Output = Result<()>> {
     async move { Ok(()) }
   }
@@ -169,10 +170,12 @@ pub trait Device: Send + Sync + 'static {
   fn reset(&self) {}
 
   /// 截断清理指定段编号之前的段（例如删除编号小于 `segment_id` 的所有段文件）
+  /// libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:TruncateUntilSegmentAsync
   fn truncate_until_segment(&self, segment_id: u32) -> impl Future<Output = Result<()>>;
 
   /// 根据逻辑地址截断历史段文件（截断至该地址所在的段边界之前，删除该段之前的所有段文件）
   /// 对照 libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:TruncateUntilAddress 语义
+  /// libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:TruncateUntilAddressAsync
   fn truncate_until_address(&self, to_address: u64) -> impl Future<Output = Result<()>> {
     async move {
       if let Some(seg_size) = self.segment_size() {

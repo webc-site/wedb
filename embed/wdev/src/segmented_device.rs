@@ -1216,6 +1216,7 @@ impl Device for SegmentedDevice {
     SegmentedDevice::sync_data(self)
   }
 
+  /// libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:TruncateUntilSegmentAsync
   async fn truncate_until_segment(&self, segment_id: u32) -> Result<()> {
     if self.segment_size.is_none() {
       return Ok(());

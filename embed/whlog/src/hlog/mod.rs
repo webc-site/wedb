@@ -209,7 +209,7 @@ impl<D: Device> HybridLog<D> {
   /// 创建新的 HybridLog 实例
 
   /// 校验日志块分配器的页面配置与底层设备扇区大小的兼容性
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
   #[inline]
   pub(crate) fn verify_compatible_sector_size(config: &HybridLogConfig, device: &D) -> Result<()> {
     let sector_size = device.sector_size();
@@ -226,7 +226,7 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 校验日志块分配器的页面配置与底层设备扇区大小的兼容性
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
   #[inline]
 
   pub fn new(config: HybridLogConfig, device: Arc<D>, epoch: Arc<LightEpoch>) -> Result<Self> {
@@ -262,23 +262,23 @@ impl<D: Device> HybridLog<D> {
   /// [Self::revivify_record_at] 整头覆写天然解除密封，读取路径亦不依赖该位。
 
   /// 获取底层设备的物理扇区大小
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetDeviceSectorSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetDeviceSectorSize
   #[inline]
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
   #[inline]
   pub fn get_main_log_segment_size(&self) -> u64 {
     self.device.segment_size().unwrap_or(u64::MAX)
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetObjectLogSegmentSize
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetObjectLogSegmentSize
   #[inline]
   pub fn get_object_log_segment_size(&self) -> u64 {
     // wedb does not have separate object log segment size, defaults to main log segment size
     self.get_main_log_segment_size()
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnSegment
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnSegment
   #[inline]
   pub fn get_offset_on_segment(&self, address: u64) -> u64 {
     if let Some(segment_size) = self.device.segment_size() {
@@ -288,7 +288,7 @@ impl<D: Device> HybridLog<D> {
     }
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetStartLogicalAddressOfSegment
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetStartLogicalAddressOfSegment
   #[inline]
   pub fn get_start_logical_address_of_segment(&self, address: u64) -> u64 {
     if let Some(segment_size) = self.device.segment_size() {
@@ -302,9 +302,9 @@ impl<D: Device> HybridLog<D> {
     self.device.sector_size()
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
   #[inline]
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
   pub fn is_allocated(&self, _page_id: u64) -> bool {
     // Rust HybridLog relies on buffer capacity
     true
@@ -475,7 +475,7 @@ impl<D: Device> HybridLog<D> {
   /// # Safety
   /// 调用方必须确保处于 `LightEpoch` 保护下且该逻辑地址驻留在内存中（`addr >= head && addr < tail`）。
   #[inline(always)]
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPage
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPage
   pub unsafe fn get_physical_address(&self, addr: u64) -> *const u8 {
     unsafe { self.buffer.get_physical_address(addr) }
   }
