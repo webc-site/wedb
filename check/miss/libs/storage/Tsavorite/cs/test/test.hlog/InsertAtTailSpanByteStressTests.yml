@@ -1,9 +1,0 @@
-fn:
-  - GetMutablePageCount
-  - Setup
-  - TearDown
-  - PopulateAndSetReadOnlyToTail
-  - runReadThread
-  - runUpdateThread
-test:
-  - SpanByteTailInsertMultiThreadTest

@@ -1,7 +1,0 @@
-fn:
-  - ToString
-  - WriteType
-  - Deserialize
-  - Serialize
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo

@@ -1,9 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - LogCompactBasicTest
-  - LogCompactTestNewEntries
-  - LogCompactAfterDeleteTest
-  - LogCompactBasicCustomFctnTest
-  - LogCompactCopyInPlaceCustomFctnTest

@@ -1,6 +1,0 @@
-fn:
-  - TryBlockAllocate
-  - TryAllocateRecord
-  - TryAllocateRecordReadCache
-  - SaveAllocationForRetry
-  - GetAllocationForRetry

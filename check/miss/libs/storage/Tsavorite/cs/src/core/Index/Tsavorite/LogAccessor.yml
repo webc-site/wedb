@@ -1,7 +1,0 @@
-fn:
-  - PopulateRecordSizeInfo
-  - ShiftAddresses
-  - Subscribe
-  - SubscribeEvictions
-  - SetLogSizeTracker
-  - ClearSerializedObjectData

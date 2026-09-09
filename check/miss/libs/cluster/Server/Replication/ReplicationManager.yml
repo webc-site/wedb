@@ -6,7 +6,6 @@ fn:
   - GetRecoveredSafeAofAddress
   - GetCurrentSafeAofAddress
   - EnsureReplication
-  - GetBufferPoolStats
   - CheckpointVersionShiftStart
   - CheckpointVersionShiftEnd
   - BeginRecovery
@@ -14,4 +13,3 @@ fn:
   - ResetRecovery
   - RecoverCheckpointAndAOFAsync
   - WaitForReplicationOffsetAsync
-  - Start

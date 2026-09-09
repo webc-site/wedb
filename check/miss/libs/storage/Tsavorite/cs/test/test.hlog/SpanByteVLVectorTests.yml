@@ -1,5 +1,0 @@
-fn:
-  - GetRandomLength
-test:
-  - VLVectorSingleKeyTest
-  - VLVectorMultiKeyTest

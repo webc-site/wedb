@@ -1,5 +1,0 @@
-fn:
-  - NewSession
-  - DisposeClientSession
-  - DumpRevivificationStats
-  - ResetRevivificationStats

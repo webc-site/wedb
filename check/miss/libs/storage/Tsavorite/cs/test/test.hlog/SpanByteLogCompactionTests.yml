@@ -1,6 +1,0 @@
-fn:
-  - Equals
-  - GetHashCode64
-  - Setup
-  - TearDown
-  - drainPending

@@ -1,8 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TsavoriteLogResumePersistedReaderViaCookie
-  - TsavoriteLogResumeViaCompleteUntilRecordAtSpec
-  - TsavoriteLogResumePersistedReader2
-  - TsavoriteLogResumePersistedReader3

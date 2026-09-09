@@ -1,11 +1,4 @@
 fn:
-  - GetInitialLength
-  - GetLength
-  - Create
-  - Deserialize
-  - CloneObject
-  - SerializeObject
-  - Updater
   - GetSingleSlotRequest
   - GetCrossSlotRequest
   - SetupSingleSlotRequest

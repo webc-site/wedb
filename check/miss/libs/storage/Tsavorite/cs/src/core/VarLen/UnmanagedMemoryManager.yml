@@ -1,5 +1,0 @@
-fn:
-  - SetDestination
-  - GetSpan
-  - Pin
-  - Unpin

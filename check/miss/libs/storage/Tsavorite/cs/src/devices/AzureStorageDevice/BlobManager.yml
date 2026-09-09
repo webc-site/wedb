@@ -1,6 +1,5 @@
 fn:
   - GetDelayBetweenRetries
-  - StartAsync
   - HandleStorageError
   - StopAsync
   - ConfirmLeaseIsGoodForAWhileAsync

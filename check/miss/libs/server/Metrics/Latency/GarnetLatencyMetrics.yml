@@ -1,6 +1,4 @@
 fn:
-  - Init
-  - Merge
   - GetPercentiles
   - GetRespHistogram
   - GetRespHistograms

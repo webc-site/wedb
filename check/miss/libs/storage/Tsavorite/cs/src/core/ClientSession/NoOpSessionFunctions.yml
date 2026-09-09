@@ -1,6 +1,0 @@
-fn:
-  - ReadCompletionCallback
-  - RMWCompletionCallback
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo

@@ -1,10 +1,7 @@
 fn:
-  - ToString
-  - StartAsync
   - GetSegmentBlobName
   - DetectHangs
   - CancelAllRequests
-  - RemoveSegmentAsync
   - DeleteAsync
   - TryReadAsync
   - ReadFromBlobAsync

@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - Populate
-test:
-  - LowMemConcurrentUpsertReadTest
-  - LowMemConcurrentUpsertRMWReadTest

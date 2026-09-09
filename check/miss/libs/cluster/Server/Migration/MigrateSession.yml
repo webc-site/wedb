@@ -1,9 +1,0 @@
-fn:
-  - Overlap
-  - GetGarnetClient
-  - GetLocalSession
-  - CheckConnectionAsync
-  - GetRanges
-  - ResetLocalSlot
-  - TryPrepareLocalForMigration
-  - RelinquishOwnership

@@ -1,9 +1,0 @@
-fn:
-  - Load
-  - DumpDistribution
-  - RunIteration
-  - RunWorkers
-  - SumScoreboard
-  - PoolStatsSampleWindow
-  - PrintPoolStatsTable
-  - SumLongs

@@ -1,10 +1,8 @@
 fn:
   - ActiveConsumers
   - ActiveClusterSessions
-  - Start
   - AcceptEventArg_Completed
   - HandleAcceptError
   - HandleNewConnection
   - TryCreateMessageConsumer
   - DisposeMessageConsumer
-  - GetBufferPoolStats

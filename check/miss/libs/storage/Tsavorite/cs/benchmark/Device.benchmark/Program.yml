@@ -1,7 +1,0 @@
-fn:
-  - Main
-  - PrintBenchMarkSummary
-  - SetupDeviceBenchmark
-  - FillDeviceWithTestData
-  - GetDevice
-  - ParseBackend

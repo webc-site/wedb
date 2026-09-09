@@ -1,4 +1,0 @@
-fn:
-  - AssertValid
-  - AssertKeyCorrectlySized
-  - GetExtendedNamespaceSize

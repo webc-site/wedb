@@ -1,5 +1,4 @@
 fn:
-  - Start
   - AddMetricsHistorySessionDispose
   - GetAllLocksets
   - UpdateInstantaneousMetrics

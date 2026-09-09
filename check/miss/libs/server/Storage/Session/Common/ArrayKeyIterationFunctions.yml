@@ -5,7 +5,4 @@ fn:
   - DBKeys
   - DbSize
   - DeleteIfExpiredInMemory
-  - OnStart
-  - OnStop
-  - OnException
   - IsInternalRecord

@@ -1,7 +1,0 @@
-fn:
-  - Equals
-  - RunYcsb
-  - Run
-  - SetupYcsb
-  - DoContinuousMeasurements
-  - CreateKeyVectors

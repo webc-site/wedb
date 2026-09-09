@@ -6,4 +6,3 @@ fn:
   - IsFull
   - IsEmpty
   - Iterate
-  - GetEnumerator

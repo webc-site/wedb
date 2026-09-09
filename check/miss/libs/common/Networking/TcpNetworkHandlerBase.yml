@@ -1,7 +1,5 @@
 fn:
   - IsLocalConnection
-  - Start
-  - StartAsync
   - TryClose
   - DisposeResources
   - RecvEventArgCompletedWithTLS

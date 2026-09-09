@@ -1,6 +1,2 @@
 fn:
-  - Create
-  - Deserialize
-  - CloneObject
-  - SerializeObject
   - UpdateSize

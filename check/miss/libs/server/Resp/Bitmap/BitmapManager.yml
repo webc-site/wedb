@@ -8,6 +8,5 @@ fn:
   - IsLargeEnough
   - NewBlockAllocLength
   - UpdateBitmap
-  - GetBit
   - ProcessNegativeOffset
   - reverse

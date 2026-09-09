@@ -1,7 +1,0 @@
-fn:
-  - TotalEntries
-  - Setup
-  - TearDown
-  - LogWriter
-test:
-  - EnqueueWaitCommitBasicTest

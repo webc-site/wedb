@@ -1,9 +1,0 @@
-fn:
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - Setup
-  - TearDown
-  - doWrites
-  - doReads
-test:
-  - InputOutputParametersTest

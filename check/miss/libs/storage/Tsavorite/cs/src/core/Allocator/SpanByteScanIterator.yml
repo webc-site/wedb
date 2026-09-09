@@ -1,14 +1,3 @@
 fn:
-  - SnapCursorToLogicalAddress
-  - InitializeGetNextAndAcquireEpoch
-  - LoadPageIfNeeded
-  - SnapToLogicalAddressBoundary
-  - GetPhysicalAddressAndAllocatedSize
   - BeginGetPrevInMemory
   - EndGetPrevInMemory
-  - ClearValueIfHeap
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - CalculateHeapMemorySize
-  - AsyncReadPageFromDeviceToFrame

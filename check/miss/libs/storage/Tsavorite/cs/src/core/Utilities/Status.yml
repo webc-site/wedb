@@ -1,6 +1,0 @@
-fn:
-  - CreateFound
-  - CreatePending
-  - CreateNotFound
-  - CreateError
-  - ToString

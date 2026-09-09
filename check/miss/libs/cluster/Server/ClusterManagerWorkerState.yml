@@ -1,5 +1,4 @@
 fn:
-  - TryInitializeLocalWorker
   - TryRemoveWorker
   - TryReset
   - TryAddReplicaAsync

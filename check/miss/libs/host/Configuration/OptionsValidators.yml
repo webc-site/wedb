@@ -1,4 +1,3 @@
 fn:
   - GetDefault
-  - IsValid
   - TryInitialValidation

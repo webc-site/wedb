@@ -1,6 +1,0 @@
-fn:
-  - AllocateAndSet
-  - GetHeapObject
-  - TryGetHeapObject
-  - GetOverflowByteArray
-  - ToString

@@ -1,7 +1,0 @@
-fn:
-  - RunYcsbUnsafeContext
-  - RunYcsbSafeContext
-  - Run
-  - SetupYcsbUnsafeContext
-  - SetupYcsbSafeContext
-  - CreateKeyVectors

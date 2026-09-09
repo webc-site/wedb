@@ -1,8 +1,0 @@
-fn:
-  - RentPendingIoContext
-  - ReturnPendingIoContext
-  - MergeReadCopyOptions
-  - MergeRevivificationStatsTo
-  - ResetRevivificationStats
-  - WaitPending
-  - WaitPendingAsync

@@ -1,9 +1,0 @@
-fn:
-  - TestDeviceWriteRead
-test:
-  - LocalStorageWriteRead
-  - PageBlobWriteRead
-  - PageBlobWriteReadWithLease
-  - TieredWriteRead
-  - ShardedWriteRead
-  - OmitSegmentIdTest

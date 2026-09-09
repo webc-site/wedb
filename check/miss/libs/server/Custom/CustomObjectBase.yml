@@ -1,4 +1,2 @@
 fn:
-  - SerializeObject
-  - CloneObject
   - Operate

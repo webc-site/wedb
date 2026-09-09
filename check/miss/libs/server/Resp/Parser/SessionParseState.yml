@@ -1,7 +1,6 @@
 fn:
   - InitializeWithArgument
   - InitializeWithArguments
-  - EnsureCapacity
   - SetArgument
   - SetArguments
   - GetSerializedLength

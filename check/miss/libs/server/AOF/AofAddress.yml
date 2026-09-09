@@ -1,15 +1,9 @@
 fn:
   - Equals
-  - ToByteArray
-  - FromByteArray
   - FromSpan
-  - ToString
   - FromString
-  - Serialize
-  - Deserialize
   - SetValueIf
   - SetValue
-  - Create
   - Min
   - MinExchange
   - MaxExchange

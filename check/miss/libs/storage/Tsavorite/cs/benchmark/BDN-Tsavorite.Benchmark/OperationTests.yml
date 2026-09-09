@@ -1,6 +1,0 @@
-fn:
-  - SetupStore
-  - PopulateStore
-  - SetupPopulatedStore
-  - TearDown
-  - Insert

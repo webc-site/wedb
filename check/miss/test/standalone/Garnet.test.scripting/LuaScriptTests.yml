@@ -1,6 +1,4 @@
 fn:
-  - Execute
-  - ToString
   - Setup
   - TearDown
   - DoErroneousRedisCall

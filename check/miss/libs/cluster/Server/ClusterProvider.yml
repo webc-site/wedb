@@ -1,13 +1,9 @@
 fn:
   - PreventRoleChange
   - AllowRoleChange
-  - Start
   - CreateClusterSession
   - UpdateClusterAuth
-  - IsPrimary
-  - IsReplica
   - ResetGossipStats
-  - FlushConfig
   - FlushDB
   - AddNewCheckpointEntry
   - SafeTruncateAOF
@@ -17,7 +13,6 @@ fn:
   - GetPrimaryInfo
   - GetReplicaInfo
   - GetGossipStats
-  - GetBufferPoolStats
   - PurgeBufferPool
   - ClusterPublishAsync
   - BumpAndWaitForEpochTransitionAsync

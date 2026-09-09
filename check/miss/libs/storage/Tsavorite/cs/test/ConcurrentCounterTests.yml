@@ -1,7 +1,0 @@
-test:
-  - Increment_IncreasesCounterValue
-  - Increment_WithZeroValue_DoesNotChangeCounterValue
-  - Total_ReturnsSumOfCounterValues
-  - Increment_WithMaxValue_IncreasesCounterValue
-  - Increment_WithMinValue_IncreasesCounterValue
-  - IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue

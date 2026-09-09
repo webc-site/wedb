@@ -1,6 +1,4 @@
 fn:
-  - Start
-  - StartAsync
   - AuthenticateAsServerAsync
   - AuthenticateAsClientAsync
   - OnNetworkReceiveWithoutTLS

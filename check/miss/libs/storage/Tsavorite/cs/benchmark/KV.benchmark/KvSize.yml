@@ -1,4 +1,0 @@
-fn:
-  - ParseSize
-  - FormatSize
-  - NextPow2

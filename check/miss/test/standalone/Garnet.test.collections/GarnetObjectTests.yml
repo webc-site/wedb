@@ -7,8 +7,6 @@ fn:
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
   - CreateStore
-  - Deserialize
-  - Serialize
 test:
   - WriteRead
   - WriteCheckpointRead

@@ -8,5 +8,4 @@ fn:
   - ReserveEntry
   - ReserveEntryWait
   - ReserveEntryForThread
-  - ToString
   - UserWordRef

@@ -1,4 +1,3 @@
 fn:
   - TryAddAndGet
-  - TryRemove
   - Iterate

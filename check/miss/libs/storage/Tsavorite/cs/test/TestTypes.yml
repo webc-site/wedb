@@ -1,9 +1,0 @@
-fn:
-  - ToString
-  - GetHashCode64
-  - Equals
-  - RMWCompletionCallback
-  - ReadCompletionCallback
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo

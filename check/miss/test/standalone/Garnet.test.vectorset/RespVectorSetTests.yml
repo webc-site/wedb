@@ -4,7 +4,6 @@ fn:
   - MatchedIds
   - ExpectIds
   - AssertSameIds
-  - Format
   - SeedMoviesForAdvancedFiltering
   - InterruptedVectorSetDelete
   - InterruptedVectorSetDeleteRecoveryAsync
@@ -44,7 +43,6 @@ test:
   - VSIMBadFilters
   - VSIMComplexJsonAttributes
   - VSIMErrors
-  - DeleteVectorSet
   - FlushDB
   - ExpirationAsync
   - InterruptedVectorSetDelete_BeforeMark

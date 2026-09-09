@@ -1,9 +1,7 @@
 fn:
   - GetSessions
-  - GetNumSessions
   - IsFirst
   - TryAddReplicaSyncSession
-  - TryRemove
   - TryGetSession
   - GrowSessionArray
   - ShrinkSessionArray

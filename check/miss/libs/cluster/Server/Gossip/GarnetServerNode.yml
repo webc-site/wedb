@@ -1,6 +1,5 @@
 fn:
   - GetClientTimeoutMilliseconds
-  - InitializeAsync
   - UpdateGossipSend
   - UpdateGossipRecv
   - ResetCts

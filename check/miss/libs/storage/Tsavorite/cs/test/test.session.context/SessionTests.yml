@@ -1,9 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - SessionTest1
-  - SessionTest2
-  - SessionTest3
-  - SessionTest4
-  - SessionTest5

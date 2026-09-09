@@ -1,8 +1,0 @@
-fn:
-  - ReadCompletionCallback
-  - Setup
-  - TearDown
-  - LocalRead
-  - LocalRun
-test:
-  - RandomReadCacheTest

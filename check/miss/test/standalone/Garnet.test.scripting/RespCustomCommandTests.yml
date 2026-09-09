@@ -1,12 +1,5 @@
 fn:
   - ValidateContent
-  - Execute
-  - Prepare
-  - Main
-  - Create
-  - Deserialize
-  - GetInitialLength
-  - GetLength
   - Setup
   - TearDown
   - CreateTestLibraries

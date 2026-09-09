@@ -5,9 +5,6 @@ fn:
   - SetUserAsync
   - CaptureExceptionAsync
   - GetAcl
-  - Prepare
-  - Main
-  - Execute
 test:
   - Parser_AcceptsUnknownNameAsCustomCommand
   - Parser_RejectsNameWithWhitespace

@@ -1,6 +1,4 @@
 fn:
-  - Deserialize
   - DeserializeInternal
   - CustomDeserialize
-  - Serialize
   - SerializeInternal

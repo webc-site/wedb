@@ -1,4 +1,0 @@
-fn:
-  - SynchronizeEpoch
-  - SpinWaitUntilClosed
-  - SpinWaitUntilRecordIsClosed

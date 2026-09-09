@@ -4,7 +4,6 @@ fn:
   - Insert
   - BuildQuantizationTable
   - BackfillQuantizedVectors
-  - Remove
   - SearchVector
   - SearchElement
   - ContinueSearch

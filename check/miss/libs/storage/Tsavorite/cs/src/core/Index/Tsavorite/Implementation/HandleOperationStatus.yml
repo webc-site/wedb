@@ -1,6 +1,0 @@
-fn:
-  - HandleImmediateRetryStatus
-  - HandleImmediateNonPendingRetryStatus
-  - HandleRetryStatus
-  - HandleOperationStatus
-  - ResolveInitialIORecordSize

@@ -1,7 +1,0 @@
-fn:
-  - OnStart
-  - OnStop
-  - OnException
-  - BeginGetPrevInMemory
-  - EndGetPrevInMemory
-  - SnapCursorToLogicalAddress

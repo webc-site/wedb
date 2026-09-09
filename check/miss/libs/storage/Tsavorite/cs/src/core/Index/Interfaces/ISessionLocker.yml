@@ -1,5 +1,0 @@
-fn:
-  - TryLockEphemeralExclusive
-  - TryLockEphemeralShared
-  - UnlockEphemeralExclusive
-  - UnlockEphemeralShared

@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - Prepare
-  - Destroy
-test:
-  - ObjectRecoveryTest3

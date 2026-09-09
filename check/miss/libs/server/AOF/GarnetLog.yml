@@ -9,7 +9,6 @@ fn:
   - LockSublogs
   - UnlockSublogs
   - GetSubLog
-  - GetTailAddress
   - GetBeginAddress
   - SetLogShiftTailCallback
   - ScanSingle

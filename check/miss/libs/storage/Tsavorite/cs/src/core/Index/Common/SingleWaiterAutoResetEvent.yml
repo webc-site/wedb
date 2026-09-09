@@ -2,7 +2,3 @@ fn:
   - GetStatus
   - OnCompleted
   - GetResult
-  - Signal
-  - WaitAsync
-  - ResetStatus
-  - ThrowConcurrentWaitersNotSupported

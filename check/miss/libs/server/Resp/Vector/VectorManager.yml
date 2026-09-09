@@ -7,7 +7,6 @@ fn:
   - RecoveredContextMetadata
   - SanitizeAndTrackIngestedRecordIfApplicable
   - errorMsg
-  - TryRemove
   - TrySetAttribute
   - RequestDeletion
   - RequestDropInMemoryIndex

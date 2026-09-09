@@ -1,7 +1,0 @@
-fn:
-  - OnBeginReadRecords
-  - OnEndReadRecords
-  - FlushAndReset
-  - ReadRecordObjects
-  - DoDeserialize
-  - OnDeserializeComplete

@@ -1,6 +1,4 @@
 fn:
-  - Prepare
-  - Main
   - GetSingleSlotRequest
   - GetCrossSlotRequest
   - SetupSingleSlotRequest

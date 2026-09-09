@@ -1,10 +1,2 @@
 fn:
-  - ToString
-  - SetEmptyAtomic
-  - MergeTo
-  - GetRecordSize
-  - TryTakeOversize
   - GetRecord
-  - ScanForEmpty
-  - GetBinIndex
-  - TryAddToBin

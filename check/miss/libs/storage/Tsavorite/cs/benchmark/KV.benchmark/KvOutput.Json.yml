@@ -1,4 +1,0 @@
-fn:
-  - EmitResultJson
-  - EmitAggregateJson
-  - BuildResultJson

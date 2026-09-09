@@ -5,6 +5,5 @@ fn:
   - RequestTimeout
   - TryGetFromDigest
   - TryLoad
-  - Remove
   - TrySwapDatabaseSessions
   - GetScriptDigest

@@ -1,4 +1,0 @@
-fn:
-  - GetAsync
-  - TryGet
-  - GetOrAdd

@@ -1,7 +1,6 @@
 fn:
   - RemoveSubscription
   - Broadcast
-  - StartAsync
   - Consume
   - Subscribe
   - PatternSubscribe

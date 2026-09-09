@@ -1,7 +1,0 @@
-fn:
-  - GetKeyHash
-  - ReadWithPrefetch
-  - CompletePendingWithOutputs
-  - CompletePendingAsync
-  - CompletePendingWithOutputsAsync
-  - ResetModified

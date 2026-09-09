@@ -1,8 +1,0 @@
-fn:
-  - WriteOrSendRecordAsync
-  - WriteOrSendAccumulatedRecordAsync
-  - WriteOrSendChunkedRecordAsync
-  - WriteOrSendSegmentedRecordAsync
-  - WriteOrSendRecordSpanAsync
-  - RetryAsync
-  - HandleMigrateTaskResponseAsync

@@ -1,6 +1,0 @@
-fn:
-  - getEntryValue
-  - ToString
-test:
-  - BasicHashBucketMallocFPSTest
-  - BasicIHeapContainerMallocFPSTest

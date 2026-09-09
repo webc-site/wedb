@@ -1,9 +1,0 @@
-fn:
-  - ReadCompletionCallback
-  - RMWCompletionCallback
-  - TryLockEphemeralExclusive
-  - TryLockEphemeralShared
-  - UnlockEphemeralExclusive
-  - UnlockEphemeralShared
-  - UnsafeResumeThread
-  - CompletePendingWithOutputs

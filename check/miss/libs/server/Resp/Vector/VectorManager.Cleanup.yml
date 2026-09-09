@@ -1,7 +1,4 @@
 fn:
-  - OnException
-  - OnStart
-  - OnStop
   - RunRequestDropTaskAsync
   - RunRequestCleanupTaskAsync
   - RunCleanupTaskAsync

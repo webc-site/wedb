@@ -1,5 +1,0 @@
-fn:
-  - ToString
-  - WriteType
-  - Deserialize
-  - Serialize

@@ -1,5 +1,4 @@
 fn:
-  - IsValid
   - GetServerOptions
   - GetDeviceType
   - GetAuthenticationSettings

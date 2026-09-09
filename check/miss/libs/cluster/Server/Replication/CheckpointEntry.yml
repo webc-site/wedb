@@ -5,6 +5,3 @@ fn:
   - RemoveReader
   - TrySuspendReaders
   - ContainsSharedToken
-  - ToByteArray
-  - FromByteArray
-  - ToString

@@ -1,5 +1,0 @@
-fn:
-  - ContinuePendingRead
-  - ContinuePendingRMW
-  - ContinuePendingConditionalCopyToTail
-  - ContinuePendingConditionalScanPush

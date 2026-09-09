@@ -1,9 +1,6 @@
 fn:
   - IsProgressing
-  - OnStart
   - WriteRecord
   - FanOutRecordSpan
   - FanOutChunk
   - Consume
-  - OnStop
-  - OnException

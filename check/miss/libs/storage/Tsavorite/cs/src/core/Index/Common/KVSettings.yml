@@ -1,7 +1,0 @@
-fn:
-  - ToString
-  - GetIndexSizeCacheLines
-  - SetIndexSizeFromCacheLines
-  - GetLogSettings
-  - GetReadCacheSettings
-  - GetCheckpointSettings

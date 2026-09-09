@@ -1,6 +1,0 @@
-fn:
-  - TryFindRecordInMemory
-  - TryFindRecordInMainLogForConditionalOperation
-  - IsValidTracebackRecord
-  - TryFindRecordForPendingOperation
-  - TryFindRecordInMainLogForPendingOperation

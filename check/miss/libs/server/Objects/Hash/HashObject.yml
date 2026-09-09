@@ -6,7 +6,6 @@ fn:
   - CleanupExpirationStructuresIfEmpty
   - IsExpired
   - DeleteExpiredItems
-  - Remove
   - Count
   - ContainsKey
   - SetExpiration

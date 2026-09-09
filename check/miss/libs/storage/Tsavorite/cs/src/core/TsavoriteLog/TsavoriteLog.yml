@@ -58,7 +58,6 @@ fn:
   - GetRecordAsMemoryOwnerAndFree
   - GetRecordLengthAndFree
   - CommitInternal
-  - GetLength
   - UnsafeGetLength
   - UnsafeAlign
   - VerifyChecksum

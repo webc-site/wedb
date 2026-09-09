@@ -1,7 +1,0 @@
-fn:
-  - InternalRefresh
-  - InternalCompletePending
-  - InRestPhase
-  - InternalCompletePendingRequests
-  - InternalCompletePendingRequest
-  - InternalCompletePendingRequestFromContext

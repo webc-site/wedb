@@ -2,7 +2,6 @@ fn:
   - NetworkCLIENTLIST
   - NetworkCLIENTINFO
   - NetworkCLIENTKILL
-  - IsMatch
   - NetworkCLIENTGETNAME
   - NetworkCLIENTSETNAME
   - NetworkCLIENTSETINFO

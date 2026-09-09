@@ -1,5 +1,4 @@
 fn:
-  - GetTailAddress
   - GetNextTaskId
   - NeedToWait
   - AsyncFlushPageCallback

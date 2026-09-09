@@ -1,5 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - LogReadAsyncBasicTest

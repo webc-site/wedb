@@ -1,6 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - DiskDeleteBasicTest1
-  - DiskDeleteBasicTest2

@@ -1,9 +1,0 @@
-fn:
-  - verifyOption
-  - GetHashTableSize
-  - LoadData
-  - LoadDataThreadProc
-  - LoadDataFromFile
-  - LoadSyntheticData
-  - MaybeRecoverStore
-  - MaybeCheckpointStore

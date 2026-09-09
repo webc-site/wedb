@@ -1,5 +1,0 @@
-fn:
-  - ToString
-  - TryPop
-  - AddNodeToFreeList
-  - GetNodeFromFreeList

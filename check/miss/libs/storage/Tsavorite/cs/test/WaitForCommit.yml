@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - LogWriter
-  - LogWriterAsync
-test:
-  - WaitForCommitBasicTest

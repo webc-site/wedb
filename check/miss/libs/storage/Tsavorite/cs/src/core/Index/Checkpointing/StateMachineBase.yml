@@ -1,4 +1,0 @@
-fn:
-  - NextState
-  - GlobalBeforeEnteringState
-  - GlobalAfterEnteringState

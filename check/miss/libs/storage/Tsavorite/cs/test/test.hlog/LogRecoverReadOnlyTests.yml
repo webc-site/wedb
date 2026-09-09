@@ -1,9 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - ProducerAsync
-  - CommitterAsync
-  - ReadOnlyConsumerAsync
-  - BeginRecoverAsyncLoop
-test:
-  - RecoverReadOnlyCheck1

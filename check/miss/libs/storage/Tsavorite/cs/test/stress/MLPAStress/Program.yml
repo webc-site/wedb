@@ -1,8 +1,0 @@
-fn:
-  - Main
-  - RunStress
-  - ParseNamed
-  - ExpandModes
-  - ParseIntList
-  - ConfigureInjection
-  - PrintUsage

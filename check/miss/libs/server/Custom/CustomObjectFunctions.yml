@@ -2,7 +2,6 @@ fn:
   - GetNextArg
   - GetNextString
   - GetFirstArg
-  - Updater
   - AbortWithWrongNumberOfArguments
   - AbortWithErrorMessage
   - AbortWithSyntaxError

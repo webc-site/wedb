@@ -1,4 +1,3 @@
 fn:
   - Equals
-  - Create
   - ToUpperAscii

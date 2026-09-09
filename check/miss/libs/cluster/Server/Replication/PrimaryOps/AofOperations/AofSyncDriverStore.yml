@@ -6,7 +6,6 @@ fn:
   - PublishShippedAddresses
   - TryAddReplicationDriver
   - TryAddReplicationDrivers
-  - TryRemove
   - CountConnectedReplicas
   - UpdateTruncatedUntil
   - AssertDoesNotExist

@@ -4,7 +4,6 @@ fn:
   - SetReadOnly
   - BuildNameLookup
   - BuildRuntimeTypes
-  - Init
   - GetInt
   - GetLong
   - GetBool

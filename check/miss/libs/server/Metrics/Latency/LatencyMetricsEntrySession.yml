@@ -1,4 +1,3 @@
 fn:
   - IsValidRange
-  - Start
   - RecordValue

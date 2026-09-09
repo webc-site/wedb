@@ -1,5 +1,0 @@
-fn:
-  - ReadByte
-  - Seek
-  - SetLength
-  - WriteByte

@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - UpdateFunc
-test:
-  - CollidingDeletedRecordTest
-  - SetInvalidOnException

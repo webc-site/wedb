@@ -6,7 +6,6 @@ fn:
   - TryConnectSocket
   - TryConnectSocketAsync
   - ReconnectAsync
-  - Execute
   - ExecuteBatch
   - ExecuteForArray
   - ExecuteClusterAppendLog

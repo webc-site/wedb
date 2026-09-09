@@ -12,9 +12,6 @@ fn:
   - ReadPersistedIndexPtr
   - ReadPersistedContext
   - ReadPersistedIndexFields
-  - OnException
-  - OnStart
-  - OnStop
   - CensusNamespacedRecords
   - RecordsHeldForContext
   - WaitForContextDrained

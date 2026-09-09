@@ -1,8 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - RemoveSegmentAsync
-test:
-  - CommitFailureExceptionCarriesDeviceError
-  - FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog
-  - CalculateReadOnlyAddressClampsOutOfRangeHeadAddress

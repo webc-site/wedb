@@ -1,6 +1,0 @@
-fn:
-  - OnException
-  - OnStart
-  - OnStop
-  - StreamingSnapshotScanPhase1
-  - StreamingSnapshotScanPhase2

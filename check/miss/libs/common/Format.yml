@@ -9,7 +9,6 @@ fn:
   - TryCreateEndpointAsync
   - TryConnectAsync
   - TryValidateAddress
-  - GetHostName
   - MemoryBytes
   - GigaBytes
   - MegaBytes

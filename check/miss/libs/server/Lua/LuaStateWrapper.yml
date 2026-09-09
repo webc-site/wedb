@@ -32,7 +32,6 @@ fn:
   - PushConstantString
   - Next
   - PushValue
-  - Remove
   - Rotate
   - TrySetHook
   - ClearStack
