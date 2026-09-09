@@ -1,4 +1,9 @@
-impl crate::resp::resp_server_session::RespServerSession {
+use std::io::Cursor;
+
+
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   /// libs/server/Resp/Objects/HashCommands.cs:HashGet
   pub fn hash_get<'a, D: wdev::Device>(
     &mut self,
@@ -16,7 +21,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           if let Some(res) = hash_obj.operate(2 /* HGET */, field, &[]) {
             let len_str = format!("${}\r\n", res.len());
@@ -58,7 +63,7 @@ impl crate::resp::resp_server_session::RespServerSession {
 
     let hash_obj = match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         wobject::hash::hash_object::HashObject::deserialize(&mut cursor)
           .unwrap_or_else(|_| wobject::hash::hash_object::HashObject::new())
       }
@@ -99,7 +104,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           let all = hash_obj.hash_get_all();
           let arr_len = format!("*{}\r\n", all.len() * 2);
@@ -145,7 +150,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           let arr_len = format!("*{}\r\n", fields.len());
           output.extend_from_slice(arr_len.as_bytes());
@@ -193,7 +198,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           if let Some(res) = hash_obj.operate(6 /* HLEN */, &[], &[]) {
             output.extend_from_slice(b":");
@@ -233,7 +238,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           for field in fields {
             if hash_obj.operate(5 /* HDEL */, field, &[]).is_some() {
@@ -276,7 +281,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           if let Some(res) = hash_obj.operate(7 /* HEXISTS */, field, &[]) {
             output.extend_from_slice(b":");
@@ -313,7 +318,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           let keys = hash_obj.get_keys();
           let arr_len = format!("*{}\r\n", keys.len());
@@ -351,7 +356,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = wobject::hash::hash_object::HashObject::deserialize(&mut cursor) {
           let vals = hash_obj.get_values();
           let arr_len = format!("*{}\r\n", vals.len());

@@ -1,4 +1,6 @@
-impl crate::resp::resp_server_session::RespServerSession {
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   pub fn hyper_log_log_add<'a, D: wdev::Device>(
     &mut self,
     _parse_state: &[&[u8]],

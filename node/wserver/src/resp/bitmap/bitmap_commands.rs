@@ -120,8 +120,8 @@ impl RespServerSession {
         let mut end = val.len() as isize - 1;
 
         if parse_state.len() >= 3 {
-          let start_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
-          let end_str = std::str::from_utf8(parse_state[2]).unwrap_or("");
+          let start_str = str::from_utf8(parse_state[1]).unwrap_or("");
+          let end_str = str::from_utf8(parse_state[2]).unwrap_or("");
           if let Ok(s) = start_str.parse::<isize>() {
             start = if s < 0 { val.len() as isize + s } else { s };
           }

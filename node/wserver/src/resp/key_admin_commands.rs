@@ -1,4 +1,6 @@
-impl crate::resp::resp_server_session::RespServerSession {
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRESTORE
   pub fn network_restore<'a, D: wdev::Device>(
     &mut self,
