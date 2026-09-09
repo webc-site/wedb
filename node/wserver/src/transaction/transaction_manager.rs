@@ -1,7 +1,10 @@
+/// libs/server/Transaction/TxnState.cs:TxnState
 #[derive(Debug, PartialEq)]
 pub enum TxnState {
   None,
   Started,
+  /// EXEC/事务过程执行中（IsSkippingOperations 为 false 的窗口）
+  Running,
   Aborted,
 }
 
@@ -21,14 +24,22 @@ impl TransactionManager {
     self.state = TxnState::Started;
   }
 
+  /// libs/server/Transaction/TransactionManager.cs:Reset（收尾置 None；
+  /// C# 的 TxnCommit AOF 入队与锁释放随执行器接线一并补齐）
   pub fn commit(&mut self, _internal_txn: bool) {
-    if self.state == TxnState::Started {
+    if self.state == TxnState::Started || self.state == TxnState::Running {
       self.state = TxnState::None;
     }
   }
 
+  /// libs/server/Transaction/TransactionManager.cs:Abort
   pub fn abort(&mut self) {
     self.state = TxnState::Aborted;
+  }
+
+  /// libs/server/Transaction/TransactionManager.cs:IsSkippingOperations
+  pub fn is_skipping_operations(&self) -> bool {
+    self.state == TxnState::Started || self.state == TxnState::Aborted
   }
 
   // Keeping stubs for compilation
@@ -36,9 +47,6 @@ impl TransactionManager {
     Default::default()
   }
   pub fn run_transaction_proc_internal(&self) {
-    Default::default()
-  }
-  pub fn is_skipping_operations(&self) {
     Default::default()
   }
   pub fn watch(&self) {

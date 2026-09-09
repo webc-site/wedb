@@ -95,12 +95,9 @@ impl TxnKeyEntries {
     self.phase = 1;
     self.keys.sort_by_key(|k| k.key_hash);
     if !self.keys.is_empty() {
-      // try lock logic here
-      self.unified_store_key_locked = true; // placeholder
-      if !self.unified_store_key_locked {
-        self.phase = 0;
-        return false;
-      }
+      // C# TryLock（部分失败自动解锁）；wkv 事务锁后端接入前的占位恒成功，
+      // 接入后由实际 TryLock 结果赋值并按失败置 phase=0 返回 false
+      self.unified_store_key_locked = true;
     }
     self.phase = 0;
     true
@@ -121,6 +118,7 @@ impl TxnKeyEntries {
   pub fn get_lockset(&self) -> String {
     let mut sb = String::new();
     for entry in &self.keys {
+      // C# 的 delimiter 恒为空串：条目间本就无分隔符
       sb.push_str(&entry.to_string());
     }
     if !sb.is_empty() {
@@ -129,7 +127,8 @@ impl TxnKeyEntries {
         1 => "lock",
         _ => "unlock",
       };
-      sb.push_str(&format!(" (phase: {phase_str})"));
+      // C# 插值串字面量末尾即含两个右括号（"(phase: none))"），1:1 保留
+      sb.push_str(&format!(" (phase: {phase_str}))"));
     }
     sb
   }
