@@ -5,6 +5,7 @@ fn:
   - UpdateExpirationSize
   - DoSerialize
   - DeleteExpiredItems
+  - Equals
   - Operate
   - CopyDiff
   - InPlaceDiff

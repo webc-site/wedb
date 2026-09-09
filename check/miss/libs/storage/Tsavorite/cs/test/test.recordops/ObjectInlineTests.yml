@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - DeleteDirectory
+  - TearDown
   - GetOverflowValueSpanByte
   - InitialUpdater
   - CopyUpdater

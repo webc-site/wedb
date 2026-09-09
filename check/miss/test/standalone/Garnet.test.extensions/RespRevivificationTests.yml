@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - SetupServerWithReviv
+  - TearDown
   - TestRevivifyAsync
 test:
   - RevivificationWithRmwWorksAsync

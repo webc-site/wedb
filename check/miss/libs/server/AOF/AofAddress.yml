@@ -1,9 +1,11 @@
 fn:
+  - Equals
   - AofAddress
   - ToByteArray
   - Serialize
   - FromByteArray
   - FromSpan
+  - ToString
   - FromString
   - Deserialize
   - SetValueIf

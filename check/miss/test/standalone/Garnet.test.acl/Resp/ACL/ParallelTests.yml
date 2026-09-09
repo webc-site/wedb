@@ -1,3 +1,5 @@
+fn:
+  - Setup
 test:
   - ParallelAuthTest
   - ParallelPasswordHashTest

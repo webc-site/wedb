@@ -6,8 +6,10 @@ fn:
   - CopyUpdater
   - PostCopyUpdater
   - PostInitialDeleter
+  - Setup
   - DeleteDirectory
   - Populate
+  - TearDown
   - OnTearDown
   - CompletePendingAndVerifyInsertedAddress
 test:

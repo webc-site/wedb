@@ -1,3 +1,4 @@
 fn:
   - TsavoriteLogSettings
+  - ToString
   - GetLogSettings

@@ -1,4 +1,5 @@
 fn:
+  - ToString
   - QuarantineLitmus
   - Run
   - Quarantine

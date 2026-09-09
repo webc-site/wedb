@@ -1,4 +1,5 @@
 fn:
   - ConfigNameComparer
+  - Equals
   - Create
   - ToUpperAscii

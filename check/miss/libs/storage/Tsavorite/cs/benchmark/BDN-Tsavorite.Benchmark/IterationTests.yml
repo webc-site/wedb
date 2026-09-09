@@ -3,6 +3,7 @@ fn:
   - SetupStore
   - PopulateStore
   - SetupPopulatedStore
+  - TearDown
   - Cursor
   - ScanFunctions
   - OnStart

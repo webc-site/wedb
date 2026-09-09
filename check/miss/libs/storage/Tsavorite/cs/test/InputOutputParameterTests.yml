@@ -6,6 +6,8 @@ fn:
   - PostInitialUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
+  - Setup
+  - TearDown
   - doWrites
   - doReads
 test:

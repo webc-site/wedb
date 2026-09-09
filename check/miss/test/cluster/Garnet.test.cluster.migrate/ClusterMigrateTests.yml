@@ -1,6 +1,9 @@
 fn:
   - GetUnitTests
   - RandomBytes
+  - Setup
+  - TearDown
+  - Equals
   - CreateSingleSlotData
   - DoZADD
   - DoZCOUNT

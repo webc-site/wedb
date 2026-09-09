@@ -1,2 +1,3 @@
 fn:
   - IsLastValue
+  - ToString

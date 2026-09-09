@@ -6,3 +6,4 @@ fn:
   - SetNewRecordInvalid
   - ClearNewRecord
   - HandleNewRecordOnException
+  - ToString

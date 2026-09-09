@@ -1,3 +1,6 @@
+fn:
+  - Setup
+  - TearDown
 test:
   - Permission_SetPermissionMatches
   - Ping_DoesNotThrow

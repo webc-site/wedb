@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - CreateSet
   - CreateLongSet
 test:

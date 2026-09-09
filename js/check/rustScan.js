@@ -159,6 +159,6 @@ if (import.meta.main) {
     elapsed_ms = (performance.now() - t0).toFixed(1);
 
   console.log(
-    `[rustScan] Scanned in ${elapsed_ms}ms: ${fn_doc_li.length} functions (${doc_fn_count} with doc comments), ${doc_set.size} unique doc tokens`
+    `[rustScan] 耗时 ${elapsed_ms}ms，扫描 ${fn_doc_li.length} 个函数（${doc_fn_count} 个含文档注释），提取 ${doc_set.size} 个文档符号`
   );
 }

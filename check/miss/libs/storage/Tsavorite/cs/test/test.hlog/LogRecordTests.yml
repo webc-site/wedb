@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - DeleteDirectory
+  - TearDown
   - UpdateRecordSizeInfo
   - GetTotalFillerLength
   - InitializeKeyAndValue

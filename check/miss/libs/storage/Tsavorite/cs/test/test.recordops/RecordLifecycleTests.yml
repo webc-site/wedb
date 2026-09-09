@@ -1,5 +1,6 @@
 fn:
   - TrackedObjectValue
+  - ToString
   - Deserialize
   - Serialize
   - DisposeCount
@@ -14,7 +15,9 @@ fn:
   - OnEvict
   - OnRecovery
   - OnCheckpoint
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - NewSession
 test:

@@ -1,4 +1,5 @@
 fn:
+  - Equals
   - AssertSlotsNotAssigned
   - ConfigureSlotForMigration
   - ResetSlot

@@ -1,5 +1,7 @@
 fn:
   - OneTimeSetUp
+  - Setup
+  - TearDown
 test:
   - ClusterReplicationShardedLogTxnTest
   - ClusterReplicationShardedLogRecoverAsync

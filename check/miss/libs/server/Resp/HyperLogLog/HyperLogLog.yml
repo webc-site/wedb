@@ -8,6 +8,7 @@ fn:
   - IsValidHLLLength
   - IsValidSparseStream
   - SetPrefix
+  - GetType
   - SetType
   - IsSparse
   - IsDense

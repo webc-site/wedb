@@ -1,3 +1,6 @@
+fn:
+  - Setup
+  - TearDown
 test:
   - Insert_InvalidArgs_ReturnsInvalidArgs
   - Read_InvalidArgs_ReturnsInvalidArgs

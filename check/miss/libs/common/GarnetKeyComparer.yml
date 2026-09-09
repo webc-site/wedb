@@ -1,4 +1,5 @@
 fn:
+  - Equals
   - StaticEquals
   - GetHashCode64
   - StaticGetHashCode64

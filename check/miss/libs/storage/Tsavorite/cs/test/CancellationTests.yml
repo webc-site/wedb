@@ -8,7 +8,9 @@ fn:
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - Populate
   - do_it

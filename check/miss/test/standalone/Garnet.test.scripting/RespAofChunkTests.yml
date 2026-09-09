@@ -1,5 +1,7 @@
 fn:
   - CreateServer
+  - Setup
+  - TearDown
   - RestartForRecovery
   - UsePageSizes
   - UseTopology

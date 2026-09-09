@@ -11,4 +11,5 @@ fn:
   - TryAcquireEntry
   - ReserveEntry
   - ReserveEntryWait
+  - ToString
   - UserWordRef

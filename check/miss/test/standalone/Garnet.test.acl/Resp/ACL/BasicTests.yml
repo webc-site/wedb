@@ -1,4 +1,5 @@
 fn:
+  - Setup
   - GetLimitedUserConfig
   - CreateLimitedUserAsync
 test:

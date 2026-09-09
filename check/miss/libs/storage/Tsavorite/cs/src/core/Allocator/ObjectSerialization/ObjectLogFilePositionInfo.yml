@@ -6,3 +6,4 @@ fn:
   - GetReuseObjectIdForSize
   - Advance
   - AdvanceToNextSegment
+  - ToString

@@ -1,5 +1,6 @@
 fn:
   - RevivificationSpanByteComparer
+  - Equals
   - GetHashCode64
   - GetRevivifiableFraction
   - CopyToRMWInfo
@@ -16,7 +17,9 @@ fn:
   - AssertElidable
   - GetRevivifiableRecordCount
   - GetMinRevivifiableKey
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - Populate
   - RevivificationSpanByteFunctions

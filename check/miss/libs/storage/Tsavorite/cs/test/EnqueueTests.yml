@@ -2,6 +2,8 @@ fn:
   - SerializeTo
   - ReadOnlySpanBatch
   - TotalEntries
+  - Setup
+  - TearDown
 test:
   - EnqueueBasicTest
   - EnqueueAsyncBasicTest

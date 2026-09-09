@@ -1,7 +1,9 @@
 fn:
   - EnableGarnetLoggingEvents
+  - Setup
   - ShutdownNode
   - RestartNode
+  - TearDown
   - RegisterCustomTxn
   - CreateInstances
   - SetRangeIndexStreamChunkSizeOnAllNodes

@@ -1,6 +1,3 @@
-fn:
-  - InsertTestData
-  - InsertTestDataInto
 test:
   - Insert_InvalidArguments_ReturnsInvalidArguments
   - Read_InvalidArguments_ReturnsInvalidArguments

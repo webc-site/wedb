@@ -1,5 +1,7 @@
 fn:
   - GetUnitTests
+  - Setup
+  - TearDown
   - ClusterSRPrimaryCheckpointRetrieve
   - ClusterDivergentReplicasTest
   - ClusterReplicate

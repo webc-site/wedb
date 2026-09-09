@@ -1,7 +1,10 @@
 fn:
   - Execute
   - Write
+  - ToString
   - LuaScriptTests
+  - Setup
+  - TearDown
   - DoErroneousRedisCall
   - ToLuaString
   - SubscribeConfirmed

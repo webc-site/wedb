@@ -3,5 +3,7 @@ fn:
   - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
+  - Setup
+  - TearDown
 test:
   - Should_create_multiple_sessions_with_different_callbacks

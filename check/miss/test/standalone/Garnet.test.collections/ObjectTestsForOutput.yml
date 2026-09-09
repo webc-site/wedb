@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - CreateKeyOfSize
 test:
   - CanUseZRangeWithLeftOverBuffer

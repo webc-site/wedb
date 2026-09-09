@@ -9,7 +9,9 @@ fn:
   - NeedCopyUpdate
   - GetRMWInitialFieldInfo
   - InitialUpdater
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - UpsertKey
   - ObjTrackingRecordTriggers

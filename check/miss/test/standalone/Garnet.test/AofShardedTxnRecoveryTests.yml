@@ -1,4 +1,6 @@
 fn:
   - CreateShardedAofServer
+  - Setup
+  - TearDown
 test:
   - ShardedStandaloneRenameTransactionSurvivesRecovery

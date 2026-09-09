@@ -8,6 +8,8 @@ fn:
   - SumFunctions
   - Fuzz
   - CopyUpdater
+  - Setup
+  - TearDown
 test:
   - CheckpointVersionSwitchRmwTest
   - GrowIndexVersionSwitchRmwTest

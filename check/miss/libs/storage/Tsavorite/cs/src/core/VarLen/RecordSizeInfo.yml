@@ -6,3 +6,4 @@ fn:
   - ThrowTsavoriteException
   - AssertValueDataLength
   - AssertOptionalsIfSet
+  - ToString

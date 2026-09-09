@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - GetEncoding
 test:
   - ObjectEncodingStringTest

@@ -254,5 +254,5 @@ if (import.meta.main) {
     file_count = new Set([...Object.keys(fn_map), ...Object.keys(test_map)]).size,
     elapsed_ms = (performance.now() - t0).toFixed(1);
 
-  console.log(`[garnetScan] Scanned ${file_count} files in ${elapsed_ms}ms: ${fn_count} functions, ${test_count} test functions`);
+  console.log(`[garnetScan] 耗时 ${elapsed_ms}ms，扫描 ${file_count} 个文件：${fn_count} 个普通函数，${test_count} 个测试函数`);
 }

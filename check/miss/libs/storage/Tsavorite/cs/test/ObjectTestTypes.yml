@@ -1,5 +1,7 @@
 fn:
+  - ToString
   - GetHashCode64
+  - Equals
   - DoSerialize
   - WriteType
   - TestObjectValue

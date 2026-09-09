@@ -1,7 +1,10 @@
 fn:
   - SpanByteComparerModulo
+  - Equals
   - GetHashCode64
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - InitialWriter
   - ScanCursorFuncs

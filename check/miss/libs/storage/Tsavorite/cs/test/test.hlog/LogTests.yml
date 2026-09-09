@@ -5,9 +5,12 @@ fn:
   - BaseTearDown
   - Counter
   - IncrementAndMaybeTruncateUntil
+  - ToString
   - IsAsync
   - AssertGetNext
   - LogWriterAsync
+  - Setup
+  - TearDown
   - TestConsumer
   - Consume
 test:

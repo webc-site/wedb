@@ -1,4 +1,5 @@
 fn:
+  - ToString
   - bstr
   - _callback
   - Throttle

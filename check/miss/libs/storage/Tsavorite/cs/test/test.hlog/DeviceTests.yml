@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - WriteInto
   - Callback
   - IOCallback

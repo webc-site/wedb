@@ -12,6 +12,7 @@ fn:
   - verification
   - FindHashBucketEntryForKey
   - OnTearDown
+  - Equals
   - GetHashCode64
   - LongKeyComparerModulo
   - SpanByteKeyComparerModulo

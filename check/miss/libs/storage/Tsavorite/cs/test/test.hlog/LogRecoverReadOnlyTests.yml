@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - ProducerAsync
   - CommitterAsync
   - ReadOnlyConsumerAsync

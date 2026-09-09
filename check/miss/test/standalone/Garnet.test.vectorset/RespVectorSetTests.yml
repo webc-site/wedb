@@ -1,5 +1,7 @@
 fn:
   - RespVectorSetTests
+  - Setup
+  - TearDown
   - AssertSameIds
   - MatchedIds
   - ExpectIds

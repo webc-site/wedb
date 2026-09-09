@@ -1,4 +1,7 @@
 fn:
+  - Equals
+  - Setup
+  - TearDown
   - ReadCallback
   - dataCallbackDel
   - WriteCallback

@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - RegisterRoaringBitmap
+  - TearDown
 test:
   - GetBitOnMissingKey_Returns0
   - BitCountOnMissingKey_Returns0

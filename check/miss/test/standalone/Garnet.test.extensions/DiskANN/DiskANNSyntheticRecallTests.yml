@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - RunRecallTest
   - AddVectors_FP32
   - VsimQuery_FP32

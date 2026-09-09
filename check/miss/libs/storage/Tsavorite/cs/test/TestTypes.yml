@@ -1,5 +1,7 @@
 fn:
+  - ToString
   - GetHashCode64
+  - Equals
   - RMWCompletionCallback
   - ReadCompletionCallback
   - InitialUpdater

@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - DeleteDirectory
+  - TearDown
   - EnableOrSkip
   - CreateStore
   - TryRead

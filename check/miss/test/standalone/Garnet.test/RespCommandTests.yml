@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - VerifyCommandInfo
   - VerifyCommandDocs
   - RegisterCustomCommands

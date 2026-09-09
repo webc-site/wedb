@@ -1,3 +1,5 @@
 fn:
+  - ToString
   - AsReadOnlySpan
   - GetHashCode64
+  - Equals

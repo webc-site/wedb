@@ -1,6 +1,7 @@
 fn:
   - SegmentHandles
   - GetOrCreate
+  - ToString
   - bstr
   - DrainPendingIO
   - Throttle

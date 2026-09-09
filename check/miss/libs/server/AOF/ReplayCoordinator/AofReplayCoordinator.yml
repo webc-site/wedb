@@ -1,4 +1,5 @@
 fn:
+  - Equals
   - GetReplayContext
   - InitializeReplayContext
   - FuzzyRegionBufferCount

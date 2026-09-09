@@ -1,7 +1,10 @@
 fn:
   - StringAndByteArrayComparer
+  - Equals
   - Write
   - ClusterVectorSetTests
+  - Setup
+  - TearDown
   - Incr
   - when
   - CountGossipFaults

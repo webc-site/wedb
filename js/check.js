@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun
 
 import { mkdir, readdir, rm } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import yaml from "yaml";
 import garnetScan from "./check/garnetScan.js";
 import rustScan from "./check/rustScan.js";
@@ -29,17 +29,9 @@ const walkYml = async (dir_path) => {
 };
 
 const ignoreLoad = async () => {
-  const global_set = new Set(),
-    file_map = new Map(),
+  const file_ignore_map = new Map(),
+    global_ignore_set = new Set(),
     yml_file_li = await walkYml(IGNORE_DIR);
-
-  const root_ignore = join(import.meta.dirname, "check/ignore.yml");
-  if (!yml_file_li.includes(root_ignore)) {
-    const root_file = Bun.file(root_ignore);
-    if (await root_file.exists()) {
-      yml_file_li.push(root_ignore);
-    }
-  }
 
   for (const yml_path of yml_file_li) {
     const content = await Bun.file(yml_path).text(),
@@ -47,59 +39,67 @@ const ignoreLoad = async () => {
 
     if (!data) continue;
 
+    const rel_path = relative(IGNORE_DIR, yml_path),
+      cs_path = rel_path.replace(/\.cs\.ya?ml$/, ".cs").replace(/\.ya?ml$/, ".cs"),
+      fn_set = new Set();
+
     if (Array.isArray(data)) {
       for (const item of data) {
-        if (typeof item === "string") global_set.add(item);
+        if (typeof item === "string") fn_set.add(item);
       }
     } else if (typeof data === "object") {
       if (Array.isArray(data.fn)) {
         for (const item of data.fn) {
-          if (typeof item === "string") global_set.add(item);
+          if (typeof item === "string") fn_set.add(item);
         }
       }
       if (Array.isArray(data.test)) {
         for (const item of data.test) {
-          if (typeof item === "string") global_set.add(item);
+          if (typeof item === "string") fn_set.add(item);
         }
       }
 
       for (const [key, val] of Object.entries(data)) {
         if (key === "fn" || key === "test") continue;
         if (Array.isArray(val)) {
-          const fn_set = file_map.get(key) ?? new Set();
           for (const item of val) {
             if (typeof item === "string") fn_set.add(item);
           }
-          file_map.set(key, fn_set);
         } else if (typeof val === "string") {
-          global_set.add(val);
+          fn_set.add(val);
         }
+      }
+    }
+
+    file_ignore_map.set(cs_path, fn_set);
+  }
+
+  const root_ignore = join(import.meta.dirname, "check/ignore.yml"),
+    root_file = Bun.file(root_ignore);
+
+  if (await root_file.exists()) {
+    const root_data = yaml.parse(await root_file.text());
+    if (Array.isArray(root_data)) {
+      for (const item of root_data) {
+        if (typeof item === "string") global_ignore_set.add(item);
       }
     }
   }
 
   return {
-    global_set,
-    file_map
+    file_ignore_map,
+    global_ignore_set
   };
 };
 
 const check = async () => {
-  const t0 = performance.now();
-
-  console.log("[check] Scanning Garnet C# source...");
-  const { fn_map, test_map } = await garnetScan(GARNET_DIR);
-
-  console.log("[check] Scanning Rust functions doc comments...");
-  const { doc_set } = await rustScan(ROOT_DIR);
-
-  console.log("[check] Loading ignore rules...");
-  const { global_set, file_map } = await ignoreLoad(),
+  const { fn_map, test_map } = await garnetScan(GARNET_DIR),
+    { doc_set } = await rustScan(ROOT_DIR),
+    { file_ignore_map, global_ignore_set } = await ignoreLoad(),
     isIgnored = (rel_path, name) => {
-      if (global_set.has(name)) return true;
-      if (file_map.get(rel_path)?.has(name)) return true;
-      const base_name = basename(rel_path);
-      if (file_map.get(base_name)?.has(name)) return true;
+      if (global_ignore_set.has(name)) return true;
+      const file_set = file_ignore_map.get(rel_path);
+      if (file_set?.has(name)) return true;
       return false;
     };
 
@@ -109,11 +109,8 @@ const check = async () => {
   const all_file_set = new Set([
     ...Object.keys(fn_map),
     ...Object.keys(test_map)
-  ]);
-
-  let miss_file_count = 0,
-    total_miss_fn = 0,
-    total_miss_test = 0;
+  ]),
+    miss_file_li = [];
 
   for (const rel_path of all_file_set) {
     const fn_li = fn_map[rel_path] ?? [],
@@ -134,21 +131,13 @@ const check = async () => {
     await mkdir(target_dir, { recursive: true });
     await Bun.write(target_file, yaml.stringify(out_data));
 
-    ++miss_file_count;
-    total_miss_fn += miss_fn_li.length;
-    total_miss_test += miss_test_li.length;
+    miss_file_li.push(relative(ROOT_DIR, target_file));
   }
 
-  const elapsed_ms = (performance.now() - t0).toFixed(1);
-
-  console.log(`[check] Completed in ${elapsed_ms}ms:`);
-  console.log(`  - Garnet files examined: ${all_file_set.size}`);
-  console.log(`  - Rust doc tokens indexed: ${doc_set.size}`);
-  console.log(`  - Ignored global symbols: ${global_set.size}`);
-  console.log(`  - Files with missing items: ${miss_file_count}`);
-  console.log(`  - Missing regular functions: ${total_miss_fn}`);
-  console.log(`  - Missing test functions: ${total_miss_test}`);
-  console.log(`  - Output directory: ${MISS_DIR}`);
+  miss_file_li.sort();
+  for (const file_path of miss_file_li) {
+    console.log(file_path);
+  }
 };
 
 export default check;

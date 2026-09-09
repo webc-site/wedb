@@ -8,3 +8,4 @@ fn:
   - ContainsSharedToken
   - ToByteArray
   - FromByteArray
+  - ToString

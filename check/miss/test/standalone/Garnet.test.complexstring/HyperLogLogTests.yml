@@ -1,6 +1,9 @@
 fn:
+  - Setup
+  - TearDown
   - SimpleHyperLogLogArrayAddCount
   - SingleHyperLogLogPCT
+  - Equals
   - RandomString
   - LongRandom
   - RandomSubSeq

@@ -14,7 +14,7 @@ use wdev::Device;
 use wkv::{RangeIndexError, StorageBackend, StoreSession, TreeTuning, WedbStore};
 
 use crate::{
-  aof::{self, AofEntryRef, AofOp, Replay, encode_entry},
+  aof::{self, AofEntryRef, AofOp, Replay, TtlPurgePayload, encode_entry},
   resp,
 };
 
@@ -62,6 +62,20 @@ impl<D: Device> NodeService<D> {
   where
     D: Device + 'static,
   {
+    // TTL 过期 purge 端口：端口在场即令 wkv 侧 purge 链抑制物理墓碑镜像，
+    // 改为在此入队单条 TtlPurge 确定性逻辑条目（对标 Garnet
+    // RespInputFlags.Deterministic + WriteLogRMW 的单条目语义）。OnceLock
+    // 语义对齐 write_listener：重复装配（同引擎多服务）时首次注册生效
+    let sink = Arc::clone(&wal);
+    let _ = store.set_ttl_purge_listener(Arc::new(move |ns, db, key, expire_at_ms| {
+      // 回调契约无阻塞、绝不 panic：入队为纯内存操作，失败仅丢本条镜像不阻断清除路径
+      let payload = TtlPurgePayload {
+        ns,
+        db,
+        expire_at_ms,
+      };
+      let _ = sink.enqueue(&encode_entry(AofOp::TtlPurge, 0, key, &payload.encode()));
+    }));
     store.start_gc();
     let session = store.new_session()?;
     Ok(Self { session, wal })
@@ -123,13 +137,20 @@ impl<D: Device> NodeService<D> {
 
   /// 回放已提交 WAL 流（对标 Garnet AofRecover：从提交位点扫描至尾部）
   ///
-  /// 返回回放条目数；条目解码失败或回放器报错即中止
+  /// 返回回放条目数；条目解码失败或回放器报错即中止。`AofOp::TtlPurge`
+  /// 条目解码 24B 定长载荷后经 [`Replay::on_ttl_purge`] 专用分发口分发，
+  /// 其余条目照旧走 [`Replay::on_entry`]
   pub async fn replay(&self, replay: &mut impl Replay) -> Result<u64> {
     let mut iter = self.wal.scan_committed();
     let mut count = 0u64;
     while let Some(record) = iter.next().await? {
       let entry = AofEntryRef::decode(&record.payload)?;
-      replay.on_entry(entry)?;
+      if entry.op == AofOp::TtlPurge {
+        let payload = TtlPurgePayload::decode(entry.blob)?;
+        replay.on_ttl_purge(entry.key, payload)?;
+      } else {
+        replay.on_entry(entry)?;
+      }
       count += 1;
     }
     let overwritten = iter.overwritten_skips();
@@ -139,6 +160,22 @@ impl<D: Device> NodeService<D> {
       });
     }
     Ok(count)
+  }
+
+  /// 副本端/恢复端 TtlPurge 本地执行对接（与本端 `purge_expired` 等效且幂等）
+  ///
+  /// 统一 DEL 路径（先删 TTL 记录再删数据，数据/TTL/集合元记录一并清理）与
+  /// `purge_expired` 的 del_ttl + delete 两步等效；对不存在键为 no-op，天然
+  /// 幂等，重复回放同一 TtlPurge 安全。会话 context 先切到条目携带的 (ns, db)，
+  /// 执行后恢复原值（不污染后续命令路由）。刻意不走 `purge_expired`：本地删除
+  /// 即回放的最终效果，不得再入队 purge 镜像形成回放大雪球
+  pub async fn apply_ttl_purge(&self, ns: u64, db: u64, user_key: &[u8]) -> Result<()> {
+    let (prev_ns, prev_db) = (self.session.namespace(), self.session.active_db());
+    self.session.set_context(ns, db);
+    let deleted = self.session.delete(user_key).await;
+    self.session.set_context(prev_ns, prev_db);
+    deleted?;
+    Ok(())
   }
 
   /// 追加一条操作镜像到 WAL（内存入队；提交时机由调用方经 wal() 驱动）

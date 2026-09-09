@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - CreateStore
+  - TearDown
   - LocalWrite
   - LocalRead
   - MyFunctions

@@ -5,6 +5,8 @@ fn:
   - MakeIntermediate
   - RemoveIntermediate
   - Equal
+  - ToString
+  - Equals
   - VersionSchemeStateMachine
   - ToVersion
   - GetNextStep

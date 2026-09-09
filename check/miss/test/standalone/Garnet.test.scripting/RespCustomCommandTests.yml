@@ -13,6 +13,8 @@ fn:
   - GetInitialLength
   - GetLength
   - InitialUpdater
+  - Setup
+  - TearDown
   - CreateTestLibraries
 test:
   - CustomCommandTest1

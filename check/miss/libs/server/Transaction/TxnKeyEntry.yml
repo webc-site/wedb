@@ -1,4 +1,5 @@
 fn:
+  - ToString
   - TxnKeyEntries
   - GetKeyHash
   - AddKey

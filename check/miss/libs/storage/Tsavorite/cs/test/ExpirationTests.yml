@@ -2,6 +2,7 @@ fn:
   - GetValue
   - GetRandomLength
   - AddFunc
+  - ToString
   - ShouldExpire
   - NeedInitialUpdate
   - NeedCopyUpdate
@@ -14,7 +15,9 @@ fn:
   - GetUpsertFieldInfo
   - InitialWriter
   - InPlaceWriter
+  - Setup
   - DeleteDirectory
+  - TearDown
   - Populate
   - GetRecord
   - ExecuteRMW

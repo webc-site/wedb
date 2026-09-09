@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - DeleteDirectory
+  - TearDown
   - LoadMap
   - runLoadThread
   - runLoadFreeListThread

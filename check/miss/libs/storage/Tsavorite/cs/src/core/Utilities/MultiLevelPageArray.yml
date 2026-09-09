@@ -4,3 +4,4 @@ fn:
   - AddPage
   - MaybeInjectAddPageFailure
   - TryGet
+  - ToString

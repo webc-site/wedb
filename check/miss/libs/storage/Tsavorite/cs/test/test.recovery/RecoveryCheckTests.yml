@@ -5,6 +5,8 @@ fn:
   - AssertEquivalentTailAddress
   - ReadCompletionCallback
   - Verify
+  - Setup
+  - TearDown
   - SnapshotIterator
   - OnStart
   - OnException

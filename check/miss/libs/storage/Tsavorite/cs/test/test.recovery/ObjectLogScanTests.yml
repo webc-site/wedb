@@ -1,5 +1,6 @@
 fn:
   - TestObjectValueComparerModulo
+  - Equals
   - GetHashCode64
   - OverflowTestKey
   - DoSerialize
@@ -8,7 +9,9 @@ fn:
   - CacheSerializedObjectData
   - ClearSerializedObjectData
   - Deserialize
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - OnStart
   - OnException

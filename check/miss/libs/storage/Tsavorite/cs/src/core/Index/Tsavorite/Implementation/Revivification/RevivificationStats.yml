@@ -1,3 +1,4 @@
 fn:
   - MergeTo
   - Dump
+  - ToString

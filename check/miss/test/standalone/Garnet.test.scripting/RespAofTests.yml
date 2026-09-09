@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - ExpectedEtagTest
   - RegisterCustomCommand
   - ValidateServerData

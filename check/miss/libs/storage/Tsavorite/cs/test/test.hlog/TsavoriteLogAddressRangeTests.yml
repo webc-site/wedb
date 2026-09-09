@@ -1,4 +1,6 @@
 fn:
+  - Setup
   - DeleteDirectory
+  - TearDown
 test:
   - TsavoriteLogPageIsNotReadCacheBitMaskedTest

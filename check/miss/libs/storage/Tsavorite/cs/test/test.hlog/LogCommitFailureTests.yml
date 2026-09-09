@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - BaseSetup
+  - TearDown
   - BaseTearDown
   - RecordingFailingDevice
   - RemoveSegmentAsync

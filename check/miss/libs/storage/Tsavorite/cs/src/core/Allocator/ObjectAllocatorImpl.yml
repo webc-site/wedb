@@ -1,5 +1,6 @@
 fn:
   - ObjectPage
+  - ToString
   - BaseToString
   - ObjectAllocatorImpl
   - FreeAllAllocatedPages

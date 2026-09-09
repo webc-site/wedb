@@ -9,3 +9,4 @@ fn:
   - TryUpgradeReadLock
   - DowngradeWriteLock
   - TryCloseLock
+  - ToString

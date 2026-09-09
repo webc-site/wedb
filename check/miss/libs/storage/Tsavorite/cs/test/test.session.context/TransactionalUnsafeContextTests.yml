@@ -1,4 +1,5 @@
 fn:
+  - Equals
   - GetHashCode64
   - PostInitialDeleter
   - BucketLockTracker
@@ -10,7 +11,9 @@ fn:
   - AddS
   - GetLockCounts
   - AssertNoLocks
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - Populate
   - AssertIsLocked

@@ -8,8 +8,8 @@ use compio::runtime::Runtime;
 use tempfile::tempdir;
 use waof::{WalConfig, WalLog};
 use wdev::SegmentedDevice;
-use wkv::{StorageBackend, StoreConfig, WedbStore};
-use wnode::{AofOp, NodeService, StoreSession, TreeTuning};
+use wkv::{StorageBackend, StoreConfig, TtlOpt, WedbStore};
+use wnode::{AofOp, NodeService, StoreSession, TreeTuning, TtlPurgePayload};
 
 /// 与 wkv/tests/range_index_scan.rs TUNE 对齐的合法调优参数
 const TUNE: wkv::TreeTuning = wkv::TreeTuning {
@@ -228,6 +228,9 @@ async fn replay_apply(session: &StoreSession<SegmentedDevice>, entry: &PendingOp
     }
     // 预留位：wnode 尚未接入 KV 编排，回放端按 UnknownOp 兜底语义跳过
     AofOp::KvUpsert | AofOp::KvDelete => {}
+    // TtlPurge 不经 on_entry 分发（NodeService::replay 走 on_ttl_purge 专用口，
+    // 载荷由 TtlPurgePayload 定长 24B 解码），到达此处仅可能为直连场景，跳过
+    AofOp::TtlPurge => {}
   }
   OK
 }
@@ -320,6 +323,117 @@ fn ri_aof_replay_converges_replica() -> Void {
         expect.map(<[u8]>::to_vec)
       );
     }
+    OK
+  })
+}
+
+/// TtlPurge 回放收集器：物理镜像条目走 on_entry，TtlPurge 走专用分发口
+#[derive(Default)]
+struct TtlPurgeCollector {
+  /// write_listener 物理镜像条目（墓碑镜像即 purge 链泄漏的信号）
+  mirrors: Vec<(AofOp, Vec<u8>)>,
+  /// TtlPurge 专用分发口收到的 (ns, db, 用户键, expire_at_ms)
+  purges: Vec<(u64, u64, Vec<u8>, u64)>,
+}
+
+impl wnode::Replay for TtlPurgeCollector {
+  fn on_entry(&mut self, entry: wnode::AofEntryRef<'_>) -> wnode::AofResult<()> {
+    self.mirrors.push((entry.op, entry.key.to_vec()));
+    Ok(())
+  }
+
+  fn on_ttl_purge(&mut self, key: &[u8], payload: TtlPurgePayload) -> wnode::AofResult<()> {
+    self
+      .purges
+      .push((payload.ns, payload.db, key.to_vec(), payload.expire_at_ms));
+    Ok(())
+  }
+}
+
+/// TTL 过期物理清除单条化集成测试（对标 Garnet RespInputFlags.Deterministic
+/// 单条确定性逻辑条目语义）：
+///
+/// 1. 主端注册 write_listener 物理镜像适配器（墓碑物理写入 WAL）后触发 key
+///    过期物理清除，WAL 提交流中恰好一条 TtlPurge（含 ns/db/用户键/到期时间戳），
+///    purge 链的两条物理墓碑（TTL 记录 + 数据）被会话级抑制、零镜像条目；
+/// 2. 副本端（全新实例）回放消费 TtlPurge 并经 apply_ttl_purge 本地执行，
+///    与主端等效且幂等。
+#[test]
+fn ttl_purge_single_deterministic_entry() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store, wal) = open_node("ttl_purge")?;
+
+    // AOF 物理镜像适配器（须在创建任何会话前注入）：物理写入镜像入 WAL，
+    // 用于断言 purge 链的墓碑镜像被精确抑制
+    let mirror_wal = Arc::clone(&wal);
+    assert!(
+      store.set_write_listener(Arc::new(move |key, val, tombstone| {
+        let op = if tombstone {
+          AofOp::KvDelete
+        } else {
+          AofOp::KvUpsert
+        };
+        let _ = mirror_wal.enqueue(&wnode::encode_entry(op, 0, key, val));
+      }))
+    );
+
+    // NodeService::new 注册 TTL purge 端口（单条 TtlPurge 条目入队）
+    let service = NodeService::new(Arc::clone(&store), Arc::clone(&wal))?;
+
+    // ns=7 db=3 写入后立即过期（过去时间戳 → purge_expired 返回 2）
+    let session = service.session();
+    session.set_context(7, 3);
+    session.upsert(b"glitch", b"v1").await?;
+    assert_eq!(session.expire_at(b"glitch", 1, TtlOpt::NONE).await?, 2);
+    assert_eq!(session.read(b"glitch").await?, None, "过期键必须已物理清除");
+    wal.commit().await?;
+
+    // WAL 提交流恰好两条：SET 物理镜像 + 单条 TtlPurge；
+    // purge 链的两条物理墓碑（TTL 记录 + 数据）绝不出现在流内
+    let mut replay = TtlPurgeCollector::default();
+    assert_eq!(service.replay(&mut replay).await?, 2);
+    assert_eq!(
+      replay.mirrors,
+      vec![(AofOp::KvUpsert, b"glitch".to_vec())],
+      "仅 SET 物理镜像入流，purge 链墓碑镜像必须为零"
+    );
+    assert_eq!(
+      replay.purges,
+      vec![(7, 3, b"glitch".to_vec(), 1)],
+      "恰好一条 TtlPurge 且载荷 (ns, db, key, expire_at_ms) 正确"
+    );
+
+    // 副本端：全新引擎实例，按序重放主端提交流——TtlPurge 经 apply_ttl_purge
+    // 本地执行（与本端 purge_expired 等效），数据一致
+    let (_replica_dir, replica_store, replica_wal) = open_node("ttl_purge_replica")?;
+    let replica = NodeService::new(Arc::clone(&replica_store), Arc::clone(&replica_wal))?;
+
+    let mut collector = TtlPurgeCollector::default();
+    assert_eq!(service.replay(&mut collector).await?, 2);
+    for (op, key) in &collector.mirrors {
+      replay_apply(
+        replica.session(),
+        &PendingOp {
+          op: *op,
+          key: key.clone(),
+          blob: Vec::new(),
+        },
+      )
+      .await?;
+    }
+    for (ns, db, key, _exp) in &collector.purges {
+      replica.apply_ttl_purge(*ns, *db, key).await?;
+    }
+    assert_eq!(
+      replica.session().read(b"glitch").await?,
+      None,
+      "副本回放 TtlPurge 后键必须物理清除"
+    );
+
+    // 幂等：重复执行同一 TtlPurge 安全且结果稳定
+    replica.apply_ttl_purge(7, 3, b"glitch").await?;
+    assert_eq!(replica.session().read(b"glitch").await?, None);
     OK
   })
 }

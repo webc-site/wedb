@@ -1,3 +1,4 @@
 fn:
+  - Equals
   - ByteArrayComparer
   - Create

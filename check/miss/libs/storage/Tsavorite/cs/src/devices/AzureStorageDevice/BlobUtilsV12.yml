@@ -11,6 +11,7 @@ fn:
   - GetBlockBlobClient
   - GetPageBlobClient
   - GetBlobsAsync
+  - ToString
   - ForceDeleteAsync
   - when
   - LeaseConflictOrExpired

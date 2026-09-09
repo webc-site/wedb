@@ -4,8 +4,10 @@ fn:
   - AsReadOnlySpan
   - AsSpan
   - ToArray
+  - ToString
   - FromPinnedSpan
   - FromPinnedPointer
   - FromLengthPrefixedPinnedPointer
+  - Equals
   - SerializeTo
   - CopyTo

@@ -1,6 +1,8 @@
 fn:
   - GetMutablePageCount
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - InPlaceWriter
   - InitialWriter

@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - MakeValue
 test:
   - LargeValueFlushAndReadBack

@@ -1,5 +1,7 @@
 fn:
   - RespConfigTests
+  - Setup
+  - TearDown
   - RespConfigUtilizationTests
   - RespConfigIndexUtilizationTests
   - GetOverflowBucketAllocations

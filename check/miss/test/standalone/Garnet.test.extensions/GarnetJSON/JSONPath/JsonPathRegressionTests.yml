@@ -1,4 +1,5 @@
 fn:
+  - ToString
   - LoadCases
 test:
   - TestRegression

@@ -3,7 +3,9 @@ fn:
   - InitialUpdater
   - InitialWriter
   - InitialDeleter
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - UpdateFunc
 test:

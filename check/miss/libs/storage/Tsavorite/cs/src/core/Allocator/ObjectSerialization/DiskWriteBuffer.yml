@@ -4,3 +4,4 @@ fn:
   - IncrementOrResetCountdown
   - FlushToDevice
   - Wait
+  - ToString

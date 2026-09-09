@@ -1,6 +1,9 @@
 fn:
+  - Equals
   - GetHashCode64
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - TryLock
   - PopulateHei

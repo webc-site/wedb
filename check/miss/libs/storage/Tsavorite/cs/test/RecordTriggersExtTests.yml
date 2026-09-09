@@ -5,7 +5,9 @@ fn:
   - OnEvict
   - OnRecovery
   - OnCheckpoint
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - InsertN
 test:

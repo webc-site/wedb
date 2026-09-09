@@ -4,3 +4,4 @@ fn:
   - CreateArgSlice
   - Prepare
   - Main
+  - Finalize

@@ -1,6 +1,8 @@
 fn:
   - ReadCompletionCallback
+  - Setup
   - DeleteDirectory
+  - TearDown
   - OnTearDown
   - LocalRead
   - LocalRun

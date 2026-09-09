@@ -1,4 +1,6 @@
 fn:
+  - Setup
+  - TearDown
   - CreateTestModule
 test:
   - TestModuleLoad

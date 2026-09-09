@@ -1,3 +1,6 @@
+fn:
+  - Setup
+  - TearDown
 test:
   - LongRcMultiThreadStressTest
   - SpanByteRcMultiThreadStressTest

@@ -3,6 +3,7 @@ fn:
   - CreateShared
   - CreateExclusive
   - CreateAllExclusive
+  - ToString
   - ReadOptimizedLock
   - CalculateIndex
   - TryAcquireSharedLock

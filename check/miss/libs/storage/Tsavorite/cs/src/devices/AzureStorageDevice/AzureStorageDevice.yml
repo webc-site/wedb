@@ -1,5 +1,6 @@
 fn:
   - AzureStorageDevice
+  - ToString
   - StartAsync
   - GetSegmentBlobName
   - DetectHangs

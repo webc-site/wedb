@@ -1,5 +1,7 @@
 fn:
   - CheckFlag
+  - Setup
+  - TearDown
   - ReplaceKey
   - ReplaceValue
   - GenerateSingleKeyCmdInstance

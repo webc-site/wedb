@@ -19,6 +19,14 @@ hash 一律用 gxhash
 lua 用 luau
 并发字典、set 用 papaya + gxhash （在 embed/wbase/map.rs 中定义，map 或者 set 特性启用）
 
-只能使用 cargo add 添加依赖，严禁私自修改 Cargo.toml。
-- ./clippy.sh 和 模块 ./test.sh，确保没有警告、从未
-- 并发效率最大化，分析拓扑，并发子代理；开发与审查流水线重叠（一边审查上一层 crate，一边开发下一层 crate）。
+只能使用 cargo add 添加依赖，禁改 Cargo.toml
+
+让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
+
+如果遇到主分支修改，请提交，然后合并（注意更新 worktree，避免落后）。
+
+写完之后 ./clippy.sh 和 ./test.sh，确保没有警告
+
+子代理开发，要效率最大化，分析拓扑，并发启动
+
+开发与审查流水线重叠（一边审查上一层 crate，一边开发下一层 crate）

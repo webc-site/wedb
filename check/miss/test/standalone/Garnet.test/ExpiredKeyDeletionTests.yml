@@ -1,5 +1,7 @@
 fn:
+  - Setup
   - SetupServer
+  - TearDown
   - TestExpiredKeyDeletionScanAsync
   - CheckExistenceConditionOnAllKeys
   - PopulateStore

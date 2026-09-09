@@ -10,4 +10,5 @@ fn:
   - ReserveEntryForThread
   - TryAcquireEntry
   - ReserveEntryWait
+  - ToString
   - UserWordRef
