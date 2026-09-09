@@ -120,10 +120,18 @@ impl TlsPoolManager {
     self.others.iter_mut().find(|e| e.pool_id == pool_id)
   }
 
+  /// fast 单槽命中检查（独立函数终结借用时长：get_or_create 的早返回路径
+  /// 不得把 self.fast 借用延伸到慢路径，stable NLL 借用检查下必报 E0499）
+  #[inline]
+  fn fast_slot(&mut self, pool_id: u64) -> Option<&mut TlsPoolEntry> {
+    match self.fast.as_mut() {
+      Some(entry) if entry.pool_id == pool_id => Some(entry),
+      _ => None,
+    }
+  }
+
   pub(crate) fn get_or_create<'a>(&'a mut self, pool: &Arc<BufferPool>) -> &'a mut TlsPoolEntry {
-    if let Some(entry) = self.fast.as_mut()
-      && entry.pool_id == pool.pool_id
-    {
+    if let Some(entry) = self.fast_slot(pool.pool_id) {
       return entry;
     }
 
