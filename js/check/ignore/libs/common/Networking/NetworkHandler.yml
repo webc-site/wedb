@@ -1,0 +1,19 @@
+fn:
+  - AuthenticateAsServerAsync
+  - AuthenticateAsClientAsync
+  - OnNetworkReceiveWithoutTLS
+  - OnNetworkReceiveWithTLSAsync
+  - UpdateNetworkBuffers
+  - ThrowInvalidOperationException
+  - GetNetworkSender
+  - SslReaderAsync
+  - SslReaderLoopAsync
+  - EndTransformNetworkToTransport
+  - TryProcessRequest
+  - DoubleNetworkReceiveBuffer
+  - ShrinkNetworkReceiveBuffer
+  - ShiftNetworkReceiveBuffer
+  - DoubleTransportReceiveBuffer
+  - ShiftTransportReceiveBuffer
+  - DisposeImpl
+  - LogSecurityInfo

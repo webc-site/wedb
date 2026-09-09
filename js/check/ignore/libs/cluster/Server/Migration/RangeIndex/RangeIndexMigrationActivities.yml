@@ -1,0 +1,9 @@
+fn:
+  - OnTransmitting
+  - OnDeleting
+  - LogActivity
+  - EndAndLogActivity
+  - OnSnapshotCompleted
+  - OnChunkSent
+  - OnPublishing
+  - OnSessionDisposed

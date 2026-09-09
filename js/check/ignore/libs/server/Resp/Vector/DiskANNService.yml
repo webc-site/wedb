@@ -1,0 +1,9 @@
+fn:
+  - create_index
+  - drop_index
+  - set_attribute
+  - search_vector
+  - search_element
+  - continue_search
+  - check_internal_id_valid
+  - check_external_id_valid

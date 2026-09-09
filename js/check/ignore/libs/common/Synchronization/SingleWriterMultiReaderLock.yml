@@ -1,0 +1,10 @@
+fn:
+  - TryWriteLock
+  - WriteLock
+  - WriteUnlock
+  - TryReadLock
+  - ReadLock
+  - ReadUnlock
+  - TryUpgradeReadLock
+  - DowngradeWriteLock
+  - TryCloseLock

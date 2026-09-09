@@ -1,0 +1,4 @@
+fn:
+  - ThrowDisposed
+  - ReturnBuffer
+  - SeaaBuffer_Completed

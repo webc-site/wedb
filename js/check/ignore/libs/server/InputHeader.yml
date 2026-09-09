@@ -1,0 +1,5 @@
+fn:
+  - SetHeader
+  - SetExpiredFlag
+  - SetSetGetFlag
+  - ToPointer

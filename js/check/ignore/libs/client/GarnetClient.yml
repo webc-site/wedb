@@ -1,0 +1,18 @@
+fn:
+  - Connect
+  - ConnectSendSocket
+  - ConnectSendSocketAsync
+  - TryConnectSocket
+  - TryConnectSocketAsync
+  - TimeoutChecker
+  - ReconnectAsync
+  - CheckLength
+  - GetTimestamp
+  - PipelineLength
+  - InputGateAsync
+  - AwaitPreviousTaskAsync
+  - InternalExecuteAsync
+  - InternalExecuteNoResponse
+  - ThrowException
+  - DisposeOffset
+  - ConsumeTcsOffset

@@ -1,0 +1,10 @@
+fn:
+  - EnqueueChunkedObject
+  - EnqueueChunkedSpan
+  - CreateChunkWriteState
+  - AnyRemaining
+  - CopyComponent
+  - WriteOneRecord
+  - MaterializeInput
+  - AllocateBlockPartialForTest
+  - AllocateBlockPartial

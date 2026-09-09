@@ -1,0 +1,9 @@
+fn:
+  - ExecuteClusterInitiateReplicaSync
+  - ExecuteClusterSendCheckpointMetadata
+  - ExecuteClusterSendCheckpointFileSegment
+  - ExecuteClusterSnapshotData
+  - ExecuteClusterBeginReplicaRecover
+  - ExecuteClusterAttachSync
+  - ExecuteClusterAdvanceTime
+  - ExecuteClusterAppendLogInit

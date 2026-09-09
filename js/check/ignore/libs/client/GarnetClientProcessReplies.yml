@@ -1,0 +1,7 @@
+fn:
+  - ProcessReplyAsString
+  - ProcessReplyAsNumber
+  - ProcessReplyAsStringArray
+  - ProcessReplyAsMemoryByte
+  - ProcessReplyAsMemoryByteArray
+  - CopyErrorToSpan

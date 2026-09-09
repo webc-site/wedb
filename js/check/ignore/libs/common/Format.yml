@@ -1,0 +1,15 @@
+fn:
+  - IsNullOrEmpty
+  - IsNullOrWhiteSpace
+  - defaultBindAny
+  - defaultBindLoopBack
+  - TryParseAddressList
+  - TryCreateEndpoint
+  - TryConnect
+  - TryCreateEndpointAsync
+  - TryConnectAsync
+  - TryValidateAddress
+  - MemoryBytes
+  - GigaBytes
+  - MegaBytes
+  - KiloBytes

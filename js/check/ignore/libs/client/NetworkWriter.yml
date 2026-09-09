@@ -1,0 +1,10 @@
+fn:
+  - GetNextTaskId
+  - NeedToWait
+  - AsyncFlushPageCallback
+  - GetOffsetInPage
+  - DoAggressiveShiftReadOnly
+  - EpochProtectAggressiveShiftReadOnlyRunner
+  - ToShift
+  - AggressiveShiftReadOnlyRunner
+  - AggressiveFlushShiftReadOnlyBump

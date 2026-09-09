@@ -1,0 +1,12 @@
+fn:
+  - GetSegmentBlobName
+  - DetectHangs
+  - CancelAllRequests
+  - DeleteAsync
+  - TryReadAsync
+  - ReadFromBlobAsync
+  - WritePortionToBlobUnsafeAsync
+  - WritePortionToBlobAsync
+  - ReadFromBlobUnsafeAsync
+  - TryWriteAsync
+  - WriteToBlobAsync

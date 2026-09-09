@@ -1,0 +1,7 @@
+fn:
+  - BeginIo
+  - EndIo
+  - TryDeferFree
+  - TryDrainDeferred
+  - HandOffInstalledBlocks
+  - HandOffDeferredBlocks

@@ -1,0 +1,6 @@
+fn:
+  - TerminateNormally
+  - TraceError
+  - Terminate
+  - Shutdown
+  - WaitForTermination

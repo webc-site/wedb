@@ -1,0 +1,5 @@
+fn:
+  - WriteInt64
+  - WriteDouble
+  - ReadInt64
+  - WriteInt32

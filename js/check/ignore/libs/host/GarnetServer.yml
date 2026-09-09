@@ -1,0 +1,11 @@
+fn:
+  - GetVersion
+  - InitializeServer
+  - ValidateCustomCommandACLs
+  - CreateDatabase
+  - LoadModules
+  - CreateStore
+  - CreateAOF
+  - InternalDispose
+  - DeleteDirectory
+  - FlushMemoryLogger

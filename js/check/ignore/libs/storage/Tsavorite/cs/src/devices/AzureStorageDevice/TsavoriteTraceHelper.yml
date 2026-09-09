@@ -1,0 +1,9 @@
+fn:
+  - TsavoritePerfWarning
+  - TsavoriteStorageProgress
+  - TsavoriteAzureStorageAccessCompleted
+  - LeaseAcquired
+  - LeaseRenewed
+  - LeaseReleased
+  - LeaseLost
+  - LeaseProgress

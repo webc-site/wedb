@@ -1,0 +1,15 @@
+fn:
+  - GetBanList
+  - GetConnectionInfo
+  - GetPrimaryLinkStatus
+  - SuspendConfigMerge
+  - ResumeConfigMerge
+  - RunMeetTask
+  - TryMeetAsync
+  - TryClusterPublishAsync
+  - GoAsyncHelperAsync
+  - GossipMainAsync
+  - InitConnectionsAsync
+  - DisposeBannedWorkerConnectionsAsync
+  - BroadcastGossipSendAsync
+  - GossipSampleSendAsync

@@ -1,0 +1,4 @@
+fn:
+  - TryEnter
+  - ExitAndCheckShouldCleanup
+  - TryDispose

@@ -1,0 +1,4 @@
+fn:
+  - GetOffsets
+  - IsSet
+  - PopCount

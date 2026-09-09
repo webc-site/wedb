@@ -1,0 +1,6 @@
+fn:
+  - NumBitsPreviousPowerOf2
+  - IsBlittable
+  - Murmur3
+  - WithCancellationAsync
+  - SlowWithCancellationAsync

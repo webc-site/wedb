@@ -1,0 +1,14 @@
+fn:
+  - Noop
+  - InsertByPtr
+  - ReadByPtr
+  - ReadByPtrInto
+  - DeleteByPtr
+  - ScanWithCountByPtrCallback
+  - ScanWithEndKeyByPtrCallback
+  - ScanWithCount
+  - ScanWithEndKey
+  - ScanAll
+  - CprSnapshotByPtr
+  - DrainScanIteratorWithCallback
+  - DrainScanIteratorToList

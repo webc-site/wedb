@@ -1,0 +1,8 @@
+fn:
+  - Connect
+  - ConnectSendSocket
+  - ConnectSendSocketAsync
+  - TryConnectSocket
+  - TryConnectSocketAsync
+  - CompletePendingRequests
+  - DefaultLightReceiveUnsafe

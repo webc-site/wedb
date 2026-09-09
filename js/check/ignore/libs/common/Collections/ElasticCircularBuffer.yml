@@ -1,0 +1,7 @@
+fn:
+  - PeekFirst
+  - PeekLast
+  - Dequeue
+  - IsFull
+  - IsEmpty
+  - Iterate

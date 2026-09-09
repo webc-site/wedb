@@ -1,0 +1,4 @@
+fn:
+  - ReadDevice
+  - WriteInto
+  - strerror

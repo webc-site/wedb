@@ -1,0 +1,13 @@
+fn:
+  - CreateShared
+  - CreateExclusive
+  - CreateAllExclusive
+  - CalculateIndex
+  - TryAcquireSharedLock
+  - AcquireSharedLock
+  - ReleaseLock
+  - TryAcquireExclusiveLock
+  - AcquireExclusiveLock
+  - AcquireAllExclusiveLock
+  - TryPromoteSharedLock
+  - GetProcessorHint

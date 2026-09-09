@@ -1,0 +1,8 @@
+fn:
+  - DisposeResources
+  - RecvEventArgCompletedWithTLS
+  - RecvEventArgCompletedWithoutTLS
+  - HandleReceiveWithoutTLS
+  - HandleReceiveWithTLSAsync
+  - HandleReceiveFailure
+  - AllocateNetworkReceiveBuffer

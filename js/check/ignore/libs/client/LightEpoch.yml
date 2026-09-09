@@ -1,0 +1,8 @@
+fn:
+  - GetRef
+  - SelectInstance
+  - ComputeNewSafeToReclaimEpoch
+  - TryAcquireEntry
+  - ReserveEntry
+  - ReserveEntryWait
+  - ReserveEntryForThread

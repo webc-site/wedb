@@ -1,0 +1,5 @@
+fn:
+  - Rent
+  - OnPooledBufferDisposed
+  - ThrowArgumentOutOfRange
+  - ThrowObjectDisposed

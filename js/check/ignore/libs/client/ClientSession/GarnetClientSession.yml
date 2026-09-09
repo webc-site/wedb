@@ -1,0 +1,12 @@
+fn:
+  - Connect
+  - ConnectSendSocket
+  - ConnectSendSocketAsync
+  - TryConnectSocket
+  - TryConnectSocketAsync
+  - ReconnectAsync
+  - ExecuteBatch
+  - ExecuteForArray
+  - ExecuteClusterAppendLog
+  - InternalExecute
+  - ResetOffset

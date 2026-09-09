@@ -1,0 +1,13 @@
+fn:
+  - UnsafeDisposeConnections
+  - CloseAll
+  - UnsafeGetConnection
+  - UnsafeAddConnection
+  - AcquireWriteLockAsync
+  - AddConnectionAsync
+  - GetOrAddAsync
+  - TryRemoveConnectionAsync
+  - GetConnection
+  - GetConnectionAtOffset
+  - GetRandomConnection
+  - GetConnectionInfo

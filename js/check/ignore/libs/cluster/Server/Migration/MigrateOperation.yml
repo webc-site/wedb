@@ -1,0 +1,5 @@
+fn:
+  - ThrowIfCancelled
+  - ContainsNamespace
+  - EncounteredVectorSet
+  - AddRangeIndexKey

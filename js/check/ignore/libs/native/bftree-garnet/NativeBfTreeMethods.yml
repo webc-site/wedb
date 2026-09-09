@@ -1,0 +1,12 @@
+fn:
+  - bftree_create
+  - bftree_drop
+  - bftree_insert
+  - bftree_read
+  - bftree_delete
+  - bftree_scan_with_count
+  - bftree_scan_with_end_key
+  - bftree_scan_next
+  - bftree_scan_drop
+  - bftree_are_all_threads_in_next_version
+  - bftree_noop

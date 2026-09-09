@@ -1,0 +1,4 @@
+fn:
+  - SetSlotRange
+  - SetClusterMigrateHeader
+  - CompleteMigrate

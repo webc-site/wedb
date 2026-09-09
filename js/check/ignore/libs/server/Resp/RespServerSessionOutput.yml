@@ -1,0 +1,18 @@
+fn:
+  - WriteAsciiBulkString
+  - WriteAsciiDirect
+  - WriteArrayLength
+  - TryWriteBulkString
+  - TryWriteDirect
+  - WriteInt32
+  - WriteInt64
+  - WriteInt64AsBulkString
+  - WriteIntegerFromBytes
+  - WriteMapLength
+  - WriteZero
+  - WriteOne
+  - WriteNull
+  - WriteNullArray
+  - WritePushLength
+  - WriteSetLength
+  - WriteUtf8BulkString

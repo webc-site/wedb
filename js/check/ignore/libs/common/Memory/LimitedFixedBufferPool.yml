@@ -1,0 +1,4 @@
+fn:
+  - GetStats
+  - Position
+  - GetLevel
