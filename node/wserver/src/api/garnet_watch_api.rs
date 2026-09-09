@@ -4,13 +4,10 @@
 //! Rust 侧以 [`GarnetWatchApi`] 关联函数实现同序：先登记 [`StorageSession`]
 //! 监视表（写日志尾地址版本代理，见 storage_session 域注释），再委托读操作。
 
-use std::io::Cursor;
-
 use wdev::Device;
-use wobject::{hash::hash_object::HashObject, set::set_object::SetObject};
 
 use crate::{
-  api::garnet_status::GarnetStatus,
+  api::{garnet_status::GarnetStatus, hash_fields, hash_or_set_members, set_members},
   storage::session::{
     mainstore::main_store_ops::LcsResult,
     objectstore::{
@@ -21,52 +18,6 @@ use crate::{
     storage_session::StorageSession,
   },
 };
-
-/// SCAN 成员抽取（哈希/集合共用，按字节序排序保证游标稳定性）
-fn sorted_members_of<O>(payload: &[u8]) -> Option<Vec<Vec<u8>>>
-where
-  O: members_of::FromPayload,
-{
-  O::members(payload).map(|mut m| {
-    m.sort();
-    m
-  })
-}
-
-/// 成员抽取 trait 适配
-mod members_of {
-  use std::io::Cursor;
-
-  pub trait FromPayload {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>>;
-  }
-
-  impl FromPayload for super::HashObject {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-      super::HashObject::deserialize(&mut Cursor::new(payload.to_vec()))
-        .ok()
-        .map(|o| o.get_keys())
-    }
-  }
-
-  impl FromPayload for super::SetObject {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-      super::SetObject::deserialize(&mut Cursor::new(payload.to_vec()))
-        .ok()
-        .map(|o| o.get_keys())
-    }
-  }
-}
-
-/// OBJECT SCAN 兜底成员抽取（哈希 / 集合信封自动识别）
-fn members_of_scan(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-  if let Ok(o) = HashObject::deserialize(&mut Cursor::new(payload.to_vec())) {
-    return Some(o.get_keys());
-  }
-  SetObject::deserialize(&mut Cursor::new(payload.to_vec()))
-    .ok()
-    .map(|o| o.get_keys())
-}
 
 /// WATCH 包装 API
 pub struct GarnetWatchApi;
@@ -350,15 +301,8 @@ impl GarnetWatchApi {
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
     ss.watch_key(key);
-    ss.object_scan(
-      key,
-      OBJ_TAG_SET,
-      pattern,
-      cursor,
-      count,
-      sorted_members_of::<SetObject>,
-    )
-    .await
+    ss.object_scan(key, OBJ_TAG_SET, pattern, cursor, count, set_members)
+      .await
   }
 
   /// libs/server/API/GarnetWatchApi.cs:SetUnion
@@ -511,15 +455,8 @@ impl GarnetWatchApi {
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
     ss.watch_key(key);
-    ss.object_scan(
-      key,
-      OBJ_TAG_HASH,
-      pattern,
-      cursor,
-      count,
-      sorted_members_of::<HashObject>,
-    )
-    .await
+    ss.object_scan(key, OBJ_TAG_HASH, pattern, cursor, count, hash_fields)
+      .await
   }
 
   /// libs/server/API/GarnetWatchApi.cs:HashTimeToLive
@@ -530,9 +467,9 @@ impl GarnetWatchApi {
     ss.watch_key(key);
     ss.hash_time_to_live(key).await
   }
+
   /// libs/server/API/GarnetWatchApi.cs:GET
   pub async fn get<D: Device>(
-    &self,
     ss: &StorageSession<'_, D>,
     key: &[u8],
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
@@ -541,18 +478,13 @@ impl GarnetWatchApi {
   }
 
   /// libs/server/API/GarnetWatchApi.cs:TTL
-  pub async fn ttl<D: Device>(
-    &self,
-    ss: &StorageSession<'_, D>,
-    key: &[u8],
-  ) -> wkv::Result<Option<i64>> {
+  pub async fn ttl<D: Device>(ss: &StorageSession<'_, D>, key: &[u8]) -> wkv::Result<Option<i64>> {
     ss.watch_key(key);
     ss.handle_ttl(key).await
   }
 
   /// libs/server/API/GarnetWatchApi.cs:EXPIRETIME
   pub async fn expiretime<D: Device>(
-    &self,
     ss: &StorageSession<'_, D>,
     key: &[u8],
   ) -> wkv::Result<Option<i64>> {
@@ -619,12 +551,12 @@ impl GarnetWatchApi {
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
     ss.watch_key(key);
-    ss.object_scan(key, tag, pattern, cursor, count, members_of_scan)
+    ss.object_scan(key, tag, pattern, cursor, count, hash_or_set_members)
       .await
   }
 
   /// libs/server/API/GarnetWatchApi.cs:ResetScratchBuffer
-  pub fn reset_scratch_buffer(&self) {
+  pub fn reset_scratch_buffer() {
     // Rust 输出缓冲随作用域回收，无共享 scratch 需要重置
   }
 

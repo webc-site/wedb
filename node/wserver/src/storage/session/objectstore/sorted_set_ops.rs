@@ -5,6 +5,7 @@
 
 use std::{io::Cursor, str};
 
+use gxhash::HashMap as GxHashMap;
 use wdev::Device;
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
 
@@ -143,20 +144,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 n += 1;
               }
             }
-            if obj.dict.pin().is_empty() {
-              None
-            } else {
-              Some(n)
-            }
+            Some((n, obj.dict.pin().is_empty()))
           })
           .await?;
-        match removed {
-          Some(n) => Ok((GarnetStatus::Ok, n)),
-          None => {
-            let _ = self.delete_string(key).await?;
-            Ok((GarnetStatus::Ok, 0))
-          }
-        }
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -185,19 +177,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 n += 1;
               }
             }
-            if obj.dict.pin().is_empty() {
-              None
-            } else {
-              Some(n)
-            }
+            Some((n, obj.dict.pin().is_empty()))
           })
           .await?;
-        self.finish_range_removal(key, removed).await
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
 
-  /// ZREMRANGEBYSCORE：按分值区间移除
+  /// ZREMRANGEBYSCORE：按分值区间移除（端点开闭语义见 [`parse_score_bound`]）
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByScore
   pub async fn sorted_set_remove_range_by_score(
@@ -218,21 +207,17 @@ impl<'a, D: Device> StorageSession<'a, D> {
             let entries = sorted_view(obj);
             let mut n = 0i64;
             for (m, s) in entries {
-              if s >= min_b.0
-                && s <= max_b.0
+              if score_in_range(s, min_b, max_b)
                 && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
               {
                 n += 1;
               }
             }
-            if obj.dict.pin().is_empty() {
-              None
-            } else {
-              Some(n)
-            }
+            Some((n, obj.dict.pin().is_empty()))
           })
           .await?;
-        self.finish_range_removal(key, removed).await
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -260,29 +245,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 n += 1;
               }
             }
-            if obj.dict.pin().is_empty() {
-              None
-            } else {
-              Some(n)
-            }
+            Some((n, obj.dict.pin().is_empty()))
           })
           .await?;
-        self.finish_range_removal(key, removed).await
-      }
-    }
-  }
-
-  /// 区间移除收尾：集合被删空时整键回收
-  async fn finish_range_removal(
-    &self,
-    key: &[u8],
-    removed: Option<i64>,
-  ) -> wkv::Result<(GarnetStatus, i64)> {
-    match removed {
-      Some(n) => Ok((GarnetStatus::Ok, n)),
-      None => {
-        let _ = self.delete_string(key).await?;
-        Ok((GarnetStatus::Ok, 0))
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -303,7 +270,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
         let popped = self
           .zset_rmw(key, |obj| {
             let mut entries = sorted_view(obj);
-            let mut out = Vec::with_capacity(count);
+            let mut out = Vec::with_capacity(count.min(entries.len()));
             for _ in 0..count {
               let item = if min {
                 entries.first().cloned()
@@ -323,20 +290,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 None => break,
               }
             }
-            if obj.dict.pin().is_empty() {
-              None // 弹空：放弃写回，调用方整键回收
-            } else {
-              Some(out)
-            }
+            Some((out, obj.dict.pin().is_empty()))
           })
           .await?;
-        match popped {
-          Some(v) => Ok((GarnetStatus::Ok, v)),
-          None => {
-            let _ = self.delete_string(key).await?;
-            Ok((GarnetStatus::Ok, Vec::new()))
-          }
-        }
+        let out = self.finalize_removal(key, popped, Vec::new()).await?;
+        Ok((GarnetStatus::Ok, out))
       }
     }
   }
@@ -354,12 +312,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
       Err(s) => Ok((s, None)),
       Ok(_) => Ok((
         GarnetStatus::Ok,
+        // Zincrby 语义：传入增量，返回新分值（见 wobject operate）
         self
           .zset_rmw(key, |obj| {
-            let old = obj.dict.pin().get(member).copied().unwrap_or(0.0);
-            let new = old + delta;
-            obj.operate(SortedSetOperation::Zincrby, member, new);
-            Some(new)
+            obj.operate(SortedSetOperation::Zincrby, member, delta)
           })
           .await?,
       )),
@@ -410,7 +366,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// ZDIFF：多集合差集（首键减其余）
+  /// ZDIFF：多集合差集（首键减其余；错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetDifference
   pub async fn sorted_set_difference(
@@ -420,14 +376,20 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let Some(first) = keys.first() else {
       return Ok((GarnetStatus::Ok, Vec::new()));
     };
-    let Ok(Some(base)) = self.zset_load(first).await? else {
-      return Ok((GarnetStatus::Ok, Vec::new()));
+    let base = match self.zset_load(first).await? {
+      Err(s) => return Ok((s, Vec::new())),
+      Ok(None) => return Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(Some(o)) => o,
     };
     let mut result = sorted_view(&base);
     for key in &keys[1..] {
-      if let Ok(Some(other)) = self.zset_load(key).await? {
-        let pin = other.dict.pin();
-        result.retain(|(m, _)| !pin.contains_key(m));
+      match self.zset_load(key).await? {
+        Err(s) => return Ok((s, Vec::new())),
+        Ok(Some(other)) => {
+          let pin = other.dict.pin();
+          result.retain(|(m, _)| !pin.contains_key(m));
+        }
+        Ok(None) => {}
       }
     }
     Ok((GarnetStatus::Ok, result))
@@ -662,7 +624,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await
   }
 
-  /// ZUNION：多集合并集（权重 + 聚合）
+  /// ZUNION：多集合并集（权重 + 聚合；错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetUnion
   pub async fn sorted_set_union(
@@ -671,10 +633,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
-    Ok((
-      GarnetStatus::Ok,
-      self.zset_combine(keys, weights, aggregate, false).await?,
-    ))
+    self.zset_combine(keys, weights, aggregate, false).await
   }
 
   /// ZUNIONSTORE：并集写入目标键
@@ -687,7 +646,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, usize)> {
-    let combined = self.zset_combine(keys, weights, aggregate, false).await?;
+    let (status, combined) = self.zset_combine(keys, weights, aggregate, false).await?;
+    if status != GarnetStatus::Ok {
+      return Ok((status, 0));
+    }
     self.zset_overwrite(dest, &combined).await
   }
 
@@ -718,8 +680,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, usize)> {
-    let entries = self.zset_combine(keys, weights, aggregate, true).await?;
-    Ok((GarnetStatus::Ok, entries.len()))
+    let (status, entries) = self.zset_combine(keys, weights, aggregate, true).await?;
+    Ok((status, entries.len()))
   }
 
   /// ZINTERSTORE：交集写入目标键
@@ -732,11 +694,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, usize)> {
-    let entries = self.zset_combine(keys, weights, aggregate, true).await?;
+    let (status, entries) = self.zset_combine(keys, weights, aggregate, true).await?;
+    if status != GarnetStatus::Ok {
+      return Ok((status, 0));
+    }
     self.zset_overwrite(dest, &entries).await
   }
 
-  /// ZINTER：多集合交集（权重 + 聚合）
+  /// ZINTER：多集合交集（权重 + 聚合；错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersect
   pub async fn sorted_set_intersect(
@@ -745,13 +710,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
-    Ok((
-      GarnetStatus::Ok,
-      self.zset_combine(keys, weights, aggregate, true).await?,
-    ))
+    self.zset_combine(keys, weights, aggregate, true).await
   }
 
-  /// 交集计算内核（纯逻辑：以最小集合为基底逐成员聚合其余键）
+  /// 交集计算（ZINTER 纯计算视图）
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersection
   pub async fn sorted_set_intersection(
@@ -759,7 +721,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     keys: &[&[u8]],
     weights: &[f64],
     aggregate: ZSetAggregate,
-  ) -> wkv::Result<Vec<(Vec<u8>, f64)>> {
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
     self.zset_combine(keys, weights, aggregate, true).await
   }
 
@@ -808,55 +770,61 @@ impl<'a, D: Device> StorageSession<'a, D> {
     Ok(self.sorted_set_length(key).await?.1)
   }
 
-  /// 多键组合内核（并/交统一：`intersect` 选择交语义），返回排序视图
+  /// 多键组合内核（并/交统一：`intersect` 选择交语义）
+  ///
+  /// 错误类型键传播 WRONGTYPE；缺键按空集参与（交语义短路为空）。
+  /// 哈希累加 + 末次排序：单遍 O(n) 折叠，产出 (score, member) 排名序。
   async fn zset_combine(
     &self,
     keys: &[&[u8]],
     weights: &[f64],
     aggregate: ZSetAggregate,
     intersect: bool,
-  ) -> wkv::Result<Vec<(Vec<u8>, f64)>> {
-    if keys.is_empty() {
-      return Ok(Vec::new());
-    }
-    // 交语义：以最短集合为基底
-    let mut acc: Vec<(Vec<u8>, f64)> = Vec::new();
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
+    let mut acc: GxHashMap<Vec<u8>, f64> = GxHashMap::default();
     for (i, key) in keys.iter().enumerate() {
+      // 交集已空：与空集相交恒空，提前结束
+      if intersect && i > 0 && acc.is_empty() {
+        break;
+      }
       let w = weights.get(i).copied().unwrap_or(1.0);
-      let Some(obj) = self.zset_load(key).await?.ok().flatten() else {
-        if intersect {
-          return Ok(Vec::new()); // 任一键缺失 → 空交集
+      let obj = match self.zset_load(key).await? {
+        Err(s) => return Ok((s, Vec::new())),
+        // 缺键按空集：并语义跳过，交语义短路
+        Ok(None) => {
+          if intersect {
+            break;
+          }
+          continue;
         }
-        continue;
+        Ok(Some(o)) => o,
       };
-      let entries: Vec<(Vec<u8>, f64)> = sorted_view(&obj)
-        .into_iter()
-        .map(|(m, s)| (m, s * w))
-        .collect();
-      if i == 0 {
-        acc = entries;
-      } else if intersect {
-        let pin_view: gxhash::HashMap<Vec<u8>, f64> = entries.into_iter().collect();
-        acc.retain_mut(|(m, s)| {
-          if let Some(&other) = pin_view.get(m) {
-            *s = apply_aggregate(aggregate, *s, other);
-            true
-          } else {
-            false
-          }
-        });
-      } else {
-        for (m, s) in entries {
-          if let Some(slot) = acc.iter_mut().find(|(am, _)| *am == m) {
-            slot.1 = apply_aggregate(aggregate, slot.1, s);
-          } else {
-            acc.push((m, s));
+      let pin = obj.dict.pin();
+      if i == 0 || !intersect {
+        // 并语义（含首键）：插入或聚合累加
+        for (m, &s) in pin.iter() {
+          let ws = s * w;
+          match acc.get_mut(m) {
+            Some(slot) => *slot = apply_aggregate(aggregate, *slot, ws),
+            None => {
+              acc.insert(m.clone(), ws);
+            }
           }
         }
+      } else {
+        // 交语义：仅保留本键也有的成员并聚合分值
+        acc.retain(|m, s| match pin.get(m) {
+          Some(&other) => {
+            *s = apply_aggregate(aggregate, *s, other * w);
+            true
+          }
+          None => false,
+        });
       }
     }
-    acc.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(acc)
+    let mut out: Vec<(Vec<u8>, f64)> = acc.into_iter().collect();
+    out.sort_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+    Ok((GarnetStatus::Ok, out))
   }
 
   /// 覆写目标键为给定成员集合（先删后写，空集回收）

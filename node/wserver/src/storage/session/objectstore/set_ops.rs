@@ -69,7 +69,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// SREM：批量移除成员，返回移除个数
+  /// SREM：批量移除成员，返回移除个数（删空时整键回收但保留真实计数）
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetRemove
   pub async fn set_remove(
@@ -89,20 +89,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 n += 1;
               }
             }
-            if obj.set.pin().is_empty() {
-              None // 空集合：放弃写回，由调用方删键
-            } else {
-              Some(n)
-            }
+            Some((n, obj.set.pin().is_empty()))
           })
           .await?;
-        match removed {
-          Some(n) => Ok((GarnetStatus::Ok, n)),
-          None => {
-            let _ = self.delete_string(key).await?;
-            Ok((GarnetStatus::Ok, 0))
-          }
-        }
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -181,15 +172,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
           return Ok((GarnetStatus::Ok, true));
         }
         // 先从源集合摘除（摘除后为空则整键回收），再写入目标集合
-        let removed = self
+        let emptied = self
           .set_rmw(src, |obj| {
-            obj
-              .operate(SetOperation::Srem, member)
-              .then(|| obj.set.pin().is_empty())
+            Some(obj.operate(SetOperation::Srem, member) && obj.set.pin().is_empty())
           })
           .await?
           .unwrap_or(false);
-        if removed && let (_, 0) = self.set_length(src).await? {
+        if emptied {
           let _ = self.delete_string(src).await?;
         }
         self.set_add(dest, &[member]).await?;
@@ -198,23 +187,28 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// SINTER：多集合交集（以首键为基底折叠）
+  /// SINTER：多集合交集（以首键为基底折叠；错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetIntersect
   pub async fn set_intersect(&self, keys: &[&[u8]]) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
     let Some(first) = keys.first() else {
       return Ok((GarnetStatus::Ok, Vec::new()));
     };
-    let Ok(Some(base)) = self.set_load(first).await? else {
-      return Ok((GarnetStatus::Ok, Vec::new()));
+    let base = match self.set_load(first).await? {
+      Err(s) => return Ok((s, Vec::new())),
+      Ok(None) => return Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(Some(o)) => o,
     };
     let mut result: Vec<Vec<u8>> = base.get_keys();
     for key in &keys[1..] {
-      let Ok(Some(other)) = self.set_load(key).await? else {
-        return Ok((GarnetStatus::Ok, Vec::new()));
-      };
-      let pin = other.set.pin();
-      result.retain(|m| pin.contains(m));
+      match self.set_load(key).await? {
+        Err(s) => return Ok((s, Vec::new())),
+        Ok(None) => return Ok((GarnetStatus::Ok, Vec::new())),
+        Ok(Some(other)) => {
+          let pin = other.set.pin();
+          result.retain(|m| pin.contains(m));
+        }
+      }
       if result.is_empty() {
         break;
       }
@@ -222,7 +216,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     Ok((GarnetStatus::Ok, result))
   }
 
-  /// SINTERSTORE：交集写入目标键，返回基数
+  /// SINTERSTORE：交集写入目标键（空交集回收目标键），返回基数
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetIntersectStore
   pub async fn set_intersect_store(
@@ -234,13 +228,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
     }
-    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let _ = self.delete_string(dest).await?;
+    if members.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
+    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let (_, n) = self.set_add(dest, &refs).await?;
     Ok((GarnetStatus::Ok, n as usize))
   }
 
-  /// SUNION：多集合并集
+  /// SUNION：多集合并集（错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetUnion
   pub async fn set_union(&self, keys: &[&[u8]]) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
@@ -248,17 +245,21 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let merged = SetObject::new();
     let pin = merged.set.pin();
     for key in keys {
-      if let Ok(Some(obj)) = self.set_load(key).await? {
-        for m in obj.get_keys() {
-          pin.insert(m);
+      match self.set_load(key).await? {
+        Err(s) => return Ok((s, Vec::new())),
+        Ok(Some(obj)) => {
+          for m in obj.get_keys() {
+            pin.insert(m);
+          }
         }
+        Ok(None) => {}
       }
     }
     drop(pin);
     Ok((GarnetStatus::Ok, merged.get_keys()))
   }
 
-  /// SUNIONSTORE：并集写入目标键，返回基数
+  /// SUNIONSTORE：并集写入目标键（空并集回收目标键），返回基数
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetUnionStore
   pub async fn set_union_store(
@@ -270,8 +271,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
     }
-    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let _ = self.delete_string(dest).await?;
+    if members.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
+    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let (_, n) = self.set_add(dest, &refs).await?;
     Ok((GarnetStatus::Ok, n as usize))
   }
@@ -323,27 +327,33 @@ impl<'a, D: Device> StorageSession<'a, D> {
     Ok((GarnetStatus::Ok, out))
   }
 
-  /// SDIFF：多集合差集（首键减其余）
+  /// SDIFF：多集合差集（首键减其余；错误类型键传播 WRONGTYPE，缺键视为空集）
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetDiff
   pub async fn set_diff(&self, keys: &[&[u8]]) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
     let Some(first) = keys.first() else {
       return Ok((GarnetStatus::Ok, Vec::new()));
     };
-    let Ok(Some(base)) = self.set_load(first).await? else {
-      return Ok((GarnetStatus::Ok, Vec::new()));
+    let base = match self.set_load(first).await? {
+      Err(s) => return Ok((s, Vec::new())),
+      Ok(None) => return Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(Some(o)) => o,
     };
     let mut result = base.get_keys();
     for key in &keys[1..] {
-      if let Ok(Some(other)) = self.set_load(key).await? {
-        let pin = other.set.pin();
-        result.retain(|m| !pin.contains(m));
+      match self.set_load(key).await? {
+        Err(s) => return Ok((s, Vec::new())),
+        Ok(Some(other)) => {
+          let pin = other.set.pin();
+          result.retain(|m| !pin.contains(m));
+        }
+        Ok(None) => {}
       }
     }
     Ok((GarnetStatus::Ok, result))
   }
 
-  /// SDIFFSTORE：差集写入目标键，返回基数
+  /// SDIFFSTORE：差集写入目标键（空差集回收目标键），返回基数
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetDiffStore
   pub async fn set_diff_store(
@@ -355,8 +365,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
     }
-    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let _ = self.delete_string(dest).await?;
+    if members.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
+    let refs: Vec<&[u8]> = members.iter().map(Vec::as_slice).collect();
     let (_, n) = self.set_add(dest, &refs).await?;
     Ok((GarnetStatus::Ok, n as usize))
   }

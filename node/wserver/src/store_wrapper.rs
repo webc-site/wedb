@@ -287,10 +287,13 @@ impl<D: Device> StoreWrapper<D> {
     for_manager!(self, |m| m.start_size_trackers());
   }
 
-  /// 是否存在键落在给定集群槽位
+  /// 是否存在键落在给定集群槽位（`slots` 为空恒 false）
   ///
   /// libs/server/StoreWrapper.cs:HasKeysInSlots
-  pub fn has_keys_in_slots(&self, slots: &[u16]) -> bool {
+  pub async fn has_keys_in_slots(&self, slots: &[u16]) -> bool {
+    if slots.is_empty() {
+      return false;
+    }
     for db in self.get_databases_snapshot() {
       let Ok(session) = db.store.new_session() else {
         continue;
@@ -299,13 +302,15 @@ impl<D: Device> StoreWrapper<D> {
       let batch = session.enter_batch();
       let ss = StorageSession::new(batch);
       let mut found = false;
-      let _ = ss.iterate_store(|user_key, _| {
-        if slots.contains(&cluster_slot(user_key)) {
-          found = true;
-          return false;
-        }
-        true
-      });
+      let _ = ss
+        .iterate_store(|user_key, _| {
+          if slots.contains(&cluster_slot(user_key)) {
+            found = true;
+            return false;
+          }
+          true
+        })
+        .await;
       if found {
         return true;
       }
