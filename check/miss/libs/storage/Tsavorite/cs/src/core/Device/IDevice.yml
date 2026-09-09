@@ -1,0 +1,7 @@
+fn:
+  - TryComplete
+  - TryCompleteMine
+  - Throttle
+  - TruncateUntilAddressAsync
+  - TruncateUntilSegmentAsync
+  - RemoveSegmentAsync

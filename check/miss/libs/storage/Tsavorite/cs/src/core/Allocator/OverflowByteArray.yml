@@ -1,0 +1,10 @@
+fn:
+  - AsReadOnlySpan
+  - AsSpan
+  - AsMemory
+  - OverflowByteArray
+  - AllocateData
+  - AdjustOffsetFromStart
+  - AdjustOffsetFromEnd
+  - SetOffsets
+  - Pin

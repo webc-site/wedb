@@ -1,0 +1,9 @@
+fn:
+  - InitializeForReads
+  - InitializeReadBuffers
+  - BufferAndLoad
+  - DoReadPage
+  - AsyncReadPageFromDeviceToFrame
+  - NeedBufferAndLoad
+  - AsyncReadPageFromDeviceToFrameCallback
+  - WaitForFrameLoad

@@ -1,0 +1,6 @@
+fn:
+  - BasicOpCode
+  - AdvancedOpCode
+  - TryConvertToCompletedStatusCode
+  - IsAppend
+  - IsRetry

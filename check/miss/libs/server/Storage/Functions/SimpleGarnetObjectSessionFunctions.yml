@@ -1,0 +1,5 @@
+fn:
+  - InitialWriter
+  - InPlaceWriter
+  - InitialUpdater
+  - CopyUpdater

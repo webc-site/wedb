@@ -1,0 +1,10 @@
+fn:
+  - Overlap
+  - MigrateSession
+  - GetGarnetClient
+  - GetLocalSession
+  - CheckConnectionAsync
+  - GetRanges
+  - ResetLocalSlot
+  - TryPrepareLocalForMigration
+  - RelinquishOwnership

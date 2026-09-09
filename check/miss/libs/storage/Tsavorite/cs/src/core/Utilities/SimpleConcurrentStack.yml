@@ -1,0 +1,5 @@
+fn:
+  - SimpleConcurrentStack
+  - TryPop
+  - AddNodeToFreeList
+  - GetNodeFromFreeList

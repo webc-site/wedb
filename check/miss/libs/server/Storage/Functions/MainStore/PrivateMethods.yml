@@ -1,0 +1,17 @@
+fn:
+  - CopyTo
+  - CopyRespTo
+  - CopyRespToWithInput
+  - EvaluateExpireInPlace
+  - EvaluateExpireCopyUpdate
+  - NormalizeRange
+  - TryInPlaceUpdateNumber
+  - TryCopyUpdateNumber
+  - IsValidNumber
+  - IsValidDouble
+  - TryCopyValueLengthToOutput
+  - CopyRespWithEtagData
+  - WriteValAndEtagToDst
+  - WriteLogUpsert
+  - WriteLogDelete
+  - GetBitFieldArguments

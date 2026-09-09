@@ -1,0 +1,9 @@
+fn:
+  - GetMaxValue
+  - GetMean
+  - GetStdDeviation
+  - HighestEquivalentValue
+  - CopyInto
+  - Percentiles
+  - RecordScope
+  - Timer

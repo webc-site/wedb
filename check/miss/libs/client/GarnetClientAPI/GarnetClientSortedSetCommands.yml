@@ -1,0 +1,9 @@
+fn:
+  - SortedSetAdd
+  - ExecuteForLongResult
+  - SortedSetAddAsync
+  - SortedSetRemove
+  - SortedSetRemoveAsync
+  - SortedSetLengthAsync
+  - ExecuteForLongResultAsync
+  - SortedSetLength

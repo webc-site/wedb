@@ -1,0 +1,8 @@
+fn:
+  - ParseSize
+  - NumBitsPreviousPowerOf2
+  - PrettySize
+  - IsBlittable
+  - Murmur3
+  - WithCancellationAsync
+  - SlowWithCancellationAsync

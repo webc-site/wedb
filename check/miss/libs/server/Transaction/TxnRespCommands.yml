@@ -1,0 +1,15 @@
+fn:
+  - NetworkMULTI
+  - SendAndReset
+  - NetworkEXEC
+  - WriteNullArray
+  - NetworkSKIP
+  - NetworkDISCARD
+  - CommonWATCH
+  - NetworkWATCH_MS
+  - NetworkWATCH_OS
+  - NetworkWATCH
+  - NetworkUNWATCH
+  - NetworkRUNTXPFast
+  - NetworkRUNTXP
+  - TryTransactionProc

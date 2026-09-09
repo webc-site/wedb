@@ -33,7 +33,9 @@ pub use session::{
   RawCollectionRead, SET_MAX_COMPACT_ENTRIES, SET_MAX_COMPACT_VALUE, StoreSession,
   ZSET_MAX_COMPACT_ENTRIES, ZSET_MAX_COMPACT_MEMBER,
 };
-pub use store::{KEY_ID_ASSIGN_MARGIN, RangeIndexListenerFn, WedbStore, WriteListenerFn};
+pub use store::{
+  KEY_ID_ASSIGN_MARGIN, RangeIndexListenerFn, TtlPurgeListenerFn, WedbStore, WriteListenerFn,
+};
 pub use ttl::{TTL_VALUE_LEN, TtlOpt, TtlProbe};
 pub use wbftree::{
   BfTreeService, RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer, RangeIndexChunkedSerializer,

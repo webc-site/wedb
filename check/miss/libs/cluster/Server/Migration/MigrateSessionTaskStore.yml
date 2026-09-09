@@ -1,0 +1,6 @@
+fn:
+  - MigrateSessionTaskStore
+  - GetNumSessions
+  - TryAddMigrateSession
+  - TryRemove
+  - CanAccessKey

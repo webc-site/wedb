@@ -1,0 +1,14 @@
+fn:
+  - SendAndReset
+  - HashGet
+  - HashGetAll
+  - HashGetMultiple
+  - WriteNull
+  - HashRandomField
+  - HashLength
+  - HashStrLength
+  - HashDelete
+  - HashExists
+  - HashKeys
+  - HashIncrement
+  - HashTimeToLive

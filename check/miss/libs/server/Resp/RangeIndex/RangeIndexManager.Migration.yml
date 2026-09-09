@@ -1,0 +1,6 @@
+fn:
+  - GetRangeIndexKeysForMigration
+  - SnapshotRangeIndexAndCreateReader
+  - ReplicateRangeIndexStream
+  - ReadIndex
+  - KeyExists

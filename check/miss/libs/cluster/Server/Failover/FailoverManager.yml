@@ -1,0 +1,6 @@
+fn:
+  - TryAbortReplicaFailover
+  - GetFailoverStatus
+  - GetLastFailoverStatus
+  - TryStartReplicaFailover
+  - TryStartPrimaryFailover

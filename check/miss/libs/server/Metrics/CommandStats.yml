@@ -1,0 +1,6 @@
+fn:
+  - CommandStats
+  - IncrementCalls
+  - IncrementFailed
+  - IncrementRejected
+  - GetEntry

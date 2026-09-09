@@ -1,0 +1,8 @@
+fn:
+  - RespCommandDocs
+  - TryInitialize
+  - TryInitializeRespCommandsDocs
+  - TryGetRespCommandsDocs
+  - TryGetRespCommandDocs
+  - TryGetRespSubCommandsDocs
+  - ToRespFormat

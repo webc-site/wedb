@@ -1,0 +1,8 @@
+fn:
+  - SetKeyIsInline
+  - SetValueIsInline
+  - SetIsRevivifiedRecord
+  - CalculateSizes
+  - ThrowTsavoriteException
+  - AssertValueDataLength
+  - AssertOptionalsIfSet

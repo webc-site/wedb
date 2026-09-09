@@ -1,0 +1,17 @@
+fn:
+  - CheckpointManagerWithCookie
+  - GetCookie
+  - DeleteDirectory
+  - OnTearDown
+  - IgnoreIfNotRunningAzureTests
+  - SimpleRecoveryTest1_Worker
+  - AdSimpleFunctions
+  - ReadCompletionCallback
+  - InitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+test:
+  - PageBlobSimpleRecoveryTest
+  - SimpleRecoveryTest2

@@ -1,0 +1,7 @@
+fn:
+  - WatchedKeysContainer
+  - RemoveWatch
+  - AddWatch
+  - ValidateWatchVersion
+  - SaveKeysToLock
+  - SaveKeysToKeyList

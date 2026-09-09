@@ -1,0 +1,5 @@
+fn:
+  - GetBitmapSize
+  - GlobalSetup_Unary
+  - BitOperation_NOT
+  - GlobalCleanup

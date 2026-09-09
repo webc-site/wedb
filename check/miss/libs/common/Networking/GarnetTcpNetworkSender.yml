@@ -1,0 +1,17 @@
+fn:
+  - GarnetTcpNetworkSender
+  - IsLocalConnection
+  - Enter
+  - EnterAndGetResponseObject
+  - ThrowDisposed
+  - Exit
+  - ExitAndReturnResponseObject
+  - ReturnBuffer
+  - GetResponseObject
+  - ReturnResponseObject
+  - SendResponse
+  - SendCallback
+  - DisposeNetworkSender
+  - Throttle
+  - TryClose
+  - SeaaBuffer_Completed

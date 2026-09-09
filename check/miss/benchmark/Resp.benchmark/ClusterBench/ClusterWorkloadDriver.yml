@@ -1,0 +1,20 @@
+fn:
+  - ClusterBench
+  - DiscoverTopology
+  - ValidateReplicaReadOptions
+  - CreateWorkerPool
+  - CreateShardedProviders
+  - PrintWorkerPoolConfiguration
+  - PrintConfiguration
+  - FormatDistribution
+  - FormatSlotRanges
+  - LoadData
+  - ValidateDBSize
+  - Run
+  - RunWorkerPoolOnline
+  - RunWorkerPoolOffline
+  - RunOnline
+  - RunOffline
+  - PrintFinalReport
+  - ReportHitRates
+  - PrintWorkerPoolFinalReport

@@ -1,0 +1,10 @@
+fn:
+  - ReplayAlignBarrier
+  - TryOpenRound
+  - SignalArrivalAndWait
+  - WaitForAllArrivals
+  - SignalArrival
+  - ReleaseRound
+  - SignalAll
+  - Disable
+  - Enable

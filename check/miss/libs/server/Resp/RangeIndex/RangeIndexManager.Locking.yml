@@ -1,0 +1,5 @@
+fn:
+  - ExclusiveRangeIndexLock
+  - ReadIndex
+  - PromoteToTail
+  - AcquireExclusiveForDelete

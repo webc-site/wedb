@@ -1,0 +1,22 @@
+fn:
+  - UpdateLastPrimarySyncTime
+  - GetReplicationOffset
+  - SetSublogReplicationOffset
+  - GetSublogReplicationOffset
+  - GetRecoveredSafeAofAddress
+  - GetCurrentSafeAofAddress
+  - ReplicationManager
+  - ValidateNetworkBufferSettings
+  - RecoverReplicationHistory
+  - InitializeReplicationHistory
+  - SetPrimaryReplicationId
+  - EnsureReplication
+  - GetBufferPoolStats
+  - CheckpointVersionShiftStart
+  - CheckpointVersionShiftEnd
+  - BeginRecovery
+  - EndRecovery
+  - ResetRecovery
+  - RecoverCheckpointAndAOFAsync
+  - WaitForReplicationOffsetAsync
+  - Start

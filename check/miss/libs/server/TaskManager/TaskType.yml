@@ -1,0 +1,4 @@
+fn:
+  - TaskTypeExtensions
+  - GetTaskTypes
+  - MatchPlacementCategory

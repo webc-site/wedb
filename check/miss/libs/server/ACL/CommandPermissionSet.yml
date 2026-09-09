@@ -1,0 +1,10 @@
+fn:
+  - CommandPermissionSet
+  - CanRunCommand
+  - CanRunCustomCommand
+  - AddCustomCommand
+  - RemoveCustomCommand
+  - AddCommand
+  - RemoveCommand
+  - IsEquivalentTo
+  - GetCommandListLength

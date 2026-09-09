@@ -1,0 +1,5 @@
+fn:
+  - SkipReadCacheChain
+  - GetHashChain
+  - NextInChain
+  - EnumActionKeyIndices

@@ -1,0 +1,9 @@
+fn:
+  - ACLException
+  - ACLParsingException
+  - ACLPasswordException
+  - ACLUnknownOperationException
+  - ACLCategoryDoesNotExistException
+  - ACLUserDoesNotExistException
+  - ACLUserAlreadyExistsException
+  - AclCommandDoesNotExistException

@@ -1,0 +1,13 @@
+fn:
+  - ThrowIfCancelled
+  - ContainsNamespace
+  - EncounteredVectorSet
+  - AddRangeIndexKey
+  - MigrateOperation
+  - InitializeAsync
+  - TransmitSlotsAsync
+  - TransmitKeysAsync
+  - TransmitKeysNamespacesAsync
+  - DeleteKeys
+  - DeleteVectorSet
+  - DeleteRangeIndex

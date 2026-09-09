@@ -1,0 +1,18 @@
+fn:
+  - GetKeyHash
+  - TransactionalConsistentReadContext
+  - BeginTransaction
+  - LocksAcquired
+  - EndTransaction
+  - CompareKeyHashes
+  - SortKeyHashes
+  - Lock
+  - TryLock
+  - TryPromoteLock
+  - Unlock
+  - ReadWithPrefetch
+  - CompletePendingWithOutputs
+  - CompletePendingAsync
+  - CompletePendingWithOutputsAsync
+  - ResetModified
+  - IsModified

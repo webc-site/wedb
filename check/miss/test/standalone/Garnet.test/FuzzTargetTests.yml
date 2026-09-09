@@ -1,0 +1,5 @@
+test:
+  - TestsForAllTargets
+  - GarnetEndToEnd
+  - LuaScriptCompilation
+  - RespCommandParsing

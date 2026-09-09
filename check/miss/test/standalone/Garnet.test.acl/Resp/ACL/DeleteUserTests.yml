@@ -1,0 +1,6 @@
+test:
+  - DeleteSingleUser
+  - DeleteMultipleUser
+  - DeleteNonexistingUser
+  - DeleteDefaultUser
+  - DeleteNoUser

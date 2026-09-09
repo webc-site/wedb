@@ -1,0 +1,20 @@
+fn:
+  - GetHashCode64
+  - DoSerialize
+  - WriteType
+  - TestObjectValue
+  - Deserialize
+  - Serialize
+  - InitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - InPlaceWriter
+  - ReadCompletionCallback
+  - RMWCompletionCallback
+  - InitialWriter
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+  - TestLargeObjectValue
+  - TestMultiListObjectValue
+  - CreateValue

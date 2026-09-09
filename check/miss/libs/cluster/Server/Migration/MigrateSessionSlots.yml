@@ -1,0 +1,5 @@
+fn:
+  - ReserveDestinationVectorSetsAsync
+  - MigrateSlotsDriverInlineAsync
+  - CreateAndRunMigrateTasksAsync
+  - ScanStoreTaskAsync

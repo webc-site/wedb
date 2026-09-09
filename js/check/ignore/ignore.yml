@@ -1,0 +1,11 @@
+# C# 通用忽略函数列表
+- ToString
+- GetHashCode
+- Equals
+- Dispose
+- DisposeAsync
+- Finalize
+- MemberwiseClone
+- GetType
+- Setup
+- TearDown

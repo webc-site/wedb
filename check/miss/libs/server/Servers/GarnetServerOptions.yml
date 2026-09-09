@@ -1,0 +1,25 @@
+fn:
+  - GetCheckpointDirectoryName
+  - GetStoreCheckpointDirectory
+  - GetAppendOnlyFileDirectoryName
+  - GetAppendOnlyFileDirectory
+  - GarnetServerOptions
+  - GetSettings
+  - PageSizeBits
+  - SegmentSizeBits
+  - ReadCachePageSizeBits
+  - MemorySizeBits
+  - ValidatedPageSizeBits
+  - MaxInlineKeySizeBytes
+  - MaxInlineValueSizeBytes
+  - GetInitialIORecordSizeBytes
+  - GetAofSettings
+  - GetInitializedDeviceFactory
+  - AofMemorySizeBits
+  - GetBufferPoolMemoryBudgetBytes
+  - ParseSize
+  - AofPageSizeBits
+  - AofSegmentSizeBits
+  - AofSizeLimitSizeBits
+  - ReplicaDisklessSyncFullSyncAofThresholdValue
+  - GetAofDevice

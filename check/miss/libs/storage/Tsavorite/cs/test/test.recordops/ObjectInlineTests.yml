@@ -1,0 +1,17 @@
+fn:
+  - DeleteDirectory
+  - GetOverflowValueSpanByte
+  - InitialUpdater
+  - CopyUpdater
+  - DoUpdater
+  - SetAndVerify
+  - InPlaceWriter
+  - InitialWriter
+  - DoWriter
+  - GetFieldInfo
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+test:
+  - ObjectAsInlineStructUpsertTest
+  - ObjectAsInlineStructRMWTest

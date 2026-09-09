@@ -1,0 +1,17 @@
+fn:
+  - InitializeExpirationStructures
+  - UpdateExpirationSize
+  - UpdateSize
+  - DoSerialize
+  - DeleteExpiredItems
+  - Operate
+  - CleanupExpirationStructuresIfEmpty
+  - IsExpired
+  - DeleteExpiredItemsWorker
+  - Remove
+  - Count
+  - ContainsKey
+  - SetExpiration
+  - Persist
+  - GetExpiration
+  - ElementAt

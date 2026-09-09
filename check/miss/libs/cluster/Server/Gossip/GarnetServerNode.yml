@@ -1,0 +1,13 @@
+fn:
+  - GetClientTimeoutMilliseconds
+  - GarnetServerNode
+  - ResetCts
+  - InitializeAsync
+  - UpdateGossipSend
+  - UpdateGossipRecv
+  - GetMostRecentConfig
+  - GossipAsync
+  - TryMeetAsync
+  - TryGossip
+  - GetConnectionInfo
+  - TryClusterPublish

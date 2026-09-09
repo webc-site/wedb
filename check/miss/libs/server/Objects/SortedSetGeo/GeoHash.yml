@@ -1,0 +1,17 @@
+fn:
+  - GeoToLongValue
+  - Quantize
+  - GetCoordinatesFromLong
+  - Dequantize
+  - MortonEncode
+  - Spread
+  - MortonDecode
+  - Squash
+  - GetGeoHashCode
+  - Distance
+  - DegreesToRadians
+  - IsPointWithinRadius
+  - GetDistanceWhenInRectangle
+  - GetGeoErrorByPrecision
+  - ConvertValueToMeters
+  - ConvertMetersToUnits

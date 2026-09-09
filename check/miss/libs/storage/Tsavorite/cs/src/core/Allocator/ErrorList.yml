@@ -1,0 +1,5 @@
+fn:
+  - ErrorList
+  - GetEarliestError
+  - ClearError
+  - TruncateUntil

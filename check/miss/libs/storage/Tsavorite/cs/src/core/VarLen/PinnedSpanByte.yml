@@ -1,0 +1,11 @@
+fn:
+  - Invalidate
+  - ReadOnlySpan
+  - AsReadOnlySpan
+  - AsSpan
+  - ToArray
+  - FromPinnedSpan
+  - FromPinnedPointer
+  - FromLengthPrefixedPinnedPointer
+  - SerializeTo
+  - CopyTo

@@ -1,0 +1,20 @@
+fn:
+  - GetReplayContext
+  - InitializeReplayContext
+  - FuzzyRegionBufferCount
+  - ClearFuzzyRegionBuffer
+  - AddFuzzyRegionOperation
+  - AddOrReplayTransactionOperation
+  - UpdateMaxSequenceNumberFromHeader
+  - ProcessTransactionGroup
+  - ClearSessionTxn
+  - ProcessFuzzyRegionOperations
+  - ProcessFuzzyRegionTransactionGroup
+  - ProcessTransactionGroupOperations
+  - SaveTransactionGroupKeysToLock
+  - ProcessSynchronizedOperation
+  - ReplayStoredProc
+  - StoredProcRunnerBase
+  - StoredProcRunnerWrapper
+  - GetBarrier
+  - TryRemoveBarrier

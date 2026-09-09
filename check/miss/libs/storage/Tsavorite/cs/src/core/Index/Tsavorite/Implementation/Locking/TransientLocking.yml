@@ -1,0 +1,7 @@
+fn:
+  - TryEphemeralXLock
+  - EphemeralXUnlock
+  - TryEphemeralSLock
+  - EphemeralSUnlock
+  - LockForScan
+  - UnlockForScan

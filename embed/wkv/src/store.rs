@@ -5,7 +5,7 @@ use std::{
   process,
   sync::{
     Arc, OnceLock,
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicU64, AtomicUsize, Ordering},
   },
 };
 
@@ -49,6 +49,21 @@ pub type WriteListenerFn = Arc<dyn Fn(&[u8], &[u8], bool) + Send + Sync>;
 /// 回调位于写入热路径，实现必须无阻塞、无系统调用、绝不 panic
 /// （release 下 panic=abort 等价进程崩溃）。
 pub type RangeIndexListenerFn = Arc<dyn Fn(&[u8], &[u8], &[u8], bool) + Send + Sync>;
+
+/// TTL 过期物理清除监听回调端口
+///
+/// 参数为 `(ns, db, 用户键, expire_at_ms)`：purge 链（TTL 记录 + 数据双删）成功
+/// 完成后同栈触发恰好一次，宿主（AOF 适配器）据此把整次过期清除折叠为
+/// **单条**确定性逻辑条目入 WAL——对标 Garnet `InputHeader` 的
+/// `RespInputFlags.Deterministic` 携带绝对过期时间的单条目语义（见
+/// libs/server/Storage/Functions/MainStore/PrivateMethods.cs 的 WriteLogRMW），
+/// 副本重放零漂移且流内条目数最小。
+///
+/// 端口在场时 purge 链内两条物理墓碑不再经 [`WriteListenerFn`] 镜像（会话级
+/// 精确抑制，见 [`Self::purge_suppress`]）；未注册时保持现状两条物理条目
+/// （嵌入式无 AOF 场景行为不变）。回调位于清除路径，实现必须无阻塞、
+/// 无系统调用、绝不 panic（release 下 panic=abort 等价进程崩溃）。
+pub type TtlPurgeListenerFn = Arc<dyn Fn(u64, u64, &[u8], u64) + Send + Sync>;
 
 /// 创建集合版本映射字典
 #[inline]
@@ -115,6 +130,19 @@ pub struct WedbStore<D: Device> {
   write_listener: OnceLock<WriteListenerFn>,
   /// RangeIndex 写监听端口（宿主经 [`Self::set_range_listener`] 注入）
   range_listener: OnceLock<RangeIndexListenerFn>,
+  /// TTL 过期物理清除监听端口（宿主经 [`Self::set_ttl_purge_listener`] 注入；
+  /// 端口在场即视为 purge 链的"AOF 适配器在场"）
+  ttl_purge_listener: OnceLock<TtlPurgeListenerFn>,
+  /// purge 链物理写镜像抑制槽：存放正处于 purge 链中的会话身份
+  /// （&StoreSession 裸地址，0 = 无）。
+  ///
+  /// 会话级精确抑制不变式：[`crate::session::StoreSession`] 的写监听通知
+  /// 仅当自身地址与本槽相等时跳过——purge_expired 窗口内本会话的 TTL 记录
+  /// 与数据两条物理墓碑不再镜像；其他会话（含并发同键写、内置 GC 会话）
+  /// 的写镜像绝不受影响。守卫以 save/restore 兜底（见 ttl::PurgeNotifyGuard），
+  /// panic/早退路径不残留；同一活跃会话地址唯一（守卫存活期会话必被借用），
+  /// 不存在地址复用误抑制。
+  pub(crate) purge_suppress: AtomicUsize,
   /// 内部创建的 RangeIndex 临时根目录（若非用户显式配置则在 Drop 时自动清理闭环）
   temp_range_index_dir: Option<PathBuf>,
   /// 内部创建的 BfTree 临时数据文件（若非用户显式配置则在 Drop 时自动清理闭环）
@@ -267,6 +295,8 @@ impl<D: Device> WedbStore<D> {
       gc_cfg,
       write_listener: OnceLock::new(),
       range_listener: OnceLock::new(),
+      ttl_purge_listener: OnceLock::new(),
+      purge_suppress: AtomicUsize::new(0),
       temp_range_index_dir,
       temp_bftree_path,
       keyspace_scan_session: Mutex::new(None),
@@ -334,6 +364,8 @@ impl<D: Device> WedbStore<D> {
       gc_cfg,
       write_listener: OnceLock::new(),
       range_listener: OnceLock::new(),
+      ttl_purge_listener: OnceLock::new(),
+      purge_suppress: AtomicUsize::new(0),
       temp_range_index_dir,
       temp_bftree_path,
       keyspace_scan_session: Mutex::new(None),
@@ -390,6 +422,8 @@ impl<D: Device> WedbStore<D> {
       gc_cfg,
       write_listener: OnceLock::new(),
       range_listener: OnceLock::new(),
+      ttl_purge_listener: OnceLock::new(),
+      purge_suppress: AtomicUsize::new(0),
       temp_range_index_dir,
       temp_bftree_path: None,
       keyspace_scan_session: Mutex::new(None),
@@ -520,6 +554,20 @@ impl<D: Device> WedbStore<D> {
   #[inline]
   pub(crate) fn range_listener(&self) -> Option<&RangeIndexListenerFn> {
     self.range_listener.get()
+  }
+
+  /// 注入 TTL 过期物理清除监听端口（重复注入返回 false）
+  ///
+  /// 端口注册后 purge 链即进入"单条确定性逻辑条目"模式：物理墓碑镜像抑制 +
+  /// 清除完成后触发一次回调，语义详见 [`TtlPurgeListenerFn`]
+  pub fn set_ttl_purge_listener(&self, listener: TtlPurgeListenerFn) -> bool {
+    self.ttl_purge_listener.set(listener).is_ok()
+  }
+
+  /// 读取 TTL 过期物理清除监听端口
+  #[inline]
+  pub(crate) fn ttl_purge_listener(&self) -> Option<&TtlPurgeListenerFn> {
+    self.ttl_purge_listener.get()
   }
 
   /// 获取内置 GC 后台循环句柄（未启动返回 None）

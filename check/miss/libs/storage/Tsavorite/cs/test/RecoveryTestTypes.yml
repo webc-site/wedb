@@ -1,0 +1,6 @@
+fn:
+  - GetHashCode64
+  - InitialUpdater
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo

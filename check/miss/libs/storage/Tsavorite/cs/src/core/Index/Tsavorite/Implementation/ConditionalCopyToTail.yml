@@ -1,0 +1,3 @@
+fn:
+  - EphemeralSUnlock
+  - PrepareIOForConditionalOperation

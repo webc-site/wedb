@@ -1,0 +1,22 @@
+fn:
+  - SortedSetObject
+  - UpdateSize
+  - InitializeExpirationStructures
+  - UpdateExpirationSize
+  - DoSerialize
+  - DeleteExpiredItems
+  - Operate
+  - CopyDiff
+  - InPlaceDiff
+  - TryGetScore
+  - Count
+  - IsExpired
+  - HasExpirableItems
+  - CleanupExpirationStructuresIfEmpty
+  - DeleteExpiredItemsWorker
+  - SetExpiration
+  - Persist
+  - TryRemoveExpiration
+  - TryRemoveExpirationWorker
+  - GetExpiration
+  - ElementAt

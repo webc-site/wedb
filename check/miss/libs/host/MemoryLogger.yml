@@ -1,0 +1,6 @@
+fn:
+  - BeginScope
+  - IsEnabled
+  - FlushLogger
+  - CreateLogger
+  - AddMemory

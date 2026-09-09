@@ -1,0 +1,18 @@
+fn:
+  - GetAsyncEnumerable
+  - ConsumeAllAsync
+  - BulkConsumeAllAsync
+  - WaitAsync
+  - SlowWaitAsync
+  - when
+  - SlowWaitUncommittedAsync
+  - TryConsumeNext
+  - TryBulkConsumeNext
+  - UnsafeGetNext
+  - UnsafeRelease
+  - AsyncReadPageFromDeviceToFrame
+  - AsyncReadPagesToFrameCallback
+  - Align
+  - ScanForwardForCommit
+  - GetNextInternal
+  - ExpandGetNextInternal

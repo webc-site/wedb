@@ -1,0 +1,6 @@
+fn:
+  - AsyncCountDown
+  - Remove
+  - TryCompleteAwaitingTask
+  - WaitUntilEmptyAsync
+  - GetOrCreateTaskCompletionSource

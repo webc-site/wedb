@@ -1,0 +1,6 @@
+fn:
+  - EmbeddedNetworkHandler
+  - IsLocalConnection
+  - DisposeImpl
+  - TryClose
+  - OnNetworkReceiveWithoutTLS

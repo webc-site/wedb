@@ -1,0 +1,8 @@
+fn:
+  - PinnedMemoryStream
+  - ValidateBufferArguments
+  - ReadByte
+  - Seek
+  - SetLength
+  - Write
+  - WriteByte

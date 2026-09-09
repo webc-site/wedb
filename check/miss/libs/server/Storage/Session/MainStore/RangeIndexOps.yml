@@ -1,0 +1,8 @@
+fn:
+  - CompletePendingForSession
+  - PromoteRangeIndexToTail
+  - RestoreRangeIndexStub
+  - WriteScanToOutput
+  - TryWriteRecordResp
+  - BackfillArrayHeader
+  - ExtractTreePtr

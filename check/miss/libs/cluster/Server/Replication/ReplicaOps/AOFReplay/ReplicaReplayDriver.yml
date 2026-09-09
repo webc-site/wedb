@@ -1,0 +1,15 @@
+fn:
+  - ResumeReplay
+  - SuspendReplay
+  - ReplicaReplayDriver
+  - Consume
+  - ConsumeDirect
+  - ConsumeSchedulePage
+  - ValidateSublogIndex
+  - Throttle
+  - TryApplyPendingPulse
+  - SignalTimeAdvance
+  - ApplyPulse
+  - InitializeBackgroundReplayTask
+  - BackgroundReplayTaskAsync
+  - ThrottlePrimary

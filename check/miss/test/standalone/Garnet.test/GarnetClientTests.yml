@@ -1,0 +1,30 @@
+fn:
+  - WaitAndReset
+  - ReadValuesMGet
+  - SimpleMemoryResultArrayCallback
+  - SimpleStringArrayCallback
+  - IsLocalConnection
+  - DisposeNetworkSender
+  - Enter
+  - EnterAndGetResponseObject
+  - Exit
+  - ExitAndReturnResponseObject
+  - GetResponseObject
+  - ReturnResponseObject
+  - SendCallback
+  - SendResponse
+  - Throttle
+  - TryClose
+test:
+  - SetGetWithCallback
+  - SimpleMetricsTest
+  - SimpleStringArrayTest
+  - SimpleNoArgsTest
+  - SimpleIncrTest
+  - SimpleDecrTest
+  - CanUseSetNxStringResultAsync
+  - ShouldNotThrowExceptionForEmptyArrayResponseAsync
+  - CanUseMGetTests
+  - CanDoBulkDeleteTests
+  - MultipleSocketPing
+  - AsyncFlushPagesSignalsFlushEventOnSendFailure

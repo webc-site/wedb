@@ -1,0 +1,13 @@
+fn:
+  - StartServer
+  - ParseCommandStatField
+  - ParseCommandStatFieldString
+test:
+  - CommandStatsDisabledByDefaultTest
+  - CommandStatsCallsTrackingTest
+  - CommandStatsFailedCallsTest
+  - CommandStatsUsecFieldsZeroTest
+  - CommandStatsMultipleCommandsTest
+  - CommandStatsSuccessRateTest
+  - CommandStatsInfoServerShowsMonitorStatus
+  - CommandStatsFormatMatchesRedisConvention

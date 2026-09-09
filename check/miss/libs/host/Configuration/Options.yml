@@ -1,0 +1,7 @@
+fn:
+  - IsValid
+  - GetServerOptions
+  - GetDeviceType
+  - GetAuthenticationSettings
+  - GetFastAofTruncate
+  - InvalidAzureConfiguration

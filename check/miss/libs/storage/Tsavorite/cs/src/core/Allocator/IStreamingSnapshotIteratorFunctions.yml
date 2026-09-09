@@ -1,0 +1,4 @@
+fn:
+  - OnStart
+  - OnStop
+  - OnException

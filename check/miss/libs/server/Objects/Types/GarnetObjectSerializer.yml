@@ -1,0 +1,7 @@
+fn:
+  - GarnetObjectSerializer
+  - Deserialize
+  - DeserializeInternal
+  - CustomDeserialize
+  - Serialize
+  - SerializeInternal

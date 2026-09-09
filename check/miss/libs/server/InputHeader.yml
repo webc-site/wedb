@@ -1,0 +1,14 @@
+fn:
+  - RespInputHeader
+  - SetHeader
+  - SetExpiredFlag
+  - SetSetGetFlag
+  - CheckExpiry
+  - CheckSetGetFlag
+  - ObjectInput
+  - CopyTo
+  - DeserializeFrom
+  - StringInput
+  - UnifiedInput
+  - CustomProcedureInput
+  - VectorInput

@@ -1,0 +1,15 @@
+fn:
+  - HandleEtagInPlaceUpdateWorker
+  - HandleDelIfGreaterInPlaceUpdate
+  - HandleSetIfMatchInPlaceUpdate
+  - CopyRespWithEtagData
+  - WriteValAndEtagToDst
+  - HandleSetWithEtagInPlaceUpdate
+  - HandleEtagNeedCopyUpdate
+  - HandleDelIfGreaterNeedCopyUpdate
+  - HandleSetIfMatchNeedCopyUpdate
+  - HandleSetIfMatchInitialUpdate
+  - HandleSetWithEtagInitialUpdate
+  - HandleEtagCopyUpdateWorker
+  - HandleSetIfMatchCopyUpdate
+  - HandleSetWithEtagCopyUpdate

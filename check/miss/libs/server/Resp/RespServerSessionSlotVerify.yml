@@ -1,0 +1,4 @@
+fn:
+  - CanServeSlot
+  - CanServeSlotForCustomCommand
+  - CanServeSlotNoResponse

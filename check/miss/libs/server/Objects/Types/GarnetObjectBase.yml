@@ -1,0 +1,6 @@
+fn:
+  - GarnetObjectBase
+  - Operate
+  - DoSerialize
+  - WriteType
+  - ReadScanInput

@@ -1,0 +1,9 @@
+fn:
+  - TryImportOptions
+  - TryExportOptions
+  - TrySerializeOptions
+  - TryDeserializeOptions
+  - GetConfigProvider
+  - GarnetConfigProvider
+  - RedisConfigProvider
+  - CompactOptionsJsonConverter

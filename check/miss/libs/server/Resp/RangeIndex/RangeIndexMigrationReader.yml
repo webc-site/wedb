@@ -1,0 +1,5 @@
+fn:
+  - ReadNextChunkAsync
+  - ValidateDestination
+  - SupplyFileDataOrThrow
+  - ReadNextChunk

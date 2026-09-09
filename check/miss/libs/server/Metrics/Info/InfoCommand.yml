@@ -1,0 +1,5 @@
+fn:
+  - NetworkINFO
+  - SendAndReset
+  - GetHelpMessage
+  - WriteLargeVerbatimString

@@ -1,0 +1,5 @@
+fn:
+  - HasKey
+  - HasChunkValue
+  - HasChunkInput
+  - HasChunkObjectValue

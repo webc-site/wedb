@@ -1,0 +1,5 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+test:
+  - ForceRCUAndRecover

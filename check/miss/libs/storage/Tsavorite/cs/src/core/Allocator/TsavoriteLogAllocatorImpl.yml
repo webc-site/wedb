@@ -1,0 +1,16 @@
+fn:
+  - TsavoriteLogAllocatorImpl
+  - FreeAllAllocatedPages
+  - FreePage
+  - AllocatePage
+  - IncrementAllocatedPageCount
+  - AllocatePinnedPageArray
+  - ReturnPage
+  - FreeNativeLogPage
+  - WriteInlinePageAsync
+  - WriteAsyncToDeviceForSnapshot
+  - VerifyCompatibleSectorSize
+  - VerifyRecordFromDiskCallback
+  - ScanCursor
+  - MemoryPageScan
+  - AsyncReadPageFromDeviceToFrame

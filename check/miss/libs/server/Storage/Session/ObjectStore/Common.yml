@@ -1,0 +1,20 @@
+fn:
+  - RMWObjectStoreOperation
+  - ThrowObjectStoreUninitializedException
+  - ReadObjectStoreOperation
+  - ObjectScan
+  - ProcessRespArrayOutput
+  - ProcessResp2ArrayOutput
+  - CopyPinnedSpanByteArrayToScratchBuffer
+  - ProcessResp3ArrayOutput
+  - IsSupportedArrayType
+  - ProcessRespIntegerArrayOutput
+  - ProcessRespInt64ArrayOutput
+  - CopyPinnedSpanBytePairsToScratchBuffer
+  - ProcessRespArrayOutputAsPairs
+  - ProcessRespSingleTokenOutput
+  - TryProcessRespSimple64IntOutput
+  - DELETE_ObjectStore
+  - CompletePendingAndGetGarnetStatus
+  - CompletePendingForObjectStoreSession
+  - ObjectCollect

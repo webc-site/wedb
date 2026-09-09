@@ -1,0 +1,8 @@
+fn:
+  - IsBetween
+  - ToLower
+  - ToUpper
+  - ToUpperInPlace
+  - ToLowerInPlace
+  - EqualsUpperCaseSpanIgnoringCase
+  - EqualsLowerCaseSpanIgnoringCase

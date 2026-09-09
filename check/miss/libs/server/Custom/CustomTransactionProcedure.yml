@@ -1,0 +1,6 @@
+fn:
+  - AddKey
+  - RewindScratchBuffer
+  - CreateArgSlice
+  - Prepare
+  - Main

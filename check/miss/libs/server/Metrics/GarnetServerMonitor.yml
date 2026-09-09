@@ -1,0 +1,12 @@
+fn:
+  - GarnetServerMonitor
+  - Start
+  - AddMetricsHistorySessionDispose
+  - GetAllLocksets
+  - UpdateInstantaneousMetrics
+  - AddCurrentServerStats
+  - CleanupGlobalStats
+  - CleanupGlobalLatencyMetrics
+  - MainMonitorTaskAsync
+  - ResetLatencySessionMetrics
+  - ResetAndAddGlobalHistory

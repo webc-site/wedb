@@ -1,0 +1,16 @@
+fn:
+  - ProcessAofRecordInternal
+  - ReplayOpDispatch
+  - ReplayOp
+  - ShouldSkipRecord
+  - BufferNewVersionRecord
+  - StoreUpsert
+  - StoreRMW
+  - StoreDelete
+  - ObjectStoreUpsert
+  - ObjectStoreRMW
+  - ObjectStoreDelete
+  - UnifiedStoreStringUpsert
+  - UnifiedStoreRMW
+  - UnifiedStoreObjectUpsert
+  - UnifiedStoreDelete

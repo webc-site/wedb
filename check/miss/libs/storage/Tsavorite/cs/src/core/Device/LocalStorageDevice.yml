@@ -1,0 +1,11 @@
+fn:
+  - bstr
+  - _callback
+  - Throttle
+  - RemoveSegmentAsync
+  - TryComplete
+  - CreateHandle
+  - SetFileSize
+  - GetSegmentName
+  - GetOrAddHandle
+  - Start

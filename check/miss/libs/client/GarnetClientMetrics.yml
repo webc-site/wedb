@@ -1,0 +1,7 @@
+fn:
+  - ResetLatencyHistogram
+  - GetPercentiles
+  - GetLatencyPercentiles
+  - GetLatencyMetrics
+  - DumpLatencyHistToConsole
+  - GetOutstandingRequestsMetrics

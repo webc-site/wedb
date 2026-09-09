@@ -1,0 +1,7 @@
+fn:
+  - IsRunning
+  - IsRegistered
+  - RegisterAndRun
+  - WrapWithCleanupAsync
+  - CancelAsync
+  - WaitAsync

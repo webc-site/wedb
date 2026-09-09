@@ -1,0 +1,5 @@
+fn:
+  - SimpleStack
+  - ExtendStackBuffer
+  - Peek
+  - Pop

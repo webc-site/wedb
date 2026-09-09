@@ -1,0 +1,12 @@
+fn:
+  - TryAddSlots
+  - FlushConfig
+  - TryRemoveSlots
+  - TryPrepareSlotForMigration
+  - TryPrepareSlotsForMigration
+  - TryPrepareSlotForImport
+  - TryPrepareSlotsForImport
+  - TryPrepareSlotForOwnershipChange
+  - TryPrepareSlotsForOwnershipChange
+  - TryResetSlotState
+  - DeleteKeysInSlots

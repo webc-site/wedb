@@ -1,0 +1,5 @@
+test:
+  - PageBlobTsavoriteLogTest1
+  - PageBlobTsavoriteLogTestWithLease
+  - BasicHighLatencyDeviceTest
+  - LocalMemoryDeviceReentrantWriteDoesNotDeadlock

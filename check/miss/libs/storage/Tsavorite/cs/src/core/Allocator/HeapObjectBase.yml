@@ -1,0 +1,7 @@
+fn:
+  - DoSerialize
+  - MakeTransition
+  - WriteType
+  - Serialize
+  - CacheSerializedObjectData
+  - ClearSerializedObjectData

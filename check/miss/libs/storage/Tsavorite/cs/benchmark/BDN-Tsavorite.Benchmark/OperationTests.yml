@@ -1,0 +1,9 @@
+fn:
+  - SetupStore
+  - PopulateStore
+  - SetupPopulatedStore
+  - Insert
+  - InPlaceWriter
+  - InitialWriter
+  - InitialUpdater
+  - CopyUpdater

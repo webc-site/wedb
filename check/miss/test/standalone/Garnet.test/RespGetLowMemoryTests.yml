@@ -1,0 +1,6 @@
+test:
+  - ScatterGatherGet
+  - ScatterGatherMixedGetSetPipeline
+  - ScatterGatherMixedGetTtlPipeline
+  - ScatterGatherMGet
+  - MGetOnDiskCompletesWithoutScatterGatherFlag

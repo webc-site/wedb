@@ -1,0 +1,5 @@
+fn:
+  - WriteLogUpsert
+  - WriteLogDelete
+  - EvaluateExpireCopyUpdate
+  - EvaluateExpireInPlace

@@ -1,0 +1,4 @@
+fn:
+  - TsavoriteException
+  - TsavoriteIOException
+  - TsavoriteNoHybridLogException

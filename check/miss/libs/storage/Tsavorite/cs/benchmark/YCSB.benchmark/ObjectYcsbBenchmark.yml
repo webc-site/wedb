@@ -1,0 +1,8 @@
+fn:
+  - ObjectYcsbBenchmark
+  - RunYcsbUnsafeContext
+  - RunYcsbSafeContext
+  - Run
+  - SetupYcsbUnsafeContext
+  - SetupYcsbSafeContext
+  - CreateKeyVectors

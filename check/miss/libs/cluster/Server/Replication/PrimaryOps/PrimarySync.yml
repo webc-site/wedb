@@ -1,0 +1,4 @@
+fn:
+  - TryBeginDisklessSyncAsync
+  - TryBeginDiskbasedSyncAsync
+  - ReplicaSyncSessionBackgroundTaskAsync

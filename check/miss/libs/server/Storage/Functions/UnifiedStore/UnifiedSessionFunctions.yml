@@ -1,0 +1,7 @@
+fn:
+  - UnifiedSessionFunctions
+  - ConvertOutputToHeap
+  - PreSingleKeyConsistentRead
+  - PostSingleKeyConsistentReadCallback
+  - PreBatchKeyConsistentReadCallback
+  - PostBatchKeyConsistentReadCallback

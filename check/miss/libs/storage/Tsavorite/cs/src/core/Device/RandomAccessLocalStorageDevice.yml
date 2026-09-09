@@ -1,0 +1,17 @@
+fn:
+  - SegmentHandles
+  - GetOrCreate
+  - bstr
+  - DrainPendingIO
+  - Throttle
+  - ReadWorkerAsync
+  - WriteWorkerAsync
+  - RentUmm
+  - RemoveSegmentAsync
+  - GetSegmentName
+  - CreateReadHandle
+  - CreateWriteHandle
+  - SetFileSize
+  - TryOpenDirectHandle
+  - AddHandle
+  - GetOrAddHandle

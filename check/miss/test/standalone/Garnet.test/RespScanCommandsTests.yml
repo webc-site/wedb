@@ -1,0 +1,25 @@
+fn:
+  - ScanOptionKeywordAsLastTokenReturnsSyntaxError
+  - ScanWithCompleteOptionsReturnsCursorAndItems
+test:
+  - SeDbsizeTest
+  - SeKeysTest
+  - SeKeysCursorTest
+  - SeKeysNoDuplicatesUnderRcu
+  - CanDoMemoryUsage
+  - CanGetKeyType
+  - CanUsePatternsInKeysTest
+  - SeKeysPatternTest
+  - SeKeysPatternMatchingTest
+  - SeKeysPatternMatchingTestVerbatim
+  - CanUseScanWithEmptyStore
+  - CanUseScanWithMatch
+  - CanUseScanAllKeys
+  - CanUseScanKeysWithCount
+  - CanUseScanKeysWithMatchAndCount
+  - CanUseScanKeysCountAndStringType
+  - CanUseScanKeysCountAndTypeWithObjects
+  - CanUseScanKeysAndObjects
+  - CanUseScanKeysTypeAndMatch
+  - CustomObjectScanCommandTest
+  - CanUsePatternsInKeysTestLC

@@ -1,0 +1,13 @@
+fn:
+  - LightClient
+  - Authenticate
+  - CompletePendingRequests
+  - Connect
+  - ConnectSendSocket
+  - ConnectSendSocketAsync
+  - TryConnectSocket
+  - TryConnectSocketAsync
+  - DefaultLightReceiveUnsafe
+  - TryCreateMessageConsumer
+  - DisposeMessageConsumer
+  - TryConsumeMessages

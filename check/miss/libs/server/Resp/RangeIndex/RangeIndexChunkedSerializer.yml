@@ -1,0 +1,4 @@
+fn:
+  - SupplyFileData
+  - MoveNext
+  - WriteTrailer

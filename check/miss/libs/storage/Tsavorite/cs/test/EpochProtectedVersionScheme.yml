@@ -1,0 +1,26 @@
+fn:
+  - IsIntermediate
+  - IsError
+  - Make
+  - MakeIntermediate
+  - RemoveIntermediate
+  - Equal
+  - VersionSchemeStateMachine
+  - ToVersion
+  - GetNextStep
+  - OnEnteringState
+  - AfterEnteringState
+  - SimpleVersionSchemeStateMachine
+  - criticalSection
+  - EpochProtectedVersionScheme
+  - CurrentState
+  - MakeTransition
+  - Enter
+  - TryStepStateMachine
+  - Leave
+  - StepMachineHeavy
+  - SignalStepAvailable
+  - TryExecuteStateMachine
+  - ExecuteStateMachine
+  - TryAdvanceVersionWithCriticalSection
+  - AdvanceVersionWithCriticalSection

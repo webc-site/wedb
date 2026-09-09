@@ -1,0 +1,8 @@
+fn:
+  - LongConcurrentHistogram
+  - GetCountAtIndex
+  - SetCountAtIndex
+  - IncrementCountAtIndex
+  - AddToCountAtIndex
+  - ClearCounts
+  - CopyCountsInto

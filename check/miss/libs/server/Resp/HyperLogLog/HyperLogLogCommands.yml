@@ -1,0 +1,5 @@
+fn:
+  - HyperLogLogAdd
+  - SendAndReset
+  - HyperLogLogLength
+  - HyperLogLogMerge

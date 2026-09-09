@@ -1,0 +1,10 @@
+fn:
+  - StreamActivity
+  - StartActivity
+  - OnFileLength
+  - OnChunkEnqueued
+  - OnError
+  - EndAndLog
+  - ReassemblyActivity
+  - OnChunkReceived
+  - OnPublishResult

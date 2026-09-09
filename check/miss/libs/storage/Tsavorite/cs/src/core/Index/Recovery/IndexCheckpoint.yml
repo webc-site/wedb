@@ -1,0 +1,13 @@
+fn:
+  - TakeIndexFuzzyCheckpoint
+  - BeginMainIndexCheckpoint
+  - IsIndexFuzzyCheckpointCompleted
+  - AddIndexCheckpointWaitingList
+  - IsIndexFuzzyCheckpointCompletedAsync
+  - BeginNativeIndexCheckpointIo
+  - FlushRunner
+  - EndNativeIndexCheckpointIo
+  - skipReadCache
+  - IsMainIndexCheckpointCompleted
+  - IsMainIndexCheckpointCompletedAsync
+  - AsyncPageFlushCallback

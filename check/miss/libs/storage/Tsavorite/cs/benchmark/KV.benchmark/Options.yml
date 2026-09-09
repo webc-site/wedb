@@ -1,0 +1,10 @@
+fn:
+  - Resolve
+  - SizeForKey
+  - ClampToRam
+  - TryGetAvailableRamBytes
+  - PreviousPow2
+  - ParseDeviceType
+  - ParseIoBackend
+  - IsKnownDeviceName
+  - IsKnownIoBackendName

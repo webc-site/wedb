@@ -1,0 +1,4 @@
+fn:
+  - SimpleObjectPool
+  - ThrowDisposed
+  - Checkout

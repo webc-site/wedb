@@ -1,0 +1,13 @@
+fn:
+  - VirtualSublogReplayState
+  - GetSketchSlot
+  - GetFrontierSequenceNumber
+  - GetKeySequenceNumber
+  - PrefetchKeySequenceNumber
+  - UpdateMaxSequenceNumber
+  - SignalWaiters
+  - UpdateKeySequenceNumber
+  - UpdateMinWaiterTarget
+  - WaitForSequenceNumber
+  - InsertWaiter
+  - RemoveWaiter

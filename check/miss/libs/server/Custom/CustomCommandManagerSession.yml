@@ -1,0 +1,11 @@
+fn:
+  - CustomCommandManagerSession
+  - GetCustomProcedure
+  - GetCustomTransactionProcedure
+  - TryGetCustomCommandInfo
+  - TryGetCustomCommandDocs
+  - GetAllCustomCommandsInfos
+  - GetAllCustomCommandsDocs
+  - GetCustomCommandInfoCount
+  - GetCustomRespCommand
+  - GetCustomGarnetObjectType

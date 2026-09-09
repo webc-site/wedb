@@ -1,0 +1,17 @@
+fn:
+  - SetUpWithLowMemory
+  - updateKey
+test:
+  - TxnSetTest
+  - TxnExecuteTest
+  - TxnGetTest
+  - TxnGetSetTest
+  - TxnHExpireTest
+  - LargeTxn
+  - LargeTxnWatch
+  - TxnCommandCoverage
+  - SimpleWatchTest
+  - WatchTestWithSetWithEtag
+  - WatchNonExistentKey
+  - WatchKeyFromDisk
+  - WatchFailsWhenListEmptiedByLPop

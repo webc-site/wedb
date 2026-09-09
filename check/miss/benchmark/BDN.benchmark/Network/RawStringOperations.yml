@@ -1,0 +1,11 @@
+fn:
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - SetEx
+  - SetNx
+  - SetXx
+  - GetFound
+  - GetNotFound
+  - IncrementBy
+  - DecrementBy

@@ -1,0 +1,9 @@
+fn:
+  - LibcOpen
+  - LibcClose
+  - OpenDirect
+  - IsDirectIOSupported
+  - OpenWithFlags
+  - OpenWithFlagsOrNull
+  - OpenSyscall
+  - GetErrnoName

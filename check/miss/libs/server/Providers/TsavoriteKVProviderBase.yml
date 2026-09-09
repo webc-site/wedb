@@ -1,0 +1,3 @@
+fn:
+  - TsavoriteKVProviderBase
+  - GetSession

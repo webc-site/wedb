@@ -1,0 +1,17 @@
+fn:
+  - VectorReadBatch
+  - AdvanceTo
+  - SlowPath
+  - GetKey
+  - GetInput
+  - GetOutput
+  - SetOutput
+  - SetActiveReadGeometry
+  - ReadCallbackUnmanaged
+  - StoreContextInNamespace
+  - WriteCallbackUnmanaged
+  - DeleteCallbackUnmanaged
+  - ReadModifyWriteCallbackUnmanaged
+  - FilterCallbackUnmanaged
+  - ReadSizeUnknown
+  - MakeVectorElementKey

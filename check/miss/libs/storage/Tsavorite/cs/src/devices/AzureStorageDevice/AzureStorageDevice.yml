@@ -1,0 +1,15 @@
+fn:
+  - AzureStorageDevice
+  - StartAsync
+  - GetSegmentBlobName
+  - DetectHangs
+  - CancelAllRequests
+  - RemoveSegmentAsync
+  - DeleteAsync
+  - TryReadAsync
+  - ReadFromBlobAsync
+  - TryWriteAsync
+  - WritePortionToBlobUnsafeAsync
+  - WritePortionToBlobAsync
+  - ReadFromBlobUnsafeAsync
+  - WriteToBlobAsync

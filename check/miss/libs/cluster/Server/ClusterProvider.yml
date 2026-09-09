@@ -1,0 +1,25 @@
+fn:
+  - ClusterProvider
+  - PreventRoleChange
+  - AllowRoleChange
+  - Start
+  - CreateClusterSession
+  - UpdateClusterAuth
+  - IsPrimary
+  - IsReplica
+  - ResetGossipStats
+  - FlushConfig
+  - FlushDB
+  - AddNewCheckpointEntry
+  - SafeTruncateAOF
+  - OnCheckpointInitiated
+  - GetReplicationInfo
+  - GetCheckpointInfo
+  - GetPrimaryInfo
+  - GetReplicaInfo
+  - GetGossipStats
+  - GetBufferPoolStats
+  - PurgeBufferPool
+  - ClusterPublishAsync
+  - BumpAndWaitForEpochTransitionAsync
+  - GetRunId

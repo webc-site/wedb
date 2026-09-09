@@ -1,0 +1,8 @@
+fn:
+  - PooledArrayMemoryPool
+  - Rent
+  - ThrowArgumentOutOfRange
+  - OnPooledBufferDisposed
+  - PooledBuffer
+  - Init
+  - ThrowObjectDisposed

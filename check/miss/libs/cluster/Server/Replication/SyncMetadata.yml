@@ -1,0 +1,4 @@
+fn:
+  - LogSyncMetadata
+  - ToByteArray
+  - FromByteArray

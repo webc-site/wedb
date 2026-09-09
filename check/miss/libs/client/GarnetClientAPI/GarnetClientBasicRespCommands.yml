@@ -1,0 +1,27 @@
+fn:
+  - QuitAsync
+  - ExecuteForStringResultAsync
+  - ExecuteForStringResultWithCancellationAsync
+  - Quit
+  - ExecuteForStringResult
+  - PingAsync
+  - Ping
+  - StringGetAsync
+  - StringGetAsMemoryAsync
+  - ExecuteForMemoryResultAsync
+  - ExecuteForMemoryResultWithCancellationAsync
+  - StringGet
+  - StringGetAsMemory
+  - ExecuteForMemoryResult
+  - ExecuteForStringArrayResult
+  - ExecuteForMemoryResultArray
+  - ExecuteForMemoryResultArrayAsync
+  - ExecuteForStringArrayResultAsync
+  - ExecuteForStringArrayResultWithCancellationAsync
+  - StringSetAsync
+  - StringSet
+  - KeyDeleteAsync
+  - KeyDelete
+  - ExecuteForLongResult
+  - StringIncrement
+  - StringDecrement

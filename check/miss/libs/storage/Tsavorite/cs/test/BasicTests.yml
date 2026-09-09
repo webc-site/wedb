@@ -1,0 +1,24 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+  - AssertCompleted
+  - CompletePendingResult
+  - ReadCompletionCallback
+  - VerifyOutput
+  - VerifyResult
+  - doUpdate
+test:
+  - NativeInMemWriteRead2
+  - NativeInMemRMWKeys
+  - ReadKeyInputOutput
+  - ReadNoRefKey
+  - ReadWithoutInput
+  - ReadBareMinParams
+  - ReadAtAddressDefaultOptions
+  - ReadAtAddressIgnoreReadCache
+  - UpsertDefaultsTest
+  - KVBasicsSampleEndToEndInDocs
+  - LogPathtooLong
+  - LogPathExtendedLengthSupport
+  - BasicSyncOperationsTest
+  - BasicOperationsTest

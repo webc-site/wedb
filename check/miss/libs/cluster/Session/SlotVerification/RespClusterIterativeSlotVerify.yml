@@ -1,0 +1,4 @@
+fn:
+  - ResetCachedSlotVerificationResult
+  - NetworkIterativeSlotVerify
+  - WriteCachedSlotVerificationMessage

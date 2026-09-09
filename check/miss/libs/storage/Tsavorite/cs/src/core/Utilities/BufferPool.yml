@@ -1,0 +1,6 @@
+fn:
+  - GetArrayAndUnalignedOffset
+  - InitOriginReturn
+  - FreeOriginReturn
+  - Print
+  - PrintOriginReturn

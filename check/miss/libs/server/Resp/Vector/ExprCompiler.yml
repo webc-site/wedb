@@ -1,0 +1,11 @@
+fn:
+  - TryCompile
+  - ProcessOperator
+  - IsOperatorSpecialChar
+  - IsSelectorChar
+  - ParseNumber
+  - ParseString
+  - ParseSelector
+  - ParseTuple
+  - ParseOperatorOrLiteral
+  - TryMatchOp

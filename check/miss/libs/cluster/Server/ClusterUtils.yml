@@ -1,0 +1,5 @@
+fn:
+  - ReadDevice
+  - WriteInto
+  - IOCallback
+  - strerror

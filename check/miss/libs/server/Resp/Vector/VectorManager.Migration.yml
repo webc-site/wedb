@@ -1,0 +1,17 @@
+fn:
+  - HandleMigratedElementKey
+  - StoreContextInNamespace
+  - ReplicateMigratedElementKey
+  - HandleMigratedIndexKey
+  - ReadIndex
+  - WaitForDiskANNIndexDrop
+  - UpdateContextMetadata
+  - ReplicateMigratedIndexKey
+  - GetNamespacesForKeys
+  - UpdateMigratedElementNamespaces
+  - DeserializeMigratedElementKey
+  - GetMigratedElementKeySerializationSize
+  - SerializeMigratedElementKey
+  - GetMigratedIndexKeySerializationSize
+  - SerializeMigratedIndexKey
+  - DeserializeMigratedIndexKey

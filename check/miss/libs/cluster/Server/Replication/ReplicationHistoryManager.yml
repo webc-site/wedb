@@ -1,0 +1,13 @@
+fn:
+  - ReplicationHistory
+  - ToByteArray
+  - FromByteArray
+  - UpdateReplicationId
+  - FailoverUpdate
+  - InitializeReplicationHistory
+  - FlushConfig
+  - RecoverReplicationHistory
+  - when
+  - TryUpdateMyPrimaryReplId
+  - TryUpdateForFailover
+  - SetPrimaryReplicationId

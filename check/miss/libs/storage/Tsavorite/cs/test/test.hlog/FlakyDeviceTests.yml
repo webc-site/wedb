@@ -1,0 +1,7 @@
+fn:
+  - BaseSetup
+  - BaseTearDown
+test:
+  - FlakyLogTestCleanFailure
+  - FlakyLogTestConcurrentWriteFailure
+  - FlakyLogTestTolerateFailure

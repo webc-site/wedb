@@ -1,0 +1,9 @@
+fn:
+  - StartPendingMetrics
+  - CompletePendingForUnifiedStoreSession
+  - StopPendingMetrics
+  - incr_session_found
+  - incr_session_notfound
+  - EXISTS
+  - DELIFEXPIM
+  - RENAMENX

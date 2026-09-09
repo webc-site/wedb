@@ -1,0 +1,34 @@
+fn:
+  - CountFlushFiles
+  - ListFlushFiles
+test:
+  - RIEvictionAfterDeleteTest
+  - RIEvictionMultipleIndexesTest
+  - RICreateDeleteRecreateWithEvictionTest
+  - RIDeleteInMutableRegionFreesResourcesTest
+  - RIDeleteInReadOnlyRegionFreesResourcesTest
+  - RIFlushPromotesToTailOnNextAccessTest
+  - RIFlushPromoteThenSecondFlushTest
+  - RIEvictToDiskThenLazyRestoreTest
+  - RICheckpointAndRecoverTest
+  - RIFlushEvictRestoreCheckpointCycleTest
+  - RIMultipleTreesEvictAndRestoreTest
+  - RIFlushPromoteCheckpointRecoverTest
+  - RIDeleteDuringEvictionCycleTest
+  - RIDoubleFlushCycleWithCheckpointTest
+  - RIEvictRestoreAndCheckpointTest
+  - RIExistsOnNormalKeyTest
+  - RIConfigBasicTest
+  - RIConfigWrongTypeTest
+  - RIMetricsBasicTest
+  - RITypeCommandTest
+  - RIConcurrentOpsWithCheckpointTest
+  - RIRecoverThenSecondEvictionUsesFlushSnapshotTest
+  - RIAofOnlyRecoveryTest
+  - RIDiskFileCleanupOnDeleteTest
+  - RIDeletePreservesPerFlushSnapshotFilesTest
+  - RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest
+  - RIFlushFilesAreImmutablePerAddressTest
+  - RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest
+  - RICopyReadsToTailCompatibleTest
+  - RangeIndexManagerKeyExistsTest

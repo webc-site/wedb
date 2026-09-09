@@ -1,0 +1,13 @@
+fn:
+  - SafeTailPageShiftCallback
+  - AofSyncDriverStore
+  - SafeTruncateAof
+  - GetReplicaInfo
+  - PublishShippedAddress
+  - PublishShippedAddresses
+  - TryAddReplicationDriver
+  - TryAddReplicationDrivers
+  - TryRemove
+  - CountConnectedReplicas
+  - UpdateTruncatedUntil
+  - AssertDoesNotExist

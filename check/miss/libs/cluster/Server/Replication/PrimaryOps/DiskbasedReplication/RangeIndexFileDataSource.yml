@@ -1,0 +1,4 @@
+fn:
+  - GetMetadata
+  - SetBuffer
+  - ReadNextChunkAsync

@@ -1,0 +1,14 @@
+fn:
+  - SetReadOnlySession
+  - SetReadWriteSession
+  - AcquireCurrentEpoch
+  - ReleaseCurrentEpoch
+  - ProcessClusterCommands
+  - ResetCachedSlotVerificationResult
+  - NetworkIterativeSlotVerify
+  - WriteCachedSlotVerificationMessage
+  - NetworkMultiKeySlotVerify
+  - NetworkMultiKeySlotVerifyNoResponse
+  - SetUserHandle
+  - UnsafeSetConfig
+  - ProcessPrimaryStream

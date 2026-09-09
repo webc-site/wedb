@@ -1,0 +1,37 @@
+fn:
+  - GetUnitTests
+  - ClusterSRPrimaryCheckpointRetrieve
+  - ClusterDivergentReplicasTest
+  - ClusterReplicate
+  - ExecuteRateLimit
+  - ValidateKeys
+  - RunWorkload
+  - RestartRecover
+test:
+  - ClusterSRTest
+  - ClusterSRNoCheckpointRestartSecondary
+  - ClusterSRPrimaryCheckpointAsync
+  - ClusterCheckpointRetrieveDisableStorageTier
+  - ClusterSRPrimaryCheckpointRetrieve
+  - ClusterSRAddReplicaAfterPrimaryCheckpoint
+  - ClusterSRPrimaryRestart
+  - ClusterSRRedirectWrites
+  - ClusterSRReplicaOfTest
+  - ClusterReplicationSimpleFailover
+  - ClusterFailoverAttachReplicas
+  - ClusterReplicationCheckpointCleanupTest
+  - ClusterMainMemoryReplicationAttachReplicas
+  - ClusterDivergentReplicasTest
+  - ClusterDivergentCheckpointTest
+  - ClusterDivergentReplicasMMTest
+  - ClusterDivergentCheckpointMMTest
+  - ClusterDivergentCheckpointMMFastCommitTest
+  - ClusterReplicationCheckpointAlignmentTestAsync
+  - ClusterReplicationLua
+  - ClusterReplicationStoredProc
+  - ClusterReplicationManualCheckpointingAsync
+  - ReplicaSyncTaskFaultsRecoverAsync
+  - ClusterReplicationMultiRestartRecover
+  - ClusterReplicationDivergentHistoryWithoutCheckpointAsync
+  - ClusterReplicationSimpleTransactionTest
+  - ClusterReplicationHlogSegmentCleanupTest

@@ -1,0 +1,16 @@
+fn:
+  - ParseUptime
+  - GetSectionHeaders
+  - HydrateStore
+  - GetKeyspaceLine
+test:
+  - ResetStatsTest
+  - UptimeIncreasesAcrossInfoCalls
+  - InfoSectionOptionsTest
+  - InfoDefaultMatchesNoArgsTest
+  - InfoAllWithModulesEqualsEverythingTest
+  - InfoHlogScanTest
+  - InfoKeyspaceEmptyDatabaseTest
+  - InfoKeyspaceCountsTest
+  - InfoKeyspaceExpiredKeysNotCountedTest
+  - InfoKeyspaceMultiDatabaseTest

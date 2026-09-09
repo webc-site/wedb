@@ -1,0 +1,10 @@
+fn:
+  - ExpandableMap
+  - TrySetValueByRef
+  - TrySetValue
+  - TryGetFirstId
+  - TryGetNextId
+  - TryUpdateActualSize
+  - TrySetValueUnsafe
+  - MatchCommand
+  - MatchSubCommand

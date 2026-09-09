@@ -1,0 +1,5 @@
+fn:
+  - EnterInfallibleAllocationRegion
+  - TryExitInfallibleAllocationRegion
+  - AllocateNew
+  - ResizeAllocation

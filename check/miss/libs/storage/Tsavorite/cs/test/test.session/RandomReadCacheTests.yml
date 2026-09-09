@@ -1,0 +1,8 @@
+fn:
+  - ReadCompletionCallback
+  - DeleteDirectory
+  - OnTearDown
+  - LocalRead
+  - LocalRun
+test:
+  - RandomReadCacheTest

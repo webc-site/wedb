@@ -1,0 +1,7 @@
+fn:
+  - GetOffsets
+  - IsSet
+  - SetBit
+  - CopyTo
+  - CopyFrom
+  - PopCount

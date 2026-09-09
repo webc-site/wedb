@@ -1,0 +1,7 @@
+fn:
+  - EnumDescriptionAliasAttribute
+  - GetEnumNameToDescription
+  - AddTypeToCache
+  - GetEnumDescriptions
+  - TryParseEnumsFromDescription
+  - TryParseEnumFromDescription

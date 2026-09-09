@@ -1,0 +1,8 @@
+fn:
+  - DirectVmBlockOwner
+  - BeginIo
+  - EndIo
+  - TryDeferFree
+  - TryDrainDeferred
+  - HandOffInstalledBlocks
+  - HandOffDeferredBlocks

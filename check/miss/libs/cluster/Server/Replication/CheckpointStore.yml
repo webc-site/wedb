@@ -1,0 +1,14 @@
+fn:
+  - CheckpointStore
+  - PurgeAllCheckpointsExceptEntry
+  - WaitForReplicas
+  - PurgeAllCheckpointsExceptTokens
+  - AddCheckpointEntry
+  - DeleteOutdatedCheckpoints
+  - ValidateCheckpointEntry
+  - CanDeleteToken
+  - TryGetLatestCheckpointEntryFromMemory
+  - GetLatestCheckpointEntryFromDisk
+  - GetCheckpointCookieMetadata
+  - GetLatestCheckpointFromMemoryInfo
+  - GetLatestCheckpointFromDiskInfo

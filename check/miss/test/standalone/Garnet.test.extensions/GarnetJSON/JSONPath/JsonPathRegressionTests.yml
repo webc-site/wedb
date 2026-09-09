@@ -1,0 +1,4 @@
+fn:
+  - LoadCases
+test:
+  - TestRegression

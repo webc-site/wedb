@@ -1,0 +1,5 @@
+fn:
+  - StringOutput
+  - FromPinnedPointer
+  - FromPinnedSpan
+  - ConvertToHeap

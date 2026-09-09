@@ -1,0 +1,7 @@
+fn:
+  - Fuzz
+  - AddStringData
+  - AddStringHeader
+  - AddArrayHeader
+  - CreateServer
+  - MakeTempDir

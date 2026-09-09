@@ -1,0 +1,8 @@
+fn:
+  - GarnetLatencyMetricsSession
+  - Init
+  - Start
+  - StopAndSwitch
+  - Stop
+  - RecordValue
+  - ResetAll

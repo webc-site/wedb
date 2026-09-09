@@ -1,0 +1,10 @@
+fn:
+  - RoaringBitmapObject
+  - CloneObject
+  - SerializeObject
+  - SetBit
+  - GetBit
+  - BitCount
+  - BitPos
+  - Create
+  - Deserialize

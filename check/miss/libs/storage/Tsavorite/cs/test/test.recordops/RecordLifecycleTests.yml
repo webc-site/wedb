@@ -1,0 +1,33 @@
+fn:
+  - TrackedObjectValue
+  - Deserialize
+  - Serialize
+  - DisposeCount
+  - DisposeDiskCount
+  - EvictCount
+  - TotalDispose
+  - TotalDisposeDisk
+  - TotalEvict
+  - LifecycleRecordTriggers
+  - OnDispose
+  - OnDisposeDiskRecord
+  - OnEvict
+  - OnRecovery
+  - OnCheckpoint
+  - DeleteDirectory
+  - OnTearDown
+  - NewSession
+test:
+  - CopyUpdateDoesNotFireOnDisposeCopyUpdated
+  - CopyUpdateDisposesSourceValueExactlyOnce
+  - DeleteFiresOnDisposeDeletedAndNoOnDisposeDiskRecord
+  - ScanInMemoryFiresOnDisposeDiskRecordOncePerRecord
+  - ScanDiskFiresOnDisposeDiskRecordOncePerRecord
+  - PendingReadFromDiskFiresOnDisposeDiskRecordOnce
+  - PageEvictionFiresOnEvictForEveryLiveRecord
+  - CallOnFlushGatesOnFlushInvocation
+  - CallOnDiskReadGatesOnDiskReadInvocation
+  - CallOnEvictGatingSuppressesOnEvictCallback
+  - ReadCacheEvictionFiresOnEvictWithReadCacheSource
+  - ReadCacheHeapSizeTrackerReturnsToZeroAfterUpdateAndEvict
+  - NoValueObjectIsDisposedMoreThanOnceAcrossLifecycle

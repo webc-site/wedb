@@ -1,0 +1,6 @@
+fn:
+  - MEMORYUSAGE
+  - OBJECT
+  - TYPE
+  - EXISTS
+  - DELIFEXPIM

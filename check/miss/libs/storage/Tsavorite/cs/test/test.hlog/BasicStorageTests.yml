@@ -1,0 +1,11 @@
+fn:
+  - TestDeviceWriteRead
+  - IgnoreIfNotRunningAzureTests
+  - DeleteDirectory
+test:
+  - LocalStorageWriteRead
+  - PageBlobWriteRead
+  - PageBlobWriteReadWithLease
+  - TieredWriteRead
+  - ShardedWriteRead
+  - OmitSegmentIdTest

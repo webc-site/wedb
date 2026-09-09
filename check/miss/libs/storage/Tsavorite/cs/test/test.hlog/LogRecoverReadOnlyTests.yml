@@ -1,0 +1,7 @@
+fn:
+  - ProducerAsync
+  - CommitterAsync
+  - ReadOnlyConsumerAsync
+  - BeginRecoverAsyncLoop
+test:
+  - RecoverReadOnlyCheck1

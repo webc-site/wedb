@@ -1,0 +1,4 @@
+fn:
+  - SessionLogger
+  - BeginScope
+  - IsEnabled

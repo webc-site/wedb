@@ -1,0 +1,8 @@
+fn:
+  - TryLockShared
+  - TryLockExclusive
+  - UnlockShared
+  - UnlockExclusive
+  - IsLockedShared
+  - IsLockedExclusive
+  - GetLockState

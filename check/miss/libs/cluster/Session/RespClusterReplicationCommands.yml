@@ -1,0 +1,19 @@
+fn:
+  - NetworkClusterReplicas
+  - SendAndReset
+  - NetworkClusterReplicate
+  - NetworkClusterReserve
+  - NetworkClusterAppendLog
+  - LogPrimaryStream
+  - ProcessPrimaryStream
+  - NetworkClusterInitiateReplicaSync
+  - NetworkClusterSendCheckpointMetadata
+  - NetworkClusterSendCheckpointFileSegment
+  - NetworkClusterSnapshotData
+  - NetworkClusterBeginReplicaRecover
+  - NetworkClusterAttachSync
+  - NetworkClusterSync
+  - TrackImportProgress
+  - NetworkClusterFlushAll
+  - NetworkClusterAdvanceTime
+  - NetworkClusterMlogKeyTime

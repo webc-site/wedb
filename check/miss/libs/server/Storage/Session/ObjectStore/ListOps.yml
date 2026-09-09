@@ -1,0 +1,16 @@
+fn:
+  - ListPush
+  - ListPop
+  - ListPopMultiple
+  - ListLength
+  - ListMove
+  - ThrowObjectStoreUninitializedException
+  - ListTrim
+  - ListPosition
+  - ListRange
+  - ReadObjectStoreOperation
+  - ListInsert
+  - ListIndex
+  - ListRemove
+  - RMWObjectStoreOperation
+  - ListSet

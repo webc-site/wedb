@@ -1,0 +1,10 @@
+fn:
+  - ParseACLRule
+  - ApplyACLOpToUser
+  - TryParseCommandForAcl
+  - IsValidParse
+  - IsInvalidCommandToAcl
+  - IsValidCustomCommandName
+  - GetACLCategoryByName
+  - GetNameByACLCategory
+  - ListCategories

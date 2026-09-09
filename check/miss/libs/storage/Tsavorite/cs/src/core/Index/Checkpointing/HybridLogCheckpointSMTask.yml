@@ -1,0 +1,7 @@
+fn:
+  - HybridLogCheckpointSMTask
+  - GlobalBeforeEnteringState
+  - ObjectLog_OnPrepare
+  - ObjectLog_OnWaitFlush
+  - ObjectLog_OnPersistenceCallback
+  - GlobalAfterEnteringState

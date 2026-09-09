@@ -1,0 +1,7 @@
+fn:
+  - GetMaxBatchSize
+  - TsavoriteSnapshotReader
+  - GetTransmitSources
+  - CreateFileDataSource
+  - CreateCheckpointDevice
+  - GetStoreHLogDevice

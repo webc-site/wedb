@@ -1,0 +1,4 @@
+fn:
+  - ReadyToCompletePendingAsync
+  - CompletePendingAsync
+  - InternalCompletePendingRequests

@@ -1,0 +1,14 @@
+fn:
+  - RoaringBitmap
+  - InsertChunk
+  - Remove
+  - RemoveChunk
+  - SetBit
+  - GetBit
+  - BitPos
+  - Enumerate
+  - GetEnumerator
+  - Serialize
+  - Deserialize
+  - EnsureChunkCapacity
+  - GetChunkKind

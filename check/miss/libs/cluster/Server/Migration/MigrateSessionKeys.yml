@@ -1,0 +1,5 @@
+fn:
+  - MigrateKeysFromStoreAsync
+  - ShouldSkipKey
+  - DeleteKeysAsync
+  - MigrateKeysAsync

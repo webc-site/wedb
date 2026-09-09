@@ -1,0 +1,25 @@
+fn:
+  - TryGetOrAddDatabase
+  - TryPauseCheckpoints
+  - ResumeCheckpoints
+  - RecoverCheckpointAsync
+  - TakeCheckpointAsync
+  - TakeOnDemandCheckpointAsync
+  - TaskCheckpointBasedOnAofSizeLimitAsync
+  - CommitToAofAsync
+  - WaitForCommitToAofAsync
+  - RecoverAOFAsync
+  - ReplayAOF
+  - GrowIndexesIfNeededAsync
+  - ExecuteObjectCollection
+  - StartSizeTrackers
+  - ResetRevivificationStats
+  - EnqueueCommit
+  - GetDatabasesSnapshot
+  - TryGetDatabase
+  - FlushDatabase
+  - FlushAllDatabases
+  - TrySwapDatabases
+  - CreateFunctionsState
+  - CollectHybridLogStats
+  - RecoverVectorSets

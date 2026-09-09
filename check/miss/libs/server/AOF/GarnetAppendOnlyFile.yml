@@ -1,0 +1,9 @@
+fn:
+  - TotalSize
+  - GetVirtualSublogIdx
+  - CreateOrUpdateKeySequenceManager
+  - GetLargerThanMaximumSequenceNumber
+  - ResetSequenceNumberGenerator
+  - ComputeAofSyncReplayAddress
+  - ComputeAofSubloSyncReplayAddress
+  - DataLossCheck

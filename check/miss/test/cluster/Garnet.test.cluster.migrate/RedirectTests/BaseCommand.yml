@@ -1,0 +1,11 @@
+fn:
+  - RandomBytes
+  - BaseCommand
+  - GetSingleSlotRequest
+  - GetSingleSlotObjectRequest
+  - GetCrossSlotRequest
+  - SetupSingleSlotRequest
+  - singleSlotKeys
+  - crossSlotKeys
+  - DummyCommand
+  - EVALSHA

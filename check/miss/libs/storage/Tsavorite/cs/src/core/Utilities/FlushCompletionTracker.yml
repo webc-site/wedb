@@ -1,0 +1,5 @@
+fn:
+  - FlushCompletionTracker
+  - CompleteFlush
+  - SetException
+  - WaitOneFlush

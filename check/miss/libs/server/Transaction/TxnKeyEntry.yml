@@ -1,0 +1,7 @@
+fn:
+  - TxnKeyEntries
+  - GetKeyHash
+  - AddKey
+  - TryLockAllKeys
+  - UnlockAllKeys
+  - GetLockset

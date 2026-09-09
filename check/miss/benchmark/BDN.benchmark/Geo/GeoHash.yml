@@ -1,0 +1,4 @@
+fn:
+  - GeoToLongValue
+  - GetCoordinatesFromLong
+  - GetGeoHashCode

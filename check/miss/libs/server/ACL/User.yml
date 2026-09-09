@@ -1,0 +1,20 @@
+fn:
+  - User
+  - CanAccessCommand
+  - CanAccessCustomCommand
+  - AddCategory
+  - AddCommand
+  - RemoveCategory
+  - RemoveCommand
+  - AddCustomCommand
+  - RemoveCustomCommand
+  - AddPasswordHash
+  - RemovePasswordHash
+  - ClearPasswords
+  - ValidatePassword
+  - DescribeUser
+  - GetEnabledCommandsDescription
+  - DetermineCommandDetails
+  - RationalizeACLDescription
+  - CopyCommandPermissionSet
+  - CopyPasswordHashes

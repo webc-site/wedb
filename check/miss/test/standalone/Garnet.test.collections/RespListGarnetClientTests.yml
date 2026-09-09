@@ -1,0 +1,12 @@
+fn:
+  - GetTestKey
+  - ValidateListContentAsync
+test:
+  - AddElementsToTheListHeadInBulk_WithCallback
+  - AddElementsToTheListHead_WithCallback
+  - AddElementsToTheListHead_WithAsync
+  - AddElementsToListTailInBulk_WithCallback
+  - AddElementsToListTail_WithCallback
+  - AddElementsToTheListTail_WithAsync
+  - GetListElements
+  - GetListLength

@@ -1,0 +1,4 @@
+fn:
+  - BuildMap
+  - FromV3
+  - EnsureInitialized

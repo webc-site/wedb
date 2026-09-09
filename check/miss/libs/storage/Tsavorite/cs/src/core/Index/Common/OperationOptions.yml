@@ -1,0 +1,5 @@
+fn:
+  - ReadCopyOptions
+  - Merge
+  - ReadOptions
+  - RMWOptions

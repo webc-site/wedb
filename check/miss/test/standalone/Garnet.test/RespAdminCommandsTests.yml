@@ -1,0 +1,37 @@
+fn:
+  - ValidateServerData
+  - sizeToString
+test:
+  - PingTest
+  - PingMessageTest
+  - PingErrorMessageTest
+  - EchoWithNoMessageReturnErrorTest
+  - EchoWithMessagesReturnErrorTest
+  - EchoWithMessageTest
+  - EchoTwoCommandsTest
+  - TimeCommandTest
+  - TimeWithReturnErrorTest
+  - SeSaveTest
+  - PostCheckpointCleanupFailureIsLoggedAndContained
+  - OverflowKeyCheckpointTest
+  - SeSaveRecoverTest
+  - SeSaveRecoverObjectTest
+  - SeSaveInProgressTest
+  - SeSaveRecoverCustomObjectTest
+  - SeSaveRecoverCustomScriptTest
+  - SeSaveRecoverMultipleObjectsTest
+  - SeSaveRecoverMultipleKeysTest
+  - SeAofRecoverTest
+  - SeFlushDbAndFlushAllTest
+  - SePingTest
+  - SePingMessageTest
+  - SePingErrorMessageTest
+  - SeEchoWithNoMessageReturnErrorTest
+  - SeEchoWithMessageTest
+  - SeEchoWithMultiTokenMessageTest
+  - SeTimeCommandTest
+  - SeTimeWithReturnErrorTest
+  - SeFlushDbAndFlushAllTest2
+  - SimpleConfigGet
+  - ConfigWrongNumberOfArguments
+  - ConfigGetWrongNumberOfArguments

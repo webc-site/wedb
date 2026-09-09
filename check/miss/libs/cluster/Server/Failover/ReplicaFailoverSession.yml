@@ -1,0 +1,9 @@
+fn:
+  - CreateConnectionAsync
+  - GetConnectionAsync
+  - PauseWritesAndWaitForSyncAsync
+  - TakeOverAsPrimaryAsync
+  - BroadcastConfigAndRequestAttachAsync
+  - IssueAttachReplicasAsync
+  - PrimaryNeedsReset
+  - BeginAsyncReplicaFailoverAsync

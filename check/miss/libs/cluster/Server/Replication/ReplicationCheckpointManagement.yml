@@ -1,0 +1,10 @@
+fn:
+  - InitializeCheckpointStore
+  - TryAcquireSettledMetadataForMainStore
+  - AddCheckpointEntry
+  - TryGetLatestCheckpointEntryFromMemory
+  - GetLatestCheckpointEntryFromDisk
+  - GetLatestCheckpointFromMemoryInfo
+  - GetLatestCheckpointFromDiskInfo
+  - UpdateCommitSafeAofAddress
+  - SetPrimaryReplicationId

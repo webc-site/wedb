@@ -1,0 +1,19 @@
+fn:
+  - BuildVirtualSublogReplayStates
+  - GetKeySequenceNumber
+  - GetPhysicalSublogMaxReplayedSequenceNumber
+  - GetPhysicalSublogMax
+  - GetPhysicalSublogMaxSequenceVector
+  - GetPhysicalSublogMaxDriftSequenceVector
+  - GetSublogFrontierSequenceNumber
+  - UpdatePhysicalSublogMaxSequenceNumber
+  - AdvanceVirtualSublogTime
+  - UpdateVirtualSublogMaxSequenceNumber
+  - UpdateVirtualSublogKeySequenceNumber
+  - BoundReplayDrift
+  - CheckConsistencyManagerVersion
+  - VerifyKeyFreshness
+  - PreSingleKeyConsistentRead
+  - PostSingleKeyConsistentRead
+  - PreBatchKeyConsistentRead
+  - PostBatchKeyConsistentReadValidate

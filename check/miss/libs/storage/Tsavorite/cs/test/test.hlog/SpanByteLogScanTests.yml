@@ -1,0 +1,17 @@
+fn:
+  - SpanByteComparerModulo
+  - GetHashCode64
+  - DeleteDirectory
+  - OnTearDown
+  - InitialWriter
+  - ScanCursorFuncs
+  - CheckForRCU
+  - OnException
+  - OnStart
+  - OnStop
+test:
+  - SpanByteScanCursorTest
+  - SpanByteScanCursorFilterTest
+  - SpanByteScanCursorWithRCUTest
+  - SpanByteJumpToBeginAddressTest
+  - SpanByteIterationPendingCollisionTest

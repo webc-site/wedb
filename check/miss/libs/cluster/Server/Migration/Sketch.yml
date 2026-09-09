@@ -1,0 +1,4 @@
+fn:
+  - TryHashAndStore
+  - HashAndStore
+  - Probe

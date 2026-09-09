@@ -1,0 +1,14 @@
+fn:
+  - TryInitialize
+  - TryInitializeRespCommandsInfo
+  - IndividualAcls
+  - TryGetCommandsforAclCategory
+  - TryGetRespCommandsInfoCount
+  - TryGetRespCommandsInfo
+  - TryGetRespCommandNames
+  - TryGetRespCommandInfo
+  - TryFastGetRespCommandInfo
+  - TryGetRespSubCommandsInfo
+  - TryGetSimpleRespCommandInfo
+  - GetRespCommandName
+  - ToRespFormat

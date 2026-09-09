@@ -1,0 +1,4 @@
+fn:
+  - FileTransmitSource
+  - TransmitAsync
+  - GetSlice

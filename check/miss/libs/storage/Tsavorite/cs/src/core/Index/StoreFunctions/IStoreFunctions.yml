@@ -1,0 +1,13 @@
+fn:
+  - GetKeyHashCode64
+  - KeysEqual
+  - CreateValueObjectSerializer
+  - BeginSerializeValue
+  - BeginDeserializeValue
+  - OnDispose
+  - OnDisposeDiskRecord
+  - OnEvict
+  - OnRecovery
+  - OnCheckpoint
+  - SetCheckpointCompletedCallback
+  - OnCheckpointCompleted

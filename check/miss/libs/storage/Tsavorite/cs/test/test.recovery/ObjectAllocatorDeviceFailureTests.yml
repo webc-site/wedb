@@ -1,0 +1,13 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+  - CreateStore
+  - ControlledReadFailureDevice
+  - FailNextRead
+  - RemoveSegmentAsync
+  - TryComplete
+  - Throttle
+test:
+  - PartialSectorReadFailureStopsFlush
+  - SnapshotPartialSectorSkipsReadBackOnFreshDevice
+  - HeaderReadFailureDefersPairedTruncation

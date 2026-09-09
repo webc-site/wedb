@@ -1,0 +1,8 @@
+fn:
+  - SpanByteYcsbBenchmark
+  - RunYcsbUnsafeContext
+  - RunYcsbSafeContext
+  - Run
+  - SetupYcsbUnsafeContext
+  - SetupYcsbSafeContext
+  - CreateKeyVectors

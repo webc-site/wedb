@@ -1,0 +1,20 @@
+fn:
+  - CustomCommandManager
+  - Register
+  - RegisterType
+  - RegisterModule
+  - TryAddModule
+  - TryGetCustomProcedure
+  - TryGetCustomTransactionProcedure
+  - TryGetCustomCommand
+  - TryGetCustomObjectCommand
+  - TryGetCustomObjectSubCommand
+  - TryGetCustomCommandInfo
+  - IsCustomCommandRegistered
+  - TryGetCustomCommandDocs
+  - GetAllCustomCommandsInfos
+  - GetAllCustomCommandsDocs
+  - GetCustomCommandInfoCount
+  - GetCustomRespCommand
+  - GetCustomGarnetObjectType
+  - RegisterNewType

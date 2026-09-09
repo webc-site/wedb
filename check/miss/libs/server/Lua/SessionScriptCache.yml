@@ -1,0 +1,11 @@
+fn:
+  - SessionScriptCache
+  - SetUserHandle
+  - StartRunningScript
+  - StopRunningScript
+  - RequestTimeout
+  - TryGetFromDigest
+  - TryLoad
+  - Remove
+  - TrySwapDatabaseSessions
+  - GetScriptDigest

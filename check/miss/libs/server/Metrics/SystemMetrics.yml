@@ -1,0 +1,12 @@
+fn:
+  - GetPerformanceInfo
+  - GetTotalMemory
+  - GetPhysicalAvailableMemory
+  - GetPagedMemorySize
+  - GetPagedSystemMemorySize
+  - GetPeakPagedMemorySize
+  - GetVirtualMemorySize64
+  - GetPrivateMemorySize64
+  - GetPeakVirtualMemorySize64
+  - GetPhysicalMemoryUsage
+  - GetPeakPhysicalMemoryUsage

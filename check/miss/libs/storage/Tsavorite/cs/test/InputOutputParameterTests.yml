@@ -1,0 +1,12 @@
+fn:
+  - InPlaceWriter
+  - InitialWriter
+  - PostInitialWriter
+  - InitialUpdater
+  - PostInitialUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - doWrites
+  - doReads
+test:
+  - InputOutputParametersTest

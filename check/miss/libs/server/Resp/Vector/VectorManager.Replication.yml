@@ -1,0 +1,19 @@
+fn:
+  - StartReplicationTasksAsync
+  - ReplicateVectorSetAdd
+  - ReplicateVectorSetRemove
+  - ReplicateVectorSetSetAttribute
+  - HandleVectorSetAddReplication
+  - UpdateContextMetadata
+  - HandleMigratedElementKey
+  - HandleMigratedIndexKey
+  - WaitForVectorOperationsToComplete
+  - SetFlags
+  - StartReplicationReplayTasks
+  - StartReplicaTaskAsync
+  - ApplyVectorSetAdd
+  - ResetReplayTasksAsync
+  - ShutdownReplayTasks
+  - HandleVectorSetRemoveReplication
+  - HandleVectorSetSetAttributeReplication
+  - HandleVectorSetRenameCopy

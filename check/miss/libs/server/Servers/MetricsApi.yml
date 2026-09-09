@@ -1,0 +1,7 @@
+fn:
+  - MetricsApi
+  - GetInfoMetrics
+  - GetHeader
+  - ResetInfoMetrics
+  - GetLatencyMetrics
+  - ResetLatencyMetrics

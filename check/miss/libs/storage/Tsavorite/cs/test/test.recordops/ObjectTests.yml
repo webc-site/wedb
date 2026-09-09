@@ -1,0 +1,17 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+  - DoRead
+  - DoFlush
+  - DoReads
+test:
+  - ObjectInMemWriteReadUpsert
+  - ObjectInMemWriteReadRMW
+  - ObjectDiskWriteReadSingle
+  - ObjectDiskWriteRead
+  - LargeObjectDiskWriteReadSmallKeyBigValue
+  - LargeObjectMultiFlushedPages
+  - LargeObjectLinearizeFlushedPages
+  - ObjectDiskWriteReadOverflowValue
+  - LargeObjectDiskWriteReadBigKeyAndValue
+  - MaxInlineValueSizeZeroTest

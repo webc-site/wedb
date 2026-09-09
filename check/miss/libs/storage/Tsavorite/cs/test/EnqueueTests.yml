@@ -1,0 +1,7 @@
+fn:
+  - SerializeTo
+  - ReadOnlySpanBatch
+  - TotalEntries
+test:
+  - EnqueueBasicTest
+  - EnqueueAsyncBasicTest

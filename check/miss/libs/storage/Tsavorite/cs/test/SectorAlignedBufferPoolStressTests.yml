@@ -1,0 +1,9 @@
+fn:
+  - RunTightLoop
+  - RunAsymmetric
+  - Percentiles
+test:
+  - ScalingThroughputAcrossBackends
+  - CrossThreadReturnLatencyAndReuse
+  - ReuseEfficiencyAllocTracksWorkingSet
+  - HeavySoakWithChurn

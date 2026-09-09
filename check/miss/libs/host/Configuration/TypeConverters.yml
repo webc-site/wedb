@@ -1,0 +1,5 @@
+fn:
+  - CanConvertFrom
+  - CanConvertTo
+  - ConvertFrom
+  - ConvertTo

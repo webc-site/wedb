@@ -1,0 +1,5 @@
+fn:
+  - GetInput
+  - GetKey
+  - GetOutput
+  - SetOutput

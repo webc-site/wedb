@@ -1,0 +1,7 @@
+fn:
+  - GeoAdd
+  - RMWObjectStoreOperation
+  - GeoCommands
+  - ReadObjectStoreOperation
+  - GeoSearchReadOnly
+  - GeoSearchStore

@@ -1,0 +1,4 @@
+fn:
+  - OperationState
+  - SetIsNoKey
+  - SetIsReadAtAddress

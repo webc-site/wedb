@@ -1,0 +1,7 @@
+fn:
+  - IsDefault
+  - DisposeRecord
+  - AsyncIOContextCompletionEvent
+  - Prepare
+  - SetException
+  - Wait

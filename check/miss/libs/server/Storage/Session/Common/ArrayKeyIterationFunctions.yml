@@ -1,0 +1,15 @@
+fn:
+  - DbScan
+  - IterateStore
+  - DeleteSlotKeys
+  - DBKeys
+  - DbSize
+  - DeleteIfExpiredInMemory
+  - OnStart
+  - OnStop
+  - OnException
+  - ConsistentUnifiedStoreGetDBKeys
+  - UnifiedStoreGetDBKeys
+  - UnifiedStoreGetDBSize
+  - UnifiedStoreGetKeyspaceStats
+  - IsInternalRecord

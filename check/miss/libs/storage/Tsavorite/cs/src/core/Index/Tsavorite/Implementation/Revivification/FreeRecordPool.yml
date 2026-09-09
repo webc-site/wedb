@@ -1,0 +1,9 @@
+fn:
+  - SetEmptyAtomic
+  - TakeResult
+  - MergeTo
+  - GetRecordSize
+  - TryTakeOversize
+  - ScanForEmpty
+  - GetBinIndex
+  - TryAddToBin

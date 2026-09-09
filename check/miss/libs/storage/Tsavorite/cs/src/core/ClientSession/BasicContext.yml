@@ -1,0 +1,13 @@
+fn:
+  - BasicContext
+  - UnsafeResumeThread
+  - GetKeyHash
+  - CompletePendingWithOutputs
+  - CompletePendingAsync
+  - CompletePendingWithOutputsAsync
+  - ReadWithPrefetch
+  - ResetModified
+  - IsModified
+  - CompactionCopyToTail
+  - ConditionalScanPush
+  - ContainsKeyInMemory

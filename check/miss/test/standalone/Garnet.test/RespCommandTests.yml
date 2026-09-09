@@ -1,0 +1,24 @@
+fn:
+  - VerifyCommandInfo
+  - VerifyCommandDocs
+  - RegisterCustomCommands
+  - DynamicallyRegisterCustomCommands
+  - CreateTestLibrary
+  - CommandGetKeysTest
+  - CommandGetKeysAndFlagsTest
+test:
+  - CommandsInfoCoverageTest
+  - CommandsDocsCoverageTest
+  - RespCommandFlagAliasParsesTest
+  - SimpleCommandsInfoTest
+  - CommandTest
+  - CommandInfoTest
+  - CommandDocsTest
+  - CommandCountTest
+  - CommandUnknownSubcommandTest
+  - CommandInfoWithCommandNamesTest
+  - CommandDocsWithCommandNamesTest
+  - CommandInfoWithCustomCommandNamesTest
+  - CommandDocsWithCustomCommandNamesTest
+  - AofIndependentCommandsTest
+  - CommandGetKeysInvalidInputTest

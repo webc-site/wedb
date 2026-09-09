@@ -1,0 +1,6 @@
+fn:
+  - Register
+  - Unregister
+  - GetSessionProviders
+  - AddSession
+  - Start

@@ -1,0 +1,6 @@
+fn:
+  - SingleNodeConfig
+  - NodeResponds
+  - when
+test:
+  - ClusterPublishSurvivesPeerNodeShutdown

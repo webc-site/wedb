@@ -1,0 +1,8 @@
+fn:
+  - AddFile
+  - FileLoggerOutput
+  - FileLoggerProvider
+  - CreateLogger
+  - FileLogger
+  - BeginScope
+  - IsEnabled

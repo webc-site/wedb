@@ -1,0 +1,19 @@
+fn:
+  - ExtRecordTriggers
+  - OnDispose
+  - OnDisposeDiskRecord
+  - OnEvict
+  - OnRecovery
+  - OnCheckpoint
+  - DeleteDirectory
+  - OnTearDown
+  - InsertN
+test:
+  - OnFlushReceivesCorrectLogicalAddress
+  - CallOnFlushFalseSkipsCallback
+  - OnTruncateFiresWithNewBeginAddress
+  - CallOnTruncateFalseSkipsCallback
+  - PostCopyToTailFiresFromCompaction
+  - CallPostCopyToTailFalseSkipsCallback
+  - DefaultRecordTriggersHasAllNewFlagsFalse
+  - SpanByteRecordTriggersHasAllNewFlagsFalse

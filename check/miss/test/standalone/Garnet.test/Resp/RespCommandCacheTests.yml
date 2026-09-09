@@ -1,0 +1,8 @@
+fn:
+  - CreateArguments
+  - Resp
+  - AppendBulkString
+  - Connect
+  - SendAsync
+test:
+  - CachedCommandDoesNotTruncateArgumentCount

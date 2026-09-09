@@ -1,0 +1,7 @@
+fn:
+  - KVSettings
+  - GetIndexSizeCacheLines
+  - SetIndexSizeFromCacheLines
+  - GetLogSettings
+  - GetReadCacheSettings
+  - GetCheckpointSettings

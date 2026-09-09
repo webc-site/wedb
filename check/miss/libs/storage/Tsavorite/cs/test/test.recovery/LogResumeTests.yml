@@ -1,0 +1,5 @@
+test:
+  - TsavoriteLogResumePersistedReaderViaCookie
+  - TsavoriteLogResumeViaCompleteUntilRecordAtSpec
+  - TsavoriteLogResumePersistedReader2
+  - TsavoriteLogResumePersistedReader3

@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+
 use wbase::time::now_ms;
 use wdev::Device;
 use wval::{KeyTag, NamespaceDbCodec, TTL_VAL_LEN, TaggedKeyBuf, TtlCodec};
@@ -44,6 +46,33 @@ pub enum TtlProbe {
   Due,
   /// TTL 记录存在磁盘候选，需异步裁决（罕见冷路径，也是内存探针异常的降级出口）
   Deferred,
+}
+
+/// purge 链物理写镜像抑制守卫（RAII save/restore，panic/早退路径 Drop 兜底）
+///
+/// 进入时以 `swap` 把会话身份写入 [`WedbStore::purge_suppress`] 抑制槽，Drop 时
+/// 无条件恢复进入前的旧值：嵌套 purge（已被"先删 TTL 记录"递归防护杜绝，此处
+/// 纵深防御）与 unwind 路径均不会让标志残留——普通"置位 + Drop 清零"在嵌套场景
+/// 会提前解抑制，save/restore 语义天然免疫
+struct PurgeNotifyGuard<'a> {
+  slot: &'a AtomicUsize,
+  prev: usize,
+}
+
+impl<'a> PurgeNotifyGuard<'a> {
+  /// 进入抑制窗口：`token` 为会话身份（&StoreSession 裸地址）
+  #[inline]
+  fn enter(slot: &'a AtomicUsize, token: usize) -> Self {
+    let prev = slot.swap(token, Relaxed);
+    Self { slot, prev }
+  }
+}
+
+impl Drop for PurgeNotifyGuard<'_> {
+  #[inline]
+  fn drop(&mut self) {
+    self.slot.store(self.prev, Relaxed);
+  }
 }
 
 impl<D: Device> StoreSession<D> {
@@ -126,10 +155,27 @@ impl<D: Device> StoreSession<D> {
   /// 物理清除已过期键（数据 + TTL 记录，走统一 DEL 路径保证索引/墓碑/WAL 钩子一致）
   ///
   /// 约定：必须先删 TTL 记录再调 delete，保证 delete 内部 load_meta 的 TTL 守卫
-  /// 探测不到记录而不触发二次清除，天然杜绝递归
-  pub(crate) async fn purge_expired(&self, user_key: &[u8]) -> Result<()> {
+  /// 探测不到记录而不触发二次清除，天然杜绝递归（抑制挂点不改变该顺序）。
+  ///
+  /// AOF 单条化（对标 Garnet `RespInputFlags.Deterministic` 携带绝对过期时间的
+  /// 单条确定性逻辑条目语义）：purge 端口在场时，链内物理写（TTL 记录墓碑 +
+  /// 数据墓碑两条）的写监听镜像经会话级抑制槽精确跳过（仅本会话，其他会话并发
+  /// 写不受影响），链成功闭环后触发一次端口，携带
+  /// `(ns, db, 用户键, expire_at_ms)`；端口未注册时保持现状两条物理条目
+  /// （嵌入式无 AOF 场景行为不变）。链中途失败（`?` 早退）守卫即时解抑制且
+  /// 不触发端口——清除未闭环不得宣告过期。
+  pub(crate) async fn purge_expired(&self, user_key: &[u8], expire_at_ms: u64) -> Result<()> {
+    let _suppress = self
+      .store
+      .ttl_purge_listener()
+      .map(|_| PurgeNotifyGuard::enter(&self.store.purge_suppress, self as *const Self as usize));
     self.del_ttl(user_key).await?;
     self.delete(user_key).await?;
+    // 先解抑制再触发端口：端口实现体内的写镜像不受抑制窗口影响
+    drop(_suppress);
+    if let Some(listener) = self.store.ttl_purge_listener() {
+      listener(self.namespace(), self.active_db(), user_key, expire_at_ms);
+    }
     Ok(())
   }
 
@@ -164,7 +210,7 @@ impl<D: Device> StoreSession<D> {
     }
     // 装箱打破 async 递归布局环（purge_expired → delete → load_meta → check_expired），
     // 仅在真正过期的冷路径付出一次堆分配
-    Box::pin(self.purge_expired(user_key)).await?;
+    Box::pin(self.purge_expired(user_key, exp)).await?;
     Ok(true)
   }
 
@@ -193,7 +239,7 @@ impl<D: Device> StoreSession<D> {
     match self.ttl_of(user_key).await? {
       // TTL 记录已到期：惰性过期即视同不存在，物理清除（先删 TTL 再删数据）后 -2
       Some(c) if c <= now_ms() => {
-        self.purge_expired(user_key).await?;
+        self.purge_expired(user_key, c).await?;
         Ok(-2)
       }
       // 已设未到期 TTL：NX 禁设、GT/LT 按当前值比较（多项同设须全部满足才放行）
@@ -209,7 +255,7 @@ impl<D: Device> StoreSession<D> {
   async fn expire_at_apply(&self, user_key: &[u8], expire_at_ms: u64) -> Result<i32> {
     // 过去时间戳：立即物理删除（数据 + TTL 记录，先删 TTL 再删数据）
     if expire_at_ms <= now_ms() {
-      self.purge_expired(user_key).await?;
+      self.purge_expired(user_key, expire_at_ms).await?;
       return Ok(2);
     }
     self.put_ttl(user_key, expire_at_ms).await?;
@@ -231,7 +277,7 @@ impl<D: Device> StoreSession<D> {
       None => Ok(0),
       // TTL 已到期：键视同不存在，惰性物理清除后返回 0（对齐原 contains_key 口径）
       Some(c) if c <= now_ms() => {
-        self.purge_expired(user_key).await?;
+        self.purge_expired(user_key, c).await?;
         Ok(0)
       }
       Some(_) => {
@@ -262,5 +308,41 @@ impl<D: Device> StoreSession<D> {
       // 防御性钳位：极端未来时间戳折叠为 i64 上界，避免 u64→i64 静默翻负
       Some(exp) => Ok(exp.min(i64::MAX as u64) as i64),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// 抑制守卫 RAII 语义：正常退出与 panic unwind 路径均恢复进入前旧值（标志零残留）
+  #[test]
+  fn purge_notify_guard_restores_on_drop_and_unwind() {
+    let slot = AtomicUsize::new(0);
+
+    // 正常作用域退出：恢复 save/restore 链上的旧值
+    {
+      let _g = PurgeNotifyGuard::enter(&slot, 0x1234);
+      assert_eq!(slot.load(Relaxed), 0x1234);
+    }
+    assert_eq!(slot.load(Relaxed), 0);
+
+    // 嵌套：内层退出恢复外层窗口，而非直接清零
+    let outer = PurgeNotifyGuard::enter(&slot, 0xAAAA);
+    {
+      let _inner = PurgeNotifyGuard::enter(&slot, 0xBBBB);
+      assert_eq!(slot.load(Relaxed), 0xBBBB);
+    }
+    assert_eq!(slot.load(Relaxed), 0xAAAA);
+    drop(outer);
+    assert_eq!(slot.load(Relaxed), 0);
+
+    // panic unwind：Drop 兜底，抑制标志不残留
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+      let _g = PurgeNotifyGuard::enter(&slot, 0x5678);
+      assert_eq!(slot.load(Relaxed), 0x5678);
+      panic!("unwind through guard");
+    }));
+    assert_eq!(slot.load(Relaxed), 0, "panic 路径不得残留抑制标志");
   }
 }

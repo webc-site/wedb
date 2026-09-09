@@ -1,0 +1,10 @@
+fn:
+  - AddOrUpdate
+  - GetOrAdd
+  - ContainsKey
+  - GetEnumerator
+  - ToArray
+  - TryRemove
+  - TryRemoveConditional
+  - TryUpdate
+  - GetLock

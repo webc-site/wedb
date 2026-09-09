@@ -1,0 +1,16 @@
+test:
+  - TransactionProcTest1
+  - TransactionProcTest2
+  - TransactionProcSampleUpdateTest
+  - TransactionProcSampleDeleteTest
+  - TransactionWriteExpiryProcTest
+  - TransactionObjectExpiryProcTest
+  - TransactionSortedSetRemoveProcTest
+  - TransactionDeleteProcTest
+  - TransactionObjectsOperTest
+  - TransactionListsOperTest
+  - TransactionSetProcTest
+  - TransactionHashProcTest
+  - TransactionProcFinalizeTest
+  - TransactionProcMSetPxTest
+  - TransactionProcMGetIfPMTest

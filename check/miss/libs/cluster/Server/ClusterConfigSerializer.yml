@@ -1,0 +1,6 @@
+fn:
+  - TryPeekVersion
+  - ToByteArray
+  - SerializeSlotMap
+  - FromByteArray
+  - DeserializeSlotMap

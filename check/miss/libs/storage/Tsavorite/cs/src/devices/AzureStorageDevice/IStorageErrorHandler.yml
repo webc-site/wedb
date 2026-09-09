@@ -1,0 +1,4 @@
+fn:
+  - WaitForTermination
+  - HandleError
+  - TerminateNormally

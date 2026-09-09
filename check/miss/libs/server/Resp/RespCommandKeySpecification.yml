@@ -1,0 +1,10 @@
+fn:
+  - ToRespFormat
+  - TryGetStartIndex
+  - BeginSearchIndex
+  - BeginSearchKeyword
+  - ExtractKeys
+  - FindKeysRange
+  - FindKeysKeyNum
+  - CanConvert
+  - Write

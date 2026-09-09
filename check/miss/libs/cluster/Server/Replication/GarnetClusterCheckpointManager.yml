@@ -1,0 +1,12 @@
+fn:
+  - GarnetClusterCheckpointManager
+  - CheckpointVersionShiftStart
+  - CheckpointVersionShiftEnd
+  - DeleteLogCheckpoint
+  - DeleteIndexCheckpoint
+  - GetDevice
+  - ConvertMetadata
+  - CommitLogCheckpointSendFromPrimary
+  - CommitLogCheckpointMetadata
+  - GetCheckpointCookieMetadata
+  - GetLogCheckpointMetadata

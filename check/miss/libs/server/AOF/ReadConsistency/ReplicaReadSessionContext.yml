@@ -1,0 +1,10 @@
+fn:
+  - ResetCachedSublogMax
+  - GetPowerOfTwoSize
+  - ExpandKeyHashCache
+  - ShrinkKeyHashCache
+  - ReadSessionState
+  - PreSingleKeyConsistentRead
+  - PostSingleKeyConsistentReadCallback
+  - PreBatchKeyConsistentReadCallback
+  - PostBatchKeyConsistentReadCallback

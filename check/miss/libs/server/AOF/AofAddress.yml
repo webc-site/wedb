@@ -1,0 +1,21 @@
+fn:
+  - AofAddress
+  - ToByteArray
+  - Serialize
+  - FromByteArray
+  - FromSpan
+  - FromString
+  - Deserialize
+  - SetValueIf
+  - SetValue
+  - Create
+  - Min
+  - MinExchange
+  - MaxExchange
+  - AnyLesser
+  - AnyGreater
+  - Diff
+  - AggregateDiff
+  - EqualsAll
+  - IsOutOfRange
+  - Max

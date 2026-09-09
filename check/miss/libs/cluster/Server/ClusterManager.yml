@@ -1,0 +1,18 @@
+fn:
+  - UnsafeSetConfig
+  - ClusterManager
+  - InitLocal
+  - FlushTaskAsync
+  - DisposeBackgroundTasks
+  - Start
+  - TryStartGossipTasks
+  - FlushConfig
+  - TryInitializeLocalWorker
+  - GetInfo
+  - GetRange
+  - TrySetLocalConfigEpoch
+  - TryBumpClusterEpoch
+  - TrySetLocalNodeRole
+  - TryResetReplica
+  - TryStopWrites
+  - TryTakeOverForPrimary

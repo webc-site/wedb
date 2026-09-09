@@ -1,0 +1,5 @@
+fn:
+  - NetworkClusterFailover
+  - SendAndReset
+  - NetworkClusterFailStopWrites
+  - NetworkClusterFailReplicationOffset

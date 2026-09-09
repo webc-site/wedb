@@ -1,0 +1,5 @@
+fn:
+  - DeleteDirectory
+  - RecreateDirectory
+test:
+  - ConcurrentSnapshotAndEvictionStress

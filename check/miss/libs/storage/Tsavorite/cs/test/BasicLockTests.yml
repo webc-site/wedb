@@ -1,0 +1,11 @@
+fn:
+  - InPlaceWriter
+  - InitialUpdater
+  - InitialWriter
+  - InitialDeleter
+  - DeleteDirectory
+  - OnTearDown
+  - UpdateFunc
+test:
+  - CollidingDeletedRecordTest
+  - SetInvalidOnException

@@ -1,0 +1,18 @@
+fn:
+  - CollectionItemBroker
+  - TryGetObserver
+  - GetCollectionItemAsync
+  - MoveCollectionItemAsync
+  - StartMainLoop
+  - HandleCollectionUpdate
+  - HandleCollectionUpdateWorker
+  - HandleSessionDisposed
+  - HandleBrokerEvent
+  - InitializeObserver
+  - TryAssignItemFromKey
+  - TryGetNextListItem
+  - TryMoveNextListItem
+  - TryGetNextSortedSetItem
+  - TryGetResult
+  - StartAsync
+  - CleanKeysToObservers

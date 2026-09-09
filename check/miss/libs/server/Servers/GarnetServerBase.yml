@@ -1,0 +1,15 @@
+fn:
+  - IncrementConnectionsReceived
+  - IncrementConnectionsDisposed
+  - ActiveConsumers
+  - ActiveClusterSessions
+  - get_conn_active
+  - ResetConnectionsReceived
+  - ResetConnectionsDiposed
+  - GarnetServerBase
+  - Register
+  - Unregister
+  - GetSessionProviders
+  - AddSession
+  - Start
+  - DisposeActiveHandlers

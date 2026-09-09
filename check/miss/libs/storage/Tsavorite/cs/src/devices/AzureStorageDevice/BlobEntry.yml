@@ -1,0 +1,4 @@
+fn:
+  - BlobEntry
+  - CreateAsync
+  - TryQueueAction

@@ -1,0 +1,9 @@
+test:
+  - AndExpressionTest
+  - OrExpressionTest
+  - BooleanExpression_EqualsOperator
+  - BooleanExpressionTest_RegexEqualsOperator
+  - BooleanExpressionTest_RegexEqualsOperator_CornerCase
+  - BooleanExpressionTest
+  - BooleanExpressionTest_GreaterThanOperator
+  - BooleanExpressionTest_GreaterThanOrEqualsOperator

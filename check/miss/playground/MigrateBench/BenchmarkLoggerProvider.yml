@@ -1,0 +1,7 @@
+fn:
+  - BenchmarkLoggerProvider
+  - CreateLogger
+  - BenchmarkLogger
+  - BeginScope
+  - IsEnabled
+  - GetLevelStr

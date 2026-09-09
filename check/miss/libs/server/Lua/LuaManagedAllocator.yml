@@ -1,0 +1,6 @@
+fn:
+  - LuaManagedAllocator
+  - EnterInfallibleAllocationRegion
+  - TryExitInfallibleAllocationRegion
+  - AllocateNew
+  - ResizeAllocation

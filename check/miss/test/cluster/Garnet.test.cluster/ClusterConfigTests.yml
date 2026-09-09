@@ -1,0 +1,12 @@
+test:
+  - ClusterConfigInitializesUnassignedWorkerTest
+  - ClusterForgetAfterNodeRestartTest
+  - ClusterAnnounceRecoverTest
+  - ClusterAnyIPAnnounce
+  - ClusterConfigVersionRoundTripTest
+  - ClusterConfigVersionMismatchThrowsTest
+  - ClusterConfigTryPeekVersionEmptyDataTest
+  - ReplicationHistoryVersionRoundTripTest
+  - ReplicationHistoryVersionMismatchThrowsTest
+  - ClusterConfigMergeSlotMapRetainsStaleOwnershipResetTest
+  - ClusterConfigMergeSlotMapAccumulatesUpdatedAcrossSlotsTest

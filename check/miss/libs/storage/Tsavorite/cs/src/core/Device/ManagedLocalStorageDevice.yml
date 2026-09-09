@@ -1,0 +1,10 @@
+fn:
+  - bstr
+  - Throttle
+  - RemoveSegmentAsync
+  - GetSegmentName
+  - CreateReadHandle
+  - CreateWriteHandle
+  - SetFileSize
+  - AddHandle
+  - GetOrAddHandle

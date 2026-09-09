@@ -1,0 +1,18 @@
+fn:
+  - GetCookie
+  - InitializeIndexCheckpoint
+  - InitializeLogCheckpoint
+  - CommitIndexCheckpoint
+  - CleanupIndexCheckpoint
+  - CommitLogCheckpointMetadata
+  - CleanupLogCheckpoint
+  - CheckpointVersionShiftStart
+  - CheckpointVersionShiftEnd
+  - GetIndexCheckpointMetadata
+  - GetLogCheckpointMetadata
+  - GetIndexCheckpointTokens
+  - GetLogCheckpointTokens
+  - GetIndexDevice
+  - GetSnapshotLogDevice
+  - GetSnapshotObjectLogDevice
+  - OnRecovery

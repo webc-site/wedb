@@ -1,0 +1,11 @@
+fn:
+  - DefaultCheckpointNamingScheme
+  - LogCheckpointBase
+  - LogCheckpointMetadata
+  - LogSnapshot
+  - ObjectLogSnapshot
+  - IndexCheckpointBase
+  - IndexCheckpointMetadata
+  - HashTable
+  - TsavoriteLogCommitMetadata
+  - CommitNumber

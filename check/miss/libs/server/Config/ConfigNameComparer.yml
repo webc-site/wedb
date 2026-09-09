@@ -1,0 +1,4 @@
+fn:
+  - ConfigNameComparer
+  - Create
+  - ToUpperAscii

@@ -1,0 +1,15 @@
+fn:
+  - ConnectAsync
+  - IssueFlushAllAsync
+  - InitializeIterationBuffer
+  - SetClusterSyncHeader
+  - TryWriteRecordSpan
+  - TryWriteChunkedRecordSpan
+  - SendAndResetIterationBuffer
+  - SetFlushTask
+  - AddAofSyncTask
+  - ContinueFlushTaskAsync
+  - WaitForFlushAsync
+  - WaitForSyncCompletionAsync
+  - NeedToFullSync
+  - BeginAofSyncAsync

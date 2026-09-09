@@ -1,0 +1,7 @@
+fn:
+  - VerifyObjectStoreSetMembers
+test:
+  - IndexGrowthTest
+  - ObjectStoreIndexGrowthTest
+  - IndexGrowthTestWithDiskReadAndCheckpoint
+  - ObjectStoreIndexGrowthTestWithDiskReadAndCheckpoint

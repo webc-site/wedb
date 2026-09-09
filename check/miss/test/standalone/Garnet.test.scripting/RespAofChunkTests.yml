@@ -1,0 +1,22 @@
+fn:
+  - CreateServer
+  - RestartForRecovery
+  - UsePageSizes
+  - UseTopology
+  - MakeValue
+  - MakeFieldBytes
+test:
+  - AofLargeStringValueSpanChunkRecoverTest
+  - AofLargeStringValueOverwriteSpanChunkRecoverTest
+  - AofLargeObjectChunkRecoverTest
+  - AofHugeObjectChunkRecoverTest
+  - AofLargeSortedSetChunkRecoverTest
+  - AofLargeKeyBrokenAcrossPagesRecoverTest
+  - AofLargeInputRmwBrokenAcrossPagesRecoverTest
+  - AofLargeKeySmallInputInlineRmwRecoverTest
+  - AofInterleavedChunksFromMultipleRecordsRecoverTest
+  - AofChunkedAndNonChunkedInterleavedRecoverTest
+  - AofChunkMultiReplayRecoverTest
+  - AofChunkShardedRecoverTest
+  - AofChunkShardedObjectRecoverTest
+  - AofChunkPartialSlotsPageSplitRecoverTest

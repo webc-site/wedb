@@ -1,0 +1,14 @@
+fn:
+  - SetHasEphemeralSLock
+  - ClearHasEphemeralSLock
+  - SetHasEphemeralXLock
+  - ClearHasEphemeralXLock
+  - SetHasMainLogSrc
+  - SetHasReadCacheSrc
+  - SetPhysicalAddress
+  - GetInfoRef
+  - GetInfo
+  - CreateLogRecord
+  - ClearHasInMemorySrc
+  - SetAllocator
+  - LockStateString

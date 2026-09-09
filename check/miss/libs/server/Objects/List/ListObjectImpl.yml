@@ -1,0 +1,13 @@
+fn:
+  - ListRemove
+  - UpdateSize
+  - ListInsert
+  - ListIndex
+  - ListRange
+  - ListTrim
+  - ListLength
+  - ListPush
+  - ListPop
+  - ListSet
+  - ListPosition
+  - ReadListPositionInput

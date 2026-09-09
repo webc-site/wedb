@@ -1,0 +1,17 @@
+fn:
+  - NetworkClusterAddSlots
+  - SendAndReset
+  - NetworkClusterAddSlotsRange
+  - NetworkClusterBanList
+  - NetworkClusterCountKeysInSlot
+  - Redirect
+  - NetworkClusterDelSlots
+  - NetworkClusterDelSlotsRange
+  - NetworkClusterDelKeysInSlot
+  - NetworkClusterDelKeysInSlotRange
+  - NetworkClusterGetKeysInSlot
+  - NetworkClusterKeySlot
+  - NetworkClusterSetSlot
+  - NetworkClusterSetSlotsRange
+  - NetworkClusterSlots
+  - NetworkClusterSlotState

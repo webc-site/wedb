@@ -1,0 +1,6 @@
+fn:
+  - PerformLockFreeSafeUpdate
+  - updateAction
+  - GetIfNotMatch
+  - GetWithEtag
+  - _updateItemIfMatch

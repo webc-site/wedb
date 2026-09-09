@@ -1,0 +1,26 @@
+fn:
+  - StartPendingMetrics
+  - CompletePendingForSession
+  - StopPendingMetrics
+  - incr_session_found
+  - incr_session_notfound
+  - ReadWithUnsafeContext
+  - CompletePendingForObjectStoreSession
+  - GETEX
+  - GETDEL
+  - GETRANGE
+  - SET_Conditional
+  - DEL_Conditional
+  - MSET_Conditional
+  - SETEX
+  - APPEND
+  - DELETE_MainStore
+  - SETRANGE
+  - WATCH
+  - LCS
+  - LCSInternal
+  - WriteLCSMatches
+  - ComputeLCSLength
+  - ComputeLCSWithIndices
+  - ComputeLCS
+  - GetLcsDpTable

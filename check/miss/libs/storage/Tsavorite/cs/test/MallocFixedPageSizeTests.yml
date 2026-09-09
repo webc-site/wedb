@@ -1,0 +1,6 @@
+fn:
+  - DeleteDirectory
+  - getEntryValue
+test:
+  - BasicHashBucketMallocFPSTest
+  - BasicIHeapContainerMallocFPSTest

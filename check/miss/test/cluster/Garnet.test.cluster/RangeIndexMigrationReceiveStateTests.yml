@@ -1,0 +1,6 @@
+fn:
+  - BuildPartialChunk
+  - CountTempFiles
+test:
+  - ProcessRecordAfterDispose_Throws
+  - DisposeDuringProcessRecord_DefersCleanupToWorker

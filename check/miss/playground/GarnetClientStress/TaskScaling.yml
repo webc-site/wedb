@@ -1,0 +1,9 @@
+fn:
+  - TaskScaling
+  - CreateClients
+  - Run
+  - PrintHistogram
+  - MonitorThread
+  - CheckConnection
+  - OperationThread
+  - ShortRunningTask

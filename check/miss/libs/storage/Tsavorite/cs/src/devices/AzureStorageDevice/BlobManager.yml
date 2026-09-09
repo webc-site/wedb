@@ -1,0 +1,12 @@
+fn:
+  - GetDelayBetweenRetries
+  - BlobManager
+  - StartAsync
+  - HandleStorageError
+  - StopAsync
+  - ConfirmLeaseIsGoodForAWhileAsync
+  - ConfirmLeaseIsGoodForAWhile
+  - AcquireOwnership
+  - when
+  - RenewLeaseTask
+  - MaintenanceLoopAsync

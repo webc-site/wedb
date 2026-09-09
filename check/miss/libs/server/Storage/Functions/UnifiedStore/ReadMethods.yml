@@ -1,0 +1,11 @@
+fn:
+  - HandleObjectEncoding
+  - HandleObjectRefCount
+  - HandleObjectIdleTime
+  - HandleObjectFreq
+  - HandleMemoryUsage
+  - HandleType
+  - HandleTtl
+  - HandleExpireTime
+  - HandleMigrate
+  - HandleRename

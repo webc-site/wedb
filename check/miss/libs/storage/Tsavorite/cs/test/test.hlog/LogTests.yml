@@ -1,0 +1,29 @@
+fn:
+  - DeleteDirectory
+  - TotalEntries
+  - BaseSetup
+  - BaseTearDown
+  - Counter
+  - IncrementAndMaybeTruncateUntil
+  - IsAsync
+  - AssertGetNext
+  - LogWriterAsync
+  - TestConsumer
+  - Consume
+test:
+  - TestDisposeReleasesFileLocksWithCompletedCommit
+  - TsavoriteLogTest2
+  - TsavoriteLogConsumerTest
+  - TsavoriteLogAsyncConsumerTest
+  - TryEnqueue1
+  - TryEnqueue2
+  - TruncateUntilBasic
+  - EnqueueAndWaitForCommitAsyncBasicTest
+  - TruncateUntil2
+  - TruncateUntilPageStart
+  - CommitNoSpinWait
+  - CommitAsyncPrevTask
+  - RefreshUncommittedAsyncTest
+  - TsavoriteLogSimpleCommitCookieTest
+  - TsavoriteLogManualCommitTest
+  - TsavoriteLogAsyncConsumerTestAfterDisposeIterator

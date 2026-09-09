@@ -1,0 +1,15 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+  - DoSerialize
+  - WriteType
+  - Serialize
+  - Deserialize
+  - NeedInitialUpdate
+  - InitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - RMWCompletionCallback
+  - ReadCompletionCallback

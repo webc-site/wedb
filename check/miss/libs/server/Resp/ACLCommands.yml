@@ -1,0 +1,18 @@
+fn:
+  - ValidateACLAuthenticator
+  - SendAndReset
+  - ValidateACLFileUse
+  - NetworkAclList
+  - NetworkAclUsers
+  - NetworkAclCat
+  - NetworkAclSetUser
+  - NetworkAclDelUser
+  - NetworkAclWhoAmI
+  - WriteAsciiBulkString
+  - NetworkAclLoad
+  - NetworkAclSave
+  - NetworkAclGenPass
+  - NetworkAclGetUser
+  - WriteNull
+  - WriteMapLength
+  - WriteSetLength

@@ -1,0 +1,10 @@
+fn:
+  - GarnetTlsOptions
+  - UpdateCertFile
+  - GetSslServerAuthenticationOptions
+  - GetSslClientAuthenticationOptions
+  - ValidateServerCertificateCallback
+  - ValidateCertificateName
+  - ValidateClientCertificateCallback
+  - GetCertificateIssuer
+  - ValidateCertificateIssuer

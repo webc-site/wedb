@@ -1,0 +1,4 @@
+fn:
+  - DeleteDirectory
+test:
+  - TsavoriteLogPageIsNotReadCacheBitMaskedTest

@@ -1,0 +1,10 @@
+fn:
+  - LogCheckpointEntry
+  - CheckpointEntry
+  - GetMinAofCoveredAddress
+  - TryAddReader
+  - RemoveReader
+  - TrySuspendReaders
+  - ContainsSharedToken
+  - ToByteArray
+  - FromByteArray

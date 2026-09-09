@@ -1,0 +1,9 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+test:
+  - SessionTest1
+  - SessionTest2
+  - SessionTest3
+  - SessionTest4
+  - SessionTest5

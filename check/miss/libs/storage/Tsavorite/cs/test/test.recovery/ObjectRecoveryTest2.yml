@@ -1,0 +1,7 @@
+fn:
+  - RecreateDirectory
+  - Prepare
+  - Write
+  - Destroy
+test:
+  - ObjectRecoveryTest2

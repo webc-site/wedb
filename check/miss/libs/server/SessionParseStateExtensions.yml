@@ -1,0 +1,24 @@
+fn:
+  - TryGetInfoMetricsType
+  - TryGetLatencyMetricsType
+  - TryGetClientName
+  - TryGetClientType
+  - TryGetBitFieldOverflow
+  - TryGetBitfieldEncoding
+  - TryGetBitfieldOffset
+  - TryGetGeoSearchOptions
+  - TryGetManagerType
+  - TryGetOperationDirection
+  - TryGetSortedSetAddOption
+  - TryGetExpireOption
+  - TryGetSortedSetAggregateType
+  - TryGetExpirationOption
+  - TryGetExpirationOptionWithToken
+  - TryGetGeoDistanceUnit
+  - TryGetGeoLonLat
+  - TryGetTimeout
+  - ExtractCommandKeys
+  - TryAppendKeysFromSpec
+  - ExtractCommandKeysAndFlags
+  - TryAppendKeysAndFlagsFromSpec
+  - TryGetKeySearchArgsFromSimpleKeySpec

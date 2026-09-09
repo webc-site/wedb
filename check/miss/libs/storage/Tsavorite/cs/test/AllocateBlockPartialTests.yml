@@ -1,0 +1,6 @@
+fn:
+  - PageOf
+  - OffsetOf
+  - PositionToLeave
+test:
+  - AllocateBlockPartialSplitVsCrossPageTest

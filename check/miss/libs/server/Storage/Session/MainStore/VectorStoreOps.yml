@@ -1,0 +1,15 @@
+fn:
+  - VectorSetAdd
+  - VectorSetRemove
+  - VectorSetSetAttribute
+  - VectorSetValueSimilarity
+  - VectorSetElementSimilarity
+  - VectorSetEmbedding
+  - VectorSetRawEmbedding
+  - VectorSetDimensions
+  - VectorSetInfo
+  - VectorSetCardinality
+  - VectorSetIsMember
+  - VectorSetLinks
+  - VectorSetRandomMembers
+  - VectorSetGetAttribute

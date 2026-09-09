@@ -1,0 +1,4 @@
+fn:
+  - CoarseTimeProvider
+  - GetUtcNow
+  - DateTimeOffsetSnapshot

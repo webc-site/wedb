@@ -1,0 +1,15 @@
+fn:
+  - Publish
+  - WritePushLength
+  - SendAndReset
+  - WriteDirectLargeRespString
+  - PatternPublish
+  - NetworkPUBLISH
+  - NetworkSUBSCRIBE
+  - NetworkPSUBSCRIBE
+  - NetworkUNSUBSCRIBE
+  - WriteNull
+  - NetworkPUNSUBSCRIBE
+  - NetworkPUBSUB_CHANNELS
+  - NetworkPUBSUB_NUMPAT
+  - NetworkPUBSUB_NUMSUB

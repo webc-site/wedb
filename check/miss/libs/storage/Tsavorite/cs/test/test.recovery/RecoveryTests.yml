@@ -1,0 +1,20 @@
+fn:
+  - DeleteDirectory
+  - OnTearDown
+  - PrepareToRecover
+  - Populate
+  - FullCheckpointAction
+  - SeparateCheckpointAction
+  - checkpointAction
+  - RecoverAndTest
+  - ExpectedValue
+  - TestDriver
+  - RunTest
+  - populateAction
+  - readAction
+  - GetRandomLength
+  - RecoverAndReadTest
+test:
+  - RecoveryTestSeparateCheckpoint
+  - RecoveryTestByAllocatorType
+  - RecoveryTestFailOnSectorSize

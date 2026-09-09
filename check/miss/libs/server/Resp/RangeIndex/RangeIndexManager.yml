@@ -1,0 +1,14 @@
+fn:
+  - TryClaimSnapshot
+  - ReleaseSnapshot
+  - LogDataPath
+  - LogFlushPath
+  - CheckpointSnapshotPath
+  - CheckpointSnapshotDir
+  - RoundUpToPowerOf2
+  - DisposeBfTreeDeferred
+  - RegisterPending
+  - DisposeIncompleteStreamReassembly
+  - SetRecoveredCheckpointToken
+  - ReadIndex
+  - EnumerateFlushFiles

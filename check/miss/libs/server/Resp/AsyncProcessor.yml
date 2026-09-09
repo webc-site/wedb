@@ -1,0 +1,5 @@
+fn:
+  - NetworkGETPending
+  - SendAndReset
+  - AsyncGetProcessorAsync
+  - WriteNull

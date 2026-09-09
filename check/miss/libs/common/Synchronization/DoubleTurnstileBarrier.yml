@@ -1,0 +1,9 @@
+fn:
+  - ProcessTimeSpan
+  - DoubleTurnstileBarrier
+  - SignalWorkReadyWait
+  - SignalWorkReadyWaitAsync
+  - SignalWorkReadyInternal
+  - SignalWorkCompletedWait
+  - SignalWorkCompletedWaitAsync
+  - SignalWorkCompletedInternal

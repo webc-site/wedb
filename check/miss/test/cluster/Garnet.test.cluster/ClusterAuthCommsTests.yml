@@ -1,0 +1,9 @@
+fn:
+  - ClusterReplicationAuth
+  - ClusterStartupWithoutAuthCreds
+test:
+  - ClusterBasicACLTest
+  - ClusterStartupWithoutAuthCreds
+  - ClusterReplicationAuth
+  - ClusterSimpleFailoverAuth
+  - ClusterSimpleACLReload

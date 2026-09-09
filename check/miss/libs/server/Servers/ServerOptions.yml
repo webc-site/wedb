@@ -1,0 +1,11 @@
+fn:
+  - ServerOptions
+  - MemorySizeBits
+  - ValidatedPageSizeBits
+  - PageSizeBits
+  - PubSubPageSizeBytes
+  - SegmentSizeBits
+  - IndexSizeCachelines
+  - ParseSize
+  - TryParseSize
+  - PrettySize

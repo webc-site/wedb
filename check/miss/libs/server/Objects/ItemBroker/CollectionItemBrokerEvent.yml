@@ -1,0 +1,5 @@
+fn:
+  - CollectionItemBrokerEvent
+  - CreateCollectionUpdatedEvent
+  - CreateNewObserverEvent
+  - IsDefault

@@ -1,0 +1,24 @@
+fn:
+  - PopulateServerInfo
+  - PopulateMemoryInfo
+  - PopulateClusterInfo
+  - PopulateReplicationInfo
+  - PopulateStatsInfo
+  - PopulateCommandStatsInfo
+  - PopulateStoreStats
+  - GetDatabaseStoreStats
+  - PopulateStoreHashDistribution
+  - PopulateStoreRevivInfo
+  - PopulatePersistenceInfo
+  - GetDatabasePersistenceStats
+  - PopulateClientsInfo
+  - PopulateKeyspaceInfo
+  - PopulateClusterBufferPoolStats
+  - PopulateCheckpointInfo
+  - PopulateHlogScanInfo
+  - GetSectionHeader
+  - GetSectionRespInfo
+  - GetRespInfo
+  - GetMetricInternal
+  - GetMetric
+  - GetInfoMetrics

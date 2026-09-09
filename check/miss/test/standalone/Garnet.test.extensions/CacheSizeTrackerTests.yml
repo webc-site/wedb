@@ -1,0 +1,6 @@
+test:
+  - RecordHeapSizeValidationTest
+  - SmallMainLogFineGrainedEvictionTest
+  - ReadCacheIncreaseEmptyPageCountTest
+  - RemoveLastElementReturnsTrackerToZero_IPU
+  - RemoveLastElementReturnsTrackerToZero_PCU

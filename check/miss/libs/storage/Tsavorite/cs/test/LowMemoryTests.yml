@@ -1,0 +1,6 @@
+fn:
+  - DeleteDirectory
+  - Populate
+test:
+  - LowMemConcurrentUpsertReadTest
+  - LowMemConcurrentUpsertRMWReadTest

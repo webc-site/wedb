@@ -1,0 +1,5 @@
+fn:
+  - ClientBase
+  - Connect
+  - CompletePendingRequests
+  - Authenticate

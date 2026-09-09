@@ -1,0 +1,6 @@
+fn:
+  - PrepareToRecover
+  - Populate
+  - Verify
+test:
+  - ObjectRecoveryTest1

@@ -1,0 +1,13 @@
+fn:
+  - IsValidBitOffset
+  - TryValidateLengthInBytes
+  - TryValidateBitfieldOffset
+  - TryValidateBitPosOffsets
+  - NormalizeBitCountOffsets
+  - LengthInBytes
+  - IsLargeEnough
+  - NewBlockAllocLength
+  - UpdateBitmap
+  - GetBit
+  - ProcessNegativeOffset
+  - reverse

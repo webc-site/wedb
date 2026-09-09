@@ -1,0 +1,7 @@
+fn:
+  - SecondsFromDiffUtcNowTicks
+  - MillisecondsFromDiffUtcNowTicks
+  - UnixTimestampInSecondsToTicks
+  - UnixTimestampInMillisecondsToTicks
+  - UnixTimeInSecondsFromTicks
+  - UnixTimeInMillisecondsFromTicks

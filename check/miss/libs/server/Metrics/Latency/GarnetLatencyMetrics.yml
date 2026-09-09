@@ -1,0 +1,9 @@
+fn:
+  - GarnetLatencyMetrics
+  - Init
+  - Merge
+  - GetPercentiles
+  - GetRespHistogram
+  - GetRespHistograms
+  - GetLatencyMetrics
+  - Dump

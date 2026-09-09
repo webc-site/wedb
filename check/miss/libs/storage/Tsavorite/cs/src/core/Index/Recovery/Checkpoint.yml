@@ -1,0 +1,9 @@
+fn:
+  - CheckpointVersionShiftStart
+  - CheckpointVersionShiftEnd
+  - WriteHybridLogMetaInfo
+  - CleanupLogCheckpoint
+  - WriteIndexMetaInfo
+  - CleanupIndexCheckpoint
+  - InitializeIndexCheckpoint
+  - InitializeHybridLogCheckpoint

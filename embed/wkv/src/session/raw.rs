@@ -5,7 +5,9 @@
 //! Record Elision 删除与盲墓碑追加。用户键便捷层经 [`keys`](super::keys) 编码后
 //! 落到同一套物理路径。
 
-use std::{hint::spin_loop, result::Result as StdResult, thread::yield_now};
+use std::{
+  hint::spin_loop, result::Result as StdResult, sync::atomic::Ordering, thread::yield_now,
+};
 
 use futures_util::future::join_all;
 use wdev::Device;
@@ -250,9 +252,18 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 触发写监听端口（未注入则零开销跳过）
+  /// 触发写监听端口（未注入则零开销跳过；purge 链窗口内本会话通知被抑制）
+  ///
+  /// purge 链抑制（会话级精确匹配，机制见 [`crate::ttl::PurgeNotifyGuard`] 与
+  /// `WedbStore::purge_suppress`）：purge_expired 窗口内仅本会话的物理写镜像
+  /// 被跳过——TTL 记录 + 数据两条墓碑折叠为单条确定性逻辑条目（对标 Garnet
+  /// `RespInputFlags.Deterministic` 单条目语义）；其他会话（含并发同键写与
+  /// 内置 GC 会话）的通知绝不受影响。
   #[inline]
   fn notify_write_listener(&self, key: &[u8], val: &[u8], tombstone: bool) {
+    if self.store.purge_suppress.load(Ordering::Relaxed) == self as *const Self as usize {
+      return;
+    }
     if let Some(listener) = self.store.write_listener() {
       listener(key, val, tombstone);
     }

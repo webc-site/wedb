@@ -1,0 +1,6 @@
+fn:
+  - GetCommitMetadata
+  - ListCommits
+  - RemoveCommit
+  - RemoveAllCommits
+  - OnRecovery

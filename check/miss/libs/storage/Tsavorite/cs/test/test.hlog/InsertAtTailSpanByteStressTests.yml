@@ -1,0 +1,13 @@
+fn:
+  - GetMutablePageCount
+  - DeleteDirectory
+  - OnTearDown
+  - InPlaceWriter
+  - InitialWriter
+  - CopyUpdater
+  - InitialUpdater
+  - PopulateAndSetReadOnlyToTail
+  - runReadThread
+  - runUpdateThread
+test:
+  - SpanByteTailInsertMultiThreadTest

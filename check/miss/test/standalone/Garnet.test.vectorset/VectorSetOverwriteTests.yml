@@ -1,0 +1,16 @@
+fn:
+  - PrepCommandAsync
+  - RunCommandAsync
+  - RunCommandPlainAsync
+  - RunCommandEXAsync
+  - TestVectorSetOverwrittenCommandAsync
+test:
+  - AllOverwritingCommandsCovered
+  - BITOPAsync
+  - MSETAsync
+  - PSETEXAsync
+  - SETAsync
+  - SETEXAsync
+  - SETIFGREATERAsync
+  - SETIFMATCHAsync
+  - SETWITHETAGAsync

@@ -1,0 +1,9 @@
+fn:
+  - SetupServer
+  - TestExpiredKeyDeletionScanAsync
+  - CheckExistenceConditionOnAllKeys
+  - PopulateStore
+test:
+  - TestOnDemandExpiredKeyDeletionScan
+  - TestScheduledExpiredKeyDeletionViaSimulation
+  - TestExpiredKeyDeletionScanAsync

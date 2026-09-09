@@ -1,0 +1,7 @@
+test:
+  - TestSlowLogHelp
+  - TestSlowLogGet
+  - TestSlowLogGetCount
+  - TestSlowLogGetWithEntry
+  - TestSlowLogLen
+  - TestSlowLogReset

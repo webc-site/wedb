@@ -1,0 +1,5 @@
+fn:
+  - VectorSetCleanupWorkSet
+  - WaitForCompletion
+  - TryComplete
+  - GetEnumerator

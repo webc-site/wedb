@@ -1,0 +1,22 @@
+fn:
+  - GarnetClient
+  - ThrowException
+  - Connect
+  - ConnectAsync
+  - ConnectSendSocket
+  - ConnectSendSocketAsync
+  - TryConnectSocket
+  - TryConnectSocketAsync
+  - TimeoutChecker
+  - ReconnectAsync
+  - CheckLength
+  - GetTimestamp
+  - PipelineLength
+  - InputGateAsync
+  - AwaitPreviousTaskAsync
+  - InternalExecuteAsync
+  - DisposeOffset
+  - InternalExecuteNoResponse
+  - TryCreateMessageConsumer
+  - DisposeMessageConsumer
+  - ConsumeTcsOffset

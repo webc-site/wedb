@@ -1,0 +1,20 @@
+fn:
+  - DeleteDirectory
+  - InternalSetup
+  - OnTearDown
+  - ObjectPushIterationTestFunctions
+  - OnStart
+  - OnException
+  - OnStop
+  - iterateAndVerify
+  - scanAndVerify
+  - LocalScan
+  - LocalUpdate
+  - WriteLine
+  - RunTest
+test:
+  - ObjectIterationBasicTest
+  - ObjectIterationPushStopTest
+  - ObjectIterationPushLockTest
+  - InsDelIns_LocalMemory
+  - InsDelIns_MLSD

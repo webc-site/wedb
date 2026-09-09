@@ -1,0 +1,7 @@
+fn:
+  - InitialUpdater
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+test:
+  - Should_create_multiple_sessions_with_different_callbacks

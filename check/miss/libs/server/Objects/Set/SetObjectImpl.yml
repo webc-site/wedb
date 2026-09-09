@@ -1,0 +1,10 @@
+fn:
+  - SetAdd
+  - UpdateSize
+  - SetMembers
+  - SetIsMember
+  - SetMultiIsMember
+  - SetRemove
+  - SetLength
+  - SetPop
+  - SetRandomMember

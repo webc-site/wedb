@@ -1,0 +1,9 @@
+fn:
+  - SnapshotIteratorManager
+  - IsProgressing
+  - OnStart
+  - WriteRecord
+  - FanOutRecordSpan
+  - FanOutChunk
+  - OnStop
+  - OnException

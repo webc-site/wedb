@@ -1,0 +1,17 @@
+fn:
+  - CircularDiskWriteBuffer
+  - GetCurrentBuffer
+  - MoveToAndInitializeNextBuffer
+  - GetOrAllocateCurrentBuffer
+  - GetAndInitializeCurrentBuffer
+  - GetNextRecordStartPosition
+  - InitializeOwnObjectLogFilePosition
+  - OnBeginPartialFlush
+  - OnRecordComplete
+  - OnPartialFlushComplete
+  - FlushToMainLogDevice
+  - CreateDiskWriteCallbackContext
+  - FlushCurrentBuffer
+  - FlushToDevice
+  - FlushToDeviceCallback
+  - ClearBuffers

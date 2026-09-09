@@ -1,0 +1,7 @@
+fn:
+  - MigrationManager
+  - GetBufferPoolStats
+  - GetMigrationTaskCount
+  - TryAddMigrationTask
+  - TryRemoveMigrationTask
+  - CanAccessKey

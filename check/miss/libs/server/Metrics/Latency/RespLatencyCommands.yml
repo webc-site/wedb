@@ -1,0 +1,5 @@
+fn:
+  - NetworkLatencyHelp
+  - SendAndReset
+  - NetworkLatencyHistogram
+  - NetworkLatencyReset

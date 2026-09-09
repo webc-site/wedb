@@ -1,0 +1,12 @@
+fn:
+  - NewNum
+  - NewStr
+  - NewFilterStr
+  - NewSelector
+  - NewOp
+  - NewNull
+  - NewTuple
+  - NewRuntimeTuple
+  - GetPrecedence
+  - GetArity
+  - ResetRuntimePool

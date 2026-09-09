@@ -1,0 +1,20 @@
+fn:
+  - BaseSetup
+  - RecreateDirectory
+  - BaseTearDown
+  - AssertEquivalentTailAddress
+  - ReadCompletionCallback
+  - Verify
+  - SnapshotIterator
+  - OnStart
+  - OnException
+  - OnStop
+test:
+  - RecoveryCheck1
+  - RecoveryCheck2
+  - RecoveryCheck2Repeated
+  - RecoveryRollback
+  - RecoveryCheck3
+  - RecoveryCheck4
+  - RecoveryCheck5
+  - StreamingSnapshotBasicTest

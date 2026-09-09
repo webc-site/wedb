@@ -1,0 +1,5 @@
+test:
+  - StringAndObjectRoundTrip
+  - SaveRecoverRoundTrip
+  - LowMemoryEvictionChurn
+  - ObjectStoreEvictionChurn

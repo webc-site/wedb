@@ -1,0 +1,7 @@
+fn:
+  - RegisterApi
+  - NewCommand
+  - NewTransactionProc
+  - NewType
+  - NewProcedure
+  - NewModule

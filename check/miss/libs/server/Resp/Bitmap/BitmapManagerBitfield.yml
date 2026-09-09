@@ -1,0 +1,14 @@
+fn:
+  - IsLargeEnoughForType
+  - LengthFromType
+  - NewBlockAllocLengthFromType
+  - CheckBitfieldOverflow
+  - CheckUnsignedBitfieldOverflow
+  - CheckSignedBitfieldOverflow
+  - GetValue
+  - SetValue
+  - GetBitfield
+  - SetBitfield
+  - IncrementBitfield
+  - BitFieldExecute
+  - BitFieldExecute_RO

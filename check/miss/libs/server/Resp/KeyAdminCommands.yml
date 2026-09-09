@@ -1,0 +1,16 @@
+fn:
+  - NetworkRESTORE
+  - SendAndReset
+  - NetworkDUMP
+  - WriteNull
+  - WriteDirectLarge
+  - NetworkRENAME
+  - NetworkRENAMENX
+  - NetworkGETDEL
+  - ProcessOutput
+  - WriteError
+  - NetworkEXISTS
+  - NetworkEXPIRE
+  - NetworkPERSIST
+  - NetworkTTL
+  - NetworkEXPIRETIME

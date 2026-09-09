@@ -1,0 +1,11 @@
+fn:
+  - KvBenchmark
+  - CleanStaleRunDirs
+  - Load
+  - RunWorkers
+  - DumpDistribution
+  - RunIteration
+  - PoolStatsSampleWindow
+  - PrintPoolStatsTable
+  - SumScoreboard
+  - SumLongs

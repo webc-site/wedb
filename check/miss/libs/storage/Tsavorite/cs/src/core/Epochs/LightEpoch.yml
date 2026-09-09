@@ -1,0 +1,13 @@
+fn:
+  - GetRef
+  - SelectInstance
+  - ActiveInstanceCount
+  - ResetAllInstances
+  - DebugAssertEpochAcquired
+  - triggerAction
+  - ComputeNewSafeToReclaimEpoch
+  - trigger_action
+  - ReserveEntryForThread
+  - TryAcquireEntry
+  - ReserveEntryWait
+  - UserWordRef

@@ -1,0 +1,4 @@
+fn:
+  - RMW_ObjectStore
+  - CompletePendingForObjectStoreSession
+  - Read_ObjectStore

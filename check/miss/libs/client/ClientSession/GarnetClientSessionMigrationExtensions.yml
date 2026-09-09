@@ -1,0 +1,7 @@
+fn:
+  - Authenticate
+  - SetSlotRange
+  - SetClusterMigrateHeader
+  - CompleteMigrate
+  - TrackIterationProgress
+  - EnsureTcsIsEnqueued

@@ -1,0 +1,8 @@
+fn:
+  - ListLeftPush
+  - ExecuteForLongResult
+  - ListLeftPushAsync
+  - ListRightPush
+  - ListRightPushAsync
+  - ListRangeAsync
+  - ListLengthAsync

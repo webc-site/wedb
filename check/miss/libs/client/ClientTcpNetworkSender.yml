@@ -1,0 +1,6 @@
+fn:
+  - ClientTcpNetworkSender
+  - SendResponse
+  - SeaaBuffer_Completed
+  - SendCallback
+  - DisposeNetworkSender

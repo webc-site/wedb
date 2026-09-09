@@ -1,0 +1,4 @@
+fn:
+  - AllValuesEnumerator
+  - IncrementIterationLevel
+  - ReachedIterationLevel

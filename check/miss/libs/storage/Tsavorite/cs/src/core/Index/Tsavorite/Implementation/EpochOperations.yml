@@ -1,0 +1,5 @@
+fn:
+  - SynchronizeEpoch
+  - InternalRefresh
+  - SpinWaitUntilClosed
+  - SpinWaitUntilRecordIsClosed

@@ -1,0 +1,6 @@
+test:
+  - GetMachineCertificateByFileLoadsPfxCertificate
+  - GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile
+  - GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey
+  - GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension
+  - GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines

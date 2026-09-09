@@ -1,0 +1,14 @@
+fn:
+  - CreateTestModule
+test:
+  - TestModuleLoad
+  - TestModuleLoadUsingGarnetOptions
+  - TestModuleLoadCSArgs
+  - TestUninitializedModule
+  - TestAlreadyLoadedModule
+  - TestNonExistingModule
+  - TestNoOpModule
+  - TestNoAllowedPathsForModuleLoading
+  - TestModuleCommandNotEnabled
+  - TestModuleLoadUsingLoadModuleCSWithSpaceInPath
+  - TestModuleLoadUsingLoadModuleCSWithSpaceInPathAndArgs

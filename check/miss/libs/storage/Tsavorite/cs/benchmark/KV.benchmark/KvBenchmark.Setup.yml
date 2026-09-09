@@ -1,0 +1,7 @@
+fn:
+  - ResolveDataPath
+  - CreateRunDir
+  - CleanStaleRunDirs
+  - IsPidAlive
+  - CreateDevice
+  - RumdHasDeletes

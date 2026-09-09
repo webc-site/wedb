@@ -1,0 +1,6 @@
+fn:
+  - GetRandomLength
+  - DeleteDirectory
+test:
+  - VLVectorSingleKeyTest
+  - VLVectorMultiKeyTest

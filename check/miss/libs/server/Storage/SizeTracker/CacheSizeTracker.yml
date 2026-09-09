@@ -1,0 +1,6 @@
+fn:
+  - CacheSizeTracker
+  - Start
+  - AddHeapSize
+  - AddReadCacheHeapSize
+  - Stop

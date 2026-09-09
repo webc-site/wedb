@@ -1,0 +1,10 @@
+fn:
+  - CreateIndex
+  - AssertHaveStorageSession
+  - ReadIndex
+  - DropIndex
+  - SetContextForMigration
+  - MarkSuppressCleanup
+  - SetFlags
+  - ClearSuppressCleanup
+  - SetIndexFlags

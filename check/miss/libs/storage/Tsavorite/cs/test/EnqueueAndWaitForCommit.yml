@@ -1,0 +1,6 @@
+fn:
+  - ReadOnlySpanBatch
+  - TotalEntries
+  - LogWriter
+test:
+  - EnqueueWaitCommitBasicTest

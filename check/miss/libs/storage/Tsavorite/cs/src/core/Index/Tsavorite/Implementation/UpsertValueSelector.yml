@@ -1,0 +1,6 @@
+fn:
+  - GetUpsertRecordSize
+  - InitialWriter
+  - PostInitialWriter
+  - InPlaceWriter
+  - PostUpsertOperation

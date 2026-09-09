@@ -1,0 +1,7 @@
+fn:
+  - Consume
+  - MakeBytes
+test:
+  - ChunkedRawByteRoundTripTest
+  - ChunkedEmptyStreamStillSignalsFinalTest
+  - ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest

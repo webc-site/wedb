@@ -1,0 +1,22 @@
+fn:
+  - CheckFlag
+  - ReplaceKey
+  - ReplaceValue
+  - GenerateSingleKeyCmdInstance
+  - SendToNodeFromSlot
+  - SendAndRedirectToNode
+  - SendToImportingNode
+  - SendToMigratingNode
+  - KeyForSlot
+  - Resp
+  - SendReadReplies
+  - ReadLine
+  - ReadN
+  - ReadByte
+test:
+  - ClusterSingleKeyRedirectionTests
+  - ClusterScatterGatherGetCrossSlotRedirectTest
+  - ClusterMultiKeyRedirectionTests
+  - ClusterHostnamePreferredRedirectionTests
+  - ClusterHostnamePreferredAndNonHostnameRedirectionTests
+  - ClusterUnknownEndpointPreferredTests

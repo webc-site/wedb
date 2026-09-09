@@ -1,0 +1,8 @@
+fn:
+  - ReaderWriterLock
+  - WriteLock
+  - WriteUnlock
+  - ReadLock
+  - ReaderLock
+  - ReadUnlock
+  - WaitForGrant

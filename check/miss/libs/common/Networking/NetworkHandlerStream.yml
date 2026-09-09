@@ -1,0 +1,6 @@
+fn:
+  - NetworkHandlerStream
+  - Seek
+  - SetLength
+  - Write
+  - ReadAsyncInternalAsync

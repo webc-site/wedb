@@ -1,0 +1,10 @@
+fn:
+  - GetNextArg
+  - GetNextString
+  - GetFirstArg
+  - NeedInitialUpdate
+  - InitialUpdater
+  - Updater
+  - AbortWithWrongNumberOfArguments
+  - AbortWithErrorMessage
+  - AbortWithSyntaxError

@@ -1,0 +1,11 @@
+fn:
+  - RegisterModules
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - ModuleNoOpRawStringReadCommand
+  - ModuleNoOpRawStringRmwCommand
+  - ModuleNoOpObjRmwCommand
+  - ModuleNoOpObjReadCommand
+  - ModuleNoOpProc
+  - ModuleNoOpTxn

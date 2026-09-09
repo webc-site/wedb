@@ -1,0 +1,11 @@
+fn:
+  - DeleteDirectory
+  - LoadMap
+  - runLoadThread
+  - runLoadFreeListThread
+  - runAllocateFromFreeListThread
+  - runThread
+test:
+  - ObjectIdMapTestStressInitialAllocs
+  - ObjectIdMapTestStressAllocAndFree
+  - ObjectIdMapTestStressAddPageOOM

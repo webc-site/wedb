@@ -1,0 +1,6 @@
+fn:
+  - CheckReplicaSyncAsync
+  - WaitForFirstReplicaSyncAsync
+  - DelayToDefaultAsync
+  - InitiateReplicaTakeOverAsync
+  - BeginAsyncPrimaryFailoverAsync

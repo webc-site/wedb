@@ -1,0 +1,6 @@
+fn:
+  - TryReplicateDisklessSyncAsync
+  - TryBeginReplicaSyncAsync
+  - EndRecovery
+  - TryReplicaDisklessRecovery
+  - TryUpdateMyPrimaryReplId

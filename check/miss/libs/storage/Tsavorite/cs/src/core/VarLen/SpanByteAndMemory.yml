@@ -1,0 +1,6 @@
+fn:
+  - SpanByteAndMemory
+  - FromPinnedSpan
+  - FromPinnedPointer
+  - ConvertToHeap
+  - EnsureHeapMemorySize

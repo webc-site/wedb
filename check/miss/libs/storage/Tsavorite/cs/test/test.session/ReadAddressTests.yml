@@ -1,0 +1,29 @@
+fn:
+  - LapOffset
+  - SetReadOutput
+  - InPlaceWriter
+  - InitialWriter
+  - InitialUpdater
+  - CopyUpdater
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+  - ReadCompletionCallback
+  - RMWCompletionCallback
+  - TestStore
+  - DeleteDirectory
+  - Populate
+  - ProcessChainRecord
+  - ProcessNoKeyRecord
+  - IterateKeyTestScanIteratorFunctions
+  - OnStart
+  - OnException
+  - OnStop
+test:
+  - VersionedReadTests
+  - IterateKeyTests
+  - IterateKeyStopTests
+  - ReadAtAddressTests
+  - ReadAtAddressCopyOptNoRcTest
+  - ReadNoKeyTests
+  - ReadCopyOptionssMergeTest

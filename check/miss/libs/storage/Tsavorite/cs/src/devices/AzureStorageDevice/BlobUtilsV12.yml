@@ -1,0 +1,22 @@
+fn:
+  - ServerTimeoutPolicy
+  - OnSendingRequest
+  - GetServiceClients
+  - GetBlobClientOptions
+  - GetContainerClients
+  - GetBlockBlobClients
+  - GetPageBlobClients
+  - BlobDirectory
+  - GetSubDirectory
+  - GetBlockBlobClient
+  - GetPageBlobClient
+  - GetBlobsAsync
+  - ForceDeleteAsync
+  - when
+  - LeaseConflictOrExpired
+  - LeaseConflict
+  - LeaseExpired
+  - CannotDeleteBlobWithLease
+  - PreconditionFailed
+  - BlobDoesNotExist
+  - BlobAlreadyExists

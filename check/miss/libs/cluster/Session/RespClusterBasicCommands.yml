@@ -1,0 +1,20 @@
+fn:
+  - NetworkClusterBumpEpoch
+  - SendAndReset
+  - NetworkClusterForget
+  - ReleaseCurrentEpoch
+  - AcquireCurrentEpoch
+  - NetworkClusterInfo
+  - NetworkClusterHelp
+  - NetworkClusterMeet
+  - NetworkClusterMyId
+  - NetworkClusterMyParentId
+  - NetworkClusterEndpoint
+  - NetworkClusterNodes
+  - WriteAsciiLargeRespString
+  - NetworkClusterSetConfigEpoch
+  - NetworkClusterShards
+  - WriteLargeAsciiDirectString
+  - NetworkClusterGossip
+  - NetworkClusterReset
+  - NetworkClusterPublish

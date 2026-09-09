@@ -1,0 +1,9 @@
+fn:
+  - BaseSetup
+  - BaseTearDown
+  - RecordingFailingDevice
+  - RemoveSegmentAsync
+test:
+  - CommitFailureExceptionCarriesDeviceError
+  - FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog
+  - CalculateReadOnlyAddressClampsOutOfRangeHeadAddress

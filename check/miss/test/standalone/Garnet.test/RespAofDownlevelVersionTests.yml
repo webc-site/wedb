@@ -1,0 +1,6 @@
+fn:
+  - GetInnermost
+  - RewriteAofHeaderVersion
+test:
+  - DownlevelV4AofRecoversOnCurrentBuild
+  - UplevelAofVersionIsRejected

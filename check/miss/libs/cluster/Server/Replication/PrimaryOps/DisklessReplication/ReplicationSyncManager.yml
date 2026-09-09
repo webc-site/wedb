@@ -1,0 +1,10 @@
+fn:
+  - ReplicationSyncManager
+  - IsActive
+  - WaitForFlushAsync
+  - AddReplicaSyncSession
+  - ReplicationSyncDriverAsync
+  - MainStreamingSnapshotDriverAsync
+  - PrepareForSyncAsync
+  - TakeStreamingCheckpointAsync
+  - WaitOrDieAsync

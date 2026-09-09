@@ -1,0 +1,11 @@
+fn:
+  - IsEnabled
+  - EnableException
+  - DisableException
+  - EnabledScope
+  - TriggerException
+  - TriggerCondition
+  - ResetAndWaitAsync
+  - ResetAndWait
+  - WaitOnClear
+  - WaitOnClearAsync

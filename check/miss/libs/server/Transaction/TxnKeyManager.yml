@@ -1,0 +1,8 @@
+fn:
+  - SaveKeyEntryToLock
+  - ResetCacheSlotVerificationResult
+  - WriteCachedSlotVerificationMessage
+  - VerifyKeyOwnership
+  - LockKeys
+  - AddTransactionStoreType
+  - SaveKeyArgSlice

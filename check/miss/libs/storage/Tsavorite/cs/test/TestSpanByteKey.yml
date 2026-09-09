@@ -1,0 +1,6 @@
+fn:
+  - TestSpanByteKey
+  - FromPinnedSpan
+  - CopySpan
+  - FromPointer
+  - FromArray

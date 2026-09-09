@@ -1,0 +1,17 @@
+fn:
+  - HashGet
+  - HashMultipleGet
+  - HashGetAll
+  - HashDelete
+  - HashLength
+  - HashStrLength
+  - HashExists
+  - HashRandomField
+  - DeleteExpiredItems
+  - UpdateSize
+  - CleanupExpirationStructuresIfEmpty
+  - HashGetKeysOrValues
+  - HashIncrement
+  - HashIncrementFloat
+  - HashTimeToLive
+  - GetByteSpanFromInput

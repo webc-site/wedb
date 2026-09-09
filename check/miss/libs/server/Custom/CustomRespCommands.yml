@@ -1,0 +1,11 @@
+fn:
+  - TryTransactionProc
+  - SendAndReset
+  - RunCustomTxnProcAtReplica
+  - TryCustomProcedure
+  - TryCustomRawStringCommand
+  - TryCustomObjectCommand
+  - ParseCustomRawStringCommand
+  - ParseCustomObjectCommand
+  - InvokeCustomRawStringCommand
+  - InvokeCustomObjectCommand

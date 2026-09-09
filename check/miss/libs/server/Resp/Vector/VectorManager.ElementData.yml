@@ -1,0 +1,10 @@
+fn:
+  - PreparedVectorData
+  - PrepareVectorData
+  - ConvertF32ForAlignment
+  - ConvertI8ToF32
+  - ConvertU8ToF32
+  - ConvertF32ToU8
+  - ConvertI8ToU8
+  - ConvertF32ToI8
+  - ConvertU8ToI8

@@ -1,0 +1,19 @@
+fn:
+  - SetAdd
+  - SetRemove
+  - SetLength
+  - SetMembers
+  - SetPop
+  - SetMove
+  - SetIntersect
+  - SetIntersectStore
+  - SetUnion
+  - SetUnionStore
+  - RMWObjectStoreOperation
+  - ReadObjectStoreOperation
+  - SetIsMember
+  - SetRandomMember
+  - SetDiff
+  - SetDiffStore
+  - SetIntersectLength
+  - ThrowObjectStoreUninitializedException

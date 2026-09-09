@@ -1,0 +1,12 @@
+fn:
+  - PopulatePrimaryTable
+  - ValidateSubTable
+  - ValidatePrimaryTable
+  - LookupSubcommand
+  - ComputeHash
+  - ReadPartialWord
+  - MatchName
+  - LookupInTable
+  - GetWordFromSpan
+  - InsertIntoTable
+  - BuildSubTable

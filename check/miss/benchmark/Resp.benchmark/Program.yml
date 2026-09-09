@@ -1,0 +1,8 @@
+fn:
+  - CreateLoggerFactory
+  - PrintBenchMarkSummary
+  - DisabledFeatures
+  - Main
+  - WaitForServer
+  - RunHLLBenchmark
+  - RunBasicCommandsBenchmark

@@ -1,0 +1,23 @@
+fn:
+  - ExecuteForStringResultAsync
+  - ExecuteForStringResult
+  - ExecuteForStringResultWithCancellationAsync
+  - TokenRegistrationStringCallback
+  - ExecuteForMemoryResultAsync
+  - ExecuteForMemoryResult
+  - ExecuteForMemoryResultWithCancellationAsync
+  - TokenRegistrationMemoryResultCallback
+  - ExecuteForStringArrayResultAsync
+  - ExecuteForStringArrayResult
+  - ExecuteForStringArrayResultWithCancellationAsync
+  - TokenRegistrationStringArrayCallback
+  - ExecuteForMemoryResultArrayAsync
+  - ExecuteForMemoryResultArray
+  - ExecuteForMemoryResultArrayWithCancellationAsync
+  - TokenRegistrationMemoryResultArrayCallback
+  - ExecuteForLongResultAsync
+  - ExecuteForLongResult
+  - ExecuteForLongResultWithCancellationAsync
+  - ExecuteNoResponse
+  - InternalExecuteNoResponse
+  - TokenRegistrationLongCallback

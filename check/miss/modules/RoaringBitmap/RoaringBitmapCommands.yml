@@ -1,0 +1,6 @@
+fn:
+  - TryParseUInt32
+  - TryParseBit
+  - NeedInitialUpdate
+  - Updater
+  - TryParseArgs

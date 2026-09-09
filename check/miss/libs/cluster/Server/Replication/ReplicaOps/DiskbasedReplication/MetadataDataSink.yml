@@ -1,0 +1,4 @@
+fn:
+  - MetadataDataSink
+  - WriteChunk
+  - Complete

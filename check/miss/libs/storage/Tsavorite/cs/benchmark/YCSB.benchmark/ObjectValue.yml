@@ -1,0 +1,6 @@
+fn:
+  - DoSerialize
+  - WriteType
+  - ObjectValue
+  - Deserialize
+  - Serialize

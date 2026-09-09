@@ -1,0 +1,13 @@
+fn:
+  - SetupServerWithReviv
+  - TestRevivifyAsync
+test:
+  - RevivificationWithRmwWorksAsync
+  - RevivificationWithRmwWorksWhenNeedingShrinkingAndThenExpanding
+  - RevivificationWithRMWWorksViaSetIfGreater
+  - RevivificationWithRMWWorksViaAppend
+  - RevivificationWithRMWWorksViaSetBit
+  - RevivificationWithRMWWorksViaBitfield
+  - RevivificationWithRMWWorksForRecordPool
+  - RevivifiedRecordsShouldStillEnqueueToAofViaRmw
+  - RevivifiedRecordsShouldStillEnqueueToAofViaUpsert

@@ -1,0 +1,4 @@
+fn:
+  - ToByteArray
+  - SerializedSize
+  - DebugPrint
