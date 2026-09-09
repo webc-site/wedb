@@ -1,2 +1,9 @@
 pub mod main_store;
 pub mod object_store;
+pub mod session_functions_utils;
+pub mod garnet_record_triggers;
+pub mod functions_state;
+pub mod mainstore;
+pub mod objectstore;
+pub mod unifiedstore;
+pub mod vectorstore;
