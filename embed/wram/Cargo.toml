@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wram"
-description = "Sector-aligned buffer pool and direct virtual memory for async storage / 面向异步存储的扇区对齐缓冲池与直接虚拟内存"
+description = "Direct virtual memory and native allocation tracking for async storage; sector-aligned buffer pool re-exported from wutil / 异步存储直接虚拟内存与原生分配追踪，扇区对齐缓冲池本体已下沉 wutil"
 keywords = ["buffer-pool", "memory-pool", "sector-aligned", "async-io", "storage"]
 categories = [
   "memory-management",
@@ -23,12 +23,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-compio-buf = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
-parking_lot = { workspace = true }
-thiserror = { workspace = true }
 wbase = { workspace = true, features = ["align", "striped", "thread"] }
+wutil = { version = "0.1.0", path = "../wutil" }
 
 [dev-dependencies]
 aok = { workspace = true }

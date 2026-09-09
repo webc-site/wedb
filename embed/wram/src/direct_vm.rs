@@ -15,10 +15,7 @@ use std::{
   sync::OnceLock,
 };
 
-use crate::{
-  error::{Error, Result},
-  tracker::NativeMemoryTracker,
-};
+use crate::{Error, Result, tracker::NativeMemoryTracker};
 
 #[cfg(windows)]
 unsafe extern "system" {
