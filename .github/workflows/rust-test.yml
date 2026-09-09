@@ -34,6 +34,10 @@ jobs:
           - macos-latest # macOS aarch64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      # gxhash 要求 AES 指令集 (与 sh/env.sh 保持一致；aarch64 上 aes 属基线
+      # 特性，重复开启无副作用)，否则 x86_64 全新构建触发 gxhash compile_error
+      RUSTFLAGS: -C target-feature=+aes
     steps:
       - uses: actions/checkout@v7
 
