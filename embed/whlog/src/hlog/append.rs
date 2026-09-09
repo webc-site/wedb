@@ -46,7 +46,7 @@ impl<D: Device> HybridLog<D> {
   /// - 计算记录大小，若当前活跃页剩余空间不足以容纳，进入换页逻辑写入 Pad 标记并跳到下一页开头
   ///   （保证记录决不跨页边界，严格对齐 Tsavorite 行为）；
   /// - 严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs TryAllocate / HandlePageOverflow：
-  ///   - 页内空间充足时：通过原子 CAS ([AtomicU64::compare_exchange_weak]) 独占瓜分物理空间，
+  ///   - 页内空间充足时：通过原子 CAS (`AtomicU64::compare_exchange_weak`) 独占瓜分物理空间，
   ///     直接使用裸指针无锁并发写入，彻底消除全局串行锁；
   ///   - 跨页边界时：仅在换页时获取轻量 page_turn_lock，由首个跨越线程负责打 Pad、
   ///     初始化新页并以 CAS 推进 tail；新记录编码统一发生在 tail 发布之后

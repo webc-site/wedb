@@ -3,7 +3,7 @@
 //! 对应关系：
 //! - `ascii` / `num` / `convert` / `crc64` / `hash` / `hash_slot`
 //!   ← `libs/common/AsciiUtils.cs`、`NumUtils.cs`、`Crc64.cs`、`HashUtils.cs`
-//! - [`pool`] / [`AlignedBuf`] ← `libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool*.cs`
+//! - `pool` / [`AlignedBuf`] ← `libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool*.cs`
 //!   (SectorAlignedBufferPool Origin-Return 三级缓存) 与 `SectorAlignedMemory`
 //!
 //! 在 C# 中 `Utilities` 位于依赖图最底层，被 Device、Allocator(Native)、TsavoriteLog、

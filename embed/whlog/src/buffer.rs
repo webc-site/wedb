@@ -154,7 +154,7 @@ impl CircularPageBuffer {
 
   /// 换页预清零：在全局换页锁窗口外执行整页 memset（对标 C# allocate-ahead 不变量）
   ///
-  /// 仅当槽位仍承载上一轮同槽旧页（或为空）时才清零，并以 [`CLAIMED_PAGE_ID`] 标记"已清零待标定"；
+  /// 仅当槽位仍承载上一轮同槽旧页（或为空）时才清零，并以 `CLAIMED_PAGE_ID` 标记"已清零待标定"；
   /// 槽位写锁保证与并发预清零者、接管初始化者互斥，[64KB memset] 代价完全移出换页临界区。
   pub fn preclear_page(&self, page_id: u64) {
     let slot = self.page_idx(page_id);
