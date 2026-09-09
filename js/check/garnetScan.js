@@ -11,24 +11,23 @@ const TEST_ATTR_SET = new Set([
 const csExtract = (code, parser) => {
   const tree = parser.parse(code),
     fn_set = new Set(),
-    test_set = new Set();
+    test_set = new Set(),
+    node_li = tree.rootNode.descendantsOfType([
+      "method_declaration",
+      "local_function_statement"
+    ]);
 
-  const nodes = tree.rootNode.descendantsOfType([
-    "method_declaration",
-    "local_function_statement"
-  ]);
-
-  for (const node of nodes) {
-    const fnName = node.childForFieldName("name")?.text;
-    if (!fnName) continue;
+  for (const node of node_li) {
+    const fn_name = node.childForFieldName("name")?.text;
+    if (!fn_name) continue;
 
     let is_test = false;
     for (const child of node.children) {
       if (child.type === "attribute_list") {
         for (const attr of child.children) {
           if (attr.type === "attribute") {
-            const attrName = attr.childForFieldName("name")?.text;
-            if (attrName && TEST_ATTR_SET.has(attrName)) {
+            const attr_name = attr.childForFieldName("name")?.text;
+            if (attr_name && TEST_ATTR_SET.has(attr_name)) {
               is_test = true;
               break;
             }
@@ -38,8 +37,8 @@ const csExtract = (code, parser) => {
       if (is_test) break;
     }
 
-    if (is_test) test_set.add(fnName);
-    else fn_set.add(fnName);
+    if (is_test) test_set.add(fn_name);
+    else fn_set.add(fn_name);
   }
 
   tree.delete();
@@ -67,9 +66,8 @@ const csWalk = async (dir_path) => {
 const garnetScan = async (garnet_dir = resolve(import.meta.dirname, "../../garnet")) => {
   const file_li = await csWalk(garnet_dir),
     fn_map = {},
-    test_map = {};
-
-  const parser = await csParser();
+    test_map = {},
+    parser = await csParser();
 
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),

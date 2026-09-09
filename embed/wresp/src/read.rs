@@ -127,9 +127,6 @@ pub fn try_read_i64(
   let mut sign_read = false;
   let mut overflow = false;
 
-  // We need to keep a copy of ptr in case we need to calculate offset for error
-  let _start_len = ptr.len();
-
   if try_read_i64_safe(
     ptr,
     value,
@@ -147,7 +144,6 @@ pub fn try_read_i64(
     } else {
       *bytes_read
     };
-    // The offset logic in C# is: ptr - digits_read. In Rust, we just return the bytes_read or offset.
     return Err(Error::IntegerOverflow {
       offset: digits_read,
     });
@@ -239,12 +235,11 @@ pub fn try_read_signed_length_header(
   let negative = read_head[0] == b'-';
 
   // Special case '_\r\n' (RESP3 NULL value)
-  if ptr[0] == b'_'
-    && read_head.len() >= 2 && &read_head[0..2] == b"\r\n" {
-      *length = -1;
-      *ptr = &read_head[2..];
-      return Ok(true);
-    }
+  if ptr[0] == b'_' && read_head.len() >= 2 && &read_head[0..2] == b"\r\n" {
+    *length = -1;
+    *ptr = &read_head[2..];
+    return Ok(true);
+  }
 
   // String length headers must start with a '$', array headers with '*'
   if ptr[0] != expected_sigil {
@@ -448,20 +443,12 @@ pub fn try_read_u64_with_length_header(value: &mut u64, ptr: &mut &[u8]) -> Resu
   Ok(true)
 }
 
-const MAX_ARGUMENT_LENGTH_BYTES: i32 = 1024 * 1024 * 1024; // Arbitrary 1GB limit as in Garnet usually? 
-// Wait, Garnet RespReadUtils.MaxArgumentLengthBytes is 1024 * 1024 * 1024.
-
 /// garnet/libs/common/RespReadUtils.cs:TrySkipByteArrayWithLengthHeader
 #[inline]
 pub fn try_skip_byte_array_with_length_header(ptr: &mut &[u8]) -> Result<bool> {
   let mut length = 0;
   if !try_read_unsigned_length_header(&mut length, ptr, b'$')? {
     return Ok(false);
-  }
-
-  // Garnet validates MaxArgumentLengthBytes
-  if length > 536870912 { // typically 512MB in Garnet. Let's not hardcode if not strictly necessary.
-    // we'll just check against 512MB
   }
 
   let skip_len = length as usize + 2;

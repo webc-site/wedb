@@ -11,3 +11,31 @@ fn test() -> Void {
   info!("> test {}", 123456);
   OK
 }
+use wresp::read::*;
+
+#[test]
+fn test_length_encoding() {
+  let mut length = 0;
+
+  // Test unsigned length header "$5\r\n"
+  let mut ptr = b"$5\r\n".as_slice();
+  assert!(try_read_unsigned_length_header(&mut length, &mut ptr, b'$').unwrap());
+  assert_eq!(length, 5);
+
+  // Test signed length header "$-1\r\n" (NULL)
+  let mut ptr = b"$-1\r\n".as_slice();
+  assert!(try_read_signed_length_header(&mut length, &mut ptr, b'$').unwrap());
+  assert_eq!(length, -1);
+
+  // Test array length "*3\r\n"
+  let mut ptr = b"*3\r\n".as_slice();
+  assert!(try_read_unsigned_array_length(&mut length, &mut ptr).unwrap());
+  assert_eq!(length, 3);
+}
+
+#[test]
+fn test_skip_byte_array() {
+  let mut ptr = b"$5\r\nhello\r\n".as_slice();
+  assert!(try_skip_byte_array_with_length_header(&mut ptr).unwrap());
+  assert!(ptr.is_empty());
+}

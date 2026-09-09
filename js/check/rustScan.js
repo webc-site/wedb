@@ -56,17 +56,19 @@ const docTokenExtract = (text, doc_set, doc_file_fn_map) => {
 };
 
 const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
-  const tree = parser.parse(code);
-  const fn_doc_li = [];
-  const doc_set = new Set();
-  const all_doc_li = [];
+  const tree = parser.parse(code),
+    fn_doc_li = [],
+    doc_set = new Set(),
+    all_doc_li = [],
+    comment_li = tree.rootNode.descendantsOfType(["line_comment", "block_comment"]),
+    fn_li = tree.rootNode.descendantsOfType("function_item");
 
-  const comments = tree.rootNode.descendantsOfType(["line_comment", "block_comment"]);
-  for (const c of comments) {
-    let text = c.text;
-    if (c.type === "line_comment") {
+  for (const comment of comment_li) {
+    const { type } = comment;
+    let { text } = comment;
+    if (type === "line_comment") {
       text = text.replace(/^\/\/[/!]?\s*/, "");
-    } else if (c.type === "block_comment") {
+    } else if (type === "block_comment") {
       text = text.replace(/^\/\*+\s*/, "").replace(/\s*\*+\/$/, "");
     }
     text = text.trim();
@@ -76,15 +78,14 @@ const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
     }
   }
 
-  const functions = tree.rootNode.descendantsOfType("function_item");
-  for (const fn of functions) {
-    const nameNode = fn.childForFieldName("name");
-    if (!nameNode) continue;
-    const fn_name = nameNode.text;
+  for (const fn of fn_li) {
+    const name_node = fn.childForFieldName("name");
+    if (!name_node) continue;
+    const fn_name = name_node.text,
+      doc_part_li = [];
 
-    const doc_parts = [];
-    let curr = fn.previousSibling;
-    let last_row = fn.startPosition.row;
+    let curr = fn.previousSibling,
+      last_row = fn.startPosition.row;
 
     while (curr) {
       if (curr.type === "attribute_item") {
@@ -101,11 +102,11 @@ const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
         break;
       }
 
-      const text = curr.text;
-      if (curr.type === "line_comment" && (text.startsWith("///") || text.startsWith("//!"))) {
-        doc_parts.unshift(text.replace(/^\/\/[/!]\s*/, ""));
-      } else if (curr.type === "block_comment" && text.startsWith("/**")) {
-        doc_parts.unshift(text.replace(/^\/\*\*+\s*/, "").replace(/\s*\*+\/$/, "").trim());
+      const { text, type } = curr;
+      if (type === "line_comment" && (text.startsWith("///") || text.startsWith("//!"))) {
+        doc_part_li.unshift(text.replace(/^\/\/[/!]\s*/, ""));
+      } else if (type === "block_comment" && text.startsWith("/**")) {
+        doc_part_li.unshift(text.replace(/^\/\*\*+\s*/, "").replace(/\s*\*+\/$/, "").trim());
       }
 
       last_row = curr.startPosition.row;
@@ -115,7 +116,7 @@ const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
     fn_doc_li.push({
       file: file_rel,
       fn: fn_name,
-      doc: doc_parts.join("\n")
+      doc: doc_part_li.join("\n")
     });
   }
 
@@ -128,9 +129,8 @@ const rustScan = async (root_dir = resolve(import.meta.dirname, "../..")) => {
     fn_doc_li = [],
     doc_set = new Set(),
     doc_file_fn_map = new Map(),
-    text_li = [];
-
-  const parser = await rsParser();
+    text_li = [],
+    parser = await rsParser();
 
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),
