@@ -9,7 +9,10 @@ import rustScan from "./check/rustScan.js";
 const ROOT_DIR = resolve(import.meta.dirname, ".."),
   GARNET_DIR = join(ROOT_DIR, "garnet"),
   IGNORE_DIR = join(import.meta.dirname, "check/ignore"),
-  MISS_DIR = join(ROOT_DIR, "check/miss");
+  MISS_DIR_LI = [
+    join(import.meta.dirname, "check/miss"),
+    join(ROOT_DIR, "check/miss")
+  ];
 
 const walkYml = async (dir_path) => {
   const file_li = [];
@@ -26,6 +29,51 @@ const walkYml = async (dir_path) => {
     }
   } catch {}
   return file_li;
+};
+
+const emptyDirClean = async (dir_path, is_root = true) => {
+  try {
+    const entry_li = await readdir(dir_path, { withFileTypes: true });
+    for (const entry of entry_li) {
+      if (entry.isDirectory()) {
+        await emptyDirClean(join(dir_path, entry.name), false);
+      }
+    }
+    if (!is_root) {
+      const remain_li = await readdir(dir_path);
+      if (remain_li.length === 0) {
+        await rm(dir_path, { recursive: true, force: true });
+      }
+    }
+  } catch {}
+};
+
+const missSync = async (miss_dir, active_miss_map) => {
+  await mkdir(miss_dir, { recursive: true });
+  const existing_file_li = await walkYml(miss_dir);
+
+  for (const file_path of existing_file_li) {
+    const rel_path = relative(miss_dir, file_path);
+    if (!active_miss_map.has(rel_path)) {
+      await rm(file_path, { force: true });
+    }
+  }
+
+  for (const [rel_path, data] of active_miss_map.entries()) {
+    const target_file = join(miss_dir, rel_path),
+      content = yaml.stringify(data),
+      target_file_obj = Bun.file(target_file);
+
+    if (await target_file_obj.exists()) {
+      const old_content = await target_file_obj.text();
+      if (old_content === content) continue;
+    } else {
+      await mkdir(dirname(target_file), { recursive: true });
+    }
+    await Bun.write(target_file, content);
+  }
+
+  await emptyDirClean(miss_dir);
 };
 
 const ignoreLoad = async () => {

@@ -241,7 +241,17 @@ fn test_streaming_split_and_page_scan() -> Void {
 
     let mut updated_val = exp_v.clone();
     updated_val.reverse();
-    rec.update_value_in_place(&updated_val)?;
+    if exp_tomb {
+      // 墓碑记录普通原位更新被拦截，须走显式复活路径
+      assert_eq!(
+        rec.update_value_in_place(&updated_val),
+        Err(Error::TombstoneUpdate)
+      );
+      rec.revivify_with_slack(&updated_val)?;
+      assert!(!rec.is_tombstone());
+    } else {
+      rec.update_value_in_place(&updated_val)?;
+    }
     assert_eq!(rec.value(), updated_val.as_slice());
 
     mut_slice = rest;

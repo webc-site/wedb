@@ -26,19 +26,12 @@ pub enum Error {
   RecordSizeOverflow,
 
   /// 原位更新时新值长度与原记录值长度不一致
-  #[error("原位更新值长度不匹配: 期望 {expected} 字节，实际 {actual} 字节")]
+  #[error("原位更新值长度不匹配: 期望 {expected} 字节, 实际 {actual} 字节")]
   ValueLengthMismatch { expected: usize, actual: usize },
 
-  /// bitcode 编解码数据损坏或格式非法
-  #[error("bitcode 编解码失败: {0}")]
-  BitcodeDecode(&'static str),
-}
-
-impl From<bitcode::Error> for Error {
-  #[inline]
-  fn from(_: bitcode::Error) -> Self {
-    Self::BitcodeDecode("bitcode 数据反序列化失败")
-  }
+  /// 墓碑记录禁止普通原位更新（复活须走显式复活路径 revivify_with_slack）
+  #[error("墓碑记录禁止原位更新, 须走复活路径")]
+  TombstoneUpdate,
 }
 
 /// 记录模块结果类型

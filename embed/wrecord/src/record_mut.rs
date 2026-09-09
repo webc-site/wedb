@@ -109,9 +109,14 @@ impl<'a> RecordMut<'a> {
     unsafe { self.slice.get_unchecked_mut(key_end..total_size) }
   }
 
-  /// 原位更新值内容（要求新值长度与当前记录中定义的值长度完全一致）
+  /// 原位更新值内容（要求非墓碑且新值长度与当前记录中定义的值长度完全一致）
+  ///
+  /// 墓碑拦截与 [Self::can_update_in_place] 查询语义严格一致；复活须走 [Self::revivify_with_slack]。
   #[inline]
   pub fn update_value_in_place(&mut self, new_val: &[u8]) -> Result<()> {
+    if self.is_tombstone() {
+      return Err(Error::TombstoneUpdate);
+    }
     let val_len = self.header.val_len as usize;
     if new_val.len() != val_len {
       return Err(Error::ValueLengthMismatch {
@@ -129,11 +134,17 @@ impl<'a> RecordMut<'a> {
 
   /// 基于 FillerWords 与动态松弛写入新值的公共实现（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
   ///
+  /// - 非复活路径（`clear_tombstone == false`）拦截墓碑记录，与 [Self::can_update_with_slack] 查询语义一致；
   /// - 校验新值长度不超过槽位物理容量（val_capacity）且富余松弛可被头部完整表达；
   /// - 原位覆写值内容，富余空间折算为单字节精度的松弛填充；
   /// - `clear_tombstone` 为 true 时同步清除墓碑位（链内原地复活），单次刷回 16 字节头部。
   #[inline]
   fn write_val_with_slack(&mut self, new_val: &[u8], clear_tombstone: bool) -> Result<()> {
+    let is_tombstone = self.header.is_tombstone();
+    if is_tombstone && !clear_tombstone {
+      return Err(Error::TombstoneUpdate);
+    }
+
     let total_capacity = self.header.val_capacity();
     if new_val.len() > total_capacity || (total_capacity - new_val.len()) > MAX_FILLER_BYTES {
       return Err(Error::ValueLengthMismatch {

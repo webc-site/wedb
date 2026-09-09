@@ -44,6 +44,21 @@ fn build_header(
   Ok((header, total_size))
 }
 
+/// 将 16 字节头 + 键 + 值连续写入目标裸指针（供切片编码与向量编码共享的底层写入实现）
+///
+/// # Safety
+/// 调用方必须保证 `ptr` 起始的 `HEADER_SIZE + key.len() + val.len()` 字节可写，
+/// 且写入区间与 key/val 指向的内存互不重叠。
+#[inline]
+unsafe fn write_record_unchecked(ptr: *mut u8, header: &RecordHeader, key: &[u8], val: &[u8]) {
+  let hdr_bytes = header.to_bytes();
+  unsafe {
+    copy_nonoverlapping(hdr_bytes.as_ptr(), ptr, HEADER_SIZE);
+    copy_nonoverlapping(key.as_ptr(), ptr.add(HEADER_SIZE), key.len());
+    copy_nonoverlapping(val.as_ptr(), ptr.add(HEADER_SIZE + key.len()), val.len());
+  }
+}
+
 /// 将键值对及元数据编码写入目标字节切片
 ///
 /// 返回写入的字节总数（即记录大小）。
@@ -70,15 +85,9 @@ pub fn encode_to_slice(
     "编码记录: prev_addr={prev_addr:#x}, key_len={key_len}, val_len={val_len}, is_tombstone={is_tombstone}, total_size={total_size}"
   );
 
-  let ptr = buf.as_mut_ptr();
-  let hdr_bytes = header.to_bytes();
   // SAFETY: buf 已由 get_mut 预先校验长度为 total_size = HEADER_SIZE + key.len() + val.len()，
   // dst 独占借用保证与 key/val 互不重叠。
-  unsafe {
-    copy_nonoverlapping(hdr_bytes.as_ptr(), ptr, HEADER_SIZE);
-    copy_nonoverlapping(key.as_ptr(), ptr.add(HEADER_SIZE), key.len());
-    copy_nonoverlapping(val.as_ptr(), ptr.add(HEADER_SIZE + key.len()), val.len());
-  }
+  unsafe { write_record_unchecked(buf.as_mut_ptr(), &header, key, val) };
 
   Ok(total_size)
 }
@@ -96,14 +105,10 @@ pub fn try_encode_to_vec(
   let (header, total_size) = build_header(prev_addr, key, val, is_tombstone)?;
 
   let mut buf = Vec::with_capacity(total_size);
-  let ptr = buf.as_mut_ptr();
-  let hdr_bytes = header.to_bytes();
   // SAFETY: buf 已预留 total_size = HEADER_SIZE + key.len() + val.len() 字节空间，
-  // 各写入切片互不重叠且完全覆盖 [0, total_size) 范围。
+  // 各写入区间互不重叠且完全覆盖 [0, total_size) 范围。
   unsafe {
-    copy_nonoverlapping(hdr_bytes.as_ptr(), ptr, HEADER_SIZE);
-    copy_nonoverlapping(key.as_ptr(), ptr.add(HEADER_SIZE), key.len());
-    copy_nonoverlapping(val.as_ptr(), ptr.add(HEADER_SIZE + key.len()), val.len());
+    write_record_unchecked(buf.as_mut_ptr(), &header, key, val);
     buf.set_len(total_size);
   }
   Ok(buf)
