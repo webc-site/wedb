@@ -19,7 +19,7 @@ use crate::{
 ///   bits 59..63 为 Modified/Sealed/InNewVersion/ReadCache/Tombstone 五个标志位；
 /// - 无 Valid 位：C# 的 Valid/Sealed 并发状态机由上层（whlog/wreviv）以原子 CAS 承担，
 ///   纯格式层不感知；
-/// - 注意 [READ_CACHE_BIT] 为本 头复合字 内的 bit 62，与 wbase::addr::READ_CACHE_BIT
+/// - 注意 [HEADER_READ_CACHE_BIT] 为本 头复合字 内的 bit 62，与 wbase::addr::HEADER_READ_CACHE_BIT
 ///   （哈希指针地址空间内的 bit 47）同名不同值，分属两个不同的 64 位字。
 pub const HEADER_SIZE: usize = 16;
 
@@ -53,7 +53,7 @@ pub const SEALED_BIT: u64 = 1u64 << 60;
 pub const IN_NEW_VERSION_BIT: u64 = 1u64 << 61;
 
 /// 读缓存标记位掩码（第 62 位，对标 C# Tsavorite RecordInfo.IsReadCache / LogAddress.kIsReadCacheBitMask）
-pub const READ_CACHE_BIT: u64 = 1u64 << 62;
+pub const HEADER_READ_CACHE_BIT: u64 = 1u64 << 62;
 
 /// 墓碑标记位掩码（第 63 位: 0x8000_0000_0000_0000）
 pub const TOMBSTONE_BIT: u64 = 1u64 << 63;
@@ -66,7 +66,7 @@ const _: () = assert!(
     | MODIFIED_BIT
     | SEALED_BIT
     | IN_NEW_VERSION_BIT
-    | READ_CACHE_BIT
+    | HEADER_READ_CACHE_BIT
     | TOMBSTONE_BIT)
     == u64::MAX
 );
@@ -174,13 +174,13 @@ impl RecordHeader {
   /// 是否标记为读缓存记录（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsReadCache / LogAddress.kIsReadCacheBitMask）
   #[inline(always)]
   pub const fn is_read_cache(&self) -> bool {
-    (self.prev_address & READ_CACHE_BIT) != 0
+    (self.prev_address & HEADER_READ_CACHE_BIT) != 0
   }
 
   /// 设置或清除读缓存标记（const fn）
   #[inline(always)]
   pub const fn set_read_cache(&mut self, is_read_cache: bool) {
-    self.prev_address = with_bit(self.prev_address, READ_CACHE_BIT, is_read_cache);
+    self.prev_address = with_bit(self.prev_address, HEADER_READ_CACHE_BIT, is_read_cache);
   }
 
   /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords）

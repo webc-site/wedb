@@ -3,7 +3,7 @@ use std::mem::{align_of, size_of};
 use aok::{OK, Void};
 use log::info;
 use wrecord::{
-  ADDRESS_MASK, HEADER_SIZE, IN_NEW_VERSION_BIT, MODIFIED_BIT, READ_CACHE_BIT, RecordHeader,
+  ADDRESS_MASK, HEADER_READ_CACHE_BIT, HEADER_SIZE, IN_NEW_VERSION_BIT, MODIFIED_BIT, RecordHeader,
   RecordMut, RecordRef, SEALED_BIT, TOMBSTONE_BIT, try_encode_to_vec,
 };
 
@@ -71,7 +71,7 @@ fn test_address_48bit_mask_and_packing() -> Void {
 /// - MODIFIED_BIT (bit 59): 检查点脏页标记 (RecordInfo.Modified)
 /// - SEALED_BIT (bit 60): 槽位密封/冻结 (RecordInfo.Sealed / TrySeal)
 /// - IN_NEW_VERSION_BIT (bit 61): 检查点纪元标记 (RecordInfo.IsInNewVersion)
-/// - READ_CACHE_BIT (bit 62): 读缓存指针标记 (RecordInfo.IsReadCache)
+/// - HEADER_READ_CACHE_BIT (bit 62): 读缓存指针标记 (RecordInfo.IsReadCache)
 /// - TOMBSTONE_BIT (bit 63): 墓碑删除标记 (RecordInfo.Tombstone)
 #[test]
 fn test_record_info_atomic_bits_lifecycle() -> Void {
@@ -81,10 +81,11 @@ fn test_record_info_atomic_bits_lifecycle() -> Void {
   assert_eq!(MODIFIED_BIT, 1u64 << 59);
   assert_eq!(SEALED_BIT, 1u64 << 60);
   assert_eq!(IN_NEW_VERSION_BIT, 1u64 << 61);
-  assert_eq!(READ_CACHE_BIT, 1u64 << 62);
+  assert_eq!(HEADER_READ_CACHE_BIT, 1u64 << 62);
   assert_eq!(TOMBSTONE_BIT, 1u64 << 63);
 
-  let all_flags = MODIFIED_BIT | SEALED_BIT | IN_NEW_VERSION_BIT | READ_CACHE_BIT | TOMBSTONE_BIT;
+  let all_flags =
+    MODIFIED_BIT | SEALED_BIT | IN_NEW_VERSION_BIT | HEADER_READ_CACHE_BIT | TOMBSTONE_BIT;
   assert_eq!(all_flags & ADDRESS_MASK, 0);
   assert_eq!(all_flags & 0x07FF_FFFF_FFFF_FFFF, 0);
 
@@ -157,7 +158,7 @@ fn test_record_info_atomic_bits_lifecycle() -> Void {
   let raw_word = u64::from_le_bytes(raw_buf[0..8].try_into().expect("8 字节切片"));
   assert_eq!(
     raw_word,
-    0x0000_1122_3344_5566 | MODIFIED_BIT | SEALED_BIT | IN_NEW_VERSION_BIT | READ_CACHE_BIT
+    0x0000_1122_3344_5566 | MODIFIED_BIT | SEALED_BIT | IN_NEW_VERSION_BIT | HEADER_READ_CACHE_BIT
   );
 
   let rec_ref = RecordRef::from_slice(&raw_buf)?;

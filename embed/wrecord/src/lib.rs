@@ -18,8 +18,8 @@ pub use chunk::{CHUNK_LEN_PREFIX_SIZE, ChunkCodec, ChunkIter};
 pub use codec::{checked_record_size, encode_to_slice, record_size, try_encode_to_vec};
 pub use error::{Error, Result};
 pub use header::{
-  ADDRESS_MASK, HEADER_SIZE, IN_NEW_VERSION_BIT, MAX_FILLER_BYTES, MODIFIED_BIT, PAD_KEY_LEN,
-  READ_CACHE_BIT, RecordHeader, SEALED_BIT, TOMBSTONE_BIT,
+  ADDRESS_MASK, HEADER_READ_CACHE_BIT, HEADER_SIZE, IN_NEW_VERSION_BIT, MAX_FILLER_BYTES,
+  MODIFIED_BIT, PAD_KEY_LEN, RecordHeader, SEALED_BIT, TOMBSTONE_BIT,
 };
 pub use record_mut::RecordMut;
 pub use record_ref::RecordRef;

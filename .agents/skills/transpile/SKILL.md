@@ -30,7 +30,10 @@ lua 用 luau
 
 运行 ./js/check.js 可以看到缺失实现或者文档注释的 c# 函数
 
+可以查看 `check/miss` 下面的文件， 明确还缺少哪些函数和测试
+
 如果某个函数不需要再 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 加上，这样 check.js 就不会提示需要实现
+
 
 在 rust 函数文档注释中写清楚和 c# 的映射关系，格式是如下：
 

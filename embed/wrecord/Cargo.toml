@@ -18,7 +18,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 
 [dependencies]
-bitcode = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 wbase = { workspace = true, features = ["addr", "simd"] }
