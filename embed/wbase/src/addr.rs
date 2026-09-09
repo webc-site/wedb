@@ -38,17 +38,6 @@ pub const INVALID_ADDRESS: u64 = 0;
 /// 对齐 C# `LogAddress.kTempInvalidAddress`
 pub const TEMP_INVALID_ADDRESS: u64 = 1;
 
-/// 第一个合法逻辑地址（64 字节）
-///
-/// 对齐 C# `LogAddress.FirstValidAddress = PageHeader.Size`（SizeBits = 6，即 1 << 6），
-/// 为页头保留空间，并保证 0 与 1 永不为合法地址
-pub const FIRST_VALID_ADDRESS: u64 = 64;
-
-/// 最大合法逻辑地址（47 位绝对地址满值）
-///
-/// 对齐 C# `LogAddress.MaxValidAddress`（内存态掩码，大于磁盘态掩码）
-pub const MAX_VALID_ADDRESS: u64 = ABSOLUTE_ADDRESS_MASK;
-
 /// 截断为低 48 位干净逻辑地址（对应 C# 以 kAddressBitMask 掩码取址）
 #[inline(always)]
 pub const fn clean_address(addr: u64) -> u64 {

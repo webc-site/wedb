@@ -9,8 +9,6 @@ fn test_addr_primitives() {
   assert_eq!(ABSOLUTE_ADDRESS_MASK, 0x0000_7FFF_FFFF_FFFF);
   assert_eq!(INVALID_ADDRESS, 0);
   assert_eq!(TEMP_INVALID_ADDRESS, 1);
-  assert_eq!(FIRST_VALID_ADDRESS, 64);
-  assert_eq!(MAX_VALID_ADDRESS, ABSOLUTE_ADDRESS_MASK);
 
   let raw = 0x1234_5678_9ABC;
   assert!(is_valid(raw));
@@ -203,18 +201,12 @@ fn test_crc_primitives() {
 fn test_time_primitives() {
   use wbase::time::*;
 
-  let secs = now_secs();
   let ms = now_ms();
-  let micros = now_micros();
   let nanos = now_nanos();
 
-  assert!(secs > 0);
   assert!(ms > 0);
-  assert!(micros > 0);
   assert!(nanos > 0);
-  assert!(ms >= secs * 1000);
-  assert!(micros >= ms * 1000);
-  assert!(nanos >= micros * 1000);
+  assert!(nanos >= ms * 1_000_000);
 }
 
 #[cfg(feature = "simd")]
@@ -320,16 +312,7 @@ fn test_base32_primitives() {
   assert!(!is_base32("0123 4567"));
   assert!(!is_base32("0123-4567"));
 
-  // 5. 追加写入 String
-  let mut s = String::new();
-  push_base32_u64(val64, &mut s);
-  assert_eq!(s, b32_64.as_str());
-
-  let mut s128 = String::new();
-  push_base32_u128(val128, &mut s128);
-  assert_eq!(s128, b32_128.as_str());
-
-  // 6. 防溢出与异常长度防御断言
+  // 5. 防溢出与异常长度防御断言
   // decode_u64: 长度非 13
   assert_eq!(decode_u64(""), None);
   assert_eq!(decode_u64("000000000000"), None); // 12 字符
@@ -467,7 +450,7 @@ fn test_float_primitives() {
 
   // 3. 切片接口
   let mut dst64 = [0u8; 10];
-  encode_f64_to_slice(123.456789, &mut dst64);
+  dst64[..8].copy_from_slice(&encode_f64(123.456789));
   assert_eq!(decode_f64_from_slice(&dst64), Some(123.456789));
   assert_eq!(decode_f64_from_slice(&dst64[..7]), None);
 
@@ -506,7 +489,7 @@ fn test_float_primitives() {
   }
 
   let mut dst32 = [0u8; 6];
-  encode_f32_to_slice(98.7654, &mut dst32);
+  dst32[..4].copy_from_slice(&encode_f32(98.7654));
   assert_eq!(decode_f32_from_slice(&dst32), Some(98.7654));
   assert_eq!(decode_f32_from_slice(&dst32[..3]), None);
 

@@ -12,18 +12,6 @@ pub fn now_ms() -> u64 {
   Clock::now_since_epoch().as_millis()
 }
 
-/// 获取自 UNIX 纪元以来的当前秒级时间戳（u64）
-#[inline(always)]
-pub fn now_secs() -> u64 {
-  Clock::now_since_epoch().as_secs()
-}
-
-/// 获取自 UNIX 纪元以来的当前微秒时间戳（u64）
-#[inline(always)]
-pub fn now_micros() -> u64 {
-  Clock::now_since_epoch().as_micros()
-}
-
 /// 获取自 UNIX 纪元以来的当前纳秒时间戳（u64）
 #[inline(always)]
 pub fn now_nanos() -> u64 {
