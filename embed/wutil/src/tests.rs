@@ -35,6 +35,16 @@ mod tests {
     let mut f64_val: f64 = 0.0;
     assert!(num::try_parse_with_infinity(b"+inf", &mut f64_val));
     assert!(f64_val.is_infinite() && f64_val.is_sign_positive());
+
+    // 常规位提取：最低置位偏移并原位清除
+    let mut bits = 0b0110u64;
+    assert_eq!(num::get_next_offset(&mut bits), 1);
+    assert_eq!(bits, 0b0100);
+
+    // value == 0 边界：trailing_zeros 为 64，不得触发移位溢出 panic（对齐 C# 1UL<<64 取模语义）
+    let mut zero = 0u64;
+    assert_eq!(num::get_next_offset(&mut zero), 64);
+    assert_eq!(zero, 0);
   }
 
   #[test]
