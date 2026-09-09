@@ -3,10 +3,10 @@ pub struct FieldFilter;
 impl FieldFilter {
   /// garnet相对路径:modules/GarnetJSON/JSONPath/FieldFilter.cs:ExecuteFilter
   pub fn execute_filter() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
   /// garnet相对路径:modules/GarnetJSON/JSONPath/FieldFilter.cs:ExecuteFilterMultiple
   pub fn execute_filter_multiple() {
-    unimplemented!()
+    panic!("NotImplementedException")
   }
 }
