@@ -1,47 +1,42 @@
-use super::main_session_functions::MainSessionFunctions;
+use super::{
+  main_session_functions::MainSessionFunctions,
+  upsert_methods::LogRecord,
+};
 
-// Dummy structs to match the signature
-pub struct LogRecord;
 pub struct DeleteInfo {
   pub key_hash: i64,
   pub user_data: u8,
+  pub action: i32,
   pub version: i64,
   pub session_id: i64,
 }
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InitialDeleter
-  pub fn initial_deleter(
+  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:SingleDeleter
+  pub fn single_deleter(
     &self,
-    _log_record: &mut LogRecord,
+    _key: &[u8],
+    _value: &mut LogRecord,
     _delete_info: &mut DeleteInfo,
+    _record_info: &mut LogRecord,
   ) -> bool {
+    true
+  }
+
+  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostSingleDeleter
+  pub fn post_single_deleter(&self, _key: &[u8], _delete_info: &mut DeleteInfo) {
     // functionsState.watchVersionMap.IncrementVersion(deleteInfo.KeyHash);
-    true
+    _delete_info.user_data |= Self::NEED_AOF_LOG;
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostInitialDeleter
-  pub fn post_initial_deleter(&self, _log_record: &mut LogRecord, delete_info: &mut DeleteInfo) {
-    // if (functionsState.appendOnlyFile != null)
-    delete_info.user_data |= Self::NEED_AOF_LOG;
-  }
-
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InPlaceDeleter
-  pub fn in_place_deleter(
+  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:ConcurrentDeleter
+  pub fn concurrent_deleter(
     &self,
-    _log_record: &mut LogRecord,
-    delete_info: &mut DeleteInfo,
+    _key: &[u8],
+    _value: &mut LogRecord,
+    _delete_info: &mut DeleteInfo,
+    _record_info: &mut LogRecord,
   ) -> bool {
-    // logRecord.ClearOptionals();
-    // if (!logRecord.Info.Modified) functionsState.watchVersionMap.IncrementVersion(deleteInfo.KeyHash);
-    delete_info.user_data |= Self::NEED_AOF_LOG;
     true
-  }
-
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostDeleteOperation
-  pub fn post_delete_operation(&self, _key: &[u8], delete_info: &mut DeleteInfo) {
-    if (delete_info.user_data & Self::NEED_AOF_LOG) == Self::NEED_AOF_LOG {
-      // WriteLogDelete(key, deleteInfo.Version, deleteInfo.SessionID, epochAccessor);
-    }
   }
 }

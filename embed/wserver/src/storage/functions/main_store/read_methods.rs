@@ -16,24 +16,32 @@ impl MainSessionFunctions {
   pub fn single_reader(
     &self,
     _key: &[u8],
-    _input: &mut StringInput,
+    input: &mut StringInput,
     _value: &[u8],
     _dst: &mut StringOutput,
     _read_info: &mut ReadInfo,
   ) -> bool {
+    // Fast path for simple GET on a normal inline string key with no optional fields.
+    if input.arg1 < 0 {
+      // CopyRespTo(value, ref output);
+      return true;
+    }
+
+    // In a real implementation we'd check DataHeader for HasOptionalOrObjectFields,
+    // RecordType, Expiry, etc.
     true
   }
 
   /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/ReadMethods.cs:ConcurrentReader
   pub fn concurrent_reader(
     &self,
-    _key: &[u8],
-    _input: &mut StringInput,
-    _value: &[u8],
-    _dst: &mut StringOutput,
-    _read_info: &mut ReadInfo,
+    key: &[u8],
+    input: &mut StringInput,
+    value: &[u8],
+    dst: &mut StringOutput,
+    read_info: &mut ReadInfo,
     _record_info: &LogRecord,
   ) -> bool {
-    true
+    self.single_reader(key, input, value, dst, read_info)
   }
 }

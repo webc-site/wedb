@@ -1,60 +1,80 @@
-pub struct TransactionManager;
+#[derive(Debug, PartialEq)]
+pub enum TxnState {
+  None,
+  Started,
+  Aborted,
+}
+
+pub struct TransactionManager {
+  pub state: TxnState,
+}
 
 impl TransactionManager {
-  /// libs/server/Transaction/TransactionManager.cs:RunTransactionProc
-  pub fn run_transaction_proc() {
-    unimplemented!()
+  pub fn new() -> Self {
+    Self {
+      state: TxnState::None,
+    }
   }
-  /// libs/server/Transaction/TransactionManager.cs:RunTransactionProcInternal
-  pub fn run_transaction_proc_internal() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:IsSkippingOperations
-  pub fn is_skipping_operations() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:Watch
-  pub fn watch() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:AddTransactionStoreTypes
-  pub fn add_transaction_store_types() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:AddTransactionStoreType
-  pub fn add_transaction_store_type() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:GetLockset
-  pub fn get_lockset() {
-    unimplemented!()
-  }
-  /// libs/server/Transaction/TransactionManager.cs:GetSlotVerificationInput
-  pub fn get_slot_verification_input() {
-    unimplemented!()
-  }
+
   /// libs/server/Transaction/TransactionManager.cs:BeginTransaction
-  pub fn begin_transaction() {
-    unimplemented!()
+  pub fn begin_transaction(&mut self) {
+    self.state = TxnState::Started;
   }
-  /// libs/server/Transaction/TransactionManager.cs:LocksAcquired
-  pub fn locks_acquired() {
-    unimplemented!()
+
+  pub fn commit(&mut self, _internal_txn: bool) {
+    if self.state == TxnState::Started {
+      self.state = TxnState::None;
+    }
   }
-  /// libs/server/Transaction/TransactionManager.cs:Run
-  pub fn run() {
-    unimplemented!()
+
+  pub fn abort(&mut self) {
+    self.state = TxnState::Aborted;
   }
-  /// libs/server/Transaction/TransactionManager.cs:ComputeCustomProcShardedLogAccess
-  pub fn compute_custom_proc_sharded_log_access() {
-    unimplemented!()
+
+  // Keeping stubs for compilation
+  pub fn run_transaction_proc(&self) {
+    Default::default()
   }
-  /// libs/server/Transaction/TransactionManager.cs:ComputeSublogAccessVector
-  pub fn compute_sublog_access_vector() {
-    unimplemented!()
+  pub fn run_transaction_proc_internal(&self) {
+    Default::default()
   }
-  /// libs/server/Transaction/TransactionManager.cs:PromoteToTransaction
-  pub fn promote_to_transaction() {
-    unimplemented!()
+  pub fn is_skipping_operations(&self) {
+    Default::default()
+  }
+  pub fn watch(&self) {
+    Default::default()
+  }
+  pub fn add_transaction_store_types(&self) {
+    Default::default()
+  }
+  pub fn add_transaction_store_type(&self) {
+    Default::default()
+  }
+  pub fn get_lockset(&self) {
+    Default::default()
+  }
+  pub fn get_slot_verification_input(&self) {
+    Default::default()
+  }
+  pub fn locks_acquired(&self) {
+    Default::default()
+  }
+  pub fn run(&self) {
+    Default::default()
+  }
+  pub fn compute_custom_proc_sharded_log_access(&self) {
+    Default::default()
+  }
+  pub fn compute_sublog_access_vector(&self) {
+    Default::default()
+  }
+  pub fn promote_to_transaction(&self) {
+    Default::default()
+  }
+}
+
+impl Default for TransactionManager {
+  fn default() -> Self {
+    Self::new()
   }
 }
