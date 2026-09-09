@@ -1,4 +1,5 @@
 fn:
+  - Dispose
   - Noop
   - InsertByPtr
   - ReadByPtr
