@@ -32,8 +32,11 @@ impl<S: CompactStore> LogCompactor<S> {
     key: &[u8],
     known_curr: Option<(u64, bool)>,
   ) -> Result<Option<LatestRecord>> {
-    let _guard = session.enter_epoch();
-    let mut addrs = self.store.index().lookup_candidates(key);
+    // 索引探测持短守卫分段执行（共享内存结构访问口径对齐 wkv delete_raw_disk_slow）
+    let mut addrs = {
+      let _guard = session.enter_epoch();
+      self.store.index().lookup_candidates(key)
+    };
     addrs.sort_descending();
     let begin_addr = self.store.begin_address();
 
@@ -70,7 +73,18 @@ impl<S: CompactStore> LogCompactor<S> {
         continue;
       }
 
-      match self.store.hlog().read_record(main_addr).await {
+      // 纪元纪律（对齐 read_from_disk / delete_raw_disk_slow 冷读协议）：磁盘区候选
+      // 免纪元纯设备读，绝不持守卫跨越磁盘 I/O await——否则紧缩探针全程钉住本线程
+      // 纪元，阻塞其他会话的 safe_head 推进与页回收；内存驻留候选在短守卫内读取，
+      // 恰好闭环 probe_resident 无锁裸读契约要求的 LightEpoch 保护（内存命中路径
+      // 纯同步完成、无实际协程让出）
+      let record = if self.store.hlog().is_on_disk(main_addr) {
+        self.store.hlog().read_disk_record(main_addr).await
+      } else {
+        let _guard = session.enter_epoch();
+        self.store.hlog().read_record(main_addr).await
+      };
+      match record {
         Ok(record) => {
           match record.key() {
             Ok(rec_key) if rec_key == key => {

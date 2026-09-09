@@ -17,7 +17,10 @@ use std::{
 
 use bf_tree::{BfTree, ConfigError, LeafInsertResult, LeafReadResult, ScanIter, ScanIterError};
 use parking_lot::RwLock;
-use wbase::time::{Duration, Instant};
+use wbase::{
+  align::CachePadded64,
+  time::{Duration, Instant},
+};
 
 use crate::{
   error::{Error, Result},
@@ -143,18 +146,25 @@ fn scan_iter_error_to_string(e: ScanIterError) -> &'static str {
 ///
 /// 后端/路径/记录上限支持原地恢复换树 (`recover_in_place`)：
 /// 热路径字段走原子量，文件路径走冷路径读写锁。
+///
+/// 缓存行布局（compio 线程每核下跨核共享同一实例，杜绝伪共享）：
+/// - `writers` 独占一条缓存行（每次 insert/delete 都 RMW，多核并发写时该行
+///   本就必然在核间弹跳，独立成行使其余字段不被连带失效）；
+/// - 其余读多写少的热点原子量 (`barriers`/`disposed`/`max_record_size`/
+///   `storage_backend`) 相邻聚在同一（或下一条）缓存行，稳态全核 Shared
+///   常驻，读写双方互不产生失效流量。
 pub struct BfTreeService {
   tree: RwLock<Option<Arc<BfTree>>>,
   storage_backend: AtomicU8,
   file_path: RwLock<Option<String>>,
   max_record_size: AtomicUsize,
   disposed: AtomicBool,
-  /// 活动写者计数 (insert/delete 微守卫持有时 > 0)
-  writers: AtomicUsize,
   /// 活动屏障计数 (对标 Garnet checkpoint barrier)：> 0 时新写者短暂自旋等待。
   /// 计数而非布尔位，嵌套叠加（外层屏障内嵌换树/释放排空的内层屏障）时写者
   /// 阻塞至最外层守卫丢弃，杜绝内层先行释放溶解外层窗口。
   barriers: AtomicUsize,
+  /// 活动写者计数 (insert/delete 微守卫持有时 > 0)；独占缓存行防伪共享
+  writers: CachePadded64<AtomicUsize>,
 }
 
 /// BfTree 写者 RAII 守卫：持有时写入计数 > 0，供换树/释放窗口排空在途写者
@@ -238,8 +248,8 @@ impl BfTreeService {
       file_path: RwLock::new(file_path),
       max_record_size: AtomicUsize::new(max_record_size),
       disposed: AtomicBool::new(false),
-      writers: AtomicUsize::new(0),
       barriers: AtomicUsize::new(0),
+      writers: CachePadded64::new(AtomicUsize::new(0)),
     })
   }
 
@@ -357,10 +367,15 @@ impl BfTreeService {
     }
   }
 
-  /// 插入键值对 (零 Arc 克隆；空值快速拒绝，与底层 min_record_size 校验语义一致)
+  /// 插入键值对 (零 Arc 克隆；空值快速拒绝，绝不透传引擎)
   ///
   /// 顶部登记写者微守卫：换树/释放窗口短暂自旋等待屏障放行 (对标 Garnet checkpoint barrier)。
   /// CPR 快照不经屏障 (引擎阶段协议与点写并发安全，对标 C# 非阻塞语义)。
+  ///
+  /// 空值守卫的真实依据：底层 bf-tree 叶子插入含 `debug_assert!(!value.is_empty())`
+  /// (nodes/leaf_node.rs)，空值在 dev/test 构建 panic、release 构建行为未定义
+  /// (C# 侧原生库同样从未容许空值入树，调用方契约排除)；此处提前以
+  /// [`BfTreeInsertResult::InvalidKV`] 拒绝，把引擎断言变成结构化结果码。
   #[inline]
   pub fn insert(&self, key: &[u8], value: &[u8]) -> BfTreeInsertResult {
     if value.is_empty() {
@@ -787,8 +802,8 @@ impl BfTreeService {
           file_path: RwLock::new(Some(p.to_string_lossy().into_owned())),
           max_record_size: AtomicUsize::new(max_record_size),
           disposed: AtomicBool::new(false),
-          writers: AtomicUsize::new(0),
           barriers: AtomicUsize::new(0),
+          writers: CachePadded64::new(AtomicUsize::new(0)),
         })
       }
       Ok(Err(e)) => Err(Error::Recovery(config_error_to_string(e))),
@@ -853,6 +868,26 @@ mod tests {
 
   fn mem_service() -> BfTreeService {
     BfTreeService::open_memory(0).unwrap()
+  }
+
+  /// 空值插入快速拒绝：绝不透传引擎 (底层叶子插入 debug_assert 非空值，
+  /// dev/test 构建下空值会 panic)，返回 InvalidKV 结构化结果码
+  #[test]
+  fn test_insert_empty_value_rejected_without_engine_panic() {
+    let service = mem_service();
+    // 空 value 无论 key 长短一律 InvalidKV，且不触发引擎断言
+    assert_eq!(
+      service.insert(b"long_enough_key", b""),
+      BfTreeInsertResult::InvalidKV
+    );
+    assert_eq!(
+      service.insert(b"k", b""),
+      BfTreeInsertResult::InvalidKV
+    );
+    // 空值插入不得产生任何残留条目
+    let (res, v) = service.read(b"long_enough_key");
+    assert_eq!(res, BfTreeReadResult::NotFound);
+    assert_eq!(v, None);
   }
 
   /// 排空必须等在途写者退出后才摘树：对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经

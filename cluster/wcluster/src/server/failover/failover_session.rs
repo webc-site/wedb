@@ -7,9 +7,10 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use wserver::aof::aof_address::AofAddress;
 
 use crate::{
-  client::{AofAddress, GarnetClient},
+  client::GarnetClient,
   server::{
     cluster_config::ClusterConfig,
     cluster_provider::ClusterProvider,
@@ -124,18 +125,15 @@ impl FailoverSession {
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:WaitForFirstReplicaSyncAsync
   ///
-  /// 对齐 C# 流程：取首个副本连接并做一次同步位点探测；应答位点未覆盖
-  /// 本地位点时不得启动接管（宁可放弃 failover 也不可丢提交）
+  /// 对齐 C# 流程：取首个副本连接并做一次同步位点探测；应答解析失败或
+  /// 位点未覆盖本地位点时不得启动接管（宁可放弃 failover 也不可丢提交）
   async fn wait_for_first_replica_sync_async(&self) -> Option<Arc<GarnetClient>> {
     let client = self.clients.lock().first()?.clone()?;
     let resp = self.check_replica_sync_async(&client).await;
+    let primary_offset = AofAddress::from_string(&resp)?;
     // 本地复制位点占位：ReplicationManager 接线后取 ReplicationOffset
-    let local_offset = 0;
-    if AofAddress::from_string(&resp).equals_all(local_offset) {
-      Some(client)
-    } else {
-      None
-    }
+    let local_offset = AofAddress::default();
+    primary_offset.equals_all(&local_offset).then_some(client)
   }
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:InitiateReplicaTakeOverAsync
@@ -199,13 +197,16 @@ impl FailoverSession {
     self.set_status(FailoverStatus::IssuingPauseWrites);
     let local_id = self.old_config.local_node_id().unwrap_or("").as_bytes();
     let resp = client.execute_cluster_fail_stop_writes_async(local_id).await;
-    let primary_offset = AofAddress::from_string(&resp);
+    // 解析失败按 C# FormatException → catch 路径处理：放弃本次 failover
+    let Some(primary_offset) = AofAddress::from_string(&resp) else {
+      return false;
+    };
 
     // 等待本地位点追平主端（超时即放弃，绝不在缺口上接管）。
     // 轮询间隔 1ms：对齐 C# Task.Yield 轮询，但在 compio 定时器上挂起，
     // 不空转烧核
     self.set_status(FailoverStatus::WaitingForSync);
-    while primary_offset.any_greater(0) {
+    while primary_offset.any_greater_than(0) {
       // 本地复制位点占位：ReplicationManager 接线后取 ReplicationOffset
       if self.failover_timeout_reached() {
         return false;

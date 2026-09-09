@@ -8,3 +8,5 @@ fn:
   - AsyncReadPageFromDeviceToFrameCallback
   - WaitForFrameLoad
   - ToString
+  - SignalFrameLoadCompletion
+  - WaitForFrameLoadCompletion

@@ -1546,17 +1546,17 @@ impl ClusterConfig {
 
     let wire: ConfigWire = bitcode::decode(payload)?;
 
-    // 线格式自 1 号本地 worker 起序列化，空列表即结构损坏：放行会产出无本地
-    // 位的配置，后续 LOCAL_WORKER_ID 索引 panic（C# 同场景在解码后首次访问
-    // workers[1] 时才崩溃，此处前置为解码期 fail-loud）
-    if wire.workers.is_empty() {
-      return Err(Error::MissingWorkers);
-    }
-
     let mut slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
+    // worker_id 越界校验先于槽位展开：越界 id 若入库，CLUSTER SLOTS 与
+    // 副本读路径（is_local_expensive）按属主下标直取 workers 会 panic，
+    // 恶意/损坏 gossip 载荷即可击穿节点进程
+    let worker_limit = wire.workers.len();
     let mut offset = 0usize;
     for seg in &wire.segments {
       let state = SlotState::from_repr(seg.state).ok_or(Error::SlotState(seg.state))?;
+      if seg.worker_id as usize > worker_limit {
+        return Err(Error::SlotWorkerId(seg.worker_id));
+      }
       let end = offset + seg.count as usize;
       if end > MAX_HASH_SLOT_VALUE {
         return Err(Error::SlotOverflow);
@@ -1566,6 +1566,13 @@ impl ClusterConfig {
         slot.state = state;
       }
       offset = end;
+    }
+
+    // 线格式自 1 号本地 worker 起序列化，空列表即结构损坏：放行会产出无本地
+    // 位的配置，后续 LOCAL_WORKER_ID 索引 panic（C# 同场景在解码后首次访问
+    // workers[1] 时才崩溃，此处前置为解码期 fail-loud）
+    if wire.workers.is_empty() {
+      return Err(Error::MissingWorkers);
     }
 
     // 0 号保留位不在线格式内，按 default 重建（对应 C# skip(1) 布局）
@@ -1904,12 +1911,12 @@ mod tests {
       ClusterConfig::from_byte_array(&payload),
       Err(Error::MissingWorkers)
     ));
-    // 越界 RLE：覆盖超 16384 槽（携带合法 worker，单独验证槽位段校验）
+    // 越界 RLE：覆盖超 16384 槽（worker_id 取保留位 0，专测 count 溢出分支）
     let mut payload = vec![CLUSTER_CONFIG_VERSION];
     payload.extend_from_slice(&bitcode::encode(&ConfigWire {
       segments: vec![SlotSegmentWire {
         count: u16::MAX,
-        worker_id: 1,
+        worker_id: 0,
         state: SlotState::Stable as u8,
       }],
       workers: vec![Worker::default()],
@@ -1932,6 +1939,49 @@ mod tests {
       ClusterConfig::from_byte_array(&payload),
       Err(Error::SlotState(0xee))
     ));
+  }
+
+  /// RLE 段属主下标必须落在重建后的 workers 范围内：越界 id 入库会让
+  /// CLUSTER SLOTS / is_local_expensive 按属主下标直取 workers 而 panic
+  #[test]
+  fn config_wire_rejects_unknown_worker_id() {
+    // 空_workers 载荷里属主指向 9 号 → 拒绝
+    let mut payload = vec![CLUSTER_CONFIG_VERSION];
+    payload.extend_from_slice(&bitcode::encode(&ConfigWire {
+      segments: vec![SlotSegmentWire {
+        count: 2,
+        worker_id: 9,
+        state: SlotState::Stable as u8,
+      }],
+      workers: vec![],
+    }));
+    assert!(matches!(
+      ClusterConfig::from_byte_array(&payload),
+      Err(Error::SlotWorkerId(9))
+    ));
+
+    // 边界内最大下标（= 线格式 worker 数，即重建后的末位）→ 放行
+    let worker = Worker {
+      nodeid: Some("n2".to_string()),
+      ..Worker::default()
+    };
+    let mut payload = vec![CLUSTER_CONFIG_VERSION];
+    payload.extend_from_slice(&bitcode::encode(&ConfigWire {
+      segments: vec![SlotSegmentWire {
+        count: 1,
+        worker_id: 1,
+        state: SlotState::Stable as u8,
+      }],
+      workers: vec![worker],
+    }));
+    let decoded = ClusterConfig::from_byte_array(&payload).unwrap();
+    assert_eq!(decoded.get_worker_id_from_slot(0), 1);
+    // 槽位投影在合法载荷上不再 panic（CLUSTER SLOTS 全量渲染）
+    assert!(
+      decoded
+        .get_slots_info(ClusterPreferredEndpointType::Ip)
+        .contains(":0\r\n:0\r\n")
+    );
   }
 
   #[test]

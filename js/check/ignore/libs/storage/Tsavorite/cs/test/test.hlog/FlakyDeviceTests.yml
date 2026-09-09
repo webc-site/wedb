@@ -3,6 +3,8 @@ fn:
   - BaseSetup
   - TearDown
   - BaseTearDown
+  - ReadMetadata
+  - WriteMetadata
 test:
   - FlakyLogTestCleanFailure
   - FlakyLogTestConcurrentWriteFailure

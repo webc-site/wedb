@@ -63,3 +63,4 @@ fn:
   - MaterializeParentDirForProbe
   - ProbeSectorSize
   - CompletionWorker
+  - ReportBrokenDrain

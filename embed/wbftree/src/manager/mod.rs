@@ -269,10 +269,13 @@ impl RangeIndexManager {
   ///
   /// 逐树屏障排空在途写者后释放；Drop 路径无错误通道，排空超时 (持有者卡死
   /// 30s 的进程级故障) 时吞掉——实例已置 disposed，引擎句柄延迟到 Arc 归零兜底。
+  /// 条目写锁仅在摘树语句内存活，排空自旋不持锁，避免同条目并发的
+  /// get_tree / 快照读取被阻塞整段排空时长。
   pub fn dispose(&self) {
     let pin = self.live_indexes.pin();
     for entry in pin.values() {
-      if let Some(tree) = entry.tree.write().take() {
+      let tree = entry.tree.write().take();
+      if let Some(tree) = tree {
         let _ = tree.dispose_quiesced();
       }
     }

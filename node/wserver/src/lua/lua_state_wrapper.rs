@@ -4,9 +4,14 @@
 //! C# 直接操作 Lua C 栈；mlua 为高层 API，故在封装内维护显式
 //! `Vec<Value>` 栈镜像：push/pop/rotate/settop/next 等映射到栈镜像，
 //! 表与全局操作落到 mlua，编译/执行经 `load`/`pcall`。
+//!
+//! 栈镜像与注册表引用存于 VM 的 app data（[`LuaInterp`]）：宿主回调
+//! （redis.call 等，由 mlua 闭包承接）只能拿到 `&Lua`，经
+//! `app_data_mut` 取同一份栈镜像，避免与外层 `&mut` 借用重叠。
 
-use std::{collections::HashMap, str};
+use std::str;
 
+use gxhash::HashMap;
 use mlua::{Lua, MultiValue, Value, Variadic};
 
 use super::i_lua_allocator::ILuaAllocator;
@@ -14,18 +19,23 @@ use super::i_lua_allocator::ILuaAllocator;
 /// 栈元素。
 pub type StackValue = Value;
 
-/// Lua 状态封装：VM + 栈镜像。
-pub struct LuaStateWrapper {
-  /// luau VM。
-  lua: Lua,
-  /// 注册表引用：id → RegistryKey。
-  refs: HashMap<i32, mlua::RegistryKey>,
-  /// 引用 id 分配器。
-  next_ref_id: i32,
+/// 解释器可变内态：C API 栈镜像 + 注册表引用（存为 VM app data）。
+#[derive(Default)]
+pub struct LuaInterp {
   /// C API 栈镜像（栈顶 = 末尾）。
-  stack: Vec<StackValue>,
-  /// 超时截止（单调毫秒；None = 未设）。
-  deadline_monotonic_millis: Option<i64>,
+  pub stack: Vec<StackValue>,
+  /// 注册表引用：id → RegistryKey。
+  pub refs: HashMap<i32, mlua::RegistryKey>,
+  /// 引用 id 分配器。
+  pub next_ref_id: i32,
+  /// 超时截止（单调毫秒；None = 未设）。经 VM 中断钩子轮询。
+  pub deadline_monotonic_millis: Option<i64>,
+}
+
+/// Lua 状态封装：VM + 栈镜像（镜像本体在 app data）。
+pub struct LuaStateWrapper {
+  /// luau VM（内持 LuaInterp app data）。
+  lua: Lua,
   /// 分配器（内存语义钩子；mlua 侧以 memory_limit 承载）。
   allocator: Option<Box<dyn ILuaAllocator>>,
 }
@@ -40,12 +50,22 @@ impl LuaStateWrapper {
   /// 构造：新建 luau VM 并装载安全基库。
   pub fn new() -> Self {
     let lua = Lua::new();
+    lua.set_app_data(LuaInterp::default());
     Self {
       lua,
-      stack: Vec::new(),
-      refs: HashMap::new(),
-      next_ref_id: 0,
-      deadline_monotonic_millis: None,
+      allocator: None,
+    }
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:LuaStateWrapper（视图构造）
+  ///
+  /// 以既有 VM 建临时视图（宿主回调侧入口）：app data 共享同一份栈镜像。
+  pub fn view(lua: &Lua) -> Self {
+    if lua.app_data_ref::<LuaInterp>().is_none() {
+      lua.set_app_data(LuaInterp::default());
+    }
+    Self {
+      lua: lua.clone(),
       allocator: None,
     }
   }
@@ -55,18 +75,32 @@ impl LuaStateWrapper {
     &self.lua
   }
 
+  /// 内态访问。
+  pub fn interp(&self) -> mlua::AppDataRef<'_, LuaInterp> {
+    self
+      .lua
+      .app_data_ref::<LuaInterp>()
+      .expect("app data 已在构造时装载")
+  }
+
+  /// 内态可变访问。
+  pub fn interp_mut(&self) -> mlua::AppDataRefMut<'_, LuaInterp> {
+    self
+      .lua
+      .app_data_mut::<LuaInterp>()
+      .expect("app data 已在构造时装载")
+  }
+
   /// libs/server/Lua/LuaStateWrapper.cs:ExpectLuaStackEmpty
   ///
   /// 断言栈已空（返回是否为空，测试/调试用）。
   pub fn expect_lua_stack_empty(&self) -> bool {
-    self.stack.is_empty()
+    self.interp().stack.is_empty()
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryEnsureMinimumStackCapacity
   pub fn try_ensure_minimum_stack_capacity(&mut self, min_capacity: usize) -> bool {
-    self
-      .stack
-      .reserve(min_capacity.saturating_sub(self.stack.len()));
+    self.interp_mut().stack.reserve(min_capacity);
     true
   }
 
@@ -82,12 +116,19 @@ impl LuaStateWrapper {
   /// 已知可调用形态的执行路径：弹出函数与参数，压回全部结果。
   pub fn known_call_from_lua_entered(&mut self, nargs: usize) -> Result<(), mlua::Error> {
     let total = nargs + 1;
-    let args: Vec<StackValue> = self.stack.split_off(self.stack.len().saturating_sub(total));
-    let function = as_function(&args[0])?;
-    let results: MultiValue = function.call(Variadic::from_iter(args.into_iter().skip(1)))?;
-    for v in results.into_vec() {
-      self.stack.push(v);
-    }
+    let args: Vec<StackValue> = {
+      let mut interp = self.interp_mut();
+      args_from_stack(&mut interp.stack, total)
+    };
+    let Some((first, rest)) = args.split_first() else {
+      return Err(mlua::Error::RuntimeError(
+        "attempt to call a non-function object".into(),
+      ));
+    };
+    let function = as_function(first)?;
+    let results: MultiValue = function.call(Variadic::from_iter(rest.iter().cloned()))?;
+    let mut interp = self.interp_mut();
+    interp.stack.extend(results.into_vec());
     Ok(())
   }
 
@@ -95,7 +136,7 @@ impl LuaStateWrapper {
   ///
   /// 栈顶第 `idx`（-1 为栈顶）元素的类型名。
   pub fn type_name(&self, idx: i32) -> Option<&'static str> {
-    self.peek(idx).map(value_type_name)
+    self.peek(idx).as_ref().map(value_type_name)
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryPushBuffer
@@ -105,60 +146,98 @@ impl LuaStateWrapper {
     let Ok(s) = self.lua.create_string(buffer) else {
       return false;
     };
-    self.stack.push(Value::String(s));
+    self.interp_mut().stack.push(Value::String(s));
     true
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PushNil
   pub fn push_nil(&mut self) {
-    self.stack.push(Value::Nil);
+    self.interp_mut().stack.push(Value::Nil);
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PushNumber
   pub fn push_number(&mut self, number: f64) {
-    self.stack.push(Value::Number(number));
+    self.interp_mut().stack.push(Value::Number(number));
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PushInteger
   pub fn push_integer(&mut self, integer: i64) {
-    self.stack.push(Value::Integer(integer));
+    self.interp_mut().stack.push(Value::Integer(integer));
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PushBoolean
   pub fn push_boolean(&mut self, boolean: bool) {
-    self.stack.push(Value::Boolean(boolean));
+    self.interp_mut().stack.push(Value::Boolean(boolean));
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:Pop
   ///
   /// 弹出 `count` 个栈元素。
   pub fn pop(&mut self, count: usize) {
-    let keep = self.stack.len().saturating_sub(count);
-    self.stack.truncate(keep);
+    let mut interp = self.interp_mut();
+    let keep = interp.stack.len().saturating_sub(count);
+    interp.stack.truncate(keep);
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:Remove
+  ///
+  /// 移除 `idx` 处元素，其上元素整体下移。
+  pub fn remove(&mut self, idx: i32) {
+    let Some(abs) = self.abs_index(idx) else {
+      return;
+    };
+    self.interp_mut().stack.remove(abs);
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PCall
   ///
-  /// 保护模式调用栈顶 `nargs-1` 参的函数：成功压入结果，失败压入错误串。
+  /// 保护模式调用栈顶 `nargs` 参的函数：成功压入全部结果，失败压入错误串。
   pub fn pcall(&mut self, nargs: usize) -> Result<(), mlua::Error> {
+    self.pcall_n(nargs, usize::MAX).map(|_| ())
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:PCall（nresults 形态）
+  ///
+  /// 成功时结果按 `nresults` 截断/补 nil（`usize::MAX` = 全保留）；
+  /// 失败时压入错误串并返回 Err（状态非 OK）。
+  pub fn pcall_n(&mut self, nargs: usize, nresults: usize) -> Result<usize, mlua::Error> {
     let total = nargs + 1;
-    let args: Vec<StackValue> = self.stack.split_off(self.stack.len().saturating_sub(total));
-    let Ok(function) = as_function(&args[0]) else {
-      return Ok(());
+    let args: Vec<StackValue> = {
+      let mut interp = self.interp_mut();
+      args_from_stack(&mut interp.stack, total)
+    };
+    let Some((first, rest)) = args.split_first() else {
+      return Err(mlua::Error::RuntimeError(
+        "attempt to call a non-function object".into(),
+      ));
+    };
+    let Ok(function) = as_function(first) else {
+      return Err(mlua::Error::RuntimeError(
+        "attempt to call a non-function object".into(),
+      ));
     };
     let called: Result<MultiValue, mlua::Error> =
-      function.call(Variadic::from_iter(args.into_iter().skip(1)));
+      function.call(Variadic::from_iter(rest.iter().cloned()));
+    let mut interp = self.interp_mut();
     match called {
       Ok(results) => {
-        for v in results.into_vec() {
-          self.stack.push(v);
+        let mut values = results.into_vec();
+        if nresults != usize::MAX {
+          // lua_pcall 语义：不足补 nil，超出仅保留前 nresults 个。
+          values.truncate(nresults);
+          values.resize(nresults, Value::Nil);
         }
-        Ok(())
+        let count = values.len();
+        interp.stack.extend(values);
+        Ok(count)
       }
       Err(error) => {
-        let message = self.lua.create_string(error.to_string())?;
-        self.stack.push(Value::String(message));
-        Ok(())
+        let message = error_message(&error);
+        let Ok(s) = self.lua.create_string(message) else {
+          return Err(error);
+        };
+        interp.stack.push(Value::String(s));
+        Err(error)
       }
     }
   }
@@ -177,10 +256,14 @@ impl LuaStateWrapper {
   ///
   /// 表[key] = value（键/值取自栈顶两元素并弹出）。
   pub fn raw_set(&mut self, table_idx: i32) -> bool {
-    let (Some(value), Some(key)) = (self.stack.pop(), self.stack.pop()) else {
+    // lua_settable 语义：表下标在弹键值之前解析；app data 守卫不可重入，逐次弹出。
+    let Some(Value::Table(table)) = self.peek(table_idx) else {
       return false;
     };
-    let Some(Value::Table(table)) = self.peek(table_idx) else {
+    let Some(value) = self.interp_mut().stack.pop() else {
+      return false;
+    };
+    let Some(key) = self.interp_mut().stack.pop() else {
       return false;
     };
     table.raw_set(key, value).is_ok()
@@ -193,7 +276,28 @@ impl LuaStateWrapper {
     };
     match table.raw_get(key) {
       Ok(value) => {
-        self.stack.push(value);
+        self.interp_mut().stack.push(value);
+        true
+      }
+      Err(_) => false,
+    }
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:RawGet（键取自栈顶形态）
+  ///
+  /// 以栈顶元素为键查 `table_idx` 表：弹出键，压入查得值
+  /// （lua_rawget 语义，键被结果原位替换）。
+  pub fn raw_get_top(&mut self, table_idx: i32) -> bool {
+    // lua_rawget 语义：表下标在弹键之前解析。
+    let Some(Value::Table(table)) = self.peek(table_idx) else {
+      return false;
+    };
+    let Some(key) = self.interp_mut().stack.pop() else {
+      return false;
+    };
+    match table.raw_get(key) {
+      Ok(value) => {
+        self.interp_mut().stack.push(value);
         true
       }
       Err(_) => false,
@@ -204,25 +308,40 @@ impl LuaStateWrapper {
   ///
   /// 引用栈顶元素到注册表，返回引用 id。
   pub fn try_ref(&mut self) -> Option<i32> {
-    let value = self.stack.pop()?;
+    let value = self.interp_mut().stack.pop()?;
     let key = self.lua.create_registry_value(value).ok()?;
-    self.next_ref_id += 1;
-    let id = self.next_ref_id;
-    self.refs.insert(id, key);
+    let id = {
+      let mut interp = self.interp_mut();
+      interp.next_ref_id += 1;
+      interp.next_ref_id
+    };
+    self.interp_mut().refs.insert(id, key);
     Some(id)
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:Unref
   pub fn unref(&mut self, ref_id: i32) {
-    if let Some(key) = self.refs.remove(&ref_id) {
+    if let Some(key) = self.interp_mut().refs.remove(&ref_id) {
       self.lua.remove_registry_value(key).ok();
     }
   }
 
   /// 引用取值（Runner 的 script lookup 路径）。
   pub fn ref_value(&self, ref_id: i32) -> Option<StackValue> {
-    let key = self.refs.get(&ref_id)?;
+    let interp = self.interp();
+    let key = interp.refs.get(&ref_id)?;
     self.lua.registry_value::<Value>(key).ok()
+  }
+
+  /// 引用压栈（对标 C# RawGetInteger(LuaRegistry.Index, id) 伪索引形态）。
+  pub fn push_ref(&mut self, ref_id: i32) -> bool {
+    match self.ref_value(ref_id) {
+      Some(value) => {
+        self.interp_mut().stack.push(value);
+        true
+      }
+      None => false,
+    }
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryCreateTable
@@ -231,7 +350,7 @@ impl LuaStateWrapper {
   pub fn try_create_table(&mut self, narr: usize, nrec: usize) -> bool {
     match self.lua.create_table_with_capacity(narr, nrec) {
       Ok(table) => {
-        self.stack.push(Value::Table(table));
+        self.interp_mut().stack.push(Value::Table(table));
         true
       }
       Err(_) => false,
@@ -245,7 +364,7 @@ impl LuaStateWrapper {
     };
     match self.lua.globals().get(name) {
       Ok(value) => {
-        self.stack.push(value);
+        self.interp_mut().stack.push(value);
         true
       }
       Err(_) => false,
@@ -254,10 +373,28 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:TrySetGlobal
   pub fn try_set_global(&mut self, name: &[u8]) -> bool {
-    let (Some(value), Ok(name)) = (self.stack.pop(), str::from_utf8(name)) else {
+    let (Some(value), Ok(name)) = (self.interp_mut().stack.pop(), str::from_utf8(name)) else {
       return false;
     };
     self.lua.globals().set(name, value).is_ok()
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:TryRegister
+  ///
+  /// 注册宿主函数为全局（对标 C# TryRegister(name, fn ptr)）。
+  pub fn register_function<F, A, R>(&mut self, name: &[u8], function: F) -> bool
+  where
+    F: Fn(&Lua, A) -> Result<R, mlua::Error> + 'static,
+    A: mlua::FromLuaMulti,
+    R: mlua::IntoLuaMulti,
+  {
+    let Ok(name) = str::from_utf8(name) else {
+      return false;
+    };
+    let Ok(f) = self.lua.create_function(function) else {
+      return false;
+    };
+    self.lua.globals().set(name, f).is_ok()
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:LoadBuffer
@@ -269,37 +406,43 @@ impl LuaStateWrapper {
     };
     let chunk = self.lua.load(source).set_name(chunk_name);
     let function = chunk.into_function()?;
-    self.stack.push(Value::Function(function));
+    self.interp_mut().stack.push(Value::Function(function));
     Ok(())
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:LoadString
   pub fn load_string(&mut self, source: &str) -> Result<(), mlua::Error> {
     let function = self.lua.load(source).into_function()?;
-    self.stack.push(Value::Function(function));
+    self.interp_mut().stack.push(Value::Function(function));
     Ok(())
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryNumberToString
   ///
-  /// 数值 → 字符串（luau 语义：%v 格式）。
+  /// 数值 → 字符串（栈顶槽位就地转换，luau 语义：%v 格式）。
   pub fn try_number_to_string(&mut self) -> bool {
-    let Some(Some(number)) = self.stack.last().map(|v| match v {
-      Value::Number(n) => Some(*n),
-      Value::Integer(i) => Some(*i as f64),
-      _ => None,
-    }) else {
+    self.try_number_to_string_at(-1)
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:TryNumberToString（指定槽位形态）
+  ///
+  /// C# 以 `TryNumberToString(stackIndex, out str)` 在参数原位转换；
+  /// redis.call/log 等多参回调中目标参数未必在栈顶，故提供槽位形态。
+  pub fn try_number_to_string_at(&mut self, idx: i32) -> bool {
+    let number = match self.peek(idx) {
+      Some(Value::Number(n)) => n,
+      Some(Value::Integer(i)) => i as f64,
+      _ => return false,
+    };
+    let Ok(s) = self.lua.create_string(format_number_text(number)) else {
       return false;
     };
-    let text = if number == number.trunc() && number.abs() < 1e15 {
-      format!("{}", number as i64)
-    } else {
-      format!("{number}")
-    };
-    let Ok(s) = self.lua.create_string(text) else {
+    let Some(abs) = self.abs_index(idx) else {
       return false;
     };
-    *self.stack.last_mut().expect("last 已校验") = Value::String(s);
+    let mut interp = self.interp_mut();
+    // abs 已校验且 peek 刚命中，槽位必然存在。
+    interp.stack[abs] = Value::String(s);
     true
   }
 
@@ -316,8 +459,8 @@ impl LuaStateWrapper {
   /// libs/server/Lua/LuaStateWrapper.cs:CheckNumber
   pub fn check_number(&self, idx: i32) -> Option<f64> {
     match self.peek(idx)? {
-      Value::Number(n) => Some(*n),
-      Value::Integer(i) => Some(*i as f64),
+      Value::Number(n) => Some(n),
+      Value::Integer(i) => Some(i as f64),
       Value::String(s) => str::from_utf8(&s.as_bytes()).ok()?.parse().ok(),
       _ => None,
     }
@@ -344,7 +487,7 @@ impl LuaStateWrapper {
   ///
   /// mlua 侧函数压栈。
   pub fn push_c_function(&mut self, function: mlua::Function) {
-    self.stack.push(Value::Function(function));
+    self.interp_mut().stack.push(Value::Function(function));
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:PushConstantString
@@ -354,14 +497,16 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:Next
   ///
-  /// 表迭代：栈顶为上次返回的键，压入下一键值对；迭代结束压入 nil。
+  /// 表迭代（lua_next 语义）：弹出栈顶键，压入下一键值对并返回 true；
+  /// 迭代结束仅消耗键、不压任何值（净 -1），返回 false。
   #[allow(clippy::should_implement_trait)]
   pub fn next(&mut self) -> bool {
-    let Some(key) = self.stack.pop() else {
+    let key = self.interp_mut().stack.pop();
+    let Some(key) = key else {
       return false;
     };
     let Some(Value::Table(table)) = self.peek(-1) else {
-      self.stack.push(key);
+      self.interp_mut().stack.push(key);
       return false;
     };
     // mlua 无 C 栈式 next：以 pairs 快照承接——收集键序，推进到当前键
@@ -379,13 +524,14 @@ impl LuaStateWrapper {
         .position(|(k, _)| *k == key)
         .map_or(pairs.len(), |pos| pos + 1)
     };
-    if let Some((next_key, value)) = pairs.get(start) {
-      self.stack.push(next_key.clone());
-      self.stack.push(value.clone());
-      true
-    } else {
-      self.stack.push(Value::Nil);
-      false
+    match pairs.get(start) {
+      Some((next_key, value)) => {
+        let mut interp = self.interp_mut();
+        interp.stack.push(next_key.clone());
+        interp.stack.push(value.clone());
+        true
+      }
+      None => false,
     }
   }
 
@@ -394,37 +540,53 @@ impl LuaStateWrapper {
   /// 复制 `idx` 处元素压栈。
   pub fn push_value(&mut self, idx: i32) {
     if let Some(value) = self.peek(idx) {
-      self.stack.push(value.clone());
+      self.interp_mut().stack.push(value);
     }
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:Rotate
   ///
-  /// `idx`..栈顶 区间旋转 `n` 位（正左移，负右移）。
+  /// `idx`..栈顶 区间旋转 `n` 位（lua_rotate 语义：正 n 把栈顶 n 个元素
+  /// 滚动到 `idx` 处，即 slice rotate_right(n)）。
   pub fn rotate(&mut self, idx: i32, n: i32) {
     let start = self.abs_index(idx);
     let Some(start) = start else { return };
-    if n == 0 || self.stack.len() <= start {
+    let mut interp = self.interp_mut();
+    if n == 0 || interp.stack.len() <= start {
       return;
     }
-    let len = self.stack.len() - start;
+    let len = interp.stack.len() - start;
     let n = ((n % len as i32) + len as i32) as usize % len;
     if n == 0 {
       return;
     }
-    self.stack[start..].rotate_left(n);
+    interp.stack[start..].rotate_right(n);
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:TrySetHook / 超时
   ///
-  /// luau 无调试钩子 API；时限以 deadline 承载，执行器轮询检查。
+  /// luau 以 VM 中断钩子（`Lua::set_interrupt`）承接 C# 调试钩子：
+  /// `deadline` 为 Some 时安装轮询，超限即抛出超时错误（可被脚本 pcall）。
   pub fn try_set_hook(&mut self, deadline_monotonic_millis: Option<i64>) {
-    self.deadline_monotonic_millis = deadline_monotonic_millis;
+    self.interp_mut().deadline_monotonic_millis = deadline_monotonic_millis;
+    self.lua.set_interrupt(move |lua: &Lua| {
+      let expired = lua
+        .app_data_ref::<LuaInterp>()
+        .and_then(|interp| interp.deadline_monotonic_millis)
+        .is_some_and(|deadline| now_monotonic_millis() >= deadline);
+      if expired {
+        Err(mlua::Error::RuntimeError(
+          "ERR Lua script exceeded configured timeout".into(),
+        ))
+      } else {
+        Ok(mlua::VmState::Continue)
+      }
+    });
   }
 
   /// 当前时限。
   pub fn deadline(&self) -> Option<i64> {
-    self.deadline_monotonic_millis
+    self.interp().deadline_monotonic_millis
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackIndexInBounds
@@ -443,12 +605,12 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackNotFull
   pub fn assert_lua_stack_not_full(&self) -> bool {
-    self.stack.len() < i32::MAX as usize
+    self.interp().stack.len() < i32::MAX as usize
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackNotEmpty
   pub fn assert_lua_stack_not_empty(&self) -> bool {
-    !self.stack.is_empty()
+    !self.interp().stack.is_empty()
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:LuaAtPanic
@@ -467,19 +629,19 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:ClearStack
   pub fn clear_stack(&mut self) {
-    self.stack.clear();
+    self.interp_mut().stack.clear();
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:UpdateStackTop
   ///
   /// 显式设置栈高（C# lua_settop 的正语义：截断；不足补 nil）。
   pub fn update_stack_top(&mut self, new_top: usize) {
-    self.stack.resize(new_top, Value::Nil);
+    self.interp_mut().stack.resize(new_top, Value::Nil);
   }
 
   /// 栈高。
   pub fn get_top(&self) -> usize {
-    self.stack.len()
+    self.interp().stack.len()
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:EnterInfallibleAllocationRegion
@@ -509,12 +671,46 @@ impl LuaStateWrapper {
     } else {
       usize::try_from(-idx)
         .ok()
-        .and_then(|i| self.stack.len().checked_sub(i))
+        .and_then(|i| self.interp().stack.len().checked_sub(i))
     }
   }
 
-  fn peek(&self, idx: i32) -> Option<&StackValue> {
-    self.abs_index(idx).and_then(|i| self.stack.get(i))
+  /// 栈值视图（mlua 句柄为引用形态，克隆仅引用计数 +1）。
+  fn peek(&self, idx: i32) -> Option<StackValue> {
+    let i = self.abs_index(idx)?;
+    self.interp().stack.get(i).cloned()
+  }
+}
+
+/// 从栈顶取 `total` 个元素（顺序保持）。
+fn args_from_stack(stack: &mut Vec<StackValue>, total: usize) -> Vec<StackValue> {
+  stack.split_off(stack.len().saturating_sub(total))
+}
+
+/// mlua 错误 → C# 语义的原始 Lua 错误串（剥离 mlua 前缀）。
+pub fn error_message(error: &mlua::Error) -> String {
+  match error {
+    mlua::Error::RuntimeError(msg) => msg.clone(),
+    other => {
+      let text = other.to_string();
+      text
+        .strip_prefix("runtime error: ")
+        .map_or_else(|| text.clone(), str::to_owned)
+    }
+  }
+}
+
+/// 当前单调毫秒（coarsetime）。
+pub fn now_monotonic_millis() -> i64 {
+  coarsetime::Clock::now_since_epoch().as_millis() as i64
+}
+
+/// 数值 → 文本（luaL_tolstring 的整值直写形态）。
+fn format_number_text(number: f64) -> String {
+  if number == number.trunc() && number.abs() < 1e15 {
+    format!("{}", number as i64)
+  } else {
+    format!("{number}")
   }
 }
 
@@ -578,9 +774,9 @@ mod tests {
     assert_eq!(state.type_name(-1), Some("string"));
     state.clear_stack();
 
-    // 运行错误 → 错误串压栈。
+    // 运行错误 → 错误串压栈 + 状态非 OK（C# LuaStatus.ErrRun 语义）。
     state.load_string("error('boom')").unwrap();
-    state.pcall(0).unwrap();
+    assert!(state.pcall(0).is_err());
     assert_eq!(state.get_top(), 1);
     // luau 的错误串可能带位置前缀，仅校验包含错误消息。
     assert!(String::from_utf8_lossy(&state.known_string_to_buffer(-1).unwrap()).contains("boom"));
@@ -611,11 +807,69 @@ mod tests {
     for i in 1..=3 {
       state.push_integer(i);
     }
+    // lua_rotate(L, 1, 1)：栈顶 1 个元素滚到区间开头 → [3, 1, 2]。
     state.rotate(1, 1);
-    assert_eq!(state.check_number(1), Some(2.0));
+    assert_eq!(state.check_number(1), Some(3.0));
+    assert_eq!(state.check_number(2), Some(1.0));
     state.update_stack_top(5);
     assert_eq!(state.get_top(), 5);
     state.update_stack_top(1);
     assert_eq!(state.get_top(), 1);
+  }
+
+  #[test]
+  fn view_shares_interp_and_refs() {
+    let mut state = LuaStateWrapper::new();
+    state.push_integer(1);
+    assert!(state.try_ref().is_some());
+
+    // 视图共享 app data：栈与引用互通。
+    let mut view = LuaStateWrapper::view(state.lua());
+    assert_eq!(view.get_top(), 0);
+    assert!(view.push_ref(1));
+    assert_eq!(view.check_number(-1), Some(1.0));
+    view.push_integer(2);
+    assert_eq!(state.get_top(), 2);
+  }
+
+  #[test]
+  fn pcall_n_pads_and_truncates() {
+    let mut state = LuaStateWrapper::new();
+    state.load_string("return 1, 2").unwrap();
+    state.pcall_n(0, 3).unwrap();
+    assert_eq!(state.get_top(), 3);
+    assert!(state.ref_value(0).is_none());
+    state.clear_stack();
+
+    state.load_string("return 1, 2").unwrap();
+    state.pcall_n(0, 1).unwrap();
+    assert_eq!(state.get_top(), 1);
+    assert_eq!(state.check_number(-1), Some(1.0));
+  }
+
+  #[test]
+  fn next_and_raw_get_top_semantics() {
+    let mut state = LuaStateWrapper::new();
+    assert!(state.try_create_table(0, 2));
+    state.push_constant_string(b"k");
+    state.push_integer(7);
+    assert!(state.raw_set(-3));
+    assert_eq!(state.get_top(), 1);
+
+    // lua_next 语义：迭代尽头只耗键、不压值（净 -1）。
+    state.push_nil();
+    let mut seen = 0;
+    while state.next() {
+      seen += 1;
+      state.pop(1);
+    }
+    assert_eq!(seen, 1);
+    assert_eq!(state.get_top(), 1);
+
+    // lua_rawget 语义：栈顶键被查得值原位替换。
+    state.push_constant_string(b"k");
+    assert!(state.raw_get_top(-2));
+    assert_eq!(state.get_top(), 2);
+    assert_eq!(state.check_number(-1), Some(7.0));
   }
 }

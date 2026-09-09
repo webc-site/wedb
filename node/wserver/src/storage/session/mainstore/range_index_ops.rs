@@ -36,9 +36,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// libs/server/Storage/Session/MainStore/RangeIndexOps.cs:WriteScanToOutput
   pub fn write_scan_to_output(&self, output: &mut Vec<u8>, records: &[Vec<u8>]) {
     output.reserve(16 + records.iter().map(|r| r.len() + 8).sum::<usize>());
-    output.extend_from_slice(format!("*{}\r\n", records.len()).as_bytes());
+    output.push(b'*');
+    output.extend_from_slice(itoa::Buffer::new().format(records.len()).as_bytes());
+    output.extend_from_slice(b"\r\n");
     for record in records {
-      output.extend_from_slice(format!("${}\r\n", record.len()).as_bytes());
+      output.push(b'$');
+      output.extend_from_slice(itoa::Buffer::new().format(record.len()).as_bytes());
+      output.extend_from_slice(b"\r\n");
       output.extend_from_slice(record);
       output.extend_from_slice(b"\r\n");
     }
@@ -63,10 +67,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ///
   /// libs/server/Storage/Session/MainStore/RangeIndexOps.cs:BackfillArrayHeader
   pub fn backfill_array_header(&self, output: &mut [u8], header_pos: usize, count: usize) {
-    let header = format!("*{count}\r\n");
-    let end = header_pos + header.len();
+    let mut buf = itoa::Buffer::new();
+    let digits = buf.format(count);
+    let end = header_pos + 1 + digits.len() + 2;
     if end <= output.len() {
-      output[header_pos..end].copy_from_slice(header.as_bytes());
+      output[header_pos] = b'*';
+      output[header_pos + 1..header_pos + 1 + digits.len()].copy_from_slice(digits.as_bytes());
+      output[end - 2..end].copy_from_slice(b"\r\n");
     }
   }
 
