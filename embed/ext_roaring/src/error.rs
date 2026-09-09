@@ -4,7 +4,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-  // #[error(transparent)]
+  #[error("Not implemented")]
+  NotImplemented,
+  #[error("Invalid bit")]
+  InvalidBit,
+  #[error("Invalid offset")]
+  InvalidOffset,
 }
 
 pub type Result<T> = result::Result<T, Error>;
