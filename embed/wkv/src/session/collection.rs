@@ -651,8 +651,13 @@ impl<D: Device> StoreSession<D> {
     else {
       return Ok(-2);
     };
-    // 字段级惰性 purge（锁内无双写窗口，purge 与命令回写合并为最少写次数）
-    let purged = CompactHashCodec::purge_expired(&mut payload, now_ms())?;
+    // 字段级惰性 purge（单探针门控：标志未置位的 hash 零 purge 扫描，
+    // 载荷装载本身是读路径固有的 O(记录大小) 开销）
+    let purged = if Self::get_meta_has_expire(&meta.reserved) {
+      CompactHashCodec::purge_expired(&mut payload, now_ms())?
+    } else {
+      0
+    };
     if purged > 0 {
       meta.dec_size(purged as u64);
       self.save_compact_meta(key, &meta, &payload).await?;

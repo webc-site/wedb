@@ -322,8 +322,14 @@ fn test_lazy_purge_on_read_compresses_payload() -> Void {
       meta_rec[10] & 0x80 != 0,
       "hexpire_at 写路径必须置位元记录 has_expire 标志"
     );
-    let addr_before = store.index.find_tag(&session.session_meta_key(b"ht:lazy"));
     sleep(Duration::from_millis(120)).await;
+    // 读取前的物理记录仍含过期条目（惰性未清除）
+    let rec_before_read = read_meta_record(&session, b"ht:lazy").await?;
+    assert_eq!(MetaValue::read_size(&rec_before_read), Ok(2));
+    assert_eq!(
+      CompactHashCodec::count(&rec_before_read[META_VALUE_SIZE..]).ok(),
+      Some(2)
+    );
 
     // 到期字段对读取不可见：meta.size 同步缩减，载荷中 dead 消失
     let rc = session
@@ -339,21 +345,20 @@ fn test_lazy_purge_on_read_compresses_payload() -> Void {
       "过期字段必须对读取不可见"
     );
 
-    // 回写物理验证：元记录地址推进（RCU 追加新版本），物理载荷确已压缩
-    let meta_rec = read_meta_record(&session, b"ht:lazy").await?;
+    // 回写物理验证：可变区内经动态松弛原位收缩或 RCU 追加（字节级对比不依赖布局细节）
+    let rec_after_read = read_meta_record(&session, b"ht:lazy").await?;
+    assert_ne!(
+      rec_after_read, rec_before_read,
+      "存在过期字段时读取必须触发物理回写"
+    );
     assert_eq!(
-      MetaValue::read_size(&meta_rec),
+      MetaValue::read_size(&rec_after_read),
       Ok(1),
       "元记录 size 必须回写"
     );
     assert_eq!(
-      CompactHashCodec::count(&meta_rec[META_VALUE_SIZE..]).ok(),
+      CompactHashCodec::count(&rec_after_read[META_VALUE_SIZE..]).ok(),
       Some(1)
-    );
-    assert_ne!(
-      store.index.find_tag(&session.session_meta_key(b"ht:lazy")),
-      addr_before,
-      "存在过期字段时读取必须触发物理回写"
     );
 
     // 稳态：再次读取零回写（无过期字段可清），内容稳定
