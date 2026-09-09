@@ -33,7 +33,8 @@ pub struct SortedSetPairCollection {
 
 /// RESP 整数应答统一解析（收敛重复的 parse + 错误包装）
 fn to_i64(s: String) -> Result<i64> {
-  s.parse().map_err(|_| Error::Other("Invalid integer".into()))
+  s.parse()
+    .map_err(|_| Error::Other("Invalid integer".into()))
 }
 
 impl GarnetClient {
@@ -178,6 +179,10 @@ impl GarnetClient {
 
   /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetLengthAsync
   pub async fn sorted_set_length_async(&self, key: &str) -> Result<i64> {
-    to_i64(self.execute_for_string_result_async(&["ZCARD", key]).await?)
+    to_i64(
+      self
+        .execute_for_string_result_async(&["ZCARD", key])
+        .await?,
+    )
   }
 }

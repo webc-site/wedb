@@ -38,7 +38,9 @@ impl GarnetJsonObject {
   /// 序列化 JSON 文本（sonic-rs 单次序列化为字节缓冲后直写）
   pub fn serialize_object<W: Write>(&self, writer: &mut W) -> Result<()> {
     let buf = sonic_rs::to_vec(&self.value).map_err(|e| Error::Json(e.to_string()))?;
-    writer.write_all(&buf).map_err(|e| Error::Json(e.to_string()))
+    writer
+      .write_all(&buf)
+      .map_err(|e| Error::Json(e.to_string()))
   }
 
   /// 按路径查询节点（在 DOM 上直接执行，零序列化往返；命中 N 个节点为 O(N) 克隆）
