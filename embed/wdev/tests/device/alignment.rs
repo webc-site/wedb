@@ -209,11 +209,6 @@ fn zero_segment_size_throws() -> Void {
   OK
 }
 
-<<<<<<< HEAD
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512：
-||||||| e5513e1
-/// 对标 C# `NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512`：
-=======
 /// Rust 补齐防御（C# RandomAccessLocalStorageDevice 无此校验）：注入共享缓冲池的
 /// 扇区与设备扇区不一致时必须构造期拒绝——错配会使池化缓冲区的对齐口径与设备
 /// Direct I/O 要求错位，运行期才以 EINVAL 暴露。
@@ -233,18 +228,17 @@ fn mismatched_pool_sector_size_is_rejected() -> Void {
           4096,
           pool_512.clone()
         ),
-        Err(Error::PoolSectorMismatch { pool: 512, device: 4096 })
+        Err(Error::PoolSectorMismatch {
+          pool: 512,
+          device: 4096
+        })
       ),
       "池/设备扇区错配必须构造期拒绝为 PoolSectorMismatch"
     );
 
     // 一致时正常创建
-    let device = SegmentedDevice::with_pool(
-      dir.path().join("pool_match.log"),
-      None,
-      512,
-      pool_512,
-    )?;
+    let device =
+      SegmentedDevice::with_pool(dir.path().join("pool_match.log"), None, 512, pool_512)?;
     assert_eq!(device.sector_size(), 512);
 
     info!("池/设备扇区一致性校验通过 (PoolSectorMismatch)");
@@ -254,8 +248,7 @@ fn mismatched_pool_sector_size_is_rejected() -> Void {
   OK
 }
 
-/// 对标 C# `NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512`：
->>>>>>> review/r1-wdev
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_SectorSize_IsPowerOfTwoAtLeast512：
 /// 扇区尺寸必须为 2 的幂且不小于 512；非法值（256/500/3000）必须拒绝。
 #[test]
 fn sector_size_is_power_of_two_at_least_512() -> Void {

@@ -1,14 +1,13 @@
 use std::{future::Future, sync::Arc};
 
+/// 块存储设备 trait 别名（对标 C# IDevice / StorageDeviceBase）
+pub use Device as StorageDevice;
 use wram::{AlignedBuf, BufferPool, SectorRange};
 
 use crate::{
   chunk::segment_shift,
   error::{Error, Result},
 };
-
-/// 块存储设备 trait 别名（对标 C# IDevice / StorageDeviceBase）
-pub use Device as StorageDevice;
 
 /// 底层块存储设备抽象
 ///

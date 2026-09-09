@@ -80,19 +80,9 @@ pub struct SegmentedDevice {
   /// 使用 gxhash SIMD 极速哈希器与 papaya 无锁并发哈希字典
   files: FileMap,
   /// 起始有效段编号（小于此编号的段已被截断，禁止访问；对齐 Garnet begin_segment_）
-<<<<<<< HEAD
-  pub start_segment: AtomicU32,
-  /// 已写入的最高段编号（-1 表示尚未写入；对齐 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:endSegment）
-  pub end_segment: AtomicI32,
-||||||| e5513e1
-  pub start_segment: AtomicU32,
-  /// 已写入的最高段编号（-1 表示尚未写入；对齐 C# StorageDeviceBase.endSegment）
-  pub end_segment: AtomicI32,
-=======
   start_segment: AtomicU32,
-  /// 已写入的最高段编号（-1 表示尚未写入；对齐 C# StorageDeviceBase.endSegment）
+  /// 已写入的最高段编号（-1 表示尚未写入；对齐 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:endSegment）
   end_segment: AtomicI32,
->>>>>>> review/r1-wdev
   /// 是否启用 Direct I/O（对齐 C# 设备族默认策略：Linux 原生设备 O_DIRECT，
   /// 其余平台 Managed 设备缓冲 I/O）
   ///
