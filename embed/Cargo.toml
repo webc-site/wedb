@@ -14,7 +14,7 @@ members = [
   "wkv",
   "wram",
   "wrecord",
-  "wreviv",
+  "wreviv", "wutil",
   "wval",
 ]
 
