@@ -3,26 +3,33 @@
 //! 全部经 [`StorageSession`] 对象信封读写 wobject [`HashObject`]，字段级 TTL
 //! 缺口见 `hash_time_to_live`。哈希对象为空时删除键（对齐 Redis 对象生命周期）。
 
-use std::{io::Cursor, str, sync::atomic::Ordering::Relaxed};
+use std::{io::Cursor, str};
 
 use wdev::Device;
 use wobject::hash::hash_object::{HashObject, HashOperation};
 
-use super::{super::storage_session::StorageSession, common::ObjState};
-use crate::api::garnet_status::GarnetStatus;
+use super::{
+  super::storage_session::StorageSession,
+  common::{ObjState, RmwOutcome},
+};
+use crate::{api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput};
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 哈希对象读-改-写：载荷解码为 HashObject 后交闭包变更，返回前自动回写
+  ///
+  /// `create` 为假时键缺失直接 Aborted（不物化空哈希信封）
   async fn hash_rmw<R>(
     &self,
     key: &[u8],
+    create: bool,
     f: impl FnOnce(&mut HashObject) -> R,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     self
       .rmw_object_store_operation(key, super::common::OBJ_TAG_HASH, |payload| {
         let mut obj = match payload {
           Some(bytes) => HashObject::deserialize(&mut Cursor::new(bytes)).unwrap_or_default(),
-          None => HashObject::new(),
+          None if create => HashObject::new(),
+          None => return None,
         };
         let r = f(&mut obj);
         let mut out = Vec::new();
@@ -32,7 +39,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await
   }
 
-  /// HDEL：删除字段，返回删除个数
+  /// HDEL：删除字段，返回删除个数（删空时整键回收）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashDelete
   pub async fn hash_delete(
@@ -40,24 +47,22 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key: &[u8],
     fields: &[&[u8]],
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, 0)),
-      ObjState::WrongType => Ok((GarnetStatus::WrongType, 0)),
-      _ => {
-        let removed = self
-          .hash_rmw(key, |obj| {
-            let mut n = 0i64;
-            for field in fields {
-              if obj.operate(HashOperation::HDEL, field, b"").is_some() {
-                n += 1;
-              }
-            }
-            n
-          })
-          .await?
-          .unwrap_or(0);
-        self.hash_gc_if_empty(key).await?;
-        Ok((GarnetStatus::Ok, removed))
+    match self
+      .hash_rmw(key, false, |obj| {
+        let mut n = 0i64;
+        for field in fields {
+          if obj.operate(HashOperation::HDEL, field, b"").is_some() {
+            n += 1;
+          }
+        }
+        (n, obj.hash.pin().is_empty())
+      })
+      .await?
+    {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -151,8 +156,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、可重复且不带值；
-  /// 为正返回至多 `count` 个不重复字段，`with_values` 附带值）
+  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、允许重复；
+  /// 为正返回至多 `count` 个不重复字段；`with_values` 两种计数下均附带值，
+  /// 对齐 C# HashObjectImpl.HashRandomField / Redis WITHVALUES 口径）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashRandomField
   pub async fn hash_random_field(
@@ -173,14 +179,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
           return Ok((GarnetStatus::Ok, Vec::new()));
         }
         let pin = obj.hash.pin();
+        let pick = |k: Vec<u8>| {
+          let v = pin.get(&k).cloned();
+          (k, with_values.then_some(v).flatten())
+        };
         if count < 0 {
-          // 负计数：允许重复取样 |count| 个，按 Redis 口径不带值
+          // 负计数：允许重复取样 |count| 个
           let n = count.unsigned_abs() as usize;
           let out = (0..n)
-            .map(|_| {
-              let k = keys[fastrand::usize(..keys.len())].clone();
-              (k, None)
-            })
+            .map(|_| pick(keys[fastrand::usize(..keys.len())].clone()))
             .collect();
           return Ok((GarnetStatus::Ok, out));
         }
@@ -192,9 +199,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
           let last = pool.len() - 1;
           let idx = fastrand::usize(..pool.len());
           pool.swap(idx, last);
-          let k = pool.pop().unwrap_or_default();
-          let v = pin.get(&k).cloned();
-          out.push((k, with_values.then_some(v).flatten()));
+          out.push(pick(pool.pop().unwrap_or_default()));
         }
         Ok((GarnetStatus::Ok, out))
       }
@@ -246,11 +251,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     fields: &[(&[u8], &[u8])],
     nx: bool,
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      return Ok((GarnetStatus::WrongType, 0));
-    }
     let added = self
-      .hash_rmw(key, |obj| {
+      .hash_rmw(key, true, |obj| {
         let mut n = 0i64;
         for (field, value) in fields {
           // 单次查询判定新增：HSET 返回 None 即字段原先不存在
@@ -266,7 +268,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
         n
       })
       .await?;
-    Ok((GarnetStatus::Ok, added.unwrap_or(0)))
+    match added {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => Ok((GarnetStatus::Ok, outcome.unwrap_or(0))),
+    }
   }
 
   /// HINCRBY/HINCRBYFLOAT：字段数值增减（`float` 走 f64 口径），回吐新值文本
@@ -285,11 +290,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       Ok(s) => s,
       Err(_) => return Ok((GarnetStatus::WrongType, None)),
     };
-    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      return Ok((GarnetStatus::WrongType, None));
-    }
-    match self
-      .hash_rmw(key, |obj| {
+    let outcome = self
+      .hash_rmw(key, true, |obj| {
         let current = obj.operate(HashOperation::HGET, field, b"");
         if float {
           // 字段存在但非浮点文本：拒绝增减（不当作 0 覆盖）
@@ -301,17 +303,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 .and_then(|s| s.trim().parse::<f64>().ok())
               {
                 Some(v) => v,
-                None => return (false, None),
+                None => return None,
               }
             }
           };
-          let Some(d) = delta_str.trim().parse::<f64>().ok() else {
-            return (false, None);
-          };
+          let d = delta_str.trim().parse::<f64>().ok()?;
           let new = cur + d;
-          let text = format!("{new:.17}");
+          // 浮点文本化复用 ObjectOutput::format_double 一处定义（最短往返表示）
+          let text = ObjectOutput::format_double(new);
           obj.operate(HashOperation::HSET, field, text.as_bytes());
-          (true, Some(text.into_bytes()))
+          Some((true, Some(text.into_bytes())))
         } else {
           // 字段存在但非整数文本：拒绝增减（不当作 0 覆盖）
           let cur = match current.as_deref() {
@@ -322,35 +323,38 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 .and_then(|s| s.trim().parse::<i64>().ok())
               {
                 Some(v) => Some(v),
-                None => return (false, None),
+                None => return None,
               }
             }
           };
           let Ok(d) = delta_str.trim().parse::<i64>() else {
-            return (false, None);
+            return None;
           };
           match cur {
             Some(c) => match c.checked_add(d) {
               Some(n) => {
                 let text = n.to_string();
                 obj.operate(HashOperation::HSET, field, text.as_bytes());
-                (true, Some(text.into_bytes()))
+                Some((true, Some(text.into_bytes())))
               }
-              None => (false, None), // 溢出：不写入
+              None => None, // 溢出：不写入
             },
             None => {
               let text = d.to_string();
               obj.operate(HashOperation::HSET, field, text.as_bytes());
-              (true, Some(text.into_bytes()))
+              Some((true, Some(text.into_bytes())))
             }
           }
         }
       })
-      .await?
-    {
-      Some((true, v)) => Ok((GarnetStatus::Ok, v)),
-      Some((false, _)) => Ok((GarnetStatus::WrongType, None)),
-      None => Ok((GarnetStatus::WrongType, None)),
+      .await?;
+    match outcome {
+      RmwOutcome::Written(Some((true, v))) => Ok((GarnetStatus::Ok, v)),
+      // 闭包拒绝（非数值/溢出）与放弃写回同折算 WRONGTYPE（拒绝写入）
+      RmwOutcome::Written(Some((false, _)))
+      | RmwOutcome::Written(None)
+      | RmwOutcome::Aborted
+      | RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
     }
   }
 
@@ -368,21 +372,5 @@ impl<'a, D: Device> StorageSession<'a, D> {
     } else {
       Ok((GarnetStatus::Ok, pttl))
     }
-  }
-
-  /// 空哈希回收：字段清空后删除整键（对齐 Redis 对象生命周期）
-  async fn hash_gc_if_empty(&self, key: &[u8]) -> wkv::Result<()> {
-    if let Some(payload) = self
-      .obj_load(key, super::common::OBJ_TAG_HASH)
-      .await?
-      .into_payload()
-      && HashObject::deserialize(&mut Cursor::new(payload))
-        .map(|o| o.hash.pin().is_empty())
-        .unwrap_or(false)
-    {
-      let _ = self.delete_string(key).await?;
-      self.session_notfound.fetch_add(1, Relaxed);
-    }
-    Ok(())
   }
 }

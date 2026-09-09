@@ -590,7 +590,8 @@ fn test_review_r1_regressions() -> aok::Void {
       "空并集须回收目标键"
     );
 
-    // ---- HRANDFIELD 负计数：|count| 个、可重复、不带值 ----
+    // ---- HRANDFIELD 负计数：|count| 个、可重复、WITHVALUES 带值 ----
+    // （对齐 C# HashObjectImpl.HashRandomField / Redis：WITHVALUES 对负计数同样生效）
     ss.hash_set(
       b"h3",
       &[
@@ -602,7 +603,11 @@ fn test_review_r1_regressions() -> aok::Void {
     .await?;
     let (_, out) = ss.hash_random_field(b"h3", -5, true).await?;
     assert_eq!(out.len(), 5);
-    assert!(out.iter().all(|(_, v)| v.is_none()));
+    assert!(
+      out
+        .iter()
+        .all(|(k, v)| v.is_some() && (k.as_slice() == b"f1" || k.as_slice() == b"f2"))
+    );
 
     // ---- LTRIM 裁剪至空：Ok + 整键回收 ----
     ss.list_push(b"l2", &[b"a"], OperationDirection::Left, false)
@@ -633,4 +638,136 @@ fn test_review_r1_regressions() -> aok::Void {
 
     Ok(())
   })
+}
+
+/// review r10 回归：WATCH 校验 / BITFIELD 跨字节全域 / ZMPOP WRONGTYPE 传播 /
+/// 写路径去双读后的 WRONGTYPE 与缺键不物化
+#[test]
+fn test_review_r10_regressions() -> aok::Void {
+  use wserver::api::i_garnet_api::IGarnetApi;
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store) = open_store("r10.db")?;
+    let session = store.new_session()?;
+    let ss = storage_session(&session);
+
+    // ---- WATCH：validate_watch_version 版本代理语义 ----
+    ss.watch_key(b"wk");
+    assert!(ss.validate_watch_version(), "登记后无写入应无冲突");
+    ss.upsert_string(b"other", b"v").await?;
+    assert!(!ss.validate_watch_version(), "任意写入推进尾地址即判冲突");
+    ss.clear_watches();
+    assert!(ss.validate_watch_version(), "空监视表恒无冲突");
+
+    // ---- BITFIELD：SET 跨越缓冲末端不截断 ----
+    let (_, out) = ss
+      .string_bit_field(
+        b"bf16",
+        &[BitFieldOp::Set {
+          is_signed: false,
+          bits: 16,
+          offset: 0,
+          value: 300,
+          wrap: false,
+          sat: false,
+        }],
+      )
+      .await?;
+    assert_eq!(out, vec![Some(300)]);
+    // 全域读回
+    let (_, out) = ss
+      .string_bit_field(
+        b"bf16",
+        &[BitFieldOp::Get {
+          is_signed: false,
+          bits: 16,
+          offset: 0,
+        }],
+      )
+      .await?;
+    assert_eq!(out, vec![Some(300)]);
+    // 部分跨越：缺失位按 0 参与（0x01 0x2C 位 4..12 = 0b0001_0010）
+    let (_, out) = ss
+      .string_bit_field(
+        b"bf16",
+        &[BitFieldOp::Get {
+          is_signed: false,
+          bits: 8,
+          offset: 4,
+        }],
+      )
+      .await?;
+    assert_eq!(out, vec![Some(18)]);
+
+    // ---- ZMPOP：WRONGTYPE 立即传播（对齐 C# SortedSetMPop）----
+    ss.upsert_string(b"zstr", b"plain").await?;
+    assert_eq!(
+      ss.sorted_set_m_pop(&[b"zstr"], 1, true).await?,
+      (GarnetStatus::WrongType, None)
+    );
+
+    // ---- HDEL：缺键不物化空哈希信封，返回 (Ok, 0) ----
+    assert_eq!(
+      ss.hash_delete(b"h_absent", &[b"f"]).await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(ss.exists(b"h_absent").await?, GarnetStatus::NotFound);
+
+    // ---- HSET/HINCRBY 写路径（去双读后）WRONGTYPE 仍传播且不覆盖 ----
+    ss.upsert_string(b"h_str", b"plain").await?;
+    assert_eq!(
+      ss.hash_set(b"h_str", &[(b"f".as_slice(), b"v".as_slice())], false)
+        .await?,
+      (GarnetStatus::WrongType, 0)
+    );
+    assert_eq!(
+      ss.hash_increment(b"h_str", b"f", b"1", false).await?,
+      (GarnetStatus::WrongType, None)
+    );
+    assert_eq!(
+      ss.read_string(b"h_str").await?,
+      Some(b"plain".to_vec()),
+      "字符串键不得被对象写覆盖"
+    );
+
+    // ---- SPOP：缺键不物化空集合信封 ----
+    assert_eq!(
+      ss.set_pop(b"s_absent", 10).await?,
+      (GarnetStatus::Ok, Vec::new())
+    );
+    assert_eq!(ss.exists(b"s_absent").await?, GarnetStatus::NotFound);
+
+    // ---- LTRIM：缺键 NotFound（Aborted 路径）----
+    assert_eq!(
+      ss.list_trim(b"l_absent", 0, -1).await?,
+      GarnetStatus::NotFound
+    );
+
+    // ---- SMOVE：成员缺失 (Ok,false)，同键成功且不误删 ----
+    ss.set_add(b"sm", &[b"x"]).await?;
+    assert_eq!(
+      ss.set_move(b"sm", b"sm2", b"missing").await?,
+      (GarnetStatus::Ok, false)
+    );
+    assert_eq!(
+      ss.set_move(b"sm", b"sm", b"x").await?,
+      (GarnetStatus::Ok, true)
+    );
+    assert_eq!(ss.set_length(b"sm").await?, (GarnetStatus::Ok, 1));
+
+    // ---- INCRBYFLOAT：极小值精度不丢失（最短往返表示落盘）----
+    let (_, v) = IGarnetApi::increment_by_float(&ss, b"ftiny", 1e-20).await?;
+    assert_eq!(v, Some(1e-20));
+    let stored = ss.read_string(b"ftiny").await?.unwrap_or_default();
+    assert_ne!(stored, b"0".to_vec(), "1e-20 不得被定点 17 位截断为 0");
+    assert_eq!(parse_stored_f64(&stored), Some(1e-20), "落盘文本须往返还原");
+    Ok(())
+  })
+}
+
+/// 解析落盘的浮点文本（容忍空白，供回归断言）
+fn parse_stored_f64(bytes: &[u8]) -> Option<f64> {
+  use std::str;
+  str::from_utf8(bytes).ok()?.trim().parse::<f64>().ok()
 }
