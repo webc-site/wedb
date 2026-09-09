@@ -227,20 +227,9 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 获取当前 TailAddress
-  #[inline]
-
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetTailAddress
-
-  pub fn get_tail_address(&self) -> u64 {
-    self.addresses.tail()
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:UnstableGetTailAddress
+  /// （C# 另有 UnstableGetTailAddress 快照变体，Rust 原子加载等价，单一入口即可）
   #[inline]
-  pub fn unstable_get_tail_address(&self) -> u64 {
-    self.addresses.tail() // equivalent since atomic reads are volatile
-  }
-
   pub fn tail_address(&self) -> u64 {
     self.addresses.tail()
   }

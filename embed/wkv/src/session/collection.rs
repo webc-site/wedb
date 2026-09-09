@@ -116,11 +116,17 @@ impl<D: Device> StoreSession<D> {
       if meta.size > 0 {
         meta_del = true;
       }
-      if meta.collection_type == CollectionType::ZSet {
+      if matches!(
+        meta.collection_type,
+        CollectionType::ZSet | CollectionType::Hash | CollectionType::Set
+      ) {
         if meta.encoding() == StorageEncoding::Flattened {
-          let old_version = meta.version;
-          self.clear_bftree_zset(meta.key_id, old_version)?;
-          // 快速瞬时清空 (Fast Drop): Flattened 模式下递增 version 并置 size = 0，保存 Meta 记录实现 O(1) 瞬时清空与版本隔离
+          // ZSet 索引项游离在 BfTree 独立树文件中，先整树回收再秒删元记录
+          if meta.collection_type == CollectionType::ZSet {
+            self.clear_bftree_zset(meta.key_id, meta.version)?;
+          }
+          // 快速瞬时清空 (Fast Drop): Flattened 模式下递增 version 并置 size = 0，
+          // 保存 Meta 记录实现 O(1) 瞬时清空与版本隔离
           meta.bump_version();
           meta.size = 0;
           Self::set_meta_chunk_info(&mut meta.reserved, 0, 0);
@@ -130,25 +136,7 @@ impl<D: Device> StoreSession<D> {
             .store
             .update_key_id_meta(meta.key_id, meta.version, false);
         } else {
-          self
-            .store
-            .update_key_id_meta(meta.key_id, meta.version, false);
-          self.delete_raw(&meta_k).await?;
-        }
-      } else if meta.collection_type == CollectionType::Hash
-        || meta.collection_type == CollectionType::Set
-      {
-        if meta.encoding() == StorageEncoding::Flattened {
-          // 快速瞬时清空 (Fast Drop): Flattened 模式下递增 version 并置 size = 0，保存 Meta 记录实现 O(1) 瞬时清空与版本隔离
-          meta.bump_version();
-          meta.size = 0;
-          Self::set_meta_chunk_info(&mut meta.reserved, 0, 0);
-          let bytes = meta.to_bytes();
-          self.upsert_raw(&meta_k, &bytes).await?;
-          self
-            .store
-            .update_key_id_meta(meta.key_id, meta.version, false);
-        } else {
+          // 非 Flattened（紧凑/分块）：直接墓碑元记录，子键由 GC LogCompactor 按版本回收
           self
             .store
             .update_key_id_meta(meta.key_id, meta.version, false);
@@ -385,29 +373,9 @@ impl<D: Device> StoreSession<D> {
     key: &[u8],
     expected: CollectionType,
   ) -> Result<Option<RawCollectionRead>> {
-    let meta_k = self.session_meta_key(key);
-    let bytes = match self.read_raw(&meta_k).await? {
-      Some(b) => b,
-      None => {
-        if self.read(key).await?.is_some() {
-          return Err(wval::Error::InvalidCollectionType(0xFF).into());
-        }
-        return Ok(None);
-      }
+    let Some((meta, bytes)) = self.load_live_meta_bytes(key).await? else {
+      return Ok(None);
     };
-    let meta = MetaValue::from_slice(&bytes)?;
-    if meta.size == 0 {
-      // 幽灵元记录（打平集合秒删残留）：继续探测同名裸键以识别 WRONGTYPE（与写路径口径一致）
-      if self.read(key).await?.is_some() {
-        return Err(wval::Error::InvalidCollectionType(0xFF).into());
-      }
-      return Ok(None);
-    }
-    // 仅当集合存活时才惰性检查过期（快路径零额外 I/O）；
-    // has_ttl_tag 单探针门控：无 TTL 记录时完全跳过异步过期裁决（与 read_with 口径一致）
-    if self.has_ttl_tag(key)? && self.check_expired(key).await? {
-      return Ok(None);
-    }
     if meta.collection_type != expected {
       return Ok(None);
     }
@@ -427,6 +395,42 @@ impl<D: Device> StoreSession<D> {
       return Ok(Some(RawCollectionRead::new(meta, Some(bytes))));
     }
     Ok(Some(RawCollectionRead::new(meta, None)))
+  }
+
+  /// 集合装载公共前置段（read/write 两变体共用）：读元记录 + 幽灵/裸键 WRONGTYPE
+  /// 判定 + key 级惰性过期守卫
+  ///
+  /// 返回 `Some((存活元数据, 整记录字节))`；以下三种情形返回 `None`：
+  /// 无元记录（裸键也不存在）、幽灵元记录（size=0 且裸键不存在）、key 级已过期
+  /// （物理清除后视同不存在）；裸键存活时返回 WRONGTYPE（0xFF，具体类型未知）。
+  /// 裸键探测是对同名裸键这一不同物理记录的独立裁决（保证过期字符串不可见），
+  /// 不属同键同记录的重复探测；此后本链不再二次裁决
+  async fn load_live_meta_bytes(&self, key: &[u8]) -> Result<Option<(MetaValue, Vec<u8>)>> {
+    let meta_k = self.session_meta_key(key);
+    let bytes = match self.read_raw(&meta_k).await? {
+      Some(b) => b,
+      None => {
+        if self.read(key).await?.is_some() {
+          return Err(wval::Error::InvalidCollectionType(0xFF).into());
+        }
+        return Ok(None);
+      }
+    };
+    let meta = MetaValue::from_slice(&bytes)?;
+    if meta.size == 0 {
+      // 幽灵元记录（打平集合秒删残留）：继续探测同名裸键，杜绝在活字符串之上
+      // 静默重建同名集合（读路径识别 WRONGTYPE，与写路径口径一致）
+      if self.read(key).await?.is_some() {
+        return Err(wval::Error::InvalidCollectionType(0xFF).into());
+      }
+      return Ok(None);
+    }
+    // 仅当集合存活时才惰性检查过期（快路径零额外 I/O）；
+    // has_ttl_tag 单探针门控：无 TTL 记录时完全跳过异步过期裁决（与 read_with 口径一致）
+    if self.has_ttl_tag(key)? && self.check_expired(key).await? {
+      return Ok(None);
+    }
+    Ok(Some((meta, bytes)))
   }
 
   /// 字段级惰性 purge 慢路径（读入口专用）：双检回写后返回最新元数据与压缩载荷
@@ -475,29 +479,9 @@ impl<D: Device> StoreSession<D> {
     key: &[u8],
     expected: CollectionType,
   ) -> Result<Option<(MetaValue, Option<Vec<u8>>)>> {
-    let meta_k = self.session_meta_key(key);
-    let mut bytes = match self.read_raw(&meta_k).await? {
-      Some(b) => b,
-      None => {
-        if self.read(key).await?.is_some() {
-          return Err(wval::Error::InvalidCollectionType(0xFF).into());
-        }
-        return Ok(None);
-      }
+    let Some((meta, mut bytes)) = self.load_live_meta_bytes(key).await? else {
+      return Ok(None);
     };
-    let meta = MetaValue::from_slice(&bytes)?;
-    if meta.size == 0 {
-      // 幽灵元记录：继续探测同名裸键，杜绝在活字符串之上静默重建同名集合
-      if self.read(key).await?.is_some() {
-        return Err(wval::Error::InvalidCollectionType(0xFF).into());
-      }
-      return Ok(None);
-    }
-    // 仅当集合存活时才惰性检查过期（快路径零额外 I/O）；
-    // has_ttl_tag 单探针门控：无 TTL 记录时完全跳过异步过期裁决（与 read_with 口径一致）
-    if self.has_ttl_tag(key)? && self.check_expired(key).await? {
-      return Ok(None);
-    }
     if meta.collection_type != expected {
       return Err(wval::Error::InvalidCollectionType(meta.collection_type.as_u8()).into());
     }

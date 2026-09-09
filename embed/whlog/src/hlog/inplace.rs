@@ -59,17 +59,6 @@ impl<D: Device> HybridLog<D> {
     })
   }
 
-  /// 尝试在可变区基于动态松弛原位覆写记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
-  #[inline]
-  pub fn try_modify_record_with_slack(
-    &self,
-    addr: u64,
-    expected_key: &[u8],
-    new_val: &[u8],
-  ) -> Result<bool> {
-    self.try_update_in_place(addr, expected_key, new_val)
-  }
-
   /// 尝试在可变区链内原地复活墓碑记录（严格对照 C# Garnet InternalUpsert.cs:127 TryRevivifyInChain & RecordDataHeader.cs:FillerWords）
   ///
   /// 若记录处于内存可变区且为墓碑记录，校验 expected_key 匹配且物理容量（val_capacity）足以容纳新值的前提下，
