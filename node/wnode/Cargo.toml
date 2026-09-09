@@ -1,0 +1,22 @@
+[package]
+name = "wnode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "单机网络服务底座：RESP 协议帧、AOF 逻辑层与节点服务编排（对标 Garnet libs/server 单机半区）"
+
+[dependencies]
+wkv = { workspace = true }
+waof = { workspace = true }
+wdev = { workspace = true }
+itoa = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+compio = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,11 @@
+tasks:
+  clippy:
+    command: 'sh/clippy.sh'
+    toolchain: 'system'
+    inputs:
+      - '**/*.rs'
+      - '**/Cargo.toml'
+      - 'Cargo.lock'
+    options:
+      cache: false
+      outputStyle: 'stream'

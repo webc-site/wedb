@@ -1,0 +1,106 @@
+[package]
+name = "wkv"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/wkv"
+description = "wkv"
+keywords = [ ]
+categories = [ ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[dependencies.wbase]
+features = ["addr", "align", "crc", "time"]
+path = "../wbase"
+version = "0.1.1"
+
+[dependencies.fastrand]
+workspace = true
+
+[dependencies.itoa]
+workspace = true
+
+[dependencies.log]
+workspace = true
+
+[dependencies.parking_lot]
+workspace = true
+
+[dependencies.thiserror]
+workspace = true
+
+[dependencies.wbftree]
+workspace = true
+
+[dependencies.wcompact]
+workspace = true
+
+[dependencies.wcpr]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.wepoch]
+workspace = true
+
+[dependencies.whasher]
+workspace = true
+
+[dependencies.whlog]
+workspace = true
+
+[dependencies.windex]
+workspace = true
+
+[dependencies.wram]
+workspace = true
+
+[dependencies.wrecord]
+workspace = true
+
+[dependencies.wreviv]
+workspace = true
+
+[dependencies.wval]
+workspace = true
+
+[dependencies.zmij]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+features = [ "runtime", "time" ]
+
+[dependencies.futures-util]
+workspace = true
+default-features = false
+features = [ "alloc" ]
+
+[dev-dependencies.aok]
+workspace = true
+
+[dev-dependencies.ctor]
+workspace = true
+
+[dev-dependencies.fastrand]
+workspace = true
+
+[dev-dependencies.log]
+workspace = true
+
+[dev-dependencies.log_init]
+workspace = true
+
+[dev-dependencies.sonic-rs]
+workspace = true
+
+[dev-dependencies.tempfile]
+workspace = true
+
+[lints]
+workspace = true

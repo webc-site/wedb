@@ -1,0 +1,19 @@
+name: cluster test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cluster/**'
+  pull_request:
+    paths:
+      - 'cluster/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/rust-test.yml
+    with:
+      dir: cluster

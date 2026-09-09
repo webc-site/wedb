@@ -1,0 +1,9 @@
+node_modules/
+.codegraph/
+*.lock
+/sh
+/garnet/
+
+# moon
+.moon/cache
+.moon/docker

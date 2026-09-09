@@ -1,0 +1,192 @@
+//! BufferPool 跨线程 Origin-Return 路由测试
+//!
+//! 对标 C#：libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs 的
+//! `CrossThreadReturnRoutesBackToOriginAndReuses`、`CrossThreadDirtyReturnIsLazyClearedOnOwnerReuse`、
+//! `LargeClassCrossThreadReturnSharesViaDepot`、`LargeClassOwnerReturnSharesViaDepot`。
+
+use std::{sync::mpsc::channel, thread};
+
+use aok::{OK, Void};
+use log::info;
+use wram::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE};
+
+/// 跨线程归还必须路由回属主线程并在其复用同一底层内存
+#[test]
+fn cross_thread_return_routes_back_to_origin_and_reuses() -> Void {
+  info!("对标 CrossThreadReturnRoutesBackToOriginAndReuses：异线程 Return 后属主 Get 复用同指针");
+
+  let pool = BufferPool::new(MIN_SECTOR_SIZE)?;
+  let p1 = pool.get_with_policy(4096, false)?;
+  let ptr1 = p1.as_buf_ptr() as usize;
+
+  // 异线程归还：经无锁 CAS 推入属主收件箱
+  thread::spawn(move || drop(p1))
+    .join()
+    .expect("跨线程归还执行成功");
+
+  // 属主线程重新租借：收割收件箱整链后复用
+  let p2 = pool.get_with_policy(4096, false)?;
+  assert_eq!(
+    p2.as_buf_ptr() as usize,
+    ptr1,
+    "跨线程归还必须路由回属主线程并复用同一分配"
+  );
+
+  OK
+}
+
+/// 跨线程脏归还由属主惰性清零；反向极性下急切清零结果保持全零
+#[test]
+fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
+  info!("对标 CrossThreadDirtyReturnIsLazyClearedOnOwnerReuse：脏归还惰性清零与反极性验证");
+
+  let pool = BufferPool::new(DEFAULT_SECTOR_SIZE)?;
+
+  // 正向：免清零租借填脏 -> 异线程脏归还 -> 属主默认 Get 惰性清零
+  let mut p1 = pool.get_with_policy(4096, false)?;
+  p1.as_allocated_slice_mut().fill(0xAB);
+  let ptr1 = p1.as_buf_ptr() as usize;
+  thread::spawn(move || drop(p1))
+    .join()
+    .expect("异线程归还成功");
+
+  let p2 = pool.get(4096)?;
+  assert_eq!(p2.as_buf_ptr() as usize, ptr1, "脏缓冲必须路由回属主复用");
+  assert!(
+    p2.as_allocated_slice().iter().all(|&b| b == 0),
+    "跨线程收割路径必须惰性清零脏缓冲"
+  );
+  drop(p2);
+
+  // 反向极性：默认租借填脏 -> 异线程急切清零归还 -> 免清零策略复用仍为全零
+  let mut p3 = pool.get_with_policy(4096, true)?;
+  p3.as_allocated_slice_mut().fill(0xCD);
+  thread::spawn(move || drop(p3))
+    .join()
+    .expect("异线程归还成功");
+
+  let p4 = pool.get_with_policy(4096, false)?;
+  assert_eq!(p4.as_buf_ptr() as usize, ptr1);
+  assert!(
+    p4.as_allocated_slice().iter().all(|&b| b == 0),
+    "异线程急切清零后的缓冲必须保持全零"
+  );
+
+  OK
+}
+
+/// 大容量缓冲跨线程归还经全局条带仓库共享，第三个非属主线程可复用
+#[test]
+fn large_class_cross_thread_return_shares_via_depot() -> Void {
+  info!("对标 LargeClassCrossThreadReturnSharesViaDepot：1MB 大缓冲经 Depot 跨线程共享");
+
+  let pool = BufferPool::new(DEFAULT_SECTOR_SIZE)?;
+  let large_size = 1024 * 1024; // 1 MB：高于 256KB 大容量分层阈值
+
+  // 1. 属主线程创建大缓冲
+  let p_clone1 = pool.clone();
+  let (tx, rx) = channel();
+  thread::spawn(move || {
+    let p1 = p_clone1
+      .get_with_policy(large_size, false)
+      .expect("大缓冲租借成功");
+    let ptr1 = p1.as_buf_ptr() as usize;
+    tx.send((p1, ptr1)).expect("发送成功");
+  })
+  .join()
+  .expect("属主线程执行成功");
+  let (p1, ptr1) = rx.recv().expect("接收成功");
+
+  // 2. 完成线程跨线程归还 -> 直接进入全局条带仓库 Depot
+  thread::spawn(move || drop(p1))
+    .join()
+    .expect("完成线程执行成功");
+
+  // 3. 第三个线程（非属主、非归还方）从 Depot 复用同一底层内存
+  let p_clone2 = pool.clone();
+  let ptr2 = thread::spawn(move || {
+    p_clone2
+      .get_with_policy(large_size, false)
+      .expect("复用租借成功")
+      .as_buf_ptr() as usize
+  })
+  .join()
+  .expect("复用线程执行成功");
+
+  assert_eq!(ptr1, ptr2, "第三线程必须从 Depot 复用同一底层物理指针");
+
+  OK
+}
+
+/// 大容量缓冲属主同线程归还亦直接进入全局条带仓库共享
+#[test]
+fn large_class_owner_return_shares_via_depot() -> Void {
+  info!("对标 LargeClassOwnerReturnSharesViaDepot：属主归还的大缓冲不经本地栈，异源线程可命中");
+
+  let pool = BufferPool::new(DEFAULT_SECTOR_SIZE)?;
+  let large_size = 1024 * 1024; // 1 MB
+
+  // 1. 属主线程创建并归还大缓冲（大容量 class 不进入线程私有栈，直接推入 Depot）
+  let p_clone1 = pool.clone();
+  let ptr1 = thread::spawn(move || {
+    let p1 = p_clone1
+      .get_with_policy(large_size, false)
+      .expect("大缓冲租借成功");
+    let ptr1 = p1.as_buf_ptr() as usize;
+    drop(p1); // 属主同线程归还 -> Depot，而非本地栈
+    ptr1
+  })
+  .join()
+  .expect("属主线程执行成功");
+
+  // 2. 异源线程申请相同规格缓冲，直接从 Depot 命中复用
+  let p_clone2 = pool.clone();
+  let ptr2 = thread::spawn(move || {
+    p_clone2
+      .get_with_policy(large_size, false)
+      .expect("复用租借成功")
+      .as_buf_ptr() as usize
+  })
+  .join()
+  .expect("复用线程执行成功");
+
+  assert_eq!(ptr1, ptr2, "异源线程必须从 Depot 命中属主归还的大缓冲");
+
+  OK
+}
+
+/// 属主线程退出后密封收件箱，跨线程归还回退 Depot 且首部 FreeNode 区域全零
+#[test]
+fn sealed_inbox_fallback_zeroing_preserves_free_node_region() -> Void {
+  info!("验证属主退出后密封回退路径恢复 32B FreeNode 污染区，复用缓冲 100% 全零");
+
+  let pool = BufferPool::new(DEFAULT_SECTOR_SIZE)?;
+
+  // 1. 属主线程获取缓冲区并填充脏数据后退出（其收件箱随 TLS RAII 自动密封）
+  let p1 = {
+    let p_clone = pool.clone();
+    let (tx, rx) = channel();
+    thread::spawn(move || {
+      let mut buf = p_clone.get_with_policy(4096, true).expect("租借成功");
+      buf.as_allocated_slice_mut().fill(0x7F);
+      tx.send(buf).expect("发送成功");
+    })
+    .join()
+    .expect("属主线程退出成功");
+    rx.recv().expect("接收成功")
+  };
+
+  // 2. 第二线程跨线程归还：属主收件箱已密封，回退进入 Depot（先恢复 FreeNode 污染区）
+  thread::spawn(move || drop(p1))
+    .join()
+    .expect("归还线程执行成功");
+
+  // 3. 第三线程从 Depot 复用，验证整个容量（含首部 32B FreeNode 区域）全零
+  let p2 = pool.get(4096)?;
+  assert!(
+    p2.as_allocated_slice().iter().all(|&b| b == 0),
+    "回退进入 Depot 的缓冲区复用时必须 100% 全零（不得残留 FreeNode 非零字节）"
+  );
+
+  OK
+}

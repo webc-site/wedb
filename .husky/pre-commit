@@ -1,0 +1,13 @@
+set -x
+
+if ! command -v moon 2>/dev/null; then
+  bun i -g @moonrepo/cli
+fi
+
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  moon run :clippy --affected
+fi
+
+command -v codegraph >/dev/null 2>&1 && codegraph sync || true
+
+git add -u || true

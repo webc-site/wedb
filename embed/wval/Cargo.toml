@@ -1,0 +1,38 @@
+[package]
+name = "wval"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/wval"
+description = "wval"
+keywords = []
+categories = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+bitcode = { workspace = true }
+fastrand = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["buf", "float", "glob", "simd", "varint"] }
+whasher = { workspace = true }
+wrecord = { workspace = true }
+
+[dependencies.strum]
+workspace = true
+features = ["derive"]
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+
+[lints]
+workspace = true

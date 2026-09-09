@@ -1,0 +1,18 @@
+[package]
+name = "wedb"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WeDB 集群层：选主、共识、AOF 同步驱动与范围索引文件流迁移（对标 Garnet libs/cluster）"
+
+[dependencies]
+wnode = { workspace = true }
+wraft = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = "0.19.2"
+tempfile = "3"
+wdev = { path = "../../embed/wdev" }

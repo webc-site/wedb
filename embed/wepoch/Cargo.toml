@@ -1,0 +1,33 @@
+[package]
+name = "wepoch"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/wepoch"
+description = "wepoch"
+keywords = []
+categories = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+log = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["backoff", "thread"] }
+whasher = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+parking_lot = { workspace = true }
+wram = { workspace = true }
+
+[lints]
+workspace = true

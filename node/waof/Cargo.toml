@@ -1,0 +1,40 @@
+[package]
+name = "waof"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/waof"
+description = "waof"
+keywords = []
+categories = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+async-lock = { workspace = true }
+wbase = { workspace = true, features = ["crc"] }
+event-listener = { workspace = true }
+log.workspace = true
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wram = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["fs"]
+
+[lints]
+workspace = true

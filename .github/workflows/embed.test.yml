@@ -1,0 +1,19 @@
+name: embed test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'embed/**'
+  pull_request:
+    paths:
+      - 'embed/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/rust-test.yml
+    with:
+      dir: embed

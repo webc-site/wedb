@@ -1,0 +1,44 @@
+[package]
+name = "whlog"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/whlog"
+description = "whlog"
+keywords = []
+categories = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bitcode = { workspace = true }
+itoa = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wepoch = { workspace = true }
+wram = { workspace = true }
+wrecord = { workspace = true }
+zmij = { workspace = true }
+
+[dependencies.compio]
+workspace = true
+features = ["runtime", "time"]
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+whasher = { workspace = true }
+
+[lints]
+workspace = true

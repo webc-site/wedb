@@ -1,0 +1,42 @@
+[workspace]
+resolver = "3"
+members = ["wnode", "waof"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = ""
+
+[workspace.dependencies]
+wkv = { path = "../embed/wkv" }
+waof = { path = "waof" }
+wdev = { path = "../embed/wdev" }
+wbase = { path = "../embed/wbase" }
+wram = { path = "../embed/wram" }
+async-lock = "3.4.2"
+event-listener = "5.4.2"
+log = "0.4.34"
+itoa = "1.0.18"
+thiserror = "2.0.20"
+aok = "0.1.18"
+ctor = "1.0.13"
+log_init = "0.1.39"
+tempfile = "3.27.0"
+compio = "0.19.2"
+
+[workspace.lints.clippy]
+arc_with_non_send_sync = "allow"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false
+
+[profile.bench]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

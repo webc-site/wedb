@@ -1,0 +1,14 @@
+[package]
+name = "wraft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WeDB 共识算法库：Raft 风格选主状态机与可插拔共识引擎接口（纯逻辑、零 IO、零引擎依赖）"
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = "0.19.2"

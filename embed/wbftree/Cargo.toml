@@ -1,0 +1,39 @@
+[package]
+name = "wbftree"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/wbftree"
+description = "wbftree"
+keywords = []
+categories = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bf-tree = { workspace = true }
+fastrand = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["align", "backoff", "base32", "striped"] }
+whasher = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+fastrand = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["time"]
+
+[lints]
+workspace = true

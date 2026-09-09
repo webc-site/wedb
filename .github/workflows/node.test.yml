@@ -1,0 +1,19 @@
+name: node test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'node/**'
+  pull_request:
+    paths:
+      - 'node/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/rust-test.yml
+    with:
+      dir: node

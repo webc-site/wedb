@@ -1,0 +1,42 @@
+[package]
+name = "wdev"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb_base.git"
+homepage = "https://github.com/webc-site/wedb_base/tree/main/wdev"
+description = "wdev"
+keywords = []
+categories = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+compio-driver = { version = "0.12.5", default-features = false, features = ["sync"] }
+futures-util = { workspace = true, default-features = false, features = ["alloc"] }
+gxhash.workspace = true
+itoa = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+papaya.workspace = true
+thiserror = { workspace = true }
+wram = { workspace = true }
+
+[dependencies.compio]
+workspace = true
+features = ["fs", "runtime"]
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
