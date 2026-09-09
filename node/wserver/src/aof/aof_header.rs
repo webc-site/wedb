@@ -279,6 +279,25 @@ pub struct AofShardedLogTransactionHeader {
 impl AofShardedLogTransactionHeader {
   /// 头尺寸。
   pub const TOTAL_SIZE: usize = AofShardedHeader::TOTAL_SIZE + 2 + REPLAY_TASK_ACCESS_VECTOR_BYTES;
+
+  /// 解析（与 AofSingleLogTransactionHeader::parse 对称）。
+  pub fn parse_sharded(entry: &[u8]) -> Option<Self> {
+    if entry.len() < Self::TOTAL_SIZE {
+      return None;
+    }
+    let sharded = AofShardedHeader::parse(entry)?;
+    let mut vector = [0u8; REPLAY_TASK_ACCESS_VECTOR_BYTES];
+    vector.copy_from_slice(&entry[AofShardedHeader::TOTAL_SIZE + 2..Self::TOTAL_SIZE]);
+    Some(Self {
+      sharded,
+      participant_count: i16::from_le_bytes(
+        entry[AofShardedHeader::TOTAL_SIZE..AofShardedHeader::TOTAL_SIZE + 2]
+          .try_into()
+          .expect("长度恰为 2"),
+      ),
+      replay_task_access_vector: vector,
+    })
+  }
 }
 
 /// 分块帧头（20B）：长度三元组 + objectId + keyHash。

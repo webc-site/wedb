@@ -56,7 +56,8 @@ pub(crate) mod batch_harness {
       let store = Arc::new(WedbStore::open(config, device).unwrap());
       let session = store.new_session().unwrap();
       let batch = session.enter_batch();
-      let mut s = RespServerSession;
+      // 会话状态域（周期6）落地为真实结构体：默认零号会话（无端点/库0/RESP2）
+      let mut s = RespServerSession::default();
       f(&mut s, &batch);
     });
   }

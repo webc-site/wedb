@@ -11,6 +11,7 @@ pub mod arg_slice;
 pub mod input_header;
 pub mod inputs;
 pub mod session_parse_state;
+pub mod session_parse_state_extensions;
 pub mod types;
 
 pub mod acl;

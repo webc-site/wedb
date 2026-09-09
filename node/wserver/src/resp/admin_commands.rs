@@ -3,7 +3,10 @@ use super::{
   cmd_strings::{
     abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw, write_raw,
   },
-  parser::resp_ext::{RespSliceExt, RespVecExt},
+  parser::{
+    resp_ext::{RespSliceExt, RespVecExt},
+    session_parse_state::strict_i32,
+  },
   resp_server_session::RespServerSession,
 };
 
@@ -368,13 +371,13 @@ impl RespServerSession {
         );
       }
       if parse_state.len() == 2 {
-        let Some(generation) = parse_state[1].try_parse_i64() else {
+        let Some(generation) = strict_i32(parse_state[1]) else {
           abort_with_error_message(output, "ERR Invalid GC generation.");
           return Ok(true);
         };
-        if !(0..=255).contains(&generation) {
-          // C# 上界为 GC.MaxGeneration（.NET 通常 2）；rust 无分代 GC，
-          // 按非法代数拒绝
+        // C# 上界为 GC.MaxGeneration（.NET 恒为 2）；rust 无分代 GC，
+        // 按同值域拒绝非法代数
+        if !(0..=2).contains(&generation) {
           abort_with_error_message(output, "ERR Invalid GC generation.");
           return Ok(true);
         }
@@ -550,17 +553,18 @@ impl RespServerSession {
   }
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId
   ///
-  /// 校验 DBID 令牌；失败时已写出错误应答并返回 false
+  /// 校验 DBID 令牌（C# TryGetInt i32 严格口径）；失败时已写出错误应答并返回 false
   pub fn try_parse_database_id<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some(db_id) = parse_state[0].try_parse_i64() else {
+    let Some(db_id) = strict_i32(parse_state[0]) else {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return Ok(false);
     };
+    let db_id = i64::from(db_id);
 
     // 集群模式禁非零 DBID；rust 集群会话域未挂载（等效集群未启用），拦截不可达
     if CLUSTER_ENABLED && db_id > 0 {
@@ -614,7 +618,7 @@ mod tests {
       let store = Arc::new(WedbStore::open(config, device).unwrap());
       let session = store.new_session().unwrap();
       let batch = session.enter_batch();
-      let mut s = RespServerSession;
+      let mut s = RespServerSession::default();
       f(&mut s, &batch);
     });
   }

@@ -10,7 +10,10 @@ use super::{
     abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw,
     write_map_len_resp2, write_raw,
   },
-  parser::resp_ext::{RespSliceExt, RespVecExt},
+  parser::{
+    resp_ext::{RespSliceExt, RespVecExt},
+    session_parse_state::{strict_f64, strict_i32, strict_i64},
+  },
   resp_server_session::RespServerSession,
   ttl_sync::{
     del_ttl_sync, now_unix_ms, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
@@ -26,8 +29,6 @@ const ERR_NOT_INTEGER: &str = cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER;
 const ERR_OFFSET_OUT_OF_RANGE: &str = cs::RESP_ERR_GENERIC_OFFSETOUTOFRANGE;
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_STRING_EXCEEDS_MAX_SIZE
 const ERR_STRING_EXCEEDS_MAX: &str = "ERR string exceeds maximum allowed size (proto-max-bulk-len)";
-/// libs/host/GarnetServer.cs:RedisProtocolVersion（HELLO 应答中的 version 字段）
-const REDIS_PROTOCOL_VERSION: &str = "7.4.3";
 /// libs/server/Auth/GarnetNoAuthAuthenticator.cs:CanAuthenticate
 ///
 /// rust 会话尚未接线认证器；C# 默认（无 AuthSettings）即 NoAuth 认证器，
@@ -219,9 +220,10 @@ fn format_error_option(cmd: &str, option: &str) -> String {
   format!("ERR Syntax error in {cmd} option '{option}'")
 }
 
-/// 严格解析 f64（对标 C# parseState.TryGetDouble：整体须为合法浮点）
+/// 严格解析 f64（对标 C# parseState.TryGetDouble 默认 canBeInfinite: true；
+/// INF 白名单 + NaN 拒绝，单一实现位于 parser::session_parse_state）
 fn try_parse_double(raw: &[u8]) -> Option<f64> {
-  str::from_utf8(raw).ok()?.parse().ok()
+  strict_f64(raw, true)
 }
 
 impl RespServerSession {
@@ -269,7 +271,7 @@ impl RespServerSession {
       if option.eq_ignore_ascii_case(b"PERSIST") {
         GetexExpiry::Persist
       } else {
-        let Some(expire_time) = parse_state.get(2).and_then(|t| t.try_parse_i64()) else {
+        let Some(expire_time) = parse_state.get(2).copied().and_then(strict_i64) else {
           abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
           return Ok(true);
         };
@@ -410,12 +412,13 @@ impl RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    // 对标 C#：偏移须为可解析整数，负值越界报错，offset + value 不得越过
-    // 512MB 负载上限（全程 i64 口径，杜绝 usize 溢出 panic）
-    let Some(offset) = parse_state[1].try_parse_i64() else {
+    // 对标 C#：偏移须为可解析整数（TryGetInt 口径），负值越界报错，
+    // offset + value 不得越过 512MB 负载上限（u64 口径，杜绝 usize 溢出 panic）
+    let Some(offset) = strict_i32(parse_state[1]) else {
       abort_with_error_message(output, ERR_NOT_INTEGER);
       return Ok(true);
     };
+    let offset: i64 = i64::from(offset);
     let val = parse_state[2];
     if offset < 0 {
       abort_with_error_message(output, ERR_OFFSET_OUT_OF_RANGE);
@@ -464,12 +467,12 @@ impl RespServerSession {
       abort_with_wrong_number_of_arguments(output, "GETRANGE");
       return Ok(true);
     }
-    // 对标 C#：start/end 须可解析为整数，否则报 value is not an integer
-    let Some(mut start) = parse_state[1].try_parse_i64() else {
+    // 对标 C#：start/end 须可解析为整数（TryGetInt 口径），否则报 not-integer
+    let Some(mut start) = strict_i32(parse_state[1]).map(i64::from) else {
       abort_with_error_message(output, ERR_NOT_INTEGER);
       return Ok(true);
     };
-    let Some(mut end) = parse_state[2].try_parse_i64() else {
+    let Some(mut end) = strict_i32(parse_state[2]).map(i64::from) else {
       abort_with_error_message(output, ERR_NOT_INTEGER);
       return Ok(true);
     };
@@ -540,8 +543,8 @@ impl RespServerSession {
     }
     let key = parse_state[0];
 
-    // 对标 C#：过期须为整数且 > 0
-    let Some(expiry) = parse_state[1].try_parse_i64() else {
+    // 对标 C#：过期须为整数（TryGetInt 口径）且 > 0
+    let Some(expiry) = strict_i32(parse_state[1]) else {
       abort_with_error_message(output, ERR_NOT_INTEGER);
       return Ok(true);
     };
@@ -560,7 +563,7 @@ impl RespServerSession {
         return Ok(true);
       }
     }
-    let expire_at_ms = expiry_ms_from_now(expiry, high_precision);
+    let expire_at_ms = expiry_ms_from_now(i64::from(expiry), high_precision);
     match put_ttl_sync(store, key, expire_at_ms) {
       Ok(true) => output.write_resp_simple_string("OK"),
       Ok(false) => return Ok(false),
@@ -776,7 +779,7 @@ impl RespServerSession {
 
     let mut delta = cmd.sign();
     if cmd.has_by() {
-      let Some(by) = parse_state[1].try_parse_i64() else {
+      let Some(by) = strict_i64(parse_state[1]) else {
         abort_with_error_message(output, ERR_NOT_INTEGER);
         return Ok(true);
       };
@@ -910,18 +913,24 @@ impl RespServerSession {
     }
     Ok(true)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkPING
+  /// libs/server/Resp/BasicCommands.cs:NetworkPING / ArrayCommands.cs:NetworkArrayPING
+  ///
+  /// 零参回 +PONG（订阅会话 RESP2 同为 PONG）；单参回显消息 bulk；
+  /// 多参报参数错误（C# ProcessBasicCommands 依 Count 分流两实现）
   pub fn network_ping(
     &mut self,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
+    if parse_state.len() > 1 {
+      abort_with_wrong_number_of_arguments(output, "PING");
+      return Ok(true);
+    }
+    if let Some(msg) = parse_state.first() {
+      output.write_resp_bulk_string(msg);
+    } else {
       // C# 订阅会话 + RESP2 走 SUSCRIBE_PONG；响应同为 +PONG，统一普通路径
       output.extend_from_slice(cs::RESP_PONG);
-    } else {
-      let msg = parse_state[0];
-      output.write_resp_bulk_string(msg);
     }
     Ok(true)
   }
@@ -1159,8 +1168,8 @@ impl RespServerSession {
 
     if count > 0 {
       let mut token_idx = 0usize;
-      // 校验协议版本
-      let Some(local_resp_protocol_version) = parse_state[token_idx].try_parse_i64() else {
+      // 校验协议版本（C# TryGetInt 严格口径）
+      let Some(local_resp_protocol_version) = strict_i32(parse_state[token_idx]) else {
         abort_with_error_message(output, cs::RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER);
         return Ok(true);
       };
@@ -1287,7 +1296,7 @@ impl RespServerSession {
         abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      let Some(samples) = parse_state[2].try_parse_i64() else {
+      let Some(samples) = strict_i32(parse_state[2]) else {
         abort_with_error_message(output, ERR_NOT_INTEGER);
         return Ok(true);
       };
@@ -1406,6 +1415,10 @@ impl RespServerSession {
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
+  ///
+  /// 校验 → 认证 → 升级协议版本 / 落客户端名 → 组 HELLO 应答 map；协议
+  /// 版本、客户端名与会话 Id 直读会话真实状态（占位实现已由
+  /// [`RespServerSession::process_hello_command_state`] 承接）
   pub fn process_hello_command<'a, D: wdev::Device>(
     &mut self,
     resp_protocol_version: Option<u8>,
@@ -1414,39 +1427,36 @@ impl RespServerSession {
     _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let _ = client_name;
-    // RESP 规范：校验 → 认证 → 才允许切换协议/名字。rust 会话无
-    // respProtocolVersion/clientName 字段可持久化（待会话状态域补齐），亦无
-    // 在途异步操作（协议切换的 pending 拦截不触发）
-    if let Some(ver) = resp_protocol_version {
-      let _ = ver;
-    }
-
     // C# 默认 NoAuth 认证器 Authenticate 恒 false → 带 AUTH 的 HELLO 报 WRONGPASS
     if !username.is_empty() && !CAN_AUTHENTICATE {
       write_error_raw(output, cs::RESP_WRONGPASS_INVALID_USERNAME_PASSWORD);
       return Ok(true);
     }
 
-    // 应答 map（RESP2 退化为双倍数组）：server/version/garnet_version/proto/
-    // id/mode/role + modules 空数组
-    write_map_len_resp2(output, 8);
-    for (name, value) in [
-      ("server", "redis"),
-      ("version", REDIS_PROTOCOL_VERSION),
-      ("garnet_version", env!("CARGO_PKG_VERSION")),
-      ("mode", "standalone"),
-      ("role", "master"),
-    ] {
-      output.write_resp_bulk_string(name.as_bytes());
-      output.write_resp_bulk_string(value.as_bytes());
+    if let Some(version) = resp_protocol_version {
+      self.update_resp_protocol_version(version);
     }
+    if let Some(name) = client_name {
+      self.set_client_name(Some(name));
+    }
+
+    // 应答 map（RESP2 退化为双倍数组）；字段序对齐 C#：server/version/
+    // garnet_version/proto/id/mode/role + modules 空数组
+    write_map_len_resp2(output, 8);
+    output.write_resp_bulk_string(b"server");
+    output.write_resp_bulk_string(b"redis");
+    output.write_resp_bulk_string(b"version");
+    output.write_resp_bulk_string(super::resp_server_session::REDIS_PROTOCOL_VERSION.as_bytes());
+    output.write_resp_bulk_string(b"garnet_version");
+    output.write_resp_bulk_string(env!("CARGO_PKG_VERSION").as_bytes());
     output.write_resp_bulk_string(b"proto");
-    // C# 回写会话当前协议版本；rust 恒默认 RESP2
-    output.write_resp_int(i64::from(resp_protocol_version.unwrap_or(2).min(2)));
+    output.write_resp_int(i64::from(self.resp_protocol_version));
     output.write_resp_bulk_string(b"id");
-    // C# 为会话 Id；rust 会话结构无 Id 字段
-    output.write_resp_int(0);
+    output.write_resp_int(self.id);
+    output.write_resp_bulk_string(b"mode");
+    output.write_resp_bulk_string(b"standalone");
+    output.write_resp_bulk_string(b"role");
+    output.write_resp_bulk_string(b"master");
     output.write_resp_bulk_string(b"modules");
     output.extend_from_slice(b"*0\r\n");
     Ok(true)
@@ -1506,17 +1516,6 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     output.write_resp_error("generic error");
     Ok(true)
-  }
-  /// libs/server/Resp/BasicCommands.cs:WriteClientInfo
-  ///
-  /// 将会话描述写入 info 行（不追加换行）。C# 字段来源 → rust 现状：
-  /// Id/networkSender 端点/CreationTicks/clientName/userHandle/lib-* 均为
-  /// 会话字段，rust 会话结构未携带 → 以空/零值占位；flags=N（非订阅会话）
-  pub fn write_client_info(into: &mut String) {
-    let _ = write!(
-      into,
-      "id=0 addr= laddr= age=0 flags=N db=0 resp=2 lib-name= lib-ver="
-    );
   }
   /// libs/server/Resp/BasicCommands.cs:ParseGETAndKey
   ///
@@ -1621,7 +1620,7 @@ fn parse_set_options<'p>(parse_state: &[&'p [u8]], output: &mut Vec<u8>) -> Opti
         return None;
       };
       token_idx += 1;
-      let Some(v) = raw.try_parse_i64() else {
+      let Some(v) = strict_i32(raw) else {
         abort_with_error_message(output, ERR_NOT_INTEGER);
         return None;
       };
@@ -1629,7 +1628,7 @@ fn parse_set_options<'p>(parse_state: &[&'p [u8]], output: &mut Vec<u8>) -> Opti
         abort_with_error_message(output, cs::RESP_ERR_GENERIC_INVALIDEXP_IN_SET);
         return None;
       }
-      expiry = v;
+      expiry = i64::from(v);
       exp_high_precision = next_opt.eq_ignore_ascii_case(b"PX");
       continue;
     }
@@ -1849,10 +1848,24 @@ mod tests {
         .unwrap();
       assert_eq!(out, b"$19\r\n0.30000000000000004\r\n");
 
-      // NaN 可被 .NET TryGetDouble 解析，C# 语义经 NaN/Infinity 检查报错
+      // NaN 字面量被 C# Utf8Parser 拒绝 → not a valid float；
+      // INF 经 TryReadInfinity 白名单接受后由 NaN/Infinity 检查报错
       let mut out = Vec::new();
       let _ = s
         .network_increment_by_float(&[b"f", b"nan"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b"-ERR value is not a valid float\r\n");
+
+      let mut out = Vec::new();
+      let _ = s
+        .network_increment_by_float(&[b"f", b"inf"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b"-ERR increment would produce NaN or Infinity\r\n");
+
+      // 数值溢出至无穷（1e999）：C# 首分支接受后同样被检查拦截
+      let mut out = Vec::new();
+      let _ = s
+        .network_increment_by_float(&[b"f", b"1e999"], batch, &mut out)
         .unwrap();
       assert_eq!(out, b"-ERR increment would produce NaN or Infinity\r\n");
 
@@ -2120,7 +2133,7 @@ mod tests {
 
   #[test]
   fn simple_frames_ping_echo_time_quit() {
-    let mut s = RespServerSession;
+    let mut s = RespServerSession::default();
     let mut out = Vec::new();
     let _ = s.network_ping(&[], &mut out).unwrap();
     assert_eq!(out, b"+PONG\r\n");
@@ -2128,6 +2141,14 @@ mod tests {
     let mut out = Vec::new();
     let _ = s.network_ping(&[b"hey"], &mut out).unwrap();
     assert_eq!(out, b"$3\r\nhey\r\n");
+
+    // 多参 → wrong args（C# NetworkArrayPING count > 1 分支）
+    let mut out = Vec::new();
+    let _ = s.network_ping(&[b"a", b"b"], &mut out).unwrap();
+    assert_eq!(
+      out,
+      b"-ERR wrong number of arguments for 'PING' command\r\n"
+    );
 
     let mut out = Vec::new();
     let _ = s.network_echo(&[b"msg"], &mut out).unwrap();
@@ -2406,7 +2427,7 @@ mod tests {
 
   #[test]
   fn flush_options_and_unavailable_flush() {
-    let mut s = RespServerSession;
+    let mut s = RespServerSession::default();
     // 非法选项 → syntax error
     let mut out = Vec::new();
     let _ = s.network_flushdb(&[b"WHAT"], &mut out).unwrap();
