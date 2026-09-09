@@ -3,6 +3,8 @@ use std::io::{Read, Write};
 
 use roaring::RoaringBitmap;
 
+use crate::error::Result;
+
 /// 表示 RoaringBitmap 对象
 #[derive(Clone)]
 pub struct RoaringBitmapObj {
@@ -66,14 +68,17 @@ impl RoaringBitmapObj {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Serialize
-  pub fn serialize<W: Write>(&self, writer: &mut W) {
-    self.bitmap.serialize_into(writer).unwrap();
+  ///
+  /// I/O 与格式错误上抛，不以 unwrap panic 形式失败
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
+    self.bitmap.serialize_into(writer)?;
+    Ok(())
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Deserialize
-  pub fn deserialize<R: Read>(reader: &mut R) -> Self {
-    Self {
-      bitmap: RoaringBitmap::deserialize_from(reader).unwrap(),
-    }
+  pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
+    Ok(Self {
+      bitmap: RoaringBitmap::deserialize_from(reader)?,
+    })
   }
 }
