@@ -1,3 +1,4 @@
+use core::str::from_utf8;
 /// garnet/libs/common/NumUtils.cs:BytesPerULong
 pub const BYTES_PER_ULONG: i32 = 8;
 
@@ -105,7 +106,7 @@ pub fn count_chars_in_double(
 
 /// garnet/libs/common/NumUtils.cs:TryParse
 pub fn try_parse_i32(source: &[u8], value: &mut i32) -> bool {
-  if let Ok(s) = std::str::from_utf8(source)
+  if let Ok(s) = from_utf8(source)
     && let Ok(v) = s.parse::<i32>()
   {
     *value = v;
@@ -116,7 +117,7 @@ pub fn try_parse_i32(source: &[u8], value: &mut i32) -> bool {
 
 /// garnet/libs/common/NumUtils.cs:TryParse
 pub fn try_parse_i64(source: &[u8], value: &mut i64) -> bool {
-  if let Ok(s) = std::str::from_utf8(source)
+  if let Ok(s) = from_utf8(source)
     && let Ok(v) = s.parse::<i64>()
   {
     *value = v;
@@ -127,7 +128,7 @@ pub fn try_parse_i64(source: &[u8], value: &mut i64) -> bool {
 
 /// garnet/libs/common/NumUtils.cs:TryParse
 pub fn try_parse_f32(source: &[u8], value: &mut f32) -> bool {
-  if let Ok(s) = std::str::from_utf8(source)
+  if let Ok(s) = from_utf8(source)
     && let Ok(v) = s.parse::<f32>()
   {
     *value = v;
@@ -138,7 +139,7 @@ pub fn try_parse_f32(source: &[u8], value: &mut f32) -> bool {
 
 /// garnet/libs/common/NumUtils.cs:TryParse
 pub fn try_parse_f64(source: &[u8], value: &mut f64) -> bool {
-  if let Ok(s) = std::str::from_utf8(source)
+  if let Ok(s) = from_utf8(source)
     && let Ok(v) = s.parse::<f64>()
   {
     *value = v;

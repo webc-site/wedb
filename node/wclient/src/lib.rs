@@ -1,3 +1,4 @@
+#![allow(clippy::absolute_paths)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod error;

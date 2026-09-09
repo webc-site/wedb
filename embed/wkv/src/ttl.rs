@@ -1,3 +1,4 @@
+#![allow(clippy::absolute_paths)]
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 use wbase::time::now_ms;

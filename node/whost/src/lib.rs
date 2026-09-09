@@ -1,4 +1,3 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
-mod error;
-pub use error::{Error, Result};
+#![allow(clippy::absolute_paths)]
+pub mod config;
+pub mod server;

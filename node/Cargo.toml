@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["wnode", "waof", "wclient", "whost"]
+members = ["wnode", "waof", "wclient", "whost", "wnative"]
 
 [workspace.package]
 version = "0.1.0"
