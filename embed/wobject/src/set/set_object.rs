@@ -73,12 +73,6 @@ impl SetObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:GetMembers
-  pub fn members(&self) -> Vec<Vec<u8>> {
-    let pin = self.set.pin();
-    pin.iter().cloned().collect()
-  }
-
   /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Count
   pub fn count(&self) -> usize {
     self.set.pin().len()
@@ -92,23 +86,37 @@ impl Default for SetObject {
 }
 
 impl SetObject {
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:GetMembers（SMEMBERS 输出）
   pub fn get_keys(&self) -> Vec<Vec<u8>> {
     let pin = self.set.pin();
     pin.iter().cloned().collect()
   }
 
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObjectImpl.cs:SetPopImpl（SPOP）
+  ///
+  /// 刻意差异修正：原实现恒取首元素（确定性弹出，语义偏差）；对齐 C# 的
+  /// `RandomNumberGenerator.GetInt32(0, Set.Count)` 随机下标弹出
+  /// （`nth(index)` 与 C# `Set.ElementAt(index)` 同为 O(index) 链上遍历，复杂度持平）
   pub fn pop(&self) -> Option<Vec<u8>> {
     let pin = self.set.pin();
-    if let Some(item) = pin.iter().next().cloned() {
-      pin.remove(&item);
-      Some(item)
-    } else {
-      None
+    let len = pin.len();
+    if len == 0 {
+      return None;
     }
+    let item = pin.iter().nth(fastrand::usize(..len)).cloned()?;
+    pin.remove(&item);
+    Some(item)
   }
 
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObjectImpl.cs:SetRandomMember（SRANDMEMBER）
+  ///
+  /// 刻意差异修正：原实现恒取首元素；对齐 C# `RandomUtils.PickRandomIndex` 随机采样
   pub fn random_member(&self) -> Option<Vec<u8>> {
     let pin = self.set.pin();
-    pin.iter().next().cloned()
+    let len = pin.len();
+    if len == 0 {
+      return None;
+    }
+    pin.iter().nth(fastrand::usize(..len)).cloned()
   }
 }
