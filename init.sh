@@ -13,6 +13,6 @@ if [ ! -d "sh" ]; then
   ln -s "$HOME/.local/share/cargo_sh" sh
 fi
 
-./node/init.sh
-./cluster/init.sh
-./embed/init.sh
+for dir in node cluster embed; do
+  ./$dir/init.sh
+done
