@@ -19,7 +19,7 @@ wutil = { version = "0.1.0", path = "../wutil" }
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time"]
 path = "../wbase"
-version = "0.1.2"
+version = "0.1.3"
 
 [dependencies.fastrand]
 workspace = true
