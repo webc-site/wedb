@@ -1,13 +1,26 @@
 use core::mem::{align_of, size_of};
 
-use bitcode::{Decode, Encode};
-
 use crate::{
   codec::checked_record_size,
   error::{Error, Result},
 };
 
 /// 记录头字节大小（16 字节）
+///
+/// 对标 C# Tsavorite `Constants.FixedHeaderSize = RecordInfo.Size + RecordDataHeader.Size = 8 + 8`：
+/// Rust 将 C# 的 RecordInfo（8B 复合状态字）与 RecordDataHeader（8B 长度字）合并为
+/// 单一 16 字节定长头，布局为 `[prev_address: u64][key_len: u32][val_len: u32]`（小端）。
+///
+/// 与 C# 的位布局差异（Rust 为自定义磁盘格式，不与 C# 二进制兼容）：
+/// - C# RecordInfo：bits 0..47 地址、bit 47 ReadCache（地址位内最高位）、bit 48 Tombstone、
+///   bit 49 Valid、bit 50 InNewVersion、bit 51 Modified、bit 52 Sealed、bits 53..63 保留；
+/// - Rust 复合字：bits 0..47 地址、bits 48..58 松弛填充（8 位词 + 3 位余数，替代 C# 的
+///   Valid 位与全部保留位，填充由 C# RecordDataHeader 的 8 位 FillerWords 扩展为单字节精度）、
+///   bits 59..63 为 Modified/Sealed/InNewVersion/ReadCache/Tombstone 五个标志位；
+/// - 无 Valid 位：C# 的 Valid/Sealed 并发状态机由上层（whlog/wreviv）以原子 CAS 承担，
+///   纯格式层不感知；
+/// - 注意 [READ_CACHE_BIT] 为本 头复合字 内的 bit 62，与 wbase::addr::READ_CACHE_BIT
+///   （哈希指针地址空间内的 bit 47）同名不同值，分属两个不同的 64 位字。
 pub const HEADER_SIZE: usize = 16;
 
 /// 换页填充标记中的特殊魔数（key_len 为 u32::MAX 表示 Pad 填充）
@@ -69,7 +82,7 @@ const _: () = assert!(align_of::<RecordHeader>() == 8);
 /// - `[0..8)`: `prev_address: u64`（低 48 位为前驱版本逻辑地址形成反向链表，bits 48..55 为 FillerWords 动态松弛填充词，bits 56..58 为 FillerRem 单字节余数，bit 59 为 MODIFIED 修改位，bit 60 为 SEALED 密封位，bit 61 为 IN_NEW_VERSION 纪元位，bit 62 为 READ_CACHE 读缓存位，最高位 1<<63 为 TOMBSTONE 墓碑标记）
 /// - `[8..12)`: `key_len: u32`（键长度）
 /// - `[12..16)`: `val_len: u32`（值长度）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(C)]
 pub struct RecordHeader {
   /// 前驱版本逻辑地址与墓碑标记复合字段
@@ -80,6 +93,12 @@ pub struct RecordHeader {
   pub val_len: u32,
 }
 
+/// 按开关置位/清零复合字中的指定位段（const fn，供各标志位 setter 共享）
+#[inline(always)]
+const fn with_bit(word: u64, mask: u64, on: bool) -> u64 {
+  if on { word | mask } else { word & !mask }
+}
+
 impl RecordHeader {
   /// 构造新的记录头并校验 48 位地址有效性（const fn）
   #[inline]
@@ -88,7 +107,7 @@ impl RecordHeader {
       return Err(Error::AddressOverflow(prev_addr));
     }
     Ok(Self {
-      prev_address: prev_addr | if is_tombstone { TOMBSTONE_BIT } else { 0 },
+      prev_address: with_bit(prev_addr, TOMBSTONE_BIT, is_tombstone),
       key_len,
       val_len,
     })
@@ -125,11 +144,7 @@ impl RecordHeader {
   /// 设置或清除修改标记（const fn）
   #[inline(always)]
   pub const fn set_modified(&mut self, modified: bool) {
-    if modified {
-      self.prev_address |= MODIFIED_BIT;
-    } else {
-      self.prev_address &= !MODIFIED_BIT;
-    }
+    self.prev_address = with_bit(self.prev_address, MODIFIED_BIT, modified);
   }
 
   /// 是否带有密封标记（对标 C# RecordInfo.IsSealed / TrySeal）
@@ -141,11 +156,7 @@ impl RecordHeader {
   /// 设置或清除密封标记（const fn）
   #[inline(always)]
   pub const fn set_sealed(&mut self, sealed: bool) {
-    if sealed {
-      self.prev_address |= SEALED_BIT;
-    } else {
-      self.prev_address &= !SEALED_BIT;
-    }
+    self.prev_address = with_bit(self.prev_address, SEALED_BIT, sealed);
   }
 
   /// 是否属于 Checkpoint 新版本纪元（对标 C# RecordInfo.IsInNewVersion）
@@ -157,11 +168,7 @@ impl RecordHeader {
   /// 设置或清除 Checkpoint 新版本纪元标记（const fn）
   #[inline(always)]
   pub const fn set_in_new_version(&mut self, in_new_version: bool) {
-    if in_new_version {
-      self.prev_address |= IN_NEW_VERSION_BIT;
-    } else {
-      self.prev_address &= !IN_NEW_VERSION_BIT;
-    }
+    self.prev_address = with_bit(self.prev_address, IN_NEW_VERSION_BIT, in_new_version);
   }
 
   /// 是否标记为读缓存记录（对标 C# RecordInfo.IsReadCache / LogAddress.kIsReadCacheBitMask）
@@ -173,11 +180,7 @@ impl RecordHeader {
   /// 设置或清除读缓存标记（const fn）
   #[inline(always)]
   pub const fn set_read_cache(&mut self, is_read_cache: bool) {
-    if is_read_cache {
-      self.prev_address |= READ_CACHE_BIT;
-    } else {
-      self.prev_address &= !READ_CACHE_BIT;
-    }
+    self.prev_address = with_bit(self.prev_address, READ_CACHE_BIT, is_read_cache);
   }
 
   /// 提取 8 位松弛填充词数量（每词代表 8 字节填充，对标 Garnet RecordDataHeader.FillerWords）
@@ -277,13 +280,9 @@ impl RecordHeader {
   }
 
   /// 设置或清除墓碑标记（保留原有前驱地址与松弛填充词，const fn）
-  #[inline]
+  #[inline(always)]
   pub const fn set_tombstone(&mut self, is_tombstone: bool) {
-    if is_tombstone {
-      self.prev_address |= TOMBSTONE_BIT;
-    } else {
-      self.prev_address &= !TOMBSTONE_BIT;
-    }
+    self.prev_address = with_bit(self.prev_address, TOMBSTONE_BIT, is_tombstone);
   }
 
   /// 翻转墓碑标记位，并返回翻转后的墓碑状态（const fn）
@@ -305,18 +304,6 @@ impl RecordHeader {
     !self.is_tombstone()
       && new_val_len <= self.val_capacity()
       && (self.val_capacity() - new_val_len) <= MAX_FILLER_BYTES
-  }
-
-  /// 使用 bitcode 编码为二进制字节向量
-  #[inline]
-  pub fn encode_bitcode(&self) -> Vec<u8> {
-    bitcode::encode(self)
-  }
-
-  /// 从 bitcode 二进制切片解码记录头
-  #[inline]
-  pub fn decode_bitcode(src: &[u8]) -> Result<Self> {
-    bitcode::decode(src).map_err(Error::from)
   }
 
   /// 编码为 16 字节定长数组（小端编码，const fn，双 64 位整型融合打包）
@@ -372,6 +359,18 @@ impl RecordHeader {
     }
   }
 
+  /// 从切片前 16 字节尝试安全解码记录头（const fn，不足 16 字节返回 None）
+  ///
+  /// 供扫描器链式短路（`and_then`/`filter`）使用的 Option 风格探针（whlog/wkv 在用）。
+  #[inline(always)]
+  pub const fn decode_opt(src: &[u8]) -> Option<Self> {
+    if let Some(chunk) = src.first_chunk::<HEADER_SIZE>() {
+      Some(Self::from_bytes(*chunk))
+    } else {
+      None
+    }
+  }
+
   /// 头部是否为全零空记录（对标 C# RecordInfo.IsNull 与 RecordDataHeader.GetRecordLength 零头守卫）
   ///
   /// Rust 将 C# 的 RecordInfo（8B）与长度字段（RDH）合并为 16 字节头，故空记录判定覆盖
@@ -401,16 +400,6 @@ impl RecordHeader {
   #[inline(always)]
   pub const fn is_pad(&self) -> bool {
     self.key_len == PAD_KEY_LEN
-  }
-
-  /// 从切片前 16 字节尝试安全解码记录头（const fn，不足 16 字节返回 None）
-  #[inline(always)]
-  pub const fn decode_opt(src: &[u8]) -> Option<Self> {
-    if let Some(chunk) = src.first_chunk::<HEADER_SIZE>() {
-      Some(Self::from_bytes(*chunk))
-    } else {
-      None
-    }
   }
 
   /// 快速判定切片前 16 字节是否全为零（const fn，不足 16 字节严格检查已有字节全零）
@@ -459,21 +448,22 @@ impl RecordHeader {
     }
   }
 
-  /// 快速只读探针：判断是否为 Pad 填充头（要求至少 16 字节且 key_len 为 PAD_KEY_LEN）
+  /// 快速只读探针：判断是否为 Pad 填充头（复用 [Self::read_key_len] 消除重复字节解析）
   #[inline(always)]
   pub const fn read_is_pad(src: &[u8]) -> Option<bool> {
-    if src.len() >= HEADER_SIZE {
-      Some(u32::from_le_bytes([src[8], src[9], src[10], src[11]]) == PAD_KEY_LEN)
-    } else {
-      None
+    match Self::read_key_len(src) {
+      Some(key_len) => Some(key_len == PAD_KEY_LEN),
+      None => None,
     }
   }
 
   /// 快速只读探针：提取键长
   #[inline(always)]
   pub const fn read_key_len(src: &[u8]) -> Option<u32> {
-    if src.len() >= 12 {
-      Some(u32::from_le_bytes([src[8], src[9], src[10], src[11]]))
+    if let Some(chunk) = src.first_chunk::<12>() {
+      Some(u32::from_le_bytes([
+        chunk[8], chunk[9], chunk[10], chunk[11],
+      ]))
     } else {
       None
     }
@@ -482,8 +472,10 @@ impl RecordHeader {
   /// 快速只读探针：提取值长
   #[inline(always)]
   pub const fn read_val_len(src: &[u8]) -> Option<u32> {
-    if src.len() >= HEADER_SIZE {
-      Some(u32::from_le_bytes([src[12], src[13], src[14], src[15]]))
+    if let Some(chunk) = src.first_chunk::<HEADER_SIZE>() {
+      Some(u32::from_le_bytes([
+        chunk[12], chunk[13], chunk[14], chunk[15],
+      ]))
     } else {
       None
     }

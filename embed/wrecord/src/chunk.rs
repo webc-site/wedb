@@ -9,6 +9,30 @@ pub const CHUNK_LEN_PREFIX_SIZE: usize = 4;
 #[derive(Debug, Clone, Copy)]
 pub struct ChunkCodec;
 
+/// 解析分块流中下一条条目（4 字节大端长度前缀 + 载荷），返回 (条目, 剩余切片)
+///
+/// 预验证与流式迭代共享的单一解析实现，保证两路径对同一输入的行为严格一致：
+/// 长度前缀声明越界返回 [Error::BufferTooShort]，残缺前缀（不足 4 字节）亦然。
+#[inline]
+const fn next_entry(slice: &[u8]) -> Result<(&[u8], &[u8])> {
+  match slice.split_first_chunk::<CHUNK_LEN_PREFIX_SIZE>() {
+    Some((len_bytes, rest)) => {
+      let len = u32::from_be_bytes(*len_bytes) as usize;
+      match rest.split_at_checked(len) {
+        Some((item, rest)) => Ok((item, rest)),
+        None => Err(Error::BufferTooShort {
+          expected: len,
+          actual: rest.len(),
+        }),
+      }
+    }
+    None => Err(Error::BufferTooShort {
+      expected: CHUNK_LEN_PREFIX_SIZE,
+      actual: slice.len(),
+    }),
+  }
+}
+
 impl ChunkCodec {
   /// 编码条目列表至指定缓冲区（单次预分配容量 + 零冗余校验指针写入）
   #[inline]
@@ -68,28 +92,18 @@ impl ChunkCodec {
   }
 
   /// 零拷贝流式迭代分块中的所有条目
+  ///
+  /// 构造前单遍预验证整段分块的长度前缀一致性（声明越界或尾部残缺均报错），
+  /// 使返回的 [ChunkIter] 具备精确长度（[ExactSizeIterator]）语义。
   #[inline]
   pub fn iter(slice: &[u8]) -> Result<ChunkIter<'_>> {
     let mut remaining = slice;
     let mut count = 0;
-    while let Some((len_bytes, rest)) = remaining.split_first_chunk::<CHUNK_LEN_PREFIX_SIZE>() {
-      let len = u32::from_be_bytes(*len_bytes) as usize;
-      let Some((_, next_rest)) = rest.split_at_checked(len) else {
-        return Err(Error::BufferTooShort {
-          expected: len,
-          actual: rest.len(),
-        });
-      };
-      remaining = next_rest;
+    while !remaining.is_empty() {
+      let (_, next) = next_entry(remaining)?;
+      remaining = next;
       count += 1;
     }
-    if !remaining.is_empty() {
-      return Err(Error::BufferTooShort {
-        expected: CHUNK_LEN_PREFIX_SIZE,
-        actual: remaining.len(),
-      });
-    }
-
     Ok(ChunkIter { slice, count })
   }
 }
@@ -122,10 +136,9 @@ impl<'a> Iterator for ChunkIter<'a> {
 
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
-    let (len_bytes, rest) = self.slice.split_first_chunk::<CHUNK_LEN_PREFIX_SIZE>()?;
-    let len = u32::from_be_bytes(*len_bytes) as usize;
-    let (item, remaining) = rest.split_at_checked(len)?;
-    self.slice = remaining;
+    // 预验证已保证流合法，此处错误分支不可达；走同一解析真源确保与 iter() 行为严格一致
+    let (item, rest) = next_entry(self.slice).ok()?;
+    self.slice = rest;
     self.count = self.count.saturating_sub(1);
     Some(item)
   }

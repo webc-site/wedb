@@ -365,27 +365,39 @@ fn test_filler_words_field_setter() -> Void {
   OK
 }
 
-/// RecordHeader bitcode 序列化与往返测试
+/// 墓碑记录普通原位更新防御测试（复活必须走显式复活路径）
 #[test]
-fn test_record_header_bitcode() -> Void {
-  info!("开始测试: RecordHeader bitcode 序列化往返");
+fn test_tombstone_update_rejected() -> Void {
+  info!("开始测试: 墓碑记录普通原位更新拦截");
 
-  let header = RecordHeader::new(0x0000_1234_5678_9ABC, 42, 1024, true)?;
-  let encoded = header.encode_bitcode();
-  assert!(!encoded.is_empty());
+  // 1. 等长原位更新路径拦截
+  let mut buf = try_encode_to_vec(0x66, b"tomb_key", b"val_10___", true)?;
+  let mut rec_mut = RecordMut::from_slice_mut(&mut buf)?;
+  assert!(rec_mut.is_tombstone());
+  assert_eq!(
+    rec_mut.update_value_in_place(b"newval_10"),
+    Err(Error::TombstoneUpdate)
+  );
+  // 被拦截的更新不得触碰底层值区
+  assert_eq!(rec_mut.value(), b"val_10___");
 
-  let decoded = RecordHeader::decode_bitcode(&encoded)?;
-  assert_eq!(header, decoded);
-  assert_eq!(decoded.address(), 0x0000_1234_5678_9ABC);
-  assert_eq!(decoded.key_len(), 42);
-  assert_eq!(decoded.val_len(), 1024);
-  assert!(decoded.is_tombstone());
+  // 2. 动态松弛更新路径拦截（与 can_update_with_slack 查询语义一致）
+  assert!(!rec_mut.can_update_with_slack(4));
+  assert_eq!(
+    rec_mut.update_value_with_slack(b"val"),
+    Err(Error::TombstoneUpdate)
+  );
 
-  // 测试非法数据防崩溃
-  let bad_data = [0xFFu8; 3];
-  assert!(RecordHeader::decode_bitcode(&bad_data).is_err());
+  // 3. 复活路径放行并单次覆写清墓碑
+  rec_mut.revivify_with_slack(b"revived")?;
+  assert!(!rec_mut.is_tombstone());
+  assert_eq!(rec_mut.value(), b"revived");
+  assert_eq!(rec_mut.val_len(), 7);
+  // 复活后普通更新恢复可用（等长 7 字节）
+  rec_mut.update_value_in_place(b"back__7")?;
+  assert_eq!(rec_mut.value(), b"back__7");
 
-  info!("RecordHeader bitcode 序列化往返测试通过");
+  info!("墓碑记录普通原位更新拦截测试通过");
   OK
 }
 

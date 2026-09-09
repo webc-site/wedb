@@ -265,11 +265,6 @@ fn test_header_const_codec_evaluation() -> Void {
   let parsed = RecordHeader::from_slice(&slice)?;
   assert_eq!(parsed, DECODED_HEADER);
 
-  // bitcode 二进制序列化与还原
-  let bitcode_bytes = DECODED_HEADER.encode_bitcode();
-  let bitcode_decoded = RecordHeader::decode_bitcode(&bitcode_bytes)?;
-  assert_eq!(bitcode_decoded, DECODED_HEADER);
-
   // flip_tombstone 翻转操作测试
   let mut mut_hdr = DECODED_HEADER;
   let flipped = mut_hdr.flip_tombstone();
