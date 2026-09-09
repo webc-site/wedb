@@ -11,6 +11,7 @@
 //! （C# Console.WriteLine）改为返回 `String`。
 
 use std::collections::BTreeMap;
+
 use bitflags::bitflags;
 
 /// 寄存器位数
@@ -27,7 +28,7 @@ const ALPHA: f64 = 0.721_347_520_444_481_7;
 /// 稀疏每次插入的最大增量字节
 const SPARSE_MAX_BYTES_PER_INSERT: usize = 2;
 /// 稀疏表示容量上限（超过即稠密化）
-const SPARSE_SIZE_MAX_CAP: usize = 1 << 12;
+pub const SPARSE_SIZE_MAX_CAP: usize = 1 << 12;
 /// 稀疏分配步长
 pub const SPARSE_MEMORY_SECTOR_SIZE: usize = 1 << 7;
 
