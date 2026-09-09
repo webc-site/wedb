@@ -1,3 +1,4 @@
+#![allow(clippy::absolute_paths)]
 pub mod ascii;
 pub mod convert;
 pub mod crc64;
