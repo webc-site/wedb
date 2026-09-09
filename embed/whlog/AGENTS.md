@@ -6,7 +6,7 @@
 用到的模块、函数都尽量在文件开头导入
 对于模块内部用的结构体，直接曝光字段，而不是写包装函数
 use 要写明具体的导入模块, 禁止用 `use *`
-用 as 等数字转换要小心静默失败，但是要是 100%确定没问题，就不用 try*into，大胆用 as 提高性能
+用 as 等数字转换要小心静默失败，但是要是 100%确定没问题，就不用 try\*into，大胆用 as 提高性能
 禁止使用 panic
 用 as 向下转换数字要小心静默失败
 要避免过渡设计
@@ -20,8 +20,8 @@ use 要写明具体的导入模块, 禁止用 `use *`
 格式化字符串尽量把变量名写到字符串中,比如 format!("{varname}")
 遇到问题,多用 dbg!进行调试
 不写有隐患的代码，长度不确定的地方，不用固定长度数组替代 vec
-追求性能的极致，包括但不限于 memchr、fastrand、hipstr、parking_lot、coarsetime 、bitcode、 sonic_rs、rapidhash::RapidHashMap 等高性能库替换标准库
-如果是获取秒级时间戳，cargo add ts_ -F sec ，用 ts\_::sec()
+追求性能的极致，包括但不限于 memchr、fastrand、hipstr、parking*lot、coarsetime 、bitcode、 sonic_rs、rapidhash::RapidHashMap 等高性能库替换标准库
+如果是获取秒级时间戳，cargo add ts* -F sec ，用 ts\_::sec()
 如果需要一个并发读写的字典, 用 papaya
 ./src/ 中公开函数和结构体都在 ./src/lib.rs 导出，禁止 pub 模块（pub mod consts; 除外），而是 pub use 模块::{函数,结构体}; 内部用的用 pub(crate) ; 禁止 pub use 第三方库的函数
 日志用 log；测试中用下面代码初始化日志显示

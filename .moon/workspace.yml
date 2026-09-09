@@ -1,8 +1,8 @@
 # Configures all projects within the workspace to create a project graph.
 projects:
-  - 'cluster'
-  - 'embed'
-  - 'node'
+  - "cluster"
+  - "embed"
+  - "node"
 
 # Configures the version control system (VCS).
 vcs:

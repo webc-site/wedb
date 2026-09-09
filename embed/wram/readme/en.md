@@ -118,7 +118,7 @@ assert_eq!(pool.reserved_bytes(), 0);
 - **Three-tier cache ladder, zero-lock hot path**: L1 thread-local stack rents and returns with no locks and no atomics; L2 cross-thread MPSC lock-free inbox, claimed by the owner with a single atomic swap (no ABA); L3 global 8-way striped depot carries overflow, large-class sharing and thread-exit reclamation.
 - **RAII origin-return routing**: same-thread returns land on the local stack at zero cost; foreign returns publish through intrusive list nodes with one CAS onto the owner inbox; once the owner exits, the inbox is sealed and late returns reroute to the global depot — permits never strand.
 - **Clear-on-return policy**: cleared return by default; `get_with_policy(bytes, false)` skips clearing, marks the buffer dirty and defers clearing to the next renter, removing the memory-bandwidth bottleneck on read paths.
-- **Dual-layer byte budgets_*: small (≤256KB classes) and large (>256KB classes) quotas are strongly isolated with `AtomicI64` CAS accounting; exhaustion degrades to non-pooled direct allocation without blocking callers.
+- \*_Dual-layer byte budgets\__: small (≤256KB classes) and large (>256KB classes) quotas are strongly isolated with `AtomicI64` CAS accounting; exhaustion degrades to non-pooled direct allocation without blocking callers.
 - **28-class capacity ladder**: 2 exact + 4 linear + 22 geometric classes (two per doubling, worst-case waste 1.5x), driven by a compile-time constant table; oversize requests bypass with exact sizing.
 - **Direct virtual memory**: demand-zero mappings, Linux `MADV_HUGEPAGE` hints, global byte tracking over 64 cache-line-padded stripes.
 - **compio ecosystem**: implements `IoBuf` / `IoBufMut` / `SetLen`, ready as the buffer type for compio async file I/O.

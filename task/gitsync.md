@@ -1,7 +1,6 @@
-1.
-进入 garnet 记录当前版本
-然后，拉取
-ssh://git@ssh.github.com:443/microsoft/garnet.git
+1.  进入 garnet 记录当前版本
+    然后，拉取
+    ssh://git@ssh.github.com:443/microsoft/garnet.git
 
 查看 diff
 

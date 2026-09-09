@@ -1,11 +1,11 @@
 tasks:
   clippy:
-    command: 'sh/clippy.sh'
-    toolchain: 'system'
+    command: "sh/clippy.sh"
+    toolchain: "system"
     inputs:
-      - '**/*.rs'
-      - '**/Cargo.toml'
-      - 'Cargo.lock'
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
     options:
       cache: false
-      outputStyle: 'stream'
+      outputStyle: "stream"

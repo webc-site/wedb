@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'cluster/**'
+      - "cluster/**"
   pull_request:
     paths:
-      - 'cluster/**'
+      - "cluster/**"
 
 permissions:
   contents: read

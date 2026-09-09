@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'node/**'
+      - "node/**"
   pull_request:
     paths:
-      - 'node/**'
+      - "node/**"
 
 permissions:
   contents: read

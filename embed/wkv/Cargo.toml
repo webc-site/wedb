@@ -6,12 +6,12 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb_base.git"
 homepage = "https://github.com/webc-site/wedb_base/tree/main/wkv"
 description = "wkv"
-keywords = [ ]
-categories = [ ]
+keywords = []
+categories = []
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time"]
@@ -74,12 +74,12 @@ workspace = true
 
 [dependencies.compio]
 workspace = true
-features = [ "runtime", "time" ]
+features = ["runtime", "time"]
 
 [dependencies.futures-util]
 workspace = true
 default-features = false
-features = [ "alloc" ]
+features = ["alloc"]
 
 [dev-dependencies.aok]
 workspace = true

@@ -20,7 +20,7 @@ wkv is the top-level single-node hybrid storage engine: it integrates the windex
 ## Core API
 
 - `WedbStore`: open / open_shared / from_components / from_components_with_bftree / new_session / start_gc / gc_handle / shift_read_only_address / flush_all / flush_and_evict_all / truncate / expired_key_deletion_scan / raise_key_id_floor
-- `StoreConfig`: four constructors auto / auto_with_budget / minimal / new (Default = minimal); builder chain with_max_sessions / with_revivification / with_read_cache(\_pages)  / with_bftree_path / with_range_index_dir / with_gc; `DEFAULT_INDEX_SIZE = 65536`, `DEFAULT_MEMORY_PERCENT = 25`, budget floor 256MB, ceiling 32GB
+- `StoreConfig`: four constructors auto / auto_with_budget / minimal / new (Default = minimal); builder chain with_max_sessions / with_revivification / with_read_cache(\_pages) / with_bftree_path / with_range_index_dir / with_gc; `DEFAULT_INDEX_SIZE = 65536`, `DEFAULT_MEMORY_PERCENT = 25`, budget floor 256MB, ceiling 32GB
 - `StoreSession`: upsert / read / delete, three-state try_upsert_sync (success returns the record address — a new address for tail appends, the original address for in-place updates / in-chain revival / revivification-pool reuse; page-flip returns the page id to evict; u64::MAX means TTL clearing must fall back to the async path), try_modify_in_place, enter_batch, physical key encoding (session_string_key / meta_key / hash_sub_key / chunk_key)
 - `BatchStoreSession`: batch processing with a single epoch protection; `*_unprotected` zero-atomic-overhead fast paths
 - `GcManager` / `GcHandle` / `GcStatsSnapshot`; `ReadCache` (append / with_record / skip_read_cache)

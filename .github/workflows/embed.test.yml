@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'embed/**'
+      - "embed/**"
   pull_request:
     paths:
-      - 'embed/**'
+      - "embed/**"
 
 permissions:
   contents: read
