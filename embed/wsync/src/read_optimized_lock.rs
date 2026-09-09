@@ -115,15 +115,27 @@ impl ReadOptimizedLock {
         let core_count = self.core_selection_mask + 1;
         for i in 0..core_count {
           let ix = self.calculate_index(hash, i);
-          let res =
-            self.lock_counts[ix].compare_exchange(i32::MIN, 0, Ordering::AcqRel, Ordering::Relaxed);
-          debug_assert!(res.is_ok());
+          // 乐观共享获取者的「先加后查」回滚窗口（fetch_add 见 MIN 即回退 fetch_sub）
+          // 会使计数瞬态偏离 MIN：单次 CAS 失败并非异常，按 C# 语义自旋重试直至回滚
+          // 落定——独占持有期间共享获取恒失败回滚，窗口有穷，重试必然终止；若不重试，
+          // release 静默失败将使该条带永久滞留独占态，后续共享获取全部饿死
+          while self.lock_counts[ix]
+            .compare_exchange(i32::MIN, 0, Ordering::AcqRel, Ordering::Relaxed)
+            .is_err()
+          {
+            thread::yield_now();
+          }
         }
       }
       LockType::AllExclusive => {
         for count in &self.lock_counts {
-          let res = count.compare_exchange(i32::MIN, 0, Ordering::AcqRel, Ordering::Relaxed);
-          debug_assert!(res.is_ok());
+          // 重试环语义同 Exclusive 分支（乐观共享获取者的回滚窗口）
+          while count
+            .compare_exchange(i32::MIN, 0, Ordering::AcqRel, Ordering::Relaxed)
+            .is_err()
+          {
+            thread::yield_now();
+          }
         }
       }
       LockType::Invalid => {}

@@ -372,20 +372,25 @@ impl<D: Device> HybridLog<D> {
 
   /// 三区内存驻留探测内核：解析给定地址的记录零拷贝借用形态
   ///
-  /// - LightEpoch 纪元保护下，可变区与只读区统一优先走 `try_read_page_unlocked`
-  ///   纯裸指针无锁直读，彻底消除页级 RwLock 原子计数器开销（C# 在 LightEpoch
-  ///   保护下对可变区同样是裸读）；
-  /// - 撕裂安全论证（与 C# Tsavorite 语义严格等价）：
+  /// - 只读区（`addr < read_only`，Effective ReadOnlyAddress 之下）在 LightEpoch 纪元
+  ///   保护下走 `try_read_page_unlocked` 纯裸指针无锁直读，消除页级 RwLock 原子计数器
+  ///   开销；可变区一律走页读锁（理由见撕裂语义第 2 条）；
+  /// - 撕裂安全论证：
   ///   1. 页生命周期：调用方必须处于 `LightEpoch` 保护内（已审计全部调用点：store session 的
   ///      `try_upsert_raw_sync`/`try_delete_raw_sync`/`try_read_*` 家族与 redis 扫描均持
   ///      `participant.enter()` 守卫，批处理走 `enter_batch` 持有守卫）。页槽位回收的前置条件是
   ///      `safe_head` 越过旧页，而 `safe_head` 仅能经 epoch drain 动作推进——本线程持守卫期间
   ///      drain 无法完成，故读取期间页内存绝不会被清空复用，裸指针无悬垂风险。
-  ///   2. 撕裂语义：可变区写入方仅做同物理槽位内的原位覆写（`try_update_in_place` 家族：先写
-  ///      value 字节、后单次刷回 16 字节记录头，`val_len + filler_bytes` 恒定，记录结构不变），
-  ///      并发读者至多观察到更新前或更新后的值，解析边界恒在页内；该风险与 C# 一致。
-  /// - 无锁直读未命中（槽位标定双重校验失败的瞬态窗口）：回退页读锁保护，
-  ///   防止与原位更新并发撕裂（保守兜底路径，热路径不触发）；
+  ///   2. 布局撕裂语义（对标 C# RDH 单原子字发布协议）：原位松弛更新（`try_update_in_place`
+  ///      家族）改写 `val_len`（头部第二字）与 `filler`（头部第一字）——C# 的
+  ///      RecordDataHeader 将两者收进单个 8 字节原子字，单次对齐写发布完整新布局
+  ///      （"the derived recordLength is preserved for any concurrent scanner"）；本实现
+  ///      wrecord 的 16 字节头将两者分居两个 8 字节半字，16 字节刷回无法原子发布，裸读者
+  ///      可能观察到「新 val_len + 旧 filler」的混合态，推出的物理尺寸超出槽位、值切片
+  ///      混入松弛填充垃圾字节。因此可变区读者必须持页读锁与原位更新写锁互斥，保证
+  ///      观察到的头部恒为完整的前态或后态；只读区页字节已定稿（原位更新契约
+  ///      `addr >= read_only` 永不回触），无锁裸读安全。
+  /// - 无锁直读未命中（槽位标定双重校验失败的瞬态窗口）：回退页读锁保护；
   /// - 返回 `Ok(None)` 表示未驻留内存（磁盘区、未加载页或已滑出内存窗口）。
   ///
   /// # Safety（调用方契约）
@@ -399,8 +404,11 @@ impl<D: Device> HybridLog<D> {
     }
 
     let page_id = self.config.page_id(addr);
-    // 纪元保护下统一无锁直读（可变区 + 只读区，撕裂安全论证见方法文档）
-    if let Some(page_slice) = unsafe { self.buffer.try_read_page_unlocked(page_id) }
+    // 只读区无锁直读（页字节已定稿，原位更新契约 addr >= read_only 永不回触）；
+    // 可变区绝不裸读——原位松弛更新的 16 字节头重写跨两个 8 字节半字，裸读者
+    // 可能观察到混合态推出错误物理尺寸（撕裂论证见方法文档第 2 条）
+    if addr < self.addresses.read_only()
+      && let Some(page_slice) = unsafe { self.buffer.try_read_page_unlocked(page_id) }
       && addr >= self.addresses.head()
     {
       return Ok(Some(PageBytes::Raw(page_slice)));

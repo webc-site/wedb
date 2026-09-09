@@ -1,4 +1,11 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::{
+  sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+  },
+  thread,
+  time::Duration,
+};
 
 use aok::{OK, Void};
 use log::info;
@@ -104,5 +111,47 @@ fn read_optimized_lock_shared_exclusive() -> Void {
   });
   let again = locks.acquire_shared_lock(0x1234_5678);
   locks.release_lock(&again);
+  OK
+}
+
+/// ReadOptimizedLock 独占释放 × 乐观共享获取者回滚窗口的竞争回归：
+/// 独占持有期间后台线程高频尝试共享获取（fetch_add 见 MIN 即回滚 fetch_sub），
+/// 释放 CAS 与回滚窗口交错时单次 CAS 会瞬时失败——旧实现仅 debug_assert，
+/// release 构建将静默失败使条带永久滞留独占态（后续共享获取全部饿死）；
+/// 现按 C# ReleaseLock 语义自旋重试直至回滚落定，释放后条带必须完全复位
+#[test]
+fn read_optimized_lock_release_under_shared_contention() -> Void {
+  let locks = Arc::new(ReadOptimizedLock::new(1024, 4));
+  let stop = Arc::new(AtomicBool::new(false));
+  let hammers: Vec<_> = (0..4)
+    .map(|_| {
+      let locks = Arc::clone(&locks);
+      let stop = Arc::clone(&stop);
+      thread::spawn(move || {
+        while !stop.load(Ordering::Relaxed) {
+          // 独占持有期间共享获取必败回滚，制造释放 CAS 的瞬态竞争窗口；
+          // 偶发成功（释放后的空窗）立即归还，保持计数守恒
+          if let Some(token) = locks.try_acquire_shared_lock(0x1234_5678) {
+            locks.release_lock(&token);
+          }
+        }
+      })
+    })
+    .collect();
+
+  for _ in 0..200 {
+    let token = locks.acquire_exclusive_lock(0x1234_5678);
+    locks.release_lock(&token);
+  }
+
+  stop.store(true, Ordering::Relaxed);
+  for h in hammers {
+    h.join().unwrap();
+  }
+  // 释放后条带必须完全复位：共享锁立即可获取（滞留 MIN 即为释放失败泄漏）
+  let shared = locks
+    .try_acquire_shared_lock(0x1234_5678)
+    .expect("释放后条带滞留独占态（锁泄漏）");
+  locks.release_lock(&shared);
   OK
 }
