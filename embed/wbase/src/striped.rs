@@ -191,7 +191,7 @@ impl<T, const N: usize> StripedRwLock<T, N> {
     unsafe { self.stripes.get_unchecked(idx) }.0.write()
   }
 
-  /// 获取指定条带下标对应的共享读锁（按需模除回绕）
+  /// 获取指定条带下标对应的共享读锁（掩码回绕）
   #[inline]
   pub fn read_at(&self, index: usize) -> RwLockReadGuard<'_, T> {
     let idx = index & Self::STRIPE_MASK;
@@ -199,7 +199,7 @@ impl<T, const N: usize> StripedRwLock<T, N> {
     unsafe { self.stripes.get_unchecked(idx) }.0.read()
   }
 
-  /// 获取指定条带下标对应的独占写锁（按需模除回绕）
+  /// 获取指定条带下标对应的独占写锁（掩码回绕）
   #[inline]
   pub fn write_at(&self, index: usize) -> RwLockWriteGuard<'_, T> {
     let idx = index & Self::STRIPE_MASK;

@@ -34,6 +34,28 @@ pub enum BackoffStage {
   Sleep,
 }
 
+/// 由累计轮数计算所处退避阶段（`snooze` 与自由函数 `backoff` 的单一真源）
+#[inline(always)]
+const fn stage_of(step: u32) -> BackoffStage {
+  if step < SPIN_LIMIT {
+    BackoffStage::Spin
+  } else if step < YIELD_LIMIT {
+    BackoffStage::Yield
+  } else {
+    BackoffStage::Sleep
+  }
+}
+
+/// 执行一轮对应阶段的同步等待动作
+#[inline]
+fn wait_stage(stage: BackoffStage) {
+  match stage {
+    BackoffStage::Spin => spin_loop(),
+    BackoffStage::Yield => yield_now(),
+    BackoffStage::Sleep => sleep(SLEEP_DURATION),
+  }
+}
+
 impl BackoffStage {
   /// 处于 CPU 自旋阶段
   #[inline(always)]
@@ -75,13 +97,7 @@ impl Backoff {
   /// 计算当前所处的退避阶段
   #[inline(always)]
   pub const fn stage(&self) -> BackoffStage {
-    if self.step < SPIN_LIMIT {
-      BackoffStage::Spin
-    } else if self.step < YIELD_LIMIT {
-      BackoffStage::Yield
-    } else {
-      BackoffStage::Sleep
-    }
+    stage_of(self.step)
   }
 
   /// 是否已进入深度休眠阶段
@@ -93,11 +109,7 @@ impl Backoff {
   /// 执行一次同步退避并步进轮数
   #[inline]
   pub fn snooze(&mut self) {
-    match self.stage() {
-      BackoffStage::Spin => spin_loop(),
-      BackoffStage::Yield => yield_now(),
-      BackoffStage::Sleep => sleep(SLEEP_DURATION),
-    }
+    wait_stage(stage_of(self.step));
     self.step = self.step.saturating_add(1);
   }
 
@@ -114,14 +126,8 @@ impl Backoff {
   }
 }
 
-/// 无状态阶梯退避辅助函数（同步模式）
+/// 无状态阶梯退避辅助函数（同步模式，按轮数执行对应阶段动作）
 #[inline]
 pub fn backoff(round: u32) {
-  if round < SPIN_LIMIT {
-    spin_loop();
-  } else if round < YIELD_LIMIT {
-    yield_now();
-  } else {
-    sleep(SLEEP_DURATION);
-  }
+  wait_stage(stage_of(round));
 }

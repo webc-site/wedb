@@ -122,45 +122,14 @@ pub const fn varint_len(val: u64) -> usize {
 }
 
 /// 编码单一 u64 为 OPPV 变长字节数组 (const fn, 零堆分配)
+///
+/// 编码逻辑复用 [`encode_u64`] 单一真源；9 字节定长缓冲恒充足，不可能失败
 #[inline]
 pub const fn encode_u64_to_array(val: u64) -> ([u8; MAX_VARINT_LEN], usize) {
   let mut buf = [0u8; MAX_VARINT_LEN];
-  if val < VARINT_1B_MAX {
-    buf[0] = val as u8;
-    (buf, 1)
-  } else if val < VARINT_2B_MAX {
-    let offset = (val - VARINT_1B_MAX) as u16;
-    let bytes = offset.to_be_bytes();
-    buf[0] = VARINT_2B_MARKER | bytes[0];
-    buf[1] = bytes[1];
-    (buf, 2)
-  } else if val < VARINT_3B_MAX {
-    let offset = (val - VARINT_2B_MAX) as u32;
-    let bytes = offset.to_be_bytes();
-    buf[0] = VARINT_3B_MARKER | bytes[1];
-    buf[1] = bytes[2];
-    buf[2] = bytes[3];
-    (buf, 3)
-  } else if val < VARINT_4B_MAX {
-    let offset = (val - VARINT_3B_MAX) as u32;
-    let bytes = offset.to_be_bytes();
-    buf[0] = VARINT_4B_MARKER | bytes[0];
-    buf[1] = bytes[1];
-    buf[2] = bytes[2];
-    buf[3] = bytes[3];
-    (buf, 4)
-  } else {
-    buf[0] = VARINT_9B_MARKER;
-    let bytes = val.to_be_bytes();
-    buf[1] = bytes[0];
-    buf[2] = bytes[1];
-    buf[3] = bytes[2];
-    buf[4] = bytes[3];
-    buf[5] = bytes[4];
-    buf[6] = bytes[5];
-    buf[7] = bytes[6];
-    buf[8] = bytes[7];
-    (buf, MAX_VARINT_LEN)
+  match encode_u64(val, &mut buf) {
+    Ok(len) => (buf, len),
+    Err(_) => unreachable!(),
   }
 }
 
