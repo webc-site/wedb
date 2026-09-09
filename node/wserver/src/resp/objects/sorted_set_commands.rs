@@ -1,55 +1,92 @@
-use std::{io::Cursor, str};
+//! 有序集合命令（ZADD/ZSCORE/ZREM/ZCARD/ZPOPMIN/ZPOPMAX）
+//!
+//! 同步快路径：经 [`super::object_store_utils`] 信封读写 wobject
+//! [`SortedSetObject`]，磁盘候选等须异步裁决时返回 `Ok(false)` 交调用方降级。
+
+use std::io::Cursor;
 
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
 
-use crate::resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession};
+use super::object_store_utils::{
+  OBJ_TAG_SORTED_SET, SyncObj, format_score, obj_load_sync, obj_save_or_gc_sync, obj_save_sync,
+  read_object_or_reply,
+};
+use crate::resp::{
+  cmd_strings as cs,
+  cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw},
+  parser::resp_ext::{RespSliceExt, RespVecExt},
+  resp_server_session::RespServerSession,
+};
 
 impl RespServerSession {
+  /// libs/server/Resp/Objects/SortedSetCommands.cs:SortedSetAdd
+  ///
+  /// 返回新增成员数（已存在成员改分不计入）
   pub fn sorted_set_add<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
+    // key + 偶数个 score/member（NX/XX/GT/LT/CH/INCR 选项形态未实现）
     if parse_state.len() < 3 || parse_state.len().is_multiple_of(2) {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'ZADD' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "ZADD");
       return Ok(true);
     }
     let key = parse_state[0];
 
-    let zset = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        SortedSetObject::deserialize(&mut cursor).unwrap_or_else(|_| SortedSetObject::new())
-      }
-      _ => SortedSetObject::new(),
-    };
-
-    let mut added = 0;
+    // 分值严格解析（对标 C# 存储层 TryParse 失败报非法浮点）
+    let mut pairs = Vec::with_capacity((parse_state.len() - 1) / 2);
     for i in (1..parse_state.len()).step_by(2) {
-      let score = parse_state[i].parse_f64(0.0);
-      if true {
-        let member = parse_state[i + 1];
-        let old_score = zset.operate(SortedSetOperation::Zscore, member, 0.0);
-        zset.operate(SortedSetOperation::Zadd, member, score);
-        if old_score.is_none() {
-          added += 1;
-        }
-      } else {
-        output.extend_from_slice(b"-ERR value is not a valid float\r\n");
+      let Some(score) = parse_state[i].try_parse_f64() else {
+        abort_with_error_message(output, cs::RESP_ERR_NOT_VALID_FLOAT);
         return Ok(true);
-      }
+      };
+      pairs.push((score, parse_state[i + 1]));
     }
 
-    let mut out_bytes = Vec::new();
-    let _ = zset.serialize(&mut out_bytes);
-    let _ = store.try_upsert_sync(key, &out_bytes);
+    let zset = match obj_load_sync(store, key, OBJ_TAG_SORTED_SET) {
+      Ok(None) => return Ok(false),
+      Ok(Some(SyncObj::Missing)) => SortedSetObject::new(),
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::Present(p))) => {
+        SortedSetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
 
-    let count_str = format!(":{}\r\n", added);
-    output.extend_from_slice(count_str.as_bytes());
+    let mut added = 0i64;
+    for (score, member) in pairs {
+      // 先查后写：原先不存在才计入新增
+      if zset
+        .operate(SortedSetOperation::Zscore, member, 0.0)
+        .is_none()
+      {
+        added += 1;
+      }
+      zset.operate(SortedSetOperation::Zadd, member, score);
+    }
+
+    let mut payload = Vec::new();
+    if zset.serialize(&mut payload).is_err() {
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+    match obj_save_sync(store, key, OBJ_TAG_SORTED_SET, &payload) {
+      Ok(true) => output.write_resp_int(added),
+      Ok(false) => return Ok(false),
+      Err(_) => output.write_resp_error("generic error"),
+    }
     Ok(true)
   }
 
+  /// libs/server/Resp/Objects/SortedSetCommands.cs:SortedSetScore
   pub fn sorted_set_score<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -57,38 +94,34 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'ZSCORE' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "ZSCORE");
       return Ok(true);
     }
     let key = parse_state[0];
     let member = parse_state[1];
 
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
-          if let Some(score) = zset.operate(SortedSetOperation::Zscore, member, 0.0) {
-            let score_str = format!("{}", score);
-            let len_str = format!("${}\r\n", score_str.len());
-            output.extend_from_slice(len_str.as_bytes());
-            output.extend_from_slice(score_str.as_bytes());
-            output.extend_from_slice(b"\r\n");
-          } else {
-            output.extend_from_slice(b"$-1\r\n");
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SORTED_SET,
+      output,
+      |o| o.write_resp_null(),
+      |p, o| {
+        let zset = SortedSetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        match zset.operate(SortedSetOperation::Zscore, member, 0.0) {
+          Some(score) => {
+            let text = format_score(score);
+            o.write_resp_bulk_string(text.as_bytes());
           }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
+          None => o.write_resp_null(),
         }
-      }
-      Ok(Some(None)) | Ok(None) => output.extend_from_slice(b"$-1\r\n"),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+      },
+    ))
   }
 
+  /// libs/server/Resp/Objects/SortedSetCommands.cs:SortedSetRemove
+  ///
+  /// 删空后整键回收（对齐 storage 层 finalize_removal）
   pub fn sorted_set_remove<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -96,45 +129,57 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'ZREM' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "ZREM");
       return Ok(true);
     }
     let key = parse_state[0];
     let members = &parse_state[1..];
 
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
-          let mut removed = 0;
-          for member in members {
-            if zset
-              .operate(SortedSetOperation::Zrem, member, 0.0)
-              .is_some()
-            {
-              removed += 1;
-            }
-          }
-          if removed > 0 {
-            let mut out_bytes = Vec::new();
-            let _ = zset.serialize(&mut out_bytes);
-            let _ = store.try_upsert_sync(key, &out_bytes);
-          }
-          let count_str = format!(":{}\r\n", removed);
-          output.extend_from_slice(count_str.as_bytes());
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
+    let zset = match obj_load_sync(store, key, OBJ_TAG_SORTED_SET) {
+      Ok(None) => return Ok(false),
+      Ok(Some(SyncObj::Missing)) => {
+        output.write_resp_int(0);
+        return Ok(true);
       }
-      Ok(Some(None)) | Ok(None) => output.extend_from_slice(b":0\r\n"),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::Present(p))) => {
+        SortedSetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut removed = 0i64;
+    for member in members {
+      if zset
+        .operate(SortedSetOperation::Zrem, member, 0.0)
+        .is_some()
+      {
+        removed += 1;
+      }
     }
+    if removed > 0 {
+      let mut payload = Vec::new();
+      if zset.serialize(&mut payload).is_err() {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+      match obj_save_or_gc_sync(store, key, OBJ_TAG_SORTED_SET, &payload, zset.count() == 0) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      }
+    }
+    output.write_resp_int(removed);
     Ok(true)
   }
 
+  /// libs/server/Resp/Objects/SortedSetCommands.cs:SortedSetLength
   pub fn sorted_set_length<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -142,30 +187,27 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'ZCARD' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "ZCARD");
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
-          let count = zset.count();
-          let count_str = format!(":{}\r\n", count);
-          output.extend_from_slice(count_str.as_bytes());
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
-      }
-      Ok(Some(None)) | Ok(None) => output.extend_from_slice(b":0\r\n"),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
-    }
-    Ok(true)
+
+    Ok(read_object_or_reply(
+      store,
+      key,
+      OBJ_TAG_SORTED_SET,
+      output,
+      |o| o.write_resp_int(0),
+      |p, o| {
+        let zset = SortedSetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default();
+        o.write_resp_int(zset.count() as i64);
+      },
+    ))
   }
 
+  /// libs/server/Resp/Objects/SortedSetCommands.cs:SortedSetPop（ZPOPMIN/ZPOPMAX 共体）
+  ///
+  /// 弹空后整键回收；应答为 member/score 交错的扁平数组
   pub fn sorted_set_pop<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -173,68 +215,76 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     is_min: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+    let cmd_name = if is_min { "ZPOPMIN" } else { "ZPOPMAX" };
+    if parse_state.is_empty() || parse_state.len() > 2 {
+      abort_with_wrong_number_of_arguments(output, cmd_name);
       return Ok(true);
     }
     let key = parse_state[0];
-    // count defaults to 1
-    let mut count = 1;
-    if parse_state.len() >= 2 {
-      let c_str = str::from_utf8(parse_state[1]).unwrap_or("");
-      if let Ok(c) = c_str.parse::<usize>() {
-        count = c;
-      } else {
-        output.extend_from_slice(b"-ERR value is not an integer or out of range\r\n");
-        return Ok(true);
+    // C# popCount 缺省 -1 即弹 1 个
+    let mut count = 1usize;
+    if parse_state.len() == 2 {
+      match parse_state[1].try_parse_i64() {
+        Some(c) if c >= 0 => count = c as usize,
+        // C#：解析失败或负数同为 RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE
+        _ => {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
+          return Ok(true);
+        }
       }
     }
 
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
-      Ok(Some(Some(val))) => {
-        let mut cursor = Cursor::new(val);
-        if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
-          let mut popped = Vec::new();
-          for _ in 0..count {
-            let item = if is_min {
-              zset.pop_min()
-            } else {
-              zset.pop_max()
-            };
-            if let Some((m, s)) = item {
-              popped.push((m, s));
-            } else {
-              break;
-            }
-          }
-          if !popped.is_empty() {
-            let mut out_bytes = Vec::new();
-            let _ = zset.serialize(&mut out_bytes);
-            let _ = store.try_upsert_sync(key, &out_bytes);
-          }
-          let arr_len = format!("*{}\r\n", popped.len() * 2);
-          output.extend_from_slice(arr_len.as_bytes());
-          for (m, s) in popped {
-            let len_str = format!("${}\r\n", m.len());
-            output.extend_from_slice(len_str.as_bytes());
-            output.extend_from_slice(&m);
-            output.extend_from_slice(b"\r\n");
-
-            let score_str = format!("{}", s);
-            let slen_str = format!("${}\r\n", score_str.len());
-            output.extend_from_slice(slen_str.as_bytes());
-            output.extend_from_slice(score_str.as_bytes());
-            output.extend_from_slice(b"\r\n");
-          }
-        } else {
-          output.extend_from_slice(
-            b"-WRONGTYPE Operation against a key holding the wrong kind of value\r\n",
-          );
-        }
+    let zset = match obj_load_sync(store, key, OBJ_TAG_SORTED_SET) {
+      Ok(None) => return Ok(false),
+      // C# NOTFOUND → 空数组
+      Ok(Some(SyncObj::Missing)) => {
+        output.write_resp_array_len(0);
+        return Ok(true);
       }
-      Ok(Some(None)) | Ok(None) => output.extend_from_slice(b"*0\r\n"),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Ok(Some(SyncObj::WrongType)) => {
+        write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+        return Ok(true);
+      }
+      Ok(Some(SyncObj::Present(p))) => {
+        SortedSetObject::deserialize(&mut Cursor::new(&p)).unwrap_or_default()
+      }
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut popped = Vec::new();
+    for _ in 0..count {
+      let item = if is_min {
+        zset.pop_min()
+      } else {
+        zset.pop_max()
+      };
+      match item {
+        Some((m, s)) => popped.push((m, s)),
+        None => break,
+      }
+    }
+
+    if !popped.is_empty() {
+      let mut payload = Vec::new();
+      if zset.serialize(&mut payload).is_err() {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+      match obj_save_or_gc_sync(store, key, OBJ_TAG_SORTED_SET, &payload, zset.count() == 0) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      }
+    }
+
+    output.write_resp_array_len(popped.len() * 2);
+    for (m, s) in popped {
+      output.write_resp_bulk_string(&m);
+      let text = format_score(s);
+      output.write_resp_bulk_string(text.as_bytes());
     }
     Ok(true)
   }
@@ -305,5 +355,136 @@ impl RespServerSession {
   }
   pub fn sorted_set_persist() {
     unimplemented!()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::super::super::batch_harness::with_batch;
+
+  /// WRONGTYPE 错误应答帧
+  const WRONGTYPE: &[u8] =
+    b"-WRONGTYPE Operation against a key holding the wrong kind of value.\r\n";
+
+  #[test]
+  fn zadd_zscore_zcard_semantics() {
+    with_batch(|s, batch| {
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_add(&[b"z", b"1.5", b"a", b"2", b"b"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":2\r\n");
+
+      // 已存在成员改分不计新增
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_add(&[b"z", b"3", b"a"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":0\r\n");
+
+      let mut out = Vec::new();
+      let _ = s.sorted_set_score(&[b"z", b"a"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$1\r\n3\r\n");
+      let mut out = Vec::new();
+      let _ = s.sorted_set_score(&[b"z", b"nx"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$-1\r\n");
+      let mut out = Vec::new();
+      let _ = s.sorted_set_score(&[b"nk", b"a"], batch, &mut out).unwrap();
+      assert_eq!(out, b"$-1\r\n");
+
+      let mut out = Vec::new();
+      let _ = s.sorted_set_length(&[b"z"], batch, &mut out).unwrap();
+      assert_eq!(out, b":2\r\n");
+      let mut out = Vec::new();
+      let _ = s.sorted_set_length(&[b"nk"], batch, &mut out).unwrap();
+      assert_eq!(out, b":0\r\n");
+    });
+  }
+
+  #[test]
+  fn zadd_rejects_invalid_score_and_wrongtype() {
+    with_batch(|s, batch| {
+      // 非法分值 → 报错（原实现 if true 死码吞掉了校验）
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_add(&[b"z", b"abc", b"m"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b"-ERR value is not a valid float\r\n");
+
+      // 字符串键 → WRONGTYPE 不覆写
+      let _ = s
+        .network_set(&[b"str", b"v"], batch, &mut Vec::new())
+        .unwrap();
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_add(&[b"str", b"1", b"m"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, WRONGTYPE);
+    });
+  }
+
+  #[test]
+  fn zrem_recycles_empty_and_counts() {
+    with_batch(|s, batch| {
+      let _ = s
+        .sorted_set_add(&[b"z", b"1", b"m"], batch, &mut Vec::new())
+        .unwrap();
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_remove(&[b"z", b"m", b"nx"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":1\r\n");
+      // 删空 → 整键回收
+      assert_eq!(batch.try_read_sync(b"z", |_| ()).unwrap(), Some(None::<()>));
+      // 键缺失 → :0
+      let mut out = Vec::new();
+      let _ = s.sorted_set_remove(&[b"z", b"m"], batch, &mut out).unwrap();
+      assert_eq!(out, b":0\r\n");
+    });
+  }
+
+  #[test]
+  fn zpopmin_zpopmax_and_validation() {
+    with_batch(|s, batch| {
+      let _ = s
+        .sorted_set_add(&[b"z", b"1", b"a", b"2.5", b"b"], batch, &mut Vec::new())
+        .unwrap();
+
+      // 无 count：扁平 [member, score]
+      let mut out = Vec::new();
+      let _ = s.sorted_set_pop(&[b"z"], batch, &mut out, true).unwrap();
+      assert_eq!(out, b"*2\r\n$1\r\na\r\n$1\r\n1\r\n");
+
+      // 带 count：多对扁平输出，弹空整键回收（分值走 format_score 17 位口径）
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_pop(&[b"z", b"10"], batch, &mut out, false)
+        .unwrap();
+      assert_eq!(out, b"*2\r\n$1\r\nb\r\n$19\r\n2.50000000000000000\r\n");
+      assert_eq!(batch.try_read_sync(b"z", |_| ()).unwrap(), Some(None::<()>));
+
+      // 键缺失 → 空数组；负 count → out of range（对标 C#）
+      let mut out = Vec::new();
+      let _ = s.sorted_set_pop(&[b"nk"], batch, &mut out, true).unwrap();
+      assert_eq!(out, b"*0\r\n");
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_pop(&[b"z", b"-1"], batch, &mut out, true)
+        .unwrap();
+      assert_eq!(out, b"-ERR value is out of range, must be positive.\r\n");
+      let mut out = Vec::new();
+      let _ = s
+        .sorted_set_pop(&[b"z", b"x"], batch, &mut out, true)
+        .unwrap();
+      assert_eq!(out, b"-ERR value is out of range, must be positive.\r\n");
+
+      // arity 错误带命令名
+      let mut out = Vec::new();
+      let _ = s.sorted_set_pop(&[], batch, &mut out, false).unwrap();
+      assert_eq!(
+        out,
+        b"-ERR wrong number of arguments for 'ZPOPMAX' command\r\n"
+      );
+    });
   }
 }

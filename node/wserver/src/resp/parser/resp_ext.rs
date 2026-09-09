@@ -4,6 +4,8 @@ pub trait RespSliceExt {
   fn as_str_safe(&self) -> &str;
   /// 严格解析：参数整体须为合法整数（对应 C# parseState.TryGetInt），失败返回 None
   fn try_parse_i64(&self) -> Option<i64>;
+  /// 严格解析：参数整体须为合法浮点（对应 C# NumUtils.TryParse/double.Parse），失败返回 None
+  fn try_parse_f64(&self) -> Option<f64>;
   fn parse_i64(&self, default: i64) -> i64;
   fn parse_usize(&self, default: usize) -> usize;
   fn parse_f64(&self, default: f64) -> f64;
@@ -17,6 +19,10 @@ impl RespSliceExt for [u8] {
   }
   #[inline]
   fn try_parse_i64(&self) -> Option<i64> {
+    str::from_utf8(self).ok()?.parse().ok()
+  }
+  #[inline]
+  fn try_parse_f64(&self) -> Option<f64> {
     str::from_utf8(self).ok()?.parse().ok()
   }
   #[inline]
@@ -117,6 +123,16 @@ mod tests {
     assert_eq!(b"1 2".try_parse_i64(), None);
     assert_eq!(b" 1".try_parse_i64(), None);
     assert_eq!(b"9223372036854775808".try_parse_i64(), None);
+  }
+
+  #[test]
+  fn try_parse_f64_strict() {
+    assert_eq!(b"1.5".try_parse_f64(), Some(1.5));
+    assert_eq!(b"-0.5".try_parse_f64(), Some(-0.5));
+    assert_eq!(b"3".try_parse_f64(), Some(3.0));
+    assert_eq!(b"abc".try_parse_f64(), None);
+    assert_eq!(b"".try_parse_f64(), None);
+    assert_eq!(b"1 2".try_parse_f64(), None);
   }
 
   #[test]
