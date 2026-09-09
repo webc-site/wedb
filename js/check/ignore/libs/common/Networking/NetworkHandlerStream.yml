@@ -1,4 +1,6 @@
-# C# 对 INetworkHandler 的 Stream 包装（CanWrite/Write 委托）；
-# rust compio TcpStream 直接写，无 Stream 包装层
+# C# 对 INetworkHandler 的 Stream 包装：Seek 不支持、ReadAsyncInternalAsync 为
+# Stream 异步泵管道；rust compio TcpStream 直接 read/write，无包装层
 fn:
+  - Seek
+  - ReadAsyncInternalAsync
   - Write

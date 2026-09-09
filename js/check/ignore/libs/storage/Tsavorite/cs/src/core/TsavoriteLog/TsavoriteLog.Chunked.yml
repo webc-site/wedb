@@ -1,4 +1,14 @@
-# C# Write 属嵌套泛型类 ChunkHeaderWriter<THeader>（指针写 chunk 头模板+objectId，
-# C# 泛型指针管道）；rust whlog 以 wrecord 定型头布局写记录头，无逐字段指针写器
+# C# TsavoriteLog.Chunked 分块入队族（EnqueueChunkedObject/Span、ChunkWriteState
+# 及其指针序列化辅助）为泛型序列化管道；rust 记录落盘由 wrecord 编码 + whlog
+# append 承担（key/value 组件化编码等价），无逐组件指针写器
 fn:
+  - EnqueueChunkedObject
+  - EnqueueChunkedSpan
+  - CreateChunkWriteState
+  - AnyRemaining
+  - CopyComponent
+  - WriteOneRecord
+  - MaterializeInput
+  - AllocateBlockPartialForTest
+  - AllocateBlockPartial
   - Write

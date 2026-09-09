@@ -1,4 +1,6 @@
-# C# IStreamProvider.Write 经 device 抽象写文件（检查点管道）；
-# rust 侧 wkv/wbftree 直接经 std::fs / wdev 写文件，无此间接层
+# C# IStreamProvider 文件写抽象（GetBytesToWrite 设备扇区对齐、GetStreamProvider 工厂）；
+# rust wdev/wkv 直接经 std::fs / compio 写文件，无此间接层
 fn:
+  - GetBytesToWrite
+  - GetStreamProvider
   - Write
