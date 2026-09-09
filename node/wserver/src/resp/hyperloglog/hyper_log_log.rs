@@ -417,7 +417,8 @@ impl HyperLogLog {
   #[inline]
   pub fn sparse_required_bytes(&self, cnt: usize) -> usize {
     let used_bytes = cnt * SPARSE_MAX_BYTES_PER_INSERT;
-    let page_count = used_bytes.div_ceil(SPARSE_MEMORY_SECTOR_SIZE);
+    // 对齐 C# ((u-1)/s)+1 截断除法：u=0 时仍占一个扇区，且不发生下溢
+    let page_count = used_bytes.saturating_sub(1) / SPARSE_MEMORY_SECTOR_SIZE + 1;
     page_count * SPARSE_MEMORY_SECTOR_SIZE
   }
 
@@ -467,8 +468,9 @@ impl HyperLogLog {
     let src_type = Self::get_type(src_hll);
     if dst_type == HllDtype::Sparse as u8 && src_type == HllDtype::Sparse as u8 {
       let src_non_zero_bytes = self.sparse_count_non_zero(src_hll) * SPARSE_MAX_BYTES_PER_INSERT;
-      // 额外留一个扇区供后续增长
-      let page_count = (src_non_zero_bytes - 1).div_ceil(SPARSE_MEMORY_SECTOR_SIZE);
+      // 对齐 C# ((x-1)/s)+1：空源（非零数为 0，如 PFMERGE 全缺失源产生的空 HLL）
+      // 时仍预留一个扇区，避免 usize 下溢（debug 构建 panic / release 回绕致载荷破坏）
+      let page_count = src_non_zero_bytes.saturating_sub(1) / SPARSE_MEMORY_SECTOR_SIZE + 1;
       let sparse_blob_bytes =
         self.sparse_current_size_in_bytes(dst_hll) + page_count * SPARSE_MEMORY_SECTOR_SIZE;
       return if sparse_blob_bytes < SPARSE_SIZE_MAX_CAP {
@@ -1508,6 +1510,36 @@ mod tests {
     let mut dense = vec![0_u8; h.dense_bytes()];
     h.init_dense(&mut dense);
     assert_eq!(h.merge_grow(&src, &dense), h.dense_bytes());
+  }
+
+  /// 空稀疏源（非零寄存器数为 0，如 PFMERGE 全缺失源落下的空 HLL）：
+  /// MergeGrow 不发生 usize 下溢（debug 构建 panic / release 回绕破坏载荷），
+  /// 且与 C# 一致仍预留一个扇区；SparseRequiredBytes(0) 同口径占一个扇区
+  #[test]
+  fn growth_planning_with_empty_source() {
+    let h = hll();
+    let empty = sparse_buf(&h);
+    let fresh = sparse_buf(&h);
+
+    // 空源 + 新目标：146 + 128 = 274
+    assert_eq!(h.merge_grow(&empty, &fresh), h.sparse_bytes());
+    // 空源 + 已存目标（current = 146）：同样 +128
+    assert_eq!(
+      h.merge_grow(&empty, &empty),
+      h.sparse_current_size_in_bytes(&empty) + SPARSE_MEMORY_SECTOR_SIZE
+    );
+
+    // C# ((u-1)/s)+1 口径：u=0 → 1 页（128B）；u=2 → 1 页；u=130 → 2 页
+    assert_eq!(h.sparse_required_bytes(0), SPARSE_MEMORY_SECTOR_SIZE);
+    assert_eq!(h.sparse_required_bytes(1), SPARSE_MEMORY_SECTOR_SIZE);
+    assert_eq!(h.sparse_required_bytes(65), 2 * SPARSE_MEMORY_SECTOR_SIZE);
+
+    // 合并空源后载荷仍合法、计数为 0
+    let mut dst = fresh[..h.sparse_bytes()].to_vec();
+    let dst_len = dst.len();
+    let _ = h.try_merge(&empty, &mut dst, dst_len);
+    assert!(h.is_valid_hyll_len(&dst, dst_len));
+    assert_eq!(h.count(&mut dst), 0);
   }
 
   /// 拷贝路径：SparseToDenseCopy / SparseToSparseCopy / CopyUpdateMerge

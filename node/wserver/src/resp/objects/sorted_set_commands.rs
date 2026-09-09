@@ -3,9 +3,11 @@
 //! 命令层只做参数校验与编解码：语义全部下沉到
 //! [`crate::objects::sortedset::sorted_set_object::SortedSetObject`] 的
 //! operate/ObjectInput 通道（与 C# GarnetObjectBase.Operate 分层一致），
-//! 载荷经 wobject 兼容的 bitcode `(member, score)` 编码与 wkv 存储互转。
+//! 存取经与 storage 会话域共享的 `[类型标签][载荷]` 信封
+//! （见 [`crate::resp::objects::object_store_utils`]），载荷为 wobject
+//! bitcode `(member, score)`；携带成员级过期时落 C# BinaryWriter 线格式。
 
-use std::{io::Cursor, str};
+use std::{collections::HashMap, io::Cursor, str};
 
 use wobject::sorted_set::sorted_set_object::{
   SortedSetEntry as WoSortedSetEntry, SortedSetObject as WoSortedSetObject,
@@ -23,8 +25,17 @@ use crate::{
     },
     types::object_output::ObjectOutput,
   },
-  resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession},
+  resp::{
+    cmd_strings as cs,
+    cmd_strings::write_error_raw,
+    objects::object_store_utils::{
+      OBJ_TAG_SORTED_SET, SyncObj, obj_load_sync, obj_save_or_gc_sync,
+    },
+    parser::resp_ext::{RespSliceExt, RespVecExt},
+    resp_server_session::RespServerSession,
+  },
   session_parse_state::SessionParseState,
+  storage::session::objectstore::sorted_set_ops::ZSetAggregate,
   types::{GarnetObjectType, RespInputFlags},
 };
 
@@ -32,11 +43,11 @@ use crate::{
 /// 会话层接线时替换为实际协商版本）
 const RESP_VERSION: u8 = 2;
 
-/// 从 wkv 载荷装载有序集合对象
+/// 从 wkv 信封载荷装载有序集合对象
 ///
 /// 载荷双格式：默认 wobject bitcode（与 storage 会话域兼容）；携带成员级过期时
 /// 落 C# BinaryWriter 线格式（bitcode 无过期槽位），读取先试 bitcode 再回退
-fn zset_from_blob(raw: &[u8]) -> SortedSetObject {
+pub(crate) fn zset_from_blob(raw: &[u8]) -> SortedSetObject {
   if let Ok(wo) = WoSortedSetObject::deserialize(&mut Cursor::new(raw)) {
     let pin = wo.dict.pin();
     let entries: Vec<(Vec<u8>, f64)> = pin.iter().map(|(k, v)| (k.clone(), *v)).collect();
@@ -46,8 +57,8 @@ fn zset_from_blob(raw: &[u8]) -> SortedSetObject {
   SortedSetObject::deserialize(&mut Cursor::new(raw)).unwrap_or_default()
 }
 
-/// 序列化回 wkv 兼容载荷（带成员过期时用 C# 线格式承载）
-fn zset_to_blob(obj: &SortedSetObject) -> Vec<u8> {
+/// 序列化回 wkv 信封载荷（带成员过期时用 C# 线格式承载）
+pub(crate) fn zset_to_blob(obj: &SortedSetObject) -> Vec<u8> {
   if obj.has_expirable_items() {
     let mut csharp_format = Vec::new();
     let _ = obj.clone().serialize(&mut csharp_format);
@@ -115,23 +126,83 @@ fn make_input(
   )
 }
 
-/// 经对象层 operate 通道执行操作并回写 RESP 负载
-fn operate(
+/// 经对象层 operate 通道执行操作，返回结构化输出
+fn run_operate(
   obj: &mut SortedSetObject,
   op: SortedSetOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
-  output: &mut Vec<u8>,
-) -> i64 {
+) -> ObjectOutput {
   let (input, _backing) = make_input(op, args, arg1, arg2);
   let mut obj_out = ObjectOutput::new();
   obj.operate(&input, &mut obj_out, RESP_VERSION);
-  output.extend_from_slice(&obj_out.payload);
-  obj_out.result1
+  obj_out
 }
 
-/// 读-改-写：装载 → 操作 → 回写（变更时）
+/// zset 键同步装载结果
+pub(crate) enum ZsetLoad {
+  /// 磁盘候选：命令须降级异步重放（未写任何输出）
+  Degrade,
+  /// WrongType / 存储错误（错误行已写入输出）
+  Error,
+  /// 键缺失（可按空对象求值，但不得落库创建）
+  Missing,
+  /// 命中（信封载荷已解码）
+  Present(SortedSetObject),
+}
+
+/// 同步装载有序集合（信封解码，与 storage 会话域同一 `[标签][载荷]` 格式）
+pub(crate) fn zset_load_sync(
+  store: &wkv::BatchStoreSession<impl wdev::Device>,
+  key: &[u8],
+  output: &mut Vec<u8>,
+) -> ZsetLoad {
+  match obj_load_sync(store, key, OBJ_TAG_SORTED_SET) {
+    Ok(None) => ZsetLoad::Degrade,
+    Ok(Some(SyncObj::Missing)) => ZsetLoad::Missing,
+    Ok(Some(SyncObj::WrongType)) => {
+      write_error_raw(output, cs::RESP_ERR_WRONG_TYPE);
+      ZsetLoad::Error
+    }
+    Ok(Some(SyncObj::Present(p))) => ZsetLoad::Present(zset_from_blob(&p)),
+    Err(_) => {
+      output.write_resp_error("generic error");
+      ZsetLoad::Error
+    }
+  }
+}
+
+/// 变更回写：空集合整键回收（对齐 storage 层 finalize_removal 与 set 命令域收尾）
+///
+/// 返回 `Ok(false)` 表示磁盘侧须降级异步重放；`Err(())` 为存储层错误（由调用方写错误行）
+pub(crate) fn zset_save_or_gc(
+  store: &wkv::BatchStoreSession<impl wdev::Device>,
+  key: &[u8],
+  obj: &SortedSetObject,
+) -> Result<bool, ()> {
+  let payload = zset_to_blob(obj);
+  obj_save_or_gc_sync(
+    store,
+    key,
+    OBJ_TAG_SORTED_SET,
+    &payload,
+    obj.sorted_set_dict.is_empty(),
+  )
+  .map_err(|_| ())
+}
+
+/// rmw 结果
+enum Rmw {
+  /// 磁盘候选降级（未写任何输出）
+  Degrade,
+  /// 错误行已写出，调用方不得追加回复
+  Error,
+  /// 已闭环：RESP 负载已随 rmw 写出；payload_written=false 时 result1 供调用方回执
+  Done { result1: i64, payload_written: bool },
+}
+
+/// 读-改-写骨架：装载 → operate → 变更回写 → 负载输出
 fn rmw(
   store: &wkv::BatchStoreSession<impl wdev::Device>,
   key: &[u8],
@@ -140,18 +211,66 @@ fn rmw(
   arg1: i32,
   arg2: i32,
   output: &mut Vec<u8>,
-) -> (Option<SortedSetObject>, i64) {
-  let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-    Ok(Some(Some(raw))) => zset_from_blob(&raw),
-    _ => SortedSetObject::new(),
+) -> Rmw {
+  let (mut obj, existed) = match zset_load_sync(store, key, output) {
+    ZsetLoad::Degrade => return Rmw::Degrade,
+    ZsetLoad::Error => return Rmw::Error,
+    ZsetLoad::Missing => (SortedSetObject::new(), false),
+    ZsetLoad::Present(o) => (o, true),
   };
 
-  let payload_start = output.len();
-  let result1 = operate(&mut obj, op, args, arg1, arg2, output);
+  let obj_out = run_operate(&mut obj, op, args, arg1, arg2);
+  let result1 = obj_out.result1;
 
-  // 回写条件：有 RESP 负载产出（只读操作不落库）或 result1 变更信号
-  let wrote_payload = output.len() > payload_start;
-  let read_only = matches!(
+  // 回写须先于回复输出：降级时保持输出零污染，交由异步重放整体重写
+  if should_write_back(op, &obj_out, &obj, existed) {
+    match zset_save_or_gc(store, key, &obj) {
+      Ok(true) => {}
+      Ok(false) => return Rmw::Degrade,
+      Err(()) => {
+        output.write_resp_error("generic error");
+        return Rmw::Error;
+      }
+    }
+  }
+  output.extend_from_slice(&obj_out.payload);
+
+  Rmw::Done {
+    result1,
+    payload_written: !obj_out.payload.is_empty(),
+  }
+}
+
+/// rmw 回写判定
+///
+/// - 只读操作不落库；
+/// - 错误回复（WRONGTYPE 标志或 `-` 行）无状态变更，不落库（防幻键）；
+/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
+/// - 仅回填 result1 的操作（ZREM/ZREMRANGEBYLEX）以移除计数为准。
+fn should_write_back(
+  op: SortedSetOperation,
+  out: &ObjectOutput,
+  obj: &SortedSetObject,
+  existed: bool,
+) -> bool {
+  if is_read_only(op)
+    || out.has_wrong_type()
+    || out.payload.first() == Some(&b'-')
+    || (!existed && obj.sorted_set_dict.is_empty())
+  {
+    return false;
+  }
+  match op {
+    SortedSetOperation::Zrem | SortedSetOperation::Zremrangebylex => {
+      out.result1 > 0 && out.result1 != i32::MAX as i64
+    }
+    _ => !out.payload.is_empty(),
+  }
+}
+
+/// 只读操作（rmw 不落库）
+fn is_read_only(op: SortedSetOperation) -> bool {
+  matches!(
     op,
     SortedSetOperation::Zcard
       | SortedSetOperation::Zscore
@@ -164,11 +283,7 @@ fn rmw(
       | SortedSetOperation::Zrandmember
       | SortedSetOperation::Zttl
       | SortedSetOperation::Zscan
-  );
-  if wrote_payload && !read_only {
-    let _ = store.try_upsert_sync(key, &zset_to_blob(&obj));
-  }
-  (Some(obj), result1)
+  )
 }
 
 impl RespServerSession {
@@ -187,7 +302,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zadd,
@@ -195,8 +310,10 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZSCORE key member
@@ -214,7 +331,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zscore,
@@ -222,8 +339,10 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZREM key member [member ...]
@@ -241,7 +360,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let (_, result1) = rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zrem,
@@ -249,9 +368,19 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    // C# SortedSetRemove 仅回填 result1，整数回复由 RESP 层写出
-    output.write_resp_int(result1);
+    ) {
+      Rmw::Degrade => return Ok(false),
+      Rmw::Error => {}
+      // C# SortedSetRemove 仅回填 result1，整数回复由 RESP 层写出
+      Rmw::Done {
+        result1,
+        payload_written,
+      } => {
+        if !payload_written {
+          output.write_resp_int(result1);
+        }
+      }
+    }
     Ok(true)
   }
 
@@ -270,9 +399,19 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let (_, result1) = rmw(store, key, SortedSetOperation::Zcard, &[], 0, 0, output);
-    // C# SortedSetLength 仅回填 result1
-    output.write_resp_int(result1);
+    match rmw(store, key, SortedSetOperation::Zcard, &[], 0, 0, output) {
+      Rmw::Degrade => return Ok(false),
+      Rmw::Error => {}
+      // C# SortedSetLength 仅回填 result1
+      Rmw::Done {
+        result1,
+        payload_written,
+      } => {
+        if !payload_written {
+          output.write_resp_int(result1);
+        }
+      }
+    }
     Ok(true)
   }
 
@@ -310,8 +449,10 @@ impl RespServerSession {
       },
     };
 
-    rmw(store, key, op, &[], arg1, 0, output);
-    Ok(true)
+    match rmw(store, key, op, &[], arg1, 0, output) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZRANGE / ZREVRANGE / ZRANGEBYSCORE / ZREVRANGEBYSCORE / ZRANGEBYLEX / ZREVRANGEBYLEX
@@ -330,22 +471,24 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
         output.extend_from_slice(b"*0\r\n");
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
-    operate(
-      &mut obj.clone(),
+    let obj_out = run_operate(
+      &mut obj,
       SortedSetOperation::Zrange,
       &parse_state[1..],
       0,
       range_opts.bits() as i32,
-      output,
     );
+    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -367,23 +510,28 @@ impl RespServerSession {
     let src_key = parse_state[1];
 
     // 源集合范围读取（Store 选项：强制 WITHSCORES + RESP2 成对负载）
-    let mut src_obj = match store.try_read_sync(src_key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
-        let _ = store.try_upsert_sync(dst_key, &zset_to_blob(&SortedSetObject::new()));
-        output.extend_from_slice(b":0\r\n");
+    let mut src_obj = match zset_load_sync(store, src_key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
+        // 源缺失：目标回收（空结果删目标键，对齐 Redis ZRANGESTORE 语义）
+        match zset_save_or_gc(store, dst_key, &SortedSetObject::new()) {
+          Ok(true) => output.extend_from_slice(b":0\r\n"),
+          Ok(false) => return Ok(false),
+          Err(()) => output.write_resp_error("generic error"),
+        }
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
-    let mut obj_out = ObjectOutput::new();
-    let (input, _backing) = make_input(
+    let obj_out = run_operate(
+      &mut src_obj,
       SortedSetOperation::Zrange,
       &parse_state[2..],
       0,
       SortedSetRangeOpts::STORE.bits() as i32,
     );
-    src_obj.operate(&input, &mut obj_out, 2);
 
     // result1 = -1 表示范围参数被拒（错误已写入负载）
     if obj_out.result1 == -1 {
@@ -399,8 +547,16 @@ impl RespServerSession {
       dst.sorted_set.insert(SortedSetEntry { score, member });
     }
 
-    let _ = store.try_upsert_sync(dst_key, &zset_to_blob(&dst));
-    output.extend_from_slice(format!(":{}\r\n", dst.sorted_set_dict.len()).as_bytes());
+    match zset_save_or_gc(store, dst_key, &dst) {
+      Ok(true) => {
+        let mut buf = itoa::Buffer::new();
+        output.extend_from_slice(b":");
+        output.extend_from_slice(buf.format(dst.sorted_set_dict.len()).as_bytes());
+        output.extend_from_slice(b"\r\n");
+      }
+      Ok(false) => return Ok(false),
+      Err(()) => output.write_resp_error("generic error"),
+    }
     Ok(true)
   }
 
@@ -419,9 +575,10 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
         // 键缺失：全 null 数组
         output.write_resp_array_len(parse_state.len() - 1);
         for _ in 1..parse_state.len() {
@@ -429,16 +586,17 @@ impl RespServerSession {
         }
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
-    operate(
+    let obj_out = run_operate(
       &mut obj,
       SortedSetOperation::Zmscore,
       &parse_state[1..],
       0,
       0,
-      output,
     );
+    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -494,9 +652,11 @@ impl RespServerSession {
 
     // 逐键尝试弹出第一个非空集合
     for key in &parse_state[1..=num_keys as usize] {
-      let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-        Ok(Some(Some(raw))) => zset_from_blob(&raw),
-        _ => continue,
+      let mut obj = match zset_load_sync(store, key, output) {
+        ZsetLoad::Degrade => return Ok(false),
+        ZsetLoad::Error => return Ok(true),
+        ZsetLoad::Missing => continue,
+        ZsetLoad::Present(o) => o,
       };
       if obj.count() == 0 {
         continue;
@@ -505,7 +665,14 @@ impl RespServerSession {
       let popped: Vec<(f64, Vec<u8>)> = (0..count)
         .filter_map(|_| obj.pop_min_or_max(!low_scores_first))
         .collect();
-      let _ = store.try_upsert_sync(key, &zset_to_blob(&obj));
+      match zset_save_or_gc(store, key, &obj) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(()) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
 
       // 回复：[key, [[member, score], ...]]
       output.write_resp_array_len(2);
@@ -514,7 +681,7 @@ impl RespServerSession {
       for (score, member) in &popped {
         output.write_resp_array_len(2);
         output.write_resp_bulk_string(member);
-        let s = format_double_text(*score);
+        let s = ObjectOutput::format_double(*score);
         output.write_resp_bulk_string(s.as_bytes());
       }
       return Ok(true);
@@ -539,7 +706,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zcount,
@@ -547,8 +714,10 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZLEXCOUNT key min max
@@ -566,30 +735,31 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
         output.extend_from_slice(b":0\r\n");
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
-    let result1 = operate(
+    let obj_out = run_operate(
       &mut obj,
       SortedSetOperation::Zlexcount,
       &parse_state[1..],
       0,
       0,
-      output,
     );
     // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
     // （C# SortedSetRemoveOrCountRangeByLex 仅回填 result1，RESP 层负责写整数）
-    if result1 == i32::MAX as i64 {
+    if obj_out.result1 == i32::MAX as i64 {
       output.clear();
       output.extend_from_slice(b"-ERR min or max not valid string range item\r\n");
-    } else if result1 != i32::MIN as i64 {
+    } else if obj_out.result1 != i32::MIN as i64 {
       output.clear();
-      output.write_resp_int(result1);
+      output.write_resp_int(obj_out.result1);
     }
     Ok(true)
   }
@@ -609,7 +779,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zincrby,
@@ -617,8 +787,10 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZRANK / ZREVRANK key member [WITHSCORE]
@@ -645,25 +817,24 @@ impl RespServerSession {
       SortedSetOperation::Zrevrank
     };
 
-    let obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
         output.write_resp_null();
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
-    let mut obj = obj;
-    let payload_start = output.len();
-    operate(
+    let obj_out = run_operate(
       &mut obj,
       op,
       &parse_state[1..2],
       if with_score { 1 } else { 0 },
       0,
-      output,
     );
-    let _ = payload_start;
+    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -691,14 +862,22 @@ impl RespServerSession {
 
     let key = parse_state[0];
     let payload_start = output.len();
-    let (_, result1) = rmw(store, key, op, &parse_state[1..], 0, 0, output);
-    // ZREMRANGEBYLEX 仅回填 result1（int.MaxValue=参数错误、int.MinValue=部分执行）
-    if range_kind == RemoveRangeKind::Lex {
-      if result1 == i32::MAX as i64 {
-        output.truncate(payload_start);
-        output.extend_from_slice(b"-ERR min or max not valid string range item\r\n");
-      } else if output.len() == payload_start && result1 != i32::MIN as i64 {
-        output.write_resp_int(result1);
+    match rmw(store, key, op, &parse_state[1..], 0, 0, output) {
+      Rmw::Degrade => return Ok(false),
+      Rmw::Error => return Ok(true),
+      // ZREMRANGEBYLEX 仅回填 result1（int.MaxValue=参数错误、int.MinValue=部分执行）
+      Rmw::Done {
+        result1,
+        payload_written,
+      } => {
+        if range_kind == RemoveRangeKind::Lex && !payload_written {
+          if result1 == i32::MAX as i64 {
+            output.truncate(payload_start);
+            output.extend_from_slice(b"-ERR min or max not valid string range item\r\n");
+          } else if output.len() == payload_start && result1 != i32::MIN as i64 {
+            output.write_resp_int(result1);
+          }
+        }
       }
     }
     Ok(true)
@@ -719,9 +898,10 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
         if parse_state.len() > 1 {
           output.extend_from_slice(b"*0\r\n");
         } else {
@@ -729,6 +909,7 @@ impl RespServerSession {
         }
         return Ok(true);
       }
+      ZsetLoad::Present(o) => o,
     };
 
     // 参数打包：arg1 = (count << 2) | (includedCount << 1) | withScores
@@ -760,15 +941,14 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    let mut obj = obj;
-    operate(
+    let obj_out = run_operate(
       &mut obj,
       SortedSetOperation::Zrandmember,
       &[],
       arg1 as i32,
       fastrand::i32(..),
-      output,
     );
+    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -787,19 +967,19 @@ impl RespServerSession {
     };
 
     // 第一集合 − 其余集合（CopyDiff 逐个收缩）
+    let objs = match load_many(store, &keys, output) {
+      Ok(Some(objs)) => objs,
+      Ok(None) => return Ok(false),
+      Err(()) => return Ok(true),
+    };
     let mut result: Option<SortedSetObject> = None;
-    for (i, key) in keys.iter().enumerate() {
-      let obj = match store.try_read_sync(key, |v| v.to_vec()) {
-        Ok(Some(Some(raw))) => zset_from_blob(&raw),
-        _ => SortedSetObject::new(),
-      };
-
+    for (i, obj) in objs.iter().enumerate() {
       if i == 0 {
-        result = Some(obj);
+        result = Some(obj.clone());
       } else if let Some(current) = result.take() {
         result = Some(dict_to_zset(SortedSetObject::copy_diff(
           Some(&current),
-          Some(&obj),
+          Some(obj),
         )));
       }
     }
@@ -827,10 +1007,18 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let result = diff_sets(store, &keys);
+    let objs = match load_many(store, &keys, output) {
+      Ok(Some(objs)) => objs,
+      Ok(None) => return Ok(false),
+      Err(()) => return Ok(true),
+    };
+    let result = diff_sets(&objs);
     let count = result.count();
-    let _ = store.try_upsert_sync(dst, &zset_to_blob(&result));
-    output.write_resp_int(count as i64);
+    match zset_save_or_gc(store, dst, &result) {
+      Ok(true) => output.write_resp_int(count as i64),
+      Ok(false) => return Ok(false),
+      Err(()) => output.write_resp_error("generic error"),
+    }
     Ok(true)
   }
 
@@ -847,13 +1035,12 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let result = combine_sets(
-      store,
-      &args.keys,
-      &args.weights,
-      args.aggregate,
-      CombineKind::Intersect,
-    );
+    let objs = match load_many(store, &args.keys, output) {
+      Ok(Some(objs)) => objs,
+      Ok(None) => return Ok(false),
+      Err(()) => return Ok(true),
+    };
+    let result = combine_sets(&objs, &args.weights, args.aggregate, CombineKind::Intersect);
     write_zset_entries(Some(&result), args.with_scores, output);
     Ok(true)
   }
@@ -902,13 +1089,12 @@ impl RespServerSession {
 
     let keys = &parse_state[1..=num_keys as usize];
     let weights = vec![1.0; keys.len()];
-    let result = combine_sets(
-      store,
-      keys,
-      &weights,
-      ZSetAggregate::Sum,
-      CombineKind::Intersect,
-    );
+    let objs = match load_many(store, keys, output) {
+      Ok(Some(objs)) => objs,
+      Ok(None) => return Ok(false),
+      Err(()) => return Ok(true),
+    };
+    let result = combine_sets(&objs, &weights, ZSetAggregate::Sum, CombineKind::Intersect);
 
     let card = result.count() as i64;
     output.write_resp_int(if limit > 0 { card.min(limit) } else { card });
@@ -940,13 +1126,12 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let result = combine_sets(
-      store,
-      &args.keys,
-      &args.weights,
-      args.aggregate,
-      CombineKind::Union,
-    );
+    let objs = match load_many(store, &args.keys, output) {
+      Ok(Some(objs)) => objs,
+      Ok(None) => return Ok(false),
+      Err(()) => return Ok(true),
+    };
+    let result = combine_sets(&objs, &args.weights, args.aggregate, CombineKind::Union);
     write_zset_entries(Some(&result), args.with_scores, output);
     Ok(true)
   }
@@ -990,16 +1175,25 @@ impl RespServerSession {
     }
 
     for key in &parse_state[..parse_state.len() - 1] {
-      let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-        Ok(Some(Some(raw))) => zset_from_blob(&raw),
-        _ => continue,
+      let mut obj = match zset_load_sync(store, key, output) {
+        ZsetLoad::Degrade => return Ok(false),
+        ZsetLoad::Error => return Ok(true),
+        ZsetLoad::Missing => continue,
+        ZsetLoad::Present(o) => o,
       };
       if let Some((score, member)) = obj.pop_min_or_max(!is_min) {
-        let _ = store.try_upsert_sync(key, &zset_to_blob(&obj));
+        match zset_save_or_gc(store, key, &obj) {
+          Ok(true) => {}
+          Ok(false) => return Ok(false),
+          Err(()) => {
+            output.write_resp_error("generic error");
+            return Ok(true);
+          }
+        }
         output.write_resp_array_len(3);
         output.write_resp_bulk_string(key);
         output.write_resp_bulk_string(&member);
-        let s = format_double_text(score);
+        let s = ObjectOutput::format_double(score);
         output.write_resp_bulk_string(s.as_bytes());
         return Ok(true);
       }
@@ -1071,9 +1265,11 @@ impl RespServerSession {
     }
 
     for key in &parse_state[2..=num_keys as usize + 1] {
-      let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-        Ok(Some(Some(raw))) => zset_from_blob(&raw),
-        _ => continue,
+      let mut obj = match zset_load_sync(store, key, output) {
+        ZsetLoad::Degrade => return Ok(false),
+        ZsetLoad::Error => return Ok(true),
+        ZsetLoad::Missing => continue,
+        ZsetLoad::Present(o) => o,
       };
       if obj.count() == 0 {
         continue;
@@ -1082,7 +1278,14 @@ impl RespServerSession {
       let popped: Vec<(f64, Vec<u8>)> = (0..count)
         .filter_map(|_| obj.pop_min_or_max(!low_scores_first))
         .collect();
-      let _ = store.try_upsert_sync(key, &zset_to_blob(&obj));
+      match zset_save_or_gc(store, key, &obj) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(()) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
 
       output.write_resp_array_len(2);
       output.write_resp_bulk_string(key);
@@ -1090,7 +1293,7 @@ impl RespServerSession {
       for (score, member) in &popped {
         output.write_resp_array_len(2);
         output.write_resp_bulk_string(member);
-        let s = format_double_text(*score);
+        let s = ObjectOutput::format_double(*score);
         output.write_resp_bulk_string(s.as_bytes());
       }
       return Ok(true);
@@ -1139,13 +1342,11 @@ impl RespServerSession {
     // .NET Ticks 目标时刻
     const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
     let now_ticks = now_ticks();
-    let now_ms = now_ticks / 10_000 - UNIX_EPOCH_TICKS / 10_000;
     let expiration_ticks = if is_timestamp {
       UNIX_EPOCH_TICKS + expiration_base * if is_milliseconds { 10_000 } else { 10_000_000 }
     } else {
       now_ticks + expiration_base * if is_milliseconds { 10_000 } else { 10_000_000 }
     };
-    let _ = now_ms;
 
     let e = ExpirationWithOption::new(
       expiration_ticks,
@@ -1153,7 +1354,7 @@ impl RespServerSession {
     );
 
     let args: Vec<&[u8]> = parse_state[curr_idx..].to_vec();
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zexpire,
@@ -1161,8 +1362,10 @@ impl RespServerSession {
       (e.word() >> 32) as i32,
       e.word() as i32,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZTTL / ZPTTL / ZEXPIRETIME / ZPEXPIRETIME key member [member ...]
@@ -1182,7 +1385,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zttl,
@@ -1190,8 +1393,10 @@ impl RespServerSession {
       if is_milliseconds { 1 } else { 0 },
       if is_timestamp { 1 } else { 0 },
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 
   /// ZPERSIST key member [member ...]
@@ -1209,7 +1414,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    rmw(
+    match rmw(
       store,
       key,
       SortedSetOperation::Zpersist,
@@ -1217,8 +1422,10 @@ impl RespServerSession {
       0,
       0,
       output,
-    );
-    Ok(true)
+    ) {
+      Rmw::Degrade => Ok(false),
+      _ => Ok(true),
+    }
   }
 }
 
@@ -1255,28 +1462,25 @@ fn sorted_set_combine_store<'s, D: wdev::Device>(
     return Ok(true);
   };
 
-  let result = combine_sets(store, &args.keys, &args.weights, args.aggregate, kind);
+  let objs = match load_many(store, &args.keys, output) {
+    Ok(Some(objs)) => objs,
+    Ok(None) => return Ok(false),
+    Err(()) => return Ok(true),
+  };
+  let result = combine_sets(&objs, &args.weights, args.aggregate, kind);
   let count = result.count();
-  let _ = store.try_upsert_sync(dst, &zset_to_blob(&result));
-  output.write_resp_int(count as i64);
+  match zset_save_or_gc(store, dst, &result) {
+    Ok(true) => output.write_resp_int(count as i64),
+    Ok(false) => return Ok(false),
+    Err(()) => output.write_resp_error("generic error"),
+  }
   Ok(true)
 }
 
-use crate::resp::parser::resp_ext::RespVecExt;
-
-/// 双精度 → Redis 文本（ZADD 回显等）
-fn format_double_text(value: f64) -> String {
-  if value.is_nan() {
-    "nan".to_string()
-  } else if value.is_infinite() {
-    if value > 0.0 { "inf" } else { "-inf" }.to_string()
-  } else {
-    format!("{value}")
-  }
-}
-
-/// 成对负载解析（ZRANGESTORE 回读：member score member score ...）
-fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
+/// 成对负载解析（ZRANGESTORE/GEOSEARCHSTORE 回读：member score member score ...）
+///
+/// 兼容两种形态：RESP2 扁平序列；GEOSEARCHSTORE 的每项前置 `*2` 嵌套数组头
+pub(crate) fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
   let mut pairs = Vec::new();
   let mut pos = 0;
 
@@ -1289,8 +1493,14 @@ fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
   }
 
   while pos < payload.len() {
+    // 项间嵌套数组头跳过（*<n>\r\n）
+    if payload[pos] == b'*'
+      && let Some(end) = find_crlf(payload, pos)
+    {
+      pos = end + 2;
+    }
     // $<len>\r\n<bytes>\r\n
-    if payload[pos] != b'$' {
+    if pos >= payload.len() || payload[pos] != b'$' {
       break;
     }
     let Some(line_end) = find_crlf(payload, pos) else {
@@ -1310,7 +1520,13 @@ fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
     let member = payload[start..end].to_vec();
     pos = end + 2;
 
-    // 第二项：bulk string 形式的分值
+    // 第二项：bulk string 形式的分值（前置嵌套数组头同样跳过）
+    if pos < payload.len()
+      && payload[pos] == b'*'
+      && let Some(end) = find_crlf(payload, pos)
+    {
+      pos = end + 2;
+    }
     if pos >= payload.len() || payload[pos] != b'$' {
       break;
     }
@@ -1474,10 +1690,6 @@ fn parse_combine_args<'p>(
   })
 }
 
-use std::collections::HashMap;
-
-use crate::storage::session::objectstore::sorted_set_ops::ZSetAggregate;
-
 /// 集合运算种类
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CombineKind {
@@ -1485,18 +1697,24 @@ pub enum CombineKind {
   Union,
 }
 
-/// 多键装载
+/// 多键装载（信封解码；缺失按空集合；WrongType 写错误行）
+///
+/// 返回 `Ok(None)` 表示磁盘候选须降级异步重放；`Err(())` 为错误行已写出
 fn load_many(
   store: &wkv::BatchStoreSession<impl wdev::Device>,
   keys: &[&[u8]],
-) -> Vec<SortedSetObject> {
-  keys
-    .iter()
-    .map(|key| match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => SortedSetObject::new(),
-    })
-    .collect()
+  output: &mut Vec<u8>,
+) -> Result<Option<Vec<SortedSetObject>>, ()> {
+  let mut objs = Vec::with_capacity(keys.len());
+  for key in keys {
+    match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(None),
+      ZsetLoad::Error => return Err(()),
+      ZsetLoad::Missing => objs.push(SortedSetObject::new()),
+      ZsetLoad::Present(o) => objs.push(o),
+    }
+  }
+  Ok(Some(objs))
 }
 
 /// 字典 → 有序集合（保持 (score, member) 双索引）
@@ -1506,8 +1724,7 @@ fn dict_to_zset(dict: HashMap<Vec<u8>, f64, gxhash::GxBuildHasher>) -> SortedSet
 }
 
 /// ZDIFF 语义计算
-fn diff_sets(store: &wkv::BatchStoreSession<impl wdev::Device>, keys: &[&[u8]]) -> SortedSetObject {
-  let objs = load_many(store, keys);
+fn diff_sets(objs: &[SortedSetObject]) -> SortedSetObject {
   let mut result: Option<SortedSetObject> = None;
   for (i, obj) in objs.iter().enumerate() {
     if i == 0 {
@@ -1524,48 +1741,37 @@ fn diff_sets(store: &wkv::BatchStoreSession<impl wdev::Device>, keys: &[&[u8]]) 
 
 /// ZINTER/ZUNION 语义计算（权重 + 聚合）
 fn combine_sets(
-  store: &wkv::BatchStoreSession<impl wdev::Device>,
-  keys: &[&[u8]],
+  objs: &[SortedSetObject],
   weights: &[f64],
   aggregate: ZSetAggregate,
   kind: CombineKind,
 ) -> SortedSetObject {
-  let objs = load_many(store, keys);
-
   let mut combined: HashMap<Vec<u8>, f64, gxhash::GxBuildHasher> =
     HashMap::with_hasher(gxhash::GxBuildHasher::default());
   for (i, obj) in objs.iter().enumerate() {
     let weight = weights.get(i).copied().unwrap_or(1.0);
     for (member, score) in obj.to_entries() {
       let weighted = score * weight;
-      let next = match aggregate {
-        ZSetAggregate::Sum => weighted,
-        ZSetAggregate::Min => weighted,
-        ZSetAggregate::Max => weighted,
-      };
       combined
         .entry(member)
         .and_modify(|existing| {
           *existing = match aggregate {
-            ZSetAggregate::Sum => *existing + next,
-            ZSetAggregate::Min => (*existing).min(next),
-            ZSetAggregate::Max => (*existing).max(next),
+            ZSetAggregate::Sum => *existing + weighted,
+            ZSetAggregate::Min => (*existing).min(weighted),
+            ZSetAggregate::Max => (*existing).max(weighted),
           };
         })
-        .or_insert(next);
+        .or_insert(weighted);
     }
   }
 
   if kind == CombineKind::Intersect {
-    // 只保留出现在全部集合中的成员
+    // 只保留出现在全部集合中的成员（字典键天然去重，直接计数）
     let mut counts: HashMap<Vec<u8>, usize, gxhash::GxBuildHasher> =
       HashMap::with_hasher(gxhash::GxBuildHasher::default());
-    for obj in &objs {
-      let mut seen: Vec<Vec<u8>> = obj.to_entries().into_iter().map(|(m, _)| m).collect();
-      seen.sort_unstable();
-      seen.dedup();
-      for m in seen {
-        *counts.entry(m).or_insert(0) += 1;
+    for obj in objs {
+      for m in obj.sorted_set_dict.keys() {
+        *counts.entry(m.clone()).or_insert(0) += 1;
       }
     }
     combined.retain(|m, _| counts.get(m).copied().unwrap_or(0) == objs.len());
@@ -1592,7 +1798,7 @@ fn write_zset_entries(obj: Option<&SortedSetObject>, with_scores: bool, output: 
   for (score, member) in entries {
     output.write_resp_bulk_string(&member);
     if with_scores {
-      let s = format_double_text(score);
+      let s = ObjectOutput::format_double(score);
       output.write_resp_bulk_string(s.as_bytes());
     }
   }
@@ -1617,6 +1823,144 @@ mod tests {
     let store = Arc::new(WedbStore::open(config, device).unwrap());
     let session = store.new_session().unwrap();
     (dir, store, session)
+  }
+
+  /// rmw 回写契约：ZREM/ZREMRANGEBYLEX 变更持久化、空集合整键回收、
+  /// 错误回复不建幻键、WRONGTYPE 不覆盖异类键、信封与 storage 会话域互通
+  #[test]
+  fn rmw_writeback_contract() {
+    let (_dir, _store, session) = fixture("zsetwb.db");
+    let batch = session.enter_batch();
+    let mut sess = RespServerSession;
+    let mut out = Vec::new();
+
+    // ZREM 变更必须落库（此前 result1-only 操作从不回写）
+    sess
+      .sorted_set_add(&[b"z", b"1", b"a", b"2", b"b"], &batch, &mut out)
+      .unwrap();
+    out.clear();
+    sess
+      .sorted_set_remove(&[b"z", b"a"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+    out.clear();
+    sess.sorted_set_length(&[b"z"], &batch, &mut out).unwrap();
+    assert_eq!(out, b":1\r\n");
+    out.clear();
+    sess
+      .sorted_set_score(&[b"z", b"a"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"$-1\r\n");
+
+    // ZREMRANGEBYLEX 变更同样落库，清空后整键回收
+    sess
+      .sorted_set_add(&[b"lx", b"0", b"aa", b"0", b"bb"], &batch, &mut out)
+      .unwrap();
+    out.clear();
+    sess
+      .sorted_set_remove_range(
+        &[b"lx", b"[a", b"[bb"],
+        &batch,
+        &mut out,
+        RemoveRangeKind::Lex,
+      )
+      .unwrap();
+    assert_eq!(out, b":2\r\n");
+    assert!(
+      batch
+        .try_read_sync(b"lx", |v| v.to_vec())
+        .ok()
+        .flatten()
+        .flatten()
+        .is_none()
+    );
+
+    // ZPOPMIN 清空既有集合 → 键回收（不留空集合信封）
+    sess
+      .sorted_set_add(&[b"pop", b"1", b"one"], &batch, &mut out)
+      .unwrap();
+    out.clear();
+    sess
+      .sorted_set_pop(&[b"pop"], &batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"*2\r\n$3\r\none\r\n$1\r\n1\r\n");
+    assert!(
+      batch
+        .try_read_sync(b"pop", |v| v.to_vec())
+        .ok()
+        .flatten()
+        .flatten()
+        .is_none()
+    );
+
+    // ZADD 非法参数 → 错误回复不创建幻键
+    out.clear();
+    sess
+      .sorted_set_add(&[b"ghost", b"ZZ", b"1", b"x"], &batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"-ERR"), "{out:?}");
+    assert!(
+      batch
+        .try_read_sync(b"ghost", |v| v.to_vec())
+        .ok()
+        .flatten()
+        .flatten()
+        .is_none()
+    );
+
+    // ZADD 作用在字符串键上 → WRONGTYPE 且原值保留（此前裸载荷会静默覆盖）
+    let _ = batch.try_upsert_sync(b"str", b"plain-value");
+    out.clear();
+    sess
+      .sorted_set_add(&[b"str", b"1", b"m"], &batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"-WRONGTYPE"), "{out:?}");
+    assert_eq!(
+      batch
+        .try_read_sync(b"str", |v| v.to_vec())
+        .ok()
+        .flatten()
+        .flatten(),
+      Some(b"plain-value".to_vec())
+    );
+
+    // 信封互通（r2 契约）：RESP 写入 = [OBJ_TAG_SORTED_SET][wobject bitcode]
+    sess
+      .sorted_set_add(&[b"env", b"3", b"m"], &batch, &mut out)
+      .unwrap();
+    let raw = batch
+      .try_read_sync(b"env", |v| v.to_vec())
+      .ok()
+      .flatten()
+      .flatten()
+      .expect("envelope value");
+    assert_eq!(raw[0], OBJ_TAG_SORTED_SET);
+    let from_storage = WoSortedSetObject::deserialize(&mut Cursor::new(&raw[1..])).unwrap();
+    assert_eq!(
+      from_storage.dict.pin().get(b"m".as_slice()).copied(),
+      Some(3.0)
+    );
+
+    // 反向：storage 会话域写入的同构信封 RESP 层可读
+    let wo = WoSortedSetObject::new();
+    {
+      let pin = wo.dict.pin();
+      pin.insert(b"s".to_vec(), 7.5);
+      wo.tree.lock().insert(WoSortedSetEntry {
+        score: 7.5,
+        member: b"s".to_vec(),
+      });
+    }
+    let mut payload = Vec::new();
+    wo.serialize(&mut payload).unwrap();
+    let mut envelope = vec![OBJ_TAG_SORTED_SET];
+    envelope.extend_from_slice(&payload);
+    let _ = batch.try_upsert_sync(b"fromstore", &envelope);
+    out.clear();
+    sess
+      .sorted_set_score(&[b"fromstore", b"s"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"$3\r\n7.5\r\n");
   }
 
   #[test]

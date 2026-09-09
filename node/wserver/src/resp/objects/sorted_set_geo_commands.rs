@@ -1,14 +1,11 @@
 //! GEO RESP 命令（对标 libs/server/Resp/Objects/SortedSetGeoCommands.cs）
 //!
-//! GEOADD / GEOHASH / GEODIST / GEOPOS / GEOSEARCH（含 GEOSEARCHSTORE 与
-//! GEORADIUS/GEORADIUSBYMEMBER 族）。语义经对象层 [`SortedSetObject`] 的
-//! geo_* 分片执行；GEOSEARCH 选项解析对标 TryGetGeoSearchOptions。
-
-use std::io::Cursor;
-
-use wobject::sorted_set::sorted_set_object::{
-  SortedSetEntry as SortedSetEntryWo, SortedSetObject as WoSortedSetObject,
-};
+//! GEOADD / GEOHASH / GEODIST / GEOPOS / GEOSEARCH / GEOSEARCHSTORE /
+//! GEORADIUS(_RO) / GEORADIUSBYMEMBER(_RO)。语义经对象层
+//! [`SortedSetObject`] 的 geo_* 分片执行；选项解析对标
+//! SessionParseStateExtensions.TryGetGeoSearchOptions 的命令分派文法
+//! （GEOSEARCH 族走 FROMMEMBER/FROMLONLAT + BYRADIUS/BYBOX 关键字，
+//! GEORADIUS 族为位置参数）；存取经与 storage 会话域共享的信封编解码。
 
 use crate::{
   objects::{
@@ -23,181 +20,380 @@ use crate::{
     types::object_output::ObjectOutput,
   },
   resp::{
-    objects::sorted_set_commands::make_input_for_geo,
+    objects::sorted_set_commands::{
+      ZsetLoad, make_input_for_geo, parse_pairs_payload, zset_load_sync, zset_save_or_gc,
+    },
     parser::resp_ext::{RespSliceExt, RespVecExt},
     resp_server_session::RespServerSession,
   },
 };
 
-/// 载荷互转（与 sorted_set_commands 同一 bitcode 兼容路径）
-fn zset_from_blob(raw: &[u8]) -> SortedSetObject {
-  match WoSortedSetObject::deserialize(&mut Cursor::new(raw)) {
-    Ok(wo) => {
-      let pin = wo.dict.pin();
-      let entries: Vec<(Vec<u8>, f64)> = pin.iter().map(|(k, v)| (k.clone(), *v)).collect();
-      SortedSetObject::from_entries(entries)
-    }
-    Err(_) => SortedSetObject::new(),
-  }
+/// GEOSEARCH 族命令形态（决定选项文法与存储语义）
+///
+/// 对标 RespCommand.GEOSEARCH/GEOSEARCHSTORE/GEORADIUS(_RO)/GEORADIUSBYMEMBER(_RO)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeoSearchCommandKind {
+  /// GEOSEARCH key [FROMMEMBER m|FROMLONLAT lon lat] BYRADIUS r u|BYBOX w h u [修饰词]
+  GeoSearch,
+  /// GEOSEARCHSTORE dest src …（同 GEOSEARCH 文法，结果落目标键）
+  GeoSearchStore,
+  /// GEORADIUS key lon lat radius unit [修饰词] [STORE dest|STOREDIST dest]
+  GeoRadius,
+  /// GEORADIUS_RO（只读，无 STORE/STOREDIST）
+  GeoRadiusRo,
+  /// GEORADIUSBYMEMBER key member radius unit …
+  GeoRadiusByMember,
+  /// GEORADIUSBYMEMBER_RO
+  GeoRadiusByMemberRo,
 }
 
-fn zset_to_blob(obj: &SortedSetObject) -> Vec<u8> {
-  let wo = WoSortedSetObject::new();
-  {
-    let pin = wo.dict.pin();
-    let mut tree = wo.tree.lock();
-    for (member, score) in obj.to_entries() {
-      pin.insert(member.clone(), score);
-      tree.insert(SortedSetEntryWo { score, member });
+impl GeoSearchCommandKind {
+  /// 命令名（错误文本用）
+  fn name(self) -> &'static str {
+    match self {
+      Self::GeoSearch => "GEOSEARCH",
+      Self::GeoSearchStore => "GEOSEARCHSTORE",
+      Self::GeoRadius => "GEORADIUS",
+      Self::GeoRadiusRo => "GEORADIUS_RO",
+      Self::GeoRadiusByMember => "GEORADIUSBYMEMBER",
+      Self::GeoRadiusByMemberRo => "GEORADIUSBYMEMBER_RO",
     }
   }
-  let mut out = Vec::new();
-  let _ = wo.serialize(&mut out);
-  out
+
+  /// 最少参数个数（含键；GEOSEARCHSTORE 含目标键，对标 C# paramsRequiredInCommand）
+  fn params_required(self) -> usize {
+    match self {
+      Self::GeoRadius | Self::GeoRadiusRo => 5,
+      Self::GeoRadiusByMember | Self::GeoRadiusByMemberRo => 4,
+      Self::GeoSearch => 6,
+      Self::GeoSearchStore => 7,
+    }
+  }
+
+  /// 是否允许 STORE/STOREDIST 携带目标键（GEORADIUS 写变体）
+  fn store_allowed(self) -> bool {
+    matches!(self, Self::GeoRadius | Self::GeoRadiusByMember)
+  }
 }
 
 /// GEOSEARCH 选项束解析结果
-#[derive(Debug, Default)]
 struct ParsedGeoSearch {
   opts: GeoSearchOptions,
-  /// GEOSEARCHSTORE 的目标键下标（无存储则 None）
-  dest_idx: Option<usize>,
-  /// 解析终止位置（经 FromLonLat 消耗 lon lat 两参）
-  end_idx: usize,
+  /// STORE/STOREDIST 目标键
+  dest: Option<Vec<u8>>,
+}
+
+// ---- CmdStrings 中 GEO 族错误串（对标 libs/server/Resp/CmdStrings.cs） ----
+
+const RESP_ERR_NOT_VALID_RADIUS: &[u8] = b"ERR need numeric radius";
+const RESP_ERR_RADIUS_IS_NEGATIVE: &[u8] = b"ERR radius cannot be negative";
+const RESP_ERR_NOT_VALID_WIDTH: &[u8] = b"ERR need numeric width";
+const RESP_ERR_NOT_VALID_HEIGHT: &[u8] = b"ERR need numeric height";
+const RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE: &[u8] = b"ERR height or width cannot be negative";
+const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &[u8] =
+  b"ERR unsupported unit provided. please use M, KM, FT, MI";
+const RESP_ERR_COUNT_IS_NOT_POSITIVE: &[u8] = b"ERR COUNT must be > 0";
+const RESP_ERR_INVALID_LON_LAT: &[u8] = b"ERR invalid longitude,latitude pair";
+
+/// 解析双精度（TryGetDouble 语义）
+fn parse_double(token: &[u8]) -> Option<f64> {
+  str::from_utf8(token).ok()?.parse::<f64>().ok()
 }
 
 /// GEOSEARCH 族选项解析（对标 SessionParseStateExtensions.TryGetGeoSearchOptions）
 ///
-/// args 为 key 之后的参数序列（GEOSEARCHSTORE 已剥掉 dst，首参为 src）
+/// args 为源键之后的参数序列
 fn try_get_geo_search_options(
   args: &[&[u8]],
-  by_member: bool,
-  by_box: bool,
+  kind: GeoSearchCommandKind,
 ) -> Result<ParsedGeoSearch, &'static [u8]> {
-  let mut parsed = ParsedGeoSearch {
-    opts: GeoSearchOptions {
-      search_type: if by_box {
-        GeoSearchType::ByBox
-      } else {
-        GeoSearchType::ByRadius
-      },
-      unit: GeoDistanceUnitType::M,
-      ..Default::default()
-    },
-    dest_idx: None,
-    end_idx: 0,
+  let mut opts = GeoSearchOptions {
+    unit: GeoDistanceUnitType::M,
+    ..Default::default()
   };
+  let mut dest: Option<Vec<u8>> = None;
+  let mut store_dist = false;
+  let mut arg_num_error = false;
+  let geo_search_family = matches!(
+    kind,
+    GeoSearchCommandKind::GeoSearch | GeoSearchCommandKind::GeoSearchStore
+  );
+  let mut idx = 0_usize;
 
-  let Some(unit_token) = args.first().copied() else {
-    return Err(b"ERR syntax error");
-  };
-
-  if by_member {
-    // FROMMEMBER member
-    parsed.opts.origin = GeoOriginType::FromMember;
-    parsed.opts.from_member = unit_token.to_vec();
-    parsed.end_idx = 1;
-  } else {
-    // FROMLONLON longitude latitude
-    let Some(latitude) = args.get(1).copied() else {
-      return Err(b"ERR syntax error");
-    };
-    let Some((lon, lat)) = try_get_geo_lon_lat(unit_token, latitude) else {
-      return Err(b"ERR invalid longitude,latitude pair");
-    };
-    parsed.opts.origin = GeoOriginType::FromLonLat;
-    parsed.opts.lon = lon;
-    parsed.opts.lat = lat;
-    parsed.end_idx = 2;
-  }
-
-  // 形状关键词可选（GEOSEARCH 显式 BYRADIUS/BYBOX；RADIUS 族省略）
-  if matches!(args.get(parsed.end_idx), Some(t) if equals_ignore_case(t, b"BYRADIUS") || equals_ignore_case(t, b"BYBOX"))
-  {
-    if equals_ignore_case(args[parsed.end_idx], b"BYBOX") {
-      parsed.opts.search_type = GeoSearchType::ByBox;
-    }
-    parsed.end_idx += 1;
-  }
-
-  // 半径/宽高 + 单位
-  let Some(shape_str) = args.get(parsed.end_idx).copied() else {
-    return Err(b"ERR syntax error");
-  };
-  let Some(shape) = str::from_utf8(shape_str).unwrap_or("").parse::<f64>().ok() else {
-    return Err(b"ERR value is not a valid float");
-  };
-  let Some(unit_token) = args.get(parsed.end_idx + 1).copied() else {
-    return Err(b"ERR syntax error");
-  };
-  let Some(unit) = try_get_geo_distance_unit(unit_token) else {
-    return Err(b"ERR unsupported unit provided. please use m, km, ft, mi");
-  };
-  if by_box {
-    parsed.opts.box_width = shape;
-    // BYBOX 需要宽高两值：宽=shape，高=下一数值（C# 中 box_height 复用 radius 槽）
-    let Some(height_str) = args.get(parsed.end_idx + 2).copied() else {
-      return Err(b"ERR syntax error");
-    };
-    let Some(height) = str::from_utf8(height_str).unwrap_or("").parse::<f64>().ok() else {
-      return Err(b"ERR value is not a valid float");
-    };
-    parsed.opts.radius = height;
-    parsed.end_idx += 3;
-  } else {
-    parsed.opts.radius = shape;
-    parsed.end_idx += 2;
-  }
-  parsed.opts.unit = unit;
-
-  // 其余修饰词
-  let mut count = -1_i64;
-  while parsed.end_idx < args.len() {
-    let token = args[parsed.end_idx];
-    if equals_ignore_case(token, b"ASC") {
-      parsed.opts.sort = GeoOrder::Ascending;
-      parsed.end_idx += 1;
-    } else if equals_ignore_case(token, b"DESC") {
-      parsed.opts.sort = GeoOrder::Descending;
-      parsed.end_idx += 1;
-    } else if equals_ignore_case(token, b"WITHCOORD") {
-      parsed.opts.with_coord = true;
-      parsed.end_idx += 1;
-    } else if equals_ignore_case(token, b"WITHDIST") {
-      parsed.opts.with_dist = true;
-      parsed.end_idx += 1;
-    } else if equals_ignore_case(token, b"WITHHASH") {
-      parsed.opts.with_hash = true;
-      parsed.end_idx += 1;
-    } else if equals_ignore_case(token, b"COUNT") {
-      let Some(v) = args.get(parsed.end_idx + 1).and_then(|t| t.try_parse_i64()) else {
-        return Err(b"ERR syntax error");
+  if !geo_search_family {
+    // GEORADIUS 族：圆心与形状为位置参数
+    if matches!(
+      kind,
+      GeoSearchCommandKind::GeoRadiusByMember | GeoSearchCommandKind::GeoRadiusByMemberRo
+    ) {
+      let Some(member) = args.first() else {
+        return Err(wrong_args(kind));
       };
-      count = v;
-      parsed.end_idx += 2;
-      // COUNT 后可选 ANY
-      if args
-        .get(parsed.end_idx)
-        .is_some_and(|t| equals_ignore_case(t, b"ANY"))
-      {
-        parsed.opts.with_count_any = true;
-        parsed.end_idx += 1;
-      }
-    } else if equals_ignore_case(token, b"STORE") || equals_ignore_case(token, b"STOREDIST") {
-      let Some(dest) = args.get(parsed.end_idx + 1) else {
-        return Err(b"ERR syntax error");
-      };
-      parsed.dest_idx = Some(args.len());
-      // 目标键由调用方以独立参数传入，此处仅记录标记并跳过词元
-      let _ = dest;
-      parsed.end_idx += 2;
+      opts.from_member = member.to_vec();
+      opts.origin = GeoOriginType::FromMember;
+      idx = 1;
     } else {
-      return Err(b"ERR syntax error");
+      let (Some(lon_tok), Some(lat_tok)) = (args.first().copied(), args.get(1).copied()) else {
+        return Err(wrong_args(kind));
+      };
+      let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
+        return Err(RESP_ERR_INVALID_LON_LAT);
+      };
+      opts.lon = lon;
+      opts.lat = lat;
+      opts.origin = GeoOriginType::FromLonLat;
+      idx = 2;
+    }
+
+    let Some(radius_tok) = args.get(idx).copied() else {
+      return Err(wrong_args(kind));
+    };
+    let Some(radius) = parse_double(radius_tok) else {
+      return Err(RESP_ERR_NOT_VALID_RADIUS);
+    };
+    if radius < 0.0 {
+      return Err(RESP_ERR_RADIUS_IS_NEGATIVE);
+    }
+    opts.radius = radius;
+    opts.search_type = GeoSearchType::ByRadius;
+    idx += 1;
+
+    let Some(unit_tok) = args.get(idx).copied() else {
+      return Err(wrong_args(kind));
+    };
+    let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
+      return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+    };
+    opts.unit = unit;
+    idx += 1;
+  }
+
+  // 修饰词 / GEOSEARCH 族的圆心与形状关键字
+  while idx < args.len() {
+    let token = args[idx];
+    idx += 1;
+
+    if geo_search_family {
+      if equals_ignore_case(token, b"FROMMEMBER") {
+        if opts.origin != GeoOriginType::Undefined {
+          return Err(b"ERR syntax error");
+        }
+        let Some(member) = args.get(idx) else {
+          arg_num_error = true;
+          break;
+        };
+        opts.from_member = member.to_vec();
+        opts.origin = GeoOriginType::FromMember;
+        idx += 1;
+        continue;
+      }
+
+      if equals_ignore_case(token, b"FROMLONLAT") {
+        if opts.origin != GeoOriginType::Undefined {
+          return Err(b"ERR syntax error");
+        }
+        let (Some(lon_tok), Some(lat_tok)) = (args.get(idx).copied(), args.get(idx + 1).copied())
+        else {
+          arg_num_error = true;
+          break;
+        };
+        let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
+          return Err(RESP_ERR_INVALID_LON_LAT);
+        };
+        opts.lon = lon;
+        opts.lat = lat;
+        opts.origin = GeoOriginType::FromLonLat;
+        idx += 2;
+        continue;
+      }
+
+      if equals_ignore_case(token, b"BYRADIUS") {
+        if opts.search_type != GeoSearchType::Undefined {
+          return Err(b"ERR syntax error");
+        }
+        let (Some(radius_tok), Some(unit_tok)) =
+          (args.get(idx).copied(), args.get(idx + 1).copied())
+        else {
+          arg_num_error = true;
+          break;
+        };
+        let Some(radius) = parse_double(radius_tok) else {
+          return Err(RESP_ERR_NOT_VALID_RADIUS);
+        };
+        if radius < 0.0 {
+          return Err(RESP_ERR_RADIUS_IS_NEGATIVE);
+        }
+        let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
+          return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+        };
+        opts.radius = radius;
+        opts.search_type = GeoSearchType::ByRadius;
+        opts.unit = unit;
+        idx += 2;
+        continue;
+      }
+
+      if equals_ignore_case(token, b"BYBOX") {
+        if opts.search_type != GeoSearchType::Undefined {
+          return Err(b"ERR syntax error");
+        }
+        let (Some(width_tok), Some(height_tok), Some(unit_tok)) = (
+          args.get(idx).copied(),
+          args.get(idx + 1).copied(),
+          args.get(idx + 2).copied(),
+        ) else {
+          arg_num_error = true;
+          break;
+        };
+        let Some(width) = parse_double(width_tok) else {
+          return Err(RESP_ERR_NOT_VALID_WIDTH);
+        };
+        let Some(height) = parse_double(height_tok) else {
+          return Err(RESP_ERR_NOT_VALID_HEIGHT);
+        };
+        if width < 0.0 || height < 0.0 {
+          return Err(RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE);
+        }
+        let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
+          return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+        };
+        opts.box_width = width;
+        // 高度复用 radius 槽位（C# GeoSearchOptions.boxHeight 即 radius）
+        opts.radius = height;
+        opts.search_type = GeoSearchType::ByBox;
+        opts.unit = unit;
+        idx += 3;
+        continue;
+      }
+    }
+
+    if equals_ignore_case(token, b"ASC") {
+      opts.sort = GeoOrder::Ascending;
+      continue;
+    }
+    if equals_ignore_case(token, b"DESC") {
+      opts.sort = GeoOrder::Descending;
+      continue;
+    }
+
+    if equals_ignore_case(token, b"COUNT") {
+      let Some(count_tok) = args.get(idx) else {
+        arg_num_error = true;
+        break;
+      };
+      let Some(v) = count_tok.try_parse_i64() else {
+        return Err(b"ERR value is not an integer or out of range");
+      };
+      if v <= 0 {
+        return Err(RESP_ERR_COUNT_IS_NOT_POSITIVE);
+      }
+      opts.count_value = v;
+      idx += 1;
+      if let Some(peek) = args.get(idx)
+        && equals_ignore_case(peek, b"ANY")
+      {
+        opts.with_count_any = true;
+        idx += 1;
+      }
+      continue;
+    }
+
+    // STORE/STOREDIST：仅 GEORADIUS 写变体可携带目标键；GEOSEARCHSTORE 的
+    // STOREDIST 只置距离标记（目标键为命令首参）
+    if kind.store_allowed() && equals_ignore_case(token, b"STORE") {
+      let Some(dest_tok) = args.get(idx) else {
+        arg_num_error = true;
+        break;
+      };
+      dest = Some(dest_tok.to_vec());
+      idx += 1;
+      continue;
+    }
+    if !matches!(
+      kind,
+      GeoSearchCommandKind::GeoSearch
+        | GeoSearchCommandKind::GeoRadiusRo
+        | GeoSearchCommandKind::GeoRadiusByMemberRo
+    ) && equals_ignore_case(token, b"STOREDIST")
+    {
+      if kind.store_allowed() {
+        let Some(dest_tok) = args.get(idx) else {
+          arg_num_error = true;
+          break;
+        };
+        dest = Some(dest_tok.to_vec());
+        idx += 1;
+      }
+      store_dist = true;
+      continue;
+    }
+
+    if equals_ignore_case(token, b"WITHCOORD") {
+      opts.with_coord = true;
+      continue;
+    }
+    if equals_ignore_case(token, b"WITHDIST") {
+      opts.with_dist = true;
+      continue;
+    }
+    if equals_ignore_case(token, b"WITHHASH") {
+      opts.with_hash = true;
+      continue;
+    }
+
+    return Err(b"ERR syntax error");
+  }
+
+  // 圆心与形状均必填
+  if opts.origin == GeoOriginType::Undefined || opts.search_type == GeoSearchType::Undefined {
+    arg_num_error = true;
+  }
+  if arg_num_error {
+    return Err(wrong_args(kind));
+  }
+
+  // 存储变体：WITH* 互斥；分数取 GeoHash 或距离（二者必居其一）
+  if dest.is_some() || kind == GeoSearchCommandKind::GeoSearchStore {
+    if opts.with_dist || opts.with_coord || opts.with_hash {
+      return Err(store_incompat(kind));
+    }
+    opts.with_dist = store_dist;
+    if !opts.with_dist {
+      opts.with_hash = true;
     }
   }
 
-  parsed.opts.count_value = count;
-  Ok(parsed)
+  Ok(ParsedGeoSearch { opts, dest })
+}
+
+/// wrong number of arguments 错误帧（按命令名展开）
+fn wrong_args(kind: GeoSearchCommandKind) -> &'static [u8] {
+  match kind {
+    GeoSearchCommandKind::GeoSearch => b"ERR wrong number of arguments for 'GEOSEARCH' command",
+    GeoSearchCommandKind::GeoSearchStore => {
+      b"ERR wrong number of arguments for 'GEOSEARCHSTORE' command"
+    }
+    GeoSearchCommandKind::GeoRadius => b"ERR wrong number of arguments for 'GEORADIUS' command",
+    GeoSearchCommandKind::GeoRadiusRo => {
+      b"ERR wrong number of arguments for 'GEORADIUS_RO' command"
+    }
+    GeoSearchCommandKind::GeoRadiusByMember => {
+      b"ERR wrong number of arguments for 'GEORADIUSBYMEMBER' command"
+    }
+    GeoSearchCommandKind::GeoRadiusByMemberRo => {
+      b"ERR wrong number of arguments for 'GEORADIUSBYMEMBER_RO' command"
+    }
+  }
+}
+
+/// STORE 与 WITH* 互斥错误帧（对标 CmdStrings.GenericErrStoreCommand）
+fn store_incompat(kind: GeoSearchCommandKind) -> &'static [u8] {
+  match kind {
+    GeoSearchCommandKind::GeoSearchStore => b"ERR STORE option in GEOSEARCHSTORE is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
+    GeoSearchCommandKind::GeoRadius => b"ERR STORE option in GEORADIUS is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
+    GeoSearchCommandKind::GeoRadiusByMember => b"ERR STORE option in GEORADIUSBYMEMBER is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
+    _ => b"ERR syntax error",
+  }
 }
 
 impl RespServerSession {
@@ -255,20 +451,36 @@ impl RespServerSession {
       idx += 3;
     }
 
-    let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => SortedSetObject::new(),
+    let (mut obj, existed) = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => (SortedSetObject::new(), false),
+      ZsetLoad::Present(o) => (o, true),
     };
 
-    let mut obj_out = ObjectOutput::new();
     let (input, _backing) = make_input_for_geo(
       SortedSetOperation::Geoadd,
       &parse_state[member_start..],
       add_option.bits() as i32,
       0,
     );
+    let mut obj_out = ObjectOutput::new();
     obj.operate(&input, &mut obj_out, 2);
-    let _ = store.try_upsert_sync(key, &zset_to_blob(&obj));
+
+    // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）
+    if obj_out.payload.first() != Some(&b'-')
+      && !obj_out.has_wrong_type()
+      && (existed || !obj.sorted_set_dict.is_empty())
+    {
+      match zset_save_or_gc(store, key, &obj) {
+        Ok(true) => {}
+        Ok(false) => return Ok(false),
+        Err(()) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
+    }
     output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
@@ -283,160 +495,144 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     op: SortedSetOperation,
   ) -> wresp::Result<bool> {
-    let required = match op {
-      SortedSetOperation::Geodist => 3,
-      _ => 2,
+    let name = match op {
+      SortedSetOperation::Geodist => {
+        // GEODIST key m1 m2 [unit]：单位词元合法性前置校验
+        if parse_state.len() == 4 && try_get_geo_distance_unit(parse_state[3]).is_none() {
+          output.extend_from_slice(b"-ERR unsupported unit provided. please use M, KM, FT, MI\r\n");
+          return Ok(true);
+        }
+        "GEODIST"
+      }
+      SortedSetOperation::Geohash => "GEOHASH",
+      _ => "GEOPOS",
     };
-    if parse_state.len() < required {
-      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+    if parse_state.is_empty() {
+      output.extend_from_slice(
+        format!("-ERR wrong number of arguments for '{name}' command\r\n").as_bytes(),
+      );
       return Ok(true);
     }
 
     let key = parse_state[0];
-    let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => SortedSetObject::new(),
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
+        // 键缺失：GEODIST → null；GEOHASH/GEOPOS → 每成员 null 数组项
+        if op == SortedSetOperation::Geodist {
+          output.write_resp_null();
+        } else {
+          output.write_resp_array_len(parse_state.len() - 1);
+          for _ in 1..parse_state.len() {
+            output.extend_from_slice(b"*-1\r\n");
+          }
+        }
+        return Ok(true);
+      }
+      ZsetLoad::Present(o) => o,
     };
 
-    let mut obj_out = ObjectOutput::new();
     let (input, _backing) = make_input_for_geo(op, &parse_state[1..], 0, 0);
+    let mut obj_out = ObjectOutput::new();
     obj.operate(&input, &mut obj_out, 2);
     output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
-  /// GEOSEARCH / GEOSEARCHSTORE / GEORADIUS / GEORADIUSBYMEMBER（含 _RO 族）
+  /// GEOSEARCH / GEOSEARCHSTORE / GEORADIUS(_RO) / GEORADIUSBYMEMBER(_RO)
   ///
   /// libs/server/Resp/Objects/SortedSetGeoCommands.cs:GeoSearchCommands
-  ///
-  /// - `by_member`：圆心取自成员（GEORADIUSBYMEMBER/GEOSEARCH FROMMEMBER）
-  /// - `by_box`：矩形（GEOSEARCH BYBOX）
-  /// - `store_dist`：GEOSEARCHSTORE 存距离
   pub fn geo_search_commands<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
-    by_member: bool,
-    by_box: bool,
-    store_dist: bool,
+    kind: GeoSearchCommandKind,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+    if parse_state.len() < kind.params_required() {
+      output.extend_from_slice(
+        format!(
+          "-ERR wrong number of arguments for '{}' command\r\n",
+          kind.name()
+        )
+        .as_bytes(),
+      );
       return Ok(true);
     }
 
     // GEOSEARCHSTORE：首参为目标键，源为第二参
-    let (dest_key, src_idx) = if store_dist {
-      match parse_state.get(1).copied() {
-        Some(dst) => (Some(dst), 1),
-        None => {
-          output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
-          return Ok(true);
-        }
-      }
-    } else {
-      (None, 0)
-    };
-    let key = parse_state[src_idx];
+    let source_idx = usize::from(kind == GeoSearchCommandKind::GeoSearchStore);
+    let key = parse_state[source_idx];
+    let args = &parse_state[source_idx + 1..];
 
-    let mut obj = match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(raw))) => zset_from_blob(&raw),
-      _ => {
-        output.extend_from_slice(b"*0\r\n");
+    let parsed = match try_get_geo_search_options(args, kind) {
+      Ok(p) => p,
+      // 具体错误文本（参数个数/单位/半径/COUNT/STORE 互斥等）逐字透传
+      Err(e) => {
+        output.push(b'-');
+        output.extend_from_slice(e);
+        output.extend_from_slice(b"\r\n");
         return Ok(true);
       }
     };
-
-    let rest = &parse_state[src_idx + 1..];
-
-    let Ok(parsed) = try_get_geo_search_options(rest, by_member, by_box) else {
-      output.extend_from_slice(b"-ERR syntax error\r\n");
-      return Ok(true);
+    let mut opts = parsed.opts;
+    // 存储变体的目标键：STORE/STOREDIST 携带，或 GEOSEARCHSTORE 的命令首参
+    let store_dest = match parsed.dest {
+      Some(d) => Some(d),
+      None if kind == GeoSearchCommandKind::GeoSearchStore => Some(parse_state[0].to_vec()),
+      None => None,
     };
 
-    let mut opts = parsed.opts;
-    let mut obj_out = ObjectOutput::new();
-    obj.geo_search(&mut opts, &mut obj_out, 2, true);
+    let mut obj = match zset_load_sync(store, key, output) {
+      ZsetLoad::Degrade => return Ok(false),
+      ZsetLoad::Error => return Ok(true),
+      ZsetLoad::Missing => {
+        // 源缺失：读变体空数组；存储变体删除目标键后回 :0（C# EXPIRE(destination, 0)）
+        match &store_dest {
+          Some(dest) => match zset_save_or_gc(store, dest, &SortedSetObject::new()) {
+            Ok(true) => output.extend_from_slice(b":0\r\n"),
+            Ok(false) => return Ok(false),
+            Err(()) => output.write_resp_error("generic error"),
+          },
+          None => output.extend_from_slice(b"*0\r\n"),
+        }
+        return Ok(true);
+      }
+      ZsetLoad::Present(o) => o,
+    };
 
-    match dest_key {
-      None => output.extend_from_slice(&obj_out.payload),
+    match store_dest {
+      None => {
+        let mut obj_out = ObjectOutput::new();
+        obj.geo_search(&mut opts, &mut obj_out, 2, true);
+        output.extend_from_slice(&obj_out.payload);
+      }
       Some(dest) => {
-        // GEOSEARCHSTORE：命中成员以 GeoHash 分值落入目标集合
-        let _ = store_dist;
+        // 存储变体（解析层已强制 withHash 或 withDist）：分值取 GeoHash 或距离，
+        // 命中成员成对落目标集合（对标 C# GeoSearchStore 的 ZADD 收尾）
+        let mut obj_out = ObjectOutput::new();
+        obj.geo_search(&mut opts, &mut obj_out, 2, false);
+        if obj_out.payload.first() == Some(&b'-') {
+          // FROMMEMBER 圆心缺失等对象层错误透传
+          output.extend_from_slice(&obj_out.payload);
+          return Ok(true);
+        }
         let mut dst = SortedSetObject::new();
-        for line in obj_out.payload.split(|&b| b == b'\n') {
-          let _ = line;
+        for (member, score) in parse_pairs_payload(&obj_out.payload) {
+          dst.sorted_set_dict.insert(member.clone(), score);
+          dst.sorted_set.insert(SortedSetEntry { score, member });
         }
-        // 成员直接来自对象层排序结果：此处按 opts 重新计算命中集并入目标
-        let mut probe = ObjectOutput::new();
-        let mut read_opts = opts.clone();
-        read_opts.with_coord = false;
-        read_opts.with_dist = false;
-        read_opts.with_hash = false;
-        read_opts.sort = GeoOrder::Ascending;
-        obj.geo_search(&mut read_opts, &mut probe, 2, true);
-        let members: Vec<Vec<u8>> = extract_bulk_members(&probe.payload);
-        for member in members {
-          if let Some(score) = obj.sorted_set_dict.get(&member).copied() {
-            dst.sorted_set_dict.insert(member.clone(), score);
-            dst.sorted_set.insert(SortedSetEntry { score, member });
-          }
+        let count = dst.sorted_set_dict.len();
+        match zset_save_or_gc(store, &dest, &dst) {
+          Ok(true) => output.write_resp_int(count as i64),
+          Ok(false) => return Ok(false),
+          Err(()) => output.write_resp_error("generic error"),
         }
-        let _ = store.try_upsert_sync(dest, &zset_to_blob(&dst));
-        output.write_resp_int(dst.sorted_set_dict.len() as i64);
       }
     }
     Ok(true)
   }
-}
-
-/// 从 GEOSEARCH 回复中提取成员序列（扁平与成对负载兼容）
-fn extract_bulk_members(payload: &[u8]) -> Vec<Vec<u8>> {
-  let mut members = Vec::new();
-  let mut pos = 0;
-
-  // 跳过外层数组头
-  if payload.first() == Some(&b'*')
-    && let Some(end) = find_crlf(payload, 0)
-  {
-    pos = end + 2;
-  }
-
-  while pos < payload.len() {
-    if payload[pos] != b'$' {
-      break;
-    }
-    let Some(line_end) = find_crlf(payload, pos) else {
-      break;
-    };
-    let Ok(len) = str::from_utf8(&payload[pos + 1..line_end])
-      .unwrap_or("")
-      .parse::<usize>()
-    else {
-      break;
-    };
-    let start = line_end + 2;
-    let end = start + len;
-    if end + 2 > payload.len() {
-      break;
-    }
-    members.push(payload[start..end].to_vec());
-    pos = end + 2;
-
-    // 嵌套数组头跳过（*<n>\r\n）
-    if payload.get(pos) == Some(&b'*')
-      && let Some(end) = find_crlf(payload, pos)
-    {
-      pos = end + 2;
-    }
-  }
-
-  members
-}
-
-fn find_crlf(payload: &[u8], from: usize) -> Option<usize> {
-  (from..payload.len().saturating_sub(1)).find(|&i| payload[i] == b'\r' && payload[i + 1] == b'\n')
 }
 
 #[cfg(test)]
@@ -458,6 +654,15 @@ mod tests {
     let store = Arc::new(WedbStore::open(config, device).unwrap());
     let session = store.new_session().unwrap();
     (dir, store, session)
+  }
+
+  /// 读回键的原始信封载荷
+  fn raw_value(batch: &wkv::BatchStoreSession<'_, SegmentedDevice>, key: &[u8]) -> Option<Vec<u8>> {
+    batch
+      .try_read_sync(key, |v| v.to_vec())
+      .ok()
+      .flatten()
+      .flatten()
   }
 
   #[test]
@@ -491,6 +696,37 @@ mod tests {
       .geo_add(&[b"cities", b"NX", b"0.0", b"0.0", b"sf"], &batch, &mut out)
       .unwrap();
     assert_eq!(out, b":0\r\n");
+
+    // GEOADD NX 新成员照常新增（NX 只挡更新，对齐 C#/Redis）
+    out.clear();
+    sess
+      .geo_add(
+        &[b"cities", b"NX", b"0.0", b"0.0", b"nyc"],
+        &batch,
+        &mut out,
+      )
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    // GEOADD XX 新成员不落地
+    out.clear();
+    sess
+      .geo_add(&[b"cities", b"XX", b"0.0", b"0.0", b"la"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    sess
+      .geo_commands(
+        &[b"cities", b"la"],
+        &batch,
+        &mut out,
+        SortedSetOperation::Geopos,
+      )
+      .unwrap();
+    assert!(
+      out.windows(5).any(|w| w == b"*-1\r\n") || out.windows(4).any(|w| w == b"$-1\r\n"),
+      "{out:?}"
+    );
 
     // GEOHASH
     out.clear();
@@ -533,11 +769,27 @@ mod tests {
       .unwrap()
       .parse()
       .unwrap();
-    assert!((dist - 8967.0).abs() < 30.0, "{dist}");
+    assert!((dist - 8967.0).abs() < 30.0);
+
+    // WRONGTYPE：非 zset 信封键上 GEOADD 拒绝且不覆盖
+    let _ = batch.try_upsert_sync(b"str", b"plain-string-value");
+    out.clear();
+    sess
+      .geo_add(&[b"str", b"0.0", b"0.0", b"m"], &batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"-WRONGTYPE"), "{out:?}");
+    assert_eq!(
+      batch
+        .try_read_sync(b"str", |v| v.to_vec())
+        .ok()
+        .flatten()
+        .flatten(),
+      Some(b"plain-string-value".to_vec())
+    );
   }
 
   #[test]
-  fn geosearch_by_radius_from_lonlat() {
+  fn geosearch_keyword_grammar() {
     let (_dir, _store, session) = fixture("gsearch.db");
     let batch = session.enter_batch();
     let mut sess = RespServerSession;
@@ -560,11 +812,12 @@ mod tests {
       .unwrap();
     out.clear();
 
-    // GEOSEARCH pts FROMLONLAT -122.4194 37.7749 BYRADIUS 100 km
+    // GEOSEARCH pts FROMLONLAT lon lat BYRADIUS 100 km WITHDIST（标准文法）
     sess
       .geo_search_commands(
         &[
           b"pts",
+          b"FROMLONLAT",
           b"-122.4194",
           b"37.7749",
           b"BYRADIUS",
@@ -574,43 +827,324 @@ mod tests {
         ],
         &batch,
         &mut out,
-        false,
-        false,
-        false,
+        GeoSearchCommandKind::GeoSearch,
       )
       .unwrap();
     let payload = String::from_utf8_lossy(&out);
     assert!(payload.contains("sf"), "{payload}");
     assert!(!payload.contains("la"), "{payload}");
 
-    // FROMMEMBER
+    // GEOSEARCH FROMMEMBER 关键字
     out.clear();
     sess
       .geo_search_commands(
-        &[b"pts", b"la", b"BYRADIUS", b"400", b"km"],
+        &[b"pts", b"FROMMEMBER", b"la", b"BYRADIUS", b"600", b"km"],
         &batch,
         &mut out,
-        true,
-        false,
-        false,
+        GeoSearchCommandKind::GeoSearch,
       )
       .unwrap();
     let payload = String::from_utf8_lossy(&out);
     assert!(payload.contains("la"), "{payload}");
-    assert!(!payload.contains("sf"), "{payload}");
+    assert!(payload.contains("sf"), "{payload}");
 
-    // GEOSEARCHSTORE
+    // GEOSEARCH BYBOX 关键字（300km × 300km 覆盖 sf，不含 la）
     out.clear();
     sess
       .geo_search_commands(
-        &[b"store", b"pts", b"la", b"BYRADIUS", b"400", b"km"],
+        &[
+          b"pts",
+          b"FROMLONLAT",
+          b"-122.4194",
+          b"37.7749",
+          b"BYBOX",
+          b"300",
+          b"300",
+          b"km",
+        ],
         &batch,
         &mut out,
-        true,
-        false,
-        true,
+        GeoSearchCommandKind::GeoSearch,
+      )
+      .unwrap();
+    let payload = String::from_utf8_lossy(&out);
+    assert!(payload.contains("sf"), "{payload}");
+    assert!(!payload.contains("la"), "{payload}");
+
+    // 缺形状关键字 → 参数个数错误
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[b"pts", b"FROMLONLAT", b"-122.4194", b"37.7749"],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoSearch,
+      )
+      .unwrap();
+    assert!(
+      out.starts_with(b"-ERR wrong number of arguments for 'GEOSEARCH'"),
+      "{out:?}"
+    );
+
+    // 圆心重复 → 语法错误
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[
+          b"pts",
+          b"FROMMEMBER",
+          b"la",
+          b"FROMLONLAT",
+          b"1",
+          b"2",
+          b"BYRADIUS",
+          b"10",
+          b"km",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoSearch,
+      )
+      .unwrap();
+    assert!(out.starts_with(b"-ERR syntax error"), "{out:?}");
+
+    // COUNT 非正数 → 专用错误
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[
+          b"pts",
+          b"FROMMEMBER",
+          b"la",
+          b"BYRADIUS",
+          b"600",
+          b"km",
+          b"COUNT",
+          b"0",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoSearch,
+      )
+      .unwrap();
+    assert!(out.starts_with(b"-ERR COUNT must be > 0"), "{out:?}");
+  }
+
+  #[test]
+  fn georadius_positional_and_store() {
+    let (_dir, _store, session) = fixture("gradius.db");
+    let batch = session.enter_batch();
+    let mut sess = RespServerSession;
+    let mut out = Vec::new();
+
+    sess
+      .geo_add(
+        &[
+          b"pts",
+          b"-122.4194",
+          b"37.7749",
+          b"sf",
+          b"-118.2437",
+          b"34.0522",
+          b"la",
+        ],
+        &batch,
+        &mut out,
+      )
+      .unwrap();
+    out.clear();
+
+    // GEORADIUS 位置文法 + STOREDIST：目标以"距离"为分值
+    sess
+      .geo_search_commands(
+        &[
+          b"pts",
+          b"-122.4194",
+          b"37.7749",
+          b"400",
+          b"km",
+          b"STOREDIST",
+          b"near",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoRadius,
       )
       .unwrap();
     assert_eq!(out, b":1\r\n");
+
+    // near 中仅 sf，分值为请求单位下的距离（km → 数值 < 400）
+    out.clear();
+    sess
+      .sorted_set_score(&[b"near", b"sf"], &batch, &mut out)
+      .unwrap();
+    let score: f64 = String::from_utf8_lossy(&out)
+      .lines()
+      .nth(1)
+      .unwrap()
+      .parse()
+      .unwrap();
+    assert!((0.0..400.0).contains(&score), "{score}");
+
+    // STORE：分值为 52 位 GeoHash 整数
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[
+          b"pts",
+          b"-122.4194",
+          b"37.7749",
+          b"400",
+          b"km",
+          b"STORE",
+          b"nearhash",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoRadius,
+      )
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+    out.clear();
+    sess
+      .sorted_set_score(&[b"nearhash", b"sf"], &batch, &mut out)
+      .unwrap();
+    let hash_score: f64 = String::from_utf8_lossy(&out)
+      .lines()
+      .nth(1)
+      .unwrap()
+      .parse()
+      .unwrap();
+    assert!(
+      hash_score > 0.0 && (hash_score as u64) < (1_u64 << 52),
+      "{hash_score}"
+    );
+
+    // STORE + WITHDIST 互斥
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[
+          b"pts",
+          b"-122.4194",
+          b"37.7749",
+          b"400",
+          b"km",
+          b"STORE",
+          b"x",
+          b"WITHDIST",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoRadius,
+      )
+      .unwrap();
+    assert!(
+      out.starts_with(b"-ERR STORE option in GEORADIUS is not compatible"),
+      "{out:?}"
+    );
+
+    // GEORADIUSBYMEMBER 位置文法
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[b"pts", b"la", b"600", b"km"],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoRadiusByMember,
+      )
+      .unwrap();
+    let payload = String::from_utf8_lossy(&out);
+    assert!(payload.contains("sf"), "{payload}");
+  }
+
+  #[test]
+  fn geosearchstore_dest_is_first_arg() {
+    let (_dir, _store, session) = fixture("gstore.db");
+    let batch = session.enter_batch();
+    let mut sess = RespServerSession;
+    let mut out = Vec::new();
+
+    sess
+      .geo_add(
+        &[
+          b"pts",
+          b"-122.4194",
+          b"37.7749",
+          b"sf",
+          b"2.3522",
+          b"48.8566",
+          b"paris",
+        ],
+        &batch,
+        &mut out,
+      )
+      .unwrap();
+    out.clear();
+
+    // 目标键必须是 parse_state[0]（dest），源为第二参；此前误用源键会覆写 pts
+    sess
+      .geo_search_commands(
+        &[
+          b"store",
+          b"pts",
+          b"FROMLONLAT",
+          b"-122.4194",
+          b"37.7749",
+          b"BYRADIUS",
+          b"100",
+          b"km",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoSearchStore,
+      )
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    // store 命中 sf（GeoHash 分值），pts 原样保留两成员
+    out.clear();
+    sess
+      .geo_commands(
+        &[b"store", b"sf"],
+        &batch,
+        &mut out,
+        SortedSetOperation::Geohash,
+      )
+      .unwrap();
+    assert!(out.starts_with(b"*1\r\n$11\r\n9q8yy"), "{out:?}");
+    out.clear();
+    sess
+      .geo_commands(
+        &[b"pts", b"sf", b"paris"],
+        &batch,
+        &mut out,
+        SortedSetOperation::Geohash,
+      )
+      .unwrap();
+    assert!(out.starts_with(b"*2\r\n"), "{out:?}");
+
+    // 源缺失：目标删除 + :0
+    let _ = batch.try_upsert_sync(b"gone", b"x");
+    out.clear();
+    sess
+      .geo_search_commands(
+        &[
+          b"gone",
+          b"no-such",
+          b"FROMLONLAT",
+          b"0",
+          b"0",
+          b"BYRADIUS",
+          b"10",
+          b"km",
+        ],
+        &batch,
+        &mut out,
+        GeoSearchCommandKind::GeoSearchStore,
+      )
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    assert!(raw_value(&batch, b"gone").is_none());
   }
 }

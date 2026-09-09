@@ -184,9 +184,11 @@ impl ObjectOutput {
     self.write_bulk_string(buf.format(item).as_bytes());
   }
 
-  /// 双精度浮点：NaN → "nan"，±∞ → "inf"/"-inf"，其余走最短往返表示
-  /// （对标 RespWriteUtils.TryFormat 路径；指数记法大小写差异见文件头说明）
-  fn format_double(value: f64) -> String {
+  /// 双精度浮点 → Redis 文本：NaN → "nan"，±∞ → "inf"/"-inf"，其余最短往返表示
+  ///
+  /// （对标 RespWriteUtils.TryFormat 路径；指数记法大小写差异见文件头说明；
+  /// ZSCAN 分值文本与命令层回显共用此处一处定义）
+  pub(crate) fn format_double(value: f64) -> String {
     if value.is_nan() {
       "nan".to_string()
     } else if value.is_infinite() {
