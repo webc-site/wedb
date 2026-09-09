@@ -166,6 +166,13 @@ pub struct RangeIndexManager {
   pub(crate) live_indexes: GxPapayaMap<u128, Arc<TreeEntry>>,
   /// 全局检查点进行中标记
   pub(crate) checkpoint_in_progress: AtomicBool,
+  /// 带地址刷盘文件存在疑似标记 (惰性恢复的目录扫描门控)
+  ///
+  /// `get_or_open_tree` 选最新带地址刷盘文件需 O(目录条目数) 扫描；未接线
+  /// on_flush 的常态部署下该类文件恒不存在，逐次全目录扫描纯属浪费。保守初值
+  /// true (首例恢复做一次扫描证伪)，证伪后关闭扫描通道恢复 O(1) stat 路径；
+  /// `on_flush_address` / 预分阶段路径产生此类文件时重新开启。
+  pub(crate) addr_flush_scan_pending: AtomicBool,
   /// 键哈希分段读写条带锁
   pub(crate) locks: RangeIndexLocks,
 }
@@ -198,8 +205,31 @@ impl RangeIndexManager {
       migration_temp_dir,
       live_indexes: new_papaya_map(),
       checkpoint_in_progress: AtomicBool::new(false),
+      addr_flush_scan_pending: AtomicBool::new(true),
       locks: RangeIndexLocks::new(),
     }
+  }
+
+  /// 是否需要扫描带地址刷盘文件 (惰性恢复路径的 O(1) 门控探针)
+  #[inline]
+  pub(crate) fn addr_flush_scan_pending(&self) -> bool {
+    self.addr_flush_scan_pending.load(Ordering::Acquire)
+  }
+
+  /// 全量扫描未发现任何带地址刷盘文件，关闭扫描通道
+  ///
+  /// 良性竞态：关闭瞬间恰有 `on_flush_address` 产出新文件的窗口内，并发恢复可能
+  /// 跳过该刷盘文件而回退到 data.bftree——工作文件是实时 pwrite 的活跃副本，永不
+  /// 陈旧于任何刷盘快照，恢复结果只会更新，不会丢失数据。
+  #[inline]
+  pub(crate) fn settle_addr_flush_scan(&self) {
+    self.addr_flush_scan_pending.store(false, Ordering::Release);
+  }
+
+  /// 带地址刷盘文件已产生 (on_flush_address / 预分阶段)，重新开启恢复扫描
+  #[inline]
+  pub(crate) fn notice_addr_flush_files(&self) {
+    self.addr_flush_scan_pending.store(true, Ordering::Release);
   }
 
   /// 生成临时迁移文件路径 ({ri_log_root}/migration-tmp/{random_id}.bftree) (1:1 对标 Garnet DeriveTempMigrationPath)
