@@ -95,10 +95,4 @@ impl RecordOutput {
   pub fn total_size(&self) -> Result<usize> {
     self.as_record_ref().map(|r| r.total_size())
   }
-
-  /// 转换为独立的拥有所有权的 (key, value) 字节数组对
-  pub fn into_owned_kv(self) -> Result<(Vec<u8>, Vec<u8>)> {
-    let r = self.as_record_ref()?;
-    Ok((r.key().to_vec(), r.value().to_vec()))
-  }
 }

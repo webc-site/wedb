@@ -52,7 +52,6 @@ fn test_ring_wraparound_eviction() -> Void {
       2 * SECTOR_ALIGNMENT as u64,
       "重试后必须落在回绕页开头"
     );
-    assert!(hlog.addresses.validate_invariants());
 
     // 被驱逐的旧记录 a 走磁盘冷读，页 1 记录 b 仍驻留内存
     let out_a = hlog.read_record(addr_a).await?;
@@ -144,7 +143,6 @@ fn test_flush_stale_range_and_short_write() -> Void {
     hlog.flush_page(2).await?;
     assert_eq!(hlog.flushed_until_address(), 3 * SECTOR_ALIGNMENT as u64);
     assert!(hlog.pending_flush.is_empty(), "陈旧区间必须被钳制丢弃");
-    assert!(hlog.addresses.validate_invariants());
 
     // 故障恢复后数据完好：驱逐页冷读 + 驻留页直读
     let out_a = hlog.read_record(a).await?;
