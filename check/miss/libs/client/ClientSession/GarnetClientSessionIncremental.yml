@@ -1,4 +1,0 @@
-fn:
-  - GetAvailableNetworkBufferSpan
-  - TrackIterationProgress
-  - EnsureTcsIsEnqueued

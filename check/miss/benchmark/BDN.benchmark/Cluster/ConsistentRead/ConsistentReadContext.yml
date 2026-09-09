@@ -1,6 +1,0 @@
-fn:
-  - SetupInstance
-  - AddSlotRange
-  - PopulateKeys
-  - ForceReplicaRole
-  - PreSeedSequenceNumbers

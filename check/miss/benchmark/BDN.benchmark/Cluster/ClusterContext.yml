@@ -1,6 +1,0 @@
-fn:
-  - SetupSingleInstance
-  - AddSlotRange
-  - CreateGetSet
-  - CreateMGetMSet
-  - CreateCTXNSET

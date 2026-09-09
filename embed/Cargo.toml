@@ -13,10 +13,12 @@ members = [
   "windex",
   "wkv",
   "wram",
-  "wrecord", "wresp",
-  "wreviv", "wutil",
+  "wrecord",
+  "wreviv",
+  "wutil",
   "wval",
-  "wserver", "wobject", "waof", "wacl", "wsync", "ext_noop", "ext_roaring", "ext_json", "wlua",
+  "wobject",
+  "wsync",
 ]
 
 [workspace.dependencies]

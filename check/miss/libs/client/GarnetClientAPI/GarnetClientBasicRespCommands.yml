@@ -1,8 +1,0 @@
-fn:
-  - Quit
-  - Ping
-  - StringGetAsMemoryAsync
-  - StringGet
-  - StringGetAsMemory
-  - StringSet
-  - KeyDelete

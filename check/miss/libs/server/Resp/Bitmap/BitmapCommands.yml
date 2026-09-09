@@ -1,0 +1,8 @@
+fn:
+  - NetworkStringSetBit
+  - NetworkStringGetBit
+  - NetworkStringBitCount
+  - NetworkStringBitPosition
+  - NetworkStringBitOperation
+  - StringBitFieldAction
+  - HandleFirstSubCommand

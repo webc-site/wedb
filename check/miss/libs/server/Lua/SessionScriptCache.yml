@@ -1,8 +1,0 @@
-fn:
-  - StartRunningScript
-  - StopRunningScript
-  - RequestTimeout
-  - TryGetFromDigest
-  - TryLoad
-  - TrySwapDatabaseSessions
-  - GetScriptDigest

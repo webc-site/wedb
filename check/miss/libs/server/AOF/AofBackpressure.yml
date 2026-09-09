@@ -1,5 +1,0 @@
-fn:
-  - SetBudget
-  - WaitSlow
-  - AnyStalled
-  - SetLog

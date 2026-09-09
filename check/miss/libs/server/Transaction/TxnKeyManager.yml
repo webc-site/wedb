@@ -1,5 +1,0 @@
-fn:
-  - SaveKeyEntryToLock
-  - ResetCacheSlotVerificationResult
-  - VerifyKeyOwnership
-  - LockKeys

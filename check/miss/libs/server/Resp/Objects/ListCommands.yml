@@ -1,0 +1,6 @@
+fn:
+  - ListBlockingPop
+  - ListBlockingMove
+  - ListBlockingPopPush
+  - ListRightPopLeftPush
+  - ListBlockingPopMultiple
