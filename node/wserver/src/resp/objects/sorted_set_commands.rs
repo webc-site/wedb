@@ -1,8 +1,10 @@
+use std::{io::Cursor, str};
+
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
 
-use crate::resp::parser::resp_ext::RespSliceExt;
+use crate::resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession};
 
-impl crate::resp::resp_server_session::RespServerSession {
+impl RespServerSession {
   pub fn sorted_set_add<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -17,7 +19,7 @@ impl crate::resp::resp_server_session::RespServerSession {
 
     let zset = match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         SortedSetObject::deserialize(&mut cursor).unwrap_or_else(|_| SortedSetObject::new())
       }
       _ => SortedSetObject::new(),
@@ -64,7 +66,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
           if let Some(score) = zset.operate(SortedSetOperation::Zscore, member, 0.0) {
             let score_str = format!("{}", score);
@@ -103,7 +105,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
           let mut removed = 0;
           for member in members {
@@ -147,7 +149,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
           let count = zset.count();
           let count_str = format!(":{}\r\n", count);
@@ -179,7 +181,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     // count defaults to 1
     let mut count = 1;
     if parse_state.len() >= 2 {
-      let c_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
+      let c_str = str::from_utf8(parse_state[1]).unwrap_or("");
       if let Ok(c) = c_str.parse::<usize>() {
         count = c;
       } else {
@@ -191,7 +193,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(zset) = SortedSetObject::deserialize(&mut cursor) {
           let mut popped = Vec::new();
           for _ in 0..count {

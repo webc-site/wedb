@@ -1,8 +1,10 @@
+use std::io::Cursor;
+
 use wobject::list::list_object::{ListObject, ListOperation};
 
-use crate::resp::parser::resp_ext::RespSliceExt;
+use crate::resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession};
 
-impl crate::resp::resp_server_session::RespServerSession {
+impl RespServerSession {
   pub fn list_push<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -19,7 +21,7 @@ impl crate::resp::resp_server_session::RespServerSession {
 
     let list_obj = match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         ListObject::deserialize(&mut cursor).unwrap_or_else(|_| ListObject::new())
       }
       _ => ListObject::new(),
@@ -60,7 +62,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(list_obj) = ListObject::deserialize(&mut cursor) {
           let op = if is_left {
             ListOperation::Lpop
@@ -105,7 +107,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(list_obj) = ListObject::deserialize(&mut cursor) {
           let count = list_obj.count();
           let count_str = format!(":{}\r\n", count);
@@ -139,7 +141,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(list_obj) = ListObject::deserialize(&mut cursor) {
           let items = list_obj.range(start, stop);
           let arr_len = format!("*{}\r\n", items.len());
@@ -178,7 +180,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(list_obj) = ListObject::deserialize(&mut cursor) {
           if let Some(res) = list_obj.index(idx) {
             let len_str = format!("${}\r\n", res.len());
@@ -217,7 +219,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(list_obj) = ListObject::deserialize(&mut cursor) {
           list_obj.trim(start, stop);
           let mut out_bytes = Vec::new();

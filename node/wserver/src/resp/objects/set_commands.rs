@@ -1,6 +1,10 @@
+use std::io::Cursor;
+
 use wobject::set::set_object::{SetObject, SetOperation};
 
-impl crate::resp::resp_server_session::RespServerSession {
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   pub fn set_add<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -16,7 +20,7 @@ impl crate::resp::resp_server_session::RespServerSession {
 
     let set_obj = match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         SetObject::deserialize(&mut cursor).unwrap_or_else(|_| SetObject::new())
       }
       _ => SetObject::new(),
@@ -56,7 +60,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           let mut removed = 0;
           for member in members {
@@ -98,7 +102,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           let count = set_obj.count();
           let count_str = format!(":{}\r\n", count);
@@ -130,7 +134,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           let members = set_obj.get_keys();
           let arr_len = format!("*{}\r\n", members.len());
@@ -169,7 +173,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           if set_obj.operate(SetOperation::Sismember, member) {
             output.extend_from_slice(b":1\r\n");
@@ -205,7 +209,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           if let Some(m) = set_obj.pop() {
             let mut out_bytes = Vec::new();
@@ -245,7 +249,7 @@ impl crate::resp::resp_server_session::RespServerSession {
     let status = store.try_read_sync(key, |v| v.to_vec());
     match status {
       Ok(Some(Some(val))) => {
-        let mut cursor = std::io::Cursor::new(val);
+        let mut cursor = Cursor::new(val);
         if let Ok(set_obj) = SetObject::deserialize(&mut cursor) {
           if let Some(m) = set_obj.random_member() {
             let len_str = format!("${}\r\n", m.len());
