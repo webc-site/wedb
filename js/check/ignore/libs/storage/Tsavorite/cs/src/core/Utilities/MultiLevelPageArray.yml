@@ -1,0 +1,7 @@
+fn:
+  - EnsureInitialized
+  - CompleteAsPageOwner
+  - AddPage
+  - MaybeInjectAddPageFailure
+  - TryGet
+  - ToString

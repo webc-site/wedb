@@ -1,0 +1,4 @@
+fn:
+  - IsDefault
+  - Wait
+  - WaitAsync

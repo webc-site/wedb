@@ -1,0 +1,7 @@
+fn:
+  - Status
+  - CreateFound
+  - CreatePending
+  - CreateNotFound
+  - CreateError
+  - ToString
