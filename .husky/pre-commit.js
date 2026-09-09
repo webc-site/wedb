@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env -S bun
 import { $, which } from "bun";
 import { resolve } from "node:path";
 
