@@ -1,7 +1,4 @@
 fn:
-  - TryReadSign
-  - TryReadUInt64
-  - TryReadInt64
   - TryReadInt64Safe
   - TryReadInt32
   - TryReadInt32Safe
