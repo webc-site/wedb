@@ -37,10 +37,6 @@ pub enum Error {
   #[error("屏障等待超时")]
   Timeout,
 
-  /// 扫描已被终止
-  #[error("扫描终止")]
-  ScanAborted,
-
   /// 数据损坏
   #[error("数据损坏: {0}")]
   Corrupted(String),

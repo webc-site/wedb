@@ -23,7 +23,7 @@ wbftree provides the Rust service layer for the Bf-Tree ordered storage engine a
 - `chunk`: `RangeIndexChunkedSerializer` / `RangeIndexChunkedDeserializer` / `RangeIndexMigrationReader` chunked migration stream state machines
 - `stub`: `RangeIndexStub`, the 35-byte fixed stub in the main store log, with in-place modification helpers
 - `types`: `BfTreeConfig`, `TreeTuning`, `StorageBackendType` (Disk / Memory), read/insert/delete result codes, `ScanRecord`
-- `error`: error types (Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout (30s drain limit) / ScanAborted / Corrupted)
+- `error`: error types (Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout (30s drain limit) / Corrupted)
 
 ## Core API
 
@@ -69,7 +69,7 @@ wbftree 提供块级有序存储引擎 Bf-Tree 的 Rust 服务层与 RangeIndex 
 - `chunk`：`RangeIndexChunkedSerializer` / `RangeIndexChunkedDeserializer` / `RangeIndexMigrationReader` 迁移分块流状态机
 - `stub`：`RangeIndexStub` 主存储日志中 35 字节定长存根及原位修改助手
 - `types`：`BfTreeConfig`、`TreeTuning`、`StorageBackendType`（Disk / Memory）、读写删结果状态码、`ScanRecord`
-- `error`：错误类型（Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout（屏障排空 30s 上限）/ ScanAborted / Corrupted）
+- `error`：错误类型（Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout（屏障排空 30s 上限）/ Corrupted）
 
 ## 核心 API
 

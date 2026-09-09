@@ -11,7 +11,7 @@ wbftree 提供块级有序存储引擎 Bf-Tree 的 Rust 服务层与 RangeIndex 
 - `chunk`：`RangeIndexChunkedSerializer` / `RangeIndexChunkedDeserializer` / `RangeIndexMigrationReader` 迁移分块流状态机
 - `stub`：`RangeIndexStub` 主存储日志中 35 字节定长存根及原位修改助手
 - `types`：`BfTreeConfig`、`TreeTuning`、`StorageBackendType`（Disk / Memory）、读写删结果状态码、`ScanRecord`
-- `error`：错误类型（Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout（屏障排空 30s 上限）/ ScanAborted / Corrupted）
+- `error`：错误类型（Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout（屏障排空 30s 上限）/ Corrupted）
 
 ## 核心 API
 
