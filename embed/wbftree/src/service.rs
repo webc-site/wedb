@@ -394,52 +394,60 @@ impl BfTreeService {
   ///
   /// 底层 bf-tree 要求读取缓冲区不小于值长度（否则越界 panic），此处缓冲区恒 ≥ cb_max_record_size，绝无越界。
   ///
+  /// 缓冲上限的载入位于 `with_tree` 读锁**之内**：与 [`recover_in_place`](Self::recover_in_place)
+  /// 写锁临界段内「换树 + 发布新上限」构成 happens-before，读侧借得的树实例与
+  /// sizing 依据严格同源，杜绝「小缓冲撞大树值」的引擎越界 panic。
+  ///
   /// 大值路径的时间/空间复杂度优化 (compio 线程每核：同线程串行复用，无竞争)：
   /// 旧实现每次 GET 按 cb_max_record_size 堆分配 + 整段清零 + shrink_to_fit 二次
   /// 收缩 (2 次分配 + O(max_record_size) memset)；现改为线程本地暂存一次分配终身
   /// 复用，命中后仅按值长精确拷出 (1 次分配、零清零)，稳态空间 O(1)/线程。
   pub fn read(&self, key: &[u8]) -> (BfTreeReadResult, Option<Vec<u8>>) {
-    let max_record_size = self.max_record_size.load(Ordering::Relaxed);
-    if max_record_size <= STACK_READ_BUF_SIZE {
-      let mut stack_buf = [0u8; STACK_READ_BUF_SIZE];
-      let (res, len) = self.read_direct(key, &mut stack_buf);
-      (
-        res,
-        (res == BfTreeReadResult::Found).then(|| stack_buf[..len].to_vec()),
-      )
-    } else {
-      with_read_scratch(max_record_size, |scratch| {
-        let (res, len) = self.read_direct(key, scratch);
-        (
-          res,
-          (res == BfTreeReadResult::Found).then(|| scratch[..len].to_vec()),
-        )
+    self
+      .with_tree(|tree| {
+        let max_record_size = self.max_record_size();
+        if max_record_size <= STACK_READ_BUF_SIZE {
+          let mut stack_buf = [0u8; STACK_READ_BUF_SIZE];
+          let (res, len) = Self::read_tree(tree, key, &mut stack_buf);
+          (
+            res,
+            (res == BfTreeReadResult::Found).then(|| stack_buf[..len].to_vec()),
+          )
+        } else {
+          with_read_scratch(max_record_size, |scratch| {
+            let (res, len) = Self::read_tree(tree, key, scratch);
+            (
+              res,
+              (res == BfTreeReadResult::Found).then(|| scratch[..len].to_vec()),
+            )
+          })
+        }
       })
-    }
+      .unwrap_or((BfTreeReadResult::InvalidArguments, None))
   }
 
-  /// 直读：要求 out_buf 容量 ≥ cb_max_record_size（恒能容纳任意合法值，零额外开销）
+  /// 在已借得的引擎实例上执行点读并映射结果码
+  ///
+  /// 调用方必须已持 `tree` 读锁（或独占 Arc）：与换树路径的 sizing 载入保持同步
   #[inline]
-  fn read_direct(&self, key: &[u8], out_buf: &mut [u8]) -> (BfTreeReadResult, usize) {
-    self
-      .with_tree(|tree| match tree.read(key, out_buf) {
-        LeafReadResult::Found(n) => (BfTreeReadResult::Found, n as usize),
-        LeafReadResult::NotFound => (BfTreeReadResult::NotFound, 0),
-        LeafReadResult::Deleted => (BfTreeReadResult::Deleted, 0),
-        LeafReadResult::InvalidKey => (BfTreeReadResult::InvalidKey, 0),
-      })
-      .unwrap_or((BfTreeReadResult::InvalidArguments, 0))
+  fn read_tree(tree: &BfTree, key: &[u8], out_buf: &mut [u8]) -> (BfTreeReadResult, usize) {
+    match tree.read(key, out_buf) {
+      LeafReadResult::Found(n) => (BfTreeReadResult::Found, n as usize),
+      LeafReadResult::NotFound => (BfTreeReadResult::NotFound, 0),
+      LeafReadResult::Deleted => (BfTreeReadResult::Deleted, 0),
+      LeafReadResult::InvalidKey => (BfTreeReadResult::InvalidKey, 0),
+    }
   }
 
   /// 经临时缓冲读取后按需拷贝至 out_buf (值超出 out_buf 容量时返回 InvalidArguments)
   #[inline]
   fn read_via_scratch(
-    &self,
+    tree: &BfTree,
     key: &[u8],
     out_buf: &mut [u8],
     scratch: &mut [u8],
   ) -> (BfTreeReadResult, usize) {
-    let (res, len) = self.read_direct(key, scratch);
+    let (res, len) = Self::read_tree(tree, key, scratch);
     match res {
       BfTreeReadResult::Found if out_buf.len() >= len => {
         out_buf[..len].copy_from_slice(&scratch[..len]);
@@ -454,19 +462,24 @@ impl BfTreeService {
   ///
   /// 当 out_buf 容量 ≥ cb_max_record_size 时走直读快路径；否则改用内部安全缓冲读取后按需拷贝，
   /// 值超出 out_buf 容量时返回 InvalidArguments（底层 bf-tree 缓冲区过小会直接越界 panic，此处彻底拦截）。
+  /// 缓冲上限的载入位于读锁之内（同 [`read`](Self::read) 的换树竞态闭合论证）。
   pub fn read_into(&self, key: &[u8], out_buf: &mut [u8]) -> (BfTreeReadResult, usize) {
-    let max_record_size = self.max_record_size.load(Ordering::Relaxed);
-    if out_buf.len() >= max_record_size {
-      return self.read_direct(key, out_buf);
-    }
-    if max_record_size <= STACK_READ_BUF_SIZE {
-      let mut stack_buf = [0u8; STACK_READ_BUF_SIZE];
-      self.read_via_scratch(key, out_buf, &mut stack_buf)
-    } else {
-      with_read_scratch(max_record_size, |scratch| {
-        self.read_via_scratch(key, out_buf, scratch)
+    self
+      .with_tree(|tree| {
+        let max_record_size = self.max_record_size();
+        if out_buf.len() >= max_record_size {
+          return Self::read_tree(tree, key, out_buf);
+        }
+        if max_record_size <= STACK_READ_BUF_SIZE {
+          let mut stack_buf = [0u8; STACK_READ_BUF_SIZE];
+          Self::read_via_scratch(tree, key, out_buf, &mut stack_buf)
+        } else {
+          with_read_scratch(max_record_size, |scratch| {
+            Self::read_via_scratch(tree, key, out_buf, scratch)
+          })
+        }
       })
-    }
+      .unwrap_or((BfTreeReadResult::InvalidArguments, 0))
   }
 
   /// 删除指定键 (打入墓碑标记，与 insert 同受换树/释放屏障保护)
@@ -600,10 +613,13 @@ impl BfTreeService {
     let mut iter = make_iter(&tree)
       .map_err(|e| Error::InvalidArgument(scan_iter_error_to_string(e).to_string()))?;
 
-    // 缓冲区恒 ≥ 最大记录长度 (键+值 ≤ cb_max_record_size)，底层填充绝不会越界
+    // 缓冲区恒 ≥ 最大记录长度 (键+值 ≤ cb_max_record_size)，底层填充绝不会越界。
+    // 上限载入点位于 tree_arc 的读锁获取**之后**：Arc 指到新树即意味着本次锁获取
+    // 发生在换树写锁释放之后（happens-before），而新上限在写锁临界段内先于释放
+    // 发布（见 recover_in_place），故此处载入与借得的树实例严格同源
     let mut stack_buf = [0u8; STACK_SCAN_BUF_SIZE];
     let mut heap_buf;
-    let max_record_size = self.max_record_size.load(Ordering::Relaxed);
+    let max_record_size = self.max_record_size();
     let buf: &mut [u8] = if max_record_size <= STACK_SCAN_BUF_SIZE {
       &mut stack_buf
     } else {
@@ -753,6 +769,13 @@ impl BfTreeService {
       }
       let old_tree = guard.take();
       *guard = recovered.tree.write().take();
+      // 缓冲上限随树在同一写锁临界段内发布（先于释放）：读侧在 tree.read()/
+      // tree_arc 借到新树后，经锁的 happens-before 必然读到新上限，杜绝
+      // 「按旧(小)上限选缓冲却撞上新树大记录」的引擎越界 panic（引擎契约：
+      // 读取/扫描缓冲小于记录长度直接 panic，无错误通道）
+      self
+        .max_record_size
+        .store(recovered.max_record_size(), Ordering::Release);
       old_tree
     };
     drop(old_tree);
@@ -760,9 +783,6 @@ impl BfTreeService {
       .storage_backend
       .store(recovered.storage_backend() as u8, Ordering::Release);
     *self.file_path.write() = Some(work_path.to_string_lossy().into_owned());
-    self
-      .max_record_size
-      .store(recovered.max_record_size(), Ordering::Release);
     Ok(())
   }
 
@@ -1016,6 +1036,76 @@ mod tests {
     let err =
       BfTreeService::recover_from_cpr_snapshot(&wrong_magic, true, StorageBackendType::Disk);
     assert!(matches!(err, Err(Error::Recovery(_))));
+
+    fs::remove_dir_all(&dir).unwrap();
+  }
+
+  /// recover_in_place 换树后缓冲上限必须与恢复树严格同源 (r9 回归)：
+  /// 小上限树 (preset 4096 栈路径) 换入大上限快照 (8192 暂存路径) 后，
+  /// 读取旧上限之外的值不得越界 panic；读侧 sizing 载入点在读锁内与
+  /// 写锁临界段内的上限发布配对 (见 read/recover_in_place 文档)
+  #[test]
+  fn test_recover_in_place_republishes_max_record_size() {
+    let dir = env::temp_dir().join(format!(
+      "wbftree_swap_max_{}_{}",
+      process::id(),
+      fastrand::u64(..)
+    ));
+    fs::create_dir_all(&dir).unwrap();
+
+    // 大上限源树：值 6000B (键+值 ≤ 8192) 落树并 CPR 快照
+    // (min=8 配 leaf=32768 满足引擎「每页记录数 ≤ 2^12」约束)
+    let src_work = dir.join("src.data.bftree");
+    let snap = dir.join("snap.bftree");
+    {
+      let mut config = BfTreeConfig::default();
+      config
+        .use_snapshot(true)
+        .leaf_page_size(32768)
+        .cb_max_record_size(8192)
+        .cb_max_key_len(PRESET_MAX_KEY_LEN)
+        .cb_min_record_size(8);
+      config.file_path(&src_work);
+      let src = BfTreeService::new(config).unwrap();
+      let big = [b'x'; 6000];
+      assert_eq!(src.insert(b"big_key", &big), BfTreeInsertResult::Success);
+      src.cpr_snapshot(&snap).unwrap();
+    }
+
+    // 小上限目标树 (preset cb_max_record_size=4096)：换树前 6000B 值被拒
+    let work = dir.join("work.data.bftree");
+    let target = BfTreeService::open_disk(&work, 0).unwrap();
+    assert_eq!(target.max_record_size(), PRESET_MAX_RECORD_SIZE);
+    let big = [b'x'; 6000];
+    assert_eq!(
+      target.insert(b"big_key", &big),
+      BfTreeInsertResult::InvalidKV
+    );
+
+    // 原地换入大上限快照树：上限随树同步翻新 (4096 → 8192，读路径切到暂存缓冲)
+    target.recover_in_place(&snap, &work).unwrap();
+    assert_eq!(target.max_record_size(), 8192);
+
+    // 旧上限之外的值可读 (sizing 与新树同源，栈 4096 缓冲绝不对上 6000B 值)
+    let (res, v) = target.read(b"big_key");
+    assert_eq!(res, BfTreeReadResult::Found);
+    assert_eq!(v.as_deref(), Some(&big[..]));
+
+    // 新树按快照配置承载大值写入；小值照常
+    assert_eq!(target.insert(b"fresh", &big), BfTreeInsertResult::Success);
+    let (res, v) = target.read(b"fresh");
+    assert_eq!(res, BfTreeReadResult::Found);
+    assert_eq!(v.as_deref(), Some(&big[..]));
+
+    // read_into 同口径：足量外部缓冲直读命中，容量不足安全拒绝 (InvalidArguments)
+    // 而非直读越界
+    let mut big_out = [0u8; 8192];
+    let (res, len) = target.read_into(b"big_key", &mut big_out);
+    assert_eq!(res, BfTreeReadResult::Found);
+    assert_eq!(&big_out[..len], &big[..]);
+    let mut small_out = [0u8; 64];
+    let (res, _) = target.read_into(b"big_key", &mut small_out);
+    assert_eq!(res, BfTreeReadResult::InvalidArguments);
 
     fs::remove_dir_all(&dir).unwrap();
   }

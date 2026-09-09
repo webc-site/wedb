@@ -11,7 +11,7 @@ wbftree provides the Rust service layer for the Bf-Tree ordered storage engine a
 - `chunk`: `RangeIndexChunkedSerializer` / `RangeIndexChunkedDeserializer` / `RangeIndexMigrationReader` chunked migration stream state machines
 - `stub`: `RangeIndexStub`, the 35-byte fixed stub in the main store log, with in-place modification helpers
 - `types`: `BfTreeConfig`, `TreeTuning`, `StorageBackendType` (Disk / Memory), read/insert/delete result codes, `ScanRecord`
-- `error`: error types (Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout (30s drain limit) / ScanAborted / Corrupted)
+- `error`: error types (Io / InvalidArgument / InvalidConfig / IndexExists / Snapshot / Recovery / Disposed / Timeout (30s drain limit) / Corrupted)
 
 ## Core API
 
