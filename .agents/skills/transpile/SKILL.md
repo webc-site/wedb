@@ -13,17 +13,18 @@ description: garnet 转写 rust
 
 技术选型参考 ./.agents/skills/rust_review/SKILL.md
 
-尽量 1:1 对标 c#的代码实现，除了以下几点
+尽量 1:1 对标 c#的代码实现，不要实现自己的优化（如果有，也撤销），除了以下几点
 
+- 并发字典、set 用 papaya + gxhash （在 embed/wbase/map.rs 中定义，用 map 或 set 特性启用）
 - 前缀用 enum u8，而不是字符串，也别加冒号
+- 锁用 parking_lot
 - hash 一律用 gxhash
 
 运行时用 compio （一个线程一个 cpu）
 消息队列用 crossfire
 lua 用 luau
-并发字典、set 用 papaya + gxhash （在 embed/wbase/map.rs 中定义，map 或者 set 特性启用）
 
-在 rust 函数文档注释中写清楚和 c#函数映射关系，格式如：相对路径:函数名
+在 rust 函数文档注释中写清楚和 c# 的映射关系，格式如: 在 garnet 中的相对路径:函数名
 
 
 只能使用 cargo add 添加依赖，禁改 Cargo.toml
