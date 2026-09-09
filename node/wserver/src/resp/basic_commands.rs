@@ -13,7 +13,7 @@ use super::{
   parser::resp_ext::{RespSliceExt, RespVecExt},
   resp_server_session::RespServerSession,
   ttl_sync::{
-    data_alive_sync, del_ttl_sync, now_unix_ms, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
+    del_ttl_sync, now_unix_ms, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
   },
 };
 
@@ -146,28 +146,6 @@ pub struct SetOptions<'a> {
   pub exp_high_precision: bool,
   cmd: SetCmd,
   pub get_value: bool,
-}
-
-/// 条件写共同体里的键存活探针（数据存活 + TTL 未过期才视为存活）
-///
-/// 返回 `Ok(None)` 须降级：数据有磁盘候选，或 TTL 记录需磁盘裁决，或键已
-/// 过期须异步物理清除（C# 由存储层原子完成过期判定）
-fn probe_alive<'a, D: wdev::Device>(
-  store: &wkv::BatchStoreSession<'a, D>,
-  key: &[u8],
-) -> wkv::Result<Option<bool>> {
-  let alive = match data_alive_sync(store, key)? {
-    None => return Ok(None),
-    Some(alive) => alive,
-  };
-  if !alive {
-    return Ok(Some(false));
-  }
-  match ttl_of_sync(store, key)? {
-    None => Ok(None),
-    Some(Some(exp)) if exp <= now_unix_ms() => Ok(None),
-    Some(_) => Ok(Some(true)),
-  }
 }
 
 /// 相对时长换算为绝对过期毫秒时间戳（EX/PX 共用；high_precision 即 PX）

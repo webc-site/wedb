@@ -140,6 +140,29 @@ pub fn read_adjudicated_sync<R, D: Device>(
   Ok(raw)
 }
 
+/// 键存活探针（数据存活 + TTL 未过期才视为存活）
+///
+/// 返回 `Ok(None)` 须降级：数据有磁盘候选，或 TTL 记录需磁盘裁决，或键已
+/// 过期须异步物理清除（C# 由存储层原子完成过期判定）。条件写（SET NX/XX）、
+/// RESTORE NX、EXPIRE 族等依赖"键在否"判定的命令共用
+pub fn probe_alive<D: Device>(
+  session: &BatchStoreSession<'_, D>,
+  key: &[u8],
+) -> Result<Option<bool>> {
+  let alive = match data_alive_sync(session, key)? {
+    None => return Ok(None),
+    Some(alive) => alive,
+  };
+  if !alive {
+    return Ok(Some(false));
+  }
+  match ttl_of_sync(session, key)? {
+    None => Ok(None),
+    Some(Some(exp)) if exp <= now_unix_ms() => Ok(None),
+    Some(_) => Ok(Some(true)),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::ttl_val_decode;
