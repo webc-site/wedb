@@ -27,7 +27,7 @@ impl ReplicationManager {
   /// libs/cluster/Server/Replication/ReplicationManager.cs:ResetRecovery
   pub fn reset_recovery(&self) {}
   /// libs/cluster/Server/Replication/ReplicationManager.cs:RecoverCheckpointAndAOFAsync
-  pub fn recover_checkpoint_and_a_o_f_async(&self) {}
+  pub fn recover_checkpoint_and_aof_async(&self) {}
   /// libs/cluster/Server/Replication/ReplicationManager.cs:WaitForReplicationOffsetAsync
   pub fn wait_for_replication_offset_async(&self) {}
 }

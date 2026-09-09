@@ -18,12 +18,40 @@ use compio::{
 use crossfire::{AsyncRx, mpsc};
 use itoa::Buffer;
 
-use crate::{CommandItem, Error, RespReadResponseUtils, Result};
+use crate::{
+  Error,
+  Result,
+  parser::{RespReadResponseUtils, unexpected_token},
+  types::{CommandItem, ReplyTx},
+};
 
 /// 单次 socket 读取块大小
 const READ_CHUNK: usize = 16 * 1024;
 /// 应答累积缓冲初始容量
 const READ_BUF_CAP: usize = 8 * 1024;
+
+/// 连接后握手序列：AUTH（用户名优先，缺省密码按空串补齐）+ CLIENT SETINFO/SETNAME
+/// （客户端与会话共用同一口径，对标 C# ConnectAsync；SETINFO/SETNAME 同以
+/// clientName 非空为前提）
+pub(super) async fn handshake(
+  exec: impl AsyncFn(&[&str]) -> Result<String>,
+  lib_name: &str,
+  auth_username: Option<&str>,
+  auth_password: Option<&str>,
+  client_name: Option<&str>,
+) -> Result<()> {
+  if let Some(username) = auth_username {
+    let pwd = auth_password.unwrap_or("");
+    exec(&["AUTH", username, pwd]).await?;
+  } else if let Some(pwd) = auth_password {
+    exec(&["AUTH", pwd]).await?;
+  }
+  if let Some(client_name) = client_name {
+    exec(&["CLIENT", "SETINFO", "LIB-NAME", lib_name]).await?;
+    exec(&["CLIENT", "SETNAME", client_name]).await?;
+  }
+  Ok(())
+}
 
 /// 把通道中此刻已就绪的命令全部取出排入队列（批量写入摊薄 syscall 次数）
 async fn drain_channel(
@@ -58,13 +86,12 @@ fn encode_command(out: &mut Vec<u8>, cmd: &[String], num: &mut Buffer) {
 fn parse_scalar(data: &mut &[u8]) -> Result<Option<Result<String>>> {
   match data[0] {
     b'+' => RespReadResponseUtils::try_read_simple_string(data).map(|s| s.map(Ok)),
-    b'-' => {
-      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
-    }
+    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
+      .map(|e| e.map(|e| Err(Error::Other(e)))),
     b':' => RespReadResponseUtils::try_read_integer_as_string(data).map(|s| s.map(Ok)),
     b'$' => RespReadResponseUtils::try_read_string_with_length_header(data)
       .map(|s| s.map(|s| Ok(s.unwrap_or_default()))),
-    _ => Err(unexpected_token(data[0])),
+    b => Err(unexpected_token(b)),
   }
 }
 
@@ -73,16 +100,10 @@ fn parse_array(data: &mut &[u8]) -> Result<Option<Result<Vec<String>>>> {
   match data[0] {
     b'*' => RespReadResponseUtils::try_read_string_array_with_length_header(data)
       .map(|a| a.map(|a| Ok(a.unwrap_or_default()))),
-    b'-' => {
-      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
-    }
-    _ => Err(unexpected_token(data[0])),
+    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
+      .map(|e| e.map(|e| Err(Error::Other(e)))),
+    b => Err(unexpected_token(b)),
   }
-}
-
-#[inline]
-fn unexpected_token(b: u8) -> Error {
-  Error::Other(format!("Unexpected token {}", b as char))
 }
 
 /// 网络循环主泵（详见模块文档）
@@ -92,7 +113,8 @@ pub(super) async fn network_loop(
 ) -> Result<()> {
   let mut queue: VecDeque<CommandItem> = VecDeque::new();
   let mut read_buf: Vec<u8> = Vec::with_capacity(READ_BUF_CAP);
-  // 读取块全程复用，按 compio 约定每次 read 归还后接着用，避免每读一次分配清零一次
+  // 写出与读取块全程复用，避免每轮循环分配清零
+  let mut out_buf = Vec::new();
   let mut chunk = vec![0u8; READ_CHUNK];
   let mut num = Buffer::new();
 
@@ -101,16 +123,15 @@ pub(super) async fn network_loop(
       break; // 调用端已全部断开
     }
 
-    let mut out_buf = Vec::new();
+    out_buf.clear();
     for item in &queue {
-      let cmd = match item {
-        CommandItem::Command { cmd, .. } | CommandItem::CommandForArray { cmd, .. } => cmd,
-      };
-      encode_command(&mut out_buf, cmd, &mut num);
+      encode_command(&mut out_buf, &item.cmd, &mut num);
     }
 
     if !out_buf.is_empty() {
-      let res = stream.write_all(out_buf).await.0;
+      // compio 按值取缓冲并在完成后原样归还，取回以供下轮复用
+      let BufResult(res, buf) = stream.write_all(out_buf).await;
+      out_buf = buf;
       res?;
     }
 
@@ -127,25 +148,30 @@ pub(super) async fn network_loop(
       let mut consumed = 0;
       while !data.is_empty() && !queue.is_empty() {
         let before = data.len();
-        let front = queue.front().unwrap();
-        let complete = match front {
-          CommandItem::Command { .. } => match parse_scalar(&mut data)? {
+        // 弹出队首派发：解析完整即回传应答，未到齐则原样退回队列等下一个读事件
+        let mut front = queue.pop_front().unwrap();
+        let complete = match front.resp_tx {
+          ReplyTx::Str(tx) => match parse_scalar(&mut data)? {
             Some(reply) => {
-              if let CommandItem::Command { resp_tx, .. } = queue.pop_front().unwrap() {
-                resp_tx.send(reply);
-              }
+              tx.send(reply);
               true
             }
-            None => false,
+            None => {
+              front.resp_tx = ReplyTx::Str(tx);
+              queue.push_front(front);
+              false
+            }
           },
-          CommandItem::CommandForArray { .. } => match parse_array(&mut data)? {
+          ReplyTx::Array(tx) => match parse_array(&mut data)? {
             Some(reply) => {
-              if let CommandItem::CommandForArray { resp_tx, .. } = queue.pop_front().unwrap() {
-                resp_tx.send(reply);
-              }
+              tx.send(reply);
               true
             }
-            None => false,
+            None => {
+              front.resp_tx = ReplyTx::Array(tx);
+              queue.push_front(front);
+              false
+            }
           },
         };
         if !complete {

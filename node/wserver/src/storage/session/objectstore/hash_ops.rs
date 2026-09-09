@@ -148,7 +148,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// HRANDFIELD：随机返回字段（`count` 为负取绝对值个不重复字段；`with_values` 附带值）
+  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、可重复且不带值；
+  /// 为正返回至多 `count` 个不重复字段，`with_values` 附带值）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashRandomField
   pub async fn hash_random_field(
@@ -162,21 +163,29 @@ impl<'a, D: Device> StorageSession<'a, D> {
       ObjState::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
-        let mut keys = obj.get_keys();
-        let want = if count < 0 {
-          // 负数：允许少于字段数（不重复取样至 |count|）
-          (count.unsigned_abs() as usize).min(keys.len())
-        } else {
-          (count as usize).min(keys.len())
-        };
-        // 洗牌取样（fastrand 不可用域，用 papaya 迭代序 + 简单交换洗牌）
+        let keys = obj.get_keys();
+        let pin = obj.hash.pin();
+        if count < 0 {
+          // 负计数：允许重复取样 |count| 个，按 Redis 口径不带值
+          let n = count.unsigned_abs() as usize;
+          let out = (0..n)
+            .map(|_| {
+              let k = keys[fastrand::usize(..keys.len())].clone();
+              (k, None)
+            })
+            .collect();
+          return Ok((GarnetStatus::Ok, out));
+        }
+        // 正计数：交换洗牌取不重复字段
+        let want = (count as usize).min(keys.len());
+        let mut pool = keys;
         let mut out = Vec::with_capacity(want);
         for _ in 0..want {
-          let last = keys.len() - 1;
-          let idx = fastrand::usize(..keys.len());
-          keys.swap(idx, last);
-          let k = keys.pop().unwrap_or_default();
-          let v = obj.hash.pin().get(&k).cloned();
+          let last = pool.len() - 1;
+          let idx = fastrand::usize(..pool.len());
+          pool.swap(idx, last);
+          let k = pool.pop().unwrap_or_default();
+          let v = pin.get(&k).cloned();
           out.push((k, with_values.then_some(v).flatten()));
         }
         Ok((GarnetStatus::Ok, out))
@@ -220,6 +229,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HSET/HSETNX：写入字段（`nx` 为真时仅新字段生效），返回新增字段数
   ///
+  /// 错误类型键（非哈希信封）传播 WRONGTYPE，不再被 RMW 放弃路径吞掉。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashSetWhenNotExists（IGarnetApi.HashSet 同链路）
   pub async fn hash_set(
     &self,
@@ -227,14 +238,18 @@ impl<'a, D: Device> StorageSession<'a, D> {
     fields: &[(&[u8], &[u8])],
     nx: bool,
   ) -> wkv::Result<(GarnetStatus, i64)> {
+    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
+      return Ok((GarnetStatus::WrongType, 0));
+    }
     let added = self
       .hash_rmw(key, |obj| {
         let mut n = 0i64;
         for (field, value) in fields {
-          if nx && obj.hash.pin().contains_key(*field) {
+          // 单次查询判定新增：HSET 返回 None 即字段原先不存在
+          let existed = obj.operate(2 /* HGET */, field, b"").is_some();
+          if nx && existed {
             continue;
           }
-          let existed = obj.hash.pin().contains_key(*field);
           obj.operate(0 /* HSET */, field, value);
           if !existed {
             n += 1;
@@ -248,6 +263,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HINCRBY/HINCRBYFLOAT：字段数值增减（`float` 走 f64 口径），回吐新值文本
   ///
+  /// 字段存在但非数值 → WRONGTYPE（不覆盖写）；数值溢出 → WRONGTYPE。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashIncrement
   pub async fn hash_increment(
     &self,
@@ -260,15 +277,26 @@ impl<'a, D: Device> StorageSession<'a, D> {
       Ok(s) => s,
       Err(_) => return Ok((GarnetStatus::WrongType, None)),
     };
+    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
+      return Ok((GarnetStatus::WrongType, None));
+    }
     match self
       .hash_rmw(key, |obj| {
         let current = obj.operate(2 /* HGET */, field, b"");
         if float {
-          let cur = current
-            .as_deref()
-            .and_then(|b| str::from_utf8(b).ok())
-            .and_then(|s| s.trim().parse::<f64>().ok())
-            .unwrap_or(0.0);
+          // 字段存在但非浮点文本：拒绝增减（不当作 0 覆盖）
+          let cur = match current.as_deref() {
+            None => 0.0,
+            Some(b) => {
+              match str::from_utf8(b)
+                .ok()
+                .and_then(|s| s.trim().parse::<f64>().ok())
+              {
+                Some(v) => v,
+                None => return (false, None),
+              }
+            }
+          };
           let Some(d) = delta_str.trim().parse::<f64>().ok() else {
             return (false, None);
           };
@@ -277,11 +305,20 @@ impl<'a, D: Device> StorageSession<'a, D> {
           obj.operate(0 /* HSET */, field, text.as_bytes());
           (true, Some(text.into_bytes()))
         } else {
-          let cur = current
-            .as_deref()
-            .and_then(|b| str::from_utf8(b).ok())
-            .and_then(|s| s.parse::<i64>().ok());
-          let Ok(d) = delta_str.parse::<i64>() else {
+          // 字段存在但非整数文本：拒绝增减（不当作 0 覆盖）
+          let cur = match current.as_deref() {
+            None => None,
+            Some(b) => {
+              match str::from_utf8(b)
+                .ok()
+                .and_then(|s| s.trim().parse::<i64>().ok())
+              {
+                Some(v) => Some(v),
+                None => return (false, None),
+              }
+            }
+          };
+          let Ok(d) = delta_str.trim().parse::<i64>() else {
             return (false, None);
           };
           match cur {

@@ -130,20 +130,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 None => break,
               }
             }
-            if obj.list.lock().is_empty() {
-              None // 弹空：放弃写回，调用方整键回收
-            } else {
-              Some(out)
-            }
+            Some((out, obj.list.lock().is_empty()))
           })
           .await?;
-        match popped {
-          Some(v) => Ok((GarnetStatus::Ok, v)),
-          None => {
-            let _ = self.delete_string(key).await?;
-            Ok((GarnetStatus::Ok, Vec::new()))
-          }
-        }
+        let out = self.finalize_removal(key, popped, Vec::new()).await?;
+        Ok((GarnetStatus::Ok, out))
       }
     }
   }
@@ -177,7 +168,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     Ok((GarnetStatus::Ok, Some(value)))
   }
 
-  /// LTRIM：区间裁剪（Redis 闭区间负索引语义）
+  /// LTRIM：区间裁剪（Redis 闭区间负索引语义；裁剪至空时整键回收并返回 OK）
   ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListTrim
   pub async fn list_trim(&self, key: &[u8], start: i64, stop: i64) -> wkv::Result<GarnetStatus> {
@@ -185,20 +176,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
       Err(s) => Ok(s),
       Ok(None) => Ok(GarnetStatus::NotFound),
       Ok(Some(_)) => {
-        let kept = self
+        let trimmed = self
           .list_rmw(key, |obj| {
             obj.trim(start as isize, stop as isize);
-            if obj.list.lock().is_empty() {
-              None
-            } else {
-              Some(())
-            }
+            Some(((), obj.list.lock().is_empty()))
           })
           .await?;
-        if kept.is_none() {
-          let _ = self.delete_string(key).await?;
-          return Ok(GarnetStatus::NotFound);
-        }
+        let () = self.finalize_removal(key, trimmed, ()).await?;
         Ok(GarnetStatus::Ok)
       }
     }
@@ -345,16 +329,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
                 }
               }
             }
-            if guard.is_empty() { None } else { Some(n) }
+            Some((n, guard.is_empty()))
           })
           .await?;
-        match removed {
-          Some(n) => Ok((GarnetStatus::Ok, n)),
-          None => {
-            let _ = self.delete_string(key).await?;
-            Ok((GarnetStatus::Ok, 0))
-          }
-        }
+        let n = self.finalize_removal(key, removed, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }

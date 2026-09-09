@@ -170,6 +170,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
         buf.len() as i64
       },
     );
+    // 空区间（含空值键）：计数恒 0，避免空缓冲切片越界
+    if lo > hi {
+      return Ok((GarnetStatus::Ok, 0));
+    }
     if bit_mode {
       let mut n = 0u64;
       for bit in lo..=hi {

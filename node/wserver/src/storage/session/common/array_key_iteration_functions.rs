@@ -36,7 +36,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 数据库键增量扫描（SCAN 语义）
   ///
   /// 以"上次返回的最后一个用户键"为游标续扫（wkv 无快照游标，等价 Redis
-  /// 基准键演进方案）；返回新游标与本页匹配键。`all_keys` 为真时忽略模式全量返回。
+  /// 基准键演进方案）：跳过游标及之前的全部键，游标键在两页之间被删时
+  /// 仍可从其后首个键无缝续扫；因 count 截断才报告新游标，自然收尽返回
+  /// 空游标（终态）。`all_keys` 为真时忽略模式全量返回。
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DbScan
   pub async fn db_scan(
@@ -47,19 +49,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
     count: usize,
   ) -> wkv::Result<(Vec<u8>, Vec<Vec<u8>>)> {
     let (_map, keys) = self.string_snapshot().await?;
-    let start = if cursor.is_empty() {
-      0
-    } else {
-      keys
-        .iter()
-        .position(|k| k.as_slice() == cursor)
-        .map(|p| p + 1)
-        .unwrap_or(keys.len())
-    };
+    // 键已按字节序升序：二分定位首个大于游标的键作为续扫起点
+    let start = keys.partition_point(|k| !cursor.is_empty() && k.as_slice() <= cursor);
     let mut items: Vec<Vec<u8>> = Vec::new();
     let mut last: Option<Vec<u8>> = None;
+    let mut truncated = false;
     for key in keys.into_iter().skip(start) {
       if items.len() >= count {
+        truncated = true;
         break;
       }
       if all_keys || glob_match(pattern, &key) {
@@ -67,7 +64,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
       }
       last = Some(key);
     }
-    Ok((last.unwrap_or_default(), items))
+    let next = if truncated {
+      last.unwrap_or_default()
+    } else {
+      Vec::new()
+    };
+    Ok((next, items))
   }
 
   /// 全库记录迭代（回调拿到 (用户键, 值)，返回 false 提前终止）

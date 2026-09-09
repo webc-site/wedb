@@ -1,4 +1,4 @@
-use std::str;
+use core::str;
 
 use crate::{Error, Result};
 
@@ -7,200 +7,146 @@ pub struct RespReadResponseUtils;
 
 impl RespReadResponseUtils {
   pub fn try_read_simple_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    if ptr.is_empty() {
-      return Ok(None);
-    }
-    if ptr[0] != b'+' {
-      return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char)));
-    }
-    if let Some(r_idx) = Self::find_crlf(&ptr[1..]) {
-      let res = str::from_utf8(&ptr[1..1 + r_idx])
-        .map_err(|e| Error::Other(e.to_string()))?
-        .to_string();
-      *ptr = &ptr[1 + r_idx + 2..];
-      Ok(Some(res))
-    } else {
-      Ok(None)
-    }
+    Ok(read_token_line(ptr, b'+')?.map(str::to_string))
   }
 
   pub fn try_read_integer_as_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    if ptr.is_empty() {
-      return Ok(None);
-    }
-    if ptr[0] != b':' {
-      return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char)));
-    }
-    if let Some(r_idx) = Self::find_crlf(&ptr[1..]) {
-      let res = str::from_utf8(&ptr[1..1 + r_idx])
-        .map_err(|e| Error::Other(e.to_string()))?
-        .to_string();
-      *ptr = &ptr[1 + r_idx + 2..];
-      Ok(Some(res))
-    } else {
-      Ok(None)
-    }
+    Ok(read_token_line(ptr, b':')?.map(str::to_string))
   }
 
   pub fn try_read_integer(ptr: &mut &[u8]) -> Result<Option<i64>> {
-    let s = match Self::try_read_integer_as_string(ptr)? {
-      Some(s) => s,
-      None => return Ok(None),
-    };
-    let val: i64 = s
-      .parse()
-      .map_err(|_| Error::Other("Invalid integer".into()))?;
-    Ok(Some(val))
+    match read_token_line(ptr, b':')? {
+      Some(s) => s.parse().map(Some).map_err(|_| Error::Other("Invalid integer".into())),
+      None => Ok(None),
+    }
   }
 
   pub fn try_read_error_as_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    if ptr.is_empty() {
-      return Ok(None);
-    }
-    if ptr[0] != b'-' {
-      return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char)));
-    }
-    if let Some(r_idx) = Self::find_crlf(&ptr[1..]) {
-      let res = str::from_utf8(&ptr[1..1 + r_idx])
-        .map_err(|e| Error::Other(e.to_string()))?
-        .to_string();
-      *ptr = &ptr[1 + r_idx + 2..];
-      Ok(Some(res))
-    } else {
-      Ok(None)
-    }
+    Ok(read_token_line(ptr, b'-')?.map(str::to_string))
   }
 
   pub fn try_read_string_with_length_header(ptr: &mut &[u8]) -> Result<Option<Option<String>>> {
-    if ptr.is_empty() {
-      return Ok(None);
-    }
-    if ptr[0] != b'$' {
-      return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char)));
-    }
-    let r_idx = if let Some(i) = Self::find_crlf(&ptr[1..]) {
-      i
-    } else {
+    // 长度头已消费，ptr 此刻指向正文起点
+    let Some(len) = read_length_header(ptr, b'$')? else {
       return Ok(None);
     };
-
-    let len_str = str::from_utf8(&ptr[1..1 + r_idx]).map_err(|e| Error::Other(e.to_string()))?;
-    let len: isize = len_str
-      .parse()
-      .map_err(|_| Error::Other("Invalid length".into()))?;
-
     if len < 0 {
-      *ptr = &ptr[1 + r_idx + 2..];
-      return Ok(Some(None));
+      return Ok(Some(None)); // null bulk string
     }
-
     let len = len as usize;
-    let content_start = 1 + r_idx + 2;
-    if ptr.len() < content_start + len + 2 {
+    if ptr.len() < len + 2 {
       return Ok(None);
     }
-
-    if &ptr[content_start + len..content_start + len + 2] != b"\r\n" {
+    if &ptr[len..len + 2] != b"\r\n" {
       return Err(Error::Other("Missing CRLF after bulk string".into()));
     }
-
-    let res = str::from_utf8(&ptr[content_start..content_start + len])
-      .map_err(|e| Error::Other(e.to_string()))?
-      .to_string();
-    *ptr = &ptr[content_start + len + 2..];
-    Ok(Some(Some(res)))
+    let s = str::from_utf8(&ptr[..len]).map_err(|e| Error::Other(e.to_string()))?;
+    *ptr = &ptr[len + 2..];
+    Ok(Some(Some(s.to_string())))
   }
 
   pub fn try_read_string_array_with_length_header(
     ptr: &mut &[u8],
   ) -> Result<Option<Option<Vec<String>>>> {
-    if ptr.is_empty() {
-      return Ok(None);
-    }
-    if ptr[0] != b'*' {
-      return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char)));
-    }
-    let r_idx = if let Some(i) = Self::find_crlf(&ptr[1..]) {
-      i
-    } else {
+    let Some(len) = read_length_header(ptr, b'*')? else {
       return Ok(None);
     };
-
-    let len_str = str::from_utf8(&ptr[1..1 + r_idx]).map_err(|e| Error::Other(e.to_string()))?;
-    let len: isize = len_str
-      .parse()
-      .map_err(|_| Error::Other("Invalid array length".into()))?;
-
-    *ptr = &ptr[1 + r_idx + 2..];
-
     if len < 0 {
-      return Ok(Some(None));
+      return Ok(Some(None)); // null array
     }
-
     let mut res = Vec::with_capacity(len as usize);
     for _ in 0..len {
       if ptr.is_empty() {
         return Ok(None);
       }
       match ptr[0] {
+        // 内层返回 None 即应答未到齐：整体按不完整处理
         b'$' => {
-          let s = match Self::try_read_string_with_length_header(ptr)? {
-            Some(s) => s.unwrap_or_default(),
-            None => return Ok(None),
+          let Some(s) = Self::try_read_string_with_length_header(ptr)? else {
+            return Ok(None);
           };
-          res.push(s);
+          res.push(s.unwrap_or_default());
         }
-        b'+' => {
-          let s = match Self::try_read_simple_string(ptr)? {
-            Some(s) => s,
-            None => return Ok(None),
+        // 简单串/整数/错误行共用同一行读取路径
+        b'+' | b':' | b'-' => {
+          let Some(s) = read_token_line(ptr, ptr[0])? else {
+            return Ok(None);
           };
-          res.push(s);
-        }
-        b':' => {
-          let s = match Self::try_read_integer_as_string(ptr)? {
-            Some(s) => s,
-            None => return Ok(None),
-          };
-          res.push(s);
+          res.push(s.to_string());
         }
         b'*' => {
-          let s_arr = match Self::try_read_string_array_with_length_header(ptr)? {
-            Some(Some(arr)) => arr.join(", "),
-            Some(None) => String::new(),
-            None => return Ok(None),
+          let Some(arr) = Self::try_read_string_array_with_length_header(ptr)? else {
+            return Ok(None);
           };
-          res.push(s_arr);
+          res.push(arr.map(|a| a.join(", ")).unwrap_or_default());
         }
-        b'-' => {
-          let s = match Self::try_read_error_as_string(ptr)? {
-            Some(s) => s,
-            None => return Ok(None),
-          };
-          res.push(s);
-        }
-        _ => return Err(Error::Other(format!("Unexpected token {}", ptr[0] as char))),
+        b => return Err(unexpected_token(b)),
       }
     }
-
     Ok(Some(Some(res)))
   }
+}
 
-  /// 查找首个 CRLF，返回 `\r` 下标；无完整 CRLF 时返回 None（应答未到齐）
-  ///
-  /// memchr 加速扫描 `\n`，回看一字节校验 `\r`；孤立的 `\n` 跳过继续找
-  /// （与 C# RespReadUtils 的逐字节扫描语义一致，但单次遍历为 SIMD 加速）
-  fn find_crlf(data: &[u8]) -> Option<usize> {
-    let mut from = 0;
-    while let Some(i) = memchr::memchr(b'\n', &data[from..]) {
-      let lf = from + i;
-      if lf > 0 && data[lf - 1] == b'\r' {
-        return Some(lf - 1);
-      }
-      from = lf + 1;
-    }
-    None
+/// 读取 `<token><正文>\r\n` 一行并返回正文借用（零拷贝）；应答未到齐返回 None
+#[inline]
+fn read_token_line<'a>(ptr: &mut &'a [u8], token: u8) -> Result<Option<&'a str>> {
+  let Some((&first, rest)) = ptr.split_first() else {
+    return Ok(None);
+  };
+  if first != token {
+    return Err(unexpected_token(first));
   }
+  match find_crlf(rest) {
+    Some(r_idx) => {
+      let s = str::from_utf8(&rest[..r_idx]).map_err(|e| Error::Other(e.to_string()))?;
+      *ptr = &rest[r_idx + 2..];
+      Ok(Some(s))
+    }
+    None => Ok(None),
+  }
+}
+
+/// 解析 `$<len>\r\n` / `*<len>\r\n` 长度头：定位行尾、解析十进制长度并前移指针
+/// （成功后 `ptr` 指向正文起点）；应答未到齐返回 None
+#[inline]
+fn read_length_header(ptr: &mut &[u8], token: u8) -> Result<Option<isize>> {
+  let Some((&first, rest)) = ptr.split_first() else {
+    return Ok(None);
+  };
+  if first != token {
+    return Err(unexpected_token(first));
+  }
+  let Some(r_idx) = find_crlf(rest) else {
+    return Ok(None);
+  };
+  let len = str::from_utf8(&rest[..r_idx])
+    .map_err(|e| Error::Other(e.to_string()))?
+    .parse()
+    .map_err(|_| Error::Other("Invalid length".into()))?;
+  *ptr = &rest[r_idx + 2..];
+  Ok(Some(len))
+}
+
+/// 查找首个 CRLF，返回 `\r` 下标；无完整 CRLF 时返回 None（应答未到齐）
+///
+/// memchr 加速扫描 `\n`，回看一字节校验 `\r`；孤立的 `\n` 跳过继续找
+/// （与 C# RespReadUtils 的逐字节扫描语义一致，但单次遍历为 SIMD 加速）
+fn find_crlf(data: &[u8]) -> Option<usize> {
+  let mut from = 0;
+  while let Some(i) = memchr::memchr(b'\n', &data[from..]) {
+    let lf = from + i;
+    if lf > 0 && data[lf - 1] == b'\r' {
+      return Some(lf - 1);
+    }
+    from = lf + 1;
+  }
+  None
+}
+
+/// 非法协议标记错误（统一错误文案）
+#[inline]
+pub(crate) fn unexpected_token(b: u8) -> Error {
+  Error::Other(format!("Unexpected token {}", b as char))
 }
 
 #[cfg(test)]
@@ -223,5 +169,15 @@ mod tests {
     let res = RespReadResponseUtils::try_read_string_array_with_length_header(&mut data).unwrap();
     assert_eq!(res, Some(None));
     assert_eq!(data, b"");
+  }
+
+  #[test]
+  fn integer_parses_without_intermediate_string() {
+    let mut data = &b":12345\r\n"[..];
+    assert_eq!(RespReadResponseUtils::try_read_integer(&mut data).unwrap(), Some(12345));
+    assert_eq!(data, b"");
+
+    let mut data = &b":nope\r\n"[..];
+    assert!(RespReadResponseUtils::try_read_integer(&mut data).is_err());
   }
 }

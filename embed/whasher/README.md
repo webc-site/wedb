@@ -27,6 +27,27 @@
   - [Collection constructors](#collection-constructors)
 - [Validation](#validation)
 
+- [Overview](#overview)
+- [Usage](#usage)
+  - [Installation and target requirements](#installation-and-target-requirements)
+  - [Hashing and standard collections](#hashing-and-standard-collections)
+  - [Streaming checksums](#streaming-checksums)
+  - [Concurrent collections](#concurrent-collections)
+- [Features](#features)
+- [Design](#design)
+  - [Direct and generic hashing](#direct-and-generic-hashing)
+  - [Streaming path](#streaming-path)
+  - [Collection path](#collection-path)
+  - [Compatibility boundaries](#compatibility-boundaries)
+- [Technology stack](#technology-stack)
+- [Directory structure](#directory-structure)
+- [API reference](#api-reference)
+  - [Hash functions](#hash-functions)
+  - [`StreamHasher`](#streamhasher)
+  - [Collection types and re-exports](#collection-types-and-re-exports)
+  - [Collection constructors](#collection-constructors)
+- [Validation](#validation)
+
 ## Overview
 
 whasher provides byte and integer hashing, streaming checksums, and hash collections backed by `gxhash`. It supports 64-bit and 128-bit output, explicit seeds, and generic values implementing Rust's `Hash` trait.
@@ -317,6 +338,27 @@ The test script invokes `cargo nextest run --all-features --no-capture` and requ
 <a name="zh"></a>
 
 # whasher : 硬件加速哈希与集合
+
+- [项目介绍](#项目介绍)
+- [使用演示](#使用演示)
+  - [安装与目标要求](#安装与目标要求)
+  - [哈希与普通集合](#哈希与普通集合)
+  - [流式校验和](#流式校验和)
+  - [并发集合](#并发集合)
+- [特性介绍](#特性介绍)
+- [设计思路](#设计思路)
+  - [直接哈希与泛型哈希](#直接哈希与泛型哈希)
+  - [流式路径](#流式路径)
+  - [集合路径](#集合路径)
+  - [兼容性边界](#兼容性边界)
+- [技术堆栈](#技术堆栈)
+- [目录结构](#目录结构)
+- [API 说明](#api-说明)
+  - [哈希函数](#哈希函数)
+  - [StreamHasher](#streamhasher)
+  - [集合类型与重导出](#集合类型与重导出)
+  - [集合构造函数](#集合构造函数)
+- [验证](#验证)
 
 - [项目介绍](#项目介绍)
 - [使用演示](#使用演示)
