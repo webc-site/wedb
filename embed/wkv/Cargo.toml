@@ -3,12 +3,11 @@ name = "wkv"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb"
-homepage = "https://github.com/webc-site/wedb"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wkv"
 description = "Single-node hybrid-log storage engine with TTL, GC, checkpoints, range index / 单机混合日志存储引擎，含 TTL、GC、检查点、范围索引"
 keywords = ["key-value", "storage-engine", "hybridlog", "database", "embedded"]
 categories = ["database-implementations", "data-structures", "concurrency", "asynchronous", "caching"]
-readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

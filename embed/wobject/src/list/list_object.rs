@@ -3,7 +3,6 @@ use std::{
   io::{self, Read, Write},
 };
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use parking_lot::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,15 +51,10 @@ impl ListObject {
 
   /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
-    let count = reader.read_i32::<LittleEndian>()?;
-    let mut list = VecDeque::with_capacity(count as usize);
-    for _ in 0..count {
-      let item_len = reader.read_i32::<LittleEndian>()?;
-      let mut item = vec![0u8; item_len as usize];
-      reader.read_exact(&mut item)?;
-      list.push_back(item);
-    }
-
+    let mut buf = Vec::new();
+    reader.read_to_end(&mut buf)?;
+    let list: VecDeque<Vec<u8>> =
+      bitcode::decode(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Ok(Self {
       list: Mutex::new(list),
     })
@@ -69,12 +63,8 @@ impl ListObject {
   /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let list = self.list.lock();
-    writer.write_i32::<LittleEndian>(list.len() as i32)?;
-    for item in list.iter() {
-      writer.write_i32::<LittleEndian>(item.len() as i32)?;
-      writer.write_all(item)?;
-    }
-    Ok(())
+    let bytes = bitcode::encode(&*list);
+    writer.write_all(&bytes)
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Operate
@@ -145,7 +135,6 @@ impl ListObject {
       return;
     }
 
-    // Truncate from end first, then from start
     list.truncate((e + 1) as usize);
     for _ in 0..s {
       list.pop_front();

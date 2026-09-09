@@ -3,12 +3,11 @@ name = "whlog"
 version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb"
-homepage = "https://github.com/webc-site/wedb"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/whlog"
 description = "HybridLog allocator with three-region sliding window and scan iterator / 混合日志分配器，含三区滑动窗口与扫描迭代器"
 keywords = ["hybridlog", "allocator", "storage-engine", "circular-buffer", "log"]
 categories = ["database-implementations", "data-structures", "concurrency", "asynchronous", "memory-management"]
-readme = "README.md"
 
 [features]
 default = []

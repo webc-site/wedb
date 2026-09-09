@@ -3,12 +3,11 @@ name = "wdev"
 version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb"
-homepage = "https://github.com/webc-site/wedb"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wdev"
 description = "compio-powered async block device abstraction with segmented files / 基于 compio 的异步块设备抽象与分段文件"
 keywords = ["async-io", "block-device", "storage", "compio", "segmented"]
 categories = ["asynchronous", "filesystem", "database-implementations", "memory-management", "concurrency"]
-readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

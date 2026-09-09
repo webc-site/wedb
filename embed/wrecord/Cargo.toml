@@ -3,12 +3,11 @@ name = "wrecord"
 version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb"
-homepage = "https://github.com/webc-site/wedb"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wrecord"
 description = "16-byte record format with zero-copy views and SIMD key compare / 16 字节记录格式，含零拷贝视图与 SIMD 键比较"
 keywords = ["record-format", "zero-copy", "simd", "codec", "storage"]
 categories = ["database-implementations", "encoding", "data-structures", "algorithms", "concurrency"]
-readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

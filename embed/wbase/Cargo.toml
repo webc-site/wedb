@@ -3,12 +3,11 @@ name = "wbase"
 version = "0.1.2"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb"
-homepage = "https://github.com/webc-site/wedb"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wbase"
 description = "Cacheline-safe storage primitives: 48-bit log addressing, sector alignment, backoff, varint / 缓存行安全存储原语：48 位日志寻址、扇区对齐、退避、变长整型"
 keywords = ["storage", "primitives", "alignment", "varint", "backoff"]
 categories = ["algorithms", "data-structures", "concurrency", "memory-management", "database-implementations"]
-readme = "README.md"
 
 [features]
 default = []

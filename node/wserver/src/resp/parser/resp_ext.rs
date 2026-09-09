@@ -49,6 +49,7 @@ pub trait RespVecExt {
   fn write_resp_array_len(&mut self, len: usize);
   fn write_resp_error(&mut self, msg: &str);
   fn write_resp_simple_string(&mut self, msg: &str);
+  fn write_resp_null(&mut self);
 }
 
 impl RespVecExt for Vec<u8> {
@@ -86,5 +87,9 @@ impl RespVecExt for Vec<u8> {
     self.push(b'+');
     self.extend_from_slice(msg.as_bytes());
     self.extend_from_slice(b"\r\n");
+  }
+  #[inline]
+  fn write_resp_null(&mut self) {
+    self.extend_from_slice(b"$-1\r\n");
   }
 }
