@@ -5,7 +5,7 @@
 
 use wdev::Device;
 
-use super::super::{common::array_key_iteration_functions, storage_session::StorageSession};
+use super::super::storage_session::StorageSession;
 use crate::api::garnet_status::GarnetStatus;
 
 impl<'a, D: Device> StorageSession<'a, D> {
@@ -19,17 +19,24 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// DELIFEXPIM：键在内存中已到期则删除
+  /// DELIFEXPIM：键已到期则原子删除
   ///
   /// libs/server/Storage/Session/UnifiedStore/UnifiedStoreOps.cs:DELIFEXPIM
+  ///
+  /// C# 语义按 RMW `status.Found` 折算：到期命中 → ExpireAndStop（墓碑化，
+  /// SessionFunctionsWrapper 置 SUCCESS/Expired → Found）→ OK；未过期命中 →
+  /// NotUpdated（SUCCESS/Found）→ OK；仅键缺失返回 NOTFOUND
   pub async fn delifexpim(&self, key: &[u8]) -> wkv::Result<GarnetStatus> {
     let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
     if matches!(self.batch.probe_ttl(key, now_ms), wkv::TtlProbe::Due) {
-      let _ = self.delete_string(key).await?;
-      return Ok(GarnetStatus::Ok);
+      let deleted = self.delete_string(key).await?;
+      return Ok(if deleted {
+        GarnetStatus::Ok
+      } else {
+        GarnetStatus::NotFound
+      });
     }
-    // 未到期键按 C# RMW 语义视为未命中
-    Ok(GarnetStatus::NotFound)
+    self.exists(key).await
   }
 
   /// RENAMENX：新键不存在时重命名，返回 1/0（同键名恒 1）
@@ -69,7 +76,6 @@ impl<'a, D: Device> StorageSession<'a, D> {
         .await?;
     }
     let _ = self.delete_string(old_key).await?;
-    let _ = array_key_iteration_functions::TAG_STRING;
     Ok((GarnetStatus::Ok, 1))
   }
 }

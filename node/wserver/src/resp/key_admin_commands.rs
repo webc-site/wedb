@@ -207,7 +207,10 @@ impl RespServerSession {
         output.extend_from_slice(encoded_len);
         output.extend_from_slice(&value);
         output.extend_from_slice(&RDB_VERSION.to_le_bytes());
-        // crc64 覆盖类型字节起至版本字节止
+        // crc64 覆盖类型字节起至版本字节止。刻意偏离 C#：C# DUMP 的 crc 从
+        // 类型字节之后起算（KeyAdminCommands.cs:200 的 Slice 越过 0x00），
+        // 而其 RESTORE 的 crc 校验含类型字节，C# 自身 DUMP→RESTORE 往返必被
+        // "checksum wrong" 拒绝；rust 对齐 RESTORE 口径保证往返成立
         let framed = output.len() - (payload_len - 8);
         let crc = rdb_crc64::hash(&output[framed..]);
         output.extend_from_slice(&crc);
@@ -230,45 +233,7 @@ impl RespServerSession {
       abort_with_wrong_number_of_arguments(output, "RENAME");
       return Ok(true);
     }
-
-    let old_key = parse_state[0];
-    let new_key = parse_state[1];
-
-    let old_val = match store.try_read_sync(old_key, |v| v.to_vec()) {
-      Ok(Some(Some(val))) => val,
-      Ok(Some(None)) => {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_NOSUCHKEY);
-        return Ok(true);
-      }
-      Ok(None) => return Ok(false),
-      Err(_) => {
-        output.write_resp_error("generic error");
-        return Ok(true);
-      }
-    };
-
-    // 同键 RENAME：C# 存储层自改自即成功
-    if old_key == new_key {
-      write_raw(output, cs::RESP_OK);
-      return Ok(true);
-    }
-
-    // 先写新键再删旧键：写新遇异步闭环时零变更可安全降级；删旧遇闭环时
-    // 新键已落地，调用方重试整条命令（旧键仍在 → 幂等重放）
-    match store.try_upsert_sync(new_key, old_val.as_slice()) {
-      Ok(Ok(_)) => {}
-      Ok(Err(_)) => return Ok(false),
-      Err(_) => {
-        output.write_resp_error("generic error");
-        return Ok(true);
-      }
-    }
-    match store.try_delete_sync(old_key) {
-      Ok(Ok(_)) => write_raw(output, cs::RESP_OK),
-      Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
-    }
-    Ok(true)
+    rename_sync(store, parse_state[0], parse_state[1], false, output)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRENAMENX
   pub fn network_renamenx<'a, D: wdev::Device>(
@@ -281,55 +246,7 @@ impl RespServerSession {
       abort_with_wrong_number_of_arguments(output, "RENAMENX");
       return Ok(true);
     }
-
-    let old_key = parse_state[0];
-    let new_key = parse_state[1];
-
-    let old_val = match store.try_read_sync(old_key, |v| v.to_vec()) {
-      Ok(Some(Some(val))) => val,
-      Ok(Some(None)) => {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_NOSUCHKEY);
-        return Ok(true);
-      }
-      Ok(None) => return Ok(false),
-      Err(_) => {
-        output.write_resp_error("generic error");
-        return Ok(true);
-      }
-    };
-
-    // 新键已存在（含自改名）→ 0，不动旧键
-    let new_exists = if old_key == new_key {
-      true
-    } else {
-      match probe_alive(store, new_key) {
-        Ok(Some(alive)) => alive,
-        Ok(None) => return Ok(false),
-        Err(_) => {
-          output.write_resp_error("generic error");
-          return Ok(true);
-        }
-      }
-    };
-    if new_exists {
-      output.write_resp_int(0);
-      return Ok(true);
-    }
-
-    match store.try_upsert_sync(new_key, old_val.as_slice()) {
-      Ok(Ok(_)) => {}
-      Ok(Err(_)) => return Ok(false),
-      Err(_) => {
-        output.write_resp_error("generic error");
-        return Ok(true);
-      }
-    }
-    match store.try_delete_sync(old_key) {
-      Ok(Ok(_)) => output.write_resp_int(1),
-      Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
-    }
-    Ok(true)
+    rename_sync(store, parse_state[0], parse_state[1], true, output)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkGETDEL
   pub fn network_getdel<'a, D: wdev::Device>(
@@ -338,7 +255,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
+    if parse_state.len() != 1 {
       abort_with_wrong_number_of_arguments(output, "GETDEL");
       return Ok(true);
     }
@@ -610,6 +527,119 @@ const fn command_name_of_ttl(command: TtlCmd) -> &'static str {
   }
 }
 
+/// RENAME/RENAMENX 共同内核（对标 libs/server/Storage/Session/UnifiedStore/
+/// UnifiedStoreOps.cs:RENAME，C# 以 isNX 单实现双命令）
+///
+/// 序次对齐 C#：同键早退（首个检查，先于一切读取与 NX 判定）→ 读旧值（带
+/// TTL 裁决，TTL 标签命中不再强制降级）→ 旧键 TTL 记录 → [NX] 新键存活判定
+/// → 写新键（SET 语义自动清新键残留 TTL，对标 C# 全新记录拷贝）→ TTL 随键
+/// 迁移（C# TryCopyFrom 连同 Expiration 拷入新记录）→ 清旧键 TTL → 删旧键。
+///
+/// 任一步遇异步闭环（磁盘候选/环形页翻转）即整体降级 `Ok(false)`：调用方
+/// 重试整条命令，旧键未删时幂等重放。`Ok(true)` 已闭环（应答已写入 output）
+fn rename_sync<'a, D: wdev::Device>(
+  store: &wkv::BatchStoreSession<'a, D>,
+  old_key: &[u8],
+  new_key: &[u8],
+  nx: bool,
+  output: &mut Vec<u8>,
+) -> wresp::Result<bool> {
+  // C# 同键早退：RENAME → OK；RENAMENX → 1（result=1，先于 NX 存在性判定）
+  if old_key == new_key {
+    if nx {
+      output.write_resp_int(1);
+    } else {
+      write_raw(output, cs::RESP_OK);
+    }
+    return Ok(true);
+  }
+
+  let old_val = match read_adjudicated_sync(store, old_key, |v| v.to_vec()) {
+    Ok(Some(Some(val))) => val,
+    Ok(Some(None)) => {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_NOSUCHKEY);
+      return Ok(true);
+    }
+    Ok(None) => return Ok(false),
+    Err(_) => {
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+  };
+
+  // 旧键 TTL 记录（Ok(None)：TTL 值在磁盘候选，降级）
+  let old_ttl = match ttl_of_sync(store, old_key) {
+    Ok(Some(ttl)) => ttl,
+    Ok(None) => return Ok(false),
+    Err(_) => {
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+  };
+
+  // RENAMENX：新键存活（含过期裁决）→ 0，不动旧键
+  if nx {
+    match probe_alive(store, new_key) {
+      Ok(Some(true)) => {
+        output.write_resp_int(0);
+        return Ok(true);
+      }
+      Ok(Some(false)) => {}
+      Ok(None) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    }
+  }
+
+  match store.try_upsert_sync(new_key, old_val.as_slice()) {
+    Ok(Ok(_)) => {}
+    Ok(Err(_)) => return Ok(false),
+    Err(_) => {
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+  }
+  if let Some(exp) = old_ttl {
+    match put_ttl_sync(store, new_key, exp) {
+      Ok(true) => {}
+      Ok(false) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    }
+  }
+  // C# DELETE 将记录连同 Expiration 一并移除：先清旧键 TTL 记录再删数据，
+  // 避免孤儿 TTL 记录令后续读取长期走异步裁决慢路径
+  if old_ttl.is_some() {
+    match del_ttl_sync(store, old_key) {
+      Ok(true) => {}
+      Ok(false) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    }
+  }
+  match store.try_delete_sync(old_key) {
+    Ok(Ok(_)) => {}
+    Ok(Err(_)) => return Ok(false),
+    Err(_) => {
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+  }
+
+  if nx {
+    output.write_resp_int(1);
+  } else {
+    write_raw(output, cs::RESP_OK);
+  }
+  Ok(true)
+}
+
 /// 单个过期选项映射到 TtlOpt 标志
 fn parse_expire_option(raw: &[u8], base: TtlOpt) -> TtlOpt {
   let mut opt = base;
@@ -736,7 +766,7 @@ mod tests {
   use super::{
     super::{
       batch_harness::with_batch,
-      ttl_sync::{now_unix_ms, put_ttl_sync, ttl_of_sync},
+      ttl_sync::{data_alive_sync, now_unix_ms, put_ttl_sync, ttl_of_sync},
     },
     *,
   };
@@ -916,13 +946,60 @@ mod tests {
       let _ = s.network_renamenx(&[b"c", b"x"], batch, &mut out).unwrap();
       assert_eq!(out, b":0\r\n");
 
-      // 自改名：RENAME c c → OK；RENAMENX c c → 0
+      // 自改名：RENAME c c → OK；RENAMENX c c → 1（C# 同键早退 result=1，
+      // 先于 NX 存在性判定，见 UnifiedStoreOps.cs:RENAME）
       let mut out = Vec::new();
       let _ = s.network_rename(&[b"c", b"c"], batch, &mut out).unwrap();
       assert_eq!(out, b"+OK\r\n");
       let mut out = Vec::new();
       let _ = s.network_renamenx(&[b"c", b"c"], batch, &mut out).unwrap();
+      assert_eq!(out, b":1\r\n");
+    });
+  }
+
+  #[test]
+  fn rename_transfers_ttl() {
+    with_batch(|s, batch| {
+      let _ = s
+        .network_set(&[b"k", b"v"], batch, &mut Vec::new())
+        .unwrap();
+      let mut out = Vec::new();
+      let _ = s
+        .network_expire(ExpireCmd::Expire, &[b"k", b"100"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":1\r\n");
+
+      // RENAME k k2：TTL 随键迁移（C# TryCopyFrom 连同 Expiration 拷贝）
+      let mut out = Vec::new();
+      let _ = s.network_rename(&[b"k", b"k2"], batch, &mut out).unwrap();
+      assert_eq!(out, b"+OK\r\n");
+      let ttl = ttl_of_sync(batch, b"k2").unwrap().unwrap().unwrap();
+      assert!(ttl > now_unix_ms() + 99_000);
+      // 旧键数据与 TTL 记录均已清除（TTL 墓碑标签会令同步读降级，故直接探针）
+      assert_eq!(ttl_of_sync(batch, b"k").unwrap(), Some(None));
+      assert_eq!(data_alive_sync(batch, b"k").unwrap(), Some(false));
+
+      // RENAMENX 到无 TTL 键：不引入 TTL
+      let _ = s
+        .network_set(&[b"k3", b"v3"], batch, &mut Vec::new())
+        .unwrap();
+      let mut out = Vec::new();
+      let _ = s
+        .network_renamenx(&[b"k3", b"k4"], batch, &mut out)
+        .unwrap();
+      assert_eq!(out, b":1\r\n");
+      assert_eq!(ttl_of_sync(batch, b"k4").unwrap(), Some(None));
+
+      // RENAMENX 到带 TTL 键：0，目标键原 TTL 不动
+      let _ = s
+        .network_set(&[b"a", b"va"], batch, &mut Vec::new())
+        .unwrap();
+      let _ = put_ttl_sync(batch, b"a", now_unix_ms() + 60_000).unwrap();
+      let mut out = Vec::new();
+      let _ = s.network_renamenx(&[b"k4", b"a"], batch, &mut out).unwrap();
       assert_eq!(out, b":0\r\n");
+      let ttl = ttl_of_sync(batch, b"a").unwrap().unwrap().unwrap();
+      assert!(ttl > now_unix_ms() + 59_000 && ttl < now_unix_ms() + 61_000);
     });
   }
 
