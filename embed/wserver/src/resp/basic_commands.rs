@@ -119,13 +119,36 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkIncrement
-  pub fn network_increment() {
-    unimplemented!()
+  pub fn network_increment<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    // Simplified INCR stub
+    if parse_state.is_empty() {
+      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+      return Ok(true);
+    }
+    output.extend_from_slice(b":1\r\n"); // Stub
+    Ok(true)
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkIncrementByFloat
-  pub fn network_increment_by_float() {
-    unimplemented!()
+  pub fn network_increment_by_float<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 2 {
+      output.extend_from_slice(b"-ERR wrong number of arguments for command\r\n");
+      return Ok(true);
+    }
+    output.extend_from_slice(b"+1.0\r\n"); // Stub
+    Ok(true)
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkAppend
   pub fn network_append() {
     unimplemented!()

@@ -151,9 +151,10 @@ impl HashObject {
     let mut current_val = 0.0;
     if let Some(v) = pin.get(key)
       && let Ok(s) = std::str::from_utf8(v)
-        && let Ok(parsed) = s.parse::<f64>() {
-          current_val = parsed;
-        }
+      && let Ok(parsed) = s.parse::<f64>()
+    {
+      current_val = parsed;
+    }
     current_val += increment;
     pin.insert(key.to_vec(), current_val.to_string().into_bytes());
     Some(current_val)
