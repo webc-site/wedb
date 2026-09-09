@@ -1,0 +1,25 @@
+fn:
+  - InitialDeleter
+  - PostInitialDeleter
+  - InPlaceWriter
+  - CopyUpdater
+  - PostCopyUpdater
+  - InitialUpdater
+  - PostInitialUpdater
+  - NeedInitialUpdate
+  - NeedCopyUpdate
+  - ReadCompletionCallback
+  - RMWCompletionCallback
+  - GetRMWModifiedFieldInfo
+  - GetRMWInitialFieldInfo
+  - GetUpsertFieldInfo
+  - InitialWriter
+  - PostInitialWriter
+  - PostUpsertOperation
+  - PostRMWOperation
+  - PostDeleteOperation
+  - ConvertOutputToHeap
+  - PreSingleKeyConsistentRead
+  - PostSingleKeyConsistentReadCallback
+  - PreBatchKeyConsistentReadCallback
+  - PostBatchKeyConsistentReadCallback

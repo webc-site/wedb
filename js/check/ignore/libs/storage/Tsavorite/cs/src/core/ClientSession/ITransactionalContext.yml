@@ -1,0 +1,10 @@
+fn:
+  - BeginTransaction
+  - LocksAcquired
+  - EndTransaction
+  - CompareKeyHashes
+  - SortKeyHashes
+  - Lock
+  - TryLock
+  - TryPromoteLock
+  - Unlock

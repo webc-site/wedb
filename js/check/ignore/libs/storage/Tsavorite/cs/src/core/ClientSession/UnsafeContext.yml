@@ -1,0 +1,9 @@
+fn:
+  - EndUnsafe
+  - GetKeyHash
+  - CompletePendingWithOutputs
+  - CompletePendingAsync
+  - CompletePendingWithOutputsAsync
+  - ReadWithPrefetch
+  - ResetModified
+  - IsModified
