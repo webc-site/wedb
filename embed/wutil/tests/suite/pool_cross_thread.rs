@@ -8,7 +8,7 @@ use std::{sync::mpsc::channel, thread};
 
 use aok::{OK, Void};
 use log::info;
-use wram::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE};
+use wutil::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE};
 
 /// 跨线程归还必须路由回属主线程并在其复用同一底层内存
 #[test]

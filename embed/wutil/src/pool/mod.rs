@@ -399,7 +399,7 @@ impl BufferPool {
   /// 指定 class 当前缓存的空闲缓冲数 (包含当前线程本地缓存与全局条带仓库)
   ///
   /// 越界 class 无可池化容量，恒返回 0 (绝不触发索引越界 panic)；
-  /// TLS 析构期访问按 0 处理 (同 [`BufferPool::drain_tls_self`] 的容错语义)
+  /// TLS 析构期访问按 0 处理 (同 `BufferPool::drain_tls_self` 的容错语义)
   #[must_use]
   pub fn cached_len(&self, cls: usize) -> usize {
     if cls >= NUM_CLASSES {

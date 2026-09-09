@@ -6,7 +6,7 @@
 
 use aok::{OK, Void};
 use log::info;
-use wram::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, NUM_CLASSES};
+use wutil::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, NUM_CLASSES};
 
 /// 跨尺寸请求：指针对齐、容量覆盖、首尾字节可写
 #[test]
@@ -166,7 +166,7 @@ fn get_from_slice_copies_data_and_reuses_memory() -> Void {
   assert_eq!(empty.len(), 0);
 
   // 常规数据切片：内容拷贝、容量至少一扇区
-  let data = b"embedded storage wram zero-copy test";
+  let data = b"embedded storage wutil zero-copy test";
   let ptr_val: usize;
   {
     let buf = pool.get_from_slice(data)?;

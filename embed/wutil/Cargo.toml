@@ -24,3 +24,9 @@ log_init = "0.1.39"
 
 [lints]
 workspace = true
+
+[dependencies]
+compio-buf.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+wbase = { workspace = true, features = ["align", "thread"] }

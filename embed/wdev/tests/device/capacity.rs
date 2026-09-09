@@ -15,7 +15,7 @@ use tempfile::tempdir;
 use wdev::{
   Device, Error, MAX_SEGMENT_SIZE, SegmentedDevice, detect_cpu_cores, detect_system_memory,
 };
-use wram::AlignedBuf;
+use wutil::AlignedBuf;
 
 /// 对标 C# Initialize 容量校验：容量上限必须为段尺寸的正整数倍，否则拒绝。
 #[test]

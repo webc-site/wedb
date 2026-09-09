@@ -9,10 +9,10 @@ use log::{debug, info};
 use parking_lot::{Mutex, RwLockReadGuard};
 use wdev::Device;
 use wepoch::LightEpoch;
-use wram::AlignedBuf;
 use wrecord::{
   ADDRESS_MASK, HEADER_SIZE, RecordHeader, RecordRef, checked_record_size, encode_to_slice,
 };
+use wutil::AlignedBuf;
 
 use crate::{
   address::{AddressManager, AddressSnapshot},

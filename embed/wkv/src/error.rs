@@ -26,7 +26,7 @@ pub enum Error {
   Value(#[from] wval::Error),
 
   #[error(transparent)]
-  Mem(#[from] wram::Error),
+  Mem(#[from] wutil::Error),
 
   #[error("配置错误: {0}")]
   InvalidConfig(String),

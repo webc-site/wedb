@@ -1,8 +1,8 @@
 use std::{hint::spin_loop, sync::atomic::Ordering, thread::yield_now};
 
 use wdev::Device;
-use wram::AlignedBuf;
 use wrecord::{HEADER_SIZE, RecordHeader, RecordRef};
+use wutil::AlignedBuf;
 
 use crate::{
   address::AddressManager,
@@ -62,7 +62,7 @@ fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
 ///
 /// # 调用方契约（无锁直读路径）
 /// 只读区无锁裸读（`PageBytes::Raw`）要求调用线程处于 `LightEpoch` 保护下（同
-/// [HybridLog::probe_resident] 契约）：页槽位回收的前置条件是 `safe_head` 经纪元排空
+/// `HybridLog::probe_resident` 契约）：页槽位回收的前置条件是 `safe_head` 经纪元排空
 /// 越过旧页，持守卫期间页内存绝不会被清空复用；未持守卫时最坏情形为并发驱逐窗口内
 /// 读到撕裂字节（解析报错或按 Pad 跳过，绝无悬垂 UB——页内存随实例存活），与 C#
 /// 扫描器在内存区读取须持纪元的语义一致。
@@ -71,7 +71,7 @@ fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
 /// C# `TsavoriteLogScanIterator` 默认钳制在 `SafeTailAddress`（commit 提交协议推进），
 /// `scanUncommitted` 模式触界时 `Thread.SpinWait(100)` 复查（TsavoriteLogScanIterator.cs:779-790）。
 /// 本实现 compio 调用方驱动模型无逐记录提交标记，扫描终点为裸 tail：触达「已预占
-/// 未编码」在途零头时以 [ZERO_HEADER_SPIN_BUDGET] 有界自旋等效 C# SpinWait 复查，
+/// 未编码」在途零头时以 `ZERO_HEADER_SPIN_BUDGET` 有界自旋等效 C# SpinWait 复查，
 /// 耗尽仍为零（恢复清洗区）才跳页。因此与热追加并发的扫描具最终一致尽力语义——
 /// 自旋耗尽的极端在途记录本轮漏扫、后续扫描轮次自愈（GC/过期清理均为周期性扫描）；
 /// 需要强一致快照的调用方（checkpoint/恢复）须先冻结写入（shift_read_only_to_tail +
@@ -106,7 +106,7 @@ impl<'a, D: Device> ScanIterator<'a, D> {
     self.curr_addr
   }
 
-  /// 异步拉取下一条记录并以零拷贝 [ScanItem] 交付闭包消费
+  /// 异步拉取下一条记录并以零拷贝 `ScanItem` 交付闭包消费
   ///
   /// 单一遍历引擎：推模式 [HybridLog::scan]、拉模式 [Self::next] 与缓冲复用变体
   /// [Self::next_into] 均构建于此，三区（磁盘冷读 / 只读直读 / 可变读锁）分派、

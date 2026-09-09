@@ -9,9 +9,9 @@ pub enum Error {
   #[error(transparent)]
   Io(#[from] io::Error),
 
-  /// 内存/对齐错误（来自 wram）
+  /// 内存/对齐错误（来自 wutil，Utilities 层）
   #[error(transparent)]
-  Mem(#[from] wram::Error),
+  Mem(#[from] wutil::Error),
 
   /// 偏移量未按扇区对齐
   #[error("偏移量未对齐: 偏移量 {offset} 不是扇区大小 {align} 的整数倍")]
@@ -73,9 +73,9 @@ pub enum Error {
 /// wdev 结果类型
 pub type Result<T> = result::Result<T, Error>;
 
-impl From<wram::SectorRangeError> for Error {
+impl From<wutil::SectorRangeError> for Error {
   #[inline]
-  fn from(err: wram::SectorRangeError) -> Self {
-    Self::Mem(wram::Error::from(err))
+  fn from(err: wutil::SectorRangeError) -> Self {
+    Self::Mem(wutil::Error::from(err))
   }
 }

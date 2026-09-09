@@ -2,8 +2,8 @@ use std::sync::atomic::Ordering;
 
 use log::debug;
 use wdev::Device;
-use wram::AlignedBuf;
 use wrecord::{HEADER_SIZE, RecordHeader, RecordRef};
+use wutil::AlignedBuf;
 
 use super::{
   DISK_READ_CACHE_MASK, DISK_READ_PROBE_LEN, HybridLog, parse_record_from_slice, reject_pad,
@@ -59,7 +59,7 @@ impl<D: Device> HybridLog<D> {
   ///
   /// 严格对照 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs 与 InternalRead.cs：闭包直接借用页内物理字节，
   /// 零拷贝零分配。可变区与只读区在 LightEpoch 纪元保护下统一走无锁裸指针直读
-  /// （撕裂安全论证与调用方契约详见 [Self::probe_resident]）。
+  /// （撕裂安全论证与调用方契约详见 `Self::probe_resident`）。
   /// 若记录已不在内存页（在磁盘区或尚未加载），返回 `Ok(None)`，
   /// 调用方可降级走 [Self::read_disk_record] 异步冷读。
   pub fn with_memory_record<R>(
@@ -122,9 +122,9 @@ impl<D: Device> HybridLog<D> {
   /// 冷读 I/O 期间不再阻塞纪元推进与页回收（对标 C# IO 期间 UnsafeSuspendThread 的反面优化）。
   ///
   /// # 连续性装载门槛（sequential-adaptive install）
-  /// 直接映射整页磁盘读缓存（[DISK_READ_CACHE_SLOTS] 槽，`page_id % SLOTS` 寻址，
+  /// 直接映射整页磁盘读缓存（`DISK_READ_CACHE_SLOTS` 槽，`page_id % SLOTS` 寻址，
   /// 对标 [crate::scan::ScanIterator] 单页磁盘预取语义）不再"未命中即整页装载"：
-  /// 未命中先用 [DISK_READ_PROBE_LEN] 探针冷读（记录 >4KB 时按物理尺寸精确二次读），
+  /// 未命中先用 `DISK_READ_PROBE_LEN` 探针冷读（记录 >4KB 时按物理尺寸精确二次读），
   /// 同一页出现**第二次未命中访问**才判定为顺序 / 热点形态，走整页设备读 + 装槽。
   ///
   /// 设计动机：均匀随机负载访问数十万互不相同页，2 槽直接映射命中率≈0，若每次未命中
@@ -147,7 +147,7 @@ impl<D: Device> HybridLog<D> {
   /// - 同进程截断（`shift_begin_address` → `truncate_until_address`）仅整段删除历史
   ///   段文件，begin 以下地址再也无法通过前置守卫（`is_on_disk` 要求 `addr >= begin`，
   ///   过渡区要求 `addr >= head >= begin`），陈旧槽位永远不会被命中，无需失效回调；
-  ///   64 位逻辑地址单调不复用，无页号 ABA 风险（[Self::last_probe_page] 同理，无需清空）。
+  ///   64 位逻辑地址单调不复用，无页号 ABA 风险（`Self::last_probe_page` 同理，无需清空）。
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory

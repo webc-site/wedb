@@ -1,10 +1,10 @@
 # WeDB Base : Full-stack Rust rewrite of the Microsoft Garnet storage engine
 
-WeDB Base is the storage foundation of [WeDB](https://github.com/webc-site/wedb). It rewrites the C# storage core of Microsoft [Garnet](https://github.com/microsoft/garnet) — Tsavorite HybridLog, lock-free hash index, CPR checkpointing, revivification, log compaction — plus BfTree range indexing, delivered as fourteen focused Rust crates on the `compio` async runtime (Linux io_uring, Windows IOCP, macOS kqueue).
+WeDB Base is the storage foundation of [WeDB](https://github.com/webc-site/wedb). It rewrites the C# storage core of Microsoft [Garnet](https://github.com/microsoft/garnet) — Tsavorite HybridLog, lock-free hash index, CPR checkpointing, revivification, log compaction — plus BfTree range indexing, delivered as seventeen focused Rust crates on the `compio` async runtime (Linux io_uring, Windows IOCP, macOS kqueue).
 
 ## What It Does
 
-The workspace ships a layered storage stack. At the bottom, `wbase` provides cacheline-safe primitives: 48-bit log addressing, sector alignment math, adaptive backoff, and TLS thread identity. `wram` manages sector-aligned buffer pools and direct virtual memory. `whasher` wraps AES-accelerated GxHash, parallel-lane streaming checksums, and lock-free Papaya maps. `wepoch` supplies epoch protection for safe memory reclamation. `wdev` abstracts async block devices over `compio`.
+The workspace ships a layered storage stack. At the bottom, `wbase` provides cacheline-safe primitives: 48-bit log addressing, sector alignment math, adaptive backoff, and TLS thread identity. `wram` manages direct virtual memory and native allocation tracking, while `wutil` hosts the sector-aligned buffer pool (mirroring the bottom-layer role of Tsavorite `core/Utilities`) plus the libs/common toolset. `whasher` wraps AES-accelerated GxHash, parallel-lane streaming checksums, and lock-free Papaya maps. `wepoch` supplies epoch protection for safe memory reclamation. `wdev` abstracts async block devices over `compio`.
 
 On top of that foundation sit the Tsavorite-equivalent cores. `wrecord` defines the 16-byte record header and zero-copy record views. `windex` implements the 64-byte-aligned lock-free hash index with overflow buckets and per-bucket guards. `whlog` implements the HybridLog allocator with its three-region sliding window (Mutable / ReadOnly / OnDisk). `wreviv` recycles deleted record slots. `wval` adds the Redis value layer: multi-tenant namespace encoding, collection metadata, and compact hash / set / zset codecs.
 
@@ -167,7 +167,8 @@ graph TD
     wdev[wdev async device]
     wepoch[wepoch epoch protection]
     whasher[whasher hash and maps]
-    wram[wram aligned memory]
+    wutil[wutil buffer pool and tools]
+    wram[wram direct virtual memory]
     wbase[wbase L0 primitives]
   end
 
@@ -191,7 +192,10 @@ graph TD
   windex --> whasher
   windex --> wram
   wval --> wrecord
-  wdev --> wram
+  wdev --> wutil
+  whlog --> wutil
+  wram --> wutil
+  wutil --> wbase
   wepoch --> whasher
   wram --> wbase
   wrecord --> wbase
@@ -231,7 +235,8 @@ graph TD
 ```text
 embed/
   wbase/     L0 primitives: addressing, alignment, backoff, varint, glob, TLS thread id
-  wram/      sector-aligned buffer pool, direct virtual memory, native memory tracker
+  wutil/     sector-aligned buffer pool (Origin-Return), alignment re-exports, libs/common tools
+  wram/      direct virtual memory, native memory tracker (buffer pool re-exported from wutil)
   whasher/   GxHash backends, streaming checksums, Papaya concurrent maps
   wepoch/    LightEpoch protection and entry table
   wdev/      compio Device trait, SegmentedDevice, NullDevice, fsync contract
@@ -283,7 +288,17 @@ embed/
 
 Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), `align` (64B cacheline / sector math), `backoff` (adaptive retry state machine), `base32`, `buf`, `crc` (`crc32fast`), `float` (order-preserving f64 bits), `glob`, `simd`, `striped` (lock striping), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints).
 
-### wram — aligned memory
+### wutil — shared tools and buffer pool
+
+- `BufferPool` — tiered Direct I/O pools (mirroring Tsavorite `core/Utilities/BufferPool.OriginReturn.cs`) with class capacities, per-thread depots, and `PoolStats`; class math via `class_of_sectors`, `class_capacity_bytes`, `NUM_CLASSES`.
+- `AlignedBuf` — sector-aligned buffer (mirroring `SectorAlignedMemory`), RAII return-to-pool.
+- `ascii` / `num` / `convert` / `crc64` / `hash` / `hash_slot` — the garnet `libs/common` tool surface.
+
+### wram — direct virtual memory
+
+- `DirectVirtualMemory`, `DirectVmBlock`, `system_page_size()` (mirroring `core/Native/DirectVirtualMemory.cs`).
+- `NativeMemoryTracker`; alignment helpers `align_up` / `align_down` / `checked_align_up` / `is_aligned` / `SectorRange` re-exported for compatibility.
+- `BufferPool` / `AlignedBuf` re-exported from wutil (Allocator→Utilities direction, same as C#).
 
 - `BufferPool` — tiered Direct I/O pools with class capacities, per-thread depots, and `PoolStats`; class math via `class_of_sectors`, `class_capacity_bytes`, `NUM_CLASSES`.
 - `AlignedBuf`, `DirectVirtualMemory`, `DirectVmBlock`, `system_page_size()`.
@@ -306,7 +321,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 - `Device` / `StorageDevice` traits — async read / write / flush with segment lifecycle.
 - `SegmentedDevice` — growable segmented file (`single_file` and `segmented` constructors), `SegmentChunk` / `SegmentChunks`, `FileMap`.
 - `NullDevice` — discard sink for benchmarks.
-- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wram::BufferPool`.
+- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wutil::BufferPool` (Utilities-layer primitive).
 
 ### wrecord — record format
 

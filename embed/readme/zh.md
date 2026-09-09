@@ -1,10 +1,10 @@
 # WeDB Base : 以 Rust 全栈重写微软 Garnet 存储引擎
 
-WeDB Base 是 [WeDB](https://github.com/webc-site/wedb) 的存储引擎底座。以 Rust 重写微软 [Garnet](https://github.com/microsoft/garnet) 的 C# 存储核心——Tsavorite 混合日志、无锁哈希索引、CPR 检查点、槽位复活、日志紧缩——以及 BfTree 范围索引，拆分为十四个职责单一的 crate，运行于 `compio` 异步运行时（Linux io_uring、Windows IOCP、macOS kqueue）。
+WeDB Base 是 [WeDB](https://github.com/webc-site/wedb) 的存储引擎底座。以 Rust 重写微软 [Garnet](https://github.com/microsoft/garnet) 的 C# 存储核心——Tsavorite 混合日志、无锁哈希索引、CPR 检查点、槽位复活、日志紧缩——以及 BfTree 范围索引，拆分为十七个职责单一的 crate，运行于 `compio` 异步运行时（Linux io_uring、Windows IOCP、macOS kqueue）。
 
 ## 功能介绍
 
-工作区分层交付整套存储栈。底层 `wbase` 提供缓存行安全原语：48 位日志寻址、扇区对齐运算、自适应退避、TLS 线程标识。`wram` 管理扇区对齐缓冲池与直接虚拟内存。`whasher` 封装 AES 加速 GxHash、四链并行流式校验和与 Papaya 无锁并发字典。`wepoch` 提供纪元保护，支撑安全内存回收。`wdev` 基于 `compio` 抽象异步块设备。
+工作区分层交付整套存储栈。底层 `wbase` 提供缓存行安全原语：48 位日志寻址、扇区对齐运算、自适应退避、TLS 线程标识。`wram` 管理直接虚拟内存与原生内存追踪，`wutil` 承载扇区对齐缓冲池（对标 Tsavorite `core/Utilities` 底层位）与 libs/common 工具。`whasher` 封装 AES 加速 GxHash、四链并行流式校验和与 Papaya 无锁并发字典。`wepoch` 提供纪元保护，支撑安全内存回收。`wdev` 基于 `compio` 抽象异步块设备。
 
 核心层对标 Tsavorite。`wrecord` 定义 16 字节记录头与零拷贝记录视图。`windex` 实现 64 字节对齐的无锁哈希索引，含溢出桶池与桶级并发守卫。`whlog` 实现混合日志分配器与三区滑动窗口（可变 / 只读 / 磁盘）。`wreviv` 回收已删记录槽位。`wval` 叠加 Redis 值层：多租户命名空间编码、集合元数据、hash / set / zset 紧凑编解码。
 
@@ -167,7 +167,8 @@ graph TD
     wdev[wdev 异步设备]
     wepoch[wepoch 纪元保护]
     whasher[whasher 哈希与并发字典]
-    wram[wram 对齐内存]
+    wutil[wutil 缓冲池与工具]
+    wram[wram 直接虚拟内存]
     wbase[wbase L0 原语]
   end
 
@@ -191,7 +192,10 @@ graph TD
   windex --> whasher
   windex --> wram
   wval --> wrecord
-  wdev --> wram
+  wdev --> wutil
+  whlog --> wutil
+  wram --> wutil
+  wutil --> wbase
   wepoch --> whasher
   wram --> wbase
   wrecord --> wbase
@@ -231,7 +235,8 @@ graph TD
 ```text
 embed/
   wbase/     L0 原语：寻址、对齐、退避、变长整型、glob、TLS 线程标识
-  wram/      扇区对齐缓冲池、直接虚拟内存、原生内存追踪
+  wutil/     扇区对齐缓冲池（Origin-Return）、对齐原语再导出、libs/common 工具
+  wram/      直接虚拟内存、原生内存追踪（缓冲池兼容再导出自 wutil）
   whasher/   GxHash 后端、流式校验和、Papaya 并发字典
   wepoch/    LightEpoch 纪元保护与条目表
   wdev/      compio Device trait、SegmentedDevice、NullDevice、fsync 契约
@@ -283,7 +288,18 @@ embed/
 
 按特性启用的模块，无 `full` 特性：`addr`（48 位 `LogAddress` 掩码）、`align`（64B 缓存行 / 扇区运算）、`backoff`（自适应重试状态机）、`base32`、`buf`、`crc`（`crc32fast`）、`float`（保序 f64 位模式）、`glob`、`simd`、`striped`（锁条带）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）。
 
-### wram —— 对齐内存
+### wutil —— 公共工具与缓冲池
+
+- `BufferPool`——分级 Direct I/O 缓冲池（对标 Tsavorite `core/Utilities/BufferPool.OriginReturn.cs`），含容量分级、线程本地仓与 `PoolStats`；分级运算经 `class_of_sectors`、`class_capacity_bytes`、`NUM_CLASSES`。
+- `AlignedBuf`——扇区对齐缓冲区（对标 `SectorAlignedMemory`），RAII 归还入池。
+- `ascii` / `num` / `convert` / `crc64` / `hash` / `hash_slot`——garnet `libs/common` 工具面。
+
+### wram —— 直接虚拟内存
+
+- `DirectVirtualMemory`、`DirectVmBlock`、`system_page_size()`（对标 `core/Native/DirectVirtualMemory.cs`）。
+- `NativeMemoryTracker`；对齐助手 `align_up` / `align_down` / `checked_align_up` / `is_aligned` / `SectorRange` 兼容再导出。
+- `BufferPool` / `AlignedBuf` 自 wutil 兼容再导出（Allocator→Utilities 方向，与 C# 一致）。
+
 
 - `BufferPool`——分级 Direct I/O 缓冲池，含容量分级、线程本地仓与 `PoolStats`；分级运算经 `class_of_sectors`、`class_capacity_bytes`、`NUM_CLASSES`。
 - `AlignedBuf`、`DirectVirtualMemory`、`DirectVmBlock`、`system_page_size()`。
@@ -306,7 +322,7 @@ embed/
 - `Device` / `StorageDevice` trait——异步读 / 写 / 刷与段生命周期。
 - `SegmentedDevice`——可增长分段文件（`single_file` 与 `segmented` 构造器）、`SegmentChunk` / `SegmentChunks`、`FileMap`。
 - `NullDevice`——基准测试用丢弃设备。
-- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wram::BufferPool`。
+- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wutil::BufferPool`（Utilities 层原语）。
 
 ### wrecord —— 记录格式
 

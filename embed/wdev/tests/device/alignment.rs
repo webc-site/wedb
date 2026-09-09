@@ -16,7 +16,7 @@ use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
 use wdev::{Device, Error, SegmentedDevice};
-use wram::{AlignedBuf, BufferPool};
+use wutil::{AlignedBuf, BufferPool};
 
 /// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:NativeStorageDevice_UnalignedOffset_ReadAsync_Throws：
 /// 偏移量不是扇区大小整数倍的读取必须同步拒绝，并指明未对齐输入。
