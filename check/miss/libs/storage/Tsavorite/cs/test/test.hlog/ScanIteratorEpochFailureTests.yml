@@ -1,0 +1,15 @@
+fn:
+  - PopulateRecordSizeInfo
+  - AllocatePage
+  - FreePage
+  - ClaimFrameAndIssueRead
+  - AsyncReadPageFromDeviceToFrame
+  - RunBounded
+  - DrainIgnoringQueuedFailures
+  - DrainAndDispose
+  - QueuePoisonFromOtherThread
+test:
+  - FrameClaimIsReleasedWhenEpochBumpThrows
+  - FrameClaimIsReleasedWhenEpochBumpThrowsBeforeRegistration
+  - FrameClaimIsReleasedWhenIssuingTheReadThrows
+  - FrameLoadSucceedsWhenEpochBumpDoesNotThrow

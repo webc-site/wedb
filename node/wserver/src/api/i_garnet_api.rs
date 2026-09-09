@@ -5,29 +5,22 @@
 //! 全部委托 [`StorageSession`](crate::storage::session::storage_session::StorageSession)
 //! 已实现操作（mainstore / objectstore / unifiedstore / common）。
 
-use std::io::Cursor;
-
 use wdev::Device;
-use wobject::{
-  hash::hash_object::HashObject, list::list_object::OperationDirection, set::set_object::SetObject,
-};
+use wobject::list::list_object::OperationDirection;
 
 use crate::{
-  api::garnet_status::GarnetStatus,
-  storage::{
-    functions::mainstore::rmw_methods__etags as rmm,
-    session::{
-      mainstore::{
-        bitmap_ops::{BitFieldOp, BitmapOp},
-        main_store_ops::LcsResult,
-      },
-      objectstore::{
-        common::{OBJ_TAG_HASH, OBJ_TAG_SET},
-        sorted_set_geo_ops::{GeoCenter, GeoCmd},
-        sorted_set_ops::{ZSetAggregate, ZSetRemoveRange},
-      },
-      storage_session::{StorageSession, StoreType},
+  api::{garnet_status::GarnetStatus, hash_fields, hash_or_set_members, set_members},
+  storage::session::{
+    mainstore::{
+      bitmap_ops::{BitFieldOp, BitmapOp},
+      main_store_ops::LcsResult,
     },
+    objectstore::{
+      common::{OBJ_TAG_HASH, OBJ_TAG_SET},
+      sorted_set_geo_ops::{GeoCenter, GeoCmd},
+      sorted_set_ops::{ZSetAggregate, ZSetRemoveRange},
+    },
+    storage_session::{StorageSession, StoreType},
   },
 };
 
@@ -42,73 +35,6 @@ pub enum ObjectSubCommand {
   IdleTime,
   /// OBJECT FREQ
   Freq,
-}
-
-/// OBJECT SCAN 成员抽取兜底：哈希返回字段、集合返回成员（载荷为剥壳 bitcode）
-fn generic_members(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-  HashObject::deserialize(&mut Cursor::new(payload.to_vec()))
-    .ok()
-    .map(|o| {
-      let mut fields = o.get_keys();
-      fields.sort();
-      fields
-    })
-}
-
-/// SET SCAN（游标 = 上次返回的最后一个成员）
-async fn set_scan<D: Device>(
-  ss: &StorageSession<'_, D>,
-  key: &[u8],
-  cursor: &[u8],
-  pattern: &[u8],
-  count: usize,
-) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-  let members_of = |payload: &[u8]| -> Option<Vec<Vec<u8>>> {
-    SetObject::deserialize(&mut Cursor::new(payload.to_vec()))
-      .ok()
-      .map(|o| {
-        let mut members = o.get_keys();
-        members.sort();
-        members
-      })
-  };
-  ss.object_scan(key, OBJ_TAG_SET, pattern, cursor, count, members_of)
-    .await
-}
-
-/// HASH SCAN（游标 = 上次返回的最后一个字段）
-async fn hash_scan<D: Device>(
-  ss: &StorageSession<'_, D>,
-  key: &[u8],
-  cursor: &[u8],
-  pattern: &[u8],
-  count: usize,
-) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-  let members_of = |payload: &[u8]| -> Option<Vec<Vec<u8>>> {
-    HashObject::deserialize(&mut Cursor::new(payload.to_vec()))
-      .ok()
-      .map(|o| {
-        let mut fields = o.get_keys();
-        fields.sort();
-        fields
-      })
-  };
-  ss.object_scan(key, OBJ_TAG_HASH, pattern, cursor, count, members_of)
-    .await
-}
-
-/// etag 条件写：值与 etag 一并落盘（值 = 新负载，etag 整数文本独立记录缺失，
-/// 以"新值文本即 etag"约定返回状态）
-async fn etag_set<D: Device>(
-  ss: &StorageSession<'_, D>,
-  key: &[u8],
-  val: &[u8],
-  etag: u64,
-) -> wkv::Result<rmm::EtagOutcome> {
-  // 缺口：wkv 无独立 etag 元数据通道，新 etag 以负载文本承载（见 etags 域注释）
-  ss.upsert_string(key, val).await?;
-  let _ = etag;
-  Ok(rmm::EtagOutcome::Updated)
 }
 
 /// Garnet 存储 API 面
@@ -144,10 +70,11 @@ impl IGarnetApi {
     val: &[u8],
     etag: u64,
   ) -> wkv::Result<GarnetStatus> {
-    Ok(match etag_set(ss, key, val, etag).await? {
-      rmm::EtagOutcome::Updated | rmm::EtagOutcome::Deleted => GarnetStatus::Ok,
-      rmm::EtagOutcome::Unchanged => GarnetStatus::NotFound,
-    })
+    // 缺口：wkv 无独立 etag 元数据通道，SET WITH ETAG 恒为 Updated（见
+    // rmw_methods__etags 域"值为整数文本 = etag"约定），值落盘即成功
+    let _ = etag;
+    ss.upsert_string(key, val).await?;
+    Ok(GarnetStatus::Ok)
   }
 
   /// libs/server/API/IGarnetApi.cs:DEL_ETagConditional
@@ -156,7 +83,7 @@ impl IGarnetApi {
     key: &[u8],
     etag: u64,
   ) -> wkv::Result<GarnetStatus> {
-    ss.del_conditional(key, etag as i64).await
+    ss.del_conditional(key, etag).await
   }
 
   /// libs/server/API/IGarnetApi.cs:SETEX
@@ -981,7 +908,8 @@ impl IGarnetApi {
     pattern: &[u8],
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    set_scan(ss, key, cursor, pattern, count).await
+    ss.object_scan(key, OBJ_TAG_SET, pattern, cursor, count, set_members)
+      .await
   }
 
   /// libs/server/API/IGarnetApi.cs:SetUnion
@@ -1102,7 +1030,8 @@ impl IGarnetApi {
     pattern: &[u8],
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    hash_scan(ss, key, cursor, pattern, count).await
+    ss.object_scan(key, OBJ_TAG_HASH, pattern, cursor, count, hash_fields)
+      .await
   }
 
   /// libs/server/API/IGarnetApi.cs:HashTimeToLive
@@ -1211,12 +1140,12 @@ impl IGarnetApi {
     pattern: &[u8],
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    ss.object_scan(key, tag, pattern, cursor, count, generic_members)
+    ss.object_scan(key, tag, pattern, cursor, count, hash_or_set_members)
       .await
   }
 
   /// libs/server/API/IGarnetApi.cs:ResetScratchBuffer
-  pub fn reset_scratch_buffer(&self) {}
+  pub fn reset_scratch_buffer() {}
 
   /// libs/server/API/IGarnetApi.cs:VectorSetCardinality
   pub async fn vector_set_cardinality<D: Device>(
@@ -1307,17 +1236,10 @@ impl IGarnetApi {
   }
 
   /// libs/server/API/IGarnetApi.cs:WATCH
-  pub fn watch<D: Device>(
-    ss: &StorageSession<'_, D>,
-    key: &[u8],
-    store_type: StoreType,
-  ) -> GarnetStatus {
-    match store_type {
-      StoreType::None => GarnetStatus::NotFound,
-      _ => {
-        ss.watch_key(key);
-        GarnetStatus::Ok
-      }
-    }
+  ///
+  /// C# 侧为 void（登记监视表 + 记录事务存储类型）；Rust 侧委托
+  /// [`StorageSession::watch`]（尾地址版本代理），恒返回 Ok。
+  pub fn watch<D: Device>(ss: &StorageSession<'_, D>, key: &[u8], store_type: StoreType) {
+    ss.watch(key, store_type);
   }
 }
