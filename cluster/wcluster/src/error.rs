@@ -32,6 +32,12 @@ pub enum Error {
   /// config epoch 设置被拒：仅允许从 0 初始化且新值必须更大
   #[error("config epoch not set: current epoch is non-zero or value not greater")]
   EpochNotSet,
+  /// 添加槽位被拒：槽位已被占用（附带冲突槽位号）
+  #[error("slot {0} is not free")]
+  SlotNotFree(usize),
+  /// 移除槽位被拒：槽位不归属本地（附带槽位号）
+  #[error("slot {0} is not owned by local node")]
+  SlotNotLocal(usize),
 }
 
 pub type Result<T> = result::Result<T, Error>;

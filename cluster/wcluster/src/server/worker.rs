@@ -6,8 +6,9 @@ use strum::{EnumString, FromRepr, IntoStaticStr};
 // 与 Worker 一同作为配置线格式载荷（bitcode 变体序即枚举序，两端同版无兼容负担）
 
 /// garnet相对路径:Server:NodeRole
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr)]
-#[derive(Encode, Decode)]
+#[derive(
+  Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr, Encode, Decode,
+)]
 #[repr(u8)]
 pub enum NodeRole {
   Primary = 0x0,

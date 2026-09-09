@@ -105,7 +105,10 @@ impl MigrateSessionTaskStore {
     }
 
     // 先整体校验槽位无占用，再统一占位，避免半占状态
-    if slots.iter().any(|&slot| state.sessions[slot as usize].is_some()) {
+    if slots
+      .iter()
+      .any(|&slot| state.sessions[slot as usize].is_some())
+    {
       return None;
     }
     for slot in &slots {
@@ -160,5 +163,155 @@ impl MigrateSessionTaskStore {
 impl Default for MigrateSessionTaskStore {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::server::migration::{
+    migrate_state::MigrateState, migration_manager::TransferOption, sketch::Sketch,
+  };
+
+  fn session(slots: HashSet<i32>) -> Arc<MigrateSession> {
+    Arc::new(MigrateSession::new(
+      Arc::new(ClusterProvider {}),
+      "src",
+      "10.0.0.1",
+      7000,
+      "dst",
+      "",
+      "",
+      false,
+      false,
+      0,
+      slots,
+      Sketch::new(),
+      TransferOption::Keys,
+    ))
+  }
+
+  fn slots(items: &[i32]) -> HashSet<i32> {
+    items.iter().copied().collect()
+  }
+
+  #[test]
+  fn add_count_remove_lifecycle() {
+    let store = MigrateSessionTaskStore::new();
+    // 单会话覆盖 3 槽：去重计数为 1 而非 3
+    let s1 = store
+      .try_add_migrate_session(
+        Arc::new(ClusterProvider {}),
+        "src",
+        "10.0.0.1",
+        7000,
+        "dst",
+        "",
+        "",
+        false,
+        false,
+        0,
+        slots(&[1, 2, 3]),
+        Sketch::new(),
+        TransferOption::Keys,
+      )
+      .unwrap();
+    assert_eq!(store.get_num_sessions(), 1);
+
+    // 槽位重叠的新会话被拒
+    assert!(
+      store
+        .try_add_migrate_session(
+          Arc::new(ClusterProvider {}),
+          "src",
+          "10.0.0.1",
+          7000,
+          "dst2",
+          "",
+          "",
+          false,
+          false,
+          0,
+          slots(&[3, 4]),
+          Sketch::new(),
+          TransferOption::Keys,
+        )
+        .is_none()
+    );
+    assert_eq!(store.get_num_sessions(), 1, "被拒会话不留残留");
+
+    // 不重叠会话可加，去重后为 2
+    store
+      .try_add_migrate_session(
+        Arc::new(ClusterProvider {}),
+        "src",
+        "10.0.0.2",
+        7000,
+        "dst2",
+        "",
+        "",
+        false,
+        false,
+        0,
+        slots(&[4]),
+        Sketch::new(),
+        TransferOption::Keys,
+      )
+      .unwrap();
+    assert_eq!(store.get_num_sessions(), 2);
+
+    assert!(store.try_remove(s1));
+    assert_eq!(store.get_num_sessions(), 1);
+    assert!(store.can_access_key(b"k", 1, false), "槽位释放后可访问");
+  }
+
+  #[test]
+  fn remove_node_and_dispose() {
+    let store = MigrateSessionTaskStore::new();
+    store
+      .try_add_migrate_session(
+        Arc::new(ClusterProvider {}),
+        "src",
+        "10.0.0.1",
+        7000,
+        "dst",
+        "",
+        "",
+        false,
+        false,
+        0,
+        slots(&[1]),
+        Sketch::new(),
+        TransferOption::Keys,
+      )
+      .unwrap();
+    assert!(store.try_remove_node("dst"));
+    assert_eq!(store.get_num_sessions(), 0);
+
+    store.dispose();
+    // dispose 后拒绝新会话且计数归零
+    assert!(
+      store
+        .try_add_migrate_session(
+          Arc::new(ClusterProvider {}),
+          "src",
+          "10.0.0.1",
+          7000,
+          "dst",
+          "",
+          "",
+          false,
+          false,
+          0,
+          slots(&[1]),
+          Sketch::new(),
+          TransferOption::Keys,
+        )
+        .is_none()
+    );
+    assert_eq!(store.get_num_sessions(), 0);
+    assert!(store.can_access_key(b"k", 1, false));
+    // 会话状态默认值（防止构造漂移）
+    assert_eq!(session(slots(&[1])).status, MigrateState::Pending);
   }
 }

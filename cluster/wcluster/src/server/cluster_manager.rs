@@ -6,11 +6,14 @@ use std::sync::{
 use log::trace;
 use parking_lot::RwLock;
 
-use crate::server::{
-  cluster_config::{ClusterConfig, LOCAL_WORKER_ID},
-  cluster_provider::ClusterProvider,
-  hash_slot::SlotState,
-  worker::{LocalWorkerSpec, NodeRole},
+use crate::{
+  error::{Error, Result},
+  server::{
+    cluster_config::{ClusterConfig, LOCAL_WORKER_ID},
+    cluster_provider::ClusterProvider,
+    hash_slot::SlotState,
+    worker::{LocalWorkerSpec, NodeRole},
+  },
 };
 
 /// garnet相对路径:Server:ClusterManager
@@ -129,7 +132,10 @@ impl ClusterManager {
              cluster_my_epoch:{}\r\n\
              cluster_stats_messages_sent:0\r\n\
              cluster_stats_messages_received:0\r\n",
-      stable, stable, fail, fail,
+      stable,
+      stable,
+      fail,
+      fail,
       current.num_workers(),
       current.get_primary_count(),
       current.get_max_config_epoch(),
@@ -162,14 +168,14 @@ impl ClusterManager {
   /// garnet相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
   ///
   /// 错误集中定义于 [`crate::error`]，不再用裸字节串
-  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> crate::error::Result<()> {
+  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> Result<()> {
     {
       let mut current = self.current_config.write();
       if current.num_workers() == 0 {
-        return Err(crate::error::Error::NoWorkers);
+        return Err(Error::NoWorkers);
       }
       if !current.set_local_worker_config_epoch(config_epoch) {
-        return Err(crate::error::Error::EpochNotSet);
+        return Err(Error::EpochNotSet);
       }
     }
     self.flush_config();
@@ -230,9 +236,110 @@ impl ClusterManager {
       if !current.is_replica() || current.local_node_primary_id().is_none() {
         return false;
       }
-      current.take_over_from_primary().bump_local_node_config_epoch();
+      current
+        .take_over_from_primary()
+        .bump_local_node_config_epoch();
     }
     self.flush_config();
     true
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::server::worker::{LocalWorkerSpec, Worker};
+
+  fn manager_with(primary_id: &str, epoch: i64) -> ClusterManager {
+    let m = ClusterManager::new(Arc::new(ClusterProvider {}));
+    {
+      let mut config = m.current_config.write();
+      config.initialize_local_worker(LocalWorkerSpec {
+        node_id: primary_id,
+        address: "127.0.0.1",
+        port: 7000,
+        config_epoch: epoch,
+        role: NodeRole::Primary,
+        replica_of_node_id: None,
+        hostname: None,
+      });
+    }
+    m
+  }
+
+  #[test]
+  fn init_local_generates_identity() {
+    let m = ClusterManager::new(Arc::new(ClusterProvider {}));
+    m.init_local("10.0.0.5", 7000, false);
+    let config = m.current_config.read();
+    let id = config.local_node_id().expect("生成 node id");
+    assert_eq!(id.len(), 32, "uuid simple 形式 32 位 hex");
+    assert_eq!(
+      (config.local_node_ip(), config.local_node_port()),
+      ("10.0.0.5", 7000)
+    );
+    assert!(config.is_primary());
+  }
+
+  #[test]
+  fn set_config_epoch_gates_and_persists() {
+    let m = manager_with("n1", 0);
+    assert!(m.try_set_local_config_epoch(5).is_ok());
+    // 非 0 epoch 拒绝覆写
+    assert!(matches!(
+      m.try_set_local_config_epoch(9),
+      Err(Error::EpochNotSet)
+    ));
+    assert_eq!(
+      m.current_config.read().local_node_config_epoch(),
+      5,
+      "拒绝路径不落盘"
+    );
+  }
+
+  #[test]
+  fn stop_writes_hands_slots_to_replica() {
+    let m = manager_with("n1", 3);
+    let n2 = {
+      let mut config = m.current_config.write();
+      config.workers.push(Worker {
+        nodeid: Some("n2".to_string()),
+        address: "10.0.0.2".to_string(),
+        port: 7000,
+        config_epoch: 0,
+        role: NodeRole::Replica,
+        replica_of_node_id: Some("n1".to_string()),
+        replication_offset: 0,
+        hostname: None,
+      });
+      (config.workers.len() - 1) as u16
+    };
+    {
+      let mut config = m.current_config.write();
+      config.assign_slots(&[1, 2, 3], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    }
+
+    m.try_stop_writes("n2");
+
+    let config = m.current_config.read();
+    assert!(config.is_replica(), "让位后本地转副本");
+    for slot in [1, 2, 3] {
+      assert_eq!(config.get_worker_id_from_slot(slot), n2 as usize);
+      assert_eq!(config.get_state(slot), SlotState::Stable);
+    }
+  }
+
+  #[test]
+  fn get_info_counts_single_pass() {
+    let m = manager_with("n1", 3);
+    {
+      let mut config = m.current_config.write();
+      config.assign_slots(&[0, 1], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    }
+    let info = m.get_info();
+    assert!(info.contains("cluster_slots_assigned:2"));
+    assert!(info.contains("cluster_slots_ok:2"));
+    assert!(info.contains("cluster_size:1"));
+    assert!(info.contains("cluster_my_epoch:3"));
   }
 }
