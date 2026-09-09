@@ -1,7 +1,8 @@
+use strum::{FromRepr, IntoStaticStr};
+
 /// libs/cluster/Server/Failover/FailoverStatus.cs:FailoverStatus
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, IntoStaticStr)]
 #[repr(u8)]
-#[derive(Default)]
 pub enum FailoverStatus {
   #[default]
   NoFailover = 0,

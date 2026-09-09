@@ -162,10 +162,15 @@ impl ElectionState {
   }
 
   /// 选票达多数派门槛即转 Leader（幂等：已当选则无变化）
+  ///
+  /// 当选同时自记当主：Leader 是集群唯一已知当主，`leader()` 必须能回答
+  /// "谁是主"，否则对 Leader 的查询（如 NotLeader 重定向来源）拿到 None
+  /// 与退位/失联状态不可区分（对齐 raft-rs 当选时 `lead = id` 的语义）
   #[inline]
   fn win_on_quorum(&mut self) {
     if self.role == Role::Candidate && self.votes.len() >= self.quorum() {
       self.role = Role::Leader;
+      self.leader = Some(self.self_id);
     }
   }
 
@@ -223,6 +228,8 @@ mod tests {
     let mut s = three_nodes();
     let (term, req) = s.start_election().unwrap();
     assert_eq!((term, s.role), (1, Role::Candidate));
+    // 当选前 leader 未知
+    assert_eq!(s.leader, None);
 
     assert_eq!(
       s.tally_vote(
@@ -235,7 +242,8 @@ mod tests {
       .unwrap(),
       Role::Leader
     );
-    // 当选后再来迟到选票，角色不再变化
+    // 当选即自记当主，迟到选票不再改变角色
+    assert_eq!(s.leader, Some(1));
     assert_eq!(
       s.tally_vote(
         3,
@@ -351,6 +359,7 @@ mod tests {
       .unwrap(),
       Role::Leader
     );
+    assert_eq!(s.leader, Some(1));
     // Leader 直接重选被拒，须先退位
     assert!(matches!(
       s.start_election(),
@@ -404,7 +413,7 @@ mod tests {
   fn single_node_cluster_wins_immediately() {
     let mut s = ElectionState::new(7, [7]);
     let (term, _) = s.start_election().unwrap();
-    assert_eq!((term, s.role, s.leader), (1, Role::Leader, None));
+    assert_eq!((term, s.role, s.leader), (1, Role::Leader, Some(7)));
     // 当选后重选仍须先退位（与多节点一致的门控）
     assert!(matches!(
       s.start_election(),
