@@ -578,9 +578,11 @@ impl ClusterConfig {
           slot.worker_id = RESERVED_WORKER_ID as u16;
           slot.state = SlotState::Offline;
         }
-      } else if slot.eff_worker_id() as usize > worker_id {
-        // 与 C# 一致用 eff id 比较：Migrating 槽 eff 恒为 LOCAL(1)，
-        // 不会被误当作"高位 worker"而错误递减迁移目标
+      } else if wid > worker_id {
+        // 与 C# 不同处：此处按 raw id 递减。C# 用 eff id 比较，Migrating
+        // 槽 eff 恒为 LOCAL(1)，移除低位节点时高位迁移目标的 raw id 不随
+        // workers 收缩前移，留下指向越界下标的悬空引用；raw 递减对
+        // Migrating 槽同样安全——raw==被删节点已在前面分支处理
         slot.worker_id -= 1;
       }
     }
