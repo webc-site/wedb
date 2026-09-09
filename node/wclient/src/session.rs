@@ -1,7 +1,12 @@
 use compio::net::TcpStream;
-use crossfire::{MAsyncTx, mpsc, oneshot};
+use crossfire::{mpsc, oneshot};
 
-use crate::{CommandItem, Error, Result, network};
+use crate::{
+  Error,
+  Result,
+  network,
+  types::{CHANNEL_CAP, ChannelTx, CommandItem, ReplyTx, roundtrip},
+};
 
 /// libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
 pub struct GarnetClientSession {
@@ -10,7 +15,7 @@ pub struct GarnetClientSession {
   auth_password: Option<String>,
   client_name: Option<String>,
 
-  tx: Option<MAsyncTx<mpsc::Array<CommandItem>>>,
+  tx: Option<ChannelTx>,
 }
 
 impl GarnetClientSession {
@@ -30,10 +35,15 @@ impl GarnetClientSession {
     }
   }
 
+  /// 请求通道引用（未连接即报错）
+  fn channel(&self) -> Result<&ChannelTx> {
+    self.tx.as_ref().ok_or_else(|| Error::Other("Not connected".into()))
+  }
+
   /// libs/client/ClientSession/GarnetClientSession.cs:ConnectAsync
   pub async fn connect_async(&mut self) -> Result<()> {
     let stream = TcpStream::connect(&self.end_point).await?;
-    let (tx, rx) = mpsc::bounded_async(1024);
+    let (tx, rx) = mpsc::bounded_async(CHANNEL_CAP);
     self.tx = Some(tx);
 
     compio::runtime::spawn(async move {
@@ -43,25 +53,14 @@ impl GarnetClientSession {
     })
     .detach();
 
-    // AUTH（与 GarnetClient 同一口径：用户名优先，缺省密码按空串补齐）
-    if let Some(ref username) = self.auth_username {
-      let pwd = self.auth_password.as_deref().unwrap_or("");
-      self.execute_async(&["AUTH", username, pwd]).await?;
-    } else if let Some(ref pwd) = self.auth_password {
-      self.execute_async(&["AUTH", pwd]).await?;
-    }
-
-    // CLIENT SETNAME / SETINFO（与 GarnetClient 同一口径）
-    if let Some(ref client_name) = self.client_name {
-      self
-        .execute_async(&["CLIENT", "SETINFO", "LIB-NAME", "GarnetClientSession"])
-        .await?;
-      self
-        .execute_async(&["CLIENT", "SETNAME", client_name])
-        .await?;
-    }
-
-    Ok(())
+    network::handshake(
+      async |args| self.execute_async(args).await,
+      "GarnetClientSession",
+      self.auth_username.as_deref(),
+      self.auth_password.as_deref(),
+      self.client_name.as_deref(),
+    )
+    .await
   }
 
   /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync
@@ -72,32 +71,20 @@ impl GarnetClientSession {
   /// 故两者共用此实现
   pub async fn execute_async(&self, command: &[&str]) -> Result<String> {
     let (resp_tx, resp_rx) = oneshot::oneshot();
-    let cmd = command.iter().map(|s| s.to_string()).collect();
-    let tx = self
-      .tx
-      .as_ref()
-      .ok_or_else(|| Error::Other("Not connected".into()))?;
-    tx.send(CommandItem::Command { cmd, resp_tx })
-      .await
-      .map_err(|_| Error::Other("Network loop died".into()))?;
-    resp_rx
-      .await
-      .map_err(|_| Error::Other("Response channel closed".into()))?
+    let item = CommandItem {
+      cmd: command.iter().map(|s| s.to_string()).collect(),
+      resp_tx: ReplyTx::Str(resp_tx),
+    };
+    roundtrip(self.channel()?, item, resp_rx).await
   }
 
   /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteForArrayAsync
   pub async fn execute_for_array_async(&self, command: &[&str]) -> Result<Vec<String>> {
     let (resp_tx, resp_rx) = oneshot::oneshot();
-    let cmd = command.iter().map(|s| s.to_string()).collect();
-    let tx = self
-      .tx
-      .as_ref()
-      .ok_or_else(|| Error::Other("Not connected".into()))?;
-    tx.send(CommandItem::CommandForArray { cmd, resp_tx })
-      .await
-      .map_err(|_| Error::Other("Network loop died".into()))?;
-    resp_rx
-      .await
-      .map_err(|_| Error::Other("Response channel closed".into()))?
+    let item = CommandItem {
+      cmd: command.iter().map(|s| s.to_string()).collect(),
+      resp_tx: ReplyTx::Array(resp_tx),
+    };
+    roundtrip(self.channel()?, item, resp_rx).await
   }
 }
