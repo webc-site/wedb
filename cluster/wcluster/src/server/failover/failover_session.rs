@@ -6,6 +6,7 @@ use std::{
   time::{Duration, Instant},
 };
 
+use compio::time::sleep;
 use parking_lot::Mutex;
 use wserver::aof::aof_address::AofAddress;
 
@@ -196,7 +197,9 @@ impl FailoverSession {
     // 要求主端停止写入
     self.set_status(FailoverStatus::IssuingPauseWrites);
     let local_id = self.old_config.local_node_id().unwrap_or("").as_bytes();
-    let resp = client.execute_cluster_fail_stop_writes_async(local_id).await;
+    let resp = client
+      .execute_cluster_fail_stop_writes_async(local_id)
+      .await;
     // 解析失败按 C# FormatException → catch 路径处理：放弃本次 failover
     let Some(primary_offset) = AofAddress::from_string(&resp) else {
       return false;
@@ -211,7 +214,7 @@ impl FailoverSession {
       if self.failover_timeout_reached() {
         return false;
       }
-      compio::time::sleep(Duration::from_millis(1)).await;
+      sleep(Duration::from_millis(1)).await;
     }
     true
   }
@@ -317,5 +320,95 @@ impl FailoverSession {
       c.dispose();
     }
     self.set_status(FailoverStatus::NoFailover);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use compio::{runtime::Runtime, time::sleep as tsleep};
+
+  use super::*;
+
+  /// 零超时入参填充缺省 600 秒；显式小超时按期到达
+  #[test]
+  fn failover_timeout_default_and_expiry() -> aok::Void {
+    Runtime::new()?.block_on(async {
+      let mk = |timeout| {
+        FailoverSession::new(
+          Arc::new(ClusterProvider {}),
+          FailoverOption::Default,
+          Duration::ZERO,
+          timeout,
+          true,
+          "",
+          -1,
+        )
+      };
+      // 缺省填充：deadline 远在将来
+      assert!(!mk(Duration::ZERO).failover_timeout_reached());
+      // 显式 1ms：休眠后翻转
+      let short = mk(Duration::from_millis(1));
+      tsleep(Duration::from_millis(20)).await;
+      assert!(short.failover_timeout_reached());
+      aok::OK
+    })
+  }
+
+  /// DEFAULT 副本 failover 全链路：停写追平→接管→广播→C# finally 状态归位。
+  /// 配置面改写（槽位转移/转主）依赖 ReplicationManager/ClusterManager 接线，
+  /// 当前会话仅驱动状态机
+  #[test]
+  fn replica_default_flow_completes_and_resets_status() -> aok::Void {
+    Runtime::new()?.block_on(async {
+      let s = FailoverSession::new(
+        Arc::new(ClusterProvider {}),
+        FailoverOption::Default,
+        Duration::ZERO,
+        Duration::from_secs(1),
+        true,
+        "",
+        -1,
+      );
+      assert!(s.begin_async_replica_failover_async().await);
+      assert_eq!(s.status(), FailoverStatus::NoFailover, "终态归位");
+      aok::OK
+    })
+  }
+
+  /// 主端发起的 failover：副本位点探测成功后状态同样必须归位
+  /// NO_FAILOVER（对齐 C# finally）
+  #[test]
+  fn primary_flow_ends_no_failover() -> aok::Void {
+    Runtime::new()?.block_on(async {
+      let s = FailoverSession::new(
+        Arc::new(ClusterProvider {}),
+        FailoverOption::Takeover,
+        Duration::ZERO,
+        Duration::from_secs(1),
+        false,
+        "10.0.0.2",
+        7002,
+      );
+      assert!(s.begin_async_primary_failover_async().await);
+      assert_eq!(s.status(), FailoverStatus::NoFailover);
+      aok::OK
+    })
+  }
+
+  /// 连接释放幂等：重复 dispose 不 panic（take 语义清空槽位）
+  #[test]
+  fn dispose_is_idempotent() {
+    // is_replica_session=false 时会话预置一条连接，二次释放走空槽路径
+    let s = FailoverSession::new(
+      Arc::new(ClusterProvider {}),
+      FailoverOption::Takeover,
+      Duration::ZERO,
+      Duration::from_secs(1),
+      false,
+      "",
+      -1,
+    );
+    s.dispose();
+    s.dispose();
   }
 }

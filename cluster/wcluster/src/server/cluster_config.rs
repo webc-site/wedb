@@ -2044,4 +2044,193 @@ mod tests {
       "10.0.0.1:7000"
     );
   }
+
+  /// 迁移路由语义：常规请求按 eff 属主路由到源节点，ASK 重定向按 raw 属主
+  /// 指向迁移目标；批量置态与批量回稳互为镜像
+  #[test]
+  fn migrating_slot_endpoints_split_get_vs_ask() {
+    let mut c = local("n1", 3, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.workers[n2 as usize].address = "10.0.0.2".to_string();
+    c.update_slot_state(3, n2, SlotState::Migrating);
+    c.update_multi_slot_state(
+      &[4usize, 5].into_iter().collect(),
+      LOCAL_WORKER_ID as u16,
+      SlotState::Stable,
+    );
+
+    // 常规路由（eff）：Migrating 槽仍由源节点服务
+    let (get_addr, get_port) = c.get_endpoint_from_slot(3, ClusterPreferredEndpointType::Ip);
+    assert_eq!((get_addr.as_str(), get_port), ("127.0.0.1", 7000));
+    // ASK 重定向（raw）：指向迁移目标 n2
+    let (ask_addr, ask_port) = c.ask_endpoint_from_slot(3, ClusterPreferredEndpointType::Ip);
+    assert_eq!((ask_addr.as_str(), ask_port), ("10.0.0.2", 7000));
+
+    // 批量回稳：Migrating 槽放弃迁移归本地源节点；其余槽按现属主回稳
+    // （Importing 槽 raw 属主即迁移源，eff=raw 归源节点）
+    c.update_slot_state(4, n2, SlotState::Importing);
+    c.reset_multi_slot_state(&[3usize, 4, 5].into_iter().collect());
+    assert_eq!(c.get_state(3), SlotState::Stable);
+    assert_eq!(
+      c.slot_map[3].worker_id, LOCAL_WORKER_ID as u16,
+      "Migrating 槽重置归本地源节点"
+    );
+    assert_eq!(c.get_state(4), SlotState::Stable);
+    assert_eq!(
+      c.get_worker_id_from_slot(4),
+      n2 as usize,
+      "非迁移槽按现属主回稳"
+    );
+    assert_eq!(c.get_state(5), SlotState::Stable);
+  }
+
+  /// 副本 gossip 分支：仅当本槽现属主恰为发送副本（计划内 failover 中的
+  /// 旧主视角）时，槽位移交其主；无关副本的认领被忽略
+  #[test]
+  fn merge_replica_gossip_hands_slot_to_its_primary() {
+    let mut c = local("n1", 4, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    let n3 = remote(&mut c, "n3", NodeRole::Primary, None);
+    c.assign_slots(&[7], n2, SlotState::Stable);
+
+    // 发送方 n2 是 n3 的副本，其槽图声称稳定持有槽 7；本地认为槽 7 属 n2
+    let mut s = local("n2", 0, NodeRole::Replica);
+    s.workers[LOCAL_WORKER_ID].replica_of_node_id = Some("n3".to_string());
+    let s_n3 = remote(&mut s, "n3", NodeRole::Primary, None);
+    s.workers[s_n3 as usize].address = "10.0.0.3".to_string();
+    s.assign_slots(&[7], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    let merged = c.merge(&s, &gxhash::HashMap::default()).unwrap();
+    assert_eq!(
+      merged.get_worker_id_from_slot(7),
+      n3 as usize,
+      "副本的认领把槽移交其主 n3"
+    );
+
+    // 无关副本 n4（同为主 n3 的副本）发来相同槽图：属主非发送方，槽不动
+    let mut s4 = local("n4", 0, NodeRole::Replica);
+    s4.workers[LOCAL_WORKER_ID].replica_of_node_id = Some("n3".to_string());
+    let s4_n3 = remote(&mut s4, "n3", NodeRole::Primary, None);
+    s4.workers[s4_n3 as usize].address = "10.0.0.3".to_string();
+    s4.assign_slots(&[7], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    let merged2 = c.merge(&s4, &gxhash::HashMap::default()).unwrap();
+    assert_eq!(
+      merged2.get_worker_id_from_slot(7),
+      n2 as usize,
+      "非属主副本不得改写槽位"
+    );
+  }
+
+  /// epoch 碰撞后的错位修复：本地误记槽属某主，而该主 gossip 声称该槽
+  /// 稳定归属其副本时，槽位重置 Offline 给真实属主重新认领的机会；该主
+  /// 以更高 epoch 认领的自家槽正常进入本地
+  #[test]
+  fn merge_purges_misowned_slot_when_sender_disclaims() {
+    let mut c = local("n1", 5, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.assign_slots(&[3], n2, SlotState::Stable);
+
+    // 发送方 n2（epoch 同为 5，gossip 合并时元数据先对齐）槽图声称槽 3
+    // 稳定归其副本 n2r，另以本尊身份认领槽 5
+    let mut s = local("n2", 5, NodeRole::Primary);
+    let s_n2r = remote(&mut s, "n2r", NodeRole::Replica, Some("n2"));
+    s.assign_slots(&[3], s_n2r, SlotState::Stable);
+    s.assign_slots(&[5], LOCAL_WORKER_ID as u16, SlotState::Stable);
+
+    let merged = c.merge(&s, &gxhash::HashMap::default()).unwrap();
+    assert_eq!(merged.get_state(3), SlotState::Offline, "错位槽重置待认领");
+    assert_eq!(
+      merged.get_worker_id_from_slot(3),
+      RESERVED_WORKER_ID,
+      "错位槽属主清为保留位"
+    );
+    assert_eq!(merged.get_worker_id_from_slot(5), n2 as usize);
+    assert_eq!(merged.get_state(5), SlotState::Stable);
+  }
+
+  /// 主端点投影：我主插首、排除自身、开关控制；副本端点按 replica_of 汇集
+  #[test]
+  fn primary_and_replica_endpoint_projections() {
+    let mut c = empty();
+    c.initialize_local_worker(LocalWorkerSpec {
+      node_id: "nA",
+      address: "10.0.0.10",
+      port: 7010,
+      config_epoch: 1,
+      role: NodeRole::Primary,
+      replica_of_node_id: None,
+      hostname: None,
+    });
+    let n_b = remote(&mut c, "nB", NodeRole::Primary, None);
+    let n_c = remote(&mut c, "nC", NodeRole::Replica, Some("nA"));
+    c.workers[n_b as usize].address = "10.0.0.11".to_string();
+    c.workers[n_b as usize].port = 7011;
+    c.workers[n_c as usize].address = "10.0.0.12".to_string();
+    c.workers[n_c as usize].port = 7012;
+    let n_d = remote(&mut c, "nD", NodeRole::Replica, Some("nA"));
+    c.workers[n_d as usize].address = "10.0.0.13".to_string();
+    c.workers[n_d as usize].port = 7013;
+
+    // 本地为主：无我主可插首，全部远端主按序输出
+    let all = c.get_local_node_primary_endpoints(false);
+    assert_eq!(all.len(), 1, "本地自身不在主端点之列");
+    assert_eq!(all[0].to_string(), "10.0.0.11:7011");
+
+    // 副本视角：本地转 nB 的副本后，include=true 时 nB 插首
+    c.make_replica_of(Some("nB"));
+    let with_primary = c.get_local_node_primary_endpoints(true);
+    assert_eq!(with_primary[0].to_string(), "10.0.0.11:7011", "我主插首");
+    assert_eq!(with_primary.len(), 1, "我主不重复出现");
+
+    // 本地 nA（此刻已转 nB 副本）的副本端点：nC/nD 按 workers 顺序
+    let replicas = c.get_local_node_replica_endpoints();
+    assert_eq!(
+      replicas.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+      vec!["10.0.0.12:7012".to_string(), "10.0.0.13:7013".to_string()]
+    );
+  }
+
+  /// 按地址或主机名查远端节点（端口必须一致）与按状态计数
+  #[test]
+  fn address_or_hostname_lookup_and_state_counts() {
+    let mut c = local("n1", 2, NodeRole::Primary);
+    let n2 = remote(&mut c, "n2", NodeRole::Primary, None);
+    c.workers[n2 as usize].address = "10.0.0.2".to_string();
+    c.workers[n2 as usize].hostname = Some("host-b".to_string());
+    c.assign_slots(&[0, 1], LOCAL_WORKER_ID as u16, SlotState::Stable);
+    c.update_slot_state(2, n2, SlotState::Migrating);
+
+    // 地址命中远端 n2
+    assert_eq!(
+      c.get_worker_node_id_from_address_or_hostname("10.0.0.2", 7000)
+        .as_deref(),
+      Some("n2")
+    );
+    // 主机名命中（地址不同但端口相同）
+    assert_eq!(
+      c.get_worker_node_id_from_address_or_hostname("host-b", 7000)
+        .as_deref(),
+      Some("n2")
+    );
+    // 端口不匹配 / 双双未命中
+    assert!(
+      c.get_worker_node_id_from_address_or_hostname("10.0.0.2", 9999)
+        .is_none()
+    );
+    assert!(
+      c.get_worker_node_id_from_address_or_hostname("nowhere", 7000)
+        .is_none()
+    );
+
+    assert_eq!(c.get_slot_count_for_state(SlotState::Stable), 2);
+    assert_eq!(c.get_slot_count_for_state(SlotState::Migrating), 1);
+    assert_eq!(
+      c.get_slot_count_for_state(SlotState::Offline),
+      MAX_HASH_SLOT_VALUE - 3
+    );
+    // 与单遍计数投影一致
+    let counts = c.slot_state_counts();
+    assert_eq!(counts[SlotState::Stable as usize], 2);
+  }
 }
