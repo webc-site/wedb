@@ -23,6 +23,7 @@ fastrand = "2.5.0"
 gxhash = "3.5.0"
 itoa.workspace = true
 num_enum = "0.7.6"
+papaya = "0.2.5"
 parking_lot = "0.12.5"
 thiserror = "2.0.20"
 waof.workspace = true
