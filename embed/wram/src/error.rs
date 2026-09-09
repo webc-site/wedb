@@ -15,6 +15,9 @@ pub enum Error {
   #[error("无效大小: {0}")]
   InvalidSize(usize),
 
+  #[error("无效字节预算: {0}，必须为非负数")]
+  InvalidBudget(i64),
+
   #[error("设置长度 {len} 超出容量 {capacity}")]
   SetLenExceeded { len: usize, capacity: usize },
 

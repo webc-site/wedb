@@ -129,6 +129,18 @@ fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
   }
   assert_eq!(pool.reserved_bytes(), 0, "超界缓冲不得消耗字节预算");
 
+  // bypass 直配可观测：次数与字节数精确计入独立计数 (对标 C# Stats.BypassAllocs)
+  let stats = pool.stats();
+  assert_eq!(
+    stats.bypass_alloc_count, 2,
+    "两次超界分配必须计入 bypass 计数"
+  );
+  assert_eq!(stats.bypass_alloc_bytes, 2 * over_cap as u64);
+  assert_eq!(
+    stats.direct_alloc_count, 0,
+    "bypass 与预算耗尽显式直配是两类独立观测口径"
+  );
+
   OK
 }
 
@@ -185,6 +197,11 @@ fn closed_pool_serves_uncached_buffers_and_holds_no_budget() -> Void {
   assert_eq!(pool.cached_len(cls), 0, "关闭后归还不得入池");
   assert_eq!(pool.reserved_bytes(), 0, "关闭后归还必须立即释放预算许可");
   assert!(ptr_val > 0);
+  assert_eq!(
+    pool.stats().bypass_alloc_count,
+    1,
+    "关闭态直配对标 C# Disabled 路径，必须计入 bypass 计数"
+  );
 
   OK
 }
@@ -330,6 +347,25 @@ fn with_budgets_rejects_sector_size_overflowing_budget_accounting() -> Void {
     .is_err(),
     "最大 class 容量 × 扇区大小超出 i64 记账安全范围必须报错"
   );
+
+  OK
+}
+
+/// 负数预算必须在创建期即被拒绝，杜绝池静默退化为全直配
+#[test]
+fn with_budgets_rejects_negative_budget() -> Void {
+  info!("验证负数 small/large 预算创建报 InvalidBudget");
+
+  assert!(
+    BufferPool::with_budgets(DEFAULT_SECTOR_SIZE, -1, DEFAULT_LARGE_BUDGET_BYTES).is_err(),
+    "负数小预算必须报错"
+  );
+  assert!(
+    BufferPool::with_budgets(DEFAULT_SECTOR_SIZE, DEFAULT_SMALL_BUDGET_BYTES, -8).is_err(),
+    "负数大预算必须报错"
+  );
+  // 零预算合法：等价于禁用缓存，全部走显式直配
+  assert!(BufferPool::with_budgets(DEFAULT_SECTOR_SIZE, 0, 0).is_ok());
 
   OK
 }

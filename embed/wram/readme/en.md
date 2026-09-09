@@ -266,14 +266,14 @@ Sector-aligned buffer. `Deref` / `DerefMut` / `AsRef<[u8]>` / `Borrow<[u8]>` exp
 
 Sector-aligned buffer pool.
 
-- Construction: `new(sector_size) -> Result<Arc<Self>>` (default budgets), `with_budgets(sector_size, small, large) -> Result<Arc<Self>>`; sector must be a power of two ≥ 512 and the largest class capacity must fit i64 budget accounting.
+- Construction: `new(sector_size) -> Result<Arc<Self>>` (default budgets), `with_budgets(sector_size, small, large) -> Result<Arc<Self>>`; sector must be a power of two ≥ 512, budgets must be non-negative, and the largest class capacity must fit i64 budget accounting.
 - Rent:
   - `get(required_bytes) -> Result<AlignedBuf>`: default clear-on-return.
   - `get_with_policy(required_bytes, clear_on_return) -> Result<AlignedBuf>`: explicit policy.
   - `get_from_slice(slice) -> Result<AlignedBuf>`: copy-initialized rent.
   - `ensure_size(&mut AlignedBuf, size) -> Result<()>`: in-place reuse when capacity suffices (syncing the required length); re-rent otherwise.
 - Observation: `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` / `small_budget_bytes` / `large_budget_bytes` / `cached_len(cls)` / `sector_size` / `is_closed` / `stats() -> PoolStats`.
-- `stats() -> PoolStats`: snapshot with `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` plus budget-exhaustion direct-alloc counters `direct_alloc_count` / `direct_alloc_bytes` (steady growth means the budget is too small).
+- `stats() -> PoolStats`: snapshot with `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes`, budget-exhaustion direct-alloc counters `direct_alloc_count` / `direct_alloc_bytes` (steady growth means the budget is too small), and oversize/closed bypass counters `bypass_alloc_count` / `bypass_alloc_bytes`.
 - Close: `free()` is idempotent; it drains the calling thread's cache and the depot, after which rents become non-pooled direct allocations and in-flight returns release immediately.
 
 ### `DirectVirtualMemory` and `DirectVmBlock`
@@ -287,11 +287,10 @@ Sector-aligned buffer pool.
 ### `NativeMemoryTracker`
 
 - `bytes() -> usize`: total native direct virtual memory reserved (lock-free sum over 64 stripes).
-- `direct_vm_bytes() -> usize`: alias of `bytes`.
 
 ### Errors
 
-`Result<T> = std::result::Result<T, Error>`; `Error` is a thiserror enum: `InvalidAlignment`, `InvalidSize`, `SetLenExceeded`, `AllocFailed`, `DirectVmAllocFailed`, `Overflow`, and transparent `Layout` forwarding.
+`Result<T> = std::result::Result<T, Error>`; `Error` is a thiserror enum: `InvalidAlignment`, `InvalidSize`, `InvalidBudget`, `SetLenExceeded`, `AllocFailed`, `DirectVmAllocFailed`, `Overflow`, and transparent `Layout` forwarding.
 
 ### Utility functions
 

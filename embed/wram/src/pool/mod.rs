@@ -132,12 +132,7 @@ pub const CLASS_CAPACITIES_SECTORS: [usize; NUM_CLASSES] = {
 #[inline]
 #[must_use]
 pub const fn class_capacity_bytes(cls: usize, sector_size: usize) -> usize {
-  let sectors = if cls < NUM_CLASSES {
-    CLASS_CAPACITIES_SECTORS[cls]
-  } else {
-    class_capacity_sectors(cls)
-  };
-  sectors.saturating_mul(sector_size)
+  class_capacity_sectors(cls).saturating_mul(sector_size)
 }
 
 /// 按扇区数选择 size class；超出可池化范围返回 None (走 bypass，对标 C# `ClassOfSectors`)
@@ -215,6 +210,10 @@ pub struct PoolStats {
   pub direct_alloc_count: u64,
   /// 预算耗尽后显式直配的累计字节数
   pub direct_alloc_bytes: u64,
+  /// 超出可池化上限（或池已关闭）绕过池缓存的累计分配次数 (对标 C# `Stats.BypassAllocs`)
+  pub bypass_alloc_count: u64,
+  /// 绕过池缓存的累计分配字节数
+  pub bypass_alloc_bytes: u64,
 }
 
 /// 扇区对齐缓冲池 (对标 C# Tsavorite `SectorAlignedBufferPool`)
@@ -236,6 +235,10 @@ pub struct BufferPool {
   direct_alloc_count: AtomicU64,
   /// 预算耗尽显式直配累计字节数
   direct_alloc_bytes: AtomicU64,
+  /// 超界/关闭态绕过池缓存直配累计次数 (对标 C# `Stats.BypassAllocs`)
+  bypass_alloc_count: AtomicU64,
+  /// 绕过池缓存直配累计字节数
+  bypass_alloc_bytes: AtomicU64,
 }
 
 impl BufferPool {
@@ -255,6 +258,13 @@ impl BufferPool {
     large_budget_bytes: i64,
   ) -> Result<Arc<Self>> {
     validate_sector_size(sector_size)?;
+    // 预算记账域非负：负预算会让 try_reserve 恒失败，池静默退化为全直配，须在创建期即拒绝
+    if small_budget_bytes < 0 {
+      return Err(Error::InvalidBudget(small_budget_bytes));
+    }
+    if large_budget_bytes < 0 {
+      return Err(Error::InvalidBudget(large_budget_bytes));
+    }
     // 防御性上界：最大 class 容量 (32768 扇区) 与扇区大小的乘积必须可安全用于 i64 预算记账
     if sector_size > (i64::MAX as usize) / MAX_POOLED_SECTORS {
       return Err(Error::InvalidSize(sector_size));
@@ -277,6 +287,8 @@ impl BufferPool {
       is_closed: AtomicBool::new(false),
       direct_alloc_count: AtomicU64::new(0),
       direct_alloc_bytes: AtomicU64::new(0),
+      bypass_alloc_count: AtomicU64::new(0),
+      bypass_alloc_bytes: AtomicU64::new(0),
     }))
   }
 
@@ -336,8 +348,10 @@ impl BufferPool {
 
   /// 获取统计指标快照（容量配错诊断入口）
   ///
-  /// `direct_alloc_count/bytes` 持续增长说明预算耗尽显式直通在发生——预算许可
-  /// 配小于实际工作集，超出部分绕过池缓存直配（语义不变，无背压），仅可观测
+  /// - `direct_alloc_count/bytes` 持续增长说明预算耗尽显式直通在发生——预算许可
+  ///   配小于实际工作集，超出部分绕过池缓存直配（语义不变，无背压），仅可观测
+  /// - `bypass_alloc_count/bytes` 统计超出可池化上限（或池已关闭）的绕过直配
+  ///   (对标 C# `Stats.BypassAllocs`)
   pub fn stats(&self) -> PoolStats {
     PoolStats {
       reserved_bytes: self.reserved_bytes(),
@@ -345,6 +359,8 @@ impl BufferPool {
       large_reserved_bytes: self.large_reserved_bytes(),
       direct_alloc_count: self.direct_alloc_count.load(Relaxed),
       direct_alloc_bytes: self.direct_alloc_bytes.load(Relaxed),
+      bypass_alloc_count: self.bypass_alloc_count.load(Relaxed),
+      bypass_alloc_bytes: self.bypass_alloc_bytes.load(Relaxed),
     }
   }
 
@@ -449,11 +465,14 @@ impl BufferPool {
     };
     let Some(cls) = class_of_sectors(required >> self.sector_shift) else {
       // 超出可池化范围：精确容量 bypass 直配，不入池 (required_len 恒等于容量)
+      self.record_bypass(required);
       return AlignedBuf::new(required, self.sector_size);
     };
 
     if self.is_closed.load(Acquire) {
+      // 池已关闭：bypass 直配 (对标 C# Disabled 分支，同样计入 BypassAllocs)
       self.drain_tls_self();
+      self.record_bypass(required);
       return AlignedBuf::new(required, self.sector_size);
     }
 
@@ -461,42 +480,47 @@ impl BufferPool {
 
     // 1. 小容量 class：优先走 L1 线程私有栈与 L2 跨线程收割 (0 锁快路径)
     if cls < self.first_large_class {
-      let (cached_opt, inbox) = TLS_POOLS.with_borrow_mut(|mgr| {
-        let entry = mgr.get_or_create(self);
-        let inbox = entry.inbox.clone();
-        // 1a. 本地私有栈 (0 锁、0 原子操作)
-        if let Some(node) = entry.local[cls].pop() {
-          return (Some(node), inbox);
-        }
-        // 1b. 批量收割跨线程收件箱：单次 CAS 整链获取，零堆分配就地遍历
-        let chain = entry.inbox.claim(cls);
-        if !chain.is_null() {
-          let mut iter = ChainIter::new(chain);
-          if let Some(first) = iter.next() {
-            for node in iter {
-              if entry.local[cls].len() < MAX_LOCAL_PER_CLASS {
-                entry.local[cls].push(node);
-              } else {
-                self.spill_to_depot(cls, node, tid);
-              }
-            }
-            return (Some(first), inbox);
+      // `try_with` 容错：同线程其他 thread_local 的析构栈内触发 Get 时 TLS_POOLS 可能已析构，
+      // 降级为「Depot 窃取 / 直配（无收件箱）」——对应归还路径 `return_owner`/`return_foreign`
+      // 的同款容错回退 Depot，全链路无 panic (对标 C# bornSealed shard 的优雅降级)
+      let (cached_opt, inbox) = TLS_POOLS
+        .try_with(|mgr| {
+          let mut mgr = mgr.borrow_mut();
+          let entry = mgr.get_or_create(self);
+          // 1a. 本地私有栈 (0 锁、0 原子操作)
+          if let Some(node) = entry.local[cls].pop() {
+            return (Some(node), Some(entry.inbox.clone()));
           }
-        }
-        (None, inbox)
-      });
+          // 1b. 批量收割跨线程收件箱：单次 CAS 整链获取，零堆分配就地遍历
+          let chain = entry.inbox.claim(cls);
+          if !chain.is_null() {
+            let mut iter = ChainIter::new(chain);
+            if let Some(first) = iter.next() {
+              for node in iter {
+                if entry.local[cls].len() < MAX_LOCAL_PER_CLASS {
+                  entry.local[cls].push(node);
+                } else {
+                  self.spill_to_depot(cls, node, tid);
+                }
+              }
+              return (Some(first), Some(entry.inbox.clone()));
+            }
+          }
+          (None, Some(entry.inbox.clone()))
+        })
+        .unwrap_or((None, None));
 
       if let Some(node) = cached_opt {
-        return Ok(self.reuse_cached(node, cls, required_bytes, clear_on_return, tid, Some(inbox)));
+        return Ok(self.reuse_cached(node, cls, required_bytes, clear_on_return, tid, inbox));
       }
 
       // 1c. 全局条带仓库 (8-way 分片工作窃取)
       if let Some(node) = self.depot.pop(cls, tid) {
-        return Ok(self.reuse_cached(node, cls, required_bytes, clear_on_return, tid, Some(inbox)));
+        return Ok(self.reuse_cached(node, cls, required_bytes, clear_on_return, tid, inbox));
       }
 
       // 1d. 缓存未命中：系统新分配并预留预算
-      return self.issue_new(cls, required_bytes, clear_on_return, tid, Some(inbox));
+      return self.issue_new(cls, required_bytes, clear_on_return, tid, inbox);
     }
 
     // 2. 大容量 class (>= first_large_class)：全局条带共享，不占本地栈
@@ -504,6 +528,13 @@ impl BufferPool {
       return Ok(self.reuse_cached(node, cls, required_bytes, clear_on_return, tid, None));
     }
     self.issue_new(cls, required_bytes, clear_on_return, tid, None)
+  }
+
+  /// 记录一次绕过池缓存的直配 (对标 C# `RecordBypassAlloc`：超界与关闭态路径)
+  #[inline]
+  fn record_bypass(&self, bytes: usize) {
+    self.bypass_alloc_count.fetch_add(1, Relaxed);
+    self.bypass_alloc_bytes.fetch_add(bytes as u64, Relaxed);
   }
 
   /// 缓存命中复用：命中节点按清零策略惰性清理后重建为池化缓冲区

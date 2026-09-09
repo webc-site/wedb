@@ -22,13 +22,6 @@ impl NativeMemoryTracker {
     COUNTER.get_positive()
   }
 
-  /// 仅直接虚拟内存的字节数 (对标 C# `NativeMemoryTracker.DirectVmBytes`)
-  #[must_use]
-  #[inline]
-  pub fn direct_vm_bytes() -> usize {
-    Self::bytes()
-  }
-
   /// 记录一次直接虚拟内存分配 (对标 C# `NativeMemoryTracker.Add`)
   #[inline]
   pub(crate) fn add(delta: usize) {
