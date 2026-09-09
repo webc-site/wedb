@@ -298,9 +298,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
         if float {
           // 浮点分支（HashIncrementFloat）：增量按 TryGetDouble 严格解析
           //（NaN 拒绝，±INF 白名单接受），随后 IsInfinity 检查报错
-          let Some(d) = strict_f64(delta, true) else {
-            return None;
-          };
+          let d = strict_f64(delta, true)?;
           if d.is_infinite() {
             return None; // RESP_ERR_GENERIC_NAN_INFINITY
           }
