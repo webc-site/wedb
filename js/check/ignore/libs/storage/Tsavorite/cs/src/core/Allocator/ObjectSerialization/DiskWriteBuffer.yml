@@ -1,0 +1,7 @@
+fn:
+  - DiskWriteBuffer
+  - WaitUntilFreeAndInitialize
+  - IncrementOrResetCountdown
+  - FlushToDevice
+  - Wait
+  - ToString

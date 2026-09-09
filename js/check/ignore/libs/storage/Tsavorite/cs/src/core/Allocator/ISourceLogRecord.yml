@@ -1,0 +1,6 @@
+fn:
+  - ClearValueIfHeap
+  - AsMemoryLogRecordRef
+  - AsDiskLogRecordRef
+  - GetRecordFieldInfo
+  - CalculateHeapMemorySize

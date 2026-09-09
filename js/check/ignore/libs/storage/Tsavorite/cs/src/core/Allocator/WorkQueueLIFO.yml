@@ -1,0 +1,5 @@
+fn:
+  - WorkQueueLIFO
+  - AddWorkItem
+  - ProcessQueue
+  - work

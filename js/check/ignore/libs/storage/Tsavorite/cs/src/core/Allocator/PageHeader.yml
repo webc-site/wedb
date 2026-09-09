@@ -1,0 +1,4 @@
+fn:
+  - SetLowestObjectLogPosition
+  - GetLowestObjectLogPosition
+  - ToString

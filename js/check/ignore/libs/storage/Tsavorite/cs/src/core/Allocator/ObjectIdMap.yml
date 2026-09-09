@@ -1,0 +1,7 @@
+fn:
+  - ObjectIdMap
+  - AllocateAndSet
+  - GetHeapObject
+  - TryGetHeapObject
+  - GetOverflowByteArray
+  - ToString

@@ -1,0 +1,9 @@
+fn:
+  - ConvertInlineToOverflow
+  - ConvertValueObjectToOverflow
+  - ConvertInlineToValueObject
+  - ConvertOverflowToValueObject
+  - ConvertOverflowToInline
+  - ClearObjectIdAndConvertToInline
+  - ConvertValueObjectToInline
+  - ReallocateValueOverflow

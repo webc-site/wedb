@@ -1,0 +1,21 @@
+fn:
+  - ToString
+  - DiskLogRecord
+  - CreateFromTransientLogRecord
+  - CopyFrom
+  - TransferFrom
+  - ClearValueIfHeap
+  - AsMemoryLogRecordRef
+  - AsDiskLogRecordRef
+  - GetRecordFieldInfo
+  - CalculateHeapMemorySize
+  - Serialize
+  - SerializeChunked
+  - WriteChunkedLengthPrefix
+  - SerializeInlinePortionForMigration
+  - SerializeInlinePortion
+  - DirectCopyInlinePortionOfRecord
+  - Deserialize
+  - GetChunkedRecordInlineSize
+  - CompleteDeserializeChunkedRecord
+  - GetSerializedSize

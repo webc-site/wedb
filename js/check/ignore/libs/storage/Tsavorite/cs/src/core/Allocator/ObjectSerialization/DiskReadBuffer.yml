@@ -1,0 +1,8 @@
+fn:
+  - DiskReadBuffer
+  - GetTailSpan
+  - ReadFromDevice
+  - IncrementOrResetCountdown
+  - WaitForDataAvailable
+  - GetCurrentFilePosition
+  - ToString

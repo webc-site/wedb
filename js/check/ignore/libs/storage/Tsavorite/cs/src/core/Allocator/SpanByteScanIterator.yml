@@ -1,0 +1,13 @@
+fn:
+  - SpanByteScanIterator
+  - SnapCursorToLogicalAddress
+  - InitializeGetNextAndAcquireEpoch
+  - LoadPageIfNeeded
+  - SnapToLogicalAddressBoundary
+  - GetPhysicalAddressAndAllocatedSize
+  - ClearValueIfHeap
+  - AsMemoryLogRecordRef
+  - AsDiskLogRecordRef
+  - GetRecordFieldInfo
+  - CalculateHeapMemorySize
+  - AsyncReadPageFromDeviceToFrame

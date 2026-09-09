@@ -1,0 +1,4 @@
+fn:
+  - ConditionallyHoistedKey
+  - KeysEqual
+  - Create
