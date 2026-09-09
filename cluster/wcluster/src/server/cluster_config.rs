@@ -127,11 +127,7 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:IsKnown
   pub fn is_known(&self, nodeid: &str) -> bool {
-    self.workers[1..=self.num_workers()].iter().any(|w| {
-      w.nodeid
-        .as_deref()
-        .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
-    })
+    self.worker_by_node_id(nodeid).is_some()
   }
 
   /// garnet相对路径:Server:ClusterConfig:IsPrimary
@@ -298,66 +294,55 @@ impl ClusterConfig {
       .collect()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
-  pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
-    for (i, worker) in self
+  /// 按节点 id 查找 worker（下标从 1 起，0 号保留位除外），大小写不敏感。
+  /// 全部 node_id→worker 投影方法共用此单一查找定义，替代原先各写一遍
+  /// 的"id 查找 + 越界回退"样板
+  fn worker_by_node_id(&self, node_id: &str) -> Option<(usize, &Worker)> {
+    self
       .workers
       .iter()
       .enumerate()
-      .take(self.num_workers() + 1)
       .skip(1)
-    {
-      if let Some(id) = &worker.nodeid
-        && id.eq_ignore_ascii_case(node_id)
-      {
-        return i as u16;
-      }
-    }
-    0
+      .find(|(_, w)| {
+        w.nodeid
+          .as_deref()
+          .is_some_and(|id| id.eq_ignore_ascii_case(node_id))
+      })
+  }
+
+  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
+  pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
+    self
+      .worker_by_node_id(node_id)
+      .map_or(0, |(i, _)| i as u16)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetNodeRoleFromNodeId
   #[inline]
   pub fn get_node_role_from_node_id(&self, node_id: &str) -> NodeRole {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid < self.workers.len() {
-      self.workers[wid].role
-    } else {
-      NodeRole::Unassigned
-    }
+    self
+      .worker_by_node_id(node_id)
+      .map_or(NodeRole::Unassigned, |(_, w)| w.role)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerFromNodeId
   pub fn get_worker_from_node_id(&self, node_id: &str) -> Option<&Worker> {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid > 0 && wid < self.workers.len() {
-      Some(&self.workers[wid])
-    } else {
-      None
-    }
+    self.worker_by_node_id(node_id).map(|(_, w)| w)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerAddressFromNodeId
   pub fn get_worker_address_from_node_id(&self, node_id: &str) -> (Option<String>, i32) {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid == 0 || wid >= self.workers.len() {
-      (None, -1)
-    } else {
-      (
-        Some(self.workers[wid].address.clone()),
-        self.workers[wid].port,
-      )
+    match self.worker_by_node_id(node_id) {
+      Some((_, w)) => (Some(w.address.clone()), w.port),
+      None => (None, -1),
     }
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetHostNameFromNodeId
   pub fn get_host_name_from_node_id(&self, node_id: &str) -> Option<String> {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid == 0 || wid >= self.workers.len() {
-      None
-    } else {
-      self.workers[wid].hostname.clone()
-    }
+    self
+      .worker_by_node_id(node_id)
+      .and_then(|(_, w)| w.hostname.clone())
   }
 }
 
@@ -467,14 +452,9 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetEndpointFromNodeId
   #[inline]
   pub fn get_endpoint_from_node_id(&self, nodeid: &str) -> Option<SocketAddr> {
-    let wid = self.get_worker_id_from_node_id(nodeid) as usize;
-    if wid > 0
-      && wid < self.workers.len()
-      && let Ok(ip) = self.workers[wid].address.parse()
-    {
-      return Some(SocketAddr::new(ip, self.workers[wid].port as u16));
-    }
-    None
+    self
+      .worker_by_node_id(nodeid)
+      .and_then(|(_, w)| Some(SocketAddr::new(w.address.parse().ok()?, w.port as u16)))
   }
 }
 
@@ -587,18 +567,7 @@ impl ClusterConfig {
   /// 差异：C# 未找到目标节点时仍按 worker_id=0 执行，会误删 0 号保留位；
   /// 此处直接原样返回，调用方语义不变但杜绝配置损坏
   pub fn remove_worker(&self, nodeid: &str) -> Self {
-    let Some(worker_id) = self
-      .workers
-      .iter()
-      .enumerate()
-      .skip(1)
-      .find(|(_, w)| {
-        w.nodeid
-          .as_deref()
-          .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
-      })
-      .map(|(i, _)| i)
-    else {
+    let Some((worker_id, _)) = self.worker_by_node_id(nodeid) else {
       return self.clone();
     };
 
@@ -794,23 +763,19 @@ impl ClusterConfig {
   /// replication_offset——副本位点不随 gossip 传播）。
   /// C# 版每次调用重建 workers 数组，本版配合 [`Self::merge`] 只克隆一次
   fn merge_worker_info(&mut self, worker: &Worker) -> bool {
-    for i in 1..self.workers.len() {
-      let known = self.workers[i]
-        .nodeid
-        .as_deref()
-        .zip(worker.nodeid.as_deref())
-        .is_some_and(|(a, b)| a.eq_ignore_ascii_case(b));
-      if known {
-        if worker.config_epoch <= self.workers[i].config_epoch {
-          return false;
-        }
-        // 对齐 C#：仅覆盖 7 个元数据字段，replication_offset 保留本地值
-        // （副本位点不随 gossip 传播）
-        let local_offset = self.workers[i].replication_offset;
-        self.workers[i].clone_from(worker);
-        self.workers[i].replication_offset = local_offset;
-        return true;
+    let Some(node_id) = worker.nodeid.as_deref() else {
+      return false;
+    };
+    if let Some((i, _)) = self.worker_by_node_id(node_id) {
+      if worker.config_epoch <= self.workers[i].config_epoch {
+        return false;
       }
+      // 对齐 C#：仅覆盖 7 个元数据字段，replication_offset 保留本地值
+      // （副本位点不随 gossip 传播）
+      let local_offset = self.workers[i].replication_offset;
+      self.workers[i].clone_from(worker);
+      self.workers[i].replication_offset = local_offset;
+      return true;
     }
     let mut w = worker.clone();
     w.replication_offset = 0;
