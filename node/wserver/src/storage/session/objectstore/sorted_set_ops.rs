@@ -3,7 +3,7 @@
 //! 全部经 [`StorageSession`] 对象信封读写 wobject [`SortedSetObject`]（dict +
 //! tree 双索引）；排序视图按 (score, member) 字典序现算。空集合整键回收。
 
-use std::io::Cursor;
+use std::{io::Cursor, str};
 
 use wdev::Device;
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
@@ -622,7 +622,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
         .collect()
     } else {
       let mut pool = entries;
-      let n = count.min(pool.len());
+      let n = count.unsigned_abs().min(pool.len() as u64) as usize;
       let mut out = Vec::with_capacity(n);
       for _ in 0..n {
         let last = pool.len() - 1;
@@ -914,23 +914,23 @@ fn clamp_rank_range(start: i64, stop: i64, len: usize) -> (usize, usize) {
 }
 
 /// 解析分值区间端点：`(5` / `[5` / `-inf` / `+inf` → (值, 是否含端点)
-fn parse_score_bound(b: &[u8]) -> std::result::Result<(f64, bool), ()> {
+fn parse_score_bound(b: &[u8]) -> Result<(f64, bool), ()> {
   if b.is_empty() {
     return Err(());
   }
   match b[0] {
-    b'(' => std::str::from_utf8(&b[1..])
+    b'(' => str::from_utf8(&b[1..])
       .ok()
       .and_then(|s| s.parse::<f64>().ok())
       .map(|v| (v, false))
       .ok_or(()),
-    b'[' => std::str::from_utf8(&b[1..])
+    b'[' => str::from_utf8(&b[1..])
       .ok()
       .and_then(|s| s.parse::<f64>().ok())
       .map(|v| (v, true))
       .ok_or(()),
     _ => {
-      let text = std::str::from_utf8(b).map_err(|_| ())?;
+      let text = str::from_utf8(b).map_err(|_| ())?;
       if text.eq_ignore_ascii_case("+inf") {
         Ok((f64::INFINITY, false))
       } else if text.eq_ignore_ascii_case("-inf") {

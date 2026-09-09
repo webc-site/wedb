@@ -222,7 +222,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
         let (start, step, skip): (i64, i64, u64) = if rank > 0 {
           (0, 1, (rank - 1) as u64)
         } else {
-          (guard.len() as i64 - 1, -1, (rank.unsigned_abs() - 1) as u64)
+          (guard.len() as i64 - 1, -1, rank.unsigned_abs() - 1)
         };
         let mut hits = 0u64;
         let mut i = start;
