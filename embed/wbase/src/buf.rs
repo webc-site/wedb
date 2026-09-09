@@ -20,6 +20,20 @@ pub fn slice_eq(a: &[u8], b: &[u8]) -> bool {
   }
 }
 
+/// 将定长头部与载荷拼接写入目标切片，返回写入的总字节数
+///
+/// 单次边界检查：容量不足或总长溢出时返回 `None` 且不写入任何字节，由调用方映射为具体错误。
+/// 供各编解码器的 `encode_to_slice` 复用，消除「头部 + 载荷」两段拷贝的重复实现
+#[inline]
+pub fn put_header_payload(dst: &mut [u8], header: &[u8], payload: &[u8]) -> Option<usize> {
+  let total = header.len().checked_add(payload.len())?;
+  let chunk = dst.get_mut(..total)?;
+  let (h, p) = chunk.split_at_mut(header.len());
+  h.copy_from_slice(header);
+  p.copy_from_slice(payload);
+  Some(total)
+}
+
 /// 生成 `Stack([u8; CAP], u8) | Heap(Vec<u8>)` 双态缓冲区及其公共 trait 实现
 #[macro_export]
 macro_rules! stack_heap_buf {
@@ -207,6 +221,26 @@ macro_rules! stack_heap_buf {
             unsafe { buf.get_unchecked(..len) }.to_vec()
           }
           Self::Heap(vec) => vec,
+        }
+      }
+
+      /// 从「定长头部 + 载荷」构造（栈优先：总长不超栈容量则零堆分配，超限自动回退堆）
+      ///
+      /// 供各编解码器的 `encode_to_buf` 复用，消除栈/堆双路径的重复拷贝实现
+      #[inline]
+      pub fn from_header_parts(header: &[u8], payload: &[u8]) -> Self {
+        if let Some(total) = header.len().checked_add(payload.len())
+          && total <= $cap
+        {
+          let mut buf = [0u8; $cap];
+          buf[..header.len()].copy_from_slice(header);
+          buf[header.len()..total].copy_from_slice(payload);
+          Self::Stack(buf, total as u8)
+        } else {
+          let mut vec = Vec::with_capacity(header.len() + payload.len());
+          vec.extend_from_slice(header);
+          vec.extend_from_slice(payload);
+          Self::Heap(vec)
         }
       }
     }

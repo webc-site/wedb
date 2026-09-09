@@ -262,12 +262,8 @@ impl<D: Device> HybridLog<D> {
   /// 恢复端无需显式 `set_sealed(false)`——槽位复用唯一入口
   /// [Self::revivify_record_at] 整头覆写天然解除密封，读取路径亦不依赖该位。
 
-  /// 获取底层设备的物理扇区大小
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetDeviceSectorSize
-  #[inline]
-
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
-
+  #[inline]
   pub fn get_main_log_segment_size(&self) -> u64 {
     self.device.segment_size().unwrap_or(u64::MAX)
   }
@@ -299,13 +295,15 @@ impl<D: Device> HybridLog<D> {
     }
   }
 
+  /// 获取底层设备的物理扇区大小
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetDeviceSectorSize
+  #[inline]
   pub fn get_device_sector_size(&self) -> usize {
     self.device.sector_size()
   }
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
   #[inline]
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
   pub fn is_allocated(&self, _page_id: u64) -> bool {
     // Rust HybridLog relies on buffer capacity
     true
