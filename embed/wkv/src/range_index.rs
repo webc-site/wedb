@@ -593,26 +593,27 @@ impl<D: Device> StoreSession<D> {
     let snap_key = old_key.to_vec();
     let new_key_owned = new_key.to_vec();
     let restore_stub = stub;
-    let new_tree = range_index_blocking(move || -> StdResult<Arc<BfTreeService>, RangeIndexError> {
-      let old_tree = match mgr.get_tree(&restore_key) {
-        Some(t) => t,
-        None => mgr.get_or_open_tree(&restore_key, &restore_stub)?,
-      };
-      let new_path = mgr.data_file_path_for_key(&new_key_owned);
-      if let Some(parent) = new_path.parent() {
-        let _ = fs::create_dir_all(parent);
-      }
-      let _ = fs::remove_file(&new_path);
-      let old_hash = RangeIndexManager::key_hash_of(&snap_key);
-      let _xlock = mgr.locks().write(old_hash);
-      mgr.snapshot_tree_to_path_locked(&snap_key, &old_tree, &new_path)?;
+    let new_tree =
+      range_index_blocking(move || -> StdResult<Arc<BfTreeService>, RangeIndexError> {
+        let old_tree = match mgr.get_tree(&restore_key) {
+          Some(t) => t,
+          None => mgr.get_or_open_tree(&restore_key, &restore_stub)?,
+        };
+        let new_path = mgr.data_file_path_for_key(&new_key_owned);
+        if let Some(parent) = new_path.parent() {
+          let _ = fs::create_dir_all(parent);
+        }
+        let _ = fs::remove_file(&new_path);
+        let old_hash = RangeIndexManager::key_hash_of(&snap_key);
+        let _xlock = mgr.locks().write(old_hash);
+        mgr.snapshot_tree_to_path_locked(&snap_key, &old_tree, &new_path)?;
 
-      let backend = StorageBackendType::from_u8(restore_stub.storage_backend);
-      BfTreeService::recover_from_cpr_snapshot(&new_path, true, backend)
-        .map(Arc::new)
-        .map_err(RangeIndexError::from)
-    })
-    .await??;
+        let backend = StorageBackendType::from_u8(restore_stub.storage_backend);
+        BfTreeService::recover_from_cpr_snapshot(&new_path, true, backend)
+          .map(Arc::new)
+          .map_err(RangeIndexError::from)
+      })
+      .await??;
 
     stub.tree_handle = new_tree.native_ptr();
     stub.reset_flags();

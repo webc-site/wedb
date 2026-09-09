@@ -1,6 +1,5 @@
 use std::{
   env, fs,
-  io::Read as _,
   path::{Path, PathBuf},
   process,
   sync::{
@@ -153,18 +152,6 @@ pub struct WedbStore<D: Device> {
   keyspace_scan_session: SessionSlot<D>,
 }
 
-/// bf-tree CPR 快照文件首部魔数（bf-tree-0.5.6 snapshot.rs `BF_TREE_MAGIC_BEGIN`，文件格式常量）
-const BFTREE_SNAPSHOT_MAGIC: [u8; 16] = *b"BF-TREE-V0-BEGIN";
-
-/// 判断文件首部是否为 bf-tree CPR 快照魔数（文件缺失/过小/读取失败一律视为非快照文件）
-fn file_has_bftree_magic(path: &Path) -> bool {
-  let Ok(mut file) = fs::File::open(path) else {
-    return false;
-  };
-  let mut magic = [0u8; BFTREE_SNAPSHOT_MAGIC.len()];
-  file.read_exact(&mut magic).is_ok() && magic == BFTREE_SNAPSHOT_MAGIC
-}
-
 impl<D: Device> WedbStore<D> {
   /// 生成初始集合唯一 ID（高 48 位毫秒时间戳 + 低 16 位随机数）
   #[inline]
@@ -192,7 +179,8 @@ impl<D: Device> WedbStore<D> {
       if tmp_path.exists() {
         let _ = fs::remove_file(&tmp_path);
       }
-      if path.exists() && file_has_bftree_magic(path) {
+      // 魔数判定复用 wbftree 引擎侧同一实现（单一事实源，杜绝两处魔数漂移）
+      if path.exists() && wbftree::file_has_cpr_magic(path) {
         match wbftree::BfTreeService::recover_from_cpr_snapshot(
           path,
           true,
@@ -341,7 +329,13 @@ impl<D: Device> WedbStore<D> {
     )?);
     let (bftree, temp_bftree_path) = Self::init_bftree(&config)?;
     Ok(Self::assemble(
-      config, index, hlog, epoch, device, bftree, temp_bftree_path,
+      config,
+      index,
+      hlog,
+      epoch,
+      device,
+      bftree,
+      temp_bftree_path,
     ))
   }
 
@@ -366,7 +360,13 @@ impl<D: Device> WedbStore<D> {
       )
     });
     Ok(Self::assemble(
-      config, index, hlog, epoch, device, bftree, temp_bftree_path,
+      config,
+      index,
+      hlog,
+      epoch,
+      device,
+      bftree,
+      temp_bftree_path,
     ))
   }
 
@@ -384,7 +384,9 @@ impl<D: Device> WedbStore<D> {
   ) -> Result<Self> {
     config.validate()?;
     Self::check_index_capacity(&config, &index)?;
-    Ok(Self::assemble(config, index, hlog, epoch, device, bftree, None))
+    Ok(Self::assemble(
+      config, index, hlog, epoch, device, bftree, None,
+    ))
   }
 
   /// 抬升 key_id 分配水位下限（fetch_max 单调语义，低值永不回退已推进的水位）
