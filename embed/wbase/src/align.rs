@@ -1,4 +1,10 @@
 //! 内存与扇区对齐常数及计算工具（缓存行 64B / 扇区 512B / 4KB / CachePadded 结构）
+//!
+//! 对照 C# Tsavorite `Utility.cs`：
+//! - `RoundUp` / `RoundDown` / `IsAligned` 对应 [`align_up`] / [`align_down`] / [`is_aligned`]，
+//!   C# 仅支持 2 的幂（Debug.Assert），此处对非 2 的幂按模运算回退，防御更强；
+//! - `PreviousPowerOf2` 对应 [`prev_power_of2`]；`NextPowerOf2` / `GetLogBase2` / `IsPowerOfTwo`
+//!   直接复用 std 内建 `next_power_of_two` / `ilog2` / `is_power_of_two`，不再重复实现。
 
 use std::{
   error::Error,
@@ -14,6 +20,17 @@ pub const DEFAULT_SECTOR_SIZE: usize = 4096;
 
 /// 最小扇区大小（512 字节，传统机械盘/虚拟盘标准）
 pub const MIN_SECTOR_SIZE: usize = 512;
+
+/// 取不大于 v 的最大 2 的幂（v 为 0 时返回 0，对齐 C# `Utility.PreviousPowerOf2`）
+#[inline]
+#[must_use]
+pub const fn prev_power_of2(v: u64) -> u64 {
+  if v == 0 {
+    0
+  } else {
+    1 << (63 - v.leading_zeros())
+  }
+}
 
 /// 判断数值是否按指定字节对齐
 #[inline(always)]

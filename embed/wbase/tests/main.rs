@@ -8,6 +8,9 @@ fn test_addr_primitives() {
   assert_eq!(READ_CACHE_BIT, 1u64 << 47);
   assert_eq!(ABSOLUTE_ADDRESS_MASK, 0x0000_7FFF_FFFF_FFFF);
   assert_eq!(INVALID_ADDRESS, 0);
+  assert_eq!(TEMP_INVALID_ADDRESS, 1);
+  assert_eq!(FIRST_VALID_ADDRESS, 64);
+  assert_eq!(MAX_VALID_ADDRESS, ABSOLUTE_ADDRESS_MASK);
 
   let raw = 0x1234_5678_9ABC;
   assert!(is_valid(raw));
@@ -23,13 +26,29 @@ fn test_addr_primitives() {
   assert!(log_addr.is_read_cache());
   assert_eq!(log_addr.absolute().as_raw(), raw);
   assert_eq!(*log_addr, rc_addr);
-  assert_eq!(log_addr.as_u64(), rc_addr);
-  assert_eq!(log_addr.into_raw(), rc_addr);
+  assert_eq!(log_addr.as_raw(), rc_addr);
   assert_eq!(u64::from(log_addr), rc_addr);
   assert_eq!(LogAddress::from(rc_addr), log_addr);
 
-  let formatted = format!("{}", log_addr);
-  assert!(formatted.starts_with("RC:"));
+  // Display 对齐 C# AddressString：rc:N / kInvalid / kTempInvalid / log:N（十进制）
+  assert_eq!(format!("{log_addr}"), format!("rc:{raw}"));
+  assert_eq!(format!("{}", LogAddress::INVALID), "kInvalid");
+  assert_eq!(
+    format!("{}", LogAddress::from_raw(TEMP_INVALID_ADDRESS)),
+    "kTempInvalid"
+  );
+  assert_eq!(format!("{}", LogAddress::new(raw)), format!("log:{raw}"));
+
+  // 页号与页起始地址互转（对齐 C# GetPageOfAddress / GetLogicalAddressOfStartOfPage）
+  let page_bits = 20; // 1MB 页
+  assert_eq!(page_of_address(raw, page_bits), raw >> page_bits);
+  assert_eq!(page_of_address(rc_addr, page_bits), raw >> page_bits);
+  assert_eq!(address_of_page_start(3, page_bits), 3 << page_bits);
+  assert_eq!(
+    LogAddress::page_start(5, page_bits).page(page_bits),
+    5,
+    "页起始地址所在页号须还原为原页号"
+  );
 }
 
 #[cfg(feature = "align")]
@@ -47,6 +66,15 @@ fn test_align_primitives() {
   assert_eq!(align_up(4097, 4096), 8192);
   assert_eq!(align_up(4096, 4096), 4096);
   assert_eq!(checked_align_up(u64::MAX - 10, 4096), None);
+
+  // 前置 2 的幂（对齐 C# Utility.PreviousPowerOf2）
+  assert_eq!(prev_power_of2(0), 0);
+  assert_eq!(prev_power_of2(1), 1);
+  assert_eq!(prev_power_of2(2), 2);
+  assert_eq!(prev_power_of2(3), 2);
+  assert_eq!(prev_power_of2(4097), 4096);
+  assert_eq!(prev_power_of2(u64::MAX), 1u64 << 63);
+  assert_eq!(prev_power_of2(1u64 << 47), 1u64 << 47);
 
   assert!(is_cacheline_aligned(128));
   assert!(!is_cacheline_aligned(127));
