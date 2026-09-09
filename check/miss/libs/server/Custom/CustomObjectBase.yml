@@ -2,5 +2,4 @@ fn:
   - CustomObjectBase
   - SerializeObject
   - CloneObject
-  - DoSerialize
   - Operate

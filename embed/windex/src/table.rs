@@ -35,9 +35,10 @@ enum ChainStep {
   Cycle,
 }
 
-/// 溢出链遍历步数上限：正常链长受溢出池容量与哈希分布约束远小于该值，
-/// 超限即判定数据损坏/链环，立即终止遍历而非死循环
-const MAX_CHAIN_STEPS: usize = 1 << 20;
+/// 溢出链遍历步数上限：溢出桶挂链后永不释放（free 仅回收挂载竞争败者的未挂载桶），
+/// 故链长严格受限于池容量上限 MAX_CHUNKS×CHUNK_SIZE = 2^22；超限即判定数据损坏/链环，
+/// 立即终止遍历而非死循环
+const MAX_CHAIN_STEPS: usize = 1 << 22;
 
 /// 溢出链遍历器（步数上限防御）
 ///
@@ -131,12 +132,13 @@ impl<'a> HashEntryInfo<'a> {
   /// 尝试原子置零当前槽位以实现物理脱钩删除（Record Elision）
   ///
   /// 若当前槽位包含有效记录且未被并发覆写，单指令 CAS 0 脱钩回收物理槽位。
+  /// raw 为 0 时必须直接失败：CAS(0 -> 0) 恒成功会误报删除成功。
   #[inline]
   pub fn try_elide(&mut self) -> bool {
-    if !self.is_found() || self.slot >= DATA_ENTRIES {
+    debug_assert!(self.slot < DATA_ENTRIES, "try_elide 槽位越界");
+    if !self.is_found() {
       return false;
     }
-    debug_assert!(self.slot < DATA_ENTRIES);
     if unsafe { self.bucket.entries.get_unchecked(self.slot) }
       .compare_exchange(self.raw, 0, Ordering::AcqRel, Ordering::Acquire)
       .is_ok()
@@ -198,14 +200,10 @@ impl CandidateAddresses {
     (self.len as usize) + self.extra.len()
   }
 
-  /// 获取首个候选地址（若存在）
+  /// 获取首个候选地址（若存在；不变量：extra 非空时 buf 必满，len==0 则整体为空）
   #[inline]
   pub fn first(&self) -> Option<u64> {
-    if self.len > 0 {
-      Some(self.buf[0])
-    } else {
-      self.extra.first().copied()
-    }
+    (self.len != 0).then(|| self.buf[0])
   }
 
   /// 获取候选地址双端迭代器（栈数组优先，链上溢出堆切片）
@@ -739,29 +737,20 @@ impl HashIndex {
         match walker.advance(&self.overflow_pool) {
           ChainStep::Next => {}
           ChainStep::End => {
-            if walker.curr.overflow_index() != 0 {
-              // 并发竞争：另一线程刚抢先挂载了溢出桶，继续沿该桶深入遍历
-              match walker.advance(&self.overflow_pool) {
-                ChainStep::Next => {}
-                ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
-                ChainStep::End => return Err(Error::OverflowPoolExhausted),
+            // 链尾无溢出桶：分配新桶并 CAS 挂载；并发败者归还冗余桶（对标
+            // libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:Free），此后无论谁挂载成功，下一桶均已就位
+            if walker.curr.overflow_index() == 0 {
+              let new_idx = self.overflow_pool.allocate()?;
+              if !walker.curr.set_overflow_index(new_idx) {
+                self.overflow_pool.free(new_idx);
               }
-            } else {
-              // 链尾挂载新溢出桶
-              let new_overflow_idx = self.overflow_pool.allocate()?;
-              if walker.curr.set_overflow_index(new_overflow_idx) {
-                match walker.advance(&self.overflow_pool) {
-                  ChainStep::Next => {}
-                  _ => return Err(Error::OverflowPoolExhausted),
-                }
-              } else {
-                // 并发冲突：另一线程已抢先挂载，归还冗余桶并沿赢家桶深入（对标 libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:Free）
-                self.overflow_pool.free(new_overflow_idx);
-                match walker.advance(&self.overflow_pool) {
-                  ChainStep::Next => {}
-                  _ => return Err(Error::OverflowPoolExhausted),
-                }
-              }
+            }
+            // 推进进入新桶继续寻找空槽；End 分支理论不可达（上一行已保证溢出指针
+            // 非零），纯防御兜底
+            match walker.advance(&self.overflow_pool) {
+              ChainStep::Next => {}
+              ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
+              ChainStep::End => return Err(Error::OverflowPoolExhausted),
             }
           }
           ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
@@ -916,41 +905,38 @@ impl HashIndex {
       match walker.advance(&self.overflow_pool) {
         ChainStep::Next => {}
         ChainStep::End => {
-          if walker.curr.overflow_index() != 0 {
-            // 并发竞争：另一线程刚抢先挂载了溢出桶，继续沿该桶深入遍历
-            match walker.advance(&self.overflow_pool) {
-              ChainStep::Next => continue 'search,
-              ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
-              ChainStep::End => return Err(Error::OverflowPoolExhausted),
+          // 链尾重读溢出指针为 0：排除「另一线程刚抢先挂载溢出桶」的竞争窗口
+          if walker.curr.overflow_index() == 0 {
+            if let Some((free_bucket, slot)) = first_free {
+              return Ok(HashEntryInfo {
+                bucket: free_bucket,
+                slot,
+                raw: 0,
+                tag,
+              });
             }
-          }
-          if let Some((free_bucket, slot)) = first_free {
-            return Ok(HashEntryInfo {
-              bucket: free_bucket,
-              slot,
-              raw: 0,
-              tag,
-            });
-          }
 
-          // 整条链均无空槽位，分配新溢出桶挂载
-          let new_overflow_idx = self.overflow_pool.allocate()?;
-          if walker.curr.set_overflow_index(new_overflow_idx) {
-            // SAFETY: new_overflow_idx 由本线程 allocate() 刚产出，恒合法且对应 chunk 已初始化
-            let new_bucket = unsafe { self.overflow_pool.get_unchecked(new_overflow_idx) };
-            return Ok(HashEntryInfo {
-              bucket: new_bucket,
-              slot: 0,
-              raw: 0,
-              tag,
-            });
+            // 整条链均无空槽位：分配新溢出桶并 CAS 挂载；
+            // 并发败者归还冗余桶后沿赢家桶继续深入遍历
+            let new_overflow_idx = self.overflow_pool.allocate()?;
+            if walker.curr.set_overflow_index(new_overflow_idx) {
+              // 挂载成功：新桶由本线程独占产出（全零），slot 0 即首个空槽
+              // SAFETY: new_overflow_idx 由本线程 allocate() 刚产出，恒合法且对应 chunk 已初始化
+              let new_bucket = unsafe { self.overflow_pool.get_unchecked(new_overflow_idx) };
+              return Ok(HashEntryInfo {
+                bucket: new_bucket,
+                slot: 0,
+                raw: 0,
+                tag,
+              });
+            }
+            self.overflow_pool.free(new_overflow_idx);
           }
-
-          // 并发冲突：另一线程抢先挂载了溢出桶，释放当前多余桶，继续沿赢家桶深入遍历
-          self.overflow_pool.free(new_overflow_idx);
+          // 沿赢家桶深入遍历；End 分支理论不可达（上方已保证溢出指针非零），纯防御兜底
           match walker.advance(&self.overflow_pool) {
             ChainStep::Next => continue 'search,
-            _ => return Err(Error::OverflowPoolExhausted),
+            ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
+            ChainStep::End => return Err(Error::OverflowPoolExhausted),
           }
         }
         ChainStep::Cycle => return Err(Error::OverflowCycleDetected),
@@ -1105,27 +1091,49 @@ impl HashIndex {
     self.bucket_for_key(key).lock_exclusive_guard()
   }
 
-  /// 批量预取并查询键对应候选逻辑地址（对标 Garnet Tsavorite ContextReadWithPrefetch）
+  /// 哈希批量统一流水线驱动：预热窗口 + 滑动窗口预取逐项回调
   ///
-  /// 使用 12 项滑动预取窗口（1:1 对标 Garnet Tsavorite PrefetchSize = 12）将未来的哈希主桶提前预取到 CPU L1 Cache
-  /// 优化：键仅哈希一次，小批次（<= 64）全栈分配零堆内存。
-  pub fn lookup_candidates_batch(&self, keys: &[&[u8]], results: &mut [CandidateAddresses]) {
-    let count = keys.len().min(results.len());
-    if count == 0 {
+  /// 12 项滑动预取窗口 1:1 对标 Garnet Tsavorite ContextReadWithPrefetch
+  /// （PrefetchSize = 12）：先预热前 12 个主桶，随后每处理第 i 项前预取
+  /// 第 i+12 项主桶，使预取延迟与遍历耗时重叠。
+  fn batch_pipeline(&self, hashes: &[u64], mut query: impl FnMut(&Self, u64)) {
+    if hashes.is_empty() {
       return;
     }
+    for &hash in &hashes[..Self::PREFETCH_WINDOW.min(hashes.len())] {
+      prefetch_read_l1(self.get_bucket((hash as usize) & self.mask));
+    }
+    for (i, &hash) in hashes.iter().enumerate() {
+      if let Some(&next_hash) = hashes.get(i + Self::PREFETCH_WINDOW) {
+        prefetch_read_l1(self.get_bucket((next_hash as usize) & self.mask));
+      }
+      query(self, hash);
+    }
+  }
 
+  /// 键批量统一驱动：按 [`Self::BATCH_CHUNK_SIZE`] 分块、块内哈希入栈缓冲后走 by_hash 回调
+  ///
+  /// 键仅哈希一次；小批次（<= 64）全栈分配零堆内存。
+  fn batch_pipeline_keys(&self, keys: &[&[u8]], mut by_hash: impl FnMut(&Self, &[u64])) {
     let mut hashes_buf = [0u64; Self::BATCH_CHUNK_SIZE];
-    for (keys_chunk, results_chunk) in keys[..count]
-      .chunks(Self::BATCH_CHUNK_SIZE)
-      .zip(results[..count].chunks_mut(Self::BATCH_CHUNK_SIZE))
-    {
+    for keys_chunk in keys.chunks(Self::BATCH_CHUNK_SIZE) {
       let chunk_len = keys_chunk.len();
       for (slot, &k) in hashes_buf[..chunk_len].iter_mut().zip(keys_chunk) {
         *slot = Self::hash_key(k);
       }
-      self.lookup_candidates_batch_by_hash(&hashes_buf[..chunk_len], results_chunk);
+      by_hash(self, &hashes_buf[..chunk_len]);
     }
+  }
+
+  /// 批量预取并查询键对应候选逻辑地址（对标 Garnet Tsavorite ContextReadWithPrefetch）
+  pub fn lookup_candidates_batch(&self, keys: &[&[u8]], results: &mut [CandidateAddresses]) {
+    let count = keys.len().min(results.len());
+    let mut offset = 0;
+    self.batch_pipeline_keys(&keys[..count], |index, hashes| {
+      let chunk = &mut results[offset..offset + hashes.len()];
+      offset += hashes.len();
+      index.lookup_candidates_batch_by_hash(hashes, chunk);
+    });
   }
 
   /// 基于预先计算好的哈希值进行流水线批量预取与候选地址查询
@@ -1135,73 +1143,32 @@ impl HashIndex {
     results: &mut [CandidateAddresses],
   ) {
     let count = hashes.len().min(results.len());
-    if count == 0 {
-      return;
-    }
-
-    let warmup_count = Self::PREFETCH_WINDOW.min(count);
-    for &hash in &hashes[..warmup_count] {
-      let bucket_idx = (hash as usize) & self.mask;
-      prefetch_read_l1(self.get_bucket(bucket_idx));
-    }
-
-    for (i, (&hash, res)) in hashes[..count]
-      .iter()
-      .zip(&mut results[..count])
-      .enumerate()
-    {
-      if let Some(&next_hash) = hashes.get(i + Self::PREFETCH_WINDOW) {
-        let bucket_idx = (next_hash as usize) & self.mask;
-        prefetch_read_l1(self.get_bucket(bucket_idx));
-      }
-      *res = self.lookup_candidates_by_hash(hash);
-    }
+    let mut idx = 0;
+    self.batch_pipeline(&hashes[..count], |index, hash| {
+      results[idx] = index.lookup_candidates_by_hash(hash);
+      idx += 1;
+    });
   }
 
   /// 基于预先计算好的哈希值进行流水线批量预取与快速单槽位探针查找
   pub fn find_tag_batch_by_hash(&self, hashes: &[u64], results: &mut [Option<u64>]) {
     let count = hashes.len().min(results.len());
-    if count == 0 {
-      return;
-    }
-
-    let warmup_count = Self::PREFETCH_WINDOW.min(count);
-    for &hash in &hashes[..warmup_count] {
-      let bucket_idx = (hash as usize) & self.mask;
-      prefetch_read_l1(self.get_bucket(bucket_idx));
-    }
-
-    for (i, (&hash, res)) in hashes[..count]
-      .iter()
-      .zip(&mut results[..count])
-      .enumerate()
-    {
-      if let Some(&next_hash) = hashes.get(i + Self::PREFETCH_WINDOW) {
-        let bucket_idx = (next_hash as usize) & self.mask;
-        prefetch_read_l1(self.get_bucket(bucket_idx));
-      }
-      *res = self.find_tag_by_hash(hash);
-    }
+    let mut idx = 0;
+    self.batch_pipeline(&hashes[..count], |index, hash| {
+      results[idx] = index.find_tag_by_hash(hash);
+      idx += 1;
+    });
   }
 
   /// 批量预取并快速单槽位探针查找（键路径版本，先哈希再走 by_hash 流水线）
   pub fn find_tag_batch(&self, keys: &[&[u8]], results: &mut [Option<u64>]) {
     let count = keys.len().min(results.len());
-    if count == 0 {
-      return;
-    }
-
-    let mut hashes_buf = [0u64; Self::BATCH_CHUNK_SIZE];
-    for (keys_chunk, results_chunk) in keys[..count]
-      .chunks(Self::BATCH_CHUNK_SIZE)
-      .zip(results[..count].chunks_mut(Self::BATCH_CHUNK_SIZE))
-    {
-      let chunk_len = keys_chunk.len();
-      for (slot, &k) in hashes_buf[..chunk_len].iter_mut().zip(keys_chunk) {
-        *slot = Self::hash_key(k);
-      }
-      self.find_tag_batch_by_hash(&hashes_buf[..chunk_len], results_chunk);
-    }
+    let mut offset = 0;
+    self.batch_pipeline_keys(&keys[..count], |index, hashes| {
+      let chunk = &mut results[offset..offset + hashes.len()];
+      offset += hashes.len();
+      index.find_tag_batch_by_hash(hashes, chunk);
+    });
   }
 
   /// 原地切片去重，单次单向遍历，将唯一元素排在前部并返回有效长度（零堆分配，稳定版标准 Rust）
@@ -1253,7 +1220,9 @@ impl HashIndex {
       &mut heap_entries
     };
 
-    // 桶下标升序全序（防死锁）；同桶排他优先，去重保留最高锁级
+    // 桶下标升序全序（防死锁）；同桶排他优先（true 排前），相邻去重保留首个
+    // 即保留最高锁级（slice 无 dedup_by——该方法为 Vec 专属，栈/堆统一切片
+    // 借用故自行实现）
     entries.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
     let deduped_len = Self::in_place_dedup_by(entries, |a, b| a.0 == b.0);
 

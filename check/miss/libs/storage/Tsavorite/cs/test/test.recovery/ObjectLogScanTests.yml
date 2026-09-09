@@ -3,7 +3,6 @@ fn:
   - Equals
   - GetHashCode64
   - OverflowTestKey
-  - DoSerialize
   - Serialize
   - WriteType
   - CacheSerializedObjectData

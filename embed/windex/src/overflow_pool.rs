@@ -7,6 +7,13 @@ use crate::{Result, bucket::HashBucket, error::Error};
 
 /// 溢出桶内存池
 ///
+/// 对照 C# Tsavorite `MallocFixedPageSize<HashBucket>`（core/Allocator/MallocFixedPageSize.cs）：
+/// - 同：两级分块连续内存、1-based 索引（0 恒为无效分配索引）、原子计数递增分配、
+///   free-list 机会主义复用、并发竞争败者安全回收冗余块；
+/// - 异：free-list 用 Treiber 无锁栈 + 32 位 ABA 代数标签（C# 为 ConcurrentQueue 队列）；
+///   chunk 严格按需延迟分配（C# 分配当前页时预分配下一页）；溢出指针 48 位可寻址
+///   空间下池容量上限 MAX_CHUNKS×CHUNK_SIZE = 2^22 桶。
+///
 /// 采用两级分块连续内存分配机制：
 /// - 每个内存块（Chunk）包含 1024 个连续的 64 字节对齐 `HashBucket`
 /// - 通过原子序号按需分配，返回从 1 开始的 1-based 索引（0 表示无溢出桶）

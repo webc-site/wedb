@@ -8,7 +8,7 @@ use std::{
 
 use aok::{OK, Void};
 use log::info;
-use windex::{HashBucket, HashBucketEntry, HashIndex};
+use windex::{DATA_ENTRIES, HashBucketEntry, HashIndex};
 
 use super::support::{make_address, make_keys};
 
@@ -325,7 +325,7 @@ fn test_find_tag_or_insert_single_pass_and_overflow_penetration() -> Void {
     .entries
     .iter()
     .enumerate()
-    .take(HashBucket::DATA_ENTRIES)
+    .take(DATA_ENTRIES)
   {
     let dummy_addr = (slot as u64) + 1;
     let entry = HashBucketEntry::new(dummy_addr, 0x1000 + slot as u16, false);

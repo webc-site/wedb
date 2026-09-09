@@ -13,4 +13,4 @@ pub use bucket::{
 pub use entry::HashBucketEntry;
 pub use error::{Error, Result};
 pub use overflow_pool::OverflowPool;
-pub use table::{CandidateAddresses, HashIndex, MultiBucketGuard, prefetch_read_l1};
+pub use table::{CandidateAddresses, HashEntryInfo, HashIndex, MultiBucketGuard, prefetch_read_l1};

@@ -156,14 +156,11 @@ const check = async () => {
       return false;
     };
 
-  await rm(MISS_DIR, { recursive: true, force: true });
-  await mkdir(MISS_DIR, { recursive: true });
-
   const all_file_set = new Set([
     ...Object.keys(fn_map),
     ...Object.keys(test_map)
   ]),
-    miss_file_li = [];
+    active_miss_map = new Map();
 
   for (const rel_path of all_file_set) {
     const fn_li = fn_map[rel_path] ?? [],
@@ -177,15 +174,16 @@ const check = async () => {
     if (miss_fn_li.length > 0) out_data.fn = miss_fn_li;
     if (miss_test_li.length > 0) out_data.test = miss_test_li;
 
-    const yml_rel_path = rel_path.replace(/\.cs$/, ".yml"),
-      target_file = join(MISS_DIR, yml_rel_path),
-      target_dir = dirname(target_file);
-
-    await mkdir(target_dir, { recursive: true });
-    await Bun.write(target_file, yaml.stringify(out_data));
-
-    miss_file_li.push(yml_rel_path);
+    const yml_rel_path = rel_path.replace(/\.cs$/, ".yml");
+    active_miss_map.set(yml_rel_path, out_data);
   }
+
+  for (const miss_dir of MISS_DIR_LI) {
+    await missSync(miss_dir, active_miss_map);
+  }
+
+  const miss_file_li = Array.from(active_miss_map.keys());
+  miss_file_li.sort();
 
   const pathTreeFormat = (path_li) => {
     const root = {};

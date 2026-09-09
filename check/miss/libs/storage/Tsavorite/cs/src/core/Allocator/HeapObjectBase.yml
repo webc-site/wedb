@@ -1,5 +1,4 @@
 fn:
-  - DoSerialize
   - MakeTransition
   - WriteType
   - Serialize

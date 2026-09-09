@@ -1,6 +1,5 @@
 fn:
   - Serialize
   - WriteType
-  - DoSerialize
   - CacheSerializedObjectData
   - ClearSerializedObjectData

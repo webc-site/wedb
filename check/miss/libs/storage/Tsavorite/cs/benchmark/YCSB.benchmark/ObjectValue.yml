@@ -1,6 +1,5 @@
 fn:
   - ToString
-  - DoSerialize
   - WriteType
   - ObjectValue
   - Deserialize

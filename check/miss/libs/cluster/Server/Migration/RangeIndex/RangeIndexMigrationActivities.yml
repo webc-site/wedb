@@ -3,7 +3,6 @@ fn:
   - OnTransmitting
   - OnDeleting
   - OnError
-  - End
   - LogActivity
   - EndAndLogActivity
   - OnSnapshotCompleted

@@ -1,5 +1,4 @@
 fn:
   - Begin
-  - End
   - TaskAsyncResult
   - InvokeCallback
