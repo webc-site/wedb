@@ -324,8 +324,8 @@ impl<D: Device> GcManager<D> {
     let read_only = store.read_only_address();
     let tail = store.tail_address();
     if read_only < tail {
-      let (n, ..) = Self::collect_expired(&session, store, read_only..tail, now, u64::MAX, &mut picks)
-        .await?;
+      let (n, ..) =
+        Self::collect_expired(&session, store, read_only..tail, now, u64::MAX, &mut picks).await?;
       scanned += n;
     }
 
@@ -335,9 +335,15 @@ impl<D: Device> GcManager<D> {
     if picks.len() < cap {
       let cold_from = self.cold_cursor.load(Relaxed).max(store.begin_address());
       if cold_from < read_only {
-        let (n, next_addr, exhausted) =
-          Self::collect_expired(&session, store, cold_from..read_only, now, cold_cap as u64, &mut picks)
-            .await?;
+        let (n, next_addr, exhausted) = Self::collect_expired(
+          &session,
+          store,
+          cold_from..read_only,
+          now,
+          cold_cap as u64,
+          &mut picks,
+        )
+        .await?;
         scanned += n;
         // 游标恒钳制在只读线以下（热区由段 1 覆盖，不得重复计入冷区欠账）
         cold_commit = Some(if exhausted || next_addr >= read_only {

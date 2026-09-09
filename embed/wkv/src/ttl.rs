@@ -318,7 +318,7 @@ impl<D: Device> StoreSession<D> {
 
 #[cfg(test)]
 mod tests {
-  use std::panic::{catch_unwind, AssertUnwindSafe};
+  use std::panic::{AssertUnwindSafe, catch_unwind};
 
   use super::*;
 
