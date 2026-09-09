@@ -67,6 +67,9 @@ pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
   19
 }
 
+/// 小数部分最长判定位数（对标 C# 循环上限，10^-14 精度内收敛）
+const MAX_FRACTIONAL_DIGITS: i32 = 14;
+
 /// garnet/libs/common/NumUtils.cs:CountCharsInDouble
 pub fn count_chars_in_double(
   mut value: f64,
@@ -89,12 +92,14 @@ pub fn count_chars_in_double(
     value.log10() as i32 + 1
   };
 
+  // 每轮的缩放幂只计算一次，左右各复用（原实现每轮重复 powi 两次）
   *fractional_digits = 0;
-  while *fractional_digits <= 14 {
-    let rounded =
-      (value * 10_f64.powi(*fractional_digits)).round() / 10_f64.powi(*fractional_digits);
+  let mut scale = 10_f64.powi(0);
+  while *fractional_digits <= MAX_FRACTIONAL_DIGITS {
+    let rounded = (value * scale).round() / scale;
     if (value - rounded).abs() > 2.0 * f64::EPSILON {
       *fractional_digits += 1;
+      scale *= 10.0;
     } else {
       break;
     }
@@ -104,49 +109,45 @@ pub fn count_chars_in_double(
   *sign_size as i32 + *integer_digits + dot_size + *fractional_digits
 }
 
-/// garnet/libs/common/NumUtils.cs:TryParse
-pub fn try_parse_i32(source: &[u8], value: &mut i32) -> bool {
-  if let Ok(s) = from_utf8(source)
-    && let Ok(v) = s.parse::<i32>()
-  {
-    *value = v;
-    return true;
-  }
-  false
+/// 生成 `TryParse` 系列：UTF-8 解码 + 类型解析，成功写入 `value` 返回 true
+macro_rules! try_parse {
+  ($(#[$meta:meta])* $name:ident, $ty:ty) => {
+    $(#[$meta])*
+    pub fn $name(source: &[u8], value: &mut $ty) -> bool {
+      if let Ok(s) = from_utf8(source)
+        && let Ok(v) = s.parse::<$ty>()
+      {
+        *value = v;
+        return true;
+      }
+      false
+    }
+  };
 }
 
-/// garnet/libs/common/NumUtils.cs:TryParse
-pub fn try_parse_i64(source: &[u8], value: &mut i64) -> bool {
-  if let Ok(s) = from_utf8(source)
-    && let Ok(v) = s.parse::<i64>()
-  {
-    *value = v;
-    return true;
-  }
-  false
-}
+try_parse!(
+  /// garnet/libs/common/NumUtils.cs:TryParse
+  try_parse_i32,
+  i32
+);
 
-/// garnet/libs/common/NumUtils.cs:TryParse
-pub fn try_parse_f32(source: &[u8], value: &mut f32) -> bool {
-  if let Ok(s) = from_utf8(source)
-    && let Ok(v) = s.parse::<f32>()
-  {
-    *value = v;
-    return true;
-  }
-  false
-}
+try_parse!(
+  /// garnet/libs/common/NumUtils.cs:TryParse
+  try_parse_i64,
+  i64
+);
 
-/// garnet/libs/common/NumUtils.cs:TryParse
-pub fn try_parse_f64(source: &[u8], value: &mut f64) -> bool {
-  if let Ok(s) = from_utf8(source)
-    && let Ok(v) = s.parse::<f64>()
-  {
-    *value = v;
-    return true;
-  }
-  false
-}
+try_parse!(
+  /// garnet/libs/common/NumUtils.cs:TryParse
+  try_parse_f32,
+  f32
+);
+
+try_parse!(
+  /// garnet/libs/common/NumUtils.cs:TryParse
+  try_parse_f64,
+  f64
+);
 
 /// garnet/libs/common/NumUtils.cs:TryParseWithInfinity
 pub fn try_parse_with_infinity(source: &[u8], value: &mut f64) -> bool {
