@@ -3,7 +3,15 @@ name: transpile
 description: garnet 转写 rust
 ---
 
-把 garnet 转写 c# 指南
+./garnet c# 代码转写为 rust
+
+采用微模块结构，
+
+hash 一律用 gxhash
+
+技术选型如下
+消息队列用 crossfire
+lua 用 cargo add luau
 
 
 - 只能使用 cargo add 添加依赖，严禁私自修改 Cargo.toml。
