@@ -1,0 +1,14 @@
+fn:
+  - IsLocalConnection
+  - Enter
+  - EnterAndGetResponseObject
+  - Exit
+  - ExitAndReturnResponseObject
+  - GetResponseObject
+  - ReturnResponseObject
+  - GetResponseObjectHead
+  - GetResponseObjectTail
+  - SendResponse
+  - SendCallback
+  - DisposeNetworkSender
+  - TryClose

@@ -1,0 +1,16 @@
+fn:
+  - CreateClusterSession
+  - GetGossipStats
+  - GetReplicationInfo
+  - GetPrimaryInfo
+  - PurgeBufferPool
+  - ClusterPublishAsync
+  - OnCheckpointInitiated
+  - ResetGossipStats
+  - AddNewCheckpointEntry
+  - SafeTruncateAOF
+  - UpdateClusterAuth
+  - GetCheckpointInfo
+  - GetRunId
+  - PreventRoleChange
+  - AllowRoleChange

@@ -1,0 +1,17 @@
+fn:
+  - IsLocalConnection
+  - Enter
+  - EnterAndGetResponseObject
+  - Exit
+  - ExitAndReturnResponseObject
+  - GetResponseObject
+  - ThrowDisposed
+  - ReturnResponseObject
+  - ReturnBuffer
+  - GetResponseObjectHead
+  - GetResponseObjectTail
+  - SendResponse
+  - SendCallback
+  - DisposeNetworkSender
+  - TryClose
+  - SeaaBuffer_Completed

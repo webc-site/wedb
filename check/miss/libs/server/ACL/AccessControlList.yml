@@ -1,0 +1,10 @@
+fn:
+  - GetUserHandle
+  - GetDefaultUserHandle
+  - AddUserHandle
+  - DeleteUserHandle
+  - ClearUsers
+  - GetUserHandles
+  - CreateDefaultUserHandle
+  - Load
+  - Import

@@ -16,4 +16,11 @@ fn:
   - DoubleTransportReceiveBuffer
   - ShiftTransportReceiveBuffer
   - DisposeImpl
+<<<<<<< Updated upstream:js/check/ignore/libs/common/Networking/NetworkHandler.yml
+||||||| Stash base:check/miss/libs/common/Networking/NetworkHandler.yml
+  - DisposeNetworkSender
+  - Throttle
+=======
+  - DisposeNetworkSender
+>>>>>>> Stashed changes:check/miss/libs/common/Networking/NetworkHandler.yml
   - LogSecurityInfo

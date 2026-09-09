@@ -1,0 +1,5 @@
+fn:
+  - GetClusterNodes
+  - InitializeReplayStream
+  - ConsumeResp
+  - ConsumeNoResp
