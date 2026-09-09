@@ -4,8 +4,6 @@
 use std::{
   hint,
   sync::atomic::{AtomicU64, Ordering},
-  thread,
-  time::Duration,
 };
 
 /// CAS 位图锁：`log_access_bitmap` 的每个置位位对应一个物理子日志；
@@ -64,9 +62,13 @@ impl ShardedLogLockMap {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+  use std::{
+    sync::{
+      Arc,
+      atomic::{AtomicU64, Ordering},
+    },
+    thread,
+    time::Duration,
   };
 
   use super::ShardedLogLockMap;

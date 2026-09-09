@@ -170,7 +170,10 @@ impl AofBackpressure {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::{Arc, atomic::AtomicU64};
+  use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering as AtomicOrdering},
+  };
 
   use super::{AofBackpressure, LogTail};
 
@@ -180,7 +183,7 @@ mod tests {
 
   impl LogTail for FakeLog {
     fn get_tail_address(&self, _sublog_idx: usize) -> i64 {
-      self.tail.load(std::sync::atomic::Ordering::Relaxed) as i64
+      self.tail.load(AtomicOrdering::Relaxed) as i64
     }
   }
 
@@ -217,11 +220,11 @@ mod tests {
 
     // 复制端附着：水位 0，尾 50 在预算 100 内。
     gate.publish_shipped_address(0, 0);
-    log.tail.store(50, std::sync::atomic::Ordering::Relaxed);
+    log.tail.store(50, AtomicOrdering::Relaxed);
     assert!(!gate.any_stalled());
 
     // 尾 200 超预算 100：出现滞后。
-    log.tail.store(200, std::sync::atomic::Ordering::Relaxed);
+    log.tail.store(200, AtomicOrdering::Relaxed);
     assert!(gate.any_stalled());
 
     // 水位推进到预算内即解除。
