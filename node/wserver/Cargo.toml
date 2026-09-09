@@ -20,6 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 async-lock.workspace = true
 bitflags = "2.13.1"
 coarsetime.workspace = true
+compio.workspace = true
 fastrand = "2.5.0"
 gxhash = "3"
 hdrhistogram = "7"
