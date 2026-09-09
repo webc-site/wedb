@@ -1,0 +1,9 @@
+fn:
+  - FromPinnedVariable
+  - FromPinnedPointer
+  - FromLengthPrefixedPinnedPointer
+  - TotalSize
+  - CopyTo
+  - UncheckedCast
+  - SerializeTo
+  - ToShortString
