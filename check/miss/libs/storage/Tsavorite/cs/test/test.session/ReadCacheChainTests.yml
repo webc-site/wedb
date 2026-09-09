@@ -1,8 +1,6 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - PopulateAndEvict
   - CreateChain
   - expectPending
@@ -39,6 +37,4 @@ test:
   - ChainInsertFromDeleteTest
   - VerifyLockCountsAfterReadCacheEvict
   - LongRcMultiThreadTest
-  - LongRcMultiThreadWorker
   - SpanByteRcMultiThreadTest
-  - SpanByteRcMultiThreadWorker

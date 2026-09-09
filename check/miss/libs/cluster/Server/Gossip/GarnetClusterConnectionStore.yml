@@ -1,5 +1,4 @@
 fn:
-  - GarnetClusterConnectionStore
   - UnsafeDisposeConnections
   - CloseAll
   - UnsafeGetConnection

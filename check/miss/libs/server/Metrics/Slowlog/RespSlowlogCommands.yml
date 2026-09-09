@@ -1,6 +1,5 @@
 fn:
   - NetworkSlowLogHelp
-  - SendAndReset
   - NetworkSlowLogGet
   - NetworkSlowLogLen
   - NetworkSlowLogReset

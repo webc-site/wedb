@@ -1,6 +1,5 @@
 fn:
   - ListRemove
-  - UpdateSize
   - ListInsert
   - ListIndex
   - ListRange

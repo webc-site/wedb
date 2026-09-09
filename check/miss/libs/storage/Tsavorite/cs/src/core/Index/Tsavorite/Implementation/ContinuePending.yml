@@ -1,8 +1,5 @@
 fn:
   - ContinuePendingRead
-  - SpinWaitUntilClosed
-  - EphemeralSUnlock
   - ContinuePendingRMW
-  - EphemeralXUnlock
   - ContinuePendingConditionalCopyToTail
   - ContinuePendingConditionalScanPush

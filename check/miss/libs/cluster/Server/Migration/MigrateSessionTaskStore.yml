@@ -1,5 +1,4 @@
 fn:
-  - MigrateSessionTaskStore
   - GetNumSessions
   - TryAddMigrateSession
   - TryRemove

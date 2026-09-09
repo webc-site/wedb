@@ -1,7 +1,3 @@
 fn:
-  - SplitBuckets
-  - EphemeralXUnlock
   - CheckCPRConsistencyUpsert
   - CreateNewRecordUpsert
-  - OnDispose
-  - SaveAllocationForRetry

@@ -1,6 +1,4 @@
 fn:
   - HyperLogLogAdd
-  - RMW_MainStore
   - HyperLogLogLength
   - HyperLogLogMerge
-  - SET_Conditional

@@ -1,6 +1,5 @@
 fn:
   - NetworkMGET
-  - SendAndReset
   - NetworkMSET
   - NetworkMSETNX
   - NetworkSELECT
@@ -8,10 +7,7 @@ fn:
   - NetworkDBSIZE
   - NetworkKEYS
   - NetworkSCAN
-  - WriteOutputForScan
   - NetworkTYPE
-  - ProcessOutput
-  - WriteDirectLargeRespString
+  - WriteOutputForScan
   - NetworkArrayPING
   - NetworkLCS
-  - WriteError

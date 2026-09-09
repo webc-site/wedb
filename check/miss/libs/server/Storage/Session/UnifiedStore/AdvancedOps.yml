@@ -1,4 +1,3 @@
 fn:
   - Read_UnifiedStore
-  - CompletePendingForUnifiedStoreSession
   - RMW_UnifiedStore

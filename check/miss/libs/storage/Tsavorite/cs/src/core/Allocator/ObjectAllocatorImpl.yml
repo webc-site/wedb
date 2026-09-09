@@ -1,29 +1,22 @@
 fn:
-  - ObjectPage
   - ToString
-  - BaseToString
-  - ObjectAllocatorImpl
   - FreeAllAllocatedPages
-  - FreePage
   - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
   - ReturnPage
-  - FreeNativeLogPage
+  - FreePage
   - CreateLogRecord
   - CreateRemappedLogRecordOverPinnedTransientMemory
   - GetObjectIdMap
   - InitializeRecord
   - GetRMWCopyRecordSize
-  - PopulateRecordSizeInfo
   - GetRMWInitialRecordSize
   - GetUpsertRecordSize
   - GetDeleteRecordSize
+  - PopulateRecordSizeInfo
   - OnDispose
   - OnDisposeDiskRecord
   - EvictRecordsInRange
   - FlushRecordsInRange
-  - StopSizeTrackerForDispose
   - TruncateUntilAddressBlocking
   - GetLowestObjectLogSegmentInUse
   - CreateCircularFlushBuffers
@@ -33,11 +26,7 @@ fn:
   - GetObjectLogSegmentSize
   - RecoveryReset
   - AsyncFlushPagesForReadOnly
-  - GetFlushPageRange
   - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - SetLowestObjectLogPosition
-  - WriteInlinePageAsync
   - CreateSnapshotObjectReader
   - OnPagesMarkedReadOnlyWorker
   - AsyncReadPageCallback
@@ -48,7 +37,6 @@ fn:
   - DeserializeObjectsOnPage
   - TrackRecoveredObjectRecord
   - CalculatePageObjectSizes
-  - ThrowTsavoriteException
   - IsLastRecordOnPage
   - LoadObjectsForRecoveryPass2
   - FindHeadAddressCutoffOnPage

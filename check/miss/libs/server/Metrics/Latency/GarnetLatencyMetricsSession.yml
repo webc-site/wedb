@@ -1,5 +1,4 @@
 fn:
-  - GarnetLatencyMetricsSession
   - Init
   - Start
   - StopAndSwitch

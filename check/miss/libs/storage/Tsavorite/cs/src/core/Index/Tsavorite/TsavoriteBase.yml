@@ -1,5 +1,5 @@
 fn:
-  - RetireNativeIndexTable
   - BeginNativeIndexCheckpointIo
   - EndNativeIndexCheckpointIo
+  - RetireNativeIndexTable
   - UpdateSlot

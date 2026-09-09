@@ -1,9 +1,7 @@
 fn:
-  - DeleteDirectory
   - TotalEntries
   - BaseSetup
   - BaseTearDown
-  - Counter
   - IncrementAndMaybeTruncateUntil
   - ToString
   - IsAsync
@@ -11,7 +9,6 @@ fn:
   - LogWriterAsync
   - Setup
   - TearDown
-  - TestConsumer
   - Consume
 test:
   - TestDisposeReleasesFileLocksWithCompletedCommit

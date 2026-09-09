@@ -1,11 +1,11 @@
 fn:
+  - Operate
+  - UpdateSize
   - InitializeExpirationStructures
   - UpdateExpirationSize
-  - UpdateSize
-  - DeleteExpiredItems
-  - Operate
   - CleanupExpirationStructuresIfEmpty
   - IsExpired
+  - DeleteExpiredItems
   - Remove
   - Count
   - ContainsKey

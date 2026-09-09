@@ -1,5 +1,4 @@
 fn:
-  - VectorSetCleanupWorkChannel
   - TryPublish
   - WaitToReadAsync
   - CompleteAndWaitForConsumerTask

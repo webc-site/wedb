@@ -1,5 +1,4 @@
 fn:
-  - TrackingRecordTriggers
   - OnDispose
   - OnDisposeDiskRecord
   - OnEvict
@@ -10,11 +9,8 @@ fn:
   - GetRMWInitialFieldInfo
   - InitialUpdater
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - UpsertKey
-  - ObjTrackingRecordTriggers
   - CopyUpdater
   - UpsertObj
 test:

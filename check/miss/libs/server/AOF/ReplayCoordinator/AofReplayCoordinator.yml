@@ -1,21 +1,10 @@
 fn:
   - Equals
-  - GetReplayContext
-  - InitializeReplayContext
-  - FuzzyRegionBufferCount
-  - ClearFuzzyRegionBuffer
-  - AddFuzzyRegionOperation
-  - AddOrReplayTransactionOperation
-  - UpdateMaxSequenceNumberFromHeader
-  - ProcessTransactionGroup
   - ClearSessionTxn
-  - ProcessFuzzyRegionOperations
-  - ProcessFuzzyRegionTransactionGroup
-  - ProcessTransactionGroupOperations
+  - UpdateMaxSequenceNumberFromHeader
   - SaveTransactionGroupKeysToLock
-  - ProcessSynchronizedOperation
-  - ReplayStoredProc
-  - StoredProcRunnerBase
+  - ProcessTransactionGroupOperations
   - StoredProcRunnerWrapper
+  - StoredProcRunnerBase
   - GetBarrier
   - TryRemoveBarrier

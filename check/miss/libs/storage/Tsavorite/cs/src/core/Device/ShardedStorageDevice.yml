@@ -1,6 +1,4 @@
 fn:
   - MapRange
   - MapSectorSize
-  - UniformPartitionScheme
-  - ShardedStorageDevice
   - RemoveSegmentAsync

@@ -1,13 +1,8 @@
 fn:
-  - CheckpointManagerWithCookie
   - GetCookie
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
-  - IgnoreIfNotRunningAzureTests
   - SimpleRecoveryTest1_Worker
-  - AdSimpleFunctions
   - ReadCompletionCallback
   - InitialUpdater
   - NeedCopyUpdate

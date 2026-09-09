@@ -1,13 +1,11 @@
 fn:
   - UnsafeCompileForRunner
-  - CompileCommon
   - UnsafeCompileForSession
   - UnsafeRunPreambleForRunner
   - PrepareString
   - UnsafeRunPreambleForSession
   - NoSessionResponse
   - GarnetCallWithTransaction
-  - ProcessCommandFromScripting
   - GarnetCall
   - RequestTimeout
   - UnpackTrampoline
@@ -80,6 +78,8 @@ fn:
   - SetResp
   - AclCheckCommand
   - PrepareAndCheckRespRequest
+  - CompileCommon
+  - ProcessCommandFromScripting
   - LuaNumberToBitValue
   - SetCallbackContext
   - ClearCallbackContext

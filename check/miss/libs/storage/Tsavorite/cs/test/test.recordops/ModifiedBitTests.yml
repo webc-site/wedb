@@ -1,7 +1,6 @@
 fn:
   - Setup
   - TearDown
-  - OnTearDown
   - Populate
   - AssertLockandModified
 test:

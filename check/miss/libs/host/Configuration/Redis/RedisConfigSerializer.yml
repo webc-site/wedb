@@ -1,10 +1,7 @@
 fn:
-  - RedisConfigSerializer
   - GetProperties
   - Deserialize
   - Serialize
   - TryPopulateOptions
   - TryApplyTransform
   - TryChangeType
-  - when
-  - RedisSerializationException

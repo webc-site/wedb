@@ -15,12 +15,12 @@ fn:
   - PopulatePrimary
   - SimplePrimaryReplicaSetup
   - SimplePopulateDB
+  - SimpleValidateDB
   - PopulatePrimaryRMW
   - PopulatePrimaryWithObjects
-  - SimpleValidateDB
+  - PopulatePrimaryAndTakeCheckpointTask
   - ValidateKVCollectionAgainstReplica
   - ValidateNodeObjects
-  - PopulatePrimaryAndTakeCheckpointTask
   - SendAndValidateKeys
   - ClusterFailoverSpinWait
   - MeetAndAssignSlotsAllNodes

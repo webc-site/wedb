@@ -21,9 +21,7 @@ fn:
   - SimpleSetupCluster
   - SimpleSetupClusterAsync
   - CreateClusterTransaction
-  - ClusterResponse
   - ExecuteTxnForShard
-  - ClusterTestUtils
   - BackOff
   - BackOffAsync
   - Connect
@@ -46,8 +44,8 @@ fn:
   - GetEndPoint
   - GetEndPointFromPort
   - RandomBytesRestrictedToSlot
-  - RandomBytes
   - InitRandom
+  - RandomBytes
   - RandomList
   - RandomHset
   - RandomStr
@@ -55,7 +53,6 @@ fn:
   - LightReceive
   - ParseRespToString
   - ParseResponseState
-  - GetEndPointFromResponse
   - CreateLightRequestConnections
   - GetSlotPortMapFromNode
   - GetSlotPortMapFromServer
@@ -79,8 +76,8 @@ fn:
   - WaitAll
   - IsKnown
   - WaitUntilNodeIsKnown
-  - WaitUntilNodeIdIsKnown
   - WaitUntilNodeIsKnownByAllNodes
+  - WaitUntilNodeIdIsKnown
   - WaitUntilNodeIdIsKnownAsync
   - CountKeysInSlot
   - GetKeysInSlot
@@ -90,6 +87,7 @@ fn:
   - GetMovedAddress
   - GetEndPointIndexFromPort
   - GetSourceNodeIndexFromSlot
+  - GetEndPointFromResponse
   - AddDelSlots
   - AddDelSlotsRange
   - SetSlot
@@ -106,8 +104,6 @@ fn:
   - MeetAndAssignSlots
   - AdvancePrimaryPastReplicaAofWindow
   - AttachReplicaToPrimary
-  - WaitForReplicaRecovery
-  - WaitForReplicaAofSync
   - ResetReplica
   - ClusterReplicate
   - ClusterReplicateAsync
@@ -152,11 +148,12 @@ fn:
   - GetStoreInfo
   - GetInfo
   - WaitForAofSyncDriverDipose
+  - WaitForReplicaAofSync
   - WaitForConnectedReplicaCountAsync
+  - WaitForReplicaRecovery
   - WaitForNoFailover
   - WaitForFailoverCompleted
   - WaitForPrimaryRole
-  - when
   - LastSave
   - WaitUntilNextSecond
   - WaitCheckpoint

@@ -1,12 +1,7 @@
 fn:
-  - HistogramBase
   - RecordValue
-  - RecordSingleValue
   - RecordValueWithCount
-  - AddToCountAtIndex
   - RecordValueWithExpectedInterval
-  - RecordValueWithCountAndExpectedInterval
-  - ClearCounts
   - SizeOfEquivalentValueRange
   - LowestEquivalentValue
   - MedianEquivalentValue
@@ -19,14 +14,18 @@ fn:
   - GetCountAt
   - ValueFromIndex
   - EstablishInternalTackingValues
-  - ResetMaxValue
-  - ResetMinNonZeroValue
-  - UpdatedMaxValue
-  - UpdateMinNonZeroValue
   - GetCountAtIndex
   - SetCountAtIndex
   - IncrementCountAtIndex
+  - AddToCountAtIndex
+  - ClearCounts
   - CopyCountsInto
+  - UpdatedMaxValue
+  - UpdateMinNonZeroValue
+  - ResetMinNonZeroValue
+  - ResetMaxValue
+  - RecordSingleValue
+  - RecordValueWithCountAndExpectedInterval
   - GetBucketsNeededToCoverValue
   - GetLengthForNumberOfBuckets
   - CountsArrayIndex

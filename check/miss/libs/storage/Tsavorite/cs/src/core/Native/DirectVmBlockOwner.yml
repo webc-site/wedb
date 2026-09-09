@@ -1,5 +1,4 @@
 fn:
-  - DirectVmBlockOwner
   - BeginIo
   - EndIo
   - TryDeferFree

@@ -3,7 +3,6 @@ fn:
   - GetHashCode64
   - Equals
   - WriteType
-  - TestObjectValue
   - Deserialize
   - Serialize
   - InitialUpdater
@@ -16,6 +15,4 @@ fn:
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - TestLargeObjectValue
-  - TestMultiListObjectValue
   - CreateValue

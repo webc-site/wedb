@@ -1,8 +1,7 @@
 fn:
-  - LuaTrackedAllocator
   - EnterInfallibleAllocationRegion
   - TryExitInfallibleAllocationRegion
   - AllocateNew
-  - InfallibleAllocate
   - ResizeAllocation
+  - InfallibleAllocate
   - IsInfallibleAllocation

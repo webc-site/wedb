@@ -1,5 +1,4 @@
 fn:
   - Expired
   - HandleCommandParsingErrors
-  - SendAndReset
   - NetworkTryMIGRATE

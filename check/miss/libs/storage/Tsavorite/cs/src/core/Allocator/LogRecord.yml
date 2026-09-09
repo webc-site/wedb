@@ -3,12 +3,8 @@ fn:
   - InitializeHeadersForNewRecord
   - CreateRemappedOverPinnedTransientMemory
   - RemapOverPinnedTransientMemory
-  - ThrowTsavoriteException
   - SetDeserializedValueObject
-  - GetObjectLogPositionAddress
   - AsReadOnlySpan
-  - GetETagAddress
-  - GetExpirationAddress
   - AsMemoryLogRecordRef
   - AsDiskLogRecordRef
   - GetRecordFieldInfo
@@ -28,6 +24,9 @@ fn:
   - TrySetValueObject
   - GetOptionalStartAddress
   - GetOptionalFieldsSpan
+  - GetETagAddress
+  - GetExpirationAddress
+  - GetObjectLogPositionAddress
   - InitializeForReuse
   - TrySetETag
   - RemoveETag

@@ -4,11 +4,11 @@ fn:
   - TearDown
   - ClusterSRPrimaryCheckpointRetrieve
   - ClusterDivergentReplicasTest
-  - ClusterReplicate
   - ExecuteRateLimit
-  - ValidateKeys
+  - ClusterReplicate
   - RunWorkload
   - RestartRecover
+  - ValidateKeys
 test:
   - ClusterSRTest
   - ClusterSRNoCheckpointRestartSecondary

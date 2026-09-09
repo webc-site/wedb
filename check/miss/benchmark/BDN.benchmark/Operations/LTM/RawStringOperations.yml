@@ -1,11 +1,9 @@
 fn:
   - ConfigureServerOptions
   - GlobalSetup
-  - SetupBatch
   - Populate
-  - SlowConsumeMessage
   - MissingKey
-  - SendRandomized
+  - SetupBatch
   - SetEx
   - SetNx
   - SetXx
@@ -13,6 +11,7 @@ fn:
   - GetNotFound
   - IncrementBy
   - DecrementBy
+  - SendRandomized
   - WriteKeyDigits
   - NextRandomKeyId
   - NumDigits

@@ -1,13 +1,11 @@
 fn:
-  - ChunkedObjectSerializer
   - BeginSerialize
   - WriteBytes
   - GetStream
   - EndSerialize
-  - FlushFinal
   - Serialize
   - DrainOnce
-  - ChunkStreamWriter
+  - FlushFinal
   - WriteByte
   - Seek
   - SetLength

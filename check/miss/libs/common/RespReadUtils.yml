@@ -1,18 +1,4 @@
 fn:
-  - TryReadInt64Safe
-  - TryReadInt32
-  - TryReadInt32Safe
-  - TryReadUnsignedLengthHeader
-  - TryReadSignedLengthHeader
-  - TryReadUnsignedArrayLength
-  - TryReadSignedArrayLength
-  - TryReadSignedMapLength
-  - TryReadSignedSetLength
-  - TryReadVerbatimStringLength
-  - TryReadInt32WithLengthHeader
-  - TryReadInt64WithLengthHeader
-  - TryReadUInt64WithLengthHeader
-  - TrySkipByteArrayWithLengthHeader
   - TryReadByteArrayWithLengthHeader
   - TrySliceWithLengthHeader
   - TryReadBoolWithLengthHeader

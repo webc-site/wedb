@@ -1,5 +1,4 @@
 fn:
-  - CacheSizeTracker
   - Start
   - AddHeapSize
   - AddReadCacheHeapSize

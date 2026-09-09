@@ -1,8 +1,7 @@
 fn:
   - InternalRefresh
   - InternalCompletePending
-  - InternalCompletePendingRequests
   - InRestPhase
+  - InternalCompletePendingRequests
   - InternalCompletePendingRequest
-  - OnDisposeDiskRecord
   - InternalCompletePendingRequestFromContext

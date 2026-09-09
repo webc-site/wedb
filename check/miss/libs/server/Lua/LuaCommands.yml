@@ -1,10 +1,9 @@
 fn:
   - TryEVALSHA
-  - SendAndReset
-  - RunScriptForSession
   - TryEVAL
   - NetworkScriptExists
   - NetworkScriptFlush
   - NetworkScriptLoad
   - CheckLuaEnabled
+  - RunScriptForSession
   - TryExecuteScript

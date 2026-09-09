@@ -1,8 +1,6 @@
 fn:
   - Prepare
-  - AddKey
   - Main
-  - WriteSimpleString
   - GetSingleSlotRequest
   - GetCrossSlotRequest
   - SetupSingleSlotRequest

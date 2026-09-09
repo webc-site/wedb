@@ -1,12 +1,8 @@
 fn:
   - ValidateContent
   - Execute
-  - WriteError
   - Prepare
-  - AddKey
   - Main
-  - WriteSimpleString
-  - WriteBulkString
   - Create
   - Deserialize
   - CopyUpdater

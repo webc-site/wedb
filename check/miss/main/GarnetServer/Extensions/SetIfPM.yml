@@ -1,5 +1,4 @@
 fn:
-  - NeedInitialUpdate
   - GetInitialLength
   - InitialUpdater
   - NeedCopyUpdate

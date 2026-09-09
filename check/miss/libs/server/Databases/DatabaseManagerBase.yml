@@ -27,12 +27,12 @@ fn:
   - ReplayDatabaseAOF
   - ResetDatabase
   - EnqueueDatabaseCommit
-  - ExecuteHashCollect
-  - ExecuteSortedSetCollect
   - GrowIndexIfNeededAsync
   - CompactionCommitAofAsync
   - InitiateCheckpointAsync
   - RunPostCheckpointCleanup
+  - ExecuteHashCollect
+  - ExecuteSortedSetCollect
   - StoreExpiredKeyDeletionScan
   - GetDatabaseKeyspaceStats
   - CollectHybridLogStats

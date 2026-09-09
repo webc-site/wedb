@@ -1,9 +1,6 @@
 fn:
   - TryInitializeLocalWorker
-  - FlushConfig
   - TryRemoveWorker
-  - SuspendConfigMerge
-  - ResumeConfigMerge
   - TryReset
   - TryAddReplicaAsync
   - ListReplicas

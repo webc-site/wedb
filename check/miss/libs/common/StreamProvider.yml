@@ -3,6 +3,3 @@ fn:
   - GetBytesToWrite
   - IOCallback
   - GetStreamProvider
-  - AzureStreamProvider
-  - LocalFileStreamProvider
-  - EmbeddedResourceStreamProvider

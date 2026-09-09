@@ -1,11 +1,7 @@
 fn:
   - NetworkRICREATE
-  - SendAndReset
-  - WriteError
   - NetworkRISET
   - NetworkRIGET
-  - ProcessOutput
-  - WriteNull
   - NetworkRIDEL
   - NetworkRISCAN
   - NetworkRIRANGE

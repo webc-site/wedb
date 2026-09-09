@@ -4,5 +4,3 @@ fn:
   - WriteCachedSlotVerificationMessage
   - VerifyKeyOwnership
   - LockKeys
-  - AddTransactionStoreType
-  - SaveKeyArgSlice

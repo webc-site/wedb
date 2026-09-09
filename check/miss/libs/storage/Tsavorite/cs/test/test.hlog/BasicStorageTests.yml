@@ -1,7 +1,5 @@
 fn:
   - TestDeviceWriteRead
-  - IgnoreIfNotRunningAzureTests
-  - DeleteDirectory
 test:
   - LocalStorageWriteRead
   - PageBlobWriteRead

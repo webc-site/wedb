@@ -1,14 +1,11 @@
 fn:
-  - ExtRecordTriggers
   - OnDispose
   - OnDisposeDiskRecord
   - OnEvict
   - OnRecovery
   - OnCheckpoint
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - InsertN
 test:
   - OnFlushReceivesCorrectLogicalAddress

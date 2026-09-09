@@ -1,8 +1,8 @@
 fn:
   - Setup
   - TearDown
-  - ClusterCommandWrongParameters
 test:
+  - ClusterCommandWrongParameters
   - ClusterAddSlotsPartialPackage
   - ClusterExceptionInjectionAtPrimarySyncSession
   - ClusterFailoverDuringRecovery

@@ -2,5 +2,6 @@ fn:
   - SetHeader
   - SetExpiredFlag
   - SetSetGetFlag
+  - ToPointer
   - CopyTo
   - DeserializeFrom

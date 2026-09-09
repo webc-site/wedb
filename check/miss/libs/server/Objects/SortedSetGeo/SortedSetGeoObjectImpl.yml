@@ -1,7 +1,5 @@
 fn:
   - GeoAdd
-  - DeleteExpiredItems
-  - UpdateSize
   - GeoHash
   - GeoDistance
   - GeoPosition

@@ -1,5 +1,4 @@
 fn:
-  - MainSessionFunctions
   - ConvertOutputToHeap
   - PreSingleKeyConsistentRead
   - PostSingleKeyConsistentReadCallback

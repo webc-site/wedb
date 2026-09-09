@@ -1,25 +1,23 @@
 fn:
-  - NetworkHandler
   - Start
   - StartAsync
   - AuthenticateAsServerAsync
-  - LogSecurityInfo
   - AuthenticateAsClientAsync
   - OnNetworkReceiveWithoutTLS
-  - Process
-  - EndTransformNetworkToTransport
-  - UpdateNetworkBuffers
   - OnNetworkReceiveWithTLSAsync
-  - ShiftNetworkReceiveBuffer
-  - DoubleNetworkReceiveBuffer
-  - ShrinkNetworkReceiveBuffer
+  - UpdateNetworkBuffers
   - ThrowInvalidOperationException
-  - TryProcessRequest
+  - Process
   - GetNetworkSender
-  - ShiftTransportReceiveBuffer
-  - DoubleTransportReceiveBuffer
   - SslReaderAsync
   - SslReaderLoopAsync
+  - EndTransformNetworkToTransport
+  - TryProcessRequest
+  - DoubleNetworkReceiveBuffer
+  - ShrinkNetworkReceiveBuffer
+  - ShiftNetworkReceiveBuffer
+  - DoubleTransportReceiveBuffer
+  - ShiftTransportReceiveBuffer
   - Enter
   - EnterAndGetResponseObject
   - Exit
@@ -28,6 +26,9 @@ fn:
   - ReturnResponseObject
   - SendResponse
   - SendCallback
+  - GetResponseObjectHead
+  - GetResponseObjectTail
   - DisposeImpl
   - DisposeNetworkSender
   - Throttle
+  - LogSecurityInfo

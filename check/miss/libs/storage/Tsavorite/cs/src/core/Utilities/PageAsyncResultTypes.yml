@@ -4,9 +4,6 @@ fn:
   - TryClaimSnapshotUnitRelease
   - bstr
   - SetRefCountedHandle
-  - DiskWriteCallbackContext
   - SetBufferCountdownEvent
   - RecordError
-  - RefCountedPinnedGCHandle
   - AddRef
-  - DiskReadCallbackContext

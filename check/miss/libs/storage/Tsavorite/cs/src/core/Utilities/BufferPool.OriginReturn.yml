@@ -1,22 +1,19 @@
 fn:
   - TryPush
   - TryPop
-  - dropAndRelease
   - InitOriginReturn
   - AcquireSlot
   - ReleaseSlot
   - GetOriginReturn
-  - RecordReuse
-  - SpliceIntoLocal
-  - RecordAlloc
   - PrepareForRent
   - AllocateForBucket
   - AllocateUncached
   - BuildManaged
   - RetainLocal
   - TryMakeRoom
-  - SpillOneLocal
   - WorstOverShare
+  - SpillOneLocal
+  - SpliceIntoLocal
   - DepotPop
   - ReleasePermit
   - ReleaseChainPermits
@@ -28,6 +25,8 @@ fn:
   - PrintOriginReturn
   - SnapshotAllocs
   - SnapshotReuses
+  - RecordReuse
+  - RecordAlloc
   - CallerLocalBytesForClass
   - CallerShard
   - TestClassOfSectors

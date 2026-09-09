@@ -4,10 +4,8 @@ fn:
   - ActiveInstanceCount
   - ResetAllInstances
   - ComputeNewSafeToReclaimEpoch
-  - triggerAction
-  - trigger_action
-  - ReserveEntryForThread
   - TryAcquireEntry
   - ReserveEntry
   - ReserveEntryWait
+  - ReserveEntryForThread
   - ToString

@@ -2,205 +2,47 @@
 
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import { csParser } from "./treeSitter.js";
 
-const KEYWORD_SET = new Set([
-  "if", "else", "for", "foreach", "while", "do", "switch", "case", "default",
-  "using", "lock", "fixed", "sizeof", "typeof", "nameof", "checked", "unchecked",
-  "throw", "return", "new", "await", "yield", "var", "class", "struct", "interface",
-  "record", "enum", "namespace", "get", "set", "init", "add", "remove", "value",
-  "catch", "finally", "try", "base", "this", "true", "false", "null", "operator"
-]),
-TEST_ATTR_SET = new Set([
+const TEST_ATTR_SET = new Set([
   "Test", "TestCase", "TestCaseSource", "Theory", "Fact", "TestMethod"
-]),
-INVALID_PREV_SET = new Set([
-  ".", "=", "==", "!=", "+", "-", "*", "/", "%", "&", "|", "^", "!", "~",
-  ",", "[", "(", "?", ":", "return", "throw", "await", "new", "case",
-  "class", "struct", "interface", "record", "enum", "namespace", "delegate"
 ]);
 
-const codeTokenize = (code) => {
-  let i = 0;
-  const code_len = code.length,
-    token_li = [];
-
-  while (i < code_len) {
-    const ch = code[i];
-    if (/\s/.test(ch)) {
-      ++i;
-      continue;
-    }
-    if (ch === "/" && code[i + 1] === "/") {
-      while (i < code_len && code[i] !== "\n") ++i;
-      continue;
-    }
-    if (ch === "/" && code[i + 1] === "*") {
-      i += 2;
-      while (i < code_len && !(code[i] === "*" && code[i + 1] === "/")) ++i;
-      i += 2;
-      continue;
-    }
-    if (ch === "#") {
-      while (i < code_len && code[i] !== "\n") ++i;
-      continue;
-    }
-    if (ch === "@" && code[i + 1] === "\"") {
-      i += 2;
-      while (i < code_len) {
-        if (code[i] === "\"" && code[i + 1] === "\"") i += 2;
-        else if (code[i] === "\"") {
-          ++i;
-          break;
-        } else ++i;
-      }
-      token_li.push({ type: "str", val: "" });
-      continue;
-    }
-    if (ch === "$" && code[i + 1] === "@" && code[i + 2] === "\"") {
-      i += 3;
-      while (i < code_len) {
-        if (code[i] === "\"" && code[i + 1] === "\"") i += 2;
-        else if (code[i] === "\"") {
-          ++i;
-          break;
-        } else ++i;
-      }
-      token_li.push({ type: "str", val: "" });
-      continue;
-    }
-    if (ch === "\"" && code[i + 1] === "\"" && code[i + 2] === "\"") {
-      i += 3;
-      while (i < code_len && !(code[i] === "\"" && code[i + 1] === "\"" && code[i + 2] === "\"")) ++i;
-      i += 3;
-      token_li.push({ type: "str", val: "" });
-      continue;
-    }
-    if (ch === "\"") {
-      ++i;
-      while (i < code_len && code[i] !== "\"") {
-        if (code[i] === "\\") ++i;
-        ++i;
-      }
-      ++i;
-      token_li.push({ type: "str", val: "" });
-      continue;
-    }
-    if (ch === "\x27") {
-      ++i;
-      while (i < code_len && code[i] !== "\x27") {
-        if (code[i] === "\\") ++i;
-        ++i;
-      }
-      ++i;
-      token_li.push({ type: "char", val: "" });
-      continue;
-    }
-    if (/[A-Za-z_]/.test(ch)) {
-      const start = i;
-      while (i < code_len && /[A-Za-z0-9_]/.test(code[i])) ++i;
-      token_li.push({ type: "ident", val: code.slice(start, i) });
-      continue;
-    }
-    if (/[0-9]/.test(ch)) {
-      while (i < code_len && /[0-9A-Fa-fxXULulfd_.]/.test(code[i])) ++i;
-      token_li.push({ type: "num", val: "" });
-      continue;
-    }
-    if (ch === "=" && code[i + 1] === ">") {
-      token_li.push({ type: "punct", val: "=>" });
-      i += 2;
-      continue;
-    }
-    if (ch === "=" && code[i + 1] === "=") {
-      token_li.push({ type: "punct", val: "==" });
-      i += 2;
-      continue;
-    }
-    if (ch === "!" && code[i + 1] === "=") {
-      token_li.push({ type: "punct", val: "!=" });
-      i += 2;
-      continue;
-    }
-    if (ch === ":" && code[i + 1] === ":") {
-      token_li.push({ type: "punct", val: "::" });
-      i += 2;
-      continue;
-    }
-    token_li.push({ type: "punct", val: ch });
-    ++i;
-  }
-  return token_li;
-};
-
-const csExtract = (code) => {
-  const token_li = codeTokenize(code),
+const csExtract = (code, parser) => {
+  const tree = parser.parse(code),
     fn_set = new Set(),
-    test_set = new Set(),
-    token_len = token_li.length;
+    test_set = new Set();
 
-  for (let idx = 0; idx < token_len; ++idx) {
-    const token = token_li[idx];
-    if (token.type === "ident" && !KEYWORD_SET.has(token.val)) {
-      let next_idx = idx + 1;
-      if (next_idx >= token_len) break;
+  const nodes = tree.rootNode.descendantsOfType([
+    "method_declaration",
+    "local_function_statement"
+  ]);
 
-      if (token_li[next_idx].val === "<") {
-        let depth = 1;
-        ++next_idx;
-        while (next_idx < token_len && depth > 0) {
-          if (token_li[next_idx].val === "<") ++depth;
-          else if (token_li[next_idx].val === ">") --depth;
-          ++next_idx;
-        }
-      }
+  for (const node of nodes) {
+    const fnName = node.childForFieldName("name")?.text;
+    if (!fnName) continue;
 
-      if (next_idx < token_len && token_li[next_idx].val === "(") {
-        let p_depth = 1,
-          p_idx = next_idx + 1;
-        while (p_idx < token_len && p_depth > 0) {
-          if (token_li[p_idx].val === "(") ++p_depth;
-          else if (token_li[p_idx].val === ")") --p_depth;
-          ++p_idx;
-        }
-
-        if (p_idx < token_len) {
-          let after_p = p_idx;
-          if (token_li[after_p]?.val === ":") {
-            while (after_p < token_len && token_li[after_p].val !== "{" && token_li[after_p].val !== "=>" && token_li[after_p].val !== ";") {
-              ++after_p;
-            }
-          }
-          while (after_p < token_len && token_li[after_p].val === "where") {
-            while (after_p < token_len && token_li[after_p].val !== "{" && token_li[after_p].val !== "=>" && token_li[after_p].val !== ";") {
-              ++after_p;
-            }
-          }
-
-          if (after_p < token_len && (token_li[after_p].val === "{" || token_li[after_p].val === "=>" || token_li[after_p].val === ";")) {
-            const prev_idx = idx - 1;
-            if (prev_idx >= 0) {
-              const prev = token_li[prev_idx];
-              if (!INVALID_PREV_SET.has(prev.val)) {
-                let is_delegate = false,
-                  is_test = false,
-                  back_idx = idx - 1;
-                while (back_idx >= 0 && token_li[back_idx].val !== ";" && token_li[back_idx].val !== "}" && token_li[back_idx].val !== "{") {
-                  if (token_li[back_idx].val === "delegate") is_delegate = true;
-                  if (TEST_ATTR_SET.has(token_li[back_idx].val)) is_test = true;
-                  --back_idx;
-                }
-                if (!is_delegate) {
-                  if (is_test) test_set.add(token.val);
-                  else fn_set.add(token.val);
-                }
-              }
+    let is_test = false;
+    for (const child of node.children) {
+      if (child.type === "attribute_list") {
+        for (const attr of child.children) {
+          if (attr.type === "attribute") {
+            const attrName = attr.childForFieldName("name")?.text;
+            if (attrName && TEST_ATTR_SET.has(attrName)) {
+              is_test = true;
+              break;
             }
           }
         }
       }
+      if (is_test) break;
     }
+
+    if (is_test) test_set.add(fnName);
+    else fn_set.add(fnName);
   }
 
+  tree.delete();
   return [[...fn_set], [...test_set]];
 };
 
@@ -227,14 +69,18 @@ const garnetScan = async (garnet_dir = resolve(import.meta.dirname, "../../garne
     fn_map = {},
     test_map = {};
 
+  const parser = await csParser();
+
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),
-      [fn_li, test_li] = csExtract(code),
+      [fn_li, test_li] = csExtract(code, parser),
       rel_path = relative(garnet_dir, file_path);
 
     if (fn_li.length > 0) fn_map[rel_path] = fn_li;
     if (test_li.length > 0) test_map[rel_path] = test_li;
   }
+
+  parser.delete();
 
   return [fn_map, test_map];
 };

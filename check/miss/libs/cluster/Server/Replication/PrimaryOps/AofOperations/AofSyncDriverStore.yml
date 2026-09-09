@@ -1,6 +1,5 @@
 fn:
   - SafeTailPageShiftCallback
-  - AofSyncDriverStore
   - SafeTruncateAof
   - GetReplicaInfo
   - PublishShippedAddress

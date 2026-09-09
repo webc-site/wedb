@@ -1,26 +1,25 @@
 fn:
-  - GarnetSessionMetrics
   - incr_total_net_input_bytes
+  - get_total_net_input_bytes
   - incr_total_net_output_bytes
+  - get_total_net_output_bytes
   - incr_total_commands_processed
+  - get_total_commands_processed
   - incr_total_pending
+  - get_total_pending
   - incr_total_found
+  - get_total_found
   - incr_total_notfound
+  - get_total_notfound
   - incr_total_cluster_commands_processed
+  - get_total_cluster_commands_processed
   - add_total_write_commands_processed
+  - get_total_write_commands_processed
   - add_total_read_commands_processed
   - incr_total_transaction_commands_received
   - incr_total_transaction_execution_failed
-  - incr_total_number_resp_server_session_exceptions
-  - get_total_net_input_bytes
-  - get_total_net_output_bytes
-  - get_total_commands_processed
-  - get_total_pending
-  - get_total_found
-  - get_total_notfound
-  - get_total_cluster_commands_processed
-  - get_total_write_commands_processed
   - get_total_read_commands_processed
   - get_total_transaction_commands_received
   - get_total_transaction_commands_execution_failed
+  - incr_total_number_resp_server_session_exceptions
   - get_total_number_resp_server_session_exceptions

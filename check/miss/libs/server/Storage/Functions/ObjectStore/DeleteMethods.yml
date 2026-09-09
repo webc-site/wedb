@@ -2,4 +2,3 @@ fn:
   - InitialDeleter
   - PostInitialDeleter
   - PostDeleteOperation
-  - WriteLogDelete

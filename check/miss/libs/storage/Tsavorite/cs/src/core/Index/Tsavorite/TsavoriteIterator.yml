@@ -1,8 +1,7 @@
 fn:
   - Iterate
-  - TsavoriteKVIterator
-  - ProcessNonTailmostMainKvRecord
   - PushNext
+  - ProcessNonTailmostMainKvRecord
   - IsTailmostMainKvRecord
   - ClearValueIfHeap
   - AsMemoryLogRecordRef

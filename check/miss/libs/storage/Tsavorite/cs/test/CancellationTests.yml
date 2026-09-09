@@ -9,9 +9,7 @@ fn:
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - Populate
   - do_it
 test:

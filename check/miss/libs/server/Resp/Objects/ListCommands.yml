@@ -1,12 +1,9 @@
 fn:
   - ListPush
-  - SendAndReset
   - ListPop
   - ListPosition
-  - WriteNull
   - ListPopMultiple
   - ListBlockingPop
-  - WriteNullArray
   - ListBlockingMove
   - ListBlockingPopPush
   - ListLength

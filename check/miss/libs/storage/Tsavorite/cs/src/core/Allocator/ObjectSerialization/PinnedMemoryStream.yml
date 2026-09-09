@@ -1,6 +1,4 @@
 fn:
-  - PinnedMemoryStream
-  - ValidateBufferArguments
   - ReadByte
   - Seek
   - SetLength

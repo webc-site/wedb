@@ -2,8 +2,6 @@ fn:
   - GetLatencyMetrics
   - ResetLatencyMetrics
   - ResetAllLatencyMetrics
-  - RespServerSession
-  - SwitchActiveDatabaseSession
   - GetDatabaseSessionsSnapshot
   - SetUserHandle
   - UpdateRespProtocolVersion
@@ -11,31 +9,25 @@ fn:
   - CanRunDebug
   - CanRunModule
   - TryConsumeMessages
-  - ProcessMessages
-  - SendAndReset
   - EnterAndGetResponseObject
   - ExitAndReturnResponseObject
   - SetTransactionMode
-  - HandleSlowLog
+  - ProcessMessages
   - MakeUpperCase
   - ProcessBasicCommands
   - ProcessArrayCommands
   - ProcessOtherCommands
   - NetworkCLIENTID
   - NetworkCustomTxn
-  - TryTransactionProc
   - NetworkCustomProcedure
-  - TryCustomProcedure
   - Process
-  - ProcessAdminCommands
   - NetworkCustomRawStringCmd
-  - TryCustomRawStringCommand
   - NetworkCustomObjCmd
-  - TryCustomObjectCommand
   - IsCommandArityValid
   - GetCommand
   - GetUpperCaseCommand
   - TryKill
+  - SendAndReset
   - WriteDirectLarge
   - DebugSend
   - TrySwitchActiveDatabaseSession
@@ -43,6 +35,7 @@ fn:
   - TryGetOrSetDatabaseSession
   - CreateDatabaseSession
   - CreateConsistentReadApi
+  - SwitchActiveDatabaseSession
   - GetStringOutput
   - GetObjectOutput
   - GetUnifiedOutput

@@ -1,5 +1,4 @@
 fn:
-  - ListObject
-  - UpdateSize
   - Operate
+  - UpdateSize
   - Nodes

@@ -1,9 +1,6 @@
 fn:
-  - VectorSessionFunctions
   - ReadCompletionCallback
   - InitialWriter
-  - ObjectOperationsNotExpected
-  - LogRecordOperationsNotExpected
   - InPlaceWriter
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
@@ -15,6 +12,8 @@ fn:
   - RMWCompletionCallback
   - InitialDeleter
   - ConvertOutputToHeap
+  - ObjectOperationsNotExpected
+  - LogRecordOperationsNotExpected
   - AlignOrPin
   - AssertAlignment
   - PostInitialWriter

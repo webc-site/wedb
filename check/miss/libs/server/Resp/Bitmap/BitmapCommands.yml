@@ -1,11 +1,7 @@
 fn:
-  - BitFieldCmdArgs
   - NetworkStringSetBit
-  - WriteError
   - NetworkStringGetBit
-  - SendAndReset
   - NetworkStringBitCount
-  - ProcessOutput
   - NetworkStringBitPosition
   - NetworkStringBitOperation
   - StringBitField

@@ -1,5 +1,4 @@
 fn:
-  - NetworkHandlerStream
   - Seek
   - SetLength
   - ReadAsyncInternalAsync

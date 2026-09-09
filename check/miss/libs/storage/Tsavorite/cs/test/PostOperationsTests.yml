@@ -1,5 +1,4 @@
 fn:
-  - PostFunctions
   - PostInitialWriter
   - InitialUpdater
   - PostInitialUpdater
@@ -7,10 +6,8 @@ fn:
   - PostCopyUpdater
   - PostInitialDeleter
   - Setup
-  - DeleteDirectory
-  - Populate
   - TearDown
-  - OnTearDown
+  - Populate
   - CompletePendingAndVerifyInsertedAddress
 test:
   - PostInitialWriterTest

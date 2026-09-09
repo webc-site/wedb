@@ -7,7 +7,6 @@ fn:
   - EndAndLogActivity
   - OnSnapshotCompleted
   - OnChunkSent
-  - ReceiveActivity
   - OnChunkReceived
   - OnPublishing
   - OnPublishResult

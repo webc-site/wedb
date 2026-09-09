@@ -1,6 +1,5 @@
 fn:
   - DeleteDirectory
-  - when
   - RecreateDirectory
   - CreateLoggerFactoryInstance
   - IgnoreIfNotRunningAzureTests
@@ -9,12 +8,9 @@ fn:
   - EnsureExtendedLengthPathIfNeeded
   - GetSinglePendingResult
   - DoTwoThreadRandomKeyTest
-  - verification
   - FindHashBucketEntryForKey
   - OnTearDown
   - Equals
   - GetHashCode64
-  - LongKeyComparerModulo
-  - SpanByteKeyComparerModulo
   - AsSliceRef
   - SetSlice

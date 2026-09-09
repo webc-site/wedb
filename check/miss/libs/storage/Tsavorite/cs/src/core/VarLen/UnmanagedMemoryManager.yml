@@ -1,5 +1,4 @@
 fn:
-  - UnmanagedMemoryManager
   - SetDestination
   - GetSpan
   - Pin

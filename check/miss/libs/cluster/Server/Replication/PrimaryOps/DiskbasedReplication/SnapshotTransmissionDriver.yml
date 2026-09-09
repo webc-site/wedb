@@ -1,4 +1,3 @@
 fn:
-  - SnapshotTransmissionDriver
   - AddReader
   - SendCheckpointAsync

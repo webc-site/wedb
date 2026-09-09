@@ -2,6 +2,5 @@ fn:
   - IsDefault
   - DisposeRecord
   - ToString
-  - AsyncIOContextCompletionEvent
   - Prepare
   - SetException

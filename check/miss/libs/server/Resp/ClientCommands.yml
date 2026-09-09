@@ -1,13 +1,9 @@
 fn:
   - NetworkCLIENTLIST
-  - WriteClientInfo
-  - WriteLargeVerbatimString
   - NetworkCLIENTINFO
   - NetworkCLIENTKILL
-  - SendAndReset
   - IsMatch
   - NetworkCLIENTGETNAME
-  - WriteNull
   - NetworkCLIENTSETNAME
   - NetworkCLIENTSETINFO
   - NetworkCLIENTUNBLOCK

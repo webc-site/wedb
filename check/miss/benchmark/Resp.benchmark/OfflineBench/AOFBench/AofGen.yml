@@ -2,12 +2,11 @@ fn:
   - WriterClusterAppendLog
   - WriterClusterAppendLogFixedWidth
   - WriteFixedWidthAddress
-  - WriteZeroPaddedInt64
   - PatchAddress
+  - WriteZeroPaddedInt64
   - GetPageBuffers
   - GetRespReplayMessages
   - GetKVPairBuffer
-  - AofGen
   - GetKey
   - GetValue
   - GenerateKVPairs

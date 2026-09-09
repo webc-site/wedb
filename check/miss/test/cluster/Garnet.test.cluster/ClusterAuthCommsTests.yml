@@ -1,8 +1,6 @@
 fn:
   - Setup
   - TearDown
-  - ClusterReplicationAuth
-  - ClusterStartupWithoutAuthCreds
 test:
   - ClusterBasicACLTest
   - ClusterStartupWithoutAuthCreds

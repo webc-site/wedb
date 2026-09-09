@@ -1,5 +1,8 @@
 fn:
-  - ResetStatus
+  - GetStatus
+  - OnCompleted
+  - GetResult
   - Signal
   - WaitAsync
+  - ResetStatus
   - ThrowConcurrentWaitersNotSupported

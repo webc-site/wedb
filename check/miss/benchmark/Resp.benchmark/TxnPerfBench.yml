@@ -1,5 +1,4 @@
 fn:
-  - TxnPerfBench
   - SelectOpType
   - DumpHistogram
   - Run

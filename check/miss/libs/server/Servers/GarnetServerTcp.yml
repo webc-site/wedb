@@ -1,13 +1,10 @@
 fn:
   - ActiveConsumers
   - ActiveClusterSessions
-  - GarnetServerTcp
   - Start
   - AcceptEventArg_Completed
   - HandleAcceptError
   - HandleNewConnection
-  - IncrementConnectionsReceived
   - TryCreateMessageConsumer
   - DisposeMessageConsumer
-  - IncrementConnectionsDisposed
   - GetBufferPoolStats

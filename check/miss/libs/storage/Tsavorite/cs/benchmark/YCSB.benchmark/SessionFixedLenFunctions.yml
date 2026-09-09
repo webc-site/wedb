@@ -11,9 +11,9 @@ fn:
   - PostInitialUpdater
   - NeedCopyUpdate
   - GetRMWModifiedFieldInfo
-  - GetFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
+  - GetFieldInfo
   - PostInitialDeleter
   - PostInitialWriter
   - PostUpsertOperation

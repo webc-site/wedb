@@ -1,18 +1,14 @@
 fn:
-  - Init
   - ComputeTableSize
   - BuildMeta
-  - EnsureSupportedEnum
-  - EnsureValidKind
   - SetReadOnly
   - BuildNameLookup
   - BuildRuntimeTypes
+  - Init
   - GetInt
-  - AssertKind
   - GetLong
   - GetBool
   - GetMicroseconds
-  - ConvertDuration
   - GetMilliseconds
   - GetSeconds
   - GetTimeSpan
@@ -25,4 +21,8 @@ fn:
   - Name
   - TryGetType
   - SecondsFromTimeSpan
+  - AssertKind
+  - ConvertDuration
+  - EnsureValidKind
+  - EnsureSupportedEnum
   - RespFormat

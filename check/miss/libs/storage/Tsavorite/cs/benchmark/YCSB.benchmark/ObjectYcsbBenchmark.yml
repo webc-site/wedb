@@ -1,5 +1,4 @@
 fn:
-  - ObjectYcsbBenchmark
   - RunYcsbUnsafeContext
   - RunYcsbSafeContext
   - Run

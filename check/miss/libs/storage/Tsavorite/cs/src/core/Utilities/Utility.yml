@@ -3,8 +3,8 @@ fn:
   - NumBitsPreviousPowerOf2
   - PrettySize
   - IsBlittable
-  - Rotr64
   - XorBytes
+  - Rotr64
   - Is32Bit
   - Murmur3
   - WithCancellationAsync

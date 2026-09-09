@@ -2,9 +2,8 @@ fn:
   - OperationParamsProvider
   - SetAllParams
   - GlobalSetup
-  - ConfigureServerOptions
-  - SlowConsumeMessage
   - GlobalCleanup
+  - ConfigureServerOptions
   - BuildAadAuthSettings
-  - BdnIssuerSigningTokenProvider
   - SetupOperation
+  - SlowConsumeMessage

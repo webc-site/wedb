@@ -1,4 +1,2 @@
 fn:
-  - MockIssuerSigningTokenProvider
-  - JwtTokenGenerator
   - CreateToken

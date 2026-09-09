@@ -1,7 +1,4 @@
 fn:
   - GeoAdd
-  - SendAndReset
   - GeoCommands
-  - WriteNullArray
   - GeoSearchCommands
-  - ProcessOutput

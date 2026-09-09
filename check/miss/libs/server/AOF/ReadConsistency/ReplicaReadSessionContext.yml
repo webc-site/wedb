@@ -3,7 +3,6 @@ fn:
   - GetPowerOfTwoSize
   - ExpandKeyHashCache
   - ShrinkKeyHashCache
-  - ReadSessionState
   - PreSingleKeyConsistentRead
   - PostSingleKeyConsistentReadCallback
   - PreBatchKeyConsistentReadCallback

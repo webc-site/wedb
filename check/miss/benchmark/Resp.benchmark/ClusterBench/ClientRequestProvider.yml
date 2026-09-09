@@ -1,5 +1,4 @@
 fn:
-  - ClientRequestProvider
   - CombineSeed
   - CreateZipfGenerator
   - NextKeyIndex
@@ -10,7 +9,6 @@ fn:
   - ShouldGenerateMixedWorkload
   - GetReadOperationType
   - Stop
-  - DisposeWorkerPoolConnections
   - FormatRequest
   - AppendCommand
   - GenerateValue

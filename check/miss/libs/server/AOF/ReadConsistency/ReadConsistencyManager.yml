@@ -10,9 +10,9 @@ fn:
   - AdvanceVirtualSublogTime
   - UpdateVirtualSublogMaxSequenceNumber
   - UpdateVirtualSublogKeySequenceNumber
-  - BoundReplayDrift
   - CheckConsistencyManagerVersion
   - VerifyKeyFreshness
+  - BoundReplayDrift
   - PreSingleKeyConsistentRead
   - PostSingleKeyConsistentRead
   - PreBatchKeyConsistentRead

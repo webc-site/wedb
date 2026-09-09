@@ -1,9 +1,8 @@
 fn:
-  - ScratchBufferAllocator
   - TryRewindToOffset
   - RewindScratchBuffer
   - CreateArgSlice
-  - ExpandScratchBufferIfNeeded
   - ViewRemainingArgSlice
+  - ExpandScratchBufferIfNeeded
   - ExpandScratchBuffer
   - InitializeScratchBuffer

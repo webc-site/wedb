@@ -5,5 +5,3 @@ fn:
   - OnCommitFinished
   - MaxParallel
   - RateLimit
-  - MaxParallelLogCommitPolicy
-  - RateLimitLogCommitPolicy

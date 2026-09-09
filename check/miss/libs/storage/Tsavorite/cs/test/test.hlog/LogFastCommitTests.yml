@@ -1,5 +1,3 @@
 fn:
   - Setup
-  - BaseSetup
   - TearDown
-  - BaseTearDown

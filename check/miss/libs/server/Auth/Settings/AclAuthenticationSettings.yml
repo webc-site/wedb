@@ -1,4 +1,3 @@
 fn:
-  - AclAuthenticationSettings
   - CreateAuthenticator
   - CreateAuthenticatorInternal

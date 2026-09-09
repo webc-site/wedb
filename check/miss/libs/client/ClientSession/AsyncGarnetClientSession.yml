@@ -1,6 +1,5 @@
 fn:
   - ExecuteAsync
-  - InternalExecute
   - ExecuteAsyncBatch
   - ExecuteForArrayAsync
   - ExecuteForArrayAsyncBatch

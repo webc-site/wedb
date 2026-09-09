@@ -1,7 +1,6 @@
 fn:
   - ToString
   - WriteType
-  - NumClicksObj
   - Deserialize
   - Serialize
   - InitialUpdater

@@ -1,11 +1,7 @@
 fn:
-  - VectorSetLock
   - NeedsRecreate
-  - ReadIndex
   - ReadVectorIndex
   - ReadVectorIndexCore
-  - WaitForDiskANNIndexDrop
   - ReadOrCreateVectorIndex
-  - UpdateContextMetadata
   - AcquireExclusiveLocks
   - ReadForDeleteVectorIndex

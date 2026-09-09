@@ -2,8 +2,5 @@ fn:
   - HandleImmediateRetryStatus
   - HandleImmediateNonPendingRetryStatus
   - HandleRetryStatus
-  - InternalRefresh
-  - SynchronizeEpoch
   - HandleOperationStatus
-  - OnDisposeDiskRecord
   - ResolveInitialIORecordSize

@@ -11,5 +11,4 @@ fn:
   - OnCheckpoint
   - SetCheckpointCompletedCallback
   - OnCheckpointCompleted
-  - checkpointCompletionCallback
   - Create

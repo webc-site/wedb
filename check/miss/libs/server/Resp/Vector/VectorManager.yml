@@ -2,28 +2,22 @@ fn:
   - EnsureDistanceBufferSize
   - EnsureIdBufferSize
   - EnsureFilterBitmapSize
-  - VectorManager
-  - StartQuantizationTasks
   - ReconcileRecoveredState
-  - getTempSession
-  - UpdateContextMetadata
   - RecoveredVectorSetIndexKey
-  - ReadIndex
   - RecoveredContextMetadata
   - SanitizeAndTrackIngestedRecordIfApplicable
-  - ClearIndexPointer
-  - AssertHaveStorageSession
-  - SetActiveReadGeometry
+  - errorMsg
   - TryRemove
   - TrySetAttribute
   - RequestDeletion
-  - DropIndex
   - RequestDropInMemoryIndex
   - DropInMemoryIndex
+  - ClearIndexPointer
   - ValueSimilarity
-  - FetchVectorElementAttributes
   - ElementSimilarity
   - FetchSingleVectorElementAttributes
+  - FetchVectorElementAttributes
   - TryGetEmbedding
   - TryGetRawEmbedding
   - IsMember
+  - AssertHaveStorageSession

@@ -1,9 +1,7 @@
 fn:
   - NeedInitialUpdate
   - InitialUpdater
-  - CopyTo
   - PostInitialUpdater
-  - CopyRespTo
   - NeedCopyUpdate
   - CopyUpdater
   - PostCopyUpdater

@@ -1,11 +1,10 @@
 fn:
-  - ObjectLogWriter
   - FlushAndReset
   - GetNextRecordStartPosition
   - OnBeginPartialFlush
   - OnPartialFlushComplete
   - WriteRecordObjects
-  - WriteDirect
   - CopyRecoveredObjectBytes
+  - WriteDirect
   - OnBufferComplete
   - OnSerializeComplete

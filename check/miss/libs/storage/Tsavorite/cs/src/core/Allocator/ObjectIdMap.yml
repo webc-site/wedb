@@ -1,5 +1,4 @@
 fn:
-  - ObjectIdMap
   - AllocateAndSet
   - GetHeapObject
   - TryGetHeapObject

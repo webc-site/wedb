@@ -1,7 +1,8 @@
 fn:
   - ThrowUnexpectedToken
-  - Throw
   - ThrowInvalidStringLength
   - ThrowInvalidLength
   - ThrowExcessiveArgumentCount
   - ThrowNotANumber
+  - ThrowIntegerOverflow
+  - Throw

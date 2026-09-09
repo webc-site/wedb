@@ -1,6 +1,4 @@
 fn:
-  - LimitedFixedBufferPool
-  - Validate
   - GetStats
   - Position
   - GetLevel

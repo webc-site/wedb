@@ -1,6 +1,5 @@
 fn:
   - GetSequenceNumberFromCookie
-  - GarnetLog
   - HASH
   - GetPhysicalSublogIdx
   - GetReplayTaskIdx
@@ -27,8 +26,8 @@ fn:
   - BackpressureWaitKeyHash
   - BackpressureWaitVector
   - Enqueue
-  - EnqueueSpanChunked
   - IsChunkable
+  - EnqueueSpanChunked
   - EnqueueObjectChunked
   - ChunkBufferSize
   - EnqueueStoredProc

@@ -1,16 +1,11 @@
 fn:
   - ProcessOutput
-  - SendAndReset
   - WriteAsciiBulkString
   - WriteAsciiDirect
   - WriteArrayLength
-  - WriteBulkString
+  - TryWriteBulkString
   - WriteDirectLargeRespString
-  - WriteDirectLarge
-  - WriteDirect
-  - WriteDoubleNumeric
-  - WriteEmptyArray
-  - WriteEmptySet
+  - TryWriteDirect
   - WriteError
   - WriteInt32
   - WriteInt32AsBulkString

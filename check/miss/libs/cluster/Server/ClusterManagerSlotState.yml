@@ -1,6 +1,5 @@
 fn:
   - TryAddSlots
-  - FlushConfig
   - TryRemoveSlots
   - TryPrepareSlotForMigration
   - TryPrepareSlotsForMigration

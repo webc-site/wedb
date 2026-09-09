@@ -1,5 +1,4 @@
 fn:
-  - ObjectLogReader
   - OnBeginReadRecords
   - OnEndReadRecords
   - FlushAndReset

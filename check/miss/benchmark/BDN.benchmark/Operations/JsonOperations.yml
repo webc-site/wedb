@@ -1,8 +1,5 @@
 fn:
   - GlobalSetup
-  - RegisterModules
-  - SetupOperation
-  - SlowConsumeMessage
   - ModuleJsonGetCommand
   - ModuleJsonSetCommand
   - ModuleJsonGetDeepPath
@@ -11,3 +8,4 @@ fn:
   - ModuleJsonGetFilterPath
   - ModuleJsonGetRecursive
   - GenerateLargeJson
+  - RegisterModules

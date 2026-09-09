@@ -1,5 +1,4 @@
 fn:
-  - SpscRing
   - Stop
   - Enqueue
   - WaitForSlotEmpty

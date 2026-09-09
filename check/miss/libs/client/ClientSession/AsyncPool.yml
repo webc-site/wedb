@@ -1,5 +1,4 @@
 fn:
-  - AsyncPool
   - GetAsync
   - TryGet
   - GetOrAdd

@@ -1,5 +1,4 @@
 fn:
-  - AtomicLongArray
-  - LazySet
   - IncrementAndGet
   - AddAndGet
+  - LazySet

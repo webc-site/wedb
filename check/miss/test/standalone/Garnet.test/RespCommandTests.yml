@@ -1,13 +1,10 @@
 fn:
   - Setup
   - TearDown
+  - CreateTestLibrary
+  - DynamicallyRegisterCustomCommands
   - VerifyCommandInfo
   - VerifyCommandDocs
-  - RegisterCustomCommands
-  - DynamicallyRegisterCustomCommands
-  - CreateTestLibrary
-  - CommandGetKeysTest
-  - CommandGetKeysAndFlagsTest
 test:
   - CommandsInfoCoverageTest
   - CommandsDocsCoverageTest
@@ -23,4 +20,6 @@ test:
   - CommandInfoWithCustomCommandNamesTest
   - CommandDocsWithCustomCommandNamesTest
   - AofIndependentCommandsTest
+  - CommandGetKeysTest
+  - CommandGetKeysAndFlagsTest
   - CommandGetKeysInvalidInputTest

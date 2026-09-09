@@ -1,8 +1,8 @@
 fn:
   - PrepareKey
   - SetReadWriteSession
-  - SwitchActiveDatabaseContext
   - ObtainServerSession
+  - SwitchActiveDatabaseContext
   - WaitForVectorOperationsToComplete
   - GetSynchronizedOperationParams
   - ProcessAofRecordInternal

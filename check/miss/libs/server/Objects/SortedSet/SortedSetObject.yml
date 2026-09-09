@@ -1,8 +1,4 @@
 fn:
-  - UpdateSize
-  - InitializeExpirationStructures
-  - UpdateExpirationSize
-  - DeleteExpiredItems
   - Equals
   - Operate
   - CopyDiff
@@ -11,10 +7,14 @@ fn:
   - Count
   - IsExpired
   - HasExpirableItems
+  - InitializeExpirationStructures
+  - UpdateExpirationSize
   - CleanupExpirationStructuresIfEmpty
+  - DeleteExpiredItems
   - SetExpiration
   - Persist
   - TryRemoveExpiration
   - TryRemoveExpirationWorker
   - GetExpiration
   - ElementAt
+  - UpdateSize

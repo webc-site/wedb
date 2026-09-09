@@ -1,6 +1,6 @@
 fn:
-  - GetValue
   - GetRandomLength
+  - GetValue
   - AddFunc
   - ToString
   - ShouldExpire
@@ -16,7 +16,6 @@ fn:
   - InitialWriter
   - InPlaceWriter
   - Setup
-  - DeleteDirectory
   - TearDown
   - Populate
   - GetRecord

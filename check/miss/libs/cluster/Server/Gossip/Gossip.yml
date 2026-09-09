@@ -5,14 +5,12 @@ fn:
   - SuspendConfigMerge
   - ResumeConfigMerge
   - TryStartGossipTasks
-  - RunMeetTask
   - TryMerge
-  - FlushConfig
+  - RunMeetTask
   - TryMeetAsync
   - TryClusterPublishAsync
   - GoAsyncHelperAsync
   - GossipMainAsync
-  - when
   - InitConnectionsAsync
   - DisposeBannedWorkerConnectionsAsync
   - Expired

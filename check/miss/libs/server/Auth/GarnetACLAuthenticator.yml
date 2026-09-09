@@ -1,5 +1,4 @@
 fn:
-  - GarnetACLAuthenticator
   - Authenticate
   - AuthenticateInternal
   - GetUserHandle

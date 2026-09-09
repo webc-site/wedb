@@ -1,8 +1,6 @@
 fn:
-  - ScanPhase1Functions
   - OnException
   - OnStart
   - OnStop
   - StreamingSnapshotScanPhase1
-  - ScanPhase2Functions
   - StreamingSnapshotScanPhase2

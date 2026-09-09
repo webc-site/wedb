@@ -1,9 +1,7 @@
 fn:
   - OnLoad
-  - ModuleLoadContext
   - RegisterCommand
   - RegisterTransaction
   - RegisterType
   - RegisterProcedure
-  - ModuleRegistrar
   - LoadModule

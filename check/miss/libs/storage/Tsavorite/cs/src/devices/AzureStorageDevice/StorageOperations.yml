@@ -1,4 +1,2 @@
 fn:
   - PerformWithRetriesAsync
-  - when
-  - HandleStorageError

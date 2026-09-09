@@ -5,29 +5,27 @@ fn:
   - GetPrevFreeBlockRef
   - GetNextAdjacentBlockRef
   - GetRefVal
-  - GetDataStartRef
-  - GetFreeList
-  - LuaLimitedManagedAllocator
   - EnterInfallibleAllocationRegion
   - TryExitInfallibleAllocationRegion
   - AllocateNew
-  - SplitFreeBlock
-  - MoveToHeadOfFreeList
-  - RemoveFromFreeList
-  - UpdateDebugAllocatedBytes
-  - InfallibleAllocate
-  - GetBlockRef
-  - AddToFreeList
   - ResizeAllocation
-  - SplitInUseBlock
   - ContainsRef
   - CheckCorrectness
-  - Check
   - DebugCheck
   - TryCoalesceAllFreeBlocks
+  - AddToFreeList
+  - RemoveFromFreeList
+  - MoveToHeadOfFreeList
   - TryCoalesceSingleBlock
+  - SplitInUseBlock
+  - SplitFreeBlock
+  - GetDataStartRef
+  - GetFreeList
+  - GetBlockRef
+  - UpdateDebugAllocatedBytes
   - SplitCommon
   - ShouldSplit
   - RoundToMinAlloc
   - IsValidBlockRef
+  - InfallibleAllocate
   - IsInfallibleAllocation

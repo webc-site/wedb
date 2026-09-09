@@ -1,7 +1,6 @@
 fn:
   - Create
   - Deserialize
-  - MyDict
-  - UpdateSize
   - CloneObject
   - SerializeObject
+  - UpdateSize

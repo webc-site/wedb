@@ -1,16 +1,11 @@
 fn:
-  - ChunkHeaderWriter
   - EnqueueChunkedObject
-  - BeginInflightEnqueue
-  - EndInflightEnqueue
   - EnqueueChunkedSpan
   - CreateChunkWriteState
   - Consume
-  - WriteOneRecord
   - AnyRemaining
   - CopyComponent
-  - ValidateAllocatedLength
+  - WriteOneRecord
   - MaterializeInput
-  - SetHeader
   - AllocateBlockPartialForTest
   - AllocateBlockPartial

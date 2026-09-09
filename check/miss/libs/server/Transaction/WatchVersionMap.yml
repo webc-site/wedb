@@ -1,4 +1,3 @@
 fn:
-  - WatchVersionMap
   - ReadVersion
   - IncrementVersion

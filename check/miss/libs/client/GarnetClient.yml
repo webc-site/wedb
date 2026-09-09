@@ -1,6 +1,4 @@
 fn:
-  - GarnetClient
-  - ThrowException
   - Connect
   - ConnectAsync
   - ConnectSendSocket
@@ -15,8 +13,9 @@ fn:
   - InputGateAsync
   - AwaitPreviousTaskAsync
   - InternalExecuteAsync
-  - DisposeOffset
   - InternalExecuteNoResponse
+  - ThrowException
   - TryCreateMessageConsumer
   - DisposeMessageConsumer
+  - DisposeOffset
   - ConsumeTcsOffset

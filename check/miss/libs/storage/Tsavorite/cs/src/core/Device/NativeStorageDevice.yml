@@ -1,7 +1,6 @@
 fn:
   - GetNativeRuntimeIdentifier
   - ImportResolver
-  - when
   - LoadWithLibaioShim
   - ResolveNativeLibraryPath
   - TryGetCurrentDirectory

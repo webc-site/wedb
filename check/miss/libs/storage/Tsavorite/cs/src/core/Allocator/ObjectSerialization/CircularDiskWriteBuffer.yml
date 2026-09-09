@@ -1,5 +1,4 @@
 fn:
-  - CircularDiskWriteBuffer
   - GetCurrentBuffer
   - MoveToAndInitializeNextBuffer
   - GetOrAllocateCurrentBuffer
@@ -9,10 +8,10 @@ fn:
   - OnBeginPartialFlush
   - OnRecordComplete
   - OnPartialFlushComplete
-  - FlushToMainLogDevice
   - CreateDiskWriteCallbackContext
   - FlushCurrentBuffer
   - FlushToDevice
+  - FlushToMainLogDevice
   - FlushToDeviceCallback
   - ClearBuffers
   - ToString

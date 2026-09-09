@@ -6,7 +6,6 @@ fn:
   - get_conn_active
   - ResetConnectionsReceived
   - ResetConnectionsDiposed
-  - GarnetServerBase
   - Register
   - Unregister
   - GetSessionProviders

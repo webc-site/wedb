@@ -1,5 +1,6 @@
 fn:
-  - ClientBase
+  - GetInternalBufferHead
+  - GetInternalBufferTail
   - Connect
   - CompletePendingRequests
   - Authenticate

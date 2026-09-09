@@ -1,5 +1,4 @@
 fn:
-  - DeleteDirectory
   - MultiRead
   - ReadKey
 test:

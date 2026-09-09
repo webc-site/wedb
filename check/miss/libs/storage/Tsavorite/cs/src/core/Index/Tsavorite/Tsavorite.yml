@@ -9,8 +9,6 @@ fn:
   - TryInitiateHybridLogCheckpoint
   - TakeHybridLogCheckpointAsync
   - GetRecoverVersion
-  - FindRecoveryInfo
-  - InternalRecoverAsync
   - CompleteCheckpointAsync
   - ContextRead
   - ContextReadAtAddress

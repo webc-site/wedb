@@ -4,5 +4,5 @@ fn:
   - DisabledFeatures
   - Main
   - WaitForServer
-  - RunHLLBenchmark
   - RunBasicCommandsBenchmark
+  - RunHLLBenchmark

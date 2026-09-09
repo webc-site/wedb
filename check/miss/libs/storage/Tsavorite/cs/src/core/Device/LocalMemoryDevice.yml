@@ -1,5 +1,4 @@
 fn:
-  - LocalMemoryDevice
   - EnsureSegment
   - EnsureSegmentSlow
   - Enqueue

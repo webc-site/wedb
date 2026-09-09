@@ -1,11 +1,7 @@
 fn:
-  - RespConfigTests
   - Setup
   - TearDown
-  - RespConfigUtilizationTests
-  - RespConfigIndexUtilizationTests
   - GetOverflowBucketAllocations
-  - RespConfigHeapUtilizationTests
 test:
   - ConfigSetMemorySizeTest
   - ConfigSetIndexSizeTest

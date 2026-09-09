@@ -3,15 +3,12 @@ fn:
   - TearDown
   - ExpectError
   - ExpectOk
-  - AssertExpectedClientFields
-  - AssertNotConnected
   - GetFlagForSessionId
   - ConnectAsync
+  - AssertNotConnected
   - AssertDuplicateDefinitionError
+  - AssertExpectedClientFields
   - AssertField
-  - LCSWithIdxOption
-  - LCSWithIdxAndMinMatchLen
-  - LCSWithIdxAndWithMatchLen
 test:
   - UniqueRespCommandIds
   - OneIfWrite
@@ -179,6 +176,9 @@ test:
   - SubStringWithOptions
   - LCSBasicTest
   - LCSWithLenOption
+  - LCSWithIdxOption
+  - LCSWithIdxAndMinMatchLen
+  - LCSWithIdxAndWithMatchLen
   - LCSWithInvalidOptions
   - LCSWithNonExistentKeys
   - ClientUnblockBasicTest

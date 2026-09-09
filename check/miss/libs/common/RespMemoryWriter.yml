@@ -1,12 +1,11 @@
 fn:
-  - RespMemoryWriter
   - WriteAsciiBulkString
-  - ReallocateOutput
   - WriteAsciiDirect
   - WriteArrayItem
   - WriteArrayLength
+  - TryWriteBulkString
   - WriteBulkString
-  - WriteDirect
+  - TryWriteDirect
   - WriteDoubleBulkString
   - WriteDoubleNumeric
   - WriteEmptyArray
@@ -20,7 +19,6 @@ fn:
   - WriteMapLength
   - WriteNewLine
   - WriteNull
-  - Realloc
   - WriteNullArray
   - WritePushLength
   - WriteSetLength
@@ -30,6 +28,8 @@ fn:
   - WriteVerbatimString
   - WriteZero
   - WriteOne
+  - Realloc
+  - ReallocateOutput
   - DecreaseArrayLength
   - AsReadOnlySpan
   - GetPosition

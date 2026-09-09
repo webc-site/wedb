@@ -1,5 +1,4 @@
 fn:
-  - AofReplayStream
   - GetClusterNodes
   - InitializeReplayStream
   - Consume

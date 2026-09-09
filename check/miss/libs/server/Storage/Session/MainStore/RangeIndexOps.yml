@@ -1,5 +1,4 @@
 fn:
-  - CompletePendingForSession
   - PromoteRangeIndexToTail
   - RestoreRangeIndexStub
   - WriteScanToOutput

@@ -1,13 +1,11 @@
 fn:
   - BaseSetup
   - BaseTearDown
-  - OnTearDown
   - OperationThread
   - DoCheckpointVersionSwitchEquivalenceCheck
   - DoGrowIndexVersionSwitchEquivalenceCheck
-  - SumFunctions
-  - Fuzz
   - CopyUpdater
+  - Fuzz
   - Setup
   - TearDown
 test:

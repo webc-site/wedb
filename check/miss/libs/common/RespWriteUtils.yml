@@ -1,13 +1,11 @@
 fn:
   - TryWriteMapLength
-  - WriteNewline
   - TryWritePushLength
   - TryWritePaddedBulkStringLength
   - TryWriteArrayLength
   - TryWriteSetLength
   - TryWriteArrayItem
   - TryWriteNull
-  - WriteBytes
   - TryWriteResp3Null
   - TryWriteNullArray
   - TryWriteSimpleString
@@ -43,3 +41,5 @@ fn:
   - TryWriteZero
   - TryWriteOne
   - WriteEtagValArray
+  - WriteNewline
+  - WriteBytes

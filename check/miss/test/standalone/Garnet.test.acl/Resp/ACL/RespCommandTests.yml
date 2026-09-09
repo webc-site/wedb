@@ -167,8 +167,6 @@ fn:
   - DoExpireXXAsync
   - DoExpireGTAsync
   - DoExpireLTAsync
-  - DoFailoverAsync
-  - DoFailoverToAsync
   - DoFailoverAbortAsync
   - DoFailoverToForceAsync
   - DoFailoverToAbortAsync
@@ -487,7 +485,6 @@ fn:
   - DoVAddAsync
   - DoVCardAsync
   - DoVDimAsync
-  - when
   - DoVEmbAsync
   - DoVGetAttrAsync
   - DoVInfoAsync

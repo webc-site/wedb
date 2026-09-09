@@ -1,4 +1,5 @@
 fn:
+  - alloc_aligned
   - BitCountScalar
   - __scalar_popc
   - __simd_popcX128

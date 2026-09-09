@@ -1,19 +1,16 @@
 fn:
-  - ServerTimeoutPolicy
   - OnSendingRequest
   - GetServiceClients
   - GetBlobClientOptions
   - GetContainerClients
   - GetBlockBlobClients
   - GetPageBlobClients
-  - BlobDirectory
   - GetSubDirectory
   - GetBlockBlobClient
   - GetPageBlobClient
   - GetBlobsAsync
   - ToString
   - ForceDeleteAsync
-  - when
   - LeaseConflictOrExpired
   - LeaseConflict
   - LeaseExpired

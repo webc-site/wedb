@@ -1,4 +1,3 @@
 fn:
-  - ObjectOutput
   - FromPinnedPointer
   - ConvertToHeap

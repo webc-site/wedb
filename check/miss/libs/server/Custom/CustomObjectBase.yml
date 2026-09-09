@@ -1,5 +1,4 @@
 fn:
-  - CustomObjectBase
   - SerializeObject
   - CloneObject
   - Operate

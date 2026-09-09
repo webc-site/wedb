@@ -1,5 +1,4 @@
 fn:
-  - StoreScan
   - OnStart
   - OnStop
   - OnException

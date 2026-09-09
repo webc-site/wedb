@@ -1,10 +1,3 @@
 fn:
   - GetRegisterCustomCommandProvider
   - Register
-  - RegisterCustomCommandProviderBase
-  - RegisterCustomCmdProvider
-  - RegisterCustomTxnProvider
-  - RegisterRawStringFunctionProvider
-  - RegisterCustomObjectFactoryProvider
-  - RegisterCustomObjectCommandProvider
-  - RegisterCustomTransactionProcedureProvider

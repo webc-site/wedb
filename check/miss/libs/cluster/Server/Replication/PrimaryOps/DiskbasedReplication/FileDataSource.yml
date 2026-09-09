@@ -1,5 +1,4 @@
 fn:
-  - FileDataSource
   - ReadNextChunkAsync
   - ReadIntoAsync
   - HandleIOError

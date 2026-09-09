@@ -1,5 +1,4 @@
 fn:
-  - GarnetTlsOptions
   - UpdateCertFile
   - GetSslServerAuthenticationOptions
   - GetSslClientAuthenticationOptions

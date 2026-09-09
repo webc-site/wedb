@@ -5,9 +5,9 @@ fn:
   - CompareKeyHashes
   - SortKeyHashes
   - DoTransactionalLock
-  - DoTransactionalUnlock
   - DoTransactionalTryLock
   - DoManualTryPromoteLock
+  - DoTransactionalUnlock
   - Lock
   - TryLock
   - TryPromoteLock

@@ -19,5 +19,4 @@ fn:
   - ExecuteForLongResult
   - ExecuteForLongResultWithCancellationAsync
   - ExecuteNoResponse
-  - InternalExecuteNoResponse
   - TokenRegistrationLongCallback

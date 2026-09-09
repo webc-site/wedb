@@ -1,5 +1,4 @@
 fn:
-  - ReceiveCheckpointHandler
   - ProcessFileSegment
   - ProcessMetadata
   - ProcessSnapshotData

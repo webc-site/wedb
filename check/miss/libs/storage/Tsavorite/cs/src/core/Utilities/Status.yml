@@ -1,5 +1,4 @@
 fn:
-  - Status
   - CreateFound
   - CreatePending
   - CreateNotFound

@@ -1,11 +1,8 @@
 fn:
-  - StringAndByteArrayComparer
   - Equals
-  - ClusterVectorSetTests
   - Setup
   - TearDown
   - Incr
-  - when
   - CountGossipFaults
   - SimpleSetupClusterAsync
   - GetStoreWrapper
