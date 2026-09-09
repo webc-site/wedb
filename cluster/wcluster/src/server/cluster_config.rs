@@ -823,7 +823,10 @@ impl ClusterConfig {
     let mut new_config = self.clone();
 
     for i in 0..MAX_HASH_SLOT_VALUE {
-      let current_owner_id = new_config.slot_map[i].worker_id as usize;
+      // 与 C# 一致取 eff id：本地 Migrating 槽的当前归属按 LOCAL(1) 判定，
+      // 迁移目标节点 gossip 认领时走 epoch 比较直接移交，而非误判为
+      // "目标已是属主"把槽重置为 Offline 造成短暂失主
+      let current_owner_id = new_config.slot_map[i].eff_worker_id() as usize;
 
       if sender_slot_map[i].state != SlotState::Stable {
         continue;
