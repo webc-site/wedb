@@ -4,54 +4,65 @@ use gxhash::HashSet;
 use parking_lot::RwLock;
 
 use crate::server::{
+  cluster_config::MAX_HASH_SLOT_VALUE,
   cluster_provider::ClusterProvider,
   migration::{migrate_session::MigrateSession, migration_manager::TransferOption, sketch::Sketch},
 };
 
 /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:MigrateSessionTaskStore
+///
+/// 与 C# 一致用单把锁同时保护 `disposed` 与 `sessions`：原实现拆成两把锁且
+/// dispose（disposed→sessions）与 try_add（sessions→disposed）获取顺序相反，
+/// 并发下存在死锁窗口
 pub struct MigrateSessionTaskStore {
-  sessions: RwLock<Vec<Option<Arc<MigrateSession>>>>,
-  disposed: RwLock<bool>,
+  state: RwLock<StoreState>,
+}
+
+struct StoreState {
+  disposed: bool,
+  sessions: Vec<Option<Arc<MigrateSession>>>,
 }
 
 impl MigrateSessionTaskStore {
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:MigrateSessionTaskStore
   pub fn new() -> Self {
     Self {
-      sessions: RwLock::new(vec![None; 16384]),
-      disposed: RwLock::new(false),
+      state: RwLock::new(StoreState {
+        disposed: false,
+        sessions: vec![None; MAX_HASH_SLOT_VALUE],
+      }),
     }
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:Dispose
-  pub fn dispose(&mut self) {
-    let mut d = self.disposed.write();
-    let skip_dispose = *d;
-    *d = true;
-    if skip_dispose {
+  pub fn dispose(&self) {
+    let mut state = self.state.write();
+    if state.disposed {
       return;
     }
-    let mut sessions = self.sessions.write();
-    for s in sessions.iter_mut() {
-      if let Some(session) = s.take() {
-        session.dispose();
-      }
+    state.disposed = true;
+    for s in state.sessions.iter_mut().flatten() {
+      s.dispose();
     }
+    state.sessions.clear();
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:GetNumSessions
+  ///
+  /// 按会话去重计数（C# 以 HashSet<MigrateSession> 引用相等去重），
+  /// 而非按槽计数——单会话可覆盖任意多槽
   pub fn get_num_sessions(&self) -> usize {
-    if *self.disposed.read() {
+    let state = self.state.read();
+    if state.disposed {
       return 0;
     }
-    let mut count = 0;
-    let sessions = self.sessions.read();
-    for s in sessions.iter() {
-      if s.is_some() {
-        count += 1;
-      }
-    }
-    count
+    let mut seen: HashSet<usize> = HashSet::default();
+    state
+      .sessions
+      .iter()
+      .flatten()
+      .filter(|s| seen.insert(Arc::as_ptr(s) as usize))
+      .count()
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryAddMigrateSession
@@ -88,32 +99,29 @@ impl MigrateSessionTaskStore {
       transfer_option,
     ));
 
-    let mut sessions = self.sessions.write();
-    if *self.disposed.read() {
+    let mut state = self.state.write();
+    if state.disposed {
       return None;
     }
 
-    for &slot in &slots {
-      if sessions[slot as usize].is_some() {
-        return None;
-      }
+    // 先整体校验槽位无占用，再统一占位，避免半占状态
+    if slots.iter().any(|&slot| state.sessions[slot as usize].is_some()) {
+      return None;
     }
-
-    for slot in slots {
-      sessions[slot as usize] = Some(m_session.clone());
+    for slot in &slots {
+      state.sessions[*slot as usize] = Some(m_session.clone());
     }
-
     Some(m_session)
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryRemove
   pub fn try_remove(&self, m_session: Arc<MigrateSession>) -> bool {
-    let mut sessions = self.sessions.write();
-    if *self.disposed.read() {
+    let mut state = self.state.write();
+    if state.disposed {
       return false;
     }
     for slot in m_session.get_slots() {
-      sessions[*slot as usize] = None;
+      state.sessions[*slot as usize] = None;
     }
     m_session.dispose();
     true
@@ -121,16 +129,16 @@ impl MigrateSessionTaskStore {
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryRemove
   pub fn try_remove_node(&self, target_node_id: &str) -> bool {
-    let mut sessions = self.sessions.write();
-    if *self.disposed.read() {
+    let mut state = self.state.write();
+    if state.disposed {
       return false;
     }
-    for i in 0..sessions.len() {
-      if let Some(ref s) = sessions[i]
-        && s.target_node_id == target_node_id
+    for s in state.sessions.iter_mut() {
+      if let Some(sess) = s.as_ref()
+        && sess.target_node_id == target_node_id
       {
-        s.dispose();
-        sessions[i] = None;
+        sess.dispose();
+        *s = None;
       }
     }
     true
@@ -138,14 +146,13 @@ impl MigrateSessionTaskStore {
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:CanAccessKey
   pub fn can_access_key(&self, key: &[u8], slot: i32, read_only: bool) -> bool {
-    let sessions = self.sessions.read();
-    if *self.disposed.read() {
+    let state = self.state.read();
+    if state.disposed {
       return true;
     }
-    if let Some(ref s) = sessions[slot as usize] {
-      s.can_access_key(key, slot, read_only)
-    } else {
-      true
+    match &state.sessions[slot as usize] {
+      Some(s) => s.can_access_key(key, slot, read_only),
+      None => true,
     }
   }
 }
