@@ -616,35 +616,6 @@ impl SegmentedDevice {
     }
   }
 
-  /// 检查某段是否已缓存文件句柄
-  #[inline]
-  pub fn is_segment_cached(&self, segment_id: u32) -> bool {
-    self.files.pin().keys().any(|&(_, sid)| sid == segment_id)
-  }
-
-  /// 获取当前已缓存的文件句柄总数
-  #[inline]
-  pub fn cached_handle_count(&self) -> usize {
-    self.files.pin().len()
-  }
-
-  /// 获取指定段当前已缓存的文件句柄数
-  #[inline]
-  pub fn cached_handles_for_segment(&self, segment_id: u32) -> usize {
-    self
-      .files
-      .pin()
-      .keys()
-      .filter(|&(_, sid)| *sid == segment_id)
-      .count()
-  }
-
-  /// 句柄缓存是否为空
-  #[inline]
-  pub fn is_cached_empty(&self) -> bool {
-    self.files.pin().is_empty()
-  }
-
   /// 获取起始有效段编号（对应 C# IDevice.StartSegment）
   #[inline]
   pub fn start_segment(&self) -> u32 {

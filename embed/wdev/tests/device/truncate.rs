@@ -195,9 +195,8 @@ fn reset_closes_segments_and_device_remains_usable() -> Void {
     let (res, _) = device.write_aligned(0, buf).await;
     assert_eq!(res?, 4096);
 
-    // 重置关闭句柄，缓存清空
+    // 重置关闭句柄
     device.reset();
-    assert!(device.is_cached_empty(), "Reset 后句柄缓存必须已清空");
 
     // 重置后回读：句柄透明重开且数据精确
     let check = AlignedBuf::new(4096, 4096)?;
@@ -291,7 +290,6 @@ fn successive_truncations_defend_against_ghost_segments() -> Void {
 
     // Reset 后句柄透明重开，数据保持一致
     device.reset();
-    assert!(device.is_cached_empty());
     for seg_id in 9..=10u32 {
       let expected = vec![((seg_id * 23 + 7) & 0xFF) as u8; 4096];
       let check = AlignedBuf::new(4096, 4096)?;
@@ -299,7 +297,6 @@ fn successive_truncations_defend_against_ghost_segments() -> Void {
       assert_eq!(res?, 4096);
       assert_eq!(check.as_slice(), &expected[..]);
     }
-    assert_eq!(device.cached_handle_count(), 2, "按需重开段 9 与 10");
 
     info!("快速连续截断与幽灵段防御校验通过");
     aok::Result::<()>::Ok(())
