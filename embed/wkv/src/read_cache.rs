@@ -281,11 +281,23 @@ impl ReadCache {
       return None;
     }
 
-    // 1. 无锁快速直读：利用 page_ids 双重校验彻底规避 RwLock 原子计数器颠簸
+    // 1. 无锁快速直读：利用 page_ids 双重校验规避 RwLock 原子计数器颠簸。
+    //    解析后追加 seqlock 式读后复核（page_ids + head 双校验）：HybridLog 只读区
+    //    裸读有 epoch 排空兜底（页驱逐前必经 safe_head 纪元屏障），而本缓冲的环形
+    //    换装为纯锁协同（clear_page 写锁不等待纪元），skip_read_cache 等调用方
+    //    （wcpr 检查点快照解析）可无 epoch 保护运行——try_read_page_unlocked 的
+    //    二次校验与解析之间存在窗口，clear_page 可在该窗口内清零/换装页字节。
+    //    复核通过即保证解析期间字节恒为原页内容：clear 必先翻 page_ids（Release），
+    //    64 位逻辑页号单调不复用无 ABA，复核仍见本页号 ⇒ 清零尚未发生 ⇒ 解析字节
+    //    完整。复核失败转锁内路径重读（页读锁与 clear 写锁互斥）。
     if let Some(page_slice) = unsafe { self.buffer.try_read_page_unlocked(page_id) }
       && abs_addr >= self.head_address.load(Acquire)
+      && let Some((key, val, prev_addr)) =
+        Self::parse_record_at(page_slice, offset, self.page_size - offset)
+      && self.buffer.is_page_loaded(page_id)
+      && abs_addr >= self.head_address.load(Acquire)
     {
-      return Self::parse_record_and_call(&page_slice[offset..], self.page_size - offset, f);
+      return Some(f(key, val, prev_addr));
     }
 
     // 2. 慢路径安全回退：在换页临界区获取页读锁保护。
@@ -297,19 +309,23 @@ impl ReadCache {
     if abs_addr < self.head_address.load(Acquire) || !self.buffer.is_page_loaded(page_id) {
       return None;
     }
-    Self::parse_record_and_call(&page_guard[offset..], self.page_size - offset, f)
+    // 页读锁下页字节稳定（clear_page 须取写锁互斥），单次解析即可信
+    let (key, val, prev_addr) =
+      Self::parse_record_at(&page_guard, offset, self.page_size - offset)?;
+    Some(f(key, val, prev_addr))
   }
 
+  /// 解析页内 offset 处的记录为 `(key, val, prev_addr)` 零拷贝切片（校验失败返回 None）
   #[inline(always)]
-  fn parse_record_and_call<R>(
+  fn parse_record_at(
     page_slice: &[u8],
+    offset: usize,
     remaining_in_page: usize,
-    f: impl FnOnce(&[u8], &[u8], u64) -> R,
-  ) -> Option<R> {
+  ) -> Option<(&[u8], &[u8], u64)> {
     if remaining_in_page < HEADER_SIZE {
       return None;
     }
-    let header = RecordHeader::decode_opt(page_slice)?;
+    let header = RecordHeader::decode_opt(&page_slice[offset..])?;
 
     if header.is_pad() || header.is_tombstone() {
       return None;
@@ -320,7 +336,7 @@ impl ReadCache {
       return None;
     }
 
-    let key_start = HEADER_SIZE;
+    let key_start = offset + HEADER_SIZE;
     let key_end = key_start + header.key_len as usize;
     let val_end = key_end + header.val_len as usize;
 
@@ -328,7 +344,7 @@ impl ReadCache {
     let val = &page_slice[key_end..val_end];
     let prev_addr = header.address();
 
-    Some(f(key, val, prev_addr))
+    Some((key, val, prev_addr))
   }
 
   /// 顺链跳过所有 ReadCache 记录，获取底层的首个主日志逻辑地址（严格对标 Garnet SkipReadCache）

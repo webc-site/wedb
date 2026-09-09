@@ -7,6 +7,7 @@ fn:
   - NeedBufferAndLoad
   - AsyncReadPageFromDeviceToFrameCallback
   - WaitForFrameLoad
-  - ToString
+  - FailFrameLoad
   - SignalFrameLoadCompletion
   - WaitForFrameLoadCompletion
+  - ToString

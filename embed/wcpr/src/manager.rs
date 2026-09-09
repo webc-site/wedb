@@ -711,6 +711,13 @@ impl<D: Device> CheckpointManager<D> {
     }
 
     // 1. 读取元数据文件（支持 bitcode 与 JSON 自动适配）
+    // 对标 libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs:ThrowIfInvalidMetadataSize
+    // 的「损坏元数据具名拒绝」语义：C# 元数据为设备日志上的长度前缀流（读首部
+    // int 长度，<= 0 或超 64MB 上限即抛 TsavoriteException，把截断/损坏文件变成
+    // 具名错误而非巨型分配）；本实现元数据经 `read` 整文件读入后按自描述
+    // JSON/bitcode 整体反序列化，无长度前缀分配路径，截断在 decode 与下方
+    // 版本/Token/完整性封签逐项校验中显式报错，等价达成「损坏元数据绝不静默
+    // 恢复、绝不引发失控分配」的防护目标。
     let meta_bytes = read(&meta_path).await?;
     let meta = CheckpointMeta::decode_auto(&meta_bytes)?;
     if meta.token != token {
