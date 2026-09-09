@@ -44,48 +44,6 @@ const _: () = {
 /// 每个分桶默认槽位数（对标 Garnet DefaultRecordsPerBin = 256）
 pub const DEFAULT_BIN_CAPACITY: usize = 256;
 
-/// 槽位复活分配结果，协同上层系统（如 wedb_hlog / wedb_store）的松弛填充（filler_bytes）
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct RevivAllocation {
-  /// 复活槽位的逻辑地址
-  pub address: u64,
-  /// 槽位实际物理分配尺寸
-  pub actual_size: u32,
-  /// 申请记录所需尺寸
-  pub required_size: u32,
-  /// 内部碎片松弛填充字节（filler_bytes = actual_size - required_size）
-  pub filler_bytes: u32,
-}
-
-impl RevivAllocation {
-  /// 构造复活分配结果
-  #[inline]
-  pub const fn new(address: u64, actual_size: u32, required_size: u32) -> Self {
-    Self {
-      address,
-      actual_size,
-      required_size,
-      filler_bytes: actual_size.saturating_sub(required_size),
-    }
-  }
-
-  /// 是否为零浪费的精确匹配
-  #[inline]
-  pub const fn is_exact(&self) -> bool {
-    self.filler_bytes == 0
-  }
-}
-
-impl fmt::Display for RevivAllocation {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(
-      f,
-      "RevivAllocation(addr: {:#x}, size: {} [need: {}, filler: {}])",
-      self.address, self.actual_size, self.required_size, self.filler_bytes
-    )
-  }
-}
-
 /// 槽位复活回收池统计指标
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RevivStats {
@@ -306,12 +264,25 @@ impl FreeRecordPool {
     self.take_with_max_bins(required_size, min_address, usize::MAX)
   }
 
-  /// 查找最适配的空闲槽位并返回包含松弛填充信息的结果结构
+  /// 重置统计指标
   #[inline]
-  pub fn take_allocation(&self, required_size: u32, min_address: u64) -> Option<RevivAllocation> {
-    self
-      .take(required_size, min_address)
-      .map(|(addr, actual_size)| RevivAllocation::new(addr, actual_size, required_size))
+  pub fn reset_stats(&self) {
+    self.put_count.store(0, Ordering::Relaxed);
+    self.take_count.store(0, Ordering::Relaxed);
+    self.hit_count.store(0, Ordering::Relaxed);
+    self.drop_count.store(0, Ordering::Relaxed);
+  }
+
+  /// 获取分桶总数
+  #[inline]
+  pub fn bin_count(&self) -> usize {
+    self.bins.len()
+  }
+
+  /// 获取当前所有分桶中活跃槽位总数（O(B) 复杂度，仅汇总各分桶活跃计数）
+  #[inline]
+  pub fn total_active_records(&self) -> usize {
+    self.bins.iter().map(|b| b.len()).sum()
   }
 
   /// 主动清理已滑入冷区或只读区的失效槽位
@@ -367,32 +338,11 @@ impl FreeRecordPool {
     self.drop_count.load(Ordering::Relaxed)
   }
 
-  /// 重置统计指标
-  #[inline]
-  pub fn reset_stats(&self) {
-    self.put_count.store(0, Ordering::Relaxed);
-    self.take_count.store(0, Ordering::Relaxed);
-    self.hit_count.store(0, Ordering::Relaxed);
-    self.drop_count.store(0, Ordering::Relaxed);
-  }
-
   /// 根据记录尺寸查找首个匹配分桶的索引（利用单调性二分查找，O(log N)）
   #[inline]
   pub fn find_bin_index(&self, size: u32) -> Option<usize> {
     let idx = self.bins.partition_point(|bin| bin.max_size < size);
     (idx < self.bins.len()).then_some(idx)
-  }
-
-  /// 获取分桶总数
-  #[inline]
-  pub fn bin_count(&self) -> usize {
-    self.bins.len()
-  }
-
-  /// 获取当前所有分桶中活跃槽位总数（O(B) 复杂度，仅汇总各分桶活跃计数）
-  #[inline]
-  pub fn total_active_records(&self) -> usize {
-    self.bins.iter().map(|b| b.len()).sum()
   }
 
   /// 判断回收池是否为空（O(B) 复杂度，短路快速判断）

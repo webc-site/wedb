@@ -8,8 +8,7 @@ use std::{
 use aok::{OK, Void};
 use log::info;
 use wreviv::{
-  DEFAULT_BIN_SIZES, FreeRecord, FreeRecordBin, FreeRecordPool, RevivAllocation, RevivStats,
-  SetStatus,
+  DEFAULT_BIN_SIZES, FreeRecord, FreeRecordBin, FreeRecordPool, RevivStats, SetStatus,
 };
 
 #[ctor::ctor(unsafe)]
@@ -35,33 +34,17 @@ fn smoke_pool_lifecycle_and_slack_allocation() -> Void {
   assert_eq!(pool.put_count(), 3);
 
   // 2. 精确分配 (Exact match: 64B -> 64B)
-  let alloc1: RevivAllocation = pool
-    .take_allocation(64, 0x1000)
-    .expect("精确分配 64B 必须成功");
-  assert_eq!(alloc1.address, 0x1000);
-  assert_eq!(alloc1.actual_size, 64);
-  assert_eq!(alloc1.required_size, 64);
-  assert_eq!(alloc1.filler_bytes, 0);
-  assert!(alloc1.is_exact());
-  assert!(alloc1.to_string().contains("filler: 0"));
+  assert_eq!(pool.take(64, 0x1000), Some((0x1000, 64)));
 
-  // 3. 松弛填充分配 (Slack filler: 100B 需求命中 120B 槽位，填充 20B)
-  let alloc2: RevivAllocation = pool
-    .take_allocation(100, 0x1000)
-    .expect("松弛分配 100B 必须成功");
-  assert_eq!(alloc2.address, 0x2000);
-  assert_eq!(alloc2.actual_size, 120);
-  assert_eq!(alloc2.required_size, 100);
-  assert_eq!(alloc2.filler_bytes, 20);
-  assert!(!alloc2.is_exact());
-  assert!(alloc2.to_string().contains("filler: 20"));
+  // 3. 向上跨桶取出：100B 需求命中 120B 槽位（内部松弛填充 20B）
+  assert_eq!(pool.take(100, 0x1000), Some((0x2000, 120)));
 
   // 4. 向上跨桶普通 take 取出 (命中 256B 槽位)
   let taken = pool.take(150, 0x1000);
   assert_eq!(taken, Some((0x3000, 256)));
   assert!(pool.is_empty());
 
-  // 5. 统计指标验证与重置
+  // 5. 统计指标验证
   let stats: RevivStats = pool.stats();
   assert_eq!(stats.put_count, 3);
   assert_eq!(stats.take_count, 3);
