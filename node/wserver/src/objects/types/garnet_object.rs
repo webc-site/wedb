@@ -3,17 +3,20 @@
 //! NeedToCreate 判定：只读/删除类操作在键缺失时无需创建新对象
 //! （C# 经 Tsavorite RMW 的 InitialValue 入口避免空对象落库）。
 
-use crate::{input_header::RespInputHeader, types::GarnetObjectType};
+use crate::{
+  input_header::RespInputHeader, objects::sortedset::sorted_set_object::SortedSetOperation,
+  types::GarnetObjectType,
+};
 
-/// 有序集合操作码（与 C# SortedSetOperation 数值一致）
-const Z_REM: u8 = 4;
-const Z_POPMAX: u8 = 2;
-const Z_POPMIN: u8 = 19;
-const Z_REMRANGEBYLEX: u8 = 15;
-const Z_REMRANGEBYSCORE: u8 = 17;
-const Z_REMRANGEBYRANK: u8 = 16;
-const Z_EXPIRE: u8 = 24;
-const Z_COLLECT: u8 = 27;
+/// 有序集合操作码：直接取 SortedSetOperation 判别式（一处定义，数值与 C# 一致）
+const Z_REM: u8 = SortedSetOperation::Zrem as u8;
+const Z_POPMAX: u8 = SortedSetOperation::Zpopmax as u8;
+const Z_POPMIN: u8 = SortedSetOperation::Zpopmin as u8;
+const Z_REMRANGEBYLEX: u8 = SortedSetOperation::Zremrangebylex as u8;
+const Z_REMRANGEBYSCORE: u8 = SortedSetOperation::Zremrangebyscore as u8;
+const Z_REMRANGEBYRANK: u8 = SortedSetOperation::Zremrangebyrank as u8;
+const Z_EXPIRE: u8 = SortedSetOperation::Zexpire as u8;
+const Z_COLLECT: u8 = SortedSetOperation::Zcollect as u8;
 
 /// 列表操作码（C# ListOperation）
 const L_POP: u8 = 0;

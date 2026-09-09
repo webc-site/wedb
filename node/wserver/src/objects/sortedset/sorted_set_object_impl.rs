@@ -1479,7 +1479,9 @@ mod tests {
       sortedset::sorted_set_object::ExpireOption,
       sortedsetgeo::{
         geo_hash::{GeoDistanceUnitType, GeoHash},
-        sorted_set_geo_object_impl::{GeoOriginType, GeoSearchOptions, GeoSearchType},
+        sorted_set_geo_object_impl::{
+          GeoAddOptions, GeoOriginType, GeoSearchOptions, GeoSearchType,
+        },
       },
     },
     session_parse_state::SessionParseState,
@@ -1989,7 +1991,44 @@ mod tests {
     obj.geo_add(&input, &mut out, 2);
     assert_eq!(out.payload, b":2\r\n");
 
-    // GEOHASH sf → 9q8yy 开头（last char 恒为 '0'）
+    // NX 只挡更新：既有成员保持原值，新成员照常新增（对齐 C#/Redis）
+    let (input, _b) = make_input(
+      SortedSetOperation::Geoadd,
+      &[b"0.0", b"0.0", b"nyc", b"0.0", b"0.0", b"sf"],
+      GeoAddOptions::NX.bits() as i32,
+      0,
+    );
+    let mut out = ObjectOutput::new();
+    obj.geo_add(&input, &mut out, 2);
+    assert_eq!(out.payload, b":1\r\n");
+    let sf_score = obj.try_get_score(b"sf").unwrap();
+    let (sf_lat, _) = GeoHash::get_coordinates_from_long(sf_score as i64);
+    assert!((sf_lat - 37.7749).abs() < 1e-3, "{sf_lat}");
+    assert!(obj.try_get_score(b"nyc").is_some());
+
+    // XX 只挡新增：新成员不落地，既有成员更新
+    let (input, _b) = make_input(
+      SortedSetOperation::Geoadd,
+      &[b"0.0", b"0.0", b"la", b"13.4", b"52.5", b"sf"],
+      GeoAddOptions::XX.bits() as i32,
+      0,
+    );
+    let mut out = ObjectOutput::new();
+    obj.geo_add(&input, &mut out, 2);
+    assert_eq!(out.payload, b":0\r\n");
+    assert!(obj.try_get_score(b"la").is_none());
+    let sf_score = obj.try_get_score(b"sf").unwrap();
+    let (_, sf_lon) = GeoHash::get_coordinates_from_long(sf_score as i64);
+    assert!((sf_lon - 13.4).abs() < 1e-3, "{sf_lon}");
+
+    // GEOHASH sf → 9q8yy 开头（last char 恒为 '0'）——重置回旧坐标后验证
+    let (input, _b) = make_input(
+      SortedSetOperation::Geoadd,
+      &[b"-122.4194", b"37.7749", b"sf"],
+      0,
+      0,
+    );
+    obj.geo_add(&input, &mut ObjectOutput::new(), 2);
     let (input, _b) = make_input(SortedSetOperation::Geohash, &[b"sf", b"missing"], 0, 0);
     let mut out = ObjectOutput::new();
     obj.geo_hash(&input, &mut out, 2);

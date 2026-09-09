@@ -20,7 +20,7 @@ use crate::resp::{
   resp_server_session::RespServerSession,
 };
 pub(crate) use crate::storage::session::objectstore::common::{
-  OBJ_TAG_HASH, OBJ_TAG_LIST, OBJ_TAG_SET, obj_decode, obj_encode,
+  OBJ_TAG_HASH, OBJ_TAG_LIST, OBJ_TAG_SET, OBJ_TAG_SORTED_SET, obj_decode, obj_encode,
 };
 
 /// ERR wrong number of arguments for '{0}' command

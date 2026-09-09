@@ -171,8 +171,9 @@ impl SortedSetObject {
 
       match self.sorted_set_dict.get(&member).copied() {
         None => {
-          // NX 时仅更新既有成员
-          if !options.contains(GeoAddOptions::NX) {
+          // XX 时仅更新既有成员（对齐 C# (options & XX) == 0 才新增；
+          // NX 只挡更新分支，新成员照常新增——与 Redis 语义一致）
+          if !options.contains(GeoAddOptions::XX) {
             self.sorted_set_dict.insert(member.clone(), score as f64);
             self.sorted_set.insert(SortedSetEntry {
               score: score as f64,

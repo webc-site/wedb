@@ -339,6 +339,60 @@ mod tests {
     );
   }
 
+  /// 空稀疏源回归：PFMERGE 全缺失源落下空 HLL 后，将其并入其他键
+  /// 不得触发 MergeGrow 的 usize 下溢（debug panic / release 载荷破坏）
+  #[test]
+  fn pfmerge_empty_source_no_underflow() {
+    let (_dir, _store, session) = fixture("hll3.db");
+    let batch = session.enter_batch();
+    let mut sess = RespServerSession;
+    let mut out = Vec::new();
+
+    // 全缺失源：目标落为空 HLL
+    sess
+      .hyper_log_log_merge(&[b"empty", b"no-such-1", b"no-such-2"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    out.clear();
+    sess
+      .hyper_log_log_length(&[b"empty"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // 空源并入新目标 / 并入自身：均成功且计数保持 0
+    out.clear();
+    sess
+      .hyper_log_log_merge(&[b"copy", b"empty"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    out.clear();
+    sess
+      .hyper_log_log_merge(&[b"empty", b"empty"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    out.clear();
+    sess
+      .hyper_log_log_length(&[b"copy", b"empty"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // 空源并入有值目标：计数不变
+    let mut out2 = Vec::new();
+    sess
+      .hyper_log_log_add(&[b"real", b"x", b"y"], &batch, &mut out2)
+      .unwrap();
+    out.clear();
+    sess
+      .hyper_log_log_merge(&[b"real", b"empty"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    out.clear();
+    sess
+      .hyper_log_log_length(&[b"real"], &batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":2\r\n");
+  }
+
   /// 大规模元素：稀疏稠密化后基数仍受控，PFMERGE 后计数不变
   #[test]
   fn dense_upgrade_and_merge_monotonic() {

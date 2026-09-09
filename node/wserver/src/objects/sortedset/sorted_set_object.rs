@@ -568,7 +568,7 @@ impl SortedSetObject {
         items.push(Some(member.clone()));
         // 分值文本化失败（±inf/NaN）以 None 表达（C# Utf8Formatter 失败写 null）
         items.push(if score.is_finite() {
-          Some(format_double_plain(*score).into_bytes())
+          Some(ObjectOutput::format_double(*score).into_bytes())
         } else {
           None
         });
@@ -958,17 +958,6 @@ impl SortedSetObject {
 #[inline]
 pub fn sorted_set_op_from_header(input: &ObjectInput) -> Option<SortedSetOperation> {
   SortedSetOperation::try_from(input.header.sub_id()).ok()
-}
-
-/// 双精度 → 最短往返文本（Redis/Garnet 共用的 inf/nan 词形）
-pub(crate) fn format_double_plain(value: f64) -> String {
-  if value.is_nan() {
-    "nan".to_string()
-  } else if value.is_infinite() {
-    if value > 0.0 { "inf" } else { "-inf" }.to_string()
-  } else {
-    format!("{value}")
-  }
 }
 
 /// Glob 风格 ASCII 模式匹配（`*` 任意串、`?` 单字符、`[...]` 字符类、`\` 转义），
