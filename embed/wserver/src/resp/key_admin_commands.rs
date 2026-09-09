@@ -18,28 +18,28 @@ impl crate::resp::resp_server_session::RespServerSession {
 
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkGETDEL
   pub fn network_getdel<'a, D: wdev::Device>(
-      &mut self,
-      parse_state: &[&[u8]],
-      store: &wkv::BatchStoreSession<'a, D>,
-      output: &mut Vec<u8>
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-      if parse_state.is_empty() {
-          output.extend_from_slice(b"-ERR wrong number of arguments for 'GETDEL' command\r\n");
-          return Ok(true);
+    if parse_state.is_empty() {
+      output.extend_from_slice(b"-ERR wrong number of arguments for 'GETDEL' command\r\n");
+      return Ok(true);
+    }
+    let key = parse_state[0];
+    let status = store.try_read_sync(key, |v| v.to_vec());
+    match status {
+      Ok(Some(Some(val))) => {
+        let len_str = format!("${}\r\n", val.len());
+        output.extend_from_slice(len_str.as_bytes());
+        output.extend_from_slice(&val);
+        output.extend_from_slice(b"\r\n");
+        // Stub: deletion logic omitted
       }
-      let key = parse_state[0];
-      let status = store.try_read_sync(key, |v| v.to_vec());
-      match status {
-          Ok(Some(Some(val))) => {
-              let len_str = format!("${}\r\n", val.len());
-              output.extend_from_slice(len_str.as_bytes());
-              output.extend_from_slice(&val);
-              output.extend_from_slice(b"\r\n");
-              // Stub: deletion logic omitted
-          }
-          _ => output.extend_from_slice(b"$-1\r\n"),
-      }
-      Ok(true)
+      _ => output.extend_from_slice(b"$-1\r\n"),
+    }
+    Ok(true)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkEXISTS
   pub fn network_exists<'a, D: wdev::Device>(
