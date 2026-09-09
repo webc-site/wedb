@@ -27,14 +27,14 @@ impl TxnKeyEntry {
 
 impl fmt::Display for TxnKeyEntry {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    // unsigned_abs：i64::MIN 的 abs() 在 debug 构建会溢出 panic
     let key_hash_sign = if self.key_hash < 0 { "-" } else { "" };
-    let abs_key_hash = self.key_hash.abs();
     let lock_str = match self.lock_type {
       LockType::None => "-",
       LockType::Shared => "s",
       LockType::Exclusive => "x",
     };
-    write!(f, "{}{}:{}", key_hash_sign, abs_key_hash, lock_str)
+    write!(f, "{}{}:{}", key_hash_sign, self.key_hash.unsigned_abs(), lock_str)
   }
 }
 
@@ -114,10 +114,7 @@ impl TxnKeyEntries {
   /// libs/server/Transaction/TxnKeyEntry.cs:GetLockset
   pub fn get_lockset(&self) -> String {
     let mut sb = String::new();
-    for (i, entry) in self.keys.iter().enumerate() {
-      if i > 0 {
-        sb.push_str("");
-      }
+    for entry in &self.keys {
       sb.push_str(&entry.to_string());
     }
     if !sb.is_empty() {
@@ -126,7 +123,7 @@ impl TxnKeyEntries {
         1 => "lock",
         _ => "unlock",
       };
-      sb.push_str(&format!(" (phase: {}))", phase_str));
+      sb.push_str(&format!(" (phase: {phase_str})"));
     }
     sb
   }
