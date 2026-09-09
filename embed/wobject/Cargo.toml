@@ -18,6 +18,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 bitflags = "2.13.1"
+byteorder = "1.5.0"
+fastrand.workspace = true
 gxhash.workspace = true
 ordered-float = "5.5.0"
 papaya.workspace = true

@@ -1,4 +1,6 @@
 use std::{collections::BTreeSet, sync::RwLock};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
 
 use gxhash::GxBuildHasher;
 use ordered_float::OrderedFloat;
@@ -94,6 +96,42 @@ impl SortedSetObject {
     }
   }
 
+  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
+  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+      let count = reader.read_i32::<LittleEndian>()?;
+      let dict = HashMap::with_hasher(GxBuildHasher::default());
+      let pin = dict.pin();
+      let mut tree = BTreeSet::new();
+      
+      for _ in 0..count {
+          let score = reader.read_f64::<LittleEndian>()?;
+          let member_len = reader.read_i32::<LittleEndian>()?;
+          let mut member = vec![0u8; member_len as usize];
+          reader.read_exact(&mut member)?;
+          
+          let fscore = OrderedFloat(score);
+          pin.insert(member.clone(), fscore);
+          tree.insert(SortedSetEntry { score: fscore, member });
+      }
+      drop(pin);
+      Ok(Self {
+          dict,
+          tree: RwLock::new(tree),
+      })
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Serialize
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+      let pin = self.dict.pin();
+      writer.write_i32::<LittleEndian>(pin.len() as i32)?;
+      for (member, score) in pin.iter() {
+          writer.write_f64::<LittleEndian>(score.into_inner())?;
+          writer.write_i32::<LittleEndian>(member.len() as i32)?;
+          writer.write_all(member)?;
+      }
+      Ok(())
+  }
+
   /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Operate
   pub fn operate(&self, op: SortedSetOperation, member: &[u8], score: f64) -> Option<f64> {
     match op {
@@ -128,6 +166,29 @@ impl SortedSetObject {
       }
       _ => None,
     }
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetPop
+  pub fn pop_min(&self) -> Option<(Vec<u8>, f64)> {
+      let mut tree = self.tree.write().unwrap();
+      if let Some(first) = tree.iter().next().cloned() {
+          tree.remove(&first);
+          self.dict.pin().remove(&first.member);
+          Some((first.member, first.score.into_inner()))
+      } else {
+          None
+      }
+  }
+
+  pub fn pop_max(&self) -> Option<(Vec<u8>, f64)> {
+      let mut tree = self.tree.write().unwrap();
+      if let Some(last) = tree.iter().next_back().cloned() {
+          tree.remove(&last);
+          self.dict.pin().remove(&last.member);
+          Some((last.member, last.score.into_inner()))
+      } else {
+          None
+      }
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Count

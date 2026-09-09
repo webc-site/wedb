@@ -1,5 +1,8 @@
 use gxhash::GxBuildHasher;
 use papaya::HashSet;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
+use fastrand;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -34,6 +37,32 @@ impl SetObject {
     }
   }
 
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
+  pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+      let count = reader.read_i32::<LittleEndian>()?;
+      let set = HashSet::with_hasher(GxBuildHasher::default());
+      let pin = set.pin();
+      for _ in 0..count {
+          let item_len = reader.read_i32::<LittleEndian>()?;
+          let mut item = vec![0u8; item_len as usize];
+          reader.read_exact(&mut item)?;
+          pin.insert(item);
+      }
+      drop(pin);
+      Ok(Self { set })
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Serialize
+  pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+      let pin = self.set.pin();
+      writer.write_i32::<LittleEndian>(pin.len() as i32)?;
+      for item in pin.iter() {
+          writer.write_i32::<LittleEndian>(item.len() as i32)?;
+          writer.write_all(item)?;
+      }
+      Ok(())
+  }
+
   /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Operate
   pub fn operate(&self, op: SetOperation, key: &[u8]) -> bool {
     let pin = self.set.pin();
@@ -43,6 +72,27 @@ impl SetObject {
       SetOperation::Sismember => pin.contains(key),
       _ => false,
     }
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetPop
+  pub fn pop(&self) -> Option<Vec<u8>> {
+      let pin = self.set.pin();
+      let item = pin.iter().next().cloned();
+      if let Some(ref i) = item {
+          pin.remove(i);
+      }
+      item
+  }
+
+  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetRandomMember
+  pub fn random_member(&self) -> Option<Vec<u8>> {
+      let pin = self.set.pin();
+      let count = pin.len();
+      if count == 0 {
+          return None;
+      }
+      let idx = fastrand::usize(..count);
+      pin.iter().nth(idx).cloned()
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Count
