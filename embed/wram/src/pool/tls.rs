@@ -130,7 +130,7 @@ impl TlsPoolManager {
       .is_some_and(|e| e.pool_id == pool.pool_id)
     {
       // SAFETY: 判定与取用之间无任何变动，fast 槽必为 Some 且 pool_id 匹配
-      return self.fast.as_mut().unwrap();
+      return unsafe { self.fast.as_mut().unwrap_unchecked() };
     }
 
     // fast 槽位校验：已关闭则清扫释放，池已消亡则直接丢弃，仍存活则降级入 others

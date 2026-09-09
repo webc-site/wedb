@@ -1,5 +1,6 @@
 //! NodeService 编排集成测试：apply → log 顺序、提交后回放与条目分发
 
+use core::str::from_utf8;
 use std::sync::Arc;
 
 use aok::{OK, Void};
@@ -140,11 +141,11 @@ fn read_frame_line(rest: &[u8]) -> Option<(&[u8], &[u8])> {
 /// 命令参数（对标 C# AofProcessor 经 SessionParser 重新解析 AOF 中的命令）
 fn parse_resp_args(frame: &[u8]) -> Option<Vec<&[u8]>> {
   let (count_line, mut rest) = read_frame_line(frame.strip_prefix(b"*")?)?;
-  let count: usize = core::str::from_utf8(count_line).ok()?.parse().ok()?;
+  let count: usize = from_utf8(count_line).ok()?.parse().ok()?;
   let mut args = Vec::with_capacity(count);
   for _ in 0..count {
     let (len_line, after_len) = read_frame_line(rest.strip_prefix(b"$")?)?;
-    let len: usize = core::str::from_utf8(len_line).ok()?.parse().ok()?;
+    let len: usize = from_utf8(len_line).ok()?.parse().ok()?;
     let data = after_len.get(..len)?;
     rest = after_len.get(len..)?.strip_prefix(b"\r\n")?;
     args.push(data);
@@ -185,7 +186,7 @@ impl wnode::Replay for AofCollector {
 async fn replay_apply(session: &StoreSession<SegmentedDevice>, entry: &PendingOp) -> Void {
   /// 解析 RESP 帧中的数字参数（帧体即若干 `$len\r\n<bytes>\r\n` 段）
   fn num(args: &[&[u8]], i: usize) -> aok::Result<usize> {
-    core::str::from_utf8(args[i])
+    from_utf8(args[i])
       .ok()
       .and_then(|s| s.parse().ok())
       .ok_or_else(|| aok::Error::msg("malformed RI.CREATE numeric arg"))

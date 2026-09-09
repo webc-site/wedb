@@ -87,10 +87,10 @@ const DEFAULT_MAX_KEY_LEN: usize = 128;
 /// 原子性窗口 (publish/rename) 由调用方任务承担，compio 任务不迁移故安全。
 pub(crate) async fn range_index_blocking<T: Send + 'static>(
   op: impl FnOnce() -> T + Send + 'static,
-) -> T {
+) -> StdResult<T, RangeIndexError> {
   spawn_blocking(op)
     .await
-    .expect("RangeIndex 阻塞任务异常退出")
+    .map_err(|e| RangeIndexError::Internal(format!("RangeIndex 阻塞任务异常退出: {e}")))
 }
 
 impl<D: Device> StoreSession<D> {
@@ -156,7 +156,7 @@ impl<D: Device> StoreSession<D> {
     let create_backend = storage_backend.clone();
     let tree =
       range_index_blocking(move || mgr.create_bftree(&create_key, create_backend, create_tuning))
-        .await
+        .await?
         .map_err(RangeIndexError::from)?;
 
     // 4. 构建定长 35 字节 RangeIndexStub 并持久化入主日志库
@@ -264,7 +264,7 @@ impl<D: Device> StoreSession<D> {
       let restore_key = key.to_vec();
       let restore_stub = *stub;
       range_index_blocking(move || mgr.get_or_open_tree(&restore_key, &restore_stub))
-        .await
+        .await?
         .map_err(|e| RangeIndexError::Internal(e.to_string()))?;
     }
   }
@@ -532,7 +532,7 @@ impl<D: Device> StoreSession<D> {
     let tree = range_index_blocking(move || {
       mgr.publish_tree_from_snapshot_locked(&pub_key, &pub_src, replace)
     })
-    .await
+    .await?
     .map_err(|e| RangeIndexError::Internal(e.to_string()))?;
 
     let mut stub =
@@ -605,7 +605,7 @@ impl<D: Device> StoreSession<D> {
         let _xlock = mgr.locks().write(old_hash);
         mgr.snapshot_tree_to_path_locked(&snap_key, &snap_tree, &snap_dest)
       })
-      .await?;
+      .await??;
     }
 
     // 从新路径恢复独立树实例并按新键注册

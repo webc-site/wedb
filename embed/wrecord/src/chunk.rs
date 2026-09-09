@@ -10,8 +10,9 @@ pub const CHUNK_LEN_PREFIX_SIZE: usize = 4;
 pub struct ChunkCodec;
 
 impl ChunkCodec {
-  /// 尝试编码条目列表至指定缓冲区（若单个条目超出 u32 上限则返回错误）
-  pub fn try_encode(items: &[&[u8]], buf: &mut Vec<u8>) -> Result<()> {
+  /// 编码条目列表至指定缓冲区（单次预分配容量 + 零冗余校验指针写入）
+  #[inline]
+  pub fn encode(items: &[&[u8]], buf: &mut Vec<u8>) -> Result<()> {
     buf.clear();
     let mut total_len: usize = 0;
     for item in items {
@@ -39,29 +40,6 @@ impl ChunkCodec {
       buf.set_len(total_len);
     }
     Ok(())
-  }
-
-  /// 编码条目列表至指定缓冲区（单次预分配容量 + 零冗余校验指针写入）
-  #[inline]
-  pub fn encode(items: &[&[u8]], buf: &mut Vec<u8>) {
-    Self::try_encode(items, buf).expect("chunk item length overflow");
-  }
-
-  /// 编码条目列表并返回新建 Vec 缓冲区（单次精准容量堆分配）
-  #[must_use]
-  #[inline]
-  pub fn encode_to_vec(items: &[&[u8]]) -> Vec<u8> {
-    let mut buf = Vec::new();
-    Self::encode(items, &mut buf);
-    buf
-  }
-
-  /// 尝试编码条目列表并返回新建 Vec 缓冲区
-  #[inline]
-  pub fn try_encode_to_vec(items: &[&[u8]]) -> Result<Vec<u8>> {
-    let mut buf = Vec::new();
-    Self::try_encode(items, &mut buf)?;
-    Ok(buf)
   }
 
   /// 追加单个条目至现有分块缓冲区末尾（单次预留与单次长度提交）
@@ -177,7 +155,7 @@ mod tests {
     let items: [&[u8]; 4] = [b"", b"alpha", &[0u8, 255, 7], b"omega"];
 
     let mut buf = Vec::new();
-    ChunkCodec::encode(&items, &mut buf);
+    ChunkCodec::encode(&items, &mut buf).unwrap();
     assert_eq!(
       buf.len(),
       items
@@ -185,12 +163,6 @@ mod tests {
         .map(|i| CHUNK_LEN_PREFIX_SIZE + i.len())
         .sum::<usize>()
     );
-    assert_eq!(ChunkCodec::encode_to_vec(&items), buf);
-    assert_eq!(ChunkCodec::try_encode_to_vec(&items).unwrap(), buf);
-
-    let mut try_buf = Vec::new();
-    ChunkCodec::try_encode(&items, &mut try_buf).unwrap();
-    assert_eq!(try_buf, buf);
 
     // 逐条 append 与一次性 encode 产物一致
     let mut app = Vec::new();
@@ -218,7 +190,8 @@ mod tests {
   fn chunk_codec_boundary_defense() {
     // 空 entries -> 空缓冲、零条目
     let empty: [&[u8]; 0] = [];
-    let buf = ChunkCodec::encode_to_vec(&empty);
+    let mut buf = Vec::new();
+    ChunkCodec::encode(&empty, &mut buf).unwrap();
     assert!(buf.is_empty());
     assert_eq!(ChunkCodec::iter(&buf).unwrap().count(), 0);
 
@@ -233,7 +206,8 @@ mod tests {
 
     // 逐字节截断探测：完整双条目编码的每段前缀要么报错、要么恰好解出完整条目
     let items = [b"hello".as_slice(), b"world".as_slice()];
-    let full = ChunkCodec::encode_to_vec(&items);
+    let mut full = Vec::new();
+    ChunkCodec::encode(&items, &mut full).unwrap();
     let first_end = CHUNK_LEN_PREFIX_SIZE + items[0].len();
     for len in 0..=full.len() {
       if len == full.len() {

@@ -501,7 +501,7 @@ impl<D: Device> StoreSession<D> {
         let chunk_slots = (Self::CHUNK_CAPACITY as usize).min(items_left);
         let est_cap = (4 + it.len()).saturating_mul(chunk_slots);
         let mut buf = Vec::with_capacity(est_cap);
-        wrecord::ChunkCodec::encode(&[it], &mut buf);
+        wrecord::ChunkCodec::append(it, &mut buf)?;
         chunk_buf = Some(buf);
         curr_chunk_len = 1;
       } else {

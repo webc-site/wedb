@@ -592,7 +592,8 @@ impl<D: Device> StoreSession<D> {
         .with_record(curr_addr, |rec_key, rec_val, prev| {
           next_addr = prev;
           if fast_key_eq(rec_key, key) {
-            let func = f.take().expect("closure present");
+            // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+            let func = unsafe { f.take().unwrap_unchecked() };
             Some(func(rec_val))
           } else {
             None
@@ -616,7 +617,8 @@ impl<D: Device> StoreSession<D> {
             if rec.is_tombstone() {
               Ok(TraceBackResult::Tombstone)
             } else {
-              let func = f.take().expect("closure should be present");
+              // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+              let func = unsafe { f.take().unwrap_unchecked() };
               Ok(TraceBackResult::Found(func(rec.value())))
             }
           } else {
@@ -687,7 +689,8 @@ impl<D: Device> StoreSession<D> {
           .read_cache
           .with_record(cur_addr, |rec_key, rec_val, _prev| {
             if fast_key_eq(rec_key, key) {
-              let func = f.take().expect("closure present");
+              // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+              let func = unsafe { f.take().unwrap_unchecked() };
               Some(func(rec_val))
             } else {
               None
@@ -716,7 +719,8 @@ impl<D: Device> StoreSession<D> {
           if rec.is_tombstone() {
             Ok(ReadProbeResult::Tombstone)
           } else {
-            let func = f.take().expect("closure should be present");
+            // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+            let func = unsafe { f.take().unwrap_unchecked() };
             Ok(ReadProbeResult::Found(func(rec.value())))
           }
         } else {
@@ -828,7 +832,8 @@ impl<D: Device> StoreSession<D> {
           return Ok(None);
         }
         let val_slice = record.value()?;
-        let func = f.take().expect("closure should be present");
+        // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+        let func = unsafe { f.take().unwrap_unchecked() };
         let result = func(val_slice);
 
         // 回填阶段重新进入纪元保护（ReadCache 挂链与索引地址更新均为共享内存结构变更）；
@@ -889,7 +894,8 @@ impl<D: Device> StoreSession<D> {
         MemRead::OnDisk(cands) => cands,
       }
     };
-    let func = f.take().expect("closure present");
+    // SAFETY: try_read_mem 返回 OnDisk 时闭包 f 未被消费，必为 Some
+    let func = unsafe { f.take().unwrap_unchecked() };
     self.read_from_disk(key, cands, func).await
   }
 

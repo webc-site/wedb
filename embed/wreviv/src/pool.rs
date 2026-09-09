@@ -1,5 +1,6 @@
 use std::{
   fmt,
+  hint::unreachable_unchecked,
   sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -160,8 +161,10 @@ impl FreeRecordPool {
   /// 常量 `DEFAULT_BIN_SIZES` / `DEFAULT_BIN_CAPACITY` 的合法性已由编译期断言与
   /// [`Self::with_bin_sizes_and_scan_limit`] 的校验规则保证，此处 expect 绝不触发。
   pub fn new() -> Self {
-    // 100% 安全：默认常量满足全部构造校验（非空、严格递增、不超最大内联尺寸）
-    Self::with_capacity(DEFAULT_BIN_CAPACITY).expect("默认分桶常量必然合法")
+    match Self::with_capacity(DEFAULT_BIN_CAPACITY) {
+      Ok(s) => s,
+      Err(_) => unsafe { unreachable_unchecked() },
+    }
   }
 
   /// 创建使用自定义容量（每个分桶）的复活池
