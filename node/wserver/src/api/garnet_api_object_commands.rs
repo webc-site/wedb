@@ -4,12 +4,10 @@
 //! [`GarnetApiObjectCommands`] 关联函数统一委托对象存操作面。
 
 use wdev::Device;
-use wobject::{
-  hash::hash_object::HashObject, list::list_object::OperationDirection, set::set_object::SetObject,
-};
+use wobject::list::list_object::OperationDirection;
 
 use crate::{
-  api::garnet_status::GarnetStatus,
+  api::{garnet_status::GarnetStatus, hash_fields, set_members},
   storage::session::{
     objectstore::{
       common::{OBJ_TAG_HASH, OBJ_TAG_SET},
@@ -19,42 +17,6 @@ use crate::{
     storage_session::StorageSession,
   },
 };
-
-/// SCAN 成员抽取（哈希/集合共用：取成员并按字节序排序保证游标稳定性）
-fn sorted_members_of<O>(payload: &[u8]) -> Option<Vec<Vec<u8>>>
-where
-  O: wobject_decode::FromPayload,
-{
-  O::members(payload).map(|mut m| {
-    m.sort();
-    m
-  })
-}
-
-/// 成员抽取 trait 适配（避免闭包内重复排序样板）
-mod wobject_decode {
-  use std::io::Cursor;
-
-  pub trait FromPayload {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>>;
-  }
-
-  impl FromPayload for super::HashObject {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-      super::HashObject::deserialize(&mut Cursor::new(payload.to_vec()))
-        .ok()
-        .map(|o| o.get_keys())
-    }
-  }
-
-  impl FromPayload for super::SetObject {
-    fn members(payload: &[u8]) -> Option<Vec<Vec<u8>>> {
-      super::SetObject::deserialize(&mut Cursor::new(payload.to_vec()))
-        .ok()
-        .map(|o| o.get_keys())
-    }
-  }
-}
 
 /// 对象命令 API 实现
 pub struct GarnetApiObjectCommands;
@@ -322,7 +284,7 @@ impl GarnetApiObjectCommands {
     keys: &[&[u8]],
     weights: &[f64],
     aggregate: ZSetAggregate,
-  ) -> wkv::Result<Vec<(Vec<u8>, f64)>> {
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
     ss.sorted_set_intersection(keys, weights, aggregate).await
   }
 
@@ -447,15 +409,8 @@ impl GarnetApiObjectCommands {
     pattern: &[u8],
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    ss.object_scan(
-      key,
-      OBJ_TAG_SET,
-      pattern,
-      cursor,
-      count,
-      sorted_members_of::<SetObject>,
-    )
-    .await
+    ss.object_scan(key, OBJ_TAG_SET, pattern, cursor, count, set_members)
+      .await
   }
 
   /// libs/server/API/GarnetApiObjectCommands.cs:SetUnion
@@ -800,15 +755,8 @@ impl GarnetApiObjectCommands {
     pattern: &[u8],
     count: usize,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    ss.object_scan(
-      key,
-      OBJ_TAG_HASH,
-      pattern,
-      cursor,
-      count,
-      sorted_members_of::<HashObject>,
-    )
-    .await
+    ss.object_scan(key, OBJ_TAG_HASH, pattern, cursor, count, hash_fields)
+      .await
   }
 
   /// libs/server/API/GarnetApiObjectCommands.cs:HashTimeToLive
@@ -858,32 +806,5 @@ impl GarnetApiObjectCommands {
     radius_m: f64,
   ) -> wkv::Result<(GarnetStatus, usize)> {
     ss.geo_search_store(dest, src, center, radius_m).await
-  }
-
-  /// libs/server/API/GarnetApiObjectCommands.cs:DELETE_ObjectStore
-  pub async fn delete_object_store<D: Device>(
-    ss: &StorageSession<'_, D>,
-    key: &[u8],
-  ) -> wkv::Result<GarnetStatus> {
-    ss.delete_object_store(key).await
-  }
-
-  /// libs/server/API/GarnetApiObjectCommands.cs:RMW_ObjectStore
-  pub async fn rmw_object_store<D: Device, R>(
-    ss: &StorageSession<'_, D>,
-    key: &[u8],
-    tag: u8,
-    on_load: impl FnOnce(Option<Vec<u8>>) -> Option<(Vec<u8>, R)>,
-  ) -> wkv::Result<Option<R>> {
-    ss.rmw_object_store(key, tag, on_load).await
-  }
-
-  /// libs/server/API/GarnetApiObjectCommands.cs:Read_ObjectStore
-  pub async fn read_object_store<D: Device>(
-    ss: &StorageSession<'_, D>,
-    key: &[u8],
-    tag: u8,
-  ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
-    ss.read_object_store(key, tag).await
   }
 }
