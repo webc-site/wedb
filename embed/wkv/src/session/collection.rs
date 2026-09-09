@@ -171,7 +171,7 @@ impl<D: Device> StoreSession<D> {
   /// 检查指定键是否存在且未被墓碑删除（支持普通键及集合打平存储）
   ///
   /// 存活判定含 key 级惰性过期：集合走 load_meta 的 TTL 守卫，
-  /// 普通键仅在字符串命中后探测 TTL 记录（快路径零额外 I/O）
+  /// 普通键仅在字符串命中后经 has_ttl_tag 单探针门控探测 TTL 记录（快路径零额外 I/O）
   pub async fn contains_key(&self, key: &[u8]) -> Result<bool> {
     if let Some(meta) = self.load_meta(key).await?
       && meta.size > 0
@@ -180,13 +180,41 @@ impl<D: Device> StoreSession<D> {
     }
     let str_k = self.session_string_key(key);
     if self.contains_key_raw(&str_k).await? {
-      // 仅当数据存在时才惰性检查过期（过期物理清除后视同不存在）
-      if self.check_expired(key).await? {
+      // 仅当数据存在时才惰性检查过期（过期物理清除后视同不存在）；
+      // has_ttl_tag 单探针门控：无 TTL 记录时完全跳过异步过期裁决（与 read_with 口径
+      // 一致，本调用链内该键的 TTL 裁决仅此一次）
+      if self.has_ttl_tag(key)? && self.check_expired(key).await? {
         return Ok(false);
       }
       return Ok(true);
     }
     Ok(false)
+  }
+
+  /// 裸数据存活判定（不含任何 TTL 探测/清除）：集合元记录存活（size > 0）或字符串记录存在
+  ///
+  /// 专供 expire_at/persist 的融合读改写路径：本键 TTL 裁决由调用方单次 `ttl_of`
+  /// 读取统一闭环（读路径 TTL 探测收敛不变式：同一同步调用链内同一用户键只做一次
+  /// TTL 裁决），此处刻意采用 contains_key 的数据面口径但剥离惰性过期探测，避免
+  /// 同一链内对同一 TTL 记录双次遍历。元记录口径与 load_meta 一致：命中即同步
+  /// 维护 key_id 判活映射（含幽灵元记录的判死同步）
+  pub(crate) async fn contains_key_ignore_ttl(&self, key: &[u8]) -> Result<bool> {
+    let meta_k = self.session_meta_key(key);
+    if let Some(meta) = self.read_raw_with(&meta_k, MetaValue::from_slice).await? {
+      let meta = meta?;
+      if meta.size > 0 {
+        self
+          .store
+          .update_key_id_meta(meta.key_id, meta.version, true);
+        return Ok(true);
+      }
+      // 幽灵元记录（打平集合秒删残留）：对齐 load_meta 口径同步判死后再探裸键
+      self
+        .store
+        .update_key_id_meta(meta.key_id, meta.version, false);
+    }
+    let str_k = self.session_string_key(key);
+    self.contains_key_raw(&str_k).await
   }
 
   /// 从元数据 reserved 预留字段中读取当前分块 ID 与元素数量（const fn，零 panic）
@@ -262,7 +290,9 @@ impl<D: Device> StoreSession<D> {
   ///
   /// 含 key 级 TTL 守卫：仅当集合存活（size > 0）时才探测 TTL 记录，已过期则经统一
   /// DEL 路径物理清除并视同不存在——写路径（HSET 等）对已过期集合按不存在重建，
-  /// 符合 Redis 语义；本守卫经 purge_expired"先删 TTL 记录"约定保证无递归
+  /// 符合 Redis 语义；本守卫经 purge_expired"先删 TTL 记录"约定保证无递归。
+  /// 读路径 TTL 收敛不变式：内部 `read_raw_with` 为无守卫裸读内核，本键 TTL 裁决
+  /// 只在此入口做一次，嵌套裸读绝不重复裁决
   pub async fn load_meta(&self, user_key: &[u8]) -> Result<Option<MetaValue>> {
     let meta_k = self.session_meta_key(user_key);
     match self.read_raw_with(&meta_k, MetaValue::from_slice).await? {
@@ -292,7 +322,9 @@ impl<D: Device> StoreSession<D> {
   /// 读取集合元数据及紧凑载荷（只读，零拷贝直接切片视图）
   ///
   /// 含 key 级 TTL 守卫：仅当集合存活时探测 TTL 记录，已过期则经统一 DEL 路径
-  /// 物理清除并视同不存在（hget/hgetall 等集合读入口的惰性过期语义）
+  /// 物理清除并视同不存在（hget/hgetall 等集合读入口的惰性过期语义）。
+  /// 幽灵分支的 `read` 是对同名裸键这一不同物理记录的独立裁决（保证过期字符串
+  /// 不可见），不属同键同记录的重复探测；此后本链不再二次裁决
   pub async fn load_collection_raw_read(
     &self,
     key: &[u8],
@@ -335,7 +367,9 @@ impl<D: Device> StoreSession<D> {
   /// 读取集合元数据及紧凑载荷（准备写入）
   ///
   /// 含 key 级 TTL 守卫：已过期集合物理清除后视同不存在，
-  /// 写路径（HSET/SADD 等）对过期集合按不存在重建（Redis 语义）
+  /// 写路径（HSET/SADD 等）对过期集合按不存在重建（Redis 语义）。
+  /// 幽灵分支的 `read` 是对同名裸键这一不同物理记录的独立裁决（保证过期字符串
+  /// 不可见），不属同键同记录的重复探测；此后本链不再二次裁决
   pub async fn load_collection_raw_write(
     &self,
     key: &[u8],
