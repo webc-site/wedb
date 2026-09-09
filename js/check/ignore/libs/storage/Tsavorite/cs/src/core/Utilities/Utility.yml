@@ -1,0 +1,18 @@
+fn:
+  - ParseSize
+  - NumBitsPreviousPowerOf2
+  - PrettySize
+  - IsBlittable
+  - Rotr64
+  - XorBytes
+  - Is32Bit
+  - Murmur3
+  - WithCancellationAsync
+  - SlowWithCancellationAsync
+  - GetCurrentMilliseconds
+  - GetHashString
+  - GetCallbackErrorMessage
+  - strerror
+  - GetCallbackExceptionDetail
+  - GetCurrentMethodName
+  - ThrowTsavoriteException

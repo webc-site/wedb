@@ -1,0 +1,22 @@
+fn:
+  - SpanByteAllocatorImpl
+  - FreeAllAllocatedPages
+  - FreePage
+  - AllocatePage
+  - IncrementAllocatedPageCount
+  - AllocatePinnedPageArray
+  - ReturnPage
+  - FreeNativeLogPage
+  - CreateLogRecord
+  - GetRMWCopyRecordSize
+  - PopulateRecordSizeInfo
+  - GetRMWInitialRecordSize
+  - GetUpsertRecordSize
+  - GetDeleteRecordSize
+  - OnDispose
+  - OnDisposeDiskRecord
+  - WriteInlinePageAsync
+  - WriteAsyncToDeviceForSnapshot
+  - VerifyCompatibleSectorSize
+  - ScanCursor
+  - MemoryPageScan

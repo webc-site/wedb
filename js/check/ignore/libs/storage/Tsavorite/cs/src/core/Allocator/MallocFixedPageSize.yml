@@ -1,0 +1,13 @@
+fn:
+  - BulkAllocate
+  - InternalAllocate
+  - IsCheckpointCompleted
+  - IsCheckpointCompletedAsync
+  - GetCheckpointTask
+  - BeginCheckpoint
+  - skipReadCache
+  - AsyncFlushCallback
+  - GetMaxValidAddress
+  - GetPageSize
+  - BeginRecovery
+  - AsyncPageReadCallback

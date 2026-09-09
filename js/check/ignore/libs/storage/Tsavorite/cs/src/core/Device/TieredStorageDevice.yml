@@ -1,0 +1,6 @@
+fn:
+  - TieredStorageDevice
+  - RemoveSegmentAsync
+  - ComputeCapacity
+  - ComputeFileString
+  - FindClosestDeviceContaining

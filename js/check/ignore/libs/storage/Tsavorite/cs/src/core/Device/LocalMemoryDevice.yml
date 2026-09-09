@@ -1,0 +1,10 @@
+fn:
+  - LocalMemoryDevice
+  - EnsureSegment
+  - EnsureSegmentSlow
+  - Enqueue
+  - WaitLatency
+  - AssignRingIdx
+  - ProcessorLoop
+  - RemoveSegmentAsync
+  - GetAllocatedBytes

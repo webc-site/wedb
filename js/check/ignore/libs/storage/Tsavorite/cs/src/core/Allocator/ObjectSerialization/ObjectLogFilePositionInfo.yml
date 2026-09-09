@@ -1,0 +1,9 @@
+fn:
+  - ObjectLogFilePositionInfo
+  - Serialize
+  - Deserialize
+  - SetReuseObjectIdForSize
+  - GetReuseObjectIdForSize
+  - Advance
+  - AdvanceToNextSegment
+  - ToString

@@ -1,0 +1,5 @@
+fn:
+  - Serialize
+  - WriteType
+  - CacheSerializedObjectData
+  - ClearSerializedObjectData
