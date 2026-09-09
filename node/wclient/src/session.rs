@@ -7,7 +7,7 @@ use crossfire::{MAsyncTx, AsyncRx};
 use crossfire::oneshot;
 use crate::{Result, Error, CommandItem, RespReadResponseUtils};
 
-/// garnet/libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
+/// libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
 pub struct GarnetClientSession {
     pub end_point: String,
     pub raw_result: bool,
@@ -21,7 +21,7 @@ pub struct GarnetClientSession {
 }
 
 impl GarnetClientSession {
-    /// garnet/libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
+    /// libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
     pub fn new(
         endpoint: String,
         auth_username: Option<String>,
@@ -41,7 +41,7 @@ impl GarnetClientSession {
         }
     }
 
-    /// garnet/libs/client/ClientSession/GarnetClientSession.cs:ConnectAsync
+    /// libs/client/ClientSession/GarnetClientSession.cs:ConnectAsync
     pub async fn connect_async(&mut self, _timeout_ms: u32) -> Result<()> {
         let stream = TcpStream::connect(&self.end_point).await?;
         let (tx, rx) = mpsc::bounded_async(1024);
@@ -70,7 +70,7 @@ impl GarnetClientSession {
         Ok(())
     }
 
-    /// garnet/libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync
+    /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync
     pub async fn execute_async(&self, command: &[&str]) -> Result<String> {
         let (resp_tx, resp_rx) = oneshot::oneshot();
         let cmd = command.iter().map(|s| s.to_string()).collect();
@@ -79,12 +79,12 @@ impl GarnetClientSession {
         resp_rx.await.map_err(|_| Error::Other("Response channel closed".into()))?
     }
 
-    /// garnet/libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsyncBatch
+    /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsyncBatch
     pub async fn execute_async_batch(&self, command: &[&str]) -> Result<String> {
         self.execute_async(command).await
     }
 
-    /// garnet/libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteForArrayAsync
+    /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteForArrayAsync
     pub async fn execute_for_array_async(&self, command: &[&str]) -> Result<Vec<String>> {
         let (resp_tx, resp_rx) = oneshot::oneshot();
         let cmd = command.iter().map(|s| s.to_string()).collect();

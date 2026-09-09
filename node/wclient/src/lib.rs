@@ -14,3 +14,7 @@ pub use session::*;
 
 pub mod client;
 pub use client::*;
+pub mod api;
+pub use api::*;
+pub mod metrics;
+pub mod utils;

@@ -1,7 +1,7 @@
 use std::str;
 use crate::{Error, Result};
 
-/// garnet/libs/client/RespReadResponseUtils.cs:RespReadResponseUtils
+/// libs/client/RespReadResponseUtils.cs:RespReadResponseUtils
 pub struct RespReadResponseUtils;
 
 impl RespReadResponseUtils {
