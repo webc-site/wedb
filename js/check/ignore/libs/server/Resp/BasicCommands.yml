@@ -1,0 +1,6 @@
+# C# GetPendingScratchOutput 为 SG GET 批量应答的 scratch 缓冲槽分配器
+# （scratchBufferAllocator 固定槽位 + StringOutput 钉住指针）；rust 应答模型为
+# 零拷贝 output: Vec<u8> 直写，无 scratch 槽概念，且 SG GET 已退化为单键路径
+# （见 basic_commands.rs:NetworkGET_SG 注释），该分配器无对应物
+fn:
+  - GetPendingScratchOutput
