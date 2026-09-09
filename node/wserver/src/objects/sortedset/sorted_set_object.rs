@@ -270,7 +270,7 @@ const EXPIRATION_BIT_MASK: i32 = 1 << 31;
 /// 有序集合对象
 ///
 /// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SortedSetObject {
   /// (score, member) 有序视图
   pub sorted_set: BTreeSet<SortedSetEntry>,
