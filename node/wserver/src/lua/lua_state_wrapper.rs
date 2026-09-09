@@ -541,10 +541,11 @@ mod tests {
     assert!(state.try_create_table(4, 0));
     state.push_integer(42);
     assert!(state.raw_set_integer(-2, 1, Value::Integer(42)));
-    assert!(state.raw_get_integer(-1, 1));
+    // 表位于 -2（42 在其上）。
+    assert!(state.raw_get_integer(-2, 1));
     assert_eq!(state.check_number(-1), Some(42.0));
     state.pop(1);
-    assert_eq!(state.raw_len(-1), 1);
+    assert_eq!(state.raw_len(-2), 1);
 
     state.clear_stack();
     state.try_push_buffer(b"answer");
