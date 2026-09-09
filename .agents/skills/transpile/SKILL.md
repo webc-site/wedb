@@ -32,7 +32,7 @@ lua 用 luau
 
 可以查看 `check/miss` 下面的文件，明确还缺少哪些函数和测试，并在 rust 相关的包中实现
 
-如果缺少相关的包，也可以用各个模块的 ./sh/new.sh 创建新的 crate
+如果缺少相关的包，也可以用各个模块的 ./sh/new.sh 创建新的 crate，合理规划模块，低耦合，高内聚
 
 如某函数无需在 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 中配置，这样 `check.js` 忽略
 
