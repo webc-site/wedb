@@ -1,7 +1,7 @@
 //! 树实例生命周期：创建 / 惰性恢复 / 注册 / 注销 / 删除 / 迁移发布
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、UnregisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
-use std::{fs, path::Path, sync::Arc};
+use std::{ffi::OsString, fs, path::Path, sync::Arc};
 
 use wbase::base32::Base32Buf128;
 
@@ -96,6 +96,12 @@ impl RangeIndexManager {
       return Err(Error::IndexExists);
     }
 
+    // 清理孤儿工作文件：注册表无条目时数据文件必无在线引擎引用 (条带锁内裁决，
+    // pending 条目已在上方 IndexExists 拦截)。引擎以 create(true)+truncate(false)
+    // 打开基文件，残留的旧内容 (崩溃残留 / 上轮删除未竟) 会被全新索引静默继承，
+    // 以幻影数据暴露给新索引——创建前 unlink 保证新树从空文件起步。
+    let _ = fs::remove_file(self.data_file_path(&hash_prefix));
+
     let tree = self.instantiate_tree(&hash_prefix, storage_backend, tuning)?;
     let entry = Arc::new(TreeEntry::new(
       Some(Arc::clone(&tree)),
@@ -152,7 +158,7 @@ impl RangeIndexManager {
         let mut found_flush = false;
         if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
           // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
-          let mut latest: Option<(i64, std::ffi::OsString)> = None;
+          let mut latest: Option<(i64, OsString)> = None;
           for entry in entries.flatten() {
             let name = entry.file_name();
             if let Some(name_str) = name.to_str()

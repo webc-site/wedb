@@ -136,7 +136,8 @@ impl TreeEntry {
   ///
   /// claim 自旋采用退避阶梯 (spin → yield → 微睡)；C# 为纯 Thread.Yield。
   /// claim 持有者是 [`BfTreeService::cpr_snapshot`](BfTreeService::cpr_snapshot)
-  /// 短临界区 (内部自带屏障排空 + 超时)，故此处无需第二重超时。
+  /// 的单次 CPR 快照落盘 (引擎阶段协议与点写并发安全，无屏障排空；耗时以快照
+  /// 文件 I/O 为上界)，故此处无需第二重超时。
   pub fn snapshot_under_claim(&self, tree: &BfTreeService, destination_path: &Path) -> Result<()> {
     let mut spins = 0u32;
     while !self.try_claim_snapshot() {
