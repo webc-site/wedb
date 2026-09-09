@@ -1,5 +1,7 @@
 use strum::{EnumString, FromRepr, IntoStaticStr};
 
+use crate::server::worker::LOCAL_WORKER_ID;
+
 /// garnet相对路径:Server:SlotState
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr)]
 #[repr(u8)]
@@ -37,7 +39,7 @@ impl HashSlot {
   #[inline]
   pub fn eff_worker_id(&self) -> u16 {
     if self.state == SlotState::Migrating {
-      1
+      LOCAL_WORKER_ID as u16
     } else {
       self.worker_id
     }

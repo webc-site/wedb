@@ -5,6 +5,11 @@ use strum::{EnumString, FromRepr, IntoStaticStr};
 
 // 与 Worker 一同作为配置线格式载荷（bitcode 变体序即枚举序，两端同版无兼容负担）
 
+/// 保留 worker 位（0 号），永不承载节点
+pub const RESERVED_WORKER_ID: usize = 0;
+/// 本地 worker 位（1 号），紧跟保留位
+pub const LOCAL_WORKER_ID: usize = 1;
+
 /// garnet相对路径:Server:NodeRole
 #[derive(
   Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr, Encode, Decode,

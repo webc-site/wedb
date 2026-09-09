@@ -97,6 +97,11 @@ impl SortedSetObject {
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Operate
+  ///
+  /// Zadd：写入（含同成员改分），返回 None；Zrem：移除成员，返回旧分值
+  /// （未命中返回 None）；Zincrby：按 delta 增减分值，返回新分值；
+  /// Zscore：查询分值。其余读操作（rank/count/pop 等）由会话层直接调用
+  /// 对应方法，不经本入口。
   pub fn operate(&self, op: SortedSetOperation, member: &[u8], score: f64) -> Option<f64> {
     let pin = self.dict.pin();
     match op {
@@ -122,6 +127,38 @@ impl SortedSetObject {
           pin.insert(member.to_vec(), score);
         }
         None
+      }
+      SortedSetOperation::Zrem => {
+        let mut tree = self.tree.lock();
+        match pin.remove(member) {
+          Some(old_score) => {
+            tree.remove(&SortedSetEntry {
+              score: *old_score,
+              member: member.to_vec(),
+            });
+            Some(*old_score)
+          }
+          None => None,
+        }
+      }
+      SortedSetOperation::Zincrby => {
+        let mut tree = self.tree.lock();
+        let new_score = match pin.get(member) {
+          Some(&old) => {
+            tree.remove(&SortedSetEntry {
+              score: old,
+              member: member.to_vec(),
+            });
+            old + score
+          }
+          None => score,
+        };
+        tree.insert(SortedSetEntry {
+          score: new_score,
+          member: member.to_vec(),
+        });
+        pin.insert(member.to_vec(), new_score);
+        Some(new_score)
       }
       SortedSetOperation::Zscore => pin.get(member).copied(),
       _ => None,

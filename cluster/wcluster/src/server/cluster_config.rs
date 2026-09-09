@@ -1,23 +1,33 @@
-use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
+use std::{array::from_fn, cmp::Ordering, fmt::Write as _, net::SocketAddr};
 
-// if needed
+use bitcode::{Decode, Encode};
+use gxhash::{HashMap, HashSet};
 use log::warn;
 
 use crate::{
   error::{Error, Result},
   server::{
+    cluster_provider::ClusterProvider,
+    connection_info::ConnectionInfo,
     hash_slot::{HashSlot, SLOT_STATE_KINDS, SlotState},
     worker::{LocalWorkerSpec, NodeRole, Worker},
   },
 };
 
-pub const RESERVED_WORKER_ID: usize = 0;
-pub const LOCAL_WORKER_ID: usize = 1;
-pub const MIN_HASH_SLOT_VALUE: usize = 0;
-pub const MAX_HASH_SLOT_VALUE: usize = 16384;
 /// 集群配置线格式版本：v2 起由 .NET BinaryWriter 布局换为 bitcode 编码，
 /// 无向下兼容负担，异版本载荷在解码前即被拒绝
 pub const CLUSTER_CONFIG_VERSION: u8 = 2;
+
+/// 槽位空间上下界（Redis Cluster 语义：16384 槽）
+pub const MIN_HASH_SLOT_VALUE: usize = 0;
+pub const MAX_HASH_SLOT_VALUE: usize = 16384;
+
+/// CLUSTER NODES 中 bus 端口偏移（garnet 语义：bus port = port + 10000）
+const BUS_PORT_OFFSET: i32 = 10000;
+
+// worker id 常量定义域在 [`crate::server::worker`]，此处转出口维持
+// 槽位/配置方法群的单一引用路径
+pub use crate::server::worker::{LOCAL_WORKER_ID, RESERVED_WORKER_ID};
 
 /// garnet相对路径:Server:ClusterPreferredEndpointType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,15 +75,10 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeUnassignedWorker
+  ///
+  /// 保留位恒为 [`Worker::default`]（全零/None），杜绝逐字段赋值漂移
   fn initialize_unassigned_worker(&mut self) {
-    self.workers[RESERVED_WORKER_ID].nodeid = None;
-    self.workers[RESERVED_WORKER_ID].address = String::new();
-    self.workers[RESERVED_WORKER_ID].port = 0;
-    self.workers[RESERVED_WORKER_ID].config_epoch = 0;
-    self.workers[RESERVED_WORKER_ID].role = NodeRole::Unassigned;
-    self.workers[RESERVED_WORKER_ID].replica_of_node_id = None;
-    self.workers[RESERVED_WORKER_ID].replication_offset = 0;
-    self.workers[RESERVED_WORKER_ID].hostname = None;
+    self.workers[RESERVED_WORKER_ID] = Worker::default();
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeLocalWorker
@@ -212,12 +217,13 @@ impl ClusterConfig {
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetLocalNodeReplicaEndpoints
   pub fn get_local_node_replica_endpoints(&self) -> Vec<SocketAddr> {
+    let Some(local_id) = self.local_node_id() else {
+      return Vec::new();
+    };
     let mut replicas = Vec::new();
-    let local_id = self.local_node_id();
     for worker in self.workers.iter().skip(2) {
       if let Some(ref replica_of) = worker.replica_of_node_id
-        && let Some(id) = local_id
-        && replica_of.eq_ignore_ascii_case(id)
+        && replica_of.eq_ignore_ascii_case(local_id)
         && let Ok(ip) = worker.address.parse()
       {
         replicas.push(SocketAddr::new(ip, worker.port as u16));
@@ -239,18 +245,24 @@ impl ClusterConfig {
     let mut primaries = Vec::new();
     let mut first = None;
     for worker in self.workers.iter().skip(2) {
-      if let Some(node_id) = &worker.nodeid {
-        if worker.role == NodeRole::Primary
-          && !node_id.eq_ignore_ascii_case(my_primary_id)
-          && let Ok(ip) = worker.address.parse()
-        {
-          primaries.push(SocketAddr::new(ip, worker.port as u16));
-        }
-        if node_id.eq_ignore_ascii_case(my_primary_id)
-          && let Ok(ip) = worker.address.parse()
-        {
-          first = Some(SocketAddr::new(ip, worker.port as u16));
-        }
+      let Some(node_id) = &worker.nodeid else {
+        continue;
+      };
+      // 地址只解析一次，供主端点与本主端点两分支共用
+      let addr = worker
+        .address
+        .parse()
+        .ok()
+        .map(|ip| SocketAddr::new(ip, worker.port as u16));
+      let is_my_primary = node_id.eq_ignore_ascii_case(my_primary_id);
+      if worker.role == NodeRole::Primary
+        && !is_my_primary
+        && let Some(a) = addr
+      {
+        primaries.push(a);
+      }
+      if is_my_primary {
+        first = addr;
       }
     }
     if let Some(f) = first {
@@ -453,8 +465,6 @@ impl ClusterConfig {
       .and_then(|(_, w)| Some(SocketAddr::new(w.address.parse().ok()?, w.port as u16)))
   }
 }
-
-use gxhash::HashSet;
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetReplicaIds
@@ -729,7 +739,8 @@ impl ClusterConfig {
   /// 返回是否实际生效
   pub fn set_local_worker_config_epoch(&mut self, config_epoch: i64) -> bool {
     let w = &mut self.workers[LOCAL_WORKER_ID];
-    if w.config_epoch == 0 && w.config_epoch < config_epoch {
+    // 仅当本地 epoch 尚未初始化且新值为正时生效
+    if w.config_epoch == 0 && config_epoch > 0 {
       w.config_epoch = config_epoch;
       true
     } else {
@@ -783,6 +794,11 @@ impl ClusterConfig {
       Some(id) => self.get_worker_id_from_node_id(id),
       None => 0,
     };
+    // 发送方身份与角色在整轮合并中不变，提升出 16384 槽循环外
+    let sender_node_id = sender_config.local_node_id();
+    let sender_primary_id = sender_config.local_node_primary_id();
+    let sender_is_primary = sender_config.is_primary();
+    let sender_epoch = sender_config.local_node_config_epoch();
 
     let mut updated = false;
     for i in 0..MAX_HASH_SLOT_VALUE {
@@ -797,13 +813,13 @@ impl ClusterConfig {
 
       // 发送方非本槽认领者且是主：若本地认为属主即发送方（epoch 碰撞后
       // 的错位状态），重置为 Offline 给真实属主重新认领的机会
-      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
+      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_is_primary {
         let current_owner_node_id = self
           .workers
           .get(current_owner_id)
           .and_then(|w| w.nodeid.as_deref());
         if let Some(conid) = current_owner_node_id
-          && let Some(sid) = sender_config.local_node_id()
+          && let Some(sid) = sender_node_id
           && conid.eq_ignore_ascii_case(sid)
         {
           let slot = &mut self.slot_map[i];
@@ -814,13 +830,13 @@ impl ClusterConfig {
         continue;
       }
 
-      if sender_config.is_primary() {
+      if sender_is_primary {
         // 发送方是本槽认领者且为主：仅当其 epoch 更高才可改写本槽
-        if sender_config.local_node_config_epoch() != 0
+        if sender_epoch != 0
           && self
             .workers
             .get(current_owner_id)
-            .is_some_and(|w| w.config_epoch >= sender_config.local_node_config_epoch())
+            .is_some_and(|w| w.config_epoch >= sender_epoch)
         {
           continue;
         }
@@ -830,12 +846,12 @@ impl ClusterConfig {
         let owner_is_sender = self.workers.get(current_owner_id).is_some_and(|w| {
           w.nodeid
             .as_deref()
-            .is_some_and(|id| sender_config.local_node_id().is_some_and(|sid| id.eq(sid)))
+            .is_some_and(|id| sender_node_id.is_some_and(|sid| id.eq(sid)))
         });
         if !owner_is_sender {
           continue;
         }
-        assign_to_worker_id = match sender_config.local_node_primary_id() {
+        assign_to_worker_id = match sender_primary_id {
           Some(pid) => self.get_worker_id_from_node_id(pid),
           None => 0,
         };
@@ -861,7 +877,7 @@ impl ClusterConfig {
   pub fn merge(
     &self,
     sender_config: &ClusterConfig,
-    worker_ban_list: &gxhash::HashMap<String, i64>,
+    worker_ban_list: &HashMap<String, i64>,
   ) -> Option<Self> {
     let local_id = self.local_node_id();
     let mut merged = self.clone();
@@ -919,10 +935,6 @@ impl ClusterConfig {
   }
 }
 
-use std::fmt::Write;
-
-use crate::server::{cluster_provider::ClusterProvider, connection_info::ConnectionInfo};
-
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetClusterInfo
   pub fn get_cluster_info(&self, cluster_provider: Option<&ClusterProvider>) -> String {
@@ -957,7 +969,7 @@ impl ClusterConfig {
       w.nodeid.as_deref().unwrap_or(""),
       w.address,
       w.port,
-      w.port + 10000
+      w.port + BUS_PORT_OFFSET
     );
 
     if let Some(ref h) = w.hostname
@@ -1063,18 +1075,23 @@ impl ClusterConfig {
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetShardRanges
+  ///
+  /// 单遍扫描输出连续槽区间；哨兵扫描自然闭合末区间
   pub fn get_shard_ranges(&self, worker_id: usize) -> Vec<(u16, u16)> {
     let mut ranges = Vec::new();
-    let mut start_range = u16::MAX;
-    for i in 0..=MAX_HASH_SLOT_VALUE {
-      if i < self.slot_map.len() && self.slot_map[i].eff_worker_id() as usize == worker_id {
-        if start_range == u16::MAX {
-          start_range = i as u16;
+    let mut start: Option<u16> = None;
+    for (i, slot) in self.slot_map.iter().enumerate() {
+      match (start, slot.eff_worker_id() as usize == worker_id) {
+        (None, true) => start = Some(i as u16),
+        (Some(s), false) => {
+          ranges.push((s, i as u16 - 1));
+          start = None;
         }
-      } else if start_range != u16::MAX {
-        ranges.push((start_range, (i - 1) as u16));
-        start_range = u16::MAX;
+        _ => {}
       }
+    }
+    if let Some(s) = start {
+      ranges.push((s, MAX_HASH_SLOT_VALUE as u16 - 1));
     }
     ranges
   }
@@ -1261,7 +1278,9 @@ impl ClusterConfig {
     let _ = write!(sb, "*{}\r\n", field_count);
     sb.push_str("$2\r\nid\r\n");
     let nodeid = self.workers[worker_id].nodeid.as_deref().unwrap_or("");
-    let _ = write!(sb, "$40\r\n{}\r\n", nodeid);
+    // 长度动态计算：nodeid 并非恒 40 字符（uuid simple 为 32），RESP bulk
+    // string 长度声明错会让客户端解析错位
+    let _ = write!(sb, "${}\r\n{}\r\n", nodeid.len(), nodeid);
     sb.push_str("$4\r\nport\r\n");
     let _ = write!(sb, ":{}\r\n", self.workers[worker_id].port);
     sb.push_str("$2\r\nip\r\n");
@@ -1311,26 +1330,18 @@ impl ClusterConfig {
         slot_end += 1;
       }
 
-      let curr_worker_id = self.slot_map[slot_start].eff_worker_id() as usize;
-      let address = self.workers[curr_worker_id].address.clone();
-      let port = self.workers[curr_worker_id].port;
-      let nodeid = self.workers[curr_worker_id]
-        .nodeid
-        .clone()
-        .unwrap_or_default();
-      let hostname = self.workers[curr_worker_id].hostname.clone();
-      let replicas = self.get_replica_ids(&nodeid);
-
       slot_end -= 1;
+      let curr_worker_id = self.slot_map[slot_start].eff_worker_id() as usize;
+      // 区间属主以借用传递，免每区间 4 份字符串克隆
+      let owner = &self.workers[curr_worker_id];
+      let replica_ids = self.get_replica_ids(owner.nodeid.as_deref().unwrap_or_default());
+
       self.append_formatted_slot_info(
         &mut slots_str,
         slot_start,
         slot_end,
-        &address,
-        port,
-        &nodeid,
-        hostname.as_deref(),
-        &replicas,
+        owner,
+        &replica_ids,
         pref_type,
       );
       slot_ranges += 1;
@@ -1341,40 +1352,40 @@ impl ClusterConfig {
     sb
   }
 
-  #[allow(clippy::too_many_arguments)]
   fn append_formatted_slot_info(
     &self,
     sb: &mut String,
     slot_start: usize,
     slot_end: usize,
-    ip_address: &str,
-    port: i32,
-    nodeid: &str,
-    hostname: Option<&str>,
+    owner: &Worker,
     replica_ids: &[String],
     pref_type: ClusterPreferredEndpointType,
   ) {
-    let count_a = if replica_ids.is_empty() {
-      3
-    } else {
-      3 + replica_ids.len()
-    };
+    let count_a = 3 + replica_ids.len();
     let _ = write!(sb, "*{}\r\n:{}\r\n:{}\r\n", count_a, slot_start, slot_end);
 
-    self.append_node_networking_info(sb, ip_address, port, nodeid, hostname, pref_type);
+    self.append_node_networking_info(
+      sb,
+      &owner.address,
+      owner.port,
+      owner.nodeid.as_deref().unwrap_or_default(),
+      owner.hostname.as_deref(),
+      pref_type,
+    );
 
     for replica_id in replica_ids {
-      let (replica_ip_opt, replica_port) = self.get_worker_address_from_node_id(replica_id);
-      let replica_ip = replica_ip_opt.unwrap_or_default();
-      let replica_hostname = self.get_host_name_from_node_id(replica_id);
-      self.append_node_networking_info(
-        sb,
-        &replica_ip,
-        replica_port,
-        replica_id,
-        replica_hostname.as_deref(),
-        pref_type,
-      );
+      match self.worker_by_node_id(replica_id) {
+        Some((_, w)) => self.append_node_networking_info(
+          sb,
+          &w.address,
+          w.port,
+          w.nodeid.as_deref().unwrap_or(replica_id),
+          w.hostname.as_deref(),
+          pref_type,
+        ),
+        // 副本行不在配置内时按 C# 空地址语义输出（$-1 + port -1）
+        None => self.append_node_networking_info(sb, "", -1, replica_id, None, pref_type),
+      }
     }
   }
 
@@ -1453,8 +1464,6 @@ impl ClusterConfig {
     }
   }
 }
-
-use bitcode::{Decode, Encode};
 
 /// 集群配置线格式（bitcode 编码）
 ///
@@ -1927,9 +1936,10 @@ mod tests {
     assert!(node_info.contains("[3->-n2]"));
     assert!(node_info.contains("myself,master"));
 
-    // CLUSTER SLOTS：Migrating 槽按 eff id 报在源节点
+    // CLUSTER SLOTS：Migrating 槽按 eff id 报在源节点，且副本行在列
     let slots = c.get_slots_info(ClusterPreferredEndpointType::Ip);
     assert!(slots.contains("*4\r\n:0\r\n:3\r\n"));
+    assert!(slots.contains("n2"), "副本节点行必须出现在 CLUSTER SLOTS");
 
     // CLUSTER SHARDS：槽范围含迁移槽
     let shards = c.get_shards_info(None, ClusterPreferredEndpointType::Ip);
