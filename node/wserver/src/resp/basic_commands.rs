@@ -200,7 +200,7 @@ fn apply_set_with_expiry<'a, D: wdev::Device>(
 ///
 /// 客户端名仅允许 33..=126 可打印字符；空串允许（引用语义允许清名）；
 /// 非 UTF-8 视为非法（C# GetString 返回 null）
-fn try_get_client_name(raw: &[u8]) -> Option<&str> {
+pub fn try_get_client_name(raw: &[u8]) -> Option<&str> {
   let name = str::from_utf8(raw).ok()?;
   if name.is_empty() {
     return Some(name);
@@ -1511,7 +1511,7 @@ impl RespServerSession {
   /// 将会话描述写入 info 行（不追加换行）。C# 字段来源 → rust 现状：
   /// Id/networkSender 端点/CreationTicks/clientName/userHandle/lib-* 均为
   /// 会话字段，rust 会话结构未携带 → 以空/零值占位；flags=N（非订阅会话）
-  pub fn write_client_info(&self, into: &mut String) {
+  pub fn write_client_info(into: &mut String) {
     let _ = write!(
       into,
       "id=0 addr= laddr= age=0 flags=N db=0 resp=2 lib-name= lib-ver="
