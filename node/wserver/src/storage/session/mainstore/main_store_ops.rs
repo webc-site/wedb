@@ -108,18 +108,19 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 条件删除（DELIIFGREATER 语义：记录 etag 小于给定值才删除）
   ///
   /// 缺口：C# etag 存于 Tsavorite 记录扩展字段（RMWMethods.Etags），wkv 记录无
-  /// etag 通道，本实现以当前字符串值按 i64 解析充当 etag，语义方向一致。
+  /// etag 通道，本实现以当前字符串值按 u64 解析充当 etag（与
+  /// rmw_methods__etags 域"值为整数文本 = etag"约定一致），语义方向一致。
   ///
   /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:DEL_Conditional
-  pub async fn del_conditional(&self, key: &[u8], etag: i64) -> wkv::Result<GarnetStatus> {
+  pub async fn del_conditional(&self, key: &[u8], etag: u64) -> wkv::Result<GarnetStatus> {
     let Some(val) = self.read_string(key).await? else {
       self.session_notfound.fetch_add(1, Relaxed);
       return Ok(GarnetStatus::NotFound);
     };
     let current = str::from_utf8(&val)
       .ok()
-      .and_then(|s| s.parse::<i64>().ok())
-      .unwrap_or(i64::MAX);
+      .and_then(|s| s.parse::<u64>().ok())
+      .unwrap_or(u64::MAX);
     if current < etag {
       let _ = self.delete_string(key).await?;
       self.session_found.fetch_add(1, Relaxed);
@@ -225,15 +226,18 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key1: &[u8],
     key2: &[u8],
   ) -> wkv::Result<(GarnetStatus, Option<LcsResult>)> {
-    let v1 = self.read_string(key1).await?;
-    let v2 = self.read_string(key2).await?;
     // 任一键缺失即视为 NotFound（C# 侧以空串参与计算后由 RESP 层做空响应）
-    if v1.is_none() || v2.is_none() {
-      return Ok((GarnetStatus::NotFound, None));
-    }
+    let result = match (self.read_string(key1).await?, self.read_string(key2).await?) {
+      (Some(v1), Some(v2)) => Some(lcs_internal(&v1, &v2)),
+      _ => None,
+    };
     Ok((
-      GarnetStatus::Ok,
-      Some(lcs_internal(&v1.unwrap(), &v2.unwrap())),
+      if result.is_some() {
+        GarnetStatus::Ok
+      } else {
+        GarnetStatus::NotFound
+      },
+      result,
     ))
   }
 

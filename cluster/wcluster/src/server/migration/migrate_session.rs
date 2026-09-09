@@ -6,9 +6,23 @@ use crate::{
   client::GarnetClient,
   server::{
     cluster_provider::ClusterProvider,
-    migration::{migrate_state::MigrateState, migration_manager::TransferOption, sketch::Sketch},
+    migration::{migrate_state::MigrateState, sketch::Sketch},
   },
 };
+
+/// 迁移任务入参聚合（C# MigrateSession 构造散参收敛为单一 spec，
+/// Manager→Store→Session 三层透传共用，免 too_many_arguments）
+pub struct MigrateTaskSpec<'a> {
+  pub source_node_id: &'a str,
+  pub target_address: &'a str,
+  pub target_port: i32,
+  pub target_node_id: &'a str,
+  pub username: &'a str,
+  pub passwd: &'a str,
+  pub copy_option: bool,
+  pub replace_option: bool,
+  pub timeout: i32,
+}
 
 /// libs/cluster/Server/Migration/MigrateSession.cs:MigrateSession
 pub struct MigrateSession {
@@ -19,25 +33,16 @@ pub struct MigrateSession {
 }
 
 impl MigrateSession {
-  #[allow(clippy::too_many_arguments)]
+  /// libs/cluster/Server/Migration/MigrateSession.cs:MigrateSession
   pub fn new(
     cluster_provider: Arc<ClusterProvider>,
-    _source_node_id: &str,
-    _target_address: &str,
-    _target_port: i32,
-    target_node_id: &str,
-    _username: &str,
-    _passwd: &str,
-    _copy_option: bool,
-    _replace_option: bool,
-    _timeout: i32,
+    spec: MigrateTaskSpec<'_>,
     slots: HashSet<i32>,
     _sketch: Sketch,
-    _transfer_option: TransferOption,
   ) -> Self {
     Self {
       _cluster_provider: cluster_provider,
-      target_node_id: target_node_id.to_string(),
+      target_node_id: spec.target_node_id.to_string(),
       slots,
       status: MigrateState::Pending,
     }

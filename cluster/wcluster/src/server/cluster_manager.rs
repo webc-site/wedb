@@ -1,6 +1,9 @@
-use std::sync::{
-  Arc,
-  atomic::{AtomicI32, Ordering},
+use std::{
+  fmt::Write as _,
+  sync::{
+    Arc,
+    atomic::{AtomicI32, Ordering},
+  },
 };
 
 use log::trace;
@@ -144,22 +147,20 @@ impl ClusterManager {
   }
 
   /// garnet相对路径:Server:ClusterManager:GetRange
+  ///
+  /// 输入须升序；连续槽合并为 `start-end` 区间，其余逐个列出
   pub fn get_range(slots: &[usize]) -> String {
-    if slots.is_empty() {
-      return "> ".to_string();
-    }
     let mut range = String::from("> ");
-    let mut start = slots[0];
-    let mut end = slots[0];
-    for i in 1..=slots.len() {
-      if i < slots.len() && slots[i] == end + 1 {
-        end = slots[i];
-      } else {
-        range.push_str(&format!("{}-{} ", start, end));
-        if i < slots.len() {
-          start = slots[i];
-          end = slots[i];
+    // 哨兵值保证末区间在扫描内闭合，免去循环后重复收尾代码
+    let mut prev = None;
+    for s in slots.iter().copied().chain([usize::MAX]) {
+      match prev {
+        Some((start, end)) if s == end + 1 => prev = Some((start, s)),
+        Some((start, end)) => {
+          let _ = write!(range, "{start}-{end} ");
+          prev = Some((s, s));
         }
+        None => prev = Some((s, s)),
       }
     }
     range

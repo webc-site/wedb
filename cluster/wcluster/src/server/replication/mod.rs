@@ -1,9 +1,7 @@
 pub mod checkpoint_entry;
 pub mod checkpoint_store;
 pub mod garnet_cluster_checkpoint_manager;
-pub mod primary_ops;
 pub mod primaryops;
-pub mod replica_ops;
 pub mod replicaops;
 pub mod replication_checkpoint_management;
 pub mod replication_history_manager;

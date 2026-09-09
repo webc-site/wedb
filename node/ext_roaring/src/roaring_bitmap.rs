@@ -36,11 +36,12 @@ impl RoaringBitmapObj {
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:BitPos
   pub fn bit_pos(&self, bit: bool, from: u32) -> i64 {
     if bit {
-      // Find first set bit >= from
-      if let Some(pos) = self.bitmap.iter().find(|&x| x >= from) {
-        return pos as i64;
-      }
-      -1
+      // 首个 >= from 的置位位：range 经容器级 advance_to 定位，免去逐容器跳扫
+      self
+        .bitmap
+        .range(from..)
+        .next()
+        .map_or(-1, |pos| pos as i64)
     } else {
       // Find first unset bit >= from
       let mut current = from;
@@ -62,17 +63,11 @@ impl RoaringBitmapObj {
     self.bitmap.iter()
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:GetEnumerator
-  pub fn get_enumerator(&self) -> impl Iterator<Item = u32> + '_ {
-    self.bitmap.iter()
-  }
-
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Serialize
   ///
   /// I/O 与格式错误上抛，不以 unwrap panic 形式失败
   pub fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
-    self.bitmap.serialize_into(writer)?;
-    Ok(())
+    Ok(self.bitmap.serialize_into(writer)?)
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Deserialize

@@ -47,6 +47,11 @@ pub const RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER: &str =
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE
 pub const RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE: &str =
   "ERR value is out of range, must be positive.";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER
+pub const RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER: &str = "ERR bit is not an integer or out of range";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER
+pub const RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER: &str =
+  "ERR bit offset is not an integer or out of range";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER
 pub const RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER: &str =
   "ERR Protocol version is not an integer or out of range.";

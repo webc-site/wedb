@@ -60,7 +60,7 @@ impl<D: Device> NodeService<D> {
   /// 与紧缩调度由此保证，不依赖调用方记得手动启动
   pub fn new(store: SharedStore<D>, wal: Arc<WalLog<D>>) -> Result<Self>
   where
-    D: Device + 'static,
+    D: 'static,
   {
     // TTL 过期 purge 端口：端口在场即令 wkv 侧 purge 链抑制物理墓碑镜像，
     // 改为在此入队单条 TtlPurge 确定性逻辑条目（对标 Garnet

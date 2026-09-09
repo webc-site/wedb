@@ -45,7 +45,10 @@ mod tests {
 
   #[test]
   fn test_hash_slot() {
-    assert_eq!(hash_slot::hash_slot(b"123456789"), 0x31C3 & 16383);
+    assert_eq!(
+      hash_slot::hash_slot(b"123456789"),
+      0x31C3 & hash_slot::HASH_SLOT_MAX
+    );
     assert_eq!(
       hash_slot::hash_slot(b"key{user1}data"),
       hash_slot::hash_slot(b"user1")

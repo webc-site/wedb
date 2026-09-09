@@ -12,6 +12,9 @@ use crate::{
   },
 };
 
+/// failover 超时缺省值（对齐 C#：入参为 default 时取 600 秒）
+const DEFAULT_FAILOVER_TIMEOUT: Duration = Duration::from_secs(600);
+
 /// libs/cluster/Server/Failover/FailoverSession.cs:FailoverSession
 pub struct FailoverSession {
   _cluster_provider: Arc<ClusterProvider>,
@@ -44,7 +47,7 @@ impl FailoverSession {
     }
 
     let failover_timeout = if failover_timeout.is_zero() {
-      Duration::from_secs(600)
+      DEFAULT_FAILOVER_TIMEOUT
     } else {
       failover_timeout
     };

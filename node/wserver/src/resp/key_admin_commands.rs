@@ -339,7 +339,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'GETDEL' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "GETDEL");
       return Ok(true);
     }
     let key = parse_state[0];
@@ -363,6 +363,9 @@ impl RespServerSession {
     Ok(true)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkEXISTS
+  ///
+  /// 多键计数；任一键须异步裁决（磁盘候选/TTL 待裁决）时整体降级，
+  /// 存储错误直接回错，避免计数口径失真
   pub fn network_exists<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -370,15 +373,21 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'EXISTS' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "EXISTS");
       return Ok(true);
     }
 
     let mut exists_count = 0i64;
     for key in parse_state {
-      let status = store.try_read_sync(key, |_| ());
-      if let Ok(Some(Some(_))) = status {
-        exists_count += 1;
+      match store.try_read_sync(key, |_| ()) {
+        Ok(Some(Some(_))) => exists_count += 1,
+        Ok(Some(None)) => {}
+        // 磁盘候选：整体降级
+        Ok(None) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
       }
     }
 
@@ -494,7 +503,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() != 1 {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'PERSIST' command\r\n");
+      abort_with_wrong_number_of_arguments(output, "PERSIST");
       return Ok(true);
     }
     let key = parse_state[0];
@@ -724,33 +733,13 @@ fn expiretime_read_sync<'a, D: wdev::Device>(
 
 #[cfg(test)]
 mod tests {
-  use std::sync::Arc;
-
-  use compio::runtime::Runtime;
-  use wdev::SegmentedDevice;
-  use wkv::{StoreConfig, WedbStore};
-
   use super::{
-    super::ttl_sync::{now_unix_ms, put_ttl_sync, ttl_of_sync},
+    super::{
+      batch_harness::with_batch,
+      ttl_sync::{now_unix_ms, put_ttl_sync, ttl_of_sync},
+    },
     *,
   };
-
-  type Batch<'a> = wkv::BatchStoreSession<'a, SegmentedDevice>;
-
-  fn with_batch(f: impl FnOnce(&mut RespServerSession, &Batch)) {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-      let dir = tempfile::tempdir().unwrap();
-      let device = Arc::new(SegmentedDevice::single_file(dir.path().join("key_admin.db")).unwrap());
-      let mut config = StoreConfig::new(1024, 4096, 16, 0.5).unwrap();
-      config.gc.enabled = false;
-      let store = Arc::new(WedbStore::open(config, device).unwrap());
-      let session = store.new_session().unwrap();
-      let batch = session.enter_batch();
-      let mut s = RespServerSession;
-      f(&mut s, &batch);
-    });
-  }
 
   /// 构造合法 DUMP 载荷：0x00 + 长度前缀 + 值 + rdb 版本 + crc64
   fn dump_payload(val: &[u8]) -> Vec<u8> {
