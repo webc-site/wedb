@@ -26,3 +26,4 @@ fn:
   - strerror
   - CheckpointVersionShiftStart
   - CheckpointVersionShiftEnd
+  - ThrowIfInvalidMetadataSize

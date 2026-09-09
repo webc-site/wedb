@@ -1,0 +1,3 @@
+# GetEnumerator 为 .NET IEnumerable 管道；rust 清理工作集迭代为惯用实现
+fn:
+  - GetEnumerator
