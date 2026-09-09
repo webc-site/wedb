@@ -24,15 +24,20 @@ fastrand = "2.5.0"
 gxhash = "3"
 hdrhistogram = "7"
 itoa.workspace = true
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto", "use_pem"] }
 log = "0.4"
 mlua = { version = "0.12.1", features = ["luau"] }
 num_enum = "0.7.6"
 papaya = "0.2.5"
 parking_lot = "0.12"
+serde = { version = "1.0.229", features = ["derive"] }
 sha1_smol = "1"
+sha2 = "0.11.0"
+sonic-rs.workspace = true
 thiserror = "2.0.20"
 waof.workspace = true
 wdev.workspace = true
+whasher = { version = "0.1.5", path = "../../embed/whasher" }
 wkv.workspace = true
 wobject.workspace = true
 wresp.workspace = true
