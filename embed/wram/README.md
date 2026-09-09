@@ -296,14 +296,14 @@ Sector-aligned buffer. `Deref` / `DerefMut` / `AsRef<[u8]>` / `Borrow<[u8]>` exp
 
 Sector-aligned buffer pool.
 
-- Construction: `new(sector_size) -> Result<Arc<Self>>` (default budgets), `with_budgets(sector_size, small, large) -> Result<Arc<Self>>`; sector must be a power of two ≥ 512 and the largest class capacity must fit i64 budget accounting.
+- Construction: `new(sector_size) -> Result<Arc<Self>>` (default budgets), `with_budgets(sector_size, small, large) -> Result<Arc<Self>>`; sector must be a power of two ≥ 512, budgets must be non-negative, and the largest class capacity must fit i64 budget accounting.
 - Rent:
   - `get(required_bytes) -> Result<AlignedBuf>`: default clear-on-return.
   - `get_with_policy(required_bytes, clear_on_return) -> Result<AlignedBuf>`: explicit policy.
   - `get_from_slice(slice) -> Result<AlignedBuf>`: copy-initialized rent.
   - `ensure_size(&mut AlignedBuf, size) -> Result<()>`: in-place reuse when capacity suffices (syncing the required length); re-rent otherwise.
 - Observation: `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` / `small_budget_bytes` / `large_budget_bytes` / `cached_len(cls)` / `sector_size` / `is_closed` / `stats() -> PoolStats`.
-- `stats() -> PoolStats`: snapshot with `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` plus budget-exhaustion direct-alloc counters `direct_alloc_count` / `direct_alloc_bytes` (steady growth means the budget is too small).
+- `stats() -> PoolStats`: snapshot with `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes`, budget-exhaustion direct-alloc counters `direct_alloc_count` / `direct_alloc_bytes` (steady growth means the budget is too small), and oversize/closed bypass counters `bypass_alloc_count` / `bypass_alloc_bytes`.
 - Close: `free()` is idempotent; it drains the calling thread's cache and the depot, after which rents become non-pooled direct allocations and in-flight returns release immediately.
 
 ### `DirectVirtualMemory` and `DirectVmBlock`
@@ -317,11 +317,10 @@ Sector-aligned buffer pool.
 ### `NativeMemoryTracker`
 
 - `bytes() -> usize`: total native direct virtual memory reserved (lock-free sum over 64 stripes).
-- `direct_vm_bytes() -> usize`: alias of `bytes`.
 
 ### Errors
 
-`Result<T> = std::result::Result<T, Error>`; `Error` is a thiserror enum: `InvalidAlignment`, `InvalidSize`, `SetLenExceeded`, `AllocFailed`, `DirectVmAllocFailed`, `Overflow`, and transparent `Layout` forwarding.
+`Result<T> = std::result::Result<T, Error>`; `Error` is a thiserror enum: `InvalidAlignment`, `InvalidSize`, `InvalidBudget`, `SetLenExceeded`, `AllocFailed`, `DirectVmAllocFailed`, `Overflow`, and transparent `Layout` forwarding.
 
 ### Utility functions
 
@@ -621,14 +620,14 @@ pub struct SectorRange {
 
 扇区对齐缓冲池。
 
-- 构造：`new(sector_size) -> Result<Arc<Self>>`（默认双层预算）、`with_budgets(sector_size, small, large) -> Result<Arc<Self>>`；扇区须为 2 的幂且 ≥ 512，且最大 class 容量不得溢出 i64 预算记账。
+- 构造：`new(sector_size) -> Result<Arc<Self>>`（默认双层预算）、`with_budgets(sector_size, small, large) -> Result<Arc<Self>>`；扇区须为 2 的幂且 ≥ 512，预算须非负，且最大 class 容量不得溢出 i64 预算记账。
 - 租借：
   - `get(required_bytes) -> Result<AlignedBuf>`：默认归还清零。
   - `get_with_policy(required_bytes, clear_on_return) -> Result<AlignedBuf>`：显式清零策略。
   - `get_from_slice(slice) -> Result<AlignedBuf>`：拷贝签发。
   - `ensure_size(&mut AlignedBuf, size) -> Result<()>`：容量充足就地复用并同步需求长度，不足自动换借。
 - 观测：`reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` / `small_budget_bytes` / `large_budget_bytes` / `cached_len(cls)` / `sector_size` / `is_closed` / `stats() -> PoolStats`。
-- `stats() -> PoolStats`：快照含 `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes` 与预算耗尽显式直配累计 `direct_alloc_count` / `direct_alloc_bytes`（持续增长说明预算配小了）。
+- `stats() -> PoolStats`：快照含 `reserved_bytes` / `small_reserved_bytes` / `large_reserved_bytes`、预算耗尽显式直配累计 `direct_alloc_count` / `direct_alloc_bytes`（持续增长说明预算配小了）与超界/关闭态绕过池缓存累计 `bypass_alloc_count` / `bypass_alloc_bytes`。
 - 关闭：`free()` 幂等关闭；清空当前线程缓存与全局仓库，此后租借走非池化直配，在途缓冲归还即释放。
 
 ### `DirectVirtualMemory` 与 `DirectVmBlock`
@@ -642,11 +641,10 @@ pub struct SectorRange {
 ### `NativeMemoryTracker`
 
 - `bytes() -> usize`：当前原生直接虚拟内存预留总字节（64 条带无锁求和）。
-- `direct_vm_bytes() -> usize`：同 `bytes`，语义别名。
 
 ### 错误
 
-`Result<T> = std::result::Result<T, Error>`；`Error` 为 thiserror 枚举：`InvalidAlignment`、`InvalidSize`、`SetLenExceeded`、`AllocFailed`、`DirectVmAllocFailed`、`Overflow`、`Layout` 透明转发。
+`Result<T> = std::result::Result<T, Error>`；`Error` 为 thiserror 枚举：`InvalidAlignment`、`InvalidSize`、`InvalidBudget`、`SetLenExceeded`、`AllocFailed`、`DirectVmAllocFailed`、`Overflow`、`Layout` 透明转发。
 
 ### 工具函数
 
