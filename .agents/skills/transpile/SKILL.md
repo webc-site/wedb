@@ -28,12 +28,15 @@ lua 用 luau
 
 让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
 
-运行 ./js/check.js 可以看到缺失实现或者文档注释的 c# 函数
+运行 `./js/check.js` 可以看到缺失实现或者文档注释的 c# 函数
 
-可以查看 `check/miss` 下面的文件， 明确还缺少哪些函数和测试
+可以查看 `check/miss` 下面的文件，明确还缺少哪些函数和测试，并在 rust 相关的包中实现
 
-如果某个函数不需要再 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 加上，这样 check.js 就不会提示需要实现
+如果缺少相关的包，也可以用各个模块的 ./sh/new.sh 创建新的 crate
 
+如某函数不需要再 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 中配置，这样 `check.js` 忽略
+
+让子代理每次都先对照 garnet c# 代码审查 rust 的代码架构、模块依赖，思考如何让其结构更加合理，可以拆分、修订，让其拓扑和 c#更加吻合
 
 在 rust 函数文档注释中写清楚和 c# 的映射关系，格式是如下：
 

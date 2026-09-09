@@ -1,7 +1,7 @@
 #!/usr/bin/env -S bun
 
 import { mkdir, readdir, rm } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import yaml from "yaml";
 import garnetScan from "./check/garnetScan.js";
 import rustScan from "./check/rustScan.js";
@@ -14,16 +14,17 @@ const ROOT_DIR = resolve(import.meta.dirname, ".."),
     join(ROOT_DIR, "check/miss")
   ];
 
-const walkYml = async (dir_path) => {
+const ymlWalk = async (dir_path) => {
   const file_li = [];
   try {
     const entry_li = await readdir(dir_path, { withFileTypes: true });
     for (const entry of entry_li) {
-      const full_path = join(dir_path, entry.name);
+      const { name } = entry,
+        full_path = join(dir_path, name);
       if (entry.isDirectory()) {
-        const sub_li = await walkYml(full_path);
+        const sub_li = await ymlWalk(full_path);
         file_li.push(...sub_li);
-      } else if (entry.name.endsWith(".yml") || entry.name.endsWith(".yaml")) {
+      } else if (name.endsWith(".yml") || name.endsWith(".yaml")) {
         file_li.push(full_path);
       }
     }
@@ -50,7 +51,7 @@ const emptyDirClean = async (dir_path, is_root = true) => {
 
 const missSync = async (miss_dir, active_miss_map) => {
   await mkdir(miss_dir, { recursive: true });
-  const existing_file_li = await walkYml(miss_dir);
+  const existing_file_li = await ymlWalk(miss_dir);
 
   for (const file_path of existing_file_li) {
     const rel_path = relative(miss_dir, file_path);
@@ -79,7 +80,7 @@ const missSync = async (miss_dir, active_miss_map) => {
 const ignoreLoad = async () => {
   const file_ignore_map = new Map(),
     global_ignore_set = new Set(),
-    yml_file_li = await walkYml(IGNORE_DIR);
+    yml_file_li = await ymlWalk(IGNORE_DIR);
 
   for (const yml_path of yml_file_li) {
     const content = await Bun.file(yml_path).text(),
@@ -134,16 +135,13 @@ const ignoreLoad = async () => {
     }
   }
 
-  return {
-    file_ignore_map,
-    global_ignore_set
-  };
+  return [file_ignore_map, global_ignore_set];
 };
 
 const check = async () => {
-  const { fn_map, test_map } = await garnetScan(GARNET_DIR),
-    { doc_set, doc_file_fn_map } = await rustScan(ROOT_DIR),
-    { file_ignore_map, global_ignore_set } = await ignoreLoad(),
+  const [fn_map, test_map] = await garnetScan(GARNET_DIR),
+    [doc_set, doc_file_fn_map] = await rustScan(ROOT_DIR),
+    [file_ignore_map, global_ignore_set] = await ignoreLoad(),
     isIgnored = (rel_path, name) => {
       if (global_ignore_set.has(name)) return true;
       const file_set = file_ignore_map.get(rel_path);
@@ -170,11 +168,11 @@ const check = async () => {
 
     if (miss_fn_li.length === 0 && miss_test_li.length === 0) continue;
 
-    const out_data = {};
+    const yml_rel_path = rel_path.replace(/\.cs$/, ".yml"),
+      out_data = {};
     if (miss_fn_li.length > 0) out_data.fn = miss_fn_li;
     if (miss_test_li.length > 0) out_data.test = miss_test_li;
 
-    const yml_rel_path = rel_path.replace(/\.cs$/, ".yml");
     active_miss_map.set(yml_rel_path, out_data);
   }
 
@@ -182,7 +180,7 @@ const check = async () => {
     await missSync(miss_dir, active_miss_map);
   }
 
-  const miss_file_li = Array.from(active_miss_map.keys());
+  const miss_file_li = [...active_miss_map.keys()];
   miss_file_li.sort();
 
   const pathTreeFormat = (path_li) => {
@@ -218,7 +216,7 @@ const check = async () => {
           line_li.push(indent + combined_key + "/");
           line_li.push(...nodeFormat(curr_node, indent + "  "));
         } else {
-          line_li.push(indent + key);
+          line_li.push(indent + key.replace(/\.ya?ml$/, ""));
         }
       }
       return line_li;
