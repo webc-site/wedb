@@ -60,7 +60,7 @@ This example follows the hashing and collection tests.
 ```rust
 use whasher::{
   Entry, fast_hash, fast_hash_u64, fast_hash_with_seed, fast_hash128,
-  hash_value, hash_value_with_seed, hash128, hash128_with_seed,
+  hash_value, hash_value_with_seed, hash128, hash128_with_seed, mix13,
   new_hash_map, new_hash_set,
 };
 
@@ -69,7 +69,7 @@ fn main() {
   assert_eq!(fast_hash(data), fast_hash_with_seed(data, 0));
   assert_eq!(fast_hash_u64(42), fast_hash(&42u64.to_le_bytes()));
   assert_eq!(fast_hash128(data), hash128_with_seed(data, 0));
-  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, 7 ^ 9u64.rotate_left(32)));
+  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, (mix13(7) ^ mix13(9).rotate_left(32)) as u64));
   assert_eq!(hash_value(&(1u64, 2u64)), hash_value_with_seed(&(1u64, 2u64), 0));
 
   let mut map = new_hash_map();
@@ -174,7 +174,7 @@ All public interfaces and internal streaming logic reside in `src/lib.rs`. The i
 
 ### Direct and generic hashing
 
-`fast_hash*` and `hash128*` delegate to `gxhash::gxhash64` or `gxhash::gxhash128`. `fast_hash_u64` first converts the integer to little-endian bytes. `hash128` combines its seeds with `seed_a ^ seed_b.rotate_left(32)` before calling the backend.
+`fast_hash*` and `hash128*` delegate to `gxhash::gxhash64` or `gxhash::gxhash128`. `fast_hash_u64` first converts the integer to little-endian bytes. `hash128` folds each seed through the bijective `mix13` mixer, then XORs with a 32-bit rotation, so structured seed pairs cannot collide algebraically; only birthday-bound random collisions inherent to the 128-to-64 bit reduction remain.
 
 `hash_value*` creates a seeded `GxHasher`, passes it to `Hash::hash`, then calls `Hasher::finish`. This path follows the type's `Hash` implementation, not a canonical byte serialization.
 
@@ -190,13 +190,13 @@ All public interfaces and internal streaming logic reside in `src/lib.rs`. The i
 
 ### Collection path
 
-Standard collection constructors install `DefaultBuildHasher::default()`. Concurrent constructors use the `papaya` builder with `GxBuildHasher::default()` and an optional initial capacity. The backend defaults randomize collection hashing unless the dependency's `deterministic` feature is enabled through Cargo feature unification.
+Standard collection constructors install `GxBuildHasher::default()`. Concurrent constructors use the `papaya` builder with the same hasher and an optional initial capacity. The backend defaults randomize collection hashing unless the dependency's `deterministic` feature is enabled through Cargo feature unification.
 
 ### Compatibility boundaries
 
 Fixed-seed byte hashing is repeatable for the same algorithm configuration. Persisted or transmitted hashes should record the backend version, seed, and algorithm choice; do not assume compatibility across backend or streaming implementation changes.
 
-Generic `Hash` input is not guaranteed portable across platforms or compiler versions. Encode persistent keys explicitly before byte hashing. Distinct seed pairs in `hash128` can produce the same combined 64-bit seed. The APIs do not reproduce MurmurHash or XxHash output from C# implementations.
+Generic `Hash` input is not guaranteed portable across platforms or compiler versions. Encode persistent keys explicitly before byte hashing. Seed pairs in `hash128` collide only at the birthday bound of the 128-to-64 bit reduction, without algebraic structure. The APIs do not reproduce MurmurHash or XxHash output from C# implementations.
 
 ## Technology stack
 
@@ -245,7 +245,7 @@ All interfaces below are available at the `whasher` crate root. Arguments named 
 | `fast_hash_u64(val: u64) -> u64`                                      | Equivalent to `fast_hash(&val.to_le_bytes())`.                     |
 | `fast_hash_with_seed(bytes: &[u8], seed: u64) -> u64`                 | Direct 64-bit byte hash with an explicit seed.                     |
 | `fast_hash128(bytes: &[u8]) -> u128`                                  | Direct 128-bit byte hash with seed 0.                              |
-| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | Combines seeds using XOR and a 32-bit left rotation of `seed_b`.   |
+| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | Mixes both seeds through `mix13`, then XOR with a 32-bit rotation. |
 | `hash128_with_seed(bytes: &[u8], seed: u64) -> u128`                  | Direct 128-bit byte hash with an explicit seed.                    |
 | `hash_value<T: Hash + ?Sized>(value: &T) -> u64`                      | Hashes the value through `GxHasher::with_seed(0)`.                 |
 | `hash_value_with_seed<T: Hash + ?Sized>(value: &T, seed: u64) -> u64` | Generic hashing with an explicit seed; unsized input is supported. |
@@ -279,7 +279,6 @@ Chunk invariance concerns `write(&[u8])` calls over the same concatenated bytes.
 | `Entry<'a, K, V>`    | Standard map entry enum, with `Occupied` and `Vacant` variants.                                                                                                   |
 | `GxHasher`           | Backend `Hasher`; supports `with_seed(i64)` and `finish_u128(&self) -> u128`, in addition to trait methods. Not a chunk-invariant replacement for `StreamHasher`. |
 | `GxBuildHasher`      | Backend `BuildHasher`; supports `default()` and `with_seed(i64)`. Use the default for randomized collection hashing.                                              |
-| `DefaultBuildHasher` | Alias for `GxBuildHasher`.                                                                                                                                        |
 | `HashMapExt`         | Trait supplying `new() -> Self` and `with_capacity(usize) -> Self` for the map alias when imported.                                                               |
 | `HashSetExt`         | Trait supplying `new() -> Self` and `with_capacity(usize) -> Self` for the set alias when imported.                                                               |
 | `GxPapayaMap<K, V>`  | `papaya::HashMap<K, V, GxBuildHasher>`; use `pin()` for guarded operations.                                                                                       |
@@ -372,7 +371,7 @@ RUSTFLAGS="-C target-cpu=native" cargo build
 ```rust
 use whasher::{
   Entry, fast_hash, fast_hash_u64, fast_hash_with_seed, fast_hash128,
-  hash_value, hash_value_with_seed, hash128, hash128_with_seed,
+  hash_value, hash_value_with_seed, hash128, hash128_with_seed, mix13,
   new_hash_map, new_hash_set,
 };
 
@@ -381,7 +380,7 @@ fn main() {
   assert_eq!(fast_hash(data), fast_hash_with_seed(data, 0));
   assert_eq!(fast_hash_u64(42), fast_hash(&42u64.to_le_bytes()));
   assert_eq!(fast_hash128(data), hash128_with_seed(data, 0));
-  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, 7 ^ 9u64.rotate_left(32)));
+  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, (mix13(7) ^ mix13(9).rotate_left(32)) as u64));
   assert_eq!(hash_value(&(1u64, 2u64)), hash_value_with_seed(&(1u64, 2u64), 0));
 
   let mut map = new_hash_map();
@@ -486,7 +485,7 @@ fn main() {
 
 ### 直接哈希与泛型哈希
 
-`fast_hash*` 与 `hash128*` 委托给 `gxhash::gxhash64` 或 `gxhash::gxhash128`。`fast_hash_u64` 先将整数转为小端字节。`hash128` 以 `seed_a ^ seed_b.rotate_left(32)` 合并种子后调用后端。
+`fast_hash*` 与 `hash128*` 委托给 `gxhash::gxhash64` 或 `gxhash::gxhash128`。`fast_hash_u64` 先将整数转为小端字节。`hash128` 先将两个种子各自经双射 `mix13` 打散，再异或错位合并，结构化种子对无法产生代数碰撞，仅剩 128→64 位固有的生日界随机碰撞。
 
 `hash_value*` 创建带种子的 `GxHasher`，经 `Hash::hash` 写入后调用 `Hasher::finish`。该路径遵循类型的 `Hash` 实现，而非规范的字节序列化。
 
@@ -502,13 +501,13 @@ fn main() {
 
 ### 集合路径
 
-普通集合构造函数安装 `DefaultBuildHasher::default()`。并发构造函数以 `GxBuildHasher::default()` 配置 papaya 构建器，可指定初始容量。后端默认随机化集合哈希，除非通过 Cargo 特性统一启用依赖的 `deterministic` 特性。
+普通集合构造函数安装 `GxBuildHasher::default()`。并发构造函数以同一构建器配置 papaya，可指定初始容量。后端默认随机化集合哈希，除非通过 Cargo 特性统一启用依赖的 `deterministic` 特性。
 
 ### 兼容性边界
 
 固定种子的字节哈希在相同算法配置下可复现。落盘或传输的哈希应记录后端版本、种子与算法选择；不要假设跨后端或流式实现变更仍兼容。
 
-泛型 `Hash` 输入不保证跨平台或跨编译器版本可移植。持久化键请先显式编码再做字节哈希。`hash128` 的不同种子对可能合并出相同的 64 位种子。以上接口不重现 C# 实现的 MurmurHash 或 XxHash 输出。
+泛型 `Hash` 输入不保证跨平台或跨编译器版本可移植。持久化键请先显式编码再做字节哈希。`hash128` 的种子对仅在 128→64 位归约固有的生日界上碰撞，无代数结构。以上接口不重现 C# 实现的 MurmurHash 或 XxHash 输出。
 
 ## 技术堆栈
 
@@ -557,7 +556,7 @@ whasher/
 | `fast_hash_u64(val: u64) -> u64`                                      | 等价于 `fast_hash(&val.to_le_bytes())`。 |
 | `fast_hash_with_seed(bytes: &[u8], seed: u64) -> u64`                 | 显式种子的直接 64 位字节哈希。           |
 | `fast_hash128(bytes: &[u8]) -> u128`                                  | 种子为 0 的直接 128 位字节哈希。         |
-| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | 以异或与 `seed_b` 的 32 位左旋合并种子。 |
+| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | 双种子经 `mix13` 打散后异或错位合并。   |
 | `hash128_with_seed(bytes: &[u8], seed: u64) -> u128`                  | 显式种子的直接 128 位字节哈希。          |
 | `hash_value<T: Hash + ?Sized>(value: &T) -> u64`                      | 经 `GxHasher::with_seed(0)` 哈希该值。   |
 | `hash_value_with_seed<T: Hash + ?Sized>(value: &T, seed: u64) -> u64` | 显式种子的泛型哈希，支持不定长输入。     |
@@ -591,7 +590,6 @@ whasher/
 | `Entry<'a, K, V>`    | 标准映射条目枚举，含 `Occupied` 与 `Vacant` 变体。                                                                      |
 | `GxHasher`           | 后端 `Hasher`，除 trait 方法外支持 `with_seed(i64)` 与 `finish_u128(&self) -> u128`。非 `StreamHasher` 的分块恒等替代。 |
 | `GxBuildHasher`      | 后端 `BuildHasher`，支持 `default()` 与 `with_seed(i64)`。默认实例用于随机化集合哈希。                                  |
-| `DefaultBuildHasher` | `GxBuildHasher` 的别名。                                                                                                |
 | `HashMapExt`         | 导入后为映射别名提供 `new()` 与 `with_capacity(usize)`。                                                                |
 | `HashSetExt`         | 导入后为集合别名提供 `new()` 与 `with_capacity(usize)`。                                                                |
 | `GxPapayaMap<K, V>`  | `papaya::HashMap<K, V, GxBuildHasher>`，经 `pin()` 守卫式操作。                                                         |
