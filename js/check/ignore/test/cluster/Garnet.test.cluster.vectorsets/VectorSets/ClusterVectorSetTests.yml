@@ -1,0 +1,27 @@
+fn:
+  - StringAndByteArrayComparer
+  - Equals
+  - Write
+  - ClusterVectorSetTests
+  - Setup
+  - TearDown
+  - Incr
+  - when
+  - CountGossipFaults
+  - SimpleSetupClusterAsync
+  - GetStoreWrapper
+test:
+  - BasicVADDReplicatesAsync
+  - ConcurrentVADDReplicatedVSimsAsync
+  - RepeatedCreateDeleteAsync
+  - MultipleReplicasWithVectorSetsAsync
+  - MultipleReplicasWithVectorSetsAndDeletesAsync
+  - VectorSetMigrateSingleBySlotAsync
+  - VectorSetMigrateByKeysAsync
+  - VectorSetMigrateManyBySlot
+  - MigrateVectorSetWhileModifyingAsync
+  - MigrateVectorSetBackAsync
+  - MigrateVectorStressAsync
+  - FailoverStopsVectorManagerReplicationTasksAsync
+  - ReplicaReplaysSyntheticVAddAgainstStringKeyAfterRacedDeleteAsync
+  - VSETATTRReplicatesAsync

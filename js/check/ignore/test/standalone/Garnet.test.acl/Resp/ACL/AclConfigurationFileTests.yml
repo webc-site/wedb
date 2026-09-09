@@ -1,0 +1,10 @@
+test:
+  - EmptyInput
+  - NoDefaultRule
+  - WithDefaultRule
+  - AclLoad
+  - AclLoadErrors
+  - DuplicateUserNames
+  - BadInputNonexistingFile
+  - BadInputMalformedStatement
+  - AclSave

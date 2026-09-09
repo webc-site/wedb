@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - HashAsync
+  - ListAsync
+  - SetAsync
+  - SortedSetAsync

@@ -1,0 +1,16 @@
+fn:
+  - Setup
+  - TearDown
+  - LoadVectorSet
+  - AssertEvictedToDisk
+  - GenerateData
+  - RandomGaussianVector
+  - NextGaussian
+  - Normalized
+  - MeasureRecall
+  - BruteForceTopK
+  - Dot
+test:
+  - RecallSurvivesFlushAndEvict
+  - RecallSurvivesLargerThanMemoryLoad
+  - RecallSurvivesSaveAndRecover

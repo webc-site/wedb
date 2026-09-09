@@ -1,0 +1,5 @@
+fn:
+  - ParseModuleSpecTest
+test:
+  - ParseModuleSpecEmptyTest
+  - ParseModuleSpecInvalidQuotedTest

@@ -1,0 +1,6 @@
+fn:
+  - IntToBytes
+  - LongToBytes
+  - NumDigits
+  - NumDigitsInLong
+  - BytesToLong

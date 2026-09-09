@@ -1,0 +1,8 @@
+fn:
+  - CreateAuthenticator
+  - CreateAuthenticatorCallback
+  - DisposeCallback
+  - Authenticate
+  - AuthenticateCallback
+test:
+  - InvalidatingAuthorizationAsync

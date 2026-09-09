@@ -1,0 +1,19 @@
+fn:
+  - Setup
+  - TearDown
+  - ClusterCommandWrongParameters
+test:
+  - ClusterAddSlotsPartialPackage
+  - ClusterExceptionInjectionAtPrimarySyncSession
+  - ClusterFailoverDuringRecovery
+  - ClusterCheckpointAcquireTest
+  - ClusterReplicaAttachIntenseWrite
+  - ClusterFailedToAddAofSyncTask
+  - ClusterReplicaSyncTimeoutTest
+  - ClusterParallelFailoverOnDistinctShards
+  - ClusterMeetFromReplica
+  - ClusterDontKnowReplicaFailTest
+  - ClusterReplicateFails
+  - ClusterFailoverSucceedsDuringEnsureReplicationAsync
+  - ClusterEnsureReplicationWorksAfterFailoverAsync
+  - ClusterFailoverResetsPrimaryOnTakeOverFailureAsync

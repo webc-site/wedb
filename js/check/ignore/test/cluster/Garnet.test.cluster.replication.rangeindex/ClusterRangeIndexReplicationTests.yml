@@ -1,0 +1,13 @@
+fn:
+  - Setup
+  - TearDown
+  - PopulateRangeIndex
+  - ValidateRangeIndex
+  - GetRiLogRoot
+test:
+  - ClusterRangeIndexCheckpointSync
+  - ClusterRangeIndexCheckpointSyncMultipleKeys
+  - ClusterRangeIndexCheckpointSyncWithEviction
+  - ClusterRangeIndexAddReplicaAfterCheckpoint
+  - ClusterRangeIndexReplicationRestartReplica
+  - ClusterRangeIndexReplicationFailover

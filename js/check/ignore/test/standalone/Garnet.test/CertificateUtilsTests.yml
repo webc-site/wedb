@@ -1,0 +1,8 @@
+fn:
+  - TearDown
+test:
+  - GetMachineCertificateByFileLoadsPfxCertificate
+  - GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile
+  - GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey
+  - GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension
+  - GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines

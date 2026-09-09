@@ -1,0 +1,9 @@
+fn:
+  - GlobalSetup
+  - GlobalCleanup
+  - WriteInt32
+  - WriteInt64
+  - WriteInt32AsBulkString
+  - WriteInt32_AllAsciiLengths
+  - WriteInt64_AllAsciiLengths
+  - WriteInt32BulkString_AllAsciiLengths

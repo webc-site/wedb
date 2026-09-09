@@ -1,0 +1,5 @@
+fn:
+  - ZipfGenerator
+  - CreateConstants
+  - Zeta
+  - Next

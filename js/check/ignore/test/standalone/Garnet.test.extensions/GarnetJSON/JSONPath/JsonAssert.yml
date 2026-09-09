@@ -1,0 +1,4 @@
+fn:
+  - AreEqual
+  - DeepEquals
+  - Equals

@@ -1,0 +1,6 @@
+fn:
+  - ClusterManager
+  - DiscoverPrimaryShards
+  - ValidateFullSlotCoverage
+  - ParseClusterConfig
+  - CompactRanges

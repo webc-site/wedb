@@ -1,0 +1,27 @@
+fn:
+  - RespConfigTests
+  - Setup
+  - TearDown
+  - RespConfigUtilizationTests
+  - RespConfigIndexUtilizationTests
+  - GetOverflowBucketAllocations
+  - RespConfigHeapUtilizationTests
+test:
+  - ConfigSetMemorySizeTest
+  - ConfigSetIndexSizeTest
+  - ConfigSetInlineMemorySizeUtilizationTest
+  - ConfigSetMemorySizeRecoveryTest
+  - ConfigSetIndexSizeUtilizationTest
+  - ConfigSetHeapMemorySizeUtilizationTest
+  - ConfigGetSetRuntimeOptionsTest
+  - RuntimeServerConfigRoundTripsEnumOption
+  - RuntimeServerConfigExposesDurationsInEveryDeclaredUnit
+  - ConfigSetSlowLogThresholdTakesEffectAtRuntime
+  - ConfigSetRuntimeOptionValidationTest
+  - ConfigGetAllAndReadOnlyRejectionTest
+  - ConfigAofReadOnlyParametersTest
+  - ConfigAofRuntimeAdjustableParametersTest
+  - ConfigCommitFreqRejectedWhenStartedAtZeroTest
+  - ConfigCommitFreqRuntimeAdjustableTest
+  - ConfigExpiredKeyDeletionScanRuntimeAdjustableTest
+  - ConfigExpiredObjectCollectionRuntimeAdjustableTest

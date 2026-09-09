@@ -1,0 +1,6 @@
+fn:
+  - GlobalSetup
+  - GlobalCleanup
+  - Read_Span
+  - Read_Pinned
+  - FFI_Noop

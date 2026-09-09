@@ -1,0 +1,17 @@
+fn:
+  - RespPerfBench
+  - AddSlotRange
+  - LoadData
+  - LightOperate
+  - GetDBSIZE
+  - LoadHLLData
+  - PerformAsyncGET
+  - CreateLocalDB
+  - PerformMGET
+  - Run
+  - LightOperateThreadRunner
+  - GarnetClientSessionOperateThreadRunner
+  - SERedisOperateThreadRunner
+  - InProcOperateThreadRunner
+  - MGetThreadRunner
+  - LoadDatabaseStringSet

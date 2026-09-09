@@ -1,0 +1,13 @@
+fn:
+  - LuaParamsProvider
+  - GlobalSetup
+  - SetupOperation
+  - GlobalCleanup
+  - ScriptLoad
+  - ScriptExistsTrue
+  - ScriptExistsFalse
+  - Eval
+  - EvalSha
+  - SmallScript
+  - LargeScript
+  - ArrayReturn

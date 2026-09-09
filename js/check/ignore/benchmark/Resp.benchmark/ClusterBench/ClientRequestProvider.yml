@@ -1,0 +1,19 @@
+fn:
+  - ClientRequestProvider
+  - CombineSeed
+  - CreateZipfGenerator
+  - NextKeyIndex
+  - GenerateKey
+  - BuildCumulativePercent
+  - SelectOpType
+  - ShouldUseReplica
+  - ShouldGenerateMixedWorkload
+  - GetReadOperationType
+  - Stop
+  - DisposeWorkerPoolConnections
+  - FormatRequest
+  - AppendCommand
+  - GenerateValue
+  - CalculateRespSentBytes
+  - CalculateRespReceivedBytes
+  - OnResponse

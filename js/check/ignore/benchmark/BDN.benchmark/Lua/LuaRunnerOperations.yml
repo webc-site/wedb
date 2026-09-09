@@ -1,0 +1,12 @@
+fn:
+  - LuaParamsProvider
+  - GlobalSetup
+  - GlobalCleanup
+  - IterationSetup
+  - IterationCleanup
+  - ResetParametersSmall
+  - ResetParametersLarge
+  - ConstructSmall
+  - ConstructLarge
+  - CompileForSessionSmall
+  - CompileForSessionLarge

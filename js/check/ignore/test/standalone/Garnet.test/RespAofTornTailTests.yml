@@ -1,0 +1,6 @@
+fn:
+  - Setup
+  - TearDown
+  - SimulateTornTailWrite
+test:
+  - TornTailCommitRecordRecovery

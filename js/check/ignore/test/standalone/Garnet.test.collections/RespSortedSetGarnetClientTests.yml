@@ -1,0 +1,19 @@
+fn:
+  - Setup
+  - TearDown
+  - SimpleMemoryResultCallback
+  - DoZRangeAsync
+  - GetUniqueName
+test:
+  - CanDoZAddGarnetAsync
+  - CanDoZAddGarnetCallback
+  - CanDoExecuteForStringResultCallback
+  - CanDoZCardGarnetUsingMemoryResultAsync
+  - CanDoZAddGarnetMultithread
+  - CanUseExecuteForStringArrayResult
+  - CanUseExecuteForStringResultAsync
+  - CanUseExecuteForMemoryResultArrayWithCancellationTokenAsync
+  - CanUseExecuteForMemoryResultWithCancellationTokenAsync
+  - CanGarnetClientUseZaddZrem
+  - CanGarnetClientUseZaddZremWithCallback
+  - CanGarnetClientUseZCard

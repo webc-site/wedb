@@ -1,0 +1,18 @@
+test:
+  - PasswordlessDefaultUserTest
+  - ProtectedDefaultUserErrorHandlingTest
+  - ProtectedDefaultUserLoginImplicitTest
+  - ProtectedDefaultUserLoginExplicitTest
+  - EnableAndDisableUsers
+  - AddPasswordFromCleartextTest
+  - AddPasswordFromHashTest
+  - RemovePasswordFromCleartextTest
+  - RemovePasswordFromHashTest
+  - AddDuplicatePasswordTest
+  - PasswordlessUserTest
+  - ResetPasswordsTest
+  - AddAndRemoveCategoryTest
+  - ResetUser
+  - BadInputEmpty
+  - BadInputUnknownOperation
+  - KeyPatternsWildcard

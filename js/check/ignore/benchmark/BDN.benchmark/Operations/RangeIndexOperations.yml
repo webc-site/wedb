@@ -1,0 +1,10 @@
+fn:
+  - OperationParamsProvider
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - RISet
+  - RIGet
+  - RIScan
+  - RIScanKeysOnly
+  - RIRange

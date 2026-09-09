@@ -1,0 +1,18 @@
+fn:
+  - GarnetClientSamples
+  - RunAll
+  - SetGetSync
+  - PingAsync
+  - SetGetAsync
+  - IncrAsync
+  - IncrByAsync
+  - DecrByAsync
+  - DecrAsync
+  - IncrNoKeyAsync
+  - ExistsAsync
+  - DeleteAsync
+  - SetGetMemoryAsync
+  - GetClientCertificate
+  - GetSslOpts
+  - ConnectionStressTest
+  - ConnectionStressRunner

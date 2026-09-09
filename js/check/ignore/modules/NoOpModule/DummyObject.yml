@@ -1,0 +1,6 @@
+fn:
+  - Create
+  - Deserialize
+  - DummyObject
+  - CloneObject
+  - SerializeObject

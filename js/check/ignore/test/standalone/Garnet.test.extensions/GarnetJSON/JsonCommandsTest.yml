@@ -1,0 +1,22 @@
+fn:
+  - Setup
+  - TearDown
+  - RegisterCustomCommand
+test:
+  - JsonSetGetTests
+  - JsonSetGetBasicTypes
+  - JsonSetPathOperations
+  - JsonGetMultiplePathsTest
+  - JsonSetInvalidJsonTest
+  - JsonSetInvalidPathTest
+  - JsonGetNonExistentTests
+  - JsonGetComplexPathTests
+  - JsonGetArrayOperationsTest
+  - JsonGetAdvancedFiltersTest
+  - JsonSetComplexPathOperationsTest
+  - JsonSetNonStaticPathNewFieldTest
+  - JsonSetNonStaticPathExistingFieldTest
+  - SaveRecoverTest
+  - AofUpsertRecoverTestAsync
+  - SerializationTest
+  - JsonModuleLoadTest

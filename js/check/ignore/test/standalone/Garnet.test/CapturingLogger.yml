@@ -1,0 +1,6 @@
+fn:
+  - Field
+  - EntriesWithField
+  - BeginScope
+  - IsEnabled
+  - CreateLogger

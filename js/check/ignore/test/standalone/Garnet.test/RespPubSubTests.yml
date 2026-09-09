@@ -1,0 +1,21 @@
+fn:
+  - Setup
+  - TearDown
+  - SubscribeAndPublish
+  - SendCommand
+  - ReadAvailable
+test:
+  - BasicSUBSCRIBE
+  - LargeSUBSCRIBE
+  - BasicPSUBSCRIBE
+  - BasicPUBSUB_CHANNELS
+  - BasicPUBSUB_NUMPAT
+  - BasicPUBSUB_NUMSUB
+  - PubSubModeRejectsDisallowedCommandsInResp2
+  - PubSubModeAllowsValidCommandsInResp2
+  - PubSubSelfPublishResp3NoLockError
+  - PubSubSelfPatternPublishResp3NoLockError
+  - PubSubModeAllowsRegularCommandsInResp3
+  - PubSubModeViaPsubscribeRejectsCommandsInResp2
+  - SelfPublishOnSubscribedChannelDoesNotCorruptConnection
+  - SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection

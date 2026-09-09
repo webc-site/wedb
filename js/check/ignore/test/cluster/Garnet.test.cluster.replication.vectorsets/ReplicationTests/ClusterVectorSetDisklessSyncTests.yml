@@ -1,0 +1,15 @@
+fn:
+  - SetupDisklessCluster
+  - ForceDisklessFullSync
+  - PopulateVectorSet
+  - AssertFullyReplicated
+  - AssertOwnsItsIndex
+  - WaitForContextDrained
+test:
+  - VectorSetReadableOnReplicaAfterDisklessFullSync
+  - VectorSetReadableOnReplicaWithoutFullSync
+  - VectorSetReplicatedToEveryReplicaByDisklessFullSync
+  - VectorSetSurvivesFailoverAfterDisklessFullSync
+  - FreshVectorSetDoesNotReuseStreamedContextAfterDisklessFullSync
+  - VectorSetDisklessFullSyncRecoversAfterAbortedAttempt
+  - AbortedDisklessFullSyncLeavesNoOrphanNamespacedRecords

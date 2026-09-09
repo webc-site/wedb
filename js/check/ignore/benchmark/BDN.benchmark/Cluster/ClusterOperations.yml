@@ -1,0 +1,7 @@
+fn:
+  - ClusterParamsProvider
+  - GlobalSetup
+  - GlobalCleanup
+  - MGet
+  - MSet
+  - CTXNSET

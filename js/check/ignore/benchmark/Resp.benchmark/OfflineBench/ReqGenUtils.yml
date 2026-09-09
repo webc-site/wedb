@@ -1,0 +1,8 @@
+fn:
+  - WriteHeader
+  - WriteOp
+  - RandomString
+  - WriteBitfieldArgs
+  - WriteStringBytes
+  - WriteInteger
+  - WriteKey

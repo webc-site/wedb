@@ -1,0 +1,23 @@
+fn:
+  - Setup
+  - TearDown
+  - PopulateVectorSet
+  - ElementsWrittenTo
+  - VectorSetSize
+  - VectorSetDimensions
+  - ElementEmbedding
+  - AssertVectorSetsMatch
+  - WaitForReplication
+  - WaitForVectorReplay
+  - ReadPersistedIndexPtr
+  - ReadPersistedIndexFields
+  - ReadPersistedContext
+  - OnException
+  - OnStart
+  - OnStop
+  - CensusNamespacedRecords
+  - RecordsHeldForContext
+  - WaitForContextDrained
+  - AssertOwnsItsIndex
+  - AssertFullyReplicated
+  - GetStoreWrapper

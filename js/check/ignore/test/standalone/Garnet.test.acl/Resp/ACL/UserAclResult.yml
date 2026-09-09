@@ -1,0 +1,6 @@
+fn:
+  - UserAclResult
+  - IsWellStructured
+  - ContainsPasswordHash
+  - IsArray
+  - IsValue

@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - Permission_SetPermissionMatches
+  - Ping_DoesNotThrow
+  - SetGet_Equals
+  - Helpful_Exception_For_Missing_Path

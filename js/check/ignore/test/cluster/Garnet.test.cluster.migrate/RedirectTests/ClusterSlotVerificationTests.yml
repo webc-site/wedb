@@ -1,0 +1,27 @@
+fn:
+  - Equals
+  - AssertSlotsNotAssigned
+  - ConfigureSlotForMigration
+  - ResetSlot
+  - OneTimeSetUp
+  - OneTimeTearDown
+  - ClusterState
+  - GetNodeInfo
+  - SERedisClusterDown
+  - GarnetClientSessionClusterDown
+  - SERedisOKTest
+  - GarnetClientSessionOK
+  - SERedisCrossslotTest
+  - GarnetClientSessionCrossslotTest
+  - SERedisMOVEDTest
+  - GarnetClientSessionMOVEDTest
+  - SERedisASKTest
+  - GarnetClientSessionASKTest
+  - SERedisTRYAGAINTest
+test:
+  - ClusterCLUSTERDOWNTest
+  - ClusterOKTest
+  - ClusterCROSSSLOTTest
+  - ClusterMOVEDTest
+  - ClusterASKTest
+  - ClusterTRYAGAINTest

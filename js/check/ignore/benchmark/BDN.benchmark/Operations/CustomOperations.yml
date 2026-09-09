@@ -1,0 +1,9 @@
+fn:
+  - CreateExtensions
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - CustomRawStringCommand
+  - CustomObjectCommand
+  - CustomTransaction
+  - CustomProcedure

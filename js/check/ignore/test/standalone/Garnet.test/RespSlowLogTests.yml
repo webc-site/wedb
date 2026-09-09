@@ -1,0 +1,10 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - TestSlowLogHelp
+  - TestSlowLogGet
+  - TestSlowLogGetCount
+  - TestSlowLogGetWithEntry
+  - TestSlowLogLen
+  - TestSlowLogReset

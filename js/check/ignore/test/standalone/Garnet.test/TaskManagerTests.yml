@@ -1,0 +1,16 @@
+fn:
+  - taskFactory
+  - DummyTask
+  - primaryCategoryTaskFactory
+  - PrimaryCategoryTask
+  - allCategoryTaskFactory
+  - AllCategoryTask
+  - ThrowingTaskFactory
+test:
+  - TestBasicRegisterAndRunAsync
+  - TestDoubleRegistrationAsync
+  - TestTaskPlacementCategoryCancellation
+  - TestTaskRegisterAfterDispose
+  - TestTaskFactoryException
+  - TestCleanupOnCompletion
+  - TestCleanupWithException
