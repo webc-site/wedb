@@ -19,8 +19,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 bitflags = "2.13.1"
 coarsetime.workspace = true
+gxhash = "3"
+hdrhistogram = "7"
 itoa.workspace = true
+log = "0.4"
 num_enum = "0.7.6"
+parking_lot = "0.12"
 thiserror = "2.0.20"
 wdev.workspace = true
 wkv.workspace = true
