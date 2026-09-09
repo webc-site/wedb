@@ -131,7 +131,7 @@ impl AlignedBuf {
     self.cap > 0 && !std::ptr::eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
   }
 
-  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset
   #[inline]
   pub fn get_array_and_unaligned_offset(&self) -> (*const u8, usize) {
     (self.ptr.as_ptr(), 0)

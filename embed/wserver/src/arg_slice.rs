@@ -1,4 +1,4 @@
-/// garnet相对路径:Tsavorite.core/PinnedSpanByte.cs
+/// Tsavorite.core/PinnedSpanByte.cs
 /// We use ArgSlice to represent PinnedSpanByte.
 #[derive(Debug, Clone, Copy)]
 pub struct ArgSlice {
