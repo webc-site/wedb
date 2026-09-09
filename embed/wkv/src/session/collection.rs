@@ -299,8 +299,12 @@ impl<D: Device> StoreSession<D> {
   #[inline]
   pub(crate) fn probe_meta_has_expire(&self, user_key: &[u8]) -> Result<bool> {
     let meta_k = self.session_meta_key(user_key);
-    match self.try_read_raw_in_memory(&meta_k, |v| Self::meta_value_has_expire(v))? {
-      Some(has) => Ok(has),
+    match self.try_read_raw_in_memory(&meta_k, Self::meta_value_has_expire)? {
+      // 内存命中：以最新记录标志位为准
+      Some(Some(has)) => Ok(has),
+      // 内存确认不存在（墓碑/无候选）：候选消亡
+      Some(None) => Ok(false),
+      // 记录落盘：保守收集，由候选处理阶段的最新态双检兜底
       None => Ok(true),
     }
   }
@@ -562,6 +566,144 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
+  /// hash 字段级绝对过期写入口（对标 Redis 7.4 HEXPIREAT/HPEXPIREAT 与 Garnet
+  /// HashObject.HashExpire 的字段级过期语义；相对时长由调用方换算为绝对毫秒）
+  ///
+  /// 返回码对齐 key 级 expire_at 口径：-2 集合不存在（含 key 级 TTL 已过期惰性
+  /// 清除、幽灵元记录）；-1 field 不存在（含已随字段级惰性 purge 消亡）；0
+  /// NX/XX/GT/LT 条件不满足；1 成功（过去时间戳立即物理删除该字段亦返回 1，
+  /// 对齐 Redis HEXPIRE 过期即时删除语义）
+  pub async fn hexpire_at(
+    &self,
+    key: &[u8],
+    field: &[u8],
+    expire_at_ms: u64,
+    opt: TtlOpt,
+  ) -> Result<i32> {
+    self
+      .hash_field_ttl(key, field, FieldTtlCmd::Expire { expire_at_ms, opt })
+      .await
+  }
+
+  /// 移除 hash 字段的过期时间 (HPERSIST / Garnet HashObject.HashPersist 语义)
+  ///
+  /// 返回码：-2 集合不存在；-1 field 不存在；0 field 存在但未设置字段级 TTL；
+  /// 1 移除成功。has_expire 粘性标志不清除（其余字段可能仍有 TTL，读路径单探针
+  /// 快路径据此兜底）
+  pub async fn hpersist(&self, key: &[u8], field: &[u8]) -> Result<i32> {
+    self.hash_field_ttl(key, field, FieldTtlCmd::Persist).await
+  }
+
+  /// 收集并物理清除指定 Hash 集合内已过期字段（后台字段收集候选处理入口）
+  ///
+  /// 对标 Garnet ObjectCollectTask → storageSession.HashCollect 的对象内过期成员
+  /// 收集：GC 扫描过滤链从日志中识别带 has_expire 标志的元记录产出候选后，经本
+  /// 入口「加载最新集合 → purge_expired → 回写压缩」闭环。
+  ///
+  /// 双检幂等（与 key 级 sweep 最新态双检同型）：持本键独占桶锁后重读最新元记录
+  /// 再 purge——扫描与回写间隙内的并发字段写（hexpire_at/读路径慢分支均持同锁）
+  /// 以最新态为准，绝不丢更新；无过期字段则零写入直接返回，陈旧候选（集合已
+  /// 删除/重建/已被惰性 purge 清空）零副作用。返回物理清除的字段数
+  pub async fn collect_expired_hash_fields(&self, user_key: &[u8], now: u64) -> Result<u64> {
+    let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
+    let Some((mut meta, Some(mut payload))) = self
+      .load_collection_raw_write(user_key, CollectionType::Hash)
+      .await?
+    else {
+      return Ok(0);
+    };
+    // 单探针门控：标志未置位即无字段 TTL（防陈旧候选触发无谓全量扫描）
+    if !Self::get_meta_has_expire(&meta.reserved) {
+      return Ok(0);
+    }
+    let purged = CompactHashCodec::purge_expired(&mut payload, now)?;
+    if purged > 0 {
+      meta.dec_size(purged as u64);
+      self.save_compact_meta(user_key, &meta, &payload).await?;
+    }
+    Ok(purged as u64)
+  }
+
+  /// hexpire_at/hpersist 公共体：字段级 TTL 融合读改写（单次装载 + 最少次数回写）
+  ///
+  /// 语义不变式（与 key 级 expire_at 同源）：
+  /// - 判序：集合存活（-2）→ 字段级惰性 purge → 字段存活（-1）→ NX/XX/GT/LT
+  ///   选项校验（0）→ 过去时间戳立即删除（Expire，返回 1）；条件不满足绝不改动
+  ///   任何字段与任何 TTL；
+  /// - 字段级惰性 purge：装载时对带 has_expire 标志的 Compact 载荷执行一次
+  ///   `purge_expired`，已过期字段在判定前即不可见——「过期即不存在」口径下
+  ///   NX 对已过期字段返回 -1（字段已消亡）而非 0；
+  /// - 写路径置位 meta 的 has_expire 粘性标志（只置位不清除），读路径与后台收集
+  ///   据此单探针门控跳过无 TTL 字段的 hash；
+  /// - 持本键独占桶锁串行化读改写窗口（与 expire_at 同款；读路径慢分支与后台
+  ///   收集亦持同锁，杜绝 purge/回写间隙的并发字段写丢更新）；
+  /// - 删除最后一个存活字段时集合随之消亡（save_compact_meta 严格删空语义：
+  ///   附带清除 key 级 TTL 记录与元记录，对齐 Redis 删空即删键）；
+  /// - 防递归：purge/命令回写仅经 save_compact_meta 的 raw 写原语，绝不重入带
+  ///   守卫的集合读入口；
+  /// - Flattened 打平编码不支持字段级 TTL（字段 TTL 仅覆盖 Compact 紧凑载荷，
+  ///   payload=None 时视同集合不存在返回 -2；当前无打平 hash 写入口，不可达）
+  async fn hash_field_ttl(&self, key: &[u8], field: &[u8], cmd: FieldTtlCmd) -> Result<i32> {
+    let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[key])?;
+    let Some((mut meta, Some(mut payload))) = self
+      .load_collection_raw_write(key, CollectionType::Hash)
+      .await?
+    else {
+      return Ok(-2);
+    };
+    // 字段级惰性 purge（锁内无双写窗口，purge 与命令回写合并为最少写次数）
+    let purged = CompactHashCodec::purge_expired(&mut payload, now_ms())?;
+    if purged > 0 {
+      meta.dec_size(purged as u64);
+      self.save_compact_meta(key, &meta, &payload).await?;
+      if meta.size == 0 {
+        // 最后一个存活字段随 purge 删除：集合消亡，所有字段视同不存在
+        return Ok(-1);
+      }
+    }
+    let Some(fv) = CompactHashCodec::find(&payload, field) else {
+      return Ok(-1);
+    };
+    match cmd {
+      FieldTtlCmd::Expire { expire_at_ms, opt } => {
+        // NX/XX/GT/LT 条件判定（判序先于过去时间戳删除，条件不满足绝不误删）
+        let cond_fail = match fv.expire_at_ms {
+          Some(c) => opt.nx || (opt.gt && expire_at_ms <= c) || (opt.lt && expire_at_ms >= c),
+          // 从未设字段 TTL：XX/GT 无当前值可比，一律不满足
+          None => opt.xx || opt.gt,
+        };
+        if cond_fail {
+          return Ok(0);
+        }
+        let now = now_ms();
+        if expire_at_ms <= now {
+          // 过去时间戳：立即物理删除该字段（purge 已闭环，仅剩目标字段删除）
+          if CompactHashCodec::delete_field(&mut payload, field)? {
+            meta.dec_size(1);
+          }
+          self.save_compact_meta(key, &meta, &payload).await?;
+          return Ok(1);
+        }
+        // 置 TTL：值不变，仅附加 expire_at_ms 字段；同步置位粘性标志供读/GC 门控
+        let value = fv.value.to_vec();
+        CompactHashCodec::set_field(&mut payload, field, &value, Some(expire_at_ms))?;
+        Self::set_meta_has_expire(&mut meta.reserved);
+        self.save_compact_meta(key, &meta, &payload).await?;
+        Ok(1)
+      }
+      FieldTtlCmd::Persist => {
+        if fv.expire_at_ms.is_none() {
+          // field 存在但未设置字段级 TTL：无可移除
+          return Ok(0);
+        }
+        let value = fv.value.to_vec();
+        CompactHashCodec::set_field(&mut payload, field, &value, None)?;
+        self.save_compact_meta(key, &meta, &payload).await?;
+        Ok(1)
+      }
+    }
+  }
+
   /// 追加哈希字段至当前分块索引
   pub async fn append_hash_field(&self, meta: &mut MetaValue, field: &[u8]) -> Result<()> {
     self.append_hash_fields_batch(meta, &[field]).await
@@ -679,4 +821,18 @@ impl RawCollectionRead {
       }
     })
   }
+}
+
+/// 字段级 TTL 命令（hexpire_at/hpersist 公共体分发参数）
+#[derive(Debug, Clone, Copy)]
+enum FieldTtlCmd {
+  /// 设置字段绝对过期毫秒时间戳（含 NX/XX/GT/LT 条件）
+  Expire {
+    /// 绝对毫秒过期时间戳
+    expire_at_ms: u64,
+    /// 过期写选项
+    opt: TtlOpt,
+  },
+  /// 移除字段过期时间
+  Persist,
 }

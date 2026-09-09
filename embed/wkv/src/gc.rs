@@ -20,6 +20,16 @@
 //! 扫描观测对标 Garnet `ExpiredKeyDeletionScan` 的 `(numExpiredKeysFound,
 //! totalRecordsScanned)` 双口径（见 [`GcStatsSnapshot`]）。
 //!
+//! 第三段：hash 字段级过期收集（对标 Garnet StoreWrapper.ObjectCollectTaskAsync
+//! 按 EXPIRED_OBJECT_COLLECTION_FREQ 周期驱动 storageSession.HashCollect 收集
+//! 对象内过期成员）。与 Garnet 的差异：Garnet 为独立频率配置的独立后台任务，
+//! 直接遍历内存对象内的过期 field；wedb 的字段 TTL 以紧凑载荷内联存储，本引擎
+//! 在统一 GC 循环内并列复用既有热区/冷区两段扫描（过滤链扩展识别带 has_expire
+//! 粘性标志的 Meta 元记录产出候选，经 `collect_expired_hash_fields` 持锁双检后
+//! 压缩回写），不单设 EXPIRED_OBJECT_COLLECTION_FREQ 配置项、扫描频率由
+//! `scan_interval_ms` 统一承担——理由：字段级候选与 key 级候选同源于同一份日志，
+//! 合并单遍扫描省一遍全量 I/O，且统一执行闸天然防两段收集互相饿活。
+//!
 //! 驱动分三层：[`GcManager::run_once`]（单轮纯逻辑）、[`GcManager::drive`]（强引用
 //! 循环，供上层调度器接管）、[`GcManager::spawn`]（内置弱引用循环，引擎 Drop 自动
 //! 退出）。
@@ -46,6 +56,7 @@ use wbase::time::now_ms;
 use wcompact::CompactionType;
 use wdev::Device;
 use whasher::{GxBuildHasher, HashSet};
+use wval::{KeyTag, NamespaceDbCodec};
 
 use crate::{
   config::GcConfig,
@@ -66,10 +77,14 @@ type ExpiredKeySet = HashSet<(u64, u64, Box<[u8]>)>;
 struct GcStats {
   /// 累计物理删除的过期键数
   expired_deleted: AtomicU64,
+  /// 累计后台字段收集中物理清除的过期 Hash 字段数（对标 Garnet object collect 可观测性）
+  expired_fields_deleted: AtomicU64,
   /// 累计紧缩执行次数
   compactions: AtomicU64,
   /// 最近一轮过期扫描物理删除数
   last_scan_deleted: AtomicU64,
+  /// 最近一轮后台字段收集物理清除的字段数
+  last_scan_fields_deleted: AtomicU64,
   /// 最近一轮过期扫描记录数（两段扫描求和，对标 Garnet totalRecordsScanned 口径）
   last_scan_scanned: AtomicU64,
   /// 累计过期扫描记录数（各轮 last_scan_scanned 求和）
@@ -83,10 +98,15 @@ struct GcStats {
 pub struct GcStatsSnapshot {
   /// 累计物理删除的过期键数
   pub expired_deleted: u64,
+  /// 累计后台字段收集中物理清除的过期 Hash 字段数（对标 Garnet
+  /// ObjectCollectTask / HashCollect 的对象收集可观测性）
+  pub expired_fields_deleted: u64,
   /// 累计紧缩执行次数
   pub compactions: u64,
   /// 最近一轮过期扫描物理删除数
   pub last_scan_deleted: u64,
+  /// 最近一轮后台字段收集物理清除的字段数
+  pub last_scan_fields_deleted: u64,
   /// 最近一轮过期扫描记录数（热区 + 冷区两段求和，对标 Garnet
   /// `ExpiredKeyDeletionScan` 返回的 `totalRecordsScanned`）
   pub last_scan_scanned: u64,
@@ -201,8 +221,10 @@ impl<D: Device> GcManager<D> {
   pub fn stats(&self) -> GcStatsSnapshot {
     GcStatsSnapshot {
       expired_deleted: self.stats.expired_deleted.load(Relaxed),
+      expired_fields_deleted: self.stats.expired_fields_deleted.load(Relaxed),
       compactions: self.stats.compactions.load(Relaxed),
       last_scan_deleted: self.stats.last_scan_deleted.load(Relaxed),
+      last_scan_fields_deleted: self.stats.last_scan_fields_deleted.load(Relaxed),
       last_scan_scanned: self.stats.last_scan_scanned.load(Relaxed),
       total_scanned: self.stats.total_scanned.load(Relaxed),
       last_compact_dropped: self.stats.last_compact_dropped.load(Relaxed),
@@ -243,9 +265,17 @@ impl<D: Device> GcManager<D> {
     };
     // 每轮重读一次运行态配置快照（GcConfig 为纯标量结构，clone 即快照）
     let cfg = self.cfg.read().clone();
-    let (deleted, scanned) = self.sweep_expired(&store, &cfg).await?;
+    let (deleted, fields_deleted, scanned) = self.sweep_expired(&store, &cfg).await?;
     self.stats.expired_deleted.fetch_add(deleted, Relaxed);
+    self
+      .stats
+      .expired_fields_deleted
+      .fetch_add(fields_deleted, Relaxed);
     self.stats.last_scan_deleted.store(deleted, Relaxed);
+    self
+      .stats
+      .last_scan_fields_deleted
+      .store(fields_deleted, Relaxed);
     self.stats.last_scan_scanned.store(scanned, Relaxed);
     self.stats.total_scanned.fetch_add(scanned, Relaxed);
     self.try_compact(&store, &cfg).await
