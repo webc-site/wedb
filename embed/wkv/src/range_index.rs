@@ -67,6 +67,13 @@ impl From<wbftree::Error> for RangeIndexError {
 /// 默认叶子页面大小（自动推导失败时的回退值）
 const DEFAULT_LEAF_PAGE_SIZE: usize = 4096;
 
+/// 创建时未指定的调优默认值 (1:1 对标 Garnet RespServerSessionRangeIndex RI.CREATE 默认：
+/// 16MiB 缓存 / min 64 / max 1024 / max key 128，创建时固化进存根)
+const DEFAULT_CACHE_SIZE: usize = 16 * 1024 * 1024;
+const DEFAULT_MIN_RECORD_SIZE: usize = 64;
+const DEFAULT_MAX_RECORD_SIZE: usize = 1024;
+const DEFAULT_MAX_KEY_LEN: usize = 128;
+
 /// 把 wbftree 同步重操作卸载到 compio 阻塞线程 (基于 compio 生态的核保护优化)
 ///
 /// thread-per-core 下同步阻塞会停摆整核任务：快照恢复 (整文件解析 + 环形缓冲
@@ -103,7 +110,29 @@ impl<D: Device> StoreSession<D> {
       return Err(RangeIndexError::AlreadyExists);
     }
 
-    // 2. 动态计算叶子节点页面大小
+    // 2. 解析调优参数：0 值取 Garnet RI.CREATE 同款默认并在创建时固化进存根
+    //    (对标 C# 把解析后的实际值写入存根——后续长度校验与惰性恢复重建都拿
+    //    真实值，绝不为 0；否则全零存根会让 set 的长度校验把一切写入拒之门外)
+    let cache_size = if tuning.cache_size > 0 {
+      tuning.cache_size
+    } else {
+      DEFAULT_CACHE_SIZE
+    };
+    let min_record_size = if tuning.min_record_size > 0 {
+      tuning.min_record_size
+    } else {
+      DEFAULT_MIN_RECORD_SIZE
+    };
+    let max_record_size = if tuning.max_record_size > 0 {
+      tuning.max_record_size
+    } else {
+      DEFAULT_MAX_RECORD_SIZE
+    };
+    let max_key_len = if tuning.max_key_len > 0 {
+      tuning.max_key_len
+    } else {
+      DEFAULT_MAX_KEY_LEN
+    };
     let actual_leaf_page_size = if tuning.leaf_page_size > 0 {
       tuning.leaf_page_size
     } else if tuning.max_record_size > 0 {
@@ -117,8 +146,11 @@ impl<D: Device> StoreSession<D> {
     let mgr = Arc::clone(&self.store.range_index);
     let create_key = key.to_vec();
     let create_tuning = TreeTuning {
+      cache_size,
+      min_record_size,
+      max_record_size,
+      max_key_len,
       leaf_page_size: actual_leaf_page_size,
-      ..tuning
     };
     let create_backend = storage_backend.clone();
     let tree =
@@ -129,10 +161,10 @@ impl<D: Device> StoreSession<D> {
     // 4. 构建定长 35 字节 RangeIndexStub 并持久化入主日志库
     let stub = RangeIndexStub::new(
       tree.native_ptr(),
-      tuning.cache_size as u64,
-      tuning.min_record_size as u32,
-      tuning.max_record_size as u32,
-      tuning.max_key_len as u32,
+      cache_size as u64,
+      min_record_size as u32,
+      max_record_size as u32,
+      max_key_len as u32,
       actual_leaf_page_size as u32,
       storage_backend,
     );
@@ -530,6 +562,10 @@ impl<D: Device> StoreSession<D> {
   /// 写入被条带锁阻塞，杜绝「快照后写入不进新副本」的丢失写；锁释放到调用方
   /// 删除旧键之间的残留窗口由调用方紧随的 delete 收口），再从新文件恢复独立
   /// 树实例并按新键注册到管理器，最后写入新键元数据记录。
+  ///
+  /// 锁纪律：旧键条带写锁由本任务持有跨 await——span 锁不跨线程边界，compio
+  /// 任务不迁移线程，安全；快照 I/O 已卸载阻塞线程，锁窗口内无慢操作
+  #[allow(clippy::await_holding_lock)]
   pub async fn rename_range_index(&self, old_key: &[u8], new_key: &[u8]) -> Result<()> {
     // 读取旧键存根（调用方已确认 RI 元记录存在且 size > 0；缺失或畸形则无索引可迁移，
     // 防御性直接返回，交由调用方常规清理旧键）
@@ -562,9 +598,6 @@ impl<D: Device> StoreSession<D> {
     let _ = fs::remove_file(&new_path);
     {
       let old_hash = RangeIndexManager::key_hash_of(old_key);
-      // 锁由本任务持有跨 await：span 锁不跨线程，compio 任务不迁移，安全
-      // (整树 CPR 快照含 fsync 属重操作，已卸载阻塞线程)
-      #[allow(clippy::await_holding_lock)]
       let _xlock = self.store.range_index.locks().write(old_hash);
       let mgr = Arc::clone(&self.store.range_index);
       let snap_key = old_key.to_vec();

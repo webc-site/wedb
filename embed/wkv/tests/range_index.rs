@@ -97,22 +97,26 @@ fn test_ri_create_then_delete() -> Void {
     session
       .range_index_create(b"idx", StorageBackend::Std, TUNE)
       .await?;
-    session.range_index_set(b"idx", b"f1", b"v1").await?;
+    session
+      .range_index_set(b"idx", b"field1", b"value1")
+      .await?;
     assert!(session.delete(b"idx").await?);
 
     assert!(!session.range_index_exists(b"idx").await?);
-    let err = session.range_index_get(b"idx", b"f1").await;
+    let err = session.range_index_get(b"idx", b"field1").await;
     assert!(matches!(err, Err(RangeIndexError::NotFound)));
 
     // 重建后索引为空且可写
     session
       .range_index_create(b"idx", StorageBackend::Std, TUNE)
       .await?;
-    assert_eq!(session.range_index_get(b"idx", b"f1").await?, None);
-    session.range_index_set(b"idx", b"f1", b"v2").await?;
+    assert_eq!(session.range_index_get(b"idx", b"field1").await?, None);
+    session
+      .range_index_set(b"idx", b"field1", b"value2")
+      .await?;
     assert_eq!(
-      session.range_index_get(b"idx", b"f1").await?,
-      Some(b"v2".to_vec())
+      session.range_index_get(b"idx", b"field1").await?,
+      Some(b"value2".to_vec())
     );
     aok::Result::<()>::Ok(())
   })?;
@@ -140,6 +144,12 @@ fn test_ri_create_with_defaults_and_all_options() -> Void {
       session.range_index_get(b"idx_def", b"field").await?,
       Some(b"value".to_vec())
     );
+
+    // 解析后的默认值已固化进存根 (对标 C#)：min=64/max=1024/max_key=128
+    let def_stub = session.range_index_config(b"idx_def").await?;
+    assert_eq!(def_stub.min_record_size, 64);
+    assert_eq!(def_stub.max_record_size, 1024);
+    assert_eq!(def_stub.max_key_len, 128);
 
     // 全量自定义调优逐字段回读
     let all = TreeTuning {
@@ -235,17 +245,17 @@ fn test_ri_multiple_fields() -> Void {
       session
         .range_index_set(
           b"idx",
-          format!("f{i}").as_bytes(),
-          format!("v{i}").as_bytes(),
+          format!("field{i}").as_bytes(),
+          format!("value{i}").as_bytes(),
         )
         .await?;
     }
     for i in 0..5 {
       assert_eq!(
         session
-          .range_index_get(b"idx", format!("f{i}").as_bytes())
+          .range_index_get(b"idx", format!("field{i}").as_bytes())
           .await?,
-        Some(format!("v{i}").into_bytes())
+        Some(format!("value{i}").into_bytes())
       );
     }
     // 覆盖其中一个不影响其余
@@ -257,8 +267,8 @@ fn test_ri_multiple_fields() -> Void {
       Some(b"overwritten".to_vec())
     );
     assert_eq!(
-      session.range_index_get(b"idx", b"f3").await?,
-      Some(b"v3".to_vec())
+      session.range_index_get(b"idx", b"field3").await?,
+      Some(b"value3".to_vec())
     );
     aok::Result::<()>::Ok(())
   })?;
@@ -289,7 +299,9 @@ fn test_ri_wrong_type_isolation() -> Void {
     session
       .range_index_create(b"ri_key", StorageBackend::Std, TUNE)
       .await?;
-    session.range_index_set(b"ri_key", b"f", b"secret").await?;
+    session
+      .range_index_set(b"ri_key", b"field", b"secret")
+      .await?;
     let normal = session.read(b"ri_key").await;
     assert!(
       matches!(normal, Ok(None)) || normal.is_err(),
@@ -393,7 +405,7 @@ fn test_ri_invalid_kv_validation() -> Void {
 
     // 边界内合法
     session
-      .range_index_set(b"idx", &vec![b'k'; TUNE.max_key_len], &[b'v'; 100])
+      .range_index_set(b"idx", &[b'k'; TUNE.max_key_len], &[b'v'; 100])
       .await?;
     aok::Result::<()>::Ok(())
   })?;
