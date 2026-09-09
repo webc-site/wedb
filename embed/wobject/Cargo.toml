@@ -17,14 +17,17 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+bitcode.workspace = true
 bitflags = "2.13.1"
 byteorder = "1.5.0"
 fastrand.workspace = true
 gxhash.workspace = true
+itoa.workspace = true
 ordered-float = "5.5.0"
 papaya.workspace = true
 parking_lot.workspace = true
 thiserror = "2.0.20"
+zmij.workspace = true
 
 [dev-dependencies]
 aok = "0.1.18"
