@@ -90,6 +90,7 @@ fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
 /// - 单页磁盘缓存先 `take()` 后读（见 [Self::next_ref] 分支 1），读失败时缓存
 ///   已出列且不回填，绝不残留指向失败页的毒化缓存；
 /// - 迭代器游标仅在成功消费后推进（[Self::advance]），失败重入自动重试当前页。
+///
 /// 回归测试见 `tests/hlog/flaky_device.rs`（对标 C# test.hlog/FlakyDeviceTests.cs）。
 pub struct ScanIterator<'a, D: Device> {
   hlog: &'a HybridLog<D>,
