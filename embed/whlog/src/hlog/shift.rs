@@ -228,6 +228,19 @@ impl<D: Device> HybridLog<D> {
 
   /// 获取当前 TailAddress
   #[inline]
+
+  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetTailAddress
+  #[inline]
+  pub fn get_tail_address(&self) -> u64 {
+    self.addresses.tail()
+  }
+
+  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:UnstableGetTailAddress
+  #[inline]
+  pub fn unstable_get_tail_address(&self) -> u64 {
+    self.addresses.tail() // equivalent since atomic reads are volatile
+  }
+
   pub fn tail_address(&self) -> u64 {
     self.addresses.tail()
   }

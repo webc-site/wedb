@@ -304,6 +304,7 @@ impl<D: Device> HybridLog<D> {
   /// 新追加的记录亦可能落在视野之外。需要强一致快照的调用方（checkpoint/恢复/
   /// 审计）必须先冻结写入再扫描——`shift_read_only_to_tail` + 纪元排空（同
   /// flush 崩溃一致性契约），语义边界详见 [ScanIterator] 文档。**
+  /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs:MemoryPageScan
   pub fn scan_iter(&self, begin_addr: u64, end_addr: u64) -> ScanIterator<'_, D> {
     ScanIterator::new(self, begin_addr, end_addr)
   }
