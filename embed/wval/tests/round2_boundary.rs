@@ -13,7 +13,7 @@ use wrecord::{
 use wval::{
   CollectionType, CompactHash, CompactHashCodec, CompactMetaValue, CompactSet, CompactSetCodec,
   CompactZSet, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, SubKeyBuf, ZSetEntryRef,
-  ZSetSubKeyBuf,
+  ZSetSubKeyBuf, ZSetSubKeyCodec,
 };
 
 #[ctor::ctor(unsafe)]
@@ -276,12 +276,12 @@ fn test_round2_subkey_buf_stack_heap_contracts() -> Void {
   assert!(zheap.is_heap());
   assert_eq!(zheap.len(), 129);
 
-  // Score key: 25 header + 103 = 128 bytes
-  let zscore_stack = ZSetSubKeyBuf::from_score(1, 1, 3.25, &[b's'; 103])?;
+  // Score key: 25 header + 103 = 128 bytes（经 ZSetSubKeyCodec 直配栈/堆边界）
+  let zscore_stack = ZSetSubKeyCodec::encode_score_key_buf(1, 1, 3.25, &[b's'; 103])?;
   assert!(zscore_stack.is_stack());
   assert_eq!(zscore_stack.len(), 128);
 
-  let zscore_heap = ZSetSubKeyBuf::from_score(1, 1, 3.25, &[b's'; 104])?;
+  let zscore_heap = ZSetSubKeyCodec::encode_score_key_buf(1, 1, 3.25, &[b's'; 104])?;
   assert!(zscore_heap.is_heap());
   assert_eq!(zscore_heap.len(), 129);
 

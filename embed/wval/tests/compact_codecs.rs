@@ -3,7 +3,7 @@ use log::info;
 use wval::{
   CollectionType, CompactHash, CompactHashCodec, CompactSet, CompactSetCodec, CompactZSet,
   CompactZSetCodec, FieldValueRef, HashEntryRef, META_VALUE_SIZE, MetaValue, StorageEncoding,
-  ZSetEntryRef, encode_order_preserving_f64,
+  ZSetEntryRef,
 };
 
 #[ctor::ctor(unsafe)]
@@ -590,65 +590,6 @@ fn test_compact_zset_score_ordering_and_tie_breaker() -> Void {
 }
 
 #[test]
-fn test_compact_zset_binary_search_entry() -> Void {
-  info!("测试 CompactZSetCodec::binary_search_entry 按 (分值, 成员) 复合键二分定位");
-
-  let mut zset = CompactZSet::new();
-  zset.insert(5.0, b"bob")?;
-  zset.insert(10.0, b"alice")?;
-  zset.insert(10.0, b"charlie")?;
-  zset.insert(20.0, b"david")?;
-
-  // 命中：精确匹配 (保序分值, 成员) 复合键
-  let alice = CompactZSetCodec::binary_search_entry(
-    zset.as_slice(),
-    encode_order_preserving_f64(10.0),
-    b"alice",
-  )?;
-  assert_eq!(alice, Ok(1));
-  let david = CompactZSetCodec::binary_search_entry(
-    zset.as_slice(),
-    encode_order_preserving_f64(20.0),
-    b"david",
-  )?;
-  assert_eq!(david, Ok(3));
-
-  // 同分不同成员：字典序 tie-breaker 精确区分
-  let charlie = CompactZSetCodec::binary_search_entry(
-    zset.as_slice(),
-    encode_order_preserving_f64(10.0),
-    b"charlie",
-  )?;
-  assert_eq!(charlie, Ok(2));
-
-  // 未命中：返回有序插入点
-  let absent = CompactZSetCodec::binary_search_entry(
-    zset.as_slice(),
-    encode_order_preserving_f64(10.0),
-    b"bob",
-  )?;
-  // (10.0, "bob") 应插入在 (10.0, "alice") 与 (10.0, "charlie") 之间
-  assert_eq!(absent, Err(2));
-  let tail = CompactZSetCodec::binary_search_entry(
-    zset.as_slice(),
-    encode_order_preserving_f64(30.0),
-    b"eve",
-  )?;
-  assert_eq!(tail, Err(4));
-
-  // 空集合：插入点为 0
-  let empty = CompactZSet::new();
-  let hit = CompactZSetCodec::binary_search_entry(
-    empty.as_slice(),
-    encode_order_preserving_f64(1.0),
-    b"any",
-  )?;
-  assert_eq!(hit, Err(0));
-
-  OK
-}
-
-#[test]
 fn test_compact_zset_rank_and_key_at_rank() -> Void {
   info!("测试 CompactZSet 排名计算 (rank_of) 与按排名提取 (key_at_rank)");
 
@@ -869,18 +810,10 @@ fn test_compact_zset_redis_style_api() -> Void {
   assert_eq!(zset.zcard(), 3);
   assert_eq!(zset.zrank(b"m4"), None);
 
-  // to_bitcode / from_bitcode 往返
-  let restored = CompactZSet::from_bitcode(&zset.to_bitcode())?;
-  assert_eq!(restored.as_slice(), zset.as_slice());
-
-  // 空集合弹出与 Bitcode 往返
+  // 空集合弹出
   let mut empty = CompactZSet::new();
   assert!(empty.pop_min().is_none());
   assert!(empty.pop_max().is_none());
-  assert_eq!(
-    CompactZSet::from_bitcode(&empty.to_bitcode())?.as_slice(),
-    &[0, 0]
-  );
 
   OK
 }

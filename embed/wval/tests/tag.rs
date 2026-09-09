@@ -162,27 +162,20 @@ fn test_bftag_roundtrip_and_properties() -> Void {
   assert_eq!(BfTag::TAG_LEN, 1);
   assert_eq!(BfTag::BUSINESS_TAG_MAX, 31);
   assert_eq!(BfTag::SYSTEM_TAG_BASE, 32);
-  assert_eq!(BfTag::SYSTEM_TAG_MAX, 63);
   assert_eq!(BfTag::STACK_KEY_CAP, 64);
 
   // 校验 const fn strip_prefix 编译期能力
   const CONST_STRIP: Option<&[u8]> = BfTag::AclUser.strip_prefix(&[33, b'o', b'k']);
   assert_eq!(CONST_STRIP, Some(b"ok".as_slice()));
 
-  // 校验键构建与剥离
-  let user_key = BfTag::AclUser.encode_key(b"admin");
-  assert_eq!(user_key, [33, b'a', b'd', b'm', b'i', b'n']);
+  // 校验 const fn strip_prefix 语义（手工拼键）
+  let user_key = [33u8, b'a', b'd', b'm', b'i', b'n'];
   assert_eq!(
     BfTag::AclUser.strip_prefix(&user_key),
     Some(b"admin".as_slice())
   );
   assert_eq!(BfTag::AclMeta.strip_prefix(&user_key), None);
   assert_eq!(BfTag::AclUser.strip_prefix(&[]), None);
-
-  // 校验栈闭包零分配构造
-  BfTag::AclUser.with_key(b"guest", |k| {
-    assert_eq!(k, [33, b'g', b'u', b'e', b's', b't']);
-  });
 
   // 非法 tag 校验
   assert_eq!(BfTag::from_u8(2), None);

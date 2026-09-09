@@ -249,12 +249,6 @@ impl ZSetSubKeyBuf {
   pub fn from_member(key_id: u64, version: u64, member: &[u8]) -> Result<Self> {
     ZSetSubKeyCodec::encode_member_key_buf(key_id, version, member)
   }
-
-  /// 从分值参数直接构造优先栈分配的子键缓冲区
-  #[inline]
-  pub fn from_score(key_id: u64, version: u64, score: f64, member: &[u8]) -> Result<Self> {
-    ZSetSubKeyCodec::encode_score_key_buf(key_id, version, score, member)
-  }
 }
 
 /// 有序集合打平子键与保序分值无锁静态编解码器
@@ -464,23 +458,6 @@ impl ZSetSubKeyCodec {
       key_id,
       version,
       member,
-    })
-  }
-
-  /// 编码有序集合分值子键至目标切片（零堆分配）
-  #[inline]
-  pub fn encode_score_key_to_slice(
-    key_id: u64,
-    version: u64,
-    score: f64,
-    member: &[u8],
-    dst: &mut [u8],
-  ) -> Result<usize> {
-    let total_len = check_member_len(member.len(), SCORE_KEY_HEADER_SIZE)?;
-    let header = Self::encode_score_header(key_id, version, score);
-    put_header_payload(dst, &header, member).ok_or(Error::BufferTooShort {
-      expected: total_len,
-      actual: dst.len(),
     })
   }
 

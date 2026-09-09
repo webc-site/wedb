@@ -53,10 +53,7 @@ impl BfTag {
   /// 业务有序数据标签上限 (0..=31 共 32 个槽位)
   pub const BUSINESS_TAG_MAX: u8 = 31;
   /// 系统元数据起始边界 (32..=63 共 32 个槽位)
-  pub const SYSTEM_TAG_BASE: u8 = 32;
-  /// 系统元数据标签上限 (32..=63 共 32 个槽位)
-  pub const SYSTEM_TAG_MAX: u8 = 63;
-  /// 栈分配键最大容量 (64 字节，对齐 L1 缓存行)
+  pub const SYSTEM_TAG_BASE: u8 = 32;  /// 栈分配键最大容量 (64 字节，对齐 L1 缓存行)
   pub const STACK_KEY_CAP: usize = 64;
 
   /// 从 1 字节整数解析 BfTree 标签 (const fn)
@@ -107,34 +104,6 @@ impl BfTag {
   #[inline(always)]
   pub const fn is_zset(self) -> bool {
     matches!(self, Self::ZMember | Self::ZScore)
-  }
-
-  /// 在栈缓冲区上零分配构造完整 BfTree 键并执行闭包（子键 <= 63 字节全程零堆分配）
-  #[inline]
-  pub fn with_key<R>(self, sub_key: &[u8], f: impl FnOnce(&[u8]) -> R) -> R {
-    let total_len = Self::TAG_LEN + sub_key.len();
-    if total_len <= Self::STACK_KEY_CAP {
-      let mut buf = [0u8; Self::STACK_KEY_CAP];
-      buf[0] = self as u8;
-      buf[1..total_len].copy_from_slice(sub_key);
-      f(&buf[..total_len])
-    } else {
-      let mut vec = Vec::with_capacity(total_len);
-      vec.push(self as u8);
-      vec.extend_from_slice(sub_key);
-      f(&vec)
-    }
-  }
-
-  /// 构造拼接子标识的完整 BfTree 键 Vec
-  #[inline]
-  pub fn encode_key(self, sub_key: impl AsRef<[u8]>) -> Vec<u8> {
-    let sub = sub_key.as_ref();
-    let total_len = Self::TAG_LEN + sub.len();
-    let mut key = Vec::with_capacity(total_len);
-    key.push(self as u8);
-    key.extend_from_slice(sub);
-    key
   }
 
   /// 从完整物理键中剥离单字节标签，提取子标识切片 (const fn)

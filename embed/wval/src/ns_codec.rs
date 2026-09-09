@@ -553,13 +553,6 @@ impl NamespaceDbCodec {
     let prefix = SessionPrefixBuf::new(ns, db);
     Self::encode_with_session_prefix(prefix.as_slice(), tag, payload)
   }
-
-  /// 便捷方法：编码普通字符串键 (KeyTag::String = 0x00)
-  #[inline(always)]
-  pub fn encode_string_key(ns: u64, db: u64, user_key: &[u8]) -> TaggedKeyBuf {
-    Self::encode_tagged_key(ns, db, KeyTag::String, user_key)
-  }
-
   /// 便捷方法：编码集合元数据键 (KeyTag::Meta = 0x01)
   #[inline(always)]
   pub fn encode_meta_key(ns: u64, db: u64, user_key: &[u8]) -> TaggedKeyBuf {
@@ -616,21 +609,6 @@ impl NamespaceDbCodec {
     }
   }
 
-  /// 便捷方法：编码方案 A 集合分块子键
-  /// 结构：`[NsVarint] + [DbVarint] + [KeyTag: 1B] + [key_id: 8B be] + [version: 8B be] + [chunk_id: 4B be]`
-  #[inline]
-  pub fn encode_chunk_key(
-    ns: u64,
-    db: u64,
-    tag: KeyTag,
-    key_id: u64,
-    version: u64,
-    chunk_id: u32,
-  ) -> TaggedKeyBuf {
-    let prefix = SessionPrefixBuf::new(ns, db);
-    Self::encode_chunk_key_with_prefix(prefix.as_slice(), tag, key_id, version, chunk_id)
-  }
-
   /// 便捷方法：基于已知会话前缀编码方案 A 集合分块子键（栈优先零堆分配）
   #[inline]
   pub fn encode_chunk_key_with_prefix(
@@ -641,86 +619,6 @@ impl NamespaceDbCodec {
     chunk_id: u32,
   ) -> TaggedKeyBuf {
     Self::encode_sub_key_with_prefix(prefix, tag, key_id, version, &chunk_id.to_be_bytes())
-  }
-
-  /// 基于已知会话前缀在栈上构造物理键并执行闭包（短键全程零堆分配）
-  #[inline]
-  pub fn with_session_prefix<R>(
-    prefix: &[u8],
-    tag: KeyTag,
-    payload: &[u8],
-    f: impl FnOnce(&[u8]) -> R,
-  ) -> R {
-    let buf = Self::encode_with_session_prefix(prefix, tag, payload);
-    f(buf.as_slice())
-  }
-
-  /// 在栈缓冲区上零堆分配构造物理键并执行闭包（用户键 <= 59B 全程零分配）
-  #[inline]
-  pub fn with_tagged_key<R>(
-    ns: u64,
-    db: u64,
-    tag: KeyTag,
-    payload: &[u8],
-    f: impl FnOnce(&[u8]) -> R,
-  ) -> R {
-    let buf = Self::encode_tagged_key(ns, db, tag, payload);
-    f(buf.as_slice())
-  }
-
-  /// 便捷闭包方法：普通字符串键
-  #[inline(always)]
-  pub fn with_string_key<R>(ns: u64, db: u64, user_key: &[u8], f: impl FnOnce(&[u8]) -> R) -> R {
-    Self::with_tagged_key(ns, db, KeyTag::String, user_key, f)
-  }
-
-  /// 便捷闭包方法：集合元数据键
-  #[inline(always)]
-  pub fn with_meta_key<R>(ns: u64, db: u64, user_key: &[u8], f: impl FnOnce(&[u8]) -> R) -> R {
-    Self::with_tagged_key(ns, db, KeyTag::Meta, user_key, f)
-  }
-
-  /// 将物理键原位直接写入目标预分配切片（零堆分配，零中间栈拷贝）
-  #[inline]
-  pub fn encode_to_slice(
-    ns: u64,
-    db: u64,
-    tag: KeyTag,
-    payload: &[u8],
-    dst: &mut [u8],
-  ) -> Result<usize> {
-    let total_len = Self::key_len(ns, db, payload.len());
-    if dst.len() < total_len {
-      return Err(Error::BufferTooShort {
-        expected: total_len,
-        actual: dst.len(),
-      });
-    }
-    let ns_len = Self::encode_varint(ns, dst)?;
-    let db_len = Self::encode_varint(db, &mut dst[ns_len..])?;
-    let prefix_len = ns_len + db_len;
-    dst[prefix_len] = tag as u8;
-    dst[prefix_len + KeyTag::TAG_LEN..total_len].copy_from_slice(payload);
-    Ok(total_len)
-  }
-
-  /// 将包含已知前缀的物理键写入目标切片
-  #[inline]
-  pub fn encode_with_session_prefix_to_slice(
-    prefix: &[u8],
-    tag: KeyTag,
-    payload: &[u8],
-    dst: &mut [u8],
-  ) -> Result<usize> {
-    let total_len = prefix.len() + KeyTag::TAG_LEN + payload.len();
-    if dst.len() < total_len {
-      return Err(Error::BufferTooShort {
-        expected: total_len,
-        actual: dst.len(),
-      });
-    }
-    write_key_parts(prefix, tag, payload, dst);
-    Ok(total_len)
   }
 
   /// 从完整物理键中解码出 `(ns, db, tag, payload)` (const fn)
@@ -778,41 +676,6 @@ impl NamespaceDbCodec {
         };
         Ok((ns, db, tag, payload))
       }
-    }
-  }
-
-  /// 基于原物理键快速替换其 KeyTag（栈缓冲优先零堆分配）
-  #[inline]
-  pub fn replace_tag(key: &[u8], new_tag: KeyTag) -> Option<TaggedKeyBuf> {
-    match key {
-      [ns_b, db_b, tag_byte, _payload @ ..]
-        if *ns_b < VARINT_1B_FIRST_BYTE_LIMIT
-          && *db_b < VARINT_1B_FIRST_BYTE_LIMIT
-          && KeyTag::from_u8(*tag_byte).is_some() =>
-      {
-        Some(Self::replace_tag_at(key, 2, new_tag))
-      }
-      _ => {
-        let (_ns, _db, _tag, user_key) = Self::decode_tagged_key(key).ok()?;
-        let tag_offset = key.len().checked_sub(user_key.len() + 1)?;
-        Some(Self::replace_tag_at(key, tag_offset, new_tag))
-      }
-    }
-  }
-
-  /// 已知 tag_offset 时的高速替换方法（跳过 decode_tagged_key，零额外解析，栈优先零堆分配）
-  #[inline]
-  pub fn replace_tag_at(key: &[u8], tag_offset: usize, new_tag: KeyTag) -> TaggedKeyBuf {
-    assert!(tag_offset < key.len(), "tag_offset 越界");
-    if key.len() <= STACK_KEY_CAP {
-      let mut buf = [0u8; STACK_KEY_CAP];
-      buf[..key.len()].copy_from_slice(key);
-      buf[tag_offset] = new_tag as u8;
-      TaggedKeyBuf::from_stack(buf, key.len() as u8)
-    } else {
-      let mut vec = key.to_vec();
-      vec[tag_offset] = new_tag as u8;
-      TaggedKeyBuf::from_heap(vec)
     }
   }
 
