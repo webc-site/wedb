@@ -35,6 +35,8 @@ impl MainSessionFunctions {
     _rmw_info: &mut RMWInfo,
     _record_info: &mut LogRecord,
   ) -> bool {
+    // Initial updater logic. e.g. TrySetValueSpanAndPrepareOptionals
+    // if input.arg1 != 0 { dstLogRecord.TrySetExpiration(input.arg1) }
     true
   }
 
@@ -48,6 +50,7 @@ impl MainSessionFunctions {
     rmw_info: &mut RMWInfo,
     _record_info: &mut LogRecord,
   ) {
+    // watchVersionMap.IncrementVersion(rmwInfo.KeyHash);
     rmw_info.user_data |= Self::NEED_AOF_LOG;
   }
 
@@ -102,6 +105,7 @@ impl MainSessionFunctions {
     rmw_info: &mut RMWInfo,
     _record_info: &mut LogRecord,
   ) -> bool {
+    // watchVersionMap.IncrementVersion(rmwInfo.KeyHash);
     rmw_info.user_data |= Self::NEED_AOF_LOG;
     true
   }

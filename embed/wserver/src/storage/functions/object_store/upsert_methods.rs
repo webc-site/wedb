@@ -12,7 +12,7 @@ impl ObjectSessionFunctions {
     &self,
     _dst_log_record: &mut LogRecord,
     _size_info: &RecordSizeInfo,
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _src_value: &mut GarnetObject,
     _output: &mut (),
     _upsert_info: &mut UpsertInfo,
@@ -25,7 +25,7 @@ impl ObjectSessionFunctions {
     &self,
     _log_record: &mut LogRecord,
     _size_info: &RecordSizeInfo,
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _src_value: &mut GarnetObject,
     _output: &mut (),
     upsert_info: &mut UpsertInfo,
@@ -37,7 +37,7 @@ impl ObjectSessionFunctions {
   pub fn in_place_writer(
     &self,
     _log_record: &mut LogRecord,
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _src_value: &mut GarnetObject,
     _output: &mut (),
     upsert_info: &mut UpsertInfo,
@@ -49,8 +49,8 @@ impl ObjectSessionFunctions {
   /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/UpsertMethods.cs:PostUpsertOperation
   pub fn post_upsert_operation(
     &self,
-    _key: &[u8],
-    _input: &mut ObjectInput,
+    __key: &[u8],
+    __input: &mut ObjectInput,
     _value_span: &mut GarnetObject,
     upsert_info: &mut UpsertInfo,
   ) {

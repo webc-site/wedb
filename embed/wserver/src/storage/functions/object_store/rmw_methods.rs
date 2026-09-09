@@ -9,7 +9,7 @@ impl ObjectSessionFunctions {
   pub fn need_initial_update(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _output: &mut (),
     _rmw_info: &mut RMWInfo,
   ) -> bool {
@@ -20,7 +20,7 @@ impl ObjectSessionFunctions {
   pub fn initial_updater(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _value: &mut LogRecord,
     _output: &mut (),
     _rmw_info: &mut RMWInfo,
@@ -33,7 +33,7 @@ impl ObjectSessionFunctions {
   pub fn post_initial_updater(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _value: &mut LogRecord,
     _output: &mut (),
     rmw_info: &mut RMWInfo,
@@ -46,7 +46,7 @@ impl ObjectSessionFunctions {
   pub fn in_place_updater(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _value: &mut LogRecord,
     _output: &mut (),
     rmw_info: &mut RMWInfo,
@@ -60,7 +60,7 @@ impl ObjectSessionFunctions {
   pub fn need_copy_update(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _old_value: &mut GarnetObject,
     _output: &mut (),
     _rmw_info: &mut RMWInfo,
@@ -72,7 +72,7 @@ impl ObjectSessionFunctions {
   pub fn copy_updater(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _old_value: &mut GarnetObject,
     _new_value: &mut LogRecord,
     _output: &mut (),
@@ -86,7 +86,7 @@ impl ObjectSessionFunctions {
   pub fn post_copy_updater(
     &self,
     _key: &[u8],
-    _input: &mut ObjectInput,
+    __input: &mut ObjectInput,
     _old_value: &mut GarnetObject,
     _new_value: &mut LogRecord,
     _output: &mut (),
@@ -98,7 +98,7 @@ impl ObjectSessionFunctions {
   }
 
   /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:PostRMWOperation
-  pub fn post_rmw_operation(&self, _key: &[u8], _input: &mut ObjectInput, rmw_info: &mut RMWInfo) {
+  pub fn post_rmw_operation(&self, _key: &[u8], __input: &mut ObjectInput, rmw_info: &mut RMWInfo) {
     if (rmw_info.user_data & Self::NEED_AOF_LOG) == Self::NEED_AOF_LOG {
       // WriteLogRMW
     }
