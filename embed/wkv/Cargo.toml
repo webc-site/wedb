@@ -13,6 +13,9 @@ categories = ["database-implementations", "data-structures", "concurrency", "asy
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[dependencies]
+wutil = { version = "0.1.0", path = "../wutil" }
+
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time"]
 path = "../wbase"
@@ -55,9 +58,6 @@ workspace = true
 workspace = true
 
 [dependencies.windex]
-workspace = true
-
-[dependencies.wram]
 workspace = true
 
 [dependencies.wrecord]
