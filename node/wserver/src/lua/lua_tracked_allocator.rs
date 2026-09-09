@@ -2,10 +2,7 @@
 //! 支持 infallible 通道内的强制分配
 //! （对标 libs/server/Lua/LuaTrackedAllocator.cs:LuaTrackedAllocator）。
 
-use super::{
-  i_lua_allocator::ILuaAllocator,
-  lua_managed_allocator::LuaManagedAllocator,
-};
+use super::{i_lua_allocator::ILuaAllocator, lua_managed_allocator::LuaManagedAllocator};
 
 /// 带配额的分配器。
 pub struct LuaTrackedAllocator {

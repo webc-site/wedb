@@ -23,7 +23,12 @@ impl LuaTimeoutManager {
   /// libs/server/Lua/LuaTimeoutManager.cs:SetCookie
   ///
   /// 为登记项更新截止时刻（now_monotonic_millis + timeout_millis）。
-  pub fn set_cookie(&mut self, cookie: TimeoutCookie, now_monotonic_millis: i64, timeout_millis: i64) {
+  pub fn set_cookie(
+    &mut self,
+    cookie: TimeoutCookie,
+    now_monotonic_millis: i64,
+    timeout_millis: i64,
+  ) {
     self
       .registrations
       .insert(cookie, now_monotonic_millis + timeout_millis.max(0));
@@ -42,7 +47,11 @@ impl LuaTimeoutManager {
   /// libs/server/Lua/LuaTimeoutManager.cs:RegisterForTimeout
   ///
   /// 登记会话超时，返回其 cookie。
-  pub fn register_for_timeout(&mut self, now_monotonic_millis: i64, timeout_millis: i64) -> TimeoutCookie {
+  pub fn register_for_timeout(
+    &mut self,
+    now_monotonic_millis: i64,
+    timeout_millis: i64,
+  ) -> TimeoutCookie {
     self.next_cookie += 1;
     let cookie = TimeoutCookie(self.next_cookie);
     self.set_cookie(cookie, now_monotonic_millis, timeout_millis);

@@ -4,7 +4,7 @@
 //! 每块前置 `BlockHeader`（容量 + 对齐）以支撑 resize；用量簿记供
 //! INFO/监视面读取。
 
-use std::alloc::{alloc as std_alloc, dealloc as std_dealloc, realloc as std_realloc, Layout};
+use std::alloc::{Layout, alloc as std_alloc, dealloc as std_dealloc, realloc as std_realloc};
 
 use super::i_lua_allocator::ILuaAllocator;
 
@@ -40,11 +40,16 @@ impl LuaManagedAllocator {
   }
 
   fn layout_for(size: usize, align: usize) -> Option<Layout> {
-    Layout::from_size_align(size.max(1).checked_add(BlockHeader::LAYOUT.size())?, align.max(BlockHeader::LAYOUT.align())).ok()
+    Layout::from_size_align(
+      size.max(1).checked_add(BlockHeader::LAYOUT.size())?,
+      align.max(BlockHeader::LAYOUT.align()),
+    )
+    .ok()
   }
 
   unsafe fn header_of(ptr: *mut u8) -> *mut BlockHeader {
-    ptr.cast::<BlockHeader>().sub(1)
+    // SAFETY：ptr 由 allocate_new 产出，块头紧邻其前。
+    unsafe { ptr.cast::<BlockHeader>().sub(1) }
   }
 }
 
@@ -65,8 +70,7 @@ impl ILuaAllocator for LuaManagedAllocator {
     if ptr.is_null() {
       return None;
     }
-    // SAFETY：ptr 指向 layout.size() 字节，可容纳块头。
-    let header = unsafe { ptr.cast::<BlockHeader>() };
+    let header = ptr.cast::<BlockHeader>();
     unsafe {
       (*header) = BlockHeader {
         capacity: layout.size(),
@@ -85,9 +89,7 @@ impl ILuaAllocator for LuaManagedAllocator {
     // SAFETY：ptr 为本分配器产出且有效的块。
     let header = unsafe { Self::header_of(ptr) };
     let (capacity, align) = unsafe { ((*header).capacity, (*header).align) };
-    let Some(new_layout) = Self::layout_for(new_size, align) else {
-      return None;
-    };
+    let new_layout = Self::layout_for(new_size, align)?;
     let old_layout = Layout::from_size_align(capacity, align).ok()?;
     // SAFETY：header 指向 old_layout 的块。
     let base = header.cast::<u8>();

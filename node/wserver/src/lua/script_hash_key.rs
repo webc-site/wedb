@@ -1,6 +1,8 @@
 //! 脚本哈希键：脚本 SHA1 摘要的规范化存储
 //! （对标 libs/server/Lua/ScriptHashKey.cs:ScriptHashKey）。
 
+use std::str;
+
 /// SHA1 十六进制长度。
 pub const SHA1_HEX_LEN: usize = 40;
 
@@ -34,7 +36,7 @@ impl ScriptHashKey {
 
   /// 摘要字符串视图（hex 为 ASCII，必然合法 UTF-8）。
   pub fn as_str(&self) -> &str {
-    std::str::from_utf8(&self.buf).expect("hex 摘要恒为 ASCII")
+    str::from_utf8(&self.buf).expect("hex 摘要恒为 ASCII")
   }
 
   /// libs/server/Lua/ScriptHashKey.cs:CopyTo

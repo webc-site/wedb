@@ -5,6 +5,8 @@
 //! `Vec<Value>` 栈镜像：push/pop/rotate/settop/next 等映射到栈镜像，
 //! 表与全局操作落到 mlua，编译/执行经 `load`/`pcall`。
 
+use std::{collections::HashMap, str};
+
 use mlua::{Lua, MultiValue, Value, Variadic};
 
 use super::i_lua_allocator::ILuaAllocator;
@@ -17,7 +19,7 @@ pub struct LuaStateWrapper {
   /// luau VM。
   lua: Lua,
   /// 注册表引用：id → RegistryKey。
-  refs: std::collections::HashMap<i32, mlua::RegistryKey>,
+  refs: HashMap<i32, mlua::RegistryKey>,
   /// 引用 id 分配器。
   next_ref_id: i32,
   /// C API 栈镜像（栈顶 = 末尾）。
@@ -41,7 +43,7 @@ impl LuaStateWrapper {
     Self {
       lua,
       stack: Vec::new(),
-      refs: std::collections::HashMap::new(),
+      refs: HashMap::new(),
       next_ref_id: 0,
       deadline_monotonic_millis: None,
       allocator: None,
@@ -62,7 +64,9 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryEnsureMinimumStackCapacity
   pub fn try_ensure_minimum_stack_capacity(&mut self, min_capacity: usize) -> bool {
-    self.stack.reserve(min_capacity.saturating_sub(self.stack.len()));
+    self
+      .stack
+      .reserve(min_capacity.saturating_sub(self.stack.len()));
     true
   }
 
@@ -236,7 +240,7 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:GetGlobal
   pub fn get_global(&mut self, name: &[u8]) -> bool {
-    let Ok(name) = std::str::from_utf8(name) else {
+    let Ok(name) = str::from_utf8(name) else {
       return false;
     };
     match self.lua.globals().get(name) {
@@ -250,7 +254,7 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:TrySetGlobal
   pub fn try_set_global(&mut self, name: &[u8]) -> bool {
-    let (Some(value), Ok(name)) = (self.stack.pop(), std::str::from_utf8(name)) else {
+    let (Some(value), Ok(name)) = (self.stack.pop(), str::from_utf8(name)) else {
       return false;
     };
     self.lua.globals().set(name, value).is_ok()
@@ -260,7 +264,7 @@ impl LuaStateWrapper {
   ///
   /// 编译缓冲中的代码块为函数并压栈；编译失败返回 Err。
   pub fn load_buffer(&mut self, buffer: &[u8], chunk_name: &str) -> Result<(), mlua::Error> {
-    let Ok(source) = std::str::from_utf8(buffer) else {
+    let Ok(source) = str::from_utf8(buffer) else {
       return Err(mlua::Error::RuntimeError("non-utf8 chunk".into()));
     };
     let chunk = self.lua.load(source).set_name(chunk_name);
@@ -314,14 +318,17 @@ impl LuaStateWrapper {
     match self.peek(idx)? {
       Value::Number(n) => Some(*n),
       Value::Integer(i) => Some(*i as f64),
-      Value::String(s) => std::str::from_utf8(&s.as_bytes()).ok()?.parse().ok(),
+      Value::String(s) => str::from_utf8(&s.as_bytes()).ok()?.parse().ok(),
       _ => None,
     }
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:ToBoolean
   pub fn to_boolean(&self, idx: i32) -> bool {
-    !matches!(self.peek(idx), None | Some(Value::Nil) | Some(Value::Boolean(false)))
+    !matches!(
+      self.peek(idx),
+      None | Some(Value::Nil) | Some(Value::Boolean(false))
+    )
   }
 
   /// libs/server/Lua/LuaStateWrapper.cs:RawLen
@@ -348,6 +355,7 @@ impl LuaStateWrapper {
   /// libs/server/Lua/LuaStateWrapper.cs:Next
   ///
   /// 表迭代：栈顶为上次返回的键，压入下一键值对；迭代结束压入 nil。
+  #[allow(clippy::should_implement_trait)]
   pub fn next(&mut self) -> bool {
     let Some(key) = self.stack.pop() else {
       return false;
@@ -419,6 +427,44 @@ impl LuaStateWrapper {
     self.deadline_monotonic_millis
   }
 
+  /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackIndexInBounds
+  ///
+  /// 下标是否落在栈内。
+  pub fn assert_lua_stack_index_in_bounds(&self, idx: i32) -> bool {
+    self.abs_index(idx).is_some()
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackExpected
+  ///
+  /// 栈顶元素类型是否符合期望。
+  pub fn assert_lua_stack_expected(&self, idx: i32, expected: &str) -> bool {
+    self.type_name(idx) == Some(expected)
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackNotFull
+  pub fn assert_lua_stack_not_full(&self) -> bool {
+    self.stack.len() < i32::MAX as usize
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:AssertLuaStackNotEmpty
+  pub fn assert_lua_stack_not_empty(&self) -> bool {
+    !self.stack.is_empty()
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:LuaAtPanic
+  ///
+  /// luau 无 panic 路径（内存越界以错误值回报），钩子恒为空操作。
+  pub fn lua_at_panic(&mut self) -> i32 {
+    0
+  }
+
+  /// libs/server/Lua/LuaStateWrapper.cs:LuaAllocateBytes
+  ///
+  /// VM 内存用量（luau 内存统计）。
+  pub fn lua_allocate_bytes(&self) -> usize {
+    self.lua.used_memory()
+  }
+
   /// libs/server/Lua/LuaStateWrapper.cs:ClearStack
   pub fn clear_stack(&mut self) {
     self.stack.clear();
@@ -445,7 +491,10 @@ impl LuaStateWrapper {
 
   /// libs/server/Lua/LuaStateWrapper.cs:TryExitInfallibleAllocationRegion
   pub fn try_exit_infallible_allocation_region(&mut self) -> bool {
-    self.allocator.as_mut().map_or(true, |a| a.try_exit_infallible_allocation_region())
+    self
+      .allocator
+      .as_mut()
+      .is_none_or(|a| a.try_exit_infallible_allocation_region())
   }
 
   /// 附加分配器（内存语义钩子）。
@@ -458,7 +507,9 @@ impl LuaStateWrapper {
     if idx > 0 {
       usize::try_from(idx).ok().map(|i| i - 1)
     } else {
-      usize::try_from(-idx).ok().and_then(|i| self.stack.len().checked_sub(i))
+      usize::try_from(-idx)
+        .ok()
+        .and_then(|i| self.stack.len().checked_sub(i))
     }
   }
 

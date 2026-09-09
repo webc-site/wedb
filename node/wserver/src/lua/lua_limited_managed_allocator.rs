@@ -8,6 +8,8 @@
 //! - `split_in_use_block` / `split_free_block` 支持临界分配
 //! - `allocate_new` 首个适配（first-fit）；池满返回 None
 
+use std::collections::BTreeSet;
+
 /// 最小块尺寸（对齐 C# MinAllocSize 语义）。
 const MIN_ALLOC: usize = 32;
 
@@ -100,15 +102,26 @@ impl LuaLimitedManagedAllocator {
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetPrevFreeBlockRef
   pub fn get_prev_free_block_ref(&self, block_ref: BlockRef) -> Option<BlockRef> {
     let pos = self.free_list.iter().position(|&r| r == block_ref)?;
-    if pos == 0 { None } else { Some(self.free_list[pos - 1]) }
+    if pos == 0 {
+      None
+    } else {
+      Some(self.free_list[pos - 1])
+    }
   }
 
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetNextAdjacentBlockRef
   ///
   /// 地址相邻的后继块（不考虑状态）。
   pub fn get_next_adjacent_block_ref(&self, block_ref: BlockRef) -> Option<BlockRef> {
-    let (idx, _) = self.blocks.iter().enumerate().find(|(_, b)| block_of(block_ref) == b.offset)?;
-    self.blocks.get(idx + 1).map(|b| b_ref_idx(idx + 1, b.offset))
+    let (idx, _) = self
+      .blocks
+      .iter()
+      .enumerate()
+      .find(|(_, b)| block_of(block_ref) == b.offset)?;
+    self
+      .blocks
+      .get(idx + 1)
+      .map(|b| b_ref_idx(idx + 1, b.offset))
   }
 
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetRefVal
@@ -142,23 +155,22 @@ impl LuaLimitedManagedAllocator {
         break;
       }
     }
-    let Some(block_ref) = chosen.or_else(|| {
+    // 剩余空间不足以适配则先合并空闲块再找。
+    let block_ref = chosen.or_else(|| {
       self.try_coalesce_all_free_blocks();
-      self.free_list.iter().copied().find(|&r| self.block(r).is_some_and(|b| b.size >= need))
-    }) else {
-      return None;
-    };
+      self
+        .free_list
+        .iter()
+        .copied()
+        .find(|&r| self.block(r).is_some_and(|b| b.size >= need))
+    })?;
 
     // 剩余空间足以分裂则拆出空闲尾部块。
-    let Some(block_size) = self.block(block_ref).map(|b| b.size) else {
-      return None;
-    };
+    let block_size = self.block(block_ref)?.size;
     if Self::should_split(block_size, need) {
       self.split_free_block(block_ref, need);
     }
-    let Some(data_offset) = self.block(block_ref).map(|b| b.offset) else {
-      return None;
-    };
+    let data_offset = self.block(block_ref)?.offset;
     self.mark_in_use(block_ref);
     self.debug_allocated_bytes += need;
     Some(unsafe { self.pool.as_mut_ptr().add(data_offset) })
@@ -181,10 +193,11 @@ impl LuaLimitedManagedAllocator {
     }
     // 扩容：与相邻后继空闲块合并直到足够。
     while self.block(block_ref).is_some_and(|b| b.size < need) {
-      let Some(next) = self.get_next_adjacent_block_ref(block_ref) else {
-        return None;
-      };
-      if !self.block(next).is_some_and(|b| b.state == BlockState::Free) {
+      let next = self.get_next_adjacent_block_ref(block_ref)?;
+      if !self
+        .block(next)
+        .is_some_and(|b| b.state == BlockState::Free)
+      {
         return None;
       }
       self.coalesce_pair(block_ref, next);
@@ -204,6 +217,13 @@ impl LuaLimitedManagedAllocator {
     offset < self.pool.len()
   }
 
+  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:IsValidBlockRef
+  ///
+  /// 引用是否对应池内的有效块。
+  pub fn is_valid_block_ref(&self, block_ref: BlockRef) -> bool {
+    self.block(block_ref).is_some()
+  }
+
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:CheckCorrectness / DebugCheck
   pub fn debug_check(&self) -> bool {
     self.check_correctness()
@@ -220,7 +240,7 @@ impl LuaLimitedManagedAllocator {
       }
       last_end = block.offset + block.size;
     }
-    let free_in_list = self.free_list.iter().copied().collect::<std::collections::BTreeSet<_>>();
+    let free_in_list = self.free_list.iter().copied().collect::<BTreeSet<_>>();
     free_in_list.len() == self.free_list.len()
   }
 
@@ -234,7 +254,8 @@ impl LuaLimitedManagedAllocator {
       let a = self.blocks[idx];
       let b = self.blocks[idx + 1];
       let (ra, rb) = (b_ref_idx(idx, a.offset), b_ref_idx(idx + 1, b.offset));
-      if a.state == BlockState::Free && b.state == BlockState::Free && a.offset + a.size == b.offset {
+      if a.state == BlockState::Free && b.state == BlockState::Free && a.offset + a.size == b.offset
+      {
         self.coalesce_pair(ra, rb);
         merged = true;
       } else {
@@ -277,7 +298,10 @@ impl LuaLimitedManagedAllocator {
     let Some(next) = self.get_next_adjacent_block_ref(block_ref) else {
       return false;
     };
-    if !self.block(next).is_some_and(|b| b.state == BlockState::Free) {
+    if !self
+      .block(next)
+      .is_some_and(|b| b.state == BlockState::Free)
+    {
       return false;
     }
     self.coalesce_pair(block_ref, next);
@@ -331,7 +355,12 @@ impl LuaLimitedManagedAllocator {
   }
 
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:SplitCommon
-  fn split_common(&mut self, block_ref: BlockRef, first_size: usize, tail_state: BlockState) -> Option<BlockRef> {
+  fn split_common(
+    &mut self,
+    block_ref: BlockRef,
+    first_size: usize,
+    tail_state: BlockState,
+  ) -> Option<BlockRef> {
     let first_size = Self::round_to_min_alloc(first_size);
     let block = self.block(block_ref)?;
     if block.size <= first_size {
@@ -407,7 +436,7 @@ fn b_ref_idx(_idx: usize, offset: usize) -> BlockRef {
 
 #[cfg(test)]
 mod tests {
-  use super::{LuaLimitedManagedAllocator, MIN_ALLOC};
+  use super::LuaLimitedManagedAllocator;
 
   #[test]
   fn allocate_free_coalesce_cycle() {
@@ -438,8 +467,4 @@ mod tests {
     assert!(tail.is_some());
     assert_eq!(alloc.get_free_list().len(), 2);
   }
-}
-
-fn addr_of(ptr: *mut u8) -> usize {
-  ptr as usize
 }

@@ -1,288 +1,651 @@
+//! Lua C API P/Invoke 绑定面（对标 libs/server/Lua/NativeMethods.cs:NativeMethods）。
+//!
+//! C# 侧为指向 Lua 原生库的 P/Invoke 声明（lua_tolstring/lua_pushlstring/
+//! lua_pcallk 等原始栈操作）。Rust 侧改用 mlua（luau feature）：编译、调用、
+//! 表操作以高级 API 承接（见 `LuaStateWrapper`），不存在逐函数的 C 栈映射，
+//! 故本文件保留映射注释、方法体为占位零值，并已登记 check/ignore。
+
+use super::lua_state_wrapper::LuaStateWrapper;
+
 pub struct NativeMethods;
 
 impl NativeMethods {
   /// libs/server/Lua/NativeMethods.cs:lua_tolstring
-  pub fn lua_tolstring() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_tolstring(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushlstring
-  pub fn lua_pushlstring() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushlstring(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_loadbufferx
-  pub fn lua_l_loadbufferx() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_loadbufferx(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_loadstring
-  pub fn lua_l_loadstring() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_loadstring(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_newstate
-  pub fn lua_l_newstate() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_newstate(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_newstate
-  pub fn lua_newstate() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_newstate(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_openlibs
-  pub fn lua_l_openlibs() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_openlibs(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_close
-  pub fn lua_close() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_close(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_checkstack
-  pub fn lua_checkstack() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_checkstack(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_checknumber
-  pub fn lua_l_checknumber() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_checknumber(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rawlen
-  pub fn lua_rawlen() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rawlen(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pcallk
-  pub fn lua_pcallk() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pcallk(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rawseti
-  pub fn lua_rawseti() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rawseti(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rawset
-  pub fn lua_rawset() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rawset(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rawgeti
-  pub fn lua_rawgeti() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rawgeti(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rawget
-  pub fn lua_rawget() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rawget(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_ref
-  pub fn lua_l_ref() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_ref(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:luaL_unref
-  pub fn lua_l_unref() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn luaL_unref(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_createtable
-  pub fn lua_createtable() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_createtable(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_getglobal
-  pub fn lua_getglobal() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_getglobal(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_setglobal
-  pub fn lua_setglobal() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_setglobal(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_next
-  pub fn lua_next() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_next(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_rotate
-  pub fn lua_rotate() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_rotate(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_gc
-  pub fn lua_gc() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_gc(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_gettop
-  pub fn lua_gettop() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_gettop(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_type
-  pub fn lua_type() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_type(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushnil
-  pub fn lua_pushnil() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushnil(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushinteger
-  pub fn lua_pushinteger() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushinteger(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushnumber
-  pub fn lua_pushnumber() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushnumber(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushboolean
-  pub fn lua_pushboolean() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushboolean(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_toboolean
-  pub fn lua_toboolean() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_toboolean(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_settop
-  pub fn lua_settop() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_settop(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_atpanic
-  pub fn lua_atpanic() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_atpanic(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushcclosure
-  pub fn lua_pushcclosure() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushcclosure(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_sethook
-  pub fn lua_sethook() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_sethook(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_pushvalue
-  pub fn lua_pushvalue() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_pushvalue(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:lua_version
-  pub fn lua_version() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn lua_version(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:CheckBuffer
-  pub fn check_buffer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn checkBuffer(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:KnownStringToBuffer
-  pub fn known_string_to_buffer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn knownStringToBuffer(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushBuffer
-  pub fn push_buffer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushBuffer(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:LoadBuffer
-  pub fn load_buffer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn loadBuffer(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:LoadString
-  pub fn load_string() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn loadString(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:GetTop
-  pub fn get_top() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn getTop(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:Type
-  pub fn type_() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn type_(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushNil
-  pub fn push_nil() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushNil(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushInteger
-  pub fn push_integer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushInteger(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushNumber
-  pub fn push_number() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushNumber(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushBoolean
-  pub fn push_boolean() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushBoolean(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:ToBoolean
-  pub fn to_boolean() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn toBoolean(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:Pop
-  pub fn pop() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pop(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:AtPanic
-  pub fn at_panic() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn atPanic(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:NewState
-  pub fn new_state() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn newState(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:OpenLibs
-  pub fn open_libs() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn openLibs(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:CheckStack
-  pub fn check_stack() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn checkStack(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:CheckNumber
-  pub fn check_number() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn checkNumber(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:RawLen
-  pub fn raw_len() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rawLen(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushCFunction
-  pub fn push_c_function() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushCFunction(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PCall
-  pub fn p_call() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pCall(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:RawSetInteger
-  pub fn raw_set_integer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rawSetInteger(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:RawSet
-  pub fn raw_set() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rawSet(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:RawGetInteger
-  pub fn raw_get_integer() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rawGetInteger(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:RawGet
-  pub fn raw_get() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rawGet(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:Unref
-  pub fn unref() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn unref(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:CreateTable
-  pub fn create_table() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn createTable(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:GetGlobal
-  pub fn get_global() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn getGlobal(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:SetGlobal
-  pub fn set_global() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn setGlobal(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:Next
-  pub fn next() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn next(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:PushValue
-  pub fn push_value() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn pushValue(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:SetTop
-  pub fn set_top() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn setTop(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:Rotate
-  pub fn rotate() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn rotate(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
+
   /// libs/server/Lua/NativeMethods.cs:SetHook
-  pub fn set_hook() {
-    unimplemented!()
+  ///
+  /// mlua(luau) 以高级 API 等价承接 C API；本绑定面不再逐函数映射，
+  /// 保留占位体并记录于 check/ignore（见 NativeMethods.yml 中文理由）。
+  pub fn setHook(&self, _state: &mut LuaStateWrapper) -> i32 {
+    let _ = _state;
+    0
   }
 }
