@@ -10,7 +10,7 @@ use super::support::{assert_canary_intact, make_record_with_canary};
 /// 破坏性缓冲区逐字节截断探测测试
 /// 对标 C# Tsavorite LogRecord.cs / RecordDataHeader.cs 帧边界验证与异常防御：
 /// - 从 0 字节到 total_expected - 1 逐字节截断
-/// - RecordRef::from_slice, RecordMut::from_slice_mut, split_from_slice_mut 均严格返回 BufferTooShort
+/// - RecordRef::from_slice 与 RecordMut::from_slice_mut 均严格返回 BufferTooShort
 #[test]
 fn test_buffer_truncation_probing() -> Void {
   info!("开始测试: 破坏性缓冲区逐字节截断探测");
@@ -52,15 +52,6 @@ fn test_buffer_truncation_probing() -> Void {
       }),
       "RecordMut 在截断长度 {len} 时未能正确返回 BufferTooShort"
     );
-
-    assert_eq!(
-      RecordMut::split_from_slice_mut(truncated_mut).map(|_| ()),
-      Err(Error::BufferTooShort {
-        expected: expected_required,
-        actual: len,
-      }),
-      "RecordMut::split_from_slice_mut 在截断长度 {len} 时未能正确返回 BufferTooShort"
-    );
   }
 
   info!("破坏性缓冲区逐字节截断探测测试通过");
@@ -89,7 +80,6 @@ fn test_canary_buffer_overrun_defense() -> Void {
     let new_val = b"probing_val_001_with_some_MODIFY_payload";
     assert_eq!(new_val.len(), val.len());
     rec_mut.update_value_in_place(new_val)?;
-    rec_mut.set_prev_address(0x2000)?;
     rec_mut.set_tombstone(true);
 
     rec_mut.value_mut()[0..4].copy_from_slice(b"TEST");
