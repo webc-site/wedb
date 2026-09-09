@@ -373,11 +373,6 @@ impl AofReplayCoordinator {
     self.leader_barriers.lock().len()
   }
 
-  /// C# StoredProcRunnerWrapper / StoredProcRunnerBase：存储过程重放执行体
-  /// （过程注册表由 custom 域承载；接线后由此处经重放会话执行过程体并按
-  /// CustomProcedureKeyHashCollection 推进 key 时间戳）。
-  pub fn stored_proc_runners_placeholder(&self) {}
-
   /// 多日志拓扑标志。
   pub fn multi_log_enabled(&self) -> bool {
     self.multi_log_enabled

@@ -5,18 +5,13 @@ pub mod async_processor;
 pub mod basic_commands;
 pub mod basic_etag_commands;
 pub mod bitmap;
-pub mod byte_array_comparer;
 pub mod client_commands;
 pub mod cmd_strings;
 pub mod hyperloglog;
-pub mod i_resp_serializable;
 pub mod key_admin_commands;
 pub mod m_get_read_arg_batch;
 pub mod objects;
 pub mod parser;
-pub mod pub_sub_commands;
-pub mod purge_bp_command;
-pub mod rangeindex;
 pub mod rdb_crc64;
 pub mod resp_command_argument;
 pub mod resp_command_data_common;
@@ -30,7 +25,6 @@ pub mod resp_server_session_output;
 pub mod resp_server_session_slot_verify;
 pub mod session_logger;
 pub mod ttl_sync;
-pub mod vector;
 
 /// 单测共用装具：临时单文件库 + 批处理纪元会话（各命令文件的 #[cfg(test)] 共享，
 /// 一处定义避免逐文件复制）

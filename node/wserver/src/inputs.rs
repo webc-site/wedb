@@ -358,37 +358,3 @@ impl CustomProcedureInput {
     unsafe { self.parse_state.deserialize_from(src) }
   }
 }
-
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:VectorInput
-#[derive(Debug, Clone, Default)]
-pub struct VectorInput {
-  pub read_desired_size: i32,
-  pub write_desired_size: i32,
-  pub index: i32,
-  pub callback_context: isize,
-  pub callback: isize,
-  pub alignment_expected: bool,
-  pub max_migration_heap_allocation_size: Option<i32>,
-}
-
-impl VectorInput {
-  pub fn is_migration_read(&self) -> bool {
-    self.max_migration_heap_allocation_size.is_some()
-  }
-
-  pub fn serialized_length(&self) -> usize {
-    unimplemented!()
-  }
-
-  /// # Safety
-  /// 未实现；接线时须满足 [`write_input_layout`] 的前缀条件
-  pub unsafe fn copy_to(&self, _dest: *mut u8, _length: usize) -> usize {
-    unimplemented!()
-  }
-
-  /// # Safety
-  /// 未实现；接线时须满足 [`read_input_layout`] 的前缀条件
-  pub unsafe fn deserialize_from(&mut self, _src: *const u8) -> usize {
-    unimplemented!()
-  }
-}

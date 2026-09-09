@@ -208,18 +208,6 @@ impl AofProcessor {
     self.append_only_file.read_consistency_manager()
   }
 
-  /// libs/server/AOF/AofProcessor.cs:SetReadWriteSession
-  ///
-  /// 存储过程回放需要集群会话置读写态；rust 集群会话域为并行转写，
-  /// 顺序回放下无并发读者，此处为语义空操作。
-  pub fn set_read_write_session(&self) {}
-
-  /// libs/server/AOF/AofProcessor.cs:ObtainServerSession
-  ///
-  /// C# 为向量复制回放惰性建独立回放会话；rust 侧向量域为并行转写，
-  /// 重放落点由 [`ReplayTarget`] 显式传入，此入口不再需要。
-  pub fn obtain_server_session(&self) {}
-
   /// libs/server/AOF/AofProcessor.cs:SwitchActiveDatabaseContext
   pub fn switch_active_database_context(&self, db_id: i64) {
     self.active_db_id.store(db_id, Ordering::Release);
@@ -229,11 +217,6 @@ impl AofProcessor {
   pub fn active_db_id(&self) -> i64 {
     self.active_db_id.load(Ordering::Acquire)
   }
-
-  /// libs/server/AOF/AofProcessor.cs:WaitForVectorOperationsToComplete
-  ///
-  /// VADD 异步排队操作完成等待；向量域为并行转写（无排队面），空操作。
-  pub fn wait_for_vector_operations_to_complete(&self) {}
 
   /// 拓扑预处理（C# IPreprocessKey.PrepareKey 三实现的折叠）：
   /// 解出 key / 哈希 / 负载并按拓扑推进一致性 key 时间戳。
@@ -377,10 +360,6 @@ impl AofProcessor {
     }
 
     let op_type = AofEntryType::try_from(header.op_type).unwrap_or(AofEntryType::StoreUpsert);
-    // StoreRMW 可并发排队 VADD；其余操作须先等待向量操作完成（一致性）
-    if op_type != AofEntryType::StoreRMW {
-      self.wait_for_vector_operations_to_complete();
-    }
 
     // 事务处理：TxnStart/TxnAbort/TxnCommit 及组内操作由协调器消化
     let action = self.coordinator.add_or_replay_transaction_operation(
