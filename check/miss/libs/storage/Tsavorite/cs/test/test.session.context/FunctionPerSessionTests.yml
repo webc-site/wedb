@@ -1,6 +1,4 @@
 fn:
-  - InitialUpdater
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - Setup

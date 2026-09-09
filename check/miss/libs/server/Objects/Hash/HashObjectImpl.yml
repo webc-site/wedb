@@ -7,9 +7,6 @@ fn:
   - HashStrLength
   - HashExists
   - HashRandomField
-  - DeleteExpiredItems
-  - UpdateSize
-  - CleanupExpirationStructuresIfEmpty
   - HashGetKeysOrValues
   - HashIncrement
   - HashIncrementFloat

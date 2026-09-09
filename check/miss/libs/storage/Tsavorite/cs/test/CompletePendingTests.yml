@@ -3,9 +3,7 @@ fn:
   - Equals
   - ToString
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - NewKeyStruct
   - NewValueStruct
   - NewInputStruct

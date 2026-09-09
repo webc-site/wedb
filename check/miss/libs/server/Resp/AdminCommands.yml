@@ -1,25 +1,20 @@
 fn:
   - ProcessAdminCommands
-  - SendAndReset
-  - NetworkProcessClusterCommand
   - CheckScriptPermissions
-  - OnACLOrNoScriptFailure
   - CheckACLPermissions
   - CheckACLPermissionsForCustomCommand
+  - OnACLOrNoScriptFailure
   - CommitAofAsync
   - NetworkMonitor
   - TryImportCommandsData
   - TryRegisterCustomCommands
   - NetworkRegisterCs
   - NetworkModuleLoad
-  - WriteError
   - NetworkCOMMITAOF
   - NetworkHCOLLECT
   - NetworkZCOLLECT
+  - NetworkProcessClusterCommand
   - NetworkDebug
-  - WriteDirect
-  - WriteSimpleString
-  - WriteArrayLength
   - NetworkROLE
   - NetworkSAVE
   - NetworkEXPDELSCAN

@@ -1,5 +1,4 @@
 fn:
-  - MigrationManager
   - GetBufferPoolStats
   - GetMigrationTaskCount
   - TryAddMigrationTask

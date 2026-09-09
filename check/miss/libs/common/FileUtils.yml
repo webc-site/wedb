@@ -1,6 +1,5 @@
 fn:
   - TryGetFiles
-  - when
   - IsFileInDirectory
   - TryLoadAssemblies
   - ConvertToAbsolutePaths

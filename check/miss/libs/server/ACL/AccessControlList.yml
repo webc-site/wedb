@@ -1,6 +1,4 @@
 fn:
-  - AccessControlList
-  - Load
   - GetUserHandle
   - GetDefaultUserHandle
   - AddUserHandle
@@ -8,5 +6,6 @@ fn:
   - ClearUsers
   - GetUserHandles
   - CreateDefaultUserHandle
+  - Load
   - Save
   - Import

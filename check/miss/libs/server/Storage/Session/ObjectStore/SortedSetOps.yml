@@ -12,9 +12,6 @@ fn:
   - SortedSetDifferenceStore
   - SortedSetRank
   - SortedSetRangeStore
-  - ThrowObjectStoreUninitializedException
-  - RMWObjectStoreOperation
-  - ReadObjectStoreOperation
   - SortedSetScore
   - SortedSetScores
   - SortedSetCount

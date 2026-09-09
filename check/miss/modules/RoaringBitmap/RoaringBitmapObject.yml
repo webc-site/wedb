@@ -1,5 +1,4 @@
 fn:
-  - RoaringBitmapObject
   - CloneObject
   - SerializeObject
   - SetBit

@@ -2,4 +2,3 @@ fn:
   - AbortWithWrongNumberOfArguments
   - AbortWithWrongNumberOfArgumentsOrUnknownSubcommand
   - AbortWithErrorMessage
-  - SendAndReset

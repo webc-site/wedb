@@ -1,15 +1,10 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
   - GetOverflowValueSpanByte
-  - InitialUpdater
-  - CopyUpdater
   - DoUpdater
-  - SetAndVerify
-  - InPlaceWriter
-  - InitialWriter
   - DoWriter
+  - SetAndVerify
   - GetFieldInfo
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo

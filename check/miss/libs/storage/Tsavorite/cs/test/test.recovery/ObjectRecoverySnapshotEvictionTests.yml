@@ -1,6 +1,5 @@
 fn:
   - Setup
-  - RecreateDirectory
   - TearDown
   - Prepare
   - Destroy

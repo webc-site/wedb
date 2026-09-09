@@ -1,9 +1,2 @@
 fn:
-  - TryReadSimpleString
-  - TryReadIntegerAsString
-  - TryReadStringWithLengthHeader
-  - TryReadPtrWithSignedLengthHeader
-  - TryReadErrorAsString
-  - TryReadStringArrayWithLengthHeader
   - TryReadIntWithLengthHeader
-  - TryReadString

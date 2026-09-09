@@ -2,8 +2,7 @@ fn:
   - Setup
   - TearDown
   - Populate
-  - Test
-  - CopyDirectory
   - IsDirectoryEmpty
+  - CopyDirectory
 test:
   - SharedLogDirectory

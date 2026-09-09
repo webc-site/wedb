@@ -1,14 +1,12 @@
 fn:
   - GetVersion
-  - GarnetServer
-  - FlushMemoryLogger
   - InitializeServer
+  - ValidateCustomCommandACLs
   - CreateDatabase
   - LoadModules
-  - ValidateCustomCommandACLs
   - CreateStore
   - CreateAOF
   - Start
   - InternalDispose
   - DeleteDirectory
-  - when
+  - FlushMemoryLogger

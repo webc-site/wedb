@@ -1,10 +1,7 @@
 fn:
   - Setup
-  - DeleteDirectory
   - InternalSetup
   - TearDown
-  - OnTearDown
-  - ObjectPushIterationTestFunctions
   - OnStart
   - OnException
   - OnStop

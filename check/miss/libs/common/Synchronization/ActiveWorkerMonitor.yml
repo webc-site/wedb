@@ -1,5 +1,5 @@
 fn:
-  - TryClose
   - TryOpen
+  - TryClose
   - TryEnter
   - Exit

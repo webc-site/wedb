@@ -1,9 +1,7 @@
 fn:
-  - ScratchBufferBuilder
   - FullBuffer
   - RewindScratchBuffer
   - CreateArgSliceAsOffset
-  - ExpandScratchBufferIfNeeded
   - CreateArgSlice
   - MoveOffset
   - UTF8EncodeString
@@ -11,7 +9,8 @@ fn:
   - ViewRemainingArgSlice
   - ViewFullArgSlice
   - StartCommand
-  - ExpandScratchBuffer
   - WriteNullArgument
   - WriteArgument
+  - ExpandScratchBufferIfNeeded
+  - ExpandScratchBuffer
   - GrowBuffer

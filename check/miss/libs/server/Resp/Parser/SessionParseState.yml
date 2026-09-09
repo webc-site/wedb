@@ -1,9 +1,7 @@
 fn:
-  - SessionParseState
   - InitializeWithArgument
   - InitializeWithArguments
   - EnsureCapacity
-  - Slice
   - SetArgument
   - SetArguments
   - GetSerializedLength

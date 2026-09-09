@@ -1,9 +1,3 @@
 fn:
   - TryReadFromResp
   - TryReadKeySpecHeader
-  - BeginSearchIndexParser
-  - BeginSearchKeywordParser
-  - BeginSearchUnknownParser
-  - FindKeysRangeParser
-  - FindKeysKeyNumParser
-  - FindKeysUnknownParser

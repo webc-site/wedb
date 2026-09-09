@@ -1,13 +1,13 @@
 fn:
   - WriteInfo
-  - InitializeForNewRecord
-  - SetIsInNewVersion
   - IsClosedWord
   - IsClosedOrTombstoned
   - TryResetModifiedAtomic
   - TryUpdateAddress
+  - SetIsInNewVersion
   - SetModified
   - SetInvalid
+  - InitializeForNewRecord
   - UnsealAndValidate
   - SealAndInvalidate
   - Seal

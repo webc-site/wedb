@@ -1,5 +1,4 @@
 fn:
-  - MetricsApi
   - GetInfoMetrics
   - GetHeader
   - ResetInfoMetrics

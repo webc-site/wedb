@@ -1,21 +1,14 @@
 fn:
-  - TrackingRecordTriggers
   - OnDispose
   - OnDisposeDiskRecord
   - OnEvict
   - OnRecovery
   - OnCheckpoint
   - RecordDispose
-  - NeedCopyUpdate
   - GetRMWInitialFieldInfo
-  - InitialUpdater
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - UpsertKey
-  - ObjTrackingRecordTriggers
-  - CopyUpdater
   - UpsertObj
 test:
   - DisposeOnMutableDeleteTest

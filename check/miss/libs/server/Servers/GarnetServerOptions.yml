@@ -3,13 +3,9 @@ fn:
   - GetStoreCheckpointDirectory
   - GetAppendOnlyFileDirectoryName
   - GetAppendOnlyFileDirectory
-  - GarnetServerOptions
   - GetSettings
-  - PageSizeBits
-  - SegmentSizeBits
-  - ReadCachePageSizeBits
   - MemorySizeBits
-  - ValidatedPageSizeBits
+  - ReadCachePageSizeBits
   - MaxInlineKeySizeBytes
   - MaxInlineValueSizeBytes
   - GetInitialIORecordSizeBytes
@@ -17,7 +13,6 @@ fn:
   - GetInitializedDeviceFactory
   - AofMemorySizeBits
   - GetBufferPoolMemoryBudgetBytes
-  - ParseSize
   - AofPageSizeBits
   - AofSegmentSizeBits
   - AofSizeLimitSizeBits

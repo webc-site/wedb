@@ -1,6 +1,5 @@
 fn:
   - ReadCacheNeedToWaitForEviction
-  - SpinWaitUntilRecordIsClosed
   - ReadCacheAbandonRecord
   - ReadCacheEvict
   - ReadCacheEvictChain

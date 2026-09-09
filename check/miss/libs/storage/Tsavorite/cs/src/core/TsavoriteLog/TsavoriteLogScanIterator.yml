@@ -4,7 +4,6 @@ fn:
   - BulkConsumeAllAsync
   - WaitAsync
   - SlowWaitAsync
-  - when
   - SlowWaitUncommittedAsync
   - TryConsumeNext
   - TryBulkConsumeNext

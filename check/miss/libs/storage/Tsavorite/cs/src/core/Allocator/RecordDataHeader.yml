@@ -15,7 +15,6 @@ fn:
   - InitializeForNewRecord
   - GetKeyLengthRaw
   - GetValueLengthRaw
-  - ThrowTsavoriteException
   - SetNamespaceByteRaw
   - GetUnalignedComponentSum
   - GetAlignedComponentSum

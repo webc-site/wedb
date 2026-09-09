@@ -1,12 +1,9 @@
 fn:
   - NetworkGETWITHETAG
-  - WriteNull
   - NetworkGETIFNOTMATCH
   - NetworkDELIFGREATER
-  - SendAndReset
   - NetworkSETIFMATCH
-  - NetworkSetETagConditional
   - NetworkSETIFGREATER
   - NetworkSETWITHETAG
+  - NetworkSetETagConditional
   - ExecuteETagSetCommand
-  - ProcessOutput

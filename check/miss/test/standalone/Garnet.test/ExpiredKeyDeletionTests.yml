@@ -1,11 +1,10 @@
 fn:
   - Setup
-  - SetupServer
   - TearDown
+  - SetupServer
   - TestExpiredKeyDeletionScanAsync
-  - CheckExistenceConditionOnAllKeys
   - PopulateStore
+  - CheckExistenceConditionOnAllKeys
 test:
   - TestOnDemandExpiredKeyDeletionScan
   - TestScheduledExpiredKeyDeletionViaSimulation
-  - TestExpiredKeyDeletionScanAsync

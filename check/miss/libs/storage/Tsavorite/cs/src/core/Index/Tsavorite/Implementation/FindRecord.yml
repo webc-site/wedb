@@ -1,7 +1,6 @@
 fn:
   - TryFindRecordInMemory
   - TryFindRecordInMainLogForConditionalOperation
-  - EphemeralSUnlock
   - IsValidTracebackRecord
   - TryFindRecordForPendingOperation
   - TryFindRecordInMainLogForPendingOperation

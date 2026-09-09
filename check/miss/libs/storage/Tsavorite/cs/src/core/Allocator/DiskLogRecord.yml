@@ -1,6 +1,5 @@
 fn:
   - ToString
-  - DiskLogRecord
   - CreateFromTransientLogRecord
   - CopyFrom
   - TransferFrom

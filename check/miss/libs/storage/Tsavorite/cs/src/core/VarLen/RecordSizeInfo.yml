@@ -3,7 +3,6 @@ fn:
   - SetValueIsInline
   - SetIsRevivifiedRecord
   - CalculateSizes
-  - ThrowTsavoriteException
   - AssertValueDataLength
   - AssertOptionalsIfSet
   - ToString

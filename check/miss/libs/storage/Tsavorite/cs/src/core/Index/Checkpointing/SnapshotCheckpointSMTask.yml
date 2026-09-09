@@ -1,4 +1,2 @@
 fn:
-  - SnapshotCheckpointSMTask
   - GlobalBeforeEnteringState
-  - ObjectLog_OnPrepare

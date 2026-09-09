@@ -1,22 +1,15 @@
 fn:
-  - GetValue
   - GetRandomLength
+  - GetValue
   - AddFunc
   - ToString
   - ShouldExpire
-  - NeedInitialUpdate
-  - NeedCopyUpdate
-  - CopyUpdater
-  - InitialUpdater
   - RMWCompletionCallback
   - ReadCompletionCallback
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - InitialWriter
-  - InPlaceWriter
   - Setup
-  - DeleteDirectory
   - TearDown
   - Populate
   - GetRecord

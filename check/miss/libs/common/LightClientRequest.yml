@@ -1,5 +1,4 @@
 fn:
-  - LightClientRequest
   - SendCommand
   - Execute
   - SendCommandChunks

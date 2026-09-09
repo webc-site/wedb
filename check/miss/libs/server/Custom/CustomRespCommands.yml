@@ -1,6 +1,5 @@
 fn:
   - TryTransactionProc
-  - SendAndReset
   - RunCustomTxnProcAtReplica
   - TryCustomProcedure
   - TryCustomRawStringCommand

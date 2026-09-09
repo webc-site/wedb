@@ -1,14 +1,15 @@
 fn:
-  - GarnetTcpNetworkSender
   - IsLocalConnection
   - Enter
   - EnterAndGetResponseObject
-  - ThrowDisposed
   - Exit
   - ExitAndReturnResponseObject
-  - ReturnBuffer
   - GetResponseObject
+  - ThrowDisposed
   - ReturnResponseObject
+  - ReturnBuffer
+  - GetResponseObjectHead
+  - GetResponseObjectTail
   - SendResponse
   - SendCallback
   - DisposeNetworkSender

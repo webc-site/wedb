@@ -18,24 +18,24 @@ fn:
   - WriteInlinePageAsync
   - IsAllocated
   - VerifyRecoveryInfo
-  - GetSegment
   - AllocatePinnedPageArray
   - FreeNativeLogPage
   - RecycleOrFreeNativeBlock
   - BeginNativeSnapshotFlush
   - EndNativeSnapshotFlush
-  - GetPage
-  - GetOffsetOnPage
   - IncrementAllocatedPageCount
   - GetMainLogSegmentSize
   - GetObjectLogSegmentSize
   - GetTailAddress
   - UnstableGetTailAddress
+  - GetPage
   - GetPageIndexForPage
   - GetPageIndexForAddress
   - GetPageSize
   - GetAddressOfStartOfPageOfAddress
+  - GetOffsetOnPage
   - GetFirstValidLogicalAddressOnPage
+  - GetSegment
   - GetOffsetOnSegment
   - GetStartLogicalAddressOfSegment
   - GetDeviceSectorSize
@@ -45,21 +45,18 @@ fn:
   - ShiftAddressesWithWait
   - NeedToShiftAddress
   - IssueShiftAddress
-  - ThrowTsavoriteException
   - TryAllocateRetryNow
   - WaitToRetryNow
   - FindHeadAddressCutoffOnPage
   - EvictPageForRecovery
-  - MemoryPageScan
-  - AsyncFlushPagesForReadOnly
   - OnPagesClosedWorker
   - OnPagesClosedWorkerCore
-  - EvictCallback
   - DebugPrintAddresses
   - RecoveryReset
   - AsyncReadRecordToMemory
   - AsyncReadBlittableRecordToMemory
   - GetAndPopulateReadBuffer
+  - AsyncFlushPagesForReadOnly
   - GetFlushPageRange
   - PrepareFlushAsyncResult
   - AsyncFlushPagesForRecovery
@@ -69,7 +66,6 @@ fn:
   - VerifyRecordFromDiskCallback
   - TryVerifyOrReissuePendingRead
   - AsyncFlushPageCallback
-  - when
   - UnsafeSkipError
   - AsyncFlushPageForSnapshotCallback
   - PrettyPrintLogicalAddress

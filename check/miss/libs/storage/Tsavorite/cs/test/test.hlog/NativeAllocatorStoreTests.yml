@@ -1,10 +1,8 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
   - EnableOrSkip
   - CreateStore
-  - TryRead
   - UpsertAll
   - VerifyAll
 test:

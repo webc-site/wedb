@@ -1,17 +1,11 @@
 fn:
   - GetPendingScratchOutput
   - NetworkGET
-  - WriteNull
   - NetworkGETEX
-  - SendAndReset
   - NetworkGETAsync
-  - NetworkGETPending
   - NetworkGET_SG
-  - SetResult
-  - ProcessOutput
   - NetworkGETSET
   - NetworkSetRange
-  - WriteError
   - NetworkGetRange
   - NetworkSETEX
   - NetworkSETNX
@@ -25,7 +19,6 @@ fn:
   - NetworkASKING
   - NetworkQUIT
   - NetworkFLUSHDB
-  - FlushDb
   - NetworkFLUSHALL
   - NetworkREADONLY
   - NetworkREADWRITE
@@ -37,23 +30,19 @@ fn:
   - NetworkCOMMAND_INFO
   - NetworkCOMMAND_GETKEYS
   - NetworkCOMMAND_GETKEYSANDFLAGS
-  - WriteSetLength
   - NetworkECHO
-  - WriteDirectLargeRespString
   - NetworkHELLO
-  - ProcessHelloCommand
   - NetworkTIME
   - NetworkAUTH
   - NetworkMemoryUsage
   - NetworkOBJECT
   - NetworkOBJECTHELP
-  - WriteArrayLength
-  - WriteSimpleString
   - NetworkASYNC
-  - UpdateRespProtocolVersion
-  - WriteMapLength
+  - ProcessHelloCommand
+  - FlushDb
   - ExecuteFlushDb
   - WriteClientInfo
   - ParseGETAndKey
   - NextCommandMaybeGet
   - TryGetSimpleCommandInfo
+  - SetResult

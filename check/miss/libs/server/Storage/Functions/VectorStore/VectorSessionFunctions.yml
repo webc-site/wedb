@@ -1,30 +1,10 @@
 fn:
-  - VectorSessionFunctions
   - ReadCompletionCallback
-  - InitialWriter
-  - ObjectOperationsNotExpected
-  - LogRecordOperationsNotExpected
-  - InPlaceWriter
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - NeedInitialUpdate
-  - InitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
   - RMWCompletionCallback
-  - InitialDeleter
-  - ConvertOutputToHeap
+  - ObjectOperationsNotExpected
+  - LogRecordOperationsNotExpected
   - AlignOrPin
   - AssertAlignment
-  - PostInitialWriter
-  - PostInitialUpdater
-  - PostCopyUpdater
-  - PostUpsertOperation
-  - PostRMWOperation
-  - PostDeleteOperation
-  - PostInitialDeleter
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback

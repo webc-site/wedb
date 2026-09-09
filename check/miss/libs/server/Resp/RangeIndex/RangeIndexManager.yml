@@ -8,7 +8,5 @@ fn:
   - RoundUpToPowerOf2
   - DisposeBfTreeDeferred
   - RegisterPending
-  - DisposeIncompleteStreamReassembly
   - SetRecoveredCheckpointToken
-  - ReadIndex
   - EnumerateFlushFiles

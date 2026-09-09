@@ -3,7 +3,6 @@ fn:
   - ContainsNamespace
   - EncounteredVectorSet
   - AddRangeIndexKey
-  - MigrateOperation
   - InitializeAsync
   - TransmitSlotsAsync
   - TransmitKeysAsync

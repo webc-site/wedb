@@ -1,6 +1,6 @@
 fn:
-  - SERedisSamples
   - RunAll
+  - RespPingAsync
   - RespPing
   - SingleSetRename
   - SingleSetGet
@@ -11,4 +11,3 @@ fn:
   - SingleIncrNoKey
   - SingleExists
   - SingleDelete
-  - RespPingAsync

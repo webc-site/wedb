@@ -1,8 +1,6 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - PopulateAndEvict
   - CreateChain
   - expectPending
@@ -19,13 +17,9 @@ fn:
   - doTest
   - ReadValueOrPending
   - DoUpdateTest
-  - InitialUpdater
   - LongRcMultiThreadWorker
   - runReadThread
   - runUpdateThread
-  - InPlaceWriter
-  - InitialWriter
-  - CopyUpdater
   - SpanByteRcMultiThreadWorker
 test:
   - ChainVerificationTest
@@ -39,6 +33,4 @@ test:
   - ChainInsertFromDeleteTest
   - VerifyLockCountsAfterReadCacheEvict
   - LongRcMultiThreadTest
-  - LongRcMultiThreadWorker
   - SpanByteRcMultiThreadTest
-  - SpanByteRcMultiThreadWorker

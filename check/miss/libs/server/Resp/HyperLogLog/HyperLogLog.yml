@@ -16,10 +16,8 @@ fn:
   - GetCard
   - IsValidCard
   - Init
-  - InitDense
   - InitSparse
-  - IterateUpdate
-  - SetSparseRLESize
+  - InitDense
   - SparseInitialLength
   - SparseRequiredBytes
   - SparseCurrentSizeInBytes
@@ -27,18 +25,19 @@ fn:
   - UpdateGrow
   - MergeGrow
   - CopyUpdateMerge
-  - Merge
   - SparseToDenseCopy
   - SparseToSparseCopy
   - DenseToDense
   - UpdateDense
   - UpdateDenseRegister
+  - SetSparseRLESize
   - GetSparseRLESize
   - IsZeroRange
   - ZeroRangeLen
   - ZeroRangeSet
   - GetNonZero
   - SetNonZero
+  - IterateUpdate
   - UpdateSparse
   - UpdateSparseReg
   - Count
@@ -47,6 +46,7 @@ fn:
   - CountSparseNCEstimator
   - CountDenseNCEstimator
   - TryMerge
+  - Merge
   - SparseToDense
   - SparseToSparse
   - DenseCountNonZero

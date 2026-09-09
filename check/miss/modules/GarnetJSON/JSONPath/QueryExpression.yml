@@ -1,8 +1,5 @@
 fn:
-  - QueryExpression
   - IsMatch
-  - CompositeExpression
-  - BooleanQueryExpression
   - EvaluateMatch
   - MatchTokens
   - CheckIn

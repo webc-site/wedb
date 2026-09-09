@@ -1,14 +1,11 @@
 fn:
   - Execute
-  - Write
   - ToString
-  - LuaScriptTests
   - Setup
   - TearDown
   - DoErroneousRedisCall
   - ToLuaString
   - SubscribeConfirmed
-  - handler
   - WaitForSubscriberCount
 test:
   - KeysArgvResize
@@ -40,10 +37,6 @@ test:
   - RedisAclCheckCmd
   - RedisSetResp
   - RedisVersion
-  - ComplexLuaTest1
-  - ComplexLuaTest2
-  - ComplexLuaTest3
-  - ScriptExistsErrors
   - ScriptFlushErrors
   - MultiSessionScriptFlush
   - CrossSessionEvalScriptCaching
@@ -68,7 +61,6 @@ test:
   - CJson
   - CMsgPackPack
   - CMsgPackUnpack
-  - Struct
   - StructPack
   - StructPackOnErrors
   - StructUnpack

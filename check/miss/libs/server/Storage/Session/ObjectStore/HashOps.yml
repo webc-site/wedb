@@ -6,8 +6,6 @@ fn:
   - HashLength
   - HashExists
   - HashRandomField
-  - RMWObjectStoreOperation
-  - ReadObjectStoreOperation
   - HashStrLength
   - HashKeys
   - HashVals

@@ -1,7 +1,5 @@
 fn:
   - GetArrayAndUnalignedOffset
+  - GetValidPointer
   - ToString
-  - InitOriginReturn
-  - FreeOriginReturn
   - Print
-  - PrintOriginReturn

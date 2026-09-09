@@ -1,5 +1,4 @@
 fn:
-  - AzureStorageDevice
   - ToString
   - StartAsync
   - GetSegmentBlobName
@@ -9,8 +8,8 @@ fn:
   - DeleteAsync
   - TryReadAsync
   - ReadFromBlobAsync
-  - TryWriteAsync
   - WritePortionToBlobUnsafeAsync
   - WritePortionToBlobAsync
   - ReadFromBlobUnsafeAsync
+  - TryWriteAsync
   - WriteToBlobAsync

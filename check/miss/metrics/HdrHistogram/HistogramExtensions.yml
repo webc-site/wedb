@@ -6,4 +6,3 @@ fn:
   - CopyInto
   - Percentiles
   - RecordScope
-  - Timer

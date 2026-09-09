@@ -1,10 +1,7 @@
 fn:
   - ToString
   - WriteType
-  - NumClicksObj
   - Deserialize
   - Serialize
-  - InitialUpdater
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo

@@ -1,8 +1,7 @@
 fn:
-  - StorageErrorHandler
   - HandleError
+  - TerminateNormally
   - TraceError
   - Terminate
-  - TerminateNormally
   - Shutdown
   - WaitForTermination

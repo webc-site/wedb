@@ -2,9 +2,7 @@ fn:
   - SingleKeySlotVerify
   - SingleKeyReadSlotVerify
   - SingleKeyReadWriteSlotVerify
-  - WaitForSlotToStabalize
   - CanOperateOnKey
-  - ReleaseCurrentEpoch
-  - AcquireCurrentEpoch
+  - WaitForSlotToStabalize
   - MultiKeySlotVerify
   - VerifyKeysInRange

@@ -1,16 +1,10 @@
 fn:
-  - LuaStateWrapper
-  - AssertLuaStackExpected
   - ExpectLuaStackEmpty
   - TryEnsureMinimumStackCapacity
   - CallFromLuaEntered
   - KnownCallFromLuaEntered
   - Type
-  - AssertLuaStackIndexInBounds
   - TryPushBuffer
-  - AssertLuaStackNotFull
-  - EnterInfallibleAllocationRegion
-  - UpdateStackTop
   - PushNil
   - PushNumber
   - PushInteger
@@ -22,7 +16,6 @@ fn:
   - RawGetInteger
   - RawGet
   - TryRef
-  - AssertLuaStackNotEmpty
   - Unref
   - TryCreateTable
   - GetGlobal
@@ -43,6 +36,12 @@ fn:
   - Rotate
   - TrySetHook
   - ClearStack
+  - UpdateStackTop
+  - EnterInfallibleAllocationRegion
   - TryExitInfallibleAllocationRegion
+  - AssertLuaStackIndexInBounds
+  - AssertLuaStackExpected
+  - AssertLuaStackNotFull
+  - AssertLuaStackNotEmpty
   - LuaAtPanic
   - LuaAllocateBytes

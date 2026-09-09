@@ -1,9 +1,8 @@
 fn:
-  - GarnetClientSamples
   - RunAll
-  - SetGetSync
   - PingAsync
   - SetGetAsync
+  - SetGetSync
   - IncrAsync
   - IncrByAsync
   - DecrByAsync

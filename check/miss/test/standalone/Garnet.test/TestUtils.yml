@@ -1,5 +1,4 @@
 fn:
-  - ValuesPrefixAttribute
   - GetData
   - SetTestPort
   - AssertEqualUpToExpectedLength
@@ -25,7 +24,6 @@ fn:
   - GetShardEndPoints
   - UnitTestWorkingDir
   - DeleteDirectory
-  - when
   - FlushAndWaitForStoreAsync
   - ValidateServerCertificate
   - CreateTestLibrary

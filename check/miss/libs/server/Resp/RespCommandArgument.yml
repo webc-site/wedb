@@ -1,10 +1,4 @@
 fn:
-  - RespCommandArgumentBase
   - ToByteRespFormat
   - ToRespFormat
-  - RespCommandKeyArgument
-  - RespCommandArgument
-  - RespCommandBasicArgument
-  - RespCommandContainerArgument
   - CanConvert
-  - Write

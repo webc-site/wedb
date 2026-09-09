@@ -1,19 +1,4 @@
 fn:
-  - RespCommandExtensions
-  - IsAofIndependent
-  - NormalizeForACLs
-  - ExpandForACLs
-  - IsReadOnly
-  - IsLegalOnRangeIndex
-  - IsRangeIndexCommand
-  - IsVectorSetCommand
-  - IsDataCommand
-  - IsWriteOnly
-  - OneIfWrite
-  - OneIfRead
-  - IsNoAuth
-  - IsClusterSubCommand
-  - IsLegalOnVectorSet
   - IsAllowedInSubscriptionMode
   - FastParseInlineCommand
   - FastParseCommand
@@ -27,6 +12,5 @@ fn:
   - UpdateCommandCache
   - HandleAofCommitMode
   - ArrayParseCommand
-  - SendAndReset
   - HashLookupCommand
   - HandleSubcommandLookup

@@ -1,13 +1,11 @@
 fn:
   - BaseSetup
-  - RecreateDirectory
   - BaseTearDown
   - AssertEquivalentTailAddress
   - ReadCompletionCallback
   - Verify
   - Setup
   - TearDown
-  - SnapshotIterator
   - OnStart
   - OnException
   - OnStop

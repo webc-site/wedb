@@ -6,8 +6,8 @@ fn:
   - TryWriteRecordSpan
   - TryWriteChunkedRecordSpan
   - SendAndResetIterationBuffer
-  - SetFlushTask
   - AddAofSyncTask
+  - SetFlushTask
   - ContinueFlushTaskAsync
   - WaitForFlushAsync
   - WaitForSyncCompletionAsync

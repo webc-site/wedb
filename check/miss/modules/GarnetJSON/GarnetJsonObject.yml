@@ -1,7 +1,6 @@
 fn:
   - Create
   - Deserialize
-  - GarnetJsonObject
   - CloneObject
   - SerializeObject
   - TryGet

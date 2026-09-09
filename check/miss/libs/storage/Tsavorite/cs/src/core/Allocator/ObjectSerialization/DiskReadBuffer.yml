@@ -1,5 +1,4 @@
 fn:
-  - DiskReadBuffer
   - GetTailSpan
   - ReadFromDevice
   - IncrementOrResetCountdown

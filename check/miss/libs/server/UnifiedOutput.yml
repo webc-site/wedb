@@ -1,4 +1,2 @@
 fn:
-  - UnifiedOutput
   - FromPinnedPointer
-  - ConvertToHeap

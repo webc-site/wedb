@@ -1,5 +1,4 @@
 fn:
-  - EmbeddedNetworkSender
   - IsLocalConnection
   - DisposeNetworkSender
   - Enter
@@ -7,6 +6,8 @@ fn:
   - Exit
   - ExitAndReturnResponseObject
   - GetResponseObject
+  - GetResponseObjectHead
+  - GetResponseObjectTail
   - ReturnResponseObject
   - SendCallback
   - SendResponse

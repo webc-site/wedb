@@ -1,5 +1,4 @@
 fn:
-  - GarnetApi
   - WATCH
   - GET_WithPending
   - GET_CompletePending

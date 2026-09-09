@@ -1,5 +1,4 @@
 fn:
-  - SessionScriptCache
   - SetUserHandle
   - StartRunningScript
   - StopRunningScript

@@ -2,8 +2,7 @@
 
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
-
-const FN_REGEX = /(?:^|\s)(?:pub(?:\([^)]+\))?\s+)?(?:default\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern(?:\s+"[^"]+")?\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)/;
+import { rsParser } from "./treeSitter.js";
 
 const rsWalk = async (dir_path) => {
   const entry_li = await readdir(dir_path, { withFileTypes: true }),
@@ -56,88 +55,72 @@ const docTokenExtract = (text, doc_set, doc_file_fn_map) => {
   }
 };
 
-const rsDocExtract = (code, file_rel, doc_file_fn_map) => {
-  const line_li = code.split("\n"),
+const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
+  const tree = parser.parse(code),
     fn_doc_li = [],
     doc_set = new Set(),
-    all_doc_li = [];
+    all_doc_li = [],
+    comment_li = tree.rootNode.descendantsOfType(["line_comment", "block_comment"]),
+    fn_li = tree.rootNode.descendantsOfType("function_item");
 
-  let pending_doc_li = [],
-    in_block_doc = false,
-    block_buf_li = [];
-
-  for (let i = 0; i < line_li.length; ++i) {
-    const trimmed = line_li[i].trim();
-
-    if (in_block_doc) {
-      if (trimmed.includes("*/")) {
-        in_block_doc = false;
-        const part = trimmed.slice(0, trimmed.indexOf("*/")).trim();
-        block_buf_li.push(part);
-        const full_block = block_buf_li.join(" ");
-        pending_doc_li.push(full_block);
-        all_doc_li.push(full_block);
-        docTokenExtract(full_block, doc_set, doc_file_fn_map);
-        block_buf_li = [];
-      } else {
-        block_buf_li.push(trimmed);
-      }
-      continue;
+  for (const comment of comment_li) {
+    const { type } = comment;
+    let { text } = comment;
+    if (type === "line_comment") {
+      text = text.replace(/^\/\/[/!]?\s*/, "");
+    } else if (type === "block_comment") {
+      text = text.replace(/^\/\*+\s*/, "").replace(/\s*\*+\/$/, "");
     }
-
-    if (trimmed.startsWith("/**")) {
-      if (trimmed.includes("*/")) {
-        const doc = trimmed.slice(3, trimmed.indexOf("*/")).trim();
-        pending_doc_li.push(doc);
-        all_doc_li.push(doc);
-        docTokenExtract(doc, doc_set, doc_file_fn_map);
-      } else {
-        in_block_doc = true;
-        block_buf_li = [trimmed.slice(3).trim()];
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("///") || trimmed.startsWith("//!")) {
-      const doc = trimmed.replace(/^\/\/[/!]\s*/, "");
-      pending_doc_li.push(doc);
-      all_doc_li.push(doc);
-      docTokenExtract(doc, doc_set, doc_file_fn_map);
-      continue;
-    }
-
-    if (trimmed.startsWith("//")) {
-      const comment = trimmed.replace(/^\/\/\s*/, "");
-      all_doc_li.push(comment);
-      docTokenExtract(comment, doc_set, doc_file_fn_map);
-      continue;
-    }
-
-    if (trimmed.startsWith("#[")) {
-      continue;
-    }
-
-    if (trimmed === "") {
-      pending_doc_li = [];
-      continue;
-    }
-
-    const fn_match = trimmed.match(FN_REGEX);
-    if (fn_match) {
-      const fn_name = fn_match[1],
-        doc_str = pending_doc_li.join("\n");
-
-      fn_doc_li.push({
-        file: file_rel,
-        fn: fn_name,
-        doc: doc_str
-      });
-      pending_doc_li = [];
-    } else {
-      pending_doc_li = [];
+    text = text.trim();
+    if (text) {
+      all_doc_li.push(text);
+      docTokenExtract(text, doc_set, doc_file_fn_map);
     }
   }
 
+  for (const fn of fn_li) {
+    const name_node = fn.childForFieldName("name");
+    if (!name_node) continue;
+    const fn_name = name_node.text,
+      doc_part_li = [];
+
+    let curr = fn.previousSibling,
+      last_row = fn.startPosition.row;
+
+    while (curr) {
+      if (curr.type === "attribute_item") {
+        last_row = curr.startPosition.row;
+        curr = curr.previousSibling;
+        continue;
+      }
+
+      if (curr.type !== "line_comment" && curr.type !== "block_comment") {
+        break;
+      }
+
+      if (last_row - curr.endPosition.row > 1) {
+        break;
+      }
+
+      const { text, type } = curr;
+      if (type === "line_comment" && (text.startsWith("///") || text.startsWith("//!"))) {
+        doc_part_li.unshift(text.replace(/^\/\/[/!]\s*/, ""));
+      } else if (type === "block_comment" && text.startsWith("/**")) {
+        doc_part_li.unshift(text.replace(/^\/\*\*+\s*/, "").replace(/\s*\*+\/$/, "").trim());
+      }
+
+      last_row = curr.startPosition.row;
+      curr = curr.previousSibling;
+    }
+
+    fn_doc_li.push({
+      file: file_rel,
+      fn: fn_name,
+      doc: doc_part_li.join("\n")
+    });
+  }
+
+  tree.delete();
   return [fn_doc_li, doc_set, all_doc_li.join("\n")];
 };
 
@@ -146,18 +129,20 @@ const rustScan = async (root_dir = resolve(import.meta.dirname, "../..")) => {
     fn_doc_li = [],
     doc_set = new Set(),
     doc_file_fn_map = new Map(),
-    text_li = [];
+    text_li = [],
+    parser = await rsParser();
 
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),
       file_rel = relative(root_dir, file_path),
-      [sub_fn_doc_li, sub_doc_set, doc_text] = rsDocExtract(code, file_rel, doc_file_fn_map);
+      [sub_fn_doc_li, sub_doc_set, doc_text] = rsDocExtract(code, file_rel, doc_file_fn_map, parser);
 
     fn_doc_li.push(...sub_fn_doc_li);
     for (const token of sub_doc_set) doc_set.add(token);
     text_li.push(doc_text);
   }
 
+  parser.delete();
   return [doc_set, doc_file_fn_map, fn_doc_li, text_li.join("\n")];
 };
 

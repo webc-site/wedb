@@ -1,9 +1,8 @@
 fn:
   - GetAvailableNetworkBufferSpan
   - InitializeIterationBuffer
-  - EnsureTcsIsEnqueued
   - SendAndResetIterationBuffer
-  - ResetOffset
-  - TrackIterationProgress
   - TryWriteRecordSpan
   - TryWriteChunkedRecordSpan
+  - TrackIterationProgress
+  - EnsureTcsIsEnqueued

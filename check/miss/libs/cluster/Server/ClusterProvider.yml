@@ -1,5 +1,4 @@
 fn:
-  - ClusterProvider
   - PreventRoleChange
   - AllowRoleChange
   - Start

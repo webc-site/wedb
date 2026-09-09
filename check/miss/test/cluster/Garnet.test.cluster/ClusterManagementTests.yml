@@ -6,8 +6,8 @@ fn:
   - GetStat
   - ClusterRestartNodeDropGossip
   - ExecuteHashSet
-  - ManualCollect
   - ValidateHashSet
+  - ManualCollect
   - UpgradeReplicasAsync
 test:
   - ClusterSlotsTest

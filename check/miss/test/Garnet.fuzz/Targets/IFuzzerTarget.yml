@@ -2,4 +2,3 @@ fn:
   - Fuzz
   - PrepareInput
   - RaiseErrorForInput
-  - FuzzerValidationException

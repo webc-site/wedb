@@ -2,19 +2,17 @@ fn:
   - Equals
   - GetHashCode64
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - TryLock
-  - PopulateHei
   - Unlock
+  - PopulateHei
   - AssertLockCounts
   - AssertTotalLockCounts
   - AssertBucketLockCount
-  - AddThreads
   - CreateKeys
   - createKey
   - AssertSorted
+  - AddThreads
   - runThread
   - getNextKey
 test:

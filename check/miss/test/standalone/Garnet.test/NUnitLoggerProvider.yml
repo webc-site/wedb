@@ -1,7 +1,5 @@
 fn:
-  - NUnitLoggerProvider
   - CreateLogger
-  - NUnitLogger
   - BeginScope
   - IsEnabled
   - GetLevelStr

@@ -1,9 +1,9 @@
 fn:
   - Setup
   - TearDown
-  - ExpectedEtagTest
   - RegisterCustomCommand
   - ValidateServerData
+  - ExpectedEtagTest
 test:
   - AofUpsertStoreRecoverTestAsync
   - AofUpsertStoreAutoCommitRecoverTestAsync

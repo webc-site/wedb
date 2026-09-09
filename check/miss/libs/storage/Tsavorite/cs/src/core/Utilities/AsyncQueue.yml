@@ -1,5 +1,4 @@
 fn:
-  - AsyncQueue
   - Enqueue
   - DequeueAsync
   - WaitForEntry

@@ -1,5 +1,4 @@
 fn:
-  - AofSyncTask
   - Consume
   - Throttle
   - SendAdvanceTimePulse

@@ -1,5 +1,4 @@
 fn:
-  - BitmapContainer
   - SetUnchecked
   - Remove
   - Last

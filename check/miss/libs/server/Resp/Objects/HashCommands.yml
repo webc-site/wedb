@@ -1,9 +1,7 @@
 fn:
-  - SendAndReset
   - HashGet
   - HashGetAll
   - HashGetMultiple
-  - WriteNull
   - HashRandomField
   - HashLength
   - HashStrLength

@@ -1,24 +1,18 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - CreateStore
   - MakeKey
   - MakeValue
   - RunSpanByteTest
-  - AssertCopiedToExpectedLocation
   - RunObjectTest
-  - CTTSpanByteFunctions
+  - AssertCopiedToExpectedLocation
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - ConvertOutputToHeap
 test:
   - InlineKeyInlineValueCopyToTail
-  - RunSpanByteTest
   - InlineKeyOverflowValueCopyToTail
   - OverflowKeyOverflowValueCopyToTail
   - InlineKeyObjectValueCopyToTail
-  - RunObjectTest
   - OverflowKeyObjectValueCopyToTail

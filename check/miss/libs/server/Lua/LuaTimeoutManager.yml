@@ -1,9 +1,7 @@
 fn:
-  - Registration
   - SetCookie
   - AdvanceTimeout
-  - LuaTimeoutManager
   - Start
-  - TickTimeouts
   - RegisterForTimeout
   - RemoveRegistration
+  - TickTimeouts

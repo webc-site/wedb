@@ -1,4 +1,3 @@
 fn:
-  - ScriptHashKey
   - CopyTo
   - Equals

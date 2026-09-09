@@ -1,6 +1,5 @@
 fn:
   - GetKeyHash
-  - ConsistentReadContext
   - ReadWithPrefetch
   - CompletePendingWithOutputs
   - CompletePendingAsync

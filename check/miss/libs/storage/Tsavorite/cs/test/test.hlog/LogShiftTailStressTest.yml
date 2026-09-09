@@ -1,7 +1,5 @@
 fn:
   - Setup
-  - BaseSetup
   - TearDown
-  - BaseTearDown
 test:
   - TsavoriteLogShiftTailStressTest

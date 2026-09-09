@@ -1,5 +1,4 @@
 fn:
-  - ScratchBufferNetworkSender
   - GetResponse
   - IsLocalConnection
   - DisposeNetworkSender
@@ -8,6 +7,8 @@ fn:
   - Exit
   - ExitAndReturnResponseObject
   - GetResponseObject
+  - GetResponseObjectHead
+  - GetResponseObjectTail
   - ReturnResponseObject
   - SendCallback
   - SendResponse

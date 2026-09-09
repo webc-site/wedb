@@ -4,6 +4,7 @@ fn:
   - LinuxMmap
   - LinuxMunmap
   - LinuxSchedSetAffinity
+  - MapPage
   - Unmap
   - TryPin
   - PinFailed

@@ -1,11 +1,9 @@
 fn:
   - StringSetBit
-  - RMW_MainStore
   - StringGetBit
   - StringBitOperation
   - ReleaseOverflowBuffers
   - StringBitCount
   - StringBitField
-  - Read_MainStore
   - StringBitPosition
   - StringBitFieldReadOnly

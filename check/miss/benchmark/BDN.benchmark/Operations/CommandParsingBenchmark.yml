@@ -1,6 +1,5 @@
 fn:
   - GlobalSetup
-  - SlowConsumeMessage
   - ParsePING
   - ParseGET
   - ParseSET

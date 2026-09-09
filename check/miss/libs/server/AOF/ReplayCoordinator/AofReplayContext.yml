@@ -1,4 +1,3 @@
 fn:
-  - AofReplayContext
   - AddTransactionGroup
   - AddToFuzzyRegionBuffer

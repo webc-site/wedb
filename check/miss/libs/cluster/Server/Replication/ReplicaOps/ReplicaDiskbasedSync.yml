@@ -1,10 +1,7 @@
 fn:
   - TryReplicateDiskbasedSyncAsync
   - ReplicaSyncAttachTaskAsync
-  - EndRecovery
   - ShouldInitialize
   - CreateCheckpointDevice
   - GetStoreHLogDevice
   - TryReplicaDiskbasedRecovery
-  - UpdateLastPrimarySyncTime
-  - TryUpdateMyPrimaryReplId

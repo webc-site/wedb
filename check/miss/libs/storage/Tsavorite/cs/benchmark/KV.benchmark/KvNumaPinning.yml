@@ -1,12 +1,11 @@
 fn:
-  - KvNumaPinning
   - PinWorker
-  - PinToCpu
   - PinSetupOrReporter
-  - LinuxSchedSetAffinity
+  - PinToCpu
   - DiscoverLinuxNodeCpus
   - ParseCpuList
   - sched_setaffinity
   - sched_getaffinity
   - LinuxSchedGetAffinity
+  - LinuxSchedSetAffinity
   - DescribeWorkerCpus

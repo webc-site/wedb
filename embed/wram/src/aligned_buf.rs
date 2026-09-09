@@ -128,9 +128,9 @@ impl AlignedBuf {
   #[inline]
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
-  #[inline]
+  
   pub fn is_allocated(&self) -> bool {
-    self.cap > 0 && self.ptr.as_ptr() as usize != dangling(self.align).as_ptr() as usize
+    self.cap > 0 && !std::ptr::eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
   }
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset

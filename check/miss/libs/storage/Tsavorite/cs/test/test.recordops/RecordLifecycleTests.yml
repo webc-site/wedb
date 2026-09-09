@@ -1,5 +1,4 @@
 fn:
-  - TrackedObjectValue
   - ToString
   - Deserialize
   - Serialize
@@ -9,16 +8,13 @@ fn:
   - TotalDispose
   - TotalDisposeDisk
   - TotalEvict
-  - LifecycleRecordTriggers
   - OnDispose
   - OnDisposeDiskRecord
   - OnEvict
   - OnRecovery
   - OnCheckpoint
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - NewSession
 test:
   - CopyUpdateDoesNotFireOnDisposeCopyUpdated

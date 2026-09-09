@@ -1,7 +1,0 @@
-fn:
-  - MainSessionFunctions
-  - ConvertOutputToHeap
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback

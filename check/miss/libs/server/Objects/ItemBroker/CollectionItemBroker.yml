@@ -1,5 +1,4 @@
 fn:
-  - CollectionItemBroker
   - TryGetObserver
   - GetCollectionItemAsync
   - MoveCollectionItemAsync

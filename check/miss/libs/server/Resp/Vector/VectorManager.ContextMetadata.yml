@@ -3,6 +3,7 @@ fn:
   - IsMigrating
   - IsCleaningUp
   - GetNamespacesForHashSlots
+  - NextNotInUse
   - TryReserveForMigration
   - MarkInUse
   - MarkMigrating
@@ -16,14 +17,11 @@ fn:
   - DecomposeContext
   - OffsetForContextMetadata
   - ToString
-  - FlushGuard
   - NextVectorSetContext
   - AllocateTestContexts
-  - getTempSession
-  - UpdateContextMetadata
   - BeginFlush
   - ReserveContextsForMigration
+  - UpdateContextMetadata
   - ExtractContextFromNamespaces
   - StoreContextInNamespace
-  - ReadIndex
   - GetContextState

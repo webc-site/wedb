@@ -1,5 +1,3 @@
 fn:
-  - WriteLogUpsert
-  - WriteLogDelete
   - GetCustomObjectCommand
   - IncorrectObjectType

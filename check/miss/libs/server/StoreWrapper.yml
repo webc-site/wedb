@@ -20,23 +20,22 @@ fn:
   - TrySwapDatabases
   - ResetRevivificationStats
   - AutoCheckpointBasedOnAofSizeLimitAsync
-  - when
   - CommitTaskAsync
   - ExpiredKeyDeletionScanTaskAsync
   - IndexAutoGrowTaskAsync
   - HybridLogDistributionScan
   - Start
-  - StartPrimaryTasks
-  - StartReplicaTasks
-  - StartGenericNodeTasks
   - StartSizeTrackers
   - HasKeysInSlots
   - CheckMultiDatabaseCompatibility
   - EnforceConsistentRead
   - SuspendPrimaryOnlyTasksAsync
   - SuspendReplicaOnlyTasksAsync
+  - StartPrimaryTasks
   - TryStartCommitTask
   - TryStartObjectCollectTask
   - TryStartExpiredKeyDeletionTask
   - ReconcilePrimaryTask
   - ApplyAofSyncMaxLagBytes
+  - StartReplicaTasks
+  - StartGenericNodeTasks

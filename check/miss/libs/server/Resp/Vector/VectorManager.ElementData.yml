@@ -1,5 +1,4 @@
 fn:
-  - PreparedVectorData
   - PrepareVectorData
   - ConvertF32ForAlignment
   - ConvertI8ToF32

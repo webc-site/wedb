@@ -1,5 +1,4 @@
 fn:
-  - ObjectAllocator
   - GetBase
   - InitializeRecord
   - GetRMWCopyRecordSize

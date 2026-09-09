@@ -2,4 +2,3 @@ fn:
   - StartQuantizationTasks
   - QuantizationTaskAsync
   - TryProcessQuantizationRequest
-  - ReadIndex

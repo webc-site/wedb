@@ -1,13 +1,8 @@
 fn:
-  - NeedInitialUpdate
   - GetInitialLength
-  - InitialUpdater
-  - NeedCopyUpdate
   - GetLength
-  - CopyUpdater
   - Create
   - Deserialize
-  - TestClusterObj
   - CloneObject
   - SerializeObject
   - Updater

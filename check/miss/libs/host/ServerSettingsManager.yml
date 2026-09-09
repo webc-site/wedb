@@ -1,5 +1,7 @@
 fn:
   - TryParseCommandLineArguments
-  - TryExportServerOptions
   - GetArgumentNameToValue
   - TryParseArguments
+  - TryImportServerOptions
+  - TryExportServerOptions
+  - ConsolidateFlagArguments

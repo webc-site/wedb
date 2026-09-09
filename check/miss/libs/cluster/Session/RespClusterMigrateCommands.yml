@@ -3,5 +3,4 @@ fn:
   - TrackImportProgress
   - NetworkClusterMigrate
   - Process
-  - SendAndReset
   - NetworkClusterMTasks

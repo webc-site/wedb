@@ -1,6 +1,5 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
   - UpdateRecordSizeInfo
   - GetTotalFillerLength
@@ -8,8 +7,8 @@ fn:
   - PopulateBoundarySizeInfo
   - InitializeRecord
   - ConvertToOverflow
-  - RestoreToOriginal
   - ConvertToObject
+  - RestoreToOriginal
 test:
   - InlineHeaderTests
   - InlineBasicTest

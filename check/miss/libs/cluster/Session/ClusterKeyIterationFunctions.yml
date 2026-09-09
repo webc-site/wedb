@@ -1,7 +1,4 @@
 fn:
-  - KeyIterationInfo
-  - CountKeys
   - OnStart
   - OnStop
   - OnException
-  - GetKeysInSlot

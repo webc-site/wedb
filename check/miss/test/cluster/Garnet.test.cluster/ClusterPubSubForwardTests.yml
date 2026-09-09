@@ -3,6 +3,5 @@ fn:
   - TearDown
   - SingleNodeConfig
   - NodeResponds
-  - when
 test:
   - ClusterPublishSurvivesPeerNodeShutdown

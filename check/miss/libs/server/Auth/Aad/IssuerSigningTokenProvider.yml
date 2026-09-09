@@ -1,5 +1,4 @@
 fn:
-  - IssuerSigningTokenProvider
   - RefreshSigningTokens
   - RetrieveSigningTokens
   - Create

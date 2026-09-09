@@ -1,5 +1,4 @@
 fn:
-  - TransactionalUnsafeContext
   - EndUnsafe
   - BeginTransaction
   - LocksAcquired

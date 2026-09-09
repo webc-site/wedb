@@ -1,5 +1,4 @@
 fn:
-  - CustomCommandManagerSession
   - GetCustomProcedure
   - GetCustomTransactionProcedure
   - TryGetCustomCommandInfo

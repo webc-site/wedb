@@ -1,4 +1,3 @@
 fn:
-  - PeriodicCheckpointer
   - Start
   - Stop

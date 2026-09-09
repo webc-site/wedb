@@ -1,21 +1,15 @@
 fn:
-  - TransactionGuard
-  - TransactionManager
   - RunTransactionProc
   - RunTransactionProcInternal
-  - ResetCacheSlotVerificationResult
-  - WriteCachedSlotVerificationMessage
   - IsSkippingOperations
-  - ComputeSublogAccessVector
   - Watch
   - AddTransactionStoreTypes
   - AddTransactionStoreType
   - GetLockset
   - GetSlotVerificationInput
-  - CopyExistingKeysToScratchBuffer
   - BeginTransaction
   - LocksAcquired
   - Run
   - ComputeCustomProcShardedLogAccess
+  - ComputeSublogAccessVector
   - PromoteToTransaction
-  - SaveKeyEntryToLock

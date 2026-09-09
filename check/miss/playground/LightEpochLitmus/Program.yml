@@ -1,9 +1,6 @@
 fn:
   - Main
-  - Usage
-  - WriteHeader
   - Run
   - Finish
-  - TryParse
+  - WriteHeader
   - TryInt
-  - ToPayload

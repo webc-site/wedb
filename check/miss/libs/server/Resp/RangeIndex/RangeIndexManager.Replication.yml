@@ -9,5 +9,5 @@ fn:
   - EnqueueRangeIndexStreamChunk
   - HandleRangeIndexStreamReplay
   - ProcessStreamChunk
-  - RemoveAndDisposeStreamReassembly
   - DisposeIncompleteStreamReassembly
+  - RemoveAndDisposeStreamReassembly

@@ -1,10 +1,9 @@
 fn:
-  - TestLoader
   - verifyOption
   - GetHashTableSize
   - LoadData
   - LoadDataThreadProc
-  - LoadSyntheticData
   - LoadDataFromFile
+  - LoadSyntheticData
   - MaybeRecoverStore
   - MaybeCheckpointStore

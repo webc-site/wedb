@@ -3,11 +3,11 @@ fn:
   - GetNumActiveTransactions
   - IncrementActiveTransactions
   - DecrementActiveTransactions
-  - AddToWaitingList
   - ResetLastVersion
   - AcquireTransactionVersion
   - VerifyTransactionVersion
   - EndTransaction
+  - AddToWaitingList
   - Register
   - UnsafeRegisterCallback
   - RunAsync
@@ -16,6 +16,5 @@ fn:
   - WaitForStateChange
   - WaitForCompletion
   - ProcessWaitingListAsync
-  - when
   - RunStateMachine
   - FastForwardStateMachineToRest

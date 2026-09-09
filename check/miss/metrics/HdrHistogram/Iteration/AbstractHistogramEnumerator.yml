@@ -1,10 +1,10 @@
 fn:
-  - AbstractHistogramEnumerator
   - HasNext
   - IncrementIterationLevel
   - ReachedIterationLevel
   - GetPercentileIteratedTo
   - GetValueIteratedTo
   - Next
-  - IncrementSubBucket
   - ExhaustedSubBuckets
+  - IncrementSubBucket
+  - MoveNext

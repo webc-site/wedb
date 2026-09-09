@@ -1,10 +1,9 @@
 fn:
   - CreateIndex
-  - AssertHaveStorageSession
-  - ReadIndex
   - DropIndex
+  - ReadIndex
   - SetContextForMigration
   - MarkSuppressCleanup
-  - SetFlags
   - ClearSuppressCleanup
+  - SetFlags
   - SetIndexFlags

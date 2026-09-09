@@ -1,6 +1,5 @@
 fn:
   - Overlap
-  - MigrateSession
   - GetGarnetClient
   - GetLocalSession
   - CheckConnectionAsync

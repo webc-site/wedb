@@ -1,6 +1,5 @@
 fn:
   - Redirect
-  - SendAndReset
   - GetSlotVerificationMessage
   - WriteClusterSlotVerificationMessage
   - NetworkMultiKeySlotVerify

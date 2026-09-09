@@ -1,5 +1,4 @@
 fn:
-  - CircularBuffer
   - PeekFirst
   - PeekLast
   - Enqueue
@@ -7,5 +6,4 @@ fn:
   - IsFull
   - IsEmpty
   - Iterate
-  - ElasticCircularBuffer
   - GetEnumerator

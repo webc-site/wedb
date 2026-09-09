@@ -1,8 +1,6 @@
 fn:
   - GetOptions
   - SortedSetAdd
-  - DeleteExpiredItems
-  - UpdateSize
   - SortedSetRemove
   - SortedSetLength
   - SortedSetScore
@@ -12,7 +10,6 @@ fn:
   - SortedSetRange
   - WriteSortedSetResult
   - SortedSetRemoveRangeByRank
-  - TryRemoveExpiration
   - SortedSetRemoveRangeByScore
   - SortedSetRandomMember
   - SortedSetRemoveOrCountRangeByLex

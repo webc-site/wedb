@@ -1,7 +1,7 @@
 fn:
   - EmitResultCsv
   - EmitAggregateCsv
-  - CsvAppendCommon
   - CsvHeader
   - CsvRow
+  - CsvAppendCommon
   - CsvEsc

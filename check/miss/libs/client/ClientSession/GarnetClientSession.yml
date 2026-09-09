@@ -1,19 +1,17 @@
 fn:
-  - GarnetClientSession
   - Connect
-  - Execute
   - ConnectAsync
   - ConnectSendSocket
   - ConnectSendSocketAsync
   - TryConnectSocket
   - TryConnectSocketAsync
   - ReconnectAsync
-  - InternalExecute
+  - Execute
   - ExecuteBatch
   - ExecuteForArray
   - ExecuteClusterAppendLog
   - Throttle
-  - Wait
+  - InternalExecute
   - ProcessReplies
   - ResetOffset
   - TryCreateMessageConsumer

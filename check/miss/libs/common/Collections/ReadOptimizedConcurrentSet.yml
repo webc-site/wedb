@@ -1,5 +1,4 @@
 fn:
-  - ReadOptimizedConcurrentSet
   - TryAddAndGet
   - TryRemove
   - Iterate

@@ -2,7 +2,6 @@ fn:
   - Setup
   - TearDown
   - PopulatePrimary
-  - Validate
   - ResetAndReAttach
   - MakeHashFieldBytes
 test:

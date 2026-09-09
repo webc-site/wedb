@@ -1,10 +1,11 @@
 fn:
-  - SpanByteScanIterator
   - SnapCursorToLogicalAddress
   - InitializeGetNextAndAcquireEpoch
   - LoadPageIfNeeded
   - SnapToLogicalAddressBoundary
   - GetPhysicalAddressAndAllocatedSize
+  - BeginGetPrevInMemory
+  - EndGetPrevInMemory
   - ClearValueIfHeap
   - AsMemoryLogRecordRef
   - AsDiskLogRecordRef

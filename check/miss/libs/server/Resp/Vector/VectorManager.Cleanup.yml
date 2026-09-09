@@ -1,12 +1,9 @@
 fn:
-  - PostDropCleanupFunctions
   - OnException
   - OnStart
   - OnStop
   - RunRequestDropTaskAsync
-  - getTempSession
   - RunRequestCleanupTaskAsync
-  - UpdateContextMetadata
   - RunCleanupTaskAsync
   - PauseCleanupAsync
   - ResumeCleanup
@@ -14,6 +11,5 @@ fn:
   - WaitForDiskANNIndexDrop
   - WaitForQuiescence
   - VectorSetPotentiallyDeleted
-  - ReadIndex
   - CheckpointCompleted
   - QueueCleanups

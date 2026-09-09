@@ -1,8 +1,6 @@
 fn:
   - RunOffline
-  - PrintOfflineHeader
-  - MonitorOffline
-  - PrintFinalReport
   - RunWorkerPoolOffline
-  - PrintWorkerPoolFinalReport
+  - MonitorOffline
+  - PrintOfflineHeader
   - ReportOfflineIteration

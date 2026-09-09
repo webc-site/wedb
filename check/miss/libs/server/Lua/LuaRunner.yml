@@ -1,8 +1,5 @@
 fn:
   - SendAndReset
-  - RespResponseAdapter
-  - RunnerAdapter
-  - LuaRunner
   - Register
   - CompileForRunner
   - CompileForSession
@@ -11,15 +8,15 @@ fn:
   - ProcessRespResponse
   - ProcessSingleRespTerm
   - RunForSession
-  - ResetTimeout
-  - RunInTransaction
-  - RunCommon
   - RunForRunner
   - MapRespToObject
+  - RunInTransaction
+  - ResetTimeout
   - RequestTimeout
   - TryResetParameters
   - TryRecreateKEYS
   - TryRecreateARGV
+  - RunCommon
   - WriteResponse
   - TryWriteSingleItem
   - TryWriteResp2Null

@@ -1,4 +1,2 @@
 fn:
-  - CountdownWrapper
-  - Wait
   - WaitAsync

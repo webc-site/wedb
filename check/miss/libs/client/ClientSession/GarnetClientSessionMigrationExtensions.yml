@@ -3,5 +3,3 @@ fn:
   - SetSlotRange
   - SetClusterMigrateHeader
   - CompleteMigrate
-  - TrackIterationProgress
-  - EnsureTcsIsEnqueued

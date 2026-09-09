@@ -1,6 +1,5 @@
 fn:
   - SerializeTo
-  - ReadOnlySpanBatch
   - TotalEntries
   - Setup
   - TearDown

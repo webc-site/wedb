@@ -1,5 +1,4 @@
 fn:
-  - RegisterApi
   - NewCommand
   - NewTransactionProc
   - NewType

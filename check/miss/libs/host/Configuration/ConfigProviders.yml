@@ -4,6 +4,3 @@ fn:
   - TrySerializeOptions
   - TryDeserializeOptions
   - GetConfigProvider
-  - GarnetConfigProvider
-  - RedisConfigProvider
-  - CompactOptionsJsonConverter

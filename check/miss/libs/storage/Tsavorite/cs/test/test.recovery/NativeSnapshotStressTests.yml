@@ -1,7 +1,5 @@
 fn:
   - Setup
-  - DeleteDirectory
-  - RecreateDirectory
   - TearDown
 test:
   - ConcurrentSnapshotAndEvictionStress

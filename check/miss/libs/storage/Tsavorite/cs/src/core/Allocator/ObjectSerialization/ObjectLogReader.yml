@@ -1,9 +1,7 @@
 fn:
-  - ObjectLogReader
   - OnBeginReadRecords
   - OnEndReadRecords
   - FlushAndReset
-  - Write
   - ReadRecordObjects
   - DoDeserialize
   - OnDeserializeComplete

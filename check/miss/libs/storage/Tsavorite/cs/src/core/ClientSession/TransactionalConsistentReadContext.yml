@@ -1,6 +1,5 @@
 fn:
   - GetKeyHash
-  - TransactionalConsistentReadContext
   - BeginTransaction
   - LocksAcquired
   - EndTransaction

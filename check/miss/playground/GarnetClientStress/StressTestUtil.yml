@@ -3,5 +3,4 @@ fn:
   - NotNull
   - GetClientCertificate
   - GetTlsOptions
-  - StressTestUtils
   - RunTest

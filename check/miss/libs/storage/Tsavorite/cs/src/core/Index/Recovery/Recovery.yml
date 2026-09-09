@@ -1,20 +1,17 @@
 fn:
-  - RecoveryStatus
   - SignalRead
   - SignalReadError
   - WaitRead
-  - ThrowTsavoriteException
   - WaitReadAsync
   - SignalFlushed
   - SignalFlushedError
   - WaitFlush
   - WaitFlushAsync
-  - RecoveryOptions
   - GetLatestCheckpointTokens
-  - GetClosestIndexCheckpointInfo
   - GetLatestCheckpointVersion
   - GetLogFileSize
   - GetIndexFileSize
+  - GetClosestIndexCheckpointInfo
   - FindRecoveryInfo
   - IsCompatible
   - GetRecoveryInfo
@@ -23,26 +20,25 @@ fn:
   - GetInitialRecoveryAddress
   - SetRecoveryPageRanges
   - ReadPagesWithMemoryConstraint
-  - TrimLogPages
   - FlushIfNeededThenEvictPageForRecovery
   - FlushSnapshotPageForRecovery
+  - TrimLogPages
   - TrimResidentPagesToBudget
   - ReadPagesForRecoveryAsync
   - RecoverHybridLogAsync
-  - ClearBitsOnPage
-  - ProcessReadPageAndFlush
-  - RecoveryLoadObjectsPass2
   - GetPageRangesToRead
+  - ProcessReadPageAndFlush
   - ProcessReadPage
   - WaitUntilAllPagesHaveBeenFlushedAsync
   - RecoverHybridLogFromSnapshotFileAsync
-  - GetSnapshotPageRangesToRead
+  - RecoveryLoadObjectsPass2
   - RecoverSnapshotPages
+  - GetSnapshotPageRangesToRead
   - ProcessReadSnapshotPage
+  - ClearBitsOnPage
   - RecoverFromPage
   - AsyncFlushPageCallbackForRecovery
   - RestoreHybridLog
-  - RecoveryReset
   - RestoreHybridLogAsync
   - RestoreHybridLogInitializePages
   - AsyncReadPagesForRecoveryCallback

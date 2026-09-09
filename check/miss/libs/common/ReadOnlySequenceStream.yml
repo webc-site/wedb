@@ -1,6 +1,4 @@
 fn:
-  - ReadOnlySequenceStream
   - ReadByte
   - Seek
   - SetLength
-  - Write

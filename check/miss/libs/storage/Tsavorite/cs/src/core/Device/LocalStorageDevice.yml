@@ -6,7 +6,7 @@ fn:
   - RemoveSegmentAsync
   - TryComplete
   - CreateHandle
-  - SetFileSize
   - GetSegmentName
   - GetOrAddHandle
+  - SetFileSize
   - Start

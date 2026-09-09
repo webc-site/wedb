@@ -1,5 +1,4 @@
 fn:
-  - Worker
   - SelectRandomProvider
   - RunOnline
   - RunOffline

@@ -1,7 +1,5 @@
 fn:
-  - FunctionsState
   - GetCustomCommandFunctions
   - GetCustomObjectFactory
   - GetCustomObjectSubCommandFunctions
   - CopyDefaultResp
-  - CopyRespNumber

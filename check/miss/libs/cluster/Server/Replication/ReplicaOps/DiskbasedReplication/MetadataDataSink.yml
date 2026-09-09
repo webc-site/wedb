@@ -1,4 +1,3 @@
 fn:
-  - MetadataDataSink
   - WriteChunk
   - Complete

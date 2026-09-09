@@ -1,5 +1,4 @@
 fn:
-  - User
   - CanAccessCommand
   - CanAccessCustomCommand
   - AddCategory

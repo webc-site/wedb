@@ -1,6 +1,5 @@
 fn:
   - LogCheckpointEntry
-  - CheckpointEntry
   - GetMinAofCoveredAddress
   - TryAddReader
   - RemoveReader

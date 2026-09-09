@@ -6,6 +6,8 @@ fn:
   - ExitAndReturnResponseObject
   - GetResponseObject
   - ReturnResponseObject
+  - GetResponseObjectHead
+  - GetResponseObjectTail
   - SendResponse
   - SendCallback
   - DisposeNetworkSender

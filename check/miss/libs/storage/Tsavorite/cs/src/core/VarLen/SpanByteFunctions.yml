@@ -1,6 +1,4 @@
 fn:
-  - SpanByteFunctions
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
-  - ConvertOutputToHeap

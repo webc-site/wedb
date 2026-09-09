@@ -1,7 +1,5 @@
 fn:
-  - AofBackpressure
   - SetBudget
-  - Wait
   - WaitSlow
   - AnyStalled
   - SetLog

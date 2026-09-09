@@ -1,22 +1,21 @@
 fn:
   - AcquireTransactional
-  - CheckIsNotAcquiredTransactional
   - LocksAcquired
-  - CheckIsAcquiredTransactional
   - ReleaseTransactional
+  - CheckIsAcquiredTransactional
+  - CheckIsNotAcquiredTransactional
   - GetKeyHash
-  - UnsafeResumeThread
   - ResetModified
-  - UnsafeResetModified
   - CompareKeyHashes
   - SortKeyHashes
   - CompletePendingWithOutputs
-  - InitializeCompletedOutputs
   - UnsafeCompletePendingWithOutputs
+  - InitializeCompletedOutputs
   - UnsafeCompletePending
   - CompletePendingAsync
   - CompletePendingWithOutputsAsync
   - ReadyToCompletePendingAsync
+  - UnsafeResetModified
   - IsModified
   - UnsafeIsModified
   - WaitForCommitAsync
@@ -24,5 +23,6 @@ fn:
   - IterateLookup
   - IterateLookupSnapshot
   - ScanCursor
+  - UnsafeResumeThread
   - MergeRevivificationStatsTo
   - ResetRevivificationStats

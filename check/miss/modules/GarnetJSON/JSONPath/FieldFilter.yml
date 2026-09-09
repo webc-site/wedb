@@ -1,4 +1,3 @@
 fn:
-  - FieldFilter
   - ExecuteFilter
   - ExecuteFilterMultiple

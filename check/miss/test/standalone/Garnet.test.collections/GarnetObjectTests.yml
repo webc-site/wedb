@@ -1,14 +1,12 @@
 fn:
   - Setup
-  - CreateStore
   - TearDown
   - LocalWrite
   - LocalRead
-  - MyFunctions
-  - CopyUpdater
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo
   - GetUpsertFieldInfo
+  - CreateStore
   - Deserialize
   - Serialize
 test:

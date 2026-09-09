@@ -1,8 +1,6 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - AssertCompleted
   - CompletePendingResult
   - ReadCompletionCallback

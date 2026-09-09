@@ -1,5 +1,4 @@
 fn:
-  - ReaderWriterLock
   - WriteLock
   - WriteUnlock
   - ReadLock

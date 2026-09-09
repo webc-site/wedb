@@ -1,5 +1,4 @@
 fn:
-  - SingleDatabaseManager
   - TryGetOrAddDatabase
   - RecoverCheckpointAsync
   - TryPauseCheckpoints
@@ -11,22 +10,19 @@ fn:
   - CommitToAofAsync
   - WaitForCommitToAofAsync
   - RecoverAOFAsync
-  - RecoverDatabaseAOFAsync
   - ReplayAOF
   - GrowIndexesIfNeededAsync
   - ExecuteObjectCollection
   - StartSizeTrackers
-  - ResetDatabase
   - ResetRevivificationStats
   - EnqueueCommit
-  - EnqueueDatabaseCommit
   - GetDatabasesSnapshot
   - TryGetDatabase
   - FlushDatabase
-  - SafeFlushAOF
   - FlushAllDatabases
   - TrySwapDatabases
   - CreateFunctionsState
   - TryPauseCheckpointsContinuousAsync
   - CollectHybridLogStats
+  - SafeFlushAOF
   - RecoverVectorSets

@@ -1,8 +1,7 @@
 fn:
-  - IsAuthorized
-  - GarnetAadAuthenticator
   - Authenticate
   - IsIdentityAuthorized
   - IsApplicationAuthorized
   - IsUserNameAuthorized
+  - IsAuthorized
   - IsApplicationPrincipal

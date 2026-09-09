@@ -1,5 +1,4 @@
 fn:
-  - DeleteDirectory
   - getEntryValue
   - ToString
 test:

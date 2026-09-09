@@ -1,5 +1,4 @@
 fn:
-  - PercentileEnumerator
   - HasNext
   - IncrementIterationLevel
   - ReachedIterationLevel

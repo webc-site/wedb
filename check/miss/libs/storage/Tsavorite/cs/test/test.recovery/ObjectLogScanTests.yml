@@ -1,17 +1,13 @@
 fn:
-  - TestObjectValueComparerModulo
   - Equals
   - GetHashCode64
-  - OverflowTestKey
   - Serialize
   - WriteType
   - CacheSerializedObjectData
   - ClearSerializedObjectData
   - Deserialize
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - OnStart
   - OnException
   - OnStop
@@ -19,7 +15,6 @@ fn:
   - OnCompleted
   - OnError
   - OnNext
-  - InitialWriter
 test:
   - SerializedObjectCleanupTest
   - CleanupWithoutCachedDataTest

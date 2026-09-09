@@ -1,9 +1,5 @@
 fn:
-  - SplitBuckets
-  - OnDispose
   - CreatePendingRMWContext
-  - EphemeralXUnlock
   - CheckCPRConsistencyRMW
   - CreateNewRecordRMW
-  - SaveAllocationForRetry
   - ReinitializeExpiredRecord

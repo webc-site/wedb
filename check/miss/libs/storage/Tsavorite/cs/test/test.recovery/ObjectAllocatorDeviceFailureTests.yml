@@ -1,10 +1,7 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - CreateStore
-  - ControlledReadFailureDevice
   - FailNextRead
   - RemoveSegmentAsync
   - TryComplete

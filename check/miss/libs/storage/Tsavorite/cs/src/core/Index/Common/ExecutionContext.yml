@@ -1,5 +1,4 @@
 fn:
-  - TsavoriteExecutionContext
   - RentPendingIoContext
   - ReturnPendingIoContext
   - MergeReadCopyOptions

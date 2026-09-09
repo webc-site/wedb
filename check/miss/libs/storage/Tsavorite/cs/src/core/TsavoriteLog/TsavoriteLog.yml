@@ -3,34 +3,28 @@ fn:
   - AllocatorCalculateReadOnlyAddress
   - BeginInflightEnqueue
   - EndInflightEnqueue
-  - NotifyParkedWaiters
   - MaybeProducerDriveSafeTail
   - ProducerDriveSafeTailSlow
+  - NotifyParkedWaiters
   - NotifyParkedWaitersSlow
   - RefreshSafeTailAddress
-  - MaybeInvokePageShiftCallback
   - AdvanceSafeTailFloor
-  - cb
+  - MaybeInvokePageShiftCallback
   - SafeInitialize
   - CreateAsync
-  - TrueDispose
   - CompleteLog
-  - WaitForCommit
+  - TrueDispose
   - Enqueue
   - UnsafeEnqueueRaw
   - UnsafeCommitMetadataOnly
-  - CommitMetadataOnly
   - UnsafeGetLogPageSizeBits
   - UnsafeGetReadOnlyAddressAbove
   - TryEnqueue
-  - ValidateAllocatedLength
-  - SetHeader
   - AllocateBlock
   - ThrowException
-  - TryAppend
   - EnqueueAsync
   - SlowEnqueueAsync
-  - when
+  - WaitForCommit
   - WaitForCommitAsync
   - WaitUncommittedAsync
   - CommitStrongly
@@ -46,8 +40,8 @@ fn:
   - Align
   - CommitCallback
   - TryEnqueueCommitRecord
-  - SetCommitRecordHeader
   - ShouldCommmitMetadata
+  - CommitMetadataOnly
   - UpdateCommittedState
   - WriteCommitMetadata
   - SerialCommitCallbackWorker
@@ -55,9 +49,10 @@ fn:
   - SignalWaitingROIterators
   - LoadCommitMetadata
   - RestoreLatestAsync
-  - ResetRecoveryState
-  - CompleteRestoreFromCommit
   - RestoreSpecificCommitAsync
+  - CompleteRestoreFromCommit
+  - ResetRecoveryState
+  - TryAppend
   - AsyncGetHeaderOnlyFromDiskCallback
   - GetRecordAndFree
   - GetRecordAsMemoryOwnerAndFree
@@ -68,3 +63,6 @@ fn:
   - UnsafeAlign
   - VerifyChecksum
   - GetChecksum
+  - SetHeader
+  - SetCommitRecordHeader
+  - ValidateAllocatedLength

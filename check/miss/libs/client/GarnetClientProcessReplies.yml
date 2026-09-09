@@ -1,10 +1,9 @@
 fn:
   - TryConsumeMessages
-  - ProcessReplies
   - ProcessReplyAsString
   - ProcessReplyAsNumber
   - ProcessReplyAsStringArray
   - ProcessReplyAsMemoryByte
   - ProcessReplyAsMemoryByteArray
-  - ConsumeTcsOffset
+  - ProcessReplies
   - CopyErrorToSpan

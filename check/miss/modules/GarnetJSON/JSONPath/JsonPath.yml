@@ -1,18 +1,17 @@
 fn:
-  - JsonPath
-  - ParseMain
   - IsStaticPath
   - Evaluate
-  - EatWhitespace
+  - ParseMain
   - ParsePath
   - CreatePathFilter
   - ParseIndexer
-  - EnsureLength
   - ParseArrayIndexer
+  - EatWhitespace
   - TryParseIndex
   - ParseQuery
   - TryParseExpression
   - CreateUnexpectedCharacterException
+  - ParseSide
   - ParseExpression
   - TryParseValue
   - TryParseArrayLiteral
@@ -22,3 +21,4 @@ fn:
   - ReadRegexString
   - ParseOperator
   - ParseQuotedField
+  - EnsureLength

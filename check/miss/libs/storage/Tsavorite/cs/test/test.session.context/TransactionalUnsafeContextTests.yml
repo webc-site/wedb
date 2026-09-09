@@ -1,20 +1,16 @@
 fn:
   - Equals
   - GetHashCode64
-  - PostInitialDeleter
-  - BucketLockTracker
   - IncrementX
-  - IncrementS
   - DecrementX
+  - IncrementS
   - DecrementS
   - AddX
   - AddS
   - GetLockCounts
   - AssertNoLocks
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - Populate
   - AssertIsLocked
   - PrepareRecordLocation

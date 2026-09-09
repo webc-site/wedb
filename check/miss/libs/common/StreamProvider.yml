@@ -1,9 +1,5 @@
 fn:
-  - Write
   - GetDevice
   - GetBytesToWrite
   - IOCallback
   - GetStreamProvider
-  - AzureStreamProvider
-  - LocalFileStreamProvider
-  - EmbeddedResourceStreamProvider

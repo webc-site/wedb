@@ -1,2 +1,2 @@
 fn:
-  - LuaOptions
+  - GetMemoryLimitBytes

@@ -1,4 +1,2 @@
 fn:
-  - CompactObjectJsonConverter
-  - Write
   - AreEqual

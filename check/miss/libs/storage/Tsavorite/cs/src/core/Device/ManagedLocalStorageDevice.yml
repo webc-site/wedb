@@ -6,6 +6,6 @@ fn:
   - GetSegmentName
   - CreateReadHandle
   - CreateWriteHandle
-  - SetFileSize
   - AddHandle
   - GetOrAddHandle
+  - SetFileSize

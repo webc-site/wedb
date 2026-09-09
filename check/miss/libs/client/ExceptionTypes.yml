@@ -1,4 +1,0 @@
-fn:
-  - GarnetClientDisposedException
-  - GarnetClientTimeoutException
-  - GarnetClientSocketDisposedException

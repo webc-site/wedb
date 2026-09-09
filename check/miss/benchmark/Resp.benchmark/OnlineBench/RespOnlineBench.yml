@@ -1,15 +1,11 @@
 fn:
   - IsValidRange
-  - RespOnlineBench
   - SelectOpType
   - WaitForMonitorIterationSwitch
   - RecordValue
   - InitializeClients
   - InitializeThreadWorkers
   - Run
-  - th
-  - median
-  - avg
   - OpRunnerLightClient
   - OpRunnerGarnetClientSession
   - ZREM

@@ -1,8 +1,0 @@
-fn:
-  - NeedInitialUpdate
-  - InitialUpdater
-  - PostInitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostRMWOperation

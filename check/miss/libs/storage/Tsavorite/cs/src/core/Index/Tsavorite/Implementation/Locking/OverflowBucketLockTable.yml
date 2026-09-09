@@ -1,6 +1,7 @@
 fn:
   - GetSize
   - GetBucketIndex
+  - GetBucket
   - TryLockShared
   - TryLockExclusive
   - TryPromoteLock
@@ -12,5 +13,4 @@ fn:
   - KeyHashComparer
   - CompareKeyHashes
   - SortKeyHashes
-  - KeyComparer
   - Compare

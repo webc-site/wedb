@@ -1,6 +1,4 @@
 fn:
   - RecoverReplayDriver
-  - SwitchActiveDatabaseContext
   - SingleLogRecover
-  - ProcessAofRecordInternal
   - MultiLogRecover

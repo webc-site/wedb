@@ -1,6 +1,4 @@
 fn:
-  - DeviceLogCommitCheckpointManager
-  - WriteInto
   - ListCommits
   - RemoveCommit
   - RemoveAllCommits
@@ -24,5 +22,6 @@ fn:
   - NextLogCheckpointDevice
   - IOCallback
   - strerror
+  - WriteInto
   - CheckpointVersionShiftStart
   - CheckpointVersionShiftEnd

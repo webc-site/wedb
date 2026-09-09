@@ -1,5 +1,4 @@
 fn:
-  - FixedLenYcsbBenchmark
   - RunYcsbUnsafeContext
   - RunYcsbSafeContext
   - Run

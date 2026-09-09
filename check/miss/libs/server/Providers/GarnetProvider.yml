@@ -1,4 +1,3 @@
 fn:
-  - GarnetProvider
   - Start
   - GetSession

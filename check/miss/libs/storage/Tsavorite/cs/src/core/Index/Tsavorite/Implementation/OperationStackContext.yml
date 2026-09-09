@@ -1,5 +1,4 @@
 fn:
-  - OperationStackContext
   - SetRecordSourceToHashEntry
   - UpdateRecordSourceToCurrentHashEntry
   - SetNewRecord

@@ -1,4 +1,0 @@
-fn:
-  - ValidateMetadata
-  - SendCheckpointAsync
-  - AcquireCheckpointEntryAsync

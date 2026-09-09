@@ -1,5 +1,4 @@
 fn:
-  - TestSpanByteKey
   - FromPinnedSpan
   - CopySpan
   - FromPointer

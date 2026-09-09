@@ -1,11 +1,9 @@
 fn:
   - GetConfig
   - NetworkCONFIG_GET
-  - WriteMapLength
-  - SendAndReset
   - NetworkCONFIG_REWRITE
   - NetworkCONFIG_SET
-  - AppendError
   - HandleMemorySizeChange
-  - AppendErrorWithTemplate
   - HandleIndexSizeChangeAsync
+  - AppendError
+  - AppendErrorWithTemplate

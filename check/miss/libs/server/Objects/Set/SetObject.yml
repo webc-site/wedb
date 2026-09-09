@@ -1,4 +1,3 @@
 fn:
-  - SetObject
-  - UpdateSize
   - Operate
+  - UpdateSize

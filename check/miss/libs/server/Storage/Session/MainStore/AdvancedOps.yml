@@ -1,11 +1,7 @@
 fn:
   - GET_WithPending
-  - incr_session_pending
-  - incr_session_found
-  - incr_session_notfound
   - GET_CompletePending
   - RMW_MainStore
-  - CompletePendingForSession
   - Read_MainStore
   - Read_RangeIndex
   - ReadWithPrefetch

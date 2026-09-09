@@ -1,6 +1,5 @@
 fn:
-  - RangeIndexMigrationReceiveState
   - ProcessRecord
-  - DisposeInternal
   - ProcessRecordInternal
   - HandleError
+  - DisposeInternal

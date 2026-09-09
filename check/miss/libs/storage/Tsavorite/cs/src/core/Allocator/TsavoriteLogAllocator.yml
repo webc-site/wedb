@@ -1,5 +1,4 @@
 fn:
-  - TsavoriteLogAllocator
   - GetBase
   - InitializeRecord
   - GetRMWCopyRecordSize

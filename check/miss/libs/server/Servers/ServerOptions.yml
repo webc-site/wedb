@@ -1,5 +1,4 @@
 fn:
-  - ServerOptions
   - MemorySizeBits
   - ValidatedPageSizeBits
   - PageSizeBits

@@ -1,16 +1,13 @@
 fn:
   - SortedSetAdd
-  - SendAndReset
   - SortedSetRemove
   - SortedSetLength
   - SortedSetRange
   - SortedSetRangeStore
   - SortedSetScore
   - SortedSetScores
-  - WriteNull
   - SortedSetPop
   - SortedSetMPop
-  - WriteDoubleNumeric
   - SortedSetCount
   - SortedSetLengthByValue
   - SortedSetIncrement

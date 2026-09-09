@@ -1,5 +1,4 @@
 fn:
-  - LuaManagedAllocator
   - EnterInfallibleAllocationRegion
   - TryExitInfallibleAllocationRegion
   - AllocateNew

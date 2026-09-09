@@ -1,6 +1,0 @@
-fn:
-  - InitialWriter
-  - PostInitialWriter
-  - InPlaceWriter
-  - PostUpsertOperation
-  - WriteLogUpsert

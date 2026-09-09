@@ -1,11 +1,9 @@
 fn:
   - Main
-  - RunFuzzExample
   - WriteLine
-  - Write
   - FailAndExit
+  - RunFuzzExample
   - GetTarget
   - WrappedDel
-  - when
   - GetInput
   - ReadSingleInput

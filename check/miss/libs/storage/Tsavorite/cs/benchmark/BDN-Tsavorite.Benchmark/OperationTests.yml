@@ -4,7 +4,3 @@ fn:
   - SetupPopulatedStore
   - TearDown
   - Insert
-  - InPlaceWriter
-  - InitialWriter
-  - InitialUpdater
-  - CopyUpdater

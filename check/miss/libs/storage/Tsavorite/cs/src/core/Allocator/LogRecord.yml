@@ -3,12 +3,8 @@ fn:
   - InitializeHeadersForNewRecord
   - CreateRemappedOverPinnedTransientMemory
   - RemapOverPinnedTransientMemory
-  - ThrowTsavoriteException
   - SetDeserializedValueObject
-  - GetObjectLogPositionAddress
   - AsReadOnlySpan
-  - GetETagAddress
-  - GetExpirationAddress
   - AsMemoryLogRecordRef
   - AsDiskLogRecordRef
   - GetRecordFieldInfo
@@ -22,12 +18,14 @@ fn:
   - TrySetContentLengths
   - TrySetContentLengthsAndPrepareOptionals
   - TrySetPinnedValueLength
-  - TrySetValueSpanAndPrepareOptionals
   - TryReinitializeValueLength
   - TrySetValueObjectAndPrepareOptionals
   - TrySetValueObject
   - GetOptionalStartAddress
   - GetOptionalFieldsSpan
+  - GetETagAddress
+  - GetExpirationAddress
+  - GetObjectLogPositionAddress
   - InitializeForReuse
   - TrySetETag
   - RemoveETag
@@ -38,7 +36,6 @@ fn:
   - GetValueHeapMemorySize
   - CanGrowPinnedValue
   - TryCopyOptionals
-  - ClearOptionals
   - ClearValueIfHeap
   - ClearHeapFields
   - PrepareForRevivification

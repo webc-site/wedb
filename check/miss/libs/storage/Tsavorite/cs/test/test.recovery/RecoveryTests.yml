@@ -1,19 +1,14 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
   - PrepareToRecover
-  - Populate
   - FullCheckpointAction
   - SeparateCheckpointAction
-  - checkpointAction
+  - Populate
   - RecoverAndTest
   - ExpectedValue
   - TestDriver
   - RunTest
-  - populateAction
-  - readAction
   - GetRandomLength
   - RecoverAndReadTest
 test:

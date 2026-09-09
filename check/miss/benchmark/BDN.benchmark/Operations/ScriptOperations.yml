@@ -1,7 +1,6 @@
 fn:
   - LuaParamsProvider
   - GlobalSetup
-  - SetupOperation
   - GlobalCleanup
   - ScriptLoad
   - ScriptExistsTrue
@@ -11,3 +10,4 @@ fn:
   - SmallScript
   - LargeScript
   - ArrayReturn
+  - SetupOperation

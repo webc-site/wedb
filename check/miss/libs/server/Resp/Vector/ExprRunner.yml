@@ -1,5 +1,4 @@
 fn:
-  - ExprStack
   - TryPush
   - Pop
   - Peek

@@ -1,15 +1,12 @@
 fn:
-  - TcpNetworkHandlerBase
-  - AllocateNetworkReceiveBuffer
   - IsLocalConnection
   - Start
   - StartAsync
   - TryClose
-  - DisposeImpl
   - DisposeResources
   - RecvEventArgCompletedWithTLS
   - RecvEventArgCompletedWithoutTLS
   - HandleReceiveWithoutTLS
-  - OnNetworkReceiveWithoutTLS
-  - HandleReceiveFailure
   - HandleReceiveWithTLSAsync
+  - HandleReceiveFailure
+  - AllocateNetworkReceiveBuffer

@@ -1,7 +1,6 @@
 fn:
-  - PopulatePrimaryTable
-  - ValidateSubTable
   - ValidatePrimaryTable
+  - ValidateSubTable
   - LookupSubcommand
   - ComputeHash
   - ReadPartialWord

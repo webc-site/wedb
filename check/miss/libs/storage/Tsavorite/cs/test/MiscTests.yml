@@ -1,7 +1,5 @@
 fn:
   - Setup
-  - DeleteDirectory
   - TearDown
-  - OnTearDown
 test:
   - ForceRCUAndRecover

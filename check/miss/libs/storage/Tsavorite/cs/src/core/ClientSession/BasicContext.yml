@@ -1,5 +1,4 @@
 fn:
-  - BasicContext
   - UnsafeResumeThread
   - GetKeyHash
   - CompletePendingWithOutputs

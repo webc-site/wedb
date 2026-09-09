@@ -1,5 +1,4 @@
 fn:
-  - SpanByteYcsbBenchmark
   - RunYcsbUnsafeContext
   - RunYcsbSafeContext
   - Run

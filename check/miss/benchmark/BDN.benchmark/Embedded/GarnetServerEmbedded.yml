@@ -1,10 +1,7 @@
 fn:
-  - GarnetServerEmbedded
   - ActiveConsumers
   - ActiveClusterSessions
   - CreateNetworkHandler
-  - IncrementConnectionsReceived
   - DisposeMessageConsumer
-  - IncrementConnectionsDisposed
   - Start
   - TryCreateMessageConsumer
