@@ -1,4 +1,6 @@
+# .NET IEnumerable 管道与环形缓冲读端辅助；rust 等价环形缓冲迭代为惯用实现
 fn:
+  - GetEnumerator
   - PeekFirst
   - PeekLast
   - Dequeue

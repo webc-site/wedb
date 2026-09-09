@@ -1,0 +1,3 @@
+# GetEnumerator 为 .NET IEnumerable 管道；rust 侧 ArgSlice 向量迭代为切片惯用实现
+fn:
+  - GetEnumerator
