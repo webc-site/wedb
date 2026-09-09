@@ -3,17 +3,28 @@
 //!
 //! 覆盖：元数据记录 load/save（含严格删空与 TTL 守卫）、元数据 reserved 字段的
 //! 分块信息与 TTL 标志位编码、集合快删路由（delete/contains_key）、Flattened
-//! ZSet 的 BfTree 索引回收，以及 Hash/Set 元素向分块索引的批量折叠追加。
+//! ZSet 的 BfTree 索引回收、Hash/Set 元素向分块索引的批量折叠追加，以及
+//! hash 字段级 TTL 全链路：写入口 hexpire_at/hpersist（对标 Redis 7.4 HEXPIRE
+//! 系与 Garnet HashObject.HashExpire/HashPersist）、读路径惰性 purge（单探针
+//! 门控）与后台收集候选处理（对标 Garnet ObjectCollectTask 的 HashCollect）。
 
 use std::sync::Arc;
 
+use wbase::time::now_ms;
 use wdev::Device;
-use wval::{CollectionType, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, ZSetSubKeyCodec};
+use wval::{
+  CollectionType, CompactHashCodec, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding,
+  ZSetSubKeyCodec,
+};
 
-use crate::{error::Result, range_index::range_index_blocking, session::StoreSession};
+use crate::{error::Result, range_index::range_index_blocking, session::StoreSession, ttl::TtlOpt};
 
 /// 元数据 reserved[1] 最高位：Compact 载荷可能含 TTL 字段标志（chunk_id 实际仅占用低 31 位）
 pub const META_HAS_EXPIRE_MASK: u8 = 0x80;
+
+/// 元数据物理记录（32B 大端布局）中 reserved[1]（has_expire 标志所在字节）的偏移：
+/// key_id 8B + collection_type 1B + reserved[0] 1B
+const META_RESERVED1_OFFSET: usize = 10;
 
 impl<D: Device> StoreSession<D> {
   /// 默认集合分块容量（128 元素，定长分块，适配 4KB 小页）
@@ -234,11 +245,15 @@ impl<D: Device> StoreSession<D> {
     (chunk_id, chunk_len)
   }
 
-  /// 将当前分块 ID 与元素数量写入元数据 reserved 预留字段（const fn，零分配，保留 reserved[0] 编码位）
+  /// 将当前分块 ID 与元素数量写入元数据 reserved 预留字段（const fn，零分配，保留
+  /// reserved[0] 编码位与 reserved[1] 最高位的 has_expire 粘性标志）
+  ///
+  /// chunk_id 实际仅占用低 31 位，reserved[1] 最高位恒可安全保留：has_expire 标志
+  /// 粘性不变式（只置位不清除）由此在全部分块信息写入点成立
   #[inline(always)]
   pub const fn set_meta_chunk_info(reserved: &mut [u8; 7], chunk_id: u32, chunk_len: u16) {
     let c = chunk_id.to_be_bytes();
-    reserved[1] = c[0];
+    reserved[1] = c[0] | (reserved[1] & META_HAS_EXPIRE_MASK);
     reserved[2] = c[1];
     reserved[3] = c[2];
     reserved[4] = c[3];
@@ -260,6 +275,34 @@ impl<D: Device> StoreSession<D> {
   #[inline(always)]
   pub const fn set_meta_has_expire(reserved: &mut [u8; 7]) {
     reserved[1] |= META_HAS_EXPIRE_MASK;
+  }
+
+  /// 从元数据物理记录值切片直接判定 has_expire 粘性标志（const fn，零解码）
+  ///
+  /// 供 GC 扫描过滤链对 Meta 元记录做单字节标志位初筛（log 记录 value =
+  /// 32B MetaValue + 紧凑载荷，标志位恒在 [`META_RESERVED1_OFFSET`] 偏移），
+  /// 无需整记录 `MetaValue::from_slice` 解析
+  #[inline(always)]
+  pub(crate) const fn meta_value_has_expire(meta_bytes: &[u8]) -> bool {
+    meta_bytes.len() >= META_VALUE_SIZE
+      && meta_bytes[META_RESERVED1_OFFSET] & META_HAS_EXPIRE_MASK != 0
+  }
+
+  /// 最新态元记录是否仍带 has_expire 标志（纯内存单探针，GC 候选初筛双检专用）
+  ///
+  /// 标志粘性（只置位不清除），内存最新态无标志仅见于「删除重建同名键后旧日志
+  /// 版本仍在扫描窗口」的罕见场景——此时放行候选防其反复占据删除预算饿死存活
+  /// 候选（与 key 级 probe_ttl 陈旧版本双检同型）。三态口径：
+  /// - 内存命中：以最新记录标志位为准；
+  /// - 内存确认不存在（墓碑/无候选）：false，候选消亡；
+  /// - 记录落盘（磁盘候选）：保守返回 true，由候选处理阶段的最新态双检兜底
+  #[inline]
+  pub(crate) fn probe_meta_has_expire(&self, user_key: &[u8]) -> Result<bool> {
+    let meta_k = self.session_meta_key(user_key);
+    match self.try_read_raw_in_memory(&meta_k, |v| Self::meta_value_has_expire(v))? {
+      Some(has) => Ok(has),
+      None => Ok(true),
+    }
   }
 
   /// 快速检查是否存在集合对象元数据（纯同步无锁内存探测，严格对标 Garnet NetworkSET）
@@ -327,6 +370,12 @@ impl<D: Device> StoreSession<D> {
   /// 物理清除并视同不存在（hget/hgetall 等集合读入口的惰性过期语义）。
   /// 幽灵分支的 `read` 是对同名裸键这一不同物理记录的独立裁决（保证过期字符串
   /// 不可见），不属同键同记录的重复探测；此后本链不再二次裁决
+  ///
+  /// 含字段级惰性 purge（单探针门控）：Hash + Compact 且 meta 的 has_expire
+  /// 粘性标志置位时，先对载荷做零写只读扫描判是否存在已过期字段——标志未置位
+  /// （从未写过字段 TTL 的绝大多数 hash）零额外开销；存在过期字段才进入慢路径
+  /// [`Self::purge_expired_hash_read`] 双检回写，过期字段对读取不可见。
+  /// 慢路径持本键独占桶锁，调用方不得已持同键锁调用本入口
   pub async fn load_collection_raw_read(
     &self,
     key: &[u8],
@@ -358,12 +407,57 @@ impl<D: Device> StoreSession<D> {
     if meta.collection_type != expected {
       return Ok(None);
     }
-    let raw = if meta.encoding() == StorageEncoding::Compact {
-      Some(bytes)
-    } else {
-      None
+    if meta.encoding() == StorageEncoding::Compact {
+      // 字段级惰性 purge 单探针门控：reserved 标志位一次读取；仅 Hash 走 purge
+      //（Set/ZSet 紧凑载荷布局不同，且其写路径从不置位本标志，防御性双检）
+      if meta.collection_type == CollectionType::Hash && Self::get_meta_has_expire(&meta.reserved) {
+        let now = now_ms();
+        let has_expired = bytes.len() > META_VALUE_SIZE
+          && CompactHashCodec::iter_fields(&bytes[META_VALUE_SIZE..])
+            .any(|e| e.expire_at_ms.is_some_and(|exp| exp <= now));
+        if has_expired {
+          // 慢路径：零写快扫判存在过期字段 → 双检回写后以最新态应答
+          return self.purge_expired_hash_read(key).await;
+        }
+      }
+      return Ok(Some(RawCollectionRead::new(meta, Some(bytes))));
+    }
+    Ok(Some(RawCollectionRead::new(meta, None)))
+  }
+
+  /// 字段级惰性 purge 慢路径（读入口专用）：双检回写后返回最新元数据与压缩载荷
+  ///
+  /// 不变式（与"先删 TTL 记录"同源的防递归/重入约定）：
+  /// 1. 双检防并发写竞争：持本键独占桶锁后经 [`Self::load_collection_raw_write`]
+  ///    重读最新元记录再 purge 一次——与 hexpire_at/后台字段收集（同样持锁）串行化，
+  ///    扫描与回写间隙内的并发字段写以最新态为准，绝不丢更新；
+  /// 2. 回写仅经 [`Self::save_compact_meta`] 的 raw 写原语（upsert_raw/del_ttl/
+  ///    delete_raw），绝不重入带守卫的集合读入口；save_compact_meta 仅在 size 减至
+  ///    0 时附带 del_ttl（先删 TTL 记录再删元记录），杜绝递归二次清除；
+  /// 3. 无锁快路径已在调用方完成（零写只读扫描无过期字段即直返），本函数仅在有
+  ///    过期字段时进入，锁与写放大只由真正过期删除承担
+  async fn purge_expired_hash_read(&self, key: &[u8]) -> Result<Option<RawCollectionRead>> {
+    let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[key])?;
+    let Some((mut meta, Some(mut payload))) = self
+      .load_collection_raw_write(key, CollectionType::Hash)
+      .await?
+    else {
+      return Ok(None);
     };
-    Ok(Some(RawCollectionRead::new(meta, raw)))
+    let purged = CompactHashCodec::purge_expired(&mut payload, now_ms())?;
+    if purged > 0 {
+      meta.dec_size(purged as u64);
+      self.save_compact_meta(key, &meta, &payload).await?;
+      if meta.size == 0 {
+        // 最后一个存活字段随 purge 删除：集合消亡（严格删空已闭环），视同不存在
+        return Ok(None);
+      }
+    }
+    // 以最新态重组应答记录（purge 后载荷必然变化；双检后无过期则为并发写后的新态）
+    let mut fresh = Vec::with_capacity(META_VALUE_SIZE + payload.len());
+    fresh.extend_from_slice(&meta.to_bytes());
+    fresh.extend_from_slice(&payload);
+    Ok(Some(RawCollectionRead::new(meta, Some(fresh))))
   }
 
   /// 读取集合元数据及紧凑载荷（准备写入）

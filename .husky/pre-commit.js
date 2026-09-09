@@ -6,7 +6,7 @@ const REPO_ROOT = resolve(import.meta.dirname, "..");
 
 const precommit = async () => {
   $.verbose = 1;
-  $.cwd = () => REPO_ROOT;
+  process.chdir(REPO_ROOT);
   if (!which("moon")) await $`bun i -g @moonrepo/cli`.nothrow();
   const head_ok = (await $`git rev-parse --verify HEAD`.quiet().nothrow()).exitCode === 0;
   if (head_ok) await $`moon run :clippy --affected`.nothrow();
