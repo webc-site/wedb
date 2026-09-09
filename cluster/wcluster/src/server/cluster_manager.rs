@@ -160,14 +160,16 @@ impl ClusterManager {
   }
 
   /// garnet相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
-  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> Result<(), &'static [u8]> {
+  ///
+  /// 错误集中定义于 [`crate::error`]，不再用裸字节串
+  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> crate::error::Result<()> {
     {
       let mut current = self.current_config.write();
       if current.num_workers() == 0 {
-        return Err(b"ERR workers not initialized");
+        return Err(crate::error::Error::NoWorkers);
       }
       if !current.set_local_worker_config_epoch(config_epoch) {
-        return Err(b"ERR config epoch not set");
+        return Err(crate::error::Error::EpochNotSet);
       }
     }
     self.flush_config();

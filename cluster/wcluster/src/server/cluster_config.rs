@@ -12,7 +12,9 @@ pub const RESERVED_WORKER_ID: usize = 0;
 pub const LOCAL_WORKER_ID: usize = 1;
 pub const MIN_HASH_SLOT_VALUE: usize = 0;
 pub const MAX_HASH_SLOT_VALUE: usize = 16384;
-pub const CLUSTER_CONFIG_VERSION: u8 = 1;
+/// 集群配置线格式版本：v2 起由 .NET BinaryWriter 布局换为 bitcode 编码，
+/// 无向下兼容负担，异版本载荷在解码前即被拒绝
+pub const CLUSTER_CONFIG_VERSION: u8 = 2;
 
 /// garnet相对路径:Server:ClusterPreferredEndpointType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1491,185 +1493,107 @@ impl ClusterConfig {
   }
 }
 
-use std::io::{Cursor, Read};
+use bitcode::{Decode, Encode};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use crate::error::Error;
+
+/// 集群配置线格式（bitcode 编码）
+///
+/// 槽位图以 RLE 段传输（连续同 (worker_id, state) 的槽数远多于段数，
+/// 典型集群个位数段即可覆盖 16384 槽），worker 自 1 号起序列化，
+/// 0 号保留位反序列化时按 default 重建——与 C# 布局语义一致，但编码
+/// 由 .NET BinaryWriter 的 7-bit 变长整数 hack 换为 bitcode 位压缩，
+/// 且解码不再吞错（原实现对截断/越界静默补 0/空串，会产出损坏配置）
+#[derive(Encode, Decode)]
+struct ConfigWire {
+  segments: Vec<SlotSegmentWire>,
+  workers: Vec<Worker>,
+}
+
+/// 一段连续同状态槽位
+#[derive(Encode, Decode)]
+struct SlotSegmentWire {
+  count: u16,
+  worker_id: u16,
+  /// SlotState 的 u8 表示（显式字节而非枚举直编，状态含义不依赖位布局）
+  state: u8,
+}
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:TryPeekVersion
+  ///
+  /// 全量解码前快速校验版本号（gossip 接收端先用它拒绝异版本节点）
+  #[inline]
   pub fn try_peek_version(data: &[u8]) -> Option<u8> {
-    if data.is_empty() { None } else { Some(data[0]) }
+    data.first().copied()
   }
 
   /// garnet相对路径:Server:ClusterConfig:ToByteArray
   pub fn to_byte_array(&self) -> Vec<u8> {
-    let mut ms = Vec::new();
-    // Write serialization format version
-    ms.write_u8(CLUSTER_CONFIG_VERSION).unwrap();
+    let segments: Vec<SlotSegmentWire> = self
+      .slot_map
+      .iter()
+      .map(|s| (s.worker_id, s.state as u8))
+      .fold(Vec::new(), |mut segs, (worker_id, state)| {
+        if let Some(last) = segs.last_mut()
+          && last.worker_id == worker_id
+          && last.state == state
+        {
+          last.count += 1;
+        } else {
+          segs.push(SlotSegmentWire {
+            count: 1,
+            worker_id,
+            state,
+          });
+        }
+        segs
+      });
 
-    self.serialize_slot_map(&mut ms);
+    let wire = ConfigWire {
+      segments,
+      workers: self.workers[1..].to_vec(),
+    };
 
-    // Serialize worker info
-    ms.write_i32::<LittleEndian>(self.workers.len() as i32)
-      .unwrap();
-    for worker in self.workers.iter().skip(1) {
-      write_string(&mut ms, worker.nodeid.as_deref().unwrap_or(""));
-      write_string(&mut ms, &worker.address);
-      ms.write_i32::<LittleEndian>(worker.port).unwrap();
-      ms.write_i64::<LittleEndian>(worker.config_epoch).unwrap();
-      ms.write_u8(worker.role as u8).unwrap();
-
-      if worker.replica_of_node_id.is_none() {
-        ms.write_u8(0).unwrap();
-      } else {
-        ms.write_u8(1).unwrap();
-        write_string(&mut ms, worker.replica_of_node_id.as_deref().unwrap());
-      }
-
-      ms.write_i64::<LittleEndian>(worker.replication_offset)
-        .unwrap();
-
-      if worker.hostname.is_none() {
-        ms.write_u8(0).unwrap();
-      } else {
-        ms.write_u8(1).unwrap();
-        write_string(&mut ms, worker.hostname.as_deref().unwrap());
-      }
-    }
-
-    ms
-  }
-
-  fn serialize_slot_map(&self, ms: &mut Vec<u8>) {
-    let segment_count_position = ms.len();
-    ms.write_u16::<LittleEndian>(0).unwrap(); // placeholder
-
-    let mut segment_count: u16 = 0;
-    let mut count: u16 = 1;
-    let mut worker_id = self.slot_map[0].worker_id;
-    let mut state = self.slot_map[0].state as u8;
-
-    for i in 1..self.slot_map.len() {
-      let _state = self.slot_map[i].state as u8;
-
-      if self.slot_map[i].worker_id != worker_id || _state != state {
-        segment_count += 1;
-        ms.write_u16::<LittleEndian>(count).unwrap();
-        ms.write_u16::<LittleEndian>(worker_id).unwrap();
-        ms.write_u8(state).unwrap();
-
-        count = 1;
-        worker_id = self.slot_map[i].worker_id;
-        state = _state;
-        continue;
-      }
-      count += 1;
-    }
-
-    segment_count += 1;
-    ms.write_u16::<LittleEndian>(count).unwrap();
-    ms.write_u16::<LittleEndian>(worker_id).unwrap();
-    ms.write_u8(state).unwrap();
-
-    let mut cursor = Cursor::new(ms);
-    cursor.set_position(segment_count_position as u64);
-    cursor.write_u16::<LittleEndian>(segment_count).unwrap();
+    let mut out = Vec::with_capacity(wire.workers.len() * 64 + 16);
+    out.push(CLUSTER_CONFIG_VERSION);
+    out.extend_from_slice(&bitcode::encode(&wire));
+    out
   }
 
   /// garnet相对路径:Server:ClusterConfig:FromByteArray
-  pub fn from_byte_array(other: &[u8]) -> Result<Self, &'static str> {
-    let mut reader = Cursor::new(other);
-    if other.is_empty() {
-      return Err("Invalid ClusterConfig payload: too short to contain a version");
-    }
-    let version = reader.read_u8().unwrap();
+  pub fn from_byte_array(data: &[u8]) -> crate::error::Result<Self> {
+    let Some((&version, payload)) = data.split_first() else {
+      return Err(Error::PayloadTooShort);
+    };
     if version != CLUSTER_CONFIG_VERSION {
-      return Err("Incompatible ClusterConfig version");
+      return Err(Error::Version {
+        got: version,
+        expect: CLUSTER_CONFIG_VERSION,
+      });
     }
 
-    let new_slot_map = Self::deserialize_slot_map(&mut reader);
-    let num_workers = reader.read_i32::<LittleEndian>().unwrap_or(0);
-    let mut new_workers = vec![Worker::default(); num_workers as usize];
+    let wire: ConfigWire = bitcode::decode(payload)?;
 
-    for worker in new_workers.iter_mut().skip(1) {
-      worker.nodeid = Some(read_string(&mut reader));
-      worker.address = read_string(&mut reader);
-      worker.port = reader.read_i32::<LittleEndian>().unwrap_or(0);
-      worker.config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
-      worker.role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
-
-      let is_null = reader.read_u8().unwrap_or(0);
-      if is_null > 0 {
-        worker.replica_of_node_id = Some(read_string(&mut reader));
+    let mut slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
+    let mut offset = 0usize;
+    for seg in &wire.segments {
+      let state = SlotState::from_repr(seg.state).ok_or(Error::SlotState(seg.state))?;
+      let end = offset + seg.count as usize;
+      if end > MAX_HASH_SLOT_VALUE {
+        return Err(Error::SlotOverflow);
       }
-
-      worker.replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
-
-      let is_null = reader.read_u8().unwrap_or(0);
-      if is_null > 0 {
-        worker.hostname = Some(read_string(&mut reader));
+      for slot in &mut slot_map[offset..end] {
+        slot.worker_id = seg.worker_id;
+        slot.state = state;
       }
+      offset = end;
     }
 
-    Ok(Self::with_data(new_slot_map, new_workers))
+    // 0 号保留位不在线格式内，按 default 重建（对应 C# skip(1) 布局）
+    let mut workers = vec![Worker::default(); wire.workers.len() + 1];
+    workers[1..].clone_from_slice(&wire.workers);
+
+    Ok(Self { slot_map, workers })
   }
-
-  fn deserialize_slot_map(reader: &mut Cursor<&[u8]>) -> Box<[HashSlot; MAX_HASH_SLOT_VALUE]> {
-    let mut new_slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
-    let segment_count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-    let mut slot_offset = 0;
-
-    for _ in 0..segment_count {
-      let count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-      let worker_id = reader.read_u16::<LittleEndian>().unwrap_or(0);
-      let state_byte = reader.read_u8().unwrap_or(0);
-      let state = SlotState::from_repr(state_byte).unwrap_or(SlotState::Offline);
-
-      let end = count as usize + slot_offset;
-      while slot_offset < end {
-        if slot_offset < MAX_HASH_SLOT_VALUE {
-          new_slot_map[slot_offset].worker_id = worker_id;
-          new_slot_map[slot_offset].state = state;
-        }
-        slot_offset += 1;
-      }
-    }
-    new_slot_map
-  }
-}
-
-fn write_string(writer: &mut Vec<u8>, s: &str) {
-  let bytes = s.as_bytes();
-  write_7bit_encoded_int(writer, bytes.len() as u32);
-  writer.extend_from_slice(bytes);
-}
-
-fn read_string(reader: &mut Cursor<&[u8]>) -> String {
-  let len = read_7bit_encoded_int(reader) as usize;
-  let mut bytes = vec![0u8; len];
-  let _ = reader.read_exact(&mut bytes);
-  String::from_utf8(bytes).unwrap_or_default()
-}
-
-fn write_7bit_encoded_int(writer: &mut Vec<u8>, mut value: u32) {
-  while value >= 0x80 {
-    writer.write_u8((value as u8) | 0x80).unwrap();
-    value >>= 7;
-  }
-  writer.write_u8(value as u8).unwrap();
-}
-
-fn read_7bit_encoded_int(reader: &mut Cursor<&[u8]>) -> u32 {
-  let mut count = 0;
-  let mut shift = 0;
-  let mut b;
-  loop {
-    b = reader.read_u8().unwrap_or(0);
-    count |= ((b & 0x7F) as u32) << shift;
-    shift += 7;
-    if (b & 0x80) == 0 {
-      break;
-    }
-  }
-  count
 }

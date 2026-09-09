@@ -6,9 +6,10 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-byteorder = "1.5.0"
+bitcode = "0.6.9"
 gxhash = "3.5.0"
 log = "0.4.34"
 parking_lot = "0.12.5"
 strum = { version = "0.28.0", features = ["derive"] }
+thiserror.workspace = true
 uuid = { version = "1.26.0", features = ["v4"] }
