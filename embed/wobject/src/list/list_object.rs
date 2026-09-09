@@ -36,7 +36,7 @@ pub enum OperationDirection {
   Unknown = 2,
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListObject
+/// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListObject
 pub struct ListObject {
   // Using VecDeque instead of LinkedList for better cache locality and performance
   pub list: Mutex<VecDeque<Vec<u8>>>,
@@ -49,7 +49,7 @@ impl ListObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -60,14 +60,14 @@ impl ListObject {
     })
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Serialize
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let list = self.list.lock();
     let bytes = bitcode::encode(&*list);
     writer.write_all(&bytes)
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Operate
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:Operate
   pub fn operate(&self, op: ListOperation, item: &[u8]) -> Option<Vec<u8>> {
     let mut list = self.list.lock();
     match op {
@@ -85,7 +85,7 @@ impl ListObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListIndex
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListIndex
   pub fn index(&self, index: isize) -> Option<Vec<u8>> {
     let list = self.list.lock();
     let len = list.len() as isize;
@@ -97,7 +97,7 @@ impl ListObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListRange
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListRange
   pub fn range(&self, start: isize, stop: isize) -> Vec<Vec<u8>> {
     let list = self.list.lock();
     let len = list.len() as isize;
@@ -117,7 +117,7 @@ impl ListObject {
     list.range((s as usize)..=(e as usize)).cloned().collect()
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:ListTrim
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListTrim
   pub fn trim(&self, start: isize, stop: isize) {
     let mut list = self.list.lock();
     let len = list.len() as isize;
@@ -141,7 +141,7 @@ impl ListObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/List/ListObject.cs:Count
+  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:Count
   pub fn count(&self) -> usize {
     self.list.lock().len()
   }

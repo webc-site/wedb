@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicI32, Ordering};
 const FLAG_ACTIVE: i32 = 1 << 0;
 const FLAG_DISPOSED: i32 = 1 << 1;
 
-/// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:DisposeResult
+/// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:DisposeResult
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisposeResult {
   AlreadyDisposed,
@@ -11,7 +11,7 @@ pub enum DisposeResult {
   CleanupNow,
 }
 
-/// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:CooperativeDisposeGuard
+/// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:CooperativeDisposeGuard
 pub struct CooperativeDisposeGuard {
   state: AtomicI32,
 }
@@ -29,27 +29,27 @@ impl CooperativeDisposeGuard {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:IsDisposed
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:IsDisposed
   #[inline]
   pub fn is_disposed(&self) -> bool {
     (self.state.load(Ordering::Acquire) & FLAG_DISPOSED) != 0
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:TryEnter
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:TryEnter
   #[inline]
   pub fn try_enter(&self) -> bool {
     let prev = self.state.fetch_or(FLAG_ACTIVE, Ordering::SeqCst);
     (prev & FLAG_DISPOSED) == 0
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:ExitAndCheckShouldCleanup
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:ExitAndCheckShouldCleanup
   #[inline]
   pub fn exit_and_check_should_cleanup(&self) -> bool {
     let prev = self.state.fetch_and(!FLAG_ACTIVE, Ordering::SeqCst);
     (prev & FLAG_DISPOSED) != 0
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CooperativeDisposeGuard.cs:TryDispose
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CooperativeDisposeGuard.cs:TryDispose
   #[inline]
   pub fn try_dispose(&self) -> DisposeResult {
     let prev = self.state.fetch_or(FLAG_DISPOSED, Ordering::SeqCst);

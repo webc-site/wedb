@@ -3,7 +3,7 @@ use std::io::{self, Read, Write};
 use gxhash::GxBuildHasher;
 use papaya::HashMap;
 
-/// garnet相对路径:garnet/libs/server/Objects/Hash/HashOperation.cs:HashOperation
+/// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashOperation.cs:HashOperation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum HashOperation {
@@ -25,7 +25,7 @@ pub enum HashOperation {
   HSTRLEN = 15,
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject
+/// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:HashObject
 ///
 /// 刻意差异（对照 C#）：C# 携带 `expirationTimes`/`expirationQueue` 字段支撑
 /// HEXPIRE/HTTL 字段级过期；Rust 侧过期统一由 wkv TTL 记录层承担，本结构
@@ -41,7 +41,7 @@ impl HashObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -58,7 +58,7 @@ impl HashObject {
     Ok(Self { hash })
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Serialize
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.hash.pin();
     let mut items = Vec::with_capacity(pin.len());
@@ -69,7 +69,7 @@ impl HashObject {
     writer.write_all(&bytes)
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Operate
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:Operate
   pub fn operate(&self, op: HashOperation, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
     let pin = self.hash.pin();
     match op {
@@ -92,19 +92,19 @@ impl HashObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:GetKeys
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:GetKeys
   pub fn get_keys(&self) -> Vec<Vec<u8>> {
     let pin = self.hash.pin();
     pin.iter().map(|(k, _)| k.clone()).collect()
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:GetValues
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:GetValues
   pub fn get_values(&self) -> Vec<Vec<u8>> {
     let pin = self.hash.pin();
     pin.iter().map(|(_, v)| v.clone()).collect()
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashGetAll
+  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:HashGetAll
   pub fn hash_get_all(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
     let pin = self.hash.pin();
     pin.iter().map(|(k, v)| (k.clone(), v.clone())).collect()

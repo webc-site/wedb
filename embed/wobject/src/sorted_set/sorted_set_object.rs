@@ -48,7 +48,7 @@ impl Ord for SortedSetEntry {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
+/// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
 pub struct SortedSetObject {
   pub dict: HashMap<Vec<u8>, f64, GxBuildHasher>,
   pub tree: Mutex<BTreeSet<SortedSetEntry>>,
@@ -62,7 +62,7 @@ impl SortedSetObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -85,7 +85,7 @@ impl SortedSetObject {
     })
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Serialize
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.dict.pin();
     let mut items = Vec::with_capacity(pin.len());
@@ -96,7 +96,7 @@ impl SortedSetObject {
     writer.write_all(&bytes)
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Operate
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:Operate
   ///
   /// Zadd：写入（含同成员改分），返回 None；Zrem：移除成员，返回旧分值
   /// （未命中返回 None）；Zincrby：按 delta 增减分值，返回新分值；
@@ -165,7 +165,7 @@ impl SortedSetObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:Count
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:Count
   pub fn count(&self) -> usize {
     self.dict.pin().len()
   }

@@ -5,7 +5,7 @@ use crate::{
   semaphore::Semaphore,
 };
 
-/// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
+/// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
 pub struct DoubleTurnstileBarrier {
   participant_count: i32,
   worker_count: AtomicI32,
@@ -14,7 +14,7 @@ pub struct DoubleTurnstileBarrier {
 }
 
 impl DoubleTurnstileBarrier {
-  /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:DoubleTurnstileBarrier
   ///
   /// 刻意差异（对照 C#）：C# 以 `ArgumentOutOfRangeException` 校验参数，此处以
   /// 类型化 [`Error::InvalidParticipantCount`] 上抛，杜绝 panic。
@@ -43,7 +43,7 @@ impl DoubleTurnstileBarrier {
     true
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWait
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWait
   ///
   /// 刻意差异（对照 C#）：C# 支持 timeout/cancellationToken 超时失败，Rust 侧
   /// [`Semaphore`] 暂无超时能力，等待恒为无限期汇合，故不含超时参数。
@@ -53,7 +53,7 @@ impl DoubleTurnstileBarrier {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWaitAsync
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkReadyWaitAsync
   pub async fn signal_work_ready_wait_async(&self) {
     if self.signal_work_ready_internal() {
       self.work_ready.wait_async().await;
@@ -73,14 +73,14 @@ impl DoubleTurnstileBarrier {
     true
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWait
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWait
   pub fn signal_work_completed_wait(&self) {
     if self.signal_work_completed_internal() {
       self.work_complete.wait();
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWaitAsync
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/DoubleTurnstileBarrier.cs:SignalWorkCompletedWaitAsync
   pub async fn signal_work_completed_wait_async(&self) {
     if self.signal_work_completed_internal() {
       self.work_complete.wait_async().await;
