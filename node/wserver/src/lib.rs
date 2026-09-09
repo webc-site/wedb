@@ -1,9 +1,12 @@
-#![allow(non_snake_case)]
+//! Garnet 服务端库的 Rust 转写（对标 garnet/libs/server）
+//!
+//! 转写命名约定：C# partial 类按文件拆分后保留 `类型_分片` 形式
+//! （如 `LuaRunner_Functions` 对应 LuaRunner.Functions.cs 分片），
+//! 故 crate 级放宽 non_camel_case_types/non_snake_case；其余 lint 不放宽。
+
 #![allow(non_camel_case_types)]
-#![allow(clippy::module_inception)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::missing_safety_doc)]
-#![allow(clippy::needless_range_loop)]
+#![allow(non_snake_case)]
+
 pub mod arg_slice;
 pub mod input_header;
 pub mod inputs;

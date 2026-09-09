@@ -1,4 +1,7 @@
-use crate::resp::resp_server_session::RespServerSession;
+use crate::resp::{
+  parser::resp_ext::RespVecExt,
+  resp_server_session::RespServerSession,
+};
 
 impl RespServerSession {
   /// libs/server/Resp/ArrayCommands.cs:NetworkDEL
@@ -9,25 +12,24 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'DEL' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'DEL' command");
       return Ok(true);
     }
 
-    let mut deleted_count = 0;
+    let mut deleted_count = 0i64;
     for key in parse_state {
-      // Simply set TTL to 0 or mark as deleted if `wkv` supports it.
-      // Since wkv doesn't have an explicit delete yet, we simulate via upsert tombstone or skip.
-      // For now, let's just use try_upsert_sync with an empty value to signify empty/tombstone?
-      // Actually, we can check if it exists and then delete.
-      if let Ok(Some(Some(_))) = store.try_read_sync(key, |_| ()) {
-        deleted_count += 1;
-        // To properly delete, we need a delete API.
-        // We'll leave the actual delete call out or pseudo-call it.
+      match store.try_delete_sync(key) {
+        Ok(Ok(deleted)) => deleted_count += deleted as i64,
+        // 环形页翻转 / 复合对象元数据：须降级完整异步路由，本次不产生输出
+        Ok(Err(_)) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
       }
     }
 
-    let count_str = format!(":{}\r\n", deleted_count);
-    output.extend_from_slice(count_str.as_bytes());
+    output.write_resp_int(deleted_count);
     Ok(true)
   }
   /// libs/server/Resp/ArrayCommands.cs:NetworkMGET
@@ -38,28 +40,26 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.is_empty() {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'MGET' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'MGET' command");
       return Ok(true);
     }
 
-    let len_str = format!("*{}\r\n", parse_state.len());
-    output.extend_from_slice(len_str.as_bytes());
-
+    // 先收集全部键的读取结果再一次性写出：中途遇须异步裁决的键
+    // （Ok(None)）时整体降级，避免已写出的部分应答无法撤回
+    let mut vals = Vec::with_capacity(parse_state.len());
     for key in parse_state {
-      let status = store.try_read_sync(key, |v| v.to_vec());
-      match status {
-        Ok(Some(Some(val))) => {
-          let str_len = format!("${}\r\n", val.len());
-          output.extend_from_slice(str_len.as_bytes());
-          output.extend_from_slice(&val);
-          output.extend_from_slice(b"\r\n");
-        }
-        Ok(Some(None)) | Ok(None) => {
-          output.extend_from_slice(b"$-1\r\n");
-        }
-        Err(_) => {
-          output.extend_from_slice(b"$-1\r\n");
-        }
+      match store.try_read_sync(key, |v| v.to_vec()) {
+        Ok(Some(Some(val))) => vals.push(Some(val)),
+        Ok(Some(None)) | Err(_) => vals.push(None),
+        Ok(None) => return Ok(false),
+      }
+    }
+
+    output.write_resp_array_len(vals.len());
+    for val in &vals {
+      match val {
+        Some(val) => output.write_resp_bulk_string(val),
+        None => output.write_resp_null(),
       }
     }
     Ok(true)
@@ -73,19 +73,25 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 || !parse_state.len().is_multiple_of(2) {
-      output.extend_from_slice(b"-ERR wrong number of arguments for 'MSET' command\r\n");
+      output.write_resp_error("wrong number of arguments for 'MSET' command");
       return Ok(true);
     }
 
+    // 对齐 NetworkSET：Ok(Err(page_id)) 为环形页翻转/异步闭环信号，
+    // 吞掉即静默丢写，须整体降级（此时尚未写出任何应答，可安全重试）
     let mut i = 0;
     while i < parse_state.len() {
-      let key = parse_state[i];
-      let value = parse_state[i + 1];
-      let _ = store.try_upsert_sync(key, value);
-      i += 2;
+      match store.try_upsert_sync(parse_state[i], parse_state[i + 1]) {
+        Ok(Ok(_)) => i += 2,
+        Ok(Err(_)) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
     }
 
-    output.extend_from_slice(b"+OK\r\n");
+    output.write_resp_simple_string("OK");
     Ok(true)
   }
 

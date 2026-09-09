@@ -20,18 +20,12 @@ fn append_resp_bulk(buf: &mut Vec<u8>, data: &[u8], itoa_buf: &mut Buffer) {
 
 /// 向 RESP 缓冲区追加一段数字选项参数帧: `$opt_len\r\nOPT\r\n$val_len\r\nval\r\n`
 #[inline]
-fn append_resp_num_arg(
-  buf: &mut Vec<u8>,
-  opt_tag: &[u8],
-  val: usize,
-  b_val: &mut Buffer,
-  b_len: &mut Buffer,
-) {
-  let s_val = b_val.format(val);
+fn append_resp_num_arg(buf: &mut Vec<u8>, opt_tag: &[u8], val: usize, b: &mut Buffer) {
   buf.extend_from_slice(opt_tag);
-  buf.extend_from_slice(b_len.format(s_val.len()).as_bytes());
+  let len = b.format(val).len();
+  buf.extend_from_slice(b.format(len).as_bytes());
   buf.extend_from_slice(b"\r\n");
-  buf.extend_from_slice(s_val.as_bytes());
+  buf.extend_from_slice(b.format(val).as_bytes());
   buf.extend_from_slice(b"\r\n");
 }
 
@@ -67,7 +61,6 @@ pub fn encode_ri_create(
   let num_args = if tuning.leaf_page_size > 0 { 13 } else { 11 };
   let mut out = Vec::with_capacity(128 + key.len());
   let mut b = Buffer::new();
-  let mut b_len = Buffer::new();
 
   out.push(b'*');
   out.extend_from_slice(b.format(num_args).as_bytes());
@@ -81,43 +74,13 @@ pub fn encode_ri_create(
     out.extend_from_slice(b"$4\r\nDISK\r\n");
   }
 
-  append_resp_num_arg(
-    &mut out,
-    b"$9\r\nCACHESIZE\r\n$",
-    tuning.cache_size,
-    &mut b,
-    &mut b_len,
-  );
-  append_resp_num_arg(
-    &mut out,
-    b"$9\r\nMINRECORD\r\n$",
-    tuning.min_record_size,
-    &mut b,
-    &mut b_len,
-  );
-  append_resp_num_arg(
-    &mut out,
-    b"$9\r\nMAXRECORD\r\n$",
-    tuning.max_record_size,
-    &mut b,
-    &mut b_len,
-  );
-  append_resp_num_arg(
-    &mut out,
-    b"$9\r\nMAXKEYLEN\r\n$",
-    tuning.max_key_len,
-    &mut b,
-    &mut b_len,
-  );
+  append_resp_num_arg(&mut out, b"$9\r\nCACHESIZE\r\n$", tuning.cache_size, &mut b);
+  append_resp_num_arg(&mut out, b"$9\r\nMINRECORD\r\n$", tuning.min_record_size, &mut b);
+  append_resp_num_arg(&mut out, b"$9\r\nMAXRECORD\r\n$", tuning.max_record_size, &mut b);
+  append_resp_num_arg(&mut out, b"$9\r\nMAXKEYLEN\r\n$", tuning.max_key_len, &mut b);
 
   if tuning.leaf_page_size > 0 {
-    append_resp_num_arg(
-      &mut out,
-      b"$8\r\nPAGESIZE\r\n$",
-      tuning.leaf_page_size,
-      &mut b,
-      &mut b_len,
-    );
+    append_resp_num_arg(&mut out, b"$8\r\nPAGESIZE\r\n$", tuning.leaf_page_size, &mut b);
   }
 
   out

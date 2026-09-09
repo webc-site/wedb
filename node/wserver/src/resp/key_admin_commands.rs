@@ -1,4 +1,7 @@
-use crate::resp::resp_server_session::RespServerSession;
+use crate::resp::{
+  parser::resp_ext::RespVecExt,
+  resp_server_session::RespServerSession,
+};
 
 impl RespServerSession {
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRESTORE
@@ -56,17 +59,19 @@ impl RespServerSession {
 
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
-        let len_str = format!("${}\r\n", val.len());
-        output.extend_from_slice(len_str.as_bytes());
-        output.extend_from_slice(&val);
-        output.extend_from_slice(b"\r\n");
-        let _ = store.try_delete_sync(key);
+        // 先删后答：删除遇异步闭环（环形页翻转/复合对象）时整体降级，
+        // 避免已答出旧值而键未删成
+        match store.try_delete_sync(key) {
+          Ok(Ok(_)) => output.write_resp_bulk_string(&val),
+          Ok(Err(_)) => return Ok(false),
+          Err(_) => output.write_resp_error("generic error"),
+        }
       }
       Ok(Some(None)) => {
-        output.extend_from_slice(b"$-1\r\n");
+        output.write_resp_null();
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
+      Err(_) => output.write_resp_error("generic error"),
     }
     Ok(true)
   }
@@ -82,7 +87,7 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    let mut exists_count = 0;
+    let mut exists_count = 0i64;
     for key in parse_state {
       let status = store.try_read_sync(key, |_| ());
       if let Ok(Some(Some(_))) = status {
@@ -90,8 +95,7 @@ impl RespServerSession {
       }
     }
 
-    let count_str = format!(":{}\r\n", exists_count);
-    output.extend_from_slice(count_str.as_bytes());
+    output.write_resp_int(exists_count);
     Ok(true)
   }
 

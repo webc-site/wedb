@@ -39,3 +39,22 @@ fn test_skip_byte_array() {
   assert!(try_skip_byte_array_with_length_header(&mut ptr).unwrap());
   assert!(ptr.is_empty());
 }
+
+#[test]
+fn test_int32_boundary_length_headers() {
+  // i32 边界：正最大与负最小（2^31 取负须经 i64，debug 构建不得溢出 panic）
+  let mut ptr = b"$2147483647\r\n".as_slice();
+  let mut length = 0;
+  assert!(try_read_unsigned_length_header(&mut length, &mut ptr, b'$').unwrap());
+  assert_eq!(length, i32::MAX);
+
+  let mut ptr = b"$-2147483648\r\n".as_slice();
+  let mut length = 0;
+  assert!(try_read_signed_length_header(&mut length, &mut ptr, b'$').unwrap());
+  assert_eq!(length, i32::MIN);
+
+  // 越界长度报溢出而非回绕
+  let mut ptr = b"$2147483648\r\n".as_slice();
+  let mut length = 0;
+  assert!(try_read_unsigned_length_header(&mut length, &mut ptr, b'$').is_err());
+}

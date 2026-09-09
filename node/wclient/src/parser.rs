@@ -186,8 +186,20 @@ impl RespReadResponseUtils {
     Ok(Some(Some(res)))
   }
 
+  /// 查找首个 CRLF，返回 `\r` 下标；无完整 CRLF 时返回 None（应答未到齐）
+  ///
+  /// memchr 加速扫描 `\n`，回看一字节校验 `\r`；孤立的 `\n` 跳过继续找
+  /// （与 C# RespReadUtils 的逐字节扫描语义一致，但单次遍历为 SIMD 加速）
   fn find_crlf(data: &[u8]) -> Option<usize> {
-    (0..data.len().saturating_sub(1)).find(|&i| data[i] == b'\r' && data[i + 1] == b'\n')
+    let mut from = 0;
+    while let Some(i) = memchr::memchr(b'\n', &data[from..]) {
+      let lf = from + i;
+      if lf > 0 && data[lf - 1] == b'\r' {
+        return Some(lf - 1);
+      }
+      from = lf + 1;
+    }
+    None
   }
 }
 

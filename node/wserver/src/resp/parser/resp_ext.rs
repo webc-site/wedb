@@ -2,6 +2,8 @@ use std::str;
 
 pub trait RespSliceExt {
   fn as_str_safe(&self) -> &str;
+  /// 严格解析：参数整体须为合法整数（对应 C# parseState.TryGetInt），失败返回 None
+  fn try_parse_i64(&self) -> Option<i64>;
   fn parse_i64(&self, default: i64) -> i64;
   fn parse_usize(&self, default: usize) -> usize;
   fn parse_f64(&self, default: f64) -> f64;
@@ -12,6 +14,10 @@ impl RespSliceExt for [u8] {
   #[inline]
   fn as_str_safe(&self) -> &str {
     str::from_utf8(self).unwrap_or("")
+  }
+  #[inline]
+  fn try_parse_i64(&self) -> Option<i64> {
+    str::from_utf8(self).ok()?.parse().ok()
   }
   #[inline]
   fn parse_i64(&self, default: i64) -> i64 {
@@ -91,5 +97,31 @@ impl RespVecExt for Vec<u8> {
   #[inline]
   fn write_resp_null(&mut self) {
     self.extend_from_slice(b"$-1\r\n");
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn try_parse_i64_strict() {
+    // 合法：带符号十进制整数
+    assert_eq!(b"42".try_parse_i64(), Some(42));
+    assert_eq!(b"-7".try_parse_i64(), Some(-7));
+    assert_eq!(b"+3".try_parse_i64(), Some(3));
+    assert_eq!(b"9223372036854775807".try_parse_i64(), Some(i64::MAX));
+    // 非法：非数字/空串/带空白/溢出一律 None（对齐 C# TryGetInt 的严格语义）
+    assert_eq!(b"abc".try_parse_i64(), None);
+    assert_eq!(b"".try_parse_i64(), None);
+    assert_eq!(b"1 2".try_parse_i64(), None);
+    assert_eq!(b" 1".try_parse_i64(), None);
+    assert_eq!(b"9223372036854775808".try_parse_i64(), None);
+  }
+
+  #[test]
+  fn parse_i64_fallback_default() {
+    assert_eq!(b"42".parse_i64(0), 42);
+    assert_eq!(b"x".parse_i64(-1), -1);
   }
 }

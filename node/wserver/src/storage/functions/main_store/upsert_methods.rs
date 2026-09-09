@@ -1,3 +1,6 @@
+// C# 转写保留固定形参形状的引擎回调（InitialUpdater/CopyUpdater 等），参数个数不可减
+#![allow(clippy::too_many_arguments)]
+
 use super::main_session_functions::MainSessionFunctions;
 use crate::inputs::StringInput;
 

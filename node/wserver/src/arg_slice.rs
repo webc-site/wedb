@@ -29,6 +29,10 @@ impl ArgSlice {
   }
 
   /// Serializes this ArgSlice to a buffer, including a 4-byte length prefix.
+  ///
+  /// # Safety
+  /// `dest` 须指向至少 `4 + length` 字节的可写缓冲；`self.ptr` 指向的
+  /// `length` 字节源数据须在调用期间保持解引用有效
   pub unsafe fn serialize_to(&self, dest: *mut u8) {
     unsafe {
       let len_u32 = self.length as u32;
@@ -40,6 +44,11 @@ impl ArgSlice {
   }
 
   /// Deserializes an ArgSlice from a pointer that has a 4-byte length prefix.
+  ///
+  /// # Safety
+  /// `src` 须指向至少 4 字节可读前缀，且长度前缀声明的 `len_u32` 字节
+  /// 负载须完整可读；返回的 ArgSlice 借用该内存，调用方须保证其生命周期
+  /// 内数据不被释放或改写
   pub unsafe fn from_length_prefixed_ptr(src: *const u8) -> Self {
     unsafe {
       let mut len_u32 = 0u32;

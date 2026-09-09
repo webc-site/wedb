@@ -83,6 +83,12 @@ impl SessionParseState {
     len
   }
 
+  /// 将参数数组序列化为 `[count i32][每参数 4B 长度前缀 + 数据]` 布局
+  ///
+  /// # Safety
+  /// - `dest` 须指向至少 `self.get_serialized_length()` 字节的可写缓冲
+  ///   （`_length` 为容量上限，仅由调用方断言保证）；
+  /// - 各 ArgSlice 的源指针须在调用期间保持解引用有效
   pub unsafe fn serialize_to(&self, dest: *mut u8, _length: usize) -> usize {
     unsafe {
       let mut curr = dest;
@@ -98,6 +104,11 @@ impl SessionParseState {
     }
   }
 
+  /// [`SessionParseState::serialize_to`] 的逆操作：从内存回填参数数组
+  ///
+  /// # Safety
+  /// `src` 须指向一段由 [`Self::serialize_to`] 产出的完整布局前缀：
+  /// 4 字节计数可读，且每个长度前缀声明的参数数据完整可读，否则越界读
   pub unsafe fn deserialize_from(&mut self, src: *const u8) -> usize {
     unsafe {
       let mut curr = src;
@@ -106,10 +117,10 @@ impl SessionParseState {
 
       self.initialize(arg_count);
 
-      for i in 0..arg_count {
+      for slot in self.root_buffer.iter_mut().take(arg_count) {
         let arg = ArgSlice::from_length_prefixed_ptr(curr);
-        self.root_buffer[i] = arg;
         curr = curr.add(arg.total_size());
+        *slot = arg;
       }
 
       (curr as usize) - (src as usize)

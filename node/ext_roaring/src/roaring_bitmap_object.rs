@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::roaring_bitmap::RoaringBitmapObj;
+use crate::{error::Result, roaring_bitmap::RoaringBitmapObj};
 
 /// 表示 RoaringBitmap 对象相关的集合
 pub struct RoaringBitmapObject {
@@ -16,8 +16,8 @@ impl RoaringBitmapObject {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SerializeObject
-  pub fn serialize_object<W: Write>(&self, writer: &mut W) {
-    self.bitmap.serialize(writer);
+  pub fn serialize_object<W: Write>(&self, writer: &mut W) -> Result<()> {
+    self.bitmap.serialize(writer)
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SetBit
@@ -54,9 +54,46 @@ impl RoaringBitmapObject {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:Deserialize
-  pub fn deserialize<R: Read>(reader: &mut R) -> Self {
-    Self {
-      bitmap: RoaringBitmapObj::deserialize(reader),
-    }
+  pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
+    Ok(Self {
+      bitmap: RoaringBitmapObj::deserialize(reader)?,
+    })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn serialize_round_trip() {
+    let mut obj = RoaringBitmapObject::create();
+    obj.set_bit(1, true);
+    obj.set_bit(1000, true);
+
+    let mut buf = Vec::new();
+    obj.serialize_object(&mut buf).unwrap();
+    let back = RoaringBitmapObject::deserialize(&mut &buf[..]).unwrap();
+    assert_eq!(back.bit_count(), 2);
+    assert!(back.get_bit(1) && back.get_bit(1000));
+  }
+
+  #[test]
+  fn corrupt_stream_is_error_not_panic() {
+    assert!(RoaringBitmapObject::deserialize(&mut &b"garbage"[..]).is_err());
+  }
+
+  #[test]
+  fn bit_pos_boundaries() {
+    let mut obj = RoaringBitmapObject::create();
+    obj.set_bit(5, true);
+    // 已置位：命中自身
+    assert_eq!(obj.bit_pos(true, 5), 5);
+    // 第一个 >= 6 的置位位不存在
+    assert_eq!(obj.bit_pos(true, 6), -1);
+    // 0..5 均未置位，首个未置位即 0
+    assert_eq!(obj.bit_pos(false, 0), 0);
+    // 5 已置位，首个未置位是 6
+    assert_eq!(obj.bit_pos(false, 5), 6);
   }
 }
