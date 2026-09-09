@@ -117,6 +117,9 @@ impl<D: Device> DatabaseManagerBase<D> {
       return Ok(0);
     };
     let session = db.store.new_session()?;
+    // 重放会话须锚定本库编号：会话默认 active_db=0，多库模式下不锚定会把
+    // 记录错写进 db0（与 reset_database / execute_collect 同一约定）
+    session.set_active_db(db.id.max(0) as u64);
     let mut replayed = 0u64;
     let end = until.min(aof.tail_address());
     let mut it = aof.scan(from, end);

@@ -226,6 +226,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// BITFIELD 写路径（SET/INCRBY，支持 WRAP/SAT 溢出策略），回吐每个子操作结果
   ///
+  /// 写子操作共享同一缓冲就地变更，循环结束后统一落盘一次（对标 C# RMW
+  /// 单次写回，避免逐子操作全量重写）。
+  ///
   /// libs/server/Storage/Session/MainStore/BitmapOps.cs:StringBitField
   pub async fn string_bit_field(
     &self,
@@ -234,18 +237,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Vec<Option<i64>>)> {
     let mut buf = self.read_string(key).await?.unwrap_or_default();
     let mut results = Vec::with_capacity(ops.len());
+    let mut dirty = false;
     for op in ops {
-      match *op {
-        BitFieldOp::Get { .. } => {
-          let r = bit_field_apply(&mut buf, *op);
-          results.push(r);
-        }
-        _ => {
-          let r = bit_field_apply(&mut buf, *op);
-          results.push(r);
-          self.upsert_string(key, &buf).await?;
-        }
-      }
+      let is_write = !matches!(op, BitFieldOp::Get { .. });
+      let r = bit_field_apply(&mut buf, *op);
+      results.push(r);
+      dirty |= is_write;
+    }
+    if dirty {
+      self.upsert_string(key, &buf).await?;
     }
     Ok((GarnetStatus::Ok, results))
   }
@@ -314,11 +314,13 @@ fn bit_field_apply(buf: &mut Vec<u8>, op: BitFieldOp) -> Option<i64> {
     } => (is_signed, bits, offset, true, increment, wrap, sat),
   };
   let byte_idx = (offset / 8) as usize;
-  if byte_idx >= buf.len() {
-    if !is_write {
-      return Some(0);
-    }
-    buf.resize(byte_idx + 1, 0);
+  if byte_idx >= buf.len() && !is_write {
+    return Some(0);
+  }
+  if is_write {
+    // 写路径按位域末端补齐缓冲（跨字节域一次到位，杜绝高位被截断）
+    let end = (offset + u64::from(bits)).div_ceil(8) as usize;
+    buf.resize(buf.len().max(end), 0);
   }
   let bit_off = (offset % 8) as u32;
   let max_bit = buf.len() * 8;

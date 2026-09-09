@@ -397,12 +397,17 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZDIFFSTORE：差集写入目标键
   ///
+  /// 键列表为空时提前返回 OK、不动目标键（对齐 C# keys.Length == 0 守卫）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetDifferenceStore
   pub async fn sorted_set_difference_store(
     &self,
     dest: &[u8],
     keys: &[&[u8]],
   ) -> wkv::Result<(GarnetStatus, usize)> {
+    if keys.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
     let (status, entries) = self.sorted_set_difference(keys).await?;
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
@@ -638,6 +643,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZUNIONSTORE：并集写入目标键
   ///
+  /// 键列表为空时提前返回 OK、不动目标键（对齐 C# keys.Length == 0 守卫）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetUnionStore
   pub async fn sorted_set_union_store(
     &self,
@@ -646,6 +653,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, usize)> {
+    if keys.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
     let (status, combined) = self.zset_combine(keys, weights, aggregate, false).await?;
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
@@ -686,6 +696,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZINTERSTORE：交集写入目标键
   ///
+  /// 键列表为空时提前返回 OK、不动目标键（对齐 C# keys.Length == 0 守卫）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersectStore
   pub async fn sorted_set_intersect_store(
     &self,
@@ -694,6 +706,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
     weights: &[f64],
     aggregate: ZSetAggregate,
   ) -> wkv::Result<(GarnetStatus, usize)> {
+    if keys.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
     let (status, entries) = self.zset_combine(keys, weights, aggregate, true).await?;
     if status != GarnetStatus::Ok {
       return Ok((status, 0));
@@ -774,6 +789,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ///
   /// 错误类型键传播 WRONGTYPE；缺键按空集参与（交语义短路为空）。
   /// 哈希累加 + 末次排序：单遍 O(n) 折叠，产出 (score, member) 排名序。
+  /// 交语义聚合出 NaN 时归零（C# 缺陷兼容，见保留分支内注释）。
   async fn zset_combine(
     &self,
     keys: &[&[u8]],
@@ -816,6 +832,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
         acc.retain(|m, s| match pin.get(m) {
           Some(&other) => {
             *s = apply_aggregate(aggregate, *s, other * w);
+            // NaN → 0：兼容 C# SortedSetIntersection 的显式缺陷行为
+            //（"That's what the references do. Arguably we're doing bug
+            // compatible behaviour here."，Sum 遇 +inf/-inf 相加产生 NaN 时
+            // 归零；ZUNION 路径无此逻辑，不在此套用）
+            if s.is_nan() {
+              *s = 0.0;
+            }
             true
           }
           None => false,
