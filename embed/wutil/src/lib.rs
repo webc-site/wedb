@@ -1,4 +1,6 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
-mod error;
-pub use error::{Error, Result};
+pub mod ascii;
+pub mod convert;
+pub mod error;
+pub mod hash_slot;
+pub mod num;
+mod tests;
