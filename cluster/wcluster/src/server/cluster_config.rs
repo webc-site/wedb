@@ -166,15 +166,11 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:LocalNodeIdShort
   pub fn local_node_id_short(&self) -> String {
-    if let Some(id) = &self.workers[LOCAL_WORKER_ID].nodeid {
-      if id.len() >= 8 {
-        id[0..8].to_string()
-      } else {
-        id.to_string()
-      }
-    } else {
-      "".to_string()
-    }
+    let Some(id) = &self.workers[LOCAL_WORKER_ID].nodeid else {
+      return String::new();
+    };
+    // get 而非切片：nodeid 可能来自外部配置，非 ASCII 边界切片会 panic
+    id.get(..8).unwrap_or(id).to_string()
   }
 
   /// garnet相对路径:Server:ClusterConfig:LocalNodeRole
