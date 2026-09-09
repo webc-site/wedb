@@ -3,11 +3,12 @@ name = "wbftree"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/wbftree"
-description = "wbftree"
-keywords = []
-categories = []
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
+description = "BfTree ordered range index with multi-tree registry and chunked migration / BfTree 有序范围索引，含多树注册表与分块迁移"
+keywords = ["bftree", "range-index", "ordered-index", "storage-engine", "key-value"]
+categories = ["database-implementations", "data-structures", "asynchronous", "caching", "concurrency"]
+readme = "README.md"
 
 [features]
 default = []

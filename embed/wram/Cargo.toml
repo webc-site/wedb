@@ -3,9 +3,9 @@ name = "wram"
 version = "0.1.2"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/wram"
-description = "Sector-aligned buffer pool and direct virtual memory for async storage | 面向异步存储的扇区对齐缓冲池与直接虚拟内存"
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
+description = "Sector-aligned buffer pool and direct virtual memory for async storage / 面向异步存储的扇区对齐缓冲池与直接虚拟内存"
 keywords = ["buffer-pool", "memory-pool", "sector-aligned", "async-io", "storage"]
 categories = [
   "memory-management",
@@ -14,6 +14,7 @@ categories = [
   "database-implementations",
   "filesystem",
 ]
+readme = "README.md"
 
 [features]
 default = []

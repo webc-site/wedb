@@ -3,11 +3,12 @@ name = "whasher"
 version = "0.1.3"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/whasher"
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
 description = "Hardware-accelerated hashing, streaming checksums, and concurrent collections / 硬件加速哈希、流式校验和与并发集合"
 keywords = ["hash", "gxhash", "checksum", "concurrent", "collections"]
 categories = ["algorithms", "data-structures", "concurrency", "caching", "database-implementations"]
+readme = "README.md"
 
 [features]
 default = []

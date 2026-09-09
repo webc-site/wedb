@@ -3,11 +3,12 @@ name = "wcpr"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/wcpr"
-description = "wcpr"
-keywords = []
-categories = []
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
+description = "Concurrent Prefix Recovery checkpoints for hybrid-log stores / 混合日志存储的并发前缀恢复检查点"
+keywords = ["checkpoint", "recovery", "cpr", "storage-engine", "persistence"]
+categories = ["database-implementations", "asynchronous", "concurrency", "filesystem", "caching"]
+readme = "README.md"
 
 [features]
 default = []

@@ -3,11 +3,12 @@ name = "wval"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/wval"
-description = "wval"
-keywords = []
-categories = []
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
+description = "Redis value layer: namespace encoding, collection codecs, glob, TTL / Redis 值层：命名空间编码、集合编解码、glob、TTL"
+keywords = ["redis", "value-encoding", "codec", "collections", "zset"]
+categories = ["database-implementations", "encoding", "data-structures", "algorithms", "caching"]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

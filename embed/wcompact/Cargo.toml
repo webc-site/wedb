@@ -3,11 +3,12 @@ name = "wcompact"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
-repository = "https://github.com/webc-site/wedb_base.git"
-homepage = "https://github.com/webc-site/wedb_base/tree/main/wcompact"
-description = "wcompact"
-keywords = []
-categories = []
+repository = "https://github.com/webc-site/wedb"
+homepage = "https://github.com/webc-site/wedb"
+description = "HybridLog read-only segment compaction and garbage collection / 混合日志只读段紧缩与垃圾回收"
+keywords = ["compaction", "garbage-collection", "storage-engine", "hybridlog", "tsavorite"]
+categories = ["database-implementations", "asynchronous", "concurrency", "algorithms", "caching"]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true
