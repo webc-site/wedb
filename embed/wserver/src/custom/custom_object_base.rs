@@ -1,6 +1,8 @@
 pub struct CustomObjectBase;
 
 impl CustomObjectBase {
-    /// libs/server/Custom/CustomObjectBase.cs:Operate
-    pub fn operate() { unimplemented!() }
+  /// libs/server/Custom/CustomObjectBase.cs:Operate
+  pub fn operate() {
+    unimplemented!()
+  }
 }

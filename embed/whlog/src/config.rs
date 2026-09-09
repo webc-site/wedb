@@ -164,7 +164,7 @@ impl HybridLogConfig {
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageSize
-  
+
   pub const fn page_size(&self) -> usize {
     1 << self.page_bits()
   }

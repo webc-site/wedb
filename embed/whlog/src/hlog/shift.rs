@@ -230,7 +230,7 @@ impl<D: Device> HybridLog<D> {
   #[inline]
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetTailAddress
-  
+
   pub fn get_tail_address(&self) -> u64 {
     self.addresses.tail()
   }

@@ -266,7 +266,7 @@ impl<D: Device> HybridLog<D> {
   #[inline]
 
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
-  
+
   pub fn get_main_log_segment_size(&self) -> u64 {
     self.device.segment_size().unwrap_or(u64::MAX)
   }
