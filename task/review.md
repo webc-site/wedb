@@ -1,6 +1,6 @@
 开子代理，按 ./sh/skills/rust_review/SKILL.md 审查、优化代码
 
-让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。如果遇到主分支修改，请提交，然后合并（优化一次，合并一次、删除之前的 worktree，重开新的）。
+让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。如果遇到主分支修改，请提交，然后合并（优化一次，合并一次、同步主库到 worktree，然后再继续下一次循环）。
 
 合并之前，先跑通测试
 
