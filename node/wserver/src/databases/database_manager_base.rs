@@ -16,6 +16,7 @@ use wdev::Device;
 use wkv::{CheckpointManager, CheckpointType, WedbStore};
 
 use super::{garnet_database::GarnetDatabase, i_database_manager::HybridLogStats};
+use crate::storage::session::objectstore::common::{OBJ_TAG_HASH, OBJ_TAG_SORTED_SET};
 
 /// AOF 操作码：UPSERT
 pub const AOF_OP_UPSERT: u8 = 0;
@@ -231,14 +232,45 @@ impl<D: Device> DatabaseManagerBase<D> {
     )
   }
 
-  /// 重置数据库内容（清空存储 + 复位保存点）
+  /// 重置数据库内容（删除本库全部用户键 + 复位保存点）
+  ///
+  /// 缺口说明：C# 侧 FLUSHDB 走 UNREGISTER 面删除对象存与主存记录；
+  /// wkv 共享存储模型下逐键删除（不经 truncate——物理截断会摧毁同库
+  /// 共享该引擎的其他逻辑库数据）。
   ///
   /// libs/server/Databases/DatabaseManagerBase.cs:ResetDatabase
   pub async fn reset_database(&self, db: &GarnetDatabase<D>) -> wkv::Result<()> {
-    db.store.truncate().await?;
+    let session = db.store.new_session()?;
+    session.set_active_db(db.id.max(0) as u64);
+    let batch = session.enter_batch();
+    let ss = crate::storage::session::storage_session::StorageSession::new(batch);
+    let (_, keys) = ss.string_snapshot().await?;
+    for key in keys {
+      ss.delete_string(&key).await?;
+    }
+    ss.clear_watches();
     db.last_save_ms.store(0, Relaxed);
     db.last_save_store_tail_address.store(0, Relaxed);
     Ok(())
+  }
+
+  /// 哈希对象收集扫描（按标签过滤的对象枚举），返回对象数
+  ///
+  /// 缺口说明：C# 侧逐哈希对象做引用计数回收；wkv 生命周期由引擎 GC
+  /// 承担，此处退化为按标签枚举统计。
+  ///
+  /// libs/server/Databases/DatabaseManagerBase.cs:ExecuteHashCollect
+  pub async fn execute_hash_collect(&self, db: &GarnetDatabase<D>) -> wkv::Result<usize> {
+    let (_, n) = execute_collect(self, db, OBJ_TAG_HASH).await?;
+    Ok(n)
+  }
+
+  /// 有序集合对象收集扫描，返回对象数
+  ///
+  /// libs/server/Databases/DatabaseManagerBase.cs:ExecuteSortedSetCollect
+  pub async fn execute_sorted_set_collect(&self, db: &GarnetDatabase<D>) -> wkv::Result<usize> {
+    let (_, n) = execute_collect(self, db, OBJ_TAG_SORTED_SET).await?;
+    Ok(n)
   }
 
   /// 存储索引按需增长
@@ -319,6 +351,20 @@ impl<D: Device> DatabaseManagerBase<D> {
       self.collect_hybrid_log_stats_for_db(db).await?,
     )])
   }
+}
+
+/// 按对象标签做收集扫描（哈希/有序集合共用内核），返回 (标签, 对象数)
+async fn execute_collect<D: Device>(
+  _base: &DatabaseManagerBase<D>,
+  db: &GarnetDatabase<D>,
+  tag: u8,
+) -> wkv::Result<(u8, usize)> {
+  let session = db.store.new_session()?;
+  session.set_active_db(db.id.max(0) as u64);
+  let batch = session.enter_batch();
+  let ss = crate::storage::session::storage_session::StorageSession::new(batch);
+  let n = ss.object_collect(|t, _| t == tag).await?;
+  Ok((tag, n))
 }
 
 /// waof 错误 → wkv 错误的统一包装（AOF 属 IO 面，走 Io 变体）

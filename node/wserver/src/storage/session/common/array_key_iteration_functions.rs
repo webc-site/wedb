@@ -5,6 +5,9 @@
 //! 物理扫描走 wkv `scan_range_callback`（BfTree 闭区间范围扫描），会话隔离由
 //! 会话前缀（ns/db 变长编码 + 1 字节标签）承担。
 
+use std::{fmt, io};
+
+use gxhash::HashMap as GxHashMap;
 use wdev::Device;
 
 use super::super::storage_session::StorageSession;
@@ -19,25 +22,15 @@ pub(crate) const TAG_TTL: u8 = 0x09;
 /// Redis 集群槽位数（libs/server/Cluster/ClusterSlotUtils.cs 语义常量）
 pub const CLUSTER_SLOTS: u16 = 16384;
 
+/// whlog 错误 → wkv 错误统一包装（扫描属 IO 面）
+pub(crate) fn scan_err(e: impl fmt::Display) -> wkv::Error {
+  wkv::Error::Io(io::Error::other(e.to_string()))
+}
+
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 当前会话的物理键前缀长度（ns/db 变长编码，不含标签字节）
   pub(crate) fn phys_prefix_len(&self) -> usize {
     self.batch.session_prefix().as_slice().len()
-  }
-
-  /// 构造当前会话指定标签的物理键扫描下界（用户键为空）
-  pub(crate) fn scan_lower_bound(&self, tag: u8) -> Vec<u8> {
-    let mut buf = self.batch.session_prefix().as_slice().to_vec();
-    buf.push(tag);
-    buf
-  }
-
-  /// 构造当前会话指定标签的物理键扫描上界（下一标签下界，闭区间安全）
-  pub(crate) fn scan_upper_bound(&self, tag: u8) -> Vec<u8> {
-    let mut buf = self.scan_lower_bound(tag);
-    let last = buf.len() - 1;
-    buf[last] = tag + 1;
-    buf
   }
 
   /// 数据库键增量扫描（SCAN 语义）
@@ -46,80 +39,64 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 基准键演进方案）；返回新游标与本页匹配键。`all_keys` 为真时忽略模式全量返回。
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DbScan
-  pub fn db_scan(
+  pub async fn db_scan(
     &self,
     pattern: &[u8],
     all_keys: bool,
     cursor: &[u8],
     count: usize,
   ) -> wkv::Result<(Vec<u8>, Vec<Vec<u8>>)> {
-    let mut keys = Vec::new();
-    let mut last: Option<Vec<u8>> = None;
-    let prefix_len = self.phys_prefix_len();
+    let (_map, keys) = self.string_snapshot().await?;
     let start = if cursor.is_empty() {
-      self.scan_lower_bound(TAG_STRING)
+      0
     } else {
-      self.batch.session_string_key(cursor).into_vec()
+      keys
+        .iter()
+        .position(|k| k.as_slice() == cursor)
+        .map(|p| p + 1)
+        .unwrap_or(keys.len())
     };
-    let end = self.scan_upper_bound(TAG_STRING);
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
-
-    self.batch.store.scan_range_callback(&start, &end, |k, _| {
-      let user_key = &k[prefix_len + 1..];
-      // 闭区间扫描需跳过游标自身
-      if last.is_none() && !cursor.is_empty() && user_key == cursor {
-        return true;
+    let mut items: Vec<Vec<u8>> = Vec::new();
+    let mut last: Option<Vec<u8>> = None;
+    for key in keys.into_iter().skip(start) {
+      if items.len() >= count {
+        break;
       }
-      if keys.len() >= count {
-        return false;
+      if all_keys || glob_match(pattern, &key) {
+        items.push(key.clone());
       }
-      // TTL 已到期键视同不存在，交由 GC 物理回收
-      if matches!(self.batch.probe_ttl(user_key, now_ms), wkv::TtlProbe::Due) {
-        return true;
-      }
-      if all_keys || glob_match(pattern, user_key) {
-        keys.push(user_key.to_vec());
-      }
-      last = Some(user_key.to_vec());
-      true
-    })?;
-
-    Ok((last.unwrap_or_default(), keys))
+      last = Some(key);
+    }
+    Ok((last.unwrap_or_default(), items))
   }
 
-  /// 全库记录迭代（底层物理扫描回调，回调返回 false 提前终止）
+  /// 全库记录迭代（回调拿到 (用户键, 值)，返回 false 提前终止）
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:IterateStore
-  pub fn iterate_store(
+  pub async fn iterate_store(
     &self,
     mut on_record: impl FnMut(&[u8], &[u8]) -> bool,
   ) -> wkv::Result<usize> {
-    let start = self.scan_lower_bound(TAG_STRING);
-    let end = self.scan_upper_bound(TAG_STRING);
-    self
-      .batch
-      .store
-      .scan_range_callback(&start, &end, |k, v| on_record(k, v))
+    let (map, keys) = self.string_snapshot().await?;
+    let mut n = 0usize;
+    for key in keys {
+      let value = map.get(&key).cloned().flatten().unwrap_or_default();
+      n += 1;
+      if !on_record(&key, &value) {
+        break;
+      }
+    }
+    Ok(n)
   }
 
   /// 删除命中给定集群槽位的所有键，返回删除数
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DeleteSlotKeys
   pub async fn delete_slot_keys(&self, slots: &[u16]) -> wkv::Result<u64> {
+    let (_, keys) = self.string_snapshot().await?;
     let mut deleted = 0u64;
-    let prefix_len = self.phys_prefix_len();
-    let start = self.scan_lower_bound(TAG_STRING);
-    let end = self.scan_upper_bound(TAG_STRING);
-    let mut victims: Vec<Vec<u8>> = Vec::new();
-    self.batch.store.scan_range_callback(&start, &end, |k, _| {
-      let user_key = &k[prefix_len + 1..];
-      if slots.contains(&cluster_slot(user_key)) {
-        victims.push(user_key.to_vec());
-      }
-      true
-    })?;
-    for key in victims {
-      if self.delete_string(&key).await? {
+    for key in keys {
+      if slots.contains(&cluster_slot(&key)) && self.delete_string(&key).await? {
         deleted += 1;
       }
     }
@@ -129,42 +106,22 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 列出当前库全部匹配键（KEYS 语义，无分页）
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DBKeys
-  pub fn db_keys(&self, pattern: &[u8]) -> wkv::Result<Vec<Vec<u8>>> {
-    let mut keys = Vec::new();
-    let prefix_len = self.phys_prefix_len();
-    let start = self.scan_lower_bound(TAG_STRING);
-    let end = self.scan_upper_bound(TAG_STRING);
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
-    self.batch.store.scan_range_callback(&start, &end, |k, _| {
-      let user_key = &k[prefix_len + 1..];
-      if matches!(self.batch.probe_ttl(user_key, now_ms), wkv::TtlProbe::Due) {
-        return true;
-      }
-      if glob_match(pattern, user_key) {
-        keys.push(user_key.to_vec());
-      }
-      true
-    })?;
-    Ok(keys)
+  pub async fn db_keys(&self, pattern: &[u8]) -> wkv::Result<Vec<Vec<u8>>> {
+    let (_, keys) = self.string_snapshot().await?;
+    Ok(
+      keys
+        .into_iter()
+        .filter(|k| glob_match(pattern, k))
+        .collect(),
+    )
   }
 
   /// 当前库键数量（DBSIZE 语义，按会话前缀过滤统计）
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DbSize
-  pub fn db_size(&self) -> wkv::Result<usize> {
-    let mut n = 0usize;
-    let prefix_len = self.phys_prefix_len();
-    let start = self.scan_lower_bound(TAG_STRING);
-    let end = self.scan_upper_bound(TAG_STRING);
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
-    self.batch.store.scan_range_callback(&start, &end, |k, _| {
-      let user_key = &k[prefix_len + 1..];
-      if !matches!(self.batch.probe_ttl(user_key, now_ms), wkv::TtlProbe::Due) {
-        n += 1;
-      }
-      true
-    })?;
-    Ok(n)
+  pub async fn db_size(&self) -> wkv::Result<usize> {
+    let (_, keys) = self.string_snapshot().await?;
+    Ok(keys.len())
   }
 
   /// 键在内存中已到期则就地物理清除，返回是否确有删除
@@ -186,6 +143,60 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let prefix_len = self.phys_prefix_len();
     physical_key.len() > prefix_len
       && (physical_key[prefix_len] == TAG_META || physical_key[prefix_len] == TAG_TTL)
+  }
+
+  /// 当前会话字符串键空间快照（hlog 区间扫描 + 会话前缀过滤 + 同键留最新）
+  ///
+  /// 键 -> 值（None = 已删除墓碑）。BfTree 扫描（scan_range_callback）只覆盖
+  /// 范围索引记录，普通写仅入 hlog 与哈希索引，故全量迭代必须走 hlog 扫描；
+  /// 逻辑地址升序遍历天然后写覆盖前写。整库物化为快照，生产大库 SCAN 应改
+  /// 分页增量（对标 C# cursor 语义），此处以正确性优先。
+  pub(crate) async fn collect_records(&self) -> wkv::Result<GxHashMap<Vec<u8>, Option<Vec<u8>>>> {
+    let prefix = self.batch.session_prefix().as_slice().to_vec();
+    let mut map = GxHashMap::default();
+    self
+      .batch
+      .store
+      .hlog()
+      .scan(
+        self.batch.store.begin_address(),
+        self.batch.store.tail_address(),
+        |_addr, rec| {
+          let key = rec.key();
+          let Some(rest) = key.strip_prefix(prefix.as_slice()) else {
+            return Ok(true);
+          };
+          let Some(user_key) = rest.strip_prefix(&[TAG_STRING][..]) else {
+            return Ok(true);
+          };
+          if rec.is_tombstone() {
+            map.insert(user_key.to_vec(), None);
+          } else {
+            map.insert(user_key.to_vec(), Some(rec.value().to_vec()));
+          }
+          Ok(true)
+        },
+      )
+      .await
+      .map_err(scan_err)?;
+    Ok(map)
+  }
+
+  /// 存活字符串键快照：剔除墓碑与已到期键，键按字节序排序
+  pub(crate) async fn string_snapshot(
+    &self,
+  ) -> wkv::Result<(GxHashMap<Vec<u8>, Option<Vec<u8>>>, Vec<Vec<u8>>)> {
+    let map = self.collect_records().await?;
+    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
+    let mut keys: Vec<Vec<u8>> = map
+      .iter()
+      .filter(|(k, v)| {
+        v.is_some() && !matches!(self.batch.probe_ttl(k, now_ms), wkv::TtlProbe::Due)
+      })
+      .map(|(k, _)| k.clone())
+      .collect();
+    keys.sort_unstable();
+    Ok((map, keys))
   }
 }
 

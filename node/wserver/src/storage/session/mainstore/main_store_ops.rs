@@ -97,14 +97,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let old = self.read_string(key).await?;
     let exists = old.is_some();
     if (nx && exists) || (xx && !exists) {
-      let status = if exists {
-        self.session_found.fetch_add(1, Relaxed);
-        GarnetStatus::Ok
-      } else {
-        self.session_notfound.fetch_add(1, Relaxed);
-        GarnetStatus::NotFound
-      };
-      return Ok((status, if get_old { old } else { None }));
+      // 条件不满足：对齐 C# RMW 失败 → NOTFOUND
+      self.session_notfound.fetch_add(1, Relaxed);
+      return Ok((GarnetStatus::NotFound, if get_old { old } else { None }));
     }
     self.upsert_string(key, val).await?;
     Ok((GarnetStatus::Ok, if get_old { old } else { None }))

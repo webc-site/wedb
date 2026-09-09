@@ -33,7 +33,10 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// 取库（不存在则新建），返回 (库, 是否新建)
   ///
   /// libs/server/Databases/IDatabaseManager.cs:TryGetOrAddDatabase
-  fn try_get_or_add_database(&self, db_id: i64) -> wkv::Result<(Arc<GarnetDatabase<D>>, bool)>;
+  fn try_get_or_add_database(
+    &self,
+    db_id: i64,
+  ) -> impl Future<Output = wkv::Result<(Arc<GarnetDatabase<D>>, bool)>>;
 
   /// 取库（不新建）
   ///
@@ -113,7 +116,7 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// 执行对象收集扫描，返回遍历对象数
   ///
   /// libs/server/Databases/IDatabaseManager.cs:ExecuteObjectCollection
-  fn execute_object_collection(&self, db_id: i64) -> wkv::Result<usize>;
+  fn execute_object_collection(&self, db_id: i64) -> impl Future<Output = wkv::Result<usize>>;
 
   /// 启动大小追踪器
   ///
@@ -148,7 +151,7 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// 交换两个库编号，成功返回 true
   ///
   /// libs/server/Databases/IDatabaseManager.cs:TrySwapDatabases
-  fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> bool;
+  fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> impl Future<Output = bool>;
 
   /// 创建会话函数状态
   ///

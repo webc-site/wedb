@@ -17,6 +17,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+async-lock.workspace = true
 bitflags = "2.13.1"
 coarsetime.workspace = true
 fastrand = "2.5.0"

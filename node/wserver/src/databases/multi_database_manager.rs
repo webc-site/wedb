@@ -9,9 +9,10 @@ use std::{
   sync::{Arc, atomic::Ordering::Relaxed},
 };
 
+use async_lock::RwLock;
 use gxhash::HashMap as GxHashMap;
 use papaya::HashMap as PapayaMap;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use waof::WalLog;
 use wdev::Device;
 use wkv::WedbStore;
@@ -31,7 +32,7 @@ pub struct MultiDatabaseManager<D: Device> {
   pub store: Arc<WedbStore<D>>,
   /// 库注册表：db_id -> 库
   pub databases: PapayaMap<i64, Arc<GarnetDatabase<D>>>,
-  /// 库表结构变更锁（SWAPDB / 批量恢复）
+  /// 库表结构变更锁（SWAPDB / 批量恢复；异步感知，允许持锁跨越内部 await）
   pub content_lock: RwLock<()>,
   /// AOF 构造配置（None 表示未启用 AOF）
   pub wal_factory: Mutex<Option<(Arc<D>, waof::WalConfig)>>,
@@ -114,16 +115,14 @@ impl<D: Device> MultiDatabaseManager<D> {
   /// libs/server/Databases/MultiDatabaseManager.cs:TryGetDatabasesContentWriteLock
   pub fn try_get_databases_content_write_lock(
     &self,
-  ) -> Option<parking_lot::RwLockWriteGuard<'_, ()>> {
+  ) -> Option<async_lock::RwLockWriteGuard<'_, ()>> {
     self.content_lock.try_write()
   }
 
   /// 库表内容读锁
   ///
   /// libs/server/Databases/MultiDatabaseManager.cs:TryGetDatabasesContentReadLock
-  pub fn try_get_databases_content_read_lock(
-    &self,
-  ) -> Option<parking_lot::RwLockReadGuard<'_, ()>> {
+  pub fn try_get_databases_content_read_lock(&self) -> Option<async_lock::RwLockReadGuard<'_, ()>> {
     self.content_lock.try_read()
   }
 
@@ -178,6 +177,48 @@ impl<D: Device> MultiDatabaseManager<D> {
     self.databases.pin().get(&db_id).cloned()
   }
 
+  /// 收集指定库的字符串键值快照
+  async fn collect_db_kv(&self, db_id: i64) -> Vec<(Vec<u8>, Vec<u8>)> {
+    let Ok(session) = self.store.new_session() else {
+      return Vec::new();
+    };
+    session.set_active_db(db_id.max(0) as u64);
+    let batch = session.enter_batch();
+    let ss = crate::storage::session::storage_session::StorageSession::new(batch);
+    let Ok((map, keys)) = ss.string_snapshot().await else {
+      return Vec::new();
+    };
+    keys
+      .into_iter()
+      .filter_map(|k| {
+        let v = map.get(&k).cloned().flatten()?;
+        Some((k, v))
+      })
+      .collect()
+  }
+
+  /// 删除指定库全部字符串键
+  async fn delete_db_keys(&self, db_id: i64) {
+    let Ok(session) = self.store.new_session() else {
+      return;
+    };
+    session.set_active_db(db_id.max(0) as u64);
+    let batch = session.enter_batch();
+    let ss = crate::storage::session::storage_session::StorageSession::new(batch);
+    if let Ok((_, keys)) = ss.string_snapshot().await {
+      for key in keys {
+        let _ = ss.delete_string(&key).await;
+      }
+    }
+  }
+
+  /// 等待一次 AOF 提交闭环（提交水位确认）
+  ///
+  /// libs/server/Databases/MultiDatabaseManager.cs:AwaitCommitAsync
+  pub async fn await_commit(&self, db_id: i64) -> wkv::Result<bool> {
+    self.wait_for_commit_to_aof_async(db_id)
+  }
+
   /// 打开（或复用）检查点目录下已存在的库存储
   ///
   /// 缺口说明：wkv 恢复产出全新 [`WedbStore`] 句柄，与共享单库模型冲突；
@@ -189,13 +230,17 @@ impl<D: Device> MultiDatabaseManager<D> {
 }
 
 impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
-  fn try_get_or_add_database(&self, db_id: i64) -> wkv::Result<(Arc<GarnetDatabase<D>>, bool)> {
-    let pin = self.databases.pin();
-    if let Some(db) = pin.get(&db_id) {
-      return Ok((Arc::clone(db), false));
+  async fn try_get_or_add_database(
+    &self,
+    db_id: i64,
+  ) -> wkv::Result<(Arc<GarnetDatabase<D>>, bool)> {
+    {
+      let pin = self.databases.pin();
+      if let Some(db) = pin.get(&db_id) {
+        return Ok((Arc::clone(db), false));
+      }
     }
-    drop(pin);
-    let _guard = self.content_lock.write();
+    let _guard = self.content_lock.write().await;
     // 双检：写锁期间可能已被并发注册
     let pin = self.databases.pin();
     if let Some(db) = pin.get(&db_id) {
@@ -231,7 +276,7 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
     let _ = replica_recover;
     // 登记已持久化库并逐库恢复 + AOF 追平
     for db_id in self.try_get_saved_database_ids() {
-      let (db, _) = self.try_get_or_add_database(db_id)?;
+      let (db, _) = self.try_get_or_add_database(db_id).await?;
       if let Some(token) = recover_from_token.or_else(|| {
         wkv::CheckpointManager::<D>::find_latest_checkpoint(&db.checkpoint_dir)
           .ok()
@@ -329,7 +374,7 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
     })
   }
 
-  fn execute_object_collection(&self, db_id: i64) -> wkv::Result<usize> {
+  async fn execute_object_collection(&self, db_id: i64) -> wkv::Result<usize> {
     let mut n = 0usize;
     for (_, db) in self.databases.pin().iter() {
       if db_id < 0 || db.id == db_id {
@@ -337,7 +382,7 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
         session.set_active_db(db.id.max(0) as u64);
         let batch = session.enter_batch();
         let storage = crate::storage::session::storage_session::StorageSession::new(batch);
-        n += storage.object_collect(|_, _| true)?;
+        n += storage.object_collect(|_, _| true).await?;
       }
     }
     Ok(n)
@@ -376,51 +421,15 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
   }
 
   async fn flush_all_databases(&self) -> wkv::Result<()> {
-    self.store.truncate().await?;
-    for (_, db) in self.databases.pin().iter() {
-      db.last_save_ms.store(0, Relaxed);
-      db.last_save_store_tail_address.store(0, Relaxed);
+    let dbs = self.get_databases_snapshot();
+    for db in dbs {
+      self.base.reset_database(&db).await?;
     }
     Ok(())
   }
 
-  fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> bool {
-    if db_id1 == db_id2 {
-      return true;
-    }
-    let _guard = self.content_lock.write();
-    let pin = self.databases.pin();
-    let db1 = pin.get(&db_id1).cloned();
-    let db2 = pin.get(&db_id2).cloned();
-    match (db1, db2) {
-      (Some(a), Some(b)) => {
-        // 交换库内容：以重挂 id 的方式对调（存储共享，仅换容器身份）
-        let a_new = GarnetDatabase::new(
-          db_id2,
-          Arc::clone(&a.store),
-          Arc::clone(&a.device),
-          self.checkpoint_dir_of(db_id2),
-          a.aof.clone(),
-        );
-        let b_new = GarnetDatabase::new(
-          db_id1,
-          Arc::clone(&b.store),
-          Arc::clone(&b.device),
-          self.checkpoint_dir_of(db_id1),
-          b.aof.clone(),
-        );
-        a_new
-          .last_save_ms
-          .store(b.last_save_ms.load(Relaxed), Relaxed);
-        b_new
-          .last_save_ms
-          .store(a.last_save_ms.load(Relaxed), Relaxed);
-        pin.insert(db_id2, Arc::new(a_new));
-        pin.insert(db_id1, Arc::new(b_new));
-        true
-      }
-      _ => false,
-    }
+  async fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> bool {
+    swap_impl::swap(self, db_id1, db_id2).await
   }
 
   fn create_functions_state(&self, _db_id: i64) -> FunctionsState {
@@ -439,5 +448,57 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
 
   fn recover_vector_sets(&self, _db_id: i64) -> wkv::Result<u64> {
     Ok(0)
+  }
+}
+
+/// SWAPDB 共享实现（trait impl 与固有方法共用）
+mod swap_impl {
+  use std::sync::Arc;
+
+  use wdev::Device;
+
+  use super::MultiDatabaseManager;
+
+  /// 交换两库：真实搬移字符串键值（共享存储模型，前缀重写）
+  pub(super) async fn swap<D: Device>(
+    manager: &MultiDatabaseManager<D>,
+    db_id1: i64,
+    db_id2: i64,
+  ) -> bool {
+    if db_id1 == db_id2 {
+      return true;
+    }
+    let db1 = manager.get_db_by_id(db_id1);
+    let db2 = manager.get_db_by_id(db_id2);
+    let (Some(db1), Some(db2)) = (db1, db2) else {
+      return false;
+    };
+    let _guard = manager.content_lock.write().await;
+
+    // 共享存储模型：数据以 db 前缀物理隔离，SWAPDB 必须真实搬移键值
+    // （C# 侧两库独立 Tsavorite，仅交换容器）。字符串面全量重写，
+    // TTL 记录随键删除丢弃（缺口：SWAPDB 后过期时间不保留）。
+    let snap1 = manager.collect_db_kv(db_id1).await;
+    let snap2 = manager.collect_db_kv(db_id2).await;
+    manager.delete_db_keys(db_id1).await;
+    manager.delete_db_keys(db_id2).await;
+    let session = match manager.store.new_session() {
+      Ok(s) => s,
+      Err(_) => return false,
+    };
+    for (db_id, pairs) in [(db_id2, snap1), (db_id1, snap2)] {
+      session.set_active_db(db_id.max(0) as u64);
+      for (key, value) in pairs {
+        if session.upsert(&key, &value).await.is_err() {
+          return false;
+        }
+      }
+    }
+    let pin = manager.databases.pin();
+    pin.insert(db_id1, Arc::clone(&db2));
+    pin.insert(db_id2, Arc::clone(&db1));
+    drop(pin);
+    let _ = (db1, db2);
+    true
   }
 }

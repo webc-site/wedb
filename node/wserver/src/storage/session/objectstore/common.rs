@@ -163,28 +163,31 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// 对象存收集扫描（对象回收任务入口：遍历全部对象键并回调物理键与标签）
+  /// 对象存收集扫描（对象回收任务入口：遍历全部对象键并回调 (标签, 用户键)）
   ///
   /// 缺口说明：C# 侧 ObjectCollect 遍历对象存并逐对象做引用计数回收；
   /// wkv 对象生命周期由引擎 GC 统一管理，此处退化为对象键枚举统计。
   ///
   /// libs/server/Storage/Session/ObjectStore/Common.cs:ObjectCollect
-  pub fn object_collect(&self, mut on_object: impl FnMut(u8, &[u8]) -> bool) -> wkv::Result<usize> {
+  pub async fn object_collect(
+    &self,
+    mut on_object: impl FnMut(u8, &[u8]) -> bool,
+  ) -> wkv::Result<usize> {
+    let map = self.collect_records().await?;
     let mut n = 0usize;
-    let start =
-      self.scan_lower_bound(super::super::common::array_key_iteration_functions::TAG_META);
-    let end =
-      self.scan_upper_bound(super::super::common::array_key_iteration_functions::TAG_STRING);
-    let prefix_len = self.phys_prefix_len();
-    self.batch.store.scan_range_callback(&start, &end, |k, v| {
-      // 信封首字节即类型标签（TAG_META 起、TAG_STRING 止覆盖 1..=4 全部对象标签）
-      let tag = v.first().copied().unwrap_or(0);
-      if (OBJ_TAG_SORTED_SET..=OBJ_TAG_SET).contains(&tag) && on_object(tag, &k[prefix_len + 1..]) {
+    let mut keys: Vec<&Vec<u8>> = map.keys().collect();
+    keys.sort();
+    for key in keys {
+      if let Some(Some(v)) = map.get(key)
+        && let Some(&tag) = v.first()
+        && (OBJ_TAG_SORTED_SET..=OBJ_TAG_SET).contains(&tag)
+      {
         n += 1;
-        return true;
+        if !on_object(tag, key) {
+          break;
+        }
       }
-      on_object(tag, &k[prefix_len + 1..])
-    })?;
+    }
     Ok(n)
   }
 
@@ -228,6 +231,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// libs/server/Storage/Session/ObjectStore/Common.cs:IsSupportedArrayType
   pub fn is_supported_array_type(tag: u8) -> bool {
     (OBJ_TAG_SORTED_SET..=OBJ_TAG_SET).contains(&tag)
+  }
+
+  /// RESP 数组输出（通用扁平序列，RESP2/3 共用布局）
+  ///
+  /// libs/server/Storage/Session/ObjectStore/Common.cs:ProcessRespArrayOutput
+  pub fn process_resp_array_output(&self, output: &mut Vec<u8>, items: &[Vec<u8>]) {
+    push_resp_array(output, &items.iter().map(Vec::as_slice).collect::<Vec<_>>());
   }
 
   /// RESP2 数组输出（扁平：成员与值交错）

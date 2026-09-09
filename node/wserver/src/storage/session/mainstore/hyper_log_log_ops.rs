@@ -20,8 +20,8 @@ const HLL_DENSE_BYTES: usize = HLL_REGISTERS * 6 / 8;
 const HLL_SERIAL_LEN: usize = 16 + HLL_DENSE_BYTES;
 /// 魔数前缀（自描述格式，与 Redis "HYLL" 头区分）
 const HLL_MAGIC: [u8; 4] = *b"WHLL";
-/// 偏差修正常数 alpha_m * m（m=16384）
-const HLL_ALPHA: f64 = 0.7213 / (1.0 + 1.079 / HLL_REGISTERS as f64) * HLL_REGISTERS as f64;
+/// 偏差修正常数 alpha_m（m=16384）
+const HLL_ALPHA: f64 = 0.7213 / (1.0 + 1.079 / HLL_REGISTERS as f64);
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// PFADD：登记元素，返回寄存器是否发生变更（-1 表示新建，1 变更，0 未变更）
@@ -118,7 +118,7 @@ fn hll_count(regs: &[u8]) -> f64 {
       zeros += 1;
     }
   }
-  let estimate = HLL_ALPHA / sum * m * m;
+  let estimate = HLL_ALPHA * m * m / sum;
   if estimate <= 2.5 * m {
     // 小基数线性修正
     if zeros > 0 {

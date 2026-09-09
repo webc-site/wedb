@@ -39,6 +39,27 @@ pub fn handle_del_if_greater_in_place_update(current: Option<&[u8]>, etag: u64) 
   }
 }
 
+/// etag 就地更新内核：按现值与期望 etag 判定更新方向
+///
+/// libs/server/Storage/Functions/MainStore/RMWMethods.Etags.cs:HandleEtagInPlaceUpdateWorker
+pub fn handle_etag_in_place_update_worker(
+  current: Option<&[u8]>,
+  expected: u64,
+  new_val: &[u8],
+  new_etag: u64,
+) -> EtagOutcome {
+  let cur = current
+    .and_then(|v| str::from_utf8(v).ok())
+    .and_then(|s| s.trim().parse::<u64>().ok());
+  match cur {
+    Some(c) if c == expected => {
+      let _ = (new_val, new_etag);
+      EtagOutcome::Updated
+    }
+    _ => EtagOutcome::Unchanged,
+  }
+}
+
 /// 就地 SET IF MATCH：现值 etag 等于期望值则覆写
 ///
 /// libs/server/Storage/Functions/MainStore/RMWMethods.Etags.cs:HandleSetIfMatchInPlaceUpdate

@@ -150,13 +150,12 @@ impl<D: Device> SingleDatabaseManager<D> {
 
   /// 单库对象收集（对象信封扫描统计）
   ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:ExecuteObjectCollection
-  pub fn execute_object_collection(&self) -> wkv::Result<usize> {
+  pub async fn execute_object_collection(&self) -> wkv::Result<usize> {
     let session = self.db.store.new_session()?;
     session.set_active_db(self.db.id.max(0) as u64);
     let batch = session.enter_batch();
     let storage = crate::storage::session::storage_session::StorageSession::new(batch);
-    storage.object_collect(|_, _| true)
+    storage.object_collect(|_, _| true).await
   }
 
   /// 启动大小追踪器
@@ -204,7 +203,7 @@ impl<D: Device> SingleDatabaseManager<D> {
   /// 单库不支持交换（恒 false）
   ///
   /// libs/server/Databases/SingleDatabaseManager.cs:TrySwapDatabases
-  pub fn try_swap_databases(&self, _db_id1: i64, _db_id2: i64) -> bool {
+  pub async fn try_swap_databases(&self, _db_id1: i64, _db_id2: i64) -> bool {
     false
   }
 
@@ -256,7 +255,10 @@ impl<D: Device> SingleDatabaseManager<D> {
 }
 
 impl<D: Device> IDatabaseManager<D> for SingleDatabaseManager<D> {
-  fn try_get_or_add_database(&self, _db_id: i64) -> wkv::Result<(Arc<GarnetDatabase<D>>, bool)> {
+  async fn try_get_or_add_database(
+    &self,
+    _db_id: i64,
+  ) -> wkv::Result<(Arc<GarnetDatabase<D>>, bool)> {
     SingleDatabaseManager::try_get_or_add_database(self)
   }
 
@@ -315,8 +317,8 @@ impl<D: Device> IDatabaseManager<D> for SingleDatabaseManager<D> {
     SingleDatabaseManager::grow_indexes_if_needed(self)
   }
 
-  fn execute_object_collection(&self, _db_id: i64) -> wkv::Result<usize> {
-    SingleDatabaseManager::execute_object_collection(self)
+  async fn execute_object_collection(&self, _db_id: i64) -> wkv::Result<usize> {
+    SingleDatabaseManager::execute_object_collection(self).await
   }
 
   fn start_size_trackers(&self) {
@@ -343,8 +345,8 @@ impl<D: Device> IDatabaseManager<D> for SingleDatabaseManager<D> {
     SingleDatabaseManager::flush_all_databases(self).await
   }
 
-  fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> bool {
-    SingleDatabaseManager::try_swap_databases(self, db_id1, db_id2)
+  async fn try_swap_databases(&self, db_id1: i64, db_id2: i64) -> bool {
+    SingleDatabaseManager::try_swap_databases(self, db_id1, db_id2).await
   }
 
   fn create_functions_state(&self, _db_id: i64) -> FunctionsState {
