@@ -128,21 +128,37 @@ impl<D: Device> MultiDatabaseManager<D> {
 
   /// 取已持久化的库编号集合（检查点目录下有子目录的编号）
   ///
+  /// 目录枚举失败必须显式报错而非静默返回空集：空集会让 `--recover` 在没有任何
+  /// 库被恢复的情况下看似健康地启动（上游 d20d63993 修复的"静默错误恢复"类缺陷）。
+  /// 对标 libs/server/Databases/MultiDatabaseManager.cs:RecoverCheckpointAsync 与
+  /// :RecoverAOFAsync 中包裹 TryGetSavedDatabaseIds 的 try/catch——上游将日志从
+  /// LogInformation 提级到 LogError 并尊重 FailOnRecoveryError 抛出；Rust 侧错误即
+  /// 返回值，统一为记录 error 日志后向调用方传播（恒为 fail-loud 语义，强于上游
+  /// FailOnRecoveryError=false 时"记日志后放弃恢复"的默认分支）。
+  ///
   /// libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds
-  pub fn try_get_saved_database_ids(&self) -> Vec<i64> {
+  pub fn try_get_saved_database_ids(&self) -> wkv::Result<Vec<i64>> {
     let mut ids = Vec::new();
-    if let Ok(entries) = fs::read_dir(&self.checkpoint_root) {
-      for entry in entries.flatten() {
-        if entry.path().is_dir()
-          && let Ok(n) = entry.file_name().into_string()
-          && let Ok(id) = n.parse::<i64>()
-        {
-          ids.push(id);
-        }
+    let entries = match fs::read_dir(&self.checkpoint_root) {
+      Ok(entries) => entries,
+      Err(e) => {
+        log::error!(
+          "枚举已持久化库编号失败: checkpoint_root = {}; err = {e}",
+          self.checkpoint_root.display()
+        );
+        return Err(wkv::Error::from(e));
+      }
+    };
+    for entry in entries.flatten() {
+      if entry.path().is_dir()
+        && let Ok(n) = entry.file_name().into_string()
+        && let Ok(id) = n.parse::<i64>()
+      {
+        ids.push(id);
       }
     }
     ids.sort_unstable();
-    ids
+    Ok(ids)
   }
 
   /// 暂停全部检查点（成功则返回释放闭包所需标志）
@@ -274,8 +290,11 @@ impl<D: Device> IDatabaseManager<D> for MultiDatabaseManager<D> {
     recover_from_token: Option<u128>,
   ) -> wkv::Result<()> {
     let _ = replica_recover;
-    // 登记已持久化库并逐库恢复 + AOF 追平
-    for db_id in self.try_get_saved_database_ids() {
+    // 登记已持久化库并逐库恢复 + AOF 追平。
+    // 枚举失败向上传播（见 try_get_saved_database_ids 的对标说明），不允许静默
+    // 空集恢复——对标上游 d20d63993 后 RecoverCheckpointAsync 对 ids 枚举错误的
+    // Error 级日志 + FailOnRecoveryError 抛出语义。
+    for db_id in self.try_get_saved_database_ids()? {
       let (db, _) = self.try_get_or_add_database(db_id).await?;
       if let Some(token) = recover_from_token.or_else(|| {
         wkv::CheckpointManager::<D>::find_latest_checkpoint(&db.checkpoint_dir)
