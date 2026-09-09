@@ -1,0 +1,4 @@
+fn:
+  - IndexResizeSMTask
+  - GlobalBeforeEnteringState
+  - GlobalAfterEnteringState

@@ -1,0 +1,9 @@
+fn:
+  - OperationStackContext
+  - SetRecordSourceToHashEntry
+  - UpdateRecordSourceToCurrentHashEntry
+  - SetNewRecord
+  - SetNewRecordInvalid
+  - ClearNewRecord
+  - HandleNewRecordOnException
+  - ToString

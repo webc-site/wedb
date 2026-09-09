@@ -1,0 +1,4 @@
+fn:
+  - PauseRevivification
+  - ResumeRevivification
+  - GetMinRevivifiableAddress

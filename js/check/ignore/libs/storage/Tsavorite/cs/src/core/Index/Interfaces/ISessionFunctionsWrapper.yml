@@ -1,0 +1,24 @@
+fn:
+  - ReadCompletionCallback
+  - InitialWriter
+  - PostInitialWriter
+  - InPlaceWriter
+  - PostUpsertOperation
+  - NeedInitialUpdate
+  - InitialUpdater
+  - PostInitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - PostCopyUpdater
+  - PostRMWOperation
+  - RMWCompletionCallback
+  - InitialDeleter
+  - PostInitialDeleter
+  - PostDeleteOperation
+  - ConvertOutputToHeap
+  - TryLockEphemeralExclusive
+  - TryLockEphemeralShared
+  - UnlockEphemeralExclusive
+  - UnlockEphemeralShared
+  - UnsafeResumeThread
+  - CompletePendingWithOutputs

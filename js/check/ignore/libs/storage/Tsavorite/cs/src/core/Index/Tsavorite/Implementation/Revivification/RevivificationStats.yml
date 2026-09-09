@@ -1,0 +1,4 @@
+fn:
+  - MergeTo
+  - Dump
+  - ToString

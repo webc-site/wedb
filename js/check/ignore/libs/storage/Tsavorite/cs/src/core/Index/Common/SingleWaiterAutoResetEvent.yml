@@ -1,0 +1,5 @@
+fn:
+  - ResetStatus
+  - Signal
+  - WaitAsync
+  - ThrowConcurrentWaitersNotSupported

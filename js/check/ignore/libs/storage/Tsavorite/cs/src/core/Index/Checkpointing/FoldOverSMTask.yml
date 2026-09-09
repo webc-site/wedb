@@ -1,0 +1,4 @@
+fn:
+  - FoldOverSMTask
+  - GlobalBeforeEnteringState
+  - ObjectLog_OnPrepare

@@ -1,0 +1,6 @@
+fn:
+  - InternalTryLockShared
+  - InternalTryLockExclusive
+  - InternalUnlockShared
+  - InternalUnlockExclusive
+  - InternalPromoteLock

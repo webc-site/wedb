@@ -1,0 +1,22 @@
+fn:
+  - PauseRevivification
+  - ResumeRevivification
+  - DisposeOnConstructionFailure
+  - GetKeyHash
+  - TryInitiateFullCheckpoint
+  - TryInitiateIndexCheckpoint
+  - TakeIndexCheckpointAsync
+  - TryInitiateHybridLogCheckpoint
+  - TakeHybridLogCheckpointAsync
+  - GetRecoverVersion
+  - FindRecoveryInfo
+  - InternalRecoverAsync
+  - CompleteCheckpointAsync
+  - ContextRead
+  - ContextReadAtAddress
+  - ContextUpsert
+  - ContextRMW
+  - ContextDelete
+  - GrowIndexAsync
+  - DumpDistributionInternal
+  - DumpDistribution

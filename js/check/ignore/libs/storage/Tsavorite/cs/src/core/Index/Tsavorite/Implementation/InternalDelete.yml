@@ -1,0 +1,7 @@
+fn:
+  - SplitBuckets
+  - OnDispose
+  - EphemeralXUnlock
+  - CheckCPRConsistencyDelete
+  - CreateNewRecordDelete
+  - SaveAllocationForRetry

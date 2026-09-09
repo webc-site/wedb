@@ -1,0 +1,8 @@
+fn:
+  - TryAcquireSharedLatch
+  - ReleaseSharedLatch
+  - ReleaseExclusiveLatch
+  - NumLatchedShared
+  - IsLatchedExclusive
+  - IsLatched
+  - ToString

@@ -1,0 +1,22 @@
+fn:
+  - ReadCompletionCallback
+  - InitialWriter
+  - PostInitialWriter
+  - InPlaceWriter
+  - PostUpsertOperation
+  - NeedInitialUpdate
+  - InitialUpdater
+  - PostInitialUpdater
+  - NeedCopyUpdate
+  - CopyUpdater
+  - PostCopyUpdater
+  - PostRMWOperation
+  - RMWCompletionCallback
+  - InitialDeleter
+  - PostInitialDeleter
+  - PostDeleteOperation
+  - ConvertOutputToHeap
+  - PreSingleKeyConsistentRead
+  - PostSingleKeyConsistentReadCallback
+  - PreBatchKeyConsistentReadCallback
+  - PostBatchKeyConsistentReadCallback

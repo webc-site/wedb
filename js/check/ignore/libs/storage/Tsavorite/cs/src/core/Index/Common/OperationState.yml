@@ -1,0 +1,5 @@
+fn:
+  - ToString
+  - OperationState
+  - SetIsNoKey
+  - SetIsReadAtAddress

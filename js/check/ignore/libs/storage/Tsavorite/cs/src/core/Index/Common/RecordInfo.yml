@@ -1,0 +1,17 @@
+fn:
+  - WriteInfo
+  - InitializeForNewRecord
+  - SetIsInNewVersion
+  - IsClosedWord
+  - IsClosedOrTombstoned
+  - TryResetModifiedAtomic
+  - TryUpdateAddress
+  - SetModified
+  - SetInvalid
+  - UnsealAndValidate
+  - SealAndInvalidate
+  - Seal
+  - SetInvalidAtomic
+  - ToString
+  - bstr
+  - bstr01

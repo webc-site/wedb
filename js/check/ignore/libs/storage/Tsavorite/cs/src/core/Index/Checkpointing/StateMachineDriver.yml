@@ -1,0 +1,21 @@
+fn:
+  - SetSystemState
+  - GetNumActiveTransactions
+  - IncrementActiveTransactions
+  - DecrementActiveTransactions
+  - AddToWaitingList
+  - ResetLastVersion
+  - AcquireTransactionVersion
+  - VerifyTransactionVersion
+  - EndTransaction
+  - Register
+  - UnsafeRegisterCallback
+  - RunAsync
+  - CompleteAsync
+  - GlobalStateMachineStep
+  - WaitForStateChange
+  - WaitForCompletion
+  - ProcessWaitingListAsync
+  - when
+  - RunStateMachine
+  - FastForwardStateMachineToRest

@@ -1,0 +1,11 @@
+fn:
+  - Iterate
+  - TsavoriteKVIterator
+  - ProcessNonTailmostMainKvRecord
+  - PushNext
+  - IsTailmostMainKvRecord
+  - ClearValueIfHeap
+  - AsMemoryLogRecordRef
+  - AsDiskLogRecordRef
+  - GetRecordFieldInfo
+  - CalculateHeapMemorySize

@@ -1,0 +1,16 @@
+fn:
+  - ToString
+  - IsBeyondSizeLimitAndCanEvict
+  - LogSizeTracker
+  - UpdateTargetSize
+  - Start
+  - Stop
+  - OnStopped
+  - IncrementSize
+  - UpdateSize
+  - Signal
+  - ResizerTask
+  - ResizeIfNeeded
+  - DetermineEvictionRange
+  - ThrowTsavoriteException
+  - PostMemoryTrim

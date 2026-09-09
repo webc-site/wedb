@@ -1,0 +1,7 @@
+fn:
+  - TryBlockAllocate
+  - TryAllocateRecord
+  - SaveAllocationForRetry
+  - TryAllocateRecordReadCache
+  - GetAllocationForRetry
+  - OnDispose

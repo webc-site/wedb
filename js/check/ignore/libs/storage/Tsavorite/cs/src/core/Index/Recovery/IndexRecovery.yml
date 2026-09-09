@@ -1,0 +1,5 @@
+fn:
+  - RecoverFuzzyIndexAsync
+  - InitializeMainIndexRecovery
+  - BeginMainIndexRecovery
+  - AsyncPageReadCallback

@@ -1,0 +1,5 @@
+fn:
+  - StateMachineBase
+  - NextState
+  - GlobalBeforeEnteringState
+  - GlobalAfterEnteringState

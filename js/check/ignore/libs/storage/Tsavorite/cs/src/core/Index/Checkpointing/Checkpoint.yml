@@ -1,0 +1,4 @@
+fn:
+  - Streaming
+  - IndexOnly
+  - HybridLogOnly
