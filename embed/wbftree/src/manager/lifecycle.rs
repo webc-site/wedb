@@ -96,6 +96,12 @@ impl RangeIndexManager {
       return Err(Error::IndexExists);
     }
 
+    // 清理孤儿工作文件：注册表无条目时数据文件必无在线引擎引用 (条带锁内裁决，
+    // pending 条目已在上方 IndexExists 拦截)。引擎以 create(true)+truncate(false)
+    // 打开基文件，残留的旧内容 (崩溃残留 / 上轮删除未竟) 会被全新索引静默继承，
+    // 以幻影数据暴露给新索引——创建前 unlink 保证新树从空文件起步。
+    let _ = fs::remove_file(self.data_file_path(&hash_prefix));
+
     let tree = self.instantiate_tree(&hash_prefix, storage_backend, tuning)?;
     let entry = Arc::new(TreeEntry::new(
       Some(Arc::clone(&tree)),
@@ -149,6 +155,7 @@ impl RangeIndexManager {
       } else if self.addr_flush_scan_pending() {
         // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
         // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
+        let scan_token = self.addr_flush_scan_token();
         let mut found_flush = false;
         if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
           // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
@@ -169,7 +176,7 @@ impl RangeIndexManager {
           }
         }
         if !found_flush {
-          self.settle_addr_flush_scan();
+          self.settle_addr_flush_scan(scan_token);
         }
       }
 

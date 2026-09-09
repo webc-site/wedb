@@ -134,12 +134,19 @@ impl<D: Device> WedbStore<D> {
               // 标记已从检查点恢复 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
               stub.mark_recovered_from_checkpoint();
 
-              // 更新记录中的存根并落盘 (定长 51 字节，纯栈分配零堆开销；
-              // 复用 range_index 的 Meta+Stub 单一编码实现)
-              let new_val = encode_meta_stub_record(&meta, &stub);
-              if !self.hlog.try_update_in_place(addr, key, &new_val)? {
-                let new_addr = self.hlog.append(key, &new_val, addr, false)?;
-                self.index.update_address(key, addr, new_addr);
+              // 已自愈存根零写跳过：持久化字节已等于自愈编码 (句柄已清零 + 恢复位
+              // 已置) 时，多轮恢复的重复回写纯属浪费——原位改写退化为同址重写，
+              // 失败路径还会多出一次追加 + 索引地址更新；跳过仅省写副作用，注册
+              // 副作用照常执行
+              let healed = stub.encode();
+              if stub_slice != healed.as_slice() {
+                // 更新记录中的存根并落盘 (定长 51 字节，纯栈分配零堆开销；
+                // 复用 range_index 的 Meta+Stub 单一编码实现)
+                let new_val = encode_meta_stub_record(&meta, &stub);
+                if !self.hlog.try_update_in_place(addr, key, &new_val)? {
+                  let new_addr = self.hlog.append(key, &new_val, addr, false)?;
+                  self.index.update_address(key, addr, new_addr);
+                }
               }
 
               // 在 RangeIndexManager 中注册 pending 条目 (tree=None，惰性恢复)：

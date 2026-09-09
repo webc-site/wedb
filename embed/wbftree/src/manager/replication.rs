@@ -182,6 +182,10 @@ impl RangeIndexManager {
             && let Some(key_id) = decode_u128(stem)
           {
             let target_data_path = self.data_file_path(stem);
+            // 无条件以检查点快照预置工作文件：文件名恒不同 ({stem}.bftree vs
+            // {stem}.data.bftree)，`path != target` 恒真——工作文件可能仅有环形
+            // 缓冲中未落盘的部分页，快照才是恢复点权威版本，存在也必须覆盖
+            // (`path == target` 分支仅防御 fs::copy 自拷贝，按命名规则不可达)
             if !target_data_path.exists() || target_data_path != path {
               fs::copy(&path, &target_data_path)?;
             }
