@@ -1,5 +1,7 @@
 use std::io::Cursor;
 
+use wobject::hash::hash_object::HashObject;
+
 use crate::resp::resp_server_session::RespServerSession;
 
 impl RespServerSession {
@@ -22,7 +24,7 @@ impl RespServerSession {
       Ok(Some(Some(val))) => {
         let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = HashObject::deserialize(&mut cursor) {
-          if let Some(res) = hash_obj.operate(2 /* HGET */, field, &[]) {
+          if let Some(res) = hash_obj.operate(2 /* HGET */, field, b"") {
             let len_str = format!("${}\r\n", res.len());
             output.extend_from_slice(len_str.as_bytes());
             output.extend_from_slice(&res);
@@ -153,7 +155,7 @@ impl RespServerSession {
           let arr_len = format!("*{}\r\n", fields.len());
           output.extend_from_slice(arr_len.as_bytes());
           for field in fields {
-            if let Some(res) = hash_obj.operate(2 /* HGET */, field, &[]) {
+            if let Some(res) = hash_obj.operate(2 /* HGET */, field, b"") {
               let len_str = format!("${}\r\n", res.len());
               output.extend_from_slice(len_str.as_bytes());
               output.extend_from_slice(&res);
@@ -198,7 +200,7 @@ impl RespServerSession {
       Ok(Some(Some(val))) => {
         let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = HashObject::deserialize(&mut cursor) {
-          if let Some(res) = hash_obj.operate(6 /* HLEN */, &[], &[]) {
+          if let Some(res) = hash_obj.operate(6 /* HLEN */, b"", b"") {
             output.extend_from_slice(b":");
             output.extend_from_slice(&res);
             output.extend_from_slice(b"\r\n");
@@ -239,7 +241,7 @@ impl RespServerSession {
         let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = HashObject::deserialize(&mut cursor) {
           for field in fields {
-            if hash_obj.operate(5 /* HDEL */, field, &[]).is_some() {
+            if hash_obj.operate(5 /* HDEL */, field, b"").is_some() {
               deleted += 1;
             }
           }
@@ -281,7 +283,7 @@ impl RespServerSession {
       Ok(Some(Some(val))) => {
         let mut cursor = Cursor::new(val);
         if let Ok(hash_obj) = HashObject::deserialize(&mut cursor) {
-          if let Some(res) = hash_obj.operate(7 /* HEXISTS */, field, &[]) {
+          if let Some(res) = hash_obj.operate(7 /* HEXISTS */, field, b"") {
             output.extend_from_slice(b":");
             output.extend_from_slice(&res);
             output.extend_from_slice(b"\r\n");

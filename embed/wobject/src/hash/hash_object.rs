@@ -6,7 +6,6 @@ use std::{
   sync::Mutex,
 };
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use gxhash::GxBuildHasher;
 use papaya::HashMap;
 
@@ -71,20 +70,16 @@ impl HashObject {
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
-    let count = reader.read_i32::<LittleEndian>()?;
+    let mut buf = Vec::new();
+    reader.read_to_end(&mut buf)?;
+    let items: Vec<(Vec<u8>, Vec<u8>)> = bitcode::decode(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    
     let hash = HashMap::with_hasher(GxBuildHasher::default());
     let pin = hash.pin();
-    for _ in 0..count {
-      let k_len = reader.read_i32::<LittleEndian>()?;
-      let mut k = vec![0u8; k_len as usize];
-      reader.read_exact(&mut k)?;
-
-      let v_len = reader.read_i32::<LittleEndian>()?;
-      let mut v = vec![0u8; v_len as usize];
-      reader.read_exact(&mut v)?;
-
+    for (k, v) in items {
       pin.insert(k, v);
     }
+    
     drop(pin);
     Ok(Self {
       hash,
@@ -96,14 +91,12 @@ impl HashObject {
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.hash.pin();
-    writer.write_i32::<LittleEndian>(pin.len() as i32)?;
+    let mut items = Vec::with_capacity(pin.len());
     for (k, v) in pin.iter() {
-      writer.write_i32::<LittleEndian>(k.len() as i32)?;
-      writer.write_all(k)?;
-      writer.write_i32::<LittleEndian>(v.len() as i32)?;
-      writer.write_all(v)?;
+      items.push((k.clone(), v.clone()));
     }
-    Ok(())
+    let bytes = bitcode::encode(&items);
+    writer.write_all(&bytes)
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Operate
@@ -117,8 +110,9 @@ impl HashObject {
       2 /* HGET */ => pin.get(key).cloned(),
       5 /* HDEL */ => pin.remove(key).cloned(),
       6 /* HLEN */ => {
-          let len = pin.len().to_string().into_bytes();
-          Some(len)
+          let mut buffer = itoa::Buffer::new();
+          let len_str = buffer.format(pin.len());
+          Some(len_str.as_bytes().to_vec())
       }
       7 /* HEXISTS */ => {
           let exists = if pin.contains_key(key) { b"1" } else { b"0" };
@@ -157,7 +151,10 @@ impl HashObject {
       current_val = parsed;
     }
     current_val += increment;
-    pin.insert(key.to_vec(), current_val.to_string().into_bytes());
+    
+    let mut buffer = zmij::Buffer::new();
+    let val_str = buffer.format(current_val);
+    pin.insert(key.to_vec(), val_str.as_bytes().to_vec());
     Some(current_val)
   }
 }
