@@ -1,9 +1,3 @@
 fn:
   - ReadMetadata
   - WriteMetadata
-test:
-  - ScanTerminatesWhenPageReadThrowsSynchronously
-  - ScanDoesNotReturnStaleDataWhenReadAheadPageFails
-  - MetadataReadFailureIsReportedRatherThanReturningGarbage
-  - MetadataReadToleratesEndOfFile
-  - ZeroLengthCommitMetadataIsRejected

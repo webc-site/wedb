@@ -1,4 +1,3 @@
 fn:
-  - FailFrameLoad
   - SignalFrameLoadCompletion
   - WaitForFrameLoadCompletion
