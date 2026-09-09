@@ -15,7 +15,7 @@ use compio::runtime::{Runtime, spawn};
 use log::info;
 use tempfile::tempdir;
 use wdev::{Device, Error, SegmentedDevice};
-use wram::AlignedBuf;
+use wutil::AlignedBuf;
 
 use crate::support::make_pattern_data;
 

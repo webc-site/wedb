@@ -8,7 +8,7 @@ use std::sync::{
   atomic::{AtomicU32, Ordering::SeqCst},
 };
 
-use wram::{AlignedBuf, BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, is_valid_sector_size};
+use wutil::{AlignedBuf, BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, is_valid_sector_size};
 
 use crate::{
   device::Device,

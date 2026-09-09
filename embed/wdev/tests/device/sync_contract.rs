@@ -18,7 +18,7 @@ use compio::{buf::BufResult, fs::File, io::AsyncWriteAt, runtime::Runtime};
 use log::info;
 use tempfile::tempdir;
 use wdev::{Device, SegmentedDevice};
-use wram::AlignedBuf;
+use wutil::AlignedBuf;
 
 use crate::support::Watchdog;
 

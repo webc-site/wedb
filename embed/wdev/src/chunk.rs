@@ -3,7 +3,7 @@
 //! 负责跨段或单段 I/O 的边界切片迭代、偏移校验与对齐检查，
 //! 消除 `write_aligned` 与 `read_aligned` 中的重复循环与算术逻辑。
 
-use wram::AlignedBuf;
+use wutil::AlignedBuf;
 
 use crate::error::{Error, Result};
 

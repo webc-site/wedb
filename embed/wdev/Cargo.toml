@@ -25,7 +25,7 @@ libc = { workspace = true }
 log = { workspace = true }
 papaya.workspace = true
 thiserror = { workspace = true }
-wram = { workspace = true }
+wutil = { version = "0.1.0", path = "../wutil" }
 
 [dependencies.compio]
 workspace = true
