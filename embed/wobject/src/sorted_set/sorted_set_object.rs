@@ -31,13 +31,13 @@ pub struct SortedSetEntry {
 impl Eq for SortedSetEntry {}
 
 impl PartialOrd for SortedSetEntry {
-  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 
 impl Ord for SortedSetEntry {
-  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+  fn cmp(&self, other: &Self) -> Ordering {
     // Note: BTreeSet requires total ordering. f64 has NaN which is not completely ordered.
     // We use total_cmp for f64 here.
     self
