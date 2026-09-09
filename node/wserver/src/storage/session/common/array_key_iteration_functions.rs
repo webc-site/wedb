@@ -51,6 +51,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let (_map, keys) = self.string_snapshot().await?;
     // 键已按字节序升序：二分定位首个大于游标的键作为续扫起点
     let start = keys.partition_point(|k| !cursor.is_empty() && k.as_slice() <= cursor);
+    // count 下限钳制为 1：count=0 会立即"满页截断"且无处定游标，首页即空终
+    // （Redis 侧 COUNT<1 在 RESP 层拒绝）
+    let count = count.max(1);
     let mut items: Vec<Vec<u8>> = Vec::new();
     let mut last: Option<Vec<u8>> = None;
     let mut truncated = false;

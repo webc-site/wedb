@@ -70,8 +70,8 @@ impl IGarnetApi {
     val: &[u8],
     etag: u64,
   ) -> wkv::Result<GarnetStatus> {
-    // 缺口：wkv 无独立 etag 元数据通道，SET WITH ETAG 恒为 Updated（见
-    // rmw_methods__etags 域"值为整数文本 = etag"约定），值落盘即成功
+    // 缺口：wkv 无独立 etag 元数据通道，SET WITH ETAG 恒为 Updated
+    // （"值为整数文本 = etag"约定），值落盘即成功
     let _ = etag;
     ss.upsert_string(key, val).await?;
     Ok(GarnetStatus::Ok)

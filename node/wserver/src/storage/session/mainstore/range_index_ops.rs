@@ -51,11 +51,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 尝试将单条索引记录写成 RESP 批量字符串，返回是否写入
   ///
   /// libs/server/Storage/Session/MainStore/RangeIndexOps.cs:TryWriteRecordResp
+  /// （C# 侧经 RespWriteUtils.TryWriteBulkString 落 `$<len>\r\n` 完整帧）
   pub fn try_write_record_resp(&self, output: &mut Vec<u8>, record: &[u8]) -> bool {
     if record.is_empty() {
       output.extend_from_slice(b"$-1\r\n");
       return false;
     }
+    output.push(b'$');
     output.extend_from_slice(itoa::Buffer::new().format(record.len()).as_bytes());
     output.extend_from_slice(b"\r\n");
     output.extend_from_slice(record);

@@ -3,29 +3,33 @@
 //! 全部经 [`StorageSession`] 对象信封读写 wobject [`HashObject`]，字段级 TTL
 //! 缺口见 `hash_time_to_live`。哈希对象为空时删除键（对齐 Redis 对象生命周期）。
 
-use std::{io::Cursor, str, sync::atomic::Ordering::Relaxed};
+use std::{io::Cursor, str};
 
 use wdev::Device;
 use wobject::hash::hash_object::{HashObject, HashOperation};
 
-use super::{super::storage_session::StorageSession, common::ObjState};
-use crate::{
-  api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput,
-  resp::parser::session_parse_state::strict_f64,
+use super::{
+  super::storage_session::StorageSession,
+  common::{ObjState, RmwOutcome},
 };
+use crate::{api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput};
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 哈希对象读-改-写：载荷解码为 HashObject 后交闭包变更，返回前自动回写
+  ///
+  /// `create` 为假时键缺失直接 Aborted（不物化空哈希信封）
   async fn hash_rmw<R>(
     &self,
     key: &[u8],
+    create: bool,
     f: impl FnOnce(&mut HashObject) -> R,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     self
       .rmw_object_store_operation(key, super::common::OBJ_TAG_HASH, |payload| {
         let mut obj = match payload {
           Some(bytes) => HashObject::deserialize(&mut Cursor::new(bytes)).unwrap_or_default(),
-          None => HashObject::new(),
+          None if create => HashObject::new(),
+          None => return None,
         };
         let r = f(&mut obj);
         let mut out = Vec::new();
@@ -35,7 +39,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await
   }
 
-  /// HDEL：删除字段，返回删除个数
+  /// HDEL：删除字段，返回删除个数（删空时整键回收）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashDelete
   pub async fn hash_delete(
@@ -43,24 +47,22 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key: &[u8],
     fields: &[&[u8]],
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, 0)),
-      ObjState::WrongType => Ok((GarnetStatus::WrongType, 0)),
-      _ => {
-        let removed = self
-          .hash_rmw(key, |obj| {
-            let mut n = 0i64;
-            for field in fields {
-              if obj.operate(HashOperation::HDEL, field, b"").is_some() {
-                n += 1;
-              }
-            }
-            n
-          })
-          .await?
-          .unwrap_or(0);
-        self.hash_gc_if_empty(key).await?;
-        Ok((GarnetStatus::Ok, removed))
+    match self
+      .hash_rmw(key, false, |obj| {
+        let mut n = 0i64;
+        for field in fields {
+          if obj.operate(HashOperation::HDEL, field, b"").is_some() {
+            n += 1;
+          }
+        }
+        (n, obj.hash.pin().is_empty())
+      })
+      .await?
+    {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
+        Ok((GarnetStatus::Ok, n))
       }
     }
   }
@@ -154,12 +156,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
     }
   }
 
-  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、可重复；为正返回
-  /// 至多 `count` 个不重复字段；`with_values` 不分正负一律附带值——对齐 C#
-  /// HashObjectImpl.HashRandomField：负计数路径同样写 pair.Value，不忽略 WITHVALUES）
+  /// HRANDFIELD：随机返回字段（`count` 为负返回 |count| 个、允许重复；
+  /// 为正返回至多 `count` 个不重复字段；`with_values` 两种计数下均附带值，
+  /// 对齐 C# HashObjectImpl.HashRandomField / Redis WITHVALUES 口径）
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashRandomField
-  /// （工作体：libs/server/Objects/Hash/HashObjectImpl.cs:HashRandomField）
   pub async fn hash_random_field(
     &self,
     key: &[u8],
@@ -178,16 +179,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
           return Ok((GarnetStatus::Ok, Vec::new()));
         }
         let pin = obj.hash.pin();
+        let pick = |k: Vec<u8>| {
+          let v = pin.get(&k).cloned();
+          (k, with_values.then_some(v).flatten())
+        };
         if count < 0 {
-          // 负计数：允许重复取样 |count| 个；WITHVALUES 照常带值（C# 语义，
-          // 非 Redis CLI 口径——Garnet 不因计数为负而忽略 withValues）
+          // 负计数：允许重复取样 |count| 个
           let n = count.unsigned_abs() as usize;
           let out = (0..n)
-            .map(|_| {
-              let k = keys[fastrand::usize(..keys.len())].clone();
-              let v = with_values.then(|| pin.get(&k).cloned()).flatten();
-              (k, v)
-            })
+            .map(|_| pick(keys[fastrand::usize(..keys.len())].clone()))
             .collect();
           return Ok((GarnetStatus::Ok, out));
         }
@@ -199,9 +199,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
           let last = pool.len() - 1;
           let idx = fastrand::usize(..pool.len());
           pool.swap(idx, last);
-          let k = pool.pop().unwrap_or_default();
-          let v = pin.get(&k).cloned();
-          out.push((k, with_values.then_some(v).flatten()));
+          out.push(pick(pool.pop().unwrap_or_default()));
         }
         Ok((GarnetStatus::Ok, out))
       }
@@ -253,11 +251,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     fields: &[(&[u8], &[u8])],
     nx: bool,
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      return Ok((GarnetStatus::WrongType, 0));
-    }
     let added = self
-      .hash_rmw(key, |obj| {
+      .hash_rmw(key, true, |obj| {
         let mut n = 0i64;
         for (field, value) in fields {
           // 单次查询判定新增：HSET 返回 None 即字段原先不存在
@@ -273,19 +268,17 @@ impl<'a, D: Device> StorageSession<'a, D> {
         n
       })
       .await?;
-    Ok((GarnetStatus::Ok, added.unwrap_or(0)))
+    match added {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => Ok((GarnetStatus::Ok, outcome.unwrap_or(0))),
+    }
   }
 
   /// HINCRBY/HINCRBYFLOAT：字段数值增减（`float` 走 f64 口径），回吐新值文本
   ///
-  /// 字段存在但非数值 → WRONGTYPE（不覆盖写）。对齐 C# HashIncrement /
-  /// HashIncrementFloat：字段缺失时原样存增量实参文本（incrSlice.ToArray()）；
-  /// 浮点增量 NaN 字面量拒绝、±INF 先解析后报错；结果以最短往返文本落存
-  /// （TryFormat 默认格式，非 17 位定点）。
+  /// 字段存在但非数值 → WRONGTYPE（不覆盖写）；数值溢出 → WRONGTYPE。
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashIncrement
-  /// （工作体：libs/server/Objects/Hash/HashObjectImpl.cs:HashIncrement /
-  /// HashIncrementFloat）
   pub async fn hash_increment(
     &self,
     key: &[u8],
@@ -293,74 +286,75 @@ impl<'a, D: Device> StorageSession<'a, D> {
     delta: &[u8],
     float: bool,
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
-    if let ObjState::WrongType = self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      return Ok((GarnetStatus::WrongType, None));
-    }
-    match self
-      .hash_rmw(key, |obj| {
+    let delta_str = match str::from_utf8(delta) {
+      Ok(s) => s,
+      Err(_) => return Ok((GarnetStatus::WrongType, None)),
+    };
+    let outcome = self
+      .hash_rmw(key, true, |obj| {
         let current = obj.operate(HashOperation::HGET, field, b"");
         if float {
-          // 浮点分支（HashIncrementFloat）：增量按 C# TryGetDouble 严格解析
-          //（NaN 拒绝，±INF 白名单接受），随后 IsInfinity 检查报错
-          let Some(d) = strict_f64(delta, true) else {
-            return (false, None);
-          };
-          if d.is_infinite() {
-            return (false, None); // RESP_ERR_GENERIC_NAN_INFINITY
-          }
-          match current.as_deref() {
-            // 字段缺失：原样存增量文本（C# incrSlice.ToArray()），不归零计算
-            None => {
-              obj.operate(HashOperation::HSET, field, delta);
-              (true, Some(delta.to_vec()))
-            }
+          // 字段存在但非浮点文本：拒绝增减（不当作 0 覆盖）
+          let cur = match current.as_deref() {
+            None => 0.0,
             Some(b) => {
-              // 现值按 TryParseWithInfinity 同口径解析；∞ 现值拒绝增减
-              let Some(cur) = strict_f64(b, true) else {
-                return (false, None); // RESP_ERR_HASH_VALUE_IS_NOT_FLOAT
-              };
-              if cur.is_infinite() {
-                return (false, None); // RESP_ERR_GENERIC_NAN_INFINITY_INCR
+              match str::from_utf8(b)
+                .ok()
+                .and_then(|s| s.trim().parse::<f64>().ok())
+              {
+                Some(v) => v,
+                None => return None,
               }
-              let new = cur + d;
-              // 最短往返文本落存（C# double.TryFormat 默认格式）
-              let text = ObjectOutput::format_double(new);
-              obj.operate(HashOperation::HSET, field, text.as_bytes());
-              (true, Some(text.into_bytes()))
             }
-          }
+          };
+          let d = delta_str.trim().parse::<f64>().ok()?;
+          let new = cur + d;
+          // 浮点文本化复用 ObjectOutput::format_double 一处定义（最短往返表示）
+          let text = ObjectOutput::format_double(new);
+          obj.operate(HashOperation::HSET, field, text.as_bytes());
+          Some((true, Some(text.into_bytes())))
         } else {
-          // 整数分支（HashIncrement）：增量按 NumUtils.TryParse 整体消费解析
-          //（Utf8Parser 默认口径：接受前导零，不容空白，非 strict 族）
-          let parse_i64 = |b: &[u8]| -> Option<i64> {
-            str::from_utf8(b).ok().and_then(|s| s.parse::<i64>().ok())
-          };
-          let Some(d) = parse_i64(delta) else {
-            return (false, None); // RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER
-          };
-          match current.as_deref() {
-            // 字段缺失：原样存增量文本（C# incrSlice.ToArray()）
-            None => {
-              obj.operate(HashOperation::HSET, field, delta);
-              (true, Some(delta.to_vec()))
-            }
+          // 字段存在但非整数文本：拒绝增减（不当作 0 覆盖）
+          let cur = match current.as_deref() {
+            None => None,
             Some(b) => {
-              let Some(cur) = parse_i64(b) else {
-                return (false, None); // RESP_ERR_HASH_VALUE_IS_NOT_INTEGER
-              };
-              // C# `result += incr` 默认 unchecked：溢出回绕，非拒绝
-              let text = cur.wrapping_add(d).to_string();
+              match str::from_utf8(b)
+                .ok()
+                .and_then(|s| s.trim().parse::<i64>().ok())
+              {
+                Some(v) => Some(v),
+                None => return None,
+              }
+            }
+          };
+          let Ok(d) = delta_str.trim().parse::<i64>() else {
+            return None;
+          };
+          match cur {
+            Some(c) => match c.checked_add(d) {
+              Some(n) => {
+                let text = n.to_string();
+                obj.operate(HashOperation::HSET, field, text.as_bytes());
+                Some((true, Some(text.into_bytes())))
+              }
+              None => None, // 溢出：不写入
+            },
+            None => {
+              let text = d.to_string();
               obj.operate(HashOperation::HSET, field, text.as_bytes());
-              (true, Some(text.into_bytes()))
+              Some((true, Some(text.into_bytes())))
             }
           }
         }
       })
-      .await?
-    {
-      Some((true, v)) => Ok((GarnetStatus::Ok, v)),
-      Some((false, _)) => Ok((GarnetStatus::WrongType, None)),
-      None => Ok((GarnetStatus::WrongType, None)),
+      .await?;
+    match outcome {
+      RmwOutcome::Written(Some((true, v))) => Ok((GarnetStatus::Ok, v)),
+      // 闭包拒绝（非数值/溢出）与放弃写回同折算 WRONGTYPE（拒绝写入）
+      RmwOutcome::Written(Some((false, _)))
+      | RmwOutcome::Written(None)
+      | RmwOutcome::Aborted
+      | RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
     }
   }
 
@@ -378,21 +372,5 @@ impl<'a, D: Device> StorageSession<'a, D> {
     } else {
       Ok((GarnetStatus::Ok, pttl))
     }
-  }
-
-  /// 空哈希回收：字段清空后删除整键（对齐 Redis 对象生命周期）
-  async fn hash_gc_if_empty(&self, key: &[u8]) -> wkv::Result<()> {
-    if let Some(payload) = self
-      .obj_load(key, super::common::OBJ_TAG_HASH)
-      .await?
-      .into_payload()
-      && HashObject::deserialize(&mut Cursor::new(payload))
-        .map(|o| o.hash.pin().is_empty())
-        .unwrap_or(false)
-    {
-      let _ = self.delete_string(key).await?;
-      self.session_notfound.fetch_add(1, Relaxed);
-    }
-    Ok(())
   }
 }
