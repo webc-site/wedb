@@ -157,14 +157,20 @@ impl RespServerSession {
           existing.resize(offset + val.len(), 0);
         }
         existing[offset..offset + val.len()].copy_from_slice(val);
-        let _ = store.try_upsert_sync(key, &existing);
-        output.write_resp_int(existing.len() as i64);
+        match store.try_upsert_sync(key, &existing) {
+          Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
+          Ok(Err(_)) => return Ok(false),
+          Err(_) => output.write_resp_error("generic error"),
+        }
       }
       Ok(Some(None)) => {
         let mut new_val = vec![0; offset + val.len()];
         new_val[offset..offset + val.len()].copy_from_slice(val);
-        let _ = store.try_upsert_sync(key, &new_val);
-        output.write_resp_int(new_val.len() as i64);
+        match store.try_upsert_sync(key, &new_val) {
+          Ok(Ok(_)) => output.write_resp_int(new_val.len() as i64),
+          Ok(Err(_)) => return Ok(false),
+          Err(_) => output.write_resp_error("generic error"),
+        }
       }
       Ok(None) => return Ok(false),
       Err(_) => output.write_resp_error("generic error"),
@@ -235,8 +241,12 @@ impl RespServerSession {
     }
     let key = parse_state[0];
     let val = parse_state[2];
-    let _ = store.try_upsert_sync(key, val);
-    output.write_resp_simple_string("OK");
+    // 对齐 NetworkSET：异步闭环信号须整体降级，吞掉即静默丢写
+    match store.try_upsert_sync(key, val) {
+      Ok(Ok(_)) => output.write_resp_simple_string("OK"),
+      Ok(Err(_)) => return Ok(false),
+      Err(_) => output.write_resp_error("generic error"),
+    }
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSETNX
@@ -255,10 +265,11 @@ impl RespServerSession {
 
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(_))) => output.write_resp_int(0),
-      Ok(Some(None)) => {
-        let _ = store.try_upsert_sync(key, val);
-        output.write_resp_int(1);
-      }
+      Ok(Some(None)) => match store.try_upsert_sync(key, val) {
+        Ok(Ok(_)) => output.write_resp_int(1),
+        Ok(Err(_)) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      },
       Ok(None) => return Ok(false),
       Err(_) => output.write_resp_error("generic error"),
     }
@@ -341,13 +352,17 @@ impl RespServerSession {
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(mut existing))) => {
         existing.extend_from_slice(val);
-        let _ = store.try_upsert_sync(key, &existing);
-        output.write_resp_int(existing.len() as i64);
+        match store.try_upsert_sync(key, &existing) {
+          Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
+          Ok(Err(_)) => return Ok(false),
+          Err(_) => output.write_resp_error("generic error"),
+        }
       }
-      Ok(Some(None)) => {
-        let _ = store.try_upsert_sync(key, val);
-        output.write_resp_int(val.len() as i64);
-      }
+      Ok(Some(None)) => match store.try_upsert_sync(key, val) {
+        Ok(Ok(_)) => output.write_resp_int(val.len() as i64),
+        Ok(Err(_)) => return Ok(false),
+        Err(_) => output.write_resp_error("generic error"),
+      },
       Ok(None) => return Ok(false),
       Err(_) => output.write_resp_error("generic error"),
     }
