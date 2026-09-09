@@ -391,12 +391,13 @@ fn ttl_purge_single_deterministic_entry() -> Void {
 
     // WAL 提交流恰好两条：SET 物理镜像 + 单条 TtlPurge；
     // purge 链的两条物理墓碑（TTL 记录 + 数据）绝不出现在流内
+    let glitch_physical = session.session_string_key(b"glitch");
     let mut replay = TtlPurgeCollector::default();
     assert_eq!(service.replay(&mut replay).await?, 2);
     assert_eq!(
       replay.mirrors,
-      vec![(AofOp::KvUpsert, b"glitch".to_vec())],
-      "仅 SET 物理镜像入流，purge 链墓碑镜像必须为零"
+      vec![(AofOp::KvUpsert, glitch_physical.to_vec())],
+      "仅 SET 物理镜像入流（物理键含 ns/db 前缀），purge 链墓碑镜像必须为零"
     );
     assert_eq!(
       replay.purges,
