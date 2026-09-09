@@ -1,3 +1,4 @@
+#![allow(clippy::empty_line_after_doc_comments, clippy::empty_line_after_outer_attr, clippy::doc_lazy_continuation)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod address;
