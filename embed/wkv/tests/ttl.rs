@@ -158,13 +158,15 @@ fn test_expire_at_nx_xx_gt_lt_conditions() -> Void {
     session.upsert(b"k:xx", b"v").await?;
     assert_eq!(session.expire_at(b"k:xx", future, xx).await?, 0);
     assert_eq!(session.pttl_ms(b"k:xx").await?, -1, "XX 拒绝后不得残留 TTL");
+    assert_eq!(session.expire_at(b"k:xx", future, TtlOpt::NONE).await?, 1);
     assert_eq!(session.expire_at(b"k:xx", future, xx).await?, 1);
     assert!(session.pttl_ms(b"k:xx").await? > 0);
 
     // GT：无 TTL 键拒绝；已有 TTL 键仅当新值更大才成功（相等亦拒绝）
     session.upsert(b"k:gt", b"v").await?;
     assert_eq!(session.expire_at(b"k:gt", future, gt).await?, 0);
-    assert_eq!(session.expire_at(b"k:gt", future, xx).await?, 1);
+    assert_eq!(session.pttl_ms(b"k:gt").await?, -1);
+    assert_eq!(session.expire_at(b"k:gt", future, TtlOpt::NONE).await?, 1);
     assert_eq!(
       session.expire_at(b"k:gt", future, gt).await?,
       0,
