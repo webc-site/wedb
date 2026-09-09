@@ -1,12 +1,10 @@
-use core::hash::{BuildHasher, Hash, Hasher};
+use core::hash::{Hash, Hasher};
 
 use aok::{OK, Result};
 use whasher::{
-  Entry, GxBuildHasher, GxHasher, GxPapayaMap, GxPapayaSet, HashSet, HashSetExt, StreamHasher,
-  compute_checksum, compute_checksum_with_seed, fast_hash, fast_hash_u64, fast_hash_with_seed,
-  fast_hash128, hash_map_with_capacity, hash_set_with_capacity, hash_value, hash_value_with_seed,
-  hash128, hash128_with_seed, new_hash_map, new_hash_set, new_papaya_map, new_papaya_set,
-  papaya_map_with_capacity, papaya_set_with_capacity,
+  GxBuildHasher, GxPapayaMap, HashSet, HashSetExt, StreamHasher, compute_checksum,
+  compute_checksum_with_seed, fast_hash, fast_hash_u64, fast_hash_with_seed, fast_hash128,
+  hash_set_with_capacity, hash_value, hash128, new_hash_map, new_papaya_map,
 };
 
 #[ctor::ctor(unsafe)]
@@ -38,32 +36,10 @@ fn test_hashmap_and_hashset() -> Result<()> {
   assert_eq!(map.get("key2"), Some(&200));
   assert_eq!(map.get("key3"), None);
 
-  if let Entry::Occupied(mut entry) = map.entry("key1") {
-    *entry.get_mut() += 50;
-  }
-  assert_eq!(map.get("key1"), Some(&150));
-
-  let mut set = new_hash_set();
-  set.insert("alpha");
-  set.insert("beta");
-  assert!(set.contains("alpha"));
-  assert!(!set.contains("gamma"));
-
-  // 带容量创建、大量插入触发扩容重哈希后数据完好（元组键覆盖组合路径）
-  let mut grown = hash_map_with_capacity::<(u64, i32), u8>(8);
-  for i in 0..4096u64 {
-    grown.insert((i, i as i32 ^ 0x5a5a), i as u8);
-  }
-  assert_eq!(grown.len(), 4096);
-  for i in 0..4096u64 {
-    assert_eq!(grown.get(&(i, i as i32 ^ 0x5a5a)), Some(&(i as u8)));
-  }
-
   assert_eq!(hash_set_with_capacity::<u64>(64).len(), 0);
 
-  // 验证 GxBuildHasher 与 GxHasher 重导出
+  // 验证 GxBuildHasher 重导出
   let def_hasher = GxBuildHasher::default();
-  let _gx_hasher: GxHasher = BuildHasher::build_hasher(&def_hasher);
   let _gx_builder = GxBuildHasher::default();
 
   // 验证 StreamHasher::new() 与 Default 等价
@@ -71,8 +47,6 @@ fn test_hashmap_and_hashset() -> Result<()> {
     StreamHasher::new().finish(),
     StreamHasher::default().finish()
   );
-  assert_eq!(StreamHasher::new().total_bytes_written(), 0);
-  assert!(StreamHasher::new().is_empty());
 
   // DEFAULT_LANES 常量路径与 with_seed(0) 派生路径一致（0 ^ salt == smear(salt) 恒等回归）
   assert_eq!(
@@ -87,7 +61,6 @@ fn test_hashmap_and_hashset() -> Result<()> {
     via_derived.write(&buf[..len]);
     assert_eq!(via_const.finish(), via_derived.finish(), "len={len}");
   }
-  assert!(!via_const.is_empty());
 
   OK
 }
@@ -126,16 +99,6 @@ fn test_fast_hash_and_hash_value() -> Result<()> {
   for val in [-1i64, 0, 1, -42, 42, i64::MIN, i64::MAX] {
     assert_eq!(fast_hash_u64(val as u64), fast_hash(&val.to_le_bytes()));
   }
-
-  // 带种子 hash_value_with_seed 确定性与区分度
-  assert_eq!(
-    hash_value_with_seed(&"test string", 12345),
-    hash_value_with_seed(&"test string", 12345)
-  );
-  assert_ne!(
-    hash_value_with_seed(&"test string", 12345),
-    hash_value_with_seed(&"test string", 54321)
-  );
 
   OK
 }
@@ -215,7 +178,6 @@ fn test_stream_hasher_chunk_identity() -> Result<()> {
   g.write(b"123");
   assert_eq!(h.finish(), compute_checksum(b"abcdefXYZ"));
   assert_eq!(g.finish(), compute_checksum(b"abcdef123"));
-  assert_eq!(g.total_bytes_written(), 9);
 
   OK
 }
@@ -314,20 +276,10 @@ fn test_stream_hasher_trait_path() -> Result<()> {
   b"trait-path".hash(&mut d);
   assert_eq!(Hasher::finish(&c), Hasher::finish(&d));
 
-  // total_bytes_written 与 reset 行为验证
-  let mut e = StreamHasher::default();
-  e.write(b"12345");
-  assert_eq!(e.total_bytes_written(), 5);
-  e.write(b"67890");
-  assert_eq!(e.total_bytes_written(), 10);
-  e.reset();
-  assert_eq!(e.total_bytes_written(), 0);
-
   // 非零种子 reset 回归：reset 必须保留构造种子（而非回落到默认种子 0）
   let mut f = StreamHasher::with_seed(0xDEAD_BEEF);
   f.write(b"drift");
   f.reset();
-  assert_eq!(f.total_bytes_written(), 0);
   f.write(b"trait-path");
   assert_eq!(
     f.finish(),
@@ -362,12 +314,11 @@ fn test_stream_hasher_long_input() -> Result<()> {
     assert_eq!(hs.finish(), one_shot_seeded, "seeded stride={stride}");
   }
 
-  // 超长输入下 total_bytes_written 与 finish 幂等
+  // 超长输入下 finish 幂等
   let mut h = StreamHasher::default();
   for chunk in data.chunks(8192) {
     h.write(chunk);
   }
-  assert_eq!(h.total_bytes_written(), len as u64);
   assert_eq!(h.finish(), one_shot);
   assert_eq!(h.finish(), one_shot);
 
@@ -439,19 +390,8 @@ fn test_hash128() -> Result<()> {
   assert_eq!(seen.len(), 64 * 4, "双种子合并区分度不足");
 
   // 默认种子 fast_hash128 单次快速计算
-  assert_eq!(fast_hash128(b"identity"), hash128_with_seed(b"identity", 0));
   assert_eq!(fast_hash128(b"identity"), fast_hash128(b"identity"));
   assert_ne!(fast_hash128(b"identity"), fast_hash128(b"identitx"));
-
-  // 单种子版本测试
-  assert_eq!(
-    hash128_with_seed(b"identity", 42),
-    hash128_with_seed(b"identity", 42)
-  );
-  assert_ne!(
-    hash128_with_seed(b"identity", 42),
-    hash128_with_seed(b"identity", 43)
-  );
 
   // 空输入与各类边界长度确定性（含超长输入的多向量内部路径）
   let mut rng = Xs(0x0DDC_0FFE_0DDC_0FFE);
@@ -474,11 +414,9 @@ fn test_stream_hasher_extreme_boundaries() -> Result<()> {
 
   // 1. 0 字节输入极端测试
   let mut h = StreamHasher::default();
-  assert_eq!(h.total_bytes_written(), 0);
   for _ in 0..100 {
     h.write(b"");
   }
-  assert_eq!(h.total_bytes_written(), 0);
   assert_eq!(h.finish(), empty_checksum);
 
   // 穿插空切片写入：任意位置穿插零长度写入与连续写入无差异
@@ -493,7 +431,6 @@ fn test_stream_hasher_extreme_boundaries() -> Result<()> {
     interleaved.write(b"");
   }
   interleaved.write(b"");
-  assert_eq!(interleaved.total_bytes_written(), data.len() as u64);
   assert_eq!(interleaved.finish(), expected);
 
   // 2. reset 幂等性测试
@@ -501,14 +438,12 @@ fn test_stream_hasher_extreme_boundaries() -> Result<()> {
   for _ in 0..10 {
     hr.reset();
   }
-  assert_eq!(hr.total_bytes_written(), 0);
   assert_eq!(hr.finish(), seeded_empty);
 
   hr.write(b"partial-data");
   for _ in 0..5 {
     hr.reset();
   }
-  assert_eq!(hr.total_bytes_written(), 0);
   assert_eq!(hr.finish(), seeded_empty);
   hr.write(data);
   assert_eq!(
@@ -523,7 +458,6 @@ fn test_stream_hasher_extreme_boundaries() -> Result<()> {
   for _ in 0..100 {
     assert_eq!(hf.finish(), f1);
   }
-  assert_eq!(hf.total_bytes_written(), 17);
   // 继续写入剩余部分并 finish
   hf.write(&data[17..]);
   assert_eq!(hf.finish(), expected);
@@ -638,7 +572,6 @@ fn test_stream_hasher_clone_isolation() -> Result<()> {
 
     // 验证 clone 后的初始状态相同
     assert_eq!(h1.finish(), h2.finish());
-    assert_eq!(h1.total_bytes_written(), h2.total_bytes_written());
 
     // 两个实例写入不同数据
     let suffix1 = b"-unique-branch-alpha-12345678";
@@ -657,33 +590,27 @@ fn test_stream_hasher_clone_isolation() -> Result<()> {
 
     // 对 h1 进行 reset，确认 h2 完全不受影响
     h1.reset();
-    assert_eq!(h1.total_bytes_written(), 0);
     assert_eq!(h1.finish(), compute_checksum(b""));
     assert_eq!(h2.finish(), compute_checksum(&full2));
-    assert_eq!(h2.total_bytes_written(), full2.len() as u64);
   }
 
   OK
 }
 
 #[test]
-fn test_papaya_map_and_set() -> Result<()> {
+fn test_papaya_map() -> Result<()> {
   use std::{sync::Arc, thread};
 
   let map: Arc<GxPapayaMap<u64, u64>> = Arc::new(new_papaya_map());
-  let set: Arc<GxPapayaSet<u64>> = Arc::new(new_papaya_set());
 
   let mut handles = Vec::new();
   for t in 0..4u64 {
     let map_clone = Arc::clone(&map);
-    let set_clone = Arc::clone(&set);
     handles.push(thread::spawn(move || {
       let map_pin = map_clone.pin();
-      let set_pin = set_clone.pin();
       for i in 0..1000u64 {
         let key = t * 1000 + i;
         map_pin.insert(key, key * 2);
-        set_pin.insert(key);
       }
     }));
   }
@@ -693,22 +620,12 @@ fn test_papaya_map_and_set() -> Result<()> {
   }
 
   let pin = map.pin();
-  let set_pin = set.pin();
   assert_eq!(map.len(), 4000);
-  assert_eq!(set.len(), 4000);
 
   for key in 0..4000u64 {
     assert_eq!(pin.get(&key), Some(&(key * 2)));
-    assert!(set_pin.contains(&key));
   }
   assert_eq!(pin.get(&9999), None);
-  assert!(!set_pin.contains(&9999));
-
-  // 带容量构建测试
-  let map_cap = papaya_map_with_capacity::<u64, u64>(128);
-  let set_cap = papaya_set_with_capacity::<u64>(128);
-  assert_eq!(map_cap.len(), 0);
-  assert_eq!(set_cap.len(), 0);
 
   OK
 }

@@ -22,10 +22,9 @@ use core::{
   hash::{Hash, Hasher},
   mem::{align_of, offset_of, size_of},
 };
-pub use std::collections::hash_map::Entry;
 
 // 集合与构建器直接重导出 gxhash（gxhash::{HashMap, HashSet} 即 std 容器 + GxBuildHasher 别名，无重复定义）
-pub use gxhash::{GxBuildHasher, GxHasher, HashMap, HashMapExt, HashSet, HashSetExt};
+pub use gxhash::{GxBuildHasher, HashMap, HashMapExt, HashSet, HashSetExt};
 pub use papaya;
 
 /// 流式条带宽度（64 字节，匹配 gxhash 大输入 ILP 路径的 4 倍向量宽度）
@@ -254,17 +253,6 @@ impl StreamHasher {
     self.buf_len = 0;
   }
 
-  /// 获取累计写入的字节总数
-  #[inline]
-  pub const fn total_bytes_written(&self) -> u64 {
-    self.total
-  }
-
-  /// 是否尚未写入任何数据
-  #[inline]
-  pub const fn is_empty(&self) -> bool {
-    self.total == 0
-  }
 }
 
 impl Hasher for StreamHasher {
@@ -305,18 +293,6 @@ pub fn new_hash_map<K, V>() -> HashMap<K, V> {
   HashMap::with_hasher(GxBuildHasher::default())
 }
 
-/// 创建带初始容量的 HashMap
-#[inline]
-pub fn hash_map_with_capacity<K, V>(capacity: usize) -> HashMap<K, V> {
-  HashMap::with_capacity_and_hasher(capacity, GxBuildHasher::default())
-}
-
-/// 创建使用默认硬件向量加速构建器的空 HashSet
-#[inline]
-pub fn new_hash_set<T>() -> HashSet<T> {
-  HashSet::with_hasher(GxBuildHasher::default())
-}
-
 /// 创建带初始容量的 HashSet
 #[inline]
 pub fn hash_set_with_capacity<T>(capacity: usize) -> HashSet<T> {
@@ -334,35 +310,6 @@ pub type GxPapayaMap<K, V> = papaya::HashMap<K, V, GxBuildHasher>;
 pub fn new_papaya_map<K, V>() -> GxPapayaMap<K, V> {
   papaya::HashMap::builder()
     .hasher(GxBuildHasher::default())
-    .build()
-}
-
-/// 创建带初始容量的无锁并发字典
-#[inline]
-pub fn papaya_map_with_capacity<K, V>(capacity: usize) -> GxPapayaMap<K, V> {
-  papaya::HashMap::builder()
-    .hasher(GxBuildHasher::default())
-    .capacity(capacity)
-    .build()
-}
-
-/// 基于硬件向量加速 gxhash 构建器的无锁高并发集合类型
-pub type GxPapayaSet<T> = papaya::HashSet<T, GxBuildHasher>;
-
-/// 创建搭载硬件向量加速 gxhash 构建器的无锁并发集合
-#[inline]
-pub fn new_papaya_set<T>() -> GxPapayaSet<T> {
-  papaya::HashSet::builder()
-    .hasher(GxBuildHasher::default())
-    .build()
-}
-
-/// 创建带初始容量的无锁并发集合
-#[inline]
-pub fn papaya_set_with_capacity<T>(capacity: usize) -> GxPapayaSet<T> {
-  papaya::HashSet::builder()
-    .hasher(GxBuildHasher::default())
-    .capacity(capacity)
     .build()
 }
 
@@ -414,12 +361,6 @@ pub fn hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128 {
   gxhash::gxhash128(bytes, combine_seed(seed_a, seed_b))
 }
 
-/// 带单一 64 位种子的 128 位硬件加速哈希计算（种子按位解释，与 fast_hash_with_seed 一致）
-#[inline(always)]
-pub fn hash128_with_seed(bytes: &[u8], seed: u64) -> u128 {
-  gxhash::gxhash128(bytes, seed as i64)
-}
-
 /// 为支持 Hash trait 的泛型对象快速计算确定性的 64 位哈希值
 #[inline]
 pub fn hash_value<T: Hash + ?Sized>(value: &T) -> u64 {
@@ -428,10 +369,3 @@ pub fn hash_value<T: Hash + ?Sized>(value: &T) -> u64 {
   hasher.finish()
 }
 
-/// 带自定义种子的泛型对象快速确定性 64 位哈希值计算
-#[inline]
-pub fn hash_value_with_seed<T: Hash + ?Sized>(value: &T, seed: u64) -> u64 {
-  let mut hasher = gxhash::GxHasher::with_seed(seed as i64);
-  value.hash(&mut hasher);
-  hasher.finish()
-}
