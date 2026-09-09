@@ -7,7 +7,10 @@ use whasher::{HashMap, new_hash_map};
 use super::{
   CompactRunResult, CopyOutcome, LogCompactor, cursor::ScanCursor, scope::MetaDeathScope,
 };
-use crate::{error::Result, host::CompactStore};
+use crate::{
+  error::Result,
+  host::{CompactSession, CompactStore},
+};
 
 /// 扫描候选记录元数据（用于 Scan 紧缩模式，不缓存值体，空间 O(唯一键)）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,8 +238,17 @@ impl<S: CompactStore> LogCompactor<S> {
         continue;
       };
 
-      // 按需单次回读值体（阶段 1 不缓存大值，空间 O(唯一键) 元数据）
-      let record = self.store.hlog().read_record(cand.addr).await?;
+      // 按需单次回读值体（阶段 1 不缓存大值，空间 O(唯一键) 元数据）。
+      // 纪元纪律（对齐 read_from_disk / delete_raw_disk_slow 冷读协议）：磁盘区候选
+      // 免纪元纯设备读；内存驻留候选在短守卫内读取（内存命中纯同步完成、无实际
+      // 让出）——回读值体将经 CAS 迁移安装为最新版本，probe_resident 无锁裸读
+      // 契约要求的 LightEpoch 保护绝不可缺，否则环形换装撕裂字节会混入尾部存活值
+      let record = if self.store.hlog().is_on_disk(cand.addr) {
+        self.store.hlog().read_disk_record(cand.addr).await?
+      } else {
+        let _guard = session.enter_epoch();
+        self.store.hlog().read_record(cand.addr).await?
+      };
       let val = record.value()?;
       // CAS 前同口径复查（与 is_stale_subkey 复查同一模式）：阶段 1 之后 TTL 可能
       // 刚到期，以最新 TTL 状态与当下时间统一重判，杜绝长时间紧缩迁移刚过期记录
