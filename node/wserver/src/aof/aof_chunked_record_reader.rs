@@ -71,7 +71,7 @@ pub struct ChunkedAccumulator {
 
 impl ChunkedAccumulator {
   /// 依据条目类型判定组件形状并新建累积器（容量预分配对齐 C# 一次性缓冲）。
-  fn new(op_type: AofEntryType, chunk_header: &AofChunkHeader) -> Self {
+  pub(crate) fn new(op_type: AofEntryType, chunk_header: &AofChunkHeader) -> Self {
     let has_value = op_type.has_chunk_value();
     let has_input = op_type.has_chunk_input();
     let is_object_value = op_type.has_chunk_object_value();
@@ -197,7 +197,7 @@ impl ChunkedAccumulator {
 
   /// 块数据流式装填：依声明长度自动跨越组件边界；越界数据为损坏
   ///（返回 false，调用方弃置该记录）。
-  fn feed(&mut self, mut data: &[u8]) -> bool {
+  pub(crate) fn feed(&mut self, mut data: &[u8]) -> bool {
     while !data.is_empty() {
       let (buffer, capacity): (&mut Vec<u8>, usize) = match self.current_component {
         Component::Key => (&mut self.key, self.overflow_key_length),
