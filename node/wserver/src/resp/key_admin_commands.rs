@@ -6,7 +6,10 @@ use super::{
   cmd_strings::{
     abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw, write_raw,
   },
-  parser::resp_ext::{RespSliceExt, RespVecExt},
+  parser::{
+    resp_ext::{RespSliceExt, RespVecExt},
+    session_parse_state::{strict_i32, strict_i64},
+  },
   rdb_crc64,
   resp_server_session::RespServerSession,
   ttl_sync::{
@@ -87,11 +90,13 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let Some(expiry) = parse_state[1].try_parse_i64() else {
+    // C# TryGetInt（index = Count - 2，arity 锁 3 即下标 1）
+    let Some(expiry) = strict_i32(parse_state[1]) else {
       // C# 沿用 RESP_ERR_TIMEOUT_NOT_VALID_FLOAT（文案保留历史包袱）
       abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
       return Ok(true);
     };
+    let expiry = i64::from(expiry);
     let value = parse_state[2];
 
     // RESTORE 仅实现字符串类型（类型字节 0x00）
@@ -405,7 +410,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let Some(expiration) = parse_state[1].try_parse_i64() else {
+    let Some(expiration) = strict_i64(parse_state[1]) else {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return Ok(true);
     };
@@ -747,7 +752,7 @@ mod tests {
       let store = Arc::new(WedbStore::open(config, device).unwrap());
       let session = store.new_session().unwrap();
       let batch = session.enter_batch();
-      let mut s = RespServerSession;
+      let mut s = RespServerSession::default();
       f(&mut s, &batch);
     });
   }
