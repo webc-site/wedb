@@ -17,6 +17,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+gxhash.workspace = true
+ordered-float = "5.5.0"
+papaya.workspace = true
 thiserror = "2.0.20"
 
 [dev-dependencies]

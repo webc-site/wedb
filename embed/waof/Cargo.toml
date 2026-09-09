@@ -18,6 +18,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror = "2.0.20"
+wbase.workspace = true
+wkv = { version = "0.1.0", path = "../wkv" }
+wserver = { version = "0.1.0", path = "../wserver" }
 
 [dev-dependencies]
 aok = "0.1.18"

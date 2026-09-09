@@ -21,6 +21,13 @@ bitflags = "2.13.1"
 coarsetime.workspace = true
 num_enum = "0.7.6"
 thiserror = "2.0.20"
+wbase.workspace = true
+wdev.workspace = true
+wepoch.workspace = true
+whasher.workspace = true
+whlog.workspace = true
+wkv = { version = "0.1.0", path = "../wkv" }
+wval.workspace = true
 
 [dev-dependencies]
 aok = "0.1.18"
