@@ -17,6 +17,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+sonic-rs.workspace = true
 thiserror = "2.0.20"
 
 [dev-dependencies]
