@@ -1,244 +1,35 @@
+//! LightEpoch 纪元保护管理器
+//!
+//! 对照 C# Tsavorite Epochs/LightEpoch.cs：采用无锁 (Latch-free) 惰性同步机制，
+//! 管理并发读写事务的纪元生命周期与安全回收判定。
+
 use std::{
   array::from_fn,
-  cell::{Cell, RefCell, UnsafeCell},
+  cell::UnsafeCell,
   fmt,
   iter::repeat_with,
-  marker::PhantomData,
   mem::{align_of, offset_of, size_of},
-  ops::Deref,
-  ptr,
   sync::{
-    Arc, Weak,
+    Arc,
     atomic::{AtomicI64, AtomicU32, AtomicU64, Ordering, fence},
   },
   thread::yield_now,
 };
 
 use log::{debug, trace};
-use wbase::backoff::Backoff;
-pub use wbase::thread::current_thread_id;
+use wbase::{backoff::Backoff, thread::current_thread_id};
 use whasher::mix_thread_id;
 
-use crate::{EpochEntry, Error, MAX_USER_WORDS, Result};
+use crate::{
+  EpochEntry, Error, MAX_USER_WORDS, Participant, ProtectedScope, Result,
+  tls::{
+    FAST_ENTRY, FAST_PARTICIPANT, cached_slot, clear_thread_entry, get_thread_entry,
+    note_participant_slot, set_thread_entry,
+  },
+};
 
 /// 延迟清理动作队列容量（对照 C# Tsavorite kDrainListSize = 16）
 pub const DRAIN_LIST_SIZE: usize = 16;
-
-const MAX_LOCAL_ENTRIES: usize = 4;
-/// overflow 向量触发清理的堆积上限，防止长寿线程面对海量瞬态实例时无界累积
-const MAX_OVERFLOW_STATES: usize = 16;
-
-#[derive(Clone)]
-struct LocalEntryState {
-  instance_id: u64,
-  active_entry: usize,
-  cached_slot: usize,
-  entries: Option<Weak<[EpochEntry]>>,
-}
-
-struct LocalEpochEntries {
-  count: usize,
-  inline: [LocalEntryState; MAX_LOCAL_ENTRIES],
-  overflow: Vec<LocalEntryState>,
-}
-
-impl Drop for LocalEpochEntries {
-  fn drop(&mut self) {
-    let mut need_fence = false;
-    for state in self.inline[..self.count]
-      .iter_mut()
-      .chain(self.overflow.iter_mut())
-    {
-      if state.active_entry != 0 {
-        if let Some(weak) = &state.entries
-          && let Some(entries) = weak.upgrade()
-          && state.active_entry <= entries.len()
-        {
-          let entry = &entries[state.active_entry - 1];
-          entry.reset();
-          need_fence = true;
-        }
-        state.active_entry = 0;
-      }
-    }
-    if need_fence {
-      fence(Ordering::SeqCst);
-    }
-  }
-}
-
-impl LocalEpochEntries {
-  const fn new() -> Self {
-    Self {
-      count: 0,
-      inline: [const {
-        LocalEntryState {
-          instance_id: 0,
-          active_entry: 0,
-          cached_slot: 0,
-          entries: None,
-        }
-      }; MAX_LOCAL_ENTRIES],
-      overflow: Vec::new(),
-    }
-  }
-
-  /// 查找本线程在某实例上登记的状态 (active_entry, cached_slot)
-  #[inline]
-  fn find(&self, instance_id: u64) -> Option<(usize, usize)> {
-    self.inline[..self.count]
-      .iter()
-      .chain(self.overflow.iter())
-      .find(|s| s.instance_id == instance_id)
-      .map(|s| (s.active_entry, s.cached_slot))
-  }
-
-  /// 可变查找本线程在某实例上登记的状态
-  #[inline]
-  fn find_mut(&mut self, instance_id: u64) -> Option<&mut LocalEntryState> {
-    self.inline[..self.count]
-      .iter_mut()
-      .chain(self.overflow.iter_mut())
-      .find(|s| s.instance_id == instance_id)
-  }
-
-  fn set_active<F>(&mut self, instance_id: u64, entry: usize, get_weak: F)
-  where
-    F: FnOnce() -> Weak<[EpochEntry]>,
-  {
-    if let Some(item) = self.find_mut(instance_id) {
-      item.active_entry = entry;
-      if entry != 0 {
-        item.cached_slot = entry;
-        if item.entries.as_ref().is_none_or(|e| e.strong_count() == 0) {
-          item.entries = Some(get_weak());
-        }
-      }
-      return;
-    }
-    let new_state = LocalEntryState {
-      instance_id,
-      active_entry: entry,
-      cached_slot: entry,
-      entries: (entry != 0).then(get_weak),
-    };
-    if self.count < MAX_LOCAL_ENTRIES {
-      self.inline[self.count] = new_state;
-      self.count += 1;
-    } else {
-      // 适度清理已废弃实例，防止长寿线程面对海量瞬态 LightEpoch 时 overflow 无界累积
-      if self.overflow.len() >= MAX_OVERFLOW_STATES {
-        self.overflow.retain(|s| {
-          s.active_entry != 0 || s.entries.as_ref().is_some_and(|w| w.strong_count() > 0)
-        });
-      }
-      self.overflow.push(new_state);
-    }
-  }
-}
-
-thread_local! {
-  static THREAD_LOCAL_ENTRIES: RefCell<LocalEpochEntries> = const { RefCell::new(LocalEpochEntries::new()) };
-  /// 单槽快速缓存：免去每次 resume/suspend 的 RefCell 借用 + 线性 find
-  static FAST_ENTRY: Cell<FastEntry> = const { Cell::new(FastEntry::EMPTY) };
-  /// Participant 槽位单槽快速缓存：使 thread_protected_entry 对 Participant
-  /// 机制的保护判定 O(1)（对照 C# ProtectAndDrain 经 TLS 索引 O(1) 定位条目）
-  static FAST_PARTICIPANT: Cell<FastEntry> = const { Cell::new(FastEntry::EMPTY) };
-}
-
-/// 最近一次登记的 (实例 ID, 1-based 槽位, 已解析条目指针)
-///
-/// 同时服务 `FAST_ENTRY`（TLS resume/suspend 机制）与 `FAST_PARTICIPANT`
-/// （Participant 显式句柄机制）两个单槽缓存。
-///
-/// SAFETY 不变量：`ptr` 指向 `LightEpoch.entries` 内部元素；实例 ID 由全局单调
-/// 计数器产出、永不复用，故仅当 `instance_id` 与当前存活实例匹配时才解引用，
-/// 此时该实例持有 `Arc<[EpochEntry]>`，指针不可能悬垂。缓存命中后仍须校验
-/// `thread_id == 当前线程 && is_protected()`，槽位换绑/清除时经
-/// `set_thread_entry`/`clear_thread_entry` 同步刷新失效。
-#[derive(Clone, Copy)]
-struct FastEntry {
-  instance_id: u64,
-  slot: usize,
-  ptr: *const EpochEntry,
-}
-
-impl FastEntry {
-  const EMPTY: Self = Self {
-    instance_id: 0,
-    slot: 0,
-    ptr: ptr::null(),
-  };
-}
-
-/// 登记本线程最近创建的 Participant 槽位到单槽缓存（register 仅在创建线程上调用）
-#[inline]
-fn note_participant_slot(instance_id: u64, idx: usize, entry: &EpochEntry) {
-  FAST_PARTICIPANT.set(FastEntry {
-    instance_id,
-    slot: idx + 1,
-    ptr: ptr::from_ref(entry),
-  });
-}
-
-#[inline]
-fn get_thread_entry_and_cached(instance_id: u64) -> (usize, usize) {
-  THREAD_LOCAL_ENTRIES.with(|cell| cell.borrow().find(instance_id).unwrap_or((0, 0)))
-}
-
-#[inline]
-fn get_thread_entry(instance_id: u64) -> usize {
-  THREAD_LOCAL_ENTRIES.with(|cell| {
-    cell
-      .borrow()
-      .find(instance_id)
-      .map_or(0, |(active, _)| active)
-  })
-}
-
-#[inline]
-fn set_thread_entry<F>(instance_id: u64, entry: usize, get_weak: F)
-where
-  F: FnOnce() -> Weak<[EpochEntry]>,
-{
-  let resolved = THREAD_LOCAL_ENTRIES.with(|cell| {
-    let mut entries = cell.borrow_mut();
-    entries.set_active(instance_id, entry, get_weak);
-    // 同步刷新单槽快速缓存：升级弱引用一次性解析条目地址（仅慢路径付出此开销）
-    if entry != 0 {
-      entries
-        .find_mut(instance_id)
-        .and_then(|s| s.entries.as_ref())
-        .and_then(Weak::upgrade)
-        .filter(|e| entry <= e.len())
-        .map(|e| ptr::from_ref(&e[entry - 1]))
-    } else {
-      None
-    }
-  });
-  match resolved {
-    Some(p) => FAST_ENTRY.set(FastEntry {
-      instance_id,
-      slot: entry,
-      ptr: p,
-    }),
-    None => FAST_ENTRY.set(FastEntry::EMPTY),
-  }
-}
-
-#[inline]
-fn clear_thread_entry(instance_id: u64) {
-  THREAD_LOCAL_ENTRIES.with(|cell| {
-    let mut entries = cell.borrow_mut();
-    if let Some(item) = entries.find_mut(instance_id) {
-      item.active_entry = 0;
-    }
-  });
-  // 仅当快速缓存归属本实例时失效，保留其他实例的缓存命中能力
-  if FAST_ENTRY.get().instance_id == instance_id {
-    FAST_ENTRY.set(FastEntry::EMPTY);
-  }
-}
 
 /// 延迟清理槽位空闲标记值（u64::MAX）
 const DRAIN_ENTRY_FREE: u64 = u64::MAX;
@@ -333,10 +124,7 @@ impl LightEpoch {
       if entry.try_reserve() {
         trace!("成功注册参与者，分配条目索引: {idx}");
         note_participant_slot(self.id, idx, entry);
-        return Ok(Participant {
-          epoch: Arc::clone(self),
-          entry_idx: idx,
-        });
+        return Ok(Participant::new(Arc::clone(self), idx));
       }
     }
     Err(Error::ExceededMaxThreads(self.entries.len()))
@@ -373,7 +161,7 @@ impl LightEpoch {
 
   /// 有 pending 延迟动作时协助收割（不刷新本线程公布纪元，重入路径专用）
   #[inline]
-  fn drain_if_pending(&self) {
+  pub(crate) fn drain_if_pending(&self) {
     if self.drain_count.load(Ordering::Acquire) > 0 {
       self.drain();
     }
@@ -432,10 +220,9 @@ impl LightEpoch {
     }
 
     let len = self.entries.len();
-    let cached_slot = get_thread_entry_and_cached(self.id).1;
 
     // 快路径：乐观 O(1) 重用上次缓存的槽位，单次 CAS 命中即直接返回
-    if let Some(idx) = cached_slot.checked_sub(1).filter(|&idx| idx < len)
+    if let Some(idx) = cached_slot(self.id).checked_sub(1).filter(|&idx| idx < len)
       && self.claim_entry(idx, tid)
     {
       return;
@@ -475,7 +262,7 @@ impl LightEpoch {
   /// SeqCst 屏障由 [`Self::suspend_drain`] 循环首句自带（对应 C# 的
   /// Thread.MemoryBarrier），drain_count == 0 的热路径上零屏障开销。
   #[inline]
-  fn after_release(&self) {
+  pub(crate) fn after_release(&self) {
     if self.drain_count.load(Ordering::Acquire) > 0 {
       self.suspend_drain();
     }
@@ -591,21 +378,26 @@ impl LightEpoch {
     self.bump_current_epoch()
   }
 
-  /// 以本线程所能尽力推进延迟清理（受保护则刷新公布纪元至全局最新，否则直接扫描收割）
+  /// 以本线程所能尽力推进延迟清理：全量刷新本线程以任一机制持有的保护条目至
+  /// 全局最新纪元，再收割就绪延迟动作
   ///
   /// 对照 C# LightEpoch.ProtectAndDrain：刷新本线程公布纪元以解除对旧纪元的自钉，
   /// 再收割就绪延迟动作。C# 单一保护机制下刷新 entry 即完整覆盖；Rust 存在 TLS
-  /// 作用域与 `Participant` 显式句柄双轨保护，二者必须统一覆盖——若漏看 Participant
-  /// 长期持有的旧纪元（如批处理会话守卫），本线程将自钉 safe 推进，16 槽 drain_list
-  /// 耗尽后 `bump_current_epoch_action` 的注册路径永久自旋（append 页翻转活锁）。
+  /// 作用域与 `Participant` 显式句柄双轨保护，同一线程可能同时以两条机制持有多条
+  /// 保护条目（如 TLS 短临界区嵌套长期 Participant 会话守卫），必须全量刷新——
+  /// 若漏看任一旧纪元条目，本线程将自钉 safe_to_reclaim 推进，16 槽 drain_list
+  /// 耗尽后 `bump_current_epoch_action` 的注册路径永久自旋（活锁）。仅慢路径进入
+  /// （drain_count > 0），O(N) 表扫描不伤热路径。
   ///
   /// 安全性：刷新语义与 C# ProtectAndDrain 一致——调用方约定不在跨刷新窗口持有
   /// 旧纪元裸指针（wedb 同步批处理 API 的闭包均在单次调用内闭环消费，满足约定）
-  #[inline]
   fn help_drain(&self) {
-    if let Some(entry) = self.thread_protected_entry() {
-      let current = self.current_epoch.load(Ordering::Acquire);
-      entry.refresh_epoch(current);
+    let current = self.current_epoch.load(Ordering::Acquire);
+    let tid = current_thread_id();
+    for entry in self.entries.iter() {
+      if entry.is_protected() && entry.thread_id() == tid {
+        entry.refresh_epoch(current);
+      }
     }
     self.drain();
   }
@@ -985,246 +777,6 @@ impl fmt::Debug for LightEpoch {
       )
       .field("drain_count", &self.drain_count.load(Ordering::Relaxed))
       .field("max_threads", &self.entries.len())
-      .finish()
-  }
-}
-
-/// 参与者会话句柄
-///
-/// 代表单个线程或客户端会话在 `LightEpoch` 中的登记。
-/// 每个参与者独占一个 `EpochEntry` 槽位，不可被 Clone。
-pub struct Participant {
-  epoch: Arc<LightEpoch>,
-  entry_idx: usize,
-}
-
-impl Participant {
-  /// 进入受保护的纪元区，返回 RAII 守卫 `EpochGuard`
-  ///
-  /// 若发生重入调用，则递增重入计数并维持已有纪元保护；
-  /// 否则现场原子读取全局当前纪元并初始化重入计数。
-  #[inline]
-  pub fn enter(&self) -> EpochGuard<'_> {
-    let tid = current_thread_id();
-    let entry = unsafe { self.epoch.entries.get_unchecked(self.entry_idx) };
-    let protected_epoch = entry.enter_with_tid(&self.epoch.current_epoch, tid);
-    self.epoch.drain_if_pending();
-    EpochGuard {
-      participant: self,
-      protected_epoch,
-    }
-  }
-
-  /// 刷新当前参与者公布的纪元至最新值，并触发就绪的延迟动作（对照 C# LightEpoch.ProtectAndDrain）
-  #[inline]
-  pub fn refresh(&self) {
-    let entry = unsafe { self.epoch.entries.get_unchecked(self.entry_idx) };
-    if entry.is_protected() {
-      let current = self.epoch.current_epoch();
-      entry.refresh_epoch(current);
-      self.epoch.drain_if_pending();
-    }
-  }
-
-  /// 退出受保护的纪元区
-  ///
-  /// 递减重入计数；当重入计数归零时清空受保护的纪元，并在无其他活跃保护者时协助排空就绪延迟动作。
-  #[inline]
-  pub fn exit(&self) {
-    let entry = unsafe { self.epoch.entries.get_unchecked(self.entry_idx) };
-    if entry.exit() {
-      self.epoch.after_release();
-    }
-  }
-
-  /// 获取当前参与者分配到的条目槽位索引
-  #[inline]
-  pub fn entry_idx(&self) -> usize {
-    self.entry_idx
-  }
-
-  /// 检查当前参与者是否正处于保护区
-  #[inline]
-  pub fn is_protected(&self) -> bool {
-    unsafe {
-      self
-        .epoch
-        .entries
-        .get_unchecked(self.entry_idx)
-        .is_protected()
-    }
-  }
-
-  /// 获取当前重入计数
-  #[inline]
-  pub fn reentrant_count(&self) -> u32 {
-    unsafe {
-      self
-        .epoch
-        .entries
-        .get_unchecked(self.entry_idx)
-        .reentrant_count()
-    }
-  }
-
-  /// 获取当前保护的纪元
-  #[inline]
-  pub fn protected_epoch(&self) -> u64 {
-    unsafe {
-      self
-        .epoch
-        .entries
-        .get_unchecked(self.entry_idx)
-        .protected_epoch()
-    }
-  }
-
-  /// 校验用户字索引并返回参与者槽位上该列的原子引用
-  #[inline]
-  fn user_word_ref(&self, word_index: usize) -> Result<&AtomicI64> {
-    if word_index >= MAX_USER_WORDS {
-      return Err(Error::InvalidUserWordIndex(word_index));
-    }
-    unsafe {
-      Ok(
-        self
-          .epoch
-          .entries
-          .get_unchecked(self.entry_idx)
-          .user_word_atomic_unchecked(word_index),
-      )
-    }
-  }
-
-  /// 获取参与者对应的用户字值
-  #[inline]
-  pub fn user_word(&self, word_index: usize) -> Result<i64> {
-    Ok(self.user_word_ref(word_index)?.load(Ordering::Acquire))
-  }
-
-  /// 设置参与者对应的用户字值
-  #[inline]
-  pub fn set_user_word(&self, word_index: usize, val: i64) -> Result<()> {
-    self
-      .user_word_ref(word_index)?
-      .store(val, Ordering::Release);
-    Ok(())
-  }
-
-  /// 获取参与者对应用户字的原子引用
-  #[inline]
-  pub fn user_word_atomic(&self, word_index: usize) -> Result<&AtomicI64> {
-    self.user_word_ref(word_index)
-  }
-}
-
-impl Drop for Participant {
-  fn drop(&mut self) {
-    // 释放占用的 entry 槽位
-    unsafe {
-      self
-        .epoch
-        .entries
-        .get_unchecked(self.entry_idx)
-        .release_reserve()
-    };
-    self.epoch.after_release();
-  }
-}
-
-impl fmt::Debug for Participant {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Participant")
-      .field("entry_idx", &self.entry_idx)
-      .field("is_protected", &self.is_protected())
-      .field("protected_epoch", &self.protected_epoch())
-      .field("reentrant_count", &self.reentrant_count())
-      .finish()
-  }
-}
-
-/// 纪元保护 RAII 守卫
-///
-/// 绑定当前受保护的纪元，离开作用域 Drop 时自动调用 `Participant::exit()`。
-pub struct EpochGuard<'a> {
-  participant: &'a Participant,
-  protected_epoch: u64,
-}
-
-impl EpochGuard<'_> {
-  /// 获取当前守卫保护的纪元号
-  #[inline]
-  pub fn protected_epoch(&self) -> u64 {
-    self.protected_epoch
-  }
-}
-
-impl Drop for EpochGuard<'_> {
-  #[inline]
-  fn drop(&mut self) {
-    self.participant.exit();
-  }
-}
-
-impl Deref for EpochGuard<'_> {
-  type Target = Participant;
-
-  #[inline]
-  fn deref(&self) -> &Self::Target {
-    self.participant
-  }
-}
-
-impl fmt::Debug for EpochGuard<'_> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("EpochGuard")
-      .field("entry_idx", &self.participant.entry_idx)
-      .field("protected_epoch", &self.protected_epoch)
-      .finish()
-  }
-}
-
-/// 基于 RAII 作用域自动管理生命周期的保护守卫（对照 C# EpochProtection.Scope）
-///
-/// 绑定当前线程的受保护作用域，离开作用域 Drop 时自动调用 `LightEpoch::suspend()`。
-/// 由于底层槽位与线程 ID 绑定，此守卫严禁跨线程转移 (`!Send + !Sync`)。
-pub struct ProtectedScope<'a> {
-  epoch: &'a LightEpoch,
-  _marker: PhantomData<*const ()>,
-}
-
-impl<'a> ProtectedScope<'a> {
-  /// 创建并进入保护区
-  pub fn new(epoch: &'a LightEpoch) -> Self {
-    epoch.resume();
-    Self {
-      epoch,
-      _marker: PhantomData,
-    }
-  }
-}
-
-impl Drop for ProtectedScope<'_> {
-  #[inline]
-  fn drop(&mut self) {
-    self.epoch.suspend();
-  }
-}
-
-impl Deref for ProtectedScope<'_> {
-  type Target = LightEpoch;
-
-  #[inline]
-  fn deref(&self) -> &Self::Target {
-    self.epoch
-  }
-}
-
-impl fmt::Debug for ProtectedScope<'_> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("ProtectedScope")
-      .field("epoch_id", &self.epoch.id)
-      .field("current_epoch", &self.epoch.current_epoch())
       .finish()
   }
 }
