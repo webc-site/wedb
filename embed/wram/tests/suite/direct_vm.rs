@@ -29,19 +29,21 @@ fn direct_vm_allocate_is_zeroed_aligned_writable() -> Void {
     "对齐指针必须 >= 基地址"
   );
 
-  // OS 新映射必须 demand-zero 全零，且端到端可写
-  let slice = block.as_aligned_mut_slice(size);
+  // OS 新映射必须 demand-zero 全零，且端到端可写（经裸指针写入验证）
+  let slice = block.slice(0..size)?;
   assert_eq!(slice.len(), size);
   assert!(slice.iter().all(|&b| b == 0), "fresh 映射必须按需置零");
-  slice[0] = 0xAA;
-  slice[size - 1] = 0xBB;
-  assert_eq!(slice[0], 0xAA);
-  assert_eq!(slice[size - 1], 0xBB);
+  unsafe {
+    block.aligned_ptr.write_volatile(0xAA);
+    block.aligned_ptr.add(size - 1).write_volatile(0xBB);
+  }
+  assert_eq!(block.slice(0..size)?[0], 0xAA);
+  assert_eq!(block.slice(0..size)?[size - 1], 0xBB);
 
   // Clear 全量清零后必须恢复全零
   unsafe { DirectVirtualMemory::clear(block.aligned_ptr, size) };
   assert!(
-    block.as_aligned_slice(size).iter().all(|&b| b == 0),
+    block.slice(0..size)?.iter().all(|&b| b == 0),
     "clear 后必须恢复全零"
   );
 
@@ -74,7 +76,6 @@ fn direct_vm_allocate_is_zeroed_aligned_writable() -> Void {
   // 空块方法安全
   let empty = DirectVmBlock::empty();
   assert!(empty.is_empty());
-  assert_eq!(empty.as_aligned_slice(100).len(), 0);
 
   OK
 }
@@ -119,12 +120,10 @@ fn direct_vm_rejects_invalid_arguments() -> Void {
   // start > end：以变量构造区间，避免 clippy reversed_empty_ranges 对字面量误报
   let (start, end) = (100usize, 50usize);
   assert!(block.slice(start..end).is_err());
-  assert!(block.slice_mut(start..end).is_err());
 
   // 释放后子切片访问必须安全报错
   DirectVirtualMemory::free(&mut block);
   assert!(block.slice(0..1).is_err());
-  assert!(block.as_aligned_slice(128).is_empty());
 
   OK
 }
@@ -138,7 +137,6 @@ fn direct_vm_slice_edge_cases_and_page_size() -> Void {
 
   // 零长度切片在非空块内必须安全返回空切片
   assert_eq!(block.slice(100..100)?.len(), 0);
-  assert_eq!(block.slice_mut(200..200)?.len(), 0);
 
   // 空块必须安全报错且绝不触发 UB
   let empty = DirectVmBlock::empty();
