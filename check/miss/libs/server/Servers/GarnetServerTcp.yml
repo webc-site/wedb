@@ -1,8 +1,0 @@
-fn:
-  - ActiveConsumers
-  - ActiveClusterSessions
-  - AcceptEventArg_Completed
-  - HandleAcceptError
-  - HandleNewConnection
-  - TryCreateMessageConsumer
-  - DisposeMessageConsumer

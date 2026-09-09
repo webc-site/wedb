@@ -1,6 +1,0 @@
-fn:
-  - SendCommand
-  - SendCommandChunks
-  - SendCommands
-  - LightReceive
-  - BuildRequest

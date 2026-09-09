@@ -1,6 +1,0 @@
-fn:
-  - SelectRandomProvider
-  - RunOnline
-  - RunOffline
-  - GetMetrics
-  - GetProvider

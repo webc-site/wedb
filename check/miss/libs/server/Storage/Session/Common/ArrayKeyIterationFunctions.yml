@@ -1,8 +1,0 @@
-fn:
-  - DbScan
-  - IterateStore
-  - DeleteSlotKeys
-  - DBKeys
-  - DbSize
-  - DeleteIfExpiredInMemory
-  - IsInternalRecord

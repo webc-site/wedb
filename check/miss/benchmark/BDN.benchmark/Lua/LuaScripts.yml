@@ -1,8 +1,0 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - Script1
-  - Script2
-  - Script3
-  - Script4

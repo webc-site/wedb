@@ -1,4 +1,0 @@
-fn:
-  - OneTimeSetUp
-  - Setup
-  - TearDown

@@ -1,8 +1,0 @@
-fn:
-  - GetClusterNodes
-  - InitializeReplayStream
-  - Consume
-  - ConsumeResp
-  - ConsumeNoResp
-  - ConsumeDirect
-  - Throttle

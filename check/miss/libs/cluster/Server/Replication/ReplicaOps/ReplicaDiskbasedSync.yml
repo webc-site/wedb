@@ -1,7 +1,0 @@
-fn:
-  - TryReplicateDiskbasedSyncAsync
-  - ReplicaSyncAttachTaskAsync
-  - ShouldInitialize
-  - CreateCheckpointDevice
-  - GetStoreHLogDevice
-  - TryReplicaDiskbasedRecovery

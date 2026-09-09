@@ -1,6 +1,0 @@
-fn:
-  - SetCookie
-  - AdvanceTimeout
-  - RegisterForTimeout
-  - RemoveRegistration
-  - TickTimeouts

@@ -1,6 +1,0 @@
-fn:
-  - SetBudget
-  - WaitSlow
-  - AnyStalled
-  - SetLog
-  - PublishShippedAddress

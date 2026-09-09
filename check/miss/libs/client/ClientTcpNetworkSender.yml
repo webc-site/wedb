@@ -1,5 +1,0 @@
-fn:
-  - SendResponse
-  - SendCallback
-  - DisposeNetworkSender
-  - SeaaBuffer_Completed

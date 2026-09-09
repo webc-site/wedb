@@ -1,9 +1,0 @@
-fn:
-  - GetConfig
-  - NetworkCONFIG_GET
-  - NetworkCONFIG_REWRITE
-  - NetworkCONFIG_SET
-  - HandleMemorySizeChange
-  - HandleIndexSizeChangeAsync
-  - AppendError
-  - AppendErrorWithTemplate

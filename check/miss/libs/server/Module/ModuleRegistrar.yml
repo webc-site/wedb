@@ -1,6 +1,0 @@
-fn:
-  - RegisterCommand
-  - RegisterTransaction
-  - RegisterType
-  - RegisterProcedure
-  - LoadModule

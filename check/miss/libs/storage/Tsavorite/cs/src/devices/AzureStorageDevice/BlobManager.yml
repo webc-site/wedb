@@ -1,9 +1,0 @@
-fn:
-  - GetDelayBetweenRetries
-  - HandleStorageError
-  - StopAsync
-  - ConfirmLeaseIsGoodForAWhileAsync
-  - ConfirmLeaseIsGoodForAWhile
-  - AcquireOwnership
-  - RenewLeaseTask
-  - MaintenanceLoopAsync

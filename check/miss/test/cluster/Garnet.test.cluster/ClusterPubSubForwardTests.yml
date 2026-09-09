@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - SingleNodeConfig
-  - NodeResponds
-test:
-  - ClusterPublishSurvivesPeerNodeShutdown

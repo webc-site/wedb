@@ -1,5 +1,0 @@
-fn:
-  - Consume
-  - CreateAndRunIntraPageParallelReplayTasks
-  - Throttle
-  - RunAsync

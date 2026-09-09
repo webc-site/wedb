@@ -1,4 +1,0 @@
-fn:
-  - TryUpdateCommandInfo
-  - TryGetCommandsInfo
-  - GetUpdatedCommandsInfo

@@ -1,6 +1,0 @@
-fn:
-  - TryParseModuleSpec
-  - SplitModuleArgs
-  - LoadModuleDependencies
-  - GetReferencedAssemblyNames
-  - LoadAssemblies

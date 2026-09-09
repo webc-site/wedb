@@ -1,6 +1,0 @@
-fn:
-  - ActiveConsumers
-  - ActiveClusterSessions
-  - CreateNetworkHandler
-  - DisposeMessageConsumer
-  - TryCreateMessageConsumer

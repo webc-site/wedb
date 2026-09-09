@@ -1,4 +1,0 @@
-fn:
-  - ApplyPostFilter
-  - GetSelectorRanges
-  - EvaluateCandidateFilter

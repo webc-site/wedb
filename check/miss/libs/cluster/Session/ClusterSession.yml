@@ -1,9 +1,0 @@
-fn:
-  - SetReadOnlySession
-  - SetReadWriteSession
-  - ProcessClusterCommands
-  - SendAndReset
-  - SetUserHandle
-  - AcquireCurrentEpoch
-  - ReleaseCurrentEpoch
-  - UnsafeBumpAndWaitForEpochTransitionAsync

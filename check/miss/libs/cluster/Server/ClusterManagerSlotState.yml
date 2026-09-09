@@ -1,9 +1,0 @@
-fn:
-  - TryPrepareSlotForMigration
-  - TryPrepareSlotsForMigration
-  - TryPrepareSlotForImport
-  - TryPrepareSlotsForImport
-  - TryPrepareSlotForOwnershipChange
-  - TryPrepareSlotsForOwnershipChange
-  - TryResetSlotState
-  - DeleteKeysInSlots

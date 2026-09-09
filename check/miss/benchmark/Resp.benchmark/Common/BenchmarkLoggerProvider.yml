@@ -1,5 +1,0 @@
-fn:
-  - CreateLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr

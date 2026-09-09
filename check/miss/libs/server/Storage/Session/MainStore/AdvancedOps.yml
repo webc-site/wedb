@@ -1,7 +1,0 @@
-fn:
-  - GET_WithPending
-  - GET_CompletePending
-  - RMW_MainStore
-  - Read_MainStore
-  - Read_RangeIndex
-  - ReadWithPrefetch

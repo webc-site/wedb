@@ -1,5 +1,0 @@
-fn:
-  - Register
-  - Unregister
-  - GetSessionProviders
-  - AddSession

@@ -1,6 +1,0 @@
-fn:
-  - GossipAsync
-  - GossipWithMeetAsync
-  - ExecuteClusterFailStopWritesAsync
-  - ExecuteClusterFailReplicationOffsetAsync
-  - ExecuteClusterPublishNoResponse

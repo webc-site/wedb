@@ -1,9 +1,0 @@
-test:
-  - RespCommandWriteBlockValuesAreStable
-  - ObjectSubOpValuesAreStable
-  - GarnetObjectTypeBuiltinValuesAreStable
-  - LegacyCustomObjectTypeIdFailsFastOnDeserialize
-  - ObjectSubOpsFitInByte
-  - WriteBlockContainsExactlyWriteCommands
-  - LegacyV3MappingIsComplete
-  - BuiltinRespCommandSpaceDoesNotReachCustomRange

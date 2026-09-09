@@ -1,7 +1,0 @@
-fn:
-  - EnterInfallibleAllocationRegion
-  - TryExitInfallibleAllocationRegion
-  - AllocateNew
-  - ResizeAllocation
-  - InfallibleAllocate
-  - IsInfallibleAllocation

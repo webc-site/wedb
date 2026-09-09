@@ -1,4 +1,0 @@
-fn:
-  - RecoverReplayDriver
-  - SingleLogRecover
-  - MultiLogRecover

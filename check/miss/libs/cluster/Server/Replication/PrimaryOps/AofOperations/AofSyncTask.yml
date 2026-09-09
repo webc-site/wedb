@@ -1,6 +1,0 @@
-fn:
-  - Consume
-  - Throttle
-  - SendAdvanceTimePulse
-  - RunAofSyncTaskAsync
-  - LogRunAofSyncTask

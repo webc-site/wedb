@@ -1,9 +1,0 @@
-fn:
-  - GlobalSetup
-  - SetEx
-  - SetNx
-  - SetXx
-  - GetFound
-  - GetNotFound
-  - IncrementBy
-  - DecrementBy

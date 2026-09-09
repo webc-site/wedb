@@ -1,7 +1,0 @@
-fn:
-  - SelectOpType
-  - DumpHistogram
-  - Run
-  - OpRunnerSERedis
-  - LoadData
-  - ResetRunner

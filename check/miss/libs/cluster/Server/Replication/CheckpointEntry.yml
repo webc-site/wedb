@@ -1,7 +1,0 @@
-fn:
-  - LogCheckpointEntry
-  - GetMinAofCoveredAddress
-  - TryAddReader
-  - RemoveReader
-  - TrySuspendReaders
-  - ContainsSharedToken

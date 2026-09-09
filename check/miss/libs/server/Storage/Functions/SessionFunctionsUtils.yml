@@ -1,4 +1,0 @@
-fn:
-  - EvaluateExpire
-  - InPlaceWriterForHeapObjectValue
-  - UpdateExpiration

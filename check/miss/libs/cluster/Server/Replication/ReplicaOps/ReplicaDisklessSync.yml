@@ -1,4 +1,0 @@
-fn:
-  - TryReplicateDisklessSyncAsync
-  - TryBeginReplicaSyncAsync
-  - TryReplicaDisklessRecovery

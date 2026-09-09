@@ -1,5 +1,0 @@
-fn:
-  - TrySetSlotRangesAsync
-  - TryRecoverFromFailureAsync
-  - TryStartMigrationTaskAsync
-  - BeginAsyncMigrationTaskAsync

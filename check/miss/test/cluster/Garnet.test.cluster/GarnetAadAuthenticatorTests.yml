@@ -1,8 +1,0 @@
-fn:
-  - BuildAuthenticator
-test:
-  - Authenticate_ReturnsTrue_WhenTokenInsideValidityWindow
-  - IsAuthenticated_GoesFalse_AfterTokenExpires
-  - IsAuthenticated_StaysTrue_WhileTimeStillInsideWindow
-  - Authenticate_ReturnsFalse_OnMalformedToken
-  - FailedReauthentication_ClearsPreviouslyAuthorizedState

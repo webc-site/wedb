@@ -1,9 +1,0 @@
-fn:
-  - CreateIndex
-  - DropIndex
-  - ReadIndex
-  - SetContextForMigration
-  - MarkSuppressCleanup
-  - ClearSuppressCleanup
-  - SetFlags
-  - SetIndexFlags

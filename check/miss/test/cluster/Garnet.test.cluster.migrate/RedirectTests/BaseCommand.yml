@@ -1,8 +1,0 @@
-fn:
-  - RandomBytes
-  - GetSingleSlotRequest
-  - GetSingleSlotObjectRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
-  - singleSlotKeys
-  - crossSlotKeys

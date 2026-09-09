@@ -1,6 +1,0 @@
-fn:
-  - Redirect
-  - GetSlotVerificationMessage
-  - WriteClusterSlotVerificationMessage
-  - NetworkMultiKeySlotVerify
-  - NetworkMultiKeySlotVerifyNoResponse

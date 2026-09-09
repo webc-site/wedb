@@ -1,7 +1,0 @@
-fn:
-  - WriteHeader
-  - WriteOp
-  - WriteBitfieldArgs
-  - WriteKey
-  - WriteInteger
-  - WriteStringBytes

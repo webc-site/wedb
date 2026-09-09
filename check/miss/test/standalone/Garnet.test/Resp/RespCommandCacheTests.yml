@@ -1,8 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateArguments
-  - AppendBulkString
-  - Connect
-test:
-  - CachedCommandDoesNotTruncateArgumentCount

@@ -1,4 +1,0 @@
-fn:
-  - FromMetadata
-  - WriteChunk
-  - Complete

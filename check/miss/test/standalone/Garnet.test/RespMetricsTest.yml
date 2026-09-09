@@ -1,7 +1,0 @@
-fn:
-  - StartServer
-  - Setup
-  - TearDown
-test:
-  - MetricsDisabledTest
-  - MetricsEnabledTest

@@ -1,8 +1,0 @@
-fn:
-  - NetworkCLIENTLIST
-  - NetworkCLIENTINFO
-  - NetworkCLIENTKILL
-  - NetworkCLIENTGETNAME
-  - NetworkCLIENTSETNAME
-  - NetworkCLIENTSETINFO
-  - NetworkCLIENTUNBLOCK

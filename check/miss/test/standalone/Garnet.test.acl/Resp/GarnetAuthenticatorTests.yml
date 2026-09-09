@@ -1,5 +1,0 @@
-fn:
-  - CreateAuthenticator
-  - Authenticate
-test:
-  - InvalidatingAuthorizationAsync

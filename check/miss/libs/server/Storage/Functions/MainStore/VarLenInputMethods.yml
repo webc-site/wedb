@@ -1,6 +1,0 @@
-fn:
-  - IsValidNumber
-  - IsValidDouble
-  - GetRMWInitialFieldInfo
-  - GetRMWModifiedFieldInfo
-  - GetUpsertFieldInfo

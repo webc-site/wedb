@@ -1,7 +1,0 @@
-fn:
-  - MeasureElapsed
-  - Run
-  - dbsize
-  - MigrateSlotRanges
-  - MigrateSlots
-  - MigrateKeys

@@ -1,9 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ClusterBasicACLTest
-  - ClusterStartupWithoutAuthCreds
-  - ClusterReplicationAuth
-  - ClusterSimpleFailoverAuth
-  - ClusterSimpleACLReload

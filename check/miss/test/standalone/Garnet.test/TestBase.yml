@@ -1,4 +1,0 @@
-fn:
-  - TrackRunningTest
-  - RemoveRunningTest
-  - DumpTests

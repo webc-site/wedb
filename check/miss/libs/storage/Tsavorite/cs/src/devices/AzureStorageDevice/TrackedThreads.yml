@@ -1,4 +1,0 @@
-fn:
-  - MakeTrackedThread
-  - ThreadStart
-  - GetThreadNames

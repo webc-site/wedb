@@ -1,7 +1,0 @@
-fn:
-  - GetCountAtIndex
-  - SetCountAtIndex
-  - IncrementCountAtIndex
-  - AddToCountAtIndex
-  - ClearCounts
-  - CopyCountsInto

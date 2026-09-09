@@ -1,5 +1,0 @@
-fn:
-  - GetServerOptions
-  - GetDeviceType
-  - GetAuthenticationSettings
-  - GetFastAofTruncate

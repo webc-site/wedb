@@ -1,4 +1,0 @@
-fn:
-  - GetSingleSlotRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest

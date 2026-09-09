@@ -1,5 +1,0 @@
-fn:
-  - CountKeysInSlot
-  - GetKeysInSlot
-  - TryParseSlots
-  - ProcessClusterCommands

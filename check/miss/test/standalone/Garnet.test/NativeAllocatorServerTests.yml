@@ -1,8 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - StringAndObjectRoundTrip
-  - SaveRecoverRoundTrip
-  - LowMemoryEvictionChurn
-  - ObjectStoreEvictionChurn

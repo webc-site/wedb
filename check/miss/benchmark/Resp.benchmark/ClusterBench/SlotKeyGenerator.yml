@@ -1,4 +1,0 @@
-fn:
-  - GenerateKey
-  - AppendBase62
-  - FindTagForShard

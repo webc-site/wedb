@@ -1,7 +1,0 @@
-fn:
-  - RunSimulation
-  - InteractiveRepl
-  - SeedCache
-  - FakeServerThread
-  - CreateRandomReview
-  - GenerateLargeLoremIpsumText

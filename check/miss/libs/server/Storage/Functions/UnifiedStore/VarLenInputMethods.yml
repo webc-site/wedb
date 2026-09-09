@@ -1,4 +1,0 @@
-fn:
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo

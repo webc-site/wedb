@@ -1,7 +1,0 @@
-fn:
-  - RunOnline
-  - RunOnlineLightClient
-  - RunOnlineGarnetClientSession
-  - RunOnlineGarnetClientSessionParallel
-  - RunOnlineGarnetClient
-  - RunOnlineGarnetClientParallel

@@ -1,9 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - VerifyObjectStoreSetMembers
-test:
-  - IndexGrowthTest
-  - ObjectStoreIndexGrowthTest
-  - IndexGrowthTestWithDiskReadAndCheckpoint
-  - ObjectStoreIndexGrowthTestWithDiskReadAndCheckpoint

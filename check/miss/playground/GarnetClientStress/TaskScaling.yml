@@ -1,8 +1,0 @@
-fn:
-  - CreateClients
-  - Run
-  - PrintHistogram
-  - MonitorThread
-  - CheckConnection
-  - OperationThread
-  - ShortRunningTask

@@ -1,7 +1,0 @@
-fn:
-  - UpdateReplicationId
-  - FailoverUpdate
-  - InitializeReplicationHistory
-  - RecoverReplicationHistory
-  - TryUpdateMyPrimaryReplId
-  - TryUpdateForFailover

@@ -1,6 +1,0 @@
-fn:
-  - RemoveWatch
-  - AddWatch
-  - ValidateWatchVersion
-  - SaveKeysToLock
-  - SaveKeysToKeyList

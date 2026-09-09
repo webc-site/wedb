@@ -1,8 +1,0 @@
-fn:
-  - ProcessTimeSpan
-  - SignalWorkReadyWait
-  - SignalWorkReadyWaitAsync
-  - SignalWorkReadyInternal
-  - SignalWorkCompletedWait
-  - SignalWorkCompletedWaitAsync
-  - SignalWorkCompletedInternal

@@ -1,7 +1,0 @@
-fn:
-  - NeedsRecreate
-  - ReadVectorIndex
-  - ReadVectorIndexCore
-  - ReadOrCreateVectorIndex
-  - AcquireExclusiveLocks
-  - ReadForDeleteVectorIndex

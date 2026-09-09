@@ -1,4 +1,0 @@
-fn:
-  - WriteChunk
-  - Complete
-  - IOCallback

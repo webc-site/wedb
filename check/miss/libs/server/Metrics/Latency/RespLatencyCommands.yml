@@ -1,4 +1,0 @@
-fn:
-  - NetworkLatencyHelp
-  - NetworkLatencyHistogram
-  - NetworkLatencyReset

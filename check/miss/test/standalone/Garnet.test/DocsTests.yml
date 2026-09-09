@@ -1,4 +1,0 @@
-fn:
-  - CommandLinkAndMinusRegex
-test:
-  - CommandsWithLinksShouldNotHaveMinusSign

@@ -1,5 +1,0 @@
-fn:
-  - Authenticate
-  - AuthenticateInternal
-  - GetUserHandle
-  - GetAccessControlList

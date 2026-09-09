@@ -1,5 +1,0 @@
-fn:
-  - HandleExpireCopyUpdate
-  - HandleExpireInPlaceUpdate
-  - HandlePersistCopyUpdate
-  - HandlePersistInPlaceUpdate

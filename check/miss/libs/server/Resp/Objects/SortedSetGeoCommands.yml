@@ -1,4 +1,0 @@
-fn:
-  - GeoAdd
-  - GeoCommands
-  - GeoSearchCommands

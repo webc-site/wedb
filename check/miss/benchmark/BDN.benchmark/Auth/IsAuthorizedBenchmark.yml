@@ -1,5 +1,0 @@
-fn:
-  - GlobalSetup
-  - IsAuthorized_DateTimeUtcNow
-  - IsAuthorized_CoarseTimeProvider
-  - IsAuthorized_CoarseTimeProviderTicks

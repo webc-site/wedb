@@ -1,5 +1,0 @@
-fn:
-  - AddKey
-  - RewindScratchBuffer
-  - CreateArgSlice
-  - Finalize

@@ -1,6 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - MainStoreReadCacheTest
-  - ObjectStoreReadCacheTest

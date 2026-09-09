@@ -1,4 +1,0 @@
-fn:
-  - BitPosDriver
-  - BitPosBitSearch
-  - BitPosByteSearch

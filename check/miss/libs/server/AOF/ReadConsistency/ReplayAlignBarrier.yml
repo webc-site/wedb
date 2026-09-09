@@ -1,9 +1,0 @@
-fn:
-  - TryOpenRound
-  - SignalArrivalAndWait
-  - SignalArrival
-  - WaitForAllArrivals
-  - ReleaseRound
-  - SignalAll
-  - Disable
-  - Enable

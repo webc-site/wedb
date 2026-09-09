@@ -1,7 +1,0 @@
-fn:
-  - PromoteRangeIndexToTail
-  - RestoreRangeIndexStub
-  - WriteScanToOutput
-  - TryWriteRecordResp
-  - BackfillArrayHeader
-  - ExtractTreePtr

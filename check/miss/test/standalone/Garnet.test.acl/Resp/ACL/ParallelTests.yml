@@ -1,7 +1,0 @@
-fn:
-  - Setup
-test:
-  - ParallelAuthTest
-  - ParallelPasswordHashTest
-  - ParallelAclSetUserTest
-  - ParallelAclSetUserAvoidsMapContentionTest

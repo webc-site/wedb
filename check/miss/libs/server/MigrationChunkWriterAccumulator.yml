@@ -1,5 +1,0 @@
-fn:
-  - SetKeyOverflow
-  - SetValueOverflowDeepCopy
-  - SerializeObjectValue
-  - Consume

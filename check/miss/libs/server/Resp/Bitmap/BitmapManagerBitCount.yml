@@ -1,6 +1,0 @@
-fn:
-  - BitIndexCount
-  - BitCountDriver
-  - __scalar_popc
-  - __simd_popcX128
-  - __simd_popcX256

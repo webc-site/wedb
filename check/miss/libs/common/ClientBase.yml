@@ -1,6 +1,0 @@
-fn:
-  - GetInternalBufferHead
-  - GetInternalBufferTail
-  - Connect
-  - CompletePendingRequests
-  - Authenticate

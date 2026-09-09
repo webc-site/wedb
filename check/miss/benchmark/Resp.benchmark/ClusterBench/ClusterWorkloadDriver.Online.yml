@@ -1,6 +1,0 @@
-fn:
-  - RunWorkerPoolOnline
-  - RunOnline
-  - MonitorOnline
-  - PrintOnlineHeader
-  - ReportOnlineIteration

@@ -1,5 +1,0 @@
-fn:
-  - ResetCachedSublogMax
-  - GetPowerOfTwoSize
-  - ExpandKeyHashCache
-  - ShrinkKeyHashCache

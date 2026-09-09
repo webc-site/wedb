@@ -1,5 +1,0 @@
-fn:
-  - IsWellStructured
-  - ContainsPasswordHash
-  - IsArray
-  - IsValue

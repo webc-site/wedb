@@ -1,4 +1,0 @@
-fn:
-  - ProcessFileSegment
-  - ProcessMetadata
-  - ProcessSnapshotData

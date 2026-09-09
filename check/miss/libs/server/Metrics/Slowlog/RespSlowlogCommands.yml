@@ -1,6 +1,0 @@
-fn:
-  - NetworkSlowLogHelp
-  - NetworkSlowLogGet
-  - NetworkSlowLogLen
-  - NetworkSlowLogReset
-  - HandleSlowLog

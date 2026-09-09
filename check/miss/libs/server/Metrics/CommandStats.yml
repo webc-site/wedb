@@ -1,5 +1,0 @@
-fn:
-  - IncrementCalls
-  - IncrementFailed
-  - IncrementRejected
-  - GetEntry

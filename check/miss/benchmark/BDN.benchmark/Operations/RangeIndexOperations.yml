@@ -1,8 +1,0 @@
-fn:
-  - OperationParamsProvider
-  - GlobalSetup
-  - RISet
-  - RIGet
-  - RIScan
-  - RIScanKeysOnly
-  - RIRange

@@ -1,9 +1,0 @@
-fn:
-  - NetworkGETWITHETAG
-  - NetworkGETIFNOTMATCH
-  - NetworkDELIFGREATER
-  - NetworkSETIFMATCH
-  - NetworkSETIFGREATER
-  - NetworkSETWITHETAG
-  - NetworkSetETagConditional
-  - ExecuteETagSetCommand

@@ -1,5 +1,0 @@
-fn:
-  - WaitForCommitAsync
-  - CommitAOFAsync
-  - FlushDB
-  - PreventRoleChange

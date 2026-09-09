@@ -1,4 +1,0 @@
-fn:
-  - Seek
-  - SetLength
-  - ReadAsyncInternalAsync

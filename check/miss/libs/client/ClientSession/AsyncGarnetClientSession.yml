@@ -1,5 +1,0 @@
-fn:
-  - ExecuteAsync
-  - ExecuteAsyncBatch
-  - ExecuteForArrayAsync
-  - ExecuteForArrayAsyncBatch

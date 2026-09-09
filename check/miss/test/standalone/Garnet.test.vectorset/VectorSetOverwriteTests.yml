@@ -1,5 +1,0 @@
-fn:
-  - PrepCommandAsync
-  - RunCommandAsync
-  - RunCommandPlainAsync
-  - RunCommandEXAsync

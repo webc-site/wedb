@@ -1,6 +1,0 @@
-fn:
-  - incr_session_found
-  - incr_session_notfound
-  - incr_session_pending
-  - StartPendingMetrics
-  - StopPendingMetrics

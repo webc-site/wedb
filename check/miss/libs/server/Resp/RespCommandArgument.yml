@@ -1,4 +1,0 @@
-fn:
-  - ToByteRespFormat
-  - ToRespFormat
-  - CanConvert

@@ -1,4 +1,0 @@
-fn:
-  - Fuzz
-  - PrepareInput
-  - RaiseErrorForInput

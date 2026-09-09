@@ -1,5 +1,0 @@
-fn:
-  - GetCustomCommandFunctions
-  - GetCustomObjectFactory
-  - GetCustomObjectSubCommandFunctions
-  - CopyDefaultResp

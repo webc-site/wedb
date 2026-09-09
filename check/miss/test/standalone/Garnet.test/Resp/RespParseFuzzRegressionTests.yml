@@ -1,5 +1,0 @@
-test:
-  - MakeUpperCaseAccessViolation
-  - FastParseArrayCommandLongCommandAssertFailure
-  - FastParseArrayCommandShortCommandAssertFailure
-  - FastParseArrayCommandArrayCountAssertFailure

@@ -1,4 +1,0 @@
-fn:
-  - ParseTrailer
-  - WriteFileBytes
-  - CloseStream

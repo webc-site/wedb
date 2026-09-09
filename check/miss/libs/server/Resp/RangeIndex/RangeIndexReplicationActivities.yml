@@ -1,8 +1,0 @@
-fn:
-  - StartActivity
-  - OnFileLength
-  - OnChunkEnqueued
-  - OnError
-  - EndAndLog
-  - OnChunkReceived
-  - OnPublishResult

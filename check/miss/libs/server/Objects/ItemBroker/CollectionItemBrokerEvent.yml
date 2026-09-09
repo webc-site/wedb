@@ -1,4 +1,0 @@
-fn:
-  - CreateCollectionUpdatedEvent
-  - CreateNewObserverEvent
-  - IsDefault

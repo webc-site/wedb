@@ -1,5 +1,0 @@
-fn:
-  - GetProperties
-  - TryPopulateOptions
-  - TryApplyTransform
-  - TryChangeType

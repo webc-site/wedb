@@ -1,7 +1,0 @@
-fn:
-  - ListLeftPush
-  - ListLeftPushAsync
-  - ListRightPush
-  - ListRightPushAsync
-  - ListRangeAsync
-  - ListLengthAsync

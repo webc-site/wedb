@@ -1,4 +1,0 @@
-fn:
-  - ReadByte
-  - Seek
-  - SetLength

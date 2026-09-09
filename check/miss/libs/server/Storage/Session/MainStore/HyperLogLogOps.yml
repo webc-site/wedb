@@ -1,4 +1,0 @@
-fn:
-  - HyperLogLogAdd
-  - HyperLogLogLength
-  - HyperLogLogMerge

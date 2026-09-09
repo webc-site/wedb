@@ -1,9 +1,0 @@
-fn:
-  - GetAndIncrement
-  - GetAndSet
-  - LazySet
-  - WriterCriticalSectionEnter
-  - WriterCriticalSectionExit
-  - ReaderLock
-  - ReaderUnlock
-  - FlipPhase

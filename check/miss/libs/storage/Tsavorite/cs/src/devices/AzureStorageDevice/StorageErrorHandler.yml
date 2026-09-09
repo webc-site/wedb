@@ -1,7 +1,0 @@
-fn:
-  - HandleError
-  - TerminateNormally
-  - TraceError
-  - Terminate
-  - Shutdown
-  - WaitForTermination

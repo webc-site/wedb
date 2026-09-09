@@ -1,4 +1,0 @@
-fn:
-  - AbortWithWrongNumberOfArguments
-  - AbortWithWrongNumberOfArgumentsOrUnknownSubcommand
-  - AbortWithErrorMessage

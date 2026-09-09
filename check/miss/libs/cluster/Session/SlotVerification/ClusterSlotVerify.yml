@@ -1,8 +1,0 @@
-fn:
-  - SingleKeySlotVerify
-  - SingleKeyReadSlotVerify
-  - SingleKeyReadWriteSlotVerify
-  - CanOperateOnKey
-  - WaitForSlotToStabalize
-  - MultiKeySlotVerify
-  - VerifyKeysInRange

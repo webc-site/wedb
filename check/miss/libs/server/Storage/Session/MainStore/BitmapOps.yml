@@ -1,9 +1,0 @@
-fn:
-  - StringSetBit
-  - StringGetBit
-  - StringBitOperation
-  - ReleaseOverflowBuffers
-  - StringBitCount
-  - StringBitField
-  - StringBitPosition
-  - StringBitFieldReadOnly

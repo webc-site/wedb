@@ -1,8 +1,0 @@
-fn:
-  - LongRandom
-  - GenSingleKeyValueReqs
-  - GenSingleKeyValueRequest
-  - GenArrayKeyValueRequest
-  - GenSingleKeyRequest
-  - WriteStringBytes
-  - WriteOpLong

@@ -1,8 +1,0 @@
-fn:
-  - GetClusterConfig
-  - StartMonitor
-  - MonitorServerSideLatency
-  - ProcessLatencyHistogram
-  - MonitorServerSideMetrics
-  - MonitorClusterServerSideMetrics
-  - MonitorClusterLatencyMetrics

@@ -1,7 +1,0 @@
-fn:
-  - SortedSetAdd
-  - SortedSetAddAsync
-  - SortedSetRemove
-  - SortedSetRemoveAsync
-  - SortedSetLengthAsync
-  - SortedSetLength

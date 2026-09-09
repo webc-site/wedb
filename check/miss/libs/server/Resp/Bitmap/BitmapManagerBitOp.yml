@@ -1,6 +1,0 @@
-fn:
-  - InvokeBitOperationUnsafe
-  - InvokeNaryBitwiseOperation
-  - Vectorized512
-  - Vectorized256
-  - Vectorized128

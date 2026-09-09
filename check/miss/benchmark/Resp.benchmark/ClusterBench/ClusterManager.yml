@@ -1,5 +1,0 @@
-fn:
-  - DiscoverPrimaryShards
-  - ParseClusterConfig
-  - ValidateFullSlotCoverage
-  - CompactRanges

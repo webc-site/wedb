@@ -1,4 +1,0 @@
-fn:
-  - TryUpdateCommandDocs
-  - TryGetCommandsDocs
-  - GetUpdatedCommandsDocs

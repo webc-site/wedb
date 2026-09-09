@@ -1,6 +1,0 @@
-fn:
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint

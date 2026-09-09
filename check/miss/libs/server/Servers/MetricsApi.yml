@@ -1,6 +1,0 @@
-fn:
-  - GetInfoMetrics
-  - GetHeader
-  - ResetInfoMetrics
-  - GetLatencyMetrics
-  - ResetLatencyMetrics

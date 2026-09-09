@@ -1,6 +1,0 @@
-fn:
-  - GeoAdd
-  - GeoHash
-  - GeoDistance
-  - GeoPosition
-  - GeoSearch

@@ -1,7 +1,0 @@
-fn:
-  - TryParseToEnum
-  - FromInt64
-  - ToEnumLiteral
-  - TryParseEnumToLong
-  - ToInt64
-  - TryParseUnderlying

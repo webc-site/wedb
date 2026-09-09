@@ -1,5 +1,0 @@
-fn:
-  - StopAsync
-  - HandleStorageError
-  - PerformWithRetriesAsync
-  - ConfirmLeaseIsGoodForAWhileAsync

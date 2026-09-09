@@ -1,9 +1,0 @@
-fn:
-  - RegisterModules
-  - GlobalSetup
-  - ModuleNoOpRawStringReadCommand
-  - ModuleNoOpRawStringRmwCommand
-  - ModuleNoOpObjRmwCommand
-  - ModuleNoOpObjReadCommand
-  - ModuleNoOpProc
-  - ModuleNoOpTxn

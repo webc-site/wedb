@@ -1,9 +1,0 @@
-fn:
-  - TryConsumeMessages
-  - ProcessReplyAsString
-  - ProcessReplyAsNumber
-  - ProcessReplyAsStringArray
-  - ProcessReplyAsMemoryByte
-  - ProcessReplyAsMemoryByteArray
-  - ProcessReplies
-  - CopyErrorToSpan

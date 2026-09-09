@@ -1,8 +1,0 @@
-fn:
-  - TryRewindToOffset
-  - RewindScratchBuffer
-  - CreateArgSlice
-  - ViewRemainingArgSlice
-  - ExpandScratchBufferIfNeeded
-  - ExpandScratchBuffer
-  - InitializeScratchBuffer

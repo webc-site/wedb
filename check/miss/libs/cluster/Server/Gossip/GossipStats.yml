@@ -1,6 +1,0 @@
-fn:
-  - UpdateMeetRequestsRecv
-  - UpdateMeetRequestsSucceed
-  - UpdateMeetRequestsFailed
-  - UpdateGossipBytesSend
-  - UpdateGossipBytesRecv

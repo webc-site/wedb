@@ -1,7 +1,0 @@
-fn:
-  - Setup
-  - TearDown
-  - MakeValue
-test:
-  - LargeValueFlushAndReadBack
-  - LargeValueFlushWithPrecedingSectorCombinations

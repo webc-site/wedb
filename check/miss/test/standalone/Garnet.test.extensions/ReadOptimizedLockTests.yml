@@ -1,4 +1,0 @@
-test:
-  - BasicLocks
-  - IndexCalculations
-  - Threaded

@@ -1,9 +1,0 @@
-fn:
-  - CanRunCommand
-  - CanRunCustomCommand
-  - AddCustomCommand
-  - RemoveCustomCommand
-  - AddCommand
-  - RemoveCommand
-  - IsEquivalentTo
-  - GetCommandListLength

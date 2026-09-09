@@ -1,6 +1,0 @@
-fn:
-  - GetOffsets
-  - IsSet
-  - CopyTo
-  - CopyFrom
-  - PopCount

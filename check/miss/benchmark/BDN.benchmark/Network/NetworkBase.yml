@@ -1,6 +1,0 @@
-fn:
-  - NetworkParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - SetupOperation
-  - SlowConsumeMessage

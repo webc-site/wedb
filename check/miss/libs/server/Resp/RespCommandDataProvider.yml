@@ -1,4 +1,0 @@
-fn:
-  - TryImportRespCommandsData
-  - TryExportRespCommandsData
-  - GetRespCommandsDataProvider

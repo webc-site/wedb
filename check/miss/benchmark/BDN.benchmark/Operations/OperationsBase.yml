@@ -1,9 +1,0 @@
-fn:
-  - OperationParamsProvider
-  - SetAllParams
-  - GlobalSetup
-  - GlobalCleanup
-  - ConfigureServerOptions
-  - BuildAadAuthSettings
-  - SetupOperation
-  - SlowConsumeMessage

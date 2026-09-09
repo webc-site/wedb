@@ -1,9 +1,0 @@
-fn:
-  - Process
-  - FillInline
-  - AfterInline
-  - AfterKey
-  - FillOverflow
-  - TryReadLengthPrefix
-  - EnsureInlineCapacity
-  - ObjectValueSequence

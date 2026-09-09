@@ -1,6 +1,0 @@
-fn:
-  - IsProgressing
-  - WriteRecord
-  - FanOutRecordSpan
-  - FanOutChunk
-  - Consume

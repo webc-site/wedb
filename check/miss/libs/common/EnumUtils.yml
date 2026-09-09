@@ -1,6 +1,0 @@
-fn:
-  - GetEnumNameToDescription
-  - GetEnumDescriptions
-  - TryParseEnumsFromDescription
-  - TryParseEnumFromDescription
-  - AddTypeToCache

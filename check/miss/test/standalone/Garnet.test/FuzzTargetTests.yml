@@ -1,7 +1,0 @@
-fn:
-  - TearDown
-test:
-  - TestsForAllTargets
-  - GarnetEndToEnd
-  - LuaScriptCompilation
-  - RespCommandParsing

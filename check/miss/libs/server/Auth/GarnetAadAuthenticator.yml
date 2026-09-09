@@ -1,7 +1,0 @@
-fn:
-  - Authenticate
-  - IsIdentityAuthorized
-  - IsApplicationAuthorized
-  - IsUserNameAuthorized
-  - IsAuthorized
-  - IsApplicationPrincipal

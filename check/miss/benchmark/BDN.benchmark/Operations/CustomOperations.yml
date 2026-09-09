@@ -1,7 +1,0 @@
-fn:
-  - CreateExtensions
-  - GlobalSetup
-  - CustomRawStringCommand
-  - CustomObjectCommand
-  - CustomTransaction
-  - CustomProcedure

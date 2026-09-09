@@ -1,5 +1,0 @@
-fn:
-  - Report
-  - TimerHandler
-  - UpdateText
-  - ResetTimer

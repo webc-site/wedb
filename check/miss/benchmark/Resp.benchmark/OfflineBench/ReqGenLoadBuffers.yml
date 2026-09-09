@@ -1,5 +1,0 @@
-fn:
-  - Generate
-  - GenerateBatch
-  - GenerateArrayOp
-  - GenerateSingleKeyValueOp

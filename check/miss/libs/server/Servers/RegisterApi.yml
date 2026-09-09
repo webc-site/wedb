@@ -1,6 +1,0 @@
-fn:
-  - NewCommand
-  - NewTransactionProc
-  - NewType
-  - NewProcedure
-  - NewModule

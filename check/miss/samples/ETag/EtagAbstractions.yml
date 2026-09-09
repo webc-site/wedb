@@ -1,5 +1,0 @@
-fn:
-  - PerformLockFreeSafeUpdate
-  - GetIfNotMatch
-  - GetWithEtag
-  - _updateItemIfMatch
