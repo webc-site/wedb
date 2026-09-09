@@ -13,10 +13,10 @@ description: garnet 转写 rust
 
 技术选型参考 ./.agents/skills/rust_review/SKILL.md
 
-尽量 1:1 对标 c#的代码实现，不要实现自己的优化（如果有，也撤销），除了以下几点
+尽量 1:1 对标 c#的代码实现，不要实现自己的优化（如果有，也撤销，尽量完全对标 c#，避免出现错误），除了以下几点
 
-- 并发字典、set 用 papaya + gxhash （在 embed/wbase/map.rs 中定义，用 map 或 set 特性启用）
 - 前缀用 enum u8，而不是字符串，也别加冒号
+- 并发字典、set 用 papaya + gxhash （在 embed/wbase/map.rs 中定义，用 map 或 set 特性启用）
 - 锁用 parking_lot
 - hash 一律用 gxhash
 
@@ -39,3 +39,5 @@ lua 用 luau
 开发与审查流水线重叠（一边审查上一层 crate，一边开发下一层 crate）
 
 不断循环，开新子代理 code review ，直到连续三次子代理认为完备完整的实现了 garnet 的代码，并且实现达到了生产级别
+
+全程自主完成决策，禁止请求人工确认
