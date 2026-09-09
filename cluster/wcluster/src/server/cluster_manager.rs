@@ -7,8 +7,10 @@ use log::trace;
 use parking_lot::RwLock;
 
 use crate::server::{
-  cluster_config::ClusterConfig, cluster_provider::ClusterProvider, hash_slot::SlotState,
-  worker::NodeRole,
+  cluster_config::{ClusterConfig, LOCAL_WORKER_ID},
+  cluster_provider::ClusterProvider,
+  hash_slot::SlotState,
+  worker::{LocalWorkerSpec, NodeRole},
 };
 
 /// garnet相对路径:Server:ClusterManager
@@ -39,29 +41,38 @@ impl ClusterManager {
 
   /// garnet相对路径:Server:ClusterManager:InitLocal
   pub fn init_local(&self, address: &str, port: i32, recover_config: bool) {
-    let hostname: Option<&str> = None; // Format.GetHostName() equivalent
     let mut config = self.current_config.write();
     if recover_config {
-      let conf = config.clone();
-      *config = conf.initialize_local_worker(
-        conf.local_node_id().unwrap_or(""),
+      // 先摘取本地字段再原地改写，避免 &mut 与读借用冲突
+      let (node_id, config_epoch, role, primary_id) = {
+        let c = &*config;
+        (
+          c.local_node_id().unwrap_or_default().to_string(),
+          c.local_node_config_epoch(),
+          c.local_node_role(),
+          c.local_node_primary_id().map(String::from),
+        )
+      };
+      config.initialize_local_worker(LocalWorkerSpec {
+        node_id: &node_id,
         address,
         port,
-        conf.local_node_config_epoch(),
-        conf.local_node_role(),
-        conf.local_node_primary_id(),
-        hostname,
-      );
+        config_epoch,
+        role,
+        replica_of_node_id: primary_id.as_deref(),
+        hostname: None, // Format.GetHostName() equivalent
+      });
     } else {
-      *config = config.initialize_local_worker(
-        &uuid::Uuid::new_v4().simple().to_string(), // equivalent to Generator.CreateHexId()
+      let node_id = uuid::Uuid::new_v4().simple().to_string(); // equivalent to Generator.CreateHexId()
+      config.initialize_local_worker(LocalWorkerSpec {
+        node_id: &node_id,
         address,
         port,
-        0,
-        NodeRole::Primary,
-        None,
-        hostname,
-      );
+        config_epoch: 0,
+        role: NodeRole::Primary,
+        replica_of_node_id: None,
+        hostname: None,
+      });
     }
   }
 
@@ -92,32 +103,20 @@ impl ClusterManager {
   }
 
   /// garnet相对路径:Server:ClusterManager:TryInitializeLocalWorker
-  #[allow(clippy::too_many_arguments)]
-  pub fn try_initialize_local_worker(
-    &self,
-    node_id: &str,
-    address: &str,
-    port: i32,
-    config_epoch: i64,
-    role: NodeRole,
-    replica_of_node_id: Option<&str>,
-    hostname: Option<&str>,
-  ) {
+  pub fn try_initialize_local_worker(&self, spec: LocalWorkerSpec<'_>) {
     let mut config = self.current_config.write();
-    *config = config.initialize_local_worker(
-      node_id,
-      address,
-      port,
-      config_epoch,
-      role,
-      replica_of_node_id,
-      hostname,
-    );
+    config.initialize_local_worker(spec);
   }
 
   /// garnet相对路径:Server:ClusterManager:GetInfo
   pub fn get_info(&self) -> String {
-    let current = self.current_config.read().clone();
+    // 持读锁直接统计，不克隆整份配置；单遍扫描取全部状态计数
+    let current = self.current_config.read();
+    let counts = current.slot_state_counts();
+    let (stable, fail) = (
+      counts[SlotState::Stable as usize],
+      counts[SlotState::Fail as usize],
+    );
     format!(
       "cluster_state:ok\r\n\
              cluster_slots_assigned:{}\r\n\
@@ -130,10 +129,7 @@ impl ClusterManager {
              cluster_my_epoch:{}\r\n\
              cluster_stats_messages_sent:0\r\n\
              cluster_stats_messages_received:0\r\n",
-      current.get_slot_count_for_state(SlotState::Stable),
-      current.get_slot_count_for_state(SlotState::Stable),
-      current.get_slot_count_for_state(SlotState::Fail),
-      current.get_slot_count_for_state(SlotState::Fail),
+      stable, stable, fail, fail,
       current.num_workers(),
       current.get_primary_count(),
       current.get_max_config_epoch(),
@@ -164,16 +160,16 @@ impl ClusterManager {
   }
 
   /// garnet相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
-  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> Result<(), &'static [u8]> {
+  ///
+  /// 错误集中定义于 [`crate::error`]，不再用裸字节串
+  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> crate::error::Result<()> {
     {
       let mut current = self.current_config.write();
       if current.num_workers() == 0 {
-        return Err(b"ERR workers not initialized");
+        return Err(crate::error::Error::NoWorkers);
       }
-      if let Some(new_config) = current.set_local_worker_config_epoch(config_epoch) {
-        *current = new_config;
-      } else {
-        return Err(b"ERR config epoch not set");
+      if !current.set_local_worker_config_epoch(config_epoch) {
+        return Err(crate::error::Error::EpochNotSet);
       }
     }
     self.flush_config();
@@ -185,7 +181,7 @@ impl ClusterManager {
   pub fn try_bump_cluster_epoch(&self) -> bool {
     {
       let mut current = self.current_config.write();
-      *current = current.bump_local_node_config_epoch();
+      current.bump_local_node_config_epoch();
     }
     self.flush_config();
     true
@@ -195,7 +191,7 @@ impl ClusterManager {
   pub fn try_set_local_node_role(&self, role: NodeRole) {
     {
       let mut current = self.current_config.write();
-      *current = current
+      current
         .set_local_worker_role(role)
         .bump_local_node_config_epoch();
     }
@@ -206,7 +202,7 @@ impl ClusterManager {
   pub fn try_reset_replica(&self) {
     {
       let mut current = self.current_config.write();
-      *current = current
+      current
         .make_replica_of(None)
         .set_local_worker_role(NodeRole::Primary)
         .bump_local_node_config_epoch();
@@ -218,13 +214,11 @@ impl ClusterManager {
   pub fn try_stop_writes(&self, replica_id: &str) {
     {
       let mut current = self.current_config.write();
-      let slot_map = current.get_slot_list(1);
+      let slots = current.get_slot_list(LOCAL_WORKER_ID as u16);
       let worker_id = current.get_worker_id_from_node_id(replica_id);
-      *current = current.make_replica_of(Some(replica_id)).assign_slots(
-        &slot_map,
-        worker_id,
-        SlotState::Stable,
-      );
+      current
+        .make_replica_of(Some(replica_id))
+        .assign_slots(&slots, worker_id, SlotState::Stable);
     }
     self.flush_config();
   }
@@ -236,9 +230,7 @@ impl ClusterManager {
       if !current.is_replica() || current.local_node_primary_id().is_none() {
         return false;
       }
-      *current = current
-        .take_over_from_primary()
-        .bump_local_node_config_epoch();
+      current.take_over_from_primary().bump_local_node_config_epoch();
     }
     self.flush_config();
     true

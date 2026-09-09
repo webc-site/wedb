@@ -86,7 +86,6 @@ impl FailoverSession {
   // --- PrimaryFailoverSession.cs ---
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:CheckReplicaSyncAsync
-  #[allow(dead_code)]
   async fn check_replica_sync_async(&self, gclient: Arc<GarnetClient>) -> Option<String> {
     if !gclient.is_connected {
       gclient.connect_async().await;
@@ -99,12 +98,12 @@ impl FailoverSession {
   }
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:WaitForFirstReplicaSyncAsync
+  ///
+  /// 对齐 C# 流程：取首个副本连接并做一次同步位点探测
   async fn wait_for_first_replica_sync_async(&self) -> Option<Arc<GarnetClient>> {
-    if !self.clients.is_empty() {
-      self.clients[0].clone()
-    } else {
-      None
-    }
+    let client = self.clients.first()?.clone()?;
+    self.check_replica_sync_async(client.clone()).await;
+    Some(client)
   }
 
   /// libs/cluster/Server/Failover/PrimaryFailoverSession.cs:InitiateReplicaTakeOverAsync
@@ -189,13 +188,12 @@ impl FailoverSession {
   ) {
     let old_primary_id = self.old_config.local_node_primary_id().unwrap_or("");
     let client = if old_primary_id == replica_id && self.primary_client.is_some() {
-      self.primary_client.clone().unwrap()
+      self.primary_client.clone()
     } else {
-      if let Some(c) = self.get_connection_async(replica_id).await {
-        c
-      } else {
-        return;
-      }
+      self.get_connection_async(replica_id).await
+    };
+    let Some(client) = client else {
+      return;
     };
 
     let _resp = client.gossip_async(config_byte_array).await;

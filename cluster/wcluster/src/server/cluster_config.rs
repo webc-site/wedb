@@ -4,15 +4,17 @@ use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
 use log::warn;
 
 use crate::server::{
-  hash_slot::{HashSlot, SlotState},
-  worker::{NodeRole, Worker},
+  hash_slot::{HashSlot, SlotState, SLOT_STATE_KINDS},
+  worker::{LocalWorkerSpec, NodeRole, Worker},
 };
 
 pub const RESERVED_WORKER_ID: usize = 0;
 pub const LOCAL_WORKER_ID: usize = 1;
 pub const MIN_HASH_SLOT_VALUE: usize = 0;
 pub const MAX_HASH_SLOT_VALUE: usize = 16384;
-pub const CLUSTER_CONFIG_VERSION: u8 = 1;
+/// 集群配置线格式版本：v2 起由 .NET BinaryWriter 布局换为 bitcode 编码，
+/// 无向下兼容负担，异版本载荷在解码前即被拒绝
+pub const CLUSTER_CONFIG_VERSION: u8 = 2;
 
 /// garnet相对路径:Server:ClusterPreferredEndpointType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,27 +74,20 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeLocalWorker
-  #[allow(clippy::too_many_arguments)]
-  pub fn initialize_local_worker(
-    &self,
-    node_id: &str,
-    address: &str,
-    port: i32,
-    config_epoch: i64,
-    role: NodeRole,
-    replica_of_node_id: Option<&str>,
-    hostname: Option<&str>,
-  ) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].address = address.to_string();
-    new_config.workers[LOCAL_WORKER_ID].port = port;
-    new_config.workers[LOCAL_WORKER_ID].nodeid = Some(node_id.to_string());
-    new_config.workers[LOCAL_WORKER_ID].config_epoch = config_epoch;
-    new_config.workers[LOCAL_WORKER_ID].role = role;
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = replica_of_node_id.map(String::from);
-    new_config.workers[LOCAL_WORKER_ID].replication_offset = 0;
-    new_config.workers[LOCAL_WORKER_ID].hostname = hostname.map(String::from);
-    new_config
+  ///
+  /// 原地更新本地 worker。C# 版每次复制重建 workers 数组；调用方均持有
+  /// 写锁，此处直接改写，省去整份 slot_map（64KB）克隆。
+  /// C# 散参入参聚合为 [`LocalWorkerSpec`]，免 too_many_arguments
+  pub fn initialize_local_worker(&mut self, spec: LocalWorkerSpec<'_>) {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.address = spec.address.to_string();
+    w.port = spec.port;
+    w.nodeid = Some(spec.node_id.to_string());
+    w.config_epoch = spec.config_epoch;
+    w.role = spec.role;
+    w.replica_of_node_id = spec.replica_of_node_id.map(String::from);
+    w.replication_offset = 0;
+    w.hostname = spec.hostname.map(String::from);
   }
 
   /// garnet相对路径:Server:ClusterConfig:HasAssignedSlots
@@ -132,11 +127,7 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:IsKnown
   pub fn is_known(&self, nodeid: &str) -> bool {
-    self.workers[1..=self.num_workers()].iter().any(|w| {
-      w.nodeid
-        .as_deref()
-        .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
-    })
+    self.worker_by_node_id(nodeid).is_some()
   }
 
   /// garnet相对路径:Server:ClusterConfig:IsPrimary
@@ -166,15 +157,11 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:LocalNodeIdShort
   pub fn local_node_id_short(&self) -> String {
-    if let Some(id) = &self.workers[LOCAL_WORKER_ID].nodeid {
-      if id.len() >= 8 {
-        id[0..8].to_string()
-      } else {
-        id.to_string()
-      }
-    } else {
-      "".to_string()
-    }
+    let Some(id) = &self.workers[LOCAL_WORKER_ID].nodeid else {
+      return String::new();
+    };
+    // get 而非切片：nodeid 可能来自外部配置，非 ASCII 边界切片会 panic
+    id.get(..8).unwrap_or(id).to_string()
   }
 
   /// garnet相对路径:Server:ClusterConfig:LocalNodeRole
@@ -307,66 +294,55 @@ impl ClusterConfig {
       .collect()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
-  pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
-    for (i, worker) in self
+  /// 按节点 id 查找 worker（下标从 1 起，0 号保留位除外），大小写不敏感。
+  /// 全部 node_id→worker 投影方法共用此单一查找定义，替代原先各写一遍
+  /// 的"id 查找 + 越界回退"样板
+  fn worker_by_node_id(&self, node_id: &str) -> Option<(usize, &Worker)> {
+    self
       .workers
       .iter()
       .enumerate()
-      .take(self.num_workers() + 1)
       .skip(1)
-    {
-      if let Some(id) = &worker.nodeid
-        && id.eq_ignore_ascii_case(node_id)
-      {
-        return i as u16;
-      }
-    }
-    0
+      .find(|(_, w)| {
+        w.nodeid
+          .as_deref()
+          .is_some_and(|id| id.eq_ignore_ascii_case(node_id))
+      })
+  }
+
+  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
+  pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
+    self
+      .worker_by_node_id(node_id)
+      .map_or(0, |(i, _)| i as u16)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetNodeRoleFromNodeId
   #[inline]
   pub fn get_node_role_from_node_id(&self, node_id: &str) -> NodeRole {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid < self.workers.len() {
-      self.workers[wid].role
-    } else {
-      NodeRole::Unassigned
-    }
+    self
+      .worker_by_node_id(node_id)
+      .map_or(NodeRole::Unassigned, |(_, w)| w.role)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerFromNodeId
   pub fn get_worker_from_node_id(&self, node_id: &str) -> Option<&Worker> {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid > 0 && wid < self.workers.len() {
-      Some(&self.workers[wid])
-    } else {
-      None
-    }
+    self.worker_by_node_id(node_id).map(|(_, w)| w)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerAddressFromNodeId
   pub fn get_worker_address_from_node_id(&self, node_id: &str) -> (Option<String>, i32) {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid == 0 || wid >= self.workers.len() {
-      (None, -1)
-    } else {
-      (
-        Some(self.workers[wid].address.clone()),
-        self.workers[wid].port,
-      )
+    match self.worker_by_node_id(node_id) {
+      Some((_, w)) => (Some(w.address.clone()), w.port),
+      None => (None, -1),
     }
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetHostNameFromNodeId
   pub fn get_host_name_from_node_id(&self, node_id: &str) -> Option<String> {
-    let wid = self.get_worker_id_from_node_id(node_id) as usize;
-    if wid == 0 || wid >= self.workers.len() {
-      None
-    } else {
-      self.workers[wid].hostname.clone()
-    }
+    self
+      .worker_by_node_id(node_id)
+      .and_then(|(_, w)| w.hostname.clone())
   }
 }
 
@@ -476,14 +452,9 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetEndpointFromNodeId
   #[inline]
   pub fn get_endpoint_from_node_id(&self, nodeid: &str) -> Option<SocketAddr> {
-    let wid = self.get_worker_id_from_node_id(nodeid) as usize;
-    if wid > 0
-      && wid < self.workers.len()
-      && let Ok(ip) = self.workers[wid].address.parse()
-    {
-      return Some(SocketAddr::new(ip, self.workers[wid].port as u16));
-    }
-    None
+    self
+      .worker_by_node_id(nodeid)
+      .and_then(|(_, w)| Some(SocketAddr::new(w.address.parse().ok()?, w.port as u16)))
   }
 }
 
@@ -537,13 +508,21 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetSlotCountForState
   pub fn get_slot_count_for_state(&self, state: SlotState) -> usize {
-    let mut count = 0;
-    for i in 0..MAX_HASH_SLOT_VALUE {
-      if self.slot_map[i].state == state {
-        count += 1;
-      }
+    self
+      .slot_map
+      .iter()
+      .filter(|s| s.state == state)
+      .count()
+  }
+
+  /// 单遍扫描统计全部槽位状态计数；CLUSTER INFO 需要 4 个状态计数时
+  /// 复用本方法，避免 4 次全表遍历
+  pub fn slot_state_counts(&self) -> [usize; SLOT_STATE_KINDS] {
+    let mut counts = [0usize; SLOT_STATE_KINDS];
+    for slot in self.slot_map.iter() {
+      counts[slot.state as usize] += 1;
     }
-    count
+    counts
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetPrimaryCount
@@ -584,40 +563,36 @@ impl ClusterConfig {
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:RemoveWorker
+  ///
+  /// 差异：C# 未找到目标节点时仍按 worker_id=0 执行，会误删 0 号保留位；
+  /// 此处直接原样返回，调用方语义不变但杜绝配置损坏
   pub fn remove_worker(&self, nodeid: &str) -> Self {
-    let worker_id = self
-      .workers
-      .iter()
-      .enumerate()
-      .skip(1)
-      .find(|(_, w)| {
-        w.nodeid
-          .as_deref()
-          .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
-      })
-      .map(|(i, _)| i)
-      .unwrap_or(0);
+    let Some((worker_id, _)) = self.worker_by_node_id(nodeid) else {
+      return self.clone();
+    };
 
     let mut new_slot_map = self.slot_map.clone();
-    for i in 0..MAX_HASH_SLOT_VALUE {
-      let state = new_slot_map[i].state;
-      let wid = new_slot_map[i].worker_id as usize;
+    for slot in new_slot_map.iter_mut() {
+      let state = slot.state;
+      let wid = slot.worker_id as usize;
 
       if state == SlotState::Stable && wid == worker_id {
-        new_slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-        new_slot_map[i].state = SlotState::Offline;
-      } else if state == SlotState::Migrating && new_slot_map[i].worker_id as usize == worker_id {
-        new_slot_map[i].worker_id = LOCAL_WORKER_ID as u16;
-        new_slot_map[i].state = SlotState::Stable;
+        slot.worker_id = RESERVED_WORKER_ID as u16;
+        slot.state = SlotState::Offline;
+      } else if state == SlotState::Migrating && wid == worker_id {
+        slot.worker_id = LOCAL_WORKER_ID as u16;
+        slot.state = SlotState::Stable;
       } else if state == SlotState::Importing && wid < self.workers.len() {
         if let Some(ref nid) = self.workers[wid].nodeid
           && nid.eq_ignore_ascii_case(nodeid)
         {
-          new_slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-          new_slot_map[i].state = SlotState::Offline;
+          slot.worker_id = RESERVED_WORKER_ID as u16;
+          slot.state = SlotState::Offline;
         }
-      } else if wid > worker_id {
-        new_slot_map[i].worker_id -= 1;
+      } else if slot.eff_worker_id() as usize > worker_id {
+        // 与 C# 一致用 eff id 比较：Migrating 槽 eff 恒为 LOCAL(1)，
+        // 不会被误当作"高位 worker"而错误递减迁移目标
+        slot.worker_id -= 1;
       }
     }
 
@@ -636,282 +611,299 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:MakeReplicaOf
-  pub fn make_replica_of(&self, nodeid: Option<&str>) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = nodeid.map(|s| s.to_string());
-    new_config.workers[LOCAL_WORKER_ID].role = NodeRole::Replica;
-    new_config
+  pub fn make_replica_of(&mut self, nodeid: Option<&str>) -> &mut Self {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.replica_of_node_id = nodeid.map(String::from);
+    w.role = NodeRole::Replica;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerRole
-  pub fn set_local_worker_role(&self, role: NodeRole) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].role = role;
-    new_config
+  pub fn set_local_worker_role(&mut self, role: NodeRole) -> &mut Self {
+    self.workers[LOCAL_WORKER_ID].role = role;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TakeOverFromPrimary
-  pub fn take_over_from_primary(&self) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].role = NodeRole::Primary;
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = None;
-
+  pub fn take_over_from_primary(&mut self) -> &mut Self {
+    // 先按现主收集槽位再清 primary 指针，顺序不能反
     let slots = self.get_local_primary_slots();
     for slot in slots {
-      new_config.slot_map[slot].worker_id = LOCAL_WORKER_ID as u16;
-      new_config.slot_map[slot].state = SlotState::Stable;
+      let s = &mut self.slot_map[slot];
+      s.worker_id = LOCAL_WORKER_ID as u16;
+      s.state = SlotState::Stable;
     }
-    new_config
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.role = NodeRole::Primary;
+    w.replica_of_node_id = None;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryAddSlots
+  ///
+  /// 先整体校验再占位：与 C# 的"新配置上试错"等价的 all-or-nothing 语义，
+  /// 但无需整份克隆
   pub fn try_add_slots(
-    &self,
+    &mut self,
     slots: Option<&HashSet<usize>>,
     state: SlotState,
-  ) -> Result<Self, usize> {
-    let mut new_config = self.clone();
-    if let Some(s) = slots {
-      for &slot in s {
-        if new_config.slot_map[slot].eff_worker_id() != 0 {
-          return Err(slot);
-        }
-        new_config.slot_map[slot].worker_id = LOCAL_WORKER_ID as u16;
-        new_config.slot_map[slot].state = state;
+  ) -> Result<(), usize> {
+    let Some(s) = slots else {
+      return Ok(());
+    };
+    for &slot in s {
+      if self.slot_map[slot].eff_worker_id() != 0 {
+        return Err(slot);
       }
     }
-    Ok(new_config)
+    for &slot in s {
+      let e = &mut self.slot_map[slot];
+      e.worker_id = LOCAL_WORKER_ID as u16;
+      e.state = state;
+    }
+    Ok(())
   }
 
   /// garnet相对路径:Server:ClusterConfig:AssignSlots
-  pub fn assign_slots(&self, slots: &[usize], worker_id: u16, state: SlotState) -> Self {
-    let mut new_config = self.clone();
+  pub fn assign_slots(&mut self, slots: &[usize], worker_id: u16, state: SlotState) -> &mut Self {
     for &slot in slots {
-      new_config.slot_map[slot].worker_id = worker_id;
-      new_config.slot_map[slot].state = state;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = worker_id;
+      e.state = state;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryRemoveSlots
-  pub fn try_remove_slots(&self, slots: Option<&HashSet<usize>>) -> Result<Self, usize> {
-    let mut new_config = self.clone();
-    if let Some(s) = slots {
-      for &slot in s {
-        if new_config.slot_map[slot].eff_worker_id() == 0 {
-          return Err(slot);
-        }
-        new_config.slot_map[slot].worker_id = 0;
-        new_config.slot_map[slot].state = SlotState::Offline;
+  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> Result<(), usize> {
+    let Some(s) = slots else {
+      return Ok(());
+    };
+    for &slot in s {
+      if self.slot_map[slot].eff_worker_id() == 0 {
+        return Err(slot);
       }
     }
-    Ok(new_config)
+    for &slot in s {
+      let e = &mut self.slot_map[slot];
+      e.worker_id = 0;
+      e.state = SlotState::Offline;
+    }
+    Ok(())
   }
 
   /// garnet相对路径:Server:ClusterConfig:UpdateSlotState
-  pub fn update_slot_state(&self, slot: usize, worker_id: u16, state: SlotState) -> Self {
-    let mut new_config = self.clone();
-    new_config.slot_map[slot].worker_id = worker_id;
-    new_config.slot_map[slot].state = state;
-    new_config
+  pub fn update_slot_state(&mut self, slot: usize, worker_id: u16, state: SlotState) -> &mut Self {
+    let e = &mut self.slot_map[slot];
+    e.worker_id = worker_id;
+    e.state = state;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:UpdateMultiSlotState
   pub fn update_multi_slot_state(
-    &self,
+    &mut self,
     slots: &HashSet<usize>,
     worker_id: u16,
     state: SlotState,
-  ) -> Self {
-    let mut new_config = self.clone();
+  ) -> &mut Self {
     for &slot in slots {
-      new_config.slot_map[slot].worker_id = worker_id;
-      new_config.slot_map[slot].state = state;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = worker_id;
+      e.state = state;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:ResetMultiSlotState
-  pub fn reset_multi_slot_state(&self, slots: &HashSet<usize>) -> Self {
-    let mut new_config = self.clone();
+  pub fn reset_multi_slot_state(&mut self, slots: &HashSet<usize>) -> &mut Self {
     for &slot in slots {
+      // Migrating 槽归本地源节点，其余按 eff 属主回稳
       let st = self.get_state(slot as u16);
       let wid = if st == SlotState::Migrating {
         LOCAL_WORKER_ID as u16
       } else {
         self.get_worker_id_from_slot(slot as u16) as u16
       };
-      new_config.slot_map[slot].worker_id = wid;
-      new_config.slot_map[slot].state = SlotState::Stable;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = wid;
+      e.state = SlotState::Stable;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerConfigEpoch
-  pub fn set_local_worker_config_epoch(&self, config_epoch: i64) -> Option<Self> {
-    let mut new_config = self.clone();
-    if self.workers[LOCAL_WORKER_ID].config_epoch == 0
-      || self.workers[LOCAL_WORKER_ID].config_epoch < config_epoch
-    {
-      new_config.workers[LOCAL_WORKER_ID].config_epoch = config_epoch;
-      Some(new_config)
+  ///
+  /// 语义对齐 C#：仅允许"从 0 初始化"且新值必须为正；后续单调递增只能走
+  /// [`Self::bump_local_node_config_epoch`]，防止覆写既有 epoch。
+  /// 返回是否实际生效
+  pub fn set_local_worker_config_epoch(&mut self, config_epoch: i64) -> bool {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    if w.config_epoch == 0 && w.config_epoch < config_epoch {
+      w.config_epoch = config_epoch;
+      true
     } else {
-      None
+      false
     }
   }
 
   /// garnet相对路径:Server:ClusterConfig:BumpLocalNodeConfigEpoch
-  pub fn bump_local_node_config_epoch(&self) -> Self {
+  pub fn bump_local_node_config_epoch(&mut self) -> &mut Self {
     let mx = self.get_max_config_epoch();
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].config_epoch = mx + 1;
-    new_config
+    self.workers[LOCAL_WORKER_ID].config_epoch = mx + 1;
+    self
   }
 }
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:MergeWorkerInfo
-  fn merge_worker_info(&self, worker: &Worker) -> Self {
-    let mut worker_id = RESERVED_WORKER_ID;
-    for i in 1..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid
-        && let Some(ref wid) = worker.nodeid
-        && id.eq_ignore_ascii_case(wid)
-      {
-        if worker.config_epoch <= self.workers[i].config_epoch {
-          return self.clone();
-        }
-        worker_id = i;
-        break;
+  ///
+  /// 原地合并单个 worker：同名节点仅在 epoch 严格更大时更新，否则追加。
+  /// 返回是否发生变化。对齐 C# 仅复制 7 个元数据字段（不含
+  /// replication_offset——副本位点不随 gossip 传播）。
+  /// C# 版每次调用重建 workers 数组，本版配合 [`Self::merge`] 只克隆一次
+  fn merge_worker_info(&mut self, worker: &Worker) -> bool {
+    let Some(node_id) = worker.nodeid.as_deref() else {
+      return false;
+    };
+    if let Some((i, _)) = self.worker_by_node_id(node_id) {
+      if worker.config_epoch <= self.workers[i].config_epoch {
+        return false;
       }
+      // 对齐 C#：仅覆盖 7 个元数据字段，replication_offset 保留本地值
+      // （副本位点不随 gossip 传播）
+      let local_offset = self.workers[i].replication_offset;
+      self.workers[i].clone_from(worker);
+      self.workers[i].replication_offset = local_offset;
+      return true;
     }
-
-    let mut new_config = self.clone();
-    if worker_id == RESERVED_WORKER_ID {
-      worker_id = new_config.workers.len();
-      new_config.workers.push(Worker::default());
-    }
-
-    new_config.workers[worker_id].address = worker.address.clone();
-    new_config.workers[worker_id].port = worker.port;
-    new_config.workers[worker_id].nodeid = worker.nodeid.clone();
-    new_config.workers[worker_id].config_epoch = worker.config_epoch;
-    new_config.workers[worker_id].role = worker.role;
-    new_config.workers[worker_id].replica_of_node_id = worker.replica_of_node_id.clone();
-    new_config.workers[worker_id].hostname = worker.hostname.clone();
-
-    new_config
+    let mut w = worker.clone();
+    w.replication_offset = 0;
+    self.workers.push(w);
+    true
   }
 
   /// garnet相对路径:Server:ClusterConfig:MergeSlotMap
-  pub fn merge_slot_map(&self, sender_config: &ClusterConfig) -> Self {
-    let mut updated = false;
+  ///
+  /// 原地合并槽位图，返回是否有槽位变化。调用方需先做整体克隆
+  /// （与 C# Copy 一次 slotMap 相同开销）
+  pub fn merge_slot_map(&mut self, sender_config: &ClusterConfig) -> bool {
     let sender_slot_map = &sender_config.slot_map;
-    let mut assign_to_worker_id = if let Some(id) = sender_config.local_node_id() {
-      self.get_worker_id_from_node_id(id)
-    } else {
-      0
+    let mut assign_to_worker_id = match sender_config.local_node_id() {
+      Some(id) => self.get_worker_id_from_node_id(id),
+      None => 0,
     };
 
-    let mut new_config = self.clone();
-
+    let mut updated = false;
     for i in 0..MAX_HASH_SLOT_VALUE {
-      let current_owner_id = new_config.slot_map[i].worker_id as usize;
-
       if sender_slot_map[i].state != SlotState::Stable {
         continue;
       }
 
-      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
-        let current_owner_node_id = if current_owner_id < self.workers.len() {
-          self.workers[current_owner_id].nodeid.clone()
-        } else {
-          None
-        };
+      // 与 C# 一致取 eff id：本地 Migrating 槽的当前归属按 LOCAL(1) 判定，
+      // 迁移目标节点 gossip 认领时走 epoch 比较直接移交，而非误判为
+      // "目标已是属主"把槽重置为 Offline 造成短暂失主
+      let current_owner_id = self.slot_map[i].eff_worker_id() as usize;
 
+      // 发送方非本槽认领者且是主：若本地认为属主即发送方（epoch 碰撞后
+      // 的错位状态），重置为 Offline 给真实属主重新认领的机会
+      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
+        let current_owner_node_id = self.workers.get(current_owner_id).and_then(|w| w.nodeid.as_deref());
         if let Some(conid) = current_owner_node_id
           && let Some(sid) = sender_config.local_node_id()
           && conid.eq_ignore_ascii_case(sid)
         {
-          new_config.slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-          new_config.slot_map[i].state = SlotState::Offline;
+          let slot = &mut self.slot_map[i];
+          slot.worker_id = RESERVED_WORKER_ID as u16;
+          slot.state = SlotState::Offline;
           updated = true;
         }
         continue;
       }
 
       if sender_config.is_primary() {
+        // 发送方是本槽认领者且为主：仅当其 epoch 更高才可改写本槽
         if sender_config.local_node_config_epoch() != 0
-          && current_owner_id < self.workers.len()
-          && self.workers[current_owner_id].config_epoch >= sender_config.local_node_config_epoch()
+          && self.workers.get(current_owner_id).is_some_and(|w| {
+            w.config_epoch >= sender_config.local_node_config_epoch()
+          })
         {
           continue;
         }
       } else if current_owner_id != RESERVED_WORKER_ID {
-        if current_owner_id < self.workers.len()
-          && let Some(ref id) = self.workers[current_owner_id].nodeid
-          && let Some(sid) = sender_config.local_node_id()
-          && !id.eq(sid)
-        {
+        // 副本场景：仅当本槽现属主即发送方（旧主）才允许移交其副本，
+        // 保证计划内 failover 下多副本乱序 gossip 只有接管者生效
+        let owner_is_sender = self.workers.get(current_owner_id).is_some_and(|w| {
+          w.nodeid
+            .as_deref()
+            .is_some_and(|id| sender_config.local_node_id().is_some_and(|sid| id.eq(sid)))
+        });
+        if !owner_is_sender {
           continue;
         }
-        assign_to_worker_id = if let Some(pid) = sender_config.local_node_primary_id() {
-          self.get_worker_id_from_node_id(pid)
-        } else {
-          0
+        assign_to_worker_id = match sender_config.local_node_primary_id() {
+          Some(pid) => self.get_worker_id_from_node_id(pid),
+          None => 0,
         };
       }
 
-      updated |= new_config.slot_map[i].worker_id != assign_to_worker_id
-        || new_config.slot_map[i].state != SlotState::Stable;
+      // 仅当属主或状态变化才算更新：避免 sender epoch=0 时的消息风暴
+      updated |= self.slot_map[i].worker_id != assign_to_worker_id
+        || self.slot_map[i].state != SlotState::Stable;
 
-      new_config.slot_map[i].worker_id = assign_to_worker_id;
-      new_config.slot_map[i].state = SlotState::Stable;
+      let slot = &mut self.slot_map[i];
+      slot.worker_id = assign_to_worker_id;
+      slot.state = SlotState::Stable;
     }
-
-    if updated { new_config } else { self.clone() }
+    updated
   }
 
   /// garnet相对路径:Server:ClusterConfig:Merge
+  ///
+  /// 全程仅一次整份克隆（slot_map 64KB）：先逐 worker 原地合并，再原地
+  /// 合并槽位图。原实现每 worker 全量克隆一次，N 个 worker 的 gossip
+  /// 合并要做 N+2 次 64KB 拷贝。无变化返回 None（对标 C# TryMerge 的
+  /// `currentCopy == next` 快速失败，避免无谓落盘）
   pub fn merge(
     &self,
     sender_config: &ClusterConfig,
     worker_ban_list: &gxhash::HashMap<String, i64>,
-  ) -> Self {
+  ) -> Option<Self> {
     let local_id = self.local_node_id();
-    let mut new_config = self.clone();
+    let mut merged = self.clone();
+    let mut changed = false;
 
     for worker in &sender_config.workers[1..=sender_config.num_workers()] {
-      if let Some(ref sid) = worker.nodeid {
-        if let Some(lid) = local_id
-          && lid.eq_ignore_ascii_case(sid)
-        {
-          continue;
-        }
-        if worker_ban_list.contains_key(sid) {
-          continue;
-        }
-        new_config = new_config.merge_worker_info(worker);
+      let Some(ref sid) = worker.nodeid else {
+        continue;
+      };
+      if local_id.is_some_and(|lid| lid.eq_ignore_ascii_case(sid)) || worker_ban_list.contains_key(sid) {
+        continue;
       }
+      changed |= merged.merge_worker_info(worker);
     }
 
-    new_config.merge_slot_map(sender_config)
+    changed |= merged.merge_slot_map(sender_config);
+    changed.then_some(merged)
   }
 
   /// garnet相对路径:Server:ClusterConfig:HandleConfigEpochCollision
-  pub fn handle_config_epoch_collision(&self, sender_config: &ClusterConfig) -> Self {
+  ///
+  /// 原地处理 epoch 碰撞，返回是否发生碰撞并自增（true 时需落盘）
+  pub fn handle_config_epoch_collision(&mut self, sender_config: &ClusterConfig) -> bool {
     let local_node_config_epoch = self.local_node_config_epoch();
     let sender_config_epoch = sender_config.local_node_config_epoch();
 
     if local_node_config_epoch != sender_config_epoch {
-      return self.clone();
+      return false;
     }
 
     let sender_node_id = sender_config.local_node_id().unwrap_or("");
     let local_node_id = self.local_node_id().unwrap_or("");
 
+    // 对齐 C#：仅当发送方 id 字典序更大才自增，双方各退一步避免死循环
     if sender_node_id.cmp(local_node_id) != Ordering::Greater {
-      return self.clone();
+      return false;
     }
 
     warn!(
@@ -926,7 +918,8 @@ impl ClusterConfig {
       sender_config.local_node_id_short()
     );
 
-    self.bump_local_node_config_epoch()
+    self.bump_local_node_config_epoch();
+    true
   }
 }
 
@@ -1312,15 +1305,17 @@ impl ClusterConfig {
 
       let mut slot_end = slot_start;
       while slot_end < MAX_HASH_SLOT_VALUE {
+        // 与 C# 一致按 eff id 分段：Migrating 槽归源节点（LOCAL）名下，
+        // CLUSTER SLOTS 不把它误报到迁移目标
         if self.slot_map[slot_end].state == SlotState::Offline
-          || self.slot_map[slot_start].worker_id != self.slot_map[slot_end].worker_id
+          || self.slot_map[slot_start].eff_worker_id() != self.slot_map[slot_end].eff_worker_id()
         {
           break;
         }
         slot_end += 1;
       }
 
-      let curr_worker_id = self.slot_map[slot_start].worker_id as usize;
+      let curr_worker_id = self.slot_map[slot_start].eff_worker_id() as usize;
       let address = self.workers[curr_worker_id].address.clone();
       let port = self.workers[curr_worker_id].port;
       let nodeid = self.workers[curr_worker_id]
@@ -1463,185 +1458,107 @@ impl ClusterConfig {
   }
 }
 
-use std::io::{Cursor, Read};
+use bitcode::{Decode, Encode};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use crate::error::Error;
+
+/// 集群配置线格式（bitcode 编码）
+///
+/// 槽位图以 RLE 段传输（连续同 (worker_id, state) 的槽数远多于段数，
+/// 典型集群个位数段即可覆盖 16384 槽），worker 自 1 号起序列化，
+/// 0 号保留位反序列化时按 default 重建——与 C# 布局语义一致，但编码
+/// 由 .NET BinaryWriter 的 7-bit 变长整数 hack 换为 bitcode 位压缩，
+/// 且解码不再吞错（原实现对截断/越界静默补 0/空串，会产出损坏配置）
+#[derive(Encode, Decode)]
+struct ConfigWire {
+  segments: Vec<SlotSegmentWire>,
+  workers: Vec<Worker>,
+}
+
+/// 一段连续同状态槽位
+#[derive(Encode, Decode)]
+struct SlotSegmentWire {
+  count: u16,
+  worker_id: u16,
+  /// SlotState 的 u8 表示（显式字节而非枚举直编，状态含义不依赖位布局）
+  state: u8,
+}
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:TryPeekVersion
+  ///
+  /// 全量解码前快速校验版本号（gossip 接收端先用它拒绝异版本节点）
+  #[inline]
   pub fn try_peek_version(data: &[u8]) -> Option<u8> {
-    if data.is_empty() { None } else { Some(data[0]) }
+    data.first().copied()
   }
 
   /// garnet相对路径:Server:ClusterConfig:ToByteArray
   pub fn to_byte_array(&self) -> Vec<u8> {
-    let mut ms = Vec::new();
-    // Write serialization format version
-    ms.write_u8(CLUSTER_CONFIG_VERSION).unwrap();
+    let segments: Vec<SlotSegmentWire> = self
+      .slot_map
+      .iter()
+      .map(|s| (s.worker_id, s.state as u8))
+      .fold(Vec::new(), |mut segs, (worker_id, state)| {
+        if let Some(last) = segs.last_mut()
+          && last.worker_id == worker_id
+          && last.state == state
+        {
+          last.count += 1;
+        } else {
+          segs.push(SlotSegmentWire {
+            count: 1,
+            worker_id,
+            state,
+          });
+        }
+        segs
+      });
 
-    self.serialize_slot_map(&mut ms);
+    let wire = ConfigWire {
+      segments,
+      workers: self.workers[1..].to_vec(),
+    };
 
-    // Serialize worker info
-    ms.write_i32::<LittleEndian>(self.workers.len() as i32)
-      .unwrap();
-    for worker in self.workers.iter().skip(1) {
-      write_string(&mut ms, worker.nodeid.as_deref().unwrap_or(""));
-      write_string(&mut ms, &worker.address);
-      ms.write_i32::<LittleEndian>(worker.port).unwrap();
-      ms.write_i64::<LittleEndian>(worker.config_epoch).unwrap();
-      ms.write_u8(worker.role as u8).unwrap();
-
-      if worker.replica_of_node_id.is_none() {
-        ms.write_u8(0).unwrap();
-      } else {
-        ms.write_u8(1).unwrap();
-        write_string(&mut ms, worker.replica_of_node_id.as_deref().unwrap());
-      }
-
-      ms.write_i64::<LittleEndian>(worker.replication_offset)
-        .unwrap();
-
-      if worker.hostname.is_none() {
-        ms.write_u8(0).unwrap();
-      } else {
-        ms.write_u8(1).unwrap();
-        write_string(&mut ms, worker.hostname.as_deref().unwrap());
-      }
-    }
-
-    ms
-  }
-
-  fn serialize_slot_map(&self, ms: &mut Vec<u8>) {
-    let segment_count_position = ms.len();
-    ms.write_u16::<LittleEndian>(0).unwrap(); // placeholder
-
-    let mut segment_count: u16 = 0;
-    let mut count: u16 = 1;
-    let mut worker_id = self.slot_map[0].worker_id;
-    let mut state = self.slot_map[0].state as u8;
-
-    for i in 1..self.slot_map.len() {
-      let _state = self.slot_map[i].state as u8;
-
-      if self.slot_map[i].worker_id != worker_id || _state != state {
-        segment_count += 1;
-        ms.write_u16::<LittleEndian>(count).unwrap();
-        ms.write_u16::<LittleEndian>(worker_id).unwrap();
-        ms.write_u8(state).unwrap();
-
-        count = 1;
-        worker_id = self.slot_map[i].worker_id;
-        state = _state;
-        continue;
-      }
-      count += 1;
-    }
-
-    segment_count += 1;
-    ms.write_u16::<LittleEndian>(count).unwrap();
-    ms.write_u16::<LittleEndian>(worker_id).unwrap();
-    ms.write_u8(state).unwrap();
-
-    let mut cursor = Cursor::new(ms);
-    cursor.set_position(segment_count_position as u64);
-    cursor.write_u16::<LittleEndian>(segment_count).unwrap();
+    let mut out = Vec::with_capacity(wire.workers.len() * 64 + 16);
+    out.push(CLUSTER_CONFIG_VERSION);
+    out.extend_from_slice(&bitcode::encode(&wire));
+    out
   }
 
   /// garnet相对路径:Server:ClusterConfig:FromByteArray
-  pub fn from_byte_array(other: &[u8]) -> Result<Self, &'static str> {
-    let mut reader = Cursor::new(other);
-    if other.is_empty() {
-      return Err("Invalid ClusterConfig payload: too short to contain a version");
-    }
-    let version = reader.read_u8().unwrap();
+  pub fn from_byte_array(data: &[u8]) -> crate::error::Result<Self> {
+    let Some((&version, payload)) = data.split_first() else {
+      return Err(Error::PayloadTooShort);
+    };
     if version != CLUSTER_CONFIG_VERSION {
-      return Err("Incompatible ClusterConfig version");
+      return Err(Error::Version {
+        got: version,
+        expect: CLUSTER_CONFIG_VERSION,
+      });
     }
 
-    let new_slot_map = Self::deserialize_slot_map(&mut reader);
-    let num_workers = reader.read_i32::<LittleEndian>().unwrap_or(0);
-    let mut new_workers = vec![Worker::default(); num_workers as usize];
+    let wire: ConfigWire = bitcode::decode(payload)?;
 
-    for worker in new_workers.iter_mut().skip(1) {
-      worker.nodeid = Some(read_string(&mut reader));
-      worker.address = read_string(&mut reader);
-      worker.port = reader.read_i32::<LittleEndian>().unwrap_or(0);
-      worker.config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
-      worker.role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
-
-      let is_null = reader.read_u8().unwrap_or(0);
-      if is_null > 0 {
-        worker.replica_of_node_id = Some(read_string(&mut reader));
+    let mut slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
+    let mut offset = 0usize;
+    for seg in &wire.segments {
+      let state = SlotState::from_repr(seg.state).ok_or(Error::SlotState(seg.state))?;
+      let end = offset + seg.count as usize;
+      if end > MAX_HASH_SLOT_VALUE {
+        return Err(Error::SlotOverflow);
       }
-
-      worker.replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
-
-      let is_null = reader.read_u8().unwrap_or(0);
-      if is_null > 0 {
-        worker.hostname = Some(read_string(&mut reader));
+      for slot in &mut slot_map[offset..end] {
+        slot.worker_id = seg.worker_id;
+        slot.state = state;
       }
+      offset = end;
     }
 
-    Ok(Self::with_data(new_slot_map, new_workers))
+    // 0 号保留位不在线格式内，按 default 重建（对应 C# skip(1) 布局）
+    let mut workers = vec![Worker::default(); wire.workers.len() + 1];
+    workers[1..].clone_from_slice(&wire.workers);
+
+    Ok(Self { slot_map, workers })
   }
-
-  fn deserialize_slot_map(reader: &mut Cursor<&[u8]>) -> Box<[HashSlot; MAX_HASH_SLOT_VALUE]> {
-    let mut new_slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
-    let segment_count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-    let mut slot_offset = 0;
-
-    for _ in 0..segment_count {
-      let count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-      let worker_id = reader.read_u16::<LittleEndian>().unwrap_or(0);
-      let state_byte = reader.read_u8().unwrap_or(0);
-      let state = SlotState::from_repr(state_byte).unwrap_or(SlotState::Offline);
-
-      let end = count as usize + slot_offset;
-      while slot_offset < end {
-        if slot_offset < MAX_HASH_SLOT_VALUE {
-          new_slot_map[slot_offset].worker_id = worker_id;
-          new_slot_map[slot_offset].state = state;
-        }
-        slot_offset += 1;
-      }
-    }
-    new_slot_map
-  }
-}
-
-fn write_string(writer: &mut Vec<u8>, s: &str) {
-  let bytes = s.as_bytes();
-  write_7bit_encoded_int(writer, bytes.len() as u32);
-  writer.extend_from_slice(bytes);
-}
-
-fn read_string(reader: &mut Cursor<&[u8]>) -> String {
-  let len = read_7bit_encoded_int(reader) as usize;
-  let mut bytes = vec![0u8; len];
-  let _ = reader.read_exact(&mut bytes);
-  String::from_utf8(bytes).unwrap_or_default()
-}
-
-fn write_7bit_encoded_int(writer: &mut Vec<u8>, mut value: u32) {
-  while value >= 0x80 {
-    writer.write_u8((value as u8) | 0x80).unwrap();
-    value >>= 7;
-  }
-  writer.write_u8(value as u8).unwrap();
-}
-
-fn read_7bit_encoded_int(reader: &mut Cursor<&[u8]>) -> u32 {
-  let mut count = 0;
-  let mut shift = 0;
-  let mut b;
-  loop {
-    b = reader.read_u8().unwrap_or(0);
-    count |= ((b & 0x7F) as u32) << shift;
-    shift += 7;
-    if (b & 0x80) == 0 {
-      break;
-    }
-  }
-  count
 }

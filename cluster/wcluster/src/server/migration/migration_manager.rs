@@ -32,7 +32,7 @@ impl MigrationManager {
   }
 
   /// libs/cluster/Server/Migration/MigrationManager.cs:Dispose
-  pub fn dispose(&mut self) {
+  pub fn dispose(&self) {
     self.migration_task_store.dispose();
   }
 

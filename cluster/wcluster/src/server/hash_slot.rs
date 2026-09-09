@@ -21,6 +21,9 @@ pub enum SlotState {
   Invalid = 0x6,
 }
 
+/// 槽位状态种类数（含 Invalid），用于计数数组定长
+pub const SLOT_STATE_KINDS: usize = SlotState::Invalid as usize + 1;
+
 /// garnet相对路径:Server:HashSlot
 #[derive(Debug, Clone, Copy, Default)]
 pub struct HashSlot {
