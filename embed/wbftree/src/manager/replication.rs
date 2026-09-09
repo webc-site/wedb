@@ -172,6 +172,8 @@ impl RangeIndexManager {
         continue;
       }
       if let Ok(entries) = fs::read_dir(snapshot_dir) {
+        // 单次 pin 贯穿目录内全部文件注册 (papaya epoch guard 一次获取，免逐文件重入)
+        let pin = self.live_indexes.pin();
         for entry in entries.flatten() {
           let path = entry.path();
           if path.extension().is_some_and(|ext| ext == "bftree")
@@ -190,7 +192,6 @@ impl RangeIndexManager {
 
             // 已注册 (pending 预置 / 已激活 / 前一轮恢复) 则不覆盖，
             // 避免同一数据文件被重复登记或双开引擎实例
-            let pin = self.live_indexes.pin();
             if pin.contains_key(&key_id) {
               continue;
             }

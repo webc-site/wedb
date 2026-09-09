@@ -2,12 +2,15 @@
 
 use std::{fs, path::Path, sync::atomic::Ordering};
 
-use wbase::time::{Duration, Instant};
+use wbase::{
+  backoff::backoff,
+  time::{Duration, Instant},
+};
 
 use super::RangeIndexManager;
 use crate::{
   error::{Error, Result},
-  service::{BfTreeService, backoff},
+  service::{BfTreeService, spin_until},
 };
 
 /// 单树快照等待的总超时上限 (对照 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:WaitForTreeCheckpoint 纯 Thread.Yield 无超时：
@@ -73,15 +76,10 @@ impl RangeIndexManager {
       && entry.snapshot_pending.load(Ordering::Acquire)
     {
       let deadline = Instant::now() + CHECKPOINT_WAIT_TIMEOUT;
-      let mut spins = 0u32;
-      while entry.snapshot_pending.load(Ordering::Acquire) {
-        if Instant::now() >= deadline {
-          return Err(Error::Timeout);
-        }
-        backoff(spins);
-        spins = spins.wrapping_add(1);
+      if spin_until(|| !entry.snapshot_pending.load(Ordering::Acquire), deadline) {
+        return Ok(true);
       }
-      return Ok(true);
+      return Err(Error::Timeout);
     }
     Ok(false)
   }

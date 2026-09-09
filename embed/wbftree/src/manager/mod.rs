@@ -25,16 +25,13 @@ use std::{
 
 use parking_lot::RwLock;
 use wbase::{
+  backoff::backoff,
   base32::{BASE32_LEN_U64, BASE32_LEN_U128, Base32Buf128, encode_u64, encode_u128},
   striped::{CacheAlignedLock as BaseCacheAlignedLock, StripedRwLock},
 };
 use whasher::{GxPapayaMap, fast_hash, hash128, new_papaya_map};
 
-use crate::{
-  error::Result,
-  service::{BfTreeService, backoff},
-  stub::RANGE_INDEX_STUB_SIZE,
-};
+use crate::{error::Result, service::BfTreeService, stub::RANGE_INDEX_STUB_SIZE};
 
 /// 编译期计算的 128 位哈希前缀种子密钥
 const PREFIX_SEED_1: u64 = 0x27bb_2ee6_87b0_b0fd;

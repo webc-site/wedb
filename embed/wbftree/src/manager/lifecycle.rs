@@ -1,11 +1,7 @@
 //! 树实例生命周期：创建 / 惰性恢复 / 注册 / 注销 / 删除 / 迁移发布
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、UnregisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
-use std::{
-  fs,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::{fs, path::Path, sync::Arc};
 
 use wbase::base32::Base32Buf128;
 
@@ -155,21 +151,20 @@ impl RangeIndexManager {
         // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
         let mut found_flush = false;
         if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
-          let mut latest_candidate: Option<(i64, PathBuf)> = None;
+          // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
+          let mut latest: Option<(i64, std::ffi::OsString)> = None;
           for entry in entries.flatten() {
-            let path = entry.path();
-            if let Some(name_str) = path.file_name().and_then(|n| n.to_str())
+            let name = entry.file_name();
+            if let Some(name_str) = name.to_str()
               && let Some((prefix, addr)) = Self::parse_flush_file_name(name_str)
               && prefix == hash_prefix
-              && latest_candidate
-                .as_ref()
-                .is_none_or(|(max_addr, _)| addr > *max_addr)
+              && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr)
             {
-              latest_candidate = Some((addr, path));
+              latest = Some((addr, name));
             }
           }
-          if let Some((_, path)) = latest_candidate {
-            fs::copy(path, &data_path)?;
+          if let Some((_, name)) = latest {
+            fs::copy(self.ri_log_root.join(name), &data_path)?;
             found_flush = true;
           }
         }
@@ -189,11 +184,14 @@ impl RangeIndexManager {
     }
 
     // 魔数预检统一走 file_has_cpr_magic：调引擎前拦截损坏文件，避免依赖 unwind。
+    // 磁盘后端上 data.bftree 存在性已由上方不变量检查保证，仅内存后端需 stat 探测
+    // (省一次冗余 stat)。
     // 刻意不以 stub 后端门控 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree 一律 RecoverFromCprSnapshot)：
     // 检查点恢复流程会把 Memory 后端树的快照同样预置为 data.bftree，此时必须从
     // 快照恢复数据，而非按 Memory 语义新建空树丢失全部字段；stub 后端仅作为
     // 恢复实例的标签透传。
-    let is_cpr = data_path.exists() && file_has_cpr_magic(&data_path);
+    let is_cpr =
+      (backend == StorageBackendType::Disk || data_path.exists()) && file_has_cpr_magic(&data_path);
 
     // 1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree: 如果磁盘上已存在数据文件且为快照，严格从快照恢复，否则以已有文件重新打开
     let tree = if is_cpr {

@@ -39,7 +39,23 @@ const STACK_SCAN_BUF_SIZE: usize = 8192;
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// 自旋退避一步 (统一复用 wbase 阶梯退避状态机)
-pub(crate) use wbase::backoff::backoff;
+use wbase::backoff::backoff;
+
+/// 退避阶梯自旋等待 `cond` 成立；超过 `deadline` 仍未成立返回 false
+///
+/// 换树/释放排空与检查点屏障等待共用的单一等待实现 (同步自旋无 epoch 兜底，
+/// 超时一律显式上抛而非无限烧核，见各调用方文档)
+pub(crate) fn spin_until(cond: impl Fn() -> bool, deadline: Instant) -> bool {
+  let mut spins = 0u32;
+  while !cond() {
+    if Instant::now() >= deadline {
+      return false;
+    }
+    backoff(spins);
+    spins = spins.wrapping_add(1);
+  }
+  true
+}
 
 /// 快照文件缺失错误
 fn snapshot_missing(path: &Path) -> Error {
@@ -68,6 +84,21 @@ thread_local! {
   static READ_SCRATCH: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
 }
 
+/// 在线程本地读暂存缓冲上执行 `f` (容量按需增长到 `max_record_size` 后终身复用)
+///
+/// 仅供 [`read`](BfTreeService::read)/[`read_into`](BfTreeService::read_into) 的
+/// 同步不重入路径使用；scan 回调可重入点读，复用将双重借用 panic (见字段文档)
+#[inline]
+fn with_read_scratch<R>(max_record_size: usize, f: impl FnOnce(&mut [u8]) -> R) -> R {
+  READ_SCRATCH.with(|scratch| {
+    let mut scratch = scratch.borrow_mut();
+    if scratch.len() < max_record_size {
+      scratch.resize(max_record_size, 0);
+    }
+    f(&mut scratch[..max_record_size])
+  })
+}
+
 /// 检查文件是否为 bf-tree CPR 快照 (首部魔数校验；缺失/过小/读取失败一律 false)
 ///
 /// 调引擎恢复前先行校验，把「损坏快照」变成结构化 [`Error::Recovery`] 而非依赖
@@ -81,41 +112,17 @@ pub(crate) fn file_has_cpr_magic(path: &Path) -> bool {
   file.read_exact(&mut magic).is_ok() && magic == *CPR_MAGIC
 }
 
-/// 将 bf_tree::ConfigError 映射为可读字符串 (替代 Debug 格式化)
+/// 将 bf_tree::ConfigError 映射为可读字符串 (替代 Debug 格式化；format! 单次分配)
 #[inline]
 fn config_error_to_string(e: ConfigError) -> String {
   match e {
-    ConfigError::MinimumRecordSize(s) => {
-      let mut msg = String::from("MinimumRecordSize: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::MaximumRecordSize(s) => {
-      let mut msg = String::from("MaximumRecordSize: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::LeafPageSize(s) => {
-      let mut msg = String::from("LeafPageSize: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::MaxKeyLen(s) => {
-      let mut msg = String::from("MaxKeyLen: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::CircularBufferSize(s) => {
-      let mut msg = String::from("CircularBufferSize: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::SnapshotFileInvalid(s) => {
-      let mut msg = String::from("SnapshotFileInvalid: ");
-      msg.push_str(&s);
-      msg
-    }
-    ConfigError::SnapshotDisabled => String::from("SnapshotDisabled"),
+    ConfigError::MinimumRecordSize(s) => format!("MinimumRecordSize: {s}"),
+    ConfigError::MaximumRecordSize(s) => format!("MaximumRecordSize: {s}"),
+    ConfigError::LeafPageSize(s) => format!("LeafPageSize: {s}"),
+    ConfigError::MaxKeyLen(s) => format!("MaxKeyLen: {s}"),
+    ConfigError::CircularBufferSize(s) => format!("CircularBufferSize: {s}"),
+    ConfigError::SnapshotFileInvalid(s) => format!("SnapshotFileInvalid: {s}"),
+    ConfigError::SnapshotDisabled => "SnapshotDisabled".to_string(),
   }
 }
 
@@ -385,12 +392,8 @@ impl BfTreeService {
         (res == BfTreeReadResult::Found).then(|| stack_buf[..len].to_vec()),
       )
     } else {
-      READ_SCRATCH.with(|scratch| {
-        let mut scratch = scratch.borrow_mut();
-        if scratch.len() < max_record_size {
-          scratch.resize(max_record_size, 0);
-        }
-        let (res, len) = self.read_direct(key, &mut scratch[..max_record_size]);
+      with_read_scratch(max_record_size, |scratch| {
+        let (res, len) = self.read_direct(key, scratch);
         (
           res,
           (res == BfTreeReadResult::Found).then(|| scratch[..len].to_vec()),
@@ -444,12 +447,8 @@ impl BfTreeService {
       let mut stack_buf = [0u8; STACK_READ_BUF_SIZE];
       self.read_via_scratch(key, out_buf, &mut stack_buf)
     } else {
-      READ_SCRATCH.with(|scratch| {
-        let mut scratch = scratch.borrow_mut();
-        if scratch.len() < max_record_size {
-          scratch.resize(max_record_size, 0);
-        }
-        self.read_via_scratch(key, out_buf, &mut scratch[..max_record_size])
+      with_read_scratch(max_record_size, |scratch| {
+        self.read_via_scratch(key, out_buf, scratch)
       })
     }
   }
@@ -497,13 +496,12 @@ impl BfTreeService {
     return_field: ScanReturnField,
   ) -> Result<Vec<ScanRecord>> {
     let mut records = Vec::with_capacity(count.min(1024));
-    self.scan_with_count_callback(start_key, count, return_field, |k, v| {
-      records.push(ScanRecord {
-        key: k.to_vec(),
-        value: v.to_vec(),
-      });
-      true
-    })?;
+    self.scan_with_count_callback(
+      start_key,
+      count,
+      return_field,
+      ScanRecord::sink(&mut records),
+    )?;
     Ok(records)
   }
 
@@ -538,13 +536,12 @@ impl BfTreeService {
     return_field: ScanReturnField,
   ) -> Result<Vec<ScanRecord>> {
     let mut records = Vec::with_capacity(32);
-    self.scan_with_end_key_callback(start_key, end_key, return_field, |k, v| {
-      records.push(ScanRecord {
-        key: k.to_vec(),
-        value: v.to_vec(),
-      });
-      true
-    })?;
+    self.scan_with_end_key_callback(
+      start_key,
+      end_key,
+      return_field,
+      ScanRecord::sink(&mut records),
+    )?;
     Ok(records)
   }
 
@@ -559,13 +556,7 @@ impl BfTreeService {
   /// 全表顺序扫描
   pub fn scan_all(&self, return_field: ScanReturnField) -> Result<Vec<ScanRecord>> {
     let mut records = Vec::with_capacity(32);
-    self.scan_all_callback(return_field, |k, v| {
-      records.push(ScanRecord {
-        key: k.to_vec(),
-        value: v.to_vec(),
-      });
-      true
-    })?;
+    self.scan_all_callback(return_field, ScanRecord::sink(&mut records))?;
     Ok(records)
   }
 
@@ -638,15 +629,11 @@ impl BfTreeService {
   /// [`drain_writers`](Self::drain_writers) 的可注入超时版本 (测试确定性验证用)
   fn drain_writers_within(&self, timeout: Duration) -> Result<()> {
     let deadline = Instant::now() + timeout;
-    let mut spins = 0u32;
-    while self.writers.load(Ordering::SeqCst) != 0 {
-      if Instant::now() >= deadline {
-        return Err(Error::Timeout);
-      }
-      backoff(spins);
-      spins = spins.wrapping_add(1);
+    if spin_until(|| self.writers.load(Ordering::SeqCst) == 0, deadline) {
+      Ok(())
+    } else {
+      Err(Error::Timeout)
     }
-    Ok(())
   }
 
   /// 开启写入屏障并返回 RAII 守卫 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
@@ -842,7 +829,7 @@ impl BfTreeService {
       return Ok(());
     }
     let _barrier = self.write_barrier();
-    self.drain_writers_within(DRAIN_TIMEOUT)?;
+    self.drain_writers()?;
     self.tree.write().take();
     Ok(())
   }

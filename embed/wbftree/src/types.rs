@@ -200,3 +200,20 @@ pub struct ScanRecord {
   /// 值切片 (若返回字段不包含 Value 则为空)
   pub value: Vec<u8>,
 }
+
+impl ScanRecord {
+  /// 流式扫描的记录收集闭包工厂 (列表式扫描的单一实现)
+  ///
+  /// 回调逐条按实际长度 `to_vec` 入表并持续扫描；本 crate 与 wkv 会话层的
+  /// 列表式扫描共用此闭包，杜绝逐调用点重复的收集逻辑
+  #[inline]
+  pub fn sink(records: &mut Vec<Self>) -> impl FnMut(&[u8], &[u8]) -> bool + '_ {
+    |k, v| {
+      records.push(Self {
+        key: k.to_vec(),
+        value: v.to_vec(),
+      });
+      true
+    }
+  }
+}
