@@ -1,16 +1,223 @@
+//! v3 AOF 命令号兼容层（对标 libs/server/AOF/LegacyRespCommand.cs:LegacyRespCommand）。
+//!
+//! v3（pre-v4）AOF 条目中的 RespCommand 取值按 `V3_ORDER` 的声明序编号；
+//! v4 起写入块改为稠密编号，回放时经 `from_v3` 翻译到当前编号。
+//! 表以编译期常量构建，全部成员静态可解析（rename 回归由单测拦截）。
+
+use std::sync::LazyLock;
+
+use crate::types::RespCommand;
+
+/// v3 RespCommand 成员名（按 v3 序，值 = 下标 + 1）。
+/// （libs/server/AOF/LegacyRespCommand.cs:V3Order）
+pub const V3_ORDER: [&str; 358] = ["BITCOUNT","BITFIELD_RO","BITPOS","COSCAN","DBSIZE","DUMP","EXISTS","EXPIRETIME","GEODIST","GEOHASH","GEOPOS","GEORADIUS_RO","GEORADIUSBYMEMBER_RO","GEOSEARCH","GET","GETBIT","GETIFNOTMATCH","GETRANGE","GETWITHETAG","HEXISTS","HGET","HGETALL","HKEYS","HLEN","HMGET","HRANDFIELD","HSCAN","HSTRLEN","HVALS","KEYS","LCS","HTTL","HPTTL","HEXPIRETIME","HPEXPIRETIME","LINDEX","LLEN","LPOS","LRANGE","MEMORY_USAGE","MGET","PEXPIRETIME","PFCOUNT","PTTL","SCAN","SCARD","SDIFF","SINTER","SINTERCARD","SISMEMBER","SMEMBERS","SMISMEMBER","SPUBLISH","SRANDMEMBER","SSCAN","SSUBSCRIBE","STRLEN","SUBSTR","SUNION","TTL","TYPE","VCARD","VDIM","VEMB","VGETATTR","VINFO","VISMEMBER","VLINKS","VRANDMEMBER","VSIM","WATCH","WATCHMS","WATCHOS","ZCARD","ZCOUNT","ZDIFF","ZINTER","ZINTERCARD","ZLEXCOUNT","ZMSCORE","ZRANDMEMBER","ZRANGE","ZRANGEBYLEX","ZRANGEBYSCORE","ZRANK","ZREVRANGE","ZREVRANGEBYLEX","ZREVRANGEBYSCORE","ZREVRANK","ZTTL","ZPTTL","ZEXPIRETIME","ZPEXPIRETIME","ZSCAN","ZSCORE","ZUNION","RICONFIG","RIEXISTS","RIGET","RIMETRICS","RIRANGE","RISCAN","APPEND","BITFIELD","BZMPOP","BZPOPMAX","BZPOPMIN","DECR","DECRBY","DEL","DELIFEXPIM","DELIFGREATER","EXPIRE","EXPIREAT","FLUSHALL","FLUSHDB","GEOADD","GEORADIUS","GEORADIUSBYMEMBER","GEOSEARCHSTORE","GETDEL","GETEX","GETSET","HCOLLECT","HDEL","HEXPIRE","HPEXPIRE","HEXPIREAT","HPEXPIREAT","HPERSIST","HINCRBY","HINCRBYFLOAT","HMSET","HSET","HSETNX","INCR","INCRBY","INCRBYFLOAT","LINSERT","LMOVE","LMPOP","LPOP","LPUSH","LPUSHX","LREM","LSET","LTRIM","BLPOP","BRPOP","BLMOVE","BRPOPLPUSH","BLMPOP","MIGRATE","MSET","MSETNX","PERSIST","PEXPIRE","PEXPIREAT","PFADD","PFMERGE","PSETEX","RENAME","RICREATE","RIDEL","RIPROMOTE","RIRESTORE","RISET","RESTORE","RENAMENX","RPOP","RPOPLPUSH","RPUSH","RPUSHX","SADD","SDIFFSTORE","SET","SETBIT","SETEX","SETEXNX","SETEXXX","SETNX","SETIFMATCH","SETIFGREATER","SETWITHETAG","SETKEEPTTL","SETKEEPTTLXX","SETRANGE","SINTERSTORE","SMOVE","SPOP","SREM","SUNIONSTORE","SWAPDB","UNLINK","VADD","VREM","VSETATTR","ZADD","ZCOLLECT","ZDIFFSTORE","ZEXPIRE","ZPEXPIRE","ZEXPIREAT","ZPEXPIREAT","ZPERSIST","ZINCRBY","ZMPOP","ZINTERSTORE","ZPOPMAX","ZPOPMIN","ZRANGESTORE","ZREM","ZREMRANGEBYLEX","ZREMRANGEBYRANK","ZREMRANGEBYSCORE","ZUNIONSTORE","BITOP","BITOP_AND","BITOP_OR","BITOP_XOR","BITOP_NOT","BITOP_DIFF","EVAL","EVALSHA","ASYNC","PING","PUBSUB","PUBSUB_CHANNELS","PUBSUB_NUMPAT","PUBSUB_NUMSUB","PUBLISH","SUBSCRIBE","PSUBSCRIBE","UNSUBSCRIBE","PUNSUBSCRIBE","ASKING","SELECT","ECHO","CLIENT","CLIENT_ID","CLIENT_INFO","CLIENT_LIST","CLIENT_KILL","CLIENT_GETNAME","CLIENT_SETNAME","CLIENT_SETINFO","CLIENT_UNBLOCK","MONITOR","MODULE","MODULE_LOADCS","REGISTERCS","MULTI","EXEC","DISCARD","UNWATCH","RUNTXP","READONLY","READWRITE","REPLICAOF","SECONDARYOF","INFO","TIME","ROLE","SAVE","EXPDELSCAN","LASTSAVE","BGSAVE","COMMITAOF","PURGEBP","FAILOVER","SCRIPT","SCRIPT_EXISTS","SCRIPT_FLUSH","SCRIPT_LOAD","ACL","ACL_CAT","ACL_DELUSER","ACL_GENPASS","ACL_GETUSER","ACL_LIST","ACL_LOAD","ACL_SAVE","ACL_SETUSER","ACL_USERS","ACL_WHOAMI","COMMAND","COMMAND_COUNT","COMMAND_DOCS","COMMAND_INFO","COMMAND_GETKEYS","COMMAND_GETKEYSANDFLAGS","MEMORY","CONFIG","CONFIG_GET","CONFIG_REWRITE","CONFIG_SET","DEBUG","LATENCY","LATENCY_HELP","LATENCY_HISTOGRAM","LATENCY_RESET","SLOWLOG","SLOWLOG_HELP","SLOWLOG_LEN","SLOWLOG_GET","SLOWLOG_RESET","CLUSTER","CLUSTER_ADDSLOTS","CLUSTER_ADDSLOTSRANGE","CLUSTER_ADVANCE_TIME","CLUSTER_APPENDLOG","CLUSTER_ATTACH_SYNC","CLUSTER_BANLIST","CLUSTER_BEGIN_REPLICA_RECOVER","CLUSTER_BUMPEPOCH","CLUSTER_COUNTKEYSINSLOT","CLUSTER_DELKEYSINSLOT","CLUSTER_DELKEYSINSLOTRANGE","CLUSTER_DELSLOTS","CLUSTER_DELSLOTSRANGE","CLUSTER_ENDPOINT","CLUSTER_FAILOVER","CLUSTER_FAILREPLICATIONOFFSET","CLUSTER_FAILSTOPWRITES","CLUSTER_FLUSHALL","CLUSTER_FORGET","CLUSTER_GETKEYSINSLOT","CLUSTER_GOSSIP","CLUSTER_HELP","CLUSTER_INFO","CLUSTER_INITIATE_REPLICA_SYNC","CLUSTER_KEYSLOT","CLUSTER_MEET","CLUSTER_MIGRATE","CLUSTER_MLOG_KEY_TIME","CLUSTER_MTASKS","CLUSTER_MYID","CLUSTER_MYPARENTID","CLUSTER_NODES","CLUSTER_PUBLISH","CLUSTER_SPUBLISH","CLUSTER_REPLICAS","CLUSTER_REPLICATE","CLUSTER_RESERVE","CLUSTER_RESET","CLUSTER_SEND_CKPT_FILE_SEGMENT","CLUSTER_SEND_CKPT_METADATA","CLUSTER_SETCONFIGEPOCH","CLUSTER_SETSLOT","CLUSTER_SETSLOTSRANGE","CLUSTER_SHARDS","CLUSTER_SLOTS","CLUSTER_SLOTSTATE","CLUSTER_SNAPSHOT_DATA","CLUSTER_SYNC","AUTH","HELLO","QUIT"];
+
+/// 自枚举移除且未持久化的 v3 命令（只读/管理命令折叠进 DEBUG 等场景），
+/// 其 v3 数字槽位永不回读，映射为 NONE。
+///（libs/server/AOF/LegacyRespCommand.cs:RemovedNonPersistedV3Commands）
+const REMOVED_NON_PERSISTED_V3_COMMANDS: [&str; 1] = ["PURGEBP"];
+
+/// v3 编号 → 当前编号映射表（下标 0 = NONE）。
+static V3_TO_CURRENT: LazyLock<Vec<RespCommand>> = LazyLock::new(LegacyRespCommand::build_map);
+
 pub struct LegacyRespCommand;
 
 impl LegacyRespCommand {
   /// libs/server/AOF/LegacyRespCommand.cs:BuildMap
-  pub fn build_map() {
-    unimplemented!()
+  ///
+  /// 构建映射表；已移除且未持久化的成员映射为 NONE。
+  fn build_map() -> Vec<RespCommand> {
+    // 槽位 0 = NONE（对齐 C# map[0] = RespCommand.NONE），其后 v3 值 1..N。
+    std::iter::once(RespCommand::None)
+      .chain(vec![
+  RespCommand::Bitcount, RespCommand::BitfieldRo, RespCommand::Bitpos,
+  RespCommand::Coscan, RespCommand::Dbsize, RespCommand::Dump,
+  RespCommand::Exists, RespCommand::Expiretime, RespCommand::Geodist,
+  RespCommand::Geohash, RespCommand::Geopos, RespCommand::GeoradiusRo,
+  RespCommand::GeoradiusbymemberRo, RespCommand::Geosearch, RespCommand::Get,
+  RespCommand::Getbit, RespCommand::Getifnotmatch, RespCommand::Getrange,
+  RespCommand::Getwithetag, RespCommand::Hexists, RespCommand::Hget,
+  RespCommand::Hgetall, RespCommand::Hkeys, RespCommand::Hlen,
+  RespCommand::Hmget, RespCommand::Hrandfield, RespCommand::Hscan,
+  RespCommand::Hstrlen, RespCommand::Hvals, RespCommand::Keys,
+  RespCommand::Lcs, RespCommand::Httl, RespCommand::Hpttl,
+  RespCommand::Hexpiretime, RespCommand::Hpexpiretime, RespCommand::Lindex,
+  RespCommand::Llen, RespCommand::Lpos, RespCommand::Lrange,
+  RespCommand::MemoryUsage, RespCommand::Mget, RespCommand::Pexpiretime,
+  RespCommand::Pfcount, RespCommand::Pttl, RespCommand::Scan,
+  RespCommand::Scard, RespCommand::Sdiff, RespCommand::Sinter,
+  RespCommand::Sintercard, RespCommand::Sismember, RespCommand::Smembers,
+  RespCommand::Smismember, RespCommand::Spublish, RespCommand::Srandmember,
+  RespCommand::Sscan, RespCommand::Ssubscribe, RespCommand::Strlen,
+  RespCommand::Substr, RespCommand::Sunion, RespCommand::Ttl,
+  RespCommand::Type, RespCommand::Vcard, RespCommand::Vdim,
+  RespCommand::Vemb, RespCommand::Vgetattr, RespCommand::Vinfo,
+  RespCommand::Vismember, RespCommand::Vlinks, RespCommand::Vrandmember,
+  RespCommand::Vsim, RespCommand::Watch, RespCommand::Watchms,
+  RespCommand::Watchos, RespCommand::Zcard, RespCommand::Zcount,
+  RespCommand::Zdiff, RespCommand::Zinter, RespCommand::Zintercard,
+  RespCommand::Zlexcount, RespCommand::Zmscore, RespCommand::Zrandmember,
+  RespCommand::Zrange, RespCommand::Zrangebylex, RespCommand::Zrangebyscore,
+  RespCommand::Zrank, RespCommand::Zrevrange, RespCommand::Zrevrangebylex,
+  RespCommand::Zrevrangebyscore, RespCommand::Zrevrank, RespCommand::Zttl,
+  RespCommand::Zpttl, RespCommand::Zexpiretime, RespCommand::Zpexpiretime,
+  RespCommand::Zscan, RespCommand::Zscore, RespCommand::Zunion,
+  RespCommand::Riconfig, RespCommand::Riexists, RespCommand::Riget,
+  RespCommand::Rimetrics, RespCommand::Rirange, RespCommand::Riscan,
+  RespCommand::Append, RespCommand::Bitfield, RespCommand::Bzmpop,
+  RespCommand::Bzpopmax, RespCommand::Bzpopmin, RespCommand::Decr,
+  RespCommand::Decrby, RespCommand::Del, RespCommand::Delifexpim,
+  RespCommand::Delifgreater, RespCommand::Expire, RespCommand::Expireat,
+  RespCommand::Flushall, RespCommand::Flushdb, RespCommand::Geoadd,
+  RespCommand::Georadius, RespCommand::Georadiusbymember,
+  RespCommand::Geosearchstore, RespCommand::Getdel, RespCommand::Getex,
+  RespCommand::Getset, RespCommand::Hcollect, RespCommand::Hdel,
+  RespCommand::Hexpire, RespCommand::Hpexpire, RespCommand::Hexpireat,
+  RespCommand::Hpexpireat, RespCommand::Hpersist, RespCommand::Hincrby,
+  RespCommand::Hincrbyfloat, RespCommand::Hmset, RespCommand::Hset,
+  RespCommand::Hsetnx, RespCommand::Incr, RespCommand::Incrby,
+  RespCommand::Incrbyfloat, RespCommand::Linsert, RespCommand::Lmove,
+  RespCommand::Lmpop, RespCommand::Lpop, RespCommand::Lpush,
+  RespCommand::Lpushx, RespCommand::Lrem, RespCommand::Lset,
+  RespCommand::Ltrim, RespCommand::Blpop, RespCommand::Brpop,
+  RespCommand::Blmove, RespCommand::Brpoplpush, RespCommand::Blmpop,
+  RespCommand::Migrate, RespCommand::Mset, RespCommand::Msetnx,
+  RespCommand::Persist, RespCommand::Pexpire, RespCommand::Pexpireat,
+  RespCommand::Pfadd, RespCommand::Pfmerge, RespCommand::Psetex,
+  RespCommand::Rename, RespCommand::Ricreate, RespCommand::Ridel,
+  RespCommand::Ripromote, RespCommand::Rirestore, RespCommand::Riset,
+  RespCommand::Restore, RespCommand::Renamenx, RespCommand::Rpop,
+  RespCommand::Rpoplpush, RespCommand::Rpush, RespCommand::Rpushx,
+  RespCommand::Sadd, RespCommand::Sdiffstore, RespCommand::Set,
+  RespCommand::Setbit, RespCommand::Setex, RespCommand::Setexnx,
+  RespCommand::Setexxx, RespCommand::Setnx, RespCommand::Setifmatch,
+  RespCommand::Setifgreater, RespCommand::Setwithetag,
+  RespCommand::Setkeepttl, RespCommand::Setkeepttlxx, RespCommand::Setrange,
+  RespCommand::Sinterstore, RespCommand::Smove, RespCommand::Spop,
+  RespCommand::Srem, RespCommand::Sunionstore, RespCommand::Swapdb,
+  RespCommand::Unlink, RespCommand::Vadd, RespCommand::Vrem,
+  RespCommand::Vsetattr, RespCommand::Zadd, RespCommand::Zcollect,
+  RespCommand::Zdiffstore, RespCommand::Zexpire, RespCommand::Zpexpire,
+  RespCommand::Zexpireat, RespCommand::Zpexpireat, RespCommand::Zpersist,
+  RespCommand::Zincrby, RespCommand::Zmpop, RespCommand::Zinterstore,
+  RespCommand::Zpopmax, RespCommand::Zpopmin, RespCommand::Zrangestore,
+  RespCommand::Zrem, RespCommand::Zremrangebylex,
+  RespCommand::Zremrangebyrank, RespCommand::Zremrangebyscore,
+  RespCommand::Zunionstore, RespCommand::Bitop, RespCommand::BitopAnd,
+  RespCommand::BitopOr, RespCommand::BitopXor, RespCommand::BitopNot,
+  RespCommand::BitopDiff, RespCommand::Eval, RespCommand::Evalsha,
+  RespCommand::Async, RespCommand::Ping, RespCommand::Pubsub,
+  RespCommand::PubsubChannels, RespCommand::PubsubNumpat,
+  RespCommand::PubsubNumsub, RespCommand::Publish, RespCommand::Subscribe,
+  RespCommand::Psubscribe, RespCommand::Unsubscribe,
+  RespCommand::Punsubscribe, RespCommand::Asking, RespCommand::Select,
+  RespCommand::Echo, RespCommand::Client, RespCommand::ClientId,
+  RespCommand::ClientInfo, RespCommand::ClientList, RespCommand::ClientKill,
+  RespCommand::ClientGetname, RespCommand::ClientSetname,
+  RespCommand::ClientSetinfo, RespCommand::ClientUnblock,
+  RespCommand::Monitor, RespCommand::Module, RespCommand::ModuleLoadcs,
+  RespCommand::Registercs, RespCommand::Multi, RespCommand::Exec,
+  RespCommand::Discard, RespCommand::Unwatch, RespCommand::Runtxp,
+  RespCommand::Readonly, RespCommand::Readwrite, RespCommand::Replicaof,
+  RespCommand::Secondaryof, RespCommand::Info, RespCommand::Time,
+  RespCommand::Role, RespCommand::Save, RespCommand::Expdelscan,
+  RespCommand::Lastsave, RespCommand::Bgsave, RespCommand::Commitaof, RespCommand::None,
+  RespCommand::Failover, RespCommand::Script, RespCommand::ScriptExists,
+  RespCommand::ScriptFlush, RespCommand::ScriptLoad, RespCommand::Acl,
+  RespCommand::AclCat, RespCommand::AclDeluser, RespCommand::AclGenpass,
+  RespCommand::AclGetuser, RespCommand::AclList, RespCommand::AclLoad,
+  RespCommand::AclSave, RespCommand::AclSetuser, RespCommand::AclUsers,
+  RespCommand::AclWhoami, RespCommand::Command, RespCommand::CommandCount,
+  RespCommand::CommandDocs, RespCommand::CommandInfo,
+  RespCommand::CommandGetkeys, RespCommand::CommandGetkeysandflags,
+  RespCommand::Memory, RespCommand::Config, RespCommand::ConfigGet,
+  RespCommand::ConfigRewrite, RespCommand::ConfigSet, RespCommand::Debug,
+  RespCommand::Latency, RespCommand::LatencyHelp,
+  RespCommand::LatencyHistogram, RespCommand::LatencyReset,
+  RespCommand::Slowlog, RespCommand::SlowlogHelp, RespCommand::SlowlogLen,
+  RespCommand::SlowlogGet, RespCommand::SlowlogReset, RespCommand::Cluster,
+  RespCommand::ClusterAddslots, RespCommand::ClusterAddslotsrange,
+  RespCommand::ClusterAdvanceTime, RespCommand::ClusterAppendlog,
+  RespCommand::ClusterAttachSync, RespCommand::ClusterBanlist,
+  RespCommand::ClusterBeginReplicaRecover, RespCommand::ClusterBumpepoch,
+  RespCommand::ClusterCountkeysinslot, RespCommand::ClusterDelkeysinslot,
+  RespCommand::ClusterDelkeysinslotrange, RespCommand::ClusterDelslots,
+  RespCommand::ClusterDelslotsrange, RespCommand::ClusterEndpoint,
+  RespCommand::ClusterFailover, RespCommand::ClusterFailreplicationoffset,
+  RespCommand::ClusterFailstopwrites, RespCommand::ClusterFlushall,
+  RespCommand::ClusterForget, RespCommand::ClusterGetkeysinslot,
+  RespCommand::ClusterGossip, RespCommand::ClusterHelp,
+  RespCommand::ClusterInfo, RespCommand::ClusterInitiateReplicaSync,
+  RespCommand::ClusterKeyslot, RespCommand::ClusterMeet,
+  RespCommand::ClusterMigrate, RespCommand::ClusterMlogKeyTime,
+  RespCommand::ClusterMtasks, RespCommand::ClusterMyid,
+  RespCommand::ClusterMyparentid, RespCommand::ClusterNodes,
+  RespCommand::ClusterPublish, RespCommand::ClusterSpublish,
+  RespCommand::ClusterReplicas, RespCommand::ClusterReplicate,
+  RespCommand::ClusterReserve, RespCommand::ClusterReset,
+  RespCommand::ClusterSendCkptFileSegment, RespCommand::ClusterSendCkptMetadata,
+  RespCommand::ClusterSetconfigepoch, RespCommand::ClusterSetslot,
+  RespCommand::ClusterSetslotsrange, RespCommand::ClusterShards,
+  RespCommand::ClusterSlots, RespCommand::ClusterSlotstate,
+  RespCommand::ClusterSnapshotData, RespCommand::ClusterSync,
+  RespCommand::Auth, RespCommand::Hello, RespCommand::Quit,
+    ])
+    .collect()
   }
+
   /// libs/server/AOF/LegacyRespCommand.cs:FromV3
-  pub fn from_v3() {
-    unimplemented!()
+  ///
+  /// 将 v3（pre-v4）AOF 条目读出的 RespCommand 值翻译到当前编号。
+  /// 自定义裸字符串命令 id（锚定 INVALID）与越界值原样返回。
+  #[inline]
+  pub fn from_v3(v3_command: RespCommand) -> RespCommand {
+    let value = v3_command as u16;
+    if (value as usize) < V3_TO_CURRENT.len() {
+      return V3_TO_CURRENT[value as usize];
+    }
+    v3_command
   }
+
   /// libs/server/AOF/LegacyRespCommand.cs:EnsureInitialized
+  ///
+  /// 强制初始化映射表（让 rename 回归在启动期暴露，而非首次回放时）。
   pub fn ensure_initialized() {
-    unimplemented!()
+    LazyLock::force(&V3_TO_CURRENT);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{LegacyRespCommand, V3_ORDER, V3_TO_CURRENT};
+  use crate::types::RespCommand;
+
+  #[test]
+  fn table_covers_all_v3_slots() {
+    LegacyRespCommand::ensure_initialized();
+    assert_eq!(V3_TO_CURRENT.len(), V3_ORDER.len() + 1);
+    // 槽位 0 = NONE。
+    assert_eq!(LegacyRespCommand::from_v3(RespCommand::None), RespCommand::None);
+  }
+
+  #[test]
+  fn known_translations() {
+    use num_enum::TryFromPrimitive;
+    // v3 序中 GET 为第 15 个成员（值 15）。
+    let get_idx = V3_ORDER.iter().position(|n| *n == "GET").unwrap() as u16 + 1;
+    assert_eq!(LegacyRespCommand::from_v3(RespCommand::try_from_primitive(get_idx).unwrap()), RespCommand::Get);
+
+    let set_idx = V3_ORDER.iter().position(|n| *n == "SET").unwrap() as u16 + 1;
+    assert_eq!(RespCommand::try_from_primitive(set_idx).map(LegacyRespCommand::from_v3), Ok(RespCommand::Set));
+
+    // PURGEBP → NONE。
+    let purge_idx = V3_ORDER.iter().position(|n| *n == "PURGEBP").unwrap() as u16 + 1;
+    let purge = RespCommand::try_from_primitive(purge_idx).unwrap();
+    assert_eq!(LegacyRespCommand::from_v3(purge), RespCommand::None);
+  }
+
+  #[test]
+  fn out_of_range_unchanged() {
+    // 越界值（自定义裸字符串命令 id 一侧）原样返回。
+    assert_eq!(LegacyRespCommand::from_v3(RespCommand::Invalid), RespCommand::Invalid);
   }
 }
