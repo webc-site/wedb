@@ -1,7 +1,7 @@
 //! 树实例生命周期：创建 / 惰性恢复 / 注册 / 注销 / 删除 / 迁移发布
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、UnregisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
-use std::{fs, path::Path, sync::Arc};
+use std::{ffi::OsString, fs, path::Path, sync::Arc};
 
 use wbase::base32::Base32Buf128;
 
@@ -152,7 +152,7 @@ impl RangeIndexManager {
         let mut found_flush = false;
         if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
           // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
-          let mut latest: Option<(i64, std::ffi::OsString)> = None;
+          let mut latest: Option<(i64, OsString)> = None;
           for entry in entries.flatten() {
             let name = entry.file_name();
             if let Some(name_str) = name.to_str()
