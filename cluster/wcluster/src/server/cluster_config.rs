@@ -755,11 +755,13 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerConfigEpoch
+  ///
+  /// 语义对齐 C#：仅允许"从 0 初始化"且新值必须为正；后续单调递增只能走
+  /// [`Self::bump_local_node_config_epoch`]，防止覆写既有 epoch
   pub fn set_local_worker_config_epoch(&self, config_epoch: i64) -> Option<Self> {
-    let mut new_config = self.clone();
-    if self.workers[LOCAL_WORKER_ID].config_epoch == 0
-      || self.workers[LOCAL_WORKER_ID].config_epoch < config_epoch
-    {
+    let cur = self.workers[LOCAL_WORKER_ID].config_epoch;
+    if cur == 0 && cur < config_epoch {
+      let mut new_config = self.clone();
       new_config.workers[LOCAL_WORKER_ID].config_epoch = config_epoch;
       Some(new_config)
     } else {
@@ -1322,15 +1324,17 @@ impl ClusterConfig {
 
       let mut slot_end = slot_start;
       while slot_end < MAX_HASH_SLOT_VALUE {
+        // 与 C# 一致按 eff id 分段：Migrating 槽归源节点（LOCAL）名下，
+        // CLUSTER SLOTS 不把它误报到迁移目标
         if self.slot_map[slot_end].state == SlotState::Offline
-          || self.slot_map[slot_start].worker_id != self.slot_map[slot_end].worker_id
+          || self.slot_map[slot_start].eff_worker_id() != self.slot_map[slot_end].eff_worker_id()
         {
           break;
         }
         slot_end += 1;
       }
 
-      let curr_worker_id = self.slot_map[slot_start].worker_id as usize;
+      let curr_worker_id = self.slot_map[slot_start].eff_worker_id() as usize;
       let address = self.workers[curr_worker_id].address.clone();
       let port = self.workers[curr_worker_id].port;
       let nodeid = self.workers[curr_worker_id]
