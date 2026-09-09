@@ -443,9 +443,6 @@ fn write_key_parts(prefix: &[u8], tag: KeyTag, payload: &[u8], dst: &mut [u8]) {
 pub struct NamespaceDbCodec;
 
 impl NamespaceDbCodec {
-  /// 租户命名空间合法上限（18446744073709550591）
-  pub const MAX_TENANT_NAMESPACE: u64 = 18446744073709550591;
-
   /// 计算单个 u64 数值经 OPPV 编码后占用的字节数 (1..=9, const fn)
   #[inline(always)]
   pub const fn varint_len(val: u64) -> usize {
@@ -499,12 +496,19 @@ impl NamespaceDbCodec {
   }
 
   /// 编码单一 u64 为 OPPV 变长字节，返回实际写入字节数
+  ///
+  /// 目标缓冲区空间不足时返回 [`Error::BufferTooShort`]，绝不隐式 panic
   #[inline]
-  pub fn encode_varint(val: u64, dst: &mut [u8]) -> usize {
+  pub fn encode_varint(val: u64, dst: &mut [u8]) -> Result<usize> {
     let (arr, len) = encode_u64_to_array(val);
-    debug_assert!(dst.len() >= len, "目标缓冲区空间不足以写入变长整型");
+    if dst.len() < len {
+      return Err(Error::BufferTooShort {
+        expected: len,
+        actual: dst.len(),
+      });
+    }
     dst[..len].copy_from_slice(&arr[..len]);
-    len
+    Ok(len)
   }
 
   /// 从首字节判定单个 OPPV 变长整型的预期字节数 (const fn, 查表 0 分支, 零回溯)
@@ -706,8 +710,8 @@ impl NamespaceDbCodec {
         actual: dst.len(),
       });
     }
-    let ns_len = Self::encode_varint(ns, dst);
-    let db_len = Self::encode_varint(db, &mut dst[ns_len..]);
+    let ns_len = Self::encode_varint(ns, dst)?;
+    let db_len = Self::encode_varint(db, &mut dst[ns_len..])?;
     let prefix_len = ns_len + db_len;
     dst[prefix_len] = tag as u8;
     dst[prefix_len + KeyTag::TAG_LEN..total_len].copy_from_slice(payload);
@@ -982,6 +986,8 @@ impl NamespaceDbCodec {
   }
 
   /// 从方案 A 物理子键中快速提取 (tag, key_id, version)（const fn，零分配，供紧缩器极速判定）
+  ///
+  /// 非子键标签（String/Meta/Ttl）由 [SubKeyCodec::decode_header] 直接拒绝
   #[inline(always)]
   pub const fn decode_subkey_id_version(key: &[u8]) -> Option<(KeyTag, u64, u64)> {
     let subkey = match key {
@@ -1003,8 +1009,8 @@ impl NamespaceDbCodec {
     };
 
     match SubKeyCodec::decode_header(subkey) {
-      Ok((tag, key_id, version)) if tag.is_subkey() => Some((tag, key_id, version)),
-      _ => None,
+      Ok(header) => Some(header),
+      Err(_) => None,
     }
   }
 }
@@ -1053,13 +1059,9 @@ impl NamespaceDbCodec {
       }
     };
 
+    // 非子键标签（String/Meta/Ttl）由 SubKeyCodec::decode_header 直接拒绝
     let (tag, key_id, version) = match SubKeyCodec::decode_header(subkey) {
-      Ok((t, k, v)) => {
-        if !t.is_subkey() {
-          return Err(Error::InvalidKeyTag(t as u8));
-        }
-        (t, k, v)
-      }
+      Ok(h) => h,
       Err(e) => return Err(e),
     };
 

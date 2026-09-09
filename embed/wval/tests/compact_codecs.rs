@@ -282,6 +282,33 @@ fn test_compact_hash_boundary_limits() -> Void {
   OK
 }
 
+#[test]
+fn test_compact_hash_from_vec_corruption_defense() -> Void {
+  info!("测试 CompactHash::from_vec 完整遍历校验：残缺与尾部脏数据拦截");
+
+  // 1. 合法数据往返
+  let mut hash = CompactHash::new();
+  hash.set_field(b"a", b"1", None)?;
+  hash.set_field(b"b", b"2", Some(123))?;
+  let restored = CompactHash::from_vec(hash.as_slice().to_vec())?;
+  assert_eq!(restored.as_slice(), hash.as_slice());
+
+  // 2. 残缺条目（value 长度声明超出缓冲区）
+  let mut truncated = hash.as_slice().to_vec();
+  truncated.truncate(truncated.len() - 1);
+  assert!(CompactHash::from_vec(truncated).is_err());
+
+  // 3. 尾部脏数据（条目总长度与缓冲区不一致）
+  let mut dirty = hash.as_slice().to_vec();
+  dirty.extend_from_slice(&[0xFF, 0xFF]);
+  assert!(CompactHash::from_vec(dirty).is_err());
+
+  // 4. 少于计数前缀
+  assert!(CompactHash::from_vec(vec![0]).is_err());
+
+  OK
+}
+
 // ============================================================================
 // 3. CompactSetCodec 测试套件
 // ============================================================================
@@ -864,10 +891,10 @@ fn test_compact_zset_batch_encode_dedup_and_order() -> Void {
 
   // 同成员重复出现：后写覆盖先写（对齐逐条 insert 的更新语义）
   let entries = vec![
-    (5.0, b"a".as_slice()),
-    (1.0, b"b".as_slice()),
-    (9.0, b"a".as_slice()),
-    (3.0, b"c".as_slice()),
+    (5.0, b"a".as_slice(), None),
+    (1.0, b"b".as_slice(), None),
+    (9.0, b"a".as_slice(), None),
+    (3.0, b"c".as_slice(), None),
   ];
   let buf = CompactZSetCodec::encode(entries)?;
   let zset = CompactZSet::from_vec(buf)?;
@@ -883,9 +910,78 @@ fn test_compact_zset_batch_encode_dedup_and_order() -> Void {
   );
 
   // 空 batch 仅含计数前缀
-  let empty = CompactZSetCodec::encode(Vec::<(f64, &[u8])>::new())?;
+  let empty = CompactZSetCodec::encode(Vec::<(f64, &[u8], Option<u64>)>::new())?;
   assert_eq!(empty.len(), 2);
   assert_eq!(CompactZSetCodec::count(&empty)?, 0);
+
+  // 条目级过期批量编码往返（对标 C# SortedSetObject ExpirationBitMask 序列化）
+  let exp_entries = vec![
+    (5.0, b"a".as_slice(), Some(1_700_000_000_000u64)),
+    (1.0, b"b".as_slice(), None),
+    (5.0, b"a".as_slice(), Some(1_800_000_000_000u64)), // 后写覆盖过期时间
+  ];
+  let exp_buf = CompactZSetCodec::encode(exp_entries)?;
+  let exp_zset = CompactZSet::from_vec(exp_buf)?;
+  let entries: Vec<ZSetEntryRef> = exp_zset.iter_members().collect();
+  assert_eq!(entries.len(), 2);
+  assert_eq!(entries[0].member, b"b");
+  assert_eq!(entries[0].expire_at_ms, None);
+  assert_eq!(entries[1].member, b"a");
+  assert_eq!(entries[1].expire_at_ms, Some(1_800_000_000_000u64));
+
+  OK
+}
+
+#[test]
+fn test_compact_zset_member_expiration() -> Void {
+  info!("测试 CompactZSet 成员级过期：写入往返、purge_expired 淘汰与原地更新");
+
+  let now = 1_000_000u64;
+  let mut zset = CompactZSet::new();
+
+  // 1. 写入带过期与不过期成员，迭代零拷贝还原过期时间戳
+  assert!(zset.insert_with_expire(10.0, b"expired", Some(now - 1))?);
+  assert!(zset.insert_with_expire(20.0, b"alive", Some(now + 100))?);
+  assert!(zset.insert_with_expire(30.0, b"eternal", None)?);
+  assert_eq!(zset.len(), 3);
+
+  let entries: Vec<ZSetEntryRef> = zset.iter_members().collect();
+  assert_eq!(entries[0].expire_at_ms, Some(now - 1));
+  assert_eq!(entries[1].expire_at_ms, Some(now + 100));
+  assert_eq!(entries[2].expire_at_ms, None);
+
+  // 2. 同分值同过期重复写入：零写放大短路（无新增无更新）
+  assert!(!zset.insert_with_expire(10.0, b"expired", Some(now - 1))?);
+  assert_eq!(zset.len(), 3);
+
+  // 3. 仅更新过期时间（分值不变）：原位重排并保留
+  assert!(!zset.insert_with_expire(20.0, b"alive", None)?);
+  assert_eq!(zset.len(), 3);
+  assert_eq!(zset.score_of(b"alive"), Some(20.0));
+  assert_eq!(
+    zset
+      .iter_members()
+      .find(|e| e.member == b"alive")
+      .unwrap()
+      .expire_at_ms,
+    None
+  );
+
+  // 4. purge_expired 单遍淘汰过期成员并压缩
+  assert_eq!(zset.purge_expired(now)?, 1);
+  assert_eq!(zset.len(), 2);
+  assert_eq!(zset.rank_of(b"expired"), None);
+  assert_eq!(zset.rank_of(b"alive"), Some(0));
+  assert_eq!(zset.rank_of(b"eternal"), Some(1));
+  CompactZSetCodec::validate(zset.as_slice())?;
+
+  // 5. 全部过期后清空
+  let mut all_exp = CompactZSet::new();
+  all_exp.insert_with_expire(1.0, b"a", Some(1))?;
+  all_exp.insert_with_expire(2.0, b"b", Some(2))?;
+  assert_eq!(all_exp.purge_expired(10)?, 2);
+  assert!(all_exp.is_empty());
+  assert_eq!(all_exp.purge_expired(10)?, 0);
 
   OK
 }

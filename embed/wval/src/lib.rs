@@ -34,8 +34,9 @@ pub use compact_set::{
   COMPACT_SET_COUNT_SIZE, COMPACT_SET_LEN_SIZE, CompactSet, CompactSetCodec, CompactSetIter,
 };
 pub use compact_zset::{
-  COMPACT_ZSET_COUNT_SIZE, COMPACT_ZSET_ENTRY_HEADER_SIZE, COMPACT_ZSET_LEN_SIZE,
-  COMPACT_ZSET_SCORE_SIZE, CompactZSet, CompactZSetCodec, CompactZSetIter, ZSetEntryRef,
+  COMPACT_ZSET_COUNT_SIZE, COMPACT_ZSET_ENTRY_HEADER_SIZE, COMPACT_ZSET_EXPIRE_FLAG_SIZE,
+  COMPACT_ZSET_EXPIRE_TIME_SIZE, COMPACT_ZSET_LEN_SIZE, COMPACT_ZSET_SCORE_SIZE, CompactZSet,
+  CompactZSetCodec, CompactZSetIter, ZSetEntryRef,
 };
 pub use error::{Error, Result};
 pub use ext::{RecordValueExt, RecordValueMutExt};

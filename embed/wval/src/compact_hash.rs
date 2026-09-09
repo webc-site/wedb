@@ -1,7 +1,7 @@
 use core::{iter::FusedIterator, ops::Deref};
 
 use wbase::simd::fast_key_eq;
-use whasher::{HashSet, hash_set_with_capacity};
+use whasher::{HashMap, HashMapExt, HashSet, hash_set_with_capacity};
 
 use crate::error::{Error, Result};
 
@@ -284,16 +284,7 @@ impl CompactHashCodec {
     }
 
     // 预计算新 entry 的序列化字节
-    let new_entry_len = COMPACT_HASH_LEN_SIZE
-      + field.len()
-      + COMPACT_HASH_LEN_SIZE
-      + value.len()
-      + COMPACT_HASH_EXPIRE_FLAG_SIZE
-      + if expire_at_ms.is_some() {
-        COMPACT_HASH_EXPIRE_TIME_SIZE
-      } else {
-        0
-      };
+    let new_entry_len = Self::entry_len(field, value, &expire_at_ms);
 
     if let Some((start, end)) = found {
       // 字段已存在：更新
@@ -456,27 +447,75 @@ impl CompactHashCodec {
     }
   }
 
-  /// 获取全量字段流式迭代器（等价于 `iter_fields`）
-  #[inline(always)]
-  pub fn iter(slice: &[u8]) -> CompactHashIter<'_> {
-    Self::iter_fields(slice)
-  }
-
-  /// 从条目迭代器批量编码为连续紧凑切片
+  /// 批量编码为连续紧凑切片（对标 C# HashObject.DoSerialize 单遍序列化）
+  ///
+  /// 同字段多次写入时后写覆盖先写且保留首插入次序（对齐 [`Self::set_field`] 的更新语义）；
+  /// 哈希索引单遍定位去重 O(N)，杜绝逐条 set_field 的 O(N²) 重复扫描
   pub fn encode<'a, I>(entries: I) -> Result<Vec<u8>>
   where
     I: IntoIterator<Item = (&'a [u8], &'a [u8], Option<u64>)>,
   {
     let iter = entries.into_iter();
     let (lower, _) = iter.size_hint();
-    let mut buf = Vec::with_capacity(COMPACT_HASH_COUNT_SIZE + lower * 32);
-    buf.extend_from_slice(&0u16.to_be_bytes());
+    let mut items: Vec<(&[u8], &[u8], Option<u64>)> = Vec::with_capacity(lower);
+    let mut index: HashMap<&[u8], usize> = HashMap::with_capacity(lower);
 
     for (field, value, expire_at_ms) in iter {
-      Self::set_field(&mut buf, field, value, expire_at_ms)?;
+      if field.len() > u16::MAX as usize {
+        return Err(Error::KeyLengthOverflow(field.len()));
+      }
+      if value.len() > u16::MAX as usize {
+        return Err(Error::ValueLengthOverflow(value.len()));
+      }
+      match index.get(field) {
+        // 重复字段：原位覆盖值与过期时间，保留首插入位置
+        Some(&i) => {
+          items[i].1 = value;
+          items[i].2 = expire_at_ms;
+        }
+        None => {
+          index.insert(field, items.len());
+          items.push((field, value, expire_at_ms));
+        }
+      }
     }
 
+    if items.len() > u16::MAX as usize {
+      return Err(Error::CompactCountOverflow(items.len()));
+    }
+
+    let payload_len: usize = items.iter().map(|(f, v, e)| Self::entry_len(f, v, e)).sum();
+    let mut buf = Vec::with_capacity(COMPACT_HASH_COUNT_SIZE + payload_len);
+    buf.extend_from_slice(&(items.len() as u16).to_be_bytes());
+    for (field, value, expire_at_ms) in items {
+      buf.extend_from_slice(&(field.len() as u16).to_be_bytes());
+      buf.extend_from_slice(field);
+      buf.extend_from_slice(&(value.len() as u16).to_be_bytes());
+      buf.extend_from_slice(value);
+      match expire_at_ms {
+        Some(exp) => {
+          buf.push(1);
+          buf.extend_from_slice(&exp.to_be_bytes());
+        }
+        None => buf.push(0),
+      }
+    }
     Ok(buf)
+  }
+
+  /// 计算单个条目序列化后的总字节数
+  #[inline(always)]
+  fn entry_len(field: &[u8], value: &[u8], expire_at_ms: &Option<u64>) -> usize {
+    COMPACT_HASH_LEN_SIZE
+      + field.len()
+      + COMPACT_HASH_LEN_SIZE
+      + value.len()
+      + COMPACT_HASH_EXPIRE_FLAG_SIZE
+      + if expire_at_ms.is_some() {
+        COMPACT_HASH_EXPIRE_TIME_SIZE
+      } else {
+        0
+      }
   }
 }
 
@@ -503,17 +542,20 @@ impl CompactHash {
     Self { raw }
   }
 
-  /// 从已有字节切片解析构建
+  /// 从已有字节切片解析构建（完整遍历校验条目布局无损坏）
   #[inline]
   pub fn from_vec(raw: Vec<u8>) -> Result<Self> {
-    if raw.len() < COMPACT_HASH_COUNT_SIZE {
-      return Err(Error::BufferTooShort {
-        expected: COMPACT_HASH_COUNT_SIZE,
-        actual: raw.len(),
-      });
+    let count = CompactHashCodec::count(&raw)?;
+    let mut offset = COMPACT_HASH_COUNT_SIZE;
+    for _ in 0..count {
+      let (entry_len, _) = CompactHashCodec::parse_entry(&raw, offset)?;
+      offset += entry_len;
     }
-    // 校验条目数
-    let _ = CompactHashCodec::count(&raw)?;
+    if offset != raw.len() {
+      return Err(Error::CorruptedCompactData(
+        "紧凑哈希条目总长度与缓冲区不一致",
+      ));
+    }
     Ok(Self { raw })
   }
 

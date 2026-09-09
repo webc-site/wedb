@@ -285,7 +285,7 @@ impl CompactSetCodec {
     Ok(true)
   }
 
-  /// 定位并删除成员（就地内存连续收缩）
+  /// 定位并删除成员（线性扫描字典序提前终止，就地内存连续收缩）
   pub fn remove(buf: &mut Vec<u8>, member: &[u8]) -> Result<bool> {
     if buf.len() < COMPACT_SET_COUNT_SIZE {
       return Ok(false);
@@ -438,7 +438,7 @@ impl CompactSet {
     CompactSetCodec::insert(&mut self.raw, member)
   }
 
-  /// 二分查找并删除成员
+  /// 有序线性定位并删除成员
   #[inline(always)]
   pub fn remove(&mut self, member: &[u8]) -> Result<bool> {
     CompactSetCodec::remove(&mut self.raw, member)
