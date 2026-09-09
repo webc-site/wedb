@@ -22,17 +22,20 @@ pub struct HashBucket {
   pub entries: [AtomicU64; 8],
 }
 
-/// 每个哈希桶中的条目总数（8 个 64 位槽位）
-pub const ENTRIES_PER_BUCKET: usize = 8;
-/// 溢出桶指针与自旋锁所在槽位索引（槽位 7）
-pub const OVERFLOW_INDEX: usize = 7;
 /// 用于存放真实数据条目的槽位数量（槽位 0..7 共 7 个数据槽位）
 pub const DATA_ENTRIES: usize = 7;
+/// 溢出桶指针与自旋锁所在槽位索引（最后一个槽位，紧随数据槽位之后）
+pub const OVERFLOW_INDEX: usize = DATA_ENTRIES;
+/// 每个哈希桶中的条目总数（7 个数据槽位 + 1 个溢出指针槽位）
+pub const ENTRIES_PER_BUCKET: usize = DATA_ENTRIES + 1;
 
 impl HashBucket {
+  /// 数据槽位数量关联常量（再导出自由常量，下游 wcpr 等包以此命名空间引用）
   pub const DATA_ENTRIES: usize = DATA_ENTRIES;
+  /// 溢出槽位索引关联常量（再导出自由常量，下游 wcpr 等包以此命名空间引用）
   pub const OVERFLOW_INDEX: usize = OVERFLOW_INDEX;
-  /// 自旋锁获取的最大自旋次数
+  /// 自旋锁获取的最大自旋次数（C# Constants.kMaxLockSpins = 10；放大至 128 以
+  /// 配合先 spin_loop 后 yield 的两级退避，降低高争用下的误失败率）
   pub const MAX_LOCK_SPINS: usize = 128;
   /// 独占锁等待活跃读者完全退出的最大自旋次数
   pub const MAX_READER_DRAIN_SPINS: usize = 1024;
