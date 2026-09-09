@@ -1,21 +1,44 @@
 impl crate::resp::resp_server_session::RespServerSession {
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRESTORE
-  pub fn network_restore() {
-    unimplemented!()
+  pub fn network_restore<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"-ERR not implemented\r\n");
+    Ok(true)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkDUMP
-  pub fn network_dump() {
-    unimplemented!()
+  pub fn network_dump<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"-ERR not implemented\r\n");
+    Ok(true)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRENAME
-  pub fn network_rename() {
-    unimplemented!()
+  pub fn network_rename<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"-ERR not implemented\r\n");
+    Ok(true)
   }
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRENAMENX
-  pub fn network_renamenx() {
-    unimplemented!()
+  pub fn network_renamenx<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"-ERR not implemented\r\n");
+    Ok(true)
   }
-
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkGETDEL
   pub fn network_getdel<'a, D: wdev::Device>(
     &mut self,
@@ -28,16 +51,20 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let status = store.try_read_sync(key, |v| v.to_vec());
-    match status {
+
+    match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
         let len_str = format!("${}\r\n", val.len());
         output.extend_from_slice(len_str.as_bytes());
         output.extend_from_slice(&val);
         output.extend_from_slice(b"\r\n");
-        // Stub: deletion logic omitted
+        let _ = store.try_delete_sync(key);
       }
-      _ => output.extend_from_slice(b"$-1\r\n"),
+      Ok(Some(None)) => {
+        output.extend_from_slice(b"$-1\r\n");
+      }
+      Ok(None) => return Ok(false),
+      Err(_) => output.extend_from_slice(b"-ERR generic error\r\n"),
     }
     Ok(true)
   }
@@ -115,7 +142,13 @@ impl crate::resp::resp_server_session::RespServerSession {
   }
 
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkEXPIRETIME
-  pub fn network_expiretime() {
-    unimplemented!()
+  pub fn network_expiretime<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"-ERR not implemented\r\n");
+    Ok(true)
   }
 }

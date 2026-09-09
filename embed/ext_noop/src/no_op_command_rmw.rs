@@ -1,5 +1,4 @@
-use crate::error::Result;
-use crate::error::Error;
+use crate::error::{Error, Result};
 
 /// 表示原始字符串无操作 RMW 操作
 pub struct NoOpCommandRmw;

@@ -1,5 +1,4 @@
-use crate::error::Result;
-use crate::error::Error;
+use crate::error::{Error, Result};
 
 pub struct JsonCommands;
 

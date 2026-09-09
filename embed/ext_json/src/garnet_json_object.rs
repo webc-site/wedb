@@ -1,10 +1,12 @@
 use std::io::{Read, Write};
-use crate::error::{Result, Error};
-use sonic_rs::Value;
+
 use jsonpath_rust::JsonPath;
+use sonic_rs::Value;
+
+use crate::error::{Error, Result};
 
 pub struct GarnetJsonObject {
-    pub value: Value,
+  pub value: Value,
 }
 
 impl GarnetJsonObject {
@@ -15,7 +17,9 @@ impl GarnetJsonObject {
   }
   pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
     let mut buf = String::new();
-    reader.read_to_string(&mut buf).map_err(|e| Error::Json(e.to_string()))?;
+    reader
+      .read_to_string(&mut buf)
+      .map_err(|e| Error::Json(e.to_string()))?;
     let value = sonic_rs::from_str(&buf).map_err(|e| Error::Json(e.to_string()))?;
     Ok(Self { value })
   }
@@ -26,13 +30,17 @@ impl GarnetJsonObject {
   }
   pub fn serialize_object<W: Write>(&self, writer: &mut W) -> Result<()> {
     let s = sonic_rs::to_string(&self.value).map_err(|e| Error::Json(e.to_string()))?;
-    writer.write_all(s.as_bytes()).map_err(|e| Error::Json(e.to_string()))?;
+    writer
+      .write_all(s.as_bytes())
+      .map_err(|e| Error::Json(e.to_string()))?;
     Ok(())
   }
   pub fn try_get(&self, path_str: &str) -> Result<Vec<Value>> {
     let s = sonic_rs::to_string(&self.value).map_err(|e| Error::Json(e.to_string()))?;
     let v: serde_json::Value = serde_json::from_str(&s).map_err(|e| Error::Json(e.to_string()))?;
-    let found = v.query_with_path(path_str).map_err(|e| Error::Json(e.to_string()))?;
+    let found = v
+      .query_with_path(path_str)
+      .map_err(|e| Error::Json(e.to_string()))?;
     let mut results = Vec::new();
     for r in found {
       let r_val = r.val();
