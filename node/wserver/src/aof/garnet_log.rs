@@ -772,9 +772,11 @@ mod tests {
   };
 
   fn log_with(sublogs: usize, replay_tasks: i32) -> GarnetLog {
-    let mut options = RuntimeServerOptions::default();
-    options.aof_physical_sublog_count = sublogs as i32;
-    options.aof_replay_task_count = replay_tasks;
+    let options = RuntimeServerOptions {
+      aof_physical_sublog_count: sublogs as i32,
+      aof_replay_task_count: replay_tasks,
+      ..RuntimeServerOptions::default()
+    };
     let backends: Vec<Arc<dyn SublogBackend>> = (0..sublogs.max(1))
       .map(|_| Arc::new(InMemorySublog::new()) as Arc<dyn SublogBackend>)
       .collect();

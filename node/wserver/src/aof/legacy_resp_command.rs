@@ -371,12 +371,6 @@ pub const V3_ORDER: [&str; 358] = [
   "QUIT",
 ];
 
-/// 自枚举移除且未持久化的 v3 命令（只读/管理命令折叠进 DEBUG 等场景），
-/// 其 v3 数字槽位永不回读，映射为 NONE。
-///（libs/server/AOF/LegacyRespCommand.cs:RemovedNonPersistedV3Commands）
-#[cfg(test)]
-const REMOVED_NON_PERSISTED_V3_COMMANDS: [&str; 1] = ["PURGEBP"];
-
 /// v3 编号 → 当前编号映射表（下标 0 = NONE）。
 static V3_TO_CURRENT: LazyLock<Vec<RespCommand>> = LazyLock::new(LegacyRespCommand::build_map);
 

@@ -192,12 +192,7 @@ mod tests {
     let gate = AofBackpressure::new(2, 1024);
     assert!(gate.enabled());
     assert_eq!(gate.publish_delta_bytes(), 1024 / 2 / 8);
-    assert_eq!(
-      gate
-        .per_sublog_budget
-        .load(std::sync::atomic::Ordering::Relaxed),
-      512
-    );
+    assert_eq!(gate.per_sublog_budget.load(AtomicOrdering::Relaxed), 512);
 
     // 预算 <= 0 禁用。
     let off = AofBackpressure::new(2, -1);
