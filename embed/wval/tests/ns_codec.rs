@@ -3,6 +3,7 @@ use std::{
   mem::{align_of, size_of},
 };
 
+use aok::{OK, Void};
 use wval::{Error, KeyBufRepr, KeyTag, NamespaceDbCodec, SessionPrefixBuf, TaggedKeyBuf};
 
 #[test]
@@ -16,7 +17,7 @@ fn test_tagged_key_buf_memory_layout() {
 }
 
 #[test]
-fn test_oppv_varint_roundtrip_and_boundaries() {
+fn test_oppv_varint_roundtrip_and_boundaries() -> Void {
   let test_values = [
     0u64,
     1,
@@ -44,7 +45,7 @@ fn test_oppv_varint_roundtrip_and_boundaries() {
   let mut buf = [0u8; 16];
   for &val in &test_values {
     let expected_len = NamespaceDbCodec::varint_len(val);
-    let written = NamespaceDbCodec::encode_varint(val, &mut buf);
+    let written = NamespaceDbCodec::encode_varint(val, &mut buf)?;
     assert_eq!(written, expected_len, "varint_len 与 encode 写入长度不一致");
 
     let (decoded, consumed) =
@@ -52,10 +53,25 @@ fn test_oppv_varint_roundtrip_and_boundaries() {
     assert_eq!(decoded, val, "解码值与原值不符: val={val}");
     assert_eq!(consumed, expected_len, "消耗长度与编码长度不符");
   }
+
+  // 目标缓冲区空间不足防御（不 panic，返回 BufferTooShort）
+  for &val in &test_values {
+    let need = NamespaceDbCodec::varint_len(val);
+    let mut tiny = vec![0u8; need - 1];
+    assert_eq!(
+      NamespaceDbCodec::encode_varint(val, &mut tiny),
+      Err(Error::BufferTooShort {
+        expected: need,
+        actual: need - 1,
+      })
+    );
+  }
+
+  OK
 }
 
 #[test]
-fn test_oppv_monotonic_order_preserving() {
+fn test_oppv_monotonic_order_preserving() -> Void {
   // 严格大端字典序保序测试：对于任意 a < b，恒有 bytes(a) < bytes(b)
   let ordered_values = [
     0u64,
@@ -76,7 +92,7 @@ fn test_oppv_monotonic_order_preserving() {
   let mut encoded_list = Vec::new();
   for &val in &ordered_values {
     let mut buf = [0u8; 9];
-    let len = NamespaceDbCodec::encode_varint(val, &mut buf);
+    let len = NamespaceDbCodec::encode_varint(val, &mut buf)?;
     encoded_list.push(buf[..len].to_vec());
   }
 
@@ -92,10 +108,11 @@ fn test_oppv_monotonic_order_preserving() {
       next
     );
   }
+  OK
 }
 
 #[test]
-fn test_oppv_non_canonical_and_corrupted_defenses() {
+fn test_oppv_non_canonical_and_corrupted_defenses() -> Void {
   // 1. 9 字节编码若解出值小于 270_549_120，应拦截并返回 NonCanonicalEncoding
   let mut bad_9b = [0u8; 9];
   bad_9b[0] = 0xFF;
@@ -122,7 +139,7 @@ fn test_oppv_non_canonical_and_corrupted_defenses() {
   );
 
   let mut buf_2b = [0u8; 2];
-  NamespaceDbCodec::encode_varint(1000, &mut buf_2b);
+  NamespaceDbCodec::encode_varint(1000, &mut buf_2b)?;
   assert_eq!(
     NamespaceDbCodec::decode_varint(&buf_2b[..1]),
     Err(Error::BufferTooShort {
@@ -130,6 +147,8 @@ fn test_oppv_non_canonical_and_corrupted_defenses() {
       actual: 1
     })
   );
+
+  OK
 }
 
 #[test]

@@ -5,8 +5,8 @@ use log::info;
 use wrecord::{RecordMut, RecordRef, try_encode_to_vec};
 use wval::{
   COMPACT_META_VALUE_SIZE, CollectionType, CompactMetaValue, Error, KeyTag, META_VALUE_SIZE,
-  MetaValue, RecordValueExt, RecordValueMutExt, Result, SUBKEY_HEADER_SIZE, StorageEncoding,
-  SubKeyBuf, SubKeyCodec, SubKeyRef,
+  MetaValue, NamespaceDbCodec, RecordValueExt, RecordValueMutExt, Result, SUBKEY_HEADER_SIZE,
+  StorageEncoding, SubKeyBuf, SubKeyCodec, SubKeyRef,
 };
 
 #[ctor::ctor(unsafe)]
@@ -133,7 +133,7 @@ fn test_subkey_codec_and_ref() -> Void {
   let payload = b"user:timeline:comment:999";
 
   // 1. 编码到 Vec
-  let encoded = SubKeyCodec::encode_to_vec(KeyTag::Hash, key_id, version, payload);
+  let encoded = SubKeyCodec::try_encode_to_vec(KeyTag::Hash, key_id, version, payload)?;
   assert_eq!(encoded.len(), SUBKEY_HEADER_SIZE + payload.len());
 
   // 2. 零拷贝从切片解析
@@ -165,7 +165,7 @@ fn test_subkey_boundary_edge_cases() -> Void {
   let version = 1;
 
   // 空 Payload 场景（如 Set 键或空字段名）
-  let empty_encoded = SubKeyCodec::encode_to_vec(KeyTag::Set, key_id, version, b"");
+  let empty_encoded = SubKeyCodec::try_encode_to_vec(KeyTag::Set, key_id, version, b"")?;
   assert_eq!(empty_encoded.len(), SUBKEY_HEADER_SIZE);
 
   let sub_ref = SubKeyRef::from_slice(&empty_encoded)?;
@@ -175,13 +175,14 @@ fn test_subkey_boundary_edge_cases() -> Void {
   assert_eq!(sub_ref.payload, b"");
 
   // 单字节场景
-  let single_encoded = SubKeyCodec::encode_to_vec(KeyTag::ZSetChunk, key_id, version, b"X");
+  let single_encoded = SubKeyCodec::try_encode_to_vec(KeyTag::ZSetChunk, key_id, version, b"X")?;
   let sub_ref_single = SubKeyRef::from_slice(&single_encoded)?;
   assert_eq!(sub_ref_single.payload, b"X");
 
   // 包含换行与不可见二进制字节场景
   let binary_payload = [0x00, 0xff, 0xfe, 0x01, 0x02, 0x03];
-  let bin_encoded = SubKeyCodec::encode_to_vec(KeyTag::ZSetM2s, key_id, version, &binary_payload);
+  let bin_encoded =
+    SubKeyCodec::try_encode_to_vec(KeyTag::ZSetM2s, key_id, version, &binary_payload)?;
   let sub_ref_bin = SubKeyRef::from_slice(&bin_encoded)?;
   assert_eq!(sub_ref_bin.payload, &binary_payload);
 
@@ -190,8 +191,8 @@ fn test_subkey_boundary_edge_cases() -> Void {
 
 #[test]
 fn test_subkey_defense_and_errors() {
-  // 切片长度小于 17 字节
-  let short_slice = [0u8; 16];
+  // 切片长度小于 17 字节（首字节用合法子键标签，专测长度截断分支）
+  let short_slice = [KeyTag::Hash.as_u8(); 16];
   assert!(matches!(
     SubKeyRef::from_slice(&short_slice),
     Err(Error::BufferTooShort {
@@ -207,6 +208,74 @@ fn test_subkey_defense_and_errors() {
     SubKeyRef::from_slice(&corrupt_header),
     Err(Error::InvalidKeyTag(0xee))
   ));
+
+  // 首字节为合法但非子键的 Tag（String 载荷为用户键原文，禁止按子键头解析）
+  let mut string_header = [0u8; 17];
+  string_header[0] = KeyTag::String.as_u8();
+  assert!(matches!(
+    SubKeyRef::from_slice(&string_header),
+    Err(Error::InvalidKeyTag(0x00))
+  ));
+}
+
+/// 类型封闭性：非子键标签（String/Meta/Ttl 载荷为用户键原文）绝不可
+/// 被当作 (key_id, version) 子键布局编解码，杜绝类型穿透
+#[test]
+fn test_subkey_tag_closure() -> Void {
+  info!("测试 SubKeyCodec 对非子键标签的编码与解析双向拒绝");
+
+  for tag in [KeyTag::String, KeyTag::Meta, KeyTag::Ttl] {
+    // 编码侧拒绝
+    assert!(matches!(
+      SubKeyCodec::try_encode_to_vec(tag, 1, 1, b"payload"),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+    assert!(matches!(
+      SubKeyBuf::encode(tag, 1, 1, b"payload"),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+    let mut dst = [0u8; 32];
+    assert!(matches!(
+      SubKeyCodec::encode_to_slice(tag, 1, 1, b"payload", &mut dst),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+
+    // 解析侧拒绝：手工拼出非子键标签开头的 17 字节头
+    let mut raw = [0u8; 17];
+    raw[0] = tag.as_u8();
+    assert!(matches!(
+      SubKeyRef::from_slice(&raw),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+    assert!(matches!(
+      SubKeyCodec::decode_header(&raw),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+    // NamespaceDbCodec 子键解码与极速判定同步拒绝
+    assert_eq!(NamespaceDbCodec::decode_subkey_id_version(&raw), None);
+    let mut namespaced = vec![0x01, 0x00];
+    namespaced.extend_from_slice(&raw);
+    assert!(matches!(
+      NamespaceDbCodec::decode_sub_key(&namespaced),
+      Err(Error::InvalidKeyTag(t)) if t == tag.as_u8()
+    ));
+  }
+
+  // 子键族标签 (Hash..=SetChunk) 全部放行
+  for tag in [
+    KeyTag::Hash,
+    KeyTag::Set,
+    KeyTag::ZSetChunk,
+    KeyTag::ZSetM2s,
+    KeyTag::ListChunk,
+    KeyTag::HashChunk,
+    KeyTag::SetChunk,
+  ] {
+    let encoded = SubKeyCodec::try_encode_to_vec(tag, 7, 3, b"p")?;
+    assert_eq!(SubKeyRef::from_slice(&encoded)?.tag, tag);
+  }
+
+  OK
 }
 
 #[test]
@@ -277,7 +346,7 @@ fn test_subkey_header_codec_and_helpers() -> Void {
   assert_eq!(dec_ver, version);
 
   // 2. SubKeyRef 辅助方法
-  let encoded = SubKeyCodec::encode_to_vec(tag, key_id, version, payload);
+  let encoded = SubKeyCodec::try_encode_to_vec(tag, key_id, version, payload)?;
   let sub_ref = SubKeyCodec::decode(&encoded)?;
 
   assert_eq!(sub_ref.header(), header);
@@ -329,7 +398,7 @@ fn test_record_ref_and_mut_integration() -> Void {
   assert_eq!(final_ref.meta_value()?, updated_meta);
 
   // 2. SubKey 记录在 RecordRef 中的解析联动
-  let subkey_bytes = SubKeyCodec::encode_to_vec(KeyTag::Hash, 10086, 1, b"field1");
+  let subkey_bytes = SubKeyCodec::try_encode_to_vec(KeyTag::Hash, 10086, 1, b"field1")?;
   let subkey_rec_bytes = try_encode_to_vec(0, &subkey_bytes, b"value1", false)?;
 
   let subkey_rec_ref = RecordRef::from_slice(&subkey_rec_bytes)?;

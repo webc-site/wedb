@@ -16,6 +16,8 @@ pub struct ZSetEntryRef<'a> {
   pub order_score: [u8; 8],
   /// 成员二进制切片
   pub member: &'a [u8],
+  /// 可选毫秒级绝对过期时间戳（对标 C# SortedSetObject 条目级 expiration）
+  pub expire_at_ms: Option<u64>,
 }
 
 impl<'a> Deref for ZSetEntryRef<'a> {
@@ -80,9 +82,63 @@ pub const COMPACT_ZSET_SCORE_SIZE: usize = 8;
 pub const COMPACT_ZSET_LEN_SIZE: usize = 2;
 /// 紧凑有序集合条目定长头部大小（8 字节保序分值 + 2 字节成员长度 = 10 字节）
 pub const COMPACT_ZSET_ENTRY_HEADER_SIZE: usize = COMPACT_ZSET_SCORE_SIZE + COMPACT_ZSET_LEN_SIZE;
+/// 紧凑有序集合成员级过期标记字节数（1 字节，非 0 表示携带 8 字节绝对过期时间戳）
+///
+/// 对标 C# SortedSetObject 以 `keyLength | ExpirationBitMask` 位掩码表达条目过期：
+/// 本布局 u16 长度字段无空闲位，改用显式 flag 字节实现同一语义
+pub const COMPACT_ZSET_EXPIRE_FLAG_SIZE: usize = 1;
+/// 紧凑有序集合成员级绝对过期时间戳字节数（8 字节大端 u64 毫秒）
+pub const COMPACT_ZSET_EXPIRE_TIME_SIZE: usize = 8;
+
+/// 条目原始解析结果元组 `(entry_total_len, order_score, member, expire_at_ms)`
+pub type RawEntry<'a> = (usize, [u8; 8], &'a [u8], Option<u64>);
 
 /// 紧凑有序集合无状态编解码器
 pub struct CompactZSetCodec;
+
+/// 计算过期后缀（flag + 可选时间戳）序列化字节数
+#[inline(always)]
+const fn expire_suffix_len(expire_at_ms: Option<u64>) -> usize {
+  if expire_at_ms.is_some() {
+    COMPACT_ZSET_EXPIRE_FLAG_SIZE + COMPACT_ZSET_EXPIRE_TIME_SIZE
+  } else {
+    COMPACT_ZSET_EXPIRE_FLAG_SIZE
+  }
+}
+
+/// 将过期后缀（flag + 可选时间戳）原位写入目标裸指针（调用方保证剩余空间充足）
+#[inline(always)]
+unsafe fn write_expire_suffix(dst: *mut u8, expire_at_ms: Option<u64>) {
+  // 安全性保证：调用方（reserve 后的 memmove 腾位区）保证 [dst, dst+9) 可写
+  unsafe {
+    match expire_at_ms {
+      Some(exp) => {
+        *dst = 1;
+        ptr::copy_nonoverlapping(
+          exp.to_be_bytes().as_ptr(),
+          dst.add(COMPACT_ZSET_EXPIRE_FLAG_SIZE),
+          COMPACT_ZSET_EXPIRE_TIME_SIZE,
+        );
+      }
+      None => *dst = 0,
+    }
+  }
+}
+
+/// 向 Vec 末尾追加单个完整条目（容量由调用方预分配，安全 API 零回溯）
+#[inline]
+fn push_entry(buf: &mut Vec<u8>, order_score: [u8; 8], member: &[u8], expire_at_ms: Option<u64>) {
+  buf.extend_from_slice(&order_score);
+  buf.extend_from_slice(&(member.len() as u16).to_be_bytes());
+  buf.extend_from_slice(member);
+  match expire_at_ms {
+    Some(exp) => {
+      buf.push(1);
+      buf.extend_from_slice(&exp.to_be_bytes());
+    }
+    None => buf.push(0),
+  }
+}
 
 impl CompactZSetCodec {
   /// 从只读切片解析元素总数（const fn，单次模式匹配零越界检查）
@@ -100,7 +156,7 @@ impl CompactZSetCodec {
   /// 解析指定偏移处的单个条目 `(entry_total_len, ZSetEntryRef)`
   #[inline]
   pub fn parse_entry(slice: &[u8], offset: usize) -> Result<(usize, ZSetEntryRef<'_>)> {
-    let (total_len, order_score, member) = Self::parse_entry_header(slice, offset)?;
+    let (total_len, order_score, member, expire_at_ms) = Self::parse_entry_header(slice, offset)?;
     let score = decode_order_preserving_f64(order_score);
     Ok((
       total_len,
@@ -108,13 +164,16 @@ impl CompactZSetCodec {
         score,
         order_score,
         member,
+        expire_at_ms,
       },
     ))
   }
 
-  /// 快速解析指定偏移处的条目头部与成员借用，不提前解码浮点数（极大加速过滤与查找）
+  /// 快速解析指定偏移处的条目头部、成员借用与可选过期时间戳（不提前解码浮点数，极大加速过滤与查找）
+  ///
+  /// 条目物理布局：`[score: 8B][m_len: 2B be][member][exp_flag: 1B][exp_ts: 8B be (flag!=0)]`
   #[inline(always)]
-  pub fn parse_entry_header(slice: &[u8], offset: usize) -> Result<(usize, [u8; 8], &[u8])> {
+  pub fn parse_entry_header(slice: &[u8], offset: usize) -> Result<RawEntry<'_>> {
     let header_end = match offset.checked_add(COMPACT_ZSET_ENTRY_HEADER_SIZE) {
       Some(end) if end <= slice.len() => end,
       _ => {
@@ -130,24 +189,44 @@ impl CompactZSetCodec {
       let m_len = u16::from_be_bytes(
         (ptr.add(COMPACT_ZSET_SCORE_SIZE) as *const [u8; COMPACT_ZSET_LEN_SIZE]).read_unaligned(),
       ) as usize;
-      let total_len = match COMPACT_ZSET_ENTRY_HEADER_SIZE.checked_add(m_len) {
-        Some(l) => l,
-        None => return Err(Error::RecordSizeOverflow),
-      };
       let m_end = match header_end.checked_add(m_len) {
-        Some(end) if end <= slice.len() => end,
+        Some(end) if end < slice.len() => end,
         _ => {
           return Err(Error::BufferTooShort {
-            expected: header_end.saturating_add(m_len),
+            expected: header_end.saturating_add(m_len + COMPACT_ZSET_EXPIRE_FLAG_SIZE),
             actual: slice.len(),
           });
         }
       };
-      Ok((
-        total_len,
-        order_score,
-        slice.get_unchecked(header_end..m_end),
-      ))
+      // flag 字节位于成员之后（m_end < slice.len() 已校验，读取恒安全）
+      let flag = *slice.as_ptr().add(m_end);
+      if flag == 0 {
+        let total_len = m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE - offset;
+        Ok((
+          total_len,
+          order_score,
+          slice.get_unchecked(header_end..m_end),
+          None,
+        ))
+      } else {
+        let exp_end = m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE + COMPACT_ZSET_EXPIRE_TIME_SIZE;
+        if exp_end > slice.len() {
+          return Err(Error::BufferTooShort {
+            expected: exp_end,
+            actual: slice.len(),
+          });
+        }
+        let exp = (slice.as_ptr().add(m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE)
+          as *const [u8; COMPACT_ZSET_EXPIRE_TIME_SIZE])
+          .read_unaligned();
+        let total_len = exp_end - offset;
+        Ok((
+          total_len,
+          order_score,
+          slice.get_unchecked(header_end..m_end),
+          Some(u64::from_be_bytes(exp)),
+        ))
+      }
     }
   }
 
@@ -158,7 +237,7 @@ impl CompactZSetCodec {
     let mut prev: Option<([u8; 8], &[u8])> = None;
 
     for _ in 0..count {
-      let (entry_len, order_score, member) = Self::parse_entry_header(slice, offset)?;
+      let (entry_len, order_score, member, _) = Self::parse_entry_header(slice, offset)?;
       if let Some((prev_order, prev_member)) = prev {
         let ord = prev_order
           .cmp(&order_score)
@@ -228,7 +307,7 @@ impl CompactZSetCodec {
 
     while low < high {
       let mid = (low + high) / 2;
-      let (_, entry_order, m) = Self::parse_entry_header(slice, offsets[mid])?;
+      let (_, entry_order, m, _) = Self::parse_entry_header(slice, offsets[mid])?;
 
       let ord = entry_order.cmp(&order_score).then_with(|| m.cmp(member));
 
@@ -273,7 +352,7 @@ impl CompactZSetCodec {
     let mut offset = COMPACT_ZSET_COUNT_SIZE;
 
     for rank in 0..count {
-      let (entry_len, _, m) = Self::parse_entry_header(slice, offset).ok()?;
+      let (entry_len, _, m, _) = Self::parse_entry_header(slice, offset).ok()?;
       if fast_key_eq(m, member) {
         return Some(rank);
       }
@@ -295,7 +374,7 @@ impl CompactZSetCodec {
 
     let mut offset = COMPACT_ZSET_COUNT_SIZE;
     for cur_rank in 0..count {
-      let (entry_len, _, m) = Self::parse_entry_header(slice, offset).ok()?;
+      let (entry_len, _, m, _) = Self::parse_entry_header(slice, offset).ok()?;
       if cur_rank == rank {
         return Some(m);
       }
@@ -336,7 +415,7 @@ impl CompactZSetCodec {
     let mut offset = COMPACT_ZSET_COUNT_SIZE;
 
     for _ in 0..count {
-      let (entry_len, order_score, m) = Self::parse_entry_header(slice, offset).ok()?;
+      let (entry_len, order_score, m, _) = Self::parse_entry_header(slice, offset).ok()?;
       if fast_key_eq(m, member) {
         let score = decode_order_preserving_f64(order_score);
         return Some(score);
@@ -348,7 +427,21 @@ impl CompactZSetCodec {
   }
 
   /// 插入或更新成员分值（新插入返回 true，更新已存在元素分值返回 false）
+  #[inline(always)]
   pub fn insert(buf: &mut Vec<u8>, score: f64, member: &[u8]) -> Result<bool> {
+    Self::insert_with_expire(buf, score, member, None)
+  }
+
+  /// 插入或更新成员分值与成员级过期时间戳（对标 C# SortedSetObject 条目级 expiration）
+  ///
+  /// 新插入返回 true；更新已存在元素（分值或过期时间变化）返回 false；
+  /// 分值与过期时间均未变化时直接短路返回 false，零写放大
+  pub fn insert_with_expire(
+    buf: &mut Vec<u8>,
+    score: f64,
+    member: &[u8],
+    expire_at_ms: Option<u64>,
+  ) -> Result<bool> {
     if member.len() > u16::MAX as usize {
       return Err(Error::KeyLengthOverflow(member.len()));
     }
@@ -372,34 +465,38 @@ impl CompactZSetCodec {
 
     const STACK_CAP: usize = 256;
     let mut stack_offsets = [0usize; STACK_CAP];
-    let mut existing_found = None;
+    let mut existing: Option<(usize, usize)> = None;
     let mut offset = COMPACT_ZSET_COUNT_SIZE;
 
+    // 线性扫描定位既有成员（同时填充偏移数组供后续二分复用）
     if count <= STACK_CAP {
       for slot in stack_offsets.iter_mut().take(count) {
         *slot = offset;
-        let (entry_len, entry_order, m) = Self::parse_entry_header(buf, offset)?;
+        let (entry_len, entry_order, m, entry_exp) = Self::parse_entry_header(buf, offset)?;
         if fast_key_eq(m, member) {
-          existing_found = Some((offset, entry_len, entry_order));
+          if entry_order == order_score && entry_exp == expire_at_ms {
+            return Ok(false);
+          }
+          existing = Some((offset, entry_len));
           break;
         }
         offset += entry_len;
       }
     } else {
       for _ in 0..count {
-        let (entry_len, entry_order, m) = Self::parse_entry_header(buf, offset)?;
+        let (entry_len, entry_order, m, entry_exp) = Self::parse_entry_header(buf, offset)?;
         if fast_key_eq(m, member) {
-          existing_found = Some((offset, entry_len, entry_order));
+          if entry_order == order_score && entry_exp == expire_at_ms {
+            return Ok(false);
+          }
+          existing = Some((offset, entry_len));
           break;
         }
         offset += entry_len;
       }
     }
 
-    let is_new = if let Some((old_offset, old_len, old_order_score)) = existing_found {
-      if old_order_score == order_score {
-        return Ok(false);
-      }
+    let is_new = if let Some((old_offset, old_len)) = existing {
       let old_buf_len = buf.len();
       buf.copy_within(old_offset + old_len..old_buf_len, old_offset);
       buf.truncate(old_buf_len - old_len);
@@ -418,6 +515,7 @@ impl CompactZSetCodec {
     let insert_offset = if count_after_del == 0 {
       buf.len()
     } else if is_new && count_after_del <= STACK_CAP {
+      // is_new 保证上方扫描完整填充了 stack_offsets[..count]
       let insert_idx = match Self::binary_search_offsets(
         buf,
         &stack_offsets[..count_after_del],
@@ -446,17 +544,13 @@ impl CompactZSetCodec {
       })??
     };
 
-    let new_entry_len = COMPACT_ZSET_ENTRY_HEADER_SIZE + member.len();
+    let new_entry_len =
+      COMPACT_ZSET_ENTRY_HEADER_SIZE + member.len() + expire_suffix_len(expire_at_ms);
     let old_len = buf.len();
     buf.reserve(new_entry_len);
 
-    let [s0, s1, s2, s3, s4, s5, s6, s7] = order_score;
-    let [l0, l1] = (member.len() as u16).to_be_bytes();
-    let entry_header = [s0, s1, s2, s3, s4, s5, s6, s7, l0, l1];
-
     if insert_offset == old_len {
-      buf.extend_from_slice(&entry_header);
-      buf.extend_from_slice(member);
+      push_entry(buf, order_score, member, expire_at_ms);
     } else {
       // 安全性保证：上方 reserve(new_entry_len) 已确保容量 >= old_len + new_entry_len，
       // [insert_offset, old_len) 为已初始化字节；memmove 腾位后原位写入新条目，全程不越界
@@ -467,8 +561,10 @@ impl CompactZSetCodec {
           p.add(insert_offset + new_entry_len),
           old_len - insert_offset,
         );
+        let [s0, s1, s2, s3, s4, s5, s6, s7] = order_score;
+        let [l0, l1] = (member.len() as u16).to_be_bytes();
         ptr::copy_nonoverlapping(
-          entry_header.as_ptr(),
+          [s0, s1, s2, s3, s4, s5, s6, s7, l0, l1].as_ptr(),
           p.add(insert_offset),
           COMPACT_ZSET_ENTRY_HEADER_SIZE,
         );
@@ -476,6 +572,10 @@ impl CompactZSetCodec {
           member.as_ptr(),
           p.add(insert_offset + COMPACT_ZSET_ENTRY_HEADER_SIZE),
           member.len(),
+        );
+        write_expire_suffix(
+          p.add(insert_offset + COMPACT_ZSET_ENTRY_HEADER_SIZE + member.len()),
+          expire_at_ms,
         );
         buf.set_len(old_len + new_entry_len);
       }
@@ -499,7 +599,7 @@ impl CompactZSetCodec {
 
     let mut offset = COMPACT_ZSET_COUNT_SIZE;
     for _ in 0..count {
-      let (entry_len, _, m) = Self::parse_entry_header(buf, offset)?;
+      let (entry_len, _, m, _) = Self::parse_entry_header(buf, offset)?;
       if fast_key_eq(m, member) {
         // 尾部整体前移覆盖被删条目，随后物理收缩（与紧凑哈希删除路径一致的安全 API 实现）
         buf.copy_within(offset + entry_len.., offset);
@@ -512,6 +612,39 @@ impl CompactZSetCodec {
     }
 
     Ok(false)
+  }
+
+  /// 原地单次遍历压缩物理空间并淘汰已过期成员（对标 C# DeleteExpiredItemsWorker，零额外堆分配 O(N)）
+  /// 返回清除的过期成员数
+  pub fn purge_expired(buf: &mut Vec<u8>, now: u64) -> Result<usize> {
+    if buf.len() < COMPACT_ZSET_COUNT_SIZE {
+      return Ok(0);
+    }
+    let count = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+    let mut write_offset = COMPACT_ZSET_COUNT_SIZE;
+    let mut purged = 0;
+    let mut new_count = 0u16;
+
+    for _ in 0..count {
+      let (entry_len, _, _, exp) = Self::parse_entry_header(buf, offset)?;
+      if exp.is_some_and(|e| e <= now) {
+        purged += 1;
+      } else {
+        if write_offset != offset {
+          buf.copy_within(offset..offset + entry_len, write_offset);
+        }
+        write_offset += entry_len;
+        new_count += 1;
+      }
+      offset += entry_len;
+    }
+
+    if purged > 0 {
+      buf.truncate(write_offset);
+      buf[0..COMPACT_ZSET_COUNT_SIZE].copy_from_slice(&new_count.to_be_bytes());
+    }
+    Ok(purged)
   }
 
   /// 读取指定偏移处的 8 字节保序分值（偏移由 [Self::collect_offsets] 产生，恒不越界）
@@ -666,21 +799,23 @@ impl CompactZSetCodec {
   }
 
   /// 批量编码有序集合（同成员后写覆盖先写，单次排序 O(N log N) 批量构建）
+  ///
+  /// 条目项为 `(score, member, expire_at_ms)`，与 [`CompactHashCodec::encode`] 同型
   pub fn encode<'a, I>(entries: I) -> Result<Vec<u8>>
   where
-    I: IntoIterator<Item = (f64, &'a [u8])>,
+    I: IntoIterator<Item = (f64, &'a [u8], Option<u64>)>,
   {
-    let mut items: Vec<([u8; COMPACT_ZSET_SCORE_SIZE], &[u8])> = entries
+    let mut items: Vec<([u8; COMPACT_ZSET_SCORE_SIZE], &[u8], Option<u64>)> = entries
       .into_iter()
-      .map(|(score, member)| {
+      .map(|(score, member, expire_at_ms)| {
         if member.len() > u16::MAX as usize {
           return Err(Error::KeyLengthOverflow(member.len()));
         }
-        Ok((encode_order_preserving_f64(score), member))
+        Ok((encode_order_preserving_f64(score), member, expire_at_ms))
       })
       .collect::<Result<_>>()?;
 
-    // 按成员稳定排序后保留每组最后一次出现的分值（对齐逐条 insert 的覆盖语义）
+    // 按成员稳定排序后保留每组最后一次出现的分值与过期时间（对齐逐条 insert 的覆盖语义）
     items.sort_by(|a, b| a.1.cmp(b.1));
     items.reverse();
     items.dedup_by(|a, b| a.1 == b.1);
@@ -695,17 +830,13 @@ impl CompactZSetCodec {
 
     let payload_len: usize = items
       .iter()
-      .map(|(_, m)| COMPACT_ZSET_ENTRY_HEADER_SIZE + m.len())
+      .map(|(_, m, e)| COMPACT_ZSET_ENTRY_HEADER_SIZE + m.len() + expire_suffix_len(*e))
       .sum();
     let mut buf = Vec::with_capacity(COMPACT_ZSET_COUNT_SIZE + payload_len);
     buf.extend_from_slice(&(items.len() as u16).to_be_bytes());
-    for (order_score, member) in items {
-      let [s0, s1, s2, s3, s4, s5, s6, s7] = order_score;
-      let [l0, l1] = (member.len() as u16).to_be_bytes();
-      buf.extend_from_slice(&[s0, s1, s2, s3, s4, s5, s6, s7, l0, l1]);
-      buf.extend_from_slice(member);
+    for (order_score, member, expire_at_ms) in items {
+      push_entry(&mut buf, order_score, member, expire_at_ms);
     }
-
     Ok(buf)
   }
 }
@@ -794,10 +925,27 @@ impl CompactZSet {
     CompactZSetCodec::insert(&mut self.raw, score, member)
   }
 
+  /// 插入或更新成员分值与成员级过期时间戳
+  #[inline(always)]
+  pub fn insert_with_expire(
+    &mut self,
+    score: f64,
+    member: &[u8],
+    expire_at_ms: Option<u64>,
+  ) -> Result<bool> {
+    CompactZSetCodec::insert_with_expire(&mut self.raw, score, member, expire_at_ms)
+  }
+
   /// 删除成员
   #[inline(always)]
   pub fn remove(&mut self, member: &[u8]) -> Result<bool> {
     CompactZSetCodec::remove(&mut self.raw, member)
+  }
+
+  /// 原地清理已过期成员并压缩物理内存
+  #[inline(always)]
+  pub fn purge_expired(&mut self, now: u64) -> Result<usize> {
+    CompactZSetCodec::purge_expired(&mut self.raw, now)
   }
 
   /// 分值范围计数

@@ -94,13 +94,13 @@ impl<'a> ZMemberKeyRef<'a> {
     ZSetSubKeyCodec::encode_member_key_to_slice(self.key_id, self.version, self.member, dst)
   }
 
-  /// 预分配精准容量并编码为全新 Vec<u8>（单次堆分配）
+  /// 预分配精准容量并编码为全新 Vec<u8>（单次堆分配，长度溢出返回错误）
   #[inline]
   pub fn to_vec(&self) -> Vec<u8> {
     self.try_to_vec().unwrap_or_default()
   }
 
-  /// 尝试编码为全新分配的 Vec<u8>，若长度溢出或为空则返回错误
+  /// 尝试编码为全新分配的 Vec<u8>，若长度溢出则返回错误
   #[inline]
   pub fn try_to_vec(&self) -> Result<Vec<u8>> {
     ZSetSubKeyCodec::encode_member_key(self.key_id, self.version, self.member)
@@ -185,13 +185,13 @@ impl<'a> ZScoreKeyRef<'a> {
     Ok(total_len)
   }
 
-  /// 预分配精准容量并编码为全新 Vec<u8>（单次堆分配）
+  /// 预分配精准容量并编码为全新 Vec<u8>（单次堆分配，长度溢出返回错误）
   #[inline]
   pub fn to_vec(&self) -> Vec<u8> {
     self.try_to_vec().unwrap_or_default()
   }
 
-  /// 尝试编码为全新分配的 Vec<u8>，若长度溢出或为空则返回错误
+  /// 尝试编码为全新分配的 Vec<u8>，若长度溢出则返回错误
   #[inline]
   pub fn try_to_vec(&self) -> Result<Vec<u8>> {
     ZSetSubKeyCodec::encode_score_key(self.key_id, self.version, self.score, self.member)

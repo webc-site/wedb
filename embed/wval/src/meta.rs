@@ -574,10 +574,10 @@ impl<'a> SubKeyRef<'a> {
     SubKeyCodec::encode_to_buf(self.tag, self.key_id, self.version, self.payload)
   }
 
-  /// 预分配精准容量并编码为 Vec<u8>（单次堆分配）
+  /// 预分配精准容量并编码为 Vec<u8>（单次堆分配；tag 已由解析保证合法，失败仅剩 usize 溢出）
   #[inline]
   pub fn to_vec(&self) -> Vec<u8> {
-    SubKeyCodec::encode_to_vec(self.tag, self.key_id, self.version, self.payload)
+    self.try_to_vec().unwrap_or_default()
   }
 
   /// 尝试编码为全新分配的 Vec<u8>，若长度溢出则返回错误
@@ -653,13 +653,17 @@ impl SubKeyCodec {
   }
 
   /// 从只读切片快速解码 17 字节前缀头信息 (tag, key_id, version)（const fn）
-  #[inline]
+  ///
+  /// 仅接受子键标签（Hash..=SetChunk）：String/Meta/Ttl 的载荷是用户键原文，
+  /// 绝不允许被当作 (key_id, version) 头误解析（对标 C# RecordNamespace 的
+  /// 命名空间封闭性约束，杜绝类型穿透）。
+  #[inline(always)]
   pub const fn decode_header(slice: &[u8]) -> Result<(KeyTag, u64, u64)> {
     match slice {
       [tag_byte, rest @ ..] => {
         let tag = match KeyTag::from_u8(*tag_byte) {
-          Some(t) => t,
-          None => return Err(Error::InvalidKeyTag(*tag_byte)),
+          Some(t) if t.is_subkey() => t,
+          _ => return Err(Error::InvalidKeyTag(*tag_byte)),
         };
         match Self::decode_id_version(rest) {
           Some((key_id, version)) => Ok((tag, key_id, version)),
@@ -676,6 +680,16 @@ impl SubKeyCodec {
     }
   }
 
+  /// 校验标签属于子键族（Hash..=SetChunk），非子键标签拒绝编码
+  #[inline(always)]
+  const fn ensure_subkey(tag: KeyTag) -> Result<()> {
+    if tag.is_subkey() {
+      Ok(())
+    } else {
+      Err(Error::InvalidKeyTag(tag.as_u8()))
+    }
+  }
+
   /// 零拷贝解析子键切片（const fn）
   #[inline(always)]
   pub const fn decode(slice: &[u8]) -> Result<SubKeyRef<'_>> {
@@ -683,6 +697,8 @@ impl SubKeyCodec {
   }
 
   /// 将子键编码并写入目标缓冲区，返回写入的总字节数（零堆分配）
+  ///
+  /// 仅接受子键标签（Hash..=SetChunk），杜绝以子键布局编码非子键标签
   #[inline]
   pub fn encode_to_slice(
     tag: KeyTag,
@@ -691,6 +707,7 @@ impl SubKeyCodec {
     payload: &[u8],
     dst: &mut [u8],
   ) -> Result<usize> {
+    Self::ensure_subkey(tag)?;
     let total_len = match SUBKEY_HEADER_SIZE.checked_add(payload.len()) {
       Some(l) => l,
       None => return Err(Error::RecordSizeOverflow),
@@ -717,6 +734,7 @@ impl SubKeyCodec {
     version: u64,
     payload: &[u8],
   ) -> Result<SubKeyBuf> {
+    Self::ensure_subkey(tag)?;
     let total_len = match SUBKEY_HEADER_SIZE.checked_add(payload.len()) {
       Some(l) => l,
       None => return Err(Error::RecordSizeOverflow),
@@ -744,6 +762,7 @@ impl SubKeyCodec {
     version: u64,
     payload: &[u8],
   ) -> Result<Vec<u8>> {
+    Self::ensure_subkey(tag)?;
     let total_len = match SUBKEY_HEADER_SIZE.checked_add(payload.len()) {
       Some(l) => l,
       None => return Err(Error::RecordSizeOverflow),
@@ -753,11 +772,5 @@ impl SubKeyCodec {
     vec.extend_from_slice(&header);
     vec.extend_from_slice(payload);
     Ok(vec)
-  }
-
-  /// 预分配精准容量并编码为 Vec<u8>（若溢出则安全兜底返回空向量）
-  #[inline]
-  pub fn encode_to_vec(tag: KeyTag, key_id: u64, version: u64, payload: &[u8]) -> Vec<u8> {
-    Self::try_encode_to_vec(tag, key_id, version, payload).unwrap_or_default()
   }
 }
