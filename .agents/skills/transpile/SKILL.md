@@ -34,7 +34,7 @@ lua 用 luau
 
 如果缺少相关的包，也可以用各个模块的 ./sh/new.sh 创建新的 crate
 
-如某函数不需要再 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 中配置，这样 `check.js` 忽略
+如某函数无需在 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 中配置，这样 `check.js` 忽略
 
 让子代理每次都先对照 garnet c# 代码审查 rust 的代码架构、模块依赖，思考如何让其结构更加合理，可以拆分、修订，让其拓扑和 c#更加吻合
 
