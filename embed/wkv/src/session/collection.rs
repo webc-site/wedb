@@ -10,7 +10,7 @@ use std::sync::Arc;
 use wdev::Device;
 use wval::{CollectionType, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, ZSetSubKeyCodec};
 
-use crate::{error::Result, session::StoreSession};
+use crate::{error::Result, range_index::range_index_blocking, session::StoreSession};
 
 /// 元数据 reserved[1] 最高位：Compact 载荷可能含 TTL 字段标志（chunk_id 实际仅占用低 31 位）
 pub const META_HAS_EXPIRE_MASK: u8 = 0x80;
@@ -153,8 +153,7 @@ impl<D: Device> StoreSession<D> {
         // 整树释放 (Drop 遍历基页刷盘 + 删文件) 属重操作，卸载 compio 阻塞线程
         let mgr = Arc::clone(&self.store.range_index);
         let del_key = key.to_vec();
-        let _deleted =
-          crate::range_index::range_index_blocking(move || mgr.delete_index(&del_key)).await?;
+        let _deleted = range_index_blocking(move || mgr.delete_index(&del_key)).await?;
         meta_del = true;
       } else {
         self
