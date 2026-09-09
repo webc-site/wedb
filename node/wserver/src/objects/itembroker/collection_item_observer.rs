@@ -6,6 +6,7 @@
 
 use std::{
   future::Future,
+  pin::Pin,
   sync::atomic::{AtomicBool, Ordering},
   task::{Context, Poll, Waker},
 };
@@ -81,7 +82,7 @@ pub(crate) struct WakeupFuture<'a> {
 impl Future for WakeupFuture<'_> {
   type Output = ();
 
-  fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
     self.wakeup.poll_wait(cx)
   }
 }

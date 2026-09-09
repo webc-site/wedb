@@ -7,9 +7,13 @@
 use std::str;
 
 use crate::{
-  arg_slice::ArgSlice, inputs::ObjectInput, objects::types::object_output::ObjectOutput,
-  resp::resp_server_session::RespServerSession, session_parse_state::SessionParseState,
-  types::GarnetObjectType,
+  arg_slice::ArgSlice,
+  input_header::RespInputHeader,
+  inputs::ObjectInput,
+  objects::types::object_output::ObjectOutput,
+  resp::resp_server_session::RespServerSession,
+  session_parse_state::SessionParseState,
+  types::{GarnetObjectType, RespInputFlags},
 };
 
 impl RespServerSession {
@@ -59,10 +63,7 @@ impl RespServerSession {
     let mut session_parse_state = SessionParseState::new();
     session_parse_state.initialize_with_args(&slices);
 
-    let header = crate::input_header::RespInputHeader::new_with_type(
-      object_type,
-      crate::types::RespInputFlags::empty(),
-    );
+    let header = RespInputHeader::new_with_type(object_type, RespInputFlags::empty());
     let input = ObjectInput::new_with_state(header, &mut session_parse_state, 0, scan_count_limit);
 
     let mut obj_out = ObjectOutput::new();

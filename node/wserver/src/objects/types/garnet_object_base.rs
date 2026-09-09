@@ -3,7 +3,7 @@
 //! C# 抽象基类承载 HeapMemorySize、WriteType 与 ZSCAN 族输入解析；
 //! Rust 以 trait + 缺省方法表达，对象自持内存记账字段。
 
-use std::io::Write;
+use std::io::{self, Write};
 
 use crate::{
   inputs::ObjectInput,
@@ -35,7 +35,7 @@ pub trait GarnetObjectBase: IGarnetObject {
   /// 类型字节写入（isNull 时写 GarnetObjectType::Null）
   ///
   /// libs/server/Objects/Types/GarnetObjectBase.cs:WriteType
-  fn write_type(&self, writer: &mut impl Write, is_null: bool) -> std::io::Result<()> {
+  fn write_type(&self, writer: &mut impl Write, is_null: bool) -> io::Result<()> {
     let type_byte = if is_null {
       GarnetObjectType::Null as u8
     } else {

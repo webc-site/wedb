@@ -16,12 +16,16 @@ use crate::{
   input_header::RespInputHeader,
   inputs::ObjectInput,
   objects::{
-    sortedset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
+    parse_utils::{now_ticks, try_get_expire_option},
+    sortedset::sorted_set_object::{
+      ExpirationWithOption, ExpireOption, SortedSetEntry, SortedSetObject, SortedSetOperation,
+      SortedSetRangeOpts,
+    },
     types::object_output::ObjectOutput,
   },
   resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession},
   session_parse_state::SessionParseState,
-  types::GarnetObjectType,
+  types::{GarnetObjectType, RespInputFlags},
 };
 
 /// 本命令面统一按 RESP2 协议输出（C# respProtocolVersion 由会话下发，
@@ -102,10 +106,8 @@ fn make_input(
   let mut parse_state = SessionParseState::new();
   parse_state.initialize_with_args(&slices);
 
-  let mut header = RespInputHeader::new_with_type(
-    GarnetObjectType::SortedSet,
-    crate::types::RespInputFlags::empty(),
-  );
+  let mut header =
+    RespInputHeader::new_with_type(GarnetObjectType::SortedSet, RespInputFlags::empty());
   header.set_sub_id(op as u8);
   (
     ObjectInput::new_with_state(header, &mut parse_state, arg1, arg2),
@@ -394,9 +396,7 @@ impl RespServerSession {
     let mut dst = SortedSetObject::new();
     for (member, score) in pairs {
       dst.sorted_set_dict.insert(member.clone(), score);
-      dst
-        .sorted_set
-        .insert(crate::objects::sortedset::sorted_set_object::SortedSetEntry { score, member });
+      dst.sorted_set.insert(SortedSetEntry { score, member });
     }
 
     let _ = store.try_upsert_sync(dst_key, &zset_to_blob(&dst));
@@ -906,7 +906,7 @@ impl RespServerSession {
       store,
       keys,
       &weights,
-      crate::storage::session::objectstore::sorted_set_ops::ZSetAggregate::Sum,
+      ZSetAggregate::Sum,
       CombineKind::Intersect,
     );
 
@@ -1129,8 +1129,7 @@ impl RespServerSession {
     let mut curr_idx = 2;
     let mut expire_option = 0_u8;
     while curr_idx < parse_state.len() {
-      let Some(opt) = crate::objects::parse_utils::try_get_expire_option(parse_state[curr_idx])
-      else {
+      let Some(opt) = try_get_expire_option(parse_state[curr_idx]) else {
         break;
       };
       expire_option |= opt.bits();
@@ -1139,7 +1138,7 @@ impl RespServerSession {
 
     // .NET Ticks 目标时刻
     const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
-    let now_ticks = crate::objects::parse_utils::now_ticks();
+    let now_ticks = now_ticks();
     let now_ms = now_ticks / 10_000 - UNIX_EPOCH_TICKS / 10_000;
     let expiration_ticks = if is_timestamp {
       UNIX_EPOCH_TICKS + expiration_base * if is_milliseconds { 10_000 } else { 10_000_000 }
@@ -1148,9 +1147,9 @@ impl RespServerSession {
     };
     let _ = now_ms;
 
-    let e = crate::objects::sortedset::sorted_set_object::ExpirationWithOption::new(
+    let e = ExpirationWithOption::new(
       expiration_ticks,
-      crate::objects::sortedset::sorted_set_object::ExpireOption::from_bits_truncate(expire_option),
+      ExpireOption::from_bits_truncate(expire_option),
     );
 
     let args: Vec<&[u8]> = parse_state[curr_idx..].to_vec();

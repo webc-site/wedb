@@ -6,12 +6,14 @@
 
 use std::io::Cursor;
 
-use wobject::sorted_set::sorted_set_object::SortedSetObject as WoSortedSetObject;
+use wobject::sorted_set::sorted_set_object::{
+  SortedSetEntry as SortedSetEntryWo, SortedSetObject as WoSortedSetObject,
+};
 
 use crate::{
   objects::{
     parse_utils::{equals_ignore_case, try_get_geo_distance_unit, try_get_geo_lon_lat},
-    sortedset::sorted_set_object::SortedSetObject,
+    sortedset::sorted_set_object::{SortedSetEntry, SortedSetObject, SortedSetOperation},
     sortedsetgeo::{
       geo_hash::GeoDistanceUnitType,
       sorted_set_geo_object_impl::{
@@ -21,6 +23,7 @@ use crate::{
     types::object_output::ObjectOutput,
   },
   resp::{
+    objects::sorted_set_commands::make_input_for_geo,
     parser::resp_ext::{RespSliceExt, RespVecExt},
     resp_server_session::RespServerSession,
   },
@@ -45,7 +48,7 @@ fn zset_to_blob(obj: &SortedSetObject) -> Vec<u8> {
     let mut tree = wo.tree.lock();
     for (member, score) in obj.to_entries() {
       pin.insert(member.clone(), score);
-      tree.insert(wobject::sorted_set::sorted_set_object::SortedSetEntry { score, member });
+      tree.insert(SortedSetEntryWo { score, member });
     }
   }
   let mut out = Vec::new();
@@ -258,8 +261,8 @@ impl RespServerSession {
     };
 
     let mut obj_out = ObjectOutput::new();
-    let (input, _backing) = crate::resp::objects::sorted_set_commands::make_input_for_geo(
-      crate::objects::sortedset::sorted_set_object::SortedSetOperation::Geoadd,
+    let (input, _backing) = make_input_for_geo(
+      SortedSetOperation::Geoadd,
       &parse_state[member_start..],
       add_option.bits() as i32,
       0,
@@ -278,10 +281,10 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
-    op: crate::objects::sortedset::sorted_set_object::SortedSetOperation,
+    op: SortedSetOperation,
   ) -> wresp::Result<bool> {
     let required = match op {
-      crate::objects::sortedset::sorted_set_object::SortedSetOperation::Geodist => 3,
+      SortedSetOperation::Geodist => 3,
       _ => 2,
     };
     if parse_state.len() < required {
@@ -296,8 +299,7 @@ impl RespServerSession {
     };
 
     let mut obj_out = ObjectOutput::new();
-    let (input, _backing) =
-      crate::resp::objects::sorted_set_commands::make_input_for_geo(op, &parse_state[1..], 0, 0);
+    let (input, _backing) = make_input_for_geo(op, &parse_state[1..], 0, 0);
     obj.operate(&input, &mut obj_out, 2);
     output.extend_from_slice(&obj_out.payload);
     Ok(true)
@@ -372,16 +374,13 @@ impl RespServerSession {
         read_opts.with_coord = false;
         read_opts.with_dist = false;
         read_opts.with_hash = false;
-        read_opts.sort =
-          crate::objects::sortedsetgeo::sorted_set_geo_object_impl::GeoOrder::Ascending;
+        read_opts.sort = GeoOrder::Ascending;
         obj.geo_search(&mut read_opts, &mut probe, 2, true);
         let members: Vec<Vec<u8>> = extract_bulk_members(&probe.payload);
         for member in members {
           if let Some(score) = obj.sorted_set_dict.get(&member).copied() {
             dst.sorted_set_dict.insert(member.clone(), score);
-            dst.sorted_set.insert(
-              crate::objects::sortedset::sorted_set_object::SortedSetEntry { score, member },
-            );
+            dst.sorted_set.insert(SortedSetEntry { score, member });
           }
         }
         let _ = store.try_upsert_sync(dest, &zset_to_blob(&dst));
@@ -500,7 +499,7 @@ mod tests {
         &[b"cities", b"sf", b"missing"],
         &batch,
         &mut out,
-        crate::objects::sortedset::sorted_set_object::SortedSetOperation::Geohash,
+        SortedSetOperation::Geohash,
       )
       .unwrap();
     assert_eq!(out, b"*2\r\n$11\r\n9q8yyk8ytp0\r\n$-1\r\n");
@@ -512,7 +511,7 @@ mod tests {
         &[b"cities", b"sf"],
         &batch,
         &mut out,
-        crate::objects::sortedset::sorted_set_object::SortedSetOperation::Geopos,
+        SortedSetOperation::Geopos,
       )
       .unwrap();
     let payload = String::from_utf8_lossy(&out);
@@ -525,7 +524,7 @@ mod tests {
         &[b"cities", b"sf", b"paris", b"km"],
         &batch,
         &mut out,
-        crate::objects::sortedset::sorted_set_object::SortedSetOperation::Geodist,
+        SortedSetOperation::Geodist,
       )
       .unwrap();
     let dist: f64 = String::from_utf8_lossy(&out)

@@ -151,24 +151,21 @@ impl GarnetObjectSerializer {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::objects::sortedset::sorted_set_object::SortedSetEntry;
 
   #[test]
   fn zset_round_trip_with_type_prefix() {
     let mut zset = SortedSetObject::new();
     zset.sorted_set_dict.insert(b"a".to_vec(), 1.0);
     zset.sorted_set_dict.insert(b"b".to_vec(), 2.0);
-    zset.sorted_set.insert(
-      crate::objects::sortedset::sorted_set_object::SortedSetEntry {
-        score: 1.0,
-        member: b"a".to_vec(),
-      },
-    );
-    zset.sorted_set.insert(
-      crate::objects::sortedset::sorted_set_object::SortedSetEntry {
-        score: 2.0,
-        member: b"b".to_vec(),
-      },
-    );
+    zset.sorted_set.insert(SortedSetEntry {
+      score: 1.0,
+      member: b"a".to_vec(),
+    });
+    zset.sorted_set.insert(SortedSetEntry {
+      score: 2.0,
+      member: b"b".to_vec(),
+    });
 
     let bytes =
       GarnetObjectSerializer::serialize_bytes(&GarnetObjectValue::SortedSet(zset.clone())).unwrap();

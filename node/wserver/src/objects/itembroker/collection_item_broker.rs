@@ -14,6 +14,7 @@
 
 use std::{
   collections::VecDeque,
+  pin::Pin,
   sync::{
     Arc,
     atomic::{AtomicBool, AtomicI32, Ordering},
@@ -71,7 +72,7 @@ pub trait CollectionItemStore: Send + Sync {
 
 /// 主循环启动器（C# Task.Run 的运行时注入点）
 pub trait TaskSpawner: Send + Sync {
-  fn spawn(&self, fut: std::pin::Pin<Box<dyn Future<Output = ()> + Send>>);
+  fn spawn(&self, fut: Pin<Box<dyn Future<Output = ()> + Send>>);
 }
 
 /// 集合项经纪
@@ -639,15 +640,19 @@ pub fn try_get_next_sorted_set_item(
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashMap as StdHashMap;
+
+  use wobject::list::list_object::ListOperation;
+
   use super::*;
   use crate::objects::itembroker::collection_item_observer::CollectionItemObserver as Obs;
 
   /// 内存取件源：key → 项队列
-  struct MemStore(parking_lot::Mutex<std::collections::HashMap<Vec<u8>, VecDeque<Vec<u8>>>>);
+  struct MemStore(Mutex<StdHashMap<Vec<u8>, VecDeque<Vec<u8>>>>);
 
   impl MemStore {
     fn new() -> Self {
-      Self(parking_lot::Mutex::new(std::collections::HashMap::new()))
+      Self(Mutex::new(StdHashMap::new()))
     }
 
     fn push(&self, key: &[u8], item: &[u8]) {
@@ -780,8 +785,8 @@ mod tests {
   fn list_item_helpers() {
     let src = ListObject::new();
     let dst = ListObject::new();
-    src.operate(wobject::list::list_object::ListOperation::Rpush, b"l");
-    src.operate(wobject::list::list_object::ListOperation::Rpush, b"r");
+    src.operate(ListOperation::Rpush, b"l");
+    src.operate(ListOperation::Rpush, b"r");
 
     // BLPOP 方向弹出队首
     assert_eq!(
@@ -796,8 +801,8 @@ mod tests {
     assert_eq!(try_get_next_list_item(&src, RespCommand::Blpop), None);
 
     // 搬移：src 右弹 → dst 左推
-    src.operate(wobject::list::list_object::ListOperation::Rpush, b"a");
-    src.operate(wobject::list::list_object::ListOperation::Rpush, b"b");
+    src.operate(ListOperation::Rpush, b"a");
+    src.operate(ListOperation::Rpush, b"b");
     let moved = try_move_next_list_item(
       &src,
       &dst,
@@ -814,9 +819,9 @@ mod tests {
   fn main_loop_wakes_waiting_observer() {
     use std::task::{Context, Poll, Waker};
 
-    struct Collector(Mutex<Vec<std::pin::Pin<Box<dyn Future<Output = ()> + Send>>>>);
+    struct Collector(Mutex<Vec<Pin<Box<dyn Future<Output = ()> + Send>>>>);
     impl TaskSpawner for Collector {
-      fn spawn(&self, fut: std::pin::Pin<Box<dyn Future<Output = ()> + Send>>) {
+      fn spawn(&self, fut: Pin<Box<dyn Future<Output = ()> + Send>>) {
         self.0.lock().push(fut);
       }
     }

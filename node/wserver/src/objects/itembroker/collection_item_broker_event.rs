@@ -3,6 +3,10 @@
 //! C# 以 FieldOffset 显式布局复用 17 字节栈空间；Rust 侧为普通枚举承载
 //! （键 / 键组 / 观察者 互斥，枚举天然等价且免于联合体不安全）。
 
+use std::sync::Arc;
+
+use crate::objects::itembroker::collection_item_observer::CollectionItemObserver;
+
 /// 事件类型
 ///
 /// libs/server/Objects/ItemBroker/CollectionItemBrokerEvent.cs:CollectionItemBrokerEventType
@@ -27,9 +31,7 @@ pub struct CollectionItemBrokerEvent {
   /// 观察者请求订阅的键组（NewObserver）
   pub keys: Option<Vec<Vec<u8>>>,
   /// 新观察者（NewObserver）
-  pub observer: Option<
-    std::sync::Arc<crate::objects::itembroker::collection_item_observer::CollectionItemObserver>,
-  >,
+  pub observer: Option<Arc<CollectionItemObserver>>,
 }
 
 impl CollectionItemBrokerEvent {
@@ -51,9 +53,7 @@ impl CollectionItemBrokerEvent {
   /// libs/server/Objects/ItemBroker/CollectionItemBrokerEvent.cs:CreateNewObserverEvent
   #[inline]
   pub fn create_new_observer_event(
-    observer: std::sync::Arc<
-      crate::objects::itembroker::collection_item_observer::CollectionItemObserver,
-    >,
+    observer: Arc<CollectionItemObserver>,
     keys: Vec<Vec<u8>>,
   ) -> Self {
     Self {
