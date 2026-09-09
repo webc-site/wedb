@@ -2,7 +2,7 @@ node_modules/
 .codegraph/
 *.lock
 /sh
-/garnet/
+/garnet
 
 # moon
 .moon/cache
