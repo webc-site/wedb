@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::Result;
 
-/// garnet相对路径:garnet/libs/server/ACL/AccessControlList.cs:AccessControlList
+/// garnet/libs/server/ACL/AccessControlList.cs:AccessControlList
 pub struct AccessControlList {
   users: HashMap<String, User>,
 }
@@ -34,30 +34,29 @@ impl Default for AccessControlList {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/ACL/ACLParser.cs:ACLParser
+/// garnet/libs/server/ACL/ACLParser.cs:ACLParser
 pub struct AclParser {}
 
 impl AclParser {
   pub fn parse_rules(user: &mut User, rules: &[&str]) -> Result<()> {
     for rule in rules {
-      if rule.starts_with('+') {
+      if let Some(cmd) = rule.strip_prefix('+') {
         user
           .permissions
           .allowed_commands
-          .insert(rule[1..].to_string());
-      } else if rule.starts_with('-') {
+          .insert(cmd.to_string());
+      } else if let Some(cmd) = rule.strip_prefix('-') {
         user
           .permissions
           .allowed_commands
-          .remove(&rule[1..].to_string());
+          .remove(cmd);
       } else if *rule == "on" {
         user.is_enabled = true;
       } else if *rule == "off" {
         user.is_enabled = false;
-      } else if rule.starts_with('>') {
-        let pwd = rule[1..].to_string();
+      } else if let Some(pwd) = rule.strip_prefix('>') {
         user.passwords.push(AclPassword {
-          hash: pwd.into_bytes(),
+          hash: pwd.as_bytes().to_vec(),
           salt: vec![],
         });
       }
@@ -66,14 +65,14 @@ impl AclParser {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/ACL/ACLPassword.cs:ACLPassword
+/// garnet/libs/server/ACL/ACLPassword.cs:ACLPassword
 #[derive(Debug, Clone)]
 pub struct AclPassword {
   pub hash: Vec<u8>,
   pub salt: Vec<u8>,
 }
 
-/// garnet相对路径:garnet/libs/server/ACL/CommandPermissionSet.cs:CommandPermissionSet
+/// garnet/libs/server/ACL/CommandPermissionSet.cs:CommandPermissionSet
 #[derive(Debug, Clone)]
 pub struct CommandPermissionSet {
   pub allow_all: bool,
@@ -86,10 +85,10 @@ impl CommandPermissionSet {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/ACL/SecretsUtility.cs:SecretsUtility
+/// garnet/libs/server/ACL/SecretsUtility.cs:SecretsUtility
 pub struct SecretsUtility {}
 
-/// garnet相对路径:garnet/libs/server/ACL/User.cs:User
+/// garnet/libs/server/ACL/User.cs:User
 #[derive(Debug, Clone)]
 pub struct User {
   pub name: String,
@@ -112,5 +111,5 @@ impl User {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/ACL/UserHandle.cs:UserHandle
+/// garnet/libs/server/ACL/UserHandle.cs:UserHandle
 pub struct UserHandle {}
