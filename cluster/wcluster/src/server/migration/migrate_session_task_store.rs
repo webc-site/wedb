@@ -6,7 +6,10 @@ use parking_lot::RwLock;
 use crate::server::{
   cluster_config::MAX_HASH_SLOT_VALUE,
   cluster_provider::ClusterProvider,
-  migration::{migrate_session::MigrateSession, migration_manager::TransferOption, sketch::Sketch},
+  migration::{
+    migrate_session::{MigrateSession, MigrateTaskSpec},
+    sketch::Sketch,
+  },
 };
 
 /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:MigrateSessionTaskStore
@@ -66,53 +69,29 @@ impl MigrateSessionTaskStore {
   }
 
   /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryAddMigrateSession
-  #[allow(clippy::too_many_arguments)]
   pub fn try_add_migrate_session(
     &self,
     cluster_provider: Arc<ClusterProvider>,
-    source_node_id: &str,
-    target_address: &str,
-    target_port: i32,
-    target_node_id: &str,
-    username: &str,
-    passwd: &str,
-    copy_option: bool,
-    replace_option: bool,
-    timeout: i32,
+    spec: MigrateTaskSpec<'_>,
     slots: HashSet<i32>,
     sketch: Sketch,
-    transfer_option: TransferOption,
   ) -> Option<Arc<MigrateSession>> {
-    let m_session = Arc::new(MigrateSession::new(
-      cluster_provider,
-      source_node_id,
-      target_address,
-      target_port,
-      target_node_id,
-      username,
-      passwd,
-      copy_option,
-      replace_option,
-      timeout,
-      slots.clone(),
-      sketch,
-      transfer_option,
-    ));
-
+    // 先拿写锁整体校验槽位无占用，再构造会话统一占位：
+    // 槽集合所有权直移会话，免 HashMap 克隆
     let mut state = self.state.write();
     if state.disposed {
       return None;
     }
-
-    // 先整体校验槽位无占用，再统一占位，避免半占状态
     if slots
       .iter()
       .any(|&slot| state.sessions[slot as usize].is_some())
     {
       return None;
     }
-    for slot in &slots {
-      state.sessions[*slot as usize] = Some(m_session.clone());
+
+    let m_session = Arc::new(MigrateSession::new(cluster_provider, spec, slots, sketch));
+    for slot in m_session.get_slots() {
+      state.sessions[*slot as usize] = Some(Arc::clone(&m_session));
     }
     Some(m_session)
   }
@@ -169,25 +148,29 @@ impl Default for MigrateSessionTaskStore {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::server::migration::{
-    migrate_state::MigrateState, migration_manager::TransferOption, sketch::Sketch,
-  };
+  use crate::server::migration::{migrate_session::MigrateTaskSpec, migrate_state::MigrateState};
+
+  /// 默认入参：仅目标节点 id 可变
+  fn spec(target_node_id: &str) -> MigrateTaskSpec<'_> {
+    MigrateTaskSpec {
+      source_node_id: "src",
+      target_address: "10.0.0.1",
+      target_port: 7000,
+      target_node_id,
+      username: "",
+      passwd: "",
+      copy_option: false,
+      replace_option: false,
+      timeout: 0,
+    }
+  }
 
   fn session(slots: HashSet<i32>) -> Arc<MigrateSession> {
     Arc::new(MigrateSession::new(
       Arc::new(ClusterProvider {}),
-      "src",
-      "10.0.0.1",
-      7000,
-      "dst",
-      "",
-      "",
-      false,
-      false,
-      0,
+      spec("dst"),
       slots,
       Sketch::new(),
-      TransferOption::Keys,
     ))
   }
 
@@ -202,18 +185,9 @@ mod tests {
     let s1 = store
       .try_add_migrate_session(
         Arc::new(ClusterProvider {}),
-        "src",
-        "10.0.0.1",
-        7000,
-        "dst",
-        "",
-        "",
-        false,
-        false,
-        0,
+        spec("dst"),
         slots(&[1, 2, 3]),
         Sketch::new(),
-        TransferOption::Keys,
       )
       .unwrap();
     assert_eq!(store.get_num_sessions(), 1);
@@ -223,18 +197,9 @@ mod tests {
       store
         .try_add_migrate_session(
           Arc::new(ClusterProvider {}),
-          "src",
-          "10.0.0.1",
-          7000,
-          "dst2",
-          "",
-          "",
-          false,
-          false,
-          0,
+          spec("dst2"),
           slots(&[3, 4]),
           Sketch::new(),
-          TransferOption::Keys,
         )
         .is_none()
     );
@@ -244,18 +209,9 @@ mod tests {
     store
       .try_add_migrate_session(
         Arc::new(ClusterProvider {}),
-        "src",
-        "10.0.0.2",
-        7000,
-        "dst2",
-        "",
-        "",
-        false,
-        false,
-        0,
+        spec("dst2"),
         slots(&[4]),
         Sketch::new(),
-        TransferOption::Keys,
       )
       .unwrap();
     assert_eq!(store.get_num_sessions(), 2);
@@ -271,18 +227,9 @@ mod tests {
     store
       .try_add_migrate_session(
         Arc::new(ClusterProvider {}),
-        "src",
-        "10.0.0.1",
-        7000,
-        "dst",
-        "",
-        "",
-        false,
-        false,
-        0,
+        spec("dst"),
         slots(&[1]),
         Sketch::new(),
-        TransferOption::Keys,
       )
       .unwrap();
     assert!(store.try_remove_node("dst"));
@@ -294,18 +241,9 @@ mod tests {
       store
         .try_add_migrate_session(
           Arc::new(ClusterProvider {}),
-          "src",
-          "10.0.0.1",
-          7000,
-          "dst",
-          "",
-          "",
-          false,
-          false,
-          0,
+          spec("dst"),
           slots(&[1]),
           Sketch::new(),
-          TransferOption::Keys,
         )
         .is_none()
     );
