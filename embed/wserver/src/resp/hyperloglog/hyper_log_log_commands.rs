@@ -1,16 +1,28 @@
-pub struct HyperLogLogCommands;
+impl crate::resp::resp_server_session::RespServerSession {
+  pub fn hyper_log_log_add<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    _output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    unimplemented!()
+  }
 
-impl HyperLogLogCommands {
-  /// libs/server/Resp/HyperLogLog/HyperLogLogCommands.cs:HyperLogLogAdd
-  pub fn hyper_log_log_add() {
+  pub fn hyper_log_log_length<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    _output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
     unimplemented!()
   }
-  /// libs/server/Resp/HyperLogLog/HyperLogLogCommands.cs:HyperLogLogLength
-  pub fn hyper_log_log_length() {
-    unimplemented!()
-  }
-  /// libs/server/Resp/HyperLogLog/HyperLogLogCommands.cs:HyperLogLogMerge
-  pub fn hyper_log_log_merge() {
+
+  pub fn hyper_log_log_merge<'a, D: wdev::Device>(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    _output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
     unimplemented!()
   }
 }
