@@ -30,6 +30,7 @@ pub mod objects;
 pub mod providers;
 pub mod pubsub;
 pub mod resp;
+pub mod server_config;
 pub mod servers;
 pub mod sessions;
 pub mod storage;
