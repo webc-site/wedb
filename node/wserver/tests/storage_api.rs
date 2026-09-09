@@ -162,12 +162,29 @@ fn test_object_stores() -> aok::Void {
     );
 
     // 集合：SADD / SINTER / SDIFF
-    ss.set_add(b"sa", &[b"1", b"2", b"3"]).await?;
+    // SADD 返回新增成员数：已有成员不计入（对齐 Redis）
+    assert_eq!(
+      ss.set_add(b"sa", &[b"1", b"2", b"3"]).await?,
+      (GarnetStatus::Ok, 3)
+    );
+    assert_eq!(
+      ss.set_add(b"sa", &[b"2", b"4"]).await?,
+      (GarnetStatus::Ok, 1)
+    );
     ss.set_add(b"sb", &[b"2", b"3", b"4"]).await?;
     let (_, inter) = ss.set_intersect(&[b"sa", b"sb"]).await?;
-    assert_eq!(inter.len(), 2);
+    assert_eq!(inter.len(), 3);
     let (_, diff) = ss.set_diff(&[b"sa", b"sb"]).await?;
     assert_eq!(diff, vec![b"1".to_vec()]);
+    // SUNIONSTORE / SDIFFSTORE 返回结果集基数
+    assert_eq!(
+      ss.set_union_store(b"su", &[b"sa", b"sb"]).await?,
+      (GarnetStatus::Ok, 4)
+    );
+    assert_eq!(
+      ss.set_diff_store(b"sd", &[b"sa", b"sb"]).await?,
+      (GarnetStatus::Ok, 1)
+    );
 
     // 列表：LPUSH / LRANGE / LPOP / 弹空回收
     ss.list_push(b"l", &[b"b", b"a"], OperationDirection::Left, false)

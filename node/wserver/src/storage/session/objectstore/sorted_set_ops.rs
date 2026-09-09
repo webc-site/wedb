@@ -846,15 +846,17 @@ impl<'a, D: Device> StorageSession<'a, D> {
 }
 
 /// (score, member) 排序视图（Redis 排名序：分值升序、同分按成员字典序）
+///
+/// 直接迭代 wobject 双索引中的 BTreeSet 有序树（条目序即 (score, member) 序），
+/// 免去字典快照 + O(N log N) 重排序；树由 operate/pop_min/pop_max 全路径同步维护，
+/// 恒与字典一致，O(N) 单遍导出
 fn sorted_view(obj: &SortedSetObject) -> Vec<(Vec<u8>, f64)> {
-  let mut v: Vec<(Vec<u8>, f64)> = obj
-    .dict
-    .pin()
+  obj
+    .tree
+    .lock()
     .iter()
-    .map(|(k, &s)| (k.clone(), s))
-    .collect();
-  v.sort_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
-  v
+    .map(|e| (e.member.clone(), e.score))
+    .collect()
 }
 
 /// 聚合两分值
