@@ -124,6 +124,12 @@ pub const GENERIC_UNKNOWN_CLIENT_TYPE: &str = "ERR Unknown client type '{0}'";
 pub const GENERIC_ERR_DUPLICATE_FILTER: &str = "ERR Filter '{0}' defined multiple times";
 /// libs/server/Resp/CmdStrings.cs:GenericErrShouldBeGreaterThanZero
 pub const GENERIC_ERR_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR {0} should be greater than 0";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_INSTANTIATING_CLASS
+pub const RESP_ERR_GENERIC_INSTANTIATING_CLASS: &str =
+  "ERR unable to instantiate one or more classes from given assemblies.";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_REGISTERCS_UNSUPPORTED_CLASS
+pub const RESP_ERR_GENERIC_REGISTERCS_UNSUPPORTED_CLASS: &str =
+  "ERR unable to register one or more unsupported classes.";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownOptionConfigSet
 pub const GENERIC_ERR_UNKNOWN_OPTION_CONFIG_SET: &str =
   "ERR Unknown option or number of arguments for CONFIG SET - '{0}'";
