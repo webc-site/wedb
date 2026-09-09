@@ -5,7 +5,7 @@ use std::{
   ops::{Deref, DerefMut},
   path::Path,
   slice::from_raw_parts_mut,
-  sync::atomic::Ordering,
+  sync::atomic::{AtomicU64, Ordering},
 };
 
 use compio::{
@@ -15,7 +15,7 @@ use compio::{
 };
 use log::debug;
 use wbase::crc::Crc32Hasher;
-use windex::{HashBucket, HashBucketEntry, HashIndex};
+use windex::{ENTRIES_PER_BUCKET, HashBucket, HashBucketEntry, HashIndex};
 
 use super::{
   error::{Error, Result},
@@ -308,33 +308,55 @@ impl<'a> BatchWriter<'a> {
 
   #[inline]
   async fn write_bucket(&mut self, bucket: &HashBucket) -> Result<()> {
+    // 先解析全部槽位值（数据槽位可能触发 rc 断链复核重读），再取 batch 可变借用
+    // 写字节，规避「缓冲可变借用期间回调 &self」的借用冲突
+    let mut vals = [0u64; ENTRIES_PER_BUCKET];
+    for (i, slot) in bucket.entries.iter().enumerate() {
+      vals[i] = if i == HashBucket::OVERFLOW_INDEX {
+        // 溢出槽位：剥离高 16 位并发自旋锁瞬态标记，仅保留低 48 位溢出桶索引
+        sanitize_overflow_slot(slot.load(Ordering::Acquire))
+      } else {
+        sanitize_data_slot(self.resolve_slot(slot), None)
+      };
+    }
+
     let offset = self.cursor;
     // SAFETY: 缓冲仅在 flush_batch 的 await 期间被移出，该函数恢复缓冲后才返回，
     // 此处控制流上缓冲必然在位
     let batch = unsafe { self.buf.as_deref_mut().unwrap_unchecked() };
     let target = &mut batch[offset..offset + BUCKET_BYTES];
     let (chunks, _) = target.as_chunks_mut::<8>();
-    // 处理前 7 个数据槽位 (DATA_ENTRIES = 7)
-    for (slot, slot_bytes) in bucket.entries[..HashBucket::DATA_ENTRIES]
-      .iter()
-      .zip(chunks.iter_mut())
-    {
-      let val = sanitize_data_slot(
-        resolve_read_cache(self.rc_skip, slot.load(Ordering::Acquire)),
-        None,
-      );
-      *slot_bytes = val.to_le_bytes();
+    for (chunk, val) in chunks.iter_mut().zip(vals.iter()) {
+      *chunk = val.to_le_bytes();
     }
-    // 处理第 7 个槽位（OVERFLOW_INDEX = 7，溢出指针与并发自旋锁）
-    let overflow_val =
-      sanitize_overflow_slot(bucket.entries[HashBucket::OVERFLOW_INDEX].load(Ordering::Acquire));
-    chunks[HashBucket::OVERFLOW_INDEX] = overflow_val.to_le_bytes();
 
     self.cursor += BUCKET_BYTES;
     if self.cursor == BATCH_BYTES {
       self.flush_batch().await?;
     }
     Ok(())
+  }
+
+  /// 解析单个数据槽位为可落盘值（ReadCache 易失指针经 rc_skip 顺链回写，见
+  /// [resolve_read_cache]）
+  ///
+  /// 断链复核（对标 C# ReadCache 快照路径依赖纪元固定的兜底差异）：槽位原子加载与
+  /// rc 链解析非原子——若 CleanseHashChain（环形换装前的链恢复）恰在该间隙把槽位
+  /// CAS 回主日志地址，首次解析会因读缓存记录已被清空而误报断链，直接落 0 将把
+  /// 存活键从检查点静默丢弃。故对带 ReadCache 位的断链结果重读槽位一次：值已变
+  /// （并发清链已生效）则以新值重新解析；值未变则链真断（记录已被覆盖失效），
+  /// 交由下游净化归零。
+  #[inline]
+  fn resolve_slot(&self, slot: &AtomicU64) -> u64 {
+    let raw = slot.load(Ordering::Acquire);
+    let resolved = resolve_read_cache(self.rc_skip, raw);
+    if raw != 0 && raw & HashBucketEntry::READ_CACHE_BIT != 0 && resolved == 0 {
+      let fresh = slot.load(Ordering::Acquire);
+      if fresh != raw {
+        return resolve_read_cache(self.rc_skip, fresh);
+      }
+    }
+    resolved
   }
 
   #[inline]
