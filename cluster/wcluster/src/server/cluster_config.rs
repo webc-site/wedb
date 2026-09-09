@@ -5,7 +5,7 @@ use log::warn;
 
 use crate::server::{
   hash_slot::{HashSlot, SlotState},
-  worker::{NodeRole, Worker},
+  worker::{LocalWorkerSpec, NodeRole, Worker},
 };
 
 pub const RESERVED_WORKER_ID: usize = 0;
@@ -72,27 +72,20 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeLocalWorker
-  #[allow(clippy::too_many_arguments)]
-  pub fn initialize_local_worker(
-    &self,
-    node_id: &str,
-    address: &str,
-    port: i32,
-    config_epoch: i64,
-    role: NodeRole,
-    replica_of_node_id: Option<&str>,
-    hostname: Option<&str>,
-  ) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].address = address.to_string();
-    new_config.workers[LOCAL_WORKER_ID].port = port;
-    new_config.workers[LOCAL_WORKER_ID].nodeid = Some(node_id.to_string());
-    new_config.workers[LOCAL_WORKER_ID].config_epoch = config_epoch;
-    new_config.workers[LOCAL_WORKER_ID].role = role;
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = replica_of_node_id.map(String::from);
-    new_config.workers[LOCAL_WORKER_ID].replication_offset = 0;
-    new_config.workers[LOCAL_WORKER_ID].hostname = hostname.map(String::from);
-    new_config
+  ///
+  /// 原地更新本地 worker。C# 版每次复制重建 workers 数组；调用方均持有
+  /// 写锁，此处直接改写，省去整份 slot_map（64KB）克隆。
+  /// C# 散参入参聚合为 [`LocalWorkerSpec`]，免 too_many_arguments
+  pub fn initialize_local_worker(&mut self, spec: LocalWorkerSpec<'_>) {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.address = spec.address.to_string();
+    w.port = spec.port;
+    w.nodeid = Some(spec.node_id.to_string());
+    w.config_epoch = spec.config_epoch;
+    w.role = spec.role;
+    w.replica_of_node_id = spec.replica_of_node_id.map(String::from);
+    w.replication_offset = 0;
+    w.hostname = spec.hostname.map(String::from);
   }
 
   /// garnet相对路径:Server:ClusterConfig:HasAssignedSlots
@@ -639,287 +632,303 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:MakeReplicaOf
-  pub fn make_replica_of(&self, nodeid: Option<&str>) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = nodeid.map(|s| s.to_string());
-    new_config.workers[LOCAL_WORKER_ID].role = NodeRole::Replica;
-    new_config
+  pub fn make_replica_of(&mut self, nodeid: Option<&str>) -> &mut Self {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.replica_of_node_id = nodeid.map(String::from);
+    w.role = NodeRole::Replica;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerRole
-  pub fn set_local_worker_role(&self, role: NodeRole) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].role = role;
-    new_config
+  pub fn set_local_worker_role(&mut self, role: NodeRole) -> &mut Self {
+    self.workers[LOCAL_WORKER_ID].role = role;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TakeOverFromPrimary
-  pub fn take_over_from_primary(&self) -> Self {
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].role = NodeRole::Primary;
-    new_config.workers[LOCAL_WORKER_ID].replica_of_node_id = None;
-
+  pub fn take_over_from_primary(&mut self) -> &mut Self {
+    // 先按现主收集槽位再清 primary 指针，顺序不能反
     let slots = self.get_local_primary_slots();
     for slot in slots {
-      new_config.slot_map[slot].worker_id = LOCAL_WORKER_ID as u16;
-      new_config.slot_map[slot].state = SlotState::Stable;
+      let s = &mut self.slot_map[slot];
+      s.worker_id = LOCAL_WORKER_ID as u16;
+      s.state = SlotState::Stable;
     }
-    new_config
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    w.role = NodeRole::Primary;
+    w.replica_of_node_id = None;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryAddSlots
+  ///
+  /// 先整体校验再占位：与 C# 的"新配置上试错"等价的 all-or-nothing 语义，
+  /// 但无需整份克隆
   pub fn try_add_slots(
-    &self,
+    &mut self,
     slots: Option<&HashSet<usize>>,
     state: SlotState,
-  ) -> Result<Self, usize> {
-    let mut new_config = self.clone();
-    if let Some(s) = slots {
-      for &slot in s {
-        if new_config.slot_map[slot].eff_worker_id() != 0 {
-          return Err(slot);
-        }
-        new_config.slot_map[slot].worker_id = LOCAL_WORKER_ID as u16;
-        new_config.slot_map[slot].state = state;
+  ) -> Result<(), usize> {
+    let Some(s) = slots else {
+      return Ok(());
+    };
+    for &slot in s {
+      if self.slot_map[slot].eff_worker_id() != 0 {
+        return Err(slot);
       }
     }
-    Ok(new_config)
+    for &slot in s {
+      let e = &mut self.slot_map[slot];
+      e.worker_id = LOCAL_WORKER_ID as u16;
+      e.state = state;
+    }
+    Ok(())
   }
 
   /// garnet相对路径:Server:ClusterConfig:AssignSlots
-  pub fn assign_slots(&self, slots: &[usize], worker_id: u16, state: SlotState) -> Self {
-    let mut new_config = self.clone();
+  pub fn assign_slots(&mut self, slots: &[usize], worker_id: u16, state: SlotState) -> &mut Self {
     for &slot in slots {
-      new_config.slot_map[slot].worker_id = worker_id;
-      new_config.slot_map[slot].state = state;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = worker_id;
+      e.state = state;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryRemoveSlots
-  pub fn try_remove_slots(&self, slots: Option<&HashSet<usize>>) -> Result<Self, usize> {
-    let mut new_config = self.clone();
-    if let Some(s) = slots {
-      for &slot in s {
-        if new_config.slot_map[slot].eff_worker_id() == 0 {
-          return Err(slot);
-        }
-        new_config.slot_map[slot].worker_id = 0;
-        new_config.slot_map[slot].state = SlotState::Offline;
+  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> Result<(), usize> {
+    let Some(s) = slots else {
+      return Ok(());
+    };
+    for &slot in s {
+      if self.slot_map[slot].eff_worker_id() == 0 {
+        return Err(slot);
       }
     }
-    Ok(new_config)
+    for &slot in s {
+      let e = &mut self.slot_map[slot];
+      e.worker_id = 0;
+      e.state = SlotState::Offline;
+    }
+    Ok(())
   }
 
   /// garnet相对路径:Server:ClusterConfig:UpdateSlotState
-  pub fn update_slot_state(&self, slot: usize, worker_id: u16, state: SlotState) -> Self {
-    let mut new_config = self.clone();
-    new_config.slot_map[slot].worker_id = worker_id;
-    new_config.slot_map[slot].state = state;
-    new_config
+  pub fn update_slot_state(&mut self, slot: usize, worker_id: u16, state: SlotState) -> &mut Self {
+    let e = &mut self.slot_map[slot];
+    e.worker_id = worker_id;
+    e.state = state;
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:UpdateMultiSlotState
   pub fn update_multi_slot_state(
-    &self,
+    &mut self,
     slots: &HashSet<usize>,
     worker_id: u16,
     state: SlotState,
-  ) -> Self {
-    let mut new_config = self.clone();
+  ) -> &mut Self {
     for &slot in slots {
-      new_config.slot_map[slot].worker_id = worker_id;
-      new_config.slot_map[slot].state = state;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = worker_id;
+      e.state = state;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:ResetMultiSlotState
-  pub fn reset_multi_slot_state(&self, slots: &HashSet<usize>) -> Self {
-    let mut new_config = self.clone();
+  pub fn reset_multi_slot_state(&mut self, slots: &HashSet<usize>) -> &mut Self {
     for &slot in slots {
+      // Migrating 槽归本地源节点，其余按 eff 属主回稳
       let st = self.get_state(slot as u16);
       let wid = if st == SlotState::Migrating {
         LOCAL_WORKER_ID as u16
       } else {
         self.get_worker_id_from_slot(slot as u16) as u16
       };
-      new_config.slot_map[slot].worker_id = wid;
-      new_config.slot_map[slot].state = SlotState::Stable;
+      let e = &mut self.slot_map[slot];
+      e.worker_id = wid;
+      e.state = SlotState::Stable;
     }
-    new_config
+    self
   }
 
   /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerConfigEpoch
   ///
   /// 语义对齐 C#：仅允许"从 0 初始化"且新值必须为正；后续单调递增只能走
-  /// [`Self::bump_local_node_config_epoch`]，防止覆写既有 epoch
-  pub fn set_local_worker_config_epoch(&self, config_epoch: i64) -> Option<Self> {
-    let cur = self.workers[LOCAL_WORKER_ID].config_epoch;
-    if cur == 0 && cur < config_epoch {
-      let mut new_config = self.clone();
-      new_config.workers[LOCAL_WORKER_ID].config_epoch = config_epoch;
-      Some(new_config)
+  /// [`Self::bump_local_node_config_epoch`]，防止覆写既有 epoch。
+  /// 返回是否实际生效
+  pub fn set_local_worker_config_epoch(&mut self, config_epoch: i64) -> bool {
+    let w = &mut self.workers[LOCAL_WORKER_ID];
+    if w.config_epoch == 0 && w.config_epoch < config_epoch {
+      w.config_epoch = config_epoch;
+      true
     } else {
-      None
+      false
     }
   }
 
   /// garnet相对路径:Server:ClusterConfig:BumpLocalNodeConfigEpoch
-  pub fn bump_local_node_config_epoch(&self) -> Self {
+  pub fn bump_local_node_config_epoch(&mut self) -> &mut Self {
     let mx = self.get_max_config_epoch();
-    let mut new_config = self.clone();
-    new_config.workers[LOCAL_WORKER_ID].config_epoch = mx + 1;
-    new_config
+    self.workers[LOCAL_WORKER_ID].config_epoch = mx + 1;
+    self
   }
 }
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:MergeWorkerInfo
-  fn merge_worker_info(&self, worker: &Worker) -> Self {
-    let mut worker_id = RESERVED_WORKER_ID;
+  ///
+  /// 原地合并单个 worker：同名节点仅在 epoch 严格更大时更新，否则追加。
+  /// 返回是否发生变化。对齐 C# 仅复制 7 个元数据字段（不含
+  /// replication_offset——副本位点不随 gossip 传播）。
+  /// C# 版每次调用重建 workers 数组，本版配合 [`Self::merge`] 只克隆一次
+  fn merge_worker_info(&mut self, worker: &Worker) -> bool {
     for i in 1..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid
-        && let Some(ref wid) = worker.nodeid
-        && id.eq_ignore_ascii_case(wid)
-      {
+      let known = self.workers[i]
+        .nodeid
+        .as_deref()
+        .zip(worker.nodeid.as_deref())
+        .is_some_and(|(a, b)| a.eq_ignore_ascii_case(b));
+      if known {
         if worker.config_epoch <= self.workers[i].config_epoch {
-          return self.clone();
+          return false;
         }
-        worker_id = i;
-        break;
+        // 对齐 C#：仅覆盖 7 个元数据字段，replication_offset 保留本地值
+        // （副本位点不随 gossip 传播）
+        let local_offset = self.workers[i].replication_offset;
+        self.workers[i].clone_from(worker);
+        self.workers[i].replication_offset = local_offset;
+        return true;
       }
     }
-
-    let mut new_config = self.clone();
-    if worker_id == RESERVED_WORKER_ID {
-      worker_id = new_config.workers.len();
-      new_config.workers.push(Worker::default());
-    }
-
-    new_config.workers[worker_id].address = worker.address.clone();
-    new_config.workers[worker_id].port = worker.port;
-    new_config.workers[worker_id].nodeid = worker.nodeid.clone();
-    new_config.workers[worker_id].config_epoch = worker.config_epoch;
-    new_config.workers[worker_id].role = worker.role;
-    new_config.workers[worker_id].replica_of_node_id = worker.replica_of_node_id.clone();
-    new_config.workers[worker_id].hostname = worker.hostname.clone();
-
-    new_config
+    let mut w = worker.clone();
+    w.replication_offset = 0;
+    self.workers.push(w);
+    true
   }
 
   /// garnet相对路径:Server:ClusterConfig:MergeSlotMap
-  pub fn merge_slot_map(&self, sender_config: &ClusterConfig) -> Self {
-    let mut updated = false;
+  ///
+  /// 原地合并槽位图，返回是否有槽位变化。调用方需先做整体克隆
+  /// （与 C# Copy 一次 slotMap 相同开销）
+  pub fn merge_slot_map(&mut self, sender_config: &ClusterConfig) -> bool {
     let sender_slot_map = &sender_config.slot_map;
-    let mut assign_to_worker_id = if let Some(id) = sender_config.local_node_id() {
-      self.get_worker_id_from_node_id(id)
-    } else {
-      0
+    let mut assign_to_worker_id = match sender_config.local_node_id() {
+      Some(id) => self.get_worker_id_from_node_id(id),
+      None => 0,
     };
 
-    let mut new_config = self.clone();
-
+    let mut updated = false;
     for i in 0..MAX_HASH_SLOT_VALUE {
-      // 与 C# 一致取 eff id：本地 Migrating 槽的当前归属按 LOCAL(1) 判定，
-      // 迁移目标节点 gossip 认领时走 epoch 比较直接移交，而非误判为
-      // "目标已是属主"把槽重置为 Offline 造成短暂失主
-      let current_owner_id = new_config.slot_map[i].eff_worker_id() as usize;
-
       if sender_slot_map[i].state != SlotState::Stable {
         continue;
       }
 
-      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
-        let current_owner_node_id = if current_owner_id < self.workers.len() {
-          self.workers[current_owner_id].nodeid.clone()
-        } else {
-          None
-        };
+      // 与 C# 一致取 eff id：本地 Migrating 槽的当前归属按 LOCAL(1) 判定，
+      // 迁移目标节点 gossip 认领时走 epoch 比较直接移交，而非误判为
+      // "目标已是属主"把槽重置为 Offline 造成短暂失主
+      let current_owner_id = self.slot_map[i].eff_worker_id() as usize;
 
+      // 发送方非本槽认领者且是主：若本地认为属主即发送方（epoch 碰撞后
+      // 的错位状态），重置为 Offline 给真实属主重新认领的机会
+      if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
+        let current_owner_node_id = self.workers.get(current_owner_id).and_then(|w| w.nodeid.as_deref());
         if let Some(conid) = current_owner_node_id
           && let Some(sid) = sender_config.local_node_id()
           && conid.eq_ignore_ascii_case(sid)
         {
-          new_config.slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-          new_config.slot_map[i].state = SlotState::Offline;
+          let slot = &mut self.slot_map[i];
+          slot.worker_id = RESERVED_WORKER_ID as u16;
+          slot.state = SlotState::Offline;
           updated = true;
         }
         continue;
       }
 
       if sender_config.is_primary() {
+        // 发送方是本槽认领者且为主：仅当其 epoch 更高才可改写本槽
         if sender_config.local_node_config_epoch() != 0
-          && current_owner_id < self.workers.len()
-          && self.workers[current_owner_id].config_epoch >= sender_config.local_node_config_epoch()
+          && self.workers.get(current_owner_id).is_some_and(|w| {
+            w.config_epoch >= sender_config.local_node_config_epoch()
+          })
         {
           continue;
         }
       } else if current_owner_id != RESERVED_WORKER_ID {
-        if current_owner_id < self.workers.len()
-          && let Some(ref id) = self.workers[current_owner_id].nodeid
-          && let Some(sid) = sender_config.local_node_id()
-          && !id.eq(sid)
-        {
+        // 副本场景：仅当本槽现属主即发送方（旧主）才允许移交其副本，
+        // 保证计划内 failover 下多副本乱序 gossip 只有接管者生效
+        let owner_is_sender = self.workers.get(current_owner_id).is_some_and(|w| {
+          w.nodeid
+            .as_deref()
+            .is_some_and(|id| sender_config.local_node_id().is_some_and(|sid| id.eq(sid)))
+        });
+        if !owner_is_sender {
           continue;
         }
-        assign_to_worker_id = if let Some(pid) = sender_config.local_node_primary_id() {
-          self.get_worker_id_from_node_id(pid)
-        } else {
-          0
+        assign_to_worker_id = match sender_config.local_node_primary_id() {
+          Some(pid) => self.get_worker_id_from_node_id(pid),
+          None => 0,
         };
       }
 
-      updated |= new_config.slot_map[i].worker_id != assign_to_worker_id
-        || new_config.slot_map[i].state != SlotState::Stable;
+      // 仅当属主或状态变化才算更新：避免 sender epoch=0 时的消息风暴
+      updated |= self.slot_map[i].worker_id != assign_to_worker_id
+        || self.slot_map[i].state != SlotState::Stable;
 
-      new_config.slot_map[i].worker_id = assign_to_worker_id;
-      new_config.slot_map[i].state = SlotState::Stable;
+      let slot = &mut self.slot_map[i];
+      slot.worker_id = assign_to_worker_id;
+      slot.state = SlotState::Stable;
     }
-
-    if updated { new_config } else { self.clone() }
+    updated
   }
 
   /// garnet相对路径:Server:ClusterConfig:Merge
+  ///
+  /// 全程仅一次整份克隆（slot_map 64KB）：先逐 worker 原地合并，再原地
+  /// 合并槽位图。原实现每 worker 全量克隆一次，N 个 worker 的 gossip
+  /// 合并要做 N+2 次 64KB 拷贝。无变化返回 None（对标 C# TryMerge 的
+  /// `currentCopy == next` 快速失败，避免无谓落盘）
   pub fn merge(
     &self,
     sender_config: &ClusterConfig,
     worker_ban_list: &gxhash::HashMap<String, i64>,
-  ) -> Self {
+  ) -> Option<Self> {
     let local_id = self.local_node_id();
-    let mut new_config = self.clone();
+    let mut merged = self.clone();
+    let mut changed = false;
 
     for worker in &sender_config.workers[1..=sender_config.num_workers()] {
-      if let Some(ref sid) = worker.nodeid {
-        if let Some(lid) = local_id
-          && lid.eq_ignore_ascii_case(sid)
-        {
-          continue;
-        }
-        if worker_ban_list.contains_key(sid) {
-          continue;
-        }
-        new_config = new_config.merge_worker_info(worker);
+      let Some(ref sid) = worker.nodeid else {
+        continue;
+      };
+      if local_id.is_some_and(|lid| lid.eq_ignore_ascii_case(sid)) || worker_ban_list.contains_key(sid) {
+        continue;
       }
+      changed |= merged.merge_worker_info(worker);
     }
 
-    new_config.merge_slot_map(sender_config)
+    changed |= merged.merge_slot_map(sender_config);
+    changed.then_some(merged)
   }
 
   /// garnet相对路径:Server:ClusterConfig:HandleConfigEpochCollision
-  pub fn handle_config_epoch_collision(&self, sender_config: &ClusterConfig) -> Self {
+  ///
+  /// 原地处理 epoch 碰撞，返回是否发生碰撞并自增（true 时需落盘）
+  pub fn handle_config_epoch_collision(&mut self, sender_config: &ClusterConfig) -> bool {
     let local_node_config_epoch = self.local_node_config_epoch();
     let sender_config_epoch = sender_config.local_node_config_epoch();
 
     if local_node_config_epoch != sender_config_epoch {
-      return self.clone();
+      return false;
     }
 
     let sender_node_id = sender_config.local_node_id().unwrap_or("");
     let local_node_id = self.local_node_id().unwrap_or("");
 
+    // 对齐 C#：仅当发送方 id 字典序更大才自增，双方各退一步避免死循环
     if sender_node_id.cmp(local_node_id) != Ordering::Greater {
-      return self.clone();
+      return false;
     }
 
     warn!(
@@ -934,7 +943,8 @@ impl ClusterConfig {
       sender_config.local_node_id_short()
     );
 
-    self.bump_local_node_config_epoch()
+    self.bump_local_node_config_epoch();
+    true
   }
 }
 

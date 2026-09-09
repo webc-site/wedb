@@ -40,3 +40,14 @@ impl Display for Worker {
     )
   }
 }
+
+/// 本地 worker 身份入参（ClusterConfig:InitializeLocalWorker 的散参聚合）
+pub struct LocalWorkerSpec<'a> {
+  pub node_id: &'a str,
+  pub address: &'a str,
+  pub port: i32,
+  pub config_epoch: i64,
+  pub role: NodeRole,
+  pub replica_of_node_id: Option<&'a str>,
+  pub hostname: Option<&'a str>,
+}
