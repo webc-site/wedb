@@ -1,4 +1,3 @@
-#![allow(clippy::absolute_paths)]
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 use wbase::time::now_ms;
@@ -128,16 +127,21 @@ impl<D: Device> StoreSession<D> {
   /// 写入 TTL 记录（定长 8B：可变区原位改写优先，失败降级 RCU 盲插）
   ///
   /// 取舍：原位改写零追加、零哈希表 CAS，是 EXPIRE 反复续期的主路径；记录已落盘
-  /// 或复活槽位不适配时，upsert 写路径自身含链内复活/盲插兜底，无需在此重复处理
+  /// 或复活槽位不适配时，upsert 写路径自身含链内复活/盲插兜底，无需在此重复处理。
+  /// 原位改写走 raw unprotected 内核，本异步入口须自带纪元保护（对标 C# Tsavorite：
+  /// 一切索引/日志访问都必须在 epoch 保护下执行，否则并发驱逐可在改写窗口内回收页内存）
   pub async fn put_ttl(&self, user_key: &[u8], expire_at_ms: u64) -> Result<()> {
     let bytes = TtlCodec::encode(expire_at_ms);
     let ttl_k = self.ttl_key(user_key);
-    let in_place = self
-      .try_modify_raw_in_place_unprotected(&ttl_k, |slot| {
-        slot.copy_from_slice(&bytes);
-        Some(())
-      })?
-      .is_some();
+    let in_place = {
+      let _guard = self.participant.enter();
+      self
+        .try_modify_raw_in_place_unprotected(&ttl_k, |slot| {
+          slot.copy_from_slice(&bytes);
+          Some(())
+        })?
+        .is_some()
+    };
     if !in_place {
       self.upsert_raw(&ttl_k, &bytes).await?;
     }
@@ -314,6 +318,8 @@ impl<D: Device> StoreSession<D> {
 
 #[cfg(test)]
 mod tests {
+  use std::panic::{AssertUnwindSafe, catch_unwind};
+
   use super::*;
 
   /// 抑制守卫 RAII 语义：正常退出与 panic unwind 路径均恢复进入前旧值（标志零残留）
@@ -339,7 +345,7 @@ mod tests {
     assert_eq!(slot.load(Relaxed), 0);
 
     // panic unwind：Drop 兜底，抑制标志不残留
-    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
       let _g = PurgeNotifyGuard::enter(&slot, 0x5678);
       assert_eq!(slot.load(Relaxed), 0x5678);
       panic!("unwind through guard");

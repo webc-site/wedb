@@ -61,7 +61,7 @@ use wval::{KeyTag, NamespaceDbCodec};
 use crate::{
   config::GcConfig,
   error::Result,
-  session::StoreSession,
+  session::{SessionSlot, StoreSession},
   store::WedbStore,
   ttl::{TTL_VALUE_LEN, TtlProbe},
 };
@@ -116,6 +116,23 @@ pub struct GcStatsSnapshot {
   pub last_compact_dropped: u64,
 }
 
+/// 单轮扫描候选集与删除预算（[`GcManager::collect_expired`] 参数收敛）
+struct SweepPicks {
+  /// key 级过期候选：(ns, db, 用户键)
+  picked: ExpiredKeySet,
+  /// 字段级候选：带 has_expire 粘性标志的集合元记录键
+  fields_picked: ExpiredKeySet,
+  /// 两候选集合计的收集上限（单轮删除预算）
+  max_picks: usize,
+}
+
+impl SweepPicks {
+  /// 候选总数（key 级 + 字段级）
+  fn len(&self) -> usize {
+    self.picked.len() + self.fields_picked.len()
+  }
+}
+
 /// 内置 GC 管理器共享核（后台循环与 [`GcHandle`] 共享）
 pub struct GcManager<D: Device> {
   /// 引擎弱引用：不与 WedbStore 构成强引用环，引擎 Drop 后循环自行退出
@@ -131,9 +148,8 @@ pub struct GcManager<D: Device> {
   /// 冷区欠账游标（已扫描到的日志地址；0 = 自 begin 起）。恒钳制在只读线以下，
   /// 热区由每轮窗口扫描覆盖；紧缩推进 begin 后经 max(begin) 自动适配
   cold_cursor: AtomicU64,
-  /// 复用的扫描会话（懒建，对标 Garnet 专用扫描 StorageSession；取用-归还两段式，
-  /// 不在互斥守卫内跨 await，异常路径丢弃由下轮重建）
-  sweep_session: Mutex<Option<StoreSession<D>>>,
+  /// 复用的扫描会话槽位（懒建，对标 Garnet 专用扫描 StorageSession）
+  sweep_session: SessionSlot<D>,
   stats: GcStats,
 }
 
@@ -147,7 +163,7 @@ impl<D: Device> GcManager<D> {
       inflight: AtomicBool::new(false),
       last_compact_ms: AtomicU64::new(0),
       cold_cursor: AtomicU64::new(0),
-      sweep_session: Mutex::new(None),
+      sweep_session: SessionSlot::new(),
       stats: GcStats::default(),
     }
   }
@@ -281,20 +297,6 @@ impl<D: Device> GcManager<D> {
     self.try_compact(&store, &cfg).await
   }
 
-  /// 取出（或懒建）复用的扫描会话；用毕须 [`Self::restore_sweep_session`] 归还。
-  /// 以所有权取还替代在互斥守卫内跨 await，异常路径丢弃会话由下轮懒建重建
-  fn take_sweep_session(&self, store: &Arc<WedbStore<D>>) -> Result<StoreSession<D>> {
-    match self.sweep_session.lock().take() {
-      Some(s) => Ok(s),
-      None => store.new_session(),
-    }
-  }
-
-  /// 归还复用的扫描会话
-  fn restore_sweep_session(&self, session: StoreSession<D>) {
-    *self.sweep_session.lock() = Some(session);
-  }
-
   /// 两段式过期扫描：热区窗口优先（对标 Garnet 滑动窗口），冷区欠账用剩余删除预算。
   /// 返回 (物理删除键数, 物理清除字段数, 扫描记录数)——键数与记录数对标 Garnet
   /// `ExpiredKeyDeletionScan` 的 `(numExpiredKeysFound, totalRecordsScanned)` 双口径，
@@ -308,9 +310,12 @@ impl<D: Device> GcManager<D> {
     let now = now_ms();
     let cap = cfg.max_batch_deletes.max(1);
     let cold_cap = cfg.max_scan_records.max(1);
-    let session = self.take_sweep_session(store)?;
-    let mut picked: ExpiredKeySet = HashSet::with_hasher(GxBuildHasher::default());
-    let mut fields_picked: ExpiredKeySet = HashSet::with_hasher(GxBuildHasher::default());
+    let session = self.sweep_session.take(store)?;
+    let mut picks = SweepPicks {
+      picked: HashSet::with_hasher(GxBuildHasher::default()),
+      fields_picked: HashSet::with_hasher(GxBuildHasher::default()),
+      max_picks: cap,
+    };
     let mut scanned = 0u64;
 
     // 段 1：热区窗口 [read_only, tail) —— 每轮无游标全量扫描（纯内存零 I/O），
@@ -319,24 +324,15 @@ impl<D: Device> GcManager<D> {
     let read_only = store.read_only_address();
     let tail = store.tail_address();
     if read_only < tail {
-      let (n, ..) = Self::collect_expired(
-        &session,
-        store,
-        read_only..tail,
-        now,
-        cap,
-        u64::MAX,
-        &mut picked,
-        &mut fields_picked,
-      )
-      .await?;
+      let (n, ..) =
+        Self::collect_expired(&session, store, read_only..tail, now, u64::MAX, &mut picks).await?;
       scanned += n;
     }
 
     // 段 2：冷区欠账 [cold_cursor, read_only) —— 游标增量推进，单轮记录预算有界
     // （磁盘 I/O 有界）；键级/字段级候选已占满删除预算时本轮跳过（游标不动，下轮重扫，幂等）
     let mut cold_commit = None;
-    if picked.len() + fields_picked.len() < cap {
+    if picks.len() < cap {
       let cold_from = self.cold_cursor.load(Relaxed).max(store.begin_address());
       if cold_from < read_only {
         let (n, next_addr, exhausted) = Self::collect_expired(
@@ -344,10 +340,8 @@ impl<D: Device> GcManager<D> {
           store,
           cold_from..read_only,
           now,
-          cap,
           cold_cap as u64,
-          &mut picked,
-          &mut fields_picked,
+          &mut picks,
         )
         .await?;
         scanned += n;
@@ -363,7 +357,7 @@ impl<D: Device> GcManager<D> {
     // 收集完成后统一物理删除：逐键双检，走与用户 DEL 完全一致的路径
     // （check_expired 内部经 purge_expired = 删 TTL 记录 + 删数据，索引/墓碑/WAL 一致）
     let mut deleted = 0u64;
-    for (ns, db, key) in &picked {
+    for (ns, db, key) in &picks.picked {
       session.set_context(*ns, *db);
       match session.check_expired(key).await {
         Ok(true) => deleted += 1,
@@ -376,7 +370,7 @@ impl<D: Device> GcManager<D> {
     // 字段级候选处理（对标 Garnet HashCollect 的对象内过期成员收集）：
     // 逐集合加载最新态 → purge_expired → 回写压缩，双检幂等（无过期零写入）
     let mut fields_deleted = 0u64;
-    for (ns, db, key) in &fields_picked {
+    for (ns, db, key) in &picks.fields_picked {
       session.set_context(*ns, *db);
       match session.collect_expired_hash_fields(key, now).await {
         Ok(n) => fields_deleted += n,
@@ -386,21 +380,22 @@ impl<D: Device> GcManager<D> {
     if deleted + fields_deleted > 0 {
       info!(
         "内置 GC 过期扫描完成: 键候选={}, 物理删除键={deleted}, 字段候选={}, 物理清除字段={fields_deleted}",
-        picked.len(),
-        fields_picked.len()
+        picks.picked.len(),
+        picks.fields_picked.len()
       );
     }
     // 删除完成才提交冷区游标；任务取消时重扫当前批，最新 TTL 双检保证幂等
     if let Some(addr) = cold_commit {
       self.cold_cursor.store(addr, Relaxed);
     }
-    self.restore_sweep_session(session);
+    self.sweep_session.restore(session);
     Ok((deleted, fields_deleted, scanned))
   }
 
   /// 单段候选收集：扫描 `[from, until)` 中至多 `max_records` 条记录，将已过期
-  /// TTL 键加入 `picked`、带 has_expire 标志的集合元记录加入 `fields_picked`
-  ///（两候选集合计至多 `max_picks` 个）。返回 (扫描数, 游标位置, 是否扫到线头)。
+  /// TTL 键加入 `picks.picked`、带 has_expire 标志的集合元记录加入
+  /// `picks.fields_picked`（两候选集合计至多 `picks.max_picks` 个）。
+  /// 返回 (扫描数, 游标位置, 是否扫到线头)。
   ///
   /// 过滤链五级：墓碑位单次读取 → 物理键变长前缀反解按 KeyTag 分流（零分配）→
   /// 键级：值定长校验（非法长度按无 TTL 容错）+ 到期比较 + 最新态内存探针双检
@@ -409,22 +404,19 @@ impl<D: Device> GcManager<D> {
   /// 内存探针双检（[`StoreSession::probe_meta_has_expire`]，防删除重建后的陈旧
   /// 元记录候选反复占据批预算）。热区在内存、冷区受 `max_scan_records` 预算约束
   /// 的既有分工对本链原样成立
-  #[allow(clippy::too_many_arguments)]
   async fn collect_expired(
     session: &StoreSession<D>,
     store: &Arc<WedbStore<D>>,
     range: Range<u64>,
     now: u64,
-    max_picks: usize,
     max_records: u64,
-    picked: &mut ExpiredKeySet,
-    fields_picked: &mut ExpiredKeySet,
+    picks: &mut SweepPicks,
   ) -> Result<(u64, u64, bool)> {
     let mut scanned = 0u64;
     let mut exhausted = false;
     let mut scan = store.hlog.scan_iter(range.start, range.end);
     loop {
-      if picked.len() + fields_picked.len() >= max_picks || scanned >= max_records {
+      if picks.len() >= picks.max_picks || scanned >= max_records {
         break;
       }
       let next = scan
@@ -453,7 +445,7 @@ impl<D: Device> GcManager<D> {
               if matches!(session.probe_ttl(user_key, now), TtlProbe::Pass) {
                 return Ok(true);
               }
-              picked.insert((ns, db, Box::from(user_key)));
+              picks.picked.insert((ns, db, Box::from(user_key)));
             }
             // Meta 元记录：仅带 has_expire 粘性标志的集合（Compact hash 写过字段
             // TTL）才收集候选，标志位判定读记录 value 单字节（零整记录解码）
@@ -469,7 +461,7 @@ impl<D: Device> GcManager<D> {
               if !matches!(session.probe_meta_has_expire(user_key), Ok(true)) {
                 return Ok(true);
               }
-              fields_picked.insert((ns, db, Box::from(user_key)));
+              picks.fields_picked.insert((ns, db, Box::from(user_key)));
             }
             _ => {}
           }

@@ -61,7 +61,7 @@ pub use manager::{
   CacheAlignedLock, DEFAULT_MIGRATION_CHUNK_SIZE, INDEX_SIZE_BYTES, NUM_LOCK_STRIPES,
   RangeIndexFileEntry, RangeIndexLocks, RangeIndexManager, TreeEntry,
 };
-pub use service::{BfTreeService, WriteBarrierGuard};
+pub use service::{BfTreeService, WriteBarrierGuard, file_has_cpr_magic};
 pub use stub::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 pub use types::{
   BfTreeConfig, BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, ScanRecord,

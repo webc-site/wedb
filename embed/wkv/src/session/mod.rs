@@ -23,6 +23,7 @@ use std::{
 };
 
 pub use collection::RawCollectionRead;
+use parking_lot::Mutex;
 use wdev::Device;
 use wepoch::{EpochGuard, Participant};
 use wval::SessionPrefixBuf;
@@ -151,6 +152,38 @@ impl<D: Device> StoreSession<D> {
   #[inline]
   pub fn participant(&self) -> &Participant {
     &self.participant
+  }
+}
+
+/// 惰建复用的会话槽位（后台专用扫描会话缓存）
+///
+/// 对标 Garnet 专用扫描 StorageSession（`KeyspaceScanStorageSession` +
+/// `KeyspaceScanLock` / StoreExpiredKeyDeletionDbStorageSession）：取用-归还
+/// 两段式，以所有权取还替代在互斥守卫内跨 await；槽位为空或被并发取走时懒建
+/// 新会话，异常路径丢弃由下次取用重建。
+pub(crate) struct SessionSlot<D: Device> {
+  slot: Mutex<Option<StoreSession<D>>>,
+}
+
+impl<D: Device> SessionSlot<D> {
+  /// 创建空槽位
+  pub(crate) const fn new() -> Self {
+    Self {
+      slot: Mutex::new(None),
+    }
+  }
+
+  /// 取出（或懒建）专用会话；用毕须 [`Self::restore`](Self::restore) 归还
+  pub(crate) fn take(&self, store: &Arc<WedbStore<D>>) -> Result<StoreSession<D>> {
+    match self.slot.lock().take() {
+      Some(s) => Ok(s),
+      None => store.new_session(),
+    }
+  }
+
+  /// 归还专用会话
+  pub(crate) fn restore(&self, session: StoreSession<D>) {
+    *self.slot.lock() = Some(session);
   }
 }
 

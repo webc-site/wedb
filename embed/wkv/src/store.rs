@@ -1,6 +1,5 @@
 use std::{
   env, fs,
-  io::Read as _,
   path::{Path, PathBuf},
   process,
   sync::{
@@ -11,7 +10,7 @@ use std::{
 
 use compio::runtime::Runtime;
 use itoa::Buffer;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use wbase::time::now_ms;
 use wdev::Device;
 use wepoch::LightEpoch;
@@ -28,7 +27,7 @@ use crate::{
   error::{Error, Result},
   gc,
   read_cache::{ReadCache, absolute_address, is_read_cache_addr},
-  session::StoreSession,
+  session::{SessionSlot, StoreSession},
   ttl::{TTL_VALUE_LEN, TtlProbe},
 };
 
@@ -148,21 +147,9 @@ pub struct WedbStore<D: Device> {
   /// 内部创建的 BfTree 临时数据文件（若非用户显式配置则在 Drop 时自动清理闭环）
   temp_bftree_path: Option<PathBuf>,
   /// INFO KEYSPACE 专用扫描会话槽位（懒建复用，对标 Garnet GarnetDatabase
-  /// `.KeyspaceScanStorageSession` + `KeyspaceScanLock`；取用-归还两段式，
-  /// 不在互斥守卫内跨 await，异常路径丢弃由下次懒建重建）
-  keyspace_scan_session: Mutex<Option<StoreSession<D>>>,
-}
-
-/// bf-tree CPR 快照文件首部魔数（bf-tree-0.5.6 snapshot.rs `BF_TREE_MAGIC_BEGIN`，文件格式常量）
-const BFTREE_SNAPSHOT_MAGIC: [u8; 16] = *b"BF-TREE-V0-BEGIN";
-
-/// 判断文件首部是否为 bf-tree CPR 快照魔数（文件缺失/过小/读取失败一律视为非快照文件）
-fn file_has_bftree_magic(path: &Path) -> bool {
-  let Ok(mut file) = fs::File::open(path) else {
-    return false;
-  };
-  let mut magic = [0u8; BFTREE_SNAPSHOT_MAGIC.len()];
-  file.read_exact(&mut magic).is_ok() && magic == BFTREE_SNAPSHOT_MAGIC
+  /// `.KeyspaceScanStorageSession` + `KeyspaceScanLock`；并发调用后到者降级为
+  /// 一次性临时会话，读路径无共享可变状态，无正确性风险）
+  keyspace_scan_session: SessionSlot<D>,
 }
 
 impl<D: Device> WedbStore<D> {
@@ -192,7 +179,8 @@ impl<D: Device> WedbStore<D> {
       if tmp_path.exists() {
         let _ = fs::remove_file(&tmp_path);
       }
-      if path.exists() && file_has_bftree_magic(path) {
+      // 魔数判定复用 wbftree 引擎侧同一实现（单一事实源，杜绝两处魔数漂移）
+      if path.exists() && wbftree::file_has_cpr_magic(path) {
         match wbftree::BfTreeService::recover_from_cpr_snapshot(
           path,
           true,
@@ -253,6 +241,77 @@ impl<D: Device> WedbStore<D> {
     )
   }
 
+  /// 恢复装配容量预检：`config.index_size` 与实际索引容量严格一致
+  ///
+  /// `config` 与 `index` 可能来自不同来源（如宿主自定义恢复流程对接 wcpr 恢复出
+  /// 的索引快照），不一致时禁止装配——声明小表 + 实际大表会使后续 Checkpoint 写出
+  /// 互斥的 meta 与快照，问题在下次恢复才于深处暴露；声明大表 + 实际小表则是静默
+  /// 缩表。索引打开时定容且无在线扩容，容量不一致一律显式报
+  /// [`Error::IndexSizeMismatch`](crate::Error::IndexSizeMismatch)。
+  fn check_index_capacity(config: &StoreConfig, index: &HashIndex) -> Result<()> {
+    if config.index_size != index.size {
+      return Err(Error::IndexSizeMismatch {
+        config: config.index_size,
+        actual: index.size,
+      });
+    }
+    Ok(())
+  }
+
+  /// 核心组件装配公共体（open / from_components / from_components_with_bftree 共享尾段）
+  ///
+  /// 调用方须已完成 [`StoreConfig::validate`] 预检并自行决定 BfTree 来源；
+  /// RangeIndex 管理器、复活池、ReadCache、GC 运行态句柄等纯派生组件在此统一装配。
+  /// ReadCache 创建带降级兜底：validate 已保证 page_size/read_cache_num_pages 为
+  /// 非零 2 的幂，构造失败仅可能是资源层异常，降级为禁用配置留痕运行而非中止装配。
+  fn assemble(
+    config: StoreConfig,
+    index: Arc<HashIndex>,
+    hlog: Arc<HybridLog<D>>,
+    epoch: Arc<LightEpoch>,
+    device: Arc<D>,
+    bftree: Arc<wbftree::BfTreeService>,
+    temp_bftree_path: Option<PathBuf>,
+  ) -> Self {
+    let (range_index, temp_range_index_dir) = Self::init_range_index(&config);
+    let reviv_pool = Arc::new(wreviv::FreeRecordPool::new());
+    let read_cache = Arc::new(
+      ReadCache::new(
+        config.page_size,
+        config.read_cache_num_pages,
+        config.enable_read_cache,
+      )
+      .unwrap_or_else(|e| {
+        log::warn!("ReadCache 按会话配置创建失败，降级为默认禁用配置: err={e}");
+        // SAFETY: 4096/8 均为非零 2 的幂且 enable=false 关闭全部校验分支，构造恒成功
+        unsafe { ReadCache::new(4096, 8, false).unwrap_unchecked() }
+      }),
+    );
+    let gc_cfg = Arc::new(RwLock::new(config.gc.clone()));
+    Self {
+      config,
+      index,
+      hlog,
+      epoch,
+      device,
+      next_key_id: AtomicU64::new(Self::generate_initial_key_id()),
+      bftree,
+      range_index,
+      reviv_pool,
+      read_cache,
+      key_id_versions: new_key_id_versions_map(),
+      gc: OnceLock::new(),
+      gc_cfg,
+      write_listener: OnceLock::new(),
+      range_listener: OnceLock::new(),
+      ttl_purge_listener: OnceLock::new(),
+      purge_suppress: AtomicUsize::new(0),
+      temp_range_index_dir,
+      temp_bftree_path,
+      keyspace_scan_session: SessionSlot::new(),
+    }
+  }
+
   /// 打开或创建存储引擎实例
   ///
   /// 容量防线：入口先行 [`StoreConfig::validate`] 预检——`StoreConfig` 字段公开，
@@ -268,49 +327,21 @@ impl<D: Device> WedbStore<D> {
       Arc::clone(&device),
       Arc::clone(&epoch),
     )?);
-    let next_key_id = AtomicU64::new(Self::generate_initial_key_id());
     let (bftree, temp_bftree_path) = Self::init_bftree(&config)?;
-    let (range_index, temp_range_index_dir) = Self::init_range_index(&config);
-    let reviv_pool = Arc::new(wreviv::FreeRecordPool::new());
-    let read_cache = Arc::new(ReadCache::new(
-      config.page_size,
-      config.read_cache_num_pages,
-      config.enable_read_cache,
-    )?);
-    let gc_cfg = Arc::new(RwLock::new(config.gc.clone()));
-
-    Ok(Self {
+    Ok(Self::assemble(
       config,
       index,
       hlog,
       epoch,
       device,
-      next_key_id,
       bftree,
-      range_index,
-      reviv_pool,
-      read_cache,
-      key_id_versions: new_key_id_versions_map(),
-      gc: OnceLock::new(),
-      gc_cfg,
-      write_listener: OnceLock::new(),
-      range_listener: OnceLock::new(),
-      ttl_purge_listener: OnceLock::new(),
-      purge_suppress: AtomicUsize::new(0),
-      temp_range_index_dir,
       temp_bftree_path,
-      keyspace_scan_session: Mutex::new(None),
-    })
+    ))
   }
 
   /// 从已恢复或外部构建的核心组件创建存储引擎实例（供 Checkpoint 恢复或高级定制使用）
   ///
-  /// 容量防线（恢复预检）：`config` 与 `index` 可能来自不同来源（如宿主自定义
-  /// 恢复流程拿 [`crate::StoreConfig`] 对接 wcpr 恢复出的索引快照），二者容量
-  /// 不一致时禁止装配——声明小表 + 实际大表会使后续 Checkpoint 写出互斥的
-  /// meta 与快照，问题在下次恢复才于深处暴露；声明大表 + 实际小表则是静默缩表。
-  /// 索引打开时定容且无在线扩容，容量不一致一律显式报
-  /// [`Error::IndexSizeMismatch`](crate::Error::IndexSizeMismatch)。
+  /// 容量防线（恢复预检）见 [`Self::check_index_capacity`]。
   pub fn from_components(
     config: StoreConfig,
     index: Arc<HashIndex>,
@@ -319,13 +350,7 @@ impl<D: Device> WedbStore<D> {
     device: Arc<D>,
   ) -> Result<Self> {
     config.validate()?;
-    if config.index_size != index.size {
-      return Err(Error::IndexSizeMismatch {
-        config: config.index_size,
-        actual: index.size,
-      });
-    }
-    let next_key_id = AtomicU64::new(Self::generate_initial_key_id());
+    Self::check_index_capacity(&config, &index)?;
     let (bftree, temp_bftree_path) = Self::init_bftree(&config).unwrap_or_else(|e| {
       // 降级为内存树必须留痕：配置了持久工作文件但恢复失败时静默降级将造成数据丢失假象
       log::warn!("BfTree 初始化失败，降级为内存树（配置的持久工作文件不生效）: err={e}");
@@ -334,42 +359,15 @@ impl<D: Device> WedbStore<D> {
         None,
       )
     });
-    let (range_index, temp_range_index_dir) = Self::init_range_index(&config);
-    let reviv_pool = Arc::new(wreviv::FreeRecordPool::new());
-    let read_cache = Arc::new(
-      ReadCache::new(
-        config.page_size,
-        config.read_cache_num_pages,
-        config.enable_read_cache,
-      )
-      .unwrap_or_else(|e| {
-        log::warn!("ReadCache 按会话配置创建失败，降级为默认禁用配置: err={e}");
-        unsafe { ReadCache::new(4096, 8, false).unwrap_unchecked() }
-      }),
-    );
-    let gc_cfg = Arc::new(RwLock::new(config.gc.clone()));
-    Ok(Self {
+    Ok(Self::assemble(
       config,
       index,
       hlog,
       epoch,
       device,
-      next_key_id,
       bftree,
-      range_index,
-      reviv_pool,
-      read_cache,
-      key_id_versions: new_key_id_versions_map(),
-      gc: OnceLock::new(),
-      gc_cfg,
-      write_listener: OnceLock::new(),
-      range_listener: OnceLock::new(),
-      ttl_purge_listener: OnceLock::new(),
-      purge_suppress: AtomicUsize::new(0),
-      temp_range_index_dir,
       temp_bftree_path,
-      keyspace_scan_session: Mutex::new(None),
-    })
+    ))
   }
 
   /// 从已恢复或外部构建的核心组件及已有 BfTree 引擎创建存储引擎实例
@@ -385,49 +383,10 @@ impl<D: Device> WedbStore<D> {
     bftree: Arc<wbftree::BfTreeService>,
   ) -> Result<Self> {
     config.validate()?;
-    if config.index_size != index.size {
-      return Err(Error::IndexSizeMismatch {
-        config: config.index_size,
-        actual: index.size,
-      });
-    }
-    let next_key_id = AtomicU64::new(Self::generate_initial_key_id());
-    let (range_index, temp_range_index_dir) = Self::init_range_index(&config);
-    let reviv_pool = Arc::new(wreviv::FreeRecordPool::new());
-    let read_cache = Arc::new(
-      ReadCache::new(
-        config.page_size,
-        config.read_cache_num_pages,
-        config.enable_read_cache,
-      )
-      .unwrap_or_else(|e| {
-        log::warn!("ReadCache 按会话配置创建失败，降级为默认禁用配置: err={e}");
-        unsafe { ReadCache::new(4096, 8, false).unwrap_unchecked() }
-      }),
-    );
-    let gc_cfg = Arc::new(RwLock::new(config.gc.clone()));
-    Ok(Self {
-      config,
-      index,
-      hlog,
-      epoch,
-      device,
-      next_key_id,
-      bftree,
-      range_index,
-      reviv_pool,
-      read_cache,
-      key_id_versions: new_key_id_versions_map(),
-      gc: OnceLock::new(),
-      gc_cfg,
-      write_listener: OnceLock::new(),
-      range_listener: OnceLock::new(),
-      ttl_purge_listener: OnceLock::new(),
-      purge_suppress: AtomicUsize::new(0),
-      temp_range_index_dir,
-      temp_bftree_path: None,
-      keyspace_scan_session: Mutex::new(None),
-    })
+    Self::check_index_capacity(&config, &index)?;
+    Ok(Self::assemble(
+      config, index, hlog, epoch, device, bftree, None,
+    ))
   }
 
   /// 抬升 key_id 分配水位下限（fetch_max 单调语义，低值永不回退已推进的水位）
@@ -818,7 +777,7 @@ impl<D: Device> WedbStore<D> {
   /// 并发防护对标 Garnet `KeyspaceScanLock`：专用扫描会话懒建复用，并发调用
   /// 后到者降级为一次性临时会话（读路径无共享可变状态，无正确性风险）。
   pub async fn keyspace_stats(self: &Arc<Self>) -> Result<(u64, u64)> {
-    let session = self.take_keyspace_scan_session()?;
+    let session = self.keyspace_scan_session.take(self)?;
     let from = self.hlog.begin_address();
     let until = self.hlog.tail_address();
     let now = now_ms();
@@ -870,23 +829,8 @@ impl<D: Device> WedbStore<D> {
       }
     }
 
-    self.restore_keyspace_scan_session(session);
+    self.keyspace_scan_session.restore(session);
     Ok((key_count, expire_count))
-  }
-
-  /// 取出（或懒建）INFO KEYSPACE 专用扫描会话；用毕须
-  /// [`Self::restore_keyspace_scan_session`] 归还。以所有权取还替代在互斥守卫内
-  /// 跨 await（对标 gc 的 take/restore_sweep_session 模式）
-  fn take_keyspace_scan_session(self: &Arc<Self>) -> Result<StoreSession<D>> {
-    match self.keyspace_scan_session.lock().take() {
-      Some(s) => Ok(s),
-      None => self.new_session(),
-    }
-  }
-
-  /// 归还 INFO KEYSPACE 专用扫描会话
-  fn restore_keyspace_scan_session(&self, session: StoreSession<D>) {
-    *self.keyspace_scan_session.lock() = Some(session);
   }
 
   /// 获取混合日志分配器引用

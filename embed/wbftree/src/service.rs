@@ -103,8 +103,9 @@ fn with_read_scratch<R>(max_record_size: usize, f: impl FnOnce(&mut [u8]) -> R) 
 ///
 /// 调引擎恢复前先行校验，把「损坏快照」变成结构化 [`Error::Recovery`] 而非依赖
 /// catch_unwind (release 构建 panic = "abort" 下 unwind 拦截无效)。
+/// 供宿主 (wkv) 在打开持久工作文件前判定「CPR 快照镜像 vs 孤儿基文件」复用。
 #[inline]
-pub(crate) fn file_has_cpr_magic(path: &Path) -> bool {
+pub fn file_has_cpr_magic(path: &Path) -> bool {
   let Ok(mut file) = fs::File::open(path) else {
     return false;
   };
