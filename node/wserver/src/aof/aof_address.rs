@@ -57,7 +57,8 @@ impl AofAddress {
   ///
   /// 地址序列逐位相等（长度必须一致）。
   pub fn equals(&self, other: &AofAddress) -> bool {
-    self.length == other.length && self.addresses[..self.length as usize] == other.addresses[..other.length as usize]
+    self.length == other.length
+      && self.addresses[..self.length as usize] == other.addresses[..other.length as usize]
   }
 
   /// libs/server/AOF/AofAddress.cs:FromSpan
@@ -67,7 +68,8 @@ impl AofAddress {
     let length = (span.len() >> 3).min(MAX_SUBLOG_COUNT);
     let mut result = AofAddress::new(length as i32);
     for (i, chunk) in span.chunks_exact(8).take(length).enumerate() {
-      result.addresses[i] = i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
+      result.addresses[i] =
+        i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
     }
     result
   }
@@ -90,7 +92,8 @@ impl AofAddress {
     };
     let mut result = AofAddress::new(i32::from(length.min(MAX_SUBLOG_COUNT as u8)));
     for (i, chunk) in data[1..].chunks_exact(8).take(length as usize).enumerate() {
-      result.addresses[i] = i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
+      result.addresses[i] =
+        i64::from_le_bytes(chunk.try_into().expect("chunks_exact(8) 长度恰为 8"));
     }
     result
   }
@@ -225,12 +228,16 @@ impl AofAddress {
   ///
   /// 逐槽位差值求和。
   pub fn aggregate_diff(&self, aof_address: &AofAddress) -> i64 {
-    (0..self.length as usize).map(|i| self.addresses[i] - aof_address.addresses[i]).sum()
+    (0..self.length as usize)
+      .map(|i| self.addresses[i] - aof_address.addresses[i])
+      .sum()
   }
 
   /// 对单一数值的聚合差（C# AggregateDiff(long)）。
   pub fn aggregate_diff_value(&self, value: i64) -> i64 {
-    (0..self.length as usize).map(|i| self.addresses[i] - value).sum()
+    (0..self.length as usize)
+      .map(|i| self.addresses[i] - value)
+      .sum()
   }
 
   /// libs/server/AOF/AofAddress.cs:EqualsAll
@@ -244,21 +251,28 @@ impl AofAddress {
   ///
   /// 任一槽位越出 [begin, end] 区间。
   pub fn is_out_of_range(&self, begin: &AofAddress, end: &AofAddress) -> bool {
-    (0..self.length as usize).any(|i| self.addresses[i] < begin.addresses[i] || self.addresses[i] > end.addresses[i])
+    (0..self.length as usize)
+      .any(|i| self.addresses[i] < begin.addresses[i] || self.addresses[i] > end.addresses[i])
   }
 
   /// libs/server/AOF/AofAddress.cs:Max
   ///
   /// 最大槽位值（下界 0）。
   pub fn max(&self) -> i64 {
-    self.addresses[..self.length as usize].iter().copied().fold(0i64, i64::max)
+    self.addresses[..self.length as usize]
+      .iter()
+      .copied()
+      .fold(0i64, i64::max)
   }
 
   /// libs/server/AOF/AofAddress.cs:Min
   ///
   /// 最小槽位值（上界 0）。
   pub fn min_value(&self) -> i64 {
-    self.addresses[..self.length as usize].iter().copied().fold(0i64, i64::min)
+    self.addresses[..self.length as usize]
+      .iter()
+      .copied()
+      .fold(0i64, i64::min)
   }
 }
 

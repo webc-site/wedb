@@ -51,15 +51,17 @@ impl ShardedLogLockMap {
   pub fn unlock_sublogs(&self, mut log_access_bitmap: u64) {
     debug_assert!(self.lock_map.load(Ordering::Relaxed) & log_access_bitmap > 0);
     log_access_bitmap = !log_access_bitmap;
-    self.lock_map.fetch_and(log_access_bitmap, Ordering::Release);
+    self
+      .lock_map
+      .fetch_and(log_access_bitmap, Ordering::Release);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc,
+    atomic::{AtomicU64, Ordering},
   };
 
   use super::ShardedLogLockMap;

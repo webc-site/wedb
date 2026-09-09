@@ -3,11 +3,12 @@
 //! 以"每子日志已发布（ship）水位 + 每子日志字节预算"实现：
 //! 追加方在尾部地址领先水位超过预算时自旋等待复制端发布水位。
 
-use parking_lot::Mutex;
 use std::sync::{
-  atomic::{AtomicBool, AtomicI64, Ordering},
   Arc,
+  atomic::{AtomicBool, AtomicI64, Ordering},
 };
+
+use parking_lot::Mutex;
 
 /// 慢路径轮询间隔（毫秒）。
 ///（libs/server/AOF/AofBackpressure.cs:PollIntervalMs）
@@ -43,7 +44,9 @@ impl AofBackpressure {
   /// 水位初始为 i64::MAX（无复制端附着时直接放行），预算取自
   /// aof_sync_max_lag_bytes。
   pub fn new(sublog_count: usize, aof_sync_max_lag_bytes: i64) -> Self {
-    let shipped_watermark = (0..sublog_count).map(|_| AtomicI64::new(i64::MAX)).collect();
+    let shipped_watermark = (0..sublog_count)
+      .map(|_| AtomicI64::new(i64::MAX))
+      .collect();
     let gate = Self {
       per_sublog_budget: AtomicI64::new(i64::MAX),
       publish_delta_bytes: AtomicI64::new(1),
@@ -64,8 +67,12 @@ impl AofBackpressure {
   pub fn set_budget(&self, aof_sync_max_lag_bytes: i64) {
     if aof_sync_max_lag_bytes > 0 {
       let per_sublog_budget = (aof_sync_max_lag_bytes / self.sublog_count as i64).max(1);
-      self.per_sublog_budget.store(per_sublog_budget, Ordering::Relaxed);
-      self.publish_delta_bytes.store((per_sublog_budget / 8).max(1), Ordering::Relaxed);
+      self
+        .per_sublog_budget
+        .store(per_sublog_budget, Ordering::Relaxed);
+      self
+        .publish_delta_bytes
+        .store((per_sublog_budget / 8).max(1), Ordering::Relaxed);
       self.enabled.store(true, Ordering::Relaxed);
     } else {
       self.per_sublog_budget.store(i64::MAX, Ordering::Relaxed);
@@ -159,9 +166,7 @@ impl AofBackpressure {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::atomic::AtomicU64;
-
-  use std::sync::Arc;
+  use std::sync::{Arc, atomic::AtomicU64};
 
   use super::{AofBackpressure, LogTail};
 
@@ -180,7 +185,12 @@ mod tests {
     let gate = AofBackpressure::new(2, 1024);
     assert!(gate.enabled());
     assert_eq!(gate.publish_delta_bytes(), 1024 / 2 / 8);
-    assert_eq!(gate.per_sublog_budget.load(std::sync::atomic::Ordering::Relaxed), 512);
+    assert_eq!(
+      gate
+        .per_sublog_budget
+        .load(std::sync::atomic::Ordering::Relaxed),
+      512
+    );
 
     // 预算 <= 0 禁用。
     let off = AofBackpressure::new(2, -1);

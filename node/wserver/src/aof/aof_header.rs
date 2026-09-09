@@ -168,7 +168,11 @@ impl AofHeader {
   ///（对齐 C# GarnetException 路径）。
   pub fn skip_header(entry: &[u8]) -> Option<usize> {
     let header = AofHeader::parse(entry)?;
-    AofHeaderType::ALL.iter().copied().find(|t| *t as u8 == (header.flags & Self::AOF_HEADER_TYPE_MASK)).map(AofHeaderType::total_size)
+    AofHeaderType::ALL
+      .iter()
+      .copied()
+      .find(|t| *t as u8 == (header.flags & Self::AOF_HEADER_TYPE_MASK))
+      .map(AofHeaderType::total_size)
   }
 
   /// libs/server/AOF/AofHeader.cs:GetChunkedHeaderRef
@@ -212,7 +216,11 @@ impl AofShardedHeader {
     }
     Some(Self {
       basic: AofHeader::parse(entry)?,
-      sequence_number: i64::from_le_bytes(entry[AofHeader::TOTAL_SIZE..Self::TOTAL_SIZE].try_into().expect("长度恰为 8")),
+      sequence_number: i64::from_le_bytes(
+        entry[AofHeader::TOTAL_SIZE..Self::TOTAL_SIZE]
+          .try_into()
+          .expect("长度恰为 8"),
+      ),
     })
   }
 }
@@ -244,7 +252,11 @@ impl AofSingleLogTransactionHeader {
     vector.copy_from_slice(&entry[AofHeader::TOTAL_SIZE + 2..Self::TOTAL_SIZE]);
     Some(Self {
       basic: AofHeader::parse(entry)?,
-      participant_count: i16::from_le_bytes(entry[AofHeader::TOTAL_SIZE..AofHeader::TOTAL_SIZE + 2].try_into().expect("长度恰为 2")),
+      participant_count: i16::from_le_bytes(
+        entry[AofHeader::TOTAL_SIZE..AofHeader::TOTAL_SIZE + 2]
+          .try_into()
+          .expect("长度恰为 2"),
+      ),
       replay_task_access_vector: vector,
     })
   }
@@ -284,7 +296,8 @@ pub struct AofChunkHeader {
 
 impl AofChunkHeader {
   /// 头尺寸。
-  pub const TOTAL_SIZE: usize = 3 * std::mem::size_of::<u32>() + std::mem::size_of::<u64>() + std::mem::size_of::<i64>();
+  pub const TOTAL_SIZE: usize =
+    3 * std::mem::size_of::<u32>() + std::mem::size_of::<u64>() + std::mem::size_of::<i64>();
   /// objectId 字段偏移。
   pub const OBJECT_ID_OFFSET: usize = 3 * std::mem::size_of::<u32>();
 
@@ -297,8 +310,16 @@ impl AofChunkHeader {
       overflow_key_length: u32::from_le_bytes(entry[0..4].try_into().expect("长度恰为 4")),
       overflow_value_length: u32::from_le_bytes(entry[4..8].try_into().expect("长度恰为 4")),
       input_length: u32::from_le_bytes(entry[8..12].try_into().expect("长度恰为 4")),
-      object_id: u64::from_le_bytes(entry[Self::OBJECT_ID_OFFSET..Self::OBJECT_ID_OFFSET + 8].try_into().expect("长度恰为 8")),
-      key_hash: i64::from_le_bytes(entry[Self::OBJECT_ID_OFFSET + 8..Self::TOTAL_SIZE].try_into().expect("长度恰为 8")),
+      object_id: u64::from_le_bytes(
+        entry[Self::OBJECT_ID_OFFSET..Self::OBJECT_ID_OFFSET + 8]
+          .try_into()
+          .expect("长度恰为 8"),
+      ),
+      key_hash: i64::from_le_bytes(
+        entry[Self::OBJECT_ID_OFFSET + 8..Self::TOTAL_SIZE]
+          .try_into()
+          .expect("长度恰为 8"),
+      ),
     })
   }
 }

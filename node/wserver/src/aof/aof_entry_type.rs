@@ -3,7 +3,9 @@
 //! AofEntryTypeExtensions）。
 
 /// AOF 条目类型（判别值与 C# 逐项一致）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
+#[derive(
+  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
+)]
 #[repr(u8)]
 pub enum AofEntryType {
   /// 存储型 upsert。
@@ -102,7 +104,10 @@ impl AofEntryType {
   pub fn has_chunk_value(self) -> bool {
     matches!(
       self,
-      Self::StoreUpsert | Self::ObjectStoreUpsert | Self::UnifiedStoreStringUpsert | Self::UnifiedStoreObjectUpsert
+      Self::StoreUpsert
+        | Self::ObjectStoreUpsert
+        | Self::UnifiedStoreStringUpsert
+        | Self::UnifiedStoreObjectUpsert
     )
   }
 
@@ -126,7 +131,10 @@ impl AofEntryType {
   /// 分块 value 是否为流式对象值（长度未知，读取器需累积而非按头的
   /// overflowValueLength 预分配；字符串 upsert 的值是预定长的）。
   pub fn has_chunk_object_value(self) -> bool {
-    matches!(self, Self::ObjectStoreUpsert | Self::UnifiedStoreObjectUpsert)
+    matches!(
+      self,
+      Self::ObjectStoreUpsert | Self::UnifiedStoreObjectUpsert
+    )
   }
 
   /// 条目归属的存储类别（C# 内部约定：低 4 位 0x0x = 主存储，0x1x = 对象存储）。
@@ -140,7 +148,9 @@ impl AofEntryType {
       | Self::MainStoreStreamingCheckpointEndCommit
       | Self::ObjectStoreStreamingCheckpointEndCommit => AofStoreType::CheckpointType,
       Self::FlushAll | Self::FlushDb => AofStoreType::FlushDbType,
-      Self::ObjectStoreUpsert | Self::ObjectStoreRMW | Self::ObjectStoreDelete => AofStoreType::ObjectStoreType,
+      Self::ObjectStoreUpsert | Self::ObjectStoreRMW | Self::ObjectStoreDelete => {
+        AofStoreType::ObjectStoreType
+      }
       _ => {
         if matches!(self, Self::UnifiedStoreObjectUpsert) {
           AofStoreType::ObjectStoreType
@@ -177,10 +187,22 @@ mod tests {
 
   #[test]
   fn discriminants_roundtrip() {
-    assert_eq!(AofEntryType::try_from(0x00u8), Ok(AofEntryType::StoreUpsert));
-    assert_eq!(AofEntryType::try_from(0x80u8), Ok(AofEntryType::RangeIndexStreamChunk));
-    assert_eq!(AofEntryType::StoreUpsert.store_type(), AofStoreType::MainStoreType);
-    assert_eq!(AofEntryType::ObjectStoreDelete.store_type(), AofStoreType::ObjectStoreType);
+    assert_eq!(
+      AofEntryType::try_from(0x00u8),
+      Ok(AofEntryType::StoreUpsert)
+    );
+    assert_eq!(
+      AofEntryType::try_from(0x80u8),
+      Ok(AofEntryType::RangeIndexStreamChunk)
+    );
+    assert_eq!(
+      AofEntryType::StoreUpsert.store_type(),
+      AofStoreType::MainStoreType
+    );
+    assert_eq!(
+      AofEntryType::ObjectStoreDelete.store_type(),
+      AofStoreType::ObjectStoreType
+    );
     assert_eq!(AofEntryType::TxnCommit.store_type(), AofStoreType::TxnType);
   }
 }
