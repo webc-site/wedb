@@ -135,8 +135,8 @@ impl HybridLogConfig {
   }
 
   /// 单页地址偏移所占位数（例如 64KB 为 16 位）
-  #[inline]
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:LogPageSizeBits
+  #[inline]
   pub const fn page_bits(&self) -> u32 {
     self.page_size.trailing_zeros()
   }
@@ -153,47 +153,15 @@ impl HybridLogConfig {
     self.num_pages - 1
   }
 
-  /// 内存环形缓冲区总字节容量
-  #[inline]
-  pub const fn total_buffer_size(&self) -> usize {
-    self.page_size * self.num_pages
-  }
-
   /// 根据逻辑地址计算所在逻辑页号
-  #[inline]
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageSize
-
-  pub const fn page_size(&self) -> usize {
-    1 << self.page_bits()
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetAddressOfStartOfPageOfAddress
-  #[inline]
-  pub const fn get_address_of_start_of_page(&self, addr: u64) -> u64 {
-    addr & !self.page_mask()
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetFirstValidLogicalAddressOnPage
-  #[inline]
-  pub const fn get_first_valid_logical_address_on_page(&self, page_id: u64) -> u64 {
-    let mut addr = page_id << self.page_bits();
-    if addr == 0 {
-      // Address 0 is invalid
-      addr = 1;
-    }
-    addr
-  }
-
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
   pub const fn page_id(&self, addr: u64) -> u64 {
     addr >> self.page_bits()
   }
 
   /// 根据逻辑地址计算其在页内的字节偏移
-  #[inline]
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnPage
+  #[inline]
   pub const fn page_offset(&self, addr: u64) -> usize {
     (addr & self.page_mask()) as usize
   }
@@ -202,12 +170,6 @@ impl HybridLogConfig {
   #[inline]
   pub const fn page_start_address(&self, page_id: u64) -> u64 {
     page_id << self.page_bits()
-  }
-
-  /// 根据逻辑地址计算在环形缓冲区中的页槽位索引
-  #[inline]
-  pub const fn page_slot(&self, addr: u64) -> usize {
-    ((addr >> self.page_bits()) as usize) & self.num_pages_mask()
   }
 
   /// 仿照 Tsavorite 算法，基于当前 HeadAddress、TailAddress 与 mutable_fraction

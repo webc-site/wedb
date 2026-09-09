@@ -288,9 +288,13 @@ impl ReadCache {
       return Self::parse_record_and_call(&page_slice[offset..], self.page_size - offset, f);
     }
 
-    // 2. 慢路径安全回退：在换页临界区获取页读锁保护
+    // 2. 慢路径安全回退：在换页临界区获取页读锁保护。
+    //    锁内双重校验（对齐 HybridLog::probe_resident 的 Locked 路径口径）：head 已推进
+    //    （记录滑出窗口）或槽位已换装承载其他逻辑页（加锁间隙环形回绕复用）时按未命中
+    //    返回，杜绝把新页数据按旧偏移误解析——head 推进先于 clear_page 的顺序保证
+    //    二者至少其一必然命中
     let page_guard = self.buffer.read_page(page_id);
-    if abs_addr < self.head_address.load(Acquire) {
+    if abs_addr < self.head_address.load(Acquire) || !self.buffer.is_page_loaded(page_id) {
       return None;
     }
     Self::parse_record_and_call(&page_guard[offset..], self.page_size - offset, f)

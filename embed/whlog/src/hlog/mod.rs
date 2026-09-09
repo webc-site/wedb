@@ -207,8 +207,6 @@ impl<D: Device> HybridLog<D> {
     }
   }
 
-  /// 创建新的 HybridLog 实例
-
   /// 校验日志块分配器的页面配置与底层设备扇区大小的兼容性
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
   #[inline]
@@ -226,10 +224,8 @@ impl<D: Device> HybridLog<D> {
     Ok(())
   }
 
-  /// 校验日志块分配器的页面配置与底层设备扇区大小的兼容性
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:VerifyCompatibleSectorSize
+  /// 创建新的 HybridLog 实例
   #[inline]
-
   pub fn new(config: HybridLogConfig, device: Arc<D>, epoch: Arc<LightEpoch>) -> Result<Self> {
     Self::verify_compatible_sector_size(&config, &*device)?;
     let initial_address = config.initial_address;
@@ -261,54 +257,6 @@ impl<D: Device> HybridLog<D> {
   /// SEALED_BIT 是纯易失标记（复活池槽位锁定），任何持久化路径都不会置位；
   /// 恢复端无需显式 `set_sealed(false)`——槽位复用唯一入口
   /// [Self::revivify_record_at] 整头覆写天然解除密封，读取路径亦不依赖该位。
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
-  #[inline]
-  pub fn get_main_log_segment_size(&self) -> u64 {
-    self.device.segment_size().unwrap_or(u64::MAX)
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetObjectLogSegmentSize
-  #[inline]
-  pub fn get_object_log_segment_size(&self) -> u64 {
-    // wedb does not have separate object log segment size, defaults to main log segment size
-    self.get_main_log_segment_size()
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetOffsetOnSegment
-  #[inline]
-  pub fn get_offset_on_segment(&self, address: u64) -> u64 {
-    if let Some(segment_size) = self.device.segment_size() {
-      address % segment_size
-    } else {
-      address
-    }
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetStartLogicalAddressOfSegment
-  #[inline]
-  pub fn get_start_logical_address_of_segment(&self, address: u64) -> u64 {
-    if let Some(segment_size) = self.device.segment_size() {
-      address - (address % segment_size)
-    } else {
-      0
-    }
-  }
-
-  /// 获取底层设备的物理扇区大小
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetDeviceSectorSize
-  #[inline]
-  pub fn get_device_sector_size(&self) -> usize {
-    self.device.sector_size()
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:IsAllocated
-  #[inline]
-  pub fn is_allocated(&self, _page_id: u64) -> bool {
-    // Rust HybridLog relies on buffer capacity
-    true
-  }
-
   pub async fn recover(
     config: HybridLogConfig,
     device: Arc<D>,

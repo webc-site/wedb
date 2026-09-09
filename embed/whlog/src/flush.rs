@@ -59,24 +59,6 @@ impl PendingFlushList {
     self.list.lock().push(range);
   }
 
-  /// 移除并返回 until_address 等于指定地址的前相邻区间（对标 libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs:RemovePreviousAdjacent）
-  pub fn remove_previous_adjacent(&self, address: u64) -> Option<PageFlushRange> {
-    let mut list = self.list.lock();
-    list
-      .iter()
-      .position(|r| r.until_address == address)
-      .map(|pos| list.swap_remove(pos))
-  }
-
-  /// 移除并返回 from_address 等于指定地址的后相邻区间（对标 libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs:RemoveNextAdjacent）
-  pub fn remove_next_adjacent(&self, address: u64) -> Option<PageFlushRange> {
-    let mut list = self.list.lock();
-    list
-      .iter()
-      .position(|r| r.from_address == address)
-      .map(|pos| list.swap_remove(pos))
-  }
-
   /// 贪心合并相邻区间并返回合并后的最大连续区间（对标 Garnet 刷盘合并流水线）
   pub fn coalesce(&self, mut range: PageFlushRange) -> PageFlushRange {
     let mut list = self.list.lock();
@@ -148,10 +130,5 @@ impl PendingFlushList {
   /// 待刷盘与已完成队列是否均为空
   pub fn is_empty(&self) -> bool {
     self.list.lock().is_empty() && self.completed.lock().is_empty()
-  }
-
-  /// 当前暂存的乱序已完成区间数量
-  pub fn completed_len(&self) -> usize {
-    self.completed.lock().len()
   }
 }
