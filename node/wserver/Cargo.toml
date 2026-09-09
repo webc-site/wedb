@@ -23,8 +23,10 @@ gxhash = "3"
 hdrhistogram = "7"
 itoa.workspace = true
 log = "0.4"
+mlua = { version = "0.12.1", features = ["luau"] }
 num_enum = "0.7.6"
 parking_lot = "0.12"
+sha1_smol = "1"
 thiserror = "2.0.20"
 wdev.workspace = true
 wkv.workspace = true
