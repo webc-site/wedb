@@ -61,7 +61,7 @@ use wval::{KeyTag, NamespaceDbCodec};
 use crate::{
   config::GcConfig,
   error::Result,
-  session::StoreSession,
+  session::{SessionSlot, StoreSession},
   store::WedbStore,
   ttl::{TTL_VALUE_LEN, TtlProbe},
 };
@@ -131,9 +131,8 @@ pub struct GcManager<D: Device> {
   /// 冷区欠账游标（已扫描到的日志地址；0 = 自 begin 起）。恒钳制在只读线以下，
   /// 热区由每轮窗口扫描覆盖；紧缩推进 begin 后经 max(begin) 自动适配
   cold_cursor: AtomicU64,
-  /// 复用的扫描会话（懒建，对标 Garnet 专用扫描 StorageSession；取用-归还两段式，
-  /// 不在互斥守卫内跨 await，异常路径丢弃由下轮重建）
-  sweep_session: Mutex<Option<StoreSession<D>>>,
+  /// 复用的扫描会话槽位（懒建，对标 Garnet 专用扫描 StorageSession）
+  sweep_session: SessionSlot<D>,
   stats: GcStats,
 }
 
@@ -147,7 +146,7 @@ impl<D: Device> GcManager<D> {
       inflight: AtomicBool::new(false),
       last_compact_ms: AtomicU64::new(0),
       cold_cursor: AtomicU64::new(0),
-      sweep_session: Mutex::new(None),
+      sweep_session: SessionSlot::new(),
       stats: GcStats::default(),
     }
   }
@@ -281,20 +280,6 @@ impl<D: Device> GcManager<D> {
     self.try_compact(&store, &cfg).await
   }
 
-  /// 取出（或懒建）复用的扫描会话；用毕须 [`Self::restore_sweep_session`] 归还。
-  /// 以所有权取还替代在互斥守卫内跨 await，异常路径丢弃会话由下轮懒建重建
-  fn take_sweep_session(&self, store: &Arc<WedbStore<D>>) -> Result<StoreSession<D>> {
-    match self.sweep_session.lock().take() {
-      Some(s) => Ok(s),
-      None => store.new_session(),
-    }
-  }
-
-  /// 归还复用的扫描会话
-  fn restore_sweep_session(&self, session: StoreSession<D>) {
-    *self.sweep_session.lock() = Some(session);
-  }
-
   /// 两段式过期扫描：热区窗口优先（对标 Garnet 滑动窗口），冷区欠账用剩余删除预算。
   /// 返回 (物理删除键数, 物理清除字段数, 扫描记录数)——键数与记录数对标 Garnet
   /// `ExpiredKeyDeletionScan` 的 `(numExpiredKeysFound, totalRecordsScanned)` 双口径，
@@ -308,7 +293,7 @@ impl<D: Device> GcManager<D> {
     let now = now_ms();
     let cap = cfg.max_batch_deletes.max(1);
     let cold_cap = cfg.max_scan_records.max(1);
-    let session = self.take_sweep_session(store)?;
+    let session = self.sweep_session.take(store)?;
     let mut picked: ExpiredKeySet = HashSet::with_hasher(GxBuildHasher::default());
     let mut fields_picked: ExpiredKeySet = HashSet::with_hasher(GxBuildHasher::default());
     let mut scanned = 0u64;
@@ -394,7 +379,7 @@ impl<D: Device> GcManager<D> {
     if let Some(addr) = cold_commit {
       self.cold_cursor.store(addr, Relaxed);
     }
-    self.restore_sweep_session(session);
+    self.sweep_session.restore(session);
     Ok((deleted, fields_deleted, scanned))
   }
 

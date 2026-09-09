@@ -11,7 +11,7 @@ use std::{
 
 use compio::runtime::Runtime;
 use itoa::Buffer;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use wbase::time::now_ms;
 use wdev::Device;
 use wepoch::LightEpoch;
@@ -28,7 +28,7 @@ use crate::{
   error::{Error, Result},
   gc,
   read_cache::{ReadCache, absolute_address, is_read_cache_addr},
-  session::StoreSession,
+  session::{SessionSlot, StoreSession},
   ttl::{TTL_VALUE_LEN, TtlProbe},
 };
 
@@ -148,9 +148,9 @@ pub struct WedbStore<D: Device> {
   /// 内部创建的 BfTree 临时数据文件（若非用户显式配置则在 Drop 时自动清理闭环）
   temp_bftree_path: Option<PathBuf>,
   /// INFO KEYSPACE 专用扫描会话槽位（懒建复用，对标 Garnet GarnetDatabase
-  /// `.KeyspaceScanStorageSession` + `KeyspaceScanLock`；取用-归还两段式，
-  /// 不在互斥守卫内跨 await，异常路径丢弃由下次懒建重建）
-  keyspace_scan_session: Mutex<Option<StoreSession<D>>>,
+  /// `.KeyspaceScanStorageSession` + `KeyspaceScanLock`；并发调用后到者降级为
+  /// 一次性临时会话，读路径无共享可变状态，无正确性风险）
+  keyspace_scan_session: SessionSlot<D>,
 }
 
 /// bf-tree CPR 快照文件首部魔数（bf-tree-0.5.6 snapshot.rs `BF_TREE_MAGIC_BEGIN`，文件格式常量）
@@ -320,7 +320,7 @@ impl<D: Device> WedbStore<D> {
       purge_suppress: AtomicUsize::new(0),
       temp_range_index_dir,
       temp_bftree_path,
-      keyspace_scan_session: Mutex::new(None),
+      keyspace_scan_session: SessionSlot::new(),
     }
   }
 
@@ -775,7 +775,7 @@ impl<D: Device> WedbStore<D> {
   /// 并发防护对标 Garnet `KeyspaceScanLock`：专用扫描会话懒建复用，并发调用
   /// 后到者降级为一次性临时会话（读路径无共享可变状态，无正确性风险）。
   pub async fn keyspace_stats(self: &Arc<Self>) -> Result<(u64, u64)> {
-    let session = self.take_keyspace_scan_session()?;
+    let session = self.keyspace_scan_session.take(self)?;
     let from = self.hlog.begin_address();
     let until = self.hlog.tail_address();
     let now = now_ms();
@@ -827,23 +827,8 @@ impl<D: Device> WedbStore<D> {
       }
     }
 
-    self.restore_keyspace_scan_session(session);
+    self.keyspace_scan_session.restore(session);
     Ok((key_count, expire_count))
-  }
-
-  /// 取出（或懒建）INFO KEYSPACE 专用扫描会话；用毕须
-  /// [`Self::restore_keyspace_scan_session`] 归还。以所有权取还替代在互斥守卫内
-  /// 跨 await（对标 gc 的 take/restore_sweep_session 模式）
-  fn take_keyspace_scan_session(self: &Arc<Self>) -> Result<StoreSession<D>> {
-    match self.keyspace_scan_session.lock().take() {
-      Some(s) => Ok(s),
-      None => self.new_session(),
-    }
-  }
-
-  /// 归还 INFO KEYSPACE 专用扫描会话
-  fn restore_keyspace_scan_session(&self, session: StoreSession<D>) {
-    *self.keyspace_scan_session.lock() = Some(session);
   }
 
   /// 获取混合日志分配器引用
