@@ -34,6 +34,23 @@ impl ScriptHashKey {
     Self { buf }
   }
 
+  /// libs/server/Lua/ScriptHashKey.cs:ScriptHashKey（span 形态：40 字符 hex 直存）
+  ///
+  /// EVALSHA / SCRIPT EXISTS 收到的摘要即为 hex 文本；长度或字符不合法返回 None。
+  pub fn from_hex(hex: &[u8]) -> Option<Self> {
+    if hex.len() != SHA1_HEX_LEN {
+      return None;
+    }
+    let mut buf = [0u8; SHA1_HEX_LEN];
+    for (i, &b) in hex.iter().enumerate() {
+      buf[i] = b.to_ascii_lowercase();
+      if !buf[i].is_ascii_hexdigit() {
+        return None;
+      }
+    }
+    Some(Self { buf })
+  }
+
   /// 摘要字符串视图（hex 为 ASCII，必然合法 UTF-8）。
   pub fn as_str(&self) -> &str {
     str::from_utf8(&self.buf).expect("hex 摘要恒为 ASCII")
