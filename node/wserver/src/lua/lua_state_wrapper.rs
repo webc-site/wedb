@@ -508,7 +508,7 @@ mod tests {
     assert_eq!(state.get_top(), 5);
     assert_eq!(state.type_name(-1), Some("string"));
     assert_eq!(state.type_name(-2), Some("nil"));
-    assert_eq!(state.check_number(-4), Some(7.0));
+    assert_eq!(state.check_number(-5), Some(7.0));
     assert!(state.to_boolean(-3));
     assert!(!state.to_boolean(-2));
     assert_eq!(state.raw_len(-1), 5);
