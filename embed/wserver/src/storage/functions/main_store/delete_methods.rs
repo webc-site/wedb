@@ -1,7 +1,4 @@
-use super::{
-  main_session_functions::MainSessionFunctions,
-  upsert_methods::LogRecord,
-};
+use super::{main_session_functions::MainSessionFunctions, upsert_methods::LogRecord};
 
 pub struct DeleteInfo {
   pub key_hash: i64,

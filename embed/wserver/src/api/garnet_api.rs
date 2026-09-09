@@ -26,7 +26,7 @@ impl GarnetApi {
 }
 
 impl Default for GarnetApi {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
