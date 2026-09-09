@@ -27,10 +27,6 @@ wobject = { path = "../embed/wobject" }
 wbase = { path = "../embed/wbase" }
 wdev = { path = "../embed/wdev" }
 wram = { path = "../embed/wram" }
-wepoch = { path = "../embed/wepoch" }
-whlog = { path = "../embed/whlog" }
-whasher = { path = "../embed/whasher" }
-wval = { path = "../embed/wval" }
 
 waof = { path = "waof" }
 wresp = { path = "wresp" }
@@ -46,7 +42,6 @@ log_init = "0.1.39"
 tempfile = "3.27.0"
 compio = "0.19.2"
 coarsetime = "0.1.37"
-parking_lot = "0.12.3"
 sonic-rs = "0.5.4"
 
 [workspace.lints.clippy]
