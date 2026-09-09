@@ -4,7 +4,7 @@ use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
 use log::warn;
 
 use crate::server::{
-  hash_slot::{HashSlot, SlotState},
+  hash_slot::{HashSlot, SlotState, SLOT_STATE_KINDS},
   worker::{LocalWorkerSpec, NodeRole, Worker},
 };
 
@@ -526,13 +526,21 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetSlotCountForState
   pub fn get_slot_count_for_state(&self, state: SlotState) -> usize {
-    let mut count = 0;
-    for i in 0..MAX_HASH_SLOT_VALUE {
-      if self.slot_map[i].state == state {
-        count += 1;
-      }
+    self
+      .slot_map
+      .iter()
+      .filter(|s| s.state == state)
+      .count()
+  }
+
+  /// 单遍扫描统计全部槽位状态计数；CLUSTER INFO 需要 4 个状态计数时
+  /// 复用本方法，避免 4 次全表遍历
+  pub fn slot_state_counts(&self) -> [usize; SLOT_STATE_KINDS] {
+    let mut counts = [0usize; SLOT_STATE_KINDS];
+    for slot in self.slot_map.iter() {
+      counts[slot.state as usize] += 1;
     }
-    count
+    counts
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetPrimaryCount

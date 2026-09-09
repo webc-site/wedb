@@ -110,7 +110,13 @@ impl ClusterManager {
 
   /// garnet相对路径:Server:ClusterManager:GetInfo
   pub fn get_info(&self) -> String {
-    let current = self.current_config.read().clone();
+    // 持读锁直接统计，不克隆整份配置；单遍扫描取全部状态计数
+    let current = self.current_config.read();
+    let counts = current.slot_state_counts();
+    let (stable, fail) = (
+      counts[SlotState::Stable as usize],
+      counts[SlotState::Fail as usize],
+    );
     format!(
       "cluster_state:ok\r\n\
              cluster_slots_assigned:{}\r\n\
@@ -123,10 +129,7 @@ impl ClusterManager {
              cluster_my_epoch:{}\r\n\
              cluster_stats_messages_sent:0\r\n\
              cluster_stats_messages_received:0\r\n",
-      current.get_slot_count_for_state(SlotState::Stable),
-      current.get_slot_count_for_state(SlotState::Stable),
-      current.get_slot_count_for_state(SlotState::Fail),
-      current.get_slot_count_for_state(SlotState::Fail),
+      stable, stable, fail, fail,
       current.num_workers(),
       current.get_primary_count(),
       current.get_max_config_epoch(),
