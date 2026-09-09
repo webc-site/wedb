@@ -6,11 +6,14 @@ use std::sync::{
 use log::trace;
 use parking_lot::RwLock;
 
-use crate::server::{
-  cluster_config::{ClusterConfig, LOCAL_WORKER_ID},
-  cluster_provider::ClusterProvider,
-  hash_slot::SlotState,
-  worker::{LocalWorkerSpec, NodeRole},
+use crate::{
+  error::{Error, Result},
+  server::{
+    cluster_config::{ClusterConfig, LOCAL_WORKER_ID},
+    cluster_provider::ClusterProvider,
+    hash_slot::SlotState,
+    worker::{LocalWorkerSpec, NodeRole},
+  },
 };
 
 /// garnet相对路径:Server:ClusterManager
@@ -129,7 +132,10 @@ impl ClusterManager {
              cluster_my_epoch:{}\r\n\
              cluster_stats_messages_sent:0\r\n\
              cluster_stats_messages_received:0\r\n",
-      stable, stable, fail, fail,
+      stable,
+      stable,
+      fail,
+      fail,
       current.num_workers(),
       current.get_primary_count(),
       current.get_max_config_epoch(),
@@ -162,14 +168,14 @@ impl ClusterManager {
   /// garnet相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
   ///
   /// 错误集中定义于 [`crate::error`]，不再用裸字节串
-  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> crate::error::Result<()> {
+  pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> Result<()> {
     {
       let mut current = self.current_config.write();
       if current.num_workers() == 0 {
-        return Err(crate::error::Error::NoWorkers);
+        return Err(Error::NoWorkers);
       }
       if !current.set_local_worker_config_epoch(config_epoch) {
-        return Err(crate::error::Error::EpochNotSet);
+        return Err(Error::EpochNotSet);
       }
     }
     self.flush_config();
@@ -230,7 +236,9 @@ impl ClusterManager {
       if !current.is_replica() || current.local_node_primary_id().is_none() {
         return false;
       }
-      current.take_over_from_primary().bump_local_node_config_epoch();
+      current
+        .take_over_from_primary()
+        .bump_local_node_config_epoch();
     }
     self.flush_config();
     true

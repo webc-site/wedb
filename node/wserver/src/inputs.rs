@@ -214,14 +214,27 @@ impl StringInput {
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
     unsafe {
       debug_assert!(length >= self.serialized_length());
-      write_input_layout(&self.header.data, self.arg1, &self.parse_state, dest, length)
+      write_input_layout(
+        &self.header.data,
+        self.arg1,
+        &self.parse_state,
+        dest,
+        length,
+      )
     }
   }
 
   /// # Safety
   /// 见 [`read_input_layout`]
   pub unsafe fn deserialize_from(&mut self, src: *const u8) -> usize {
-    unsafe { read_input_layout(&mut self.header.data, &mut self.arg1, &mut self.parse_state, src) }
+    unsafe {
+      read_input_layout(
+        &mut self.header.data,
+        &mut self.arg1,
+        &mut self.parse_state,
+        src,
+      )
+    }
   }
 }
 
@@ -278,14 +291,27 @@ impl UnifiedInput {
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
     unsafe {
       debug_assert!(length >= self.serialized_length());
-      write_input_layout(&self.header.data, self.arg1, &self.parse_state, dest, length)
+      write_input_layout(
+        &self.header.data,
+        self.arg1,
+        &self.parse_state,
+        dest,
+        length,
+      )
     }
   }
 
   /// # Safety
   /// 见 [`read_input_layout`]
   pub unsafe fn deserialize_from(&mut self, src: *const u8) -> usize {
-    unsafe { read_input_layout(&mut self.header.data, &mut self.arg1, &mut self.parse_state, src) }
+    unsafe {
+      read_input_layout(
+        &mut self.header.data,
+        &mut self.arg1,
+        &mut self.parse_state,
+        src,
+      )
+    }
   }
 }
 

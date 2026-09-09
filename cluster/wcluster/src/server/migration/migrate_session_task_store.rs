@@ -105,7 +105,10 @@ impl MigrateSessionTaskStore {
     }
 
     // 先整体校验槽位无占用，再统一占位，避免半占状态
-    if slots.iter().any(|&slot| state.sessions[slot as usize].is_some()) {
+    if slots
+      .iter()
+      .any(|&slot| state.sessions[slot as usize].is_some())
+    {
       return None;
     }
     for slot in &slots {

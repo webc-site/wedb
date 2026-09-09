@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{collections::HashSet, io::Cursor};
 
 use aok::{OK, Void};
 use log::info;
@@ -56,7 +56,7 @@ fn set_random_semantics_and_roundtrip() -> Void {
   assert_eq!(obj.count(), 64);
 
   // 16 个成员各采 1 次，随机下标下命中面应多于 1 种（恒取首元素时只会是 1 种）
-  let mut distinct = std::collections::HashSet::new();
+  let mut distinct = HashSet::new();
   for _ in 0..16 {
     if let Some(m) = obj.random_member() {
       distinct.insert(m);

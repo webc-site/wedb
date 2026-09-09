@@ -34,7 +34,13 @@ impl fmt::Display for TxnKeyEntry {
       LockType::Shared => "s",
       LockType::Exclusive => "x",
     };
-    write!(f, "{}{}:{}", key_hash_sign, self.key_hash.unsigned_abs(), lock_str)
+    write!(
+      f,
+      "{}{}:{}",
+      key_hash_sign,
+      self.key_hash.unsigned_abs(),
+      lock_str
+    )
   }
 }
 

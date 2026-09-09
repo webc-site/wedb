@@ -56,7 +56,9 @@ impl GarnetClientSession {
       self
         .execute_async(&["CLIENT", "SETINFO", "LIB-NAME", "GarnetClientSession"])
         .await?;
-      self.execute_async(&["CLIENT", "SETNAME", client_name]).await?;
+      self
+        .execute_async(&["CLIENT", "SETNAME", client_name])
+        .await?;
     }
 
     Ok(())

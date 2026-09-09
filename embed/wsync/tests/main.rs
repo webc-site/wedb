@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread};
+use std::{sync::Arc, thread, time::Duration};
 
 use aok::{OK, Void};
 use log::info;
@@ -23,7 +23,7 @@ fn leader_barrier_rendezvous_and_underflow() -> Void {
   let releaser = {
     let b = Arc::clone(&barrier);
     thread::spawn(move || {
-      thread::sleep(std::time::Duration::from_millis(50));
+      thread::sleep(Duration::from_millis(50));
       b.release();
     })
   };
@@ -52,7 +52,7 @@ fn leader_barrier_rendezvous_and_underflow() -> Void {
 #[test]
 fn leader_barrier_timeout() -> Void {
   let barrier = LeaderBarrier::new(2);
-  let res = barrier.try_signal_or_wait(Some(std::time::Duration::from_millis(20)));
+  let res = barrier.try_signal_or_wait(Some(Duration::from_millis(20)));
   assert_eq!(res.unwrap_err(), wsync::Error::Timeout);
   OK
 }

@@ -58,8 +58,9 @@ fn encode_command(out: &mut Vec<u8>, cmd: &[String], num: &mut Buffer) {
 fn parse_scalar(data: &mut &[u8]) -> Result<Option<Result<String>>> {
   match data[0] {
     b'+' => RespReadResponseUtils::try_read_simple_string(data).map(|s| s.map(Ok)),
-    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
-      .map(|e| e.map(|e| Err(Error::Other(e)))),
+    b'-' => {
+      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
+    }
     b':' => RespReadResponseUtils::try_read_integer_as_string(data).map(|s| s.map(Ok)),
     b'$' => RespReadResponseUtils::try_read_string_with_length_header(data)
       .map(|s| s.map(|s| Ok(s.unwrap_or_default()))),
@@ -72,8 +73,9 @@ fn parse_array(data: &mut &[u8]) -> Result<Option<Result<Vec<String>>>> {
   match data[0] {
     b'*' => RespReadResponseUtils::try_read_string_array_with_length_header(data)
       .map(|a| a.map(|a| Ok(a.unwrap_or_default()))),
-    b'-' => RespReadResponseUtils::try_read_error_as_string(data)
-      .map(|e| e.map(|e| Err(Error::Other(e)))),
+    b'-' => {
+      RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
+    }
     _ => Err(unexpected_token(data[0])),
   }
 }
@@ -84,7 +86,10 @@ fn unexpected_token(b: u8) -> Error {
 }
 
 /// 网络循环主泵（详见模块文档）
-pub(super) async fn network_loop(mut stream: TcpStream, rx: AsyncRx<mpsc::Array<CommandItem>>) -> Result<()> {
+pub(super) async fn network_loop(
+  mut stream: TcpStream,
+  rx: AsyncRx<mpsc::Array<CommandItem>>,
+) -> Result<()> {
   let mut queue: VecDeque<CommandItem> = VecDeque::new();
   let mut read_buf: Vec<u8> = Vec::with_capacity(READ_BUF_CAP);
   // 读取块全程复用，按 compio 约定每次 read 归还后接着用，避免每读一次分配清零一次
@@ -156,8 +161,9 @@ pub(super) async fn network_loop(mut stream: TcpStream, rx: AsyncRx<mpsc::Array<
 
 #[cfg(test)]
 mod tests {
-  use super::encode_command;
   use itoa::Buffer;
+
+  use super::encode_command;
 
   #[test]
   fn encode_command_frame() {

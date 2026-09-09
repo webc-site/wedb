@@ -1,4 +1,4 @@
-use std::result;
+use std::{io, result};
 
 use thiserror::Error;
 
@@ -8,7 +8,7 @@ pub enum Error {
   NotImplemented,
   /// 序列化/反序列化底层 I/O 或格式错误（roaring 经 io::Error 上抛）
   #[error(transparent)]
-  Io(#[from] std::io::Error),
+  Io(#[from] io::Error),
   #[error("Invalid bit")]
   InvalidBit,
   #[error("Invalid offset")]

@@ -1,11 +1,14 @@
-use std::{array::from_fn, cmp::Ordering, net::SocketAddr};
+use std::{array::from_fn, cmp::Ordering, net::SocketAddr, result::Result as StdResult};
 
 // if needed
 use log::warn;
 
-use crate::server::{
-  hash_slot::{HashSlot, SlotState, SLOT_STATE_KINDS},
-  worker::{LocalWorkerSpec, NodeRole, Worker},
+use crate::{
+  error::Result,
+  server::{
+    hash_slot::{HashSlot, SLOT_STATE_KINDS, SlotState},
+    worker::{LocalWorkerSpec, NodeRole, Worker},
+  },
 };
 
 pub const RESERVED_WORKER_ID: usize = 0;
@@ -298,23 +301,16 @@ impl ClusterConfig {
   /// 全部 node_id→worker 投影方法共用此单一查找定义，替代原先各写一遍
   /// 的"id 查找 + 越界回退"样板
   fn worker_by_node_id(&self, node_id: &str) -> Option<(usize, &Worker)> {
-    self
-      .workers
-      .iter()
-      .enumerate()
-      .skip(1)
-      .find(|(_, w)| {
-        w.nodeid
-          .as_deref()
-          .is_some_and(|id| id.eq_ignore_ascii_case(node_id))
-      })
+    self.workers.iter().enumerate().skip(1).find(|(_, w)| {
+      w.nodeid
+        .as_deref()
+        .is_some_and(|id| id.eq_ignore_ascii_case(node_id))
+    })
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
   pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
-    self
-      .worker_by_node_id(node_id)
-      .map_or(0, |(i, _)| i as u16)
+    self.worker_by_node_id(node_id).map_or(0, |(i, _)| i as u16)
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetNodeRoleFromNodeId
@@ -508,11 +504,7 @@ impl ClusterConfig {
 
   /// garnet相对路径:Server:ClusterConfig:GetSlotCountForState
   pub fn get_slot_count_for_state(&self, state: SlotState) -> usize {
-    self
-      .slot_map
-      .iter()
-      .filter(|s| s.state == state)
-      .count()
+    self.slot_map.iter().filter(|s| s.state == state).count()
   }
 
   /// 单遍扫描统计全部槽位状态计数；CLUSTER INFO 需要 4 个状态计数时
@@ -647,7 +639,7 @@ impl ClusterConfig {
     &mut self,
     slots: Option<&HashSet<usize>>,
     state: SlotState,
-  ) -> Result<(), usize> {
+  ) -> StdResult<(), usize> {
     let Some(s) = slots else {
       return Ok(());
     };
@@ -675,7 +667,7 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:TryRemoveSlots
-  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> Result<(), usize> {
+  pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> StdResult<(), usize> {
     let Some(s) = slots else {
       return Ok(());
     };
@@ -808,7 +800,10 @@ impl ClusterConfig {
       // 发送方非本槽认领者且是主：若本地认为属主即发送方（epoch 碰撞后
       // 的错位状态），重置为 Offline 给真实属主重新认领的机会
       if sender_slot_map[i].worker_id as usize != LOCAL_WORKER_ID && sender_config.is_primary() {
-        let current_owner_node_id = self.workers.get(current_owner_id).and_then(|w| w.nodeid.as_deref());
+        let current_owner_node_id = self
+          .workers
+          .get(current_owner_id)
+          .and_then(|w| w.nodeid.as_deref());
         if let Some(conid) = current_owner_node_id
           && let Some(sid) = sender_config.local_node_id()
           && conid.eq_ignore_ascii_case(sid)
@@ -824,9 +819,10 @@ impl ClusterConfig {
       if sender_config.is_primary() {
         // 发送方是本槽认领者且为主：仅当其 epoch 更高才可改写本槽
         if sender_config.local_node_config_epoch() != 0
-          && self.workers.get(current_owner_id).is_some_and(|w| {
-            w.config_epoch >= sender_config.local_node_config_epoch()
-          })
+          && self
+            .workers
+            .get(current_owner_id)
+            .is_some_and(|w| w.config_epoch >= sender_config.local_node_config_epoch())
         {
           continue;
         }
@@ -877,7 +873,9 @@ impl ClusterConfig {
       let Some(ref sid) = worker.nodeid else {
         continue;
       };
-      if local_id.is_some_and(|lid| lid.eq_ignore_ascii_case(sid)) || worker_ban_list.contains_key(sid) {
+      if local_id.is_some_and(|lid| lid.eq_ignore_ascii_case(sid))
+        || worker_ban_list.contains_key(sid)
+      {
         continue;
       }
       changed |= merged.merge_worker_info(worker);
@@ -1527,7 +1525,7 @@ impl ClusterConfig {
   }
 
   /// garnet相对路径:Server:ClusterConfig:FromByteArray
-  pub fn from_byte_array(data: &[u8]) -> crate::error::Result<Self> {
+  pub fn from_byte_array(data: &[u8]) -> Result<Self> {
     let Some((&version, payload)) = data.split_first() else {
       return Err(Error::PayloadTooShort);
     };

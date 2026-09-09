@@ -75,12 +75,32 @@ pub fn encode_ri_create(
   }
 
   append_resp_num_arg(&mut out, b"$9\r\nCACHESIZE\r\n$", tuning.cache_size, &mut b);
-  append_resp_num_arg(&mut out, b"$9\r\nMINRECORD\r\n$", tuning.min_record_size, &mut b);
-  append_resp_num_arg(&mut out, b"$9\r\nMAXRECORD\r\n$", tuning.max_record_size, &mut b);
-  append_resp_num_arg(&mut out, b"$9\r\nMAXKEYLEN\r\n$", tuning.max_key_len, &mut b);
+  append_resp_num_arg(
+    &mut out,
+    b"$9\r\nMINRECORD\r\n$",
+    tuning.min_record_size,
+    &mut b,
+  );
+  append_resp_num_arg(
+    &mut out,
+    b"$9\r\nMAXRECORD\r\n$",
+    tuning.max_record_size,
+    &mut b,
+  );
+  append_resp_num_arg(
+    &mut out,
+    b"$9\r\nMAXKEYLEN\r\n$",
+    tuning.max_key_len,
+    &mut b,
+  );
 
   if tuning.leaf_page_size > 0 {
-    append_resp_num_arg(&mut out, b"$8\r\nPAGESIZE\r\n$", tuning.leaf_page_size, &mut b);
+    append_resp_num_arg(
+      &mut out,
+      b"$8\r\nPAGESIZE\r\n$",
+      tuning.leaf_page_size,
+      &mut b,
+    );
   }
 
   out
