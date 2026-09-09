@@ -1,3 +1,5 @@
+use std::str;
+
 use crate::{
   error::{Error, Result},
   roaring_bitmap_object::RoaringBitmapObject,
@@ -8,7 +10,7 @@ pub struct RoaringBitmapCommands;
 impl RoaringBitmapCommands {
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseUInt32
   pub fn try_parse_uint32(raw: &[u8]) -> Option<u32> {
-    std::str::from_utf8(raw).ok().and_then(|s| s.parse().ok())
+    str::from_utf8(raw).ok().and_then(|s| s.parse().ok())
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseBit

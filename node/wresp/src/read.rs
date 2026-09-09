@@ -1,3 +1,5 @@
+use std::str;
+
 use crate::error::{Error, Result};
 
 /// garnet/libs/common/RespReadUtils.cs:TryReadSign
@@ -790,7 +792,7 @@ pub fn try_read_double_with_length_header(
     return Ok(false);
   }
 
-  if let Ok(s) = std::str::from_utf8(result_bytes)
+  if let Ok(s) = str::from_utf8(result_bytes)
     && let Ok(val) = s.parse::<f64>()
   {
     *result = val;

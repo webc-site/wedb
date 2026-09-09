@@ -1,3 +1,5 @@
+use std::{cmp::max, mem::size_of, ptr::null};
+
 use crate::arg_slice::ArgSlice;
 
 /// garnet相对路径:garnet/libs/server/Resp/Parser/SessionParseState.cs:SessionParseState
@@ -30,10 +32,8 @@ impl SessionParseState {
   pub fn initialize(&mut self, count: usize) {
     self.count = count;
     self.offset = 0;
-    let cap = std::cmp::max(count, Self::MIN_PARAMS);
-    self
-      .root_buffer
-      .resize(cap, ArgSlice::new(std::ptr::null(), 0));
+    let cap = max(count, Self::MIN_PARAMS);
+    self.root_buffer.resize(cap, ArgSlice::new(null(), 0));
   }
 
   #[inline]
@@ -76,7 +76,7 @@ impl SessionParseState {
   }
 
   pub fn get_serialized_length(&self) -> usize {
-    let mut len = std::mem::size_of::<i32>();
+    let mut len = size_of::<i32>();
     for i in 0..self.count {
       len += self.root_buffer[self.offset + i].total_size();
     }

@@ -3,3 +3,4 @@ fn:
   - WriteDouble
   - ReadInt64
   - WriteInt32
+  - TryReadDouble

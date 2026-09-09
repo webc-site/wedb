@@ -1,5 +1,6 @@
-use crate::resp::parser::parse_utils::RespSliceExt;
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
+
+use crate::resp::parser::resp_ext::RespSliceExt;
 
 impl crate::resp::resp_server_session::RespServerSession {
   pub fn sorted_set_add<'a, D: wdev::Device>(

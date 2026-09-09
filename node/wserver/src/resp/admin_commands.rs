@@ -1,4 +1,6 @@
-impl crate::resp::resp_server_session::RespServerSession {
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   /// libs/server/Resp/AdminCommands.cs:ProcessAdminCommands
   pub fn process_admin_commands<'a, D: wdev::Device>(
     &mut self,

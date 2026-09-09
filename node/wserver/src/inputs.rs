@@ -1,3 +1,5 @@
+use std::{mem::size_of, ptr::copy_nonoverlapping};
+
 use crate::{
   input_header::RespInputHeader,
   session_parse_state::SessionParseState,
@@ -146,7 +148,7 @@ impl StringInput {
   }
 
   pub fn serialized_length(&self) -> usize {
-    RespInputHeader::SIZE + std::mem::size_of::<i64>() + self.parse_state.get_serialized_length()
+    RespInputHeader::SIZE + size_of::<i64>() + self.parse_state.get_serialized_length()
   }
 
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
@@ -154,7 +156,7 @@ impl StringInput {
       debug_assert!(length >= self.serialized_length());
       let mut curr = dest;
 
-      std::ptr::copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
+      copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       *(curr as *mut i64) = self.arg1;
@@ -172,7 +174,7 @@ impl StringInput {
     unsafe {
       let mut curr = src;
 
-      std::ptr::copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
+      copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       self.arg1 = *(curr as *const i64);
@@ -231,7 +233,7 @@ impl UnifiedInput {
   }
 
   pub fn serialized_length(&self) -> usize {
-    RespInputHeader::SIZE + std::mem::size_of::<i64>() + self.parse_state.get_serialized_length()
+    RespInputHeader::SIZE + size_of::<i64>() + self.parse_state.get_serialized_length()
   }
 
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
@@ -239,7 +241,7 @@ impl UnifiedInput {
       debug_assert!(length >= self.serialized_length());
       let mut curr = dest;
 
-      std::ptr::copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
+      copy_nonoverlapping(self.header.data.as_ptr(), curr, RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       *(curr as *mut i64) = self.arg1;
@@ -257,7 +259,7 @@ impl UnifiedInput {
     unsafe {
       let mut curr = src;
 
-      std::ptr::copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
+      copy_nonoverlapping(curr, self.header.data.as_mut_ptr(), RespInputHeader::SIZE);
       curr = curr.add(RespInputHeader::SIZE);
 
       self.arg1 = *(curr as *const i64);

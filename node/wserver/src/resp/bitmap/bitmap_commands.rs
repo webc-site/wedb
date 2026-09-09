@@ -1,4 +1,8 @@
-impl crate::resp::resp_server_session::RespServerSession {
+use std::str;
+
+use crate::resp::resp_server_session::RespServerSession;
+
+impl RespServerSession {
   pub fn network_string_set_bit<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -10,8 +14,8 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let offset_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
-    let bit_str = std::str::from_utf8(parse_state[2]).unwrap_or("");
+    let offset_str = str::from_utf8(parse_state[1]).unwrap_or("");
+    let bit_str = str::from_utf8(parse_state[2]).unwrap_or("");
 
     let offset = match offset_str.parse::<usize>() {
       Ok(o) => o,
@@ -68,7 +72,7 @@ impl crate::resp::resp_server_session::RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let offset_str = std::str::from_utf8(parse_state[1]).unwrap_or("");
+    let offset_str = str::from_utf8(parse_state[1]).unwrap_or("");
 
     let offset = match offset_str.parse::<usize>() {
       Ok(o) => o,

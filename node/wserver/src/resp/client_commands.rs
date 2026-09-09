@@ -1,4 +1,4 @@
-use crate::resp::parser::parse_utils::RespSliceExt;
+use crate::resp::parser::resp_ext::RespSliceExt;
 pub struct ClientCommands;
 
 impl ClientCommands {

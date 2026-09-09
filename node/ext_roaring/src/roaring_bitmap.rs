@@ -66,14 +66,14 @@ impl RoaringBitmapObj {
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Serialize
-  pub fn serialize<W: std::io::Write>(&self, writer: &mut W) {
+  pub fn serialize<W: Write>(&self, writer: &mut W) {
     self.bitmap.serialize_into(writer).unwrap();
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmap.cs:Deserialize
-  pub fn deserialize<R: std::io::Read>(reader: &mut R) -> Self {
+  pub fn deserialize<R: Read>(reader: &mut R) -> Self {
     Self {
-      bitmap: roaring::RoaringBitmap::deserialize_from(reader).unwrap(),
+      bitmap: RoaringBitmap::deserialize_from(reader).unwrap(),
     }
   }
 }

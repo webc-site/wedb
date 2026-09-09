@@ -1,6 +1,9 @@
-use crate::resp::parser::parse_utils::{RespSliceExt, RespVecExt};
+use crate::resp::{
+  parser::resp_ext::{RespSliceExt, RespVecExt},
+  resp_server_session::RespServerSession,
+};
 
-impl crate::resp::resp_server_session::RespServerSession {
+impl RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:GetPendingScratchOutput
   pub fn get_pending_scratch_output<'a, D: wdev::Device>(
     &mut self,
@@ -163,12 +166,22 @@ impl crate::resp::resp_server_session::RespServerSession {
     match store.try_read_sync(key, |v| v.to_vec()) {
       Ok(Some(Some(val))) => {
         let len = val.len() as isize;
-        if start < 0 { start += len; }
-        if end < 0 { end += len; }
-        if start < 0 { start = 0; }
-        if end < 0 { end = 0; }
-        if end >= len { end = len - 1; }
-        
+        if start < 0 {
+          start += len;
+        }
+        if end < 0 {
+          end += len;
+        }
+        if start < 0 {
+          start = 0;
+        }
+        if end < 0 {
+          end = 0;
+        }
+        if end >= len {
+          end = len - 1;
+        }
+
         if start > end || start >= len {
           output.write_resp_bulk_string(b"");
         } else {
