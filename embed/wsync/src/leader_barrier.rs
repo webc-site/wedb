@@ -10,7 +10,7 @@ struct State {
   all_released: bool,
 }
 
-/// garnet相对路径:garnet/libs/common/Synchronization/LeaderBarrier.cs:LeaderBarrier
+/// 在 garnet 中的相对路径:libs/common/Synchronization/LeaderBarrier.cs:LeaderBarrier
 pub struct LeaderBarrier {
   participant_count: i32,
   state: Mutex<State>,
@@ -19,7 +19,7 @@ pub struct LeaderBarrier {
 }
 
 impl LeaderBarrier {
-  /// garnet相对路径:garnet/libs/common/Synchronization/LeaderBarrier.cs:LeaderBarrier
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/LeaderBarrier.cs:LeaderBarrier
   pub fn new(participant_count: i32) -> Self {
     Self {
       participant_count,
@@ -33,7 +33,7 @@ impl LeaderBarrier {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/LeaderBarrier.cs:TrySignalOrWait
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/LeaderBarrier.cs:TrySignalOrWait
   ///
   /// 刻意差异（对照 C#）：错误以类型化 [`Error`] 上抛（C# 经 out Exception 传字符串化
   /// 异常）；超时判定为 [`Error::Timeout`]——C# 忽略 ManualResetEventSlim.Wait 的超时
@@ -85,7 +85,7 @@ impl LeaderBarrier {
     Ok(false)
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/LeaderBarrier.cs:Release
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/LeaderBarrier.cs:Release
   pub fn release(&self) {
     let mut state = self.state.lock();
     state.all_released = true;

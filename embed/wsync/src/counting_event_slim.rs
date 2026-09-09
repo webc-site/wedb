@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use parking_lot::{Condvar, Mutex};
 
-/// garnet相对路径:garnet/libs/common/Synchronization/CountingEventSlim.cs:CountingEventSlim
+/// 在 garnet 中的相对路径:libs/common/Synchronization/CountingEventSlim.cs:CountingEventSlim
 pub struct CountingEventSlim {
   count: Mutex<i32>,
   cond: Condvar,
@@ -15,7 +15,7 @@ impl Default for CountingEventSlim {
 }
 
 impl CountingEventSlim {
-  /// garnet相对路径:garnet/libs/common/Synchronization/CountingEventSlim.cs:Create
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CountingEventSlim.cs:Create
   pub fn new() -> Self {
     Self {
       count: Mutex::new(0),
@@ -23,13 +23,13 @@ impl CountingEventSlim {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CountingEventSlim.cs:Increment
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CountingEventSlim.cs:Increment
   pub fn increment(&self) {
     let mut count = self.count.lock();
     *count += 1;
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CountingEventSlim.cs:Decrement
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CountingEventSlim.cs:Decrement
   pub fn decrement(&self) {
     let mut count = self.count.lock();
     *count -= 1;
@@ -42,7 +42,7 @@ impl CountingEventSlim {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/CountingEventSlim.cs:Wait
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/CountingEventSlim.cs:Wait
   pub fn wait(&self, milliseconds_timeout: i32) -> bool {
     let mut count = self.count.lock();
     while *count > 0 {

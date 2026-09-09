@@ -5,7 +5,7 @@ use std::{
 
 use parking_lot::{Condvar, Mutex};
 
-/// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:ActiveWorkerMonitor
+/// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:ActiveWorkerMonitor
 pub struct ActiveWorkerMonitor {
   disposed: AtomicI32,
   worker_count: AtomicI32,
@@ -29,7 +29,7 @@ impl ActiveWorkerMonitor {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:CurrentCount
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:CurrentCount
   pub fn current_count(&self) -> i32 {
     let observed_count = self.worker_count.load(Ordering::Relaxed);
     if observed_count < 0 {
@@ -39,7 +39,7 @@ impl ActiveWorkerMonitor {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:Dispose
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:Dispose
   pub fn dispose(&self) {
     if self.disposed.swap(1, Ordering::SeqCst) != 0 {
       return;
@@ -47,7 +47,7 @@ impl ActiveWorkerMonitor {
     self.try_close(None);
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:TryOpen
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:TryOpen
   pub fn try_open(&self) -> bool {
     debug_assert_eq!(self.worker_count.load(Ordering::Relaxed), i32::MIN);
     {
@@ -60,7 +60,7 @@ impl ActiveWorkerMonitor {
       .is_ok()
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:TryClose
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:TryClose
   pub fn try_close(&self, timeout: Option<Duration>) {
     if self.worker_count.fetch_add(i32::MIN, Ordering::SeqCst) != 0 {
       let mut signalled = self.drain_mutex.lock();
@@ -77,13 +77,13 @@ impl ActiveWorkerMonitor {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:TryEnter
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:TryEnter
   #[inline]
   pub fn try_enter(&self) -> bool {
     self.try_enter_with_count(1).is_some()
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:TryEnter
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:TryEnter
   #[inline]
   pub fn try_enter_with_count(&self, add: i32) -> Option<i32> {
     let cnt = self.worker_count.fetch_add(add, Ordering::SeqCst) + add;
@@ -98,7 +98,7 @@ impl ActiveWorkerMonitor {
     Some(cnt)
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ActiveWorkerMonitor.cs:Exit
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ActiveWorkerMonitor.cs:Exit
   #[inline]
   pub fn exit(&self) -> i32 {
     let cnt = self.worker_count.fetch_sub(1, Ordering::SeqCst) - 1;

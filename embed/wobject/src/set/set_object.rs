@@ -22,7 +22,7 @@ pub enum SetOperation {
   Scard = 13,
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetObject
+/// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:SetObject
 pub struct SetObject {
   pub set: HashSet<Vec<u8>, GxBuildHasher>,
 }
@@ -34,7 +34,7 @@ impl SetObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -51,7 +51,7 @@ impl SetObject {
     Ok(Self { set })
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Serialize
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.set.pin();
     let mut items = Vec::with_capacity(pin.len());
@@ -62,7 +62,7 @@ impl SetObject {
     writer.write_all(&bytes)
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Operate
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Operate
   pub fn operate(&self, op: SetOperation, key: &[u8]) -> bool {
     let pin = self.set.pin();
     match op {
@@ -73,7 +73,7 @@ impl SetObject {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:Count
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Count
   pub fn count(&self) -> usize {
     self.set.pin().len()
   }
@@ -86,13 +86,13 @@ impl Default for SetObject {
 }
 
 impl SetObject {
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObject.cs:GetMembers（SMEMBERS 输出）
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:GetMembers（SMEMBERS 输出）
   pub fn get_keys(&self) -> Vec<Vec<u8>> {
     let pin = self.set.pin();
     pin.iter().cloned().collect()
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObjectImpl.cs:SetPopImpl（SPOP）
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObjectImpl.cs:SetPopImpl（SPOP）
   ///
   /// 刻意差异修正：原实现恒取首元素（确定性弹出，语义偏差）；对齐 C# 的
   /// `RandomNumberGenerator.GetInt32(0, Set.Count)` 随机下标弹出
@@ -108,7 +108,7 @@ impl SetObject {
     Some(item)
   }
 
-  /// garnet相对路径:garnet/libs/server/Objects/Set/SetObjectImpl.cs:SetRandomMember（SRANDMEMBER）
+  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObjectImpl.cs:SetRandomMember（SRANDMEMBER）
   ///
   /// 刻意差异修正：原实现恒取首元素；对齐 C# `RandomUtils.PickRandomIndex` 随机采样
   pub fn random_member(&self) -> Option<Vec<u8>> {

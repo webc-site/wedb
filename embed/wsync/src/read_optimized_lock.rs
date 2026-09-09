@@ -5,7 +5,7 @@ use std::{
 
 use wbase::thread::current_thread_id;
 
-/// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:LockType
+/// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:LockType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockType {
   Shared = 0,
@@ -14,7 +14,7 @@ pub enum LockType {
   Invalid = 3,
 }
 
-/// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:LockToken
+/// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:LockToken
 #[derive(Debug, Clone, Copy)]
 pub struct LockToken {
   pub token: i32,
@@ -55,7 +55,7 @@ impl LockToken {
   }
 }
 
-/// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:ReadOptimizedLock
+/// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:ReadOptimizedLock
 pub struct ReadOptimizedLock {
   hash_mask: usize,
   core_selection_mask: usize,
@@ -74,7 +74,7 @@ fn get_processor_hint() -> usize {
 }
 
 impl ReadOptimizedLock {
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:ReadOptimizedLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:ReadOptimizedLock
   pub fn new(total_size: usize, core_count: usize) -> Self {
     let size = total_size.next_power_of_two();
     let cores = core_count.next_power_of_two();
@@ -102,7 +102,7 @@ impl ReadOptimizedLock {
     acquire_ix
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:ReleaseLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:ReleaseLock
   pub fn release_lock(&self, lock_token: &LockToken) {
     match lock_token.typ {
       LockType::Shared => {
@@ -142,7 +142,7 @@ impl ReadOptimizedLock {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:TryAcquireSharedLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:TryAcquireSharedLock
   pub fn try_acquire_shared_lock(&self, hash: i64) -> Option<LockToken> {
     let core_selection = get_processor_hint() & self.core_selection_mask;
     let ix = self.calculate_index(hash, core_selection);
@@ -157,7 +157,7 @@ impl ReadOptimizedLock {
     None
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:AcquireSharedLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:AcquireSharedLock
   pub fn acquire_shared_lock(&self, hash: i64) -> LockToken {
     let core_selection = get_processor_hint() & self.core_selection_mask;
     let ix = self.calculate_index(hash, core_selection);
@@ -174,7 +174,7 @@ impl ReadOptimizedLock {
     }
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:TryAcquireExclusiveLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:TryAcquireExclusiveLock
   pub fn try_acquire_exclusive_lock(&self, hash: i64) -> Option<LockToken> {
     let core_count = self.core_selection_mask + 1;
     for i in 0..core_count {
@@ -198,7 +198,7 @@ impl ReadOptimizedLock {
     Some(LockToken::create_exclusive(hash as i32))
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:AcquireExclusiveLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:AcquireExclusiveLock
   pub fn acquire_exclusive_lock(&self, hash: i64) -> LockToken {
     let core_count = self.core_selection_mask + 1;
     for i in 0..core_count {
@@ -213,7 +213,7 @@ impl ReadOptimizedLock {
     LockToken::create_exclusive(hash as i32)
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:AcquireAllExclusiveLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:AcquireAllExclusiveLock
   pub fn acquire_all_exclusive_lock(&self) -> LockToken {
     for count in &self.lock_counts {
       while count
@@ -226,7 +226,7 @@ impl ReadOptimizedLock {
     LockToken::create_all_exclusive()
   }
 
-  /// garnet相对路径:garnet/libs/common/Synchronization/ReadOptimizedLock.cs:TryPromoteSharedLock
+  /// 在 garnet 中的相对路径:libs/common/Synchronization/ReadOptimizedLock.cs:TryPromoteSharedLock
   pub fn try_promote_shared_lock(&self, hash: i64, lock_token: &mut LockToken) -> bool {
     debug_assert_eq!(lock_token.typ, LockType::Shared);
 
