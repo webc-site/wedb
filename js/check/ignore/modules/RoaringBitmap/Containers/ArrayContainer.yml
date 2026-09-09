@@ -1,0 +1,11 @@
+fn:
+  - ArrayContainer
+  - EnsureCapacity
+  - Remove
+  - Last
+  - NextSetBit
+  - NextUnsetBit
+  - SerializeBody
+  - DeserializeBody
+  - ToBitmap
+  - GetAt

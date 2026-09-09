@@ -1,0 +1,13 @@
+fn:
+  - Setup
+  - TearDown
+  - MakeStub
+  - RandomBytes
+  - BuildStreamChunks
+  - AssertSingleReassemblyReason
+test:
+  - PartialStreamIsPendingThenCleanedUp
+  - RetryFirstChunkResetsStalePartialReassembly
+  - MalformedChunkIsDropped
+  - FinalFlagOnIncompleteStreamDropsReassembly
+  - PublishFailureOnCompleteStreamThrows

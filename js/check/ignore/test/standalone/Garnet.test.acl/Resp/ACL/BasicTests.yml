@@ -1,0 +1,14 @@
+fn:
+  - Setup
+  - GetLimitedUserConfig
+  - CreateLimitedUserAsync
+test:
+  - BasicWhoamiTest
+  - BasicListTest
+  - BasicUsersTest
+  - BasicGenPassTest
+  - InvalidSubcommand
+  - NoAuthValidation
+  - DeniedCommandReturnsNoPermAsync
+  - PermittedCommandStillWorksAsync
+  - ClientSetInfoDeniedReturnsNoPermAsync

@@ -1,0 +1,6 @@
+fn:
+  - ProgressBar
+  - ResetTimer
+  - Report
+  - TimerHandler
+  - UpdateText

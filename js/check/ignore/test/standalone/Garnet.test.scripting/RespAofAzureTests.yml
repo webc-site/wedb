@@ -1,0 +1,15 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - AofUpsertStoreRecoverTestAsync
+  - AofUpsertStoreAutoCommitRecoverTestAsync
+  - AofUpsertStoreAutoCommitCommitWaitRecoverTest
+  - AofUpsertStoreCkptRecoverTestAsync
+  - AofRMWStoreRecoverTestAsync
+  - AofDeleteStoreRecoverTestAsync
+  - AofExpiryRMWStoreRecoverTestAsync
+  - AofRMWObjectStoreRecoverTestAsync
+  - AofDeleteObjectStoreRecoverTestAsync
+  - AofRMWObjectStoreCopyUpdateRecoverTestAsync
+  - AofMultiRMWStoreCkptRecoverTestAsync

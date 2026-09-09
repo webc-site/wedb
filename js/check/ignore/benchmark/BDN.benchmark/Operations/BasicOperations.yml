@@ -1,0 +1,4 @@
+fn:
+  - GlobalSetup
+  - SetupOperation
+  - InlinePing

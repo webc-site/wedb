@@ -1,0 +1,10 @@
+fn:
+  - OneTimeSetUp
+  - Setup
+  - TearDown
+test:
+  - ClusterReplicationShardedLogTxnTest
+  - ClusterReplicationShardedLogRecoverAsync
+  - ClusterReplicationSimpleMultiReplay
+  - ClusterParallelReplicationUpgrade
+  - ClusterAofUpgradeSLtoSLMRRecoverAsync

@@ -1,0 +1,18 @@
+fn:
+  - Setup
+  - TearDown
+  - GetEncoding
+test:
+  - ObjectEncodingStringTest
+  - ObjectEncodingHashTest
+  - ObjectEncodingHashWithFieldExpirationTest
+  - ObjectEncodingListTest
+  - ObjectEncodingSetTest
+  - ObjectEncodingSortedSetTest
+  - ObjectEncodingMissingKeyReturnsNil
+  - ObjectRefcountTest
+  - ObjectIdletimeTest
+  - ObjectFreqTest
+  - ObjectHelpTest
+  - ObjectErrorsTest
+  - ObjectEncodingRawProtocolTest

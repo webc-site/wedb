@@ -1,0 +1,4 @@
+fn:
+  - SetUpTestObjects
+  - CheckCommandOnWrongTypeObjectSE
+  - testAction

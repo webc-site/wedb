@@ -1,0 +1,7 @@
+test:
+  - CreateArgSliceAndRewindTest
+  - NoGrowRewindReclaimsOffsetAndPreservesEarlierData
+  - GrowDuringScopeReclaimsCurrentBuffer
+  - FirstAllocationFromDefaultRewindsToZeroAndRetainsBuffer
+  - RepeatedReserveRewindDoesNotGrow
+  - RepeatedGrowingRunsReuseLargestBuffer

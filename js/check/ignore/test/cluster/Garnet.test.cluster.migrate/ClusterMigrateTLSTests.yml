@@ -1,0 +1,15 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - ClusterTLSInitialize
+  - ClusterTLSSlotInfo
+  - ClusterTLSAddDelSlots
+  - ClusterTLSSlotChangeStatus
+  - ClusterTLSRedirectMessage
+  - ClusterTLSMigrateSlots
+  - ClusterTLSMigrateSlotsExpiry
+  - ClusterTLSMigrateSlotsWithObjects
+  - ClusterTLSMigrateKeys
+  - ClusterTLSMigrateKeysWithObjects
+  - ClusterTLSMigrateContinuousReadWrite

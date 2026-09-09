@@ -1,0 +1,8 @@
+fn:
+  - Setup
+  - TearDown
+  - GetInnermost
+  - RewriteAofHeaderVersion
+test:
+  - DownlevelV4AofRecoversOnCurrentBuild
+  - UplevelAofVersionIsRejected

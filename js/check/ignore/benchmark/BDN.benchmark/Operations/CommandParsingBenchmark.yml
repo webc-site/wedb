@@ -1,0 +1,20 @@
+fn:
+  - GlobalSetup
+  - SlowConsumeMessage
+  - ParsePING
+  - ParseGET
+  - ParseSET
+  - ParseINCR
+  - ParseEXISTS
+  - ParseSETEX
+  - ParsePUBLISH
+  - ParseEXPIRE
+  - ParseHSET
+  - ParseLPUSH
+  - ParseZADD
+  - ParseZRANGEBYSCORE
+  - ParseZREMRANGEBYSCORE
+  - ParseHINCRBYFLOAT
+  - ParseSUBSCRIBE
+  - ParseGEORADIUS
+  - ParseSETIFMATCH

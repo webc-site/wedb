@@ -1,0 +1,10 @@
+test:
+  - RepeatedCyclesRendezvousExactlyOnce
+  - SingleParticipantNeverBlocks
+  - FastParticipantBlocksUntilCohortArrives
+  - SignalWorkReadyWaitThrowsGarnetExceptionOnTimeout
+  - SignalWorkCompletedThrowsGarnetExceptionOnTimeout
+  - SignalWorkReadyWaitAsyncThrowsGarnetExceptionOnTimeout
+  - SignalWorkReadyWaitThrowsOnCancellation
+  - SignalWorkCompletedAsyncThrowsOnCancellation
+  - ConstructorRejectsNonPositiveParticipantCount

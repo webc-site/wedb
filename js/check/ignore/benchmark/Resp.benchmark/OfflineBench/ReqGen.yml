@@ -1,0 +1,13 @@
+fn:
+  - ReqGen
+  - GetBufferSize
+  - GetRequest
+  - GetRequestArgs
+  - InitializeRNG
+  - ConvertToSERedisInput
+  - ProcessArgs
+  - OnResponse
+  - LongRandom
+  - ULongRandom
+  - RandomIntBitRange
+  - RandomString

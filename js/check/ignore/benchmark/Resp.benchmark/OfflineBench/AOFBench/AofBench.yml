@@ -1,0 +1,9 @@
+fn:
+  - GetServerOptions
+  - AofBench
+  - GenerateData
+  - Run
+  - RunAofEnqueueBench
+  - RunAofReplayBench
+  - RunAofReplayBenchNoResp
+  - RunAofReplayBenchDirect

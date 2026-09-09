@@ -1,0 +1,18 @@
+test:
+  - ReadLengthHeaderTest
+  - ReadLengthHeaderExceptionsTest
+  - ReadArrayLengthTest
+  - ReadArrayLengthExceptionsTest
+  - ReadIntWithLengthHeaderTest
+  - ReadIntWithLengthHeaderExceptionsTest
+  - ReadLongWithLengthHeaderTest
+  - ReadLongWithLengthHeaderExceptionsTest
+  - ReadULongWithLengthHeaderTest
+  - ReadULongWithLengthHeaderExceptionsTest
+  - ReadPtrWithLengthHeaderTest
+  - ReadBoolWithLengthHeaderTest
+  - GetSerializedRecordSpanValidTest
+  - GetSerializedRecordSpanOverflowLengthTest
+  - GetSerializedRecordSpanNegativeLengthTest
+  - GetSerializedRecordSpanInsufficientHeaderTest
+  - RejectOversizedLengths

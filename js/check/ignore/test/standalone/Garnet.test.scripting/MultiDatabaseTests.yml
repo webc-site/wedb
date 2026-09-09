@@ -1,0 +1,35 @@
+fn:
+  - Setup
+  - TearDown
+  - GenerateDataset
+test:
+  - MultiDatabaseBasicSelectTestSE
+  - MultiDatabaseBasicSelectFromScriptTestSE
+  - MultiDatabaseSwapDatabaseFromScriptTestLC
+  - MultiDatabaseDbSizeTestSE
+  - MultiDatabaseSimpleTransactionTest
+  - MultiDatabaseCustomCommandRegistrationTest
+  - MultiDatabaseSelectErrorConditionsTestSE
+  - MultiDatabaseSwapDbErrorConditionsTestLC
+  - MultiDatabaseSingleDbIdCommandErrorsTestLC
+  - MultiDatabaseSameKeyTestSE
+  - MultiDatabaseFlushDatabasesTestSE
+  - MultiDatabaseBasicSelectTestLC
+  - MultiDatabaseSelectDatabaseInTransactionDisabledTestLC
+  - MultiDatabaseSelectInTransactionTestLC
+  - MultiDatabaseSwapDatabasesTestLC
+  - MultiDatabaseSwapDatabasesInTransactionDisabledTestLC
+  - MultiDatabaseSwapDatabasesInTransactionTestLC
+  - MultiDatabaseMultiSessionSwapDatabasesErrorTestLC
+  - MultiDatabaseMultiSessionSwapDatabasesTestLC
+  - MultiDatabaseSelectMultithreadedTestLC
+  - MultiDatabaseSelectMultithreadedTestSE
+  - MultiDatabaseSaveRecoverObjectTest
+  - MultiDatabaseSaveRecoverRawStringTest
+  - MultiDatabaseAofRecoverRawStringTestAsync
+  - MultiDatabaseAofRecoverObjectTestAsync
+  - MultiDatabaseAofObjectMutationRecoverTestAsync
+  - MultiDatabaseSaveInProgressTest
+  - MultiDatabaseGeneralSaveBlocksGeneralSaveTest
+  - MultiDatabaseSaveRecoverByDbIdTest
+  - MultiDatabaseAofRecoverByDbIdTest

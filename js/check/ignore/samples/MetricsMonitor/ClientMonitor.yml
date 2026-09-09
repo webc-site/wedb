@@ -1,0 +1,9 @@
+fn:
+  - ClientMonitor
+  - GetClusterConfig
+  - StartMonitor
+  - MonitorClusterLatencyMetrics
+  - MonitorClusterServerSideMetrics
+  - MonitorServerSideLatency
+  - MonitorServerSideMetrics
+  - ProcessLatencyHistogram

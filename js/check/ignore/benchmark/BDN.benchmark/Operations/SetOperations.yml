@@ -1,0 +1,20 @@
+fn:
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - SAddRem
+  - SAddPopSingle
+  - SCard
+  - SMembers
+  - SMoveTwice
+  - SIsMember
+  - SMIsMember
+  - SRandMemberSingle
+  - SScan
+  - SUnion
+  - SUnionStore
+  - SInter
+  - SInterStore
+  - SInterCard
+  - SDiff
+  - SDiffStore

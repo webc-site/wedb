@@ -1,0 +1,19 @@
+fn:
+  - GlobalSetup
+  - SetupOperation
+  - SlowConsumeMessage
+  - HSetDel
+  - HExists
+  - HGet
+  - HGetAll
+  - HIncrby
+  - HIncrbyFloat
+  - HKeys
+  - HLen
+  - HMGet
+  - HMSet
+  - HRandField
+  - HScan
+  - HSetNx
+  - HStrLen
+  - HVals

@@ -1,0 +1,23 @@
+fn:
+  - Setup
+  - TearDown
+  - RunRecallTest
+  - AddVectors_FP32
+  - VsimQuery_FP32
+  - AddVectors_XB8
+  - VsimQuery_XB8
+  - GenerateGridVectors
+  - GenerateGridVectorsUInt8
+  - GenerateCircleVectors
+  - GenerateVariousRadiiCircleVectors
+  - ParseVsimIds
+  - BruteForceNearestNeighbors
+  - CountDictionaryIntersection
+  - CountPerDistance
+  - SquaredL2Distance_Raw
+  - SquaredL2Distance_XB8
+  - CosineDistance
+test:
+  - GridRecall_FP32_NoQuant
+  - GridRecall_XB8_XPREQ8
+  - CircleRecall_FP32_NoQuant

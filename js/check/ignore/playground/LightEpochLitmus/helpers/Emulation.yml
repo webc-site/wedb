@@ -1,0 +1,5 @@
+fn:
+  - Detect
+  - TryGetCpuImplementer
+  - Emulated
+  - TryReadFile

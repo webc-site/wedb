@@ -1,0 +1,15 @@
+fn:
+  - PrepareBuffers
+  - SetWorkload
+  - BuildWorkload
+  - ComputeOfflineBufferSize
+  - GenerateRandomBatch
+  - AppendCommand
+  - GenerateReadBatchForKeys
+  - LoadData
+  - GenerateLoadBatch
+  - RunOffline
+  - RunOfflineLightClient
+  - RunOfflineGarnetClientSession
+  - RunOfflineGarnetClient
+  - RunOfflineSERedis

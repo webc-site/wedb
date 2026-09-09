@@ -1,0 +1,4 @@
+fn:
+  - LoadSetGetScripts
+  - GetTlsOptions
+  - GetConfig

@@ -1,0 +1,37 @@
+fn:
+  - Setup
+  - TearDown
+  - CheckMetadata
+  - VerifyClusterResetFails
+  - GetStat
+  - ClusterRestartNodeDropGossip
+  - ExecuteHashSet
+  - ManualCollect
+  - ValidateHashSet
+  - UpgradeReplicasAsync
+test:
+  - ClusterSlotsTest
+  - ClusterSlotRangesTest
+  - ClusterShardsTest
+  - ClusterNodesHostnameTest
+  - ClusterForgetTest
+  - ClusterResetTest
+  - ClusterResetFailsForMasterWithKeysInSlotsTest
+  - ClusterResetFailsForMasterWithKeysInSlotsObjectStoreTest
+  - ClusterResetAfterFLushAllTest
+  - ClusterResetDisposesGossipConnections
+  - ClusterKeySlotTest
+  - ClusterClientList
+  - ClusterClientKill
+  - ClusterClientKillSlave
+  - FailoverBadOptions
+  - ClusterFailoverBadOptions
+  - ClusterSetSlotBadOptions
+  - ClusterRoleCommand
+  - ClusterNodeCommand
+  - ClusterMeetHostname
+  - ClusterFlushAll
+  - ClusterCheckpointUpgradeFrom
+  - ClusterReplicationObjectCollectTest
+  - ReplicasRestartAsReplicasAsync
+  - PrimaryUnavailableRecoveryAsync

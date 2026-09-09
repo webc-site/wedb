@@ -1,0 +1,4 @@
+fn:
+  - RecordValue
+  - RecordValueWithCount
+  - RecordValueWithExpectedInterval

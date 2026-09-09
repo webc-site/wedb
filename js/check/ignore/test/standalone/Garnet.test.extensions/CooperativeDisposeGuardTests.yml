@@ -1,0 +1,9 @@
+test:
+  - DefaultIsNotDisposed
+  - TryDispose_WhenIdle_ReturnsCleanupNow
+  - TryDispose_SecondCall_ReturnsAlreadyDisposed
+  - TryEnter_WhenNotDisposed_AllowsEntryAndExitReportsNoCleanup
+  - TryEnter_AfterDispose_ReturnsFalse
+  - TryDispose_WhileWorkerActive_DefersToWorker
+  - DisposeBeforeAndAfterWorker_OnlyFirstCleansUp
+  - ConcurrentDisposeVsWorker_CleansUpExactlyOnce

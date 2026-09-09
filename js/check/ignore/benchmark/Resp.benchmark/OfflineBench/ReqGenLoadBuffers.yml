@@ -1,0 +1,7 @@
+fn:
+  - Generate
+  - InitializeRNG
+  - ConvertToSERedisInput
+  - GenerateBatch
+  - GenerateArrayOp
+  - GenerateSingleKeyValueOp

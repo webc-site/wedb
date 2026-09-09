@@ -1,0 +1,8 @@
+fn:
+  - TxnPerfBench
+  - SelectOpType
+  - DumpHistogram
+  - Run
+  - OpRunnerSERedis
+  - LoadData
+  - ResetRunner

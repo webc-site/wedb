@@ -1,0 +1,12 @@
+fn:
+  - LuaParamsProvider
+  - GlobalSetup
+  - GlobalCleanup
+  - IterationSetup
+  - LookupHit
+  - LookupMiss
+  - LoadOuterHit
+  - LoadScript
+  - LoadInnerHit
+  - LoadMiss
+  - Digest

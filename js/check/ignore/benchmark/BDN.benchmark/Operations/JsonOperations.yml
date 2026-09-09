@@ -1,0 +1,13 @@
+fn:
+  - GlobalSetup
+  - RegisterModules
+  - SetupOperation
+  - SlowConsumeMessage
+  - ModuleJsonGetCommand
+  - ModuleJsonSetCommand
+  - ModuleJsonGetDeepPath
+  - ModuleJsonGetArrayPath
+  - ModuleJsonGetArrayElementsPath
+  - ModuleJsonGetFilterPath
+  - ModuleJsonGetRecursive
+  - GenerateLargeJson

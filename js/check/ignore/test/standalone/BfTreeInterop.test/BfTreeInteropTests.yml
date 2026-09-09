@@ -1,4 +1,5 @@
-- Setup
-- TearDown
-- InsertTestData
-- InsertTestDataInto
+test:
+  - Insert_InvalidArguments_ReturnsInvalidArguments
+  - Read_InvalidArguments_ReturnsInvalidArguments
+  - Delete_InvalidArguments_DoesNotCorruptTree
+  - ScanWithCount_NegativeCount_Throws

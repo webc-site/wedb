@@ -1,0 +1,11 @@
+fn:
+  - BitCountScalar
+  - __scalar_popc
+  - __simd_popcX128
+  - __simd_popcX256
+  - __simd_popcX256_aligned
+  - RunBitCountScalar
+  - RunBitCountSIMD
+  - RunBitCountSIMD_AVX
+  - RunBitCountSIMD_AVX_aligned
+  - RunBitCountBenchmark

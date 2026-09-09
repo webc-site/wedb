@@ -1,0 +1,6 @@
+fn:
+  - Remove
+  - Last
+  - NextSetBit
+  - NextUnsetBit
+  - SerializeBody

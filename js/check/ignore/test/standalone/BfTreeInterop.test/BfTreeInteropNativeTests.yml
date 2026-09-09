@@ -1,0 +1,10 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - Insert_InvalidArgs_ReturnsInvalidArgs
+  - Read_InvalidArgs_ReturnsInvalidArgs
+  - Delete_InvalidArgs_ReturnsInvalidArgs
+  - ScanWithCount_InvalidArgs_ReturnsNullHandle
+  - ScanWithEndKey_InvalidArgs_ReturnsNullHandle
+  - ScanNext_InvalidArgs_ReturnsZero

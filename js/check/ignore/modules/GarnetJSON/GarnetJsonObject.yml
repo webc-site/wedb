@@ -1,0 +1,11 @@
+fn:
+  - Create
+  - Deserialize
+  - GarnetJsonObject
+  - CloneObject
+  - SerializeObject
+  - TryGet
+  - TryGetRoot
+  - TryGetToWriter
+  - GetParentPath
+  - GetPropertyName

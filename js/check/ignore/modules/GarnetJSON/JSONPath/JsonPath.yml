@@ -1,0 +1,24 @@
+fn:
+  - JsonPath
+  - ParseMain
+  - IsStaticPath
+  - Evaluate
+  - EatWhitespace
+  - ParsePath
+  - CreatePathFilter
+  - ParseIndexer
+  - EnsureLength
+  - ParseArrayIndexer
+  - TryParseIndex
+  - ParseQuery
+  - TryParseExpression
+  - CreateUnexpectedCharacterException
+  - ParseExpression
+  - TryParseValue
+  - TryParseArrayLiteral
+  - ReadQuotedString
+  - TryParseEscapedCodepoint
+  - IsValidHex
+  - ReadRegexString
+  - ParseOperator
+  - ParseQuotedField

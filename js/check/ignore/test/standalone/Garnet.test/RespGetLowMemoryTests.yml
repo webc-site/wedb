@@ -1,0 +1,9 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - ScatterGatherGet
+  - ScatterGatherMixedGetSetPipeline
+  - ScatterGatherMixedGetTtlPipeline
+  - ScatterGatherMGet
+  - MGetOnDiskCompletesWithoutScatterGatherFlag

@@ -1,0 +1,26 @@
+fn:
+  - Setup
+  - TearDown
+test:
+  - TlsSingleSetGet
+  - ClientListSurvivesConnectionsClosedByClientKill
+  - TlsSingleSetGetGarnetClient
+  - SingleUnicodeSetGetGarnetClient
+  - TlsMultiSetGet
+  - TlsLargeSetGet
+  - TlsSetExpiry
+  - TlsSetExpiryNx
+  - TlsSetXx
+  - TlsSetExpiryIncr
+  - TlsLockTakeRelease
+  - TlsSingleDecr
+  - TlsSingleDecrBy
+  - TlsSingleIncrNoKey
+  - TlsSingleDelete
+  - TlsSingleExists
+  - TlsSingleRename
+  - TlsCanSelectCommand
+  - TlsCanSelectCommandLC
+  - TlsPlainTextCommandLC
+  - TlsCanDoCommandsInChunks
+  - TlsCanSetGetCommandsChunks

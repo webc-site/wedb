@@ -1,0 +1,15 @@
+fn:
+  - QueryExpression
+  - IsMatch
+  - CompositeExpression
+  - BooleanQueryExpression
+  - EvaluateMatch
+  - MatchTokens
+  - CheckIn
+  - CompareTo
+  - RegexEquals
+  - GetRegexOptions
+  - EqualsWithStringCoercion
+  - EqualsWithStrictMatch
+  - IsBoolean
+  - TryGetAsDouble

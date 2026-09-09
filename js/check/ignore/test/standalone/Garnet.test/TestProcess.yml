@@ -1,0 +1,4 @@
+fn:
+  - GarnetServerTestProcess
+  - RecordTestOutput
+  - KillProcess

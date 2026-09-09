@@ -1,0 +1,14 @@
+fn:
+  - EmbeddedNetworkSender
+  - IsLocalConnection
+  - DisposeNetworkSender
+  - Enter
+  - EnterAndGetResponseObject
+  - Exit
+  - ExitAndReturnResponseObject
+  - GetResponseObject
+  - ReturnResponseObject
+  - SendCallback
+  - SendResponse
+  - Throttle
+  - TryClose

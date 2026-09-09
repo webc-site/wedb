@@ -1,0 +1,8 @@
+fn:
+  - Setup
+test:
+  - DeleteSingleUser
+  - DeleteMultipleUser
+  - DeleteNonexistingUser
+  - DeleteDefaultUser
+  - DeleteNoUser
