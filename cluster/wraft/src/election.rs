@@ -58,12 +58,6 @@ pub enum Error {
   /// Leader 角色下发起选举被拒
   #[error("already leader of term {term}, resign first")]
   AlreadyLeader { term: u64 },
-  /// 选票未过半
-  #[error("vote not granted by quorum: got {got}, need {need}")]
-  NoQuorum { got: usize, need: usize },
-  /// 传输层错误
-  #[error(transparent)]
-  Io(#[from] io::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
