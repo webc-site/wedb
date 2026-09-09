@@ -1,7 +1,6 @@
 fn:
   - StringAndByteArrayComparer
   - Equals
-  - Write
   - ClusterVectorSetTests
   - Setup
   - TearDown

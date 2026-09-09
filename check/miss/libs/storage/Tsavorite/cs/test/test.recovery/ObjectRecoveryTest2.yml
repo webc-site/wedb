@@ -3,7 +3,6 @@ fn:
   - RecreateDirectory
   - TearDown
   - Prepare
-  - Write
   - Destroy
 test:
   - ObjectRecoveryTest2

@@ -13,7 +13,6 @@ fn:
   - ExecuteForArray
   - ExecuteClusterAppendLog
   - Throttle
-  - Wait
   - ProcessReplies
   - ResetOffset
   - TryCreateMessageConsumer

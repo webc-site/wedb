@@ -3,7 +3,6 @@ fn:
   - OnBeginReadRecords
   - OnEndReadRecords
   - FlushAndReset
-  - Write
   - ReadRecordObjects
   - DoDeserialize
   - OnDeserializeComplete

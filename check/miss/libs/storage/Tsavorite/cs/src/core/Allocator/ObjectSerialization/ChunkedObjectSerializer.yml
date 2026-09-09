@@ -2,7 +2,6 @@ fn:
   - ChunkedObjectSerializer
   - BeginSerialize
   - WriteBytes
-  - Write
   - GetStream
   - EndSerialize
   - FlushFinal

@@ -4,7 +4,6 @@ fn:
   - TearDown
   - EnableOrSkip
   - CreateStore
-  - TryRead
   - UpsertAll
   - VerifyAll
 test:

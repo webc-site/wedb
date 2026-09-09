@@ -1,6 +1,5 @@
 fn:
   - Execute
-  - Write
   - ToString
   - LuaScriptTests
   - Setup

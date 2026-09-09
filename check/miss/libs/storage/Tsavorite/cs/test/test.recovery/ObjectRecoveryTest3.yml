@@ -4,6 +4,5 @@ fn:
   - TearDown
   - Prepare
   - Destroy
-  - Write
 test:
   - ObjectRecoveryTest3

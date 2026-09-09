@@ -36,7 +36,6 @@ fn:
   - GetCommand
   - GetUpperCaseCommand
   - TryKill
-  - Write
   - WriteDirectLarge
   - DebugSend
   - TrySwitchActiveDatabaseSession

@@ -7,6 +7,5 @@ fn:
   - WriteRecordObjects
   - WriteDirect
   - CopyRecoveredObjectBytes
-  - Write
   - OnBufferComplete
   - OnSerializeComplete

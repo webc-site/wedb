@@ -4,5 +4,4 @@ fn:
   - ReadByte
   - Seek
   - SetLength
-  - Write
   - WriteByte

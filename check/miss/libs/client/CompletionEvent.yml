@@ -1,5 +1,4 @@
 fn:
   - ToString
   - IsDefault
-  - Wait
   - WaitAsync

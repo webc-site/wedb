@@ -1,4 +1,2 @@
 fn:
   - Rotl64
-  - fmix64
-  - MurmurHash3x64A

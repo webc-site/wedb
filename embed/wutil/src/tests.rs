@@ -50,4 +50,23 @@ mod tests {
       hash_slot::hash_slot(b"user1")
     );
   }
+
+  #[test]
+  fn test_hash() {
+    let h = hash::murmur_hash3_x64_a(b"test", 0);
+    assert_ne!(h, 0);
+
+    let (h1, h2) = hash::murmur_hash3_x128(b"test123456789012", 0);
+    assert_ne!(h1, 0);
+    assert_ne!(h2, 0);
+
+    let h2_64 = hash::murmur_hash2_x64_a(b"test", 0);
+    assert_ne!(h2_64, 0);
+  }
+
+  #[test]
+  fn test_crc64() {
+    let h = crc64::hash(b"123456789");
+    assert_eq!(h.len(), 8);
+  }
 }
