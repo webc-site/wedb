@@ -10,9 +10,9 @@
 
 use std::{
   cmp::{Ordering, Reverse},
-  mem::swap,
   collections::{BTreeSet, BinaryHeap},
   io::{self, Read, Write},
+  mem::swap,
 };
 
 use bitflags::bitflags;
@@ -150,6 +150,7 @@ pub struct ExpirationWithOption {
 }
 
 impl ExpirationWithOption {
+  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long, ExpireOption)
   #[inline]
   pub fn new(expiration_time_in_ticks: i64, expire_option: ExpireOption) -> Self {
     Self {
@@ -157,6 +158,7 @@ impl ExpirationWithOption {
     }
   }
 
+  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long)
   #[inline]
   pub fn from_word(word: i64) -> Self {
     Self { word }
@@ -170,16 +172,19 @@ impl ExpirationWithOption {
     }
   }
 
+  /// libs/server/ExpirationWithOption.cs:ExpirationTimeInTicks
   #[inline]
   pub fn expiration_time_in_ticks(&self) -> i64 {
     (self.word >> 4) << 4
   }
 
+  /// libs/server/ExpirationWithOption.cs:ExpireOption
   #[inline]
   pub fn expire_option(&self) -> ExpireOption {
     ExpireOption::from_bits_truncate((self.word & 0xF) as u8)
   }
 
+  /// libs/server/ExpirationWithOption.cs:Word
   #[inline]
   pub fn word(&self) -> i64 {
     self.word
@@ -382,6 +387,8 @@ impl SortedSetObject {
   ///RESP 命令层经此装载/回写，保持与 storage 会话域的 blob 兼容
   ///
   /// 刻意差异：该路径不携带成员级过期（bitcode 载荷无过期槽位）
+  ///
+  /// 无 C# 对应（wkv blob 装载入口，见文件头刻意差异说明）
   pub fn from_entries(entries: Vec<(Vec<u8>, f64)>) -> Self {
     let mut obj = Self::new();
     for (member, score) in entries {
@@ -397,6 +404,8 @@ impl SortedSetObject {
   }
 
   /// 导出为 (member, score) 数组（`from_entries` 的逆操作）
+  ///
+  /// 无 C# 对应（wkv blob 回写出口）
   pub fn to_entries(&self) -> Vec<(Vec<u8>, f64)> {
     self
       .sorted_set_dict
@@ -555,25 +564,21 @@ impl SortedSetObject {
         continue;
       }
 
-      let add_to_list = pattern.is_empty() || glob_match(pattern, member);
-      if add_to_list {
+      if pattern.is_empty() || glob_match(pattern, member) {
         items.push(Some(member.clone()));
-        // NOVALUES 时不附分值；分值文本化失败以 None 表达（C# 写 null）
-        if !_is_no_value {
-          items.push(if score.is_finite() {
-            Some(format_double_plain(*score).into_bytes())
-          } else {
-            None
-          });
-        }
+        // 分值文本化失败（±inf/NaN）以 None 表达（C# Utf8Formatter 失败写 null）
+        items.push(if score.is_finite() {
+          Some(format_double_plain(*score).into_bytes())
+        } else {
+          None
+        });
       }
 
       cursor += 1;
 
-      // 每个成员占 1 项（NOVALUES）或 2 项（成员 + 分值）；
-      // C# 用相等判断（count=0 时永不命中 → 全量遍历的上游怪癖），1:1 保留
-      let per_item = usize::from(!_is_no_value) + 1;
-      if items.len() == count * per_item {
+      // 每个成员在结果中占 2 项（成员 + 分值）；C# 用相等判断
+      // （count=0 时永不命中 → 全量遍历的上游怪癖），1:1 保留
+      if items.len() == count * 2 {
         break;
       }
     }
@@ -1090,8 +1095,9 @@ fn match_class(mut p: &[u8], c: u8) -> (&[u8], bool) {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::collections::BTreeSet;
+
+  use super::*;
 
   fn obj_with_members(members: &[(&str, f64)]) -> SortedSetObject {
     let mut obj = SortedSetObject::new();
@@ -1293,13 +1299,14 @@ mod tests {
     let (items, _) = obj.scan(0, 10, b"b*", false);
     assert_eq!(items, [Some(b"b".to_vec()), Some(b"2".to_vec())]);
 
-    // NOVALUES：仅返回成员（对齐 redis ZSCAN NOVALUES；Garnet 上游忽略该标记）
+    // NOVALUES 被 Garnet 上游忽略（SortedSetObject.Scan 不读该形参）：
+    // 即便 NOVALUES 仍返回成员+分值成对负载，1:1 保留此怪癖
     let (mut items, _) = obj.scan(0, 10, b"*", true);
     // 散列迭代序无关（C# Dictionary 同样不保证顺序）
     items.sort_unstable();
     assert_eq!(
       items,
-      [b"a", b"b", b"c"]
+      [b"1", b"2", b"3", b"a", b"b", b"c"]
         .iter()
         .map(|v| Some(v.to_vec()))
         .collect::<Vec<_>>()

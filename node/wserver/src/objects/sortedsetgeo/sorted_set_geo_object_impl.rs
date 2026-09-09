@@ -114,6 +114,8 @@ pub struct GeoSearchData {
 }
 
 /// 取第 i 个参数字节
+///
+/// libs/server/Resp/Parser/SessionParseState.cs:GetArgSliceByRef
 #[inline]
 fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()

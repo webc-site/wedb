@@ -60,7 +60,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 1 {
+    if parse_state.is_empty() {
       output.extend_from_slice(b"-ERR wrong number of arguments for 'PFADD' command\r\n");
       return Ok(true);
     }
@@ -123,7 +123,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 1 {
+    if parse_state.is_empty() {
       output.extend_from_slice(b"-ERR wrong number of arguments for 'PFCOUNT' command\r\n");
       return Ok(true);
     }
@@ -229,7 +229,7 @@ impl RespServerSession {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::Arc;
+  use std::{iter::once, sync::Arc};
 
   use tempfile::{TempDir, tempdir};
   use wdev::SegmentedDevice;
@@ -349,7 +349,7 @@ mod tests {
     let elements: Vec<Vec<u8>> = (0..1000)
       .map(|i| format!("elem-{i}").into_bytes())
       .collect();
-    let args: Vec<&[u8]> = std::iter::once(b"big".as_slice())
+    let args: Vec<&[u8]> = once(b"big".as_slice())
       .chain(elements.iter().map(|e| e.as_slice()))
       .collect();
 

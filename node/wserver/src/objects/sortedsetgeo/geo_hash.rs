@@ -273,8 +273,9 @@ impl GeoHash {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::str::from_utf8;
+
+  use super::*;
 
   /// 已知坐标 → GeoHash 文本前缀黄金值（与 Redis GEOHASH 输出一致）
   #[test]

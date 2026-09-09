@@ -38,6 +38,8 @@ pub struct ObjectOutput {
 
 impl ObjectOutput {
   /// 空输出
+  ///
+  /// libs/server/Objects/Types/ObjectOutput.cs:ObjectOutput()
   #[inline]
   pub fn new() -> Self {
     Self::default()
@@ -54,12 +56,16 @@ impl ObjectOutput {
   }
 
   /// 值类型不匹配
+  ///
+  /// libs/server/Objects/Types/ObjectOutput.cs:HasWrongType
   #[inline]
   pub fn has_wrong_type(&self) -> bool {
     self.output_flags.contains(ObjectOutputFlags::WRONG_TYPE)
   }
 
   /// 对象已空、须移除键
+  ///
+  /// libs/server/Objects/Types/ObjectOutput.cs:HasRemoveKey
   #[inline]
   pub fn has_remove_key(&self) -> bool {
     self.output_flags.contains(ObjectOutputFlags::REMOVE_KEY)
@@ -73,7 +79,9 @@ impl ObjectOutput {
 
   // ---- 以下对标 Garnet.common RespMemoryWriter 的写入方法 ----
 
-  /// 错误行 `-<msg>\r\n`（RespMemoryWriter.WriteError）
+  /// 错误行 `-<msg>\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteError
   #[inline]
   pub fn write_error(&mut self, msg: &[u8]) {
     self.payload.push(b'-');
@@ -81,7 +89,9 @@ impl ObjectOutput {
     self.payload.extend_from_slice(b"\r\n");
   }
 
-  /// 整数回复 `:<v>\r\n`（RespMemoryWriter.WriteInt32/WriteInt64）
+  /// 整数回复 `:<v>\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteInt32/WriteInt64
   #[inline]
   pub fn write_int64(&mut self, value: i64) {
     self.payload.push(b':');
@@ -90,14 +100,18 @@ impl ObjectOutput {
     self.payload.extend_from_slice(b"\r\n");
   }
 
-  /// 整数的 bulk string 形式（RespMemoryWriter.WriteInt64AsBulkString）
+  /// 整数的 bulk string 形式
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteInt64AsBulkString
   #[inline]
   pub fn write_int64_as_bulk_string(&mut self, value: i64) {
     let mut buf = itoa::Buffer::new();
     self.write_bulk_string(buf.format(value).as_bytes());
   }
 
-  /// bulk string `$<len>\r\n<bytes>\r\n`（RespMemoryWriter.WriteBulkString）
+  /// bulk string `$<len>\r\n<bytes>\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteBulkString
   #[inline]
   pub fn write_bulk_string(&mut self, item: &[u8]) {
     self.payload.push(b'$');
@@ -110,13 +124,17 @@ impl ObjectOutput {
     self.payload.extend_from_slice(b"\r\n");
   }
 
-  /// ASCII bulk string（RespMemoryWriter.WriteAsciiBulkString）
+  /// ASCII bulk string
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteAsciiBulkString
   #[inline]
   pub fn write_ascii_bulk_string(&mut self, chars: &[u8]) {
     self.write_bulk_string(chars);
   }
 
-  /// 数组头 `*<n>\r\n`（RespMemoryWriter.WriteArrayLength）
+  /// 数组头 `*<n>\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteArrayLength
   #[inline]
   pub fn write_array_length(&mut self, len: usize) {
     self.payload.push(b'*');
@@ -125,13 +143,17 @@ impl ObjectOutput {
     self.payload.extend_from_slice(b"\r\n");
   }
 
-  /// 空数组 `*0\r\n`（RespMemoryWriter.WriteEmptyArray）
+  /// 空数组 `*0\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteEmptyArray
   #[inline]
   pub fn write_empty_array(&mut self) {
     self.payload.extend_from_slice(b"*0\r\n");
   }
 
-  /// null：RESP3 `_`，RESP2 `$-1`（RespMemoryWriter.WriteNull）
+  /// null：RESP3 `_`，RESP2 `$-1`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteNull
   #[inline]
   pub fn write_null(&mut self, resp_protocol_version: u8) {
     if resp_protocol_version >= 3 {
@@ -141,7 +163,9 @@ impl ObjectOutput {
     }
   }
 
-  /// null 数组：RESP3 `_`，RESP2 `*-1`（RespMemoryWriter.WriteNullArray）
+  /// null 数组：RESP3 `_`，RESP2 `*-1`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteNullArray
   #[inline]
   pub fn write_null_array(&mut self, resp_protocol_version: u8) {
     if resp_protocol_version >= 3 {
@@ -151,7 +175,9 @@ impl ObjectOutput {
     }
   }
 
-  /// 整数作为数组项 `$<len>\r\n<int>\r\n`（RespMemoryWriter.WriteArrayItem）
+  /// 整数作为数组项 `$<len>\r\n<int>\r\n`
+  ///
+  /// libs/common/RespMemoryWriter.cs:WriteArrayItem
   #[inline]
   pub fn write_array_item(&mut self, item: i64) {
     let mut buf = itoa::Buffer::new();
@@ -170,7 +196,9 @@ impl ObjectOutput {
     }
   }
 
-  /// bulk string 形式的双精度（RespMemoryWriter.WriteDoubleBulkString）
+  /// bulk string 形式的双精度
+  ///
+  /// libs/common/RespWriteUtils.cs:TryWriteDoubleBulkString
   #[inline]
   pub fn write_double_bulk_string(&mut self, value: f64) {
     let s = Self::format_double(value);
@@ -178,7 +206,8 @@ impl ObjectOutput {
   }
 
   /// 数值形式的双精度：RESP3 写 `,<v>\r\n`，RESP2 退化为 bulk string
-  /// （RespMemoryWriter.WriteDoubleNumeric）
+  ///
+  /// libs/common/RespWriteUtils.cs:TryWriteDoubleNumeric
   #[inline]
   pub fn write_double_numeric(&mut self, value: f64, resp_protocol_version: u8) {
     if resp_protocol_version >= 3 {

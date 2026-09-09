@@ -138,11 +138,13 @@ pub fn try_get_geo_lon_lat(lon: &[u8], lat: &[u8]) -> Option<(f64, f64)> {
   Some((longitude, latitude))
 }
 
+/// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 的经度范围检查
 #[inline]
 fn geo_longitude_in_range(lon: f64) -> bool {
   (GeoHash::LONGITUDE_MIN..=GeoHash::LONGITUDE_MAX).contains(&lon)
 }
 
+/// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 的纬度范围检查
 #[inline]
 fn geo_latitude_in_range(lat: f64) -> bool {
   (GeoHash::LATITUDE_MIN..=GeoHash::LATITUDE_MAX).contains(&lat)

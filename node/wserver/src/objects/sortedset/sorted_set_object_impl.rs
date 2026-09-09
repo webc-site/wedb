@@ -3,8 +3,7 @@
 //!
 //! RESP 负载经 [`ObjectOutput`] 输出；操作计数经 `result1` 回传。
 
-use std::cmp::Ordering;
-use std::mem::swap;
+use std::{cmp::Ordering, mem::swap};
 
 use crate::{
   inputs::ObjectInput,
@@ -89,6 +88,8 @@ struct ScanParams<'p> {
 }
 
 /// 取第 i 个参数字节
+///
+/// libs/server/Resp/Parser/SessionParseState.cs:GetArgSliceByRef
 #[inline]
 fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()
@@ -1185,17 +1186,14 @@ impl SortedSetObject {
 
         if min_value_infinity != SpecialRanges::InfiniteMin {
           let in_range = item.member.as_slice().cmp(min_value_chars);
-          if in_range == Ordering::Less
-            || (in_range == Ordering::Equal && min_value_exclusive)
-          {
+          if in_range == Ordering::Less || (in_range == Ordering::Equal && min_value_exclusive) {
             continue;
           }
         }
 
         if max_value_infinity != SpecialRanges::InfiniteMax {
           let out_range = item.member.as_slice().cmp(max_value_chars);
-          if out_range == Ordering::Greater
-            || (out_range == Ordering::Equal && max_value_exclusive)
+          if out_range == Ordering::Greater || (out_range == Ordering::Equal && max_value_exclusive)
           {
             break;
           }
@@ -1474,14 +1472,16 @@ impl SortedSetObject {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::objects::sortedsetgeo::geo_hash::{GeoDistanceUnitType, GeoHash};
-  use crate::objects::sortedsetgeo::sorted_set_geo_object_impl::{
-    GeoOriginType, GeoSearchOptions, GeoSearchType,
-  };
   use crate::{
     arg_slice::ArgSlice,
     input_header::RespInputHeader,
-    objects::sortedset::sorted_set_object::ExpireOption,
+    objects::{
+      sortedset::sorted_set_object::ExpireOption,
+      sortedsetgeo::{
+        geo_hash::{GeoDistanceUnitType, GeoHash},
+        sorted_set_geo_object_impl::{GeoOriginType, GeoSearchOptions, GeoSearchType},
+      },
+    },
     session_parse_state::SessionParseState,
     types::{GarnetObjectType, RespInputFlags},
   };
@@ -1885,10 +1885,7 @@ mod tests {
 
     // ZEXPIRE：expiration+option 压缩字
     let exp = now_ticks() + 1_000_000;
-    let e = ExpirationWithOption::new(
-      exp,
-      ExpireOption::NONE,
-    );
+    let e = ExpirationWithOption::new(exp, ExpireOption::NONE);
     let (input, _b) = make_input(
       SortedSetOperation::Zexpire,
       &[b"a", b"zz"],
@@ -2015,8 +2012,7 @@ mod tests {
 
     // GEOSEARCH：SF 半径 100km 内只有 sf 自己
     let mut opts = GeoSearchOptions {
-      search_type:
-        GeoSearchType::ByRadius,
+      search_type: GeoSearchType::ByRadius,
       unit: GeoDistanceUnitType::Km,
       radius: 100.0,
       origin: GeoOriginType::FromLonLat,
@@ -2037,8 +2033,7 @@ mod tests {
     assert!(dist < 0.001, "{dist}");
 
     // FROMMEMBER 缺失成员 → 错误
-    opts.origin =
-      GeoOriginType::FromMember;
+    opts.origin = GeoOriginType::FromMember;
     opts.from_member = b"missing".to_vec();
     let mut out = ObjectOutput::new();
     obj.geo_search(&mut opts, &mut out, 2, true);
