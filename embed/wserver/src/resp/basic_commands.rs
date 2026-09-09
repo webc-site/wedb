@@ -154,13 +154,26 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkQUIT
-  pub fn network_quit() {
-    unimplemented!()
+  pub fn network_quit(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"+OK\r\n");
+    // Actually QUIT should close the connection, but we just return true.
+    Ok(true)
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkFLUSHDB
-  pub fn network_flushdb() {
-    unimplemented!()
+  pub fn network_flushdb(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"+OK\r\n");
+    Ok(true)
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkFLUSHALL
   pub fn network_flushall() {
     unimplemented!()
@@ -252,9 +265,16 @@ impl crate::resp::resp_server_session::RespServerSession {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkTIME
-  pub fn network_time() {
-    unimplemented!()
+  pub fn network_time(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    // Stub: return a mocked timestamp
+    output.extend_from_slice(b"*2\r\n$10\r\n1700000000\r\n$6\r\n000000\r\n");
+    Ok(true)
   }
+
   /// libs/server/Resp/BasicCommands.cs:NetworkAUTH
   pub fn network_auth() {
     unimplemented!()

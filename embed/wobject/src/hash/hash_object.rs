@@ -1,9 +1,13 @@
-use std::{cmp::Reverse, collections::BinaryHeap, sync::Mutex};
+use std::{
+  cmp::Reverse,
+  collections::BinaryHeap,
+  io::{Read, Write},
+  sync::Mutex,
+};
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use gxhash::GxBuildHasher;
 use papaya::HashMap;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Write};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExpirationEntry {
@@ -30,22 +34,22 @@ impl Ord for ExpirationEntry {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum HashOperation {
-    HSET = 0,
-    HMSET = 1,
-    HGET = 2,
-    HMGET = 3,
-    HGETALL = 4,
-    HDEL = 5,
-    HLEN = 6,
-    HEXISTS = 7,
-    HKEYS = 8,
-    HVALS = 9,
-    HINCRBY = 10,
-    HINCRBYFLOAT = 11,
-    HSETNX = 12,
-    HRANDFIELD = 13,
-    HSCAN = 14,
-    HSTRLEN = 15,
+  HSET = 0,
+  HMSET = 1,
+  HGET = 2,
+  HMGET = 3,
+  HGETALL = 4,
+  HDEL = 5,
+  HLEN = 6,
+  HEXISTS = 7,
+  HKEYS = 8,
+  HVALS = 9,
+  HINCRBY = 10,
+  HINCRBYFLOAT = 11,
+  HSETNX = 12,
+  HRANDFIELD = 13,
+  HSCAN = 14,
+  HSTRLEN = 15,
 }
 
 /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject
@@ -66,39 +70,39 @@ impl HashObject {
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> std::io::Result<Self> {
-      let count = reader.read_i32::<LittleEndian>()?;
-      let hash = HashMap::with_hasher(GxBuildHasher::default());
-      let pin = hash.pin();
-      for _ in 0..count {
-          let k_len = reader.read_i32::<LittleEndian>()?;
-          let mut k = vec![0u8; k_len as usize];
-          reader.read_exact(&mut k)?;
-          
-          let v_len = reader.read_i32::<LittleEndian>()?;
-          let mut v = vec![0u8; v_len as usize];
-          reader.read_exact(&mut v)?;
-          
-          pin.insert(k, v);
-      }
-      drop(pin);
-      Ok(Self {
-          hash,
-          expiration_times: HashMap::with_hasher(GxBuildHasher::default()),
-          expiration_queue: Mutex::new(BinaryHeap::new()),
-      })
+    let count = reader.read_i32::<LittleEndian>()?;
+    let hash = HashMap::with_hasher(GxBuildHasher::default());
+    let pin = hash.pin();
+    for _ in 0..count {
+      let k_len = reader.read_i32::<LittleEndian>()?;
+      let mut k = vec![0u8; k_len as usize];
+      reader.read_exact(&mut k)?;
+
+      let v_len = reader.read_i32::<LittleEndian>()?;
+      let mut v = vec![0u8; v_len as usize];
+      reader.read_exact(&mut v)?;
+
+      pin.insert(k, v);
+    }
+    drop(pin);
+    Ok(Self {
+      hash,
+      expiration_times: HashMap::with_hasher(GxBuildHasher::default()),
+      expiration_queue: Mutex::new(BinaryHeap::new()),
+    })
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Serialize
   pub fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-      let pin = self.hash.pin();
-      writer.write_i32::<LittleEndian>(pin.len() as i32)?;
-      for (k, v) in pin.iter() {
-          writer.write_i32::<LittleEndian>(k.len() as i32)?;
-          writer.write_all(k)?;
-          writer.write_i32::<LittleEndian>(v.len() as i32)?;
-          writer.write_all(v)?;
-      }
-      Ok(())
+    let pin = self.hash.pin();
+    writer.write_i32::<LittleEndian>(pin.len() as i32)?;
+    for (k, v) in pin.iter() {
+      writer.write_i32::<LittleEndian>(k.len() as i32)?;
+      writer.write_all(k)?;
+      writer.write_i32::<LittleEndian>(v.len() as i32)?;
+      writer.write_all(v)?;
+    }
+    Ok(())
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:Operate
@@ -137,24 +141,22 @@ impl HashObject {
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashGetAll
   pub fn hash_get_all(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
-      let pin = self.hash.pin();
-      pin.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+    let pin = self.hash.pin();
+    pin.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
   }
 
   /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashIncrementByFloat
   pub fn hash_increment_by_float(&self, key: &[u8], increment: f64) -> Option<f64> {
-      let pin = self.hash.pin();
-      let mut current_val = 0.0;
-      if let Some(v) = pin.get(key) {
-          if let Ok(s) = std::str::from_utf8(v) {
-              if let Ok(parsed) = s.parse::<f64>() {
-                  current_val = parsed;
-              }
-          }
-      }
-      current_val += increment;
-      pin.insert(key.to_vec(), current_val.to_string().into_bytes());
-      Some(current_val)
+    let pin = self.hash.pin();
+    let mut current_val = 0.0;
+    if let Some(v) = pin.get(key)
+      && let Ok(s) = std::str::from_utf8(v)
+        && let Ok(parsed) = s.parse::<f64>() {
+          current_val = parsed;
+        }
+    current_val += increment;
+    pin.insert(key.to_vec(), current_val.to_string().into_bytes());
+    Some(current_val)
   }
 }
 

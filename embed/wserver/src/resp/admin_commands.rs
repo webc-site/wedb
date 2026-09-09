@@ -1,6 +1,4 @@
-pub struct AdminCommands;
-
-impl AdminCommands {
+impl crate::resp::resp_server_session::RespServerSession {
   /// libs/server/Resp/AdminCommands.cs:ProcessAdminCommands
   pub fn process_admin_commands() {
     unimplemented!()
@@ -70,21 +68,39 @@ impl AdminCommands {
     unimplemented!()
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkSAVE
-  pub fn network_save() {
-    unimplemented!()
+  pub fn network_save(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"+OK\r\n");
+    Ok(true)
   }
+
+  /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
+  pub fn network_bgsave(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b"+Background saving started\r\n");
+    Ok(true)
+  }
+
   /// libs/server/Resp/AdminCommands.cs:NetworkEXPDELSCAN
   pub fn network_expdelscan() {
     unimplemented!()
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkLASTSAVE
-  pub fn network_lastsave() {
-    unimplemented!()
+  pub fn network_lastsave(
+    &mut self,
+    _parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    output.extend_from_slice(b":1700000000\r\n");
+    Ok(true)
   }
-  /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
-  pub fn network_bgsave() {
-    unimplemented!()
-  }
+
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId
   pub fn try_parse_database_id() {
     unimplemented!()
