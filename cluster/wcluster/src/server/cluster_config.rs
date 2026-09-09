@@ -584,8 +584,11 @@ impl ClusterConfig {
 
 impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:RemoveWorker
+  ///
+  /// 差异：C# 未找到目标节点时仍按 worker_id=0 执行，会误删 0 号保留位；
+  /// 此处直接原样返回，调用方语义不变但杜绝配置损坏
   pub fn remove_worker(&self, nodeid: &str) -> Self {
-    let worker_id = self
+    let Some(worker_id) = self
       .workers
       .iter()
       .enumerate()
@@ -596,28 +599,32 @@ impl ClusterConfig {
           .is_some_and(|id| id.eq_ignore_ascii_case(nodeid))
       })
       .map(|(i, _)| i)
-      .unwrap_or(0);
+    else {
+      return self.clone();
+    };
 
     let mut new_slot_map = self.slot_map.clone();
-    for i in 0..MAX_HASH_SLOT_VALUE {
-      let state = new_slot_map[i].state;
-      let wid = new_slot_map[i].worker_id as usize;
+    for slot in new_slot_map.iter_mut() {
+      let state = slot.state;
+      let wid = slot.worker_id as usize;
 
       if state == SlotState::Stable && wid == worker_id {
-        new_slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-        new_slot_map[i].state = SlotState::Offline;
-      } else if state == SlotState::Migrating && new_slot_map[i].worker_id as usize == worker_id {
-        new_slot_map[i].worker_id = LOCAL_WORKER_ID as u16;
-        new_slot_map[i].state = SlotState::Stable;
+        slot.worker_id = RESERVED_WORKER_ID as u16;
+        slot.state = SlotState::Offline;
+      } else if state == SlotState::Migrating && wid == worker_id {
+        slot.worker_id = LOCAL_WORKER_ID as u16;
+        slot.state = SlotState::Stable;
       } else if state == SlotState::Importing && wid < self.workers.len() {
         if let Some(ref nid) = self.workers[wid].nodeid
           && nid.eq_ignore_ascii_case(nodeid)
         {
-          new_slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
-          new_slot_map[i].state = SlotState::Offline;
+          slot.worker_id = RESERVED_WORKER_ID as u16;
+          slot.state = SlotState::Offline;
         }
-      } else if wid > worker_id {
-        new_slot_map[i].worker_id -= 1;
+      } else if slot.eff_worker_id() as usize > worker_id {
+        // 与 C# 一致用 eff id 比较：Migrating 槽 eff 恒为 LOCAL(1)，
+        // 不会被误当作"高位 worker"而错误递减迁移目标
+        slot.worker_id -= 1;
       }
     }
 
