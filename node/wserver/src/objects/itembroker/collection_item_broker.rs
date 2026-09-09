@@ -20,16 +20,22 @@ use std::{
   },
 };
 
-use crate::objects::itembroker::collection_item_observer::Wakeup;
 use papaya::HashMap;
 use parking_lot::{Mutex, RwLock};
+
+/// 键观察者队列（按订阅顺序；对应 C# ConcurrentQueue<CollectionItemObserver>）
+type ObserverQueue = Mutex<VecDeque<Arc<CollectionItemObserver>>>;
+/// 观察键 → 观察者队列映射
+type KeysToObservers = HashMap<Vec<u8>, ObserverQueue>;
 use wobject::list::list_object::{ListObject, OperationDirection};
 
 use crate::{
   objects::{
     itembroker::{
       collection_item_broker_event::{CollectionItemBrokerEvent, CollectionItemBrokerEventType},
-      collection_item_observer::{CollectionItemObserver, CollectionItemResult, ObserverStatus},
+      collection_item_observer::{
+        CollectionItemObserver, CollectionItemResult, ObserverStatus, Wakeup,
+      },
     },
     sortedset::sorted_set_object::SortedSetObject,
   },
@@ -80,7 +86,7 @@ pub struct CollectionItemBroker {
   session_id_to_observer: HashMap<usize, Arc<CollectionItemObserver>>,
 
   /// 观察键 → 观察者队列（按订阅顺序；惰性建表；队列自身并发安全，对应 C# ConcurrentQueue）
-  keys_to_observers: RwLock<Option<HashMap<Vec<u8>, Mutex<VecDeque<Arc<CollectionItemObserver>>>>>>,
+  keys_to_observers: RwLock<Option<KeysToObservers>>,
 
   /// 上次清理时刻（Inst ticks 计）
   keys_to_observers_time_last_clean: Mutex<coarsetime::Instant>,
@@ -351,9 +357,10 @@ impl CollectionItemBroker {
 
       if let Some(m) = map.as_mut()
         && let Some(queue) = m.pin().get(key)
-          && queue.lock().is_empty() {
-            m.pin().remove(key);
-          }
+        && queue.lock().is_empty()
+      {
+        m.pin().remove(key);
+      }
       return;
     }
 
@@ -381,10 +388,7 @@ impl CollectionItemBroker {
         let pin = m.pin();
         if let Some(queue) = pin.get(key) {
           let mut queue = queue.lock();
-          loop {
-            let Some(observer) = queue.front() else {
-              break;
-            };
+          while let Some(observer) = queue.front().cloned() {
             if observer.status() != ObserverStatus::WaitingForResult {
               queue.pop_front();
               continue;
@@ -402,7 +406,7 @@ impl CollectionItemBroker {
               return false;
             };
 
-            let observer = queue.pop_front().unwrap();
+            queue.pop_front();
             self
               .session_id_to_observer
               .pin()
@@ -818,18 +822,7 @@ mod tests {
     }
 
     fn noop_waker() -> Waker {
-      let (waker, _guard) = futures_noop_waker();
-      return waker;
-
-      // 最小 noop waker（RawWaker vtable）
-      fn futures_noop_waker() -> (Waker, std::sync::Arc<()>) {
-        use std::task::Wake;
-        struct Noop;
-        impl Wake for Noop {
-          fn wake(self: std::sync::Arc<Self>) {}
-        }
-        (Waker::from(std::sync::Arc::new(Noop)), std::sync::Arc::new(()))
-      }
+      Waker::noop().clone()
     }
 
     let store = Arc::new(MemStore::new());
@@ -838,13 +831,8 @@ mod tests {
     broker.set_spawner(collector.clone());
 
     // 主等待 future（GetCollectionItemAsync 全路径）
-    let waiter_fut = broker.get_collection_item_async(
-      RespCommand::Blpop,
-      vec![b"k".to_vec()],
-      6,
-      0.0,
-      vec![],
-    );
+    let waiter_fut =
+      broker.get_collection_item_async(RespCommand::Blpop, vec![b"k".to_vec()], 6, 0.0, vec![]);
     let mut waiter_fut = Box::pin(waiter_fut);
     let waker = noop_waker();
     let mut cx = Context::from_waker(&waker);

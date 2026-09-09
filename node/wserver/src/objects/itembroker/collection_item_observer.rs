@@ -4,9 +4,11 @@
 //! `async_lock::Notify`（单次唤醒）；状态与结果由 `parking_lot::Mutex`
 //! 一并保护（C# 的 SingleWriterMultiReaderLock 双检在此基础上仍保留语义）。
 
-use std::future::Future;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::task::{Context, Poll, Waker};
+use std::{
+  future::Future,
+  sync::atomic::{AtomicBool, Ordering},
+  task::{Context, Poll, Waker},
+};
 
 use parking_lot::Mutex;
 
@@ -353,7 +355,9 @@ mod tests {
     assert_eq!(multi.scores.as_ref().unwrap().len(), 2);
 
     assert!(!CollectionItemResult::EMPTY.found());
-    assert!(CollectionItemResult::TYPE_MISMATCH.is_type_mismatch);
+    const {
+      assert!(CollectionItemResult::TYPE_MISMATCH.is_type_mismatch);
+    }
     assert!(!CollectionItemResult::FORCE_UNBLOCKED.found());
   }
 }

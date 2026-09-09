@@ -13,15 +13,15 @@ use wobject::sorted_set::sorted_set_object::{
 
 use crate::{
   arg_slice::ArgSlice,
+  input_header::RespInputHeader,
   inputs::ObjectInput,
-  objects::sortedset::sorted_set_object::{
-    SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
+  objects::{
+    sortedset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
+    types::object_output::ObjectOutput,
   },
   resp::{parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession},
   session_parse_state::SessionParseState,
-  input_header::RespInputHeader,
   types::GarnetObjectType,
-  objects::types::object_output::ObjectOutput,
 };
 
 /// 本命令面统一按 RESP2 协议输出（C# respProtocolVersion 由会话下发，
@@ -77,6 +77,16 @@ fn bitcode_encode_fallback(obj: &SortedSetObject) -> Vec<u8> {
   out
 }
 
+/// GEO 命令域复用的 ObjectInput 构造入口
+pub(crate) fn make_input_for_geo(
+  op: SortedSetOperation,
+  args: &[&[u8]],
+  arg1: i32,
+  arg2: i32,
+) -> (ObjectInput, Vec<Vec<u8>>) {
+  make_input(op, args, arg1, arg2)
+}
+
 /// 构造 ObjectInput（backing 与 input 同生命周期存活）
 fn make_input(
   op: SortedSetOperation,
@@ -92,8 +102,10 @@ fn make_input(
   let mut parse_state = SessionParseState::new();
   parse_state.initialize_with_args(&slices);
 
-  let mut header =
-    RespInputHeader::new_with_type(GarnetObjectType::SortedSet, crate::types::RespInputFlags::empty());
+  let mut header = RespInputHeader::new_with_type(
+    GarnetObjectType::SortedSet,
+    crate::types::RespInputFlags::empty(),
+  );
   header.set_sub_id(op as u8);
   (
     ObjectInput::new_with_state(header, &mut parse_state, arg1, arg2),
@@ -382,7 +394,9 @@ impl RespServerSession {
     let mut dst = SortedSetObject::new();
     for (member, score) in pairs {
       dst.sorted_set_dict.insert(member.clone(), score);
-      dst.sorted_set.insert(crate::objects::sortedset::sorted_set_object::SortedSetEntry { score, member });
+      dst
+        .sorted_set
+        .insert(crate::objects::sortedset::sorted_set_object::SortedSetEntry { score, member });
     }
 
     let _ = store.try_upsert_sync(dst_key, &zset_to_blob(&dst));
@@ -623,8 +637,7 @@ impl RespServerSession {
     }
 
     let key = parse_state[0];
-    let with_score = parse_state.len() > 2
-      && parse_state[2].eq_ignore_ascii_case(b"WITHSCORE");
+    let with_score = parse_state.len() > 2 && parse_state[2].eq_ignore_ascii_case(b"WITHSCORE");
 
     let op = if ascending {
       SortedSetOperation::Zrank
@@ -642,7 +655,14 @@ impl RespServerSession {
 
     let mut obj = obj;
     let payload_start = output.len();
-    operate(&mut obj, op, &parse_state[1..2], if with_score { 1 } else { 0 }, 0, output);
+    operate(
+      &mut obj,
+      op,
+      &parse_state[1..2],
+      if with_score { 1 } else { 0 },
+      0,
+      output,
+    );
     let _ = payload_start;
     Ok(true)
   }
@@ -741,7 +761,14 @@ impl RespServerSession {
     }
 
     let mut obj = obj;
-    operate(&mut obj, SortedSetOperation::Zrandmember, &[], arg1 as i32, fastrand::i32(..), output);
+    operate(
+      &mut obj,
+      SortedSetOperation::Zrandmember,
+      &[],
+      arg1 as i32,
+      fastrand::i32(..),
+      output,
+    );
     Ok(true)
   }
 
@@ -816,14 +843,18 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some((keys, weights, aggregate, with_scores)) =
-      parse_combine_args(parse_state, "ZINTER", output, false)
-    else {
+    let Some(args) = parse_combine_args(parse_state, "ZINTER", output, false) else {
       return Ok(true);
     };
 
-    let result = combine_sets(store, &keys, &weights, aggregate, CombineKind::Intersect);
-    write_zset_entries(Some(&result), with_scores, output);
+    let result = combine_sets(
+      store,
+      &args.keys,
+      &args.weights,
+      args.aggregate,
+      CombineKind::Intersect,
+    );
+    write_zset_entries(Some(&result), args.with_scores, output);
     Ok(true)
   }
 
@@ -905,14 +936,18 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some((keys, weights, aggregate, with_scores)) =
-      parse_combine_args(parse_state, "ZUNION", output, false)
-    else {
+    let Some(args) = parse_combine_args(parse_state, "ZUNION", output, false) else {
       return Ok(true);
     };
 
-    let result = combine_sets(store, &keys, &weights, aggregate, CombineKind::Union);
-    write_zset_entries(Some(&result), with_scores, output);
+    let result = combine_sets(
+      store,
+      &args.keys,
+      &args.weights,
+      args.aggregate,
+      CombineKind::Union,
+    );
+    write_zset_entries(Some(&result), args.with_scores, output);
     Ok(true)
   }
 
@@ -1094,8 +1129,7 @@ impl RespServerSession {
     let mut curr_idx = 2;
     let mut expire_option = 0_u8;
     while curr_idx < parse_state.len() {
-      let Some(opt) =
-        crate::objects::parse_utils::try_get_expire_option(parse_state[curr_idx])
+      let Some(opt) = crate::objects::parse_utils::try_get_expire_option(parse_state[curr_idx])
       else {
         break;
       };
@@ -1108,9 +1142,7 @@ impl RespServerSession {
     let now_ticks = crate::objects::parse_utils::now_ticks();
     let now_ms = now_ticks / 10_000 - UNIX_EPOCH_TICKS / 10_000;
     let expiration_ticks = if is_timestamp {
-      UNIX_EPOCH_TICKS
-        + expiration_base
-          * if is_milliseconds { 10_000 } else { 10_000_000 }
+      UNIX_EPOCH_TICKS + expiration_base * if is_milliseconds { 10_000 } else { 10_000_000 }
     } else {
       now_ticks + expiration_base * if is_milliseconds { 10_000 } else { 10_000_000 }
     };
@@ -1220,13 +1252,11 @@ fn sorted_set_combine_store<'s, D: wdev::Device>(
   }
 
   let dst = parse_state[0];
-  let Some((keys, weights, aggregate, _)) =
-    parse_combine_args(&parse_state[1..], name, output, true)
-  else {
+  let Some(args) = parse_combine_args(&parse_state[1..], name, output, true) else {
     return Ok(true);
   };
 
-  let result = combine_sets(store, &keys, &weights, aggregate, kind);
+  let result = combine_sets(store, &args.keys, &args.weights, args.aggregate, kind);
   let count = result.count();
   let _ = store.try_upsert_sync(dst, &zset_to_blob(&result));
   output.write_resp_int(count as i64);
@@ -1253,10 +1283,10 @@ fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
 
   // 跳过外层数组头 *<n>
 
-  if payload.first() == Some(&b'*') {
-    if let Some(line_end) = find_crlf(payload, 0) {
-      pos = line_end + 2;
-    }
+  if payload.first() == Some(&b'*')
+    && let Some(line_end) = find_crlf(payload, 0)
+  {
+    pos = line_end + 2;
   }
 
   while pos < payload.len() {
@@ -1350,13 +1380,21 @@ fn parse_diff_args<'p>(
   Some((parse_state[1..=n_keys as usize].to_vec(), with_scores))
 }
 
+/// 集合运算参数解析产物
+pub struct CombineArgs<'p> {
+  pub keys: Vec<&'p [u8]>,
+  pub weights: Vec<f64>,
+  pub aggregate: ZSetAggregate,
+  pub with_scores: bool,
+}
+
 /// ZINTER/ZUNION 参数解析：numkeys key... [WEIGHTS w...] [AGGREGATE agg] [WITHSCORES]
 fn parse_combine_args<'p>(
   parse_state: &'p [&'p [u8]],
   name: &str,
   output: &mut Vec<u8>,
   _store_form: bool,
-) -> Option<(Vec<&'p [u8]>, Vec<f64>, ZSetAggregate, bool)> {
+) -> Option<CombineArgs<'p>> {
   if parse_state.len() < 2 {
     output.extend_from_slice(
       format!("-ERR wrong number of arguments for '{name}' command\r\n").as_bytes(),
@@ -1385,7 +1423,10 @@ fn parse_combine_args<'p>(
       idx += 1;
       let mut parsed = Vec::with_capacity(keys.len());
       while parsed.len() < keys.len() && idx < parse_state.len() {
-        match str::from_utf8(parse_state[idx]).unwrap_or("").parse::<f64>() {
+        match str::from_utf8(parse_state[idx])
+          .unwrap_or("")
+          .parse::<f64>()
+        {
           Ok(w) => parsed.push(w),
           Err(_) => {
             output.extend_from_slice(b"-ERR weight value is not a float\r\n");
@@ -1426,7 +1467,12 @@ fn parse_combine_args<'p>(
     }
   }
 
-  Some((keys, weights, aggregate, with_scores))
+  Some(CombineArgs {
+    keys,
+    weights,
+    aggregate,
+    with_scores,
+  })
 }
 
 use std::collections::HashMap;
@@ -1461,17 +1507,17 @@ fn dict_to_zset(dict: HashMap<Vec<u8>, f64, gxhash::GxBuildHasher>) -> SortedSet
 }
 
 /// ZDIFF 语义计算
-fn diff_sets(
-  store: &wkv::BatchStoreSession<impl wdev::Device>,
-  keys: &[&[u8]],
-) -> SortedSetObject {
+fn diff_sets(store: &wkv::BatchStoreSession<impl wdev::Device>, keys: &[&[u8]]) -> SortedSetObject {
   let objs = load_many(store, keys);
   let mut result: Option<SortedSetObject> = None;
   for (i, obj) in objs.iter().enumerate() {
     if i == 0 {
       result = Some(obj.clone());
     } else if let Some(current) = result.take() {
-      result = Some(dict_to_zset(SortedSetObject::copy_diff(Some(&current), Some(obj))));
+      result = Some(dict_to_zset(SortedSetObject::copy_diff(
+        Some(&current),
+        Some(obj),
+      )));
     }
   }
   result.unwrap_or_default()
@@ -1487,7 +1533,8 @@ fn combine_sets(
 ) -> SortedSetObject {
   let objs = load_many(store, keys);
 
-  let mut combined: HashMap<Vec<u8>, f64, gxhash::GxBuildHasher> = HashMap::with_hasher(gxhash::GxBuildHasher::default());
+  let mut combined: HashMap<Vec<u8>, f64, gxhash::GxBuildHasher> =
+    HashMap::with_hasher(gxhash::GxBuildHasher::default());
   for (i, obj) in objs.iter().enumerate() {
     let weight = weights.get(i).copied().unwrap_or(1.0);
     for (member, score) in obj.to_entries() {
@@ -1554,11 +1601,13 @@ fn write_zset_entries(obj: Option<&SortedSetObject>, with_scores: bool, output: 
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use std::sync::Arc;
+
   use tempfile::{TempDir, tempdir};
   use wdev::SegmentedDevice;
   use wkv::{StoreConfig, WedbStore};
+
+  use super::*;
 
   type TestSession = wkv::StoreSession<SegmentedDevice>;
 
@@ -1580,7 +1629,11 @@ mod tests {
 
     // ZADD 基础
     sess
-      .sorted_set_add(&[b"z", b"1", b"a", b"2", b"b", b"3", b"c"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"z", b"1", b"a", b"2", b"b", b"3", b"c"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     assert_eq!(out, b":3\r\n");
 
@@ -1594,7 +1647,11 @@ mod tests {
     // CH + GT：a 1→99、b 2→5 均过 GT 门槛 → CH 计 2
     out.clear();
     sess
-      .sorted_set_add(&[b"z", b"GT", b"CH", b"99", b"a", b"5", b"b"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"z", b"GT", b"CH", b"99", b"a", b"5", b"b"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     assert_eq!(out, b":2\r\n");
 
@@ -1658,10 +1715,7 @@ mod tests {
         Opts::REVERSE,
       )
       .unwrap();
-    assert_eq!(
-      out,
-      b"*4\r\n$1\r\nd\r\n$1\r\n4\r\n$1\r\nc\r\n$1\r\n3\r\n"
-    );
+    assert_eq!(out, b"*4\r\n$1\r\nd\r\n$1\r\n4\r\n$1\r\nc\r\n$1\r\n3\r\n");
 
     // ZRANGESTORE
     out.clear();
@@ -1686,7 +1740,11 @@ mod tests {
     // ZLEXCOUNT：同分字典序
     out.clear();
     sess
-      .sorted_set_add(&[b"lx", b"0", b"aa", b"0", b"bb", b"0", b"cc"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"lx", b"0", b"aa", b"0", b"bb", b"0", b"cc"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     out.clear();
     sess
@@ -1703,7 +1761,11 @@ mod tests {
     let mut out = Vec::new();
 
     sess
-      .sorted_set_add(&[b"z", b"10", b"x", b"20", b"y", b"30", b"z"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"z", b"10", b"x", b"20", b"y", b"30", b"z"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     out.clear();
 
@@ -1736,15 +1798,16 @@ mod tests {
     sess
       .sorted_set_pop(&[b"z", b"2"], &batch, &mut out, false)
       .unwrap();
-    assert_eq!(
-      out,
-      b"*4\r\n$1\r\nz\r\n$2\r\n30\r\n$1\r\ny\r\n$2\r\n20\r\n"
-    );
+    assert_eq!(out, b"*4\r\n$1\r\nz\r\n$2\r\n30\r\n$1\r\ny\r\n$2\r\n20\r\n");
 
     // ZRANDMEMBER
     out.clear();
     sess
-      .sorted_set_add(&[b"r", b"1", b"m1", b"2", b"m2", b"3", b"m3"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"r", b"1", b"m1", b"2", b"m2", b"3", b"m3"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     out.clear();
     sess
@@ -1761,7 +1824,11 @@ mod tests {
     let mut out = Vec::new();
 
     sess
-      .sorted_set_add(&[b"a", b"1", b"m1", b"2", b"m2", b"3", b"m3"], &batch, &mut out)
+      .sorted_set_add(
+        &[b"a", b"1", b"m1", b"2", b"m2", b"3", b"m3"],
+        &batch,
+        &mut out,
+      )
       .unwrap();
     sess
       .sorted_set_add(&[b"b", b"2", b"m2", b"4", b"m4"], &batch, &mut out)
@@ -1841,7 +1908,13 @@ mod tests {
 
     // ZEXPIRE 1h a（不存在的成员 zz）
     sess
-      .sorted_set_expire(&[b"z", b"3600", b"a", b"zz"], &batch, &mut out, false, false)
+      .sorted_set_expire(
+        &[b"z", b"3600", b"a", b"zz"],
+        &batch,
+        &mut out,
+        false,
+        false,
+      )
       .unwrap();
     assert_eq!(out, b"*2\r\n:1\r\n:-2\r\n");
 
@@ -1851,7 +1924,13 @@ mod tests {
       .sorted_set_time_to_live(&[b"z", b"a"], &batch, &mut out, false, false)
       .unwrap();
     let payload = String::from_utf8_lossy(&out);
-    let ttl: i64 = payload.lines().nth(1).unwrap().trim_start_matches(':').parse().unwrap();
+    let ttl: i64 = payload
+      .lines()
+      .nth(1)
+      .unwrap()
+      .trim_start_matches(':')
+      .parse()
+      .unwrap();
     assert!((3590..=3600).contains(&ttl), "ttl = {payload}");
 
     // ZPERSIST
