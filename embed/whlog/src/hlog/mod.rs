@@ -213,7 +213,7 @@ impl<D: Device> HybridLog<D> {
   #[inline]
   pub(crate) fn verify_compatible_sector_size(config: &HybridLogConfig, device: &D) -> Result<()> {
     let sector_size = device.sector_size();
-    if config.page_size % sector_size != 0 {
+    if !config.page_size.is_multiple_of(sector_size) {
       return Err(Error::Io(std::io::Error::new(
         std::io::ErrorKind::InvalidInput,
         format!(
@@ -266,7 +266,7 @@ impl<D: Device> HybridLog<D> {
   #[inline]
 
   /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetMainLogSegmentSize
-  #[inline]
+  
   pub fn get_main_log_segment_size(&self) -> u64 {
     self.device.segment_size().unwrap_or(u64::MAX)
   }

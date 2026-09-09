@@ -230,7 +230,7 @@ impl<D: Device> HybridLog<D> {
   #[inline]
 
   /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetTailAddress
-  #[inline]
+  
   pub fn get_tail_address(&self) -> u64 {
     self.addresses.tail()
   }

@@ -8,9 +8,9 @@ impl AofProcessor {
 }
 
 impl Default for AofProcessor {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 /// garnet相对路径:garnet/libs/server/AOF/AofProcessor.ChunkReplay.cs:AofProcessor

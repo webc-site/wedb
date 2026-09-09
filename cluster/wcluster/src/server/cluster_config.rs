@@ -131,13 +131,11 @@ impl ClusterConfig {
     }
     if read_write_session && self.workers[LOCAL_WORKER_ID].role == NodeRole::Replica {
       let owner_id = self.slot_map[slot].worker_id as usize;
-      if owner_id > 1 {
-        if let Some(ref my_primary) = self.workers[LOCAL_WORKER_ID].replica_of_node_id {
-          if let Some(ref owner_node_id) = self.workers[owner_id].nodeid {
+      if owner_id > 1
+        && let Some(ref my_primary) = self.workers[LOCAL_WORKER_ID].replica_of_node_id
+          && let Some(ref owner_node_id) = self.workers[owner_id].nodeid {
             return owner_node_id.eq_ignore_ascii_case(my_primary);
           }
-        }
-      }
     }
     false
   }
@@ -145,11 +143,10 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:IsKnown
   pub fn is_known(&self, nodeid: &str) -> bool {
     for i in 1..=self.num_workers() {
-      if let Some(ref id) = self.workers[i].nodeid {
-        if id.eq_ignore_ascii_case(nodeid) {
+      if let Some(ref id) = self.workers[i].nodeid
+        && id.eq_ignore_ascii_case(nodeid) {
           return true;
         }
-      }
     }
     false
   }
@@ -240,15 +237,12 @@ impl ClusterConfig {
     let mut replicas = Vec::new();
     let local_id = self.local_node_id();
     for i in 2..self.workers.len() {
-      if let Some(ref replica_of) = self.workers[i].replica_of_node_id {
-        if let Some(id) = local_id {
-          if replica_of.eq_ignore_ascii_case(id) {
-            if let Ok(ip) = self.workers[i].address.parse() {
+      if let Some(ref replica_of) = self.workers[i].replica_of_node_id
+        && let Some(id) = local_id
+          && replica_of.eq_ignore_ascii_case(id)
+            && let Ok(ip) = self.workers[i].address.parse() {
               replicas.push(SocketAddr::new(ip, self.workers[i].port as u16));
             }
-          }
-        }
-      }
     }
     replicas
   }
@@ -268,16 +262,13 @@ impl ClusterConfig {
     for i in 2..self.workers.len() {
       if let Some(node_id) = &self.workers[i].nodeid {
         if self.workers[i].role == NodeRole::Primary && !node_id.eq_ignore_ascii_case(my_primary_id)
-        {
-          if let Ok(ip) = self.workers[i].address.parse() {
+          && let Ok(ip) = self.workers[i].address.parse() {
             primaries.push(SocketAddr::new(ip, self.workers[i].port as u16));
           }
-        }
-        if node_id.eq_ignore_ascii_case(my_primary_id) {
-          if let Ok(ip) = self.workers[i].address.parse() {
+        if node_id.eq_ignore_ascii_case(my_primary_id)
+          && let Ok(ip) = self.workers[i].address.parse() {
             first = Some(SocketAddr::new(ip, self.workers[i].port as u16));
           }
-        }
       }
     }
     if let Some(f) = first {
@@ -293,13 +284,11 @@ impl ClusterConfig {
     if let Some(pid) = primary_id {
       for i in 0..MAX_HASH_SLOT_VALUE {
         let wid = self.slot_map[i].eff_worker_id() as usize;
-        if wid > 0 && wid < self.workers.len() {
-          if let Some(nid) = &self.workers[wid].nodeid {
-            if nid.eq_ignore_ascii_case(pid) {
+        if wid > 0 && wid < self.workers.len()
+          && let Some(nid) = &self.workers[wid].nodeid
+            && nid.eq_ignore_ascii_case(pid) {
               slots.push(i);
             }
-          }
-        }
       }
     }
     slots
@@ -330,11 +319,10 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
   pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
     for i in 1..=self.num_workers() {
-      if let Some(id) = &self.workers[i].nodeid {
-        if id.eq_ignore_ascii_case(node_id) {
+      if let Some(id) = &self.workers[i].nodeid
+        && id.eq_ignore_ascii_case(node_id) {
           return i as u16;
         }
-      }
     }
     0
   }
@@ -476,11 +464,10 @@ impl ClusterConfig {
     match pref_type {
       ClusterPreferredEndpointType::Ip => self.workers[worker_id].address.clone(),
       ClusterPreferredEndpointType::Hostname => {
-        if let Some(ref h) = self.workers[worker_id].hostname {
-          if !h.is_empty() {
+        if let Some(ref h) = self.workers[worker_id].hostname
+          && !h.is_empty() {
             return h.clone();
           }
-        }
         "?".to_string()
       }
       ClusterPreferredEndpointType::Unknown => "?".to_string(),
@@ -491,11 +478,10 @@ impl ClusterConfig {
   #[inline]
   pub fn get_endpoint_from_node_id(&self, nodeid: &str) -> Option<SocketAddr> {
     let wid = self.get_worker_id_from_node_id(nodeid) as usize;
-    if wid > 0 && wid < self.workers.len() {
-      if let Ok(ip) = self.workers[wid].address.parse() {
+    if wid > 0 && wid < self.workers.len()
+      && let Ok(ip) = self.workers[wid].address.parse() {
         return Some(SocketAddr::new(ip, self.workers[wid].port as u16));
       }
-    }
     None
   }
 }
@@ -507,13 +493,11 @@ impl ClusterConfig {
   pub fn get_replica_ids(&self, nodeid: &str) -> Vec<String> {
     let mut replicas = Vec::new();
     for i in 1..self.workers.len() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id {
-        if rep_of.eq_ignore_ascii_case(nodeid) {
-          if let Some(ref id) = self.workers[i].nodeid {
+      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
+        && rep_of.eq_ignore_ascii_case(nodeid)
+          && let Some(ref id) = self.workers[i].nodeid {
             replicas.push(id.clone());
           }
-        }
-      }
     }
     replicas
   }
@@ -522,11 +506,10 @@ impl ClusterConfig {
   pub fn get_replica_endpoints(&self, nodeid: &str) -> Vec<(String, i32)> {
     let mut endpoints = Vec::new();
     for i in 1..self.workers.len() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id {
-        if rep_of.eq_ignore_ascii_case(nodeid) {
+      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
+        && rep_of.eq_ignore_ascii_case(nodeid) {
           endpoints.push((self.workers[i].address.clone(), self.workers[i].port));
         }
-      }
     }
     endpoints
   }
@@ -611,12 +594,11 @@ impl ClusterConfig {
   pub fn remove_worker(&self, nodeid: &str) -> Self {
     let mut worker_id = 0;
     for i in 1..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid {
-        if id.eq_ignore_ascii_case(nodeid) {
+      if let Some(ref id) = self.workers[i].nodeid
+        && id.eq_ignore_ascii_case(nodeid) {
           worker_id = i;
           break;
         }
-      }
     }
 
     let mut new_slot_map = self.slot_map.clone();
@@ -631,12 +613,11 @@ impl ClusterConfig {
         new_slot_map[i].worker_id = LOCAL_WORKER_ID as u16;
         new_slot_map[i].state = SlotState::Stable;
       } else if state == SlotState::Importing && wid < self.workers.len() {
-        if let Some(ref nid) = self.workers[wid].nodeid {
-          if nid.eq_ignore_ascii_case(nodeid) {
+        if let Some(ref nid) = self.workers[wid].nodeid
+          && nid.eq_ignore_ascii_case(nodeid) {
             new_slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
             new_slot_map[i].state = SlotState::Offline;
           }
-        }
       } else if wid > worker_id {
         new_slot_map[i].worker_id -= 1;
       }
@@ -794,17 +775,15 @@ impl ClusterConfig {
   fn merge_worker_info(&self, worker: &Worker) -> Self {
     let mut worker_id = RESERVED_WORKER_ID;
     for i in 1..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid {
-        if let Some(ref wid) = worker.nodeid {
-          if id.eq_ignore_ascii_case(wid) {
+      if let Some(ref id) = self.workers[i].nodeid
+        && let Some(ref wid) = worker.nodeid
+          && id.eq_ignore_ascii_case(wid) {
             if worker.config_epoch <= self.workers[i].config_epoch {
               return self.clone();
             }
             worker_id = i;
             break;
           }
-        }
-      }
     }
 
     let mut new_config = self.clone();
@@ -850,35 +829,29 @@ impl ClusterConfig {
           None
         };
 
-        if let Some(conid) = current_owner_node_id {
-          if let Some(sid) = sender_config.local_node_id() {
-            if conid.eq_ignore_ascii_case(sid) {
+        if let Some(conid) = current_owner_node_id
+          && let Some(sid) = sender_config.local_node_id()
+            && conid.eq_ignore_ascii_case(sid) {
               new_config.slot_map[i].worker_id = RESERVED_WORKER_ID as u16;
               new_config.slot_map[i].state = SlotState::Offline;
               updated = true;
             }
-          }
-        }
         continue;
       }
 
       if sender_config.is_primary() {
-        if sender_config.local_node_config_epoch() != 0 && current_owner_id < self.workers.len() {
-          if self.workers[current_owner_id].config_epoch >= sender_config.local_node_config_epoch()
+        if sender_config.local_node_config_epoch() != 0 && current_owner_id < self.workers.len()
+          && self.workers[current_owner_id].config_epoch >= sender_config.local_node_config_epoch()
           {
             continue;
           }
-        }
       } else if current_owner_id != RESERVED_WORKER_ID {
-        if current_owner_id < self.workers.len() {
-          if let Some(ref id) = self.workers[current_owner_id].nodeid {
-            if let Some(sid) = sender_config.local_node_id() {
-              if !id.eq(sid) {
+        if current_owner_id < self.workers.len()
+          && let Some(ref id) = self.workers[current_owner_id].nodeid
+            && let Some(sid) = sender_config.local_node_id()
+              && !id.eq(sid) {
                 continue;
               }
-            }
-          }
-        }
         assign_to_worker_id = if let Some(pid) = sender_config.local_node_primary_id() {
           self.get_worker_id_from_node_id(pid)
         } else {
@@ -907,11 +880,10 @@ impl ClusterConfig {
 
     for i in 1..=sender_config.num_workers() {
       if let Some(ref sid) = sender_config.workers[i].nodeid {
-        if let Some(lid) = local_id {
-          if lid.eq_ignore_ascii_case(sid) {
+        if let Some(lid) = local_id
+          && lid.eq_ignore_ascii_case(sid) {
             continue;
           }
-        }
         if worker_ban_list.contains_key(sid) {
           continue;
         }
@@ -995,11 +967,10 @@ impl ClusterConfig {
       w.port + 10000
     );
 
-    if let Some(ref h) = w.hostname {
-      if !h.is_empty() {
+    if let Some(ref h) = w.hostname
+      && !h.is_empty() {
         let _ = write!(sb, ",{}", h);
       }
-    }
 
     let _ = write!(
       sb,
@@ -1119,11 +1090,10 @@ impl ClusterConfig {
     let primary_id = self.workers[worker_id].nodeid.clone().unwrap_or_default();
     let mut replica_worker_ids = Vec::new();
     for i in 1..=self.num_workers() {
-      if let Some(ref rep_of) = self.workers[i].replica_of_node_id {
-        if rep_of.eq_ignore_ascii_case(&primary_id) {
+      if let Some(ref rep_of) = self.workers[i].replica_of_node_id
+        && rep_of.eq_ignore_ascii_case(&primary_id) {
           replica_worker_ids.push(i);
         }
-      }
     }
     replica_worker_ids
   }
@@ -1132,11 +1102,10 @@ impl ClusterConfig {
   pub fn get_all_node_ids(&self) -> Vec<(String, SocketAddr)> {
     let mut all_node_ids = Vec::new();
     for i in 2..self.workers.len() {
-      if let Some(ref id) = self.workers[i].nodeid {
-        if let Ok(ip) = self.workers[i].address.parse() {
+      if let Some(ref id) = self.workers[i].nodeid
+        && let Ok(ip) = self.workers[i].address.parse() {
           all_node_ids.push((id.clone(), SocketAddr::new(ip, self.workers[i].port as u16)));
         }
-      }
     }
     all_node_ids
   }
@@ -1162,16 +1131,14 @@ impl ClusterConfig {
           .as_deref()
           .map(|s| pid.eq(s))
           .unwrap_or(false);
-        if is_replica_of_primary || is_primary {
-          if let Some(ref nid) = self.workers[i].nodeid {
-            if let Ok(ip) = self.workers[i].address.parse() {
+        if (is_replica_of_primary || is_primary)
+          && let Some(ref nid) = self.workers[i].nodeid
+            && let Ok(ip) = self.workers[i].address.parse() {
               shard_node_ids.push((
                 nid.clone(),
                 SocketAddr::new(ip, self.workers[i].port as u16),
               ));
             }
-          }
-        }
       }
     }
     shard_node_ids
@@ -1424,7 +1391,7 @@ impl ClusterConfig {
     pref_type: ClusterPreferredEndpointType,
   ) {
     sb.push_str("*4\r\n");
-    let is_null_or_empty_hostname = hostname.map_or(true, |h| h.is_empty());
+    let is_null_or_empty_hostname = hostname.is_none_or(|h| h.is_empty());
 
     match pref_type {
       ClusterPreferredEndpointType::Ip => {
@@ -1490,188 +1457,187 @@ impl ClusterConfig {
   }
 }
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Cursor, Read};
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
 impl ClusterConfig {
-    /// garnet相对路径:Server:ClusterConfig:TryPeekVersion
-    pub fn try_peek_version(data: &[u8]) -> Option<u8> {
-        if data.is_empty() {
-            None
-        } else {
-            Some(data[0])
-        }
+  /// garnet相对路径:Server:ClusterConfig:TryPeekVersion
+  pub fn try_peek_version(data: &[u8]) -> Option<u8> {
+    if data.is_empty() { None } else { Some(data[0]) }
+  }
+
+  /// garnet相对路径:Server:ClusterConfig:ToByteArray
+  pub fn to_byte_array(&self) -> Vec<u8> {
+    let mut ms = Vec::new();
+    // Write serialization format version
+    ms.write_u8(CLUSTER_CONFIG_VERSION).unwrap();
+
+    self.serialize_slot_map(&mut ms);
+
+    // Serialize worker info
+    ms.write_i32::<LittleEndian>(self.workers.len() as i32)
+      .unwrap();
+    for i in 1..self.workers.len() {
+      let worker = &self.workers[i];
+
+      write_string(&mut ms, worker.nodeid.as_deref().unwrap_or(""));
+      write_string(&mut ms, &worker.address);
+      ms.write_i32::<LittleEndian>(worker.port).unwrap();
+      ms.write_i64::<LittleEndian>(worker.config_epoch).unwrap();
+      ms.write_u8(worker.role as u8).unwrap();
+
+      if worker.replica_of_node_id.is_none() {
+        ms.write_u8(0).unwrap();
+      } else {
+        ms.write_u8(1).unwrap();
+        write_string(&mut ms, worker.replica_of_node_id.as_deref().unwrap());
+      }
+
+      ms.write_i64::<LittleEndian>(worker.replication_offset)
+        .unwrap();
+
+      if worker.hostname.is_none() {
+        ms.write_u8(0).unwrap();
+      } else {
+        ms.write_u8(1).unwrap();
+        write_string(&mut ms, worker.hostname.as_deref().unwrap());
+      }
     }
 
-    /// garnet相对路径:Server:ClusterConfig:ToByteArray
-    pub fn to_byte_array(&self) -> Vec<u8> {
-        let mut ms = Vec::new();
-        // Write serialization format version
-        ms.write_u8(CLUSTER_CONFIG_VERSION).unwrap();
+    ms
+  }
 
-        self.serialize_slot_map(&mut ms);
+  fn serialize_slot_map(&self, ms: &mut Vec<u8>) {
+    let segment_count_position = ms.len();
+    ms.write_u16::<LittleEndian>(0).unwrap(); // placeholder
 
-        // Serialize worker info
-        ms.write_i32::<LittleEndian>(self.workers.len() as i32).unwrap();
-        for i in 1..self.workers.len() {
-            let worker = &self.workers[i];
-            
-            write_string(&mut ms, worker.nodeid.as_deref().unwrap_or(""));
-            write_string(&mut ms, &worker.address);
-            ms.write_i32::<LittleEndian>(worker.port).unwrap();
-            ms.write_i64::<LittleEndian>(worker.config_epoch).unwrap();
-            ms.write_u8(worker.role as u8).unwrap();
-            
-            if worker.replica_of_node_id.is_none() {
-                ms.write_u8(0).unwrap();
-            } else {
-                ms.write_u8(1).unwrap();
-                write_string(&mut ms, worker.replica_of_node_id.as_deref().unwrap());
-            }
+    let mut segment_count: u16 = 0;
+    let mut count: u16 = 1;
+    let mut worker_id = self.slot_map[0].worker_id;
+    let mut state = self.slot_map[0].state as u8;
 
-            ms.write_i64::<LittleEndian>(worker.replication_offset).unwrap();
+    for i in 1..self.slot_map.len() {
+      let _state = self.slot_map[i].state as u8;
 
-            if worker.hostname.is_none() {
-                ms.write_u8(0).unwrap();
-            } else {
-                ms.write_u8(1).unwrap();
-                write_string(&mut ms, worker.hostname.as_deref().unwrap());
-            }
-        }
-
-        ms
-    }
-
-    fn serialize_slot_map(&self, ms: &mut Vec<u8>) {
-        let segment_count_position = ms.len();
-        ms.write_u16::<LittleEndian>(0).unwrap(); // placeholder
-
-        let mut segment_count: u16 = 0;
-        let mut count: u16 = 1;
-        let mut worker_id = self.slot_map[0].worker_id;
-        let mut state = self.slot_map[0].state as u8;
-
-        for i in 1..self.slot_map.len() {
-            let _state = self.slot_map[i].state as u8;
-
-            if self.slot_map[i].worker_id != worker_id || _state != state {
-                segment_count += 1;
-                ms.write_u16::<LittleEndian>(count).unwrap();
-                ms.write_u16::<LittleEndian>(worker_id).unwrap();
-                ms.write_u8(state).unwrap();
-
-                count = 1;
-                worker_id = self.slot_map[i].worker_id;
-                state = _state;
-                continue;
-            }
-            count += 1;
-        }
-
+      if self.slot_map[i].worker_id != worker_id || _state != state {
         segment_count += 1;
         ms.write_u16::<LittleEndian>(count).unwrap();
         ms.write_u16::<LittleEndian>(worker_id).unwrap();
         ms.write_u8(state).unwrap();
 
-        let mut cursor = Cursor::new(ms);
-        cursor.set_position(segment_count_position as u64);
-        cursor.write_u16::<LittleEndian>(segment_count).unwrap();
+        count = 1;
+        worker_id = self.slot_map[i].worker_id;
+        state = _state;
+        continue;
+      }
+      count += 1;
     }
 
-    /// garnet相对路径:Server:ClusterConfig:FromByteArray
-    pub fn from_byte_array(other: &[u8]) -> Result<Self, &'static str> {
-        let mut reader = Cursor::new(other);
-        if other.is_empty() {
-            return Err("Invalid ClusterConfig payload: too short to contain a version");
-        }
-        let version = reader.read_u8().unwrap();
-        if version != CLUSTER_CONFIG_VERSION {
-            return Err("Incompatible ClusterConfig version");
-        }
+    segment_count += 1;
+    ms.write_u16::<LittleEndian>(count).unwrap();
+    ms.write_u16::<LittleEndian>(worker_id).unwrap();
+    ms.write_u8(state).unwrap();
 
-        let new_slot_map = Self::deserialize_slot_map(&mut reader);
-        let num_workers = reader.read_i32::<LittleEndian>().unwrap_or(0);
-        let mut new_workers = vec![Worker::default(); num_workers as usize];
+    let mut cursor = Cursor::new(ms);
+    cursor.set_position(segment_count_position as u64);
+    cursor.write_u16::<LittleEndian>(segment_count).unwrap();
+  }
 
-        for i in 1..(num_workers as usize) {
-            new_workers[i].nodeid = Some(read_string(&mut reader));
-            new_workers[i].address = read_string(&mut reader);
-            new_workers[i].port = reader.read_i32::<LittleEndian>().unwrap_or(0);
-            new_workers[i].config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
-            new_workers[i].role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
-            
-            let is_null = reader.read_u8().unwrap_or(0);
-            if is_null > 0 {
-                new_workers[i].replica_of_node_id = Some(read_string(&mut reader));
-            }
-
-            new_workers[i].replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
-            
-            let is_null = reader.read_u8().unwrap_or(0);
-            if is_null > 0 {
-                new_workers[i].hostname = Some(read_string(&mut reader));
-            }
-        }
-
-        Ok(Self::with_data(new_slot_map, new_workers))
+  /// garnet相对路径:Server:ClusterConfig:FromByteArray
+  pub fn from_byte_array(other: &[u8]) -> Result<Self, &'static str> {
+    let mut reader = Cursor::new(other);
+    if other.is_empty() {
+      return Err("Invalid ClusterConfig payload: too short to contain a version");
+    }
+    let version = reader.read_u8().unwrap();
+    if version != CLUSTER_CONFIG_VERSION {
+      return Err("Incompatible ClusterConfig version");
     }
 
-    fn deserialize_slot_map(reader: &mut Cursor<&[u8]>) -> Box<[HashSlot; MAX_HASH_SLOT_VALUE]> {
-        let mut new_slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
-        let segment_count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-        let mut slot_offset = 0;
+    let new_slot_map = Self::deserialize_slot_map(&mut reader);
+    let num_workers = reader.read_i32::<LittleEndian>().unwrap_or(0);
+    let mut new_workers = vec![Worker::default(); num_workers as usize];
 
-        for _ in 0..segment_count {
-            let count = reader.read_u16::<LittleEndian>().unwrap_or(0);
-            let worker_id = reader.read_u16::<LittleEndian>().unwrap_or(0);
-            let state_byte = reader.read_u8().unwrap_or(0);
-            let state = SlotState::from_repr(state_byte).unwrap_or(SlotState::Offline);
+    for i in 1..(num_workers as usize) {
+      new_workers[i].nodeid = Some(read_string(&mut reader));
+      new_workers[i].address = read_string(&mut reader);
+      new_workers[i].port = reader.read_i32::<LittleEndian>().unwrap_or(0);
+      new_workers[i].config_epoch = reader.read_i64::<LittleEndian>().unwrap_or(0);
+      new_workers[i].role = NodeRole::from_repr(reader.read_u8().unwrap_or(0)).unwrap_or_default();
 
-            let end = count as usize + slot_offset;
-            while slot_offset < end {
-                if slot_offset < MAX_HASH_SLOT_VALUE {
-                    new_slot_map[slot_offset].worker_id = worker_id;
-                    new_slot_map[slot_offset].state = state;
-                }
-                slot_offset += 1;
-            }
-        }
-        new_slot_map
+      let is_null = reader.read_u8().unwrap_or(0);
+      if is_null > 0 {
+        new_workers[i].replica_of_node_id = Some(read_string(&mut reader));
+      }
+
+      new_workers[i].replication_offset = reader.read_i64::<LittleEndian>().unwrap_or(0);
+
+      let is_null = reader.read_u8().unwrap_or(0);
+      if is_null > 0 {
+        new_workers[i].hostname = Some(read_string(&mut reader));
+      }
     }
+
+    Ok(Self::with_data(new_slot_map, new_workers))
+  }
+
+  fn deserialize_slot_map(reader: &mut Cursor<&[u8]>) -> Box<[HashSlot; MAX_HASH_SLOT_VALUE]> {
+    let mut new_slot_map = Box::new([HashSlot::default(); MAX_HASH_SLOT_VALUE]);
+    let segment_count = reader.read_u16::<LittleEndian>().unwrap_or(0);
+    let mut slot_offset = 0;
+
+    for _ in 0..segment_count {
+      let count = reader.read_u16::<LittleEndian>().unwrap_or(0);
+      let worker_id = reader.read_u16::<LittleEndian>().unwrap_or(0);
+      let state_byte = reader.read_u8().unwrap_or(0);
+      let state = SlotState::from_repr(state_byte).unwrap_or(SlotState::Offline);
+
+      let end = count as usize + slot_offset;
+      while slot_offset < end {
+        if slot_offset < MAX_HASH_SLOT_VALUE {
+          new_slot_map[slot_offset].worker_id = worker_id;
+          new_slot_map[slot_offset].state = state;
+        }
+        slot_offset += 1;
+      }
+    }
+    new_slot_map
+  }
 }
 
 fn write_string(writer: &mut Vec<u8>, s: &str) {
-    let bytes = s.as_bytes();
-    write_7bit_encoded_int(writer, bytes.len() as u32);
-    writer.extend_from_slice(bytes);
+  let bytes = s.as_bytes();
+  write_7bit_encoded_int(writer, bytes.len() as u32);
+  writer.extend_from_slice(bytes);
 }
 
 fn read_string(reader: &mut Cursor<&[u8]>) -> String {
-    let len = read_7bit_encoded_int(reader) as usize;
-    let mut bytes = vec![0u8; len];
-    let _ = reader.read_exact(&mut bytes);
-    String::from_utf8(bytes).unwrap_or_default()
+  let len = read_7bit_encoded_int(reader) as usize;
+  let mut bytes = vec![0u8; len];
+  let _ = reader.read_exact(&mut bytes);
+  String::from_utf8(bytes).unwrap_or_default()
 }
 
 fn write_7bit_encoded_int(writer: &mut Vec<u8>, mut value: u32) {
-    while value >= 0x80 {
-        writer.write_u8((value as u8) | 0x80).unwrap();
-        value >>= 7;
-    }
-    writer.write_u8(value as u8).unwrap();
+  while value >= 0x80 {
+    writer.write_u8((value as u8) | 0x80).unwrap();
+    value >>= 7;
+  }
+  writer.write_u8(value as u8).unwrap();
 }
 
 fn read_7bit_encoded_int(reader: &mut Cursor<&[u8]>) -> u32 {
-    let mut count = 0;
-    let mut shift = 0;
-    let mut b;
-    loop {
-        b = reader.read_u8().unwrap_or(0);
-        count |= ((b & 0x7F) as u32) << shift;
-        shift += 7;
-        if (b & 0x80) == 0 {
-            break;
-        }
+  let mut count = 0;
+  let mut shift = 0;
+  let mut b;
+  loop {
+    b = reader.read_u8().unwrap_or(0);
+    count |= ((b & 0x7F) as u32) << shift;
+    shift += 7;
+    if (b & 0x80) == 0 {
+      break;
     }
-    count
+  }
+  count
 }

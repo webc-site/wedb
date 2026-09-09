@@ -164,7 +164,7 @@ impl HybridLogConfig {
   /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageIndexForAddress
 
   /// garnet相对路径:libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:GetPageSize
-  #[inline]
+  
   pub const fn page_size(&self) -> usize {
     1 << self.page_bits()
   }

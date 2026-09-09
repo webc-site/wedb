@@ -8,7 +8,7 @@ impl GarnetAppendOnlyFile {
 }
 
 impl Default for GarnetAppendOnlyFile {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }

@@ -1,5 +1,7 @@
 use super::object_session_functions::ObjectSessionFunctions;
-use crate::storage::functions::main_store::{delete_methods::DeleteInfo, upsert_methods::LogRecord};
+use crate::storage::functions::main_store::{
+  delete_methods::DeleteInfo, upsert_methods::LogRecord,
+};
 
 impl ObjectSessionFunctions {
   /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:InitialDeleter

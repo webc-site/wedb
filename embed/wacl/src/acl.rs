@@ -8,9 +8,9 @@ impl AccessControlList {
 }
 
 impl Default for AccessControlList {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 /// garnet相对路径:garnet/libs/server/ACL/ACLParser.cs:ACLParser

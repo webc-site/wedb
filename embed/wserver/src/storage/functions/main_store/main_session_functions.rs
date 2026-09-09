@@ -35,7 +35,7 @@ impl MainSessionFunctions {
 }
 
 impl Default for MainSessionFunctions {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
