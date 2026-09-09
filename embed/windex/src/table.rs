@@ -680,15 +680,10 @@ impl HashIndex {
     self.lookup_candidates(key).to_vec()
   }
 
-  /// 基于哈希值查询候选逻辑地址列表（`Vec<u64>` 便捷封装）
-  #[inline]
-  pub fn lookup_by_hash(&self, hash: u64) -> Vec<u64> {
-    self.lookup_candidates_by_hash(hash).to_vec()
-  }
-
   /// 向哈希索引中插入键与对应的逻辑地址
   ///
-  /// 寻找空位或沿溢出链插入，采用两阶段试探性标记确保并发插入安全，链遍历以步数上限防死循环。
+  /// 寻找空位或沿溢出链插入，单次 CAS 原子发布完整条目（无半成品窗口；语义详见
+  /// [`Self::insert_by_hash`] 与其 C# 两阶段协议对照注释），链遍历以步数上限防死循环。
   /// 注意：本方法不做同 Tag 查重——键已存在时会产生多候选（同键多版本场景），需要查重语义的
   /// 调用方请使用 `find_tag_or_insert` / `find_or_create_tag`（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）。
   #[inline]

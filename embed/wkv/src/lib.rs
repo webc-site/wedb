@@ -1,4 +1,3 @@
-#![allow(clippy::doc_lazy_continuation)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod checkpoint;

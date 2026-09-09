@@ -1,4 +1,3 @@
-#![allow(clippy::absolute_paths)]
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 use wbase::time::now_ms;
@@ -319,6 +318,8 @@ impl<D: Device> StoreSession<D> {
 
 #[cfg(test)]
 mod tests {
+  use std::panic::{catch_unwind, AssertUnwindSafe};
+
   use super::*;
 
   /// 抑制守卫 RAII 语义：正常退出与 panic unwind 路径均恢复进入前旧值（标志零残留）
@@ -344,7 +345,7 @@ mod tests {
     assert_eq!(slot.load(Relaxed), 0);
 
     // panic unwind：Drop 兜底，抑制标志不残留
-    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
       let _g = PurgeNotifyGuard::enter(&slot, 0x5678);
       assert_eq!(slot.load(Relaxed), 0x5678);
       panic!("unwind through guard");
