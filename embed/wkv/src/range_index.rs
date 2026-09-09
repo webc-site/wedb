@@ -8,8 +8,9 @@ use std::{
 use compio::runtime::spawn_blocking;
 use thiserror::Error as ThisError;
 use wbftree::{
-  BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexManager,
-  RangeIndexStub, ScanRecord, ScanReturnField, StorageBackend, StorageBackendType, TreeTuning,
+  BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, BfTreeService, RANGE_INDEX_STUB_SIZE,
+  RangeIndexManager, RangeIndexStub, ScanRecord, ScanReturnField, StorageBackend,
+  StorageBackendType, TreeTuning,
 };
 use wdev::Device;
 use wval::{CollectionType, META_VALUE_SIZE, MetaValue};
@@ -65,15 +66,18 @@ impl From<wbftree::Error> for RangeIndexError {
   }
 }
 
-/// 默认叶子页面大小（自动推导失败时的回退值）
-const DEFAULT_LEAF_PAGE_SIZE: usize = 4096;
-
 /// 创建时未指定的调优默认值 (1:1 对标 Garnet RespServerSessionRangeIndex RI.CREATE 默认：
 /// 16MiB 缓存 / min 64 / max 1024 / max key 128，创建时固化进存根)
 const DEFAULT_CACHE_SIZE: usize = 16 * 1024 * 1024;
 const DEFAULT_MIN_RECORD_SIZE: usize = 64;
 const DEFAULT_MAX_RECORD_SIZE: usize = 1024;
 const DEFAULT_MAX_KEY_LEN: usize = 128;
+
+/// 0 值取默认的微小解析器 (创建时把解析后的实际值固化进存根，绝不为 0)
+#[inline]
+const fn nz_or(v: usize, d: usize) -> usize {
+  if v > 0 { v } else { d }
+}
 
 /// 把 wbftree 同步重操作卸载到 compio 阻塞线程 (基于 compio 生态的核保护优化)
 ///
@@ -114,32 +118,16 @@ impl<D: Device> StoreSession<D> {
     // 2. 解析调优参数：0 值取 Garnet RI.CREATE 同款默认并在创建时固化进存根
     //    (对标 C# 把解析后的实际值写入存根——后续长度校验与惰性恢复重建都拿
     //    真实值，绝不为 0；否则全零存根会让 set 的长度校验把一切写入拒之门外)
-    let cache_size = if tuning.cache_size > 0 {
-      tuning.cache_size
-    } else {
-      DEFAULT_CACHE_SIZE
-    };
-    let min_record_size = if tuning.min_record_size > 0 {
-      tuning.min_record_size
-    } else {
-      DEFAULT_MIN_RECORD_SIZE
-    };
-    let max_record_size = if tuning.max_record_size > 0 {
-      tuning.max_record_size
-    } else {
-      DEFAULT_MAX_RECORD_SIZE
-    };
-    let max_key_len = if tuning.max_key_len > 0 {
-      tuning.max_key_len
-    } else {
-      DEFAULT_MAX_KEY_LEN
-    };
+    let cache_size = nz_or(tuning.cache_size, DEFAULT_CACHE_SIZE);
+    let min_record_size = nz_or(tuning.min_record_size, DEFAULT_MIN_RECORD_SIZE);
+    let max_record_size = nz_or(tuning.max_record_size, DEFAULT_MAX_RECORD_SIZE);
+    let max_key_len = nz_or(tuning.max_key_len, DEFAULT_MAX_KEY_LEN);
+    // 未显式指定叶子页大小时按解析后的 max_record_size 推导：默认 1024 推导恒为
+    // 4096 (compute_leaf_page_size ≤2KB → 4KB)，与旧显式回退常量逐位等价
     let actual_leaf_page_size = if tuning.leaf_page_size > 0 {
       tuning.leaf_page_size
-    } else if tuning.max_record_size > 0 {
-      RangeIndexManager::compute_leaf_page_size(tuning.max_record_size)
     } else {
-      DEFAULT_LEAF_PAGE_SIZE
+      RangeIndexManager::compute_leaf_page_size(max_record_size)
     };
 
     // 3. 在底层 RangeIndexManager 中创建并托管 BfTree 实例
@@ -225,13 +213,12 @@ impl<D: Device> StoreSession<D> {
     if meta.collection_type != CollectionType::RangeIndex {
       return Err(RangeIndexError::WrongType);
     }
-    if bytes.len() < META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE {
+    if bytes.len() < META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE {
       return Ok(None);
     }
-    let stub = RangeIndexStub::decode(
-      &bytes[META_VALUE_SIZE..META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE],
-    )
-    .map_err(|e| RangeIndexError::Internal(e.to_string()))?;
+    let stub =
+      RangeIndexStub::decode(&bytes[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE])
+        .map_err(|e| RangeIndexError::Internal(e.to_string()))?;
     Ok(Some((meta, stub)))
   }
 
@@ -402,13 +389,13 @@ impl<D: Device> StoreSession<D> {
   ) -> StdResult<Vec<ScanRecord>, RangeIndexError> {
     let mut records = Vec::with_capacity(count.min(1024));
     self
-      .range_index_scan_stream(key, start, count, return_field, |k, v| {
-        records.push(ScanRecord {
-          key: k.to_vec(),
-          value: v.to_vec(),
-        });
-        true
-      })
+      .range_index_scan_stream(
+        key,
+        start,
+        count,
+        return_field,
+        ScanRecord::sink(&mut records),
+      )
       .await?;
     Ok(records)
   }
@@ -449,13 +436,13 @@ impl<D: Device> StoreSession<D> {
   ) -> StdResult<Vec<ScanRecord>, RangeIndexError> {
     let mut records = Vec::with_capacity(32);
     self
-      .range_index_range_stream(key, start, end, return_field, |k, v| {
-        records.push(ScanRecord {
-          key: k.to_vec(),
-          value: v.to_vec(),
-        });
-        true
-      })
+      .range_index_range_stream(
+        key,
+        start,
+        end,
+        return_field,
+        ScanRecord::sink(&mut records),
+      )
       .await?;
     Ok(records)
   }
@@ -572,20 +559,24 @@ impl<D: Device> StoreSession<D> {
     let Some(bytes) = self.read_raw(&old_meta_k).await? else {
       return Ok(());
     };
-    if bytes.len() < META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE {
+    if bytes.len() < META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE {
       return Ok(());
     }
-    let mut stub = RangeIndexStub::decode(
-      &bytes[META_VALUE_SIZE..META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE],
-    )?;
+    let mut stub =
+      RangeIndexStub::decode(&bytes[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE])?;
 
     // 检查点屏障等待：避免与进行中的单树快照并发（与 acquire_tree_read 口径一致）
     while self.store.range_index.wait_for_tree_checkpoint(old_key)? {}
 
-    // 获取在线树实例（未激活则按存根懒打开旧数据文件）
+    // 获取在线树实例（未激活则按存根懒打开旧数据文件——快照解析属重操作，
+    // 与 acquire_tree_read 口径一致卸载 compio 阻塞线程，避免慢恢复停摆整核）
     let old_tree = match self.store.range_index.get_tree(old_key) {
       Some(t) => t,
-      None => self.store.range_index.get_or_open_tree(old_key, &stub)?,
+      None => {
+        let mgr = Arc::clone(&self.store.range_index);
+        let lazy_key = old_key.to_vec();
+        range_index_blocking(move || mgr.get_or_open_tree(&lazy_key, &stub)).await??
+      }
     };
 
     // 旧键条带写锁 + 防重入 claim 下整树快照写入新键数据文件路径
@@ -608,11 +599,15 @@ impl<D: Device> StoreSession<D> {
       .await??;
     }
 
-    // 从新路径恢复独立树实例并按新键注册
+    // 从新路径恢复独立树实例并按新键注册（整文件解析 + 环形缓冲分配属重操作，
+    // 卸载 compio 阻塞线程）
     let backend = StorageBackendType::from_u8(stub.storage_backend);
-    let new_tree = Arc::new(BfTreeService::recover_from_cpr_snapshot(
-      &new_path, true, backend,
-    )?);
+    let new_tree = Arc::new(
+      range_index_blocking(move || {
+        BfTreeService::recover_from_cpr_snapshot(&new_path, true, backend)
+      })
+      .await??,
+    );
     stub.tree_handle = new_tree.native_ptr();
     stub.reset_flags();
     self.store.range_index.register_tree(new_key, new_tree);
@@ -628,12 +623,14 @@ impl<D: Device> StoreSession<D> {
 }
 
 /// 栈上编码 MetaValue 与 RangeIndexStub，消除堆内存分配 (零拷贝/零堆分配)
+///
+/// wkv 检查点恢复路径 (checkpoint.rs) 的存根自愈回写共用此单一编码实现
 #[inline]
-fn encode_meta_stub_record(
+pub(crate) fn encode_meta_stub_record(
   meta: &MetaValue,
   stub: &RangeIndexStub,
-) -> [u8; META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE] {
-  let mut val = [0u8; META_VALUE_SIZE + wbftree::RANGE_INDEX_STUB_SIZE];
+) -> [u8; META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE] {
+  let mut val = [0u8; META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];
   val[..META_VALUE_SIZE].copy_from_slice(&meta.to_bytes());
   val[META_VALUE_SIZE..].copy_from_slice(&stub.encode());
   val

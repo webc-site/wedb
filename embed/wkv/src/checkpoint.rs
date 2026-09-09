@@ -17,6 +17,7 @@ use wval::{CollectionType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec};
 use crate::{
   config::StoreConfig,
   error::{Error, Result},
+  range_index::encode_meta_stub_record,
   read_cache::is_read_cache_addr,
   store::{KEY_ID_ASSIGN_MARGIN, WedbStore},
 };
@@ -133,29 +134,27 @@ impl<D: Device> WedbStore<D> {
               // 标记已从检查点恢复 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
               stub.mark_recovered_from_checkpoint();
 
-              // 更新记录中的存根并落盘 (定长 51 字节，纯栈分配零堆开销)
-              let mut new_val = [0u8; META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];
-              new_val[..META_VALUE_SIZE].copy_from_slice(&val[..META_VALUE_SIZE]);
-              new_val[META_VALUE_SIZE..].copy_from_slice(&stub.encode());
+              // 更新记录中的存根并落盘 (定长 51 字节，纯栈分配零堆开销；
+              // 复用 range_index 的 Meta+Stub 单一编码实现)
+              let new_val = encode_meta_stub_record(&meta, &stub);
               if !self.hlog.try_update_in_place(addr, key, &new_val)? {
                 let new_addr = self.hlog.append(key, &new_val, addr, false)?;
                 self.index.update_address(key, addr, new_addr);
               }
 
-              // 在 RangeIndexManager 中注册 pending 条目 (tree=None，惰性恢复)。
-              // 前缀用内联 Base32Buf128 构造，注册路径零堆分配
+              // 在 RangeIndexManager 中注册 pending 条目 (tree=None，惰性恢复)：
+              // 单次 pin 贯穿查重与注册，前缀/哈希仅在真正注册时计算 (文件预置
+              // 阶段已登记的条目跳过，免逐记录的重复 Base32 编码与哈希)
               let key_id = RangeIndexManager::key_id_of(user_key);
-              let key_hash = RangeIndexManager::key_hash_of(user_key);
-              let hash_prefix = RangeIndexManager::base32_prefix_of(user_key);
-
-              let is_registered = self.range_index.live_indexes().pin().contains_key(&key_id);
-
-              if !is_registered {
-                let tree_entry = Arc::new(TreeEntry::new(None, key_hash, key_id, hash_prefix));
-                let pin = self.range_index.live_indexes().pin();
-                if pin.insert(key_id, tree_entry).is_none() {
-                  count += 1;
-                }
+              let pin = self.range_index.live_indexes().pin();
+              if !pin.contains_key(&key_id) {
+                let key_hash = RangeIndexManager::key_hash_of(user_key);
+                let hash_prefix = RangeIndexManager::base32_prefix_of(user_key);
+                pin.insert(
+                  key_id,
+                  Arc::new(TreeEntry::new(None, key_hash, key_id, hash_prefix)),
+                );
+                count += 1;
               }
             }
           }
