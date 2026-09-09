@@ -582,37 +582,38 @@ impl<D: Device> StoreSession<D> {
     // 检查点屏障等待：避免与进行中的单树快照并发（与 acquire_tree_read 口径一致）
     while self.store.range_index.wait_for_tree_checkpoint(old_key)? {}
 
-    // 获取在线树实例（未激活则按存根懒打开旧数据文件）
-    let old_tree = match self.store.range_index.get_tree(old_key) {
-      Some(t) => t,
-      None => self.store.range_index.get_or_open_tree(old_key, &stub)?,
-    };
+    // 旧树惰性恢复 → 新键数据文件预置 → 旧键条带写锁 + 防重入 claim 下整树快照
+    // → 新树独立恢复，四步串行合并进单一阻塞任务：整树快照含 fsync、恢复含
+    // 快照解析 + 环形缓冲分配，均属百毫秒级重操作，一律卸载阻塞线程保护 compio 核
+    // (锁纪律：get_or_open_tree 的条带写锁自取自放后，快照段再自取旧键写锁——
+    // 两段先后串行不嵌套；快照持锁窗口阻塞同条带旧键写入，杜绝「快照后写入
+    // 不进新副本」的丢失写)
+    let mgr = Arc::clone(&self.store.range_index);
+    let restore_key = old_key.to_vec();
+    let snap_key = old_key.to_vec();
+    let new_key_owned = new_key.to_vec();
+    let restore_stub = stub;
+    let new_tree = range_index_blocking(move || -> StdResult<Arc<BfTreeService>, RangeIndexError> {
+      let old_tree = match mgr.get_tree(&restore_key) {
+        Some(t) => t,
+        None => mgr.get_or_open_tree(&restore_key, &restore_stub)?,
+      };
+      let new_path = mgr.data_file_path_for_key(&new_key_owned);
+      if let Some(parent) = new_path.parent() {
+        let _ = fs::create_dir_all(parent);
+      }
+      let _ = fs::remove_file(&new_path);
+      let old_hash = RangeIndexManager::key_hash_of(&snap_key);
+      let _xlock = mgr.locks().write(old_hash);
+      mgr.snapshot_tree_to_path_locked(&snap_key, &old_tree, &new_path)?;
 
-    // 旧键条带写锁 + 防重入 claim 下整树快照写入新键数据文件路径
-    // (整树 CPR 快照含 fsync 属重操作，在阻塞任务内持锁执行，不阻塞调度核)
-    let new_path = self.store.range_index.data_file_path_for_key(new_key);
-    if let Some(parent) = new_path.parent() {
-      let _ = fs::create_dir_all(parent);
-    }
-    let _ = fs::remove_file(&new_path);
-    {
-      let mgr = Arc::clone(&self.store.range_index);
-      let snap_key = old_key.to_vec();
-      let snap_tree = Arc::clone(&old_tree);
-      let snap_dest = new_path.clone();
-      range_index_blocking(move || {
-        let old_hash = RangeIndexManager::key_hash_of(&snap_key);
-        let _xlock = mgr.locks().write(old_hash);
-        mgr.snapshot_tree_to_path_locked(&snap_key, &snap_tree, &snap_dest)
-      })
-      .await??;
-    }
+      let backend = StorageBackendType::from_u8(restore_stub.storage_backend);
+      BfTreeService::recover_from_cpr_snapshot(&new_path, true, backend)
+        .map(Arc::new)
+        .map_err(RangeIndexError::from)
+    })
+    .await??;
 
-    // 从新路径恢复独立树实例并按新键注册
-    let backend = StorageBackendType::from_u8(stub.storage_backend);
-    let new_tree = Arc::new(BfTreeService::recover_from_cpr_snapshot(
-      &new_path, true, backend,
-    )?);
     stub.tree_handle = new_tree.native_ptr();
     stub.reset_flags();
     self.store.range_index.register_tree(new_key, new_tree);
