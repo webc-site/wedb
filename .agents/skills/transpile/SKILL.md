@@ -24,11 +24,13 @@ description: garnet 转写 rust
 消息队列用 crossfire
 lua 用 luau
 
-在 rust 函数文档注释中写清楚和 c# 的映射关系，格式如: 在 garnet 中的相对路径:函数名
-
 只能使用 cargo add 添加依赖，禁改 Cargo.toml
 
 让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
+
+在 rust 函数文档注释中写清楚和 c# 的映射关系，格式是如下：
+
+/// 在 garnet 中的相对路径:函数名
 
 如果遇到主分支修改，请提交，然后合并（注意更新 worktree，避免落后）。
 

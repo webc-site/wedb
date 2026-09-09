@@ -139,9 +139,51 @@ const check = async () => {
     miss_file_li.push(relative(ROOT_DIR, target_file));
   }
 
-  miss_file_li.sort();
-  for (const file_path of miss_file_li) {
-    console.log(file_path);
+  const pathTreeFormat = (path_li) => {
+    const root = {};
+    for (const file_path of path_li) {
+      const part_li = file_path.split("/");
+      let curr = root;
+      for (const part of part_li) {
+        curr[part] = curr[part] ?? {};
+        curr = curr[part];
+      }
+    }
+
+    const nodeFormat = (node, indent = "") => {
+      const key_li = Object.keys(node).sort(),
+        line_li = [];
+
+      for (const key of key_li) {
+        const sub_node = node[key],
+          is_dir = Object.keys(sub_node).length > 0;
+
+        if (is_dir) {
+          let curr_node = sub_node,
+            sub_key_li = Object.keys(curr_node),
+            combined_key = key;
+
+          while (sub_key_li.length === 1 && Object.keys(curr_node[sub_key_li[0]]).length > 0) {
+            combined_key += "/" + sub_key_li[0];
+            curr_node = curr_node[sub_key_li[0]];
+            sub_key_li = Object.keys(curr_node);
+          }
+
+          line_li.push(indent + combined_key + "/");
+          line_li.push(...nodeFormat(curr_node, indent + "  "));
+        } else {
+          line_li.push(indent + key);
+        }
+      }
+      return line_li;
+    };
+
+    return nodeFormat(root);
+  };
+
+  const tree_li = pathTreeFormat(miss_file_li);
+  if (tree_li.length > 0) {
+    console.log(tree_li.join("\n"));
   }
 };
 
