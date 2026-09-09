@@ -171,8 +171,14 @@ pub fn try_parse_with_infinity(source: &[u8], value: &mut f64) -> bool {
 }
 
 /// garnet/libs/common/NumUtils.cs:GetNextOffset
+///
+/// 提取最低置位偏移并原位清除该位。`value == 0` 时 C# 的 `1UL << 64`
+/// 按位宽取模等价于左移 0 位、值不变返回 64；Rust 移位 64 位在 debug
+/// 构建直接 panic，须显式跳过清位对齐 C# 行为（保持 0，返回 64）
 pub fn get_next_offset(value: &mut u64) -> i32 {
   let offset = value.trailing_zeros() as i32;
-  *value &= !(1_u64 << offset);
+  if offset < 64 {
+    *value &= !(1_u64 << offset);
+  }
   offset
 }
