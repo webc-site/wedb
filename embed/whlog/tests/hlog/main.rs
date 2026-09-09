@@ -6,6 +6,7 @@ fn _log_init() {
 mod append_scan;
 mod concurrent_shift;
 mod disk_read_cache;
+mod flaky_device;
 mod flush_and_shift;
 mod flush_fault;
 mod inplace_lifecycle;

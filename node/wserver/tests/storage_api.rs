@@ -385,6 +385,36 @@ fn test_multi_database_manager() -> aok::Void {
   })
 }
 
+/// 已持久化库编号枚举的错误语义（对标上游 d20d63993 对
+/// libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds 的恢复可见性修复）：
+/// 根目录不存在为良性全新启动态（空集，恢复静默跳过，上游 `Directory.Exists` 守卫）；
+/// 真实枚举失败必须显式报错，绝不静默空集恢复
+#[test]
+fn test_multi_saved_database_ids_error_semantics() -> aok::Void {
+  use std::fs;
+
+  use wserver::databases::multi_database_manager::MultiDatabaseManager;
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (dir, store) = open_store("ids.db")?;
+
+    // 1. 根目录不存在：良性空集，recover_checkpoint_async 静默成功且不注册任何库
+    let manager = MultiDatabaseManager::new(Arc::clone(&store), dir.path().join("checkpoints"));
+    assert_eq!(manager.try_get_saved_database_ids()?, Vec::<i64>::new());
+    manager.recover_checkpoint_async(false, None).await?;
+    assert!(manager.get_databases_snapshot().is_empty());
+
+    // 2. 根目录路径被普通文件占用：枚举真实失败，须显式报错而非静默空集
+    let blocked = dir.path().join("blocked");
+    fs::write(&blocked, b"not a directory")?;
+    let manager = MultiDatabaseManager::new(Arc::clone(&store), blocked);
+    assert!(manager.try_get_saved_database_ids().is_err());
+    assert!(manager.recover_checkpoint_async(false, None).await.is_err());
+    Ok(())
+  })
+}
+
 /// 哈希对象载荷兼容（wobject 序列化往返）
 #[test]
 fn test_wobject_roundtrip() -> aok::Void {

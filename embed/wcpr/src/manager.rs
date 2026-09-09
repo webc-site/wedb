@@ -942,7 +942,11 @@ impl<D: Device> CheckpointManager<D> {
   ///
   /// 自最新 Token 起由新到旧逐一尝试，自动跳过损坏或不完整的检查点
   /// （对标 C# Tsavorite GetClosestHybridLogCheckpointInfo 对无效 Token 的
-  /// 容错跳过语义）。目录中不存在任何 Token 时返回 `NoValidCheckpoint`。
+  /// 容错跳过语义，及 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:
+  /// GetClosestHybridLogCheckpointInfo / GetClosestIndexCheckpointInfo——上游
+  /// d20d63993 将该跳过路径的吞异常改为 LogWarning，使「坏检查点被跳过」可区分于
+  /// 「检查点集为空」；本实现自始即以 `warn!` 记录被跳过的 Token 与原因，语义一致）。
+  /// 目录中不存在任何 Token 时返回 `NoValidCheckpoint`。
   ///
   /// 排序稳定性：候选 Token 集为调用时刻的目录快照（数值升序，u128 全序确定），
   /// 扫描期间新落地的检查点留待下一次调用发现，不扰动本轮尝试序；与并发的
