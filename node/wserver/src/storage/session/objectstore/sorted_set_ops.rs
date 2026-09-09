@@ -1,128 +1,967 @@
-pub struct SortedSetOps;
+//! 有序集合对象操作（对标 libs/server/Storage/Session/ObjectStore/SortedSetOps.cs，C# 为 StorageSession partial）
+//!
+//! 全部经 [`StorageSession`] 对象信封读写 wobject [`SortedSetObject`]（dict +
+//! tree 双索引）；排序视图按 (score, member) 字典序现算。空集合整键回收。
 
-impl SortedSetOps {
+use std::io::Cursor;
+
+use wdev::Device;
+use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
+
+use super::{super::storage_session::StorageSession, common::ObjState};
+use crate::api::garnet_status::GarnetStatus;
+
+/// 聚合方式（ZUNION/ZINTER 权重合并语义）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZSetAggregate {
+  /// 求和
+  Sum,
+  /// 取最小
+  Min,
+  /// 取最大
+  Max,
+}
+
+/// 移除区间种类（C# SortedSetRemoveRange 按 RangeType 分发）
+#[derive(Debug, Clone, Copy)]
+pub enum ZSetRemoveRange<'k> {
+  /// 按排名闭区间
+  Rank(i64, i64),
+  /// 按分值区间（Redis 语法文本：`(5` / `[5` / `-inf` / `+inf`）
+  Score(&'k [u8], &'k [u8]),
+  /// 按字典序区间（`[a` / `(a` / `-` / `+`）
+  Lex(&'k [u8], &'k [u8]),
+}
+
+impl<'a, D: Device> StorageSession<'a, D> {
+  /// 有序集合读-改-写：载荷解码为 SortedSetObject 后交闭包变更，返回前自动回写
+  async fn zset_rmw<R>(
+    &self,
+    key: &[u8],
+    f: impl FnOnce(&mut SortedSetObject) -> Option<R>,
+  ) -> wkv::Result<Option<R>> {
+    self
+      .rmw_object_store_operation(key, super::common::OBJ_TAG_SORTED_SET, |payload| {
+        let mut obj = match payload {
+          Some(bytes) => SortedSetObject::deserialize(&mut Cursor::new(bytes)).unwrap_or_default(),
+          None => SortedSetObject::new(),
+        };
+        let r = f(&mut obj)?;
+        let mut out = Vec::new();
+        obj.serialize(&mut out).ok()?;
+        Some((out, r))
+      })
+      .await
+  }
+
+  /// 装载有序集合（缺失/类型不符快速出口）
+  async fn zset_load(
+    &self,
+    key: &[u8],
+  ) -> wkv::Result<Result<Option<SortedSetObject>, GarnetStatus>> {
+    Ok(
+      match self
+        .obj_load(key, super::common::OBJ_TAG_SORTED_SET)
+        .await?
+      {
+        ObjState::Absent => Ok(None),
+        ObjState::WrongType => Err(GarnetStatus::WrongType),
+        ObjState::Present(p) => Ok(Some(
+          SortedSetObject::deserialize(&mut Cursor::new(p)).unwrap_or_default(),
+        )),
+      },
+    )
+  }
+
+  /// ZADD：批量添加/更新（NX 仅新增、GT/LT 阈值更新、CH 统计变更），返回计数
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetAdd
-  pub fn sorted_set_add() {
-    unimplemented!()
+  pub async fn sorted_set_add(
+    &self,
+    key: &[u8],
+    members: &[(&[u8], f64)],
+    nx: bool,
+    gt: bool,
+    lt: bool,
+    ch: bool,
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(_) => {
+        let n = self
+          .zset_rmw(key, |obj| {
+            let was_empty = obj.dict.pin().is_empty();
+            let mut count = 0i64;
+            for &(member, score) in members {
+              match obj.dict.pin().get(member).copied() {
+                Some(_prev) if nx => {}
+                Some(prev) => {
+                  let update = (gt && score > prev) || (lt && score < prev) || (!gt && !lt);
+                  if update {
+                    obj.operate(SortedSetOperation::Zadd, member, score);
+                    if ch {
+                      count += 1;
+                    }
+                  }
+                }
+                None => {
+                  obj.operate(SortedSetOperation::Zadd, member, score);
+                  count += 1;
+                }
+              }
+            }
+            if was_empty && count == 0 {
+              None // 键本不存在且无新增：放弃物化空集合
+            } else {
+              Some(count)
+            }
+          })
+          .await?
+          .unwrap_or(0);
+        Ok((GarnetStatus::Ok, n))
+      }
+    }
   }
+
+  /// ZREM：批量移除成员
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemove
-  pub fn sorted_set_remove() {
-    unimplemented!()
+  pub async fn sorted_set_remove(
+    &self,
+    key: &[u8],
+    members: &[&[u8]],
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(_)) => {
+        let removed = self
+          .zset_rmw(key, |obj| {
+            let mut n = 0i64;
+            for m in members {
+              if obj.operate(SortedSetOperation::Zrem, m, 0.0).is_some() {
+                n += 1;
+              }
+            }
+            if obj.dict.pin().is_empty() {
+              None
+            } else {
+              Some(n)
+            }
+          })
+          .await?;
+        match removed {
+          Some(n) => Ok((GarnetStatus::Ok, n)),
+          None => {
+            let _ = self.delete_string(key).await?;
+            Ok((GarnetStatus::Ok, 0))
+          }
+        }
+      }
+    }
   }
+
+  /// ZREMRANGEBYLEX：按字典序区间移除
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByLex
-  pub fn sorted_set_remove_range_by_lex() {
-    unimplemented!()
+  pub async fn sorted_set_remove_range_by_lex(
+    &self,
+    key: &[u8],
+    min: &[u8],
+    max: &[u8],
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(_)) => {
+        let removed = self
+          .zset_rmw(key, |obj| {
+            let entries = sorted_view(obj);
+            let mut n = 0i64;
+            for (m, _s) in entries {
+              if lex_in_range(&m, min, max)
+                && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
+              {
+                n += 1;
+              }
+            }
+            if obj.dict.pin().is_empty() {
+              None
+            } else {
+              Some(n)
+            }
+          })
+          .await?;
+        self.finish_range_removal(key, removed).await
+      }
+    }
   }
+
+  /// ZREMRANGEBYSCORE：按分值区间移除
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByScore
-  pub fn sorted_set_remove_range_by_score() {
-    unimplemented!()
+  pub async fn sorted_set_remove_range_by_score(
+    &self,
+    key: &[u8],
+    min: &[u8],
+    max: &[u8],
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    let (Ok(min_b), Ok(max_b)) = (parse_score_bound(min), parse_score_bound(max)) else {
+      return Ok((GarnetStatus::WrongType, 0));
+    };
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(_)) => {
+        let removed = self
+          .zset_rmw(key, |obj| {
+            let entries = sorted_view(obj);
+            let mut n = 0i64;
+            for (m, s) in entries {
+              if s >= min_b.0
+                && s <= max_b.0
+                && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
+              {
+                n += 1;
+              }
+            }
+            if obj.dict.pin().is_empty() {
+              None
+            } else {
+              Some(n)
+            }
+          })
+          .await?;
+        self.finish_range_removal(key, removed).await
+      }
+    }
   }
+
+  /// ZREMRANGEBYRANK：按排名闭区间移除
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByRank
-  pub fn sorted_set_remove_range_by_rank() {
-    unimplemented!()
+  pub async fn sorted_set_remove_range_by_rank(
+    &self,
+    key: &[u8],
+    start: i64,
+    stop: i64,
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(_)) => {
+        let removed = self
+          .zset_rmw(key, |obj| {
+            let entries = sorted_view(obj);
+            let (lo, hi) = clamp_rank_range(start, stop, entries.len());
+            let mut n = 0i64;
+            for (m, _s) in entries.into_iter().take(hi + 1).skip(lo) {
+              if obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some() {
+                n += 1;
+              }
+            }
+            if obj.dict.pin().is_empty() {
+              None
+            } else {
+              Some(n)
+            }
+          })
+          .await?;
+        self.finish_range_removal(key, removed).await
+      }
+    }
   }
+
+  /// 区间移除收尾：集合被删空时整键回收
+  async fn finish_range_removal(
+    &self,
+    key: &[u8],
+    removed: Option<i64>,
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match removed {
+      Some(n) => Ok((GarnetStatus::Ok, n)),
+      None => {
+        let _ = self.delete_string(key).await?;
+        Ok((GarnetStatus::Ok, 0))
+      }
+    }
+  }
+
+  /// ZPOPMIN/ZPOPMAX：按分值端点弹出
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetPop
-  pub fn sorted_set_pop() {
-    unimplemented!()
+  pub async fn sorted_set_pop(
+    &self,
+    key: &[u8],
+    count: usize,
+    min: bool,
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(Some(_)) => {
+        let popped = self
+          .zset_rmw(key, |obj| {
+            let mut entries = sorted_view(obj);
+            let mut out = Vec::with_capacity(count);
+            for _ in 0..count {
+              let item = if min {
+                entries.first().cloned()
+              } else {
+                entries.last().cloned()
+              };
+              match item {
+                Some((m, s)) => {
+                  obj.operate(SortedSetOperation::Zrem, &m, 0.0);
+                  if min {
+                    entries.remove(0);
+                  } else {
+                    entries.pop();
+                  }
+                  out.push((m, s));
+                }
+                None => break,
+              }
+            }
+            if obj.dict.pin().is_empty() {
+              None // 弹空：放弃写回，调用方整键回收
+            } else {
+              Some(out)
+            }
+          })
+          .await?;
+        match popped {
+          Some(v) => Ok((GarnetStatus::Ok, v)),
+          None => {
+            let _ = self.delete_string(key).await?;
+            Ok((GarnetStatus::Ok, Vec::new()))
+          }
+        }
+      }
+    }
   }
+
+  /// ZINCRBY / ZADD INCR：分值增减，返回新分值
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIncrement
-  pub fn sorted_set_increment() {
-    unimplemented!()
+  pub async fn sorted_set_increment(
+    &self,
+    key: &[u8],
+    member: &[u8],
+    delta: f64,
+  ) -> wkv::Result<(GarnetStatus, Option<f64>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, None)),
+      Ok(_) => Ok((
+        GarnetStatus::Ok,
+        self
+          .zset_rmw(key, |obj| {
+            let old = obj.dict.pin().get(member).copied().unwrap_or(0.0);
+            let new = old + delta;
+            obj.operate(SortedSetOperation::Zincrby, member, new);
+            Some(new)
+          })
+          .await?,
+      )),
+    }
   }
+
+  /// ZCARD：成员数
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetLength
-  pub fn sorted_set_length() {
-    unimplemented!()
+  pub async fn sorted_set_length(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, usize)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.count())),
+    }
   }
+
+  /// ZRANGE/ZREVRANGE：排名区间（`with_scores` 附带分值）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRange
-  pub fn sorted_set_range() {
-    unimplemented!()
+  pub async fn sorted_set_range(
+    &self,
+    key: &[u8],
+    start: i64,
+    stop: i64,
+    rev: bool,
+    with_scores: bool,
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, Option<f64>)>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(Some(obj)) => {
+        let mut entries = sorted_view(&obj);
+        if rev {
+          entries.reverse();
+        }
+        let (lo, hi) = clamp_rank_range(start, stop, entries.len());
+        Ok((
+          GarnetStatus::Ok,
+          entries
+            .into_iter()
+            .take(hi + 1)
+            .skip(lo)
+            .map(|(m, s)| (m, with_scores.then_some(s)))
+            .collect(),
+        ))
+      }
+    }
   }
+
+  /// ZDIFF：多集合差集（首键减其余）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetDifference
-  pub fn sorted_set_difference() {
-    unimplemented!()
+  pub async fn sorted_set_difference(
+    &self,
+    keys: &[&[u8]],
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
+    let Some(first) = keys.first() else {
+      return Ok((GarnetStatus::Ok, Vec::new()));
+    };
+    let Ok(Some(base)) = self.zset_load(first).await? else {
+      return Ok((GarnetStatus::Ok, Vec::new()));
+    };
+    let mut result = sorted_view(&base);
+    for key in &keys[1..] {
+      if let Ok(Some(other)) = self.zset_load(key).await? {
+        let pin = other.dict.pin();
+        result.retain(|(m, _)| !pin.contains_key(m));
+      }
+    }
+    Ok((GarnetStatus::Ok, result))
   }
+
+  /// ZDIFFSTORE：差集写入目标键
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetDifferenceStore
-  pub fn sorted_set_difference_store() {
-    unimplemented!()
+  pub async fn sorted_set_difference_store(
+    &self,
+    dest: &[u8],
+    keys: &[&[u8]],
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let (status, entries) = self.sorted_set_difference(keys).await?;
+    if status != GarnetStatus::Ok {
+      return Ok((status, 0));
+    }
+    self.zset_overwrite(dest, &entries).await
   }
+
+  /// ZRANK/ZREVRANK：成员排名（0 基，缺失 None）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRank
-  pub fn sorted_set_rank() {
-    unimplemented!()
+  pub async fn sorted_set_rank(
+    &self,
+    key: &[u8],
+    member: &[u8],
+    rev: bool,
+  ) -> wkv::Result<(GarnetStatus, Option<i64>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, None)),
+      Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Ok(Some(obj)) => {
+        let mut entries = sorted_view(&obj);
+        if rev {
+          entries.reverse();
+        }
+        Ok((
+          GarnetStatus::Ok,
+          entries
+            .iter()
+            .position(|(m, _)| m == member)
+            .map(|p| p as i64),
+        ))
+      }
+    }
   }
+
+  /// ZRANGESTORE：排名区间切片写入目标键
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRangeStore
-  pub fn sorted_set_range_store() {
-    unimplemented!()
+  pub async fn sorted_set_range_store(
+    &self,
+    dest: &[u8],
+    src: &[u8],
+    start: i64,
+    stop: i64,
+    rev: bool,
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let (status, range) = self.sorted_set_range(src, start, stop, rev, false).await?;
+    if status != GarnetStatus::Ok {
+      return Ok((status, 0));
+    }
+    let entries: Vec<(Vec<u8>, f64)> = range
+      .into_iter()
+      .filter_map(|(m, s)| s.map(|score| (m, score)))
+      .collect();
+    self.zset_overwrite(dest, &entries).await
   }
+
+  /// ZSCORE：单成员分值
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetScore
-  pub fn sorted_set_score() {
-    unimplemented!()
+  pub async fn sorted_set_score(
+    &self,
+    key: &[u8],
+    member: &[u8],
+  ) -> wkv::Result<(GarnetStatus, Option<f64>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, None)),
+      Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.dict.pin().get(member).copied())),
+    }
   }
+
+  /// ZMSCORE：多成员分值（缺失占位 None）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetScores
-  pub fn sorted_set_scores() {
-    unimplemented!()
+  pub async fn sorted_set_scores(
+    &self,
+    key: &[u8],
+    members: &[&[u8]],
+  ) -> wkv::Result<(GarnetStatus, Vec<Option<f64>>)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::Ok, members.iter().map(|_| None).collect())),
+      Ok(Some(obj)) => {
+        let pin = obj.dict.pin();
+        Ok((
+          GarnetStatus::Ok,
+          members.iter().map(|m| pin.get(*m).copied()).collect(),
+        ))
+      }
+    }
   }
+
+  /// ZCOUNT：分值区间成员数
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetCount
-  pub fn sorted_set_count() {
-    unimplemented!()
+  pub async fn sorted_set_count(
+    &self,
+    key: &[u8],
+    min: &[u8],
+    max: &[u8],
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    let (Ok(min_b), Ok(max_b)) = (parse_score_bound(min), parse_score_bound(max)) else {
+      return Ok((GarnetStatus::WrongType, 0));
+    };
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(obj)) => {
+        let n = sorted_view(&obj)
+          .into_iter()
+          .filter(|(_, s)| score_in_range(*s, min_b, max_b))
+          .count();
+        Ok((GarnetStatus::Ok, n as i64))
+      }
+    }
   }
+
+  /// ZLEXCOUNT：字典序区间成员数
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetLengthByValue
-  pub fn sorted_set_length_by_value() {
-    unimplemented!()
+  pub async fn sorted_set_length_by_value(
+    &self,
+    key: &[u8],
+    min: &[u8],
+    max: &[u8],
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match self.zset_load(key).await? {
+      Err(s) => Ok((s, 0)),
+      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(Some(obj)) => {
+        let n = sorted_view(&obj)
+          .into_iter()
+          .filter(|(m, _)| lex_in_range(m, min, max))
+          .count();
+        Ok((GarnetStatus::Ok, n as i64))
+      }
+    }
   }
+
+  /// ZREMRANGE 统一分发入口（按排名 / 分值 / 字典序）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRange
-  pub fn sorted_set_remove_range() {
-    unimplemented!()
+  pub async fn sorted_set_remove_range(
+    &self,
+    key: &[u8],
+    range: ZSetRemoveRange<'_>,
+  ) -> wkv::Result<(GarnetStatus, i64)> {
+    match range {
+      ZSetRemoveRange::Rank(start, stop) => {
+        self.sorted_set_remove_range_by_rank(key, start, stop).await
+      }
+      ZSetRemoveRange::Score(min, max) => {
+        self.sorted_set_remove_range_by_score(key, min, max).await
+      }
+      ZSetRemoveRange::Lex(min, max) => self.sorted_set_remove_range_by_lex(key, min, max).await,
+    }
   }
+
+  /// ZRANDMEMBER：随机取样成员
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRandomMember
-  pub fn sorted_set_random_member() {
-    unimplemented!()
+  pub async fn sorted_set_random_member(
+    &self,
+    key: &[u8],
+    count: i64,
+    with_scores: bool,
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, Option<f64>)>)> {
+    let (status, entries) = self
+      .sorted_set_range(key, 0, -1, false, with_scores)
+      .await?;
+    if status != GarnetStatus::Ok || entries.is_empty() {
+      return Ok((status, Vec::new()));
+    }
+    let out = if count < 0 {
+      let n = count.unsigned_abs();
+      (0..n)
+        .map(|_| entries[fastrand::usize(..entries.len())].clone())
+        .collect()
+    } else {
+      let mut pool = entries;
+      let n = count.min(pool.len());
+      let mut out = Vec::with_capacity(n);
+      for _ in 0..n {
+        let last = pool.len() - 1;
+        let idx = fastrand::usize(..pool.len());
+        pool.swap(idx, last);
+        out.push(pool.pop().unwrap_or_default());
+      }
+      out
+    };
+    Ok((GarnetStatus::Ok, out))
   }
+
+  /// ZSCAN：成员增量扫描（游标 = 上次返回的最后一个成员）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetScan
-  pub fn sorted_set_scan() {
-    unimplemented!()
+  pub async fn sorted_set_scan(
+    &self,
+    key: &[u8],
+    cursor: &[u8],
+    pattern: &[u8],
+    count: usize,
+  ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
+    let members_of = |payload: &[u8]| -> Option<Vec<Vec<u8>>> {
+      SortedSetObject::deserialize(&mut Cursor::new(payload.to_vec()))
+        .ok()
+        .map(|o| sorted_view(&o).into_iter().map(|(m, _)| m).collect())
+    };
+    self
+      .object_scan(
+        key,
+        super::common::OBJ_TAG_SORTED_SET,
+        pattern,
+        cursor,
+        count,
+        members_of,
+      )
+      .await
   }
+
+  /// ZUNION：多集合并集（权重 + 聚合）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetUnion
-  pub fn sorted_set_union() {
-    unimplemented!()
+  pub async fn sorted_set_union(
+    &self,
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
+    Ok((
+      GarnetStatus::Ok,
+      self.zset_combine(keys, weights, aggregate, false).await?,
+    ))
   }
+
+  /// ZUNIONSTORE：并集写入目标键
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetUnionStore
-  pub fn sorted_set_union_store() {
-    unimplemented!()
+  pub async fn sorted_set_union_store(
+    &self,
+    dest: &[u8],
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let combined = self.zset_combine(keys, weights, aggregate, false).await?;
+    self.zset_overwrite(dest, &combined).await
   }
+
+  /// ZMPOP：依次寻找首个非空集合并弹出端点成员
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetMPop
-  pub fn sorted_set_m_pop() {
-    unimplemented!()
+  pub async fn sorted_set_m_pop(
+    &self,
+    keys: &[&[u8]],
+    count: usize,
+    min: bool,
+  ) -> wkv::Result<(GarnetStatus, Option<(Vec<u8>, Vec<(Vec<u8>, f64)>)>)> {
+    for key in keys {
+      let (_, popped) = self.sorted_set_pop(key, count, min).await?;
+      if !popped.is_empty() {
+        return Ok((GarnetStatus::Ok, Some(((*key).to_vec(), popped))));
+      }
+    }
+    Ok((GarnetStatus::Ok, None))
   }
+
+  /// ZINTERCARD：交集基数
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersectLength
-  pub fn sorted_set_intersect_length() {
-    unimplemented!()
+  pub async fn sorted_set_intersect_length(
+    &self,
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let entries = self.zset_combine(keys, weights, aggregate, true).await?;
+    Ok((GarnetStatus::Ok, entries.len()))
   }
+
+  /// ZINTERSTORE：交集写入目标键
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersectStore
-  pub fn sorted_set_intersect_store() {
-    unimplemented!()
+  pub async fn sorted_set_intersect_store(
+    &self,
+    dest: &[u8],
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let entries = self.zset_combine(keys, weights, aggregate, true).await?;
+    self.zset_overwrite(dest, &entries).await
   }
+
+  /// ZINTER：多集合交集（权重 + 聚合）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersect
-  pub fn sorted_set_intersect() {
-    unimplemented!()
+  pub async fn sorted_set_intersect(
+    &self,
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
+    Ok((
+      GarnetStatus::Ok,
+      self.zset_combine(keys, weights, aggregate, true).await?,
+    ))
   }
+
+  /// 交集计算内核（纯逻辑：以最小集合为基底逐成员聚合其余键）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetIntersection
-  pub fn sorted_set_intersection() {
-    unimplemented!()
+  pub async fn sorted_set_intersection(
+    &self,
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+  ) -> wkv::Result<Vec<(Vec<u8>, f64)>> {
+    self.zset_combine(keys, weights, aggregate, true).await
   }
+
+  /// ZEXPIRE/ZPEXPIRE：相对毫秒过期（整键级）
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetExpire
-  pub fn sorted_set_expire() {
-    unimplemented!()
+  pub async fn sorted_set_expire(
+    &self,
+    key: &[u8],
+    ttl_ms: u64,
+  ) -> wkv::Result<(GarnetStatus, bool)> {
+    let set = self.expire_in_ms(key, ttl_ms).await?;
+    Ok((GarnetStatus::Ok, set == 1))
   }
+
+  /// ZPTTL：剩余生存毫秒
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetTimeToLive
-  pub fn sorted_set_time_to_live() {
-    unimplemented!()
+  pub async fn sorted_set_time_to_live(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, i64)> {
+    let pttl = self.pttl_ms(key).await?;
+    Ok((
+      if pttl == -2 {
+        GarnetStatus::NotFound
+      } else {
+        GarnetStatus::Ok
+      },
+      pttl,
+    ))
   }
+
+  /// ZPERSIST：移除过期
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetPersist
-  pub fn sorted_set_persist() {
-    unimplemented!()
+  pub async fn sorted_set_persist(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, bool)> {
+    let removed = self.persist_key(key).await?;
+    Ok((GarnetStatus::Ok, removed == 1))
   }
+
+  /// 对象回收统计（键内成员数）
+  ///
+  /// 缺口说明：C# 侧 SortedSetCollect 由对象回收任务统计/驱逐堆对象；
+  /// wkv 对象生命周期由引擎 GC 统一管理，此处退化为成员数统计。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetCollect
-  pub fn sorted_set_collect() {
-    unimplemented!()
+  pub async fn sorted_set_collect(&self, key: &[u8]) -> wkv::Result<usize> {
+    Ok(self.sorted_set_length(key).await?.1)
   }
+
+  /// 多键组合内核（并/交统一：`intersect` 选择交语义），返回排序视图
+  async fn zset_combine(
+    &self,
+    keys: &[&[u8]],
+    weights: &[f64],
+    aggregate: ZSetAggregate,
+    intersect: bool,
+  ) -> wkv::Result<Vec<(Vec<u8>, f64)>> {
+    if keys.is_empty() {
+      return Ok(Vec::new());
+    }
+    // 交语义：以最短集合为基底
+    let mut acc: Vec<(Vec<u8>, f64)> = Vec::new();
+    for (i, key) in keys.iter().enumerate() {
+      let w = weights.get(i).copied().unwrap_or(1.0);
+      let Some(obj) = self.zset_load(key).await?.ok().flatten() else {
+        if intersect {
+          return Ok(Vec::new()); // 任一键缺失 → 空交集
+        }
+        continue;
+      };
+      let entries: Vec<(Vec<u8>, f64)> = sorted_view(&obj)
+        .into_iter()
+        .map(|(m, s)| (m, s * w))
+        .collect();
+      if i == 0 {
+        acc = entries;
+      } else if intersect {
+        let pin_view: gxhash::HashMap<Vec<u8>, f64> = entries.into_iter().collect();
+        acc.retain_mut(|(m, s)| {
+          if let Some(&other) = pin_view.get(m) {
+            *s = apply_aggregate(aggregate, *s, other);
+            true
+          } else {
+            false
+          }
+        });
+      } else {
+        for (m, s) in entries {
+          if let Some(slot) = acc.iter_mut().find(|(am, _)| *am == m) {
+            slot.1 = apply_aggregate(aggregate, slot.1, s);
+          } else {
+            acc.push((m, s));
+          }
+        }
+      }
+    }
+    acc.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(acc)
+  }
+
+  /// 覆写目标键为给定成员集合（先删后写，空集回收）
+  async fn zset_overwrite(
+    &self,
+    dest: &[u8],
+    entries: &[(Vec<u8>, f64)],
+  ) -> wkv::Result<(GarnetStatus, usize)> {
+    let _ = self.delete_string(dest).await?;
+    if entries.is_empty() {
+      return Ok((GarnetStatus::Ok, 0));
+    }
+    let refs: Vec<(&[u8], f64)> = entries.iter().map(|(m, s)| (m.as_slice(), *s)).collect();
+    let (..) = self
+      .sorted_set_add(dest, &refs, false, false, false, false)
+      .await?;
+    Ok((GarnetStatus::Ok, entries.len()))
+  }
+}
+
+/// (score, member) 排序视图（Redis 排名序：分值升序、同分按成员字典序）
+fn sorted_view(obj: &SortedSetObject) -> Vec<(Vec<u8>, f64)> {
+  let mut v: Vec<(Vec<u8>, f64)> = obj
+    .dict
+    .pin()
+    .iter()
+    .map(|(k, &s)| (k.clone(), s))
+    .collect();
+  v.sort_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+  v
+}
+
+/// 聚合两分值
+fn apply_aggregate(agg: ZSetAggregate, a: f64, b: f64) -> f64 {
+  match agg {
+    ZSetAggregate::Sum => a + b,
+    ZSetAggregate::Min => a.min(b),
+    ZSetAggregate::Max => a.max(b),
+  }
+}
+
+/// 排名区间归一化（负数自尾计数，返回非负闭区间 [lo, hi]，空集为 (1, 0)）
+fn clamp_rank_range(start: i64, stop: i64, len: usize) -> (usize, usize) {
+  if len == 0 {
+    return (1, 0);
+  }
+  let len_i = len as i64;
+  let s = if start < 0 { len_i + start } else { start }.max(0);
+  let e = if stop < 0 { len_i + stop } else { stop }.min(len_i - 1);
+  if s > e {
+    (1, 0)
+  } else {
+    (s as usize, e as usize)
+  }
+}
+
+/// 解析分值区间端点：`(5` / `[5` / `-inf` / `+inf` → (值, 是否含端点)
+fn parse_score_bound(b: &[u8]) -> std::result::Result<(f64, bool), ()> {
+  if b.is_empty() {
+    return Err(());
+  }
+  match b[0] {
+    b'(' => std::str::from_utf8(&b[1..])
+      .ok()
+      .and_then(|s| s.parse::<f64>().ok())
+      .map(|v| (v, false))
+      .ok_or(()),
+    b'[' => std::str::from_utf8(&b[1..])
+      .ok()
+      .and_then(|s| s.parse::<f64>().ok())
+      .map(|v| (v, true))
+      .ok_or(()),
+    _ => {
+      let text = std::str::from_utf8(b).map_err(|_| ())?;
+      if text.eq_ignore_ascii_case("+inf") {
+        Ok((f64::INFINITY, false))
+      } else if text.eq_ignore_ascii_case("-inf") {
+        Ok((f64::NEG_INFINITY, false))
+      } else {
+        text.parse::<f64>().map(|v| (v, true)).map_err(|_| ())
+      }
+    }
+  }
+}
+
+/// 分值是否落在区间内（含端点标记）
+fn score_in_range(s: f64, min: (f64, bool), max: (f64, bool)) -> bool {
+  let ge = if min.1 { s >= min.0 } else { s > min.0 };
+  let le = if max.1 { s <= max.0 } else { s < max.0 };
+  ge && le
+}
+
+/// 成员是否落在字典序区间内（`[x` 含、`(x` 不含、`-`/`+` 开区间）
+fn lex_in_range(member: &[u8], min: &[u8], max: &[u8]) -> bool {
+  let ge_min = match min {
+    b"-" => true,
+    [b'(', rest @ ..] => member > rest,
+    [b'[', rest @ ..] => member >= rest,
+    _ => true,
+  };
+  let le_max = match max {
+    b"+" => true,
+    [b'(', rest @ ..] => member < rest,
+    [b'[', rest @ ..] => member <= rest,
+    _ => true,
+  };
+  ge_min && le_max
 }
