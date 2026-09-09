@@ -7,6 +7,10 @@
 //! 变参初始化 / 按位写入 / int·long·double·float·string·bool 严格解析族。
 //! 以 `pub use` 保持 `resp::parser::SessionParseState` 路径可用。
 //!
+//! C# 同名成员中参数缓冲 / 序列化骨架（SessionParseState.cs:GetSerializedLength /
+//! SerializeTo / DeserializeFrom / GetArgSliceByRef / Initialize / Slice）已由
+//! crate 根 `session_parse_state` 域实现并公开同形方法，本文件不再重复。
+//!
 //! 严格数值解析族逐项对齐 C#：
 //! - 整数（TryReadInt32Safe/TryReadInt64Safe, allowLeadingZeros: false）：
 //!   可选 +/- 号、拒绝前导零（单独 0 允许）、纯数字整体消费、值域校验；

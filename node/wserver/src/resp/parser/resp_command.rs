@@ -56,6 +56,8 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("DISCARD", RespCommand::Discard, false),
   ("DUMP", RespCommand::Dump, false),
   ("ECHO", RespCommand::Echo, false),
+  ("EVAL", RespCommand::Eval, false),
+  ("EVALSHA", RespCommand::Evalsha, false),
   ("EXEC", RespCommand::Exec, false),
   ("EXISTS", RespCommand::Exists, false),
   ("EXPIRE", RespCommand::Expire, false),
@@ -837,12 +839,6 @@ use crate::resp::resp_server_session::TxnState;
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::resp::resp_server_session::RespCommandDispatch;
-
-  struct Nop;
-  impl RespCommandDispatch for Nop {
-    fn dispatch(&mut self, _session: &mut RespServerSession, _cmd: RespCommand, _args: &[&[u8]]) {}
-  }
 
   fn parse_one(
     session: &mut RespServerSession,
@@ -1062,9 +1058,7 @@ mod tests {
       .extend_from_slice(b"garbage\r\n*1\r\n$4\r\nPING\r\n");
     s.bytes_read = s.recv_buffer.len();
     s.read_head = 0;
-    let mut consumed_dispatch = Nop;
-    let consumed =
-      s.try_consume_messages(b"garbage\r\n*1\r\n$4\r\nPING\r\n", &mut consumed_dispatch);
+    let consumed = s.try_consume_messages(b"garbage\r\n*1\r\n$4\r\nPING\r\n");
     // 畸形行被跳过后仍解析到 PING
     assert!(consumed.is_some());
   }

@@ -10,7 +10,7 @@
 //! `len/capacity`；`Send` 对应 `take_output`。
 
 use std::{
-  mem::take,
+  mem,
   sync::{Arc, atomic::AtomicU64},
 };
 
@@ -21,6 +21,13 @@ use super::{
   parser::{resp_command::MruCommandCache, resp_ext::RespVecExt},
 };
 use crate::{
+  lua::{
+    lua_commands::{LuaCommands, LuaSessionContext, StoreScriptCache},
+    lua_options::LuaOptions,
+    scratch_buffer_network_sender::ScratchBufferNetworkSender,
+    scripting_api::ScriptingApi,
+    session_script_cache::SessionScriptCache,
+  },
   metrics::{
     garnet_session_metrics::GarnetSessionMetrics,
     latency::{
@@ -91,6 +98,8 @@ pub struct RespServerSessionOptions {
   pub metrics_sampling_frequency: bool,
   /// 默认用户句柄名（C# accessControlList.GetDefaultUserHandle()）
   pub default_user: String,
+  /// 是否启用 Lua 脚本（C# storeWrapper.serverOptions.EnableLua + enableScripts）
+  pub enable_lua: bool,
 }
 
 impl Default for RespServerSessionOptions {
@@ -103,6 +112,7 @@ impl Default for RespServerSessionOptions {
       latency_monitor: false,
       metrics_sampling_frequency: false,
       default_user: "default".to_string(),
+      enable_lua: false,
     }
   }
 }
@@ -198,6 +208,8 @@ pub struct RespServerSession {
   pub end_read_head: usize,
   /// 输出缓冲（C# networkSender 响应对象 + dcurr/dend 游标的托管等价；分片写）
   pub(crate) output: Vec<u8>,
+  /// 已发送字节暂存（C# SendResponse 直写网络；托管面留档供测试/脚本回读）
+  sent: Vec<u8>,
   /// 累计冲洗字节数（Send 累计，测试断言用）
   flushed_bytes: u64,
 
@@ -205,6 +217,12 @@ pub struct RespServerSession {
   pub current_custom_command: Option<(RespCommand, CustomCommandRef)>,
   /// MRU 命令缓存（C# _cachedCmd0/1；resp_command 域维护）
   pub(crate) mru_cache: MruCommandCache,
+  /// 会话脚本缓存（EnableLua 时创建；C# sessionScriptCache）
+  pub(crate) session_script_cache: Option<SessionScriptCache>,
+  /// 全局脚本缓存（C# storeWrapper.storeScriptCache，进程级共享）
+  pub(crate) store_script_cache: Arc<StoreScriptCache>,
+  /// 内建命令分派器（宿主按持有存储面注入；None 时命令解析/门控仍闭环）
+  command_dispatch: Option<Box<dyn RespCommandDispatch>>,
 
   /// EnableDebugCommand 镜像（C# storeWrapper.serverOptions.EnableDebugCommand）
   connection_protection_debug: ConnectionProtectionOption,
@@ -268,14 +286,34 @@ impl RespServerSession {
       read_head: 0,
       end_read_head: 0,
       output: Vec::with_capacity(1 << 16),
+      sent: Vec::new(),
       flushed_bytes: 0,
       current_custom_command: None,
       connection_protection_debug: options.enable_debug_command,
       connection_protection_module: options.enable_module_command,
       mru_cache: Default::default(),
+      session_script_cache: options.enable_lua.then(SessionScriptCache::default),
+      store_script_cache: Arc::new(StoreScriptCache::default()),
+      command_dispatch: None,
     };
     session.authenticate_user(options.default_user.as_bytes(), &[]);
     session
+  }
+
+  /// 注入内建命令分派器（宿主存储面接入点；redis.call 经同一分派闭环）
+  pub fn set_command_dispatch(&mut self, dispatch: Box<dyn RespCommandDispatch>) {
+    self.command_dispatch = Some(dispatch);
+  }
+
+  /// 经注入分派器分派（先取后放回，解除 self 双重借用）
+  fn dispatch_via_hook(&mut self, cmd: RespCommand, args: &[&[u8]]) {
+    let mut hook = self.command_dispatch.take();
+    match hook.as_mut() {
+      Some(dispatch) => dispatch.dispatch(self, cmd, args),
+      // 未注入存储面：默认空分派（解析/门控/指标仍闭环；C# 语义为恒有存储面）
+      None => <() as RespCommandDispatch>::dispatch(&mut (), self, cmd, args),
+    }
+    self.command_dispatch = hook;
   }
 
   /// libs/server/Resp/RespServerSession.cs:GetLatencyMetrics
@@ -363,18 +401,14 @@ impl RespServerSession {
   /// 解析并分派接收缓冲中的全部完整命令，返回已消费字节数（C# 返回 readHead）。
   /// 分派经 [`RespCommandDispatch`] 钩子；解析错误以 None 表达（C# 抛
   /// RespParsingException 并断连，rust 由调用方按协议错误处置断连）。
-  pub fn try_consume_messages(
-    &mut self,
-    req_buffer: &[u8],
-    dispatch: &mut dyn RespCommandDispatch,
-  ) -> Option<usize> {
+  pub fn try_consume_messages(&mut self, req_buffer: &[u8]) -> Option<usize> {
     self.recv_buffer.clear();
     self.recv_buffer.extend_from_slice(req_buffer);
     self.bytes_read = self.recv_buffer.len();
     self.read_head = 0;
 
     self.enter_and_get_response_object();
-    self.process_messages(dispatch);
+    self.process_messages();
     let consumed = self.read_head;
     self.exit_and_return_response_object();
 
@@ -390,7 +424,7 @@ impl RespServerSession {
   /// 集群槽位校验由并行域提供，门控当前仅承载订阅模式（C#
   /// IsAllowedInSubscriptionMode 集合）与事务状态；命令未完整到达时双游标
   /// 回退到本轮起点（C# `endReadHead = readHead = _origReadHead`）。
-  pub fn process_messages(&mut self, dispatch: &mut dyn RespCommandDispatch) {
+  pub fn process_messages(&mut self) {
     let mut orig_read_head = self.read_head;
 
     while self.bytes_read.saturating_sub(self.read_head) >= 4 {
@@ -427,11 +461,9 @@ impl RespServerSession {
             "ERR {name} command not allowed while in subscribe mode"
           ));
         } else {
-          // 事务分派（Running 入队 / Started 直通）与集群槽位校验由
-          // 分派域承载，会话层统一经钩子下发
-          let owned = self.collect_args();
-          let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-          dispatch.dispatch(self, cmd, &args);
+          // C# 分派链：ProcessBasicCommands → ProcessArrayCommands →
+          // ProcessOtherCommands（事务入队/直通形态由分派域承载）
+          self.process_basic_commands(cmd);
         }
 
         if let Some(metrics) = &mut self.session_metrics {
@@ -508,43 +540,38 @@ impl RespServerSession {
   /// fast 命令族分派（WARNING: 仅 @fast 命令，慢命令走 OtherCommands）。
   /// 命令实现位于 resp 命令文件（并行域），经 [`RespCommandDispatch`] 钩子
   /// 接入；PING 的零参分支在会话侧闭环。
-  pub fn process_basic_commands(
-    &mut self,
-    cmd: RespCommand,
-    dispatch: &mut dyn RespCommandDispatch,
-  ) -> bool {
+  pub fn process_basic_commands(&mut self, cmd: RespCommand) -> bool {
     if cmd == RespCommand::Ping && self.parse_state.count == 0 {
       // C# NetworkPING：+PONG
       self.output.extend_from_slice(b"+PONG\r\n");
       return true;
     }
-    let owned = self.collect_args();
-    let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-    dispatch.dispatch(self, cmd, &args);
-    true
+    // C# 链式回退：fast 表未命中的命令继续走 array → other 分派链
+    self.process_array_commands(cmd)
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessArrayCommands
-  pub fn process_array_commands(
-    &mut self,
-    cmd: RespCommand,
-    dispatch: &mut dyn RespCommandDispatch,
-  ) -> bool {
-    let owned = self.collect_args();
-    let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-    dispatch.dispatch(self, cmd, &args);
-    true
+  pub fn process_array_commands(&mut self, cmd: RespCommand) -> bool {
+    // C# 链式回退末端：未归类命令走 other（慢命令）分派
+    self.process_other_commands(cmd)
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessOtherCommands
   ///
   /// 慢命令族分派（此处可安全放 @slow 命令；C# containsSlowCommand = true）
-  pub fn process_other_commands(
-    &mut self,
-    cmd: RespCommand,
-    dispatch: &mut dyn RespCommandDispatch,
-  ) -> bool {
+  pub fn process_other_commands(&mut self, cmd: RespCommand) -> bool {
     self.contains_slow_command = true;
+    // Lua 脚本族（C# NetworkEVAL / NetworkEVALSHA / NetworkScript*）
+    if matches!(
+      cmd,
+      RespCommand::Eval
+        | RespCommand::Evalsha
+        | RespCommand::ScriptExists
+        | RespCommand::ScriptFlush
+        | RespCommand::ScriptLoad
+    ) {
+      return self.run_lua_command(cmd);
+    }
     if cmd == RespCommand::ClientId && self.parse_state.count != 0 {
       // C# NetworkCLIENTID 的参数校验在会话侧（AbortWithWrongNumberOfArguments）
       self.abort_with_wrong_number_of_arguments("client|id");
@@ -562,7 +589,7 @@ impl RespServerSession {
     }
     let owned = self.collect_args();
     let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-    dispatch.dispatch(self, cmd, &args);
+    self.dispatch_via_hook(cmd, &args);
     true
   }
 
@@ -571,27 +598,27 @@ impl RespServerSession {
   ///
   /// arity 校验 → 分派 → 清空当前自定义命令槽。注册表由 custom 域承载，
   /// 分派钩子未挂载时按 arity 校验语义闭环。
-  pub fn network_custom_txn(&mut self, dispatch: &mut dyn RespCommandDispatch) -> bool {
-    self.run_custom_command(dispatch)
+  pub fn network_custom_txn(&mut self) -> bool {
+    self.run_custom_command()
   }
 
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomProcedure
-  pub fn network_custom_procedure(&mut self, dispatch: &mut dyn RespCommandDispatch) -> bool {
-    self.run_custom_command(dispatch)
+  pub fn network_custom_procedure(&mut self) -> bool {
+    self.run_custom_command()
   }
 
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomRawStringCmd
-  pub fn network_custom_raw_string_cmd(&mut self, dispatch: &mut dyn RespCommandDispatch) -> bool {
-    self.run_custom_command(dispatch)
+  pub fn network_custom_raw_string_cmd(&mut self) -> bool {
+    self.run_custom_command()
   }
 
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomObjCmd
-  pub fn network_custom_obj_cmd(&mut self, dispatch: &mut dyn RespCommandDispatch) -> bool {
-    self.run_custom_command(dispatch)
+  pub fn network_custom_obj_cmd(&mut self) -> bool {
+    self.run_custom_command()
   }
 
   /// 自定义命令共同路径：IsCommandArityValid → 分派 → 清槽
-  fn run_custom_command(&mut self, dispatch: &mut dyn RespCommandDispatch) -> bool {
+  fn run_custom_command(&mut self) -> bool {
     let Some((kind, custom)) = self.current_custom_command.take() else {
       return true;
     };
@@ -601,17 +628,22 @@ impl RespServerSession {
       self.abort_with_wrong_number_of_arguments(name);
       return true;
     }
-    let args = self.collect_args();
-    let args: Vec<&[u8]> = args.iter().map(Vec::as_slice).collect();
-    dispatch.dispatch_custom(self, kind, &custom, &args);
+    let owned = self.collect_args();
+    let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
+    let mut hook = self.command_dispatch.take();
+    match hook.as_mut() {
+      Some(dispatch) => dispatch.dispatch_custom(self, kind, &custom, &args),
+      None => <() as RespCommandDispatchExt>::dispatch_custom(&mut (), self, kind, &custom, &args),
+    }
+    self.command_dispatch = hook;
     true
   }
 
   /// libs/server/Resp/RespServerSession.cs:Process（admin 族回退）
-  pub fn process(&mut self, cmd: RespCommand, dispatch: &mut dyn RespCommandDispatch) -> bool {
+  pub fn process(&mut self, cmd: RespCommand) -> bool {
     let owned = self.collect_args();
     let args: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-    dispatch.dispatch(self, cmd, &args);
+    self.dispatch_via_hook(cmd, &args);
     true
   }
 
@@ -698,12 +730,18 @@ impl RespServerSession {
     if self.output.is_empty() {
       return false;
     }
+    self.sent.extend_from_slice(&self.output);
     self.flushed_bytes += self.output.len() as u64;
     if let Some(metrics) = &mut self.session_metrics {
       metrics.incr_total_net_output_bytes(self.output.len() as u64);
     }
     self.output.clear();
     true
+  }
+
+  /// 已发送字节（读后即清；C# SendResponse 写入网络侧的留档等价）
+  pub fn take_sent(&mut self) -> Vec<u8> {
+    mem::take(&mut self.sent)
   }
 
   /// 待发送字节（C# dcurr - GetResponseObjectHead）
@@ -713,7 +751,7 @@ impl RespServerSession {
 
   /// 取走待发送字节（C# Send(networkSender.GetResponseObjectHead())）
   pub fn take_output(&mut self) -> Vec<u8> {
-    let pending = take(&mut self.output);
+    let pending = mem::take(&mut self.output);
     self.flushed_bytes += pending.len() as u64;
     if let Some(metrics) = &mut self.session_metrics {
       metrics.incr_total_net_output_bytes(pending.len() as u64);
@@ -1040,6 +1078,177 @@ impl RespServerSession {
   }
 }
 
+impl RespServerSession {
+  /// libs/server/Lua/LuaCommands.cs:TryEVAL / TryEVALSHA / NetworkScript* 的
+  /// 会话侧接线：构建 [`LuaSessionContext`] 并分派（输出缓冲为脚本期本地
+  /// 缓冲，结束后并入会话输出）。
+  fn run_lua_command(&mut self, cmd: RespCommand) -> bool {
+    let Some(mut session_cache) = self.session_script_cache.take() else {
+      // C# CheckLuaEnabled：未启用直接回错
+      self.abort_with_error_message("ERR Lua is disabled.");
+      return true;
+    };
+    let store_cache = Arc::clone(&self.store_script_cache);
+    let owned = self.collect_args();
+    let args: Vec<Vec<u8>> = owned;
+    let mut script_out = Vec::new();
+    {
+      let mut api = RespScriptingApi(&mut *self);
+      let mut ctx = LuaSessionContext {
+        args: &args,
+        out: &mut script_out,
+        session_cache: &mut session_cache,
+        store_cache: &store_cache,
+        session: &mut api,
+        lua_enabled: true,
+        txn_mode: false,
+        redis_version: REDIS_PROTOCOL_VERSION,
+        lua_options: &LuaOptions::default(),
+      };
+      match cmd {
+        RespCommand::Eval => LuaCommands::try_eval(&mut ctx),
+        RespCommand::Evalsha => LuaCommands::try_evalsha(&mut ctx),
+        RespCommand::ScriptExists => LuaCommands::network_script_exists(&mut ctx),
+        RespCommand::ScriptFlush => LuaCommands::network_script_flush(&mut ctx),
+        RespCommand::ScriptLoad => LuaCommands::network_script_load(&mut ctx),
+        _ => true,
+      };
+    }
+    self.session_script_cache = Some(session_cache);
+    self.output.extend_from_slice(&script_out);
+    true
+  }
+
+  /// C# CheckACLPermissions：ACL 域为并行转写，NoAuth 语义下已认证会话恒
+  /// 放行（ScriptingApi 接入点；ACL 落地后改接用户权限集）。
+  /// 命名避让 admin_commands 域的 ACL 命令处理器（同名 C# 入口）
+  pub fn acl_allows_command(&self, command: &str) -> bool {
+    let _ = command;
+    !self.authenticator_can_authenticate
+  }
+
+  /// libs/server/Lua/LuaRunner.cs:InitializeNoScriptDetails（resp 域权威位图）
+  ///
+  /// NoScript 命令集按 [`RespCommand`] 判别值置位（C# RespCommandsInfo 的
+  /// NoScript 标志集）；FCALL/FUNCTION/EVAL_RO/EVALSHA_RO 判别值待 types 域
+  /// 扩表后由同一集合补齐（缺口已列入汇报）。
+  pub fn no_script_details() -> (i32, Vec<u64>) {
+    const NO_SCRIPT_COMMANDS: &[RespCommand] = &[
+      RespCommand::Eval,
+      RespCommand::Evalsha,
+      RespCommand::Flushall,
+      RespCommand::Flushdb,
+      RespCommand::Psubscribe,
+      RespCommand::Script,
+      RespCommand::Subscribe,
+      RespCommand::Swapdb,
+    ];
+    let bits = u64::BITS as usize;
+    let words = NO_SCRIPT_COMMANDS
+      .iter()
+      .map(|cmd| {
+        let raw: u16 = (*cmd).into();
+        raw as usize / bits
+      })
+      .max()
+      .unwrap_or(0)
+      + 1;
+    let mut bitmap = vec![0u64; words];
+    for cmd in NO_SCRIPT_COMMANDS {
+      let raw: u16 = (*cmd).into();
+      let bit = raw as usize;
+      bitmap[bit / bits] |= 1u64 << (bit % bits);
+    }
+    (0, bitmap)
+  }
+}
+
+/// 会话的 [`ScriptingApi`] 适配器（redis.call 落地面）
+///
+/// C# ProcessCommandFromScripting 把参数格式化为 RESP 请求后重入
+/// TryConsumeMessages；rust 侧经同一解析/分派路径，响应字节落入
+/// [`ScratchBufferNetworkSender`]。会话脚本缓存已由 [`RespServerSession::run_lua_command`]
+/// 暂时摘除，重入路径与脚本期借用互斥。
+struct RespScriptingApi<'a>(&'a mut RespServerSession);
+
+impl ScriptingApi for RespScriptingApi<'_> {
+  /// 分派 RESP 请求（C# TryConsumeMessages + ScratchBufferNetworkSender 组合）
+  fn dispatch_resp(&mut self, request: &[u8], sender: &mut ScratchBufferNetworkSender) {
+    let _ = self.0.try_consume_messages(request);
+    let response = self.0.take_sent();
+    sender.write_response_bytes(&response);
+  }
+
+  /// GET 特例（C# api.GET）：RESP 请求闭环后解析批量串/null 应答
+  fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, &'static str> {
+    let mut request = Vec::with_capacity(key.len() + 16);
+    request.write_resp_bulk_string(b"GET");
+    request.write_resp_bulk_string(key);
+    let mut sender = ScratchBufferNetworkSender::new();
+    self.dispatch_resp(&request, &mut sender);
+    parse_bulk_reply(sender.get_response())
+  }
+
+  /// SET 特例（C# api.SET）：+OK 或错误应答
+  fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), &'static str> {
+    let mut request = Vec::with_capacity(key.len() + value.len() + 24);
+    request.write_resp_bulk_string(b"SET");
+    request.write_resp_bulk_string(key);
+    request.write_resp_bulk_string(value);
+    let mut sender = ScratchBufferNetworkSender::new();
+    self.dispatch_resp(&request, &mut sender);
+    parse_simple_reply(sender.get_response())
+  }
+
+  fn resp_protocol_version(&self) -> u8 {
+    self.0.resp_protocol_version
+  }
+
+  fn update_resp_protocol_version(&mut self, version: u8) {
+    self.0.update_resp_protocol_version(version);
+  }
+
+  fn check_acl_permissions(&self, command: &str) -> bool {
+    self.0.acl_allows_command(command)
+  }
+
+  fn set_transaction_mode(&mut self, enabled: bool) {
+    self.0.set_transaction_mode(enabled);
+  }
+}
+
+/// 解析 RESP 批量串/null 应答（GET 特例回包）
+fn parse_bulk_reply(reply: &[u8]) -> Result<Option<Vec<u8>>, &'static str> {
+  if reply.first() == Some(&b'$') {
+    let text = str::from_utf8(&reply[1..]).map_err(|_| "protocol error")?;
+    let Some(crlf) = text.find("\r\n") else {
+      return Err("protocol error");
+    };
+    let len: isize = text[..crlf].parse().map_err(|_| "protocol error")?;
+    if len < 0 {
+      return Ok(None);
+    }
+    let start = 1 + crlf + 2;
+    let end = start + len as usize;
+    if reply.len() >= end {
+      return Ok(Some(reply[start..end].to_vec()));
+    }
+  }
+  if reply.first() == Some(&b'-') {
+    return Err("script error");
+  }
+  Err("protocol error")
+}
+
+/// 解析 RESP 简单串应答（SET 特例回包：+OK）
+fn parse_simple_reply(reply: &[u8]) -> Result<(), &'static str> {
+  match reply.first() {
+    Some(b'+') => Ok(()),
+    Some(b'-') => Err("script error"),
+    _ => Err("protocol error"),
+  }
+}
+
 /// 零号会话（测试与占位路径；C# internal RespServerSession() 空构造的等价）
 impl Default for RespServerSession {
   fn default() -> Self {
@@ -1114,7 +1323,7 @@ mod tests {
     )
   }
 
-  /// 空分派器：仅记账
+  /// 空分派器：仅记账（注入式：经 set_command_dispatch 挂载）
   struct NopDispatch;
   impl RespCommandDispatch for NopDispatch {
     fn dispatch(&mut self, session: &mut RespServerSession, cmd: RespCommand, _args: &[&[u8]]) {
@@ -1122,6 +1331,15 @@ mod tests {
         session.write_direct_large(b"+OK\r\n");
       }
     }
+  }
+
+  #[test]
+  fn dispatch_hook_routes_via_injection() {
+    let mut s = session(20);
+    s.set_command_dispatch(Box::new(NopDispatch));
+    s.parse_state.initialize(1);
+    assert!(s.process_array_commands(RespCommand::Echo));
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), "+OK\r\n");
   }
 
   #[test]
@@ -1320,12 +1538,12 @@ mod tests {
   fn client_id_writes_session_id() {
     let mut s = session(777);
     s.parse_state.initialize(0);
-    assert!(s.process_other_commands(RespCommand::ClientId, &mut NopDispatch));
+    assert!(s.process_other_commands(RespCommand::ClientId));
     assert_eq!(String::from_utf8(s.take_output()).unwrap(), ":777\r\n");
 
     // 带参数即报参数错误
     s.parse_state.initialize(1);
-    assert!(s.process_other_commands(RespCommand::ClientId, &mut NopDispatch));
+    assert!(s.process_other_commands(RespCommand::ClientId));
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-ERR wrong number of arguments for 'client|id' command\r\n"
@@ -1341,6 +1559,7 @@ mod tests {
       }
     }
     let mut s = session(11);
+    s.set_command_dispatch(Box::new(CustomDispatch));
     s.parse_state.initialize(2);
     s.current_custom_command = Some((
       RespCommand::Customtxn,
@@ -1351,7 +1570,7 @@ mod tests {
       },
     ));
     // arity 3 → 恰 2 参数 → 通过并清槽
-    assert!(s.network_custom_txn(&mut CustomDispatch));
+    assert!(s.network_custom_txn());
     assert!(s.current_custom_command.is_none());
 
     // arity 3 但 1 参数 → 参数错误且清槽
@@ -1364,7 +1583,7 @@ mod tests {
         arity: 3,
       },
     ));
-    assert!(s.network_custom_procedure(&mut CustomDispatch));
+    assert!(s.network_custom_procedure());
     assert!(s.current_custom_command.is_none());
     assert!(
       String::from_utf8(s.take_output())
@@ -1394,5 +1613,82 @@ mod tests {
     // 显式切换用户句柄（ACL 域接入点）
     s.set_user_handle("admin");
     assert_eq!(s.user_handle.as_deref(), Some("admin"));
+  }
+
+  #[test]
+  fn no_script_bitmap_sets_discriminants() {
+    let (start, bitmap) = RespServerSession::no_script_details();
+    assert_eq!(start, 0);
+    let bits = u64::BITS as usize;
+    for cmd in [
+      RespCommand::Eval,
+      RespCommand::Evalsha,
+      RespCommand::Flushall,
+      RespCommand::Flushdb,
+      RespCommand::Subscribe,
+      RespCommand::Swapdb,
+    ] {
+      let raw: u16 = cmd.into();
+      assert_ne!(
+        bitmap[raw as usize / bits] & (1 << (raw as usize % bits)),
+        0,
+        "{cmd:?} 应置位"
+      );
+    }
+    // 非 NoScript 命令不应置位
+    let raw: u16 = RespCommand::Get.into();
+    assert_eq!(
+      bitmap[raw as usize / bits] & (1 << (raw as usize % bits)),
+      0
+    );
+    // SCRIPT 判别值 278 落于第 5 个字，位图须覆盖
+    assert!(bitmap.len() > 4);
+  }
+
+  #[test]
+  fn eval_roundtrip_via_session() {
+    let mut s = RespServerSession::new(
+      30,
+      RespServerSessionOptions {
+        enable_lua: true,
+        ..RespServerSessionOptions::default()
+      },
+    );
+    // EVAL "return 'pong'" 0 → 脚本结果写回会话输出
+    let frame = b"*3\r\n$4\r\nEVAL\r\n$13\r\nreturn 'pong'\r\n$1\r\n0\r\n";
+    let consumed = s.try_consume_messages(frame);
+    assert!(consumed.is_some());
+    let out = s.take_sent();
+    let text = String::from_utf8_lossy(&out);
+    assert!(text.contains("pong"), "脚本结果应回写: {text}");
+
+    // SCRIPT LOAD + EXISTS 走同一会话面（经解析门控而非直调）
+    let out = s.take_sent();
+    assert!(out.is_empty());
+    let frame = b"*2\r\n$6\r\nSCRIPT\r\n$4\r\nLOAD\r\n";
+    let consumed = s.try_consume_messages(frame);
+    assert!(consumed.is_some());
+    let out = s.take_sent();
+    assert!(
+      String::from_utf8_lossy(&out).contains("ERR"),
+      "ScriptLoad 需源码参数: {out:?}"
+    );
+  }
+
+  #[test]
+  fn eval_disabled_rejects() {
+    let mut s = RespServerSession::new(
+      31,
+      RespServerSessionOptions {
+        enable_lua: false,
+        ..RespServerSessionOptions::default()
+      },
+    );
+    s.parse_state.initialize(2);
+    assert!(s.process_other_commands(RespCommand::Eval));
+    assert_eq!(
+      String::from_utf8(s.take_output()).unwrap(),
+      "-ERR Lua is disabled.\r\n"
+    );
   }
 }
