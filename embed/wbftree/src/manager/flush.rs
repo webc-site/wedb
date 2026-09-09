@@ -37,7 +37,11 @@ impl RangeIndexManager {
     let key_id = Self::key_id_of(key);
     let hash_prefix = Self::base32_prefix_of(key);
     let flush_path = match logical_address {
-      Some(addr) => self.log_flush_path(&hash_prefix, addr),
+      Some(addr) => {
+        // 带地址刷盘文件产生，重新开启惰性恢复的地址扫描通道
+        self.notice_addr_flush_files();
+        self.log_flush_path(&hash_prefix, addr)
+      }
       None => self.bare_flush_path(&hash_prefix),
     };
 

@@ -147,22 +147,31 @@ impl RangeIndexManager {
         // 拷贝失败必须传播：静默吞掉会回退到陈旧/部分写入的 data.bftree，
         // 恢复出错误树版本 (1:1 对标 C# File.Copy 异常传播语义)
         fs::copy(&flush_path, &data_path)?;
-      } else if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
-        let mut latest_candidate: Option<(i64, PathBuf)> = None;
-        for entry in entries.flatten() {
-          let path = entry.path();
-          if let Some(name_str) = path.file_name().and_then(|n| n.to_str())
-            && let Some((prefix, addr)) = Self::parse_flush_file_name(name_str)
-            && prefix == hash_prefix
-            && latest_candidate
-              .as_ref()
-              .is_none_or(|(max_addr, _)| addr > *max_addr)
-          {
-            latest_candidate = Some((addr, path));
+      } else if self.addr_flush_scan_pending() {
+        // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
+        // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
+        let mut found_flush = false;
+        if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
+          let mut latest_candidate: Option<(i64, PathBuf)> = None;
+          for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name_str) = path.file_name().and_then(|n| n.to_str())
+              && let Some((prefix, addr)) = Self::parse_flush_file_name(name_str)
+              && prefix == hash_prefix
+              && latest_candidate
+                .as_ref()
+                .is_none_or(|(max_addr, _)| addr > *max_addr)
+            {
+              latest_candidate = Some((addr, path));
+            }
+          }
+          if let Some((_, path)) = latest_candidate {
+            fs::copy(path, &data_path)?;
+            found_flush = true;
           }
         }
-        if let Some((_, path)) = latest_candidate {
-          fs::copy(path, &data_path)?;
+        if !found_flush {
+          self.settle_addr_flush_scan();
         }
       }
 
@@ -219,6 +228,8 @@ impl RangeIndexManager {
     let key_id = Self::key_id_of(key);
     let hash_prefix = Self::hash_prefix_of(key);
     let snapshot_path = self.log_flush_path(&hash_prefix, src_flush_address);
+    // 复制接收端预置带地址刷盘文件，重新开启恢复扫描通道
+    self.notice_addr_flush_files();
     if !snapshot_path.exists() {
       return Ok(());
     }
