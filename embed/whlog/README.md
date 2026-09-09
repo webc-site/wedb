@@ -49,6 +49,7 @@ The three regions: `[read_only, tail)` mutable (in-place updates), `[head, read_
 
 tests/ covers: append and in-memory reads, in-place updates with protection, page filling, flush and cold disk reads, RCU version chains, pending-flush merging, batch-flush Direct I/O, mixed disk/memory scans with early stop, recover snapshot invariants, resume-after-recovery, shift_read_only_to_tail, concurrent append stress, circular eviction, inplace lifecycle, revivify + Pad, Begin truncation, non-persisted prefix cleaning, torn-tail padding, config validation, cold-read precise trimming, disk page cache and adaptive loading, stale ranges and short writes, multi-segment recovery windows.
 
+
 ---
 
 <a name="zh"></a>
@@ -97,3 +98,4 @@ whlog 提供 Garnet Tsavorite 风格的 HybridLog 混合日志分配器：基于
 ## 测试覆盖
 
 tests/ 覆盖：追加与内存读、原位更新与保护、换页填充、刷盘与冷盘读、RCU 版本链、待刷盘合并、批量刷盘 Direct I/O、混合磁盘内存扫描与早停、recover 快照不变量、恢复续写、shift_read_only_to_tail、并发追加压测、环形回绕驱逐、inplace 生命周期、revivify + Pad、Begin 截断、非持久前缀清洗、残片 Pad、配置校验、冷读精确裁剪、磁盘页缓存与自适应装载、陈旧区间与短写、多段恢复窗口。
+

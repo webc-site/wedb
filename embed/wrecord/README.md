@@ -66,6 +66,7 @@ Order-preserving f64: IEEE 754 negatives flip all 64 bits, positives flip only t
 
 tests/ covers: record roundtrip and tombstone bit, zero-copy Ref / in-place Mut, filler dynamic slack, header bit layout and lifecycle chains; OPPV roundtrip / boundaries / monotonicity / non-canonical defense; MetaValue layout and state transitions, SubKey encoding; order-preserving f64 with extreme floats, zset sub-key lexicographic contract; compact hash / set / zset CRUD, ordering and rank, streaming range iteration; unaligned SIMD compare, tag roundtrips, sampling properties.
 
+
 ---
 
 <a name="zh"></a>
@@ -131,3 +132,4 @@ MetaValue 32B 大端布局：`[key_id u64 0..8][type 1B 8][reserved 7B 9..16（r
 ## 测试覆盖
 
 tests/ 覆盖：记录 roundtrip 与墓碑位、零拷贝 Ref / 原位 Mut、filler 动态松弛、头位布局与生命周期链；OPPV roundtrip / 边界 / 单调性 / 非规范防御；MetaValue 布局与状态迁移、SubKey 编解码；保序 f64 极端浮点、zset 子键字典序契约；紧凑 hash / set / zset 增删改查、排序与 rank、范围流式迭代；SIMD 非对齐比对、标签 roundtrip、抽样性质。
+

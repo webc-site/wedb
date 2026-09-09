@@ -44,6 +44,7 @@ Addressing invariant: capacity is always a power of two, `mask == buckets.len() 
 
 tests/index/ covers: cacheline alignment and bit-packing boundaries, tag-mask defense, shared/exclusive latch lifecycle and reader draining, lock upgrade/downgrade, multi-bucket deadlock-free ordering, full-contention stress, cross-chunk concurrent allocation, 1024+ deep overflow chains and cycle detection, concurrent RCU updates, find_tag probing, mixed insert/lookup workloads.
 
+
 ---
 
 <a name="zh"></a>
@@ -87,3 +88,4 @@ windex 提供 Garnet Tsavorite 风格的 64 字节缓存行对齐无锁并发哈
 ## 测试覆盖
 
 tests/index/ 覆盖：缓存行对齐与位打包边界、tag 掩码防御、共享 / 独占闩生命周期与读者排空、锁升级降级、多桶防死锁排序、满竞争压测、跨 Chunk 并发分配、1024+ 深溢出链与链环检测、并发 RCU 更新、find_tag 探测、混合负载插查。
+

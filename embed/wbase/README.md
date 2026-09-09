@@ -71,6 +71,7 @@ Designed for multi-core high-concurrency and compio thread-per-core reactor mode
 2. **compio Friendly**: Backoff state machines cleanly expose stages, preventing synchronous sleep calls from freezing reactor worker threads.
 3. **Orthogonal Decoupling**: Upstream crates (`wrecord`, `windex`, `wreviv`, `wram`, `wepoch`) import only their required features.
 
+
 ---
 
 <a name="zh"></a>
@@ -141,3 +142,4 @@ Designed for multi-core high-concurrency and compio thread-per-core reactor mode
 1. **零成本抽象与单一真源**：所有物理掩码在编译期直接折叠，不产生运行时损耗。
 2. **compio 友好**：退避状态机显式暴露阶段，彻底消除异步上下文误调同步阻塞 sleep 冻结 reactor 的隐患。
 3. **架构正交解耦**：上层模块如 `wrecord`、`windex`、`wreviv`、`wram`、`wepoch` 按需引入特定特性，彻底消除平级相互穿透。
+

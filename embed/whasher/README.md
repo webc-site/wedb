@@ -312,6 +312,7 @@ bun x mdt
 
 The test script invokes `cargo nextest run --all-features --no-capture` and requires Cargo Nextest. The document generator requires Bun. The package inherits workspace lint settings.
 
+
 ---
 
 <a name="zh"></a>
@@ -623,3 +624,4 @@ bun x mdt
 ```
 
 测试脚本调用 `cargo nextest run --all-features --no-capture`，需要 Cargo Nextest。文档生成需要 Bun。包继承工作区 lint 设置。
+

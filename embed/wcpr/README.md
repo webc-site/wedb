@@ -43,6 +43,7 @@ wcpr provides checkpoint persistence and crash recovery (CPR): the coordinated s
 
 Inline tests in manager.rs cover only: token issuance gate monotonicity (rollback continuation, directory floor clamping, combined paths) and sync_dir_tree (nested trees / empty dirs / empty files, idempotency, missing-dir errors). Checkpoint create/recovery roundtrips, FoldOver / Snapshot, failure cleanup, the purge family, index snapshot read/write with truncation tolerance, and strict integrity enforcement with legacy pass-through are covered by the wkv/tests/checkpoint integration suites (recovery / edge / checkpoint_manager / index_checkpoint / fault_defense).
 
+
 ---
 
 <a name="zh"></a>
@@ -85,3 +86,4 @@ wcpr 提供检查点持久化与崩溃恢复（CPR）：协同快照状态机、
 ## 测试覆盖
 
 manager.rs 内联测试仅覆盖：token 签发闸门单调性（墙钟回拨续发、目录下界钳制、叠加路径）与 sync_dir_tree（嵌套树 / 空目录 / 空文件、幂等、缺目录报错）。检查点创建 / 恢复往返、FoldOver / Snapshot、失败清场、purge 系列、索引快照读写与截断容错、完整性强校验与遗留格式放行由 wkv/tests/checkpoint 集成套件（recovery / edge / checkpoint_manager / index_checkpoint / fault_defense）覆盖。
+

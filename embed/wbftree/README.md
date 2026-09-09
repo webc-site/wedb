@@ -45,6 +45,7 @@ wbftree provides the Rust service layer for the Bf-Tree ordered storage engine a
 
 tests/ covers: record capacity boundaries, disk reopen and CPR snapshot recovery, multi-reader multi-writer concurrency, nested barriers and tear-free snapshots; lock stripe count / alignment / contention, stub encoding and slice helpers, leaf_page_size derivation, manager lifecycle / checkpoint / truncate / replication enumeration / duplicate-create defense / strict flush filename parsing; chunked serialization roundtrip, cross-chunk boundaries and empty chunks, error-state termination, checksum corruption, streaming reads; interop lifecycle and disposal, zero-allocation point read/write/delete contract, scan counts / end keys / field selection / ordering, snapshot recovery roundtrip and corrupted-snapshot errors.
 
+
 ---
 
 <a name="zh"></a>
@@ -82,10 +83,11 @@ wbftree 提供块级有序存储引擎 Bf-Tree 的 Rust 服务层与 RangeIndex 
 
 - thread-per-core 契约：全同步 API、无运行时依赖；点读 / 写路径零条带锁（引擎内部叶子闩锁保并发），跨线程共享 `Arc<BfTreeService>`；仅生命周期变更（创建 / 惰性恢复 / 注销 / 删除）取 `RangeIndexLocks` 条带写锁；在线引用为 papaya 无锁字典，读侧 pin 快照与写侧互不阻塞；删除树延迟到 `Arc` 引用归零
 - 快照写屏障：「屏障计数 + 在途写者计数」双 AtomicUsize，SeqCst store-buffering（Dekker）配对；屏障计数式、可嵌套，写者阻塞至最外层守卫丢弃，按自旋 → yield → 微睡阶梯短暂退避，树对写静稳、快照无撕裂；排空超 30s 以 `Error::Timeout` 显式上抛；持守卫窗口内严禁 await / 同线程 I/O 事件
-- 键语义：键全程 `&[u8]` 二进制安全零拷贝；128 位键 ID 由 gxhash128 派生（专用种子域，摘要域与用户数据域隔离），文件名前缀即该 ID 的 26 字符 Base32 编码
+- 键语义：键全程 `&[u8]` 二进制安全零拷贝；128 位键 ID 由 gxhash128 派生（专用种子域，摘要域与用户数据域隔离），文件名前缀即该 ID 的 32 字符十六进制编码
 - 惰性恢复：get_or_open_tree 先把刷盘快照（裸名优先，否则取最大地址）复制为数据文件，数据文件带 CPR 魔数（`BF-TREE-V0-BEGIN`）则走快照恢复，否则按存根重建 / 重开树；on_flush 冷树复制数据文件并置 flushed 位
 - 叶页尺寸推导：`max_record_size` ≤2KB 时取 4096，否则按 2.5 倍封顶 32768 后向上取 2 的幂
 
 ## 测试覆盖
 
 tests/ 覆盖：记录容量边界、磁盘重开与 CPR 快照恢复、多读多写并发、屏障嵌套与快照无撕裂；锁条带数 / 对齐 / 竞争、stub 编解码与 slice 助手、leaf_page_size 推导、manager 生命周期 / 检查点 / 截断 / 复制枚举 / 重复创建防护 / flush 文件名严格解析；分块序列化 round_trip、跨块边界与空块、错误态终结、checksum 损坏、流式读取；interop 生命周期与销毁、点读写删零分配契约、扫描计数 / 端键 / 字段选择 / 排序、快照恢复往返与损坏快照报错。
+

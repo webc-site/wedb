@@ -32,7 +32,7 @@ wkv is the top-level single-node hybrid storage engine: it integrates the windex
 ## Core API
 
 - `WedbStore`: open / open_shared / from_components / from_components_with_bftree / new_session / start_gc / gc_handle / shift_read_only_address / flush_all / flush_and_evict_all / truncate / expired_key_deletion_scan / raise_key_id_floor
-- `StoreConfig`: four constructors auto / auto_with_budget / minimal / new (Default = minimal); builder chain with_max_sessions / with_revivification / with_read_cache(\_pages) / with_compaction_freq_secs / with_compaction_max_seek_bytes / with_bftree_path / with_range_index_dir / with_gc; `DEFAULT_INDEX_SIZE = 65536`, `DEFAULT_MEMORY_PERCENT = 25`, budget floor 256MB, ceiling 32GB
+- `StoreConfig`: four constructors auto / auto_with_budget / minimal / new (Default = minimal); builder chain with_max_sessions / with_revivification / with_read_cache(\_pages) / with_bftree_path / with_range_index_dir / with_gc; `DEFAULT_INDEX_SIZE = 65536`, `DEFAULT_MEMORY_PERCENT = 25`, budget floor 256MB, ceiling 32GB
 - `StoreSession`: upsert / read / delete, three-state try_upsert_sync (success returns the record address — a new address for tail appends, the original address for in-place updates / in-chain revival / revivification-pool reuse; page-flip returns the page id to evict; u64::MAX means TTL clearing must fall back to the async path), try_modify_in_place, enter_batch, physical key encoding (session_string_key / meta_key / hash_sub_key / chunk_key)
 - `BatchStoreSession`: batch processing with a single epoch protection; `*_unprotected` zero-atomic-overhead fast paths
 - `GcManager` / `GcHandle` / `GcStatsSnapshot`; `ReadCache` (append / with_record / skip_read_cache)
@@ -51,6 +51,7 @@ wkv is the top-level single-node hybrid storage engine: it integrates the windex
 ## Test Coverage
 
 tests/ covers: basic reads/writes, in-place overwrite, RCU version chains, tombstone delete and revival, multi-session concurrency, page-turn eviction cold reads, RMW and shared-BfTree open modes; store suites crud / flush_evict / defense / reviv / collision_chain; compact suites (basic / lazy / concurrency-collision / spanbyte / multi-round); checkpoint suites (recovery / edge / manager / index_checkpoint / fault_defense); gc and config defaults.
+
 
 ---
 
@@ -83,16 +84,8 @@ wkv 是顶层单机混合存储引擎：整合 windex 哈希索引 + whlog Hybri
 
 ## 核心 API
 
-<<<<<<< HEAD
-
-- `WedbStore`：open / open_shared / from_components / from_components_with_bftree / new_session / start_gc / set_gc_compactor / gc_handle / shift_read_only_address / flush_all / flush_and_evict_all / truncate / expired_key_deletion_scan / raise_key_id_floor
-- `StoreConfig`：四个构造函数 auto / auto_with_budget / minimal / new（Default = minimal）；builder 链 with_max_sessions / with_revivification / with_read_cache(\_pages) / with_compaction_freq_secs / with_compaction_max_seek_bytes / with_bftree_path / with_range_index_dir / with_gc；`DEFAULT_INDEX_SIZE = 65536`、`DEFAULT_MEMORY_PERCENT = 25`、预算下限 256MB、上限 32GB
-  ||||||| f024874
-- `WedbStore`：open / open_shared / from_components / from_components_with_bftree / new_session / start_gc / set_gc_compactor / gc_handle / shift_read_only_address / flush_all / flush_and_evict_all / truncate / expired_key_deletion_scan / raise_key_id_floor
-- # `StoreConfig`：四个构造函数 auto / auto_with_budget / minimal / new（Default = minimal）；builder 链 with_max_sessions / with_revivification / with_read_cache(\_pages) / with_compaction_freq_secs / with_compaction_max_seek_bytes / with_bftree_path / with_range_index_dir / with_gc；`DEFAULT_INDEX_SIZE = 65536`、`DEFAULT_MEMORY_PERCENT = 25`、预算下限 256MB、上限 32GB
 - `WedbStore`：open / open_shared / from_components / from_components_with_bftree / new_session / start_gc / gc_handle / shift_read_only_address / flush_all / flush_and_evict_all / truncate / expired_key_deletion_scan / raise_key_id_floor
-- `StoreConfig`：四个构造函数 auto / auto_with_budget / minimal / new（Default = minimal）；builder 链 with_max_sessions / with_revivification / with_read_cache(\_pages) / with_compaction_freq_secs / with_compaction_max_seek_bytes / with_bftree_path / with_range_index_dir / with_gc；`DEFAULT_INDEX_SIZE = 65536`、`DEFAULT_MEMORY_PERCENT = 25`、预算下限 256MB、上限 32GB
-  > > > > > > > fork_wkv_wbftree
+- `StoreConfig`：四个构造函数 auto / auto_with_budget / minimal / new（Default = minimal）；builder 链 with_max_sessions / with_revivification / with_read_cache(\_pages) / with_bftree_path / with_range_index_dir / with_gc；`DEFAULT_INDEX_SIZE = 65536`、`DEFAULT_MEMORY_PERCENT = 25`、预算下限 256MB、上限 32GB
 - `StoreSession`：upsert / read / delete、try_upsert_sync 三态（成功返回记录地址——尾部追加为新地址，原位更新 / 链内复活 / 复活池复用为原地址；环形缓冲翻转返回待驱逐页号；u64::MAX 表示 TTL 清除需降级异步路径）、try_modify_in_place、enter_batch、物理键编码（session_string_key / meta_key / hash_sub_key / chunk_key）
 - `BatchStoreSession`：批处理单次纪元保护，`*_unprotected` 零原子开销快路径
 - `GcManager` / `GcHandle` / `GcStatsSnapshot`；`ReadCache`（append / with_record / skip_read_cache）
@@ -111,3 +104,4 @@ wkv 是顶层单机混合存储引擎：整合 windex 哈希索引 + whlog Hybri
 ## 测试覆盖
 
 tests/ 覆盖：基本读写、原位覆写、RCU 版本链、墓碑删除与复活、多会话并发、换页驱逐冷读、RMW 与共享 BfTree 打开形态；store 的 crud / flush_evict / defense / reviv / collision_chain；compact 套件（basic / lazy / 并发碰撞 / spanbyte / 多轮紧缩）；checkpoint 套件（recovery / edge / manager / index_checkpoint / fault_defense）；gc 与配置默认值。
+

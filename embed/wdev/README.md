@@ -47,6 +47,7 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 
 tests/device/ covers: alignment and invalid parameters, cross-segment round_trip, boundary and overflow defense, sync durability and directory fsync lifecycle, segment recovery and mismatch detection, truncate and reset, capacity eviction, 32/64-way concurrency and cold-open races, null device.
 
+
 ---
 
 <a name="zh"></a>
@@ -93,3 +94,4 @@ wdev 提供段文件设备（`SegmentedDevice`）、Direct I/O 与设备抽象�
 ## 测试覆盖
 
 tests/device/ 覆盖：对齐与非法参数、跨段读写 round_trip、边界与溢出防御、sync 持久化与目录 fsync 生命周期、段恢复与不匹配检测、截断与 reset、容量逐出、32/64 并发与冷打开竞态、null 设备。
+

@@ -49,6 +49,7 @@ Deliberate differences from the C# implementation (one implementation per featur
 
 Covers: pool lifecycle with slack fill, slot-pack state machine; First / Best-Fit allocation sequences, min_address boundaries, same-size tie determinism, max_bins limits; single-slot contention and multi-thread stress, active_count invariants; capacity overflow, bulk purge_below, expired-slot replacement, CAS ABA defense, scan-limit clamping, parameter boundary defense, non-monotonic min_address safety.
 
+
 ---
 
 <a name="zh"></a>
@@ -97,3 +98,4 @@ wreviv 提供内存记录槽位的复活（revivification）回收：把 HybridL
 ## 测试覆盖
 
 覆盖：池生命周期与松弛填充、槽位打包状态机；First / Best-Fit 分配序列、min_address 边界、同尺寸平局确定性、max_bins 限制；单槽位竞争与多线程压测、active_count 不变量；容量溢出、批量 purge_below、过期槽位替换、CAS ABA 防御、扫描上限钳位、参数边界防御、非单调 min_address 安全。
+

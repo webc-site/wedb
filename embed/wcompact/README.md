@@ -42,6 +42,7 @@ wcompact provides the HybridLog online compactor: it scans the read-only region 
 
 Inline tests in compactor.rs cover only: CompactionStats defaults / is_empty and MetaDeathScope death registration. The Lookup / Scan strategies, three TTL rules, CAS contention fallback, statistics accounting, and lazy budget constraints are covered by the wkv/tests/compact integration suites (basic / lazy_compaction / concurrency_and_collision / spanbyte_compaction / more_log_compaction).
 
+
 ---
 
 <a name="zh"></a>
@@ -83,3 +84,4 @@ wcompact 提供 HybridLog 在线紧缩器：扫描只读区判死活，把活记
 ## 测试覆盖
 
 compactor.rs 内联测试仅覆盖：CompactionStats 默认值 / is_empty 与 MetaDeathScope 死亡登记。Lookup / Scan 两策略、TTL 三规则、CAS 竞争回退、统计口径与 lazy 预算约束由 wkv/tests/compact 集成套件（basic / lazy_compaction / concurrency_and_collision / spanbyte_compaction / more_log_compaction）覆盖。
+

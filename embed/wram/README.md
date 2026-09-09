@@ -330,6 +330,7 @@ Sector-aligned buffer pool.
 - `class_capacity_bytes(cls, sector_size) -> usize`: class capacity in bytes (const).
 - `current_thread_id() -> u64`: process-wide increasing thread ID.
 
+
 ---
 
 <a name="zh"></a>
@@ -654,3 +655,4 @@ pub struct SectorRange {
 - `class_capacity_sectors(cls) -> usize`：class 扇区容量（const，越界饱和）。
 - `class_capacity_bytes(cls, sector_size) -> usize`：class 字节容量（const）。
 - `current_thread_id() -> u64`：进程内递增线程 ID。
+
