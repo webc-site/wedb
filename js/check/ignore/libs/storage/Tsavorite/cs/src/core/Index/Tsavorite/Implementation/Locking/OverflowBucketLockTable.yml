@@ -1,2 +1,14 @@
 fn:
-  - GetBucket
+  - GetSize
+  - GetBucketIndex
+  - TryLockShared
+  - TryLockExclusive
+  - TryPromoteLock
+  - UnlockShared
+  - UnlockExclusive
+  - IsLockedShared
+  - IsLockedExclusive
+  - GetLockState
+  - KeyHashComparer
+  - CompareKeyHashes
+  - SortKeyHashes

@@ -1,2 +1,9 @@
 fn:
-  - MapPage
+  - GetCurrentThread
+  - SetThreadAffinityMask
+  - LinuxMmap
+  - LinuxMunmap
+  - LinuxSchedSetAffinity
+  - Unmap
+  - TryPin
+  - PinFailed

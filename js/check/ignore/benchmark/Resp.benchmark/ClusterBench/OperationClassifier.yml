@@ -1,2 +1,3 @@
 fn:
-  - GetCorrespondingReadOperation
+  - IsReadOperation
+  - IsWriteOperation

@@ -1,4 +1,4 @@
 fn:
-  - GetStatus
-  - OnCompleted
-  - GetResult
+  - Signal
+  - ResetStatus
+  - ThrowConcurrentWaitersNotSupported
