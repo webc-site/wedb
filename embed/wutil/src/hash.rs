@@ -66,13 +66,6 @@ pub fn murmur_hash3_x64_a(b_string: &[u8], seed: u32) -> u64 {
   fmix64(h1)
 }
 
-/// garnet/libs/common/HashUtils.cs:MurmurHash3x64
-#[inline]
-pub fn murmur_hash3_x64(b_string: &[u8], seed: u32) -> u64 {
-  let (h1, _) = murmur_hash3_x128(b_string, seed);
-  h1
-}
-
 /// garnet/libs/common/HashUtils.cs:MurmurHash3x128
 #[inline]
 pub fn murmur_hash3_x128(b_string: &[u8], seed: u32) -> (u64, u64) {

@@ -205,8 +205,8 @@ fn multiple_pools_different_sector_sizes_no_corruption() -> Void {
     let mut a = pool_a.get_with_policy(2000, false)?;
     let mut b = pool_b.get_with_policy(2000, false)?;
 
-    assert_eq!(a.as_buf_ptr() as usize % MIN_SECTOR_SIZE, 0);
-    assert_eq!(b.as_buf_ptr() as usize % DEFAULT_SECTOR_SIZE, 0);
+    assert_eq!(a.as_allocated_slice().as_ptr() as usize % MIN_SECTOR_SIZE, 0);
+    assert_eq!(b.as_allocated_slice().as_ptr() as usize % DEFAULT_SECTOR_SIZE, 0);
     assert!(a.capacity() >= 2000);
     assert!(b.capacity() >= 2000);
 
@@ -238,7 +238,7 @@ fn recycled_pool_is_isolated_from_stale_tls_shard() -> Void {
     for _ in 0..8 {
       let mut p = new.get_with_policy(2000, false)?;
       assert_eq!(
-        p.as_buf_ptr() as usize % DEFAULT_SECTOR_SIZE,
+        p.as_allocated_slice().as_ptr() as usize % DEFAULT_SECTOR_SIZE,
         0,
         "第 {round} 轮: 复用槽位的新池不得提供旧池 512 对齐缓冲"
       );

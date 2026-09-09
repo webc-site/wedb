@@ -1,7 +1,4 @@
 use core::str::from_utf8;
-/// garnet/libs/common/NumUtils.cs:BytesPerULong
-pub const BYTES_PER_ULONG: i32 = 8;
-
 /// garnet/libs/common/NumUtils.cs:CountDigits
 pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
   if value == i64::MIN {
@@ -65,48 +62,6 @@ pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
     return 18;
   }
   19
-}
-
-/// 小数部分最长判定位数（对标 C# 循环上限，10^-14 精度内收敛）
-const MAX_FRACTIONAL_DIGITS: i32 = 14;
-
-/// garnet/libs/common/NumUtils.cs:CountCharsInDouble
-pub fn count_chars_in_double(
-  mut value: f64,
-  integer_digits: &mut i32,
-  sign_size: &mut u8,
-  fractional_digits: &mut i32,
-) -> i32 {
-  if value == 0.0 {
-    *integer_digits = 1;
-    *sign_size = 0;
-    *fractional_digits = 0;
-    return 1;
-  }
-
-  *sign_size = if value < 0.0 { 1 } else { 0 };
-  value = value.abs();
-  *integer_digits = if value < 10.0 {
-    1
-  } else {
-    value.log10() as i32 + 1
-  };
-
-  // 每轮的缩放幂只计算一次，左右各复用（原实现每轮重复 powi 两次）
-  *fractional_digits = 0;
-  let mut scale = 10_f64.powi(0);
-  while *fractional_digits <= MAX_FRACTIONAL_DIGITS {
-    let rounded = (value * scale).round() / scale;
-    if (value - rounded).abs() > 2.0 * f64::EPSILON {
-      *fractional_digits += 1;
-      scale *= 10.0;
-    } else {
-      break;
-    }
-  }
-
-  let dot_size = if *fractional_digits != 0 { 1 } else { 0 };
-  *sign_size as i32 + *integer_digits + dot_size + *fractional_digits
 }
 
 /// 生成 `TryParse` 系列：UTF-8 解码 + 类型解析，成功写入 `value` 返回 true

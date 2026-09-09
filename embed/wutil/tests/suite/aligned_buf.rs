@@ -20,7 +20,7 @@ fn aligned_pointer_matches_expected_alignment() -> Void {
   for sector_size in [MIN_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, 8192] {
     for size in [1, 511, 512, 1000, 4096, 7777] {
       let buf = AlignedBuf::new(size, sector_size)?;
-      let ptr = buf.as_buf_ptr() as usize;
+      let ptr = buf.as_allocated_slice().as_ptr() as usize;
       assert_eq!(
         ptr % sector_size,
         0,
@@ -32,7 +32,7 @@ fn aligned_pointer_matches_expected_alignment() -> Void {
       // from_slice 拷贝创建路径同样必须对齐
       let copied = AlignedBuf::from_slice(&[0u8; 64], sector_size)?;
       assert_eq!(
-        copied.as_buf_ptr() as usize % sector_size,
+        copied.as_allocated_slice().as_ptr() as usize % sector_size,
         0,
         "from_slice 指针必须按 {sector_size} 对齐"
       );
@@ -74,7 +74,7 @@ fn set_len_clear_and_len_bound_checks() -> Void {
   assert_eq!(buf.capacity(), DEFAULT_SECTOR_SIZE);
   assert_eq!(buf.len(), 0);
   assert!(buf.is_ptr_aligned());
-  assert_eq!((buf.as_buf_ptr() as usize) % DEFAULT_SECTOR_SIZE, 0);
+  assert_eq!((buf.as_allocated_slice().as_ptr() as usize) % DEFAULT_SECTOR_SIZE, 0);
 
   // set_len 推进逻辑长度
   buf.set_len(1024)?;
@@ -109,7 +109,7 @@ fn set_len_clear_and_len_bound_checks() -> Void {
 fn zeroed_buffer_len_equals_capacity_and_all_zero() -> Void {
   info!("验证 zeroed 系列构造 len == capacity 且逐字节为 0");
 
-  let zbuf = AlignedBuf::zeroed_with_sector_size(DEFAULT_SECTOR_SIZE)?;
+  let zbuf = AlignedBuf::zeroed(DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE)?;
   assert_eq!(zbuf.len(), DEFAULT_SECTOR_SIZE);
   assert_eq!(zbuf.capacity(), DEFAULT_SECTOR_SIZE);
   assert!(zbuf.iter().all(|&b| b == 0));
@@ -187,7 +187,7 @@ fn io_buf_and_io_buf_mut_trait_contract() -> Void {
 
   assert_eq!(buf.len(), data.len());
   assert_eq!(buf.as_init(), data);
-  assert_eq!(buf.buf_ptr(), buf.as_buf_ptr());
+  assert_eq!(buf.buf_ptr(), buf.as_allocated_slice().as_ptr());
 
   // Reader 适配器按已初始化数据消费
   let reader = buf.into_reader();
