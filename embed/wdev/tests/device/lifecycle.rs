@@ -300,14 +300,12 @@ fn storage_device_trait_dispatch() -> Void {
 /// 对标 POSIX 语义：fsync 文件不保证新建文件崩溃后可见，须 fsync 父目录。
 #[test]
 fn new_segment_creation_fsyncs_parent_dir() -> Void {
-  use std::sync::atomic::Ordering;
-
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
     let device = SegmentedDevice::segmented(dir.path().join("dirsync.log"), seg_size)?;
-    assert_eq!(device.dir_syncs.load(Ordering::Relaxed), 0);
+    assert_eq!(device.dir_sync_count(), 0);
 
     // 写入段 0：物理新建段文件，触发一次父目录 fsync
     // Windows 无目录 fsync 原语（sync_dir 恒 false），计数不增
@@ -318,20 +316,20 @@ fn new_segment_creation_fsyncs_parent_dir() -> Void {
     let (res, _) = device.write_aligned(0, buf).await;
     assert_eq!(res?, 4096);
     dir_syncs_total += per_new_segment;
-    assert_eq!(device.dir_syncs.load(Ordering::Relaxed), dir_syncs_total);
+    assert_eq!(device.dir_sync_count(), dir_syncs_total);
 
     // 命中句柄缓存的重复写入不重复刷目录
     let buf = AlignedBuf::from_slice(&pattern, 4096)?;
     let (res, _) = device.write_aligned(0, buf).await;
     assert_eq!(res?, 4096);
-    assert_eq!(device.dir_syncs.load(Ordering::Relaxed), dir_syncs_total);
+    assert_eq!(device.dir_sync_count(), dir_syncs_total);
 
     // 跨到段 1：再次新建段文件
     let buf = AlignedBuf::from_slice(&pattern, 4096)?;
     let (res, _) = device.write_aligned(seg_size, buf).await;
     assert_eq!(res?, 4096);
     dir_syncs_total += per_new_segment;
-    assert_eq!(device.dir_syncs.load(Ordering::Relaxed), dir_syncs_total);
+    assert_eq!(device.dir_sync_count(), dir_syncs_total);
     device.sync().await?;
 
     // reset 后按需重开既有段：文件已存在，不触发目录 fsync
@@ -340,7 +338,7 @@ fn new_segment_creation_fsyncs_parent_dir() -> Void {
     let (res, check) = device.read_aligned(0, check).await;
     assert_eq!(res?, 4096);
     assert_eq!(check.as_slice(), &pattern[..]);
-    assert_eq!(device.dir_syncs.load(Ordering::Relaxed), dir_syncs_total);
+    assert_eq!(device.dir_sync_count(), dir_syncs_total);
 
     // 集成验证：目录项已持久 —— 全新设备实例 recover 可见段 0/1 连续区间
     drop(device);

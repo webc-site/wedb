@@ -36,7 +36,19 @@ use crate::{
 ///
 /// papaya 无锁并发字典 + gxhash 硬件加速构建器，与 `whasher::GxPapayaMap` 同款构造；
 /// 设备层作为最底层 crate 刻意直依赖 papaya + gxhash，不引入整个哈希工具库
-pub type FileMap = PapayaMap<(u64, u32), Arc<File>, GxBuildHasher>;
+pub(crate) type FileMap = PapayaMap<(u64, u32), Arc<File>, GxBuildHasher>;
+
+/// 构造 papaya + gxhash 无锁并发字典（句柄表 / 延迟删除队列共用）
+#[inline]
+fn concurrent_map<K, V>() -> PapayaMap<K, V, GxBuildHasher>
+where
+  K: Send + Sync + 'static,
+  V: Send + Sync + 'static,
+{
+  PapayaMap::builder()
+    .hasher(GxBuildHasher::default())
+    .build()
+}
 
 /// sync 持久化契约守护跟踪的段数上限（仅 debug 构建参与编译，release 零成本）
 ///
@@ -45,36 +57,42 @@ pub type FileMap = PapayaMap<(u64, u32), Arc<File>, GxBuildHasher>;
 #[cfg(debug_assertions)]
 const SYNC_GUARD_SEGMENTS: usize = 128;
 
-/// 空白守护位图初值（构造复用的编译期常量表达式）
-#[cfg(debug_assertions)]
-#[inline]
-fn empty_dirty_segs() -> [AtomicU64; 2] {
-  [const { AtomicU64::new(0) }; 2]
-}
-
 /// 基于段文件管理与 Direct I/O 的异步块存储设备
+///
+/// 字段全部私有：原子字段（start/end segment、direct_io、句柄表、守护位图）的
+/// 不变量由设备自身维护，外部经 getter 与 `Device` trait 观测
 pub struct SegmentedDevice {
   /// 基础路径（单文件模式下的文件路径，或分段模式下的路径前缀）
-  pub base_path: PathBuf,
+  base_path: PathBuf,
   /// 单段文件大小（None 表示单文件无界模式）
-  pub segment_size: Option<u64>,
+  segment_size: Option<u64>,
   /// 物理扇区大小（字节数，至少 512，须为 2 的幂）
-  pub sector_size: usize,
+  sector_size: usize,
   /// 是否处于只读模式（对标 C# StorageDeviceBase / ManagedLocalStorageDevice readOnly 参数）
-  pub read_only: bool,
+  read_only: bool,
   /// 首次创建段文件时是否预分配段尺寸物理空间（对标 C# preallocateFile 参数）
-  pub preallocate: bool,
+  preallocate: bool,
   /// 析构关闭时是否自动物理删除段文件（对标 C# deleteOnClose 参数）
-  pub delete_on_close: bool,
+  delete_on_close: bool,
   /// 已打开的段文件句柄缓存（按 (线程ID, 段编号) 隔离；跨线程仅共享记账，
   /// 全局 sync 可在任意线程遍历并 fsync 全部句柄，见 `sync` 文档）
   ///
   /// 使用 gxhash SIMD 极速哈希器与 papaya 无锁并发哈希字典
-  pub files: FileMap,
+  files: FileMap,
   /// 起始有效段编号（小于此编号的段已被截断，禁止访问；对齐 Garnet begin_segment_）
+<<<<<<< HEAD
   pub start_segment: AtomicU32,
   /// 已写入的最高段编号（-1 表示尚未写入；对齐 libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:endSegment）
   pub end_segment: AtomicI32,
+||||||| e5513e1
+  pub start_segment: AtomicU32,
+  /// 已写入的最高段编号（-1 表示尚未写入；对齐 C# StorageDeviceBase.endSegment）
+  pub end_segment: AtomicI32,
+=======
+  start_segment: AtomicU32,
+  /// 已写入的最高段编号（-1 表示尚未写入；对齐 C# StorageDeviceBase.endSegment）
+  end_segment: AtomicI32,
+>>>>>>> review/r1-wdev
   /// 是否启用 Direct I/O（对齐 C# 设备族默认策略：Linux 原生设备 O_DIRECT，
   /// 其余平台 Managed 设备缓冲 I/O）
   ///
@@ -82,7 +100,7 @@ pub struct SegmentedDevice {
   /// 支持性，不支持类错误一次性定型为 false 并驱逐既有 O_DIRECT 句柄，此后写入路径
   /// 不存在运行中翻转——定型后 Direct 打开失败直接上抛（对齐 C# NativeDevice：
   /// 打开失败即异常，无静默回退）
-  pub direct_io: AtomicBool,
+  direct_io: AtomicBool,
   /// O_DIRECT 支持性是否已探测定型（Linux 专属协议位；false 时下次 open_file 探测）
   #[cfg(target_os = "linux")]
   direct_io_probed: AtomicBool,
@@ -92,12 +110,12 @@ pub struct SegmentedDevice {
   #[cfg(windows)]
   pending_removes: PapayaMap<u32, (), GxBuildHasher>,
   /// 设备容量上限（字节；None 对应 C# Devices.CAPACITY_UNSPECIFIED）
-  pub capacity: Option<u64>,
+  capacity: Option<u64>,
   /// 关联的扇区对齐缓冲池 (对应 C# RandomAccessLocalStorageDevice.pool)
-  pub pool: Arc<BufferPool>,
+  pool: Arc<BufferPool>,
   /// 新建段文件后父目录 fsync 的执行次数（可观测 hook：持久化目录项，保证
   /// 断电崩溃后新建段文件仍可见，详见 `sync_dir`）
-  pub dir_syncs: AtomicU64,
+  dir_syncs: AtomicU64,
   /// sync 持久化契约守护（仅 debug 构建参与编译，release 零成本）：
   /// 前 128 段的"已写入待 sync"全局位图。write 成功后置位、全局 sync 覆盖后清位，
   /// `sync_internal` 末尾校验全部在册写入均被本次 fsync 覆盖（段被截断推进
@@ -213,6 +231,10 @@ impl SegmentedDevice {
   }
 
   /// 以指定共享缓冲池创建块存储设备 (对应 C# 注入外部 bufferPool 语义)
+  ///
+  /// Rust 补齐防御：注入池的扇区必须与设备扇区一致——错配时池化缓冲区的
+  /// 地址/长度对齐口径与设备 Direct I/O 要求错位，运行期才以 EINVAL 暴露；
+  /// 构造期直接拒绝（C# RandomAccessLocalStorageDevice 无此校验，属其隐患）
   pub fn with_pool(
     base_path: impl Into<PathBuf>,
     segment_size: Option<u64>,
@@ -223,6 +245,12 @@ impl SegmentedDevice {
       return Err(Error::InvalidSectorSize {
         size: sector_size,
         min: MIN_SECTOR_SIZE,
+      });
+    }
+    if pool.sector_size() != sector_size {
+      return Err(Error::PoolSectorMismatch {
+        pool: pool.sector_size(),
+        device: sector_size,
       });
     }
 
@@ -249,20 +277,16 @@ impl SegmentedDevice {
       read_only: false,
       preallocate: false,
       delete_on_close: false,
-      files: PapayaMap::builder()
-        .hasher(GxBuildHasher::default())
-        .build(),
+      files: concurrent_map(),
       start_segment: AtomicU32::new(0),
       end_segment: AtomicI32::new(-1),
       direct_io: AtomicBool::new(cfg!(target_os = "linux")),
       #[cfg(target_os = "linux")]
       direct_io_probed: AtomicBool::new(false),
       #[cfg(windows)]
-      pending_removes: PapayaMap::builder()
-        .hasher(GxBuildHasher::default())
-        .build(),
+      pending_removes: concurrent_map(),
       #[cfg(debug_assertions)]
-      dirty_segs: empty_dirty_segs(),
+      dirty_segs: [const { AtomicU64::new(0) }; 2],
       capacity: None,
       pool,
       dir_syncs: AtomicU64::new(0),
@@ -318,6 +342,30 @@ impl SegmentedDevice {
   #[inline]
   pub fn is_delete_on_close(&self) -> bool {
     self.delete_on_close
+  }
+
+  /// 物理扇区大小（对标 C# IDevice.SectorSize 属性）
+  #[inline]
+  pub fn sector_size(&self) -> usize {
+    self.sector_size
+  }
+
+  /// 单段文件大小，None 表示单文件无界模式（对标 C# IDevice.SegmentSize 属性）
+  #[inline]
+  pub fn segment_size(&self) -> Option<u64> {
+    self.segment_size
+  }
+
+  /// 是否启用 Direct I/O（对标 C# disableFileBuffering 取反语义）
+  #[inline]
+  pub fn direct_io(&self) -> bool {
+    self.direct_io.load(Ordering::Relaxed)
+  }
+
+  /// 新建段文件后父目录 fsync 的累计执行次数（目录项持久化可观测 hook）
+  #[inline]
+  pub fn dir_sync_count(&self) -> u64 {
+    self.dir_syncs.load(Ordering::Relaxed)
   }
 
   /// 创建单文件无界存储设备（默认 4096 扇区大小）
@@ -1031,17 +1079,17 @@ impl SegmentedDevice {
 impl Device for SegmentedDevice {
   #[inline]
   fn sector_size(&self) -> usize {
-    self.sector_size
+    SegmentedDevice::sector_size(self)
   }
 
   #[inline]
   fn segment_size(&self) -> Option<u64> {
-    self.segment_size
+    SegmentedDevice::segment_size(self)
   }
 
   #[inline]
   fn direct_io(&self) -> bool {
-    self.direct_io.load(Ordering::Relaxed)
+    SegmentedDevice::direct_io(self)
   }
 
   #[inline]
@@ -1251,8 +1299,8 @@ impl Drop for SegmentedDevice {
       return;
     }
     if let Ok(Some(entries)) = self.segment_entries() {
-      for item in entries.flatten() {
-        let _ = sync_remove_file(item.1.path());
+      for (_, entry) in entries.flatten() {
+        let _ = sync_remove_file(entry.path());
       }
     }
   }

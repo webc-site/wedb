@@ -136,7 +136,7 @@ const check = async () => {
     await mkdir(target_dir, { recursive: true });
     await Bun.write(target_file, yaml.stringify(out_data));
 
-    miss_file_li.push(relative(ROOT_DIR, target_file));
+    miss_file_li.push(yml_rel_path);
   }
 
   const pathTreeFormat = (path_li) => {

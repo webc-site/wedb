@@ -28,6 +28,10 @@ lua 用 luau
 
 让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
 
+运行 ./js/check.js 可以看到缺失实现或者文档注释的 c# 函数
+
+如果某个函数不需要再 rust 中实现，在 `js/check/ignore/garnet下面相对路径.yml` 加上，这样 check.js 就不会提示需要实现
+
 在 rust 函数文档注释中写清楚和 c# 的映射关系，格式是如下：
 
 /// 在 garnet 中的相对路径:函数名

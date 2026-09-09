@@ -64,6 +64,10 @@ pub enum Error {
   /// 设备处于只读模式，拒绝写操作（对标 C# readOnly 保护）
   #[error("设备处于只读模式，拒绝写操作: 偏移量 {offset}, 长度 {len}")]
   ReadOnly { offset: u64, len: usize },
+
+  /// 注入的共享缓冲池扇区与设备扇区不一致（对齐错乱会使 O_DIRECT 路径 EINVAL）
+  #[error("缓冲池扇区 {pool} 与设备扇区 {device} 不一致")]
+  PoolSectorMismatch { pool: usize, device: usize },
 }
 
 /// wdev 结果类型
