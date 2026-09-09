@@ -41,6 +41,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          # 仓库无根 Cargo.toml：embed / node / cluster 各自独立 workspace，
+          # 缓存须指向对应组件目录，否则保存缓存时 cargo metadata 在仓库根失败
+          workspaces: ${{ inputs.dir }}
           cache-on-failure: true
 
       - uses: taiki-e/install-action@v2
