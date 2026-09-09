@@ -40,9 +40,9 @@ pub(crate) fn validate_aligned_io(
   Ok(())
 }
 
-/// 跨段或单段 I/O 的分片元数据
+/// 跨段或单段 I/O 的分片元数据（设备层内部机械，非公开契约）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SegmentChunk {
+pub(crate) struct SegmentChunk {
   /// 目标段编号
   pub seg_id: u32,
   /// 该分片在段文件内部的起始字节偏移
@@ -69,11 +69,11 @@ pub(crate) const fn segment_mask(segment_size: u64) -> u64 {
   segment_size - 1
 }
 
-/// 跨段切片迭代器，负责将任意范围精确切分为单段内的连续物理操作区间
+/// 跨段切片迭代器，负责将任意范围精确切分为单段内的连续物理操作区间（设备层内部机械）
 ///
 /// 契约：`segment_size` 须为 2 的幂（`SegmentedDevice` 构造时已强校验），
 /// 内部位移与掩码运算依赖该前提。
-pub struct SegmentChunks {
+pub(crate) struct SegmentChunks {
   curr_offset: u64,
   buf_pos: usize,
   total_len: usize,

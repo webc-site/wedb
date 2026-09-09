@@ -12,13 +12,13 @@
 //!   open(dir) + fsync 一次性成本；Windows 平台不支持，见 segmented_device
 //!   模块内说明），因此 sync 返回后"新段写入 + sync 即持久"的承诺同时覆盖
 //!   段数据与新建段的目录项，调用方无需自行刷盘目录。
-//! - 新建段后的父目录 fsync 执行次数可通过 `SegmentedDevice::dir_syncs` 计数器观测。
-//! - 契约守护（仅 debug 构建参与编译）：`SegmentedDevice::dirty_segs` 全局位图跟踪
+//! - 新建段后的父目录 fsync 执行次数可通过 `SegmentedDevice::dir_sync_count` 计数器观测。
+//! - 契约守护（仅 debug 构建参与编译）：`SegmentedDevice` 内部全局位图跟踪
 //!   前 128 段的"已写入待 sync"状态，sync 末尾校验全部在册写入被本次 fsync 覆盖
 //!   （截断或显式删段免责），违约断言失败；`SegmentedDevice::debug_dirty_segments`
 //!   可观测当前未覆盖窗口。
 //! - Direct I/O（Linux）：首个段文件打开时探测一次支持性并定型，定型后打开失败
-//!   直接上抛，写入路径不存在运行中回退（详见 `SegmentedDevice::direct_io` 文档）。
+//!   直接上抛，写入路径不存在运行中回退（详见 `SegmentedDevice` 的 `direct_io` 文档）。
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -29,13 +29,14 @@ mod null;
 mod segmented_device;
 mod sys;
 
-pub use chunk::{SegmentChunk, SegmentChunks};
 pub use device::{Device, StorageDevice};
 pub use error::{Error, Result};
 pub use null::NullDevice;
-pub use segmented_device::{FileMap, SegmentedDevice};
+pub use segmented_device::SegmentedDevice;
 pub use sys::{
   FALLBACK_CPU_CORES, FALLBACK_SYSTEM_MEMORY_BYTES, MAX_SEGMENT_SIZE, detect_cpu_cores,
   detect_system_memory,
 };
+// 例外 re-export（偏离"禁止 pub use 第三方"约定）：whlog 测试经 `wdev::BufferPool`
+// 引用池类型；设备与池总是成对出现，随设备层一并导出属稳定契约，非冗余别名
 pub use wram::BufferPool;

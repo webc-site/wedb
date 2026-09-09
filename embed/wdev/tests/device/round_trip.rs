@@ -13,8 +13,8 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wdev::{BufferPool, Device, Error, SegmentedDevice};
-use wram::AlignedBuf;
+use wdev::{Device, Error, SegmentedDevice};
+use wram::{AlignedBuf, BufferPool};
 
 use crate::support::make_pattern_data;
 

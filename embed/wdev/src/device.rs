@@ -7,6 +7,9 @@ use crate::{
   error::{Error, Result},
 };
 
+/// 块存储设备 trait 别名（对标 C# IDevice / StorageDeviceBase）
+pub use Device as StorageDevice;
+
 /// 底层块存储设备抽象
 ///
 /// `'static` 超界：设备实例一律以具体类型经 `Arc` 跨任务共享（后台 GC 循环等
@@ -193,6 +196,3 @@ pub trait Device: Send + Sync + 'static {
     Ok(())
   }
 }
-
-/// 块存储设备 trait 别名（对标 C# IDevice / StorageDeviceBase）
-pub use Device as StorageDevice;
