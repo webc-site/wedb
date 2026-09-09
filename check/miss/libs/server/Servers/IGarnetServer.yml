@@ -3,4 +3,3 @@ fn:
   - Unregister
   - GetSessionProviders
   - AddSession
-  - Start

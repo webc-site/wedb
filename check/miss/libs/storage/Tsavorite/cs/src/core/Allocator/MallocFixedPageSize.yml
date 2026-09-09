@@ -7,6 +7,5 @@ fn:
   - BeginCheckpoint
   - AsyncFlushCallback
   - GetMaxValidAddress
-  - GetPageSize
   - BeginRecovery
   - AsyncPageReadCallback

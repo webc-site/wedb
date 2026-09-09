@@ -2,6 +2,8 @@
 
 mod error;
 pub use error::{Error, Result};
-pub mod length;
-pub mod read;
 pub mod commands;
+pub mod length;
+pub mod memory_writer;
+pub mod read;
+pub mod write;

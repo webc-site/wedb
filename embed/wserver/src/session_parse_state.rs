@@ -1,6 +1,6 @@
 use crate::arg_slice::ArgSlice;
 
-/// garnet相对路径:garnet/libs/server/Resp/Parser/SessionParseState.cs:SessionParseState
+/// libs/server/Resp/Parser/SessionParseState.cs:SessionParseState
 #[derive(Debug, Clone)]
 pub struct SessionParseState {
   pub count: usize,

@@ -4,4 +4,3 @@ fn:
   - IncrementOrResetCountdown
   - WaitForDataAvailable
   - GetCurrentFilePosition
-  - ToString

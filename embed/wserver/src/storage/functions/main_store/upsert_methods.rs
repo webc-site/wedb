@@ -13,7 +13,7 @@ pub struct RecordSizeInfo;
 pub struct StringOutput;
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/UpsertMethods.cs:InitialWriter
+  /// libs/server/Storage/Functions/MainStore/UpsertMethods.cs:InitialWriter
   pub fn initial_writer(
     &self,
     _dst_log_record: &mut LogRecord,
@@ -27,7 +27,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/UpsertMethods.cs:PostInitialWriter
+  /// libs/server/Storage/Functions/MainStore/UpsertMethods.cs:PostInitialWriter
   pub fn post_initial_writer(
     &self,
     _log_record: &mut LogRecord,
@@ -40,7 +40,7 @@ impl MainSessionFunctions {
     upsert_info.user_data |= Self::NEED_AOF_LOG;
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/UpsertMethods.cs:InPlaceWriter
+  /// libs/server/Storage/Functions/MainStore/UpsertMethods.cs:InPlaceWriter
   pub fn in_place_writer(
     &self,
     _log_record: &mut LogRecord,
@@ -53,7 +53,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/UpsertMethods.cs:PostUpsertOperation
+  /// libs/server/Storage/Functions/MainStore/UpsertMethods.cs:PostUpsertOperation
   pub fn post_upsert_operation(
     &self,
     _key: &[u8],

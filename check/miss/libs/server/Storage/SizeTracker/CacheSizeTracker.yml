@@ -1,5 +1,4 @@
 fn:
-  - Start
   - AddHeapSize
   - AddReadCacheHeapSize
   - Stop

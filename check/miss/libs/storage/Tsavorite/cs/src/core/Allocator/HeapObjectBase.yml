@@ -1,6 +1,5 @@
 fn:
   - MakeTransition
   - WriteType
-  - Serialize
   - CacheSerializedObjectData
   - ClearSerializedObjectData

@@ -1,6 +1,4 @@
 fn:
-  - Init
-  - Start
   - StopAndSwitch
   - Stop
   - RecordValue

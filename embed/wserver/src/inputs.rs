@@ -4,7 +4,7 @@ use crate::{
   types::{RespCommand, RespInputFlags},
 };
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:ObjectInput
+/// libs/server/InputHeader.cs:ObjectInput
 #[derive(Debug, Clone)]
 pub struct ObjectInput {
   pub header: RespInputHeader,
@@ -101,7 +101,7 @@ impl ObjectInput {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:StringInput
+/// libs/server/InputHeader.cs:StringInput
 #[derive(Debug, Clone)]
 pub struct StringInput {
   pub header: RespInputHeader,
@@ -186,7 +186,7 @@ impl StringInput {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:UnifiedInput
+/// libs/server/InputHeader.cs:UnifiedInput
 #[derive(Debug, Clone)]
 pub struct UnifiedInput {
   pub header: RespInputHeader,
@@ -271,7 +271,7 @@ impl UnifiedInput {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:CustomProcedureInput
+/// libs/server/InputHeader.cs:CustomProcedureInput
 #[derive(Debug, Clone)]
 pub struct CustomProcedureInput {
   pub parse_state: SessionParseState,
@@ -313,7 +313,7 @@ impl CustomProcedureInput {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:VectorInput
+/// libs/server/InputHeader.cs:VectorInput
 #[derive(Debug, Clone, Default)]
 pub struct VectorInput {
   pub read_desired_size: i32,

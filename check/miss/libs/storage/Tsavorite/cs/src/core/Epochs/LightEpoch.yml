@@ -7,5 +7,4 @@ fn:
   - TryAcquireEntry
   - ReserveEntryWait
   - ReserveEntryForThread
-  - ToString
   - UserWordRef

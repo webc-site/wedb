@@ -1,9 +1,6 @@
 fn:
-  - WriteSimpleString
   - WriteBulkStringArray
-  - WriteBulkString
   - WriteNullBulkString
-  - WriteError
   - GetNextArg
   - ParseCustomRawStringCommand
   - ParseCustomObjectCommand

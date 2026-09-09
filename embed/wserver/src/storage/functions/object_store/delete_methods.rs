@@ -4,7 +4,7 @@ use crate::storage::functions::main_store::{
 };
 
 impl ObjectSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:InitialDeleter
+  /// libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:InitialDeleter
   pub fn initial_deleter(
     &self,
     _log_record: &mut LogRecord,
@@ -13,12 +13,12 @@ impl ObjectSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:PostInitialDeleter
+  /// libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:PostInitialDeleter
   pub fn post_initial_deleter(&self, _log_record: &mut LogRecord, delete_info: &mut DeleteInfo) {
     delete_info.user_data |= Self::NEED_AOF_LOG;
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:InPlaceDeleter
+  /// libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:InPlaceDeleter
   pub fn in_place_deleter(
     &self,
     _log_record: &mut LogRecord,
@@ -28,7 +28,7 @@ impl ObjectSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:PostDeleteOperation
+  /// libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:PostDeleteOperation
   pub fn post_delete_operation(&self, _key: &[u8], delete_info: &mut DeleteInfo) {
     if (delete_info.user_data & Self::NEED_AOF_LOG) == Self::NEED_AOF_LOG {
       // WriteLogDelete

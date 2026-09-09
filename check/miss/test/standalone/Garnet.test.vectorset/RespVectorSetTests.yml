@@ -4,7 +4,6 @@ fn:
   - MatchedIds
   - ExpectIds
   - AssertSameIds
-  - Format
   - SeedMoviesForAdvancedFiltering
   - InterruptedVectorSetDelete
   - InterruptedVectorSetDeleteRecoveryAsync

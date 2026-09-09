@@ -20,7 +20,6 @@ fn:
   - WriteResponse
   - TryWriteSingleItem
   - TryWriteResp2Null
-  - TryWriteResp3Null
   - TryWriteNumber
   - TryWriteString
   - TryWriteResp3Boolean
@@ -29,7 +28,6 @@ fn:
   - TryWriteMapToArray
   - TryWriteSet
   - TryWriteSetToArray
-  - TryWriteError
   - TryWriteTableToArray
   - TryProbeSupport
   - InitializeNoScriptDetails

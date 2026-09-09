@@ -3,5 +3,4 @@ fn:
   - ActiveClusterSessions
   - CreateNetworkHandler
   - DisposeMessageConsumer
-  - Start
   - TryCreateMessageConsumer

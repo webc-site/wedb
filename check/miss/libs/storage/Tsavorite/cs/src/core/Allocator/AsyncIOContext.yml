@@ -1,6 +1,0 @@
-fn:
-  - IsDefault
-  - DisposeRecord
-  - ToString
-  - Prepare
-  - SetException

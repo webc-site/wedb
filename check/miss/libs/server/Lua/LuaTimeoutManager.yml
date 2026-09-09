@@ -1,7 +1,6 @@
 fn:
   - SetCookie
   - AdvanceTimeout
-  - Start
   - RegisterForTimeout
   - RemoveRegistration
   - TickTimeouts

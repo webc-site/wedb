@@ -8,4 +8,3 @@ fn:
   - ReserveEntry
   - ReserveEntryWait
   - ReserveEntryForThread
-  - ToString

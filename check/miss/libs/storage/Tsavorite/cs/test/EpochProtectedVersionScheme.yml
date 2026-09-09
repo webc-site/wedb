@@ -4,7 +4,6 @@ fn:
   - MakeIntermediate
   - RemoveIntermediate
   - Equal
-  - ToString
   - Equals
   - ToVersion
   - GetNextStep

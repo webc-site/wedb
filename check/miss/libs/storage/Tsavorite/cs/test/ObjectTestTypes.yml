@@ -1,10 +1,8 @@
 fn:
-  - ToString
   - GetHashCode64
   - Equals
   - WriteType
   - Deserialize
-  - Serialize
   - ReadCompletionCallback
   - RMWCompletionCallback
   - GetRMWModifiedFieldInfo

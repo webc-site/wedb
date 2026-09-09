@@ -3,7 +3,6 @@ fn:
   - WriteBytes
   - GetStream
   - EndSerialize
-  - Serialize
   - DrainOnce
   - FlushFinal
   - WriteByte

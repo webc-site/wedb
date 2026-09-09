@@ -1,28 +1,28 @@
-pub mod commands {
-    /// garnet相对路径:garnet/libs/server/Resp/AdminCommands.cs:AdminCommands
-    pub struct AdminCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/ArrayCommands.cs:ArrayCommands
-    pub struct ArrayCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/BasicCommands.cs:BasicCommands
-    pub struct BasicCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/BasicEtagCommands.cs:BasicEtagCommands
-    pub struct BasicEtagCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/ACLCommands.cs:ACLCommands
-    pub struct AclCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/ClientCommands.cs:ClientCommands
-    pub struct ClientCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/KeyAdminCommands.cs:KeyAdminCommands
-    pub struct KeyAdminCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/PubSubCommands.cs:PubSubCommands
-    pub struct PubSubCommands {}
-
-    /// garnet相对路径:garnet/libs/server/Resp/RespServerSession.cs:RespServerSession
-    pub struct RespServerSession {}
-}
+/// libs/server/Resp/AdminCommands.cs:AdminCommands
+pub struct AdminCommands {}
+/// libs/server/Resp/ArrayCommands.cs:ArrayCommands
+pub struct ArrayCommands {}
+/// libs/server/Resp/BitmapCommands.cs:BitmapCommands
+pub struct BitmapCommands {}
+/// libs/server/Resp/GeoCommands.cs:GeoCommands
+pub struct GeoCommands {}
+/// libs/server/Resp/HashCommands.cs:HashCommands
+pub struct HashCommands {}
+/// libs/server/Resp/HyperLogLogCommands.cs:HyperLogLogCommands
+pub struct HyperLogLogCommands {}
+/// libs/server/Resp/ListCommands.cs:ListCommands
+pub struct ListCommands {}
+/// libs/server/Resp/PubSubCommands.cs:PubSubCommands
+pub struct PubSubCommands {}
+/// libs/server/Resp/SetCommands.cs:SetCommands
+pub struct SetCommands {}
+/// libs/server/Resp/SortedSetCommands.cs:SortedSetCommands
+pub struct SortedSetCommands {}
+/// libs/server/Resp/StringCommands.cs:StringCommands
+pub struct StringCommands {}
+/// libs/server/Resp/TiesetCommands.cs:TiesetCommands
+pub struct TiesetCommands {}
+/// libs/server/Resp/TxnCommands.cs:TxnCommands
+pub struct TxnCommands {}
+/// libs/server/Resp/RespServerSession.cs:RespServerSession
+pub struct RespServerSession {}

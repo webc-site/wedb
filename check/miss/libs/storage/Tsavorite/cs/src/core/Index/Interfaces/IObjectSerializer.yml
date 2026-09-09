@@ -1,6 +1,5 @@
 fn:
   - BeginSerialize
-  - Serialize
   - EndSerialize
   - BeginDeserialize
   - Deserialize

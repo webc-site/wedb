@@ -10,5 +10,4 @@ fn:
   - Unregister
   - GetSessionProviders
   - AddSession
-  - Start
   - DisposeActiveHandlers

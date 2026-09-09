@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - GetKeyHash
   - AddKey
   - TryLockAllKeys

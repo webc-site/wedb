@@ -5,7 +5,7 @@ use super::{
 use crate::inputs::StringInput;
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogUpsert
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogUpsert
   pub fn write_log_upsert(
     &self,
     _key: &[u8],
@@ -16,7 +16,7 @@ impl MainSessionFunctions {
   ) {
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogRMW
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogRMW
   pub fn write_log_rmw(
     &self,
     _key: &[u8],
@@ -26,15 +26,15 @@ impl MainSessionFunctions {
   ) {
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogDelete
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:WriteLogDelete
   pub fn write_log_delete(&self, _key: &[u8], _version: i64, _session_id: i64) {}
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:CopyRespNumber
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:CopyRespNumber
   pub fn copy_resp_number(&self, _source: &[u8], _dest: &mut [u8]) -> bool {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:InPlaceWriterForLogRecordValue
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:InPlaceWriterForLogRecordValue
   pub fn in_place_writer_for_log_record_value(
     &self,
     _log_record: &mut LogRecord,
@@ -46,7 +46,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/PrivateMethods.cs:InPlaceWriterForSpanValue
+  /// libs/server/Storage/Functions/MainStore/PrivateMethods.cs:InPlaceWriterForSpanValue
   pub fn in_place_writer_for_span_value(
     &self,
     _log_record: &mut LogRecord,

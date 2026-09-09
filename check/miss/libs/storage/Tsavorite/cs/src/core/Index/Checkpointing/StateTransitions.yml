@@ -1,4 +1,3 @@
 fn:
   - Equal
-  - ToString
   - Equals

@@ -24,7 +24,7 @@ impl Ord for ExpirationEntry {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashObject
+/// libs/server/Objects/Hash/HashObject.cs:HashObject
 pub struct HashObject {
   pub hash: HashMap<Vec<u8>, Vec<u8>, GxBuildHasher>,
   pub expiration_times: HashMap<Vec<u8>, i64, GxBuildHasher>,

@@ -2,7 +2,6 @@ fn:
   - Setup
   - TearDown
   - WriteType
-  - Serialize
   - Deserialize
   - GetRMWModifiedFieldInfo
   - GetRMWInitialFieldInfo

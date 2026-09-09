@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - bstr
   - _callback
   - Throttle
@@ -9,4 +8,3 @@ fn:
   - GetSegmentName
   - GetOrAddHandle
   - SetFileSize
-  - Start

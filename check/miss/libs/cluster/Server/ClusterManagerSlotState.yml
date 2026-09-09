@@ -1,6 +1,4 @@
 fn:
-  - TryAddSlots
-  - TryRemoveSlots
   - TryPrepareSlotForMigration
   - TryPrepareSlotsForMigration
   - TryPrepareSlotForImport

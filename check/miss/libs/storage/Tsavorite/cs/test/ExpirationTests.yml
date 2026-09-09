@@ -2,7 +2,6 @@ fn:
   - GetRandomLength
   - GetValue
   - AddFunc
-  - ToString
   - ShouldExpire
   - RMWCompletionCallback
   - ReadCompletionCallback

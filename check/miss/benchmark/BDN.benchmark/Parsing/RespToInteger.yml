@@ -7,4 +7,3 @@ fn:
   - ToRespIntegerTestCases
   - ToRespLengthHeaderTestCases
   - ToRespIntegerWithLengthHeader
-  - ToString

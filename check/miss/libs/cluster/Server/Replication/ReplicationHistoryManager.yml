@@ -1,10 +1,7 @@
 fn:
-  - ToByteArray
-  - FromByteArray
   - UpdateReplicationId
   - FailoverUpdate
   - InitializeReplicationHistory
   - RecoverReplicationHistory
   - TryUpdateMyPrimaryReplId
   - TryUpdateForFailover
-  - FlushConfig

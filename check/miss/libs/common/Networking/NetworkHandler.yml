@@ -1,5 +1,4 @@
 fn:
-  - Start
   - StartAsync
   - AuthenticateAsServerAsync
   - AuthenticateAsClientAsync

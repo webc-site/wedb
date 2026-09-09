@@ -8,7 +8,6 @@ fn:
   - GetUpsertFieldInfo
   - CreateStore
   - Deserialize
-  - Serialize
 test:
   - WriteRead
   - WriteCheckpointRead

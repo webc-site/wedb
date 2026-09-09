@@ -6,7 +6,6 @@ fn:
   - LoadModules
   - CreateStore
   - CreateAOF
-  - Start
   - InternalDispose
   - DeleteDirectory
   - FlushMemoryLogger

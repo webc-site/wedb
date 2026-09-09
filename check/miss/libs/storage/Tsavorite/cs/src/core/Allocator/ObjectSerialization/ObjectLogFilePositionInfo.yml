@@ -1,8 +1,6 @@
 fn:
-  - Serialize
   - Deserialize
   - SetReuseObjectIdForSize
   - GetReuseObjectIdForSize
   - Advance
   - AdvanceToNextSegment
-  - ToString

@@ -17,6 +17,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+ryu = "1.0.23"
 thiserror = "2.0.20"
 
 [dev-dependencies]

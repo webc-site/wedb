@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - SetEmptyAtomic
   - MergeTo
   - GetRecordSize

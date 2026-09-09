@@ -7,4 +7,3 @@ fn:
   - AsyncReadPageFromDeviceToFrame
   - AsyncReadPageFromDeviceToFrameCallback
   - WaitForFrameLoad
-  - ToString

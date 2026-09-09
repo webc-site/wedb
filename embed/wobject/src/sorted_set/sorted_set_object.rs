@@ -25,7 +25,7 @@ impl Ord for SortedSetEntry {
   }
 }
 
-/// garnet相对路径:garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
+/// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
 pub struct SortedSetObject {
   pub dict: HashMap<Vec<u8>, OrderedFloat<f64>, GxBuildHasher>,
   pub tree: RwLock<BTreeSet<SortedSetEntry>>,

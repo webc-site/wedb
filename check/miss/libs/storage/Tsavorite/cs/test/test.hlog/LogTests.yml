@@ -3,7 +3,6 @@ fn:
   - BaseSetup
   - BaseTearDown
   - IncrementAndMaybeTruncateUntil
-  - ToString
   - IsAsync
   - AssertGetNext
   - LogWriterAsync

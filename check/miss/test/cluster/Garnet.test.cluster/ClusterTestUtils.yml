@@ -74,7 +74,6 @@ fn:
   - GetConfigEpochOfNodeFromNodeIndex
   - GetConfigEpoch
   - WaitAll
-  - IsKnown
   - WaitUntilNodeIsKnown
   - WaitUntilNodeIsKnownByAllNodes
   - WaitUntilNodeIdIsKnown
@@ -91,7 +90,6 @@ fn:
   - AddDelSlots
   - AddDelSlotsRange
   - SetSlot
-  - SlotState
   - MigrateSlotsIndex
   - MigrateSlots
   - MigrateKeys
@@ -114,7 +112,6 @@ fn:
   - ClusterKeySlot
   - FlushAll
   - ClusterStatus
-  - GetNodeInfo
   - ClusterNodes
   - ClusterNodesAsync
   - WaitClusterNodesSync
@@ -146,7 +143,6 @@ fn:
   - ProcessReplicationInfo
   - GetStoreCurrentVersion
   - GetStoreInfo
-  - GetInfo
   - WaitForAofSyncDriverDipose
   - WaitForReplicaAofSync
   - WaitForConnectedReplicaCountAsync

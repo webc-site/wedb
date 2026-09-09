@@ -1,20 +1,20 @@
-/// garnet相对路径:garnet/libs/server/Auth/IGarnetAuthenticator.cs:IGarnetAuthenticator
+/// libs/server/Auth/IGarnetAuthenticator.cs:IGarnetAuthenticator
 pub trait IGarnetAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetAadAuthenticator.cs:GarnetAadAuthenticator
+/// libs/server/Auth/GarnetAadAuthenticator.cs:GarnetAadAuthenticator
 pub struct GarnetAadAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetACLAuthenticator.cs:GarnetACLAuthenticator
+/// libs/server/Auth/GarnetACLAuthenticator.cs:GarnetACLAuthenticator
 pub struct GarnetAclAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetAclWithAadAuthenticator.cs:GarnetAclWithAadAuthenticator
+/// libs/server/Auth/GarnetAclWithAadAuthenticator.cs:GarnetAclWithAadAuthenticator
 pub struct GarnetAclWithAadAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetAclWithPasswordAuthenticator.cs:GarnetAclWithPasswordAuthenticator
+/// libs/server/Auth/GarnetAclWithPasswordAuthenticator.cs:GarnetAclWithPasswordAuthenticator
 pub struct GarnetAclWithPasswordAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetNoAuthAuthenticator.cs:GarnetNoAuthAuthenticator
+/// libs/server/Auth/GarnetNoAuthAuthenticator.cs:GarnetNoAuthAuthenticator
 pub struct GarnetNoAuthAuthenticator {}
 
-/// garnet相对路径:garnet/libs/server/Auth/GarnetPasswordAuthenticator.cs:GarnetPasswordAuthenticator
+/// libs/server/Auth/GarnetPasswordAuthenticator.cs:GarnetPasswordAuthenticator
 pub struct GarnetPasswordAuthenticator {}

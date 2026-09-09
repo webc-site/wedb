@@ -14,4 +14,3 @@ fn:
   - FlushToMainLogDevice
   - FlushToDeviceCallback
   - ClearBuffers
-  - ToString

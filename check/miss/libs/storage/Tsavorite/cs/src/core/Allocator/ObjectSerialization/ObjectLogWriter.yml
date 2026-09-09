@@ -5,6 +5,5 @@ fn:
   - OnPartialFlushComplete
   - WriteRecordObjects
   - CopyRecoveredObjectBytes
-  - WriteDirect
   - OnBufferComplete
   - OnSerializeComplete

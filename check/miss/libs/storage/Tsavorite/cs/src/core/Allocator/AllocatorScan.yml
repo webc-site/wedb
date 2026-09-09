@@ -1,10 +1,8 @@
 fn:
   - ClearSerializedObjectData
   - PushScanImpl
-  - IterateHashChain
   - GetFromDiskAndPushToReader
   - ScanCursor
   - ScanLookup
   - ConditionalScanPush
   - PrepareIOForConditionalScan
-  - MemoryPageScan

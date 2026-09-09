@@ -24,7 +24,6 @@ fn:
   - ExpiredKeyDeletionScanTaskAsync
   - IndexAutoGrowTaskAsync
   - HybridLogDistributionScan
-  - Start
   - StartSizeTrackers
   - HasKeysInSlots
   - CheckMultiDatabaseCompatibility

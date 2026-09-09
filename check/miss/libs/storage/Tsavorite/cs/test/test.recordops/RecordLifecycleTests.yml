@@ -1,7 +1,5 @@
 fn:
-  - ToString
   - Deserialize
-  - Serialize
   - DisposeCount
   - DisposeDiskCount
   - EvictCount

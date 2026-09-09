@@ -1,7 +1,6 @@
 fn:
   - GetHashCode64
   - Equals
-  - ToString
   - Setup
   - TearDown
   - NewKeyStruct

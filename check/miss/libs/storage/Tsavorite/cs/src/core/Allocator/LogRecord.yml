@@ -13,7 +13,6 @@ fn:
   - SetFillerLength
   - InitializeRecord
   - GetInfoRef
-  - GetInfo
   - GetInlineKey
   - TrySetContentLengths
   - TrySetContentLengthsAndPrepareOptionals
@@ -48,4 +47,3 @@ fn:
   - OnDeserializationError
   - GetSerializedSize
   - CalculateHeapMemorySize
-  - ToString

@@ -30,7 +30,6 @@ fn:
   - SortedSetTimeToLive
   - SortedSetCollect
   - GeoAdd
-  - GeoCommands
   - GeoSearchReadOnly
   - GeoSearchStore
   - ListRightPush

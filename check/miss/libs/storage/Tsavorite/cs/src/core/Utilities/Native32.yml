@@ -11,7 +11,6 @@ fn:
   - SetEndOfFile
   - GetDiskFreeSpace
   - DeleteFileW
-  - GetDeviceSectorSize
   - GetCurrentThread
   - GetCurrentThreadId
   - GetCurrentProcessorNumber

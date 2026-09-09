@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - SetHasEphemeralSLock
   - ClearHasEphemeralSLock
   - SetHasEphemeralXLock
@@ -8,7 +7,6 @@ fn:
   - SetHasReadCacheSrc
   - SetPhysicalAddress
   - GetInfoRef
-  - GetInfo
   - CreateLogRecord
   - ClearHasInMemorySrc
   - SetAllocator

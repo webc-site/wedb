@@ -16,7 +16,6 @@ fn:
   - GetMigrating
   - DecomposeContext
   - OffsetForContextMetadata
-  - ToString
   - NextVectorSetContext
   - AllocateTestContexts
   - BeginFlush

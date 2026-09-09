@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - FreeAllAllocatedPages
   - AllocatePage
   - ReturnPage
@@ -23,10 +22,8 @@ fn:
   - CreateCircularReadBuffers
   - GetObjectLogTail
   - SetObjectLogTail
-  - GetObjectLogSegmentSize
   - RecoveryReset
   - AsyncFlushPagesForReadOnly
-  - WriteAsyncToDeviceForSnapshot
   - CreateSnapshotObjectReader
   - OnPagesMarkedReadOnlyWorker
   - AsyncReadPageCallback
@@ -42,4 +39,3 @@ fn:
   - FindHeadAddressCutoffOnPage
   - ClearSerializedObjectData
   - ScanCursor
-  - MemoryPageScan

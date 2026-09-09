@@ -10,7 +10,7 @@ pub struct DeleteInfo {
 }
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InitialDeleter
+  /// libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InitialDeleter
   pub fn initial_deleter(
     &self,
     _log_record: &mut LogRecord,
@@ -20,13 +20,13 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostInitialDeleter
+  /// libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostInitialDeleter
   pub fn post_initial_deleter(&self, _log_record: &mut LogRecord, delete_info: &mut DeleteInfo) {
     // if (functionsState.appendOnlyFile != null)
     delete_info.user_data |= Self::NEED_AOF_LOG;
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InPlaceDeleter
+  /// libs/server/Storage/Functions/MainStore/DeleteMethods.cs:InPlaceDeleter
   pub fn in_place_deleter(
     &self,
     _log_record: &mut LogRecord,
@@ -38,7 +38,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostDeleteOperation
+  /// libs/server/Storage/Functions/MainStore/DeleteMethods.cs:PostDeleteOperation
   pub fn post_delete_operation(&self, _key: &[u8], delete_info: &mut DeleteInfo) {
     if (delete_info.user_data & Self::NEED_AOF_LOG) == Self::NEED_AOF_LOG {
       // WriteLogDelete(key, deleteInfo.Version, deleteInfo.SessionID, epochAccessor);

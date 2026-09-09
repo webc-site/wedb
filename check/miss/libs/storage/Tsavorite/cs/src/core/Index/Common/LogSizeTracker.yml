@@ -1,7 +1,5 @@
 fn:
-  - ToString
   - IsBeyondSizeLimitAndCanEvict
-  - Start
   - Stop
   - OnStopped
   - UpdateTargetSize

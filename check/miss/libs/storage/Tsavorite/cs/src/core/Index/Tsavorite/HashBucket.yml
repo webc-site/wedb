@@ -5,4 +5,3 @@ fn:
   - NumLatchedShared
   - IsLatchedExclusive
   - IsLatched
-  - ToString

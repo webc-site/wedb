@@ -1,6 +1,5 @@
 fn:
   - CreateClusterSession
-  - FlushConfig
   - GetGossipStats
   - GetReplicationInfo
   - GetBufferPoolStats
@@ -8,13 +7,10 @@ fn:
   - GetReplicaInfo
   - PurgeBufferPool
   - ClusterPublishAsync
-  - IsPrimary
-  - IsReplica
   - OnCheckpointInitiated
   - ResetGossipStats
   - AddNewCheckpointEntry
   - SafeTruncateAOF
-  - Start
   - UpdateClusterAuth
   - GetCheckpointInfo
   - GetRunId

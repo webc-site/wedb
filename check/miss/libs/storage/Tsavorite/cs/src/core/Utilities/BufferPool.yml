@@ -1,5 +1,3 @@
 fn:
-  - GetArrayAndUnalignedOffset
   - GetValidPointer
-  - ToString
   - Print

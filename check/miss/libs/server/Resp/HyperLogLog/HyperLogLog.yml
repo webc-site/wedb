@@ -15,7 +15,6 @@ fn:
   - SetCard
   - GetCard
   - IsValidCard
-  - Init
   - InitSparse
   - InitDense
   - SparseInitialLength
@@ -46,7 +45,6 @@ fn:
   - CountSparseNCEstimator
   - CountDenseNCEstimator
   - TryMerge
-  - Merge
   - SparseToDense
   - SparseToSparse
   - DenseCountNonZero

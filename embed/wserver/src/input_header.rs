@@ -2,7 +2,7 @@ use coarsetime::Clock;
 
 use crate::types::{GarnetObjectType, RespCommand, RespInputFlags};
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:RespInputHeader
+/// libs/server/InputHeader.cs:RespInputHeader
 /// Header for RESP inputs. Occupies 3 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RespInputHeader {
@@ -55,7 +55,7 @@ impl RespInputHeader {
     self.data[2] |= RespInputFlags::SET_GET.bits();
   }
 
-  /// garnet相对路径:garnet/libs/server/InputHeader.cs:CheckExpiry
+  /// libs/server/InputHeader.cs:CheckExpiry
   #[inline]
   pub fn check_expiry(&self, expire_time: i64) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);
@@ -69,7 +69,7 @@ impl RespInputHeader {
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/InputHeader.cs:CheckSetGetFlag
+  /// libs/server/InputHeader.cs:CheckSetGetFlag
   #[inline]
   pub fn check_set_get_flag(&self) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);

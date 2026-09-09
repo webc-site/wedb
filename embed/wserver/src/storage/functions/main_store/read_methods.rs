@@ -12,7 +12,7 @@ pub struct ReadInfo {
 }
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/ReadMethods.cs:SingleReader
+  /// libs/server/Storage/Functions/MainStore/ReadMethods.cs:SingleReader
   pub fn single_reader(
     &self,
     _key: &[u8],
@@ -24,7 +24,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/ReadMethods.cs:ConcurrentReader
+  /// libs/server/Storage/Functions/MainStore/ReadMethods.cs:ConcurrentReader
   pub fn concurrent_reader(
     &self,
     _key: &[u8],

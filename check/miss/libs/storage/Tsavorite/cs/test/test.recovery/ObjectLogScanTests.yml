@@ -1,7 +1,6 @@
 fn:
   - Equals
   - GetHashCode64
-  - Serialize
   - WriteType
   - CacheSerializedObjectData
   - ClearSerializedObjectData

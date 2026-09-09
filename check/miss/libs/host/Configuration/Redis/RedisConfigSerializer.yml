@@ -1,7 +1,6 @@
 fn:
   - GetProperties
   - Deserialize
-  - Serialize
   - TryPopulateOptions
   - TryApplyTransform
   - TryChangeType

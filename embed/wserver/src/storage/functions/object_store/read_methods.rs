@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl ObjectSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/ReadMethods.cs:SingleReader
+  /// libs/server/Storage/Functions/ObjectStore/ReadMethods.cs:SingleReader
   pub fn single_reader(
     &self,
     _key: &[u8],
@@ -17,7 +17,7 @@ impl ObjectSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/ReadMethods.cs:ConcurrentReader
+  /// libs/server/Storage/Functions/ObjectStore/ReadMethods.cs:ConcurrentReader
   pub fn concurrent_reader(
     &self,
     _key: &[u8],

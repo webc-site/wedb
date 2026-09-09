@@ -1,6 +1,6 @@
 use crate::inputs::ObjectInput;
 
-/// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:ObjectSessionFunctions
+/// libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:ObjectSessionFunctions
 #[derive(Clone)]
 pub struct ObjectSessionFunctions {}
 
@@ -11,7 +11,7 @@ impl ObjectSessionFunctions {
     Self {}
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:ConvertOutputToHeap
+  /// libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:ConvertOutputToHeap
   pub fn convert_output_to_heap(&self, _input: &mut ObjectInput, _output: &mut ()) {}
 }
 

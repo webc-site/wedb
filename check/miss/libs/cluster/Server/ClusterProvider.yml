@@ -1,13 +1,9 @@
 fn:
   - PreventRoleChange
   - AllowRoleChange
-  - Start
   - CreateClusterSession
   - UpdateClusterAuth
-  - IsPrimary
-  - IsReplica
   - ResetGossipStats
-  - FlushConfig
   - FlushDB
   - AddNewCheckpointEntry
   - SafeTruncateAOF

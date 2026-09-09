@@ -14,4 +14,3 @@ fn:
   - ResetRecovery
   - RecoverCheckpointAndAOFAsync
   - WaitForReplicationOffsetAsync
-  - Start

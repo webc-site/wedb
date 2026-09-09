@@ -3,8 +3,6 @@ fn:
   - AllocatePage
   - ReturnPage
   - FreePage
-  - WriteAsyncToDeviceForSnapshot
   - VerifyRecordFromDiskCallback
   - ScanCursor
-  - MemoryPageScan
   - AsyncReadPageFromDeviceToFrame

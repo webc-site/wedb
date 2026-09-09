@@ -2,4 +2,3 @@ fn:
   - WaitUntilFreeAndInitialize
   - IncrementOrResetCountdown
   - FlushToDevice
-  - ToString

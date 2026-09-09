@@ -14,7 +14,7 @@ pub struct RMWInfo {
 }
 
 impl MainSessionFunctions {
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:NeedInitialUpdate
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:NeedInitialUpdate
   pub fn need_initial_update(
     &self,
     _key: &[u8],
@@ -25,7 +25,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:InitialUpdater
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:InitialUpdater
   pub fn initial_updater(
     &self,
     _key: &[u8],
@@ -38,7 +38,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostInitialUpdater
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostInitialUpdater
   pub fn post_initial_updater(
     &self,
     _key: &[u8],
@@ -51,7 +51,7 @@ impl MainSessionFunctions {
     rmw_info.user_data |= Self::NEED_AOF_LOG;
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:InPlaceUpdater
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:InPlaceUpdater
   pub fn in_place_updater(
     &self,
     _key: &[u8],
@@ -65,7 +65,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:NeedCopyUpdate
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:NeedCopyUpdate
   pub fn need_copy_update(
     &self,
     _key: &[u8],
@@ -77,7 +77,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:CopyUpdater
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:CopyUpdater
   pub fn copy_updater(
     &self,
     _key: &[u8],
@@ -91,7 +91,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostCopyUpdater
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostCopyUpdater
   pub fn post_copy_updater(
     &self,
     _key: &[u8],
@@ -106,7 +106,7 @@ impl MainSessionFunctions {
     true
   }
 
-  /// garnet相对路径:garnet/libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostRMWOperation
+  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostRMWOperation
   pub fn post_rmw_operation(&self, _key: &[u8], _input: &mut StringInput, rmw_info: &mut RMWInfo) {
     if (rmw_info.user_data & Self::NEED_AOF_LOG) == Self::NEED_AOF_LOG {
       // WriteLogRMW

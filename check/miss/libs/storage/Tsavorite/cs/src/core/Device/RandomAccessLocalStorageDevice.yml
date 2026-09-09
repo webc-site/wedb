@@ -1,6 +1,5 @@
 fn:
   - GetOrCreate
-  - ToString
   - bstr
   - Throttle
   - ReadWorkerAsync

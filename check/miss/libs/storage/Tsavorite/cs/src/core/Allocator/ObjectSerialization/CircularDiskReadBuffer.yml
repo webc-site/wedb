@@ -9,4 +9,3 @@ fn:
   - OnBeginDeserialize
   - MoveToNextBuffer
   - ReadFromDeviceCallback
-  - ToString

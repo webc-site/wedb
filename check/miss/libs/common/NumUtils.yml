@@ -1,6 +1,4 @@
 fn:
-  - WriteInt64
   - WriteDouble
   - ReadInt64
   - TryReadDouble
-  - WriteInt32

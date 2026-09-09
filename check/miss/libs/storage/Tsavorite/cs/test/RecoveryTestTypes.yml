@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - GetHashCode64
   - Equals
   - GetRMWModifiedFieldInfo

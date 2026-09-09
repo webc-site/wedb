@@ -12,6 +12,5 @@ fn:
   - SealAndInvalidate
   - Seal
   - SetInvalidAtomic
-  - ToString
   - bstr
   - bstr01

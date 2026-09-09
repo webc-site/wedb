@@ -3,4 +3,3 @@ fn:
   - GetHeapObject
   - TryGetHeapObject
   - GetOverflowByteArray
-  - ToString

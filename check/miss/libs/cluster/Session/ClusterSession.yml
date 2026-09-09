@@ -7,4 +7,3 @@ fn:
   - AcquireCurrentEpoch
   - ReleaseCurrentEpoch
   - UnsafeBumpAndWaitForEpochTransitionAsync
-  - UnsafeSetConfig

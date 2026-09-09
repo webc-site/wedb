@@ -30,6 +30,5 @@ fn:
   - GetValueFieldInfo
   - GetKVLengths
   - InitializeForRevivification
-  - ToString
   - bstr
   - bstr01

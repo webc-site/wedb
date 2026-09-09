@@ -11,6 +11,4 @@ fn:
   - PopulateRecordSizeInfo
   - OnDispose
   - OnDisposeDiskRecord
-  - WriteAsyncToDeviceForSnapshot
   - ScanCursor
-  - MemoryPageScan

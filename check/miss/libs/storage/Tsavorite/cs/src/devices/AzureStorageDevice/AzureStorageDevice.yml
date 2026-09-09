@@ -1,5 +1,4 @@
 fn:
-  - ToString
   - StartAsync
   - GetSegmentBlobName
   - DetectHangs

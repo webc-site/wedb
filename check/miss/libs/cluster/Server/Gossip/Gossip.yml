@@ -4,7 +4,6 @@ fn:
   - GetPrimaryLinkStatus
   - SuspendConfigMerge
   - ResumeConfigMerge
-  - TryStartGossipTasks
   - TryMerge
   - RunMeetTask
   - TryMeetAsync
