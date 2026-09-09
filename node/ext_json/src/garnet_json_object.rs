@@ -23,13 +23,9 @@ impl GarnetJsonObject {
     }
   }
 
-  /// 从读取器解析 JSON 文本（sonic-rs 单次解析，无中间 DOM 转换）
+  /// 从读取器解析 JSON 文本（sonic-rs 单遍读取解析，无 UTF-8 中转校验）
   pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
-    let mut buf = String::new();
-    reader
-      .read_to_string(&mut buf)
-      .map_err(|e| Error::Json(e.to_string()))?;
-    let value: Value = sonic_rs::from_str(&buf).map_err(|e| Error::Json(e.to_string()))?;
+    let value: Value = sonic_rs::from_reader(reader).map_err(|e| Error::Json(e.to_string()))?;
     Ok(Self { value })
   }
 
@@ -39,13 +35,10 @@ impl GarnetJsonObject {
     }
   }
 
-  /// 序列化 JSON 文本（sonic-rs 单次序列化）
+  /// 序列化 JSON 文本（sonic-rs 单次序列化为字节缓冲后直写）
   pub fn serialize_object<W: Write>(&self, writer: &mut W) -> Result<()> {
-    let s = sonic_rs::to_string(&self.value).map_err(|e| Error::Json(e.to_string()))?;
-    writer
-      .write_all(s.as_bytes())
-      .map_err(|e| Error::Json(e.to_string()))?;
-    Ok(())
+    let buf = sonic_rs::to_vec(&self.value).map_err(|e| Error::Json(e.to_string()))?;
+    writer.write_all(&buf).map_err(|e| Error::Json(e.to_string()))
   }
 
   /// 按路径查询节点（在 DOM 上直接执行，零序列化往返；命中 N 个节点为 O(N) 克隆）

@@ -45,7 +45,7 @@ impl AofProcessor {
     }
 
     // AofHeader 为 repr(C, packed)，须按非对齐读取
-    let header = unsafe { read_unaligned(chunk.as_ptr() as *const AofHeader) };
+    let header = unsafe { read_unaligned(chunk.as_ptr().cast::<AofHeader>()) };
     self.process_aof_record(&header, &chunk[header_size..]);
   }
 }

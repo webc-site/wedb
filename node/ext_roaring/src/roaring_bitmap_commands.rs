@@ -10,18 +10,16 @@ pub struct RoaringBitmapCommands;
 impl RoaringBitmapCommands {
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseUInt32
   pub fn try_parse_uint32(raw: &[u8]) -> Option<u32> {
-    str::from_utf8(raw).ok().and_then(|s| s.parse().ok())
+    str::from_utf8(raw).ok()?.parse().ok()
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseBit
   pub fn try_parse_bit(raw: &[u8]) -> Option<bool> {
-    if raw.len() == 1 && raw[0] == b"0"[0] {
-      return Some(false);
+    match raw {
+      b"0" => Some(false),
+      b"1" => Some(true),
+      _ => None,
     }
-    if raw.len() == 1 && raw[0] == b"1"[0] {
-      return Some(true);
-    }
-    None
   }
 
   /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:Updater

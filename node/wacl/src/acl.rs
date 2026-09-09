@@ -1,4 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::mem;
+
+use gxhash::{GxBuildHasher, HashMap, HashSet};
 
 use crate::error::Result;
 
@@ -10,7 +12,7 @@ pub struct AccessControlList {
 impl AccessControlList {
   pub fn new() -> Self {
     let mut acl = Self {
-      users: HashMap::new(),
+      users: HashMap::with_hasher(GxBuildHasher::default()),
     };
     // default user
     let mut default_user = User::new("default".to_string());
@@ -23,8 +25,10 @@ impl AccessControlList {
     self.users.get(username)
   }
 
-  pub fn add_user(&mut self, user: User) {
-    self.users.insert(user.name.clone(), user);
+  pub fn add_user(&mut self, mut user: User) {
+    // 键即用户名：移出 name 而非克隆
+    let name = mem::take(&mut user.name);
+    self.users.insert(name, user);
   }
 }
 
@@ -98,7 +102,7 @@ impl User {
       passwords: Vec::new(),
       permissions: CommandPermissionSet {
         allow_all: false,
-        allowed_commands: HashSet::new(),
+        allowed_commands: HashSet::with_hasher(GxBuildHasher::default()),
       },
       is_enabled: true,
     }

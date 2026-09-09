@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum ClusterPreferredEndpointType {
   #[default]
@@ -53,8 +55,6 @@ pub enum LogLevel {
   #[default]
   Default,
 }
-
-use serde::{Deserialize, Serialize};
 
 /// libs/host/Configuration/Options.cs:Options
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
