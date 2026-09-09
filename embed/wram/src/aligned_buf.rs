@@ -124,9 +124,9 @@ impl AlignedBuf {
     self.len
   }
 
-  /// 缓冲区总容量（字节数）
-  #[inline]
+  /// 是否持有实际分配的内存（非零容量悬垂哨兵）
   /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
+  #[inline]
   pub fn is_allocated(&self) -> bool {
     self.cap > 0 && !eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
   }
@@ -137,6 +137,8 @@ impl AlignedBuf {
     (self.ptr.as_ptr(), 0)
   }
 
+  /// 缓冲区总容量（字节数）
+  #[inline]
   pub fn capacity(&self) -> usize {
     self.cap
   }

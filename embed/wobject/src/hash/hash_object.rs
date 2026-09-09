@@ -1,7 +1,4 @@
-use std::{
-  io::{self, Read, Write},
-  str,
-};
+use std::io::{self, Read, Write};
 
 use gxhash::GxBuildHasher;
 use papaya::HashMap;
@@ -111,24 +108,6 @@ impl HashObject {
   pub fn hash_get_all(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
     let pin = self.hash.pin();
     pin.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
-  }
-
-  /// garnet相对路径:garnet/libs/server/Objects/Hash/HashObject.cs:HashIncrementByFloat
-  pub fn hash_increment_by_float(&self, key: &[u8], increment: f64) -> Option<f64> {
-    let pin = self.hash.pin();
-    let mut current_val = 0.0;
-    if let Some(v) = pin.get(key)
-      && let Ok(s) = str::from_utf8(v)
-      && let Ok(parsed) = s.parse::<f64>()
-    {
-      current_val = parsed;
-    }
-    current_val += increment;
-
-    let mut buffer = zmij::Buffer::new();
-    let val_str = buffer.format(current_val);
-    pin.insert(key.to_vec(), val_str.as_bytes().to_vec());
-    Some(current_val)
   }
 }
 

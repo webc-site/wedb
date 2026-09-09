@@ -23,7 +23,6 @@ gxhash.workspace = true
 itoa.workspace = true
 papaya.workspace = true
 parking_lot.workspace = true
-zmij.workspace = true
 
 [dev-dependencies]
 aok = "0.1.18"
