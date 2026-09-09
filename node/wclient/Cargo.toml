@@ -17,6 +17,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+compio = { workspace = true, features = ["net", "io", "runtime"] }
+crossfire = "3.1.20"
 thiserror = "2.0.20"
 
 [dev-dependencies]

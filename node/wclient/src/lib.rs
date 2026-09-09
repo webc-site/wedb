@@ -3,6 +3,12 @@
 mod error;
 pub use error::{Error, Result};
 
+pub mod parser;
+pub use parser::*;
+
+pub mod types;
+pub use types::*;
+
 pub mod session;
 pub use session::*;
 
