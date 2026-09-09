@@ -1,13 +1,48 @@
-pub struct BasicCommands;
 
-impl BasicCommands {
+
+impl crate::resp::resp_server_session::RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:GetPendingScratchOutput
   pub fn get_pending_scratch_output() {
     unimplemented!()
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGET
-  pub fn network_get() {
-    unimplemented!()
+  pub fn network_get<'a, D: wdev::Device>(
+      &mut self,
+      parse_state: &[&[u8]],
+      store: &wkv::BatchStoreSession<'a, D>,
+      output: &mut Vec<u8>
+  ) -> wresp::Result<bool> {
+      // 1:1 C# Parity logic: Get the key from parse state
+      if parse_state.is_empty() {
+          return Ok(false);
+      }
+      let key = parse_state[0];
+      
+      // Call into storage API (wkv)
+      let status = store.try_read_sync(key, |v| v.to_vec());
+      
+      match status {
+          Ok(Some(Some(val))) => {
+              // GarnetStatus.OK
+              output.extend_from_slice(&val);
+          }
+          Ok(Some(None)) => {
+              // GarnetStatus.NOTFOUND
+              output.extend_from_slice(b"$-1\r\n");
+          }
+          Ok(None) => {
+              // Needs async path, in C# handled by NetworkGETAsync or similar, 
+              // but try_read_sync signals async is needed.
+              // We return false to indicate async fallback is required.
+              return Ok(false);
+          }
+          Err(_) => {
+              // Handle error, e.g. WRONGTYPE or storage error
+              output.extend_from_slice(b"-ERR generic error\r\n");
+          }
+      }
+      
+      Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGETEX
   pub fn network_getex() {

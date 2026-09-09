@@ -27,6 +27,7 @@ wepoch.workspace = true
 whasher.workspace = true
 whlog.workspace = true
 wkv = { version = "0.1.0", path = "../wkv" }
+wresp = { version = "0.1.0", path = "../wresp" }
 wval.workspace = true
 
 [dev-dependencies]
