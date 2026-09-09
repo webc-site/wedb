@@ -2,7 +2,7 @@ use core::hash::{BuildHasher, Hash, Hasher};
 
 use aok::{OK, Result};
 use whasher::{
-  Entry, GxBuildHasher, GxHasher, GxPapayaMap, GxPapayaSet, HashSet, StreamHasher,
+  Entry, GxBuildHasher, GxHasher, GxPapayaMap, GxPapayaSet, HashSet, HashSetExt, StreamHasher,
   compute_checksum, compute_checksum_with_seed, fast_hash, fast_hash_u64, fast_hash_with_seed,
   fast_hash128, hash_map_with_capacity, hash_set_with_capacity, hash_value, hash_value_with_seed,
   hash128, hash128_with_seed, new_hash_map, new_hash_set, new_papaya_map, new_papaya_set,
@@ -413,6 +413,31 @@ fn test_hash128() -> Result<()> {
   assert_ne!(hash128(b"identity", 1, 2), hash128(b"identity", 2, 1));
   assert_ne!(hash128(b"identity", 1, 2), hash128(b"identitx", 1, 2));
 
+  // 种子合并非线性回归：旧线性合并 `a ^ rotl(b,32)` 下这些结构化种子对恒等碰撞，须全部互异
+  let key = b"seed-collision-regression";
+  let linear_kernel_pairs = [
+    ((0x1_0000_0000u64, 1u64), (0, 0)),
+    ((1u64.rotate_left(32), 1), (0, 0)),
+    ((7, 7), (0, 0)),
+    ((0xDEAD_BEEF, 0xDEAD_BEEF), (0, 0)),
+  ];
+  for ((a1, b1), (a2, b2)) in linear_kernel_pairs {
+    assert_ne!(
+      hash128(key, a1, b1),
+      hash128(key, a2, b2),
+      "结构化种子对 ({a1:#x},{b1:#x}) 与 ({a2:#x},{b2:#x}) 碰撞"
+    );
+  }
+
+  // 双种子扫描区分度：256 个互异结构化种子对，输出低 64 位须全唯一（生日界 ~1.8e-15 可忽略）
+  let mut seen: HashSet<u64> = HashSet::new();
+  for k in 1..=64u64 {
+    for (a, b) in [(k, 0u64), (0, k), (k, k), (k, k.rotate_left(32))] {
+      seen.insert(hash128(key, a, b) as u64);
+    }
+  }
+  assert_eq!(seen.len(), 64 * 4, "双种子合并区分度不足");
+
   // 默认种子 fast_hash128 单次快速计算
   assert_eq!(fast_hash128(b"identity"), hash128_with_seed(b"identity", 0));
   assert_eq!(fast_hash128(b"identity"), fast_hash128(b"identity"));
@@ -690,14 +715,13 @@ fn test_papaya_map_and_set() -> Result<()> {
 
 #[test]
 fn test_integer_hash_and_scramble() -> Result<()> {
-  use whasher::{GOLDEN_RATIO_64, mix_thread_id, mix13, mix64, splitmix64};
+  use whasher::{GOLDEN_RATIO_64, mix_thread_id, mix13, splitmix64};
 
   assert_eq!(GOLDEN_RATIO_64, 0x9E37_79B9_7F4A_7C15);
 
   let v1 = splitmix64(0);
   let v2 = splitmix64(1);
   assert_ne!(v1, v2);
-  assert_eq!(mix64(42), splitmix64(42));
   assert_eq!(splitmix64(42), mix13(42u64.wrapping_add(GOLDEN_RATIO_64)));
 
   let tid_slot = mix_thread_id(1234);

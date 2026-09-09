@@ -1,5 +1,26 @@
 # whasher : 硬件加速哈希与集合
 
+- [项目介绍](#项目介绍)
+- [使用演示](#使用演示)
+  - [安装与目标要求](#安装与目标要求)
+  - [哈希与普通集合](#哈希与普通集合)
+  - [流式校验和](#流式校验和)
+  - [并发集合](#并发集合)
+- [特性介绍](#特性介绍)
+- [设计思路](#设计思路)
+  - [直接哈希与泛型哈希](#直接哈希与泛型哈希)
+  - [流式路径](#流式路径)
+  - [集合路径](#集合路径)
+  - [兼容性边界](#兼容性边界)
+- [技术堆栈](#技术堆栈)
+- [目录结构](#目录结构)
+- [API 说明](#api-说明)
+  - [哈希函数](#哈希函数)
+  - [StreamHasher](#streamhasher)
+  - [集合类型与重导出](#集合类型与重导出)
+  - [集合构造函数](#集合构造函数)
+- [验证](#验证)
+
 ## 项目介绍
 
 whasher 提供基于 gxhash 的字节与整数哈希、流式校验和与哈希集合。支持 64 位与 128 位输出、显式种子，以及实现 Rust `Hash` trait 的泛型值。
@@ -33,7 +54,7 @@ RUSTFLAGS="-C target-cpu=native" cargo build
 ```rust
 use whasher::{
   Entry, fast_hash, fast_hash_u64, fast_hash_with_seed, fast_hash128,
-  hash_value, hash_value_with_seed, hash128, hash128_with_seed,
+  hash_value, hash_value_with_seed, hash128, hash128_with_seed, mix13,
   new_hash_map, new_hash_set,
 };
 
@@ -42,7 +63,7 @@ fn main() {
   assert_eq!(fast_hash(data), fast_hash_with_seed(data, 0));
   assert_eq!(fast_hash_u64(42), fast_hash(&42u64.to_le_bytes()));
   assert_eq!(fast_hash128(data), hash128_with_seed(data, 0));
-  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, 7 ^ 9u64.rotate_left(32)));
+  assert_eq!(hash128(data, 7, 9), hash128_with_seed(data, (mix13(7) ^ mix13(9).rotate_left(32)) as u64));
   assert_eq!(hash_value(&(1u64, 2u64)), hash_value_with_seed(&(1u64, 2u64), 0));
 
   let mut map = new_hash_map();
@@ -147,7 +168,7 @@ fn main() {
 
 ### 直接哈希与泛型哈希
 
-`fast_hash*` 与 `hash128*` 委托给 `gxhash::gxhash64` 或 `gxhash::gxhash128`。`fast_hash_u64` 先将整数转为小端字节。`hash128` 以 `seed_a ^ seed_b.rotate_left(32)` 合并种子后调用后端。
+`fast_hash*` 与 `hash128*` 委托给 `gxhash::gxhash64` 或 `gxhash::gxhash128`。`fast_hash_u64` 先将整数转为小端字节。`hash128` 先将两个种子各自经双射 `mix13` 打散，再异或错位合并，结构化种子对无法产生代数碰撞，仅剩 128→64 位固有的生日界随机碰撞。
 
 `hash_value*` 创建带种子的 `GxHasher`，经 `Hash::hash` 写入后调用 `Hasher::finish`。该路径遵循类型的 `Hash` 实现，而非规范的字节序列化。
 
@@ -163,13 +184,13 @@ fn main() {
 
 ### 集合路径
 
-普通集合构造函数安装 `DefaultBuildHasher::default()`。并发构造函数以 `GxBuildHasher::default()` 配置 papaya 构建器，可指定初始容量。后端默认随机化集合哈希，除非通过 Cargo 特性统一启用依赖的 `deterministic` 特性。
+普通集合构造函数安装 `GxBuildHasher::default()`。并发构造函数以同一构建器配置 papaya，可指定初始容量。后端默认随机化集合哈希，除非通过 Cargo 特性统一启用依赖的 `deterministic` 特性。
 
 ### 兼容性边界
 
 固定种子的字节哈希在相同算法配置下可复现。落盘或传输的哈希应记录后端版本、种子与算法选择；不要假设跨后端或流式实现变更仍兼容。
 
-泛型 `Hash` 输入不保证跨平台或跨编译器版本可移植。持久化键请先显式编码再做字节哈希。`hash128` 的不同种子对可能合并出相同的 64 位种子。以上接口不重现 C# 实现的 MurmurHash 或 XxHash 输出。
+泛型 `Hash` 输入不保证跨平台或跨编译器版本可移植。持久化键请先显式编码再做字节哈希。`hash128` 的种子对仅在 128→64 位归约固有的生日界上碰撞，无代数结构。以上接口不重现 C# 实现的 MurmurHash 或 XxHash 输出。
 
 ## 技术堆栈
 
@@ -218,7 +239,7 @@ whasher/
 | `fast_hash_u64(val: u64) -> u64`                                      | 等价于 `fast_hash(&val.to_le_bytes())`。 |
 | `fast_hash_with_seed(bytes: &[u8], seed: u64) -> u64`                 | 显式种子的直接 64 位字节哈希。           |
 | `fast_hash128(bytes: &[u8]) -> u128`                                  | 种子为 0 的直接 128 位字节哈希。         |
-| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | 以异或与 `seed_b` 的 32 位左旋合并种子。 |
+| `hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128`             | 双种子经 `mix13` 打散后异或错位合并。   |
 | `hash128_with_seed(bytes: &[u8], seed: u64) -> u128`                  | 显式种子的直接 128 位字节哈希。          |
 | `hash_value<T: Hash + ?Sized>(value: &T) -> u64`                      | 经 `GxHasher::with_seed(0)` 哈希该值。   |
 | `hash_value_with_seed<T: Hash + ?Sized>(value: &T, seed: u64) -> u64` | 显式种子的泛型哈希，支持不定长输入。     |
@@ -252,7 +273,6 @@ whasher/
 | `Entry<'a, K, V>`    | 标准映射条目枚举，含 `Occupied` 与 `Vacant` 变体。                                                                      |
 | `GxHasher`           | 后端 `Hasher`，除 trait 方法外支持 `with_seed(i64)` 与 `finish_u128(&self) -> u128`。非 `StreamHasher` 的分块恒等替代。 |
 | `GxBuildHasher`      | 后端 `BuildHasher`，支持 `default()` 与 `with_seed(i64)`。默认实例用于随机化集合哈希。                                  |
-| `DefaultBuildHasher` | `GxBuildHasher` 的别名。                                                                                                |
 | `HashMapExt`         | 导入后为映射别名提供 `new()` 与 `with_capacity(usize)`。                                                                |
 | `HashSetExt`         | 导入后为集合别名提供 `new()` 与 `with_capacity(usize)`。                                                                |
 | `GxPapayaMap<K, V>`  | `papaya::HashMap<K, V, GxBuildHasher>`，经 `pin()` 守卫式操作。                                                         |

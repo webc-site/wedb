@@ -8,7 +8,7 @@
 //! - `hash128` / `fast_hash128` ← `MurmurHash3x128` 与 `RangeIndexManager.KeyId`（XxHash128 → Guid）
 //! - [`StreamHasher`] ← `System.IO.Hashing.XxHash64` 流式用法
 //!   （Append / GetHashAndReset；此处为非破坏 `finish` + 显式 `reset`，语义等价且更灵活）
-//! - `HashMap` / `HashSet` / `DefaultBuildHasher` ← C# Dictionary/HashSet 默认随机化哈希防御
+//! - `HashMap` / `HashSet` / `GxBuildHasher` ← C# Dictionary/HashSet 默认随机化哈希防御
 //! - [`GxPapayaMap`] / [`new_papaya_map`] ← C# `ConcurrentDictionary`（papaya 无锁并发字典 + gxhash 构建器）
 //!
 //! # 可移植性约束
@@ -34,6 +34,11 @@ const STRIPE: usize = 64;
 /// 并行折叠链数（同链条带串行、异链独立，AES 指令流水线满吞吐；必须为 2 的幂供 `fold` 位掩码轮转）
 const LANES: usize = 4;
 const _: () = assert!(LANES.is_power_of_two(), "LANES 必须为 2 的幂");
+// write 的 4 链展开循环（quads）与 LANE_SALT/DEFAULT_LANES 均按 4 链硬编码，编译期钉死
+const _: () = assert!(
+  LANES == 4,
+  "write 的展开折叠路径按 4 链实现，改动 LANES 须同步重写"
+);
 
 /// 64 位黄金分割比常数（2^64 / φ，斐波那契散列乘数）
 pub const GOLDEN_RATIO_64: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -52,12 +57,6 @@ pub const fn splitmix64(z: u64) -> u64 {
   mix13(z.wrapping_add(GOLDEN_RATIO_64))
 }
 
-/// 快速 64 位双向雪崩混合
-#[inline(always)]
-pub const fn mix64(z: u64) -> u64 {
-  splitmix64(z)
-}
-
 /// 将线程 ID 或顺序序号均匀打散为无偏条带槽位索引
 #[inline(always)]
 pub const fn mix_thread_id(tid: u64) -> usize {
@@ -72,18 +71,12 @@ const LANE_SALT: [u64; LANES] = [
   0x1656_67C9_1973_60D5,
 ];
 
-/// splitmix64 终末混合（双射），编译期把种子扩散为无关的链初态
-#[inline(always)]
-const fn smear(x: u64) -> u64 {
-  mix13(x)
-}
-
-/// 默认种子 0 对应的编译期预计算 4 折叠链初态
+/// 默认种子 0 对应的编译期预计算 4 折叠链初态（mix13 双射，编译期把盐扩散为无关的链初态）
 const DEFAULT_LANES: [i64; LANES] = [
-  smear(LANE_SALT[0]) as i64,
-  smear(LANE_SALT[1]) as i64,
-  smear(LANE_SALT[2]) as i64,
-  smear(LANE_SALT[3]) as i64,
+  mix13(LANE_SALT[0]) as i64,
+  mix13(LANE_SALT[1]) as i64,
+  mix13(LANE_SALT[2]) as i64,
+  mix13(LANE_SALT[3]) as i64,
 ];
 
 /// 按种子派生 4 条折叠链初态 (种子 0 恒等 `0 ^ salt == salt`，走编译期常量路径)
@@ -93,10 +86,10 @@ const fn lanes_for(seed: u64) -> [i64; LANES] {
     DEFAULT_LANES
   } else {
     [
-      smear(seed ^ LANE_SALT[0]) as i64,
-      smear(seed ^ LANE_SALT[1]) as i64,
-      smear(seed ^ LANE_SALT[2]) as i64,
-      smear(seed ^ LANE_SALT[3]) as i64,
+      mix13(seed ^ LANE_SALT[0]) as i64,
+      mix13(seed ^ LANE_SALT[1]) as i64,
+      mix13(seed ^ LANE_SALT[2]) as i64,
+      mix13(seed ^ LANE_SALT[3]) as i64,
     ]
   }
 }
@@ -404,12 +397,21 @@ pub fn fast_hash128(bytes: &[u8]) -> u128 {
   gxhash::gxhash128(bytes, 0)
 }
 
-/// 128 位无别名强抗碰撞键 ID 计算（基于 gxhash::gxhash128 硬件向量加速，
-/// 对标 C# `RangeIndexManager.KeyId` 的 XxHash128 → Guid 派生）
+/// 双种子非线性合并为 gxhash 单种子（mix13 双射先打散再异或错位）
+///
+/// 直接 `a ^ rotl(b, 32)` 是 GF(2) 线性映射（128→64 位，核空间 64 维），
+/// 结构化种子对会确定性碰撞（如 `(rotl(b,32), b)` 对任意 b 恒映射到 0）；
+/// 先经 mix13 非线性双射再合并，代数结构碰撞被消除，只剩 128→64 固有的生日界随机碰撞
+#[inline(always)]
+const fn combine_seed(seed_a: u64, seed_b: u64) -> i64 {
+  (mix13(seed_a) ^ mix13(seed_b).rotate_left(32)) as i64
+}
+
+/// 128 位强抗碰撞键 ID 计算（基于 gxhash::gxhash128 硬件向量加速，
+/// 对标 C# `RangeIndexManager.KeyId` 的 XxHash128 → Guid 派生；C# 单种子，此处双种子域分离）
 #[inline(always)]
 pub fn hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128 {
-  let combined_seed = (seed_a ^ seed_b.rotate_left(32)) as i64;
-  gxhash::gxhash128(bytes, combined_seed)
+  gxhash::gxhash128(bytes, combine_seed(seed_a, seed_b))
 }
 
 /// 带单一 64 位种子的 128 位硬件加速哈希计算（种子按位解释，与 fast_hash_with_seed 一致）
