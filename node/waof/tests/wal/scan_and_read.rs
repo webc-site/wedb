@@ -193,7 +193,7 @@ fn test_scan_graceful_stop_after_physical_truncate() -> Void {
     while let Some(rec) = iter.next().await? {
       let _ = rec;
     }
-    assert!(iter.is_ended());
+    assert_eq!(iter.current_address(), tail);
 
     info!("迭代扫描并发物理截断平滑终止测试通过");
     aok::Result::<()>::Ok(())
