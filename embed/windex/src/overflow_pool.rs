@@ -138,15 +138,6 @@ impl OverflowPool {
     }
   }
 
-  /// 判定当前是否存在可复用的已回收溢出桶
-  ///
-  /// 委托单一真相源 [`Self::free_count`] 计数器（读取空闲栈头指针会引入
-  /// 第二个观测点，两读之间可能已变化；计数读为单次原子快照）。
-  #[inline]
-  pub fn has_free(&self) -> bool {
-    self.free_count.load(Ordering::Acquire) != 0
-  }
-
   /// 当前空闲栈中的桶数量（O(1)）
   ///
   /// 线性化点同步：`free` 压栈成功才 +1，`allocate` 出栈成功才 -1；

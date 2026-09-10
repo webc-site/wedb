@@ -118,19 +118,6 @@ impl FreeRecord {
     Self::unpack(self.raw())
   }
 
-  /// 窥视当前槽位；若槽位非空且未过期，返回 `Some((address, size))`
-  #[inline]
-  pub fn peek(&self, min_address: u64) -> Option<(u64, u32)> {
-    let raw = self.raw();
-    if raw != Self::EMPTY_WORD {
-      let addr = Self::raw_address(raw);
-      if addr >= min_address {
-        return Some((addr, Self::raw_size(raw)));
-      }
-    }
-    None
-  }
-
   /// 判断当前槽位是否为空（Acquire 序）
   #[inline]
   pub fn is_empty(&self) -> bool {

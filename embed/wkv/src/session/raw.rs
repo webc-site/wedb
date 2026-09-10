@@ -533,19 +533,6 @@ impl<D: Device> StoreSession<D> {
     let first_addr = self.store.index.find_tag(key);
     self.try_read_raw_in_memory_with_addr(key, first_addr, f)
   }
-
-  /// 基于预先获得的首地址探针执行当前会话普通字符串同步内存直读快路径
-  #[inline]
-  pub fn try_read_in_memory_with_addr<R>(
-    &self,
-    user_key: &[u8],
-    first_addr: Option<u64>,
-    f: impl FnOnce(&[u8]) -> R,
-  ) -> Result<Option<Option<R>>> {
-    let str_k = self.session_string_key(user_key);
-    self.try_read_raw_in_memory_with_addr(&str_k, first_addr, f)
-  }
-
   /// 在已有纪元保护下执行当前会话普通字符串同步内存直读快路径（完全绕过 enter() 原子开销）
   #[inline]
   pub fn try_read_in_memory_unprotected<R>(
@@ -557,7 +544,6 @@ impl<D: Device> StoreSession<D> {
     let first_addr = self.store.index.find_tag(&str_k);
     self.try_read_raw_in_memory_with_addr(&str_k, first_addr, f)
   }
-
   /// 当前会话普通字符串同步内存直读快路径（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 与 FindTag 实现）
   #[inline]
   pub fn try_read_in_memory<R>(
@@ -1081,30 +1067,6 @@ impl<D: Device> StoreSession<D> {
       next_batch_ix += batch_len;
     }
 
-    Ok(())
-  }
-
-  /// 同步纯内存批量直读当前会话普通字符串记录（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch 12 项流水线预取）
-  ///
-  /// 与异步版一致按预取窗口常量分块栈上编码，任意批量规模全程零堆分配。
-  pub fn try_read_batch_in_memory<K, F>(&self, keys: &[K], mut on_item: F) -> Result<()>
-  where
-    K: AsRef<[u8]>,
-    F: FnMut(usize, Option<&[u8]>),
-  {
-    let prefix = self.session_prefix();
-    let prefix_slice = prefix.as_slice();
-    let mut stack_keys = [const { TaggedKeyBuf::new() }; BATCH_READ_PREFETCH_SIZE];
-    // 契约同 read_batch_with：idx 相对调用方全量键列表，分块调用回填 chunk 基址
-    for (chunk_ix, chunk) in keys.chunks(BATCH_READ_PREFETCH_SIZE).enumerate() {
-      let chunk_base = chunk_ix * BATCH_READ_PREFETCH_SIZE;
-      for (stack_k, k) in stack_keys.iter_mut().zip(chunk.iter()) {
-        *stack_k =
-          NamespaceDbCodec::encode_with_session_prefix(prefix_slice, KeyTag::String, k.as_ref());
-      }
-      let mut f = Self::offset_batch_idx(&mut on_item, chunk_base);
-      self.try_read_batch_raw_in_memory(&stack_keys[..chunk.len()], &mut f)?;
-    }
     Ok(())
   }
 

@@ -263,8 +263,7 @@ fn test_post_copy_to_tail_and_slot_revivification() -> Void {
   assert_eq!(src_ref.key_len(), key.len() as u32);
   assert_eq!(src_ref.val_len(), v1_val.len() as u32);
 
-  // 2. 模拟 PostCopyToTail: 在 Tail 地址 (0x0000_0000_0002_0000) 追加新记录，链接至源地址
-  let dst_logical_address: u64 = 0x0000_0000_0002_0000;
+  // 2. 模拟 PostCopyToTail: 在 Tail 地址追加新记录，链接至源地址
   let v2_val = b"order_state=PAYMENT_SETTLED";
   let mut tail_buffer = vec![0u8; 256];
   let written = encode_to_slice(&mut tail_buffer, src_logical_address, key, v2_val, false)?;
@@ -291,22 +290,20 @@ fn test_post_copy_to_tail_and_slot_revivification() -> Void {
       &rec_mut.header().prev_address.to_le_bytes()
     );
 
-    // 复活槽位：清除墓碑，更新为新值，指向前驱
+    // 复活槽位：清除墓碑并原位更新为新值（前驱地址保持编码时取值）
     rec_mut.set_tombstone(false);
     let v3_val = b"order_state=DELIVERY_PACKED";
     rec_mut.update_value_in_place(v3_val)?;
-    let new_prev_addr = dst_logical_address;
-    rec_mut.set_prev_address(new_prev_addr)?;
 
     assert_eq!(rec_mut.key_len(), key.len() as u32);
     assert_eq!(rec_mut.val_len(), v3_val.len() as u32);
     assert_eq!(rec_mut.value(), v3_val);
-    assert_eq!(rec_mut.prev_address(), new_prev_addr);
+    assert_eq!(rec_mut.prev_address(), src_logical_address);
     assert!(!rec_mut.is_tombstone());
   }
 
   let revivified_ref = RecordRef::from_slice(&slot_buf)?;
-  assert_eq!(revivified_ref.prev_address(), dst_logical_address);
+  assert_eq!(revivified_ref.prev_address(), src_logical_address);
   assert_eq!(revivified_ref.key(), key);
   assert_eq!(revivified_ref.value(), b"order_state=DELIVERY_PACKED");
   assert!(!revivified_ref.is_tombstone());

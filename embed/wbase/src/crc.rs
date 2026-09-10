@@ -41,27 +41,9 @@ impl Crc32Hasher {
     self.hasher.update(&val.to_le_bytes());
   }
 
-  /// 以小端字节序喂入 16 位整型（无堆分配）
-  #[inline(always)]
-  pub fn update_u16(&mut self, val: u16) {
-    self.hasher.update(&val.to_le_bytes());
-  }
-
-  /// 喂入单字节
-  #[inline(always)]
-  pub fn update_u8(&mut self, val: u8) {
-    self.hasher.update(&[val]);
-  }
-
   /// 完成计算并返回 32 位校验码
   #[inline(always)]
   pub fn finalize(self) -> u32 {
     self.hasher.finalize()
-  }
-
-  /// 读取当前累计的 32 位校验码（不消耗 Hasher）
-  #[inline(always)]
-  pub fn current_crc(&self) -> u32 {
-    self.hasher.clone().finalize()
   }
 }

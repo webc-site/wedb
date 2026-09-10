@@ -44,17 +44,6 @@ pub const fn decode_f32(bytes: [u8; 4]) -> f32 {
   f32::from_bits(sortable ^ mask)
 }
 
-/// 将 `f64` 保序写入目标切片（至少 8 字节）
-#[inline(always)]
-pub fn encode_f64_to_slice(val: f64, dst: &mut [u8]) -> bool {
-  if let Some(chunk) = dst.first_chunk_mut::<8>() {
-    *chunk = encode_f64(val);
-    true
-  } else {
-    false
-  }
-}
-
 /// 从只读切片（至少 8 字节）解析保序 `f64` (const fn, 零堆分配零越界检查)
 #[inline(always)]
 pub const fn decode_f64_from_slice(src: &[u8]) -> Option<f64> {
@@ -63,17 +52,6 @@ pub const fn decode_f64_from_slice(src: &[u8]) -> Option<f64> {
       Some(decode_f64([*b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7]))
     }
     _ => None,
-  }
-}
-
-/// 将 `f32` 保序写入目标切片（至少 4 字节）
-#[inline(always)]
-pub fn encode_f32_to_slice(val: f32, dst: &mut [u8]) -> bool {
-  if let Some(chunk) = dst.first_chunk_mut::<4>() {
-    *chunk = encode_f32(val);
-    true
-  } else {
-    false
   }
 }
 

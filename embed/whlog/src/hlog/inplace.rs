@@ -24,20 +24,6 @@ impl<D: Device> HybridLog<D> {
     })
   }
 
-  /// 尝试在可变区将记录原位标记为墓碑删除（严格对标 C# Garnet InPlaceDeleter & InternalDelete.cs:128）
-  ///
-  /// - 若记录处于内存可变区且校验 expected_key 匹配且尚未是墓碑；
-  /// - 安全获取页写锁，就地设置 tombstone = true，零追加、零换页、零 I/O 返回。
-  pub fn try_mark_tombstone_in_place(&self, addr: u64, expected_key: &[u8]) -> Result<bool> {
-    self.with_mutable_record(addr, expected_key, false, |rec_mut| {
-      if rec_mut.is_tombstone() {
-        return Ok(false);
-      }
-      rec_mut.set_tombstone(true);
-      Ok(true)
-    })
-  }
-
   /// 尝试在可变区原位读-改-写记录的值（严格对标 libs/server/Storage/Functions/MainStore/RMWMethods.cs:InPlaceUpdaterWorker & InternalRMW.cs）
   ///
   /// - 若记录处于内存可变区且非墓碑记录，并校验键与 `expected_key` 匹配（使用 SIMD 高效比对）；

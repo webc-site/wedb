@@ -320,29 +320,6 @@ impl CompactZSetCodec {
     Ok(Err(low))
   }
 
-  /// 基于二分查找定位 `(order_score, member)` 索引（O(N) 偏移构建 + O(log N) 比较）
-  ///
-  /// - `Ok(idx)`: `(order_score, member)` 已存在，返回其索引
-  /// - `Err(idx)`: 不存在，返回其应插入的有序索引
-  pub fn binary_search_entry(
-    slice: &[u8],
-    order_score: [u8; 8],
-    member: &[u8],
-  ) -> Result<StdResult<usize, usize>> {
-    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
-      return Ok(Err(0));
-    }
-    let count = Self::count(slice)?;
-    if count == 0 {
-      return Ok(Err(0));
-    }
-
-    Self::collect_offsets(slice, count, |offsets| {
-      Self::binary_search_offsets(slice, offsets, order_score, member)
-    })
-    .and_then(|found| found)
-  }
-
   /// 扫描定位成员排名（0-indexed），不存在返回 None
   pub fn rank_of(slice: &[u8], member: &[u8]) -> Option<usize> {
     if slice.len() < COMPACT_ZSET_COUNT_SIZE {
@@ -377,28 +354,6 @@ impl CompactZSetCodec {
       let (entry_len, _, m, _) = Self::parse_entry_header(slice, offset).ok()?;
       if cur_rank == rank {
         return Some(m);
-      }
-      offset += entry_len;
-    }
-
-    None
-  }
-
-  /// 获取指定排名的条目视图
-  pub fn entry_at_rank<'a>(slice: &'a [u8], rank: usize) -> Option<ZSetEntryRef<'a>> {
-    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
-      return None;
-    }
-    let count = u16::from_be_bytes([slice[0], slice[1]]) as usize;
-    if rank >= count {
-      return None;
-    }
-
-    let mut offset = COMPACT_ZSET_COUNT_SIZE;
-    for cur_rank in 0..count {
-      let (entry_len, entry) = Self::parse_entry(slice, offset).ok()?;
-      if cur_rank == rank {
-        return Some(entry);
       }
       offset += entry_len;
     }
@@ -1111,19 +1066,6 @@ impl CompactZSet {
       }
     });
     items
-  }
-
-  /// Bitcode 极速编码
-  #[inline]
-  pub fn to_bitcode(&self) -> Vec<u8> {
-    bitcode::encode(&self.raw)
-  }
-
-  /// Bitcode 极速解码
-  #[inline]
-  pub fn from_bitcode(bytes: &[u8]) -> Result<Self> {
-    let raw: Vec<u8> = bitcode::decode(bytes)?;
-    Self::from_vec(raw)
   }
 }
 

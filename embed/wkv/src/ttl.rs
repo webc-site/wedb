@@ -85,12 +85,6 @@ impl<D: Device> StoreSession<D> {
     NamespaceDbCodec::encode_with_session_prefix(prefix.as_slice(), KeyTag::Ttl, user_key)
   }
 
-  /// 静态辅助：构造指定会话前缀的 TTL 记录物理键
-  #[inline(always)]
-  pub fn ttl_key_with_prefix(prefix: &[u8], user_key: &[u8]) -> TaggedKeyBuf {
-    NamespaceDbCodec::encode_with_session_prefix(prefix, KeyTag::Ttl, user_key)
-  }
-
   /// 快速探测 TTL 记录标签是否存在于哈希索引（纯内存单次哈希探针，无记录 I/O）
   #[inline(always)]
   pub(crate) fn has_ttl_key(&self, ttl_k: &TaggedKeyBuf) -> Result<bool> {

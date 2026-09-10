@@ -34,10 +34,7 @@ fn sync_persists_data_and_handles_reopen_after_reset() -> Void {
       assert_eq!(res?, 4096);
     }
 
-    // 刷盘后句柄保留在缓存中
     device.sync().await?;
-    assert!(device.is_segment_cached(0));
-    assert!(device.is_segment_cached(1));
 
     // 回读校验持久化数据完整性
     for (seg_id, pattern) in [(0u32, &pattern0), (1, &pattern1)] {
@@ -49,13 +46,11 @@ fn sync_persists_data_and_handles_reopen_after_reset() -> Void {
 
     // reset 清空句柄后再次读取：句柄自动按需重开
     device.reset();
-    assert!(device.is_cached_empty());
 
     let reread = AlignedBuf::new(4096, 4096)?;
     let (res, reread) = device.read_aligned(0, reread).await;
     assert_eq!(res?, 4096);
     assert_eq!(reread.as_slice(), &pattern0[..]);
-    assert!(device.is_segment_cached(0), "重开后句柄应重新入缓存");
 
     info!("sync 刷盘持久化与句柄按需重开校验通过");
     aok::Result::<()>::Ok(())

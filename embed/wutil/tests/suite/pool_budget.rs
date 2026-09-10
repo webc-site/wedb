@@ -110,7 +110,7 @@ fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
 
   let mut first = pool.get_with_policy(over_cap, false)?;
   assert_eq!(
-    first.as_buf_ptr() as usize % MIN_SECTOR_SIZE,
+    first.as_allocated_slice().as_ptr() as usize % MIN_SECTOR_SIZE,
     0,
     "bypass 指针必须扇区对齐"
   );
@@ -118,7 +118,11 @@ fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
 
   // 两个在途 bypass 缓冲必然是不同分配（不复用）
   let second = pool.get_with_policy(over_cap, false)?;
-  assert_ne!(first.as_buf_ptr(), second.as_buf_ptr(), "超界缓冲不得复用");
+  assert_ne!(
+    first.as_allocated_slice().as_ptr(),
+    second.as_allocated_slice().as_ptr(),
+    "超界缓冲不得复用"
+  );
 
   // 触达最后一个可用字节
   first.as_allocated_slice_mut()[over_cap - 1] = 0xEE;
@@ -156,7 +160,7 @@ fn unaligned_oversize_bypass_rounds_exactly_to_sector() -> Void {
   let rounded = (req + DEFAULT_SECTOR_SIZE - 1) & !(DEFAULT_SECTOR_SIZE - 1);
   assert_eq!(buf.capacity(), rounded, "bypass 容量必须精确扇区取整");
   assert_eq!(
-    buf.as_buf_ptr() as usize % DEFAULT_SECTOR_SIZE,
+    buf.as_allocated_slice().as_ptr() as usize % DEFAULT_SECTOR_SIZE,
     0,
     "bypass 指针必须扇区对齐"
   );
@@ -191,7 +195,7 @@ fn closed_pool_serves_uncached_buffers_and_holds_no_budget() -> Void {
     buf.clear_on_return(),
     "非池化独立分配的归还清零策略恒为 true"
   );
-  let ptr_val = buf.as_buf_ptr() as usize;
+  let ptr_val = buf.as_allocated_slice().as_ptr() as usize;
   drop(buf);
 
   assert_eq!(pool.cached_len(cls), 0, "关闭后归还不得入池");

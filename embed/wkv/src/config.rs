@@ -118,22 +118,6 @@ pub struct GcConfig {
   pub max_scan_records: usize,
 }
 
-impl GcConfig {
-  /// 开箱即用的生产推荐配置（`default()` 全关对标 Garnet 默认 -1，本构造一行开启）
-  ///
-  /// enabled + 主动过期扫描 5s（[`DEFAULT_GC_SCAN_INTERVAL_MS`]）+ 紧缩判定 60s
-  /// （[`DEFAULT_GC_COMPACTION_INTERVAL_MS`]），其余参数取默认。
-  #[must_use]
-  pub fn tuned() -> Self {
-    Self {
-      enabled: true,
-      scan_interval_ms: DEFAULT_GC_SCAN_INTERVAL_MS,
-      compaction_interval_ms: DEFAULT_GC_COMPACTION_INTERVAL_MS,
-      ..Self::default()
-    }
-  }
-}
-
 impl Default for GcConfig {
   fn default() -> Self {
     Self {
@@ -394,12 +378,6 @@ impl StoreConfig {
   /// 自定义基于磁盘的 RangeIndex 根目录路径
   pub fn with_range_index_dir(mut self, path: impl Into<PathBuf>) -> Self {
     self.range_index_dir = Some(path.into());
-    self
-  }
-
-  /// 自定义内置 GC 配置
-  pub fn with_gc(mut self, gc: GcConfig) -> Self {
-    self.gc = gc;
     self
   }
 

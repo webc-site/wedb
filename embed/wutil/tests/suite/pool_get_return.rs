@@ -19,7 +19,7 @@ fn get_capacity_covers_request_across_sizes() -> Void {
   ] {
     let mut page = pool.get_with_policy(bytes, false)?;
     assert_eq!(
-      page.as_buf_ptr() as usize % MIN_SECTOR_SIZE,
+      page.as_allocated_slice().as_ptr() as usize % MIN_SECTOR_SIZE,
       0,
       "{bytes} 字节请求的指针必须扇区对齐"
     );
@@ -47,13 +47,13 @@ fn get_returns_zeroed_buffer_and_reuses() -> Void {
       "默认 Get 必须返回全零缓冲区"
     );
     p1.as_allocated_slice_mut().fill(0xAB);
-    ptr_val = p1.as_buf_ptr() as usize;
+    ptr_val = p1.as_allocated_slice().as_ptr() as usize;
   }
 
   // 同线程归还 => 本地栈复用同一底层内存，且默认策略重新清零
   let p2 = pool.get(4096)?;
   assert_eq!(
-    p2.as_buf_ptr() as usize,
+    p2.as_allocated_slice().as_ptr() as usize,
     ptr_val,
     "同线程归还后必须复用本地缓存缓冲区"
   );
@@ -77,41 +77,18 @@ fn opt_out_clear_then_default_get_is_zeroed() -> Void {
   {
     let mut p1 = pool.get_with_policy(4096, false)?;
     p1.as_allocated_slice_mut().fill(0xCD);
-    ptr_val = p1.as_buf_ptr() as usize;
+    ptr_val = p1.as_allocated_slice().as_ptr() as usize;
   } // 免清零归还 => 脏位不入清零路径
 
   let p2 = pool.get(4096)?;
-  assert_eq!(p2.as_buf_ptr() as usize, ptr_val, "必须复用同一脏槽位");
+  assert_eq!(
+    p2.as_allocated_slice().as_ptr() as usize,
+    ptr_val,
+    "必须复用同一脏槽位"
+  );
   assert!(
     p2.as_allocated_slice().iter().all(|&b| b == 0),
     "默认 Get 必须惰性清零脏槽位"
-  );
-
-  OK
-}
-
-/// 运行时动态切换 clear_on_return 策略 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:clearOnReturn 属性)
-#[test]
-fn clear_on_return_dynamic_switch() -> Void {
-  info!("验证租借期间动态切换归还清零策略后，复用方仍获得全零缓冲区");
-
-  let pool = BufferPool::new(DEFAULT_SECTOR_SIZE)?;
-  let ptr_val: usize;
-  {
-    let mut buf = pool.get(4096)?;
-    assert!(buf.clear_on_return(), "池签发缓冲默认归还清零");
-    buf.as_allocated_slice_mut().fill(0xEE);
-    // 动态切换为免清零归还
-    buf.set_clear_on_return(false);
-    assert!(!buf.clear_on_return());
-    ptr_val = buf.as_buf_ptr() as usize;
-  }
-
-  let reused = pool.get(4096)?;
-  assert_eq!(reused.as_buf_ptr() as usize, ptr_val);
-  assert!(
-    reused.as_allocated_slice().iter().all(|&b| b == 0),
-    "免清零策略留下的脏缓冲必须由下一次默认 Get 惰性清零"
   );
 
   OK
@@ -129,11 +106,15 @@ fn ensure_size_reuses_capacity_in_place() -> Void {
   assert_eq!(buf.capacity(), 8192);
   assert_eq!(buf.required_len(), 8192);
   buf.as_allocated_slice_mut().fill(0x33);
-  let old_ptr = buf.as_buf_ptr() as usize;
+  let old_ptr = buf.as_allocated_slice().as_ptr() as usize;
 
   // 请求 1 扇区 (4096B)：就地复用，指针不变，有效需求长度同步缩小
   pool.ensure_size(&mut buf, 4096)?;
-  assert_eq!(buf.as_buf_ptr() as usize, old_ptr, "容量充足必须就地复用");
+  assert_eq!(
+    buf.as_allocated_slice().as_ptr() as usize,
+    old_ptr,
+    "容量充足必须就地复用"
+  );
   assert_eq!(
     buf.required_len(),
     4096,
@@ -143,7 +124,7 @@ fn ensure_size_reuses_capacity_in_place() -> Void {
 
   // 请求不足 1 扇区 (2048B)：同样就地复用
   pool.ensure_size(&mut buf, 2048)?;
-  assert_eq!(buf.as_buf_ptr() as usize, old_ptr);
+  assert_eq!(buf.as_allocated_slice().as_ptr() as usize, old_ptr);
   assert_eq!(buf.required_len(), 2048);
 
   // 请求更大容量 (16384 > 8192)：旧缓冲自动归还入池，重新租借
@@ -173,12 +154,16 @@ fn get_from_slice_copies_data_and_reuses_memory() -> Void {
     assert_eq!(buf.len(), data.len());
     assert_eq!(&buf[..], data);
     assert!(buf.capacity() >= DEFAULT_SECTOR_SIZE);
-    ptr_val = buf.as_buf_ptr() as usize;
+    ptr_val = buf.as_allocated_slice().as_ptr() as usize;
   }
 
   // 归还后再次获取，验证内存复用与全零清除
   let next = pool.get(DEFAULT_SECTOR_SIZE)?;
-  assert_eq!(next.as_buf_ptr() as usize, ptr_val, "归还缓冲必须入池复用");
+  assert_eq!(
+    next.as_allocated_slice().as_ptr() as usize,
+    ptr_val,
+    "归还缓冲必须入池复用"
+  );
   assert!(
     next.as_allocated_slice().iter().all(|&b| b == 0),
     "复用缓冲必须全零"

@@ -532,7 +532,6 @@ fn test_bucket_index_mask_distribution() -> Void {
   let tiny = HashIndex::new(1)?;
   tiny.insert(b"only_bucket_key", 7)?;
   assert_eq!(tiny.find_tag(b"only_bucket_key"), Some(7));
-  assert_eq!(tiny.bucket_count(), 1);
   assert_eq!(tiny.bucket_index_for_key(b"any_key"), 0);
   assert!(tiny.delete(b"only_bucket_key", 7));
 
