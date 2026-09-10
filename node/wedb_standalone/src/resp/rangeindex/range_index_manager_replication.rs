@@ -18,9 +18,9 @@ use std::{
   },
 };
 
-use papaya::HashMap as PapayaMap;
 use parking_lot::Mutex;
 use wdev::Device;
+use whasher::{GxPapayaMap, new_papaya_map};
 use wkv::{
   RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer, RangeIndexError,
   RangeIndexManager as Engine, RangeIndexStub, StorageBackend, StorageBackendType, StoreSession,
@@ -154,7 +154,7 @@ pub struct RangeIndexManager_Replication {
   /// 迁移流 AOF 分块大小（测试可调小以演练多块路径）
   aof_stream_chunk_size: AtomicUsize,
   /// 进行中逐键流重组状态（键字节 → 状态）
-  reassembly: PapayaMap<Vec<u8>, Arc<StreamReassemblyState>>,
+  reassembly: GxPapayaMap<Vec<u8>, Arc<StreamReassemblyState>>,
 }
 
 impl RangeIndexManager_Replication {
@@ -163,7 +163,7 @@ impl RangeIndexManager_Replication {
     Self {
       engine,
       aof_stream_chunk_size: AtomicUsize::new(DEFAULT_MIGRATION_CHUNK_SIZE),
-      reassembly: PapayaMap::new(),
+      reassembly: new_papaya_map(),
     }
   }
 

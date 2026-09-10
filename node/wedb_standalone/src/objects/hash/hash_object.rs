@@ -266,7 +266,7 @@ impl HashObject {
 
     let Some(op) = hash_op_from_header(input) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      output.write_error(b"ERR unsupported operation");
+      output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
 
@@ -750,7 +750,7 @@ pub(crate) fn pick_random_index(n: usize, rand: i32) -> usize {
 /// Glob 风格 ASCII 模式匹配（复用 sortedset 域的同一实现，HSCAN/SSCAN MATCH 使用）
 ///
 /// libs/server/GlobUtils.cs:Match
-pub(crate) use crate::objects::sortedset::sorted_set_object::glob_match;
+pub(crate) use wbase::glob::glob_match;
 
 /// Scan 输入解析 + 输出回写：HSCAN/SSCAN 共用（对应 C# GarnetObjectBase 的
 /// 基类角色，抽象 Scan 以闭包注入；sortedset 因分值可空项走独立实现）
@@ -773,12 +773,12 @@ pub(crate) fn scan_operate_shared(
     match try_get_long(arg(input, 0)) {
       Some(c) if c >= 0 => c,
       _ => {
-        output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR);
+        output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
         return;
       }
     }
   } else {
-    output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR);
+    output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
     return;
   };
 
@@ -844,12 +844,13 @@ fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()
 }
 
-use crate::objects::parse_utils::{equals_ignore_case, try_get_int, try_get_long};
-
-/// ERR invalid cursor（CmdStrings 不在本周期改动范围，域内一处定义）
-pub(crate) const RESP_ERR_GENERIC_INVALIDCURSOR: &[u8] = b"ERR invalid cursor";
-use crate::resp::cmd_strings::{
-  RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+use crate::{
+  objects::parse_utils::{equals_ignore_case, try_get_int, try_get_long},
+  resp::cmd_strings::{
+    RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
+    RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+  },
 };
 
 #[cfg(test)]

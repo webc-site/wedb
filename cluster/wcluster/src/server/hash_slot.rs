@@ -2,7 +2,7 @@ use strum::{EnumString, FromRepr, IntoStaticStr};
 
 use crate::server::worker::LOCAL_WORKER_ID;
 
-/// garnet相对路径:Server:SlotState
+/// 在 garnet 中的相对路径:Server:SlotState
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr)]
 #[repr(u8)]
 pub enum SlotState {
@@ -26,7 +26,7 @@ pub enum SlotState {
 /// 槽位状态种类数（含 Invalid），用于计数数组定长
 pub const SLOT_STATE_KINDS: usize = SlotState::Invalid as usize + 1;
 
-/// garnet相对路径:Server:HashSlot
+/// 在 garnet 中的相对路径:Server:HashSlot
 #[derive(Debug, Clone, Copy, Default)]
 pub struct HashSlot {
   pub worker_id: u16,
@@ -35,7 +35,7 @@ pub struct HashSlot {
 
 impl HashSlot {
   /// Slot in migrating state points to target node though still owned by local node until migration completes.
-  /// garnet相对路径:Server:HashSlot:workerId
+  /// 在 garnet 中的相对路径:Server:HashSlot:workerId
   #[inline]
   pub fn eff_worker_id(&self) -> u16 {
     if self.state == SlotState::Migrating {

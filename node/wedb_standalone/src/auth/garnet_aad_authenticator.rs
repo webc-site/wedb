@@ -13,6 +13,7 @@ use jsonwebtoken::{
   errors::{Error as JwtError, ErrorKind, new_error},
 };
 use serde::Deserialize;
+use wbase::convert::utc_now_ticks;
 
 use super::{
   aad::issuer_signing_token_provider::IssuerSigningTokenProvider, ascii_sanitize,
@@ -100,9 +101,9 @@ fn unix_seconds_to_ticks(seconds: u64) -> i64 {
   seconds as i64 * 10_000_000 + UNIX_EPOCH_TICKS
 }
 
-/// 默认时钟（coarsetime 粗粒度 UTC）
+/// 默认时钟：当前 .NET Ticks（单一实现 wbase::convert::utc_now_ticks）
 fn default_now_ticks() -> i64 {
-  coarsetime::Clock::now_since_epoch().as_u64() as i64 / 100 + UNIX_EPOCH_TICKS
+  utc_now_ticks()
 }
 
 /// AAD 认证器静态配置（构造参数对象）：将构造形参收敛为一个体，

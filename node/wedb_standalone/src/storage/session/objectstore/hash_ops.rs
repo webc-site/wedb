@@ -3,8 +3,9 @@
 //! 全部经 [`StorageSession`] 对象信封读写 wobject [`HashObject`]，字段级 TTL
 //! 缺口见 `hash_time_to_live`。哈希对象为空时删除键（对齐 Redis 对象生命周期）。
 
-use std::{io::Cursor, str};
+use std::io::Cursor;
 
+use wbase::num::try_parse_i64;
 use wdev::Device;
 use wobject::hash::hash_object::{HashObject, HashOperation};
 
@@ -341,9 +342,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
           }
         } else {
           // 整数分支（HashIncrement）：增量按 NumUtils.TryParse 整体消费解析
-          //（接受前导零，不容空白）
+          //（接受前导零，不容空白；单一实现位于 wbase::num）
           let parse_i64 = |b: &[u8]| -> Option<i64> {
-            str::from_utf8(b).ok().and_then(|s| s.parse::<i64>().ok())
+            let mut value = 0_i64;
+            try_parse_i64(b, &mut value).then_some(value)
           };
           let Some(d) = parse_i64(delta) else {
             return None; // RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER

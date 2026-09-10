@@ -1,8 +1,8 @@
-use coarsetime::Clock;
+use wbase::convert::utc_now_ticks;
 
 use crate::types::{GarnetObjectType, RespCommand, RespInputFlags};
 
-/// garnet相对路径:garnet/libs/server/InputHeader.cs:RespInputHeader
+/// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:RespInputHeader
 /// Header for RESP inputs. Occupies 3 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RespInputHeader {
@@ -55,21 +55,19 @@ impl RespInputHeader {
     self.data[2] |= RespInputFlags::SET_GET.bits();
   }
 
-  /// garnet相对路径:garnet/libs/server/InputHeader.cs:CheckExpiry
+  /// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:CheckExpiry
   #[inline]
   pub fn check_expiry(&self, expire_time: i64) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);
     if flags.contains(RespInputFlags::DETERMINISTIC) {
       flags.contains(RespInputFlags::EXPIRED)
     } else {
-      // C# DateTimeOffset.Now.UtcTicks offset from Unix epoch is 62135596800000 ms
-      let now_ms = Clock::now_since_epoch().as_millis() as i64;
-      let now_ticks = (now_ms + 62_135_596_800_000) * 10000;
-      expire_time < now_ticks
+      // 当前 .NET Ticks 单一实现（wbase::convert::utc_now_ticks）
+      expire_time < utc_now_ticks()
     }
   }
 
-  /// garnet相对路径:garnet/libs/server/InputHeader.cs:CheckSetGetFlag
+  /// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:CheckSetGetFlag
   #[inline]
   pub fn check_set_get_flag(&self) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);

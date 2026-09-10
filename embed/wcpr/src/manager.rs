@@ -11,14 +11,13 @@ use std::{
   time::Duration,
 };
 
-use parking_lot::Mutex;
-
 use compio::{
   fs::{File, create_dir_all, metadata, read, rename},
   io::AsyncWriteAtExt,
   time::sleep,
 };
 use log::{info, warn};
+use parking_lot::Mutex;
 use wbase::time::{now_ms, now_nanos};
 use wdev::Device;
 use wepoch::LightEpoch;

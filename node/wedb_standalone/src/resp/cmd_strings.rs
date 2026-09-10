@@ -52,6 +52,9 @@ pub const RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER: &str = "ERR bit is not an integer
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER
 pub const RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER: &str =
   "ERR bit offset is not an integer or out of range";
+/// SELECT/SWAPDB 族的整数解析失败文案（无句点变体，本仓库多域复用）
+pub const RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER_NO_PERIOD: &str =
+  "ERR value is not an integer or out of range";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER
 pub const RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER: &str =
   "ERR Protocol version is not an integer or out of range.";
@@ -114,6 +117,13 @@ pub const RESP_ERR_FLUSHALL_READONLY_REPLICA: &str =
   "ERR You can't write against a read only replica.";
 /// libs/server/Resp/CmdStrings.cs:GenericErrWrongNumArgs
 pub const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for '{0}' command";
+/// LMPOP/SMPOP/BZMPOP 等命令的 numkeys 校验文案（跨 list/set/sortedset 三域复用）
+pub const RESP_ERR_GENERIC_NUMKEYS: &str = "ERR numkeys should be greater than 0";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_INVALIDCURSOR
+pub const RESP_ERR_GENERIC_INVALIDCURSOR: &str = "ERR invalid cursor";
+/// libs/server/Objects/GarnetObjectBase.cs 对象命令不支持的通用文案
+/// （跨 hash/set/list/sortedset 四对象域复用）
+pub const RESP_ERR_GENERIC_UNSUPPORTED_OPERATION: &str = "ERR unsupported operation";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnsupportedOption
 pub const GENERIC_ERR_UNSUPPORTED_OPTION: &str = "ERR Unsupported option {0}";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommand

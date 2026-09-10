@@ -23,9 +23,9 @@ use std::{
 
 use gxhash::HashMap as GxHashMap;
 use parking_lot::{Mutex, RwLock};
+use wbase::glob::glob_match;
 
 use super::{pattern_subscription_entry::PatternSubscriptionEntry, subscriber::PubSubSink};
-use crate::objects::sortedset::sorted_set_object::glob_match;
 
 /// 单通道订阅表：通道 -> （订阅者 id -> 投递面）
 type ChannelSubscriptions = GxHashMap<Box<[u8]>, GxHashMap<u64, Arc<dyn PubSubSink>>>;

@@ -10,7 +10,7 @@
 //! 本读取器以声明长度驱动组件边界，与该布局闭环，组件顺序与 C# 一致。
 //! objectId 映射为并发重组预留（顺序回放下天然成立）。
 
-use std::collections::HashMap;
+use gxhash::HashMap;
 
 use super::{
   aof_entry_type::AofEntryType,

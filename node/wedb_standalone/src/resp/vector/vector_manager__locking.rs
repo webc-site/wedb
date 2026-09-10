@@ -11,11 +11,11 @@
 
 use std::sync::Arc;
 
-use papaya::HashMap as ConcurrentMap;
 use parking_lot::{
   RwLock,
   lock_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard},
 };
+use whasher::GxPapayaMap as ConcurrentMap;
 
 use super::{
   vector_manager::{INDEX_SIZE_BYTES, VectorManager, VectorManagerResult},

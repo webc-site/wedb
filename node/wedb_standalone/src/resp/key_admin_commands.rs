@@ -17,6 +17,11 @@ use super::{
   },
 };
 
+/// DUMP 载荷版本/校验和非法文案（本域多处复用）。
+const ERR_DUMP_VERSION_CHECKSUM: &str = "ERR DUMP payload version or checksum are wrong";
+/// DUMP 载荷长度格式非法文案（本域两处复用）。
+const ERR_DUMP_LENGTH_INVALID: &str = "ERR DUMP payload length format is invalid";
+
 /// RDB 格式版本（libs/server/Resp/KeyAdminCommands.cs:RDB_VERSION）
 const RDB_VERSION: u16 = 11;
 
@@ -108,7 +113,7 @@ impl RespServerSession {
     // C# 对空载荷直接 valueSpan[0] 越界（进程崩溃断连）；rust 无 panic 约束下
     // 按"载荷不足"同族错误降级，不复刻崩溃
     if value.len() < 10 {
-      write_error_raw(output, "ERR DUMP payload version or checksum are wrong");
+      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
       return Ok(true);
     }
 
@@ -116,19 +121,19 @@ impl RespServerSession {
     let footer = &value[value.len() - 10..];
     let rdb_version = u16::from_le_bytes([footer[0], footer[1]]);
     if rdb_version > RDB_VERSION {
-      write_error_raw(output, "ERR DUMP payload version or checksum are wrong");
+      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
       return Ok(true);
     }
 
     // crc 覆盖除末 8 字节外的全部载荷
     let calculated_crc = rdb_crc64::hash(&value[..value.len() - 8]);
     if calculated_crc != footer[2..] {
-      write_error_raw(output, "ERR DUMP payload version or checksum are wrong");
+      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
       return Ok(true);
     }
 
     let Some((length, payload_start)) = try_read_length(&value[1..]) else {
-      write_error_raw(output, "ERR DUMP payload length format is invalid");
+      write_error_raw(output, ERR_DUMP_LENGTH_INVALID);
       return Ok(true);
     };
     let Some(val) = value
@@ -136,7 +141,7 @@ impl RespServerSession {
       .filter(|_| payload_start as u64 + 1 + length as u64 <= value.len() as u64)
     else {
       // C# 此处 Slice 越界抛异常断连；rust 按长度格式非法同族错误降级
-      write_error_raw(output, "ERR DUMP payload length format is invalid");
+      write_error_raw(output, ERR_DUMP_LENGTH_INVALID);
       return Ok(true);
     };
 

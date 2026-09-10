@@ -31,6 +31,21 @@ use super::{
   },
 };
 
+/// 向量集索引头非法文案（本域多处复用；resp_server_session_vectors 亦引用）。
+pub(crate) const ERR_VECTOR_SET_INDEX: &[u8] = b"ERR Invalid vector set index";
+/// 向量集过滤器编译失败文案（本域多处复用）。
+pub(crate) const ERR_COMPILING_FILTER: &[u8] = b"ERR Compiling filter failed";
+/// 向量服务内部错误回复文案（本域多处复用）。
+pub(crate) const ERR_VECTOR_SERVICE_RESPONSE: &[u8] =
+  b"ERR Error indicating response from vector service";
+/// 量化方式与既有集合不一致文案（vector session 域同用）。
+pub(crate) const ERR_QUANTIZATION_MISMATCH: &[u8] =
+  b"ERR asked quantization mismatch with existing vector set";
+/// 维度不匹配文案（format! 需字面量模板，收敛为本函数一处定义）。
+fn dimension_mismatch(got: usize, set: u32) -> String {
+  format!("ERR Vector dimension mismatch - got {got} but set has {set}")
+}
+
 /// 上下文步长（必须为 2 的幂；对齐 C# ContextStep）。
 pub const CONTEXT_STEP: u64 = 8;
 
@@ -304,10 +319,7 @@ impl VectorManager {
     };
 
     let Some(index) = Index::from_bytes(index_value) else {
-      return err(
-        VectorManagerResult::BadParams,
-        b"ERR Invalid vector set index",
-      );
+      return err(VectorManagerResult::BadParams, ERR_VECTOR_SET_INDEX);
     };
 
     // 与既有集合定义逐项比对（对齐 C# 的 REDUCE/量化/M/度量校验）
@@ -318,10 +330,7 @@ impl VectorManager {
       );
     }
     if provided_quant_type != VectorQuantType::Invalid && provided_quant_type != index.quant_type {
-      return err(
-        VectorManagerResult::BadParams,
-        b"ERR asked quantization mismatch with existing vector set",
-      );
+      return err(VectorManagerResult::BadParams, ERR_QUANTIZATION_MISMATCH);
     }
     if provided_distance_metric != index.distance_metric {
       return err(
@@ -351,22 +360,14 @@ impl VectorManager {
     if prepared.element_count != index.dimensions as usize {
       return err(
         VectorManagerResult::BadParams,
-        format!(
-          "ERR Vector dimension mismatch - got {} but set has {}",
-          prepared.element_count, index.dimensions
-        )
-        .as_bytes(),
+        dimension_mismatch(prepared.element_count, index.dimensions).as_bytes(),
       );
     }
     if provided_reduce_dims == 0 && index.reduce_dims != 0 {
       // 对齐 Redis 的（略显怪异的）行为
       return err(
         VectorManagerResult::BadParams,
-        format!(
-          "ERR Vector dimension mismatch - got {} but set has {}",
-          prepared.element_count, index.reduce_dims
-        )
-        .as_bytes(),
+        dimension_mismatch(prepared.element_count, index.reduce_dims).as_bytes(),
       );
     }
 
@@ -543,10 +544,7 @@ impl VectorManager {
     };
 
     let Some(index) = Index::from_bytes(index_value) else {
-      return err(
-        VectorManagerResult::BadParams,
-        b"ERR Invalid vector set index",
-      );
+      return err(VectorManagerResult::BadParams, ERR_VECTOR_SET_INDEX);
     };
     let effective_ef = effective_search_ef(
       search_exploration_factor,
@@ -572,10 +570,7 @@ impl VectorManager {
     let mut filter_state = match compile_filter_state(filter) {
       Ok(state) => state,
       Err(_) => {
-        return err(
-          VectorManagerResult::BadParams,
-          b"ERR Compiling filter failed",
-        );
+        return err(VectorManagerResult::BadParams, ERR_COMPILING_FILTER);
       }
     };
 
@@ -599,7 +594,7 @@ impl VectorManager {
       )
       .map_err(|_| VectorOpError {
         result: VectorManagerResult::BadParams,
-        message: b"ERR Error indicating response from vector service".to_vec(),
+        message: ERR_VECTOR_SERVICE_RESPONSE.to_vec(),
       })?;
     apply_delta_cutoff(&mut hits, delta);
 
@@ -626,7 +621,7 @@ impl VectorManager {
     let Some(index) = Index::from_bytes(index_value) else {
       return Err(VectorOpError {
         result: VectorManagerResult::BadParams,
-        message: b"ERR Invalid vector set index".to_vec(),
+        message: ERR_VECTOR_SET_INDEX.to_vec(),
       });
     };
     let effective_ef = effective_search_ef(
@@ -647,7 +642,7 @@ impl VectorManager {
 
     let mut filter_state = compile_filter_state(filter).map_err(|_| VectorOpError {
       result: VectorManagerResult::BadParams,
-      message: b"ERR Compiling filter failed".to_vec(),
+      message: ERR_COMPILING_FILTER.to_vec(),
     })?;
 
     let mut predicate = |external_id: &[u8]| -> bool {
@@ -664,7 +659,7 @@ impl VectorManager {
       .search_element(index.context, element, count, effective_ef, &mut predicate)
       .map_err(|_| VectorOpError {
         result: VectorManagerResult::BadParams,
-        message: b"ERR Error indicating response from vector service".to_vec(),
+        message: ERR_VECTOR_SERVICE_RESPONSE.to_vec(),
       })?;
     apply_delta_cutoff(&mut hits, delta);
 
@@ -1380,10 +1375,7 @@ mod tests {
       f32::INFINITY,
       false,
     );
-    assert_eq!(
-      out.unwrap_err().message,
-      b"ERR Compiling filter failed".to_vec()
-    );
+    assert_eq!(out.unwrap_err().message, ERR_COMPILING_FILTER.to_vec());
   }
 
   #[test]

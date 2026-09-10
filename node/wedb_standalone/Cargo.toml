@@ -29,7 +29,6 @@ jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust
 log = "0.4"
 mlua = { version = "0.12.1", features = ["luau"] }
 num_enum = "0.7.6"
-papaya = "0.2.5"
 parking_lot = "0.12"
 serde = { version = "1.0.229", features = ["derive"] }
 sha1_smol = "1"
@@ -42,7 +41,7 @@ whasher = { version = "0.1.5", path = "../../embed/whasher" }
 wkv.workspace = true
 wobject.workspace = true
 wresp.workspace = true
-wbase = { workspace = true, features = ["convert", "ascii", "num", "hash_slot", "hash"] }
+wbase = { workspace = true, features = ["convert", "ascii", "num", "hash_slot", "hash", "crc64", "glob"] }
 
 [dev-dependencies]
 aok = "0.1.18"

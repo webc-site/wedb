@@ -1,6 +1,8 @@
 use core::str;
 
-use crate::resp::{parser::resp_ext::RespVecExt, resp_server_session::RespServerSession};
+use crate::resp::{
+  cmd_strings as cs, parser::resp_ext::RespVecExt, resp_server_session::RespServerSession,
+};
 
 fn compute_lcs(a: &[u8], b: &[u8]) -> Vec<u8> {
   let m = a.len();
@@ -201,14 +203,14 @@ impl RespServerSession {
       .ok()
       .and_then(|s| s.parse::<i32>().ok())
     else {
-      output.write_resp_error("ERR value is not an integer or out of range");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER_NO_PERIOD);
       return Ok(true);
     };
     let Some(idx2) = str::from_utf8(parse_state[1])
       .ok()
       .and_then(|s| s.parse::<i32>().ok())
     else {
-      output.write_resp_error("ERR value is not an integer or out of range");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER_NO_PERIOD);
       return Ok(true);
     };
     if idx1 < 0 || idx2 < 0 {
@@ -261,11 +263,11 @@ impl RespServerSession {
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
-      output.write_resp_error("ERR invalid cursor");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_INVALIDCURSOR);
       return Ok(true);
     };
     if cursor < 0 {
-      output.write_resp_error("ERR invalid cursor");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_INVALIDCURSOR);
       return Ok(true);
     }
     Self::write_output_for_scan(0, &[], output);
@@ -355,21 +357,21 @@ impl RespServerSession {
       } else if opt.eq_ignore_ascii_case(b"MINMATCHLEN") {
         idx += 1;
         if idx >= parse_state.len() {
-          output.write_resp_error("ERR syntax error");
+          output.write_resp_error(cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
           return Ok(true);
         }
         let Some(min_len) = str::from_utf8(parse_state[idx])
           .ok()
           .and_then(|s| s.parse::<usize>().ok())
         else {
-          output.write_resp_error("ERR value is not an integer or out of range");
+          output.write_resp_error(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER_NO_PERIOD);
           return Ok(true);
         };
         _min_match_len = min_len;
       } else if opt.eq_ignore_ascii_case(b"WITHMATCHLEN") {
         _with_match_len = true;
       } else {
-        output.write_resp_error("ERR syntax error");
+        output.write_resp_error(cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
       idx += 1;

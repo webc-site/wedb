@@ -4,7 +4,7 @@
 
 use std::thread;
 
-use papaya::HashMap as ConcurrentMap;
+use whasher::{GxPapayaMap as ConcurrentMap, new_papaya_map};
 
 /// 按键的未完成清理工作集合（按键字节的字典序等价比较）。
 pub struct VectorSetCleanupWorkSet<TValue> {
@@ -14,7 +14,7 @@ pub struct VectorSetCleanupWorkSet<TValue> {
 impl<TValue> Default for VectorSetCleanupWorkSet<TValue> {
   fn default() -> Self {
     Self {
-      entries: ConcurrentMap::new(),
+      entries: new_papaya_map(),
     }
   }
 }

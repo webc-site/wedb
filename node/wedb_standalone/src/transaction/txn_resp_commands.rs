@@ -17,7 +17,10 @@ use super::{
 use crate::{
   objects::parse_utils::try_get_int,
   resp::{
-    cmd_strings::{RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK},
+    cmd_strings::{
+      GENERIC_ERR_WRONG_NUM_ARGS, RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+      RESP_OK,
+    },
     resp_server_session::RespServerSession,
   },
   storage::session::storage_session::StoreType,
@@ -44,16 +47,11 @@ const RESP_ERR_SWAPDB_IN_TXN_UNSUPPORTED: &str =
   "ERR SWAPDB is currently unsupported inside a transaction.";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_TRANSACTION_PROCEDURE
 const RESP_ERR_NO_TRANSACTION_PROCEDURE: &str = "ERR Could not get transaction procedure";
-/// libs/server/Resp/CmdStrings.cs:GenericErrWrongNumArgs（模板；WATCH 空参等
-/// 路径 C# 即以未格式化模板直接回错，1:1 保留）
-const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for '{0}' command";
 /// libs/server/Resp/CmdStrings.cs:GenericErrWrongNumArgsTxn
 const GENERIC_ERR_WRONG_NUM_ARGS_TXN: &str =
   "ERR Invalid number of parameters to stored proc {0}, expected {1}, actual {2}";
 /// libs/server/Resp/CmdStrings.cs:GenericErrCommandDisallowedWithOption
 const GENERIC_ERR_COMMAND_DISALLOWED_WITH_OPTION: &str = "ERR {0} command not allowed. If the {1} option is set to \"local\", you can run it from a local connection, otherwise you need to set this option in the configuration file, and then restart the server.";
-/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_UNK_CMD
-const RESP_ERR_GENERIC_UNK_CMD: &str = "ERR unknown command";
 
 /// 排队命令元数据（C# SimpleRespCommandInfo 中 NetworkSKIP 所需子集的本域
 /// 投影；宿主从 resp 命令信息域构建）

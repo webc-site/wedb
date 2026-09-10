@@ -28,7 +28,7 @@ const BUS_PORT_OFFSET: i32 = 10000;
 // 槽位/配置方法群的单一引用路径
 pub use crate::server::worker::{LOCAL_WORKER_ID, RESERVED_WORKER_ID};
 
-/// garnet相对路径:Server:ClusterPreferredEndpointType
+/// 在 garnet 中的相对路径:Server:ClusterPreferredEndpointType
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClusterPreferredEndpointType {
   Ip,
@@ -36,7 +36,7 @@ pub enum ClusterPreferredEndpointType {
   Unknown,
 }
 
-/// garnet相对路径:Server:ClusterConfig
+/// 在 garnet 中的相对路径:Server:ClusterConfig
 #[derive(Debug, Clone)]
 pub struct ClusterConfig {
   pub slot_map: Box<[HashSlot; MAX_HASH_SLOT_VALUE]>,
@@ -50,17 +50,17 @@ impl Default for ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:OutOfRange
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:OutOfRange
   pub fn out_of_range(slot: usize) -> bool {
     slot >= MAX_HASH_SLOT_VALUE
   }
 
-  /// garnet相对路径:Server:ClusterConfig:NumWorkers
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:NumWorkers
   pub fn num_workers(&self) -> usize {
     self.workers.len().saturating_sub(1)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:ClusterConfig
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:ClusterConfig
   pub fn new() -> Self {
     let slot_map = Box::new(from_fn(|_| HashSlot::default()));
     let workers = vec![Worker::default(); 2];
@@ -69,14 +69,14 @@ impl ClusterConfig {
     config
   }
 
-  /// garnet相对路径:Server:ClusterConfig:InitializeUnassignedWorker
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:InitializeUnassignedWorker
   ///
   /// 保留位恒为 [`Worker::default`]（全零/None），杜绝逐字段赋值漂移
   fn initialize_unassigned_worker(&mut self) {
     self.workers[RESERVED_WORKER_ID] = Worker::default();
   }
 
-  /// garnet相对路径:Server:ClusterConfig:InitializeLocalWorker
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:InitializeLocalWorker
   ///
   /// 原地更新本地 worker。C# 版每次复制重建 workers 数组；调用方均持有
   /// 写锁，此处直接改写，省去整份 slot_map（64KB）克隆。
@@ -93,7 +93,7 @@ impl ClusterConfig {
     w.hostname = spec.hostname.map(String::from);
   }
 
-  /// garnet相对路径:Server:ClusterConfig:HasAssignedSlots
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:HasAssignedSlots
   pub fn has_assigned_slots(&self, worker_id: u16) -> bool {
     for i in 0..MAX_HASH_SLOT_VALUE {
       // C# 按原始 workerId 判定（Migrating 槽在映射中记目标节点）
@@ -104,7 +104,7 @@ impl ClusterConfig {
     false
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsLocal
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsLocal
   #[inline]
   pub fn is_local(&self, slot: u16, read_write_session: bool) -> bool {
     let slot = slot as usize;
@@ -112,7 +112,7 @@ impl ClusterConfig {
       || self.is_local_expensive(slot, read_write_session)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsLocalExpensive
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsLocalExpensive
   fn is_local_expensive(&self, slot: usize, read_write_session: bool) -> bool {
     if self.slot_map[slot].state == SlotState::Migrating {
       return true;
@@ -129,37 +129,37 @@ impl ClusterConfig {
     false
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsKnown
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsKnown
   pub fn is_known(&self, nodeid: &str) -> bool {
     self.worker_by_node_id(nodeid).is_some()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsPrimary
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsPrimary
   pub fn is_primary(&self) -> bool {
     self.local_node_role() == NodeRole::Primary
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsReplica
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsReplica
   pub fn is_replica(&self) -> bool {
     self.local_node_role() == NodeRole::Replica
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeIp
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeIp
   pub fn local_node_ip(&self) -> &str {
     &self.workers[LOCAL_WORKER_ID].address
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodePort
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodePort
   pub fn local_node_port(&self) -> i32 {
     self.workers[LOCAL_WORKER_ID].port
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeId
   pub fn local_node_id(&self) -> Option<&str> {
     self.workers[LOCAL_WORKER_ID].nodeid.as_deref()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeIdShort
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeIdShort
   pub fn local_node_id_short(&self) -> String {
     let Some(id) = &self.workers[LOCAL_WORKER_ID].nodeid else {
       return String::new();
@@ -168,22 +168,22 @@ impl ClusterConfig {
     id.get(..8).unwrap_or(id).to_string()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeRole
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeRole
   pub fn local_node_role(&self) -> NodeRole {
     self.workers[LOCAL_WORKER_ID].role
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodePrimaryId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodePrimaryId
   pub fn local_node_primary_id(&self) -> Option<&str> {
     self.workers[LOCAL_WORKER_ID].replica_of_node_id.as_deref()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeConfigEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeConfigEpoch
   pub fn local_node_config_epoch(&self) -> i64 {
     self.workers[LOCAL_WORKER_ID].config_epoch
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LocalNodeEndpoint
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LocalNodeEndpoint
   pub fn local_node_endpoint(&self) -> String {
     format!(
       "{}:{}",
@@ -191,7 +191,7 @@ impl ClusterConfig {
     )
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetLocalNodePrimaryAddress
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetLocalNodePrimaryAddress
   pub fn get_local_node_primary_address(&self) -> (Option<String>, i32) {
     if let Some(id) = self.workers[LOCAL_WORKER_ID].replica_of_node_id.as_deref() {
       self.get_worker_address_from_node_id(id)
@@ -200,7 +200,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetLocalNodeReplicaIds
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetLocalNodeReplicaIds
   pub fn get_local_node_replica_ids(&self) -> Vec<String> {
     if let Some(id) = self.local_node_id() {
       self.get_replica_ids(id)
@@ -211,7 +211,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetLocalNodeReplicaEndpoints
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetLocalNodeReplicaEndpoints
   pub fn get_local_node_replica_endpoints(&self) -> Vec<SocketAddr> {
     let Some(local_id) = self.local_node_id() else {
       return Vec::new();
@@ -228,7 +228,7 @@ impl ClusterConfig {
     replicas
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetLocalNodePrimaryEndpoints
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetLocalNodePrimaryEndpoints
   pub fn get_local_node_primary_endpoints(
     &self,
     include_my_primary_first: bool,
@@ -267,7 +267,7 @@ impl ClusterConfig {
     primaries
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetLocalPrimarySlots
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetLocalPrimarySlots
   pub fn get_local_primary_slots(&self) -> Vec<usize> {
     let primary_id = self.local_node_primary_id();
     let mut slots = Vec::new();
@@ -287,7 +287,7 @@ impl ClusterConfig {
     slots
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetMaxConfigEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetMaxConfigEpoch
   ///
   /// 对齐 C# 以 0 为下界折叠（`mx = Math.Max(epoch, mx=0)`）：负 epoch 不参与
   /// 最大值竞争。`[1..]` 等价于 `1..=num_workers()`（num_workers = len-1），
@@ -299,7 +299,7 @@ impl ClusterConfig {
       .fold(0, i64::max)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetRemoteNodeIds
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetRemoteNodeIds
   pub fn get_remote_node_ids(&self) -> Vec<String> {
     self
       .workers
@@ -320,12 +320,12 @@ impl ClusterConfig {
     })
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerIdFromNodeId
   pub fn get_worker_id_from_node_id(&self, node_id: &str) -> u16 {
     self.worker_by_node_id(node_id).map_or(0, |(i, _)| i as u16)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetNodeRoleFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetNodeRoleFromNodeId
   #[inline]
   pub fn get_node_role_from_node_id(&self, node_id: &str) -> NodeRole {
     self
@@ -333,12 +333,12 @@ impl ClusterConfig {
       .map_or(NodeRole::Unassigned, |(_, w)| w.role)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerFromNodeId
   pub fn get_worker_from_node_id(&self, node_id: &str) -> Option<&Worker> {
     self.worker_by_node_id(node_id).map(|(_, w)| w)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerAddressFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerAddressFromNodeId
   pub fn get_worker_address_from_node_id(&self, node_id: &str) -> (Option<String>, i32) {
     match self.worker_by_node_id(node_id) {
       Some((_, w)) => (Some(w.address.clone()), w.port),
@@ -346,7 +346,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetHostNameFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetHostNameFromNodeId
   pub fn get_host_name_from_node_id(&self, node_id: &str) -> Option<String> {
     self
       .worker_by_node_id(node_id)
@@ -355,25 +355,25 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:IsImportingSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsImportingSlot
   #[inline]
   pub fn is_importing_slot(&self, slot: u16) -> bool {
     self.slot_map[slot as usize].state == SlotState::Importing
   }
 
-  /// garnet相对路径:Server:ClusterConfig:IsMigratingSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:IsMigratingSlot
   #[inline]
   pub fn is_migrating_slot(&self, slot: u16) -> bool {
     self.slot_map[slot as usize].state == SlotState::Migrating
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetState
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetState
   #[inline]
   pub fn get_state(&self, slot: u16) -> SlotState {
     self.slot_map[slot as usize].state
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerIdFromSlot
   #[inline]
   pub fn get_worker_id_from_slot(&self, slot: u16) -> usize {
     // C# 返回原始 workerId（Migrating 槽即目标节点；源侧归属由
@@ -381,7 +381,7 @@ impl ClusterConfig {
     self.slot_map[slot as usize].worker_id as usize
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetNodeIdFromSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetNodeIdFromSlot
   #[inline]
   pub fn get_node_id_from_slot(&self, slot: u16) -> Option<String> {
     let wid = self.get_worker_id_from_slot(slot);
@@ -392,7 +392,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetOwnerIdFromSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetOwnerIdFromSlot
   #[inline]
   pub fn get_owner_id_from_slot(&self, slot: u16) -> Option<String> {
     let wid = self.slot_map[slot as usize].worker_id as usize;
@@ -403,7 +403,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetEndpointFromSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetEndpointFromSlot
   #[inline]
   pub fn get_endpoint_from_slot(
     &self,
@@ -421,7 +421,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:AskEndpointFromSlot
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:AskEndpointFromSlot
   #[inline]
   pub fn ask_endpoint_from_slot(
     &self,
@@ -439,7 +439,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetEndpointByPreferredType
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetEndpointByPreferredType
   fn get_endpoint_by_preferred_type(
     &self,
     worker_id: usize,
@@ -459,7 +459,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetEndpointFromNodeId
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetEndpointFromNodeId
   #[inline]
   pub fn get_endpoint_from_node_id(&self, nodeid: &str) -> Option<SocketAddr> {
     self
@@ -469,7 +469,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetReplicaIds
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetReplicaIds
   pub fn get_replica_ids(&self, nodeid: &str) -> Vec<String> {
     let mut replicas = Vec::new();
     for worker in self.workers.iter().skip(1) {
@@ -483,7 +483,7 @@ impl ClusterConfig {
     replicas
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetReplicaEndpoints
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetReplicaEndpoints
   pub fn get_replica_endpoints(&self, nodeid: &str) -> Vec<(String, i32)> {
     let mut endpoints = Vec::new();
     for worker in self.workers.iter().skip(1) {
@@ -496,14 +496,14 @@ impl ClusterConfig {
     endpoints
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerAddress
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerAddress
   #[inline]
   pub fn get_worker_address(&self, worker_id: u16) -> (String, i32) {
     let w = &self.workers[worker_id as usize];
     (w.address.clone(), w.port)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerInfoForGossip
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerInfoForGossip
   pub fn get_worker_info_for_gossip(&self) -> Vec<(String, String, i32)> {
     let mut result = Vec::new();
     for worker in self.workers.iter().skip(2) {
@@ -514,7 +514,7 @@ impl ClusterConfig {
     result
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetSlotCountForState
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetSlotCountForState
   pub fn get_slot_count_for_state(&self, state: SlotState) -> usize {
     self.slot_map.iter().filter(|s| s.state == state).count()
   }
@@ -529,7 +529,7 @@ impl ClusterConfig {
     counts
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetPrimaryCount
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetPrimaryCount
   pub fn get_primary_count(&self) -> usize {
     self.workers[1..]
       .iter()
@@ -537,7 +537,7 @@ impl ClusterConfig {
       .count()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddress
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddress
   pub fn get_worker_node_id_from_address(&self, address: &str, port: i32) -> Option<String> {
     self.workers[1..]
       .iter()
@@ -545,7 +545,7 @@ impl ClusterConfig {
       .and_then(|w| w.nodeid.clone())
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddressOrHostname
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerNodeIdFromAddressOrHostname
   pub fn get_worker_node_id_from_address_or_hostname(
     &self,
     address: &str,
@@ -559,14 +559,14 @@ impl ClusterConfig {
       .and_then(|w| w.nodeid.clone())
   }
 
-  /// garnet相对路径:Server:ClusterConfig:LazyUpdateLocalReplicationOffset
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:LazyUpdateLocalReplicationOffset
   pub fn lazy_update_local_replication_offset(&mut self, offset: i64) {
     self.workers[LOCAL_WORKER_ID].replication_offset = offset;
   }
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:RemoveWorker
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:RemoveWorker
   ///
   /// 差异：C# 未找到目标节点时仍按 worker_id=0 执行，会误删 0 号保留位；
   /// 此处直接原样返回，调用方语义不变但杜绝配置损坏
@@ -616,7 +616,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:MakeReplicaOf
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:MakeReplicaOf
   pub fn make_replica_of(&mut self, nodeid: Option<&str>) -> &mut Self {
     let w = &mut self.workers[LOCAL_WORKER_ID];
     w.replica_of_node_id = nodeid.map(String::from);
@@ -624,13 +624,13 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerRole
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:SetLocalWorkerRole
   pub fn set_local_worker_role(&mut self, role: NodeRole) -> &mut Self {
     self.workers[LOCAL_WORKER_ID].role = role;
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:TakeOverFromPrimary
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:TakeOverFromPrimary
   pub fn take_over_from_primary(&mut self) -> &mut Self {
     // 先按现主收集槽位再清 primary 指针，顺序不能反
     let slots = self.get_local_primary_slots();
@@ -645,7 +645,7 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:TryAddSlots
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:TryAddSlots
   ///
   /// 先整体校验再占位：与 C# 的"新配置上试错"等价的 all-or-nothing 语义，
   /// 但无需整份克隆
@@ -667,7 +667,7 @@ impl ClusterConfig {
     Ok(())
   }
 
-  /// garnet相对路径:Server:ClusterConfig:AssignSlots
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:AssignSlots
   pub fn assign_slots(&mut self, slots: &[usize], worker_id: u16, state: SlotState) -> &mut Self {
     for &slot in slots {
       let e = &mut self.slot_map[slot];
@@ -677,7 +677,7 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:TryRemoveSlots
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:TryRemoveSlots
   pub fn try_remove_slots(&mut self, slots: Option<&HashSet<usize>>) -> Result<()> {
     let Some(s) = slots else {
       return Ok(());
@@ -696,7 +696,7 @@ impl ClusterConfig {
     Ok(())
   }
 
-  /// garnet相对路径:Server:ClusterConfig:UpdateSlotState
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:UpdateSlotState
   pub fn update_slot_state(&mut self, slot: usize, worker_id: u16, state: SlotState) -> &mut Self {
     let e = &mut self.slot_map[slot];
     e.worker_id = worker_id;
@@ -704,7 +704,7 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:UpdateMultiSlotState
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:UpdateMultiSlotState
   pub fn update_multi_slot_state(
     &mut self,
     slots: &HashSet<usize>,
@@ -719,7 +719,7 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:ResetMultiSlotState
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:ResetMultiSlotState
   pub fn reset_multi_slot_state(&mut self, slots: &HashSet<usize>) -> &mut Self {
     for &slot in slots {
       // Migrating 槽归本地源节点，其余按 eff 属主回稳
@@ -736,7 +736,7 @@ impl ClusterConfig {
     self
   }
 
-  /// garnet相对路径:Server:ClusterConfig:SetLocalWorkerConfigEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:SetLocalWorkerConfigEpoch
   ///
   /// 语义对齐 C#：仅允许"从 0 初始化"且新值必须为正；后续单调递增只能走
   /// [`Self::bump_local_node_config_epoch`]，防止覆写既有 epoch。
@@ -752,7 +752,7 @@ impl ClusterConfig {
     }
   }
 
-  /// garnet相对路径:Server:ClusterConfig:BumpLocalNodeConfigEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:BumpLocalNodeConfigEpoch
   pub fn bump_local_node_config_epoch(&mut self) -> &mut Self {
     let mx = self.get_max_config_epoch();
     self.workers[LOCAL_WORKER_ID].config_epoch = mx + 1;
@@ -761,7 +761,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:MergeWorkerInfo
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:MergeWorkerInfo
   ///
   /// 原地合并单个 worker：同名节点仅在 epoch 严格更大时更新，否则追加。
   /// 返回是否发生变化。对齐 C# 仅复制 7 个元数据字段（不含
@@ -788,7 +788,7 @@ impl ClusterConfig {
     true
   }
 
-  /// garnet相对路径:Server:ClusterConfig:MergeSlotMap
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:MergeSlotMap
   ///
   /// 原地合并槽位图，返回是否有槽位变化。调用方需先做整体克隆
   /// （与 C# Copy 一次 slotMap 相同开销）
@@ -872,7 +872,7 @@ impl ClusterConfig {
     updated
   }
 
-  /// garnet相对路径:Server:ClusterConfig:Merge
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:Merge
   ///
   /// 全程仅一次整份克隆（slot_map 64KB）：先逐 worker 原地合并，再原地
   /// 合并槽位图。原实现每 worker 全量克隆一次，N 个 worker 的 gossip
@@ -903,7 +903,7 @@ impl ClusterConfig {
     changed.then_some(merged)
   }
 
-  /// garnet相对路径:Server:ClusterConfig:HandleConfigEpochCollision
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:HandleConfigEpochCollision
   ///
   /// 原地处理 epoch 碰撞，返回是否发生碰撞并自增（true 时需落盘）
   pub fn handle_config_epoch_collision(&mut self, sender_config: &ClusterConfig) -> bool {
@@ -940,7 +940,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetClusterInfo
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetClusterInfo
   pub fn get_cluster_info(&self, cluster_provider: Option<&ClusterProvider>) -> String {
     let mut sb = String::new();
     for i in 1..=self.num_workers() {
@@ -958,7 +958,7 @@ impl ClusterConfig {
     sb
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetNodeInfo
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetNodeInfo
   pub fn get_node_info(&self, worker_id: usize, info: &ConnectionInfo) -> String {
     let mut sb = String::new();
     self.append_node_info(worker_id, info, &mut sb);
@@ -1079,7 +1079,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetShardRanges
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetShardRanges
   ///
   /// 单遍扫描输出连续槽区间；哨兵扫描自然闭合末区间
   pub fn get_shard_ranges(&self, worker_id: usize) -> Vec<(u16, u16)> {
@@ -1102,7 +1102,7 @@ impl ClusterConfig {
     ranges
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetWorkerReplicas
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetWorkerReplicas
   pub fn get_worker_replicas(&self, worker_id: usize) -> Vec<usize> {
     let primary_id = self.workers[worker_id].nodeid.clone().unwrap_or_default();
     self
@@ -1120,7 +1120,7 @@ impl ClusterConfig {
       .collect()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetAllNodeIds
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetAllNodeIds
   pub fn get_all_node_ids(&self) -> Vec<(String, SocketAddr)> {
     let mut all_node_ids = Vec::new();
     for worker in self.workers.iter().skip(2) {
@@ -1133,7 +1133,7 @@ impl ClusterConfig {
     all_node_ids
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetNodeIdsForShard
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetNodeIdsForShard
   pub fn get_node_ids_for_shard(&self) -> Vec<(String, SocketAddr)> {
     let primary_id = if self.local_node_role() == NodeRole::Primary {
       self.local_node_id().map(|s| s.to_string())
@@ -1161,7 +1161,7 @@ impl ClusterConfig {
     shard_node_ids
   }
 
-  /// garnet相对路径:Server:ClusterConfig:GetSlotList
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetSlotList
   pub fn get_slot_list(&self, worker_id: u16) -> Vec<usize> {
     let mut result = Vec::new();
     for i in 0..MAX_HASH_SLOT_VALUE {
@@ -1175,7 +1175,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetShardsInfo
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetShardsInfo
   pub fn get_shards_info(
     &self,
     cluster_connection: Option<&ClusterProvider>,
@@ -1312,7 +1312,7 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:GetSlotsInfo
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:GetSlotsInfo
   pub fn get_slots_info(&self, pref_type: ClusterPreferredEndpointType) -> String {
     let mut sb = String::new();
     let mut slot_ranges = 0;
@@ -1495,7 +1495,7 @@ struct SlotSegmentWire {
 }
 
 impl ClusterConfig {
-  /// garnet相对路径:Server:ClusterConfig:TryPeekVersion
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:TryPeekVersion
   ///
   /// 全量解码前快速校验版本号（gossip 接收端先用它拒绝异版本节点）
   #[inline]
@@ -1503,7 +1503,7 @@ impl ClusterConfig {
     data.first().copied()
   }
 
-  /// garnet相对路径:Server:ClusterConfig:ToByteArray
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:ToByteArray
   pub fn to_byte_array(&self) -> Vec<u8> {
     let segments: Vec<SlotSegmentWire> = self
       .slot_map
@@ -1536,7 +1536,7 @@ impl ClusterConfig {
     out
   }
 
-  /// garnet相对路径:Server:ClusterConfig:FromByteArray
+  /// 在 garnet 中的相对路径:Server:ClusterConfig:FromByteArray
   pub fn from_byte_array(data: &[u8]) -> Result<Self> {
     let Some((&version, payload)) = data.split_first() else {
       return Err(Error::PayloadTooShort);

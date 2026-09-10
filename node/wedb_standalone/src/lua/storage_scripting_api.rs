@@ -13,7 +13,13 @@ use wdev::Device;
 use super::{
   scratch_buffer_network_sender::ScratchBufferNetworkSender, scripting_api::ScriptingApi,
 };
-use crate::storage::session::storage_session::StorageSession;
+use crate::{
+  resp::{
+    cmd_strings::{RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER},
+    parser::session_parse_state::strict_i64,
+  },
+  storage::session::storage_session::StorageSession,
+};
 
 /// 同步面无法闭环时的降级错误文案。
 const ERR_ASYNC_REQUIRED: &str =
@@ -212,8 +218,8 @@ impl<'s, D: Device> StorageScriptingApi<'s, D> {
         self.incr_by(&args[1], delta, &mut out);
       }
       ("INCRBY", 3) | ("DECRBY", 3) => {
-        let Ok(delta) = str::from_utf8(&args[2]).unwrap_or("").parse::<i64>() else {
-          Self::write_error(&mut out, "ERR value is not an integer or out of range.");
+        let Some(delta) = strict_i64(&args[2]) else {
+          Self::write_error(&mut out, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           Self::emit(sender, &out);
           return;
         };
@@ -223,7 +229,7 @@ impl<'s, D: Device> StorageScriptingApi<'s, D> {
           &mut out,
         );
       }
-      _ => Self::write_error(&mut out, "ERR unknown command"),
+      _ => Self::write_error(&mut out, RESP_ERR_GENERIC_UNK_CMD),
     }
 
     Self::emit(sender, &out);
@@ -235,7 +241,7 @@ impl<'s, D: Device> StorageScriptingApi<'s, D> {
       Ok(Some(value)) => match str::from_utf8(&value).unwrap_or("").parse() {
         Ok(parsed) => parsed,
         Err(_) => {
-          Self::write_error(out, "ERR value is not an integer or out of range.");
+          Self::write_error(out, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return;
         }
       },

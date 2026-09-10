@@ -1,6 +1,6 @@
 use std::{mem::size_of, ptr::copy_nonoverlapping, slice::from_raw_parts};
 
-/// garnet相对路径:Tsavorite.core/PinnedSpanByte.cs
+/// 在 garnet 中的相对路径:Tsavorite.core/PinnedSpanByte.cs
 /// We use ArgSlice to represent PinnedSpanByte.
 #[derive(Debug, Clone, Copy)]
 pub struct ArgSlice {

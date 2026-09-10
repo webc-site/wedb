@@ -1,9 +1,7 @@
 //! 对象层共享解析工具（对标 Garnet.common NumUtils/ParseUtils 与
 //! libs/server/SessionParseStateExtensions.cs 中对象命令用到的词法解析）
 
-use std::str;
-
-use wutil::convert::utc_now_ticks;
+use wbase::{convert::utc_now_ticks, num};
 
 use crate::{
   objects::{
@@ -23,12 +21,12 @@ pub fn equals_ignore_case(a: &[u8], b: &[u8]) -> bool {
 
 /// 严格解析双精度浮点（整体须为合法数字），支持 "inf"/"+inf"/"-inf" 无穷量词
 ///
-/// 单一实现位于 `wutil::num::try_parse_with_infinity`
+/// 单一实现位于 `wbase::num::try_parse_with_infinity`
 /// （对标 Garnet.common NumUtils.TryParseWithInfinity），此处仅按对象层签名转接
 #[inline]
 pub fn try_parse_with_infinity(v: &[u8]) -> Option<f64> {
   let mut value = 0.0;
-  wutil::num::try_parse_with_infinity(v, &mut value).then_some(value)
+  num::try_parse_with_infinity(v, &mut value).then_some(value)
 }
 
 /// 严格解析 i64（单一实现为 [`strict_i64`]，对标 parseState.TryGetLong →
@@ -134,7 +132,7 @@ fn geo_latitude_in_range(lat: f64) -> bool {
 /// 当前时刻的 .NET Ticks（公历 0001-01-01 起的 100ns 数）
 ///
 /// 对标 C# `DateTimeOffset.UtcNow.Ticks`（Garnet 过期结构的时间基准）；
-/// 单一实现为 `wutil::convert::utc_now_ticks`，此处按对象层既有签名转接
+/// 单一实现为 `wbase::convert::utc_now_ticks`，此处按对象层既有签名转接
 #[inline]
 pub fn now_ticks() -> i64 {
   utc_now_ticks()

@@ -325,7 +325,7 @@ impl RespServerSession {
       Err(RangeIndexError::WrongType) => {
         abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
       }
-      Err(_) => abort_with_error_message(output, "ERR range index not found"),
+      Err(e) => abort_with_error_message(output, &e.to_string()),
     }
     Ok(true)
   }
@@ -355,7 +355,7 @@ impl RespServerSession {
       Err(RangeIndexError::WrongType) => {
         abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
       }
-      Err(_) => abort_with_error_message(output, "ERR range index not found"),
+      Err(e) => abort_with_error_message(output, &e.to_string()),
     }
     Ok(true)
   }
@@ -488,7 +488,7 @@ impl RespServerSession {
       Err(RangeIndexError::WrongType) => {
         abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
       }
-      Err(_) => abort_with_error_message(output, "ERR range index not found"),
+      Err(e) => abort_with_error_message(output, &e.to_string()),
     }
     Ok(true)
   }
@@ -519,7 +519,7 @@ impl RespServerSession {
       Err(RangeIndexError::WrongType) => {
         abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
       }
-      Err(_) => abort_with_error_message(output, "ERR range index not found"),
+      Err(e) => abort_with_error_message(output, &e.to_string()),
     }
     Ok(true)
   }

@@ -8,7 +8,7 @@ pub const RESERVED_WORKER_ID: usize = 0;
 /// 本地 worker 位（1 号），紧跟保留位
 pub const LOCAL_WORKER_ID: usize = 1;
 
-/// garnet相对路径:Server:NodeRole
+/// 在 garnet 中的相对路径:Server:NodeRole
 #[derive(
   Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr, EnumString, IntoStaticStr, Encode, Decode,
 )]
@@ -20,7 +20,7 @@ pub enum NodeRole {
   Unassigned = 0x2,
 }
 
-/// garnet相对路径:Server:Worker
+/// 在 garnet 中的相对路径:Server:Worker
 ///
 /// 派生 bitcode 编码直接作为集群配置线格式载荷（worker 自 1 号起序列化）
 #[derive(Debug, Clone, Default, Encode, Decode)]

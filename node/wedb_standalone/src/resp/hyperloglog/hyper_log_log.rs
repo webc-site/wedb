@@ -13,6 +13,7 @@
 use std::collections::BTreeMap;
 
 use bitflags::bitflags;
+use wbase::hash::murmur_hash2_x64_a;
 
 /// 寄存器位数
 const REG_BITS: u32 = 6;
@@ -1180,10 +1181,10 @@ impl HyperLogLog {
 
 /// MurmurHash2 64 位变体（PFADD 的元素哈希；C# 无种子形态，种子取 0）
 ///
-/// libs/common/HashUtils.cs:MurmurHash2x64A（单一实现位于 `wutil::hash`）
+/// libs/common/HashUtils.cs:MurmurHash2x64A（单一实现位于 `wbase::hash`）
 #[inline]
 pub fn murmur_hash_2_x64_a(b_string: &[u8]) -> u64 {
-  wutil::hash::murmur_hash2_x64_a(b_string, 0)
+  murmur_hash2_x64_a(b_string, 0)
 }
 
 #[cfg(test)]

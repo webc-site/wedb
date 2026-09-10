@@ -5,13 +5,13 @@ pub struct DummyObjectFactory;
 
 impl DummyObjectFactory {
   /// 创建一个新的 DummyObject
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:Create
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:Create
   pub fn create(obj_type: u8) -> DummyObject {
     DummyObject::new(obj_type)
   }
 
   /// 反序列化 DummyObject
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:Deserialize
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:Deserialize
   pub fn deserialize<R: Read>(obj_type: u8, reader: &mut R) -> DummyObject {
     DummyObject::new_with_reader(obj_type, reader)
   }
@@ -35,23 +35,23 @@ impl DummyObject {
   }
 
   /// 克隆对象
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:CloneObject
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:CloneObject
   pub fn clone_object(&self) -> DummyObject {
     self.clone()
   }
 
   /// 序列化对象
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:SerializeObject
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:SerializeObject
   pub fn serialize_object<W: Write>(&self, _writer: &mut W) {
     // 无操作
   }
 
   /// 释放资源
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:Dispose
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:Dispose
   pub fn dispose(&self) {}
 
   /// 扫描操作
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObject.cs:Scan
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObject.cs:Scan
   pub fn scan(
     &self,
     _start: i64,

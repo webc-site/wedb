@@ -1,6 +1,6 @@
 use crate::server::connection_info::ConnectionInfo;
 
-/// garnet相对路径:Server:ClusterProvider
+/// 在 garnet 中的相对路径:Server:ClusterProvider
 #[derive(Clone)]
 pub struct ClusterProvider {
   // fields will be populated later

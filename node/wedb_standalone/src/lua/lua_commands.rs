@@ -7,7 +7,7 @@
 
 use std::{str, sync::Arc};
 
-use papaya::HashMap as PapayaMap;
+use whasher::GxPapayaMap;
 
 use super::{
   lua_options::LuaOptions,
@@ -17,13 +17,22 @@ use super::{
   scripting_api::ScriptingApi,
   session_script_cache::{LuaScriptHandle, RunnerCreateOptions, SHA1_LEN, SessionScriptCache},
 };
+use crate::resp::{
+  cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, parser::session_parse_state::strict_i64,
+};
+
+/// EVAL/EVALSHA numkeys 非法时报错文案（C# CmdStrings
+/// RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER）
+const ERR_VALUE_NOT_INTEGER: &[u8] = b"ERR value is not an integer or out of range.";
+/// SCRIPT FLUSH 选项非法文案（本域两处复用）。
+const ERR_SCRIPT_FLUSH_OPTION: &[u8] = b"ERR SCRIPT FLUSH only support SYNC|ASYNC option";
 
 /// 全局脚本缓存（对标 storeWrapper.storeScriptCache 的
 /// ConcurrentDictionary<ScriptHashKey, LuaScriptHandle>）。
 #[derive(Default)]
 pub struct StoreScriptCache {
   /// 摘要 → 共享脚本句柄。
-  map: PapayaMap<ScriptHashKey, Arc<LuaScriptHandle>>,
+  map: GxPapayaMap<ScriptHashKey, Arc<LuaScriptHandle>>,
 }
 
 impl StoreScriptCache {
@@ -111,14 +120,11 @@ impl LuaCommands {
       return Self::abort_with_wrong_number_of_arguments(ctx, "EVALSHA");
     }
 
-    let Some(n) = str::from_utf8(&ctx.args[1])
-      .ok()
-      .and_then(|t| t.parse::<i64>().ok())
-    else {
-      return Self::abort_with_error_message(ctx, b"ERR value is not an integer or out of range.");
+    let Some(n) = strict_i64(&ctx.args[1]) else {
+      return Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
     };
     if !(0..=(count as i64 - 2)).contains(&n) {
-      return Self::abort_with_error_message(ctx, b"ERR value is not an integer or out of range.");
+      return Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
     }
 
     // Length check is mandatory, as ScriptHashKey assumes correct length.
@@ -196,14 +202,11 @@ impl LuaCommands {
       return Self::abort_with_wrong_number_of_arguments(ctx, "EVAL");
     }
 
-    let Some(n) = str::from_utf8(&ctx.args[1])
-      .ok()
-      .and_then(|t| t.parse::<i64>().ok())
-    else {
-      return Self::abort_with_error_message(ctx, b"ERR value is not an integer or out of range.");
+    let Some(n) = strict_i64(&ctx.args[1]) else {
+      return Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
     };
     if !(0..=(count as i64 - 2)).contains(&n) {
-      return Self::abort_with_error_message(ctx, b"ERR value is not an integer or out of range.");
+      return Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
     }
 
     let script = ctx.args[0].clone();
@@ -281,18 +284,12 @@ impl LuaCommands {
     }
 
     if ctx.args.len() > 1 {
-      return Self::abort_with_error_message(
-        ctx,
-        b"ERR SCRIPT FLUSH only support SYNC|ASYNC option",
-      );
+      return Self::abort_with_error_message(ctx, ERR_SCRIPT_FLUSH_OPTION);
     } else if ctx.args.len() == 1 {
       // We ignore this, but should validate it
       let arg = ctx.args[0].to_ascii_uppercase();
       if arg != b"ASYNC" && arg != b"SYNC" {
-        return Self::abort_with_error_message(
-          ctx,
-          b"ERR SCRIPT FLUSH only support SYNC|ASYNC option",
-        );
+        return Self::abort_with_error_message(ctx, ERR_SCRIPT_FLUSH_OPTION);
       }
     }
 
@@ -417,7 +414,7 @@ impl LuaCommands {
 
   /// AbortWithWrongNumberOfArguments（resp 域形态，文案对齐）。
   fn abort_with_wrong_number_of_arguments(ctx: &mut LuaSessionContext, command: &str) -> bool {
-    let text = format!("ERR wrong number of arguments for '{command}' command");
+    let text = GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", command);
     Self::abort_with_error_message(ctx, text.as_bytes())
   }
 

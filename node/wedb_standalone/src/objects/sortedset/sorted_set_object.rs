@@ -12,11 +12,11 @@ use std::{
   cmp::{Ordering, Reverse},
   collections::{BTreeSet, BinaryHeap},
   io::{self, Read, Write},
-  mem::swap,
 };
 
 use bitflags::bitflags;
 use gxhash::{GxBuildHasher, HashMap};
+use wbase::glob::glob_match;
 
 use crate::{
   inputs::ObjectInput,
@@ -24,6 +24,7 @@ use crate::{
     parse_utils::now_ticks,
     types::object_output::{ObjectOutput, ObjectOutputFlags},
   },
+  resp::cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
   types::GarnetObjectType,
 };
 
@@ -462,7 +463,7 @@ impl SortedSetObject {
 
     let Some(op) = sorted_set_op_from_header(input) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      output.write_error(b"ERR unsupported operation");
+      output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
 
@@ -516,7 +517,7 @@ impl SortedSetObject {
       // GEOSEARCH 由命令层经 geo_search(opts) 直入（携带 GeoSearchOptions 束）；
       // ZDIFF/ZUNION/ZINTER 属存储 API 域聚合（C# 同样不经 ObjectInput 分派）
       SortedSetOperation::Geosearch | SortedSetOperation::Zdiff => {
-        output.write_error(b"ERR unsupported operation");
+        output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }
 
@@ -959,128 +960,6 @@ impl SortedSetObject {
 #[inline]
 pub fn sorted_set_op_from_header(input: &ObjectInput) -> Option<SortedSetOperation> {
   SortedSetOperation::try_from(input.header.sub_id()).ok()
-}
-
-/// Glob 风格 ASCII 模式匹配（`*` 任意串、`?` 单字符、`[...]` 字符类、`\` 转义），
-/// 供 ZSCAN MATCH 使用
-///
-/// libs/server/GlobUtils.cs:Match
-///
-/// 刻意差异（对照 C#）：指针版本在末尾越界读 `pattern[1]`（依赖缓冲区终结符），
-/// 这里以切片长度判断收敛为安全等价；其余分支含未闭合类回退逐一移植。
-pub(crate) fn glob_match(pattern: &[u8], text: &[u8]) -> bool {
-  let (mut pattern, mut text) = (pattern, text);
-
-  while !pattern.is_empty() && !text.is_empty() {
-    match pattern[0] {
-      b'*' => {
-        // 塌缩连续 *
-        while pattern.len() > 1 && pattern[1] == b'*' {
-          pattern = &pattern[1..];
-        }
-        if pattern.len() == 1 {
-          return true;
-        }
-        let mut rest = text;
-        while !rest.is_empty() {
-          if glob_match(&pattern[1..], rest) {
-            return true;
-          }
-          rest = &rest[1..];
-        }
-        return false;
-      }
-      b'?' => {
-        text = &text[1..];
-      }
-      b'[' => {
-        let (tail, matched) = match_class(&pattern[1..], text[0]);
-        pattern = tail;
-        if !matched {
-          return false;
-        }
-        text = &text[1..];
-      }
-      // 转义字符：与键字符精确比较（末尾统一消费）
-      b'\\' if pattern.len() >= 2 => {
-        if pattern[1] != text[0] {
-          return false;
-        }
-        pattern = &pattern[1..];
-        text = &text[1..];
-      }
-      ch => {
-        if ch != text[0] {
-          return false;
-        }
-        text = &text[1..];
-      }
-    }
-    pattern = &pattern[1..];
-    // 键耗尽时跳过尾部 * 后收束
-    if text.is_empty() {
-      while pattern.first() == Some(&b'*') {
-        pattern = &pattern[1..];
-      }
-      break;
-    }
-  }
-
-  pattern.is_empty() && text.is_empty()
-}
-
-/// 字符类 `[...]` 匹配：返回 (类尾切片——指向 `]` 或空, 是否命中)
-///
-/// 对标 libs/server/GlobUtils.cs:Match 的 '[' 分支
-/// （支持 `^` 取反、`a-z` 区间、`\` 转义；`-` 区间端点乱序自动交换）
-fn match_class(mut p: &[u8], c: u8) -> (&[u8], bool) {
-  let not = p.first() == Some(&b'^');
-  if not {
-    p = &p[1..];
-  }
-
-  let mut matched = false;
-  let tail;
-  loop {
-    match p.first() {
-      // 未闭合：整段已视作类内容（对标 C# pattern--/patternLen++ 回退后跳出）
-      None => {
-        tail = p;
-        break;
-      }
-      // 转义字符
-      Some(b'\\') if p.len() >= 2 => {
-        if p[1] == c {
-          matched = true;
-        }
-        p = &p[1..];
-      }
-      // 类结束（tail 停在 ] 上，由外层统一消费）
-      Some(b']') => {
-        tail = p;
-        break;
-      }
-      // 区间 a-z / z-a
-      Some(_) if p.len() >= 3 && p[1] == b'-' => {
-        let (mut start, mut end) = (p[0], p[2]);
-        if start > end {
-          swap(&mut start, &mut end);
-        }
-        if (start..=end).contains(&c) {
-          matched = true;
-        }
-        p = &p[2..];
-      }
-      Some(&ch) => {
-        if ch == c {
-          matched = true;
-        }
-      }
-    }
-    p = &p[1..];
-  }
-
-  (tail, if not { !matched } else { matched })
 }
 
 #[cfg(test)]

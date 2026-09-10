@@ -3,7 +3,7 @@ pub struct NoOpProc;
 
 impl NoOpProc {
   /// 执行操作
-  /// garnet相对路径:garnet/modules/NoOpModule/NoOpProc.cs:Execute
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/NoOpProc.cs:Execute
   pub fn execute(&self, _api: &(), _proc_input: &(), _output: &mut ()) -> bool {
     true
   }

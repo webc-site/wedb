@@ -438,7 +438,11 @@ pub fn try_get_geo_search_options(
 
   let err = |e: &str| -> Option<Vec<u8>> { Some(e.as_bytes().to_vec()) };
   let num_err = || -> Option<Vec<u8>> {
-    Some(format!("ERR wrong number of arguments for '{command}' command").into_bytes())
+    Some(
+      cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS
+        .replace("{0}", command)
+        .into_bytes(),
+    )
   };
 
   // GEORADIUS(BYMEMBER)[RO] 的位置参数（原点 + 半径 + 单位）先行读取

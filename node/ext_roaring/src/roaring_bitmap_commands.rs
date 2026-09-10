@@ -8,12 +8,12 @@ use crate::{
 pub struct RoaringBitmapCommands;
 
 impl RoaringBitmapCommands {
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseUInt32
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseUInt32
   pub fn try_parse_uint32(raw: &[u8]) -> Option<u32> {
     str::from_utf8(raw).ok()?.parse().ok()
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseBit
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseBit
   pub fn try_parse_bit(raw: &[u8]) -> Option<bool> {
     match raw {
       b"0" => Some(false),
@@ -22,12 +22,12 @@ impl RoaringBitmapCommands {
     }
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:Updater
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:Updater
   pub fn updater(rb: &mut RoaringBitmapObject, offset: u32, bit: bool) -> bool {
     rb.set_bit(offset, bit)
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseArgs
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseArgs
   pub fn try_parse_args(bit_raw: &[u8], from_raw: Option<&[u8]>) -> Result<(bool, u32)> {
     let bit = Self::try_parse_bit(bit_raw).ok_or(Error::InvalidBit)?;
     let from = from_raw.map_or(Ok(0), |r| {
