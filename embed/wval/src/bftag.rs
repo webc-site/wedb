@@ -53,7 +53,8 @@ impl BfTag {
   /// 业务有序数据标签上限 (0..=31 共 32 个槽位)
   pub const BUSINESS_TAG_MAX: u8 = 31;
   /// 系统元数据起始边界 (32..=63 共 32 个槽位)
-  pub const SYSTEM_TAG_BASE: u8 = 32;  /// 栈分配键最大容量 (64 字节，对齐 L1 缓存行)
+  pub const SYSTEM_TAG_BASE: u8 = 32;
+  /// 栈分配键最大容量 (64 字节，对齐 L1 缓存行)
   pub const STACK_KEY_CAP: usize = 64;
 
   /// 从 1 字节整数解析 BfTree 标签 (const fn)

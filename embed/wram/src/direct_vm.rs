@@ -7,13 +7,7 @@
 //! - Linux 下对于 >= 2MB 的大块映射自动提示透明大页 `madvise(MADV_HUGEPAGE)`，削减 dTLB 未命中开销
 //! - 全局接入 [`NativeMemoryTracker`]，支持条带化无锁追踪原生已分配内存
 
-use std::{
-  io::Error as IoError,
-  ops::Range,
-  ptr,
-  slice::from_raw_parts,
-  sync::OnceLock,
-};
+use std::{io::Error as IoError, ops::Range, ptr, slice::from_raw_parts, sync::OnceLock};
 
 use crate::{Error, Result, tracker::NativeMemoryTracker};
 

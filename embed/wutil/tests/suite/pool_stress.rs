@@ -205,8 +205,14 @@ fn multiple_pools_different_sector_sizes_no_corruption() -> Void {
     let mut a = pool_a.get_with_policy(2000, false)?;
     let mut b = pool_b.get_with_policy(2000, false)?;
 
-    assert_eq!(a.as_allocated_slice().as_ptr() as usize % MIN_SECTOR_SIZE, 0);
-    assert_eq!(b.as_allocated_slice().as_ptr() as usize % DEFAULT_SECTOR_SIZE, 0);
+    assert_eq!(
+      a.as_allocated_slice().as_ptr() as usize % MIN_SECTOR_SIZE,
+      0
+    );
+    assert_eq!(
+      b.as_allocated_slice().as_ptr() as usize % DEFAULT_SECTOR_SIZE,
+      0
+    );
     assert!(a.capacity() >= 2000);
     assert!(b.capacity() >= 2000);
 

@@ -74,7 +74,10 @@ fn set_len_clear_and_len_bound_checks() -> Void {
   assert_eq!(buf.capacity(), DEFAULT_SECTOR_SIZE);
   assert_eq!(buf.len(), 0);
   assert!(buf.is_ptr_aligned());
-  assert_eq!((buf.as_allocated_slice().as_ptr() as usize) % DEFAULT_SECTOR_SIZE, 0);
+  assert_eq!(
+    (buf.as_allocated_slice().as_ptr() as usize) % DEFAULT_SECTOR_SIZE,
+    0
+  );
 
   // set_len 推进逻辑长度
   buf.set_len(1024)?;

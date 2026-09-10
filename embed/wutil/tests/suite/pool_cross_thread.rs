@@ -51,7 +51,11 @@ fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
     .expect("异线程归还成功");
 
   let p2 = pool.get(4096)?;
-  assert_eq!(p2.as_allocated_slice().as_ptr() as usize, ptr1, "脏缓冲必须路由回属主复用");
+  assert_eq!(
+    p2.as_allocated_slice().as_ptr() as usize,
+    ptr1,
+    "脏缓冲必须路由回属主复用"
+  );
   assert!(
     p2.as_allocated_slice().iter().all(|&b| b == 0),
     "跨线程收割路径必须惰性清零脏缓冲"
@@ -108,7 +112,8 @@ fn large_class_cross_thread_return_shares_via_depot() -> Void {
     p_clone2
       .get_with_policy(large_size, false)
       .expect("复用租借成功")
-      .as_allocated_slice().as_ptr() as usize
+      .as_allocated_slice()
+      .as_ptr() as usize
   })
   .join()
   .expect("复用线程执行成功");
@@ -145,7 +150,8 @@ fn large_class_owner_return_shares_via_depot() -> Void {
     p_clone2
       .get_with_policy(large_size, false)
       .expect("复用租借成功")
-      .as_allocated_slice().as_ptr() as usize
+      .as_allocated_slice()
+      .as_ptr() as usize
   })
   .join()
   .expect("复用线程执行成功");

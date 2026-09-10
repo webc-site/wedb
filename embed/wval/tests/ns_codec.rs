@@ -258,7 +258,10 @@ fn test_stack_and_heap_switching() {
 
   // 3. 栈/堆闭包读取验证
   let buf = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, b"hello");
-  assert_eq!(buf.as_slice(), &[0x01, 0x00, 0x00, b'h', b'e', b'l', b'l', b'o']);
+  assert_eq!(
+    buf.as_slice(),
+    &[0x01, 0x00, 0x00, b'h', b'e', b'l', b'l', b'o']
+  );
 }
 
 #[test]
@@ -412,8 +415,13 @@ fn test_sub_key_and_chunk_key_codecs() {
 
   // 2. 测试分块子键编码与解码 (HashChunk & SetChunk)
   let chunk_id = 1024u32;
-  let chunk_key =
-    NamespaceDbCodec::encode_chunk_key_with_prefix(SessionPrefixBuf::new(ns, db).as_slice(), KeyTag::HashChunk, key_id, version, chunk_id);
+  let chunk_key = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns, db).as_slice(),
+    KeyTag::HashChunk,
+    key_id,
+    version,
+    chunk_id,
+  );
   assert!(chunk_key.is_stack());
   assert_eq!(
     NamespaceDbCodec::decode_tag(chunk_key.as_slice()),
@@ -493,8 +501,13 @@ fn test_fast_path_and_boundary_decoding() {
   let meta_buf = NamespaceDbCodec::encode_meta_key(ns_fast, db_fast, b"m1");
   let sub_buf =
     NamespaceDbCodec::encode_sub_key(ns_fast, db_fast, KeyTag::Hash, key_id, version, field);
-  let chunk_buf =
-    NamespaceDbCodec::encode_chunk_key_with_prefix(SessionPrefixBuf::new(ns_fast, db_fast).as_slice(), KeyTag::HashChunk, key_id, version, 42);
+  let chunk_buf = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns_fast, db_fast).as_slice(),
+    KeyTag::HashChunk,
+    key_id,
+    version,
+    42,
+  );
 
   // decode_tagged_key 快路径
   let (ns, db, tag, payload) =
@@ -573,8 +586,13 @@ fn test_fast_path_and_boundary_decoding() {
   let db_slow = 2000u64;
   let sub_slow =
     NamespaceDbCodec::encode_sub_key(ns_slow, db_slow, KeyTag::Set, key_id, version, b"elem1");
-  let chunk_slow =
-    NamespaceDbCodec::encode_chunk_key_with_prefix(SessionPrefixBuf::new(ns_slow, db_slow).as_slice(), KeyTag::SetChunk, key_id, version, 999);
+  let chunk_slow = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns_slow, db_slow).as_slice(),
+    KeyTag::SetChunk,
+    key_id,
+    version,
+    999,
+  );
 
   assert_eq!(
     NamespaceDbCodec::decode_subkey_id_version(sub_slow.as_slice()),
@@ -613,7 +631,8 @@ fn test_with_prefix_encoding_helpers() {
 
   // 基于预计算前缀构造
   let prefix = SessionPrefixBuf::new(ns, db);
-  let payload = NamespaceDbCodec::encode_with_session_prefix(prefix.as_slice(), KeyTag::String, b"payload");
+  let payload =
+    NamespaceDbCodec::encode_with_session_prefix(prefix.as_slice(), KeyTag::String, b"payload");
   assert_eq!(
     payload.as_slice(),
     &[7, 3, 0x00, b'p', b'a', b'y', b'l', b'o', b'a', b'd']
@@ -662,5 +681,4 @@ fn test_ttl_codec() {
   assert_eq!(enc.len(), TTL_VAL_LEN);
   assert_eq!(TtlCodec::decode(&enc), Some(ts));
   assert_eq!(TtlCodec::decode(&enc[..7]), None);
-
 }

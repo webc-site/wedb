@@ -1067,7 +1067,6 @@ impl CompactZSet {
     });
     items
   }
-
 }
 
 impl<'a> IntoIterator for &'a CompactZSet {

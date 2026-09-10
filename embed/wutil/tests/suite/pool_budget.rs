@@ -118,7 +118,11 @@ fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
 
   // 两个在途 bypass 缓冲必然是不同分配（不复用）
   let second = pool.get_with_policy(over_cap, false)?;
-  assert_ne!(first.as_allocated_slice().as_ptr(), second.as_allocated_slice().as_ptr(), "超界缓冲不得复用");
+  assert_ne!(
+    first.as_allocated_slice().as_ptr(),
+    second.as_allocated_slice().as_ptr(),
+    "超界缓冲不得复用"
+  );
 
   // 触达最后一个可用字节
   first.as_allocated_slice_mut()[over_cap - 1] = 0xEE;

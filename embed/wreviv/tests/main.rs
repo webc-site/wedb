@@ -7,9 +7,7 @@ use std::{
 
 use aok::{OK, Void};
 use log::info;
-use wreviv::{
-  DEFAULT_BIN_SIZES, FreeRecord, FreeRecordBin, FreeRecordPool, RevivStats, SetStatus,
-};
+use wreviv::{DEFAULT_BIN_SIZES, FreeRecord, FreeRecordBin, FreeRecordPool, RevivStats, SetStatus};
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {

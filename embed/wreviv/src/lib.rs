@@ -30,7 +30,5 @@ mod record;
 
 pub use bin::{BEST_FIT_SCAN_ALL, FreeRecordBin, USE_FIRST_FIT};
 pub use error::{Error, Result};
-pub use pool::{
-  DEFAULT_BIN_CAPACITY, DEFAULT_BIN_SIZES, FreeRecordPool, RevivStats,
-};
+pub use pool::{DEFAULT_BIN_CAPACITY, DEFAULT_BIN_SIZES, FreeRecordPool, RevivStats};
 pub use record::{FreeRecord, SetStatus};

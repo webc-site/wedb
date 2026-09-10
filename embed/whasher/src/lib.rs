@@ -252,7 +252,6 @@ impl StreamHasher {
     self.total = 0;
     self.buf_len = 0;
   }
-
 }
 
 impl Hasher for StreamHasher {
@@ -360,4 +359,3 @@ const fn combine_seed(seed_a: u64, seed_b: u64) -> i64 {
 pub fn hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128 {
   gxhash::gxhash128(bytes, combine_seed(seed_a, seed_b))
 }
-

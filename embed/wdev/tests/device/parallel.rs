@@ -352,7 +352,6 @@ fn concurrent_cold_open_race_without_zombie_revival() -> Void {
       handle.await.unwrap()?;
     }
 
-
     // 2. 32 个并发任务回读段 5：槽位 s 同时被任务 s 与 s+16 竞写，
     //    整扇区字节必须同属单一候选模式（无撕裂混写）
     let mut handles = Vec::with_capacity(TASKS);
