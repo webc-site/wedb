@@ -1188,14 +1188,19 @@ impl<D: Device> StoreSession<D> {
   fn try_delete_raw_sync_unprotected(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
     loop {
       let begin_addr = self.store.begin_address();
-      let mut hei = self
+      // 严格对标 C# InternalDelete 的 FindTag 语义（Helpers.cs:FindTagAndTryEphemeralXLock →
+      // TsavoriteBase.FindTag：纯查找、绝不创建）：键的 Tag 不存在时立即 NOTFOUND 返回。
+      // 删除未命中绝不经 find_or_create_tag 建槽——满载链上每次删除未命中都会永久消耗
+      // 一个不可回收的溢出桶（挂链后仅竞争败者回收），删除流量即可单向耗尽溢出桶池；
+      // FindOrCreateTag 的建槽语义在 C# 仅供 Upsert/RMW 使用。截断死槽位清退口径与
+      // find_or_create 完全一致（min_valid_addr = begin_addr，同一分类内核）
+      let Some(mut hei) = self
         .store
         .index
-        .find_or_create_tag_with_min_addr(key, begin_addr)?;
-
-      if !hei.is_found() {
+        .find_tag_entry_with_min_addr(key, begin_addr)
+      else {
         return Ok(Ok(false));
-      }
+      };
 
       let addr = hei.address();
       // ReadCache 链头分流（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs:InternalDelete.cs：TryFindRecordForUpdate 的

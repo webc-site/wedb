@@ -317,7 +317,8 @@ impl HashBucket {
     }
   }
 
-  /// 查找当前桶内第一个匹配指定 Tag 的有效地址（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 首项快速探针）
+  /// 查找当前桶内第一个匹配指定 Tag 的已提交槽位，返回 `(槽位索引, 原始字)`（严格对标
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 首项快速探针）
   ///
   /// 内存序论证（本 crate 桶扫描通用基线）：扫描阶段仅做 tag/address 过滤，
   /// u64 对齐原子加载无撕裂，Relaxed 足矣；真正需要 happens-before 的是
@@ -327,20 +328,27 @@ impl HashBucket {
   /// sequenced-before Acquire fence」即与发布方建立 release/acquire 同步，
   /// 等价于原先逐槽 Acquire 加载，而屏障开销从每桶 7 次降为命中时 1 次。
   #[inline]
-  pub fn find_tag_address(&self, tag: u16) -> Option<u64> {
+  pub fn find_tag_slot(&self, tag: u16) -> Option<(usize, u64)> {
     let expected_hi = (tag as u64) & HashBucketEntry::TAG_MASK;
-    for item in &self.entries[..DATA_ENTRIES] {
+    for (slot, item) in self.entries[..DATA_ENTRIES].iter().enumerate() {
       let raw = item.load(Ordering::Relaxed);
-      if (raw >> HashBucketEntry::TAG_SHIFT) == expected_hi {
-        let addr = raw & HashBucketEntry::ADDRESS_MASK;
-        if addr != 0 {
-          // 命中屏障：保证调用方对命中地址记录数据的读取可见发布方全部前置写
-          fence(Ordering::Acquire);
-          return Some(addr);
-        }
+      if (raw >> HashBucketEntry::TAG_SHIFT) == expected_hi
+        && raw & HashBucketEntry::ADDRESS_MASK != 0
+      {
+        // 命中屏障：保证调用方对命中地址记录数据的读取可见发布方全部前置写
+        fence(Ordering::Acquire);
+        return Some((slot, raw));
       }
     }
     None
+  }
+
+  /// 查找当前桶内第一个匹配指定 Tag 的有效地址（内存序论证参见 [`Self::find_tag_slot`]）
+  #[inline]
+  pub fn find_tag_address(&self, tag: u16) -> Option<u64> {
+    self
+      .find_tag_slot(tag)
+      .map(|(_, raw)| raw & HashBucketEntry::ADDRESS_MASK)
   }
 
   /// 在当前桶的数据槽位中查找匹配指定 Tag 和逻辑地址的有效条目
