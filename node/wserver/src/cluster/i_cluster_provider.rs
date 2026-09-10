@@ -214,8 +214,8 @@ impl Default for SingleNodeClusterProvider {
 
 impl IClusterProvider for SingleNodeClusterProvider {
   fn create_cluster_session(&self) -> IClusterSession {
-    // 单机语义：会话域为占位结构，直接构造默认实例
-    IClusterSession
+    // 单机语义：会话域为单机承接态（恒为主 / 全槽自有），直接构造默认实例
+    IClusterSession::new()
   }
 
   fn allow_data_loss(&self) -> bool {

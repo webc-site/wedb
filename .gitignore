@@ -1,6 +1,7 @@
 node_modules/
 .codegraph/
 *.lock
+*.scip
 /sh
 /garnet
 

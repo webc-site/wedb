@@ -63,9 +63,9 @@ pub struct CustomRawStringCommand {
 ///
 /// 将原本的 6 个形参收敛为一个描述体，调用方以字面量组装，
 /// 语义与 C# Register(name, commandType, functions, ...) 保持 1:1。
-pub struct RawStringCommandSpec {
+pub struct RawStringCommandSpec<'a> {
   /// 命令名（注册时规范化小写）。
-  pub name: &str,
+  pub name: &'a str,
   /// 命令类型。
   pub command_type: CommandType,
   /// 处理函数。

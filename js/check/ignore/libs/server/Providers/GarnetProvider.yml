@@ -1,1 +1,3 @@
-GetSession: C# DI 容器依赖注入会话提供者，Rust 侧通过 WedbStore::new_session 原生创建
+# r3-c7-tail 长尾扫尾：C# GetSession 为 .NET DI 装配管道；rust 存储会话由 wkv 批处理会话生命周期绑定（databases 域 enter_batch → StorageSession::new）
+fn:
+  - "GetSession"

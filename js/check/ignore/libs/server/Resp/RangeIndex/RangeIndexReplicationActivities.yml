@@ -1,7 +1,0 @@
-StartActivity: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-OnFileLength: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-OnChunkEnqueued: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-OnError: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-EndAndLog: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-OnChunkReceived: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
-OnPublishResult: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点

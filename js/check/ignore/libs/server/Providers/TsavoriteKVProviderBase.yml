@@ -1,1 +1,3 @@
-GetSession: C# DI 容器依赖注入会话提供者，Rust 侧通过 WedbStore::new_session 原生创建
+# r3-c7-tail 长尾扫尾：Tsavorite 存储会话工厂基类属 .NET 泛型装配管道；rust 存储面统一经 wkv 会话承接
+fn:
+  - "GetSession"

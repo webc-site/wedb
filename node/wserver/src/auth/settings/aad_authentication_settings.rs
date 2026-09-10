@@ -7,7 +7,10 @@ use gxhash::{HashSet, HashSetExt};
 use super::authentication_settings::{AuthSetup, IAuthenticationSettings};
 use crate::{
   acl::AclError,
-  auth::{GarnetAadAuthenticator, IGarnetAuthenticator, IssuerSigningTokenProvider},
+  auth::{
+    GarnetAadAuthenticator, IGarnetAuthenticator, IssuerSigningTokenProvider,
+    garnet_aad_authenticator::AadAuthenticatorConfig,
+  },
 };
 
 /// AAD 认证设置
