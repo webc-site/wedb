@@ -1,17 +1,23 @@
 [workspace]
 resolver = "3"
-members = ["wraft", "wedb", "wcluster"]
+members = [ "wraft", "wedb", "wcluster" ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
-repository = ""
+repository = "https://github.com/webc-site/wedb.git"
 
 [workspace.dependencies]
-wraft = { version = "0.1.0", path = "wraft" }
-wedb_standalone = { path = "../node/wedb_standalone" }
 thiserror = "2.0.20"
+
+  [workspace.dependencies.wraft]
+  version = "0.1.0"
+  path = "wraft"
+
+  [workspace.dependencies.wedb_standalone]
+  path = "../node/wedb_standalone"
+  version = "0.1.1"
 
 [profile.release]
 opt-level = 3
