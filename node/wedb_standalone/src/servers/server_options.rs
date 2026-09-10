@@ -143,35 +143,11 @@ impl ServerOptions {
   /// 规格串友好展示（浮点收敛至 3 位整数内换档 k/m/g/t/p）
   ///
   /// libs/server/Servers/ServerOptions.cs:PrettySize
+  ///
+  /// 同域单一实现（含 C# exp == -18 时 suffix[5] 越界上游缺陷的安全回落），
+  /// [`super::garnet_server_options::pretty_size`]。
   pub fn pretty_size(value: i64) -> String {
-    const SUFFIX: [char; 5] = ['k', 'm', 'g', 't', 'p'];
-    let mut v = value as f64;
-    let mut exp: i32 = 0;
-    // 小数部分未收敛：升档放大（C# 同款双循环与舍入位宽）
-    while v - v.floor() > 0.0 {
-      if exp >= 18 {
-        break;
-      }
-      exp += 3;
-      v *= 1024.0;
-      v = (v * 1e12).round() / 1e12;
-    }
-    // 整数位超 3 位：降档缩小
-    while v.floor().format_digit_count() > 3 {
-      if exp <= -18 {
-        break;
-      }
-      exp -= 3;
-      v /= 1024.0;
-      v = (v * 1e12).round() / 1e12;
-    }
-    if exp > 0 {
-      format!("{}{}", trim_float(v), SUFFIX[(exp / 3 - 1) as usize])
-    } else if exp < 0 {
-      format!("{}{}", trim_float(v), SUFFIX[((-exp) / 3 - 1) as usize])
-    } else {
-      trim_float(v)
-    }
+    super::garnet_server_options::pretty_size(value)
   }
 
   /// 前一个 2 的幂
@@ -197,33 +173,6 @@ impl ServerOptions {
 /// 位数的 log2（输入保证为 2 的幂且 > 0；与 garnet_server_options 同式）
 fn log2_exact(v: i64) -> i32 {
   63 - v.leading_zeros() as i32
-}
-
-/// 整数位计数（PrettySize 降档判定的 C# `Math.Floor(v).ToString().Length` 等价）
-trait DigitCount {
-  fn format_digit_count(self) -> usize;
-}
-impl DigitCount for f64 {
-  fn format_digit_count(self) -> usize {
-    let n = self.trunc();
-    if n <= 0.0 {
-      return 1;
-    }
-    let mut digits = 0usize;
-    let mut v = n;
-    while v >= 1.0 {
-      v /= 10.0;
-      digits += 1;
-    }
-    digits
-  }
-}
-
-/// 浮点展示去尾零（C# double.ToString() 的常规形态）
-fn trim_float(v: f64) -> String {
-  let s = format!("{v:.12}");
-  let trimmed = s.trim_end_matches('0').trim_end_matches('.');
-  trimmed.to_string()
 }
 
 #[cfg(test)]
@@ -316,5 +265,7 @@ mod tests {
     assert_eq!(ServerOptions::pretty_size(1536), "1.5k");
     assert_eq!(ServerOptions::pretty_size(500), "500");
     assert_eq!(ServerOptions::pretty_size(4 * 1024 * 1024 * 1024), "4g");
+    // exp == -18 档：C# suffix[5] 越界上游缺陷，安全回落无后缀不 panic
+    assert_eq!(ServerOptions::pretty_size(i64::MAX), "8");
   }
 }

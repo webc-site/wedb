@@ -48,9 +48,12 @@ pub enum AcceptErrorTier {
   Transient,
 }
 
-/// 一次接受的连接（C# SocketAsyncEventArgs.AcceptSocket 投影）
+/// 一次接受的连接（C# SocketAsyncEventArgs.AcceptSocket + handler 投影）
 pub struct AcceptedConnection {
-  /// 已接受的流（NoDelay 已按 C# 对非 UDS 套接字置位语义保留连接级配置位）
+  /// 已登记处理器的 id（处置记账用）
+  pub handler_id: u64,
+  /// 已接受的流（NoDelay 已按 C# 对非 UDS 套接字置位语义保留连接级配置位；
+  /// 由宿主 IO 泵接管所有权）
   pub stream: TcpStream,
   /// 对端端点展示串（C# RemoteEndPoint?.ToString()）
   pub remote_endpoint: String,
@@ -62,8 +65,8 @@ pub struct GarnetServerTcp {
   base: Arc<GarnetServerBase>,
   /// 监听套接字（C# listenSocket；Close/Dispose 后为 None）
   listener: ParkingMutex<Option<TcpListener>>,
-  /// 连接数上限（-1 不限；C# networkConnectionLimit）
-  network_connection_limit: i64,
+  /// 连接数上限（-1 不限；C# networkConnectionLimit，int 投影）
+  network_connection_limit: i32,
   /// 网络发送节流上限（C# networkSendThrottleMax）
   network_send_throttle_max: usize,
   /// accept 退避毫秒（C# acceptBackoffMs，成功接受后复位）
@@ -81,7 +84,7 @@ impl GarnetServerTcp {
     endpoint: &str,
     network_buffer_size: usize,
     network_send_throttle_max: usize,
-    network_connection_limit: i64,
+    network_connection_limit: i32,
   ) -> Self {
     Self {
       base: Arc::new(GarnetServerBase::new(endpoint, network_buffer_size)),
@@ -141,6 +144,15 @@ impl GarnetServerTcp {
     *self.listener.lock() = None;
   }
 
+  /// 释放服务器：关停序对齐 C# GarnetServerTcp.Dispose——先关监听套接字
+  /// 释放端口并阻断新连接，再排空活跃处理器与提供者表
+  ///
+  /// libs/server/Servers/GarnetServerTcp.cs:Dispose
+  pub fn dispose(&self) {
+    self.close();
+    self.base.dispose();
+  }
+
   /// 单步 accept：错误分级处置，成功则登记连接
   ///
   /// libs/server/Servers/GarnetServerTcp.cs:AcceptEventArg_Completed /
@@ -164,6 +176,8 @@ impl GarnetServerTcp {
 
     match listener.accept() {
       Ok((stream, peer)) => {
+        // 单步接受无宿主 IO 泵接管：登记后连接随之关闭（托管面验收语义，
+        // 有泵宿主应经 handle_new_connection 持有流）
         let _ = self.handle_new_connection(stream, peer.to_string());
         true
       }
@@ -175,9 +189,10 @@ impl GarnetServerTcp {
   ///
   /// libs/server/Servers/GarnetServerTcp.cs:HandleAcceptError
   ///
-  /// 一档（OperationAborted/Shutdown → 连接中断族）静默终止；套接字族
-  /// 致命错误在托管面同为 Err 路径；二档（资源压力族）退避重试，指数
-  /// 增长至 5s；三档（对端瞬态）记录后继续。
+  /// 一档（Shutdown/OperationAborted 家族 → 监听已死）静默终止；托管面
+  /// 经 close 置 None 的干净关闭由 [`Self::accept_once`] 的 None 分支承接，
+  /// 本档承接 WSAESHUTDOWN 投影（Unix accept 不可达）。二档（资源压力族）
+  /// 退避重试，指数增长至 5s；三档（对端瞬态）记录后继续。
   pub fn handle_accept_error(&self, error: &io::Error) -> bool {
     match accept_error_tier(error) {
       AcceptErrorTier::FatalClean => false,
@@ -198,33 +213,36 @@ impl GarnetServerTcp {
   ///
   /// libs/server/Servers/GarnetServerTcp.cs:HandleNewConnection
   ///
-  /// `stream` 由宿主 IO 泵接管（托管模型下会话经显式消费调用驱动）；
-  /// 返回处理器 id，被上限或关闭哨兵拒绝时为 None（C# 对应分支直接
-  /// 关闭套接字并继续接受循环）。
-  pub fn handle_new_connection(&self, stream: TcpStream, remote_endpoint: String) -> Option<u64> {
+  /// 成功接受即复位退避（对齐 C# 在 SocketError.Success 后立即复位，先于
+  /// 上限校验）；连接被上限 / 关闭哨兵拒绝时返回 None 并关闭套接字（C#
+  /// 对应分支 Dispose AcceptSocket 后继续接受循环）。
+  pub fn handle_new_connection(
+    &self,
+    stream: TcpStream,
+    remote_endpoint: String,
+  ) -> Option<AcceptedConnection> {
     // NoDelay 对齐 C# 非 UDS 套接字语义（失败按对端已死处置）
     if stream.set_nodelay(true).is_err() {
       return None;
     }
 
-    let current = self.base.get_conn_active();
-    if current < 0
-      || (self.network_connection_limit != -1 && current >= self.network_connection_limit)
-    {
-      log::debug!("Connection limit reached, rejecting {remote_endpoint}");
-      return None;
-    }
-
-    // 会话创建（C# TryCreateMessageConsumer → AddSession；RESP 线格式）
-    let session = self.try_create_message_consumer(remote_endpoint.as_bytes())?;
-    let handler_id = self.base.register_handler(session)?;
-    drop(stream);
-    self.base.increment_connections_received();
-    // 成功接受即复位退避（C# HandleNewConnection 同款）
+    // 成功接受即复位退避（先于上限校验，对齐 C# HandleNewConnection）
     self
       .accept_backoff_ms
       .store(INITIAL_ACCEPT_BACKOFF_MS, Release);
-    Some(handler_id)
+
+    // 会话创建（C# TryCreateMessageConsumer → AddSession；RESP 线格式）
+    let session = self.try_create_message_consumer(remote_endpoint.as_bytes())?;
+    // 原子准入：计数先行自增再校验上限 / 关闭哨兵（C# Interlocked.Increment 序）
+    let handler_id = self
+      .base
+      .admit_handler(session, self.network_connection_limit)?;
+    self.base.increment_connections_received();
+    Some(AcceptedConnection {
+      handler_id,
+      stream,
+      remote_endpoint,
+    })
   }
 
   /// 退避翻倍并封顶，返回本次应等待的毫秒（C# 退避算式的独立面）
@@ -309,6 +327,10 @@ impl super::i_garnet_server::GarnetServer for GarnetServerTcp {
   fn close(&self) {
     GarnetServerTcp::close(self);
   }
+
+  fn dispose(&self) {
+    GarnetServerTcp::dispose(self);
+  }
 }
 
 /// 网络发送器标识分配（C# INetworkSender 实例身份的托管等价）
@@ -319,17 +341,32 @@ fn next_sender_id() -> u64 {
 
 /// std io 错误 → accept 分级（C# SocketError 分档的 std 等价映射）
 ///
-/// - 一档（干净关闭族）：ConnectionAborted / Interrupted（监听关闭触发的
-///   OperationAborted 等价）；
-/// - 二档（资源压力族）：内存/缓冲耗尽、无空闲端口（TooManyOpenSockets /
-///   NoBufferSpace / ProcessLimit 等价）；
-/// - 三档：其余瞬态（对端重置、超时等）。
+/// - 一档（干净关闭族）：BrokenPipe 承接 C# Shutdown/OperationAborted 投影
+///   （Windows WSAESHUTDOWN→BrokenPipe；Unix accept 不可达，干净关闭由
+///   监听置 None 分支承接）；
+/// - 二档（资源压力族）：内存/缓冲耗尽（ENOBUFS/ENOMEM→OutOfMemory）、
+///   无空闲句柄（EMFILE/ENFILE，C# TooManyOpenSockets/ProcessLimit 等价）、
+///   WouldBlock（无阻塞就绪，退避后重试）；
+/// - 三档：对端瞬态与信号中断（EINTR、ECONNABORTED 等对齐 C# default 分档，
+///   重试继续，绝不终止接受循环）。
 fn accept_error_tier(error: &io::Error) -> AcceptErrorTier {
-  use std::io::ErrorKind::{ConnectionAborted, Interrupted, OutOfMemory, WouldBlock};
+  use std::io::ErrorKind::{
+    BrokenPipe, ConnectionAborted, ConnectionReset, Interrupted, OutOfMemory, WouldBlock,
+  };
+  // EMFILE/ENFILE：std 未映射专用 ErrorKind，按原始码判（Unix）
+  const EMFILE: i32 = 24;
+  const ENFILE: i32 = 23;
   match error.kind() {
-    ConnectionAborted | Interrupted => AcceptErrorTier::FatalClean,
+    BrokenPipe => AcceptErrorTier::FatalClean,
     OutOfMemory | WouldBlock => AcceptErrorTier::Backoff,
-    _ => AcceptErrorTier::Transient,
+    ConnectionAborted | ConnectionReset | Interrupted => AcceptErrorTier::Transient,
+    _ => {
+      #[cfg(unix)]
+      if matches!(error.raw_os_error(), Some(EMFILE | ENFILE)) {
+        return AcceptErrorTier::Backoff;
+      }
+      AcceptErrorTier::Transient
+    }
   }
 }
 
@@ -360,7 +397,7 @@ mod tests {
     }
   }
 
-  fn server(limit: i64) -> (GarnetServerTcp, SocketAddr) {
+  fn server(limit: i32) -> (GarnetServerTcp, SocketAddr) {
     let server = GarnetServerTcp::new("127.0.0.1:0", 0, 8, limit);
     server
       .base()
@@ -401,6 +438,29 @@ mod tests {
   }
 
   #[test]
+  fn handle_new_connection_hands_stream_to_host_pump() {
+    let (server, addr) = server(-1);
+    let client = TcpStream::connect(addr).expect("回环连接成功");
+    drop(client);
+
+    let listener = server
+      .listener
+      .lock()
+      .as_ref()
+      .expect("监听在册")
+      .try_clone()
+      .expect("克隆成功");
+    let (stream, peer) = listener.accept().expect("接受成功");
+    let accepted = server
+      .handle_new_connection(stream, peer.to_string())
+      .expect("登记成功");
+    // 流交还宿主 IO 泵：处理器在册且可按 id 处置（连接未被立即关闭）
+    assert_eq!(server.base().get_conn_active(), 1);
+    assert!(server.dispose_message_consumer(accepted.handler_id));
+    drop(accepted.stream);
+  }
+
+  #[test]
   fn connection_limit_rejects_new_connections() {
     let (server, addr) = server(1);
     let client = TcpStream::connect(addr).expect("回环连接成功");
@@ -434,10 +494,67 @@ mod tests {
   }
 
   #[test]
-  fn clean_shutdown_tier_stops_accept_loop() {
+  fn successful_accept_resets_backoff() {
+    let (server, addr) = server(-1);
+    // 先制造退避
+    assert!(server.handle_accept_error(&io::Error::from_raw_os_error(24)));
+    assert_eq!(server.accept_backoff_ms(), 2 * INITIAL_ACCEPT_BACKOFF_MS);
+
+    // 成功接受即复位（先于上限校验，C# HandleNewConnection 同款）
+    let client = TcpStream::connect(addr).expect("回环连接成功");
+    drop(client);
+    assert!(server.accept_once());
+    assert_eq!(server.accept_backoff_ms(), INITIAL_ACCEPT_BACKOFF_MS);
+  }
+
+  #[test]
+  fn fatal_clean_tier_stops_accept_loop() {
     let server = GarnetServerTcp::new("ep", 0, 8, -1);
-    let aborted = io::Error::new(ErrorKind::ConnectionAborted, "aborted");
-    assert!(!server.handle_accept_error(&aborted));
+    // 一档：监听套接字已死（C# Shutdown 投影）
+    let shutdown = io::Error::new(ErrorKind::BrokenPipe, "shutdown");
+    assert!(!server.handle_accept_error(&shutdown));
+  }
+
+  #[test]
+  fn transient_tiers_keep_loop_alive() {
+    let server = GarnetServerTcp::new("ep", 0, 8, -1);
+    // 三档：EINTR（信号中断）与 ECONNABORTED（对端中止）继续循环，绝不终止
+    for kind in [ErrorKind::Interrupted, ErrorKind::ConnectionAborted] {
+      let error = io::Error::new(kind, "transient");
+      assert!(server.handle_accept_error(&error), "{kind:?} 应继续");
+      assert_eq!(server.accept_backoff_ms(), INITIAL_ACCEPT_BACKOFF_MS);
+    }
+  }
+
+  #[test]
+  fn resource_pressure_tier_backs_off() {
+    let server = GarnetServerTcp::new("ep", 0, 8, -1);
+    // 二档：句柄耗尽（EMFILE，C# TooManyOpenSockets/ProcessLimit 等价）退避重试
+    let exhausted = io::Error::from_raw_os_error(24);
+    assert!(server.handle_accept_error(&exhausted));
+    assert_eq!(server.accept_backoff_ms(), 2 * INITIAL_ACCEPT_BACKOFF_MS);
+  }
+
+  #[test]
+  fn dispose_closes_listener_then_drains() {
+    let (server, addr) = server(-1);
+    let client = TcpStream::connect(addr).expect("回环连接成功");
+    drop(client);
+    assert!(server.accept_once());
+    assert_eq!(server.base().get_conn_active(), 1);
+
+    // 关停序：先关监听再排空处理器，排空后新连接被关闭哨兵拒绝
+    server.dispose();
+    assert!(server.listener.lock().is_none());
+    assert_eq!(server.base().get_conn_active(), 0);
+    assert!(
+      server
+        .base()
+        .register_handler(Arc::new(TestConsumer))
+        .is_none()
+    );
+    // 幂等
+    server.dispose();
   }
 
   #[test]
