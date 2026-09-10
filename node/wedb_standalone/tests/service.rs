@@ -8,8 +8,8 @@ use compio::runtime::Runtime;
 use tempfile::tempdir;
 use waof::{WalConfig, WalLog};
 use wdev::SegmentedDevice;
-use wkv::{StorageBackend, StoreConfig, TtlOpt, WedbStore};
 use wedb_standalone::{AofOp, NodeService, StoreSession, TreeTuning, TtlPurgePayload};
+use wkv::{StorageBackend, StoreConfig, TtlOpt, WedbStore};
 
 /// 与 wkv/tests/range_index_scan.rs TUNE 对齐的合法调优参数
 const TUNE: wkv::TreeTuning = wkv::TreeTuning {
@@ -49,7 +49,10 @@ struct CollectingReplay {
 }
 
 impl wedb_standalone::Replay for CollectingReplay {
-  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
+  fn on_entry(
+    &mut self,
+    entry: wedb_standalone::AofEntryRef<'_>,
+  ) -> wedb_standalone::AofResult<()> {
     self.seen.push((entry.op, entry.key.to_vec()));
     Ok(())
   }
@@ -168,7 +171,10 @@ struct AofCollector {
 }
 
 impl wedb_standalone::Replay for AofCollector {
-  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
+  fn on_entry(
+    &mut self,
+    entry: wedb_standalone::AofEntryRef<'_>,
+  ) -> wedb_standalone::AofResult<()> {
     self.ops.push(PendingOp {
       op: entry.op,
       key: entry.key.to_vec(),
@@ -337,12 +343,19 @@ struct TtlPurgeCollector {
 }
 
 impl wedb_standalone::Replay for TtlPurgeCollector {
-  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
+  fn on_entry(
+    &mut self,
+    entry: wedb_standalone::AofEntryRef<'_>,
+  ) -> wedb_standalone::AofResult<()> {
     self.mirrors.push((entry.op, entry.key.to_vec()));
     Ok(())
   }
 
-  fn on_ttl_purge(&mut self, key: &[u8], payload: TtlPurgePayload) -> wedb_standalone::AofResult<()> {
+  fn on_ttl_purge(
+    &mut self,
+    key: &[u8],
+    payload: TtlPurgePayload,
+  ) -> wedb_standalone::AofResult<()> {
     self
       .purges
       .push((payload.ns, payload.db, key.to_vec(), payload.expire_at_ms));

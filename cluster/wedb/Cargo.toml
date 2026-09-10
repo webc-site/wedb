@@ -7,7 +7,7 @@ repository.workspace = true
 description = "WeDB 集群层：选主、共识、AOF 同步驱动与范围索引文件流迁移（对标 Garnet libs/cluster）"
 
 [dependencies]
-wnode = { workspace = true }
+wedb_standalone = { workspace = true }
 wraft = { workspace = true }
 thiserror = { workspace = true }
 

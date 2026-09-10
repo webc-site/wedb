@@ -8,7 +8,7 @@
 //! 与 AOF 的耦合契约：
 //! - Leader 侧：`propose` 确认后的区间由数据面 `wedb::aof_sync::AofSyncDriver`
 //!   按位点发货（WAL 是事实源，共识层只裁决可发货边界）
-//! - Follower 侧：收到的帧经 `wnode::Replay` 回放，与本地恢复共用一条
+//! - Follower 侧：收到的帧经 `wedb_standalone::Replay` 回放，与本地恢复共用一条
 //!   代码路径
 
 use std::{result, sync::atomic};

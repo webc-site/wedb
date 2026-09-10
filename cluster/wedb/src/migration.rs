@@ -3,7 +3,7 @@
 //! 对标 Garnet `RangeIndexFileDataSource`/`RangeIndexFileDataSink`：
 //! `.bftree` 文件序列化为定界 chunk 帧流经传输层发货，接收端按
 //! [`TreeFileSink`] 重组为完整文件字节。本层只管帧协议与重组，
-//! 文件枚举/落盘由上层结合 `wnode` 暴露的 RangeIndex 接口完成。
+//! 文件枚举/落盘由上层结合 `wedb_standalone` 暴露的 RangeIndex 接口完成。
 
 use std::result;
 

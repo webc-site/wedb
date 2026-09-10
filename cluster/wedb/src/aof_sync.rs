@@ -1,14 +1,14 @@
 //! 主从 AOF 同步驱动
 //!
 //! 对标 Garnet `AofSyncDriver`：副本接入后从指定地址起顺序发货已提交
-//! WAL 记录。每条记录的 AOF 条目帧原样透传（含 [`wnode::AofEntryRef`]
-//! 头），副本端经 [`wnode::Replay`] 语义回放。传输介质抽象为
+//! WAL 记录。每条记录的 AOF 条目帧原样透传（含 [`wedb_standalone::AofEntryRef`]
+//! 头），副本端经 [`wedb_standalone::Replay`] 语义回放。传输介质抽象为
 //! [`AofTransport`]——TCP/QUIC/共享内存各自实现，本层只关心顺序与位点。
 
 use std::{io, result, sync::Arc};
 
 use thiserror::Error as ThisError;
-use wnode::{Device, WalError, WalLog};
+use wedb_standalone::{Device, WalError, WalLog};
 
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -101,7 +101,7 @@ mod tests {
   use parking_lot::Mutex;
   use tempfile::tempdir;
   use wdev::SegmentedDevice;
-  use wnode::WalConfig;
+  use wedb_standalone::WalConfig;
 
   use super::*;
 
@@ -123,8 +123,8 @@ mod tests {
       let device = Arc::new(SegmentedDevice::single_file(dir.path().join("sync.wal"))?);
       let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
 
-      let a = wnode::encode_entry(wnode::AofOp::RiCreate, 1, b"k1", b"blob-a");
-      let b = wnode::encode_entry(wnode::AofOp::RiSet, 2, b"k1", b"blob-b");
+      let a = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiCreate, 1, b"k1", b"blob-a");
+      let b = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiSet, 2, b"k1", b"blob-b");
       let addr_a = wal.enqueue(&a)?;
       wal.enqueue(&b)?;
       wal.commit().await?;
@@ -155,11 +155,11 @@ mod tests {
       let device = Arc::new(SegmentedDevice::single_file(dir.path().join("sync.wal"))?);
       let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
 
-      let a = wnode::encode_entry(wnode::AofOp::RiCreate, 1, b"k1", b"blob-a");
+      let a = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiCreate, 1, b"k1", b"blob-a");
       let addr_a = wal.enqueue(&a)?;
       wal.commit().await?;
       // 已提交后追加第二条，但不提交：处于未提交尾部
-      let b = wnode::encode_entry(wnode::AofOp::RiSet, 2, b"k1", b"blob-b");
+      let b = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiSet, 2, b"k1", b"blob-b");
       wal.enqueue(&b)?;
 
       let transport = Arc::new(MemoryTransport::default());
@@ -182,9 +182,9 @@ mod tests {
       let device = Arc::new(SegmentedDevice::single_file(dir.path().join("sync.wal"))?);
       let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
 
-      let a = wnode::encode_entry(wnode::AofOp::RiCreate, 1, b"k1", b"blob-a");
+      let a = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiCreate, 1, b"k1", b"blob-a");
       let addr_a = wal.enqueue(&a)?;
-      let b = wnode::encode_entry(wnode::AofOp::RiSet, 2, b"k1", b"blob-b");
+      let b = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiSet, 2, b"k1", b"blob-b");
       let addr_b = wal.enqueue(&b)?;
       wal.commit().await?;
 

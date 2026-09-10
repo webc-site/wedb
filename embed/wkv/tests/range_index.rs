@@ -9,10 +9,10 @@
 //!   lib.rs），树级等价语义由 wbftree tests/manager_and_stub 覆盖；
 //! - Checkpoint/Recover 族：多树检查点恢复、双检查点恢复到最新/指定版本、
 //!   恢复后删除重建在此移植，存根自愈细节见 `checkpoint/index_checkpoint.rs`；
-//! - RIAofReplayTest：AOF 重放在 wnode 层（apply → log → replay）实现。
+//! - RIAofReplayTest：AOF 重放在 wedb_standalone 层（apply → log → replay）实现。
 //!
 //! 并发语义差异：C# RIDel 对不存在的字段返回 0，本实现 bf-tree 墓碑删除不区分
-//! 字段是否存在，删除恒返回 true（幂等），见 wnode ri_del 注释。
+//! 字段是否存在，删除恒返回 true（幂等），见 wedb_standalone ri_del 注释。
 
 use std::sync::Arc;
 

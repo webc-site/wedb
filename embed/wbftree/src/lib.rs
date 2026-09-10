@@ -40,7 +40,7 @@
 //! [`RangeIndexManager::on_flush`] / `on_flush_address` 及配套的刷盘文件恢复、
 //! `on_truncate` 回收、`enumerate_files_for_replication` 文件级复制枚举，对标
 //! C# GarnetRecordTriggers.OnFlush / OnTruncate / EnumerateFilesForReplication
-//! 体系，为文件级增量复制预留；当前宿主 (wkv/wnode) 复制走 WAL 重放，
+//! 体系，为文件级增量复制预留；当前宿主 (wkv/wedb_standalone) 复制走 WAL 重放，
 //! 尚未在 whlog 页转只读处接线触发，属公开预留 API 而非死代码。
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

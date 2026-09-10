@@ -10,7 +10,7 @@
 //! - [`failover`] — 主从切换决策：以 `wraft::Role` 驱动数据面行为门控
 //!   （对标 libs/client/GarnetClientAPI/GarnetClientClusterCommands.cs:Failover/FailoverManager，Garnet 为配置驱动，此处由共识引擎裁决）
 //!
-//! 依赖铁律：生产依赖只允许 `wnode`、`wraft` 与 `thiserror`，不直接触碰
+//! 依赖铁律：生产依赖只允许 `wedb_standalone`、`wraft` 与 `thiserror`，不直接触碰
 //! embed 引擎 crate（dev-dependencies 的 embed 路径仅供本包测试装配，
 //! 不进下游依赖图）
 

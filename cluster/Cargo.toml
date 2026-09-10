@@ -10,7 +10,7 @@ repository = ""
 
 [workspace.dependencies]
 wraft = { version = "0.1.0", path = "wraft" }
-wnode = { path = "../node/wnode" }
+wedb_standalone = { path = "../node/wedb_standalone" }
 thiserror = "2.0.20"
 
 [profile.release]
