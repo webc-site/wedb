@@ -9,6 +9,9 @@ use crate::{
     sortedsetgeo::geo_hash::{GeoDistanceUnitType, GeoHash},
   },
   resp::parser::session_parse_state::strict_i64,
+  session_parse_state_extensions::{
+    ExpireOption as SessionExpireOption, expire_option_from_token, geo_distance_unit,
+  },
 };
 
 /// 比较字节切片是否相等（忽略 ASCII 大小写）
@@ -66,11 +69,11 @@ pub fn try_get_sorted_set_add_option(v: &[u8]) -> Option<SortedSetAddOption> {
 /// 解析过期选项词元（NX/XX/GT/LT）
 #[inline]
 pub fn try_get_expire_option(v: &[u8]) -> Option<ExpireOption> {
-  match crate::session_parse_state_extensions::expire_option_from_token(v)? {
-    crate::session_parse_state_extensions::ExpireOption::Nx => Some(ExpireOption::NX),
-    crate::session_parse_state_extensions::ExpireOption::Xx => Some(ExpireOption::XX),
-    crate::session_parse_state_extensions::ExpireOption::Gt => Some(ExpireOption::GT),
-    crate::session_parse_state_extensions::ExpireOption::Lt => Some(ExpireOption::LT),
+  match expire_option_from_token(v)? {
+    SessionExpireOption::Nx => Some(ExpireOption::NX),
+    SessionExpireOption::Xx => Some(ExpireOption::XX),
+    SessionExpireOption::Gt => Some(ExpireOption::GT),
+    SessionExpireOption::Lt => Some(ExpireOption::LT),
     _ => None,
   }
 }
@@ -78,7 +81,7 @@ pub fn try_get_expire_option(v: &[u8]) -> Option<ExpireOption> {
 /// 解析 GEO 距离单位词元（m/km/mi/ft）
 #[inline]
 pub fn try_get_geo_distance_unit(v: &[u8]) -> Option<GeoDistanceUnitType> {
-  crate::session_parse_state_extensions::geo_distance_unit(v)
+  geo_distance_unit(v)
 }
 
 /// 解析 (longitude, latitude) 坐标对，须均合法且在 WGS-84 范围内

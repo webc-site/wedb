@@ -312,7 +312,7 @@ pub fn try_get_client_name_str(name: &str) -> Option<&str> {
 }
 
 pub fn try_get_client_name_bytes(raw: &[u8]) -> Option<&str> {
-  let name = std::str::from_utf8(raw).ok()?;
+  let name = from_utf8(raw).ok()?;
   try_get_client_name_str(name)
 }
 
