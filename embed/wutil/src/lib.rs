@@ -16,6 +16,7 @@ pub mod crc64;
 pub mod hash;
 pub mod hash_slot;
 pub mod num;
+#[cfg(test)]
 mod tests;
 
 mod align;
