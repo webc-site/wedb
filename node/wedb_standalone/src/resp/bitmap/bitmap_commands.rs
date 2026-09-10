@@ -1,8 +1,9 @@
-use core::str;
 //! 位图命令（SETBIT/GETBIT/BITCOUNT）
 //!
 //! 同步快路径：字符串域直读直写，磁盘候选等须异步裁决时返回 `Ok(false)`
 //! 交调用方降级。位序对标 Redis/C#：bit 0 为首字节最高位。
+
+use core::str;
 
 use super::{
   super::{

@@ -1,6 +1,8 @@
 //! 位域命令（BITFIELD）底层算法
 //! 对标 Garnet `libs/server/Resp/Bitmap/BitmapManagerBitfield.cs`
 
+use core::str;
+
 use super::bitmap_manager::BitmapManager;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +28,7 @@ impl BitFieldType {
       b'u' | b'U' => false,
       _ => return None,
     };
-    let count: u8 = core::str::from_utf8(&s[1..]).ok()?.parse().ok()?;
+    let count: u8 = str::from_utf8(&s[1..]).ok()?.parse().ok()?;
     if count == 0 || (is_signed && count > 64) || (!is_signed && count > 63) {
       return None;
     }

@@ -1,4 +1,6 @@
-use crate::types::RespCommand;
+use core::str;
+
+use crate::{resp::resp_commands_info::RespCommandsInfo, types::RespCommand};
 
 pub struct RespCommandHashLookup;
 
@@ -15,8 +17,8 @@ impl RespCommandHashLookup {
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:LookupSubcommand
   pub fn lookup_subcommand(_parent: RespCommand, sub: &[u8]) -> Option<RespCommand> {
-    let s = core::str::from_utf8(sub).ok()?;
-    crate::resp::resp_commands_info::RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
+    let s = str::from_utf8(sub).ok()?;
+    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
   }
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:ComputeHash
@@ -39,8 +41,8 @@ impl RespCommandHashLookup {
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:LookupInTable
   pub fn lookup_in_table(cmd: &[u8]) -> Option<RespCommand> {
-    let s = core::str::from_utf8(cmd).ok()?;
-    crate::resp::resp_commands_info::RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
+    let s = str::from_utf8(cmd).ok()?;
+    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
   }
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:GetWordFromSpan
