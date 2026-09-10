@@ -1,6 +1,6 @@
 [package]
 name = "wdev"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
@@ -25,7 +25,7 @@ libc = { workspace = true }
 log = { workspace = true }
 papaya.workspace = true
 thiserror = { workspace = true }
-wutil = { version = "0.1.0", path = "../wutil" }
+wbase = { workspace = true, features = ["align", "pool"] }
 
 [dependencies.compio]
 workspace = true

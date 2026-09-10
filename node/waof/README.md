@@ -47,6 +47,7 @@ The record header is only 8B (`entry_len: u32` + `crc32: u32`, little-endian); e
 
 tests/ covers: RecordHeader encoding and corruption robustness, RingBuffer large-address reads/writes; end-to-end smoke (write-scan-commit-truncate-restart-append); full buffer, payload limits, raw-frame fidelity and replica address-parity replay, bounded concurrent growth, fast-commit concurrent waiting, short-write protection; sub-range scans, uncommitted memory, behind-begin jumps, physical truncation stop, slow-reader eviction with disk fallback, memory overwrite disk fallback, large records, disk prefetch boundaries; multi-stage recovery, torn tail, empty-record durability, all-zero fill non-revival, mid-log corruption conservative stop, cross-segment frame_sync, massive record counts; truncate with file deletion, exact segment boundaries, periodic truncation, reset reuse.
 
+
 ---
 
 <a name="zh"></a>
@@ -93,3 +94,4 @@ waof 提供基于环形内存写缓冲 + 分段块设备的 WAL 预写日志引�
 ## 测试覆盖
 
 tests/ 覆盖：RecordHeader 编解码与破坏鲁棒性、RingBuffer 大地址读写；端到端冒烟（写-扫-提交-截断-重启-追加）；满缓冲、payload 限制、raw 帧保真与从节点重放地址一致、并发有界增长、快速提交并发等待、短写防护；子区间扫描、未提交内存、落后 begin 跳转、物理截断停止、慢读者逐出回退磁盘、内存覆写回退磁盘、大记录、磁盘预取边界；多阶段恢复、残缺尾、空记录持久性、全零填充不复活、中段损坏保守停止、跨段残缺 frame_sync、海量记录；truncate 与文件删除、精确段边界、周期截断、reset 复用。
+

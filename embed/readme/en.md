@@ -351,7 +351,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 - `Device` / `StorageDevice` traits — async read / write / flush with segment lifecycle.
 - `SegmentedDevice` — growable segmented file (`single_file` and `segmented` constructors), `SegmentChunk` / `SegmentChunks`, `FileMap`.
 - `NullDevice` — discard sink for benchmarks.
-- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wutil::BufferPool` (Utilities-layer primitive).
+- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wbase::BufferPool` (Utilities-layer primitive).
 
 ### wrecord — record format
 

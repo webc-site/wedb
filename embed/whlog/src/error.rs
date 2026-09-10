@@ -15,7 +15,7 @@ pub enum Error {
 
   /// 内存对齐或分配错误
   #[error(transparent)]
-  Mem(#[from] wutil::Error),
+  Mem(#[from] wbase::Error),
 
   /// 纪元并发保护错误
   #[error(transparent)]

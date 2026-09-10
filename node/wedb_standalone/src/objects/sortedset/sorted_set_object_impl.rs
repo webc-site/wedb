@@ -5,7 +5,7 @@
 
 use std::{cmp::Ordering, mem::swap};
 
-use wutil::convert::{
+use wbase::convert::{
   milliseconds_from_diff_ticks, seconds_from_diff_ticks, unix_time_in_milliseconds_from_ticks,
   unix_time_in_seconds_from_ticks,
 };

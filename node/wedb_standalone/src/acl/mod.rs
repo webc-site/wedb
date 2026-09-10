@@ -7,7 +7,7 @@ pub mod acl_exception;
 pub mod acl_parser;
 pub mod acl_password;
 pub mod command_catalog;
-mod command_catalog_data;
+pub mod command_catalog_data;
 pub mod command_permission_set;
 pub mod secrets_utility;
 pub mod user;
