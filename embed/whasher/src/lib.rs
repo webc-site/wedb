@@ -313,6 +313,9 @@ pub fn new_papaya_map<K, V>() -> GxPapayaMap<K, V> {
 }
 
 /// 基于硬件向量加速 gxhash 构建器的无锁高并发集合类型
+///
+/// papaya 并发哈希集合统一搭载 [`GxBuildHasher`]，
+/// 全项目唯一出处：各 crate 一律 `use whasher::{GxPapayaSet, new_papaya_set}`，禁止本地重复定义
 pub type GxPapayaSet<T> = papaya::HashSet<T, GxBuildHasher>;
 
 /// 创建搭载硬件向量加速 gxhash 构建器的无锁并发集合
