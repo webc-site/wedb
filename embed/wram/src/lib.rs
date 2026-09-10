@@ -6,11 +6,11 @@
 //!
 //! # 兼容门面
 //!
-//! 扇区对齐缓冲池 ([`BufferPool`]) 与 [`AlignedBuf`] 的本体已下沉至 wutil
+//! 扇区对齐缓冲池 ([`BufferPool`]) 与 [`AlignedBuf`] 的本体已下沉至 wbase
 //! (对标 C# `core/Utilities` 位于依赖图最底层、被 Device/Allocator/TsavoriteLog
 //! 平行引用的拓扑；原先 wdev(Device)→wram(Allocator) 的反向依赖已纠正)。
 //! 下列再导出仅为存量调用方 (embed 外部 node/waof) 的兼容门面，语义与 C#
-//! `AllocatorBase` → `Utilities/BufferPool` 的引用方向一致，新代码请直接用 wutil。
+//! `AllocatorBase` → `Utilities/BufferPool` 的引用方向一致，新代码请直接用 wbase。
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

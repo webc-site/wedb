@@ -7,12 +7,12 @@ use std::{
 
 use log::{debug, info};
 use parking_lot::{Mutex, RwLockReadGuard};
+use wbase::AlignedBuf;
 use wdev::Device;
 use wepoch::LightEpoch;
 use wrecord::{
   ADDRESS_MASK, HEADER_SIZE, RecordHeader, RecordRef, checked_record_size, encode_to_slice,
 };
-use wbase::AlignedBuf;
 
 use crate::{
   address::{AddressManager, AddressSnapshot},

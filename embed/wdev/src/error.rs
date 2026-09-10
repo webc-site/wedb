@@ -9,7 +9,7 @@ pub enum Error {
   #[error(transparent)]
   Io(#[from] io::Error),
 
-  /// 内存/对齐错误（来自 wutil，Utilities 层）
+  /// 内存/对齐错误（来自 wbase，Utilities 层）
   #[error(transparent)]
   Mem(#[from] wbase::Error),
 

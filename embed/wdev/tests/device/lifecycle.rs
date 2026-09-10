@@ -10,8 +10,8 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wdev::{Device, Error, SegmentedDevice};
 use wbase::AlignedBuf;
+use wdev::{Device, Error, SegmentedDevice};
 
 use crate::support::make_pattern_data;
 

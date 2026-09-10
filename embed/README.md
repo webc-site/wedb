@@ -357,7 +357,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 - `Device` / `StorageDevice` traits — async read / write / flush with segment lifecycle.
 - `SegmentedDevice` — growable segmented file (`single_file` and `segmented` constructors), `SegmentChunk` / `SegmentChunks`, `FileMap`.
 - `NullDevice` — discard sink for benchmarks.
-- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wutil::BufferPool` (Utilities-layer primitive).
+- `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wbase::BufferPool` (Utilities-layer primitive).
 
 ### wrecord — record format
 
@@ -778,7 +778,7 @@ embed/
 - `Device` / `StorageDevice` trait——异步读 / 写 / 刷与段生命周期。
 - `SegmentedDevice`——可增长分段文件（`single_file` 与 `segmented` 构造器）、`SegmentChunk` / `SegmentChunks`、`FileMap`。
 - `NullDevice`——基准测试用丢弃设备。
-- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wutil::BufferPool`（Utilities 层原语）。
+- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wbase::BufferPool`（Utilities 层原语）。
 
 ### wrecord —— 记录格式
 

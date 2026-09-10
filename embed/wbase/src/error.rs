@@ -5,6 +5,7 @@ use std::{
 };
 
 use thiserror::Error;
+
 #[cfg(feature = "align")]
 use crate::align::{MIN_SECTOR_SIZE, SectorRangeError};
 
