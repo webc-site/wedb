@@ -105,41 +105,38 @@ fn default_now_ticks() -> i64 {
   coarsetime::Clock::now_since_epoch().as_u64() as i64 / 100 + UNIX_EPOCH_TICKS
 }
 
+/// AAD 认证器静态配置（构造参数对象）：将构造形参收敛为一个体，
+/// 对齐 C# GarnetAadAuthenticator 构造的多字段参数位。
+pub struct AadAuthenticatorConfig {
+  /// 白名单应用 ID。
+  pub authorized_app_ids: HashSet<String>,
+  /// 合法受众。
+  pub audiences: HashSet<String>,
+  /// 合法签发者。
+  pub issuers: HashSet<String>,
+  /// 签名密钥供给器。
+  pub signing_token_provider: Arc<IssuerSigningTokenProvider>,
+  /// 是否校验用户名（OID / 组声明须匹配 AUTH 用户名）。
+  pub validate_username: bool,
+}
+
 impl GarnetAadAuthenticator {
   /// 构造
-  #[allow(clippy::too_many_arguments)]
-  pub fn new(
-    authorized_app_ids: HashSet<String>,
-    audiences: HashSet<String>,
-    issuers: HashSet<String>,
-    signing_token_provider: Arc<IssuerSigningTokenProvider>,
-    validate_username: bool,
-  ) -> Self {
-    Self::with_clock(
-      authorized_app_ids,
-      audiences,
-      issuers,
-      signing_token_provider,
-      validate_username,
-      Box::new(default_now_ticks),
-    )
+  pub fn new(config: AadAuthenticatorConfig) -> Self {
+    Self::with_clock(config, Box::new(default_now_ticks))
   }
 
   /// 带自定义时钟构造（对标 C# TimeProvider 测试注入位）
   pub fn with_clock(
-    authorized_app_ids: HashSet<String>,
-    audiences: HashSet<String>,
-    issuers: HashSet<String>,
-    signing_token_provider: Arc<IssuerSigningTokenProvider>,
-    validate_username: bool,
+    config: AadAuthenticatorConfig,
     now: Box<dyn Fn() -> i64 + Send + Sync>,
   ) -> Self {
     Self {
-      authorized_app_ids,
-      audiences,
-      issuers,
-      signing_token_provider,
-      validate_username,
+      authorized_app_ids: config.authorized_app_ids,
+      audiences: config.audiences,
+      issuers: config.issuers,
+      signing_token_provider: config.signing_token_provider,
+      validate_username: config.validate_username,
       now,
       authorized: false,
       valid_from_ticks: i64::MAX,

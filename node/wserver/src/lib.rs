@@ -3,6 +3,8 @@
 //! 转写命名约定：C# partial 类按文件拆分后保留 `类型_分片` 形式
 //! （如 `LuaRunner_Functions` 对应 LuaRunner.Functions.cs 分片），
 //! 故 crate 级放宽 non_camel_case_types/non_snake_case；其余 lint 不放宽。
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 
 pub mod arg_slice;
 pub mod input_header;

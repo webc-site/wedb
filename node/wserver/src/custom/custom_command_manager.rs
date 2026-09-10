@@ -59,6 +59,25 @@ pub struct CustomRawStringCommand {
   pub functions: RawStringFn,
 }
 
+/// 自定义原始字符串命令注册参数（参数对象：对齐 C# Register 的多字段形参）。
+///
+/// 将原本的 6 个形参收敛为一个描述体，调用方以字面量组装，
+/// 语义与 C# Register(name, commandType, functions, ...) 保持 1:1。
+pub struct RawStringCommandSpec {
+  /// 命令名（注册时规范化小写）。
+  pub name: &str,
+  /// 命令类型。
+  pub command_type: CommandType,
+  /// 处理函数。
+  pub functions: RawStringFn,
+  /// 命令元数信息（可选）。
+  pub command_info: Option<CustomCommandInfo>,
+  /// 命令文档（可选）。
+  pub command_docs: Option<CustomCommandDocs>,
+  /// 过期时长（ticks；0 表示不处理过期）。
+  pub expiration_ticks: i64,
+}
+
 impl fmt::Debug for CustomRawStringCommand {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("CustomRawStringCommand")
@@ -230,15 +249,9 @@ impl CustomCommandManager {
   /// libs/server/Custom/CustomCommandManager.cs:Register（原始字符串命令）
   ///
   /// 注册自定义原始字符串命令；返回扩展 id。空间耗尽报错。
-  #[allow(clippy::too_many_arguments)]
   pub fn register_raw_string_command(
     &mut self,
-    name: &str,
-    command_type: CommandType,
-    functions: RawStringFn,
-    command_info: Option<CustomCommandInfo>,
-    command_docs: Option<CustomCommandDocs>,
-    expiration_ticks: i64,
+    spec: RawStringCommandSpec,
   ) -> Result<u16, &'static str> {
     let cmd_id = self
       .raw_string_ids
@@ -252,14 +265,14 @@ impl CustomCommandManager {
       .ok_or("Out of registration space")?;
 
     let ext_id = (cmd_id - u64::from(CUSTOM_RAW_STRING_COMMAND_MIN_ID)) as u16;
-    let arity = command_info.as_ref().map_or(0, |info| info.arity);
+    let arity = spec.command_info.as_ref().map_or(0, |info| info.arity);
     let new_cmd = CustomRawStringCommand {
-      name: name.to_lowercase(),
+      name: spec.name.to_lowercase(),
       ext_id,
-      command_type,
+      command_type: spec.command_type,
       arity,
-      expiration_ticks,
-      functions,
+      expiration_ticks: spec.expiration_ticks,
+      functions: spec.functions,
     };
 
     // 精确槽位写入
@@ -269,7 +282,7 @@ impl CustomCommandManager {
     }
     self.raw_string_commands[slot] = Some(new_cmd);
 
-    self.track_registration(name, command_info, command_docs)?;
+    self.track_registration(spec.name, spec.command_info, spec.command_docs)?;
     Ok(ext_id)
   }
 
@@ -643,14 +656,14 @@ mod tests {
     let mut manager = CustomCommandManager::new();
 
     let id = manager
-      .register_raw_string_command(
-        "MYCMD",
-        CommandType::Read,
-        echo_fn(),
-        Some(info("MYCMD", 2)),
-        Some(docs("MYCMD")),
-        0,
-      )
+      .register_raw_string_command(RawStringCommandSpec {
+        name: "MYCMD",
+        command_type: CommandType::Read,
+        functions: echo_fn(),
+        command_info: Some(info("MYCMD", 2)),
+        command_docs: Some(docs("MYCMD")),
+        expiration_ticks: 0,
+      })
       .unwrap();
     assert_eq!(id, 0);
 
@@ -689,26 +702,26 @@ mod tests {
     // 注满 256 个原始字符串命令空间
     for i in 0..MAX_CUSTOM_RAW_STRING_COMMANDS {
       manager
-        .register_raw_string_command(
-          &format!("cmd{i}"),
-          CommandType::ReadModifyWrite,
-          echo_fn(),
-          None,
-          None,
-          0,
-        )
+        .register_raw_string_command(RawStringCommandSpec {
+          name: &format!("cmd{i}"),
+          command_type: CommandType::ReadModifyWrite,
+          functions: echo_fn(),
+          command_info: None,
+          command_docs: None,
+          expiration_ticks: 0,
+        })
         .unwrap();
     }
     assert!(
       manager
-        .register_raw_string_command(
-          "overflow",
-          CommandType::ReadModifyWrite,
-          echo_fn(),
-          None,
-          None,
-          0
-        )
+        .register_raw_string_command(RawStringCommandSpec {
+          name: "overflow",
+          command_type: CommandType::ReadModifyWrite,
+          functions: echo_fn(),
+          command_info: None,
+          command_docs: None,
+          expiration_ticks: 0,
+        })
         .unwrap_err()
         .contains("Out of registration space")
     );

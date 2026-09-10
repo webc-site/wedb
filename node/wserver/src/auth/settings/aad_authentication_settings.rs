@@ -69,11 +69,13 @@ impl IAuthenticationSettings for AadAuthenticationSettings {
     _setup: &AuthSetup,
   ) -> Result<Box<dyn IGarnetAuthenticator>, AclError> {
     Ok(Box::new(GarnetAadAuthenticator::new(
-      self.authorized_app_ids.clone(),
-      self.audiences.clone(),
-      self.issuers.clone(),
-      Arc::clone(&self.signing_token_provider),
-      self.validate_username,
+      AadAuthenticatorConfig {
+        authorized_app_ids: self.authorized_app_ids.clone(),
+        audiences: self.audiences.clone(),
+        issuers: self.issuers.clone(),
+        signing_token_provider: Arc::clone(&self.signing_token_provider),
+        validate_username: self.validate_username,
+      },
     )))
   }
 }
