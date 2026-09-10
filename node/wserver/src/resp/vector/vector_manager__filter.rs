@@ -7,8 +7,8 @@
 use super::{
   attribute_extractor::{SelectorRange, extract_fields},
   expr_compiler::{MAX_SELECTORS, try_compile},
-  expr_runner::{default_stack, run},
-  vector_filter_expression::{ExprProgram, ExprTokenType},
+  expr_runner::{ExprStack, default_stack, run},
+  vector_filter_expression::{ExprProgram, ExprToken, ExprTokenType},
   vector_manager::{AttributeView, VectorManager},
 };
 
@@ -38,8 +38,7 @@ pub fn apply_post_filter(
 
   // ── 收集唯一选择器 ──
   let selector_ranges = collect_selector_ranges(&program, filter);
-  let mut fields =
-    vec![super::vector_filter_expression::ExprToken::default(); selector_ranges.len().max(1)];
+  let mut fields = vec![ExprToken::default(); selector_ranges.len().max(1)];
 
   let mut filtered_count = 0;
   let mut stack = default_stack();
@@ -115,6 +114,30 @@ fn collect_selector_ranges(program: &ExprProgram, filter: &[u8]) -> Vec<Selector
   ranges
 }
 
+/// 逐候选复用的过滤求值状态：选择器区间一次收集，字段槽与求值栈跨候选复用
+/// （内联过滤按图内每个被访问候选调用一次，禁止逐候选重扫描指令与重分配）。
+pub struct CandidateFilterState {
+  /// 唯一选择器区间（构造时一次性收集）。
+  selector_ranges: Vec<SelectorRange>,
+  /// 提取字段槽（跨候选复用）。
+  fields: Vec<ExprToken>,
+  /// 求值栈（跨候选复用）。
+  stack: ExprStack,
+}
+
+impl CandidateFilterState {
+  /// 以编译好的程序与过滤字节构造状态。
+  pub fn new(program: &ExprProgram, filter_bytes: &[u8]) -> Self {
+    let selector_ranges = collect_selector_ranges(program, filter_bytes);
+    let fields = vec![ExprToken::default(); selector_ranges.len().max(1)];
+    Self {
+      selector_ranges,
+      fields,
+      stack: default_stack(),
+    }
+  }
+}
+
 /// 按绝对偏移切片（防越界辅助）。
 fn slice_at(buf: &[u8], start: i32, len: i32) -> &[u8] {
   let start = start.max(0) as usize;
@@ -129,12 +152,14 @@ impl VectorManager {
   ///
   /// 共享的单候选过滤判定：读外部 id 属性 → 提取字段 → 执行过滤程序。
   /// 找不到外部 id 或属性缺失 → 排除候选。
+  /// 选择器区间/字段槽/求值栈经 `state` 跨候选复用。
   pub fn evaluate_candidate_filter(
     &self,
     context: u64,
     external_id: &[u8],
     program: &mut ExprProgram,
     filter_bytes: &[u8],
+    state: &mut CandidateFilterState,
   ) -> bool {
     // 1. 属性读取（找不到属性 → 排除）
     let Some(attr_data) = self.service.get_attribute(context, external_id) else {
@@ -143,26 +168,22 @@ impl VectorManager {
 
     // 2. 重置运行池 + 提取字段
     program.reset_runtime_pool();
-    let selector_ranges = collect_selector_ranges(program, filter_bytes);
-    let mut fields =
-      vec![super::vector_filter_expression::ExprToken::default(); selector_ranges.len().max(1)];
     extract_fields(
       &attr_data,
       filter_bytes,
-      &selector_ranges,
-      &mut fields,
+      &state.selector_ranges,
+      &mut state.fields,
       program,
     );
 
     // 3. 执行
-    let mut stack = default_stack();
     run(
       program,
       &attr_data,
       filter_bytes,
-      &selector_ranges,
-      &fields,
-      &mut stack,
+      &state.selector_ranges,
+      &state.fields,
+      &mut state.stack,
     )
   }
 }
@@ -223,11 +244,12 @@ mod tests {
       is_enabled: true,
       ..Default::default()
     });
-    let program = try_compile(b".year > 2000").unwrap();
+    let mut program = try_compile(b".year > 2000").unwrap();
     let filter = b".year > 2000";
 
     // 属性缺失 → 排除
-    assert!(!manager.evaluate_candidate_filter(1, b"ghost", &mut program.clone(), filter));
+    let mut state = CandidateFilterState::new(&program, filter);
+    assert!(!manager.evaluate_candidate_filter(1, b"ghost", &mut program, filter, &mut state));
 
     manager.service.create_index(
       1,
@@ -245,7 +267,9 @@ mod tests {
       .service
       .insert(1, b"c2", &2000f32.to_le_bytes(), b"{\"year\": 1999}");
 
-    assert!(manager.evaluate_candidate_filter(1, b"c1", &mut program.clone(), filter));
-    assert!(!manager.evaluate_candidate_filter(1, b"c2", &mut program.clone(), filter));
+    // 状态跨候选复用
+    let mut state = CandidateFilterState::new(&program, filter);
+    assert!(manager.evaluate_candidate_filter(1, b"c1", &mut program, filter, &mut state));
+    assert!(!manager.evaluate_candidate_filter(1, b"c2", &mut program, filter, &mut state));
   }
 }

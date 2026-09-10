@@ -165,16 +165,30 @@ impl HnswIndex {
       .and_then(|n| n.links.first().map(|l| l.as_slice()))
   }
 
-  /// 随机抽取 `count` 个活跃内部 id（VRANDMEMBER 语义；确定性遍历）。
+  /// 随机抽取 `count` 个活跃内部 id（VRANDMEMBER 语义；算法 R 水库抽样，不放回）。
   pub fn sample(&self, count: usize) -> Vec<u32> {
-    self
-      .nodes
-      .iter()
-      .enumerate()
-      .filter(|(_, n)| !n.deleted)
-      .take(count)
-      .map(|(i, _)| i as u32)
-      .collect()
+    if count == 0 {
+      return Vec::new();
+    }
+    let mut rng = fastrand::Rng::new();
+    let mut reservoir: Vec<u32> = Vec::with_capacity(count);
+    let mut seen = 0usize;
+    for (i, n) in self.nodes.iter().enumerate() {
+      if n.deleted {
+        continue;
+      }
+      if reservoir.len() < count {
+        reservoir.push(i as u32);
+      } else {
+        // 以 count/(seen+1) 概率替换池内元素
+        let j = rng.usize(..=seen);
+        if j < count {
+          reservoir[j] = i as u32;
+        }
+      }
+      seen += 1;
+    }
+    reservoir
   }
 
   /// Q8 量化表访问器。
@@ -277,9 +291,15 @@ impl HnswIndex {
 
     let level = self.random_level(fastrand_state);
     let id = self.alloc_slot(level);
-    self.nodes[id as usize].vector = vector_bytes.to_vec();
-
-    // Q8 建表前插入：计入待量化池（build_quant_table 时回填）
+    // Q8 已建表：就地量化存储（与回填节点同格式）；未建表：暂存 f32，
+    // 计入待量化池（build_quant_table 时回填）
+    self.nodes[id as usize].vector = match (self.config.quant, self.q8_table.as_deref()) {
+      (VectorQuantType::Q8, Some(table)) => quantize_q8(
+        &decode_native(vector_bytes, VectorQuantType::NoQuant),
+        table,
+      ),
+      _ => vector_bytes.to_vec(),
+    };
     if self.config.quant == VectorQuantType::Q8 && self.q8_table.is_none() {
       self.pending_quantization += 1;
     }
@@ -301,12 +321,10 @@ impl HnswIndex {
       let mut changed = true;
       while changed {
         changed = false;
-        let links = self.nodes[entry as usize]
-          .links
-          .get(lc as usize)
-          .cloned()
-          .unwrap_or_default();
-        for cand in links {
+        let Some(links) = self.nodes[entry as usize].links.get(lc as usize) else {
+          break;
+        };
+        for &cand in links {
           let d = self.distance_to(&query, cand);
           if d < ep_dist {
             ep_dist = d;
@@ -385,11 +403,11 @@ impl HnswIndex {
     true
   }
 
-  /// K 近邻检索；`filter` 为内部 id 谓词（内联过滤通道）。
-  /// 返回按距离升序的 (内部 id, 距离) 列表。
+  /// K 近邻检索；`query` 为真实值空间查询向量，`filter` 为内部 id 谓词
+  /// （内联过滤通道）。返回按距离升序的 (内部 id, 距离) 列表。
   pub fn search(
     &self,
-    query_bytes: &[u8],
+    query: &[f32],
     k: usize,
     ef: usize,
     filter: &mut dyn FnMut(u32) -> bool,
@@ -398,25 +416,22 @@ impl HnswIndex {
       return Vec::new();
     }
 
-    let query = decode_native(query_bytes, self.config.quant);
     let mut entry = self.entry;
-    let mut ep_dist = self.distance_to(&query, entry);
+    let mut ep_dist = self.distance_to(query, entry);
 
     // 上层贪心下降（无过滤：上层节点默认允许通过）
     for lc in (1..=self.max_level).rev() {
       let mut changed = true;
       while changed {
         changed = false;
-        let links = self.nodes[entry as usize]
-          .links
-          .get(lc as usize)
-          .cloned()
-          .unwrap_or_default();
-        for cand in links {
+        let Some(links) = self.nodes[entry as usize].links.get(lc as usize) else {
+          break;
+        };
+        for &cand in links {
           if !self.is_internal_id_valid(cand) {
             continue;
           }
-          let d = self.distance_to(&query, cand);
+          let d = self.distance_to(query, cand);
           if d < ep_dist {
             ep_dist = d;
             entry = cand;
@@ -426,7 +441,7 @@ impl HnswIndex {
       }
     }
 
-    let mut candidates = self.search_layer(&query, entry, ep_dist, ef.max(k), 0, filter);
+    let mut candidates = self.search_layer(query, entry, ep_dist, ef.max(k), 0, filter);
     candidates.sort_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(Ordering::Equal));
     candidates
       .into_iter()
@@ -467,12 +482,11 @@ impl HnswIndex {
         break;
       }
 
-      let links = self.nodes[current.id as usize]
+      let links: &[u32] = self.nodes[current.id as usize]
         .links
         .get(layer as usize)
-        .cloned()
-        .unwrap_or_default();
-      for nbr in links {
+        .map_or(&[], Vec::as_slice);
+      for &nbr in links {
         if visited.contains(&nbr) || !self.is_internal_id_valid(nbr) {
           continue;
         }
@@ -497,14 +511,18 @@ impl HnswIndex {
     out
   }
 
-  /// 收缩指定节点某层邻接至 `m_max`（保留最近的）。
+  /// 收缩指定节点某层邻接至 `m_max`（保留最近的；低频路径，允许一次解码分配）。
   fn shrink_links(&mut self, id: u32, layer: usize, m_max: usize) {
     let links = mem::take(&mut self.nodes[id as usize].links[layer]);
     if links.len() <= m_max {
       self.nodes[id as usize].links[layer] = links;
       return;
     }
-    let vec_self = decode_native(&self.nodes[id as usize].vector, self.config.quant);
+    let vec_self = decode_values(
+      &self.nodes[id as usize].vector,
+      self.config.quant,
+      self.q8_table.as_deref(),
+    );
     let mut scored: Vec<(u32, f32)> = links
       .iter()
       .map(|&nbr| (nbr, self.distance_to(&vec_self, nbr)))
@@ -514,18 +532,45 @@ impl HnswIndex {
       scored.into_iter().take(m_max).map(|(nbr, _)| nbr).collect();
   }
 
-  /// 计算查询向量（真实值空间）与内部 id 节点的距离。
+  /// 计算查询向量（真实值空间）与内部 id 节点的距离（零分配）。
   fn distance_to(&self, query: &[f32], id: u32) -> f32 {
-    let other = self.values_of(id);
-    distance(query, &other, self.config.metric)
+    self.distance_to_bytes(query, &self.nodes[id as usize].vector)
   }
 
-  /// 节点存储字节展开为真实值空间（Q8 已建表时先反量化）。
-  fn values_of(&self, id: u32) -> Vec<f32> {
-    let node = &self.nodes[id as usize];
-    match (&self.config.quant, &self.q8_table) {
-      (VectorQuantType::Q8, Some(table)) => dequantize_q8(&node.vector, table),
-      (q, _) => decode_native(&node.vector, *q),
+  /// 查询真实值 vs 存储原生字节：按量化方式现场解码（Q8 已建表时逐维反量化），
+  /// 不再展开为中间 Vec（检索热路径每次距离计算省一次堆分配）。
+  fn distance_to_bytes(&self, query: &[f32], bytes: &[u8]) -> f32 {
+    let metric = self.config.metric;
+    match (self.config.quant, self.q8_table.as_deref()) {
+      (VectorQuantType::Q8, Some(table)) => distance_against(
+        query,
+        table.len(),
+        |i| {
+          let (min, max) = table[i];
+          min + (f32::from(bytes[i]) / 255.0) * (max - min)
+        },
+        metric,
+      ),
+      (q, _) => {
+        let size = native_element_size(q);
+        distance_against(
+          query,
+          bytes.len() / size,
+          |i| match q {
+            VectorQuantType::XNoQuant_U8 | VectorQuantType::XBin_U8 => f32::from(bytes[i]),
+            VectorQuantType::XNoQuant_I8 | VectorQuantType::XBin_I8 => {
+              f32::from(i8::from_le_bytes([bytes[i]]))
+            }
+            _ => f32::from_le_bytes([
+              bytes[i * 4],
+              bytes[i * 4 + 1],
+              bytes[i * 4 + 2],
+              bytes[i * 4 + 3],
+            ]),
+          },
+          metric,
+        )
+      }
     }
   }
 
@@ -551,14 +596,9 @@ impl HnswIndex {
     }
   }
 
-  /// 各层邻接容量。
+  /// 各层邻接表预分配容量（层 0 上限 2M，按典型 M≥4 估计；上层按 M 的一半）。
   fn m_for(layer: usize) -> usize {
-    if layer == 0 {
-      // 上限 2M，预容量按 4 估计（M 默认 >= 2）
-      8
-    } else {
-      4
-    }
+    if layer == 0 { 8 } else { 4 }
   }
 
   /// 几何随机层数（1/(ln M) 指数衰减）。
@@ -620,35 +660,51 @@ pub fn dequantize_q8(bytes: &[u8], table: &[(f32, f32)]) -> Vec<f32> {
 
 /// 距离度量实现（值越小越相似，对齐 DiskANN Metric 语义）。
 pub fn distance(a: &[f32], b: &[f32], metric: VectorDistanceMetricType) -> f32 {
-  let n = a.len().min(b.len());
+  distance_against(a, b.len(), |i| b[i], metric)
+}
+
+/// 距离度量核心：查询真实值 vs 逐维取值器（存储侧按量化现场解码，零中间分配）。
+fn distance_against(
+  query: &[f32],
+  other_len: usize,
+  other: impl Fn(usize) -> f32,
+  metric: VectorDistanceMetricType,
+) -> f32 {
+  let n = query.len().min(other_len);
+  let pairs = query.iter().take(n).zip((0..n).map(other));
   match metric {
-    VectorDistanceMetricType::L2 => {
-      let mut sum = 0.0f32;
-      for i in 0..n {
-        let d = a[i] - b[i];
-        sum += d * d;
-      }
-      sum
-    }
-    VectorDistanceMetricType::InnerProduct => {
-      let dot: f32 = (0..n).map(|i| a[i] * b[i]).sum();
-      // DiskANN 惯例：距离 = 1 - ip，保证越小越近
-      1.0 - dot
-    }
+    VectorDistanceMetricType::L2 => pairs
+      .map(|(&a, b)| {
+        let d = a - b;
+        d * d
+      })
+      .sum(),
+    // DiskANN 惯例：距离 = 1 - ip，保证越小越近
+    VectorDistanceMetricType::InnerProduct => 1.0 - pairs.map(|(&a, b)| a * b).sum::<f32>(),
     VectorDistanceMetricType::Cosine | VectorDistanceMetricType::XCosineNormalized => {
-      let mut dot = 0.0f32;
-      let mut na = 0.0f32;
-      let mut nb = 0.0f32;
-      for i in 0..n {
-        dot += a[i] * b[i];
-        na += a[i] * a[i];
-        nb += b[i] * b[i];
+      let (mut dot, mut na, mut nb) = (0.0f32, 0.0f32, 0.0f32);
+      for (&a, b) in pairs {
+        dot += a * b;
+        na += a * a;
+        nb += b * b;
       }
       if na == 0.0 || nb == 0.0 {
         return 1.0;
       }
       1.0 - dot / (na.sqrt() * nb.sqrt())
     }
+  }
+}
+
+/// 原生格式字节 → 真实值空间 f32（Q8 需建表反量化；服务层嵌入/按元素检索共用）。
+pub fn decode_values(
+  bytes: &[u8],
+  quant: VectorQuantType,
+  table: Option<&[(f32, f32)]>,
+) -> Vec<f32> {
+  match (quant, table) {
+    (VectorQuantType::Q8, Some(t)) => dequantize_q8(bytes, t),
+    (q, _) => decode_native(bytes, q),
   }
 }
 
@@ -674,10 +730,7 @@ pub fn encode_native(
       .map(|v| u8::from(*v > BIN_SIGN_THRESHOLD))
       .collect(),
     VectorQuantType::Q8 => match table {
-      Some(t) => quantize_q8(values, t)
-        .iter()
-        .map(|q| q.to_le_bytes()[0])
-        .collect(),
+      Some(t) => quantize_q8(values, t),
       None => values.iter().flat_map(|v| v.to_le_bytes()).collect(),
     },
     _ => values.iter().flat_map(|v| v.to_le_bytes()).collect(),
@@ -723,7 +776,7 @@ mod tests {
 
     // 精确最近邻应命中自身（或距离一致）
     for (id, v) in &vectors {
-      let hits = idx.search(&f32_bytes(v), 1, 32, &mut |_| true);
+      let hits = idx.search(v, 1, 32, &mut |_| true);
       assert_eq!(hits.len(), 1);
       assert_eq!(hits[0].0, *id, "exact self match expected");
       assert!(hits[0].1.abs() < 1e-6);
@@ -742,7 +795,7 @@ mod tests {
     }
 
     let q = vec![0.005, 0.005, 0.005, 0.005];
-    let hits = idx.search(&f32_bytes(&q), 10, 64, &mut |_| true);
+    let hits = idx.search(&q, 10, 64, &mut |_| true);
     assert_eq!(hits.len(), 10);
     // 前几名应来自 0 聚类（距离远小于另一聚类）
     assert!(hits[0].1 < 1.0);
@@ -762,7 +815,7 @@ mod tests {
     }
     assert_eq!(idx.len(), 25);
     // 已删除 id 检索不可见
-    let q = f32_bytes(&[ids[0] as f32, 0.0]);
+    let q = [ids[0] as f32, 0.0];
     let hits = idx.search(&q, 50, 64, &mut |_| true);
     assert!(!hits.iter().any(|(id, _)| ids[..25].contains(id)));
     // 重复删除失败
@@ -810,9 +863,9 @@ mod tests {
     assert_eq!(idx.pending_quantization(), 0);
 
     // 量化后检索仍可区分两个正交向量
-    let hits = idx.search(&f32_bytes(&[0.0, 10.0]), 1, 32, &mut |_| true);
+    let hits = idx.search(&[0.0, 10.0], 1, 32, &mut |_| true);
     assert_eq!(hits[0].0, id1);
-    let hits = idx.search(&f32_bytes(&[10.0, 0.0]), 1, 32, &mut |_| true);
+    let hits = idx.search(&[10.0, 0.0], 1, 32, &mut |_| true);
     assert_eq!(hits[0].0, id2);
   }
 
@@ -849,6 +902,11 @@ mod tests {
 
     assert!(idx.links_of(id1).is_some());
     assert_eq!(idx.sample(2).len(), 2);
+    // 水库抽样：请求量超过活跃数时全量返回；count=0 返回空
+    assert_eq!(idx.sample(10).len(), 3);
+    assert_eq!(idx.sample(0).len(), 0);
+    // 抽样只含活跃 id
+    assert!(idx.sample(3).iter().all(|id| idx.is_internal_id_valid(*id)));
     assert!(idx.is_internal_id_valid(id0));
     assert!(!idx.is_internal_id_valid(INVALID_INTERNAL_ID));
     assert!(idx.vector_of(id0).is_some());
@@ -863,7 +921,7 @@ mod tests {
     idx.insert(&f32_bytes(&[3.0, 3.0]), &mut rng);
 
     // 只允许 a 通过
-    let hits = idx.search(&f32_bytes(&[1.1, 1.1]), 3, 32, &mut |id| id == a);
+    let hits = idx.search(&[1.1, 1.1], 3, 32, &mut |id| id == a);
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].0, a);
   }

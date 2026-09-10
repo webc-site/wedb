@@ -21,6 +21,7 @@ use super::{
   vector_types::{VectorDistanceMetricType, VectorQuantType, VectorValueType},
 };
 use crate::{
+  objects::types::object_output::ObjectOutput,
   resp::{
     cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS,
     parser::session_parse_state::{strict_f32, strict_i32},
@@ -36,6 +37,8 @@ const MAX_M: i32 = 4_096;
 const DEFAULT_VSIM_COUNT: i32 = 10;
 /// VSIM 默认搜索探索因子（count ??= 10 / searchExplorationFactor ??= 100）。
 const DEFAULT_VSIM_EF: i32 = 100;
+/// VSIM 默认过滤过取放大（maxFilteringEffort ??= 16）。
+const DEFAULT_VSIM_FILTER_EF: i32 = 16;
 
 // ── 错误文案常量（逐字节对齐 C# 字面量；自带 RESP 前缀原样写出） ──
 
@@ -130,7 +133,7 @@ impl VectorReply {
         }
       }
       VectorReply::Double(d) => {
-        let text = fmt_double(*d);
+        let text = ObjectOutput::format_double(*d);
         out.extend_from_slice(format!("${}\r\n{}\r\n", text.len(), text).as_bytes());
       }
       VectorReply::Boolean(b) => {
@@ -150,7 +153,7 @@ impl VectorReply {
     match self {
       VectorReply::Double(d) => {
         out.push(b',');
-        out.extend_from_slice(fmt_double(*d).as_bytes());
+        out.extend_from_slice(ObjectOutput::format_double(*d).as_bytes());
         out.extend_from_slice(b"\r\n");
       }
       VectorReply::Boolean(b) => {
@@ -172,11 +175,6 @@ impl VectorReply {
       other => other.encode_resp2(out),
     }
   }
-}
-
-/// f64 → RESP 分数字符串（最短往返表示，对齐 C# double.TryFormat 默认格式）。
-fn fmt_double(d: f64) -> String {
-  format!("{d}")
 }
 
 /// 大小写不敏感比较（对齐 EqualsUpperCaseSpanIgnoringCase）。
@@ -771,7 +769,11 @@ impl RespServerSessionVectors {
         return VectorReply::Error(ERR_UNKNOWN_OPTION.to_vec());
       }
     }
-    let _ = (truth, no_thread, epsilon, filter_ef);
+    let _ = (truth, no_thread);
+    // EPSILON / FILTER-EF 参与检索（对齐 C# 传参语义：maxFilteringEffort ??= 16
+    // 放大过滤候选队列；delta 截断最大距离 —— 缺省不截断，原生库默认 2f 不可复刻）
+    let delta = epsilon.unwrap_or(f32::INFINITY);
+    let filter_effort = filter_ef.unwrap_or(DEFAULT_VSIM_FILTER_EF).max(0) as usize;
 
     let count = count.unwrap_or(DEFAULT_VSIM_COUNT);
 
@@ -787,6 +789,8 @@ impl RespServerSessionVectors {
         count.max(0) as usize,
         ef.unwrap_or(DEFAULT_VSIM_EF).max(0) as usize,
         filter.unwrap_or(b""),
+        filter_effort,
+        delta,
         with_attribs,
       ),
       None => self.manager.value_similarity(
@@ -796,6 +800,8 @@ impl RespServerSessionVectors {
         count.max(0) as usize,
         ef.unwrap_or(DEFAULT_VSIM_EF).max(0) as usize,
         filter.unwrap_or(b""),
+        filter_effort,
+        delta,
         with_attribs,
       ),
     };

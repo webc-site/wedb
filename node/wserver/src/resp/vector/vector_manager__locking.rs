@@ -301,7 +301,7 @@ impl VectorManager {
       None => match create {
         // 缺失且不允许建桩（InitialUpdater: NO）
         None => Err(VectorManagerResult::Invalid),
-        Some(params) => Ok(self.create_index_locked(key, params)),
+        Some(params) => self.create_index_locked(key, params),
       },
     }
   }
@@ -325,10 +325,15 @@ impl VectorManager {
   }
 
   /// 独占锁内创建新索引（对齐 CreateIndexArg 路径：分配上下文 + 全几何落记录）。
-  fn create_index_locked(&self, key: &[u8], params: &CreateIndexParams) -> Index {
+  fn create_index_locked(
+    &self,
+    key: &[u8],
+    params: &CreateIndexParams,
+  ) -> Result<Index, VectorManagerResult> {
+    // 上下文 0 非法（保留），分配失败须报错而非落 0 桩记录
     let context = self
       .next_vector_set_context(params.hash_slot)
-      .unwrap_or_default();
+      .ok_or(VectorManagerResult::Invalid)?;
     self.service.create_index(
       context,
       params.dims,
@@ -351,7 +356,7 @@ impl VectorManager {
     };
     self.write_stored_index(key, &index.to_bytes());
     request_quantization_if_needed(&self.quantization_channel, self, key, context);
-    index
+    Ok(index)
   }
 
   /// libs/server/Resp/Vector/VectorManager.Locking.cs:AcquireExclusiveLocks
