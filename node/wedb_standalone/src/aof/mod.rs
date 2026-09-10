@@ -1,3 +1,5 @@
+pub mod entry;
+pub use entry::*;
 pub mod aof_address;
 pub mod aof_backpressure;
 pub mod aof_chunked_record_reader;

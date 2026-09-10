@@ -12,8 +12,7 @@ use aok::OK;
 use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
 use wdev::SegmentedDevice;
-use wkv::{StoreConfig, WedbStore};
-use wserver::{
+use wedb_standalone::{
   aof::{
     aof_address::AofAddress,
     aof_entry_type::AofEntryType,
@@ -27,6 +26,7 @@ use wserver::{
   storage::session::storage_session::StorageSession,
   types::RespCommand,
 };
+use wkv::{StoreConfig, WedbStore};
 
 type TestStore = Arc<WedbStore<SegmentedDevice>>;
 
@@ -316,7 +316,7 @@ fn test_chunked_record_replay_loop() -> aok::Void {
     // 大对象值分块写入（enqueue_object_chunked；信封 = [tag u8][payload]）
     let mut big_value = vec![3u8]; // OBJ_TAG_HASH
     big_value.extend_from_slice(&vec![b'o'; 300]);
-    log.enqueue_object_chunked(&wserver::aof::garnet_log::ChunkedShape {
+    log.enqueue_object_chunked(&wedb_standalone::aof::garnet_log::ChunkedShape {
       record: RecordShape {
         op_type: AofEntryType::ObjectStoreUpsert,
         version: 5,

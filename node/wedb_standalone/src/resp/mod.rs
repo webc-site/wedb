@@ -1,3 +1,5 @@
+pub mod ri_frame;
+pub use ri_frame::*;
 pub mod acl_commands;
 pub mod admin_commands;
 pub mod array_commands;

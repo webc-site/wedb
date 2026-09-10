@@ -9,7 +9,7 @@ use parking_lot::Mutex as ParkingMutex;
 
 use crate::custom::custom_command_manager::{
   CommandType, CustomCommandDocs, CustomCommandInfo, CustomCommandManager, CustomTransaction,
-  RawStringFn,
+  RawStringCommandSpec, RawStringFn,
 };
 
 /// 命令注册 API
