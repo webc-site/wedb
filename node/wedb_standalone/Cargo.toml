@@ -1,5 +1,5 @@
 [package]
-name = "wnode"
+name = "wedb_standalone"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

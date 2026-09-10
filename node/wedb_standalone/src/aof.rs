@@ -15,7 +15,7 @@ const KEY_LEN_PREFIX: usize = 4;
 /// blob 长度前缀字节数（u32 小端）
 const BLOB_LEN_PREFIX: usize = 4;
 
-/// AOF 条目操作类型（对齐 Garnet `AofEntryType`，覆盖 wnode 当前落日志的操作面）
+/// AOF 条目操作类型（对齐 Garnet `AofEntryType`，覆盖 wedb_standalone 当前落日志的操作面）
 ///
 /// `KvUpsert`/`KvDelete` 为预留位：对应 KV 编排方法尚未接入 service，
 /// 回放端可先按 UnknownOp 兜底处理
