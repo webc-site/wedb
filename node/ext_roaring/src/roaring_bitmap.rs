@@ -1,4 +1,3 @@
-#![allow(clippy::new_without_default)]
 use std::io::{Read, Write};
 
 use roaring::RoaringBitmap;
@@ -75,5 +74,12 @@ impl RoaringBitmapObj {
     Ok(Self {
       bitmap: RoaringBitmap::deserialize_from(reader)?,
     })
+  }
+}
+
+/// `new()` 有配套空值构造：供 `Default` 派生/去显式 `new()` 场景使用
+impl Default for RoaringBitmapObj {
+  fn default() -> Self {
+    Self::new()
   }
 }
