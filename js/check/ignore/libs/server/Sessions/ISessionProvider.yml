@@ -1,3 +1,0 @@
-# r3-c7-tail 长尾扫尾：会话工厂接口属 .NET 会话装配管道；rust 会话生命周期由宿主域（wnode service / servers 域）承接
-fn:
-  - "GetSession"
