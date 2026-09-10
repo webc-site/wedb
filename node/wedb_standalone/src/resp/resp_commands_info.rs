@@ -959,7 +959,7 @@ pub fn try_get_resp_command_info_by_name(
 
 /// 按命令枚举取元数据（`txn_only` 时剔除 NoMulti 命令）
 ///
-/// libs/server/Resp/RespCommandsInfo.cs:TryGetRespCommandInfo(RespCommand,...)
+/// 对应 C# TryGetRespCommandInfo(RespCommand, ...) 枚举重载
 pub fn try_get_resp_command_info_by_cmd(
   cmd: RespCommand,
   txn_only: bool,

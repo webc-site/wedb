@@ -75,9 +75,7 @@ impl LatencyMetricsEntrySession {
     self.start_timestamp = 0;
   }
 
-  /// libs/server/Metrics/Latency/LatencyMetricsEntrySession.cs:RecordValue(ver, elapsed)
-  ///
-  /// 直接记录一段耗时；越界值收敛到直方图上界（对齐 C# 饱和记录）。
+  /// 对应 RecordValue(ver, elapsed) 耗时记录重载。直接记录一段耗时；越界值收敛到直方图上界。
   #[inline]
   pub fn record_elapsed(&mut self, ver: usize, elapsed: i64) {
     if elapsed == 0 {

@@ -9,7 +9,7 @@ use std::{
   mem::size_of,
   ops::{Deref, DerefMut, Index},
   slice::{Iter, IterMut, from_raw_parts, from_raw_parts_mut},
-  sync::atomic::{Ordering, fence},
+  sync::atomic::{AtomicU64, Ordering, fence},
   thread::{sleep, yield_now},
   time::Duration,
 };
@@ -39,6 +39,18 @@ enum ChainStep {
 /// 故链长严格受限于池容量上限 MAX_CHUNKS×CHUNK_SIZE = 2^22；超限即判定数据损坏/链环，
 /// 立即终止遍历而非死循环
 const MAX_CHAIN_STEPS: usize = 1 << 22;
+
+/// 单槽位扫描决策（[`HashIndex::find_or_create_tag_by_hash_with_min_addr`] 与
+/// [`HashIndex::find_tag_entry_by_hash_with_min_addr`] 两套 FindTag 探针共用的单一事实源，
+/// 严格对标 C# TsavoriteBase.FindTagOrFreeInternal 的逐槽分类）
+enum SlotScan {
+  /// 槽位承载目标 Tag 的有效条目，携带原始字（含截断清退 CAS 竞争后并发覆写复核命中）
+  Hit(u64),
+  /// 槽位为空闲生槽（原本为空，或已截断条目被本线程/他人 CAS 清退）
+  Free,
+  /// 槽位被其他 Tag 的有效条目占用，继续推进
+  Occupied,
+}
 
 /// 溢出链遍历器（步数上限防御）
 ///
@@ -624,6 +636,57 @@ impl HashIndex {
     }
   }
 
+  /// 快速单槽位探针查找并产出可定点 [`HashEntryInfo::try_cas`] / [`HashEntryInfo::try_elide`]
+  /// 的槽位句柄（纯查找语义，严格对标 C# InternalDelete 经
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:FindTagAndTryEphemeralXLock
+  /// 使用的 `TsavoriteBase.FindTag`：只查不建，键不存在时立即 NOTFOUND 返回，
+  /// 绝不为满载链分配溢出桶——`FindOrCreateTag` 的建槽语义仅供 Upsert/RMW 使用）
+  #[inline]
+  pub fn find_tag_entry(&self, key: &[u8]) -> Option<HashEntryInfo<'_>> {
+    self.find_tag_entry_by_hash_with_min_addr(Self::hash_key(key), 0)
+  }
+
+  /// 探针查找并产出槽位句柄，带已截断死槽位无锁实时清退（语义见
+  /// [`Self::find_tag_entry`] 与 [`Self::find_tag_entry_by_hash_with_min_addr`]）
+  #[inline]
+  pub fn find_tag_entry_with_min_addr(
+    &self,
+    key: &[u8],
+    min_valid_addr: u64,
+  ) -> Option<HashEntryInfo<'_>> {
+    self.find_tag_entry_by_hash_with_min_addr(Self::hash_key(key), min_valid_addr)
+  }
+
+  /// 基于哈希值探针查找并产出槽位句柄，带已截断死槽位无锁实时清退
+  /// （清退口径与 [`Self::find_or_create_tag_by_hash_with_min_addr`] 完全一致，
+  /// 唯二差异：不记录空闲生槽、链尾永不分配溢出桶）
+  pub fn find_tag_entry_by_hash_with_min_addr(
+    &self,
+    hash: u64,
+    min_valid_addr: u64,
+  ) -> Option<HashEntryInfo<'_>> {
+    let tag = HashBucketEntry::tag_from_hash(hash);
+    let bucket_idx = (hash as usize) & self.mask;
+
+    let mut walker = ChainWalker::new(self.get_bucket(bucket_idx));
+    loop {
+      for (slot, item) in walker.curr.entries[..DATA_ENTRIES].iter().enumerate() {
+        if let SlotScan::Hit(raw) = Self::classify_slot(item, tag, min_valid_addr) {
+          return Some(HashEntryInfo {
+            bucket: walker.curr,
+            slot,
+            raw,
+            tag,
+          });
+        }
+      }
+      match walker.advance(&self.overflow_pool) {
+        ChainStep::Next => {}
+        ChainStep::End | ChainStep::Cycle => return None,
+      }
+    }
+  }
+
   /// 查询匹配指定 Key 对应 Tag 的所有候选逻辑地址（零堆分配栈小数组，带链步数上限保护）
   #[inline]
   pub fn lookup_candidates(&self, key: &[u8]) -> CandidateAddresses {
@@ -799,24 +862,81 @@ impl HashIndex {
     self.find_or_create_tag_by_hash_with_min_addr(Self::hash_key(key), min_valid_addr)
   }
 
+  /// 单槽位分类内核（[`Self::find_or_create_tag_by_hash_with_min_addr`] 与
+  /// [`Self::find_tag_entry_by_hash_with_min_addr`] 的单一事实源，逐槽口径严格对齐
+  /// C# TsavoriteBase.FindTagOrFreeInternal）：
+  ///
+  /// - 空槽 → [`SlotScan::Free`]；
+  /// - 已提交条目指向被日志截断回收的地址（address < min_valid_addr，ReadCache 条目
+  ///   地址含指示位数值上不落入截断区，显式排除）→ 单指令 CAS 置零原位清退：
+  ///   清退成功、或并发清退抢先（actual == 0）→ [`SlotScan::Free`]；清退窗口内槽位
+  ///   被并发覆写为目标 Tag 的最新有效条目 → [`SlotScan::Hit`]（命中屏障已内置）；
+  /// - 其余匹配目标 Tag 的已提交条目 → [`SlotScan::Hit`]（fence(Acquire) 与发布方
+  ///   CAS(AcqRel) 建立 release/acquire 同步，调用方解引用命中地址的记录数据时
+  ///   可见其全部前置写）；
+  /// - 非目标 Tag 的有效条目 → [`SlotScan::Occupied`]。
+  fn classify_slot(item: &AtomicU64, tag: u16, min_valid_addr: u64) -> SlotScan {
+    let raw = item.load(Ordering::Relaxed);
+    if raw == 0 {
+      return SlotScan::Free;
+    }
+
+    let entry = HashBucketEntry::from_raw(raw);
+
+    // 严格对标 C# TsavoriteBase.cs FindTagOrFreeInternal：
+    // 已提交条目指向被日志截断回收的地址时，单指令 CAS 置零原位清退为生槽，
+    // 彻底阻断溢出桶伪分配
+    if min_valid_addr > 0
+      && entry.is_valid()
+      && !entry.is_read_cache()
+      && entry.address() < min_valid_addr
+    {
+      return match item.compare_exchange(raw, 0, Ordering::AcqRel, Ordering::Acquire) {
+        Ok(_) => SlotScan::Free,
+        Err(actual_raw) => {
+          if actual_raw == 0 {
+            // 另一线程已抢先将其清退置零，当前槽位已成为空闲槽位
+            SlotScan::Free
+          } else {
+            let actual = HashBucketEntry::from_raw(actual_raw);
+            if actual.matches_tag(tag)
+              && (actual.is_read_cache() || actual.address() >= min_valid_addr)
+            {
+              // 另一线程已将该槽位并发覆写为目标 Tag 的最新有效条目，直接命中
+              fence(Ordering::Acquire);
+              SlotScan::Hit(actual_raw)
+            } else {
+              // 该槽已被其他有效条目占用且非目标 Tag，继续沿桶推进检查后续槽位
+              SlotScan::Occupied
+            }
+          }
+        }
+      };
+    }
+
+    if entry.matches_tag(tag) {
+      // 命中屏障：调用方将按命中地址解引用记录内存（论证见函数头内存序注释）
+      fence(Ordering::Acquire);
+      SlotScan::Hit(raw)
+    } else {
+      SlotScan::Occupied
+    }
+  }
+
   /// 基于哈希值单趟遍历定位匹配 Tag 槽位或首个可用空闲槽位
   #[inline]
   pub fn find_or_create_tag_by_hash(&self, hash: u64) -> Result<HashEntryInfo<'_>> {
     self.find_or_create_tag_by_hash_with_min_addr(hash, 0)
   }
 
-  /// 基于哈希值单趟遍历定位匹配 Tag 槽位或首个可用空闲槽位，带已截断死槽位无锁实时清退与就地复用
+  /// 基于哈希值单趟遍历定位匹配 Tag 槽位或首个可用空闲槽位
   ///
   /// 与 C# `TsavoriteBase.FindOrCreateTag` 的异同：
   /// - 同：单趟链遍历、记录首个空槽位、截断死槽位（address < min_valid_addr）原位 CAS 置零清退复用、
-  ///   链尾无空槽时分配并 CAS 挂载新溢出桶（失败方归还冗余桶后沿赢家桶深入）；
+  ///   链尾无空槽时分配并 CAS 挂载新溢出桶（失败方归还冗余桶后沿赢家桶深入遍历）；
   /// - 异：本实现不做 C# 的"先装 Tentative 占位再全链查重"两阶段协议，而是把最终值的原子 CAS
   ///   留给调用方 `HashEntryInfo::try_cas` 一次完成——读者永远只会看到 0 或完整条目，天然免去
   ///   半成品条目窗口；同 Tag 并发插入可能各占一槽形成多候选，由上层按候选地址择新解决。
-  ///
-  /// 内存序：扫描阶段仅过滤 tag/addr，Relaxed 加载足矣；两处命中返回前补
-  /// fence(Acquire)，与发布方 CAS(AcqRel) 建立 release/acquire 同步，保证调用方
-  /// 解引用命中地址的记录数据时可见其全部前置写（论证参见 HashBucket::find_tag_address）。
   pub fn find_or_create_tag_by_hash_with_min_addr(
     &self,
     hash: u64,
@@ -830,62 +950,19 @@ impl HashIndex {
 
     'search: loop {
       for (slot, item) in walker.curr.entries[..DATA_ENTRIES].iter().enumerate() {
-        let raw = item.load(Ordering::Relaxed);
-        if raw == 0 {
-          first_free.get_or_insert((walker.curr, slot));
-          continue;
-        }
-
-        let entry = HashBucketEntry::from_raw(raw);
-
-        // 严格对标 C# TsavoriteBase.cs FindTagOrFreeInternal：
-        // 已提交条目指向被日志截断回收的地址（address < min_valid_addr）时，
-        // 单指令 CAS 置零原位清退为生槽，彻底阻断溢出桶伪分配；
-        // ReadCache 条目地址含指示位，数值上不会落入截断区，显式排除（与 C# 数值比较天然等效）。
-        if min_valid_addr > 0
-          && entry.is_valid()
-          && !entry.is_read_cache()
-          && entry.address() < min_valid_addr
-        {
-          match item.compare_exchange(raw, 0, Ordering::AcqRel, Ordering::Acquire) {
-            Ok(_) => {
-              // CAS 置零成功：该槽位已成为空闲生槽
-              first_free.get_or_insert((walker.curr, slot));
-            }
-            Err(actual_raw) => {
-              if actual_raw == 0 {
-                // 另一线程已抢先将其清退置零，当前槽位已成为空闲槽位
-                first_free.get_or_insert((walker.curr, slot));
-                continue;
-              }
-              let actual = HashBucketEntry::from_raw(actual_raw);
-              if actual.matches_tag(tag)
-                && (actual.is_read_cache() || actual.address() >= min_valid_addr)
-              {
-                // 另一线程已将该槽位并发覆写为目标 Tag 的最新有效条目，直接返回命中
-                fence(Ordering::Acquire);
-                return Ok(HashEntryInfo {
-                  bucket: walker.curr,
-                  slot,
-                  raw: actual_raw,
-                  tag,
-                });
-              }
-              // 该槽已被其他有效条目占用且非目标 Tag，继续沿桶推进检查后续槽位
-            }
+        match Self::classify_slot(item, tag, min_valid_addr) {
+          SlotScan::Hit(raw) => {
+            return Ok(HashEntryInfo {
+              bucket: walker.curr,
+              slot,
+              raw,
+              tag,
+            });
           }
-          continue;
-        }
-
-        if entry.matches_tag(tag) {
-          // 命中屏障：调用方将按命中地址解引用记录内存（论证见函数头内存序注释）
-          fence(Ordering::Acquire);
-          return Ok(HashEntryInfo {
-            bucket: walker.curr,
-            slot,
-            raw,
-            tag,
-          });
+          SlotScan::Free => {
+            first_free.get_or_insert((walker.curr, slot));
+          }
+          SlotScan::Occupied => {}
         }
       }
 

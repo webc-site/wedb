@@ -177,9 +177,7 @@ fn parse_value_token(json: &[u8], pos: &mut usize, program: &mut ExprProgram) ->
   }
 }
 
-/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseValueToken
-///
-/// 无程序上下文的重载：数组经 [`parse_array_token_no_pool`] 跳过。
+/// 对应 ParseValueToken 无程序上下文的重载：数组经 [`parse_array_token_no_pool`] 跳过。
 fn parse_value_token_no_pool(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
   trim_white_space(json, pos);
   let c = *json.get(*pos)?;

@@ -30,6 +30,7 @@ aok = "0.1.18"
 ctor = "1.0.13"
 log = "0.4.34"
 log_init = "0.1.39"
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

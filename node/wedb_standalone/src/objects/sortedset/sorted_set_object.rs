@@ -159,7 +159,7 @@ impl ExpirationWithOption {
     }
   }
 
-  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long)
+  /// 由既有 64 位整型字构筑（对照 C# ExpirationWithOption(long word) 单参构造）
   #[inline]
   pub fn from_word(word: i64) -> Self {
     Self { word }
@@ -294,8 +294,7 @@ impl SortedSetObject {
   }
 
   /// 从 C# BinaryWriter 序列化格式反序列化，加载时剔除已过期条目
-  ///
-  /// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
+  /// （对照 C# SortedSetObject(BinaryReader) 构造）
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut obj = Self::new();
 
@@ -1202,7 +1201,7 @@ mod tests {
     assert_eq!(cursor, 0); // 末页耗尽归零
   }
 
-  /// Glob 模式匹配（含字符类），对标 libs/server/GlobUtils.cs:Match
+  /// Glob 模式匹配（含字符类）测试
   #[test]
   fn glob_patterns() {
     // 基础通配

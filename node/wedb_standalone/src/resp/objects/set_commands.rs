@@ -414,7 +414,7 @@ impl RespServerSession {
 
   /// SMISMEMBER key member [member ...]
   ///
-  /// libs/server/Resp/Objects/SetCommands.cs:SetIsMember（SMISMEMBER 共体）
+  /// SMISMEMBER 入口（对应 C# SetIsMember 多值判定形态）
   pub fn set_multi_is_member<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -865,7 +865,7 @@ impl RespServerSession {
 
 /// 集合求交（首集复制后逐集收缩；缺失键视为空集 → 空结果）
 ///
-/// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetIntersect
+/// 对应 SetOps.cs:SetIntersect 算法的本地集合求交
 fn intersect_sets(objs: &[SetObject]) -> SetObject {
   let mut result = SetObject::new();
   let Some(first) = objs.first() else {
@@ -888,7 +888,7 @@ fn intersect_sets(objs: &[SetObject]) -> SetObject {
 
 /// 集合求差（首集减去其余各集）
 ///
-/// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetDiff
+/// 对应 SetOps.cs:SetDiff 算法的本地集合求差
 fn diff_sets(objs: &[SetObject]) -> SetObject {
   let mut result = SetObject::new();
   let Some(first) = objs.first() else {

@@ -18,7 +18,7 @@ const ERR_INVALID_GC_GENERATION: &str = "ERR Invalid GC generation.";
 /// C# 默认 16；rust 会话层未接服务器选项，按默认值校验 DBID
 const MAX_DATABASES: i64 = 16;
 
-/// 集群启用占位（rust 集群会话域未挂载；C# 为 serverOptions.EnableCluster）
+/// 集群启用配置（单机模式默认为 false；C# 为 serverOptions.EnableCluster）
 const CLUSTER_ENABLED: bool = false;
 
 /// libs/server/Auth/Settings/ConnectionProtectionOption.cs（默认 No）
@@ -38,10 +38,8 @@ enum ConnectionProtection {
 }
 
 impl ConnectionProtection {
-  /// libs/server/Resp/RespServerSession.cs:CanRunDebug
-  ///
-  /// C# 还需 networkSender.IsLocalConnection() 配合 Local 档；rust 网络层未接
-  /// 端点判定，且本 crate 仅接线 No 档，受保护的管理命令恒拒绝
+  /// 连接保护判定（C# 还需 networkSender.IsLocalConnection() 配合 Local 档；
+  /// rust 网络层未接端点判定，且本 crate 仅接线 No 档，受保护的管理命令恒拒绝）
   const fn can_run(self) -> bool {
     false
   }

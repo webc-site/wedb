@@ -421,9 +421,7 @@ impl VectorManager {
     dirty.clear();
   }
 
-  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:GetNamespacesForHashSlots
-  ///
-  /// 汇总所有元数据块中命中给定 hash slot 的命名空间（迁移用）。
+  /// 汇总所有元数据块中命中给定 hash slot 的命名空间（迁移用，委托各 ContextMetadata 扫描）。
   pub fn get_namespaces_for_hash_slots(&self, hash_slots: &BTreeSet<i32>) -> BTreeSet<u64> {
     let mut ret = BTreeSet::new();
     let metas = self.context_metadatas.lock();
@@ -474,9 +472,7 @@ impl VectorManager {
     }
   }
 
-  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:UpdateHashSlot
-  ///
-  /// 迁移/重命名后按索引 VALUE 同步上下文的 hash slot 记录。
+  /// 迁移/重命名后按索引 VALUE 同步上下文的 hash slot 记录（委托目标 ContextMetadata 更新）。
   pub fn update_hash_slot(&self, old_value: &[u8], new_slot: u16) {
     let Some(index) = super::vector_manager__index::Index::from_bytes(old_value) else {
       return;

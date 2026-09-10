@@ -55,7 +55,6 @@ impl AclAuthenticationAadSettings {
 impl IAuthenticationSettings for AclAuthenticationAadSettings {
   /// 模板：解析 ACL 后委托内部创建（对标 C# 基座 CreateAuthenticator）
   ///
-  /// libs/server/Auth/Settings/AclAuthenticationSettings.cs:CreateAuthenticator
   /// libs/server/Auth/Settings/AclAuthenticationAadSettings.cs:CreateAuthenticator
   fn create_authenticator(
     &self,

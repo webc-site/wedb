@@ -101,7 +101,7 @@ pub struct ReassemblyActivity {
 }
 
 impl ReassemblyActivity {
-  /// libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs:StartActivity
+  /// ReassemblyActivity 的 StartActivity 入口
   pub fn start_activity() -> Self {
     Self {
       started_ns: now_ns(),
@@ -122,7 +122,7 @@ impl ReassemblyActivity {
     self.publish_result = Some(result);
   }
 
-  /// libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs:EndAndLog
+  /// ReassemblyActivity 的 EndAndLog 入口
   ///
   /// `reason` 标注结束原因（Complete / PublishFailed / ChunkProcessingError 等）
   pub fn end_and_log(&self, key: &[u8], reason: &str) {

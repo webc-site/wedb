@@ -130,9 +130,7 @@ pub const fn is_no_auth(cmd: RespCommand) -> bool {
 /// 最后一个有效命令（除 INVALID 外的最大值，对标 C# LastValidCommand）
 pub const LAST_VALID_COMMAND: RespCommand = RespCommand::Quit;
 
-/// 按 RespCommand 取目录条目（含子命令条目）
-///
-/// 对标 libs/server/Resp/RespCommandsInfo.cs:TryGetRespCommandInfo
+/// 按 RespCommand 取 ACL 目录条目（含子命令条目）
 #[inline]
 pub(crate) fn try_get_resp_command_info(cmd: RespCommand) -> Option<&'static CmdEntry> {
   CMD_ENTRIES.iter().find(|e| e.cmd == cmd)
@@ -153,8 +151,6 @@ pub(crate) fn children_of(cmd: RespCommand) -> impl Iterator<Item = &'static Cmd
 }
 
 /// 分类成员条目（对标 C# AclCommandInfo 字典查询；复合分类按单类别位并集）
-///
-/// 对标 libs/server/Resp/RespCommandsInfo.cs:TryGetCommandsforAclCategory
 pub(crate) fn try_get_commands_for_acl_category(
   acl: RespAclCategories,
 ) -> Option<Vec<&'static CmdEntry>> {

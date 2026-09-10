@@ -256,8 +256,7 @@ impl RespServerSession {
 
   /// LPUSHX key element [element ...] / RPUSHX key element [element ...]
   ///
-  /// libs/server/Resp/Objects/ListCommands.cs:ListPush（LPUSHX/RPUSHX 共体：
-  /// 键缺失不物化空列表，回复 0）
+  /// LPUSHX/RPUSHX 共体入口（键缺失不物化空列表，回复 0）：
   pub fn list_push_x<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -273,7 +272,7 @@ impl RespServerSession {
     self.list_push_by_op(parse_state, store, output, op, "LPUSHX")
   }
 
-  /// libs/server/Resp/Objects/ListCommands.cs:ListPush
+  /// LPUSH/RPUSH/LPUSHX/RPUSHX 内部实现公共体
   fn list_push_by_op<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],

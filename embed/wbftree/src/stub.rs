@@ -355,7 +355,7 @@ impl RangeIndexStub {
     }
   }
 
-  /// 直接在二进制切片上就地清零树指针 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:ClearTreeHandle / InvalidateStub)
+  /// 直接在二进制切片上就地清零树指针（对应 ClearTreeHandle / InvalidateStub 切片原地操作）
   #[inline]
   pub fn slice_clear_tree_handle(slice: &mut [u8]) -> Result<()> {
     if slice.len() < CACHE_SIZE_OFFSET {
@@ -389,7 +389,7 @@ impl RangeIndexStub {
     Ok(())
   }
 
-  /// 直接在二进制切片上标记从检查点恢复 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
+  /// 直接在二进制切片上标记从检查点恢复（对应 MarkRecoveredFromCheckpoint 切片原地操作）
   #[inline]
   pub fn slice_mark_recovered_from_checkpoint(slice: &mut [u8]) -> Result<()> {
     Self::validate_slice(slice)?;

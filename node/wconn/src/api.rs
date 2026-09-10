@@ -147,7 +147,7 @@ impl GarnetClient {
     to_i64(res)
   }
 
-  /// libs/client/GarnetClientAPI/GarnetClientSortedSetCommands.cs:SortedSetAddAsync
+  /// 集合批量添加（对应 C# SortedSetAddAsync(key, collection) 批量重载）
   pub async fn sorted_set_add_collection_async(
     &self,
     key: &str,

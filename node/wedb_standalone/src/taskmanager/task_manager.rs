@@ -210,9 +210,7 @@ impl TaskManager {
     }
   }
 
-  /// 按放置类别批量取消任务（依枚举声明序逐条收敛）
-  ///
-  /// libs/server/TaskManager/TaskManager.cs:CancelAsync (TaskPlacementCategory)
+  /// 按放置类别批量取消任务（对应 CancelAsync(TaskPlacementCategory) 类别重载）
   pub async fn cancel_category_async(&self, task_placement_category: TaskPlacementCategory) {
     for task_type in TaskType::get_task_types(task_placement_category) {
       self.cancel_async(task_type).await;

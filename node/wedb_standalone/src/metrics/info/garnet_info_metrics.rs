@@ -941,7 +941,7 @@ impl GarnetInfoMetrics {
     }
   }
 
-  /// libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetRespInfo（单段）
+  /// 对应 GetRespInfo 单段填充实现
   fn get_resp_info_single(
     &mut self,
     section: InfoMetricsType,

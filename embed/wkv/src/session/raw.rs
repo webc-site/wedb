@@ -325,7 +325,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 底层物理纯同步快速路径写入（Raw，严格对标 libs/server/Resp/BasicCommands.cs:NetworkSET & InternalUpsert）
+  /// 底层物理纯同步快速路径写入（Raw，对齐 Garnet InternalUpsert / NetworkSET 执行链路）
   pub fn try_upsert_raw_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<u64, u64>> {
     let _guard = self.participant.enter();
     self.try_upsert_raw_sync_unprotected(key, val)
@@ -433,7 +433,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 纯同步快速路径写入当前会话普通字符串键（严格对标 libs/server/Resp/BasicCommands.cs:NetworkSET & InternalUpsert）
+  /// 纯同步快速路径写入当前会话普通字符串键（对齐 Garnet InternalUpsert / NetworkSET 执行链路）
   ///
   /// SET 语义同步清除既有 key 级 TTL 记录：TTL 记录驻留可变区时墓碑同步闭环；
   /// 需异步驱逐（PageNotReady）或冷数据确认时返回 Ok(Err(u64::MAX))，
@@ -1161,7 +1161,7 @@ impl<D: Device> StoreSession<D> {
     first_addrs
   }
 
-  /// 纯同步快速路径物理删除单个键（严格对标 libs/server/Resp/ArrayCommands.cs:NetworkDEL & InternalDelete）
+  /// 纯同步快速路径物理删除单个键（对齐 Garnet InternalDelete / NetworkDEL 执行链路）
   ///
   /// 语义与安全边界详见 [`Self::try_delete_raw_sync_unprotected`]
   pub fn try_delete_raw_sync(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
@@ -1188,14 +1188,19 @@ impl<D: Device> StoreSession<D> {
   fn try_delete_raw_sync_unprotected(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
     loop {
       let begin_addr = self.store.begin_address();
-      let mut hei = self
+      // 严格对标 C# InternalDelete 的 FindTag 语义（Helpers.cs:FindTagAndTryEphemeralXLock →
+      // TsavoriteBase.FindTag：纯查找、绝不创建）：键的 Tag 不存在时立即 NOTFOUND 返回。
+      // 删除未命中绝不经 find_or_create_tag 建槽——满载链上每次删除未命中都会永久消耗
+      // 一个不可回收的溢出桶（挂链后仅竞争败者回收），删除流量即可单向耗尽溢出桶池；
+      // FindOrCreateTag 的建槽语义在 C# 仅供 Upsert/RMW 使用。截断死槽位清退口径与
+      // find_or_create 完全一致（min_valid_addr = begin_addr，同一分类内核）
+      let Some(mut hei) = self
         .store
         .index
-        .find_or_create_tag_with_min_addr(key, begin_addr)?;
-
-      if !hei.is_found() {
+        .find_tag_entry_with_min_addr(key, begin_addr)
+      else {
         return Ok(Ok(false));
-      }
+      };
 
       let addr = hei.address();
       // ReadCache 链头分流（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs:InternalDelete.cs：TryFindRecordForUpdate 的
@@ -1335,7 +1340,7 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 纯同步快速删除键（支持普通键快速路径，严格对标 libs/server/Resp/ArrayCommands.cs:NetworkDEL）
+  /// 纯同步快速删除键（支持普通键快速路径，对齐 Garnet NetworkDEL 行为）
   ///
   /// - 若为普通键且内存命中：纯同步直接返回 Ok(Ok(deleted))；
   /// - 若遭遇环形页翻转：返回 Ok(Err(page_id))；

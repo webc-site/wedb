@@ -19,6 +19,7 @@ mod tests {
   #[test]
   fn known_vector() {
     let data = b"123456789";
-    assert_eq!(hash(data), [228, 227, 230, 114, 219, 137, 203, 153]);
+    // Redis/Garnet CRC64 (Jones poly 0xad93d23594c935a9): 0xe9c6d914c4b8d9ca
+    assert_eq!(hash(data), [202, 217, 184, 196, 20, 217, 198, 233]);
   }
 }

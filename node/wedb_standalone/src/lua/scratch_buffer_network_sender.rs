@@ -104,8 +104,6 @@ impl ScratchBufferNetworkSender {
   /// 进入响应写区（C# 空方法）。
   pub fn enter(&mut self) {}
 
-  /// libs/server/Lua/ScratchBufferNetworkSender.cs:EnterAndGetResponseObject
-  ///
   /// 剩余可写空间的安全视图（C# head..tail 裸指针区间的切片形态）。
   /// 写入后经 [`Self::send_response`] 提交推进有效区。
   pub fn spare_capacity_mut(&mut self) -> &mut [u8] {

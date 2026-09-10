@@ -294,7 +294,7 @@ impl RangeIndexManager {
     hash128(key, PREFIX_SEED_1, PREFIX_SEED_2)
   }
 
-  /// 根据键计算 26 字符 Base32 前缀（零堆分配，对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:HashKeyToPrefix）
+  /// 根据键计算 26 字符 Base32 前缀（零堆分配，对应 HashKeyToPrefix 高性能缓冲形态）
   #[inline]
   pub fn base32_prefix_of(key: &[u8]) -> Base32Buf128 {
     let id = Self::key_id_of(key);

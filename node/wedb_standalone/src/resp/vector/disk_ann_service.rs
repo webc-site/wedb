@@ -186,9 +186,7 @@ impl DiskANNService {
     index.hnsw.lock().remove(internal_id)
   }
 
-  /// libs/server/Resp/Vector/DiskANNService.cs:CreateIndex（out quantizationRequested 的承接）
-  ///
-  /// 索引创建/重建后是否需要立即调度量化建表（量化表尚未就绪）。
+  /// 索引创建/重建后是否需要立即调度量化建表（对应 CreateIndex 的 out quantizationRequested 承接）。
   pub fn needs_quantization(&self, context: u64) -> bool {
     self
       .indexes

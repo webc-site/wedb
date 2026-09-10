@@ -407,8 +407,7 @@ fn test_multi_database_manager() -> aok::Void {
   })
 }
 
-/// 已持久化库编号枚举的错误语义（对标上游 d20d63993 对
-/// libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds 的恢复可见性修复）：
+/// 已持久化库编号枚举的错误语义（对标上游 d20d63993 对 MultiDatabaseManager.TryGetSavedDatabaseIds 的恢复可见性修复）：
 /// 根目录不存在为良性全新启动态（空集，恢复静默跳过，上游 `Directory.Exists` 守卫）；
 /// 真实枚举失败必须显式报错，绝不静默空集恢复
 #[test]

@@ -51,9 +51,8 @@ pub struct TxnCommandKeys {
 }
 
 impl TransactionManager {
-  /// 锁登记内核（libs/server/Transaction/TxnKeyManager.cs:SaveKeyEntryToLock
-  /// 主体；跨文件 impl 域的字段拆借路径共用，避免 WATCH 键并集路径与
-  /// 容器借用冲突）
+  /// 锁登记内核（对应 SaveKeyEntryToLock 主体实现；跨文件 impl 域的字段拆借路径共用，
+  /// 避免 WATCH 键并集路径与容器借用冲突）
   pub(crate) fn register_key_lock(
     key_entries: &mut TxnKeyEntries,
     perform_writes: &mut bool,

@@ -2,12 +2,8 @@
 //!
 //! 承接四类注册空间（原始字符串命令 / 自定义对象命令 / 事务过程 / 自定义过程）
 //! 与模块注册、按名索引/文档索引。C# 侧经 ExpandableMap 分配 id；
-//! Rust 侧 ExpandableMap 属并行占位域，本文件以域内 [`IdSpace`] 承接同语义
+//! 本文件以域内 [`IdSpace`] 承接同语义
 //! （min..=max 顺序分配 + 按值去重查找 + 按名匹配）。
-//!
-//! C# 的 RespCommandsInfo/RespCommandDocs 为富结构体；Rust 侧 resp 域尚未
-//! 落地，本域以 [`CustomCommandInfo`]/[`CustomCommandDocs`] 最小结构承接
-//! （名称、元数、类别、摘要），映射字段语义保持一致。
 
 use std::{fmt, sync::Arc};
 
@@ -289,9 +285,7 @@ impl CustomCommandManager {
     Ok(ext_id)
   }
 
-  /// libs/server/Custom/CustomCommandManager.cs:Register（事务过程）
-  ///
-  /// 注册自定义事务；返回事务 id。
+  /// 注册自定义事务（对应 C# CustomCommandManager.Register(CustomTransactionProcedure) 重载）；返回事务 id。
   pub fn register_transaction(
     &mut self,
     name: &str,
@@ -338,9 +332,7 @@ impl CustomCommandManager {
     Ok(self.register_new_type(&type_key)? - CUSTOM_OBJECT_TYPE_MIN_ID)
   }
 
-  /// libs/server/Custom/CustomCommandManager.cs:Register（对象命令）
-  ///
-  /// 注册自定义对象命令（类型缺失时自动补注册）；返回 (类型扩展 id, 子命令 id)。
+  /// 注册自定义对象命令（对应 C# CustomCommandManager.Register(CustomObjectCommand) 重载）；返回 (类型扩展 id, 子命令 id)。
   pub fn register_object_command(
     &mut self,
     type_name: &str,
@@ -388,9 +380,7 @@ impl CustomCommandManager {
     Ok((ext_id, sc_id as u8))
   }
 
-  /// libs/server/Custom/CustomCommandManager.cs:Register（自定义过程）
-  ///
-  /// 注册自定义过程；返回过程 id。
+  /// 注册自定义过程（对应 C# CustomCommandManager.Register(CustomProcedure) 重载）；返回过程 id。
   pub fn register_procedure(
     &mut self,
     name: &str,

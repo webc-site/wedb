@@ -114,7 +114,7 @@ fn integer_overflow_defense_on_offset_and_segment_number() -> Void {
 }
 
 /// 按地址截断的 u64::MAX 防御：不得整数回绕，须安全钳位至 u32::MAX
-/// （对标 libs/client/Utility.cs:MonotonicUpdate 单调推进语义）。
+/// （对标 Utility.MonotonicUpdate 单调推进语义）。
 #[test]
 fn truncate_until_address_u64_max_is_clamped_safely() -> Void {
   let rt = Runtime::new()?;

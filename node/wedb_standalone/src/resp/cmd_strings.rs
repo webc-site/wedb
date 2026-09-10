@@ -160,15 +160,11 @@ pub fn write_error_raw(output: &mut Vec<u8>, msg: &str) {
   output.extend_from_slice(b"\r\n");
 }
 
-/// libs/server/Resp/Objects/ObjectStoreUtils.cs:AbortWithWrongNumberOfArguments
-///
 /// 以 `GenericErrWrongNumArgs` 格式化命令名并写出错误应答
 pub fn abort_with_wrong_number_of_arguments(output: &mut Vec<u8>, cmd_name: &str) {
   write_error_raw(output, &GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", cmd_name));
 }
 
-/// libs/server/Resp/Objects/ObjectStoreUtils.cs:AbortWithErrorMessage
-///
 /// 原样写出错误应答并终止命令处理
 pub fn abort_with_error_message(output: &mut Vec<u8>, error_message: &str) {
   write_error_raw(output, error_message);
@@ -180,8 +176,7 @@ pub fn write_raw(output: &mut Vec<u8>, frame: &[u8]) {
   output.extend_from_slice(frame);
 }
 
-/// RESP2 口径写 map 头（对标 libs/common/RespMemoryWriter.cs:WriteMapLength 的
-/// RESP2 分支：map 退化为双倍长度数组）
+/// RESP2 口径写 map 头（RESP2 分支：map 退化为双倍长度数组）
 #[inline]
 pub fn write_map_len_resp2(output: &mut Vec<u8>, len: usize) {
   output.write_resp_array_len(len * 2);

@@ -503,7 +503,7 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     self.network_setex_impl(false, "SETEX", parse_state, store, output)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkSETEX（highPrecision = PSETEX）
+  /// PSETEX 入口（调用 network_setex_impl(highPrecision = true)）
   pub fn network_psetex<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -512,9 +512,7 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     self.network_setex_impl(true, "PSETEX", parse_state, store, output)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkSETEX
-  ///
-  /// SETEX/PSETEX 共同体（C# 以 bool highPrecision 参数化）；写值后经
+  /// SETEX/PSETEX 共同实现体（对应 C# NetworkSETEX highPrecision 参数化实现）；写值后经
   /// [`super::ttl_sync::put_ttl_sync`] 同步落 TTL 记录
   fn network_setex_impl<'a, D: wdev::Device>(
     &mut self,
@@ -1404,8 +1402,8 @@ impl RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
   ///
   /// 校验 → 认证 → 升级协议版本 / 落客户端名 → 组 HELLO 应答 map；协议
-  /// 版本、客户端名与会话 Id 直读会话真实状态（占位实现已由
-  /// [`RespServerSession::process_hello_command_state`] 承接）
+  /// 版本、客户端名与会话 Id 直读会话真实状态（委托
+  /// [`RespServerSession::process_hello_command_state`] 承接）。
   pub fn process_hello_command<'a, D: wdev::Device>(
     &mut self,
     resp_protocol_version: Option<u8>,
@@ -1560,7 +1558,7 @@ const fn digits_len(mut v: u64) -> usize {
   n
 }
 
-/// libs/server/Resp/BasicCommands.cs:NetworkSETEXNX 的选项解析前半段
+/// NetworkSETEXNX 的选项解析前半段
 ///
 /// 解析失败时已写出错误应答并返回 None。错误次序对标 C#：重复/非法过期选项
 /// → syntax error；EX/PX 缺值 → syntax error；值非整数 → not-integer；值非正

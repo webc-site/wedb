@@ -44,9 +44,7 @@ impl MetricsApi {
     GarnetInfoMetrics::new().get_metric(info_metrics_type, db_id, provider)
   }
 
-  /// 取多个 INFO 指标段（None = 全部默认段；C# GetInfoMetrics 重载）
-  ///
-  /// libs/server/Servers/MetricsApi.cs:GetInfoMetrics（多段重载）
+  /// 取多个 INFO 指标段（None = 全部默认段；对应 GetInfoMetrics 多段重载）
   pub fn get_info_metrics_all(
     &self,
     info_metrics_types: Option<&[InfoMetricsType]>,
@@ -73,9 +71,7 @@ impl MetricsApi {
     }
   }
 
-  /// 置位多个 INFO 段复位标志（None = 全部默认段；C# ResetInfoMetrics 重载）
-  ///
-  /// libs/server/Servers/MetricsApi.cs:ResetInfoMetrics（多段重载）
+  /// 置位多个 INFO 段复位标志（None = 全部默认段；对应 ResetInfoMetrics 多段重载）
   pub fn reset_info_metrics_all(&self, info_metrics_types: Option<&[InfoMetricsType]>) {
     let sections = info_metrics_types.unwrap_or(DEFAULT_INFO);
     for &section in sections {
@@ -98,9 +94,7 @@ impl MetricsApi {
       .get_latency_metrics(latency_metrics_type)
   }
 
-  /// 取多个延迟类别分位（None = 默认类别集；C# GetLatencyMetrics 重载）
-  ///
-  /// libs/server/Servers/MetricsApi.cs:GetLatencyMetrics（多类别重载）
+  /// 取多个延迟类别分位（None = 默认类别集；对应 GetLatencyMetrics 多类别重载）
   pub fn get_latency_metrics_all(
     &self,
     latency_metrics_types: Option<&[LatencyMetricsType]>,
@@ -133,9 +127,7 @@ impl MetricsApi {
     }
   }
 
-  /// 置位多个延迟类别复位标志（None = 默认类别集；C# ResetLatencyMetrics 重载）
-  ///
-  /// libs/server/Servers/MetricsApi.cs:ResetLatencyMetrics（多类别重载）
+  /// 置位多个延迟类别复位标志（None = 默认类别集；对应 ResetLatencyMetrics 多类别重载）
   pub fn reset_latency_metrics_all(&self, latency_metrics_types: Option<&[LatencyMetricsType]>) {
     let types = latency_metrics_types.unwrap_or(GarnetLatencyMetrics::DEFAULT_LATENCY_TYPES);
     for &latency_metrics_type in types {

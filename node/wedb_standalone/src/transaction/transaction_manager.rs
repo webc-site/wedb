@@ -189,7 +189,7 @@ impl TransactionManager {
     self.aof_log.is_some()
   }
 
-  /// 无参重置（libs/server/Transaction/TransactionManager.cs:Reset()）
+  /// 无参重置（调用 [`Self::reset`]）
   pub fn reset_current(&mut self) {
     let is_running = self.state == TxnState::Running;
     self.reset(is_running);
