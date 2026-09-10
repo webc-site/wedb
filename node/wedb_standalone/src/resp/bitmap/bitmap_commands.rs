@@ -1,3 +1,4 @@
+use core::str;
 //! 位图命令（SETBIT/GETBIT/BITCOUNT）
 //!
 //! 同步快路径：字符串域直读直写，磁盘候选等须异步裁决时返回 `Ok(false)`
@@ -22,7 +23,7 @@ fn parse_bitfield_offset(raw: &[u8], bit_count: u8) -> Option<i64> {
     return None;
   }
   if raw[0] == b'#' {
-    let index: i64 = core::str::from_utf8(&raw[1..]).ok()?.parse().ok()?;
+    let index: i64 = str::from_utf8(&raw[1..]).ok()?.parse().ok()?;
     index.checked_mul(bit_count as i64)
   } else {
     raw.try_parse_i64()

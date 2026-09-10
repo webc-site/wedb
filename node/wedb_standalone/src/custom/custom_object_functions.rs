@@ -1,3 +1,5 @@
+use core::str;
+
 pub struct CustomObjectFunctions;
 
 impl CustomObjectFunctions {
@@ -14,7 +16,7 @@ impl CustomObjectFunctions {
 
   /// libs/server/Custom/CustomObjectFunctions.cs:GetNextString
   pub fn get_next_string<'a>(args: &'a [&'a [u8]], idx: &mut usize) -> Option<&'a str> {
-    Self::get_next_arg(args, idx).and_then(|b| core::str::from_utf8(b).ok())
+    Self::get_next_arg(args, idx).and_then(|b| str::from_utf8(b).ok())
   }
 
   /// libs/server/Custom/CustomObjectFunctions.cs:GetFirstArg

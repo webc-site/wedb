@@ -1,3 +1,4 @@
+use core::str;
 use crate::resp::{parser::resp_ext::RespVecExt, resp_server_session::RespServerSession};
 
 fn compute_lcs(a: &[u8], b: &[u8]) -> Vec<u8> {
@@ -195,14 +196,14 @@ impl RespServerSession {
       output.write_resp_error("wrong number of arguments for 'SWAPDB' command");
       return Ok(true);
     }
-    let Some(idx1) = core::str::from_utf8(parse_state[0])
+    let Some(idx1) = str::from_utf8(parse_state[0])
       .ok()
       .and_then(|s| s.parse::<i32>().ok())
     else {
       output.write_resp_error("ERR value is not an integer or out of range");
       return Ok(true);
     };
-    let Some(idx2) = core::str::from_utf8(parse_state[1])
+    let Some(idx2) = str::from_utf8(parse_state[1])
       .ok()
       .and_then(|s| s.parse::<i32>().ok())
     else {
@@ -255,7 +256,7 @@ impl RespServerSession {
       output.write_resp_error("wrong number of arguments for 'SCAN' command");
       return Ok(true);
     }
-    let Some(cursor) = core::str::from_utf8(parse_state[0])
+    let Some(cursor) = str::from_utf8(parse_state[0])
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
@@ -356,7 +357,7 @@ impl RespServerSession {
           output.write_resp_error("ERR syntax error");
           return Ok(true);
         }
-        let Some(min_len) = core::str::from_utf8(parse_state[idx])
+        let Some(min_len) = str::from_utf8(parse_state[idx])
           .ok()
           .and_then(|s| s.parse::<usize>().ok())
         else {

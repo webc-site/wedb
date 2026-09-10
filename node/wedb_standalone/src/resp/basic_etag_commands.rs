@@ -1,3 +1,4 @@
+use core::str;
 use crate::resp::{parser::resp_ext::RespVecExt, resp_server_session::RespServerSession};
 
 impl RespServerSession {
@@ -40,7 +41,7 @@ impl RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let Some(given_etag) = core::str::from_utf8(parse_state[1])
+    let Some(given_etag) = str::from_utf8(parse_state[1])
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
@@ -79,7 +80,7 @@ impl RespServerSession {
       return Ok(true);
     }
     let key = parse_state[0];
-    let Some(given_etag) = core::str::from_utf8(parse_state[1])
+    let Some(given_etag) = str::from_utf8(parse_state[1])
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
@@ -155,7 +156,7 @@ impl RespServerSession {
     }
     let key = parse_state[0];
     let val = parse_state[1];
-    let Some(_etag) = core::str::from_utf8(parse_state[2])
+    let Some(_etag) = str::from_utf8(parse_state[2])
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
