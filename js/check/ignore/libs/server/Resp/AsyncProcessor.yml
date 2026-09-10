@@ -1,0 +1,4 @@
+# r3-c7-tail 长尾扫尾：专用异步 GET 排空线程；rust 异步 GET 经 try_read_sync 的 Ok(None) → Ok(false) 降级信号承接（basic_commands network_get_async 注释）
+fn:
+  - "NetworkGETPending"
+  - "AsyncGetProcessorAsync"

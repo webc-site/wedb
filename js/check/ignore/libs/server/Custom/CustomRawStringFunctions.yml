@@ -1,0 +1,4 @@
+# r3-c7-tail 长尾扫尾：抽象基类的 StringInput 参数读取助手（委托 CustomCommandUtils）；rust 参数面为切片形态
+fn:
+  - "GetFirstArg"
+  - "GetNextArg"

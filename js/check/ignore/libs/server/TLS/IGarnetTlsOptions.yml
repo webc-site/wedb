@@ -1,0 +1,3 @@
+# r3-c7-tail 长尾扫尾：证书热更新入口；rust TLS 面由 tls 域（garnet_tls_options 等 8/3/4 桩文件）并行推进
+fn:
+  - "UpdateCertFile"

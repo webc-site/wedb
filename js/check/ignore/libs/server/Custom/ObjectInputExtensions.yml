@@ -1,0 +1,3 @@
+# r3-c7-tail 长尾扫尾：EXIST 选项解析依赖 ObjectInput 装箱输入管道；rust 参数面统一为切片形态
+fn:
+  - "TryGetExistOption"

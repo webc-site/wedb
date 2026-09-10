@@ -1,3 +1,5 @@
 # r10 深审后语义吸收/死模块清理：对应 rust 能力已由内部化实现承接，详见提交记录
+# r3-c7-tail 长尾扫尾：FromPinnedPointer 为钉住指针输出游标构造（unsafe 指针管道）；rust 输出统一经 Vec<u8> 缓冲承接
 fn:
-  - ConvertToHeap
+  - "ConvertToHeap"
+  - "FromPinnedPointer"

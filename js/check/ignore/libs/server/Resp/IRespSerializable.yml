@@ -1,0 +1,3 @@
+# r3-c7-tail 长尾扫尾：命令元数据 RESP 直写接口（dcurr/dend 指针管道）；rust 应答统一经 Vec<u8> 缓冲写出
+fn:
+  - "ToRespFormat"

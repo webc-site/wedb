@@ -1,0 +1,4 @@
+# r3-c7-tail 长尾扫尾：注册提供者与命令表接线依赖 custom 域命令管理器（同域 9 桩文件）并行推进
+fn:
+  - "GetRegisterCustomCommandProvider"
+  - "Register"

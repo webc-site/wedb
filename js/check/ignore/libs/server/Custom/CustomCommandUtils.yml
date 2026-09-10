@@ -1,0 +1,4 @@
+# r3-c7-tail 长尾扫尾：C# 经 Unsafe.Read 钉住指针按槽位读取参数；rust 参数面为切片形态，指针槽位读取无对应语义
+fn:
+  - "GetFirstArg"
+  - "GetNextArg"

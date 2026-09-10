@@ -1,0 +1,4 @@
+# r3-c7-tail 长尾扫尾：简化命令元数据静态缓存；命令元数据域并行推进面
+fn:
+  - "PopulateSimpleCommandInfo"
+  - "TryGetSimpleKeySpec"
