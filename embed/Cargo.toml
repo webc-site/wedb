@@ -64,7 +64,7 @@ version = "0.1.2"
 path = "wdev"
 
 [workspace.dependencies.wepoch]
-version = "0.1.1"
+version = "0.1.2"
 path = "wepoch"
 
 [workspace.dependencies.whasher]
@@ -84,7 +84,7 @@ version = "0.1.3"
 path = "wram"
 
 [workspace.dependencies.wrecord]
-version = "0.1.1"
+version = "0.1.2"
 path = "wrecord"
 
 [workspace.dependencies.wreviv]
