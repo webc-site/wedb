@@ -95,6 +95,10 @@ pub fn try_read_i64_safe(
   // Parse digits as u64
   let mut number = 0;
   let mut digits_read = 0;
+  // 刻意差异：C# 对仅有符号（零数字）的输入会以 value=0、bytesRead=1 返回
+  // true（TryReadUInt64 恒 Ok，零数字不报错）；此处按"未读到数字即失败"降级，
+  // 拒绝 "+" / "-" 空数字形式，避免空 bulk-string 数字（"$0\r\n\r\n"）被
+  // 静默解析为 0
   if !try_read_u64(ptr, &mut number, &mut digits_read)? || digits_read == 0 {
     return Ok(false);
   }

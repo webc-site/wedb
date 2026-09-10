@@ -1,15 +1,12 @@
 use std::str;
 
+use super::session_parse_state::strict_i64;
+
 pub trait RespSliceExt {
   fn as_str_safe(&self) -> &str;
-  /// 严格解析：参数整体须为合法整数（对应 C# parseState.TryGetInt），失败返回 None
+  /// 严格解析：参数整体须为合法整数（对应 C# parseState.TryGetInt / TryGetLong，
+  /// allowLeadingZeros: false —— 前导零、空白、尾随垃圾一律失败），失败返回 None
   fn try_parse_i64(&self) -> Option<i64>;
-  /// 严格解析：参数整体须为合法浮点（对应 C# NumUtils.TryParse/double.Parse），失败返回 None
-  fn try_parse_f64(&self) -> Option<f64>;
-  fn parse_i64(&self, default: i64) -> i64;
-  fn parse_usize(&self, default: usize) -> usize;
-  fn parse_f64(&self, default: f64) -> f64;
-  fn parse_isize(&self, default: isize) -> isize;
 }
 
 impl RespSliceExt for [u8] {
@@ -19,39 +16,7 @@ impl RespSliceExt for [u8] {
   }
   #[inline]
   fn try_parse_i64(&self) -> Option<i64> {
-    str::from_utf8(self).ok()?.parse().ok()
-  }
-  #[inline]
-  fn try_parse_f64(&self) -> Option<f64> {
-    str::from_utf8(self).ok()?.parse().ok()
-  }
-  #[inline]
-  fn parse_i64(&self, default: i64) -> i64 {
-    str::from_utf8(self)
-      .unwrap_or("")
-      .parse()
-      .unwrap_or(default)
-  }
-  #[inline]
-  fn parse_usize(&self, default: usize) -> usize {
-    str::from_utf8(self)
-      .unwrap_or("")
-      .parse()
-      .unwrap_or(default)
-  }
-  #[inline]
-  fn parse_f64(&self, default: f64) -> f64 {
-    str::from_utf8(self)
-      .unwrap_or("")
-      .parse()
-      .unwrap_or(default)
-  }
-  #[inline]
-  fn parse_isize(&self, default: isize) -> isize {
-    str::from_utf8(self)
-      .unwrap_or("")
-      .parse()
-      .unwrap_or(default)
+    strict_i64(self)
   }
 }
 
@@ -116,28 +81,21 @@ mod tests {
     assert_eq!(b"42".try_parse_i64(), Some(42));
     assert_eq!(b"-7".try_parse_i64(), Some(-7));
     assert_eq!(b"+3".try_parse_i64(), Some(3));
+    assert_eq!(b"0".try_parse_i64(), Some(0));
+    assert_eq!(b"-0".try_parse_i64(), Some(0));
     assert_eq!(b"9223372036854775807".try_parse_i64(), Some(i64::MAX));
-    // 非法：非数字/空串/带空白/溢出一律 None（对齐 C# TryGetInt 的严格语义）
+    assert_eq!(b"-9223372036854775808".try_parse_i64(), Some(i64::MIN));
+    // 非法：前导零 / 非数字 / 空串 / 带空白 / 溢出一律 None
+    //（对齐 C# TryGetInt/TryGetLong 的 allowLeadingZeros: false 严格语义）
+    assert_eq!(b"007".try_parse_i64(), None);
+    assert_eq!(b"-007".try_parse_i64(), None);
     assert_eq!(b"abc".try_parse_i64(), None);
     assert_eq!(b"".try_parse_i64(), None);
     assert_eq!(b"1 2".try_parse_i64(), None);
     assert_eq!(b" 1".try_parse_i64(), None);
+    assert_eq!(b"5 ".try_parse_i64(), None);
+    assert_eq!(b"1x".try_parse_i64(), None);
     assert_eq!(b"9223372036854775808".try_parse_i64(), None);
-  }
-
-  #[test]
-  fn try_parse_f64_strict() {
-    assert_eq!(b"1.5".try_parse_f64(), Some(1.5));
-    assert_eq!(b"-0.5".try_parse_f64(), Some(-0.5));
-    assert_eq!(b"3".try_parse_f64(), Some(3.0));
-    assert_eq!(b"abc".try_parse_f64(), None);
-    assert_eq!(b"".try_parse_f64(), None);
-    assert_eq!(b"1 2".try_parse_f64(), None);
-  }
-
-  #[test]
-  fn parse_i64_fallback_default() {
-    assert_eq!(b"42".parse_i64(0), 42);
-    assert_eq!(b"x".parse_i64(-1), -1);
+    assert_eq!(b"-9223372036854775809".try_parse_i64(), None);
   }
 }

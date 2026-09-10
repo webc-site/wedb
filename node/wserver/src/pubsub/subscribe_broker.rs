@@ -49,6 +49,14 @@ impl SubscribeBroker {
   pub fn get_channels() {
     unimplemented!()
   }
+  /// libs/server/PubSub/SubscribeBroker.cs:GetChannels(PinnedSpanByte)
+  pub fn get_channels_by_pattern() {
+    unimplemented!()
+  }
+  /// libs/server/PubSub/SubscribeBroker.cs:Dispose
+  pub fn dispose() {
+    unimplemented!()
+  }
   /// libs/server/PubSub/SubscribeBroker.cs:NumPatternSubscriptions
   pub fn num_pattern_subscriptions() {
     unimplemented!()
