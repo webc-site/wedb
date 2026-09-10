@@ -235,9 +235,7 @@ pub fn set_op_from_header(input: &ObjectInput) -> Option<SetOperation> {
 }
 
 impl SetObject {
-  /// SSCAN 的对象层入口（解析光标/MATCH/COUNT 后走 [`Self::scan`]）
-  ///
-  /// libs/server/Objects/Types/GarnetObjectBase.cs:Scan(ref ObjectInput, ...)
+  /// SSCAN 的对象层入口，转发至 [`scan_operate_shared`]。
   pub(crate) fn scan_operate(&mut self, input: &ObjectInput, output: &mut ObjectOutput) {
     scan_operate_shared(input, output, |cursor, count, pattern, _is_no_value| {
       self.scan(cursor, count, pattern)

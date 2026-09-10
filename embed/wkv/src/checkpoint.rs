@@ -56,8 +56,7 @@ fn cpr_err(e: Error) -> wcpr::Error {
 }
 
 impl<D: Device> WedbStore<D> {
-  /// 遍历并为所有在线与待激活的 RangeIndex 执行 CPR 检查点快照落盘
-  /// (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
+  /// 遍历并为所有在线与待激活的 RangeIndex 执行 CPR 检查点快照落盘（调用 snapshot_all_trees_for_checkpoint）
   pub fn take_range_index_checkpoints(
     &self,
     checkpoint_dir: impl AsRef<Path>,
@@ -180,7 +179,7 @@ impl<D: Device> WedbStore<D> {
 
     Ok(count)
   }
-  /// 为共享 BfTree 执行 CPR 检查点快照落盘 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint 共享树部分)
+  /// 为共享 BfTree 执行 CPR 检查点快照落盘（对应 CPR 快照中共享树部分）
   ///
   /// 未配置 `bftree_path`（临时内存树，无持久化承诺）时跳过返回 0；成功返回 1。
   /// 配置了 `bftree_path` 但引擎退化为非磁盘后端属异常状态：静默跳过会让后续

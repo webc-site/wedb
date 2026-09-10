@@ -196,9 +196,7 @@ impl RangeIndexManager_Migration {
     )
   }
 
-  /// 推导进行中入站迁移的临时文件路径 {ri_log_root}/migration-tmp/{id}.bftree
-  ///
-  /// libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:DeriveTempMigrationPath
+  /// 推导进行中入站迁移的临时文件路径 {ri_log_root}/migration-tmp/{id}.bftree（转发至 engine.derive_temp_migration_path）
   pub fn derive_temp_migration_path(engine: &RangeIndexManager) -> PathBuf {
     engine.derive_temp_migration_path()
   }

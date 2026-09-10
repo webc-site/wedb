@@ -289,7 +289,7 @@ impl SubscribeBroker {
 
   /// 列出匹配给定模式的全部有订阅者通道
   ///
-  /// libs/server/PubSub/SubscribeBroker.cs:GetChannels（pattern 重载）
+  /// 对应 GetChannels pattern 过滤重载
   pub fn get_channels_matching(&self, pattern: &[u8]) -> Vec<Vec<u8>> {
     self
       .subscriptions

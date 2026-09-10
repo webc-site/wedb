@@ -187,7 +187,7 @@ fn test_concurrent_reads_and_writes() -> Result<()> {
   OK
 }
 
-/// 测试: 计数屏障嵌套语义 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
+/// 测试: 计数屏障嵌套语义（对应 SetCheckpointBarrier 机制测试）
 /// 1. 持有外层屏障时 insert 阻塞，内层屏障叠加/释放均不提前放行；
 /// 2. 最外层守卫丢弃后写入放行且数据完整；
 /// 3. 无屏障时 cpr_snapshot 快照与并发写无撕裂 (恢复后点态一致)。

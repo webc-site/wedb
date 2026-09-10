@@ -177,9 +177,8 @@ impl CollectionItemBroker {
       .await
   }
 
-  /// 内部公共路径：登记观察者 → 启动主循环 → 入队 NewObserver → 等待
-  ///
-  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync(observer, keys, timeout)
+  /// 内部公共路径（对应 GetCollectionItemAsync(observer, keys, timeout) 实现）：
+  /// 登记观察者 → 启动主循环 → 入队 NewObserver → 等待
   async fn get_collection_item_async_inner(
     self: &Arc<Self>,
     observer: Arc<CollectionItemObserver>,

@@ -375,7 +375,7 @@ fn test_batch_buffer_arbitrary_buckets_and_crc32() -> Void {
   OK
 }
 
-/// 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint / RebuildFromSnapshotIfPending —— RangeIndex CPR
+/// 对应 RangeIndexManager 的 CPR 快照与存根自愈恢复全流程验证 —— RangeIndex CPR
 /// 快照与存根自愈恢复全流程：快照生成 `<token>/rangeindex` 结构，恢复自动自愈存根并 1:1 回读。
 ///
 /// 流程：

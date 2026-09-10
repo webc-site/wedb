@@ -102,7 +102,7 @@ impl Device for NullDevice {
     Ok(u64::MAX)
   }
 
-  /// 截断为单调推进起始段编号（对标 libs/client/Utility.cs:MonotonicUpdate，物理删除无操作）
+  /// 截断为单调推进起始段编号（单调推进语义，物理删除无操作）
   async fn truncate_until_segment(&self, segment_id: u32) -> Result<()> {
     self.start_segment.fetch_max(segment_id, SeqCst);
     Ok(())

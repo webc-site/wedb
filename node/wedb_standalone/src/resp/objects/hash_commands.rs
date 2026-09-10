@@ -264,9 +264,7 @@ impl RespServerSession {
     self.hash_set_by_command(parse_state, store, output, HashOperation::Hset)
   }
 
-  /// HSETNX key field value
-  ///
-  /// libs/server/Resp/Objects/HashCommands.cs:HashSet（HSETNX 形态）
+  /// HSETNX 入口，调用 hash_set_by_command(HashOperation::Hsetnx)
   pub fn hash_set_nx<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -278,7 +276,7 @@ impl RespServerSession {
 
   /// HMSET key field value [field value ...]（废弃别名，回复 +OK）
   ///
-  /// libs/server/Resp/Objects/HashCommands.cs:HashSet（HMSET 形态）
+  /// HMSET 入口，调用 hash_set_by_command(HashOperation::Hmset)
   pub fn hash_set_map<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -289,8 +287,6 @@ impl RespServerSession {
   }
 
   /// HSET/HSETNX/HMSET 公共体
-  ///
-  /// libs/server/Resp/Objects/HashCommands.cs:HashSet
   fn hash_set_by_command<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -544,7 +540,7 @@ impl RespServerSession {
 
   /// HVALS key
   ///
-  /// libs/server/Resp/Objects/HashCommands.cs:HashKeys（HVALS 共体）
+  /// HVALS 入口，调用 hash_keys(..., false)
   pub fn hash_vals<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],

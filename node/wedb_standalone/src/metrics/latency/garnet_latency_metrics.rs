@@ -192,9 +192,7 @@ impl GarnetLatencyMetrics {
       .unwrap_or_default()
   }
 
-  /// libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:GetLatencyMetrics（多类别重载）
-  ///
-  /// 迭代产出有样本类别的 (类别, 分位数指标) 序列。
+  /// 对应 C# GetLatencyMetrics 多类别重载，迭代产出有样本类别的 (类别, 分位数指标) 序列。
   pub fn get_latency_metrics_multi(
     &self,
     latency_metrics_types: &[LatencyMetricsType],

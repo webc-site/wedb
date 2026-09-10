@@ -648,7 +648,7 @@ impl BfTreeService {
     Ok(scanned)
   }
 
-  /// 排空全部在途写者 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotUnderClaim 的 claim 等待)
+  /// 排空全部在途写者（对应 SnapshotUnderClaim 的 claim 等待机制）
   ///
   /// 必须在 [`write_barrier`](Self::write_barrier) 置位后调用：等待已越过双检的
   /// 在途写者全部退出，此后 writers == 0 即树对写静稳，可安全换树/释放。
@@ -668,7 +668,7 @@ impl BfTreeService {
     }
   }
 
-  /// 开启写入屏障并返回 RAII 守卫 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetCheckpointBarrier)
+  /// 开启写入屏障并返回 RAII 守卫（对应 RangeIndexManager 检查点屏障的底层服务级写入屏障）
   ///
   /// 计数式屏障：嵌套叠加时写者阻塞至最外层守卫丢弃；守卫丢弃递减计数。
   /// ⚠️ 持有窗口内严禁跨 await / 依赖同线程 I/O 事件（见类型文档）。
@@ -846,8 +846,8 @@ impl BfTreeService {
     }
   }
 
-  /// 屏障内排空在途写者后释放实例 (对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经 LightEpoch
-  /// 延迟 dispose 的排空语义)
+  /// 屏障内排空在途写者后释放实例（对应 DisposeTreeUnderLock 经 LightEpoch
+  /// 延迟 dispose 的排空语义）
   ///
   /// C# 依赖 storeEpoch 把「摘树 + 删文件」推迟到所有在途 reader/writer 越过之后；
   /// 本实现改由调用方先从注册表摘除条目 (并发恢复立即不可见)，再以写入屏障挡住
@@ -907,7 +907,7 @@ mod tests {
     assert_eq!(v, None);
   }
 
-  /// 排空必须等在途写者退出后才摘树：对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 经
+  /// 排空必须等在途写者退出后才摘树：对应 DisposeTreeUnderLock 经
   /// storeEpoch 排空后才 dispose + 删文件的顺序语义
   #[test]
   fn test_dispose_quiesced_waits_inflight_writer() {

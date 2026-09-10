@@ -131,14 +131,12 @@ impl SessionScriptCache {
     mem::take(&mut self.timeout_requested)
   }
 
-  /// libs/server/Lua/SessionScriptCache.cs:TryGetFromDigest
-  ///
-  /// 摘要取脚本源码（源码登记面）。
+  /// 摘要取脚本源码（内部源码登记面）。
   pub fn try_get_from_digest(&self, hash: &ScriptHashKey) -> Option<&Vec<u8>> {
     self.scripts.get(hash)
   }
 
-  /// libs/server/Lua/SessionScriptCache.cs:TryGetFromDigest（runner 形态）
+  /// libs/server/Lua/SessionScriptCache.cs:TryGetFromDigest
   ///
   /// 取摘要对应的 runner；全局句柄已销毁时按 C# 语义从会话缓存移除。
   pub fn try_get_runner(&mut self, digest: &ScriptHashKey) -> Option<&mut LuaRunner> {
@@ -157,7 +155,7 @@ impl SessionScriptCache {
       .map(|entry| &mut entry.runner)
   }
 
-  /// libs/server/Lua/SessionScriptCache.cs:TryLoad（源码登记形态，EVAL 登记面）
+  /// 登记脚本源码（内部登记面）。
   pub fn try_load(&mut self, hash: &ScriptHashKey, script: &[u8]) -> bool {
     self
       .scripts
@@ -166,7 +164,7 @@ impl SessionScriptCache {
     true
   }
 
-  /// libs/server/Lua/SessionScriptCache.cs:TryLoad（runner 形态）
+  /// libs/server/Lua/SessionScriptCache.cs:TryLoad
   ///
   /// 编译脚本并载入会话缓存；命中即复用。必要时返回新建的共享句柄供
   /// 调用方登记进全局缓存（`digest_on_heap` 对标形态）。

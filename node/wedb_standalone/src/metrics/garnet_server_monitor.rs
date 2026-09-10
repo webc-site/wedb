@@ -371,9 +371,7 @@ impl GarnetServerMonitor {
     }
   }
 
-  /// libs/server/Metrics/GarnetServerMonitor.cs:MainMonitorTaskAsync（单轮迭代体）
-  ///
-  /// C# 主循环内除 Task.Delay 外的全部步骤。
+  /// 对应 MainMonitorTaskAsync 的单轮迭代体（C# 主循环内除 Task.Delay 外的全部步骤）。
   fn monitor_iteration(&mut self, inputs: &mut MonitorIterationInputs<'_>) {
     let mut state = self.state.lock();
 

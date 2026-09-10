@@ -24,9 +24,8 @@ use crate::{arg_slice::ArgSlice, session_parse_state::SessionParseState};
 /// libs/common/RespReadUtils.cs:MaxArgumentLengthBytes（单参数长度上限 512MB）
 pub const MAX_ARGUMENT_LENGTH_BYTES: usize = 512 * 1024 * 1024;
 
-/// libs/common/RespReadUtils.cs:TryReadInt64Safe（allowLeadingZeros: false）
-///
-/// C# 严格整数解析：可选 +/- 号；首数字 '0' 且后续仍有数字即拒绝（"0"/"-0"
+/// C# 严格整数解析（对照 RespReadUtils.TryReadInt64Safe allowLeadingZeros: false 语义）：
+/// 可选 +/- 号；首数字 '0' 且后续仍有数字即拒绝（"0"/"-0"
 /// 合法，"007" 非法）；须为纯数字且整体消费；负值域至 i64::MIN（C# u64 中转
 /// 语义）；u64 量级溢出在 C# 抛异常，此处以 None 降级
 #[inline]
@@ -62,8 +61,6 @@ pub fn strict_i64(raw: &[u8]) -> Option<i64> {
   }
 }
 
-/// libs/common/RespReadUtils.cs:TryReadInt32Safe（allowLeadingZeros: false）
-///
 /// 同 [`strict_i64`] 的 i32 值域版（C# int.MaxValue 上限语义）
 #[inline]
 pub fn strict_i32(raw: &[u8]) -> Option<i32> {

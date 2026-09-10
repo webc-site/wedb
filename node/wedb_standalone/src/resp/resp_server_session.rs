@@ -378,8 +378,7 @@ impl RespServerSession {
     can_run_with_protection(self.enable_module_command(), self.is_local_connection())
   }
 
-  /// EnableDebugCommand 配置视图（C# storeWrapper.serverOptions 转写域承载；
-  /// 会话侧以构造选项镜像承接，当前由端点本地位取值占位）
+  /// EnableDebugCommand 配置视图（C# storeWrapper.serverOptions 选项承接）
   fn enable_debug_command(&self) -> ConnectionProtectionOption {
     self.connection_protection_debug
   }
@@ -998,11 +997,9 @@ impl RespServerSession {
     self.client_lib_version = lib_version.map(str::to_string);
   }
 
-  /// libs/server/Resp/BasicCommands.cs:WriteClientInfo（会话状态真实版；
-  /// 命令文件 basic_commands.rs 的占位版接线后由命令域改调本实现）
+  /// libs/server/Resp/BasicCommands.cs:WriteClientInfo
   ///
   /// 字段序与 C# 逐项对齐：id addr laddr age flags db resp lib-name lib-ver。
-  /// 命令文件（client_commands.rs）的占位版本待命令域接线后替换为本实现。
   pub fn write_client_info_state(&self, into: &mut String) {
     let age_ms = (now_ticks() - self.creation_ticks).max(0) / 1000;
     use std::fmt::Write as _;
@@ -1025,8 +1022,7 @@ impl RespServerSession {
     );
   }
 
-  /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand（会话状态实现；
-  /// basic_commands.rs 的 NetworkHELLO 经本实现落协议版本与客户端名）
+  /// 处理 HELLO 命令的会话状态转换：
   ///
   /// 校验 → 认证 → 升级协议 / 落客户端名 → 按会话真实状态组 HELLO 应答 map
   ///（RESP2 退化为双倍数组）。返回 false 表示认证失败（WRONGPASS）。
@@ -1079,9 +1075,8 @@ impl RespServerSession {
 }
 
 impl RespServerSession {
-  /// libs/server/Lua/LuaCommands.cs:TryEVAL / TryEVALSHA / NetworkScript* 的
-  /// 会话侧接线：构建 [`LuaSessionContext`] 并分派（输出缓冲为脚本期本地
-  /// 缓冲，结束后并入会话输出）。
+  /// Lua 命令（EVAL / EVALSHA / SCRIPT 等）会话侧接线：构建 [`LuaSessionContext`] 并分派
+  /// （输出缓冲为脚本期本地缓冲，结束后并入会话输出）。
   fn run_lua_command(&mut self, cmd: RespCommand) -> bool {
     let Some(mut session_cache) = self.session_script_cache.take() else {
       // C# CheckLuaEnabled：未启用直接回错
@@ -1127,7 +1122,7 @@ impl RespServerSession {
     !self.authenticator_can_authenticate
   }
 
-  /// libs/server/Lua/LuaRunner.cs:InitializeNoScriptDetails（resp 域权威位图）
+  /// 构建 NoScript 命令集位图（对齐 LuaRunner InitializeNoScriptDetails 集合）
   ///
   /// NoScript 命令集按 [`RespCommand`] 判别值置位（C# RespCommandsInfo 的
   /// NoScript 标志集）；FCALL/FUNCTION/EVAL_RO/EVALSHA_RO 判别值待 types 域
@@ -1249,14 +1244,14 @@ fn parse_simple_reply(reply: &[u8]) -> Result<(), &'static str> {
   }
 }
 
-/// 零号会话（测试与占位路径；C# internal RespServerSession() 空构造的等价）
+/// 默认会话（C# internal RespServerSession() 空构造的等价）
 impl Default for RespServerSession {
   fn default() -> Self {
     Self::new(0, RespServerSessionOptions::default())
   }
 }
 
-/// libs/server/Resp/RespServerSession.cs:CanRunDebug / CanRunModule 共同判定
+/// 连接保护共同判定（调试命令与模块加载使用）
 fn can_run_with_protection(option: ConnectionProtectionOption, is_local: bool) -> bool {
   match option {
     ConnectionProtectionOption::Yes => true,
@@ -1265,8 +1260,8 @@ fn can_run_with_protection(option: ConnectionProtectionOption, is_local: bool) -
   }
 }
 
-/// libs/server/Resp/RespServerSession.cs:IsCommandArityValid（纯判定部分；
-/// 错误应答由会话方法补齐）。arity = 0 不校验；正值 = 恰好 arity-1 参数；
+/// 命令 arity 纯判定逻辑（供 is_command_arity_valid 使用）。
+/// arity = 0 不校验；正值 = 恰好 arity-1 参数；
 /// 负值 = 至少 |arity|-1 参数（C# `count < -arity - 1` 为非法）
 fn is_command_arity_valid_checked(arity: &i32, count: usize) -> bool {
   if *arity == 0 {

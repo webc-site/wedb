@@ -42,7 +42,6 @@ impl AclAuthenticationPasswordSettings {
 impl IAuthenticationSettings for AclAuthenticationPasswordSettings {
   /// 模板：解析 ACL 后委托内部创建（对标 C# 基座 CreateAuthenticator）
   ///
-  /// libs/server/Auth/Settings/AclAuthenticationSettings.cs:CreateAuthenticator
   /// libs/server/Auth/Settings/AclAuthenticationPasswordSettings.cs:CreateAuthenticator
   fn create_authenticator(
     &self,

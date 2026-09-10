@@ -35,9 +35,7 @@ impl RangeIndexChunkedDeserializer {
     })?))
   }
 
-  /// libs/server/Resp/RangeIndex/RangeIndexChunkedDeserializer.cs:ProcessChunk
-  ///
-  /// 处理一个入站流块。`Ok(false)` = 协议损坏 / 校验失败（此后可经
+  /// 处理一个入站流块（转发至底层 wbftree 引擎实现）。`Ok(false)` = 协议损坏 / 校验失败（此后可经
   /// [`Self::take_error`] 取走具体原因）；已完成 / 出错 / 已释放后再喂块
   /// 亦返回 `Ok(false)`
   pub fn process_chunk(&mut self, data: &[u8]) -> Result<bool, ChunkStreamError> {

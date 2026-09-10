@@ -224,7 +224,7 @@ impl LuaLimitedManagedAllocator {
     self.block(block_ref).is_some()
   }
 
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:CheckCorrectness / DebugCheck
+  /// 对应 DebugCheck 诊断入口，调用 check_correctness
   pub fn debug_check(&self) -> bool {
     self.check_correctness()
   }

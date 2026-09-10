@@ -401,7 +401,7 @@ impl LightEpoch {
   /// 以本线程所能尽力推进延迟清理：全量刷新本线程以任一机制持有的保护条目至
   /// 全局最新纪元，再收割就绪延迟动作
   ///
-  /// 对照 libs/client/LightEpoch.cs:ProtectAndDrain：刷新本线程公布纪元以解除对旧纪元的自钉，
+  /// 对照 LightEpoch ProtectAndDrain 语义：刷新本线程公布纪元以解除对旧纪元的自钉，
   /// 再收割就绪延迟动作。C# 单一保护机制下刷新 entry 即完整覆盖；Rust 存在 TLS
   /// 作用域与 `Participant` 显式句柄双轨保护，同一线程可能同时以两条机制持有多条
   /// 保护条目（如 TLS 短临界区嵌套长期 Participant 会话守卫），必须全量刷新——
@@ -422,7 +422,7 @@ impl LightEpoch {
     self.drain();
   }
 
-  /// 递增全局纪元并将关联动作注册到前置纪元，等待前置纪元安全回收时执行（对照 libs/client/LightEpoch.cs:BumpCurrentEpoch(Action)）
+  /// 递增全局纪元并将关联动作注册到前置纪元，等待前置纪元安全回收时执行（对照 LightEpoch BumpCurrentEpoch(Action) 重载）
   pub fn bump_current_epoch_action<F>(&self, on_drain: F)
   where
     F: FnOnce() + Send + 'static,

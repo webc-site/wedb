@@ -127,9 +127,7 @@ impl LuaRunner_Functions {
     0
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:RequestTimeout（garnet_request_timeout 全局）
-  ///
-  /// loader block 的 request_timeout() 委托点。
+  /// garnet_request_timeout 全局委托点，转发至 [`Self::request_timeout`]。
   pub fn request_timeout_fn(state: &mut LuaStateWrapper, host: &mut HostShared) -> i32 {
     Self::request_timeout(state, host)
   }
@@ -1907,8 +1905,6 @@ impl LuaRunner_Functions {
     true
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:CompileCommon
-  ///
   /// 编译为 [`super::lua_runner::LuaRunner::compile_for_session`] 的直调形态
   /// （mlua 侧无 C 函数包装）。
   pub fn compile_common(runner: &mut super::lua_runner::LuaRunner, out: &mut Vec<u8>) {
@@ -2034,12 +2030,12 @@ impl LuaRunner_Functions {
     result
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:SetCallbackContext
+  /// 转发至 super::lua_runner::set_callback_context
   pub fn set_callback_context(context: *mut HostShared) {
     super::lua_runner::set_callback_context(context);
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:ClearCallbackContext
+  /// 转发至 super::lua_runner::clear_callback_context
   pub fn clear_callback_context(context: *mut HostShared) {
     super::lua_runner::clear_callback_context(context);
   }
@@ -2086,9 +2082,7 @@ impl LuaRunner_Functions {
     Self::garnet_call(state, host)
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructPack
-  ///
-  /// Lua 侧 struct.pack：格式串 + 值序列（数值/字节串）→ 二进制串。
+  /// Lua 侧 struct.pack 回调，转发至 [`struct_codec::struct_pack`]。
   pub fn struct_pack(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args == 0 || state.type_name(1) != Some("string") {
@@ -2127,9 +2121,7 @@ impl LuaRunner_Functions {
     }
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructUnpack
-  ///
-  /// Lua 侧 struct.unpack：二进制串（+ 可选 1 基偏移）→ 值序列 + 消费位置。
+  /// Lua 侧 struct.unpack 回调，转发至 [`struct_codec::struct_unpack`]。
   pub fn struct_unpack(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args < 2
@@ -2191,9 +2183,7 @@ impl LuaRunner_Functions {
     (decoded_count + 3) as i32
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructSize
-  ///
-  /// Lua 侧 struct.size：格式串 → 打包尺寸。
+  /// Lua 侧 struct.size 回调，转发至 [`struct_codec::struct_size`]。
   pub fn struct_size(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args == 0 || state.type_name(1) != Some("string") {

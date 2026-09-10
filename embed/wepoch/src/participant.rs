@@ -48,7 +48,7 @@ impl Participant {
     }
   }
 
-  /// 刷新当前参与者公布的纪元至最新值，并触发就绪的延迟动作（对照 libs/client/LightEpoch.cs:ProtectAndDrain）
+  /// 刷新当前参与者公布的纪元至最新值，并触发就绪的延迟动作（对齐 LightEpoch ProtectAndDrain 语义）
   #[inline]
   pub fn refresh(&self) {
     let entry = unsafe { self.epoch.entries.get_unchecked(self.entry_idx) };

@@ -35,7 +35,6 @@ use crate::resp::cmd_strings::{RESP_ERR_GENERIC_NAN_INFINITY_INCR, RESP_ERR_NOT_
 
 /// 取第 i 个参数字节
 ///
-/// libs/server/Resp/Parser/SessionParseState.cs:GetArgSliceByRef
 #[inline]
 fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()
@@ -541,8 +540,7 @@ impl HashObject {
 
   /// 就地覆写字段值并调整记账（同长复用槽位不调整，异长按 RoundUp 差额调整）
   ///
-  /// libs/server/Objects/Hash/HashObjectImpl.cs:HashSet/HashIncrement 的
-  /// formattedValue.Length == hashValueRef.Length 分支合并形态
+  /// 对应 C# HashSet / HashIncrement 的 formattedValue.Length == hashValueRef.Length 分支合并形态
   fn replace_value(&mut self, key: &[u8], old_value: &[u8], new_value: &[u8]) {
     // i64 差额：新值 RoundUp 短于旧值时 usize 减法会下溢
     self.heap_memory_size +=
@@ -550,9 +548,7 @@ impl HashObject {
     self.hash.insert(key.to_vec(), new_value.to_vec());
   }
 
-  /// HSCAN 的对象层入口（解析光标/MATCH/COUNT/NOVALUES 后走 [`Self::scan`]）
-  ///
-  /// libs/server/Objects/Types/GarnetObjectBase.cs:Scan(ref ObjectInput, ...)
+  /// HSCAN 的对象层入口，转发至 [`scan_operate_shared`]。
   pub(crate) fn scan_operate(
     &mut self,
     input: &ObjectInput,

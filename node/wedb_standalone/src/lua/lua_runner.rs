@@ -889,9 +889,7 @@ impl LuaRunner {
     }
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:UnsafeRunPreambleForRunner
-  ///
-  /// runner 模式 preamble：重置并灌入 KEYS/ARGV。
+  /// runner 模式 preamble：重置并灌入 KEYS/ARGV（对应 UnsafeRunPreambleForRunner 实现）
   pub fn run_preamble_for_runner(&mut self) -> Result<(), String> {
     let keys = self.host.preamble_keys.clone().unwrap_or_default();
     let argv = self.host.preamble_argv.clone().unwrap_or_default();
@@ -920,9 +918,7 @@ impl LuaRunner {
     Ok(())
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:UnsafeRunPreambleForSession
-  ///
-  /// session 模式 preamble：args[0] 为 numkeys，随后 KEYS*、ARGV*。
+  /// session 模式 preamble：args[0] 为 numkeys，随后 KEYS*、ARGV*（对应 UnsafeRunPreambleForSession 实现）
   pub fn run_preamble_for_session(&mut self) -> Result<(), &'static [u8]> {
     // take 所有权避免与 host 可变借用重叠（参数仅 preamble 消费一次）。
     let args = mem::take(&mut self.host.preamble_args);
@@ -1722,7 +1718,7 @@ pub fn lua_wrapped_error_view(
   (non_error_returns + 1) as i32
 }
 
-/// libs/server/Lua/LuaRunner.cs:ProcessRespResponse（栈视图形态）
+/// 对应 ProcessRespResponse 的栈视图底层实现
 pub fn process_resp_response_view(
   state: &mut LuaStateWrapper,
   resp_protocol_version: u8,
@@ -1739,7 +1735,7 @@ pub fn process_resp_response_view(
   ret
 }
 
-/// libs/server/Lua/LuaRunner.cs:ProcessSingleRespTerm（栈视图形态）
+/// 对应 ProcessSingleRespTerm 的栈视图底层实现
 pub fn process_single_resp_term_view(
   state: &mut LuaStateWrapper,
   resp_protocol_version: u8,

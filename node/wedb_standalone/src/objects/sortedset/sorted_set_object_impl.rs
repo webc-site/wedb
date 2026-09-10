@@ -93,7 +93,6 @@ struct ScanParams<'p> {
 
 /// 取第 i 个参数字节
 ///
-/// libs/server/Resp/Parser/SessionParseState.cs:GetArgSliceByRef
 #[inline]
 fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()
@@ -1360,9 +1359,7 @@ impl SortedSetObject {
 
   // ---- Scan（ZSCAN 分派） ----
 
-  /// ZSCAN 的对象层入口（解析光标/MATCH/COUNT/NOVALUES 后走 [`Self::scan`]）
-  ///
-  /// libs/server/Objects/Types/GarnetObjectBase.cs:Scan(ref ObjectInput, ...)
+  /// ZSCAN 的对象层入口（解析光标/MATCH/COUNT/NOVALUES 后走 [`Self::scan`]）。
   pub(crate) fn scan_operate(
     &mut self,
     input: &ObjectInput,

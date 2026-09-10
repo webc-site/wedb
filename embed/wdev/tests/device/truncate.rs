@@ -18,7 +18,7 @@ use wdev::{Device, Error, SegmentedDevice};
 
 /// 对标 C# `StorageDeviceBase.TruncateUntilSegment`：截断后小于目标段的文件必须
 /// 从文件系统物理删除、get_file_size 返回 0、保留段数据完好；
-/// 单调回退截断为安全无操作（对标 libs/client/Utility.cs:MonotonicUpdate）；
+/// 单调回退截断为安全无操作（对标 Utility.MonotonicUpdate）；
 /// 单文件无界模式截断为无操作且不删除主文件。
 #[test]
 fn truncate_until_segment_removes_prior_segments() -> Void {

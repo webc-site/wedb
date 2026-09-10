@@ -3,9 +3,7 @@ use super::log_compaction_type::LogCompactionType;
 /// `RuntimeServerConfig` 消费的启动选项子集。
 ///
 /// 对标 libs/server/Servers/GarnetServerOptions.cs:GarnetServerOptions 中被
-/// RuntimeServerConfig 构造（Init 播种 + 只读回落格式化）读取的字段；
-/// 因 servers 域的 `GarnetServerOptions` 尚为占位结构，暂以本结构承接
-/// 同名字段，servers 域落地后应替换为其直接引用。
+/// RuntimeServerConfig 构造（Init 播种 + 只读回落格式化）读取的字段。
 ///
 /// 字段默认值与 C# 字段初始化器逐项一致。
 #[derive(Debug, Clone)]

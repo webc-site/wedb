@@ -253,7 +253,7 @@ impl RangeIndexManager {
   ///
   /// 仅做注册表摘除 (调用方须已持条带写锁)；排空释放交由调用方在锁外执行——
   /// 排空时长取决于在途写者 (可能慢 I/O)，持锁排空会长时间阻塞同条带的
-  /// 生命周期操作 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock 锁内移除、锁外 epoch 排空)。
+  /// 生命周期操作 (对应 DisposeTreeUnderLock 锁内移除、锁外 epoch 排空)。
   #[inline]
   fn remove_and_take_tree(&self, key_id: u128) -> Option<Arc<BfTreeService>> {
     let entry = self.live_indexes.pin().remove(&key_id)?.clone();
@@ -275,7 +275,7 @@ impl RangeIndexManager {
     Ok(true)
   }
 
-  /// 删除指定索引并彻底清理磁盘文件 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock deleteFiles=true)
+  /// 删除指定索引并彻底清理磁盘文件（对应 DisposeTreeUnderLock deleteFiles=true 分支）
   ///
   /// 时序对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeAndDeleteFilesDeferred：锁内摘除条目 → 锁外屏障排空在途
   /// 写者并释放引擎实例 → 树静稳后才删除工作文件。绝不持锁删文件——那会与仍在

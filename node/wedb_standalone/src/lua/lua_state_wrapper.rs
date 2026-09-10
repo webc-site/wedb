@@ -189,14 +189,12 @@ impl LuaStateWrapper {
     self.interp_mut().stack.remove(abs);
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:PCall
-  ///
-  /// 保护模式调用栈顶 `nargs` 参的函数：成功压入全部结果，失败压入错误串。
+  /// 保护模式调用辅助函数（保留全部结果，转发至 [`Self::pcall_n`]）。
   pub fn pcall(&mut self, nargs: usize) -> Result<(), mlua::Error> {
     self.pcall_n(nargs, usize::MAX).map(|_| ())
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:PCall（nresults 形态）
+  /// libs/server/Lua/LuaStateWrapper.cs:PCall
   ///
   /// 成功时结果按 `nresults` 截断/补 nil（`usize::MAX` = 全保留）；
   /// 失败时压入错误串并返回 Err（状态非 OK）。
@@ -417,14 +415,12 @@ impl LuaStateWrapper {
     Ok(())
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:TryNumberToString
-  ///
-  /// 数值 → 字符串（栈顶槽位就地转换，luau 语义：%v 格式）。
+  /// 数值 → 字符串辅助函数（栈顶槽位就地转换，转发至 [`Self::try_number_to_string_at`]）。
   pub fn try_number_to_string(&mut self) -> bool {
     self.try_number_to_string_at(-1)
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:TryNumberToString（指定槽位形态）
+  /// libs/server/Lua/LuaStateWrapper.cs:TryNumberToString
   ///
   /// C# 以 `TryNumberToString(stackIndex, out str)` 在参数原位转换；
   /// redis.call/log 等多参回调中目标参数未必在栈顶，故提供槽位形态。
