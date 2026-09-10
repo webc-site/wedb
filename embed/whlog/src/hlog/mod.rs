@@ -12,7 +12,7 @@ use wepoch::LightEpoch;
 use wrecord::{
   ADDRESS_MASK, HEADER_SIZE, RecordHeader, RecordRef, checked_record_size, encode_to_slice,
 };
-use wutil::AlignedBuf;
+use wbase::AlignedBuf;
 
 use crate::{
   address::{AddressManager, AddressSnapshot},

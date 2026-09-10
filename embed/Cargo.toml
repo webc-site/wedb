@@ -15,7 +15,6 @@ members = [
   "wram",
   "wrecord",
   "wreviv",
-  "wutil",
   "wval",
   "wobject",
 ]

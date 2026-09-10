@@ -10,6 +10,24 @@ use super::super::{
   parser::resp_ext::{RespSliceExt, RespVecExt},
   resp_server_session::RespServerSession,
 };
+use super::{
+  bitmap_manager::BitmapManager,
+  bitmap_manager_bit_op::{BitmapManagerBitOp, BitmapOperation},
+  bitmap_manager_bit_pos::BitmapManagerBitPos,
+  bitmap_manager_bitfield::{BitmapManagerBitfield, BitFieldType, OverflowType},
+};
+
+fn parse_bitfield_offset(raw: &[u8], bit_count: u8) -> Option<i64> {
+  if raw.is_empty() {
+    return None;
+  }
+  if raw[0] == b'#' {
+    let index: i64 = core::str::from_utf8(&raw[1..]).ok()?.parse().ok()?;
+    index.checked_mul(bit_count as i64)
+  } else {
+    raw.try_parse_i64()
+  }
+}
 
 /// 合法位偏移上限（BitmapManager.MaxOffsetForBitmapLength）
 const MAX_BIT_OFFSET: i64 = (MAX_STRING_PAYLOAD_BYTES as i64 * 8) - 1;
@@ -182,23 +200,340 @@ impl RespServerSession {
     Ok(true)
   }
 
-  pub fn network_string_bit_position() {
-    unimplemented!()
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:NetworkStringBitPosition
+  pub fn network_string_bit_position<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    let count = parse_state.len();
+    if !(2..=5).contains(&count) {
+      abort_with_wrong_number_of_arguments(output, "BITPOS");
+      return Ok(true);
+    }
+    let key = parse_state[0];
+    let bit_bytes = parse_state[1];
+    if bit_bytes.len() != 1 || (bit_bytes[0] != b'0' && bit_bytes[0] != b'1') {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER);
+      return Ok(true);
+    }
+    let search_for = bit_bytes[0] - b'0';
+
+    let mut start_offset = 0i64;
+    let mut end_offset = -1i64;
+    let mut offset_type = 0u8;
+    let mut has_start = false;
+    let mut has_end = false;
+
+    if count > 2 {
+      let Some(s) = parse_state[2].try_parse_i64() else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        return Ok(true);
+      };
+      start_offset = s;
+      has_start = true;
+
+      if count > 3 {
+        let Some(e) = parse_state[3].try_parse_i64() else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        end_offset = e;
+        has_end = true;
+
+        if count > 4 {
+          let t = parse_state[4];
+          if t.eq_ignore_ascii_case(b"BIT") {
+            offset_type = 0x1;
+          } else if t.eq_ignore_ascii_case(b"BYTE") {
+            offset_type = 0x0;
+          } else {
+            abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+            return Ok(true);
+          }
+        }
+      }
+    }
+
+    if BitmapManager::try_validate_bit_pos_offsets(start_offset, end_offset, offset_type, has_start, has_end) {
+      output.write_resp_int(-1);
+      return Ok(true);
+    }
+
+    let val = match store.try_read_sync(key, |v| v.to_vec()) {
+      Ok(Some(Some(v))) => v,
+      Ok(Some(None)) => {
+        let resp = if search_for == 0 { 0 } else { -1 };
+        output.write_resp_int(resp);
+        return Ok(true);
+      }
+      Ok(None) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut pos = BitmapManagerBitPos::bit_pos_driver(&val, start_offset, end_offset, search_for, offset_type);
+    if pos == -1 && search_for == 0 && !has_end {
+      pos = val.len() as i64 * 8;
+    }
+
+    output.write_resp_int(pos);
+    Ok(true)
   }
-  pub fn network_string_bit_operation() {
-    unimplemented!()
+
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:NetworkStringBitOperation
+  pub fn network_string_bit_operation<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 3 {
+      abort_with_wrong_number_of_arguments(output, "BITOP");
+      return Ok(true);
+    }
+
+    let op = if parse_state[0].eq_ignore_ascii_case(b"AND") {
+      BitmapOperation::And
+    } else if parse_state[0].eq_ignore_ascii_case(b"OR") {
+      BitmapOperation::Or
+    } else if parse_state[0].eq_ignore_ascii_case(b"XOR") {
+      BitmapOperation::Xor
+    } else if parse_state[0].eq_ignore_ascii_case(b"NOT") {
+      BitmapOperation::Not
+    } else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return Ok(true);
+    };
+
+    let dest_key = parse_state[1];
+    let src_keys = &parse_state[2..];
+
+    if op == BitmapOperation::Not && src_keys.len() != 1 {
+      abort_with_error_message(output, "BITOP NOT takes only one source key");
+      return Ok(true);
+    }
+
+    let mut sources_data = Vec::with_capacity(src_keys.len());
+    for &src_key in src_keys {
+      match store.try_read_sync(src_key, |v| v.to_vec()) {
+        Ok(Some(Some(v))) => sources_data.push(v),
+        Ok(Some(None)) => sources_data.push(Vec::new()),
+        Ok(None) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
+    }
+
+    let src_refs: Vec<&[u8]> = sources_data.iter().map(|v| v.as_slice()).collect();
+    let result = match BitmapManagerBitOp::invoke_bit_operation(op, &src_refs) {
+      Ok(res) => res,
+      Err(msg) => {
+        output.write_resp_error(msg);
+        return Ok(true);
+      }
+    };
+
+    match store.try_upsert_sync(dest_key, &result) {
+      Ok(Ok(_)) => {
+        output.write_resp_int(result.len() as i64);
+        Ok(true)
+      }
+      Ok(Err(_)) => Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        Ok(true)
+      }
+    }
   }
-  pub fn string_bit_field() {
-    unimplemented!()
+
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:StringBitField
+  pub fn string_bit_field<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    self.string_bit_field_action(parse_state, store, output, false)
   }
-  pub fn string_bit_field_read_only() {
-    unimplemented!()
+
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:StringBitFieldReadOnly
+  pub fn string_bit_field_read_only<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    self.string_bit_field_action(parse_state, store, output, true)
   }
-  pub fn string_bit_field_action() {
-    unimplemented!()
+
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:StringBitFieldAction
+  pub fn string_bit_field_action<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+    read_only: bool,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 2 {
+      abort_with_wrong_number_of_arguments(output, if read_only { "BITFIELD_RO" } else { "BITFIELD" });
+      return Ok(true);
+    }
+    let key = parse_state[0];
+    let mut modified = false;
+
+    let mut val = match store.try_read_sync(key, |v| v.to_vec()) {
+      Ok(Some(Some(v))) => v,
+      Ok(Some(None)) => Vec::new(),
+      Ok(None) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error("generic error");
+        return Ok(true);
+      }
+    };
+
+    let mut overflow = OverflowType::Wrap;
+    let mut results: Vec<Option<i64>> = Vec::new();
+    let mut idx = 1;
+
+    while idx < parse_state.len() {
+      let subcmd = parse_state[idx];
+      idx += 1;
+
+      if subcmd.eq_ignore_ascii_case(b"OVERFLOW") {
+        if read_only {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        if idx >= parse_state.len() {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        let ov = parse_state[idx];
+        idx += 1;
+        if ov.eq_ignore_ascii_case(b"WRAP") {
+          overflow = OverflowType::Wrap;
+        } else if ov.eq_ignore_ascii_case(b"SAT") {
+          overflow = OverflowType::Sat;
+        } else if ov.eq_ignore_ascii_case(b"FAIL") {
+          overflow = OverflowType::Fail;
+        } else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+      } else if subcmd.eq_ignore_ascii_case(b"GET") {
+        if idx + 2 > parse_state.len() {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        let Some(btype) = BitFieldType::parse(parse_state[idx]) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        };
+        let Some(offset) = parse_bitfield_offset(parse_state[idx + 1], btype.bit_count) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        idx += 2;
+        let v = BitmapManagerBitfield::get_value(&val, offset, btype);
+        results.push(Some(v));
+      } else if subcmd.eq_ignore_ascii_case(b"SET") {
+        if read_only {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        if idx + 3 > parse_state.len() {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        let Some(btype) = BitFieldType::parse(parse_state[idx]) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        };
+        let Some(offset) = parse_bitfield_offset(parse_state[idx + 1], btype.bit_count) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        let Some(new_val) = parse_state[idx + 2].try_parse_i64() else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        idx += 3;
+
+        let required_bytes = ((offset + btype.bit_count as i64 + 7) >> 3) as usize;
+        if val.len() < required_bytes {
+          val.resize(required_bytes, 0);
+        }
+        let old = BitmapManagerBitfield::set_value(&mut val, offset, btype, new_val);
+        results.push(Some(old));
+        modified = true;
+      } else if subcmd.eq_ignore_ascii_case(b"INCRBY") {
+        if read_only {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        if idx + 3 > parse_state.len() {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        }
+        let Some(btype) = BitFieldType::parse(parse_state[idx]) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return Ok(true);
+        };
+        let Some(offset) = parse_bitfield_offset(parse_state[idx + 1], btype.bit_count) else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        let Some(incr) = parse_state[idx + 2].try_parse_i64() else {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+          return Ok(true);
+        };
+        idx += 3;
+
+        let required_bytes = ((offset + btype.bit_count as i64 + 7) >> 3) as usize;
+        if val.len() < required_bytes {
+          val.resize(required_bytes, 0);
+        }
+        let res = BitmapManagerBitfield::increment_bitfield(&mut val, offset, btype, incr, overflow);
+        results.push(res);
+        if res.is_some() {
+          modified = true;
+        }
+      } else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+        return Ok(true);
+      }
+    }
+
+    if modified && !read_only {
+      match store.try_upsert_sync(key, &val) {
+        Ok(Ok(_)) => {}
+        Ok(Err(_)) => return Ok(false),
+        Err(_) => {
+          output.write_resp_error("generic error");
+          return Ok(true);
+        }
+      }
+    }
+
+    output.write_resp_array_len(results.len());
+    for item in results {
+      match item {
+        Some(v) => output.write_resp_int(v),
+        None => output.write_resp_null(),
+      }
+    }
+    Ok(true)
   }
-  pub fn handle_first_sub_command() {
-    unimplemented!()
+
+  /// libs/server/Resp/Bitmap/BitmapCommands.cs:HandleFirstSubCommand
+  pub fn handle_first_sub_command(&self) -> bool {
+    true
   }
 }
 

@@ -5,7 +5,7 @@ use super::RespAclCategories;
 use crate::types::RespCommand;
 
 /// 单条命令目录（RespCommandsInfo 中 ACL 消费的最小面）
-pub(crate) struct CmdEntry {
+pub struct CmdEntry {
   /// C# 枚举成员名（Enum.TryParse 对照，含下划线）
   pub cs: &'static str,
   /// 展示名（info.Name 小写；子命令为 parent|sub 形式）
@@ -19,7 +19,7 @@ pub(crate) struct CmdEntry {
 }
 
 /// 全量命令目录（根 + 子命令扁平表，序即 JSON 声明序）
-pub(crate) static CMD_ENTRIES: &[CmdEntry] = &[
+pub static CMD_ENTRIES: &[CmdEntry] = &[
   CmdEntry {
     cs: "ACL",
     name: "acl",

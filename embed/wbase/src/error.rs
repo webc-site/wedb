@@ -5,7 +5,8 @@ use std::{
 };
 
 use thiserror::Error;
-use wbase::align::{MIN_SECTOR_SIZE, SectorRangeError};
+#[cfg(feature = "align")]
+use crate::align::{MIN_SECTOR_SIZE, SectorRangeError};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -34,6 +35,7 @@ pub enum Error {
   Layout(#[from] LayoutError),
 }
 
+#[cfg(feature = "align")]
 impl From<SectorRangeError> for Error {
   fn from(err: SectorRangeError) -> Self {
     match err {

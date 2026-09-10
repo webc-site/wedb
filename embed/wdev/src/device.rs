@@ -2,7 +2,7 @@ use std::{future::Future, sync::Arc};
 
 /// 块存储设备 trait 别名（对标 C# IDevice / StorageDeviceBase）
 pub use Device as StorageDevice;
-use wutil::{AlignedBuf, BufferPool, SectorRange};
+use wbase::{AlignedBuf, BufferPool, SectorRange};
 
 use crate::{
   chunk::segment_shift,

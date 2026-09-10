@@ -6,7 +6,7 @@
 
 use aok::{OK, Void};
 use log::info;
-use wutil::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, NUM_CLASSES};
+use wbase::{BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, NUM_CLASSES};
 
 /// 跨尺寸请求：指针对齐、容量覆盖、首尾字节可写
 #[test]
