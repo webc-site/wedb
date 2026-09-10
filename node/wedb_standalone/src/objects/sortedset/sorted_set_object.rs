@@ -539,7 +539,7 @@ impl SortedSetObject {
   pub fn scan(
     &self,
     start: i64,
-    count: usize,
+    count: i64,
     pattern: &[u8],
     _is_no_value: bool,
   ) -> (Vec<Option<Vec<u8>>>, i64) {
@@ -577,8 +577,9 @@ impl SortedSetObject {
       cursor += 1;
 
       // 每个成员在结果中占 2 项（成员 + 分值）；C# 用相等判断
-      // （count=0 时永不命中 → 全量遍历的上游怪癖），1:1 保留
-      if items.len() == count * 2 {
+      // （负 COUNT 恒不命中 → 全量遍历；count=0 首个未命中条目即停的
+      // 上游怪癖一并 1:1 保留）
+      if items.len() as i64 == count * 2 {
         break;
       }
     }

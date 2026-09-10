@@ -296,8 +296,9 @@ impl HashObject {
             Ok(HashOperation::Hset) | Ok(HashOperation::Hmset)
           ) {
             // 覆写：同长复用槽位不调整记账，异长按 RoundUp 差额调整
+            // （i64 差额：短值覆写长值时 usize 减法会下溢）
             self.heap_memory_size +=
-              (value.len().div_ceil(8) * 8 - old_value.len().div_ceil(8) * 8) as i64;
+              value.len().div_ceil(8) as i64 * 8 - old_value.len().div_ceil(8) as i64 * 8;
             self.hash.insert(key.to_vec(), value.to_vec());
 
             // To persist the key, if it has an expiration
@@ -403,7 +404,7 @@ impl HashObject {
           return;
         };
 
-        let result = result + incr;
+        let result = result.wrapping_add(incr);
         let formatted_value = format_i64(result);
         self.replace_value(key, &hash_value, &formatted_value);
 
@@ -562,8 +563,9 @@ impl HashObject {
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashSet/HashIncrement 的
   /// formattedValue.Length == hashValueRef.Length 分支合并形态
   fn replace_value(&mut self, key: &[u8], old_value: &[u8], new_value: &[u8]) {
+    // i64 差额：新值 RoundUp 短于旧值时 usize 减法会下溢
     self.heap_memory_size +=
-      (new_value.len().div_ceil(8) * 8 - old_value.len().div_ceil(8) * 8) as i64;
+      new_value.len().div_ceil(8) as i64 * 8 - old_value.len().div_ceil(8) as i64 * 8;
     self.hash.insert(key.to_vec(), new_value.to_vec());
   }
 
@@ -1139,6 +1141,44 @@ mod tests {
     let mut out = ObjectOutput::new();
     obj.operate(&input, &mut out, 2);
     assert!(out.has_remove_key());
+  }
+
+  /// 溢出回绕与覆写记账（C# unchecked 语义 / usize 下溢防线的回归锁定）
+  #[test]
+  fn incr_overflow_and_reaccount() {
+    // HINCRBY 溢出回绕（C# unchecked `result += incr`，不得 panic）
+    let mut obj = HashObject::new();
+    seed(&mut obj, &[("m", "9223372036854775807")]);
+    let (input, _b) = make_input(HashOperation::Hincrby, &[b"m", b"1"], 0, 0);
+    let mut out = ObjectOutput::new();
+    obj.hash_increment(&input, &mut out, 2);
+    assert_eq!(out.payload, b":-9223372036854775808\r\n");
+    assert_eq!(
+      obj.try_get_value(b"m"),
+      Some(&b"-9223372036854775808".to_vec())
+    );
+
+    // 短值覆写长值：记账差额按 i64 计算（usize 下溢防线；
+    // seed 直插 hash 未记账，8 - 32 = -24 的相对差额）
+    let mut obj = HashObject::new();
+    seed(&mut obj, &[("k", "0123456789ABCDEF0123456789")]);
+    let before = obj.heap_memory_size;
+    let (input, _b) = make_input(HashOperation::Hset, &[b"k", b"xy"], 0, 0);
+    let mut out = ObjectOutput::new();
+    obj.hash_set(&input, &mut out);
+    assert_eq!(out.result1, 0);
+    assert_eq!(obj.try_get_value(b"k"), Some(&b"xy".to_vec()));
+    assert_eq!(obj.heap_memory_size, before - 24);
+
+    // HINCRBY 缩位覆写（19 位 → 20 位负数，RoundUp 同档 → 差额 0）
+    let mut obj = HashObject::new();
+    seed(&mut obj, &[("n", "9223372036854775807")]);
+    let before = obj.heap_memory_size;
+    let (input, _b) = make_input(HashOperation::Hincrby, &[b"n", b"-1"], 0, 0);
+    let mut out = ObjectOutput::new();
+    obj.hash_increment(&input, &mut out, 2);
+    assert_eq!(out.payload, b":9223372036854775806\r\n");
+    assert_eq!(obj.heap_memory_size, before);
   }
 
   /// num_utils_try_parse_long：Utf8Parser 宽松形态矩阵

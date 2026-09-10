@@ -377,7 +377,7 @@ impl HashObject {
   pub fn scan(
     &self,
     start: i64,
-    count: usize,
+    count: i64,
     pattern: &[u8],
     is_no_value: bool,
   ) -> (Vec<Vec<u8>>, i64) {
@@ -414,7 +414,9 @@ impl HashObject {
 
       cursor += 1;
 
-      if items.len() == count {
+      // C# 以相等判断截断（负 COUNT 恒不命中 → 全量遍历；count=0 首个
+      // 未命中条目即停的上游怪癖一并 1:1 保留）
+      if items.len() as i64 == count {
         break;
       }
     }
@@ -694,33 +696,47 @@ pub fn hash_op_from_header(input: &ObjectInput) -> Option<HashOperation> {
 /// libs/common/RandomUtils.cs:PickKRandomIndexes
 ///
 /// 刻意差异（对照 C#）：.NET `Random(seed)` 的洗牌/迭代抽取序列与 fastrand 不同，
-/// 仅保语义等价（`distinct=true` 为 k 个不重复下标的 Fisher-Yates 部分洗牌，
-/// `distinct=false` 为可重复抽取）；空集直接返回空（C# `Random.Next(0)` 抛
-/// ArgumentOutOfRangeException，按无结果处理）
+/// 仅保语义等价。分支结构 1:1 对齐：
+/// - `distinct=false` 或 `k/n < K_OVER_N_THRESHOLD` 走迭代抽取（distinct 用
+///   拒绝采样，O(k) 空间，C# PickKRandomIndexesIteratively）；
+/// - 否则全量洗牌取前 k（C# PickKRandomDistinctIndexesWithShuffle）。
+///
+/// 空集直接返回空（C# `Random.Next(0)` 抛 ArgumentOutOfRangeException，
+/// 按无结果处理）
 pub(crate) fn pick_k_random_indexes(n: usize, k: usize, seed: i32, distinct: bool) -> Vec<usize> {
+  /// k/n 低于该阈值走迭代抽取（C# RandomUtils.KOverNThreshold）
+  const K_OVER_N_THRESHOLD: f64 = 0.1;
+
   let mut rng = fastrand::Rng::with_seed(u64::from(seed as u32));
-  if n == 0 {
+  if n == 0 || k == 0 {
     return Vec::new();
   }
 
-  let mut indexes = Vec::with_capacity(k);
-  if distinct && k < n {
-    // 洗牌路径（C# PickKRandomDistinctIndexesWithShuffle / kOverNThreshold 分支的
-    // 语义等价形态：部分洗牌取前 k 个）
+  if !distinct || (k as f64) / (n as f64) < K_OVER_N_THRESHOLD {
+    let mut indexes = Vec::with_capacity(k);
+    if !distinct {
+      indexes.extend((0..k).map(|_| rng.usize(..n)));
+    } else {
+      // 拒绝采样：k <= n 保证可终止
+      let mut picked = gxhash::HashSet::with_capacity_and_hasher(k, GxBuildHasher::default());
+      while indexes.len() < k {
+        let idx = rng.usize(..n);
+        if picked.insert(idx) {
+          indexes.push(idx);
+        }
+      }
+    }
+    indexes
+  } else {
+    // 部分洗牌取前 k（k == n 时即全量洗牌）
     let mut perm: Vec<usize> = (0..n).collect();
     for i in 0..k.min(n) {
       let j = rng.usize(i..perm.len());
       perm.swap(i, j);
-      indexes.push(perm[i]);
     }
-  } else if distinct {
-    indexes = (0..n).collect();
-  } else {
-    for _ in 0..k {
-      indexes.push(rng.usize(..n));
-    }
+    perm.truncate(k);
+    perm
   }
-  indexes
 }
 
 /// 单下标随机取（HRANDFIELD/SRANDMEMBER 无 count 形态）
@@ -743,7 +759,7 @@ pub(crate) use crate::objects::sortedset::sorted_set_object::glob_match;
 pub(crate) fn scan_operate_shared(
   input: &ObjectInput,
   output: &mut ObjectOutput,
-  do_scan: impl FnOnce(i64, usize, &[u8], bool) -> (Vec<Vec<u8>>, i64),
+  do_scan: impl FnOnce(i64, i64, &[u8], bool) -> (Vec<Vec<u8>>, i64),
 ) {
   // 单轮最多返回的条目数由调用方经 arg2 下发
   let limit_count_in_output = input.arg2 as i64;
@@ -802,7 +818,7 @@ pub(crate) fn scan_operate_shared(
     }
   }
 
-  let (items, cursor_output) = do_scan(cursor, count.max(0) as usize, pattern, is_no_value);
+  let (items, cursor_output) = do_scan(cursor, count, pattern, is_no_value);
   let items_len = items.len();
 
   output.write_array_length(2);
@@ -1064,6 +1080,43 @@ mod tests {
     let (items, cursor) = obj.scan(99, 10, b"", false);
     assert!(items.is_empty());
     assert_eq!(cursor, 0);
+
+    // 负 COUNT：C# `items.Count == count` 恒不命中 → 全量遍历
+    let obj = obj_with_fields(&[("a", "1"), ("b", "2"), ("c", "3")]);
+    let (items, cursor) = obj.scan(0, -5, b"", false);
+    assert_eq!(items.len(), 6);
+    assert_eq!(cursor, 0);
+  }
+
+  /// pick_k_random_indexes：迭代/洗牌双分支与 distinct 约束
+  #[test]
+  fn random_indexes_branches() {
+    // 小 k/n（< 0.1 阈值）走迭代拒绝采样：结果不重复且数量正确
+    let indexes = pick_k_random_indexes(1000, 5, 42, true);
+    assert_eq!(indexes.len(), 5);
+    let uniq: BTreeSet<usize> = indexes.iter().copied().collect();
+    assert_eq!(uniq.len(), 5);
+    assert!(uniq.iter().all(|&i| i < 1000));
+
+    // 大 k/n 走洗牌：同样 distinct
+    let indexes = pick_k_random_indexes(10, 8, 7, true);
+    let uniq: BTreeSet<usize> = indexes.iter().copied().collect();
+    assert_eq!(uniq.len(), 8);
+
+    // distinct=false：可重复，|k| 项
+    let indexes = pick_k_random_indexes(3, 9, 1, false);
+    assert_eq!(indexes.len(), 9);
+    assert!(indexes.iter().all(|&i| i < 3));
+
+    // k == 0 / n == 0：空结果（C# Random.Next(0) 异常的无结果等价）
+    assert!(pick_k_random_indexes(0, 5, 1, true).is_empty());
+    assert!(pick_k_random_indexes(10, 0, 1, false).is_empty());
+
+    // 同种子确定性
+    assert_eq!(
+      pick_k_random_indexes(50, 7, 99, true),
+      pick_k_random_indexes(50, 7, 99, true)
+    );
   }
 
   #[test]
