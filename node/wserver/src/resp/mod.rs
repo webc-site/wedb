@@ -20,6 +20,8 @@ pub mod resp_command_docs;
 pub mod resp_command_info_simplified_structs;
 pub mod resp_command_key_specification;
 pub mod resp_commands_info;
+pub mod resp_commands_info_data;
+pub mod resp_memory_writer;
 pub mod resp_server_session;
 pub mod resp_server_session_output;
 pub mod resp_server_session_slot_verify;
