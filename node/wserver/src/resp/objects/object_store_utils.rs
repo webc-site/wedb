@@ -15,10 +15,7 @@
 use wdev::Device;
 use wkv::BatchStoreSession;
 
-use crate::resp::{
-  cmd_strings as cs, cmd_strings::write_error_raw, parser::resp_ext::RespVecExt,
-  resp_server_session::RespServerSession,
-};
+use crate::resp::{cmd_strings::write_error_raw, resp_server_session::RespServerSession};
 pub(crate) use crate::storage::session::objectstore::common::{
   OBJ_TAG_HASH, OBJ_TAG_LIST, OBJ_TAG_SET, OBJ_TAG_SORTED_SET, obj_decode, obj_encode,
 };
@@ -79,28 +76,6 @@ pub(super) fn obj_load_sync<D: Device>(
       Some(p) => SyncObj::Present(p.to_vec()),
     },
   }))
-}
-
-/// 读命令统一应答：命中载荷交 `f` 处理，缺失走 `missing`，
-/// WrongType / 存储错误直接写出错误行
-///
-/// 返回 `false` 表示须降级异步（命令层回 `Ok(false)`），否则已完整写出应答
-pub(super) fn read_object_or_reply<D: Device>(
-  store: &BatchStoreSession<'_, D>,
-  key: &[u8],
-  tag: u8,
-  output: &mut Vec<u8>,
-  missing: impl FnOnce(&mut Vec<u8>),
-  f: impl FnOnce(Vec<u8>, &mut Vec<u8>),
-) -> bool {
-  match obj_load_sync(store, key, tag) {
-    Ok(None) => return false,
-    Ok(Some(SyncObj::Missing)) => missing(output),
-    Ok(Some(SyncObj::WrongType)) => write_error_raw(output, cs::RESP_ERR_WRONG_TYPE),
-    Ok(Some(SyncObj::Present(p))) => f(p, output),
-    Err(_) => output.write_resp_error("generic error"),
-  }
-  true
 }
 
 /// 同步写对象信封
