@@ -1432,7 +1432,7 @@ impl SortedSetObject {
 
     let (items, cursor_output) = self.scan(
       params.cursor,
-      params.count.max(0) as usize,
+      params.count,
       params.pattern,
       params.is_no_value,
     );

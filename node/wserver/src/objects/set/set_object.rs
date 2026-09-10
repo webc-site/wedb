@@ -190,7 +190,7 @@ impl SetObject {
   /// libs/server/Objects/Set/SetObject.cs:Scan
   ///
   /// 与 hash 不同：单条目形态，count 不翻倍；`cursor == Set.Count` 即归零
-  pub fn scan(&self, start: i64, count: usize, pattern: &[u8]) -> (Vec<Vec<u8>>, i64) {
+  pub fn scan(&self, start: i64, count: i64, pattern: &[u8]) -> (Vec<Vec<u8>>, i64) {
     let mut items: Vec<Vec<u8>> = Vec::new();
     let mut cursor = start;
 
@@ -212,7 +212,8 @@ impl SetObject {
 
       cursor += 1;
 
-      if items.len() == count {
+      // C# 以相等判断截断（负 COUNT 恒不命中 → 全量遍历，1:1 保留）
+      if items.len() as i64 == count {
         break;
       }
     }

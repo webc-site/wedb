@@ -19,7 +19,7 @@ use crate::{
 pub struct ScanInput {
   pub cursor: i64,
   pub pattern: Vec<u8>,
-  pub count: usize,
+  pub count: i64,
   pub is_no_value: bool,
 }
 
@@ -88,10 +88,10 @@ pub trait GarnetObjectBase: IGarnetObject {
         match try_get_int(arg(input, curr_token_idx)) {
           Some(c) => {
             curr_token_idx += 1;
-            result.count = c as usize;
-            // 调用方给出正限额时钳制单轮数量
-            if limit_count_in_output > 0 && result.count > limit_count_in_output as usize {
-              result.count = limit_count_in_output as usize;
+            result.count = i64::from(c);
+            // 无条件钳制单轮数量（对标 C# countInInput > limitCountInOutput）
+            if result.count > i64::from(limit_count_in_output) {
+              result.count = i64::from(limit_count_in_output);
             }
           }
           None => return Err(b"ERR value is not an integer or out of range"),

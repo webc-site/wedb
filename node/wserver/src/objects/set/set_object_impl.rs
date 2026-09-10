@@ -162,7 +162,10 @@ impl SetObject {
     } else if count == NO_COUNT {
       // no count parameter is present, we just pop and return a random item of the set
       if !self.set.is_empty() {
-        let item = self.set.iter().next().cloned().unwrap();
+        // 随机下标取样（C# RandomNumberGenerator.GetInt32(0, Set.Count) 的
+        // fastrand 非种子化等价形态）
+        let index = fastrand::usize(..self.set.len());
+        let item = self.set.iter().nth(index).cloned().unwrap();
         self.set.remove(&item);
         self.update_size(&item, false);
         output.write_bulk_string(&item);

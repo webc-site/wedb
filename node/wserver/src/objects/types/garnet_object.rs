@@ -4,7 +4,11 @@
 //! （C# 经 Tsavorite RMW 的 InitialValue 入口避免空对象落库）。
 
 use crate::{
-  input_header::RespInputHeader, objects::sortedset::sorted_set_object::SortedSetOperation,
+  input_header::RespInputHeader,
+  objects::{
+    list::list_object::ListOperation, set::set_object::SetOperation,
+    sortedset::sorted_set_object::SortedSetOperation,
+  },
   types::GarnetObjectType,
 };
 
@@ -18,22 +22,22 @@ const Z_REMRANGEBYRANK: u8 = SortedSetOperation::Zremrangebyrank as u8;
 const Z_EXPIRE: u8 = SortedSetOperation::Zexpire as u8;
 const Z_COLLECT: u8 = SortedSetOperation::Zcollect as u8;
 
-/// 列表操作码（C# ListOperation）
-const L_POP: u8 = 0;
-const L_PUSHX: u8 = 2;
-const R_POP: u8 = 3;
-const R_PUSHX: u8 = 5;
-const L_RANGE: u8 = 8;
-const L_INDEX: u8 = 9;
-const L_TRIM: u8 = 7;
-const L_REM: u8 = 11;
-const L_INSERT: u8 = 10;
+/// 列表操作码：直接取 ListOperation 判别式（C# ListOperation 编号）
+const L_POP: u8 = ListOperation::Lpop as u8;
+const L_PUSHX: u8 = ListOperation::Lpushx as u8;
+const R_POP: u8 = ListOperation::Rpop as u8;
+const R_PUSHX: u8 = ListOperation::Rpushx as u8;
+const L_RANGE: u8 = ListOperation::Lrange as u8;
+const L_INDEX: u8 = ListOperation::Lindex as u8;
+const L_TRIM: u8 = ListOperation::Ltrim as u8;
+const L_REM: u8 = ListOperation::Lrem as u8;
+const L_INSERT: u8 = ListOperation::Linsert as u8;
 
-/// 集合操作码（C# SetOperation）
-const S_CARD: u8 = 13;
-const S_MEMBERS: u8 = 5;
-const S_REM: u8 = 1;
-const S_POP: u8 = 2;
+/// 集合操作码：直接取 SetOperation 判别式（C# SetOperation：SCARD=4、SMEMBERS=3）
+const S_CARD: u8 = SetOperation::Scard as u8;
+const S_MEMBERS: u8 = SetOperation::Smembers as u8;
+const S_REM: u8 = SetOperation::Srem as u8;
+const S_POP: u8 = SetOperation::Spop as u8;
 
 /// 哈希操作码（C# HashOperation：HCOLLECT=0、HEXPIRE=1）
 const H_EXPIRE: u8 = 1;
@@ -132,10 +136,17 @@ mod tests {
         "op = {op}"
       );
     }
-    assert!(GarnetObject::need_to_create(&header(
-      GarnetObjectType::Set,
-      0
-    )));
+    // 写/聚合类创建：SADD(0)、SSCAN(5)、SDIFFSTORE(13)
+    for op in [
+      SetOperation::Sadd as u8,
+      SetOperation::Sscan as u8,
+      SetOperation::Sdiffstore as u8,
+    ] {
+      assert!(
+        GarnetObject::need_to_create(&header(GarnetObjectType::Set, op)),
+        "op = {op}"
+      );
+    }
 
     // Hash：HEXPIRE/HCOLLECT 不创建，其余创建
     assert!(!GarnetObject::need_to_create(&header(

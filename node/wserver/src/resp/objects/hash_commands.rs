@@ -25,7 +25,7 @@ use crate::{
     cmd_strings as cs,
     cmd_strings::write_error_raw,
     objects::object_store_utils::{OBJ_TAG_HASH, SyncObj, obj_load_sync, obj_save_or_gc_sync},
-    parser::resp_ext::{RespSliceExt, RespVecExt},
+    parser::resp_ext::RespVecExt,
     resp_server_session::RespServerSession,
   },
   session_parse_state::SessionParseState,
@@ -35,7 +35,6 @@ use crate::{
 /// 本命令面统一按 RESP2 协议输出（C# respProtocolVersion 由会话下发，
 /// 会话层接线时替换为实际协商版本）
 const RESP_VERSION: u8 = 2;
-
 /// 从 wkv 信封载荷装载哈希对象
 ///
 /// 载荷双格式：默认 wobject bitcode（与 storage 会话域兼容）；携带成员级过期时
@@ -573,11 +572,12 @@ impl RespServerSession {
     let mut included_count = false;
 
     if parse_state.len() >= 2 {
-      let Some(v) = parse_state[1].try_parse_i64() else {
+      // C# parseState.TryGetInt：32 位整型（越界即 VALUE_IS_NOT_INTEGER）
+      let Some(v) = try_get_int(parse_state[1]) else {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
         return Ok(true);
       };
-      param_count = v;
+      param_count = i64::from(v);
       included_count = true;
 
       // Read WITHVALUES
@@ -748,13 +748,15 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // .NET Ticks 目标时刻
+    // .NET Ticks 目标时刻（C# 侧 DateTimeOffset.FromUnixTimeSeconds 对溢出值
+    // 抛异常；此处以饱和计算等价表达"极远未来"，杜绝算术 panic）
     const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
     let step: i64 = if is_milliseconds { 10_000 } else { 10_000_000 };
+    let offset = expiration.saturating_mul(step);
     let expiration_ticks = if is_timestamp {
-      UNIX_EPOCH_TICKS + expiration * step
+      UNIX_EPOCH_TICKS.saturating_add(offset)
     } else {
-      now_ticks() + expiration * step
+      now_ticks().saturating_add(offset)
     };
 
     let e = ExpirationWithOption::new(expiration_ticks, expire_option);
@@ -1338,6 +1340,19 @@ mod tests {
       )
       .unwrap();
     assert_eq!(out, b"-ERR invalid expire time, must be >= 0\r\n");
+
+    // HEXPIREAT 极值时间戳：饱和计算不 panic（逐字段结果仍为数组）
+    out.clear();
+    sess
+      .hash_expire(
+        &[b"h", b"9223372036854775807", b"FIELDS", b"1", b"a"],
+        &batch,
+        &mut out,
+        false,
+        true,
+      )
+      .unwrap();
+    assert_eq!(out, b"*1\r\n:1\r\n");
   }
 
   /// HRANDFIELD：无 count / count / WITHVALUES / count=0 / 键缺失
