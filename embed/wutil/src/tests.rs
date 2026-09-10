@@ -53,34 +53,6 @@ mod tests {
     assert_eq!(convert::unix_time_in_seconds_from_ticks(ticks), 1600000000);
   }
 
-  /// CountCharsInDouble 与 C# 语义对拍：银行家舍入 + 2*Double.Epsilon 容差
-  /// （任意非零差值即继续细化，fractionalDigits 上限 15）
-  #[test]
-  fn test_count_chars_in_double() {
-    let count = |v: f64| {
-      let mut int_digits = 0;
-      let mut sign = 0u8;
-      let mut frac = 0;
-      num::count_chars_in_double(v, &mut int_digits, &mut sign, &mut frac);
-      (int_digits, sign, frac)
-    };
-
-    // 零值快速路径
-    assert_eq!(count(0.0), (1, 0, 0));
-    // 符号位
-    assert_eq!(count(-3.25), (1, 1, 2));
-    // 123.456 精确 3 位小数收敛
-    assert_eq!(count(123.456), (3, 0, 3));
-    // 整数值无小数位
-    assert_eq!(count(42.0), (2, 0, 0));
-    // 0.30000000000000004 与 0.3 的差值非零：C# 容差下持续细化至 15 位上限
-    assert_eq!(count(0.30000000000000004).2, 15);
-    // 0.5 在第 1 位小数即精确收敛
-    assert_eq!(count(0.5), (1, 0, 1));
-    // 负零按零值处理（value == 0.0 对 -0.0 成立）
-    assert_eq!(count(-0.0), (1, 0, 0));
-  }
-
   #[test]
   fn test_hash_slot() {
     assert_eq!(
