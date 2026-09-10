@@ -189,138 +189,10 @@ impl Default for GarnetServerOptions {
   }
 }
 
-/// libs/server/Servers/ServerOptions.cs:ParseSize
-///
-/// 解析内存尺寸串（`[0-9]+[kmgtp][b]?`，大小写不敏感）；
-/// 返回字节数与消费的字符数。
-///
-/// C# 语义逐字镜像：数字累加（无检查算术回绕）；遇后缀即乘幂返回并容忍
-/// 尾随 'b'；既非数字也非已知后缀的字符跳过并继续扫描（bytesRead 不计入）。
-pub fn parse_size(value: &str) -> (i64, usize) {
-  parse_size_bytes(value.as_bytes())
-}
-
-/// [`parse_size`] 的字节切片形态（CONFIG SET 等线上参数未经 UTF-8 校验的
-/// 场景使用；C# 侧即以字节 span 比较 ASCII）。
-pub fn parse_size_bytes(value: &[u8]) -> (i64, usize) {
-  const SUFFIX_EXP: [(u8, u32); 5] = [(b'k', 1), (b'm', 2), (b'g', 3), (b't', 4), (b'p', 5)];
-  let mut result: i64 = 0;
-  let mut bytes_read = 0usize;
-
-  for (i, &c) in value.iter().enumerate() {
-    if c.is_ascii_digit() {
-      result = result.wrapping_mul(10).wrapping_add(i64::from(c - b'0'));
-      bytes_read += 1;
-    } else if let Some((_, exp)) = SUFFIX_EXP.iter().find(|(s, _)| s.eq_ignore_ascii_case(&c)) {
-      result = result.wrapping_mul(1024_i64.pow(*exp));
-      bytes_read += 1;
-      // 容忍尾随 'b'
-      if i + 1 < value.len() && value[i + 1].eq_ignore_ascii_case(&b'b') {
-        bytes_read += 1;
-      }
-      return (result, bytes_read);
-    }
-    // 其余字符：C# 跳过并继续（不消费 bytesRead）
-  }
-  (result, bytes_read)
-}
-
-/// libs/server/Servers/ServerOptions.cs:TryParseSize
-///
-/// 全量消费才算解析成功。
-pub fn try_parse_size(value: &str) -> Option<i64> {
-  try_parse_size_bytes(value.as_bytes())
-}
-
-/// [`try_parse_size`] 的字节切片形态（C# 对空串返回 true 且尺寸为 0，
-/// 此处同构）。
-pub fn try_parse_size_bytes(value: &[u8]) -> Option<i64> {
-  let (size, chars_read) = parse_size_bytes(value);
-  (chars_read == value.len()).then_some(size)
-}
-
-/// libs/server/Servers/ServerOptions.cs:PreviousPowerOf2
-///
-/// 下取 2 的幂。
-#[must_use]
-pub fn previous_power_of_2(v: i64) -> i64 {
-  let mut v = v;
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v |= v >> 32;
-  v - (v >> 1)
-}
-
-/// libs/server/Servers/ServerOptions.cs:NextPowerOf2
-///
-/// 上取 2 的幂。
-#[must_use]
-pub fn next_power_of_2(v: i64) -> i64 {
-  let mut v = v;
-  v = v.wrapping_sub(1);
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v |= v >> 32;
-  v.wrapping_add(1)
-}
-
-/// libs/server/Servers/ServerOptions.cs:PrettySize
-///
-/// 尺寸字节的人类可读形式（自动选 k/m/g/t/p 单位）。
-#[must_use]
-pub fn pretty_size(value: i64) -> String {
-  const SUFFIX: [char; 5] = ['k', 'm', 'g', 't', 'p'];
-  /// Math.Round(v, 12) 的等价（12 位小数四舍五入）。
-  fn round12(v: f64) -> f64 {
-    let scaled = v * 1e12;
-    let bumped = if scaled >= 0.0 {
-      scaled + 0.5
-    } else {
-      scaled - 0.5
-    };
-    bumped.floor() / 1e12
-  }
-
-  let mut v = value as f64;
-  let mut exp: i32 = 0;
-  // C# 首段：小数部分非零时向大单位归一（整型入参不触发，保留语义对称）
-  while v - v.floor() > 0.0 {
-    if exp >= 18 {
-      break;
-    }
-    exp += 3;
-    v *= 1024.0;
-    v = round12(v);
-  }
-  // C# 次段：整数位数 > 3 时向小单位归一
-  while v.floor().to_string().len() > 3 {
-    if exp <= -18 {
-      break;
-    }
-    exp -= 3;
-    v /= 1024.0;
-    v = round12(v);
-  }
-  if exp > 0 {
-    let c = SUFFIX[(exp / 3 - 1) as usize];
-    format!("{v}{c}")
-  } else if exp < 0 {
-    let idx = (-exp / 3 - 1) as usize;
-    // C# exp == -18 时 suffix[5] 越界（上游缺陷）；此处安全回落无后缀
-    match SUFFIX.get(idx) {
-      Some(&c) => format!("{v}{c}"),
-      None => v.to_string(),
-    }
-  } else {
-    v.to_string()
-  }
-}
+pub use super::server_options::{
+  next_power_of_2, parse_size, parse_size_bytes, pretty_size, previous_power_of_2,
+  try_parse_size, try_parse_size_bytes,
+};
 
 /// 位数的 log2（输入保证为 2 的幂且 > 0）。
 fn log2_exact(v: i64) -> i32 {
@@ -414,7 +286,7 @@ impl GarnetServerOptions {
     })
   }
 
-  /// libs/server/Servers/ServerOptions.cs:MemorySizeBits
+  /// libs/server/Servers/GarnetServerOptions.cs:MemorySizeBits
   ///
   /// 内存尺寸 → 位数（上取 2 的幂后取 log2）。
   pub fn memory_size_bits(memory_size: i64) -> i32 {
@@ -422,8 +294,6 @@ impl GarnetServerOptions {
     log2_exact(adjusted)
   }
 
-  /// libs/server/Servers/ServerOptions.cs:PageSizeBits
-  ///
   /// 主日志页尺寸位数（下取 2 的幂并强制最小页大小）。
   pub fn page_size_bits(&self) -> Result<i32, OptionsError> {
     self.validated_page_size_bits(&self.page_size)
@@ -436,8 +306,6 @@ impl GarnetServerOptions {
     self.validated_page_size_bits(&self.read_cache_page_size)
   }
 
-  /// libs/server/Servers/ServerOptions.cs:ValidatedPageSizeBits
-  ///
   /// 页尺寸串 → 位数（下取 2 的幂并校验最小页大小）。
   fn validated_page_size_bits(&self, value: &str) -> Result<i32, OptionsError> {
     let size = try_parse_size(value).ok_or_else(|| OptionsError::BadSize(value.to_string()))?;
@@ -452,15 +320,11 @@ impl GarnetServerOptions {
     Ok(log2_exact(adjusted))
   }
 
-  /// libs/server/Servers/ServerOptions.cs:PubSubPageSizeBytes
-  ///
   /// pub/sub 日志页大小（字节，下取 2 的幂）。
   pub fn pub_sub_page_size_bytes(&self) -> i64 {
     previous_power_of_2(parse_size(&self.pub_sub_page_size).0)
   }
 
-  /// libs/server/Servers/ServerOptions.cs:SegmentSizeBits
-  ///
   /// 主日志段尺寸位数（下取 2 的幂；C# isObj 分支的对象日志段尺寸为
   /// 对象存储域字段，此处仅承载主日志）。
   pub fn segment_size_bits(&self) -> Result<i32, OptionsError> {
@@ -469,8 +333,6 @@ impl GarnetServerOptions {
     Ok(log2_exact(previous_power_of_2(size)))
   }
 
-  /// libs/server/Servers/ServerOptions.cs:IndexSizeCachelines
-  ///
   /// 哈希索引缓存行数（下取 2 的幂后须落在 [64, 2^37]，每行 64 字节）。
   pub fn index_size_cachelines(&self) -> Result<i64, OptionsError> {
     const MIN_ADJUSTED: i64 = 64;

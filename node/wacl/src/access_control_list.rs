@@ -267,7 +267,7 @@ mod tests {
   use std::{fs, thread};
 
   use super::*;
-  use crate::types::RespCommand;
+  use wresp::RespCommand;
 
   /// 对标 garnet AclConfigurationFileTests.EmptyInput：空文件 → 仅 default 用户
   #[test]

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use gxhash::{HashSet, HashSetExt};
 
 use super::command_catalog::{LAST_VALID_COMMAND, expand_for_acls, is_no_auth, normalize_for_acls};
-use crate::types::RespCommand;
+use wresp::RespCommand;
 
 /// 特殊档位（对标 C# `CommandPermissionSet.All` / `None` 单例身份）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -250,7 +250,7 @@ fn remove_custom(set: &HashSet<String>, normalized_name: &str) -> Arc<HashSet<St
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::acl::RespAclCategories;
+  use crate::RespAclCategories;
 
   #[test]
   fn sentinels_and_copy() {

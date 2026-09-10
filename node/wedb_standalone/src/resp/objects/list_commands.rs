@@ -233,18 +233,7 @@ fn is_read_only(op: ListOperation) -> bool {
   )
 }
 
-/// 解析 LEFT|RIGHT 方向词元（大小写不敏感）
-///
-/// libs/server/SessionParseStateExtensions.cs:TryGetOperationDirection
-fn parse_direction(token: &[u8]) -> Option<OperationDirection> {
-  if token.eq_ignore_ascii_case(b"LEFT") {
-    Some(OperationDirection::Left)
-  } else if token.eq_ignore_ascii_case(b"RIGHT") {
-    Some(OperationDirection::Right)
-  } else {
-    None
-  }
-}
+use crate::session_parse_state_extensions::operation_direction_from_token as parse_direction;
 
 impl RespServerSession {
   /// LPUSH key element [element ...] / RPUSH key element [element ...]
@@ -929,7 +918,7 @@ impl RespServerSession {
 
   /// LMOVE/RPOPLPUSH 公共体（同键同向退化为此前 C# 的 rotation/peek 语义）
   ///
-  /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListMove
+  /// 对齐 C# ListOps.ListMove 语义
   fn list_move_core<'a, D: wdev::Device>(
     &mut self,
     src_key: &[u8],

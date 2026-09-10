@@ -319,7 +319,7 @@ fn test_tombstone_flip_and_can_update_in_place() -> Void {
   OK
 }
 
-/// FillerWords 独立词级设置与字节级松弛互斥覆写测试（对标 libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:FillerWords setter）
+/// FillerWords 独立词级设置与字节级松弛互斥覆写测试（对标 RecordDataHeader FillerWords setter 逻辑）
 #[test]
 fn test_filler_words_field_setter() -> Void {
   info!("开始测试: FillerWords 词级设置与字节级松弛折算");

@@ -567,7 +567,7 @@ impl RespServerSession {
   /// SMOVE source destination member
   ///
   /// libs/server/Resp/Objects/SetCommands.cs:SetMove
-  /// （存储侧语义对标 libs/server/Storage/Session/ObjectStore/SetOps.cs:SetMove）
+  /// （存储侧语义对标 SetOps.SetMove）
   pub fn set_move<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],

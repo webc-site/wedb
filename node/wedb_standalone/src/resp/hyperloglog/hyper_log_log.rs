@@ -87,9 +87,7 @@ impl HyperLogLog {
     Self::default()
   }
 
-  /// 自定义寄存器位构造
-  ///
-  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:HyperLogLog(byte pbit)
+  /// 自定义寄存器位构造 (HyperLogLog(byte pbit))
   pub fn with_pbit(pbit: u8) -> Self {
     let qbit = (HBIT - pbit as u32) as u8;
     let mcnt = 1_usize << pbit;
@@ -216,9 +214,7 @@ impl HyperLogLog {
     (self.is_sparse(ptr) || self.is_dense(ptr)) && Self::is_hyll(ptr)
   }
 
-  /// 魔数 + 长度校验（稀疏须在 [初始长, 4KB] 内且 RLE 流结构合法）
-  ///
-  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:IsValidHYLL(byte*, int)
+  /// 魔数 + 长度校验（重载 IsValidHYLL(byte*, int)）
   #[inline]
   pub fn is_valid_hyll_len(&self, ptr: &[u8], length: usize) -> bool {
     Self::is_hyll(ptr) && self.is_valid_hll_length(ptr, length)
@@ -1178,54 +1174,10 @@ impl HyperLogLog {
   }
 }
 
-/// MurmurHash2 64 位变体（PFADD 的元素哈希）
-///
-/// libs/common/HashUtils.cs:MurmurHash2x64A
+/// MurmurHash2 64 位变体（PFADD 的元素哈希，委托 wbase::hash::murmur_hash2_x64_a）
 #[inline]
 pub fn murmur_hash_2_x64_a(b_string: &[u8]) -> u64 {
-  const M: u64 = 0xc6a4_a793_5bd1_e995;
-  const R: u32 = 47;
-  let mut h = (b_string.len() as u64).wrapping_mul(M);
-  let (chunks, rem) = b_string.as_chunks::<8>();
-
-  for &chunk in chunks {
-    let mut k = u64::from_le_bytes(chunk);
-    k = k.wrapping_mul(M);
-    k ^= k >> R;
-    k = k.wrapping_mul(M);
-    h ^= k;
-    h = h.wrapping_mul(M);
-  }
-
-  // 尾部 0..7 字节逐位独立异或（对齐 C# cs>=7..=1 的独立 if 链）
-  let cs = rem.len();
-  if cs >= 7 {
-    h ^= u64::from(rem[6]) << 48;
-  }
-  if cs >= 6 {
-    h ^= u64::from(rem[5]) << 40;
-  }
-  if cs >= 5 {
-    h ^= u64::from(rem[4]) << 32;
-  }
-  if cs >= 4 {
-    h ^= u64::from(rem[3]) << 24;
-  }
-  if cs >= 3 {
-    h ^= u64::from(rem[2]) << 16;
-  }
-  if cs >= 2 {
-    h ^= u64::from(rem[1]) << 8;
-  }
-  if cs >= 1 {
-    h ^= u64::from(rem[0]);
-    h = h.wrapping_mul(M);
-  }
-
-  h ^= h >> R;
-  h = h.wrapping_mul(M);
-  h ^= h >> R;
-  h
+  wbase::hash::murmur_hash2_x64_a(b_string, 0)
 }
 
 #[cfg(test)]

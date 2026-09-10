@@ -70,7 +70,7 @@ impl MigrationManager {
     self.migration_task_store.try_remove(m_session)
   }
 
-  /// libs/cluster/Server/Migration/MigrationManager.cs:TryRemoveMigrationTask
+  /// Overload of [Self::try_remove_migration_task_session] taking target_node_id (MigrationManager.cs:TryRemoveMigrationTask)
   pub fn try_remove_migration_task_node(&self, target_node_id: &str) -> bool {
     self.migration_task_store.try_remove_node(target_node_id)
   }

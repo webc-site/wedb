@@ -38,7 +38,7 @@ impl TlsPoolEntry {
   /// 统一清扫：密封收件箱并清空本地栈，逐 class 处置在途与缓存缓冲
   ///
   /// `retire = true`（线程退出）：池存活且未关闭时溢出转移至全局条带仓库，否则释放许可；
-  /// `retire = false`（池关闭拆除）：全部就地释放许可 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:SealAndDrainShard)
+  /// `retire = false`（池关闭拆除）：全部就地释放许可 (内部清扫，对标 BufferPool SealAndDrainShard 语义)
   fn sweep(&mut self, pool: Option<&BufferPool>, retire: bool) {
     let tid = self.tid;
     for cls in 0..NUM_CLASSES {

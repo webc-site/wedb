@@ -64,8 +64,6 @@ pub fn try_get_int(v: &[u8]) -> Option<i32> {
 }
 
 /// 解析 ZADD 选项词元（XX/NX/LT/GT/CH/INCR）
-///
-/// 对标 libs/server/SessionParseStateExtensions.cs:TryGetSortedSetAddOption
 #[inline]
 pub fn try_get_sorted_set_add_option(v: &[u8]) -> Option<SortedSetAddOption> {
   let opt = if equals_ignore_case(v, b"XX") {
@@ -87,47 +85,24 @@ pub fn try_get_sorted_set_add_option(v: &[u8]) -> Option<SortedSetAddOption> {
 }
 
 /// 解析过期选项词元（NX/XX/GT/LT）
-///
-/// 对标 libs/server/SessionParseStateExtensions.cs:TryGetExpireOption
 #[inline]
 pub fn try_get_expire_option(v: &[u8]) -> Option<ExpireOption> {
-  let opt = if equals_ignore_case(v, b"NX") {
-    ExpireOption::NX
-  } else if equals_ignore_case(v, b"XX") {
-    ExpireOption::XX
-  } else if equals_ignore_case(v, b"GT") {
-    ExpireOption::GT
-  } else if equals_ignore_case(v, b"LT") {
-    ExpireOption::LT
-  } else {
-    return None;
-  };
-  Some(opt)
+  match crate::session_parse_state_extensions::expire_option_from_token(v)? {
+    crate::session_parse_state_extensions::ExpireOption::Nx => Some(ExpireOption::NX),
+    crate::session_parse_state_extensions::ExpireOption::Xx => Some(ExpireOption::XX),
+    crate::session_parse_state_extensions::ExpireOption::Gt => Some(ExpireOption::GT),
+    crate::session_parse_state_extensions::ExpireOption::Lt => Some(ExpireOption::LT),
+    _ => None,
+  }
 }
 
 /// 解析 GEO 距离单位词元（m/km/mi/ft）
-///
-/// 对标 libs/server/SessionParseStateExtensions.cs:TryGetGeoDistanceUnit
 #[inline]
 pub fn try_get_geo_distance_unit(v: &[u8]) -> Option<GeoDistanceUnitType> {
-  let unit = if equals_ignore_case(v, b"m") {
-    GeoDistanceUnitType::M
-  } else if equals_ignore_case(v, b"km") {
-    GeoDistanceUnitType::Km
-  } else if equals_ignore_case(v, b"mi") {
-    GeoDistanceUnitType::Mi
-  } else if equals_ignore_case(v, b"ft") {
-    GeoDistanceUnitType::Ft
-  } else {
-    return None;
-  };
-  Some(unit)
+  crate::session_parse_state_extensions::geo_distance_unit(v)
 }
 
 /// 解析 (longitude, latitude) 坐标对，须均合法且在 WGS-84 范围内
-///
-/// 对标 libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat
-/// （C# 借 Garnet.common ParseUtils.TryParseAsDouble 逐一解析后做范围校验）
 #[inline]
 pub fn try_get_geo_lon_lat(lon: &[u8], lat: &[u8]) -> Option<(f64, f64)> {
   let longitude = try_parse_with_infinity(lon)?;
@@ -138,13 +113,11 @@ pub fn try_get_geo_lon_lat(lon: &[u8], lat: &[u8]) -> Option<(f64, f64)> {
   Some((longitude, latitude))
 }
 
-/// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 的经度范围检查
 #[inline]
 fn geo_longitude_in_range(lon: f64) -> bool {
   (GeoHash::LONGITUDE_MIN..=GeoHash::LONGITUDE_MAX).contains(&lon)
 }
 
-/// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 的纬度范围检查
 #[inline]
 fn geo_latitude_in_range(lat: f64) -> bool {
   (GeoHash::LATITUDE_MIN..=GeoHash::LATITUDE_MAX).contains(&lat)

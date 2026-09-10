@@ -677,7 +677,7 @@ impl HashIndex {
   /// 寻找空位或沿溢出链插入，单次 CAS 原子发布完整条目（无半成品窗口；语义详见
   /// [`Self::insert_by_hash`] 与其 C# 两阶段协议对照注释），链遍历以步数上限防死循环。
   /// 注意：本方法不做同 Tag 查重——键已存在时会产生多候选（同键多版本场景），需要查重语义的
-  /// 调用方请使用 `find_tag_or_insert` / `find_or_create_tag`（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）。
+  /// 调用方请使用 `find_tag_or_insert` / `find_or_create_tag`（对标 TsavoriteBase FindOrCreateTag）。
   #[inline]
   pub fn insert(&self, key: &[u8], address: u64) -> Result<()> {
     self.insert_by_hash(Self::hash_key(key), address)
@@ -685,7 +685,7 @@ impl HashIndex {
 
   /// 基于哈希值插入逻辑地址（并发冲突时自动归还冗余溢出桶，杜绝泄漏）
   ///
-  /// 试探性 CAS 被并发竞争者抢占时，从链头重走寻找下一个空槽位（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag
+  /// 试探性 CAS 被并发竞争者抢占时，从链头重走寻找下一个空槽位（严格对标 TsavoriteBase FindOrCreateTag
   /// 的整链重试协议），避免链头附近留下永久空洞、推高溢出链深度恶化探测复杂度。
   pub fn insert_by_hash(&self, hash: u64, address: u64) -> Result<()> {
     if address == HashBucketEntry::INVALID_ADDRESS {
@@ -746,7 +746,7 @@ impl HashIndex {
     }
   }
 
-  /// 单次遍历执行查找或试探性插入（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）
+  /// 单次遍历执行查找或试探性插入（严格对标 TsavoriteBase FindOrCreateTag）
   ///
   /// 若已存在匹配 tag 且有效非试探的非零地址，直接返回 `Ok((Some(existing_addr), false))`；
   /// 若未找到，则在首个空槽位原子 CAS 插入 `(address, tag)` 并返回 `Ok((None, true))`。
@@ -776,7 +776,7 @@ impl HashIndex {
     }
   }
 
-  /// 单次遍历查找或插入键（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindOrCreateTag）
+  /// 单次遍历查找或插入键（对标 TsavoriteBase FindOrCreateTag）
   #[inline]
   pub fn find_tag_or_insert(&self, key: &[u8], address: u64) -> Result<(Option<u64>, bool)> {
     self.find_tag_or_insert_by_hash(Self::hash_key(key), address)
@@ -938,7 +938,7 @@ impl HashIndex {
     self.update_address_by_hash(Self::hash_key(key), old_address, new_address)
   }
 
-  /// 基于哈希值原子 CAS 更新逻辑地址（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 定位 + HashEntryInfo.TryCAS）
+  /// 基于哈希值原子 CAS 更新逻辑地址（严格对标 TsavoriteBase FindTag 定位 + HashEntryInfo.TryCAS）
   pub fn update_address_by_hash(&self, hash: u64, old_address: u64, new_address: u64) -> bool {
     if new_address == HashBucketEntry::INVALID_ADDRESS
       || new_address > HashBucketEntry::ADDRESS_MASK
@@ -958,7 +958,7 @@ impl HashIndex {
     self.delete_by_hash(Self::hash_key(key), address)
   }
 
-  /// 基于哈希值原子置零删除指定条目（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag 定位 + HashEntryInfo.TryElide 记录脱钩）
+  /// 基于哈希值原子置零删除指定条目（严格对标 TsavoriteBase FindTag 定位 + HashEntryInfo.TryElide 记录脱钩）
   pub fn delete_by_hash(&self, hash: u64, address: u64) -> bool {
     if address == HashBucketEntry::INVALID_ADDRESS {
       return false;
@@ -969,7 +969,7 @@ impl HashIndex {
     hei.try_elide()
   }
 
-  /// 沿溢出链定位精确匹配 `(tag, address)` 的已提交条目（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:FindTag + HashEntryInfo 装载）
+  /// 沿溢出链定位精确匹配 `(tag, address)` 的已提交条目（严格对标 TsavoriteBase FindTag + HashEntryInfo 装载）
   ///
   /// 复用 [`HashBucket::find_entry_by_address`] 单桶定位与步数上限链遍历，产出可定点
   /// [`HashEntryInfo::try_cas`] / [`HashEntryInfo::try_elide`] 的哈希槽位句柄。
@@ -1180,7 +1180,7 @@ impl HashIndex {
     self.acquire_bucket_locks(keys.iter().map(|k| (self.bucket_index_for_key(k), true)))
   }
 
-  /// 获取多个哈希值对应的桶锁（支持读写混合锁，排他锁优先，对标 libs/server/Transaction/TxnKeyEntry.cs:LockAllKeys）
+  /// 获取多个哈希值对应的桶锁（支持读写混合锁，排他锁优先，对标 C# LockAllKeys）
   #[inline]
   pub fn acquire_hash_locks(&self, items: &[(u64, bool)]) -> Result<MultiBucketGuard<'_>> {
     self.acquire_bucket_locks(

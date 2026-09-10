@@ -8,10 +8,25 @@ const TEST_ATTR_SET = new Set([
   "Test", "TestCase", "TestCaseSource", "Theory", "Fact", "TestMethod"
 ]);
 
-const csExtract = (code, parser) => {
+const TEST_LIFECYCLE_ATTR_SET = new Set([
+  "SetUp", "TearDown", "OneTimeSetUp", "OneTimeTearDown",
+  "TestInitialize", "TestCleanup", "ClassInitialize", "ClassCleanup",
+  "AssemblyInitialize", "AssemblyCleanup",
+  "GlobalSetup", "GlobalCleanup", "IterationSetup", "IterationCleanup"
+]);
+
+const TEST_LIFECYCLE_FN_SET = new Set([
+  "Setup", "SetUp", "TearDown", "Teardown", "OneTimeSetUp", "OneTimeTearDown",
+  "OnTearDown", "BaseSetup", "BaseTearDown",
+  "GlobalSetup", "GlobalCleanup", "IterationSetup", "IterationCleanup",
+  "DeleteDirectory", "CleanDirectory", "DeleteTestDataPath"
+]);
+
+const csExtract = (code, parser, file_path = "") => {
   const tree = parser.parse(code),
     fn_set = new Set(),
     test_set = new Set(),
+    is_test_file = /(?:[/\\]test|[/\\]tests|[/\\]benchmark|[/\\]benchmarks|[a-z0-9]Tests?\.cs$)/i.test(file_path),
     node_li = tree.rootNode.descendantsOfType([
       "method_declaration",
       "local_function_statement"
@@ -21,22 +36,35 @@ const csExtract = (code, parser) => {
     const fn_name = node.childForFieldName("name")?.text;
     if (!fn_name) continue;
 
+    if (is_test_file && TEST_LIFECYCLE_FN_SET.has(fn_name)) {
+      continue;
+    }
+
     let is_test = false;
+    let is_lifecycle = false;
     for (const child of node.children) {
       if (child.type === "attribute_list") {
         for (const attr of child.children) {
           if (attr.type === "attribute") {
-            const attr_name = attr.childForFieldName("name")?.text;
-            if (attr_name && TEST_ATTR_SET.has(attr_name)) {
-              is_test = true;
-              break;
+            const raw_name = attr.childForFieldName("name")?.text;
+            if (raw_name) {
+              const attr_name = raw_name.endsWith("Attribute") ? raw_name.slice(0, -9) : raw_name;
+              if (TEST_ATTR_SET.has(attr_name)) {
+                is_test = true;
+                break;
+              }
+              if (TEST_LIFECYCLE_ATTR_SET.has(attr_name)) {
+                is_lifecycle = true;
+                break;
+              }
             }
           }
         }
       }
-      if (is_test) break;
+      if (is_test || is_lifecycle) break;
     }
 
+    if (is_lifecycle) continue;
     if (is_test) test_set.add(fn_name);
     else fn_set.add(fn_name);
   }
@@ -71,7 +99,7 @@ const garnetScan = async (garnet_dir = resolve(import.meta.dirname, "../../garne
 
   for (const file_path of file_li) {
     const code = await Bun.file(file_path).text(),
-      [fn_li, test_li] = csExtract(code, parser),
+      [fn_li, test_li] = csExtract(code, parser, file_path),
       rel_path = relative(garnet_dir, file_path);
 
     if (fn_li.length > 0) fn_map[rel_path] = fn_li;

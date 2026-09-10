@@ -21,7 +21,7 @@ pub enum SetOperation {
   Scard = 13,
 }
 
-/// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:SetObject
+/// 内存集合对象（嵌入式存储层实现，服务层权威实现见 wedb_standalone::objects::set::SetObject）
 pub struct SetObject {
   pub set: GxPapayaSet<Vec<u8>>,
 }
@@ -33,7 +33,7 @@ impl SetObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
+  /// 从二进制流反序列化内存集合对象
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -50,7 +50,7 @@ impl SetObject {
     Ok(Self { set })
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Serialize
+  /// 序列化内存集合对象为二进制流
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.set.pin();
     let mut items = Vec::with_capacity(pin.len());
@@ -61,7 +61,7 @@ impl SetObject {
     writer.write_all(&bytes)
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Operate
+  /// 内存集合对象操作派发
   pub fn operate(&self, op: SetOperation, key: &[u8]) -> bool {
     let pin = self.set.pin();
     match op {
@@ -72,7 +72,7 @@ impl SetObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:Count
+  /// 元素数量
   pub fn count(&self) -> usize {
     self.set.pin().len()
   }
@@ -85,13 +85,13 @@ impl Default for SetObject {
 }
 
 impl SetObject {
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:GetMembers（SMEMBERS 输出）
+  /// 获取全部成员
   pub fn get_keys(&self) -> Vec<Vec<u8>> {
     let pin = self.set.pin();
     pin.iter().cloned().collect()
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObjectImpl.cs:SetPopImpl（SPOP）
+  /// 随机弹出成员
   ///
   /// 刻意差异修正：原实现恒取首元素（确定性弹出，语义偏差）；对齐 C# 的
   /// `RandomNumberGenerator.GetInt32(0, Set.Count)` 随机下标弹出
@@ -107,7 +107,7 @@ impl SetObject {
     Some(item)
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObjectImpl.cs:SetRandomMember（SRANDMEMBER）
+  /// 随机采样成员
   ///
   /// 刻意差异修正：原实现恒取首元素；对齐 C# `RandomUtils.PickRandomIndex` 随机采样
   pub fn random_member(&self) -> Option<Vec<u8>> {

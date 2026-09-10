@@ -221,7 +221,7 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
     self.session.try_modify_in_place_unprotected(key, f)
   }
 
-  /// 在批处理已有纪元保护下尝试利用动态松弛原位覆写记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
+  /// 在批处理已有纪元保护下尝试利用动态松弛原位覆写记录的值（严格对标 Tsavorite TrySetPinnedValueSpan 原位覆写语义）
   #[inline(always)]
   pub fn try_modify_with_slack(&self, key: &[u8], new_val: &[u8]) -> Result<bool> {
     self.session.try_modify_with_slack_unprotected(key, new_val)

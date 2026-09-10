@@ -89,7 +89,7 @@ pub struct RangeIndexChunkedSerializer {
 }
 
 impl RangeIndexChunkedSerializer {
-  /// 创建新的分块序列化器 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new RangeIndexChunkedSerializer(key, stub, totalFileBytes))
+  /// 创建新的分块序列化器 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs 中构造 RangeIndexChunkedSerializer(key, stub, totalFileBytes))
   pub fn new(key: &[u8], stub: &[u8], total_file_bytes: u64) -> Self {
     Self {
       key_bytes: key.to_vec(),

@@ -63,6 +63,7 @@ impl DrainEntry {
 }
 
 static NEXT_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
+static ACTIVE_INSTANCES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// Microsoft Garnet Tsavorite 架构风格的 LightEpoch 纪元保护管理器
 ///
@@ -102,6 +103,7 @@ impl LightEpoch {
     let max_threads = max_threads.max(1);
     let entries: Arc<[EpochEntry]> = repeat_with(EpochEntry::new).take(max_threads).collect();
 
+    ACTIVE_INSTANCES.fetch_add(1, Ordering::Relaxed);
     Self {
       id: NEXT_INSTANCE_ID.fetch_add(1, Ordering::Relaxed),
       current_epoch: AtomicU64::new(1),
@@ -114,6 +116,24 @@ impl LightEpoch {
       entries,
       drain_list: Box::new(from_fn(|_| DrainEntry::new())),
     }
+  }
+
+  /// 活动 LightEpoch 实例数
+  ///
+  /// 对照 libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs:ActiveInstanceCount
+  /// 对照 libs/client/LightEpoch.cs:ActiveInstanceCount
+  #[inline]
+  pub fn active_instance_count() -> usize {
+    ACTIVE_INSTANCES.load(Ordering::Relaxed)
+  }
+
+  /// 重置所有实例计数状态，用于测试环境
+  ///
+  /// 对照 libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs:ResetAllInstances
+  /// 对照 libs/client/LightEpoch.cs:ResetAllInstances
+  #[inline]
+  pub fn reset_all_instances() {
+    ACTIVE_INSTANCES.store(0, Ordering::Relaxed);
   }
 
   /// 注册当前线程或会话为参与者
@@ -719,7 +739,7 @@ impl LightEpoch {
     }
   }
 
-  /// 获取当前线程对应的用户字（对照 libs/client/LightEpoch.cs:ThisThreadUserWord）
+  /// 获取当前线程对应的用户字数值（通过 [`Self::this_thread_user_word_atomic`] 读取）
   #[inline]
   pub fn this_thread_user_word(&self, word_index: usize) -> Result<i64> {
     Ok(
@@ -753,6 +773,12 @@ impl LightEpoch {
 impl Default for LightEpoch {
   fn default() -> Self {
     Self::new(Self::DEFAULT_MAX_THREADS)
+  }
+}
+
+impl Drop for LightEpoch {
+  fn drop(&mut self) {
+    ACTIVE_INSTANCES.fetch_sub(1, Ordering::Relaxed);
   }
 }
 

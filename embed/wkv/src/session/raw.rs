@@ -112,7 +112,7 @@ impl<D: Device> StoreSession<D> {
     self.try_modify_raw_in_place_unprotected(&str_k, f)
   }
 
-  /// 在单次纪元保护下尝试利用动态松弛原位覆写当前会话字符串记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
+  /// 在单次纪元保护下尝试利用动态松弛原位覆写当前会话字符串记录的值（严格对标 Tsavorite TrySetPinnedValueSpan 原位覆写语义）
   #[inline]
   pub fn try_modify_with_slack(&self, user_key: &[u8], new_val: &[u8]) -> Result<bool> {
     let _guard = self.participant.enter();
@@ -135,7 +135,7 @@ impl<D: Device> StoreSession<D> {
     Ok(false)
   }
 
-  /// 在已有纪元保护下尝试在内存可变区基于动态松弛原位覆写当前会话普通字符串记录的值（严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan）
+  /// 在已有纪元保护下尝试在内存可变区基于动态松弛原位覆写当前会话普通字符串记录的值（严格对标 Tsavorite TrySetPinnedValueSpan 原位覆写语义）
   #[inline]
   pub fn try_modify_with_slack_unprotected(&self, user_key: &[u8], new_val: &[u8]) -> Result<bool> {
     let str_k = self.session_string_key(user_key);
@@ -494,7 +494,7 @@ impl<D: Device> StoreSession<D> {
     self.upsert_raw(&str_k, val).await
   }
 
-  /// 基于预先获得的首地址探针执行底层物理同步内存直读快路径（Raw，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 与 FindTag）
+  /// 基于预先获得的首地址探针执行底层物理同步内存直读快路径（Raw，严格对照 Tsavorite InternalRead 与 FindTag 探针）
   ///
   /// # 注意
   /// 调用方须确保当前线程处于 LightEpoch 纪元保护下。
@@ -544,7 +544,7 @@ impl<D: Device> StoreSession<D> {
     let first_addr = self.store.index.find_tag(&str_k);
     self.try_read_raw_in_memory_with_addr(&str_k, first_addr, f)
   }
-  /// 当前会话普通字符串同步内存直读快路径（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 与 FindTag 实现）
+  /// 当前会话普通字符串同步内存直读快路径（严格对照 Tsavorite InternalRead 与 FindTag 快路径实现）
   #[inline]
   pub fn try_read_in_memory<R>(
     &self,
@@ -1070,7 +1070,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 底层物理同步纯内存批量直读（Raw，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch 12 项流水线预取）
+  /// 底层物理同步纯内存批量直读（Raw，严格对照 Tsavorite ContextReadWithPrefetch 12 项流水线预取）
   ///
   /// - 适用于纯内存驻留读场景或快速内存筛选；
   /// - 若记录处于内存中且存在，调用 `on_item(idx, Some(val))`；
@@ -1112,7 +1112,7 @@ impl<D: Device> StoreSession<D> {
     Ok(())
   }
 
-  /// 批量读单批两级硬件预取（异步/同步批量读共用，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch）
+  /// 批量读单批两级硬件预取（异步/同步批量读共用，严格对照 Tsavorite ContextReadWithPrefetch 两级预取）
   ///
   /// 1. 第一级：计算 64 位哈希并将对应哈希桶（64 字节 cacheline）拉入 CPU L1 数据缓存；
   /// 2. 第二级：探测 FindTag 首地址，若驻留内存有效区间 `[head, tail)` 则预取记录物理内存。
@@ -1369,7 +1369,7 @@ impl<D: Device> StoreSession<D> {
   /// 磁盘冷数据异步删除慢路径
   ///
   /// ReadCache 条目顺链解析为首个主日志地址（键归属由 fast_key_eq 校验兜底）后，
-  /// 沿记录 `prev_address` 前驱链回溯（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:AsyncGetFromDiskCallback
+  /// 沿记录 `prev_address` 前驱链回溯（严格对照 Tsavorite AsyncGetFromDiskCallback
   /// 沿链跳过碰撞键语义），确保被 Tag 碰撞键掩埋的冷记录也能真实删除。
   /// 盲墓碑以「链头（槽位地址）」为前驱追加并 CAS 槽位：哈希链 prev 语义即
   /// 「插入时刻的槽位地址」，与快路径 prev_link 口径一致；碰撞键经墓碑前驱仍可达。

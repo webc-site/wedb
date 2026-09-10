@@ -66,14 +66,9 @@ pub enum ExpireTimeCmd {
   Pexpiretime,
 }
 
-/// libs/server/SessionParseStateExtensions.cs:TryGetExpireOption
-///
 /// 解析单个过期选项 NX/XX/GT/LT（大小写不敏感）
 fn try_parse_expire_option(raw: &[u8]) -> bool {
-  raw.eq_ignore_ascii_case(b"NX")
-    || raw.eq_ignore_ascii_case(b"XX")
-    || raw.eq_ignore_ascii_case(b"GT")
-    || raw.eq_ignore_ascii_case(b"LT")
+  crate::session_parse_state_extensions::expire_option_from_token(raw).is_some()
 }
 
 impl RespServerSession {

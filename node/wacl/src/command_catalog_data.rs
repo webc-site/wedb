@@ -2,7 +2,7 @@
 //! 覆盖全部根命令与子命令的名称 / ACL 分类 / 父子关系）
 
 use super::RespAclCategories;
-use crate::types::RespCommand;
+use wresp::RespCommand;
 
 /// 单条命令目录（RespCommandsInfo 中 ACL 消费的最小面）
 pub struct CmdEntry {

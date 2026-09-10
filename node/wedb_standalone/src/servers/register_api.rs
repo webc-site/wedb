@@ -81,7 +81,7 @@ impl RegisterApi {
 
   /// 注册自定义对象命令，返回（类型 id, 子命令 id）
   ///
-  /// libs/server/Servers/RegisterApi.cs:NewCommand（对象重载）
+  /// 对标 RegisterApi NewCommand（对象工厂重载）
   pub fn new_command_object(
     &self,
     type_name: &str,

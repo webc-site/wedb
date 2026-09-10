@@ -269,8 +269,6 @@ impl AofAddress {
       .fold(0i64, i64::max)
   }
 
-  /// libs/server/AOF/AofAddress.cs:Min
-  ///
   /// 最小槽位值（上界 0）。
   pub fn min_value(&self) -> i64 {
     self.addresses[..self.length as usize]

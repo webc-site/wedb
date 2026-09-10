@@ -57,7 +57,7 @@ impl<D: Device> HybridLog<D> {
 
   /// 同步零拷贝快速探针读取内存驻留记录（无需任何中间 Vec 内存拷贝与堆分配）
   ///
-  /// 严格对照 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AllocatorBase.cs 与 InternalRead.cs：闭包直接借用页内物理字节，
+  /// 严格对照 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs 与 InternalRead.cs：闭包直接借用页内物理字节，
   /// 零拷贝零分配。可变区与只读区在 LightEpoch 纪元保护下统一走无锁裸指针直读
   /// （撕裂安全论证与调用方契约详见 `Self::probe_resident`）。
   /// 若记录已不在内存页（在磁盘区或尚未加载），返回 `Ok(None)`，

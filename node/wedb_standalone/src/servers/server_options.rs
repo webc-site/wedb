@@ -4,9 +4,7 @@
 //! 承接其换算族，字符串解析与 2 的幂工具复用
 //! [`super::garnet_server_options`] 的实现（同域单一来源）。
 
-use super::garnet_server_options::{
-  OptionsError, next_power_of_2, parse_size as parse_size_bits, previous_power_of_2,
-};
+use super::garnet_server_options::OptionsError;
 
 /// 默认 RESP 协议版本（libs/server/Servers/ServerOptions.cs:DEFAULT_RESP_VERSION）
 pub const DEFAULT_RESP_VERSION: u8 = 2;
@@ -60,7 +58,7 @@ impl ServerOptions {
   ///
   /// libs/server/Servers/ServerOptions.cs:MemorySizeBits
   pub fn memory_size_bits(&self) -> i32 {
-    let size = parse_size_bits(&self.log_memory_size).0;
+    let size = parse_size(&self.log_memory_size).0;
     // 非整幂时告警并下取（C# LogInformation 同款；log 面为尽力而为）
     log2_exact(previous_power_of_2(size.max(1)))
   }
@@ -73,7 +71,7 @@ impl ServerOptions {
     value: &str,
     _prop_name: &str,
   ) -> Result<i32, OptionsError> {
-    let size = parse_size_bits(value).0;
+    let size = parse_size(value).0;
     let adjusted = previous_power_of_2(size);
     if adjusted < self.min_page_size_bytes {
       // C# 抛 Exception（有效页必须容纳最坏情况记录）
@@ -97,7 +95,7 @@ impl ServerOptions {
   ///
   /// libs/server/Servers/ServerOptions.cs:PubSubPageSizeBytes
   pub fn pub_sub_page_size_bytes(&self) -> i64 {
-    let size = parse_size_bits(&self.pub_sub_page_size).0;
+    let size = parse_size(&self.pub_sub_page_size).0;
     previous_power_of_2(size)
   }
 
@@ -110,7 +108,7 @@ impl ServerOptions {
     } else {
       &self.segment_size
     };
-    let size = parse_size_bits(value).0;
+    let size = parse_size(value).0;
     log2_exact(previous_power_of_2(size.max(1)))
   }
 
@@ -118,7 +116,7 @@ impl ServerOptions {
   ///
   /// libs/server/Servers/ServerOptions.cs:IndexSizeCachelines
   pub fn index_size_cachelines(&self, name: &str, index_size: &str) -> Result<i32, OptionsError> {
-    let size = parse_size_bits(index_size).0;
+    let size = parse_size(index_size).0;
     let adjusted = previous_power_of_2(size);
     if !(64..=(1i64 << 37)).contains(&adjusted) {
       return Err(OptionsError::OutOfRange(name.to_string(), adjusted));
@@ -127,63 +125,26 @@ impl ServerOptions {
   }
 
   /// 解析大小规格串（返回 (字节, 消费字符数)；k/m/g/t/p 后缀）
-  ///
-  /// libs/server/Servers/ServerOptions.cs:ParseSize
   pub fn parse_size(value: &str) -> (i64, usize) {
-    parse_size_bits(value)
+    parse_size(value)
   }
 
   /// 尝试解析大小规格串（整串消费才成功）
-  ///
-  /// libs/server/Servers/ServerOptions.cs:TryParseSize
   pub fn try_parse_size(value: &str) -> Option<i64> {
-    super::garnet_server_options::try_parse_size(value)
+    try_parse_size(value)
   }
 
   /// 规格串友好展示（浮点收敛至 3 位整数内换档 k/m/g/t/p）
-  ///
-  /// libs/server/Servers/ServerOptions.cs:PrettySize
   pub fn pretty_size(value: i64) -> String {
-    const SUFFIX: [char; 5] = ['k', 'm', 'g', 't', 'p'];
-    let mut v = value as f64;
-    let mut exp: i32 = 0;
-    // 小数部分未收敛：升档放大（C# 同款双循环与舍入位宽）
-    while v - v.floor() > 0.0 {
-      if exp >= 18 {
-        break;
-      }
-      exp += 3;
-      v *= 1024.0;
-      v = (v * 1e12).round() / 1e12;
-    }
-    // 整数位超 3 位：降档缩小
-    while v.floor().format_digit_count() > 3 {
-      if exp <= -18 {
-        break;
-      }
-      exp -= 3;
-      v /= 1024.0;
-      v = (v * 1e12).round() / 1e12;
-    }
-    if exp > 0 {
-      format!("{}{}", trim_float(v), SUFFIX[(exp / 3 - 1) as usize])
-    } else if exp < 0 {
-      format!("{}{}", trim_float(v), SUFFIX[((-exp) / 3 - 1) as usize])
-    } else {
-      trim_float(v)
-    }
+    pretty_size(value)
   }
 
   /// 前一个 2 的幂
-  ///
-  /// libs/server/Servers/ServerOptions.cs:PreviousPowerOf2
   pub fn previous_power_of_2(v: i64) -> i64 {
     previous_power_of_2(v)
   }
 
   /// 下一个 2 的幂
-  ///
-  /// libs/server/Servers/ServerOptions.cs:NextPowerOf2
   pub fn next_power_of_2(v: i64) -> i64 {
     next_power_of_2(v)
   }
@@ -194,37 +155,136 @@ impl ServerOptions {
   }
 }
 
+/// libs/server/Servers/ServerOptions.cs:ParseSize
+///
+/// 解析内存尺寸串（`[0-9]+[kmgtp][b]?`，大小写不敏感）；
+/// 返回字节数与消费的字符数。
+pub fn parse_size(value: &str) -> (i64, usize) {
+  parse_size_bytes(value.as_bytes())
+}
+
+/// [`parse_size`] 的字节切片形态
+pub fn parse_size_bytes(value: &[u8]) -> (i64, usize) {
+  const SUFFIX_EXP: [(u8, u32); 5] = [(b'k', 1), (b'm', 2), (b'g', 3), (b't', 4), (b'p', 5)];
+  let mut result: i64 = 0;
+  let mut bytes_read = 0usize;
+
+  for (i, &c) in value.iter().enumerate() {
+    if c.is_ascii_digit() {
+      result = result.wrapping_mul(10).wrapping_add(i64::from(c - b'0'));
+      bytes_read += 1;
+    } else if let Some((_, exp)) = SUFFIX_EXP.iter().find(|(s, _)| s.eq_ignore_ascii_case(&c)) {
+      result = result.wrapping_mul(1024_i64.pow(*exp));
+      bytes_read += 1;
+      if i + 1 < value.len() && value[i + 1].eq_ignore_ascii_case(&b'b') {
+        bytes_read += 1;
+      }
+      return (result, bytes_read);
+    }
+  }
+  (result, bytes_read)
+}
+
+/// libs/server/Servers/ServerOptions.cs:TryParseSize
+///
+/// 全量消费才算解析成功。
+pub fn try_parse_size(value: &str) -> Option<i64> {
+  try_parse_size_bytes(value.as_bytes())
+}
+
+/// [`try_parse_size`] 的字节切片形态
+pub fn try_parse_size_bytes(value: &[u8]) -> Option<i64> {
+  let (size, chars_read) = parse_size_bytes(value);
+  (chars_read == value.len()).then_some(size)
+}
+
+/// libs/server/Servers/ServerOptions.cs:PreviousPowerOf2
+///
+/// 下取 2 的幂。
+#[must_use]
+pub fn previous_power_of_2(v: i64) -> i64 {
+  let mut v = v;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v |= v >> 32;
+  v - (v >> 1)
+}
+
+/// libs/server/Servers/ServerOptions.cs:NextPowerOf2
+///
+/// 上取 2 的幂。
+#[must_use]
+pub fn next_power_of_2(v: i64) -> i64 {
+  let mut v = v;
+  v = v.wrapping_sub(1);
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v |= v >> 32;
+  v.wrapping_add(1)
+}
+
+/// libs/server/Servers/ServerOptions.cs:PrettySize
+///
+/// 尺寸字节的人类可读形式（自动选 k/m/g/t/p 单位）。
+#[must_use]
+pub fn pretty_size(value: i64) -> String {
+  const SUFFIX: [char; 5] = ['k', 'm', 'g', 't', 'p'];
+  fn round12(v: f64) -> f64 {
+    let scaled = v * 1e12;
+    let bumped = if scaled >= 0.0 {
+      scaled + 0.5
+    } else {
+      scaled - 0.5
+    };
+    bumped.floor() / 1e12
+  }
+
+  let mut v = value as f64;
+  let mut exp: i32 = 0;
+  while v - v.floor() > 0.0 {
+    if exp >= 18 {
+      break;
+    }
+    exp += 3;
+    v *= 1024.0;
+    v = round12(v);
+  }
+  while v.floor().to_string().len() > 3 {
+    if exp <= -18 {
+      break;
+    }
+    exp -= 3;
+    v /= 1024.0;
+    v = round12(v);
+  }
+  if exp > 0 {
+    let c = SUFFIX[(exp / 3 - 1) as usize];
+    format!("{v}{c}")
+  } else if exp < 0 {
+    let idx = (-exp / 3 - 1) as usize;
+    if idx < SUFFIX.len() {
+      let c = SUFFIX[idx];
+      format!("{v}{c}")
+    } else {
+      format!("{v}")
+    }
+  } else {
+    format!("{v}")
+  }
+}
+
 /// 位数的 log2（输入保证为 2 的幂且 > 0；与 garnet_server_options 同式）
 fn log2_exact(v: i64) -> i32 {
   63 - v.leading_zeros() as i32
 }
 
-/// 整数位计数（PrettySize 降档判定的 C# `Math.Floor(v).ToString().Length` 等价）
-trait DigitCount {
-  fn format_digit_count(self) -> usize;
-}
-impl DigitCount for f64 {
-  fn format_digit_count(self) -> usize {
-    let n = self.trunc();
-    if n <= 0.0 {
-      return 1;
-    }
-    let mut digits = 0usize;
-    let mut v = n;
-    while v >= 1.0 {
-      v /= 10.0;
-      digits += 1;
-    }
-    digits
-  }
-}
 
-/// 浮点展示去尾零（C# double.ToString() 的常规形态）
-fn trim_float(v: f64) -> String {
-  let s = format!("{v:.12}");
-  let trimmed = s.trim_end_matches('0').trim_end_matches('.');
-  trimmed.to_string()
-}
 
 #[cfg(test)]
 mod tests {

@@ -87,18 +87,7 @@ pub enum GeoOrder {
   Descending,
 }
 
-/// GEO 距离单位（Garnet.common:GeoDistanceUnitType）
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GeoDistanceUnitType {
-  /// 米
-  M,
-  /// 千米
-  Km,
-  /// 英里
-  Mi,
-  /// 英尺
-  Ft,
-}
+pub use crate::objects::sortedsetgeo::geo_hash::GeoDistanceUnitType;
 
 /// GEOSEARCH 选项集合（Garnet.common:GeoSearchOptions）
 #[derive(Debug, Clone)]
@@ -309,6 +298,10 @@ pub fn try_get_latency_metrics_type(
 /// 33..=126 可打印字符，空串允许（清名语义）；非 UTF-8 视为失败
 pub fn try_get_client_name(parse_state: &SessionParseState, idx: usize) -> Option<&str> {
   let name = parse_state.ext_string(idx)?;
+  try_get_client_name_str(name)
+}
+
+pub fn try_get_client_name_str(name: &str) -> Option<&str> {
   if name.is_empty() {
     return Some(name);
   }
@@ -316,6 +309,11 @@ pub fn try_get_client_name(parse_state: &SessionParseState, idx: usize) -> Optio
     .bytes()
     .all(|c| (33..=126).contains(&c))
     .then_some(name)
+}
+
+pub fn try_get_client_name_bytes(raw: &[u8]) -> Option<&str> {
+  let name = std::str::from_utf8(raw).ok()?;
+  try_get_client_name_str(name)
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetClientType
@@ -735,14 +733,17 @@ pub fn try_get_operation_direction(
   idx: usize,
 ) -> Option<OperationDirection> {
   let arg = parse_state.ext_bytes(idx)?;
-  let value = if eq_upper_ignore_case(arg, b"LEFT") {
-    OperationDirection::Left
+  operation_direction_from_token(arg)
+}
+
+pub fn operation_direction_from_token(arg: &[u8]) -> Option<OperationDirection> {
+  if eq_upper_ignore_case(arg, b"LEFT") {
+    Some(OperationDirection::Left)
   } else if eq_upper_ignore_case(arg, b"RIGHT") {
-    OperationDirection::Right
+    Some(OperationDirection::Right)
   } else {
-    return None;
-  };
-  Some(value)
+    None
+  }
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetSortedSetAddOption
@@ -772,6 +773,10 @@ pub fn try_get_sorted_set_add_option(
 /// libs/server/SessionParseStateExtensions.cs:TryGetExpireOption
 pub fn try_get_expire_option(parse_state: &SessionParseState, idx: usize) -> Option<ExpireOption> {
   let arg = parse_state.ext_bytes(idx)?;
+  expire_option_from_token(arg)
+}
+
+pub fn expire_option_from_token(arg: &[u8]) -> Option<ExpireOption> {
   if eq_upper_ignore_case(arg, b"NX") {
     Some(ExpireOption::Nx)
   } else if eq_upper_ignore_case(arg, b"XX") {

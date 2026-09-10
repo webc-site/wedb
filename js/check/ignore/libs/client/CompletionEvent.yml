@@ -1,0 +1,6 @@
+Initialize: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+Set: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+IsDefault: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+Wait: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+WaitAsync: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+Dispose: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语

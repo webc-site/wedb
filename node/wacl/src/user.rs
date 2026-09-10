@@ -18,7 +18,7 @@ use super::{
   },
   command_permission_set::CommandPermissionSet,
 };
-use crate::types::RespCommand;
+use wresp::RespCommand;
 
 /// Garnet 用户
 pub struct User {

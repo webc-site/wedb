@@ -1,1 +1,6 @@
-GetOrAdd: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+Get: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+GetAsync: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+TryGet: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+Return: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+Dispose: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+GetOrAdd: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现

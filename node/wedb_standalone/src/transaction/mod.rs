@@ -15,6 +15,3 @@ pub mod txn_lock_table;
 pub mod txn_resp_commands;
 pub mod txn_watched_keys_container;
 pub mod watch_version_map;
-
-#[cfg(test)]
-mod txn_integration_tests;

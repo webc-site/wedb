@@ -24,7 +24,7 @@ pub enum HashOperation {
   HSTRLEN = 15,
 }
 
-/// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:HashObject
+/// 内存哈希对象（嵌入式存储层实现，服务层权威实现见 wedb_standalone::objects::hash::HashObject）
 ///
 /// 刻意差异（对照 C#）：C# 携带 `expirationTimes`/`expirationQueue` 字段支撑
 /// HEXPIRE/HTTL 字段级过期；Rust 侧过期统一由 wkv TTL 记录层承担，本结构
@@ -40,7 +40,7 @@ impl HashObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
+  /// 从二进制流反序列化内存哈希对象
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -57,7 +57,7 @@ impl HashObject {
     Ok(Self { hash })
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:Serialize
+  /// 序列化内存哈希对象为二进制流
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let pin = self.hash.pin();
     let mut items = Vec::with_capacity(pin.len());
@@ -68,7 +68,7 @@ impl HashObject {
     writer.write_all(&bytes)
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashObject.cs:Operate
+  /// 内存哈希对象操作派发
   pub fn operate(&self, op: HashOperation, key: &[u8], value: &[u8]) -> Option<Vec<u8>> {
     let pin = self.hash.pin();
     match op {

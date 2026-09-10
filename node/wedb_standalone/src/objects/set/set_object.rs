@@ -63,7 +63,7 @@ impl SetObject {
 
   /// 从 C# BinaryWriter 序列化格式反序列化
   ///
-  /// libs/server/Objects/Set/SetObject.cs:SetObject(BinaryReader)
+  /// BinaryReader 反序列化构造 (SetObject.cs BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut obj = Self::new();
 

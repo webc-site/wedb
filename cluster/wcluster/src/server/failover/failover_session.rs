@@ -82,7 +82,7 @@ impl FailoverSession {
     FailoverStatus::from_repr(self.status.load(Ordering::Acquire)).unwrap_or_default()
   }
 
-  /// libs/cluster/Server/Failover/FailoverSession.cs:status setter
+  /// Setter for status (FailoverSession.cs status.set)
   #[inline]
   fn set_status(&self, status: FailoverStatus) {
     self.status.store(status as u8, Ordering::Release);

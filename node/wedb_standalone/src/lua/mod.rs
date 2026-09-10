@@ -11,7 +11,6 @@ pub mod lua_runner__strings;
 pub mod lua_state_wrapper;
 pub mod lua_timeout_manager;
 pub mod lua_tracked_allocator;
-pub mod native_methods;
 pub mod scratch_buffer_network_sender;
 pub mod script_hash_key;
 pub mod scripting_api;

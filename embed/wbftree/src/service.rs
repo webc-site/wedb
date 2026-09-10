@@ -276,7 +276,7 @@ impl BfTreeService {
     config
   }
 
-  /// 便捷创建磁盘文件后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new BfTreeService(filePath: path, ...))
+  /// 便捷创建磁盘文件后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs 中构造 BfTreeService(filePath: path, ...))
   pub fn open_disk(path: impl AsRef<Path>, cb_min_record_size: usize) -> Result<Self> {
     let p = path.as_ref();
     if p.as_os_str().is_empty() {
@@ -298,7 +298,7 @@ impl BfTreeService {
     )
   }
 
-  /// 便捷创建纯内存后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new BfTreeService(storageBackend: Memory, ...))
+  /// 便捷创建纯内存后端树实例 (1:1 对标 libs/cluster/Server/Gossip/Gossip.cs 中构造 BfTreeService(storageBackend: Memory, ...))
   pub fn open_memory(cb_min_record_size: usize) -> Result<Self> {
     let mut config = Self::preset_config(cb_min_record_size);
     config.cache_only(true);

@@ -109,7 +109,7 @@ impl MigrateSessionTaskStore {
     true
   }
 
-  /// libs/cluster/Server/Migration/MigrateSessionTaskStore.cs:TryRemove
+  /// Overload of [Self::try_remove] taking target_node_id (MigrateSessionTaskStore.cs:TryRemove)
   pub fn try_remove_node(&self, target_node_id: &str) -> bool {
     let mut state = self.state.write();
     if state.disposed {

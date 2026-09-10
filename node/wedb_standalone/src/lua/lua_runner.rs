@@ -564,7 +564,7 @@ impl LuaRunner {
     Ok(runner)
   }
 
-  /// libs/server/Lua/LuaRunner.cs:LuaRunner（options 构造重载）
+  /// Options 构造重载 (LuaRunner(options))
   pub fn with_options(
     options: &LuaOptions,
     source: &[u8],
