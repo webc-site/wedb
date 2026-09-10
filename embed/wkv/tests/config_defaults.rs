@@ -24,7 +24,7 @@ fn store_config_compaction_defaults() -> Void {
   assert_eq!(d.max_batch_deletes, DEFAULT_GC_MAX_BATCH_DELETES);
 
   // auto()/auto_with_budget()（wedb_server 全新开库路径）与 minimal()/new()
-  // （嵌入式与测试路径）约定一致：GC 默认关闭，开启走 GcConfig::tuned() 或 with_gc
+  // （嵌入式与测试路径）约定一致：GC 默认关闭，开启经 GcConfig 显式字段注入
   assert_eq!(StoreConfig::auto().gc, GcConfig::default());
   assert_eq!(
     StoreConfig::auto_with_budget(1 << 30).gc,
@@ -36,8 +36,13 @@ fn store_config_compaction_defaults() -> Void {
   let custom = StoreConfig::new(1024, 64 * 1024, 16, 0.5)?;
   assert_eq!(custom.gc, GcConfig::default());
 
-  // tuned() 一行开启生产推荐值：5s 主动扫描 + 60s 紧缩判定
-  let tuned = GcConfig::tuned();
+  // 显式开启生产推荐值：5s 主动扫描 + 60s 紧缩判定
+  let tuned = GcConfig {
+    enabled: true,
+    scan_interval_ms: DEFAULT_GC_SCAN_INTERVAL_MS,
+    compaction_interval_ms: DEFAULT_GC_COMPACTION_INTERVAL_MS,
+    ..GcConfig::default()
+  };
   assert!(tuned.enabled);
   assert_eq!(tuned.scan_interval_ms, DEFAULT_GC_SCAN_INTERVAL_MS);
   assert_eq!(
@@ -45,8 +50,9 @@ fn store_config_compaction_defaults() -> Void {
     DEFAULT_GC_COMPACTION_INTERVAL_MS
   );
 
-  // builder 风格 setter 链式覆写（紧缩频率经 with_gc 注入，与现有 with_* 口径一致）
-  let with_gc = StoreConfig::minimal().with_gc(tuned.clone());
+  // 字段直改覆写（与现有 with_* 构造口径等价）
+  let mut with_gc = StoreConfig::minimal();
+  with_gc.gc = tuned.clone();
   assert_eq!(with_gc.gc, tuned);
 
   OK

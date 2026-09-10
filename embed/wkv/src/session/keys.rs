@@ -29,60 +29,6 @@ impl<D: Device> StoreSession<D> {
     NamespaceDbCodec::encode_meta_key(0, 0, user_key)
   }
 
-  /// 静态辅助：构造指定会话前缀的集合元数据物理键
-  #[inline(always)]
-  pub fn meta_key_with_prefix(prefix: &[u8], user_key: &[u8]) -> TaggedKeyBuf {
-    NamespaceDbCodec::encode_with_session_prefix(prefix, KeyTag::Meta, user_key)
-  }
-
-  /// 生成当前会话专属方案 A 哈希字段子键
-  #[inline(always)]
-  pub fn hash_sub_key(&self, key_id: u64, version: u64, field: &[u8]) -> TaggedKeyBuf {
-    let prefix = self.session_prefix();
-    NamespaceDbCodec::encode_sub_key_with_prefix(
-      prefix.as_slice(),
-      KeyTag::Hash,
-      key_id,
-      version,
-      field,
-    )
-  }
-
-  /// 静态辅助：基于指定前缀切片生成方案 A 哈希字段子键
-  #[inline(always)]
-  pub fn hash_sub_key_with_prefix(
-    prefix: &[u8],
-    key_id: u64,
-    version: u64,
-    field: &[u8],
-  ) -> TaggedKeyBuf {
-    NamespaceDbCodec::encode_sub_key_with_prefix(prefix, KeyTag::Hash, key_id, version, field)
-  }
-
-  /// 生成当前会话专属方案 A 集合成员子键
-  #[inline(always)]
-  pub fn set_sub_key(&self, key_id: u64, version: u64, member: &[u8]) -> TaggedKeyBuf {
-    let prefix = self.session_prefix();
-    NamespaceDbCodec::encode_sub_key_with_prefix(
-      prefix.as_slice(),
-      KeyTag::Set,
-      key_id,
-      version,
-      member,
-    )
-  }
-
-  /// 静态辅助：基于指定前缀切片生成方案 A 集合成员子键
-  #[inline(always)]
-  pub fn set_sub_key_with_prefix(
-    prefix: &[u8],
-    key_id: u64,
-    version: u64,
-    member: &[u8],
-  ) -> TaggedKeyBuf {
-    NamespaceDbCodec::encode_sub_key_with_prefix(prefix, KeyTag::Set, key_id, version, member)
-  }
-
   /// 生成当前会话专属方案 A 集合分块子键 (定长 23B，栈优先 64B L1 Cache 对齐，零堆分配)
   #[inline(always)]
   pub fn chunk_key(&self, tag: KeyTag, key_id: u64, version: u64, chunk_id: u32) -> TaggedKeyBuf {
@@ -94,18 +40,6 @@ impl<D: Device> StoreSession<D> {
       version,
       chunk_id,
     )
-  }
-
-  /// 生成当前会话专属方案 A 哈希字段分块子键
-  #[inline(always)]
-  pub fn hash_chunk_key(&self, key_id: u64, version: u64, chunk_id: u32) -> TaggedKeyBuf {
-    self.chunk_key(KeyTag::HashChunk, key_id, version, chunk_id)
-  }
-
-  /// 生成当前会话专属方案 A 集合成员分块子键
-  #[inline(always)]
-  pub fn set_chunk_key(&self, key_id: u64, version: u64, chunk_id: u32) -> TaggedKeyBuf {
-    self.chunk_key(KeyTag::SetChunk, key_id, version, chunk_id)
   }
 
   /// 从完整 TTL 物理键反解 `(ns, db, 用户键)`（供后台过期扫描器逆解，零堆分配）
