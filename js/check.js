@@ -216,13 +216,13 @@ const dupDefFind = (fn_doc_li) => {
 const dupDefFormat = (dup_li) => {
   if (dup_li.length === 0) return [];
 
-  const line_li = ["# 重复定义 (" + dup_li.length + ")"];
+  const line_li = ["# 重复定义:"];
 
   for (const [cs_ref, loc_li] of dup_li) {
-    line_li.push(cs_ref + " (" + loc_li.length + ")");
+    line_li.push(cs_ref + ":");
     for (const loc of loc_li) {
       const fn_desc = loc.fn_path ? " (" + loc.fn_path + ")" : "";
-      line_li.push("  " + loc.file + ":" + loc.line + fn_desc);
+      line_li.push("  - " + loc.file + ":" + loc.line + fn_desc);
     }
   }
 
