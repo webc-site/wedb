@@ -21,12 +21,12 @@ use std::{
   },
 };
 
-use papaya::HashMap;
 use parking_lot::{Mutex, RwLock};
+use whasher::{GxPapayaMap as HashMap, new_papaya_map};
 
 /// 键观察者队列（按订阅顺序；对应 C# ConcurrentQueue<CollectionItemObserver>）
 type ObserverQueue = Mutex<VecDeque<Arc<CollectionItemObserver>>>;
-/// 观察键 → 观察者队列映射
+/// 观察键 → 观察者队列映射（gxhash 构建器，全项目并发容器唯一出处约束）
 type KeysToObservers = HashMap<Vec<u8>, ObserverQueue>;
 use wobject::list::list_object::{ListObject, OperationDirection};
 
@@ -114,7 +114,7 @@ impl CollectionItemBroker {
     Self {
       broker_events_queue: Mutex::new(VecDeque::new()),
       events_notify: Wakeup::new(),
-      session_id_to_observer: HashMap::new(),
+      session_id_to_observer: new_papaya_map(),
       keys_to_observers: RwLock::new(None),
       keys_to_observers_time_last_clean: Mutex::new(coarsetime::Instant::now()),
       store,
@@ -366,7 +366,7 @@ impl CollectionItemBroker {
     }
 
     // 未取到项：挂队到每个观察键
-    let m = map.get_or_insert_with(HashMap::new);
+    let m = map.get_or_insert_with(new_papaya_map);
     let pin = m.pin();
     for key in keys {
       match pin.get(key) {

@@ -57,13 +57,21 @@ impl LatencyMetricsEntrySession {
   /// libs/server/Metrics/Latency/LatencyMetricsEntrySession.cs:RecordValue(ver)
   ///
   /// 以当前时钟结束进行中的操作并记入版本 `ver`；无进行中操作时忽略。
+  /// 与双参重载不同：此处 elapsed == 0 时 `IsValidRange` 必假，按 C# 语义
+  /// 饱和记入上界（而非跳过）。
   #[inline]
   pub fn record_value(&mut self, ver: usize, now_ticks: u64) {
     if self.start_timestamp == 0 {
       return;
     }
-    let elapsed = now_ticks.saturating_sub(self.start_timestamp);
-    self.record_elapsed(ver, elapsed as i64);
+    let elapsed = now_ticks.saturating_sub(self.start_timestamp) as i64;
+    let value = if Self::is_valid_range(elapsed) {
+      elapsed as u64
+    } else {
+      Self::HISTOGRAM_UPPER_BOUND
+    };
+    // 记录失败仅可能因越界，已收敛上界，故忽略返回值。
+    let _ = self.latency[ver].record(value);
     self.start_timestamp = 0;
   }
 
