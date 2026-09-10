@@ -126,6 +126,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZREM：批量移除成员
   ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(ZREM)=false，不物化空有序集合）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemove
   pub async fn sorted_set_remove(
     &self,
@@ -145,6 +147,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND（C# NeedToCreate(ZREM)=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
@@ -153,6 +157,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// ZREMRANGEBYLEX：按字典序区间移除
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(ZREMRANGEBYLEX)=false）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByLex
   pub async fn sorted_set_remove_range_by_lex(
@@ -176,6 +182,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND（C# NeedToCreate=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
@@ -184,6 +192,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// ZREMRANGEBYSCORE：按分值区间移除（端点开闭语义见 [`parse_score_bound`]）
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(ZREMRANGEBYSCORE)=false）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByScore
   pub async fn sorted_set_remove_range_by_score(
@@ -211,6 +221,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND（C# NeedToCreate=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
@@ -219,6 +231,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// ZREMRANGEBYRANK：按排名闭区间移除
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(ZREMRANGEBYRANK)=false）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRemoveRangeByRank
   pub async fn sorted_set_remove_range_by_rank(
@@ -242,6 +256,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND（C# NeedToCreate=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
@@ -250,6 +266,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// ZPOPMIN/ZPOPMAX：按分值端点弹出
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate=false，RESP 层据此写空数组）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetPop
   pub async fn sorted_set_pop(
@@ -286,6 +304,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match popped {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
+      // 键缺失：NOTFOUND（C# NeedToCreate(ZPOPMIN/ZPOPMAX)=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, Vec::new())),
       outcome => {
         let out = self.finalize_removal(key, outcome, Vec::new()).await?;
         Ok((GarnetStatus::Ok, out))
@@ -805,10 +825,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
       let w = weights.get(i).copied().unwrap_or(1.0);
       let obj = match self.zset_load(key).await? {
         Err(s) => return Ok((s, Vec::new())),
-        // 缺键按空集：并语义跳过，交语义短路
+        // 缺键按空集：并语义跳过；交语义短路为空（对齐 C# SortedSetIntersection
+        // 的 NOTFOUND 分支：pairs 清空后立即返回，不得携带前序键的累加结果）
         Ok(None) => {
           if intersect {
-            break;
+            return Ok((GarnetStatus::Ok, Vec::new()));
           }
           continue;
         }
