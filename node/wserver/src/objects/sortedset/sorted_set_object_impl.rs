@@ -5,6 +5,11 @@
 
 use std::{cmp::Ordering, mem::swap};
 
+use wutil::convert::{
+  milliseconds_from_diff_ticks, seconds_from_diff_ticks, unix_time_in_milliseconds_from_ticks,
+  unix_time_in_seconds_from_ticks,
+};
+
 use crate::{
   inputs::ObjectInput,
   objects::{
@@ -1064,14 +1069,14 @@ impl SortedSetObject {
       if result >= 0 {
         result = if is_timestamp {
           if is_milliseconds {
-            wutil::convert::unix_time_in_milliseconds_from_ticks(result)
+            unix_time_in_milliseconds_from_ticks(result)
           } else {
-            wutil::convert::unix_time_in_seconds_from_ticks(result)
+            unix_time_in_seconds_from_ticks(result)
           }
         } else if is_milliseconds {
-          wutil::convert::milliseconds_from_diff_ticks(result, now)
+          milliseconds_from_diff_ticks(result, now)
         } else {
-          wutil::convert::seconds_from_diff_ticks(result, now)
+          seconds_from_diff_ticks(result, now)
         };
       }
 
