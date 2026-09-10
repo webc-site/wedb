@@ -29,6 +29,7 @@ pub mod lua;
 pub mod metrics;
 pub mod objects;
 pub mod providers;
+pub mod pubsub;
 pub mod resp;
 pub mod server_config;
 pub mod servers;
