@@ -88,8 +88,8 @@ export default garnetScan;
 if (import.meta.main) {
   const t0 = performance.now(),
     [fn_map, test_map] = await garnetScan(),
-    fn_count = Object.values(fn_map).reduce((total, list) => total + list.length, 0),
-    test_count = Object.values(test_map).reduce((total, list) => total + list.length, 0),
+    fn_count = Object.values(fn_map).reduce((total, sub_li) => total + sub_li.length, 0),
+    test_count = Object.values(test_map).reduce((total, sub_li) => total + sub_li.length, 0),
     file_count = new Set([...Object.keys(fn_map), ...Object.keys(test_map)]).size,
     elapsed_ms = (performance.now() - t0).toFixed(1);
 

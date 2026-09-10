@@ -99,12 +99,11 @@ const ignoreLoadAndPrune = async (doc_file_fn_map) => {
       continue;
     }
 
+    // 标准化为字典结构：{ [函数名]: 为什么无需实现 }
     const rel_path = relative(IGNORE_DIR, yml_path),
       cs_path = rel_path.replace(/\.cs\.ya?ml$/, ".cs").replace(/\.ya?ml$/, ".cs"),
-      documented_set = doc_file_fn_map?.get(cs_path);
-
-    // 标准化为字典结构：{ [函数名]: 为什么无需实现 }
-    const dict = {};
+      documented_set = doc_file_fn_map?.get(cs_path),
+      dict = {};
     if (Array.isArray(data)) {
       for (const item of data) {
         if (typeof item === "string") dict[item] = "无需实现";
@@ -229,6 +228,47 @@ const dupDefFormat = (dup_li) => {
   return line_li;
 };
 
+const nodeFormat = (node, indent = "") => {
+  const key_li = Object.keys(node).sort(),
+    line_li = [];
+
+  for (const key of key_li) {
+    const sub_node = node[key],
+      is_dir = Object.keys(sub_node).length > 0;
+
+    if (is_dir) {
+      let curr_node = sub_node,
+        sub_key_li = Object.keys(curr_node),
+        combined_key = key;
+
+      while (sub_key_li.length === 1 && Object.keys(curr_node[sub_key_li[0]]).length > 0) {
+        combined_key += "/" + sub_key_li[0];
+        curr_node = curr_node[sub_key_li[0]];
+        sub_key_li = Object.keys(curr_node);
+      }
+
+      line_li.push(indent + combined_key + "/");
+      line_li.push(...nodeFormat(curr_node, indent + "  "));
+    } else {
+      line_li.push(indent + key.replace(/\.ya?ml$/, ""));
+    }
+  }
+  return line_li;
+};
+
+const pathTreeFormat = (path_li) => {
+  const root = {};
+  for (const file_path of path_li) {
+    const part_li = file_path.split("/");
+    let curr = root;
+    for (const part of part_li) {
+      curr[part] = curr[part] ?? {};
+      curr = curr[part];
+    }
+  }
+  return nodeFormat(root);
+};
+
 const check = async () => {
   const [fn_map, test_map] = await garnetScan(GARNET_DIR),
     [doc_set, doc_file_fn_map, fn_doc_li] = await rustScan(ROOT_DIR),
@@ -280,48 +320,6 @@ const check = async () => {
 
   const miss_file_li = [...active_miss_map.keys()];
   miss_file_li.sort();
-
-  const pathTreeFormat = (path_li) => {
-    const root = {};
-    for (const file_path of path_li) {
-      const part_li = file_path.split("/");
-      let curr = root;
-      for (const part of part_li) {
-        curr[part] = curr[part] ?? {};
-        curr = curr[part];
-      }
-    }
-
-    const nodeFormat = (node, indent = "") => {
-      const key_li = Object.keys(node).sort(),
-        line_li = [];
-
-      for (const key of key_li) {
-        const sub_node = node[key],
-          is_dir = Object.keys(sub_node).length > 0;
-
-        if (is_dir) {
-          let curr_node = sub_node,
-            sub_key_li = Object.keys(curr_node),
-            combined_key = key;
-
-          while (sub_key_li.length === 1 && Object.keys(curr_node[sub_key_li[0]]).length > 0) {
-            combined_key += "/" + sub_key_li[0];
-            curr_node = curr_node[sub_key_li[0]];
-            sub_key_li = Object.keys(curr_node);
-          }
-
-          line_li.push(indent + combined_key + "/");
-          line_li.push(...nodeFormat(curr_node, indent + "  "));
-        } else {
-          line_li.push(indent + key.replace(/\.ya?ml$/, ""));
-        }
-      }
-      return line_li;
-    };
-
-    return nodeFormat(root);
-  };
 
   const tree_li = pathTreeFormat(miss_file_li);
   if (tree_li.length > 0) {
