@@ -155,7 +155,8 @@ fn test_object_stores() -> aok::Void {
     );
     let (_, removed) = ss.hash_delete(b"h", &[b"f1", b"f2"]).await?;
     assert_eq!(removed, 2);
-    assert_eq!(ss.hash_length(b"h").await?, (GarnetStatus::Ok, 0)); // 键已回收
+    // 键已回收：HLEN 缺键 NOTFOUND（C# ReadObjectStoreOperation 三态）
+    assert_eq!(ss.hash_length(b"h").await?, (GarnetStatus::NotFound, 0));
 
     // WRONGTYPE：字符串值上执行哈希读
     ss.upsert_string(b"s", b"plain").await?;
@@ -197,7 +198,8 @@ fn test_object_stores() -> aok::Void {
     assert_eq!(range, vec![b"a".to_vec(), b"b".to_vec()]);
     ss.list_pop_multiple(b"l", 10, OperationDirection::Left)
       .await?;
-    assert_eq!(ss.list_length(b"l").await?, (GarnetStatus::Ok, 0));
+    // 弹空整键回收：LLEN 缺键 NOTFOUND
+    assert_eq!(ss.list_length(b"l").await?, (GarnetStatus::NotFound, 0));
 
     // 有序集合：ZADD / ZRANGE / ZRANK / ZPOPMIN / 交集
     let members = [
@@ -508,7 +510,7 @@ fn test_review_r1_regressions() -> aok::Void {
       .await?;
     let (s, v) = ss.list_pop(b"l1", OperationDirection::Left).await?;
     assert_eq!((s, v), (GarnetStatus::Ok, Some(b"x".to_vec())));
-    assert_eq!(ss.list_length(b"l1").await?, (GarnetStatus::Ok, 0));
+    assert_eq!(ss.list_length(b"l1").await?, (GarnetStatus::NotFound, 0));
 
     ss.sorted_set_add(b"zp", &[(b"m".as_slice(), 1.0)], false, false, false, false)
       .await?;
@@ -618,7 +620,7 @@ fn test_review_r1_regressions() -> aok::Void {
     ss.list_push(b"l2", &[b"a"], OperationDirection::Left, false)
       .await?;
     assert_eq!(ss.list_trim(b"l2", 5, 10).await?, GarnetStatus::Ok);
-    assert_eq!(ss.list_length(b"l2").await?, (GarnetStatus::Ok, 0));
+    assert_eq!(ss.list_length(b"l2").await?, (GarnetStatus::NotFound, 0));
 
     // ---- ZUNION 结果按 (score, member) 排名序 ----
     ss.sorted_set_add(
@@ -1079,6 +1081,271 @@ fn test_review_rr1_csharp_semantics() -> aok::Void {
       Some(vec![0xAB, 0xCD]),
       "u16 位域须完整落盘两个字节"
     );
+
+    Ok(())
+  })
+}
+
+/// review rr3 回归：读路径缺键状态全量对齐 C# ReadObjectStoreOperation 三态
+///（缺键 NOTFOUND / 类型错 WRONGTYPE / 命中 OK）、ZEXPIRE/ZPERSIST 缺键
+/// NOTFOUND、ZRANGESTORE 缺失源删目标键返 0、GEO 键级三态、RENAMENX 判定序
+#[test]
+fn test_review_rr3_missing_key_matrix() -> aok::Void {
+  use wserver::{
+    api::i_garnet_api::IGarnetApi, storage::session::objectstore::sorted_set_geo_ops::GeoCmd,
+  };
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store) = open_store("rr3.db")?;
+    let session = store.new_session()?;
+    let ss = storage_session(&session);
+
+    // ---- 哈希读族：缺键 NOTFOUND ----
+    assert_eq!(
+      ss.hash_get(b"h_absent", b"f").await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.hash_get_multiple(b"h_absent", &[b"f1", b"f2"]).await?,
+      (GarnetStatus::NotFound, vec![None, None]),
+      "HMGET 缺键 NOTFOUND + 逐字段占位"
+    );
+    assert_eq!(
+      ss.hash_get_all(b"h_absent").await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.hash_length(b"h_absent").await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.hash_exists(b"h_absent", b"f").await?,
+      (GarnetStatus::NotFound, false)
+    );
+    assert_eq!(
+      ss.hash_random_field(b"h_absent", 2, false).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.hash_str_length(b"h_absent", b"f").await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.hash_keys(b"h_absent").await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.hash_vals(b"h_absent").await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    let (s, cursor, items) = IGarnetApi::hash_scan(&ss, b"h_absent", b"", b"", 10).await?;
+    assert_eq!(
+      (s, cursor.is_empty(), items.is_empty()),
+      (GarnetStatus::NotFound, true, true)
+    );
+
+    // HSCAN 错误类型键：WRONGTYPE 不再被吞
+    ss.upsert_string(b"str", b"plain").await?;
+    let (s, ..) = IGarnetApi::hash_scan(&ss, b"str", b"", b"", 10).await?;
+    assert_eq!(s, GarnetStatus::WrongType, "HSCAN 类型错须传播 WRONGTYPE");
+    let (s, ..) = IGarnetApi::set_scan(&ss, b"str", b"", b"", 10).await?;
+    assert_eq!(s, GarnetStatus::WrongType, "SSCAN 类型错须传播 WRONGTYPE");
+    let (s, ..) = IGarnetApi::sorted_set_scan(&ss, b"str", b"", b"", 10).await?;
+    assert_eq!(s, GarnetStatus::WrongType, "ZSCAN 类型错须传播 WRONGTYPE");
+
+    // ---- 列表读族：缺键 NOTFOUND ----
+    assert_eq!(
+      ss.list_length(b"l_absent").await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.list_range(b"l_absent", 0, -1).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.list_index(b"l_absent", 0).await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.list_position(b"l_absent", b"e", 1, None).await?,
+      (GarnetStatus::NotFound, None)
+    );
+
+    // ---- 集合读族：缺键 NOTFOUND ----
+    assert_eq!(
+      ss.set_length(b"s_absent").await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.set_members(b"s_absent").await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.set_is_member(b"s_absent", b"m").await?,
+      (GarnetStatus::NotFound, false)
+    );
+    assert_eq!(
+      ss.set_random_member(b"s_absent", 2).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+
+    // ---- 有序集合读族：缺键 NOTFOUND ----
+    assert_eq!(
+      ss.sorted_set_length(b"z_absent").await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_range(b"z_absent", 0, -1, false, false)
+        .await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.sorted_set_score(b"z_absent", b"m").await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.sorted_set_scores(b"z_absent", &[b"m"]).await?,
+      (GarnetStatus::NotFound, vec![None])
+    );
+    assert_eq!(
+      ss.sorted_set_rank(b"z_absent", b"m", false).await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.sorted_set_count(b"z_absent", b"-inf", b"+inf").await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_length_by_value(b"z_absent", b"-", b"+")
+        .await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_random_member(b"z_absent", 2, false).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+
+    // ---- ZEXPIRE / ZPERSIST：缺键 NOTFOUND；键在无 TTL 为 (Ok, false) ----
+    assert_eq!(
+      ss.sorted_set_expire(b"z_absent", 1000).await?,
+      (GarnetStatus::NotFound, false)
+    );
+    assert_eq!(
+      ss.sorted_set_persist(b"z_absent").await?,
+      (GarnetStatus::NotFound, false)
+    );
+    ss.sorted_set_add(
+      b"zlive",
+      &[(b"m".as_slice(), 1.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    assert_eq!(
+      ss.sorted_set_persist(b"zlive").await?,
+      (GarnetStatus::Ok, false),
+      "键在但无 TTL：OK + 0"
+    );
+    assert_eq!(
+      ss.sorted_set_expire(b"zlive", 60_000).await?,
+      (GarnetStatus::Ok, true)
+    );
+    assert_eq!(
+      ss.sorted_set_persist(b"zlive").await?,
+      (GarnetStatus::Ok, true)
+    );
+
+    // ---- ZRANGESTORE：缺失源 → 删目标键 + (Ok, 0)（C# NOTFOUND 分支）----
+    ss.upsert_string(b"zrt_dest", b"old").await?;
+    assert_eq!(
+      ss.sorted_set_range_store(b"zrt_dest", b"z_absent", 0, -1, false)
+        .await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(
+      ss.exists(b"zrt_dest").await?,
+      GarnetStatus::NotFound,
+      "缺失源须回收既有目标键"
+    );
+    // 源存在但区间为空：同样删目标键返 0
+    ss.sorted_set_add(
+      b"zrt_src",
+      &[(b"a".as_slice(), 1.0)],
+      false,
+      false,
+      false,
+      false,
+    )
+    .await?;
+    ss.upsert_string(b"zrt_dest2", b"old").await?;
+    assert_eq!(
+      ss.sorted_set_range_store(b"zrt_dest2", b"zrt_src", 5, 9, false)
+        .await?,
+      (GarnetStatus::Ok, 0)
+    );
+    assert_eq!(ss.exists(b"zrt_dest2").await?, GarnetStatus::NotFound);
+    // 正常切片写入
+    assert_eq!(
+      ss.sorted_set_range_store(b"zrt_dest3", b"zrt_src", 0, -1, false)
+        .await?,
+      (GarnetStatus::Ok, 1)
+    );
+    assert_eq!(ss.exists(b"zrt_dest3").await?, GarnetStatus::Ok);
+
+    // ---- GEO：键级三态（C# GeoCommands → ReadObjectStoreOperation）----
+    let (s, out) = ss
+      .geo_commands(b"geo_absent", GeoCmd::Hash(&[b"m"]))
+      .await?;
+    assert_eq!((s, out.is_empty()), (GarnetStatus::NotFound, true));
+    let (s, out) = ss.geo_commands(b"geo_absent", GeoCmd::Pos(&[b"m"])).await?;
+    assert_eq!((s, out.is_empty()), (GarnetStatus::NotFound, true));
+    assert_eq!(
+      ss.geo_commands(b"geo_absent", GeoCmd::Dist(b"a", b"b"))
+        .await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    // 键命中但成员缺失：OK + nil 占位
+    ss.geo_add(b"geo1", &[(2.35, 48.85, &b"paris"[..])], false, false)
+      .await?;
+    assert_eq!(
+      ss.geo_commands(b"geo1", GeoCmd::Dist(b"paris", b"london"))
+        .await?,
+      (GarnetStatus::Ok, vec![None]),
+      "GEODIST 成员缺失：OK + nil"
+    );
+    assert_eq!(
+      ss.geo_commands(b"geo1", GeoCmd::Hash(&[b"london"])).await?,
+      (GarnetStatus::Ok, vec![None])
+    );
+
+    // ---- RENAMENX 判定序（C# 先查新键后查旧键）----
+    ss.upsert_string(b"rn_new", b"v").await?;
+    // 旧键缺失 + 新键存在：(Ok, 0)——不得因旧键缺失而报 NOTFOUND
+    assert_eq!(
+      ss.renamenx(b"rn_old_absent", b"rn_new").await?,
+      (GarnetStatus::Ok, 0)
+    );
+    // 旧键缺失 + 新键缺失：NOTFOUND（result 对齐 C# 初值 -1）
+    assert_eq!(
+      ss.renamenx(b"rn_old_absent", b"rn_new_absent").await?,
+      (GarnetStatus::NotFound, -1)
+    );
+    // RENAME 旧键缺失：NOTFOUND
+    assert_eq!(
+      ss.handle_rename(b"rn_old_absent", b"any").await?,
+      GarnetStatus::NotFound
+    );
+    // 新键存在时 RENAME（nx=false）：正常覆写搬移
+    ss.upsert_string(b"rn_src", b"sv").await?;
+    assert_eq!(
+      ss.handle_rename(b"rn_src", b"rn_new").await?,
+      GarnetStatus::Ok
+    );
+    assert_eq!(ss.read_string(b"rn_new").await?, Some(b"sv".to_vec()));
+    assert_eq!(ss.exists(b"rn_src").await?, GarnetStatus::NotFound);
 
     Ok(())
   })

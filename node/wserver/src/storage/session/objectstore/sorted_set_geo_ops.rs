@@ -54,40 +54,56 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// GEO 子命令统一分发入口
   ///
+  /// 键级三态先行：缺键 NOTFOUND / 错误类型 WRONGTYPE（对齐 C# GeoCommands
+  /// → ReadObjectStoreOperation）；键命中后成员缺失以 nil 占位（OK 应答）。
+  /// 键单次装载，成员查询共用同一字典快照。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetGeoOps.cs:GeoCommands
   pub async fn geo_commands(
     &self,
     key: &[u8],
     cmd: GeoCmd<'_>,
   ) -> wkv::Result<(GarnetStatus, Vec<Option<Vec<u8>>>)> {
+    let obj = match self.zset_load(key).await? {
+      Err(s) => return Ok((s, Vec::new())),
+      Ok(None) => return Ok((GarnetStatus::NotFound, Vec::new())),
+      Ok(Some(o)) => o,
+    };
     match cmd {
       GeoCmd::Dist(m1, m2) => {
-        let (_, s1) = self.sorted_set_score(key, m1).await?;
-        let (_, s2) = self.sorted_set_score(key, m2).await?;
-        let (Some(a), Some(b)) = (s1, s2) else {
-          return Ok((GarnetStatus::NotFound, Vec::new()));
+        let pin = obj.dict.pin();
+        let (Some(a), Some(b)) = (pin.get(m1).copied(), pin.get(m2).copied()) else {
+          // 成员缺失：OK 应答 nil（C# 键命中后由对象层写 null）
+          return Ok((GarnetStatus::Ok, vec![None]));
         };
         let dist = haversine_m(geohash_decode(a), geohash_decode(b));
         let text = format!("{dist:.4}");
         Ok((GarnetStatus::Ok, vec![Some(text.into_bytes())]))
       }
       GeoCmd::Hash(members) => {
-        let mut out = Vec::with_capacity(members.len());
-        for m in members {
-          let (_, score) = self.sorted_set_score(key, m).await?;
-          out.push(score.map(|s| format!("{}", s as i64).into_bytes()));
-        }
+        let pin = obj.dict.pin();
+        let out = members
+          .iter()
+          .map(|m| {
+            pin
+              .get(*m)
+              .copied()
+              .map(|s| format!("{}", s as i64).into_bytes())
+          })
+          .collect();
         Ok((GarnetStatus::Ok, out))
       }
       GeoCmd::Pos(members) => {
-        let mut out = Vec::with_capacity(members.len());
-        for m in members {
-          let (_, score) = self.sorted_set_score(key, m).await?;
-          out.push(score.map(|s| {
-            let (lon, lat) = geohash_decode(s);
-            format!("{lon:.6},{lat:.6}").into_bytes()
-          }));
-        }
+        let pin = obj.dict.pin();
+        let out = members
+          .iter()
+          .map(|m| {
+            pin.get(*m).copied().map(|s| {
+              let (lon, lat) = geohash_decode(s);
+              format!("{lon:.6},{lat:.6}").into_bytes()
+            })
+          })
+          .collect();
         Ok((GarnetStatus::Ok, out))
       }
     }

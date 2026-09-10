@@ -72,6 +72,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HGET：取单字段
   ///
+  /// 键缺失返回 NOTFOUND（C# ReadObjectStoreOperation 缺键三态口径）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashGet
   pub async fn hash_get(
     &self,
@@ -79,7 +81,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     field: &[u8],
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, None)),
+      ObjState::Absent => Ok((GarnetStatus::NotFound, None)),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, None)),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
@@ -93,6 +95,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HMGET：取多字段（缺失字段占位 None）
   ///
+  /// 键缺失返回 NOTFOUND（载荷仍按字段数占位 None，对齐 C# RESP 层
+  /// NOTFOUND 分支的逐字段 nil 数组渲染）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashGetMultiple
   pub async fn hash_get_multiple(
     &self,
@@ -100,7 +105,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
     fields: &[&[u8]],
   ) -> wkv::Result<(GarnetStatus, Vec<Option<Vec<u8>>>)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, fields.iter().map(|_| None).collect())),
+      ObjState::Absent => Ok((
+        GarnetStatus::NotFound,
+        fields.iter().map(|_| None).collect(),
+      )),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
@@ -116,13 +124,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HGETALL：全量键值对
   ///
+  /// 键缺失返回 NOTFOUND（RESP 层据此写空数组）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashGetAll
   pub async fn hash_get_all(
     &self,
     key: &[u8],
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, Vec<u8>)>)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, Vec::new())),
+      ObjState::Absent => Ok((GarnetStatus::NotFound, Vec::new())),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
@@ -133,10 +143,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HLEN：字段数
   ///
+  /// 键缺失返回 NOTFOUND（RESP 层同答 :0）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashLength
   pub async fn hash_length(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, usize)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, 0)),
+      ObjState::Absent => Ok((GarnetStatus::NotFound, 0)),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, 0)),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
@@ -147,10 +159,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// HEXISTS：字段存在性
   ///
+  /// 键缺失返回 NOTFOUND（对齐 C# ReadObjectStoreOperation 三态）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashExists
   pub async fn hash_exists(&self, key: &[u8], field: &[u8]) -> wkv::Result<(GarnetStatus, bool)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, false)),
+      ObjState::Absent => Ok((GarnetStatus::NotFound, false)),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, false)),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();
@@ -163,6 +177,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 为正返回至多 `count` 个不重复字段；`with_values` 两种计数下均附带值，
   /// 对齐 C# HashObjectImpl.HashRandomField / Redis WITHVALUES 口径）
   ///
+  /// 键缺失返回 NOTFOUND（RESP 层据此写空数组或 nil）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashRandomField
   pub async fn hash_random_field(
     &self,
@@ -171,7 +187,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     with_values: bool,
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, Option<Vec<u8>>)>)> {
     match self.obj_load(key, super::common::OBJ_TAG_HASH).await? {
-      ObjState::Absent => Ok((GarnetStatus::Ok, Vec::new())),
+      ObjState::Absent => Ok((GarnetStatus::NotFound, Vec::new())),
       ObjState::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
       ObjState::Present(payload) => {
         let obj = HashObject::deserialize(&mut Cursor::new(payload)).unwrap_or_default();

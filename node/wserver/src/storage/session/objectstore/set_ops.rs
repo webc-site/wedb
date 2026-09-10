@@ -108,22 +108,26 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// SCARD：成员数
   ///
+  /// 键缺失返回 NOTFOUND（C# SetLength → ReadObjectStoreOperation，RESP 层同答 :0）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetLength
   pub async fn set_length(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, usize)> {
     match self.set_load(key).await? {
       Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(None) => Ok((GarnetStatus::NotFound, 0)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.count())),
     }
   }
 
   /// SMEMBERS：全部成员
   ///
+  /// 键缺失返回 NOTFOUND（C# SetMembers → ReadObjectStoreOperation，RESP 层同答空数组）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetMembers
   pub async fn set_members(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
     match self.set_load(key).await? {
       Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::NotFound, Vec::new())),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.get_keys())),
     }
   }
@@ -309,6 +313,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// SISMEMBER：成员存在性
   ///
+  /// 键缺失返回 NOTFOUND（对齐 C# ReadObjectStoreOperation 三态）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetIsMember
   pub async fn set_is_member(
     &self,
@@ -317,12 +323,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, bool)> {
     match self.set_load(key).await? {
       Err(s) => Ok((s, false)),
-      Ok(None) => Ok((GarnetStatus::Ok, false)),
+      Ok(None) => Ok((GarnetStatus::NotFound, false)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.set.pin().contains(member))),
     }
   }
 
   /// SRANDMEMBER：随机成员（`count` 负数允许重复）
+  ///
+  /// 键缺失随 SMEMBERS 返回 NOTFOUND。
   ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetRandomMember
   pub async fn set_random_member(

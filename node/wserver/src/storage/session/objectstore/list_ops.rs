@@ -150,11 +150,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LLEN：列表长度
   ///
+  /// 键缺失返回 NOTFOUND（C# ListLength → ReadObjectStoreOperation，RESP 层同答 :0）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListLength
   pub async fn list_length(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, usize)> {
     match self.list_load(key).await? {
       Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(None) => Ok((GarnetStatus::NotFound, 0)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.count())),
     }
   }
@@ -214,6 +216,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LPOS：定位成员第 `rank` 次出现（`maxlen` 限制扫描长度），None 表示未命中
   ///
+  /// 键缺失返回 NOTFOUND（C# ListPosition → ReadObjectStoreOperation；RESP 层
+  /// 据此写 null / 空数组）；错误类型键传播 WRONGTYPE。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListPosition
   pub async fn list_position(
     &self,
@@ -223,7 +228,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     maxlen: Option<usize>,
   ) -> wkv::Result<(GarnetStatus, Option<usize>)> {
     match self.list_load(key).await? {
-      Err(_) | Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Err(s) => Ok((s, None)),
+      Ok(None) => Ok((GarnetStatus::NotFound, None)),
       Ok(Some(obj)) => {
         let guard = obj.list.lock();
         let rank = if rank == 0 { 1 } else { rank };
@@ -255,6 +261,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LRANGE：区间切片（Redis 闭区间负索引语义）
   ///
+  /// 键缺失返回 NOTFOUND（C# ListRange → ReadObjectStoreOperation，RESP 层同答空数组）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListRange
   pub async fn list_range(
     &self,
@@ -264,7 +272,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
     match self.list_load(key).await? {
       Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::NotFound, Vec::new())),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.range(start as isize, stop as isize))),
     }
   }
@@ -307,6 +315,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LINDEX：按索引取元素（负索引自尾计数）
   ///
+  /// 键缺失返回 NOTFOUND（RESP 层同答 null）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListIndex
   pub async fn list_index(
     &self,
@@ -315,7 +325,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
     match self.list_load(key).await? {
       Err(s) => Ok((s, None)),
-      Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Ok(None) => Ok((GarnetStatus::NotFound, None)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.index(index as isize))),
     }
   }
