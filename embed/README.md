@@ -33,6 +33,31 @@ WeDB Base is the storage foundation of [WeDB](https://github.com/webc-site/wedb)
   - [wsync — Tsavorite concurrency primitives](#wsync-tsavorite-concurrency-primitives)
   - [wobject — record-style object layer](#wobject-record-style-object-layer)
 
+- [What It Does](#what-it-does)
+- [Usage](#usage)
+- [Highlights](#highlights)
+- [Design](#design)
+- [Tech Stack](#tech-stack)
+- [Directory Layout](#directory-layout)
+- [API Reference](#api-reference)
+  - [wkv — top-level engine](#wkv-top-level-engine)
+  - [wbase — L0 primitives](#wbase-l0-primitives)
+  - [wutil — shared tools and buffer pool](#wutil-shared-tools-and-buffer-pool)
+  - [wram — direct virtual memory](#wram-direct-virtual-memory)
+  - [whasher — hashing and concurrent maps](#whasher-hashing-and-concurrent-maps)
+  - [wepoch — epoch protection](#wepoch-epoch-protection)
+  - [wdev — async devices](#wdev-async-devices)
+  - [wrecord — record format](#wrecord-record-format)
+  - [wval — value layer](#wval-value-layer)
+  - [windex — lock-free hash index](#windex-lock-free-hash-index)
+  - [whlog — HybridLog allocator](#whlog-hybridlog-allocator)
+  - [wreviv — free slot recycling](#wreviv-free-slot-recycling)
+  - [wbftree — BfTree range index](#wbftree-bftree-range-index)
+  - [wcompact — log compaction](#wcompact-log-compaction)
+  - [wcpr — CPR checkpointing](#wcpr-cpr-checkpointing)
+  - [wsync — Tsavorite concurrency primitives](#wsync-tsavorite-concurrency-primitives)
+  - [wobject — record-style object layer](#wobject-record-style-object-layer)
+
 ## What It Does
 
 The workspace ships a layered storage stack. At the bottom, `wbase` provides cacheline-safe primitives: 48-bit log addressing, sector alignment math, adaptive backoff, and TLS thread identity. `wram` manages direct virtual memory and native allocation tracking, while `wutil` hosts the sector-aligned buffer pool (mirroring the bottom-layer role of Tsavorite `core/Utilities`) plus the libs/common toolset. `whasher` wraps AES-accelerated GxHash, parallel-lane streaming checksums, and lock-free Papaya maps. `wepoch` supplies epoch protection for safe memory reclamation. `wdev` abstracts async block devices over `compio`. `wsync` hosts the Tsavorite concurrency primitives (read-optimized and single-writer multi-reader locks, turnstile / leader barriers, counting events).
@@ -420,6 +445,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 - `HashOperation`, `SetOperation`, `ListOperation`, `SortedSetOperation` enums, `SortedSetEntry` (score/member total order), `OperationDirection`.
 - bitcode `serialize` / `deserialize` for checkpoint payloads.
 
+
 ---
 
 <a name="zh"></a>
@@ -427,6 +453,31 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 # WeDB Base : 以 Rust 全栈重写微软 Garnet 存储引擎
 
 WeDB Base 是 [WeDB](https://github.com/webc-site/wedb) 的存储引擎底座。以 Rust 重写微软 [Garnet](https://github.com/microsoft/garnet) 的 C# 存储核心——Tsavorite 混合日志、无锁哈希索引、CPR 检查点、槽位复活、日志紧缩——以及 BfTree 范围索引，拆分为十七个职责单一的 crate，运行于 `compio` 异步运行时（Linux io_uring、Windows IOCP、macOS kqueue）。
+
+- [功能介绍](#功能介绍)
+- [使用演示](#使用演示)
+- [特性介绍](#特性介绍)
+- [设计思路](#设计思路)
+- [技术堆栈](#技术堆栈)
+- [目录结构](#目录结构)
+- [API 说明](#api-说明)
+  - [wkv —— 顶层引擎](#wkv-顶层引擎)
+  - [wbase —— L0 原语](#wbase-l0-原语)
+  - [wutil —— 公共工具与缓冲池](#wutil-公共工具与缓冲池)
+  - [wram —— 直接虚拟内存](#wram-直接虚拟内存)
+  - [whasher —— 哈希与并发字典](#whasher-哈希与并发字典)
+  - [wepoch —— 纪元保护](#wepoch-纪元保护)
+  - [wdev —— 异步设备](#wdev-异步设备)
+  - [wrecord —— 记录格式](#wrecord-记录格式)
+  - [wval —— 值层](#wval-值层)
+  - [windex —— 无锁哈希索引](#windex-无锁哈希索引)
+  - [whlog —— 混合日志分配器](#whlog-混合日志分配器)
+  - [wreviv —— 空闲槽位回收](#wreviv-空闲槽位回收)
+  - [wbftree —— BfTree 范围索引](#wbftree-bftree-范围索引)
+  - [wcompact —— 日志紧缩](#wcompact-日志紧缩)
+  - [wcpr —— CPR 检查点](#wcpr-cpr-检查点)
+  - [wsync —— Tsavorite 并发原语](#wsync-tsavorite-并发原语)
+  - [wobject —— 记录式对象层](#wobject-记录式对象层)
 
 - [功能介绍](#功能介绍)
 - [使用演示](#使用演示)
@@ -840,3 +891,5 @@ embed/
 - `HashObject` / `SetObject` / `ListObject` / `SortedSetObject`——基于无锁 `whasher::GxPapayaMap` / `GxPapayaSet` 索引的内存对象实现。
 - `HashOperation`、`SetOperation`、`ListOperation`、`SortedSetOperation` 枚举、`SortedSetEntry`（分值/成员全序）、`OperationDirection`。
 - bitcode `serialize` / `deserialize` 检查点载荷编解码。
+
+
