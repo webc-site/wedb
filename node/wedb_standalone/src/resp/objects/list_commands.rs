@@ -27,7 +27,10 @@ use crate::{
     cmd_strings as cs,
     cmd_strings::write_error_raw,
     objects::object_store_utils::{OBJ_TAG_LIST, SyncObj, obj_load_sync, obj_save_or_gc_sync},
-    parser::resp_ext::{RespSliceExt, RespVecExt},
+    parser::{
+      resp_ext::{RespSliceExt, RespVecExt},
+      session_parse_state::strict_f64,
+    },
     resp_server_session::RespServerSession,
   },
   session_parse_state::SessionParseState,
@@ -37,6 +40,9 @@ use crate::{
 /// 本命令面统一按 RESP2 协议输出（C# respProtocolVersion 由会话下发，
 /// 会话层接线时替换为实际协商版本）
 const RESP_VERSION: u8 = 2;
+
+/// LMPOP COUNT 校验文案（本域两处复用）。
+const RESP_ERR_COUNT_POSITIVE: &str = "ERR count should be greater than 0";
 
 /// 从 wkv 信封载荷装载列表对象
 ///
@@ -434,11 +440,11 @@ impl RespServerSession {
     }
 
     let Some(num_keys) = parse_state[0].try_parse_i64() else {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     };
     if num_keys < 1 {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     }
     if parse_state.len() != num_keys as usize + 2 && parse_state.len() != num_keys as usize + 4 {
@@ -462,7 +468,7 @@ impl RespServerSession {
       match parse_state[num_keys as usize + 3].try_parse_i64() {
         Some(c) if c >= 1 => pop_count = c,
         _ => {
-          cs::abort_with_error_message(output, "ERR count should be greater than 0");
+          cs::abort_with_error_message(output, RESP_ERR_COUNT_POSITIVE);
           return Ok(true);
         }
       }
@@ -529,11 +535,7 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    if str::from_utf8(parse_state[parse_state.len() - 1])
-      .unwrap_or("")
-      .parse::<f64>()
-      .is_err()
-    {
+    if strict_f64(parse_state[parse_state.len() - 1], true).is_none() {
       cs::abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
       return Ok(true);
     }
@@ -607,11 +609,7 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    if str::from_utf8(parse_state[4])
-      .unwrap_or("")
-      .parse::<f64>()
-      .is_err()
-    {
+    if strict_f64(parse_state[4], true).is_none() {
       cs::abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
       return Ok(true);
     }
@@ -635,11 +633,7 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    if str::from_utf8(parse_state[2])
-      .unwrap_or("")
-      .parse::<f64>()
-      .is_err()
-    {
+    if strict_f64(parse_state[2], true).is_none() {
       cs::abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
       return Ok(true);
     }
@@ -1106,21 +1100,17 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    if str::from_utf8(parse_state[0])
-      .unwrap_or("")
-      .parse::<f64>()
-      .is_err()
-    {
+    if strict_f64(parse_state[0], true).is_none() {
       cs::abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
       return Ok(true);
     }
 
     let Some(num_keys) = parse_state[1].try_parse_i64() else {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     };
     if num_keys < 1 {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     }
     if parse_state.len() != num_keys as usize + 3 && parse_state.len() != num_keys as usize + 5 {
@@ -1144,7 +1134,7 @@ impl RespServerSession {
       match parse_state[num_keys as usize + 4].try_parse_i64() {
         Some(c) if c >= 1 => pop_count = c,
         _ => {
-          cs::abort_with_error_message(output, "ERR count should be greater than 0");
+          cs::abort_with_error_message(output, RESP_ERR_COUNT_POSITIVE);
           return Ok(true);
         }
       }

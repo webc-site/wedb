@@ -1,11 +1,14 @@
 //! 对象层共享解析工具（对标 Garnet.common NumUtils/ParseUtils 与
 //! libs/server/SessionParseStateExtensions.cs 中对象命令用到的词法解析）
 
-use std::str;
+use wbase::{convert::utc_now_ticks, num};
 
-use crate::objects::{
-  sortedset::sorted_set_object::{ExpireOption, SortedSetAddOption},
-  sortedsetgeo::geo_hash::{GeoDistanceUnitType, GeoHash},
+use crate::{
+  objects::{
+    sortedset::sorted_set_object::{ExpireOption, SortedSetAddOption},
+    sortedsetgeo::geo_hash::{GeoDistanceUnitType, GeoHash},
+  },
+  resp::parser::session_parse_state::strict_i64,
 };
 
 /// 比较字节切片是否相等（忽略 ASCII 大小写）
@@ -18,43 +21,19 @@ pub fn equals_ignore_case(a: &[u8], b: &[u8]) -> bool {
 
 /// 严格解析双精度浮点（整体须为合法数字），支持 "inf"/"+inf"/"-inf" 无穷量词
 ///
-/// 对标 Garnet.common NumUtils.TryParseWithInfinity
-/// （Utf8Parser 全量消费 + RespReadUtils.TryReadInfinity 回退，量词大小写不敏感）
+/// 单一实现位于 `wbase::num::try_parse_with_infinity`
+/// （对标 Garnet.common NumUtils.TryParseWithInfinity），此处仅按对象层签名转接
 #[inline]
 pub fn try_parse_with_infinity(v: &[u8]) -> Option<f64> {
-  // RespReadUtils.TryReadInfinity 词形：3 字节 inf / 4 字节 ±inf（忽略大小写）
-  match v.len() {
-    3 if equals_ignore_case(v, b"inf") => return Some(f64::INFINITY),
-    4 if equals_ignore_case(v, b"+inf") => return Some(f64::INFINITY),
-    4 if equals_ignore_case(v, b"-inf") => return Some(f64::NEG_INFINITY),
-    _ => {}
-  }
-  // Utf8Parser 全量消费路径：不接受 inf/nan 词形（Rust 解析器的
-  // "Infinity" 等扩展词形与 NaN 一并排除；纯数值溢出的 ±inf 保留）
-  let d = str::from_utf8(v).ok()?.parse::<f64>().ok()?;
-  if d.is_nan() || (d.is_infinite() && !v.iter().any(u8::is_ascii_digit)) {
-    return None;
-  }
-  Some(d)
+  let mut value = 0.0;
+  num::try_parse_with_infinity(v, &mut value).then_some(value)
 }
 
-/// 严格解析 i64（对标 parseState.TryGetLong → RespReadUtils.TryReadInt64Safe：
-/// 可带 +/- 号，禁前导零，整体消费）
+/// 严格解析 i64（单一实现为 [`strict_i64`]，对标 parseState.TryGetLong →
+/// RespReadUtils.TryReadInt64Safe：可带 +/- 号，禁前导零，整体消费）
 #[inline]
 pub fn try_get_long(v: &[u8]) -> Option<i64> {
-  let s = str::from_utf8(v).ok()?;
-  let digits = match s.as_bytes().first() {
-    Some(b'+') | Some(b'-') => &s[1..],
-    _ => s,
-  };
-  // 禁前导零（"0" 本身与 "-0" 合法），且仅接受纯数字
-  if digits.len() > 1 && digits.starts_with('0') {
-    return None;
-  }
-  if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-    return None;
-  }
-  s.parse().ok()
+  strict_i64(v)
 }
 
 /// 严格解析 i32（对标 parseState.TryGetInt）
@@ -152,11 +131,11 @@ fn geo_latitude_in_range(lat: f64) -> bool {
 
 /// 当前时刻的 .NET Ticks（公历 0001-01-01 起的 100ns 数）
 ///
-/// 对标 C# `DateTimeOffset.UtcNow.Ticks`（Garnet 过期结构的时间基准）
+/// 对标 C# `DateTimeOffset.UtcNow.Ticks`（Garnet 过期结构的时间基准）；
+/// 单一实现为 `wbase::convert::utc_now_ticks`，此处按对象层既有签名转接
 #[inline]
 pub fn now_ticks() -> i64 {
-  let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
-  (now_ms + 62_135_596_800_000) * 10_000
+  utc_now_ticks()
 }
 
 #[cfg(test)]

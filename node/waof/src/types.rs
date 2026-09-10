@@ -28,8 +28,9 @@ impl AofEntryType {
 
 /// libs/server/AOF/AofHeader.cs:AofHeader
 ///
-/// garnet 相对路径 AofAddress 的对应物已由 wserver::aof::aof_address 完整
-/// 实现（多 sublog 位点向量），本 crate 不再保留简化桩
+/// 在 garnet 中的相对路径 libs/server/AOF/AofAddress.cs:AofAddress 的对应物
+/// 已由 wserver::aof::aof_address 完整实现（多 sublog 位点向量），本 crate
+/// 不再保留简化桩
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AofHeader {

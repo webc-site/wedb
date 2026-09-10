@@ -9,8 +9,8 @@
 
 use std::sync::Arc;
 
-use papaya::HashMap as ConcurrentMap;
 use parking_lot::Mutex;
+use whasher::{GxPapayaMap as ConcurrentMap, new_papaya_map};
 
 use super::{
   hnsw::{HnswConfig, HnswIndex, decode_native, decode_values, distance},
@@ -106,9 +106,9 @@ impl DiskANNService {
       None => {
         let index = DiskAnnIndex {
           hnsw: Mutex::new(HnswIndex::new(config)),
-          external_to_internal: ConcurrentMap::new(),
-          internal_to_external: ConcurrentMap::new(),
-          attributes: ConcurrentMap::new(),
+          external_to_internal: new_papaya_map(),
+          internal_to_external: new_papaya_map(),
+          attributes: new_papaya_map(),
         };
         self.indexes.pin().insert(context, Arc::new(index));
         true

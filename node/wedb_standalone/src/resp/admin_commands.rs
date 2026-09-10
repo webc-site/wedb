@@ -10,6 +10,9 @@ use super::{
   resp_server_session::RespServerSession,
 };
 
+/// GC 代数非法文案（本域两处复用）。
+const ERR_INVALID_GC_GENERATION: &str = "ERR Invalid GC generation.";
+
 /// libs/server/Servers/GarnetServerOptions.cs:MaxDatabases
 ///
 /// C# 默认 16；rust 会话层未接服务器选项，按默认值校验 DBID
@@ -372,13 +375,13 @@ impl RespServerSession {
       }
       if parse_state.len() == 2 {
         let Some(generation) = strict_i32(parse_state[1]) else {
-          abort_with_error_message(output, "ERR Invalid GC generation.");
+          abort_with_error_message(output, ERR_INVALID_GC_GENERATION);
           return Ok(true);
         };
         // C# 上界为 GC.MaxGeneration（.NET 恒为 2）；rust 无分代 GC，
         // 按同值域拒绝非法代数
         if !(0..=2).contains(&generation) {
-          abort_with_error_message(output, "ERR Invalid GC generation.");
+          abort_with_error_message(output, ERR_INVALID_GC_GENERATION);
           return Ok(true);
         }
       }

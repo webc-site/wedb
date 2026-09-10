@@ -32,6 +32,9 @@ use crate::{
   types::{GarnetObjectType, RespInputFlags},
 };
 
+/// HSET ... F.n 语义下 numFields 非法时的校验文案（本域多处复用）。
+const ERR_NUM_FIELDS_POSITIVE: &str = "ERR Parameter `numFields` should be greater than 0";
+
 /// 本命令面统一按 RESP2 协议输出（C# respProtocolVersion 由会话下发，
 /// 会话层接线时替换为实际协商版本）
 const RESP_VERSION: u8 = 2;
@@ -731,13 +734,13 @@ impl RespServerSession {
     curr_idx += 1;
 
     let Some(num_fields) = try_get_int(parse_state[curr_idx]) else {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     };
     curr_idx += 1;
 
     if num_fields < 1 {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     }
     if parse_state.len() != curr_idx + num_fields as usize {
@@ -807,11 +810,11 @@ impl RespServerSession {
     }
 
     let Some(num_fields) = try_get_int(parse_state[2]) else {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     };
     if num_fields < 1 {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     }
     if parse_state.len() != 3 + num_fields as usize {
@@ -871,11 +874,11 @@ impl RespServerSession {
     }
 
     let Some(num_fields) = try_get_int(parse_state[2]) else {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     };
     if num_fields < 1 {
-      cs::abort_with_error_message(output, "ERR Parameter `numFields` should be greater than 0");
+      cs::abort_with_error_message(output, ERR_NUM_FIELDS_POSITIVE);
       return Ok(true);
     }
     if parse_state.len() != 3 + num_fields as usize {

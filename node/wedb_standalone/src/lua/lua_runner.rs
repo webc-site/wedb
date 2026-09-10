@@ -32,9 +32,15 @@ use super::{
 };
 use crate::{
   objects::types::object_output::ObjectOutput,
+  resp::parser::session_parse_state::strict_i32,
   storage::session::common::array_key_iteration_functions::cluster_slot,
   transaction::txn_key_entry::{LockType, TxnKeyEntries},
 };
+
+/// 调用脚本出现意外响应形态时的错误文案（本域两处复用）。
+const ERR_UNEXPECTED_RESPONSE: &[u8] = b"ERR Unexpected error response";
+/// 脚本执行内部异常的兜底错误文案（本域两处复用）。
+const ERR_LUA_INVOKE_FAILED: &[u8] = b"ERR An error occurred while invoking a Lua script";
 
 /// 沙箱初始 KEYS/ARGV 数组容量（C# InitialKeysCapacity/InitialArgvCapacity）。
 const INITIAL_KEYS_CAPACITY: usize = 5;
@@ -922,10 +928,7 @@ impl LuaRunner {
     let args = mem::take(&mut self.host.preamble_args);
 
     let mut offset = 1usize;
-    let n_keys = args
-      .first()
-      .and_then(|k| str::from_utf8(k).ok()?.parse::<i32>().ok())
-      .unwrap_or_default();
+    let n_keys = args.first().and_then(|k| strict_i32(k)).unwrap_or_default();
     self.host.preamble_n_keys = n_keys;
     self.host.preamble_key_and_argv_count -= 1;
 
@@ -1099,7 +1102,7 @@ impl LuaRunner {
   fn run_common(&mut self, resp: &mut RespOut) {
     // Every invocation starts in RESP2（会话协议版本回置由 RunForSession 完成）。
     if !self.state.push_ref(self.host.function_registry_index) {
-      resp.write_error(b"ERR An error occurred while invoking a Lua script");
+      resp.write_error(ERR_LUA_INVOKE_FAILED);
       return;
     }
 
@@ -1114,13 +1117,13 @@ impl LuaRunner {
     // An error was raised
     match self.state.get_top() {
       0 => {
-        resp.write_error(b"ERR An error occurred while invoking a Lua script");
+        resp.write_error(ERR_LUA_INVOKE_FAILED);
       }
       1 => {
         // PCall will put error in a string
         let Some(err_buf) = self.state.known_string_to_buffer(1) else {
           log::error!("Got an unexpected number of values back from a pcall error");
-          resp.write_error(b"ERR Unexpected error response");
+          resp.write_error(ERR_UNEXPECTED_RESPONSE);
           self.state.clear_stack();
           return;
         };
@@ -1140,7 +1143,7 @@ impl LuaRunner {
       }
       _ => {
         log::error!("Got an unexpected number of values back from a pcall error");
-        resp.write_error(b"ERR Unexpected error response");
+        resp.write_error(ERR_UNEXPECTED_RESPONSE);
         self.state.clear_stack();
       }
     }

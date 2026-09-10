@@ -7,7 +7,9 @@
 //! 模糊区语义：检查点起始与结束提交标记之间的区域可同时含有 (v) 与 (v+1)
 //! 两代版本条目——(v) 即时处理，(v+1) 入缓冲，检查点结束后统一重放。
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
+
+use gxhash::HashMap;
 
 use crate::aof::aof_chunked_record_reader::{AofChunkedRecordReader, ChunkedAccumulator};
 

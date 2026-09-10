@@ -707,11 +707,11 @@ impl RespServerSession {
       return Ok(true);
     };
     if num_keys < 1 {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     }
     if parse_state.len() < num_keys as usize + 1 {
-      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     }
 

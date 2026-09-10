@@ -46,11 +46,10 @@ pub(crate) const RESP_ERR_LIMIT_NOT_SUPPORTED: &[u8] =
   b"ERR syntax error, LIMIT is only supported in combination with either BYSCORE or BYLEX";
 /// ERR resulting score is not a number (NaN)
 pub(crate) const RESP_ERR_GENERIC_SCORE_NAN: &[u8] = b"ERR resulting score is not a number (NaN)";
-/// ERR invalid cursor
-pub(crate) const RESP_ERR_GENERIC_INVALIDCURSOR: &[u8] = b"ERR invalid cursor";
 
 use crate::resp::cmd_strings::{
-  RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOT_VALID_FLOAT,
+  RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
+  RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOT_VALID_FLOAT,
 };
 
 /// [`sorted_set_range`] 出错标记：range 回复不可能为负，ZRANGESTORE 借此区分
@@ -1385,12 +1384,12 @@ impl SortedSetObject {
       match try_get_long(arg(input, 0)) {
         Some(c) if c >= 0 => params.cursor = c,
         _ => {
-          output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR);
+          output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
           return;
         }
       }
     } else {
-      output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR);
+      output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
       return;
     }
 

@@ -3,7 +3,7 @@
 //! 全部经 [`StorageSession`] 对象信封读写 wobject [`SortedSetObject`]（dict +
 //! tree 双索引）；排序视图按 (score, member) 字典序现算。空集合整键回收。
 
-use std::{io::Cursor, str};
+use std::io::Cursor;
 
 use gxhash::HashMap as GxHashMap;
 use wdev::Device;
@@ -13,7 +13,7 @@ use super::{
   super::storage_session::StorageSession,
   common::{ObjState, RmwOutcome},
 };
-use crate::api::garnet_status::GarnetStatus;
+use crate::{api::garnet_status::GarnetStatus, objects::parse_utils::try_parse_with_infinity};
 
 /// 聚合方式（ZUNION/ZINTER 权重合并语义）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -969,26 +969,15 @@ fn parse_score_bound(b: &[u8]) -> Result<(f64, bool), ()> {
     return Err(());
   }
   match b[0] {
-    b'(' => str::from_utf8(&b[1..])
-      .ok()
-      .and_then(|s| s.parse::<f64>().ok())
+    // 数值部分统一走 NumUtils.TryParseWithInfinity 单一实现
+    //（inf/+inf/-inf 词形白名单，nan/Infinity 词形拒绝，溢出 ±inf 保留）
+    b'(' => try_parse_with_infinity(&b[1..])
       .map(|v| (v, false))
       .ok_or(()),
-    b'[' => str::from_utf8(&b[1..])
-      .ok()
-      .and_then(|s| s.parse::<f64>().ok())
+    b'[' => try_parse_with_infinity(&b[1..])
       .map(|v| (v, true))
       .ok_or(()),
-    _ => {
-      let text = str::from_utf8(b).map_err(|_| ())?;
-      if text.eq_ignore_ascii_case("+inf") {
-        Ok((f64::INFINITY, false))
-      } else if text.eq_ignore_ascii_case("-inf") {
-        Ok((f64::NEG_INFINITY, false))
-      } else {
-        text.parse::<f64>().map(|v| (v, true)).map_err(|_| ())
-      }
-    }
+    _ => try_parse_with_infinity(b).map(|v| (v, true)).ok_or(()),
   }
 }
 

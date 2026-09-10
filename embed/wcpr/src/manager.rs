@@ -5,7 +5,7 @@ use std::{
   path::Path,
   str,
   sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, AtomicU64, Ordering},
   },
   time::Duration,
@@ -17,6 +17,7 @@ use compio::{
   time::sleep,
 };
 use log::{info, warn};
+use parking_lot::Mutex;
 use wbase::time::{now_ms, now_nanos};
 use wdev::Device;
 use wepoch::LightEpoch;
@@ -271,8 +272,8 @@ fn candidate_token() -> u128 {
 /// 续发，且强制严格大于调用方给定的下界 `floor`（检查点目录内现存最大 Token，
 /// 覆盖跨进程重启后的时钟回拨），签发值全局严格单调递增、永不重复。
 fn issue_token_after(candidate: u128, floor: u128) -> u128 {
-  // 中毒锁直接取回内部数据：守卫自身绝不向检查点路径传播 panic
-  let mut last = LAST_TOKEN.lock().unwrap_or_else(|e| e.into_inner());
+  // parking_lot 无中毒语义：守卫绝不向检查点路径传播 panic
+  let mut last = LAST_TOKEN.lock();
   let mut token = match *last {
     Some(issued) if candidate <= issued => issued.checked_add(1).unwrap_or(candidate),
     _ => candidate,

@@ -19,7 +19,7 @@ use crate::{
   },
 };
 
-/// garnet相对路径:Server:ClusterManager
+/// 在 garnet 中的相对路径:Server:ClusterManager
 pub struct ClusterManager {
   current_config: RwLock<ClusterConfig>,
   pub cluster_provider: Arc<ClusterProvider>,
@@ -28,7 +28,7 @@ pub struct ClusterManager {
 }
 
 impl ClusterManager {
-  /// garnet相对路径:Server:ClusterManager:ClusterManager
+  /// 在 garnet 中的相对路径:Server:ClusterManager:ClusterManager
   pub fn new(cluster_provider: Arc<ClusterProvider>) -> Self {
     let current_config = RwLock::new(ClusterConfig::new());
     // Init logic here
@@ -40,12 +40,12 @@ impl ClusterManager {
   }
 
   /// NOTE: Unsafe! DO NOT USE, other than benchmarking
-  /// garnet相对路径:Server:ClusterManager:UnsafeSetConfig
+  /// 在 garnet 中的相对路径:Server:ClusterManager:UnsafeSetConfig
   pub fn unsafe_set_config(&self, cluster_config: ClusterConfig) {
     *self.current_config.write() = cluster_config;
   }
 
-  /// garnet相对路径:Server:ClusterManager:InitLocal
+  /// 在 garnet 中的相对路径:Server:ClusterManager:InitLocal
   pub fn init_local(&self, address: &str, port: i32, recover_config: bool) {
     let mut config = self.current_config.write();
     if recover_config {
@@ -82,39 +82,39 @@ impl ClusterManager {
     }
   }
 
-  /// garnet相对路径:Server:ClusterManager:FlushTaskAsync
+  /// 在 garnet 中的相对路径:Server:ClusterManager:FlushTaskAsync
   pub async fn flush_task_async(&self) {
     // mock flush task
   }
 
-  /// garnet相对路径:Server:ClusterManager:DisposeBackgroundTasks
+  /// 在 garnet 中的相对路径:Server:ClusterManager:DisposeBackgroundTasks
   pub fn dispose_background_tasks(&self) {
     // mock
   }
 
-  /// garnet相对路径:Server:ClusterManager:Start
+  /// 在 garnet 中的相对路径:Server:ClusterManager:Start
   pub fn start(&self) {
     // TryStartGossipTasks
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryStartGossipTasks
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryStartGossipTasks
   pub fn try_start_gossip_tasks(&self) {
     // mock
   }
 
-  /// garnet相对路径:Server:ClusterManager:FlushConfig
+  /// 在 garnet 中的相对路径:Server:ClusterManager:FlushConfig
   pub fn flush_config(&self) {
     // mock
     self.flush_count.fetch_add(1, Ordering::SeqCst);
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryInitializeLocalWorker
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryInitializeLocalWorker
   pub fn try_initialize_local_worker(&self, spec: LocalWorkerSpec<'_>) {
     let mut config = self.current_config.write();
     config.initialize_local_worker(spec);
   }
 
-  /// garnet相对路径:Server:ClusterManager:GetInfo
+  /// 在 garnet 中的相对路径:Server:ClusterManager:GetInfo
   pub fn get_info(&self) -> String {
     // 持读锁直接统计，不克隆整份配置；单遍扫描取全部状态计数
     let current = self.current_config.read();
@@ -146,7 +146,7 @@ impl ClusterManager {
     )
   }
 
-  /// garnet相对路径:Server:ClusterManager:GetRange
+  /// 在 garnet 中的相对路径:Server:ClusterManager:GetRange
   ///
   /// 输入须升序；连续槽合并为 `start-end` 区间，其余逐个列出
   pub fn get_range(slots: &[usize]) -> String {
@@ -166,7 +166,7 @@ impl ClusterManager {
     range
   }
 
-  /// garnet相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TrySetLocalConfigEpoch
   ///
   /// 错误集中定义于 [`crate::error`]，不再用裸字节串
   pub fn try_set_local_config_epoch(&self, config_epoch: i64) -> Result<()> {
@@ -184,7 +184,7 @@ impl ClusterManager {
     Ok(())
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryBumpClusterEpoch
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryBumpClusterEpoch
   pub fn try_bump_cluster_epoch(&self) -> bool {
     {
       let mut current = self.current_config.write();
@@ -194,7 +194,7 @@ impl ClusterManager {
     true
   }
 
-  /// garnet相对路径:Server:ClusterManager:TrySetLocalNodeRole
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TrySetLocalNodeRole
   pub fn try_set_local_node_role(&self, role: NodeRole) {
     {
       let mut current = self.current_config.write();
@@ -205,7 +205,7 @@ impl ClusterManager {
     self.flush_config();
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryResetReplica
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryResetReplica
   pub fn try_reset_replica(&self) {
     {
       let mut current = self.current_config.write();
@@ -217,7 +217,7 @@ impl ClusterManager {
     self.flush_config();
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryStopWrites
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryStopWrites
   pub fn try_stop_writes(&self, replica_id: &str) {
     {
       let mut current = self.current_config.write();
@@ -230,7 +230,7 @@ impl ClusterManager {
     self.flush_config();
   }
 
-  /// garnet相对路径:Server:ClusterManager:TryTakeOverForPrimary
+  /// 在 garnet 中的相对路径:Server:ClusterManager:TryTakeOverForPrimary
   pub fn try_take_over_for_primary(&self) -> bool {
     {
       let mut current = self.current_config.write();

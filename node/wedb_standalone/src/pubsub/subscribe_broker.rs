@@ -24,13 +24,13 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use wbase::glob::glob_match;
 use whasher::{GxPapayaMap, new_papaya_map};
 
 use super::{
   pattern_subscription_entry::{PatternSubscriberSet, PatternSubscriptionEntry},
   subscriber::PubSubSink,
 };
-use crate::objects::sortedset::sorted_set_object::glob_match;
 
 /// 通道订阅表：通道 -> 订阅者集合（C# subscriptions，
 /// ConcurrentDictionary<ByteArrayWrapper, ReadOptimizedConcurrentSet<..>>）

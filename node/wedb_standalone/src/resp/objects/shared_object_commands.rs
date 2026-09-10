@@ -4,14 +4,14 @@
 //! 参数校验与光标解析在本层完成，对象遍历经 ObjectInput 走各对象的
 //! scan 分片（有序集合侧见 objects::sortedset::sorted_set_object_impl::scan_operate）。
 
-use std::str;
-
 use crate::{
   arg_slice::ArgSlice,
   input_header::RespInputHeader,
   inputs::ObjectInput,
   objects::types::object_output::ObjectOutput,
-  resp::resp_server_session::RespServerSession,
+  resp::{
+    cmd_strings as cs, parser::resp_ext::RespSliceExt, resp_server_session::RespServerSession,
+  },
   session_parse_state::SessionParseState,
   types::{GarnetObjectType, RespInputFlags},
 };
@@ -44,14 +44,9 @@ impl RespServerSession {
       return self.abort_with_wrong_number_of_arguments(cmd_name, output);
     }
 
-    // 光标须为非负整数
-    let Some(_cursor_value) = str::from_utf8(parse_state[1])
-      .unwrap_or("")
-      .parse::<i64>()
-      .ok()
-      .filter(|v| *v >= 0)
-    else {
-      return self.abort_with_error_message(b"ERR invalid cursor", output);
+    // 光标须为非负整数（parseState.GetLong 严格语义）
+    let Some(_cursor_value) = parse_state[1].try_parse_i64().filter(|v| *v >= 0) else {
+      return self.abort_with_error_message(cs::RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes(), output);
     };
 
     // ObjectInput：startIdx = 1（跳过键），arg2 = 单轮 COUNT 上限

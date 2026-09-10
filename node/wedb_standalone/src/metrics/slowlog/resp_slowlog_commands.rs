@@ -1,6 +1,7 @@
 use super::{slow_log_container::SlowLogContainer, slowlog_entry::SlowLogEntry};
 use crate::{
   metrics::{latency::latency_metrics_entry::time_stamp, resp_write_utils::RespWriteUtils},
+  resp::{cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, parser::session_parse_state::strict_i32},
   types::RespCommand,
 };
 
@@ -30,9 +31,6 @@ pub struct SlowLogContext<'a> {
   /// 解析状态快照。
   pub arguments: Option<Vec<u8>>,
 }
-
-/// C# `CmdStrings.GenericErrWrongNumArgs`（`{0}` 为子命令名）。
-const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for '{0}' command";
 
 /// C# `CmdStrings.RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1`。
 const RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1: &str = "ERR count should be greater than or equal to -1.";
@@ -183,9 +181,9 @@ fn wrong_num_args(cmd_name: &str) -> String {
   GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", cmd_name)
 }
 
-/// ASCII 十进制整数解析（对齐 parseState.TryGetInt 的严格语义）。
+/// ASCII 十进制整数解析（单一实现 [`strict_i32`]，对齐 parseState.TryGetInt）。
 fn parse_i32(arg: &[u8]) -> Option<i32> {
-  str::from_utf8(arg).ok()?.parse::<i32>().ok()
+  strict_i32(arg)
 }
 
 /// 解析状态快照 → 参数序列（安全版 DeserializeFrom）。

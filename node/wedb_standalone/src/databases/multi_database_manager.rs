@@ -11,10 +11,10 @@ use std::{
 
 use async_lock::RwLock;
 use gxhash::HashMap as GxHashMap;
-use papaya::HashMap as PapayaMap;
 use parking_lot::Mutex;
 use waof::WalLog;
 use wdev::Device;
+use whasher::{GxPapayaMap, new_papaya_map};
 use wkv::WedbStore;
 
 use super::{
@@ -31,7 +31,7 @@ pub struct MultiDatabaseManager<D: Device> {
   /// 共享存储引擎
   pub store: Arc<WedbStore<D>>,
   /// 库注册表：db_id -> 库
-  pub databases: PapayaMap<i64, Arc<GarnetDatabase<D>>>,
+  pub databases: GxPapayaMap<i64, Arc<GarnetDatabase<D>>>,
   /// 库表结构变更锁（SWAPDB / 批量恢复；异步感知，允许持锁跨越内部 await）
   pub content_lock: RwLock<()>,
   /// AOF 构造配置（None 表示未启用 AOF）
@@ -46,7 +46,7 @@ impl<D: Device> MultiDatabaseManager<D> {
     Self {
       base: DatabaseManagerBase::new(checkpoint_root.join("0")),
       store,
-      databases: PapayaMap::new(),
+      databases: new_papaya_map(),
       content_lock: RwLock::new(()),
       wal_factory: Mutex::new(None),
       checkpoint_root,

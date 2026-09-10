@@ -4,7 +4,7 @@
 //! 函数经 [`AclCtx`] 显式注入 ACL 认证器 / 认证设置 / 自定义命令注册
 //! 查询面（对标 C# 会话内 `_authenticator` + `storeWrapper` 的同一取数）。
 
-use std::sync::Arc;
+use std::{fmt::Display, sync::Arc};
 
 use super::{
   cmd_strings as cs,
@@ -21,6 +21,11 @@ use crate::{
     GarnetAclAuthenticator, settings::acl_authentication_settings::AclAuthenticationSettings,
   },
 };
+
+/// ACL 异常文案（C# "ERR {exception}" 模板；format! 需字面量，收敛为本函数）。
+fn acl_exception_message(exception: impl Display) -> String {
+  format!("ERR {exception}")
+}
 
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_ACL_AUTH_DISABLED
 const RESP_ERR_ACL_AUTH_DISABLED: &str = "ERR ACL Authenticator is disabled.";
@@ -189,7 +194,7 @@ impl RespServerSession {
       }
       Err(exception) => {
         // 终止命令执行
-        write_error_raw(output, &format!("ERR {exception}"));
+        write_error_raw(output, &acl_exception_message(exception));
       }
     }
     Ok(true)
@@ -296,7 +301,7 @@ impl RespServerSession {
     if let Some(exception) = error {
       log::debug!("ACLException: {exception}");
       // 终止命令执行
-      write_error_raw(output, &format!("ERR {exception}"));
+      write_error_raw(output, &acl_exception_message(exception));
       return Ok(true);
     }
 
@@ -366,7 +371,7 @@ impl RespServerSession {
         write_raw(output, cs::RESP_OK);
       }
       Err(exception) => {
-        write_error_raw(output, &format!("ERR {exception}"));
+        write_error_raw(output, &acl_exception_message(exception));
       }
     }
     Ok(true)
@@ -405,7 +410,7 @@ impl RespServerSession {
       }
       Err(exception) => {
         log::error!("ACL SAVE faulted: {exception}");
-        write_error_raw(output, &format!("ERR {exception}"));
+        write_error_raw(output, &acl_exception_message(exception));
       }
     }
     Ok(true)
