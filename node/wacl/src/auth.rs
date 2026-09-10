@@ -1,8 +1,8 @@
 //! 认证器族（对标 libs/server/Auth：IGarnetAuthenticator 及各实现）
 //!
 //! 固定口令认证器按 C# 口径做常量时间比较；NoAuth 认证器恒拒绝（C#
-//! Debug.Fail 的"永不认证"约束以返回 false 承接）。ACL/AAD 组合认证器
-//! 需要会话级 ACL 钩子，由 wserver 域的完整认证链承接，此处保留占位。
+//! Debug.Fail 的"永不认证"约束以返回 false 承接）。AAD 等云认证器由
+//! check/ignore 配置，ACL 认证由 AccessControlList 承接。
 
 use crate::acl::constant_equals;
 

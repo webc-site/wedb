@@ -46,7 +46,7 @@ impl TxnWatchedKeysContainer {
     self.key_slices.clear();
   }
 
-  /// 移除对指定键的监视（保留占位，isWatched 置否）
+  /// 移除对指定键的监视（标记 is_watched = false，保留条目）
   ///
   /// libs/server/Transaction/TxnWatchedKeysContainer.cs:RemoveWatch
   pub fn remove_watch(&mut self, key: &[u8]) -> bool {

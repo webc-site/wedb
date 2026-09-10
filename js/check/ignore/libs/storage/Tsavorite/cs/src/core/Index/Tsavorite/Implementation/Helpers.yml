@@ -12,5 +12,4 @@ SetRecordInvalid: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/
 CASRecordIntoChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
 VerifyInMemoryAddresses: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
 FindOrCreateTagAndTryEphemeralXLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
-FindTagAndTryEphemeralXLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
 FindTagAndTryEphemeralSLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

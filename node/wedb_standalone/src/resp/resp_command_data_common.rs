@@ -1,19 +1,17 @@
-//! 命令元数据公共导入（对标 libs/server/Resp/RespCommandDataCommon.cs）
+//! 命令元数据导入入口（对标 libs/server/Resp/RespCommandDataCommon.cs）
 //!
-//! C# 从嵌入 JSON 导入命令元数据到静态提供者（与 RespCommandDataProvider
-//! 同族）；命令元数据域（resp_command_docs / resp_commands_info）为并行
-//! 推进面，本入口保持"未导入"语义返回。
+//! C# 从 Garnet.resources 内嵌资源读取 JSON 后交默认供给解析；Rust 侧
+//! 调用方直接传入 `include_str!` 的内嵌文本，校验链一致。
 
-/// 命令元数据公共导入
-pub struct RespCommandDataCommon;
+use serde::de::DeserializeOwned;
 
-impl RespCommandDataCommon {
-  /// libs/server/Resp/RespCommandDataCommon.cs:TryImportRespCommandsData
-  ///
-  /// 缺口说明：C# 从 JSON 导入命令元数据；rust 命令元数据域并行推进，
-  /// 未导入即按 C# 导入失败口径返回 false（豁免登记见 js/check/ignore/
-  /// libs/server/Resp/RespCommandDataCommon.yml）
-  pub fn try_import_resp_commands_data() -> bool {
-    false
-  }
+use super::resp_command_data_provider::{IRespCommandData, get_resp_commands_data_provider};
+
+/// 安全导入命令元数据（空名 / 重名 / 反序列化失败一律 None）
+///
+/// libs/server/Resp/RespCommandDataCommon.cs:TryImportRespCommandsData
+pub(crate) fn try_import_resp_commands_data<T: IRespCommandData + DeserializeOwned>(
+  json: &str,
+) -> Option<Vec<T>> {
+  get_resp_commands_data_provider().try_import_resp_commands_data(json)
 }

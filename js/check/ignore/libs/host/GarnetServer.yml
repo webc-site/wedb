@@ -1,10 +1,8 @@
 GetVersion: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
-InitializeServer: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 ValidateCustomCommandACLs: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 CreateDatabase: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 LoadModules: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 CreateStore: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 CreateAOF: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
-InternalDispose: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 DeleteDirectory: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
 FlushMemoryLogger: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
