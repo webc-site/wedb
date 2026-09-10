@@ -5,7 +5,10 @@
 //! AOF 设置装配与 AOF 设备定位。Tsavorite 的 KVSettings/TsavoriteLogSettings/
 //! INamedDeviceFactory 为 .NET 框架面，Rust 侧以域内设置结构 + 路径承接。
 
-use std::path::{Path, PathBuf};
+use std::{
+  ops::RangeInclusive,
+  path::{Path, PathBuf},
+};
 
 /// 主日志页大小的最小字节数（对齐 ServerOptions.MinPageSizeBytes：最坏内联
 /// 记录约 490B + 64B 页头，512B 为可容纳的最小 2 的幂页大小）。
@@ -19,6 +22,15 @@ const MAX_INLINE_VALUE_LIMIT: i64 = 0xFFFFFE;
 
 /// MaxInlineValueSize 未设置时的默认值（1m）。
 pub const DEFAULT_MAX_INLINE_VALUE_SIZE: i64 = 1 << 20;
+
+/// PubSubPageSize 未设置时的默认值（4k）。
+pub const DEFAULT_PUB_SUB_PAGE_SIZE: &str = "4k";
+
+/// IndexMemorySize 未设置时的默认值（128m）。
+pub const DEFAULT_INDEX_MEMORY_SIZE: &str = "128m";
+
+/// MutablePercent 的合法区间（C# GetSettings 入口校验 [10, 95]）。
+pub const MUTABLE_PERCENT_RANGE: RangeInclusive<i32> = 10..=95;
 
 /// InitialIORecordSize 未设置的哨兵（对齐 KVSettings.UseDefaultInitialIORecordSize 语义）。
 pub const USE_DEFAULT_INITIAL_IO_RECORD_SIZE: i64 = 0;
@@ -44,6 +56,12 @@ pub enum OptionsError {
   /// 页大小低于最小值。
   #[error("Page size '{0}' (effective {1} bytes) must be at least {2} bytes")]
   PageSizeTooSmall(String, i64, i64),
+  /// 索引尺寸无效（PreviousPowerOf2 后须在 [64, 2^37] 内）。
+  #[error("Invalid {0}")]
+  InvalidIndexSize(String),
+  /// MutablePercent 越界（C# GetSettings 入口校验 [10, 95]）。
+  #[error("MutablePercent must be between 10 and 95")]
+  MutablePercentOutOfRange(i32),
   /// 组合非法（null AOF 设备 + 集群）。
   #[error(
     "Cannot use null device for AOF when cluster is enabled and you are not using main memory replication"
@@ -72,6 +90,8 @@ pub struct AofLogSettings {
 /// 存储设置（KVSettings 的域内承接）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoreSettings {
+  /// 哈希索引字节数（C# KVSettings.IndexSize = cachelines * 64）。
+  pub index_size: i64,
   /// 内存位数。
   pub memory_size_bits: i32,
   /// 页大小位数。
@@ -99,6 +119,12 @@ pub struct GarnetServerOptions {
   pub log_memory_size: String,
   /// 页尺寸串（默认 "32m"）。
   pub page_size: String,
+  /// 日志初始页数（0 = 按 LogMemorySize / PageSize 推算）。
+  pub page_count: i32,
+  /// 哈希索引尺寸串（默认 "128m"）。
+  pub index_memory_size: String,
+  /// 日志内存中可变区占比（默认 90，合法区间 [10, 95]）。
+  pub mutable_percent: i32,
   /// 读缓存页尺寸串（默认 "32m"）。
   pub read_cache_page_size: String,
   /// 段尺寸串（默认 "1g"）。
@@ -115,6 +141,8 @@ pub struct GarnetServerOptions {
   pub aof_page_size: String,
   /// AOF 段尺寸串（默认 "1g"）。
   pub aof_segment_size: String,
+  /// pub/sub 日志页尺寸串（默认 "4k"）。
+  pub pub_sub_page_size: String,
   /// AOF 大小上限串（默认空 = 不限制）。
   pub aof_size_limit: String,
   /// 缓冲池预算串。
@@ -138,6 +166,9 @@ impl Default for GarnetServerOptions {
       log_dir: None,
       log_memory_size: "16g".to_string(),
       page_size: "32m".to_string(),
+      page_count: 0,
+      index_memory_size: DEFAULT_INDEX_MEMORY_SIZE.to_string(),
+      mutable_percent: 90,
       read_cache_page_size: "32m".to_string(),
       segment_size: "1g".to_string(),
       max_inline_key_size: None,
@@ -146,6 +177,7 @@ impl Default for GarnetServerOptions {
       aof_memory_size: "128m".to_string(),
       aof_page_size: "32m".to_string(),
       aof_segment_size: "1g".to_string(),
+      pub_sub_page_size: DEFAULT_PUB_SUB_PAGE_SIZE.to_string(),
       aof_size_limit: String::new(),
       buffer_pool_memory_budget: String::new(),
       replica_diskless_sync_full_sync_aof_threshold: None,
@@ -161,13 +193,21 @@ impl Default for GarnetServerOptions {
 ///
 /// 解析内存尺寸串（`[0-9]+[kmgtp][b]?`，大小写不敏感）；
 /// 返回字节数与消费的字符数。
+///
+/// C# 语义逐字镜像：数字累加（无检查算术回绕）；遇后缀即乘幂返回并容忍
+/// 尾随 'b'；既非数字也非已知后缀的字符跳过并继续扫描（bytesRead 不计入）。
 pub fn parse_size(value: &str) -> (i64, usize) {
+  parse_size_bytes(value.as_bytes())
+}
+
+/// [`parse_size`] 的字节切片形态（CONFIG SET 等线上参数未经 UTF-8 校验的
+/// 场景使用；C# 侧即以字节 span 比较 ASCII）。
+pub fn parse_size_bytes(value: &[u8]) -> (i64, usize) {
   const SUFFIX_EXP: [(u8, u32); 5] = [(b'k', 1), (b'm', 2), (b'g', 3), (b't', 4), (b'p', 5)];
   let mut result: i64 = 0;
   let mut bytes_read = 0usize;
-  let bytes = value.as_bytes();
 
-  for (i, &c) in bytes.iter().enumerate() {
+  for (i, &c) in value.iter().enumerate() {
     if c.is_ascii_digit() {
       result = result.wrapping_mul(10).wrapping_add(i64::from(c - b'0'));
       bytes_read += 1;
@@ -175,13 +215,12 @@ pub fn parse_size(value: &str) -> (i64, usize) {
       result = result.wrapping_mul(1024_i64.pow(*exp));
       bytes_read += 1;
       // 容忍尾随 'b'
-      if i + 1 < bytes.len() && bytes[i + 1].eq_ignore_ascii_case(&b'b') {
+      if i + 1 < value.len() && value[i + 1].eq_ignore_ascii_case(&b'b') {
         bytes_read += 1;
       }
       return (result, bytes_read);
-    } else {
-      break;
     }
+    // 其余字符：C# 跳过并继续（不消费 bytesRead）
   }
   (result, bytes_read)
 }
@@ -190,8 +229,14 @@ pub fn parse_size(value: &str) -> (i64, usize) {
 ///
 /// 全量消费才算解析成功。
 pub fn try_parse_size(value: &str) -> Option<i64> {
-  let (size, chars_read) = parse_size(value);
-  (chars_read == value.len() && !value.is_empty()).then_some(size)
+  try_parse_size_bytes(value.as_bytes())
+}
+
+/// [`try_parse_size`] 的字节切片形态（C# 对空串返回 true 且尺寸为 0，
+/// 此处同构）。
+pub fn try_parse_size_bytes(value: &[u8]) -> Option<i64> {
+  let (size, chars_read) = parse_size_bytes(value);
+  (chars_read == value.len()).then_some(size)
 }
 
 /// libs/server/Servers/ServerOptions.cs:PreviousPowerOf2
@@ -223,6 +268,58 @@ pub fn next_power_of_2(v: i64) -> i64 {
   v |= v >> 16;
   v |= v >> 32;
   v.wrapping_add(1)
+}
+
+/// libs/server/Servers/ServerOptions.cs:PrettySize
+///
+/// 尺寸字节的人类可读形式（自动选 k/m/g/t/p 单位）。
+#[must_use]
+pub fn pretty_size(value: i64) -> String {
+  const SUFFIX: [char; 5] = ['k', 'm', 'g', 't', 'p'];
+  /// Math.Round(v, 12) 的等价（12 位小数四舍五入）。
+  fn round12(v: f64) -> f64 {
+    let scaled = v * 1e12;
+    let bumped = if scaled >= 0.0 {
+      scaled + 0.5
+    } else {
+      scaled - 0.5
+    };
+    bumped.floor() / 1e12
+  }
+
+  let mut v = value as f64;
+  let mut exp: i32 = 0;
+  // C# 首段：小数部分非零时向大单位归一（整型入参不触发，保留语义对称）
+  while v - v.floor() > 0.0 {
+    if exp >= 18 {
+      break;
+    }
+    exp += 3;
+    v *= 1024.0;
+    v = round12(v);
+  }
+  // C# 次段：整数位数 > 3 时向小单位归一
+  while v.floor().to_string().len() > 3 {
+    if exp <= -18 {
+      break;
+    }
+    exp -= 3;
+    v /= 1024.0;
+    v = round12(v);
+  }
+  if exp > 0 {
+    let c = SUFFIX[(exp / 3 - 1) as usize];
+    format!("{v}{c}")
+  } else if exp < 0 {
+    let idx = (-exp / 3 - 1) as usize;
+    // C# exp == -18 时 suffix[5] 越界（上游缺陷）；此处安全回落无后缀
+    match SUFFIX.get(idx) {
+      Some(&c) => format!("{v}{c}"),
+      None => v.to_string(),
+    }
+  } else {
+    v.to_string()
+  }
 }
 
 /// 位数的 log2（输入保证为 2 的幂且 > 0）。
@@ -287,20 +384,28 @@ impl GarnetServerOptions {
 
   /// libs/server/Servers/GarnetServerOptions.cs:GetSettings
   ///
-  /// 装配存储设置（对齐 C# GetSettings 内的 KVSettings 装配；
-  /// Tsavorite 实例与设备工厂为框架面，由存储域承接）。
+  /// 装配存储设置（对齐 C# GetSettings 内的 KVSettings 装配：
+  /// MutablePercent 区间与索引尺寸校验在前，页尺寸经
+  /// [`Self::page_size_bits`] 强制最小页约束；Tsavorite 实例与设备工厂
+  /// 为框架面，由存储域承接）。
   pub fn get_settings(&self) -> Result<StoreSettings, OptionsError> {
-    let page_size = try_parse_size(&self.page_size)
-      .ok_or_else(|| OptionsError::BadSize(self.page_size.clone()))?;
-    let page_size = previous_power_of_2(page_size);
+    if !MUTABLE_PERCENT_RANGE.contains(&self.mutable_percent) {
+      return Err(OptionsError::MutablePercentOutOfRange(self.mutable_percent));
+    }
+    // C# IndexSize = IndexSizeCachelines("hash index size", IndexMemorySize) * 64
+    let index_size = self.index_size_cachelines()? * 64;
+
+    let page_size_bits = self.page_size_bits()?;
+    let page_size = 1i64 << page_size_bits;
     let segment_size = try_parse_size(&self.segment_size)
       .ok_or_else(|| OptionsError::BadSize(self.segment_size.clone()))?;
     let memory_size = try_parse_size(&self.log_memory_size)
       .ok_or_else(|| OptionsError::BadSize(self.log_memory_size.clone()))?;
 
     Ok(StoreSettings {
+      index_size,
       memory_size_bits: Self::memory_size_bits(memory_size),
-      page_size_bits: log2_exact(page_size),
+      page_size_bits,
       segment_size_bits: log2_exact(previous_power_of_2(segment_size)),
       max_inline_key_size: self.max_inline_key_size_bytes()?,
       max_inline_value_size: self.max_inline_value_size_bytes(page_size)?,
@@ -309,12 +414,19 @@ impl GarnetServerOptions {
     })
   }
 
-  /// libs/server/Servers/GarnetServerOptions.cs:MemorySizeBits
+  /// libs/server/Servers/ServerOptions.cs:MemorySizeBits
   ///
   /// 内存尺寸 → 位数（上取 2 的幂后取 log2）。
   pub fn memory_size_bits(memory_size: i64) -> i32 {
     let adjusted = next_power_of_2(memory_size);
     log2_exact(adjusted)
+  }
+
+  /// libs/server/Servers/ServerOptions.cs:PageSizeBits
+  ///
+  /// 主日志页尺寸位数（下取 2 的幂并强制最小页大小）。
+  pub fn page_size_bits(&self) -> Result<i32, OptionsError> {
+    self.validated_page_size_bits(&self.page_size)
   }
 
   /// libs/server/Servers/GarnetServerOptions.cs:ReadCachePageSizeBits
@@ -324,6 +436,8 @@ impl GarnetServerOptions {
     self.validated_page_size_bits(&self.read_cache_page_size)
   }
 
+  /// libs/server/Servers/ServerOptions.cs:ValidatedPageSizeBits
+  ///
   /// 页尺寸串 → 位数（下取 2 的幂并校验最小页大小）。
   fn validated_page_size_bits(&self, value: &str) -> Result<i32, OptionsError> {
     let size = try_parse_size(value).ok_or_else(|| OptionsError::BadSize(value.to_string()))?;
@@ -336,6 +450,40 @@ impl GarnetServerOptions {
       ));
     }
     Ok(log2_exact(adjusted))
+  }
+
+  /// libs/server/Servers/ServerOptions.cs:PubSubPageSizeBytes
+  ///
+  /// pub/sub 日志页大小（字节，下取 2 的幂）。
+  pub fn pub_sub_page_size_bytes(&self) -> i64 {
+    previous_power_of_2(parse_size(&self.pub_sub_page_size).0)
+  }
+
+  /// libs/server/Servers/ServerOptions.cs:SegmentSizeBits
+  ///
+  /// 主日志段尺寸位数（下取 2 的幂；C# isObj 分支的对象日志段尺寸为
+  /// 对象存储域字段，此处仅承载主日志）。
+  pub fn segment_size_bits(&self) -> Result<i32, OptionsError> {
+    let size = try_parse_size(&self.segment_size)
+      .ok_or_else(|| OptionsError::BadSize(self.segment_size.clone()))?;
+    Ok(log2_exact(previous_power_of_2(size)))
+  }
+
+  /// libs/server/Servers/ServerOptions.cs:IndexSizeCachelines
+  ///
+  /// 哈希索引缓存行数（下取 2 的幂后须落在 [64, 2^37]，每行 64 字节）。
+  pub fn index_size_cachelines(&self) -> Result<i64, OptionsError> {
+    const MIN_ADJUSTED: i64 = 64;
+    const MAX_ADJUSTED: i64 = 1 << 37;
+
+    let size = parse_size(&self.index_memory_size).0;
+    let adjusted = previous_power_of_2(size);
+    if !(MIN_ADJUSTED..=MAX_ADJUSTED).contains(&adjusted) {
+      return Err(OptionsError::InvalidIndexSize(
+        self.index_memory_size.clone(),
+      ));
+    }
+    Ok(adjusted / 64)
   }
 
   /// libs/server/Servers/GarnetServerOptions.cs:MaxInlineKeySizeBytes
@@ -552,13 +700,56 @@ mod tests {
     assert_eq!(parse_size("32m"), (32 * 1024 * 1024, 3));
     assert_eq!(parse_size("1g"), (1024 * 1024 * 1024, 2));
     assert_eq!(parse_size("2T"), (2i64 * 1024 * 1024 * 1024 * 1024, 2));
-    // 前导垃圾停止解析（bytesRead=0 → TryParseSize 失败）
+    assert_eq!(parse_size("1p"), (1024i64.pow(5), 2));
+    // 未知字符跳过续扫（C# 无 break 语义）：前导垃圾不计入消费数
+    assert_eq!(parse_size("x16"), (16, 2));
+    assert_eq!(parse_size(" 16"), (16, 2));
+    // TryParseSize 需全量消费：垃圾字符必致失败
     assert_eq!(try_parse_size("x16"), None);
     assert_eq!(try_parse_size("16x"), None);
     assert_eq!(try_parse_size("16"), Some(16));
-    assert_eq!(try_parse_size(""), None);
+    // C# 语义：空串合法，尺寸 0
+    assert_eq!(try_parse_size(""), Some(0));
     // 组合后缀
     assert_eq!(parse_size("16m"), (16 * 1024 * 1024, 3));
+  }
+
+  #[test]
+  fn byte_slice_parsing_matches_str() {
+    assert_eq!(parse_size_bytes(b"32m"), (32 * 1024 * 1024, 3));
+    assert_eq!(try_parse_size_bytes(b"4kb"), Some(4 * 1024));
+    assert_eq!(try_parse_size_bytes(b"4kbx"), None);
+  }
+
+  #[test]
+  fn pretty_size_matches_csharp() {
+    // 位数 > 3 时向小单位归一
+    assert_eq!(pretty_size(16 * 1024 * 1024 * 1024), "16g");
+    assert_eq!(pretty_size(32 * 1024 * 1024), "32m");
+    assert_eq!(pretty_size(4 * 1024), "4k");
+    assert_eq!(pretty_size(512), "512");
+    // 归一后产生小数：1000 → 0.9765625k（C# 同式）
+    assert_eq!(pretty_size(1000), "0.9765625k");
+  }
+
+  #[test]
+  fn index_cachelines_and_pub_sub_page() {
+    let opts = GarnetServerOptions::default();
+    // 128m → 下取 2 的幂 128m → cachelines = 128m / 64
+    let cachelines = opts.index_size_cachelines().unwrap();
+    assert_eq!(cachelines * 64, 128 * 1024 * 1024);
+    // 越界：低于 64
+    let mut small = opts.clone();
+    small.index_memory_size = "32".to_string();
+    assert!(matches!(
+      small.index_size_cachelines(),
+      Err(OptionsError::InvalidIndexSize(_))
+    ));
+    // pub/sub 页：4k 下取 2 的幂
+    assert_eq!(opts.pub_sub_page_size_bytes(), 4 * 1024);
+    let mut odd = opts.clone();
+    odd.pub_sub_page_size = "3000".to_string();
+    assert_eq!(odd.pub_sub_page_size_bytes(), 2048);
   }
 
   #[test]
@@ -787,7 +978,8 @@ mod tests {
   fn get_settings_assembles_defaults() {
     let opts = GarnetServerOptions::default();
     let settings = opts.get_settings().unwrap();
-    // 16g → 34 位；32m 页 → 25 位；1g 段 → 30 位
+    // 16g → 34 位；32m 页 → 25 位；1g 段 → 30 位；索引 128m
+    assert_eq!(settings.index_size, 128 * 1024 * 1024);
     assert_eq!(settings.memory_size_bits, 34);
     assert_eq!(settings.page_size_bits, 25);
     assert_eq!(settings.segment_size_bits, 30);
@@ -799,5 +991,27 @@ mod tests {
     assert_eq!(settings.max_inline_key_size, 1022);
     assert_eq!(settings.initial_io_record_size, 0);
     assert_eq!(settings.log_directory, None);
+  }
+
+  #[test]
+  fn get_settings_rejects_bad_mutable_percent_and_small_page() {
+    // C# GetSettings 入口：MutablePercent 须在 [10, 95]
+    let opts = GarnetServerOptions {
+      mutable_percent: 5,
+      ..GarnetServerOptions::default()
+    };
+    assert!(matches!(
+      opts.get_settings(),
+      Err(OptionsError::MutablePercentOutOfRange(5))
+    ));
+    // 页大小低于 MinPageSizeBytes(512) 被 PageSizeBits 校验拒绝
+    let small_page = GarnetServerOptions {
+      page_size: "256".to_string(),
+      ..GarnetServerOptions::default()
+    };
+    assert!(matches!(
+      small_page.get_settings(),
+      Err(OptionsError::PageSizeTooSmall(_, 256, 512))
+    ));
   }
 }

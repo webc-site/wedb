@@ -96,7 +96,8 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:HasAssignedSlots
   pub fn has_assigned_slots(&self, worker_id: u16) -> bool {
     for i in 0..MAX_HASH_SLOT_VALUE {
-      if self.slot_map[i].eff_worker_id() == worker_id {
+      // C# 按原始 workerId 判定（Migrating 槽在映射中记目标节点）
+      if self.slot_map[i].worker_id == worker_id {
         return true;
       }
     }
@@ -107,7 +108,7 @@ impl ClusterConfig {
   #[inline]
   pub fn is_local(&self, slot: u16, read_write_session: bool) -> bool {
     let slot = slot as usize;
-    self.slot_map[slot].eff_worker_id() as usize == LOCAL_WORKER_ID
+    self.slot_map[slot].worker_id as usize == LOCAL_WORKER_ID
       || self.is_local_expensive(slot, read_write_session)
   }
 
@@ -272,7 +273,8 @@ impl ClusterConfig {
     let mut slots = Vec::new();
     if let Some(pid) = primary_id {
       for i in 0..MAX_HASH_SLOT_VALUE {
-        let wid = self.slot_map[i].eff_worker_id() as usize;
+        // C# 按原始 workerId 判定（workerId > 0 且属主节点即主节点 id）
+        let wid = self.slot_map[i].worker_id as usize;
         if wid > 0
           && wid < self.workers.len()
           && let Some(nid) = &self.workers[wid].nodeid
@@ -374,7 +376,9 @@ impl ClusterConfig {
   /// garnet相对路径:Server:ClusterConfig:GetWorkerIdFromSlot
   #[inline]
   pub fn get_worker_id_from_slot(&self, slot: u16) -> usize {
-    self.slot_map[slot as usize].eff_worker_id() as usize
+    // C# 返回原始 workerId（Migrating 槽即目标节点；源侧归属由
+    // reset_multi_slot_state 的 Migrating 特判承载）
+    self.slot_map[slot as usize].worker_id as usize
   }
 
   /// garnet相对路径:Server:ClusterConfig:GetNodeIdFromSlot
@@ -650,7 +654,8 @@ impl ClusterConfig {
       return Ok(());
     };
     for &slot in s {
-      if self.slot_map[slot].eff_worker_id() != 0 {
+      // C# 按原始 workerId 判定空闲（workerId == 0）
+      if self.slot_map[slot].worker_id != 0 {
         return Err(Error::SlotNotFree(slot));
       }
     }
@@ -678,7 +683,8 @@ impl ClusterConfig {
       return Ok(());
     };
     for &slot in s {
-      if self.slot_map[slot].eff_worker_id() == 0 {
+      // C# 按原始 workerId 判定非本地（workerId == 0）
+      if self.slot_map[slot].worker_id == 0 {
         return Err(Error::SlotNotLocal(slot));
       }
     }
@@ -804,9 +810,9 @@ impl ClusterConfig {
         continue;
       }
 
-      // 与 C# 一致取 eff id：本地 Migrating 槽的当前归属按 LOCAL(1) 判定，
-      // 迁移目标节点 gossip 认领时走 epoch 比较直接移交，而非误判为
-      // "目标已是属主"把槽重置为 Offline 造成短暂失主
+      // 刻意差异（C# 取原始 workerId）：本地 Migrating 槽的当前归属按
+      // LOCAL(1) 判定——迁移目标节点 gossip 认领时走 epoch 比较直接移交，
+      // 而非误判为"目标已是属主"把槽重置为 Offline 造成短暂失主
       let current_owner_id = self.slot_map[i].eff_worker_id() as usize;
 
       // 发送方非本槽认领者且是主：若本地认为属主即发送方（epoch 碰撞后
@@ -1013,7 +1019,8 @@ impl ClusterConfig {
     let mut start = u16::MAX;
     let mut end = 0;
     for i in 0..MAX_HASH_SLOT_VALUE {
-      if self.slot_map[i].eff_worker_id() == worker_id {
+      // C# GetNodeInfo 槽段按原始 workerId 判定
+      if self.slot_map[i].worker_id == worker_id {
         if (i as u16) < start {
           start = i as u16;
         }
@@ -1079,7 +1086,8 @@ impl ClusterConfig {
     let mut ranges = Vec::new();
     let mut start: Option<u16> = None;
     for (i, slot) in self.slot_map.iter().enumerate() {
-      match (start, slot.eff_worker_id() as usize == worker_id) {
+      // C# GetShardRanges 按原始 workerId 分段
+      match (start, slot.worker_id as usize == worker_id) {
         (None, true) => start = Some(i as u16),
         (Some(s), false) => {
           ranges.push((s, i as u16 - 1));
@@ -1157,7 +1165,8 @@ impl ClusterConfig {
   pub fn get_slot_list(&self, worker_id: u16) -> Vec<usize> {
     let mut result = Vec::new();
     for i in 0..MAX_HASH_SLOT_VALUE {
-      if self.slot_map[i].eff_worker_id() == worker_id {
+      // C# 按原始 workerId 收集（Migrating 槽归属目标节点）
+      if self.slot_map[i].worker_id == worker_id {
         result.push(i);
       }
     }
@@ -1318,10 +1327,10 @@ impl ClusterConfig {
 
       let mut slot_end = slot_start;
       while slot_end < MAX_HASH_SLOT_VALUE {
-        // 与 C# 一致按 eff id 分段：Migrating 槽归源节点（LOCAL）名下，
-        // CLUSTER SLOTS 不把它误报到迁移目标
+        // C# GetSlotsInfo 按原始 workerId 分段（Migrating 槽在映射中
+        // 记目标节点，故随目标区间上报，与 C# 行为一致）
         if self.slot_map[slot_end].state == SlotState::Offline
-          || self.slot_map[slot_start].eff_worker_id() != self.slot_map[slot_end].eff_worker_id()
+          || self.slot_map[slot_start].worker_id != self.slot_map[slot_end].worker_id
         {
           break;
         }
@@ -1329,7 +1338,7 @@ impl ClusterConfig {
       }
 
       slot_end -= 1;
-      let curr_worker_id = self.slot_map[slot_start].eff_worker_id() as usize;
+      let curr_worker_id = self.slot_map[slot_start].worker_id as usize;
       // 区间属主以借用传递，免每区间 4 份字符串克隆
       let owner = &self.workers[curr_worker_id];
       let replica_ids = self.get_replica_ids(owner.nodeid.as_deref().unwrap_or_default());
@@ -1985,30 +1994,33 @@ mod tests {
     let n2 = remote(&mut c, "n2", NodeRole::Replica, Some("n1"));
     c.assign_slots(&[0, 1, 2], LOCAL_WORKER_ID as u16, SlotState::Stable);
     c.update_slot_state(3, n2, SlotState::Migrating);
-    // 迁移槽经 eff id 解析仍归属源节点
-    assert_eq!(c.get_node_id_from_slot(3).as_deref(), Some("n1"));
-    // raw 属主是迁移目标
+    // raw 属主是迁移目标（C# 映射语义），is_local 仍按 MIGRATING 判本地服务
+    assert_eq!(c.get_node_id_from_slot(3).as_deref(), Some("n2"));
     assert_eq!(c.slot_map[3].worker_id, n2);
+    assert!(c.is_local(3, true));
 
     let counts = c.slot_state_counts();
     assert_eq!(counts[SlotState::Stable as usize], 3);
     assert_eq!(counts[SlotState::Migrating as usize], 1);
     assert_eq!(counts[SlotState::Offline as usize], MAX_HASH_SLOT_VALUE - 4);
 
-    // CLUSTER NODES：Migrating 槽归源节点名下，且带 [slot->-target] 标注
+    // CLUSTER NODES：稳定槽 0-2 归源节点名下，迁移槽带 [3->-n2] 标注
     let node_info = c.get_node_info(LOCAL_WORKER_ID, &ConnectionInfo::default());
-    assert!(node_info.contains("0-3"));
+    assert!(node_info.contains("0-2"));
     assert!(node_info.contains("[3->-n2]"));
     assert!(node_info.contains("myself,master"));
 
-    // CLUSTER SLOTS：Migrating 槽按 eff id 报在源节点，且副本行在列
+    // CLUSTER SLOTS：按原始 workerId 分段——0-2 归源节点，迁移槽 3 随
+    // 目标 n2 单独成段（C# GetSlotsInfo 行为）
     let slots = c.get_slots_info(ClusterPreferredEndpointType::Ip);
-    assert!(slots.contains("*4\r\n:0\r\n:3\r\n"));
-    assert!(slots.contains("n2"), "副本节点行必须出现在 CLUSTER SLOTS");
+    assert!(slots.contains("*2\r\n*4\r\n:0\r\n:2\r\n"), "{slots}");
+    assert!(slots.contains(":3\r\n:3\r\n"), "{slots}");
 
-    // CLUSTER SHARDS：槽范围含迁移槽
+    // CLUSTER SHARDS：按原始 workerId 取段——本地分片报 0-2；迁移槽 3
+    // raw 属主为副本 n2，不入任何主分片（C# GetShardsInfo 行为）
     let shards = c.get_shards_info(None, ClusterPreferredEndpointType::Ip);
-    assert!(shards.contains(":0\r\n:3"));
+    assert!(shards.contains(":0\r\n:2"), "{shards}");
+    assert!(!shards.contains(":0\r\n:3"), "{shards}");
   }
 
   #[test]
@@ -2040,8 +2052,10 @@ mod tests {
     );
   }
 
-  /// 迁移路由语义：常规请求按 eff 属主路由到源节点，ASK 重定向按 raw 属主
-  /// 指向迁移目标；批量置态与批量回稳互为镜像
+  /// 迁移路由语义（对齐 C#）：GetEndpointFromSlot / AskEndpointFromSlot 均
+  /// 按原始 workerId 解析（迁移槽即目标节点）；迁移槽"仍由源节点服务"的
+  /// 常规路由决策由会话层 [`Self::is_local`]（MIGRATING → true）承载。
+  /// 批量置态与批量回稳互为镜像
   #[test]
   fn migrating_slot_endpoints_split_get_vs_ask() {
     let mut c = local("n1", 3, NodeRole::Primary);
@@ -2054,15 +2068,17 @@ mod tests {
       SlotState::Stable,
     );
 
-    // 常规路由（eff）：Migrating 槽仍由源节点服务
+    // 端点查询（raw）：迁移槽指向目标节点 n2
     let (get_addr, get_port) = c.get_endpoint_from_slot(3, ClusterPreferredEndpointType::Ip);
-    assert_eq!((get_addr.as_str(), get_port), ("127.0.0.1", 7000));
-    // ASK 重定向（raw）：指向迁移目标 n2
+    assert_eq!((get_addr.as_str(), get_port), ("10.0.0.2", 7000));
+    // ASK 重定向（raw）：同样指向迁移目标 n2
     let (ask_addr, ask_port) = c.ask_endpoint_from_slot(3, ClusterPreferredEndpointType::Ip);
     assert_eq!((ask_addr.as_str(), ask_port), ("10.0.0.2", 7000));
+    // 常规服务决策：迁移槽 is_local 为真 → 源节点仍本地服务
+    assert!(c.is_local(3, true));
 
     // 批量回稳：Migrating 槽放弃迁移归本地源节点；其余槽按现属主回稳
-    // （Importing 槽 raw 属主即迁移源，eff=raw 归源节点）
+    // （Importing 槽 raw 属主即迁移源，归源节点）
     c.update_slot_state(4, n2, SlotState::Importing);
     c.reset_multi_slot_state(&[3usize, 4, 5].into_iter().collect());
     assert_eq!(c.get_state(3), SlotState::Stable);
