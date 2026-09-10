@@ -1093,7 +1093,7 @@ fn test_review_rr1_csharp_semantics() -> aok::Void {
 /// NOTFOUND、ZRANGESTORE 缺失源删目标键返 0、GEO 键级三态、RENAMENX 判定序
 #[test]
 fn test_review_rr3_missing_key_matrix() -> aok::Void {
-  use wserver::{
+  use wedb_standalone::{
     api::i_garnet_api::IGarnetApi, storage::session::objectstore::sorted_set_geo_ops::GeoCmd,
   };
 

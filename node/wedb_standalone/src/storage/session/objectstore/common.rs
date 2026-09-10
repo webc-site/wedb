@@ -29,16 +29,6 @@ pub(crate) enum ObjState {
   Present(Vec<u8>),
 }
 
-impl ObjState {
-  /// 提取载荷（缺失/类型不符返回 None）
-  pub(crate) fn into_payload(self) -> Option<Vec<u8>> {
-    match self {
-      Self::Present(p) => Some(p),
-      _ => None,
-    }
-  }
-}
-
 /// 对象值信封编码：[类型标签][wobject bitcode 载荷]
 pub(crate) fn obj_encode(tag: u8, payload: &[u8]) -> Vec<u8> {
   let mut out = Vec::with_capacity(payload.len() + 1);
