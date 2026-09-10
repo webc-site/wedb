@@ -243,13 +243,7 @@ impl<'a> Hash for ZScoreKeyRef<'a> {
 // 栈容量 128 字节刚好对齐 2 条 64 字节 CPU 缓存行（Cache Line），消除高频短键堆分配
 stack_heap_buf!(ZSetSubKeyBuf, ZSET_SUBKEY_STACK_CAP);
 
-impl ZSetSubKeyBuf {
-  /// 从成员参数直接构造优先栈分配的子键缓冲区
-  #[inline]
-  pub fn from_member(key_id: u64, version: u64, member: &[u8]) -> Result<Self> {
-    ZSetSubKeyCodec::encode_member_key_buf(key_id, version, member)
-  }
-}
+impl ZSetSubKeyBuf {}
 
 /// 有序集合打平子键与保序分值无锁静态编解码器
 pub struct ZSetSubKeyCodec;

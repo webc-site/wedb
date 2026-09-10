@@ -621,6 +621,22 @@ impl NamespaceDbCodec {
     Self::encode_sub_key_with_prefix(prefix, tag, key_id, version, &chunk_id.to_be_bytes())
   }
 
+  /// 已知 tag_offset 时的高速替换方法（跳过 decode_tagged_key，零额外解析，栈优先零堆分配）
+  #[inline]
+  pub fn replace_tag_at(key: &[u8], tag_offset: usize, new_tag: KeyTag) -> TaggedKeyBuf {
+    assert!(tag_offset < key.len(), "tag_offset 越界");
+    if key.len() <= STACK_KEY_CAP {
+      let mut buf = [0u8; STACK_KEY_CAP];
+      buf[..key.len()].copy_from_slice(key);
+      buf[tag_offset] = new_tag as u8;
+      TaggedKeyBuf::from_stack(buf, key.len() as u8)
+    } else {
+      let mut vec = key.to_vec();
+      vec[tag_offset] = new_tag as u8;
+      TaggedKeyBuf::from_heap(vec)
+    }
+  }
+
   /// 从完整物理键中解码出 `(ns, db, tag, payload)` (const fn)
   #[inline]
   pub const fn decode_tagged_key(key: &[u8]) -> Result<(u64, u64, KeyTag, &[u8])> {

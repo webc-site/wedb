@@ -19,7 +19,7 @@
 //! 落盘/传输的校验值与派生索引须与算法版本绑定。
 
 use core::{
-  hash::{Hash, Hasher},
+  hash::Hasher,
   mem::{align_of, offset_of, size_of},
 };
 
@@ -359,13 +359,5 @@ const fn combine_seed(seed_a: u64, seed_b: u64) -> i64 {
 #[inline(always)]
 pub fn hash128(bytes: &[u8], seed_a: u64, seed_b: u64) -> u128 {
   gxhash::gxhash128(bytes, combine_seed(seed_a, seed_b))
-}
-
-/// 为支持 Hash trait 的泛型对象快速计算确定性的 64 位哈希值
-#[inline]
-pub fn hash_value<T: Hash + ?Sized>(value: &T) -> u64 {
-  let mut hasher = gxhash::GxHasher::with_seed(0);
-  value.hash(&mut hasher);
-  hasher.finish()
 }
 

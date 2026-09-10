@@ -30,7 +30,6 @@ fn test_addr_primitives() {
 
   // Display 对齐 libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs:AddressString：rc:N / kInvalid / kTempInvalid / log:N（十进制）
   assert_eq!(format!("{log_addr}"), format!("rc:{raw}"));
-  assert_eq!(format!("{}", LogAddress::INVALID), "kInvalid");
   assert_eq!(
     format!("{}", LogAddress::from_raw(TEMP_INVALID_ADDRESS)),
     "kTempInvalid"

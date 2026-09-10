@@ -94,8 +94,6 @@ pub const fn address_of_page_start(page: u64, page_bits: u32) -> u64 {
 pub struct LogAddress(pub u64);
 
 impl LogAddress {
-  pub const INVALID: Self = Self(INVALID_ADDRESS);
-
   /// 掩码构造（截断高 16 位脏位，保留 ReadCache 标志位）
   #[inline(always)]
   pub const fn new(addr: u64) -> Self {

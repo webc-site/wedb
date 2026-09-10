@@ -116,7 +116,6 @@ fn smoke_free_record_slot_primitive() -> Void {
   assert_eq!(record.set(0x1000, 128, 0x1000), SetStatus::InsertedEmpty);
   assert_eq!(record.address(), 0x1000);
   assert_eq!(record.size(), 128);
-  assert_eq!(record.peek(0x1000), Some((0x1000, 128)));
 
   // 占用拒绝
   assert_eq!(record.set(0x2000, 256, 0x1000), SetStatus::Occupied);

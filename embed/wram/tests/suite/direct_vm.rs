@@ -133,7 +133,7 @@ fn direct_vm_rejects_invalid_arguments() -> Void {
 fn direct_vm_slice_edge_cases_and_page_size() -> Void {
   info!("验证零长度切片返回空切片、空块报错与 system_page_size 稳定性");
 
-  let mut block = DirectVirtualMemory::allocate(8192, 4096)?;
+  let block = DirectVirtualMemory::allocate(8192, 4096)?;
 
   // 零长度切片在非空块内必须安全返回空切片
   assert_eq!(block.slice(100..100)?.len(), 0);

@@ -548,8 +548,6 @@ pub struct HashIndex {
 impl HashIndex {
   /// 硬件预取滑动窗口大小（1:1 对标 Garnet Tsavorite PrefetchSize = 12）
   pub const PREFETCH_WINDOW: usize = 12;
-  /// 批量查询分块大小（全栈缓冲）
-  pub const BATCH_CHUNK_SIZE: usize = 64;
   /// 栈上内联加锁条目数上限
   pub const INLINE_LOCK_ENTRIES: usize = 16;
   /// 自旋让步阈值（超过后让出 CPU 时间片）

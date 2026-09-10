@@ -350,7 +350,7 @@ fn test_zset_sub_key_buf() -> Void {
   );
 
   // 4. 便捷构造器验证
-  let buf1 = ZSetSubKeyBuf::from_member(key_id, version, short_member)?;
+  let buf1 = wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, short_member)?;
   assert!(buf1.is_stack());
   assert_eq!(buf1.as_slice(), member_buf.as_slice());
 
@@ -360,7 +360,7 @@ fn test_zset_sub_key_buf() -> Void {
   assert_eq!(buf2.as_slice(), score_buf.as_slice());
 
   // 5. 空成员仍走栈编码。
-  assert!(ZSetSubKeyBuf::from_member(key_id, version, b"")?.is_stack());
+  assert!(wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, b"")?.is_stack());
   assert!(ZSetSubKeyCodec::encode_score_key_buf(key_id, version, 1.0, b"")?.is_stack());
 
   OK
@@ -374,7 +374,7 @@ fn test_zset_sub_key_buf_borrow_and_ord_contract() -> Void {
   let version = 1_u64;
   let member = b"user:session:token";
 
-  let stack_buf = ZSetSubKeyBuf::from_member(key_id, version, member)?;
+  let stack_buf = wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, member)?;
   assert!(stack_buf.is_stack());
 
   // 构造相同二进制内容的 Heap 版本

@@ -4,7 +4,7 @@ use aok::{OK, Result};
 use whasher::{
   GxBuildHasher, GxPapayaMap, HashSet, HashSetExt, StreamHasher, compute_checksum,
   compute_checksum_with_seed, fast_hash, fast_hash_u64, fast_hash_with_seed, fast_hash128,
-  hash_set_with_capacity, hash_value, hash128, new_hash_map, new_papaya_map,
+  hash_set_with_capacity, hash128, new_hash_map, new_papaya_map,
 };
 
 #[ctor::ctor(unsafe)]
@@ -39,7 +39,6 @@ fn test_hashmap_and_hashset() -> Result<()> {
   assert_eq!(hash_set_with_capacity::<u64>(64).len(), 0);
 
   // 验证 GxBuildHasher 重导出
-  let def_hasher = GxBuildHasher::default();
   let _gx_builder = GxBuildHasher::default();
 
   // 验证 StreamHasher::new() 与 Default 等价
@@ -87,10 +86,6 @@ fn test_fast_hash_and_hash_value() -> Result<()> {
     .collect();
   assert!(per_seed.len() >= 63, "种子区分度不足: {}", per_seed.len());
 
-  // Hash trait 泛型路径：恒等 + 序敏感 + 数值宽度路径
-  assert_eq!(hash_value(&"test string"), hash_value(&"test string"));
-  assert_eq!(hash_value(&(1i32, 2i32)), hash_value(&(1i32, 2i32)));
-  assert_ne!(hash_value(&(1i32, 2i32)), hash_value(&(2i32, 1i32)));
   // 整数哈希 fast_hash_u64 对标 libs/client/Utility.cs:GetHashCode(long)；i64 与 u64 按位同型
   for val in [0u64, 1, 42, 0x1234_5678_9abc_def0, u64::MAX] {
     assert_eq!(fast_hash_u64(val), fast_hash(&val.to_le_bytes()));
