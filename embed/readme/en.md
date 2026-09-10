@@ -2,11 +2,36 @@
 
 WeDB Base is the storage foundation of [WeDB](https://github.com/webc-site/wedb). It rewrites the C# storage core of Microsoft [Garnet](https://github.com/microsoft/garnet) — Tsavorite HybridLog, lock-free hash index, CPR checkpointing, revivification, log compaction — plus BfTree range indexing, delivered as seventeen focused Rust crates on the `compio` async runtime (Linux io_uring, Windows IOCP, macOS kqueue).
 
+- [What It Does](#what-it-does)
+- [Usage](#usage)
+- [Highlights](#highlights)
+- [Design](#design)
+- [Tech Stack](#tech-stack)
+- [Directory Layout](#directory-layout)
+- [API Reference](#api-reference)
+  - [wkv — top-level engine](#wkv-top-level-engine)
+  - [wbase — L0 primitives](#wbase-l0-primitives)
+  - [wutil — shared tools and buffer pool](#wutil-shared-tools-and-buffer-pool)
+  - [wram — direct virtual memory](#wram-direct-virtual-memory)
+  - [whasher — hashing and concurrent maps](#whasher-hashing-and-concurrent-maps)
+  - [wepoch — epoch protection](#wepoch-epoch-protection)
+  - [wdev — async devices](#wdev-async-devices)
+  - [wrecord — record format](#wrecord-record-format)
+  - [wval — value layer](#wval-value-layer)
+  - [windex — lock-free hash index](#windex-lock-free-hash-index)
+  - [whlog — HybridLog allocator](#whlog-hybridlog-allocator)
+  - [wreviv — free slot recycling](#wreviv-free-slot-recycling)
+  - [wbftree — BfTree range index](#wbftree-bftree-range-index)
+  - [wcompact — log compaction](#wcompact-log-compaction)
+  - [wcpr — CPR checkpointing](#wcpr-cpr-checkpointing)
+  - [wsync — Tsavorite concurrency primitives](#wsync-tsavorite-concurrency-primitives)
+  - [wobject — record-style object layer](#wobject-record-style-object-layer)
+
 ## What It Does
 
-The workspace ships a layered storage stack. At the bottom, `wbase` provides cacheline-safe primitives: 48-bit log addressing, sector alignment math, adaptive backoff, and TLS thread identity. `wram` manages direct virtual memory and native allocation tracking, while `wutil` hosts the sector-aligned buffer pool (mirroring the bottom-layer role of Tsavorite `core/Utilities`) plus the libs/common toolset. `whasher` wraps AES-accelerated GxHash, parallel-lane streaming checksums, and lock-free Papaya maps. `wepoch` supplies epoch protection for safe memory reclamation. `wdev` abstracts async block devices over `compio`.
+The workspace ships a layered storage stack. At the bottom, `wbase` provides cacheline-safe primitives: 48-bit log addressing, sector alignment math, adaptive backoff, and TLS thread identity. `wram` manages direct virtual memory and native allocation tracking, while `wutil` hosts the sector-aligned buffer pool (mirroring the bottom-layer role of Tsavorite `core/Utilities`) plus the libs/common toolset. `whasher` wraps AES-accelerated GxHash, parallel-lane streaming checksums, and lock-free Papaya maps. `wepoch` supplies epoch protection for safe memory reclamation. `wdev` abstracts async block devices over `compio`. `wsync` hosts the Tsavorite concurrency primitives (read-optimized and single-writer multi-reader locks, turnstile / leader barriers, counting events).
 
-On top of that foundation sit the Tsavorite-equivalent cores. `wrecord` defines the 16-byte record header and zero-copy record views. `windex` implements the 64-byte-aligned lock-free hash index with overflow buckets and per-bucket guards. `whlog` implements the HybridLog allocator with its three-region sliding window (Mutable / ReadOnly / OnDisk). `wreviv` recycles deleted record slots. `wval` adds the Redis value layer: multi-tenant namespace encoding, collection metadata, and compact hash / set / zset codecs.
+On top of that foundation sit the Tsavorite-equivalent cores. `wrecord` defines the 16-byte record header and zero-copy record views. `windex` implements the 64-byte-aligned lock-free hash index with overflow buckets and per-bucket guards. `whlog` implements the HybridLog allocator with its three-region sliding window (Mutable / ReadOnly / OnDisk). `wreviv` recycles deleted record slots. `wval` adds the Redis value layer: multi-tenant namespace encoding, collection metadata, and compact hash / set / zset codecs. `wobject` provides the record-style object layer — in-memory Hash / Set / List / SortedSet objects over concurrent indexes — consumed by the server tier.
 
 Service crates orchestrate those cores. `wcpr` drives Concurrent Prefix Recovery checkpoints. `wcompact` compacts read-only log segments and physically truncates reclaimed segment files. `wbftree` manages BfTree-backed ordered range indexes. The `wkv` crate binds everything into `WedbStore`, a single-node engine with sessions, record-level TTL, background GC, read cache, checkpoint recovery, and range-index operations.
 
@@ -161,11 +186,13 @@ graph TD
     windex[windex hash index]
     wreviv[wreviv free slot pool]
     wval[wval value codec]
+    wobject[wobject record object layer]
   end
   subgraph foundation[Foundation layer]
     wrecord[wrecord record format]
     wdev[wdev async device]
     wepoch[wepoch epoch protection]
+    wsync[wsync concurrency primitives]
     whasher[whasher hash and maps]
     wutil[wutil buffer pool and tools]
     wram[wram direct virtual memory]
@@ -179,6 +206,7 @@ graph TD
   wkv --> windex
   wkv --> wreviv
   wkv --> wval
+  wobject --> whasher
   wcompact --> whlog
   wcompact --> windex
   wcompact --> wval
@@ -240,6 +268,7 @@ embed/
   whasher/   GxHash backends, streaming checksums, Papaya concurrent maps
   wepoch/    LightEpoch protection and entry table
   wdev/      compio Device trait, SegmentedDevice, NullDevice, fsync contract
+  wsync/     Tsavorite concurrency primitives: ReadOptimizedLock, SingleWriterMultiReaderLock, barriers, semaphore
   wrecord/   16B record header, zero-copy views, chunk framing, SIMD key compare
   wval/      namespace and session key codec, collection metadata, compact codecs, glob, TTL
   windex/    lock-free hash index, overflow pool, bucket guards
@@ -249,6 +278,7 @@ embed/
   wcompact/  LogCompactor, compact session traits, compaction stats
   wcpr/      CPR checkpoint state machine, index checkpoint I/O, metadata formats
   wkv/       WedbStore, sessions, TTL, GC, read cache, recovery orchestration
+  wobject/   record-style object layer: Hash / Set / List / SortedSet in-memory objects
   example/   workspace template with test scaffolding (not published)
   sh/        development and publish scripts
   test.sh    cargo nextest entry with all features
@@ -371,3 +401,15 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 - `RecoveredCheckpoint<D>` — recovered `CheckpointMeta` plus rebuilt `HashIndex`, `HybridLog`, `LightEpoch`.
 - `write_index_checkpoint` / `read_index_checkpoint_truncated`, `take_index_checkpoint`, `IndexCkptHeader`, `next_token`.
 - `CheckpointManager` — device-level manager behind the `wkv` wrapper; `CheckpointMeta`, `CheckpointType` (`FoldOver` / `Snapshot`), `StoreMeta`, `HlogMeta`, `IndexMeta`, file naming helpers.
+
+### wsync — Tsavorite concurrency primitives
+
+- `ReadOptimizedLock` / `LockToken` / `LockType`, `SingleWriterMultiReaderLock` — Tsavorite-style reader / writer discipline with spin-retry loops mirroring the C# originals.
+- `DoubleTurnstileBarrier`, `LeaderBarrier`, `CountingEventSlim`, `Semaphore` — barrier and signaling primitives.
+- `ActiveWorkerMonitor`, `CooperativeDisposeGuard` — cooperative shutdown bookkeeping.
+
+### wobject — record-style object layer
+
+- `HashObject` / `SetObject` / `ListObject` / `SortedSetObject` — in-memory object implementations over lock-free `whasher::GxPapayaMap` / `GxPapayaSet` indexes.
+- `HashOperation`, `SetOperation`, `ListOperation`, `SortedSetOperation` enums, `SortedSetEntry` (score/member total order), `OperationDirection`.
+- bitcode `serialize` / `deserialize` for checkpoint payloads.

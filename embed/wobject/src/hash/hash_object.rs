@@ -1,7 +1,6 @@
 use std::io::{self, Read, Write};
 
-use gxhash::GxBuildHasher;
-use papaya::HashMap;
+use whasher::{GxPapayaMap, new_papaya_map};
 
 /// 在 garnet 中的相对路径:libs/server/Objects/Hash/HashOperation.cs:HashOperation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,13 +30,13 @@ pub enum HashOperation {
 /// HEXPIRE/HTTL 字段级过期；Rust 侧过期统一由 wkv TTL 记录层承担，本结构
 /// 不再冗余持有永不读写的过期容器（cycle2 遗留死字段，已清除）
 pub struct HashObject {
-  pub hash: HashMap<Vec<u8>, Vec<u8>, GxBuildHasher>,
+  pub hash: GxPapayaMap<Vec<u8>, Vec<u8>>,
 }
 
 impl HashObject {
   pub fn new() -> Self {
     Self {
-      hash: HashMap::with_hasher(GxBuildHasher::default()),
+      hash: new_papaya_map(),
     }
   }
 
@@ -48,7 +47,7 @@ impl HashObject {
     let items: Vec<(Vec<u8>, Vec<u8>)> =
       bitcode::decode(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    let hash = HashMap::with_hasher(GxBuildHasher::default());
+    let hash = new_papaya_map();
     let pin = hash.pin();
     for (k, v) in items {
       pin.insert(k, v);
