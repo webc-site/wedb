@@ -216,20 +216,14 @@ const dupDefFind = (fn_doc_li) => {
 const dupDefFormat = (dup_li) => {
   if (dup_li.length === 0) return [];
 
-  const line_li = [
-    "============================================================",
-    "  ⚠️  发现重复定义的 C# 函数（共 " + dup_li.length + " 处）",
-    "============================================================",
-    ""
-  ];
+  const line_li = ["# 重复定义 (" + dup_li.length + ")"];
 
   for (const [cs_ref, loc_li] of dup_li) {
-    line_li.push(cs_ref + " (出现 " + loc_li.length + " 次):");
+    line_li.push(cs_ref + " (" + loc_li.length + ")");
     for (const loc of loc_li) {
       const fn_desc = loc.fn_path ? " (" + loc.fn_path + ")" : "";
-      line_li.push("  - " + loc.file + ":" + loc.line + fn_desc);
+      line_li.push("  " + loc.file + ":" + loc.line + fn_desc);
     }
-    line_li.push("");
   }
 
   return line_li;
