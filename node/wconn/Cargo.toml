@@ -23,7 +23,6 @@ itoa.workspace = true
 log.workspace = true
 memchr = "2.8.3"
 thiserror = "2.0.20"
-wepoch = { version = "0.1.1", path = "../../embed/wepoch" }
 zmij = "1.0.23"
 
 [dev-dependencies]

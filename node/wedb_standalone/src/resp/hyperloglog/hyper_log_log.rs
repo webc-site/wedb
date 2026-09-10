@@ -1178,7 +1178,7 @@ impl HyperLogLog {
 /// MurmurHash2 64 位变体（PFADD 的元素哈希，委托 wbase::hash::murmur_hash2_x64_a）
 #[inline]
 pub fn murmur_hash_2_x64_a(b_string: &[u8]) -> u64 {
-  wbase::hash::murmur_hash2_x64_a(b_string, 0)
+  murmur_hash2_x64_a(b_string, 0)
 }
 
 #[cfg(test)]
