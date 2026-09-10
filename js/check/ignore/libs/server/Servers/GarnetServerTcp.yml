@@ -1,0 +1,7 @@
+# 纯 .NET 框架面：以下两者为 LimitedFixedBufferPool 共享缓冲池的运维口。
+# Rust 托管模型下网络发送缓冲为会话自持结构（无进程级共享缓冲池），
+# 池清理/池统计运维面无对应物，不入转写；连接生命周期/接受循环/处置
+# 记账等其余语义已由 servers::garnet_server_tcp 1:1 承接。
+fn:
+  - Purge
+  - GetBufferPoolStats
