@@ -44,11 +44,11 @@ log_init = "0.1.39"
 tempfile = "3.27.0"
 
 [workspace.dependencies.wbase]
-version = "0.1.4"
+version = "0.1.5"
 path = "wbase"
 
 [workspace.dependencies.wbftree]
-version = "0.1.3"
+version = "0.1.4"
 path = "wbftree"
 
 [workspace.dependencies.wcompact]
@@ -60,11 +60,11 @@ version = "0.1.1"
 path = "wcpr"
 
 [workspace.dependencies.wdev]
-version = "0.1.2"
+version = "0.1.3"
 path = "wdev"
 
 [workspace.dependencies.wepoch]
-version = "0.1.2"
+version = "0.1.3"
 path = "wepoch"
 
 [workspace.dependencies.whasher]
@@ -72,7 +72,7 @@ version = "0.1.6"
 path = "whasher"
 
 [workspace.dependencies.whlog]
-version = "0.1.2"
+version = "0.1.3"
 path = "whlog"
 
 [workspace.dependencies.windex]
@@ -84,7 +84,7 @@ version = "0.1.4"
 path = "wram"
 
 [workspace.dependencies.wrecord]
-version = "0.1.2"
+version = "0.1.3"
 path = "wrecord"
 
 [workspace.dependencies.wreviv]

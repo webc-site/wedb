@@ -16,7 +16,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time", "error"]
 path = "../wbase"
-version = "0.1.4"
+version = "0.1.5"
 
 [dependencies.fastrand]
 workspace = true
