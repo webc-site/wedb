@@ -20,7 +20,7 @@ use futures_util::future::join_all;
 use gxhash::{GxBuildHasher, HashMap};
 use itoa::Buffer;
 use papaya::HashMap as PapayaMap;
-use wutil::{
+use wbase::{
   AlignedBuf, BufferPool, DEFAULT_SECTOR_SIZE, MIN_SECTOR_SIZE, current_thread_id,
   is_valid_sector_size,
 };

@@ -11,10 +11,10 @@ use std::{
 
 use compio_buf::{IoBuf, IoBufMut, SetLen};
 
+use super::{BufMeta, BufferPool, CachedBuf, validate_sector_size};
 use crate::{
-  align::{DEFAULT_SECTOR_SIZE, validate_sector_size},
+  align::DEFAULT_SECTOR_SIZE,
   error::{Error, Result},
-  pool::{BufMeta, BufferPool, CachedBuf},
 };
 
 /// 扇区对齐的堆内存缓冲区

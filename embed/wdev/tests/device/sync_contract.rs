@@ -17,8 +17,8 @@ use aok::{OK, Void};
 use compio::{buf::BufResult, fs::File, io::AsyncWriteAt, runtime::Runtime};
 use log::info;
 use tempfile::tempdir;
+use wbase::AlignedBuf;
 use wdev::{Device, SegmentedDevice};
-use wutil::AlignedBuf;
 
 use crate::support::Watchdog;
 

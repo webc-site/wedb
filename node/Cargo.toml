@@ -3,7 +3,7 @@ resolver = "3"
 members = [
   "wedb_standalone",
   "waof",
-  "wclient",
+  "wconn",
   "whost",
   "wresp",
   "wacl",
