@@ -1274,6 +1274,8 @@ impl RespServerSessionVectors {
 
 #[cfg(test)]
 mod tests {
+  use std::str::from_utf8;
+
   use super::{
     super::{
       vector_manager::{VectorManager, VectorManagerOptions},
@@ -1291,7 +1293,7 @@ mod tests {
   }
 
   fn s(bytes: &[u8]) -> &str {
-    std::str::from_utf8(bytes).unwrap()
+    from_utf8(bytes).unwrap()
   }
 
   fn err_text(r: VectorReply) -> String {
