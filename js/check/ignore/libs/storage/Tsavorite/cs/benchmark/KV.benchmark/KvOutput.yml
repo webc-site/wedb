@@ -1,15 +1,15 @@
-KvOutput: 无需实现
-EmitConfigHuman: 无需实现
-EmitPhaseHuman: 无需实现
-EmitAggregateHuman: 无需实现
-TrimmedMean: 无需实现
-EmitFinalSummary: 无需实现
-Rate: 无需实现
-EmitRunPhaseBlock: 无需实现
-EffectiveHashpack: 无需实现
-Dbl: 无需实现
-JsonString: 无需实现
-PrettyJson: 无需实现
-TryReadFirstLine: 无需实现
-TryGitSha: 无需实现
-AppendLine: 无需实现
+KvOutput: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitConfigHuman: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitPhaseHuman: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitAggregateHuman: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrimmedMean: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitFinalSummary: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Rate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitRunPhaseBlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EffectiveHashpack: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Dbl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+JsonString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrettyJson: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryReadFirstLine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryGitSha: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AppendLine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,24 +1,24 @@
-Setup: 无需实现
-TearDown: 无需实现
-VerifyCommandInfo: 无需实现
-VerifyCommandDocs: 无需实现
-RegisterCustomCommands: 无需实现
-DynamicallyRegisterCustomCommands: 无需实现
-CreateTestLibrary: 无需实现
-CommandGetKeysTest: 无需实现
-CommandGetKeysAndFlagsTest: 无需实现
-CommandsInfoCoverageTest: 测试函数无需实现
-CommandsDocsCoverageTest: 测试函数无需实现
-RespCommandFlagAliasParsesTest: 测试函数无需实现
-SimpleCommandsInfoTest: 测试函数无需实现
-CommandTest: 测试函数无需实现
-CommandInfoTest: 测试函数无需实现
-CommandDocsTest: 测试函数无需实现
-CommandCountTest: 测试函数无需实现
-CommandUnknownSubcommandTest: 测试函数无需实现
-CommandInfoWithCommandNamesTest: 测试函数无需实现
-CommandDocsWithCommandNamesTest: 测试函数无需实现
-CommandInfoWithCustomCommandNamesTest: 测试函数无需实现
-CommandDocsWithCustomCommandNamesTest: 测试函数无需实现
-AofIndependentCommandsTest: 测试函数无需实现
-CommandGetKeysInvalidInputTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCommandInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCommandDocs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DynamicallyRegisterCustomCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateTestLibrary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandGetKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandGetKeysAndFlagsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandsInfoCoverageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandsDocsCoverageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespCommandFlagAliasParsesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleCommandsInfoTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandInfoTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandDocsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandCountTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandUnknownSubcommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandInfoWithCommandNamesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandDocsWithCommandNamesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandInfoWithCustomCommandNamesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandDocsWithCustomCommandNamesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofIndependentCommandsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandGetKeysInvalidInputTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

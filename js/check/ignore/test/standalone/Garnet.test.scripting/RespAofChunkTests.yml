@@ -1,22 +1,22 @@
-CreateServer: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-RestartForRecovery: 无需实现
-UsePageSizes: 无需实现
-UseTopology: 无需实现
-MakeValue: 无需实现
-MakeFieldBytes: 无需实现
-AofLargeStringValueSpanChunkRecoverTest: 测试函数无需实现
-AofLargeStringValueOverwriteSpanChunkRecoverTest: 测试函数无需实现
-AofLargeObjectChunkRecoverTest: 测试函数无需实现
-AofHugeObjectChunkRecoverTest: 测试函数无需实现
-AofLargeSortedSetChunkRecoverTest: 测试函数无需实现
-AofLargeKeyBrokenAcrossPagesRecoverTest: 测试函数无需实现
-AofLargeInputRmwBrokenAcrossPagesRecoverTest: 测试函数无需实现
-AofLargeKeySmallInputInlineRmwRecoverTest: 测试函数无需实现
-AofInterleavedChunksFromMultipleRecordsRecoverTest: 测试函数无需实现
-AofChunkedAndNonChunkedInterleavedRecoverTest: 测试函数无需实现
-AofChunkMultiReplayRecoverTest: 测试函数无需实现
-AofChunkShardedRecoverTest: 测试函数无需实现
-AofChunkShardedObjectRecoverTest: 测试函数无需实现
-AofChunkPartialSlotsPageSplitRecoverTest: 测试函数无需实现
+CreateServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestartForRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UsePageSizes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UseTopology: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeFieldBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeStringValueSpanChunkRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeStringValueOverwriteSpanChunkRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeObjectChunkRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofHugeObjectChunkRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeSortedSetChunkRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeKeyBrokenAcrossPagesRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeInputRmwBrokenAcrossPagesRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofLargeKeySmallInputInlineRmwRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofInterleavedChunksFromMultipleRecordsRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofChunkedAndNonChunkedInterleavedRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofChunkMultiReplayRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofChunkShardedRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofChunkShardedObjectRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofChunkPartialSlotsPageSplitRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

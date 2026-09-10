@@ -1,4 +1,4 @@
-WriteLogUpsert: 无需实现
-WriteLogDelete: 无需实现
-GetCustomObjectCommand: 无需实现
-IncorrectObjectType: 无需实现
+WriteLogUpsert: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteLogDelete: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetCustomObjectCommand: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IncorrectObjectType: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

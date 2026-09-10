@@ -1,12 +1,12 @@
-Setup: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-Populate: 无需实现
-AssertLockandModified: 无需实现
-LockAndNotModify: 测试函数无需实现
-ResetModifyForNonExistingKey: 测试函数无需实现
-ModifyClientSession: 测试函数无需实现
-ModifyLUC: 测试函数无需实现
-ModifyUC: 测试函数无需实现
-ModifyLC: 测试函数无需实现
-CopyToTailAndVerifyResetTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertLockandModified: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockAndNotModify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetModifyForNonExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyClientSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyLUC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyUC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyToTailAndVerifyResetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,5 +1,5 @@
-ClearValueIfHeap: 无需实现
-AsMemoryLogRecordRef: 无需实现
-AsDiskLogRecordRef: 无需实现
-GetRecordFieldInfo: 无需实现
-CalculateHeapMemorySize: 无需实现
+ClearValueIfHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsMemoryLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsDiskLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculateHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

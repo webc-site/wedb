@@ -1,13 +1,13 @@
-Setup: 无需实现
-TearDown: 无需实现
-ClusterConfigInitializesUnassignedWorkerTest: 测试函数无需实现
-ClusterForgetAfterNodeRestartTest: 测试函数无需实现
-ClusterAnnounceRecoverTest: 测试函数无需实现
-ClusterAnyIPAnnounce: 测试函数无需实现
-ClusterConfigVersionRoundTripTest: 测试函数无需实现
-ClusterConfigVersionMismatchThrowsTest: 测试函数无需实现
-ClusterConfigTryPeekVersionEmptyDataTest: 测试函数无需实现
-ReplicationHistoryVersionRoundTripTest: 测试函数无需实现
-ReplicationHistoryVersionMismatchThrowsTest: 测试函数无需实现
-ClusterConfigMergeSlotMapRetainsStaleOwnershipResetTest: 测试函数无需实现
-ClusterConfigMergeSlotMapAccumulatesUpdatedAcrossSlotsTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigInitializesUnassignedWorkerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterForgetAfterNodeRestartTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAnnounceRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAnyIPAnnounce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigVersionRoundTripTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigVersionMismatchThrowsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigTryPeekVersionEmptyDataTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicationHistoryVersionRoundTripTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicationHistoryVersionMismatchThrowsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigMergeSlotMapRetainsStaleOwnershipResetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterConfigMergeSlotMapAccumulatesUpdatedAcrossSlotsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

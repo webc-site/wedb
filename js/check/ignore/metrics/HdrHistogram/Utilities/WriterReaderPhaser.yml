@@ -1,8 +1,8 @@
-GetAndIncrement: 无需实现
-GetAndSet: 无需实现
-LazySet: 无需实现
-WriterCriticalSectionEnter: 无需实现
-WriterCriticalSectionExit: 无需实现
-ReaderLock: 无需实现
-ReaderUnlock: 无需实现
-FlipPhase: 无需实现
+GetAndIncrement: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetAndSet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+LazySet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+WriterCriticalSectionEnter: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+WriterCriticalSectionExit: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReaderLock: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReaderUnlock: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+FlipPhase: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

@@ -1,6 +1,6 @@
-EnsureInitialized: 无需实现
-CompleteAsPageOwner: 无需实现
-AddPage: 无需实现
-MaybeInjectAddPageFailure: 无需实现
-TryGet: 无需实现
-ToString: 无需实现
+EnsureInitialized: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteAsPageOwner: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AddPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaybeInjectAddPageFailure: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryGet: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

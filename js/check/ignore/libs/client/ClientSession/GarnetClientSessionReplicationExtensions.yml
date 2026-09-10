@@ -1,8 +1,8 @@
-ExecuteClusterInitiateReplicaSync: 无需实现
-ExecuteClusterSendCheckpointMetadata: 无需实现
-ExecuteClusterSendCheckpointFileSegment: 无需实现
-ExecuteClusterSnapshotData: 无需实现
-ExecuteClusterBeginReplicaRecover: 无需实现
-ExecuteClusterAttachSync: 无需实现
-ExecuteClusterAdvanceTime: 无需实现
-ExecuteClusterAppendLogInit: 无需实现
+ExecuteClusterInitiateReplicaSync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterSendCheckpointMetadata: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterSendCheckpointFileSegment: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterSnapshotData: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterBeginReplicaRecover: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterAttachSync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterAdvanceTime: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterAppendLogInit: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

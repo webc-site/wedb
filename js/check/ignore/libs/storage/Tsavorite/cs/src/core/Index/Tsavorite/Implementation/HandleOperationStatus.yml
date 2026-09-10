@@ -1,8 +1,8 @@
-HandleImmediateRetryStatus: 无需实现
-HandleImmediateNonPendingRetryStatus: 无需实现
-HandleRetryStatus: 无需实现
-InternalRefresh: 无需实现
-SynchronizeEpoch: 无需实现
-HandleOperationStatus: 无需实现
-OnDisposeDiskRecord: 无需实现
-ResolveInitialIORecordSize: 无需实现
+HandleImmediateRetryStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HandleImmediateNonPendingRetryStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HandleRetryStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalRefresh: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SynchronizeEpoch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HandleOperationStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDisposeDiskRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResolveInitialIORecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

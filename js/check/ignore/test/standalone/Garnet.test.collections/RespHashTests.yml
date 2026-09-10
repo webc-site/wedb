@@ -1,79 +1,79 @@
-Setup: 无需实现
-TearDown: 无需实现
-UpdateHashMap: 无需实现
-FormatWrongNumOfArgsError: 无需实现
-CanSetEmpty: 测试函数无需实现
-CanSetAndGetOnePair: 测试函数无需实现
-CanSetAndGetOnePairWithExpire: 测试函数无需实现
-CanSetWithExpireAndRemoveExpireByCallingSetAgain: 测试函数无需实现
-CanFieldPersistAndGetTimeToLive: 测试函数无需实现
-CanSetAndGetOnePairLarge: 测试函数无需实现
-CanSetAndGetMultiPair: 测试函数无需实现
-CanSetAndGetMultiplePairs: 测试函数无需实现
-CanDelSingleField: 测试函数无需实现
-CanDelWithExpire: 测试函数无需实现
-CanDeleteMultipleFields: 测试函数无需实现
-CanDeleteMultipleFieldsWithNonExistingField: 测试函数无需实现
-CanDoHLen: 测试函数无需实现
-CanDoHLenWithExpire: 测试函数无需实现
-CanDoGetAll: 测试函数无需实现
-CanDoGetAllWithExpire: 测试函数无需实现
-CanDoHExists: 测试函数无需实现
-CanDoHExistsWithExpire: 测试函数无需实现
-CanDoHStrLen: 测试函数无需实现
-CanDoHStrLenWithExire: 测试函数无需实现
-CanDoHKeys: 测试函数无需实现
-CanDoHKeysWithExpire: 测试函数无需实现
-CanDoHVals: 测试函数无需实现
-CanDoHValsWithExpire: 测试函数无需实现
-CanDoHIncrBy: 测试函数无需实现
-CanDoHIncrByWithExpire: 测试函数无需实现
-CanDoHIncrByLTM: 测试函数无需实现
-CanDoHashDecrement: 测试函数无需实现
-CheckHashIncrementDoublePrecision: 测试函数无需实现
-CheckHashIncrementDoublePrecisionWithExpire: 测试函数无需实现
-CanDoHSETNXCommand: 测试函数无需实现
-CanDoHSETNXCommandWithExpire: 测试函数无需实现
-CanDoRandomField: 测试函数无需实现
-CanDoRandomFieldWithExpire: 测试函数无需实现
-CanDoRandomFieldsWithExpire: 测试函数无需实现
-HashRandomFieldEmptyHash: 测试函数无需实现
-CanDoHashScan: 测试函数无需实现
-CanDoHashScanWithExpire: 测试函数无需实现
-CanDoHashScanWithCursor: 测试函数无需实现
-CanDoHMGET: 测试函数无需实现
-CanDoHMGETWithExpire: 测试函数无需实现
-CanDoHGETALL: 测试函数无需实现
-CanDoHMSETMultipleTimes: 测试函数无需实现
-CanDoHSETWhenAlwaysAsync: 测试函数无需实现
-CanDoHashSetWithNX: 测试函数无需实现
-CheckEmptyHashKeyRemoved: 测试函数无需实现
-CheckHashOperationsOnWrongTypeObjectSE: 测试函数无需实现
-CanDoHashExpire: 测试函数无需实现
-CanDoHashExpireLTM: 测试函数无需实现
-CanDoHashExpireWithAofRecoveryAsync: 测试函数无需实现
-CanDoHashExpireWithNonExistKey: 测试函数无需实现
-CanDoHashCollect: 测试函数无需实现
-CanDoHashExpireWithOptions: 测试函数无需实现
-CanSetAndGetOnepairLC: 测试函数无需实现
-CanSetAndGetMultiplepairLC: 测试函数无需实现
-CanSetAndGetMultiplepairandAllChunks: 测试函数无需实现
-CanSetAndGetMultiplePairsSecondUseCaseLC: 测试函数无需实现
-CanDeleteOnepairLC: 测试函数无需实现
-CanDoGetAllLC: 测试函数无需实现
-CanDoHExistsLC: 测试函数无需实现
-CanDoHStrLenLC: 测试函数无需实现
-CanDoIncrByLC: 测试函数无需实现
-CanDoIncrByFloatLC: 测试函数无需实现
-CanDoHRANDFIELDCommandLC: 测试函数无需实现
-CanDoHRANDFIELDWithOverflowingCountLC: 测试函数无需实现
-CanDoKeyNotFoundCommandLC: 测试函数无需实现
-CanDoNOTFOUNDSSKEYLC: 测试函数无需实现
-HRespOutput: 测试函数无需实现
-CanFailWhenUseMultiWatchTest: 测试函数无需实现
-CanDoNotFoundSKeyInHRANDFIELDLC: 测试函数无需实现
-CanDoWrongParametersNumberHRANDFIELDLC: 测试函数无需实现
-CanDoNOTFOUNDSKeyInHVALSLC: 测试函数无需实现
-CanDoWrongNumOfParametersInHINCRBYLC: 测试函数无需实现
-CanDoWrongNumOfParametersInHINCRBYFLOATLC: 测试函数无需实现
-CanIncrementBeyond32bits: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpdateHashMap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FormatWrongNumOfArgsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetEmpty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetOnePair: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetOnePairWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetWithExpireAndRemoveExpireByCallingSetAgain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanFieldPersistAndGetTimeToLive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetOnePairLarge: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetMultiPair: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetMultiplePairs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDelSingleField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDelWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDeleteMultipleFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDeleteMultipleFieldsWithNonExistingField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHLen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHLenWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoGetAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoGetAllWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHExists: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHExistsWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHStrLen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHStrLenWithExire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHKeysWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHVals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHValsWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHIncrBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHIncrByWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHIncrByLTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashDecrement: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckHashIncrementDoublePrecision: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckHashIncrementDoublePrecisionWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHSETNXCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHSETNXCommandWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRandomField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRandomFieldWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRandomFieldsWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HashRandomFieldEmptyHash: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashScanWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashScanWithCursor: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHMGET: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHMGETWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHGETALL: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHMSETMultipleTimes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHSETWhenAlwaysAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashSetWithNX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckEmptyHashKeyRemoved: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckHashOperationsOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashExpireLTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashExpireWithAofRecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashExpireWithNonExistKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashCollect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHashExpireWithOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetOnepairLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetMultiplepairLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetMultiplepairandAllChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetAndGetMultiplePairsSecondUseCaseLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDeleteOnepairLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoGetAllLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHExistsLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHStrLenLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoIncrByLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoIncrByFloatLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHRANDFIELDCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoHRANDFIELDWithOverflowingCountLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoKeyNotFoundCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoNOTFOUNDSSKEYLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HRespOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanFailWhenUseMultiWatchTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoNotFoundSKeyInHRANDFIELDLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoWrongParametersNumberHRANDFIELDLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoNOTFOUNDSKeyInHVALSLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoWrongNumOfParametersInHINCRBYLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoWrongNumOfParametersInHINCRBYFLOATLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanIncrementBeyond32bits: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

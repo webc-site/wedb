@@ -1,3 +1,3 @@
-ConditionallyHoistedKey: 无需实现
-KeysEqual: 无需实现
-Create: 无需实现
+ConditionallyHoistedKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+KeysEqual: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Create: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

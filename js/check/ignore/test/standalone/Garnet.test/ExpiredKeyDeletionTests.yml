@@ -1,8 +1,8 @@
-Setup: 无需实现
-SetupServer: 无需实现
-TearDown: 无需实现
-TestExpiredKeyDeletionScanAsync: 测试函数无需实现
-CheckExistenceConditionOnAllKeys: 无需实现
-PopulateStore: 无需实现
-TestOnDemandExpiredKeyDeletionScan: 测试函数无需实现
-TestScheduledExpiredKeyDeletionViaSimulation: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestExpiredKeyDeletionScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckExistenceConditionOnAllKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestOnDemandExpiredKeyDeletionScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestScheduledExpiredKeyDeletionViaSimulation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

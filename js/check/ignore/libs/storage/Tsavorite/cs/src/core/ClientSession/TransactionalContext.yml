@@ -1,20 +1,20 @@
-BeginTransaction: 无需实现
-LocksAcquired: 无需实现
-EndTransaction: 无需实现
-CompareKeyHashes: 无需实现
-SortKeyHashes: 无需实现
-DoTransactionalLock: 无需实现
-DoTransactionalUnlock: 无需实现
-DoTransactionalTryLock: 无需实现
-DoManualTryPromoteLock: 无需实现
-Lock: 无需实现
-TryLock: 无需实现
-TryPromoteLock: 无需实现
-Unlock: 无需实现
-GetKeyHash: 无需实现
-CompletePendingWithOutputs: 无需实现
-CompletePendingAsync: 无需实现
-CompletePendingWithOutputsAsync: 无需实现
-ReadWithPrefetch: 无需实现
-ResetModified: 无需实现
-IsModified: 无需实现
+BeginTransaction: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LocksAcquired: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndTransaction: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompareKeyHashes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SortKeyHashes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoTransactionalLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoTransactionalUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoTransactionalTryLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoManualTryPromoteLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Lock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryPromoteLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Unlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKeyHash: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingWithOutputs: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingWithOutputsAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadWithPrefetch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetModified: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsModified: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

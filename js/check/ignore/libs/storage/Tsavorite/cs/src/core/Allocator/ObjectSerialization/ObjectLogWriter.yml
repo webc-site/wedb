@@ -1,11 +1,11 @@
-ObjectLogWriter: 无需实现
-FlushAndReset: 无需实现
-GetNextRecordStartPosition: 无需实现
-OnBeginPartialFlush: 无需实现
-OnPartialFlushComplete: 无需实现
-WriteRecordObjects: 无需实现
-WriteDirect: 无需实现
-CopyRecoveredObjectBytes: 无需实现
-Write: 无需实现
-OnBufferComplete: 无需实现
-OnSerializeComplete: 无需实现
+ObjectLogWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushAndReset: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNextRecordStartPosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginPartialFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnPartialFlushComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteRecordObjects: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteDirect: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyRecoveredObjectBytes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Write: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBufferComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnSerializeComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

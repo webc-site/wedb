@@ -1,0 +1,11 @@
+NetworkMULTI: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkEXEC: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkSKIP: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkDISCARD: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+CommonWATCH: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkWATCH_MS: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkWATCH_OS: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkWATCH: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkUNWATCH: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkRUNTXPFast: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+NetworkRUNTXP: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度

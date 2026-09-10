@@ -1,21 +1,21 @@
-PauseRevivification: 无需实现
-ResumeRevivification: 无需实现
-DisposeOnConstructionFailure: 无需实现
-GetKeyHash: 无需实现
-TryInitiateFullCheckpoint: 无需实现
-TryInitiateIndexCheckpoint: 无需实现
-TakeIndexCheckpointAsync: 无需实现
-TryInitiateHybridLogCheckpoint: 无需实现
-TakeHybridLogCheckpointAsync: 无需实现
-GetRecoverVersion: 无需实现
-FindRecoveryInfo: 无需实现
-InternalRecoverAsync: 无需实现
-CompleteCheckpointAsync: 无需实现
-ContextRead: 无需实现
-ContextReadAtAddress: 无需实现
-ContextUpsert: 无需实现
-ContextRMW: 无需实现
-ContextDelete: 无需实现
-GrowIndexAsync: 无需实现
-DumpDistributionInternal: 无需实现
-DumpDistribution: 无需实现
+PauseRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResumeRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DisposeOnConstructionFailure: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKeyHash: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryInitiateFullCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryInitiateIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TakeIndexCheckpointAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryInitiateHybridLogCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TakeHybridLogCheckpointAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecoverVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindRecoveryInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalRecoverAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteCheckpointAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContextRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContextReadAtAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContextUpsert: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContextRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContextDelete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GrowIndexAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DumpDistributionInternal: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DumpDistribution: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

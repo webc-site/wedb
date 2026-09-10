@@ -1,9 +1,9 @@
-EnableException: 无需实现
-DisableException: 无需实现
-EnabledScope: 无需实现
-TriggerException: 无需实现
-TriggerCondition: 无需实现
-ResetAndWaitAsync: 无需实现
-ResetAndWait: 无需实现
-WaitOnClear: 无需实现
-WaitOnClearAsync: 无需实现
+EnableException: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+DisableException: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EnabledScope: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TriggerException: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TriggerCondition: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ResetAndWaitAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ResetAndWait: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WaitOnClear: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WaitOnClearAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,9 +1,9 @@
-Setup: 无需实现
-BaseSetup: 无需实现
-TearDown: 无需实现
-BaseTearDown: 无需实现
-ReadMetadata: 无需实现
-WriteMetadata: 无需实现
-FlakyLogTestCleanFailure: 测试函数无需实现
-FlakyLogTestConcurrentWriteFailure: 测试函数无需实现
-FlakyLogTestTolerateFailure: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadMetadata: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteMetadata: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlakyLogTestCleanFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlakyLogTestConcurrentWriteFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlakyLogTestTolerateFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

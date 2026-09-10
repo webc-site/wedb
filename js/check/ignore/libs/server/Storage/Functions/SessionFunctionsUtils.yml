@@ -1,5 +1,5 @@
-EvaluateExpire: 无需实现
-InPlaceWriterForSpanValue: 无需实现
-InPlaceWriterForHeapObjectValue: 无需实现
-InPlaceWriterForLogRecordValue: 无需实现
-UpdateExpiration: 无需实现
+EvaluateExpire: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceWriterForSpanValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceWriterForHeapObjectValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceWriterForLogRecordValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateExpiration: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

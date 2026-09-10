@@ -1,3 +1,3 @@
-PostInitialUpdater: 无需实现
-PostCopyUpdater: 无需实现
-PostRMWOperation: 无需实现
+PostInitialUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostCopyUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostRMWOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

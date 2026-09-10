@@ -1,8 +1,8 @@
-Main: 无需实现
-Usage: 无需实现
-WriteHeader: 无需实现
-Run: 无需实现
-Finish: 无需实现
-TryParse: 无需实现
-TryInt: 无需实现
-ToPayload: 无需实现
+Main: C# 原型实验与演练脚本，非生产运行时代码
+Usage: C# 原型实验与演练脚本，非生产运行时代码
+WriteHeader: C# 原型实验与演练脚本，非生产运行时代码
+Run: C# 原型实验与演练脚本，非生产运行时代码
+Finish: C# 原型实验与演练脚本，非生产运行时代码
+TryParse: C# 原型实验与演练脚本，非生产运行时代码
+TryInt: C# 原型实验与演练脚本，非生产运行时代码
+ToPayload: C# 原型实验与演练脚本，非生产运行时代码

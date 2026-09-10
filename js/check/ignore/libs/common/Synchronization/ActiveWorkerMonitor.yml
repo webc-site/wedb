@@ -1,2 +1,2 @@
-TryOpen: 无需实现
-TryEnter: 无需实现
+TryOpen: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryEnter: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

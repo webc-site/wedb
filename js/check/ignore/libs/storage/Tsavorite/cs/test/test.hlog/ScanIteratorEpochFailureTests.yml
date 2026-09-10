@@ -1,13 +1,13 @@
-PopulateRecordSizeInfo: 无需实现
-AllocatePage: 无需实现
-FreePage: 无需实现
-ClaimFrameAndIssueRead: 无需实现
-AsyncReadPageFromDeviceToFrame: 无需实现
-RunBounded: 无需实现
-DrainIgnoringQueuedFailures: 无需实现
-DrainAndDispose: 无需实现
-QueuePoisonFromOtherThread: 无需实现
-FrameClaimIsReleasedWhenEpochBumpThrows: 测试函数无需实现
-FrameClaimIsReleasedWhenEpochBumpThrowsBeforeRegistration: 测试函数无需实现
-FrameClaimIsReleasedWhenIssuingTheReadThrows: 测试函数无需实现
-FrameLoadSucceedsWhenEpochBumpDoesNotThrow: 测试函数无需实现
+PopulateRecordSizeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllocatePage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FreePage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClaimFrameAndIssueRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AsyncReadPageFromDeviceToFrame: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunBounded: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DrainIgnoringQueuedFailures: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DrainAndDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+QueuePoisonFromOtherThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FrameClaimIsReleasedWhenEpochBumpThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FrameClaimIsReleasedWhenEpochBumpThrowsBeforeRegistration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FrameClaimIsReleasedWhenIssuingTheReadThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FrameLoadSucceedsWhenEpochBumpDoesNotThrow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,2 +1,2 @@
-StableHash: 无需实现
-StableHashUnsafe: 无需实现
+StableHash: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+StableHashUnsafe: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

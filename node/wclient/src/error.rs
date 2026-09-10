@@ -1,5 +1,6 @@
 use core::result::Result as StdResult;
 use std::io::Error as IoError;
+
 use thiserror::Error;
 
 pub type Result<T> = StdResult<T, Error>;
@@ -26,5 +27,5 @@ pub enum Error {
   Other(String),
 
   #[error(transparent)]
-  Io(#[from] std::io::Error),
+  Io(#[from] IoError),
 }

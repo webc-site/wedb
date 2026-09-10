@@ -1,18 +1,18 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-CreateStore: 无需实现
-DefaultIORecordSizeConstantTest: 测试函数无需实现
-UseDefaultInitialIORecordSizeConstantTest: 测试函数无需实现
-StoreLevel_InitialIORecordSizeTest: 测试函数无需实现
-StoreLevel_DefaultTest: 测试函数无需实现
-SessionLevel_InitialIORecordSizeTest: 测试函数无需实现
-ReadOptions_InitialIORecordSizeTest: 测试函数无需实现
-RMWOptions_InitialIORecordSizeTest: 测试函数无需实现
-NullDevice_SectorSizeTest: 测试函数无需实现
-GetExpectedIORecordSize_BasicTest: 测试函数无需实现
-GetExpectedIORecordSize_WithOptionalsTest: 测试函数无需实现
-GetExpectedIORecordSize_WithObjectTest: 测试函数无需实现
-GetExpectedIORecordSize_WithNamespaceTest: 测试函数无需实现
-GetExpectedIORecordSize_AlignmentTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DefaultIORecordSizeConstantTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UseDefaultInitialIORecordSizeConstantTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StoreLevel_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StoreLevel_DefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionLevel_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOptions_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RMWOptions_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NullDevice_SectorSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_BasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithOptionalsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithNamespaceTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_AlignmentTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

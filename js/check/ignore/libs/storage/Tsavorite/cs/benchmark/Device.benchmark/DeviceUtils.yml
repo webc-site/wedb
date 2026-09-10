@@ -1,2 +1,2 @@
-WriteInto: 无需实现
-IOCallback: 无需实现
+WriteInto: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IOCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

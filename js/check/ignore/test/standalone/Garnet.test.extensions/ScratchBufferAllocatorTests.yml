@@ -1,6 +1,6 @@
-CreateArgSliceAndRewindTest: 测试函数无需实现
-NoGrowRewindReclaimsOffsetAndPreservesEarlierData: 测试函数无需实现
-GrowDuringScopeReclaimsCurrentBuffer: 测试函数无需实现
-FirstAllocationFromDefaultRewindsToZeroAndRetainsBuffer: 测试函数无需实现
-RepeatedReserveRewindDoesNotGrow: 测试函数无需实现
-RepeatedGrowingRunsReuseLargestBuffer: 测试函数无需实现
+CreateArgSliceAndRewindTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoGrowRewindReclaimsOffsetAndPreservesEarlierData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GrowDuringScopeReclaimsCurrentBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FirstAllocationFromDefaultRewindsToZeroAndRetainsBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RepeatedReserveRewindDoesNotGrow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RepeatedGrowingRunsReuseLargestBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

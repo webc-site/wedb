@@ -1,6 +1,6 @@
-TryParseCommandLineArguments: 无需实现
-GetArgumentNameToValue: 无需实现
-TryParseArguments: 无需实现
-TryImportServerOptions: 无需实现
-TryExportServerOptions: 无需实现
-ConsolidateFlagArguments: 无需实现
+TryParseCommandLineArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetArgumentNameToValue: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryParseArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryImportServerOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryExportServerOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+ConsolidateFlagArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

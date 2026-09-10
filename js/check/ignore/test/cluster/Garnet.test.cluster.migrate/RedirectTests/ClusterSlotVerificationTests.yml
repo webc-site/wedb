@@ -1,25 +1,25 @@
-Equals: 无需实现
-AssertSlotsNotAssigned: 无需实现
-ConfigureSlotForMigration: 无需实现
-ResetSlot: 无需实现
-OneTimeSetUp: 无需实现
-OneTimeTearDown: 无需实现
-ClusterState: 无需实现
-GetNodeInfo: 无需实现
-SERedisClusterDown: 无需实现
-GarnetClientSessionClusterDown: 无需实现
-SERedisOKTest: 无需实现
-GarnetClientSessionOK: 无需实现
-SERedisCrossslotTest: 无需实现
-GarnetClientSessionCrossslotTest: 无需实现
-SERedisMOVEDTest: 无需实现
-GarnetClientSessionMOVEDTest: 无需实现
-SERedisASKTest: 无需实现
-GarnetClientSessionASKTest: 无需实现
-SERedisTRYAGAINTest: 无需实现
-ClusterCLUSTERDOWNTest: 测试函数无需实现
-ClusterOKTest: 测试函数无需实现
-ClusterCROSSSLOTTest: 测试函数无需实现
-ClusterMOVEDTest: 测试函数无需实现
-ClusterASKTest: 测试函数无需实现
-ClusterTRYAGAINTest: 测试函数无需实现
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSlotsNotAssigned: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigureSlotForMigration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OneTimeSetUp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OneTimeTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisClusterDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetClientSessionClusterDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisOKTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetClientSessionOK: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisCrossslotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetClientSessionCrossslotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisMOVEDTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetClientSessionMOVEDTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisASKTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetClientSessionASKTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SERedisTRYAGAINTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCLUSTERDOWNTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterOKTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCROSSSLOTTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMOVEDTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterASKTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTRYAGAINTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

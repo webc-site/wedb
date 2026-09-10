@@ -1,6 +1,6 @@
-NUnitLoggerProvider: 无需实现
-CreateLogger: 无需实现
-NUnitLogger: 无需实现
-BeginScope: 无需实现
-IsEnabled: 无需实现
-GetLevelStr: 无需实现
+NUnitLoggerProvider: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateLogger: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NUnitLogger: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginScope: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsEnabled: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLevelStr: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

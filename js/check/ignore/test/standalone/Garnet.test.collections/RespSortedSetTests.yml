@@ -1,157 +1,157 @@
-Setup: 无需实现
-TearDown: 无需实现
-CanDoZRevRangeByLex: 无需实现
-CanDoZRevRangeByLexWithoutLimit: 无需实现
-CheckSortedSetRangeStoreSE: 无需实现
-CheckSortedSetRangeStoreByScoreSE: 无需实现
-CheckSortedSetRangeStoreByLexSE: 无需实现
-SortedSetMultiPopWithOptionsTest: 无需实现
-CanDoZInterWithSE: 测试函数无需实现
-CanUseZUnionWithAggregateOption: 无需实现
-CanUseZUnionWithWeights: 无需实现
-CanUseZUnionStoreWithAggregateOption: 无需实现
-CanUseZUnionStoreWithWeights: 无需实现
-CheckSortedSetRangeStoreLC: 无需实现
-SendCommandWithoutKey: 无需实现
-UpdateSortedSetKey: 无需实现
-FormatWrongNumOfArgsError: 无需实现
-Compare: 无需实现
-SortedSetPopTest: 测试函数无需实现
-SortedSetPopWithExpire: 测试函数无需实现
-SortedSetAddWithExpire: 测试函数无需实现
-AddAndLength: 测试函数无需实现
-AddWithOptions: 测试函数无需实现
-AddInfinites: 测试函数无需实现
-AddWithOptionsErrorConditions: 测试函数无需实现
-CanCreateLeaderBoard: 测试函数无需实现
-CanGetScoresZCount: 测试函数无需实现
-CanGetScoresZCountWithMinHigherThanMaxScore: 测试函数无需实现
-ZCountAndZCardWithExpiredAndExpiringItems: 测试函数无需实现
-AddRemove: 测试函数无需实现
-AddRemoveBy: 测试函数无需实现
-AddPopDesc: 测试函数无需实现
-AddScore: 测试函数无需实现
-CanDoZMScore: 测试函数无需实现
-CanDoZMScoreLC: 测试函数无需实现
-ZRangeStoreInvalidParamsReturnErrorAndKeepSessionAlive: 测试函数无需实现
-CandDoZIncrby: 测试函数无需实现
-CanManageNotExistingKeySE: 测试函数无需实现
-CanUseZScanNoParameters: 测试函数无需实现
-CanUseZScanWithMatch: 测试函数无需实现
-CanUseZScanWithCollection: 测试函数无需实现
-CanUseZScanWithDoubleDifferentFormats: 测试函数无需实现
-CanDoZScanWithCursor: 测试函数无需实现
-CanUseZRangeByScoreWithSE: 测试函数无需实现
-CanManageZRangeByScoreWhenStartHigherThanExistingMaxScoreSE: 测试函数无需实现
-CheckEmptySortedSetKeyRemoved: 测试函数无需实现
-CheckSortedSetOperationsOnWrongTypeObjectSE: 测试函数无需实现
-CanDoZDiff: 测试函数无需实现
-CheckSortedSetDifferenceStoreSE: 测试函数无需实现
-CheckSortedSetDifferenceStoreWithNoMatchSE: 测试函数无需实现
-TestCheckSortedSetRangeStoreWithExistingDestinationKeySE: 测试函数无需实现
-SortedSetMultiPopTest: 测试函数无需实现
-SortedSetMultiPopWithFirstKeyEmptyOnSecondPopTest: 测试函数无需实现
-CanDoZInterCardWithSE: 测试函数无需实现
-CanDoZInterStoreWithSE: 测试函数无需实现
-CanUseZUnionStoreWithNonEmptyDestinationKey: 测试函数无需实现
-CanDoSortedSetCollect: 测试函数无需实现
-CanDoSortedSetExpire: 测试函数无需实现
-CanDoSortedSetExpireAndRemove: 测试函数无需实现
-CanDoSortedSetExpireLTM: 测试函数无需实现
-CanDoSortedSetExpireWithNonExistKey: 测试函数无需实现
-CanDoSortedSetExpireWithOptions: 测试函数无需实现
-CanDoSortedSetExpireWithAofRecoveryAsync: 测试函数无需实现
-ZDiffWithExpiredAndExpiringItems: 测试函数无需实现
-ZDiffStoreWithExpiredAndExpiringItems: 测试函数无需实现
-ZIncrByWithExpiredAndExpiringItems: 测试函数无需实现
-ZInterWithExpiredAndExpiringItems: 测试函数无需实现
-ZInterCardWithExpiredAndExpiringItems: 测试函数无需实现
-ZInterStoreWithExpiredAndExpiringItems: 测试函数无需实现
-ZLexCountWithExpiredAndExpiringItems: 测试函数无需实现
-ZMPopWithExpiredItems: 测试函数无需实现
-ZMScoreWithExpiredItems: 测试函数无需实现
-ZPopMaxWithExpiredItems: 测试函数无需实现
-ZPopMinWithExpiredItems: 测试函数无需实现
-ZRandMemberWithExpiredItems: 测试函数无需实现
-ZRangeWithExpiredItems: 测试函数无需实现
-ZRangeByLexWithExpiredItems: 测试函数无需实现
-ZRangeByScoreWithExpiredItems: 测试函数无需实现
-ZRangeStoreWithExpiredItems: 测试函数无需实现
-ZRankWithExpiredItems: 测试函数无需实现
-ZRemWithExpiredItems: 测试函数无需实现
-ZRemRangeByLexWithExpiredItems: 测试函数无需实现
-ZRemRangeByRankWithExpiredItems: 测试函数无需实现
-ZRemRangeByScoreWithExpiredItems: 测试函数无需实现
-ZRevRangeWithExpiredItems: 测试函数无需实现
-ZRevRangeByLexWithExpiredItems: 测试函数无需实现
-ZRevRangeByScoreWithExpiredItems: 测试函数无需实现
-ZRevRankWithExpiredItems: 测试函数无需实现
-ZRespOutput: 测试函数无需实现
-ZScanWithExpiredItems: 测试函数无需实现
-ZScoreWithExpiredAndExpiringItems: 测试函数无需实现
-ZUnionWithExpiredItems: 测试函数无需实现
-ZUnionStoreWithExpiredItems: 测试函数无需实现
-ZInterWithFirstKeyNotExisting: 测试函数无需实现
-ZInterStoreWithFirstKeyNotExisting: 测试函数无需实现
-ZInterCardWithFirstKeyNotExisting: 测试函数无需实现
-ZDiffWithFirstKeyNotExisting: 测试函数无需实现
-ZDiffStoreWithFirstKeyNotExisting: 测试函数无需实现
-ZUnionWithFirstKeyNotExisting: 测试函数无需实现
-ZUnionStoreWithFirstKeyNotExisting: 测试函数无需实现
-CanHaveEqualScores: 测试函数无需实现
-CanDoZCountLC: 测试函数无需实现
-CanDoZRangeByIndexLC: 测试函数无需实现
-CanDoZRangeByScoreLC: 测试函数无需实现
-CanDoZRangeByScoreReverseLC: 测试函数无需实现
-CanDoZRangeByScoreWithLimitLC: 测试函数无需实现
-CanDoZRangeByLex: 测试函数无需实现
-CanDoZRangeByLexReverse: 测试函数无需实现
-CanDoZRangeByLexWithLimit: 测试函数无需实现
-CanDoZRangeByIndexReverse: 测试函数无需实现
-CanUseZRevRangeCitiesCommandInChunksLC: 测试函数无需实现
-CanUseZUnion: 测试函数无需实现
-CanUseZUnionStore: 测试函数无需实现
-CanDoZMPopLC: 测试函数无需实现
-CanManageZMPopErrorsLC: 测试函数无需实现
-CanDoZMPopWithMultipleKeysLC: 测试函数无需实现
-CanUseZUnionWithMultipleOptions: 测试函数无需实现
-CanValidateInvalidParamentersZCountLC: 测试函数无需实现
-CanManageErrorsInZCountLC: 测试函数无需实现
-CanCreateNewSortedSetWithIncrbyLC: 测试函数无需实现
-CreateLeaderBoardWithZADDWithStatusPending: 测试函数无需实现
-CanAddDuplicateScoreLC: 测试函数无需实现
-CanDoIncrByLC: 测试函数无需实现
-CanManageNoParametersInZIncrbyLC: 测试函数无需实现
-CanManageExistingKeyButOtherTypeLC: 测试函数无需实现
-CanUseZRevRange: 测试函数无需实现
-CanUseZRevRangeByScore: 测试函数无需实现
-CanDoZRankLC: 测试函数无需实现
-CanDoZRevRankLC: 测试函数无需实现
-CanDoZRemRangeByLexLC: 测试函数无需实现
-CanDoZRemRangeByRank: 测试函数无需实现
-CanDoZRemRangeByScore: 测试函数无需实现
-CanSendErrorZRangeWithLimit: 测试函数无需实现
-CanUseZLexCount: 测试函数无需实现
-CanUseZPopMin: 测试函数无需实现
-CanUseZRandMember: 测试函数无需实现
-CanUseZRandMemberWithOverflowingCount: 测试函数无需实现
-CanUseZRandMemberWithSE: 测试函数无需实现
-CanUseZDiff: 测试函数无需实现
-CanUseZDiffSTORE: 测试函数无需实现
-CanUseZDiffMultipleKeys: 测试函数无需实现
-CanUseZDiffWithNull: 测试函数无需实现
-CanManageNotExistingKeySortedSetCommandsReadOps: 测试函数无需实现
-CanManageNotExistingKeySortedSetCommandsRMWOps: 测试函数无需实现
-CanManageRMWAndReadInCommands: 测试函数无需实现
-CanManageAddAndDelete: 测试函数无需实现
-CanManageKeyAbscentInCommands: 测试函数无需实现
-CanFailWhenUseMultiWatchTest: 测试函数无需实现
-CanUseMultiTest: 测试函数无需实现
-CanFastForwardExtraArguments: 测试函数无需实现
-CanDoZaddWithInvalidInput: 测试函数无需实现
-CheckSortedSetOperationsOnWrongTypeObjectLC: 测试函数无需实现
-CanDoZInter: 测试函数无需实现
-CanDoZInterCard: 测试函数无需实现
-CanDoZInterStore: 测试函数无需实现
-CanDoZInterStoreWithBadNumKeysLC: 测试函数无需实现
-ZInterResultOrder: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRevRangeByLex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRevRangeByLexWithoutLimit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetRangeStoreSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetRangeStoreByScoreSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetRangeStoreByLexSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetMultiPopWithOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterWithSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionWithAggregateOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionWithWeights: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionStoreWithAggregateOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionStoreWithWeights: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetRangeStoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendCommandWithoutKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpdateSortedSetKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FormatWrongNumOfArgsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Compare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetPopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetPopWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetAddWithExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddAndLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddWithOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddInfinites: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddWithOptionsErrorConditions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanCreateLeaderBoard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGetScoresZCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGetScoresZCountWithMinHigherThanMaxScore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZCountAndZCardWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddRemove: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddRemoveBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddPopDesc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddScore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZMScore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZMScoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeStoreInvalidParamsReturnErrorAndKeepSessionAlive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CandDoZIncrby: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageNotExistingKeySE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZScanNoParameters: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZScanWithMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZScanWithCollection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZScanWithDoubleDifferentFormats: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZScanWithCursor: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRangeByScoreWithSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageZRangeByScoreWhenStartHigherThanExistingMaxScoreSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckEmptySortedSetKeyRemoved: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetOperationsOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZDiff: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetDifferenceStoreSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetDifferenceStoreWithNoMatchSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestCheckSortedSetRangeStoreWithExistingDestinationKeySE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetMultiPopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetMultiPopWithFirstKeyEmptyOnSecondPopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterCardWithSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterStoreWithSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionStoreWithNonEmptyDestinationKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetCollect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpireAndRemove: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpireLTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpireWithNonExistKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpireWithOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSortedSetExpireWithAofRecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffStoreWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZIncrByWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterCardWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterStoreWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZLexCountWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZMPopWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZMScoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPopMaxWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPopMinWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRandMemberWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeByLexWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeByScoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeStoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRankWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByLexWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByRankWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByScoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeByLexWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeByScoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRankWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRespOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZScanWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZScoreWithExpiredAndExpiringItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionStoreWithExpiredItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterCardWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanHaveEqualScores: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZCountLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByIndexLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByScoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByScoreReverseLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByScoreWithLimitLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByLex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByLexReverse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByLexWithLimit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRangeByIndexReverse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRevRangeCitiesCommandInChunksLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZMPopLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageZMPopErrorsLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZMPopWithMultipleKeysLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZUnionWithMultipleOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanValidateInvalidParamentersZCountLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageErrorsInZCountLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanCreateNewSortedSetWithIncrbyLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLeaderBoardWithZADDWithStatusPending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanAddDuplicateScoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoIncrByLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageNoParametersInZIncrbyLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageExistingKeyButOtherTypeLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRevRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRevRangeByScore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRankLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRevRankLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRemRangeByLexLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRemRangeByRank: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZRemRangeByScore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSendErrorZRangeWithLimit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZLexCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZPopMin: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRandMember: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRandMemberWithOverflowingCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRandMemberWithSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZDiff: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZDiffSTORE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZDiffMultipleKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZDiffWithNull: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageNotExistingKeySortedSetCommandsReadOps: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageNotExistingKeySortedSetCommandsRMWOps: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageRMWAndReadInCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageAddAndDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanManageKeyAbscentInCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanFailWhenUseMultiWatchTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseMultiTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanFastForwardExtraArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZaddWithInvalidInput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSortedSetOperationsOnWrongTypeObjectLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterCard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZInterStoreWithBadNumKeysLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterResultOrder: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

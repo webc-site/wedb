@@ -1,4 +1,4 @@
-GetInternalBufferHead: 无需实现
-GetInternalBufferTail: 无需实现
-Connect: 无需实现
-CompletePendingRequests: 无需实现
+GetInternalBufferHead: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetInternalBufferTail: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Connect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CompletePendingRequests: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

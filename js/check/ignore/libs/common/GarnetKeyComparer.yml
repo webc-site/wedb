@@ -1,3 +1,3 @@
-GetHashCode64: 无需实现
-StaticEquals: 无需实现
-StaticGetHashCode64: 无需实现
+GetHashCode64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+StaticEquals: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+StaticGetHashCode64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,84 +1,84 @@
-Execute: 无需实现
-Write: 无需实现
-ToString: 无需实现
-LuaScriptTests: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-DoErroneousRedisCall: 无需实现
-ToLuaString: 无需实现
-SubscribeConfirmed: 无需实现
-handler: 无需实现
-WaitForSubscriberCount: 无需实现
-KeysArgvResize: 测试函数无需实现
-GlobalsForbidden: 测试函数无需实现
-ReadOnlyGlobalTables: 测试函数无需实现
-CanDoEvalUsingGarnetCallSE: 测试函数无需实现
-CanDoSimpleEvalHelloSE: 测试函数无需实现
-CanDoScriptWithArgvOperationsSE: 测试函数无需实现
-CanDoEvalSetGet: 测试函数无需实现
-CanDoEvalShaWithIntegerValueKeySE: 测试函数无需实现
-CanDoEvalShaWithStringValueKeySE: 测试函数无需实现
-CanDoEvalShaWithStringValueMultipleKeysSE: 测试函数无需实现
-CanDoEvalShaWithZAddOnePairSE: 测试函数无需实现
-CanDoEvalShaWithZAddMultiPairSE: 测试函数无需实现
-CanDoEvalShaSEMultipleThreads: 测试函数无需实现
-CanDoZAddGT: 测试函数无需实现
-CanDoScriptFlush: 测试函数无需实现
-CannotScriptUseExtendedEncoding: 测试函数无需实现
-UseEvalShaLightClient: 测试函数无需实现
-SuccessfulStatusReturn: 测试函数无需实现
-FailureStatusReturn: 测试函数无需实现
-MiscMath: 测试函数无需实现
-RedisPCall: 测试函数无需实现
-RedisSha1Hex: 测试函数无需实现
-RedisLog: 测试函数无需实现
-RedisSetRepl: 测试函数无需实现
-RedisReplicateCommands: 测试函数无需实现
-RedisDebugAndBreakpoint: 测试函数无需实现
-RedisAclCheckCmd: 测试函数无需实现
-RedisSetResp: 测试函数无需实现
-RedisVersion: 测试函数无需实现
-ComplexLuaTest1: 测试函数无需实现
-ComplexLuaTest2: 测试函数无需实现
-ComplexLuaTest3: 测试函数无需实现
-ScriptExistsErrors: 测试函数无需实现
-ScriptFlushErrors: 测试函数无需实现
-MultiSessionScriptFlush: 测试函数无需实现
-CrossSessionEvalScriptCaching: 测试函数无需实现
-ScriptLoadErrors: 测试函数无需实现
-ScriptExistsMultiple: 测试函数无需实现
-RedisCallErrors: 测试函数无需实现
-BinaryValuesInScripts: 测试函数无需实现
-NumberArgumentCoercion: 测试函数无需实现
-ComplexLuaReturns: 测试函数无需实现
-MetatableReturn: 测试函数无需实现
-IntentionalOOM: 测试函数无需实现
-Issue939: 测试函数无需实现
-Issue1079: 测试函数无需实现
-LuaToResp2Conversions: 测试函数无需实现
-LuaToResp3Conversions: 测试函数无需实现
-Resp2ToLuaConversions: 测试函数无需实现
-NoScriptCommandsForbidden: 测试函数无需实现
-PermissionsEnforced: 测试函数无需实现
-IntentionalTimeout: 测试函数无需实现
-Resp3ToLuaConversions: 测试函数无需实现
-Bit: 测试函数无需实现
-CJson: 测试函数无需实现
-CMsgPackPack: 测试函数无需实现
-CMsgPackUnpack: 测试函数无需实现
-Struct: 测试函数无需实现
-StructPack: 测试函数无需实现
-StructPackOnErrors: 测试函数无需实现
-StructUnpack: 测试函数无需实现
-StructUnpackOnErrors: 测试函数无需实现
-StructSize: 测试函数无需实现
-StructSizeOnErrors: 测试函数无需实现
-MathFunctions: 测试函数无需实现
-Maxn: 测试函数无需实现
-LoadString: 测试函数无需实现
-Issue1235: 测试函数无需实现
-StressTimeouts: 测试函数无需实现
-LuaPublishSucceeds_WhenCalledViaRedisCall: 测试函数无需实现
-LuaPublishReturnsSubscriberCount: 测试函数无需实现
-LuaSubscribe_StillNoScriptBlocked: 测试函数无需实现
-DisposeDuringScriptExecutionAllocatorRace: 测试函数无需实现
+Execute: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Write: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaScriptTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoErroneousRedisCall: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToLuaString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubscribeConfirmed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+handler: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForSubscriberCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeysArgvResize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GlobalsForbidden: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOnlyGlobalTables: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalUsingGarnetCallSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSimpleEvalHelloSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoScriptWithArgvOperationsSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaWithIntegerValueKeySE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaWithStringValueKeySE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaWithStringValueMultipleKeysSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaWithZAddOnePairSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaWithZAddMultiPairSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoEvalShaSEMultipleThreads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZAddGT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoScriptFlush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CannotScriptUseExtendedEncoding: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UseEvalShaLightClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SuccessfulStatusReturn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailureStatusReturn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MiscMath: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisPCall: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisSha1Hex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisSetRepl: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisReplicateCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisDebugAndBreakpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisAclCheckCmd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisSetResp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisVersion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ComplexLuaTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ComplexLuaTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ComplexLuaTest3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptExistsErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptFlushErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiSessionScriptFlush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CrossSessionEvalScriptCaching: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptLoadErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptExistsMultiple: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisCallErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BinaryValuesInScripts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NumberArgumentCoercion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ComplexLuaReturns: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MetatableReturn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntentionalOOM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Issue939: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Issue1079: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaToResp2Conversions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaToResp3Conversions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Resp2ToLuaConversions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoScriptCommandsForbidden: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionsEnforced: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntentionalTimeout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Resp3ToLuaConversions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CJson: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CMsgPackPack: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CMsgPackUnpack: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Struct: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructPack: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructPackOnErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructUnpack: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructUnpackOnErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StructSizeOnErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MathFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Maxn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LoadString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Issue1235: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StressTimeouts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaPublishSucceeds_WhenCalledViaRedisCall: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaPublishReturnsSubscriberCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaSubscribe_StillNoScriptBlocked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeDuringScriptExecutionAllocatorRace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

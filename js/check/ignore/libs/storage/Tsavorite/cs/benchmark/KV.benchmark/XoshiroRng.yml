@@ -1,4 +1,4 @@
-XoshiroRng: 无需实现
-Rotl: 无需实现
-NextUInt64: 无需实现
-NextUInt32: 无需实现
+XoshiroRng: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Rotl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NextUInt64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NextUInt32: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

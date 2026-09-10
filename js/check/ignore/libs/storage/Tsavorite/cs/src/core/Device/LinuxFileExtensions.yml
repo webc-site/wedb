@@ -1,8 +1,8 @@
-LibcOpen: 无需实现
-LibcClose: 无需实现
-OpenDirect: 无需实现
-IsDirectIOSupported: 无需实现
-OpenWithFlags: 无需实现
-OpenWithFlagsOrNull: 无需实现
-OpenSyscall: 无需实现
-GetErrnoName: 无需实现
+LibcOpen: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LibcClose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OpenDirect: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsDirectIOSupported: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OpenWithFlags: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OpenWithFlagsOrNull: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OpenSyscall: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetErrnoName: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

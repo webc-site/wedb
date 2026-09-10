@@ -1,1 +1,1 @@
-Reuse: 无需实现
+Reuse: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理

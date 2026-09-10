@@ -1,6 +1,6 @@
-Setup: 无需实现
-TearDown: 无需实现
-BuildPartialChunk: 无需实现
-CountTempFiles: 无需实现
-ProcessRecordAfterDispose_Throws: 测试函数无需实现
-DisposeDuringProcessRecord_DefersCleanupToWorker: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BuildPartialChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountTempFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessRecordAfterDispose_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeDuringProcessRecord_DefersCleanupToWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

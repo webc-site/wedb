@@ -1,10 +1,10 @@
-EnqueueChunkedObject: 无需实现
-EnqueueChunkedSpan: 无需实现
-CreateChunkWriteState: 无需实现
-AnyRemaining: 无需实现
-CopyComponent: 无需实现
-WriteOneRecord: 无需实现
-MaterializeInput: 无需实现
-AllocateBlockPartialForTest: 无需实现
-AllocateBlockPartial: 无需实现
-Write: 无需实现
+EnqueueChunkedObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueChunkedSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateChunkWriteState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AnyRemaining: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyComponent: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteOneRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaterializeInput: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateBlockPartialForTest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateBlockPartial: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Write: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

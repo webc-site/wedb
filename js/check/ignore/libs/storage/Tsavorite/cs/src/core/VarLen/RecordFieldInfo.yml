@@ -1,1 +1,1 @@
-ToString: 无需实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

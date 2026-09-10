@@ -1,0 +1,3 @@
+SetKeyOverflow: C# 迁移分块超限溢出处理，Rust 迁移流式分块无溢出缓冲
+SetValueOverflowDeepCopy: C# 迁移值溢出深拷贝，Rust 采用零拷贝分块写入
+SerializeObjectValue: C# 对象序列化回退，Rust 侧由 GarnetObjectSerializer 统一序列化

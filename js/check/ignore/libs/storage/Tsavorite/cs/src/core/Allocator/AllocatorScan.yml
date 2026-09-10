@@ -1,7 +1,7 @@
-ClearSerializedObjectData: 无需实现
-PushScanImpl: 无需实现
-GetFromDiskAndPushToReader: 无需实现
-ScanCursor: 无需实现
-ScanLookup: 无需实现
-ConditionalScanPush: 无需实现
-PrepareIOForConditionalScan: 无需实现
+ClearSerializedObjectData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PushScanImpl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetFromDiskAndPushToReader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanCursor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanLookup: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConditionalScanPush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrepareIOForConditionalScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

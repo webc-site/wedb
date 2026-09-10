@@ -1,10 +1,10 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-AssertCompleted: 无需实现
-CompletePendingResult: 无需实现
-BasicOps: 测试函数无需实现
-ImmutableDeleteEncodesNamespaceWithoutCorruptingRecordLength: 测试函数无需实现
-CopyToTailPreservesExtendedNamespace: 测试函数无需实现
-RecoveryAsync: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertCompleted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CompletePendingResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicOps: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ImmutableDeleteEncodesNamespaceWithoutCorruptingRecordLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyToTailPreservesExtendedNamespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

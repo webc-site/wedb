@@ -1,4 +1,4 @@
-ErrorList: 无需实现
-GetEarliestError: 无需实现
-ClearError: 无需实现
-TruncateUntil: 无需实现
+ErrorList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetEarliestError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TruncateUntil: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

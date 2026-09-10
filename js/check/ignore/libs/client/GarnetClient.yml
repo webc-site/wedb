@@ -1,17 +1,17 @@
-Connect: 无需实现
-ConnectSendSocket: 无需实现
-ConnectSendSocketAsync: 无需实现
-TryConnectSocket: 无需实现
-TryConnectSocketAsync: 无需实现
-TimeoutChecker: 无需实现
-ReconnectAsync: 无需实现
-CheckLength: 无需实现
-GetTimestamp: 无需实现
-PipelineLength: 无需实现
-InputGateAsync: 无需实现
-AwaitPreviousTaskAsync: 无需实现
-InternalExecuteAsync: 无需实现
-InternalExecuteNoResponse: 无需实现
-ThrowException: 无需实现
-DisposeOffset: 无需实现
-ConsumeTcsOffset: 无需实现
+Connect: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ConnectSendSocket: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ConnectSendSocketAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TryConnectSocket: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TryConnectSocketAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TimeoutChecker: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ReconnectAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+CheckLength: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+GetTimestamp: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+PipelineLength: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+InputGateAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+AwaitPreviousTaskAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+InternalExecuteAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+InternalExecuteNoResponse: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ThrowException: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+DisposeOffset: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ConsumeTcsOffset: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

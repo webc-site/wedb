@@ -1,3 +1,3 @@
-GetAvailableNetworkBufferSpan: 无需实现
-TrackIterationProgress: 无需实现
-EnsureTcsIsEnqueued: 无需实现
+GetAvailableNetworkBufferSpan: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TrackIterationProgress: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+EnsureTcsIsEnqueued: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

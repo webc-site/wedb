@@ -1,8 +1,8 @@
-FromPinnedVariable: 无需实现
-FromPinnedPointer: 无需实现
-FromLengthPrefixedPinnedPointer: 无需实现
-TotalSize: 无需实现
-CopyTo: 无需实现
-UncheckedCast: 无需实现
-SerializeTo: 无需实现
-ToShortString: 无需实现
+FromPinnedVariable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromPinnedPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromLengthPrefixedPinnedPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TotalSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UncheckedCast: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToShortString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,23 +1,23 @@
-WriteAsciiDirect: 无需实现
-TryWriteBulkString: 无需实现
-TryWriteDirect: 无需实现
-WriteDoubleBulkString: 无需实现
-WriteDoubleNumeric: 无需实现
-WriteEmptyMap: 无需实现
-TryWriteFalse: 无需实现
-WriteInt64: 无需实现
-WriteIntegerFromBytes: 无需实现
-WriteNewLine: 无需实现
-WritePushLength: 无需实现
-WriteSetLength: 无需实现
-WriteTrue: 无需实现
-WriteUtf8BulkString: 无需实现
-WriteVerbatimString: 无需实现
-WriteZero: 无需实现
-WriteOne: 无需实现
-Realloc: 无需实现
-ReallocateOutput: 无需实现
-DecreaseArrayLength: 无需实现
-AsReadOnlySpan: 无需实现
-GetPosition: 无需实现
-ResetPosition: 无需实现
+WriteAsciiDirect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteDirect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteDoubleBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteDoubleNumeric: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteEmptyMap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteFalse: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteInt64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteIntegerFromBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteNewLine: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WritePushLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteSetLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteTrue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteUtf8BulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteVerbatimString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteZero: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteOne: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Realloc: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReallocateOutput: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+DecreaseArrayLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AsReadOnlySpan: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetPosition: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ResetPosition: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

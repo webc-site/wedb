@@ -1,6 +1,6 @@
-TryFindRecordInMemory: 无需实现
-TryFindRecordInMainLogForConditionalOperation: 无需实现
-EphemeralSUnlock: 无需实现
-IsValidTracebackRecord: 无需实现
-TryFindRecordForPendingOperation: 无需实现
-TryFindRecordInMainLogForPendingOperation: 无需实现
+TryFindRecordInMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryFindRecordInMainLogForConditionalOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralSUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsValidTracebackRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryFindRecordForPendingOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryFindRecordInMainLogForPendingOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

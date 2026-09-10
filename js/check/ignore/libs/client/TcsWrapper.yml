@@ -1,2 +1,2 @@
-LoadFrom: 无需实现
-IsNext: 无需实现
+LoadFrom: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+IsNext: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

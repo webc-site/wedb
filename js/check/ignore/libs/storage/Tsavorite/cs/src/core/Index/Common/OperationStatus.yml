@@ -1,5 +1,5 @@
-BasicOpCode: 无需实现
-AdvancedOpCode: 无需实现
-TryConvertToCompletedStatusCode: 无需实现
-IsAppend: 无需实现
-IsRetry: 无需实现
+BasicOpCode: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AdvancedOpCode: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryConvertToCompletedStatusCode: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsAppend: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsRetry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,8 +1,8 @@
-Setup_MallocFixedPageSizeRecoveryTest: 无需实现
-Finish_MallocFixedPageSizeRecoveryTest: 无需实现
-Setup_FuzzyIndexRecoveryTest: 无需实现
-Finish_FuzzyIndexRecoveryTest: 无需实现
-MallocFixedPageSizeRecoveryTest: 测试函数无需实现
-MallocFixedPageSizeRecoveryAsyncTest: 测试函数无需实现
-FuzzyIndexRecoveryTest: 测试函数无需实现
-FuzzyIndexRecoveryAsyncTest: 测试函数无需实现
+Setup_MallocFixedPageSizeRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Finish_MallocFixedPageSizeRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup_FuzzyIndexRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Finish_FuzzyIndexRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MallocFixedPageSizeRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MallocFixedPageSizeRecoveryAsyncTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FuzzyIndexRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FuzzyIndexRecoveryAsyncTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

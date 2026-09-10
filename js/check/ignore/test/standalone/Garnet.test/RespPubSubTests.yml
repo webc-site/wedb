@@ -1,19 +1,19 @@
-Setup: 无需实现
-TearDown: 无需实现
-SubscribeAndPublish: 无需实现
-SendCommand: 无需实现
-ReadAvailable: 无需实现
-BasicSUBSCRIBE: 测试函数无需实现
-LargeSUBSCRIBE: 测试函数无需实现
-BasicPSUBSCRIBE: 测试函数无需实现
-BasicPUBSUB_CHANNELS: 测试函数无需实现
-BasicPUBSUB_NUMPAT: 测试函数无需实现
-BasicPUBSUB_NUMSUB: 测试函数无需实现
-PubSubModeRejectsDisallowedCommandsInResp2: 测试函数无需实现
-PubSubModeAllowsValidCommandsInResp2: 测试函数无需实现
-PubSubSelfPublishResp3NoLockError: 测试函数无需实现
-PubSubSelfPatternPublishResp3NoLockError: 测试函数无需实现
-PubSubModeAllowsRegularCommandsInResp3: 测试函数无需实现
-PubSubModeViaPsubscribeRejectsCommandsInResp2: 测试函数无需实现
-SelfPublishOnSubscribedChannelDoesNotCorruptConnection: 测试函数无需实现
-SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubscribeAndPublish: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAvailable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_CHANNELS: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_NUMPAT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_NUMSUB: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeRejectsDisallowedCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeAllowsValidCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubSelfPublishResp3NoLockError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubSelfPatternPublishResp3NoLockError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeAllowsRegularCommandsInResp3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeViaPsubscribeRejectsCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SelfPublishOnSubscribedChannelDoesNotCorruptConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

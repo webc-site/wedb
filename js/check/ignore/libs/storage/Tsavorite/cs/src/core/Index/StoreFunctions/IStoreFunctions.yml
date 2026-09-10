@@ -1,12 +1,12 @@
-GetKeyHashCode64: 无需实现
-KeysEqual: 无需实现
-CreateValueObjectSerializer: 无需实现
-BeginSerializeValue: 无需实现
-BeginDeserializeValue: 无需实现
-OnDispose: 无需实现
-OnDisposeDiskRecord: 无需实现
-OnEvict: 无需实现
-OnRecovery: 无需实现
-OnCheckpoint: 无需实现
-SetCheckpointCompletedCallback: 无需实现
-OnCheckpointCompleted: 无需实现
+GetKeyHashCode64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+KeysEqual: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateValueObjectSerializer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginSerializeValue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginDeserializeValue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDisposeDiskRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnEvict: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetCheckpointCompletedCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnCheckpointCompleted: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

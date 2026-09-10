@@ -1,7 +1,7 @@
-Setup: 无需实现
-TearDown: 无需实现
-CreateArguments: 无需实现
-AppendBulkString: 无需实现
-Connect: 无需实现
-SendAsync: 无需实现
-CachedCommandDoesNotTruncateArgumentCount: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AppendBulkString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Connect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CachedCommandDoesNotTruncateArgumentCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

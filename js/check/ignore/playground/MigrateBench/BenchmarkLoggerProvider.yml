@@ -1,6 +1,6 @@
-BenchmarkLoggerProvider: 无需实现
-CreateLogger: 无需实现
-BenchmarkLogger: 无需实现
-BeginScope: 无需实现
-IsEnabled: 无需实现
-GetLevelStr: 无需实现
+BenchmarkLoggerProvider: C# 原型实验与演练脚本，非生产运行时代码
+CreateLogger: C# 原型实验与演练脚本，非生产运行时代码
+BenchmarkLogger: C# 原型实验与演练脚本，非生产运行时代码
+BeginScope: C# 原型实验与演练脚本，非生产运行时代码
+IsEnabled: C# 原型实验与演练脚本，非生产运行时代码
+GetLevelStr: C# 原型实验与演练脚本，非生产运行时代码

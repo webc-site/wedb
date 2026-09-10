@@ -1,5 +1,5 @@
-UnmanagedMemoryManager: 无需实现
-SetDestination: 无需实现
-GetSpan: 无需实现
-Pin: 无需实现
-Unpin: 无需实现
+UnmanagedMemoryManager: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetDestination: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Pin: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Unpin: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

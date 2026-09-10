@@ -1,23 +1,23 @@
-Equals: 无需实现
-GetHashCode64: 无需实现
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-TryLock: 无需实现
-PopulateHei: 无需实现
-Unlock: 无需实现
-AssertLockCounts: 无需实现
-AssertTotalLockCounts: 无需实现
-AssertBucketLockCount: 无需实现
-AddThreads: 无需实现
-CreateKeys: 无需实现
-createKey: 无需实现
-AssertSorted: 无需实现
-runThread: 无需实现
-getNextKey: 无需实现
-ThreadedLockStressTest1Thread: 测试函数无需实现
-ThreadedLockStressTestMultiThreadsNoContention: 测试函数无需实现
-ThreadedLockStressTestMultiThreadsRandomContention: 测试函数无需实现
-FullArraySortTest: 测试函数无需实现
-PartialArraySortTest: 测试函数无需实现
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryLock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateHei: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Unlock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertTotalLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertBucketLockCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddThreads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+createKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSorted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getNextKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTest1Thread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTestMultiThreadsNoContention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTestMultiThreadsRandomContention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FullArraySortTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PartialArraySortTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

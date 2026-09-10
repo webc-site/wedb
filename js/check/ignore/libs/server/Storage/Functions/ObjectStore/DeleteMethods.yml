@@ -1,3 +1,4 @@
-InitialDeleter: 无需实现
-PostInitialDeleter: 无需实现
-PostDeleteOperation: 无需实现
+InitialDeleter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostInitialDeleter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostDeleteOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

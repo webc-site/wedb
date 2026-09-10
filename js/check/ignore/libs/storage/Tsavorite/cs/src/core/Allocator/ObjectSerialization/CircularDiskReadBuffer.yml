@@ -1,12 +1,12 @@
-CircularDiskReadBuffer: 无需实现
-GetCurrentBuffer: 无需实现
-GetNextBufferIndex: 无需实现
-CreateBuffer: 无需实现
-DoReadBuffer: 无需实现
-OnBeginReadRecords: 无需实现
-OnEndReadRecords: 无需实现
-OnBeginRecord: 无需实现
-OnBeginDeserialize: 无需实现
-MoveToNextBuffer: 无需实现
-ReadFromDeviceCallback: 无需实现
-ToString: 无需实现
+CircularDiskReadBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNextBufferIndex: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoReadBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginReadRecords: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnEndReadRecords: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginDeserialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MoveToNextBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadFromDeviceCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

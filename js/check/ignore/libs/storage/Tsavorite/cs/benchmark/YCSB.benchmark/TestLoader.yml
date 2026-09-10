@@ -1,9 +1,9 @@
-TestLoader: 无需实现
-verifyOption: 无需实现
-GetHashTableSize: 无需实现
-LoadData: 无需实现
-LoadDataThreadProc: 无需实现
-LoadSyntheticData: 无需实现
-LoadDataFromFile: 无需实现
-MaybeRecoverStore: 无需实现
-MaybeCheckpointStore: 无需实现
+TestLoader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+verifyOption: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetHashTableSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadDataThreadProc: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadSyntheticData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadDataFromFile: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaybeRecoverStore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaybeCheckpointStore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

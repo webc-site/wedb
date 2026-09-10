@@ -1,10 +1,10 @@
-RunTransactionProc: 无需实现
-RunTransactionProcInternal: 无需实现
-Watch: 无需实现
-AddTransactionStoreTypes: 无需实现
-AddTransactionStoreType: 无需实现
-GetSlotVerificationInput: 无需实现
-LocksAcquired: 无需实现
-ComputeCustomProcShardedLogAccess: 无需实现
-ComputeSublogAccessVector: 无需实现
-PromoteToTransaction: 无需实现
+RunTransactionProc: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+RunTransactionProcInternal: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+Watch: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+AddTransactionStoreTypes: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+AddTransactionStoreType: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+GetSlotVerificationInput: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+LocksAcquired: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+ComputeCustomProcShardedLogAccess: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+ComputeSublogAccessVector: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+PromoteToTransaction: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度

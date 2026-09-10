@@ -1,3 +1,3 @@
-Seek: 无需实现
-ReadAsyncInternalAsync: 无需实现
-Write: 无需实现
+Seek: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ReadAsyncInternalAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+Write: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈

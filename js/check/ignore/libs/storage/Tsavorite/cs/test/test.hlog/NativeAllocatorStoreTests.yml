@@ -1,10 +1,10 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-EnableOrSkip: 无需实现
-CreateStore: 无需实现
-TryRead: 无需实现
-UpsertAll: 无需实现
-VerifyAll: 无需实现
-InsertReadUpdateDelete: 测试函数无需实现
-CheckpointRecover: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnableOrSkip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpsertAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InsertReadUpdateDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckpointRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,2 +1,2 @@
-EnsureCapacity: 无需实现
-Slice: 无需实现
+EnsureCapacity: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Slice: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

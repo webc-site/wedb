@@ -1,17 +1,17 @@
-PasswordlessDefaultUserTest: 测试函数无需实现
-ProtectedDefaultUserErrorHandlingTest: 测试函数无需实现
-ProtectedDefaultUserLoginImplicitTest: 测试函数无需实现
-ProtectedDefaultUserLoginExplicitTest: 测试函数无需实现
-EnableAndDisableUsers: 测试函数无需实现
-AddPasswordFromCleartextTest: 测试函数无需实现
-AddPasswordFromHashTest: 测试函数无需实现
-RemovePasswordFromCleartextTest: 测试函数无需实现
-RemovePasswordFromHashTest: 测试函数无需实现
-AddDuplicatePasswordTest: 测试函数无需实现
-PasswordlessUserTest: 测试函数无需实现
-ResetPasswordsTest: 测试函数无需实现
-AddAndRemoveCategoryTest: 测试函数无需实现
-ResetUser: 测试函数无需实现
-BadInputEmpty: 测试函数无需实现
-BadInputUnknownOperation: 测试函数无需实现
-KeyPatternsWildcard: 测试函数无需实现
+PasswordlessDefaultUserTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProtectedDefaultUserErrorHandlingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProtectedDefaultUserLoginImplicitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProtectedDefaultUserLoginExplicitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnableAndDisableUsers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddPasswordFromCleartextTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddPasswordFromHashTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RemovePasswordFromCleartextTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RemovePasswordFromHashTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddDuplicatePasswordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PasswordlessUserTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetPasswordsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddAndRemoveCategoryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadInputEmpty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadInputUnknownOperation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyPatternsWildcard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

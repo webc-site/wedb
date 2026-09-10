@@ -1,65 +1,65 @@
-GetNativeRuntimeIdentifier: 无需实现
-ImportResolver: 无需实现
-when: 无需实现
-LoadWithLibaioShim: 无需实现
-ResolveNativeLibraryPath: 无需实现
-TryGetCurrentDirectory: 无需实现
-DetectMuslRuntime: 无需实现
-TryFindHostLibaio: 无需实现
-TryCreateLibaioCompatSymlink: 无需实现
-IsUsableLibaioShim: 无需实现
-BuildLibaioDiagnostic: 无需实现
-NativeDevice_CreateWithBackend: 无需实现
-NativeDevice_GetSegmentSize: 无需实现
-NativeDevice_AvailableBackends: 无需实现
-NativeDevice_Destroy: 无需实现
-NativeDevice_sector_size: 无需实现
-NativeDevice_ProbeAlignment: 无需实现
-NativeDevice_ReadAsync: 无需实现
-NativeDevice_WriteAsync: 无需实现
-NativeDevice_CreateDir: 无需实现
-NativeDevice_TryComplete: 无需实现
-NativeDevice_TryCompleteMine: 无需实现
-NativeDevice_QueueRun: 无需实现
-NativeDevice_QueueRunFor: 无需实现
-NativeDevice_WakeCompletionWorker: 无需实现
-NativeDevice_NumIoContexts: 无需实现
-NativeDevice_GetFileSize: 无需实现
-NativeDevice_Reset: 无需实现
-NativeDevice_RemoveSegment: 无需实现
-NativeDevice_GetLastError: 无需实现
-GetNativeLastError: 无需实现
-FormatNativeError: 无需实现
-GetShard: 无需实现
-AssignShard: 无需实现
-SubmitToShard: 无需实现
-CompleteShard: 无需实现
-RentSlot: 无需实现
-ReturnSlot: 无需实现
-InFlightInShard: 无需实现
-TotalInFlight: 无需实现
-EnterNativeCall: 无需实现
-ExitNativeCall: 无需实现
-TotalLeases: 无需实现
-PerThreadLimit: 无需实现
-TryLease: 无需实现
-ReleaseLease: 无需实现
-_callback: 无需实现
-Throttle: 无需实现
-ResolveQueueDepth: 无需实现
-ResolveLibaioReservationDepth: 无需实现
-GetAioMaxNr: 无需实现
-WarnIfLibaioAioBudgetExceeded: 无需实现
-GetAvailableBackends: 无需实现
-EnsureNativeDeviceCreated: 无需实现
-ThrowMisaligned: 无需实现
-RemoveSegmentAsync: 无需实现
-TryComplete: 无需实现
-TryCompleteMine: 无需实现
-GetSegmentName: 无需实现
-GetSectorSize: 无需实现
-EnsureParentDirectoryAndProbeSectorSize: 无需实现
-MaterializeParentDirForProbe: 无需实现
-ProbeSectorSize: 无需实现
-CompletionWorker: 无需实现
-ReportBrokenDrain: 无需实现
+GetNativeRuntimeIdentifier: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ImportResolver: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+when: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadWithLibaioShim: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResolveNativeLibraryPath: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryGetCurrentDirectory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DetectMuslRuntime: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryFindHostLibaio: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCreateLibaioCompatSymlink: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsUsableLibaioShim: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BuildLibaioDiagnostic: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_CreateWithBackend: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_GetSegmentSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_AvailableBackends: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_Destroy: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_sector_size: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_ProbeAlignment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_ReadAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_WriteAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_CreateDir: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_TryComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_TryCompleteMine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_QueueRun: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_QueueRunFor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_WakeCompletionWorker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_NumIoContexts: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_GetFileSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_Reset: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_RemoveSegment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NativeDevice_GetLastError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNativeLastError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FormatNativeError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetShard: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AssignShard: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SubmitToShard: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteShard: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RentSlot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReturnSlot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InFlightInShard: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TotalInFlight: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnterNativeCall: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ExitNativeCall: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TotalLeases: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PerThreadLimit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLease: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReleaseLease: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+_callback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Throttle: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResolveQueueDepth: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResolveLibaioReservationDepth: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAioMaxNr: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WarnIfLibaioAioBudgetExceeded: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAvailableBackends: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureNativeDeviceCreated: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowMisaligned: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveSegmentAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCompleteMine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSegmentName: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureParentDirectoryAndProbeSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaterializeParentDirForProbe: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProbeSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletionWorker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReportBrokenDrain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

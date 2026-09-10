@@ -1,13 +1,13 @@
-StartServer: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-ParseCommandStatField: 无需实现
-ParseCommandStatFieldString: 无需实现
-CommandStatsDisabledByDefaultTest: 测试函数无需实现
-CommandStatsCallsTrackingTest: 测试函数无需实现
-CommandStatsFailedCallsTest: 测试函数无需实现
-CommandStatsUsecFieldsZeroTest: 测试函数无需实现
-CommandStatsMultipleCommandsTest: 测试函数无需实现
-CommandStatsSuccessRateTest: 测试函数无需实现
-CommandStatsInfoServerShowsMonitorStatus: 测试函数无需实现
-CommandStatsFormatMatchesRedisConvention: 测试函数无需实现
+StartServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseCommandStatField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseCommandStatFieldString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsDisabledByDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsCallsTrackingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsFailedCallsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsUsecFieldsZeroTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsMultipleCommandsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsSuccessRateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsInfoServerShowsMonitorStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsFormatMatchesRedisConvention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

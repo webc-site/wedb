@@ -1,3 +1,3 @@
-IndexCheckpointSMTask: 无需实现
-GlobalBeforeEnteringState: 无需实现
-GlobalAfterEnteringState: 无需实现
+IndexCheckpointSMTask: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GlobalBeforeEnteringState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GlobalAfterEnteringState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

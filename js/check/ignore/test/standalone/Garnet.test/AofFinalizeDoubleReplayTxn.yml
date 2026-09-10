@@ -1,4 +1,4 @@
-Prepare: 无需实现
-AddKey: 无需实现
-Main: 无需实现
-Finalize: 无需实现
+Prepare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Finalize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

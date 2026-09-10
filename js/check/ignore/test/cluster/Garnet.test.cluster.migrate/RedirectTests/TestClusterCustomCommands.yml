@@ -1,15 +1,15 @@
-NeedInitialUpdate: 无需实现
-GetInitialLength: 无需实现
-InitialUpdater: 无需实现
-NeedCopyUpdate: 无需实现
-GetLength: 无需实现
-CopyUpdater: 无需实现
-Create: 无需实现
-Deserialize: 无需实现
-TestClusterObj: 无需实现
-CloneObject: 无需实现
-SerializeObject: 无需实现
-Updater: 无需实现
-GetSingleSlotRequest: 无需实现
-GetCrossSlotRequest: 无需实现
-SetupSingleSlotRequest: 无需实现
+NeedInitialUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetInitialLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NeedCopyUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Create: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestClusterObj: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CloneObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SerializeObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Updater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetCrossSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

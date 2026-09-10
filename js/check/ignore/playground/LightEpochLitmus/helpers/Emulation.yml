@@ -1,4 +1,4 @@
-Detect: 无需实现
-TryGetCpuImplementer: 无需实现
-Emulated: 无需实现
-TryReadFile: 无需实现
+Detect: C# 原型实验与演练脚本，非生产运行时代码
+TryGetCpuImplementer: C# 原型实验与演练脚本，非生产运行时代码
+Emulated: C# 原型实验与演练脚本，非生产运行时代码
+TryReadFile: C# 原型实验与演练脚本，非生产运行时代码

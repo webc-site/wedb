@@ -1,2 +1,2 @@
-PercentileEnumerable: 无需实现
-GetEnumerator: 无需实现
+PercentileEnumerable: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetEnumerator: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

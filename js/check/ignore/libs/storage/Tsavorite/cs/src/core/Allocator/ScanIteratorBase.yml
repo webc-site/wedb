@@ -1,12 +1,12 @@
-InitializeForReads: 无需实现
-InitializeReadBuffers: 无需实现
-BufferAndLoad: 无需实现
-DoReadPage: 无需实现
-AsyncReadPageFromDeviceToFrame: 无需实现
-NeedBufferAndLoad: 无需实现
-AsyncReadPageFromDeviceToFrameCallback: 无需实现
-WaitForFrameLoad: 无需实现
-FailFrameLoad: 无需实现
-SignalFrameLoadCompletion: 无需实现
-WaitForFrameLoadCompletion: 无需实现
-ToString: 无需实现
+InitializeForReads: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeReadBuffers: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BufferAndLoad: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoReadPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPageFromDeviceToFrame: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NeedBufferAndLoad: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPageFromDeviceToFrameCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForFrameLoad: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FailFrameLoad: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalFrameLoadCompletion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForFrameLoadCompletion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

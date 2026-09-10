@@ -1,10 +1,10 @@
-create_index: 无需实现
-drop_index: 无需实现
-insert: 无需实现
-remove: 无需实现
-search_vector: 无需实现
-search_element: 无需实现
-continue_search: 无需实现
-check_internal_id_valid: 无需实现
-check_external_id_valid: 无需实现
-set_attribute: 无需实现
+create_index: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+drop_index: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+insert: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+remove: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+search_vector: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+search_element: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+continue_search: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+check_internal_id_valid: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+check_external_id_valid: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+set_attribute: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

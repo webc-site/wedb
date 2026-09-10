@@ -1,27 +1,27 @@
-IsIntermediate: 无需实现
-IsError: 无需实现
-Make: 无需实现
-MakeIntermediate: 无需实现
-RemoveIntermediate: 无需实现
-Equal: 无需实现
-ToString: 无需实现
-Equals: 无需实现
-VersionSchemeStateMachine: 无需实现
-ToVersion: 无需实现
-GetNextStep: 无需实现
-OnEnteringState: 无需实现
-AfterEnteringState: 无需实现
-SimpleVersionSchemeStateMachine: 无需实现
-criticalSection: 无需实现
-EpochProtectedVersionScheme: 无需实现
-CurrentState: 无需实现
-MakeTransition: 无需实现
-Enter: 无需实现
-TryStepStateMachine: 无需实现
-Leave: 无需实现
-StepMachineHeavy: 无需实现
-SignalStepAvailable: 无需实现
-TryExecuteStateMachine: 无需实现
-ExecuteStateMachine: 无需实现
-TryAdvanceVersionWithCriticalSection: 无需实现
-AdvanceVersionWithCriticalSection: 无需实现
+IsIntermediate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Make: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MakeIntermediate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveIntermediate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Equal: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Equals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VersionSchemeStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNextStep: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnEnteringState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AfterEnteringState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SimpleVersionSchemeStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+criticalSection: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EpochProtectedVersionScheme: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CurrentState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MakeTransition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Enter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryStepStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Leave: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StepMachineHeavy: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalStepAvailable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryExecuteStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ExecuteStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAdvanceVersionWithCriticalSection: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AdvanceVersionWithCriticalSection: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

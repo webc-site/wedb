@@ -1,4 +1,4 @@
-EmbeddedRespServer: 无需实现
-GetRespSession: 无需实现
-GetRespSessions: 无需实现
-GetNetworkHandler: 无需实现
+EmbeddedRespServer: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRespSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRespSessions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetNetworkHandler: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

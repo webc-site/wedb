@@ -1,13 +1,13 @@
-Setup: 无需实现
-TearDown: 无需实现
-ClusterTLSInitialize: 测试函数无需实现
-ClusterTLSSlotInfo: 测试函数无需实现
-ClusterTLSAddDelSlots: 测试函数无需实现
-ClusterTLSSlotChangeStatus: 测试函数无需实现
-ClusterTLSRedirectMessage: 测试函数无需实现
-ClusterTLSMigrateSlots: 测试函数无需实现
-ClusterTLSMigrateSlotsExpiry: 测试函数无需实现
-ClusterTLSMigrateSlotsWithObjects: 测试函数无需实现
-ClusterTLSMigrateKeys: 测试函数无需实现
-ClusterTLSMigrateKeysWithObjects: 测试函数无需实现
-ClusterTLSMigrateContinuousReadWrite: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSInitialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSSlotInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSAddDelSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSSlotChangeStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSRedirectMessage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlotsExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlotsWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateKeysWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateContinuousReadWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,13 +1,13 @@
-EmbeddedNetworkSender: 无需实现
-IsLocalConnection: 无需实现
-DisposeNetworkSender: 无需实现
-Enter: 无需实现
-EnterAndGetResponseObject: 无需实现
-Exit: 无需实现
-ExitAndReturnResponseObject: 无需实现
-GetResponseObject: 无需实现
-ReturnResponseObject: 无需实现
-SendCallback: 无需实现
-SendResponse: 无需实现
-Throttle: 无需实现
-TryClose: 无需实现
+EmbeddedNetworkSender: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsLocalConnection: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DisposeNetworkSender: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Enter: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+EnterAndGetResponseObject: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Exit: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ExitAndReturnResponseObject: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetResponseObject: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ReturnResponseObject: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SendCallback: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SendResponse: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Throttle: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+TryClose: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,7 +1,7 @@
-AsyncQueue: 无需实现
-Enqueue: 无需实现
-DequeueAsync: 无需实现
-WaitForEntry: 无需实现
-WaitForEntryAsync: 无需实现
-WaitForEntryAsyncSlow: 无需实现
-TryDequeue: 无需实现
+AsyncQueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Enqueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DequeueAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForEntry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForEntryAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForEntryAsyncSlow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryDequeue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

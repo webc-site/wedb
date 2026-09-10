@@ -1,8 +1,8 @@
-AndExpressionTest: 测试函数无需实现
-OrExpressionTest: 测试函数无需实现
-BooleanExpression_EqualsOperator: 测试函数无需实现
-BooleanExpressionTest_RegexEqualsOperator: 测试函数无需实现
-BooleanExpressionTest_RegexEqualsOperator_CornerCase: 测试函数无需实现
-BooleanExpressionTest: 测试函数无需实现
-BooleanExpressionTest_GreaterThanOperator: 测试函数无需实现
-BooleanExpressionTest_GreaterThanOrEqualsOperator: 测试函数无需实现
+AndExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OrExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpression_EqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_RegexEqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_RegexEqualsOperator_CornerCase: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_GreaterThanOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_GreaterThanOrEqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

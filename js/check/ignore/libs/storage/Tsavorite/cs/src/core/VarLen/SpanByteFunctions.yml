@@ -1,5 +1,5 @@
-SpanByteFunctions: 无需实现
-GetRMWModifiedFieldInfo: 无需实现
-GetRMWInitialFieldInfo: 无需实现
-GetUpsertFieldInfo: 无需实现
-ConvertOutputToHeap: 无需实现
+SpanByteFunctions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWModifiedFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWInitialFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetUpsertFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConvertOutputToHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

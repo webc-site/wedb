@@ -1,17 +1,17 @@
-ReadLengthHeaderTest: 测试函数无需实现
-ReadLengthHeaderExceptionsTest: 测试函数无需实现
-ReadArrayLengthTest: 测试函数无需实现
-ReadArrayLengthExceptionsTest: 测试函数无需实现
-ReadIntWithLengthHeaderTest: 测试函数无需实现
-ReadIntWithLengthHeaderExceptionsTest: 测试函数无需实现
-ReadLongWithLengthHeaderTest: 测试函数无需实现
-ReadLongWithLengthHeaderExceptionsTest: 测试函数无需实现
-ReadULongWithLengthHeaderTest: 测试函数无需实现
-ReadULongWithLengthHeaderExceptionsTest: 测试函数无需实现
-ReadPtrWithLengthHeaderTest: 测试函数无需实现
-ReadBoolWithLengthHeaderTest: 测试函数无需实现
-GetSerializedRecordSpanValidTest: 测试函数无需实现
-GetSerializedRecordSpanOverflowLengthTest: 测试函数无需实现
-GetSerializedRecordSpanNegativeLengthTest: 测试函数无需实现
-GetSerializedRecordSpanInsufficientHeaderTest: 测试函数无需实现
-RejectOversizedLengths: 测试函数无需实现
+ReadLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadArrayLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadArrayLengthExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadIntWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadIntWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLongWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLongWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadULongWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadULongWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPtrWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadBoolWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanValidTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanOverflowLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanNegativeLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanInsufficientHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RejectOversizedLengths: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,20 +1,20 @@
-Setup: 无需实现
-RegisterRoaringBitmap: 无需实现
-TearDown: 无需实现
-GetBitOnMissingKey_Returns0: 测试函数无需实现
-BitCountOnMissingKey_Returns0: 测试函数无需实现
-BitPosOnMissingKey_Bit1ReturnsMinus1: 测试函数无需实现
-BitPosOnMissingKey_Bit0ReturnsFromOrZero: 测试函数无需实现
-SetBitGetBit_Basics: 测试函数无需实现
-BitCount_Basics: 测试函数无需实现
-BitPos_Basics: 测试函数无需实现
-Errors_BadOffset: 测试函数无需实现
-StringKeyAndCustomObjectKey_AreSeparate: 测试函数无需实现
-Errors_BitPosBadBit: 测试函数无需实现
-Errors_WrongArity: 测试函数无需实现
-OracleParity_RandomMix: 测试函数无需实现
-DeleteAndRecreate: 测试函数无需实现
-LargeOffsetsAndChunkBoundaries: 测试函数无需实现
-ConcurrentSetBit_FromMultipleClients_Consistent: 测试函数无需实现
-DenseBitmapPromotion_StaysCorrect: 测试函数无需实现
-ConcurrentReadsWhileWrites_StayConsistent: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterRoaringBitmap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetBitOnMissingKey_Returns0: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitCountOnMissingKey_Returns0: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPosOnMissingKey_Bit1ReturnsMinus1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPosOnMissingKey_Bit0ReturnsFromOrZero: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetBitGetBit_Basics: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitCount_Basics: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_Basics: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Errors_BadOffset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StringKeyAndCustomObjectKey_AreSeparate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Errors_BitPosBadBit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Errors_WrongArity: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OracleParity_RandomMix: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteAndRecreate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeOffsetsAndChunkBoundaries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConcurrentSetBit_FromMultipleClients_Consistent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DenseBitmapPromotion_StaysCorrect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConcurrentReadsWhileWrites_StayConsistent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

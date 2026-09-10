@@ -1,4 +1,4 @@
-GetUserTest: 测试函数无需实现
-GetUserNotFoundTest: 测试函数无需实现
-GetUserAclTest: 测试函数无需实现
-GetUserMultiUserTest: 测试函数无需实现
+GetUserTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUserNotFoundTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUserAclTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUserMultiUserTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,5 +1,5 @@
-Consume: 无需实现
-MakeBytes: 无需实现
-ChunkedRawByteRoundTripTest: 测试函数无需实现
-ChunkedEmptyStreamStillSignalsFinalTest: 测试函数无需实现
-ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest: 测试函数无需实现
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedRawByteRoundTripTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedEmptyStreamStillSignalsFinalTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

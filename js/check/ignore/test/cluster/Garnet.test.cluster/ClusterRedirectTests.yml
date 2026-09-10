@@ -1,21 +1,21 @@
-CheckFlag: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-ReplaceKey: 无需实现
-ReplaceValue: 无需实现
-GenerateSingleKeyCmdInstance: 无需实现
-SendToNodeFromSlot: 无需实现
-SendAndRedirectToNode: 无需实现
-SendToImportingNode: 无需实现
-SendToMigratingNode: 无需实现
-KeyForSlot: 无需实现
-SendReadReplies: 无需实现
-ReadLine: 无需实现
-ReadN: 无需实现
-ReadByte: 无需实现
-ClusterSingleKeyRedirectionTests: 测试函数无需实现
-ClusterScatterGatherGetCrossSlotRedirectTest: 测试函数无需实现
-ClusterMultiKeyRedirectionTests: 测试函数无需实现
-ClusterHostnamePreferredRedirectionTests: 测试函数无需实现
-ClusterHostnamePreferredAndNonHostnameRedirectionTests: 测试函数无需实现
-ClusterUnknownEndpointPreferredTests: 测试函数无需实现
+CheckFlag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplaceKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplaceValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateSingleKeyCmdInstance: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToNodeFromSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendAndRedirectToNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToImportingNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToMigratingNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyForSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendReadReplies: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLine: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadN: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadByte: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSingleKeyRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterScatterGatherGetCrossSlotRedirectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMultiKeyRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterHostnamePreferredRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterHostnamePreferredAndNonHostnameRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterUnknownEndpointPreferredTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

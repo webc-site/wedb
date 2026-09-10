@@ -1,4 +1,4 @@
-use compio::net::TcpStream;
+use compio::{net::TcpStream, runtime::spawn};
 use crossfire::{mpsc, oneshot};
 
 use crate::{
@@ -47,7 +47,7 @@ impl GarnetClientSession {
     let (tx, rx) = mpsc::bounded_async(CHANNEL_CAP);
     self.tx = Some(tx);
 
-    compio::runtime::spawn(async move {
+    spawn(async move {
       if let Err(e) = network::network_loop(stream, rx).await {
         log::error!("GarnetClientSession 网络循环退出: {e}");
       }

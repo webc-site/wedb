@@ -1,5 +1,5 @@
-Remove: 无需实现
-Last: 无需实现
-NextSetBit: 无需实现
-NextUnsetBit: 无需实现
-SerializeBody: 无需实现
+Remove: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Last: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+NextSetBit: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+NextUnsetBit: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SerializeBody: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

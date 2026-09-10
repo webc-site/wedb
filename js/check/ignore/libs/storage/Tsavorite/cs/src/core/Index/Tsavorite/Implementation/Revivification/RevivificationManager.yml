@@ -1,3 +1,3 @@
-PauseRevivification: 无需实现
-ResumeRevivification: 无需实现
-GetMinRevivifiableAddress: 无需实现
+PauseRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResumeRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetMinRevivifiableAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,8 +1,8 @@
-TsavoriteExecutionContext: 无需实现
-RentPendingIoContext: 无需实现
-ReturnPendingIoContext: 无需实现
-MergeReadCopyOptions: 无需实现
-MergeRevivificationStatsTo: 无需实现
-ResetRevivificationStats: 无需实现
-WaitPending: 无需实现
-WaitPendingAsync: 无需实现
+TsavoriteExecutionContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RentPendingIoContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReturnPendingIoContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MergeReadCopyOptions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MergeRevivificationStatsTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetRevivificationStats: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitPending: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitPendingAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

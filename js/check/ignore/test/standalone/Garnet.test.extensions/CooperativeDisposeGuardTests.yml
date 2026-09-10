@@ -1,8 +1,8 @@
-DefaultIsNotDisposed: 测试函数无需实现
-TryDispose_WhenIdle_ReturnsCleanupNow: 测试函数无需实现
-TryDispose_SecondCall_ReturnsAlreadyDisposed: 测试函数无需实现
-TryEnter_WhenNotDisposed_AllowsEntryAndExitReportsNoCleanup: 测试函数无需实现
-TryEnter_AfterDispose_ReturnsFalse: 测试函数无需实现
-TryDispose_WhileWorkerActive_DefersToWorker: 测试函数无需实现
-DisposeBeforeAndAfterWorker_OnlyFirstCleansUp: 测试函数无需实现
-ConcurrentDisposeVsWorker_CleansUpExactlyOnce: 测试函数无需实现
+DefaultIsNotDisposed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryDispose_WhenIdle_ReturnsCleanupNow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryDispose_SecondCall_ReturnsAlreadyDisposed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnter_WhenNotDisposed_AllowsEntryAndExitReportsNoCleanup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnter_AfterDispose_ReturnsFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryDispose_WhileWorkerActive_DefersToWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeBeforeAndAfterWorker_OnlyFirstCleansUp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConcurrentDisposeVsWorker_CleansUpExactlyOnce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

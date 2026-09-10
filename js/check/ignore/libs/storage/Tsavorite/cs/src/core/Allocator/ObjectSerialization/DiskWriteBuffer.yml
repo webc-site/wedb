@@ -1,6 +1,6 @@
-DiskWriteBuffer: 无需实现
-WaitUntilFreeAndInitialize: 无需实现
-IncrementOrResetCountdown: 无需实现
-FlushToDevice: 无需实现
-Wait: 无需实现
-ToString: 无需实现
+DiskWriteBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitUntilFreeAndInitialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementOrResetCountdown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushToDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Wait: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

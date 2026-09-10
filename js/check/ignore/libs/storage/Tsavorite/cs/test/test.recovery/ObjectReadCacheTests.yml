@@ -1,4 +1,4 @@
-Setup: 无需实现
-TearDown: 无需实现
-ObjectDiskWriteReadCache: 测试函数无需实现
-ObjectDiskWriteReadCache2: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectDiskWriteReadCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectDiskWriteReadCache2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

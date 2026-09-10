@@ -1,17 +1,17 @@
-CircularDiskWriteBuffer: 无需实现
-GetCurrentBuffer: 无需实现
-MoveToAndInitializeNextBuffer: 无需实现
-GetOrAllocateCurrentBuffer: 无需实现
-GetAndInitializeCurrentBuffer: 无需实现
-GetNextRecordStartPosition: 无需实现
-InitializeOwnObjectLogFilePosition: 无需实现
-OnBeginPartialFlush: 无需实现
-OnRecordComplete: 无需实现
-OnPartialFlushComplete: 无需实现
-FlushToMainLogDevice: 无需实现
-CreateDiskWriteCallbackContext: 无需实现
-FlushCurrentBuffer: 无需实现
-FlushToDevice: 无需实现
-FlushToDeviceCallback: 无需实现
-ClearBuffers: 无需实现
-ToString: 无需实现
+CircularDiskWriteBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MoveToAndInitializeNextBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOrAllocateCurrentBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAndInitializeCurrentBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNextRecordStartPosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeOwnObjectLogFilePosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginPartialFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnRecordComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnPartialFlushComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushToMainLogDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateDiskWriteCallbackContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushCurrentBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushToDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushToDeviceCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearBuffers: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

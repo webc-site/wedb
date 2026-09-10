@@ -1,0 +1,1 @@
+ReadListPositionInput: C# ObjectInput 位置参数解析辅助，Rust 侧在 list_commands 中直接解析

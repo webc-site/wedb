@@ -1,2 +1,2 @@
-Run: 无需实现
-Shutdown: 无需实现
+Run: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Shutdown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

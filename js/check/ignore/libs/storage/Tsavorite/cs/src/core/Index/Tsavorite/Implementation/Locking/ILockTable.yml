@@ -1,7 +1,7 @@
-TryLockShared: 无需实现
-TryLockExclusive: 无需实现
-UnlockShared: 无需实现
-UnlockExclusive: 无需实现
-IsLockedShared: 无需实现
-IsLockedExclusive: 无需实现
-GetLockState: 无需实现
+TryLockShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLockExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsLockedShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsLockedExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLockState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

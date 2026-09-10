@@ -1,4 +1,4 @@
-GetProperties: 无需实现
-TryPopulateOptions: 无需实现
-TryApplyTransform: 无需实现
-TryChangeType: 无需实现
+GetProperties: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryPopulateOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryApplyTransform: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryChangeType: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

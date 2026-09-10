@@ -1,5 +1,5 @@
-Setup: 无需实现
-ParallelAuthTest: 测试函数无需实现
-ParallelPasswordHashTest: 测试函数无需实现
-ParallelAclSetUserTest: 测试函数无需实现
-ParallelAclSetUserAvoidsMapContentionTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParallelAuthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParallelPasswordHashTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParallelAclSetUserTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParallelAclSetUserAvoidsMapContentionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

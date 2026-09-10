@@ -1,4 +1,4 @@
-LuaParamsProvider: 无需实现
-GlobalSetup: 无需实现
-GlobalCleanup: 无需实现
-RunScript: 无需实现
+LuaParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunScript: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

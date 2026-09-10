@@ -1,2 +1,2 @@
-CanEncodeAndDecodeCoordinates: 测试函数无需实现
-CanEncodeAndDecodeCoordinatesWithGeoHashCode: 测试函数无需实现
+CanEncodeAndDecodeCoordinates: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanEncodeAndDecodeCoordinatesWithGeoHashCode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

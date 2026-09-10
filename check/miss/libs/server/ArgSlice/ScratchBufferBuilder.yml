@@ -1,8 +1,0 @@
-fn:
-  - FullBuffer
-  - CreateArgSliceAsOffset
-  - UTF8EncodeString
-  - FormatScratch
-  - ExpandScratchBufferIfNeeded
-  - ExpandScratchBuffer
-  - GrowBuffer

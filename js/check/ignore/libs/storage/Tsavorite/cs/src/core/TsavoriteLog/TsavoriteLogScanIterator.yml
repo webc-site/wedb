@@ -1,15 +1,15 @@
-GetAsyncEnumerable: 无需实现
-ConsumeAllAsync: 无需实现
-BulkConsumeAllAsync: 无需实现
-SlowWaitAsync: 无需实现
-SlowWaitUncommittedAsync: 无需实现
-TryConsumeNext: 无需实现
-TryBulkConsumeNext: 无需实现
-UnsafeGetNext: 无需实现
-UnsafeRelease: 无需实现
-AsyncReadPageFromDeviceToFrame: 无需实现
-AsyncReadPagesToFrameCallback: 无需实现
-Align: 无需实现
-ScanForwardForCommit: 无需实现
-GetNextInternal: 无需实现
-ExpandGetNextInternal: 无需实现
+GetAsyncEnumerable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConsumeAllAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BulkConsumeAllAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SlowWaitAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SlowWaitUncommittedAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryConsumeNext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryBulkConsumeNext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeGetNext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeRelease: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPageFromDeviceToFrame: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPagesToFrameCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Align: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanForwardForCommit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNextInternal: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ExpandGetNextInternal: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

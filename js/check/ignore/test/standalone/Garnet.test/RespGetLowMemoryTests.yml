@@ -1,7 +1,7 @@
-Setup: 无需实现
-TearDown: 无需实现
-ScatterGatherGet: 测试函数无需实现
-ScatterGatherMixedGetSetPipeline: 测试函数无需实现
-ScatterGatherMixedGetTtlPipeline: 测试函数无需实现
-ScatterGatherMGet: 测试函数无需实现
-MGetOnDiskCompletesWithoutScatterGatherFlag: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMixedGetSetPipeline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMixedGetTtlPipeline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MGetOnDiskCompletesWithoutScatterGatherFlag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

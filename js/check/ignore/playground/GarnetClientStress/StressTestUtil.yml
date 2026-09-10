@@ -1,6 +1,6 @@
-RandomValue: 无需实现
-NotNull: 无需实现
-GetClientCertificate: 无需实现
-GetTlsOptions: 无需实现
-StressTestUtils: 无需实现
-RunTest: 无需实现
+RandomValue: C# 原型实验与演练脚本，非生产运行时代码
+NotNull: C# 原型实验与演练脚本，非生产运行时代码
+GetClientCertificate: C# 原型实验与演练脚本，非生产运行时代码
+GetTlsOptions: C# 原型实验与演练脚本，非生产运行时代码
+StressTestUtils: C# 原型实验与演练脚本，非生产运行时代码
+RunTest: C# 原型实验与演练脚本，非生产运行时代码

@@ -1,22 +1,22 @@
-Setup: 无需实现
-TearDown: 无需实现
-PopulateVectorSet: 无需实现
-ElementsWrittenTo: 无需实现
-VectorSetSize: 无需实现
-VectorSetDimensions: 无需实现
-ElementEmbedding: 无需实现
-AssertVectorSetsMatch: 无需实现
-WaitForReplication: 无需实现
-WaitForVectorReplay: 无需实现
-ReadPersistedIndexPtr: 无需实现
-ReadPersistedIndexFields: 无需实现
-ReadPersistedContext: 无需实现
-OnException: 无需实现
-OnStart: 无需实现
-OnStop: 无需实现
-CensusNamespacedRecords: 无需实现
-RecordsHeldForContext: 无需实现
-WaitForContextDrained: 无需实现
-AssertOwnsItsIndex: 无需实现
-AssertFullyReplicated: 无需实现
-GetStoreWrapper: 无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateVectorSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ElementsWrittenTo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetDimensions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ElementEmbedding: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertVectorSetsMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForReplication: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForVectorReplay: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPersistedIndexPtr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPersistedIndexFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPersistedContext: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CensusNamespacedRecords: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecordsHeldForContext: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForContextDrained: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertOwnsItsIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertFullyReplicated: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreWrapper: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

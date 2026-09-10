@@ -1,7 +1,7 @@
-LongConcurrentHistogram: 无需实现
-GetCountAtIndex: 无需实现
-SetCountAtIndex: 无需实现
-IncrementCountAtIndex: 无需实现
-AddToCountAtIndex: 无需实现
-ClearCounts: 无需实现
-CopyCountsInto: 无需实现
+LongConcurrentHistogram: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+SetCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+AddToCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ClearCounts: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+CopyCountsInto: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

@@ -1,9 +1,9 @@
-GetCurrentThread: 无需实现
-SetThreadAffinityMask: 无需实现
-LinuxMmap: 无需实现
-LinuxMunmap: 无需实现
-LinuxSchedSetAffinity: 无需实现
-Unmap: 无需实现
-TryPin: 无需实现
-PinFailed: 无需实现
-MapPage: 无需实现
+GetCurrentThread: C# 原型实验与演练脚本，非生产运行时代码
+SetThreadAffinityMask: C# 原型实验与演练脚本，非生产运行时代码
+LinuxMmap: C# 原型实验与演练脚本，非生产运行时代码
+LinuxMunmap: C# 原型实验与演练脚本，非生产运行时代码
+LinuxSchedSetAffinity: C# 原型实验与演练脚本，非生产运行时代码
+Unmap: C# 原型实验与演练脚本，非生产运行时代码
+TryPin: C# 原型实验与演练脚本，非生产运行时代码
+PinFailed: C# 原型实验与演练脚本，非生产运行时代码
+MapPage: C# 原型实验与演练脚本，非生产运行时代码

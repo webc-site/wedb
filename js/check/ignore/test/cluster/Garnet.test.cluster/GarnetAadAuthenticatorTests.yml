@@ -1,6 +1,6 @@
-BuildAuthenticator: 无需实现
-Authenticate_ReturnsTrue_WhenTokenInsideValidityWindow: 测试函数无需实现
-IsAuthenticated_GoesFalse_AfterTokenExpires: 测试函数无需实现
-IsAuthenticated_StaysTrue_WhileTimeStillInsideWindow: 测试函数无需实现
-Authenticate_ReturnsFalse_OnMalformedToken: 测试函数无需实现
-FailedReauthentication_ClearsPreviouslyAuthorizedState: 测试函数无需实现
+BuildAuthenticator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Authenticate_ReturnsTrue_WhenTokenInsideValidityWindow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsAuthenticated_GoesFalse_AfterTokenExpires: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsAuthenticated_StaysTrue_WhileTimeStillInsideWindow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Authenticate_ReturnsFalse_OnMalformedToken: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailedReauthentication_ClearsPreviouslyAuthorizedState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

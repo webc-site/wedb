@@ -1,4 +1,4 @@
-MakeUpperCaseAccessViolation: 测试函数无需实现
-FastParseArrayCommandLongCommandAssertFailure: 测试函数无需实现
-FastParseArrayCommandShortCommandAssertFailure: 测试函数无需实现
-FastParseArrayCommandArrayCountAssertFailure: 测试函数无需实现
+MakeUpperCaseAccessViolation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FastParseArrayCommandLongCommandAssertFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FastParseArrayCommandShortCommandAssertFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FastParseArrayCommandArrayCountAssertFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

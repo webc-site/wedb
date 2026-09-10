@@ -1,69 +1,70 @@
-AllocateLogRecord: 无需实现
-AllocateRecordAndInitializeSize: 无需实现
-AssertElidable: 无需实现
-AssertInfoValid: 无需实现
-CheckExpectedLengthsBefore: 无需实现
-CopyToRMWInfo: 无需实现
-DeleteViaRMW: 无需实现
-GetBinCount: 无需实现
-GetBinIndex: 无需实现
-GetFreeRecordCount: 无需实现
-GetHashCode64: 无需实现
-GetMaxRecordSize: 无需实现
-GetMinRevivifiableKey: 无需实现
-GetRMWInitialFieldInfo: 无需实现
-GetRMWModifiedFieldInfo: 无需实现
-GetRecordCount: 无需实现
-GetRevivifiableFraction: 无需实现
-GetRevivifiableRecordCount: 无需实现
-GetUpsertFieldInfo: 无需实现
-HasRecords: 无需实现
-InPlaceWriter: 无需实现
-InitialDeleter: 无需实现
-InitialWriter: 无需实现
-IsSet: 无需实现
-PerformDeletion: 无需实现
-Populate: 无需实现
-PostCopyUpdater: 无需实现
-PostInitialDeleter: 无需实现
-PostInitialUpdater: 无需实现
-PostInitialWriter: 无需实现
-PrepareDeletes: 无需实现
-RMWCompletionCallback: 无需实现
-ReadCompletionCallback: 无需实现
-Setup: 无需实现
-SwapFreeRecordPool: 无需实现
-TearDown: 无需实现
-TryTakeFromBin: 无需实现
-VerifyKey: 无需实现
-VerifyKeyAndValue: 无需实现
-WaitForRecords: 无需实现
-beginIteration: 无需实现
-endIteration: 无需实现
-enumerateStrayFlags: 无需实现
-enumerateStrayRecords: 无需实现
-runAddThread: 无需实现
-runDeleteThread: 无需实现
-runTakeThread: 无需实现
-runThread: 无需实现
-runUpdateThread: 无需实现
-DeleteAllRecordsAndIterateTest: 测试函数无需实现
-DeleteAllRecordsAndRevivifyTest: 测试函数无需实现
-DeleteAllRecordsAndTakeSnapshotTest: 测试函数无需实现
-DeleteEntireChainAndRevivifyTest: 测试函数无需实现
-LiveBinWrappingNoRevivTest: 测试函数无需实现
-LiveBinWrappingTest: 测试函数无需实现
-LiveFreeListThreadStressTest: 测试函数无需实现
-LiveInChainThreadStressTest: 测试函数无需实现
-LiveThreadContentionOnOneRecordTest: 测试函数无需实现
-SimpleFixedLenTest: 测试函数无需实现
-SimpleObjectTest: 测试函数无需实现
-SimpleOverflowRevivifyTest: 测试函数无需实现
-SimplePendingOpsRevivifyTest: 测试函数无需实现
-SimpleRevivifyTest: 测试函数无需实现
-SpanByteDeletionViaRMWRCURevivifiesOriginalRecordAfterTombstoning: 测试函数无需实现
-SpanByteIPUGrowAndRevivifyTest: 测试函数无需实现
-SpanByteNoRevivLengthTest: 测试函数无需实现
-SpanByteReadOnlyMinAddressTest: 测试函数无需实现
-SpanByteSimpleTest: 测试函数无需实现
-SpanByteUpdateRevivifyTest: 测试函数无需实现
+AllocateLogRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllocateRecordAndInitializeSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertElidable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertInfoValid: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckExpectedLengthsBefore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyToRMWInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteViaRMW: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetBinCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetBinIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetFreeRecordCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMaxRecordSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMinRevivifiableKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRecordCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRevivifiableFraction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRevivifiableRecordCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUpsertFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HasRecords: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PerformDeletion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrepareDeletes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RMWCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SwapFreeRecordPool: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryTakeFromBin: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyKeyAndValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForRecords: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+beginIteration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+endIteration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+enumerateStrayFlags: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+enumerateStrayRecords: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runAddThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runDeleteThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runTakeThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runUpdateThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteAllRecordsAndIterateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteAllRecordsAndRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteAllRecordsAndTakeSnapshotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteEntireChainAndRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LiveBinWrappingNoRevivTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LiveBinWrappingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LiveFreeListThreadStressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LiveInChainThreadStressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LiveThreadContentionOnOneRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleFixedLenTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleOverflowRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimplePendingOpsRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteDeletionViaRMWRCURevivifiesOriginalRecordAfterTombstoning: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIPUGrowAndRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteNoRevivLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteReadOnlyMinAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteSimpleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteUpdateRevivifyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

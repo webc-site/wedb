@@ -1,10 +1,10 @@
-DefaultCheckpointNamingScheme: 无需实现
-LogCheckpointBase: 无需实现
-LogCheckpointMetadata: 无需实现
-LogSnapshot: 无需实现
-ObjectLogSnapshot: 无需实现
-IndexCheckpointBase: 无需实现
-IndexCheckpointMetadata: 无需实现
-HashTable: 无需实现
-TsavoriteLogCommitMetadata: 无需实现
-CommitNumber: 无需实现
+DefaultCheckpointNamingScheme: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogCheckpointBase: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ObjectLogSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IndexCheckpointBase: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IndexCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HashTable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TsavoriteLogCommitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitNumber: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

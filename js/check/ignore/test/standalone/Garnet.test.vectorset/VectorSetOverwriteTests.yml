@@ -1,16 +1,16 @@
-Setup: 无需实现
-TearDown: 无需实现
-PrepCommandAsync: 无需实现
-RunCommandAsync: 无需实现
-RunCommandPlainAsync: 无需实现
-RunCommandEXAsync: 无需实现
-TestVectorSetOverwrittenCommandAsync: 无需实现
-AllOverwritingCommandsCovered: 测试函数无需实现
-BITOPAsync: 测试函数无需实现
-MSETAsync: 测试函数无需实现
-PSETEXAsync: 测试函数无需实现
-SETAsync: 测试函数无需实现
-SETEXAsync: 测试函数无需实现
-SETIFGREATERAsync: 测试函数无需实现
-SETIFMATCHAsync: 测试函数无需实现
-SETWITHETAGAsync: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrepCommandAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunCommandAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunCommandPlainAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunCommandEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestVectorSetOverwrittenCommandAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllOverwritingCommandsCovered: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BITOPAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MSETAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PSETEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETIFGREATERAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETIFMATCHAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETWITHETAGAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

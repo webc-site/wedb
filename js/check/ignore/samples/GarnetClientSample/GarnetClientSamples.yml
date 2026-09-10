@@ -1,17 +1,17 @@
-GarnetClientSamples: 无需实现
-RunAll: 无需实现
-SetGetSync: 无需实现
-PingAsync: 无需实现
-SetGetAsync: 无需实现
-IncrAsync: 无需实现
-IncrByAsync: 无需实现
-DecrByAsync: 无需实现
-DecrAsync: 无需实现
-IncrNoKeyAsync: 无需实现
-ExistsAsync: 无需实现
-DeleteAsync: 无需实现
-SetGetMemoryAsync: 无需实现
-GetClientCertificate: 无需实现
-GetSslOpts: 无需实现
-ConnectionStressTest: 无需实现
-ConnectionStressRunner: 无需实现
+GarnetClientSamples: C# 样例工程与示例客户端代码，非核心服务端实现
+RunAll: C# 样例工程与示例客户端代码，非核心服务端实现
+SetGetSync: C# 样例工程与示例客户端代码，非核心服务端实现
+PingAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+SetGetAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+IncrAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+IncrByAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+DecrByAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+DecrAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+IncrNoKeyAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+ExistsAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+DeleteAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+SetGetMemoryAsync: C# 样例工程与示例客户端代码，非核心服务端实现
+GetClientCertificate: C# 样例工程与示例客户端代码，非核心服务端实现
+GetSslOpts: C# 样例工程与示例客户端代码，非核心服务端实现
+ConnectionStressTest: C# 样例工程与示例客户端代码，非核心服务端实现
+ConnectionStressRunner: C# 样例工程与示例客户端代码，非核心服务端实现

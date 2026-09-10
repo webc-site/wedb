@@ -1,7 +1,7 @@
-ProcessTimeSpan: 无需实现
-SignalWorkReadyWait: 无需实现
-SignalWorkReadyWaitAsync: 无需实现
-SignalWorkReadyInternal: 无需实现
-SignalWorkCompletedWait: 无需实现
-SignalWorkCompletedWaitAsync: 无需实现
-SignalWorkCompletedInternal: 无需实现
+ProcessTimeSpan: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkReadyWait: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkReadyWaitAsync: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkReadyInternal: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkCompletedWait: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkCompletedWaitAsync: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+SignalWorkCompletedInternal: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

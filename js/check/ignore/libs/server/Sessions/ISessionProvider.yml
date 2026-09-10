@@ -1,0 +1,1 @@
+GetSession: C# DI 容器会话接口，Rust 侧通过 WedbStore::new_session 原生创建

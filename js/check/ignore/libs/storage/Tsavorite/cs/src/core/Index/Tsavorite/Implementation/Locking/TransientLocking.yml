@@ -1,6 +1,6 @@
-TryEphemeralXLock: 无需实现
-EphemeralXUnlock: 无需实现
-TryEphemeralSLock: 无需实现
-EphemeralSUnlock: 无需实现
-LockForScan: 无需实现
-UnlockForScan: 无需实现
+TryEphemeralXLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralXUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryEphemeralSLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralSUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LockForScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockForScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

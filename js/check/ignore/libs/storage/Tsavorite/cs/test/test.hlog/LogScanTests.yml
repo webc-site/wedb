@@ -1,15 +1,15 @@
-Setup: 无需实现
-TearDown: 无需实现
-PopulateLog: 无需实现
-PopulateUncommittedLog: 无需实现
-Consume: 无需实现
-ScanBasicDefaultTest: 测试函数无需实现
-ScanBehindBeginAddressTest: 测试函数无需实现
-ScanConsumerTest: 测试函数无需实现
-ScanNoDefaultTest: 测试函数无需实现
-ScanByNameTest: 测试函数无需实现
-ScanWithoutRecoverTest: 测试函数无需实现
-ScanBufferingModeDoublePageTest: 测试函数无需实现
-ScanBufferingModeSinglePageTest: 测试函数无需实现
-ScanUncommittedTest: 测试函数无需实现
-ScanUncommittedEndsOnCompleteLogTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateUncommittedLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBasicDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBehindBeginAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanNoDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanByNameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanWithoutRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBufferingModeDoublePageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBufferingModeSinglePageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanUncommittedTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanUncommittedEndsOnCompleteLogTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

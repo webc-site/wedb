@@ -1,12 +1,12 @@
-InPlaceWriter: 无需实现
-InitialWriter: 无需实现
-PostInitialWriter: 无需实现
-InitialUpdater: 无需实现
-PostInitialUpdater: 无需实现
-GetRMWModifiedFieldInfo: 无需实现
-GetRMWInitialFieldInfo: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-doWrites: 无需实现
-doReads: 无需实现
-InputOutputParametersTest: 测试函数无需实现
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+doWrites: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+doReads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InputOutputParametersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

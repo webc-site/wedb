@@ -1,17 +1,17 @@
-Setup: 无需实现
-TearDown: 无需实现
-SetUpWithLowMemory: 无需实现
-updateKey: 无需实现
-TxnSetTest: 测试函数无需实现
-TxnExecuteTest: 测试函数无需实现
-TxnGetTest: 测试函数无需实现
-TxnGetSetTest: 测试函数无需实现
-TxnHExpireTest: 测试函数无需实现
-LargeTxn: 测试函数无需实现
-LargeTxnWatch: 测试函数无需实现
-TxnCommandCoverage: 测试函数无需实现
-SimpleWatchTest: 测试函数无需实现
-WatchTestWithSetWithEtag: 测试函数无需实现
-WatchNonExistentKey: 测试函数无需实现
-WatchKeyFromDisk: 测试函数无需实现
-WatchFailsWhenListEmptiedByLPop: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUpWithLowMemory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+updateKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnSetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnExecuteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnGetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnGetSetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnHExpireTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeTxn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeTxnWatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TxnCommandCoverage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleWatchTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchTestWithSetWithEtag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchNonExistentKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchKeyFromDisk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchFailsWhenListEmptiedByLPop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

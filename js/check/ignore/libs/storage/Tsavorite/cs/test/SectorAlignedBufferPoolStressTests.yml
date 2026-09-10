@@ -1,9 +1,9 @@
-Setup: 无需实现
-TearDown: 无需实现
-RunTightLoop: 无需实现
-RunAsymmetric: 无需实现
-Percentiles: 无需实现
-ScalingThroughputAcrossBackends: 测试函数无需实现
-CrossThreadReturnLatencyAndReuse: 测试函数无需实现
-ReuseEfficiencyAllocTracksWorkingSet: 测试函数无需实现
-HeavySoakWithChurn: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunTightLoop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunAsymmetric: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Percentiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScalingThroughputAcrossBackends: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CrossThreadReturnLatencyAndReuse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReuseEfficiencyAllocTracksWorkingSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HeavySoakWithChurn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

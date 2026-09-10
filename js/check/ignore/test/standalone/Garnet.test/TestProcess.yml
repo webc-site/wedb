@@ -1,3 +1,3 @@
-GarnetServerTestProcess: 无需实现
-RecordTestOutput: 无需实现
-KillProcess: 无需实现
+GarnetServerTestProcess: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecordTestOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KillProcess: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

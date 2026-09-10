@@ -1,9 +1,9 @@
-RepeatedCyclesRendezvousExactlyOnce: 测试函数无需实现
-SingleParticipantNeverBlocks: 测试函数无需实现
-FastParticipantBlocksUntilCohortArrives: 测试函数无需实现
-SignalWorkReadyWaitThrowsGarnetExceptionOnTimeout: 测试函数无需实现
-SignalWorkCompletedThrowsGarnetExceptionOnTimeout: 测试函数无需实现
-SignalWorkReadyWaitAsyncThrowsGarnetExceptionOnTimeout: 测试函数无需实现
-SignalWorkReadyWaitThrowsOnCancellation: 测试函数无需实现
-SignalWorkCompletedAsyncThrowsOnCancellation: 测试函数无需实现
-ConstructorRejectsNonPositiveParticipantCount: 测试函数无需实现
+RepeatedCyclesRendezvousExactlyOnce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleParticipantNeverBlocks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FastParticipantBlocksUntilCohortArrives: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SignalWorkReadyWaitThrowsGarnetExceptionOnTimeout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SignalWorkCompletedThrowsGarnetExceptionOnTimeout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SignalWorkReadyWaitAsyncThrowsGarnetExceptionOnTimeout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SignalWorkReadyWaitThrowsOnCancellation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SignalWorkCompletedAsyncThrowsOnCancellation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConstructorRejectsNonPositiveParticipantCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

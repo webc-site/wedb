@@ -1,24 +1,24 @@
-Setup: 无需实现
-TearDown: 无需实现
-TlsSingleSetGet: 测试函数无需实现
-ClientListSurvivesConnectionsClosedByClientKill: 测试函数无需实现
-TlsSingleSetGetGarnetClient: 测试函数无需实现
-SingleUnicodeSetGetGarnetClient: 测试函数无需实现
-TlsMultiSetGet: 测试函数无需实现
-TlsLargeSetGet: 测试函数无需实现
-TlsSetExpiry: 测试函数无需实现
-TlsSetExpiryNx: 测试函数无需实现
-TlsSetXx: 测试函数无需实现
-TlsSetExpiryIncr: 测试函数无需实现
-TlsLockTakeRelease: 测试函数无需实现
-TlsSingleDecr: 测试函数无需实现
-TlsSingleDecrBy: 测试函数无需实现
-TlsSingleIncrNoKey: 测试函数无需实现
-TlsSingleDelete: 测试函数无需实现
-TlsSingleExists: 测试函数无需实现
-TlsSingleRename: 测试函数无需实现
-TlsCanSelectCommand: 测试函数无需实现
-TlsCanSelectCommandLC: 测试函数无需实现
-TlsPlainTextCommandLC: 测试函数无需实现
-TlsCanDoCommandsInChunks: 测试函数无需实现
-TlsCanSetGetCommandsChunks: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientListSurvivesConnectionsClosedByClientKill: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleSetGetGarnetClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleUnicodeSetGetGarnetClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsMultiSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsLargeSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSetExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSetExpiryNx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSetXx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSetExpiryIncr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsLockTakeRelease: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleDecr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleDecrBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleIncrNoKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleExists: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsSingleRename: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsCanSelectCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsCanSelectCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsPlainTextCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsCanDoCommandsInChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TlsCanSetGetCommandsChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

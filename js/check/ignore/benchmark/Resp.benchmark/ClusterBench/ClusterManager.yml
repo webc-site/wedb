@@ -1,5 +1,5 @@
-ClusterManager: 无需实现
-DiscoverPrimaryShards: 无需实现
-ValidateFullSlotCoverage: 无需实现
-ParseClusterConfig: 无需实现
-CompactRanges: 无需实现
+ClusterManager: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DiscoverPrimaryShards: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ValidateFullSlotCoverage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseClusterConfig: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CompactRanges: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,6 +1,6 @@
-NUnitLoggerProvider: 无需实现
-CreateLogger: 无需实现
-NUnitLogger: 无需实现
-BeginScope: 无需实现
-IsEnabled: 无需实现
-GetLevelStr: 无需实现
+NUnitLoggerProvider: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLogger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NUnitLogger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BeginScope: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsEnabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLevelStr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

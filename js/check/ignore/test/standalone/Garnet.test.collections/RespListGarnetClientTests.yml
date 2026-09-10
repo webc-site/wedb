@@ -1,12 +1,12 @@
-Setup: 无需实现
-GetTestKey: 无需实现
-ValidateListContentAsync: 无需实现
-TearDown: 无需实现
-AddElementsToTheListHeadInBulk_WithCallback: 测试函数无需实现
-AddElementsToTheListHead_WithCallback: 测试函数无需实现
-AddElementsToTheListHead_WithAsync: 测试函数无需实现
-AddElementsToListTailInBulk_WithCallback: 测试函数无需实现
-AddElementsToListTail_WithCallback: 测试函数无需实现
-AddElementsToTheListTail_WithAsync: 测试函数无需实现
-GetListElements: 测试函数无需实现
-GetListLength: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetTestKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateListContentAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHeadInBulk_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHead_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHead_WithAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToListTailInBulk_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToListTail_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListTail_WithAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetListElements: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetListLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,12 +1,12 @@
-CreateShared: 无需实现
-CreateExclusive: 无需实现
-CreateAllExclusive: 无需实现
-CalculateIndex: 无需实现
-TryAcquireSharedLock: 无需实现
-AcquireSharedLock: 无需实现
-ReleaseLock: 无需实现
-TryAcquireExclusiveLock: 无需实现
-AcquireExclusiveLock: 无需实现
-AcquireAllExclusiveLock: 无需实现
-TryPromoteSharedLock: 无需实现
-GetProcessorHint: 无需实现
+CreateShared: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CreateExclusive: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CreateAllExclusive: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CalculateIndex: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryAcquireSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+ReleaseLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryAcquireExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireAllExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryPromoteSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+GetProcessorHint: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

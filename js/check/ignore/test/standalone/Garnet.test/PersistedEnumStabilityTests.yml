@@ -1,8 +1,8 @@
-RespCommandWriteBlockValuesAreStable: 测试函数无需实现
-ObjectSubOpValuesAreStable: 测试函数无需实现
-GarnetObjectTypeBuiltinValuesAreStable: 测试函数无需实现
-LegacyCustomObjectTypeIdFailsFastOnDeserialize: 测试函数无需实现
-ObjectSubOpsFitInByte: 测试函数无需实现
-WriteBlockContainsExactlyWriteCommands: 测试函数无需实现
-LegacyV3MappingIsComplete: 测试函数无需实现
-BuiltinRespCommandSpaceDoesNotReachCustomRange: 测试函数无需实现
+RespCommandWriteBlockValuesAreStable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectSubOpValuesAreStable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetObjectTypeBuiltinValuesAreStable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LegacyCustomObjectTypeIdFailsFastOnDeserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectSubOpsFitInByte: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteBlockContainsExactlyWriteCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LegacyV3MappingIsComplete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BuiltinRespCommandSpaceDoesNotReachCustomRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

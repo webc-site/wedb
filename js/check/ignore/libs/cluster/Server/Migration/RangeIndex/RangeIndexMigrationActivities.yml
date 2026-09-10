@@ -1,8 +1,12 @@
-OnTransmitting: 无需实现
-OnDeleting: 无需实现
-LogActivity: 无需实现
-EndAndLogActivity: 无需实现
-OnSnapshotCompleted: 无需实现
-OnChunkSent: 无需实现
-OnPublishing: 无需实现
-OnSessionDisposed: 无需实现
+OnTransmitting: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnDeleting: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+LogActivity: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+EndAndLogActivity: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnSnapshotCompleted: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnChunkSent: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnPublishing: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnSessionDisposed: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+StartActivity: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnError: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnChunkReceived: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点
+OnPublishResult: C# 范围索引分块流与 CPR 复制活动，Rust 侧 wbftree 原生集成于存储引擎检查点

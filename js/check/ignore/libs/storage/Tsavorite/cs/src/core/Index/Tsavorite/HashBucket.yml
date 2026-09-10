@@ -1,7 +1,7 @@
-TryAcquireSharedLatch: 无需实现
-ReleaseSharedLatch: 无需实现
-ReleaseExclusiveLatch: 无需实现
-NumLatchedShared: 无需实现
-IsLatchedExclusive: 无需实现
-IsLatched: 无需实现
-ToString: 无需实现
+TryAcquireSharedLatch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReleaseSharedLatch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReleaseExclusiveLatch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NumLatchedShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsLatchedExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsLatched: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

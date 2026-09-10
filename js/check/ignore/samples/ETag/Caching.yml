@@ -1,6 +1,6 @@
-RunSimulation: 无需实现
-InteractiveRepl: 无需实现
-SeedCache: 无需实现
-FakeServerThread: 无需实现
-CreateRandomReview: 无需实现
-GenerateLargeLoremIpsumText: 无需实现
+RunSimulation: C# 样例工程与示例客户端代码，非核心服务端实现
+InteractiveRepl: C# 样例工程与示例客户端代码，非核心服务端实现
+SeedCache: C# 样例工程与示例客户端代码，非核心服务端实现
+FakeServerThread: C# 样例工程与示例客户端代码，非核心服务端实现
+CreateRandomReview: C# 样例工程与示例客户端代码，非核心服务端实现
+GenerateLargeLoremIpsumText: C# 样例工程与示例客户端代码，非核心服务端实现

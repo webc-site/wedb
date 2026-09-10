@@ -1,10 +1,10 @@
-Main: 无需实现
-RunFuzzExample: 无需实现
-WriteLine: 无需实现
-Write: 无需实现
-FailAndExit: 无需实现
-GetTarget: 无需实现
-WrappedDel: 无需实现
-when: 无需实现
-GetInput: 无需实现
-ReadSingleInput: 无需实现
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunFuzzExample: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteLine: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Write: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailAndExit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetTarget: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WrappedDel: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetInput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadSingleInput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

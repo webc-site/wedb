@@ -1,11 +1,11 @@
-Connect: 无需实现
-ConnectSendSocket: 无需实现
-ConnectSendSocketAsync: 无需实现
-TryConnectSocket: 无需实现
-TryConnectSocketAsync: 无需实现
-ReconnectAsync: 无需实现
-ExecuteBatch: 无需实现
-ExecuteForArray: 无需实现
-ExecuteClusterAppendLog: 无需实现
-InternalExecute: 无需实现
-ResetOffset: 无需实现
+Connect: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ConnectSendSocket: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ConnectSendSocketAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TryConnectSocket: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TryConnectSocketAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ReconnectAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteBatch: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForArray: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteClusterAppendLog: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+InternalExecute: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ResetOffset: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

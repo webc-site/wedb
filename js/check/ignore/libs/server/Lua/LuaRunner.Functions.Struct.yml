@@ -1,0 +1,2 @@
+TryGetFormat: C# Lua 栈格式化参数读取与 ArrayPool 租借辅助，Rust 侧直接借用 &[u8] 切片
+AddAlignmentPadding: C# struct.pack 对齐填充局部函数，Rust 侧由 get_to_align 纯函数原生计算

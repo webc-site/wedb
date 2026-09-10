@@ -1,15 +1,15 @@
-BaseSetup: 无需实现
-BaseTearDown: 无需实现
-OnTearDown: 无需实现
-OperationThread: 无需实现
-DoCheckpointVersionSwitchEquivalenceCheck: 无需实现
-DoGrowIndexVersionSwitchEquivalenceCheck: 无需实现
-SumFunctions: 无需实现
-Fuzz: 无需实现
-CopyUpdater: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-CheckpointVersionSwitchRmwTest: 测试函数无需实现
-GrowIndexVersionSwitchRmwTest: 测试函数无需实现
-CheckpointVersionSwitchTxnTest: 测试函数无需实现
-GrowIndexVersionSwitchTxnTest: 测试函数无需实现
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OperationThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCheckpointVersionSwitchEquivalenceCheck: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGrowIndexVersionSwitchEquivalenceCheck: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SumFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Fuzz: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckpointVersionSwitchRmwTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GrowIndexVersionSwitchRmwTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckpointVersionSwitchTxnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GrowIndexVersionSwitchTxnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

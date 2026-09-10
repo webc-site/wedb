@@ -1,9 +1,9 @@
-Setup: 无需实现
-BaseSetup: 无需实现
-TearDown: 无需实现
-BaseTearDown: 无需实现
-RecordingFailingDevice: 无需实现
-RemoveSegmentAsync: 无需实现
-CommitFailureExceptionCarriesDeviceError: 测试函数无需实现
-FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog: 测试函数无需实现
-CalculateReadOnlyAddressClampsOutOfRangeHeadAddress: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecordingFailingDevice: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RemoveSegmentAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitFailureExceptionCarriesDeviceError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CalculateReadOnlyAddressClampsOutOfRangeHeadAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

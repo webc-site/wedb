@@ -1,6 +1,6 @@
-OnStart: 无需实现
-OnStop: 无需实现
-OnException: 无需实现
-BeginGetPrevInMemory: 无需实现
-EndGetPrevInMemory: 无需实现
-SnapCursorToLogicalAddress: 无需实现
+OnStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnStop: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginGetPrevInMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndGetPrevInMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SnapCursorToLogicalAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

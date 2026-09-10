@@ -1,9 +1,9 @@
-ReadInt: 无需实现
-TryReadInt: 无需实现
-ReadLong: 无需实现
-TryReadLong: 无需实现
-ReadDouble: 无需实现
-ReadFloat: 无需实现
-ReadString: 无需实现
-ReadBool: 无需实现
-TryReadBool: 无需实现
+ReadInt: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryReadInt: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadLong: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryReadLong: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadDouble: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadFloat: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadBool: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryReadBool: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

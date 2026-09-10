@@ -1,51 +1,51 @@
-ValidateContent: 无需实现
-Execute: 无需实现
-WriteError: 无需实现
-Prepare: 无需实现
-AddKey: 无需实现
-Main: 无需实现
-WriteSimpleString: 无需实现
-WriteBulkString: 无需实现
-Create: 无需实现
-Deserialize: 无需实现
-CopyUpdater: 无需实现
-GetInitialLength: 无需实现
-GetLength: 无需实现
-InitialUpdater: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-CreateTestLibraries: 无需实现
-CustomCommandTest1: 测试函数无需实现
-CustomCommandTest2: 测试函数无需实现
-CustomCommandTest3: 测试函数无需实现
-CustomCommandTest4: 测试函数无需实现
-CustomCommandTest5: 测试函数无需实现
-CustomCommandTest6: 测试函数无需实现
-CustomCommandCaseInsensitiveTest: 测试函数无需实现
-CustomObjectCommandTest1: 测试函数无需实现
-CustomCommandSetWhileKeyHasTtlTest: 测试函数无需实现
-CustomCommandSetAfterKeyDeletedWithTtlTest: 测试函数无需实现
-CustomObjectCommandTest2: 测试函数无需实现
-CustomObjectCommandTest3: 测试函数无需实现
-CustomObjectCommandTest4: 测试函数无需实现
-CustomCommandSetFollowedByTtlTestAsync: 测试函数无需实现
-CustomCommandSetWithCustomExpirationTestAsync: 测试函数无需实现
-CustomCommandRegistrationTest: 测试函数无需实现
-CustomProcedureFreeBufferTest: 测试函数无需实现
-CustomTxnFreeBufferTest: 测试函数无需实现
-CustomProcedureOutOfOrderFreeBufferTest: 测试函数无需实现
-RegisterCustomCommandTest: 测试函数无需实现
-RegisterCustomCommandErrorConditionsTest: 测试函数无需实现
-RateLimiterTest: 测试函数无需实现
-SortedSetCountTxn: 测试函数无需实现
-CustomProcInvokingCustomCmdTest: 测试函数无需实现
-CustomTransactionInvokingCustomCmdTest: 测试函数无需实现
-CustomProcedureInvokingInvalidCommandTest: 测试函数无需实现
-MultiRegisterCommandTest: 测试函数无需实现
-MultiRegisterSubCommandTest: 测试函数无需实现
-MultiRegisterTxnTest: 测试函数无需实现
-MultiRegisterProcTest: 测试函数无需实现
-CustomTxnEtagInteractionTest: 测试函数无需实现
-CustomProcEtagInteractionTest: 测试函数无需实现
-CustomNotFoundResponseTest: 测试函数无需实现
-CustomNotFoundStringResponseTest: 测试函数无需实现
+ValidateContent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Execute: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Prepare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteSimpleString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteBulkString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Create: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetInitialLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateTestLibraries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest4: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest5: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandTest6: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandCaseInsensitiveTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjectCommandTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandSetWhileKeyHasTtlTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandSetAfterKeyDeletedWithTtlTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjectCommandTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjectCommandTest3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjectCommandTest4: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandSetFollowedByTtlTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandSetWithCustomExpirationTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomCommandRegistrationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcedureFreeBufferTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomTxnFreeBufferTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcedureOutOfOrderFreeBufferTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomCommandErrorConditionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RateLimiterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SortedSetCountTxn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcInvokingCustomCmdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomTransactionInvokingCustomCmdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcedureInvokingInvalidCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRegisterCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRegisterSubCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRegisterTxnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRegisterProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomTxnEtagInteractionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcEtagInteractionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomNotFoundResponseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomNotFoundStringResponseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

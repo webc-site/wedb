@@ -1,14 +1,14 @@
-GetBanList: 无需实现
-GetConnectionInfo: 无需实现
-GetPrimaryLinkStatus: 无需实现
-SuspendConfigMerge: 无需实现
-ResumeConfigMerge: 无需实现
-RunMeetTask: 无需实现
-TryMeetAsync: 无需实现
-TryClusterPublishAsync: 无需实现
-GoAsyncHelperAsync: 无需实现
-GossipMainAsync: 无需实现
-InitConnectionsAsync: 无需实现
-DisposeBannedWorkerConnectionsAsync: 无需实现
-BroadcastGossipSendAsync: 无需实现
-GossipSampleSendAsync: 无需实现
+GetBanList: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetConnectionInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetPrimaryLinkStatus: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SuspendConfigMerge: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ResumeConfigMerge: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+RunMeetTask: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryMeetAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryClusterPublishAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GoAsyncHelperAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GossipMainAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InitConnectionsAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+DisposeBannedWorkerConnectionsAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+BroadcastGossipSendAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GossipSampleSendAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

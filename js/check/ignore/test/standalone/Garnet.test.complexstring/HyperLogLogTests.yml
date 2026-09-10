@@ -1,40 +1,40 @@
-Setup: 无需实现
-TearDown: 无需实现
-SimpleHyperLogLogArrayAddCount: 无需实现
-SingleHyperLogLogPCT: 无需实现
-Equals: 无需实现
-RandomString: 无需实现
-LongRandom: 无需实现
-RandomSubSeq: 无需实现
-RandomRedisValueSubseq: 无需实现
-ToList: 无需实现
-EstimationError: 无需实现
-ParseDumpValueLengthAndStart: 无需实现
-SimpleHyperLogLogAddCount: 测试函数无需实现
-SimpleHyperLogLogMerge: 测试函数无需实现
-HyperLogLogSimpleInvalidHLLTypeTest: 测试函数无需实现
-HyperLogLogSimple_PCT: 测试函数无需实现
-HyperLogLogArraySimple_PCT: 测试函数无需实现
-HyperLogLogUpdateReturnTest: 测试函数无需实现
-HyperLogLogMultiValueUpdateReturnTest: 测试函数无需实现
-HyperLogLogMultiCountTest: 测试函数无需实现
-HyperLogLogTestPFADDV2: 测试函数无需实现
-HyperLogLogPFADD_LTM: 测试函数无需实现
-HyperLogLogTestPFADD_DuplicatesV2: 测试函数无需实现
-HyperLogLogTestPFMERGE_SparseToSparseV2: 测试函数无需实现
-HyperLogLogTestPFMERGE_LTM_SparseToSparse: 测试函数无需实现
-HyperLogLogTestPFMERGE_SparseToDenseV2: 测试函数无需实现
-HyperLogLogTestPFMERGE_LTM_SparseToDense: 测试函数无需实现
-HyperLogLogTestPFMERGE_DenseToDenseV2: 测试函数无需实现
-HyperLogLogTestPFMERGE_LTM_DenseToDense: 测试函数无需实现
-HyperLogLogPFMerge_MultiHLLMergeV2: 测试函数无需实现
-CanRunHLLProcedureTest: 测试函数无需实现
-HyperLogLogRestoreCorruptedDumpPayloadIsRejected: 测试函数无需实现
-HyperLogLogRestoreZeroCrcDumpPayloadIsRejected: 测试函数无需实现
-HyperLogLogRestoreCorruptedSparseRlePayloadIsRejected: 测试函数无需实现
-HyperLogLogValidatorRejectsMalformedSparsePayload: 测试函数无需实现
-HyperLogLogValidatorRejectsSparseStreamCoverageMismatch: 测试函数无需实现
-HyperLogLogChecksumMalformedOnRestore: 测试函数无需实现
-HyperLogLogDumpVariantCoverage_SparseAndDenseRepresentations: 测试函数无需实现
-ParseDumpValueLengthAndStart_Covers6Bit14BitAnd32BitBranches: 测试函数无需实现
-HyperLogLogOperationsValidateStructuralIntegrity: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleHyperLogLogArrayAddCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleHyperLogLogPCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongRandom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomSubSeq: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomRedisValueSubseq: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToList: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EstimationError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseDumpValueLengthAndStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleHyperLogLogAddCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleHyperLogLogMerge: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogSimpleInvalidHLLTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogSimple_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogArraySimple_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogUpdateReturnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogMultiValueUpdateReturnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogMultiCountTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFADDV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogPFADD_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFADD_DuplicatesV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_SparseToSparseV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_LTM_SparseToSparse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_SparseToDenseV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_LTM_SparseToDense: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_DenseToDenseV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogTestPFMERGE_LTM_DenseToDense: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogPFMerge_MultiHLLMergeV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanRunHLLProcedureTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogRestoreCorruptedDumpPayloadIsRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogRestoreZeroCrcDumpPayloadIsRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogRestoreCorruptedSparseRlePayloadIsRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogValidatorRejectsMalformedSparsePayload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogValidatorRejectsSparseStreamCoverageMismatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogChecksumMalformedOnRestore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogDumpVariantCoverage_SparseAndDenseRepresentations: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseDumpValueLengthAndStart_Covers6Bit14BitAnd32BitBranches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogOperationsValidateStructuralIntegrity: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,4 +1,4 @@
-GlobalSetup: 无需实现
-SetupOperation: 无需实现
-SlowConsumeMessage: 无需实现
-Publish: 无需实现
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Publish: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,9 +1,9 @@
-EmptyInput: 测试函数无需实现
-NoDefaultRule: 测试函数无需实现
-WithDefaultRule: 测试函数无需实现
-AclLoad: 测试函数无需实现
-AclLoadErrors: 测试函数无需实现
-DuplicateUserNames: 测试函数无需实现
-BadInputNonexistingFile: 测试函数无需实现
-BadInputMalformedStatement: 测试函数无需实现
-AclSave: 测试函数无需实现
+EmptyInput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoDefaultRule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WithDefaultRule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclLoad: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclLoadErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DuplicateUserNames: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadInputNonexistingFile: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadInputMalformedStatement: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclSave: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

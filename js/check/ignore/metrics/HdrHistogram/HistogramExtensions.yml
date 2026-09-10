@@ -1,8 +1,8 @@
-GetMaxValue: 无需实现
-GetMean: 无需实现
-GetStdDeviation: 无需实现
-HighestEquivalentValue: 无需实现
-CopyInto: 无需实现
-Percentiles: 无需实现
-RecordScope: 无需实现
-Timer: 无需实现
+GetMaxValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetMean: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetStdDeviation: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+HighestEquivalentValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+CopyInto: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+Percentiles: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordScope: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+Timer: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

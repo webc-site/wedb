@@ -1,11 +1,11 @@
-KvNumaPinning: 无需实现
-PinWorker: 无需实现
-PinToCpu: 无需实现
-PinSetupOrReporter: 无需实现
-LinuxSchedSetAffinity: 无需实现
-DiscoverLinuxNodeCpus: 无需实现
-ParseCpuList: 无需实现
-sched_setaffinity: 无需实现
-sched_getaffinity: 无需实现
-LinuxSchedGetAffinity: 无需实现
-DescribeWorkerCpus: 无需实现
+KvNumaPinning: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PinWorker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PinToCpu: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PinSetupOrReporter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LinuxSchedSetAffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DiscoverLinuxNodeCpus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ParseCpuList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+sched_setaffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+sched_getaffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LinuxSchedGetAffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DescribeWorkerCpus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

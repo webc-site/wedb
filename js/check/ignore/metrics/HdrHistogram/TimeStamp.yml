@@ -1,3 +1,3 @@
-Seconds: 无需实现
-Minutes: 无需实现
-Hours: 无需实现
+Seconds: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+Minutes: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+Hours: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

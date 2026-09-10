@@ -1,9 +1,9 @@
-LogCheckpointBase: 无需实现
-LogCheckpointMetadata: 无需实现
-LogSnapshot: 无需实现
-ObjectLogSnapshot: 无需实现
-IndexCheckpointBase: 无需实现
-IndexCheckpointMetadata: 无需实现
-HashTable: 无需实现
-TsavoriteLogCommitMetadata: 无需实现
-CommitNumber: 无需实现
+LogCheckpointBase: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LogCheckpointMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LogSnapshot: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ObjectLogSnapshot: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+IndexCheckpointBase: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+IndexCheckpointMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+HashTable: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+TsavoriteLogCommitMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+CommitNumber: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

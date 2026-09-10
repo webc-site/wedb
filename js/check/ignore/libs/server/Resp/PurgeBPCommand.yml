@@ -1,0 +1,3 @@
+ToReadOnlySpan: C# 内存指针转 Span 辅助，Rust 原生切片零拷贝
+NetworkPurgeBP: C# Tsavorite BufferPool 显式内存释放网络命令，Rust 侧缓冲区由全局/线程池分配器原生管理
+ClusterPurgeBufferPool: C# 集群节点 BufferPool 释放，Rust 侧内存分配器自动管理回收

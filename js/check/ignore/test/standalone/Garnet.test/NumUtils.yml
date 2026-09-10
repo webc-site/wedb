@@ -1,5 +1,5 @@
-IntToBytes: 无需实现
-LongToBytes: 无需实现
-NumDigits: 无需实现
-NumDigitsInLong: 无需实现
-BytesToLong: 无需实现
+IntToBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongToBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NumDigits: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NumDigitsInLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BytesToLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

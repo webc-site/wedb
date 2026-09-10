@@ -1,4 +1,4 @@
-CanConvertFrom: 无需实现
-CanConvertTo: 无需实现
-ConvertFrom: 无需实现
-ConvertTo: 无需实现
+CanConvertFrom: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+CanConvertTo: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+ConvertFrom: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+ConvertTo: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

@@ -1,5 +1,5 @@
-ReadCacheNeedToWaitForEviction: 无需实现
-SpinWaitUntilRecordIsClosed: 无需实现
-ReadCacheAbandonRecord: 无需实现
-ReadCacheEvict: 无需实现
-ReadCacheEvictChain: 无需实现
+ReadCacheNeedToWaitForEviction: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SpinWaitUntilRecordIsClosed: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadCacheAbandonRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadCacheEvict: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadCacheEvictChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,3 +1,3 @@
-SetUpTestObjects: 无需实现
-CheckCommandOnWrongTypeObjectSE: 无需实现
-testAction: 无需实现
+SetUpTestObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckCommandOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+testAction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

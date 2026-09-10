@@ -1,4 +1,4 @@
-GlobalSetup: 无需实现
-IsAuthorized_DateTimeUtcNow: 无需实现
-IsAuthorized_CoarseTimeProvider: 无需实现
-IsAuthorized_CoarseTimeProviderTicks: 无需实现
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_DateTimeUtcNow: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_CoarseTimeProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_CoarseTimeProviderTicks: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

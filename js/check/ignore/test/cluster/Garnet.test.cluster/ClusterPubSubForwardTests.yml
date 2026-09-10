@@ -1,6 +1,6 @@
-Setup: 无需实现
-TearDown: 无需实现
-SingleNodeConfig: 无需实现
-NodeResponds: 无需实现
-when: 无需实现
-ClusterPublishSurvivesPeerNodeShutdown: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleNodeConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodeResponds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterPublishSurvivesPeerNodeShutdown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,14 +1,14 @@
-taskFactory: 无需实现
-DummyTask: 无需实现
-primaryCategoryTaskFactory: 无需实现
-PrimaryCategoryTask: 无需实现
-allCategoryTaskFactory: 无需实现
-AllCategoryTask: 无需实现
-ThrowingTaskFactory: 无需实现
-TestBasicRegisterAndRunAsync: 测试函数无需实现
-TestDoubleRegistrationAsync: 测试函数无需实现
-TestTaskPlacementCategoryCancellation: 测试函数无需实现
-TestTaskRegisterAfterDispose: 测试函数无需实现
-TestTaskFactoryException: 测试函数无需实现
-TestCleanupOnCompletion: 测试函数无需实现
-TestCleanupWithException: 测试函数无需实现
+taskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DummyTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+primaryCategoryTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrimaryCategoryTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+allCategoryTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllCategoryTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThrowingTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestBasicRegisterAndRunAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestDoubleRegistrationAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskPlacementCategoryCancellation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskRegisterAfterDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskFactoryException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestCleanupOnCompletion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestCleanupWithException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

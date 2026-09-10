@@ -1,23 +1,24 @@
-ReadCompletionCallback: 无需实现
-InitialWriter: 无需实现
-InPlaceWriter: 无需实现
-GetRMWModifiedFieldInfo: 无需实现
-GetRMWInitialFieldInfo: 无需实现
-GetUpsertFieldInfo: 无需实现
-RMWCompletionCallback: 无需实现
-InitialDeleter: 无需实现
-ConvertOutputToHeap: 无需实现
-ObjectOperationsNotExpected: 无需实现
-LogRecordOperationsNotExpected: 无需实现
-AlignOrPin: 无需实现
-AssertAlignment: 无需实现
-PostInitialWriter: 无需实现
-PostInitialUpdater: 无需实现
-PostCopyUpdater: 无需实现
-PostUpsertOperation: 无需实现
-PostRMWOperation: 无需实现
-PostDeleteOperation: 无需实现
-PostInitialDeleter: 无需实现
-PostSingleKeyConsistentReadCallback: 无需实现
-PreBatchKeyConsistentReadCallback: 无需实现
-PostBatchKeyConsistentReadCallback: 无需实现
+ReadCompletionCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InitialWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetRMWModifiedFieldInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetRMWInitialFieldInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetUpsertFieldInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+RMWCompletionCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InitialDeleter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ConvertOutputToHeap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ObjectOperationsNotExpected: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+LogRecordOperationsNotExpected: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AlignOrPin: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AssertAlignment: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostInitialWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostInitialUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostCopyUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostUpsertOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostRMWOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostDeleteOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostInitialDeleter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostSingleKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PreBatchKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostBatchKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

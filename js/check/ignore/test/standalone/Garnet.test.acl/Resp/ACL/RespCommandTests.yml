@@ -1,856 +1,856 @@
-Setup: 无需实现
-TearDown: 无需实现
-DoAsyncAsync: 无需实现
-DoAclCatAsync: 无需实现
-DoAclDelUserAsync: 无需实现
-DoAclDelUserMultiAsync: 无需实现
-DoAclGenPassAsync: 无需实现
-DoAclGetUserAsync: 无需实现
-DoAclListAsync: 无需实现
-DoAclLoadAsync: 无需实现
-DoAclSaveAsync: 无需实现
-DoAclSetUserOnAsync: 无需实现
-DoAclSetUserCategoryAsync: 无需实现
-DoAclSetUserOnCategoryAsync: 无需实现
-DoAclUsersAsync: 无需实现
-DoAclWhoAmIAsync: 无需实现
-DoExpDelScanAsync: 无需实现
-DoAppendAsync: 无需实现
-DoAskingAsync: 无需实现
-DoBGSaveAsync: 无需实现
-DoBGSaveScheduleAsync: 无需实现
-DoBitCountAsync: 无需实现
-DoBitCountStartEndAsync: 无需实现
-DoBitCountStartEndByteAsync: 无需实现
-DoBitCountStartEndBitAsync: 无需实现
-DoBitFieldGetAsync: 无需实现
-DoBitFieldGetWrapAsync: 无需实现
-DoBitFieldGetSatAsync: 无需实现
-DoBitFieldGetFailAsync: 无需实现
-DoBitFieldSetAsync: 无需实现
-DoBitFieldSetWrapAsync: 无需实现
-DoBitFieldSetSatAsync: 无需实现
-DoBitFieldSetFailAsync: 无需实现
-DoBitFieldIncrByAsync: 无需实现
-DoBitFieldIncrByWrapAsync: 无需实现
-DoBitFieldIncrBySatAsync: 无需实现
-DoBitFieldIncrByFailAsync: 无需实现
-DoBitFieldMultiAsync: 无需实现
-DoBitFieldROGetAsync: 无需实现
-DoBitFieldROMultiAsync: 无需实现
-DoBitOpAndAsync: 无需实现
-DoBitOpAndMultiAsync: 无需实现
-DoBitOpOrAsync: 无需实现
-DoBitOpOrMultiAsync: 无需实现
-DoBitOpXorAsync: 无需实现
-DoBitOpXorMultiAsync: 无需实现
-DoBitOpNotAsync: 无需实现
-DoBitPosAsync: 无需实现
-DoBitPosStartAsync: 无需实现
-DoBitPosStartEndAsync: 无需实现
-DoBitPosStartEndBitAsync: 无需实现
-DoBitPosStartEndByteAsync: 无需实现
-DoClientIdAsync: 无需实现
-DoClientInfoAsync: 无需实现
-DoClientListAsync: 无需实现
-DoClientListTypeAsync: 无需实现
-DoClientListIdAsync: 无需实现
-DoClientListIdsAsync: 无需实现
-DoClientKillAsync: 无需实现
-DoClientFilterAsync: 无需实现
-DoClientGetNameAsync: 无需实现
-DoClientSetNameAsync: 无需实现
-DoClientSetInfoAsync: 无需实现
-DoSSubscribeAsync: 无需实现
-DoSPublishAsync: 无需实现
-DoClientUnblockAsync: 无需实现
-DoClusterAddSlotsAsync: 无需实现
-DoClusterAddSlotsMultiAsync: 无需实现
-DoClusterAddSlotsRangeAsync: 无需实现
-DoClusterAddSlotsRangeMultiAsync: 无需实现
-DoClusterAppendLogAsync: 无需实现
-DoClusterAttachSyncAsync: 无需实现
-DoClusterBanListAsync: 无需实现
-DoClusterBeginReplicaFailoverAsync: 无需实现
-DoClusterBumpEpochAsync: 无需实现
-DoClusterDelKeysInSlotAsync: 无需实现
-DoClusterDelKeysInSlotRangeAsync: 无需实现
-DoClusterDelKeysInSlotRangeMultiAsync: 无需实现
-DoClusterDelSlotsAsync: 无需实现
-DoClusterDelSlotsMultiAsync: 无需实现
-DoClusterDelSlotsRangeAsync: 无需实现
-DoClusterDelSlotsRangeMultiAsync: 无需实现
-DoClusterEndpointAsync: 无需实现
-DoClusterFailoverAsync: 无需实现
-DoClusterFailoverForceAsync: 无需实现
-DoClusterFailStopWritesAsync: 无需实现
-DoClusterFlushAllAsync: 无需实现
-DoClusterForgetAsync: 无需实现
-DoClusterGetKeysInSlotAsync: 无需实现
-DoClusterGossipAsync: 无需实现
-DoClusterHelpAsync: 无需实现
-DoClusterInfoAsync: 无需实现
-DoClusterKeySlotAsync: 无需实现
-DoClusterMeetAsync: 无需实现
-DoClusterMeetPortAsync: 无需实现
-DoClusterMigrateAsync: 无需实现
-DoClusterMTasksAsync: 无需实现
-DoClusterAdvanceTimeAsync: 无需实现
-DoClusterMyIdAsync: 无需实现
-DoClusterMyParentIdAsync: 无需实现
-DoClusterNodesAsync: 无需实现
-DoClusterReplicasAsync: 无需实现
-DoClusterReplicateAsync: 无需实现
-DoClusterReserveAsync: 无需实现
-DoClusterResetAsync: 无需实现
-DoClusteResetHardAsync: 无需实现
-DoClusterSendCkptFileSegmentAsync: 无需实现
-DoClusterSendCkptMetadataAsync: 无需实现
-DoClusterSnapshotDataAsync: 无需实现
-DoClusterSetConfigEpochAsync: 无需实现
-DoClusterSetSlotAsync: 无需实现
-DoClusterSetSlotStableAsync: 无需实现
-DoClusterSetSlotImportingAsync: 无需实现
-DoClusterSetSlotsRangeStableAsync: 无需实现
-DoClusterSetSlotsRangeStableMultiAsync: 无需实现
-DoClusterSetSlotsRangeImportingAsync: 无需实现
-DoClusterSetSlotsRangeImportingMultiAsync: 无需实现
-DoClusterShardsAsync: 无需实现
-DoClusterSlotsAsync: 无需实现
-DoClusterSlotStateAsync: 无需实现
-DoClusterMlogKeyTimeAsync: 无需实现
-DoClusterMlogKeyTimeFrontierAsync: 无需实现
-DoClusterPublishAsync: 无需实现
-DoClusterSPublishAsync: 无需实现
-DoCommandAsync: 无需实现
-DoCommandCountAsync: 无需实现
-DoCommandInfoAsync: 无需实现
-DoCommandInfoOneAsync: 无需实现
-DoCommandInfoMultiAsync: 无需实现
-DoCommandDocsAsync: 无需实现
-DoCommandDocsOneAsync: 无需实现
-DoCommandDocsMultiAsync: 无需实现
-DoCommandGetKeysAsync: 无需实现
-DoCommandGetKeysAndFlagsAsync: 无需实现
-DoCommitAOFAsync: 无需实现
-DoConfigGetOneAsync: 无需实现
-DoConfigRewriteAsync: 无需实现
-DoConfigSetOneAsync: 无需实现
-DoConfigSetMultiAsync: 无需实现
-DoCOScanAsync: 无需实现
-DoSetWpIfPgtAsync: 无需实现
-DoMyDictGetAsync: 无需实现
-DoReadWriteTxAsync: 无需实现
-DoSumAsync: 无需实现
-DoDebugAsync: 无需实现
-DoEvalAsync: 无需实现
-DoEvalShaAsync: 无需实现
-DoScriptLoadAsync: 无需实现
-DoScriptExistsSingleAsync: 无需实现
-DoScriptExistsMultiAsync: 无需实现
-DoScriptFlushAsync: 无需实现
-DoScriptFlushSyncAsync: 无需实现
-DoScriptFlushAsyncAsync: 无需实现
-DoDbSizeAsync: 无需实现
-DoDecrAsync: 无需实现
-DoDecrByAsync: 无需实现
-DoDelAsync: 无需实现
-DoDelMultiAsync: 无需实现
-DoDiscardAsync: 无需实现
-DoEchoAsync: 无需实现
-DoExecAsync: 无需实现
-DoExistsAsync: 无需实现
-DoExistsMultiAsync: 无需实现
-DoExpireAsync: 无需实现
-DoExpireNXAsync: 无需实现
-DoExpireXXAsync: 无需实现
-DoExpireGTAsync: 无需实现
-DoExpireLTAsync: 无需实现
-DoFailoverAsync: 无需实现
-DoFailoverToAsync: 无需实现
-DoFailoverAbortAsync: 无需实现
-DoFailoverToForceAsync: 无需实现
-DoFailoverToAbortAsync: 无需实现
-DoFailoverToForceAbortAsync: 无需实现
-DoFailoverToForceAbortTimeoutAsync: 无需实现
-DoFlushDBAsync: 无需实现
-DoFlushDBAsyncAsync: 无需实现
-DoFlushAllAsync: 无需实现
-DoFlushAllAsyncAsync: 无需实现
-DoGetAsync: 无需实现
-DoGetEXAsync: 无需实现
-DoGetBitAsync: 无需实现
-DoGetDelAsync: 无需实现
-DoGetAndSetAsync: 无需实现
-DoSubStringAsync: 无需实现
-DoGetRangeAsync: 无需实现
-DoHExpireAsync: 无需实现
-DoHPExpireAsync: 无需实现
-DoHExpireAtAsync: 无需实现
-DoHPExpireAtAsync: 无需实现
-DoHExpireTimeAsync: 无需实现
-DoHPExpireTimeAsync: 无需实现
-DoHETTLAsync: 无需实现
-DoHPETTLAsync: 无需实现
-DoHPersistAsync: 无需实现
-DoHCollectAsync: 无需实现
-DoHDelAsync: 无需实现
-DoHDelMultiAsync: 无需实现
-DoHIncrByAsync: 无需实现
-DoHIncrByFloatAsync: 无需实现
-DoHKeysAsync: 无需实现
-DoHLenAsync: 无需实现
-DoHMGetAsync: 无需实现
-DoHMGetMultiAsync: 无需实现
-DoHMSetAsync: 无需实现
-DoHMSetMultiAsync: 无需实现
-DoHRandFieldAsync: 无需实现
-DoHRandFieldCountAsync: 无需实现
-DoHRandFieldCountWithValuesAsync: 无需实现
-DoHScanAsync: 无需实现
-DoHScanMatchAsync: 无需实现
-DoHScanCountAsync: 无需实现
-DoHScanNoValuesAsync: 无需实现
-DoHScanMatchCountAsync: 无需实现
-DoHScanMatchNoValuesAsync: 无需实现
-DoHScanCountNoValuesAsync: 无需实现
-DoHScanMatchCountNoValuesAsync: 无需实现
-DoHSetAsync: 无需实现
-DoHSetMultiAsync: 无需实现
-DoHSetNXAsync: 无需实现
-DoHStrLenAsync: 无需实现
-DoHValsAsync: 无需实现
-DoIncrAsync: 无需实现
-DoIncrByAsync: 无需实现
-DoIncrByFloatAsync: 无需实现
-DoInfoAsync: 无需实现
-DoInfoSingleAsync: 无需实现
-DoInfoMultiAsync: 无需实现
-DoRoleAsync: 无需实现
-DoKeysAsync: 无需实现
-DoLastSaveAsync: 无需实现
-DoLatencyHelpAsync: 无需实现
-DoLatencyHistogramAsync: 无需实现
-DoLatencyHistogramSingleAsync: 无需实现
-DoLatencyHistogramMultiAsync: 无需实现
-DoLatencyResetAsync: 无需实现
-DoLatencyResetSingleAsync: 无需实现
-DoLatencyResetMultiAsync: 无需实现
-DoBLMoveAsync: 无需实现
-DoBRPopLPushAsync: 无需实现
-DoBLMPopAsync: 无需实现
-DoBLPopAsync: 无需实现
-DoBRPopAsync: 无需实现
-DoBZMPopAsync: 无需实现
-DoBZPopMaxAsync: 无需实现
-DoBZPopMinAsync: 无需实现
-DoLPopAsync: 无需实现
-DoLPopCountAsync: 无需实现
-DoLPosAsync: 无需实现
-DoLPushAsync: 无需实现
-DoLPushMultiAsync: 无需实现
-DoLPushXAsync: 无需实现
-DoLPushXMultiAsync: 无需实现
-DoRPopAsync: 无需实现
-DoRPopCountAsync: 无需实现
-DoRPushAsync: 无需实现
-DoRPushMultiAsync: 无需实现
-DoRPushXAsync: 无需实现
-DoRPushXMultiAsync: 无需实现
-DoLCSAsync: 无需实现
-DoLLenAsync: 无需实现
-DoLTrimAsync: 无需实现
-DoLRangeAsync: 无需实现
-DoLIndexAsync: 无需实现
-DoLInsertBeforeAsync: 无需实现
-DoLInsertAfterAsync: 无需实现
-DoLRemAsync: 无需实现
-DoLMoveAsync: 无需实现
-DoLMPopAsync: 无需实现
-DoLMPopCountAsync: 无需实现
-DoLSetAsync: 无需实现
-DoMemoryUsageAsync: 无需实现
-DoMemoryUsageSamplesAsync: 无需实现
-DoObjectEncodingAsync: 无需实现
-DoObjectFreqAsync: 无需实现
-DoObjectIdletimeAsync: 无需实现
-DoObjectRefcountAsync: 无需实现
-DoObjectHelpAsync: 无需实现
-DoMemorySingleAsync: 无需实现
-DoMemoryMultiAsync: 无需实现
-DoMigrateAsync: 无需实现
-DoModuleLoadAsync: 无需实现
-DoMonitorAsync: 无需实现
-DoMSetSingleAsync: 无需实现
-DoMSetMultiAsync: 无需实现
-DoMSetNXSingleAsync: 无需实现
-DoMSetNXMultiAsync: 无需实现
-DoMultiAsync: 无需实现
-DoPersistAsync: 无需实现
-DoPExpireAsync: 无需实现
-DoPExpireNXAsync: 无需实现
-DoPExpireXXAsync: 无需实现
-DoPExpireGTAsync: 无需实现
-DoPExpireLTAsync: 无需实现
-DoPFAddSingleAsync: 无需实现
-DoPFAddMultiAsync: 无需实现
-DoPFCountSingleAsync: 无需实现
-DoPFCountMultiAsync: 无需实现
-DoPFMergeSingleAsync: 无需实现
-DoPFMergeMultiAsync: 无需实现
-DoPingAsync: 无需实现
-DoPingMessageAsync: 无需实现
-DoPSetEXAsync: 无需实现
-DoPSubscribePatternAsync: 无需实现
-DoPUnsubscribePatternAsync: 无需实现
-DoPTTLAsync: 无需实现
-DoPublishAsync: 无需实现
-DoPubSubChannelsAsync: 无需实现
-DoPubSubNumPatAsync: 无需实现
-DoPubSubNumSubAsync: 无需实现
-DoReadOnlyAsync: 无需实现
-DoReadWriteAsync: 无需实现
-DoRegisterCSAsync: 无需实现
-DoExpireTimeAsync: 无需实现
-DoPExpireTimeAsync: 无需实现
-DoRENAMEAsync: 无需实现
-DoRENAMENXAsync: 无需实现
-DoRICreateAsync: 无需实现
-DoRIDelAsync: 无需实现
-DoRIGetAsync: 无需实现
-DoRISetAsync: 无需实现
-DoRIRangeAsync: 无需实现
-DoRIScanAsync: 无需实现
-DoRIExistsAsync: 无需实现
-DoRIConfigAsync: 无需实现
-DoRIMetricsAsync: 无需实现
-DoReplicaOfAsync: 无需实现
-DoReplicaOfNoOneAsync: 无需实现
-DoRunTxpAsync: 无需实现
-DoSaveAsync: 无需实现
-DoScanAsync: 无需实现
-DoScanMatchAsync: 无需实现
-DoScanCountAsync: 无需实现
-DoScanTypeAsync: 无需实现
-DoScanMatchCountAsync: 无需实现
-DoScanMatchTypeAsync: 无需实现
-DoScanCountTypeAsync: 无需实现
-DoScanMatchCountTypeAsync: 无需实现
-DoSecondaryOfAsync: 无需实现
-DoSecondaryOfNoOneAsync: 无需实现
-DoSelectAsync: 无需实现
-DoSetAsync: 无需实现
-DoSetExNxAsync: 无需实现
-DoSetXxNxAsync: 无需实现
-DoSetKeepTtlAsync: 无需实现
-DoSetKeepTtlXxAsync: 无需实现
-DoSetIfMatchAsync: 无需实现
-DoSetIfGreaterAsync: 无需实现
-DoSetWithEtagAsync: 无需实现
-DoDelIfGreaterAsync: 无需实现
-DoGetIfNotMatchAsync: 无需实现
-DoGetWithEtagAsync: 无需实现
-DoSetBitAsync: 无需实现
-DoSetEXAsync: 无需实现
-DoSetIfNotExistAsync: 无需实现
-DoSetRangeAsync: 无需实现
-DoStrLenAsync: 无需实现
-DoSAddAsync: 无需实现
-DoSAddMultiAsync: 无需实现
-DoSRemAsync: 无需实现
-DoSRemMultiAsync: 无需实现
-DoSPopAsync: 无需实现
-DoSPopCountAsync: 无需实现
-DoSMembersAsync: 无需实现
-DoSCardAsync: 无需实现
-DoSScanAsync: 无需实现
-DoSScanMatchAsync: 无需实现
-DoSScanCountAsync: 无需实现
-DoSScanMatchCountAsync: 无需实现
-DoSlaveOfAsync: 无需实现
-DoSlaveOfNoOneAsync: 无需实现
-DoSlowlogGetAsync: 无需实现
-DoSlowlogHelpAsync: 无需实现
-DoSlowlogLenAsync: 无需实现
-DoSlowlogResetAsync: 无需实现
-DoSMoveAsync: 无需实现
-DoSRandMemberAsync: 无需实现
-DoSRandMemberCountAsync: 无需实现
-DoSIsMemberAsync: 无需实现
-DoSMultiIsMemberAsync: 无需实现
-DoSubscribeAsync: 无需实现
-DoSUnionAsync: 无需实现
-DoSUnionMultiAsync: 无需实现
-DoSUnionStoreAsync: 无需实现
-DoSUnionStoreMultiAsync: 无需实现
-DoSDiffAsync: 无需实现
-DoSDiffMultiAsync: 无需实现
-DoSDiffStoreAsync: 无需实现
-DoSDiffStoreMultiAsync: 无需实现
-DoUnionAsync: 无需实现
-DoGeoAddAsync: 无需实现
-DoGeoAddNXAsync: 无需实现
-DoGeoAddNXCHAsync: 无需实现
-DoGeoAddMultiAsync: 无需实现
-DoGeoAddNXMultiAsync: 无需实现
-DoGeoAddNXCHMultiAsync: 无需实现
-DoGeoHashAsync: 无需实现
-DoGeoHashSingleAsync: 无需实现
-DoGeoHashMultiAsync: 无需实现
-DoGetDistAsync: 无需实现
-DoGetDistMAsync: 无需实现
-DoGeoPosAsync: 无需实现
-DoGeoPosMultiAsync: 无需实现
-DoGeoRadiusAsync: 无需实现
-DoGeoRadiusROAsync: 无需实现
-DoGeoRadiusByMemberAsync: 无需实现
-DoGeoRadiusByMemberROAsync: 无需实现
-DoGeoSearchAsync: 无需实现
-DoGeoSearchStoreAsync: 无需实现
-DoZAddAsync: 无需实现
-DoZAddMultiAsync: 无需实现
-DoZCardAsync: 无需实现
-DoZMPopAsync: 无需实现
-DoZMPopCountAsync: 无需实现
-DoZPopMaxAsync: 无需实现
-DoZPopMaxCountAsync: 无需实现
-DoZScoreAsync: 无需实现
-DoZRemAsync: 无需实现
-DoZRemMultiAsync: 无需实现
-DoZCountAsync: 无需实现
-DoZIncrByAsync: 无需实现
-DoZRankAsync: 无需实现
-DoZRangeAsync: 无需实现
-DoZRevRangeByLexAsync: 无需实现
-DoZRangeStoreAsync: 无需实现
-DoZRangeByLexAsync: 无需实现
-DoZRangeByLexLimitAsync: 无需实现
-DoZRangeByScoreAsync: 无需实现
-DoZRangeByScoreWithScoresAsync: 无需实现
-DoZRangeByScoreLimitAsync: 无需实现
-DoZRangeByScoreWithScoresLimitAsync: 无需实现
-DoZRevRangeAsync: 无需实现
-DoZRevRangeWithScoresAsync: 无需实现
-DoZRevRangeByScoreAsync: 无需实现
-DoZRevRangeByScoreWithScoresAsync: 无需实现
-DoZRevRangeByScoreLimitAsync: 无需实现
-DoZRevRangeByScoreWithScoresLimitAsync: 无需实现
-DoZRevRankAsync: 无需实现
-DoZRemRangeByLexAsync: 无需实现
-DoZRemRangeByRankAsync: 无需实现
-DoZLexCountAsync: 无需实现
-DoZPopMinAsync: 无需实现
-DoZPopMinCountAsync: 无需实现
-DoZRandMemberAsync: 无需实现
-DoZRandMemberCountAsync: 无需实现
-DoZRandMemberCountWithScoresAsync: 无需实现
-DoZDiffAsync: 无需实现
-DoZDiffMultiAsync: 无需实现
-DoZDiffStoreAsync: 无需实现
-DoZInterAsync: 无需实现
-DoZInterCardAsync: 无需实现
-DoZInterStoreAsync: 无需实现
-DoZUnionAsync: 无需实现
-DoZUnionStoreAsync: 无需实现
-DoZScanAsync: 无需实现
-DoZScanMatchAsync: 无需实现
-DoZScanCountAsync: 无需实现
-DoZScanNoValuesAsync: 无需实现
-DoZScanMatchCountAsync: 无需实现
-DoZScanMatchNoValuesAsync: 无需实现
-DoZScanCountNoValuesAsync: 无需实现
-DoZScanMatchCountNoValuesAsync: 无需实现
-DoZExpireAsync: 无需实现
-DoZPExpireAsync: 无需实现
-DoZExpireAtAsync: 无需实现
-DoZPExpireAtAsync: 无需实现
-DoZExpireTimeAsync: 无需实现
-DoZPExpireTimeAsync: 无需实现
-DoZETTLAsync: 无需实现
-DoZPETTLAsync: 无需实现
-DoZPersistAsync: 无需实现
-DoZCollectAsync: 无需实现
-DoTimeAsync: 无需实现
-DoTTLAsync: 无需实现
-DoDUMPAsync: 无需实现
-DoRestoreAsync: 无需实现
-DoSwapDbAsync: 无需实现
-DoTypeAsync: 无需实现
-DoUnlinkAsync: 无需实现
-DoUnlinkMultiAsync: 无需实现
-DoUnsubscribePatternAsync: 无需实现
-DoWatchAsync: 无需实现
-DoWatchMSAsync: 无需实现
-DoWatchOSAsync: 无需实现
-DoUnwatchAsync: 无需实现
-DoVAddAsync: 无需实现
-DoVCardAsync: 无需实现
-DoVDimAsync: 无需实现
-when: 无需实现
-DoVEmbAsync: 无需实现
-DoVGetAttrAsync: 无需实现
-DoVInfoAsync: 无需实现
-DoVIsMemberAsync: 无需实现
-DoVLinksAsync: 无需实现
-DoVRandMemberAsync: 无需实现
-DoVRemAsync: 无需实现
-DoVSetAttrAsync: 无需实现
-DoVSimAsync: 无需实现
-CheckCommandsAsync: 无需实现
-SetACLOnUserAsync: 无需实现
-ResetUserWithAllAsync: 无需实现
-ResetUserWithNoneAsync: 无需实现
-AssertAllPermittedAsync: 无需实现
-AssertRedisAclCheckCmd: 无需实现
-AssertAllDeniedAsync: 无需实现
-PingAsync: 无需实现
-CreateGarnetClientAsync: 无需实现
-InitUserAsync: 无需实现
-SetUserAsync: 无需实现
-GetUserAsync: 无需实现
-CheckPermissionFailureAsync: 无需实现
-AllCommandsCovered: 测试函数无需实现
-AsyncACLsAsync: 测试函数无需实现
-AclCatACLsAsync: 测试函数无需实现
-AclDelUserACLsAsync: 测试函数无需实现
-AclGenPassACLsAsync: 测试函数无需实现
-AclGetUserACLsAsync: 测试函数无需实现
-AclListACLsAsync: 测试函数无需实现
-AclLoadACLsAsync: 测试函数无需实现
-AclSaveACLsAsync: 测试函数无需实现
-AclSetUserACLsAsync: 测试函数无需实现
-AclUsersACLsAsync: 测试函数无需实现
-AclWhoAmIACLsAsync: 测试函数无需实现
-ExpDelScanACLsAsync: 测试函数无需实现
-AppendACLsAsync: 测试函数无需实现
-AskingACLsAsync: 测试函数无需实现
-BGSaveACLsAsync: 测试函数无需实现
-BitcountACLsAsync: 测试函数无需实现
-BitfieldACLsAsync: 测试函数无需实现
-BitfieldROACLsAsync: 测试函数无需实现
-BitOpACLsAsync: 测试函数无需实现
-BitPosACLsAsync: 测试函数无需实现
-ClientIdACLsAsync: 测试函数无需实现
-ClientInfoACLsAsync: 测试函数无需实现
-ClientListACLsAsync: 测试函数无需实现
-ClientKillACLsAsync: 测试函数无需实现
-ClientGetNameACLsAsync: 测试函数无需实现
-ClientSetNameACLsAsync: 测试函数无需实现
-ClientSetInfoACLsAsync: 测试函数无需实现
-SSubscribeACLsAsync: 测试函数无需实现
-SPublishACLsAsync: 测试函数无需实现
-ClientUnblockACLsAsync: 测试函数无需实现
-ClusterAddSlotsACLsAsync: 测试函数无需实现
-ClusterAddSlotsRangeACLsAsync: 测试函数无需实现
-ClusterAppendLogACLsAsync: 测试函数无需实现
-ClusterAttachSyncACLsAsync: 测试函数无需实现
-ClusterBanListACLsAsync: 测试函数无需实现
-ClusterBeginReplicaRecoverACLsAsync: 测试函数无需实现
-ClusterBumpEpochACLsAsync: 测试函数无需实现
-ClusterCountKeysInSlotACLsAsync: 测试函数无需实现
-ClusterDelKeysInSlotACLsAsync: 测试函数无需实现
-ClusterDelKeysInSlotRangeACLsAsync: 测试函数无需实现
-ClusterDelSlotsACLsAsync: 测试函数无需实现
-ClusterDelSlotsRangeACLsAsync: 测试函数无需实现
-ClusterEndpointACLsAsync: 测试函数无需实现
-ClusterFailoverACLsAsync: 测试函数无需实现
-ClusterFailStopWritesACLsAsync: 测试函数无需实现
-ClusterFlushAllACLsAsync: 测试函数无需实现
-ClusterFailReplicationOffsetACLsAsync: 测试函数无需实现
-ClusterForgetACLsAsync: 测试函数无需实现
-ClusterGetKeysInSlotACLsAsync: 测试函数无需实现
-ClusterGossipACLsAsync: 测试函数无需实现
-ClusterHelpACLsAsync: 测试函数无需实现
-ClusterInfoACLsAsync: 测试函数无需实现
-ClusterInitiateReplicaSyncACLsAsync: 测试函数无需实现
-ClusterKeySlotACLsAsync: 测试函数无需实现
-ClusterMeetACLsAsync: 测试函数无需实现
-ClusterMigrateACLsAsync: 测试函数无需实现
-ClusterSyncACLsAsync: 测试函数无需实现
-ClusterMTasksACLsAsync: 测试函数无需实现
-ClusterAdvanceTimeACLsAsync: 测试函数无需实现
-ClusterMyIdACLsAsync: 测试函数无需实现
-ClusterMyParentIdACLsAsync: 测试函数无需实现
-ClusterNodesACLsAsync: 测试函数无需实现
-ClusterReplicasACLsAsync: 测试函数无需实现
-ClusterReplicateACLsAsync: 测试函数无需实现
-ClusterReserveACLsAsync: 测试函数无需实现
-ClusterResetACLsAsync: 测试函数无需实现
-ClusterSendCkptFileSegmentACLsAsync: 测试函数无需实现
-ClusterSendCkptMetadataACLsAsync: 测试函数无需实现
-ClusterSnapshotDataACLsAsync: 测试函数无需实现
-ClusterSetConfigEpochACLsAsync: 测试函数无需实现
-ClusterSetSlotACLsAsync: 测试函数无需实现
-ClusterSetSlotsRangeACLsAsync: 测试函数无需实现
-ClusterShardsACLsAsync: 测试函数无需实现
-ClusterSlotsACLsAsync: 测试函数无需实现
-ClusterSlotStateACLsAsync: 测试函数无需实现
-ClusterMlogKeyTimeACLsAsync: 测试函数无需实现
-ClusterPublishACLsAsync: 测试函数无需实现
-ClusterSPublishACLsAsync: 测试函数无需实现
-CommandACLsAsync: 测试函数无需实现
-CommandCountACLsAsync: 测试函数无需实现
-CommandInfoACLsAsync: 测试函数无需实现
-CommandDocsACLsAsync: 测试函数无需实现
-CommandGetKeysACLsAsync: 测试函数无需实现
-CommandGetKeysAndFlagsACLsAsync: 测试函数无需实现
-CommitAOFACLsAsync: 测试函数无需实现
-ConfigGetACLsAsync: 测试函数无需实现
-ConfigRewriteACLsAsync: 测试函数无需实现
-ConfigSetACLsAsync: 测试函数无需实现
-COScanACLsAsync: 测试函数无需实现
-CustomRawStringCmdACLsAsync: 测试函数无需实现
-CustomObjCmdACLsAsync: 测试函数无需实现
-CustomTxnACLsAsync: 测试函数无需实现
-CustomProcedureACLsAsync: 测试函数无需实现
-DebugACLsAsync: 测试函数无需实现
-EvalACLsAsync: 测试函数无需实现
-EvalShaACLsAsync: 测试函数无需实现
-ScriptLoadACLsAsync: 测试函数无需实现
-ScriptExistsACLsAsync: 测试函数无需实现
-ScriptFlushACLsAsync: 测试函数无需实现
-DBSizeACLsAsync: 测试函数无需实现
-DecrACLsAsync: 测试函数无需实现
-DecrByACLsAsync: 测试函数无需实现
-DelACLsAsync: 测试函数无需实现
-DiscardACLsAsync: 测试函数无需实现
-EchoACLsAsync: 测试函数无需实现
-ExecACLsAsync: 测试函数无需实现
-ExistsACLsAsync: 测试函数无需实现
-ExpireACLsAsync: 测试函数无需实现
-ExpireAtACLsAsync: 测试函数无需实现
-PExpireAtACLsAsync: 测试函数无需实现
-FailoverACLsAsync: 测试函数无需实现
-FlushDBACLsAsync: 测试函数无需实现
-FlushAllACLsAsync: 测试函数无需实现
-GetACLsAsync: 测试函数无需实现
-GetEXACLsAsync: 测试函数无需实现
-GetBitACLsAsync: 测试函数无需实现
-GetDelACLsAsync: 测试函数无需实现
-GetSetACLsAsync: 测试函数无需实现
-SubStrACLsAsync: 测试函数无需实现
-GetRangeACLsAsync: 测试函数无需实现
-SubStringACLsAsync: 测试函数无需实现
-HExpireACLsAsync: 测试函数无需实现
-HPExpireACLsAsync: 测试函数无需实现
-HExpireAtACLsAsync: 测试函数无需实现
-HPExpireAtACLsAsync: 测试函数无需实现
-HExpireTimeACLsAsync: 测试函数无需实现
-HPExpireTimeACLsAsync: 测试函数无需实现
-HTTLACLsAsync: 测试函数无需实现
-HPTTLACLsAsync: 测试函数无需实现
-HPersistACLsAsync: 测试函数无需实现
-HCollectACLsAsync: 测试函数无需实现
-HDelACLsAsync: 测试函数无需实现
-HExistsACLsAsync: 测试函数无需实现
-HGetACLsAsync: 测试函数无需实现
-HGetAllACLsAsync: 测试函数无需实现
-HIncrByACLsAsync: 测试函数无需实现
-HIncrByFloatACLsAsync: 测试函数无需实现
-HKeysACLsAsync: 测试函数无需实现
-HLenACLsAsync: 测试函数无需实现
-HMGetACLsAsync: 测试函数无需实现
-HMSetACLsAsync: 测试函数无需实现
-HRandFieldACLsAsync: 测试函数无需实现
-HScanACLsAsync: 测试函数无需实现
-HSetACLsAsync: 测试函数无需实现
-HSetNXACLsAsync: 测试函数无需实现
-HStrLenACLsAsync: 测试函数无需实现
-HValsACLsAsync: 测试函数无需实现
-IncrACLsAsync: 测试函数无需实现
-IncrByACLsAsync: 测试函数无需实现
-IncrByFloatACLsAsync: 测试函数无需实现
-InfoACLsAsync: 测试函数无需实现
-RoleACLsAsync: 测试函数无需实现
-KeysACLsAsync: 测试函数无需实现
-LastSaveACLsAsync: 测试函数无需实现
-LatencyHelpACLsAsync: 测试函数无需实现
-LatencyHistogramACLsAsync: 测试函数无需实现
-LatencyResetACLsAsync: 测试函数无需实现
-BLMoveACLsAsync: 测试函数无需实现
-BRPopLPushACLsAsync: 测试函数无需实现
-BLMPopACLsAsync: 测试函数无需实现
-BLPopACLsAsync: 测试函数无需实现
-BRPopACLsAsync: 测试函数无需实现
-BZMPopACLsAsync: 测试函数无需实现
-BZPopMaxACLsAsync: 测试函数无需实现
-BZPopMinACLsAsync: 测试函数无需实现
-LPopACLsAsync: 测试函数无需实现
-LPosACLsAsync: 测试函数无需实现
-LPushACLsAsync: 测试函数无需实现
-LPushXACLsAsync: 测试函数无需实现
-RPopACLsAsync: 测试函数无需实现
-LRushACLsAsync: 测试函数无需实现
-RPushACLsAsync: 测试函数无需实现
-RPushXACLsAsync: 测试函数无需实现
-LCSACLsAsync: 测试函数无需实现
-LLenACLsAsync: 测试函数无需实现
-LTrimACLsAsync: 测试函数无需实现
-LRangeACLsAsync: 测试函数无需实现
-LIndexACLsAsync: 测试函数无需实现
-LInsertACLsAsync: 测试函数无需实现
-LRemACLsAsync: 测试函数无需实现
-RPopLPushACLsAsync: 测试函数无需实现
-LMoveACLsAsync: 测试函数无需实现
-LMPopACLsAsync: 测试函数无需实现
-LSetACLsAsync: 测试函数无需实现
-MemoryUsageACLsAsync: 测试函数无需实现
-ObjectEncodingACLsAsync: 测试函数无需实现
-ObjectFreqACLsAsync: 测试函数无需实现
-ObjectIdletimeACLsAsync: 测试函数无需实现
-ObjectRefcountACLsAsync: 测试函数无需实现
-ObjectHelpACLsAsync: 测试函数无需实现
-MGetACLsAsync: 测试函数无需实现
-MigrateACLsAsync: 测试函数无需实现
-ModuleLoadCSACLsAsync: 测试函数无需实现
-MonitorACLsAsync: 测试函数无需实现
-MSetACLsAsync: 测试函数无需实现
-MSetNXACLsAsync: 测试函数无需实现
-MultiACLsAsync: 测试函数无需实现
-PersistACLsAsync: 测试函数无需实现
-PExpireACLsAsync: 测试函数无需实现
-PFAddACLsAsync: 测试函数无需实现
-PFCountACLsAsync: 测试函数无需实现
-PFMergeACLsAsync: 测试函数无需实现
-PingACLsAsync: 测试函数无需实现
-PSetEXACLsAsync: 测试函数无需实现
-PSubscribeACLsAsync: 测试函数无需实现
-PUnsubscribeACLsAsync: 测试函数无需实现
-PTTLACLsAsync: 测试函数无需实现
-PublishACLsAsync: 测试函数无需实现
-PubSubChannelsACLsAsync: 测试函数无需实现
-PubSubNumPatACLsAsync: 测试函数无需实现
-PubSubNumSubACLsAsync: 测试函数无需实现
-ReadOnlyACLsAsync: 测试函数无需实现
-ReadWriteACLsAsync: 测试函数无需实现
-RegisterCSACLsAsync: 测试函数无需实现
-ExpireTimeACLsAsync: 测试函数无需实现
-PExpireTimeACLsAsync: 测试函数无需实现
-RenameACLsAsync: 测试函数无需实现
-RenameNxACLsAsync: 测试函数无需实现
-RICreateACLsAsync: 测试函数无需实现
-RIDelACLsAsync: 测试函数无需实现
-RIGetACLsAsync: 测试函数无需实现
-RISetACLsAsync: 测试函数无需实现
-RIRangeACLsAsync: 测试函数无需实现
-RIScanACLsAsync: 测试函数无需实现
-RIExistsACLsAsync: 测试函数无需实现
-RIConfigACLsAsync: 测试函数无需实现
-RIMetricsACLsAsync: 测试函数无需实现
-ReplicaOfACLsAsync: 测试函数无需实现
-RunTxpACLsAsync: 测试函数无需实现
-SaveACLsAsync: 测试函数无需实现
-ScanACLsAsync: 测试函数无需实现
-SecondaryOfACLsAsync: 测试函数无需实现
-SelectACLsAsync: 测试函数无需实现
-SetACLsAsync: 测试函数无需实现
-SetIfMatchACLsAsync: 测试函数无需实现
-SetIfGreaterACLsAsync: 测试函数无需实现
-SetWithEtagACLsAsync: 测试函数无需实现
-DelIfGreaterACLsAsync: 测试函数无需实现
-GetIfNotMatchACLsAsync: 测试函数无需实现
-GetWithEtagACLsAsync: 测试函数无需实现
-SetBitACLsAsync: 测试函数无需实现
-SetEXACLsAsync: 测试函数无需实现
-SetNXACLsAsync: 测试函数无需实现
-SetRangeACLsAsync: 测试函数无需实现
-StrLenACLsAsync: 测试函数无需实现
-SAddACLsAsync: 测试函数无需实现
-SRemACLsAsync: 测试函数无需实现
-SPopACLsAsync: 测试函数无需实现
-SMembersACLsAsync: 测试函数无需实现
-SCardACLsAsync: 测试函数无需实现
-SScanACLsAsync: 测试函数无需实现
-SlaveOfACLsAsync: 测试函数无需实现
-SlowlogGetACLsAsync: 测试函数无需实现
-SlowlogHelpACLsAsync: 测试函数无需实现
-SlowlogLenACLsAsync: 测试函数无需实现
-SlowlogResetACLsAsync: 测试函数无需实现
-SMoveACLsAsync: 测试函数无需实现
-SRandMemberACLsAsync: 测试函数无需实现
-SIsMemberACLsAsync: 测试函数无需实现
-SMIsMemberACLsAsync: 测试函数无需实现
-SubscribeACLsAsync: 测试函数无需实现
-SUnionACLsAsync: 测试函数无需实现
-SUnionStoreACLsAsync: 测试函数无需实现
-SDiffACLsAsync: 测试函数无需实现
-SDiffStoreACLsAsync: 测试函数无需实现
-SInterACLsAsync: 测试函数无需实现
-SInterCardACLsAsync: 测试函数无需实现
-SInterStoreACLsAsync: 测试函数无需实现
-GeoAddACLsAsync: 测试函数无需实现
-GeoHashACLsAsync: 测试函数无需实现
-GeoDistACLsAsync: 测试函数无需实现
-GeoPosACLsAsync: 测试函数无需实现
-GeoRadiusACLsAsync: 测试函数无需实现
-GeoRadiusROACLsAsync: 测试函数无需实现
-GeoRadiusByMemberACLsAsync: 测试函数无需实现
-GeoRadiusByMemberROACLsAsync: 测试函数无需实现
-GeoSearchACLsAsync: 测试函数无需实现
-GeoSearchStoreACLsAsync: 测试函数无需实现
-ZAddACLsAsync: 测试函数无需实现
-ZCardACLsAsync: 测试函数无需实现
-ZMPopACLsAsync: 测试函数无需实现
-ZPopMaxACLsAsync: 测试函数无需实现
-ZScoreACLsAsync: 测试函数无需实现
-ZRemACLsAsync: 测试函数无需实现
-ZCountACLsAsync: 测试函数无需实现
-ZIncrByACLsAsync: 测试函数无需实现
-ZRankACLsAsync: 测试函数无需实现
-ZRangeACLsAsync: 测试函数无需实现
-ZRevRangeByLexACLsAsync: 测试函数无需实现
-ZRangeStoreACLsAsync: 测试函数无需实现
-ZRangeByLexACLsAsync: 测试函数无需实现
-ZRangeByScoreACLsAsync: 测试函数无需实现
-ZRevRangeACLsAsync: 测试函数无需实现
-ZRevRangeByScoreACLsAsync: 测试函数无需实现
-ZRevRankACLsAsync: 测试函数无需实现
-ZRemRangeByLexACLsAsync: 测试函数无需实现
-ZRemRangeByRankACLsAsync: 测试函数无需实现
-ZRemRangeByScoreACLsAsync: 测试函数无需实现
-ZLexCountACLsAsync: 测试函数无需实现
-ZPopMinACLsAsync: 测试函数无需实现
-ZRandMemberACLsAsync: 测试函数无需实现
-ZDiffACLsAsync: 测试函数无需实现
-ZDiffStoreACLsAsync: 测试函数无需实现
-ZInterACLsAsync: 测试函数无需实现
-ZInterCardACLsAsync: 测试函数无需实现
-ZInterStoreACLsAsync: 测试函数无需实现
-ZUnionACLsAsync: 测试函数无需实现
-ZUnionStoreACLsAsync: 测试函数无需实现
-ZScanACLsAsync: 测试函数无需实现
-ZMScoreACLsAsync: 测试函数无需实现
-ZExpireACLsAsync: 测试函数无需实现
-ZPExpireACLsAsync: 测试函数无需实现
-ZExpireAtACLsAsync: 测试函数无需实现
-ZPExpireAtACLsAsync: 测试函数无需实现
-ZExpireTimeACLsAsync: 测试函数无需实现
-ZPExpireTimeACLsAsync: 测试函数无需实现
-ZTTLACLsAsync: 测试函数无需实现
-ZPTTLACLsAsync: 测试函数无需实现
-ZPersistACLsAsync: 测试函数无需实现
-ZCollectACLsAsync: 测试函数无需实现
-TimeACLsAsync: 测试函数无需实现
-TTLACLsAsync: 测试函数无需实现
-DumpACLsAsync: 测试函数无需实现
-RestoreACLsAsync: 测试函数无需实现
-SwapDbACLsAsync: 测试函数无需实现
-TypeACLsAsync: 测试函数无需实现
-UnlinkACLsAsync: 测试函数无需实现
-UnsubscribeACLsAsync: 测试函数无需实现
-WatchACLsAsync: 测试函数无需实现
-WatchMSACLsAsync: 测试函数无需实现
-WatchOSACLsAsync: 测试函数无需实现
-UnwatchACLsAsync: 测试函数无需实现
-VAddACLsAsync: 测试函数无需实现
-VCardACLsAsync: 测试函数无需实现
-VDimACLsAsync: 测试函数无需实现
-VEmbACLsAsync: 测试函数无需实现
-VGetAttrACLsAsync: 测试函数无需实现
-VInfoACLsAsync: 测试函数无需实现
-VIsMemberACLsAsync: 测试函数无需实现
-VLinksACLsAsync: 测试函数无需实现
-VRandMemberACLsAsync: 测试函数无需实现
-VRemACLsAsync: 测试函数无需实现
-VSetAttrACLsAsync: 测试函数无需实现
-VSimACLsAsync: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAsyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclCatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclDelUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclDelUserMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclGenPassAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclGetUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclListAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclLoadAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclSaveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclSetUserOnAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclSetUserCategoryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclSetUserOnCategoryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclUsersAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAclWhoAmIAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpDelScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAppendAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoAskingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBGSaveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBGSaveScheduleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitCountStartEndAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitCountStartEndByteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitCountStartEndBitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldGetWrapAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldGetSatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldGetFailAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldSetWrapAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldSetSatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldSetFailAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldIncrByAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldIncrByWrapAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldIncrBySatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldIncrByFailAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldROGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitFieldROMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpAndAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpAndMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpOrAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpOrMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpXorAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpXorMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitOpNotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitPosAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitPosStartAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitPosStartEndAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitPosStartEndBitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBitPosStartEndByteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientIdAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientListAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientListTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientListIdAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientListIdsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientKillAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientFilterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientGetNameAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientSetNameAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientSetInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSSubscribeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSPublishAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClientUnblockAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAddSlotsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAddSlotsMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAddSlotsRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAddSlotsRangeMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAppendLogAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAttachSyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterBanListAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterBeginReplicaFailoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterBumpEpochAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelKeysInSlotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelKeysInSlotRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelKeysInSlotRangeMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelSlotsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelSlotsMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelSlotsRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterDelSlotsRangeMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterEndpointAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterFailoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterFailoverForceAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterFailStopWritesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterFlushAllAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterForgetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterGetKeysInSlotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterGossipAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterHelpAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterKeySlotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMeetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMeetPortAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMigrateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMTasksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterAdvanceTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMyIdAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMyParentIdAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterNodesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterReplicasAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterReplicateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterReserveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterResetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusteResetHardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSendCkptFileSegmentAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSendCkptMetadataAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSnapshotDataAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetConfigEpochAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotStableAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotImportingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotsRangeStableAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotsRangeStableMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotsRangeImportingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSetSlotsRangeImportingMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterShardsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSlotsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSlotStateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMlogKeyTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterMlogKeyTimeFrontierAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterPublishAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoClusterSPublishAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandInfoOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandInfoMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandDocsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandDocsOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandDocsMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandGetKeysAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommandGetKeysAndFlagsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCommitAOFAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoConfigGetOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoConfigRewriteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoConfigSetOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoConfigSetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoCOScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetWpIfPgtAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMyDictGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReadWriteTxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSumAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDebugAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoEvalAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoEvalShaAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptLoadAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptExistsSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptExistsMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptFlushAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptFlushSyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScriptFlushAsyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDbSizeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDecrAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDecrByAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDelAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDelMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDiscardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoEchoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExecAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExistsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExistsMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireNXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireXXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireGTAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireLTAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverToAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverAbortAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverToForceAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverToAbortAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverToForceAbortAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFailoverToForceAbortTimeoutAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFlushDBAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFlushDBAsyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFlushAllAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFlushAllAsyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetBitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetDelAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetAndSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSubStringAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHPExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHExpireAtAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHPExpireAtAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHPExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHETTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHPETTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHPersistAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHCollectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHDelAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHDelMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHIncrByAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHIncrByFloatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHKeysAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHLenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHMGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHMGetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHMSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHMSetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHRandFieldAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHRandFieldCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHRandFieldCountWithValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanMatchCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanMatchNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanCountNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHScanMatchCountNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHSetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHSetNXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHStrLenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoHValsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoIncrAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoIncrByAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoIncrByFloatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoInfoSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoInfoMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRoleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoKeysAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLastSaveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyHelpAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyHistogramAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyHistogramSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyHistogramMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyResetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyResetSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLatencyResetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBLMoveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBRPopLPushAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBLMPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBLPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBRPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBZMPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBZPopMaxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoBZPopMinAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPopCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPosAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPushAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPushMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPushXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLPushXMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPopCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPushAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPushMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPushXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRPushXMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLCSAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLLenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLTrimAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLIndexAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLInsertBeforeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLInsertAfterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLRemAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLMoveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLMPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLMPopCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoLSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMemoryUsageAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMemoryUsageSamplesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoObjectEncodingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoObjectFreqAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoObjectIdletimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoObjectRefcountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoObjectHelpAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMemorySingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMemoryMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMigrateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoModuleLoadAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMonitorAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMSetSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMSetMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMSetNXSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMSetNXMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPersistAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireNXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireXXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireGTAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireLTAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFAddSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFAddMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFCountSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFCountMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFMergeSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPFMergeMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPingMessageAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPSetEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPSubscribePatternAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPUnsubscribePatternAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPTTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPublishAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPubSubChannelsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPubSubNumPatAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPubSubNumSubAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReadOnlyAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReadWriteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRegisterCSAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoPExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRENAMEAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRENAMENXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRICreateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIDelAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRISetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIExistsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIConfigAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRIMetricsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReplicaOfAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReplicaOfNoOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRunTxpAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSaveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanMatchCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanMatchTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanCountTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoScanMatchCountTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSecondaryOfAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSecondaryOfNoOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSelectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetExNxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetXxNxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetKeepTtlAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetKeepTtlXxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetIfMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetIfGreaterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetWithEtagAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDelIfGreaterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetIfNotMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetWithEtagAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetBitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetEXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetIfNotExistAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSetRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoStrLenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSAddAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSAddMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSRemAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSRemMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSPopCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSMembersAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSCardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSScanMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSScanCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSScanMatchCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlaveOfAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlaveOfNoOneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlowlogGetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlowlogHelpAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlowlogLenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSlowlogResetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSMoveAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSRandMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSRandMemberCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSIsMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSMultiIsMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSubscribeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSUnionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSUnionMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSUnionStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSUnionStoreMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSDiffAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSDiffMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSDiffStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSDiffStoreMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUnionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddNXAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddNXCHAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddNXMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoAddNXCHMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoHashAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoHashSingleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoHashMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetDistAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGetDistMAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoPosAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoPosMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoRadiusAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoRadiusROAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoRadiusByMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoRadiusByMemberROAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoSearchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoGeoSearchStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZAddAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZAddMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZCardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZMPopAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZMPopCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPopMaxAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPopMaxCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRemAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRemMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZIncrByAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRankAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeByLexAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByLexAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByLexLimitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByScoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByScoreWithScoresAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByScoreLimitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeByScoreWithScoresLimitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeWithScoresAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeByScoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeByScoreWithScoresAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeByScoreLimitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRangeByScoreWithScoresLimitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRevRankAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRemRangeByLexAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRemRangeByRankAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZLexCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPopMinAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPopMinCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRandMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRandMemberCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRandMemberCountWithScoresAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZDiffAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZDiffMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZDiffStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZInterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZInterCardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZInterStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZUnionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZUnionStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanMatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanMatchCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanMatchNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanCountNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZScanMatchCountNoValuesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPExpireAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZExpireAtAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPExpireAtAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPExpireTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZETTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPETTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZPersistAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZCollectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoTimeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoTTLAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoDUMPAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRestoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoSwapDbAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoTypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUnlinkAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUnlinkMultiAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUnsubscribePatternAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoWatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoWatchMSAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoWatchOSAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUnwatchAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVAddAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVCardAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVDimAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVEmbAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVGetAttrAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVIsMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVLinksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVRandMemberAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVRemAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVSetAttrAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoVSimAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckCommandsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetACLOnUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetUserWithAllAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetUserWithNoneAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertAllPermittedAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRedisAclCheckCmd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertAllDeniedAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateGarnetClientAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckPermissionFailureAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllCommandsCovered: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AsyncACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclCatACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclDelUserACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclGenPassACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclGetUserACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclListACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclLoadACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclSaveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclSetUserACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclUsersACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclWhoAmIACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpDelScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AppendACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AskingACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BGSaveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitcountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitfieldACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitfieldROACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitOpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPosACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientIdACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientInfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientListACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientKillACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientGetNameACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetNameACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetInfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SSubscribeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SPublishACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientUnblockACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAddSlotsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAddSlotsRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAppendLogACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAttachSyncACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterBanListACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterBeginReplicaRecoverACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterBumpEpochACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCountKeysInSlotACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDelKeysInSlotACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDelKeysInSlotRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDelSlotsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDelSlotsRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterEndpointACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailStopWritesACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFlushAllACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailReplicationOffsetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterForgetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterGetKeysInSlotACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterGossipACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterHelpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterInfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterInitiateReplicaSyncACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterKeySlotACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMeetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSyncACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMTasksACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAdvanceTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMyIdACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMyParentIdACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterNodesACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicasACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicateACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReserveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSendCkptFileSegmentACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSendCkptMetadataACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSnapshotDataACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSetConfigEpochACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSetSlotACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSetSlotsRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterShardsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlotsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlotStateACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMlogKeyTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterPublishACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSPublishACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandCountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandInfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandDocsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandGetKeysACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandGetKeysAndFlagsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitAOFACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigRewriteACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+COScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomRawStringCmdACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjCmdACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomTxnACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomProcedureACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DebugACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EvalACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EvalShaACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptLoadACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptExistsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScriptFlushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DBSizeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DecrACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DecrByACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DiscardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EchoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExistsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailoverACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlushDBACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlushAllACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetBitACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetDelACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubStrACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubStringACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HPExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HPExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HPExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HTTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HPTTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HPersistACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HCollectACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HDelACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HExistsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HGetAllACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HIncrByACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HIncrByFloatACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HKeysACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HLenACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HMGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HMSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HRandFieldACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HSetNXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HStrLenACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HValsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrByACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrByFloatACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoleACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeysACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LastSaveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LatencyHelpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LatencyHistogramACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LatencyResetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BLMoveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BRPopLPushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BLMPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BLPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BRPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BZMPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BZPopMaxACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BZPopMinACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPosACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPushXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LRushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RPushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RPushXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LLenACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LTrimACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LIndexACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LInsertACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LRemACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RPopLPushACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LMoveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LMPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MemoryUsageACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectFreqACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectIdletimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectRefcountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectHelpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModuleLoadCSACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MonitorACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MSetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MSetNXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PFAddACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PFCountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PFMergeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PSetEXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PSubscribeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PUnsubscribeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PTTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PublishACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubChannelsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubNumPatACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubNumSubACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOnlyACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadWriteACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCSACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RenameACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RenameNxACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICreateACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDelACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RISetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIExistsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConfigACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIMetricsACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicaOfACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunTxpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SaveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SecondaryOfACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SelectACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfGreaterACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetWithEtagACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetIfNotMatchACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetWithEtagACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetBitACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetEXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetNXACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StrLenACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SAddACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SRemACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SMembersACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SCardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlaveOfACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlowlogGetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlowlogHelpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlowlogLenACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlowlogResetACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SMoveACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SRandMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SIsMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SMIsMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubscribeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SUnionACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SUnionStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SDiffACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SDiffStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SInterACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SInterCardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SInterStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoAddACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoHashACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoDistACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoPosACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoRadiusACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoRadiusROACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoRadiusByMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoRadiusByMemberROACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoSearchACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GeoSearchStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZAddACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZCardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZMPopACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPopMaxACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZScoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZCountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZIncrByACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRankACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeByLexACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeByLexACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRangeByScoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRangeByScoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRevRankACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByLexACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByRankACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRemRangeByScoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZLexCountACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPopMinACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZRandMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZDiffStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterCardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZInterStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZUnionStoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZScanACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZMScoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPExpireACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPExpireAtACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPExpireTimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZTTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPTTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZPersistACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZCollectACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TimeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TTLACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DumpACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestoreACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SwapDbACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TypeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnlinkACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnsubscribeACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchMSACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WatchOSACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnwatchACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VAddACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VCardACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VDimACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VEmbACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VGetAttrACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VInfoACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VIsMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VLinksACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VRandMemberACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VRemACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSetAttrACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSimACLsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,4 +1,4 @@
-SplitBuckets: 无需实现
-CreatePendingReadContext: 无需实现
-EphemeralSUnlock: 无需实现
-CheckFalseActionStatus: 无需实现
+SplitBuckets: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreatePendingReadContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralSUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckFalseActionStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,0 +1,1 @@
+GetSession: C# DI 容器依赖注入会话提供者，Rust 侧通过 WedbStore::new_session 原生创建

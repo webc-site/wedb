@@ -1,16 +1,16 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-OnStart: 无需实现
-OnException: 无需实现
-OnStop: 无需实现
-IterationCollisionTestFunctions: 无需实现
-iterateAndVerify: 无需实现
-scanAndVerify: 无需实现
-LocalScan: 无需实现
-LocalUpdate: 无需实现
-SpanByteIterationBasicTest: 测试函数无需实现
-SpanByteIterationPushStopTest: 测试函数无需实现
-SpanByteIterationPushLockTest: 测试函数无需实现
-SpanByteIterateLookupSnapshotBasicCorrectness: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IterationCollisionTestFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+iterateAndVerify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+scanAndVerify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIterationBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIterationPushStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIterationPushLockTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIterateLookupSnapshotBasicCorrectness: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

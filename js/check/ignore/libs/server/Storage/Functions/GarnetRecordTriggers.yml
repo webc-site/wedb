@@ -1,5 +1,5 @@
-OnDispose: 无需实现
-OnDisposeDiskRecord: 无需实现
-OnEvict: 无需实现
-OnRecovery: 无需实现
-OnCheckpoint: 无需实现
+OnDispose: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+OnDisposeDiskRecord: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+OnEvict: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+OnRecovery: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+OnCheckpoint: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

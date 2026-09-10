@@ -1,9 +1,9 @@
-use compio::net::TcpStream;
+use compio::{net::TcpStream, runtime::spawn};
 use crossfire::{mpsc, oneshot};
 
 use crate::{
   Error, Result, network,
-  types::{CommandItem, ReplyTx, roundtrip},
+  types::{CHANNEL_CAP, ChannelTx, CommandItem, ReplyTx, roundtrip},
 };
 
 /// libs/client/GarnetClient.cs:GarnetClient
@@ -16,7 +16,7 @@ pub struct GarnetClient {
   /// 在途命令上限（即网络泵的命令通道容量下限）
   max_outstanding_tasks: usize,
 
-  tx: Option<crate::types::ChannelTx>,
+  tx: Option<ChannelTx>,
 }
 
 impl GarnetClient {
@@ -42,7 +42,7 @@ impl GarnetClient {
   }
 
   /// 请求通道引用（未连接即报错）
-  fn channel(&self) -> Result<&crate::types::ChannelTx> {
+  fn channel(&self) -> Result<&ChannelTx> {
     self
       .tx
       .as_ref()
@@ -52,10 +52,10 @@ impl GarnetClient {
   /// libs/client/GarnetClient.cs:ConnectAsync
   pub async fn connect_async(&mut self) -> Result<()> {
     let stream = TcpStream::connect(&self.end_point).await?;
-    let (tx, rx) = mpsc::bounded_async(self.max_outstanding_tasks.max(crate::types::CHANNEL_CAP));
+    let (tx, rx) = mpsc::bounded_async(self.max_outstanding_tasks.max(CHANNEL_CAP));
     self.tx = Some(tx);
 
-    compio::runtime::spawn(async move {
+    spawn(async move {
       if let Err(e) = network::network_loop(stream, rx).await {
         log::error!("GarnetClient 网络循环退出: {e}");
       }

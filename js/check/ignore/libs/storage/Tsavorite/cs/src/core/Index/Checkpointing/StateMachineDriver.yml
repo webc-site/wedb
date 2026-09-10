@@ -1,20 +1,20 @@
-SetSystemState: 无需实现
-GetNumActiveTransactions: 无需实现
-IncrementActiveTransactions: 无需实现
-DecrementActiveTransactions: 无需实现
-AddToWaitingList: 无需实现
-ResetLastVersion: 无需实现
-AcquireTransactionVersion: 无需实现
-VerifyTransactionVersion: 无需实现
-EndTransaction: 无需实现
-Register: 无需实现
-UnsafeRegisterCallback: 无需实现
-RunAsync: 无需实现
-CompleteAsync: 无需实现
-GlobalStateMachineStep: 无需实现
-WaitForStateChange: 无需实现
-WaitForCompletion: 无需实现
-ProcessWaitingListAsync: 无需实现
-when: 无需实现
-RunStateMachine: 无需实现
-FastForwardStateMachineToRest: 无需实现
+SetSystemState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNumActiveTransactions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementActiveTransactions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DecrementActiveTransactions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AddToWaitingList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetLastVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AcquireTransactionVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyTransactionVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndTransaction: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Register: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeRegisterCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RunAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GlobalStateMachineStep: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForStateChange: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForCompletion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessWaitingListAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+when: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RunStateMachine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FastForwardStateMachineToRest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,5 +1,5 @@
-PercentileEnumerator: 无需实现
-HasNext: 无需实现
-IncrementIterationLevel: 无需实现
-ReachedIterationLevel: 无需实现
-GetPercentileIteratedTo: 无需实现
+PercentileEnumerator: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+HasNext: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReachedIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetPercentileIteratedTo: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

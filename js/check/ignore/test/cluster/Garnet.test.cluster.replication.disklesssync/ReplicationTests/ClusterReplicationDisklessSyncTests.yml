@@ -1,14 +1,14 @@
-Setup: 无需实现
-TearDown: 无需实现
-PopulatePrimary: 无需实现
-Validate: 无需实现
-ResetAndReAttach: 无需实现
-MakeHashFieldBytes: 无需实现
-ClusterDisklessSyncHugeObjectChunked: 测试函数无需实现
-ClusterEmptyReplicaDisklessSync: 测试函数无需实现
-ClusterDisklessSyncLargeValuesChunked: 测试函数无需实现
-ClusterAofReplayDisklessSync: 测试函数无需实现
-ClusterDBVersionAlignmentDisklessSync: 测试函数无需实现
-ClusterDisklessSyncParallelAttach: 测试函数无需实现
-ClusterDisklessSyncFailover: 测试函数无需实现
-ClusterDisklessSyncResetSyncManagerCts: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Validate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetAndReAttach: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeHashFieldBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncHugeObjectChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterEmptyReplicaDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncLargeValuesChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAofReplayDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDBVersionAlignmentDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncParallelAttach: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncResetSyncManagerCts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

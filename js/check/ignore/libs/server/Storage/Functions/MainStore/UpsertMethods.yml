@@ -1,4 +1,4 @@
-InitialWriter: 无需实现
-PostInitialWriter: 无需实现
-InPlaceWriter: 无需实现
-PostUpsertOperation: 无需实现
+InitialWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostInitialWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InPlaceWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostUpsertOperation: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

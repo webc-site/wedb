@@ -1,0 +1,3 @@
+SetCurrentSafeAofAddress: C# Tsavorite CPR 检查点管理器 AOF 地址维护，Rust 由 wcpr/waof 原生检查点管理
+SetRecoveredSafeAofAddress: C# Tsavorite CPR 检查点恢复 AOF 地址，Rust 由 wcpr/waof 原生检查点管理
+GetCookie: C# 检查点元数据 Cookie 提取，Rust 侧使用 CheckpointMeta 原生序列化

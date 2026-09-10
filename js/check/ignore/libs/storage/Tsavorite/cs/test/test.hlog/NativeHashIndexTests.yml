@@ -1,11 +1,11 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-NativeHashIndexInsertReadRoundTrips: 测试函数无需实现
-NativeFullModeLogPagesEvictAndRead: 测试函数无需实现
-NativeFullModeLogPageMemoryStaysBounded: 测试函数无需实现
-NativeFullModeFlushEvictCyclesStayBounded: 测试函数无需实现
-NativeFullModeScanFrameMemoryStaysBounded: 测试函数无需实现
-NativeIndexGrowFreesSupersededTables: 测试函数无需实现
-NativeConstructionFailureDoesNotLeak: 测试函数无需实现
-IndexCheckpointIoUnitReleaseIsExactlyOnce: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeHashIndexInsertReadRoundTrips: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeFullModeLogPagesEvictAndRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeFullModeLogPageMemoryStaysBounded: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeFullModeFlushEvictCyclesStayBounded: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeFullModeScanFrameMemoryStaysBounded: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeIndexGrowFreesSupersededTables: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeConstructionFailureDoesNotLeak: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IndexCheckpointIoUnitReleaseIsExactlyOnce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

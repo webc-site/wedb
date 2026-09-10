@@ -1,0 +1,8 @@
+UpdateCertFile: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+GetSslServerAuthenticationOptions: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+GetSslClientAuthenticationOptions: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+ValidateServerCertificateCallback: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+ValidateCertificateName: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+ValidateClientCertificateCallback: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+GetCertificateIssuer: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+ValidateCertificateIssuer: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层

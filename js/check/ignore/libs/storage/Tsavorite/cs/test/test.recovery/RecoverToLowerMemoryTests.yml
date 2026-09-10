@@ -1,7 +1,7 @@
-Setup: 无需实现
-RecreateDirectory: 无需实现
-TearDown: 无需实现
-CreateStore: 无需实现
-CreateObjectStore: 无需实现
-RecoverSnapshotToLowerMemoryInlineOnly: 测试函数无需实现
-RecoverSnapshotToLowerMemoryWithObjects: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecreateDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateObjectStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoverSnapshotToLowerMemoryInlineOnly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoverSnapshotToLowerMemoryWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,11 +1,11 @@
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-LoadMap: 无需实现
-runLoadThread: 无需实现
-runLoadFreeListThread: 无需实现
-runAllocateFromFreeListThread: 无需实现
-runThread: 无需实现
-ObjectIdMapTestStressInitialAllocs: 测试函数无需实现
-ObjectIdMapTestStressAllocAndFree: 测试函数无需实现
-ObjectIdMapTestStressAddPageOOM: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LoadMap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runLoadThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runLoadFreeListThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runAllocateFromFreeListThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectIdMapTestStressInitialAllocs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectIdMapTestStressAllocAndFree: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectIdMapTestStressAddPageOOM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,4 +1,4 @@
-WorkQueueFIFO: 无需实现
-EnqueueAndTryWork: 无需实现
-ProcessQueue: 无需实现
-_work: 无需实现
+WorkQueueFIFO: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueAndTryWork: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessQueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+_work: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

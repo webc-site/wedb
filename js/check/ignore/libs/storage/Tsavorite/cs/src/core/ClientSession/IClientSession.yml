@@ -1,2 +1,2 @@
-MergeRevivificationStatsTo: 无需实现
-ResetRevivificationStats: 无需实现
+MergeRevivificationStatsTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetRevivificationStats: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

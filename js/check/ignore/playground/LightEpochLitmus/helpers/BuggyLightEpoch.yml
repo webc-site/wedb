@@ -1,14 +1,14 @@
-GetRef: 无需实现
-BuggyLightEpoch: 无需实现
-SelectInstance: 无需实现
-ActiveInstanceCount: 无需实现
-ResetAllInstances: 无需实现
-triggerAction: 无需实现
-ComputeNewSafeToReclaimEpoch: 无需实现
-trigger_action: 无需实现
-ReserveEntryForThread: 无需实现
-TryAcquireEntry: 无需实现
-ReserveEntry: 无需实现
-ReserveEntryWait: 无需实现
-ToString: 无需实现
-UserWordRef: 无需实现
+GetRef: C# 原型实验与演练脚本，非生产运行时代码
+BuggyLightEpoch: C# 原型实验与演练脚本，非生产运行时代码
+SelectInstance: C# 原型实验与演练脚本，非生产运行时代码
+ActiveInstanceCount: C# 原型实验与演练脚本，非生产运行时代码
+ResetAllInstances: C# 原型实验与演练脚本，非生产运行时代码
+triggerAction: C# 原型实验与演练脚本，非生产运行时代码
+ComputeNewSafeToReclaimEpoch: C# 原型实验与演练脚本，非生产运行时代码
+trigger_action: C# 原型实验与演练脚本，非生产运行时代码
+ReserveEntryForThread: C# 原型实验与演练脚本，非生产运行时代码
+TryAcquireEntry: C# 原型实验与演练脚本，非生产运行时代码
+ReserveEntry: C# 原型实验与演练脚本，非生产运行时代码
+ReserveEntryWait: C# 原型实验与演练脚本，非生产运行时代码
+ToString: C# 原型实验与演练脚本，非生产运行时代码
+UserWordRef: C# 原型实验与演练脚本，非生产运行时代码

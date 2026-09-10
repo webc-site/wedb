@@ -1,4 +1,4 @@
-TryGetFiles: 无需实现
-IsFileInDirectory: 无需实现
-TryLoadAssemblies: 无需实现
-ConvertToAbsolutePaths: 无需实现
+TryGetFiles: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsFileInDirectory: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryLoadAssemblies: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ConvertToAbsolutePaths: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

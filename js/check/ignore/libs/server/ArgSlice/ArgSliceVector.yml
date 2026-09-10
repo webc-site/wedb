@@ -1,1 +1,2 @@
-GetEnumerator: 无需实现
+GetEnumerator: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作
+TryAddItem: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作

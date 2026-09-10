@@ -1,9 +1,9 @@
-Create: 无需实现
-Deserialize: 无需实现
-CloneObject: 无需实现
-SerializeObject: 无需实现
-TryGet: 无需实现
-TryGetRoot: 无需实现
-TryGetToWriter: 无需实现
-GetParentPath: 无需实现
-GetPropertyName: 无需实现
+Create: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Deserialize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CloneObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SerializeObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGetRoot: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGetToWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetParentPath: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetPropertyName: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

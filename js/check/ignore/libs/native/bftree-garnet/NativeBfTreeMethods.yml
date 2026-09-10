@@ -1,11 +1,11 @@
-bftree_create: 无需实现
-bftree_drop: 无需实现
-bftree_insert: 无需实现
-bftree_read: 无需实现
-bftree_delete: 无需实现
-bftree_scan_with_count: 无需实现
-bftree_scan_with_end_key: 无需实现
-bftree_scan_next: 无需实现
-bftree_scan_drop: 无需实现
-bftree_are_all_threads_in_next_version: 无需实现
-bftree_noop: 无需实现
+bftree_create: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_drop: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_insert: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_read: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_delete: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_scan_with_count: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_scan_with_end_key: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_scan_next: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_scan_drop: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_are_all_threads_in_next_version: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+bftree_noop: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接

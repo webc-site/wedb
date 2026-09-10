@@ -1,10 +1,10 @@
-RandomBytes: 无需实现
-BaseCommand: 无需实现
-GetSingleSlotRequest: 无需实现
-GetSingleSlotObjectRequest: 无需实现
-GetCrossSlotRequest: 无需实现
-SetupSingleSlotRequest: 无需实现
-singleSlotKeys: 无需实现
-crossSlotKeys: 无需实现
-DummyCommand: 无需实现
-EVALSHA: 无需实现
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotObjectRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetCrossSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+singleSlotKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+crossSlotKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DummyCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EVALSHA: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

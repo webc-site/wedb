@@ -1,5 +1,5 @@
-GetEnumNameToDescription: 无需实现
-GetEnumDescriptions: 无需实现
-TryParseEnumsFromDescription: 无需实现
-TryParseEnumFromDescription: 无需实现
-AddTypeToCache: 无需实现
+GetEnumNameToDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetEnumDescriptions: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEnumsFromDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEnumFromDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AddTypeToCache: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

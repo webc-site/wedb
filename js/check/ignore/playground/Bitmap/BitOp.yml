@@ -1,21 +1,21 @@
-dispose_aligned: 无需实现
-InitializeInputAlignedMemoryPool: 无需实现
-DisposeInputAlignedMemoryPool: 无需实现
-InitializeInputUnalignedMemoryPool: 无需实现
-dispose_memory_pool_buffers: 无需实现
-__bitop_scalar_and: 无需实现
-__bitop_simdX128_and: 无需实现
-__bitop_simdX128_and_long: 无需实现
-__bitop_simdX256_and: 无需实现
-__bitop_multikey_scalar_and: 无需实现
-__bitop_multikey_simdX128_and: 无需实现
-__bitop_multikey_simdX256_and: 无需实现
-RunBitOpScalarBenchV3: 无需实现
-Run_SIMDx128V3: 无需实现
-Run_SIMDx256V3: 无需实现
-Run_mWayMergeScalarV3: 无需实现
-Run_mWayMergeSIMDx128V3: 无需实现
-Run_mWayMergeSIMDx256V3: 无需实现
-RunBitOpBenchmark: 无需实现
-alloc_aligned: 无需实现
-alloc_unaligned_memory_pool_buffers: 无需实现
+dispose_aligned: C# 原型实验与演练脚本，非生产运行时代码
+InitializeInputAlignedMemoryPool: C# 原型实验与演练脚本，非生产运行时代码
+DisposeInputAlignedMemoryPool: C# 原型实验与演练脚本，非生产运行时代码
+InitializeInputUnalignedMemoryPool: C# 原型实验与演练脚本，非生产运行时代码
+dispose_memory_pool_buffers: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_scalar_and: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_simdX128_and: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_simdX128_and_long: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_simdX256_and: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_multikey_scalar_and: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_multikey_simdX128_and: C# 原型实验与演练脚本，非生产运行时代码
+__bitop_multikey_simdX256_and: C# 原型实验与演练脚本，非生产运行时代码
+RunBitOpScalarBenchV3: C# 原型实验与演练脚本，非生产运行时代码
+Run_SIMDx128V3: C# 原型实验与演练脚本，非生产运行时代码
+Run_SIMDx256V3: C# 原型实验与演练脚本，非生产运行时代码
+Run_mWayMergeScalarV3: C# 原型实验与演练脚本，非生产运行时代码
+Run_mWayMergeSIMDx128V3: C# 原型实验与演练脚本，非生产运行时代码
+Run_mWayMergeSIMDx256V3: C# 原型实验与演练脚本，非生产运行时代码
+RunBitOpBenchmark: C# 原型实验与演练脚本，非生产运行时代码
+alloc_aligned: C# 原型实验与演练脚本，非生产运行时代码
+alloc_unaligned_memory_pool_buffers: C# 原型实验与演练脚本，非生产运行时代码

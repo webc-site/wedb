@@ -1,2 +1,2 @@
-Basic: 测试函数无需实现
-Concurrent: 测试函数无需实现
+Basic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Concurrent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,4 +1,4 @@
-StopAsync: 无需实现
-HandleStorageError: 无需实现
-PerformWithRetriesAsync: 无需实现
-ConfirmLeaseIsGoodForAWhileAsync: 无需实现
+StopAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+HandleStorageError: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+PerformWithRetriesAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ConfirmLeaseIsGoodForAWhileAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

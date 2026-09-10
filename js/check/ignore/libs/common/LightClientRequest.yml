@@ -1,5 +1,5 @@
-SendCommand: 无需实现
-SendCommandChunks: 无需实现
-SendCommands: 无需实现
-LightReceive: 无需实现
-BuildRequest: 无需实现
+SendCommand: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SendCommandChunks: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SendCommands: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+LightReceive: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+BuildRequest: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,6 +1,6 @@
-Increment_IncreasesCounterValue: 测试函数无需实现
-Increment_WithZeroValue_DoesNotChangeCounterValue: 测试函数无需实现
-Total_ReturnsSumOfCounterValues: 测试函数无需实现
-Increment_WithMaxValue_IncreasesCounterValue: 测试函数无需实现
-Increment_WithMinValue_IncreasesCounterValue: 测试函数无需实现
-IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue: 测试函数无需实现
+Increment_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithZeroValue_DoesNotChangeCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Total_ReturnsSumOfCounterValues: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithMaxValue_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithMinValue_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

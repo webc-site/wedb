@@ -1,5 +1,5 @@
-TerminateNormally: 无需实现
-TraceError: 无需实现
-Terminate: 无需实现
-Shutdown: 无需实现
-WaitForTermination: 无需实现
+TerminateNormally: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+TraceError: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+Terminate: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+Shutdown: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+WaitForTermination: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

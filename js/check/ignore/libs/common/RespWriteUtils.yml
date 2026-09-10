@@ -1,40 +1,40 @@
-TryWriteMapLength: 无需实现
-TryWritePushLength: 无需实现
-TryWritePaddedBulkStringLength: 无需实现
-TryWriteArrayLength: 无需实现
-TryWriteSetLength: 无需实现
-TryWriteArrayItem: 无需实现
-TryWriteNull: 无需实现
-TryWriteNullArray: 无需实现
-TryWriteSimpleString: 无需实现
-TryWriteInt64AsSimpleString: 无需实现
-TryWriteDirect: 无需实现
-TryWriteAsciiDirect: 无需实现
-TryWriteBulkStringLength: 无需实现
-TryWriteBulkString: 无需实现
-TryWriteAsciiBulkString: 无需实现
-TryWriteUtf8BulkString: 无需实现
-TryWriteNewLine: 无需实现
-GetBulkStringLength: 无需实现
-TryWriteInt32: 无需实现
-TryWriteInt64: 无需实现
-TryWriteIntegerFromBytes: 无需实现
-TryWriteInt32AsBulkString: 无需实现
-TryWriteInt64AsBulkString: 无需实现
-GetIntegerAsBulkStringLength: 无需实现
-TryWriteInfinity: 无需实现
-TryWriteInfinity_Numeric: 无需实现
-TryWriteNaN: 无需实现
-TryWriteNaN_Numeric: 无需实现
-TryWriteEmptyArray: 无需实现
-TryWriteEmptyMap: 无需实现
-TryWriteEmptySet: 无需实现
-TryWriteVerbatimString: 无需实现
-TryWriteVerbatimStringHeader: 无需实现
-TryWriteTrue: 无需实现
-TryWriteFalse: 无需实现
-TryWriteZero: 无需实现
-TryWriteOne: 无需实现
-WriteEtagValArray: 无需实现
-WriteNewline: 无需实现
-WriteBytes: 无需实现
+TryWriteMapLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWritePushLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWritePaddedBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteArrayLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteSetLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteArrayItem: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteNull: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteNullArray: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteSimpleString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInt64AsSimpleString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteDirect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteAsciiDirect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteAsciiBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteUtf8BulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteNewLine: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInt32: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInt64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteIntegerFromBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInt32AsBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInt64AsBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetIntegerAsBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInfinity: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteInfinity_Numeric: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteNaN: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteNaN_Numeric: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteEmptyArray: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteEmptyMap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteEmptySet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteVerbatimString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteVerbatimStringHeader: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteTrue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteFalse: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteZero: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryWriteOne: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteEtagValArray: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteNewline: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

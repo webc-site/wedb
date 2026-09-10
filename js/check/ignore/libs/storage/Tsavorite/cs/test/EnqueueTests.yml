@@ -1,7 +1,7 @@
-SerializeTo: 无需实现
-ReadOnlySpanBatch: 无需实现
-TotalEntries: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-EnqueueBasicTest: 测试函数无需实现
-EnqueueAsyncBasicTest: 测试函数无需实现
+SerializeTo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOnlySpanBatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalEntries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnqueueBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnqueueAsyncBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

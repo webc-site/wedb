@@ -1,34 +1,34 @@
-Setup: 无需实现
-TearDown: 无需实现
-CountFlushFiles: 无需实现
-ListFlushFiles: 无需实现
-RIEvictionAfterDeleteTest: 测试函数无需实现
-RIEvictionMultipleIndexesTest: 测试函数无需实现
-RICreateDeleteRecreateWithEvictionTest: 测试函数无需实现
-RIDeleteInMutableRegionFreesResourcesTest: 测试函数无需实现
-RIDeleteInReadOnlyRegionFreesResourcesTest: 测试函数无需实现
-RIFlushPromotesToTailOnNextAccessTest: 测试函数无需实现
-RIFlushPromoteThenSecondFlushTest: 测试函数无需实现
-RIEvictToDiskThenLazyRestoreTest: 测试函数无需实现
-RICheckpointAndRecoverTest: 测试函数无需实现
-RIFlushEvictRestoreCheckpointCycleTest: 测试函数无需实现
-RIMultipleTreesEvictAndRestoreTest: 测试函数无需实现
-RIFlushPromoteCheckpointRecoverTest: 测试函数无需实现
-RIDeleteDuringEvictionCycleTest: 测试函数无需实现
-RIDoubleFlushCycleWithCheckpointTest: 测试函数无需实现
-RIEvictRestoreAndCheckpointTest: 测试函数无需实现
-RIExistsOnNormalKeyTest: 测试函数无需实现
-RIConfigBasicTest: 测试函数无需实现
-RIConfigWrongTypeTest: 测试函数无需实现
-RIMetricsBasicTest: 测试函数无需实现
-RITypeCommandTest: 测试函数无需实现
-RIConcurrentOpsWithCheckpointTest: 测试函数无需实现
-RIRecoverThenSecondEvictionUsesFlushSnapshotTest: 测试函数无需实现
-RIAofOnlyRecoveryTest: 测试函数无需实现
-RIDiskFileCleanupOnDeleteTest: 测试函数无需实现
-RIDeletePreservesPerFlushSnapshotFilesTest: 测试函数无需实现
-RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest: 测试函数无需实现
-RIFlushFilesAreImmutablePerAddressTest: 测试函数无需实现
-RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest: 测试函数无需实现
-RICopyReadsToTailCompatibleTest: 测试函数无需实现
-RangeIndexManagerKeyExistsTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountFlushFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ListFlushFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictionAfterDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictionMultipleIndexesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICreateDeleteRecreateWithEvictionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteInMutableRegionFreesResourcesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteInReadOnlyRegionFreesResourcesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromotesToTailOnNextAccessTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromoteThenSecondFlushTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictToDiskThenLazyRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICheckpointAndRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushEvictRestoreCheckpointCycleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIMultipleTreesEvictAndRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromoteCheckpointRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteDuringEvictionCycleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDoubleFlushCycleWithCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictRestoreAndCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIExistsOnNormalKeyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConfigBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConfigWrongTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIMetricsBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RITypeCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConcurrentOpsWithCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIRecoverThenSecondEvictionUsesFlushSnapshotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIAofOnlyRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDiskFileCleanupOnDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeletePreservesPerFlushSnapshotFilesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushFilesAreImmutablePerAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICopyReadsToTailCompatibleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RangeIndexManagerKeyExistsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

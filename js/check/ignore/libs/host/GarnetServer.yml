@@ -1,10 +1,10 @@
-GetVersion: 无需实现
-InitializeServer: 无需实现
-ValidateCustomCommandACLs: 无需实现
-CreateDatabase: 无需实现
-LoadModules: 无需实现
-CreateStore: 无需实现
-CreateAOF: 无需实现
-InternalDispose: 无需实现
-DeleteDirectory: 无需实现
-FlushMemoryLogger: 无需实现
+GetVersion: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+InitializeServer: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+ValidateCustomCommandACLs: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+CreateDatabase: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+LoadModules: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+CreateStore: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+CreateAOF: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+InternalDispose: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+DeleteDirectory: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+FlushMemoryLogger: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

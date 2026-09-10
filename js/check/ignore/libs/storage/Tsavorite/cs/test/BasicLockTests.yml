@@ -1,11 +1,11 @@
-InPlaceWriter: 无需实现
-InitialUpdater: 无需实现
-InitialWriter: 无需实现
-InitialDeleter: 无需实现
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-UpdateFunc: 无需实现
-CollidingDeletedRecordTest: 测试函数无需实现
-SetInvalidOnException: 测试函数无需实现
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpdateFunc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CollidingDeletedRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetInvalidOnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

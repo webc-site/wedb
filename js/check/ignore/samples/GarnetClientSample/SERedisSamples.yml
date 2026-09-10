@@ -1,13 +1,13 @@
-SERedisSamples: 无需实现
-RunAll: 无需实现
-RespPing: 无需实现
-SingleSetRename: 无需实现
-SingleSetGet: 无需实现
-SingleIncr: 无需实现
-SingleIncrBy: 无需实现
-SingleDecrBy: 无需实现
-SingleDecr: 无需实现
-SingleIncrNoKey: 无需实现
-SingleExists: 无需实现
-SingleDelete: 无需实现
-RespPingAsync: 无需实现
+SERedisSamples: C# 样例工程与示例客户端代码，非核心服务端实现
+RunAll: C# 样例工程与示例客户端代码，非核心服务端实现
+RespPing: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleSetRename: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleSetGet: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncr: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncrBy: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDecrBy: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDecr: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncrNoKey: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleExists: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDelete: C# 样例工程与示例客户端代码，非核心服务端实现
+RespPingAsync: C# 样例工程与示例客户端代码，非核心服务端实现

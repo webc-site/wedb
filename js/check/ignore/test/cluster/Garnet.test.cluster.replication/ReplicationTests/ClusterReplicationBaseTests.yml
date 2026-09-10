@@ -1,35 +1,35 @@
-GetUnitTests: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-ClusterSRPrimaryCheckpointRetrieve: 测试函数无需实现
-ClusterDivergentReplicasTest: 测试函数无需实现
-ClusterReplicate: 无需实现
-ExecuteRateLimit: 无需实现
-ValidateKeys: 无需实现
-RunWorkload: 无需实现
-RestartRecover: 无需实现
-ClusterSRTest: 测试函数无需实现
-ClusterSRNoCheckpointRestartSecondary: 测试函数无需实现
-ClusterSRPrimaryCheckpointAsync: 测试函数无需实现
-ClusterCheckpointRetrieveDisableStorageTier: 测试函数无需实现
-ClusterSRAddReplicaAfterPrimaryCheckpoint: 测试函数无需实现
-ClusterSRPrimaryRestart: 测试函数无需实现
-ClusterSRRedirectWrites: 测试函数无需实现
-ClusterSRReplicaOfTest: 测试函数无需实现
-ClusterReplicationSimpleFailover: 测试函数无需实现
-ClusterFailoverAttachReplicas: 测试函数无需实现
-ClusterReplicationCheckpointCleanupTest: 测试函数无需实现
-ClusterMainMemoryReplicationAttachReplicas: 测试函数无需实现
-ClusterDivergentCheckpointTest: 测试函数无需实现
-ClusterDivergentReplicasMMTest: 测试函数无需实现
-ClusterDivergentCheckpointMMTest: 测试函数无需实现
-ClusterDivergentCheckpointMMFastCommitTest: 测试函数无需实现
-ClusterReplicationCheckpointAlignmentTestAsync: 测试函数无需实现
-ClusterReplicationLua: 测试函数无需实现
-ClusterReplicationStoredProc: 测试函数无需实现
-ClusterReplicationManualCheckpointingAsync: 测试函数无需实现
-ReplicaSyncTaskFaultsRecoverAsync: 测试函数无需实现
-ClusterReplicationMultiRestartRecover: 测试函数无需实现
-ClusterReplicationDivergentHistoryWithoutCheckpointAsync: 测试函数无需实现
-ClusterReplicationSimpleTransactionTest: 测试函数无需实现
-ClusterReplicationHlogSegmentCleanupTest: 测试函数无需实现
+GetUnitTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryCheckpointRetrieve: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentReplicasTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteRateLimit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunWorkload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestartRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRNoCheckpointRestartSecondary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryCheckpointAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCheckpointRetrieveDisableStorageTier: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRAddReplicaAfterPrimaryCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryRestart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRRedirectWrites: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRReplicaOfTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationSimpleFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverAttachReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationCheckpointCleanupTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMainMemoryReplicationAttachReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentReplicasMMTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointMMTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointMMFastCommitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationCheckpointAlignmentTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationLua: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationStoredProc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationManualCheckpointingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicaSyncTaskFaultsRecoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationMultiRestartRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationDivergentHistoryWithoutCheckpointAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationSimpleTransactionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationHlogSegmentCleanupTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

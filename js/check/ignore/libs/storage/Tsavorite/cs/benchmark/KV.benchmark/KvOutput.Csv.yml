@@ -1,6 +1,6 @@
-EmitResultCsv: 无需实现
-EmitAggregateCsv: 无需实现
-CsvAppendCommon: 无需实现
-CsvHeader: 无需实现
-CsvRow: 无需实现
-CsvEsc: 无需实现
+EmitResultCsv: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitAggregateCsv: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvAppendCommon: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvHeader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvRow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvEsc: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

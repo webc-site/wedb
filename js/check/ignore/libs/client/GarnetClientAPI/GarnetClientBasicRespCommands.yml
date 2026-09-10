@@ -1,7 +1,7 @@
-Quit: 无需实现
-Ping: 无需实现
-StringGetAsMemoryAsync: 无需实现
-StringGet: 无需实现
-StringGetAsMemory: 无需实现
-StringSet: 无需实现
-KeyDelete: 无需实现
+Quit: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+Ping: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+StringGetAsMemoryAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+StringGet: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+StringGetAsMemory: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+StringSet: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+KeyDelete: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

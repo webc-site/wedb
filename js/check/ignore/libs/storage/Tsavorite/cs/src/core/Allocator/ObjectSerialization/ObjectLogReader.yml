@@ -1,8 +1,8 @@
-ObjectLogReader: 无需实现
-OnBeginReadRecords: 无需实现
-OnEndReadRecords: 无需实现
-FlushAndReset: 无需实现
-Write: 无需实现
-ReadRecordObjects: 无需实现
-DoDeserialize: 无需实现
-OnDeserializeComplete: 无需实现
+ObjectLogReader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnBeginReadRecords: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnEndReadRecords: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushAndReset: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Write: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadRecordObjects: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoDeserialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDeserializeComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

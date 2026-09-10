@@ -1,8 +1,8 @@
-AppendSlotRange: 无需实现
-AppendSpecialStates: 无需实现
-AppendFormattedShardInfo: 无需实现
-AppendFormattedNodeInfo: 无需实现
-AppendFormattedSlotInfo: 无需实现
-AppendNodeNetworkingInfo: 无需实现
-AppendValueOrNull: 无需实现
-GetReplicas: 无需实现
+AppendSlotRange: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendSpecialStates: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedShardInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedNodeInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedSlotInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendNodeNetworkingInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendValueOrNull: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetReplicas: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

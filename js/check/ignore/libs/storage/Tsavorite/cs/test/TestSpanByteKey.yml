@@ -1,5 +1,5 @@
-TestSpanByteKey: 无需实现
-FromPinnedSpan: 无需实现
-CopySpan: 无需实现
-FromPointer: 无需实现
-FromArray: 无需实现
+TestSpanByteKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromPinnedSpan: C# PinnedSpanByte 构造函数，Rust 字节切片原生零拷贝无需固定内存
+CopySpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

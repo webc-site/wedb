@@ -1,7 +1,7 @@
-GetRef: 无需实现
-SelectInstance: 无需实现
-ComputeNewSafeToReclaimEpoch: 无需实现
-TryAcquireEntry: 无需实现
-ReserveEntryWait: 无需实现
-ReserveEntryForThread: 无需实现
-UserWordRef: 无需实现
+GetRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SelectInstance: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ComputeNewSafeToReclaimEpoch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAcquireEntry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReserveEntryWait: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReserveEntryForThread: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UserWordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

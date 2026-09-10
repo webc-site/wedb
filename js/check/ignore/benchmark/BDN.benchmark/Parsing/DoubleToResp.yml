@@ -1,4 +1,4 @@
-GlobalSetup: 无需实现
-GlobalCleanup: 无需实现
-WriteDoubleAsBulkString: 无需实现
-WriteDoubleAsBulkStringByTranscoding: 无需实现
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteDoubleAsBulkString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteDoubleAsBulkStringByTranscoding: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

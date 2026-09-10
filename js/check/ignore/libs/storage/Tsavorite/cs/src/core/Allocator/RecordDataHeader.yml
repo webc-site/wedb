@@ -1,35 +1,35 @@
-SetHasETag: 无需实现
-ClearHasETag: 无需实现
-SetHasExpiration: 无需实现
-ClearHasExpiration: 无需实现
-SetValueIsObject: 无需实现
-SetValueIsInline: 无需实现
-ClearValueIsInline: 无需实现
-SetKeyIsInline: 无需实现
-ClearKeyIsInline: 无需实现
-SetKeyIsOverflow: 无需实现
-SetValueIsOverflow: 无需实现
-SetKeyAndValueInline: 无需实现
-GetOptionalSize: 无需实现
-InitializeForNewRecord: 无需实现
-GetKeyLengthRaw: 无需实现
-GetValueLengthRaw: 无需实现
-ThrowTsavoriteException: 无需实现
-SetNamespaceByteRaw: 无需实现
-GetUnalignedComponentSum: 无需实现
-GetAlignedComponentSum: 无需实现
-GetRecordLengths: 无需实现
-GetExplicitFillerLength: 无需实现
-GetTotalFillerLength: 无需实现
-SetFiller: 无需实现
-ComputeFillerWordsOrSplit: 无需实现
-SplitOverflowingFiller: 无需实现
-GetExtendedNamespaceInfo: 无需实现
-GetOffsetToKeyStart: 无需实现
-GetKeyFieldInfo: 无需实现
-GetValueFieldInfo: 无需实现
-GetKVLengths: 无需实现
-InitializeForRevivification: 无需实现
-ToString: 无需实现
-bstr: 无需实现
-bstr01: 无需实现
+SetHasETag: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearHasETag: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetHasExpiration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearHasExpiration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetValueIsObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetValueIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearValueIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetKeyIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearKeyIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetKeyIsOverflow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetValueIsOverflow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetKeyAndValueInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOptionalSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeForNewRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKeyLengthRaw: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetValueLengthRaw: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowTsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetNamespaceByteRaw: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetUnalignedComponentSum: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAlignedComponentSum: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordLengths: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetExplicitFillerLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetTotalFillerLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFiller: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ComputeFillerWordsOrSplit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SplitOverflowingFiller: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetExtendedNamespaceInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOffsetToKeyStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKeyFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetValueFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKVLengths: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeForRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+bstr: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+bstr01: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

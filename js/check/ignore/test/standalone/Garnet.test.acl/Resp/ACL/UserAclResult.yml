@@ -1,5 +1,5 @@
-UserAclResult: 无需实现
-IsWellStructured: 无需实现
-ContainsPasswordHash: 无需实现
-IsArray: 无需实现
-IsValue: 无需实现
+UserAclResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsWellStructured: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ContainsPasswordHash: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsArray: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

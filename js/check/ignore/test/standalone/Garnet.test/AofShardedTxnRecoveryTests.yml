@@ -1,4 +1,4 @@
-CreateShardedAofServer: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-ShardedStandaloneRenameTransactionSurvivesRecovery: 测试函数无需实现
+CreateShardedAofServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShardedStandaloneRenameTransactionSurvivesRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

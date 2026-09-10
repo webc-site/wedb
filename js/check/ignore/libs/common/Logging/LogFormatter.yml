@@ -1,2 +1,2 @@
-FormatDate: 无需实现
-FormatTime: 无需实现
+FormatDate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+FormatTime: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

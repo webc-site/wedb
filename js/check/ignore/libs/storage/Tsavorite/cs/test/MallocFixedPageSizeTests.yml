@@ -1,5 +1,5 @@
-DeleteDirectory: 无需实现
-getEntryValue: 无需实现
-ToString: 无需实现
-BasicHashBucketMallocFPSTest: 测试函数无需实现
-BasicIHeapContainerMallocFPSTest: 测试函数无需实现
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getEntryValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicHashBucketMallocFPSTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicIHeapContainerMallocFPSTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

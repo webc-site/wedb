@@ -1,17 +1,17 @@
-OnlineReqGen: 无需实现
-InitializeRNG: 无需实现
-GenerateKeyRandom: 无需实现
-GenerateKeyBytesRandom: 无需实现
-GenerateKey: 无需实现
-GenerateKeyBytes: 无需实现
-GenerateObjectKeyRandom: 无需实现
-GenerateObjectKeyBytesRandom: 无需实现
-GenerateExactKey: 无需实现
-GenerateObjectEntry: 无需实现
-GenerateObjectEntryBytesRandom: 无需实现
-GenerateObjectEntryScore: 无需实现
-GenerateObjectEntryScoreBytes: 无需实现
-GenerateValue: 无需实现
-GenerateValueBytes: 无需实现
-PadRandom: 无需实现
-GenerateBitOffset: 无需实现
+OnlineReqGen: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InitializeRNG: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKeyRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKeyBytesRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKeyBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectKeyRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectKeyBytesRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateExactKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectEntry: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectEntryBytesRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectEntryScore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateObjectEntryScoreBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateValue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateValueBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PadRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateBitOffset: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

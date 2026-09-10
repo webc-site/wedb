@@ -1,4 +1,4 @@
-SkipReadCacheChain: 无需实现
-GetHashChain: 无需实现
-NextInChain: 无需实现
-EnumActionKeyIndices: 无需实现
+SkipReadCacheChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetHashChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NextInChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnumActionKeyIndices: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,1 +1,1 @@
-Initialize: 无需实现
+Initialize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,8 +1,8 @@
-EndUnsafe: 无需实现
-GetKeyHash: 无需实现
-CompletePendingWithOutputs: 无需实现
-CompletePendingAsync: 无需实现
-CompletePendingWithOutputsAsync: 无需实现
-ReadWithPrefetch: 无需实现
-ResetModified: 无需实现
-IsModified: 无需实现
+EndUnsafe: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetKeyHash: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingWithOutputs: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingWithOutputsAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadWithPrefetch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetModified: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsModified: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

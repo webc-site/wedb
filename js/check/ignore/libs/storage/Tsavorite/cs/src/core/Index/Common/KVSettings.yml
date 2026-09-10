@@ -1,7 +1,7 @@
-KVSettings: 无需实现
-ToString: 无需实现
-GetIndexSizeCacheLines: 无需实现
-SetIndexSizeFromCacheLines: 无需实现
-GetLogSettings: 无需实现
-GetReadCacheSettings: 无需实现
-GetCheckpointSettings: 无需实现
+KVSettings: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetIndexSizeCacheLines: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetIndexSizeFromCacheLines: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogSettings: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetReadCacheSettings: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCheckpointSettings: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

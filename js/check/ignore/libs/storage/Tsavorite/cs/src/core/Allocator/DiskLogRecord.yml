@@ -1,20 +1,20 @@
-ToString: 无需实现
-DiskLogRecord: 无需实现
-CreateFromTransientLogRecord: 无需实现
-CopyFrom: 无需实现
-TransferFrom: 无需实现
-ClearValueIfHeap: 无需实现
-AsMemoryLogRecordRef: 无需实现
-AsDiskLogRecordRef: 无需实现
-GetRecordFieldInfo: 无需实现
-CalculateHeapMemorySize: 无需实现
-Serialize: 无需实现
-SerializeChunked: 无需实现
-WriteChunkedLengthPrefix: 无需实现
-SerializeInlinePortionForMigration: 无需实现
-SerializeInlinePortion: 无需实现
-DirectCopyInlinePortionOfRecord: 无需实现
-Deserialize: 无需实现
-GetChunkedRecordInlineSize: 无需实现
-CompleteDeserializeChunkedRecord: 无需实现
-GetSerializedSize: 无需实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DiskLogRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateFromTransientLogRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyFrom: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方
+TransferFrom: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearValueIfHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsMemoryLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsDiskLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculateHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Serialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeChunked: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteChunkedLengthPrefix: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeInlinePortionForMigration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeInlinePortion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DirectCopyInlinePortionOfRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Deserialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetChunkedRecordInlineSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteDeserializeChunkedRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSerializedSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

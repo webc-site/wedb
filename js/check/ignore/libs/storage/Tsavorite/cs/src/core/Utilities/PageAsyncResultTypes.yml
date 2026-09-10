@@ -1,11 +1,11 @@
-ToString: 无需实现
-DisposeHandle: 无需实现
-TryClaimSnapshotUnitRelease: 无需实现
-bstr: 无需实现
-SetRefCountedHandle: 无需实现
-DiskWriteCallbackContext: 无需实现
-SetBufferCountdownEvent: 无需实现
-RecordError: 无需实现
-RefCountedPinnedGCHandle: 无需实现
-AddRef: 无需实现
-DiskReadCallbackContext: 无需实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DisposeHandle: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryClaimSnapshotUnitRelease: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+bstr: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetRefCountedHandle: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DiskWriteCallbackContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetBufferCountdownEvent: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecordError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RefCountedPinnedGCHandle: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AddRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DiskReadCallbackContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

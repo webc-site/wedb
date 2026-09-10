@@ -1,4 +1,4 @@
-ConvertOutputToHeap: 无需实现
-PostSingleKeyConsistentReadCallback: 无需实现
-PreBatchKeyConsistentReadCallback: 无需实现
-PostBatchKeyConsistentReadCallback: 无需实现
+ConvertOutputToHeap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostSingleKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PreBatchKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PostBatchKeyConsistentReadCallback: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

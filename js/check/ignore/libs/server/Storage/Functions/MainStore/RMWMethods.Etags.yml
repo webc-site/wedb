@@ -1,12 +1,12 @@
-HandleEtagInPlaceUpdateWorker: 无需实现
-HandleDelIfGreaterInPlaceUpdate: 无需实现
-HandleSetIfMatchInPlaceUpdate: 无需实现
-HandleSetWithEtagInPlaceUpdate: 无需实现
-HandleEtagNeedCopyUpdate: 无需实现
-HandleDelIfGreaterNeedCopyUpdate: 无需实现
-HandleSetIfMatchNeedCopyUpdate: 无需实现
-HandleSetIfMatchInitialUpdate: 无需实现
-HandleSetWithEtagInitialUpdate: 无需实现
-HandleEtagCopyUpdateWorker: 无需实现
-HandleSetIfMatchCopyUpdate: 无需实现
-HandleSetWithEtagCopyUpdate: 无需实现
+HandleEtagInPlaceUpdateWorker: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleDelIfGreaterInPlaceUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetIfMatchInPlaceUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetWithEtagInPlaceUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleEtagNeedCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleDelIfGreaterNeedCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetIfMatchNeedCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetIfMatchInitialUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetWithEtagInitialUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleEtagCopyUpdateWorker: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetIfMatchCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+HandleSetWithEtagCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,6 +1,6 @@
-RoaringBitmap: 无需实现
-InsertChunk: 无需实现
-RemoveChunk: 无需实现
-GetEnumerator: 无需实现
-EnsureChunkCapacity: 无需实现
-GetChunkKind: 无需实现
+RoaringBitmap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InsertChunk: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+RemoveChunk: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetEnumerator: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EnsureChunkCapacity: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetChunkKind: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,12 +1,12 @@
-Setup: 无需实现
-GetLimitedUserConfig: 无需实现
-CreateLimitedUserAsync: 无需实现
-BasicWhoamiTest: 测试函数无需实现
-BasicListTest: 测试函数无需实现
-BasicUsersTest: 测试函数无需实现
-BasicGenPassTest: 测试函数无需实现
-InvalidSubcommand: 测试函数无需实现
-NoAuthValidation: 测试函数无需实现
-DeniedCommandReturnsNoPermAsync: 测试函数无需实现
-PermittedCommandStillWorksAsync: 测试函数无需实现
-ClientSetInfoDeniedReturnsNoPermAsync: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLimitedUserConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLimitedUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicWhoamiTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicListTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicUsersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicGenPassTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InvalidSubcommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoAuthValidation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeniedCommandReturnsNoPermAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermittedCommandStillWorksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetInfoDeniedReturnsNoPermAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,168 +1,168 @@
-ToIPEndPoint: 无需实现
-ThrowException: 无需实现
-IgnoreIfExceptionInjectionDisabled: 无需实现
-GetEndpoints: 无需实现
-GetEndpointsWithout: 无需实现
-Execute: 无需实现
-ExecuteAsync: 无需实现
-NodesV2Async: 无需实现
-NodesMyself: 无需实现
-NodesMyselfAsync: 无需实现
-GetLocalNodeId: 无需实现
-GetLocalNodeIdAsync: 无需实现
-NodesAllAsync: 无需实现
-WaitForEpochSync: 无需实现
-ClusterMyId: 无需实现
-GetSlotRanges: 无需实现
-GetClusterConfigAsync: 无需实现
-NodesEqual: 无需实现
-WaitForSyncAsync: 无需实现
-SimpleSetupCluster: 无需实现
-SimpleSetupClusterAsync: 无需实现
-CreateClusterTransaction: 无需实现
-ClusterResponse: 无需实现
-ExecuteTxnForShard: 无需实现
-ClusterTestUtils: 无需实现
-HashSlot: 无需实现
-BackOff: 无需实现
-BackOffAsync: 无需实现
-Connect: 无需实现
-ConnectAsync: 无需实现
-InitMultiplexerAsync: 无需实现
-GetRedisConfig: 无需实现
-CloseConnectionsAsync: 无需实现
-GetNodeIds: 无需实现
-GetNodeIdsAsync: 无需实现
-ReconnectAsync: 无需实现
-GetEndPoints: 无需实现
-GetMultiplexer: 无需实现
-GetDatabase: 无需实现
-GetGarnetClientSession: 无需实现
-CreateGarnetClientSession: 无需实现
-GetServer: 无需实现
-GetAddressFromNodeIndex: 无需实现
-GetPortFromNodeIndex: 无需实现
-GetNodeIndexFromPort: 无需实现
-GetEndPoint: 无需实现
-GetEndPointFromPort: 无需实现
-RandomBytesRestrictedToSlot: 无需实现
-RandomBytes: 无需实现
-InitRandom: 无需实现
-RandomList: 无需实现
-RandomHset: 无需实现
-RandomStr: 无需实现
-GetRandomTargetNodeIndex: 无需实现
-LightReceive: 无需实现
-ParseRespToString: 无需实现
-ParseResponseState: 无需实现
-GetEndPointFromResponse: 无需实现
-CreateLightRequestConnections: 无需实现
-GetSlotPortMapFromNode: 无需实现
-GetSlotPortMapFromServer: 无需实现
-MergeSlotPortMap: 无需实现
-AddSlotsRange: 无需实现
-AddSlotsRangeAsync: 无需实现
-SetConfigEpoch: 无需实现
-SetConfigEpochAsync: 无需实现
-BumpEpoch: 无需实现
-WaitForConfigPropagation: 无需实现
-MatchConfig: 无需实现
-Authenticate: 无需实现
-Meet: 无需实现
-MeetAsync: 无需实现
-BanList: 无需实现
-Nodes: 无需实现
-NodesAsync: 无需实现
-NodesDict: 无需实现
-GetConfigEpochOfNodeFromNodeIndex: 无需实现
-GetConfigEpoch: 无需实现
-WaitAll: 无需实现
-IsKnown: 无需实现
-WaitUntilNodeIsKnown: 无需实现
-WaitUntilNodeIdIsKnown: 无需实现
-WaitUntilNodeIsKnownByAllNodes: 无需实现
-WaitUntilNodeIdIsKnownAsync: 无需实现
-CountKeysInSlot: 无需实现
-GetKeysInSlot: 无需实现
-GetOwnedSlotsFromNode: 无需实现
-GetOwnedSlotsFromNodeAsync: 无需实现
-GetNodeIdFromNode: 无需实现
-GetMovedAddress: 无需实现
-GetEndPointIndexFromPort: 无需实现
-GetSourceNodeIndexFromSlot: 无需实现
-AddDelSlots: 无需实现
-AddDelSlotsRange: 无需实现
-SetSlot: 无需实现
-SlotState: 无需实现
-MigrateSlotsIndex: 无需实现
-MigrateSlots: 无需实现
-MigrateKeys: 无需实现
-MigrateTasks: 无需实现
-WaitForMigrationCleanup: 无需实现
-WaitForSlotOwnership: 无需实现
-Asking: 无需实现
-PingAll: 无需实现
-ClusterSlots: 无需实现
-MeetAndAssignSlots: 无需实现
-AdvancePrimaryPastReplicaAofWindow: 无需实现
-AttachReplicaToPrimary: 无需实现
-WaitForReplicaRecovery: 无需实现
-WaitForReplicaAofSync: 无需实现
-ResetReplica: 无需实现
-ClusterReplicate: 无需实现
-ClusterReplicateAsync: 无需实现
-ClusterFailover: 无需实现
-ReplicaOf: 无需实现
-ClusterForget: 无需实现
-ClusterReset: 无需实现
-ClusterKeySlot: 无需实现
-FlushAll: 无需实现
-ClusterStatus: 无需实现
-GetNodeInfo: 无需实现
-ClusterNodes: 无需实现
-ClusterNodesAsync: 无需实现
-WaitClusterNodesSync: 无需实现
-ClusterShards: 无需实现
-SetKey: 无需实现
-GetKey: 无需实现
-SetMultiKey: 无需实现
-GetMultiKey: 无需实现
-Lpush: 无需实现
-Lrange: 无需实现
-Sadd: 无需实现
-Smembers: 无需实现
-GetStoreCurrentAofAddress: 无需实现
-GetStoreRecoveredAofAddress: 无需实现
-WaitForReplicasConnected: 无需实现
-GetConnectedReplicas: 无需实现
-RoleCommand: 无需实现
-AssertRole: 无需实现
-GetReplicationRole: 无需实现
-GetReplicationRoleAsync: 无需实现
-GetReplicationOffset: 无需实现
-GetReplicationSyncStatus: 无需实现
-GetFailoverState: 无需实现
-GetReplicationInfo: 无需实现
-GetReplicationInfoAsync: 无需实现
-GetClusterReplicasAsync: 无需实现
-GetPersistenceInfo: 无需实现
-ProcessPersistenceInfo: 无需实现
-ProcessReplicationInfo: 无需实现
-GetStoreCurrentVersion: 无需实现
-GetStoreInfo: 无需实现
-GetInfo: 无需实现
-WaitForAofSyncDriverDipose: 无需实现
-WaitForConnectedReplicaCountAsync: 无需实现
-WaitForNoFailover: 无需实现
-WaitForFailoverCompleted: 无需实现
-WaitForPrimaryRole: 无需实现
-when: 无需实现
-LastSave: 无需实现
-WaitUntilNextSecond: 无需实现
-WaitCheckpoint: 无需实现
-IncrBy: 无需实现
-ConfigSet: 无需实现
-AclLoad: 无需实现
-GetAnyOtherNodeAsync: 无需实现
-DBSize: 无需实现
-FlushAndWaitForStoreAsync: 无需实现
+ToIPEndPoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThrowException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IgnoreIfExceptionInjectionDisabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndpoints: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndpointsWithout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Execute: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesV2Async: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesMyself: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesMyselfAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLocalNodeId: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLocalNodeIdAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesAllAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForEpochSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMyId: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSlotRanges: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetClusterConfigAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesEqual: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForSyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleSetupCluster: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleSetupClusterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateClusterTransaction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteTxnForShard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTestUtils: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HashSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BackOff: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BackOffAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Connect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConnectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitMultiplexerAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRedisConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CloseConnectionsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeIdsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReconnectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndPoints: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMultiplexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetDatabase: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetGarnetClientSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateGarnetClientSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetAddressFromNodeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetPortFromNodeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeIndexFromPort: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndPoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndPointFromPort: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomBytesRestrictedToSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitRandom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomList: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomHset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomStr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRandomTargetNodeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LightReceive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseRespToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseResponseState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndPointFromResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLightRequestConnections: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSlotPortMapFromNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSlotPortMapFromServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MergeSlotPortMap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddSlotsRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddSlotsRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetConfigEpoch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetConfigEpochAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BumpEpoch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForConfigPropagation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MatchConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Authenticate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Meet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MeetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BanList: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Nodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NodesDict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetConfigEpochOfNodeFromNodeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetConfigEpoch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsKnown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitUntilNodeIsKnown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitUntilNodeIdIsKnown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitUntilNodeIsKnownByAllNodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitUntilNodeIdIsKnownAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountKeysInSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetKeysInSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetOwnedSlotsFromNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetOwnedSlotsFromNodeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeIdFromNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMovedAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEndPointIndexFromPort: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSourceNodeIndexFromSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddDelSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddDelSlotsRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlotState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateSlotsIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateTasks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForMigrationCleanup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForSlotOwnership: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Asking: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MeetAndAssignSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AdvancePrimaryPastReplicaAofWindow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AttachReplicaToPrimary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForReplicaRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForReplicaAofSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetReplica: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicateAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicaOf: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterForget: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterKeySlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlushAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterNodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterNodesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitClusterNodesSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterShards: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetMultiKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMultiKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Lpush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Lrange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Sadd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Smembers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreCurrentAofAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreRecoveredAofAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForReplicasConnected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetConnectedReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoleCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRole: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationRole: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationRoleAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationOffset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationSyncStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetFailoverState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetReplicationInfoAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetClusterReplicasAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetPersistenceInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessPersistenceInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessReplicationInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreCurrentVersion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForAofSyncDriverDipose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForConnectedReplicaCountAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForNoFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForFailoverCompleted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForPrimaryRole: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LastSave: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitUntilNextSecond: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclLoad: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetAnyOtherNodeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DBSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlushAndWaitForStoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

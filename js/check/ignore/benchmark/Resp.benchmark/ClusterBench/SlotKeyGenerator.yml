@@ -1,4 +1,4 @@
-SlotKeyGenerator: 无需实现
-GenerateKey: 无需实现
-AppendBase62: 无需实现
-FindTagForShard: 无需实现
+SlotKeyGenerator: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AppendBase62: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+FindTagForShard: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

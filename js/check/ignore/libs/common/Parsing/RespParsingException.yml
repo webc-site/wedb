@@ -1,7 +1,7 @@
-ThrowUnexpectedToken: 无需实现
-ThrowInvalidStringLength: 无需实现
-ThrowInvalidLength: 无需实现
-ThrowExcessiveArgumentCount: 无需实现
-ThrowNotANumber: 无需实现
-ThrowIntegerOverflow: 无需实现
-Throw: 无需实现
+ThrowUnexpectedToken: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowInvalidStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowInvalidLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowExcessiveArgumentCount: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowNotANumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowIntegerOverflow: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Throw: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

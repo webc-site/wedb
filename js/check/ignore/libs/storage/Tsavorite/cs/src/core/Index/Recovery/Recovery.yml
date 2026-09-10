@@ -1,47 +1,47 @@
-RecoveryStatus: 无需实现
-SignalRead: 无需实现
-SignalReadError: 无需实现
-WaitRead: 无需实现
-ThrowTsavoriteException: 无需实现
-WaitReadAsync: 无需实现
-SignalFlushed: 无需实现
-SignalFlushedError: 无需实现
-WaitFlush: 无需实现
-WaitFlushAsync: 无需实现
-RecoveryOptions: 无需实现
-GetLatestCheckpointTokens: 无需实现
-GetClosestIndexCheckpointInfo: 无需实现
-GetLatestCheckpointVersion: 无需实现
-GetLogFileSize: 无需实现
-GetIndexFileSize: 无需实现
-FindRecoveryInfo: 无需实现
-IsCompatible: 无需实现
-GetRecoveryInfo: 无需实现
-InternalRecoverAsync: 无需实现
-SetVersion: 无需实现
-GetInitialRecoveryAddress: 无需实现
-SetRecoveryPageRanges: 无需实现
-ReadPagesWithMemoryConstraint: 无需实现
-TrimLogPages: 无需实现
-FlushIfNeededThenEvictPageForRecovery: 无需实现
-FlushSnapshotPageForRecovery: 无需实现
-TrimResidentPagesToBudget: 无需实现
-ReadPagesForRecoveryAsync: 无需实现
-RecoverHybridLogAsync: 无需实现
-ClearBitsOnPage: 无需实现
-ProcessReadPageAndFlush: 无需实现
-RecoveryLoadObjectsPass2: 无需实现
-GetPageRangesToRead: 无需实现
-ProcessReadPage: 无需实现
-WaitUntilAllPagesHaveBeenFlushedAsync: 无需实现
-RecoverHybridLogFromSnapshotFileAsync: 无需实现
-GetSnapshotPageRangesToRead: 无需实现
-RecoverSnapshotPages: 无需实现
-ProcessReadSnapshotPage: 无需实现
-RecoverFromPage: 无需实现
-AsyncFlushPageCallbackForRecovery: 无需实现
-RestoreHybridLog: 无需实现
-RecoveryReset: 无需实现
-RestoreHybridLogAsync: 无需实现
-RestoreHybridLogInitializePages: 无需实现
-AsyncReadPagesForRecoveryCallback: 无需实现
+RecoveryStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalReadError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowTsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitReadAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalFlushed: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalFlushedError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitFlushAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoveryOptions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLatestCheckpointTokens: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetClosestIndexCheckpointInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLatestCheckpointVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogFileSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetIndexFileSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindRecoveryInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsCompatible: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecoveryInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalRecoverAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetVersion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetInitialRecoveryAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetRecoveryPageRanges: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadPagesWithMemoryConstraint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrimLogPages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushIfNeededThenEvictPageForRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushSnapshotPageForRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrimResidentPagesToBudget: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadPagesForRecoveryAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoverHybridLogAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearBitsOnPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessReadPageAndFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoveryLoadObjectsPass2: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetPageRangesToRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessReadPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitUntilAllPagesHaveBeenFlushedAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoverHybridLogFromSnapshotFileAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSnapshotPageRangesToRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoverSnapshotPages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessReadSnapshotPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoverFromPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncFlushPageCallbackForRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RestoreHybridLog: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoveryReset: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RestoreHybridLogAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RestoreHybridLogInitializePages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPagesForRecoveryCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

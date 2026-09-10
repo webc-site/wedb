@@ -1,4 +1,4 @@
-InPlaceWriter: 无需实现
-InitialWriter: 无需实现
-InitialUpdater: 无需实现
-CopyUpdater: 无需实现
+InPlaceWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

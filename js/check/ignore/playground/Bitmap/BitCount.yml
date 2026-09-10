@@ -1,8 +1,8 @@
-BitCountScalar: 无需实现
-__simd_popcX256_aligned: 无需实现
-RunBitCountScalar: 无需实现
-RunBitCountSIMD: 无需实现
-RunBitCountSIMD_AVX: 无需实现
-RunBitCountSIMD_AVX_aligned: 无需实现
-RunBitCountBenchmark: 无需实现
-alloc_aligned: 无需实现
+BitCountScalar: C# 原型实验与演练脚本，非生产运行时代码
+__simd_popcX256_aligned: C# 原型实验与演练脚本，非生产运行时代码
+RunBitCountScalar: C# 原型实验与演练脚本，非生产运行时代码
+RunBitCountSIMD: C# 原型实验与演练脚本，非生产运行时代码
+RunBitCountSIMD_AVX: C# 原型实验与演练脚本，非生产运行时代码
+RunBitCountSIMD_AVX_aligned: C# 原型实验与演练脚本，非生产运行时代码
+RunBitCountBenchmark: C# 原型实验与演练脚本，非生产运行时代码
+alloc_aligned: C# 原型实验与演练脚本，非生产运行时代码

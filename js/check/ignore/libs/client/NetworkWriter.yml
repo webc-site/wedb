@@ -1,9 +1,9 @@
-GetNextTaskId: 无需实现
-NeedToWait: 无需实现
-AsyncFlushPageCallback: 无需实现
-GetOffsetInPage: 无需实现
-DoAggressiveShiftReadOnly: 无需实现
-EpochProtectAggressiveShiftReadOnlyRunner: 无需实现
-ToShift: 无需实现
-AggressiveShiftReadOnlyRunner: 无需实现
-AggressiveFlushShiftReadOnlyBump: 无需实现
+GetNextTaskId: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+NeedToWait: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+AsyncFlushPageCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+GetOffsetInPage: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+DoAggressiveShiftReadOnly: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+EpochProtectAggressiveShiftReadOnlyRunner: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ToShift: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+AggressiveShiftReadOnlyRunner: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+AggressiveFlushShiftReadOnlyBump: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

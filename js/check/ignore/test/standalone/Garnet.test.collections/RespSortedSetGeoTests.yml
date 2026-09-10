@@ -1,17 +1,17 @@
-Setup: 无需实现
-TearDown: 无需实现
-CanUseGeoAdd: 测试函数无需实现
-CanUseGeoAddWhenLTM: 测试函数无需实现
-CanUseGeoPos: 测试函数无需实现
-CheckGeoSortedSetOperationsOnWrongTypeObjectSE: 测试函数无需实现
-CanUseGeoSearch: 测试函数无需实现
-CanUseGeoSearchStore: 测试函数无需实现
-CanUseGeoSearchStoreWithDeleteKeyWhenSourceNotFound: 测试函数无需实现
-CanUseGeoSearchWithCities: 测试函数无需实现
-CanDoGeoAddWhenInvalidPairLC: 测试函数无需实现
-CanUseGeoHash: 测试函数无需实现
-CanUseGeoDist: 测试函数无需实现
-CanReturnNullGeoDistLC: 测试函数无需实现
-CanUseGeoPosLC: 测试函数无需实现
-CanContinueWhenNotEnoughParametersInGeoAdd: 测试函数无需实现
-InvalidGeoSearches: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoAdd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoAddWhenLTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoPos: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckGeoSortedSetOperationsOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoSearch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoSearchStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoSearchStoreWithDeleteKeyWhenSourceNotFound: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoSearchWithCities: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoGeoAddWhenInvalidPairLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoHash: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoDist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnNullGeoDistLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGeoPosLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanContinueWhenNotEnoughParametersInGeoAdd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InvalidGeoSearches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

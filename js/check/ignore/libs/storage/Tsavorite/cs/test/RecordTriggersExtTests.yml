@@ -1,19 +1,19 @@
-ExtRecordTriggers: 无需实现
-OnDispose: 无需实现
-OnDisposeDiskRecord: 无需实现
-OnEvict: 无需实现
-OnRecovery: 无需实现
-OnCheckpoint: 无需实现
-Setup: 无需实现
-DeleteDirectory: 无需实现
-TearDown: 无需实现
-OnTearDown: 无需实现
-InsertN: 无需实现
-OnFlushReceivesCorrectLogicalAddress: 测试函数无需实现
-CallOnFlushFalseSkipsCallback: 测试函数无需实现
-OnTruncateFiresWithNewBeginAddress: 测试函数无需实现
-CallOnTruncateFalseSkipsCallback: 测试函数无需实现
-PostCopyToTailFiresFromCompaction: 测试函数无需实现
-CallPostCopyToTailFalseSkipsCallback: 测试函数无需实现
-DefaultRecordTriggersHasAllNewFlagsFalse: 测试函数无需实现
-SpanByteRecordTriggersHasAllNewFlagsFalse: 测试函数无需实现
+ExtRecordTriggers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDisposeDiskRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InsertN: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnFlushReceivesCorrectLogicalAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnFlushFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTruncateFiresWithNewBeginAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnTruncateFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyToTailFiresFromCompaction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallPostCopyToTailFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DefaultRecordTriggersHasAllNewFlagsFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteRecordTriggersHasAllNewFlagsFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

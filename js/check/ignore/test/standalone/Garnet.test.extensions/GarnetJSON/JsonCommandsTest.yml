@@ -1,20 +1,20 @@
-Setup: 无需实现
-TearDown: 无需实现
-RegisterCustomCommand: 无需实现
-JsonSetGetTests: 测试函数无需实现
-JsonSetGetBasicTypes: 测试函数无需实现
-JsonSetPathOperations: 测试函数无需实现
-JsonGetMultiplePathsTest: 测试函数无需实现
-JsonSetInvalidJsonTest: 测试函数无需实现
-JsonSetInvalidPathTest: 测试函数无需实现
-JsonGetNonExistentTests: 测试函数无需实现
-JsonGetComplexPathTests: 测试函数无需实现
-JsonGetArrayOperationsTest: 测试函数无需实现
-JsonGetAdvancedFiltersTest: 测试函数无需实现
-JsonSetComplexPathOperationsTest: 测试函数无需实现
-JsonSetNonStaticPathNewFieldTest: 测试函数无需实现
-JsonSetNonStaticPathExistingFieldTest: 测试函数无需实现
-SaveRecoverTest: 测试函数无需实现
-AofUpsertRecoverTestAsync: 测试函数无需实现
-SerializationTest: 测试函数无需实现
-JsonModuleLoadTest: 测试函数无需实现
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetGetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetGetBasicTypes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetPathOperations: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetMultiplePathsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetInvalidJsonTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetInvalidPathTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetNonExistentTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetComplexPathTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetArrayOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetAdvancedFiltersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetComplexPathOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetNonStaticPathNewFieldTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetNonStaticPathExistingFieldTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SaveRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofUpsertRecoverTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SerializationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonModuleLoadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

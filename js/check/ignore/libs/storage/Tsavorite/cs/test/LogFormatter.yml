@@ -1,2 +1,2 @@
-FormatDate: 无需实现
-FormatTime: 无需实现
+FormatDate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FormatTime: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

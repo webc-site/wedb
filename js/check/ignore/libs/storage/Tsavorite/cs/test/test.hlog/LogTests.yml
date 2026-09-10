@@ -1,30 +1,30 @@
-DeleteDirectory: 无需实现
-TotalEntries: 无需实现
-BaseSetup: 无需实现
-BaseTearDown: 无需实现
-Counter: 无需实现
-IncrementAndMaybeTruncateUntil: 无需实现
-ToString: 无需实现
-IsAsync: 无需实现
-AssertGetNext: 无需实现
-LogWriterAsync: 无需实现
-Setup: 无需实现
-TearDown: 无需实现
-TestConsumer: 无需实现
-Consume: 无需实现
-TestDisposeReleasesFileLocksWithCompletedCommit: 测试函数无需实现
-TsavoriteLogTest2: 测试函数无需实现
-TsavoriteLogConsumerTest: 测试函数无需实现
-TsavoriteLogAsyncConsumerTest: 测试函数无需实现
-TryEnqueue1: 测试函数无需实现
-TryEnqueue2: 测试函数无需实现
-TruncateUntilBasic: 测试函数无需实现
-EnqueueAndWaitForCommitAsyncBasicTest: 测试函数无需实现
-TruncateUntil2: 测试函数无需实现
-TruncateUntilPageStart: 测试函数无需实现
-CommitNoSpinWait: 测试函数无需实现
-CommitAsyncPrevTask: 测试函数无需实现
-RefreshUncommittedAsyncTest: 测试函数无需实现
-TsavoriteLogSimpleCommitCookieTest: 测试函数无需实现
-TsavoriteLogManualCommitTest: 测试函数无需实现
-TsavoriteLogAsyncConsumerTestAfterDisposeIterator: 测试函数无需实现
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalEntries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Counter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementAndMaybeTruncateUntil: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertGetNext: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogWriterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestConsumer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestDisposeReleasesFileLocksWithCompletedCommit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogAsyncConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnqueue1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnqueue2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntilBasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnqueueAndWaitForCommitAsyncBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntil2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntilPageStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitNoSpinWait: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitAsyncPrevTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RefreshUncommittedAsyncTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogSimpleCommitCookieTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogManualCommitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogAsyncConsumerTestAfterDisposeIterator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

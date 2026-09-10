@@ -1,6 +1,6 @@
-CreateAuthenticator: 无需实现
-CreateAuthenticatorCallback: 无需实现
-DisposeCallback: 无需实现
-Authenticate: 无需实现
-AuthenticateCallback: 无需实现
-InvalidatingAuthorizationAsync: 测试函数无需实现
+CreateAuthenticator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateAuthenticatorCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Authenticate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AuthenticateCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InvalidatingAuthorizationAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

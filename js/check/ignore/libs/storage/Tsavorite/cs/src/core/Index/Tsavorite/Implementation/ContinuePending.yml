@@ -1,7 +1,7 @@
-ContinuePendingRead: 无需实现
-SpinWaitUntilClosed: 无需实现
-EphemeralSUnlock: 无需实现
-ContinuePendingRMW: 无需实现
-EphemeralXUnlock: 无需实现
-ContinuePendingConditionalCopyToTail: 无需实现
-ContinuePendingConditionalScanPush: 无需实现
+ContinuePendingRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SpinWaitUntilClosed: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralSUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralXUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingConditionalCopyToTail: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingConditionalScanPush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
