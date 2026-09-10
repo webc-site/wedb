@@ -18,7 +18,6 @@ TryWriteNewLine: C# .NET 专属运行时特性或内部辅助实现，Rust 侧�
 GetBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
 TryWriteInt32: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
 TryWriteInt64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-TryWriteIntegerFromBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
 TryWriteInt32AsBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
 TryWriteInt64AsBulkString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
 GetIntegerAsBulkStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
