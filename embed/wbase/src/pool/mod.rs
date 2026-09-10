@@ -21,6 +21,7 @@
 //! - **双层字节预算 (对标 C# small/large budget 与 `LargeTierMinBytes`)**：
 //!   小缓冲（<= 256KB）与大缓冲（> 256KB）配额强隔离，`AtomicI64` 无锁原子记账。
 
+mod aligned_buf;
 mod budget;
 mod depot;
 mod inbox;
@@ -39,6 +40,7 @@ use std::{
   },
 };
 
+pub use aligned_buf::AlignedBuf;
 pub(crate) use budget::Budget;
 pub(crate) use depot::Depot;
 pub(crate) use inbox::{ChainIter, CrossThreadInbox, FreeNode};
@@ -46,10 +48,17 @@ pub(crate) use tls::TLS_POOLS;
 pub use tls::current_thread_id;
 
 use crate::{
-  align::validate_sector_size,
-  aligned_buf::AlignedBuf,
+  align::{MIN_SECTOR_SIZE, is_valid_sector_size},
   error::{Error, Result},
 };
+
+#[inline]
+pub(crate) fn validate_sector_size(size: usize) -> Result<()> {
+  if !is_valid_sector_size(size) {
+    return Err(Error::InvalidAlignment(size, MIN_SECTOR_SIZE));
+  }
+  Ok(())
+}
 
 /// size class 总数 = 2 精确 + 4 线性 + 2×11 几何 (对标 C# `NumClasses`)
 pub const NUM_CLASSES: usize = 28;

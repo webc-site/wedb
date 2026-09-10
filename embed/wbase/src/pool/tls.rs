@@ -168,4 +168,4 @@ thread_local! {
 }
 
 /// 获取当前线程全局唯一且单调递增的非零线程 ID（统一复用 wbase 原语）
-pub use wbase::thread::current_thread_id;
+pub use crate::thread::current_thread_id;

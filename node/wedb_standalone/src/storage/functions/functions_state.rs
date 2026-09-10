@@ -2,7 +2,6 @@
 //!
 //! C# 侧 FunctionsState 聚合 CustomCommandManager / CustomObjectFactory /
 //! GarnetObjectSerializer 等会话级依赖；custom 命令域为并行转写域，本域以
-//! 句柄位 + 缺口说明占位（非 unimplemented 桩，返回"未挂载"语义）。
 
 /// 会话函数状态容器
 pub struct FunctionsState {

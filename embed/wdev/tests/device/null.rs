@@ -8,8 +8,8 @@
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
+use wbase::AlignedBuf;
 use wdev::{Device, Error, NullDevice};
-use wutil::AlignedBuf;
 
 /// 对标 C# `NullDevice` 语义：写入即时假成功返回完整长度，读取即时假成功且零填充；
 /// 刷盘/删除/重置均为安全无操作；截断单调推进 start_segment；

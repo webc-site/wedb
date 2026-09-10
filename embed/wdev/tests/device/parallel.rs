@@ -14,8 +14,8 @@ use aok::{OK, Void};
 use compio::runtime::{Runtime, spawn};
 use log::info;
 use tempfile::tempdir;
+use wbase::AlignedBuf;
 use wdev::{Device, Error, SegmentedDevice};
-use wutil::AlignedBuf;
 
 use crate::support::make_pattern_data;
 

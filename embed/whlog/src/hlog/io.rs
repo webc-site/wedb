@@ -1,9 +1,9 @@
 use std::sync::atomic::Ordering;
 
 use log::debug;
+use wbase::AlignedBuf;
 use wdev::Device;
 use wrecord::{HEADER_SIZE, RecordHeader, RecordRef};
-use wutil::AlignedBuf;
 
 use super::{
   DISK_READ_CACHE_MASK, DISK_READ_PROBE_LEN, HybridLog, parse_record_from_slice, reject_pad,
