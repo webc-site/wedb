@@ -510,26 +510,30 @@ impl LuaStateWrapper {
       self.interp_mut().stack.push(key);
       return false;
     };
-    // mlua 无 C 栈式 next：以 pairs 快照承接——收集键序，推进到当前键
-    // 的下一键值对（nil 键 = 起始）。回复表规模小，快照开销可忽略。
-    let pairs: Vec<(StackValue, StackValue)> = table
-      .clone()
-      .pairs::<StackValue, StackValue>()
-      .filter_map(Result::ok)
-      .collect();
-    let start = if matches!(key, Value::Nil) {
-      0
+    // mlua 无 C 栈式 next：沿 pairs 迭代流式推进到当前键的下一键值对
+    // （nil 键 = 起始），命中即止，避免整表快照的全量收集。
+    let mut next_pair: Option<(StackValue, StackValue)> = None;
+    if matches!(key, Value::Nil) {
+      next_pair = table
+        .clone()
+        .pairs::<StackValue, StackValue>()
+        .find_map(Result::ok);
     } else {
-      pairs
-        .iter()
-        .position(|(k, _)| *k == key)
-        .map_or(pairs.len(), |pos| pos + 1)
-    };
-    match pairs.get(start) {
+      let mut passed = false;
+      for pair in table.clone().pairs::<StackValue, StackValue>() {
+        let Ok((k, v)) = pair else { continue };
+        if passed {
+          next_pair = Some((k, v));
+          break;
+        }
+        passed = k == key;
+      }
+    }
+    match next_pair {
       Some((next_key, value)) => {
         let mut interp = self.interp_mut();
-        interp.stack.push(next_key.clone());
-        interp.stack.push(value.clone());
+        interp.stack.push(next_key);
+        interp.stack.push(value);
         true
       }
       None => false,

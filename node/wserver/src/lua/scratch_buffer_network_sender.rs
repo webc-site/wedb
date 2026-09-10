@@ -169,7 +169,7 @@ impl ScratchBufferNetworkSender {
   /// 以 `offset`（相对有效区末尾的起始）+ `size` 推进有效区
   /// （C# ScratchBufferBuilder.MoveOffset(offset + size)）。
   pub fn send_response(&mut self, offset: usize, size: usize) -> bool {
-    let advanced = self.offset.saturating_add(offset + size);
+    let advanced = self.offset.saturating_add(offset.saturating_add(size));
     self.offset = advanced.min(self.server_buffer_size);
     true
   }

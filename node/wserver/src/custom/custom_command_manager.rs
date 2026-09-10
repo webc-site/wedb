@@ -29,19 +29,14 @@ const CUSTOM_RAW_STRING_COMMAND_MAX_ID: u16 = u16::MAX - 1;
 const CUSTOM_OBJECT_TYPE_MIN_ID: u8 = 0x40;
 const CUSTOM_OBJECT_TYPE_MAX_ID: u8 = 0xFE;
 
-/// 命令类型（对齐 C# CommandType：Read/Write/Interactive/Random/Transition）。
+/// 命令类型（对齐 libs/server/Custom/CommandType.cs:CommandType）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum CommandType {
   /// 只读。
-  Read,
-  /// 写入。
-  Write,
-  /// 交互式。
-  Interactive,
-  /// 随机。
-  Random,
-  /// 迁移。
-  Transition,
+  Read = 0,
+  /// 读-改-写。
+  ReadModifyWrite = 1,
 }
 
 /// 自定义原始字符串命令的处理函数形态（输入参数 → 应答字节）。
@@ -190,6 +185,8 @@ pub struct CustomCommandManager {
   procedure_ids: IdSpace,
   /// 已注册模块（模块名 → 版本）。
   modules: HashMap<String, u32>,
+  /// 对象类型名 → 类型扩展 id（C# 工厂引用去重的按名承接形态）。
+  type_names: HashMap<String, u8>,
   /// 按名命令信息索引（大小写不敏感：存小写键）。
   custom_commands_info: HashMap<String, CustomCommandInfo>,
   /// 按名命令文档索引（小写键）。
@@ -223,6 +220,7 @@ impl CustomCommandManager {
       custom_procedures: Vec::new(),
       procedure_ids: IdSpace::new(0, u8::MAX as u64),
       modules: HashMap::default(),
+      type_names: HashMap::default(),
       custom_commands_info: HashMap::default(),
       custom_commands_docs: HashMap::default(),
       custom_command_names: HashMap::default(),
@@ -314,25 +312,19 @@ impl CustomCommandManager {
 
   /// libs/server/Custom/CustomCommandManager.cs:RegisterType
   ///
-  /// 注册自定义对象类型（同工厂重复注册报错）；返回类型扩展 id。
+  /// 注册自定义对象类型（同名类型重复注册报错；对标 C# 工厂引用去重的
+  /// 按名承接形态）；返回类型扩展 id。
   pub fn register_type(&mut self, type_name: &str) -> Result<u8, &'static str> {
-    // 同名类型视为同工厂重复注册
     let type_key = type_name.to_lowercase();
-    if let Some(existing) = self.object_commands.iter().flatten().find(|w| {
-      self
-        .custom_commands_info
-        .get(&format!("type:{}", w.ext_id))
-        .is_some_and(|info| info.name == type_key)
-    }) {
-      let _ = existing;
+    if self.type_names.contains_key(&type_key) {
       return Err("Type already registered with ID");
     }
-    Ok(self.register_new_type(type_name)? - CUSTOM_OBJECT_TYPE_MIN_ID)
+    Ok(self.register_new_type(&type_key)? - CUSTOM_OBJECT_TYPE_MIN_ID)
   }
 
   /// libs/server/Custom/CustomCommandManager.cs:Register（对象命令）
   ///
-  /// 注册自定义对象命令（自动补类型）；返回 (类型扩展 id, 子命令 id)。
+  /// 注册自定义对象命令（类型缺失时自动补注册）；返回 (类型扩展 id, 子命令 id)。
   pub fn register_object_command(
     &mut self,
     type_name: &str,
@@ -341,14 +333,14 @@ impl CustomCommandManager {
     command_info: Option<CustomCommandInfo>,
     command_docs: Option<CustomCommandDocs>,
   ) -> Result<(u8, u8), &'static str> {
-    // 定位或创建类型包装
-    let mut type_slot = self.object_commands.iter().position(Option::is_some);
-
-    if type_slot.is_none() {
-      let id = self.register_new_type(type_name)?;
-      type_slot = Some((id - CUSTOM_OBJECT_TYPE_MIN_ID) as usize);
-    }
-    let type_slot = type_slot.ok_or("Out of registration space")?;
+    // 按类型名定位既有包装（C# TryGetFirstId(c => c.factory == factory) 的
+    // 按名承接形态）；缺失即注册新类型。
+    let type_key = type_name.to_lowercase();
+    let type_slot = if let Some(&ext_id) = self.type_names.get(&type_key) {
+      ext_id as usize
+    } else {
+      (self.register_new_type(&type_key)? - CUSTOM_OBJECT_TYPE_MIN_ID) as usize
+    };
 
     let wrapper = self.object_commands[type_slot]
       .as_mut()
@@ -596,15 +588,8 @@ impl CustomCommandManager {
     }
     self.object_commands[slot] = Some(wrapper);
 
-    // 类型名以内部键登记（同名类型去重依据）
-    self
-      .custom_commands_info
-      .entry(format!("type:{}", ext_id))
-      .or_insert(CustomCommandInfo {
-        name: type_name.to_lowercase(),
-        arity: 0,
-        acl_categories: vec!["custom".to_string()],
-      });
+    // 类型名登记（同名去重与按名定位依据；不入命令信息表，对齐 C#）。
+    self.type_names.insert(type_name.to_lowercase(), ext_id);
     Ok(type_id as u8)
   }
 
@@ -706,7 +691,7 @@ mod tests {
       manager
         .register_raw_string_command(
           &format!("cmd{i}"),
-          CommandType::Write,
+          CommandType::ReadModifyWrite,
           echo_fn(),
           None,
           None,
@@ -716,7 +701,14 @@ mod tests {
     }
     assert!(
       manager
-        .register_raw_string_command("overflow", CommandType::Write, echo_fn(), None, None, 0)
+        .register_raw_string_command(
+          "overflow",
+          CommandType::ReadModifyWrite,
+          echo_fn(),
+          None,
+          None,
+          0
+        )
         .unwrap_err()
         .contains("Out of registration space")
     );
@@ -744,7 +736,7 @@ mod tests {
       .unwrap();
     assert_eq!((ext_id, sub_id), (0, 0));
     let (_, sub_id2) = manager
-      .register_object_command("MYOBJ", "SETPROP", CommandType::Write, None, None)
+      .register_object_command("MYOBJ", "SETPROP", CommandType::ReadModifyWrite, None, None)
       .unwrap();
     assert_eq!(sub_id2, 1);
 
@@ -764,8 +756,35 @@ mod tests {
     let obj_type = manager.get_custom_garnet_object_type(ext_id);
     assert_eq!(obj_type, GarnetObjectType::Null);
 
-    // 全量信息包含类型与子命令
-    assert!(manager.get_custom_command_info_count() >= 2);
+    // 命令信息仅含显式登记项（类型名不入信息表，对齐 C#）
+    assert_eq!(manager.get_custom_command_info_count(), 1);
+  }
+
+  #[test]
+  fn multiple_object_types_resolve_by_name() {
+    let mut manager = CustomCommandManager::new();
+
+    manager.register_type("TYPE_A").unwrap();
+    let type_b = manager.register_type("TYPE_B").unwrap();
+    assert_eq!(type_b, 1);
+
+    // 向第二个类型注册子命令：必须挂到 TYPE_B，而非首个类型。
+    let (ext_id, _) = manager
+      .register_object_command("TYPE_B", "CMD_B", CommandType::Read, None, None)
+      .unwrap();
+    assert_eq!(ext_id, type_b);
+    assert!(
+      manager
+        .try_get_custom_object_sub_command(type_b, 0)
+        .is_some()
+    );
+    assert!(manager.try_get_custom_object_sub_command(0, 0).is_none());
+
+    // 未注册类型自动补注册。
+    let (ext_c, _) = manager
+      .register_object_command("TYPE_C", "CMD_C", CommandType::Read, None, None)
+      .unwrap();
+    assert_eq!(ext_c, 2);
   }
 
   #[test]

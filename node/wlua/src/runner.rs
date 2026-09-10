@@ -1,6 +1,6 @@
 use mlua::{Lua, Result, Value, Variadic};
 
-/// garnet相对路径:garnet/libs/server/Lua/LuaRunner.cs:LuaRunner
+/// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:LuaRunner
 pub struct LuaRunner {
   lua: Lua,
 }
@@ -48,7 +48,7 @@ impl LuaRunner {
     Ok(Self { lua })
   }
 
-  /// garnet相对路径:garnet/libs/server/Lua/LuaRunner.cs:RunScript
+  /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:RunScript
   pub fn run_script(&self, script: &str, keys: Vec<String>, args: Vec<String>) -> Result<Value> {
     let globals = self.lua.globals();
 
@@ -68,7 +68,7 @@ impl LuaRunner {
     chunk.eval()
   }
 
-  /// garnet相对路径:garnet/libs/server/Lua/LuaRunner.cs:LoadScript
+  /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:LoadScript
   pub fn load_script(&self, script: &str) -> Result<String> {
     let mut hasher = sha1_smol::Sha1::new();
     hasher.update(script.as_bytes());

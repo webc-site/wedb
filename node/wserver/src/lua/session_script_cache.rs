@@ -1,9 +1,9 @@
 //! 会话脚本缓存：SHA1 摘要 → 已编译函数的会话级映射
 //! （对标 libs/server/Lua/SessionScriptCache.cs:SessionScriptCache）。
 
-use std::{cell::Cell, collections::HashMap, mem, sync::Arc};
+use std::{cell::Cell, mem, sync::Arc};
 
-use gxhash::HashSet;
+use gxhash::{HashMap, HashSet};
 
 use super::{lua_options::LuaLoggingMode, lua_runner::LuaRunner, script_hash_key::ScriptHashKey};
 
