@@ -17,7 +17,10 @@ use super::{
 use crate::{
   objects::parse_utils::try_get_int,
   resp::{
-    cmd_strings::{RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK},
+    cmd_strings::{
+      GENERIC_ERR_COMMAND_DISALLOWED_WITH_OPTION, GENERIC_ERR_WRONG_NUM_ARGS,
+      RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK,
+    },
     resp_server_session::RespServerSession,
   },
   storage::session::storage_session::StoreType,
@@ -44,16 +47,9 @@ const RESP_ERR_SWAPDB_IN_TXN_UNSUPPORTED: &str =
   "ERR SWAPDB is currently unsupported inside a transaction.";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_TRANSACTION_PROCEDURE
 const RESP_ERR_NO_TRANSACTION_PROCEDURE: &str = "ERR Could not get transaction procedure";
-/// libs/server/Resp/CmdStrings.cs:GenericErrWrongNumArgs（模板；WATCH 空参等
-/// 路径 C# 即以未格式化模板直接回错，1:1 保留）
-const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for '{0}' command";
 /// libs/server/Resp/CmdStrings.cs:GenericErrWrongNumArgsTxn
 const GENERIC_ERR_WRONG_NUM_ARGS_TXN: &str =
   "ERR Invalid number of parameters to stored proc {0}, expected {1}, actual {2}";
-/// libs/server/Resp/CmdStrings.cs:GenericErrCommandDisallowedWithOption
-const GENERIC_ERR_COMMAND_DISALLOWED_WITH_OPTION: &str = "ERR {0} command not allowed. If the {1} option is set to \"local\", you can run it from a local connection, otherwise you need to set this option in the configuration file, and then restart the server.";
-/// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_UNK_CMD
-const RESP_ERR_GENERIC_UNK_CMD: &str = "ERR unknown command";
 
 /// 排队命令元数据（C# SimpleRespCommandInfo 中 NetworkSKIP 所需子集的本域
 /// 投影；宿主从 resp 命令信息域构建）
@@ -360,7 +356,7 @@ impl TransactionManager {
   ) -> bool {
     let count = session.parse_state.count;
     if count < 1 {
-      session.abort_wrong_num_args("runtxp");
+      session.abort_wrong_num_args("RUNTXP");
       return true;
     }
 
@@ -370,8 +366,15 @@ impl TransactionManager {
       return true;
     };
 
+    // 过程 id 为注册字节位面（C# 注册表按其命中；越界 id 必不命中，走同
+    // C# GetCustomTransactionProcedure 抛异常的 NO TRANSACTION PROCEDURE 错）
+    let Ok(tx_id) = u8::try_from(tx_id) else {
+      write_error(session, RESP_ERR_NO_TRANSACTION_PROCEDURE);
+      return true;
+    };
+
     // 取过程（C# GetCustomTransactionProcedure 抛异常 → 同错回退）
-    let Some(proc) = resolver.get_custom_transaction_procedure(tx_id as u8) else {
+    let Some(proc) = resolver.get_custom_transaction_procedure(tx_id) else {
       write_error(session, RESP_ERR_NO_TRANSACTION_PROCEDURE);
       return true;
     };
@@ -396,7 +399,7 @@ impl TransactionManager {
     }
 
     // 执行过程三段式（C# TryTransactionProc）
-    resolver.try_transaction_proc(tx_id as u8, self, session);
+    resolver.try_transaction_proc(tx_id, self, session);
     true
   }
 }

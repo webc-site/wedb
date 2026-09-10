@@ -1,34 +1,45 @@
 //! 发布订阅中枢（对标 libs/server/PubSub/SubscribeBroker.cs:SubscribeBroker）
 //!
 //! C# 以 TsavoriteLog 专日志（页边界截断）+ 后台消费任务（StartAsync →
-//! ConsumeAllAsync）分发；Rust 托管面以有界待发队列承载同一管线：
+//! ConsumeAllAsync）分发；Rust 托管面以待发队列承载同一管线：
 //! [`SubscribeBroker::publish`] 入队（对标 aof.Enqueue），
 //! [`SubscribeBroker::consume`] / [`SubscribeBroker::consume_pending`]
 //! 解码并广播（对标 Consume → Broadcast）。订阅者集合的并发结构
-//! （ConcurrentDictionary + ReadOptimizedConcurrentSet）以读写锁分域承接。
+//! （ConcurrentDictionary + ReadOptimizedConcurrentSet）以 papaya 无锁
+//! 并发表承接（whasher 统一出口），广播遍历不阻塞订阅变更。
 //!
 //! C# 的懒初始化（sid/initialized 竞态协调）在构造即完成的 Rust 结构下
 //! 无存在必要；Broadcast 中首达即写的会话输出路径由 [`PubSubSink`] 承接。
 
 use std::{
   collections::VecDeque,
+  mem,
   sync::{
     Arc,
     atomic::{
       AtomicBool, AtomicU64,
-      Ordering::{Acquire, Relaxed},
+      Ordering::{Acquire, Relaxed, Release},
     },
   },
 };
 
-use gxhash::HashMap as GxHashMap;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
+use whasher::{GxPapayaMap, new_papaya_map};
 
-use super::{pattern_subscription_entry::PatternSubscriptionEntry, subscriber::PubSubSink};
+use super::{
+  pattern_subscription_entry::{PatternSubscriberSet, PatternSubscriptionEntry},
+  subscriber::PubSubSink,
+};
 use crate::objects::sortedset::sorted_set_object::glob_match;
 
-/// 单通道订阅表：通道 -> （订阅者 id -> 投递面）
-type ChannelSubscriptions = GxHashMap<Box<[u8]>, GxHashMap<u64, Arc<dyn PubSubSink>>>;
+/// 通道订阅表：通道 -> 订阅者集合（C# subscriptions，
+/// ConcurrentDictionary<ByteArrayWrapper, ReadOptimizedConcurrentSet<..>>）
+type ChannelSubscriptions = GxPapayaMap<Box<[u8]>, PatternSubscriberSet>;
+
+/// 模式订阅表：模式 -> 条目（C# patternSubscriptions，
+/// ReadOptimizedConcurrentSet<PatternSubscriptionEntry>；条目按模式字节
+/// 相等去重，与 C# Equals(pattern.SequenceEqual) 同一判定，故键化等价）
+type PatternSubscriptions = GxPapayaMap<Box<[u8]>, PatternSubscriptionEntry>;
 
 /// 一条待分发负载：通道 / 负载字节对（C# TsavoriteLog Enqueue 的负载形状）
 type PendingEntry = (Box<[u8]>, Box<[u8]>);
@@ -36,9 +47,9 @@ type PendingEntry = (Box<[u8]>, Box<[u8]>);
 /// 发布订阅中枢
 pub struct SubscribeBroker {
   /// 通道订阅表（C# subscriptions）
-  subscriptions: RwLock<ChannelSubscriptions>,
+  subscriptions: ChannelSubscriptions,
   /// 模式订阅表（C# patternSubscriptions）
-  pattern_subscriptions: RwLock<Vec<PatternSubscriptionEntry>>,
+  pattern_subscriptions: PatternSubscriptions,
   /// 待分发队列（C# pub/sub 专日志 TsavoriteLog 的托管等价）
   pending: Mutex<VecDeque<PendingEntry>>,
   /// 上一次消费的日志地址（C# previousAddress；跳页检测）
@@ -57,8 +68,8 @@ impl SubscribeBroker {
   /// TruncateUntil(CommittedUntilAddress) 属存储介质面，托管队列天然从零开始。
   pub fn new(page_size_bytes: usize) -> Self {
     Self {
-      subscriptions: RwLock::new(GxHashMap::default()),
-      pattern_subscriptions: RwLock::new(Vec::new()),
+      subscriptions: new_papaya_map(),
+      pattern_subscriptions: new_papaya_map(),
       pending: Mutex::new(VecDeque::new()),
       previous_address: AtomicU64::new(0),
       page_size_bits: page_size_bytes.max(2).ilog2(),
@@ -69,18 +80,21 @@ impl SubscribeBroker {
   /// 移除某会话的全部订阅（会话释放时调用）
   ///
   /// libs/server/PubSub/SubscribeBroker.cs:RemoveSubscription
+  ///
+  /// C# 只摘会话、保留空集（查询面以 Count > 0 过滤兜底）；此处顺势清理
+  /// 空条目，观测语义不变（全部读取口本就过滤空集）。
   pub fn remove_subscription(&self, subscriber: u64) {
-    for set in self.subscriptions.write().values_mut() {
-      set.remove(&subscriber);
+    let subscriptions = self.subscriptions.pin();
+    for (_, set) in subscriptions.iter() {
+      set.pin().remove(&subscriber);
     }
-    self.subscriptions.write().retain(|_, set| !set.is_empty());
-    for entry in self.pattern_subscriptions.write().iter_mut() {
-      entry.subscriptions.remove(&subscriber);
+    subscriptions.retain(|_, set| !set.is_empty());
+
+    let patterns = self.pattern_subscriptions.pin();
+    for (_, entry) in patterns.iter() {
+      entry.subscriptions.pin().remove(&subscriber);
     }
-    self
-      .pattern_subscriptions
-      .write()
-      .retain(|entry| !entry.subscriptions.is_empty());
+    patterns.retain(|_, entry| !entry.subscriptions.is_empty());
   }
 
   /// 广播一条消息给通道与模式订阅者，返回通知数
@@ -89,19 +103,17 @@ impl SubscribeBroker {
   fn broadcast(&self, key: &[u8], value: &[u8]) -> usize {
     let mut num_subscribers = 0;
 
-    {
-      let subscriptions = self.subscriptions.read();
-      if let Some(sessions) = subscriptions.get(key) {
-        for session in sessions.values() {
-          session.publish(key, value);
-          num_subscribers += 1;
-        }
+    let subscriptions = self.subscriptions.pin();
+    if let Some(sessions) = subscriptions.get(key) {
+      for (_, session) in sessions.pin().iter() {
+        session.publish(key, value);
+        num_subscribers += 1;
       }
     }
 
-    for entry in self.pattern_subscriptions.read().iter() {
+    for (_, entry) in self.pattern_subscriptions.pin().iter() {
       if glob_match(&entry.pattern, key) {
-        for session in entry.subscriptions.values() {
+        for (_, session) in entry.subscriptions.pin().iter() {
           session.pattern_publish(&entry.pattern, key, value);
           num_subscribers += 1;
         }
@@ -123,7 +135,8 @@ impl SubscribeBroker {
       return 0;
     }
 
-    let previous_address = self.previous_address.load(Acquire);
+    // 地址水位仅作跳页告警判定（C# 单消费线程直读直写的托管对应）
+    let previous_address = self.previous_address.load(Relaxed);
     if previous_address > 0 && current_address > previous_address {
       let page_mask = (1usize << self.page_size_bits) as u64 - 1;
       let payload_len = payload.len() as u64;
@@ -145,13 +158,16 @@ impl SubscribeBroker {
   /// 消费并广播队列中全部待发消息，返回累计通知数
   ///
   /// C# 后台消费循环（StartAsync → ConsumeAllAsync → Consume）的同步收敛点：
-  /// 发布路径即时入队，宿主会话线程 / 定时任务经此完成分发。
+  /// 发布路径即时入队，宿主会话线程 / 定时任务经此完成分发。整队摘出后
+  /// 再广播，发布者在广播期间不被排队锁阻塞。
   pub fn consume_pending(&self) -> usize {
-    let mut notified = 0;
-    for (key, value) in self.pending.lock().drain(..) {
-      notified += self.broadcast(&key, &value);
+    if self.disposed.load(Acquire) {
+      return 0;
     }
-    notified
+    let pending = mem::take(&mut *self.pending.lock());
+    pending
+      .iter()
+      .fold(0, |n, (key, value)| n + self.broadcast(key, value))
   }
 
   /// 订阅通道（返回是否为新订阅）
@@ -161,9 +177,9 @@ impl SubscribeBroker {
     if self.disposed.load(Acquire) {
       return false;
     }
-    let mut subscriptions = self.subscriptions.write();
-    let sessions = subscriptions.entry(channel.into()).or_default();
-    sessions.insert(subscriber, sink).is_none()
+    let subscriptions = self.subscriptions.pin();
+    let sessions = subscriptions.get_or_insert_with(channel.into(), new_papaya_map);
+    sessions.pin().insert(subscriber, sink).is_none()
   }
 
   /// 订阅模式（返回是否为新订阅；同模式复用同一条目）
@@ -178,31 +194,25 @@ impl SubscribeBroker {
     if self.disposed.load(Acquire) {
       return false;
     }
-    let mut patterns = self.pattern_subscriptions.write();
-    let entry = match patterns
-      .iter_mut()
-      .find(|entry| entry.pattern.as_ref() == pattern)
-    {
-      Some(entry) => entry,
-      None => {
-        patterns.push(PatternSubscriptionEntry::new(pattern.into()));
-        patterns.last_mut().expect("刚推入的条目必可取回")
-      }
-    };
-    entry.subscriptions.insert(subscriber, sink).is_none()
+    let patterns = self.pattern_subscriptions.pin();
+    let entry = patterns.get_or_insert_with(pattern.into(), || {
+      PatternSubscriptionEntry::new(pattern.into())
+    });
+    entry.subscriptions.pin().insert(subscriber, sink).is_none()
   }
 
   /// 退订通道（返回是否确有退订）
   ///
   /// libs/server/PubSub/SubscribeBroker.cs:Unsubscribe
+  ///
+  /// C# 保留空集由查询面过滤；此处退订后顺势清理空条目，观测语义不变。
   pub fn unsubscribe(&self, channel: &[u8], subscriber: u64) -> bool {
-    let removed = self
-      .subscriptions
-      .write()
-      .get_mut(channel)
-      .is_some_and(|sessions| sessions.remove(&subscriber).is_some());
+    let subscriptions = self.subscriptions.pin();
+    let removed = subscriptions
+      .get(channel)
+      .is_some_and(|sessions| sessions.pin().remove(&subscriber).is_some());
     if removed {
-      self.subscriptions.write().retain(|_, set| !set.is_empty());
+      subscriptions.retain(|_, set| !set.is_empty());
     }
     removed
   }
@@ -211,16 +221,13 @@ impl SubscribeBroker {
   ///
   /// libs/server/PubSub/SubscribeBroker.cs:PatternUnsubscribe
   pub fn pattern_unsubscribe(&self, pattern: &[u8], subscriber: u64) -> bool {
-    let mut patterns = self.pattern_subscriptions.write();
-    let Some(entry) = patterns
-      .iter_mut()
-      .find(|entry| entry.pattern.as_ref() == pattern)
-    else {
+    let patterns = self.pattern_subscriptions.pin();
+    let Some(entry) = patterns.get(pattern) else {
       return false;
     };
-    let removed = entry.subscriptions.remove(&subscriber).is_some();
+    let removed = entry.subscriptions.pin().remove(&subscriber).is_some();
     if removed && entry.subscriptions.is_empty() {
-      patterns.retain(|entry| !entry.subscriptions.is_empty());
+      patterns.retain(|_, entry| !entry.subscriptions.is_empty());
     }
     removed
   }
@@ -233,7 +240,7 @@ impl SubscribeBroker {
   pub fn list_all_subscriptions(&self) -> Vec<Vec<u8>> {
     self
       .subscriptions
-      .read()
+      .pin()
       .iter()
       .filter(|(_, set)| !set.is_empty())
       .map(|(channel, _)| channel.to_vec())
@@ -246,10 +253,10 @@ impl SubscribeBroker {
   pub fn list_all_pattern_subscriptions(&self) -> Vec<Vec<u8>> {
     self
       .pattern_subscriptions
-      .read()
+      .pin()
       .iter()
-      .filter(|entry| !entry.subscriptions.is_empty())
-      .map(|entry| entry.pattern.to_vec())
+      .filter(|(_, entry)| !entry.subscriptions.is_empty())
+      .map(|(pattern, _)| pattern.to_vec())
       .collect()
   }
 
@@ -286,7 +293,7 @@ impl SubscribeBroker {
   pub fn get_channels_matching(&self, pattern: &[u8]) -> Vec<Vec<u8>> {
     self
       .subscriptions
-      .read()
+      .pin()
       .iter()
       .filter(|(channel, set)| !set.is_empty() && glob_match(pattern, channel))
       .map(|(channel, _)| channel.to_vec())
@@ -299,9 +306,9 @@ impl SubscribeBroker {
   pub fn num_pattern_subscriptions(&self) -> usize {
     self
       .pattern_subscriptions
-      .read()
+      .pin()
       .iter()
-      .filter(|entry| !entry.subscriptions.is_empty())
+      .filter(|(_, entry)| !entry.subscriptions.is_empty())
       .count()
   }
 
@@ -311,28 +318,25 @@ impl SubscribeBroker {
   pub fn num_subscriptions(&self, channel: &[u8]) -> usize {
     self
       .subscriptions
-      .read()
+      .pin()
       .get(channel)
-      .map(GxHashMap::len)
-      .unwrap_or(0)
+      .map_or(0, PatternSubscriberSet::len)
   }
 
   /// 释放中枢：停止接收并清空全部订阅与待发队列
   ///
   /// libs/server/PubSub/SubscribeBroker.cs:Dispose
   pub fn dispose(&self) {
-    self.disposed.store(true, Relaxed);
+    self.disposed.store(true, Release);
     self.pending.lock().clear();
-    self.subscriptions.write().clear();
-    self.pattern_subscriptions.write().clear();
+    self.subscriptions.pin().clear();
+    self.pattern_subscriptions.pin().clear();
   }
 
   /// 是否无任何订阅（C# `subscriptions == null && patternSubscriptions == null`
   /// 的空表等价判定；发布路径的提前返回条件）
   fn is_idle(&self) -> bool {
-    let no_channels = self.subscriptions.read().is_empty();
-    let no_patterns = self.pattern_subscriptions.read().is_empty();
-    no_channels && no_patterns
+    self.subscriptions.is_empty() && self.pattern_subscriptions.is_empty()
   }
 }
 
@@ -342,7 +346,7 @@ fn decode_payload(payload: &[u8]) -> Option<PendingEntry> {
   let read_len = |payload: &[u8], cursor: &mut usize| -> Option<usize> {
     let head = payload.get(*cursor..cursor.checked_add(4)?)?;
     *cursor += 4;
-    let len = i32::from_le_bytes(head.try_into().expect("切片长度已校验为 4"));
+    let len = i32::from_le_bytes(head.try_into().ok()?);
     usize::try_from(len).ok()
   };
 
@@ -479,6 +483,9 @@ mod tests {
     f.broker.dispose();
     assert!(!f.broker.subscribe(b"ch2", 2, f.mailbox.clone()));
     assert_eq!(f.broker.publish_now(b"ch", b"v"), 0);
+    // 释放后入队静默丢弃，消费亦不再分发
+    f.broker.publish(b"ch", b"v");
+    assert_eq!(f.broker.consume_pending(), 0);
     assert!(f.broker.get_channels().is_empty());
   }
 

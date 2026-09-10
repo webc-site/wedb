@@ -9,7 +9,10 @@
 //! 的 watch_key / validate_watch_version），两者方向一致——过估只会多中止，
 //! 不会漏检。
 
-use std::sync::atomic::{AtomicI64, Ordering::Acquire};
+use std::sync::atomic::{
+  AtomicI64,
+  Ordering::{Acquire, Release},
+};
 
 /// WATCH 版本表：2 的幂大小的原子计数数组
 pub struct WatchVersionMap {
@@ -48,9 +51,12 @@ impl WatchVersionMap {
   /// 推进键的版本（修改被监视键时调用）
   ///
   /// libs/server/Transaction/WatchVersionMap.cs:IncrementVersion
+  ///
+  /// Release 序：写方对键数据的修改先于版本号发布，WATCH 校验方的
+  /// Acquire 读与之配对（C# Interlocked.Increment 全栅栏的最小充分序）。
   #[inline]
   pub fn increment_version(&self, key_hash: u64) {
-    self.map[(key_hash & self.size_mask) as usize].fetch_add(1, Acquire);
+    self.map[(key_hash & self.size_mask) as usize].fetch_add(1, Release);
   }
 }
 
