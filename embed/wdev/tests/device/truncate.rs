@@ -14,7 +14,7 @@ use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
 use wdev::{Device, Error, SegmentedDevice};
-use wutil::AlignedBuf;
+use wbase::AlignedBuf;
 
 /// 对标 C# `StorageDeviceBase.TruncateUntilSegment`：截断后小于目标段的文件必须
 /// 从文件系统物理删除、get_file_size 返回 0、保留段数据完好；

@@ -11,7 +11,7 @@ pub enum Error {
 
   /// 内存/对齐错误（来自 wutil，Utilities 层）
   #[error(transparent)]
-  Mem(#[from] wutil::Error),
+  Mem(#[from] wbase::Error),
 
   /// 偏移量未按扇区对齐
   #[error("偏移量未对齐: 偏移量 {offset} 不是扇区大小 {align} 的整数倍")]
@@ -73,9 +73,9 @@ pub enum Error {
 /// wdev 结果类型
 pub type Result<T> = result::Result<T, Error>;
 
-impl From<wutil::SectorRangeError> for Error {
+impl From<wbase::SectorRangeError> for Error {
   #[inline]
-  fn from(err: wutil::SectorRangeError) -> Self {
-    Self::Mem(wutil::Error::from(err))
+  fn from(err: wbase::SectorRangeError) -> Self {
+    Self::Mem(wbase::Error::from(err))
   }
 }

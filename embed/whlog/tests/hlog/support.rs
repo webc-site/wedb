@@ -7,7 +7,7 @@ use std::{
 };
 
 use wdev::{BufferPool, Device, Result as DeviceResult, SegmentedDevice};
-use wutil::AlignedBuf;
+use wbase::AlignedBuf;
 
 /// 统计底层读 I/O 次数与读请求字节数的委托设备包装（仅测试用：以现有公开 Device trait 断言缓存命中）
 ///

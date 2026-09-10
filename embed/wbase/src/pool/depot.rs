@@ -6,7 +6,7 @@
 //! 3. 线程退出时遗留缓冲区的安全暂存与跨线程工作窃取（Work Stealing）。
 
 use parking_lot::Mutex;
-use wbase::align::CachePadded64;
+use crate::align::CachePadded64;
 
 use super::{CachedBuf, DEPOT_STRIPE_CAP, DEPOT_STRIPE_MASK, DEPOT_STRIPES, NUM_CLASSES};
 

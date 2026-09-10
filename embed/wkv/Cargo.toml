@@ -13,11 +13,8 @@ categories = ["database-implementations", "data-structures", "concurrency", "asy
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[dependencies]
-wutil = { version = "0.1.0", path = "../wutil" }
-
 [dependencies.wbase]
-features = ["addr", "align", "crc", "time"]
+features = ["addr", "align", "crc", "time", "error"]
 path = "../wbase"
 version = "0.1.3"
 

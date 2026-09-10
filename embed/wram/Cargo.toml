@@ -25,8 +25,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 libc = { workspace = true }
 log = { workspace = true }
-wbase = { workspace = true, features = ["align", "striped", "thread"] }
-wutil = { version = "0.1.0", path = "../wutil" }
+wbase = { workspace = true, features = ["align", "striped", "thread", "pool"] }
 
 [dev-dependencies]
 aok = { workspace = true }
