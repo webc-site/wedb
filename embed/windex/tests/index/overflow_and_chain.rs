@@ -282,3 +282,89 @@ fn test_overflow_pool_free_and_recycle() -> Void {
 
   OK
 }
+
+/// 验证纯查找句柄探针（对标 C# InternalDelete 的 FindTag 语义）只查不建：
+/// 键不存在时沿链探针绝不分配溢出桶；命中句柄可定点 try_cas/try_elide；
+/// min_valid_addr 截断死槽位清退口径与 find_or_create 完全一致（同一分类内核）
+#[test]
+fn test_find_tag_entry_never_allocates_and_supports_cas_elide() -> Void {
+  info!("验证 find_tag_entry 纯查找语义：未命中零分配 + 命中句柄 CAS/脱钩");
+
+  let index = HashIndex::new(1)?;
+  let tag_shift = windex::HashBucketEntry::HASH_TAG_SHIFT;
+
+  // 铺满一条三桶链（主桶 7 + 溢出桶 7×2 = 21 个互异 Tag），链上零空闲槽位
+  let full_chain_tags = 21usize;
+  for (i, t) in (1u64..).take(full_chain_tags).enumerate() {
+    let hash = (t << tag_shift) | (i as u64);
+    index.insert_by_hash(hash, ((i + 1) * 64) as u64)?;
+  }
+  assert_eq!(
+    index.overflow_bucket_count(),
+    2,
+    "21 个条目应恰好级联 2 个溢出桶且全链铺满"
+  );
+
+  // 1. 未命中探针（构造链上不存在的 Tag）：零分配
+  let miss_hash = (9_999u64 << tag_shift) | 1;
+  assert!(index.find_tag_entry_by_hash_with_min_addr(miss_hash, 0).is_none());
+  assert_eq!(
+    index.overflow_bucket_count(),
+    2,
+    "满载链上的删除未命中（FindTag 纯查找）绝不允许分配新溢出桶"
+  );
+
+  // 2. 真实键 API 未命中同样零分配（键 Tag 恰与铺链 Tag 重合时顺延候选键）
+  let miss_key = (0..100usize)
+    .map(|i| make_key("find_entry_miss", i))
+    .find(|k| {
+      let tag = windex::HashBucketEntry::tag_from_hash(windex::HashIndex::hash_key(k)) as usize;
+      !(1..=full_chain_tags).contains(&tag)
+    })
+    .expect("候选键搜索不可能耗尽");
+  assert!(index.find_tag_entry(&miss_key).is_none());
+  assert_eq!(index.overflow_bucket_count(), 2);
+
+  // 3. 命中句柄：定点 CAS 替换与原子脱钩（try_elide）
+  let hit_tag = 7u64;
+  let hit_hash = (hit_tag << tag_shift) | 7;
+  let old_addr = (7 * 64) as u64;
+  let mut hei = index
+    .find_tag_entry_by_hash_with_min_addr(hit_hash, 0)
+    .expect("铺链条目必须命中");
+  assert_eq!(hei.address(), old_addr);
+  let new_addr = 987_654_321u64;
+  assert!(hei.try_cas(new_addr), "命中句柄定点 CAS 必须成功");
+  let mut hei = index
+    .find_tag_entry_by_hash_with_min_addr(hit_hash, 0)
+    .expect("CAS 后必须命中新地址");
+  assert_eq!(hei.address(), new_addr);
+  assert!(hei.try_elide(), "命中句柄原子脱钩必须成功");
+  assert!(index.find_tag_entry_by_hash_with_min_addr(hit_hash, 0).is_none());
+
+  // 4. min_valid_addr 清退：同 Tag 多候选（陈旧截断 + 有效新版）时必须清退陈旧槽位
+  //    并继续推进命中有效新版——与 find_or_create_tag_with_min_addr 口径一致
+  let multi_tag = 30u64;
+  let multi_hash = (multi_tag << tag_shift) | 30;
+  index.insert_by_hash(multi_hash, 50)?; // 陈旧版本（低于截断线 100）
+  index.insert_by_hash(multi_hash, 200)?; // 有效版本（合法建槽扩链）
+  let multi_filled = index.overflow_bucket_count();
+  let hei = index
+    .find_tag_entry_by_hash_with_min_addr(multi_hash, 100)
+    .expect("有效新版本必须命中");
+  assert_eq!(hei.address(), 200, "截断陈旧候选必须被清退并推进至有效版本");
+  // 陈旧槽位已被原位 CAS 置零回收：候选地址列表只剩有效新版本
+  let cands = index.lookup_candidates_by_hash(multi_hash);
+  assert!(
+    !cands.contains(50),
+    "陈旧候选槽位必须已被 min_addr 探针原位清退回收"
+  );
+  assert!(cands.contains(200), "有效新版本保持可达");
+  assert_eq!(
+    index.overflow_bucket_count(),
+    multi_filled,
+    "探针全程零新增溢出桶（建槽扩链仅来自显式 insert）"
+  );
+
+  OK
+}
