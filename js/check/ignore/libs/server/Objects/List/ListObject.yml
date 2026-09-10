@@ -1,1 +1,1 @@
-Nodes: C# LinkedList 内部节点暴露属性，Rust ListObject 内部封装双向链表/VecDeque
+Scan: C# 侧直接抛 NotImplementedException（提示列表扫描用 LRANGE），Rust 侧不设列表 Scan 虚方法，1:1 保留该占位语义
