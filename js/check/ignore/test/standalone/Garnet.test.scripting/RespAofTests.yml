@@ -1,35 +1,33 @@
-fn:
-  - Setup
-  - TearDown
-  - ExpectedEtagTest
-  - RegisterCustomCommand
-  - ValidateServerData
-test:
-  - AofUpsertStoreRecoverTestAsync
-  - AofUpsertStoreAutoCommitRecoverTestAsync
-  - AofUpsertStoreCommitTaskRecoverTestAsync
-  - AofUpsertStoreAutoCommitCommitWaitRecoverTest
-  - AofTransactionStoreAutoCommitCommitWaitRecoverTest
-  - AofUpsertStoreCkptRecoverTestAsync
-  - AofRMWStoreRecoverTestAsync
-  - AofDeleteStoreRecoverTestAsync
-  - AofExpiryRMWStoreRecoverTestAsync
-  - AofExpiryUpsertStoreRecoverTestAsync
-  - AofRMWObjectStoreRecoverTestAsync
-  - AofDeleteObjectStoreRecoverTestAsync
-  - AofExpiryRMWObjectStoreRecoverTestAsync
-  - AofRMWObjectStoreCopyUpdateRecoverTestAsync
-  - AofUpsertObjectStoreRecoverTestAsync
-  - AofUpsertCustomObjectRecoverTestAsync
-  - AofUpsertCustomScriptRecoverTestAsync
-  - AofMultiRMWStoreCkptRecoverTestAsync
-  - AofListObjectStoreRecoverTestAsync
-  - AofObjectStoreRMWDeleteRecoverListTestAsync
-  - AofObjectStoreRMWDeleteRecoverSortedSetTestAsync
-  - AofObjectStoreRMWDeleteRecoverSortedSetEmptyTestAsync
-  - AofObjectStoreRMWDeleteRecoverHashTestAsync
-  - AofObjectStoreRMWDeleteRecoverSetTestAsync
-  - AofObjectStoreRMWPartialDeleteRecoverHashTestAsync
-  - AofCustomTxnRecoverTestAsync
-  - AofTransactionFinalizeStepTestAsync
-  - OversizedAofEntryDoesNotHangServer
+Setup: 无需实现
+TearDown: 无需实现
+ExpectedEtagTest: 无需实现
+RegisterCustomCommand: 无需实现
+ValidateServerData: 无需实现
+AofUpsertStoreRecoverTestAsync: 测试函数无需实现
+AofUpsertStoreAutoCommitRecoverTestAsync: 测试函数无需实现
+AofUpsertStoreCommitTaskRecoverTestAsync: 测试函数无需实现
+AofUpsertStoreAutoCommitCommitWaitRecoverTest: 测试函数无需实现
+AofTransactionStoreAutoCommitCommitWaitRecoverTest: 测试函数无需实现
+AofUpsertStoreCkptRecoverTestAsync: 测试函数无需实现
+AofRMWStoreRecoverTestAsync: 测试函数无需实现
+AofDeleteStoreRecoverTestAsync: 测试函数无需实现
+AofExpiryRMWStoreRecoverTestAsync: 测试函数无需实现
+AofExpiryUpsertStoreRecoverTestAsync: 测试函数无需实现
+AofRMWObjectStoreRecoverTestAsync: 测试函数无需实现
+AofDeleteObjectStoreRecoverTestAsync: 测试函数无需实现
+AofExpiryRMWObjectStoreRecoverTestAsync: 测试函数无需实现
+AofRMWObjectStoreCopyUpdateRecoverTestAsync: 测试函数无需实现
+AofUpsertObjectStoreRecoverTestAsync: 测试函数无需实现
+AofUpsertCustomObjectRecoverTestAsync: 测试函数无需实现
+AofUpsertCustomScriptRecoverTestAsync: 测试函数无需实现
+AofMultiRMWStoreCkptRecoverTestAsync: 测试函数无需实现
+AofListObjectStoreRecoverTestAsync: 测试函数无需实现
+AofObjectStoreRMWDeleteRecoverListTestAsync: 测试函数无需实现
+AofObjectStoreRMWDeleteRecoverSortedSetTestAsync: 测试函数无需实现
+AofObjectStoreRMWDeleteRecoverSortedSetEmptyTestAsync: 测试函数无需实现
+AofObjectStoreRMWDeleteRecoverHashTestAsync: 测试函数无需实现
+AofObjectStoreRMWDeleteRecoverSetTestAsync: 测试函数无需实现
+AofObjectStoreRMWPartialDeleteRecoverHashTestAsync: 测试函数无需实现
+AofCustomTxnRecoverTestAsync: 测试函数无需实现
+AofTransactionFinalizeStepTestAsync: 测试函数无需实现
+OversizedAofEntryDoesNotHangServer: 测试函数无需实现

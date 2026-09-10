@@ -1,34 +1,33 @@
-fn:
-  - HistogramBase
-  - RecordValue
-  - RecordSingleValue
-  - RecordValueWithCount
-  - AddToCountAtIndex
-  - RecordValueWithExpectedInterval
-  - RecordValueWithCountAndExpectedInterval
-  - ClearCounts
-  - SizeOfEquivalentValueRange
-  - LowestEquivalentValue
-  - MedianEquivalentValue
-  - NextNonEquivalentValue
-  - GetValueAtPercentile
-  - GetCountAtValue
-  - RecordedValues
-  - AllValues
-  - GetEstimatedFootprintInBytes
-  - GetCountAt
-  - ValueFromIndex
-  - EstablishInternalTackingValues
-  - ResetMaxValue
-  - ResetMinNonZeroValue
-  - UpdatedMaxValue
-  - UpdateMinNonZeroValue
-  - GetCountAtIndex
-  - SetCountAtIndex
-  - IncrementCountAtIndex
-  - CopyCountsInto
-  - GetBucketsNeededToCoverValue
-  - GetLengthForNumberOfBuckets
-  - CountsArrayIndex
-  - GetBucketIndex
-  - GetSubBucketIndex
+HistogramBase: 无需实现
+RecordValue: 无需实现
+RecordSingleValue: 无需实现
+RecordValueWithCount: 无需实现
+AddToCountAtIndex: 无需实现
+RecordValueWithExpectedInterval: 无需实现
+RecordValueWithCountAndExpectedInterval: 无需实现
+ClearCounts: 无需实现
+SizeOfEquivalentValueRange: 无需实现
+LowestEquivalentValue: 无需实现
+MedianEquivalentValue: 无需实现
+NextNonEquivalentValue: 无需实现
+GetValueAtPercentile: 无需实现
+GetCountAtValue: 无需实现
+RecordedValues: 无需实现
+AllValues: 无需实现
+GetEstimatedFootprintInBytes: 无需实现
+GetCountAt: 无需实现
+ValueFromIndex: 无需实现
+EstablishInternalTackingValues: 无需实现
+ResetMaxValue: 无需实现
+ResetMinNonZeroValue: 无需实现
+UpdatedMaxValue: 无需实现
+UpdateMinNonZeroValue: 无需实现
+GetCountAtIndex: 无需实现
+SetCountAtIndex: 无需实现
+IncrementCountAtIndex: 无需实现
+CopyCountsInto: 无需实现
+GetBucketsNeededToCoverValue: 无需实现
+GetLengthForNumberOfBuckets: 无需实现
+CountsArrayIndex: 无需实现
+GetBucketIndex: 无需实现
+GetSubBucketIndex: 无需实现

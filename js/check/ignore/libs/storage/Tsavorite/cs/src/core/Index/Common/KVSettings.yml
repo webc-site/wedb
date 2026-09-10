@@ -1,8 +1,7 @@
-fn:
-  - KVSettings
-  - ToString
-  - GetIndexSizeCacheLines
-  - SetIndexSizeFromCacheLines
-  - GetLogSettings
-  - GetReadCacheSettings
-  - GetCheckpointSettings
+KVSettings: 无需实现
+ToString: 无需实现
+GetIndexSizeCacheLines: 无需实现
+SetIndexSizeFromCacheLines: 无需实现
+GetLogSettings: 无需实现
+GetReadCacheSettings: 无需实现
+GetCheckpointSettings: 无需实现

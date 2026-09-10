@@ -1,6 +1,4 @@
-fn:
-  - GetRandomLength
-  - DeleteDirectory
-test:
-  - VLVectorSingleKeyTest
-  - VLVectorMultiKeyTest
+GetRandomLength: 无需实现
+DeleteDirectory: 无需实现
+VLVectorSingleKeyTest: 测试函数无需实现
+VLVectorMultiKeyTest: 测试函数无需实现

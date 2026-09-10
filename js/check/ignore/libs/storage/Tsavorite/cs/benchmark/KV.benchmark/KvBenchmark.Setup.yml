@@ -1,8 +1,7 @@
-fn:
-  - ResolveDataPath
-  - CreateRunDir
-  - CleanStaleRunDirs
-  - IsPidAlive
-  - CreateDevice
-  - RumdHasDeletes
-  - TryReadOwnerPid
+ResolveDataPath: 无需实现
+CreateRunDir: 无需实现
+CleanStaleRunDirs: 无需实现
+IsPidAlive: 无需实现
+CreateDevice: 无需实现
+RumdHasDeletes: 无需实现
+TryReadOwnerPid: 无需实现

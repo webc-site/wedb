@@ -1,5 +1,4 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - MultiExec
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+MultiExec: 无需实现

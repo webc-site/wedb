@@ -1,10 +1,9 @@
-fn:
-  - AddOrUpdate
-  - GetOrAdd
-  - ContainsKey
-  - GetEnumerator
-  - ToArray
-  - TryRemove
-  - TryRemoveConditional
-  - TryUpdate
-  - GetLock
+AddOrUpdate: 无需实现
+GetOrAdd: 无需实现
+ContainsKey: 无需实现
+GetEnumerator: 无需实现
+ToArray: 无需实现
+TryRemove: 无需实现
+TryRemoveConditional: 无需实现
+TryUpdate: 无需实现
+GetLock: 无需实现

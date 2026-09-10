@@ -1,16 +1,15 @@
-fn:
-  - TsavoriteLogAllocatorImpl
-  - FreeAllAllocatedPages
-  - FreePage
-  - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
-  - ReturnPage
-  - FreeNativeLogPage
-  - WriteInlinePageAsync
-  - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - VerifyRecordFromDiskCallback
-  - ScanCursor
-  - MemoryPageScan
-  - AsyncReadPageFromDeviceToFrame
+TsavoriteLogAllocatorImpl: 无需实现
+FreeAllAllocatedPages: 无需实现
+FreePage: 无需实现
+AllocatePage: 无需实现
+IncrementAllocatedPageCount: 无需实现
+AllocatePinnedPageArray: 无需实现
+ReturnPage: 无需实现
+FreeNativeLogPage: 无需实现
+WriteInlinePageAsync: 无需实现
+WriteAsyncToDeviceForSnapshot: 无需实现
+VerifyCompatibleSectorSize: 无需实现
+VerifyRecordFromDiskCallback: 无需实现
+ScanCursor: 无需实现
+MemoryPageScan: 无需实现
+AsyncReadPageFromDeviceToFrame: 无需实现

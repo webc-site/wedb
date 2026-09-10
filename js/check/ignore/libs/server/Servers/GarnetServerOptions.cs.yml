@@ -1,12 +1,1 @@
-# 理由：以下成员为纯 .NET/Tsavorite 框架面 ——
-# GetSettings/GetAofSettings 组装 TsavoriteKVSettings/TsavoriteLogSettings 对象图；
-# GetInitializedDeviceFactory/GetAofDevice 返回 Tsavorite INamedDeviceFactory/IDevice 实例；
-# Initialize 挂接 ILoggerFactory 与平台 IO 策略。
-# Rust 侧由 wkv/wdev/waof 存储域以等价设置结构与设备路径承接，
-# wserver 内已以域内 StoreSettings/AofLogSettings/路径装配承载同名语义。
-fn:
-  - GetSettings
-  - GetAofSettings
-  - GetInitializedDeviceFactory
-  - GetAofDevice
-  - Initialize
+Initialize: 无需实现

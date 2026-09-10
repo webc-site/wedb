@@ -1,10 +1,8 @@
-fn:
-  - OneTimeSetUp
-  - Setup
-  - TearDown
-test:
-  - ClusterReplicationShardedLogTxnTest
-  - ClusterReplicationShardedLogRecoverAsync
-  - ClusterReplicationSimpleMultiReplay
-  - ClusterParallelReplicationUpgrade
-  - ClusterAofUpgradeSLtoSLMRRecoverAsync
+OneTimeSetUp: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ClusterReplicationShardedLogTxnTest: 测试函数无需实现
+ClusterReplicationShardedLogRecoverAsync: 测试函数无需实现
+ClusterReplicationSimpleMultiReplay: 测试函数无需实现
+ClusterParallelReplicationUpgrade: 测试函数无需实现
+ClusterAofUpgradeSLtoSLMRRecoverAsync: 测试函数无需实现

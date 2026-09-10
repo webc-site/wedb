@@ -1,8 +1,7 @@
-fn:
-  - InternalRefresh
-  - InternalCompletePending
-  - InternalCompletePendingRequests
-  - InRestPhase
-  - InternalCompletePendingRequest
-  - OnDisposeDiskRecord
-  - InternalCompletePendingRequestFromContext
+InternalRefresh: 无需实现
+InternalCompletePending: 无需实现
+InternalCompletePendingRequests: 无需实现
+InRestPhase: 无需实现
+InternalCompletePendingRequest: 无需实现
+OnDisposeDiskRecord: 无需实现
+InternalCompletePendingRequestFromContext: 无需实现

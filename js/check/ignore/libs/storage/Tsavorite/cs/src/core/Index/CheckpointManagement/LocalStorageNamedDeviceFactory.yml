@@ -1,3 +1,2 @@
-fn:
-  - LocalStorageNamedDeviceFactory
-  - ListContents
+LocalStorageNamedDeviceFactory: 无需实现
+ListContents: 无需实现

@@ -1,2 +1,1 @@
-fn:
-  - OnDispose
+OnDispose: 无需实现

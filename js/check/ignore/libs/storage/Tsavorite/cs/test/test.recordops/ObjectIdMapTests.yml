@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - LoadMap
-  - runLoadThread
-  - runLoadFreeListThread
-  - runAllocateFromFreeListThread
-  - runThread
-test:
-  - ObjectIdMapTestStressInitialAllocs
-  - ObjectIdMapTestStressAllocAndFree
-  - ObjectIdMapTestStressAddPageOOM
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+LoadMap: 无需实现
+runLoadThread: 无需实现
+runLoadFreeListThread: 无需实现
+runAllocateFromFreeListThread: 无需实现
+runThread: 无需实现
+ObjectIdMapTestStressInitialAllocs: 测试函数无需实现
+ObjectIdMapTestStressAllocAndFree: 测试函数无需实现
+ObjectIdMapTestStressAddPageOOM: 测试函数无需实现

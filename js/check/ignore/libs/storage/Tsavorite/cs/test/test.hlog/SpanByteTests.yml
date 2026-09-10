@@ -1,8 +1,6 @@
-fn:
-  - DeleteDirectory
-  - MultiRead
-  - ReadKey
-test:
-  - SpanByteTest1
-  - MultiRead_SpanByte_Test
-  - ShouldSkipEmptySpaceAtEndOfPage
+DeleteDirectory: 无需实现
+MultiRead: 无需实现
+ReadKey: 无需实现
+SpanByteTest1: 测试函数无需实现
+MultiRead_SpanByte_Test: 测试函数无需实现
+ShouldSkipEmptySpaceAtEndOfPage: 测试函数无需实现

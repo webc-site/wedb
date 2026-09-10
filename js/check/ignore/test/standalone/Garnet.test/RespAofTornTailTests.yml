@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-  - SimulateTornTailWrite
-test:
-  - TornTailCommitRecordRecovery
+Setup: 无需实现
+TearDown: 无需实现
+SimulateTornTailWrite: 无需实现
+TornTailCommitRecordRecovery: 测试函数无需实现

@@ -1,8 +1,7 @@
-fn:
-  - FixedLenYcsbBenchmark
-  - RunYcsbUnsafeContext
-  - RunYcsbSafeContext
-  - Run
-  - SetupYcsbUnsafeContext
-  - SetupYcsbSafeContext
-  - CreateKeyVectors
+FixedLenYcsbBenchmark: 无需实现
+RunYcsbUnsafeContext: 无需实现
+RunYcsbSafeContext: 无需实现
+Run: 无需实现
+SetupYcsbUnsafeContext: 无需实现
+SetupYcsbSafeContext: 无需实现
+CreateKeyVectors: 无需实现

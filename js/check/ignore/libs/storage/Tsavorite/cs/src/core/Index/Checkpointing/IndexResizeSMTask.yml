@@ -1,4 +1,3 @@
-fn:
-  - IndexResizeSMTask
-  - GlobalBeforeEnteringState
-  - GlobalAfterEnteringState
+IndexResizeSMTask: 无需实现
+GlobalBeforeEnteringState: 无需实现
+GlobalAfterEnteringState: 无需实现

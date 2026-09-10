@@ -1,5 +1,4 @@
-fn:
-  - ErrorList
-  - GetEarliestError
-  - ClearError
-  - TruncateUntil
+ErrorList: 无需实现
+GetEarliestError: 无需实现
+ClearError: 无需实现
+TruncateUntil: 无需实现

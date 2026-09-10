@@ -1,5 +1,4 @@
-fn:
-  - EmbeddedRespServer
-  - GetRespSession
-  - GetRespSessions
-  - GetNetworkHandler
+EmbeddedRespServer: 无需实现
+GetRespSession: 无需实现
+GetRespSessions: 无需实现
+GetNetworkHandler: 无需实现

@@ -1,15 +1,13 @@
-fn:
-  - StartServer
-  - Setup
-  - TearDown
-  - ParseCommandStatField
-  - ParseCommandStatFieldString
-test:
-  - CommandStatsDisabledByDefaultTest
-  - CommandStatsCallsTrackingTest
-  - CommandStatsFailedCallsTest
-  - CommandStatsUsecFieldsZeroTest
-  - CommandStatsMultipleCommandsTest
-  - CommandStatsSuccessRateTest
-  - CommandStatsInfoServerShowsMonitorStatus
-  - CommandStatsFormatMatchesRedisConvention
+StartServer: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ParseCommandStatField: 无需实现
+ParseCommandStatFieldString: 无需实现
+CommandStatsDisabledByDefaultTest: 测试函数无需实现
+CommandStatsCallsTrackingTest: 测试函数无需实现
+CommandStatsFailedCallsTest: 测试函数无需实现
+CommandStatsUsecFieldsZeroTest: 测试函数无需实现
+CommandStatsMultipleCommandsTest: 测试函数无需实现
+CommandStatsSuccessRateTest: 测试函数无需实现
+CommandStatsInfoServerShowsMonitorStatus: 测试函数无需实现
+CommandStatsFormatMatchesRedisConvention: 测试函数无需实现

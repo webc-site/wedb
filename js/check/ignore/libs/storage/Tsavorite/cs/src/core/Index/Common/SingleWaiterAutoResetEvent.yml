@@ -1,7 +1,6 @@
-fn:
-  - Signal
-  - ResetStatus
-  - ThrowConcurrentWaitersNotSupported
-  - GetStatus
-  - OnCompleted
-  - GetResult
+Signal: 无需实现
+ResetStatus: 无需实现
+ThrowConcurrentWaitersNotSupported: 无需实现
+GetStatus: 无需实现
+OnCompleted: 无需实现
+GetResult: 无需实现

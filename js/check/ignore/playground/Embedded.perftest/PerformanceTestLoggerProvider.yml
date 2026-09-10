@@ -1,7 +1,6 @@
-fn:
-  - PerformanceTestLoggerProvider
-  - CreateLogger
-  - PerformanceTestLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr
+PerformanceTestLoggerProvider: 无需实现
+CreateLogger: 无需实现
+PerformanceTestLogger: 无需实现
+BeginScope: 无需实现
+IsEnabled: 无需实现
+GetLevelStr: 无需实现

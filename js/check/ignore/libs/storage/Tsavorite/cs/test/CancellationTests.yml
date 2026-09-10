@@ -1,22 +1,20 @@
-fn:
-  - NeedInitialUpdate
-  - NeedCopyUpdate
-  - CopyUpdater
-  - InitialUpdater
-  - InitialWriter
-  - InPlaceWriter
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - Populate
-  - do_it
-test:
-  - InitialUpdaterTest
-  - CopyUpdaterTest
-  - InPlaceUpdaterTest
-  - InitialWriterTest
-  - InPlaceWriterTest
+NeedInitialUpdate: 无需实现
+NeedCopyUpdate: 无需实现
+CopyUpdater: 无需实现
+InitialUpdater: 无需实现
+InitialWriter: 无需实现
+InPlaceWriter: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+Populate: 无需实现
+do_it: 无需实现
+InitialUpdaterTest: 测试函数无需实现
+CopyUpdaterTest: 测试函数无需实现
+InPlaceUpdaterTest: 测试函数无需实现
+InitialWriterTest: 测试函数无需实现
+InPlaceWriterTest: 测试函数无需实现

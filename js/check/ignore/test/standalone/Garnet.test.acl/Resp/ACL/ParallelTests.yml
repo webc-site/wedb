@@ -1,7 +1,5 @@
-fn:
-  - Setup
-test:
-  - ParallelAuthTest
-  - ParallelPasswordHashTest
-  - ParallelAclSetUserTest
-  - ParallelAclSetUserAvoidsMapContentionTest
+Setup: 无需实现
+ParallelAuthTest: 测试函数无需实现
+ParallelPasswordHashTest: 测试函数无需实现
+ParallelAclSetUserTest: 测试函数无需实现
+ParallelAclSetUserAvoidsMapContentionTest: 测试函数无需实现

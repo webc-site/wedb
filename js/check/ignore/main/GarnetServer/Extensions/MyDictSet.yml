@@ -1,3 +1,2 @@
-fn:
-  - NeedInitialUpdate
-  - Updater
+NeedInitialUpdate: 无需实现
+Updater: 无需实现

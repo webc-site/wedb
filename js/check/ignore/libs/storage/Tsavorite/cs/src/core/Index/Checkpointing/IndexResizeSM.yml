@@ -1,3 +1,2 @@
-fn:
-  - IndexResizeSM
-  - NextState
+IndexResizeSM: 无需实现
+NextState: 无需实现

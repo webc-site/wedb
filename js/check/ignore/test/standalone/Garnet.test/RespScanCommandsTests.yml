@@ -1,27 +1,25 @@
-fn:
-  - Setup
-  - TearDown
-  - ScanOptionKeywordAsLastTokenReturnsSyntaxError
-  - ScanWithCompleteOptionsReturnsCursorAndItems
-test:
-  - SeDbsizeTest
-  - SeKeysTest
-  - SeKeysCursorTest
-  - SeKeysNoDuplicatesUnderRcu
-  - CanDoMemoryUsage
-  - CanGetKeyType
-  - CanUsePatternsInKeysTest
-  - SeKeysPatternTest
-  - SeKeysPatternMatchingTest
-  - SeKeysPatternMatchingTestVerbatim
-  - CanUseScanWithEmptyStore
-  - CanUseScanWithMatch
-  - CanUseScanAllKeys
-  - CanUseScanKeysWithCount
-  - CanUseScanKeysWithMatchAndCount
-  - CanUseScanKeysCountAndStringType
-  - CanUseScanKeysCountAndTypeWithObjects
-  - CanUseScanKeysAndObjects
-  - CanUseScanKeysTypeAndMatch
-  - CustomObjectScanCommandTest
-  - CanUsePatternsInKeysTestLC
+Setup: 无需实现
+TearDown: 无需实现
+ScanOptionKeywordAsLastTokenReturnsSyntaxError: 无需实现
+ScanWithCompleteOptionsReturnsCursorAndItems: 无需实现
+SeDbsizeTest: 测试函数无需实现
+SeKeysTest: 测试函数无需实现
+SeKeysCursorTest: 测试函数无需实现
+SeKeysNoDuplicatesUnderRcu: 测试函数无需实现
+CanDoMemoryUsage: 测试函数无需实现
+CanGetKeyType: 测试函数无需实现
+CanUsePatternsInKeysTest: 测试函数无需实现
+SeKeysPatternTest: 测试函数无需实现
+SeKeysPatternMatchingTest: 测试函数无需实现
+SeKeysPatternMatchingTestVerbatim: 测试函数无需实现
+CanUseScanWithEmptyStore: 测试函数无需实现
+CanUseScanWithMatch: 测试函数无需实现
+CanUseScanAllKeys: 测试函数无需实现
+CanUseScanKeysWithCount: 测试函数无需实现
+CanUseScanKeysWithMatchAndCount: 测试函数无需实现
+CanUseScanKeysCountAndStringType: 测试函数无需实现
+CanUseScanKeysCountAndTypeWithObjects: 测试函数无需实现
+CanUseScanKeysAndObjects: 测试函数无需实现
+CanUseScanKeysTypeAndMatch: 测试函数无需实现
+CustomObjectScanCommandTest: 测试函数无需实现
+CanUsePatternsInKeysTestLC: 测试函数无需实现

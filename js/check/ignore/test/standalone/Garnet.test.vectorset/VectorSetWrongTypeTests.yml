@@ -1,192 +1,190 @@
-fn:
-  - Setup
-  - TearDown
-  - GetVectorSetCommands
-  - GetNonVectorSetCommands
-  - GetOverwritingCommands
-  - RunCommandAsync
-  - RunCommandByElement
-  - RunCommandByVector
-  - TestVectorSetCommandAsync
-  - RunCommandSingleAsync
-  - RunCommandMultiAsync
-  - RunAndWithVectorSet
-  - RunOrWithVectorSet
-  - RunXorWithVectorSet
-  - RunNotWithVectorSet
-  - RunVectorSetSource
-  - RunVectorSetDest
-  - RunCommandVectorSetSource
-  - RunCommandVectorSetDest
-  - RunCommandFirstVectorSet
-  - RunCommandSecondVectorSet
-  - RunBefore
-  - RunAfter
-  - RunByMember
-  - RunByCoordinate
-  - TestNonVectorSetCommandAsync
-  - CreateKeyWithTypeAsync
-  - CreateGarnetServer
-test:
-  - AllVectorSetCommandsCovered
-  - AllOtherCommandsCovered
-  - VADDAsync
-  - VREMAsync
-  - VCARDAsync
-  - VDIMAsync
-  - VEMBAsync
-  - VGETATTRAsync
-  - VINFOAsync
-  - VISMEMBERAsync
-  - VLINKSAsync
-  - VRANDMEMBERAsync
-  - VSETATTRAsync
-  - VSIMAsync
-  - GETAsync
-  - APPENDAsync
-  - BITCOUNTAsync
-  - BITFIELDAsync
-  - BITFIELD_ROAsync
-  - BITOPAsync
-  - BITPOSAsync
-  - BLMOVEAsync
-  - BLPOPAsync
-  - BRPOPAsync
-  - BRPOPLPUSHAsync
-  - BZPOPMAXAsync
-  - BZPOPMINAsync
-  - DECRAsync
-  - DECRBYAsync
-  - GETBITAsync
-  - GETDELAsync
-  - GETEXAsync
-  - GETRANGEAsync
-  - GETSETAsync
-  - INCRAsync
-  - INCRBYAsync
-  - INCRBYFLOATAsync
-  - LCSAsync
-  - MGETAsync
-  - SETBITAsync
-  - SETRANGEAsync
-  - STRLENAsync
-  - SUBSTRAsync
-  - HDELAsync
-  - HEXISTSAsync
-  - HEXPIREAsync
-  - HEXPIREATAsync
-  - HEXPIRETIMEAsync
-  - HGETAsync
-  - HGETALLAsync
-  - HINCRBYAsync
-  - HINCRBYFLOATAsync
-  - HKEYSAsync
-  - HLENAsync
-  - HMGETAsync
-  - HMSETAsync
-  - HPERSISTAsync
-  - HPEXPIREAsync
-  - HPEXPIREATAsync
-  - HPEXPIRETIMEAsync
-  - HPTTLAsync
-  - HRANDFIELDAsync
-  - HSCANAsync
-  - HSETAsync
-  - HSETNXAsync
-  - HSTRLENAsync
-  - HTTLAsync
-  - HVALSAsync
-  - LINDEXAsync
-  - LINSERTAsync
-  - LLENAsync
-  - LMOVEAsync
-  - LPOPAsync
-  - LPOSAsync
-  - LPUSHAsync
-  - LPUSHXAsync
-  - LRANGEAsync
-  - LREMAsync
-  - LSETAsync
-  - LTRIMAsync
-  - RPOPAsync
-  - RPOPLPUSHAsync
-  - RPUSHAsync
-  - RPUSHXAsync
-  - SADDAsync
-  - SCARDAsync
-  - SDIFFAsync
-  - SDIFFSTOREAsync
-  - SINTERAsync
-  - SINTERSTOREAsync
-  - SISMEMBERAsync
-  - SMEMBERSAsync
-  - SMISMEMBERAsync
-  - SMOVEAsync
-  - SPOPAsync
-  - SRANDMEMBERAsync
-  - SREMAsync
-  - SSCANAsync
-  - SUNIONAsync
-  - SUNIONSTOREAsync
-  - ZADDAsync
-  - ZCARDAsync
-  - ZCOUNTAsync
-  - ZDIFFSTOREAsync
-  - ZINCRBYAsync
-  - ZINTERSTOREAsync
-  - ZLEXCOUNTAsync
-  - ZMSCOREAsync
-  - ZPOPMAXAsync
-  - ZPOPMINAsync
-  - ZRANDMEMBERAsync
-  - ZRANGEAsync
-  - ZRANGEBYLEXAsync
-  - ZRANGEBYSCOREAsync
-  - ZRANGESTOREAsync
-  - ZRANKAsync
-  - ZREMAsync
-  - ZREMRANGEBYLEXAsync
-  - ZREMRANGEBYRANKAsync
-  - ZREMRANGEBYSCOREAsync
-  - ZREVRANGEAsync
-  - ZREVRANGEBYLEXAsync
-  - ZREVRANGEBYSCOREAsync
-  - ZREVRANKAsync
-  - ZSCANAsync
-  - ZSCOREAsync
-  - ZUNIONSTOREAsync
-  - GEOADDAsync
-  - GEODISTAsync
-  - GEOHASHAsync
-  - GEOPOSAsync
-  - GEORADIUSAsync
-  - GEORADIUS_ROAsync
-  - GEORADIUSBYMEMBERAsync
-  - GEORADIUSBYMEMBER_ROAsync
-  - GEOSEARCHAsync
-  - GEOSEARCHSTOREAsync
-  - PFADDAsync
-  - PFCOUNTAsync
-  - PFMERGEAsync
-  - COSCANAsync
-  - GETIFNOTMATCHAsync
-  - GETWITHETAGAsync
-  - HCOLLECTAsync
-  - RICONFIGAsync
-  - RICREATEAsync
-  - RIDELAsync
-  - RIGETAsync
-  - RIMETRICSAsync
-  - RIRANGEAsync
-  - RISCANAsync
-  - RISETAsync
-  - ZCOLLECTAsync
-  - ZEXPIREAsync
-  - ZEXPIREATAsync
-  - ZEXPIRETIMEAsync
-  - ZPERSISTAsync
-  - ZPEXPIREAsync
-  - ZPEXPIREATAsync
-  - ZPEXPIRETIMEAsync
-  - ZPTTLAsync
-  - ZTTLAsync
+Setup: 无需实现
+TearDown: 无需实现
+GetVectorSetCommands: 无需实现
+GetNonVectorSetCommands: 无需实现
+GetOverwritingCommands: 无需实现
+RunCommandAsync: 无需实现
+RunCommandByElement: 无需实现
+RunCommandByVector: 无需实现
+TestVectorSetCommandAsync: 无需实现
+RunCommandSingleAsync: 无需实现
+RunCommandMultiAsync: 无需实现
+RunAndWithVectorSet: 无需实现
+RunOrWithVectorSet: 无需实现
+RunXorWithVectorSet: 无需实现
+RunNotWithVectorSet: 无需实现
+RunVectorSetSource: 无需实现
+RunVectorSetDest: 无需实现
+RunCommandVectorSetSource: 无需实现
+RunCommandVectorSetDest: 无需实现
+RunCommandFirstVectorSet: 无需实现
+RunCommandSecondVectorSet: 无需实现
+RunBefore: 无需实现
+RunAfter: 无需实现
+RunByMember: 无需实现
+RunByCoordinate: 无需实现
+TestNonVectorSetCommandAsync: 无需实现
+CreateKeyWithTypeAsync: 无需实现
+CreateGarnetServer: 无需实现
+AllVectorSetCommandsCovered: 测试函数无需实现
+AllOtherCommandsCovered: 测试函数无需实现
+VADDAsync: 测试函数无需实现
+VREMAsync: 测试函数无需实现
+VCARDAsync: 测试函数无需实现
+VDIMAsync: 测试函数无需实现
+VEMBAsync: 测试函数无需实现
+VGETATTRAsync: 测试函数无需实现
+VINFOAsync: 测试函数无需实现
+VISMEMBERAsync: 测试函数无需实现
+VLINKSAsync: 测试函数无需实现
+VRANDMEMBERAsync: 测试函数无需实现
+VSETATTRAsync: 测试函数无需实现
+VSIMAsync: 测试函数无需实现
+GETAsync: 测试函数无需实现
+APPENDAsync: 测试函数无需实现
+BITCOUNTAsync: 测试函数无需实现
+BITFIELDAsync: 测试函数无需实现
+BITFIELD_ROAsync: 测试函数无需实现
+BITOPAsync: 测试函数无需实现
+BITPOSAsync: 测试函数无需实现
+BLMOVEAsync: 测试函数无需实现
+BLPOPAsync: 测试函数无需实现
+BRPOPAsync: 测试函数无需实现
+BRPOPLPUSHAsync: 测试函数无需实现
+BZPOPMAXAsync: 测试函数无需实现
+BZPOPMINAsync: 测试函数无需实现
+DECRAsync: 测试函数无需实现
+DECRBYAsync: 测试函数无需实现
+GETBITAsync: 测试函数无需实现
+GETDELAsync: 测试函数无需实现
+GETEXAsync: 测试函数无需实现
+GETRANGEAsync: 测试函数无需实现
+GETSETAsync: 测试函数无需实现
+INCRAsync: 测试函数无需实现
+INCRBYAsync: 测试函数无需实现
+INCRBYFLOATAsync: 测试函数无需实现
+LCSAsync: 测试函数无需实现
+MGETAsync: 测试函数无需实现
+SETBITAsync: 测试函数无需实现
+SETRANGEAsync: 测试函数无需实现
+STRLENAsync: 测试函数无需实现
+SUBSTRAsync: 测试函数无需实现
+HDELAsync: 测试函数无需实现
+HEXISTSAsync: 测试函数无需实现
+HEXPIREAsync: 测试函数无需实现
+HEXPIREATAsync: 测试函数无需实现
+HEXPIRETIMEAsync: 测试函数无需实现
+HGETAsync: 测试函数无需实现
+HGETALLAsync: 测试函数无需实现
+HINCRBYAsync: 测试函数无需实现
+HINCRBYFLOATAsync: 测试函数无需实现
+HKEYSAsync: 测试函数无需实现
+HLENAsync: 测试函数无需实现
+HMGETAsync: 测试函数无需实现
+HMSETAsync: 测试函数无需实现
+HPERSISTAsync: 测试函数无需实现
+HPEXPIREAsync: 测试函数无需实现
+HPEXPIREATAsync: 测试函数无需实现
+HPEXPIRETIMEAsync: 测试函数无需实现
+HPTTLAsync: 测试函数无需实现
+HRANDFIELDAsync: 测试函数无需实现
+HSCANAsync: 测试函数无需实现
+HSETAsync: 测试函数无需实现
+HSETNXAsync: 测试函数无需实现
+HSTRLENAsync: 测试函数无需实现
+HTTLAsync: 测试函数无需实现
+HVALSAsync: 测试函数无需实现
+LINDEXAsync: 测试函数无需实现
+LINSERTAsync: 测试函数无需实现
+LLENAsync: 测试函数无需实现
+LMOVEAsync: 测试函数无需实现
+LPOPAsync: 测试函数无需实现
+LPOSAsync: 测试函数无需实现
+LPUSHAsync: 测试函数无需实现
+LPUSHXAsync: 测试函数无需实现
+LRANGEAsync: 测试函数无需实现
+LREMAsync: 测试函数无需实现
+LSETAsync: 测试函数无需实现
+LTRIMAsync: 测试函数无需实现
+RPOPAsync: 测试函数无需实现
+RPOPLPUSHAsync: 测试函数无需实现
+RPUSHAsync: 测试函数无需实现
+RPUSHXAsync: 测试函数无需实现
+SADDAsync: 测试函数无需实现
+SCARDAsync: 测试函数无需实现
+SDIFFAsync: 测试函数无需实现
+SDIFFSTOREAsync: 测试函数无需实现
+SINTERAsync: 测试函数无需实现
+SINTERSTOREAsync: 测试函数无需实现
+SISMEMBERAsync: 测试函数无需实现
+SMEMBERSAsync: 测试函数无需实现
+SMISMEMBERAsync: 测试函数无需实现
+SMOVEAsync: 测试函数无需实现
+SPOPAsync: 测试函数无需实现
+SRANDMEMBERAsync: 测试函数无需实现
+SREMAsync: 测试函数无需实现
+SSCANAsync: 测试函数无需实现
+SUNIONAsync: 测试函数无需实现
+SUNIONSTOREAsync: 测试函数无需实现
+ZADDAsync: 测试函数无需实现
+ZCARDAsync: 测试函数无需实现
+ZCOUNTAsync: 测试函数无需实现
+ZDIFFSTOREAsync: 测试函数无需实现
+ZINCRBYAsync: 测试函数无需实现
+ZINTERSTOREAsync: 测试函数无需实现
+ZLEXCOUNTAsync: 测试函数无需实现
+ZMSCOREAsync: 测试函数无需实现
+ZPOPMAXAsync: 测试函数无需实现
+ZPOPMINAsync: 测试函数无需实现
+ZRANDMEMBERAsync: 测试函数无需实现
+ZRANGEAsync: 测试函数无需实现
+ZRANGEBYLEXAsync: 测试函数无需实现
+ZRANGEBYSCOREAsync: 测试函数无需实现
+ZRANGESTOREAsync: 测试函数无需实现
+ZRANKAsync: 测试函数无需实现
+ZREMAsync: 测试函数无需实现
+ZREMRANGEBYLEXAsync: 测试函数无需实现
+ZREMRANGEBYRANKAsync: 测试函数无需实现
+ZREMRANGEBYSCOREAsync: 测试函数无需实现
+ZREVRANGEAsync: 测试函数无需实现
+ZREVRANGEBYLEXAsync: 测试函数无需实现
+ZREVRANGEBYSCOREAsync: 测试函数无需实现
+ZREVRANKAsync: 测试函数无需实现
+ZSCANAsync: 测试函数无需实现
+ZSCOREAsync: 测试函数无需实现
+ZUNIONSTOREAsync: 测试函数无需实现
+GEOADDAsync: 测试函数无需实现
+GEODISTAsync: 测试函数无需实现
+GEOHASHAsync: 测试函数无需实现
+GEOPOSAsync: 测试函数无需实现
+GEORADIUSAsync: 测试函数无需实现
+GEORADIUS_ROAsync: 测试函数无需实现
+GEORADIUSBYMEMBERAsync: 测试函数无需实现
+GEORADIUSBYMEMBER_ROAsync: 测试函数无需实现
+GEOSEARCHAsync: 测试函数无需实现
+GEOSEARCHSTOREAsync: 测试函数无需实现
+PFADDAsync: 测试函数无需实现
+PFCOUNTAsync: 测试函数无需实现
+PFMERGEAsync: 测试函数无需实现
+COSCANAsync: 测试函数无需实现
+GETIFNOTMATCHAsync: 测试函数无需实现
+GETWITHETAGAsync: 测试函数无需实现
+HCOLLECTAsync: 测试函数无需实现
+RICONFIGAsync: 测试函数无需实现
+RICREATEAsync: 测试函数无需实现
+RIDELAsync: 测试函数无需实现
+RIGETAsync: 测试函数无需实现
+RIMETRICSAsync: 测试函数无需实现
+RIRANGEAsync: 测试函数无需实现
+RISCANAsync: 测试函数无需实现
+RISETAsync: 测试函数无需实现
+ZCOLLECTAsync: 测试函数无需实现
+ZEXPIREAsync: 测试函数无需实现
+ZEXPIREATAsync: 测试函数无需实现
+ZEXPIRETIMEAsync: 测试函数无需实现
+ZPERSISTAsync: 测试函数无需实现
+ZPEXPIREAsync: 测试函数无需实现
+ZPEXPIREATAsync: 测试函数无需实现
+ZPEXPIRETIMEAsync: 测试函数无需实现
+ZPTTLAsync: 测试函数无需实现
+ZTTLAsync: 测试函数无需实现

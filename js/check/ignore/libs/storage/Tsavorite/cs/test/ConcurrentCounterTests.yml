@@ -1,7 +1,6 @@
-test:
-  - Increment_IncreasesCounterValue
-  - Increment_WithZeroValue_DoesNotChangeCounterValue
-  - Total_ReturnsSumOfCounterValues
-  - Increment_WithMaxValue_IncreasesCounterValue
-  - Increment_WithMinValue_IncreasesCounterValue
-  - IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue
+Increment_IncreasesCounterValue: 测试函数无需实现
+Increment_WithZeroValue_DoesNotChangeCounterValue: 测试函数无需实现
+Total_ReturnsSumOfCounterValues: 测试函数无需实现
+Increment_WithMaxValue_IncreasesCounterValue: 测试函数无需实现
+Increment_WithMinValue_IncreasesCounterValue: 测试函数无需实现
+IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue: 测试函数无需实现

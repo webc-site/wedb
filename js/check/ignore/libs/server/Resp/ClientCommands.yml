@@ -1,2 +1,1 @@
-fn:
-  - IsMatch
+IsMatch: 无需实现

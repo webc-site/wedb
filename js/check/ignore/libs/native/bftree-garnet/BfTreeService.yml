@@ -1,15 +1,14 @@
-fn:
-  - Dispose
-  - Noop
-  - InsertByPtr
-  - ReadByPtr
-  - ReadByPtrInto
-  - DeleteByPtr
-  - ScanWithCountByPtrCallback
-  - ScanWithEndKeyByPtrCallback
-  - ScanWithCount
-  - ScanWithEndKey
-  - ScanAll
-  - CprSnapshotByPtr
-  - DrainScanIteratorWithCallback
-  - DrainScanIteratorToList
+Dispose: 无需实现
+Noop: 无需实现
+InsertByPtr: 无需实现
+ReadByPtr: 无需实现
+ReadByPtrInto: 无需实现
+DeleteByPtr: 无需实现
+ScanWithCountByPtrCallback: 无需实现
+ScanWithEndKeyByPtrCallback: 无需实现
+ScanWithCount: 无需实现
+ScanWithEndKey: 无需实现
+ScanAll: 无需实现
+CprSnapshotByPtr: 无需实现
+DrainScanIteratorWithCallback: 无需实现
+DrainScanIteratorToList: 无需实现

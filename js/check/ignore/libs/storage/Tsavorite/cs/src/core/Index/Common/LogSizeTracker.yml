@@ -1,16 +1,15 @@
-fn:
-  - ToString
-  - IsBeyondSizeLimitAndCanEvict
-  - LogSizeTracker
-  - UpdateTargetSize
-  - Start
-  - Stop
-  - OnStopped
-  - IncrementSize
-  - UpdateSize
-  - Signal
-  - ResizerTask
-  - ResizeIfNeeded
-  - DetermineEvictionRange
-  - ThrowTsavoriteException
-  - PostMemoryTrim
+ToString: 无需实现
+IsBeyondSizeLimitAndCanEvict: 无需实现
+LogSizeTracker: 无需实现
+UpdateTargetSize: 无需实现
+Start: 无需实现
+Stop: 无需实现
+OnStopped: 无需实现
+IncrementSize: 无需实现
+UpdateSize: 无需实现
+Signal: 无需实现
+ResizerTask: 无需实现
+ResizeIfNeeded: 无需实现
+DetermineEvictionRange: 无需实现
+ThrowTsavoriteException: 无需实现
+PostMemoryTrim: 无需实现

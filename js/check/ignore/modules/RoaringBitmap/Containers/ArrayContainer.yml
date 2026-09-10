@@ -1,11 +1,10 @@
-fn:
-  - ArrayContainer
-  - EnsureCapacity
-  - Remove
-  - Last
-  - NextSetBit
-  - NextUnsetBit
-  - SerializeBody
-  - DeserializeBody
-  - ToBitmap
-  - GetAt
+ArrayContainer: 无需实现
+EnsureCapacity: 无需实现
+Remove: 无需实现
+Last: 无需实现
+NextSetBit: 无需实现
+NextUnsetBit: 无需实现
+SerializeBody: 无需实现
+DeserializeBody: 无需实现
+ToBitmap: 无需实现
+GetAt: 无需实现

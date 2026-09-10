@@ -1,6 +1,5 @@
-fn:
-  - ToString
-  - FlushCompletionTracker
-  - CompleteFlush
-  - SetException
-  - WaitOneFlush
+ToString: 无需实现
+FlushCompletionTracker: 无需实现
+CompleteFlush: 无需实现
+SetException: 无需实现
+WaitOneFlush: 无需实现

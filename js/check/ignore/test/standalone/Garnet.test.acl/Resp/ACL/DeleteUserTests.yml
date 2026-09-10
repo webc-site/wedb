@@ -1,8 +1,6 @@
-fn:
-  - Setup
-test:
-  - DeleteSingleUser
-  - DeleteMultipleUser
-  - DeleteNonexistingUser
-  - DeleteDefaultUser
-  - DeleteNoUser
+Setup: 无需实现
+DeleteSingleUser: 测试函数无需实现
+DeleteMultipleUser: 测试函数无需实现
+DeleteNonexistingUser: 测试函数无需实现
+DeleteDefaultUser: 测试函数无需实现
+DeleteNoUser: 测试函数无需实现

@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TsavoriteLogResumePersistedReaderViaCookie
-  - TsavoriteLogResumeViaCompleteUntilRecordAtSpec
-  - TsavoriteLogResumePersistedReader2
-  - TsavoriteLogResumePersistedReader3
+Setup: 无需实现
+TearDown: 无需实现
+TsavoriteLogResumePersistedReaderViaCookie: 测试函数无需实现
+TsavoriteLogResumeViaCompleteUntilRecordAtSpec: 测试函数无需实现
+TsavoriteLogResumePersistedReader2: 测试函数无需实现
+TsavoriteLogResumePersistedReader3: 测试函数无需实现

@@ -1,4 +1,3 @@
-fn:
-  - GetAvailableNetworkBufferSpan
-  - TrackIterationProgress
-  - EnsureTcsIsEnqueued
+GetAvailableNetworkBufferSpan: 无需实现
+TrackIterationProgress: 无需实现
+EnsureTcsIsEnqueued: 无需实现

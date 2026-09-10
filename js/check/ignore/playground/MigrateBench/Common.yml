@@ -1,3 +1,2 @@
-fn:
-  - Validate
-  - GetSingleSlots
+Validate: 无需实现
+GetSingleSlots: 无需实现

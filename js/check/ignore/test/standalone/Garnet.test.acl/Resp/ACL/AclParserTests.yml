@@ -1,4 +1,3 @@
-test:
-  - ParseACLRuleDescriptionTest
-  - ParseACLRuleDescriptionTimeoutsTest
-  - ParseACLRuleDescriptionShouldReduceTest
+ParseACLRuleDescriptionTest: 测试函数无需实现
+ParseACLRuleDescriptionTimeoutsTest: 测试函数无需实现
+ParseACLRuleDescriptionShouldReduceTest: 测试函数无需实现

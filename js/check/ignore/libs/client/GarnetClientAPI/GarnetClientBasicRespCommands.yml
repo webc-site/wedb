@@ -1,8 +1,7 @@
-fn:
-  - Quit
-  - Ping
-  - StringGetAsMemoryAsync
-  - StringGet
-  - StringGetAsMemory
-  - StringSet
-  - KeyDelete
+Quit: 无需实现
+Ping: 无需实现
+StringGetAsMemoryAsync: 无需实现
+StringGet: 无需实现
+StringGetAsMemory: 无需实现
+StringSet: 无需实现
+KeyDelete: 无需实现

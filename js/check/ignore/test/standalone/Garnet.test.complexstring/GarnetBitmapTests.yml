@@ -1,79 +1,76 @@
-fn:
-  - Setup
-  - TearDown
-  - LongRandom
-  - ULongRandom
-  - ResponseToLong
-  - Count
-  - Bitpos
-  - CopyBitmap
-  - ApplyBitop
-  - BitOp_Binary_SameSize
-  - GetValueFromBitmap
-  - getUnsigned
-  - getSigned
-  - GetFromBitmapRedis
-  - SingleBitfieldReceive
-  - RandomIntBitRange
-  - setUnsignedBitfield
-  - setSignedBitfield
-  - CheckSignedBitfieldOverflowRedis
-  - CheckSignedBitfieldOverflow
-  - CheckUnsignedBitfieldOverflow
-  - BitSearch
-test:
-  - BitmapSetBitResponseTest
-  - BitmapSetBitBoundaryValidationNegativeTest
-  - BitmapBitOpNotRejectsMultipleSourceKeys
-  - BitmapGetBitResponseTest
-  - BitmapSetGetBitResponseTest
-  - BitmapSimpleSetGet_PCT
-  - BitmapSetGetBitTest_LTM
-  - BitmapSimpleBitCountTest
-  - BitmapBitCountBetweenOffsetsTest
-  - BitmapBitCountBetweenOffsetsTestV2
-  - BitmapBitCountNegativeOffsets
-  - BitmapBitCountTest_LTM
-  - BitmapSimpleBITCOUNT_PCT
-  - BitmapSimpleBitPosTests
-  - BitmapBitPosOffsetsTest
-  - BitmapBitPosTest_LTM
-  - BitmapBitPosTest_BoundaryConditions
-  - BitmapSimpleBITPOS_PCT
-  - BitOp_Unary_BitwiseNot
-  - BitOp_Binary_SameSize
-  - BitOp_Binary_DifferentTails
-  - BitOp_OverflowValues_StableUnderGCCompaction
-  - BitopNotTransactionAsync
-  - BitopAndTransactionAsync
-  - BitmapBitfieldGetTest
-  - BitmapBitfieldGetTest_PCT
-  - BitmapBitfieldGetTest_LTM
-  - BitmapBitfieldSetTest_PCT
-  - BitmapBitfieldSetTest
-  - BitmapBitfieldSetTest_LTM
-  - BitmapBitfieldSignedIncrTest_PCT
-  - BitmapBitfieldSignedIncrTest
-  - BitmapBitfieldIncrTest_LTM
-  - BitmapBitfieldUnsignedIncrTest
-  - BitmapBitfieldGrowingTest
-  - BitmapCmdsProcedureTest
-  - BitmapBitCountSimpleTest
-  - BitmapBitCountBitBoundaryUnderflowTest
-  - BitmapBitCountLongBitOffsetParsingTest
-  - BitmapBitCountInvalidArityTest
-  - BitmapBitPosFixedTests
-  - BitmapBitPosLongBitOffsetParsingTest
-  - BitmapBitPosLongOffsetBoundaryValidationTest
-  - BitmapBitPosOutOfBoundsEndOffsetByteModeTest
-  - BitmapBitPosOutOfBoundsEndOffsetBitModeTest
-  - BitmapBitPosBitModifierRequiresStartAndEndTest
-  - BitmapOperationNonExistentSourceKeys
-  - BitmapOperationInvalidOption
-  - BitmapOperationTooManyKeys
-  - BitmapBitPosBitOffsetTests
-  - BitmapBitPosBitInvalidMaskTests
-  - BitmapBitPosBitSearchSingleBitRangeTests
-  - BitmapBitfieldBoundaryTest
-  - BitmapBitfieldSigned64OverflowTest
-  - BitmapBitFieldInvalidOptionsTest
+Setup: 无需实现
+TearDown: 无需实现
+LongRandom: 无需实现
+ULongRandom: 无需实现
+ResponseToLong: 无需实现
+Count: 无需实现
+Bitpos: 无需实现
+CopyBitmap: 无需实现
+ApplyBitop: 无需实现
+BitOp_Binary_SameSize: 测试函数无需实现
+GetValueFromBitmap: 无需实现
+getUnsigned: 无需实现
+getSigned: 无需实现
+GetFromBitmapRedis: 无需实现
+SingleBitfieldReceive: 无需实现
+RandomIntBitRange: 无需实现
+setUnsignedBitfield: 无需实现
+setSignedBitfield: 无需实现
+CheckSignedBitfieldOverflowRedis: 无需实现
+CheckSignedBitfieldOverflow: 无需实现
+CheckUnsignedBitfieldOverflow: 无需实现
+BitSearch: 无需实现
+BitmapSetBitResponseTest: 测试函数无需实现
+BitmapSetBitBoundaryValidationNegativeTest: 测试函数无需实现
+BitmapBitOpNotRejectsMultipleSourceKeys: 测试函数无需实现
+BitmapGetBitResponseTest: 测试函数无需实现
+BitmapSetGetBitResponseTest: 测试函数无需实现
+BitmapSimpleSetGet_PCT: 测试函数无需实现
+BitmapSetGetBitTest_LTM: 测试函数无需实现
+BitmapSimpleBitCountTest: 测试函数无需实现
+BitmapBitCountBetweenOffsetsTest: 测试函数无需实现
+BitmapBitCountBetweenOffsetsTestV2: 测试函数无需实现
+BitmapBitCountNegativeOffsets: 测试函数无需实现
+BitmapBitCountTest_LTM: 测试函数无需实现
+BitmapSimpleBITCOUNT_PCT: 测试函数无需实现
+BitmapSimpleBitPosTests: 测试函数无需实现
+BitmapBitPosOffsetsTest: 测试函数无需实现
+BitmapBitPosTest_LTM: 测试函数无需实现
+BitmapBitPosTest_BoundaryConditions: 测试函数无需实现
+BitmapSimpleBITPOS_PCT: 测试函数无需实现
+BitOp_Unary_BitwiseNot: 测试函数无需实现
+BitOp_Binary_DifferentTails: 测试函数无需实现
+BitOp_OverflowValues_StableUnderGCCompaction: 测试函数无需实现
+BitopNotTransactionAsync: 测试函数无需实现
+BitopAndTransactionAsync: 测试函数无需实现
+BitmapBitfieldGetTest: 测试函数无需实现
+BitmapBitfieldGetTest_PCT: 测试函数无需实现
+BitmapBitfieldGetTest_LTM: 测试函数无需实现
+BitmapBitfieldSetTest_PCT: 测试函数无需实现
+BitmapBitfieldSetTest: 测试函数无需实现
+BitmapBitfieldSetTest_LTM: 测试函数无需实现
+BitmapBitfieldSignedIncrTest_PCT: 测试函数无需实现
+BitmapBitfieldSignedIncrTest: 测试函数无需实现
+BitmapBitfieldIncrTest_LTM: 测试函数无需实现
+BitmapBitfieldUnsignedIncrTest: 测试函数无需实现
+BitmapBitfieldGrowingTest: 测试函数无需实现
+BitmapCmdsProcedureTest: 测试函数无需实现
+BitmapBitCountSimpleTest: 测试函数无需实现
+BitmapBitCountBitBoundaryUnderflowTest: 测试函数无需实现
+BitmapBitCountLongBitOffsetParsingTest: 测试函数无需实现
+BitmapBitCountInvalidArityTest: 测试函数无需实现
+BitmapBitPosFixedTests: 测试函数无需实现
+BitmapBitPosLongBitOffsetParsingTest: 测试函数无需实现
+BitmapBitPosLongOffsetBoundaryValidationTest: 测试函数无需实现
+BitmapBitPosOutOfBoundsEndOffsetByteModeTest: 测试函数无需实现
+BitmapBitPosOutOfBoundsEndOffsetBitModeTest: 测试函数无需实现
+BitmapBitPosBitModifierRequiresStartAndEndTest: 测试函数无需实现
+BitmapOperationNonExistentSourceKeys: 测试函数无需实现
+BitmapOperationInvalidOption: 测试函数无需实现
+BitmapOperationTooManyKeys: 测试函数无需实现
+BitmapBitPosBitOffsetTests: 测试函数无需实现
+BitmapBitPosBitInvalidMaskTests: 测试函数无需实现
+BitmapBitPosBitSearchSingleBitRangeTests: 测试函数无需实现
+BitmapBitfieldBoundaryTest: 测试函数无需实现
+BitmapBitfieldSigned64OverflowTest: 测试函数无需实现
+BitmapBitFieldInvalidOptionsTest: 测试函数无需实现

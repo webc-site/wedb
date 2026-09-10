@@ -1,10 +1,9 @@
-fn:
-  - EnableException
-  - DisableException
-  - EnabledScope
-  - TriggerException
-  - TriggerCondition
-  - ResetAndWaitAsync
-  - ResetAndWait
-  - WaitOnClear
-  - WaitOnClearAsync
+EnableException: 无需实现
+DisableException: 无需实现
+EnabledScope: 无需实现
+TriggerException: 无需实现
+TriggerCondition: 无需实现
+ResetAndWaitAsync: 无需实现
+ResetAndWait: 无需实现
+WaitOnClear: 无需实现
+WaitOnClearAsync: 无需实现

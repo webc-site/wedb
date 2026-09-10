@@ -1,4 +1,3 @@
-fn:
-  - ParseSize
-  - FormatSize
-  - NextPow2
+ParseSize: 无需实现
+FormatSize: 无需实现
+NextPow2: 无需实现

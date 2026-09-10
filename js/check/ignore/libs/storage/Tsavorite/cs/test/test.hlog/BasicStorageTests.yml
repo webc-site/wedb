@@ -1,13 +1,11 @@
-fn:
-  - TestDeviceWriteRead
-  - IgnoreIfNotRunningAzureTests
-  - DeleteDirectory
-test:
-  - LocalStorageWriteRead
-  - PageBlobWriteRead
-  - PageBlobWriteReadWithLease
-  - TieredWriteRead
-  - ShardedWriteRead
-  - OmitSegmentIdTest
-  - ShardedReadCompletesWhenLaterShardThrows
-  - ShardedWriteCompletesWhenLaterShardThrows
+TestDeviceWriteRead: 无需实现
+IgnoreIfNotRunningAzureTests: 无需实现
+DeleteDirectory: 无需实现
+LocalStorageWriteRead: 测试函数无需实现
+PageBlobWriteRead: 测试函数无需实现
+PageBlobWriteReadWithLease: 测试函数无需实现
+TieredWriteRead: 测试函数无需实现
+ShardedWriteRead: 测试函数无需实现
+OmitSegmentIdTest: 测试函数无需实现
+ShardedReadCompletesWhenLaterShardThrows: 测试函数无需实现
+ShardedWriteCompletesWhenLaterShardThrows: 测试函数无需实现

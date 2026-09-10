@@ -1,7 +1,5 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - RecreateDirectory
-  - TearDown
-test:
-  - ConcurrentSnapshotAndEvictionStress
+Setup: 无需实现
+DeleteDirectory: 无需实现
+RecreateDirectory: 无需实现
+TearDown: 无需实现
+ConcurrentSnapshotAndEvictionStress: 测试函数无需实现

@@ -1,3 +1,2 @@
-fn:
-  - DebugAssertEntryReserved
-  - DebugAssertEpochAcquired
+DebugAssertEntryReserved: 无需实现
+DebugAssertEpochAcquired: 无需实现

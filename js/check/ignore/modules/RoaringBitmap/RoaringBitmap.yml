@@ -1,14 +1,6 @@
-fn:
-  - RoaringBitmap
-  - InsertChunk
-  - Remove
-  - RemoveChunk
-  - SetBit
-  - GetBit
-  - BitPos
-  - Enumerate
-  - GetEnumerator
-  - Serialize
-  - Deserialize
-  - EnsureChunkCapacity
-  - GetChunkKind
+RoaringBitmap: 无需实现
+InsertChunk: 无需实现
+RemoveChunk: 无需实现
+GetEnumerator: 无需实现
+EnsureChunkCapacity: 无需实现
+GetChunkKind: 无需实现

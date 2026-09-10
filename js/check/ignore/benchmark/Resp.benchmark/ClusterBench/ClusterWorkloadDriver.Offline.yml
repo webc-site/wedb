@@ -1,8 +1,7 @@
-fn:
-  - RunOffline
-  - PrintOfflineHeader
-  - MonitorOffline
-  - PrintFinalReport
-  - RunWorkerPoolOffline
-  - PrintWorkerPoolFinalReport
-  - ReportOfflineIteration
+RunOffline: 无需实现
+PrintOfflineHeader: 无需实现
+MonitorOffline: 无需实现
+PrintFinalReport: 无需实现
+RunWorkerPoolOffline: 无需实现
+PrintWorkerPoolFinalReport: 无需实现
+ReportOfflineIteration: 无需实现

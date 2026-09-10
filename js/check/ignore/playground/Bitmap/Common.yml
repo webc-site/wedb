@@ -1,2 +1,1 @@
-fn:
-  - PrintElapsedTime
+PrintElapsedTime: 无需实现

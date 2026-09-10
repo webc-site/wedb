@@ -1,5 +1,3 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - DeviceAndLogConfig
+Setup: 无需实现
+TearDown: 无需实现
+DeviceAndLogConfig: 测试函数无需实现

@@ -1,7 +1,6 @@
-fn:
-  - WriteLock
-  - WriteUnlock
-  - ReadLock
-  - ReaderLock
-  - ReadUnlock
-  - WaitForGrant
+WriteLock: 无需实现
+WriteUnlock: 无需实现
+ReadLock: 无需实现
+ReaderLock: 无需实现
+ReadUnlock: 无需实现
+WaitForGrant: 无需实现

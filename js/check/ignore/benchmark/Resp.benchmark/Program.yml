@@ -1,8 +1,7 @@
-fn:
-  - CreateLoggerFactory
-  - PrintBenchMarkSummary
-  - DisabledFeatures
-  - Main
-  - WaitForServer
-  - RunHLLBenchmark
-  - RunBasicCommandsBenchmark
+CreateLoggerFactory: 无需实现
+PrintBenchMarkSummary: 无需实现
+DisabledFeatures: 无需实现
+Main: 无需实现
+WaitForServer: 无需实现
+RunHLLBenchmark: 无需实现
+RunBasicCommandsBenchmark: 无需实现

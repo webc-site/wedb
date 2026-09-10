@@ -1,8 +1,7 @@
-fn:
-  - AsyncQueue
-  - Enqueue
-  - DequeueAsync
-  - WaitForEntry
-  - WaitForEntryAsync
-  - WaitForEntryAsyncSlow
-  - TryDequeue
+AsyncQueue: 无需实现
+Enqueue: 无需实现
+DequeueAsync: 无需实现
+WaitForEntry: 无需实现
+WaitForEntryAsync: 无需实现
+WaitForEntryAsyncSlow: 无需实现
+TryDequeue: 无需实现

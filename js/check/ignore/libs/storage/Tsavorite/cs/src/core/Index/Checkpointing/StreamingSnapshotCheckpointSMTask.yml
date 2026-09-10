@@ -1,3 +1,2 @@
-fn:
-  - StreamingSnapshotCheckpointSMTask
-  - GlobalBeforeEnteringState
+StreamingSnapshotCheckpointSMTask: 无需实现
+GlobalBeforeEnteringState: 无需实现

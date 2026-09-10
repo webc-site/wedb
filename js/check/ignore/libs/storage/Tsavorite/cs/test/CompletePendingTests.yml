@@ -1,24 +1,22 @@
-fn:
-  - GetHashCode64
-  - Equals
-  - ToString
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - NewKeyStruct
-  - NewValueStruct
-  - NewInputStruct
-  - NewContextStruct
-  - VerifyStructs
-  - IsFirst
-  - DeferPending
-  - Process
-  - VerifyNoDeferredPending
-  - VerifyOneNotFound
-  - ReadCompletionCallback
-test:
-  - ReadAndCompleteWithPendingOutput
-  - ReadPendingWithNewSameKey
-  - ReadPendingWithNewDifferentKeyInChain
-  - ReadPendingWithNoNewKey
+GetHashCode64: 无需实现
+Equals: 无需实现
+ToString: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+NewKeyStruct: 无需实现
+NewValueStruct: 无需实现
+NewInputStruct: 无需实现
+NewContextStruct: 无需实现
+VerifyStructs: 无需实现
+IsFirst: 无需实现
+DeferPending: 无需实现
+Process: 无需实现
+VerifyNoDeferredPending: 无需实现
+VerifyOneNotFound: 无需实现
+ReadCompletionCallback: 无需实现
+ReadAndCompleteWithPendingOutput: 测试函数无需实现
+ReadPendingWithNewSameKey: 测试函数无需实现
+ReadPendingWithNewDifferentKeyInChain: 测试函数无需实现
+ReadPendingWithNoNewKey: 测试函数无需实现

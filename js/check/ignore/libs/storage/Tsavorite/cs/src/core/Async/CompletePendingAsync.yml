@@ -1,3 +1,2 @@
-fn:
-  - ReadyToCompletePendingAsync
-  - CompletePendingAsync
+ReadyToCompletePendingAsync: 无需实现
+CompletePendingAsync: 无需实现

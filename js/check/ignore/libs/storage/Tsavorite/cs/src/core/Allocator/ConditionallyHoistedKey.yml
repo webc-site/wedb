@@ -1,4 +1,3 @@
-fn:
-  - ConditionallyHoistedKey
-  - KeysEqual
-  - Create
+ConditionallyHoistedKey: 无需实现
+KeysEqual: 无需实现
+Create: 无需实现

@@ -1,13 +1,12 @@
-fn:
-  - InitializeForReads
-  - InitializeReadBuffers
-  - BufferAndLoad
-  - DoReadPage
-  - AsyncReadPageFromDeviceToFrame
-  - NeedBufferAndLoad
-  - AsyncReadPageFromDeviceToFrameCallback
-  - WaitForFrameLoad
-  - FailFrameLoad
-  - SignalFrameLoadCompletion
-  - WaitForFrameLoadCompletion
-  - ToString
+InitializeForReads: 无需实现
+InitializeReadBuffers: 无需实现
+BufferAndLoad: 无需实现
+DoReadPage: 无需实现
+AsyncReadPageFromDeviceToFrame: 无需实现
+NeedBufferAndLoad: 无需实现
+AsyncReadPageFromDeviceToFrameCallback: 无需实现
+WaitForFrameLoad: 无需实现
+FailFrameLoad: 无需实现
+SignalFrameLoadCompletion: 无需实现
+WaitForFrameLoadCompletion: 无需实现
+ToString: 无需实现

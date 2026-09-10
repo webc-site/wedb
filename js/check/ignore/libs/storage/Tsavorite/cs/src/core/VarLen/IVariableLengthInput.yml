@@ -1,4 +1,3 @@
-fn:
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现

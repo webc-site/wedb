@@ -1,11 +1,10 @@
-fn:
-  - RandomBytes
-  - BaseCommand
-  - GetSingleSlotRequest
-  - GetSingleSlotObjectRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
-  - singleSlotKeys
-  - crossSlotKeys
-  - DummyCommand
-  - EVALSHA
+RandomBytes: 无需实现
+BaseCommand: 无需实现
+GetSingleSlotRequest: 无需实现
+GetSingleSlotObjectRequest: 无需实现
+GetCrossSlotRequest: 无需实现
+SetupSingleSlotRequest: 无需实现
+singleSlotKeys: 无需实现
+crossSlotKeys: 无需实现
+DummyCommand: 无需实现
+EVALSHA: 无需实现

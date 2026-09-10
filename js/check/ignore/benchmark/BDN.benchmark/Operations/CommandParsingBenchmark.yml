@@ -1,20 +1,19 @@
-fn:
-  - GlobalSetup
-  - SlowConsumeMessage
-  - ParsePING
-  - ParseGET
-  - ParseSET
-  - ParseINCR
-  - ParseEXISTS
-  - ParseSETEX
-  - ParsePUBLISH
-  - ParseEXPIRE
-  - ParseHSET
-  - ParseLPUSH
-  - ParseZADD
-  - ParseZRANGEBYSCORE
-  - ParseZREMRANGEBYSCORE
-  - ParseHINCRBYFLOAT
-  - ParseSUBSCRIBE
-  - ParseGEORADIUS
-  - ParseSETIFMATCH
+GlobalSetup: 无需实现
+SlowConsumeMessage: 无需实现
+ParsePING: 无需实现
+ParseGET: 无需实现
+ParseSET: 无需实现
+ParseINCR: 无需实现
+ParseEXISTS: 无需实现
+ParseSETEX: 无需实现
+ParsePUBLISH: 无需实现
+ParseEXPIRE: 无需实现
+ParseHSET: 无需实现
+ParseLPUSH: 无需实现
+ParseZADD: 无需实现
+ParseZRANGEBYSCORE: 无需实现
+ParseZREMRANGEBYSCORE: 无需实现
+ParseHINCRBYFLOAT: 无需实现
+ParseSUBSCRIBE: 无需实现
+ParseGEORADIUS: 无需实现
+ParseSETIFMATCH: 无需实现

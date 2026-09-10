@@ -1,9 +1,8 @@
-fn:
-  - TaskScaling
-  - CreateClients
-  - Run
-  - PrintHistogram
-  - MonitorThread
-  - CheckConnection
-  - OperationThread
-  - ShortRunningTask
+TaskScaling: 无需实现
+CreateClients: 无需实现
+Run: 无需实现
+PrintHistogram: 无需实现
+MonitorThread: 无需实现
+CheckConnection: 无需实现
+OperationThread: 无需实现
+ShortRunningTask: 无需实现

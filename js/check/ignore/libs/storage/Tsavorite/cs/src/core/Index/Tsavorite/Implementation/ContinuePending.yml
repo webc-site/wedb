@@ -1,8 +1,7 @@
-fn:
-  - ContinuePendingRead
-  - SpinWaitUntilClosed
-  - EphemeralSUnlock
-  - ContinuePendingRMW
-  - EphemeralXUnlock
-  - ContinuePendingConditionalCopyToTail
-  - ContinuePendingConditionalScanPush
+ContinuePendingRead: 无需实现
+SpinWaitUntilClosed: 无需实现
+EphemeralSUnlock: 无需实现
+ContinuePendingRMW: 无需实现
+EphemeralXUnlock: 无需实现
+ContinuePendingConditionalCopyToTail: 无需实现
+ContinuePendingConditionalScanPush: 无需实现

@@ -1,8 +1,7 @@
-fn:
-  - ThrowUnexpectedToken
-  - ThrowInvalidStringLength
-  - ThrowInvalidLength
-  - ThrowExcessiveArgumentCount
-  - ThrowNotANumber
-  - ThrowIntegerOverflow
-  - Throw
+ThrowUnexpectedToken: 无需实现
+ThrowInvalidStringLength: 无需实现
+ThrowInvalidLength: 无需实现
+ThrowExcessiveArgumentCount: 无需实现
+ThrowNotANumber: 无需实现
+ThrowIntegerOverflow: 无需实现
+Throw: 无需实现

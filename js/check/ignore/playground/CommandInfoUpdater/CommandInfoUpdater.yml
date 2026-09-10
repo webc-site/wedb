@@ -1,4 +1,3 @@
-fn:
-  - TryUpdateCommandInfo
-  - TryGetCommandsInfo
-  - GetUpdatedCommandsInfo
+TryUpdateCommandInfo: 无需实现
+TryGetCommandsInfo: 无需实现
+GetUpdatedCommandsInfo: 无需实现

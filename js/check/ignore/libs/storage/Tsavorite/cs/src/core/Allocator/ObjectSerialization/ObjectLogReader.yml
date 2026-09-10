@@ -1,9 +1,8 @@
-fn:
-  - ObjectLogReader
-  - OnBeginReadRecords
-  - OnEndReadRecords
-  - FlushAndReset
-  - Write
-  - ReadRecordObjects
-  - DoDeserialize
-  - OnDeserializeComplete
+ObjectLogReader: 无需实现
+OnBeginReadRecords: 无需实现
+OnEndReadRecords: 无需实现
+FlushAndReset: 无需实现
+Write: 无需实现
+ReadRecordObjects: 无需实现
+DoDeserialize: 无需实现
+OnDeserializeComplete: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - Main
-  - DisplayHelp
+Main: 无需实现
+DisplayHelp: 无需实现

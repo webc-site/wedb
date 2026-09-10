@@ -1,8 +1,7 @@
-fn:
-  - PinnedMemoryStream
-  - ValidateBufferArguments
-  - ReadByte
-  - Seek
-  - SetLength
-  - Write
-  - WriteByte
+PinnedMemoryStream: 无需实现
+ValidateBufferArguments: 无需实现
+ReadByte: 无需实现
+Seek: 无需实现
+SetLength: 无需实现
+Write: 无需实现
+WriteByte: 无需实现

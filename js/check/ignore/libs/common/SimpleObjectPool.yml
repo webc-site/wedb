@@ -1,3 +1,2 @@
-fn:
-  - ThrowDisposed
-  - Checkout
+ThrowDisposed: 无需实现
+Checkout: 无需实现

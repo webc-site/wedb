@@ -1,8 +1,7 @@
-fn:
-  - MeasureElapsed
-  - MigrateRequest
-  - Run
-  - dbsize
-  - MigrateSlotRanges
-  - MigrateSlots
-  - MigrateKeys
+MeasureElapsed: 无需实现
+MigrateRequest: 无需实现
+Run: 无需实现
+dbsize: 无需实现
+MigrateSlotRanges: 无需实现
+MigrateSlots: 无需实现
+MigrateKeys: 无需实现

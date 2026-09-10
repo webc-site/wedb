@@ -1,3 +1,2 @@
-fn:
-  - BaseSetup
-  - BaseTearDown
+BaseSetup: 无需实现
+BaseTearDown: 无需实现

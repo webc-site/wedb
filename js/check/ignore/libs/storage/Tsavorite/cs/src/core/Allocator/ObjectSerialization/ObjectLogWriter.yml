@@ -1,12 +1,11 @@
-fn:
-  - ObjectLogWriter
-  - FlushAndReset
-  - GetNextRecordStartPosition
-  - OnBeginPartialFlush
-  - OnPartialFlushComplete
-  - WriteRecordObjects
-  - WriteDirect
-  - CopyRecoveredObjectBytes
-  - Write
-  - OnBufferComplete
-  - OnSerializeComplete
+ObjectLogWriter: 无需实现
+FlushAndReset: 无需实现
+GetNextRecordStartPosition: 无需实现
+OnBeginPartialFlush: 无需实现
+OnPartialFlushComplete: 无需实现
+WriteRecordObjects: 无需实现
+WriteDirect: 无需实现
+CopyRecoveredObjectBytes: 无需实现
+Write: 无需实现
+OnBufferComplete: 无需实现
+OnSerializeComplete: 无需实现

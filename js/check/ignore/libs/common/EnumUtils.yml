@@ -1,6 +1,5 @@
-fn:
-  - GetEnumNameToDescription
-  - GetEnumDescriptions
-  - TryParseEnumsFromDescription
-  - TryParseEnumFromDescription
-  - AddTypeToCache
+GetEnumNameToDescription: 无需实现
+GetEnumDescriptions: 无需实现
+TryParseEnumsFromDescription: 无需实现
+TryParseEnumFromDescription: 无需实现
+AddTypeToCache: 无需实现

@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - BaseSetup
-  - TearDown
-  - BaseTearDown
-  - RecordingFailingDevice
-  - RemoveSegmentAsync
-test:
-  - CommitFailureExceptionCarriesDeviceError
-  - FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog
-  - CalculateReadOnlyAddressClampsOutOfRangeHeadAddress
+Setup: 无需实现
+BaseSetup: 无需实现
+TearDown: 无需实现
+BaseTearDown: 无需实现
+RecordingFailingDevice: 无需实现
+RemoveSegmentAsync: 无需实现
+CommitFailureExceptionCarriesDeviceError: 测试函数无需实现
+FastCommitRecoveryFailureFailsFastAndDoesNotPoisonLog: 测试函数无需实现
+CalculateReadOnlyAddressClampsOutOfRangeHeadAddress: 测试函数无需实现

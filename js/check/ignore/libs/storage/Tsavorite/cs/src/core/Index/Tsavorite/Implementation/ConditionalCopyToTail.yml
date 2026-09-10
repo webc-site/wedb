@@ -1,3 +1,2 @@
-fn:
-  - EphemeralSUnlock
-  - PrepareIOForConditionalOperation
+EphemeralSUnlock: 无需实现
+PrepareIOForConditionalOperation: 无需实现

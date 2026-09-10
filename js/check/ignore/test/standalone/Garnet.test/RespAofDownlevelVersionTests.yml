@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - GetInnermost
-  - RewriteAofHeaderVersion
-test:
-  - DownlevelV4AofRecoversOnCurrentBuild
-  - UplevelAofVersionIsRejected
+Setup: 无需实现
+TearDown: 无需实现
+GetInnermost: 无需实现
+RewriteAofHeaderVersion: 无需实现
+DownlevelV4AofRecoversOnCurrentBuild: 测试函数无需实现
+UplevelAofVersionIsRejected: 测试函数无需实现

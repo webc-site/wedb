@@ -1,6 +1,5 @@
-fn:
-  - NumBitsPreviousPowerOf2
-  - IsBlittable
-  - Murmur3
-  - WithCancellationAsync
-  - SlowWithCancellationAsync
+NumBitsPreviousPowerOf2: 无需实现
+IsBlittable: 无需实现
+Murmur3: 无需实现
+WithCancellationAsync: 无需实现
+SlowWithCancellationAsync: 无需实现

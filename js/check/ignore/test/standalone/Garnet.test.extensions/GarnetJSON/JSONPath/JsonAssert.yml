@@ -1,4 +1,3 @@
-fn:
-  - AreEqual
-  - DeepEquals
-  - Equals
+AreEqual: 无需实现
+DeepEquals: 无需实现
+Equals: 无需实现

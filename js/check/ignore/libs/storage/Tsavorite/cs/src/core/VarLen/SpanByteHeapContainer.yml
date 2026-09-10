@@ -1,2 +1,1 @@
-fn:
-  - SpanByteHeapContainer
+SpanByteHeapContainer: 无需实现

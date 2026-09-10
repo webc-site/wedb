@@ -1,3 +1,2 @@
-fn:
-  - Main
-  - ConfigureGlobalRuntimeSettings
+Main: 无需实现
+ConfigureGlobalRuntimeSettings: 无需实现

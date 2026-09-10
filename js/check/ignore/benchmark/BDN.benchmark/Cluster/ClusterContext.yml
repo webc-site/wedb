@@ -1,7 +1,6 @@
-fn:
-  - SetupSingleInstance
-  - AddSlotRange
-  - CreateGetSet
-  - CreateMGetMSet
-  - CreateCTXNSET
-  - Consume
+SetupSingleInstance: 无需实现
+AddSlotRange: 无需实现
+CreateGetSet: 无需实现
+CreateMGetMSet: 无需实现
+CreateCTXNSET: 无需实现
+Consume: 无需实现

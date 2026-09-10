@@ -1,10 +1,9 @@
-fn:
-  - Resolve
-  - SizeForKey
-  - ClampToRam
-  - TryGetAvailableRamBytes
-  - PreviousPow2
-  - ParseDeviceType
-  - ParseIoBackend
-  - IsKnownDeviceName
-  - IsKnownIoBackendName
+Resolve: 无需实现
+SizeForKey: 无需实现
+ClampToRam: 无需实现
+TryGetAvailableRamBytes: 无需实现
+PreviousPow2: 无需实现
+ParseDeviceType: 无需实现
+ParseIoBackend: 无需实现
+IsKnownDeviceName: 无需实现
+IsKnownIoBackendName: 无需实现

@@ -1,5 +1,4 @@
-fn:
-  - ToString
-  - OperationState
-  - SetIsNoKey
-  - SetIsReadAtAddress
+ToString: 无需实现
+OperationState: 无需实现
+SetIsNoKey: 无需实现
+SetIsReadAtAddress: 无需实现

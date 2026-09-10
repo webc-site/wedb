@@ -1,3 +1,2 @@
-fn:
-  - WriteInto
-  - IOCallback
+WriteInto: 无需实现
+IOCallback: 无需实现

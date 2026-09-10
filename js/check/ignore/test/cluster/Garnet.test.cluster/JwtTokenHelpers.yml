@@ -1,4 +1,3 @@
-fn:
-  - MockIssuerSigningTokenProvider
-  - JwtTokenGenerator
-  - CreateToken
+MockIssuerSigningTokenProvider: 无需实现
+JwtTokenGenerator: 无需实现
+CreateToken: 无需实现

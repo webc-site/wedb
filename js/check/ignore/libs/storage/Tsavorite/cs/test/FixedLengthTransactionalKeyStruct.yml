@@ -1,4 +1,3 @@
-fn:
-  - FixedLengthTransactionalKeyStruct
-  - Sort
-  - ToString
+FixedLengthTransactionalKeyStruct: 无需实现
+Sort: 无需实现
+ToString: 无需实现

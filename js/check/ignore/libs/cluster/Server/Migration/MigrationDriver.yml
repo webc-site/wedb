@@ -1,5 +1,4 @@
-fn:
-  - TrySetSlotRangesAsync
-  - TryRecoverFromFailureAsync
-  - TryStartMigrationTaskAsync
-  - BeginAsyncMigrationTaskAsync
+TrySetSlotRangesAsync: 无需实现
+TryRecoverFromFailureAsync: 无需实现
+TryStartMigrationTaskAsync: 无需实现
+BeginAsyncMigrationTaskAsync: 无需实现

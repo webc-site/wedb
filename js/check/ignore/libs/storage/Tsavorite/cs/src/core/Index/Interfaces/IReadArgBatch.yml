@@ -1,5 +1,4 @@
-fn:
-  - GetKey
-  - GetInput
-  - GetOutput
-  - SetOutput
+GetKey: 无需实现
+GetInput: 无需实现
+GetOutput: 无需实现
+SetOutput: 无需实现

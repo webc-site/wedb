@@ -1,6 +1,5 @@
-fn:
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+OnEvict: 无需实现
+OnRecovery: 无需实现
+OnCheckpoint: 无需实现

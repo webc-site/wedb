@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - LoadVectorSet
-  - AssertEvictedToDisk
-  - GenerateData
-  - RandomGaussianVector
-  - NextGaussian
-  - Normalized
-  - MeasureRecall
-  - BruteForceTopK
-  - Dot
-test:
-  - RecallSurvivesFlushAndEvict
-  - RecallSurvivesLargerThanMemoryLoad
-  - RecallSurvivesSaveAndRecover
+Setup: 无需实现
+TearDown: 无需实现
+LoadVectorSet: 无需实现
+AssertEvictedToDisk: 无需实现
+GenerateData: 无需实现
+RandomGaussianVector: 无需实现
+NextGaussian: 无需实现
+Normalized: 无需实现
+MeasureRecall: 无需实现
+BruteForceTopK: 无需实现
+Dot: 无需实现
+RecallSurvivesFlushAndEvict: 测试函数无需实现
+RecallSurvivesLargerThanMemoryLoad: 测试函数无需实现
+RecallSurvivesSaveAndRecover: 测试函数无需实现

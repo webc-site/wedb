@@ -1,5 +1,4 @@
-fn:
-  - GlobalSetup
-  - IsAuthorized_DateTimeUtcNow
-  - IsAuthorized_CoarseTimeProvider
-  - IsAuthorized_CoarseTimeProviderTicks
+GlobalSetup: 无需实现
+IsAuthorized_DateTimeUtcNow: 无需实现
+IsAuthorized_CoarseTimeProvider: 无需实现
+IsAuthorized_CoarseTimeProviderTicks: 无需实现

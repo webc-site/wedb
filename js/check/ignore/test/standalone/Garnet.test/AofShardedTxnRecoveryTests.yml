@@ -1,6 +1,4 @@
-fn:
-  - CreateShardedAofServer
-  - Setup
-  - TearDown
-test:
-  - ShardedStandaloneRenameTransactionSurvivesRecovery
+CreateShardedAofServer: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ShardedStandaloneRenameTransactionSurvivesRecovery: 测试函数无需实现

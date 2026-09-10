@@ -1,10 +1,9 @@
-fn:
-  - LocalMemoryDevice
-  - EnsureSegment
-  - EnsureSegmentSlow
-  - Enqueue
-  - WaitLatency
-  - AssignRingIdx
-  - ProcessorLoop
-  - RemoveSegmentAsync
-  - GetAllocatedBytes
+LocalMemoryDevice: 无需实现
+EnsureSegment: 无需实现
+EnsureSegmentSlow: 无需实现
+Enqueue: 无需实现
+WaitLatency: 无需实现
+AssignRingIdx: 无需实现
+ProcessorLoop: 无需实现
+RemoveSegmentAsync: 无需实现
+GetAllocatedBytes: 无需实现

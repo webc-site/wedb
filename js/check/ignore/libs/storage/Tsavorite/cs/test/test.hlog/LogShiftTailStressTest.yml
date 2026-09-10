@@ -1,7 +1,5 @@
-fn:
-  - Setup
-  - BaseSetup
-  - TearDown
-  - BaseTearDown
-test:
-  - TsavoriteLogShiftTailStressTest
+Setup: 无需实现
+BaseSetup: 无需实现
+TearDown: 无需实现
+BaseTearDown: 无需实现
+TsavoriteLogShiftTailStressTest: 测试函数无需实现

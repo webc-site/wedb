@@ -1,3 +1,2 @@
-fn:
-  - WaitForTermination
-  - TerminateNormally
+WaitForTermination: 无需实现
+TerminateNormally: 无需实现

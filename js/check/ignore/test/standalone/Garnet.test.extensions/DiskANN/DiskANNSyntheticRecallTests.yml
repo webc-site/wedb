@@ -1,23 +1,21 @@
-fn:
-  - Setup
-  - TearDown
-  - RunRecallTest
-  - AddVectors_FP32
-  - VsimQuery_FP32
-  - AddVectors_XB8
-  - VsimQuery_XB8
-  - GenerateGridVectors
-  - GenerateGridVectorsUInt8
-  - GenerateCircleVectors
-  - GenerateVariousRadiiCircleVectors
-  - ParseVsimIds
-  - BruteForceNearestNeighbors
-  - CountDictionaryIntersection
-  - CountPerDistance
-  - SquaredL2Distance_Raw
-  - SquaredL2Distance_XB8
-  - CosineDistance
-test:
-  - GridRecall_FP32_NoQuant
-  - GridRecall_XB8_XPREQ8
-  - CircleRecall_FP32_NoQuant
+Setup: 无需实现
+TearDown: 无需实现
+RunRecallTest: 无需实现
+AddVectors_FP32: 无需实现
+VsimQuery_FP32: 无需实现
+AddVectors_XB8: 无需实现
+VsimQuery_XB8: 无需实现
+GenerateGridVectors: 无需实现
+GenerateGridVectorsUInt8: 无需实现
+GenerateCircleVectors: 无需实现
+GenerateVariousRadiiCircleVectors: 无需实现
+ParseVsimIds: 无需实现
+BruteForceNearestNeighbors: 无需实现
+CountDictionaryIntersection: 无需实现
+CountPerDistance: 无需实现
+SquaredL2Distance_Raw: 无需实现
+SquaredL2Distance_XB8: 无需实现
+CosineDistance: 无需实现
+GridRecall_FP32_NoQuant: 测试函数无需实现
+GridRecall_XB8_XPREQ8: 测试函数无需实现
+CircleRecall_FP32_NoQuant: 测试函数无需实现

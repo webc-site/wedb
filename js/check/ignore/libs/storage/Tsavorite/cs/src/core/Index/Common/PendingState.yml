@@ -1,5 +1,4 @@
-fn:
-  - CopyInputsForReadOrRMW
-  - CopyKey
-  - CopyFrom
-  - TransferFrom
+CopyInputsForReadOrRMW: 无需实现
+CopyKey: 无需实现
+CopyFrom: 无需实现
+TransferFrom: 无需实现

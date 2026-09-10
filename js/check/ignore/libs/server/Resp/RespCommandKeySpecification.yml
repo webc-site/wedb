@@ -1,4 +1,1 @@
-# C# Write 为 Utf8JsonWriter 键规范元数据导出转换器；
-# rust 键规范元数据直接结构化序列化
-fn:
-  - Write
+Write: 无需实现

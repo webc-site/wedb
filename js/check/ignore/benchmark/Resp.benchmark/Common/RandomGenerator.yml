@@ -1,4 +1,3 @@
-fn:
-  - RandomGenerator
-  - Generate
-  - Generate64
+RandomGenerator: 无需实现
+Generate: 无需实现
+Generate64: 无需实现

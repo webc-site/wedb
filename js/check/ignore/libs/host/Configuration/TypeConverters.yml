@@ -1,5 +1,4 @@
-fn:
-  - CanConvertFrom
-  - CanConvertTo
-  - ConvertFrom
-  - ConvertTo
+CanConvertFrom: 无需实现
+CanConvertTo: 无需实现
+ConvertFrom: 无需实现
+ConvertTo: 无需实现

@@ -1,41 +1,40 @@
-fn:
-  - IsExtendedLengthPath
-  - CreateFileW
-  - ReadFile
-  - WriteFile
-  - CreateIoCompletionPort
-  - GetQueuedCompletionStatus
-  - GetQueuedCompletionStatusEx
-  - GetFileSizeEx
-  - SetFilePointer
-  - SetEndOfFile
-  - GetDiskFreeSpace
-  - DeleteFileW
-  - GetDeviceSectorSize
-  - GetCurrentThread
-  - GetCurrentThreadId
-  - GetCurrentProcessorNumber
-  - GetActiveProcessorCount
-  - GetActiveProcessorGroupCount
-  - SetThreadGroupAffinity
-  - GetThreadGroupAffinity
-  - GetLogicalProcessorInformation
-  - GetLogicalProcessorsPerCore
-  - AffinitizeThreadRoundRobin
-  - GetNumGroupsProcsPerGroup
-  - AffinitizeThreadShardedNuma
-  - LookupPrivilegeValue
-  - GetCurrentProcess
-  - OpenProcessToken
-  - AdjustTokenPrivileges
-  - CloseHandle
-  - DeviceIoControl
-  - SetFilePointerEx
-  - SetFileValidData
-  - CreateFile
-  - EnableProcessPrivileges
-  - CTL_CODE
-  - EnableVolumePrivileges
-  - SetFileSize
-  - MakeHRFromErrorCode
-  - RtlNtStatusToDosError
+IsExtendedLengthPath: 无需实现
+CreateFileW: 无需实现
+ReadFile: 无需实现
+WriteFile: 无需实现
+CreateIoCompletionPort: 无需实现
+GetQueuedCompletionStatus: 无需实现
+GetQueuedCompletionStatusEx: 无需实现
+GetFileSizeEx: 无需实现
+SetFilePointer: 无需实现
+SetEndOfFile: 无需实现
+GetDiskFreeSpace: 无需实现
+DeleteFileW: 无需实现
+GetDeviceSectorSize: 无需实现
+GetCurrentThread: 无需实现
+GetCurrentThreadId: 无需实现
+GetCurrentProcessorNumber: 无需实现
+GetActiveProcessorCount: 无需实现
+GetActiveProcessorGroupCount: 无需实现
+SetThreadGroupAffinity: 无需实现
+GetThreadGroupAffinity: 无需实现
+GetLogicalProcessorInformation: 无需实现
+GetLogicalProcessorsPerCore: 无需实现
+AffinitizeThreadRoundRobin: 无需实现
+GetNumGroupsProcsPerGroup: 无需实现
+AffinitizeThreadShardedNuma: 无需实现
+LookupPrivilegeValue: 无需实现
+GetCurrentProcess: 无需实现
+OpenProcessToken: 无需实现
+AdjustTokenPrivileges: 无需实现
+CloseHandle: 无需实现
+DeviceIoControl: 无需实现
+SetFilePointerEx: 无需实现
+SetFileValidData: 无需实现
+CreateFile: 无需实现
+EnableProcessPrivileges: 无需实现
+CTL_CODE: 无需实现
+EnableVolumePrivileges: 无需实现
+SetFileSize: 无需实现
+MakeHRFromErrorCode: 无需实现
+RtlNtStatusToDosError: 无需实现

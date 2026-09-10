@@ -1,2 +1,1 @@
-fn:
-  - TryReadFromResp
+TryReadFromResp: 无需实现

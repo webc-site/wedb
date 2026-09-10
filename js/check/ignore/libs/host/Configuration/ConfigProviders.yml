@@ -1,6 +1,5 @@
-fn:
-  - TryImportOptions
-  - TryExportOptions
-  - TrySerializeOptions
-  - TryDeserializeOptions
-  - GetConfigProvider
+TryImportOptions: 无需实现
+TryExportOptions: 无需实现
+TrySerializeOptions: 无需实现
+TryDeserializeOptions: 无需实现
+GetConfigProvider: 无需实现

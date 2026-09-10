@@ -1,10 +1,9 @@
-fn:
-  - GarnetServerEmbedded
-  - ActiveConsumers
-  - ActiveClusterSessions
-  - CreateNetworkHandler
-  - IncrementConnectionsReceived
-  - DisposeMessageConsumer
-  - IncrementConnectionsDisposed
-  - Start
-  - TryCreateMessageConsumer
+GarnetServerEmbedded: 无需实现
+ActiveConsumers: 无需实现
+ActiveClusterSessions: 无需实现
+CreateNetworkHandler: 无需实现
+IncrementConnectionsReceived: 无需实现
+DisposeMessageConsumer: 无需实现
+IncrementConnectionsDisposed: 无需实现
+Start: 无需实现
+TryCreateMessageConsumer: 无需实现

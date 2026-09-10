@@ -1,16 +1,15 @@
-fn:
-  - GetAsyncEnumerable
-  - ConsumeAllAsync
-  - BulkConsumeAllAsync
-  - SlowWaitAsync
-  - SlowWaitUncommittedAsync
-  - TryConsumeNext
-  - TryBulkConsumeNext
-  - UnsafeGetNext
-  - UnsafeRelease
-  - AsyncReadPageFromDeviceToFrame
-  - AsyncReadPagesToFrameCallback
-  - Align
-  - ScanForwardForCommit
-  - GetNextInternal
-  - ExpandGetNextInternal
+GetAsyncEnumerable: 无需实现
+ConsumeAllAsync: 无需实现
+BulkConsumeAllAsync: 无需实现
+SlowWaitAsync: 无需实现
+SlowWaitUncommittedAsync: 无需实现
+TryConsumeNext: 无需实现
+TryBulkConsumeNext: 无需实现
+UnsafeGetNext: 无需实现
+UnsafeRelease: 无需实现
+AsyncReadPageFromDeviceToFrame: 无需实现
+AsyncReadPagesToFrameCallback: 无需实现
+Align: 无需实现
+ScanForwardForCommit: 无需实现
+GetNextInternal: 无需实现
+ExpandGetNextInternal: 无需实现

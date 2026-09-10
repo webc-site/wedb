@@ -1,3 +1,2 @@
-fn:
-  - Execute
-  - ExecuteCustomRawStringCommand
+Execute: 无需实现
+ExecuteCustomRawStringCommand: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - MergeRevivificationStatsTo
-  - ResetRevivificationStats
+MergeRevivificationStatsTo: 无需实现
+ResetRevivificationStats: 无需实现

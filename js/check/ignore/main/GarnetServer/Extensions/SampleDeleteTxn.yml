@@ -1,6 +1,5 @@
-fn:
-  - Prepare
-  - AddKey
-  - GetNextArg
-  - Main
-  - WriteSimpleString
+Prepare: 无需实现
+AddKey: 无需实现
+GetNextArg: 无需实现
+Main: 无需实现
+WriteSimpleString: 无需实现

@@ -1,5 +1,4 @@
-fn:
-  - StopAsync
-  - HandleStorageError
-  - PerformWithRetriesAsync
-  - ConfirmLeaseIsGoodForAWhileAsync
+StopAsync: 无需实现
+HandleStorageError: 无需实现
+PerformWithRetriesAsync: 无需实现
+ConfirmLeaseIsGoodForAWhileAsync: 无需实现

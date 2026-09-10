@@ -1,9 +1,8 @@
-fn:
-  - FromPinnedVariable
-  - FromPinnedPointer
-  - FromLengthPrefixedPinnedPointer
-  - TotalSize
-  - CopyTo
-  - UncheckedCast
-  - SerializeTo
-  - ToShortString
+FromPinnedVariable: 无需实现
+FromPinnedPointer: 无需实现
+FromLengthPrefixedPinnedPointer: 无需实现
+TotalSize: 无需实现
+CopyTo: 无需实现
+UncheckedCast: 无需实现
+SerializeTo: 无需实现
+ToShortString: 无需实现

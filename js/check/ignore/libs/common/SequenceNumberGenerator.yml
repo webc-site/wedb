@@ -1,2 +1,1 @@
-fn:
-  - GetSequenceNumber
+GetSequenceNumber: 无需实现

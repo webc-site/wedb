@@ -1,13 +1,11 @@
-fn:
-  - InPlaceWriter
-  - InitialUpdater
-  - InitialWriter
-  - InitialDeleter
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - UpdateFunc
-test:
-  - CollidingDeletedRecordTest
-  - SetInvalidOnException
+InPlaceWriter: 无需实现
+InitialUpdater: 无需实现
+InitialWriter: 无需实现
+InitialDeleter: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+UpdateFunc: 无需实现
+CollidingDeletedRecordTest: 测试函数无需实现
+SetInvalidOnException: 测试函数无需实现

@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ClusterTLSInitialize
-  - ClusterTLSSlotInfo
-  - ClusterTLSAddDelSlots
-  - ClusterTLSSlotChangeStatus
-  - ClusterTLSRedirectMessage
-  - ClusterTLSMigrateSlots
-  - ClusterTLSMigrateSlotsExpiry
-  - ClusterTLSMigrateSlotsWithObjects
-  - ClusterTLSMigrateKeys
-  - ClusterTLSMigrateKeysWithObjects
-  - ClusterTLSMigrateContinuousReadWrite
+Setup: 无需实现
+TearDown: 无需实现
+ClusterTLSInitialize: 测试函数无需实现
+ClusterTLSSlotInfo: 测试函数无需实现
+ClusterTLSAddDelSlots: 测试函数无需实现
+ClusterTLSSlotChangeStatus: 测试函数无需实现
+ClusterTLSRedirectMessage: 测试函数无需实现
+ClusterTLSMigrateSlots: 测试函数无需实现
+ClusterTLSMigrateSlotsExpiry: 测试函数无需实现
+ClusterTLSMigrateSlotsWithObjects: 测试函数无需实现
+ClusterTLSMigrateKeys: 测试函数无需实现
+ClusterTLSMigrateKeysWithObjects: 测试函数无需实现
+ClusterTLSMigrateContinuousReadWrite: 测试函数无需实现

@@ -1,4 +1,3 @@
-fn:
-  - RecordValue
-  - RecordValueWithCount
-  - RecordValueWithExpectedInterval
+RecordValue: 无需实现
+RecordValueWithCount: 无需实现
+RecordValueWithExpectedInterval: 无需实现

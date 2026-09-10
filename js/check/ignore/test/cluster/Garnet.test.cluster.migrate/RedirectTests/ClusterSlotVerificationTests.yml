@@ -1,27 +1,25 @@
-fn:
-  - Equals
-  - AssertSlotsNotAssigned
-  - ConfigureSlotForMigration
-  - ResetSlot
-  - OneTimeSetUp
-  - OneTimeTearDown
-  - ClusterState
-  - GetNodeInfo
-  - SERedisClusterDown
-  - GarnetClientSessionClusterDown
-  - SERedisOKTest
-  - GarnetClientSessionOK
-  - SERedisCrossslotTest
-  - GarnetClientSessionCrossslotTest
-  - SERedisMOVEDTest
-  - GarnetClientSessionMOVEDTest
-  - SERedisASKTest
-  - GarnetClientSessionASKTest
-  - SERedisTRYAGAINTest
-test:
-  - ClusterCLUSTERDOWNTest
-  - ClusterOKTest
-  - ClusterCROSSSLOTTest
-  - ClusterMOVEDTest
-  - ClusterASKTest
-  - ClusterTRYAGAINTest
+Equals: 无需实现
+AssertSlotsNotAssigned: 无需实现
+ConfigureSlotForMigration: 无需实现
+ResetSlot: 无需实现
+OneTimeSetUp: 无需实现
+OneTimeTearDown: 无需实现
+ClusterState: 无需实现
+GetNodeInfo: 无需实现
+SERedisClusterDown: 无需实现
+GarnetClientSessionClusterDown: 无需实现
+SERedisOKTest: 无需实现
+GarnetClientSessionOK: 无需实现
+SERedisCrossslotTest: 无需实现
+GarnetClientSessionCrossslotTest: 无需实现
+SERedisMOVEDTest: 无需实现
+GarnetClientSessionMOVEDTest: 无需实现
+SERedisASKTest: 无需实现
+GarnetClientSessionASKTest: 无需实现
+SERedisTRYAGAINTest: 无需实现
+ClusterCLUSTERDOWNTest: 测试函数无需实现
+ClusterOKTest: 测试函数无需实现
+ClusterCROSSSLOTTest: 测试函数无需实现
+ClusterMOVEDTest: 测试函数无需实现
+ClusterASKTest: 测试函数无需实现
+ClusterTRYAGAINTest: 测试函数无需实现

@@ -1,6 +1,3 @@
-# C# Stream 基类管道：ReadByte 单字节推进、Seek 抛 NotSupportedException（只读哨兵）；
-# rust 以 &[u8] 切片推进等价语义，无 Stream 继承体系
-fn:
-  - ReadByte
-  - Seek
-  - Write
+ReadByte: 无需实现
+Seek: 无需实现
+Write: 无需实现

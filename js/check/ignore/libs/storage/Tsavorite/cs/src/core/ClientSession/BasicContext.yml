@@ -1,12 +1,11 @@
-fn:
-  - BasicContext
-  - UnsafeResumeThread
-  - GetKeyHash
-  - CompletePendingWithOutputs
-  - CompletePendingAsync
-  - CompletePendingWithOutputsAsync
-  - ReadWithPrefetch
-  - ResetModified
-  - IsModified
-  - CompactionCopyToTail
-  - ConditionalScanPush
+BasicContext: 无需实现
+UnsafeResumeThread: 无需实现
+GetKeyHash: 无需实现
+CompletePendingWithOutputs: 无需实现
+CompletePendingAsync: 无需实现
+CompletePendingWithOutputsAsync: 无需实现
+ReadWithPrefetch: 无需实现
+ResetModified: 无需实现
+IsModified: 无需实现
+CompactionCopyToTail: 无需实现
+ConditionalScanPush: 无需实现

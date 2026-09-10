@@ -1,858 +1,856 @@
-fn:
-  - Setup
-  - TearDown
-  - DoAsyncAsync
-  - DoAclCatAsync
-  - DoAclDelUserAsync
-  - DoAclDelUserMultiAsync
-  - DoAclGenPassAsync
-  - DoAclGetUserAsync
-  - DoAclListAsync
-  - DoAclLoadAsync
-  - DoAclSaveAsync
-  - DoAclSetUserOnAsync
-  - DoAclSetUserCategoryAsync
-  - DoAclSetUserOnCategoryAsync
-  - DoAclUsersAsync
-  - DoAclWhoAmIAsync
-  - DoExpDelScanAsync
-  - DoAppendAsync
-  - DoAskingAsync
-  - DoBGSaveAsync
-  - DoBGSaveScheduleAsync
-  - DoBitCountAsync
-  - DoBitCountStartEndAsync
-  - DoBitCountStartEndByteAsync
-  - DoBitCountStartEndBitAsync
-  - DoBitFieldGetAsync
-  - DoBitFieldGetWrapAsync
-  - DoBitFieldGetSatAsync
-  - DoBitFieldGetFailAsync
-  - DoBitFieldSetAsync
-  - DoBitFieldSetWrapAsync
-  - DoBitFieldSetSatAsync
-  - DoBitFieldSetFailAsync
-  - DoBitFieldIncrByAsync
-  - DoBitFieldIncrByWrapAsync
-  - DoBitFieldIncrBySatAsync
-  - DoBitFieldIncrByFailAsync
-  - DoBitFieldMultiAsync
-  - DoBitFieldROGetAsync
-  - DoBitFieldROMultiAsync
-  - DoBitOpAndAsync
-  - DoBitOpAndMultiAsync
-  - DoBitOpOrAsync
-  - DoBitOpOrMultiAsync
-  - DoBitOpXorAsync
-  - DoBitOpXorMultiAsync
-  - DoBitOpNotAsync
-  - DoBitPosAsync
-  - DoBitPosStartAsync
-  - DoBitPosStartEndAsync
-  - DoBitPosStartEndBitAsync
-  - DoBitPosStartEndByteAsync
-  - DoClientIdAsync
-  - DoClientInfoAsync
-  - DoClientListAsync
-  - DoClientListTypeAsync
-  - DoClientListIdAsync
-  - DoClientListIdsAsync
-  - DoClientKillAsync
-  - DoClientFilterAsync
-  - DoClientGetNameAsync
-  - DoClientSetNameAsync
-  - DoClientSetInfoAsync
-  - DoSSubscribeAsync
-  - DoSPublishAsync
-  - DoClientUnblockAsync
-  - DoClusterAddSlotsAsync
-  - DoClusterAddSlotsMultiAsync
-  - DoClusterAddSlotsRangeAsync
-  - DoClusterAddSlotsRangeMultiAsync
-  - DoClusterAppendLogAsync
-  - DoClusterAttachSyncAsync
-  - DoClusterBanListAsync
-  - DoClusterBeginReplicaFailoverAsync
-  - DoClusterBumpEpochAsync
-  - DoClusterDelKeysInSlotAsync
-  - DoClusterDelKeysInSlotRangeAsync
-  - DoClusterDelKeysInSlotRangeMultiAsync
-  - DoClusterDelSlotsAsync
-  - DoClusterDelSlotsMultiAsync
-  - DoClusterDelSlotsRangeAsync
-  - DoClusterDelSlotsRangeMultiAsync
-  - DoClusterEndpointAsync
-  - DoClusterFailoverAsync
-  - DoClusterFailoverForceAsync
-  - DoClusterFailStopWritesAsync
-  - DoClusterFlushAllAsync
-  - DoClusterForgetAsync
-  - DoClusterGetKeysInSlotAsync
-  - DoClusterGossipAsync
-  - DoClusterHelpAsync
-  - DoClusterInfoAsync
-  - DoClusterKeySlotAsync
-  - DoClusterMeetAsync
-  - DoClusterMeetPortAsync
-  - DoClusterMigrateAsync
-  - DoClusterMTasksAsync
-  - DoClusterAdvanceTimeAsync
-  - DoClusterMyIdAsync
-  - DoClusterMyParentIdAsync
-  - DoClusterNodesAsync
-  - DoClusterReplicasAsync
-  - DoClusterReplicateAsync
-  - DoClusterReserveAsync
-  - DoClusterResetAsync
-  - DoClusteResetHardAsync
-  - DoClusterSendCkptFileSegmentAsync
-  - DoClusterSendCkptMetadataAsync
-  - DoClusterSnapshotDataAsync
-  - DoClusterSetConfigEpochAsync
-  - DoClusterSetSlotAsync
-  - DoClusterSetSlotStableAsync
-  - DoClusterSetSlotImportingAsync
-  - DoClusterSetSlotsRangeStableAsync
-  - DoClusterSetSlotsRangeStableMultiAsync
-  - DoClusterSetSlotsRangeImportingAsync
-  - DoClusterSetSlotsRangeImportingMultiAsync
-  - DoClusterShardsAsync
-  - DoClusterSlotsAsync
-  - DoClusterSlotStateAsync
-  - DoClusterMlogKeyTimeAsync
-  - DoClusterMlogKeyTimeFrontierAsync
-  - DoClusterPublishAsync
-  - DoClusterSPublishAsync
-  - DoCommandAsync
-  - DoCommandCountAsync
-  - DoCommandInfoAsync
-  - DoCommandInfoOneAsync
-  - DoCommandInfoMultiAsync
-  - DoCommandDocsAsync
-  - DoCommandDocsOneAsync
-  - DoCommandDocsMultiAsync
-  - DoCommandGetKeysAsync
-  - DoCommandGetKeysAndFlagsAsync
-  - DoCommitAOFAsync
-  - DoConfigGetOneAsync
-  - DoConfigRewriteAsync
-  - DoConfigSetOneAsync
-  - DoConfigSetMultiAsync
-  - DoCOScanAsync
-  - DoSetWpIfPgtAsync
-  - DoMyDictGetAsync
-  - DoReadWriteTxAsync
-  - DoSumAsync
-  - DoDebugAsync
-  - DoEvalAsync
-  - DoEvalShaAsync
-  - DoScriptLoadAsync
-  - DoScriptExistsSingleAsync
-  - DoScriptExistsMultiAsync
-  - DoScriptFlushAsync
-  - DoScriptFlushSyncAsync
-  - DoScriptFlushAsyncAsync
-  - DoDbSizeAsync
-  - DoDecrAsync
-  - DoDecrByAsync
-  - DoDelAsync
-  - DoDelMultiAsync
-  - DoDiscardAsync
-  - DoEchoAsync
-  - DoExecAsync
-  - DoExistsAsync
-  - DoExistsMultiAsync
-  - DoExpireAsync
-  - DoExpireNXAsync
-  - DoExpireXXAsync
-  - DoExpireGTAsync
-  - DoExpireLTAsync
-  - DoFailoverAsync
-  - DoFailoverToAsync
-  - DoFailoverAbortAsync
-  - DoFailoverToForceAsync
-  - DoFailoverToAbortAsync
-  - DoFailoverToForceAbortAsync
-  - DoFailoverToForceAbortTimeoutAsync
-  - DoFlushDBAsync
-  - DoFlushDBAsyncAsync
-  - DoFlushAllAsync
-  - DoFlushAllAsyncAsync
-  - DoGetAsync
-  - DoGetEXAsync
-  - DoGetBitAsync
-  - DoGetDelAsync
-  - DoGetAndSetAsync
-  - DoSubStringAsync
-  - DoGetRangeAsync
-  - DoHExpireAsync
-  - DoHPExpireAsync
-  - DoHExpireAtAsync
-  - DoHPExpireAtAsync
-  - DoHExpireTimeAsync
-  - DoHPExpireTimeAsync
-  - DoHETTLAsync
-  - DoHPETTLAsync
-  - DoHPersistAsync
-  - DoHCollectAsync
-  - DoHDelAsync
-  - DoHDelMultiAsync
-  - DoHIncrByAsync
-  - DoHIncrByFloatAsync
-  - DoHKeysAsync
-  - DoHLenAsync
-  - DoHMGetAsync
-  - DoHMGetMultiAsync
-  - DoHMSetAsync
-  - DoHMSetMultiAsync
-  - DoHRandFieldAsync
-  - DoHRandFieldCountAsync
-  - DoHRandFieldCountWithValuesAsync
-  - DoHScanAsync
-  - DoHScanMatchAsync
-  - DoHScanCountAsync
-  - DoHScanNoValuesAsync
-  - DoHScanMatchCountAsync
-  - DoHScanMatchNoValuesAsync
-  - DoHScanCountNoValuesAsync
-  - DoHScanMatchCountNoValuesAsync
-  - DoHSetAsync
-  - DoHSetMultiAsync
-  - DoHSetNXAsync
-  - DoHStrLenAsync
-  - DoHValsAsync
-  - DoIncrAsync
-  - DoIncrByAsync
-  - DoIncrByFloatAsync
-  - DoInfoAsync
-  - DoInfoSingleAsync
-  - DoInfoMultiAsync
-  - DoRoleAsync
-  - DoKeysAsync
-  - DoLastSaveAsync
-  - DoLatencyHelpAsync
-  - DoLatencyHistogramAsync
-  - DoLatencyHistogramSingleAsync
-  - DoLatencyHistogramMultiAsync
-  - DoLatencyResetAsync
-  - DoLatencyResetSingleAsync
-  - DoLatencyResetMultiAsync
-  - DoBLMoveAsync
-  - DoBRPopLPushAsync
-  - DoBLMPopAsync
-  - DoBLPopAsync
-  - DoBRPopAsync
-  - DoBZMPopAsync
-  - DoBZPopMaxAsync
-  - DoBZPopMinAsync
-  - DoLPopAsync
-  - DoLPopCountAsync
-  - DoLPosAsync
-  - DoLPushAsync
-  - DoLPushMultiAsync
-  - DoLPushXAsync
-  - DoLPushXMultiAsync
-  - DoRPopAsync
-  - DoRPopCountAsync
-  - DoRPushAsync
-  - DoRPushMultiAsync
-  - DoRPushXAsync
-  - DoRPushXMultiAsync
-  - DoLCSAsync
-  - DoLLenAsync
-  - DoLTrimAsync
-  - DoLRangeAsync
-  - DoLIndexAsync
-  - DoLInsertBeforeAsync
-  - DoLInsertAfterAsync
-  - DoLRemAsync
-  - DoLMoveAsync
-  - DoLMPopAsync
-  - DoLMPopCountAsync
-  - DoLSetAsync
-  - DoMemoryUsageAsync
-  - DoMemoryUsageSamplesAsync
-  - DoObjectEncodingAsync
-  - DoObjectFreqAsync
-  - DoObjectIdletimeAsync
-  - DoObjectRefcountAsync
-  - DoObjectHelpAsync
-  - DoMemorySingleAsync
-  - DoMemoryMultiAsync
-  - DoMigrateAsync
-  - DoModuleLoadAsync
-  - DoMonitorAsync
-  - DoMSetSingleAsync
-  - DoMSetMultiAsync
-  - DoMSetNXSingleAsync
-  - DoMSetNXMultiAsync
-  - DoMultiAsync
-  - DoPersistAsync
-  - DoPExpireAsync
-  - DoPExpireNXAsync
-  - DoPExpireXXAsync
-  - DoPExpireGTAsync
-  - DoPExpireLTAsync
-  - DoPFAddSingleAsync
-  - DoPFAddMultiAsync
-  - DoPFCountSingleAsync
-  - DoPFCountMultiAsync
-  - DoPFMergeSingleAsync
-  - DoPFMergeMultiAsync
-  - DoPingAsync
-  - DoPingMessageAsync
-  - DoPSetEXAsync
-  - DoPSubscribePatternAsync
-  - DoPUnsubscribePatternAsync
-  - DoPTTLAsync
-  - DoPublishAsync
-  - DoPubSubChannelsAsync
-  - DoPubSubNumPatAsync
-  - DoPubSubNumSubAsync
-  - DoReadOnlyAsync
-  - DoReadWriteAsync
-  - DoRegisterCSAsync
-  - DoExpireTimeAsync
-  - DoPExpireTimeAsync
-  - DoRENAMEAsync
-  - DoRENAMENXAsync
-  - DoRICreateAsync
-  - DoRIDelAsync
-  - DoRIGetAsync
-  - DoRISetAsync
-  - DoRIRangeAsync
-  - DoRIScanAsync
-  - DoRIExistsAsync
-  - DoRIConfigAsync
-  - DoRIMetricsAsync
-  - DoReplicaOfAsync
-  - DoReplicaOfNoOneAsync
-  - DoRunTxpAsync
-  - DoSaveAsync
-  - DoScanAsync
-  - DoScanMatchAsync
-  - DoScanCountAsync
-  - DoScanTypeAsync
-  - DoScanMatchCountAsync
-  - DoScanMatchTypeAsync
-  - DoScanCountTypeAsync
-  - DoScanMatchCountTypeAsync
-  - DoSecondaryOfAsync
-  - DoSecondaryOfNoOneAsync
-  - DoSelectAsync
-  - DoSetAsync
-  - DoSetExNxAsync
-  - DoSetXxNxAsync
-  - DoSetKeepTtlAsync
-  - DoSetKeepTtlXxAsync
-  - DoSetIfMatchAsync
-  - DoSetIfGreaterAsync
-  - DoSetWithEtagAsync
-  - DoDelIfGreaterAsync
-  - DoGetIfNotMatchAsync
-  - DoGetWithEtagAsync
-  - DoSetBitAsync
-  - DoSetEXAsync
-  - DoSetIfNotExistAsync
-  - DoSetRangeAsync
-  - DoStrLenAsync
-  - DoSAddAsync
-  - DoSAddMultiAsync
-  - DoSRemAsync
-  - DoSRemMultiAsync
-  - DoSPopAsync
-  - DoSPopCountAsync
-  - DoSMembersAsync
-  - DoSCardAsync
-  - DoSScanAsync
-  - DoSScanMatchAsync
-  - DoSScanCountAsync
-  - DoSScanMatchCountAsync
-  - DoSlaveOfAsync
-  - DoSlaveOfNoOneAsync
-  - DoSlowlogGetAsync
-  - DoSlowlogHelpAsync
-  - DoSlowlogLenAsync
-  - DoSlowlogResetAsync
-  - DoSMoveAsync
-  - DoSRandMemberAsync
-  - DoSRandMemberCountAsync
-  - DoSIsMemberAsync
-  - DoSMultiIsMemberAsync
-  - DoSubscribeAsync
-  - DoSUnionAsync
-  - DoSUnionMultiAsync
-  - DoSUnionStoreAsync
-  - DoSUnionStoreMultiAsync
-  - DoSDiffAsync
-  - DoSDiffMultiAsync
-  - DoSDiffStoreAsync
-  - DoSDiffStoreMultiAsync
-  - DoUnionAsync
-  - DoGeoAddAsync
-  - DoGeoAddNXAsync
-  - DoGeoAddNXCHAsync
-  - DoGeoAddMultiAsync
-  - DoGeoAddNXMultiAsync
-  - DoGeoAddNXCHMultiAsync
-  - DoGeoHashAsync
-  - DoGeoHashSingleAsync
-  - DoGeoHashMultiAsync
-  - DoGetDistAsync
-  - DoGetDistMAsync
-  - DoGeoPosAsync
-  - DoGeoPosMultiAsync
-  - DoGeoRadiusAsync
-  - DoGeoRadiusROAsync
-  - DoGeoRadiusByMemberAsync
-  - DoGeoRadiusByMemberROAsync
-  - DoGeoSearchAsync
-  - DoGeoSearchStoreAsync
-  - DoZAddAsync
-  - DoZAddMultiAsync
-  - DoZCardAsync
-  - DoZMPopAsync
-  - DoZMPopCountAsync
-  - DoZPopMaxAsync
-  - DoZPopMaxCountAsync
-  - DoZScoreAsync
-  - DoZRemAsync
-  - DoZRemMultiAsync
-  - DoZCountAsync
-  - DoZIncrByAsync
-  - DoZRankAsync
-  - DoZRangeAsync
-  - DoZRevRangeByLexAsync
-  - DoZRangeStoreAsync
-  - DoZRangeByLexAsync
-  - DoZRangeByLexLimitAsync
-  - DoZRangeByScoreAsync
-  - DoZRangeByScoreWithScoresAsync
-  - DoZRangeByScoreLimitAsync
-  - DoZRangeByScoreWithScoresLimitAsync
-  - DoZRevRangeAsync
-  - DoZRevRangeWithScoresAsync
-  - DoZRevRangeByScoreAsync
-  - DoZRevRangeByScoreWithScoresAsync
-  - DoZRevRangeByScoreLimitAsync
-  - DoZRevRangeByScoreWithScoresLimitAsync
-  - DoZRevRankAsync
-  - DoZRemRangeByLexAsync
-  - DoZRemRangeByRankAsync
-  - DoZLexCountAsync
-  - DoZPopMinAsync
-  - DoZPopMinCountAsync
-  - DoZRandMemberAsync
-  - DoZRandMemberCountAsync
-  - DoZRandMemberCountWithScoresAsync
-  - DoZDiffAsync
-  - DoZDiffMultiAsync
-  - DoZDiffStoreAsync
-  - DoZInterAsync
-  - DoZInterCardAsync
-  - DoZInterStoreAsync
-  - DoZUnionAsync
-  - DoZUnionStoreAsync
-  - DoZScanAsync
-  - DoZScanMatchAsync
-  - DoZScanCountAsync
-  - DoZScanNoValuesAsync
-  - DoZScanMatchCountAsync
-  - DoZScanMatchNoValuesAsync
-  - DoZScanCountNoValuesAsync
-  - DoZScanMatchCountNoValuesAsync
-  - DoZExpireAsync
-  - DoZPExpireAsync
-  - DoZExpireAtAsync
-  - DoZPExpireAtAsync
-  - DoZExpireTimeAsync
-  - DoZPExpireTimeAsync
-  - DoZETTLAsync
-  - DoZPETTLAsync
-  - DoZPersistAsync
-  - DoZCollectAsync
-  - DoTimeAsync
-  - DoTTLAsync
-  - DoDUMPAsync
-  - DoRestoreAsync
-  - DoSwapDbAsync
-  - DoTypeAsync
-  - DoUnlinkAsync
-  - DoUnlinkMultiAsync
-  - DoUnsubscribePatternAsync
-  - DoWatchAsync
-  - DoWatchMSAsync
-  - DoWatchOSAsync
-  - DoUnwatchAsync
-  - DoVAddAsync
-  - DoVCardAsync
-  - DoVDimAsync
-  - when
-  - DoVEmbAsync
-  - DoVGetAttrAsync
-  - DoVInfoAsync
-  - DoVIsMemberAsync
-  - DoVLinksAsync
-  - DoVRandMemberAsync
-  - DoVRemAsync
-  - DoVSetAttrAsync
-  - DoVSimAsync
-  - CheckCommandsAsync
-  - SetACLOnUserAsync
-  - ResetUserWithAllAsync
-  - ResetUserWithNoneAsync
-  - AssertAllPermittedAsync
-  - AssertRedisAclCheckCmd
-  - AssertAllDeniedAsync
-  - PingAsync
-  - CreateGarnetClientAsync
-  - InitUserAsync
-  - SetUserAsync
-  - GetUserAsync
-  - CheckPermissionFailureAsync
-test:
-  - AllCommandsCovered
-  - AsyncACLsAsync
-  - AclCatACLsAsync
-  - AclDelUserACLsAsync
-  - AclGenPassACLsAsync
-  - AclGetUserACLsAsync
-  - AclListACLsAsync
-  - AclLoadACLsAsync
-  - AclSaveACLsAsync
-  - AclSetUserACLsAsync
-  - AclUsersACLsAsync
-  - AclWhoAmIACLsAsync
-  - ExpDelScanACLsAsync
-  - AppendACLsAsync
-  - AskingACLsAsync
-  - BGSaveACLsAsync
-  - BitcountACLsAsync
-  - BitfieldACLsAsync
-  - BitfieldROACLsAsync
-  - BitOpACLsAsync
-  - BitPosACLsAsync
-  - ClientIdACLsAsync
-  - ClientInfoACLsAsync
-  - ClientListACLsAsync
-  - ClientKillACLsAsync
-  - ClientGetNameACLsAsync
-  - ClientSetNameACLsAsync
-  - ClientSetInfoACLsAsync
-  - SSubscribeACLsAsync
-  - SPublishACLsAsync
-  - ClientUnblockACLsAsync
-  - ClusterAddSlotsACLsAsync
-  - ClusterAddSlotsRangeACLsAsync
-  - ClusterAppendLogACLsAsync
-  - ClusterAttachSyncACLsAsync
-  - ClusterBanListACLsAsync
-  - ClusterBeginReplicaRecoverACLsAsync
-  - ClusterBumpEpochACLsAsync
-  - ClusterCountKeysInSlotACLsAsync
-  - ClusterDelKeysInSlotACLsAsync
-  - ClusterDelKeysInSlotRangeACLsAsync
-  - ClusterDelSlotsACLsAsync
-  - ClusterDelSlotsRangeACLsAsync
-  - ClusterEndpointACLsAsync
-  - ClusterFailoverACLsAsync
-  - ClusterFailStopWritesACLsAsync
-  - ClusterFlushAllACLsAsync
-  - ClusterFailReplicationOffsetACLsAsync
-  - ClusterForgetACLsAsync
-  - ClusterGetKeysInSlotACLsAsync
-  - ClusterGossipACLsAsync
-  - ClusterHelpACLsAsync
-  - ClusterInfoACLsAsync
-  - ClusterInitiateReplicaSyncACLsAsync
-  - ClusterKeySlotACLsAsync
-  - ClusterMeetACLsAsync
-  - ClusterMigrateACLsAsync
-  - ClusterSyncACLsAsync
-  - ClusterMTasksACLsAsync
-  - ClusterAdvanceTimeACLsAsync
-  - ClusterMyIdACLsAsync
-  - ClusterMyParentIdACLsAsync
-  - ClusterNodesACLsAsync
-  - ClusterReplicasACLsAsync
-  - ClusterReplicateACLsAsync
-  - ClusterReserveACLsAsync
-  - ClusterResetACLsAsync
-  - ClusterSendCkptFileSegmentACLsAsync
-  - ClusterSendCkptMetadataACLsAsync
-  - ClusterSnapshotDataACLsAsync
-  - ClusterSetConfigEpochACLsAsync
-  - ClusterSetSlotACLsAsync
-  - ClusterSetSlotsRangeACLsAsync
-  - ClusterShardsACLsAsync
-  - ClusterSlotsACLsAsync
-  - ClusterSlotStateACLsAsync
-  - ClusterMlogKeyTimeACLsAsync
-  - ClusterPublishACLsAsync
-  - ClusterSPublishACLsAsync
-  - CommandACLsAsync
-  - CommandCountACLsAsync
-  - CommandInfoACLsAsync
-  - CommandDocsACLsAsync
-  - CommandGetKeysACLsAsync
-  - CommandGetKeysAndFlagsACLsAsync
-  - CommitAOFACLsAsync
-  - ConfigGetACLsAsync
-  - ConfigRewriteACLsAsync
-  - ConfigSetACLsAsync
-  - COScanACLsAsync
-  - CustomRawStringCmdACLsAsync
-  - CustomObjCmdACLsAsync
-  - CustomTxnACLsAsync
-  - CustomProcedureACLsAsync
-  - DebugACLsAsync
-  - EvalACLsAsync
-  - EvalShaACLsAsync
-  - ScriptLoadACLsAsync
-  - ScriptExistsACLsAsync
-  - ScriptFlushACLsAsync
-  - DBSizeACLsAsync
-  - DecrACLsAsync
-  - DecrByACLsAsync
-  - DelACLsAsync
-  - DiscardACLsAsync
-  - EchoACLsAsync
-  - ExecACLsAsync
-  - ExistsACLsAsync
-  - ExpireACLsAsync
-  - ExpireAtACLsAsync
-  - PExpireAtACLsAsync
-  - FailoverACLsAsync
-  - FlushDBACLsAsync
-  - FlushAllACLsAsync
-  - GetACLsAsync
-  - GetEXACLsAsync
-  - GetBitACLsAsync
-  - GetDelACLsAsync
-  - GetSetACLsAsync
-  - SubStrACLsAsync
-  - GetRangeACLsAsync
-  - SubStringACLsAsync
-  - HExpireACLsAsync
-  - HPExpireACLsAsync
-  - HExpireAtACLsAsync
-  - HPExpireAtACLsAsync
-  - HExpireTimeACLsAsync
-  - HPExpireTimeACLsAsync
-  - HTTLACLsAsync
-  - HPTTLACLsAsync
-  - HPersistACLsAsync
-  - HCollectACLsAsync
-  - HDelACLsAsync
-  - HExistsACLsAsync
-  - HGetACLsAsync
-  - HGetAllACLsAsync
-  - HIncrByACLsAsync
-  - HIncrByFloatACLsAsync
-  - HKeysACLsAsync
-  - HLenACLsAsync
-  - HMGetACLsAsync
-  - HMSetACLsAsync
-  - HRandFieldACLsAsync
-  - HScanACLsAsync
-  - HSetACLsAsync
-  - HSetNXACLsAsync
-  - HStrLenACLsAsync
-  - HValsACLsAsync
-  - IncrACLsAsync
-  - IncrByACLsAsync
-  - IncrByFloatACLsAsync
-  - InfoACLsAsync
-  - RoleACLsAsync
-  - KeysACLsAsync
-  - LastSaveACLsAsync
-  - LatencyHelpACLsAsync
-  - LatencyHistogramACLsAsync
-  - LatencyResetACLsAsync
-  - BLMoveACLsAsync
-  - BRPopLPushACLsAsync
-  - BLMPopACLsAsync
-  - BLPopACLsAsync
-  - BRPopACLsAsync
-  - BZMPopACLsAsync
-  - BZPopMaxACLsAsync
-  - BZPopMinACLsAsync
-  - LPopACLsAsync
-  - LPosACLsAsync
-  - LPushACLsAsync
-  - LPushXACLsAsync
-  - RPopACLsAsync
-  - LRushACLsAsync
-  - RPushACLsAsync
-  - RPushXACLsAsync
-  - LCSACLsAsync
-  - LLenACLsAsync
-  - LTrimACLsAsync
-  - LRangeACLsAsync
-  - LIndexACLsAsync
-  - LInsertACLsAsync
-  - LRemACLsAsync
-  - RPopLPushACLsAsync
-  - LMoveACLsAsync
-  - LMPopACLsAsync
-  - LSetACLsAsync
-  - MemoryUsageACLsAsync
-  - ObjectEncodingACLsAsync
-  - ObjectFreqACLsAsync
-  - ObjectIdletimeACLsAsync
-  - ObjectRefcountACLsAsync
-  - ObjectHelpACLsAsync
-  - MGetACLsAsync
-  - MigrateACLsAsync
-  - ModuleLoadCSACLsAsync
-  - MonitorACLsAsync
-  - MSetACLsAsync
-  - MSetNXACLsAsync
-  - MultiACLsAsync
-  - PersistACLsAsync
-  - PExpireACLsAsync
-  - PFAddACLsAsync
-  - PFCountACLsAsync
-  - PFMergeACLsAsync
-  - PingACLsAsync
-  - PSetEXACLsAsync
-  - PSubscribeACLsAsync
-  - PUnsubscribeACLsAsync
-  - PTTLACLsAsync
-  - PublishACLsAsync
-  - PubSubChannelsACLsAsync
-  - PubSubNumPatACLsAsync
-  - PubSubNumSubACLsAsync
-  - ReadOnlyACLsAsync
-  - ReadWriteACLsAsync
-  - RegisterCSACLsAsync
-  - ExpireTimeACLsAsync
-  - PExpireTimeACLsAsync
-  - RenameACLsAsync
-  - RenameNxACLsAsync
-  - RICreateACLsAsync
-  - RIDelACLsAsync
-  - RIGetACLsAsync
-  - RISetACLsAsync
-  - RIRangeACLsAsync
-  - RIScanACLsAsync
-  - RIExistsACLsAsync
-  - RIConfigACLsAsync
-  - RIMetricsACLsAsync
-  - ReplicaOfACLsAsync
-  - RunTxpACLsAsync
-  - SaveACLsAsync
-  - ScanACLsAsync
-  - SecondaryOfACLsAsync
-  - SelectACLsAsync
-  - SetACLsAsync
-  - SetIfMatchACLsAsync
-  - SetIfGreaterACLsAsync
-  - SetWithEtagACLsAsync
-  - DelIfGreaterACLsAsync
-  - GetIfNotMatchACLsAsync
-  - GetWithEtagACLsAsync
-  - SetBitACLsAsync
-  - SetEXACLsAsync
-  - SetNXACLsAsync
-  - SetRangeACLsAsync
-  - StrLenACLsAsync
-  - SAddACLsAsync
-  - SRemACLsAsync
-  - SPopACLsAsync
-  - SMembersACLsAsync
-  - SCardACLsAsync
-  - SScanACLsAsync
-  - SlaveOfACLsAsync
-  - SlowlogGetACLsAsync
-  - SlowlogHelpACLsAsync
-  - SlowlogLenACLsAsync
-  - SlowlogResetACLsAsync
-  - SMoveACLsAsync
-  - SRandMemberACLsAsync
-  - SIsMemberACLsAsync
-  - SMIsMemberACLsAsync
-  - SubscribeACLsAsync
-  - SUnionACLsAsync
-  - SUnionStoreACLsAsync
-  - SDiffACLsAsync
-  - SDiffStoreACLsAsync
-  - SInterACLsAsync
-  - SInterCardACLsAsync
-  - SInterStoreACLsAsync
-  - GeoAddACLsAsync
-  - GeoHashACLsAsync
-  - GeoDistACLsAsync
-  - GeoPosACLsAsync
-  - GeoRadiusACLsAsync
-  - GeoRadiusROACLsAsync
-  - GeoRadiusByMemberACLsAsync
-  - GeoRadiusByMemberROACLsAsync
-  - GeoSearchACLsAsync
-  - GeoSearchStoreACLsAsync
-  - ZAddACLsAsync
-  - ZCardACLsAsync
-  - ZMPopACLsAsync
-  - ZPopMaxACLsAsync
-  - ZScoreACLsAsync
-  - ZRemACLsAsync
-  - ZCountACLsAsync
-  - ZIncrByACLsAsync
-  - ZRankACLsAsync
-  - ZRangeACLsAsync
-  - ZRevRangeByLexACLsAsync
-  - ZRangeStoreACLsAsync
-  - ZRangeByLexACLsAsync
-  - ZRangeByScoreACLsAsync
-  - ZRevRangeACLsAsync
-  - ZRevRangeByScoreACLsAsync
-  - ZRevRankACLsAsync
-  - ZRemRangeByLexACLsAsync
-  - ZRemRangeByRankACLsAsync
-  - ZRemRangeByScoreACLsAsync
-  - ZLexCountACLsAsync
-  - ZPopMinACLsAsync
-  - ZRandMemberACLsAsync
-  - ZDiffACLsAsync
-  - ZDiffStoreACLsAsync
-  - ZInterACLsAsync
-  - ZInterCardACLsAsync
-  - ZInterStoreACLsAsync
-  - ZUnionACLsAsync
-  - ZUnionStoreACLsAsync
-  - ZScanACLsAsync
-  - ZMScoreACLsAsync
-  - ZExpireACLsAsync
-  - ZPExpireACLsAsync
-  - ZExpireAtACLsAsync
-  - ZPExpireAtACLsAsync
-  - ZExpireTimeACLsAsync
-  - ZPExpireTimeACLsAsync
-  - ZTTLACLsAsync
-  - ZPTTLACLsAsync
-  - ZPersistACLsAsync
-  - ZCollectACLsAsync
-  - TimeACLsAsync
-  - TTLACLsAsync
-  - DumpACLsAsync
-  - RestoreACLsAsync
-  - SwapDbACLsAsync
-  - TypeACLsAsync
-  - UnlinkACLsAsync
-  - UnsubscribeACLsAsync
-  - WatchACLsAsync
-  - WatchMSACLsAsync
-  - WatchOSACLsAsync
-  - UnwatchACLsAsync
-  - VAddACLsAsync
-  - VCardACLsAsync
-  - VDimACLsAsync
-  - VEmbACLsAsync
-  - VGetAttrACLsAsync
-  - VInfoACLsAsync
-  - VIsMemberACLsAsync
-  - VLinksACLsAsync
-  - VRandMemberACLsAsync
-  - VRemACLsAsync
-  - VSetAttrACLsAsync
-  - VSimACLsAsync
+Setup: 无需实现
+TearDown: 无需实现
+DoAsyncAsync: 无需实现
+DoAclCatAsync: 无需实现
+DoAclDelUserAsync: 无需实现
+DoAclDelUserMultiAsync: 无需实现
+DoAclGenPassAsync: 无需实现
+DoAclGetUserAsync: 无需实现
+DoAclListAsync: 无需实现
+DoAclLoadAsync: 无需实现
+DoAclSaveAsync: 无需实现
+DoAclSetUserOnAsync: 无需实现
+DoAclSetUserCategoryAsync: 无需实现
+DoAclSetUserOnCategoryAsync: 无需实现
+DoAclUsersAsync: 无需实现
+DoAclWhoAmIAsync: 无需实现
+DoExpDelScanAsync: 无需实现
+DoAppendAsync: 无需实现
+DoAskingAsync: 无需实现
+DoBGSaveAsync: 无需实现
+DoBGSaveScheduleAsync: 无需实现
+DoBitCountAsync: 无需实现
+DoBitCountStartEndAsync: 无需实现
+DoBitCountStartEndByteAsync: 无需实现
+DoBitCountStartEndBitAsync: 无需实现
+DoBitFieldGetAsync: 无需实现
+DoBitFieldGetWrapAsync: 无需实现
+DoBitFieldGetSatAsync: 无需实现
+DoBitFieldGetFailAsync: 无需实现
+DoBitFieldSetAsync: 无需实现
+DoBitFieldSetWrapAsync: 无需实现
+DoBitFieldSetSatAsync: 无需实现
+DoBitFieldSetFailAsync: 无需实现
+DoBitFieldIncrByAsync: 无需实现
+DoBitFieldIncrByWrapAsync: 无需实现
+DoBitFieldIncrBySatAsync: 无需实现
+DoBitFieldIncrByFailAsync: 无需实现
+DoBitFieldMultiAsync: 无需实现
+DoBitFieldROGetAsync: 无需实现
+DoBitFieldROMultiAsync: 无需实现
+DoBitOpAndAsync: 无需实现
+DoBitOpAndMultiAsync: 无需实现
+DoBitOpOrAsync: 无需实现
+DoBitOpOrMultiAsync: 无需实现
+DoBitOpXorAsync: 无需实现
+DoBitOpXorMultiAsync: 无需实现
+DoBitOpNotAsync: 无需实现
+DoBitPosAsync: 无需实现
+DoBitPosStartAsync: 无需实现
+DoBitPosStartEndAsync: 无需实现
+DoBitPosStartEndBitAsync: 无需实现
+DoBitPosStartEndByteAsync: 无需实现
+DoClientIdAsync: 无需实现
+DoClientInfoAsync: 无需实现
+DoClientListAsync: 无需实现
+DoClientListTypeAsync: 无需实现
+DoClientListIdAsync: 无需实现
+DoClientListIdsAsync: 无需实现
+DoClientKillAsync: 无需实现
+DoClientFilterAsync: 无需实现
+DoClientGetNameAsync: 无需实现
+DoClientSetNameAsync: 无需实现
+DoClientSetInfoAsync: 无需实现
+DoSSubscribeAsync: 无需实现
+DoSPublishAsync: 无需实现
+DoClientUnblockAsync: 无需实现
+DoClusterAddSlotsAsync: 无需实现
+DoClusterAddSlotsMultiAsync: 无需实现
+DoClusterAddSlotsRangeAsync: 无需实现
+DoClusterAddSlotsRangeMultiAsync: 无需实现
+DoClusterAppendLogAsync: 无需实现
+DoClusterAttachSyncAsync: 无需实现
+DoClusterBanListAsync: 无需实现
+DoClusterBeginReplicaFailoverAsync: 无需实现
+DoClusterBumpEpochAsync: 无需实现
+DoClusterDelKeysInSlotAsync: 无需实现
+DoClusterDelKeysInSlotRangeAsync: 无需实现
+DoClusterDelKeysInSlotRangeMultiAsync: 无需实现
+DoClusterDelSlotsAsync: 无需实现
+DoClusterDelSlotsMultiAsync: 无需实现
+DoClusterDelSlotsRangeAsync: 无需实现
+DoClusterDelSlotsRangeMultiAsync: 无需实现
+DoClusterEndpointAsync: 无需实现
+DoClusterFailoverAsync: 无需实现
+DoClusterFailoverForceAsync: 无需实现
+DoClusterFailStopWritesAsync: 无需实现
+DoClusterFlushAllAsync: 无需实现
+DoClusterForgetAsync: 无需实现
+DoClusterGetKeysInSlotAsync: 无需实现
+DoClusterGossipAsync: 无需实现
+DoClusterHelpAsync: 无需实现
+DoClusterInfoAsync: 无需实现
+DoClusterKeySlotAsync: 无需实现
+DoClusterMeetAsync: 无需实现
+DoClusterMeetPortAsync: 无需实现
+DoClusterMigrateAsync: 无需实现
+DoClusterMTasksAsync: 无需实现
+DoClusterAdvanceTimeAsync: 无需实现
+DoClusterMyIdAsync: 无需实现
+DoClusterMyParentIdAsync: 无需实现
+DoClusterNodesAsync: 无需实现
+DoClusterReplicasAsync: 无需实现
+DoClusterReplicateAsync: 无需实现
+DoClusterReserveAsync: 无需实现
+DoClusterResetAsync: 无需实现
+DoClusteResetHardAsync: 无需实现
+DoClusterSendCkptFileSegmentAsync: 无需实现
+DoClusterSendCkptMetadataAsync: 无需实现
+DoClusterSnapshotDataAsync: 无需实现
+DoClusterSetConfigEpochAsync: 无需实现
+DoClusterSetSlotAsync: 无需实现
+DoClusterSetSlotStableAsync: 无需实现
+DoClusterSetSlotImportingAsync: 无需实现
+DoClusterSetSlotsRangeStableAsync: 无需实现
+DoClusterSetSlotsRangeStableMultiAsync: 无需实现
+DoClusterSetSlotsRangeImportingAsync: 无需实现
+DoClusterSetSlotsRangeImportingMultiAsync: 无需实现
+DoClusterShardsAsync: 无需实现
+DoClusterSlotsAsync: 无需实现
+DoClusterSlotStateAsync: 无需实现
+DoClusterMlogKeyTimeAsync: 无需实现
+DoClusterMlogKeyTimeFrontierAsync: 无需实现
+DoClusterPublishAsync: 无需实现
+DoClusterSPublishAsync: 无需实现
+DoCommandAsync: 无需实现
+DoCommandCountAsync: 无需实现
+DoCommandInfoAsync: 无需实现
+DoCommandInfoOneAsync: 无需实现
+DoCommandInfoMultiAsync: 无需实现
+DoCommandDocsAsync: 无需实现
+DoCommandDocsOneAsync: 无需实现
+DoCommandDocsMultiAsync: 无需实现
+DoCommandGetKeysAsync: 无需实现
+DoCommandGetKeysAndFlagsAsync: 无需实现
+DoCommitAOFAsync: 无需实现
+DoConfigGetOneAsync: 无需实现
+DoConfigRewriteAsync: 无需实现
+DoConfigSetOneAsync: 无需实现
+DoConfigSetMultiAsync: 无需实现
+DoCOScanAsync: 无需实现
+DoSetWpIfPgtAsync: 无需实现
+DoMyDictGetAsync: 无需实现
+DoReadWriteTxAsync: 无需实现
+DoSumAsync: 无需实现
+DoDebugAsync: 无需实现
+DoEvalAsync: 无需实现
+DoEvalShaAsync: 无需实现
+DoScriptLoadAsync: 无需实现
+DoScriptExistsSingleAsync: 无需实现
+DoScriptExistsMultiAsync: 无需实现
+DoScriptFlushAsync: 无需实现
+DoScriptFlushSyncAsync: 无需实现
+DoScriptFlushAsyncAsync: 无需实现
+DoDbSizeAsync: 无需实现
+DoDecrAsync: 无需实现
+DoDecrByAsync: 无需实现
+DoDelAsync: 无需实现
+DoDelMultiAsync: 无需实现
+DoDiscardAsync: 无需实现
+DoEchoAsync: 无需实现
+DoExecAsync: 无需实现
+DoExistsAsync: 无需实现
+DoExistsMultiAsync: 无需实现
+DoExpireAsync: 无需实现
+DoExpireNXAsync: 无需实现
+DoExpireXXAsync: 无需实现
+DoExpireGTAsync: 无需实现
+DoExpireLTAsync: 无需实现
+DoFailoverAsync: 无需实现
+DoFailoverToAsync: 无需实现
+DoFailoverAbortAsync: 无需实现
+DoFailoverToForceAsync: 无需实现
+DoFailoverToAbortAsync: 无需实现
+DoFailoverToForceAbortAsync: 无需实现
+DoFailoverToForceAbortTimeoutAsync: 无需实现
+DoFlushDBAsync: 无需实现
+DoFlushDBAsyncAsync: 无需实现
+DoFlushAllAsync: 无需实现
+DoFlushAllAsyncAsync: 无需实现
+DoGetAsync: 无需实现
+DoGetEXAsync: 无需实现
+DoGetBitAsync: 无需实现
+DoGetDelAsync: 无需实现
+DoGetAndSetAsync: 无需实现
+DoSubStringAsync: 无需实现
+DoGetRangeAsync: 无需实现
+DoHExpireAsync: 无需实现
+DoHPExpireAsync: 无需实现
+DoHExpireAtAsync: 无需实现
+DoHPExpireAtAsync: 无需实现
+DoHExpireTimeAsync: 无需实现
+DoHPExpireTimeAsync: 无需实现
+DoHETTLAsync: 无需实现
+DoHPETTLAsync: 无需实现
+DoHPersistAsync: 无需实现
+DoHCollectAsync: 无需实现
+DoHDelAsync: 无需实现
+DoHDelMultiAsync: 无需实现
+DoHIncrByAsync: 无需实现
+DoHIncrByFloatAsync: 无需实现
+DoHKeysAsync: 无需实现
+DoHLenAsync: 无需实现
+DoHMGetAsync: 无需实现
+DoHMGetMultiAsync: 无需实现
+DoHMSetAsync: 无需实现
+DoHMSetMultiAsync: 无需实现
+DoHRandFieldAsync: 无需实现
+DoHRandFieldCountAsync: 无需实现
+DoHRandFieldCountWithValuesAsync: 无需实现
+DoHScanAsync: 无需实现
+DoHScanMatchAsync: 无需实现
+DoHScanCountAsync: 无需实现
+DoHScanNoValuesAsync: 无需实现
+DoHScanMatchCountAsync: 无需实现
+DoHScanMatchNoValuesAsync: 无需实现
+DoHScanCountNoValuesAsync: 无需实现
+DoHScanMatchCountNoValuesAsync: 无需实现
+DoHSetAsync: 无需实现
+DoHSetMultiAsync: 无需实现
+DoHSetNXAsync: 无需实现
+DoHStrLenAsync: 无需实现
+DoHValsAsync: 无需实现
+DoIncrAsync: 无需实现
+DoIncrByAsync: 无需实现
+DoIncrByFloatAsync: 无需实现
+DoInfoAsync: 无需实现
+DoInfoSingleAsync: 无需实现
+DoInfoMultiAsync: 无需实现
+DoRoleAsync: 无需实现
+DoKeysAsync: 无需实现
+DoLastSaveAsync: 无需实现
+DoLatencyHelpAsync: 无需实现
+DoLatencyHistogramAsync: 无需实现
+DoLatencyHistogramSingleAsync: 无需实现
+DoLatencyHistogramMultiAsync: 无需实现
+DoLatencyResetAsync: 无需实现
+DoLatencyResetSingleAsync: 无需实现
+DoLatencyResetMultiAsync: 无需实现
+DoBLMoveAsync: 无需实现
+DoBRPopLPushAsync: 无需实现
+DoBLMPopAsync: 无需实现
+DoBLPopAsync: 无需实现
+DoBRPopAsync: 无需实现
+DoBZMPopAsync: 无需实现
+DoBZPopMaxAsync: 无需实现
+DoBZPopMinAsync: 无需实现
+DoLPopAsync: 无需实现
+DoLPopCountAsync: 无需实现
+DoLPosAsync: 无需实现
+DoLPushAsync: 无需实现
+DoLPushMultiAsync: 无需实现
+DoLPushXAsync: 无需实现
+DoLPushXMultiAsync: 无需实现
+DoRPopAsync: 无需实现
+DoRPopCountAsync: 无需实现
+DoRPushAsync: 无需实现
+DoRPushMultiAsync: 无需实现
+DoRPushXAsync: 无需实现
+DoRPushXMultiAsync: 无需实现
+DoLCSAsync: 无需实现
+DoLLenAsync: 无需实现
+DoLTrimAsync: 无需实现
+DoLRangeAsync: 无需实现
+DoLIndexAsync: 无需实现
+DoLInsertBeforeAsync: 无需实现
+DoLInsertAfterAsync: 无需实现
+DoLRemAsync: 无需实现
+DoLMoveAsync: 无需实现
+DoLMPopAsync: 无需实现
+DoLMPopCountAsync: 无需实现
+DoLSetAsync: 无需实现
+DoMemoryUsageAsync: 无需实现
+DoMemoryUsageSamplesAsync: 无需实现
+DoObjectEncodingAsync: 无需实现
+DoObjectFreqAsync: 无需实现
+DoObjectIdletimeAsync: 无需实现
+DoObjectRefcountAsync: 无需实现
+DoObjectHelpAsync: 无需实现
+DoMemorySingleAsync: 无需实现
+DoMemoryMultiAsync: 无需实现
+DoMigrateAsync: 无需实现
+DoModuleLoadAsync: 无需实现
+DoMonitorAsync: 无需实现
+DoMSetSingleAsync: 无需实现
+DoMSetMultiAsync: 无需实现
+DoMSetNXSingleAsync: 无需实现
+DoMSetNXMultiAsync: 无需实现
+DoMultiAsync: 无需实现
+DoPersistAsync: 无需实现
+DoPExpireAsync: 无需实现
+DoPExpireNXAsync: 无需实现
+DoPExpireXXAsync: 无需实现
+DoPExpireGTAsync: 无需实现
+DoPExpireLTAsync: 无需实现
+DoPFAddSingleAsync: 无需实现
+DoPFAddMultiAsync: 无需实现
+DoPFCountSingleAsync: 无需实现
+DoPFCountMultiAsync: 无需实现
+DoPFMergeSingleAsync: 无需实现
+DoPFMergeMultiAsync: 无需实现
+DoPingAsync: 无需实现
+DoPingMessageAsync: 无需实现
+DoPSetEXAsync: 无需实现
+DoPSubscribePatternAsync: 无需实现
+DoPUnsubscribePatternAsync: 无需实现
+DoPTTLAsync: 无需实现
+DoPublishAsync: 无需实现
+DoPubSubChannelsAsync: 无需实现
+DoPubSubNumPatAsync: 无需实现
+DoPubSubNumSubAsync: 无需实现
+DoReadOnlyAsync: 无需实现
+DoReadWriteAsync: 无需实现
+DoRegisterCSAsync: 无需实现
+DoExpireTimeAsync: 无需实现
+DoPExpireTimeAsync: 无需实现
+DoRENAMEAsync: 无需实现
+DoRENAMENXAsync: 无需实现
+DoRICreateAsync: 无需实现
+DoRIDelAsync: 无需实现
+DoRIGetAsync: 无需实现
+DoRISetAsync: 无需实现
+DoRIRangeAsync: 无需实现
+DoRIScanAsync: 无需实现
+DoRIExistsAsync: 无需实现
+DoRIConfigAsync: 无需实现
+DoRIMetricsAsync: 无需实现
+DoReplicaOfAsync: 无需实现
+DoReplicaOfNoOneAsync: 无需实现
+DoRunTxpAsync: 无需实现
+DoSaveAsync: 无需实现
+DoScanAsync: 无需实现
+DoScanMatchAsync: 无需实现
+DoScanCountAsync: 无需实现
+DoScanTypeAsync: 无需实现
+DoScanMatchCountAsync: 无需实现
+DoScanMatchTypeAsync: 无需实现
+DoScanCountTypeAsync: 无需实现
+DoScanMatchCountTypeAsync: 无需实现
+DoSecondaryOfAsync: 无需实现
+DoSecondaryOfNoOneAsync: 无需实现
+DoSelectAsync: 无需实现
+DoSetAsync: 无需实现
+DoSetExNxAsync: 无需实现
+DoSetXxNxAsync: 无需实现
+DoSetKeepTtlAsync: 无需实现
+DoSetKeepTtlXxAsync: 无需实现
+DoSetIfMatchAsync: 无需实现
+DoSetIfGreaterAsync: 无需实现
+DoSetWithEtagAsync: 无需实现
+DoDelIfGreaterAsync: 无需实现
+DoGetIfNotMatchAsync: 无需实现
+DoGetWithEtagAsync: 无需实现
+DoSetBitAsync: 无需实现
+DoSetEXAsync: 无需实现
+DoSetIfNotExistAsync: 无需实现
+DoSetRangeAsync: 无需实现
+DoStrLenAsync: 无需实现
+DoSAddAsync: 无需实现
+DoSAddMultiAsync: 无需实现
+DoSRemAsync: 无需实现
+DoSRemMultiAsync: 无需实现
+DoSPopAsync: 无需实现
+DoSPopCountAsync: 无需实现
+DoSMembersAsync: 无需实现
+DoSCardAsync: 无需实现
+DoSScanAsync: 无需实现
+DoSScanMatchAsync: 无需实现
+DoSScanCountAsync: 无需实现
+DoSScanMatchCountAsync: 无需实现
+DoSlaveOfAsync: 无需实现
+DoSlaveOfNoOneAsync: 无需实现
+DoSlowlogGetAsync: 无需实现
+DoSlowlogHelpAsync: 无需实现
+DoSlowlogLenAsync: 无需实现
+DoSlowlogResetAsync: 无需实现
+DoSMoveAsync: 无需实现
+DoSRandMemberAsync: 无需实现
+DoSRandMemberCountAsync: 无需实现
+DoSIsMemberAsync: 无需实现
+DoSMultiIsMemberAsync: 无需实现
+DoSubscribeAsync: 无需实现
+DoSUnionAsync: 无需实现
+DoSUnionMultiAsync: 无需实现
+DoSUnionStoreAsync: 无需实现
+DoSUnionStoreMultiAsync: 无需实现
+DoSDiffAsync: 无需实现
+DoSDiffMultiAsync: 无需实现
+DoSDiffStoreAsync: 无需实现
+DoSDiffStoreMultiAsync: 无需实现
+DoUnionAsync: 无需实现
+DoGeoAddAsync: 无需实现
+DoGeoAddNXAsync: 无需实现
+DoGeoAddNXCHAsync: 无需实现
+DoGeoAddMultiAsync: 无需实现
+DoGeoAddNXMultiAsync: 无需实现
+DoGeoAddNXCHMultiAsync: 无需实现
+DoGeoHashAsync: 无需实现
+DoGeoHashSingleAsync: 无需实现
+DoGeoHashMultiAsync: 无需实现
+DoGetDistAsync: 无需实现
+DoGetDistMAsync: 无需实现
+DoGeoPosAsync: 无需实现
+DoGeoPosMultiAsync: 无需实现
+DoGeoRadiusAsync: 无需实现
+DoGeoRadiusROAsync: 无需实现
+DoGeoRadiusByMemberAsync: 无需实现
+DoGeoRadiusByMemberROAsync: 无需实现
+DoGeoSearchAsync: 无需实现
+DoGeoSearchStoreAsync: 无需实现
+DoZAddAsync: 无需实现
+DoZAddMultiAsync: 无需实现
+DoZCardAsync: 无需实现
+DoZMPopAsync: 无需实现
+DoZMPopCountAsync: 无需实现
+DoZPopMaxAsync: 无需实现
+DoZPopMaxCountAsync: 无需实现
+DoZScoreAsync: 无需实现
+DoZRemAsync: 无需实现
+DoZRemMultiAsync: 无需实现
+DoZCountAsync: 无需实现
+DoZIncrByAsync: 无需实现
+DoZRankAsync: 无需实现
+DoZRangeAsync: 无需实现
+DoZRevRangeByLexAsync: 无需实现
+DoZRangeStoreAsync: 无需实现
+DoZRangeByLexAsync: 无需实现
+DoZRangeByLexLimitAsync: 无需实现
+DoZRangeByScoreAsync: 无需实现
+DoZRangeByScoreWithScoresAsync: 无需实现
+DoZRangeByScoreLimitAsync: 无需实现
+DoZRangeByScoreWithScoresLimitAsync: 无需实现
+DoZRevRangeAsync: 无需实现
+DoZRevRangeWithScoresAsync: 无需实现
+DoZRevRangeByScoreAsync: 无需实现
+DoZRevRangeByScoreWithScoresAsync: 无需实现
+DoZRevRangeByScoreLimitAsync: 无需实现
+DoZRevRangeByScoreWithScoresLimitAsync: 无需实现
+DoZRevRankAsync: 无需实现
+DoZRemRangeByLexAsync: 无需实现
+DoZRemRangeByRankAsync: 无需实现
+DoZLexCountAsync: 无需实现
+DoZPopMinAsync: 无需实现
+DoZPopMinCountAsync: 无需实现
+DoZRandMemberAsync: 无需实现
+DoZRandMemberCountAsync: 无需实现
+DoZRandMemberCountWithScoresAsync: 无需实现
+DoZDiffAsync: 无需实现
+DoZDiffMultiAsync: 无需实现
+DoZDiffStoreAsync: 无需实现
+DoZInterAsync: 无需实现
+DoZInterCardAsync: 无需实现
+DoZInterStoreAsync: 无需实现
+DoZUnionAsync: 无需实现
+DoZUnionStoreAsync: 无需实现
+DoZScanAsync: 无需实现
+DoZScanMatchAsync: 无需实现
+DoZScanCountAsync: 无需实现
+DoZScanNoValuesAsync: 无需实现
+DoZScanMatchCountAsync: 无需实现
+DoZScanMatchNoValuesAsync: 无需实现
+DoZScanCountNoValuesAsync: 无需实现
+DoZScanMatchCountNoValuesAsync: 无需实现
+DoZExpireAsync: 无需实现
+DoZPExpireAsync: 无需实现
+DoZExpireAtAsync: 无需实现
+DoZPExpireAtAsync: 无需实现
+DoZExpireTimeAsync: 无需实现
+DoZPExpireTimeAsync: 无需实现
+DoZETTLAsync: 无需实现
+DoZPETTLAsync: 无需实现
+DoZPersistAsync: 无需实现
+DoZCollectAsync: 无需实现
+DoTimeAsync: 无需实现
+DoTTLAsync: 无需实现
+DoDUMPAsync: 无需实现
+DoRestoreAsync: 无需实现
+DoSwapDbAsync: 无需实现
+DoTypeAsync: 无需实现
+DoUnlinkAsync: 无需实现
+DoUnlinkMultiAsync: 无需实现
+DoUnsubscribePatternAsync: 无需实现
+DoWatchAsync: 无需实现
+DoWatchMSAsync: 无需实现
+DoWatchOSAsync: 无需实现
+DoUnwatchAsync: 无需实现
+DoVAddAsync: 无需实现
+DoVCardAsync: 无需实现
+DoVDimAsync: 无需实现
+when: 无需实现
+DoVEmbAsync: 无需实现
+DoVGetAttrAsync: 无需实现
+DoVInfoAsync: 无需实现
+DoVIsMemberAsync: 无需实现
+DoVLinksAsync: 无需实现
+DoVRandMemberAsync: 无需实现
+DoVRemAsync: 无需实现
+DoVSetAttrAsync: 无需实现
+DoVSimAsync: 无需实现
+CheckCommandsAsync: 无需实现
+SetACLOnUserAsync: 无需实现
+ResetUserWithAllAsync: 无需实现
+ResetUserWithNoneAsync: 无需实现
+AssertAllPermittedAsync: 无需实现
+AssertRedisAclCheckCmd: 无需实现
+AssertAllDeniedAsync: 无需实现
+PingAsync: 无需实现
+CreateGarnetClientAsync: 无需实现
+InitUserAsync: 无需实现
+SetUserAsync: 无需实现
+GetUserAsync: 无需实现
+CheckPermissionFailureAsync: 无需实现
+AllCommandsCovered: 测试函数无需实现
+AsyncACLsAsync: 测试函数无需实现
+AclCatACLsAsync: 测试函数无需实现
+AclDelUserACLsAsync: 测试函数无需实现
+AclGenPassACLsAsync: 测试函数无需实现
+AclGetUserACLsAsync: 测试函数无需实现
+AclListACLsAsync: 测试函数无需实现
+AclLoadACLsAsync: 测试函数无需实现
+AclSaveACLsAsync: 测试函数无需实现
+AclSetUserACLsAsync: 测试函数无需实现
+AclUsersACLsAsync: 测试函数无需实现
+AclWhoAmIACLsAsync: 测试函数无需实现
+ExpDelScanACLsAsync: 测试函数无需实现
+AppendACLsAsync: 测试函数无需实现
+AskingACLsAsync: 测试函数无需实现
+BGSaveACLsAsync: 测试函数无需实现
+BitcountACLsAsync: 测试函数无需实现
+BitfieldACLsAsync: 测试函数无需实现
+BitfieldROACLsAsync: 测试函数无需实现
+BitOpACLsAsync: 测试函数无需实现
+BitPosACLsAsync: 测试函数无需实现
+ClientIdACLsAsync: 测试函数无需实现
+ClientInfoACLsAsync: 测试函数无需实现
+ClientListACLsAsync: 测试函数无需实现
+ClientKillACLsAsync: 测试函数无需实现
+ClientGetNameACLsAsync: 测试函数无需实现
+ClientSetNameACLsAsync: 测试函数无需实现
+ClientSetInfoACLsAsync: 测试函数无需实现
+SSubscribeACLsAsync: 测试函数无需实现
+SPublishACLsAsync: 测试函数无需实现
+ClientUnblockACLsAsync: 测试函数无需实现
+ClusterAddSlotsACLsAsync: 测试函数无需实现
+ClusterAddSlotsRangeACLsAsync: 测试函数无需实现
+ClusterAppendLogACLsAsync: 测试函数无需实现
+ClusterAttachSyncACLsAsync: 测试函数无需实现
+ClusterBanListACLsAsync: 测试函数无需实现
+ClusterBeginReplicaRecoverACLsAsync: 测试函数无需实现
+ClusterBumpEpochACLsAsync: 测试函数无需实现
+ClusterCountKeysInSlotACLsAsync: 测试函数无需实现
+ClusterDelKeysInSlotACLsAsync: 测试函数无需实现
+ClusterDelKeysInSlotRangeACLsAsync: 测试函数无需实现
+ClusterDelSlotsACLsAsync: 测试函数无需实现
+ClusterDelSlotsRangeACLsAsync: 测试函数无需实现
+ClusterEndpointACLsAsync: 测试函数无需实现
+ClusterFailoverACLsAsync: 测试函数无需实现
+ClusterFailStopWritesACLsAsync: 测试函数无需实现
+ClusterFlushAllACLsAsync: 测试函数无需实现
+ClusterFailReplicationOffsetACLsAsync: 测试函数无需实现
+ClusterForgetACLsAsync: 测试函数无需实现
+ClusterGetKeysInSlotACLsAsync: 测试函数无需实现
+ClusterGossipACLsAsync: 测试函数无需实现
+ClusterHelpACLsAsync: 测试函数无需实现
+ClusterInfoACLsAsync: 测试函数无需实现
+ClusterInitiateReplicaSyncACLsAsync: 测试函数无需实现
+ClusterKeySlotACLsAsync: 测试函数无需实现
+ClusterMeetACLsAsync: 测试函数无需实现
+ClusterMigrateACLsAsync: 测试函数无需实现
+ClusterSyncACLsAsync: 测试函数无需实现
+ClusterMTasksACLsAsync: 测试函数无需实现
+ClusterAdvanceTimeACLsAsync: 测试函数无需实现
+ClusterMyIdACLsAsync: 测试函数无需实现
+ClusterMyParentIdACLsAsync: 测试函数无需实现
+ClusterNodesACLsAsync: 测试函数无需实现
+ClusterReplicasACLsAsync: 测试函数无需实现
+ClusterReplicateACLsAsync: 测试函数无需实现
+ClusterReserveACLsAsync: 测试函数无需实现
+ClusterResetACLsAsync: 测试函数无需实现
+ClusterSendCkptFileSegmentACLsAsync: 测试函数无需实现
+ClusterSendCkptMetadataACLsAsync: 测试函数无需实现
+ClusterSnapshotDataACLsAsync: 测试函数无需实现
+ClusterSetConfigEpochACLsAsync: 测试函数无需实现
+ClusterSetSlotACLsAsync: 测试函数无需实现
+ClusterSetSlotsRangeACLsAsync: 测试函数无需实现
+ClusterShardsACLsAsync: 测试函数无需实现
+ClusterSlotsACLsAsync: 测试函数无需实现
+ClusterSlotStateACLsAsync: 测试函数无需实现
+ClusterMlogKeyTimeACLsAsync: 测试函数无需实现
+ClusterPublishACLsAsync: 测试函数无需实现
+ClusterSPublishACLsAsync: 测试函数无需实现
+CommandACLsAsync: 测试函数无需实现
+CommandCountACLsAsync: 测试函数无需实现
+CommandInfoACLsAsync: 测试函数无需实现
+CommandDocsACLsAsync: 测试函数无需实现
+CommandGetKeysACLsAsync: 测试函数无需实现
+CommandGetKeysAndFlagsACLsAsync: 测试函数无需实现
+CommitAOFACLsAsync: 测试函数无需实现
+ConfigGetACLsAsync: 测试函数无需实现
+ConfigRewriteACLsAsync: 测试函数无需实现
+ConfigSetACLsAsync: 测试函数无需实现
+COScanACLsAsync: 测试函数无需实现
+CustomRawStringCmdACLsAsync: 测试函数无需实现
+CustomObjCmdACLsAsync: 测试函数无需实现
+CustomTxnACLsAsync: 测试函数无需实现
+CustomProcedureACLsAsync: 测试函数无需实现
+DebugACLsAsync: 测试函数无需实现
+EvalACLsAsync: 测试函数无需实现
+EvalShaACLsAsync: 测试函数无需实现
+ScriptLoadACLsAsync: 测试函数无需实现
+ScriptExistsACLsAsync: 测试函数无需实现
+ScriptFlushACLsAsync: 测试函数无需实现
+DBSizeACLsAsync: 测试函数无需实现
+DecrACLsAsync: 测试函数无需实现
+DecrByACLsAsync: 测试函数无需实现
+DelACLsAsync: 测试函数无需实现
+DiscardACLsAsync: 测试函数无需实现
+EchoACLsAsync: 测试函数无需实现
+ExecACLsAsync: 测试函数无需实现
+ExistsACLsAsync: 测试函数无需实现
+ExpireACLsAsync: 测试函数无需实现
+ExpireAtACLsAsync: 测试函数无需实现
+PExpireAtACLsAsync: 测试函数无需实现
+FailoverACLsAsync: 测试函数无需实现
+FlushDBACLsAsync: 测试函数无需实现
+FlushAllACLsAsync: 测试函数无需实现
+GetACLsAsync: 测试函数无需实现
+GetEXACLsAsync: 测试函数无需实现
+GetBitACLsAsync: 测试函数无需实现
+GetDelACLsAsync: 测试函数无需实现
+GetSetACLsAsync: 测试函数无需实现
+SubStrACLsAsync: 测试函数无需实现
+GetRangeACLsAsync: 测试函数无需实现
+SubStringACLsAsync: 测试函数无需实现
+HExpireACLsAsync: 测试函数无需实现
+HPExpireACLsAsync: 测试函数无需实现
+HExpireAtACLsAsync: 测试函数无需实现
+HPExpireAtACLsAsync: 测试函数无需实现
+HExpireTimeACLsAsync: 测试函数无需实现
+HPExpireTimeACLsAsync: 测试函数无需实现
+HTTLACLsAsync: 测试函数无需实现
+HPTTLACLsAsync: 测试函数无需实现
+HPersistACLsAsync: 测试函数无需实现
+HCollectACLsAsync: 测试函数无需实现
+HDelACLsAsync: 测试函数无需实现
+HExistsACLsAsync: 测试函数无需实现
+HGetACLsAsync: 测试函数无需实现
+HGetAllACLsAsync: 测试函数无需实现
+HIncrByACLsAsync: 测试函数无需实现
+HIncrByFloatACLsAsync: 测试函数无需实现
+HKeysACLsAsync: 测试函数无需实现
+HLenACLsAsync: 测试函数无需实现
+HMGetACLsAsync: 测试函数无需实现
+HMSetACLsAsync: 测试函数无需实现
+HRandFieldACLsAsync: 测试函数无需实现
+HScanACLsAsync: 测试函数无需实现
+HSetACLsAsync: 测试函数无需实现
+HSetNXACLsAsync: 测试函数无需实现
+HStrLenACLsAsync: 测试函数无需实现
+HValsACLsAsync: 测试函数无需实现
+IncrACLsAsync: 测试函数无需实现
+IncrByACLsAsync: 测试函数无需实现
+IncrByFloatACLsAsync: 测试函数无需实现
+InfoACLsAsync: 测试函数无需实现
+RoleACLsAsync: 测试函数无需实现
+KeysACLsAsync: 测试函数无需实现
+LastSaveACLsAsync: 测试函数无需实现
+LatencyHelpACLsAsync: 测试函数无需实现
+LatencyHistogramACLsAsync: 测试函数无需实现
+LatencyResetACLsAsync: 测试函数无需实现
+BLMoveACLsAsync: 测试函数无需实现
+BRPopLPushACLsAsync: 测试函数无需实现
+BLMPopACLsAsync: 测试函数无需实现
+BLPopACLsAsync: 测试函数无需实现
+BRPopACLsAsync: 测试函数无需实现
+BZMPopACLsAsync: 测试函数无需实现
+BZPopMaxACLsAsync: 测试函数无需实现
+BZPopMinACLsAsync: 测试函数无需实现
+LPopACLsAsync: 测试函数无需实现
+LPosACLsAsync: 测试函数无需实现
+LPushACLsAsync: 测试函数无需实现
+LPushXACLsAsync: 测试函数无需实现
+RPopACLsAsync: 测试函数无需实现
+LRushACLsAsync: 测试函数无需实现
+RPushACLsAsync: 测试函数无需实现
+RPushXACLsAsync: 测试函数无需实现
+LCSACLsAsync: 测试函数无需实现
+LLenACLsAsync: 测试函数无需实现
+LTrimACLsAsync: 测试函数无需实现
+LRangeACLsAsync: 测试函数无需实现
+LIndexACLsAsync: 测试函数无需实现
+LInsertACLsAsync: 测试函数无需实现
+LRemACLsAsync: 测试函数无需实现
+RPopLPushACLsAsync: 测试函数无需实现
+LMoveACLsAsync: 测试函数无需实现
+LMPopACLsAsync: 测试函数无需实现
+LSetACLsAsync: 测试函数无需实现
+MemoryUsageACLsAsync: 测试函数无需实现
+ObjectEncodingACLsAsync: 测试函数无需实现
+ObjectFreqACLsAsync: 测试函数无需实现
+ObjectIdletimeACLsAsync: 测试函数无需实现
+ObjectRefcountACLsAsync: 测试函数无需实现
+ObjectHelpACLsAsync: 测试函数无需实现
+MGetACLsAsync: 测试函数无需实现
+MigrateACLsAsync: 测试函数无需实现
+ModuleLoadCSACLsAsync: 测试函数无需实现
+MonitorACLsAsync: 测试函数无需实现
+MSetACLsAsync: 测试函数无需实现
+MSetNXACLsAsync: 测试函数无需实现
+MultiACLsAsync: 测试函数无需实现
+PersistACLsAsync: 测试函数无需实现
+PExpireACLsAsync: 测试函数无需实现
+PFAddACLsAsync: 测试函数无需实现
+PFCountACLsAsync: 测试函数无需实现
+PFMergeACLsAsync: 测试函数无需实现
+PingACLsAsync: 测试函数无需实现
+PSetEXACLsAsync: 测试函数无需实现
+PSubscribeACLsAsync: 测试函数无需实现
+PUnsubscribeACLsAsync: 测试函数无需实现
+PTTLACLsAsync: 测试函数无需实现
+PublishACLsAsync: 测试函数无需实现
+PubSubChannelsACLsAsync: 测试函数无需实现
+PubSubNumPatACLsAsync: 测试函数无需实现
+PubSubNumSubACLsAsync: 测试函数无需实现
+ReadOnlyACLsAsync: 测试函数无需实现
+ReadWriteACLsAsync: 测试函数无需实现
+RegisterCSACLsAsync: 测试函数无需实现
+ExpireTimeACLsAsync: 测试函数无需实现
+PExpireTimeACLsAsync: 测试函数无需实现
+RenameACLsAsync: 测试函数无需实现
+RenameNxACLsAsync: 测试函数无需实现
+RICreateACLsAsync: 测试函数无需实现
+RIDelACLsAsync: 测试函数无需实现
+RIGetACLsAsync: 测试函数无需实现
+RISetACLsAsync: 测试函数无需实现
+RIRangeACLsAsync: 测试函数无需实现
+RIScanACLsAsync: 测试函数无需实现
+RIExistsACLsAsync: 测试函数无需实现
+RIConfigACLsAsync: 测试函数无需实现
+RIMetricsACLsAsync: 测试函数无需实现
+ReplicaOfACLsAsync: 测试函数无需实现
+RunTxpACLsAsync: 测试函数无需实现
+SaveACLsAsync: 测试函数无需实现
+ScanACLsAsync: 测试函数无需实现
+SecondaryOfACLsAsync: 测试函数无需实现
+SelectACLsAsync: 测试函数无需实现
+SetACLsAsync: 测试函数无需实现
+SetIfMatchACLsAsync: 测试函数无需实现
+SetIfGreaterACLsAsync: 测试函数无需实现
+SetWithEtagACLsAsync: 测试函数无需实现
+DelIfGreaterACLsAsync: 测试函数无需实现
+GetIfNotMatchACLsAsync: 测试函数无需实现
+GetWithEtagACLsAsync: 测试函数无需实现
+SetBitACLsAsync: 测试函数无需实现
+SetEXACLsAsync: 测试函数无需实现
+SetNXACLsAsync: 测试函数无需实现
+SetRangeACLsAsync: 测试函数无需实现
+StrLenACLsAsync: 测试函数无需实现
+SAddACLsAsync: 测试函数无需实现
+SRemACLsAsync: 测试函数无需实现
+SPopACLsAsync: 测试函数无需实现
+SMembersACLsAsync: 测试函数无需实现
+SCardACLsAsync: 测试函数无需实现
+SScanACLsAsync: 测试函数无需实现
+SlaveOfACLsAsync: 测试函数无需实现
+SlowlogGetACLsAsync: 测试函数无需实现
+SlowlogHelpACLsAsync: 测试函数无需实现
+SlowlogLenACLsAsync: 测试函数无需实现
+SlowlogResetACLsAsync: 测试函数无需实现
+SMoveACLsAsync: 测试函数无需实现
+SRandMemberACLsAsync: 测试函数无需实现
+SIsMemberACLsAsync: 测试函数无需实现
+SMIsMemberACLsAsync: 测试函数无需实现
+SubscribeACLsAsync: 测试函数无需实现
+SUnionACLsAsync: 测试函数无需实现
+SUnionStoreACLsAsync: 测试函数无需实现
+SDiffACLsAsync: 测试函数无需实现
+SDiffStoreACLsAsync: 测试函数无需实现
+SInterACLsAsync: 测试函数无需实现
+SInterCardACLsAsync: 测试函数无需实现
+SInterStoreACLsAsync: 测试函数无需实现
+GeoAddACLsAsync: 测试函数无需实现
+GeoHashACLsAsync: 测试函数无需实现
+GeoDistACLsAsync: 测试函数无需实现
+GeoPosACLsAsync: 测试函数无需实现
+GeoRadiusACLsAsync: 测试函数无需实现
+GeoRadiusROACLsAsync: 测试函数无需实现
+GeoRadiusByMemberACLsAsync: 测试函数无需实现
+GeoRadiusByMemberROACLsAsync: 测试函数无需实现
+GeoSearchACLsAsync: 测试函数无需实现
+GeoSearchStoreACLsAsync: 测试函数无需实现
+ZAddACLsAsync: 测试函数无需实现
+ZCardACLsAsync: 测试函数无需实现
+ZMPopACLsAsync: 测试函数无需实现
+ZPopMaxACLsAsync: 测试函数无需实现
+ZScoreACLsAsync: 测试函数无需实现
+ZRemACLsAsync: 测试函数无需实现
+ZCountACLsAsync: 测试函数无需实现
+ZIncrByACLsAsync: 测试函数无需实现
+ZRankACLsAsync: 测试函数无需实现
+ZRangeACLsAsync: 测试函数无需实现
+ZRevRangeByLexACLsAsync: 测试函数无需实现
+ZRangeStoreACLsAsync: 测试函数无需实现
+ZRangeByLexACLsAsync: 测试函数无需实现
+ZRangeByScoreACLsAsync: 测试函数无需实现
+ZRevRangeACLsAsync: 测试函数无需实现
+ZRevRangeByScoreACLsAsync: 测试函数无需实现
+ZRevRankACLsAsync: 测试函数无需实现
+ZRemRangeByLexACLsAsync: 测试函数无需实现
+ZRemRangeByRankACLsAsync: 测试函数无需实现
+ZRemRangeByScoreACLsAsync: 测试函数无需实现
+ZLexCountACLsAsync: 测试函数无需实现
+ZPopMinACLsAsync: 测试函数无需实现
+ZRandMemberACLsAsync: 测试函数无需实现
+ZDiffACLsAsync: 测试函数无需实现
+ZDiffStoreACLsAsync: 测试函数无需实现
+ZInterACLsAsync: 测试函数无需实现
+ZInterCardACLsAsync: 测试函数无需实现
+ZInterStoreACLsAsync: 测试函数无需实现
+ZUnionACLsAsync: 测试函数无需实现
+ZUnionStoreACLsAsync: 测试函数无需实现
+ZScanACLsAsync: 测试函数无需实现
+ZMScoreACLsAsync: 测试函数无需实现
+ZExpireACLsAsync: 测试函数无需实现
+ZPExpireACLsAsync: 测试函数无需实现
+ZExpireAtACLsAsync: 测试函数无需实现
+ZPExpireAtACLsAsync: 测试函数无需实现
+ZExpireTimeACLsAsync: 测试函数无需实现
+ZPExpireTimeACLsAsync: 测试函数无需实现
+ZTTLACLsAsync: 测试函数无需实现
+ZPTTLACLsAsync: 测试函数无需实现
+ZPersistACLsAsync: 测试函数无需实现
+ZCollectACLsAsync: 测试函数无需实现
+TimeACLsAsync: 测试函数无需实现
+TTLACLsAsync: 测试函数无需实现
+DumpACLsAsync: 测试函数无需实现
+RestoreACLsAsync: 测试函数无需实现
+SwapDbACLsAsync: 测试函数无需实现
+TypeACLsAsync: 测试函数无需实现
+UnlinkACLsAsync: 测试函数无需实现
+UnsubscribeACLsAsync: 测试函数无需实现
+WatchACLsAsync: 测试函数无需实现
+WatchMSACLsAsync: 测试函数无需实现
+WatchOSACLsAsync: 测试函数无需实现
+UnwatchACLsAsync: 测试函数无需实现
+VAddACLsAsync: 测试函数无需实现
+VCardACLsAsync: 测试函数无需实现
+VDimACLsAsync: 测试函数无需实现
+VEmbACLsAsync: 测试函数无需实现
+VGetAttrACLsAsync: 测试函数无需实现
+VInfoACLsAsync: 测试函数无需实现
+VIsMemberACLsAsync: 测试函数无需实现
+VLinksACLsAsync: 测试函数无需实现
+VRandMemberACLsAsync: 测试函数无需实现
+VRemACLsAsync: 测试函数无需实现
+VSetAttrACLsAsync: 测试函数无需实现
+VSimACLsAsync: 测试函数无需实现

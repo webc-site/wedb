@@ -1,6 +1,5 @@
-fn:
-  - TieredStorageDevice
-  - RemoveSegmentAsync
-  - ComputeCapacity
-  - ComputeFileString
-  - FindClosestDeviceContaining
+TieredStorageDevice: 无需实现
+RemoveSegmentAsync: 无需实现
+ComputeCapacity: 无需实现
+ComputeFileString: 无需实现
+FindClosestDeviceContaining: 无需实现

@@ -1,2 +1,1 @@
-fn:
-  - BorrowedMemoryOwner
+BorrowedMemoryOwner: 无需实现

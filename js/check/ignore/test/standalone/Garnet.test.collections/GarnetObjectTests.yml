@@ -1,17 +1,15 @@
-fn:
-  - Setup
-  - CreateStore
-  - TearDown
-  - LocalWrite
-  - LocalRead
-  - MyFunctions
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - Deserialize
-  - Serialize
-test:
-  - WriteRead
-  - WriteCheckpointRead
-  - WriteCheckpointCopyUpdate
+Setup: 无需实现
+CreateStore: 无需实现
+TearDown: 无需实现
+LocalWrite: 无需实现
+LocalRead: 无需实现
+MyFunctions: 无需实现
+CopyUpdater: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+Deserialize: 无需实现
+Serialize: 无需实现
+WriteRead: 测试函数无需实现
+WriteCheckpointRead: 测试函数无需实现
+WriteCheckpointCopyUpdate: 测试函数无需实现

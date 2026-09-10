@@ -1,27 +1,23 @@
-# r10 深审死模块清理：wkv 引擎内部化后，Tsavorite IFunctions 壳层
-# （MainStore/ObjectStore/UnifiedStore 回调族）无调用方，rust 引擎钩子由
-# wkv 内部实现承接；本豁免保留 C# 文件的映射豁免记录
-fn:
-  - ReadCompletionCallback
-  - InitialWriter
-  - InPlaceWriter
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - RMWCompletionCallback
-  - InitialDeleter
-  - ConvertOutputToHeap
-  - ObjectOperationsNotExpected
-  - LogRecordOperationsNotExpected
-  - AlignOrPin
-  - AssertAlignment
-  - PostInitialWriter
-  - PostInitialUpdater
-  - PostCopyUpdater
-  - PostUpsertOperation
-  - PostRMWOperation
-  - PostDeleteOperation
-  - PostInitialDeleter
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback
+ReadCompletionCallback: 无需实现
+InitialWriter: 无需实现
+InPlaceWriter: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+RMWCompletionCallback: 无需实现
+InitialDeleter: 无需实现
+ConvertOutputToHeap: 无需实现
+ObjectOperationsNotExpected: 无需实现
+LogRecordOperationsNotExpected: 无需实现
+AlignOrPin: 无需实现
+AssertAlignment: 无需实现
+PostInitialWriter: 无需实现
+PostInitialUpdater: 无需实现
+PostCopyUpdater: 无需实现
+PostUpsertOperation: 无需实现
+PostRMWOperation: 无需实现
+PostDeleteOperation: 无需实现
+PostInitialDeleter: 无需实现
+PostSingleKeyConsistentReadCallback: 无需实现
+PreBatchKeyConsistentReadCallback: 无需实现
+PostBatchKeyConsistentReadCallback: 无需实现

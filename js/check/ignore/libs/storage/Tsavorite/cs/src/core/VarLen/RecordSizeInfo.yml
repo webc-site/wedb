@@ -1,9 +1,8 @@
-fn:
-  - SetKeyIsInline
-  - SetValueIsInline
-  - SetIsRevivifiedRecord
-  - CalculateSizes
-  - ThrowTsavoriteException
-  - AssertValueDataLength
-  - AssertOptionalsIfSet
-  - ToString
+SetKeyIsInline: 无需实现
+SetValueIsInline: 无需实现
+SetIsRevivifiedRecord: 无需实现
+CalculateSizes: 无需实现
+ThrowTsavoriteException: 无需实现
+AssertValueDataLength: 无需实现
+AssertOptionalsIfSet: 无需实现
+ToString: 无需实现

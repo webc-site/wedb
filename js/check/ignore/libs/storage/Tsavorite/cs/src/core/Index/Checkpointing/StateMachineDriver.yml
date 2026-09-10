@@ -1,21 +1,20 @@
-fn:
-  - SetSystemState
-  - GetNumActiveTransactions
-  - IncrementActiveTransactions
-  - DecrementActiveTransactions
-  - AddToWaitingList
-  - ResetLastVersion
-  - AcquireTransactionVersion
-  - VerifyTransactionVersion
-  - EndTransaction
-  - Register
-  - UnsafeRegisterCallback
-  - RunAsync
-  - CompleteAsync
-  - GlobalStateMachineStep
-  - WaitForStateChange
-  - WaitForCompletion
-  - ProcessWaitingListAsync
-  - when
-  - RunStateMachine
-  - FastForwardStateMachineToRest
+SetSystemState: 无需实现
+GetNumActiveTransactions: 无需实现
+IncrementActiveTransactions: 无需实现
+DecrementActiveTransactions: 无需实现
+AddToWaitingList: 无需实现
+ResetLastVersion: 无需实现
+AcquireTransactionVersion: 无需实现
+VerifyTransactionVersion: 无需实现
+EndTransaction: 无需实现
+Register: 无需实现
+UnsafeRegisterCallback: 无需实现
+RunAsync: 无需实现
+CompleteAsync: 无需实现
+GlobalStateMachineStep: 无需实现
+WaitForStateChange: 无需实现
+WaitForCompletion: 无需实现
+ProcessWaitingListAsync: 无需实现
+when: 无需实现
+RunStateMachine: 无需实现
+FastForwardStateMachineToRest: 无需实现

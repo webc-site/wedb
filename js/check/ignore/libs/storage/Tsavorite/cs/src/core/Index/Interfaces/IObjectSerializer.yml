@@ -1,7 +1,6 @@
-fn:
-  - BeginSerialize
-  - Serialize
-  - EndSerialize
-  - BeginDeserialize
-  - Deserialize
-  - EndDeserialize
+BeginSerialize: 无需实现
+Serialize: 无需实现
+EndSerialize: 无需实现
+BeginDeserialize: 无需实现
+Deserialize: 无需实现
+EndDeserialize: 无需实现

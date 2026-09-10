@@ -1,6 +1,5 @@
-fn:
-  - TerminateNormally
-  - TraceError
-  - Terminate
-  - Shutdown
-  - WaitForTermination
+TerminateNormally: 无需实现
+TraceError: 无需实现
+Terminate: 无需实现
+Shutdown: 无需实现
+WaitForTermination: 无需实现

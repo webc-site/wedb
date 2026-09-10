@@ -1,8 +1,7 @@
-fn:
-  - Main
-  - PrintUsage
-  - RunStress
-  - ConfigureInjection
-  - ParseNamed
-  - ExpandModes
-  - ParseIntList
+Main: 无需实现
+PrintUsage: 无需实现
+RunStress: 无需实现
+ConfigureInjection: 无需实现
+ParseNamed: 无需实现
+ExpandModes: 无需实现
+ParseIntList: 无需实现

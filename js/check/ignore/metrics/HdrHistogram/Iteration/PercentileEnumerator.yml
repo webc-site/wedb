@@ -1,6 +1,5 @@
-fn:
-  - PercentileEnumerator
-  - HasNext
-  - IncrementIterationLevel
-  - ReachedIterationLevel
-  - GetPercentileIteratedTo
+PercentileEnumerator: 无需实现
+HasNext: 无需实现
+IncrementIterationLevel: 无需实现
+ReachedIterationLevel: 无需实现
+GetPercentileIteratedTo: 无需实现

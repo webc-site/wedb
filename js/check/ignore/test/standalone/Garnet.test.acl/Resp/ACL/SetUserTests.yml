@@ -1,18 +1,17 @@
-test:
-  - PasswordlessDefaultUserTest
-  - ProtectedDefaultUserErrorHandlingTest
-  - ProtectedDefaultUserLoginImplicitTest
-  - ProtectedDefaultUserLoginExplicitTest
-  - EnableAndDisableUsers
-  - AddPasswordFromCleartextTest
-  - AddPasswordFromHashTest
-  - RemovePasswordFromCleartextTest
-  - RemovePasswordFromHashTest
-  - AddDuplicatePasswordTest
-  - PasswordlessUserTest
-  - ResetPasswordsTest
-  - AddAndRemoveCategoryTest
-  - ResetUser
-  - BadInputEmpty
-  - BadInputUnknownOperation
-  - KeyPatternsWildcard
+PasswordlessDefaultUserTest: 测试函数无需实现
+ProtectedDefaultUserErrorHandlingTest: 测试函数无需实现
+ProtectedDefaultUserLoginImplicitTest: 测试函数无需实现
+ProtectedDefaultUserLoginExplicitTest: 测试函数无需实现
+EnableAndDisableUsers: 测试函数无需实现
+AddPasswordFromCleartextTest: 测试函数无需实现
+AddPasswordFromHashTest: 测试函数无需实现
+RemovePasswordFromCleartextTest: 测试函数无需实现
+RemovePasswordFromHashTest: 测试函数无需实现
+AddDuplicatePasswordTest: 测试函数无需实现
+PasswordlessUserTest: 测试函数无需实现
+ResetPasswordsTest: 测试函数无需实现
+AddAndRemoveCategoryTest: 测试函数无需实现
+ResetUser: 测试函数无需实现
+BadInputEmpty: 测试函数无需实现
+BadInputUnknownOperation: 测试函数无需实现
+KeyPatternsWildcard: 测试函数无需实现

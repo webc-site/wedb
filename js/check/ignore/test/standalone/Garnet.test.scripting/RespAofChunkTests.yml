@@ -1,24 +1,22 @@
-fn:
-  - CreateServer
-  - Setup
-  - TearDown
-  - RestartForRecovery
-  - UsePageSizes
-  - UseTopology
-  - MakeValue
-  - MakeFieldBytes
-test:
-  - AofLargeStringValueSpanChunkRecoverTest
-  - AofLargeStringValueOverwriteSpanChunkRecoverTest
-  - AofLargeObjectChunkRecoverTest
-  - AofHugeObjectChunkRecoverTest
-  - AofLargeSortedSetChunkRecoverTest
-  - AofLargeKeyBrokenAcrossPagesRecoverTest
-  - AofLargeInputRmwBrokenAcrossPagesRecoverTest
-  - AofLargeKeySmallInputInlineRmwRecoverTest
-  - AofInterleavedChunksFromMultipleRecordsRecoverTest
-  - AofChunkedAndNonChunkedInterleavedRecoverTest
-  - AofChunkMultiReplayRecoverTest
-  - AofChunkShardedRecoverTest
-  - AofChunkShardedObjectRecoverTest
-  - AofChunkPartialSlotsPageSplitRecoverTest
+CreateServer: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+RestartForRecovery: 无需实现
+UsePageSizes: 无需实现
+UseTopology: 无需实现
+MakeValue: 无需实现
+MakeFieldBytes: 无需实现
+AofLargeStringValueSpanChunkRecoverTest: 测试函数无需实现
+AofLargeStringValueOverwriteSpanChunkRecoverTest: 测试函数无需实现
+AofLargeObjectChunkRecoverTest: 测试函数无需实现
+AofHugeObjectChunkRecoverTest: 测试函数无需实现
+AofLargeSortedSetChunkRecoverTest: 测试函数无需实现
+AofLargeKeyBrokenAcrossPagesRecoverTest: 测试函数无需实现
+AofLargeInputRmwBrokenAcrossPagesRecoverTest: 测试函数无需实现
+AofLargeKeySmallInputInlineRmwRecoverTest: 测试函数无需实现
+AofInterleavedChunksFromMultipleRecordsRecoverTest: 测试函数无需实现
+AofChunkedAndNonChunkedInterleavedRecoverTest: 测试函数无需实现
+AofChunkMultiReplayRecoverTest: 测试函数无需实现
+AofChunkShardedRecoverTest: 测试函数无需实现
+AofChunkShardedObjectRecoverTest: 测试函数无需实现
+AofChunkPartialSlotsPageSplitRecoverTest: 测试函数无需实现

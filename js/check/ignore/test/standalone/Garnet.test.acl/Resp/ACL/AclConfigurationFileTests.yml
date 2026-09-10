@@ -1,10 +1,9 @@
-test:
-  - EmptyInput
-  - NoDefaultRule
-  - WithDefaultRule
-  - AclLoad
-  - AclLoadErrors
-  - DuplicateUserNames
-  - BadInputNonexistingFile
-  - BadInputMalformedStatement
-  - AclSave
+EmptyInput: 测试函数无需实现
+NoDefaultRule: 测试函数无需实现
+WithDefaultRule: 测试函数无需实现
+AclLoad: 测试函数无需实现
+AclLoadErrors: 测试函数无需实现
+DuplicateUserNames: 测试函数无需实现
+BadInputNonexistingFile: 测试函数无需实现
+BadInputMalformedStatement: 测试函数无需实现
+AclSave: 测试函数无需实现

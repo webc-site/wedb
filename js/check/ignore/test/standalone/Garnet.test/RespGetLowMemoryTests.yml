@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ScatterGatherGet
-  - ScatterGatherMixedGetSetPipeline
-  - ScatterGatherMixedGetTtlPipeline
-  - ScatterGatherMGet
-  - MGetOnDiskCompletesWithoutScatterGatherFlag
+Setup: 无需实现
+TearDown: 无需实现
+ScatterGatherGet: 测试函数无需实现
+ScatterGatherMixedGetSetPipeline: 测试函数无需实现
+ScatterGatherMixedGetTtlPipeline: 测试函数无需实现
+ScatterGatherMGet: 测试函数无需实现
+MGetOnDiskCompletesWithoutScatterGatherFlag: 测试函数无需实现

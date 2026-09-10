@@ -1,42 +1,40 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateRangeIndexWithFields
-  - SetRangeIndexFields
-  - AssertMovedFrom
-  - VerifyFieldsOnEndpoint
-  - WaitForSlotOwnership
-  - FindKeyOwnedByNode
-  - MakeFields
-  - AssertRiGetEventually
-  - IsTransientRiGetResponse
-  - AssertRangeIndexStreamedInManyChunks
-  - AssertRangeIndexReassembledInManyChunks
-  - VerifyRangeIndexOnReplica
-  - RestartNode
-  - Endpoint
-  - MigrateSlotsAndWaitCleanup
-  - MigrateSlotsAndWaitOwnership
-  - when
-  - CheckpointNode
-test:
-  - ClusterMigrateRangeIndexReplicatesToReplicaViaAof
-  - ClusterMigrateRangeIndexRecoversFromAof
-  - ClusterMigrateRangeIndexMultiChunkStreamReplicatesAndRecovers
-  - ClusterMigrateEmptyRangeIndexReplicatesAndRecovers
-  - ClusterMigrateRangeIndexRoundTripWithReplicas
-  - ClusterMigrateRangeIndexThenFailover
-  - ClusterMigrateRangeIndexCheckpointThenRecover
-  - ClusterMigrateRangeIndexSingleBySlot
-  - ClusterMigrateRangeIndexByKeys
-  - ClusterMigrateMixedRangeIndexAndRegularByKeys
-  - ClusterMigrateRangeIndexManyBySlot
-  - ClusterMigrateRangeIndexStressAsync
-  - ClusterMigrateRangeIndexWhileReadingAsync
-  - ClusterMigrateRangeIndexWithPauseDuringTransmitAsync
-  - ClusterMigrateRangeIndexWithPauseDuringDeleteAsync
-  - ClusterMigrateRangeIndexExceptionDuringTransmit
-  - ClusterMigrateRangeIndexThenFlushAndRead
-  - ClusterMigrateRangeIndexThenDelete
-  - ClusterMigrateRangeIndexThenCheckpointRestartAndContinue
-  - ClusterMigrateRangeIndexRoundTripThenRestart
+Setup: 无需实现
+TearDown: 无需实现
+CreateRangeIndexWithFields: 无需实现
+SetRangeIndexFields: 无需实现
+AssertMovedFrom: 无需实现
+VerifyFieldsOnEndpoint: 无需实现
+WaitForSlotOwnership: 无需实现
+FindKeyOwnedByNode: 无需实现
+MakeFields: 无需实现
+AssertRiGetEventually: 无需实现
+IsTransientRiGetResponse: 无需实现
+AssertRangeIndexStreamedInManyChunks: 无需实现
+AssertRangeIndexReassembledInManyChunks: 无需实现
+VerifyRangeIndexOnReplica: 无需实现
+RestartNode: 无需实现
+Endpoint: 无需实现
+MigrateSlotsAndWaitCleanup: 无需实现
+MigrateSlotsAndWaitOwnership: 无需实现
+when: 无需实现
+CheckpointNode: 无需实现
+ClusterMigrateRangeIndexReplicatesToReplicaViaAof: 测试函数无需实现
+ClusterMigrateRangeIndexRecoversFromAof: 测试函数无需实现
+ClusterMigrateRangeIndexMultiChunkStreamReplicatesAndRecovers: 测试函数无需实现
+ClusterMigrateEmptyRangeIndexReplicatesAndRecovers: 测试函数无需实现
+ClusterMigrateRangeIndexRoundTripWithReplicas: 测试函数无需实现
+ClusterMigrateRangeIndexThenFailover: 测试函数无需实现
+ClusterMigrateRangeIndexCheckpointThenRecover: 测试函数无需实现
+ClusterMigrateRangeIndexSingleBySlot: 测试函数无需实现
+ClusterMigrateRangeIndexByKeys: 测试函数无需实现
+ClusterMigrateMixedRangeIndexAndRegularByKeys: 测试函数无需实现
+ClusterMigrateRangeIndexManyBySlot: 测试函数无需实现
+ClusterMigrateRangeIndexStressAsync: 测试函数无需实现
+ClusterMigrateRangeIndexWhileReadingAsync: 测试函数无需实现
+ClusterMigrateRangeIndexWithPauseDuringTransmitAsync: 测试函数无需实现
+ClusterMigrateRangeIndexWithPauseDuringDeleteAsync: 测试函数无需实现
+ClusterMigrateRangeIndexExceptionDuringTransmit: 测试函数无需实现
+ClusterMigrateRangeIndexThenFlushAndRead: 测试函数无需实现
+ClusterMigrateRangeIndexThenDelete: 测试函数无需实现
+ClusterMigrateRangeIndexThenCheckpointRestartAndContinue: 测试函数无需实现
+ClusterMigrateRangeIndexRoundTripThenRestart: 测试函数无需实现

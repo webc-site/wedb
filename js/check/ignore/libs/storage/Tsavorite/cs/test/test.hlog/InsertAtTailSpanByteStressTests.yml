@@ -1,15 +1,13 @@
-fn:
-  - GetMutablePageCount
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - InPlaceWriter
-  - InitialWriter
-  - CopyUpdater
-  - InitialUpdater
-  - PopulateAndSetReadOnlyToTail
-  - runReadThread
-  - runUpdateThread
-test:
-  - SpanByteTailInsertMultiThreadTest
+GetMutablePageCount: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+InPlaceWriter: 无需实现
+InitialWriter: 无需实现
+CopyUpdater: 无需实现
+InitialUpdater: 无需实现
+PopulateAndSetReadOnlyToTail: 无需实现
+runReadThread: 无需实现
+runUpdateThread: 无需实现
+SpanByteTailInsertMultiThreadTest: 测试函数无需实现

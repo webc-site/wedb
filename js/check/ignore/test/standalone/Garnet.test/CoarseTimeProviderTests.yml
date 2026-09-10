@@ -1,3 +1,2 @@
-test:
-  - UtcNowIsCloseToWallClock
-  - ValueRefreshesAfterRefreshPeriod
+UtcNowIsCloseToWallClock: 测试函数无需实现
+ValueRefreshesAfterRefreshPeriod: 测试函数无需实现

@@ -1,9 +1,8 @@
-fn:
-  - GetAndIncrement
-  - GetAndSet
-  - LazySet
-  - WriterCriticalSectionEnter
-  - WriterCriticalSectionExit
-  - ReaderLock
-  - ReaderUnlock
-  - FlipPhase
+GetAndIncrement: 无需实现
+GetAndSet: 无需实现
+LazySet: 无需实现
+WriterCriticalSectionEnter: 无需实现
+WriterCriticalSectionExit: 无需实现
+ReaderLock: 无需实现
+ReaderUnlock: 无需实现
+FlipPhase: 无需实现

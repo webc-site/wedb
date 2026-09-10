@@ -1,4 +1,3 @@
-fn:
-  - SetLowestObjectLogPosition
-  - GetLowestObjectLogPosition
-  - ToString
+SetLowestObjectLogPosition: 无需实现
+GetLowestObjectLogPosition: 无需实现
+ToString: 无需实现

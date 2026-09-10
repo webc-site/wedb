@@ -1,6 +1,5 @@
-fn:
-  - SpanByteFunctions
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - ConvertOutputToHeap
+SpanByteFunctions: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+ConvertOutputToHeap: 无需实现

@@ -1,7 +1,6 @@
-fn:
-  - Create
-  - Deserialize
-  - MyDict
-  - UpdateSize
-  - CloneObject
-  - SerializeObject
+Create: 无需实现
+Deserialize: 无需实现
+MyDict: 无需实现
+UpdateSize: 无需实现
+CloneObject: 无需实现
+SerializeObject: 无需实现

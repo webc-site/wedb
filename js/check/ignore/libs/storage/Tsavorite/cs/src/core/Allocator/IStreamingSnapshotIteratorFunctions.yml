@@ -1,4 +1,3 @@
-fn:
-  - OnStart
-  - OnStop
-  - OnException
+OnStart: 无需实现
+OnStop: 无需实现
+OnException: 无需实现

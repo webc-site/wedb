@@ -1,11 +1,10 @@
-fn:
-  - DefaultCheckpointNamingScheme
-  - LogCheckpointBase
-  - LogCheckpointMetadata
-  - LogSnapshot
-  - ObjectLogSnapshot
-  - IndexCheckpointBase
-  - IndexCheckpointMetadata
-  - HashTable
-  - TsavoriteLogCommitMetadata
-  - CommitNumber
+DefaultCheckpointNamingScheme: 无需实现
+LogCheckpointBase: 无需实现
+LogCheckpointMetadata: 无需实现
+LogSnapshot: 无需实现
+ObjectLogSnapshot: 无需实现
+IndexCheckpointBase: 无需实现
+IndexCheckpointMetadata: 无需实现
+HashTable: 无需实现
+TsavoriteLogCommitMetadata: 无需实现
+CommitNumber: 无需实现

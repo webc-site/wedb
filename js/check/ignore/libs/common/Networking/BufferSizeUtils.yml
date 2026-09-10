@@ -1,3 +1,2 @@
-fn:
-  - ClientBufferSize
-  - ServerBufferSize
+ClientBufferSize: 无需实现
+ServerBufferSize: 无需实现

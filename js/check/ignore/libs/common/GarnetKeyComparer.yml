@@ -1,4 +1,3 @@
-fn:
-  - GetHashCode64
-  - StaticEquals
-  - StaticGetHashCode64
+GetHashCode64: 无需实现
+StaticEquals: 无需实现
+StaticGetHashCode64: 无需实现

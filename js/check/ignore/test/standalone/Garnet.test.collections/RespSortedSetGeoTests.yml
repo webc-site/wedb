@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - CanUseGeoAdd
-  - CanUseGeoAddWhenLTM
-  - CanUseGeoPos
-  - CheckGeoSortedSetOperationsOnWrongTypeObjectSE
-  - CanUseGeoSearch
-  - CanUseGeoSearchStore
-  - CanUseGeoSearchStoreWithDeleteKeyWhenSourceNotFound
-  - CanUseGeoSearchWithCities
-  - CanDoGeoAddWhenInvalidPairLC
-  - CanUseGeoHash
-  - CanUseGeoDist
-  - CanReturnNullGeoDistLC
-  - CanUseGeoPosLC
-  - CanContinueWhenNotEnoughParametersInGeoAdd
-  - InvalidGeoSearches
+Setup: 无需实现
+TearDown: 无需实现
+CanUseGeoAdd: 测试函数无需实现
+CanUseGeoAddWhenLTM: 测试函数无需实现
+CanUseGeoPos: 测试函数无需实现
+CheckGeoSortedSetOperationsOnWrongTypeObjectSE: 测试函数无需实现
+CanUseGeoSearch: 测试函数无需实现
+CanUseGeoSearchStore: 测试函数无需实现
+CanUseGeoSearchStoreWithDeleteKeyWhenSourceNotFound: 测试函数无需实现
+CanUseGeoSearchWithCities: 测试函数无需实现
+CanDoGeoAddWhenInvalidPairLC: 测试函数无需实现
+CanUseGeoHash: 测试函数无需实现
+CanUseGeoDist: 测试函数无需实现
+CanReturnNullGeoDistLC: 测试函数无需实现
+CanUseGeoPosLC: 测试函数无需实现
+CanContinueWhenNotEnoughParametersInGeoAdd: 测试函数无需实现
+InvalidGeoSearches: 测试函数无需实现

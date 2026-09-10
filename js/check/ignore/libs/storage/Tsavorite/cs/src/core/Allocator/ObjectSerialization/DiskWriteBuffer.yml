@@ -1,7 +1,6 @@
-fn:
-  - DiskWriteBuffer
-  - WaitUntilFreeAndInitialize
-  - IncrementOrResetCountdown
-  - FlushToDevice
-  - Wait
-  - ToString
+DiskWriteBuffer: 无需实现
+WaitUntilFreeAndInitialize: 无需实现
+IncrementOrResetCountdown: 无需实现
+FlushToDevice: 无需实现
+Wait: 无需实现
+ToString: 无需实现

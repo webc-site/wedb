@@ -1,7 +1,5 @@
-fn:
-  - Setup
-  - TearDown
-  - ValidateConnectionsWithToken
-test:
-  - ValidateClusterAuthWithObjectId
-  - ValidateClusterAuthWithGroupOid
+Setup: 无需实现
+TearDown: 无需实现
+ValidateConnectionsWithToken: 无需实现
+ValidateClusterAuthWithObjectId: 测试函数无需实现
+ValidateClusterAuthWithGroupOid: 测试函数无需实现

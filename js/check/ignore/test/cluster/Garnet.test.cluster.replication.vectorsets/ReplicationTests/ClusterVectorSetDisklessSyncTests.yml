@@ -1,15 +1,13 @@
-fn:
-  - SetupDisklessCluster
-  - ForceDisklessFullSync
-  - PopulateVectorSet
-  - AssertFullyReplicated
-  - AssertOwnsItsIndex
-  - WaitForContextDrained
-test:
-  - VectorSetReadableOnReplicaAfterDisklessFullSync
-  - VectorSetReadableOnReplicaWithoutFullSync
-  - VectorSetReplicatedToEveryReplicaByDisklessFullSync
-  - VectorSetSurvivesFailoverAfterDisklessFullSync
-  - FreshVectorSetDoesNotReuseStreamedContextAfterDisklessFullSync
-  - VectorSetDisklessFullSyncRecoversAfterAbortedAttempt
-  - AbortedDisklessFullSyncLeavesNoOrphanNamespacedRecords
+SetupDisklessCluster: 无需实现
+ForceDisklessFullSync: 无需实现
+PopulateVectorSet: 无需实现
+AssertFullyReplicated: 无需实现
+AssertOwnsItsIndex: 无需实现
+WaitForContextDrained: 无需实现
+VectorSetReadableOnReplicaAfterDisklessFullSync: 测试函数无需实现
+VectorSetReadableOnReplicaWithoutFullSync: 测试函数无需实现
+VectorSetReplicatedToEveryReplicaByDisklessFullSync: 测试函数无需实现
+VectorSetSurvivesFailoverAfterDisklessFullSync: 测试函数无需实现
+FreshVectorSetDoesNotReuseStreamedContextAfterDisklessFullSync: 测试函数无需实现
+VectorSetDisklessFullSyncRecoversAfterAbortedAttempt: 测试函数无需实现
+AbortedDisklessFullSyncLeavesNoOrphanNamespacedRecords: 测试函数无需实现

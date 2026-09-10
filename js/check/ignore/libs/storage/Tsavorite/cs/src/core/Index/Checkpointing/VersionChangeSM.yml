@@ -1,3 +1,2 @@
-fn:
-  - VersionChangeSM
-  - NextState
+VersionChangeSM: 无需实现
+NextState: 无需实现

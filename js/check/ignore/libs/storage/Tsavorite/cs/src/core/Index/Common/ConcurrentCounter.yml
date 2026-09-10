@@ -1,2 +1,1 @@
-fn:
-  - ConcurrentCounter
+ConcurrentCounter: 无需实现

@@ -1,28 +1,27 @@
-fn:
-  - IsIntermediate
-  - IsError
-  - Make
-  - MakeIntermediate
-  - RemoveIntermediate
-  - Equal
-  - ToString
-  - Equals
-  - VersionSchemeStateMachine
-  - ToVersion
-  - GetNextStep
-  - OnEnteringState
-  - AfterEnteringState
-  - SimpleVersionSchemeStateMachine
-  - criticalSection
-  - EpochProtectedVersionScheme
-  - CurrentState
-  - MakeTransition
-  - Enter
-  - TryStepStateMachine
-  - Leave
-  - StepMachineHeavy
-  - SignalStepAvailable
-  - TryExecuteStateMachine
-  - ExecuteStateMachine
-  - TryAdvanceVersionWithCriticalSection
-  - AdvanceVersionWithCriticalSection
+IsIntermediate: 无需实现
+IsError: 无需实现
+Make: 无需实现
+MakeIntermediate: 无需实现
+RemoveIntermediate: 无需实现
+Equal: 无需实现
+ToString: 无需实现
+Equals: 无需实现
+VersionSchemeStateMachine: 无需实现
+ToVersion: 无需实现
+GetNextStep: 无需实现
+OnEnteringState: 无需实现
+AfterEnteringState: 无需实现
+SimpleVersionSchemeStateMachine: 无需实现
+criticalSection: 无需实现
+EpochProtectedVersionScheme: 无需实现
+CurrentState: 无需实现
+MakeTransition: 无需实现
+Enter: 无需实现
+TryStepStateMachine: 无需实现
+Leave: 无需实现
+StepMachineHeavy: 无需实现
+SignalStepAvailable: 无需实现
+TryExecuteStateMachine: 无需实现
+ExecuteStateMachine: 无需实现
+TryAdvanceVersionWithCriticalSection: 无需实现
+AdvanceVersionWithCriticalSection: 无需实现

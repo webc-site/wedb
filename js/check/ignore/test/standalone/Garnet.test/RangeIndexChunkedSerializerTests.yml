@@ -1,60 +1,57 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateStub
-  - CreateBuffer
-  - RandomBytes
-  - AssertRoundTripAsync
-test:
-  - SingleChunkRoundTrip
-  - MultiChunkRoundTrip
-  - EmptyFileRejectedByDeserializer
-  - CorruptedChecksumDetected
-  - NegativeFileSizeIsError
-  - SplitFileHeaderIsError
-  - TrailerTooSmallIsError
-  - FileOpenFailureGoesToErrorState
-  - TooSmallHeaderIsError
-  - ErrorStateIsTerminal
-  - FileContentPreservedInRoundTrip
-  - StubPreservedInRoundTrip
-  - DisposeCleansTempFile
-  - StartupCleansUpMigrationTmpDir
-  - InvalidStubSizeIsError
-  - TruncatedStubIsError
-  - OverLongTrailerIsError
-  - KeySpanningMultipleChunksRoundTrip
-  - MoveNextAfterDoneThrows
-  - TruncatedFileThrowsException
-  - BufferTooSmallForKeyHeaderDefersToNextChunk
-  - BufferTooSmallForFileHeaderDefersToNextChunk
-  - BufferTooSmallForTrailerDefersToNextChunk
-  - ExactPhaseBoundaryTransitions
-  - DoubleDisposeIsIdempotent
-  - ZeroLengthKeyRejectedByDeserializer
-  - TrailerChecksumAndStubContentVerification
-  - IsCompleteTransitionsCorrectly
-  - DeclaredSizeSmallerThanActualFileEmitsTruncatedPrefix
-  - BufferExhaustedAtFileDataPhaseDoesNotThrow
-  - SmallBufferRoundTrip
-  - FileDataExactlyFillsChunk_TrailerInNextChunk
-  - FileDataOneBytePerChunk
-  - EmptyChunkDuringWaitingForTrailer
-  - EmptyChunkDuringReceivingFileData
-  - EmptyChunkAtWaitingForKeyHeader
-  - EmptyChunkDuringWaitingForFileHeader
-  - KeySplitAcrossTwoChunks
-  - ZeroFileDataRejectedByDeserializer
-  - CorruptedFileDataFailsChecksumInTrailer
-  - KeyHeaderAloneInChunk
-  - RoundTrip_SingleChunk
-  - AssertRoundTripAsync
-  - RoundTrip_MultiChunk
-  - RoundTrip_KeyLargerThanChunk
-  - RoundTrip_SmallChunk
-  - RoundTrip_FileExactlyFillsFirstChunk
-  - Reader_TruncatedFileThrows
-  - Reader_CancellationThrows
-  - Reader_NonPositiveChunkSizeThrows
-  - Reader_DestinationBelowMinimumThrows
-  - RoundTrip_ExactMinChunkSize
+Setup: 无需实现
+TearDown: 无需实现
+CreateStub: 无需实现
+CreateBuffer: 无需实现
+RandomBytes: 无需实现
+AssertRoundTripAsync: 测试函数无需实现
+SingleChunkRoundTrip: 测试函数无需实现
+MultiChunkRoundTrip: 测试函数无需实现
+EmptyFileRejectedByDeserializer: 测试函数无需实现
+CorruptedChecksumDetected: 测试函数无需实现
+NegativeFileSizeIsError: 测试函数无需实现
+SplitFileHeaderIsError: 测试函数无需实现
+TrailerTooSmallIsError: 测试函数无需实现
+FileOpenFailureGoesToErrorState: 测试函数无需实现
+TooSmallHeaderIsError: 测试函数无需实现
+ErrorStateIsTerminal: 测试函数无需实现
+FileContentPreservedInRoundTrip: 测试函数无需实现
+StubPreservedInRoundTrip: 测试函数无需实现
+DisposeCleansTempFile: 测试函数无需实现
+StartupCleansUpMigrationTmpDir: 测试函数无需实现
+InvalidStubSizeIsError: 测试函数无需实现
+TruncatedStubIsError: 测试函数无需实现
+OverLongTrailerIsError: 测试函数无需实现
+KeySpanningMultipleChunksRoundTrip: 测试函数无需实现
+MoveNextAfterDoneThrows: 测试函数无需实现
+TruncatedFileThrowsException: 测试函数无需实现
+BufferTooSmallForKeyHeaderDefersToNextChunk: 测试函数无需实现
+BufferTooSmallForFileHeaderDefersToNextChunk: 测试函数无需实现
+BufferTooSmallForTrailerDefersToNextChunk: 测试函数无需实现
+ExactPhaseBoundaryTransitions: 测试函数无需实现
+DoubleDisposeIsIdempotent: 测试函数无需实现
+ZeroLengthKeyRejectedByDeserializer: 测试函数无需实现
+TrailerChecksumAndStubContentVerification: 测试函数无需实现
+IsCompleteTransitionsCorrectly: 测试函数无需实现
+DeclaredSizeSmallerThanActualFileEmitsTruncatedPrefix: 测试函数无需实现
+BufferExhaustedAtFileDataPhaseDoesNotThrow: 测试函数无需实现
+SmallBufferRoundTrip: 测试函数无需实现
+FileDataExactlyFillsChunk_TrailerInNextChunk: 测试函数无需实现
+FileDataOneBytePerChunk: 测试函数无需实现
+EmptyChunkDuringWaitingForTrailer: 测试函数无需实现
+EmptyChunkDuringReceivingFileData: 测试函数无需实现
+EmptyChunkAtWaitingForKeyHeader: 测试函数无需实现
+EmptyChunkDuringWaitingForFileHeader: 测试函数无需实现
+KeySplitAcrossTwoChunks: 测试函数无需实现
+ZeroFileDataRejectedByDeserializer: 测试函数无需实现
+CorruptedFileDataFailsChecksumInTrailer: 测试函数无需实现
+KeyHeaderAloneInChunk: 测试函数无需实现
+RoundTrip_SingleChunk: 测试函数无需实现
+RoundTrip_MultiChunk: 测试函数无需实现
+RoundTrip_KeyLargerThanChunk: 测试函数无需实现
+RoundTrip_SmallChunk: 测试函数无需实现
+RoundTrip_FileExactlyFillsFirstChunk: 测试函数无需实现
+Reader_TruncatedFileThrows: 测试函数无需实现
+Reader_CancellationThrows: 测试函数无需实现
+Reader_NonPositiveChunkSizeThrows: 测试函数无需实现
+Reader_DestinationBelowMinimumThrows: 测试函数无需实现
+RoundTrip_ExactMinChunkSize: 测试函数无需实现

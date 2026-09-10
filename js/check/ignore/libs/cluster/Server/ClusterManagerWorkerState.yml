@@ -1,5 +1,0 @@
-fn:
-  - TryRemoveWorker
-  - TryReset
-  - TryAddReplicaAsync
-  - ListReplicas

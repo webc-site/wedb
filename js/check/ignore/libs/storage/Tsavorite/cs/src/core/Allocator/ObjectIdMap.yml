@@ -1,7 +1,6 @@
-fn:
-  - ObjectIdMap
-  - AllocateAndSet
-  - GetHeapObject
-  - TryGetHeapObject
-  - GetOverflowByteArray
-  - ToString
+ObjectIdMap: 无需实现
+AllocateAndSet: 无需实现
+GetHeapObject: 无需实现
+TryGetHeapObject: 无需实现
+GetOverflowByteArray: 无需实现
+ToString: 无需实现

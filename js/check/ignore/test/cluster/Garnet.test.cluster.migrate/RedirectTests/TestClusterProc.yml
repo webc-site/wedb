@@ -1,8 +1,7 @@
-fn:
-  - Prepare
-  - AddKey
-  - Main
-  - WriteSimpleString
-  - GetSingleSlotRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
+Prepare: 无需实现
+AddKey: 无需实现
+Main: 无需实现
+WriteSimpleString: 无需实现
+GetSingleSlotRequest: 无需实现
+GetCrossSlotRequest: 无需实现
+SetupSingleSlotRequest: 无需实现

@@ -1,27 +1,25 @@
-fn:
-  - StringAndByteArrayComparer
-  - Equals
-  - Write
-  - ClusterVectorSetTests
-  - Setup
-  - TearDown
-  - Incr
-  - when
-  - CountGossipFaults
-  - SimpleSetupClusterAsync
-  - GetStoreWrapper
-test:
-  - BasicVADDReplicatesAsync
-  - ConcurrentVADDReplicatedVSimsAsync
-  - RepeatedCreateDeleteAsync
-  - MultipleReplicasWithVectorSetsAsync
-  - MultipleReplicasWithVectorSetsAndDeletesAsync
-  - VectorSetMigrateSingleBySlotAsync
-  - VectorSetMigrateByKeysAsync
-  - VectorSetMigrateManyBySlot
-  - MigrateVectorSetWhileModifyingAsync
-  - MigrateVectorSetBackAsync
-  - MigrateVectorStressAsync
-  - FailoverStopsVectorManagerReplicationTasksAsync
-  - ReplicaReplaysSyntheticVAddAgainstStringKeyAfterRacedDeleteAsync
-  - VSETATTRReplicatesAsync
+StringAndByteArrayComparer: 无需实现
+Equals: 无需实现
+Write: 无需实现
+ClusterVectorSetTests: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+Incr: 无需实现
+when: 无需实现
+CountGossipFaults: 无需实现
+SimpleSetupClusterAsync: 无需实现
+GetStoreWrapper: 无需实现
+BasicVADDReplicatesAsync: 测试函数无需实现
+ConcurrentVADDReplicatedVSimsAsync: 测试函数无需实现
+RepeatedCreateDeleteAsync: 测试函数无需实现
+MultipleReplicasWithVectorSetsAsync: 测试函数无需实现
+MultipleReplicasWithVectorSetsAndDeletesAsync: 测试函数无需实现
+VectorSetMigrateSingleBySlotAsync: 测试函数无需实现
+VectorSetMigrateByKeysAsync: 测试函数无需实现
+VectorSetMigrateManyBySlot: 测试函数无需实现
+MigrateVectorSetWhileModifyingAsync: 测试函数无需实现
+MigrateVectorSetBackAsync: 测试函数无需实现
+MigrateVectorStressAsync: 测试函数无需实现
+FailoverStopsVectorManagerReplicationTasksAsync: 测试函数无需实现
+ReplicaReplaysSyntheticVAddAgainstStringKeyAfterRacedDeleteAsync: 测试函数无需实现
+VSETATTRReplicatesAsync: 测试函数无需实现

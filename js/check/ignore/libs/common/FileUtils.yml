@@ -1,5 +1,4 @@
-fn:
-  - TryGetFiles
-  - IsFileInDirectory
-  - TryLoadAssemblies
-  - ConvertToAbsolutePaths
+TryGetFiles: 无需实现
+IsFileInDirectory: 无需实现
+TryLoadAssemblies: 无需实现
+ConvertToAbsolutePaths: 无需实现

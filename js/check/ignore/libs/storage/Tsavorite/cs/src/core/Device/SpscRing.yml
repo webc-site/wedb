@@ -1,10 +1,9 @@
-fn:
-  - SpscRing
-  - Stop
-  - Enqueue
-  - WaitForSlotEmpty
-  - WakeIfParked
-  - Wake
-  - TryDequeue
-  - WaitForWork
-  - HasWork
+SpscRing: 无需实现
+Stop: 无需实现
+Enqueue: 无需实现
+WaitForSlotEmpty: 无需实现
+WakeIfParked: 无需实现
+Wake: 无需实现
+TryDequeue: 无需实现
+WaitForWork: 无需实现
+HasWork: 无需实现

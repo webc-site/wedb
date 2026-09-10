@@ -1,5 +1,3 @@
-fn:
-  - ParseModuleSpecTest
-test:
-  - ParseModuleSpecEmptyTest
-  - ParseModuleSpecInvalidQuotedTest
+ParseModuleSpecTest: 无需实现
+ParseModuleSpecEmptyTest: 测试函数无需实现
+ParseModuleSpecInvalidQuotedTest: 测试函数无需实现

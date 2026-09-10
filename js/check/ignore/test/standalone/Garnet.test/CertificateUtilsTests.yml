@@ -1,8 +1,6 @@
-fn:
-  - TearDown
-test:
-  - GetMachineCertificateByFileLoadsPfxCertificate
-  - GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile
-  - GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey
-  - GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension
-  - GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines
+TearDown: 无需实现
+GetMachineCertificateByFileLoadsPfxCertificate: 测试函数无需实现
+GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile: 测试函数无需实现
+GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey: 测试函数无需实现
+GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension: 测试函数无需实现
+GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines: 测试函数无需实现

@@ -1,4 +1,3 @@
-fn:
-  - ZipfGenerator
-  - Zeta
-  - Next
+ZipfGenerator: 无需实现
+Zeta: 无需实现
+Next: 无需实现

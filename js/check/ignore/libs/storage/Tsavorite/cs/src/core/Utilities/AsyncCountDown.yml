@@ -1,6 +1,5 @@
-fn:
-  - AsyncCountDown
-  - Remove
-  - TryCompleteAwaitingTask
-  - WaitUntilEmptyAsync
-  - GetOrCreateTaskCompletionSource
+AsyncCountDown: 无需实现
+Remove: 无需实现
+TryCompleteAwaitingTask: 无需实现
+WaitUntilEmptyAsync: 无需实现
+GetOrCreateTaskCompletionSource: 无需实现

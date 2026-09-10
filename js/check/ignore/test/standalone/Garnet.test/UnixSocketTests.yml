@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - Permission_SetPermissionMatches
-  - Ping_DoesNotThrow
-  - SetGet_Equals
-  - Helpful_Exception_For_Missing_Path
+Setup: 无需实现
+TearDown: 无需实现
+Permission_SetPermissionMatches: 测试函数无需实现
+Ping_DoesNotThrow: 测试函数无需实现
+SetGet_Equals: 测试函数无需实现
+Helpful_Exception_For_Missing_Path: 测试函数无需实现

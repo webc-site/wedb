@@ -1,6 +1,4 @@
-fn:
-  - JsonSET
-  - NeedInitialUpdate
-  - Updater
-  - JsonGET
-  - AbortWithErrorMessage
+JsonSET: 无需实现
+NeedInitialUpdate: 无需实现
+JsonGET: 无需实现
+AbortWithErrorMessage: 无需实现

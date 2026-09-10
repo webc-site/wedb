@@ -1,4 +1,3 @@
-fn:
-  - TryEnter
-  - ExitAndCheckShouldCleanup
-  - TryDispose
+TryEnter: 无需实现
+ExitAndCheckShouldCleanup: 无需实现
+TryDispose: 无需实现

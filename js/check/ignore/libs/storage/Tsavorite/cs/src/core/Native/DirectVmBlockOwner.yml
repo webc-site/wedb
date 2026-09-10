@@ -1,7 +1,6 @@
-fn:
-  - BeginIo
-  - EndIo
-  - TryDeferFree
-  - TryDrainDeferred
-  - HandOffInstalledBlocks
-  - HandOffDeferredBlocks
+BeginIo: 无需实现
+EndIo: 无需实现
+TryDeferFree: 无需实现
+TryDrainDeferred: 无需实现
+HandOffInstalledBlocks: 无需实现
+HandOffDeferredBlocks: 无需实现

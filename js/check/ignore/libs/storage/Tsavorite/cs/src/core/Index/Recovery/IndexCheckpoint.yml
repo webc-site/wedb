@@ -1,13 +1,12 @@
-fn:
-  - TakeIndexFuzzyCheckpoint
-  - BeginMainIndexCheckpoint
-  - IsIndexFuzzyCheckpointCompleted
-  - AddIndexCheckpointWaitingList
-  - IsIndexFuzzyCheckpointCompletedAsync
-  - BeginNativeIndexCheckpointIo
-  - FlushRunner
-  - EndNativeIndexCheckpointIo
-  - skipReadCache
-  - IsMainIndexCheckpointCompleted
-  - IsMainIndexCheckpointCompletedAsync
-  - AsyncPageFlushCallback
+TakeIndexFuzzyCheckpoint: 无需实现
+BeginMainIndexCheckpoint: 无需实现
+IsIndexFuzzyCheckpointCompleted: 无需实现
+AddIndexCheckpointWaitingList: 无需实现
+IsIndexFuzzyCheckpointCompletedAsync: 无需实现
+BeginNativeIndexCheckpointIo: 无需实现
+FlushRunner: 无需实现
+EndNativeIndexCheckpointIo: 无需实现
+skipReadCache: 无需实现
+IsMainIndexCheckpointCompleted: 无需实现
+IsMainIndexCheckpointCompletedAsync: 无需实现
+AsyncPageFlushCallback: 无需实现

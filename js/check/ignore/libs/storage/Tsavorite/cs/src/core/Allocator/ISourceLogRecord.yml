@@ -1,6 +1,5 @@
-fn:
-  - ClearValueIfHeap
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - CalculateHeapMemorySize
+ClearValueIfHeap: 无需实现
+AsMemoryLogRecordRef: 无需实现
+AsDiskLogRecordRef: 无需实现
+GetRecordFieldInfo: 无需实现
+CalculateHeapMemorySize: 无需实现

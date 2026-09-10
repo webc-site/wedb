@@ -1,12 +1,11 @@
-fn:
-  - ToString
-  - DisposeHandle
-  - TryClaimSnapshotUnitRelease
-  - bstr
-  - SetRefCountedHandle
-  - DiskWriteCallbackContext
-  - SetBufferCountdownEvent
-  - RecordError
-  - RefCountedPinnedGCHandle
-  - AddRef
-  - DiskReadCallbackContext
+ToString: 无需实现
+DisposeHandle: 无需实现
+TryClaimSnapshotUnitRelease: 无需实现
+bstr: 无需实现
+SetRefCountedHandle: 无需实现
+DiskWriteCallbackContext: 无需实现
+SetBufferCountdownEvent: 无需实现
+RecordError: 无需实现
+RefCountedPinnedGCHandle: 无需实现
+AddRef: 无需实现
+DiskReadCallbackContext: 无需实现

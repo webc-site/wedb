@@ -1,22 +1,20 @@
-fn:
-  - Setup
-  - RegisterRoaringBitmap
-  - TearDown
-test:
-  - GetBitOnMissingKey_Returns0
-  - BitCountOnMissingKey_Returns0
-  - BitPosOnMissingKey_Bit1ReturnsMinus1
-  - BitPosOnMissingKey_Bit0ReturnsFromOrZero
-  - SetBitGetBit_Basics
-  - BitCount_Basics
-  - BitPos_Basics
-  - Errors_BadOffset
-  - StringKeyAndCustomObjectKey_AreSeparate
-  - Errors_BitPosBadBit
-  - Errors_WrongArity
-  - OracleParity_RandomMix
-  - DeleteAndRecreate
-  - LargeOffsetsAndChunkBoundaries
-  - ConcurrentSetBit_FromMultipleClients_Consistent
-  - DenseBitmapPromotion_StaysCorrect
-  - ConcurrentReadsWhileWrites_StayConsistent
+Setup: 无需实现
+RegisterRoaringBitmap: 无需实现
+TearDown: 无需实现
+GetBitOnMissingKey_Returns0: 测试函数无需实现
+BitCountOnMissingKey_Returns0: 测试函数无需实现
+BitPosOnMissingKey_Bit1ReturnsMinus1: 测试函数无需实现
+BitPosOnMissingKey_Bit0ReturnsFromOrZero: 测试函数无需实现
+SetBitGetBit_Basics: 测试函数无需实现
+BitCount_Basics: 测试函数无需实现
+BitPos_Basics: 测试函数无需实现
+Errors_BadOffset: 测试函数无需实现
+StringKeyAndCustomObjectKey_AreSeparate: 测试函数无需实现
+Errors_BitPosBadBit: 测试函数无需实现
+Errors_WrongArity: 测试函数无需实现
+OracleParity_RandomMix: 测试函数无需实现
+DeleteAndRecreate: 测试函数无需实现
+LargeOffsetsAndChunkBoundaries: 测试函数无需实现
+ConcurrentSetBit_FromMultipleClients_Consistent: 测试函数无需实现
+DenseBitmapPromotion_StaysCorrect: 测试函数无需实现
+ConcurrentReadsWhileWrites_StayConsistent: 测试函数无需实现

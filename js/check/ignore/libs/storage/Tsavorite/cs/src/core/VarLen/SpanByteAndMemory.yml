@@ -1,6 +1,5 @@
-fn:
-  - SpanByteAndMemory
-  - FromPinnedSpan
-  - FromPinnedPointer
-  - ConvertToHeap
-  - EnsureHeapMemorySize
+SpanByteAndMemory: 无需实现
+FromPinnedSpan: 无需实现
+FromPinnedPointer: 无需实现
+ConvertToHeap: 无需实现
+EnsureHeapMemorySize: 无需实现

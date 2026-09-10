@@ -1,5 +1,4 @@
-fn:
-  - ConsistentReadParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - MGet
+ConsistentReadParamsProvider: 无需实现
+GlobalSetup: 无需实现
+GlobalCleanup: 无需实现
+MGet: 无需实现

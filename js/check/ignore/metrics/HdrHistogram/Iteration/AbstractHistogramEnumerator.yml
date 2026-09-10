@@ -1,10 +1,9 @@
-fn:
-  - AbstractHistogramEnumerator
-  - HasNext
-  - IncrementIterationLevel
-  - ReachedIterationLevel
-  - GetPercentileIteratedTo
-  - GetValueIteratedTo
-  - Next
-  - IncrementSubBucket
-  - ExhaustedSubBuckets
+AbstractHistogramEnumerator: 无需实现
+HasNext: 无需实现
+IncrementIterationLevel: 无需实现
+ReachedIterationLevel: 无需实现
+GetPercentileIteratedTo: 无需实现
+GetValueIteratedTo: 无需实现
+Next: 无需实现
+IncrementSubBucket: 无需实现
+ExhaustedSubBuckets: 无需实现

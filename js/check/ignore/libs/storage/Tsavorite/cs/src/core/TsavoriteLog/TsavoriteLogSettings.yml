@@ -1,2 +1,1 @@
-fn:
-  - GetLogSettings
+GetLogSettings: 无需实现

@@ -1,10 +1,9 @@
-fn:
-  - GetNextTaskId
-  - NeedToWait
-  - AsyncFlushPageCallback
-  - GetOffsetInPage
-  - DoAggressiveShiftReadOnly
-  - EpochProtectAggressiveShiftReadOnlyRunner
-  - ToShift
-  - AggressiveShiftReadOnlyRunner
-  - AggressiveFlushShiftReadOnlyBump
+GetNextTaskId: 无需实现
+NeedToWait: 无需实现
+AsyncFlushPageCallback: 无需实现
+GetOffsetInPage: 无需实现
+DoAggressiveShiftReadOnly: 无需实现
+EpochProtectAggressiveShiftReadOnlyRunner: 无需实现
+ToShift: 无需实现
+AggressiveShiftReadOnlyRunner: 无需实现
+AggressiveFlushShiftReadOnlyBump: 无需实现

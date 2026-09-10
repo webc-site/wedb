@@ -1,9 +1,8 @@
-fn:
-  - ConvertInlineToOverflow
-  - ConvertValueObjectToOverflow
-  - ConvertInlineToValueObject
-  - ConvertOverflowToValueObject
-  - ConvertOverflowToInline
-  - ClearObjectIdAndConvertToInline
-  - ConvertValueObjectToInline
-  - ReallocateValueOverflow
+ConvertInlineToOverflow: 无需实现
+ConvertValueObjectToOverflow: 无需实现
+ConvertInlineToValueObject: 无需实现
+ConvertOverflowToValueObject: 无需实现
+ConvertOverflowToInline: 无需实现
+ClearObjectIdAndConvertToInline: 无需实现
+ConvertValueObjectToInline: 无需实现
+ReallocateValueOverflow: 无需实现

@@ -1,10 +1,9 @@
-fn:
-  - BitmapContainer
-  - SetUnchecked
-  - Remove
-  - Last
-  - NextSetBit
-  - NextUnsetBit
-  - SerializeBody
-  - DeserializeBody
-  - ToArrayContainer
+BitmapContainer: 无需实现
+SetUnchecked: 无需实现
+Remove: 无需实现
+Last: 无需实现
+NextSetBit: 无需实现
+NextUnsetBit: 无需实现
+SerializeBody: 无需实现
+DeserializeBody: 无需实现
+ToArrayContainer: 无需实现

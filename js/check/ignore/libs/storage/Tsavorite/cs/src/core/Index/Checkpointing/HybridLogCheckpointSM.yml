@@ -1,3 +1,2 @@
-fn:
-  - HybridLogCheckpointSM
-  - NextState
+HybridLogCheckpointSM: 无需实现
+NextState: 无需实现

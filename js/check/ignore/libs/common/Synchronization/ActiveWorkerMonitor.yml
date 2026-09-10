@@ -1,3 +1,2 @@
-fn:
-  - TryOpen
-  - TryEnter
+TryOpen: 无需实现
+TryEnter: 无需实现

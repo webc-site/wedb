@@ -1,12 +1,11 @@
-fn:
-  - Connect
-  - ConnectSendSocket
-  - ConnectSendSocketAsync
-  - TryConnectSocket
-  - TryConnectSocketAsync
-  - ReconnectAsync
-  - ExecuteBatch
-  - ExecuteForArray
-  - ExecuteClusterAppendLog
-  - InternalExecute
-  - ResetOffset
+Connect: 无需实现
+ConnectSendSocket: 无需实现
+ConnectSendSocketAsync: 无需实现
+TryConnectSocket: 无需实现
+TryConnectSocketAsync: 无需实现
+ReconnectAsync: 无需实现
+ExecuteBatch: 无需实现
+ExecuteForArray: 无需实现
+ExecuteClusterAppendLog: 无需实现
+InternalExecute: 无需实现
+ResetOffset: 无需实现

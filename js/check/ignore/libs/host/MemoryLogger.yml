@@ -1,4 +1,3 @@
-fn:
-  - FlushLogger
-  - CreateLogger
-  - AddMemory
+FlushLogger: 无需实现
+CreateLogger: 无需实现
+AddMemory: 无需实现

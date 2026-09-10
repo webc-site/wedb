@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - GetOverflowValueSpanByte
-  - InitialUpdater
-  - CopyUpdater
-  - DoUpdater
-  - SetAndVerify
-  - InPlaceWriter
-  - InitialWriter
-  - DoWriter
-  - GetFieldInfo
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-test:
-  - ObjectAsInlineStructUpsertTest
-  - ObjectAsInlineStructRMWTest
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+GetOverflowValueSpanByte: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现
+DoUpdater: 无需实现
+SetAndVerify: 无需实现
+InPlaceWriter: 无需实现
+InitialWriter: 无需实现
+DoWriter: 无需实现
+GetFieldInfo: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+ObjectAsInlineStructUpsertTest: 测试函数无需实现
+ObjectAsInlineStructRMWTest: 测试函数无需实现

@@ -1,3 +1,2 @@
-fn:
-  - CreateLoggerFactory
-  - Main
+CreateLoggerFactory: 无需实现
+Main: 无需实现

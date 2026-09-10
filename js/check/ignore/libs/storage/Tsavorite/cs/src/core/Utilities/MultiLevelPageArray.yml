@@ -1,7 +1,6 @@
-fn:
-  - EnsureInitialized
-  - CompleteAsPageOwner
-  - AddPage
-  - MaybeInjectAddPageFailure
-  - TryGet
-  - ToString
+EnsureInitialized: 无需实现
+CompleteAsPageOwner: 无需实现
+AddPage: 无需实现
+MaybeInjectAddPageFailure: 无需实现
+TryGet: 无需实现
+ToString: 无需实现

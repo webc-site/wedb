@@ -1,2 +1,1 @@
-fn:
-  - GetOrAdd
+GetOrAdd: 无需实现

@@ -1,6 +1,5 @@
-fn:
-  - Remove
-  - Last
-  - NextSetBit
-  - NextUnsetBit
-  - SerializeBody
+Remove: 无需实现
+Last: 无需实现
+NextSetBit: 无需实现
+NextUnsetBit: 无需实现
+SerializeBody: 无需实现

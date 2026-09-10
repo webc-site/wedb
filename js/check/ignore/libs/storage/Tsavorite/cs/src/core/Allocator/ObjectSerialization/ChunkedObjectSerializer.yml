@@ -1,14 +1,13 @@
-fn:
-  - ChunkedObjectSerializer
-  - BeginSerialize
-  - WriteBytes
-  - Write
-  - GetStream
-  - EndSerialize
-  - FlushFinal
-  - Serialize
-  - DrainOnce
-  - ChunkStreamWriter
-  - WriteByte
-  - Seek
-  - SetLength
+ChunkedObjectSerializer: 无需实现
+BeginSerialize: 无需实现
+WriteBytes: 无需实现
+Write: 无需实现
+GetStream: 无需实现
+EndSerialize: 无需实现
+FlushFinal: 无需实现
+Serialize: 无需实现
+DrainOnce: 无需实现
+ChunkStreamWriter: 无需实现
+WriteByte: 无需实现
+Seek: 无需实现
+SetLength: 无需实现

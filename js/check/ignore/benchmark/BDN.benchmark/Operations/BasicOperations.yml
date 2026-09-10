@@ -1,4 +1,3 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - InlinePing
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+InlinePing: 无需实现

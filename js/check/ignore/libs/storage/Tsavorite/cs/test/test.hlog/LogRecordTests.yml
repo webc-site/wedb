@@ -1,20 +1,18 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - UpdateRecordSizeInfo
-  - GetTotalFillerLength
-  - InitializeKeyAndValue
-  - PopulateBoundarySizeInfo
-  - InitializeRecord
-  - ConvertToOverflow
-  - RestoreToOriginal
-  - ConvertToObject
-test:
-  - InlineHeaderTests
-  - InlineBasicTest
-  - ConversionTest
-  - MaxInlineKeyAtLimitStaysInline
-  - KeyAboveMaxInlineKeyBecomesOverflow
-  - MaxInlineValueAtLimitStaysInline
-  - ValueAboveMaxInlineValueBecomesOverflow
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+UpdateRecordSizeInfo: 无需实现
+GetTotalFillerLength: 无需实现
+InitializeKeyAndValue: 无需实现
+PopulateBoundarySizeInfo: 无需实现
+InitializeRecord: 无需实现
+ConvertToOverflow: 无需实现
+RestoreToOriginal: 无需实现
+ConvertToObject: 无需实现
+InlineHeaderTests: 测试函数无需实现
+InlineBasicTest: 测试函数无需实现
+ConversionTest: 测试函数无需实现
+MaxInlineKeyAtLimitStaysInline: 测试函数无需实现
+KeyAboveMaxInlineKeyBecomesOverflow: 测试函数无需实现
+MaxInlineValueAtLimitStaysInline: 测试函数无需实现
+ValueAboveMaxInlineValueBecomesOverflow: 测试函数无需实现

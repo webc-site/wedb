@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-  - SimpleMemoryResultCallback
-  - DoZRangeAsync
-  - GetUniqueName
-test:
-  - CanDoZAddGarnetAsync
-  - CanDoZAddGarnetCallback
-  - CanDoExecuteForStringResultCallback
-  - CanDoZCardGarnetUsingMemoryResultAsync
-  - CanDoZAddGarnetMultithread
-  - CanUseExecuteForStringArrayResult
-  - CanUseExecuteForStringResultAsync
-  - CanUseExecuteForMemoryResultArrayWithCancellationTokenAsync
-  - CanUseExecuteForMemoryResultWithCancellationTokenAsync
-  - CanGarnetClientUseZaddZrem
-  - CanGarnetClientUseZaddZremWithCallback
-  - CanGarnetClientUseZCard
+Setup: 无需实现
+TearDown: 无需实现
+SimpleMemoryResultCallback: 无需实现
+DoZRangeAsync: 无需实现
+GetUniqueName: 无需实现
+CanDoZAddGarnetAsync: 测试函数无需实现
+CanDoZAddGarnetCallback: 测试函数无需实现
+CanDoExecuteForStringResultCallback: 测试函数无需实现
+CanDoZCardGarnetUsingMemoryResultAsync: 测试函数无需实现
+CanDoZAddGarnetMultithread: 测试函数无需实现
+CanUseExecuteForStringArrayResult: 测试函数无需实现
+CanUseExecuteForStringResultAsync: 测试函数无需实现
+CanUseExecuteForMemoryResultArrayWithCancellationTokenAsync: 测试函数无需实现
+CanUseExecuteForMemoryResultWithCancellationTokenAsync: 测试函数无需实现
+CanGarnetClientUseZaddZrem: 测试函数无需实现
+CanGarnetClientUseZaddZremWithCallback: 测试函数无需实现
+CanGarnetClientUseZCard: 测试函数无需实现

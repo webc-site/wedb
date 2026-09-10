@@ -1,5 +1,4 @@
-fn:
-  - SetHeader
-  - SetExpiredFlag
-  - SetSetGetFlag
-  - ToPointer
+SetHeader: 无需实现
+SetExpiredFlag: 无需实现
+SetSetGetFlag: 无需实现
+ToPointer: 无需实现

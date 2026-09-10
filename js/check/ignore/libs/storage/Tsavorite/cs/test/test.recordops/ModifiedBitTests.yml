@@ -1,14 +1,12 @@
-fn:
-  - Setup
-  - TearDown
-  - OnTearDown
-  - Populate
-  - AssertLockandModified
-test:
-  - LockAndNotModify
-  - ResetModifyForNonExistingKey
-  - ModifyClientSession
-  - ModifyLUC
-  - ModifyUC
-  - ModifyLC
-  - CopyToTailAndVerifyResetTest
+Setup: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+Populate: 无需实现
+AssertLockandModified: 无需实现
+LockAndNotModify: 测试函数无需实现
+ResetModifyForNonExistingKey: 测试函数无需实现
+ModifyClientSession: 测试函数无需实现
+ModifyLUC: 测试函数无需实现
+ModifyUC: 测试函数无需实现
+ModifyLC: 测试函数无需实现
+CopyToTailAndVerifyResetTest: 测试函数无需实现

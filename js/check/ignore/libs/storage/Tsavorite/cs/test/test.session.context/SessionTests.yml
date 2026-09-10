@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-test:
-  - SessionTest1
-  - SessionTest2
-  - SessionTest3
-  - SessionTest4
-  - SessionTest5
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+SessionTest1: 测试函数无需实现
+SessionTest2: 测试函数无需实现
+SessionTest3: 测试函数无需实现
+SessionTest4: 测试函数无需实现
+SessionTest5: 测试函数无需实现

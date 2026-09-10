@@ -1,169 +1,168 @@
-fn:
-  - ToIPEndPoint
-  - ThrowException
-  - IgnoreIfExceptionInjectionDisabled
-  - GetEndpoints
-  - GetEndpointsWithout
-  - Execute
-  - ExecuteAsync
-  - NodesV2Async
-  - NodesMyself
-  - NodesMyselfAsync
-  - GetLocalNodeId
-  - GetLocalNodeIdAsync
-  - NodesAllAsync
-  - WaitForEpochSync
-  - ClusterMyId
-  - GetSlotRanges
-  - GetClusterConfigAsync
-  - NodesEqual
-  - WaitForSyncAsync
-  - SimpleSetupCluster
-  - SimpleSetupClusterAsync
-  - CreateClusterTransaction
-  - ClusterResponse
-  - ExecuteTxnForShard
-  - ClusterTestUtils
-  - HashSlot
-  - BackOff
-  - BackOffAsync
-  - Connect
-  - ConnectAsync
-  - InitMultiplexerAsync
-  - GetRedisConfig
-  - CloseConnectionsAsync
-  - GetNodeIds
-  - GetNodeIdsAsync
-  - ReconnectAsync
-  - GetEndPoints
-  - GetMultiplexer
-  - GetDatabase
-  - GetGarnetClientSession
-  - CreateGarnetClientSession
-  - GetServer
-  - GetAddressFromNodeIndex
-  - GetPortFromNodeIndex
-  - GetNodeIndexFromPort
-  - GetEndPoint
-  - GetEndPointFromPort
-  - RandomBytesRestrictedToSlot
-  - RandomBytes
-  - InitRandom
-  - RandomList
-  - RandomHset
-  - RandomStr
-  - GetRandomTargetNodeIndex
-  - LightReceive
-  - ParseRespToString
-  - ParseResponseState
-  - GetEndPointFromResponse
-  - CreateLightRequestConnections
-  - GetSlotPortMapFromNode
-  - GetSlotPortMapFromServer
-  - MergeSlotPortMap
-  - AddSlotsRange
-  - AddSlotsRangeAsync
-  - SetConfigEpoch
-  - SetConfigEpochAsync
-  - BumpEpoch
-  - WaitForConfigPropagation
-  - MatchConfig
-  - Authenticate
-  - Meet
-  - MeetAsync
-  - BanList
-  - Nodes
-  - NodesAsync
-  - NodesDict
-  - GetConfigEpochOfNodeFromNodeIndex
-  - GetConfigEpoch
-  - WaitAll
-  - IsKnown
-  - WaitUntilNodeIsKnown
-  - WaitUntilNodeIdIsKnown
-  - WaitUntilNodeIsKnownByAllNodes
-  - WaitUntilNodeIdIsKnownAsync
-  - CountKeysInSlot
-  - GetKeysInSlot
-  - GetOwnedSlotsFromNode
-  - GetOwnedSlotsFromNodeAsync
-  - GetNodeIdFromNode
-  - GetMovedAddress
-  - GetEndPointIndexFromPort
-  - GetSourceNodeIndexFromSlot
-  - AddDelSlots
-  - AddDelSlotsRange
-  - SetSlot
-  - SlotState
-  - MigrateSlotsIndex
-  - MigrateSlots
-  - MigrateKeys
-  - MigrateTasks
-  - WaitForMigrationCleanup
-  - WaitForSlotOwnership
-  - Asking
-  - PingAll
-  - ClusterSlots
-  - MeetAndAssignSlots
-  - AdvancePrimaryPastReplicaAofWindow
-  - AttachReplicaToPrimary
-  - WaitForReplicaRecovery
-  - WaitForReplicaAofSync
-  - ResetReplica
-  - ClusterReplicate
-  - ClusterReplicateAsync
-  - ClusterFailover
-  - ReplicaOf
-  - ClusterForget
-  - ClusterReset
-  - ClusterKeySlot
-  - FlushAll
-  - ClusterStatus
-  - GetNodeInfo
-  - ClusterNodes
-  - ClusterNodesAsync
-  - WaitClusterNodesSync
-  - ClusterShards
-  - SetKey
-  - GetKey
-  - SetMultiKey
-  - GetMultiKey
-  - Lpush
-  - Lrange
-  - Sadd
-  - Smembers
-  - GetStoreCurrentAofAddress
-  - GetStoreRecoveredAofAddress
-  - WaitForReplicasConnected
-  - GetConnectedReplicas
-  - RoleCommand
-  - AssertRole
-  - GetReplicationRole
-  - GetReplicationRoleAsync
-  - GetReplicationOffset
-  - GetReplicationSyncStatus
-  - GetFailoverState
-  - GetReplicationInfo
-  - GetReplicationInfoAsync
-  - GetClusterReplicasAsync
-  - GetPersistenceInfo
-  - ProcessPersistenceInfo
-  - ProcessReplicationInfo
-  - GetStoreCurrentVersion
-  - GetStoreInfo
-  - GetInfo
-  - WaitForAofSyncDriverDipose
-  - WaitForConnectedReplicaCountAsync
-  - WaitForNoFailover
-  - WaitForFailoverCompleted
-  - WaitForPrimaryRole
-  - when
-  - LastSave
-  - WaitUntilNextSecond
-  - WaitCheckpoint
-  - IncrBy
-  - ConfigSet
-  - AclLoad
-  - GetAnyOtherNodeAsync
-  - DBSize
-  - FlushAndWaitForStoreAsync
+ToIPEndPoint: 无需实现
+ThrowException: 无需实现
+IgnoreIfExceptionInjectionDisabled: 无需实现
+GetEndpoints: 无需实现
+GetEndpointsWithout: 无需实现
+Execute: 无需实现
+ExecuteAsync: 无需实现
+NodesV2Async: 无需实现
+NodesMyself: 无需实现
+NodesMyselfAsync: 无需实现
+GetLocalNodeId: 无需实现
+GetLocalNodeIdAsync: 无需实现
+NodesAllAsync: 无需实现
+WaitForEpochSync: 无需实现
+ClusterMyId: 无需实现
+GetSlotRanges: 无需实现
+GetClusterConfigAsync: 无需实现
+NodesEqual: 无需实现
+WaitForSyncAsync: 无需实现
+SimpleSetupCluster: 无需实现
+SimpleSetupClusterAsync: 无需实现
+CreateClusterTransaction: 无需实现
+ClusterResponse: 无需实现
+ExecuteTxnForShard: 无需实现
+ClusterTestUtils: 无需实现
+HashSlot: 无需实现
+BackOff: 无需实现
+BackOffAsync: 无需实现
+Connect: 无需实现
+ConnectAsync: 无需实现
+InitMultiplexerAsync: 无需实现
+GetRedisConfig: 无需实现
+CloseConnectionsAsync: 无需实现
+GetNodeIds: 无需实现
+GetNodeIdsAsync: 无需实现
+ReconnectAsync: 无需实现
+GetEndPoints: 无需实现
+GetMultiplexer: 无需实现
+GetDatabase: 无需实现
+GetGarnetClientSession: 无需实现
+CreateGarnetClientSession: 无需实现
+GetServer: 无需实现
+GetAddressFromNodeIndex: 无需实现
+GetPortFromNodeIndex: 无需实现
+GetNodeIndexFromPort: 无需实现
+GetEndPoint: 无需实现
+GetEndPointFromPort: 无需实现
+RandomBytesRestrictedToSlot: 无需实现
+RandomBytes: 无需实现
+InitRandom: 无需实现
+RandomList: 无需实现
+RandomHset: 无需实现
+RandomStr: 无需实现
+GetRandomTargetNodeIndex: 无需实现
+LightReceive: 无需实现
+ParseRespToString: 无需实现
+ParseResponseState: 无需实现
+GetEndPointFromResponse: 无需实现
+CreateLightRequestConnections: 无需实现
+GetSlotPortMapFromNode: 无需实现
+GetSlotPortMapFromServer: 无需实现
+MergeSlotPortMap: 无需实现
+AddSlotsRange: 无需实现
+AddSlotsRangeAsync: 无需实现
+SetConfigEpoch: 无需实现
+SetConfigEpochAsync: 无需实现
+BumpEpoch: 无需实现
+WaitForConfigPropagation: 无需实现
+MatchConfig: 无需实现
+Authenticate: 无需实现
+Meet: 无需实现
+MeetAsync: 无需实现
+BanList: 无需实现
+Nodes: 无需实现
+NodesAsync: 无需实现
+NodesDict: 无需实现
+GetConfigEpochOfNodeFromNodeIndex: 无需实现
+GetConfigEpoch: 无需实现
+WaitAll: 无需实现
+IsKnown: 无需实现
+WaitUntilNodeIsKnown: 无需实现
+WaitUntilNodeIdIsKnown: 无需实现
+WaitUntilNodeIsKnownByAllNodes: 无需实现
+WaitUntilNodeIdIsKnownAsync: 无需实现
+CountKeysInSlot: 无需实现
+GetKeysInSlot: 无需实现
+GetOwnedSlotsFromNode: 无需实现
+GetOwnedSlotsFromNodeAsync: 无需实现
+GetNodeIdFromNode: 无需实现
+GetMovedAddress: 无需实现
+GetEndPointIndexFromPort: 无需实现
+GetSourceNodeIndexFromSlot: 无需实现
+AddDelSlots: 无需实现
+AddDelSlotsRange: 无需实现
+SetSlot: 无需实现
+SlotState: 无需实现
+MigrateSlotsIndex: 无需实现
+MigrateSlots: 无需实现
+MigrateKeys: 无需实现
+MigrateTasks: 无需实现
+WaitForMigrationCleanup: 无需实现
+WaitForSlotOwnership: 无需实现
+Asking: 无需实现
+PingAll: 无需实现
+ClusterSlots: 无需实现
+MeetAndAssignSlots: 无需实现
+AdvancePrimaryPastReplicaAofWindow: 无需实现
+AttachReplicaToPrimary: 无需实现
+WaitForReplicaRecovery: 无需实现
+WaitForReplicaAofSync: 无需实现
+ResetReplica: 无需实现
+ClusterReplicate: 无需实现
+ClusterReplicateAsync: 无需实现
+ClusterFailover: 无需实现
+ReplicaOf: 无需实现
+ClusterForget: 无需实现
+ClusterReset: 无需实现
+ClusterKeySlot: 无需实现
+FlushAll: 无需实现
+ClusterStatus: 无需实现
+GetNodeInfo: 无需实现
+ClusterNodes: 无需实现
+ClusterNodesAsync: 无需实现
+WaitClusterNodesSync: 无需实现
+ClusterShards: 无需实现
+SetKey: 无需实现
+GetKey: 无需实现
+SetMultiKey: 无需实现
+GetMultiKey: 无需实现
+Lpush: 无需实现
+Lrange: 无需实现
+Sadd: 无需实现
+Smembers: 无需实现
+GetStoreCurrentAofAddress: 无需实现
+GetStoreRecoveredAofAddress: 无需实现
+WaitForReplicasConnected: 无需实现
+GetConnectedReplicas: 无需实现
+RoleCommand: 无需实现
+AssertRole: 无需实现
+GetReplicationRole: 无需实现
+GetReplicationRoleAsync: 无需实现
+GetReplicationOffset: 无需实现
+GetReplicationSyncStatus: 无需实现
+GetFailoverState: 无需实现
+GetReplicationInfo: 无需实现
+GetReplicationInfoAsync: 无需实现
+GetClusterReplicasAsync: 无需实现
+GetPersistenceInfo: 无需实现
+ProcessPersistenceInfo: 无需实现
+ProcessReplicationInfo: 无需实现
+GetStoreCurrentVersion: 无需实现
+GetStoreInfo: 无需实现
+GetInfo: 无需实现
+WaitForAofSyncDriverDipose: 无需实现
+WaitForConnectedReplicaCountAsync: 无需实现
+WaitForNoFailover: 无需实现
+WaitForFailoverCompleted: 无需实现
+WaitForPrimaryRole: 无需实现
+when: 无需实现
+LastSave: 无需实现
+WaitUntilNextSecond: 无需实现
+WaitCheckpoint: 无需实现
+IncrBy: 无需实现
+ConfigSet: 无需实现
+AclLoad: 无需实现
+GetAnyOtherNodeAsync: 无需实现
+DBSize: 无需实现
+FlushAndWaitForStoreAsync: 无需实现

@@ -1,14 +1,13 @@
-fn:
-  - SERedisSamples
-  - RunAll
-  - RespPing
-  - SingleSetRename
-  - SingleSetGet
-  - SingleIncr
-  - SingleIncrBy
-  - SingleDecrBy
-  - SingleDecr
-  - SingleIncrNoKey
-  - SingleExists
-  - SingleDelete
-  - RespPingAsync
+SERedisSamples: 无需实现
+RunAll: 无需实现
+RespPing: 无需实现
+SingleSetRename: 无需实现
+SingleSetGet: 无需实现
+SingleIncr: 无需实现
+SingleIncrBy: 无需实现
+SingleDecrBy: 无需实现
+SingleDecr: 无需实现
+SingleIncrNoKey: 无需实现
+SingleExists: 无需实现
+SingleDelete: 无需实现
+RespPingAsync: 无需实现

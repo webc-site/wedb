@@ -1,9 +1,8 @@
-fn:
-  - ExecuteClusterInitiateReplicaSync
-  - ExecuteClusterSendCheckpointMetadata
-  - ExecuteClusterSendCheckpointFileSegment
-  - ExecuteClusterSnapshotData
-  - ExecuteClusterBeginReplicaRecover
-  - ExecuteClusterAttachSync
-  - ExecuteClusterAdvanceTime
-  - ExecuteClusterAppendLogInit
+ExecuteClusterInitiateReplicaSync: 无需实现
+ExecuteClusterSendCheckpointMetadata: 无需实现
+ExecuteClusterSendCheckpointFileSegment: 无需实现
+ExecuteClusterSnapshotData: 无需实现
+ExecuteClusterBeginReplicaRecover: 无需实现
+ExecuteClusterAttachSync: 无需实现
+ExecuteClusterAdvanceTime: 无需实现
+ExecuteClusterAppendLogInit: 无需实现

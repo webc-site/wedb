@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - MainStoreReadCacheTest
-  - ObjectStoreReadCacheTest
+Setup: 无需实现
+TearDown: 无需实现
+MainStoreReadCacheTest: 测试函数无需实现
+ObjectStoreReadCacheTest: 测试函数无需实现

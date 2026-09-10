@@ -1,10 +1,8 @@
-fn:
-  - Setup_MallocFixedPageSizeRecoveryTest
-  - Finish_MallocFixedPageSizeRecoveryTest
-  - Setup_FuzzyIndexRecoveryTest
-  - Finish_FuzzyIndexRecoveryTest
-test:
-  - MallocFixedPageSizeRecoveryTest
-  - MallocFixedPageSizeRecoveryAsyncTest
-  - FuzzyIndexRecoveryTest
-  - FuzzyIndexRecoveryAsyncTest
+Setup_MallocFixedPageSizeRecoveryTest: 无需实现
+Finish_MallocFixedPageSizeRecoveryTest: 无需实现
+Setup_FuzzyIndexRecoveryTest: 无需实现
+Finish_FuzzyIndexRecoveryTest: 无需实现
+MallocFixedPageSizeRecoveryTest: 测试函数无需实现
+MallocFixedPageSizeRecoveryAsyncTest: 测试函数无需实现
+FuzzyIndexRecoveryTest: 测试函数无需实现
+FuzzyIndexRecoveryAsyncTest: 测试函数无需实现

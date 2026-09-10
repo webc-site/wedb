@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - TearDown
-  - InsertTestData
-  - InsertTestDataInto
-test:
-  - Insert_InvalidArguments_ReturnsInvalidArguments
-  - Read_InvalidArguments_ReturnsInvalidArguments
-  - Delete_InvalidArguments_DoesNotCorruptTree
-  - ScanWithCount_NegativeCount_Throws
+Setup: 无需实现
+TearDown: 无需实现
+InsertTestData: 无需实现
+InsertTestDataInto: 无需实现
+Insert_InvalidArguments_ReturnsInvalidArguments: 测试函数无需实现
+Read_InvalidArguments_ReturnsInvalidArguments: 测试函数无需实现
+Delete_InvalidArguments_DoesNotCorruptTree: 测试函数无需实现
+ScanWithCount_NegativeCount_Throws: 测试函数无需实现

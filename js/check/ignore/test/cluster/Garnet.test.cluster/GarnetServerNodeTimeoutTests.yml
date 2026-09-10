@@ -1,4 +1,3 @@
-test:
-  - ClientTimeoutUsesTotalMilliseconds
-  - NonPositiveClusterTimeoutDisablesClientTimeout
-  - LargeClusterTimeoutClampsToIntMaxValue
+ClientTimeoutUsesTotalMilliseconds: 测试函数无需实现
+NonPositiveClusterTimeoutDisablesClientTimeout: 测试函数无需实现
+LargeClusterTimeoutClampsToIntMaxValue: 测试函数无需实现

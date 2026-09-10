@@ -77,50 +77,87 @@ const missSync = async (miss_dir, active_miss_map) => {
   await emptyDirClean(miss_dir);
 };
 
-const ignoreLoad = async () => {
+const ignoreLoadAndPrune = async (doc_file_fn_map) => {
   const file_ignore_map = new Map(),
     global_ignore_set = new Set(),
     yml_file_li = await ymlWalk(IGNORE_DIR);
 
-  for (const yml_path of yml_file_li) {
-    const content = await Bun.file(yml_path).text(),
-      data = yaml.parse(content);
+  let has_deleted_files = false;
 
-    if (!data) continue;
+  for (const yml_path of yml_file_li) {
+    const content = await Bun.file(yml_path).text();
+    let data;
+    try {
+      data = yaml.parse(content);
+    } catch {
+      continue;
+    }
+
+    if (!data) {
+      await rm(yml_path, { force: true });
+      has_deleted_files = true;
+      continue;
+    }
 
     const rel_path = relative(IGNORE_DIR, yml_path),
       cs_path = rel_path.replace(/\.cs\.ya?ml$/, ".cs").replace(/\.ya?ml$/, ".cs"),
-      fn_set = new Set();
+      documented_set = doc_file_fn_map?.get(cs_path);
 
+    // 标准化为字典结构：{ [函数名]: 为什么无需实现 }
+    const dict = {};
     if (Array.isArray(data)) {
       for (const item of data) {
-        if (typeof item === "string") fn_set.add(item);
+        if (typeof item === "string") dict[item] = "无需实现";
       }
     } else if (typeof data === "object") {
       if (Array.isArray(data.fn)) {
         for (const item of data.fn) {
-          if (typeof item === "string") fn_set.add(item);
+          if (typeof item === "string") dict[item] = "无需实现";
         }
       }
       if (Array.isArray(data.test)) {
         for (const item of data.test) {
-          if (typeof item === "string") fn_set.add(item);
+          if (typeof item === "string") dict[item] = "测试函数无需实现";
         }
       }
 
       for (const [key, val] of Object.entries(data)) {
         if (key === "fn" || key === "test") continue;
-        if (Array.isArray(val)) {
+        if (typeof val === "string") {
+          dict[key] = val;
+        } else if (Array.isArray(val)) {
           for (const item of val) {
-            if (typeof item === "string") fn_set.add(item);
+            if (typeof item === "string") dict[item] = "无需实现";
           }
-        } else if (typeof val === "string") {
-          fn_set.add(val);
+        } else if (val === null || val === undefined) {
+          dict[key] = "无需实现";
         }
       }
     }
 
-    file_ignore_map.set(cs_path, fn_set);
+    // 如已经实现并有文档注释，自动从 ignore 中剔除
+    let modified = false;
+    for (const fn_name of Object.keys(dict)) {
+      if (documented_set?.has(fn_name)) {
+        delete dict[fn_name];
+        modified = true;
+      }
+    }
+
+    const remaining_keys = Object.keys(dict);
+    if (remaining_keys.length === 0) {
+      await rm(yml_path, { force: true });
+      has_deleted_files = true;
+    } else {
+      if (modified || Array.isArray(data) || data.fn || data.test) {
+        await Bun.write(yml_path, yaml.stringify(dict));
+      }
+      file_ignore_map.set(cs_path, new Set(remaining_keys));
+    }
+  }
+
+  if (has_deleted_files) {
+    await emptyDirClean(IGNORE_DIR);
   }
 
   const root_ignore = join(import.meta.dirname, "check/ignore.yml"),
@@ -132,6 +169,10 @@ const ignoreLoad = async () => {
       for (const item of root_data) {
         if (typeof item === "string") global_ignore_set.add(item);
       }
+    } else if (typeof root_data === "object" && root_data !== null) {
+      for (const key of Object.keys(root_data)) {
+        global_ignore_set.add(key);
+      }
     }
   }
 
@@ -141,7 +182,7 @@ const ignoreLoad = async () => {
 const check = async () => {
   const [fn_map, test_map] = await garnetScan(GARNET_DIR),
     [doc_set, doc_file_fn_map] = await rustScan(ROOT_DIR),
-    [file_ignore_map, global_ignore_set] = await ignoreLoad(),
+    [file_ignore_map, global_ignore_set] = await ignoreLoadAndPrune(doc_file_fn_map),
     isIgnored = (rel_path, name) => {
       if (global_ignore_set.has(name)) return true;
       const file_set = file_ignore_map.get(rel_path);

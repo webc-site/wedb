@@ -1,8 +1,7 @@
-fn:
-  - Connect
-  - ConnectSendSocket
-  - ConnectSendSocketAsync
-  - TryConnectSocket
-  - TryConnectSocketAsync
-  - CompletePendingRequests
-  - DefaultLightReceiveUnsafe
+Connect: 无需实现
+ConnectSendSocket: 无需实现
+ConnectSendSocketAsync: 无需实现
+TryConnectSocket: 无需实现
+TryConnectSocketAsync: 无需实现
+CompletePendingRequests: 无需实现
+DefaultLightReceiveUnsafe: 无需实现

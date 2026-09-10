@@ -1,8 +1,7 @@
-fn:
-  - ToString
-  - GetHashCode64
-  - Equals
-  - InitialUpdater
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
+ToString: 无需实现
+GetHashCode64: 无需实现
+Equals: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现

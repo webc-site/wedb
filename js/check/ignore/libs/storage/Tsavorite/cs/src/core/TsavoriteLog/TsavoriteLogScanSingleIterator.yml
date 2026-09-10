@@ -1,3 +1,2 @@
-fn:
-  - Signal
-  - SlowWaitUncommittedAsync
+Signal: 无需实现
+SlowWaitUncommittedAsync: 无需实现

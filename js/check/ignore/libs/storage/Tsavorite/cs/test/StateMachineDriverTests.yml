@@ -1,17 +1,15 @@
-fn:
-  - BaseSetup
-  - BaseTearDown
-  - OnTearDown
-  - OperationThread
-  - DoCheckpointVersionSwitchEquivalenceCheck
-  - DoGrowIndexVersionSwitchEquivalenceCheck
-  - SumFunctions
-  - Fuzz
-  - CopyUpdater
-  - Setup
-  - TearDown
-test:
-  - CheckpointVersionSwitchRmwTest
-  - GrowIndexVersionSwitchRmwTest
-  - CheckpointVersionSwitchTxnTest
-  - GrowIndexVersionSwitchTxnTest
+BaseSetup: 无需实现
+BaseTearDown: 无需实现
+OnTearDown: 无需实现
+OperationThread: 无需实现
+DoCheckpointVersionSwitchEquivalenceCheck: 无需实现
+DoGrowIndexVersionSwitchEquivalenceCheck: 无需实现
+SumFunctions: 无需实现
+Fuzz: 无需实现
+CopyUpdater: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+CheckpointVersionSwitchRmwTest: 测试函数无需实现
+GrowIndexVersionSwitchRmwTest: 测试函数无需实现
+CheckpointVersionSwitchTxnTest: 测试函数无需实现
+GrowIndexVersionSwitchTxnTest: 测试函数无需实现

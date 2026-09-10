@@ -1,3 +1,2 @@
-fn:
-  - SimulatedFlakyDevice
-  - RemoveSegmentAsync
+SimulatedFlakyDevice: 无需实现
+RemoveSegmentAsync: 无需实现

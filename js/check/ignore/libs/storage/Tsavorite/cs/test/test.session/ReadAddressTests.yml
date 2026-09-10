@@ -1,30 +1,28 @@
-fn:
-  - ToString
-  - LapOffset
-  - SetReadOutput
-  - InPlaceWriter
-  - InitialWriter
-  - InitialUpdater
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - ReadCompletionCallback
-  - RMWCompletionCallback
-  - TestStore
-  - DeleteDirectory
-  - Populate
-  - ProcessChainRecord
-  - ProcessNoKeyRecord
-  - IterateKeyTestScanIteratorFunctions
-  - OnStart
-  - OnException
-  - OnStop
-test:
-  - VersionedReadTests
-  - IterateKeyTests
-  - IterateKeyStopTests
-  - ReadAtAddressTests
-  - ReadAtAddressCopyOptNoRcTest
-  - ReadNoKeyTests
-  - ReadCopyOptionssMergeTest
+ToString: 无需实现
+LapOffset: 无需实现
+SetReadOutput: 无需实现
+InPlaceWriter: 无需实现
+InitialWriter: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+ReadCompletionCallback: 无需实现
+RMWCompletionCallback: 无需实现
+TestStore: 无需实现
+DeleteDirectory: 无需实现
+Populate: 无需实现
+ProcessChainRecord: 无需实现
+ProcessNoKeyRecord: 无需实现
+IterateKeyTestScanIteratorFunctions: 无需实现
+OnStart: 无需实现
+OnException: 无需实现
+OnStop: 无需实现
+VersionedReadTests: 测试函数无需实现
+IterateKeyTests: 测试函数无需实现
+IterateKeyStopTests: 测试函数无需实现
+ReadAtAddressTests: 测试函数无需实现
+ReadAtAddressCopyOptNoRcTest: 测试函数无需实现
+ReadNoKeyTests: 测试函数无需实现
+ReadCopyOptionssMergeTest: 测试函数无需实现

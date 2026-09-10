@@ -1,58 +1,56 @@
-fn:
-  - Equals
-  - GetHashCode64
-  - PostInitialDeleter
-  - BucketLockTracker
-  - IncrementX
-  - IncrementS
-  - DecrementX
-  - DecrementS
-  - AddX
-  - AddS
-  - GetLockCounts
-  - AssertNoLocks
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - Populate
-  - AssertIsLocked
-  - PrepareRecordLocation
-  - ClearCountsOnError
-  - PopulateHei
-  - AssertTotalLockCounts
-  - AssertBucketLockCount
-  - EnumActionKeyIndices
-  - genHashCode
-  - enumKeys
-  - runManualLockThread
-  - enumKeysToLock
-  - runLTransientLockOpThread
-  - AddLockTableEntry
-  - VerifyAndUnlockChainInsertedKey
-  - PopulateAndEvict
-  - createKey
-  - getValue
-  - updater
-  - locker
-test:
-  - ManualLockCollidingHashCodes
-  - TestShiftHeadAddressLUC
-  - InMemorySimpleLockTxnTest
-  - InMemoryLongLockTest
-  - InMemoryDeleteTest
-  - StressManualLocks
-  - VerifyLocksAfterReadAndCTTTest
-  - VerifyCountsAfterFlushAndEvict
-  - VerifyCountAfterUpsertToTailTest
-  - VerifyCountAfterRMWToTailTest
-  - VerifyCountAfterDeleteToTailTest
-  - LockAndUnlockInLockTableOnlyTest
-  - VerifyCountAfterReadOnlyToUpdateRecordTest
-  - LockNewRecordThenUpdateAndUnlockTest
-  - LockNewRecordThenUnlockThenUpdateTest
-  - MultiSharedLockTest
-  - TryLockTimeSpanLimitTest
-  - TryLockCancellationTest
-  - TryPromoteLockTimeSpanLimitTest
-  - TryPromoteLockCancellationTest
+Equals: 无需实现
+GetHashCode64: 无需实现
+PostInitialDeleter: 无需实现
+BucketLockTracker: 无需实现
+IncrementX: 无需实现
+IncrementS: 无需实现
+DecrementX: 无需实现
+DecrementS: 无需实现
+AddX: 无需实现
+AddS: 无需实现
+GetLockCounts: 无需实现
+AssertNoLocks: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+Populate: 无需实现
+AssertIsLocked: 无需实现
+PrepareRecordLocation: 无需实现
+ClearCountsOnError: 无需实现
+PopulateHei: 无需实现
+AssertTotalLockCounts: 无需实现
+AssertBucketLockCount: 无需实现
+EnumActionKeyIndices: 无需实现
+genHashCode: 无需实现
+enumKeys: 无需实现
+runManualLockThread: 无需实现
+enumKeysToLock: 无需实现
+runLTransientLockOpThread: 无需实现
+AddLockTableEntry: 无需实现
+VerifyAndUnlockChainInsertedKey: 无需实现
+PopulateAndEvict: 无需实现
+createKey: 无需实现
+getValue: 无需实现
+updater: 无需实现
+locker: 无需实现
+ManualLockCollidingHashCodes: 测试函数无需实现
+TestShiftHeadAddressLUC: 测试函数无需实现
+InMemorySimpleLockTxnTest: 测试函数无需实现
+InMemoryLongLockTest: 测试函数无需实现
+InMemoryDeleteTest: 测试函数无需实现
+StressManualLocks: 测试函数无需实现
+VerifyLocksAfterReadAndCTTTest: 测试函数无需实现
+VerifyCountsAfterFlushAndEvict: 测试函数无需实现
+VerifyCountAfterUpsertToTailTest: 测试函数无需实现
+VerifyCountAfterRMWToTailTest: 测试函数无需实现
+VerifyCountAfterDeleteToTailTest: 测试函数无需实现
+LockAndUnlockInLockTableOnlyTest: 测试函数无需实现
+VerifyCountAfterReadOnlyToUpdateRecordTest: 测试函数无需实现
+LockNewRecordThenUpdateAndUnlockTest: 测试函数无需实现
+LockNewRecordThenUnlockThenUpdateTest: 测试函数无需实现
+MultiSharedLockTest: 测试函数无需实现
+TryLockTimeSpanLimitTest: 测试函数无需实现
+TryLockCancellationTest: 测试函数无需实现
+TryPromoteLockTimeSpanLimitTest: 测试函数无需实现
+TryPromoteLockCancellationTest: 测试函数无需实现

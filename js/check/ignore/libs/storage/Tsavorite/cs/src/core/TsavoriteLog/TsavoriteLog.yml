@@ -1,57 +1,56 @@
-fn:
-  - AllocatorGetPage
-  - AllocatorCalculateReadOnlyAddress
-  - BeginInflightEnqueue
-  - EndInflightEnqueue
-  - MaybeProducerDriveSafeTail
-  - ProducerDriveSafeTailSlow
-  - NotifyParkedWaiters
-  - NotifyParkedWaitersSlow
-  - RefreshSafeTailAddress
-  - AdvanceSafeTailFloor
-  - MaybeInvokePageShiftCallback
-  - CreateAsync
-  - CompleteLog
-  - TrueDispose
-  - UnsafeEnqueueRaw
-  - UnsafeCommitMetadataOnly
-  - TryEnqueue
-  - AllocateBlock
-  - ThrowException
-  - EnqueueAsync
-  - SlowEnqueueAsync
-  - WaitUncommittedAsync
-  - CommitStrongly
-  - CommitStronglyAsync
-  - EnqueueAndWaitForCommit
-  - TruncateUntilPageStart
-  - RemoveSingleIterator
-  - ReadRecordLengthAsync
-  - Align
-  - CommitCallback
-  - TryEnqueueCommitRecord
-  - ShouldCommmitMetadata
-  - CommitMetadataOnly
-  - UpdateCommittedState
-  - WriteCommitMetadata
-  - SerialCommitCallbackWorker
-  - RecoverReadOnlyAsync
-  - SignalWaitingROIterators
-  - LoadCommitMetadata
-  - RestoreLatestAsync
-  - RestoreSpecificCommitAsync
-  - CompleteRestoreFromCommit
-  - ResetRecoveryState
-  - TryAppend
-  - AsyncGetHeaderOnlyFromDiskCallback
-  - GetRecordAndFree
-  - GetRecordAsMemoryOwnerAndFree
-  - GetRecordLengthAndFree
-  - CommitInternal
-  - UnsafeGetLength
-  - UnsafeAlign
-  - VerifyChecksum
-  - GetChecksum
-  - SetHeader
-  - SetCommitRecordHeader
-  - ValidateAllocatedLength
+AllocatorGetPage: 无需实现
+AllocatorCalculateReadOnlyAddress: 无需实现
+BeginInflightEnqueue: 无需实现
+EndInflightEnqueue: 无需实现
+MaybeProducerDriveSafeTail: 无需实现
+ProducerDriveSafeTailSlow: 无需实现
+NotifyParkedWaiters: 无需实现
+NotifyParkedWaitersSlow: 无需实现
+RefreshSafeTailAddress: 无需实现
+AdvanceSafeTailFloor: 无需实现
+MaybeInvokePageShiftCallback: 无需实现
+CreateAsync: 无需实现
+CompleteLog: 无需实现
+TrueDispose: 无需实现
+UnsafeEnqueueRaw: 无需实现
+UnsafeCommitMetadataOnly: 无需实现
+TryEnqueue: 无需实现
+AllocateBlock: 无需实现
+ThrowException: 无需实现
+EnqueueAsync: 无需实现
+SlowEnqueueAsync: 无需实现
+WaitUncommittedAsync: 无需实现
+CommitStrongly: 无需实现
+CommitStronglyAsync: 无需实现
+EnqueueAndWaitForCommit: 无需实现
+TruncateUntilPageStart: 无需实现
+RemoveSingleIterator: 无需实现
+ReadRecordLengthAsync: 无需实现
+Align: 无需实现
+CommitCallback: 无需实现
+TryEnqueueCommitRecord: 无需实现
+ShouldCommmitMetadata: 无需实现
+CommitMetadataOnly: 无需实现
+UpdateCommittedState: 无需实现
+WriteCommitMetadata: 无需实现
+SerialCommitCallbackWorker: 无需实现
+RecoverReadOnlyAsync: 无需实现
+SignalWaitingROIterators: 无需实现
+LoadCommitMetadata: 无需实现
+RestoreLatestAsync: 无需实现
+RestoreSpecificCommitAsync: 无需实现
+CompleteRestoreFromCommit: 无需实现
+ResetRecoveryState: 无需实现
+TryAppend: 无需实现
+AsyncGetHeaderOnlyFromDiskCallback: 无需实现
+GetRecordAndFree: 无需实现
+GetRecordAsMemoryOwnerAndFree: 无需实现
+GetRecordLengthAndFree: 无需实现
+CommitInternal: 无需实现
+UnsafeGetLength: 无需实现
+UnsafeAlign: 无需实现
+VerifyChecksum: 无需实现
+GetChecksum: 无需实现
+SetHeader: 无需实现
+SetCommitRecordHeader: 无需实现
+ValidateAllocatedLength: 无需实现

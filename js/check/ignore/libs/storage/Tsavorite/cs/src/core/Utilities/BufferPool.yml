@@ -1,3 +1,2 @@
-fn:
-  - Print
-  - GetValidPointer
+Print: 无需实现
+GetValidPointer: 无需实现

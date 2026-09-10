@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - RecreateDirectory
-  - TearDown
-  - OnTearDown
-  - DoRead
-  - CreateKVSettings
-test:
-  - LargeObjectTest
-  - MultiListObjectTest
+Setup: 无需实现
+RecreateDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+DoRead: 无需实现
+CreateKVSettings: 无需实现
+LargeObjectTest: 测试函数无需实现
+MultiListObjectTest: 测试函数无需实现

@@ -1,9 +1,8 @@
-fn:
-  - OperationStackContext
-  - SetRecordSourceToHashEntry
-  - UpdateRecordSourceToCurrentHashEntry
-  - SetNewRecord
-  - SetNewRecordInvalid
-  - ClearNewRecord
-  - HandleNewRecordOnException
-  - ToString
+OperationStackContext: 无需实现
+SetRecordSourceToHashEntry: 无需实现
+UpdateRecordSourceToCurrentHashEntry: 无需实现
+SetNewRecord: 无需实现
+SetNewRecordInvalid: 无需实现
+ClearNewRecord: 无需实现
+HandleNewRecordOnException: 无需实现
+ToString: 无需实现

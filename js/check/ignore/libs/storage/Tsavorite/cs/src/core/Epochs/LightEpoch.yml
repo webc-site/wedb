@@ -1,8 +1,7 @@
-fn:
-  - GetRef
-  - SelectInstance
-  - ComputeNewSafeToReclaimEpoch
-  - TryAcquireEntry
-  - ReserveEntryWait
-  - ReserveEntryForThread
-  - UserWordRef
+GetRef: 无需实现
+SelectInstance: 无需实现
+ComputeNewSafeToReclaimEpoch: 无需实现
+TryAcquireEntry: 无需实现
+ReserveEntryWait: 无需实现
+ReserveEntryForThread: 无需实现
+UserWordRef: 无需实现

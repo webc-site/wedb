@@ -1,4 +1,3 @@
-fn:
-  - PauseRevivification
-  - ResumeRevivification
-  - GetMinRevivifiableAddress
+PauseRevivification: 无需实现
+ResumeRevivification: 无需实现
+GetMinRevivifiableAddress: 无需实现

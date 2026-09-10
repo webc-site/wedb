@@ -1,23 +1,22 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulateVectorSet
-  - ElementsWrittenTo
-  - VectorSetSize
-  - VectorSetDimensions
-  - ElementEmbedding
-  - AssertVectorSetsMatch
-  - WaitForReplication
-  - WaitForVectorReplay
-  - ReadPersistedIndexPtr
-  - ReadPersistedIndexFields
-  - ReadPersistedContext
-  - OnException
-  - OnStart
-  - OnStop
-  - CensusNamespacedRecords
-  - RecordsHeldForContext
-  - WaitForContextDrained
-  - AssertOwnsItsIndex
-  - AssertFullyReplicated
-  - GetStoreWrapper
+Setup: 无需实现
+TearDown: 无需实现
+PopulateVectorSet: 无需实现
+ElementsWrittenTo: 无需实现
+VectorSetSize: 无需实现
+VectorSetDimensions: 无需实现
+ElementEmbedding: 无需实现
+AssertVectorSetsMatch: 无需实现
+WaitForReplication: 无需实现
+WaitForVectorReplay: 无需实现
+ReadPersistedIndexPtr: 无需实现
+ReadPersistedIndexFields: 无需实现
+ReadPersistedContext: 无需实现
+OnException: 无需实现
+OnStart: 无需实现
+OnStop: 无需实现
+CensusNamespacedRecords: 无需实现
+RecordsHeldForContext: 无需实现
+WaitForContextDrained: 无需实现
+AssertOwnsItsIndex: 无需实现
+AssertFullyReplicated: 无需实现
+GetStoreWrapper: 无需实现

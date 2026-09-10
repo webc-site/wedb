@@ -1,36 +1,34 @@
-fn:
-  - Setup
-  - TearDown
-  - CountFlushFiles
-  - ListFlushFiles
-test:
-  - RIEvictionAfterDeleteTest
-  - RIEvictionMultipleIndexesTest
-  - RICreateDeleteRecreateWithEvictionTest
-  - RIDeleteInMutableRegionFreesResourcesTest
-  - RIDeleteInReadOnlyRegionFreesResourcesTest
-  - RIFlushPromotesToTailOnNextAccessTest
-  - RIFlushPromoteThenSecondFlushTest
-  - RIEvictToDiskThenLazyRestoreTest
-  - RICheckpointAndRecoverTest
-  - RIFlushEvictRestoreCheckpointCycleTest
-  - RIMultipleTreesEvictAndRestoreTest
-  - RIFlushPromoteCheckpointRecoverTest
-  - RIDeleteDuringEvictionCycleTest
-  - RIDoubleFlushCycleWithCheckpointTest
-  - RIEvictRestoreAndCheckpointTest
-  - RIExistsOnNormalKeyTest
-  - RIConfigBasicTest
-  - RIConfigWrongTypeTest
-  - RIMetricsBasicTest
-  - RITypeCommandTest
-  - RIConcurrentOpsWithCheckpointTest
-  - RIRecoverThenSecondEvictionUsesFlushSnapshotTest
-  - RIAofOnlyRecoveryTest
-  - RIDiskFileCleanupOnDeleteTest
-  - RIDeletePreservesPerFlushSnapshotFilesTest
-  - RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest
-  - RIFlushFilesAreImmutablePerAddressTest
-  - RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest
-  - RICopyReadsToTailCompatibleTest
-  - RangeIndexManagerKeyExistsTest
+Setup: 无需实现
+TearDown: 无需实现
+CountFlushFiles: 无需实现
+ListFlushFiles: 无需实现
+RIEvictionAfterDeleteTest: 测试函数无需实现
+RIEvictionMultipleIndexesTest: 测试函数无需实现
+RICreateDeleteRecreateWithEvictionTest: 测试函数无需实现
+RIDeleteInMutableRegionFreesResourcesTest: 测试函数无需实现
+RIDeleteInReadOnlyRegionFreesResourcesTest: 测试函数无需实现
+RIFlushPromotesToTailOnNextAccessTest: 测试函数无需实现
+RIFlushPromoteThenSecondFlushTest: 测试函数无需实现
+RIEvictToDiskThenLazyRestoreTest: 测试函数无需实现
+RICheckpointAndRecoverTest: 测试函数无需实现
+RIFlushEvictRestoreCheckpointCycleTest: 测试函数无需实现
+RIMultipleTreesEvictAndRestoreTest: 测试函数无需实现
+RIFlushPromoteCheckpointRecoverTest: 测试函数无需实现
+RIDeleteDuringEvictionCycleTest: 测试函数无需实现
+RIDoubleFlushCycleWithCheckpointTest: 测试函数无需实现
+RIEvictRestoreAndCheckpointTest: 测试函数无需实现
+RIExistsOnNormalKeyTest: 测试函数无需实现
+RIConfigBasicTest: 测试函数无需实现
+RIConfigWrongTypeTest: 测试函数无需实现
+RIMetricsBasicTest: 测试函数无需实现
+RITypeCommandTest: 测试函数无需实现
+RIConcurrentOpsWithCheckpointTest: 测试函数无需实现
+RIRecoverThenSecondEvictionUsesFlushSnapshotTest: 测试函数无需实现
+RIAofOnlyRecoveryTest: 测试函数无需实现
+RIDiskFileCleanupOnDeleteTest: 测试函数无需实现
+RIDeletePreservesPerFlushSnapshotFilesTest: 测试函数无需实现
+RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest: 测试函数无需实现
+RIFlushFilesAreImmutablePerAddressTest: 测试函数无需实现
+RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest: 测试函数无需实现
+RICopyReadsToTailCompatibleTest: 测试函数无需实现
+RangeIndexManagerKeyExistsTest: 测试函数无需实现

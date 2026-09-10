@@ -1,7 +1,6 @@
-fn:
-  - Generate
-  - InitializeRNG
-  - ConvertToSERedisInput
-  - GenerateBatch
-  - GenerateArrayOp
-  - GenerateSingleKeyValueOp
+Generate: 无需实现
+InitializeRNG: 无需实现
+ConvertToSERedisInput: 无需实现
+GenerateBatch: 无需实现
+GenerateArrayOp: 无需实现
+GenerateSingleKeyValueOp: 无需实现

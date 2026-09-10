@@ -1,20 +1,18 @@
-fn:
-  - PostFunctions
-  - PostInitialWriter
-  - InitialUpdater
-  - PostInitialUpdater
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostInitialDeleter
-  - Setup
-  - DeleteDirectory
-  - Populate
-  - TearDown
-  - OnTearDown
-  - CompletePendingAndVerifyInsertedAddress
-test:
-  - PostInitialWriterTest
-  - PostInitialUpdaterTest
-  - PostCopyUpdaterTest
-  - PostCopyUpdaterFalseTest
-  - PostInitialDeleterTest
+PostFunctions: 无需实现
+PostInitialWriter: 无需实现
+InitialUpdater: 无需实现
+PostInitialUpdater: 无需实现
+CopyUpdater: 无需实现
+PostCopyUpdater: 无需实现
+PostInitialDeleter: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+Populate: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+CompletePendingAndVerifyInsertedAddress: 无需实现
+PostInitialWriterTest: 测试函数无需实现
+PostInitialUpdaterTest: 测试函数无需实现
+PostCopyUpdaterTest: 测试函数无需实现
+PostCopyUpdaterFalseTest: 测试函数无需实现
+PostInitialDeleterTest: 测试函数无需实现

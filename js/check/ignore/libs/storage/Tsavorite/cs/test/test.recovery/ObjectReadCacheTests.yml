@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ObjectDiskWriteReadCache
-  - ObjectDiskWriteReadCache2
+Setup: 无需实现
+TearDown: 无需实现
+ObjectDiskWriteReadCache: 测试函数无需实现
+ObjectDiskWriteReadCache2: 测试函数无需实现

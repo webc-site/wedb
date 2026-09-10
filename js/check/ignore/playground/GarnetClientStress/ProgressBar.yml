@@ -1,6 +1,5 @@
-fn:
-  - ProgressBar
-  - ResetTimer
-  - Report
-  - TimerHandler
-  - UpdateText
+ProgressBar: 无需实现
+ResetTimer: 无需实现
+Report: 无需实现
+TimerHandler: 无需实现
+UpdateText: 无需实现

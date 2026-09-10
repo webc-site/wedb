@@ -1,3 +1,2 @@
-fn:
-  - GetHashCode64
-  - Equals
+GetHashCode64: 无需实现
+Equals: 无需实现

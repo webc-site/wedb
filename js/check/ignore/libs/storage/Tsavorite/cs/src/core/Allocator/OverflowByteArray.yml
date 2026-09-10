@@ -1,11 +1,10 @@
-fn:
-  - ToString
-  - AsReadOnlySpan
-  - AsSpan
-  - AsMemory
-  - OverflowByteArray
-  - AllocateData
-  - AdjustOffsetFromStart
-  - AdjustOffsetFromEnd
-  - SetOffsets
-  - Pin
+ToString: 无需实现
+AsReadOnlySpan: 无需实现
+AsSpan: 无需实现
+AsMemory: 无需实现
+OverflowByteArray: 无需实现
+AllocateData: 无需实现
+AdjustOffsetFromStart: 无需实现
+AdjustOffsetFromEnd: 无需实现
+SetOffsets: 无需实现
+Pin: 无需实现

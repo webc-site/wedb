@@ -1,3 +1,1 @@
-# 无需 rust 实现：C# Dispose 为显式空操作（无任何资源）
-fn:
-  - Dispose
+Dispose: 无需实现

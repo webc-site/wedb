@@ -1,4 +1,3 @@
-fn:
-  - SetSlotRange
-  - SetClusterMigrateHeader
-  - CompleteMigrate
+SetSlotRange: 无需实现
+SetClusterMigrateHeader: 无需实现
+CompleteMigrate: 无需实现

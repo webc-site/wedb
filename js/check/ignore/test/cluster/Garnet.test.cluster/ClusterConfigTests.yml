@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ClusterConfigInitializesUnassignedWorkerTest
-  - ClusterForgetAfterNodeRestartTest
-  - ClusterAnnounceRecoverTest
-  - ClusterAnyIPAnnounce
-  - ClusterConfigVersionRoundTripTest
-  - ClusterConfigVersionMismatchThrowsTest
-  - ClusterConfigTryPeekVersionEmptyDataTest
-  - ReplicationHistoryVersionRoundTripTest
-  - ReplicationHistoryVersionMismatchThrowsTest
-  - ClusterConfigMergeSlotMapRetainsStaleOwnershipResetTest
-  - ClusterConfigMergeSlotMapAccumulatesUpdatedAcrossSlotsTest
+Setup: 无需实现
+TearDown: 无需实现
+ClusterConfigInitializesUnassignedWorkerTest: 测试函数无需实现
+ClusterForgetAfterNodeRestartTest: 测试函数无需实现
+ClusterAnnounceRecoverTest: 测试函数无需实现
+ClusterAnyIPAnnounce: 测试函数无需实现
+ClusterConfigVersionRoundTripTest: 测试函数无需实现
+ClusterConfigVersionMismatchThrowsTest: 测试函数无需实现
+ClusterConfigTryPeekVersionEmptyDataTest: 测试函数无需实现
+ReplicationHistoryVersionRoundTripTest: 测试函数无需实现
+ReplicationHistoryVersionMismatchThrowsTest: 测试函数无需实现
+ClusterConfigMergeSlotMapRetainsStaleOwnershipResetTest: 测试函数无需实现
+ClusterConfigMergeSlotMapAccumulatesUpdatedAcrossSlotsTest: 测试函数无需实现

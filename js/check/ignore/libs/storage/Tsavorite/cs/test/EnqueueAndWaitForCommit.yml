@@ -1,8 +1,6 @@
-fn:
-  - ReadOnlySpanBatch
-  - TotalEntries
-  - Setup
-  - TearDown
-  - LogWriter
-test:
-  - EnqueueWaitCommitBasicTest
+ReadOnlySpanBatch: 无需实现
+TotalEntries: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+LogWriter: 无需实现
+EnqueueWaitCommitBasicTest: 测试函数无需实现

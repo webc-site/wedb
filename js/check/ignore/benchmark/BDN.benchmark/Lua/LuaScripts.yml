@@ -1,8 +1,7 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - Script1
-  - Script2
-  - Script3
-  - Script4
+LuaParamsProvider: 无需实现
+GlobalSetup: 无需实现
+GlobalCleanup: 无需实现
+Script1: 无需实现
+Script2: 无需实现
+Script3: 无需实现
+Script4: 无需实现

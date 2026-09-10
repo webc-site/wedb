@@ -1,2 +1,1 @@
-fn:
-  - OnLoad
+OnLoad: 无需实现

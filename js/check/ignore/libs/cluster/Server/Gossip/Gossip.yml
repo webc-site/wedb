@@ -1,15 +1,14 @@
-fn:
-  - GetBanList
-  - GetConnectionInfo
-  - GetPrimaryLinkStatus
-  - SuspendConfigMerge
-  - ResumeConfigMerge
-  - RunMeetTask
-  - TryMeetAsync
-  - TryClusterPublishAsync
-  - GoAsyncHelperAsync
-  - GossipMainAsync
-  - InitConnectionsAsync
-  - DisposeBannedWorkerConnectionsAsync
-  - BroadcastGossipSendAsync
-  - GossipSampleSendAsync
+GetBanList: 无需实现
+GetConnectionInfo: 无需实现
+GetPrimaryLinkStatus: 无需实现
+SuspendConfigMerge: 无需实现
+ResumeConfigMerge: 无需实现
+RunMeetTask: 无需实现
+TryMeetAsync: 无需实现
+TryClusterPublishAsync: 无需实现
+GoAsyncHelperAsync: 无需实现
+GossipMainAsync: 无需实现
+InitConnectionsAsync: 无需实现
+DisposeBannedWorkerConnectionsAsync: 无需实现
+BroadcastGossipSendAsync: 无需实现
+GossipSampleSendAsync: 无需实现

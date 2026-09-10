@@ -1,6 +1,5 @@
-fn:
-  - GlobalSetup
-  - GlobalCleanup
-  - Read_Span
-  - Read_Pinned
-  - FFI_Noop
+GlobalSetup: 无需实现
+GlobalCleanup: 无需实现
+Read_Span: 无需实现
+Read_Pinned: 无需实现
+FFI_Noop: 无需实现

@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TestSlowLogHelp
-  - TestSlowLogGet
-  - TestSlowLogGetCount
-  - TestSlowLogGetWithEntry
-  - TestSlowLogLen
-  - TestSlowLogReset
+Setup: 无需实现
+TearDown: 无需实现
+TestSlowLogHelp: 测试函数无需实现
+TestSlowLogGet: 测试函数无需实现
+TestSlowLogGetCount: 测试函数无需实现
+TestSlowLogGetWithEntry: 测试函数无需实现
+TestSlowLogLen: 测试函数无需实现
+TestSlowLogReset: 测试函数无需实现

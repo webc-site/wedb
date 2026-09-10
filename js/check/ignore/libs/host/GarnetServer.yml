@@ -1,11 +1,10 @@
-fn:
-  - GetVersion
-  - InitializeServer
-  - ValidateCustomCommandACLs
-  - CreateDatabase
-  - LoadModules
-  - CreateStore
-  - CreateAOF
-  - InternalDispose
-  - DeleteDirectory
-  - FlushMemoryLogger
+GetVersion: 无需实现
+InitializeServer: 无需实现
+ValidateCustomCommandACLs: 无需实现
+CreateDatabase: 无需实现
+LoadModules: 无需实现
+CreateStore: 无需实现
+CreateAOF: 无需实现
+InternalDispose: 无需实现
+DeleteDirectory: 无需实现
+FlushMemoryLogger: 无需实现

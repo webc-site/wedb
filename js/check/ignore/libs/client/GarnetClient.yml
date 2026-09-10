@@ -1,18 +1,17 @@
-fn:
-  - Connect
-  - ConnectSendSocket
-  - ConnectSendSocketAsync
-  - TryConnectSocket
-  - TryConnectSocketAsync
-  - TimeoutChecker
-  - ReconnectAsync
-  - CheckLength
-  - GetTimestamp
-  - PipelineLength
-  - InputGateAsync
-  - AwaitPreviousTaskAsync
-  - InternalExecuteAsync
-  - InternalExecuteNoResponse
-  - ThrowException
-  - DisposeOffset
-  - ConsumeTcsOffset
+Connect: 无需实现
+ConnectSendSocket: 无需实现
+ConnectSendSocketAsync: 无需实现
+TryConnectSocket: 无需实现
+TryConnectSocketAsync: 无需实现
+TimeoutChecker: 无需实现
+ReconnectAsync: 无需实现
+CheckLength: 无需实现
+GetTimestamp: 无需实现
+PipelineLength: 无需实现
+InputGateAsync: 无需实现
+AwaitPreviousTaskAsync: 无需实现
+InternalExecuteAsync: 无需实现
+InternalExecuteNoResponse: 无需实现
+ThrowException: 无需实现
+DisposeOffset: 无需实现
+ConsumeTcsOffset: 无需实现

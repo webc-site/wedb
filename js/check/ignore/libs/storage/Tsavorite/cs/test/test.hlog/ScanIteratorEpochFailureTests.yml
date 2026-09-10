@@ -1,18 +1,13 @@
-# C# 扫描迭代器纪元异常注入测试；rust 等价覆盖于 whlog scan/epoch 测试组
-# （FrameClaim 释放路径经 epoch bump 抛错验证），测试脚手架（PopulateRecordSizeInfo/
-# AllocatePage/FreePage/QueuePoison* 等）为 C# FlakyDevice 专用装置，无 rust 对应物
-fn:
-  - PopulateRecordSizeInfo
-  - AllocatePage
-  - FreePage
-  - ClaimFrameAndIssueRead
-  - AsyncReadPageFromDeviceToFrame
-  - RunBounded
-  - DrainIgnoringQueuedFailures
-  - DrainAndDispose
-  - QueuePoisonFromOtherThread
-test:
-  - FrameClaimIsReleasedWhenEpochBumpThrows
-  - FrameClaimIsReleasedWhenEpochBumpThrowsBeforeRegistration
-  - FrameClaimIsReleasedWhenIssuingTheReadThrows
-  - FrameLoadSucceedsWhenEpochBumpDoesNotThrow
+PopulateRecordSizeInfo: 无需实现
+AllocatePage: 无需实现
+FreePage: 无需实现
+ClaimFrameAndIssueRead: 无需实现
+AsyncReadPageFromDeviceToFrame: 无需实现
+RunBounded: 无需实现
+DrainIgnoringQueuedFailures: 无需实现
+DrainAndDispose: 无需实现
+QueuePoisonFromOtherThread: 无需实现
+FrameClaimIsReleasedWhenEpochBumpThrows: 测试函数无需实现
+FrameClaimIsReleasedWhenEpochBumpThrowsBeforeRegistration: 测试函数无需实现
+FrameClaimIsReleasedWhenIssuingTheReadThrows: 测试函数无需实现
+FrameLoadSucceedsWhenEpochBumpDoesNotThrow: 测试函数无需实现

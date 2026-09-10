@@ -1,4 +1,3 @@
-fn:
-  - GetDefault
-  - TryInitialValidation
-  - IsValid
+GetDefault: 无需实现
+TryInitialValidation: 无需实现
+IsValid: 无需实现

@@ -1,2 +1,1 @@
-fn:
-  - ExecuteForArrayAsyncBatch
+ExecuteForArrayAsyncBatch: 无需实现

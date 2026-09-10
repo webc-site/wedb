@@ -1,4 +1,3 @@
-fn:
-  - Main
-  - ConsumeCustomArgs
-  - BaseConfig
+Main: 无需实现
+ConsumeCustomArgs: 无需实现
+BaseConfig: 无需实现

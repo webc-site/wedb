@@ -1,6 +1,1 @@
-fn:
-  - Create
-  - Deserialize
-  - DummyObject
-  - CloneObject
-  - SerializeObject
+DummyObject: 无需实现

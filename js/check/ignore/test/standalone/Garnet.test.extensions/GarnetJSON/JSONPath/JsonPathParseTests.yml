@@ -1,83 +1,82 @@
-test:
-  - BooleanQuery_TwoValues
-  - BooleanQuery_TwoPaths
-  - SingleProperty
-  - SingleQuotedProperty
-  - SingleQuotedPropertyWithWhitespace
-  - SingleQuotedPropertyWithDots
-  - SingleQuotedPropertyWithBrackets
-  - SinglePropertyWithRoot
-  - SinglePropertyWithRootWithStartAndEndWhitespace
-  - RootWithBadWhitespace
-  - NoFieldNameAfterDot
-  - RootWithBadWhitespace2
-  - WildcardPropertyWithRoot
-  - WildcardArrayWithRoot
-  - RootArrayNoDot
-  - WildcardArray
-  - WildcardArrayWithProperty
-  - QuotedWildcardPropertyWithRoot
-  - SingleScanWithRoot
-  - QueryTrue
-  - ScanQuery
-  - WildcardScanWithRoot
-  - WildcardScanWithRootWithWhitespace
-  - TwoProperties
-  - OnePropertyOneScan
-  - SinglePropertyAndIndexer
-  - SinglePropertyAndExistsQuery
-  - SinglePropertyAndFilterWithWhitespace
-  - SinglePropertyAndFilterWithEscapeQuote
-  - SinglePropertyAndFilterWithDoubleEscape
-  - SinglePropertyAndFilterWithRegexAndOptions
-  - SinglePropertyAndFilterWithRegex
-  - SinglePropertyAndFilterWithEscapedRegex
-  - SinglePropertyAndFilterWithOpenRegex
-  - SinglePropertyAndFilterWithUnknownEscape
-  - SinglePropertyAndFilterWithFalse
-  - SinglePropertyAndFilterWithTrue
-  - SinglePropertyAndFilterWithNull
-  - FilterWithScan
-  - FilterWithNotEquals
-  - FilterWithNotEquals2
-  - FilterWithLessThan
-  - FilterWithLessThanOrEquals
-  - FilterWithGreaterThan
-  - FilterWithGreaterThanOrEquals
-  - FilterWithInteger
-  - FilterWithNegativeInteger
-  - FilterWithFloat
-  - FilterExistWithAnd
-  - FilterExistWithAndOr
-  - FilterWithRoot
-  - BadOr1
-  - BaddOr2
-  - BaddOr3
-  - BaddOr4
-  - NoAtAfterOr
-  - NoPathAfterAt
-  - NoPathAfterDot
-  - NoPathAfterDot2
-  - FilterWithFloatExp
-  - MultiplePropertiesAndIndexers
-  - BadCharactersInIndexer
-  - UnclosedIndexer
-  - IndexerOnly
-  - IndexerOnlyWithWhitespace
-  - MultipleIndexes
-  - MultipleIndexesWithWhitespace
-  - MultipleQuotedIndexes
-  - MultipleQuotedIndexesWithWhitespace
-  - SlicingIndexAll
-  - SlicingIndex
-  - SlicingIndexNegative
-  - SlicingIndexEmptyStop
-  - SlicingIndexEmptyStart
-  - SlicingIndexWhitespace
-  - EmptyIndexer
-  - IndexerCloseInProperty
-  - AdjacentIndexers
-  - MissingDotAfterIndexer
-  - PropertyFollowingEscapedPropertyName
-  - ArrayOfArrayValue
-  - ArrayOfArrayValueWithEscaping
+BooleanQuery_TwoValues: 测试函数无需实现
+BooleanQuery_TwoPaths: 测试函数无需实现
+SingleProperty: 测试函数无需实现
+SingleQuotedProperty: 测试函数无需实现
+SingleQuotedPropertyWithWhitespace: 测试函数无需实现
+SingleQuotedPropertyWithDots: 测试函数无需实现
+SingleQuotedPropertyWithBrackets: 测试函数无需实现
+SinglePropertyWithRoot: 测试函数无需实现
+SinglePropertyWithRootWithStartAndEndWhitespace: 测试函数无需实现
+RootWithBadWhitespace: 测试函数无需实现
+NoFieldNameAfterDot: 测试函数无需实现
+RootWithBadWhitespace2: 测试函数无需实现
+WildcardPropertyWithRoot: 测试函数无需实现
+WildcardArrayWithRoot: 测试函数无需实现
+RootArrayNoDot: 测试函数无需实现
+WildcardArray: 测试函数无需实现
+WildcardArrayWithProperty: 测试函数无需实现
+QuotedWildcardPropertyWithRoot: 测试函数无需实现
+SingleScanWithRoot: 测试函数无需实现
+QueryTrue: 测试函数无需实现
+ScanQuery: 测试函数无需实现
+WildcardScanWithRoot: 测试函数无需实现
+WildcardScanWithRootWithWhitespace: 测试函数无需实现
+TwoProperties: 测试函数无需实现
+OnePropertyOneScan: 测试函数无需实现
+SinglePropertyAndIndexer: 测试函数无需实现
+SinglePropertyAndExistsQuery: 测试函数无需实现
+SinglePropertyAndFilterWithWhitespace: 测试函数无需实现
+SinglePropertyAndFilterWithEscapeQuote: 测试函数无需实现
+SinglePropertyAndFilterWithDoubleEscape: 测试函数无需实现
+SinglePropertyAndFilterWithRegexAndOptions: 测试函数无需实现
+SinglePropertyAndFilterWithRegex: 测试函数无需实现
+SinglePropertyAndFilterWithEscapedRegex: 测试函数无需实现
+SinglePropertyAndFilterWithOpenRegex: 测试函数无需实现
+SinglePropertyAndFilterWithUnknownEscape: 测试函数无需实现
+SinglePropertyAndFilterWithFalse: 测试函数无需实现
+SinglePropertyAndFilterWithTrue: 测试函数无需实现
+SinglePropertyAndFilterWithNull: 测试函数无需实现
+FilterWithScan: 测试函数无需实现
+FilterWithNotEquals: 测试函数无需实现
+FilterWithNotEquals2: 测试函数无需实现
+FilterWithLessThan: 测试函数无需实现
+FilterWithLessThanOrEquals: 测试函数无需实现
+FilterWithGreaterThan: 测试函数无需实现
+FilterWithGreaterThanOrEquals: 测试函数无需实现
+FilterWithInteger: 测试函数无需实现
+FilterWithNegativeInteger: 测试函数无需实现
+FilterWithFloat: 测试函数无需实现
+FilterExistWithAnd: 测试函数无需实现
+FilterExistWithAndOr: 测试函数无需实现
+FilterWithRoot: 测试函数无需实现
+BadOr1: 测试函数无需实现
+BaddOr2: 测试函数无需实现
+BaddOr3: 测试函数无需实现
+BaddOr4: 测试函数无需实现
+NoAtAfterOr: 测试函数无需实现
+NoPathAfterAt: 测试函数无需实现
+NoPathAfterDot: 测试函数无需实现
+NoPathAfterDot2: 测试函数无需实现
+FilterWithFloatExp: 测试函数无需实现
+MultiplePropertiesAndIndexers: 测试函数无需实现
+BadCharactersInIndexer: 测试函数无需实现
+UnclosedIndexer: 测试函数无需实现
+IndexerOnly: 测试函数无需实现
+IndexerOnlyWithWhitespace: 测试函数无需实现
+MultipleIndexes: 测试函数无需实现
+MultipleIndexesWithWhitespace: 测试函数无需实现
+MultipleQuotedIndexes: 测试函数无需实现
+MultipleQuotedIndexesWithWhitespace: 测试函数无需实现
+SlicingIndexAll: 测试函数无需实现
+SlicingIndex: 测试函数无需实现
+SlicingIndexNegative: 测试函数无需实现
+SlicingIndexEmptyStop: 测试函数无需实现
+SlicingIndexEmptyStart: 测试函数无需实现
+SlicingIndexWhitespace: 测试函数无需实现
+EmptyIndexer: 测试函数无需实现
+IndexerCloseInProperty: 测试函数无需实现
+AdjacentIndexers: 测试函数无需实现
+MissingDotAfterIndexer: 测试函数无需实现
+PropertyFollowingEscapedPropertyName: 测试函数无需实现
+ArrayOfArrayValue: 测试函数无需实现
+ArrayOfArrayValueWithEscaping: 测试函数无需实现

@@ -1,5 +1,4 @@
-test:
-  - MakeUpperCaseAccessViolation
-  - FastParseArrayCommandLongCommandAssertFailure
-  - FastParseArrayCommandShortCommandAssertFailure
-  - FastParseArrayCommandArrayCountAssertFailure
+MakeUpperCaseAccessViolation: 测试函数无需实现
+FastParseArrayCommandLongCommandAssertFailure: 测试函数无需实现
+FastParseArrayCommandShortCommandAssertFailure: 测试函数无需实现
+FastParseArrayCommandArrayCountAssertFailure: 测试函数无需实现

@@ -1,22 +1,21 @@
-fn:
-  - ReadCompletionCallback
-  - InitialWriter
-  - PostInitialWriter
-  - InPlaceWriter
-  - PostUpsertOperation
-  - NeedInitialUpdate
-  - InitialUpdater
-  - PostInitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostRMWOperation
-  - RMWCompletionCallback
-  - InitialDeleter
-  - PostInitialDeleter
-  - PostDeleteOperation
-  - ConvertOutputToHeap
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback
+ReadCompletionCallback: 无需实现
+InitialWriter: 无需实现
+PostInitialWriter: 无需实现
+InPlaceWriter: 无需实现
+PostUpsertOperation: 无需实现
+NeedInitialUpdate: 无需实现
+InitialUpdater: 无需实现
+PostInitialUpdater: 无需实现
+NeedCopyUpdate: 无需实现
+CopyUpdater: 无需实现
+PostCopyUpdater: 无需实现
+PostRMWOperation: 无需实现
+RMWCompletionCallback: 无需实现
+InitialDeleter: 无需实现
+PostInitialDeleter: 无需实现
+PostDeleteOperation: 无需实现
+ConvertOutputToHeap: 无需实现
+PreSingleKeyConsistentRead: 无需实现
+PostSingleKeyConsistentReadCallback: 无需实现
+PreBatchKeyConsistentReadCallback: 无需实现
+PostBatchKeyConsistentReadCallback: 无需实现

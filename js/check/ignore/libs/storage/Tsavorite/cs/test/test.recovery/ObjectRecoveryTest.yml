@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - PrepareToRecover
-  - Populate
-  - Verify
-test:
-  - ObjectRecoveryTest1
+Setup: 无需实现
+TearDown: 无需实现
+PrepareToRecover: 无需实现
+Populate: 无需实现
+Verify: 无需实现
+ObjectRecoveryTest1: 测试函数无需实现

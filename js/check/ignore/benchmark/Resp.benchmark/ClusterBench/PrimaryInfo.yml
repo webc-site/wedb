@@ -1,3 +1,2 @@
-fn:
-  - OwnsSlot
-  - ToString
+OwnsSlot: 无需实现
+ToString: 无需实现

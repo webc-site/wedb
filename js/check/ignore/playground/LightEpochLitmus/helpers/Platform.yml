@@ -1,10 +1,9 @@
-fn:
-  - GetCurrentThread
-  - SetThreadAffinityMask
-  - LinuxMmap
-  - LinuxMunmap
-  - LinuxSchedSetAffinity
-  - Unmap
-  - TryPin
-  - PinFailed
-  - MapPage
+GetCurrentThread: 无需实现
+SetThreadAffinityMask: 无需实现
+LinuxMmap: 无需实现
+LinuxMunmap: 无需实现
+LinuxSchedSetAffinity: 无需实现
+Unmap: 无需实现
+TryPin: 无需实现
+PinFailed: 无需实现
+MapPage: 无需实现

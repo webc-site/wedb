@@ -1,9 +1,8 @@
-fn:
-  - ReqGen
-  - LongRandom
-  - GenSingleKeyValueReqs
-  - WriteStringBytes
-  - WriteOpLong
-  - GenSingleKeyValueRequest
-  - GenArrayKeyValueRequest
-  - GenSingleKeyRequest
+ReqGen: 无需实现
+LongRandom: 无需实现
+GenSingleKeyValueReqs: 无需实现
+WriteStringBytes: 无需实现
+WriteOpLong: 无需实现
+GenSingleKeyValueRequest: 无需实现
+GenArrayKeyValueRequest: 无需实现
+GenSingleKeyRequest: 无需实现

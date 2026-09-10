@@ -1,18 +1,17 @@
-fn:
-  - GetCookie
-  - InitializeIndexCheckpoint
-  - InitializeLogCheckpoint
-  - CommitIndexCheckpoint
-  - CleanupIndexCheckpoint
-  - CommitLogCheckpointMetadata
-  - CleanupLogCheckpoint
-  - CheckpointVersionShiftStart
-  - CheckpointVersionShiftEnd
-  - GetIndexCheckpointMetadata
-  - GetLogCheckpointMetadata
-  - GetIndexCheckpointTokens
-  - GetLogCheckpointTokens
-  - GetIndexDevice
-  - GetSnapshotLogDevice
-  - GetSnapshotObjectLogDevice
-  - OnRecovery
+GetCookie: 无需实现
+InitializeIndexCheckpoint: 无需实现
+InitializeLogCheckpoint: 无需实现
+CommitIndexCheckpoint: 无需实现
+CleanupIndexCheckpoint: 无需实现
+CommitLogCheckpointMetadata: 无需实现
+CleanupLogCheckpoint: 无需实现
+CheckpointVersionShiftStart: 无需实现
+CheckpointVersionShiftEnd: 无需实现
+GetIndexCheckpointMetadata: 无需实现
+GetLogCheckpointMetadata: 无需实现
+GetIndexCheckpointTokens: 无需实现
+GetLogCheckpointTokens: 无需实现
+GetIndexDevice: 无需实现
+GetSnapshotLogDevice: 无需实现
+GetSnapshotObjectLogDevice: 无需实现
+OnRecovery: 无需实现

@@ -1,4 +1,3 @@
-fn:
-  - IsDefault
-  - Wait
-  - WaitAsync
+IsDefault: 无需实现
+Wait: 无需实现
+WaitAsync: 无需实现

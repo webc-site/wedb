@@ -1,54 +1,53 @@
-fn:
-  - SetDataHeader
-  - InitializeHeadersForNewRecord
-  - CreateRemappedOverPinnedTransientMemory
-  - RemapOverPinnedTransientMemory
-  - ThrowTsavoriteException
-  - SetDeserializedValueObject
-  - GetObjectLogPositionAddress
-  - AsReadOnlySpan
-  - GetETagAddress
-  - GetExpirationAddress
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - GetAllocatedSize
-  - GetExpectedIORecordSize
-  - SetFillerLength
-  - InitializeRecord
-  - GetInfoRef
-  - GetInfo
-  - GetInlineKey
-  - TrySetContentLengths
-  - TrySetContentLengthsAndPrepareOptionals
-  - TrySetPinnedValueLength
-  - TrySetValueSpanAndPrepareOptionals
-  - TryReinitializeValueLength
-  - TrySetValueObjectAndPrepareOptionals
-  - TrySetValueObject
-  - GetOptionalStartAddress
-  - GetOptionalFieldsSpan
-  - InitializeForReuse
-  - TrySetETag
-  - RemoveETag
-  - TrySetExpiration
-  - RemoveExpiration
-  - TryCopyFrom
-  - PopulateRecordSizeInfoForIPU
-  - GetValueHeapMemorySize
-  - CanGrowPinnedValue
-  - TryCopyOptionals
-  - ClearOptionals
-  - ClearValueIfHeap
-  - ClearHeapFields
-  - PrepareForRevivification
-  - SetObjectLogRecordStartPositionAndLength
-  - RepointObjectLogPosition
-  - GetObjectLogRecordStartPositionAndLengths
-  - SetRecoveredObjectLogRecordStartPosition
-  - SetReuseObjectIdForSize
-  - OnObjectReadComplete
-  - OnDeserializationError
-  - GetSerializedSize
-  - CalculateHeapMemorySize
-  - ToString
+SetDataHeader: 无需实现
+InitializeHeadersForNewRecord: 无需实现
+CreateRemappedOverPinnedTransientMemory: 无需实现
+RemapOverPinnedTransientMemory: 无需实现
+ThrowTsavoriteException: 无需实现
+SetDeserializedValueObject: 无需实现
+GetObjectLogPositionAddress: 无需实现
+AsReadOnlySpan: 无需实现
+GetETagAddress: 无需实现
+GetExpirationAddress: 无需实现
+AsMemoryLogRecordRef: 无需实现
+AsDiskLogRecordRef: 无需实现
+GetRecordFieldInfo: 无需实现
+GetAllocatedSize: 无需实现
+GetExpectedIORecordSize: 无需实现
+SetFillerLength: 无需实现
+InitializeRecord: 无需实现
+GetInfoRef: 无需实现
+GetInfo: 无需实现
+GetInlineKey: 无需实现
+TrySetContentLengths: 无需实现
+TrySetContentLengthsAndPrepareOptionals: 无需实现
+TrySetPinnedValueLength: 无需实现
+TrySetValueSpanAndPrepareOptionals: 无需实现
+TryReinitializeValueLength: 无需实现
+TrySetValueObjectAndPrepareOptionals: 无需实现
+TrySetValueObject: 无需实现
+GetOptionalStartAddress: 无需实现
+GetOptionalFieldsSpan: 无需实现
+InitializeForReuse: 无需实现
+TrySetETag: 无需实现
+RemoveETag: 无需实现
+TrySetExpiration: 无需实现
+RemoveExpiration: 无需实现
+TryCopyFrom: 无需实现
+PopulateRecordSizeInfoForIPU: 无需实现
+GetValueHeapMemorySize: 无需实现
+CanGrowPinnedValue: 无需实现
+TryCopyOptionals: 无需实现
+ClearOptionals: 无需实现
+ClearValueIfHeap: 无需实现
+ClearHeapFields: 无需实现
+PrepareForRevivification: 无需实现
+SetObjectLogRecordStartPositionAndLength: 无需实现
+RepointObjectLogPosition: 无需实现
+GetObjectLogRecordStartPositionAndLengths: 无需实现
+SetRecoveredObjectLogRecordStartPosition: 无需实现
+SetReuseObjectIdForSize: 无需实现
+OnObjectReadComplete: 无需实现
+OnDeserializationError: 无需实现
+GetSerializedSize: 无需实现
+CalculateHeapMemorySize: 无需实现
+ToString: 无需实现

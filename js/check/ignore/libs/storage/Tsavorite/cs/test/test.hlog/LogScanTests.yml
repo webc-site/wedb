@@ -1,17 +1,15 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulateLog
-  - PopulateUncommittedLog
-  - Consume
-test:
-  - ScanBasicDefaultTest
-  - ScanBehindBeginAddressTest
-  - ScanConsumerTest
-  - ScanNoDefaultTest
-  - ScanByNameTest
-  - ScanWithoutRecoverTest
-  - ScanBufferingModeDoublePageTest
-  - ScanBufferingModeSinglePageTest
-  - ScanUncommittedTest
-  - ScanUncommittedEndsOnCompleteLogTest
+Setup: 无需实现
+TearDown: 无需实现
+PopulateLog: 无需实现
+PopulateUncommittedLog: 无需实现
+Consume: 无需实现
+ScanBasicDefaultTest: 测试函数无需实现
+ScanBehindBeginAddressTest: 测试函数无需实现
+ScanConsumerTest: 测试函数无需实现
+ScanNoDefaultTest: 测试函数无需实现
+ScanByNameTest: 测试函数无需实现
+ScanWithoutRecoverTest: 测试函数无需实现
+ScanBufferingModeDoublePageTest: 测试函数无需实现
+ScanBufferingModeSinglePageTest: 测试函数无需实现
+ScanUncommittedTest: 测试函数无需实现
+ScanUncommittedEndsOnCompleteLogTest: 测试函数无需实现

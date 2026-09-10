@@ -1,12 +1,9 @@
-fn:
-  - ReadInt
-  - TryReadInt
-  - ReadLong
-  - TryReadLong
-  - ReadDouble
-  - TryReadDouble
-  - ReadFloat
-  - TryReadFloat
-  - ReadString
-  - ReadBool
-  - TryReadBool
+ReadInt: 无需实现
+TryReadInt: 无需实现
+ReadLong: 无需实现
+TryReadLong: 无需实现
+ReadDouble: 无需实现
+ReadFloat: 无需实现
+ReadString: 无需实现
+ReadBool: 无需实现
+TryReadBool: 无需实现

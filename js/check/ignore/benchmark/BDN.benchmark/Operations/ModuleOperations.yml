@@ -1,11 +1,10 @@
-fn:
-  - RegisterModules
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - ModuleNoOpRawStringReadCommand
-  - ModuleNoOpRawStringRmwCommand
-  - ModuleNoOpObjRmwCommand
-  - ModuleNoOpObjReadCommand
-  - ModuleNoOpProc
-  - ModuleNoOpTxn
+RegisterModules: 无需实现
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+ModuleNoOpRawStringReadCommand: 无需实现
+ModuleNoOpRawStringRmwCommand: 无需实现
+ModuleNoOpObjRmwCommand: 无需实现
+ModuleNoOpObjReadCommand: 无需实现
+ModuleNoOpProc: 无需实现
+ModuleNoOpTxn: 无需实现

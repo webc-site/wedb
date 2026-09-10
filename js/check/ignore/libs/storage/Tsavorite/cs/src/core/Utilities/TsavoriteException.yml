@@ -1,4 +1,3 @@
-fn:
-  - TsavoriteException
-  - TsavoriteIOException
-  - TsavoriteNoHybridLogException
+TsavoriteException: 无需实现
+TsavoriteIOException: 无需实现
+TsavoriteNoHybridLogException: 无需实现

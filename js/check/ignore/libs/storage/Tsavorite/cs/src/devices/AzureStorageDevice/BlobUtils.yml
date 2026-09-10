@@ -1,4 +1,3 @@
-fn:
-  - IsTransientStorageError
-  - IsTimeout
-  - httpStatusIndicatesTransientError
+IsTransientStorageError: 无需实现
+IsTimeout: 无需实现
+httpStatusIndicatesTransientError: 无需实现

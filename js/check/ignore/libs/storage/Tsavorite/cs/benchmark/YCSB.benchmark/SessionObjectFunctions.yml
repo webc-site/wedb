@@ -1,5 +1,4 @@
-fn:
-  - InPlaceWriter
-  - InitialWriter
-  - InitialUpdater
-  - CopyUpdater
+InPlaceWriter: 无需实现
+InitialWriter: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - TryGetSlotState
-  - TryGetFailoverOption
+TryGetSlotState: 无需实现
+TryGetFailoverOption: 无需实现

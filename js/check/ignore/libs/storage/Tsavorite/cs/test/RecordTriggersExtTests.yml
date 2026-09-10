@@ -1,21 +1,19 @@
-fn:
-  - ExtRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - InsertN
-test:
-  - OnFlushReceivesCorrectLogicalAddress
-  - CallOnFlushFalseSkipsCallback
-  - OnTruncateFiresWithNewBeginAddress
-  - CallOnTruncateFalseSkipsCallback
-  - PostCopyToTailFiresFromCompaction
-  - CallPostCopyToTailFalseSkipsCallback
-  - DefaultRecordTriggersHasAllNewFlagsFalse
-  - SpanByteRecordTriggersHasAllNewFlagsFalse
+ExtRecordTriggers: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+OnEvict: 无需实现
+OnRecovery: 无需实现
+OnCheckpoint: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+InsertN: 无需实现
+OnFlushReceivesCorrectLogicalAddress: 测试函数无需实现
+CallOnFlushFalseSkipsCallback: 测试函数无需实现
+OnTruncateFiresWithNewBeginAddress: 测试函数无需实现
+CallOnTruncateFalseSkipsCallback: 测试函数无需实现
+PostCopyToTailFiresFromCompaction: 测试函数无需实现
+CallPostCopyToTailFalseSkipsCallback: 测试函数无需实现
+DefaultRecordTriggersHasAllNewFlagsFalse: 测试函数无需实现
+SpanByteRecordTriggersHasAllNewFlagsFalse: 测试函数无需实现

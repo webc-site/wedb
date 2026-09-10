@@ -1,46 +1,44 @@
-fn:
-  - Setup
-  - TearDown
-  - ConnectAsync
-  - SetUserAsync
-  - CaptureExceptionAsync
-  - GetAcl
-  - Prepare
-  - Main
-  - WriteSimpleString
-  - Execute
-test:
-  - Parser_AcceptsUnknownNameAsCustomCommand
-  - Parser_RejectsNameWithWhitespace
-  - Parser_RejectsNonAsciiName
-  - Parser_RejectsNameWithLeadingNonAlphanumeric
-  - Parser_DenyPrecedenceOnSameName
-  - Parser_LastWriteWins_AllowAfterDeny
-  - Parser_CaseInsensitiveNormalization
-  - Parser_DescribeUserRoundTripPreservesCustomSets
-  - User_AddCustomCommand_NullThrows
-  - User_AddCustomCommand_RejectsMalformedNames
-  - User_DescribeUser_RoundTripsCustomAllowAndDeny
-  - PermissionSet_CustomSetsAreCaseInsensitive
-  - PermissionSet_DenyBeatsBitmap
-  - PermissionSet_AllowOverridesMissingBitmap
-  - PermissionSet_AllSentinelAllowsEverything
-  - PermissionSet_AllSentinelMinusName_DeniesThatName
-  - PermissionSet_DefaultFailsClosed
-  - PermissionSet_IsEquivalentToConsidersCustomSets
-  - SetUser_RejectsUnknownCustomName
-  - SetUser_AcceptsRegisteredCustomName
-  - SetUser_RejectsInvalidNameSyntax
-  - SetUser_AcceptsCommandRegisteredWithoutCommandInfo
-  - SetUser_AllowsSwapOfLooseLoadedName
-  - SetUser_AllowsSwapOfLooseLoadedName_DenyToAllow
-  - Dispatch_DenyPrecedence_PlusCategoryMinusName
-  - Dispatch_PlusNameFromNone_AllowsOnlyThatCommand
-  - Dispatch_CaseInsensitiveOnTheWire
-  - GetUser_IncludesCustomNameTokens
-  - Dispatch_CustomTxn_DenyPrecedence
-  - Dispatch_CustomTxn_AllowFromMinusAll
-  - Dispatch_CustomProcedure_DenyPrecedence
-  - Dispatch_CustomProcedure_AllowFromMinusAll
-  - StrictMode_StartupFails_WhenAclFileReferencesUnregisteredCustomCommand
-  - LenientMode_StartupSucceeds_WhenAclFileReferencesUnregisteredCustomCommand
+Setup: 无需实现
+TearDown: 无需实现
+ConnectAsync: 无需实现
+SetUserAsync: 无需实现
+CaptureExceptionAsync: 无需实现
+GetAcl: 无需实现
+Prepare: 无需实现
+Main: 无需实现
+WriteSimpleString: 无需实现
+Execute: 无需实现
+Parser_AcceptsUnknownNameAsCustomCommand: 测试函数无需实现
+Parser_RejectsNameWithWhitespace: 测试函数无需实现
+Parser_RejectsNonAsciiName: 测试函数无需实现
+Parser_RejectsNameWithLeadingNonAlphanumeric: 测试函数无需实现
+Parser_DenyPrecedenceOnSameName: 测试函数无需实现
+Parser_LastWriteWins_AllowAfterDeny: 测试函数无需实现
+Parser_CaseInsensitiveNormalization: 测试函数无需实现
+Parser_DescribeUserRoundTripPreservesCustomSets: 测试函数无需实现
+User_AddCustomCommand_NullThrows: 测试函数无需实现
+User_AddCustomCommand_RejectsMalformedNames: 测试函数无需实现
+User_DescribeUser_RoundTripsCustomAllowAndDeny: 测试函数无需实现
+PermissionSet_CustomSetsAreCaseInsensitive: 测试函数无需实现
+PermissionSet_DenyBeatsBitmap: 测试函数无需实现
+PermissionSet_AllowOverridesMissingBitmap: 测试函数无需实现
+PermissionSet_AllSentinelAllowsEverything: 测试函数无需实现
+PermissionSet_AllSentinelMinusName_DeniesThatName: 测试函数无需实现
+PermissionSet_DefaultFailsClosed: 测试函数无需实现
+PermissionSet_IsEquivalentToConsidersCustomSets: 测试函数无需实现
+SetUser_RejectsUnknownCustomName: 测试函数无需实现
+SetUser_AcceptsRegisteredCustomName: 测试函数无需实现
+SetUser_RejectsInvalidNameSyntax: 测试函数无需实现
+SetUser_AcceptsCommandRegisteredWithoutCommandInfo: 测试函数无需实现
+SetUser_AllowsSwapOfLooseLoadedName: 测试函数无需实现
+SetUser_AllowsSwapOfLooseLoadedName_DenyToAllow: 测试函数无需实现
+Dispatch_DenyPrecedence_PlusCategoryMinusName: 测试函数无需实现
+Dispatch_PlusNameFromNone_AllowsOnlyThatCommand: 测试函数无需实现
+Dispatch_CaseInsensitiveOnTheWire: 测试函数无需实现
+GetUser_IncludesCustomNameTokens: 测试函数无需实现
+Dispatch_CustomTxn_DenyPrecedence: 测试函数无需实现
+Dispatch_CustomTxn_AllowFromMinusAll: 测试函数无需实现
+Dispatch_CustomProcedure_DenyPrecedence: 测试函数无需实现
+Dispatch_CustomProcedure_AllowFromMinusAll: 测试函数无需实现
+StrictMode_StartupFails_WhenAclFileReferencesUnregisteredCustomCommand: 测试函数无需实现
+LenientMode_StartupSucceeds_WhenAclFileReferencesUnregisteredCustomCommand: 测试函数无需实现

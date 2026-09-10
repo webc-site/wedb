@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-test:
-  - DiskDeleteBasicTest1
-  - DiskDeleteBasicTest2
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+DiskDeleteBasicTest1: 测试函数无需实现
+DiskDeleteBasicTest2: 测试函数无需实现

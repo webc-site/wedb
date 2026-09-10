@@ -1,8 +1,7 @@
-fn:
-  - DiskReadBuffer
-  - GetTailSpan
-  - ReadFromDevice
-  - IncrementOrResetCountdown
-  - WaitForDataAvailable
-  - GetCurrentFilePosition
-  - ToString
+DiskReadBuffer: 无需实现
+GetTailSpan: 无需实现
+ReadFromDevice: 无需实现
+IncrementOrResetCountdown: 无需实现
+WaitForDataAvailable: 无需实现
+GetCurrentFilePosition: 无需实现
+ToString: 无需实现

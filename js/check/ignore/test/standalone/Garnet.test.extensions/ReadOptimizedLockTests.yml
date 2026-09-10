@@ -1,4 +1,3 @@
-test:
-  - BasicLocks
-  - IndexCalculations
-  - Threaded
+BasicLocks: 测试函数无需实现
+IndexCalculations: 测试函数无需实现
+Threaded: 测试函数无需实现

@@ -1,4 +1,3 @@
-fn:
-  - Main
-  - PrintBenchmarkConfig
-  - CreateLoggerFactory
+Main: 无需实现
+PrintBenchmarkConfig: 无需实现
+CreateLoggerFactory: 无需实现

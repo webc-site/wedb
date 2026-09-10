@@ -1,22 +1,20 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - PrepareToRecover
-  - Populate
-  - FullCheckpointAction
-  - SeparateCheckpointAction
-  - checkpointAction
-  - RecoverAndTest
-  - ExpectedValue
-  - TestDriver
-  - RunTest
-  - populateAction
-  - readAction
-  - GetRandomLength
-  - RecoverAndReadTest
-test:
-  - RecoveryTestSeparateCheckpoint
-  - RecoveryTestByAllocatorType
-  - RecoveryTestFailOnSectorSize
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+PrepareToRecover: 无需实现
+Populate: 无需实现
+FullCheckpointAction: 无需实现
+SeparateCheckpointAction: 无需实现
+checkpointAction: 无需实现
+RecoverAndTest: 无需实现
+ExpectedValue: 无需实现
+TestDriver: 无需实现
+RunTest: 无需实现
+populateAction: 无需实现
+readAction: 无需实现
+GetRandomLength: 无需实现
+RecoverAndReadTest: 无需实现
+RecoveryTestSeparateCheckpoint: 测试函数无需实现
+RecoveryTestByAllocatorType: 测试函数无需实现
+RecoveryTestFailOnSectorSize: 测试函数无需实现

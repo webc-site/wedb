@@ -1,3 +1,2 @@
-fn:
-  - ToString
-  - bstr
+ToString: 无需实现
+bstr: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - Main
-  - RegisterExtensions
+Main: 无需实现
+RegisterExtensions: 无需实现

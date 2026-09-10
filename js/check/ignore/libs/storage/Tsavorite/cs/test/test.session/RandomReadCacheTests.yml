@@ -1,10 +1,8 @@
-fn:
-  - ReadCompletionCallback
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - LocalRead
-  - LocalRun
-test:
-  - RandomReadCacheTest
+ReadCompletionCallback: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+LocalRead: 无需实现
+LocalRun: 无需实现
+RandomReadCacheTest: 测试函数无需实现

@@ -1,7 +1,5 @@
-fn:
-  - TearDown
-test:
-  - TestsForAllTargets
-  - GarnetEndToEnd
-  - LuaScriptCompilation
-  - RespCommandParsing
+TearDown: 无需实现
+TestsForAllTargets: 测试函数无需实现
+GarnetEndToEnd: 测试函数无需实现
+LuaScriptCompilation: 测试函数无需实现
+RespCommandParsing: 测试函数无需实现

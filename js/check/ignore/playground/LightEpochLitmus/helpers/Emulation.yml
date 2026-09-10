@@ -1,5 +1,4 @@
-fn:
-  - Detect
-  - TryGetCpuImplementer
-  - Emulated
-  - TryReadFile
+Detect: 无需实现
+TryGetCpuImplementer: 无需实现
+Emulated: 无需实现
+TryReadFile: 无需实现

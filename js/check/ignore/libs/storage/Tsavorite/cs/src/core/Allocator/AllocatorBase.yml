@@ -1,75 +1,64 @@
-fn:
-  - CreateCircularFlushBuffers
-  - CreateCircularReadBuffers
-  - GetObjectLogTail
-  - SetObjectLogTail
-  - CalculatePageObjectSizes
-  - LoadObjectsForRecoveryPass2
-  - ToString
-  - BaseToString
-  - WriteAsyncToDeviceForSnapshot
-  - ResetCore
-  - FreeAllAllocatedPages
-  - TruncateUntilAddressBlocking
-  - TryComplete
-  - TryCompleteMine
-  - StopSizeTrackerForDispose
-  - VerifyCompatibleSectorSize
-  - WriteInlinePageAsync
-  - IsAllocated
-  - VerifyRecoveryInfo
-  - GetSegment
-  - AllocatePinnedPageArray
-  - FreeNativeLogPage
-  - RecycleOrFreeNativeBlock
-  - BeginNativeSnapshotFlush
-  - EndNativeSnapshotFlush
-  - GetPage
-  - GetOffsetOnPage
-  - IncrementAllocatedPageCount
-  - GetMainLogSegmentSize
-  - GetObjectLogSegmentSize
-  - GetTailAddress
-  - UnstableGetTailAddress
-  - GetPageIndexForPage
-  - GetPageIndexForAddress
-  - GetPageSize
-  - GetAddressOfStartOfPageOfAddress
-  - GetFirstValidLogicalAddressOnPage
-  - GetOffsetOnSegment
-  - GetStartLogicalAddressOfSegment
-  - GetDeviceSectorSize
-  - AllocatePagesWithException
-  - AllocateCurrentAndNextPage
-  - ShiftReadOnlyAddressWithWait
-  - ShiftAddressesWithWait
-  - NeedToShiftAddress
-  - IssueShiftAddress
-  - ThrowTsavoriteException
-  - TryAllocateRetryNow
-  - WaitToRetryNow
-  - FindHeadAddressCutoffOnPage
-  - EvictPageForRecovery
-  - MemoryPageScan
-  - AsyncFlushPagesForReadOnly
-  - OnPagesClosedWorker
-  - OnPagesClosedWorkerCore
-  - EvictCallback
-  - DebugPrintAddresses
-  - RecoveryReset
-  - AsyncReadRecordToMemory
-  - AsyncReadBlittableRecordToMemory
-  - GetAndPopulateReadBuffer
-  - GetFlushPageRange
-  - PrepareFlushAsyncResult
-  - AsyncFlushPagesForRecovery
-  - AsyncFlushPagesForSnapshot
-  - FlushRunner
-  - AsyncReadPageFromDeviceToFrame
-  - VerifyRecordFromDiskCallback
-  - TryVerifyOrReissuePendingRead
-  - AsyncFlushPageCallback
-  - when
-  - UnsafeSkipError
-  - AsyncFlushPageForSnapshotCallback
-  - PrettyPrintLogicalAddress
+CreateCircularFlushBuffers: 无需实现
+CreateCircularReadBuffers: 无需实现
+GetObjectLogTail: 无需实现
+SetObjectLogTail: 无需实现
+CalculatePageObjectSizes: 无需实现
+LoadObjectsForRecoveryPass2: 无需实现
+ToString: 无需实现
+BaseToString: 无需实现
+ResetCore: 无需实现
+FreeAllAllocatedPages: 无需实现
+TruncateUntilAddressBlocking: 无需实现
+TryComplete: 无需实现
+TryCompleteMine: 无需实现
+StopSizeTrackerForDispose: 无需实现
+WriteInlinePageAsync: 无需实现
+IsAllocated: 无需实现
+VerifyRecoveryInfo: 无需实现
+GetSegment: 无需实现
+AllocatePinnedPageArray: 无需实现
+FreeNativeLogPage: 无需实现
+RecycleOrFreeNativeBlock: 无需实现
+BeginNativeSnapshotFlush: 无需实现
+EndNativeSnapshotFlush: 无需实现
+IncrementAllocatedPageCount: 无需实现
+GetMainLogSegmentSize: 无需实现
+GetObjectLogSegmentSize: 无需实现
+UnstableGetTailAddress: 无需实现
+GetPageIndexForPage: 无需实现
+GetPageSize: 无需实现
+GetAddressOfStartOfPageOfAddress: 无需实现
+GetFirstValidLogicalAddressOnPage: 无需实现
+GetOffsetOnSegment: 无需实现
+GetStartLogicalAddressOfSegment: 无需实现
+GetDeviceSectorSize: 无需实现
+AllocatePagesWithException: 无需实现
+AllocateCurrentAndNextPage: 无需实现
+ShiftReadOnlyAddressWithWait: 无需实现
+ShiftAddressesWithWait: 无需实现
+NeedToShiftAddress: 无需实现
+IssueShiftAddress: 无需实现
+ThrowTsavoriteException: 无需实现
+TryAllocateRetryNow: 无需实现
+WaitToRetryNow: 无需实现
+FindHeadAddressCutoffOnPage: 无需实现
+EvictPageForRecovery: 无需实现
+MemoryPageScan: 无需实现
+AsyncFlushPagesForReadOnly: 无需实现
+OnPagesClosedWorker: 无需实现
+OnPagesClosedWorkerCore: 无需实现
+EvictCallback: 无需实现
+DebugPrintAddresses: 无需实现
+RecoveryReset: 无需实现
+GetAndPopulateReadBuffer: 无需实现
+GetFlushPageRange: 无需实现
+PrepareFlushAsyncResult: 无需实现
+FlushRunner: 无需实现
+AsyncReadPageFromDeviceToFrame: 无需实现
+VerifyRecordFromDiskCallback: 无需实现
+TryVerifyOrReissuePendingRead: 无需实现
+AsyncFlushPageCallback: 无需实现
+when: 无需实现
+UnsafeSkipError: 无需实现
+AsyncFlushPageForSnapshotCallback: 无需实现
+PrettyPrintLogicalAddress: 无需实现

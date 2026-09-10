@@ -1,3 +1,2 @@
-fn:
-  - CreateLogDevice
-  - GetDefaultDeviceType
+CreateLogDevice: 无需实现
+GetDefaultDeviceType: 无需实现

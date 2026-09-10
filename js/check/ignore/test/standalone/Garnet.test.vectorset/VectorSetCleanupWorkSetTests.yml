@@ -1,4 +1,3 @@
-test:
-  - AddedWorkIsPendingUntilCompleted
-  - EntriesCanBeEnumerated
-  - WaitForCompletionBlocksUntilTheEntryIsCompleted
+AddedWorkIsPendingUntilCompleted: 测试函数无需实现
+EntriesCanBeEnumerated: 测试函数无需实现
+WaitForCompletionBlocksUntilTheEntryIsCompleted: 测试函数无需实现

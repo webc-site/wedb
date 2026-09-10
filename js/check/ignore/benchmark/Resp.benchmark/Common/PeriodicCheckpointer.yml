@@ -1,4 +1,3 @@
-fn:
-  - PeriodicCheckpointer
-  - Start
-  - Stop
+PeriodicCheckpointer: 无需实现
+Start: 无需实现
+Stop: 无需实现

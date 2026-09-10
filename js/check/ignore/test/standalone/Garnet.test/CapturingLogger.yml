@@ -1,6 +1,5 @@
-fn:
-  - Field
-  - EntriesWithField
-  - BeginScope
-  - IsEnabled
-  - CreateLogger
+Field: 无需实现
+EntriesWithField: 无需实现
+BeginScope: 无需实现
+IsEnabled: 无需实现
+CreateLogger: 无需实现

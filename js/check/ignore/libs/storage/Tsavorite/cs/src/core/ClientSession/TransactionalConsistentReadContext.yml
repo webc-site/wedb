@@ -1,18 +1,17 @@
-fn:
-  - GetKeyHash
-  - TransactionalConsistentReadContext
-  - BeginTransaction
-  - LocksAcquired
-  - EndTransaction
-  - CompareKeyHashes
-  - SortKeyHashes
-  - Lock
-  - TryLock
-  - TryPromoteLock
-  - Unlock
-  - ReadWithPrefetch
-  - CompletePendingWithOutputs
-  - CompletePendingAsync
-  - CompletePendingWithOutputsAsync
-  - ResetModified
-  - IsModified
+GetKeyHash: 无需实现
+TransactionalConsistentReadContext: 无需实现
+BeginTransaction: 无需实现
+LocksAcquired: 无需实现
+EndTransaction: 无需实现
+CompareKeyHashes: 无需实现
+SortKeyHashes: 无需实现
+Lock: 无需实现
+TryLock: 无需实现
+TryPromoteLock: 无需实现
+Unlock: 无需实现
+ReadWithPrefetch: 无需实现
+CompletePendingWithOutputs: 无需实现
+CompletePendingAsync: 无需实现
+CompletePendingWithOutputsAsync: 无需实现
+ResetModified: 无需实现
+IsModified: 无需实现

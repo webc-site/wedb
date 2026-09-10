@@ -1,39 +1,37 @@
-fn:
-  - Setup
-  - TearDown
-  - ValidateServerData
-  - sizeToString
-test:
-  - PingTest
-  - PingMessageTest
-  - PingErrorMessageTest
-  - EchoWithNoMessageReturnErrorTest
-  - EchoWithMessagesReturnErrorTest
-  - EchoWithMessageTest
-  - EchoTwoCommandsTest
-  - TimeCommandTest
-  - TimeWithReturnErrorTest
-  - SeSaveTest
-  - PostCheckpointCleanupFailureIsLoggedAndContained
-  - OverflowKeyCheckpointTest
-  - SeSaveRecoverTest
-  - SeSaveRecoverObjectTest
-  - SeSaveInProgressTest
-  - SeSaveRecoverCustomObjectTest
-  - SeSaveRecoverCustomScriptTest
-  - SeSaveRecoverMultipleObjectsTest
-  - SeSaveRecoverMultipleKeysTest
-  - SeAofRecoverTest
-  - SeFlushDbAndFlushAllTest
-  - SePingTest
-  - SePingMessageTest
-  - SePingErrorMessageTest
-  - SeEchoWithNoMessageReturnErrorTest
-  - SeEchoWithMessageTest
-  - SeEchoWithMultiTokenMessageTest
-  - SeTimeCommandTest
-  - SeTimeWithReturnErrorTest
-  - SeFlushDbAndFlushAllTest2
-  - SimpleConfigGet
-  - ConfigWrongNumberOfArguments
-  - ConfigGetWrongNumberOfArguments
+Setup: 无需实现
+TearDown: 无需实现
+ValidateServerData: 无需实现
+sizeToString: 无需实现
+PingTest: 测试函数无需实现
+PingMessageTest: 测试函数无需实现
+PingErrorMessageTest: 测试函数无需实现
+EchoWithNoMessageReturnErrorTest: 测试函数无需实现
+EchoWithMessagesReturnErrorTest: 测试函数无需实现
+EchoWithMessageTest: 测试函数无需实现
+EchoTwoCommandsTest: 测试函数无需实现
+TimeCommandTest: 测试函数无需实现
+TimeWithReturnErrorTest: 测试函数无需实现
+SeSaveTest: 测试函数无需实现
+PostCheckpointCleanupFailureIsLoggedAndContained: 测试函数无需实现
+OverflowKeyCheckpointTest: 测试函数无需实现
+SeSaveRecoverTest: 测试函数无需实现
+SeSaveRecoverObjectTest: 测试函数无需实现
+SeSaveInProgressTest: 测试函数无需实现
+SeSaveRecoverCustomObjectTest: 测试函数无需实现
+SeSaveRecoverCustomScriptTest: 测试函数无需实现
+SeSaveRecoverMultipleObjectsTest: 测试函数无需实现
+SeSaveRecoverMultipleKeysTest: 测试函数无需实现
+SeAofRecoverTest: 测试函数无需实现
+SeFlushDbAndFlushAllTest: 测试函数无需实现
+SePingTest: 测试函数无需实现
+SePingMessageTest: 测试函数无需实现
+SePingErrorMessageTest: 测试函数无需实现
+SeEchoWithNoMessageReturnErrorTest: 测试函数无需实现
+SeEchoWithMessageTest: 测试函数无需实现
+SeEchoWithMultiTokenMessageTest: 测试函数无需实现
+SeTimeCommandTest: 测试函数无需实现
+SeTimeWithReturnErrorTest: 测试函数无需实现
+SeFlushDbAndFlushAllTest2: 测试函数无需实现
+SimpleConfigGet: 测试函数无需实现
+ConfigWrongNumberOfArguments: 测试函数无需实现
+ConfigGetWrongNumberOfArguments: 测试函数无需实现

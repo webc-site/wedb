@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - BuildPartialChunk
-  - CountTempFiles
-test:
-  - ProcessRecordAfterDispose_Throws
-  - DisposeDuringProcessRecord_DefersCleanupToWorker
+Setup: 无需实现
+TearDown: 无需实现
+BuildPartialChunk: 无需实现
+CountTempFiles: 无需实现
+ProcessRecordAfterDispose_Throws: 测试函数无需实现
+DisposeDuringProcessRecord_DefersCleanupToWorker: 测试函数无需实现

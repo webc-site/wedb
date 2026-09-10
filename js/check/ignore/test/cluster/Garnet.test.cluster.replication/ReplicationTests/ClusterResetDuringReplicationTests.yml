@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ClusterResetHardDuringDisklessReplicationAttach
-  - ClusterResetHardDuringDiskBasedReplicationAttach
+Setup: 无需实现
+TearDown: 无需实现
+ClusterResetHardDuringDisklessReplicationAttach: 测试函数无需实现
+ClusterResetHardDuringDiskBasedReplicationAttach: 测试函数无需实现

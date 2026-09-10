@@ -1,5 +1,4 @@
-test:
-  - GetUserTest
-  - GetUserNotFoundTest
-  - GetUserAclTest
-  - GetUserMultiUserTest
+GetUserTest: 测试函数无需实现
+GetUserNotFoundTest: 测试函数无需实现
+GetUserAclTest: 测试函数无需实现
+GetUserMultiUserTest: 测试函数无需实现

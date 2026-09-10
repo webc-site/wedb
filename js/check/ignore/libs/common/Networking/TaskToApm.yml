@@ -1,3 +1,2 @@
-fn:
-  - Begin
-  - InvokeCallback
+Begin: 无需实现
+InvokeCallback: 无需实现

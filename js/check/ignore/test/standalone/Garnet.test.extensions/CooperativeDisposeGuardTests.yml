@@ -1,9 +1,8 @@
-test:
-  - DefaultIsNotDisposed
-  - TryDispose_WhenIdle_ReturnsCleanupNow
-  - TryDispose_SecondCall_ReturnsAlreadyDisposed
-  - TryEnter_WhenNotDisposed_AllowsEntryAndExitReportsNoCleanup
-  - TryEnter_AfterDispose_ReturnsFalse
-  - TryDispose_WhileWorkerActive_DefersToWorker
-  - DisposeBeforeAndAfterWorker_OnlyFirstCleansUp
-  - ConcurrentDisposeVsWorker_CleansUpExactlyOnce
+DefaultIsNotDisposed: 测试函数无需实现
+TryDispose_WhenIdle_ReturnsCleanupNow: 测试函数无需实现
+TryDispose_SecondCall_ReturnsAlreadyDisposed: 测试函数无需实现
+TryEnter_WhenNotDisposed_AllowsEntryAndExitReportsNoCleanup: 测试函数无需实现
+TryEnter_AfterDispose_ReturnsFalse: 测试函数无需实现
+TryDispose_WhileWorkerActive_DefersToWorker: 测试函数无需实现
+DisposeBeforeAndAfterWorker_OnlyFirstCleansUp: 测试函数无需实现
+ConcurrentDisposeVsWorker_CleansUpExactlyOnce: 测试函数无需实现

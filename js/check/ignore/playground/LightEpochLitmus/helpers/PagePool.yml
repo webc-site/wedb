@@ -1,4 +1,3 @@
-fn:
-  - Fill
-  - Stamp
-  - PageForRound
+Fill: 无需实现
+Stamp: 无需实现
+PageForRound: 无需实现

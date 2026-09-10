@@ -1,5 +1,4 @@
-fn:
-  - TryGetRespCommandsData
-  - TryWriteRespCommandsData
-  - GetCommandsToAddAndRemove
-  - GetUserConfirmation
+TryGetRespCommandsData: 无需实现
+TryWriteRespCommandsData: 无需实现
+GetCommandsToAddAndRemove: 无需实现
+GetUserConfirmation: 无需实现

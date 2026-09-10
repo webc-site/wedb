@@ -1,6 +1,5 @@
-fn:
-  - InternalTryLockShared
-  - InternalTryLockExclusive
-  - InternalUnlockShared
-  - InternalUnlockExclusive
-  - InternalPromoteLock
+InternalTryLockShared: 无需实现
+InternalTryLockExclusive: 无需实现
+InternalUnlockShared: 无需实现
+InternalUnlockExclusive: 无需实现
+InternalPromoteLock: 无需实现

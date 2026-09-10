@@ -1,5 +1,4 @@
-fn:
-  - SlotKeyGenerator
-  - GenerateKey
-  - AppendBase62
-  - FindTagForShard
+SlotKeyGenerator: 无需实现
+GenerateKey: 无需实现
+AppendBase62: 无需实现
+FindTagForShard: 无需实现

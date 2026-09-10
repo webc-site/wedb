@@ -1,9 +1,8 @@
-fn:
-  - AppendSlotRange
-  - AppendSpecialStates
-  - AppendFormattedShardInfo
-  - AppendFormattedNodeInfo
-  - AppendFormattedSlotInfo
-  - AppendNodeNetworkingInfo
-  - AppendValueOrNull
-  - GetReplicas
+AppendSlotRange: 无需实现
+AppendSpecialStates: 无需实现
+AppendFormattedShardInfo: 无需实现
+AppendFormattedNodeInfo: 无需实现
+AppendFormattedSlotInfo: 无需实现
+AppendNodeNetworkingInfo: 无需实现
+AppendValueOrNull: 无需实现
+GetReplicas: 无需实现

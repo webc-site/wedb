@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-  - SetUpWithLowMemory
-  - updateKey
-test:
-  - TxnSetTest
-  - TxnExecuteTest
-  - TxnGetTest
-  - TxnGetSetTest
-  - TxnHExpireTest
-  - LargeTxn
-  - LargeTxnWatch
-  - TxnCommandCoverage
-  - SimpleWatchTest
-  - WatchTestWithSetWithEtag
-  - WatchNonExistentKey
-  - WatchKeyFromDisk
-  - WatchFailsWhenListEmptiedByLPop
+Setup: 无需实现
+TearDown: 无需实现
+SetUpWithLowMemory: 无需实现
+updateKey: 无需实现
+TxnSetTest: 测试函数无需实现
+TxnExecuteTest: 测试函数无需实现
+TxnGetTest: 测试函数无需实现
+TxnGetSetTest: 测试函数无需实现
+TxnHExpireTest: 测试函数无需实现
+LargeTxn: 测试函数无需实现
+LargeTxnWatch: 测试函数无需实现
+TxnCommandCoverage: 测试函数无需实现
+SimpleWatchTest: 测试函数无需实现
+WatchTestWithSetWithEtag: 测试函数无需实现
+WatchNonExistentKey: 测试函数无需实现
+WatchKeyFromDisk: 测试函数无需实现
+WatchFailsWhenListEmptiedByLPop: 测试函数无需实现

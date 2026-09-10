@@ -1,5 +1,4 @@
-fn:
-  - Prepare
-  - GetNextArg
-  - AddKey
-  - Main
+Prepare: 无需实现
+GetNextArg: 无需实现
+AddKey: 无需实现
+Main: 无需实现

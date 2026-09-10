@@ -1,5 +1,4 @@
-fn:
-  - NewSession
-  - DisposeClientSession
-  - DumpRevivificationStats
-  - ResetRevivificationStats
+NewSession: 无需实现
+DisposeClientSession: 无需实现
+DumpRevivificationStats: 无需实现
+ResetRevivificationStats: 无需实现

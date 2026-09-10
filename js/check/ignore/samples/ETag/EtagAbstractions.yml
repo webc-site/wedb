@@ -1,6 +1,5 @@
-fn:
-  - PerformLockFreeSafeUpdate
-  - updateAction
-  - GetIfNotMatch
-  - GetWithEtag
-  - _updateItemIfMatch
+PerformLockFreeSafeUpdate: 无需实现
+updateAction: 无需实现
+GetIfNotMatch: 无需实现
+GetWithEtag: 无需实现
+_updateItemIfMatch: 无需实现

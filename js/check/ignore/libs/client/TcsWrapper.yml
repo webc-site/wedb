@@ -1,3 +1,2 @@
-fn:
-  - LoadFrom
-  - IsNext
+LoadFrom: 无需实现
+IsNext: 无需实现

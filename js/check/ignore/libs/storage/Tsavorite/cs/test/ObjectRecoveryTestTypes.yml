@@ -1,10 +1,9 @@
-fn:
-  - ToString
-  - WriteType
-  - NumClicksObj
-  - Deserialize
-  - Serialize
-  - InitialUpdater
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
+ToString: 无需实现
+WriteType: 无需实现
+NumClicksObj: 无需实现
+Deserialize: 无需实现
+Serialize: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现

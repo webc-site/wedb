@@ -1,9 +1,8 @@
-fn:
-  - GetServerOptions
-  - AofBench
-  - GenerateData
-  - Run
-  - RunAofEnqueueBench
-  - RunAofReplayBench
-  - RunAofReplayBenchNoResp
-  - RunAofReplayBenchDirect
+GetServerOptions: 无需实现
+AofBench: 无需实现
+GenerateData: 无需实现
+Run: 无需实现
+RunAofEnqueueBench: 无需实现
+RunAofReplayBench: 无需实现
+RunAofReplayBenchNoResp: 无需实现
+RunAofReplayBenchDirect: 无需实现

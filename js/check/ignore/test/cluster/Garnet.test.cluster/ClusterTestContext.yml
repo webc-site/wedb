@@ -1,34 +1,33 @@
-fn:
-  - EnableGarnetLoggingEvents
-  - Setup
-  - ShutdownNode
-  - RestartNode
-  - TearDown
-  - RegisterCustomTxn
-  - CreateInstances
-  - SetRangeIndexStreamChunkSizeOnAllNodes
-  - CaptureNodeLogs
-  - CreateInstance
-  - DisposeCluster
-  - CreateConnection
-  - GenerateCredentials
-  - PopulatePrimary
-  - SimplePrimaryReplicaSetup
-  - SimplePopulateDB
-  - PopulatePrimaryRMW
-  - PopulatePrimaryWithObjects
-  - SimpleValidateDB
-  - ValidateKVCollectionAgainstReplica
-  - ValidateNodeObjects
-  - PopulatePrimaryAndTakeCheckpointTask
-  - SendAndValidateKeys
-  - ClusterFailoverSpinWait
-  - MeetAndAssignSlotsAllNodes
-  - FailoverTo
-  - AttachAndWaitForSyncAsync
-  - GenerateKeysWithPrefix
-  - GenerateIncreasingSizeValues
-  - ExecuteTxnBulkIncrement
-  - ExecuteTxnBulkRead
-  - ExecuteStoredProcBulkIncrement
-  - ExecuteBulkReadStoredProc
+EnableGarnetLoggingEvents: 无需实现
+Setup: 无需实现
+ShutdownNode: 无需实现
+RestartNode: 无需实现
+TearDown: 无需实现
+RegisterCustomTxn: 无需实现
+CreateInstances: 无需实现
+SetRangeIndexStreamChunkSizeOnAllNodes: 无需实现
+CaptureNodeLogs: 无需实现
+CreateInstance: 无需实现
+DisposeCluster: 无需实现
+CreateConnection: 无需实现
+GenerateCredentials: 无需实现
+PopulatePrimary: 无需实现
+SimplePrimaryReplicaSetup: 无需实现
+SimplePopulateDB: 无需实现
+PopulatePrimaryRMW: 无需实现
+PopulatePrimaryWithObjects: 无需实现
+SimpleValidateDB: 无需实现
+ValidateKVCollectionAgainstReplica: 无需实现
+ValidateNodeObjects: 无需实现
+PopulatePrimaryAndTakeCheckpointTask: 无需实现
+SendAndValidateKeys: 无需实现
+ClusterFailoverSpinWait: 无需实现
+MeetAndAssignSlotsAllNodes: 无需实现
+FailoverTo: 无需实现
+AttachAndWaitForSyncAsync: 无需实现
+GenerateKeysWithPrefix: 无需实现
+GenerateIncreasingSizeValues: 无需实现
+ExecuteTxnBulkIncrement: 无需实现
+ExecuteTxnBulkRead: 无需实现
+ExecuteStoredProcBulkIncrement: 无需实现
+ExecuteBulkReadStoredProc: 无需实现

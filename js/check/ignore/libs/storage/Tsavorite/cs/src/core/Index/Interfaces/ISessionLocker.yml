@@ -1,5 +1,4 @@
-fn:
-  - TryLockEphemeralExclusive
-  - TryLockEphemeralShared
-  - UnlockEphemeralExclusive
-  - UnlockEphemeralShared
+TryLockEphemeralExclusive: 无需实现
+TryLockEphemeralShared: 无需实现
+UnlockEphemeralExclusive: 无需实现
+UnlockEphemeralShared: 无需实现

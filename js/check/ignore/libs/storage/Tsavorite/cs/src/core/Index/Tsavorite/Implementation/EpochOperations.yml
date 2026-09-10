@@ -1,5 +1,4 @@
-fn:
-  - SynchronizeEpoch
-  - InternalRefresh
-  - SpinWaitUntilClosed
-  - SpinWaitUntilRecordIsClosed
+SynchronizeEpoch: 无需实现
+InternalRefresh: 无需实现
+SpinWaitUntilClosed: 无需实现
+SpinWaitUntilRecordIsClosed: 无需实现

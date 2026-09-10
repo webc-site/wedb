@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - TearDown
-  - ParseUptime
-  - GetSectionHeaders
-  - HydrateStore
-  - GetKeyspaceLine
-test:
-  - ResetStatsTest
-  - UptimeIncreasesAcrossInfoCalls
-  - InfoSectionOptionsTest
-  - InfoDefaultMatchesNoArgsTest
-  - InfoAllWithModulesEqualsEverythingTest
-  - InfoHlogScanTest
-  - InfoKeyspaceEmptyDatabaseTest
-  - InfoKeyspaceCountsTest
-  - InfoKeyspaceExpiredKeysNotCountedTest
-  - InfoKeyspaceMultiDatabaseTest
+Setup: 无需实现
+TearDown: 无需实现
+ParseUptime: 无需实现
+GetSectionHeaders: 无需实现
+HydrateStore: 无需实现
+GetKeyspaceLine: 无需实现
+ResetStatsTest: 测试函数无需实现
+UptimeIncreasesAcrossInfoCalls: 测试函数无需实现
+InfoSectionOptionsTest: 测试函数无需实现
+InfoDefaultMatchesNoArgsTest: 测试函数无需实现
+InfoAllWithModulesEqualsEverythingTest: 测试函数无需实现
+InfoHlogScanTest: 测试函数无需实现
+InfoKeyspaceEmptyDatabaseTest: 测试函数无需实现
+InfoKeyspaceCountsTest: 测试函数无需实现
+InfoKeyspaceExpiredKeysNotCountedTest: 测试函数无需实现
+InfoKeyspaceMultiDatabaseTest: 测试函数无需实现

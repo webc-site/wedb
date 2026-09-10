@@ -1,20 +1,18 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - CreateStore
-test:
-  - DefaultIORecordSizeConstantTest
-  - UseDefaultInitialIORecordSizeConstantTest
-  - StoreLevel_InitialIORecordSizeTest
-  - StoreLevel_DefaultTest
-  - SessionLevel_InitialIORecordSizeTest
-  - ReadOptions_InitialIORecordSizeTest
-  - RMWOptions_InitialIORecordSizeTest
-  - NullDevice_SectorSizeTest
-  - GetExpectedIORecordSize_BasicTest
-  - GetExpectedIORecordSize_WithOptionalsTest
-  - GetExpectedIORecordSize_WithObjectTest
-  - GetExpectedIORecordSize_WithNamespaceTest
-  - GetExpectedIORecordSize_AlignmentTest
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+CreateStore: 无需实现
+DefaultIORecordSizeConstantTest: 测试函数无需实现
+UseDefaultInitialIORecordSizeConstantTest: 测试函数无需实现
+StoreLevel_InitialIORecordSizeTest: 测试函数无需实现
+StoreLevel_DefaultTest: 测试函数无需实现
+SessionLevel_InitialIORecordSizeTest: 测试函数无需实现
+ReadOptions_InitialIORecordSizeTest: 测试函数无需实现
+RMWOptions_InitialIORecordSizeTest: 测试函数无需实现
+NullDevice_SectorSizeTest: 测试函数无需实现
+GetExpectedIORecordSize_BasicTest: 测试函数无需实现
+GetExpectedIORecordSize_WithOptionalsTest: 测试函数无需实现
+GetExpectedIORecordSize_WithObjectTest: 测试函数无需实现
+GetExpectedIORecordSize_WithNamespaceTest: 测试函数无需实现
+GetExpectedIORecordSize_AlignmentTest: 测试函数无需实现

@@ -1,14 +1,12 @@
-fn:
-  - Setup
-  - GetLimitedUserConfig
-  - CreateLimitedUserAsync
-test:
-  - BasicWhoamiTest
-  - BasicListTest
-  - BasicUsersTest
-  - BasicGenPassTest
-  - InvalidSubcommand
-  - NoAuthValidation
-  - DeniedCommandReturnsNoPermAsync
-  - PermittedCommandStillWorksAsync
-  - ClientSetInfoDeniedReturnsNoPermAsync
+Setup: 无需实现
+GetLimitedUserConfig: 无需实现
+CreateLimitedUserAsync: 无需实现
+BasicWhoamiTest: 测试函数无需实现
+BasicListTest: 测试函数无需实现
+BasicUsersTest: 测试函数无需实现
+BasicGenPassTest: 测试函数无需实现
+InvalidSubcommand: 测试函数无需实现
+NoAuthValidation: 测试函数无需实现
+DeniedCommandReturnsNoPermAsync: 测试函数无需实现
+PermittedCommandStillWorksAsync: 测试函数无需实现
+ClientSetInfoDeniedReturnsNoPermAsync: 测试函数无需实现

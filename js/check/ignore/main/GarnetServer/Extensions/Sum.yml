@@ -1,3 +1,2 @@
-fn:
-  - Execute
-  - WriteSimpleString
+Execute: 无需实现
+WriteSimpleString: 无需实现

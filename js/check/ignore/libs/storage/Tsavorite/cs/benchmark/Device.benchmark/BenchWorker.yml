@@ -1,6 +1,5 @@
-fn:
-  - BenchmarkOperation
-  - FreeBuffer
-  - BenchWorker
-  - Callback
-  - Run
+BenchmarkOperation: 无需实现
+FreeBuffer: 无需实现
+BenchWorker: 无需实现
+Callback: 无需实现
+Run: 无需实现

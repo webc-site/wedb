@@ -1,21 +1,19 @@
-fn:
-  - Setup
-  - TearDown
-  - SubscribeAndPublish
-  - SendCommand
-  - ReadAvailable
-test:
-  - BasicSUBSCRIBE
-  - LargeSUBSCRIBE
-  - BasicPSUBSCRIBE
-  - BasicPUBSUB_CHANNELS
-  - BasicPUBSUB_NUMPAT
-  - BasicPUBSUB_NUMSUB
-  - PubSubModeRejectsDisallowedCommandsInResp2
-  - PubSubModeAllowsValidCommandsInResp2
-  - PubSubSelfPublishResp3NoLockError
-  - PubSubSelfPatternPublishResp3NoLockError
-  - PubSubModeAllowsRegularCommandsInResp3
-  - PubSubModeViaPsubscribeRejectsCommandsInResp2
-  - SelfPublishOnSubscribedChannelDoesNotCorruptConnection
-  - SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection
+Setup: 无需实现
+TearDown: 无需实现
+SubscribeAndPublish: 无需实现
+SendCommand: 无需实现
+ReadAvailable: 无需实现
+BasicSUBSCRIBE: 测试函数无需实现
+LargeSUBSCRIBE: 测试函数无需实现
+BasicPSUBSCRIBE: 测试函数无需实现
+BasicPUBSUB_CHANNELS: 测试函数无需实现
+BasicPUBSUB_NUMPAT: 测试函数无需实现
+BasicPUBSUB_NUMSUB: 测试函数无需实现
+PubSubModeRejectsDisallowedCommandsInResp2: 测试函数无需实现
+PubSubModeAllowsValidCommandsInResp2: 测试函数无需实现
+PubSubSelfPublishResp3NoLockError: 测试函数无需实现
+PubSubSelfPatternPublishResp3NoLockError: 测试函数无需实现
+PubSubModeAllowsRegularCommandsInResp3: 测试函数无需实现
+PubSubModeViaPsubscribeRejectsCommandsInResp2: 测试函数无需实现
+SelfPublishOnSubscribedChannelDoesNotCorruptConnection: 测试函数无需实现
+SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection: 测试函数无需实现

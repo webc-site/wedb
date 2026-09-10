@@ -1,42 +1,40 @@
-fn:
-  - Setup
-  - TearDown
-  - SimpleHyperLogLogArrayAddCount
-  - SingleHyperLogLogPCT
-  - Equals
-  - RandomString
-  - LongRandom
-  - RandomSubSeq
-  - RandomRedisValueSubseq
-  - ToList
-  - EstimationError
-  - ParseDumpValueLengthAndStart
-test:
-  - SimpleHyperLogLogAddCount
-  - SimpleHyperLogLogMerge
-  - HyperLogLogSimpleInvalidHLLTypeTest
-  - HyperLogLogSimple_PCT
-  - HyperLogLogArraySimple_PCT
-  - HyperLogLogUpdateReturnTest
-  - HyperLogLogMultiValueUpdateReturnTest
-  - HyperLogLogMultiCountTest
-  - HyperLogLogTestPFADDV2
-  - HyperLogLogPFADD_LTM
-  - HyperLogLogTestPFADD_DuplicatesV2
-  - HyperLogLogTestPFMERGE_SparseToSparseV2
-  - HyperLogLogTestPFMERGE_LTM_SparseToSparse
-  - HyperLogLogTestPFMERGE_SparseToDenseV2
-  - HyperLogLogTestPFMERGE_LTM_SparseToDense
-  - HyperLogLogTestPFMERGE_DenseToDenseV2
-  - HyperLogLogTestPFMERGE_LTM_DenseToDense
-  - HyperLogLogPFMerge_MultiHLLMergeV2
-  - CanRunHLLProcedureTest
-  - HyperLogLogRestoreCorruptedDumpPayloadIsRejected
-  - HyperLogLogRestoreZeroCrcDumpPayloadIsRejected
-  - HyperLogLogRestoreCorruptedSparseRlePayloadIsRejected
-  - HyperLogLogValidatorRejectsMalformedSparsePayload
-  - HyperLogLogValidatorRejectsSparseStreamCoverageMismatch
-  - HyperLogLogChecksumMalformedOnRestore
-  - HyperLogLogDumpVariantCoverage_SparseAndDenseRepresentations
-  - ParseDumpValueLengthAndStart_Covers6Bit14BitAnd32BitBranches
-  - HyperLogLogOperationsValidateStructuralIntegrity
+Setup: 无需实现
+TearDown: 无需实现
+SimpleHyperLogLogArrayAddCount: 无需实现
+SingleHyperLogLogPCT: 无需实现
+Equals: 无需实现
+RandomString: 无需实现
+LongRandom: 无需实现
+RandomSubSeq: 无需实现
+RandomRedisValueSubseq: 无需实现
+ToList: 无需实现
+EstimationError: 无需实现
+ParseDumpValueLengthAndStart: 无需实现
+SimpleHyperLogLogAddCount: 测试函数无需实现
+SimpleHyperLogLogMerge: 测试函数无需实现
+HyperLogLogSimpleInvalidHLLTypeTest: 测试函数无需实现
+HyperLogLogSimple_PCT: 测试函数无需实现
+HyperLogLogArraySimple_PCT: 测试函数无需实现
+HyperLogLogUpdateReturnTest: 测试函数无需实现
+HyperLogLogMultiValueUpdateReturnTest: 测试函数无需实现
+HyperLogLogMultiCountTest: 测试函数无需实现
+HyperLogLogTestPFADDV2: 测试函数无需实现
+HyperLogLogPFADD_LTM: 测试函数无需实现
+HyperLogLogTestPFADD_DuplicatesV2: 测试函数无需实现
+HyperLogLogTestPFMERGE_SparseToSparseV2: 测试函数无需实现
+HyperLogLogTestPFMERGE_LTM_SparseToSparse: 测试函数无需实现
+HyperLogLogTestPFMERGE_SparseToDenseV2: 测试函数无需实现
+HyperLogLogTestPFMERGE_LTM_SparseToDense: 测试函数无需实现
+HyperLogLogTestPFMERGE_DenseToDenseV2: 测试函数无需实现
+HyperLogLogTestPFMERGE_LTM_DenseToDense: 测试函数无需实现
+HyperLogLogPFMerge_MultiHLLMergeV2: 测试函数无需实现
+CanRunHLLProcedureTest: 测试函数无需实现
+HyperLogLogRestoreCorruptedDumpPayloadIsRejected: 测试函数无需实现
+HyperLogLogRestoreZeroCrcDumpPayloadIsRejected: 测试函数无需实现
+HyperLogLogRestoreCorruptedSparseRlePayloadIsRejected: 测试函数无需实现
+HyperLogLogValidatorRejectsMalformedSparsePayload: 测试函数无需实现
+HyperLogLogValidatorRejectsSparseStreamCoverageMismatch: 测试函数无需实现
+HyperLogLogChecksumMalformedOnRestore: 测试函数无需实现
+HyperLogLogDumpVariantCoverage_SparseAndDenseRepresentations: 测试函数无需实现
+ParseDumpValueLengthAndStart_Covers6Bit14BitAnd32BitBranches: 测试函数无需实现
+HyperLogLogOperationsValidateStructuralIntegrity: 测试函数无需实现

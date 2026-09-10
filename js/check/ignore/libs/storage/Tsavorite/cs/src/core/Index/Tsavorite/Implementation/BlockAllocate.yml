@@ -1,7 +1,6 @@
-fn:
-  - TryBlockAllocate
-  - TryAllocateRecord
-  - SaveAllocationForRetry
-  - TryAllocateRecordReadCache
-  - GetAllocationForRetry
-  - OnDispose
+TryBlockAllocate: 无需实现
+TryAllocateRecord: 无需实现
+SaveAllocationForRetry: 无需实现
+TryAllocateRecordReadCache: 无需实现
+GetAllocationForRetry: 无需实现
+OnDispose: 无需实现

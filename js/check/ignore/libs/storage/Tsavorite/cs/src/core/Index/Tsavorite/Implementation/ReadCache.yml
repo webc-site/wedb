@@ -1,6 +1,5 @@
-fn:
-  - ReadCacheNeedToWaitForEviction
-  - SpinWaitUntilRecordIsClosed
-  - ReadCacheAbandonRecord
-  - ReadCacheEvict
-  - ReadCacheEvictChain
+ReadCacheNeedToWaitForEviction: 无需实现
+SpinWaitUntilRecordIsClosed: 无需实现
+ReadCacheAbandonRecord: 无需实现
+ReadCacheEvict: 无需实现
+ReadCacheEvictChain: 无需实现

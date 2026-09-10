@@ -1,9 +1,8 @@
-fn:
-  - HandleImmediateRetryStatus
-  - HandleImmediateNonPendingRetryStatus
-  - HandleRetryStatus
-  - InternalRefresh
-  - SynchronizeEpoch
-  - HandleOperationStatus
-  - OnDisposeDiskRecord
-  - ResolveInitialIORecordSize
+HandleImmediateRetryStatus: 无需实现
+HandleImmediateNonPendingRetryStatus: 无需实现
+HandleRetryStatus: 无需实现
+InternalRefresh: 无需实现
+SynchronizeEpoch: 无需实现
+HandleOperationStatus: 无需实现
+OnDisposeDiskRecord: 无需实现
+ResolveInitialIORecordSize: 无需实现

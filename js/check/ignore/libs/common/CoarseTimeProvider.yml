@@ -1,2 +1,1 @@
-fn:
-  - GetUtcNow
+GetUtcNow: 无需实现

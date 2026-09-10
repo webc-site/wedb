@@ -1,5 +1,4 @@
-fn:
-  - GlobalSetup
-  - GlobalCleanup
-  - WriteDoubleAsBulkString
-  - WriteDoubleAsBulkStringByTranscoding
+GlobalSetup: 无需实现
+GlobalCleanup: 无需实现
+WriteDoubleAsBulkString: 无需实现
+WriteDoubleAsBulkStringByTranscoding: 无需实现

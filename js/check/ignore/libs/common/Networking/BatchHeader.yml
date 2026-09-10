@@ -1,2 +1,1 @@
-fn:
-  - SetNumMessagesProtocol
+SetNumMessagesProtocol: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - RecordedValuesEnumerable
-  - GetEnumerator
+RecordedValuesEnumerable: 无需实现
+GetEnumerator: 无需实现

@@ -1,11 +1,10 @@
-fn:
-  - Main
-  - RunFuzzExample
-  - WriteLine
-  - Write
-  - FailAndExit
-  - GetTarget
-  - WrappedDel
-  - when
-  - GetInput
-  - ReadSingleInput
+Main: 无需实现
+RunFuzzExample: 无需实现
+WriteLine: 无需实现
+Write: 无需实现
+FailAndExit: 无需实现
+GetTarget: 无需实现
+WrappedDel: 无需实现
+when: 无需实现
+GetInput: 无需实现
+ReadSingleInput: 无需实现

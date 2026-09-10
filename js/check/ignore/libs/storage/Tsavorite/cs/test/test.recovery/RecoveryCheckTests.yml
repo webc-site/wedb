@@ -1,22 +1,20 @@
-fn:
-  - BaseSetup
-  - RecreateDirectory
-  - BaseTearDown
-  - AssertEquivalentTailAddress
-  - ReadCompletionCallback
-  - Verify
-  - Setup
-  - TearDown
-  - SnapshotIterator
-  - OnStart
-  - OnException
-  - OnStop
-test:
-  - RecoveryCheck1
-  - RecoveryCheck2
-  - RecoveryCheck2Repeated
-  - RecoveryRollback
-  - RecoveryCheck3
-  - RecoveryCheck4
-  - RecoveryCheck5
-  - StreamingSnapshotBasicTest
+BaseSetup: 无需实现
+RecreateDirectory: 无需实现
+BaseTearDown: 无需实现
+AssertEquivalentTailAddress: 无需实现
+ReadCompletionCallback: 无需实现
+Verify: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+SnapshotIterator: 无需实现
+OnStart: 无需实现
+OnException: 无需实现
+OnStop: 无需实现
+RecoveryCheck1: 测试函数无需实现
+RecoveryCheck2: 测试函数无需实现
+RecoveryCheck2Repeated: 测试函数无需实现
+RecoveryRollback: 测试函数无需实现
+RecoveryCheck3: 测试函数无需实现
+RecoveryCheck4: 测试函数无需实现
+RecoveryCheck5: 测试函数无需实现
+StreamingSnapshotBasicTest: 测试函数无需实现

@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TransactionProcTest1
-  - TransactionProcTest2
-  - TransactionProcSampleUpdateTest
-  - TransactionProcSampleDeleteTest
-  - TransactionWriteExpiryProcTest
-  - TransactionObjectExpiryProcTest
-  - TransactionSortedSetRemoveProcTest
-  - TransactionDeleteProcTest
-  - TransactionObjectsOperTest
-  - TransactionListsOperTest
-  - TransactionSetProcTest
-  - TransactionHashProcTest
-  - TransactionProcFinalizeTest
-  - TransactionProcMSetPxTest
-  - TransactionProcMGetIfPMTest
+Setup: 无需实现
+TearDown: 无需实现
+TransactionProcTest1: 测试函数无需实现
+TransactionProcTest2: 测试函数无需实现
+TransactionProcSampleUpdateTest: 测试函数无需实现
+TransactionProcSampleDeleteTest: 测试函数无需实现
+TransactionWriteExpiryProcTest: 测试函数无需实现
+TransactionObjectExpiryProcTest: 测试函数无需实现
+TransactionSortedSetRemoveProcTest: 测试函数无需实现
+TransactionDeleteProcTest: 测试函数无需实现
+TransactionObjectsOperTest: 测试函数无需实现
+TransactionListsOperTest: 测试函数无需实现
+TransactionSetProcTest: 测试函数无需实现
+TransactionHashProcTest: 测试函数无需实现
+TransactionProcFinalizeTest: 测试函数无需实现
+TransactionProcMSetPxTest: 测试函数无需实现
+TransactionProcMGetIfPMTest: 测试函数无需实现

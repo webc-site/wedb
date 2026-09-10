@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - OnStart
-  - OnException
-  - OnStop
-  - IterationCollisionTestFunctions
-  - iterateAndVerify
-  - scanAndVerify
-  - LocalScan
-  - LocalUpdate
-test:
-  - SpanByteIterationBasicTest
-  - SpanByteIterationPushStopTest
-  - SpanByteIterationPushLockTest
-  - SpanByteIterateLookupSnapshotBasicCorrectness
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+OnStart: 无需实现
+OnException: 无需实现
+OnStop: 无需实现
+IterationCollisionTestFunctions: 无需实现
+iterateAndVerify: 无需实现
+scanAndVerify: 无需实现
+LocalScan: 无需实现
+LocalUpdate: 无需实现
+SpanByteIterationBasicTest: 测试函数无需实现
+SpanByteIterationPushStopTest: 测试函数无需实现
+SpanByteIterationPushLockTest: 测试函数无需实现
+SpanByteIterateLookupSnapshotBasicCorrectness: 测试函数无需实现

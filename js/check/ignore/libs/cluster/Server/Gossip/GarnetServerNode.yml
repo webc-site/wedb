@@ -1,11 +1,10 @@
-fn:
-  - GetClientTimeoutMilliseconds
-  - UpdateGossipSend
-  - UpdateGossipRecv
-  - ResetCts
-  - GetMostRecentConfig
-  - GossipAsync
-  - TryMeetAsync
-  - TryGossip
-  - GetConnectionInfo
-  - TryClusterPublish
+GetClientTimeoutMilliseconds: 无需实现
+UpdateGossipSend: 无需实现
+UpdateGossipRecv: 无需实现
+ResetCts: 无需实现
+GetMostRecentConfig: 无需实现
+GossipAsync: 无需实现
+TryMeetAsync: 无需实现
+TryGossip: 无需实现
+GetConnectionInfo: 无需实现
+TryClusterPublish: 无需实现

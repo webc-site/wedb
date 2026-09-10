@@ -1,4 +1,3 @@
-fn:
-  - GetOffsets
-  - IsSet
-  - PopCount
+GetOffsets: 无需实现
+IsSet: 无需实现
+PopCount: 无需实现

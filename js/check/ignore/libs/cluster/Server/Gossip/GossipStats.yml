@@ -1,6 +1,5 @@
-fn:
-  - UpdateMeetRequestsRecv
-  - UpdateMeetRequestsSucceed
-  - UpdateMeetRequestsFailed
-  - UpdateGossipBytesSend
-  - UpdateGossipBytesRecv
+UpdateMeetRequestsRecv: 无需实现
+UpdateMeetRequestsSucceed: 无需实现
+UpdateMeetRequestsFailed: 无需实现
+UpdateGossipBytesSend: 无需实现
+UpdateGossipBytesRecv: 无需实现

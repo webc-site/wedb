@@ -1,5 +1,2 @@
-# RemoveNextAdjacent/RemovePreviousAdjacent 为 C# List 相邻合并的指针操作辅助；
-# rust whlog flush 的 inflight 集合以等价区间合并逻辑实现，无逐元素相邻删除接口
-fn:
-  - RemoveNextAdjacent
-  - RemovePreviousAdjacent
+RemoveNextAdjacent: 无需实现
+RemovePreviousAdjacent: 无需实现

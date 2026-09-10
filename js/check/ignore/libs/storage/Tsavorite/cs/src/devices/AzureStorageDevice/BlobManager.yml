@@ -1,9 +1,8 @@
-fn:
-  - GetDelayBetweenRetries
-  - HandleStorageError
-  - StopAsync
-  - ConfirmLeaseIsGoodForAWhileAsync
-  - ConfirmLeaseIsGoodForAWhile
-  - AcquireOwnership
-  - RenewLeaseTask
-  - MaintenanceLoopAsync
+GetDelayBetweenRetries: 无需实现
+HandleStorageError: 无需实现
+StopAsync: 无需实现
+ConfirmLeaseIsGoodForAWhileAsync: 无需实现
+ConfirmLeaseIsGoodForAWhile: 无需实现
+AcquireOwnership: 无需实现
+RenewLeaseTask: 无需实现
+MaintenanceLoopAsync: 无需实现

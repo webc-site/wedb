@@ -1,18 +1,17 @@
-fn:
-  - ConfigureServerOptions
-  - GlobalSetup
-  - SetupBatch
-  - Populate
-  - SlowConsumeMessage
-  - MissingKey
-  - SendRandomized
-  - SetEx
-  - SetNx
-  - SetXx
-  - GetFound
-  - GetNotFound
-  - IncrementBy
-  - DecrementBy
-  - WriteKeyDigits
-  - NextRandomKeyId
-  - NumDigits
+ConfigureServerOptions: 无需实现
+GlobalSetup: 无需实现
+SetupBatch: 无需实现
+Populate: 无需实现
+SlowConsumeMessage: 无需实现
+MissingKey: 无需实现
+SendRandomized: 无需实现
+SetEx: 无需实现
+SetNx: 无需实现
+SetXx: 无需实现
+GetFound: 无需实现
+GetNotFound: 无需实现
+IncrementBy: 无需实现
+DecrementBy: 无需实现
+WriteKeyDigits: 无需实现
+NextRandomKeyId: 无需实现
+NumDigits: 无需实现

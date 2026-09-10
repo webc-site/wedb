@@ -1,6 +1,5 @@
-fn:
-  - EmbeddedNetworkHandler
-  - IsLocalConnection
-  - DisposeImpl
-  - TryClose
-  - OnNetworkReceiveWithoutTLS
+EmbeddedNetworkHandler: 无需实现
+IsLocalConnection: 无需实现
+DisposeImpl: 无需实现
+TryClose: 无需实现
+OnNetworkReceiveWithoutTLS: 无需实现

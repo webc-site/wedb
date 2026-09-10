@@ -1,16 +1,14 @@
-fn:
-  - Equals
-  - Setup
-  - TearDown
-  - ReadCallback
-  - dataCallbackDel
-  - WriteCallback
-  - DeleteCallback
-  - ReadModifyWriteCallback
-  - callbackDel
-  - InlineFilterCallback
-test:
-  - CheckInternalId
-  - VADD
-  - VSIM
-  - Recreate
+Equals: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ReadCallback: 无需实现
+dataCallbackDel: 无需实现
+WriteCallback: 无需实现
+DeleteCallback: 无需实现
+ReadModifyWriteCallback: 无需实现
+callbackDel: 无需实现
+InlineFilterCallback: 无需实现
+CheckInternalId: 测试函数无需实现
+VADD: 测试函数无需实现
+VSIM: 测试函数无需实现
+Recreate: 测试函数无需实现

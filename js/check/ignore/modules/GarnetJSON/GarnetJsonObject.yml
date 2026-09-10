@@ -1,11 +1,9 @@
-fn:
-  - Create
-  - Deserialize
-  - GarnetJsonObject
-  - CloneObject
-  - SerializeObject
-  - TryGet
-  - TryGetRoot
-  - TryGetToWriter
-  - GetParentPath
-  - GetPropertyName
+Create: 无需实现
+Deserialize: 无需实现
+CloneObject: 无需实现
+SerializeObject: 无需实现
+TryGet: 无需实现
+TryGetRoot: 无需实现
+TryGetToWriter: 无需实现
+GetParentPath: 无需实现
+GetPropertyName: 无需实现

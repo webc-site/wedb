@@ -1,5 +1,4 @@
-fn:
-  - Depart
-  - Shutdown
-  - WaitAtStart
-  - WaitAtEnd
+Depart: 无需实现
+Shutdown: 无需实现
+WaitAtStart: 无需实现
+WaitAtEnd: 无需实现

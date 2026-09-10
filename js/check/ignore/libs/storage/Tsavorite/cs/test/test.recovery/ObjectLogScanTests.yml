@@ -1,29 +1,27 @@
-fn:
-  - TestObjectValueComparerModulo
-  - Equals
-  - GetHashCode64
-  - OverflowTestKey
-  - Serialize
-  - WriteType
-  - CacheSerializedObjectData
-  - ClearSerializedObjectData
-  - Deserialize
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - OnStart
-  - OnException
-  - OnStop
-  - scanAndVerify
-  - OnCompleted
-  - OnError
-  - OnNext
-  - InitialWriter
-test:
-  - SerializedObjectCleanupTest
-  - CleanupWithoutCachedDataTest
-  - DiskWriteScanBasicTest
-  - BlittableScanJumpToBeginAddressTest
-  - ObjectScanCursorTest
-  - ObjectScanCursorFilterTest
+TestObjectValueComparerModulo: 无需实现
+Equals: 无需实现
+GetHashCode64: 无需实现
+OverflowTestKey: 无需实现
+Serialize: 无需实现
+WriteType: 无需实现
+CacheSerializedObjectData: 无需实现
+ClearSerializedObjectData: 无需实现
+Deserialize: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+OnStart: 无需实现
+OnException: 无需实现
+OnStop: 无需实现
+scanAndVerify: 无需实现
+OnCompleted: 无需实现
+OnError: 无需实现
+OnNext: 无需实现
+InitialWriter: 无需实现
+SerializedObjectCleanupTest: 测试函数无需实现
+CleanupWithoutCachedDataTest: 测试函数无需实现
+DiskWriteScanBasicTest: 测试函数无需实现
+BlittableScanJumpToBeginAddressTest: 测试函数无需实现
+ObjectScanCursorTest: 测试函数无需实现
+ObjectScanCursorFilterTest: 测试函数无需实现

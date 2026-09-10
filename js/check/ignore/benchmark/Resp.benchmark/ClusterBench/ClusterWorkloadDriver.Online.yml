@@ -1,8 +1,7 @@
-fn:
-  - RunWorkerPoolOnline
-  - PrintOnlineHeader
-  - MonitorOnline
-  - PrintWorkerPoolFinalReport
-  - RunOnline
-  - PrintFinalReport
-  - ReportOnlineIteration
+RunWorkerPoolOnline: 无需实现
+PrintOnlineHeader: 无需实现
+MonitorOnline: 无需实现
+PrintWorkerPoolFinalReport: 无需实现
+RunOnline: 无需实现
+PrintFinalReport: 无需实现
+ReportOnlineIteration: 无需实现

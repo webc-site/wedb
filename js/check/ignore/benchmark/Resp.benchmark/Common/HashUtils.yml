@@ -1,3 +1,2 @@
-fn:
-  - StableHash
-  - StableHashUnsafe
+StableHash: 无需实现
+StableHashUnsafe: 无需实现

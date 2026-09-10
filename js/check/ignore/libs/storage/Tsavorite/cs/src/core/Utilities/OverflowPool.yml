@@ -1,3 +1,2 @@
-fn:
-  - TryGet
-  - disposer
+TryGet: 无需实现
+disposer: 无需实现

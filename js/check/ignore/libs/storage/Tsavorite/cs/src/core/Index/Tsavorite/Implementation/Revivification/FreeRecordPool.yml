@@ -1,9 +1,8 @@
-fn:
-  - SetEmptyAtomic
-  - MergeTo
-  - GetRecordSize
-  - TryTakeOversize
-  - ScanForEmpty
-  - GetBinIndex
-  - TryAddToBin
-  - GetRecord
+SetEmptyAtomic: 无需实现
+MergeTo: 无需实现
+GetRecordSize: 无需实现
+TryTakeOversize: 无需实现
+ScanForEmpty: 无需实现
+GetBinIndex: 无需实现
+TryAddToBin: 无需实现
+GetRecord: 无需实现

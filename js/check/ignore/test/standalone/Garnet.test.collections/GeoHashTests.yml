@@ -1,3 +1,2 @@
-test:
-  - CanEncodeAndDecodeCoordinates
-  - CanEncodeAndDecodeCoordinatesWithGeoHashCode
+CanEncodeAndDecodeCoordinates: 测试函数无需实现
+CanEncodeAndDecodeCoordinatesWithGeoHashCode: 测试函数无需实现

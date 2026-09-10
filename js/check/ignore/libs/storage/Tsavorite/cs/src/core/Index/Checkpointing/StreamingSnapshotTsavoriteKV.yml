@@ -1,8 +1,7 @@
-fn:
-  - ScanPhase1Functions
-  - OnException
-  - OnStart
-  - OnStop
-  - StreamingSnapshotScanPhase1
-  - ScanPhase2Functions
-  - StreamingSnapshotScanPhase2
+ScanPhase1Functions: 无需实现
+OnException: 无需实现
+OnStart: 无需实现
+OnStop: 无需实现
+StreamingSnapshotScanPhase1: 无需实现
+ScanPhase2Functions: 无需实现
+StreamingSnapshotScanPhase2: 无需实现

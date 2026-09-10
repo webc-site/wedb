@@ -1,4 +1,3 @@
-test:
-  - PublishedItemIsReadable
-  - CompletedChannelRejectsPublishesAndReleasesWaiters
-  - CompleteAndWaitForConsumerTaskDrainsBeforeReturning
+PublishedItemIsReadable: 测试函数无需实现
+CompletedChannelRejectsPublishesAndReleasesWaiters: 测试函数无需实现
+CompleteAndWaitForConsumerTaskDrainsBeforeReturning: 测试函数无需实现

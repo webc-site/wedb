@@ -1,24 +1,22 @@
-fn:
-  - AssertEqualsOracle
-test:
-  - EmptyBitmap_HasZeroCardinalityAndIsEmpty
-  - SetBit_SetsAndReturnsPrevious
-  - ChunkBoundaryOffsets_AllRoundTrip
-  - Promotion_ArrayToBitmap_AtThreshold
-  - Demotion_BitmapToArray_AfterRemoves
-  - Oscillation_AcrossThreshold_PreservesCorrectness
-  - RandomDenseSingleChunk_MatchesOracle
-  - SparseAcrossChunks_MatchesOracle
-  - SmallUniverse_BitPos_MatchesOracle
-  - BitPos_OnlyBit0_Set
-  - BitPos_FullFirstChunk_FindsZeroInSecond
-  - BitPos_GapBetweenChunks_FindsGap
-  - BitPos_MaxValue_Set
-  - BitPos_NoSetBits_ReturnsMinusOne
-  - Serialize_RoundTrip_Matches
-  - Deserialize_BadVersion_Throws
-  - Deserialize_DescendingChunkKeys_Throws
-  - Deserialize_BadCardinality_Throws
-  - Clone_IsDeep
-  - Enumerate_Ascending
-  - Clear_ResetsState
+AssertEqualsOracle: 无需实现
+EmptyBitmap_HasZeroCardinalityAndIsEmpty: 测试函数无需实现
+SetBit_SetsAndReturnsPrevious: 测试函数无需实现
+ChunkBoundaryOffsets_AllRoundTrip: 测试函数无需实现
+Promotion_ArrayToBitmap_AtThreshold: 测试函数无需实现
+Demotion_BitmapToArray_AfterRemoves: 测试函数无需实现
+Oscillation_AcrossThreshold_PreservesCorrectness: 测试函数无需实现
+RandomDenseSingleChunk_MatchesOracle: 测试函数无需实现
+SparseAcrossChunks_MatchesOracle: 测试函数无需实现
+SmallUniverse_BitPos_MatchesOracle: 测试函数无需实现
+BitPos_OnlyBit0_Set: 测试函数无需实现
+BitPos_FullFirstChunk_FindsZeroInSecond: 测试函数无需实现
+BitPos_GapBetweenChunks_FindsGap: 测试函数无需实现
+BitPos_MaxValue_Set: 测试函数无需实现
+BitPos_NoSetBits_ReturnsMinusOne: 测试函数无需实现
+Serialize_RoundTrip_Matches: 测试函数无需实现
+Deserialize_BadVersion_Throws: 测试函数无需实现
+Deserialize_DescendingChunkKeys_Throws: 测试函数无需实现
+Deserialize_BadCardinality_Throws: 测试函数无需实现
+Clone_IsDeep: 测试函数无需实现
+Enumerate_Ascending: 测试函数无需实现
+Clear_ResetsState: 测试函数无需实现

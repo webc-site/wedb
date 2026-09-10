@@ -1,14 +1,10 @@
-# C# TsavoriteLog.Chunked 分块入队族（EnqueueChunkedObject/Span、ChunkWriteState
-# 及其指针序列化辅助）为泛型序列化管道；rust 记录落盘由 wrecord 编码 + whlog
-# append 承担（key/value 组件化编码等价），无逐组件指针写器
-fn:
-  - EnqueueChunkedObject
-  - EnqueueChunkedSpan
-  - CreateChunkWriteState
-  - AnyRemaining
-  - CopyComponent
-  - WriteOneRecord
-  - MaterializeInput
-  - AllocateBlockPartialForTest
-  - AllocateBlockPartial
-  - Write
+EnqueueChunkedObject: 无需实现
+EnqueueChunkedSpan: 无需实现
+CreateChunkWriteState: 无需实现
+AnyRemaining: 无需实现
+CopyComponent: 无需实现
+WriteOneRecord: 无需实现
+MaterializeInput: 无需实现
+AllocateBlockPartialForTest: 无需实现
+AllocateBlockPartial: 无需实现
+Write: 无需实现

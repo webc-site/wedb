@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - VerifyObjectStoreSetMembers
-test:
-  - IndexGrowthTest
-  - ObjectStoreIndexGrowthTest
-  - IndexGrowthTestWithDiskReadAndCheckpoint
-  - ObjectStoreIndexGrowthTestWithDiskReadAndCheckpoint
+Setup: 无需实现
+TearDown: 无需实现
+VerifyObjectStoreSetMembers: 无需实现
+IndexGrowthTest: 测试函数无需实现
+ObjectStoreIndexGrowthTest: 测试函数无需实现
+IndexGrowthTestWithDiskReadAndCheckpoint: 测试函数无需实现
+ObjectStoreIndexGrowthTestWithDiskReadAndCheckpoint: 测试函数无需实现

@@ -1,13 +1,12 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - SetupOperation
-  - GlobalCleanup
-  - ScriptLoad
-  - ScriptExistsTrue
-  - ScriptExistsFalse
-  - Eval
-  - EvalSha
-  - SmallScript
-  - LargeScript
-  - ArrayReturn
+LuaParamsProvider: 无需实现
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+GlobalCleanup: 无需实现
+ScriptLoad: 无需实现
+ScriptExistsTrue: 无需实现
+ScriptExistsFalse: 无需实现
+Eval: 无需实现
+EvalSha: 无需实现
+SmallScript: 无需实现
+LargeScript: 无需实现
+ArrayReturn: 无需实现

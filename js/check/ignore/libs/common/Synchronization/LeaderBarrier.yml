@@ -1,2 +1,1 @@
-fn:
-  - TrySignalOrWait
+TrySignalOrWait: 无需实现

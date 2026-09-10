@@ -1,20 +1,19 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - SAddRem
-  - SAddPopSingle
-  - SCard
-  - SMembers
-  - SMoveTwice
-  - SIsMember
-  - SMIsMember
-  - SRandMemberSingle
-  - SScan
-  - SUnion
-  - SUnionStore
-  - SInter
-  - SInterStore
-  - SInterCard
-  - SDiff
-  - SDiffStore
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+SAddRem: 无需实现
+SAddPopSingle: 无需实现
+SCard: 无需实现
+SMembers: 无需实现
+SMoveTwice: 无需实现
+SIsMember: 无需实现
+SMIsMember: 无需实现
+SRandMemberSingle: 无需实现
+SScan: 无需实现
+SUnion: 无需实现
+SUnionStore: 无需实现
+SInter: 无需实现
+SInterStore: 无需实现
+SInterCard: 无需实现
+SDiff: 无需实现
+SDiffStore: 无需实现

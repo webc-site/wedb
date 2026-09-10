@@ -1,22 +1,20 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - InternalSetup
-  - TearDown
-  - OnTearDown
-  - ObjectPushIterationTestFunctions
-  - OnStart
-  - OnException
-  - OnStop
-  - iterateAndVerify
-  - scanAndVerify
-  - LocalScan
-  - LocalUpdate
-  - WriteLine
-  - RunTest
-test:
-  - ObjectIterationBasicTest
-  - ObjectIterationPushStopTest
-  - ObjectIterationPushLockTest
-  - InsDelIns_LocalMemory
-  - InsDelIns_MLSD
+Setup: 无需实现
+DeleteDirectory: 无需实现
+InternalSetup: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+ObjectPushIterationTestFunctions: 无需实现
+OnStart: 无需实现
+OnException: 无需实现
+OnStop: 无需实现
+iterateAndVerify: 无需实现
+scanAndVerify: 无需实现
+LocalScan: 无需实现
+LocalUpdate: 无需实现
+WriteLine: 无需实现
+RunTest: 无需实现
+ObjectIterationBasicTest: 测试函数无需实现
+ObjectIterationPushStopTest: 测试函数无需实现
+ObjectIterationPushLockTest: 测试函数无需实现
+InsDelIns_LocalMemory: 测试函数无需实现
+InsDelIns_MLSD: 测试函数无需实现

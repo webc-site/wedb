@@ -1,38 +1,36 @@
-fn:
-  - TrackingRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - RecordDispose
-  - NeedCopyUpdate
-  - GetRMWInitialFieldInfo
-  - InitialUpdater
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - UpsertKey
-  - ObjTrackingRecordTriggers
-  - CopyUpdater
-  - UpsertObj
-test:
-  - DisposeOnMutableDeleteTest
-  - DisposeOnImmutableDeleteTest
-  - DisposeOnImmutableDeleteMultipleTest
-  - DisposeOnMutableExpireAndStopTest
-  - DisposeOnImmutableExpireAndStopTest
-  - DisposeOnMutableExpireAndResumeFitsTest
-  - DisposeOnMutableExpireAndResumeDoesNotFitTest
-  - DisposeOnImmutableExpireAndResumeTest
-  - ObjDisposeOnMutableDeleteTest
-  - ObjDisposeOnImmutableDeleteTest
-  - ObjDisposeOnImmutableDeleteMultipleTest
-  - ObjDisposeOnMutableExpireAndStopTest
-  - ObjDisposeOnImmutableExpireAndStopTest
-  - ObjDisposeOnMutableExpireAndResumeTest
-  - ObjDisposeOnImmutableExpireAndResumeTest
-  - ObjDisposeOnIPUFailThenNCUExpireAndStopTest
-  - ObjDisposeOnIPUFailThenNCUExpireAndResumeTest
-  - ObjDisposeOnIPUFailThenCUExpireAndStopTest
+TrackingRecordTriggers: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+OnEvict: 无需实现
+OnRecovery: 无需实现
+OnCheckpoint: 无需实现
+RecordDispose: 无需实现
+NeedCopyUpdate: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+InitialUpdater: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+UpsertKey: 无需实现
+ObjTrackingRecordTriggers: 无需实现
+CopyUpdater: 无需实现
+UpsertObj: 无需实现
+DisposeOnMutableDeleteTest: 测试函数无需实现
+DisposeOnImmutableDeleteTest: 测试函数无需实现
+DisposeOnImmutableDeleteMultipleTest: 测试函数无需实现
+DisposeOnMutableExpireAndStopTest: 测试函数无需实现
+DisposeOnImmutableExpireAndStopTest: 测试函数无需实现
+DisposeOnMutableExpireAndResumeFitsTest: 测试函数无需实现
+DisposeOnMutableExpireAndResumeDoesNotFitTest: 测试函数无需实现
+DisposeOnImmutableExpireAndResumeTest: 测试函数无需实现
+ObjDisposeOnMutableDeleteTest: 测试函数无需实现
+ObjDisposeOnImmutableDeleteTest: 测试函数无需实现
+ObjDisposeOnImmutableDeleteMultipleTest: 测试函数无需实现
+ObjDisposeOnMutableExpireAndStopTest: 测试函数无需实现
+ObjDisposeOnImmutableExpireAndStopTest: 测试函数无需实现
+ObjDisposeOnMutableExpireAndResumeTest: 测试函数无需实现
+ObjDisposeOnImmutableExpireAndResumeTest: 测试函数无需实现
+ObjDisposeOnIPUFailThenNCUExpireAndStopTest: 测试函数无需实现
+ObjDisposeOnIPUFailThenNCUExpireAndResumeTest: 测试函数无需实现
+ObjDisposeOnIPUFailThenCUExpireAndStopTest: 测试函数无需实现

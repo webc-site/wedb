@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - StringAndObjectRoundTrip
-  - SaveRecoverRoundTrip
-  - LowMemoryEvictionChurn
-  - ObjectStoreEvictionChurn
+Setup: 无需实现
+TearDown: 无需实现
+StringAndObjectRoundTrip: 测试函数无需实现
+SaveRecoverRoundTrip: 测试函数无需实现
+LowMemoryEvictionChurn: 测试函数无需实现
+ObjectStoreEvictionChurn: 测试函数无需实现

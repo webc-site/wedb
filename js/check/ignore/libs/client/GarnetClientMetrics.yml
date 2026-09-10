@@ -1,2 +1,1 @@
-fn:
-  - GetLatencyPercentiles
+GetLatencyPercentiles: 无需实现

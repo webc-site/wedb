@@ -1,4 +1,3 @@
-fn:
-  - IsReadOperation
-  - IsWriteOperation
-  - GetCorrespondingReadOperation
+IsReadOperation: 无需实现
+IsWriteOperation: 无需实现
+GetCorrespondingReadOperation: 无需实现

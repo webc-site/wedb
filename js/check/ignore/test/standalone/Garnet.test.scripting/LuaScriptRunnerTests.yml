@@ -1,18 +1,16 @@
-fn:
-  - DebugClassicAssertIsTrue
-  - DebugClassicAssertAreEqual
-  - BeginScope
-  - IsEnabled
-test:
-  - CannotRunUnsafeScript
-  - LoadAndLoadStringNotExposed
-  - CanLoadScript
-  - CanRunScript
-  - KeysAndArgsCleared
-  - LuaLimittedManaged
-  - RedisLogDisabled
-  - RedisLogSilent
-  - AllowedFunctions
-  - InternalFunctionsIgnoredInAllowedFunctions
-  - Issue1165
-  - NeedsDisposeCheck
+DebugClassicAssertIsTrue: 无需实现
+DebugClassicAssertAreEqual: 无需实现
+BeginScope: 无需实现
+IsEnabled: 无需实现
+CannotRunUnsafeScript: 测试函数无需实现
+LoadAndLoadStringNotExposed: 测试函数无需实现
+CanLoadScript: 测试函数无需实现
+CanRunScript: 测试函数无需实现
+KeysAndArgsCleared: 测试函数无需实现
+LuaLimittedManaged: 测试函数无需实现
+RedisLogDisabled: 测试函数无需实现
+RedisLogSilent: 测试函数无需实现
+AllowedFunctions: 测试函数无需实现
+InternalFunctionsIgnoredInAllowedFunctions: 测试函数无需实现
+Issue1165: 测试函数无需实现
+NeedsDisposeCheck: 测试函数无需实现

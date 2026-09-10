@@ -1,7 +1,6 @@
-fn:
-  - Worker
-  - SelectRandomProvider
-  - RunOnline
-  - RunOffline
-  - GetMetrics
-  - GetProvider
+Worker: 无需实现
+SelectRandomProvider: 无需实现
+RunOnline: 无需实现
+RunOffline: 无需实现
+GetMetrics: 无需实现
+GetProvider: 无需实现

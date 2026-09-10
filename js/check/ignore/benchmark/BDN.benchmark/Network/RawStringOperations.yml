@@ -1,11 +1,10 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - SetEx
-  - SetNx
-  - SetXx
-  - GetFound
-  - GetNotFound
-  - IncrementBy
-  - DecrementBy
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+SetEx: 无需实现
+SetNx: 无需实现
+SetXx: 无需实现
+GetFound: 无需实现
+GetNotFound: 无需实现
+IncrementBy: 无需实现
+DecrementBy: 无需实现

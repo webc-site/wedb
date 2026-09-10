@@ -1,5 +1,4 @@
-fn:
-  - GetBitmapSize
-  - GlobalSetup_Unary
-  - BitOperation_NOT
-  - GlobalCleanup
+GetBitmapSize: 无需实现
+GlobalSetup_Unary: 无需实现
+BitOperation_NOT: 无需实现
+GlobalCleanup: 无需实现

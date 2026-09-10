@@ -1,9 +1,8 @@
-fn:
-  - ObjectLogFilePositionInfo
-  - Serialize
-  - Deserialize
-  - SetReuseObjectIdForSize
-  - GetReuseObjectIdForSize
-  - Advance
-  - AdvanceToNextSegment
-  - ToString
+ObjectLogFilePositionInfo: 无需实现
+Serialize: 无需实现
+Deserialize: 无需实现
+SetReuseObjectIdForSize: 无需实现
+GetReuseObjectIdForSize: 无需实现
+Advance: 无需实现
+AdvanceToNextSegment: 无需实现
+ToString: 无需实现

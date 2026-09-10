@@ -1,18 +1,17 @@
-fn:
-  - WriteAsciiBulkString
-  - WriteAsciiDirect
-  - WriteArrayLength
-  - TryWriteBulkString
-  - TryWriteDirect
-  - WriteInt32
-  - WriteInt64
-  - WriteInt64AsBulkString
-  - WriteIntegerFromBytes
-  - WriteMapLength
-  - WriteZero
-  - WriteOne
-  - WriteNull
-  - WriteNullArray
-  - WritePushLength
-  - WriteSetLength
-  - WriteUtf8BulkString
+WriteAsciiBulkString: 无需实现
+WriteAsciiDirect: 无需实现
+WriteArrayLength: 无需实现
+TryWriteBulkString: 无需实现
+TryWriteDirect: 无需实现
+WriteInt32: 无需实现
+WriteInt64: 无需实现
+WriteInt64AsBulkString: 无需实现
+WriteIntegerFromBytes: 无需实现
+WriteMapLength: 无需实现
+WriteZero: 无需实现
+WriteOne: 无需实现
+WriteNull: 无需实现
+WriteNullArray: 无需实现
+WritePushLength: 无需实现
+WriteSetLength: 无需实现
+WriteUtf8BulkString: 无需实现

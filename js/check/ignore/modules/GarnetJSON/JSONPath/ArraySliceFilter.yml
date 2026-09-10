@@ -1,3 +1,2 @@
-fn:
-  - ExecuteFilter
-  - IsValid
+ExecuteFilter: 无需实现
+IsValid: 无需实现

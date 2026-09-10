@@ -1,18 +1,17 @@
-fn:
-  - OnlineReqGen
-  - InitializeRNG
-  - GenerateKeyRandom
-  - GenerateKeyBytesRandom
-  - GenerateKey
-  - GenerateKeyBytes
-  - GenerateObjectKeyRandom
-  - GenerateObjectKeyBytesRandom
-  - GenerateExactKey
-  - GenerateObjectEntry
-  - GenerateObjectEntryBytesRandom
-  - GenerateObjectEntryScore
-  - GenerateObjectEntryScoreBytes
-  - GenerateValue
-  - GenerateValueBytes
-  - PadRandom
-  - GenerateBitOffset
+OnlineReqGen: 无需实现
+InitializeRNG: 无需实现
+GenerateKeyRandom: 无需实现
+GenerateKeyBytesRandom: 无需实现
+GenerateKey: 无需实现
+GenerateKeyBytes: 无需实现
+GenerateObjectKeyRandom: 无需实现
+GenerateObjectKeyBytesRandom: 无需实现
+GenerateExactKey: 无需实现
+GenerateObjectEntry: 无需实现
+GenerateObjectEntryBytesRandom: 无需实现
+GenerateObjectEntryScore: 无需实现
+GenerateObjectEntryScoreBytes: 无需实现
+GenerateValue: 无需实现
+GenerateValueBytes: 无需实现
+PadRandom: 无需实现
+GenerateBitOffset: 无需实现

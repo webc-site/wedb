@@ -1,6 +1,5 @@
-fn:
-  - SendCommand
-  - SendCommandChunks
-  - SendCommands
-  - LightReceive
-  - BuildRequest
+SendCommand: 无需实现
+SendCommandChunks: 无需实现
+SendCommands: 无需实现
+LightReceive: 无需实现
+BuildRequest: 无需实现

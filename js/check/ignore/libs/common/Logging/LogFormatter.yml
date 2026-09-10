@@ -1,3 +1,2 @@
-fn:
-  - FormatDate
-  - FormatTime
+FormatDate: 无需实现
+FormatTime: 无需实现

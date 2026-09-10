@@ -1,5 +1,4 @@
-fn:
-  - RecoverFuzzyIndexAsync
-  - InitializeMainIndexRecovery
-  - BeginMainIndexRecovery
-  - AsyncPageReadCallback
+RecoverFuzzyIndexAsync: 无需实现
+InitializeMainIndexRecovery: 无需实现
+BeginMainIndexRecovery: 无需实现
+AsyncPageReadCallback: 无需实现

@@ -1,43 +1,40 @@
-fn:
-  - TryWriteMapLength
-  - TryWritePushLength
-  - TryWritePaddedBulkStringLength
-  - TryWriteArrayLength
-  - TryWriteSetLength
-  - TryWriteArrayItem
-  - TryWriteNull
-  - TryWriteNullArray
-  - TryWriteSimpleString
-  - TryWriteInt64AsSimpleString
-  - TryWriteDirect
-  - TryWriteAsciiDirect
-  - TryWriteBulkStringLength
-  - TryWriteBulkString
-  - TryWriteAsciiBulkString
-  - TryWriteUtf8BulkString
-  - TryWriteNewLine
-  - GetBulkStringLength
-  - TryWriteInt32
-  - TryWriteInt64
-  - TryWriteIntegerFromBytes
-  - TryWriteInt32AsBulkString
-  - TryWriteInt64AsBulkString
-  - GetIntegerAsBulkStringLength
-  - TryWriteDoubleBulkString
-  - TryWriteDoubleNumeric
-  - TryWriteInfinity
-  - TryWriteInfinity_Numeric
-  - TryWriteNaN
-  - TryWriteNaN_Numeric
-  - TryWriteEmptyArray
-  - TryWriteEmptyMap
-  - TryWriteEmptySet
-  - TryWriteVerbatimString
-  - TryWriteVerbatimStringHeader
-  - TryWriteTrue
-  - TryWriteFalse
-  - TryWriteZero
-  - TryWriteOne
-  - WriteEtagValArray
-  - WriteNewline
-  - WriteBytes
+TryWriteMapLength: 无需实现
+TryWritePushLength: 无需实现
+TryWritePaddedBulkStringLength: 无需实现
+TryWriteArrayLength: 无需实现
+TryWriteSetLength: 无需实现
+TryWriteArrayItem: 无需实现
+TryWriteNull: 无需实现
+TryWriteNullArray: 无需实现
+TryWriteSimpleString: 无需实现
+TryWriteInt64AsSimpleString: 无需实现
+TryWriteDirect: 无需实现
+TryWriteAsciiDirect: 无需实现
+TryWriteBulkStringLength: 无需实现
+TryWriteBulkString: 无需实现
+TryWriteAsciiBulkString: 无需实现
+TryWriteUtf8BulkString: 无需实现
+TryWriteNewLine: 无需实现
+GetBulkStringLength: 无需实现
+TryWriteInt32: 无需实现
+TryWriteInt64: 无需实现
+TryWriteIntegerFromBytes: 无需实现
+TryWriteInt32AsBulkString: 无需实现
+TryWriteInt64AsBulkString: 无需实现
+GetIntegerAsBulkStringLength: 无需实现
+TryWriteInfinity: 无需实现
+TryWriteInfinity_Numeric: 无需实现
+TryWriteNaN: 无需实现
+TryWriteNaN_Numeric: 无需实现
+TryWriteEmptyArray: 无需实现
+TryWriteEmptyMap: 无需实现
+TryWriteEmptySet: 无需实现
+TryWriteVerbatimString: 无需实现
+TryWriteVerbatimStringHeader: 无需实现
+TryWriteTrue: 无需实现
+TryWriteFalse: 无需实现
+TryWriteZero: 无需实现
+TryWriteOne: 无需实现
+WriteEtagValArray: 无需实现
+WriteNewline: 无需实现
+WriteBytes: 无需实现

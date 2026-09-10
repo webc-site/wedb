@@ -1,7 +1,6 @@
-fn:
-  - SetupInstance
-  - AddSlotRange
-  - PopulateKeys
-  - ForceReplicaRole
-  - PreSeedSequenceNumbers
-  - Consume
+SetupInstance: 无需实现
+AddSlotRange: 无需实现
+PopulateKeys: 无需实现
+ForceReplicaRole: 无需实现
+PreSeedSequenceNumbers: 无需实现
+Consume: 无需实现

@@ -1,10 +1,9 @@
-fn:
-  - TryWriteLock
-  - WriteLock
-  - WriteUnlock
-  - TryReadLock
-  - ReadLock
-  - ReadUnlock
-  - TryUpgradeReadLock
-  - DowngradeWriteLock
-  - TryCloseLock
+TryWriteLock: 无需实现
+WriteLock: 无需实现
+WriteUnlock: 无需实现
+TryReadLock: 无需实现
+ReadLock: 无需实现
+ReadUnlock: 无需实现
+TryUpgradeReadLock: 无需实现
+DowngradeWriteLock: 无需实现
+TryCloseLock: 无需实现

@@ -1,7 +1,5 @@
-# r10 深审后语义吸收/死模块清理：对应 rust 能力已由内部化实现承接，详见提交记录
-fn:
-  - OnRecovery
-  - GetCommitMetadata
-  - ListCommits
-  - RemoveCommit
-  - RemoveAllCommits
+OnRecovery: 无需实现
+GetCommitMetadata: 无需实现
+ListCommits: 无需实现
+RemoveCommit: 无需实现
+RemoveAllCommits: 无需实现

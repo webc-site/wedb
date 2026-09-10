@@ -1,6 +1,1 @@
-fn:
-  - TryParseUInt32
-  - TryParseBit
-  - NeedInitialUpdate
-  - Updater
-  - TryParseArgs
+NeedInitialUpdate: 无需实现

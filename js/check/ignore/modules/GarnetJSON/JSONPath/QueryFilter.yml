@@ -1,3 +1,2 @@
-fn:
-  - QueryFilter
-  - ExecuteFilter
+QueryFilter: 无需实现
+ExecuteFilter: 无需实现

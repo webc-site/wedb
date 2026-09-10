@@ -1,4 +1,3 @@
-fn:
-  - ThrowDisposed
-  - ReturnBuffer
-  - SeaaBuffer_Completed
+ThrowDisposed: 无需实现
+ReturnBuffer: 无需实现
+SeaaBuffer_Completed: 无需实现

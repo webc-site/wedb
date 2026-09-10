@@ -1,12 +1,11 @@
-fn:
-  - KvNumaPinning
-  - PinWorker
-  - PinToCpu
-  - PinSetupOrReporter
-  - LinuxSchedSetAffinity
-  - DiscoverLinuxNodeCpus
-  - ParseCpuList
-  - sched_setaffinity
-  - sched_getaffinity
-  - LinuxSchedGetAffinity
-  - DescribeWorkerCpus
+KvNumaPinning: 无需实现
+PinWorker: 无需实现
+PinToCpu: 无需实现
+PinSetupOrReporter: 无需实现
+LinuxSchedSetAffinity: 无需实现
+DiscoverLinuxNodeCpus: 无需实现
+ParseCpuList: 无需实现
+sched_setaffinity: 无需实现
+sched_getaffinity: 无需实现
+LinuxSchedGetAffinity: 无需实现
+DescribeWorkerCpus: 无需实现

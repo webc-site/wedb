@@ -1,26 +1,24 @@
-fn:
-  - Setup
-  - TearDown
-  - VerifyCommandInfo
-  - VerifyCommandDocs
-  - RegisterCustomCommands
-  - DynamicallyRegisterCustomCommands
-  - CreateTestLibrary
-  - CommandGetKeysTest
-  - CommandGetKeysAndFlagsTest
-test:
-  - CommandsInfoCoverageTest
-  - CommandsDocsCoverageTest
-  - RespCommandFlagAliasParsesTest
-  - SimpleCommandsInfoTest
-  - CommandTest
-  - CommandInfoTest
-  - CommandDocsTest
-  - CommandCountTest
-  - CommandUnknownSubcommandTest
-  - CommandInfoWithCommandNamesTest
-  - CommandDocsWithCommandNamesTest
-  - CommandInfoWithCustomCommandNamesTest
-  - CommandDocsWithCustomCommandNamesTest
-  - AofIndependentCommandsTest
-  - CommandGetKeysInvalidInputTest
+Setup: 无需实现
+TearDown: 无需实现
+VerifyCommandInfo: 无需实现
+VerifyCommandDocs: 无需实现
+RegisterCustomCommands: 无需实现
+DynamicallyRegisterCustomCommands: 无需实现
+CreateTestLibrary: 无需实现
+CommandGetKeysTest: 无需实现
+CommandGetKeysAndFlagsTest: 无需实现
+CommandsInfoCoverageTest: 测试函数无需实现
+CommandsDocsCoverageTest: 测试函数无需实现
+RespCommandFlagAliasParsesTest: 测试函数无需实现
+SimpleCommandsInfoTest: 测试函数无需实现
+CommandTest: 测试函数无需实现
+CommandInfoTest: 测试函数无需实现
+CommandDocsTest: 测试函数无需实现
+CommandCountTest: 测试函数无需实现
+CommandUnknownSubcommandTest: 测试函数无需实现
+CommandInfoWithCommandNamesTest: 测试函数无需实现
+CommandDocsWithCommandNamesTest: 测试函数无需实现
+CommandInfoWithCustomCommandNamesTest: 测试函数无需实现
+CommandDocsWithCustomCommandNamesTest: 测试函数无需实现
+AofIndependentCommandsTest: 测试函数无需实现
+CommandGetKeysInvalidInputTest: 测试函数无需实现

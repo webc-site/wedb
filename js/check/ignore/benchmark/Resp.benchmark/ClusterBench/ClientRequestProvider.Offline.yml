@@ -1,15 +1,14 @@
-fn:
-  - PrepareBuffers
-  - SetWorkload
-  - BuildWorkload
-  - ComputeOfflineBufferSize
-  - GenerateRandomBatch
-  - AppendCommand
-  - GenerateReadBatchForKeys
-  - LoadData
-  - GenerateLoadBatch
-  - RunOffline
-  - RunOfflineLightClient
-  - RunOfflineGarnetClientSession
-  - RunOfflineGarnetClient
-  - RunOfflineSERedis
+PrepareBuffers: 无需实现
+SetWorkload: 无需实现
+BuildWorkload: 无需实现
+ComputeOfflineBufferSize: 无需实现
+GenerateRandomBatch: 无需实现
+AppendCommand: 无需实现
+GenerateReadBatchForKeys: 无需实现
+LoadData: 无需实现
+GenerateLoadBatch: 无需实现
+RunOffline: 无需实现
+RunOfflineLightClient: 无需实现
+RunOfflineGarnetClientSession: 无需实现
+RunOfflineGarnetClient: 无需实现
+RunOfflineSERedis: 无需实现

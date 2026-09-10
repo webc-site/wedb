@@ -1,6 +1,5 @@
-fn:
-  - GossipAsync
-  - GossipWithMeetAsync
-  - ExecuteClusterFailStopWritesAsync
-  - ExecuteClusterFailReplicationOffsetAsync
-  - ExecuteClusterPublishNoResponse
+GossipAsync: 无需实现
+GossipWithMeetAsync: 无需实现
+ExecuteClusterFailStopWritesAsync: 无需实现
+ExecuteClusterFailReplicationOffsetAsync: 无需实现
+ExecuteClusterPublishNoResponse: 无需实现

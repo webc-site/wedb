@@ -1,17 +1,16 @@
-fn:
-  - WriteInfo
-  - InitializeForNewRecord
-  - SetIsInNewVersion
-  - IsClosedWord
-  - IsClosedOrTombstoned
-  - TryResetModifiedAtomic
-  - TryUpdateAddress
-  - SetModified
-  - SetInvalid
-  - UnsealAndValidate
-  - SealAndInvalidate
-  - Seal
-  - SetInvalidAtomic
-  - ToString
-  - bstr
-  - bstr01
+WriteInfo: 无需实现
+InitializeForNewRecord: 无需实现
+SetIsInNewVersion: 无需实现
+IsClosedWord: 无需实现
+IsClosedOrTombstoned: 无需实现
+TryResetModifiedAtomic: 无需实现
+TryUpdateAddress: 无需实现
+SetModified: 无需实现
+SetInvalid: 无需实现
+UnsealAndValidate: 无需实现
+SealAndInvalidate: 无需实现
+Seal: 无需实现
+SetInvalidAtomic: 无需实现
+ToString: 无需实现
+bstr: 无需实现
+bstr01: 无需实现

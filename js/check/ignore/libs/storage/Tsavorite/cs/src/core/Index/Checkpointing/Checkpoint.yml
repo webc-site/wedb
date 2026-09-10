@@ -1,4 +1,3 @@
-fn:
-  - Streaming
-  - IndexOnly
-  - HybridLogOnly
+Streaming: 无需实现
+IndexOnly: 无需实现
+HybridLogOnly: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - TsavoriteExtension
-  - DummyEnqueue
+TsavoriteExtension: 无需实现
+DummyEnqueue: 无需实现

@@ -1,7 +1,6 @@
-fn:
-  - TryEphemeralXLock
-  - EphemeralXUnlock
-  - TryEphemeralSLock
-  - EphemeralSUnlock
-  - LockForScan
-  - UnlockForScan
+TryEphemeralXLock: 无需实现
+EphemeralXUnlock: 无需实现
+TryEphemeralSLock: 无需实现
+EphemeralSUnlock: 无需实现
+LockForScan: 无需实现
+UnlockForScan: 无需实现

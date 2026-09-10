@@ -1,5 +1,4 @@
-fn:
-  - RetireNativeIndexTable
-  - BeginNativeIndexCheckpointIo
-  - EndNativeIndexCheckpointIo
-  - UpdateSlot
+RetireNativeIndexTable: 无需实现
+BeginNativeIndexCheckpointIo: 无需实现
+EndNativeIndexCheckpointIo: 无需实现
+UpdateSlot: 无需实现

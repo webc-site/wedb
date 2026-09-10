@@ -1,4 +1,3 @@
-fn:
-  - MakeTrackedThread
-  - ThreadStart
-  - GetThreadNames
+MakeTrackedThread: 无需实现
+ThreadStart: 无需实现
+GetThreadNames: 无需实现

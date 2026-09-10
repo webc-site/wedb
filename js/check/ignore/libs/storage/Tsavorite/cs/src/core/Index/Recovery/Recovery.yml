@@ -1,48 +1,47 @@
-fn:
-  - RecoveryStatus
-  - SignalRead
-  - SignalReadError
-  - WaitRead
-  - ThrowTsavoriteException
-  - WaitReadAsync
-  - SignalFlushed
-  - SignalFlushedError
-  - WaitFlush
-  - WaitFlushAsync
-  - RecoveryOptions
-  - GetLatestCheckpointTokens
-  - GetClosestIndexCheckpointInfo
-  - GetLatestCheckpointVersion
-  - GetLogFileSize
-  - GetIndexFileSize
-  - FindRecoveryInfo
-  - IsCompatible
-  - GetRecoveryInfo
-  - InternalRecoverAsync
-  - SetVersion
-  - GetInitialRecoveryAddress
-  - SetRecoveryPageRanges
-  - ReadPagesWithMemoryConstraint
-  - TrimLogPages
-  - FlushIfNeededThenEvictPageForRecovery
-  - FlushSnapshotPageForRecovery
-  - TrimResidentPagesToBudget
-  - ReadPagesForRecoveryAsync
-  - RecoverHybridLogAsync
-  - ClearBitsOnPage
-  - ProcessReadPageAndFlush
-  - RecoveryLoadObjectsPass2
-  - GetPageRangesToRead
-  - ProcessReadPage
-  - WaitUntilAllPagesHaveBeenFlushedAsync
-  - RecoverHybridLogFromSnapshotFileAsync
-  - GetSnapshotPageRangesToRead
-  - RecoverSnapshotPages
-  - ProcessReadSnapshotPage
-  - RecoverFromPage
-  - AsyncFlushPageCallbackForRecovery
-  - RestoreHybridLog
-  - RecoveryReset
-  - RestoreHybridLogAsync
-  - RestoreHybridLogInitializePages
-  - AsyncReadPagesForRecoveryCallback
+RecoveryStatus: 无需实现
+SignalRead: 无需实现
+SignalReadError: 无需实现
+WaitRead: 无需实现
+ThrowTsavoriteException: 无需实现
+WaitReadAsync: 无需实现
+SignalFlushed: 无需实现
+SignalFlushedError: 无需实现
+WaitFlush: 无需实现
+WaitFlushAsync: 无需实现
+RecoveryOptions: 无需实现
+GetLatestCheckpointTokens: 无需实现
+GetClosestIndexCheckpointInfo: 无需实现
+GetLatestCheckpointVersion: 无需实现
+GetLogFileSize: 无需实现
+GetIndexFileSize: 无需实现
+FindRecoveryInfo: 无需实现
+IsCompatible: 无需实现
+GetRecoveryInfo: 无需实现
+InternalRecoverAsync: 无需实现
+SetVersion: 无需实现
+GetInitialRecoveryAddress: 无需实现
+SetRecoveryPageRanges: 无需实现
+ReadPagesWithMemoryConstraint: 无需实现
+TrimLogPages: 无需实现
+FlushIfNeededThenEvictPageForRecovery: 无需实现
+FlushSnapshotPageForRecovery: 无需实现
+TrimResidentPagesToBudget: 无需实现
+ReadPagesForRecoveryAsync: 无需实现
+RecoverHybridLogAsync: 无需实现
+ClearBitsOnPage: 无需实现
+ProcessReadPageAndFlush: 无需实现
+RecoveryLoadObjectsPass2: 无需实现
+GetPageRangesToRead: 无需实现
+ProcessReadPage: 无需实现
+WaitUntilAllPagesHaveBeenFlushedAsync: 无需实现
+RecoverHybridLogFromSnapshotFileAsync: 无需实现
+GetSnapshotPageRangesToRead: 无需实现
+RecoverSnapshotPages: 无需实现
+ProcessReadSnapshotPage: 无需实现
+RecoverFromPage: 无需实现
+AsyncFlushPageCallbackForRecovery: 无需实现
+RestoreHybridLog: 无需实现
+RecoveryReset: 无需实现
+RestoreHybridLogAsync: 无需实现
+RestoreHybridLogInitializePages: 无需实现
+AsyncReadPagesForRecoveryCallback: 无需实现

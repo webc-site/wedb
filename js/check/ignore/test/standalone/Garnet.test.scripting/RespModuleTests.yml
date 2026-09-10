@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateTestModule
-test:
-  - TestModuleLoad
-  - TestModuleLoadUsingGarnetOptions
-  - TestModuleLoadCSArgs
-  - TestUninitializedModule
-  - TestAlreadyLoadedModule
-  - TestNonExistingModule
-  - TestNoOpModule
-  - TestNoAllowedPathsForModuleLoading
-  - TestModuleCommandNotEnabled
-  - TestModuleLoadUsingLoadModuleCSWithSpaceInPath
-  - TestModuleLoadUsingLoadModuleCSWithSpaceInPathAndArgs
+Setup: 无需实现
+TearDown: 无需实现
+CreateTestModule: 无需实现
+TestModuleLoad: 测试函数无需实现
+TestModuleLoadUsingGarnetOptions: 测试函数无需实现
+TestModuleLoadCSArgs: 测试函数无需实现
+TestUninitializedModule: 测试函数无需实现
+TestAlreadyLoadedModule: 测试函数无需实现
+TestNonExistingModule: 测试函数无需实现
+TestNoOpModule: 测试函数无需实现
+TestNoAllowedPathsForModuleLoading: 测试函数无需实现
+TestModuleCommandNotEnabled: 测试函数无需实现
+TestModuleLoadUsingLoadModuleCSWithSpaceInPath: 测试函数无需实现
+TestModuleLoadUsingLoadModuleCSWithSpaceInPathAndArgs: 测试函数无需实现

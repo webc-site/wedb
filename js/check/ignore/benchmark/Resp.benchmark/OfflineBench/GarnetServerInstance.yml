@@ -1,5 +1,4 @@
-fn:
-  - GetServerOptions
-  - GarnetServerInstance
-  - GetClusterSession
-  - GetRespServerSession
+GetServerOptions: 无需实现
+GarnetServerInstance: 无需实现
+GetClusterSession: 无需实现
+GetRespServerSession: 无需实现

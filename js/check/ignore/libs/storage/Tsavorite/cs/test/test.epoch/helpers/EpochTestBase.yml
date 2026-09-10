@@ -1,3 +1,2 @@
-fn:
-  - CreateEpoch
-  - DisposeEpoch
+CreateEpoch: 无需实现
+DisposeEpoch: 无需实现

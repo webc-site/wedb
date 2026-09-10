@@ -1,22 +1,21 @@
-fn:
-  - SpanByteAllocatorImpl
-  - FreeAllAllocatedPages
-  - FreePage
-  - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
-  - ReturnPage
-  - FreeNativeLogPage
-  - CreateLogRecord
-  - GetRMWCopyRecordSize
-  - PopulateRecordSizeInfo
-  - GetRMWInitialRecordSize
-  - GetUpsertRecordSize
-  - GetDeleteRecordSize
-  - OnDispose
-  - OnDisposeDiskRecord
-  - WriteInlinePageAsync
-  - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - ScanCursor
-  - MemoryPageScan
+SpanByteAllocatorImpl: 无需实现
+FreeAllAllocatedPages: 无需实现
+FreePage: 无需实现
+AllocatePage: 无需实现
+IncrementAllocatedPageCount: 无需实现
+AllocatePinnedPageArray: 无需实现
+ReturnPage: 无需实现
+FreeNativeLogPage: 无需实现
+CreateLogRecord: 无需实现
+GetRMWCopyRecordSize: 无需实现
+PopulateRecordSizeInfo: 无需实现
+GetRMWInitialRecordSize: 无需实现
+GetUpsertRecordSize: 无需实现
+GetDeleteRecordSize: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+WriteInlinePageAsync: 无需实现
+WriteAsyncToDeviceForSnapshot: 无需实现
+VerifyCompatibleSectorSize: 无需实现
+ScanCursor: 无需实现
+MemoryPageScan: 无需实现

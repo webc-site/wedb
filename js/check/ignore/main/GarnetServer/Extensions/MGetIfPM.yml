@@ -1,5 +1,4 @@
-fn:
-  - Prepare
-  - Main
-  - Finalize
-  - WriteBulkStringArray
+Prepare: 无需实现
+Main: 无需实现
+Finalize: 无需实现
+WriteBulkStringArray: 无需实现

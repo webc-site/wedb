@@ -1,7 +1,6 @@
-fn:
-  - ProcessReplyAsString
-  - ProcessReplyAsNumber
-  - ProcessReplyAsStringArray
-  - ProcessReplyAsMemoryByte
-  - ProcessReplyAsMemoryByteArray
-  - CopyErrorToSpan
+ProcessReplyAsString: 无需实现
+ProcessReplyAsNumber: 无需实现
+ProcessReplyAsStringArray: 无需实现
+ProcessReplyAsMemoryByte: 无需实现
+ProcessReplyAsMemoryByteArray: 无需实现
+CopyErrorToSpan: 无需实现

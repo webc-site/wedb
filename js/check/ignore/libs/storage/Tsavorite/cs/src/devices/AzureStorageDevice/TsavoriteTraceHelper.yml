@@ -1,9 +1,8 @@
-fn:
-  - TsavoritePerfWarning
-  - TsavoriteStorageProgress
-  - TsavoriteAzureStorageAccessCompleted
-  - LeaseAcquired
-  - LeaseRenewed
-  - LeaseReleased
-  - LeaseLost
-  - LeaseProgress
+TsavoritePerfWarning: 无需实现
+TsavoriteStorageProgress: 无需实现
+TsavoriteAzureStorageAccessCompleted: 无需实现
+LeaseAcquired: 无需实现
+LeaseRenewed: 无需实现
+LeaseReleased: 无需实现
+LeaseLost: 无需实现
+LeaseProgress: 无需实现

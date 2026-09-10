@@ -1,5 +1,4 @@
-fn:
-  - Make
-  - Equal
-  - ToString
-  - Equals
+Make: 无需实现
+Equal: 无需实现
+ToString: 无需实现
+Equals: 无需实现

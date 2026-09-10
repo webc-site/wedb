@@ -1,11 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - ClusterReplicationAuth
-  - ClusterStartupWithoutAuthCreds
-test:
-  - ClusterBasicACLTest
-  - ClusterStartupWithoutAuthCreds
-  - ClusterReplicationAuth
-  - ClusterSimpleFailoverAuth
-  - ClusterSimpleACLReload
+Setup: 无需实现
+TearDown: 无需实现
+ClusterReplicationAuth: 测试函数无需实现
+ClusterStartupWithoutAuthCreds: 测试函数无需实现
+ClusterBasicACLTest: 测试函数无需实现
+ClusterSimpleFailoverAuth: 测试函数无需实现
+ClusterSimpleACLReload: 测试函数无需实现

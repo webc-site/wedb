@@ -1,7 +1,5 @@
-fn:
-  - Setup
-  - TearDown
-  - LogWriter
-  - LogWriterAsync
-test:
-  - WaitForCommitBasicTest
+Setup: 无需实现
+TearDown: 无需实现
+LogWriter: 无需实现
+LogWriterAsync: 无需实现
+WaitForCommitBasicTest: 测试函数无需实现

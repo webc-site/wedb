@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - DoRead
-  - DoFlush
-  - DoReads
-test:
-  - ObjectInMemWriteReadUpsert
-  - ObjectInMemWriteReadRMW
-  - ObjectDiskWriteReadSingle
-  - ObjectDiskWriteRead
-  - LargeObjectDiskWriteReadSmallKeyBigValue
-  - LargeObjectMultiFlushedPages
-  - LargeObjectLinearizeFlushedPages
-  - ObjectDiskWriteReadOverflowValue
-  - LargeObjectDiskWriteReadBigKeyAndValue
-  - MaxInlineValueSizeZeroTest
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+DoRead: 无需实现
+DoFlush: 无需实现
+DoReads: 无需实现
+ObjectInMemWriteReadUpsert: 测试函数无需实现
+ObjectInMemWriteReadRMW: 测试函数无需实现
+ObjectDiskWriteReadSingle: 测试函数无需实现
+ObjectDiskWriteRead: 测试函数无需实现
+LargeObjectDiskWriteReadSmallKeyBigValue: 测试函数无需实现
+LargeObjectMultiFlushedPages: 测试函数无需实现
+LargeObjectLinearizeFlushedPages: 测试函数无需实现
+ObjectDiskWriteReadOverflowValue: 测试函数无需实现
+LargeObjectDiskWriteReadBigKeyAndValue: 测试函数无需实现
+MaxInlineValueSizeZeroTest: 测试函数无需实现

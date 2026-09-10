@@ -1,8 +1,7 @@
-fn:
-  - DisposeResources
-  - RecvEventArgCompletedWithTLS
-  - RecvEventArgCompletedWithoutTLS
-  - HandleReceiveWithoutTLS
-  - HandleReceiveWithTLSAsync
-  - HandleReceiveFailure
-  - AllocateNetworkReceiveBuffer
+DisposeResources: 无需实现
+RecvEventArgCompletedWithTLS: 无需实现
+RecvEventArgCompletedWithoutTLS: 无需实现
+HandleReceiveWithoutTLS: 无需实现
+HandleReceiveWithTLSAsync: 无需实现
+HandleReceiveFailure: 无需实现
+AllocateNetworkReceiveBuffer: 无需实现

@@ -1,7 +1,6 @@
-fn:
-  - TryFindRecordInMemory
-  - TryFindRecordInMainLogForConditionalOperation
-  - EphemeralSUnlock
-  - IsValidTracebackRecord
-  - TryFindRecordForPendingOperation
-  - TryFindRecordInMainLogForPendingOperation
+TryFindRecordInMemory: 无需实现
+TryFindRecordInMainLogForConditionalOperation: 无需实现
+EphemeralSUnlock: 无需实现
+IsValidTracebackRecord: 无需实现
+TryFindRecordForPendingOperation: 无需实现
+TryFindRecordInMainLogForPendingOperation: 无需实现

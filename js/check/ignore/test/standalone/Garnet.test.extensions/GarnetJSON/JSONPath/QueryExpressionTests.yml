@@ -1,9 +1,8 @@
-test:
-  - AndExpressionTest
-  - OrExpressionTest
-  - BooleanExpression_EqualsOperator
-  - BooleanExpressionTest_RegexEqualsOperator
-  - BooleanExpressionTest_RegexEqualsOperator_CornerCase
-  - BooleanExpressionTest
-  - BooleanExpressionTest_GreaterThanOperator
-  - BooleanExpressionTest_GreaterThanOrEqualsOperator
+AndExpressionTest: 测试函数无需实现
+OrExpressionTest: 测试函数无需实现
+BooleanExpression_EqualsOperator: 测试函数无需实现
+BooleanExpressionTest_RegexEqualsOperator: 测试函数无需实现
+BooleanExpressionTest_RegexEqualsOperator_CornerCase: 测试函数无需实现
+BooleanExpressionTest: 测试函数无需实现
+BooleanExpressionTest_GreaterThanOperator: 测试函数无需实现
+BooleanExpressionTest_GreaterThanOrEqualsOperator: 测试函数无需实现

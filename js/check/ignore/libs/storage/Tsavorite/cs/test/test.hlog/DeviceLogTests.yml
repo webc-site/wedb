@@ -1,5 +1,4 @@
-test:
-  - PageBlobTsavoriteLogTest1
-  - PageBlobTsavoriteLogTestWithLease
-  - BasicHighLatencyDeviceTest
-  - LocalMemoryDeviceReentrantWriteDoesNotDeadlock
+PageBlobTsavoriteLogTest1: 测试函数无需实现
+PageBlobTsavoriteLogTestWithLease: 测试函数无需实现
+BasicHighLatencyDeviceTest: 测试函数无需实现
+LocalMemoryDeviceReentrantWriteDoesNotDeadlock: 测试函数无需实现

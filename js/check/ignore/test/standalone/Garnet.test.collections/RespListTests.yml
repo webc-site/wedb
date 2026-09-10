@@ -1,60 +1,58 @@
-fn:
-  - Setup
-  - TearDown
-  - StressConfig
-  - ToNullableInt
-test:
-  - BasicLPUSHAndLPOP
-  - MultiLPUSHAndLTRIMWithMemoryCheck
-  - MultiRPUSHAndLTRIM
-  - MultiLPUSHAndLLENWithPendingStatus
-  - BasicLPUSHAndLTRIM
-  - BasicLPUSHAndLRANGE
-  - BasicRPUSHAndLINDEX
-  - BasicRPUSHAndLINSERT
-  - BasicRPUSHAndLREM
-  - LREMWithIntMinValueCountRemovesAllMatches
-  - MultiLPUSHAndLPOPV1
-  - MultiLPUSHAndLPOPV2
-  - MultiRPUSHAndRPOP
-  - BasicRPUSHAndRPOP
-  - CanDoRPopLPush
-  - CanDoLRANGEbasic
-  - CanDoLRANGEcorrect
-  - CanDoLSETbasic
-  - CanDoRPopLPushGC
-  - CanUseLMoveGC
-  - CanUseLMoveWithCaseInsensitiveDirectionGC
-  - CanUseLMoveWithCancellationTokenGC
-  - CanReturnEmptyArrayinListLC
-  - CanReturnNilWhenNonExistingListLC
-  - CanReturnErrorWhenMissingParametersLC
-  - CanDoPushAndTrimLC
-  - CanDoLInsertBeforeAndAfterLC
-  - CanDoLInsertWithNoElementLC
-  - CanSendErrorInWrongTypeLC
-  - CanDoLSETbasicLC
-  - CanReturnErrorLSETWhenNosuchkey
-  - CanReturnErrorLSETWhenIndexNotInteger
-  - CanReturnErrorLSETWhenIndexOutRange
-  - CanReturnErrorLSETWhenArgumentsWrong
-  - CanHandleNoPrexistentKey
-  - ListPushPopStressTest
-  - CanDoLMoveChunks
-  - CanDoBasicLMove
-  - CanDoLPopMultipleValues
-  - CanDoLPushXRpushX
-  - CanDoLPushxRPushx
-  - CheckEmptyListKeyRemoved
-  - CanDoBasicLMPOP
-  - CanDoLMPOPLeftWithoutCount
-  - CanDoLMPOPRightMultipleTimes
-  - CanDoRejectBadLMPOPCommand
-  - LPOPAndRPOPWithZeroCountReturnEmptyArray
-  - CanHandleLowerCaseBefore
-  - CheckListOperationsOnWrongTypeObjectSE
-  - LPOSWithoutOptions
-  - LPOSWithInvalidKey
-  - LPOSWithOptions
-  - LPOSWithListPosition
-  - LPOSWithInvalidOptions
+Setup: 无需实现
+TearDown: 无需实现
+StressConfig: 无需实现
+ToNullableInt: 无需实现
+BasicLPUSHAndLPOP: 测试函数无需实现
+MultiLPUSHAndLTRIMWithMemoryCheck: 测试函数无需实现
+MultiRPUSHAndLTRIM: 测试函数无需实现
+MultiLPUSHAndLLENWithPendingStatus: 测试函数无需实现
+BasicLPUSHAndLTRIM: 测试函数无需实现
+BasicLPUSHAndLRANGE: 测试函数无需实现
+BasicRPUSHAndLINDEX: 测试函数无需实现
+BasicRPUSHAndLINSERT: 测试函数无需实现
+BasicRPUSHAndLREM: 测试函数无需实现
+LREMWithIntMinValueCountRemovesAllMatches: 测试函数无需实现
+MultiLPUSHAndLPOPV1: 测试函数无需实现
+MultiLPUSHAndLPOPV2: 测试函数无需实现
+MultiRPUSHAndRPOP: 测试函数无需实现
+BasicRPUSHAndRPOP: 测试函数无需实现
+CanDoRPopLPush: 测试函数无需实现
+CanDoLRANGEbasic: 测试函数无需实现
+CanDoLRANGEcorrect: 测试函数无需实现
+CanDoLSETbasic: 测试函数无需实现
+CanDoRPopLPushGC: 测试函数无需实现
+CanUseLMoveGC: 测试函数无需实现
+CanUseLMoveWithCaseInsensitiveDirectionGC: 测试函数无需实现
+CanUseLMoveWithCancellationTokenGC: 测试函数无需实现
+CanReturnEmptyArrayinListLC: 测试函数无需实现
+CanReturnNilWhenNonExistingListLC: 测试函数无需实现
+CanReturnErrorWhenMissingParametersLC: 测试函数无需实现
+CanDoPushAndTrimLC: 测试函数无需实现
+CanDoLInsertBeforeAndAfterLC: 测试函数无需实现
+CanDoLInsertWithNoElementLC: 测试函数无需实现
+CanSendErrorInWrongTypeLC: 测试函数无需实现
+CanDoLSETbasicLC: 测试函数无需实现
+CanReturnErrorLSETWhenNosuchkey: 测试函数无需实现
+CanReturnErrorLSETWhenIndexNotInteger: 测试函数无需实现
+CanReturnErrorLSETWhenIndexOutRange: 测试函数无需实现
+CanReturnErrorLSETWhenArgumentsWrong: 测试函数无需实现
+CanHandleNoPrexistentKey: 测试函数无需实现
+ListPushPopStressTest: 测试函数无需实现
+CanDoLMoveChunks: 测试函数无需实现
+CanDoBasicLMove: 测试函数无需实现
+CanDoLPopMultipleValues: 测试函数无需实现
+CanDoLPushXRpushX: 测试函数无需实现
+CanDoLPushxRPushx: 测试函数无需实现
+CheckEmptyListKeyRemoved: 测试函数无需实现
+CanDoBasicLMPOP: 测试函数无需实现
+CanDoLMPOPLeftWithoutCount: 测试函数无需实现
+CanDoLMPOPRightMultipleTimes: 测试函数无需实现
+CanDoRejectBadLMPOPCommand: 测试函数无需实现
+LPOPAndRPOPWithZeroCountReturnEmptyArray: 测试函数无需实现
+CanHandleLowerCaseBefore: 测试函数无需实现
+CheckListOperationsOnWrongTypeObjectSE: 测试函数无需实现
+LPOSWithoutOptions: 测试函数无需实现
+LPOSWithInvalidKey: 测试函数无需实现
+LPOSWithOptions: 测试函数无需实现
+LPOSWithListPosition: 测试函数无需实现
+LPOSWithInvalidOptions: 测试函数无需实现

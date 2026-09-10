@@ -1,6 +1,5 @@
-fn:
-  - GetServerOptions
-  - GetDeviceType
-  - GetAuthenticationSettings
-  - GetFastAofTruncate
-  - IsValid
+GetServerOptions: 无需实现
+GetDeviceType: 无需实现
+GetAuthenticationSettings: 无需实现
+GetFastAofTruncate: 无需实现
+IsValid: 无需实现

@@ -1,3 +1,2 @@
-fn:
-  - GetInclusive
-  - CreateBufferPool
+GetInclusive: 无需实现
+CreateBufferPool: 无需实现

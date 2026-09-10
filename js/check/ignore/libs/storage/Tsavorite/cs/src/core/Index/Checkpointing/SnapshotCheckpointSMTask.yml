@@ -1,4 +1,3 @@
-fn:
-  - SnapshotCheckpointSMTask
-  - GlobalBeforeEnteringState
-  - ObjectLog_OnPrepare
+SnapshotCheckpointSMTask: 无需实现
+GlobalBeforeEnteringState: 无需实现
+ObjectLog_OnPrepare: 无需实现

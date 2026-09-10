@@ -1,9 +1,8 @@
-fn:
-  - ClientMonitor
-  - GetClusterConfig
-  - StartMonitor
-  - MonitorClusterLatencyMetrics
-  - MonitorClusterServerSideMetrics
-  - MonitorServerSideLatency
-  - MonitorServerSideMetrics
-  - ProcessLatencyHistogram
+ClientMonitor: 无需实现
+GetClusterConfig: 无需实现
+StartMonitor: 无需实现
+MonitorClusterLatencyMetrics: 无需实现
+MonitorClusterServerSideMetrics: 无需实现
+MonitorServerSideLatency: 无需实现
+MonitorServerSideMetrics: 无需实现
+ProcessLatencyHistogram: 无需实现

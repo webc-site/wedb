@@ -1,3 +1,2 @@
-test:
-  - Basic
-  - Concurrent
+Basic: 测试函数无需实现
+Concurrent: 测试函数无需实现

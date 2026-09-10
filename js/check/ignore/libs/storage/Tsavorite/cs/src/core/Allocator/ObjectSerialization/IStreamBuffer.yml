@@ -1,3 +1,2 @@
-fn:
-  - FlushAndReset
-  - Write
+FlushAndReset: 无需实现
+Write: 无需实现

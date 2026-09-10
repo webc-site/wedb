@@ -1,5 +1,4 @@
-fn:
-  - SkipReadCacheChain
-  - GetHashChain
-  - NextInChain
-  - EnumActionKeyIndices
+SkipReadCacheChain: 无需实现
+GetHashChain: 无需实现
+NextInChain: 无需实现
+EnumActionKeyIndices: 无需实现

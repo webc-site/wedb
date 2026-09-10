@@ -1,18 +1,17 @@
-fn:
-  - ParseSize
-  - NumBitsPreviousPowerOf2
-  - PrettySize
-  - IsBlittable
-  - Rotr64
-  - XorBytes
-  - Is32Bit
-  - Murmur3
-  - WithCancellationAsync
-  - SlowWithCancellationAsync
-  - GetCurrentMilliseconds
-  - GetHashString
-  - GetCallbackErrorMessage
-  - strerror
-  - GetCallbackExceptionDetail
-  - GetCurrentMethodName
-  - ThrowTsavoriteException
+ParseSize: 无需实现
+NumBitsPreviousPowerOf2: 无需实现
+PrettySize: 无需实现
+IsBlittable: 无需实现
+Rotr64: 无需实现
+XorBytes: 无需实现
+Is32Bit: 无需实现
+Murmur3: 无需实现
+WithCancellationAsync: 无需实现
+SlowWithCancellationAsync: 无需实现
+GetCurrentMilliseconds: 无需实现
+GetHashString: 无需实现
+GetCallbackErrorMessage: 无需实现
+strerror: 无需实现
+GetCallbackExceptionDetail: 无需实现
+GetCurrentMethodName: 无需实现
+ThrowTsavoriteException: 无需实现

@@ -1,6 +1,5 @@
-fn:
-  - MapRange
-  - MapSectorSize
-  - UniformPartitionScheme
-  - ShardedStorageDevice
-  - RemoveSegmentAsync
+MapRange: 无需实现
+MapSectorSize: 无需实现
+UniformPartitionScheme: 无需实现
+ShardedStorageDevice: 无需实现
+RemoveSegmentAsync: 无需实现

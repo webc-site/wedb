@@ -1,6 +1,5 @@
-fn:
-  - ClusterManager
-  - DiscoverPrimaryShards
-  - ValidateFullSlotCoverage
-  - ParseClusterConfig
-  - CompactRanges
+ClusterManager: 无需实现
+DiscoverPrimaryShards: 无需实现
+ValidateFullSlotCoverage: 无需实现
+ParseClusterConfig: 无需实现
+CompactRanges: 无需实现

@@ -1,15 +1,14 @@
-fn:
-  - QueryExpression
-  - IsMatch
-  - CompositeExpression
-  - BooleanQueryExpression
-  - EvaluateMatch
-  - MatchTokens
-  - CheckIn
-  - CompareTo
-  - RegexEquals
-  - GetRegexOptions
-  - EqualsWithStringCoercion
-  - EqualsWithStrictMatch
-  - IsBoolean
-  - TryGetAsDouble
+QueryExpression: 无需实现
+IsMatch: 无需实现
+CompositeExpression: 无需实现
+BooleanQueryExpression: 无需实现
+EvaluateMatch: 无需实现
+MatchTokens: 无需实现
+CheckIn: 无需实现
+CompareTo: 无需实现
+RegexEquals: 无需实现
+GetRegexOptions: 无需实现
+EqualsWithStringCoercion: 无需实现
+EqualsWithStrictMatch: 无需实现
+IsBoolean: 无需实现
+TryGetAsDouble: 无需实现

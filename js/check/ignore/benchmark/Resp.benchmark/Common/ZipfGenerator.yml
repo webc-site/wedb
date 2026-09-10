@@ -1,5 +1,4 @@
-fn:
-  - ZipfGenerator
-  - CreateConstants
-  - Zeta
-  - Next
+ZipfGenerator: 无需实现
+CreateConstants: 无需实现
+Zeta: 无需实现
+Next: 无需实现

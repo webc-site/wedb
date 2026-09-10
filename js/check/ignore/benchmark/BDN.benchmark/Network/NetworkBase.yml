@@ -1,6 +1,5 @@
-fn:
-  - NetworkParamsProvider
-  - GlobalSetup
-  - SlowConsumeMessage
-  - GlobalCleanup
-  - SetupOperation
+NetworkParamsProvider: 无需实现
+GlobalSetup: 无需实现
+SlowConsumeMessage: 无需实现
+GlobalCleanup: 无需实现
+SetupOperation: 无需实现

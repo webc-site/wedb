@@ -1,22 +1,21 @@
-fn:
-  - PauseRevivification
-  - ResumeRevivification
-  - DisposeOnConstructionFailure
-  - GetKeyHash
-  - TryInitiateFullCheckpoint
-  - TryInitiateIndexCheckpoint
-  - TakeIndexCheckpointAsync
-  - TryInitiateHybridLogCheckpoint
-  - TakeHybridLogCheckpointAsync
-  - GetRecoverVersion
-  - FindRecoveryInfo
-  - InternalRecoverAsync
-  - CompleteCheckpointAsync
-  - ContextRead
-  - ContextReadAtAddress
-  - ContextUpsert
-  - ContextRMW
-  - ContextDelete
-  - GrowIndexAsync
-  - DumpDistributionInternal
-  - DumpDistribution
+PauseRevivification: 无需实现
+ResumeRevivification: 无需实现
+DisposeOnConstructionFailure: 无需实现
+GetKeyHash: 无需实现
+TryInitiateFullCheckpoint: 无需实现
+TryInitiateIndexCheckpoint: 无需实现
+TakeIndexCheckpointAsync: 无需实现
+TryInitiateHybridLogCheckpoint: 无需实现
+TakeHybridLogCheckpointAsync: 无需实现
+GetRecoverVersion: 无需实现
+FindRecoveryInfo: 无需实现
+InternalRecoverAsync: 无需实现
+CompleteCheckpointAsync: 无需实现
+ContextRead: 无需实现
+ContextReadAtAddress: 无需实现
+ContextUpsert: 无需实现
+ContextRMW: 无需实现
+ContextDelete: 无需实现
+GrowIndexAsync: 无需实现
+DumpDistributionInternal: 无需实现
+DumpDistribution: 无需实现

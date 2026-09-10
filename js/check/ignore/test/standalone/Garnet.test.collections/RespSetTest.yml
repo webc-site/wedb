@@ -1,70 +1,68 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateSet
-  - CreateLongSet
-test:
-  - CandDoSaddBasic
-  - CheckEmptySetKeyRemoved
-  - CanAddAndListMembers
-  - CanCheckIfMemberExistsInSet
-  - CanAddAndGetAllMembersWithPendingStatus
-  - CanReturnEmptySet
-  - CanDoMembersWhenEmptyKey
-  - CanRemoveField
-  - CanUseSScanNoParameters
-  - CanUseSScanWithMatch
-  - CanUseSScanWithCollection
-  - CanDoSScanWithCursor
-  - CanDoSetUnion
-  - CanDoSetUnionStore
-  - CanDoSetInter
-  - CanDoSetInterStore
-  - CanDoSdiff
-  - CanDoSdiffStoreOverwrittenKey
-  - CanDoSmoveBasic
-  - CanDoSRANDMEMBERWithCountCommandSE
-  - CanDoSinterCard
-  - CanDoSinterCardThowsErrors
-  - SInterWithFirstKeyNotExisting
-  - SInterStoreWithFirstKeyNotExisting
-  - SDiffWithFirstKeyNotExisting
-  - SDiffStoreWithFirstKeyNotExisting
-  - SUnionWithFirstKeyNotExisting
-  - SUnionStoreWithFirstKeyNotExisting
-  - CanAddAndListMembersLC
-  - CanCheckIfMemberExistsInSetLC
-  - CanDoSCARDCommandLC
-  - CanReturnEmptySetLC
-  - CanDoSREMLC
-  - CanDoSCARDCommandsLC
-  - CanDoSRANDMEMBERWithCountCommandLC
-  - CanDoSPOPCommandLC
-  - CanDoSPOPWithCountCommandLC
-  - CanDoSPOPWithMoreCountThanSetSizeCommandLC
-  - CanDoSMOVECommandLC
-  - CanDoSMOVECommandGC
-  - MultiWithNonExistingSet
-  - CanDoSetUnionLC
-  - CanDoSunionStoreLC
-  - CanDoSdiffLC
-  - CanDoSinterLC
-  - IntersectWithEmptySetReturnEmptySet
-  - IntersectWithNoKeysReturnError
-  - IntersectAndStoreWithNoKeysReturnError
-  - IntersectAndStoreWithNotExisingSetsOverwitesDestinationSet
-  - IntersectAndStoreWithNoSetsReturnErrWrongNumArgs
-  - CanDoSinterStoreLC
-  - CanDoSdiffStoreLC
-  - CanDoSinterCardLC
-  - CanDoSCARDCommandWhenKeyDoesNotExistLC
-  - CanDoSPOPCommandWhenKeyDoesNotExistLC
-  - CanUseNotExistingSetwithSMembers
-  - CanDoSdiffWhenKeyDoesNotExisting
-  - CanDoSdiffStoreWhenMemberKeysNotExisting
-  - CanDoSunionStoreWhenMemberKeysNotExisting
-  - CanDoSinterStoreWhenMemberKeysNotExisting
-  - CheckSetOperationsOnWrongTypeObjectSE
-  - CheckIfMemberExistsInSetLC
-  - CheckIfMemberExistsWithNoExistKey
-  - CheckIfMemberExistsWithInvalidParam
+Setup: 无需实现
+TearDown: 无需实现
+CreateSet: 无需实现
+CreateLongSet: 无需实现
+CandDoSaddBasic: 测试函数无需实现
+CheckEmptySetKeyRemoved: 测试函数无需实现
+CanAddAndListMembers: 测试函数无需实现
+CanCheckIfMemberExistsInSet: 测试函数无需实现
+CanAddAndGetAllMembersWithPendingStatus: 测试函数无需实现
+CanReturnEmptySet: 测试函数无需实现
+CanDoMembersWhenEmptyKey: 测试函数无需实现
+CanRemoveField: 测试函数无需实现
+CanUseSScanNoParameters: 测试函数无需实现
+CanUseSScanWithMatch: 测试函数无需实现
+CanUseSScanWithCollection: 测试函数无需实现
+CanDoSScanWithCursor: 测试函数无需实现
+CanDoSetUnion: 测试函数无需实现
+CanDoSetUnionStore: 测试函数无需实现
+CanDoSetInter: 测试函数无需实现
+CanDoSetInterStore: 测试函数无需实现
+CanDoSdiff: 测试函数无需实现
+CanDoSdiffStoreOverwrittenKey: 测试函数无需实现
+CanDoSmoveBasic: 测试函数无需实现
+CanDoSRANDMEMBERWithCountCommandSE: 测试函数无需实现
+CanDoSinterCard: 测试函数无需实现
+CanDoSinterCardThowsErrors: 测试函数无需实现
+SInterWithFirstKeyNotExisting: 测试函数无需实现
+SInterStoreWithFirstKeyNotExisting: 测试函数无需实现
+SDiffWithFirstKeyNotExisting: 测试函数无需实现
+SDiffStoreWithFirstKeyNotExisting: 测试函数无需实现
+SUnionWithFirstKeyNotExisting: 测试函数无需实现
+SUnionStoreWithFirstKeyNotExisting: 测试函数无需实现
+CanAddAndListMembersLC: 测试函数无需实现
+CanCheckIfMemberExistsInSetLC: 测试函数无需实现
+CanDoSCARDCommandLC: 测试函数无需实现
+CanReturnEmptySetLC: 测试函数无需实现
+CanDoSREMLC: 测试函数无需实现
+CanDoSCARDCommandsLC: 测试函数无需实现
+CanDoSRANDMEMBERWithCountCommandLC: 测试函数无需实现
+CanDoSPOPCommandLC: 测试函数无需实现
+CanDoSPOPWithCountCommandLC: 测试函数无需实现
+CanDoSPOPWithMoreCountThanSetSizeCommandLC: 测试函数无需实现
+CanDoSMOVECommandLC: 测试函数无需实现
+CanDoSMOVECommandGC: 测试函数无需实现
+MultiWithNonExistingSet: 测试函数无需实现
+CanDoSetUnionLC: 测试函数无需实现
+CanDoSunionStoreLC: 测试函数无需实现
+CanDoSdiffLC: 测试函数无需实现
+CanDoSinterLC: 测试函数无需实现
+IntersectWithEmptySetReturnEmptySet: 测试函数无需实现
+IntersectWithNoKeysReturnError: 测试函数无需实现
+IntersectAndStoreWithNoKeysReturnError: 测试函数无需实现
+IntersectAndStoreWithNotExisingSetsOverwitesDestinationSet: 测试函数无需实现
+IntersectAndStoreWithNoSetsReturnErrWrongNumArgs: 测试函数无需实现
+CanDoSinterStoreLC: 测试函数无需实现
+CanDoSdiffStoreLC: 测试函数无需实现
+CanDoSinterCardLC: 测试函数无需实现
+CanDoSCARDCommandWhenKeyDoesNotExistLC: 测试函数无需实现
+CanDoSPOPCommandWhenKeyDoesNotExistLC: 测试函数无需实现
+CanUseNotExistingSetwithSMembers: 测试函数无需实现
+CanDoSdiffWhenKeyDoesNotExisting: 测试函数无需实现
+CanDoSdiffStoreWhenMemberKeysNotExisting: 测试函数无需实现
+CanDoSunionStoreWhenMemberKeysNotExisting: 测试函数无需实现
+CanDoSinterStoreWhenMemberKeysNotExisting: 测试函数无需实现
+CheckSetOperationsOnWrongTypeObjectSE: 测试函数无需实现
+CheckIfMemberExistsInSetLC: 测试函数无需实现
+CheckIfMemberExistsWithNoExistKey: 测试函数无需实现
+CheckIfMemberExistsWithInvalidParam: 测试函数无需实现

@@ -1,8 +1,7 @@
-fn:
-  - GetKeyHash
-  - ConsistentReadContext
-  - ReadWithPrefetch
-  - CompletePendingWithOutputs
-  - CompletePendingAsync
-  - CompletePendingWithOutputsAsync
-  - ResetModified
+GetKeyHash: 无需实现
+ConsistentReadContext: 无需实现
+ReadWithPrefetch: 无需实现
+CompletePendingWithOutputs: 无需实现
+CompletePendingAsync: 无需实现
+CompletePendingWithOutputsAsync: 无需实现
+ResetModified: 无需实现

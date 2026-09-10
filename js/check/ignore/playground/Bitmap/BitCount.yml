@@ -1,9 +1,8 @@
-fn:
-  - BitCountScalar
-  - __simd_popcX256_aligned
-  - RunBitCountScalar
-  - RunBitCountSIMD
-  - RunBitCountSIMD_AVX
-  - RunBitCountSIMD_AVX_aligned
-  - RunBitCountBenchmark
-  - alloc_aligned
+BitCountScalar: 无需实现
+__simd_popcX256_aligned: 无需实现
+RunBitCountScalar: 无需实现
+RunBitCountSIMD: 无需实现
+RunBitCountSIMD_AVX: 无需实现
+RunBitCountSIMD_AVX_aligned: 无需实现
+RunBitCountBenchmark: 无需实现
+alloc_aligned: 无需实现

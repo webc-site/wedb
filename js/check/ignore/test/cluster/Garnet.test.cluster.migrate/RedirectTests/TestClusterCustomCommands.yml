@@ -1,16 +1,15 @@
-fn:
-  - NeedInitialUpdate
-  - GetInitialLength
-  - InitialUpdater
-  - NeedCopyUpdate
-  - GetLength
-  - CopyUpdater
-  - Create
-  - Deserialize
-  - TestClusterObj
-  - CloneObject
-  - SerializeObject
-  - Updater
-  - GetSingleSlotRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
+NeedInitialUpdate: 无需实现
+GetInitialLength: 无需实现
+InitialUpdater: 无需实现
+NeedCopyUpdate: 无需实现
+GetLength: 无需实现
+CopyUpdater: 无需实现
+Create: 无需实现
+Deserialize: 无需实现
+TestClusterObj: 无需实现
+CloneObject: 无需实现
+SerializeObject: 无需实现
+Updater: 无需实现
+GetSingleSlotRequest: 无需实现
+GetCrossSlotRequest: 无需实现
+SetupSingleSlotRequest: 无需实现

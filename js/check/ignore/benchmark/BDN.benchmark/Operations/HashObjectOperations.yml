@@ -1,19 +1,18 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - HSetDel
-  - HExists
-  - HGet
-  - HGetAll
-  - HIncrby
-  - HIncrbyFloat
-  - HKeys
-  - HLen
-  - HMGet
-  - HMSet
-  - HRandField
-  - HScan
-  - HSetNx
-  - HStrLen
-  - HVals
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+HSetDel: 无需实现
+HExists: 无需实现
+HGet: 无需实现
+HGetAll: 无需实现
+HIncrby: 无需实现
+HIncrbyFloat: 无需实现
+HKeys: 无需实现
+HLen: 无需实现
+HMGet: 无需实现
+HMSet: 无需实现
+HRandField: 无需实现
+HScan: 无需实现
+HSetNx: 无需实现
+HStrLen: 无需实现
+HVals: 无需实现

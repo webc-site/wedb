@@ -1,16 +1,15 @@
-fn:
-  - KvOutput
-  - EmitConfigHuman
-  - EmitPhaseHuman
-  - EmitAggregateHuman
-  - TrimmedMean
-  - EmitFinalSummary
-  - Rate
-  - EmitRunPhaseBlock
-  - EffectiveHashpack
-  - Dbl
-  - JsonString
-  - PrettyJson
-  - TryReadFirstLine
-  - TryGitSha
-  - AppendLine
+KvOutput: 无需实现
+EmitConfigHuman: 无需实现
+EmitPhaseHuman: 无需实现
+EmitAggregateHuman: 无需实现
+TrimmedMean: 无需实现
+EmitFinalSummary: 无需实现
+Rate: 无需实现
+EmitRunPhaseBlock: 无需实现
+EffectiveHashpack: 无需实现
+Dbl: 无需实现
+JsonString: 无需实现
+PrettyJson: 无需实现
+TryReadFirstLine: 无需实现
+TryGitSha: 无需实现
+AppendLine: 无需实现

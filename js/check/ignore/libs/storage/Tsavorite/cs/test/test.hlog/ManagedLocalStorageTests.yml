@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ManagedLocalStoreBasicTest
-  - ManagedLocalStoreFullParamsTest
+Setup: 无需实现
+TearDown: 无需实现
+ManagedLocalStoreBasicTest: 测试函数无需实现
+ManagedLocalStoreFullParamsTest: 测试函数无需实现

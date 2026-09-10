@@ -1,9 +1,8 @@
-fn:
-  - GetMaxValue
-  - GetMean
-  - GetStdDeviation
-  - HighestEquivalentValue
-  - CopyInto
-  - Percentiles
-  - RecordScope
-  - Timer
+GetMaxValue: 无需实现
+GetMean: 无需实现
+GetStdDeviation: 无需实现
+HighestEquivalentValue: 无需实现
+CopyInto: 无需实现
+Percentiles: 无需实现
+RecordScope: 无需实现
+Timer: 无需实现

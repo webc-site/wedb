@@ -1,4 +1,3 @@
-fn:
-  - LegacyBufferPool
-  - Position
-  - Print
+LegacyBufferPool: 无需实现
+Position: 无需实现
+Print: 无需实现

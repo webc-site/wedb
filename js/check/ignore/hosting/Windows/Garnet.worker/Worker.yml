@@ -1,2 +1,1 @@
-fn:
-  - StopAsync
+StopAsync: 无需实现

@@ -1,12 +1,10 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - EnableOrSkip
-  - CreateStore
-  - TryRead
-  - UpsertAll
-  - VerifyAll
-test:
-  - InsertReadUpdateDelete
-  - CheckpointRecover
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+EnableOrSkip: 无需实现
+CreateStore: 无需实现
+TryRead: 无需实现
+UpsertAll: 无需实现
+VerifyAll: 无需实现
+InsertReadUpdateDelete: 测试函数无需实现
+CheckpointRecover: 测试函数无需实现

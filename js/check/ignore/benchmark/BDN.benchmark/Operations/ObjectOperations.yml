@@ -1,5 +1,4 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - LPushPop
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+LPushPop: 无需实现

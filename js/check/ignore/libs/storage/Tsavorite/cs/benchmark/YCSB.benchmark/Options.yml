@@ -1,3 +1,2 @@
-fn:
-  - GetOptionsString
-  - boolStr
+GetOptionsString: 无需实现
+boolStr: 无需实现

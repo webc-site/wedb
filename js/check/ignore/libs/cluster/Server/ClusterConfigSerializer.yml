@@ -1,3 +1,2 @@
-fn:
-  - SerializeSlotMap
-  - DeserializeSlotMap
+SerializeSlotMap: 无需实现
+DeserializeSlotMap: 无需实现

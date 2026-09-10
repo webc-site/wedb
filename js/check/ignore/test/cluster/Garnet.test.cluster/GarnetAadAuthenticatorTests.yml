@@ -1,8 +1,6 @@
-fn:
-  - BuildAuthenticator
-test:
-  - Authenticate_ReturnsTrue_WhenTokenInsideValidityWindow
-  - IsAuthenticated_GoesFalse_AfterTokenExpires
-  - IsAuthenticated_StaysTrue_WhileTimeStillInsideWindow
-  - Authenticate_ReturnsFalse_OnMalformedToken
-  - FailedReauthentication_ClearsPreviouslyAuthorizedState
+BuildAuthenticator: 无需实现
+Authenticate_ReturnsTrue_WhenTokenInsideValidityWindow: 测试函数无需实现
+IsAuthenticated_GoesFalse_AfterTokenExpires: 测试函数无需实现
+IsAuthenticated_StaysTrue_WhileTimeStillInsideWindow: 测试函数无需实现
+Authenticate_ReturnsFalse_OnMalformedToken: 测试函数无需实现
+FailedReauthentication_ClearsPreviouslyAuthorizedState: 测试函数无需实现

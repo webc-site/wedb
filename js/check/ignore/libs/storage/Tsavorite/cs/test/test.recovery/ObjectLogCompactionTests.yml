@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-test:
-  - LogCompactBasicTest
-  - LogCompactTestNewEntries
-  - LogCompactAfterDeleteTest
-  - LogCompactBasicCustomFctnTest
-  - LogCompactCopyInPlaceCustomFctnTest
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+LogCompactBasicTest: 测试函数无需实现
+LogCompactTestNewEntries: 测试函数无需实现
+LogCompactAfterDeleteTest: 测试函数无需实现
+LogCompactBasicCustomFctnTest: 测试函数无需实现
+LogCompactCopyInPlaceCustomFctnTest: 测试函数无需实现

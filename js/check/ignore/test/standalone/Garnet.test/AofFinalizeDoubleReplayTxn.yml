@@ -1,5 +1,4 @@
-fn:
-  - Prepare
-  - AddKey
-  - Main
-  - Finalize
+Prepare: 无需实现
+AddKey: 无需实现
+Main: 无需实现
+Finalize: 无需实现

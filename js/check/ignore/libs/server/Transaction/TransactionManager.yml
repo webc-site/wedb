@@ -1,12 +1,10 @@
-fn:
-  - RunTransactionProc
-  - RunTransactionProcInternal
-  - IsSkippingOperations
-  - Watch
-  - AddTransactionStoreTypes
-  - AddTransactionStoreType
-  - GetSlotVerificationInput
-  - LocksAcquired
-  - ComputeCustomProcShardedLogAccess
-  - ComputeSublogAccessVector
-  - PromoteToTransaction
+RunTransactionProc: 无需实现
+RunTransactionProcInternal: 无需实现
+Watch: 无需实现
+AddTransactionStoreTypes: 无需实现
+AddTransactionStoreType: 无需实现
+GetSlotVerificationInput: 无需实现
+LocksAcquired: 无需实现
+ComputeCustomProcShardedLogAccess: 无需实现
+ComputeSublogAccessVector: 无需实现
+PromoteToTransaction: 无需实现

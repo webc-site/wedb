@@ -1,12 +1,11 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - IterationSetup
-  - LookupHit
-  - LookupMiss
-  - LoadOuterHit
-  - LoadScript
-  - LoadInnerHit
-  - LoadMiss
-  - Digest
+LuaParamsProvider: 无需实现
+GlobalSetup: 无需实现
+GlobalCleanup: 无需实现
+IterationSetup: 无需实现
+LookupHit: 无需实现
+LookupMiss: 无需实现
+LoadOuterHit: 无需实现
+LoadScript: 无需实现
+LoadInnerHit: 无需实现
+LoadMiss: 无需实现
+Digest: 无需实现

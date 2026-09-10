@@ -1,5 +1,4 @@
-fn:
-  - GetInternalBufferHead
-  - GetInternalBufferTail
-  - Connect
-  - CompletePendingRequests
+GetInternalBufferHead: 无需实现
+GetInternalBufferTail: 无需实现
+Connect: 无需实现
+CompletePendingRequests: 无需实现

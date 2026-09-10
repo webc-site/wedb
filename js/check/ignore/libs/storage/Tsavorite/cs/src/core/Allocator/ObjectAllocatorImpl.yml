@@ -1,57 +1,56 @@
-fn:
-  - ObjectPage
-  - ToString
-  - BaseToString
-  - ObjectAllocatorImpl
-  - FreeAllAllocatedPages
-  - FreePage
-  - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
-  - ReturnPage
-  - FreeNativeLogPage
-  - CreateLogRecord
-  - CreateRemappedLogRecordOverPinnedTransientMemory
-  - GetObjectIdMap
-  - InitializeRecord
-  - GetRMWCopyRecordSize
-  - PopulateRecordSizeInfo
-  - GetRMWInitialRecordSize
-  - GetUpsertRecordSize
-  - GetDeleteRecordSize
-  - OnDispose
-  - OnDisposeDiskRecord
-  - EvictRecordsInRange
-  - FlushRecordsInRange
-  - StopSizeTrackerForDispose
-  - TruncateUntilAddressBlocking
-  - GetLowestObjectLogSegmentInUse
-  - CreateCircularFlushBuffers
-  - CreateCircularReadBuffers
-  - GetObjectLogTail
-  - SetObjectLogTail
-  - GetObjectLogSegmentSize
-  - RecoveryReset
-  - AsyncFlushPagesForReadOnly
-  - GetFlushPageRange
-  - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - SetLowestObjectLogPosition
-  - WriteInlinePageAsync
-  - CreateSnapshotObjectReader
-  - OnPagesMarkedReadOnlyWorker
-  - AsyncReadPageCallback
-  - TryReadDevice
-  - CreateReadException
-  - VerifyRecordFromDiskCallback
-  - AsyncReadPageWithObjectsCallback
-  - DeserializeObjectsOnPage
-  - TrackRecoveredObjectRecord
-  - CalculatePageObjectSizes
-  - ThrowTsavoriteException
-  - IsLastRecordOnPage
-  - LoadObjectsForRecoveryPass2
-  - FindHeadAddressCutoffOnPage
-  - ClearSerializedObjectData
-  - ScanCursor
-  - MemoryPageScan
+ObjectPage: 无需实现
+ToString: 无需实现
+BaseToString: 无需实现
+ObjectAllocatorImpl: 无需实现
+FreeAllAllocatedPages: 无需实现
+FreePage: 无需实现
+AllocatePage: 无需实现
+IncrementAllocatedPageCount: 无需实现
+AllocatePinnedPageArray: 无需实现
+ReturnPage: 无需实现
+FreeNativeLogPage: 无需实现
+CreateLogRecord: 无需实现
+CreateRemappedLogRecordOverPinnedTransientMemory: 无需实现
+GetObjectIdMap: 无需实现
+InitializeRecord: 无需实现
+GetRMWCopyRecordSize: 无需实现
+PopulateRecordSizeInfo: 无需实现
+GetRMWInitialRecordSize: 无需实现
+GetUpsertRecordSize: 无需实现
+GetDeleteRecordSize: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+EvictRecordsInRange: 无需实现
+FlushRecordsInRange: 无需实现
+StopSizeTrackerForDispose: 无需实现
+TruncateUntilAddressBlocking: 无需实现
+GetLowestObjectLogSegmentInUse: 无需实现
+CreateCircularFlushBuffers: 无需实现
+CreateCircularReadBuffers: 无需实现
+GetObjectLogTail: 无需实现
+SetObjectLogTail: 无需实现
+GetObjectLogSegmentSize: 无需实现
+RecoveryReset: 无需实现
+AsyncFlushPagesForReadOnly: 无需实现
+GetFlushPageRange: 无需实现
+WriteAsyncToDeviceForSnapshot: 无需实现
+VerifyCompatibleSectorSize: 无需实现
+SetLowestObjectLogPosition: 无需实现
+WriteInlinePageAsync: 无需实现
+CreateSnapshotObjectReader: 无需实现
+OnPagesMarkedReadOnlyWorker: 无需实现
+AsyncReadPageCallback: 无需实现
+TryReadDevice: 无需实现
+CreateReadException: 无需实现
+VerifyRecordFromDiskCallback: 无需实现
+AsyncReadPageWithObjectsCallback: 无需实现
+DeserializeObjectsOnPage: 无需实现
+TrackRecoveredObjectRecord: 无需实现
+CalculatePageObjectSizes: 无需实现
+ThrowTsavoriteException: 无需实现
+IsLastRecordOnPage: 无需实现
+LoadObjectsForRecoveryPass2: 无需实现
+FindHeadAddressCutoffOnPage: 无需实现
+ClearSerializedObjectData: 无需实现
+ScanCursor: 无需实现
+MemoryPageScan: 无需实现

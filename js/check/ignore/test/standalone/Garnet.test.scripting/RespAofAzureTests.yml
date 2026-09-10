@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - AofUpsertStoreRecoverTestAsync
-  - AofUpsertStoreAutoCommitRecoverTestAsync
-  - AofUpsertStoreAutoCommitCommitWaitRecoverTest
-  - AofUpsertStoreCkptRecoverTestAsync
-  - AofRMWStoreRecoverTestAsync
-  - AofDeleteStoreRecoverTestAsync
-  - AofExpiryRMWStoreRecoverTestAsync
-  - AofRMWObjectStoreRecoverTestAsync
-  - AofDeleteObjectStoreRecoverTestAsync
-  - AofRMWObjectStoreCopyUpdateRecoverTestAsync
-  - AofMultiRMWStoreCkptRecoverTestAsync
+Setup: 无需实现
+TearDown: 无需实现
+AofUpsertStoreRecoverTestAsync: 测试函数无需实现
+AofUpsertStoreAutoCommitRecoverTestAsync: 测试函数无需实现
+AofUpsertStoreAutoCommitCommitWaitRecoverTest: 测试函数无需实现
+AofUpsertStoreCkptRecoverTestAsync: 测试函数无需实现
+AofRMWStoreRecoverTestAsync: 测试函数无需实现
+AofDeleteStoreRecoverTestAsync: 测试函数无需实现
+AofExpiryRMWStoreRecoverTestAsync: 测试函数无需实现
+AofRMWObjectStoreRecoverTestAsync: 测试函数无需实现
+AofDeleteObjectStoreRecoverTestAsync: 测试函数无需实现
+AofRMWObjectStoreCopyUpdateRecoverTestAsync: 测试函数无需实现
+AofMultiRMWStoreCkptRecoverTestAsync: 测试函数无需实现

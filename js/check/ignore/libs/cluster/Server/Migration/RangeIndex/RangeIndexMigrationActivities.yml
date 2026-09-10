@@ -1,9 +1,8 @@
-fn:
-  - OnTransmitting
-  - OnDeleting
-  - LogActivity
-  - EndAndLogActivity
-  - OnSnapshotCompleted
-  - OnChunkSent
-  - OnPublishing
-  - OnSessionDisposed
+OnTransmitting: 无需实现
+OnDeleting: 无需实现
+LogActivity: 无需实现
+EndAndLogActivity: 无需实现
+OnSnapshotCompleted: 无需实现
+OnChunkSent: 无需实现
+OnPublishing: 无需实现
+OnSessionDisposed: 无需实现

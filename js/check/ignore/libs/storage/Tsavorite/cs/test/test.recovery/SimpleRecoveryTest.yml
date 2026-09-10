@@ -1,19 +1,17 @@
-fn:
-  - CheckpointManagerWithCookie
-  - GetCookie
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - IgnoreIfNotRunningAzureTests
-  - SimpleRecoveryTest1_Worker
-  - AdSimpleFunctions
-  - ReadCompletionCallback
-  - InitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-test:
-  - PageBlobSimpleRecoveryTest
-  - SimpleRecoveryTest2
+CheckpointManagerWithCookie: 无需实现
+GetCookie: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+IgnoreIfNotRunningAzureTests: 无需实现
+SimpleRecoveryTest1_Worker: 无需实现
+AdSimpleFunctions: 无需实现
+ReadCompletionCallback: 无需实现
+InitialUpdater: 无需实现
+NeedCopyUpdate: 无需实现
+CopyUpdater: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+PageBlobSimpleRecoveryTest: 测试函数无需实现
+SimpleRecoveryTest2: 测试函数无需实现

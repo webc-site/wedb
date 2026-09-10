@@ -1,4 +1,3 @@
-fn:
-  - FoldOverSMTask
-  - GlobalBeforeEnteringState
-  - ObjectLog_OnPrepare
+FoldOverSMTask: 无需实现
+GlobalBeforeEnteringState: 无需实现
+ObjectLog_OnPrepare: 无需实现

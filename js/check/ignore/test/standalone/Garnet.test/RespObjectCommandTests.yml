@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - TearDown
-  - GetEncoding
-test:
-  - ObjectEncodingStringTest
-  - ObjectEncodingHashTest
-  - ObjectEncodingHashWithFieldExpirationTest
-  - ObjectEncodingListTest
-  - ObjectEncodingSetTest
-  - ObjectEncodingSortedSetTest
-  - ObjectEncodingMissingKeyReturnsNil
-  - ObjectRefcountTest
-  - ObjectIdletimeTest
-  - ObjectFreqTest
-  - ObjectHelpTest
-  - ObjectErrorsTest
-  - ObjectEncodingRawProtocolTest
+Setup: 无需实现
+TearDown: 无需实现
+GetEncoding: 无需实现
+ObjectEncodingStringTest: 测试函数无需实现
+ObjectEncodingHashTest: 测试函数无需实现
+ObjectEncodingHashWithFieldExpirationTest: 测试函数无需实现
+ObjectEncodingListTest: 测试函数无需实现
+ObjectEncodingSetTest: 测试函数无需实现
+ObjectEncodingSortedSetTest: 测试函数无需实现
+ObjectEncodingMissingKeyReturnsNil: 测试函数无需实现
+ObjectRefcountTest: 测试函数无需实现
+ObjectIdletimeTest: 测试函数无需实现
+ObjectFreqTest: 测试函数无需实现
+ObjectHelpTest: 测试函数无需实现
+ObjectErrorsTest: 测试函数无需实现
+ObjectEncodingRawProtocolTest: 测试函数无需实现

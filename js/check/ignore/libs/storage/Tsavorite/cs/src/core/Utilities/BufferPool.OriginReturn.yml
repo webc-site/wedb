@@ -1,35 +1,34 @@
-fn:
-  - TryPush
-  - TryPop
-  - dropAndRelease
-  - InitOriginReturn
-  - AcquireSlot
-  - ReleaseSlot
-  - GetOriginReturn
-  - RecordReuse
-  - SpliceIntoLocal
-  - RecordAlloc
-  - PrepareForRent
-  - AllocateForBucket
-  - AllocateUncached
-  - BuildManaged
-  - RetainLocal
-  - TryMakeRoom
-  - SpillOneLocal
-  - WorstOverShare
-  - DepotPop
-  - ReleasePermit
-  - ReleaseChainPermits
-  - GetOrCreateShard
-  - CreateShardSlow
-  - CompactPoolShardRegistryLocked
-  - FreeOriginReturn
-  - DropChain
-  - PrintOriginReturn
-  - SnapshotAllocs
-  - SnapshotReuses
-  - CallerLocalBytesForClass
-  - CallerShard
-  - TestClassOfSectors
-  - TestClassCapacitySectors
-  - TestBucketHeadCacheLineOffset
+TryPush: 无需实现
+TryPop: 无需实现
+dropAndRelease: 无需实现
+InitOriginReturn: 无需实现
+AcquireSlot: 无需实现
+ReleaseSlot: 无需实现
+GetOriginReturn: 无需实现
+RecordReuse: 无需实现
+SpliceIntoLocal: 无需实现
+RecordAlloc: 无需实现
+PrepareForRent: 无需实现
+AllocateForBucket: 无需实现
+AllocateUncached: 无需实现
+BuildManaged: 无需实现
+RetainLocal: 无需实现
+TryMakeRoom: 无需实现
+SpillOneLocal: 无需实现
+WorstOverShare: 无需实现
+DepotPop: 无需实现
+ReleasePermit: 无需实现
+ReleaseChainPermits: 无需实现
+GetOrCreateShard: 无需实现
+CreateShardSlow: 无需实现
+CompactPoolShardRegistryLocked: 无需实现
+FreeOriginReturn: 无需实现
+DropChain: 无需实现
+PrintOriginReturn: 无需实现
+SnapshotAllocs: 无需实现
+SnapshotReuses: 无需实现
+CallerLocalBytesForClass: 无需实现
+CallerShard: 无需实现
+TestClassOfSectors: 无需实现
+TestClassCapacitySectors: 无需实现
+TestBucketHeadCacheLineOffset: 无需实现

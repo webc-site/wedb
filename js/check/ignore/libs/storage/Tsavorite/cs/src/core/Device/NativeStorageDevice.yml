@@ -1,66 +1,65 @@
-fn:
-  - GetNativeRuntimeIdentifier
-  - ImportResolver
-  - when
-  - LoadWithLibaioShim
-  - ResolveNativeLibraryPath
-  - TryGetCurrentDirectory
-  - DetectMuslRuntime
-  - TryFindHostLibaio
-  - TryCreateLibaioCompatSymlink
-  - IsUsableLibaioShim
-  - BuildLibaioDiagnostic
-  - NativeDevice_CreateWithBackend
-  - NativeDevice_GetSegmentSize
-  - NativeDevice_AvailableBackends
-  - NativeDevice_Destroy
-  - NativeDevice_sector_size
-  - NativeDevice_ProbeAlignment
-  - NativeDevice_ReadAsync
-  - NativeDevice_WriteAsync
-  - NativeDevice_CreateDir
-  - NativeDevice_TryComplete
-  - NativeDevice_TryCompleteMine
-  - NativeDevice_QueueRun
-  - NativeDevice_QueueRunFor
-  - NativeDevice_WakeCompletionWorker
-  - NativeDevice_NumIoContexts
-  - NativeDevice_GetFileSize
-  - NativeDevice_Reset
-  - NativeDevice_RemoveSegment
-  - NativeDevice_GetLastError
-  - GetNativeLastError
-  - FormatNativeError
-  - GetShard
-  - AssignShard
-  - SubmitToShard
-  - CompleteShard
-  - RentSlot
-  - ReturnSlot
-  - InFlightInShard
-  - TotalInFlight
-  - EnterNativeCall
-  - ExitNativeCall
-  - TotalLeases
-  - PerThreadLimit
-  - TryLease
-  - ReleaseLease
-  - _callback
-  - Throttle
-  - ResolveQueueDepth
-  - ResolveLibaioReservationDepth
-  - GetAioMaxNr
-  - WarnIfLibaioAioBudgetExceeded
-  - GetAvailableBackends
-  - EnsureNativeDeviceCreated
-  - ThrowMisaligned
-  - RemoveSegmentAsync
-  - TryComplete
-  - TryCompleteMine
-  - GetSegmentName
-  - GetSectorSize
-  - EnsureParentDirectoryAndProbeSectorSize
-  - MaterializeParentDirForProbe
-  - ProbeSectorSize
-  - CompletionWorker
-  - ReportBrokenDrain
+GetNativeRuntimeIdentifier: 无需实现
+ImportResolver: 无需实现
+when: 无需实现
+LoadWithLibaioShim: 无需实现
+ResolveNativeLibraryPath: 无需实现
+TryGetCurrentDirectory: 无需实现
+DetectMuslRuntime: 无需实现
+TryFindHostLibaio: 无需实现
+TryCreateLibaioCompatSymlink: 无需实现
+IsUsableLibaioShim: 无需实现
+BuildLibaioDiagnostic: 无需实现
+NativeDevice_CreateWithBackend: 无需实现
+NativeDevice_GetSegmentSize: 无需实现
+NativeDevice_AvailableBackends: 无需实现
+NativeDevice_Destroy: 无需实现
+NativeDevice_sector_size: 无需实现
+NativeDevice_ProbeAlignment: 无需实现
+NativeDevice_ReadAsync: 无需实现
+NativeDevice_WriteAsync: 无需实现
+NativeDevice_CreateDir: 无需实现
+NativeDevice_TryComplete: 无需实现
+NativeDevice_TryCompleteMine: 无需实现
+NativeDevice_QueueRun: 无需实现
+NativeDevice_QueueRunFor: 无需实现
+NativeDevice_WakeCompletionWorker: 无需实现
+NativeDevice_NumIoContexts: 无需实现
+NativeDevice_GetFileSize: 无需实现
+NativeDevice_Reset: 无需实现
+NativeDevice_RemoveSegment: 无需实现
+NativeDevice_GetLastError: 无需实现
+GetNativeLastError: 无需实现
+FormatNativeError: 无需实现
+GetShard: 无需实现
+AssignShard: 无需实现
+SubmitToShard: 无需实现
+CompleteShard: 无需实现
+RentSlot: 无需实现
+ReturnSlot: 无需实现
+InFlightInShard: 无需实现
+TotalInFlight: 无需实现
+EnterNativeCall: 无需实现
+ExitNativeCall: 无需实现
+TotalLeases: 无需实现
+PerThreadLimit: 无需实现
+TryLease: 无需实现
+ReleaseLease: 无需实现
+_callback: 无需实现
+Throttle: 无需实现
+ResolveQueueDepth: 无需实现
+ResolveLibaioReservationDepth: 无需实现
+GetAioMaxNr: 无需实现
+WarnIfLibaioAioBudgetExceeded: 无需实现
+GetAvailableBackends: 无需实现
+EnsureNativeDeviceCreated: 无需实现
+ThrowMisaligned: 无需实现
+RemoveSegmentAsync: 无需实现
+TryComplete: 无需实现
+TryCompleteMine: 无需实现
+GetSegmentName: 无需实现
+GetSectorSize: 无需实现
+EnsureParentDirectoryAndProbeSectorSize: 无需实现
+MaterializeParentDirForProbe: 无需实现
+ProbeSectorSize: 无需实现
+CompletionWorker: 无需实现
+ReportBrokenDrain: 无需实现

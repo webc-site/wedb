@@ -1,7 +1,5 @@
-fn:
-  - StartServer
-  - Setup
-  - TearDown
-test:
-  - MetricsDisabledTest
-  - MetricsEnabledTest
+StartServer: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+MetricsDisabledTest: 测试函数无需实现
+MetricsEnabledTest: 测试函数无需实现

@@ -1,12 +1,10 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - AssertCompleted
-  - CompletePendingResult
-test:
-  - BasicOps
-  - ImmutableDeleteEncodesNamespaceWithoutCorruptingRecordLength
-  - CopyToTailPreservesExtendedNamespace
-  - RecoveryAsync
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+AssertCompleted: 无需实现
+CompletePendingResult: 无需实现
+BasicOps: 测试函数无需实现
+ImmutableDeleteEncodesNamespaceWithoutCorruptingRecordLength: 测试函数无需实现
+CopyToTailPreservesExtendedNamespace: 测试函数无需实现
+RecoveryAsync: 测试函数无需实现

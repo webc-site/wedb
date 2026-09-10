@@ -1,4 +1,3 @@
-fn:
-  - GetStats
-  - Position
-  - GetLevel
+GetStats: 无需实现
+Position: 无需实现
+GetLevel: 无需实现

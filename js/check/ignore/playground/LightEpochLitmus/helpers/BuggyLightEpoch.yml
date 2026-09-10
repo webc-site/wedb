@@ -1,15 +1,14 @@
-fn:
-  - GetRef
-  - BuggyLightEpoch
-  - SelectInstance
-  - ActiveInstanceCount
-  - ResetAllInstances
-  - triggerAction
-  - ComputeNewSafeToReclaimEpoch
-  - trigger_action
-  - ReserveEntryForThread
-  - TryAcquireEntry
-  - ReserveEntry
-  - ReserveEntryWait
-  - ToString
-  - UserWordRef
+GetRef: 无需实现
+BuggyLightEpoch: 无需实现
+SelectInstance: 无需实现
+ActiveInstanceCount: 无需实现
+ResetAllInstances: 无需实现
+triggerAction: 无需实现
+ComputeNewSafeToReclaimEpoch: 无需实现
+trigger_action: 无需实现
+ReserveEntryForThread: 无需实现
+TryAcquireEntry: 无需实现
+ReserveEntry: 无需实现
+ReserveEntryWait: 无需实现
+ToString: 无需实现
+UserWordRef: 无需实现

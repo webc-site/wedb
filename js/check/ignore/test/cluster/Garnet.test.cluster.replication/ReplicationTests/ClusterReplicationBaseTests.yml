@@ -1,39 +1,35 @@
-fn:
-  - GetUnitTests
-  - Setup
-  - TearDown
-  - ClusterSRPrimaryCheckpointRetrieve
-  - ClusterDivergentReplicasTest
-  - ClusterReplicate
-  - ExecuteRateLimit
-  - ValidateKeys
-  - RunWorkload
-  - RestartRecover
-test:
-  - ClusterSRTest
-  - ClusterSRNoCheckpointRestartSecondary
-  - ClusterSRPrimaryCheckpointAsync
-  - ClusterCheckpointRetrieveDisableStorageTier
-  - ClusterSRPrimaryCheckpointRetrieve
-  - ClusterSRAddReplicaAfterPrimaryCheckpoint
-  - ClusterSRPrimaryRestart
-  - ClusterSRRedirectWrites
-  - ClusterSRReplicaOfTest
-  - ClusterReplicationSimpleFailover
-  - ClusterFailoverAttachReplicas
-  - ClusterReplicationCheckpointCleanupTest
-  - ClusterMainMemoryReplicationAttachReplicas
-  - ClusterDivergentReplicasTest
-  - ClusterDivergentCheckpointTest
-  - ClusterDivergentReplicasMMTest
-  - ClusterDivergentCheckpointMMTest
-  - ClusterDivergentCheckpointMMFastCommitTest
-  - ClusterReplicationCheckpointAlignmentTestAsync
-  - ClusterReplicationLua
-  - ClusterReplicationStoredProc
-  - ClusterReplicationManualCheckpointingAsync
-  - ReplicaSyncTaskFaultsRecoverAsync
-  - ClusterReplicationMultiRestartRecover
-  - ClusterReplicationDivergentHistoryWithoutCheckpointAsync
-  - ClusterReplicationSimpleTransactionTest
-  - ClusterReplicationHlogSegmentCleanupTest
+GetUnitTests: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ClusterSRPrimaryCheckpointRetrieve: 测试函数无需实现
+ClusterDivergentReplicasTest: 测试函数无需实现
+ClusterReplicate: 无需实现
+ExecuteRateLimit: 无需实现
+ValidateKeys: 无需实现
+RunWorkload: 无需实现
+RestartRecover: 无需实现
+ClusterSRTest: 测试函数无需实现
+ClusterSRNoCheckpointRestartSecondary: 测试函数无需实现
+ClusterSRPrimaryCheckpointAsync: 测试函数无需实现
+ClusterCheckpointRetrieveDisableStorageTier: 测试函数无需实现
+ClusterSRAddReplicaAfterPrimaryCheckpoint: 测试函数无需实现
+ClusterSRPrimaryRestart: 测试函数无需实现
+ClusterSRRedirectWrites: 测试函数无需实现
+ClusterSRReplicaOfTest: 测试函数无需实现
+ClusterReplicationSimpleFailover: 测试函数无需实现
+ClusterFailoverAttachReplicas: 测试函数无需实现
+ClusterReplicationCheckpointCleanupTest: 测试函数无需实现
+ClusterMainMemoryReplicationAttachReplicas: 测试函数无需实现
+ClusterDivergentCheckpointTest: 测试函数无需实现
+ClusterDivergentReplicasMMTest: 测试函数无需实现
+ClusterDivergentCheckpointMMTest: 测试函数无需实现
+ClusterDivergentCheckpointMMFastCommitTest: 测试函数无需实现
+ClusterReplicationCheckpointAlignmentTestAsync: 测试函数无需实现
+ClusterReplicationLua: 测试函数无需实现
+ClusterReplicationStoredProc: 测试函数无需实现
+ClusterReplicationManualCheckpointingAsync: 测试函数无需实现
+ReplicaSyncTaskFaultsRecoverAsync: 测试函数无需实现
+ClusterReplicationMultiRestartRecover: 测试函数无需实现
+ClusterReplicationDivergentHistoryWithoutCheckpointAsync: 测试函数无需实现
+ClusterReplicationSimpleTransactionTest: 测试函数无需实现
+ClusterReplicationHlogSegmentCleanupTest: 测试函数无需实现

@@ -1,11 +1,10 @@
-fn:
-  - Iterate
-  - TsavoriteKVIterator
-  - ProcessNonTailmostMainKvRecord
-  - PushNext
-  - IsTailmostMainKvRecord
-  - ClearValueIfHeap
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - CalculateHeapMemorySize
+Iterate: 无需实现
+TsavoriteKVIterator: 无需实现
+ProcessNonTailmostMainKvRecord: 无需实现
+PushNext: 无需实现
+IsTailmostMainKvRecord: 无需实现
+ClearValueIfHeap: 无需实现
+AsMemoryLogRecordRef: 无需实现
+AsDiskLogRecordRef: 无需实现
+GetRecordFieldInfo: 无需实现
+CalculateHeapMemorySize: 无需实现

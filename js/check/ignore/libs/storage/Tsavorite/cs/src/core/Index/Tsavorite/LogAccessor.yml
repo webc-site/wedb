@@ -1,7 +1,6 @@
-fn:
-  - PopulateRecordSizeInfo
-  - ShiftAddresses
-  - Subscribe
-  - SubscribeEvictions
-  - SetLogSizeTracker
-  - ClearSerializedObjectData
+PopulateRecordSizeInfo: 无需实现
+ShiftAddresses: 无需实现
+Subscribe: 无需实现
+SubscribeEvictions: 无需实现
+SetLogSizeTracker: 无需实现
+ClearSerializedObjectData: 无需实现

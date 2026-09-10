@@ -1,3 +1,2 @@
-fn:
-  - Compute
-  - ComputePow2
+Compute: 无需实现
+ComputePow2: 无需实现

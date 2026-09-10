@@ -1,16 +1,15 @@
-fn:
-  - GetBase
-  - InitializeRecord
-  - GetRMWCopyRecordSize
-  - GetRMWInitialRecordSize
-  - GetUpsertRecordSize
-  - GetDeleteRecordSize
-  - PopulateRecordSizeInfo
-  - AllocatePage
-  - FreePage
-  - CreateLogRecord
-  - CreateRemappedLogRecordOverPinnedTransientMemory
-  - GetPageObjectIdMap
-  - OnDispose
-  - OnDisposeDiskRecord
-  - EvictRecordsInRange
+GetBase: 无需实现
+InitializeRecord: 无需实现
+GetRMWCopyRecordSize: 无需实现
+GetRMWInitialRecordSize: 无需实现
+GetUpsertRecordSize: 无需实现
+GetDeleteRecordSize: 无需实现
+PopulateRecordSizeInfo: 无需实现
+AllocatePage: 无需实现
+FreePage: 无需实现
+CreateLogRecord: 无需实现
+CreateRemappedLogRecordOverPinnedTransientMemory: 无需实现
+GetPageObjectIdMap: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+EvictRecordsInRange: 无需实现

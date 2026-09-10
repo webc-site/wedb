@@ -1,8 +1,7 @@
-fn:
-  - LongConcurrentHistogram
-  - GetCountAtIndex
-  - SetCountAtIndex
-  - IncrementCountAtIndex
-  - AddToCountAtIndex
-  - ClearCounts
-  - CopyCountsInto
+LongConcurrentHistogram: 无需实现
+GetCountAtIndex: 无需实现
+SetCountAtIndex: 无需实现
+IncrementCountAtIndex: 无需实现
+AddToCountAtIndex: 无需实现
+ClearCounts: 无需实现
+CopyCountsInto: 无需实现

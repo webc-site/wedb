@@ -1,6 +1,5 @@
-fn:
-  - UnmanagedMemoryManager
-  - SetDestination
-  - GetSpan
-  - Pin
-  - Unpin
+UnmanagedMemoryManager: 无需实现
+SetDestination: 无需实现
+GetSpan: 无需实现
+Pin: 无需实现
+Unpin: 无需实现

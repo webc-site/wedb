@@ -1,3 +1,2 @@
-fn:
-  - NullNamedDeviceFactory
-  - ListContents
+NullNamedDeviceFactory: 无需实现
+ListContents: 无需实现

@@ -1,6 +1,5 @@
-fn:
-  - WriteInt64
-  - WriteDouble
-  - ReadInt64
-  - WriteInt32
-  - TryReadDouble
+WriteInt64: 无需实现
+WriteDouble: 无需实现
+ReadInt64: 无需实现
+WriteInt32: 无需实现
+TryReadDouble: 无需实现

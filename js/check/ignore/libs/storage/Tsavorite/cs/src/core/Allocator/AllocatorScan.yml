@@ -1,10 +1,7 @@
-fn:
-  - ClearSerializedObjectData
-  - PushScanImpl
-  - IterateHashChain
-  - GetFromDiskAndPushToReader
-  - ScanCursor
-  - ScanLookup
-  - ConditionalScanPush
-  - PrepareIOForConditionalScan
-  - MemoryPageScan
+ClearSerializedObjectData: 无需实现
+PushScanImpl: 无需实现
+GetFromDiskAndPushToReader: 无需实现
+ScanCursor: 无需实现
+ScanLookup: 无需实现
+ConditionalScanPush: 无需实现
+PrepareIOForConditionalScan: 无需实现

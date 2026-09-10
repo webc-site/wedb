@@ -1,21 +1,20 @@
-fn:
-  - ToString
-  - DiskLogRecord
-  - CreateFromTransientLogRecord
-  - CopyFrom
-  - TransferFrom
-  - ClearValueIfHeap
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - CalculateHeapMemorySize
-  - Serialize
-  - SerializeChunked
-  - WriteChunkedLengthPrefix
-  - SerializeInlinePortionForMigration
-  - SerializeInlinePortion
-  - DirectCopyInlinePortionOfRecord
-  - Deserialize
-  - GetChunkedRecordInlineSize
-  - CompleteDeserializeChunkedRecord
-  - GetSerializedSize
+ToString: 无需实现
+DiskLogRecord: 无需实现
+CreateFromTransientLogRecord: 无需实现
+CopyFrom: 无需实现
+TransferFrom: 无需实现
+ClearValueIfHeap: 无需实现
+AsMemoryLogRecordRef: 无需实现
+AsDiskLogRecordRef: 无需实现
+GetRecordFieldInfo: 无需实现
+CalculateHeapMemorySize: 无需实现
+Serialize: 无需实现
+SerializeChunked: 无需实现
+WriteChunkedLengthPrefix: 无需实现
+SerializeInlinePortionForMigration: 无需实现
+SerializeInlinePortion: 无需实现
+DirectCopyInlinePortionOfRecord: 无需实现
+Deserialize: 无需实现
+GetChunkedRecordInlineSize: 无需实现
+CompleteDeserializeChunkedRecord: 无需实现
+GetSerializedSize: 无需实现

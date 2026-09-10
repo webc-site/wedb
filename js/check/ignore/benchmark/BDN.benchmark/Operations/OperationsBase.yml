@@ -1,10 +1,9 @@
-fn:
-  - OperationParamsProvider
-  - SetAllParams
-  - GlobalSetup
-  - ConfigureServerOptions
-  - SlowConsumeMessage
-  - GlobalCleanup
-  - BuildAadAuthSettings
-  - BdnIssuerSigningTokenProvider
-  - SetupOperation
+OperationParamsProvider: 无需实现
+SetAllParams: 无需实现
+GlobalSetup: 无需实现
+ConfigureServerOptions: 无需实现
+SlowConsumeMessage: 无需实现
+GlobalCleanup: 无需实现
+BuildAadAuthSettings: 无需实现
+BdnIssuerSigningTokenProvider: 无需实现
+SetupOperation: 无需实现

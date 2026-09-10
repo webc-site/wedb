@@ -1,17 +1,16 @@
-fn:
-  - WriterClusterAppendLog
-  - WriterClusterAppendLogFixedWidth
-  - WriteFixedWidthAddress
-  - WriteZeroPaddedInt64
-  - PatchAddress
-  - GetPageBuffers
-  - GetRespReplayMessages
-  - GetKVPairBuffer
-  - AofGen
-  - GetKey
-  - GetValue
-  - GenerateKVPairs
-  - GenerateData
-  - GeneratePages
-  - FillPage
-  - GenerateKeys
+WriterClusterAppendLog: 无需实现
+WriterClusterAppendLogFixedWidth: 无需实现
+WriteFixedWidthAddress: 无需实现
+WriteZeroPaddedInt64: 无需实现
+PatchAddress: 无需实现
+GetPageBuffers: 无需实现
+GetRespReplayMessages: 无需实现
+GetKVPairBuffer: 无需实现
+AofGen: 无需实现
+GetKey: 无需实现
+GetValue: 无需实现
+GenerateKVPairs: 无需实现
+GenerateData: 无需实现
+GeneratePages: 无需实现
+FillPage: 无需实现
+GenerateKeys: 无需实现

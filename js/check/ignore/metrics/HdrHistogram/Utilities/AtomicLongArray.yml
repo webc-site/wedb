@@ -1,5 +1,4 @@
-fn:
-  - AtomicLongArray
-  - LazySet
-  - IncrementAndGet
-  - AddAndGet
+AtomicLongArray: 无需实现
+LazySet: 无需实现
+IncrementAndGet: 无需实现
+AddAndGet: 无需实现

@@ -1,6 +1,5 @@
-fn:
-  - TestSpanByteKey
-  - FromPinnedSpan
-  - CopySpan
-  - FromPointer
-  - FromArray
+TestSpanByteKey: 无需实现
+FromPinnedSpan: 无需实现
+CopySpan: 无需实现
+FromPointer: 无需实现
+FromArray: 无需实现

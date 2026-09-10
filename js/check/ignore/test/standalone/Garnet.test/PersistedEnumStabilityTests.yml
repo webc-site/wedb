@@ -1,9 +1,8 @@
-test:
-  - RespCommandWriteBlockValuesAreStable
-  - ObjectSubOpValuesAreStable
-  - GarnetObjectTypeBuiltinValuesAreStable
-  - LegacyCustomObjectTypeIdFailsFastOnDeserialize
-  - ObjectSubOpsFitInByte
-  - WriteBlockContainsExactlyWriteCommands
-  - LegacyV3MappingIsComplete
-  - BuiltinRespCommandSpaceDoesNotReachCustomRange
+RespCommandWriteBlockValuesAreStable: 测试函数无需实现
+ObjectSubOpValuesAreStable: 测试函数无需实现
+GarnetObjectTypeBuiltinValuesAreStable: 测试函数无需实现
+LegacyCustomObjectTypeIdFailsFastOnDeserialize: 测试函数无需实现
+ObjectSubOpsFitInByte: 测试函数无需实现
+WriteBlockContainsExactlyWriteCommands: 测试函数无需实现
+LegacyV3MappingIsComplete: 测试函数无需实现
+BuiltinRespCommandSpaceDoesNotReachCustomRange: 测试函数无需实现

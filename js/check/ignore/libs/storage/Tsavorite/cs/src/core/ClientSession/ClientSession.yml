@@ -1,28 +1,27 @@
-fn:
-  - AcquireTransactional
-  - CheckIsNotAcquiredTransactional
-  - LocksAcquired
-  - CheckIsAcquiredTransactional
-  - ReleaseTransactional
-  - GetKeyHash
-  - UnsafeResumeThread
-  - ResetModified
-  - UnsafeResetModified
-  - CompareKeyHashes
-  - SortKeyHashes
-  - CompletePendingWithOutputs
-  - InitializeCompletedOutputs
-  - UnsafeCompletePendingWithOutputs
-  - UnsafeCompletePending
-  - CompletePendingAsync
-  - CompletePendingWithOutputsAsync
-  - ReadyToCompletePendingAsync
-  - IsModified
-  - UnsafeIsModified
-  - WaitForCommitAsync
-  - Iterate
-  - IterateLookup
-  - IterateLookupSnapshot
-  - ScanCursor
-  - MergeRevivificationStatsTo
-  - ResetRevivificationStats
+AcquireTransactional: 无需实现
+CheckIsNotAcquiredTransactional: 无需实现
+LocksAcquired: 无需实现
+CheckIsAcquiredTransactional: 无需实现
+ReleaseTransactional: 无需实现
+GetKeyHash: 无需实现
+UnsafeResumeThread: 无需实现
+ResetModified: 无需实现
+UnsafeResetModified: 无需实现
+CompareKeyHashes: 无需实现
+SortKeyHashes: 无需实现
+CompletePendingWithOutputs: 无需实现
+InitializeCompletedOutputs: 无需实现
+UnsafeCompletePendingWithOutputs: 无需实现
+UnsafeCompletePending: 无需实现
+CompletePendingAsync: 无需实现
+CompletePendingWithOutputsAsync: 无需实现
+ReadyToCompletePendingAsync: 无需实现
+IsModified: 无需实现
+UnsafeIsModified: 无需实现
+WaitForCommitAsync: 无需实现
+Iterate: 无需实现
+IterateLookup: 无需实现
+IterateLookupSnapshot: 无需实现
+ScanCursor: 无需实现
+MergeRevivificationStatsTo: 无需实现
+ResetRevivificationStats: 无需实现

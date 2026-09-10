@@ -1,7 +1,6 @@
-fn:
-  - NUnitLoggerProvider
-  - CreateLogger
-  - NUnitLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr
+NUnitLoggerProvider: 无需实现
+CreateLogger: 无需实现
+NUnitLogger: 无需实现
+BeginScope: 无需实现
+IsEnabled: 无需实现
+GetLevelStr: 无需实现

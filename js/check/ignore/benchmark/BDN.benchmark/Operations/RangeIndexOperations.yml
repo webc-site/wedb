@@ -1,10 +1,9 @@
-fn:
-  - OperationParamsProvider
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - RISet
-  - RIGet
-  - RIScan
-  - RIScanKeysOnly
-  - RIRange
+OperationParamsProvider: 无需实现
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+RISet: 无需实现
+RIGet: 无需实现
+RIScan: 无需实现
+RIScanKeysOnly: 无需实现
+RIRange: 无需实现

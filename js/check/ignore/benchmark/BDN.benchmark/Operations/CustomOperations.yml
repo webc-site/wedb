@@ -1,9 +1,8 @@
-fn:
-  - CreateExtensions
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - CustomRawStringCommand
-  - CustomObjectCommand
-  - CustomTransaction
-  - CustomProcedure
+CreateExtensions: 无需实现
+GlobalSetup: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+CustomRawStringCommand: 无需实现
+CustomObjectCommand: 无需实现
+CustomTransaction: 无需实现
+CustomProcedure: 无需实现

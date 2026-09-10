@@ -1,13 +1,12 @@
-fn:
-  - ReqGen
-  - GetBufferSize
-  - GetRequest
-  - GetRequestArgs
-  - InitializeRNG
-  - ConvertToSERedisInput
-  - ProcessArgs
-  - OnResponse
-  - LongRandom
-  - ULongRandom
-  - RandomIntBitRange
-  - RandomString
+ReqGen: 无需实现
+GetBufferSize: 无需实现
+GetRequest: 无需实现
+GetRequestArgs: 无需实现
+InitializeRNG: 无需实现
+ConvertToSERedisInput: 无需实现
+ProcessArgs: 无需实现
+OnResponse: 无需实现
+LongRandom: 无需实现
+ULongRandom: 无需实现
+RandomIntBitRange: 无需实现
+RandomString: 无需实现

@@ -1,5 +1,4 @@
-fn:
-  - GetProperties
-  - TryPopulateOptions
-  - TryApplyTransform
-  - TryChangeType
+GetProperties: 无需实现
+TryPopulateOptions: 无需实现
+TryApplyTransform: 无需实现
+TryChangeType: 无需实现

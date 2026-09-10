@@ -1,36 +1,35 @@
-fn:
-  - SetHasETag
-  - ClearHasETag
-  - SetHasExpiration
-  - ClearHasExpiration
-  - SetValueIsObject
-  - SetValueIsInline
-  - ClearValueIsInline
-  - SetKeyIsInline
-  - ClearKeyIsInline
-  - SetKeyIsOverflow
-  - SetValueIsOverflow
-  - SetKeyAndValueInline
-  - GetOptionalSize
-  - InitializeForNewRecord
-  - GetKeyLengthRaw
-  - GetValueLengthRaw
-  - ThrowTsavoriteException
-  - SetNamespaceByteRaw
-  - GetUnalignedComponentSum
-  - GetAlignedComponentSum
-  - GetRecordLengths
-  - GetExplicitFillerLength
-  - GetTotalFillerLength
-  - SetFiller
-  - ComputeFillerWordsOrSplit
-  - SplitOverflowingFiller
-  - GetExtendedNamespaceInfo
-  - GetOffsetToKeyStart
-  - GetKeyFieldInfo
-  - GetValueFieldInfo
-  - GetKVLengths
-  - InitializeForRevivification
-  - ToString
-  - bstr
-  - bstr01
+SetHasETag: 无需实现
+ClearHasETag: 无需实现
+SetHasExpiration: 无需实现
+ClearHasExpiration: 无需实现
+SetValueIsObject: 无需实现
+SetValueIsInline: 无需实现
+ClearValueIsInline: 无需实现
+SetKeyIsInline: 无需实现
+ClearKeyIsInline: 无需实现
+SetKeyIsOverflow: 无需实现
+SetValueIsOverflow: 无需实现
+SetKeyAndValueInline: 无需实现
+GetOptionalSize: 无需实现
+InitializeForNewRecord: 无需实现
+GetKeyLengthRaw: 无需实现
+GetValueLengthRaw: 无需实现
+ThrowTsavoriteException: 无需实现
+SetNamespaceByteRaw: 无需实现
+GetUnalignedComponentSum: 无需实现
+GetAlignedComponentSum: 无需实现
+GetRecordLengths: 无需实现
+GetExplicitFillerLength: 无需实现
+GetTotalFillerLength: 无需实现
+SetFiller: 无需实现
+ComputeFillerWordsOrSplit: 无需实现
+SplitOverflowingFiller: 无需实现
+GetExtendedNamespaceInfo: 无需实现
+GetOffsetToKeyStart: 无需实现
+GetKeyFieldInfo: 无需实现
+GetValueFieldInfo: 无需实现
+GetKVLengths: 无需实现
+InitializeForRevivification: 无需实现
+ToString: 无需实现
+bstr: 无需实现
+bstr01: 无需实现

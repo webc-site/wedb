@@ -1,6 +1,5 @@
-fn:
-  - BasicOpCode
-  - AdvancedOpCode
-  - TryConvertToCompletedStatusCode
-  - IsAppend
-  - IsRetry
+BasicOpCode: 无需实现
+AdvancedOpCode: 无需实现
+TryConvertToCompletedStatusCode: 无需实现
+IsAppend: 无需实现
+IsRetry: 无需实现

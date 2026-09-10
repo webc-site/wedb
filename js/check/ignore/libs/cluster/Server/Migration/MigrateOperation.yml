@@ -1,5 +1,4 @@
-fn:
-  - ThrowIfCancelled
-  - ContainsNamespace
-  - EncounteredVectorSet
-  - AddRangeIndexKey
+ThrowIfCancelled: 无需实现
+ContainsNamespace: 无需实现
+EncounteredVectorSet: 无需实现
+AddRangeIndexKey: 无需实现

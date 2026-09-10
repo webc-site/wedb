@@ -1,6 +1,5 @@
-fn:
-  - ToString
-  - WriteType
-  - ObjectValue
-  - Deserialize
-  - Serialize
+ToString: 无需实现
+WriteType: 无需实现
+ObjectValue: 无需实现
+Deserialize: 无需实现
+Serialize: 无需实现

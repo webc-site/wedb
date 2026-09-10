@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - Insert_InvalidArgs_ReturnsInvalidArgs
-  - Read_InvalidArgs_ReturnsInvalidArgs
-  - Delete_InvalidArgs_ReturnsInvalidArgs
-  - ScanWithCount_InvalidArgs_ReturnsNullHandle
-  - ScanWithEndKey_InvalidArgs_ReturnsNullHandle
-  - ScanNext_InvalidArgs_ReturnsZero
+Setup: 无需实现
+TearDown: 无需实现
+Insert_InvalidArgs_ReturnsInvalidArgs: 测试函数无需实现
+Read_InvalidArgs_ReturnsInvalidArgs: 测试函数无需实现
+Delete_InvalidArgs_ReturnsInvalidArgs: 测试函数无需实现
+ScanWithCount_InvalidArgs_ReturnsNullHandle: 测试函数无需实现
+ScanWithEndKey_InvalidArgs_ReturnsNullHandle: 测试函数无需实现
+ScanNext_InvalidArgs_ReturnsZero: 测试函数无需实现

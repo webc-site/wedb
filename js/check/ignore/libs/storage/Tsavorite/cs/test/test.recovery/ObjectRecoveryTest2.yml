@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - RecreateDirectory
-  - TearDown
-  - Prepare
-  - Write
-  - Destroy
-test:
-  - ObjectRecoveryTest2
+Setup: 无需实现
+RecreateDirectory: 无需实现
+TearDown: 无需实现
+Prepare: 无需实现
+Write: 无需实现
+Destroy: 无需实现
+ObjectRecoveryTest2: 测试函数无需实现

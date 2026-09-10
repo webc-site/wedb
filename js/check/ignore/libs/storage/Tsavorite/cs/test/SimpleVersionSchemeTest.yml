@@ -1,4 +1,3 @@
-test:
-  - SimpleTest
-  - SingleThreadTest
-  - LargeConcurrentTest
+SimpleTest: 测试函数无需实现
+SingleThreadTest: 测试函数无需实现
+LargeConcurrentTest: 测试函数无需实现

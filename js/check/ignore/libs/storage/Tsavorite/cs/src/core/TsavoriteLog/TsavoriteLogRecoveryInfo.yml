@@ -1,3 +1,2 @@
-fn:
-  - SerializedSize
-  - DebugPrint
+SerializedSize: 无需实现
+DebugPrint: 无需实现

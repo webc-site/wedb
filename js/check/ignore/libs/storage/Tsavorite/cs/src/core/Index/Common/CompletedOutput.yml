@@ -1,3 +1,2 @@
-fn:
-  - TransferFrom
-  - Next
+TransferFrom: 无需实现
+Next: 无需实现

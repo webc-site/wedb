@@ -1,42 +1,40 @@
-fn:
-  - GetValue
-  - GetRandomLength
-  - AddFunc
-  - ToString
-  - ShouldExpire
-  - NeedInitialUpdate
-  - NeedCopyUpdate
-  - CopyUpdater
-  - InitialUpdater
-  - RMWCompletionCallback
-  - ReadCompletionCallback
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - InitialWriter
-  - InPlaceWriter
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - Populate
-  - GetRecord
-  - ExecuteRMW
-  - GetMutableVsOnDiskStatus
-  - InitialIncrement
-  - InitialRead
-  - IncrementValue
-  - MaybeEvict
-  - VerifyKeyNotCreated
-  - GetExpectedFuncs
-test:
-  - PassiveExpireTest
-  - ExpireDeleteTest
-  - ExpireRolloverTest
-  - SetIfKeyExistsTest
-  - SetIfKeyNotExistsTest
-  - SetIfValueEqualsTest
-  - SetIfValueNotEqualsTest
-  - DeleteThenUpdateTest
-  - DeleteThenInsertTest
-  - DeleteAndCancelIfValueEqualsTest
-  - DeleteIfValueNotEqualsTest
+GetValue: 无需实现
+GetRandomLength: 无需实现
+AddFunc: 无需实现
+ToString: 无需实现
+ShouldExpire: 无需实现
+NeedInitialUpdate: 无需实现
+NeedCopyUpdate: 无需实现
+CopyUpdater: 无需实现
+InitialUpdater: 无需实现
+RMWCompletionCallback: 无需实现
+ReadCompletionCallback: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+InitialWriter: 无需实现
+InPlaceWriter: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+Populate: 无需实现
+GetRecord: 无需实现
+ExecuteRMW: 无需实现
+GetMutableVsOnDiskStatus: 无需实现
+InitialIncrement: 无需实现
+InitialRead: 无需实现
+IncrementValue: 无需实现
+MaybeEvict: 无需实现
+VerifyKeyNotCreated: 无需实现
+GetExpectedFuncs: 无需实现
+PassiveExpireTest: 测试函数无需实现
+ExpireDeleteTest: 测试函数无需实现
+ExpireRolloverTest: 测试函数无需实现
+SetIfKeyExistsTest: 测试函数无需实现
+SetIfKeyNotExistsTest: 测试函数无需实现
+SetIfValueEqualsTest: 测试函数无需实现
+SetIfValueNotEqualsTest: 测试函数无需实现
+DeleteThenUpdateTest: 测试函数无需实现
+DeleteThenInsertTest: 测试函数无需实现
+DeleteAndCancelIfValueEqualsTest: 测试函数无需实现
+DeleteIfValueNotEqualsTest: 测试函数无需实现

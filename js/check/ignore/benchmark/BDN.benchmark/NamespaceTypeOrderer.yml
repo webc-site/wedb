@@ -1,2 +1,1 @@
-fn:
-  - GetSummaryOrder
+GetSummaryOrder: 无需实现

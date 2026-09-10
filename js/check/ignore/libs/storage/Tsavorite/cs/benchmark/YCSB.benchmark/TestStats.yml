@@ -1,11 +1,10 @@
-fn:
-  - TestStats
-  - AddResult
-  - ShowAllStats
-  - ShowStats
-  - ShowTrimmedStats
-  - discardHiLo
-  - GetTotalOpsString
-  - GetLoadingTimeLine
-  - GetAddressesLine
-  - GetStatsLine
+TestStats: 无需实现
+AddResult: 无需实现
+ShowAllStats: 无需实现
+ShowStats: 无需实现
+ShowTrimmedStats: 无需实现
+discardHiLo: 无需实现
+GetTotalOpsString: 无需实现
+GetLoadingTimeLine: 无需实现
+GetAddressesLine: 无需实现
+GetStatsLine: 无需实现

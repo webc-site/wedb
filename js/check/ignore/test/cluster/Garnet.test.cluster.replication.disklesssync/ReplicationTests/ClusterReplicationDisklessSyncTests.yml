@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulatePrimary
-  - Validate
-  - ResetAndReAttach
-  - MakeHashFieldBytes
-test:
-  - ClusterDisklessSyncHugeObjectChunked
-  - ClusterEmptyReplicaDisklessSync
-  - ClusterDisklessSyncLargeValuesChunked
-  - ClusterAofReplayDisklessSync
-  - ClusterDBVersionAlignmentDisklessSync
-  - ClusterDisklessSyncParallelAttach
-  - ClusterDisklessSyncFailover
-  - ClusterDisklessSyncResetSyncManagerCts
+Setup: 无需实现
+TearDown: 无需实现
+PopulatePrimary: 无需实现
+Validate: 无需实现
+ResetAndReAttach: 无需实现
+MakeHashFieldBytes: 无需实现
+ClusterDisklessSyncHugeObjectChunked: 测试函数无需实现
+ClusterEmptyReplicaDisklessSync: 测试函数无需实现
+ClusterDisklessSyncLargeValuesChunked: 测试函数无需实现
+ClusterAofReplayDisklessSync: 测试函数无需实现
+ClusterDBVersionAlignmentDisklessSync: 测试函数无需实现
+ClusterDisklessSyncParallelAttach: 测试函数无需实现
+ClusterDisklessSyncFailover: 测试函数无需实现
+ClusterDisklessSyncResetSyncManagerCts: 测试函数无需实现

@@ -1,7 +1,5 @@
-fn:
-  - DeleteDirectory
-  - getEntryValue
-  - ToString
-test:
-  - BasicHashBucketMallocFPSTest
-  - BasicIHeapContainerMallocFPSTest
+DeleteDirectory: 无需实现
+getEntryValue: 无需实现
+ToString: 无需实现
+BasicHashBucketMallocFPSTest: 测试函数无需实现
+BasicIHeapContainerMallocFPSTest: 测试函数无需实现

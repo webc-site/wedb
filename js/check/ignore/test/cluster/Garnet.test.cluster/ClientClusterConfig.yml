@@ -1,15 +1,14 @@
-fn:
-  - TryParseEndPoint
-  - TryParseInt32
-  - ClientClusterNode
-  - ClientClusterConfig
-  - GetSlotSequence
-  - AddWorker
-  - GetOrderedClusterInfo
-  - GetNodeInfo
-  - GetSlotRange
-  - PrintOrderedConfigList
-  - PrintConfig
-  - EqualsConfig
-  - GetConfigInfo
-  - GetNodeConfig
+TryParseEndPoint: 无需实现
+TryParseInt32: 无需实现
+ClientClusterNode: 无需实现
+ClientClusterConfig: 无需实现
+GetSlotSequence: 无需实现
+AddWorker: 无需实现
+GetOrderedClusterInfo: 无需实现
+GetNodeInfo: 无需实现
+GetSlotRange: 无需实现
+PrintOrderedConfigList: 无需实现
+PrintConfig: 无需实现
+EqualsConfig: 无需实现
+GetConfigInfo: 无需实现
+GetNodeConfig: 无需实现

@@ -1,7 +1,6 @@
-fn:
-  - RunSimulation
-  - InteractiveRepl
-  - SeedCache
-  - FakeServerThread
-  - CreateRandomReview
-  - GenerateLargeLoremIpsumText
+RunSimulation: 无需实现
+InteractiveRepl: 无需实现
+SeedCache: 无需实现
+FakeServerThread: 无需实现
+CreateRandomReview: 无需实现
+GenerateLargeLoremIpsumText: 无需实现

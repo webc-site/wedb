@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulateRangeIndex
-  - ValidateRangeIndex
-  - GetRiLogRoot
-test:
-  - ClusterRangeIndexCheckpointSync
-  - ClusterRangeIndexCheckpointSyncMultipleKeys
-  - ClusterRangeIndexCheckpointSyncWithEviction
-  - ClusterRangeIndexAddReplicaAfterCheckpoint
-  - ClusterRangeIndexReplicationRestartReplica
-  - ClusterRangeIndexReplicationFailover
+Setup: 无需实现
+TearDown: 无需实现
+PopulateRangeIndex: 无需实现
+ValidateRangeIndex: 无需实现
+GetRiLogRoot: 无需实现
+ClusterRangeIndexCheckpointSync: 测试函数无需实现
+ClusterRangeIndexCheckpointSyncMultipleKeys: 测试函数无需实现
+ClusterRangeIndexCheckpointSyncWithEviction: 测试函数无需实现
+ClusterRangeIndexAddReplicaAfterCheckpoint: 测试函数无需实现
+ClusterRangeIndexReplicationRestartReplica: 测试函数无需实现
+ClusterRangeIndexReplicationFailover: 测试函数无需实现

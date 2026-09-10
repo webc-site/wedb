@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - SingleNodeConfig
-  - NodeResponds
-  - when
-test:
-  - ClusterPublishSurvivesPeerNodeShutdown
+Setup: 无需实现
+TearDown: 无需实现
+SingleNodeConfig: 无需实现
+NodeResponds: 无需实现
+when: 无需实现
+ClusterPublishSurvivesPeerNodeShutdown: 测试函数无需实现

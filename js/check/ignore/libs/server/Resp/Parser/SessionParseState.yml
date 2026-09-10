@@ -1,5 +1,2 @@
-# C# EnsureCapacity 为原生缓冲区容量管理（指针缓冲）；
-# rust 解析态为 &[&[u8]] 切片，容量管理由 Vec 固有机制承担
-fn:
-  - EnsureCapacity
-  - Slice
+EnsureCapacity: 无需实现
+Slice: 无需实现

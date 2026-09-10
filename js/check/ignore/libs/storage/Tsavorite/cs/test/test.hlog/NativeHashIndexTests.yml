@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-test:
-  - NativeHashIndexInsertReadRoundTrips
-  - NativeFullModeLogPagesEvictAndRead
-  - NativeFullModeLogPageMemoryStaysBounded
-  - NativeFullModeFlushEvictCyclesStayBounded
-  - NativeFullModeScanFrameMemoryStaysBounded
-  - NativeIndexGrowFreesSupersededTables
-  - NativeConstructionFailureDoesNotLeak
-  - IndexCheckpointIoUnitReleaseIsExactlyOnce
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+NativeHashIndexInsertReadRoundTrips: 测试函数无需实现
+NativeFullModeLogPagesEvictAndRead: 测试函数无需实现
+NativeFullModeLogPageMemoryStaysBounded: 测试函数无需实现
+NativeFullModeFlushEvictCyclesStayBounded: 测试函数无需实现
+NativeFullModeScanFrameMemoryStaysBounded: 测试函数无需实现
+NativeIndexGrowFreesSupersededTables: 测试函数无需实现
+NativeConstructionFailureDoesNotLeak: 测试函数无需实现
+IndexCheckpointIoUnitReleaseIsExactlyOnce: 测试函数无需实现

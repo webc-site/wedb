@@ -1,12 +1,10 @@
-fn:
-  - Setup
-  - TearDown
-  - RentBurstAndReturn
-  - PopulateLocalCache
-test:
-  - CompletionOnlyThreadCreatesNoShard
-  - LocalByteCapIsSharedFairlyAcrossClasses
-  - MixedClassBurstStaysWithinOneThreadSlice
-  - DoubleReturnIsCaughtInDebug
-  - LegacyPathStillWorksWhenOriginReturnDisabled
-  - UnpinOnReturnModeRepinsAndReusesAcrossThreads
+Setup: 无需实现
+TearDown: 无需实现
+RentBurstAndReturn: 无需实现
+PopulateLocalCache: 无需实现
+CompletionOnlyThreadCreatesNoShard: 测试函数无需实现
+LocalByteCapIsSharedFairlyAcrossClasses: 测试函数无需实现
+MixedClassBurstStaysWithinOneThreadSlice: 测试函数无需实现
+DoubleReturnIsCaughtInDebug: 测试函数无需实现
+LegacyPathStillWorksWhenOriginReturnDisabled: 测试函数无需实现
+UnpinOnReturnModeRepinsAndReusesAcrossThreads: 测试函数无需实现

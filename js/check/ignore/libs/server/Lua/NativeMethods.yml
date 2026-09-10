@@ -1,75 +1,34 @@
-# Lua C API P/Invoke 绑定层（指向 Lua 原生库的原始栈操作声明）；
-# rust 侧改用 mlua(luau feature) 高级 API 等价承接（LuaStateWrapper 内栈镜像），
-# 无逐函数 C 栈映射面；rust 侧保留同名占位方法体（恒 0）仅供注释映射对照。
-fn:
-  - lua_tolstring
-  - lua_pushlstring
-  - luaL_loadbufferx
-  - luaL_loadstring
-  - luaL_newstate
-  - lua_newstate
-  - luaL_openlibs
-  - lua_close
-  - lua_checkstack
-  - luaL_checknumber
-  - lua_rawlen
-  - lua_pcallk
-  - lua_rawseti
-  - lua_rawset
-  - lua_rawgeti
-  - lua_rawget
-  - luaL_ref
-  - luaL_unref
-  - lua_createtable
-  - lua_getglobal
-  - lua_setglobal
-  - lua_next
-  - lua_rotate
-  - lua_gc
-  - lua_gettop
-  - lua_type
-  - lua_pushnil
-  - lua_pushinteger
-  - lua_pushnumber
-  - lua_pushboolean
-  - lua_toboolean
-  - lua_settop
-  - lua_atpanic
-  - lua_pushcclosure
-  - lua_sethook
-  - lua_pushvalue
-  - lua_version
-  - checkBuffer
-  - knownStringToBuffer
-  - pushBuffer
-  - loadBuffer
-  - loadString
-  - getTop
-  - type_
-  - pushNil
-  - pushInteger
-  - pushNumber
-  - pushBoolean
-  - toBoolean
-  - pop
-  - atPanic
-  - newState
-  - openLibs
-  - checkStack
-  - checkNumber
-  - rawLen
-  - pushCFunction
-  - pCall
-  - rawSetInteger
-  - rawSet
-  - rawGetInteger
-  - rawGet
-  - unref
-  - createTable
-  - getGlobal
-  - setGlobal
-  - next
-  - pushValue
-  - setTop
-  - rotate
-  - setHook
+checkBuffer: 无需实现
+knownStringToBuffer: 无需实现
+pushBuffer: 无需实现
+loadBuffer: 无需实现
+loadString: 无需实现
+getTop: 无需实现
+type_: 无需实现
+pushNil: 无需实现
+pushInteger: 无需实现
+pushNumber: 无需实现
+pushBoolean: 无需实现
+toBoolean: 无需实现
+pop: 无需实现
+atPanic: 无需实现
+newState: 无需实现
+openLibs: 无需实现
+checkStack: 无需实现
+checkNumber: 无需实现
+rawLen: 无需实现
+pushCFunction: 无需实现
+pCall: 无需实现
+rawSetInteger: 无需实现
+rawSet: 无需实现
+rawGetInteger: 无需实现
+rawGet: 无需实现
+unref: 无需实现
+createTable: 无需实现
+getGlobal: 无需实现
+setGlobal: 无需实现
+next: 无需实现
+pushValue: 无需实现
+setTop: 无需实现
+rotate: 无需实现
+setHook: 无需实现

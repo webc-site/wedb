@@ -1,87 +1,83 @@
-fn:
-  - RespVectorSetTests
-  - Setup
-  - TearDown
-  - AssertSameIds
-  - MatchedIds
-  - ExpectIds
-  - Format
-  - SeedMoviesForAdvancedFiltering
-  - InterruptedVectorSetDelete
-  - InterruptedVectorSetDeleteRecoveryAsync
-  - GenerateVADDOptions
-  - BuildDictionaryFromResponse
-  - ExpectSuccess
-  - AssertExpectedHashSlot
-  - DoRenameAsync
-  - CreateVectorSetAsync
-  - ReadVectorSetAsync
-  - CheckRAWAsync
-  - SimulateVectorSetStubRmw
-  - ReadRawVectorStub
-  - WriteAndVerify
-  - CreateGarnetServer
-  - GetOpts
-test:
-  - DisabledWithFeatureFlag
-  - WrongTypeForVectorSetOpsOnNonVectorSetKeys
-  - VADD
-  - VADDVariableLengthElementIds
-  - VADDXPREQB8
-  - VADDErrors
-  - VEMB_FP32Storage
-  - VectorSetOpacity
-  - VectorElementOpacity
-  - VSIM
-  - VSIMResp3
-  - VSIMWithAttribs
-  - VDIM
-  - VSIMWithAttributeFiltering
-  - VSIMCount
-  - VSIMWithFilterButWithoutWithAttribs
-  - VSIMWithAdvancedFiltering
-  - VSIMWithAdvancedFilteringELEWithAttribs
-  - VSIMWithAdvancedFilteringELEWithoutWithAttribs
-  - VSIMBadFilters
-  - VSIMComplexJsonAttributes
-  - VSIMErrors
-  - DeleteVectorSet
-  - FlushDB
-  - ExpirationAsync
-  - InterruptedVectorSetDelete_BeforeMark
-  - InterruptedVectorSetDelete
-  - InterruptedVectorSetDelete_DuringCleanup
-  - InterruptedVectorSetDelete_AfterCleanup
-  - InterruptedVectorSetDelete_AfterMark
-  - InterruptedVectorSetDelete_BeforeMark_RecoveryAsync
-  - InterruptedVectorSetDeleteRecoveryAsync
-  - InteterruptedVectorSetDelete_DuringCleanup_RecoveryAsync
-  - InteterruptedVectorSetDelete_AfterCleanup_RecoveryAsync
-  - InteterruptedVectorSetDelete_AfterMark_RecoveryAsync
-  - RepeatedVectorSetDeletes
-  - VectorReadBatchVariants
-  - MakeVectorElementKey
-  - RecreateIndexesOnRestoreAsync
-  - VINFO_NotFound
-  - VINFO
-  - VGETATTR_NotFound
-  - VGETATTR
-  - VGETATTR_BinaryAttributes
-  - VREM
-  - SimpleInternalIdReuse
-  - StressInternalIdReuse
-  - WithQuantizationBackfillAsync
-  - VADDLowMemoryStorageTierForcesDiskSpill
-  - RenamesAsync
-  - RenamesThenRecoverFromAOFAsync
-  - LotsOfVectorSetsAsync
-  - VEMBRawAsync
-  - HideInternalRecordsAsync
-  - TypeAsync
-  - SyntheticReplicationRaceWithConcurrentDelMustNotResurrectKey
-  - SyntheticReplicationRaceWithConcurrentDelThenStringSetMustNotCorrupt
-  - VectorRmwOnAbsentKeyRejectsSyntheticArgs
-  - VectorRmwOnRetypedStringKeyIsCanceledAndPreservesValue
-  - VectorSyntheticAppendLogRmwOnLiveIndexProceedsAndPreservesIndex
-  - VectorElementUpsertResizePreservesValue
-  - VSETATTRAsync
+RespVectorSetTests: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+AssertSameIds: 无需实现
+MatchedIds: 无需实现
+ExpectIds: 无需实现
+Format: 无需实现
+SeedMoviesForAdvancedFiltering: 无需实现
+InterruptedVectorSetDelete: 测试函数无需实现
+InterruptedVectorSetDeleteRecoveryAsync: 测试函数无需实现
+GenerateVADDOptions: 无需实现
+BuildDictionaryFromResponse: 无需实现
+ExpectSuccess: 无需实现
+AssertExpectedHashSlot: 无需实现
+DoRenameAsync: 无需实现
+CreateVectorSetAsync: 无需实现
+ReadVectorSetAsync: 无需实现
+CheckRAWAsync: 无需实现
+SimulateVectorSetStubRmw: 无需实现
+ReadRawVectorStub: 无需实现
+WriteAndVerify: 无需实现
+CreateGarnetServer: 无需实现
+GetOpts: 无需实现
+DisabledWithFeatureFlag: 测试函数无需实现
+WrongTypeForVectorSetOpsOnNonVectorSetKeys: 测试函数无需实现
+VADD: 测试函数无需实现
+VADDVariableLengthElementIds: 测试函数无需实现
+VADDXPREQB8: 测试函数无需实现
+VADDErrors: 测试函数无需实现
+VEMB_FP32Storage: 测试函数无需实现
+VectorSetOpacity: 测试函数无需实现
+VectorElementOpacity: 测试函数无需实现
+VSIM: 测试函数无需实现
+VSIMResp3: 测试函数无需实现
+VSIMWithAttribs: 测试函数无需实现
+VDIM: 测试函数无需实现
+VSIMWithAttributeFiltering: 测试函数无需实现
+VSIMCount: 测试函数无需实现
+VSIMWithFilterButWithoutWithAttribs: 测试函数无需实现
+VSIMWithAdvancedFiltering: 测试函数无需实现
+VSIMWithAdvancedFilteringELEWithAttribs: 测试函数无需实现
+VSIMWithAdvancedFilteringELEWithoutWithAttribs: 测试函数无需实现
+VSIMBadFilters: 测试函数无需实现
+VSIMComplexJsonAttributes: 测试函数无需实现
+VSIMErrors: 测试函数无需实现
+DeleteVectorSet: 测试函数无需实现
+FlushDB: 测试函数无需实现
+ExpirationAsync: 测试函数无需实现
+InterruptedVectorSetDelete_BeforeMark: 测试函数无需实现
+InterruptedVectorSetDelete_DuringCleanup: 测试函数无需实现
+InterruptedVectorSetDelete_AfterCleanup: 测试函数无需实现
+InterruptedVectorSetDelete_AfterMark: 测试函数无需实现
+InterruptedVectorSetDelete_BeforeMark_RecoveryAsync: 测试函数无需实现
+InteterruptedVectorSetDelete_DuringCleanup_RecoveryAsync: 测试函数无需实现
+InteterruptedVectorSetDelete_AfterCleanup_RecoveryAsync: 测试函数无需实现
+InteterruptedVectorSetDelete_AfterMark_RecoveryAsync: 测试函数无需实现
+RepeatedVectorSetDeletes: 测试函数无需实现
+VectorReadBatchVariants: 测试函数无需实现
+MakeVectorElementKey: 测试函数无需实现
+RecreateIndexesOnRestoreAsync: 测试函数无需实现
+VINFO_NotFound: 测试函数无需实现
+VINFO: 测试函数无需实现
+VGETATTR_NotFound: 测试函数无需实现
+VGETATTR: 测试函数无需实现
+VGETATTR_BinaryAttributes: 测试函数无需实现
+VREM: 测试函数无需实现
+SimpleInternalIdReuse: 测试函数无需实现
+StressInternalIdReuse: 测试函数无需实现
+WithQuantizationBackfillAsync: 测试函数无需实现
+VADDLowMemoryStorageTierForcesDiskSpill: 测试函数无需实现
+RenamesAsync: 测试函数无需实现
+RenamesThenRecoverFromAOFAsync: 测试函数无需实现
+LotsOfVectorSetsAsync: 测试函数无需实现
+VEMBRawAsync: 测试函数无需实现
+HideInternalRecordsAsync: 测试函数无需实现
+TypeAsync: 测试函数无需实现
+SyntheticReplicationRaceWithConcurrentDelMustNotResurrectKey: 测试函数无需实现
+SyntheticReplicationRaceWithConcurrentDelThenStringSetMustNotCorrupt: 测试函数无需实现
+VectorRmwOnAbsentKeyRejectsSyntheticArgs: 测试函数无需实现
+VectorRmwOnRetypedStringKeyIsCanceledAndPreservesValue: 测试函数无需实现
+VectorSyntheticAppendLogRmwOnLiveIndexProceedsAndPreservesIndex: 测试函数无需实现
+VectorElementUpsertResizePreservesValue: 测试函数无需实现
+VSETATTRAsync: 测试函数无需实现

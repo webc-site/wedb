@@ -1,5 +1,4 @@
-fn:
-  - XoshiroRng
-  - Rotl
-  - NextUInt64
-  - NextUInt32
+XoshiroRng: 无需实现
+Rotl: 无需实现
+NextUInt64: 无需实现
+NextUInt32: 无需实现

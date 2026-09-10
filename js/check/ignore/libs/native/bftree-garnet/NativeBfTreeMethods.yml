@@ -1,12 +1,11 @@
-fn:
-  - bftree_create
-  - bftree_drop
-  - bftree_insert
-  - bftree_read
-  - bftree_delete
-  - bftree_scan_with_count
-  - bftree_scan_with_end_key
-  - bftree_scan_next
-  - bftree_scan_drop
-  - bftree_are_all_threads_in_next_version
-  - bftree_noop
+bftree_create: 无需实现
+bftree_drop: 无需实现
+bftree_insert: 无需实现
+bftree_read: 无需实现
+bftree_delete: 无需实现
+bftree_scan_with_count: 无需实现
+bftree_scan_with_end_key: 无需实现
+bftree_scan_next: 无需实现
+bftree_scan_drop: 无需实现
+bftree_are_all_threads_in_next_version: 无需实现
+bftree_noop: 无需实现

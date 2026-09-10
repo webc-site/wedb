@@ -1,55 +1,53 @@
-fn:
-  - GetUnitTests
-  - RandomBytes
-  - Setup
-  - TearDown
-  - Equals
-  - CreateSingleSlotData
-  - DoZADD
-  - DoZCOUNT
-  - DoZRANGE
-  - MakeHashFieldBytes
-  - OperateOnSlotTask
-  - AssertMOVEDorASK
-  - OperateOnExistingKey
-  - OperateOnNonExistentKey
-  - WriteWorkload
-  - ClusterMigrateExpirationWithVaryingPayload
-  - SetupInstances
-  - MigrateSlots
-  - MigrateKeys
-  - SetSlot
-  - ValidateConfig
-  - AssertSlotState
-test:
-  - ClusterSimpleInitialize
-  - ClusterSimpleSlotInfo
-  - ClusterAddDelSlots
-  - ClusterSlotChangeStatus
-  - ClusterRedirectMessage
-  - ClusterSimpleMigrateSlots
-  - ClusterSimpleMigrateSlotsExpiry
-  - ClusterSimpleMigrateSlotsWithObjects
-  - ClusterSimpleMigrateKeys
-  - ClusterMigrateLargeValueChunked
-  - ClusterMigrateHugeObjectChunked
-  - ClusterMigrateLargeObjectMultiLogAofReplay
-  - ClusterSimpleMigrateKeysWithObjects
-  - ClusterSimpleMigrateContinuousReadWrite
-  - ClusterSimpleTxn
-  - ClusterSimpleMigrateSlotsRanges
-  - ClusterSimpleMigrateWithAuth
-  - ClusterAllowWritesDuringMigrateTestAsync
-  - ClusterMigrateForgetTest
-  - ClusterMigrateDataSlotsRange
-  - ClusterMigrateLargePayload
-  - ClusterMigrateIncreasingPayload
-  - ClusterMigrateSlotWalk
-  - ClusterMigrateWrite
-  - ClusterMigrateSetCopyUpdate
-  - ClusterMigrateCustomProcDelRMW
-  - ClusterMigrateSlotsWithHostname
-  - ClusterMigrateWithInvalidHostname
-  - ClusterMigrateSlotWithTombstones
-  - ClusterMigrateSetSlotRangeResilience
-  - ClusterDelKeysInSlotRemovesStringAndObjectKeys
+GetUnitTests: 无需实现
+RandomBytes: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+Equals: 无需实现
+CreateSingleSlotData: 无需实现
+DoZADD: 无需实现
+DoZCOUNT: 无需实现
+DoZRANGE: 无需实现
+MakeHashFieldBytes: 无需实现
+OperateOnSlotTask: 无需实现
+AssertMOVEDorASK: 无需实现
+OperateOnExistingKey: 无需实现
+OperateOnNonExistentKey: 无需实现
+WriteWorkload: 无需实现
+ClusterMigrateExpirationWithVaryingPayload: 无需实现
+SetupInstances: 无需实现
+MigrateSlots: 无需实现
+MigrateKeys: 无需实现
+SetSlot: 无需实现
+ValidateConfig: 无需实现
+AssertSlotState: 无需实现
+ClusterSimpleInitialize: 测试函数无需实现
+ClusterSimpleSlotInfo: 测试函数无需实现
+ClusterAddDelSlots: 测试函数无需实现
+ClusterSlotChangeStatus: 测试函数无需实现
+ClusterRedirectMessage: 测试函数无需实现
+ClusterSimpleMigrateSlots: 测试函数无需实现
+ClusterSimpleMigrateSlotsExpiry: 测试函数无需实现
+ClusterSimpleMigrateSlotsWithObjects: 测试函数无需实现
+ClusterSimpleMigrateKeys: 测试函数无需实现
+ClusterMigrateLargeValueChunked: 测试函数无需实现
+ClusterMigrateHugeObjectChunked: 测试函数无需实现
+ClusterMigrateLargeObjectMultiLogAofReplay: 测试函数无需实现
+ClusterSimpleMigrateKeysWithObjects: 测试函数无需实现
+ClusterSimpleMigrateContinuousReadWrite: 测试函数无需实现
+ClusterSimpleTxn: 测试函数无需实现
+ClusterSimpleMigrateSlotsRanges: 测试函数无需实现
+ClusterSimpleMigrateWithAuth: 测试函数无需实现
+ClusterAllowWritesDuringMigrateTestAsync: 测试函数无需实现
+ClusterMigrateForgetTest: 测试函数无需实现
+ClusterMigrateDataSlotsRange: 测试函数无需实现
+ClusterMigrateLargePayload: 测试函数无需实现
+ClusterMigrateIncreasingPayload: 测试函数无需实现
+ClusterMigrateSlotWalk: 测试函数无需实现
+ClusterMigrateWrite: 测试函数无需实现
+ClusterMigrateSetCopyUpdate: 测试函数无需实现
+ClusterMigrateCustomProcDelRMW: 测试函数无需实现
+ClusterMigrateSlotsWithHostname: 测试函数无需实现
+ClusterMigrateWithInvalidHostname: 测试函数无需实现
+ClusterMigrateSlotWithTombstones: 测试函数无需实现
+ClusterMigrateSetSlotRangeResilience: 测试函数无需实现
+ClusterDelKeysInSlotRemovesStringAndObjectKeys: 测试函数无需实现

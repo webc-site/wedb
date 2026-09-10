@@ -1,25 +1,23 @@
-fn:
-  - Equals
-  - GetHashCode64
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - TryLock
-  - PopulateHei
-  - Unlock
-  - AssertLockCounts
-  - AssertTotalLockCounts
-  - AssertBucketLockCount
-  - AddThreads
-  - CreateKeys
-  - createKey
-  - AssertSorted
-  - runThread
-  - getNextKey
-test:
-  - ThreadedLockStressTest1Thread
-  - ThreadedLockStressTestMultiThreadsNoContention
-  - ThreadedLockStressTestMultiThreadsRandomContention
-  - FullArraySortTest
-  - PartialArraySortTest
+Equals: 无需实现
+GetHashCode64: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+TryLock: 无需实现
+PopulateHei: 无需实现
+Unlock: 无需实现
+AssertLockCounts: 无需实现
+AssertTotalLockCounts: 无需实现
+AssertBucketLockCount: 无需实现
+AddThreads: 无需实现
+CreateKeys: 无需实现
+createKey: 无需实现
+AssertSorted: 无需实现
+runThread: 无需实现
+getNextKey: 无需实现
+ThreadedLockStressTest1Thread: 测试函数无需实现
+ThreadedLockStressTestMultiThreadsNoContention: 测试函数无需实现
+ThreadedLockStressTestMultiThreadsRandomContention: 测试函数无需实现
+FullArraySortTest: 测试函数无需实现
+PartialArraySortTest: 测试函数无需实现

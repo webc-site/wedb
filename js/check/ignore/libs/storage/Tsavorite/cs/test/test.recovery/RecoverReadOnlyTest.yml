@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - CommitterAsync
-  - ProducerAsync
-  - SeparateConsumerAsync
-  - BeginRecoverReadOnlyLoop
-test:
-  - RecoverReadOnlyAsyncBasicTest
+Setup: 无需实现
+TearDown: 无需实现
+CommitterAsync: 无需实现
+ProducerAsync: 无需实现
+SeparateConsumerAsync: 无需实现
+BeginRecoverReadOnlyLoop: 无需实现
+RecoverReadOnlyAsyncBasicTest: 测试函数无需实现

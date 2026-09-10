@@ -1,21 +1,20 @@
-fn:
-  - AuthenticateAsServerAsync
-  - AuthenticateAsClientAsync
-  - OnNetworkReceiveWithoutTLS
-  - OnNetworkReceiveWithTLSAsync
-  - UpdateNetworkBuffers
-  - ThrowInvalidOperationException
-  - GetNetworkSender
-  - SslReaderAsync
-  - SslReaderLoopAsync
-  - EndTransformNetworkToTransport
-  - TryProcessRequest
-  - DoubleNetworkReceiveBuffer
-  - ShrinkNetworkReceiveBuffer
-  - ShiftNetworkReceiveBuffer
-  - DoubleTransportReceiveBuffer
-  - ShiftTransportReceiveBuffer
-  - DisposeImpl
-  - DisposeNetworkSender
-  - Throttle
-  - LogSecurityInfo
+AuthenticateAsServerAsync: 无需实现
+AuthenticateAsClientAsync: 无需实现
+OnNetworkReceiveWithoutTLS: 无需实现
+OnNetworkReceiveWithTLSAsync: 无需实现
+UpdateNetworkBuffers: 无需实现
+ThrowInvalidOperationException: 无需实现
+GetNetworkSender: 无需实现
+SslReaderAsync: 无需实现
+SslReaderLoopAsync: 无需实现
+EndTransformNetworkToTransport: 无需实现
+TryProcessRequest: 无需实现
+DoubleNetworkReceiveBuffer: 无需实现
+ShrinkNetworkReceiveBuffer: 无需实现
+ShiftNetworkReceiveBuffer: 无需实现
+DoubleTransportReceiveBuffer: 无需实现
+ShiftTransportReceiveBuffer: 无需实现
+DisposeImpl: 无需实现
+DisposeNetworkSender: 无需实现
+Throttle: 无需实现
+LogSecurityInfo: 无需实现

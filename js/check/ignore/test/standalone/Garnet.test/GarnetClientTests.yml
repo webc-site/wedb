@@ -1,32 +1,30 @@
-fn:
-  - Setup
-  - TearDown
-  - WaitAndReset
-  - ReadValuesMGet
-  - SimpleMemoryResultArrayCallback
-  - SimpleStringArrayCallback
-  - IsLocalConnection
-  - DisposeNetworkSender
-  - Enter
-  - EnterAndGetResponseObject
-  - Exit
-  - ExitAndReturnResponseObject
-  - GetResponseObject
-  - ReturnResponseObject
-  - SendCallback
-  - SendResponse
-  - Throttle
-  - TryClose
-test:
-  - SetGetWithCallback
-  - SimpleMetricsTest
-  - SimpleStringArrayTest
-  - SimpleNoArgsTest
-  - SimpleIncrTest
-  - SimpleDecrTest
-  - CanUseSetNxStringResultAsync
-  - ShouldNotThrowExceptionForEmptyArrayResponseAsync
-  - CanUseMGetTests
-  - CanDoBulkDeleteTests
-  - MultipleSocketPing
-  - AsyncFlushPagesSignalsFlushEventOnSendFailure
+Setup: 无需实现
+TearDown: 无需实现
+WaitAndReset: 无需实现
+ReadValuesMGet: 无需实现
+SimpleMemoryResultArrayCallback: 无需实现
+SimpleStringArrayCallback: 无需实现
+IsLocalConnection: 无需实现
+DisposeNetworkSender: 无需实现
+Enter: 无需实现
+EnterAndGetResponseObject: 无需实现
+Exit: 无需实现
+ExitAndReturnResponseObject: 无需实现
+GetResponseObject: 无需实现
+ReturnResponseObject: 无需实现
+SendCallback: 无需实现
+SendResponse: 无需实现
+Throttle: 无需实现
+TryClose: 无需实现
+SetGetWithCallback: 测试函数无需实现
+SimpleMetricsTest: 测试函数无需实现
+SimpleStringArrayTest: 测试函数无需实现
+SimpleNoArgsTest: 测试函数无需实现
+SimpleIncrTest: 测试函数无需实现
+SimpleDecrTest: 测试函数无需实现
+CanUseSetNxStringResultAsync: 测试函数无需实现
+ShouldNotThrowExceptionForEmptyArrayResponseAsync: 测试函数无需实现
+CanUseMGetTests: 测试函数无需实现
+CanDoBulkDeleteTests: 测试函数无需实现
+MultipleSocketPing: 测试函数无需实现
+AsyncFlushPagesSignalsFlushEventOnSendFailure: 测试函数无需实现

@@ -1,8 +1,7 @@
-fn:
-  - TryLockShared
-  - TryLockExclusive
-  - UnlockShared
-  - UnlockExclusive
-  - IsLockedShared
-  - IsLockedExclusive
-  - GetLockState
+TryLockShared: 无需实现
+TryLockExclusive: 无需实现
+UnlockShared: 无需实现
+UnlockExclusive: 无需实现
+IsLockedShared: 无需实现
+IsLockedExclusive: 无需实现
+GetLockState: 无需实现

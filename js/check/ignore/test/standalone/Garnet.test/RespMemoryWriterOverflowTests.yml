@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - HashAsync
-  - ListAsync
-  - SetAsync
-  - SortedSetAsync
+Setup: 无需实现
+TearDown: 无需实现
+HashAsync: 测试函数无需实现
+ListAsync: 测试函数无需实现
+SetAsync: 测试函数无需实现
+SortedSetAsync: 测试函数无需实现

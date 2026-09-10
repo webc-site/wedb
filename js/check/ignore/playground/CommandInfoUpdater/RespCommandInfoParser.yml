@@ -1,9 +1,8 @@
-fn:
-  - TryReadFromResp
-  - TryReadKeySpecHeader
-  - BeginSearchIndexParser
-  - BeginSearchKeywordParser
-  - BeginSearchUnknownParser
-  - FindKeysRangeParser
-  - FindKeysKeyNumParser
-  - FindKeysUnknownParser
+TryReadFromResp: 无需实现
+TryReadKeySpecHeader: 无需实现
+BeginSearchIndexParser: 无需实现
+BeginSearchKeywordParser: 无需实现
+BeginSearchUnknownParser: 无需实现
+FindKeysRangeParser: 无需实现
+FindKeysKeyNumParser: 无需实现
+FindKeysUnknownParser: 无需实现

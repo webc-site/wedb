@@ -1,3 +1,2 @@
-fn:
-  - CreateAsync
-  - TryQueueAction
+CreateAsync: 无需实现
+TryQueueAction: 无需实现

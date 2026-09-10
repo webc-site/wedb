@@ -1,9 +1,7 @@
-# .NET IEnumerable 管道与环形缓冲读端辅助；rust 等价环形缓冲迭代为惯用实现
-fn:
-  - GetEnumerator
-  - PeekFirst
-  - PeekLast
-  - Dequeue
-  - IsFull
-  - IsEmpty
-  - Iterate
+GetEnumerator: 无需实现
+PeekFirst: 无需实现
+PeekLast: 无需实现
+Dequeue: 无需实现
+IsFull: 无需实现
+IsEmpty: 无需实现
+Iterate: 无需实现

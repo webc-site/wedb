@@ -1,3 +1,2 @@
-fn:
-  - BenchUtils
-  - RandomBytes
+BenchUtils: 无需实现
+RandomBytes: 无需实现

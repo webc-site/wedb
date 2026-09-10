@@ -1,7 +1,6 @@
-fn:
-  - SplitBuckets
-  - EphemeralXUnlock
-  - CheckCPRConsistencyUpsert
-  - CreateNewRecordUpsert
-  - OnDispose
-  - SaveAllocationForRetry
+SplitBuckets: 无需实现
+EphemeralXUnlock: 无需实现
+CheckCPRConsistencyUpsert: 无需实现
+CreateNewRecordUpsert: 无需实现
+OnDispose: 无需实现
+SaveAllocationForRetry: 无需实现

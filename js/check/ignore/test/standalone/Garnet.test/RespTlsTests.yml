@@ -1,26 +1,24 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TlsSingleSetGet
-  - ClientListSurvivesConnectionsClosedByClientKill
-  - TlsSingleSetGetGarnetClient
-  - SingleUnicodeSetGetGarnetClient
-  - TlsMultiSetGet
-  - TlsLargeSetGet
-  - TlsSetExpiry
-  - TlsSetExpiryNx
-  - TlsSetXx
-  - TlsSetExpiryIncr
-  - TlsLockTakeRelease
-  - TlsSingleDecr
-  - TlsSingleDecrBy
-  - TlsSingleIncrNoKey
-  - TlsSingleDelete
-  - TlsSingleExists
-  - TlsSingleRename
-  - TlsCanSelectCommand
-  - TlsCanSelectCommandLC
-  - TlsPlainTextCommandLC
-  - TlsCanDoCommandsInChunks
-  - TlsCanSetGetCommandsChunks
+Setup: 无需实现
+TearDown: 无需实现
+TlsSingleSetGet: 测试函数无需实现
+ClientListSurvivesConnectionsClosedByClientKill: 测试函数无需实现
+TlsSingleSetGetGarnetClient: 测试函数无需实现
+SingleUnicodeSetGetGarnetClient: 测试函数无需实现
+TlsMultiSetGet: 测试函数无需实现
+TlsLargeSetGet: 测试函数无需实现
+TlsSetExpiry: 测试函数无需实现
+TlsSetExpiryNx: 测试函数无需实现
+TlsSetXx: 测试函数无需实现
+TlsSetExpiryIncr: 测试函数无需实现
+TlsLockTakeRelease: 测试函数无需实现
+TlsSingleDecr: 测试函数无需实现
+TlsSingleDecrBy: 测试函数无需实现
+TlsSingleIncrNoKey: 测试函数无需实现
+TlsSingleDelete: 测试函数无需实现
+TlsSingleExists: 测试函数无需实现
+TlsSingleRename: 测试函数无需实现
+TlsCanSelectCommand: 测试函数无需实现
+TlsCanSelectCommandLC: 测试函数无需实现
+TlsPlainTextCommandLC: 测试函数无需实现
+TlsCanDoCommandsInChunks: 测试函数无需实现
+TlsCanSetGetCommandsChunks: 测试函数无需实现

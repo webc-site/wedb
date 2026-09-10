@@ -1,4 +1,2 @@
-fn:
-  - CommandLinkAndMinusRegex
-test:
-  - CommandsWithLinksShouldNotHaveMinusSign
+CommandLinkAndMinusRegex: 无需实现
+CommandsWithLinksShouldNotHaveMinusSign: 测试函数无需实现

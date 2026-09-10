@@ -1,13 +1,12 @@
-fn:
-  - CreateShared
-  - CreateExclusive
-  - CreateAllExclusive
-  - CalculateIndex
-  - TryAcquireSharedLock
-  - AcquireSharedLock
-  - ReleaseLock
-  - TryAcquireExclusiveLock
-  - AcquireExclusiveLock
-  - AcquireAllExclusiveLock
-  - TryPromoteSharedLock
-  - GetProcessorHint
+CreateShared: 无需实现
+CreateExclusive: 无需实现
+CreateAllExclusive: 无需实现
+CalculateIndex: 无需实现
+TryAcquireSharedLock: 无需实现
+AcquireSharedLock: 无需实现
+ReleaseLock: 无需实现
+TryAcquireExclusiveLock: 无需实现
+AcquireExclusiveLock: 无需实现
+AcquireAllExclusiveLock: 无需实现
+TryPromoteSharedLock: 无需实现
+GetProcessorHint: 无需实现

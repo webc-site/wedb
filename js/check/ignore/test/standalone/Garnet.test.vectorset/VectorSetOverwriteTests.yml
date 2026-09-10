@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - TearDown
-  - PrepCommandAsync
-  - RunCommandAsync
-  - RunCommandPlainAsync
-  - RunCommandEXAsync
-  - TestVectorSetOverwrittenCommandAsync
-test:
-  - AllOverwritingCommandsCovered
-  - BITOPAsync
-  - MSETAsync
-  - PSETEXAsync
-  - SETAsync
-  - SETEXAsync
-  - SETIFGREATERAsync
-  - SETIFMATCHAsync
-  - SETWITHETAGAsync
+Setup: 无需实现
+TearDown: 无需实现
+PrepCommandAsync: 无需实现
+RunCommandAsync: 无需实现
+RunCommandPlainAsync: 无需实现
+RunCommandEXAsync: 无需实现
+TestVectorSetOverwrittenCommandAsync: 无需实现
+AllOverwritingCommandsCovered: 测试函数无需实现
+BITOPAsync: 测试函数无需实现
+MSETAsync: 测试函数无需实现
+PSETEXAsync: 测试函数无需实现
+SETAsync: 测试函数无需实现
+SETEXAsync: 测试函数无需实现
+SETIFGREATERAsync: 测试函数无需实现
+SETIFMATCHAsync: 测试函数无需实现
+SETWITHETAGAsync: 测试函数无需实现

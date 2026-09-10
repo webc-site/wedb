@@ -1,3 +1,2 @@
-fn:
-  - TrySelectNode
-  - SelectNodes
+TrySelectNode: 无需实现
+SelectNodes: 无需实现

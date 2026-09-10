@@ -1,5 +1,4 @@
-fn:
-  - PickKRandomIndexes
-  - PickRandomIndex
-  - PickKRandomIndexesIteratively
-  - PickKRandomDistinctIndexesWithShuffle
+PickKRandomIndexes: 无需实现
+PickRandomIndex: 无需实现
+PickKRandomIndexesIteratively: 无需实现
+PickKRandomDistinctIndexesWithShuffle: 无需实现

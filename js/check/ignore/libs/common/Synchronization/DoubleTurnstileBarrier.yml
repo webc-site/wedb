@@ -1,8 +1,7 @@
-fn:
-  - ProcessTimeSpan
-  - SignalWorkReadyWait
-  - SignalWorkReadyWaitAsync
-  - SignalWorkReadyInternal
-  - SignalWorkCompletedWait
-  - SignalWorkCompletedWaitAsync
-  - SignalWorkCompletedInternal
+ProcessTimeSpan: 无需实现
+SignalWorkReadyWait: 无需实现
+SignalWorkReadyWaitAsync: 无需实现
+SignalWorkReadyInternal: 无需实现
+SignalWorkCompletedWait: 无需实现
+SignalWorkCompletedWaitAsync: 无需实现
+SignalWorkCompletedInternal: 无需实现

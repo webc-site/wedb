@@ -1,33 +1,23 @@
-fn:
-  - WriteAsciiBulkString
-  - WriteAsciiDirect
-  - WriteArrayItem
-  - WriteArrayLength
-  - TryWriteBulkString
-  - TryWriteDirect
-  - WriteDoubleBulkString
-  - WriteDoubleNumeric
-  - WriteEmptyArray
-  - WriteEmptyMap
-  - TryWriteFalse
-  - WriteInt32
-  - WriteInt64AsBulkString
-  - WriteInt64
-  - WriteIntegerFromBytes
-  - WriteMapLength
-  - WriteNewLine
-  - WriteNull
-  - WriteNullArray
-  - WritePushLength
-  - WriteSetLength
-  - WriteTrue
-  - WriteUtf8BulkString
-  - WriteVerbatimString
-  - WriteZero
-  - WriteOne
-  - Realloc
-  - ReallocateOutput
-  - DecreaseArrayLength
-  - AsReadOnlySpan
-  - GetPosition
-  - ResetPosition
+WriteAsciiDirect: 无需实现
+TryWriteBulkString: 无需实现
+TryWriteDirect: 无需实现
+WriteDoubleBulkString: 无需实现
+WriteDoubleNumeric: 无需实现
+WriteEmptyMap: 无需实现
+TryWriteFalse: 无需实现
+WriteInt64: 无需实现
+WriteIntegerFromBytes: 无需实现
+WriteNewLine: 无需实现
+WritePushLength: 无需实现
+WriteSetLength: 无需实现
+WriteTrue: 无需实现
+WriteUtf8BulkString: 无需实现
+WriteVerbatimString: 无需实现
+WriteZero: 无需实现
+WriteOne: 无需实现
+Realloc: 无需实现
+ReallocateOutput: 无需实现
+DecreaseArrayLength: 无需实现
+AsReadOnlySpan: 无需实现
+GetPosition: 无需实现
+ResetPosition: 无需实现

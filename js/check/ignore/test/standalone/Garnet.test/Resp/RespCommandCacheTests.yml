@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateArguments
-  - AppendBulkString
-  - Connect
-  - SendAsync
-test:
-  - CachedCommandDoesNotTruncateArgumentCount
+Setup: 无需实现
+TearDown: 无需实现
+CreateArguments: 无需实现
+AppendBulkString: 无需实现
+Connect: 无需实现
+SendAsync: 无需实现
+CachedCommandDoesNotTruncateArgumentCount: 测试函数无需实现

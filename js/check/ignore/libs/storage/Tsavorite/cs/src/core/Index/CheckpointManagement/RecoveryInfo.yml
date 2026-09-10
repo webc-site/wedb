@@ -1,3 +1,2 @@
-fn:
-  - ToByteArray
-  - DebugPrint
+ToByteArray: 无需实现
+DebugPrint: 无需实现

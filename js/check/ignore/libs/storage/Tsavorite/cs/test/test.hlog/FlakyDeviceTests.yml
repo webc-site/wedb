@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - BaseSetup
-  - TearDown
-  - BaseTearDown
-  - ReadMetadata
-  - WriteMetadata
-test:
-  - FlakyLogTestCleanFailure
-  - FlakyLogTestConcurrentWriteFailure
-  - FlakyLogTestTolerateFailure
+Setup: 无需实现
+BaseSetup: 无需实现
+TearDown: 无需实现
+BaseTearDown: 无需实现
+ReadMetadata: 无需实现
+WriteMetadata: 无需实现
+FlakyLogTestCleanFailure: 测试函数无需实现
+FlakyLogTestConcurrentWriteFailure: 测试函数无需实现
+FlakyLogTestTolerateFailure: 测试函数无需实现

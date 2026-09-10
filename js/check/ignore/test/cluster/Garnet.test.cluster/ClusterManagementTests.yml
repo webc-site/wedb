@@ -1,37 +1,35 @@
-fn:
-  - Setup
-  - TearDown
-  - CheckMetadata
-  - VerifyClusterResetFails
-  - GetStat
-  - ClusterRestartNodeDropGossip
-  - ExecuteHashSet
-  - ManualCollect
-  - ValidateHashSet
-  - UpgradeReplicasAsync
-test:
-  - ClusterSlotsTest
-  - ClusterSlotRangesTest
-  - ClusterShardsTest
-  - ClusterNodesHostnameTest
-  - ClusterForgetTest
-  - ClusterResetTest
-  - ClusterResetFailsForMasterWithKeysInSlotsTest
-  - ClusterResetFailsForMasterWithKeysInSlotsObjectStoreTest
-  - ClusterResetAfterFLushAllTest
-  - ClusterResetDisposesGossipConnections
-  - ClusterKeySlotTest
-  - ClusterClientList
-  - ClusterClientKill
-  - ClusterClientKillSlave
-  - FailoverBadOptions
-  - ClusterFailoverBadOptions
-  - ClusterSetSlotBadOptions
-  - ClusterRoleCommand
-  - ClusterNodeCommand
-  - ClusterMeetHostname
-  - ClusterFlushAll
-  - ClusterCheckpointUpgradeFrom
-  - ClusterReplicationObjectCollectTest
-  - ReplicasRestartAsReplicasAsync
-  - PrimaryUnavailableRecoveryAsync
+Setup: 无需实现
+TearDown: 无需实现
+CheckMetadata: 无需实现
+VerifyClusterResetFails: 无需实现
+GetStat: 无需实现
+ClusterRestartNodeDropGossip: 无需实现
+ExecuteHashSet: 无需实现
+ManualCollect: 无需实现
+ValidateHashSet: 无需实现
+UpgradeReplicasAsync: 无需实现
+ClusterSlotsTest: 测试函数无需实现
+ClusterSlotRangesTest: 测试函数无需实现
+ClusterShardsTest: 测试函数无需实现
+ClusterNodesHostnameTest: 测试函数无需实现
+ClusterForgetTest: 测试函数无需实现
+ClusterResetTest: 测试函数无需实现
+ClusterResetFailsForMasterWithKeysInSlotsTest: 测试函数无需实现
+ClusterResetFailsForMasterWithKeysInSlotsObjectStoreTest: 测试函数无需实现
+ClusterResetAfterFLushAllTest: 测试函数无需实现
+ClusterResetDisposesGossipConnections: 测试函数无需实现
+ClusterKeySlotTest: 测试函数无需实现
+ClusterClientList: 测试函数无需实现
+ClusterClientKill: 测试函数无需实现
+ClusterClientKillSlave: 测试函数无需实现
+FailoverBadOptions: 测试函数无需实现
+ClusterFailoverBadOptions: 测试函数无需实现
+ClusterSetSlotBadOptions: 测试函数无需实现
+ClusterRoleCommand: 测试函数无需实现
+ClusterNodeCommand: 测试函数无需实现
+ClusterMeetHostname: 测试函数无需实现
+ClusterFlushAll: 测试函数无需实现
+ClusterCheckpointUpgradeFrom: 测试函数无需实现
+ClusterReplicationObjectCollectTest: 测试函数无需实现
+ReplicasRestartAsReplicasAsync: 测试函数无需实现
+PrimaryUnavailableRecoveryAsync: 测试函数无需实现

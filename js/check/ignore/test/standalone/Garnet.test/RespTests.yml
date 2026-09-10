@@ -1,189 +1,187 @@
-fn:
-  - Setup
-  - TearDown
-  - ExpectError
-  - ExpectOk
-  - AssertExpectedClientFields
-  - AssertNotConnected
-  - GetFlagForSessionId
-  - ConnectAsync
-  - AssertDuplicateDefinitionError
-  - AssertField
-  - LCSWithIdxOption
-  - LCSWithIdxAndMinMatchLen
-  - LCSWithIdxAndWithMatchLen
-test:
-  - UniqueRespCommandIds
-  - OneIfWrite
-  - OneIfRead
-  - IsClusterSubCommand
-  - TryRestoreKeyNonStringType
-  - TryRestoreExistingKey
-  - SingleRestore32Bit
-  - SingleRestore14Bit
-  - SingleRestore6Bit
-  - SingleRestore6BitWithoutTtl
-  - SingleDump6Bit
-  - SingleDump14Bit
-  - SingleDump32Bit
-  - TryDumpKeyNonString
-  - TryDumpKeyThatDoesNotExist
-  - SingleSetGet
-  - SingleAsciiSetGetGarnetClient
-  - SingleUnicodeSetGetGarnetClient
-  - MultiSetGet
-  - MultiSetNX
-  - StringCommandsWrongArityReturnErrorAndKeepSessionAlive
-  - LargeSetGet
-  - SetExpiry
-  - SetExpiryHighPrecision
-  - SetExpiryThenExpireAndAppend
-  - SetExpiryNx
-  - SetAndGetExpiryNx
-  - SetXx
-  - SetAndGetExpiryXx
-  - SetGet
-  - SetExpiryIncr
-  - IncrDecrChangeDigitsWithExpiry
-  - SetOptionsCaseSensitivityTest
-  - LockTakeRelease
-  - SingleIncr
-  - SingleIncrBy
-  - SingleDecr
-  - SingleDecrBy
-  - SingleDecrByNoKey
-  - SingleIncrNoKey
-  - SimpleIncrementInvalidValue
-  - SimpleIncrementOverflow
-  - SimpleIncrementByFloatWithNoKey
-  - SimpleIncrementByFloat
-  - SimpleIncrementByFloatWithInvalidFloat
-  - SimpleIncrementByFloatWithOutOfRangeFloat
-  - SingleDelete
-  - SingleDeleteWithObjectStoreDisabled
-  - SingleDeleteWithObjectStoreDisable_LTM
-  - GarnetObjectStoreDisabledError
-  - MultiKeyDelete
-  - MultiKeyDeleteObjectStore
-  - MultiKeyUnlink
-  - MultiKeyUnlinkObjectStore
-  - SingleExists
-  - SingleExistsObject
-  - MultipleExistsKeysAndObjects
-  - ExpiretimeWithStringValue
-  - ExpiretimeWithUnknownKey
-  - ExpiretimeWithNoKeyExpiration
-  - ExpiretimeWithInvalidNumberOfArgs
-  - ExpiretimeWithObjectValue
-  - ExpiretimeWithNoKeyExpirationForObjectValue
-  - PExpiretimeWithStingValue
-  - PExpiretimeWithUnknownKey
-  - PExpiretimeWithNoKeyExpiration
-  - PExpiretimeWithInvalidNumberOfArgs
-  - PExpiretimeWithObjectValue
-  - PExpiretimeWithNoKeyExpirationForObjectValue
-  - SingleRename
-  - SingleRenameWithExpiry
-  - SingleRenameKeyEdgeCase
-  - SingleRenameObjectStore
-  - SingleRenameObjectStoreWithExpiry
-  - SingleRenameWithOldKeyAndNewKeyAsSame
-  - SingleRenameNx
-  - SingleRenameNxWithNewKeyAlreadyExist
-  - SingleRenameNxWithExpiry
-  - SingleRenameNxWithExpiryAndNewKeyAlreadyExist
-  - SingleRenameNxObjectStore
-  - SingleRenameNxObjectStoreWithNewKeyAlreadyExist
-  - SingleRenameNxObjectStoreWithExpiry
-  - SingleRenameNxObjectStoreWithExpiryAndNewKeyAlreadyExist
-  - SingleRenameNxWithKeyNotExist
-  - SingleRenameNxWithOldKeyAndNewKeyAsSame
-  - SingleRenameNXWithEtagSetOldAndNewKey
-  - SingleRenameNXWithEtagSetOldKey
-  - CanSelectCommand
-  - CanSelectCommandLC
-  - CanDoCommandsInChunks
-  - CanSetGetCommandsChunks
-  - PersistTTLTest
-  - TtlRoundingTest
-  - ObjectTTLTest
-  - PersistTest
-  - PersistObjectTest
-  - KeyExpireStringTest
-  - KeyExpireObjectTest
-  - KeyExpireOptionsTest
-  - KeyExpireBadOptionTests
-  - KeyExpireIncompatibleOptionsSingleReplyTest
-  - KeyExpireAtWithStringAndObject
-  - KeyExpireAtWithUnknownKey
-  - KeyExpireAtWithoutArgs
-  - KeyExpireAtWithUnknownArgs
-  - KeyExpireAtWithNxOptionAndKeyHasExpire
-  - KeyExpireAtWithNxOptionAndKeyHasNoExpire
-  - KeyExpireAtWithXxOptionAndKeyHasExpire
-  - KeyExpireAtWithXxOptionAndKeyHasNoExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithInvalidOptionCombination
-  - ReAddExpiredKey
-  - MainObjectKey
-  - GetSliceTest
-  - GetRangeEmptyValueTest
-  - SetRangeTest
-  - PingTest
-  - AskingTest
-  - KeepTtlTest
-  - StrlenTest
-  - TTLTestMilliseconds
-  - GetDelTest
-  - GetRole
-  - AppendTest
-  - AppendLargeStringValueTest
-  - AppendWithExpirationTest
-  - HelloTest1
-  - HelloAuthErrorTest
-  - RespOutputTests
-  - AsyncTest1
-  - ClientIdTest
-  - ClientInfoTest
-  - ClientListTest
-  - ClientListErrorTest
-  - ClientKillTestAsync
-  - ClientKillErrors
-  - ClientGetNameBasicTest
-  - ClientGetNameAfterSetNameTest
-  - ClientSetNameTest
-  - ClientSetInfoSingleOptionTest
-  - ClientSetInfoInvalidOptionsTest
-  - GetExpiryBasicTestWithSERedisApi
-  - GetExpiryWithoutOptions
-  - GetExpiryWithExpireOptions
-  - GetExpiryWithPersistOptions
-  - GetExpiryWithUnknownKey
-  - GetExpiryWitInvalidOptions
-  - GetSetWithExistingKey
-  - GetSetWithNewKey
-  - SetIfNotExistWithExistingKey
-  - SetIfNotExistWithNewKey
-  - SetNXCorrectResponse
-  - SubStringWithOptions
-  - LCSBasicTest
-  - LCSWithLenOption
-  - LCSWithInvalidOptions
-  - LCSWithNonExistentKeys
-  - ClientUnblockBasicTest
-  - ClientUnblockWithErrorWritesSingleReplyTest
-  - MultipleClientsUnblockAndAddTest
-  - ClientUnblockInvalidIdTest
-  - ClientUnblockInvalidModeTest
-  - ExcessiveArgumentCountRejected
+Setup: 无需实现
+TearDown: 无需实现
+ExpectError: 无需实现
+ExpectOk: 无需实现
+AssertExpectedClientFields: 无需实现
+AssertNotConnected: 无需实现
+GetFlagForSessionId: 无需实现
+ConnectAsync: 无需实现
+AssertDuplicateDefinitionError: 无需实现
+AssertField: 无需实现
+LCSWithIdxOption: 无需实现
+LCSWithIdxAndMinMatchLen: 无需实现
+LCSWithIdxAndWithMatchLen: 无需实现
+UniqueRespCommandIds: 测试函数无需实现
+OneIfWrite: 测试函数无需实现
+OneIfRead: 测试函数无需实现
+IsClusterSubCommand: 测试函数无需实现
+TryRestoreKeyNonStringType: 测试函数无需实现
+TryRestoreExistingKey: 测试函数无需实现
+SingleRestore32Bit: 测试函数无需实现
+SingleRestore14Bit: 测试函数无需实现
+SingleRestore6Bit: 测试函数无需实现
+SingleRestore6BitWithoutTtl: 测试函数无需实现
+SingleDump6Bit: 测试函数无需实现
+SingleDump14Bit: 测试函数无需实现
+SingleDump32Bit: 测试函数无需实现
+TryDumpKeyNonString: 测试函数无需实现
+TryDumpKeyThatDoesNotExist: 测试函数无需实现
+SingleSetGet: 测试函数无需实现
+SingleAsciiSetGetGarnetClient: 测试函数无需实现
+SingleUnicodeSetGetGarnetClient: 测试函数无需实现
+MultiSetGet: 测试函数无需实现
+MultiSetNX: 测试函数无需实现
+StringCommandsWrongArityReturnErrorAndKeepSessionAlive: 测试函数无需实现
+LargeSetGet: 测试函数无需实现
+SetExpiry: 测试函数无需实现
+SetExpiryHighPrecision: 测试函数无需实现
+SetExpiryThenExpireAndAppend: 测试函数无需实现
+SetExpiryNx: 测试函数无需实现
+SetAndGetExpiryNx: 测试函数无需实现
+SetXx: 测试函数无需实现
+SetAndGetExpiryXx: 测试函数无需实现
+SetGet: 测试函数无需实现
+SetExpiryIncr: 测试函数无需实现
+IncrDecrChangeDigitsWithExpiry: 测试函数无需实现
+SetOptionsCaseSensitivityTest: 测试函数无需实现
+LockTakeRelease: 测试函数无需实现
+SingleIncr: 测试函数无需实现
+SingleIncrBy: 测试函数无需实现
+SingleDecr: 测试函数无需实现
+SingleDecrBy: 测试函数无需实现
+SingleDecrByNoKey: 测试函数无需实现
+SingleIncrNoKey: 测试函数无需实现
+SimpleIncrementInvalidValue: 测试函数无需实现
+SimpleIncrementOverflow: 测试函数无需实现
+SimpleIncrementByFloatWithNoKey: 测试函数无需实现
+SimpleIncrementByFloat: 测试函数无需实现
+SimpleIncrementByFloatWithInvalidFloat: 测试函数无需实现
+SimpleIncrementByFloatWithOutOfRangeFloat: 测试函数无需实现
+SingleDelete: 测试函数无需实现
+SingleDeleteWithObjectStoreDisabled: 测试函数无需实现
+SingleDeleteWithObjectStoreDisable_LTM: 测试函数无需实现
+GarnetObjectStoreDisabledError: 测试函数无需实现
+MultiKeyDelete: 测试函数无需实现
+MultiKeyDeleteObjectStore: 测试函数无需实现
+MultiKeyUnlink: 测试函数无需实现
+MultiKeyUnlinkObjectStore: 测试函数无需实现
+SingleExists: 测试函数无需实现
+SingleExistsObject: 测试函数无需实现
+MultipleExistsKeysAndObjects: 测试函数无需实现
+ExpiretimeWithStringValue: 测试函数无需实现
+ExpiretimeWithUnknownKey: 测试函数无需实现
+ExpiretimeWithNoKeyExpiration: 测试函数无需实现
+ExpiretimeWithInvalidNumberOfArgs: 测试函数无需实现
+ExpiretimeWithObjectValue: 测试函数无需实现
+ExpiretimeWithNoKeyExpirationForObjectValue: 测试函数无需实现
+PExpiretimeWithStingValue: 测试函数无需实现
+PExpiretimeWithUnknownKey: 测试函数无需实现
+PExpiretimeWithNoKeyExpiration: 测试函数无需实现
+PExpiretimeWithInvalidNumberOfArgs: 测试函数无需实现
+PExpiretimeWithObjectValue: 测试函数无需实现
+PExpiretimeWithNoKeyExpirationForObjectValue: 测试函数无需实现
+SingleRename: 测试函数无需实现
+SingleRenameWithExpiry: 测试函数无需实现
+SingleRenameKeyEdgeCase: 测试函数无需实现
+SingleRenameObjectStore: 测试函数无需实现
+SingleRenameObjectStoreWithExpiry: 测试函数无需实现
+SingleRenameWithOldKeyAndNewKeyAsSame: 测试函数无需实现
+SingleRenameNx: 测试函数无需实现
+SingleRenameNxWithNewKeyAlreadyExist: 测试函数无需实现
+SingleRenameNxWithExpiry: 测试函数无需实现
+SingleRenameNxWithExpiryAndNewKeyAlreadyExist: 测试函数无需实现
+SingleRenameNxObjectStore: 测试函数无需实现
+SingleRenameNxObjectStoreWithNewKeyAlreadyExist: 测试函数无需实现
+SingleRenameNxObjectStoreWithExpiry: 测试函数无需实现
+SingleRenameNxObjectStoreWithExpiryAndNewKeyAlreadyExist: 测试函数无需实现
+SingleRenameNxWithKeyNotExist: 测试函数无需实现
+SingleRenameNxWithOldKeyAndNewKeyAsSame: 测试函数无需实现
+SingleRenameNXWithEtagSetOldAndNewKey: 测试函数无需实现
+SingleRenameNXWithEtagSetOldKey: 测试函数无需实现
+CanSelectCommand: 测试函数无需实现
+CanSelectCommandLC: 测试函数无需实现
+CanDoCommandsInChunks: 测试函数无需实现
+CanSetGetCommandsChunks: 测试函数无需实现
+PersistTTLTest: 测试函数无需实现
+TtlRoundingTest: 测试函数无需实现
+ObjectTTLTest: 测试函数无需实现
+PersistTest: 测试函数无需实现
+PersistObjectTest: 测试函数无需实现
+KeyExpireStringTest: 测试函数无需实现
+KeyExpireObjectTest: 测试函数无需实现
+KeyExpireOptionsTest: 测试函数无需实现
+KeyExpireBadOptionTests: 测试函数无需实现
+KeyExpireIncompatibleOptionsSingleReplyTest: 测试函数无需实现
+KeyExpireAtWithStringAndObject: 测试函数无需实现
+KeyExpireAtWithUnknownKey: 测试函数无需实现
+KeyExpireAtWithoutArgs: 测试函数无需实现
+KeyExpireAtWithUnknownArgs: 测试函数无需实现
+KeyExpireAtWithNxOptionAndKeyHasExpire: 测试函数无需实现
+KeyExpireAtWithNxOptionAndKeyHasNoExpire: 测试函数无需实现
+KeyExpireAtWithXxOptionAndKeyHasExpire: 测试函数无需实现
+KeyExpireAtWithXxOptionAndKeyHasNoExpire: 测试函数无需实现
+KeyExpireAtWithGtOptionAndExistingKeyHasSmallerExpire: 测试函数无需实现
+KeyExpireAtWithGtOptionAndExistingKeyHasLargerExpire: 测试函数无需实现
+KeyExpireAtWithGtOptionAndExistingKeyNoExpire: 测试函数无需实现
+KeyExpireAtWithXxAndGtOptionAndExistingKeyHasSmallerExpire: 测试函数无需实现
+KeyExpireAtWithXxAndGtOptionAndExistingKeyHasLargerExpire: 测试函数无需实现
+KeyExpireAtWithXxAndGtOptionAndExistingKeyNoExpire: 测试函数无需实现
+KeyExpireAtWithLtOptionAndExistingKeyHasSmallerExpire: 测试函数无需实现
+KeyExpireAtWithLtOptionAndExistingKeyHasLargerExpire: 测试函数无需实现
+KeyExpireAtWithLtOptionAndExistingKeyNoExpire: 测试函数无需实现
+KeyExpireAtWithXxAndLtOptionAndExistingKeyHasSmallerExpire: 测试函数无需实现
+KeyExpireAtWithXxAndLtOptionAndExistingKeyHasLargerExpire: 测试函数无需实现
+KeyExpireAtWithXxAndLtOptionAndExistingKeyNoExpire: 测试函数无需实现
+KeyExpireAtWithInvalidOptionCombination: 测试函数无需实现
+ReAddExpiredKey: 测试函数无需实现
+MainObjectKey: 测试函数无需实现
+GetSliceTest: 测试函数无需实现
+GetRangeEmptyValueTest: 测试函数无需实现
+SetRangeTest: 测试函数无需实现
+PingTest: 测试函数无需实现
+AskingTest: 测试函数无需实现
+KeepTtlTest: 测试函数无需实现
+StrlenTest: 测试函数无需实现
+TTLTestMilliseconds: 测试函数无需实现
+GetDelTest: 测试函数无需实现
+GetRole: 测试函数无需实现
+AppendTest: 测试函数无需实现
+AppendLargeStringValueTest: 测试函数无需实现
+AppendWithExpirationTest: 测试函数无需实现
+HelloTest1: 测试函数无需实现
+HelloAuthErrorTest: 测试函数无需实现
+RespOutputTests: 测试函数无需实现
+AsyncTest1: 测试函数无需实现
+ClientIdTest: 测试函数无需实现
+ClientInfoTest: 测试函数无需实现
+ClientListTest: 测试函数无需实现
+ClientListErrorTest: 测试函数无需实现
+ClientKillTestAsync: 测试函数无需实现
+ClientKillErrors: 测试函数无需实现
+ClientGetNameBasicTest: 测试函数无需实现
+ClientGetNameAfterSetNameTest: 测试函数无需实现
+ClientSetNameTest: 测试函数无需实现
+ClientSetInfoSingleOptionTest: 测试函数无需实现
+ClientSetInfoInvalidOptionsTest: 测试函数无需实现
+GetExpiryBasicTestWithSERedisApi: 测试函数无需实现
+GetExpiryWithoutOptions: 测试函数无需实现
+GetExpiryWithExpireOptions: 测试函数无需实现
+GetExpiryWithPersistOptions: 测试函数无需实现
+GetExpiryWithUnknownKey: 测试函数无需实现
+GetExpiryWitInvalidOptions: 测试函数无需实现
+GetSetWithExistingKey: 测试函数无需实现
+GetSetWithNewKey: 测试函数无需实现
+SetIfNotExistWithExistingKey: 测试函数无需实现
+SetIfNotExistWithNewKey: 测试函数无需实现
+SetNXCorrectResponse: 测试函数无需实现
+SubStringWithOptions: 测试函数无需实现
+LCSBasicTest: 测试函数无需实现
+LCSWithLenOption: 测试函数无需实现
+LCSWithInvalidOptions: 测试函数无需实现
+LCSWithNonExistentKeys: 测试函数无需实现
+ClientUnblockBasicTest: 测试函数无需实现
+ClientUnblockWithErrorWritesSingleReplyTest: 测试函数无需实现
+MultipleClientsUnblockAndAddTest: 测试函数无需实现
+ClientUnblockInvalidIdTest: 测试函数无需实现
+ClientUnblockInvalidModeTest: 测试函数无需实现
+ExcessiveArgumentCountRejected: 测试函数无需实现

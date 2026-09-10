@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - NativeDiskWriteReadCache
-  - NativeDiskWriteReadCache2
+Setup: 无需实现
+TearDown: 无需实现
+NativeDiskWriteReadCache: 测试函数无需实现
+NativeDiskWriteReadCache2: 测试函数无需实现

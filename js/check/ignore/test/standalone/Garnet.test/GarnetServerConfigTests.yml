@@ -1,51 +1,49 @@
-fn:
-  - GetFullExtensionBinPath
-  - TryParseGarnetConfOptions
-test:
-  - DefaultConfigurationOptionsCoverage
-  - OptionsDefaultAttributeUsage
-  - RangeIndexPreviewRequiresMinimumAofPageSize
-  - NativeAllocatorOptionParsing
-  - UseLegacyBufferPoolOptionParsing
-  - BufferPoolMemoryBudgetOptionParsing
-  - BufferPoolMemoryBudgetZeroDisablesCaching
-  - LoadModuleCsInvalidSpecIsRejected
-  - DeviceIoContextsAndQueueDepthOptions
-  - DeviceAioMaxDevicesOption
-  - DeviceUringSqPollOptions
-  - ImportExportConfigLocal
-  - ImportExportRedisConfigLocal
-  - ImportExportConfigAzure
-  - AzureStorageConfiguration
-  - LuaMemoryOptions
-  - LuaTimeoutOptions
-  - LuaLoggingOptions
-  - LuaAllowedFunctions
-  - ClusterReplicationReestablishmentTimeout
-  - ClusterReplicaResumeWithData
-  - EnableVectorSetPreview
-  - MinimumPageSizeWithVectorSetPreview
-  - VectorSetQuantizationTaskCount
-  - UnixSocketPath_CanParseValidPath
-  - UnixSocketPath_InvalidPathFails
-  - UnixSocketPermission_CanParseValidPermission
-  - UnixSocketPermission_InvalidPermissionFails
-  - CertFileName_AcceptsPemExtensions
-  - CertFileName_RejectsUnsupportedExtension
-  - ConnectionProtectionTest
-  - MultiTcpSocketTest
-  - ClusterPreferredEndpointTypeTest
-  - ClusterAnnounceHostnameTest
-  - RevivificationFlagOrderingIndependence
-  - AclStrictCustomCommands
-  - AofSizeLimitWithoutAofEnabled
-  - AofSegmentSizeFlowsToTsavoriteLogSettings
-  - MaxInlineValueSizeParsing
-  - MaxInlineValueSizeValidation
-  - MaxInlineValueSizeMustFitOnPage
-  - MaxInlineValueSizeDefaultBehavior
-  - MaxInlineKeySizeParsing
-  - MaxInlineKeySizeValidation
-  - MinimumPageSize
-  - MinimumReadCachePageSize
-  - InitialIORecordSizeParsing
+GetFullExtensionBinPath: 无需实现
+TryParseGarnetConfOptions: 无需实现
+DefaultConfigurationOptionsCoverage: 测试函数无需实现
+OptionsDefaultAttributeUsage: 测试函数无需实现
+RangeIndexPreviewRequiresMinimumAofPageSize: 测试函数无需实现
+NativeAllocatorOptionParsing: 测试函数无需实现
+UseLegacyBufferPoolOptionParsing: 测试函数无需实现
+BufferPoolMemoryBudgetOptionParsing: 测试函数无需实现
+BufferPoolMemoryBudgetZeroDisablesCaching: 测试函数无需实现
+LoadModuleCsInvalidSpecIsRejected: 测试函数无需实现
+DeviceIoContextsAndQueueDepthOptions: 测试函数无需实现
+DeviceAioMaxDevicesOption: 测试函数无需实现
+DeviceUringSqPollOptions: 测试函数无需实现
+ImportExportConfigLocal: 测试函数无需实现
+ImportExportRedisConfigLocal: 测试函数无需实现
+ImportExportConfigAzure: 测试函数无需实现
+AzureStorageConfiguration: 测试函数无需实现
+LuaMemoryOptions: 测试函数无需实现
+LuaTimeoutOptions: 测试函数无需实现
+LuaLoggingOptions: 测试函数无需实现
+LuaAllowedFunctions: 测试函数无需实现
+ClusterReplicationReestablishmentTimeout: 测试函数无需实现
+ClusterReplicaResumeWithData: 测试函数无需实现
+EnableVectorSetPreview: 测试函数无需实现
+MinimumPageSizeWithVectorSetPreview: 测试函数无需实现
+VectorSetQuantizationTaskCount: 测试函数无需实现
+UnixSocketPath_CanParseValidPath: 测试函数无需实现
+UnixSocketPath_InvalidPathFails: 测试函数无需实现
+UnixSocketPermission_CanParseValidPermission: 测试函数无需实现
+UnixSocketPermission_InvalidPermissionFails: 测试函数无需实现
+CertFileName_AcceptsPemExtensions: 测试函数无需实现
+CertFileName_RejectsUnsupportedExtension: 测试函数无需实现
+ConnectionProtectionTest: 测试函数无需实现
+MultiTcpSocketTest: 测试函数无需实现
+ClusterPreferredEndpointTypeTest: 测试函数无需实现
+ClusterAnnounceHostnameTest: 测试函数无需实现
+RevivificationFlagOrderingIndependence: 测试函数无需实现
+AclStrictCustomCommands: 测试函数无需实现
+AofSizeLimitWithoutAofEnabled: 测试函数无需实现
+AofSegmentSizeFlowsToTsavoriteLogSettings: 测试函数无需实现
+MaxInlineValueSizeParsing: 测试函数无需实现
+MaxInlineValueSizeValidation: 测试函数无需实现
+MaxInlineValueSizeMustFitOnPage: 测试函数无需实现
+MaxInlineValueSizeDefaultBehavior: 测试函数无需实现
+MaxInlineKeySizeParsing: 测试函数无需实现
+MaxInlineKeySizeValidation: 测试函数无需实现
+MinimumPageSize: 测试函数无需实现
+MinimumReadCachePageSize: 测试函数无需实现
+InitialIORecordSizeParsing: 测试函数无需实现

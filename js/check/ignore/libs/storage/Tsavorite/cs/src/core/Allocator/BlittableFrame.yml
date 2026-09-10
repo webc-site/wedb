@@ -1,4 +1,3 @@
-fn:
-  - BlittableFrame
-  - IsAllocated
-  - GetArrayAndUnalignedOffset
+BlittableFrame: 无需实现
+IsAllocated: 无需实现
+GetArrayAndUnalignedOffset: 无需实现

@@ -1,7 +1,6 @@
-fn:
-  - TryParseToEnum
-  - FromInt64
-  - ToEnumLiteral
-  - TryParseEnumToLong
-  - ToInt64
-  - TryParseUnderlying
+TryParseToEnum: 无需实现
+FromInt64: 无需实现
+ToEnumLiteral: 无需实现
+TryParseEnumToLong: 无需实现
+ToInt64: 无需实现
+TryParseUnderlying: 无需实现

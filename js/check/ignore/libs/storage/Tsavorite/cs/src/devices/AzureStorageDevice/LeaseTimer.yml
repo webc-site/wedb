@@ -1,5 +1,4 @@
-fn:
-  - Cancel
-  - RunAll
-  - AdvancePosition
-  - Schedule
+Cancel: 无需实现
+RunAll: 无需实现
+AdvancePosition: 无需实现
+Schedule: 无需实现

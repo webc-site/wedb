@@ -1,10 +1,9 @@
-fn:
-  - TestLoader
-  - verifyOption
-  - GetHashTableSize
-  - LoadData
-  - LoadDataThreadProc
-  - LoadSyntheticData
-  - LoadDataFromFile
-  - MaybeRecoverStore
-  - MaybeCheckpointStore
+TestLoader: 无需实现
+verifyOption: 无需实现
+GetHashTableSize: 无需实现
+LoadData: 无需实现
+LoadDataThreadProc: 无需实现
+LoadSyntheticData: 无需实现
+LoadDataFromFile: 无需实现
+MaybeRecoverStore: 无需实现
+MaybeCheckpointStore: 无需实现

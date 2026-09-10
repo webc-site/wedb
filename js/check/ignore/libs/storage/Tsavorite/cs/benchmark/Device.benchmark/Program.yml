@@ -1,7 +1,6 @@
-fn:
-  - Main
-  - PrintBenchMarkSummary
-  - SetupDeviceBenchmark
-  - FillDeviceWithTestData
-  - GetDevice
-  - ParseBackend
+Main: 无需实现
+PrintBenchMarkSummary: 无需实现
+SetupDeviceBenchmark: 无需实现
+FillDeviceWithTestData: 无需实现
+GetDevice: 无需实现
+ParseBackend: 无需实现

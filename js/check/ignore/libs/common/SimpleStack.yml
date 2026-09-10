@@ -1,2 +1,1 @@
-fn:
-  - ExtendStackBuffer
+ExtendStackBuffer: 无需实现

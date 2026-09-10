@@ -1,36 +1,34 @@
-fn:
-  - TrackedObjectValue
-  - ToString
-  - Deserialize
-  - Serialize
-  - DisposeCount
-  - DisposeDiskCount
-  - EvictCount
-  - TotalDispose
-  - TotalDisposeDisk
-  - TotalEvict
-  - LifecycleRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - NewSession
-test:
-  - CopyUpdateDoesNotFireOnDisposeCopyUpdated
-  - CopyUpdateDisposesSourceValueExactlyOnce
-  - DeleteFiresOnDisposeDeletedAndNoOnDisposeDiskRecord
-  - ScanInMemoryFiresOnDisposeDiskRecordOncePerRecord
-  - ScanDiskFiresOnDisposeDiskRecordOncePerRecord
-  - PendingReadFromDiskFiresOnDisposeDiskRecordOnce
-  - PageEvictionFiresOnEvictForEveryLiveRecord
-  - CallOnFlushGatesOnFlushInvocation
-  - CallOnDiskReadGatesOnDiskReadInvocation
-  - CallOnEvictGatingSuppressesOnEvictCallback
-  - ReadCacheEvictionFiresOnEvictWithReadCacheSource
-  - ReadCacheHeapSizeTrackerReturnsToZeroAfterUpdateAndEvict
-  - NoValueObjectIsDisposedMoreThanOnceAcrossLifecycle
+TrackedObjectValue: 无需实现
+ToString: 无需实现
+Deserialize: 无需实现
+Serialize: 无需实现
+DisposeCount: 无需实现
+DisposeDiskCount: 无需实现
+EvictCount: 无需实现
+TotalDispose: 无需实现
+TotalDisposeDisk: 无需实现
+TotalEvict: 无需实现
+LifecycleRecordTriggers: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+OnEvict: 无需实现
+OnRecovery: 无需实现
+OnCheckpoint: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+NewSession: 无需实现
+CopyUpdateDoesNotFireOnDisposeCopyUpdated: 测试函数无需实现
+CopyUpdateDisposesSourceValueExactlyOnce: 测试函数无需实现
+DeleteFiresOnDisposeDeletedAndNoOnDisposeDiskRecord: 测试函数无需实现
+ScanInMemoryFiresOnDisposeDiskRecordOncePerRecord: 测试函数无需实现
+ScanDiskFiresOnDisposeDiskRecordOncePerRecord: 测试函数无需实现
+PendingReadFromDiskFiresOnDisposeDiskRecordOnce: 测试函数无需实现
+PageEvictionFiresOnEvictForEveryLiveRecord: 测试函数无需实现
+CallOnFlushGatesOnFlushInvocation: 测试函数无需实现
+CallOnDiskReadGatesOnDiskReadInvocation: 测试函数无需实现
+CallOnEvictGatingSuppressesOnEvictCallback: 测试函数无需实现
+ReadCacheEvictionFiresOnEvictWithReadCacheSource: 测试函数无需实现
+ReadCacheHeapSizeTrackerReturnsToZeroAfterUpdateAndEvict: 测试函数无需实现
+NoValueObjectIsDisposedMoreThanOnceAcrossLifecycle: 测试函数无需实现

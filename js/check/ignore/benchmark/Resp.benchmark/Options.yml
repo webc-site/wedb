@@ -1,3 +1,2 @@
-fn:
-  - ParseSize
-  - AofPageSizeBits
+ParseSize: 无需实现
+AofPageSizeBits: 无需实现

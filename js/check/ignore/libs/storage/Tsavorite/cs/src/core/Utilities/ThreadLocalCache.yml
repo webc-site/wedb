@@ -1,3 +1,2 @@
-fn:
-  - TryRent
-  - TryReturn
+TryRent: 无需实现
+TryReturn: 无需实现

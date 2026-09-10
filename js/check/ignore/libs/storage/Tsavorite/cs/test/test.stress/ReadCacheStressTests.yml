@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - LongRcMultiThreadStressTest
-  - SpanByteRcMultiThreadStressTest
+Setup: 无需实现
+TearDown: 无需实现
+LongRcMultiThreadStressTest: 测试函数无需实现
+SpanByteRcMultiThreadStressTest: 测试函数无需实现

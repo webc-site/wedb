@@ -1,18 +1,17 @@
-fn:
-  - CircularDiskWriteBuffer
-  - GetCurrentBuffer
-  - MoveToAndInitializeNextBuffer
-  - GetOrAllocateCurrentBuffer
-  - GetAndInitializeCurrentBuffer
-  - GetNextRecordStartPosition
-  - InitializeOwnObjectLogFilePosition
-  - OnBeginPartialFlush
-  - OnRecordComplete
-  - OnPartialFlushComplete
-  - FlushToMainLogDevice
-  - CreateDiskWriteCallbackContext
-  - FlushCurrentBuffer
-  - FlushToDevice
-  - FlushToDeviceCallback
-  - ClearBuffers
-  - ToString
+CircularDiskWriteBuffer: 无需实现
+GetCurrentBuffer: 无需实现
+MoveToAndInitializeNextBuffer: 无需实现
+GetOrAllocateCurrentBuffer: 无需实现
+GetAndInitializeCurrentBuffer: 无需实现
+GetNextRecordStartPosition: 无需实现
+InitializeOwnObjectLogFilePosition: 无需实现
+OnBeginPartialFlush: 无需实现
+OnRecordComplete: 无需实现
+OnPartialFlushComplete: 无需实现
+FlushToMainLogDevice: 无需实现
+CreateDiskWriteCallbackContext: 无需实现
+FlushCurrentBuffer: 无需实现
+FlushToDevice: 无需实现
+FlushToDeviceCallback: 无需实现
+ClearBuffers: 无需实现
+ToString: 无需实现

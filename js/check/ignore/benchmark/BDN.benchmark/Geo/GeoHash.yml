@@ -1,4 +1,3 @@
-fn:
-  - GeoToLongValue
-  - GetCoordinatesFromLong
-  - GetGeoHashCode
+GeoToLongValue: 无需实现
+GetCoordinatesFromLong: 无需实现
+GetGeoHashCode: 无需实现

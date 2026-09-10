@@ -1,11 +1,10 @@
-fn:
-  - FlushAndEvictProvider
-  - SetupStore
-  - PopulateStore
-  - SetupPopulatedStore
-  - TearDown
-  - Cursor
-  - ScanFunctions
-  - OnStart
-  - OnStop
-  - OnException
+FlushAndEvictProvider: 无需实现
+SetupStore: 无需实现
+PopulateStore: 无需实现
+SetupPopulatedStore: 无需实现
+TearDown: 无需实现
+Cursor: 无需实现
+ScanFunctions: 无需实现
+OnStart: 无需实现
+OnStop: 无需实现
+OnException: 无需实现

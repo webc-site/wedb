@@ -1,2 +1,1 @@
-fn:
-  - CalculateHeapMemorySize
+CalculateHeapMemorySize: 无需实现

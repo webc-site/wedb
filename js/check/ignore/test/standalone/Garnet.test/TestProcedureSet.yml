@@ -1,6 +1,5 @@
-fn:
-  - Prepare
-  - AddKey
-  - Main
-  - WriteSimpleString
-  - TestAPI
+Prepare: 无需实现
+AddKey: 无需实现
+Main: 无需实现
+WriteSimpleString: 无需实现
+TestAPI: 无需实现

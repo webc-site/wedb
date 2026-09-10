@@ -1,2 +1,1 @@
-fn:
-  - BlockingWait
+BlockingWait: 无需实现

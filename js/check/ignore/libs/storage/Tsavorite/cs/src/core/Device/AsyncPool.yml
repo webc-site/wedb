@@ -1,5 +1,4 @@
-fn:
-  - AsyncPool
-  - GetAsync
-  - TryGet
-  - GetOrAdd
+AsyncPool: 无需实现
+GetAsync: 无需实现
+TryGet: 无需实现
+GetOrAdd: 无需实现

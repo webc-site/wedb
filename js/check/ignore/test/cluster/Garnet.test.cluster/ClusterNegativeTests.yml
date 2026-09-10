@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-  - ClusterCommandWrongParameters
-test:
-  - ClusterAddSlotsPartialPackage
-  - ClusterExceptionInjectionAtPrimarySyncSession
-  - ClusterFailoverDuringRecovery
-  - ClusterCheckpointAcquireTest
-  - ClusterReplicaAttachIntenseWrite
-  - ClusterFailedToAddAofSyncTask
-  - ClusterReplicaSyncTimeoutTest
-  - ClusterParallelFailoverOnDistinctShards
-  - ClusterMeetFromReplica
-  - ClusterDontKnowReplicaFailTest
-  - ClusterReplicateFails
-  - ClusterFailoverSucceedsDuringEnsureReplicationAsync
-  - ClusterEnsureReplicationWorksAfterFailoverAsync
-  - ClusterFailoverResetsPrimaryOnTakeOverFailureAsync
+Setup: 无需实现
+TearDown: 无需实现
+ClusterCommandWrongParameters: 无需实现
+ClusterAddSlotsPartialPackage: 测试函数无需实现
+ClusterExceptionInjectionAtPrimarySyncSession: 测试函数无需实现
+ClusterFailoverDuringRecovery: 测试函数无需实现
+ClusterCheckpointAcquireTest: 测试函数无需实现
+ClusterReplicaAttachIntenseWrite: 测试函数无需实现
+ClusterFailedToAddAofSyncTask: 测试函数无需实现
+ClusterReplicaSyncTimeoutTest: 测试函数无需实现
+ClusterParallelFailoverOnDistinctShards: 测试函数无需实现
+ClusterMeetFromReplica: 测试函数无需实现
+ClusterDontKnowReplicaFailTest: 测试函数无需实现
+ClusterReplicateFails: 测试函数无需实现
+ClusterFailoverSucceedsDuringEnsureReplicationAsync: 测试函数无需实现
+ClusterEnsureReplicationWorksAfterFailoverAsync: 测试函数无需实现
+ClusterFailoverResetsPrimaryOnTakeOverFailureAsync: 测试函数无需实现

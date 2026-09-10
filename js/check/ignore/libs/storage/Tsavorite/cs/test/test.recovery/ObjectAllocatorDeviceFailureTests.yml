@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - CreateStore
-  - ControlledReadFailureDevice
-  - FailNextRead
-  - RemoveSegmentAsync
-  - TryComplete
-  - Throttle
-test:
-  - PartialSectorReadFailureStopsFlush
-  - SnapshotPartialSectorSkipsReadBackOnFreshDevice
-  - HeaderReadFailureDefersPairedTruncation
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+CreateStore: 无需实现
+ControlledReadFailureDevice: 无需实现
+FailNextRead: 无需实现
+RemoveSegmentAsync: 无需实现
+TryComplete: 无需实现
+Throttle: 无需实现
+PartialSectorReadFailureStopsFlush: 测试函数无需实现
+SnapshotPartialSectorSkipsReadBackOnFreshDevice: 测试函数无需实现
+HeaderReadFailureDefersPairedTruncation: 测试函数无需实现

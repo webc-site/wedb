@@ -1,3 +1,2 @@
-fn:
-  - AllValueEnumerable
-  - GetEnumerator
+AllValueEnumerable: 无需实现
+GetEnumerator: 无需实现

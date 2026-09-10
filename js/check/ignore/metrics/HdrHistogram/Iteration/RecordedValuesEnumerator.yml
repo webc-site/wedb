@@ -1,4 +1,3 @@
-fn:
-  - RecordedValuesEnumerator
-  - IncrementIterationLevel
-  - ReachedIterationLevel
+RecordedValuesEnumerator: 无需实现
+IncrementIterationLevel: 无需实现
+ReachedIterationLevel: 无需实现

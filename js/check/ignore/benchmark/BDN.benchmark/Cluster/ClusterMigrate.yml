@@ -1,7 +1,6 @@
-fn:
-  - ClusterParamsProvider
-  - GlobalSetup
-  - SetSlot
-  - GlobalCleanup
-  - MGet
-  - MSet
+ClusterParamsProvider: 无需实现
+GlobalSetup: 无需实现
+SetSlot: 无需实现
+GlobalCleanup: 无需实现
+MGet: 无需实现
+MSet: 无需实现

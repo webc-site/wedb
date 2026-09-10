@@ -1,7 +1,6 @@
-fn:
-  - BenchmarkLoggerProvider
-  - CreateLogger
-  - BenchmarkLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr
+BenchmarkLoggerProvider: 无需实现
+CreateLogger: 无需实现
+BenchmarkLogger: 无需实现
+BeginScope: 无需实现
+IsEnabled: 无需实现
+GetLevelStr: 无需实现

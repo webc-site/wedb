@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-  - MakeReadOnly
-test:
-  - PersistCopyUpdateTest
+Setup: 无需实现
+TearDown: 无需实现
+MakeReadOnly: 无需实现
+PersistCopyUpdateTest: 测试函数无需实现

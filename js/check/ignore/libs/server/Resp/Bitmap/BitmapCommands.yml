@@ -1,8 +1,4 @@
-fn:
-  - NetworkStringSetBit
-  - NetworkStringGetBit
-  - NetworkStringBitCount
-  - NetworkStringBitPosition
-  - NetworkStringBitOperation
-  - StringBitFieldAction
-  - HandleFirstSubCommand
+NetworkStringBitPosition: 无需实现
+NetworkStringBitOperation: 无需实现
+StringBitFieldAction: 无需实现
+HandleFirstSubCommand: 无需实现

@@ -1,9 +1,8 @@
-fn:
-  - TsavoriteExecutionContext
-  - RentPendingIoContext
-  - ReturnPendingIoContext
-  - MergeReadCopyOptions
-  - MergeRevivificationStatsTo
-  - ResetRevivificationStats
-  - WaitPending
-  - WaitPendingAsync
+TsavoriteExecutionContext: 无需实现
+RentPendingIoContext: 无需实现
+ReturnPendingIoContext: 无需实现
+MergeReadCopyOptions: 无需实现
+MergeRevivificationStatsTo: 无需实现
+ResetRevivificationStats: 无需实现
+WaitPending: 无需实现
+WaitPendingAsync: 无需实现

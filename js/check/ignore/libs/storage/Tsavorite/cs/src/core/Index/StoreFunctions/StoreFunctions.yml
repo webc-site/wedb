@@ -1,15 +1,14 @@
-fn:
-  - GetKeyHashCode64
-  - KeysEqual
-  - CreateValueObjectSerializer
-  - BeginSerializeValue
-  - BeginDeserializeValue
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - SetCheckpointCompletedCallback
-  - OnCheckpointCompleted
-  - checkpointCompletionCallback
-  - Create
+GetKeyHashCode64: 无需实现
+KeysEqual: 无需实现
+CreateValueObjectSerializer: 无需实现
+BeginSerializeValue: 无需实现
+BeginDeserializeValue: 无需实现
+OnDispose: 无需实现
+OnDisposeDiskRecord: 无需实现
+OnEvict: 无需实现
+OnRecovery: 无需实现
+OnCheckpoint: 无需实现
+SetCheckpointCompletedCallback: 无需实现
+OnCheckpointCompleted: 无需实现
+checkpointCompletionCallback: 无需实现
+Create: 无需实现

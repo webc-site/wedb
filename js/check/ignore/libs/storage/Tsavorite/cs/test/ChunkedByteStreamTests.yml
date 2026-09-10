@@ -1,7 +1,5 @@
-fn:
-  - Consume
-  - MakeBytes
-test:
-  - ChunkedRawByteRoundTripTest
-  - ChunkedEmptyStreamStillSignalsFinalTest
-  - ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest
+Consume: 无需实现
+MakeBytes: 无需实现
+ChunkedRawByteRoundTripTest: 测试函数无需实现
+ChunkedEmptyStreamStillSignalsFinalTest: 测试函数无需实现
+ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest: 测试函数无需实现

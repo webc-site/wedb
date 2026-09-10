@@ -1,3 +1,2 @@
-fn:
-  - AddFile
-  - CreateLogger
+AddFile: 无需实现
+CreateLogger: 无需实现

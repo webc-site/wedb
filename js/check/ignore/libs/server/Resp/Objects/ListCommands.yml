@@ -1,6 +1,5 @@
-fn:
-  - ListBlockingPop
-  - ListBlockingMove
-  - ListBlockingPopPush
-  - ListRightPopLeftPush
-  - ListBlockingPopMultiple
+ListBlockingPop: 无需实现
+ListBlockingMove: 无需实现
+ListBlockingPopPush: 无需实现
+ListRightPopLeftPush: 无需实现
+ListBlockingPopMultiple: 无需实现

@@ -1,4 +1,3 @@
-fn:
-  - Throttle
-  - TryComplete
-  - TryCompleteMine
+Throttle: 无需实现
+TryComplete: 无需实现
+TryCompleteMine: 无需实现

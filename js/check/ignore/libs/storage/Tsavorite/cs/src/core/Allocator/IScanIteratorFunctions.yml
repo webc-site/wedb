@@ -1,7 +1,6 @@
-fn:
-  - OnStart
-  - OnStop
-  - OnException
-  - BeginGetPrevInMemory
-  - EndGetPrevInMemory
-  - SnapCursorToLogicalAddress
+OnStart: 无需实现
+OnStop: 无需实现
+OnException: 无需实现
+BeginGetPrevInMemory: 无需实现
+EndGetPrevInMemory: 无需实现
+SnapCursorToLogicalAddress: 无需实现

@@ -1,19 +1,18 @@
-fn:
-  - OnSendingRequest
-  - GetServiceClients
-  - GetBlobClientOptions
-  - GetContainerClients
-  - GetBlockBlobClients
-  - GetPageBlobClients
-  - GetSubDirectory
-  - GetBlockBlobClient
-  - GetPageBlobClient
-  - GetBlobsAsync
-  - ForceDeleteAsync
-  - LeaseConflictOrExpired
-  - LeaseConflict
-  - LeaseExpired
-  - CannotDeleteBlobWithLease
-  - PreconditionFailed
-  - BlobDoesNotExist
-  - BlobAlreadyExists
+OnSendingRequest: 无需实现
+GetServiceClients: 无需实现
+GetBlobClientOptions: 无需实现
+GetContainerClients: 无需实现
+GetBlockBlobClients: 无需实现
+GetPageBlobClients: 无需实现
+GetSubDirectory: 无需实现
+GetBlockBlobClient: 无需实现
+GetPageBlobClient: 无需实现
+GetBlobsAsync: 无需实现
+ForceDeleteAsync: 无需实现
+LeaseConflictOrExpired: 无需实现
+LeaseConflict: 无需实现
+LeaseExpired: 无需实现
+CannotDeleteBlobWithLease: 无需实现
+PreconditionFailed: 无需实现
+BlobDoesNotExist: 无需实现
+BlobAlreadyExists: 无需实现

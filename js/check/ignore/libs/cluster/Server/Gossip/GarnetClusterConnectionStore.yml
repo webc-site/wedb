@@ -1,13 +1,12 @@
-fn:
-  - UnsafeDisposeConnections
-  - CloseAll
-  - UnsafeGetConnection
-  - UnsafeAddConnection
-  - AcquireWriteLockAsync
-  - AddConnectionAsync
-  - GetOrAddAsync
-  - TryRemoveConnectionAsync
-  - GetConnection
-  - GetConnectionAtOffset
-  - GetRandomConnection
-  - GetConnectionInfo
+UnsafeDisposeConnections: 无需实现
+CloseAll: 无需实现
+UnsafeGetConnection: 无需实现
+UnsafeAddConnection: 无需实现
+AcquireWriteLockAsync: 无需实现
+AddConnectionAsync: 无需实现
+GetOrAddAsync: 无需实现
+TryRemoveConnectionAsync: 无需实现
+GetConnection: 无需实现
+GetConnectionAtOffset: 无需实现
+GetRandomConnection: 无需实现
+GetConnectionInfo: 无需实现

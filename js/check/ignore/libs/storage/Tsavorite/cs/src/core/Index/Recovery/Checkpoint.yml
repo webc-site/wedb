@@ -1,9 +1,8 @@
-fn:
-  - CheckpointVersionShiftStart
-  - CheckpointVersionShiftEnd
-  - WriteHybridLogMetaInfo
-  - CleanupLogCheckpoint
-  - WriteIndexMetaInfo
-  - CleanupIndexCheckpoint
-  - InitializeIndexCheckpoint
-  - InitializeHybridLogCheckpoint
+CheckpointVersionShiftStart: 无需实现
+CheckpointVersionShiftEnd: 无需实现
+WriteHybridLogMetaInfo: 无需实现
+CleanupLogCheckpoint: 无需实现
+WriteIndexMetaInfo: 无需实现
+CleanupIndexCheckpoint: 无需实现
+InitializeIndexCheckpoint: 无需实现
+InitializeHybridLogCheckpoint: 无需实现

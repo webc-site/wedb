@@ -1,20 +1,18 @@
-fn:
-  - SpanByteComparerModulo
-  - Equals
-  - GetHashCode64
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - InitialWriter
-  - ScanCursorFuncs
-  - CheckForRCU
-  - OnException
-  - OnStart
-  - OnStop
-test:
-  - SpanByteScanCursorTest
-  - SpanByteScanCursorFilterTest
-  - SpanByteScanCursorWithRCUTest
-  - SpanByteJumpToBeginAddressTest
-  - SpanByteIterationPendingCollisionTest
+SpanByteComparerModulo: 无需实现
+Equals: 无需实现
+GetHashCode64: 无需实现
+Setup: 无需实现
+DeleteDirectory: 无需实现
+TearDown: 无需实现
+OnTearDown: 无需实现
+InitialWriter: 无需实现
+ScanCursorFuncs: 无需实现
+CheckForRCU: 无需实现
+OnException: 无需实现
+OnStart: 无需实现
+OnStop: 无需实现
+SpanByteScanCursorTest: 测试函数无需实现
+SpanByteScanCursorFilterTest: 测试函数无需实现
+SpanByteScanCursorWithRCUTest: 测试函数无需实现
+SpanByteJumpToBeginAddressTest: 测试函数无需实现
+SpanByteIterationPendingCollisionTest: 测试函数无需实现

@@ -1,32 +1,30 @@
-fn:
-  - DeleteDirectory
-  - TotalEntries
-  - BaseSetup
-  - BaseTearDown
-  - Counter
-  - IncrementAndMaybeTruncateUntil
-  - ToString
-  - IsAsync
-  - AssertGetNext
-  - LogWriterAsync
-  - Setup
-  - TearDown
-  - TestConsumer
-  - Consume
-test:
-  - TestDisposeReleasesFileLocksWithCompletedCommit
-  - TsavoriteLogTest2
-  - TsavoriteLogConsumerTest
-  - TsavoriteLogAsyncConsumerTest
-  - TryEnqueue1
-  - TryEnqueue2
-  - TruncateUntilBasic
-  - EnqueueAndWaitForCommitAsyncBasicTest
-  - TruncateUntil2
-  - TruncateUntilPageStart
-  - CommitNoSpinWait
-  - CommitAsyncPrevTask
-  - RefreshUncommittedAsyncTest
-  - TsavoriteLogSimpleCommitCookieTest
-  - TsavoriteLogManualCommitTest
-  - TsavoriteLogAsyncConsumerTestAfterDisposeIterator
+DeleteDirectory: 无需实现
+TotalEntries: 无需实现
+BaseSetup: 无需实现
+BaseTearDown: 无需实现
+Counter: 无需实现
+IncrementAndMaybeTruncateUntil: 无需实现
+ToString: 无需实现
+IsAsync: 无需实现
+AssertGetNext: 无需实现
+LogWriterAsync: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+TestConsumer: 无需实现
+Consume: 无需实现
+TestDisposeReleasesFileLocksWithCompletedCommit: 测试函数无需实现
+TsavoriteLogTest2: 测试函数无需实现
+TsavoriteLogConsumerTest: 测试函数无需实现
+TsavoriteLogAsyncConsumerTest: 测试函数无需实现
+TryEnqueue1: 测试函数无需实现
+TryEnqueue2: 测试函数无需实现
+TruncateUntilBasic: 测试函数无需实现
+EnqueueAndWaitForCommitAsyncBasicTest: 测试函数无需实现
+TruncateUntil2: 测试函数无需实现
+TruncateUntilPageStart: 测试函数无需实现
+CommitNoSpinWait: 测试函数无需实现
+CommitAsyncPrevTask: 测试函数无需实现
+RefreshUncommittedAsyncTest: 测试函数无需实现
+TsavoriteLogSimpleCommitCookieTest: 测试函数无需实现
+TsavoriteLogManualCommitTest: 测试函数无需实现
+TsavoriteLogAsyncConsumerTestAfterDisposeIterator: 测试函数无需实现

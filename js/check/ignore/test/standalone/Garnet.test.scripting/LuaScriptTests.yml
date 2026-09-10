@@ -1,86 +1,84 @@
-fn:
-  - Execute
-  - Write
-  - ToString
-  - LuaScriptTests
-  - Setup
-  - TearDown
-  - DoErroneousRedisCall
-  - ToLuaString
-  - SubscribeConfirmed
-  - handler
-  - WaitForSubscriberCount
-test:
-  - KeysArgvResize
-  - GlobalsForbidden
-  - ReadOnlyGlobalTables
-  - CanDoEvalUsingGarnetCallSE
-  - CanDoSimpleEvalHelloSE
-  - CanDoScriptWithArgvOperationsSE
-  - CanDoEvalSetGet
-  - CanDoEvalShaWithIntegerValueKeySE
-  - CanDoEvalShaWithStringValueKeySE
-  - CanDoEvalShaWithStringValueMultipleKeysSE
-  - CanDoEvalShaWithZAddOnePairSE
-  - CanDoEvalShaWithZAddMultiPairSE
-  - CanDoEvalShaSEMultipleThreads
-  - CanDoZAddGT
-  - CanDoScriptFlush
-  - CannotScriptUseExtendedEncoding
-  - UseEvalShaLightClient
-  - SuccessfulStatusReturn
-  - FailureStatusReturn
-  - MiscMath
-  - RedisPCall
-  - RedisSha1Hex
-  - RedisLog
-  - RedisSetRepl
-  - RedisReplicateCommands
-  - RedisDebugAndBreakpoint
-  - RedisAclCheckCmd
-  - RedisSetResp
-  - RedisVersion
-  - ComplexLuaTest1
-  - ComplexLuaTest2
-  - ComplexLuaTest3
-  - ScriptExistsErrors
-  - ScriptFlushErrors
-  - MultiSessionScriptFlush
-  - CrossSessionEvalScriptCaching
-  - ScriptLoadErrors
-  - ScriptExistsMultiple
-  - RedisCallErrors
-  - BinaryValuesInScripts
-  - NumberArgumentCoercion
-  - ComplexLuaReturns
-  - MetatableReturn
-  - IntentionalOOM
-  - Issue939
-  - Issue1079
-  - LuaToResp2Conversions
-  - LuaToResp3Conversions
-  - Resp2ToLuaConversions
-  - NoScriptCommandsForbidden
-  - PermissionsEnforced
-  - IntentionalTimeout
-  - Resp3ToLuaConversions
-  - Bit
-  - CJson
-  - CMsgPackPack
-  - CMsgPackUnpack
-  - Struct
-  - StructPack
-  - StructPackOnErrors
-  - StructUnpack
-  - StructUnpackOnErrors
-  - StructSize
-  - StructSizeOnErrors
-  - MathFunctions
-  - Maxn
-  - LoadString
-  - Issue1235
-  - StressTimeouts
-  - LuaPublishSucceeds_WhenCalledViaRedisCall
-  - LuaPublishReturnsSubscriberCount
-  - LuaSubscribe_StillNoScriptBlocked
-  - DisposeDuringScriptExecutionAllocatorRace
+Execute: 无需实现
+Write: 无需实现
+ToString: 无需实现
+LuaScriptTests: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+DoErroneousRedisCall: 无需实现
+ToLuaString: 无需实现
+SubscribeConfirmed: 无需实现
+handler: 无需实现
+WaitForSubscriberCount: 无需实现
+KeysArgvResize: 测试函数无需实现
+GlobalsForbidden: 测试函数无需实现
+ReadOnlyGlobalTables: 测试函数无需实现
+CanDoEvalUsingGarnetCallSE: 测试函数无需实现
+CanDoSimpleEvalHelloSE: 测试函数无需实现
+CanDoScriptWithArgvOperationsSE: 测试函数无需实现
+CanDoEvalSetGet: 测试函数无需实现
+CanDoEvalShaWithIntegerValueKeySE: 测试函数无需实现
+CanDoEvalShaWithStringValueKeySE: 测试函数无需实现
+CanDoEvalShaWithStringValueMultipleKeysSE: 测试函数无需实现
+CanDoEvalShaWithZAddOnePairSE: 测试函数无需实现
+CanDoEvalShaWithZAddMultiPairSE: 测试函数无需实现
+CanDoEvalShaSEMultipleThreads: 测试函数无需实现
+CanDoZAddGT: 测试函数无需实现
+CanDoScriptFlush: 测试函数无需实现
+CannotScriptUseExtendedEncoding: 测试函数无需实现
+UseEvalShaLightClient: 测试函数无需实现
+SuccessfulStatusReturn: 测试函数无需实现
+FailureStatusReturn: 测试函数无需实现
+MiscMath: 测试函数无需实现
+RedisPCall: 测试函数无需实现
+RedisSha1Hex: 测试函数无需实现
+RedisLog: 测试函数无需实现
+RedisSetRepl: 测试函数无需实现
+RedisReplicateCommands: 测试函数无需实现
+RedisDebugAndBreakpoint: 测试函数无需实现
+RedisAclCheckCmd: 测试函数无需实现
+RedisSetResp: 测试函数无需实现
+RedisVersion: 测试函数无需实现
+ComplexLuaTest1: 测试函数无需实现
+ComplexLuaTest2: 测试函数无需实现
+ComplexLuaTest3: 测试函数无需实现
+ScriptExistsErrors: 测试函数无需实现
+ScriptFlushErrors: 测试函数无需实现
+MultiSessionScriptFlush: 测试函数无需实现
+CrossSessionEvalScriptCaching: 测试函数无需实现
+ScriptLoadErrors: 测试函数无需实现
+ScriptExistsMultiple: 测试函数无需实现
+RedisCallErrors: 测试函数无需实现
+BinaryValuesInScripts: 测试函数无需实现
+NumberArgumentCoercion: 测试函数无需实现
+ComplexLuaReturns: 测试函数无需实现
+MetatableReturn: 测试函数无需实现
+IntentionalOOM: 测试函数无需实现
+Issue939: 测试函数无需实现
+Issue1079: 测试函数无需实现
+LuaToResp2Conversions: 测试函数无需实现
+LuaToResp3Conversions: 测试函数无需实现
+Resp2ToLuaConversions: 测试函数无需实现
+NoScriptCommandsForbidden: 测试函数无需实现
+PermissionsEnforced: 测试函数无需实现
+IntentionalTimeout: 测试函数无需实现
+Resp3ToLuaConversions: 测试函数无需实现
+Bit: 测试函数无需实现
+CJson: 测试函数无需实现
+CMsgPackPack: 测试函数无需实现
+CMsgPackUnpack: 测试函数无需实现
+Struct: 测试函数无需实现
+StructPack: 测试函数无需实现
+StructPackOnErrors: 测试函数无需实现
+StructUnpack: 测试函数无需实现
+StructUnpackOnErrors: 测试函数无需实现
+StructSize: 测试函数无需实现
+StructSizeOnErrors: 测试函数无需实现
+MathFunctions: 测试函数无需实现
+Maxn: 测试函数无需实现
+LoadString: 测试函数无需实现
+Issue1235: 测试函数无需实现
+StressTimeouts: 测试函数无需实现
+LuaPublishSucceeds_WhenCalledViaRedisCall: 测试函数无需实现
+LuaPublishReturnsSubscriberCount: 测试函数无需实现
+LuaSubscribe_StillNoScriptBlocked: 测试函数无需实现
+DisposeDuringScriptExecutionAllocatorRace: 测试函数无需实现

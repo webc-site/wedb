@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - TearDown
-  - RunTightLoop
-  - RunAsymmetric
-  - Percentiles
-test:
-  - ScalingThroughputAcrossBackends
-  - CrossThreadReturnLatencyAndReuse
-  - ReuseEfficiencyAllocTracksWorkingSet
-  - HeavySoakWithChurn
+Setup: 无需实现
+TearDown: 无需实现
+RunTightLoop: 无需实现
+RunAsymmetric: 无需实现
+Percentiles: 无需实现
+ScalingThroughputAcrossBackends: 测试函数无需实现
+CrossThreadReturnLatencyAndReuse: 测试函数无需实现
+ReuseEfficiencyAllocTracksWorkingSet: 测试函数无需实现
+HeavySoakWithChurn: 测试函数无需实现

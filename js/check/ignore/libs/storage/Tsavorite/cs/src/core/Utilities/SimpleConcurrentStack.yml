@@ -1,6 +1,5 @@
-fn:
-  - ToString
-  - SimpleConcurrentStack
-  - TryPop
-  - AddNodeToFreeList
-  - GetNodeFromFreeList
+ToString: 无需实现
+SimpleConcurrentStack: 无需实现
+TryPop: 无需实现
+AddNodeToFreeList: 无需实现
+GetNodeFromFreeList: 无需实现

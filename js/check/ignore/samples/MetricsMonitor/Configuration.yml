@@ -1,2 +1,1 @@
-fn:
-  - GetConfig
+GetConfig: 无需实现

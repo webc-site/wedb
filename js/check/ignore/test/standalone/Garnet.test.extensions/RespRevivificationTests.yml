@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - SetupServerWithReviv
-  - TearDown
-  - TestRevivifyAsync
-test:
-  - RevivificationWithRmwWorksAsync
-  - RevivificationWithRmwWorksWhenNeedingShrinkingAndThenExpanding
-  - RevivificationWithRMWWorksViaSetIfGreater
-  - RevivificationWithRMWWorksViaAppend
-  - RevivificationWithRMWWorksViaSetBit
-  - RevivificationWithRMWWorksViaBitfield
-  - RevivificationWithRMWWorksForRecordPool
-  - RevivifiedRecordsShouldStillEnqueueToAofViaRmw
-  - RevivifiedRecordsShouldStillEnqueueToAofViaUpsert
+Setup: 无需实现
+SetupServerWithReviv: 无需实现
+TearDown: 无需实现
+TestRevivifyAsync: 无需实现
+RevivificationWithRmwWorksAsync: 测试函数无需实现
+RevivificationWithRmwWorksWhenNeedingShrinkingAndThenExpanding: 测试函数无需实现
+RevivificationWithRMWWorksViaSetIfGreater: 测试函数无需实现
+RevivificationWithRMWWorksViaAppend: 测试函数无需实现
+RevivificationWithRMWWorksViaSetBit: 测试函数无需实现
+RevivificationWithRMWWorksViaBitfield: 测试函数无需实现
+RevivificationWithRMWWorksForRecordPool: 测试函数无需实现
+RevivifiedRecordsShouldStillEnqueueToAofViaRmw: 测试函数无需实现
+RevivifiedRecordsShouldStillEnqueueToAofViaUpsert: 测试函数无需实现

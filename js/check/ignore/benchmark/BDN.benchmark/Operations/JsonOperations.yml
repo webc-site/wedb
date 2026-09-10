@@ -1,13 +1,12 @@
-fn:
-  - GlobalSetup
-  - RegisterModules
-  - SetupOperation
-  - SlowConsumeMessage
-  - ModuleJsonGetCommand
-  - ModuleJsonSetCommand
-  - ModuleJsonGetDeepPath
-  - ModuleJsonGetArrayPath
-  - ModuleJsonGetArrayElementsPath
-  - ModuleJsonGetFilterPath
-  - ModuleJsonGetRecursive
-  - GenerateLargeJson
+GlobalSetup: 无需实现
+RegisterModules: 无需实现
+SetupOperation: 无需实现
+SlowConsumeMessage: 无需实现
+ModuleJsonGetCommand: 无需实现
+ModuleJsonSetCommand: 无需实现
+ModuleJsonGetDeepPath: 无需实现
+ModuleJsonGetArrayPath: 无需实现
+ModuleJsonGetArrayElementsPath: 无需实现
+ModuleJsonGetFilterPath: 无需实现
+ModuleJsonGetRecursive: 无需实现
+GenerateLargeJson: 无需实现

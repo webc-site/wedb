@@ -1,30 +1,29 @@
-fn:
-  - RMWCompletionCallback
-  - ReadCompletionCallback
-  - InitialDeleter
-  - InitialWriter
-  - InPlaceWriter
-  - InitialUpdater
-  - CopyUpdater
-  - PostCopyUpdater
-  - NeedInitialUpdate
-  - PostInitialUpdater
-  - NeedCopyUpdate
-  - GetRMWModifiedFieldInfo
-  - GetFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - PostInitialDeleter
-  - PostInitialWriter
-  - PostUpsertOperation
-  - PostRMWOperation
-  - PostDeleteOperation
-  - ConvertOutputToHeap
-  - BeforeConsistentReadCallback
-  - AfterConsistentReadKeyCallback
-  - BeforeConsistentReadKeyBatchCallback
-  - AfterConsistentReadKeyBatchCallback
-  - PreSingleKeyConsistentRead
-  - PostSingleKeyConsistentReadCallback
-  - PreBatchKeyConsistentReadCallback
-  - PostBatchKeyConsistentReadCallback
+RMWCompletionCallback: 无需实现
+ReadCompletionCallback: 无需实现
+InitialDeleter: 无需实现
+InitialWriter: 无需实现
+InPlaceWriter: 无需实现
+InitialUpdater: 无需实现
+CopyUpdater: 无需实现
+PostCopyUpdater: 无需实现
+NeedInitialUpdate: 无需实现
+PostInitialUpdater: 无需实现
+NeedCopyUpdate: 无需实现
+GetRMWModifiedFieldInfo: 无需实现
+GetFieldInfo: 无需实现
+GetRMWInitialFieldInfo: 无需实现
+GetUpsertFieldInfo: 无需实现
+PostInitialDeleter: 无需实现
+PostInitialWriter: 无需实现
+PostUpsertOperation: 无需实现
+PostRMWOperation: 无需实现
+PostDeleteOperation: 无需实现
+ConvertOutputToHeap: 无需实现
+BeforeConsistentReadCallback: 无需实现
+AfterConsistentReadKeyCallback: 无需实现
+BeforeConsistentReadKeyBatchCallback: 无需实现
+AfterConsistentReadKeyBatchCallback: 无需实现
+PreSingleKeyConsistentRead: 无需实现
+PostSingleKeyConsistentReadCallback: 无需实现
+PreBatchKeyConsistentReadCallback: 无需实现
+PostBatchKeyConsistentReadCallback: 无需实现

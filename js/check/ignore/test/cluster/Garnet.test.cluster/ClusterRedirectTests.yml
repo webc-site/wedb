@@ -1,23 +1,21 @@
-fn:
-  - CheckFlag
-  - Setup
-  - TearDown
-  - ReplaceKey
-  - ReplaceValue
-  - GenerateSingleKeyCmdInstance
-  - SendToNodeFromSlot
-  - SendAndRedirectToNode
-  - SendToImportingNode
-  - SendToMigratingNode
-  - KeyForSlot
-  - SendReadReplies
-  - ReadLine
-  - ReadN
-  - ReadByte
-test:
-  - ClusterSingleKeyRedirectionTests
-  - ClusterScatterGatherGetCrossSlotRedirectTest
-  - ClusterMultiKeyRedirectionTests
-  - ClusterHostnamePreferredRedirectionTests
-  - ClusterHostnamePreferredAndNonHostnameRedirectionTests
-  - ClusterUnknownEndpointPreferredTests
+CheckFlag: 无需实现
+Setup: 无需实现
+TearDown: 无需实现
+ReplaceKey: 无需实现
+ReplaceValue: 无需实现
+GenerateSingleKeyCmdInstance: 无需实现
+SendToNodeFromSlot: 无需实现
+SendAndRedirectToNode: 无需实现
+SendToImportingNode: 无需实现
+SendToMigratingNode: 无需实现
+KeyForSlot: 无需实现
+SendReadReplies: 无需实现
+ReadLine: 无需实现
+ReadN: 无需实现
+ReadByte: 无需实现
+ClusterSingleKeyRedirectionTests: 测试函数无需实现
+ClusterScatterGatherGetCrossSlotRedirectTest: 测试函数无需实现
+ClusterMultiKeyRedirectionTests: 测试函数无需实现
+ClusterHostnamePreferredRedirectionTests: 测试函数无需实现
+ClusterHostnamePreferredAndNonHostnameRedirectionTests: 测试函数无需实现
+ClusterUnknownEndpointPreferredTests: 测试函数无需实现

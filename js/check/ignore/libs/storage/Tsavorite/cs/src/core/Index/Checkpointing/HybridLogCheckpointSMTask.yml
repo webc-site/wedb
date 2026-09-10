@@ -1,7 +1,6 @@
-fn:
-  - HybridLogCheckpointSMTask
-  - GlobalBeforeEnteringState
-  - ObjectLog_OnPrepare
-  - ObjectLog_OnWaitFlush
-  - ObjectLog_OnPersistenceCallback
-  - GlobalAfterEnteringState
+HybridLogCheckpointSMTask: 无需实现
+GlobalBeforeEnteringState: 无需实现
+ObjectLog_OnPrepare: 无需实现
+ObjectLog_OnWaitFlush: 无需实现
+ObjectLog_OnPersistenceCallback: 无需实现
+GlobalAfterEnteringState: 无需实现

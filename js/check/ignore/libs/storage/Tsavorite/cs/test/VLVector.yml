@@ -1,5 +1,4 @@
-fn:
-  - FromPinnedSpan
-  - ToArray
-  - RMWCompletionCallback
-  - ReadCompletionCallback
+FromPinnedSpan: 无需实现
+ToArray: 无需实现
+RMWCompletionCallback: 无需实现
+ReadCompletionCallback: 无需实现

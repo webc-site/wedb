@@ -1,5 +1,4 @@
-fn:
-  - StateMachineBase
-  - NextState
-  - GlobalBeforeEnteringState
-  - GlobalAfterEnteringState
+StateMachineBase: 无需实现
+NextState: 无需实现
+GlobalBeforeEnteringState: 无需实现
+GlobalAfterEnteringState: 无需实现

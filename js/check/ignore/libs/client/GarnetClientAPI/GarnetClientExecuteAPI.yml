@@ -1,20 +1,19 @@
-fn:
-  - ExecuteForStringResult
-  - ExecuteForStringResultWithCancellationAsync
-  - TokenRegistrationStringCallback
-  - ExecuteForMemoryResultAsync
-  - ExecuteForMemoryResult
-  - ExecuteForMemoryResultWithCancellationAsync
-  - TokenRegistrationMemoryResultCallback
-  - ExecuteForStringArrayResult
-  - ExecuteForStringArrayResultWithCancellationAsync
-  - TokenRegistrationStringArrayCallback
-  - ExecuteForMemoryResultArrayAsync
-  - ExecuteForMemoryResultArray
-  - ExecuteForMemoryResultArrayWithCancellationAsync
-  - TokenRegistrationMemoryResultArrayCallback
-  - ExecuteForLongResultAsync
-  - ExecuteForLongResult
-  - ExecuteForLongResultWithCancellationAsync
-  - ExecuteNoResponse
-  - TokenRegistrationLongCallback
+ExecuteForStringResult: 无需实现
+ExecuteForStringResultWithCancellationAsync: 无需实现
+TokenRegistrationStringCallback: 无需实现
+ExecuteForMemoryResultAsync: 无需实现
+ExecuteForMemoryResult: 无需实现
+ExecuteForMemoryResultWithCancellationAsync: 无需实现
+TokenRegistrationMemoryResultCallback: 无需实现
+ExecuteForStringArrayResult: 无需实现
+ExecuteForStringArrayResultWithCancellationAsync: 无需实现
+TokenRegistrationStringArrayCallback: 无需实现
+ExecuteForMemoryResultArrayAsync: 无需实现
+ExecuteForMemoryResultArray: 无需实现
+ExecuteForMemoryResultArrayWithCancellationAsync: 无需实现
+TokenRegistrationMemoryResultArrayCallback: 无需实现
+ExecuteForLongResultAsync: 无需实现
+ExecuteForLongResult: 无需实现
+ExecuteForLongResultWithCancellationAsync: 无需实现
+ExecuteNoResponse: 无需实现
+TokenRegistrationLongCallback: 无需实现

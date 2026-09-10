@@ -1,5 +1,4 @@
-fn:
-  - Rent
-  - OnPooledBufferDisposed
-  - ThrowArgumentOutOfRange
-  - ThrowObjectDisposed
+Rent: 无需实现
+OnPooledBufferDisposed: 无需实现
+ThrowArgumentOutOfRange: 无需实现
+ThrowObjectDisposed: 无需实现

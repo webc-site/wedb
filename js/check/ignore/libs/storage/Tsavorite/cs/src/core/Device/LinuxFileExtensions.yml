@@ -1,9 +1,8 @@
-fn:
-  - LibcOpen
-  - LibcClose
-  - OpenDirect
-  - IsDirectIOSupported
-  - OpenWithFlags
-  - OpenWithFlagsOrNull
-  - OpenSyscall
-  - GetErrnoName
+LibcOpen: 无需实现
+LibcClose: 无需实现
+OpenDirect: 无需实现
+IsDirectIOSupported: 无需实现
+OpenWithFlags: 无需实现
+OpenWithFlagsOrNull: 无需实现
+OpenSyscall: 无需实现
+GetErrnoName: 无需实现

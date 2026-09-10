@@ -1,10 +1,9 @@
-fn:
-  - BeginTransaction
-  - LocksAcquired
-  - EndTransaction
-  - CompareKeyHashes
-  - SortKeyHashes
-  - Lock
-  - TryLock
-  - TryPromoteLock
-  - Unlock
+BeginTransaction: 无需实现
+LocksAcquired: 无需实现
+EndTransaction: 无需实现
+CompareKeyHashes: 无需实现
+SortKeyHashes: 无需实现
+Lock: 无需实现
+TryLock: 无需实现
+TryPromoteLock: 无需实现
+Unlock: 无需实现

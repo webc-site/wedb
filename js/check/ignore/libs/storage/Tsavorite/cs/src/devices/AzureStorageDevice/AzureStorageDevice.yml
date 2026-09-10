@@ -1,12 +1,11 @@
-fn:
-  - GetSegmentBlobName
-  - DetectHangs
-  - CancelAllRequests
-  - DeleteAsync
-  - TryReadAsync
-  - ReadFromBlobAsync
-  - WritePortionToBlobUnsafeAsync
-  - WritePortionToBlobAsync
-  - ReadFromBlobUnsafeAsync
-  - TryWriteAsync
-  - WriteToBlobAsync
+GetSegmentBlobName: 无需实现
+DetectHangs: 无需实现
+CancelAllRequests: 无需实现
+DeleteAsync: 无需实现
+TryReadAsync: 无需实现
+ReadFromBlobAsync: 无需实现
+WritePortionToBlobUnsafeAsync: 无需实现
+WritePortionToBlobAsync: 无需实现
+ReadFromBlobUnsafeAsync: 无需实现
+TryWriteAsync: 无需实现
+WriteToBlobAsync: 无需实现
