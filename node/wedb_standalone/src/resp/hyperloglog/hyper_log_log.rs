@@ -1178,54 +1178,12 @@ impl HyperLogLog {
   }
 }
 
-/// MurmurHash2 64 位变体（PFADD 的元素哈希）
+/// MurmurHash2 64 位变体（PFADD 的元素哈希；C# 无种子形态，种子取 0）
 ///
-/// libs/common/HashUtils.cs:MurmurHash2x64A
+/// libs/common/HashUtils.cs:MurmurHash2x64A（单一实现位于 `wutil::hash`）
 #[inline]
 pub fn murmur_hash_2_x64_a(b_string: &[u8]) -> u64 {
-  const M: u64 = 0xc6a4_a793_5bd1_e995;
-  const R: u32 = 47;
-  let mut h = (b_string.len() as u64).wrapping_mul(M);
-  let (chunks, rem) = b_string.as_chunks::<8>();
-
-  for &chunk in chunks {
-    let mut k = u64::from_le_bytes(chunk);
-    k = k.wrapping_mul(M);
-    k ^= k >> R;
-    k = k.wrapping_mul(M);
-    h ^= k;
-    h = h.wrapping_mul(M);
-  }
-
-  // 尾部 0..7 字节逐位独立异或（对齐 C# cs>=7..=1 的独立 if 链）
-  let cs = rem.len();
-  if cs >= 7 {
-    h ^= u64::from(rem[6]) << 48;
-  }
-  if cs >= 6 {
-    h ^= u64::from(rem[5]) << 40;
-  }
-  if cs >= 5 {
-    h ^= u64::from(rem[4]) << 32;
-  }
-  if cs >= 4 {
-    h ^= u64::from(rem[3]) << 24;
-  }
-  if cs >= 3 {
-    h ^= u64::from(rem[2]) << 16;
-  }
-  if cs >= 2 {
-    h ^= u64::from(rem[1]) << 8;
-  }
-  if cs >= 1 {
-    h ^= u64::from(rem[0]);
-    h = h.wrapping_mul(M);
-  }
-
-  h ^= h >> R;
-  h = h.wrapping_mul(M);
-  h ^= h >> R;
-  h
+  wutil::hash::murmur_hash2_x64_a(b_string, 0)
 }
 
 #[cfg(test)]

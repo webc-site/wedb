@@ -44,40 +44,20 @@ fn get_byte_span_from_input<'a>(input: &ObjectInput, index: usize) -> &'a [u8] {
 /// 解析 i64（对标 Garnet.common NumUtils.TryParse：Utf8Parser 全量消费，
 /// 可带 +/- 号，允许前导零——比 parseState.TryGetLong 宽）
 ///
-/// libs/common/NumUtils.cs:TryParse
+/// libs/common/NumUtils.cs:TryParse（单一实现位于 `wutil::num`）
 fn num_utils_try_parse_long(v: &[u8]) -> Option<i64> {
-  let s = str::from_utf8(v).ok()?;
-  let digits = match s.as_bytes().first() {
-    Some(b'+') | Some(b'-') => &s[1..],
-    _ => s,
-  };
-  if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-    return None;
-  }
-  s.parse().ok()
+  let mut value = 0;
+  wutil::num::try_parse_i64(v, &mut value).then_some(value)
 }
 
 /// 解析 f64（对标 NumUtils.TryParse(double)：Utf8Parser 全量消费，
 /// 不识别 inf/nan 词形；纯数值溢出保留 ±inf）
 ///
 /// libs/common/NumUtils.cs:TryParse(ReadOnlySpan<byte>, out double)
+///（单一实现位于 `wutil::num`）
 fn num_utils_try_parse_double(v: &[u8]) -> Option<f64> {
-  match v.len() {
-    3 if equals_ignore_case(v, b"inf") || equals_ignore_case(v, b"nan") => return None,
-    4 if equals_ignore_case(v, b"+inf")
-      || equals_ignore_case(v, b"-inf")
-      || equals_ignore_case(v, b"+nan")
-      || equals_ignore_case(v, b"-nan") =>
-    {
-      return None;
-    }
-    _ => {}
-  }
-  let d = str::from_utf8(v).ok()?.parse::<f64>().ok()?;
-  if d.is_nan() || (d.is_infinite() && !v.iter().any(u8::is_ascii_digit)) {
-    return None;
-  }
-  Some(d)
+  let mut value = 0.0;
+  wutil::num::try_parse_f64(v, &mut value).then_some(value)
 }
 
 /// 最短往返双精度文本（对标 double.TryFormat 默认 G 形态；±∞/NaN 记法差异
@@ -620,47 +600,37 @@ fn format_i64(value: i64) -> Vec<u8> {
 /// .NET Ticks → Unix 毫秒（非正入参 → -1）
 ///
 /// libs/common/ConvertUtils.cs:UnixTimeInMillisecondsFromTicks
+///（单一实现位于 `wutil::convert`）
 #[inline]
 fn unix_time_in_milliseconds_from_ticks(ticks: i64) -> i64 {
-  const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
-  if ticks <= 0 {
-    return -1;
-  }
-  (ticks - UNIX_EPOCH_TICKS) / 10_000
+  wutil::convert::unix_time_in_milliseconds_from_ticks(ticks)
 }
 
 /// .NET Ticks → Unix 秒（非正入参 → -1）
 ///
 /// libs/common/ConvertUtils.cs:UnixTimeInSecondsFromTicks
+///（单一实现位于 `wutil::convert`）
 #[inline]
 fn unix_time_in_seconds_from_ticks(ticks: i64) -> i64 {
-  const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
-  if ticks <= 0 {
-    return -1;
-  }
-  (ticks - UNIX_EPOCH_TICKS) / 10_000_000
+  wutil::convert::unix_time_in_seconds_from_ticks(ticks)
 }
 
 /// 距当前时刻的毫秒数（差值非正 → -1）
 ///
 /// libs/common/ConvertUtils.cs:MillisecondsFromDiffUtcNowTicks
+///（单一实现位于 `wutil::convert`）
 #[inline]
 fn milliseconds_from_diff_utc_now_ticks(ticks: i64) -> i64 {
-  let diff = ticks - now_ticks();
-  if diff > 0 { diff / 10_000 } else { -1 }
+  wutil::convert::milliseconds_from_diff_utc_now_ticks(ticks)
 }
 
 /// 距当前时刻的秒数（差值非正 → -1；秒级四舍五入 + TicksPerSecond/2）
 ///
 /// libs/common/ConvertUtils.cs:SecondsFromDiffUtcNowTicks
+///（单一实现位于 `wutil::convert`）
 #[inline]
 fn seconds_from_diff_utc_now_ticks(ticks: i64) -> i64 {
-  let diff = ticks - now_ticks();
-  if diff > 0 {
-    (diff + 5_000_000) / 10_000_000
-  } else {
-    -1
-  }
+  wutil::convert::seconds_from_diff_utc_now_ticks(ticks)
 }
 
 #[cfg(test)]

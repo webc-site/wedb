@@ -64,13 +64,32 @@ pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
   19
 }
 
-/// 生成 `TryParse` 系列：UTF-8 解码 + 类型解析，成功写入 `value` 返回 true
+/// 生成整数 `TryParse` 系列：UTF-8 解码 + 类型解析，成功写入 `value` 返回 true
 macro_rules! try_parse {
   ($(#[$meta:meta])* $name:ident, $ty:ty) => {
     $(#[$meta])*
     pub fn $name(source: &[u8], value: &mut $ty) -> bool {
       if let Ok(s) = from_utf8(source)
         && let Ok(v) = s.parse::<$ty>()
+      {
+        *value = v;
+        return true;
+      }
+      false
+    }
+  };
+}
+
+/// 生成浮点 `TryParse` 系列（Utf8Parser 整体消费语义：inf/infinity/nan 词形
+/// 不属于数值文法，一律拒绝；纯数值溢出的 ±inf 保留），成功写入 `value` 返回 true
+macro_rules! try_parse_float {
+  ($(#[$meta:meta])* $name:ident, $ty:ty) => {
+    $(#[$meta])*
+    pub fn $name(source: &[u8], value: &mut $ty) -> bool {
+      if let Ok(s) = from_utf8(source)
+        && let Ok(v) = s.parse::<$ty>()
+        && !v.is_nan()
+        && !(v.is_infinite() && !source.iter().any(u8::is_ascii_digit))
       {
         *value = v;
         return true;
@@ -92,27 +111,29 @@ try_parse!(
   i64
 );
 
-try_parse!(
+try_parse_float!(
   /// garnet/libs/common/NumUtils.cs:TryParse
   try_parse_f32,
   f32
 );
 
-try_parse!(
+try_parse_float!(
   /// garnet/libs/common/NumUtils.cs:TryParse
   try_parse_f64,
   f64
 );
 
 /// garnet/libs/common/NumUtils.cs:TryParseWithInfinity
+///
+/// C# 双分支：[`try_parse_f64`]（Utf8Parser 整体消费）成功即返回；
+/// 失败回落 RespReadUtils.TryReadInfinity 白名单（inf/+inf/-inf，
+/// 大小写不敏感）。NaN 恒拒绝
 pub fn try_parse_with_infinity(source: &[u8], value: &mut f64) -> bool {
   if try_parse_f64(source, value) {
     return true;
   }
 
-  // Fallback to infinity parsing (equivalent to TryReadInfinity in RESP)
-  // Note: RespReadUtils::TryReadInfinity will need to be implemented separately or
-  // we inline the logic here.
+  // RespReadUtils.TryReadInfinity 词形：inf / +inf / -inf（忽略大小写）
   if source.eq_ignore_ascii_case(b"inf") || source.eq_ignore_ascii_case(b"+inf") {
     *value = f64::INFINITY;
     return true;
