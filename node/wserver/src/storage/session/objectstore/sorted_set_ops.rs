@@ -63,7 +63,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// 装载有序集合（缺失/类型不符快速出口；读路径专用）
-  async fn zset_load(
+  pub(crate) async fn zset_load(
     &self,
     key: &[u8],
   ) -> wkv::Result<Result<Option<SortedSetObject>, GarnetStatus>> {
@@ -339,16 +339,20 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZCARD：成员数
   ///
+  /// 键缺失返回 NOTFOUND（C# SortedSetLength → ReadObjectStoreOperation，RESP 层同答 :0）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetLength
   pub async fn sorted_set_length(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, usize)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(None) => Ok((GarnetStatus::NotFound, 0)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.count())),
     }
   }
 
   /// ZRANGE/ZREVRANGE：排名区间（`with_scores` 附带分值）
+  ///
+  /// 键缺失返回 NOTFOUND（C# SortedSetRange → ReadObjectStoreOperation）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRange
   pub async fn sorted_set_range(
@@ -361,7 +365,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, Option<f64>)>)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
+      Ok(None) => Ok((GarnetStatus::NotFound, Vec::new())),
       Ok(Some(obj)) => {
         let mut entries = sorted_view(&obj);
         if rev {
@@ -432,6 +436,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZRANK/ZREVRANK：成员排名（0 基，缺失 None）
   ///
+  /// 键缺失返回 NOTFOUND（RESP 层同答 null）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRank
   pub async fn sorted_set_rank(
     &self,
@@ -441,7 +447,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Option<i64>)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, None)),
-      Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Ok(None) => Ok((GarnetStatus::NotFound, None)),
       Ok(Some(obj)) => {
         let mut entries = sorted_view(&obj);
         if rev {
@@ -460,6 +466,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZRANGESTORE：排名区间切片写入目标键
   ///
+  /// 源键缺失：等价空区间——删除目标键后返回 (Ok, 0)（对齐 C#
+  /// SortedSetRangeStore 的 NOTFOUND 分支：EXPIRE(dst, TimeSpan.Zero)）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetRangeStore
   pub async fn sorted_set_range_store(
     &self,
@@ -469,18 +478,24 @@ impl<'a, D: Device> StorageSession<'a, D> {
     stop: i64,
     rev: bool,
   ) -> wkv::Result<(GarnetStatus, usize)> {
-    let (status, range) = self.sorted_set_range(src, start, stop, rev, false).await?;
-    if status != GarnetStatus::Ok {
-      return Ok((status, 0));
-    }
-    let entries: Vec<(Vec<u8>, f64)> = range
-      .into_iter()
-      .filter_map(|(m, s)| s.map(|score| (m, score)))
-      .collect();
+    // 须带分值读取：with_scores=false 时分值恒 None，下方 filter_map 会把
+    // 全部成员丢弃（ZRANGESTORE 空写的存量缺陷）
+    let (status, range) = self.sorted_set_range(src, start, stop, rev, true).await?;
+    let entries: Vec<(Vec<u8>, f64)> = match status {
+      GarnetStatus::Ok => range
+        .into_iter()
+        .filter_map(|(m, s)| s.map(|score| (m, score)))
+        .collect(),
+      // 源缺失：删除目标键、按 0 成功返回（C# NOTFOUND 分支）
+      GarnetStatus::NotFound => Vec::new(),
+      _ => return Ok((status, 0)),
+    };
     self.zset_overwrite(dest, &entries).await
   }
 
   /// ZSCORE：单成员分值
+  ///
+  /// 键缺失返回 NOTFOUND（RESP 层同答 null）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetScore
   pub async fn sorted_set_score(
@@ -490,12 +505,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Option<f64>)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, None)),
-      Ok(None) => Ok((GarnetStatus::Ok, None)),
+      Ok(None) => Ok((GarnetStatus::NotFound, None)),
       Ok(Some(obj)) => Ok((GarnetStatus::Ok, obj.dict.pin().get(member).copied())),
     }
   }
 
   /// ZMSCORE：多成员分值（缺失占位 None）
+  ///
+  /// 键缺失返回 NOTFOUND（载荷仍按成员数占位 None，对齐 RESP 渲染）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetScores
   pub async fn sorted_set_scores(
@@ -505,7 +522,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Vec<Option<f64>>)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, members.iter().map(|_| None).collect())),
+      Ok(None) => Ok((
+        GarnetStatus::NotFound,
+        members.iter().map(|_| None).collect(),
+      )),
       Ok(Some(obj)) => {
         let pin = obj.dict.pin();
         Ok((
@@ -517,6 +537,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// ZCOUNT：分值区间成员数
+  ///
+  /// 键缺失返回 NOTFOUND（RESP 层同答 :0）。
   ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetCount
   pub async fn sorted_set_count(
@@ -530,7 +552,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     };
     match self.zset_load(key).await? {
       Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(None) => Ok((GarnetStatus::NotFound, 0)),
       Ok(Some(obj)) => {
         let n = sorted_view(&obj)
           .into_iter()
@@ -543,6 +565,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZLEXCOUNT：字典序区间成员数
   ///
+  /// 键缺失返回 NOTFOUND。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetLengthByValue
   pub async fn sorted_set_length_by_value(
     &self,
@@ -552,7 +576,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, i64)> {
     match self.zset_load(key).await? {
       Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
+      Ok(None) => Ok((GarnetStatus::NotFound, 0)),
       Ok(Some(obj)) => {
         let n = sorted_view(&obj)
           .into_iter()
@@ -761,6 +785,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZEXPIRE/ZPEXPIRE：相对毫秒过期（整键级）
   ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(ZEXPIRE)=false，RMW 缺键直返
+  /// NOTFOUND；RESP 层同答 :0）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetExpire
   pub async fn sorted_set_expire(
     &self,
@@ -768,7 +795,11 @@ impl<'a, D: Device> StorageSession<'a, D> {
     ttl_ms: u64,
   ) -> wkv::Result<(GarnetStatus, bool)> {
     let set = self.expire_in_ms(key, ttl_ms).await?;
-    Ok((GarnetStatus::Ok, set == 1))
+    Ok(if set == 1 {
+      (GarnetStatus::Ok, true)
+    } else {
+      (GarnetStatus::NotFound, false)
+    })
   }
 
   /// ZPTTL：剩余生存毫秒
@@ -788,8 +819,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// ZPERSIST：移除过期
   ///
+  /// 键缺失返回 NOTFOUND（C# RMW 缺键口径）；键在但无 TTL 为 (Ok, false)
+  /// ——wkv persist 对"缺键"与"无 TTL"同返 0，故以 pttl 先行辨缺键。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:SortedSetPersist
   pub async fn sorted_set_persist(&self, key: &[u8]) -> wkv::Result<(GarnetStatus, bool)> {
+    if self.pttl_ms(key).await? == -2 {
+      return Ok((GarnetStatus::NotFound, false));
+    }
     let removed = self.persist_key(key).await?;
     Ok((GarnetStatus::Ok, removed == 1))
   }

@@ -161,7 +161,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// 对象键 SCAN（SCAN 语义：游标 = 上次返回的最后一个成员）
   ///
-  /// `members_of` 由各类型操作面提供（只需返回全部成员，内部统一排序）
+  /// 缺键返回 NOTFOUND、错误类型键传播 WRONGTYPE（对齐 C# ReadObjectStoreOperation
+  /// 的三态；RESP 层对 NOTFOUND 同答 ["0", 空数组]），`members_of` 由各类型
+  /// 操作面提供（只需返回全部成员，内部统一排序）
   ///
   /// libs/server/Storage/Session/ObjectStore/Common.cs:ObjectScan
   pub(crate) async fn object_scan(
@@ -173,8 +175,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
     count: usize,
     members_of: impl Fn(&[u8]) -> Option<Vec<Vec<u8>>>,
   ) -> wkv::Result<(GarnetStatus, Vec<u8>, Vec<Vec<u8>>)> {
-    let Some(payload) = self.obj_load(key, tag).await?.into_payload() else {
-      return Ok((GarnetStatus::Ok, Vec::new(), Vec::new()));
+    let payload = match self.obj_load(key, tag).await? {
+      ObjState::Absent => return Ok((GarnetStatus::NotFound, Vec::new(), Vec::new())),
+      ObjState::WrongType => return Ok((GarnetStatus::WrongType, Vec::new(), Vec::new())),
+      ObjState::Present(p) => p,
     };
     let Some(mut members) = members_of(&payload) else {
       return Ok((GarnetStatus::WrongType, Vec::new(), Vec::new()));

@@ -39,7 +39,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
     self.exists(key).await
   }
 
-  /// RENAMENX：新键不存在时重命名，返回 1/0（同键名恒 1）
+  /// RENAMENX：新键不存在时重命名，返回 1/0（同键名恒 1；旧键缺失
+  /// NOTFOUND，判定序与 RENAME 共体见 [`Self::rename_unified`])
   ///
   /// libs/server/Storage/Session/UnifiedStore/UnifiedStoreOps.cs:RENAMENX
   pub async fn renamenx(&self, old_key: &[u8], new_key: &[u8]) -> wkv::Result<(GarnetStatus, i64)> {
@@ -48,6 +49,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// RENAME 内核：读旧值（含信封整体拷贝）→ 写新键 → 删旧键；
   /// TTL 记录随 wkv 键级 TTL 语义同步迁移（读端过期裁决先行）
+  ///
+  /// 判定序对齐 C# UnifiedStoreOps.RENAME：同键名短路 → NX 分支先查新键
+  /// （新键已存在即 (Ok, 0)，不论旧键是否存在）→ 末查旧键（缺失 NOTFOUND，
+  /// result 置 -1）。
   pub(crate) async fn rename_unified(
     &self,
     old_key: &[u8],
@@ -57,17 +62,19 @@ impl<'a, D: Device> StorageSession<'a, D> {
     if old_key == new_key {
       return Ok((GarnetStatus::Ok, 1));
     }
-    // TTL 迁移：先取旧键剩余生存毫秒（-2 不存在 / -1 无 TTL）
-    let pttl = self.pttl_ms(old_key).await?;
-    if pttl == -2 {
-      return Ok((GarnetStatus::NotFound, 0));
-    }
-    let Some(val) = self.read_string(old_key).await? else {
-      return Ok((GarnetStatus::NotFound, 0));
-    };
+    // NX 分支先于旧键存在性（C# 先 GET newKey 再 GET oldKey）
     if nx && self.read_string(new_key).await?.is_some() {
       return Ok((GarnetStatus::Ok, 0));
     }
+    // TTL 迁移：先取旧键剩余生存毫秒（-2 不存在 / -1 无 TTL）
+    let pttl = self.pttl_ms(old_key).await?;
+    if pttl == -2 {
+      // C# 旧键缺失：status NOTFOUND，result 保持初值 -1
+      return Ok((GarnetStatus::NotFound, -1));
+    }
+    let Some(val) = self.read_string(old_key).await? else {
+      return Ok((GarnetStatus::NotFound, -1));
+    };
     self.upsert_string(new_key, &val).await?;
     if pttl >= 0 {
       let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
