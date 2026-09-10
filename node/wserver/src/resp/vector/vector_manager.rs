@@ -327,8 +327,9 @@ impl VectorManager {
       return err(
         VectorManagerResult::BadParams,
         format!(
-          "ERR Distance metric mismatch - got {provided_distance_metric:?} but set has {:?}",
-          index.distance_metric
+          "ERR Distance metric mismatch - got {} but set has {}",
+          provided_distance_metric.csharp_name(),
+          index.distance_metric.csharp_name()
         )
         .as_bytes(),
       );
@@ -400,7 +401,6 @@ impl VectorManager {
     };
 
     if self.service.remove(index.context, element) {
-      self.key_index_registry.lock().remove(&element.to_vec());
       VectorManagerResult::OK
     } else {
       VectorManagerResult::MissingElement
@@ -621,6 +621,15 @@ impl VectorManager {
       });
     };
     let effective_ef = search_exploration_factor.max(count);
+
+    // 元素不存在：对齐 C# VectorSetElementSimilarity 的 MissingElement 出参
+    //（会话层据此写 "Element not in Vector Set"）
+    if !self.service.check_external_id_valid(index.context, element) {
+      return Err(VectorOpError {
+        result: VectorManagerResult::MissingElement,
+        message: super::resp_server_session_vectors::ERR_ELEMENT_NOT_IN_SET.to_vec(),
+      });
+    }
 
     let mut compiled = None;
     if !filter.is_empty() {
@@ -1349,6 +1358,13 @@ mod tests {
       .element_similarity(&index, b"x", 2, 32, b"", false)
       .unwrap();
     assert_eq!(out.found, 2);
+
+    // 缺失元素 → MissingElement + "Element not in Vector Set"（对齐 C# 出参文案）
+    let err = manager
+      .element_similarity(&index, b"ghost", 2, 32, b"", false)
+      .unwrap_err();
+    assert_eq!(err.result, VectorManagerResult::MissingElement);
+    assert_eq!(err.message, b"Element not in Vector Set".to_vec());
 
     // 批量属性
     let mut ids = Vec::new();
