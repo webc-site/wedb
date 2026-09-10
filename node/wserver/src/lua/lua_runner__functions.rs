@@ -465,7 +465,7 @@ impl LuaRunner_Functions {
 
     // Initial key value onto stack
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Remove value
       state.pop(1);
 
@@ -821,7 +821,7 @@ impl LuaRunner_Functions {
     let mut array_length: i64 = 0;
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Pop value
       state.pop(1);
 
@@ -907,7 +907,7 @@ impl LuaRunner_Functions {
     let mut first_value = true;
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       let key_type = state.type_name(table_index + 1);
       if !matches!(key_type, Some("string") | Some("number")) {
         // Ignore non-string-ify-able keys
@@ -1328,7 +1328,7 @@ impl LuaRunner_Functions {
 
     // Measure the table and figure out if we're creating a map or an array
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       count += 1;
 
       // Remove value
@@ -1411,7 +1411,7 @@ impl LuaRunner_Functions {
     }
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Now we have value on top, key one below it
 
       // Make a copy of the key (above the value)

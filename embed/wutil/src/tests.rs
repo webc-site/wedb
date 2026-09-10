@@ -48,6 +48,37 @@ fn test_num() {
 fn test_convert() {
   let ticks = convert::unix_timestamp_in_seconds_to_ticks(1600000000);
   assert_eq!(convert::unix_time_in_seconds_from_ticks(ticks), 1600000000);
+  assert_eq!(convert::unix_time_in_seconds_from_ticks(-1), -1);
+  assert_eq!(convert::unix_time_in_seconds_from_ticks(0), -1);
+
+  let ms_ticks = convert::unix_timestamp_in_milliseconds_to_ticks(1600000000123);
+  assert_eq!(
+    convert::unix_time_in_milliseconds_from_ticks(ms_ticks),
+    1600000000123
+  );
+  assert_eq!(convert::unix_time_in_milliseconds_from_ticks(-1), -1);
+  assert_eq!(convert::unix_time_in_milliseconds_from_ticks(0), -1);
+
+  let now_ticks = 100_000_000;
+  assert_eq!(
+    convert::seconds_from_diff_ticks(now_ticks + 15_000_000, now_ticks),
+    2
+  );
+  assert_eq!(
+    convert::seconds_from_diff_ticks(now_ticks + 14_999_999, now_ticks),
+    1
+  );
+  assert_eq!(convert::seconds_from_diff_ticks(now_ticks, now_ticks), -1);
+  assert_eq!(convert::seconds_from_diff_ticks(-1, now_ticks), -1);
+
+  assert_eq!(
+    convert::milliseconds_from_diff_ticks(now_ticks + 50_000, now_ticks),
+    5
+  );
+  assert_eq!(
+    convert::milliseconds_from_diff_ticks(now_ticks, now_ticks),
+    -1
+  );
 }
 
 #[test]

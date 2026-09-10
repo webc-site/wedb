@@ -499,8 +499,9 @@ impl LuaStateWrapper {
   ///
   /// 表迭代（lua_next 语义）：弹出栈顶键，压入下一键值对并返回 true；
   /// 迭代结束仅消耗键、不压任何值（净 -1），返回 false。
-  #[allow(clippy::should_implement_trait)]
-  pub fn next(&mut self) -> bool {
+  ///
+  /// 命名避开 `Iterator::next` 的 trait 同名，避免误导为可迭代对象
+  pub fn lua_next(&mut self) -> bool {
     let key = self.interp_mut().stack.pop();
     let Some(key) = key else {
       return false;
@@ -859,7 +860,7 @@ mod tests {
     // lua_next 语义：迭代尽头只耗键、不压值（净 -1）。
     state.push_nil();
     let mut seen = 0;
-    while state.next() {
+    while state.lua_next() {
       seen += 1;
       state.pop(1);
     }
