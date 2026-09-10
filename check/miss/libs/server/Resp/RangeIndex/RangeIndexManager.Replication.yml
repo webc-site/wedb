@@ -1,0 +1,12 @@
+fn:
+  - SetAofStreamChunkSize
+  - ReplicateRangeIndexSet
+  - ReplicateRangeIndexDel
+  - HandleRangeIndexCreateReplay
+  - HandleRangeIndexSetReplay
+  - HandleRangeIndexDelReplay
+  - ReplicateRangeIndexStream
+  - EnqueueRangeIndexStreamChunk
+  - ProcessStreamChunk
+  - DisposeIncompleteStreamReassembly
+  - RemoveAndDisposeStreamReassembly

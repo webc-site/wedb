@@ -1,0 +1,5 @@
+fn:
+  - StartActivity
+  - OnError
+  - OnChunkReceived
+  - OnPublishResult

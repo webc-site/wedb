@@ -1,0 +1,11 @@
+fn:
+  - Publish
+  - PatternPublish
+  - NetworkPUBLISH
+  - NetworkSUBSCRIBE
+  - NetworkPSUBSCRIBE
+  - NetworkUNSUBSCRIBE
+  - NetworkPUNSUBSCRIBE
+  - NetworkPUBSUB_CHANNELS
+  - NetworkPUBSUB_NUMPAT
+  - NetworkPUBSUB_NUMSUB

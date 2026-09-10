@@ -1,0 +1,4 @@
+fn:
+  - ReadNextChunk
+  - ValidateDestination
+  - SupplyFileDataOrThrow

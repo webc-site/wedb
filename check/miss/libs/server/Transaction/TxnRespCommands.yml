@@ -1,0 +1,12 @@
+fn:
+  - NetworkMULTI
+  - NetworkEXEC
+  - NetworkSKIP
+  - NetworkDISCARD
+  - CommonWATCH
+  - NetworkWATCH_MS
+  - NetworkWATCH_OS
+  - NetworkWATCH
+  - NetworkUNWATCH
+  - NetworkRUNTXPFast
+  - NetworkRUNTXP

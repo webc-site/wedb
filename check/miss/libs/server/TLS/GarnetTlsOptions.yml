@@ -1,0 +1,9 @@
+fn:
+  - UpdateCertFile
+  - GetSslServerAuthenticationOptions
+  - GetSslClientAuthenticationOptions
+  - ValidateServerCertificateCallback
+  - ValidateCertificateName
+  - ValidateClientCertificateCallback
+  - GetCertificateIssuer
+  - ValidateCertificateIssuer

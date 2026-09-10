@@ -1,0 +1,10 @@
+fn:
+  - NetworkRICREATE
+  - NetworkRISET
+  - NetworkRIGET
+  - NetworkRIDEL
+  - NetworkRISCAN
+  - NetworkRIRANGE
+  - NetworkRIEXISTS
+  - NetworkRICONFIG
+  - NetworkRIMETRICS

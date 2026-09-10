@@ -1,0 +1,4 @@
+fn:
+  - HashMultipleGet
+  - HashGetKeysOrValues
+  - GetByteSpanFromInput

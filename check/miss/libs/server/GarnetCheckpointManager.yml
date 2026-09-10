@@ -1,0 +1,4 @@
+fn:
+  - SetCurrentSafeAofAddress
+  - SetRecoveredSafeAofAddress
+  - GetCookie

@@ -1,0 +1,5 @@
+fn:
+  - RegisterCommand
+  - RegisterTransaction
+  - RegisterProcedure
+  - LoadModule

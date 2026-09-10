@@ -1,0 +1,4 @@
+fn:
+  - GetRangeIndexKeysForMigration
+  - SnapshotRangeIndexAndCreateReader
+  - KeyExists

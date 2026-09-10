@@ -1,0 +1,4 @@
+fn:
+  - EndTimer
+  - GetSslServerCertificate
+  - GetServerCertificate

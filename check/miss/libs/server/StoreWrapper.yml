@@ -1,0 +1,19 @@
+fn:
+  - AofSize
+  - GetClusterEndpoint
+  - AutoCheckpointBasedOnAofSizeLimitAsync
+  - CommitTaskAsync
+  - ExpiredKeyDeletionScanTaskAsync
+  - IndexAutoGrowTaskAsync
+  - HybridLogDistributionScan
+  - HasKeysInSlots
+  - CheckMultiDatabaseCompatibility
+  - EnforceConsistentRead
+  - SuspendPrimaryOnlyTasksAsync
+  - SuspendReplicaOnlyTasksAsync
+  - StartPrimaryTasks
+  - TryStartCommitTask
+  - TryStartObjectCollectTask
+  - TryStartExpiredKeyDeletionTask
+  - StartReplicaTasks
+  - StartGenericNodeTasks
