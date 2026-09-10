@@ -1,2 +1,4 @@
+use std::marker::PhantomData;
+
 /// libs/host/Configuration/CompactObjectJsonConverter.cs:CompactObjectJsonConverter
-pub struct CompactObjectJsonConverter<T>(std::marker::PhantomData<T>);
+pub struct CompactObjectJsonConverter<T>(PhantomData<T>);

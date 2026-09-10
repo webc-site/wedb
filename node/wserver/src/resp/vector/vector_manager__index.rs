@@ -49,6 +49,8 @@ impl Default for Index {
 }
 
 impl Index {
+  /// libs/server/Resp/Vector/VectorManager.Index.cs:ReadIndex
+  ///
   /// 从磁盘字节解码（要求恰好 56 字节）。
   pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
     if bytes.len() != INDEX_SIZE {
