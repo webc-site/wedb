@@ -1,16 +1,16 @@
 [workspace]
 resolver = "3"
 members = [
-  "wedb_standalone",
-  "waof",
-  "wconn",
-  "whost",
-  "wresp",
-  "wacl",
-  "wlua",
-  "ext_json",
-  "ext_roaring",
-  "ext_noop",
+"wedb_standalone",
+"waof",
+"wconn",
+"whost",
+"wresp",
+"wacl",
+"wlua",
+"ext_json",
+"ext_roaring",
+"ext_noop"
 ]
 
 [workspace.package]
@@ -20,15 +20,6 @@ license = "Apache-2.0"
 repository = ""
 
 [workspace.dependencies]
-wkv = { path = "../embed/wkv" }
-wobject = { path = "../embed/wobject" }
-wbase = { path = "../embed/wbase" }
-wdev = { path = "../embed/wdev" }
-wram = { path = "../embed/wram" }
-
-waof = { path = "waof" }
-wresp = { path = "wresp" }
-
 async-lock = "3.4.2"
 event-listener = "5.4.2"
 log = "0.4.34"
@@ -41,6 +32,34 @@ tempfile = "3.27.0"
 compio = "0.19.2"
 coarsetime = "0.1.37"
 sonic-rs = "0.5.4"
+
+  [workspace.dependencies.wkv]
+  path = "../embed/wkv"
+  version = "0.1.0"
+
+  [workspace.dependencies.wobject]
+  path = "../embed/wobject"
+  version = "0.1.0"
+
+  [workspace.dependencies.wbase]
+  path = "../embed/wbase"
+  version = "0.1.4"
+
+  [workspace.dependencies.wdev]
+  path = "../embed/wdev"
+  version = "0.1.2"
+
+  [workspace.dependencies.wram]
+  path = "../embed/wram"
+  version = "0.1.4"
+
+  [workspace.dependencies.waof]
+  path = "waof"
+  version = "0.1.1"
+
+  [workspace.dependencies.wresp]
+  path = "wresp"
+  version = "0.1.0"
 
 [workspace.lints.clippy]
 arc_with_non_send_sync = "allow"
