@@ -349,11 +349,12 @@ fn peek_serialized_namespace(data: &[u8]) -> Option<(Range<usize>, u64)> {
     return None;
   }
   let ns_length = i32::from_le_bytes(data[..4].try_into().unwrap()) as usize;
-  if data.len() < 4 + ns_length {
+  // 命名空间恒 4 字节（serialize 侧保证）；异常长度拒绝而非 panic
+  if ns_length != 4 || data.len() < 4 + ns_length {
     return None;
   }
-  let ns = u32::from_le_bytes(data[4..4 + ns_length].try_into().unwrap());
-  Some(((4..4 + ns_length), u64::from(ns)))
+  let ns = u32::from_le_bytes(data[4..8].try_into().unwrap());
+  Some(((4..8), u64::from(ns)))
 }
 
 #[cfg(test)]

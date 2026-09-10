@@ -8,10 +8,12 @@
 use std::{
   collections::BTreeSet,
   sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, AtomicU64, Ordering},
   },
 };
+
+use parking_lot::Mutex;
 
 use crate::{
   aof::aof_address::AofAddress, cluster::i_cluster_session::IClusterSession,
@@ -278,18 +280,11 @@ impl IClusterProvider for SingleNodeClusterProvider {
   }
 
   fn is_replica_node(&self, node_id: &str) -> bool {
-    self
-      .replica_nodes
-      .lock()
-      .unwrap_or_else(|e| e.into_inner())
-      .contains(node_id)
+    self.replica_nodes.lock().contains(node_id)
   }
 
   fn on_checkpoint_initiated(&self, checkpoint_covered_aof_address: &mut AofAddress) {
-    *self
-      .last_checkpoint_aof
-      .lock()
-      .unwrap_or_else(|e| e.into_inner()) = Some(*checkpoint_covered_aof_address);
+    *self.last_checkpoint_aof.lock() = Some(*checkpoint_covered_aof_address);
     let _ = checkpoint_covered_aof_address;
   }
 
@@ -320,7 +315,7 @@ impl IClusterProvider for SingleNodeClusterProvider {
   }
 
   fn update_cluster_auth(&self, cluster_username: Option<&str>, cluster_password: Option<&str>) {
-    let mut auth = self.cluster_auth.lock().unwrap_or_else(|e| e.into_inner());
+    let mut auth = self.cluster_auth.lock();
     *auth = match (cluster_username, cluster_password) {
       (Some(u), Some(p)) => Some((u.to_string(), p.to_string())),
       _ => None,

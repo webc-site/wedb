@@ -13,7 +13,7 @@ use papaya::HashMap as ConcurrentMap;
 use parking_lot::Mutex;
 
 use super::{
-  hnsw::{HnswConfig, HnswIndex, decode_native, distance},
+  hnsw::{HnswConfig, HnswIndex, decode_native, decode_values, distance},
   vector_types::{VectorDistanceMetricType, VectorQuantType},
 };
 
@@ -242,15 +242,58 @@ impl DiskANNService {
     let Some(index) = self.indexes.pin().get(&context).cloned() else {
       return Err(-1);
     };
-    let hnsw = index.hnsw.lock();
-    if decode_native_len(vector, hnsw.config().quant) != hnsw.config().dims as usize {
-      return Err(-1);
-    }
+    let query = {
+      let hnsw = index.hnsw.lock();
+      if decode_native_len(vector, hnsw.config().quant) != hnsw.config().dims as usize {
+        return Err(-1);
+      }
+      // 查询字节恒为真实值空间 f32（prepare_vector_data 已按量化器原生格式规约）
+      decode_native(vector, hnsw.config().quant)
+    };
+    Self::search_values(&index, &query, count, search_exploration_factor, predicate)
+  }
 
+  /// libs/server/Resp/Vector/DiskANNService.cs:SearchElement
+  ///
+  /// 以既有元素为查询中心检索（其存储向量解码至真实值空间后检索；
+  /// Q8 建表后存储为量化字节，不可按 f32 直读）。
+  pub fn search_element(
+    &self,
+    context: u64,
+    external_id: &[u8],
+    count: usize,
+    search_exploration_factor: usize,
+    predicate: &mut dyn FnMut(&[u8]) -> bool,
+  ) -> Result<Vec<SearchHit>, i32> {
+    let Some(index) = self.indexes.pin().get(&context).cloned() else {
+      return Err(-1);
+    };
+    let internal = match index.external_to_internal.pin().get(external_id).copied() {
+      Some(id) => id,
+      None => return Err(-1),
+    };
+    let query = {
+      let hnsw = index.hnsw.lock();
+      let Some(bytes) = hnsw.vector_of(internal) else {
+        return Err(-1);
+      };
+      decode_values(bytes, hnsw.config().quant, hnsw.quant_table())
+    };
+    Self::search_values(&index, &query, count, search_exploration_factor, predicate)
+  }
+
+  /// 以真实值空间查询向量检索（SearchVector / SearchElement 共用路径）。
+  fn search_values(
+    index: &Arc<DiskAnnIndex>,
+    query: &[f32],
+    count: usize,
+    search_exploration_factor: usize,
+    predicate: &mut dyn FnMut(&[u8]) -> bool,
+  ) -> Result<Vec<SearchHit>, i32> {
     let internal = index.internal_to_external.pin();
     let mut internal_predicate = |id: u32| internal.get(&id).is_some_and(|eid| predicate(eid));
-    let hits = hnsw.search(
-      vector,
+    let hits = index.hnsw.lock().search(
+      query,
       count,
       search_exploration_factor,
       &mut internal_predicate,
@@ -268,38 +311,6 @@ impl DiskANNService {
           })
         })
         .collect(),
-    )
-  }
-
-  /// libs/server/Resp/Vector/DiskANNService.cs:SearchElement
-  ///
-  /// 以既有元素为查询中心检索（先解析其存储向量）。
-  pub fn search_element(
-    &self,
-    context: u64,
-    external_id: &[u8],
-    count: usize,
-    search_exploration_factor: usize,
-    predicate: &mut dyn FnMut(&[u8]) -> bool,
-  ) -> Result<Vec<SearchHit>, i32> {
-    let Some(index) = self.indexes.pin().get(&context).cloned() else {
-      return Err(-1);
-    };
-    let internal = match index.external_to_internal.pin().get(external_id).copied() {
-      Some(id) => id,
-      None => return Err(-1),
-    };
-    let hnsw = index.hnsw.lock();
-    let Some(vector) = hnsw.vector_of(internal).map(|v| v.to_vec()) else {
-      return Err(-1);
-    };
-    drop(hnsw);
-    self.search_vector(
-      context,
-      &vector,
-      count,
-      search_exploration_factor,
-      predicate,
     )
   }
 
@@ -396,17 +407,11 @@ impl DiskANNService {
   /// 两元素距离直通（ElementSimilarity 的精确补充通道）。
   pub fn distance_between(&self, context: u64, a: &[u8], b: &[u8]) -> Option<f32> {
     let index = self.indexes.pin().get(&context).cloned()?;
-    let va = self.get_full_vector(context, a)?;
-    let vb = self.get_full_vector(context, b)?;
-    let (quant, metric) = {
-      let hnsw = index.hnsw.lock();
-      (hnsw.config().quant, hnsw.config().metric)
-    };
-    Some(distance(
-      &decode_native(&va, quant),
-      &decode_native(&vb, quant),
-      metric,
-    ))
+    // 双方解码至真实值空间（Q8 建表后为量化字节，不可按 f32 直读）
+    let va = self.embedding_of(context, a)?;
+    let vb = self.embedding_of(context, b)?;
+    let metric = index.hnsw.lock().config().metric;
+    Some(distance(&va, &vb, metric))
   }
 
   /// 索引维度查询。
@@ -427,11 +432,18 @@ impl DiskANNService {
       .map(|i| i.hnsw.lock().config().quant)
   }
 
-  /// 元素嵌入向量按量化类型展开为 f32（VEMB 通道）。
+  /// 元素嵌入向量展开为真实值空间 f32（VEMB 通道；
+  /// Q8 建表后存储为量化字节，按量化表反量化而非按 f32 直读）。
   pub fn embedding_of(&self, context: u64, external_id: &[u8]) -> Option<Vec<f32>> {
-    let bytes = self.get_full_vector(context, external_id)?;
-    let quant = self.quant_of(context)?;
-    Some(decode_native(&bytes, quant))
+    let index = self.indexes.pin().get(&context).cloned()?;
+    let internal = *index.external_to_internal.pin().get(external_id)?;
+    let hnsw = index.hnsw.lock();
+    let bytes = hnsw.vector_of(internal)?;
+    Some(decode_values(
+      bytes,
+      hnsw.config().quant,
+      hnsw.quant_table(),
+    ))
   }
 }
 
@@ -576,6 +588,8 @@ mod tests {
     assert!(!service.needs_quantization(5));
     let res = service.insert(5, b"r", &f32_bytes(&[50.0, 50.0]), b"");
     assert_eq!(res, DiskAnnInsertResult::True);
+    // 建表后插入就地量化：RAW 通道读出量化字节（每维 1 字节）
+    assert_eq!(service.get_full_vector(5, b"r").unwrap().len(), 2);
 
     // 分片回填（幂等）
     service.backfill_quantized_vectors(5, 0, 4);
@@ -588,6 +602,19 @@ mod tests {
       .search_vector(5, &f32_bytes(&[0.0, 100.0]), 1, 32, &mut |_| true)
       .unwrap();
     assert_eq!(hits[0].external_id, b"p".to_vec());
+
+    // Q8 建表后：按元素检索 / 嵌入展开 / 两元素距离均走真实值空间
+    let hits = service
+      .search_element(5, b"q", 1, 32, &mut |_| true)
+      .unwrap();
+    assert_eq!(hits[0].external_id, b"q".to_vec());
+    let emb = service.embedding_of(5, b"p").unwrap();
+    assert_eq!(emb.len(), 2);
+    // p=[0,100] 与 q=[100,0] 在 L2 下彼此远离，与自身距离为 0
+    let d_self = service.distance_between(5, b"p", b"p").unwrap();
+    assert!(d_self.abs() < 1.0);
+    let d_cross = service.distance_between(5, b"p", b"q").unwrap();
+    assert!(d_cross > d_self);
   }
 
   #[test]

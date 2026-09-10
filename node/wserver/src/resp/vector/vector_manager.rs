@@ -518,7 +518,8 @@ impl VectorManager {
 
   /// libs/server/Resp/Vector/VectorManager.cs:ValueSimilarity
   ///
-  /// 以查询向量做相似度检索；`filter` 非空时执行内联过滤 + 结果位图。
+  /// 以查询向量做相似度检索；`filter` 非空时执行内联过滤 + 结果位图，
+  /// 候选队列按 `max_filtering_effort` 放大；`delta` 为最大距离截断（EPSILON）。
   #[allow(clippy::too_many_arguments)]
   pub fn value_similarity(
     &self,
@@ -528,6 +529,8 @@ impl VectorManager {
     count: usize,
     search_exploration_factor: usize,
     filter: &[u8],
+    max_filtering_effort: usize,
+    delta: f32,
     include_attributes: bool,
   ) -> Result<SimilarityOutput, VectorOpError> {
     self.assert_have_storage_session();
@@ -545,7 +548,12 @@ impl VectorManager {
         b"ERR Invalid vector set index",
       );
     };
-    let effective_ef = search_exploration_factor.max(count);
+    let effective_ef = effective_search_ef(
+      search_exploration_factor,
+      count,
+      filter,
+      max_filtering_effort,
+    );
 
     // 查询向量规约
     let prepared = match prepare_vector_data(index.quant_type, value_type, values) {
@@ -559,31 +567,28 @@ impl VectorManager {
       );
     }
 
-    // 内联过滤谓词（Compile → 逐候选 EvaluateCandidateFilter）
-    let mut compiled = None;
-    if !filter.is_empty() {
-      match super::expr_compiler::try_compile(filter) {
-        Ok(program) => compiled = Some(program),
-        Err(_) => {
-          return err(
-            VectorManagerResult::BadParams,
-            b"ERR Compiling filter failed",
-          );
-        }
+    // 内联过滤谓词（Compile → 逐候选 EvaluateCandidateFilter；
+    // 程序与求值状态编译一次、跨候选复用，对齐 C# ThreadStatic 复用语义）
+    let mut filter_state = match compile_filter_state(filter) {
+      Ok(state) => state,
+      Err(_) => {
+        return err(
+          VectorManagerResult::BadParams,
+          b"ERR Compiling filter failed",
+        );
       }
-    }
+    };
 
-    // 编译一次、逐候选复用（C# 经 ThreadStatic 状态复用，无重编译）
     let mut predicate = |external_id: &[u8]| -> bool {
-      match &mut compiled {
+      match &mut filter_state {
         None => true,
-        Some(program) => {
-          self.evaluate_candidate_filter(index.context, external_id, program, filter)
+        Some((program, state)) => {
+          self.evaluate_candidate_filter(index.context, external_id, program, filter, state)
         }
       }
     };
 
-    let hits = self
+    let mut hits = self
       .service
       .search_vector(
         index.context,
@@ -596,13 +601,15 @@ impl VectorManager {
         result: VectorManagerResult::BadParams,
         message: b"ERR Error indicating response from vector service".to_vec(),
       })?;
+    apply_delta_cutoff(&mut hits, delta);
 
     self.build_similarity_output(index.context, hits, filter, include_attributes)
   }
 
   /// libs/server/Resp/Vector/VectorManager.cs:ElementSimilarity
   ///
-  /// 以既有元素为查询中心做相似度检索。
+  /// 以既有元素为查询中心做相似度检索（过滤/截断语义同 [`Self::value_similarity`]）。
+  #[allow(clippy::too_many_arguments)]
   pub fn element_similarity(
     &self,
     index_value: &[u8],
@@ -610,6 +617,8 @@ impl VectorManager {
     count: usize,
     search_exploration_factor: usize,
     filter: &[u8],
+    max_filtering_effort: usize,
+    delta: f32,
     include_attributes: bool,
   ) -> Result<SimilarityOutput, VectorOpError> {
     self.assert_have_storage_session();
@@ -620,7 +629,12 @@ impl VectorManager {
         message: b"ERR Invalid vector set index".to_vec(),
       });
     };
-    let effective_ef = search_exploration_factor.max(count);
+    let effective_ef = effective_search_ef(
+      search_exploration_factor,
+      count,
+      filter,
+      max_filtering_effort,
+    );
 
     // 元素不存在：对齐 C# VectorSetElementSimilarity 的 MissingElement 出参
     //（会话层据此写 "Element not in Vector Set"）
@@ -631,36 +645,28 @@ impl VectorManager {
       });
     }
 
-    let mut compiled = None;
-    if !filter.is_empty() {
-      match super::expr_compiler::try_compile(filter) {
-        Ok(program) => compiled = Some(program),
-        Err(_) => {
-          return Err(VectorOpError {
-            result: VectorManagerResult::BadParams,
-            message: b"ERR Compiling filter failed".to_vec(),
-          });
-        }
-      }
-    }
+    let mut filter_state = compile_filter_state(filter).map_err(|_| VectorOpError {
+      result: VectorManagerResult::BadParams,
+      message: b"ERR Compiling filter failed".to_vec(),
+    })?;
 
-    // 编译一次、逐候选复用（C# 经 ThreadStatic 状态复用，无重编译）
     let mut predicate = |external_id: &[u8]| -> bool {
-      match &mut compiled {
+      match &mut filter_state {
         None => true,
-        Some(program) => {
-          self.evaluate_candidate_filter(index.context, external_id, program, filter)
+        Some((program, state)) => {
+          self.evaluate_candidate_filter(index.context, external_id, program, filter, state)
         }
       }
     };
 
-    let hits = self
+    let mut hits = self
       .service
       .search_element(index.context, element, count, effective_ef, &mut predicate)
       .map_err(|_| VectorOpError {
         result: VectorManagerResult::BadParams,
         message: b"ERR Error indicating response from vector service".to_vec(),
       })?;
+    apply_delta_cutoff(&mut hits, delta);
 
     self.build_similarity_output(index.context, hits, filter, include_attributes)
   }
@@ -992,6 +998,51 @@ impl VectorManager {
   }
 }
 
+/// 有效检索探索因子：`max(EF, count)`；带过滤时按 FILTER-EF effort 放大候选队列
+/// （对齐 C# maxFilteringEffort 入参的过滤过取语义）。
+fn effective_search_ef(
+  ef: usize,
+  count: usize,
+  filter: &[u8],
+  max_filtering_effort: usize,
+) -> usize {
+  let base = ef.max(count);
+  if filter.is_empty() {
+    base
+  } else {
+    base.max(count.saturating_mul(max_filtering_effort.max(1)))
+  }
+}
+
+/// 编译过滤表达式为（程序, 逐候选复用求值状态）；空过滤器返回 None（不过滤）。
+fn compile_filter_state(
+  filter: &[u8],
+) -> Result<
+  Option<(
+    super::vector_filter_expression::ExprProgram,
+    super::vector_manager__filter::CandidateFilterState,
+  )>,
+  (),
+> {
+  if filter.is_empty() {
+    return Ok(None);
+  }
+  match super::expr_compiler::try_compile(filter) {
+    Ok(program) => {
+      let state = super::vector_manager__filter::CandidateFilterState::new(&program, filter);
+      Ok(Some((program, state)))
+    }
+    Err(_) => Err(()),
+  }
+}
+
+/// EPSILON 最大距离截断（有限 delta 时剔除超距命中）。
+fn apply_delta_cutoff(hits: &mut Vec<super::disk_ann_service::SearchHit>, delta: f32) {
+  if delta.is_finite() {
+    hits.retain(|h| h.distance <= delta);
+  }
+}
+
 /// i32 长度前缀流的切片迭代。
 pub fn unpack_length_prefixed(bytes: &[u8]) -> Vec<&[u8]> {
   let mut out = Vec::new();
@@ -1265,12 +1316,32 @@ mod tests {
         3,
         32,
         b"",
+        0,
+        f32::INFINITY,
         true,
       )
       .unwrap();
     assert_eq!(out.found, 3);
     assert_eq!(out.id_format, VectorIdFormat::I32LengthPrefixed);
     assert!(out.output_distances[0] < out.output_distances[2]);
+
+    // EPSILON：距离上限截断（near 距离 0，mid 距离 1，far 距离 32）
+    let out = manager
+      .value_similarity(
+        &index,
+        VectorValueType::FP32,
+        &f32_bytes(&[1.0, 0.0]),
+        3,
+        32,
+        b"",
+        0,
+        2.0,
+        false,
+      )
+      .unwrap();
+    assert_eq!(out.found, 2);
+    let ids: Vec<&[u8]> = unpack_length_prefixed(&out.output_ids);
+    assert!(ids.contains(&b"near".as_slice()) && ids.contains(&b"mid".as_slice()));
 
     // 过滤 .n > 1：near 被排除
     let out = manager
@@ -1281,6 +1352,8 @@ mod tests {
         3,
         32,
         b".n > 1",
+        16,
+        f32::INFINITY,
         true,
       )
       .unwrap();
@@ -1303,6 +1376,8 @@ mod tests {
       3,
       32,
       b".n > >",
+      16,
+      f32::INFINITY,
       false,
     );
     assert_eq!(
@@ -1355,13 +1430,13 @@ mod tests {
       .unwrap();
 
     let out = manager
-      .element_similarity(&index, b"x", 2, 32, b"", false)
+      .element_similarity(&index, b"x", 2, 32, b"", 0, f32::INFINITY, false)
       .unwrap();
     assert_eq!(out.found, 2);
 
     // 缺失元素 → MissingElement + "Element not in Vector Set"（对齐 C# 出参文案）
     let err = manager
-      .element_similarity(&index, b"ghost", 2, 32, b"", false)
+      .element_similarity(&index, b"ghost", 2, 32, b"", 0, f32::INFINITY, false)
       .unwrap_err();
     assert_eq!(err.result, VectorManagerResult::MissingElement);
     assert_eq!(err.message, b"Element not in Vector Set".to_vec());
