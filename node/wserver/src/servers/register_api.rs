@@ -40,14 +40,17 @@ impl RegisterApi {
     command_docs: Option<CustomCommandDocs>,
     expiration_ticks: i64,
   ) -> Result<u16, &'static str> {
-    self.command_manager.lock().register_raw_string_command(
-      name,
-      command_type,
-      custom_functions,
-      command_info,
-      command_docs,
-      expiration_ticks,
-    )
+    self
+      .command_manager
+      .lock()
+      .register_raw_string_command(RawStringCommandSpec {
+        name,
+        command_type,
+        functions: custom_functions,
+        command_info,
+        command_docs,
+        expiration_ticks,
+      })
   }
 
   /// 注册自定义事务过程，返回事务 id
