@@ -21,7 +21,10 @@ use wserver::{
   storage::session::{
     common::array_key_iteration_functions::cluster_slot,
     mainstore::{advanced_ops::StringRMWOp, bitmap_ops::BitFieldOp},
-    objectstore::{sorted_set_geo_ops::GeoCenter, sorted_set_ops::ZSetAggregate},
+    objectstore::{
+      sorted_set_geo_ops::GeoCenter,
+      sorted_set_ops::{ZSetAggregate, ZSetRemoveRange},
+    },
     storage_session::StorageSession,
   },
 };
@@ -529,9 +532,11 @@ fn test_review_r1_regressions() -> aok::Void {
     let (_, n) = ss.sorted_set_remove(b"zr", &[b"m"]).await?;
     assert_eq!(n, 1, "ZREM 删空须回吐真实计数");
 
-    let (_, n) = ss.list_remove(b"lr", b"a", 0).await?;
-    // lr 键不存在：0
-    assert_eq!(n, 0);
+    // lr 键不存在：NOTFOUND + 0（C# NeedToCreate(LREM)=false）
+    assert_eq!(
+      ss.list_remove(b"lr", b"a", 0).await?,
+      (GarnetStatus::NotFound, 0)
+    );
 
     // ---- ZREMRANGEBYSCORE 排他端点 ----
     ss.sorted_set_add(
@@ -731,17 +736,94 @@ fn test_review_r10_regressions() -> aok::Void {
       "字符串键不得被对象写覆盖"
     );
 
-    // ---- SPOP：缺键不物化空集合信封 ----
+    // ---- SPOP：缺键 NOTFOUND（C# NeedToCreate=false），不物化空集合信封 ----
     assert_eq!(
       ss.set_pop(b"s_absent", 10).await?,
-      (GarnetStatus::Ok, Vec::new())
+      (GarnetStatus::NotFound, Vec::new())
     );
     assert_eq!(ss.exists(b"s_absent").await?, GarnetStatus::NotFound);
 
-    // ---- LTRIM：缺键 NotFound（Aborted 路径）----
+    // ---- LTRIM：缺键 NotFound（C# NeedToCreate(LTRIM)=false，RMW 直返 NOTFOUND）----
     assert_eq!(
       ss.list_trim(b"l_absent", 0, -1).await?,
       GarnetStatus::NotFound
+    );
+
+    // ---- LPOP/RPOP：缺键 NOTFOUND（C# NeedToCreate=false），不物化空列表 ----
+    assert_eq!(
+      ss.list_pop(b"l_absent", OperationDirection::Left).await?,
+      (GarnetStatus::NotFound, None)
+    );
+    assert_eq!(
+      ss.list_pop_multiple(b"l_absent", 2, OperationDirection::Right)
+        .await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(ss.exists(b"l_absent").await?, GarnetStatus::NotFound);
+    // LMOVE 源缺失：C# 显式折算为 OK（element 为空）
+    assert_eq!(
+      ss.list_move(
+        b"l_absent",
+        b"l_dst",
+        OperationDirection::Left,
+        OperationDirection::Right
+      )
+      .await?,
+      (GarnetStatus::Ok, None)
+    );
+    // LPUSHX/RPUSHX：缺键 NOTFOUND（不物化）
+    assert_eq!(
+      ss.list_push(b"l_absent", &[b"x"], OperationDirection::Left, true)
+        .await?,
+      (GarnetStatus::NotFound, None)
+    );
+    // LREM：缺键 NOTFOUND；LINSERT：缺键 NOTFOUND（基准缺失仍 OK+None）
+    assert_eq!(
+      ss.list_remove(b"l_absent", b"x", 1).await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.list_insert(b"l_absent", b"pivot", b"new", true).await?,
+      (GarnetStatus::NotFound, None)
+    );
+    ss.list_push(b"li", &[b"pivot"], OperationDirection::Right, false)
+      .await?;
+    assert_eq!(
+      ss.list_insert(b"li", b"no_pivot", b"new", true).await?,
+      (GarnetStatus::Ok, None),
+      "键存在但基准缺失：OK（不回写不物化）"
+    );
+
+    // ---- SREM/SPOP：缺键 NOTFOUND（C# NeedToCreate=false）----
+    assert_eq!(
+      ss.set_remove(b"s_absent", &[b"x"]).await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.set_pop(b"s_absent", 10).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(ss.exists(b"s_absent").await?, GarnetStatus::NotFound);
+
+    // ---- ZREM/ZPOPMIN/ZREMRANGEBYRANK：缺键 NOTFOUND（C# NeedToCreate=false）----
+    assert_eq!(
+      ss.sorted_set_remove(b"z_absent", &[b"m"]).await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(
+      ss.sorted_set_pop(b"z_absent", 1, true).await?,
+      (GarnetStatus::NotFound, Vec::new())
+    );
+    assert_eq!(
+      ss.sorted_set_remove_range(b"z_absent", ZSetRemoveRange::Rank(0, -1))
+        .await?,
+      (GarnetStatus::NotFound, 0)
+    );
+    assert_eq!(ss.exists(b"z_absent").await?, GarnetStatus::NotFound);
+    // ZMPOP：缺键容错继续（C# NOTFOUND 不中断），全缺失恒 (Ok, None)
+    assert_eq!(
+      ss.sorted_set_m_pop(&[b"z_absent"], 1, true).await?,
+      (GarnetStatus::Ok, None)
     );
 
     // ---- SMOVE：成员缺失 (Ok,false)；同键对齐 C# 恒返 0 且不误删 ----
@@ -885,6 +967,36 @@ fn test_review_rr1_csharp_semantics() -> aok::Void {
         .any(|(m, s)| m.as_slice() == b"x" && s.is_nan()),
       "ZUNION 聚合 NaN 原样保留"
     );
+
+    // ---- ZINTER 非首键缺失：结果恒空（C# pairs 清空即返，不带前序键累加）----
+    let (_, inter_miss) = ss
+      .sorted_set_intersect(&[b"zi1", b"z_absent"], &[1.0, 1.0], ZSetAggregate::Sum)
+      .await?;
+    assert!(
+      inter_miss.is_empty(),
+      "交语义缺键须短路为空，不得回吐 zi1 成员"
+    );
+    // ZINTERSTORE 同口径：空交集回收目标键（先删后放弃写入）
+    ss.upsert_string(b"zst_target", b"old").await?;
+    let (s, n) = ss
+      .sorted_set_intersect_store(
+        b"zst_target",
+        &[b"zi1", b"z_absent"],
+        &[1.0, 1.0],
+        ZSetAggregate::Sum,
+      )
+      .await?;
+    assert_eq!((s, n), (GarnetStatus::Ok, 0));
+    assert_eq!(
+      ss.exists(b"zst_target").await?,
+      GarnetStatus::NotFound,
+      "空交集覆写须删除既有目标键"
+    );
+    // 首键即缺失：恒空
+    let (_, inter_first) = ss
+      .sorted_set_intersect(&[b"z_absent", b"zi1"], &[1.0, 1.0], ZSetAggregate::Sum)
+      .await?;
+    assert!(inter_first.is_empty());
 
     // ---- HINCRBYFLOAT：缺失字段原样存增量文本；结果最短往返 ----
     let (s, v) = ss.hash_increment(b"hf", b"miss", b"0.1", true).await?;

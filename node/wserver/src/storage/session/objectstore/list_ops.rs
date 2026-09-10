@@ -79,13 +79,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match outcome {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
-      // LPUSHX 键缺失不物化：Aborted 即 only_if_exists 未命中
-      RmwOutcome::Aborted => Ok((GarnetStatus::Ok, None)),
+      // LPUSHX/RPUSHX 键缺失：C# NeedToCreate=false，RMW 直返 NOTFOUND（不物化）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, None)),
       RmwOutcome::Written(len) => Ok((GarnetStatus::Ok, Some(len))),
     }
   }
 
   /// LPOP/RPOP：单端弹出
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(LPOP/RPOP)=false，不物化空列表），
+  /// RESP 层据此写 nil，外显与 Redis 一致。
   ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListPop
   pub async fn list_pop(
@@ -108,7 +111,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       })
   }
 
-  /// LPOP/RPOP count 语义批量弹出
+  /// LPOP/RPOP count 语义批量弹出（键缺失返回 NOTFOUND，对齐 C# NeedToCreate）
   ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListPopMultiple
   pub async fn list_pop_multiple(
@@ -136,6 +139,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match popped {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
+      // 键缺失：NOTFOUND（C# NeedToCreate(LPOP/RPOP)=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, Vec::new())),
       outcome => {
         let out = self.finalize_removal(key, outcome, Vec::new()).await?;
         Ok((GarnetStatus::Ok, out))
@@ -156,6 +161,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LMOVE/RPOPLPUSH：跨列表搬移（源弹出 + 目标推入）
   ///
+  /// 源键缺失显式折算为 OK（C# ListMove 对 GET NOTFOUND 直接返回 OK、
+  /// element 为空）；WRONGTYPE 原样传播。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListMove
   pub async fn list_move(
     &self,
@@ -166,7 +174,15 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
     let (status, popped) = self.list_pop(src, src_dir).await?;
     let Some(value) = popped else {
-      return Ok((status, None));
+      // C# ListMove：源 NOTFOUND → OK；WRONGTYPE 等其余状态原样传播
+      return Ok((
+        if status == GarnetStatus::NotFound {
+          GarnetStatus::Ok
+        } else {
+          status
+        },
+        None,
+      ));
     };
     self.list_push(dest, &[&value], dest_dir, false).await?;
     Ok((GarnetStatus::Ok, Some(value)))
@@ -184,7 +200,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match trimmed {
       RmwOutcome::WrongType => Ok(GarnetStatus::WrongType),
-      // Aborted 即键缺失（不物化空列表）
+      // Aborted 即键缺失：C# NeedToCreate(LTRIM)=false，缺键 RMW 直返 NOTFOUND
+      //（RESP 层对 OK/NOTFOUND 同发 +OK，外显一致）
       RmwOutcome::Aborted => Ok(GarnetStatus::NotFound),
       RmwOutcome::Written(((), is_empty)) => {
         if is_empty {
@@ -254,6 +271,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// LINSERT：在基准元素前/后插入，返回插入后长度（基准缺失返回 None）
   ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(LINSERT)=false）；键存在但基准
+  /// 缺失返回 OK+None（C# result1=-1，无写回）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListInsert
   pub async fn list_insert(
     &self,
@@ -262,8 +282,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
     element: &[u8],
     before: bool,
   ) -> wkv::Result<(GarnetStatus, Option<usize>)> {
+    // 闭包是否执行过：区分"键缺失"（闭包未跑，Aborted）与"键在但基准缺失"
+    //（闭包拒绝写回，Aborted）
+    let mut entered = false;
     let len = self
       .list_rmw(key, false, |obj| {
+        entered = true;
         let mut guard = obj.list.lock();
         let pos = guard.iter().position(|v| *v == *pivot)?;
         let idx = if before { pos } else { pos + 1 };
@@ -273,8 +297,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match len {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
-      // Aborted：键缺失或基准元素不存在
-      RmwOutcome::Aborted => Ok((GarnetStatus::Ok, None)),
+      // 键在但基准缺失：OK+None（无变更不回写）
+      RmwOutcome::Aborted if entered => Ok((GarnetStatus::Ok, None)),
+      // 键缺失：NOTFOUND
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, None)),
       RmwOutcome::Written(n) => Ok((GarnetStatus::Ok, Some(n))),
     }
   }
@@ -295,6 +321,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// LREM：移除 `count` 个匹配元素（正数自头、负数自尾、0 全部），返回移除数
+  ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(LREM)=false）。
   ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListRemove
   pub async fn list_remove(
@@ -336,6 +364,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))

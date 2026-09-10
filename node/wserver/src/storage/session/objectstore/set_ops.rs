@@ -76,6 +76,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// SREM：批量移除成员，返回移除个数（删空时整键回收但保留真实计数）
   ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(SREM)=false，不物化空集合）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetRemove
   pub async fn set_remove(
     &self,
@@ -95,6 +97,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match removed {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      // 键缺失：NOTFOUND（C# NeedToCreate(SREM)=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, 0)),
       outcome => {
         let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
@@ -126,6 +130,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// SPOP：弹出成员（`count` 上限），返回被弹成员
   ///
+  /// 键缺失返回 NOTFOUND（C# NeedToCreate(SPOP)=false，RESP 层据此写空数组）。
+  ///
   /// libs/server/Storage/Session/ObjectStore/SetOps.cs:SetPop
   pub async fn set_pop(
     &self,
@@ -146,6 +152,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await?;
     match popped {
       RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
+      // 键缺失：NOTFOUND（C# NeedToCreate(SPOP)=false）
+      RmwOutcome::Aborted => Ok((GarnetStatus::NotFound, Vec::new())),
       outcome => {
         let out = self.finalize_removal(key, outcome, Vec::new()).await?;
         Ok((GarnetStatus::Ok, out))
