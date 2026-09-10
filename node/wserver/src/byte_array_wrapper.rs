@@ -33,6 +33,9 @@ mod tests {
     let wrapper = ByteArrayWrapper::copy_from(&src);
     assert_eq!(wrapper.read_only_span(), &[1, 2, 3]);
     // 自有缓冲：与源分离
-    assert_eq!(ByteArrayWrapper::copy_from(&[]).read_only_span(), &[]);
+    assert_eq!(
+      ByteArrayWrapper::copy_from(&[]).read_only_span(),
+      &[] as &[u8]
+    );
   }
 }

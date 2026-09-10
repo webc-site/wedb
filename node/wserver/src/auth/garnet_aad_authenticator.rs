@@ -470,11 +470,13 @@ eK9BrqY1JsNGGskNv57e0RI=
     issuers.insert(ISSUER.to_string());
     let clock_ticks = Arc::clone(&clock);
     GarnetAadAuthenticator::with_clock(
-      authorized,
-      audiences,
-      issuers,
-      provider(),
-      validate_username,
+      AadAuthenticatorConfig {
+        authorized_app_ids: authorized,
+        audiences,
+        issuers,
+        signing_token_provider: provider(),
+        validate_username,
+      },
       Box::new(move || clock_ticks.ticks.load(Ordering::Relaxed)),
     )
   }

@@ -128,12 +128,12 @@ mod tests {
     assert!(auth.can_authenticate());
     assert!(!auth.has_acl_support());
     assert!(!auth.is_authenticated());
-    let _ = GarnetAadAuthenticator::new(
-      HashSet::new(),
-      HashSet::new(),
-      HashSet::new(),
-      provider(),
-      false,
-    );
+    let _ = GarnetAadAuthenticator::new(AadAuthenticatorConfig {
+      authorized_app_ids: HashSet::new(),
+      audiences: HashSet::new(),
+      issuers: HashSet::new(),
+      signing_token_provider: provider(),
+      validate_username: false,
+    });
   }
 }
