@@ -199,15 +199,15 @@ pub struct RespServerSession {
   /// 解析态（C# parseState）
   pub parse_state: SessionParseState,
   /// 接收缓冲（C# recvBufferPtr 固定接收缓冲的托管等价；parser 分片读写）
-  pub(crate) recv_buffer: Vec<u8>,
+  pub recv_buffer: Vec<u8>,
   /// 已接收字节数（C# bytesRead；parser 分片读写）
-  pub(crate) bytes_read: usize,
+  pub bytes_read: usize,
   /// 读游标（C# readHead；成功解析后停在命令负载起点）
   pub read_head: usize,
   /// 当前命令尾游标（C# endReadHead）
   pub end_read_head: usize,
   /// 输出缓冲（C# networkSender 响应对象 + dcurr/dend 游标的托管等价；分片写）
-  pub(crate) output: Vec<u8>,
+  pub output: Vec<u8>,
   /// 已发送字节暂存（C# SendResponse 直写网络；托管面留档供测试/脚本回读）
   sent: Vec<u8>,
   /// 累计冲洗字节数（Send 累计，测试断言用）

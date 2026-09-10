@@ -36,7 +36,7 @@ pub enum OperationDirection {
   Unknown = 2,
 }
 
-/// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListObject
+/// 内存列表对象（嵌入式存储层实现，服务层权威实现见 wedb_standalone::objects::list::ListObject）
 pub struct ListObject {
   // Using VecDeque instead of LinkedList for better cache locality and performance
   pub list: Mutex<VecDeque<Vec<u8>>>,
@@ -49,7 +49,7 @@ impl ListObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
+  /// 从二进制流反序列化内存列表对象
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -60,14 +60,14 @@ impl ListObject {
     })
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:Serialize
+  /// 序列化内存列表对象为二进制流
   pub fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
     let list = self.list.lock();
     let bytes = bitcode::encode(&*list);
     writer.write_all(&bytes)
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/List/ListObject.cs:Operate
+  /// 内存列表对象操作派发
   pub fn operate(&self, op: ListOperation, item: &[u8]) -> Option<Vec<u8>> {
     let mut list = self.list.lock();
     match op {

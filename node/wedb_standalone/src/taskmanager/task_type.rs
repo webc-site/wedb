@@ -87,7 +87,7 @@ impl TaskType {
 
   /// 取出匹配放置类别的全部任务类型（保持枚举声明序，零分配）
   ///
-  /// libs/server/TaskManager/TaskType.cs:TaskTypeExtensions.GetTaskTypes
+  /// libs/server/TaskManager/TaskType.cs:GetTaskTypes
   pub fn get_task_types(
     lookup_placement_category: TaskPlacementCategory,
   ) -> impl Iterator<Item = Self> + Clone {
@@ -100,7 +100,7 @@ impl TaskType {
   ///
   /// "All" 任务可在任意节点运行；查询 "All" 时恒匹配；其余按位包含判定
   ///
-  /// libs/server/TaskManager/TaskType.cs:TaskTypeExtensions.MatchPlacementCategory
+  /// libs/server/TaskManager/TaskType.cs:MatchPlacementCategory
   #[inline]
   #[must_use]
   pub const fn match_placement_category(

@@ -34,7 +34,7 @@ impl ScriptHashKey {
     Self { buf }
   }
 
-  /// libs/server/Lua/ScriptHashKey.cs:ScriptHashKey（span 形态：40 字符 hex 直存）
+  /// 构造自 40 字符 hex 切片 (ScriptHashKey span 形态)
   ///
   /// EVALSHA / SCRIPT EXISTS 收到的摘要即为 hex 文本；长度或字符不合法返回 None。
   pub fn from_hex(hex: &[u8]) -> Option<Self> {

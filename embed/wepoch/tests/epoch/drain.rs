@@ -458,7 +458,7 @@ fn bump_and_wait_drains_queued_actions_without_manual_drain() -> Void {
 /// 高频交错下每个延迟动作全量恰好执行一次、终态计数精确归零
 ///
 /// 锁定 `LightEpoch::drain` 与 `bump_current_epoch_action` 的镜像计数协议
-/// （注册：先加计数后公布纪元；消费：先减计数后发布 FREE）——对照 libs/client/LightEpoch.cs:Drain
+/// （注册：先加计数后公布纪元；消费：先减计数后发布 FREE）——对照 LightEpoch.cs Drain
 /// 的非镜像次序（可交换 RMW 下总量仍守恒，仅存在瞬时观测偏差），本不变式压力测试
 /// 守护任意交错下「动作恰好一次 + 终态计数归零」的核心契约
 #[test]

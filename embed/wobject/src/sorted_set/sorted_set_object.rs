@@ -61,7 +61,7 @@ impl SortedSetObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
+  /// 从二进制流反序列化内存有序集合对象
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf)?;
@@ -95,7 +95,7 @@ impl SortedSetObject {
     writer.write_all(&bytes)
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:Operate
+  /// 内存有序集合对象操作派发
   ///
   /// Zadd：写入（含同成员改分），返回 None；Zrem：移除成员，返回旧分值
   /// （未命中返回 None）；Zincrby：按 delta 增减分值，返回新分值；
@@ -164,7 +164,7 @@ impl SortedSetObject {
     }
   }
 
-  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:Count
+  /// 元素数量
   pub fn count(&self) -> usize {
     self.dict.pin().len()
   }

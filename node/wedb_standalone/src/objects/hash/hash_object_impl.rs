@@ -49,20 +49,13 @@ fn get_byte_span_from_input<'a>(input: &ObjectInput, index: usize) -> &'a [u8] {
   arg(input, index)
 }
 
-/// 解析 i64（对标 Garnet.common NumUtils.TryParse：Utf8Parser 全量消费，
-/// 可带 +/- 号，允许前导零——比 parseState.TryGetLong 宽）
-///
-/// libs/common/NumUtils.cs:TryParse（单一实现位于 `wbase::num`）
+/// 解析 i64（调用 `wbase::num::try_parse_i64`）
 fn num_utils_try_parse_long(v: &[u8]) -> Option<i64> {
   let mut value = 0;
   try_parse_i64(v, &mut value).then_some(value)
 }
 
-/// 解析 f64（对标 NumUtils.TryParse(double)：Utf8Parser 全量消费，
-/// 不识别 inf/nan 词形；纯数值溢出保留 ±inf）
-///
-/// libs/common/NumUtils.cs:TryParse(ReadOnlySpan<byte>, out double)
-///（单一实现位于 `wbase::num`）
+/// 解析 f64（调用 `wbase::num::try_parse_f64`）
 fn num_utils_try_parse_double(v: &[u8]) -> Option<f64> {
   let mut value = 0.0;
   try_parse_f64(v, &mut value).then_some(value)

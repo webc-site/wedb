@@ -88,9 +88,7 @@ impl HyperLogLog {
     Self::default()
   }
 
-  /// 自定义寄存器位构造
-  ///
-  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:HyperLogLog(byte pbit)
+  /// 自定义寄存器位构造 (HyperLogLog(byte pbit))
   pub fn with_pbit(pbit: u8) -> Self {
     let qbit = (HBIT - pbit as u32) as u8;
     let mcnt = 1_usize << pbit;
@@ -217,9 +215,7 @@ impl HyperLogLog {
     (self.is_sparse(ptr) || self.is_dense(ptr)) && Self::is_hyll(ptr)
   }
 
-  /// 魔数 + 长度校验（稀疏须在 [初始长, 4KB] 内且 RLE 流结构合法）
-  ///
-  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:IsValidHYLL(byte*, int)
+  /// 魔数 + 长度校验（重载 IsValidHYLL(byte*, int)）
   #[inline]
   pub fn is_valid_hyll_len(&self, ptr: &[u8], length: usize) -> bool {
     Self::is_hyll(ptr) && self.is_valid_hll_length(ptr, length)
@@ -1179,9 +1175,7 @@ impl HyperLogLog {
   }
 }
 
-/// MurmurHash2 64 位变体（PFADD 的元素哈希；C# 无种子形态，种子取 0）
-///
-/// libs/common/HashUtils.cs:MurmurHash2x64A（单一实现位于 `wbase::hash`）
+/// MurmurHash2 64 位变体（PFADD 的元素哈希，委托 wbase::hash::murmur_hash2_x64_a）
 #[inline]
 pub fn murmur_hash_2_x64_a(b_string: &[u8]) -> u64 {
   murmur_hash2_x64_a(b_string, 0)

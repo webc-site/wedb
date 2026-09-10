@@ -135,7 +135,7 @@ impl HashObject {
   /// 刻意差异（对照 C#）：C# 对跳过（已过期）条目仍执行 UpdateSize
   /// （记账漂移的上游怪癖），此处 1:1 保留
   ///
-  /// libs/server/Objects/Hash/HashObject.cs:HashObject(BinaryReader)
+  /// BinaryReader 反序列化构造 (HashObject.cs BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut obj = Self::new();
 
@@ -747,9 +747,6 @@ pub(crate) fn pick_random_index(n: usize, rand: i32) -> usize {
   (rand as u32 as usize) % n
 }
 
-/// Glob 风格 ASCII 模式匹配（复用 sortedset 域的同一实现，HSCAN/SSCAN MATCH 使用）
-///
-/// libs/server/GlobUtils.cs:Match
 pub(crate) use wbase::glob::glob_match;
 
 /// Scan 输入解析 + 输出回写：HSCAN/SSCAN 共用（对应 C# GarnetObjectBase 的

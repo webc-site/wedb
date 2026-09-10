@@ -109,7 +109,7 @@ impl AofHeader {
     (self.flags & Self::UNSAFE_TRUNCATE_LOG_FLAG) != 0
   }
 
-  /// libs/server/AOF/AofHeader.cs:UnsafeTruncateLog（setter）
+  /// Setter for unsafe_truncate_log (AofHeader.cs UnsafeTruncateLog.set)
   pub fn set_unsafe_truncate_log(&mut self, value: bool) {
     if value {
       self.flags |= Self::UNSAFE_TRUNCATE_LOG_FLAG;
@@ -118,13 +118,13 @@ impl AofHeader {
     }
   }
 
-  /// libs/server/AOF/AofHeader.cs:HeaderType（getter）
+  /// libs/server/AOF/AofHeader.cs:HeaderType
   pub fn header_type(&self) -> Option<AofHeaderType> {
     let raw = self.flags & Self::AOF_HEADER_TYPE_MASK;
     AofHeaderType::ALL.iter().copied().find(|t| *t as u8 == raw)
   }
 
-  /// libs/server/AOF/AofHeader.cs:HeaderType（setter）
+  /// Setter for header_type (AofHeader.cs HeaderType.set)
   pub fn set_header_type(&mut self, value: AofHeaderType) {
     debug_assert!((value as u8) <= Self::AOF_HEADER_TYPE_MASK);
     self.flags = (self.flags & !Self::AOF_HEADER_TYPE_MASK) | value as u8;

@@ -7,7 +7,7 @@
 
 use super::command_catalog_data::CMD_ENTRIES;
 pub(crate) use super::command_catalog_data::CmdEntry;
-use crate::types::RespCommand;
+use wresp::RespCommand;
 
 bitflags::bitflags! {
     /// RESP ACL 分类位集

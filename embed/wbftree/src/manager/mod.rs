@@ -190,7 +190,7 @@ pub struct RangeIndexManager {
 }
 
 impl RangeIndexManager {
-  /// 从根目录创建管理器实例 (cpr 目录默认为 ri_log_root/cpr，1:1 对标 libs/cluster/Server/Gossip/Gossip.cs:new RangeIndexManager(rootPath, null))
+  /// 从根目录创建管理器实例 (cpr 目录默认为 ri_log_root/cpr，1:1 对标 libs/cluster/Server/Gossip/Gossip.cs 中构造 RangeIndexManager(rootPath, null))
   pub fn from_root(ri_log_root: impl Into<PathBuf>) -> Self {
     let root = ri_log_root.into();
     let cpr = root.join("cpr");

@@ -67,7 +67,7 @@ impl ListObject {
 
   /// 从 C# BinaryWriter 序列化格式反序列化
   ///
-  /// libs/server/Objects/List/ListObject.cs:ListObject(BinaryReader)
+  /// BinaryReader 反序列化构造 (ListObject.cs BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut obj = Self::new();
 

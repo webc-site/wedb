@@ -198,20 +198,7 @@ fn apply_set_with_expiry<'a, D: wdev::Device>(
   Ok(true)
 }
 
-/// libs/server/SessionParseStateExtensions.cs:TryGetClientName
-///
-/// 客户端名仅允许 33..=126 可打印字符；空串允许（引用语义允许清名）；
-/// 非 UTF-8 视为非法（C# GetString 返回 null）
-pub fn try_get_client_name(raw: &[u8]) -> Option<&str> {
-  let name = str::from_utf8(raw).ok()?;
-  if name.is_empty() {
-    return Some(name);
-  }
-  name
-    .bytes()
-    .all(|c| (33..=126).contains(&c))
-    .then_some(name)
-}
+pub use crate::session_parse_state_extensions::try_get_client_name_bytes as try_get_client_name;
 
 /// libs/server/Resp/CmdStrings.cs:GenericSyntaxErrorOption
 ///

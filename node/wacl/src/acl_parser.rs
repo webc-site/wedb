@@ -17,7 +17,7 @@ use super::{
   AclPassword, RespAclCategories, access_control_list::AccessControlList, acl_exception::AclError,
   command_catalog as catalog, user::User, user_handle::UserHandle,
 };
-use crate::types::RespCommand;
+use wresp::RespCommand;
 
 /// 分类名对照表（对标 C# categoryNames；序即 ListCategories 的列举序）
 const CATEGORY_NAMES: [(&str, RespAclCategories); 25] = [
@@ -341,7 +341,7 @@ impl AclParser {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::acl::access_control_list::AccessControlList;
+  use crate::access_control_list::AccessControlList;
 
   /// 对标 garnet AclParserTests.ParseACLRuleDescriptionTest（规则 → 期望描述）
   #[test]
