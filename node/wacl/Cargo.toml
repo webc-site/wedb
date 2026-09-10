@@ -5,9 +5,9 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wacl"
-description = "wacl"
-keywords = []
-categories = []
+description = "Access Control List and authentication with SHA-256 password hashing"
+keywords = ["acl", "authentication", "authorization", "security"]
+categories = ["authentication"]
 
 [features]
 default = []

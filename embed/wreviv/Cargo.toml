@@ -1,11 +1,11 @@
 [package]
 name = "wreviv"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wreviv"
-description = "Size-binned free record pool for slot revivification / 按尺寸分桶的空闲记录池，槽位复活"
+description = "Size-binned free record pool for slot revivification"
 keywords = ["memory-pool", "revivification", "free-list", "recycling", "storage"]
 categories = ["memory-management", "data-structures", "concurrency", "database-implementations", "algorithms"]
 

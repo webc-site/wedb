@@ -1,13 +1,13 @@
 [package]
-name = "wclient"
+name = "wconn"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
-homepage = "https://github.com/webc-site/wedb/tree/main/wclient"
-description = "wclient"
-keywords = []
-categories = []
+homepage = "https://github.com/webc-site/wedb/tree/main/wconn"
+description = "Network connection and session management: RESP protocol parser and client API"
+keywords = ["network", "connection", "session", "resp"]
+categories = ["network-programming", "database-implementations"]
 
 [features]
 default = []

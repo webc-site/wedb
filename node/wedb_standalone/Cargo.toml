@@ -1,57 +1,98 @@
 [package]
 name = "wedb_standalone"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wedb_standalone"
-description = "单机网络服务底座：RESP 协议帧、AOF 逻辑层与节点服务编排（对标 Garnet libs/server 单机半区）"
-keywords = []
-categories = []
-
-[features]
-default = []
+description = "Standalone server foundation: RESP protocol, AOF logic layer, and node service orchestration"
+keywords = ["server", "database", "resp", "redis", "aof"]
+categories = ["database-implementations", "network-programming"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
 
 [dependencies]
-async-lock.workspace = true
 bitflags = "2.13.1"
-coarsetime.workspace = true
-compio.workspace = true
 fastrand = "2.5.0"
 gxhash = "3"
 hdrhistogram = "7"
-itoa.workspace = true
-jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto", "use_pem"] }
 log = "0.4"
-mlua = { version = "0.12.1", features = ["luau"] }
 num_enum = "0.7.6"
-papaya = "0.2.5"
 parking_lot = "0.12"
-serde = { version = "1.0.229", features = ["derive"] }
 sha1_smol = "1"
 sha2 = "0.11.0"
-sonic-rs.workspace = true
 thiserror = "2.0.20"
-waof.workspace = true
-wdev.workspace = true
-whasher = { version = "0.1.5", path = "../../embed/whasher" }
-wkv.workspace = true
-wobject.workspace = true
-wresp.workspace = true
-wbase = { workspace = true, features = ["convert", "ascii", "num", "hash_slot", "hash", "crc64", "glob"] }
-wacl = { version = "0.1.0", path = "../wacl" }
+[dependencies.async-lock]
+workspace = true
+
+[dependencies.coarsetime]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+
+[dependencies.itoa]
+workspace = true
+
+[dependencies.jsonwebtoken]
+version = "11.0.0"
+default-features = false
+features = [ "rust_crypto", "use_pem" ]
+
+[dependencies.mlua]
+version = "0.12.1"
+features = [ "luau" ]
+
+[dependencies.serde]
+version = "1.0.229"
+features = [ "derive" ]
+
+[dependencies.sonic-rs]
+workspace = true
+
+[dependencies.waof]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.whasher]
+version = "0.1.6"
+path = "../../embed/whasher"
+
+[dependencies.wkv]
+workspace = true
+
+[dependencies.wobject]
+workspace = true
+
+[dependencies.wresp]
+workspace = true
+
+[dependencies.wbase]
+workspace = true
+features = [ "convert", "ascii", "num", "hash_slot", "hash", "crc64", "glob" ]
+
+[dependencies.wacl]
+version = "0.1.0"
+path = "../wacl"
 
 [dev-dependencies]
 aok = "0.1.18"
-compio.workspace = true
 ctor = "1.0.13"
 log = "0.4.34"
 log_init = "0.1.39"
-tempfile.workspace = true
+
+[dev-dependencies.compio]
+workspace = true
+
+[dev-dependencies.tempfile]
+workspace = true
 
 [lints]
 workspace = true

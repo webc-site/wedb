@@ -158,7 +158,7 @@ impl ConstantStrings {
   /// <see cref="CmdStrings.LUA_out_of_memory"/>
   pub const OUT_OF_MEMORY: &[u8] = b"Lua VM ran out of memory";
   /// <see cref="CmdStrings.RESP_ERR_GENERIC_UNK_CMD"/>（前缀形态，用于识别 unknown command）
-  pub const ERR_UNKNOWN_TEXT: &[u8] = b"ERR unknown command";
+  pub const ERR_UNKNOWN_TEXT: &[u8] = ConstantStrings::RESP_ERR_GENERIC_UNK_CMD;
   /// <see cref="CmdStrings.LUA_load_string_error"/>
   pub const LOAD_STRING_ERROR: &[u8] = b"load_string encountered error";
   /// <see cref="CmdStrings.LUA_AND"/>

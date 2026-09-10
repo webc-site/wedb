@@ -12,6 +12,7 @@ use std::{
 use crate::{
   inputs::ObjectInput,
   objects::types::object_output::{ObjectOutput, ObjectOutputFlags},
+  resp::cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
   types::GarnetObjectType,
 };
 
@@ -138,7 +139,7 @@ impl ListObject {
 
     let Some(op) = list_op_from_header(input) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      output.write_error(b"ERR unsupported operation");
+      output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
 
@@ -161,7 +162,7 @@ impl ListObject {
       | ListOperation::Lmove
       | ListOperation::Brpop
       | ListOperation::Blpop => {
-        output.write_error(b"ERR unsupported operation");
+        output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }
 

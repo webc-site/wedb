@@ -1,7 +1,9 @@
-GetRef: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-SelectInstance: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-ComputeNewSafeToReclaimEpoch: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-TryAcquireEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-ReserveEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-ReserveEntryWait: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
-ReserveEntryForThread: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+GetRef: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+SelectInstance: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+ComputeNewSafeToReclaimEpoch: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+TryAcquireEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+ReserveEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+ReserveEntryWait: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+ReserveEntryForThread: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wconn 中原生实现
+ActiveInstanceCount: C# 测试框架全局静态实例计数，Rust wepoch 原生维护实例生命周期，无需全局统计
+ResetAllInstances: C# 测试框架全局静态实例重置，Rust wepoch 原生维护实例生命周期，无需全局重置

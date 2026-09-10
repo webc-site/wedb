@@ -5,3 +5,5 @@ TryAcquireEntry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/w
 ReserveEntryWait: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
 ReserveEntryForThread: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
 UserWordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ActiveInstanceCount: C# 测试框架全局静态实例计数，Rust wepoch 原生维护实例生命周期，无需全局统计
+ResetAllInstances: C# 测试框架全局静态实例重置，Rust wepoch 原生维护实例生命周期，无需全局重置

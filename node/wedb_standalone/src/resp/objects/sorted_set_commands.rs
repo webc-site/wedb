@@ -31,7 +31,10 @@ use crate::{
     objects::object_store_utils::{
       OBJ_TAG_SORTED_SET, SyncObj, obj_load_sync, obj_save_or_gc_sync,
     },
-    parser::resp_ext::{RespSliceExt, RespVecExt},
+    parser::{
+      resp_ext::{RespSliceExt, RespVecExt},
+      session_parse_state::{strict_f64, strict_i32},
+    },
     resp_server_session::RespServerSession,
   },
   session_parse_state::SessionParseState,
@@ -440,8 +443,8 @@ impl RespServerSession {
     // count 缺省形态传 -1（无外层数组头）
     let arg1: i32 = match parse_state.get(1) {
       None => -1,
-      Some(c) => match str::from_utf8(c).unwrap_or("").parse::<i32>() {
-        Ok(v) if v >= 0 => v,
+      Some(c) => match strict_i32(c) {
+        Some(v) if v >= 0 => v,
         _ => {
           output.extend_from_slice(b"-ERR value is out of range, must be >= 0\r\n");
           return Ok(true);
@@ -1064,7 +1067,7 @@ impl RespServerSession {
       return Ok(true);
     };
     if num_keys < 1 {
-      output.extend_from_slice(b"-ERR numkeys should be greater than 0\r\n");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     }
 
@@ -1165,11 +1168,7 @@ impl RespServerSession {
       output.extend_from_slice(b"-ERR wrong number of arguments for 'BZPOPMIN' command\r\n");
       return Ok(true);
     }
-    if str::from_utf8(parse_state[parse_state.len() - 1])
-      .unwrap_or("")
-      .parse::<f64>()
-      .is_err()
-    {
+    if strict_f64(parse_state[parse_state.len() - 1], true).is_none() {
       output.extend_from_slice(b"-ERR timeout is not a float or out of range\r\n");
       return Ok(true);
     }
@@ -1219,11 +1218,7 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    let Some(timeout) = str::from_utf8(parse_state[0])
-      .unwrap_or("")
-      .parse::<f64>()
-      .ok()
-    else {
+    let Some(timeout) = strict_f64(parse_state[0], true) else {
       output.extend_from_slice(b"-ERR timeout is not a float or out of range\r\n");
       return Ok(true);
     };
@@ -1638,12 +1633,9 @@ fn parse_combine_args<'p>(
       idx += 1;
       let mut parsed = Vec::with_capacity(keys.len());
       while parsed.len() < keys.len() && idx < parse_state.len() {
-        match str::from_utf8(parse_state[idx])
-          .unwrap_or("")
-          .parse::<f64>()
-        {
-          Ok(w) => parsed.push(w),
-          Err(_) => {
+        match strict_f64(parse_state[idx], true) {
+          Some(w) => parsed.push(w),
+          None => {
             output.extend_from_slice(b"-ERR weight value is not a float\r\n");
             return None;
           }

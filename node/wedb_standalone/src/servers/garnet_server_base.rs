@@ -20,7 +20,7 @@ use std::{
   thread::yield_now,
 };
 
-use gxhash::{HashMap as GxHashMap, HashSet as GxHashSet};
+use gxhash::HashMap as GxHashMap;
 use parking_lot::RwLock;
 
 use super::i_garnet_server::{
@@ -152,16 +152,25 @@ impl GarnetServerBase {
     self.total_connections_disposed.store(0, Release);
   }
 
-  /// 登记新处理器并分配 id（C# activeHandlers.TryAdd + 计数自增）
+  /// 登记新处理器并分配 id（C# activeHandlers.TryAdd + 计数自增，不设连接上限）
   ///
   /// 返回处理器 id；已释放（关闭哨兵生效）时拒绝并返回 None。
   pub fn register_handler(&self, consumer: Arc<dyn MessageConsumerFace>) -> Option<u64> {
-    if self.disposed.load(Acquire) {
-      return None;
-    }
-    let count = self.active_handler_count.fetch_add(1, AcqRel);
-    if count < 0 {
-      // 关闭排空已启动：回退计数并拒绝
+    self.admit_handler(consumer, -1)
+  }
+
+  /// 原子准入新处理器（C# HandleNewConnection 的计数闸门序列）
+  ///
+  /// 先自增活跃计数再校验：计数已翻转关闭哨兵、或超过 `connection_limit`
+  ///（-1 不限）时回退计数并拒绝，上限约束由原子量严格保证、不依赖
+  /// "检查-登记"两步间的调用方自律（对齐 C# Interlocked.Increment 先行）。
+  pub fn admit_handler(
+    &self,
+    consumer: Arc<dyn MessageConsumerFace>,
+    connection_limit: i32,
+  ) -> Option<u64> {
+    let count = self.active_handler_count.fetch_add(1, AcqRel) + 1;
+    if count < 0 || (connection_limit != -1 && count > connection_limit) {
       self.active_handler_count.fetch_sub(1, AcqRel);
       return None;
     }
@@ -180,7 +189,7 @@ impl GarnetServerBase {
     self.active_handlers.read().keys().copied().collect()
   }
 
-  /// 注册线格式提供者（重复注册报错）
+  /// 注册线格式提供者（重复注册报错且保留原提供者，对齐 C# TryAdd 不覆写）
   ///
   /// libs/server/Servers/GarnetServerBase.cs:Register
   pub fn register(
@@ -188,13 +197,12 @@ impl GarnetServerBase {
     wire_format: WireFormat,
     backend_provider: Arc<dyn SessionProviderFace>,
   ) -> Result<(), ServerError> {
-    self
-      .session_providers
-      .write()
-      .insert(wire_format, backend_provider)
-      .map_or(Ok(()), |_| {
-        Err(ServerError::WireFormatAlreadyRegistered(wire_format))
-      })
+    let mut providers = self.session_providers.write();
+    if providers.contains_key(&wire_format) {
+      return Err(ServerError::WireFormatAlreadyRegistered(wire_format));
+    }
+    providers.insert(wire_format, backend_provider);
+    Ok(())
   }
 
   /// 注销线格式提供者
@@ -243,31 +251,32 @@ impl GarnetServerBase {
 
   /// 排空活跃处理器（C# DisposeActiveHandlers）
   ///
-  /// 循环处置全部活跃处理器直至计数归零，随后以关闭哨兵（int.MinValue）
-  /// 完成单次关闭屏障；此后 [`Self::register_handler`] 拒绝新连接。
+  /// 对齐 C# 双层循环：内层循环处置全部活跃处理器直至计数归零（注册窗口内
+  /// 的在途处理器落地后由外层循环重新排空），随后以关闭哨兵（int.MinValue）
+  /// 完成单次关闭屏障；CAS 失败说明排空期间又有新处理器准入，外层循环重跑。
+  /// 此后 [`Self::register_handler`] / [`Self::admit_handler`] 拒绝新连接。
   pub fn dispose_active_handlers(&self) {
     log::trace!("Begin disposing active handlers");
-    loop {
-      let handler_ids: GxHashSet<u64> = {
-        let handlers = self.active_handlers.read();
-        handlers.keys().copied().collect()
-      };
-      if handler_ids.is_empty() {
+    while self.active_handler_count.load(Acquire) >= 0 {
+      while self.active_handler_count.load(Acquire) > 0 {
+        for handler_id in self.active_handler_ids() {
+          if let Some(consumer) = self.active_handlers.write().remove(&handler_id) {
+            consumer.dispose();
+            self.active_handler_count.fetch_sub(1, AcqRel);
+            self.increment_connections_disposed();
+          }
+        }
+        // C# Thread.Yield 等待异步处置收敛的等价让位点
+        yield_now();
+      }
+      if self
+        .active_handler_count
+        .compare_exchange(0, DISPOSED_HANDLER_COUNT, AcqRel, Acquire)
+        .is_ok()
+      {
         break;
       }
-      for handler_id in handler_ids {
-        if let Some(consumer) = self.active_handlers.write().remove(&handler_id) {
-          consumer.dispose();
-          self.active_handler_count.fetch_sub(1, AcqRel);
-          self.increment_connections_disposed();
-        }
-      }
-      // C# Thread.Yield 等待异步处置收敛的等价让位点
-      yield_now();
     }
-    let _ = self
-      .active_handler_count
-      .compare_exchange(0, DISPOSED_HANDLER_COUNT, AcqRel, Acquire);
     log::trace!("End disposing active handlers");
   }
 

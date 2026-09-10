@@ -13,6 +13,7 @@
 use std::collections::BTreeMap;
 
 use bitflags::bitflags;
+use wbase::hash::murmur_hash2_x64_a;
 
 /// 寄存器位数
 const REG_BITS: u32 = 6;

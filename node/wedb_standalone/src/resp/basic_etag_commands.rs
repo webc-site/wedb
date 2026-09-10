@@ -2,6 +2,9 @@ use core::str;
 
 use crate::resp::{parser::resp_ext::RespVecExt, resp_server_session::RespServerSession};
 
+/// ETag 不匹配文案（本域两处复用）。
+const ERR_INVALID_ETAG: &str = "ERR invalid etag";
+
 impl RespServerSession {
   /// libs/server/Resp/BasicEtagCommands.cs:NetworkGETWITHETAG
   pub fn network_getwithetag<'a, D: wdev::Device>(
@@ -89,7 +92,7 @@ impl RespServerSession {
       return Ok(true);
     };
     if given_etag < 0 {
-      output.write_resp_error("ERR invalid etag");
+      output.write_resp_error(ERR_INVALID_ETAG);
       return Ok(true);
     }
 
@@ -161,7 +164,7 @@ impl RespServerSession {
       .ok()
       .and_then(|s| s.parse::<i64>().ok())
     else {
-      output.write_resp_error("ERR invalid etag");
+      output.write_resp_error(ERR_INVALID_ETAG);
       return Ok(true);
     };
 

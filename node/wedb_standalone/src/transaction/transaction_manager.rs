@@ -246,11 +246,16 @@ impl TransactionManager {
     fail_fast_on_lock: bool,
     lock_timeout: Duration,
   ) -> bool {
-    // WATCH 键并入锁集
+    // WATCH 键并入锁集（字段拆借免克隆，登记内核同 SaveKeyEntryToLock）
     if !internal_txn {
-      let watched_keys = self.watch_container.save_keys_to_lock();
-      for key in watched_keys {
-        self.save_key_entry_to_lock(&key, LockType::Shared);
+      let Self {
+        watch_container,
+        key_entries,
+        perform_writes,
+        ..
+      } = self;
+      for key in watch_container.save_keys_to_lock() {
+        Self::register_key_lock(key_entries, perform_writes, key, LockType::Shared);
       }
     }
 
@@ -376,18 +381,28 @@ impl TransactionManager {
   ///
   /// libs/server/Transaction/TransactionManager.cs:GetSlotVerificationInput
   ///
-  /// 先把 WATCH 键并入槽校验键列表；托管缓冲无指针失效问题，
+  /// 先把 WATCH 键并入槽校验键列表（SaveKeyArgSlice 主体就地展开：集群
+  /// 门禁 + 键副本入列，字段拆借免克隆）；托管缓冲无指针失效问题，
   /// C# 的 saveKeyRecvBufferPtr 比对为恒等短路。
   pub fn get_slot_verification_input(
     &mut self,
     session_asking: u8,
   ) -> ClusterSlotVerificationInput {
-    for key in self.watch_container.save_keys_to_key_list() {
-      self.save_key_arg_slice(&key);
+    let Self {
+      watch_container,
+      cluster_enabled,
+      txn_keys,
+      key_entries,
+      ..
+    } = self;
+    for key in watch_container.save_keys_to_key_list() {
+      if *cluster_enabled {
+        txn_keys.push(key.into());
+      }
     }
     // 槽校验按本上下文全键迭代（C# 注释：不指定 key specs）
     ClusterSlotVerificationInput {
-      read_only: self.key_entries.is_read_only(),
+      read_only: key_entries.is_read_only(),
       session_asking,
     }
   }
@@ -499,7 +514,9 @@ impl TransactionManager {
     // 主段：锁内执行
     proc.main(self, output);
 
-    // AOF 记录（回放期间不再重复落盘）
+    // AOF 记录过程条目：C# Log 无条件调用、靠回放期 appendOnlyFile 缺席
+    // 短路；托管宿主回放期可能仍持日志句柄，故显式以 is_replaying 短路，
+    // 网络效果同 C#（回放不重复落盘）
     if !is_replaying {
       self.log_proc(proc);
     }

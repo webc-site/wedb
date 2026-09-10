@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wkv"
-description = "Single-node hybrid-log storage engine with TTL, GC, checkpoints, range index / 单机混合日志存储引擎，含 TTL、GC、检查点、范围索引"
+description = "Single-node hybrid-log storage engine with TTL, GC, checkpoints, range index"
 keywords = ["key-value", "storage-engine", "hybridlog", "database", "embedded"]
 categories = ["database-implementations", "data-structures", "concurrency", "asynchronous", "caching"]
 
@@ -16,7 +16,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time", "error"]
 path = "../wbase"
-version = "0.1.3"
+version = "0.1.4"
 
 [dependencies.fastrand]
 workspace = true

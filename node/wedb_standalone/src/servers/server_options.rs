@@ -285,7 +285,6 @@ fn log2_exact(v: i64) -> i32 {
 }
 
 
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -376,5 +375,7 @@ mod tests {
     assert_eq!(ServerOptions::pretty_size(1536), "1.5k");
     assert_eq!(ServerOptions::pretty_size(500), "500");
     assert_eq!(ServerOptions::pretty_size(4 * 1024 * 1024 * 1024), "4g");
+    // exp == -18 档：C# suffix[5] 越界上游缺陷，安全回落无后缀不 panic
+    assert_eq!(ServerOptions::pretty_size(i64::MAX), "8");
   }
 }

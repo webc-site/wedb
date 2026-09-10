@@ -16,6 +16,7 @@ use std::{
 
 use bitflags::bitflags;
 use gxhash::{GxBuildHasher, HashMap};
+use wbase::glob::glob_match;
 
 use crate::{
   inputs::ObjectInput,
@@ -23,6 +24,7 @@ use crate::{
     parse_utils::now_ticks,
     types::object_output::{ObjectOutput, ObjectOutputFlags},
   },
+  resp::cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
   types::GarnetObjectType,
 };
 
@@ -149,7 +151,7 @@ pub struct ExpirationWithOption {
 }
 
 impl ExpirationWithOption {
-  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption
+  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long, ExpireOption)
   #[inline]
   pub fn new(expiration_time_in_ticks: i64, expire_option: ExpireOption) -> Self {
     Self {
@@ -157,7 +159,7 @@ impl ExpirationWithOption {
     }
   }
 
-  /// 构造自原始 64 位整数字 (ExpirationWithOption(long))
+  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long)
   #[inline]
   pub fn from_word(word: i64) -> Self {
     Self { word }
@@ -293,7 +295,7 @@ impl SortedSetObject {
 
   /// 从 C# BinaryWriter 序列化格式反序列化，加载时剔除已过期条目
   ///
-  /// BinaryReader 反序列化构造 (SortedSetObject.cs BinaryReader)
+  /// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject(BinaryReader)
   pub fn deserialize<R: Read>(reader: &mut R) -> io::Result<Self> {
     let mut obj = Self::new();
 
@@ -461,7 +463,7 @@ impl SortedSetObject {
 
     let Some(op) = sorted_set_op_from_header(input) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      output.write_error(b"ERR unsupported operation");
+      output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
 
@@ -515,7 +517,7 @@ impl SortedSetObject {
       // GEOSEARCH 由命令层经 geo_search(opts) 直入（携带 GeoSearchOptions 束）；
       // ZDIFF/ZUNION/ZINTER 属存储 API 域聚合（C# 同样不经 ObjectInput 分派）
       SortedSetOperation::Geosearch | SortedSetOperation::Zdiff => {
-        output.write_error(b"ERR unsupported operation");
+        output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }
 
@@ -960,8 +962,6 @@ pub fn sorted_set_op_from_header(input: &ObjectInput) -> Option<SortedSetOperati
   SortedSetOperation::try_from(input.header.sub_id()).ok()
 }
 
-pub(crate) use wbase::glob::glob_match;
-
 #[cfg(test)]
 mod tests {
   use std::collections::BTreeSet;
@@ -1202,7 +1202,7 @@ mod tests {
     assert_eq!(cursor, 0); // 末页耗尽归零
   }
 
-  /// 验证 Glob 模式匹配（含字符类）
+  /// Glob 模式匹配（含字符类），对标 libs/server/GlobUtils.cs:Match
   #[test]
   fn glob_patterns() {
     // 基础通配

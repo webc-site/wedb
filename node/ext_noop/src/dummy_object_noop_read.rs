@@ -5,7 +5,7 @@ pub struct DummyObjectNoOpRead;
 
 impl DummyObjectNoOpRead {
   /// 读取操作
-  /// garnet相对路径:garnet/modules/NoOpModule/DummyObjectNoOpRead.cs:Reader
+  /// 在 garnet 中的相对路径:garnet/modules/NoOpModule/DummyObjectNoOpRead.cs:Reader
   pub fn reader(&self, _key: &[u8], _input: &[u8], _value: &DummyObject) -> bool {
     true
   }

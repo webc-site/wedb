@@ -20,10 +20,14 @@ use crate::{
     types::object_output::ObjectOutput,
   },
   resp::{
+    cmd_strings as cs,
     objects::sorted_set_commands::{
       ZsetLoad, make_input_for_geo, parse_pairs_payload, zset_load_sync, zset_save_or_gc,
     },
-    parser::resp_ext::{RespSliceExt, RespVecExt},
+    parser::{
+      resp_ext::{RespSliceExt, RespVecExt},
+      session_parse_state::strict_f64,
+    },
     resp_server_session::RespServerSession,
   },
 };
@@ -95,9 +99,10 @@ const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &[u8] =
 const RESP_ERR_COUNT_IS_NOT_POSITIVE: &[u8] = b"ERR COUNT must be > 0";
 const RESP_ERR_INVALID_LON_LAT: &[u8] = b"ERR invalid longitude,latitude pair";
 
-/// 解析双精度（TryGetDouble 语义）
+/// 解析双精度（TryGetDouble 严格语义；单一实现 [`strict_f64`]，
+/// canBeInfinite: true 对齐 parseState.TryGetDouble 默认值）
 fn parse_double(token: &[u8]) -> Option<f64> {
-  str::from_utf8(token).ok()?.parse::<f64>().ok()
+  strict_f64(token, true)
 }
 
 /// GEOSEARCH 族选项解析（对标 SessionParseStateExtensions.TryGetGeoSearchOptions）
@@ -176,7 +181,7 @@ fn try_get_geo_search_options(
     if geo_search_family {
       if equals_ignore_case(token, b"FROMMEMBER") {
         if opts.origin != GeoOriginType::Undefined {
-          return Err(b"ERR syntax error");
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         let Some(member) = args.get(idx) else {
           arg_num_error = true;
@@ -190,7 +195,7 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"FROMLONLAT") {
         if opts.origin != GeoOriginType::Undefined {
-          return Err(b"ERR syntax error");
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         let (Some(lon_tok), Some(lat_tok)) = (args.get(idx).copied(), args.get(idx + 1).copied())
         else {
@@ -209,7 +214,7 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"BYRADIUS") {
         if opts.search_type != GeoSearchType::Undefined {
-          return Err(b"ERR syntax error");
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         let (Some(radius_tok), Some(unit_tok)) =
           (args.get(idx).copied(), args.get(idx + 1).copied())
@@ -235,7 +240,7 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"BYBOX") {
         if opts.search_type != GeoSearchType::Undefined {
-          return Err(b"ERR syntax error");
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         let (Some(width_tok), Some(height_tok), Some(unit_tok)) = (
           args.get(idx).copied(),
@@ -341,7 +346,7 @@ fn try_get_geo_search_options(
       continue;
     }
 
-    return Err(b"ERR syntax error");
+    return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
   }
 
   // 圆心与形状均必填
@@ -392,7 +397,7 @@ fn store_incompat(kind: GeoSearchCommandKind) -> &'static [u8] {
     GeoSearchCommandKind::GeoSearchStore => b"ERR STORE option in GEOSEARCHSTORE is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
     GeoSearchCommandKind::GeoRadius => b"ERR STORE option in GEORADIUS is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
     GeoSearchCommandKind::GeoRadiusByMember => b"ERR STORE option in GEORADIUSBYMEMBER is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
-    _ => b"ERR syntax error",
+    _ => cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes(),
   }
 }
 
@@ -432,7 +437,7 @@ impl RespServerSession {
     }
 
     if add_option.contains(GeoAddOptions::NX) && add_option.contains(GeoAddOptions::XX) {
-      output.extend_from_slice(b"-ERR syntax error\r\n");
+      output.write_resp_error(cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
       return Ok(true);
     }
 
@@ -441,7 +446,7 @@ impl RespServerSession {
     let mut idx = curr_token_idx;
     while idx < parse_state.len() {
       if idx > parse_state.len() - 3 {
-        output.extend_from_slice(b"-ERR syntax error\r\n");
+        output.write_resp_error(cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
       if try_get_geo_lon_lat(parse_state[idx], parse_state[idx + 1]).is_none() {

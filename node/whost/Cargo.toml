@@ -2,9 +2,16 @@
 name = "whost"
 version = "0.1.0"
 edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/whost"
+description = "Server host process: configuration and node service entry point"
+keywords = ["server", "host", "configuration", "binary"]
+categories = ["database-implementations"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+wedb_standalone = { version = "0.1.1", path = "../wedb_standalone" }
 
 [lints]
 workspace = true

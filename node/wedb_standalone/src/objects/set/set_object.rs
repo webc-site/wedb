@@ -13,6 +13,7 @@ use crate::{
     hash::hash_object::{glob_match, scan_operate_shared},
     types::object_output::{ObjectOutput, ObjectOutputFlags},
   },
+  resp::cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
   types::GarnetObjectType,
 };
 
@@ -136,7 +137,7 @@ impl SetObject {
 
     let Some(op) = set_op_from_header(input) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      output.write_error(b"ERR unsupported operation");
+      output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
 
@@ -160,7 +161,7 @@ impl SetObject {
       | SetOperation::Sdiffstore
       | SetOperation::Sinter
       | SetOperation::Sinterstore => {
-        output.write_error(b"ERR unsupported operation");
+        output.write_error(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }
 

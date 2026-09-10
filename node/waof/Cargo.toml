@@ -1,13 +1,13 @@
 [package]
 name = "waof"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/waof"
-description = "waof"
-keywords = []
-categories = []
+description = "Append-Only File (AOF) write-ahead log for replication"
+keywords = ["aof", "write-ahead-log", "replication", "wal"]
+categories = ["database-implementations", "filesystem"]
 
 [features]
 default = []

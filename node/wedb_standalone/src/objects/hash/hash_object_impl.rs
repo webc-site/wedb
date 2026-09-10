@@ -3,13 +3,21 @@
 //!
 //! RESP 负载经 [`ObjectOutput`] 输出；操作计数经 `result1` 回传。
 
+use wbase::{
+  convert::{
+    milliseconds_from_diff_utc_now_ticks, seconds_from_diff_utc_now_ticks,
+    unix_time_in_milliseconds_from_ticks, unix_time_in_seconds_from_ticks,
+  },
+  num::{try_parse_f64, try_parse_i64},
+};
+
 use crate::{
   inputs::ObjectInput,
   objects::{
     hash::hash_object::{
       HashObject, HashOperation, pick_k_random_indexes, pick_random_index, scan_operate_shared,
     },
-    parse_utils::{equals_ignore_case, try_parse_with_infinity},
+    parse_utils::try_parse_with_infinity,
     sortedset::sorted_set_object::ExpirationWithOption,
     types::object_output::ObjectOutput,
   },
@@ -41,35 +49,16 @@ fn get_byte_span_from_input<'a>(input: &ObjectInput, index: usize) -> &'a [u8] {
   arg(input, index)
 }
 
-use wbase::convert::{
-  milliseconds_from_diff_utc_now_ticks, seconds_from_diff_utc_now_ticks,
-  unix_time_in_milliseconds_from_ticks, unix_time_in_seconds_from_ticks,
-};
-
-/// 解析 i64（对标 Garnet.common NumUtils.TryParse）
+/// 解析 i64（调用 `wbase::num::try_parse_i64`）
 fn num_utils_try_parse_long(v: &[u8]) -> Option<i64> {
-  let mut val = 0i64;
-  wbase::num::try_parse_i64(v, &mut val).then_some(val)
+  let mut value = 0;
+  try_parse_i64(v, &mut value).then_some(value)
 }
 
-/// 解析 f64（对标 NumUtils.TryParse(double)）
+/// 解析 f64（调用 `wbase::num::try_parse_f64`）
 fn num_utils_try_parse_double(v: &[u8]) -> Option<f64> {
-  match v.len() {
-    3 if equals_ignore_case(v, b"inf") || equals_ignore_case(v, b"nan") => return None,
-    4 if equals_ignore_case(v, b"+inf")
-      || equals_ignore_case(v, b"-inf")
-      || equals_ignore_case(v, b"+nan")
-      || equals_ignore_case(v, b"-nan") =>
-    {
-      return None;
-    }
-    _ => {}
-  }
-  if equals_ignore_case(v, b"infinity") {
-    return None;
-  }
-  let mut val = 0.0;
-  wbase::num::try_parse_f64(v, &mut val).then_some(val)
+  let mut value = 0.0;
+  try_parse_f64(v, &mut value).then_some(value)
 }
 
 /// 最短往返双精度文本（对标 double.TryFormat 默认 G 形态；±∞/NaN 记法差异
@@ -609,14 +598,16 @@ fn format_i64(value: i64) -> Vec<u8> {
   buf.format(value).as_bytes().to_vec()
 }
 
-
 #[cfg(test)]
 mod tests {
   use super::*;
   use crate::{
     arg_slice::ArgSlice,
     input_header::RespInputHeader,
-    objects::hash::hash_object::{ExpireOption, HashOperation},
+    objects::{
+      hash::hash_object::{ExpireOption, HashOperation},
+      parse_utils::now_ticks,
+    },
     session_parse_state::SessionParseState,
     types::{GarnetObjectType, RespInputFlags},
   };

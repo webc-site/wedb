@@ -46,7 +46,7 @@ impl TxnWatchedKeysContainer {
     self.key_slices.clear();
   }
 
-  /// 移除对指定键的监视（保留占位，isWatched 置否）
+  /// 移除对指定键的监视（标记 is_watched = false，保留条目）
   ///
   /// libs/server/Transaction/TxnWatchedKeysContainer.cs:RemoveWatch
   pub fn remove_watch(&mut self, key: &[u8]) -> bool {
@@ -88,30 +88,25 @@ impl TxnWatchedKeysContainer {
     true
   }
 
-  /// 仍被监视键的快照（供管理器登记进锁集）
+  /// 仍被监视键的引用序列（供管理器登记进锁集）
   ///
   /// libs/server/Transaction/TxnWatchedKeysContainer.cs:SaveKeysToLock
   ///
   /// C# 直接逐键调 txnManager.SaveKeyEntryToLock(slice, Shared)；Rust 侧
-  /// 容器与管理器字段借用分域，返回快照由管理器登记。
-  pub fn save_keys_to_lock(&self) -> Vec<Box<[u8]>> {
+  /// 容器与管理器字段借用分域，按需迭代零克隆。
+  pub fn save_keys_to_lock(&self) -> impl Iterator<Item = &[u8]> {
     self
       .key_slices
       .iter()
       .filter(|slice| slice.is_watched)
-      .map(|slice| slice.key.clone())
-      .collect()
+      .map(|slice| slice.key.as_ref())
   }
 
-  /// 全部被监视键（含已移除监视位）的快照（供管理器登记进集群槽校验键列表）
+  /// 全部被监视键（含已移除监视位）的引用序列（供管理器登记进集群槽校验键列表）
   ///
   /// libs/server/Transaction/TxnWatchedKeysContainer.cs:SaveKeysToKeyList
-  pub fn save_keys_to_key_list(&self) -> Vec<Box<[u8]>> {
-    self
-      .key_slices
-      .iter()
-      .map(|slice| slice.key.clone())
-      .collect()
+  pub fn save_keys_to_key_list(&self) -> impl Iterator<Item = &[u8]> {
+    self.key_slices.iter().map(|slice| slice.key.as_ref())
   }
 }
 

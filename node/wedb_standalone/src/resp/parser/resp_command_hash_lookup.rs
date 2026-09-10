@@ -18,7 +18,7 @@ impl RespCommandHashLookup {
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:LookupSubcommand
   pub fn lookup_subcommand(_parent: RespCommand, sub: &[u8]) -> Option<RespCommand> {
     let s = str::from_utf8(sub).ok()?;
-    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
+    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.command)
   }
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:ComputeHash
@@ -42,7 +42,7 @@ impl RespCommandHashLookup {
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:LookupInTable
   pub fn lookup_in_table(cmd: &[u8]) -> Option<RespCommand> {
     let s = str::from_utf8(cmd).ok()?;
-    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.cmd)
+    RespCommandsInfo::try_get_resp_command_info(s).map(|e| e.command)
   }
 
   /// libs/server/Resp/Parser/RespCommandHashLookup.cs:GetWordFromSpan

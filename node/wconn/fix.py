@@ -1,5 +1,5 @@
 import re
-with open('/tmp/fork/client-host/node/wclient/src/session.rs', 'r') as f:
+with open('/tmp/fork/client-host/node/wconn/src/session.rs', 'r') as f:
     code = f.read()
 
 new_code = code.replace("""                let mut data_slice = read_buf.as_slice();
@@ -30,5 +30,5 @@ new_code = new_code.replace("""                }
         }
         Ok(())""")
 
-with open('/tmp/fork/client-host/node/wclient/src/session.rs', 'w') as f:
+with open('/tmp/fork/client-host/node/wconn/src/session.rs', 'w') as f:
     f.write(new_code)

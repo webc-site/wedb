@@ -8,19 +8,19 @@ pub struct RoaringBitmapObject {
 }
 
 impl RoaringBitmapObject {
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:CloneObject
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:CloneObject
   pub fn clone_object(&self) -> Self {
     Self {
       bitmap: self.bitmap.clone(),
     }
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SerializeObject
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SerializeObject
   pub fn serialize_object<W: Write>(&self, writer: &mut W) -> Result<()> {
     self.bitmap.serialize(writer)
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SetBit
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:SetBit
   ///
   /// insert/remove 的返回值即旧值语义（insert：true=原先不存在；remove：true=原先存在），
   /// 单次查找完成读取旧值 + 置位/清除，免除 get+set 两次树下降
@@ -32,29 +32,29 @@ impl RoaringBitmapObject {
     }
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:GetBit
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:GetBit
   pub fn get_bit(&self, value: u32) -> bool {
     self.bitmap.get_bit(value)
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:BitCount
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:BitCount
   pub fn bit_count(&self) -> i64 {
     self.bitmap.bitmap.len() as i64
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:BitPos
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:BitPos
   pub fn bit_pos(&self, bit: bool, from: u32) -> i64 {
     self.bitmap.bit_pos(bit, from)
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:Create
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:Create
   pub fn create() -> Self {
     Self {
       bitmap: RoaringBitmapObj::new(),
     }
   }
 
-  /// garnet相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:Deserialize
+  /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapObject.cs:Deserialize
   pub fn deserialize<R: Read>(reader: &mut R) -> Result<Self> {
     Ok(Self {
       bitmap: RoaringBitmapObj::deserialize(reader)?,

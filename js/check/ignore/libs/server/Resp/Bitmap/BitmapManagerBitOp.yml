@@ -1,3 +1,0 @@
-Vectorized512: C# .NET 专属硬件向量化内在函数 (System.Runtime.Intrinsics.Vector512)，Rust 侧使用原生切片与编译器自动向量化实现
-Vectorized256: C# .NET 专属硬件向量化内在函数 (System.Runtime.Intrinsics.Vector256)，Rust 侧使用原生切片与编译器自动向量化实现
-Vectorized128: C# .NET 专属硬件向量化内在函数 (System.Runtime.Intrinsics.Vector128)，Rust 侧使用原生切片与编译器自动向量化实现

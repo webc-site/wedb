@@ -1,11 +1,11 @@
 [package]
 name = "windex"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/windex"
-description = "Lock-free fixed-capacity hash index with overflow bucket pool / 无锁定容哈希索引，含溢出桶池"
+description = "Lock-free fixed-capacity hash index with overflow bucket pool"
 keywords = ["hash-index", "lock-free", "hash-table", "storage-engine", "concurrency"]
 categories = ["database-implementations", "data-structures", "concurrency", "algorithms", "memory-management"]
 

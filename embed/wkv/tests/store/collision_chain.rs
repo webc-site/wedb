@@ -193,3 +193,82 @@ fn test_rc_collision_head_buried_delete() -> Void {
 
   OK
 }
+
+/// 满载链删除未命中零分配回归（对标 C# InternalDelete 的 FindTag 纯查找语义，
+/// Helpers.cs:FindTagAndTryEphemeralXLock → TsavoriteBase.FindTag：只查不建）：
+/// 桶链被互异 Tag 全量铺满后，对同桶异 Tag 的不存在键反复 DELETE，索引侧绝不
+/// 为单次未命中分配不可回收的溢出桶（find_or_create_tag 的建槽语义仅供 Upsert/RMW，
+/// 满载链删除未命中走建槽路径将随删除流量单向耗尽溢出桶池）。
+#[test]
+fn test_delete_miss_on_full_chain_never_allocates_overflow() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let dir = tempdir()?;
+    let device = Arc::new(SegmentedDevice::single_file(
+      dir.path().join("full_chain_delete.db"),
+    )?);
+    let config = StoreConfig::new(64, SECTOR_ALIGNMENT, 16, 0.5)?;
+    let store = Arc::new(WedbStore::open(config, device)?);
+    let session = store.new_session()?;
+
+    let bucket_mask = store.index.mask as u64;
+    let tag_shift = windex::HashBucketEntry::HASH_TAG_SHIFT;
+
+    // 删除未命中键：定位其物理键哈希的桶号与 15 位指纹
+    let missing_phys = session.session_string_key(b"missing-key-full-chain");
+    let missing_hash = HashIndex::hash_key(missing_phys.as_slice());
+    let bucket_idx = missing_hash & bucket_mask;
+    let missing_tag = windex::HashBucketEntry::tag_from_hash(missing_hash) as u64;
+
+    // 用与 missing 同桶、互异 Tag 的合成条目把整条链铺满（主桶 7 + 溢出桶 7×2 = 21），
+    // 合成 Tag 跳过 missing 自身指纹，杜绝误命中
+    let filler_tags: Vec<u64> = (1u64..).filter(|&t| t != missing_tag).take(21).collect();
+    let filler_hashes: Vec<(u64, u64)> = filler_tags
+      .iter()
+      .enumerate()
+      .map(|(i, &t)| ((t << tag_shift) | bucket_idx, 0x10_0000 + i as u64))
+      .collect();
+    for &(hash, addr) in &filler_hashes {
+      store.index.insert_by_hash(hash, addr)?;
+    }
+
+    let before = store.index.overflow_bucket_count();
+    assert_eq!(
+      before, 2,
+      "21 个合成条目应恰好级联 2 个溢出桶且目标链全满无空槽"
+    );
+
+    // 反复删除同桶异 Tag 的不存在键：恒 NOTFOUND 且溢出桶计数严格不增
+    for _ in 0..16 {
+      let deleted = session.try_delete_raw_sync(missing_phys.as_slice())?;
+      assert_eq!(deleted, Ok(false), "不存在键删除必须报告未删除");
+    }
+    assert_eq!(
+      store.index.overflow_bucket_count(),
+      before,
+      "满载链上的删除未命中绝不允许分配溢出桶（对标 C# FindTag 只查不建语义）"
+    );
+
+    // 对照组：同桶且 Tag 不与任何合成条目重合的真实存在键，upsert（合法建槽）
+    // 后删除必须照常生效
+    let live = (0u64..)
+      .map(|i| format!("live-key-same-bucket-{i}"))
+      .find(|k| {
+        let phys = session.session_string_key(k.as_bytes());
+        let hash = HashIndex::hash_key(phys.as_slice());
+        hash & bucket_mask == bucket_idx
+          && !filler_tags.contains(&(windex::HashBucketEntry::tag_from_hash(hash) as u64))
+          && windex::HashBucketEntry::tag_from_hash(hash) != missing_tag as u16
+      })
+      .expect("对照键搜索不可能耗尽");
+    session.upsert(live.as_bytes(), b"live-value").await?;
+    let deleted =
+      session.try_delete_raw_sync(session.session_string_key(live.as_bytes()).as_slice())?;
+    assert_eq!(deleted, Ok(true), "真实存在键删除必须生效");
+    assert_eq!(session.read(live.as_bytes()).await?, None);
+
+    OK
+  })?;
+
+  OK
+}

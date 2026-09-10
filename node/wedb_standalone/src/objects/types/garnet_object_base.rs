@@ -11,6 +11,10 @@ use crate::{
     parse_utils::{equals_ignore_case, try_get_int, try_get_long},
     types::i_garnet_object::IGarnetObject,
   },
+  resp::cmd_strings::{
+    RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+  },
   types::GarnetObjectType,
 };
 
@@ -66,7 +70,7 @@ pub trait GarnetObjectBase: IGarnetObject {
       None
     })
     .filter(|c| *c >= 0) else {
-      return Err(b"ERR invalid cursor");
+      return Err(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
     };
     result.cursor = cursor;
 
@@ -77,13 +81,13 @@ pub trait GarnetObjectBase: IGarnetObject {
 
       if equals_ignore_case(param, b"MATCH") {
         if curr_token_idx >= input.parse_state.count {
-          return Err(b"ERR syntax error");
+          return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         result.pattern = arg(input, curr_token_idx).to_vec();
         curr_token_idx += 1;
       } else if equals_ignore_case(param, b"COUNT") {
         if curr_token_idx >= input.parse_state.count {
-          return Err(b"ERR syntax error");
+          return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
         }
         match try_get_int(arg(input, curr_token_idx)) {
           Some(c) => {
@@ -94,7 +98,7 @@ pub trait GarnetObjectBase: IGarnetObject {
               result.count = i64::from(limit_count_in_output);
             }
           }
-          None => return Err(b"ERR value is not an integer or out of range"),
+          None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes()),
         }
       } else if equals_ignore_case(param, b"NOVALUES") {
         result.is_no_value = true;

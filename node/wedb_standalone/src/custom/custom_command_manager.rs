@@ -16,6 +16,9 @@ use parking_lot::RwLock;
 
 use crate::types::GarnetObjectType;
 
+/// 模块加载失败通用文案（对齐 CmdStrings.RESP_ERR_MODULE_ONLOAD，本域两处复用）。
+const ERR_MODULE_FAILED_TO_LOAD: &str = "ERR module failed to load";
+
 /// 自定义原始字符串命令的注册上限（对齐 C# MaxCustomRawStringCommands）。
 const MAX_CUSTOM_RAW_STRING_COMMANDS: usize = 256;
 
@@ -430,11 +433,11 @@ impl CustomCommandManager {
     // OnLoad 执行承接：模块登记即加载成功（wserver 模块域桥接后接入真实回调）
     let initialized = !module_name.is_empty();
     if !initialized {
-      return Err("ERR module failed to load");
+      return Err(ERR_MODULE_FAILED_TO_LOAD);
     }
     self
       .try_add_module(module_name, version)
-      .ok_or("ERR module failed to load")?;
+      .ok_or(ERR_MODULE_FAILED_TO_LOAD)?;
     Ok(())
   }
 
