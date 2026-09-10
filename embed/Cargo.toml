@@ -52,11 +52,11 @@ version = "0.1.3"
 path = "wbftree"
 
 [workspace.dependencies.wcompact]
-version = "0.1.0"
+version = "0.1.1"
 path = "wcompact"
 
 [workspace.dependencies.wcpr]
-version = "0.1.0"
+version = "0.1.1"
 path = "wcpr"
 
 [workspace.dependencies.wdev]
@@ -72,15 +72,15 @@ version = "0.1.6"
 path = "whasher"
 
 [workspace.dependencies.whlog]
-version = "0.1.1"
+version = "0.1.2"
 path = "whlog"
 
 [workspace.dependencies.windex]
-version = "0.1.0"
+version = "0.1.1"
 path = "windex"
 
 [workspace.dependencies.wram]
-version = "0.1.3"
+version = "0.1.4"
 path = "wram"
 
 [workspace.dependencies.wrecord]
@@ -88,11 +88,11 @@ version = "0.1.2"
 path = "wrecord"
 
 [workspace.dependencies.wreviv]
-version = "0.1.0"
+version = "0.1.1"
 path = "wreviv"
 
 [workspace.dependencies.wval]
-version = "0.1.0"
+version = "0.1.1"
 path = "wval"
 
 [workspace.dependencies.futures-util]
