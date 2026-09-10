@@ -47,7 +47,7 @@ lua 用 luau
 
 如果遇到主分支修改，请提交，然后合并（注意更新 worktree，避免落后）。
 
-写完之后 ./clippy.sh 和 ./test.sh，确保没有警告
+写完之后 ./clippy.sh 和 ./test.sh，确保没有警告(必须用 rust 的编程风格重构，禁写 allow)
 
 子代理开发，要效率最大化，分析拓扑，并发启动
 
