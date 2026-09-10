@@ -47,12 +47,15 @@ pub(crate) use inbox::{ChainIter, CrossThreadInbox, FreeNode};
 pub(crate) use tls::TLS_POOLS;
 pub use tls::current_thread_id;
 
-use crate::error::{Error, Result};
+use crate::{
+  align::{MIN_SECTOR_SIZE, is_valid_sector_size},
+  error::{Error, Result},
+};
 
 #[inline]
 pub(crate) fn validate_sector_size(size: usize) -> Result<()> {
-  if !crate::align::is_valid_sector_size(size) {
-    return Err(Error::InvalidAlignment(size, crate::align::MIN_SECTOR_SIZE));
+  if !is_valid_sector_size(size) {
+    return Err(Error::InvalidAlignment(size, MIN_SECTOR_SIZE));
   }
   Ok(())
 }
