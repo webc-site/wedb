@@ -7,7 +7,7 @@
 
 use super::{
   transaction_manager::{TransactionManager, TxnState},
-  txn_key_entry::LockType,
+  txn_key_entry::{LockType, TxnKeyEntries},
   txn_key_entry_comparison::TxnKeyEntryComparison,
 };
 use crate::{
@@ -51,15 +51,32 @@ pub struct TxnCommandKeys {
 }
 
 impl TransactionManager {
+  /// 锁登记内核（libs/server/Transaction/TxnKeyManager.cs:SaveKeyEntryToLock
+  /// 主体；跨文件 impl 域的字段拆借路径共用，避免 WATCH 键并集路径与
+  /// 容器借用冲突）
+  pub(crate) fn register_key_lock(
+    key_entries: &mut TxnKeyEntries,
+    perform_writes: &mut bool,
+    key: &[u8],
+    lock_type: LockType,
+  ) {
+    // 排他锁型标记事务含写操作（决定 AOF 事务条目是否记录）
+    *perform_writes |= lock_type == LockType::Exclusive;
+    key_entries.add_key(TxnKeyEntryComparison::key_hash(key), lock_type);
+  }
+
   /// 登记待锁键
   ///
   /// libs/server/Transaction/TxnKeyManager.cs:SaveKeyEntryToLock
   ///
   /// 排他锁型标记事务含写操作（决定 AOF 事务条目是否记录）。
   pub fn save_key_entry_to_lock(&mut self, key: &[u8], lock_type: LockType) {
-    self.perform_writes |= lock_type == LockType::Exclusive;
-    let key_hash = TxnKeyEntryComparison::key_hash(key);
-    self.key_entries.add_key(key_hash, lock_type);
+    Self::register_key_lock(
+      &mut self.key_entries,
+      &mut self.perform_writes,
+      key,
+      lock_type,
+    );
   }
 
   /// 重置集群槽校验结果缓存
@@ -128,7 +145,9 @@ impl TransactionManager {
         key_spec.last_idx.min(session.parse_state.count as i64)
       };
       let mut curr_idx = key_spec.first_idx;
-      while curr_idx <= last_idx as usize {
+      // curr_idx < count 越界防护：参数不足的边界形态不得 panic（C# 同位
+      // 置 GetArgSliceByRef 越界抛异常，此处以静默截断承接）
+      while curr_idx <= last_idx as usize && curr_idx < session.parse_state.count {
         let key = session.parse_state.get_arg_slice_by_ref(curr_idx);
         let key_bytes = key.as_slice();
         let lock_type = if key_spec.read_only {

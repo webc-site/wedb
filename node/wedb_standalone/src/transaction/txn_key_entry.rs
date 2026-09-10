@@ -11,6 +11,8 @@ use std::{
   time::Duration,
 };
 
+use gxhash::HashMap as GxHashMap;
+
 use super::txn_lock_table::{TxnKeyLockGuard, TxnLockTable};
 
 /// 进程级共享锁表（C# Tsavorite 锁表挂在统一存储会话上，进程内所有
@@ -125,27 +127,42 @@ impl TxnKeyEntries {
     });
   }
 
-  /// 归并加锁计划：按键哈希 + 锁型降序排序，同条带（桶）取最强锁型
+  /// 归并加锁计划：按键哈希 + 锁型降序排序，同条带（桶）取最强锁型；
+  /// 计划按条带下标升序输出——条带集相同的任意两事务获得同一取锁全序，
+  /// 消除"哈希序与条带序跨 2^30 段相反"导致的死锁窗口
   fn lock_plan(&mut self) -> Vec<LockPlanSlot> {
     self
       .keys
       .sort_by(super::txn_key_entry_comparison::TxnKeyEntryComparison::compare);
     let mut plan: Vec<LockPlanSlot> = Vec::with_capacity(self.keys.len());
+    let mut slot_by_stripe: GxHashMap<usize, usize> = GxHashMap::default();
     for entry in &self.keys {
       let stripe = GLOBAL_LOCK_TABLE.stripe_index(entry.key_hash);
-      match plan
-        .iter_mut()
-        .find(|slot| GLOBAL_LOCK_TABLE.stripe_index(slot.key_hash) == stripe)
-      {
+      let exclusive = entry.lock_type == LockType::Exclusive;
+      match slot_by_stripe.get(&stripe) {
         // 同条带已有锁位：保留排他强度
-        Some(slot) => slot.exclusive |= entry.lock_type == LockType::Exclusive,
-        None => plan.push(LockPlanSlot {
-          key_hash: entry.key_hash,
-          exclusive: entry.lock_type == LockType::Exclusive,
-        }),
+        Some(&slot_idx) => plan[slot_idx].exclusive |= exclusive,
+        None => {
+          slot_by_stripe.insert(stripe, plan.len());
+          plan.push(LockPlanSlot {
+            key_hash: entry.key_hash,
+            exclusive,
+          });
+        }
       }
     }
+    plan.sort_unstable_by_key(|slot| GLOBAL_LOCK_TABLE.stripe_index(slot.key_hash));
     plan
+  }
+
+  /// 测试观测口：归并计划的条带取锁序列
+  #[cfg(test)]
+  fn test_lock_plan_stripes(&mut self) -> Vec<usize> {
+    self
+      .lock_plan()
+      .iter()
+      .map(|slot| GLOBAL_LOCK_TABLE.stripe_index(slot.key_hash))
+      .collect()
   }
 
   /// 阻塞加锁全部键（libs/server/Transaction/TxnKeyEntry.cs:LockAllKeys）
@@ -290,6 +307,50 @@ mod tests {
     let mut e = entries(&[(7, LockType::Shared), (7, LockType::Exclusive)]);
     e.lock_all_keys();
     e.unlock_all_keys();
+  }
+
+  #[test]
+  fn lock_plan_is_ordered_by_stripe_not_hash() {
+    // 跨 2^30 段构造"哈希序与条带序相反"：0x3FF00000 → 条带 1023，
+    // 0x40000000 → 条带 0；哈希升序下 1023 在前，归序后必须条带升序
+    let mut e = entries(&[
+      (0x3FF0_0000, LockType::Exclusive),
+      (0x4000_0000, LockType::Exclusive),
+    ]);
+    assert_eq!(e.test_lock_plan_stripes(), vec![0, 1023]);
+  }
+
+  #[test]
+  fn crossing_stripe_orders_lock_without_deadlock() {
+    use std::thread;
+
+    // 两事务条带集同为 {0, 1023}、哈希序相反：若按哈希序取条带锁，
+    // 并发反复过锁必然出现环死锁；归序后同序串行化，循环无悬停
+    let sets: Vec<Vec<(i64, LockType)>> = vec![
+      vec![
+        (0x3FF0_0000, LockType::Exclusive),
+        (0x4000_0000, LockType::Exclusive),
+      ],
+      vec![
+        (0x0000_0000, LockType::Exclusive),
+        (0x7FF0_0000, LockType::Exclusive),
+      ],
+    ];
+    let handles: Vec<_> = sets
+      .into_iter()
+      .map(|set| {
+        thread::spawn(move || {
+          for _ in 0..64 {
+            let mut e = entries(&set);
+            e.lock_all_keys();
+            e.unlock_all_keys();
+          }
+        })
+      })
+      .collect();
+    for handle in handles {
+      handle.join().expect("竞争事务不得死锁");
+    }
   }
 
   #[test]

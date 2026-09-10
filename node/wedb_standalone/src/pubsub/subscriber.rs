@@ -46,7 +46,8 @@ pub trait PubSubSink: Send + Sync {
 /// 邮箱投递面：有界队列 + 溢出丢弃计数
 ///
 /// C# 侧发布即直写会话缓冲（背压由网络发送器承担）；托管面以有界邮箱
-/// 解耦线程，溢出按尾部丢弃并计数（对齐 Redis 发布不可靠语义的安全方向）。
+/// 解耦线程，溢出丢弃最旧消息并计数（保新弃旧，对齐 Redis 发布不可靠
+/// 语义的安全方向）。
 pub struct PubSubMailbox {
   /// 队列容量上限
   capacity: usize,
@@ -86,7 +87,7 @@ impl PubSubMailbox {
     self.dropped.load(Relaxed)
   }
 
-  /// 入队（满则弃尾并计数）
+  /// 入队（满则丢弃最旧并计数）
   fn push(&self, message: PubSubMessage) {
     let mut queue = self.queue.lock();
     if queue.len() >= self.capacity {
