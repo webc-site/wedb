@@ -11,6 +11,8 @@ use std::sync::Arc;
 use gxhash::HashMap as GxHashMap;
 
 use crate::{
+  arg_slice::ArgSlice,
+  objects::parse_utils::try_get_int,
   resp::resp_server_session::{RespCommandDispatch, RespServerSession},
   storage::session::storage_session::StoreType,
   transaction::{
@@ -160,7 +162,7 @@ fn parse_one(session: &mut RespServerSession, tokens: &mut Vec<Vec<u8>>) -> Opti
   if head.first() != Some(&b'*') {
     return None;
   }
-  let count = crate::objects::parse_utils::try_get_int(&head[1..])?;
+  let count = try_get_int(&head[1..])?;
 
   tokens.clear();
   for _ in 0..count.max(0) {
@@ -168,7 +170,7 @@ fn parse_one(session: &mut RespServerSession, tokens: &mut Vec<Vec<u8>>) -> Opti
     if len_line.first() != Some(&b'$') {
       return None;
     }
-    let len = crate::objects::parse_utils::try_get_int(&len_line[1..])? as usize;
+    let len = try_get_int(&len_line[1..])? as usize;
     if cursor + len + 2 > buffer.len() {
       return None;
     }
@@ -192,7 +194,7 @@ fn parse_one(session: &mut RespServerSession, tokens: &mut Vec<Vec<u8>>) -> Opti
 
   let arg_slices = tokens[1..]
     .iter()
-    .map(|token| crate::arg_slice::ArgSlice::new(token.as_ptr(), token.len()))
+    .map(|token| ArgSlice::new(token.as_ptr(), token.len()))
     .collect::<Vec<_>>();
   session.parse_state.initialize_with_args(&arg_slices);
   Some(cmd)
@@ -352,7 +354,7 @@ fn nested_multi_then_exec_aborts_with_execabort() {
   assert!(out.contains("+QUEUED"));
   assert!(out.contains("ERR MULTI calls can not be nested"));
   assert!(out.contains("EXECABORT"));
-  assert!(dispatch.store.get(b"a".as_slice()).is_none());
+  assert!(!dispatch.store.contains_key(b"a".as_slice()));
   assert_eq!(dispatch.txn.state, TxnState::None);
 }
 
@@ -373,7 +375,7 @@ fn discard_clears_queue() {
   let out = String::from_utf8_lossy(&session.output);
   assert!(out.starts_with("+OK\r\n+QUEUED\r\n+OK\r\n"));
   assert!(out.contains("ERR EXEC without MULTI"));
-  assert!(dispatch.store.get(b"a".as_slice()).is_none());
+  assert!(!dispatch.store.contains_key(b"a".as_slice()));
 }
 
 /// 只读事务（GET）走共享锁：EXEC 正常返回执行应答
