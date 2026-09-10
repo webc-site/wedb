@@ -26,11 +26,6 @@ use crate::types::RespCommand;
 /// C# MaxRespArrayLength：单条 RESP 命令参数上限（防预认证内存耗尽）
 pub const MAX_RESP_ARRAY_LENGTH: usize = 1 << 20;
 
-/// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommandNoHelp
-///
-///（cmd_strings 域暂缺该常量，本地对齐同一字节文本）
-const GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP: &str = "ERR unknown subcommand '{0}'";
-
 /// 主命令名称表项
 type PrimaryEntry = (&'static str, RespCommand, bool);
 
@@ -500,7 +495,9 @@ fn lookup_subcommand(parent: RespCommand, name: &[u8]) -> Option<RespCommand> {
   lookup_in_table(table, name)
 }
 
-/// C# IsAofIndependent：AOF 无关命令集（读写不依赖日志直写）
+/// C# IsAofIndependent：AOF 无关命令集（读写不依赖日志直写）。
+/// 逐项对标 libs/server/Resp/Parser/RespCommand.cs:AofIndependentCommands
+///（47 项，含 CLIENT/COMMAND/MEMORY/CONFIG/LATENCY/SLOWLOG 全族与 MULTI）
 static AOF_INDEPENDENT_COMMANDS: &[RespCommand] = &[
   RespCommand::Async,
   RespCommand::Ping,
@@ -524,6 +521,38 @@ static AOF_INDEPENDENT_COMMANDS: &[RespCommand] = &[
   RespCommand::AclSetuser,
   RespCommand::AclUsers,
   RespCommand::AclWhoami,
+  // Client 族
+  RespCommand::ClientId,
+  RespCommand::ClientInfo,
+  RespCommand::ClientList,
+  RespCommand::ClientKill,
+  RespCommand::ClientGetname,
+  RespCommand::ClientSetname,
+  RespCommand::ClientSetinfo,
+  RespCommand::ClientUnblock,
+  // Command 族
+  RespCommand::Command,
+  RespCommand::CommandCount,
+  RespCommand::CommandDocs,
+  RespCommand::CommandInfo,
+  RespCommand::CommandGetkeys,
+  RespCommand::CommandGetkeysandflags,
+  // Memory / Config 族
+  RespCommand::MemoryUsage,
+  RespCommand::ConfigGet,
+  RespCommand::ConfigRewrite,
+  RespCommand::ConfigSet,
+  // Latency 族
+  RespCommand::LatencyHelp,
+  RespCommand::LatencyHistogram,
+  RespCommand::LatencyReset,
+  // Slowlog 族
+  RespCommand::SlowlogHelp,
+  RespCommand::SlowlogLen,
+  RespCommand::SlowlogGet,
+  RespCommand::SlowlogReset,
+  // 事务
+  RespCommand::Multi,
 ];
 
 /// C# RespCommandExtensions.IsAofIndependent
@@ -999,7 +1028,9 @@ impl RespServerSession {
       *specific_error = Some(if parent_cmd == RespCommand::Bitop {
         cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes().to_vec()
       } else {
-        format!("ERR wrong number of arguments for '{parent}' command").into_bytes()
+        cs::GENERIC_ERR_WRONG_NUM_ARGS
+          .replace("{0}", &parent)
+          .into_bytes()
       });
       return Some(RespCommand::Invalid);
     }
@@ -1023,7 +1054,7 @@ impl RespServerSession {
         .replace("{1}", &parent)
         .into_bytes()
     } else {
-      GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP
+      cs::GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP
         .replace("{0}", &sub_text)
         .into_bytes()
     });
@@ -1054,6 +1085,13 @@ use crate::resp::resp_server_session::TxnState;
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  /// 测试用父命令-子表三元组(父命令名, 父命令, 子命令表)
+  type ParentSubtable = (
+    &'static str,
+    RespCommand,
+    &'static [(&'static str, RespCommand)],
+  );
 
   fn parse_one(
     session: &mut RespServerSession,
@@ -1187,11 +1225,11 @@ mod tests {
     let (cmd, _) = parse_one(&mut s, b"*2\r\n$6\r\nCONFIG\r\n$3\r\nGET\r\n");
     assert_eq!(cmd, Some(RespCommand::ConfigGet));
 
-    // 未知子命令 → Invalid + 无提示版文案
+    // 未知子命令 → Invalid + 无提示版文案（C# 文案自带句号）
     let (cmd, _) = parse_one(&mut s, b"*2\r\n$6\r\nCLIENT\r\n$4\r\nNOPE\r\n");
     assert_eq!(cmd, Some(RespCommand::Invalid));
     let out = s.take_output();
-    assert_eq!(out, b"-ERR unknown subcommand 'NOPE'\r\n");
+    assert_eq!(out, b"-ERR unknown subcommand 'NOPE'.\r\n");
 
     // CLUSTER 未知子命令 → 带帮助提示文案
     let (cmd, _) = parse_one(&mut s, b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nNOPE\r\n");
@@ -1213,6 +1251,62 @@ mod tests {
     assert_eq!(cmd, Some(RespCommand::Invalid));
     let out = s.take_output();
     assert_eq!(out, b"-ERR unknown command\r\n");
+  }
+
+  /// 主表 + 子命令表全量端到端 round-trip:每一条表项都构造真实 RESP 帧
+  /// 解析,命中期望命令(二分可达性 + 名称/枚举映射的全量回归,不止抽样)
+  #[test]
+  fn every_table_entry_round_trips_via_parse() {
+    let mut s = RespServerSession::default();
+
+    // 主表:非父命令 `*2 NAME k` → 命令本身(1 个参数)
+    for (name, cmd, has_subcommands) in PRIMARY_TABLE {
+      if *has_subcommands {
+        continue;
+      }
+      let frame = format!("*2\r\n${}\r\n{name}\r\n$1\r\nk\r\n", name.len());
+      let (parsed, _) = parse_one(&mut s, frame.as_bytes());
+      assert_eq!(parsed, Some(*cmd), "主表 {name} 解析不可达");
+    }
+
+    // 父命令 + 子命令:`*2 PARENT SUB` → 子命令
+    let subtables: [ParentSubtable; 13] = [
+      ("CLIENT", RespCommand::Client, CLIENT_SUBTABLE),
+      ("CONFIG", RespCommand::Config, CONFIG_SUBTABLE),
+      ("COMMAND", RespCommand::Command, COMMAND_SUBTABLE),
+      ("ACL", RespCommand::Acl, ACL_SUBTABLE),
+      ("SCRIPT", RespCommand::Script, SCRIPT_SUBTABLE),
+      ("PUBSUB", RespCommand::Pubsub, PUBSUB_SUBTABLE),
+      ("LATENCY", RespCommand::Latency, LATENCY_SUBTABLE),
+      ("SLOWLOG", RespCommand::Slowlog, SLOWLOG_SUBTABLE),
+      ("MODULE", RespCommand::Module, MODULE_SUBTABLE),
+      ("MEMORY", RespCommand::Memory, MEMORY_SUBTABLE),
+      ("OBJECT", RespCommand::Object, OBJECT_SUBTABLE),
+      ("CLUSTER", RespCommand::Cluster, CLUSTER_SUBTABLE),
+      ("BITOP", RespCommand::Bitop, BITOP_SUBTABLE),
+    ];
+    for (parent_name, parent_cmd, table) in subtables {
+      // 父命令项须在主表且带子命令标记
+      let entry = lookup_primary(parent_name.as_bytes());
+      assert_eq!(
+        entry,
+        Some((parent_cmd, true)),
+        "主表缺父命令 {parent_name}"
+      );
+      for (sub_name, sub_cmd) in table {
+        let frame = format!(
+          "*2\r\n${}\r\n{parent_name}\r\n${}\r\n{sub_name}\r\n",
+          parent_name.len(),
+          sub_name.len()
+        );
+        let (parsed, _) = parse_one(&mut s, frame.as_bytes());
+        assert_eq!(
+          parsed,
+          Some(*sub_cmd),
+          "{parent_name} {sub_name} 解析不可达"
+        );
+      }
+    }
   }
 
   /// 主表二分检索回归：HELLO/HDEL 曾乱序致 HDEL 漏查；父命令与子命令表
@@ -1355,9 +1449,155 @@ mod tests {
 
   #[test]
   fn is_aof_independent_matches_csharp_set() {
-    assert!(is_aof_independent(RespCommand::Ping));
-    assert!(is_aof_independent(RespCommand::AclWhoami));
+    // 逐项对标 RespCommand.cs:AofIndependentCommands 的 47 项全集
+    let csharp_set: &[RespCommand] = &[
+      RespCommand::Async,
+      RespCommand::Ping,
+      RespCommand::Select,
+      RespCommand::Swapdb,
+      RespCommand::Echo,
+      RespCommand::Monitor,
+      RespCommand::ModuleLoadcs,
+      RespCommand::Registercs,
+      RespCommand::Info,
+      RespCommand::Time,
+      RespCommand::Lastsave,
+      RespCommand::AclCat,
+      RespCommand::AclDeluser,
+      RespCommand::AclGenpass,
+      RespCommand::AclGetuser,
+      RespCommand::AclList,
+      RespCommand::AclLoad,
+      RespCommand::AclSave,
+      RespCommand::AclSetuser,
+      RespCommand::AclUsers,
+      RespCommand::AclWhoami,
+      RespCommand::ClientId,
+      RespCommand::ClientInfo,
+      RespCommand::ClientList,
+      RespCommand::ClientKill,
+      RespCommand::ClientGetname,
+      RespCommand::ClientSetname,
+      RespCommand::ClientSetinfo,
+      RespCommand::ClientUnblock,
+      RespCommand::Command,
+      RespCommand::CommandCount,
+      RespCommand::CommandDocs,
+      RespCommand::CommandInfo,
+      RespCommand::CommandGetkeys,
+      RespCommand::CommandGetkeysandflags,
+      RespCommand::MemoryUsage,
+      RespCommand::ConfigGet,
+      RespCommand::ConfigRewrite,
+      RespCommand::ConfigSet,
+      RespCommand::LatencyHelp,
+      RespCommand::LatencyHistogram,
+      RespCommand::LatencyReset,
+      RespCommand::SlowlogHelp,
+      RespCommand::SlowlogLen,
+      RespCommand::SlowlogGet,
+      RespCommand::SlowlogReset,
+      RespCommand::Multi,
+    ];
+    // 集合相等（不多、不少、不重复）
+    assert_eq!(AOF_INDEPENDENT_COMMANDS.len(), csharp_set.len());
+    for cmd in csharp_set {
+      assert!(is_aof_independent(*cmd), "{cmd:?} 应为 AOF 无关");
+    }
+    for cmd in AOF_INDEPENDENT_COMMANDS {
+      assert!(csharp_set.contains(cmd), "{cmd:?} 不在 C# 集内");
+    }
+    // AOF 相关命令不置独立位
     assert!(!is_aof_independent(RespCommand::Set));
+    assert!(!is_aof_independent(RespCommand::Get));
     assert!(!is_aof_independent(RespCommand::Invalid));
+    assert!(!is_aof_independent(RespCommand::None));
+    assert!(!is_aof_independent(RespCommand::Latency));
+    assert!(!is_aof_independent(RespCommand::Slowlog));
+  }
+
+  /// 二分可达性回归:所有有序表必须严格 ASCII 升序
+  ///(主表曾发生 HELLO/HDEL 乱序致 HDEL 漏查)
+  #[test]
+  fn ordered_tables_strictly_ascending() {
+    for pair in PRIMARY_TABLE.windows(2) {
+      assert!(
+        pair[0].0.as_bytes() < pair[1].0.as_bytes(),
+        "PRIMARY_TABLE 乱序: {} >= {}",
+        pair[0].0,
+        pair[1].0
+      );
+    }
+    for table in [
+      CLIENT_SUBTABLE,
+      CONFIG_SUBTABLE,
+      COMMAND_SUBTABLE,
+      ACL_SUBTABLE,
+      SCRIPT_SUBTABLE,
+      PUBSUB_SUBTABLE,
+      LATENCY_SUBTABLE,
+      SLOWLOG_SUBTABLE,
+      MODULE_SUBTABLE,
+      MEMORY_SUBTABLE,
+      OBJECT_SUBTABLE,
+      CLUSTER_SUBTABLE,
+      BITOP_SUBTABLE,
+    ] {
+      for pair in table.windows(2) {
+        assert!(
+          pair[0].0.as_bytes() < pair[1].0.as_bytes(),
+          "子命令表乱序: {} >= {}",
+          pair[0].0,
+          pair[1].0
+        );
+      }
+    }
+  }
+
+  /// 每个 has_subcommands 父命令都必须注册子表分派且子表非空;
+  /// 带子表标记的父命令恰为 C# PopulatePrimaryTable 的 13 个
+  #[test]
+  fn parent_commands_have_subtable_dispatch() {
+    let parents: Vec<(&str, RespCommand)> = PRIMARY_TABLE
+      .iter()
+      .filter(|(.., has_sub)| *has_sub)
+      .map(|(name, cmd, _)| (*name, *cmd))
+      .collect();
+
+    // C# PopulatePrimaryTable 中 hasSub: true 的 13 个父命令
+    let expected: [&str; 13] = [
+      "ACL", "BITOP", "CLIENT", "CLUSTER", "COMMAND", "CONFIG", "LATENCY", "MEMORY", "MODULE",
+      "OBJECT", "PUBSUB", "SCRIPT", "SLOWLOG",
+    ];
+    let mut names: Vec<&str> = parents.iter().map(|(name, _)| *name).collect();
+    names.sort_unstable();
+    assert_eq!(names, expected);
+
+    for (name, cmd) in parents {
+      let table: &[(&str, RespCommand)] = match cmd {
+        RespCommand::Client => CLIENT_SUBTABLE,
+        RespCommand::Config => CONFIG_SUBTABLE,
+        RespCommand::Command => COMMAND_SUBTABLE,
+        RespCommand::Acl => ACL_SUBTABLE,
+        RespCommand::Script => SCRIPT_SUBTABLE,
+        RespCommand::Pubsub => PUBSUB_SUBTABLE,
+        RespCommand::Latency => LATENCY_SUBTABLE,
+        RespCommand::Slowlog => SLOWLOG_SUBTABLE,
+        RespCommand::Module => MODULE_SUBTABLE,
+        RespCommand::Memory => MEMORY_SUBTABLE,
+        RespCommand::Object => OBJECT_SUBTABLE,
+        RespCommand::Cluster => CLUSTER_SUBTABLE,
+        RespCommand::Bitop => BITOP_SUBTABLE,
+        _ => &[],
+      };
+      assert!(!table.is_empty(), "父命令 {name} 缺子表分派");
+      // 首个与末个子命令均可命中（二分端点可达）
+      assert_eq!(
+        lookup_subcommand(cmd, table[0].0.as_bytes()),
+        Some(table[0].1)
+      );
+      let last = table[table.len() - 1];
+      assert_eq!(lookup_subcommand(cmd, last.0.as_bytes()), Some(last.1));
+    }
   }
 }

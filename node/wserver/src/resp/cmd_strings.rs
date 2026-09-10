@@ -118,6 +118,8 @@ pub const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for 
 pub const GENERIC_ERR_UNSUPPORTED_OPTION: &str = "ERR Unsupported option {0}";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommand
 pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND: &str = "ERR unknown subcommand '{0}'. Try {1} HELP";
+/// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommandNoHelp
+pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP: &str = "ERR unknown subcommand '{0}'.";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommandOrWrongNumberOfArguments
 pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND_OR_WRONG_NUM_ARGS: &str =
   "ERR unknown subcommand or wrong number of arguments for '{0}'. Try {1} HELP";
@@ -193,6 +195,22 @@ mod tests {
     assert_eq!(
       out,
       b"-ERR wrong number of arguments for 'GETEX' command\r\n"
+    );
+  }
+
+  #[test]
+  fn unknown_subcommand_formats() {
+    // C# GenericErrUnknownSubCommandNoHelp 自带句号;GenericErrUnknownSubCommand
+    // 以 "Try <父命令> HELP" 收尾 —— 逐字节对齐 CmdStrings.cs
+    assert_eq!(
+      GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP.replace("{0}", "NOPE"),
+      "ERR unknown subcommand 'NOPE'."
+    );
+    assert_eq!(
+      GENERIC_ERR_UNKNOWN_SUB_COMMAND
+        .replace("{0}", "NOPE")
+        .replace("{1}", "CLUSTER"),
+      "ERR unknown subcommand 'NOPE'. Try CLUSTER HELP"
     );
   }
 
