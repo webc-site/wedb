@@ -42,7 +42,7 @@ whasher = { version = "0.1.5", path = "../../embed/whasher" }
 wkv.workspace = true
 wobject.workspace = true
 wresp.workspace = true
-wutil = { version = "0.1.0", path = "../../embed/wutil" }
+wbase = { workspace = true, features = ["convert", "ascii", "num", "hash_slot", "hash"] }
 
 [dev-dependencies]
 aok = "0.1.18"

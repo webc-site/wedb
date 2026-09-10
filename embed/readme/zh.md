@@ -352,7 +352,7 @@ embed/
 - `Device` / `StorageDevice` trait——异步读 / 写 / 刷与段生命周期。
 - `SegmentedDevice`——可增长分段文件（`single_file` 与 `segmented` 构造器）、`SegmentChunk` / `SegmentChunks`、`FileMap`。
 - `NullDevice`——基准测试用丢弃设备。
-- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wutil::BufferPool`（Utilities 层原语）。
+- `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wbase::BufferPool`（Utilities 层原语）。
 
 ### wrecord —— 记录格式
 

@@ -25,7 +25,7 @@ thiserror = { workspace = true }
 wdev = { workspace = true }
 wepoch = { workspace = true }
 wrecord = { workspace = true }
-wutil = { version = "0.1.0", path = "../wutil" }
+wbase = { workspace = true, features = ["align", "pool"] }
 zmij = { workspace = true }
 
 [dependencies.compio]

@@ -39,4 +39,4 @@ pub use sys::{
 };
 // 例外 re-export（偏离"禁止 pub use 第三方"约定）：whlog 测试经 `wdev::BufferPool`
 // 引用池类型；设备与池总是成对出现，随设备层一并导出属稳定契约，非冗余别名
-pub use wutil::BufferPool;
+pub use wbase::BufferPool;

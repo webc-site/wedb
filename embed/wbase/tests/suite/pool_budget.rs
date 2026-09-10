@@ -9,7 +9,7 @@ use std::{sync::mpsc::channel, thread};
 
 use aok::{OK, Void};
 use log::info;
-use wutil::{
+use wbase::{
   BufferPool, DEFAULT_LARGE_BUDGET_BYTES, DEFAULT_SECTOR_SIZE, DEFAULT_SMALL_BUDGET_BYTES,
   LARGE_TIER_MIN_BYTES, MAX_POOLED_SECTORS, MIN_SECTOR_SIZE, NUM_CLASSES, Result,
   class_capacity_bytes, class_of_sectors,

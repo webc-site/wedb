@@ -24,10 +24,9 @@ description: garnet 转写 rust
 运行时用 compio （一个线程一个 cpu）
 消息队列用 crossfire
 lua 用 luau
-
 只能使用 cargo add 添加依赖，禁改 Cargo.toml
 
-让子代理开 worktree 到/tmp/fork/下面，优化，写完、测试之后合并到当前目录，清理 worktree。
+让子代理通过运行 `./fork.sh <分支名>` 一键在 `/tmp/fork/<分支名>` 创建 worktree 分支。在分支中优化，写完、测试后合并到主目录，删除分支。
 
 运行 `./js/check.js` 可以看到缺失实现或者文档注释的 c# 函数，还可以看到重复定义的 c#函数
 

@@ -10,7 +10,7 @@ use std::{sync::Arc, thread};
 use aok::{OK, Void};
 use compio_buf::{IoBuf, IoBufMut, SetLen};
 use log::info;
-use wutil::{AlignedBuf, DEFAULT_SECTOR_SIZE, Error, MIN_SECTOR_SIZE, SectorRange, is_aligned};
+use wbase::{AlignedBuf, DEFAULT_SECTOR_SIZE, Error, MIN_SECTOR_SIZE, SectorRange, is_aligned};
 
 /// 对齐指针必须满足指定扇区大小的对齐要求
 #[test]
