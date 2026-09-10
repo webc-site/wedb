@@ -2,7 +2,7 @@ use mlua::{Result, Value};
 
 use crate::runner::LuaRunner;
 
-/// garnet相对路径:garnet/libs/server/Lua/LuaCommands.cs:LuaCommands
+/// 在 garnet 中的相对路径:libs/server/Lua/LuaCommands.cs:LuaCommands
 pub struct LuaCommands;
 
 impl LuaCommands {

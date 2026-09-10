@@ -772,6 +772,7 @@ impl LuaRunner {
     let preamble_res = self.run_preamble_for_session();
 
     if let Err(err) = preamble_res {
+      self.host.session = None;
       let mut resp = RespOut::session(out, 2);
       resp.write_error(err);
       return;
