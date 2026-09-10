@@ -341,7 +341,7 @@ fn test_commit_short_write_guard() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:UnsafeTryEnqueueRaw（复制从节点保真落盘场景）
+/// 测试 WalLog::enqueue_raw（复制从节点保真落盘场景，对应 TsavoriteLog.UnsafeTryEnqueueRaw）
 /// raw 帧与 enqueue 交替写入、帧字节逐字保真读回、重启恢复位点一致、
 /// 从节点按帧序列重放地址与主机逐条一致，以及过短/超长帧错误路径。
 #[test]

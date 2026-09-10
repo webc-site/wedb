@@ -88,7 +88,7 @@ fn more_log_compaction_delete_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/MoreLogCompactionTests.cs:DeleteCompactLookup (Scan 模式)
+/// 测试 Scan 模式下的 DeleteCompactLookup 紧缩推进及全量数据准确性
 #[test]
 fn more_log_compaction_delete_scan() -> Void {
   let rt = Runtime::new()?;

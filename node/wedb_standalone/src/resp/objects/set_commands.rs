@@ -567,7 +567,7 @@ impl RespServerSession {
   /// SMOVE source destination member
   ///
   /// libs/server/Resp/Objects/SetCommands.cs:SetMove
-  /// （存储侧语义对标 libs/server/Storage/Session/ObjectStore/SetOps.cs:SetMove）
+  /// （存储侧语义对标 SetOps.SetMove）
   pub fn set_move<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -707,11 +707,11 @@ impl RespServerSession {
       return Ok(true);
     };
     if num_keys < 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
       return Ok(true);
     }
     if parse_state.len() < num_keys as usize + 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+      cs::abort_with_error_message(output, "ERR numkeys should be greater than 0");
       return Ok(true);
     }
 

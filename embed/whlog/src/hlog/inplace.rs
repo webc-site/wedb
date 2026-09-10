@@ -5,7 +5,7 @@ use super::HybridLog;
 use crate::error::{Error, Result};
 
 impl<D: Device> HybridLog<D> {
-  /// 尝试在可变区原位更新记录的值（基于 FillerWords 与动态松弛，严格对标 libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:TrySetPinnedValueSpan & InternalRMW.cs）
+  /// 尝试在可变区原位更新记录的值（基于 FillerWords 与动态松弛，严格对标 Tsavorite TrySetPinnedValueSpan & InternalRMW 原位更新语义）
   ///
   /// 若记录处于内存可变区且新值长度在物理容量容纳范围内（val_len + filler_bytes），
   /// 校验 expected_key 匹配后直接原位覆写并调整松弛填充，零追加、零换页、零 I/O。

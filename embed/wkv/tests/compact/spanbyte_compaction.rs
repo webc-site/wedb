@@ -67,7 +67,7 @@ fn spanbyte_compaction_test1_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest1 (Scan 模式)
+/// 测试 Scan 模式下的 SpanByteLogCompactionTest1 紧缩推进及全量数据准确性
 ///
 /// 相同 2000 条记录落盘流程，采用 Scan 模式紧缩，验证紧缩推进及全量数据准确性。
 #[test]
@@ -186,7 +186,7 @@ fn spanbyte_compaction_test2_multilevel_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest2 (Scan 多层冷热模式)
+/// 测试 Scan 模式下的 SpanByteLogCompactionTest2 多层冷热数据紧缩推进与全量校验
 #[test]
 fn spanbyte_compaction_test2_multilevel_scan() -> Void {
   let rt = Runtime::new()?;
@@ -321,7 +321,7 @@ fn spanbyte_compaction_test3_with_deletions_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionTest3 (Scan 穿插删除模式)
+/// 测试 Scan 模式下的 SpanByteLogCompactionTest3 穿插删除数据紧缩推进与全量校验
 #[test]
 fn spanbyte_compaction_test3_with_deletions_scan() -> Void {
   let rt = Runtime::new()?;
@@ -446,7 +446,7 @@ fn spanbyte_compaction_custom_filter_test1_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest1 (Scan 模式)
+/// 测试 Scan 模式下的 SpanByteLogCompactionCustomFunctionsTest1 自定义过滤紧缩推进与全量校验
 #[test]
 fn spanbyte_compaction_custom_filter_test1_scan() -> Void {
   let rt = Runtime::new()?;
@@ -548,7 +548,7 @@ fn spanbyte_compaction_custom_functions_test2_lookup() -> Void {
   OK
 }
 
-/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest2 (Scan 模式)
+/// 测试 Scan 模式下的 SpanByteLogCompactionCustomFunctionsTest2 自定义函数紧缩推进与全量校验
 #[test]
 fn spanbyte_compaction_custom_functions_test2_scan() -> Void {
   let rt = Runtime::new()?;

@@ -1,34 +1,43 @@
-checkBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-knownStringToBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-loadBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-loadString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-getTop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-type_: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushNil: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushNumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushBoolean: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-toBoolean: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-atPanic: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-newState: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-openLibs: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-checkStack: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-checkNumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rawLen: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushCFunction: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pCall: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rawSetInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rawSet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rawGetInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rawGet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-unref: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-createTable: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-getGlobal: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-setGlobal: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-next: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-pushValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-setTop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-rotate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
-setHook: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+lua_tolstring: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushlstring: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_loadbufferx: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_loadstring: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_newstate: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_newstate: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_openlibs: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_close: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_checkstack: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_checknumber: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_rawlen: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pcallk: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_rawseti: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_rawset: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_rawgeti: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_ref: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+luaL_unref: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_createtable: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_getglobal: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_setglobal: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_gc: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_gettop: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushnil: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushinteger: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushnumber: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushboolean: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_toboolean: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_atpanic: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushcclosure: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_sethook: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_pushvalue: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+lua_version: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+CheckBuffer: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+PushBuffer: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+GetTop: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+AtPanic: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+NewState: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+OpenLibs: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+CheckStack: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+CreateTable: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+SetGlobal: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+SetTop: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+SetHook: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现

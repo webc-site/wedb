@@ -225,7 +225,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 默认写空 bulk string），不返回 NOTFOUND。
   ///
   /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:LCS
-  /// （工作体：libs/server/Storage/Session/MainStore/MainStoreOps.cs:LCSInternal）
+  /// （工作体：LCSInternal 纯函数）
   pub async fn lcs(
     &self,
     key1: &[u8],
