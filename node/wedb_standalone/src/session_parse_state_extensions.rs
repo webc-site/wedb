@@ -739,14 +739,17 @@ pub fn try_get_operation_direction(
   idx: usize,
 ) -> Option<OperationDirection> {
   let arg = parse_state.ext_bytes(idx)?;
-  let value = if eq_upper_ignore_case(arg, b"LEFT") {
-    OperationDirection::Left
+  operation_direction_from_token(arg)
+}
+
+pub fn operation_direction_from_token(arg: &[u8]) -> Option<OperationDirection> {
+  if eq_upper_ignore_case(arg, b"LEFT") {
+    Some(OperationDirection::Left)
   } else if eq_upper_ignore_case(arg, b"RIGHT") {
-    OperationDirection::Right
+    Some(OperationDirection::Right)
   } else {
-    return None;
-  };
-  Some(value)
+    None
+  }
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetSortedSetAddOption

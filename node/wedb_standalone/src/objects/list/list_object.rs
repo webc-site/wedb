@@ -44,19 +44,7 @@ pub enum ListOperation {
   Lpos = 17,
 }
 
-/// 列表操作方向（头/尾）
-///
-/// libs/server/Objects/List/ListObject.cs:OperationDirection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum OperationDirection {
-  /// 左端（头）
-  Left = 0,
-  /// 右端（尾）
-  Right = 1,
-  /// 未知（参数解析失败）
-  Unknown = 2,
-}
+pub use wobject::list::list_object::OperationDirection;
 
 /// 列表对象
 ///
