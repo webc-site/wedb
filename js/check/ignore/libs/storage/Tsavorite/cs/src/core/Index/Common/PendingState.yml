@@ -1,5 +1,4 @@
-fn:
-  - CopyInputsForReadOrRMW
-  - CopyKey
-  - CopyFrom
-  - TransferFrom
+CopyInputsForReadOrRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyFrom: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方
+TransferFrom: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

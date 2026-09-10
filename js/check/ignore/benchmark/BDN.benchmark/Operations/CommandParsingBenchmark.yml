@@ -1,20 +1,19 @@
-fn:
-  - GlobalSetup
-  - SlowConsumeMessage
-  - ParsePING
-  - ParseGET
-  - ParseSET
-  - ParseINCR
-  - ParseEXISTS
-  - ParseSETEX
-  - ParsePUBLISH
-  - ParseEXPIRE
-  - ParseHSET
-  - ParseLPUSH
-  - ParseZADD
-  - ParseZRANGEBYSCORE
-  - ParseZREMRANGEBYSCORE
-  - ParseHINCRBYFLOAT
-  - ParseSUBSCRIBE
-  - ParseGEORADIUS
-  - ParseSETIFMATCH
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParsePING: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseGET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseSET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseINCR: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseEXISTS: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseSETEX: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParsePUBLISH: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseEXPIRE: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseHSET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseLPUSH: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseZADD: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseZRANGEBYSCORE: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseZREMRANGEBYSCORE: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseHINCRBYFLOAT: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseSUBSCRIBE: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseGEORADIUS: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseSETIFMATCH: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

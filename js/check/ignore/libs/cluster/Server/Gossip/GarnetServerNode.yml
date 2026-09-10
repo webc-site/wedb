@@ -1,11 +1,10 @@
-fn:
-  - GetClientTimeoutMilliseconds
-  - UpdateGossipSend
-  - UpdateGossipRecv
-  - ResetCts
-  - GetMostRecentConfig
-  - GossipAsync
-  - TryMeetAsync
-  - TryGossip
-  - GetConnectionInfo
-  - TryClusterPublish
+GetClientTimeoutMilliseconds: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateGossipSend: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateGossipRecv: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ResetCts: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetMostRecentConfig: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GossipAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryMeetAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGossip: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetConnectionInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryClusterPublish: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

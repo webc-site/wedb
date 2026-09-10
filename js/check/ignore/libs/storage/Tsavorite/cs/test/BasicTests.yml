@@ -1,26 +1,24 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - AssertCompleted
-  - CompletePendingResult
-  - ReadCompletionCallback
-  - VerifyOutput
-  - VerifyResult
-  - doUpdate
-test:
-  - NativeInMemWriteRead2
-  - NativeInMemRMWKeys
-  - ReadKeyInputOutput
-  - ReadNoRefKey
-  - ReadWithoutInput
-  - ReadBareMinParams
-  - ReadAtAddressDefaultOptions
-  - ReadAtAddressIgnoreReadCache
-  - UpsertDefaultsTest
-  - KVBasicsSampleEndToEndInDocs
-  - LogPathtooLong
-  - LogPathExtendedLengthSupport
-  - BasicSyncOperationsTest
-  - BasicOperationsTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertCompleted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CompletePendingResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+doUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeInMemWriteRead2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeInMemRMWKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadKeyInputOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadNoRefKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadWithoutInput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadBareMinParams: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAtAddressDefaultOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAtAddressIgnoreReadCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpsertDefaultsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KVBasicsSampleEndToEndInDocs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogPathtooLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogPathExtendedLengthSupport: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicSyncOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

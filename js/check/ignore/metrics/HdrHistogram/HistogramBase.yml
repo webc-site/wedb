@@ -1,34 +1,33 @@
-fn:
-  - HistogramBase
-  - RecordValue
-  - RecordSingleValue
-  - RecordValueWithCount
-  - AddToCountAtIndex
-  - RecordValueWithExpectedInterval
-  - RecordValueWithCountAndExpectedInterval
-  - ClearCounts
-  - SizeOfEquivalentValueRange
-  - LowestEquivalentValue
-  - MedianEquivalentValue
-  - NextNonEquivalentValue
-  - GetValueAtPercentile
-  - GetCountAtValue
-  - RecordedValues
-  - AllValues
-  - GetEstimatedFootprintInBytes
-  - GetCountAt
-  - ValueFromIndex
-  - EstablishInternalTackingValues
-  - ResetMaxValue
-  - ResetMinNonZeroValue
-  - UpdatedMaxValue
-  - UpdateMinNonZeroValue
-  - GetCountAtIndex
-  - SetCountAtIndex
-  - IncrementCountAtIndex
-  - CopyCountsInto
-  - GetBucketsNeededToCoverValue
-  - GetLengthForNumberOfBuckets
-  - CountsArrayIndex
-  - GetBucketIndex
-  - GetSubBucketIndex
+HistogramBase: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordSingleValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValueWithCount: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+AddToCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValueWithExpectedInterval: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValueWithCountAndExpectedInterval: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ClearCounts: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+SizeOfEquivalentValueRange: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+LowestEquivalentValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+MedianEquivalentValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+NextNonEquivalentValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetValueAtPercentile: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetCountAtValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordedValues: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+AllValues: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetEstimatedFootprintInBytes: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetCountAt: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ValueFromIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+EstablishInternalTackingValues: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ResetMaxValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ResetMinNonZeroValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+UpdatedMaxValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+UpdateMinNonZeroValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+SetCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementCountAtIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+CopyCountsInto: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetBucketsNeededToCoverValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetLengthForNumberOfBuckets: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+CountsArrayIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetBucketIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetSubBucketIndex: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

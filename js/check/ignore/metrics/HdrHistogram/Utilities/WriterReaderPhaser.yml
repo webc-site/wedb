@@ -1,9 +1,8 @@
-fn:
-  - GetAndIncrement
-  - GetAndSet
-  - LazySet
-  - WriterCriticalSectionEnter
-  - WriterCriticalSectionExit
-  - ReaderLock
-  - ReaderUnlock
-  - FlipPhase
+GetAndIncrement: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetAndSet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+LazySet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+WriterCriticalSectionEnter: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+WriterCriticalSectionExit: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReaderLock: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReaderUnlock: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+FlipPhase: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

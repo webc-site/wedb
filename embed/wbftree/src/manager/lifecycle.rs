@@ -315,19 +315,6 @@ impl RangeIndexManager {
     }
   }
 
-  /// 销毁并释放指定树条目，校验存根转移标志 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:DisposeTreeUnderLock)
-  pub fn dispose_tree_under_lock(
-    &self,
-    key: &[u8],
-    stub: &RangeIndexStub,
-    delete_files: bool,
-  ) -> Result<bool> {
-    if !delete_files && stub.is_transferred() {
-      return Ok(false);
-    }
-    self.dispose_tree(key, delete_files)
-  }
-
   /// 注册已存在的 BfTreeService 实例到管理器中 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:RegisterIndex)
   ///
   /// 持有条带互斥写锁，与 RestoreTree / UnregisterIndex / 检查点快照等路径串行化

@@ -1,3 +1,2 @@
-fn:
-  - ParseSize
-  - AofPageSizeBits
+ParseSize: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AofPageSizeBits: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

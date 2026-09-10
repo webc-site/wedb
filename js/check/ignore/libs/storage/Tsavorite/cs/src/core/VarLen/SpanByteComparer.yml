@@ -1,5 +1,4 @@
-fn:
-  - GetHashCode64
-  - StaticGetHashCode64
-  - Equals
-  - StaticEquals
+GetHashCode64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StaticGetHashCode64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Equals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StaticEquals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

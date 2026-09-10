@@ -1,8 +1,7 @@
-fn:
-  - DiskReadBuffer
-  - GetTailSpan
-  - ReadFromDevice
-  - IncrementOrResetCountdown
-  - WaitForDataAvailable
-  - GetCurrentFilePosition
-  - ToString
+DiskReadBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetTailSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadFromDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementOrResetCountdown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitForDataAvailable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentFilePosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

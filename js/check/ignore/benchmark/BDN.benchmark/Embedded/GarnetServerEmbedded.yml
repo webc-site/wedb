@@ -1,10 +1,9 @@
-fn:
-  - GarnetServerEmbedded
-  - ActiveConsumers
-  - ActiveClusterSessions
-  - CreateNetworkHandler
-  - IncrementConnectionsReceived
-  - DisposeMessageConsumer
-  - IncrementConnectionsDisposed
-  - Start
-  - TryCreateMessageConsumer
+GarnetServerEmbedded: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ActiveConsumers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ActiveClusterSessions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateNetworkHandler: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IncrementConnectionsReceived: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DisposeMessageConsumer: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IncrementConnectionsDisposed: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Start: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+TryCreateMessageConsumer: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

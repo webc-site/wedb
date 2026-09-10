@@ -1,32 +1,30 @@
-fn:
-  - Setup
-  - TearDown
-  - WaitAndReset
-  - ReadValuesMGet
-  - SimpleMemoryResultArrayCallback
-  - SimpleStringArrayCallback
-  - IsLocalConnection
-  - DisposeNetworkSender
-  - Enter
-  - EnterAndGetResponseObject
-  - Exit
-  - ExitAndReturnResponseObject
-  - GetResponseObject
-  - ReturnResponseObject
-  - SendCallback
-  - SendResponse
-  - Throttle
-  - TryClose
-test:
-  - SetGetWithCallback
-  - SimpleMetricsTest
-  - SimpleStringArrayTest
-  - SimpleNoArgsTest
-  - SimpleIncrTest
-  - SimpleDecrTest
-  - CanUseSetNxStringResultAsync
-  - ShouldNotThrowExceptionForEmptyArrayResponseAsync
-  - CanUseMGetTests
-  - CanDoBulkDeleteTests
-  - MultipleSocketPing
-  - AsyncFlushPagesSignalsFlushEventOnSendFailure
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitAndReset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadValuesMGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleMemoryResultArrayCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleStringArrayCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsLocalConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeNetworkSender: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Enter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnterAndGetResponseObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Exit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExitAndReturnResponseObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetResponseObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReturnResponseObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Throttle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryClose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetGetWithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleMetricsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleStringArrayTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleNoArgsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleDecrTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseSetNxStringResultAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShouldNotThrowExceptionForEmptyArrayResponseAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseMGetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoBulkDeleteTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleSocketPing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AsyncFlushPagesSignalsFlushEventOnSendFailure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

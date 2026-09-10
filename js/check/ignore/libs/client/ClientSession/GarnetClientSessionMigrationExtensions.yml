@@ -1,4 +1,3 @@
-fn:
-  - SetSlotRange
-  - SetClusterMigrateHeader
-  - CompleteMigrate
+SetSlotRange: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+SetClusterMigrateHeader: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+CompleteMigrate: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

@@ -1,4 +1,3 @@
-fn:
-  - RecordValue
-  - RecordValueWithCount
-  - RecordValueWithExpectedInterval
+RecordValue: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValueWithCount: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+RecordValueWithExpectedInterval: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

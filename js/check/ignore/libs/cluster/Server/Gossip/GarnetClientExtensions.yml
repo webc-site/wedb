@@ -1,6 +1,5 @@
-fn:
-  - GossipAsync
-  - GossipWithMeetAsync
-  - ExecuteClusterFailStopWritesAsync
-  - ExecuteClusterFailReplicationOffsetAsync
-  - ExecuteClusterPublishNoResponse
+GossipAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GossipWithMeetAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ExecuteClusterFailStopWritesAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ExecuteClusterFailReplicationOffsetAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ExecuteClusterPublishNoResponse: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

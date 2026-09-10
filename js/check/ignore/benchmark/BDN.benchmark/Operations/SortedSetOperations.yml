@@ -1,29 +1,28 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - ZAddRem
-  - ZCard
-  - ZCount
-  - ZDiff
-  - ZDiffStore
-  - ZIncrby
-  - ZInter
-  - ZInterCard
-  - ZInterStore
-  - ZLexCount
-  - ZMPop
-  - ZMScore
-  - ZPopMax
-  - ZPopMin
-  - ZRandMember
-  - ZRange
-  - ZRangeStore
-  - ZRank
-  - ZRemRangeByLex
-  - ZRemRangeByRank
-  - ZRemRangeByScore
-  - ZRevRank
-  - ZScan
-  - ZUnion
-  - ZUnionStore
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZAddRem: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZCard: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZCount: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZDiff: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZDiffStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZIncrby: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZInter: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZInterCard: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZInterStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZLexCount: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZMPop: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZMScore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZPopMax: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZPopMin: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRandMember: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRangeStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRank: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRemRangeByLex: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRemRangeByRank: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRemRangeByScore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZRevRank: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZScan: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZUnion: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZUnionStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,39 +1,37 @@
-fn:
-  - Setup
-  - TearDown
-  - ValidateServerData
-  - sizeToString
-test:
-  - PingTest
-  - PingMessageTest
-  - PingErrorMessageTest
-  - EchoWithNoMessageReturnErrorTest
-  - EchoWithMessagesReturnErrorTest
-  - EchoWithMessageTest
-  - EchoTwoCommandsTest
-  - TimeCommandTest
-  - TimeWithReturnErrorTest
-  - SeSaveTest
-  - PostCheckpointCleanupFailureIsLoggedAndContained
-  - OverflowKeyCheckpointTest
-  - SeSaveRecoverTest
-  - SeSaveRecoverObjectTest
-  - SeSaveInProgressTest
-  - SeSaveRecoverCustomObjectTest
-  - SeSaveRecoverCustomScriptTest
-  - SeSaveRecoverMultipleObjectsTest
-  - SeSaveRecoverMultipleKeysTest
-  - SeAofRecoverTest
-  - SeFlushDbAndFlushAllTest
-  - SePingTest
-  - SePingMessageTest
-  - SePingErrorMessageTest
-  - SeEchoWithNoMessageReturnErrorTest
-  - SeEchoWithMessageTest
-  - SeEchoWithMultiTokenMessageTest
-  - SeTimeCommandTest
-  - SeTimeWithReturnErrorTest
-  - SeFlushDbAndFlushAllTest2
-  - SimpleConfigGet
-  - ConfigWrongNumberOfArguments
-  - ConfigGetWrongNumberOfArguments
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateServerData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+sizeToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingErrorMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EchoWithNoMessageReturnErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EchoWithMessagesReturnErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EchoWithMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EchoTwoCommandsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TimeCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TimeWithReturnErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCheckpointCleanupFailureIsLoggedAndContained: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OverflowKeyCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveInProgressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverCustomObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverCustomScriptTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverMultipleObjectsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeSaveRecoverMultipleKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeAofRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeFlushDbAndFlushAllTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SePingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SePingMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SePingErrorMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeEchoWithNoMessageReturnErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeEchoWithMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeEchoWithMultiTokenMessageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeTimeCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeTimeWithReturnErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeFlushDbAndFlushAllTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleConfigGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigWrongNumberOfArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigGetWrongNumberOfArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

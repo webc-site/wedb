@@ -1,3 +1,1 @@
-# 无需 rust 实现：C# Dispose 为显式空操作（无任何资源）
-fn:
-  - Dispose
+Dispose: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

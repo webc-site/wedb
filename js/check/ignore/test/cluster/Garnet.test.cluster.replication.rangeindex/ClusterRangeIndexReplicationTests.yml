@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulateRangeIndex
-  - ValidateRangeIndex
-  - GetRiLogRoot
-test:
-  - ClusterRangeIndexCheckpointSync
-  - ClusterRangeIndexCheckpointSyncMultipleKeys
-  - ClusterRangeIndexCheckpointSyncWithEviction
-  - ClusterRangeIndexAddReplicaAfterCheckpoint
-  - ClusterRangeIndexReplicationRestartReplica
-  - ClusterRangeIndexReplicationFailover
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateRangeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateRangeIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRiLogRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexCheckpointSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexCheckpointSyncMultipleKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexCheckpointSyncWithEviction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexAddReplicaAfterCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexReplicationRestartReplica: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRangeIndexReplicationFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

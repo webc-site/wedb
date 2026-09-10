@@ -1,7 +1,6 @@
-fn:
-  - RunSimulation
-  - InteractiveRepl
-  - SeedCache
-  - FakeServerThread
-  - CreateRandomReview
-  - GenerateLargeLoremIpsumText
+RunSimulation: C# 样例工程与示例客户端代码，非核心服务端实现
+InteractiveRepl: C# 样例工程与示例客户端代码，非核心服务端实现
+SeedCache: C# 样例工程与示例客户端代码，非核心服务端实现
+FakeServerThread: C# 样例工程与示例客户端代码，非核心服务端实现
+CreateRandomReview: C# 样例工程与示例客户端代码，非核心服务端实现
+GenerateLargeLoremIpsumText: C# 样例工程与示例客户端代码，非核心服务端实现

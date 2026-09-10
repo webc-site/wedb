@@ -1,6 +1,5 @@
-fn:
-  - Prepare
-  - GetNextArg
-  - AddKey
-  - Main
-  - WriteSimpleString
+Prepare: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetNextArg: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AddKey: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Main: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteSimpleString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

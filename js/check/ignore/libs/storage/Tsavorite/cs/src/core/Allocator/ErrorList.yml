@@ -1,5 +1,4 @@
-fn:
-  - ErrorList
-  - GetEarliestError
-  - ClearError
-  - TruncateUntil
+ErrorList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetEarliestError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TruncateUntil: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

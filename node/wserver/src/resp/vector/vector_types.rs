@@ -3,8 +3,9 @@
 //! C# 侧这些枚举位于 VectorStoreOps.cs（StorageSession partial）；
 //! Rust 侧存储会话桥接层不承载类型，故在本域内承接同判别值定义。
 
-/// 向量数据的量化方式（控制向量元素到实际存储字节的映射）。
+/// 向量数据量化方式（控制向量元素到实际存储字节的映射）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
 pub enum VectorQuantType {
   #[default]
   Invalid = 0,
@@ -26,6 +27,7 @@ pub enum VectorQuantType {
 
 /// 向量值数据格式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
 pub enum VectorValueType {
   #[default]
   Invalid = 0,
@@ -39,6 +41,7 @@ pub enum VectorValueType {
 
 /// DiskANN 检索结果的 id 输出格式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
 pub enum VectorIdFormat {
   #[default]
   Invalid = 0,
@@ -50,6 +53,7 @@ pub enum VectorIdFormat {
 
 /// 向量相似度距离度量（对齐 DiskANN Metric）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
 pub enum VectorDistanceMetricType {
   /// 余弦相似度。
   #[default]
@@ -60,6 +64,18 @@ pub enum VectorDistanceMetricType {
   L2 = 2,
   /// 归一化余弦相似度（XCosine_Normalized）。
   XCosineNormalized = 3,
+}
+
+impl VectorDistanceMetricType {
+  /// C# 枚举 ToString 名（错误文案插值逐字节对齐，如 `XCosine_Normalized`）。
+  pub const fn csharp_name(self) -> &'static str {
+    match self {
+      Self::Cosine => "Cosine",
+      Self::InnerProduct => "InnerProduct",
+      Self::L2 => "L2",
+      Self::XCosineNormalized => "XCosine_Normalized",
+    }
+  }
 }
 
 /// 向量集合索引键的标志位。

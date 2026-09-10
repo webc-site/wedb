@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-  - SimpleMemoryResultCallback
-  - DoZRangeAsync
-  - GetUniqueName
-test:
-  - CanDoZAddGarnetAsync
-  - CanDoZAddGarnetCallback
-  - CanDoExecuteForStringResultCallback
-  - CanDoZCardGarnetUsingMemoryResultAsync
-  - CanDoZAddGarnetMultithread
-  - CanUseExecuteForStringArrayResult
-  - CanUseExecuteForStringResultAsync
-  - CanUseExecuteForMemoryResultArrayWithCancellationTokenAsync
-  - CanUseExecuteForMemoryResultWithCancellationTokenAsync
-  - CanGarnetClientUseZaddZrem
-  - CanGarnetClientUseZaddZremWithCallback
-  - CanGarnetClientUseZCard
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleMemoryResultCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRangeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUniqueName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZAddGarnetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZAddGarnetCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoExecuteForStringResultCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZCardGarnetUsingMemoryResultAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoZAddGarnetMultithread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseExecuteForStringArrayResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseExecuteForStringResultAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseExecuteForMemoryResultArrayWithCancellationTokenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseExecuteForMemoryResultWithCancellationTokenAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGarnetClientUseZaddZrem: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGarnetClientUseZaddZremWithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGarnetClientUseZCard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

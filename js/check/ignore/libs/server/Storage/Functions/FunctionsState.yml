@@ -1,5 +1,1 @@
-# r10 深审死模块清理：wkv 引擎内部化后，Tsavorite IFunctions 壳层
-# （MainStore/ObjectStore/UnifiedStore 回调族）无调用方，rust 引擎钩子由
-# wkv 内部实现承接；本豁免保留 C# 文件的映射豁免记录
-fn:
-  - CopyRespNumber
+CopyRespNumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

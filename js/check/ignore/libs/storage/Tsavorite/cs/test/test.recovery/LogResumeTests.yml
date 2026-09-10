@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TsavoriteLogResumePersistedReaderViaCookie
-  - TsavoriteLogResumeViaCompleteUntilRecordAtSpec
-  - TsavoriteLogResumePersistedReader2
-  - TsavoriteLogResumePersistedReader3
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogResumePersistedReaderViaCookie: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogResumeViaCompleteUntilRecordAtSpec: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogResumePersistedReader2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogResumePersistedReader3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

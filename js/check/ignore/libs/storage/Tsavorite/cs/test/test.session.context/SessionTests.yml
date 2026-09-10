@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-test:
-  - SessionTest1
-  - SessionTest2
-  - SessionTest3
-  - SessionTest4
-  - SessionTest5
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionTest3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionTest4: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionTest5: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

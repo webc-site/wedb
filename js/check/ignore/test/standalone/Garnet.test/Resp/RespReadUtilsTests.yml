@@ -1,18 +1,17 @@
-test:
-  - ReadLengthHeaderTest
-  - ReadLengthHeaderExceptionsTest
-  - ReadArrayLengthTest
-  - ReadArrayLengthExceptionsTest
-  - ReadIntWithLengthHeaderTest
-  - ReadIntWithLengthHeaderExceptionsTest
-  - ReadLongWithLengthHeaderTest
-  - ReadLongWithLengthHeaderExceptionsTest
-  - ReadULongWithLengthHeaderTest
-  - ReadULongWithLengthHeaderExceptionsTest
-  - ReadPtrWithLengthHeaderTest
-  - ReadBoolWithLengthHeaderTest
-  - GetSerializedRecordSpanValidTest
-  - GetSerializedRecordSpanOverflowLengthTest
-  - GetSerializedRecordSpanNegativeLengthTest
-  - GetSerializedRecordSpanInsufficientHeaderTest
-  - RejectOversizedLengths
+ReadLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadArrayLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadArrayLengthExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadIntWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadIntWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLongWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLongWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadULongWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadULongWithLengthHeaderExceptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPtrWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadBoolWithLengthHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanValidTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanOverflowLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanNegativeLengthTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSerializedRecordSpanInsufficientHeaderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RejectOversizedLengths: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-test:
-  - TsavoriteLogPageIsNotReadCacheBitMaskedTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogPageIsNotReadCacheBitMaskedTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

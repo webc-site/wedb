@@ -1,4 +1,3 @@
-fn:
-  - TryUpdateCommandDocs
-  - TryGetCommandsDocs
-  - GetUpdatedCommandsDocs
+TryUpdateCommandDocs: C# 原型实验与演练脚本，非生产运行时代码
+TryGetCommandsDocs: C# 原型实验与演练脚本，非生产运行时代码
+GetUpdatedCommandsDocs: C# 原型实验与演练脚本，非生产运行时代码

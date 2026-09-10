@@ -1,6 +1,5 @@
-fn:
-  - MapRange
-  - MapSectorSize
-  - UniformPartitionScheme
-  - ShardedStorageDevice
-  - RemoveSegmentAsync
+MapRange: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MapSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UniformPartitionScheme: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ShardedStorageDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveSegmentAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

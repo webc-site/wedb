@@ -1,15 +1,14 @@
-fn:
-  - QueryExpression
-  - IsMatch
-  - CompositeExpression
-  - BooleanQueryExpression
-  - EvaluateMatch
-  - MatchTokens
-  - CheckIn
-  - CompareTo
-  - RegexEquals
-  - GetRegexOptions
-  - EqualsWithStringCoercion
-  - EqualsWithStrictMatch
-  - IsBoolean
-  - TryGetAsDouble
+QueryExpression: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsMatch: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CompositeExpression: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+BooleanQueryExpression: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EvaluateMatch: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+MatchTokens: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CheckIn: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CompareTo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+RegexEquals: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetRegexOptions: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EqualsWithStringCoercion: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EqualsWithStrictMatch: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsBoolean: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGetAsDouble: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

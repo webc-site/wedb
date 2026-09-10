@@ -1,9 +1,8 @@
-fn:
-  - SetEmptyAtomic
-  - MergeTo
-  - GetRecordSize
-  - TryTakeOversize
-  - ScanForEmpty
-  - GetBinIndex
-  - TryAddToBin
-  - GetRecord
+SetEmptyAtomic: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MergeTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryTakeOversize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanForEmpty: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetBinIndex: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAddToBin: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

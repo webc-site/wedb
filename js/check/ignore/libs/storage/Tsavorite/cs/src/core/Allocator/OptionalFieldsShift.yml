@@ -1,4 +1,3 @@
-fn:
-  - OptionalFieldsShift
-  - Save
-  - Restore
+OptionalFieldsShift: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Save: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Restore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,5 +1,4 @@
-fn:
-  - ToString
-  - AsReadOnlySpan
-  - GetHashCode64
-  - Equals
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsReadOnlySpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetHashCode64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Equals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

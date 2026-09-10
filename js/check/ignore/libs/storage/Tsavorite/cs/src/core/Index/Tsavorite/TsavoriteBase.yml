@@ -1,5 +1,4 @@
-fn:
-  - RetireNativeIndexTable
-  - BeginNativeIndexCheckpointIo
-  - EndNativeIndexCheckpointIo
-  - UpdateSlot
+RetireNativeIndexTable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginNativeIndexCheckpointIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndNativeIndexCheckpointIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UpdateSlot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

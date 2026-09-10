@@ -1,4 +1,3 @@
-fn:
-  - TryUpdateCommandInfo
-  - TryGetCommandsInfo
-  - GetUpdatedCommandsInfo
+TryUpdateCommandInfo: C# 原型实验与演练脚本，非生产运行时代码
+TryGetCommandsInfo: C# 原型实验与演练脚本，非生产运行时代码
+GetUpdatedCommandsInfo: C# 原型实验与演练脚本，非生产运行时代码

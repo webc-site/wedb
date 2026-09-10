@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - TearDown
-  - InsertTestData
-  - InsertTestDataInto
-test:
-  - Insert_InvalidArguments_ReturnsInvalidArguments
-  - Read_InvalidArguments_ReturnsInvalidArguments
-  - Delete_InvalidArguments_DoesNotCorruptTree
-  - ScanWithCount_NegativeCount_Throws
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InsertTestData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InsertTestDataInto: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Insert_InvalidArguments_ReturnsInvalidArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Read_InvalidArguments_ReturnsInvalidArguments: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Delete_InvalidArguments_DoesNotCorruptTree: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanWithCount_NegativeCount_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

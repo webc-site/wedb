@@ -1,7 +1,5 @@
-# r10 深审后语义吸收/死模块清理：对应 rust 能力已由内部化实现承接，详见提交记录
-fn:
-  - OnRecovery
-  - GetCommitMetadata
-  - ListCommits
-  - RemoveCommit
-  - RemoveAllCommits
+OnRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCommitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ListCommits: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveCommit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveAllCommits: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,9 +1,8 @@
-fn:
-  - ClientMonitor
-  - GetClusterConfig
-  - StartMonitor
-  - MonitorClusterLatencyMetrics
-  - MonitorClusterServerSideMetrics
-  - MonitorServerSideLatency
-  - MonitorServerSideMetrics
-  - ProcessLatencyHistogram
+ClientMonitor: C# 样例工程与示例客户端代码，非核心服务端实现
+GetClusterConfig: C# 样例工程与示例客户端代码，非核心服务端实现
+StartMonitor: C# 样例工程与示例客户端代码，非核心服务端实现
+MonitorClusterLatencyMetrics: C# 样例工程与示例客户端代码，非核心服务端实现
+MonitorClusterServerSideMetrics: C# 样例工程与示例客户端代码，非核心服务端实现
+MonitorServerSideLatency: C# 样例工程与示例客户端代码，非核心服务端实现
+MonitorServerSideMetrics: C# 样例工程与示例客户端代码，非核心服务端实现
+ProcessLatencyHistogram: C# 样例工程与示例客户端代码，非核心服务端实现

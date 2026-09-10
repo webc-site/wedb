@@ -1,55 +1,53 @@
-fn:
-  - GetUnitTests
-  - RandomBytes
-  - Setup
-  - TearDown
-  - Equals
-  - CreateSingleSlotData
-  - DoZADD
-  - DoZCOUNT
-  - DoZRANGE
-  - MakeHashFieldBytes
-  - OperateOnSlotTask
-  - AssertMOVEDorASK
-  - OperateOnExistingKey
-  - OperateOnNonExistentKey
-  - WriteWorkload
-  - ClusterMigrateExpirationWithVaryingPayload
-  - SetupInstances
-  - MigrateSlots
-  - MigrateKeys
-  - SetSlot
-  - ValidateConfig
-  - AssertSlotState
-test:
-  - ClusterSimpleInitialize
-  - ClusterSimpleSlotInfo
-  - ClusterAddDelSlots
-  - ClusterSlotChangeStatus
-  - ClusterRedirectMessage
-  - ClusterSimpleMigrateSlots
-  - ClusterSimpleMigrateSlotsExpiry
-  - ClusterSimpleMigrateSlotsWithObjects
-  - ClusterSimpleMigrateKeys
-  - ClusterMigrateLargeValueChunked
-  - ClusterMigrateHugeObjectChunked
-  - ClusterMigrateLargeObjectMultiLogAofReplay
-  - ClusterSimpleMigrateKeysWithObjects
-  - ClusterSimpleMigrateContinuousReadWrite
-  - ClusterSimpleTxn
-  - ClusterSimpleMigrateSlotsRanges
-  - ClusterSimpleMigrateWithAuth
-  - ClusterAllowWritesDuringMigrateTestAsync
-  - ClusterMigrateForgetTest
-  - ClusterMigrateDataSlotsRange
-  - ClusterMigrateLargePayload
-  - ClusterMigrateIncreasingPayload
-  - ClusterMigrateSlotWalk
-  - ClusterMigrateWrite
-  - ClusterMigrateSetCopyUpdate
-  - ClusterMigrateCustomProcDelRMW
-  - ClusterMigrateSlotsWithHostname
-  - ClusterMigrateWithInvalidHostname
-  - ClusterMigrateSlotWithTombstones
-  - ClusterMigrateSetSlotRangeResilience
-  - ClusterDelKeysInSlotRemovesStringAndObjectKeys
+GetUnitTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateSingleSlotData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZADD: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZCOUNT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoZRANGE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeHashFieldBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OperateOnSlotTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertMOVEDorASK: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OperateOnExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OperateOnNonExistentKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteWorkload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateExpirationWithVaryingPayload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupInstances: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSlotState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleInitialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleSlotInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAddDelSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlotChangeStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRedirectMessage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateSlotsExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateSlotsWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateLargeValueChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateHugeObjectChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateLargeObjectMultiLogAofReplay: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateKeysWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateContinuousReadWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleTxn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateSlotsRanges: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleMigrateWithAuth: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAllowWritesDuringMigrateTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateForgetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateDataSlotsRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateLargePayload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateIncreasingPayload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateSlotWalk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateSetCopyUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateCustomProcDelRMW: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateSlotsWithHostname: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateWithInvalidHostname: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateSlotWithTombstones: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateSetSlotRangeResilience: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDelKeysInSlotRemovesStringAndObjectKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

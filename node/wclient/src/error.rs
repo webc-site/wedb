@@ -1,6 +1,9 @@
+use core::result::Result as StdResult;
+use std::io::Error as IoError;
+
 use thiserror::Error;
 
-pub type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = StdResult<T, Error>;
 
 /// libs/client/ExceptionTypes.cs
 #[derive(Debug, Error)]
@@ -24,5 +27,5 @@ pub enum Error {
   Other(String),
 
   #[error(transparent)]
-  Io(#[from] std::io::Error),
+  Io(#[from] IoError),
 }

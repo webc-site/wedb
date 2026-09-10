@@ -1,28 +1,28 @@
-fn:
-  - SessionFunctionsWrapper
-  - ReadCompletionCallback
-  - InitialWriter
-  - PostInitialWriter
-  - InPlaceWriter
-  - PostUpsertOperation
-  - NeedInitialUpdate
-  - InitialUpdater
-  - PostInitialUpdater
-  - NeedCopyUpdate
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostRMWOperation
-  - RMWCompletionCallback
-  - InitialDeleter
-  - PostInitialDeleter
-  - PostDeleteOperation
-  - ConvertOutputToHeap
-  - TryLockEphemeralExclusive
-  - TryLockEphemeralShared
-  - UnlockEphemeralExclusive
-  - UnlockEphemeralShared
-  - GetRMWInitialFieldInfo
-  - GetRMWModifiedFieldInfo
-  - GetUpsertFieldInfo
-  - UnsafeResumeThread
-  - CompletePendingWithOutputs
+SessionFunctionsWrapper: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadCompletionCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostInitialWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InPlaceWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostUpsertOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NeedInitialUpdate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostInitialUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NeedCopyUpdate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostCopyUpdater: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostRMWOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RMWCompletionCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialDeleter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostInitialDeleter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostDeleteOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConvertOutputToHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLockEphemeralExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLockEphemeralShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockEphemeralExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockEphemeralShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWInitialFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWModifiedFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetUpsertFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeResumeThread: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompletePendingWithOutputs: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

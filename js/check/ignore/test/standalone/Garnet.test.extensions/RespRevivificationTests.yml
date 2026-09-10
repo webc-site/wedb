@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - SetupServerWithReviv
-  - TearDown
-  - TestRevivifyAsync
-test:
-  - RevivificationWithRmwWorksAsync
-  - RevivificationWithRmwWorksWhenNeedingShrinkingAndThenExpanding
-  - RevivificationWithRMWWorksViaSetIfGreater
-  - RevivificationWithRMWWorksViaAppend
-  - RevivificationWithRMWWorksViaSetBit
-  - RevivificationWithRMWWorksViaBitfield
-  - RevivificationWithRMWWorksForRecordPool
-  - RevivifiedRecordsShouldStillEnqueueToAofViaRmw
-  - RevivifiedRecordsShouldStillEnqueueToAofViaUpsert
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupServerWithReviv: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestRevivifyAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRmwWorksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRmwWorksWhenNeedingShrinkingAndThenExpanding: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRMWWorksViaSetIfGreater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRMWWorksViaAppend: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRMWWorksViaSetBit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRMWWorksViaBitfield: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationWithRMWWorksForRecordPool: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivifiedRecordsShouldStillEnqueueToAofViaRmw: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivifiedRecordsShouldStillEnqueueToAofViaUpsert: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

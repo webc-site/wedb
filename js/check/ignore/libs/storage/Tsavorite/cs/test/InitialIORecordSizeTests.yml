@@ -1,20 +1,18 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - CreateStore
-test:
-  - DefaultIORecordSizeConstantTest
-  - UseDefaultInitialIORecordSizeConstantTest
-  - StoreLevel_InitialIORecordSizeTest
-  - StoreLevel_DefaultTest
-  - SessionLevel_InitialIORecordSizeTest
-  - ReadOptions_InitialIORecordSizeTest
-  - RMWOptions_InitialIORecordSizeTest
-  - NullDevice_SectorSizeTest
-  - GetExpectedIORecordSize_BasicTest
-  - GetExpectedIORecordSize_WithOptionalsTest
-  - GetExpectedIORecordSize_WithObjectTest
-  - GetExpectedIORecordSize_WithNamespaceTest
-  - GetExpectedIORecordSize_AlignmentTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DefaultIORecordSizeConstantTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UseDefaultInitialIORecordSizeConstantTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StoreLevel_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StoreLevel_DefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SessionLevel_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOptions_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RMWOptions_InitialIORecordSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NullDevice_SectorSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_BasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithOptionalsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_WithNamespaceTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpectedIORecordSize_AlignmentTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

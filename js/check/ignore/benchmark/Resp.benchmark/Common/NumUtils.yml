@@ -1,6 +1,5 @@
-fn:
-  - IntToBytes
-  - LongToBytes
-  - NumDigits
-  - NumDigitsInLong
-  - BytesToLong
+IntToBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LongToBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+NumDigits: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+NumDigitsInLong: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BytesToLong: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

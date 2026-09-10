@@ -1,10 +1,8 @@
-fn:
-  - OneTimeSetUp
-  - Setup
-  - TearDown
-test:
-  - ClusterReplicationShardedLogTxnTest
-  - ClusterReplicationShardedLogRecoverAsync
-  - ClusterReplicationSimpleMultiReplay
-  - ClusterParallelReplicationUpgrade
-  - ClusterAofUpgradeSLtoSLMRRecoverAsync
+OneTimeSetUp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationShardedLogTxnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationShardedLogRecoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationSimpleMultiReplay: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterParallelReplicationUpgrade: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAofUpgradeSLtoSLMRRecoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

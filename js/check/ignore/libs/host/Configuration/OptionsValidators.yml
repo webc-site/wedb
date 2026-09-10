@@ -1,4 +1,3 @@
-fn:
-  - GetDefault
-  - TryInitialValidation
-  - IsValid
+GetDefault: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryInitialValidation: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+IsValid: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

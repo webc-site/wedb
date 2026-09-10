@@ -1,5 +1,4 @@
-fn:
-  - ZipfGenerator
-  - CreateConstants
-  - Zeta
-  - Next
+ZipfGenerator: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateConstants: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Zeta: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Next: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

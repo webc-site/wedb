@@ -1,60 +1,57 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateStub
-  - CreateBuffer
-  - RandomBytes
-  - AssertRoundTripAsync
-test:
-  - SingleChunkRoundTrip
-  - MultiChunkRoundTrip
-  - EmptyFileRejectedByDeserializer
-  - CorruptedChecksumDetected
-  - NegativeFileSizeIsError
-  - SplitFileHeaderIsError
-  - TrailerTooSmallIsError
-  - FileOpenFailureGoesToErrorState
-  - TooSmallHeaderIsError
-  - ErrorStateIsTerminal
-  - FileContentPreservedInRoundTrip
-  - StubPreservedInRoundTrip
-  - DisposeCleansTempFile
-  - StartupCleansUpMigrationTmpDir
-  - InvalidStubSizeIsError
-  - TruncatedStubIsError
-  - OverLongTrailerIsError
-  - KeySpanningMultipleChunksRoundTrip
-  - MoveNextAfterDoneThrows
-  - TruncatedFileThrowsException
-  - BufferTooSmallForKeyHeaderDefersToNextChunk
-  - BufferTooSmallForFileHeaderDefersToNextChunk
-  - BufferTooSmallForTrailerDefersToNextChunk
-  - ExactPhaseBoundaryTransitions
-  - DoubleDisposeIsIdempotent
-  - ZeroLengthKeyRejectedByDeserializer
-  - TrailerChecksumAndStubContentVerification
-  - IsCompleteTransitionsCorrectly
-  - DeclaredSizeSmallerThanActualFileEmitsTruncatedPrefix
-  - BufferExhaustedAtFileDataPhaseDoesNotThrow
-  - SmallBufferRoundTrip
-  - FileDataExactlyFillsChunk_TrailerInNextChunk
-  - FileDataOneBytePerChunk
-  - EmptyChunkDuringWaitingForTrailer
-  - EmptyChunkDuringReceivingFileData
-  - EmptyChunkAtWaitingForKeyHeader
-  - EmptyChunkDuringWaitingForFileHeader
-  - KeySplitAcrossTwoChunks
-  - ZeroFileDataRejectedByDeserializer
-  - CorruptedFileDataFailsChecksumInTrailer
-  - KeyHeaderAloneInChunk
-  - RoundTrip_SingleChunk
-  - AssertRoundTripAsync
-  - RoundTrip_MultiChunk
-  - RoundTrip_KeyLargerThanChunk
-  - RoundTrip_SmallChunk
-  - RoundTrip_FileExactlyFillsFirstChunk
-  - Reader_TruncatedFileThrows
-  - Reader_CancellationThrows
-  - Reader_NonPositiveChunkSizeThrows
-  - Reader_DestinationBelowMinimumThrows
-  - RoundTrip_ExactMinChunkSize
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStub: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRoundTripAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleChunkRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiChunkRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyFileRejectedByDeserializer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CorruptedChecksumDetected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NegativeFileSizeIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SplitFileHeaderIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TrailerTooSmallIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FileOpenFailureGoesToErrorState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TooSmallHeaderIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ErrorStateIsTerminal: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FileContentPreservedInRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StubPreservedInRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeCleansTempFile: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StartupCleansUpMigrationTmpDir: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InvalidStubSizeIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncatedStubIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OverLongTrailerIsError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeySpanningMultipleChunksRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MoveNextAfterDoneThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncatedFileThrowsException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferTooSmallForKeyHeaderDefersToNextChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferTooSmallForFileHeaderDefersToNextChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferTooSmallForTrailerDefersToNextChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExactPhaseBoundaryTransitions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoubleDisposeIsIdempotent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZeroLengthKeyRejectedByDeserializer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TrailerChecksumAndStubContentVerification: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsCompleteTransitionsCorrectly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeclaredSizeSmallerThanActualFileEmitsTruncatedPrefix: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferExhaustedAtFileDataPhaseDoesNotThrow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SmallBufferRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FileDataExactlyFillsChunk_TrailerInNextChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FileDataOneBytePerChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyChunkDuringWaitingForTrailer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyChunkDuringReceivingFileData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyChunkAtWaitingForKeyHeader: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyChunkDuringWaitingForFileHeader: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeySplitAcrossTwoChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ZeroFileDataRejectedByDeserializer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CorruptedFileDataFailsChecksumInTrailer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyHeaderAloneInChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_SingleChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_MultiChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_KeyLargerThanChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_SmallChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_FileExactlyFillsFirstChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Reader_TruncatedFileThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Reader_CancellationThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Reader_NonPositiveChunkSizeThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Reader_DestinationBelowMinimumThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RoundTrip_ExactMinChunkSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

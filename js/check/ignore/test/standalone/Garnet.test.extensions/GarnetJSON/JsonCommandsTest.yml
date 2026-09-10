@@ -1,22 +1,20 @@
-fn:
-  - Setup
-  - TearDown
-  - RegisterCustomCommand
-test:
-  - JsonSetGetTests
-  - JsonSetGetBasicTypes
-  - JsonSetPathOperations
-  - JsonGetMultiplePathsTest
-  - JsonSetInvalidJsonTest
-  - JsonSetInvalidPathTest
-  - JsonGetNonExistentTests
-  - JsonGetComplexPathTests
-  - JsonGetArrayOperationsTest
-  - JsonGetAdvancedFiltersTest
-  - JsonSetComplexPathOperationsTest
-  - JsonSetNonStaticPathNewFieldTest
-  - JsonSetNonStaticPathExistingFieldTest
-  - SaveRecoverTest
-  - AofUpsertRecoverTestAsync
-  - SerializationTest
-  - JsonModuleLoadTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetGetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetGetBasicTypes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetPathOperations: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetMultiplePathsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetInvalidJsonTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetInvalidPathTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetNonExistentTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetComplexPathTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetArrayOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonGetAdvancedFiltersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetComplexPathOperationsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetNonStaticPathNewFieldTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonSetNonStaticPathExistingFieldTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SaveRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofUpsertRecoverTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SerializationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+JsonModuleLoadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

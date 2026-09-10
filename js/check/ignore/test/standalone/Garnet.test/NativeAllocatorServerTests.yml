@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - StringAndObjectRoundTrip
-  - SaveRecoverRoundTrip
-  - LowMemoryEvictionChurn
-  - ObjectStoreEvictionChurn
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StringAndObjectRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SaveRecoverRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LowMemoryEvictionChurn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectStoreEvictionChurn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

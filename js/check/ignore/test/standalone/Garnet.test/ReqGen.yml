@@ -1,9 +1,8 @@
-fn:
-  - ReqGen
-  - LongRandom
-  - GenSingleKeyValueReqs
-  - WriteStringBytes
-  - WriteOpLong
-  - GenSingleKeyValueRequest
-  - GenArrayKeyValueRequest
-  - GenSingleKeyRequest
+ReqGen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongRandom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenSingleKeyValueReqs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteStringBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteOpLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenSingleKeyValueRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenArrayKeyValueRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenSingleKeyRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

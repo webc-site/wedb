@@ -1,30 +1,28 @@
-fn:
-  - ToString
-  - LapOffset
-  - SetReadOutput
-  - InPlaceWriter
-  - InitialWriter
-  - InitialUpdater
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - ReadCompletionCallback
-  - RMWCompletionCallback
-  - TestStore
-  - DeleteDirectory
-  - Populate
-  - ProcessChainRecord
-  - ProcessNoKeyRecord
-  - IterateKeyTestScanIteratorFunctions
-  - OnStart
-  - OnException
-  - OnStop
-test:
-  - VersionedReadTests
-  - IterateKeyTests
-  - IterateKeyStopTests
-  - ReadAtAddressTests
-  - ReadAtAddressCopyOptNoRcTest
-  - ReadNoKeyTests
-  - ReadCopyOptionssMergeTest
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LapOffset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetReadOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUpsertFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RMWCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessChainRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessNoKeyRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IterateKeyTestScanIteratorFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VersionedReadTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IterateKeyTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IterateKeyStopTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAtAddressTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAtAddressCopyOptNoRcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadNoKeyTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCopyOptionssMergeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

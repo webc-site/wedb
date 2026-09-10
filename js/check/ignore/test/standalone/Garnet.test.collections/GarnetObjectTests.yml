@@ -1,17 +1,15 @@
-fn:
-  - Setup
-  - CreateStore
-  - TearDown
-  - LocalWrite
-  - LocalRead
-  - MyFunctions
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - Deserialize
-  - Serialize
-test:
-  - WriteRead
-  - WriteCheckpointRead
-  - WriteCheckpointCopyUpdate
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MyFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUpsertFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Serialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteCheckpointRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteCheckpointCopyUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

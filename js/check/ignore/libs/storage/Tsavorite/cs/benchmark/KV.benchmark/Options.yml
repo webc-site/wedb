@@ -1,10 +1,9 @@
-fn:
-  - Resolve
-  - SizeForKey
-  - ClampToRam
-  - TryGetAvailableRamBytes
-  - PreviousPow2
-  - ParseDeviceType
-  - ParseIoBackend
-  - IsKnownDeviceName
-  - IsKnownIoBackendName
+Resolve: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SizeForKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClampToRam: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryGetAvailableRamBytes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PreviousPow2: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ParseDeviceType: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ParseIoBackend: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsKnownDeviceName: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsKnownIoBackendName: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

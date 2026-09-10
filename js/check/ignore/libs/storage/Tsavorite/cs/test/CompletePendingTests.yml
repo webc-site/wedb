@@ -1,24 +1,22 @@
-fn:
-  - GetHashCode64
-  - Equals
-  - ToString
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - NewKeyStruct
-  - NewValueStruct
-  - NewInputStruct
-  - NewContextStruct
-  - VerifyStructs
-  - IsFirst
-  - DeferPending
-  - Process
-  - VerifyNoDeferredPending
-  - VerifyOneNotFound
-  - ReadCompletionCallback
-test:
-  - ReadAndCompleteWithPendingOutput
-  - ReadPendingWithNewSameKey
-  - ReadPendingWithNewDifferentKeyInChain
-  - ReadPendingWithNoNewKey
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NewKeyStruct: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NewValueStruct: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NewInputStruct: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NewContextStruct: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyStructs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsFirst: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeferPending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Process: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyNoDeferredPending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyOneNotFound: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAndCompleteWithPendingOutput: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPendingWithNewSameKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPendingWithNewDifferentKeyInChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadPendingWithNoNewKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

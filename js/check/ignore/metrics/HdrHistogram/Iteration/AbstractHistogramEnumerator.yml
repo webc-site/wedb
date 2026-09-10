@@ -1,10 +1,10 @@
-fn:
-  - AbstractHistogramEnumerator
-  - HasNext
-  - IncrementIterationLevel
-  - ReachedIterationLevel
-  - GetPercentileIteratedTo
-  - GetValueIteratedTo
-  - Next
-  - IncrementSubBucket
-  - ExhaustedSubBuckets
+AbstractHistogramEnumerator: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+HasNext: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReachedIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetPercentileIteratedTo: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetValueIteratedTo: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+Next: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementSubBucket: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ExhaustedSubBuckets: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+MoveNext: C# IEnumerator 迭代器实现，Rust 采用原生 Iterator 体系

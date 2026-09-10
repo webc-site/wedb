@@ -1,60 +1,58 @@
-fn:
-  - Setup
-  - TearDown
-  - StressConfig
-  - ToNullableInt
-test:
-  - BasicLPUSHAndLPOP
-  - MultiLPUSHAndLTRIMWithMemoryCheck
-  - MultiRPUSHAndLTRIM
-  - MultiLPUSHAndLLENWithPendingStatus
-  - BasicLPUSHAndLTRIM
-  - BasicLPUSHAndLRANGE
-  - BasicRPUSHAndLINDEX
-  - BasicRPUSHAndLINSERT
-  - BasicRPUSHAndLREM
-  - LREMWithIntMinValueCountRemovesAllMatches
-  - MultiLPUSHAndLPOPV1
-  - MultiLPUSHAndLPOPV2
-  - MultiRPUSHAndRPOP
-  - BasicRPUSHAndRPOP
-  - CanDoRPopLPush
-  - CanDoLRANGEbasic
-  - CanDoLRANGEcorrect
-  - CanDoLSETbasic
-  - CanDoRPopLPushGC
-  - CanUseLMoveGC
-  - CanUseLMoveWithCaseInsensitiveDirectionGC
-  - CanUseLMoveWithCancellationTokenGC
-  - CanReturnEmptyArrayinListLC
-  - CanReturnNilWhenNonExistingListLC
-  - CanReturnErrorWhenMissingParametersLC
-  - CanDoPushAndTrimLC
-  - CanDoLInsertBeforeAndAfterLC
-  - CanDoLInsertWithNoElementLC
-  - CanSendErrorInWrongTypeLC
-  - CanDoLSETbasicLC
-  - CanReturnErrorLSETWhenNosuchkey
-  - CanReturnErrorLSETWhenIndexNotInteger
-  - CanReturnErrorLSETWhenIndexOutRange
-  - CanReturnErrorLSETWhenArgumentsWrong
-  - CanHandleNoPrexistentKey
-  - ListPushPopStressTest
-  - CanDoLMoveChunks
-  - CanDoBasicLMove
-  - CanDoLPopMultipleValues
-  - CanDoLPushXRpushX
-  - CanDoLPushxRPushx
-  - CheckEmptyListKeyRemoved
-  - CanDoBasicLMPOP
-  - CanDoLMPOPLeftWithoutCount
-  - CanDoLMPOPRightMultipleTimes
-  - CanDoRejectBadLMPOPCommand
-  - LPOPAndRPOPWithZeroCountReturnEmptyArray
-  - CanHandleLowerCaseBefore
-  - CheckListOperationsOnWrongTypeObjectSE
-  - LPOSWithoutOptions
-  - LPOSWithInvalidKey
-  - LPOSWithOptions
-  - LPOSWithListPosition
-  - LPOSWithInvalidOptions
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StressConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToNullableInt: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicLPUSHAndLPOP: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiLPUSHAndLTRIMWithMemoryCheck: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRPUSHAndLTRIM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiLPUSHAndLLENWithPendingStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicLPUSHAndLTRIM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicLPUSHAndLRANGE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicRPUSHAndLINDEX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicRPUSHAndLINSERT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicRPUSHAndLREM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LREMWithIntMinValueCountRemovesAllMatches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiLPUSHAndLPOPV1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiLPUSHAndLPOPV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiRPUSHAndRPOP: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicRPUSHAndRPOP: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRPopLPush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLRANGEbasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLRANGEcorrect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLSETbasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRPopLPushGC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseLMoveGC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseLMoveWithCaseInsensitiveDirectionGC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseLMoveWithCancellationTokenGC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnEmptyArrayinListLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnNilWhenNonExistingListLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnErrorWhenMissingParametersLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoPushAndTrimLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLInsertBeforeAndAfterLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLInsertWithNoElementLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSendErrorInWrongTypeLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLSETbasicLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnErrorLSETWhenNosuchkey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnErrorLSETWhenIndexNotInteger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnErrorLSETWhenIndexOutRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnErrorLSETWhenArgumentsWrong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanHandleNoPrexistentKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ListPushPopStressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLMoveChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoBasicLMove: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLPopMultipleValues: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLPushXRpushX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLPushxRPushx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckEmptyListKeyRemoved: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoBasicLMPOP: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLMPOPLeftWithoutCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoLMPOPRightMultipleTimes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoRejectBadLMPOPCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOPAndRPOPWithZeroCountReturnEmptyArray: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanHandleLowerCaseBefore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckListOperationsOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOSWithoutOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOSWithInvalidKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOSWithOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOSWithListPosition: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LPOSWithInvalidOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

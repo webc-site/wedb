@@ -1,4 +1,1 @@
-# C# Write 为三组 private unsafe 指针写辅助（Status/SpanByteAndMemory/seqNo
-# 直写网络缓冲），属 C# 指针管道；rust 命令经 output: &mut Vec<u8> 统一写出
-fn:
-  - Write
+Write: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

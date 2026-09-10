@@ -1,6 +1,5 @@
-fn:
-  - Field
-  - EntriesWithField
-  - BeginScope
-  - IsEnabled
-  - CreateLogger
+Field: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EntriesWithField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BeginScope: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsEnabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLogger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

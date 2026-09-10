@@ -1,31 +1,29 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - BasicListBlockingPopTest
-  - MultiListBlockingPopTest
-  - BasicBlockingListMoveTest
-  - ListBlockingPopOrderTest
-  - BlockingListPopWrongTypeTests
-  - BlockingSortedSetPopWrongTypeTests
-  - BlockingListMultiPopWrongTypeTest
-  - BlockingSortedSetMultiPopWrongTypeTest
-  - BlockingListMoveWrongTypeTest
-  - BlockingClientEventsTests
-  - BasicBlockingListPopPushTest
-  - BasicBlmpopTest
-  - BlmpopMultipleKeysTest
-  - BlmpopTimeoutTest
-  - BlmpopBlockingBehaviorTest
-  - BlmpopBlockingWithCountTest
-  - BasicBzmpopTest
-  - BasicBzmpopWithExpireItemsTest
-  - BzmpopReturnTest
-  - BzmpopMultipleKeysTest
-  - BzmpopTimeoutTest
-  - BzmpopBlockingBehaviorTest
-  - BasicBzpopMinMaxTest
-  - BasicBzpopMinMaxWithExpireItemsTest
-  - BzpopMinMaxMultipleKeysTest
-  - BzpopMinMaxBlockingTest
-  - BzpopMinMaxTimeoutTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicListBlockingPopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiListBlockingPopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBlockingListMoveTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ListBlockingPopOrderTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingListPopWrongTypeTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingSortedSetPopWrongTypeTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingListMultiPopWrongTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingSortedSetMultiPopWrongTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingListMoveWrongTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlockingClientEventsTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBlockingListPopPushTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBlmpopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlmpopMultipleKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlmpopTimeoutTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlmpopBlockingBehaviorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlmpopBlockingWithCountTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBzmpopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBzmpopWithExpireItemsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzmpopReturnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzmpopMultipleKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzmpopTimeoutTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzmpopBlockingBehaviorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBzpopMinMaxTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicBzpopMinMaxWithExpireItemsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzpopMinMaxMultipleKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzpopMinMaxBlockingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BzpopMinMaxTimeoutTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

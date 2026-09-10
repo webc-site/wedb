@@ -1,6 +1,5 @@
-fn:
-  - ToString
-  - SimpleConcurrentStack
-  - TryPop
-  - AddNodeToFreeList
-  - GetNodeFromFreeList
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SimpleConcurrentStack: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryPop: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AddNodeToFreeList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNodeFromFreeList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

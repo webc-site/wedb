@@ -1,36 +1,34 @@
-fn:
-  - Setup
-  - TearDown
-  - CountFlushFiles
-  - ListFlushFiles
-test:
-  - RIEvictionAfterDeleteTest
-  - RIEvictionMultipleIndexesTest
-  - RICreateDeleteRecreateWithEvictionTest
-  - RIDeleteInMutableRegionFreesResourcesTest
-  - RIDeleteInReadOnlyRegionFreesResourcesTest
-  - RIFlushPromotesToTailOnNextAccessTest
-  - RIFlushPromoteThenSecondFlushTest
-  - RIEvictToDiskThenLazyRestoreTest
-  - RICheckpointAndRecoverTest
-  - RIFlushEvictRestoreCheckpointCycleTest
-  - RIMultipleTreesEvictAndRestoreTest
-  - RIFlushPromoteCheckpointRecoverTest
-  - RIDeleteDuringEvictionCycleTest
-  - RIDoubleFlushCycleWithCheckpointTest
-  - RIEvictRestoreAndCheckpointTest
-  - RIExistsOnNormalKeyTest
-  - RIConfigBasicTest
-  - RIConfigWrongTypeTest
-  - RIMetricsBasicTest
-  - RITypeCommandTest
-  - RIConcurrentOpsWithCheckpointTest
-  - RIRecoverThenSecondEvictionUsesFlushSnapshotTest
-  - RIAofOnlyRecoveryTest
-  - RIDiskFileCleanupOnDeleteTest
-  - RIDeletePreservesPerFlushSnapshotFilesTest
-  - RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest
-  - RIFlushFilesAreImmutablePerAddressTest
-  - RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest
-  - RICopyReadsToTailCompatibleTest
-  - RangeIndexManagerKeyExistsTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountFlushFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ListFlushFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictionAfterDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictionMultipleIndexesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICreateDeleteRecreateWithEvictionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteInMutableRegionFreesResourcesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteInReadOnlyRegionFreesResourcesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromotesToTailOnNextAccessTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromoteThenSecondFlushTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictToDiskThenLazyRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICheckpointAndRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushEvictRestoreCheckpointCycleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIMultipleTreesEvictAndRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushPromoteCheckpointRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeleteDuringEvictionCycleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDoubleFlushCycleWithCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIEvictRestoreAndCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIExistsOnNormalKeyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConfigBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConfigWrongTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIMetricsBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RITypeCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIConcurrentOpsWithCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIRecoverThenSecondEvictionUsesFlushSnapshotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIAofOnlyRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDiskFileCleanupOnDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDeletePreservesPerFlushSnapshotFilesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDiskFileCleanupOnDeleteAfterEvictionAndRestoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIFlushFilesAreImmutablePerAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RIDisposeTreeUnderLockNoOpsOnTransferredSourceTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RICopyReadsToTailCompatibleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RangeIndexManagerKeyExistsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,7 +1,6 @@
-fn:
-  - SetupInstance
-  - AddSlotRange
-  - PopulateKeys
-  - ForceReplicaRole
-  - PreSeedSequenceNumbers
-  - Consume
+SetupInstance: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AddSlotRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PopulateKeys: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ForceReplicaRole: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PreSeedSequenceNumbers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Consume: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

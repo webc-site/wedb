@@ -1,44 +1,40 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - PopulateAndEvict
-  - CreateChain
-  - expectPending
-  - GetRecordInInMemoryHashChain
-  - FindRecordInReadCache
-  - AssertNotInReadCache
-  - GetHashChain
-  - NextInChain
-  - ScanReadCacheChain
-  - SkipReadCacheChain
-  - VerifyChainInsertedKey
-  - ClearCountsOnError
-  - AssertTotalLockCounts
-  - doTest
-  - ReadValueOrPending
-  - DoUpdateTest
-  - InitialUpdater
-  - LongRcMultiThreadWorker
-  - runReadThread
-  - runUpdateThread
-  - InPlaceWriter
-  - InitialWriter
-  - CopyUpdater
-  - SpanByteRcMultiThreadWorker
-test:
-  - ChainVerificationTest
-  - DeleteCacheRecordTest
-  - DeleteHalfOfAllReadCacheRecordsTest
-  - UpsertCacheRecordTest
-  - RMWCacheRecordTest
-  - ChainInsertFromCTTTest
-  - ChainInsertFromUpsertTest
-  - ChainInsertFromRMWTest
-  - ChainInsertFromDeleteTest
-  - VerifyLockCountsAfterReadCacheEvict
-  - LongRcMultiThreadTest
-  - LongRcMultiThreadWorker
-  - SpanByteRcMultiThreadTest
-  - SpanByteRcMultiThreadWorker
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateAndEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+expectPending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRecordInInMemoryHashChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FindRecordInReadCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertNotInReadCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NextInChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanReadCacheChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SkipReadCacheChain: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyChainInsertedKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClearCountsOnError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertTotalLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+doTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadValueOrPending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoUpdateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongRcMultiThreadWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runReadThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runUpdateThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteRcMultiThreadWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChainVerificationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteCacheRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteHalfOfAllReadCacheRecordsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpsertCacheRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RMWCacheRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChainInsertFromCTTTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChainInsertFromUpsertTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChainInsertFromRMWTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChainInsertFromDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyLockCountsAfterReadCacheEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongRcMultiThreadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteRcMultiThreadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

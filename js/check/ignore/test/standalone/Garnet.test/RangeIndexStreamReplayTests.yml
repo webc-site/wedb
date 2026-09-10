@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - TearDown
-  - MakeStub
-  - RandomBytes
-  - BuildStreamChunks
-  - AssertSingleReassemblyReason
-test:
-  - PartialStreamIsPendingThenCleanedUp
-  - RetryFirstChunkResetsStalePartialReassembly
-  - MalformedChunkIsDropped
-  - FinalFlagOnIncompleteStreamDropsReassembly
-  - PublishFailureOnCompleteStreamThrows
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeStub: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BuildStreamChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSingleReassemblyReason: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PartialStreamIsPendingThenCleanedUp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RetryFirstChunkResetsStalePartialReassembly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MalformedChunkIsDropped: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FinalFlagOnIncompleteStreamDropsReassembly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PublishFailureOnCompleteStreamThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

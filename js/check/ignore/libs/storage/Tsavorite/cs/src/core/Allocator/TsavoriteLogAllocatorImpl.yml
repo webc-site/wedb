@@ -1,16 +1,15 @@
-fn:
-  - TsavoriteLogAllocatorImpl
-  - FreeAllAllocatedPages
-  - FreePage
-  - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
-  - ReturnPage
-  - FreeNativeLogPage
-  - WriteInlinePageAsync
-  - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - VerifyRecordFromDiskCallback
-  - ScanCursor
-  - MemoryPageScan
-  - AsyncReadPageFromDeviceToFrame
+TsavoriteLogAllocatorImpl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeAllAllocatedPages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreePage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementAllocatedPageCount: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePinnedPageArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReturnPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeNativeLogPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteInlinePageAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteAsyncToDeviceForSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyCompatibleSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyRecordFromDiskCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanCursor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MemoryPageScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPageFromDeviceToFrame: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

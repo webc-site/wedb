@@ -1,3 +1,2 @@
-test:
-  - UtcNowIsCloseToWallClock
-  - ValueRefreshesAfterRefreshPeriod
+UtcNowIsCloseToWallClock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValueRefreshesAfterRefreshPeriod: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

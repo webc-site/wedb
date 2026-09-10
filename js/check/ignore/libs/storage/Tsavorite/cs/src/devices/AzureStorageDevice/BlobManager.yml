@@ -1,9 +1,8 @@
-fn:
-  - GetDelayBetweenRetries
-  - HandleStorageError
-  - StopAsync
-  - ConfirmLeaseIsGoodForAWhileAsync
-  - ConfirmLeaseIsGoodForAWhile
-  - AcquireOwnership
-  - RenewLeaseTask
-  - MaintenanceLoopAsync
+GetDelayBetweenRetries: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+HandleStorageError: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+StopAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ConfirmLeaseIsGoodForAWhileAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ConfirmLeaseIsGoodForAWhile: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+AcquireOwnership: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+RenewLeaseTask: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+MaintenanceLoopAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

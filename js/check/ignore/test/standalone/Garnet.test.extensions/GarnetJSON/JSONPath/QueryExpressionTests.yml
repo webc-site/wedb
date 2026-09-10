@@ -1,9 +1,8 @@
-test:
-  - AndExpressionTest
-  - OrExpressionTest
-  - BooleanExpression_EqualsOperator
-  - BooleanExpressionTest_RegexEqualsOperator
-  - BooleanExpressionTest_RegexEqualsOperator_CornerCase
-  - BooleanExpressionTest
-  - BooleanExpressionTest_GreaterThanOperator
-  - BooleanExpressionTest_GreaterThanOrEqualsOperator
+AndExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OrExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpression_EqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_RegexEqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_RegexEqualsOperator_CornerCase: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_GreaterThanOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanExpressionTest_GreaterThanOrEqualsOperator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

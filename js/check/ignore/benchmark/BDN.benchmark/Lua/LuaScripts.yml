@@ -1,8 +1,7 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - Script1
-  - Script2
-  - Script3
-  - Script4
+LuaParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Script1: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Script2: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Script3: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Script4: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

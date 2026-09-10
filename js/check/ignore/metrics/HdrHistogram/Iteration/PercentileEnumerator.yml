@@ -1,6 +1,5 @@
-fn:
-  - PercentileEnumerator
-  - HasNext
-  - IncrementIterationLevel
-  - ReachedIterationLevel
-  - GetPercentileIteratedTo
+PercentileEnumerator: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+HasNext: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+ReachedIterationLevel: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+GetPercentileIteratedTo: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

@@ -1,17 +1,15 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulateLog
-  - PopulateUncommittedLog
-  - Consume
-test:
-  - ScanBasicDefaultTest
-  - ScanBehindBeginAddressTest
-  - ScanConsumerTest
-  - ScanNoDefaultTest
-  - ScanByNameTest
-  - ScanWithoutRecoverTest
-  - ScanBufferingModeDoublePageTest
-  - ScanBufferingModeSinglePageTest
-  - ScanUncommittedTest
-  - ScanUncommittedEndsOnCompleteLogTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateUncommittedLog: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBasicDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBehindBeginAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanNoDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanByNameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanWithoutRecoverTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBufferingModeDoublePageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanBufferingModeSinglePageTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanUncommittedTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanUncommittedEndsOnCompleteLogTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

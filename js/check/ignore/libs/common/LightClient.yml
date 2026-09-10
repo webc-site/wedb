@@ -1,8 +1,7 @@
-fn:
-  - Connect
-  - ConnectSendSocket
-  - ConnectSendSocketAsync
-  - TryConnectSocket
-  - TryConnectSocketAsync
-  - CompletePendingRequests
-  - DefaultLightReceiveUnsafe
+Connect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ConnectSendSocket: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ConnectSendSocketAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryConnectSocket: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryConnectSocketAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CompletePendingRequests: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+DefaultLightReceiveUnsafe: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

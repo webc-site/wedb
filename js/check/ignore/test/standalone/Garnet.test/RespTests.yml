@@ -1,189 +1,187 @@
-fn:
-  - Setup
-  - TearDown
-  - ExpectError
-  - ExpectOk
-  - AssertExpectedClientFields
-  - AssertNotConnected
-  - GetFlagForSessionId
-  - ConnectAsync
-  - AssertDuplicateDefinitionError
-  - AssertField
-  - LCSWithIdxOption
-  - LCSWithIdxAndMinMatchLen
-  - LCSWithIdxAndWithMatchLen
-test:
-  - UniqueRespCommandIds
-  - OneIfWrite
-  - OneIfRead
-  - IsClusterSubCommand
-  - TryRestoreKeyNonStringType
-  - TryRestoreExistingKey
-  - SingleRestore32Bit
-  - SingleRestore14Bit
-  - SingleRestore6Bit
-  - SingleRestore6BitWithoutTtl
-  - SingleDump6Bit
-  - SingleDump14Bit
-  - SingleDump32Bit
-  - TryDumpKeyNonString
-  - TryDumpKeyThatDoesNotExist
-  - SingleSetGet
-  - SingleAsciiSetGetGarnetClient
-  - SingleUnicodeSetGetGarnetClient
-  - MultiSetGet
-  - MultiSetNX
-  - StringCommandsWrongArityReturnErrorAndKeepSessionAlive
-  - LargeSetGet
-  - SetExpiry
-  - SetExpiryHighPrecision
-  - SetExpiryThenExpireAndAppend
-  - SetExpiryNx
-  - SetAndGetExpiryNx
-  - SetXx
-  - SetAndGetExpiryXx
-  - SetGet
-  - SetExpiryIncr
-  - IncrDecrChangeDigitsWithExpiry
-  - SetOptionsCaseSensitivityTest
-  - LockTakeRelease
-  - SingleIncr
-  - SingleIncrBy
-  - SingleDecr
-  - SingleDecrBy
-  - SingleDecrByNoKey
-  - SingleIncrNoKey
-  - SimpleIncrementInvalidValue
-  - SimpleIncrementOverflow
-  - SimpleIncrementByFloatWithNoKey
-  - SimpleIncrementByFloat
-  - SimpleIncrementByFloatWithInvalidFloat
-  - SimpleIncrementByFloatWithOutOfRangeFloat
-  - SingleDelete
-  - SingleDeleteWithObjectStoreDisabled
-  - SingleDeleteWithObjectStoreDisable_LTM
-  - GarnetObjectStoreDisabledError
-  - MultiKeyDelete
-  - MultiKeyDeleteObjectStore
-  - MultiKeyUnlink
-  - MultiKeyUnlinkObjectStore
-  - SingleExists
-  - SingleExistsObject
-  - MultipleExistsKeysAndObjects
-  - ExpiretimeWithStringValue
-  - ExpiretimeWithUnknownKey
-  - ExpiretimeWithNoKeyExpiration
-  - ExpiretimeWithInvalidNumberOfArgs
-  - ExpiretimeWithObjectValue
-  - ExpiretimeWithNoKeyExpirationForObjectValue
-  - PExpiretimeWithStingValue
-  - PExpiretimeWithUnknownKey
-  - PExpiretimeWithNoKeyExpiration
-  - PExpiretimeWithInvalidNumberOfArgs
-  - PExpiretimeWithObjectValue
-  - PExpiretimeWithNoKeyExpirationForObjectValue
-  - SingleRename
-  - SingleRenameWithExpiry
-  - SingleRenameKeyEdgeCase
-  - SingleRenameObjectStore
-  - SingleRenameObjectStoreWithExpiry
-  - SingleRenameWithOldKeyAndNewKeyAsSame
-  - SingleRenameNx
-  - SingleRenameNxWithNewKeyAlreadyExist
-  - SingleRenameNxWithExpiry
-  - SingleRenameNxWithExpiryAndNewKeyAlreadyExist
-  - SingleRenameNxObjectStore
-  - SingleRenameNxObjectStoreWithNewKeyAlreadyExist
-  - SingleRenameNxObjectStoreWithExpiry
-  - SingleRenameNxObjectStoreWithExpiryAndNewKeyAlreadyExist
-  - SingleRenameNxWithKeyNotExist
-  - SingleRenameNxWithOldKeyAndNewKeyAsSame
-  - SingleRenameNXWithEtagSetOldAndNewKey
-  - SingleRenameNXWithEtagSetOldKey
-  - CanSelectCommand
-  - CanSelectCommandLC
-  - CanDoCommandsInChunks
-  - CanSetGetCommandsChunks
-  - PersistTTLTest
-  - TtlRoundingTest
-  - ObjectTTLTest
-  - PersistTest
-  - PersistObjectTest
-  - KeyExpireStringTest
-  - KeyExpireObjectTest
-  - KeyExpireOptionsTest
-  - KeyExpireBadOptionTests
-  - KeyExpireIncompatibleOptionsSingleReplyTest
-  - KeyExpireAtWithStringAndObject
-  - KeyExpireAtWithUnknownKey
-  - KeyExpireAtWithoutArgs
-  - KeyExpireAtWithUnknownArgs
-  - KeyExpireAtWithNxOptionAndKeyHasExpire
-  - KeyExpireAtWithNxOptionAndKeyHasNoExpire
-  - KeyExpireAtWithXxOptionAndKeyHasExpire
-  - KeyExpireAtWithXxOptionAndKeyHasNoExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithGtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithXxAndGtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithLtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyHasSmallerExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyHasLargerExpire
-  - KeyExpireAtWithXxAndLtOptionAndExistingKeyNoExpire
-  - KeyExpireAtWithInvalidOptionCombination
-  - ReAddExpiredKey
-  - MainObjectKey
-  - GetSliceTest
-  - GetRangeEmptyValueTest
-  - SetRangeTest
-  - PingTest
-  - AskingTest
-  - KeepTtlTest
-  - StrlenTest
-  - TTLTestMilliseconds
-  - GetDelTest
-  - GetRole
-  - AppendTest
-  - AppendLargeStringValueTest
-  - AppendWithExpirationTest
-  - HelloTest1
-  - HelloAuthErrorTest
-  - RespOutputTests
-  - AsyncTest1
-  - ClientIdTest
-  - ClientInfoTest
-  - ClientListTest
-  - ClientListErrorTest
-  - ClientKillTestAsync
-  - ClientKillErrors
-  - ClientGetNameBasicTest
-  - ClientGetNameAfterSetNameTest
-  - ClientSetNameTest
-  - ClientSetInfoSingleOptionTest
-  - ClientSetInfoInvalidOptionsTest
-  - GetExpiryBasicTestWithSERedisApi
-  - GetExpiryWithoutOptions
-  - GetExpiryWithExpireOptions
-  - GetExpiryWithPersistOptions
-  - GetExpiryWithUnknownKey
-  - GetExpiryWitInvalidOptions
-  - GetSetWithExistingKey
-  - GetSetWithNewKey
-  - SetIfNotExistWithExistingKey
-  - SetIfNotExistWithNewKey
-  - SetNXCorrectResponse
-  - SubStringWithOptions
-  - LCSBasicTest
-  - LCSWithLenOption
-  - LCSWithInvalidOptions
-  - LCSWithNonExistentKeys
-  - ClientUnblockBasicTest
-  - ClientUnblockWithErrorWritesSingleReplyTest
-  - MultipleClientsUnblockAndAddTest
-  - ClientUnblockInvalidIdTest
-  - ClientUnblockInvalidModeTest
-  - ExcessiveArgumentCountRejected
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpectError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpectOk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertExpectedClientFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertNotConnected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetFlagForSessionId: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConnectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertDuplicateDefinitionError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithIdxOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithIdxAndMinMatchLen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithIdxAndWithMatchLen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UniqueRespCommandIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OneIfWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OneIfRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsClusterSubCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryRestoreKeyNonStringType: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryRestoreExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRestore32Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRestore14Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRestore6Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRestore6BitWithoutTtl: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDump6Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDump14Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDump32Bit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryDumpKeyNonString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryDumpKeyThatDoesNotExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleAsciiSetGetGarnetClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleUnicodeSetGetGarnetClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiSetNX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StringCommandsWrongArityReturnErrorAndKeepSessionAlive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryHighPrecision: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryThenExpireAndAppend: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryNx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetAndGetExpiryNx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetXx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetAndGetExpiryXx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryIncr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrDecrChangeDigitsWithExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetOptionsCaseSensitivityTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockTakeRelease: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleIncr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleIncrBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDecr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDecrBy: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDecrByNoKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleIncrNoKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementInvalidValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementByFloatWithNoKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementByFloat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementByFloatWithInvalidFloat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementByFloatWithOutOfRangeFloat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDeleteWithObjectStoreDisabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDeleteWithObjectStoreDisable_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetObjectStoreDisabledError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyDeleteObjectStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyUnlink: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyUnlinkObjectStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleExists: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleExistsObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleExistsKeysAndObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithStringValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithUnknownKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithNoKeyExpiration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithInvalidNumberOfArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithObjectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpiretimeWithNoKeyExpirationForObjectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithStingValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithUnknownKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithNoKeyExpiration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithInvalidNumberOfArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithObjectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PExpiretimeWithNoKeyExpirationForObjectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRename: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameWithExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameKeyEdgeCase: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameObjectStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameObjectStoreWithExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameWithOldKeyAndNewKeyAsSame: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNx: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxWithNewKeyAlreadyExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxWithExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxWithExpiryAndNewKeyAlreadyExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxObjectStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxObjectStoreWithNewKeyAlreadyExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxObjectStoreWithExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxObjectStoreWithExpiryAndNewKeyAlreadyExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxWithKeyNotExist: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNxWithOldKeyAndNewKeyAsSame: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNXWithEtagSetOldAndNewKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleRenameNXWithEtagSetOldKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSelectCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSelectCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoCommandsInChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanSetGetCommandsChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistTTLTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TtlRoundingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectTTLTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireStringTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireBadOptionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireIncompatibleOptionsSingleReplyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithStringAndObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithUnknownKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithoutArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithUnknownArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithNxOptionAndKeyHasExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithNxOptionAndKeyHasNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxOptionAndKeyHasExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxOptionAndKeyHasNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithGtOptionAndExistingKeyHasSmallerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithGtOptionAndExistingKeyHasLargerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithGtOptionAndExistingKeyNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndGtOptionAndExistingKeyHasSmallerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndGtOptionAndExistingKeyHasLargerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndGtOptionAndExistingKeyNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithLtOptionAndExistingKeyHasSmallerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithLtOptionAndExistingKeyHasLargerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithLtOptionAndExistingKeyNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndLtOptionAndExistingKeyHasSmallerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndLtOptionAndExistingKeyHasLargerExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithXxAndLtOptionAndExistingKeyNoExpire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireAtWithInvalidOptionCombination: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReAddExpiredKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MainObjectKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSliceTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRangeEmptyValueTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetRangeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AskingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeepTtlTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StrlenTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TTLTestMilliseconds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetDelTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRole: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AppendTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AppendLargeStringValueTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AppendWithExpirationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HelloTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HelloAuthErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespOutputTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AsyncTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientIdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientInfoTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientListTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientListErrorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientKillTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientKillErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientGetNameBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientGetNameAfterSetNameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetNameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetInfoSingleOptionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetInfoInvalidOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryBasicTestWithSERedisApi: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryWithoutOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryWithExpireOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryWithPersistOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryWithUnknownKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetExpiryWitInvalidOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSetWithExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSetWithNewKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfNotExistWithExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfNotExistWithNewKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetNXCorrectResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubStringWithOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithLenOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithInvalidOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LCSWithNonExistentKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientUnblockBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientUnblockWithErrorWritesSingleReplyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleClientsUnblockAndAddTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientUnblockInvalidIdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientUnblockInvalidModeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExcessiveArgumentCountRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

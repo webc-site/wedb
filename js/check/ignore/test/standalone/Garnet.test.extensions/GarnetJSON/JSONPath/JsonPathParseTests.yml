@@ -1,83 +1,82 @@
-test:
-  - BooleanQuery_TwoValues
-  - BooleanQuery_TwoPaths
-  - SingleProperty
-  - SingleQuotedProperty
-  - SingleQuotedPropertyWithWhitespace
-  - SingleQuotedPropertyWithDots
-  - SingleQuotedPropertyWithBrackets
-  - SinglePropertyWithRoot
-  - SinglePropertyWithRootWithStartAndEndWhitespace
-  - RootWithBadWhitespace
-  - NoFieldNameAfterDot
-  - RootWithBadWhitespace2
-  - WildcardPropertyWithRoot
-  - WildcardArrayWithRoot
-  - RootArrayNoDot
-  - WildcardArray
-  - WildcardArrayWithProperty
-  - QuotedWildcardPropertyWithRoot
-  - SingleScanWithRoot
-  - QueryTrue
-  - ScanQuery
-  - WildcardScanWithRoot
-  - WildcardScanWithRootWithWhitespace
-  - TwoProperties
-  - OnePropertyOneScan
-  - SinglePropertyAndIndexer
-  - SinglePropertyAndExistsQuery
-  - SinglePropertyAndFilterWithWhitespace
-  - SinglePropertyAndFilterWithEscapeQuote
-  - SinglePropertyAndFilterWithDoubleEscape
-  - SinglePropertyAndFilterWithRegexAndOptions
-  - SinglePropertyAndFilterWithRegex
-  - SinglePropertyAndFilterWithEscapedRegex
-  - SinglePropertyAndFilterWithOpenRegex
-  - SinglePropertyAndFilterWithUnknownEscape
-  - SinglePropertyAndFilterWithFalse
-  - SinglePropertyAndFilterWithTrue
-  - SinglePropertyAndFilterWithNull
-  - FilterWithScan
-  - FilterWithNotEquals
-  - FilterWithNotEquals2
-  - FilterWithLessThan
-  - FilterWithLessThanOrEquals
-  - FilterWithGreaterThan
-  - FilterWithGreaterThanOrEquals
-  - FilterWithInteger
-  - FilterWithNegativeInteger
-  - FilterWithFloat
-  - FilterExistWithAnd
-  - FilterExistWithAndOr
-  - FilterWithRoot
-  - BadOr1
-  - BaddOr2
-  - BaddOr3
-  - BaddOr4
-  - NoAtAfterOr
-  - NoPathAfterAt
-  - NoPathAfterDot
-  - NoPathAfterDot2
-  - FilterWithFloatExp
-  - MultiplePropertiesAndIndexers
-  - BadCharactersInIndexer
-  - UnclosedIndexer
-  - IndexerOnly
-  - IndexerOnlyWithWhitespace
-  - MultipleIndexes
-  - MultipleIndexesWithWhitespace
-  - MultipleQuotedIndexes
-  - MultipleQuotedIndexesWithWhitespace
-  - SlicingIndexAll
-  - SlicingIndex
-  - SlicingIndexNegative
-  - SlicingIndexEmptyStop
-  - SlicingIndexEmptyStart
-  - SlicingIndexWhitespace
-  - EmptyIndexer
-  - IndexerCloseInProperty
-  - AdjacentIndexers
-  - MissingDotAfterIndexer
-  - PropertyFollowingEscapedPropertyName
-  - ArrayOfArrayValue
-  - ArrayOfArrayValueWithEscaping
+BooleanQuery_TwoValues: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BooleanQuery_TwoPaths: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleProperty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleQuotedProperty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleQuotedPropertyWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleQuotedPropertyWithDots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleQuotedPropertyWithBrackets: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyWithRootWithStartAndEndWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RootWithBadWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoFieldNameAfterDot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RootWithBadWhitespace2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardPropertyWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardArrayWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RootArrayNoDot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardArray: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardArrayWithProperty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+QuotedWildcardPropertyWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleScanWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+QueryTrue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanQuery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardScanWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WildcardScanWithRootWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TwoProperties: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnePropertyOneScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndIndexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndExistsQuery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithEscapeQuote: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithDoubleEscape: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithRegexAndOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithRegex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithEscapedRegex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithOpenRegex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithUnknownEscape: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithTrue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SinglePropertyAndFilterWithNull: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithNotEquals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithNotEquals2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithLessThan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithLessThanOrEquals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithGreaterThan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithGreaterThanOrEquals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithInteger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithNegativeInteger: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithFloat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterExistWithAnd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterExistWithAndOr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithRoot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadOr1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaddOr2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaddOr3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaddOr4: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoAtAfterOr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoPathAfterAt: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoPathAfterDot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoPathAfterDot2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FilterWithFloatExp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiplePropertiesAndIndexers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BadCharactersInIndexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnclosedIndexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IndexerOnly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IndexerOnlyWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleIndexes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleIndexesWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleQuotedIndexes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleQuotedIndexesWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndexAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndexNegative: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndexEmptyStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndexEmptyStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SlicingIndexWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyIndexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IndexerCloseInProperty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AdjacentIndexers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MissingDotAfterIndexer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PropertyFollowingEscapedPropertyName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ArrayOfArrayValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ArrayOfArrayValueWithEscaping: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

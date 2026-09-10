@@ -1,20 +1,19 @@
-fn:
-  - PostFunctions
-  - PostInitialWriter
-  - InitialUpdater
-  - PostInitialUpdater
-  - CopyUpdater
-  - PostCopyUpdater
-  - PostInitialDeleter
-  - Setup
-  - DeleteDirectory
-  - Populate
-  - TearDown
-  - OnTearDown
-  - CompletePendingAndVerifyInsertedAddress
-test:
-  - PostInitialWriterTest
-  - PostInitialUpdaterTest
-  - PostCopyUpdaterTest
-  - PostCopyUpdaterFalseTest
-  - PostInitialDeleterTest
+PostFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CompletePendingAndVerifyInsertedAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialWriterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialUpdaterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyUpdaterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyUpdaterFalseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialDeleterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

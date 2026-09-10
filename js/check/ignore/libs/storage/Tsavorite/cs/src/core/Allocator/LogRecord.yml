@@ -1,54 +1,53 @@
-fn:
-  - SetDataHeader
-  - InitializeHeadersForNewRecord
-  - CreateRemappedOverPinnedTransientMemory
-  - RemapOverPinnedTransientMemory
-  - ThrowTsavoriteException
-  - SetDeserializedValueObject
-  - GetObjectLogPositionAddress
-  - AsReadOnlySpan
-  - GetETagAddress
-  - GetExpirationAddress
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - GetAllocatedSize
-  - GetExpectedIORecordSize
-  - SetFillerLength
-  - InitializeRecord
-  - GetInfoRef
-  - GetInfo
-  - GetInlineKey
-  - TrySetContentLengths
-  - TrySetContentLengthsAndPrepareOptionals
-  - TrySetPinnedValueLength
-  - TrySetValueSpanAndPrepareOptionals
-  - TryReinitializeValueLength
-  - TrySetValueObjectAndPrepareOptionals
-  - TrySetValueObject
-  - GetOptionalStartAddress
-  - GetOptionalFieldsSpan
-  - InitializeForReuse
-  - TrySetETag
-  - RemoveETag
-  - TrySetExpiration
-  - RemoveExpiration
-  - TryCopyFrom
-  - PopulateRecordSizeInfoForIPU
-  - GetValueHeapMemorySize
-  - CanGrowPinnedValue
-  - TryCopyOptionals
-  - ClearOptionals
-  - ClearValueIfHeap
-  - ClearHeapFields
-  - PrepareForRevivification
-  - SetObjectLogRecordStartPositionAndLength
-  - RepointObjectLogPosition
-  - GetObjectLogRecordStartPositionAndLengths
-  - SetRecoveredObjectLogRecordStartPosition
-  - SetReuseObjectIdForSize
-  - OnObjectReadComplete
-  - OnDeserializationError
-  - GetSerializedSize
-  - CalculateHeapMemorySize
-  - ToString
+SetDataHeader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeHeadersForNewRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateRemappedOverPinnedTransientMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemapOverPinnedTransientMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowTsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetDeserializedValueObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetObjectLogPositionAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsReadOnlySpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetETagAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetExpirationAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsMemoryLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsDiskLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAllocatedSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetExpectedIORecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFillerLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetInfoRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetInlineKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetContentLengths: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetContentLengthsAndPrepareOptionals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetPinnedValueLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetValueSpanAndPrepareOptionals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryReinitializeValueLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetValueObjectAndPrepareOptionals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetValueObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOptionalStartAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOptionalFieldsSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeForReuse: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetETag: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveETag: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrySetExpiration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveExpiration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCopyFrom: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PopulateRecordSizeInfoForIPU: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetValueHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CanGrowPinnedValue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCopyOptionals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearOptionals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearValueIfHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearHeapFields: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrepareForRevivification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetObjectLogRecordStartPositionAndLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RepointObjectLogPosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetObjectLogRecordStartPositionAndLengths: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetRecoveredObjectLogRecordStartPosition: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetReuseObjectIdForSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnObjectReadComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDeserializationError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSerializedSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculateHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

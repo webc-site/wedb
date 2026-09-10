@@ -772,6 +772,7 @@ impl LuaRunner {
     let preamble_res = self.run_preamble_for_session();
 
     if let Err(err) = preamble_res {
+      self.host.session = None;
       let mut resp = RespOut::session(out, 2);
       resp.write_error(err);
       return;
@@ -1407,7 +1408,7 @@ impl LuaRunner {
 
     // Push nil key as "first key"
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       // Now we have value at top of stack, and key one below it
       map_size += 1;
       // Remove value, we don't need it
@@ -1419,7 +1420,7 @@ impl LuaRunner {
 
     // Write the values out by traversing the table again
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       // Copy key to top of stack
       runner.state.push_value(table_ix + 1);
 
@@ -1449,7 +1450,7 @@ impl LuaRunner {
     let mut map_size = 0usize;
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       map_size += 1;
       runner.state.pop(1);
     }
@@ -1460,7 +1461,7 @@ impl LuaRunner {
     resp.write_array_len(array_size);
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       runner.state.push_value(table_ix + 1);
 
       if !Self::try_write_single_item(runner, resp, err) && err.is_some() {
@@ -1486,7 +1487,7 @@ impl LuaRunner {
     let mut set_size = 0usize;
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       set_size += 1;
       runner.state.pop(1);
     }
@@ -1495,7 +1496,7 @@ impl LuaRunner {
     resp.write_set_len(set_size);
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       // Remove the value, it's ignored
       runner.state.pop(1);
 
@@ -1522,7 +1523,7 @@ impl LuaRunner {
     let mut set_size = 0usize;
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       set_size += 1;
       runner.state.pop(1);
     }
@@ -1530,7 +1531,7 @@ impl LuaRunner {
     resp.write_array_len(set_size);
 
     runner.state.push_nil();
-    while runner.state.next() {
+    while runner.state.lua_next() {
       runner.state.pop(1);
       runner.state.push_value(table_ix + 1);
 

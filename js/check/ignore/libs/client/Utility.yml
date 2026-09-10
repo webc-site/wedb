@@ -1,6 +1,5 @@
-fn:
-  - NumBitsPreviousPowerOf2
-  - IsBlittable
-  - Murmur3
-  - WithCancellationAsync
-  - SlowWithCancellationAsync
+NumBitsPreviousPowerOf2: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+IsBlittable: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+Murmur3: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+WithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+SlowWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

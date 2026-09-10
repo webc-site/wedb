@@ -1,14 +1,12 @@
-fn:
-  - Setup
-  - GetLimitedUserConfig
-  - CreateLimitedUserAsync
-test:
-  - BasicWhoamiTest
-  - BasicListTest
-  - BasicUsersTest
-  - BasicGenPassTest
-  - InvalidSubcommand
-  - NoAuthValidation
-  - DeniedCommandReturnsNoPermAsync
-  - PermittedCommandStillWorksAsync
-  - ClientSetInfoDeniedReturnsNoPermAsync
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLimitedUserConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLimitedUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicWhoamiTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicListTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicUsersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicGenPassTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InvalidSubcommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoAuthValidation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeniedCommandReturnsNoPermAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermittedCommandStillWorksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientSetInfoDeniedReturnsNoPermAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

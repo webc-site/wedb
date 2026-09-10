@@ -1,25 +1,23 @@
-fn:
-  - Equals
-  - GetHashCode64
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - TryLock
-  - PopulateHei
-  - Unlock
-  - AssertLockCounts
-  - AssertTotalLockCounts
-  - AssertBucketLockCount
-  - AddThreads
-  - CreateKeys
-  - createKey
-  - AssertSorted
-  - runThread
-  - getNextKey
-test:
-  - ThreadedLockStressTest1Thread
-  - ThreadedLockStressTestMultiThreadsNoContention
-  - ThreadedLockStressTestMultiThreadsRandomContention
-  - FullArraySortTest
-  - PartialArraySortTest
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryLock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateHei: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Unlock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertTotalLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertBucketLockCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddThreads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+createKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSorted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getNextKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTest1Thread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTestMultiThreadsNoContention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThreadedLockStressTestMultiThreadsRandomContention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FullArraySortTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PartialArraySortTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

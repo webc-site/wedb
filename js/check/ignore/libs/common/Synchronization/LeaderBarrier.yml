@@ -1,2 +1,1 @@
-fn:
-  - TrySignalOrWait
+TrySignalOrWait: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

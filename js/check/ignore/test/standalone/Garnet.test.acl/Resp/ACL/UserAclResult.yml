@@ -1,6 +1,5 @@
-fn:
-  - UserAclResult
-  - IsWellStructured
-  - ContainsPasswordHash
-  - IsArray
-  - IsValue
+UserAclResult: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsWellStructured: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ContainsPasswordHash: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsArray: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

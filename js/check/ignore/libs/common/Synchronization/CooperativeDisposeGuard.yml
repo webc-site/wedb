@@ -1,4 +1,3 @@
-fn:
-  - TryEnter
-  - ExitAndCheckShouldCleanup
-  - TryDispose
+TryEnter: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+ExitAndCheckShouldCleanup: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryDispose: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

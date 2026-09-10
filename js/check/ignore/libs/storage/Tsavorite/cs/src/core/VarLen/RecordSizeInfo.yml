@@ -1,9 +1,8 @@
-fn:
-  - SetKeyIsInline
-  - SetValueIsInline
-  - SetIsRevivifiedRecord
-  - CalculateSizes
-  - ThrowTsavoriteException
-  - AssertValueDataLength
-  - AssertOptionalsIfSet
-  - ToString
+SetKeyIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetValueIsInline: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetIsRevivifiedRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculateSizes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowTsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AssertValueDataLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AssertOptionalsIfSet: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

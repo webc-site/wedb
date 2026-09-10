@@ -1,4 +1,3 @@
-fn:
-  - PeriodicCheckpointer
-  - Start
-  - Stop
+PeriodicCheckpointer: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Start: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Stop: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

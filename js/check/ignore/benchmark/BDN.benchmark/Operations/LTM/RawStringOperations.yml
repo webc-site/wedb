@@ -1,18 +1,17 @@
-fn:
-  - ConfigureServerOptions
-  - GlobalSetup
-  - SetupBatch
-  - Populate
-  - SlowConsumeMessage
-  - MissingKey
-  - SendRandomized
-  - SetEx
-  - SetNx
-  - SetXx
-  - GetFound
-  - GetNotFound
-  - IncrementBy
-  - DecrementBy
-  - WriteKeyDigits
-  - NextRandomKeyId
-  - NumDigits
+ConfigureServerOptions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupBatch: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Populate: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+MissingKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SendRandomized: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetEx: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetNx: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetXx: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetFound: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetNotFound: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IncrementBy: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DecrementBy: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteKeyDigits: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+NextRandomKeyId: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+NumDigits: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

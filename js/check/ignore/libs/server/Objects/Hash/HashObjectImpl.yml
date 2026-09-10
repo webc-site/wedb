@@ -1,0 +1,3 @@
+HashMultipleGet: C# ObjectInput 内部解包函数，Rust 侧由 hash_get_multiple 直接操作 HashObject
+HashGetKeysOrValues: C# ObjectInput 键值提取函数，Rust 侧由 get_keys/get_values 直接实现
+GetByteSpanFromInput: C# ObjectInput 字节切片辅助，Rust 侧由 SessionParseState 借用切片

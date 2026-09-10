@@ -1,5 +1,4 @@
-fn:
-  - Serialize
-  - WriteType
-  - CacheSerializedObjectData
-  - ClearSerializedObjectData
+Serialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteType: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CacheSerializedObjectData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearSerializedObjectData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

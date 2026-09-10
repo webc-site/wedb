@@ -1,14 +1,12 @@
-fn:
-  - Setup
-  - GetTestKey
-  - ValidateListContentAsync
-  - TearDown
-test:
-  - AddElementsToTheListHeadInBulk_WithCallback
-  - AddElementsToTheListHead_WithCallback
-  - AddElementsToTheListHead_WithAsync
-  - AddElementsToListTailInBulk_WithCallback
-  - AddElementsToListTail_WithCallback
-  - AddElementsToTheListTail_WithAsync
-  - GetListElements
-  - GetListLength
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetTestKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateListContentAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHeadInBulk_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHead_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListHead_WithAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToListTailInBulk_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToListTail_WithCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddElementsToTheListTail_WithAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetListElements: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetListLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,35 +1,33 @@
-fn:
-  - Setup
-  - TearDown
-  - GenerateDataset
-test:
-  - MultiDatabaseBasicSelectTestSE
-  - MultiDatabaseBasicSelectFromScriptTestSE
-  - MultiDatabaseSwapDatabaseFromScriptTestLC
-  - MultiDatabaseDbSizeTestSE
-  - MultiDatabaseSimpleTransactionTest
-  - MultiDatabaseCustomCommandRegistrationTest
-  - MultiDatabaseSelectErrorConditionsTestSE
-  - MultiDatabaseSwapDbErrorConditionsTestLC
-  - MultiDatabaseSingleDbIdCommandErrorsTestLC
-  - MultiDatabaseSameKeyTestSE
-  - MultiDatabaseFlushDatabasesTestSE
-  - MultiDatabaseBasicSelectTestLC
-  - MultiDatabaseSelectDatabaseInTransactionDisabledTestLC
-  - MultiDatabaseSelectInTransactionTestLC
-  - MultiDatabaseSwapDatabasesTestLC
-  - MultiDatabaseSwapDatabasesInTransactionDisabledTestLC
-  - MultiDatabaseSwapDatabasesInTransactionTestLC
-  - MultiDatabaseMultiSessionSwapDatabasesErrorTestLC
-  - MultiDatabaseMultiSessionSwapDatabasesTestLC
-  - MultiDatabaseSelectMultithreadedTestLC
-  - MultiDatabaseSelectMultithreadedTestSE
-  - MultiDatabaseSaveRecoverObjectTest
-  - MultiDatabaseSaveRecoverRawStringTest
-  - MultiDatabaseAofRecoverRawStringTestAsync
-  - MultiDatabaseAofRecoverObjectTestAsync
-  - MultiDatabaseAofObjectMutationRecoverTestAsync
-  - MultiDatabaseSaveInProgressTest
-  - MultiDatabaseGeneralSaveBlocksGeneralSaveTest
-  - MultiDatabaseSaveRecoverByDbIdTest
-  - MultiDatabaseAofRecoverByDbIdTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateDataset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseBasicSelectTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseBasicSelectFromScriptTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSwapDatabaseFromScriptTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseDbSizeTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSimpleTransactionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseCustomCommandRegistrationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSelectErrorConditionsTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSwapDbErrorConditionsTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSingleDbIdCommandErrorsTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSameKeyTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseFlushDatabasesTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseBasicSelectTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSelectDatabaseInTransactionDisabledTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSelectInTransactionTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSwapDatabasesTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSwapDatabasesInTransactionDisabledTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSwapDatabasesInTransactionTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseMultiSessionSwapDatabasesErrorTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseMultiSessionSwapDatabasesTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSelectMultithreadedTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSelectMultithreadedTestSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSaveRecoverObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSaveRecoverRawStringTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseAofRecoverRawStringTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseAofRecoverObjectTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseAofObjectMutationRecoverTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSaveInProgressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseGeneralSaveBlocksGeneralSaveTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseSaveRecoverByDbIdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiDatabaseAofRecoverByDbIdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

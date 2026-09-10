@@ -1,10 +1,9 @@
-fn:
-  - LogCheckpointBase
-  - LogCheckpointMetadata
-  - LogSnapshot
-  - ObjectLogSnapshot
-  - IndexCheckpointBase
-  - IndexCheckpointMetadata
-  - HashTable
-  - TsavoriteLogCommitMetadata
-  - CommitNumber
+LogCheckpointBase: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LogCheckpointMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LogSnapshot: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ObjectLogSnapshot: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+IndexCheckpointBase: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+IndexCheckpointMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+HashTable: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+TsavoriteLogCommitMetadata: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+CommitNumber: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

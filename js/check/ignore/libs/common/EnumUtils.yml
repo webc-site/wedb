@@ -1,6 +1,5 @@
-fn:
-  - GetEnumNameToDescription
-  - GetEnumDescriptions
-  - TryParseEnumsFromDescription
-  - TryParseEnumFromDescription
-  - AddTypeToCache
+GetEnumNameToDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetEnumDescriptions: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEnumsFromDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEnumFromDescription: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AddTypeToCache: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

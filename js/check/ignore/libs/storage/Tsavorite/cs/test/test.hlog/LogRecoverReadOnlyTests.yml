@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - ProducerAsync
-  - CommitterAsync
-  - ReadOnlyConsumerAsync
-  - BeginRecoverAsyncLoop
-test:
-  - RecoverReadOnlyCheck1
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProducerAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadOnlyConsumerAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BeginRecoverAsyncLoop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoverReadOnlyCheck1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

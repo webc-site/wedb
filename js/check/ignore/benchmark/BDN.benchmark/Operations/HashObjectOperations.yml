@@ -1,19 +1,18 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - HSetDel
-  - HExists
-  - HGet
-  - HGetAll
-  - HIncrby
-  - HIncrbyFloat
-  - HKeys
-  - HLen
-  - HMGet
-  - HMSet
-  - HRandField
-  - HScan
-  - HSetNx
-  - HStrLen
-  - HVals
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HSetDel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HExists: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HGet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HGetAll: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HIncrby: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HIncrbyFloat: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HKeys: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HLen: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HMGet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HMSet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HRandField: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HScan: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HSetNx: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HStrLen: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+HVals: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

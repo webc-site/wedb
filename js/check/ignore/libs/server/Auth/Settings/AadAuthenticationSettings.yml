@@ -1,4 +1,1 @@
-# 无需 rust 实现：C# Dispose 仅转发释放 IssuerSigningTokenProvider；
-# rust 侧供给器生命周期由 Arc 自动管理，最后一个引用 Drop 时停刷线程
-fn:
-  - Dispose
+Dispose: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,7 +1,6 @@
-fn:
-  - ObjectIdMap
-  - AllocateAndSet
-  - GetHeapObject
-  - TryGetHeapObject
-  - GetOverflowByteArray
-  - ToString
+ObjectIdMap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateAndSet: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetHeapObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryGetHeapObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOverflowByteArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

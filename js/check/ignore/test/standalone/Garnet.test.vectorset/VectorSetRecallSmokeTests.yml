@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - LoadVectorSet
-  - AssertEvictedToDisk
-  - GenerateData
-  - RandomGaussianVector
-  - NextGaussian
-  - Normalized
-  - MeasureRecall
-  - BruteForceTopK
-  - Dot
-test:
-  - RecallSurvivesFlushAndEvict
-  - RecallSurvivesLargerThanMemoryLoad
-  - RecallSurvivesSaveAndRecover
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LoadVectorSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertEvictedToDisk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomGaussianVector: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NextGaussian: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Normalized: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MeasureRecall: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BruteForceTopK: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecallSurvivesFlushAndEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecallSurvivesLargerThanMemoryLoad: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecallSurvivesSaveAndRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

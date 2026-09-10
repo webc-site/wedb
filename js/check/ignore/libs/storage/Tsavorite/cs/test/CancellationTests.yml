@@ -1,22 +1,20 @@
-fn:
-  - NeedInitialUpdate
-  - NeedCopyUpdate
-  - CopyUpdater
-  - InitialUpdater
-  - InitialWriter
-  - InPlaceWriter
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - GetUpsertFieldInfo
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - Populate
-  - do_it
-test:
-  - InitialUpdaterTest
-  - CopyUpdaterTest
-  - InPlaceUpdaterTest
-  - InitialWriterTest
-  - InPlaceWriterTest
+NeedInitialUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NeedCopyUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUpsertFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+do_it: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdaterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdaterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceUpdaterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceWriterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

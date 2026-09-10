@@ -7,13 +7,7 @@
 //! - Linux 下对于 >= 2MB 的大块映射自动提示透明大页 `madvise(MADV_HUGEPAGE)`，削减 dTLB 未命中开销
 //! - 全局接入 [`NativeMemoryTracker`]，支持条带化无锁追踪原生已分配内存
 
-use std::{
-  io::Error as IoError,
-  ops::Range,
-  ptr,
-  slice::{from_raw_parts, from_raw_parts_mut},
-  sync::OnceLock,
-};
+use std::{io::Error as IoError, ops::Range, ptr, slice::from_raw_parts, sync::OnceLock};
 
 use crate::{Error, Result, tracker::NativeMemoryTracker};
 
@@ -75,28 +69,6 @@ impl DirectVmBlock {
     self.reserved_length.saturating_sub(offset)
   }
 
-  /// 获取自对齐地址起的可用切片
-  #[inline]
-  pub fn as_aligned_slice(&self, len: usize) -> &[u8] {
-    if self.is_empty() || len == 0 {
-      &[]
-    } else {
-      let len = len.min(self.avail_len());
-      unsafe { from_raw_parts(self.aligned_ptr, len) }
-    }
-  }
-
-  /// 获取自对齐地址起的可变切片
-  #[inline]
-  pub fn as_aligned_mut_slice(&mut self, len: usize) -> &mut [u8] {
-    if self.is_empty() || len == 0 {
-      &mut []
-    } else {
-      let len = len.min(self.avail_len());
-      unsafe { from_raw_parts_mut(self.aligned_ptr, len) }
-    }
-  }
-
   /// 校验子切片区间越界，合法时返回 (起始裸指针, 长度)
   ///
   /// 空块或 `start > end` 或末端越过可用长度均报错，绝不越界解引用
@@ -117,16 +89,6 @@ impl DirectVmBlock {
       return Ok(&[]);
     }
     Ok(unsafe { from_raw_parts(start_ptr, len) })
-  }
-
-  /// 获取指定偏移与长度的可变对齐子切片
-  #[inline]
-  pub fn slice_mut(&mut self, range: Range<usize>) -> Result<&mut [u8]> {
-    let (start_ptr, len) = self.check_range(range)?;
-    if len == 0 {
-      return Ok(&mut []);
-    }
-    Ok(unsafe { from_raw_parts_mut(start_ptr, len) })
   }
 }
 

@@ -1,75 +1,64 @@
-fn:
-  - CreateCircularFlushBuffers
-  - CreateCircularReadBuffers
-  - GetObjectLogTail
-  - SetObjectLogTail
-  - CalculatePageObjectSizes
-  - LoadObjectsForRecoveryPass2
-  - ToString
-  - BaseToString
-  - WriteAsyncToDeviceForSnapshot
-  - ResetCore
-  - FreeAllAllocatedPages
-  - TruncateUntilAddressBlocking
-  - TryComplete
-  - TryCompleteMine
-  - StopSizeTrackerForDispose
-  - VerifyCompatibleSectorSize
-  - WriteInlinePageAsync
-  - IsAllocated
-  - VerifyRecoveryInfo
-  - GetSegment
-  - AllocatePinnedPageArray
-  - FreeNativeLogPage
-  - RecycleOrFreeNativeBlock
-  - BeginNativeSnapshotFlush
-  - EndNativeSnapshotFlush
-  - GetPage
-  - GetOffsetOnPage
-  - IncrementAllocatedPageCount
-  - GetMainLogSegmentSize
-  - GetObjectLogSegmentSize
-  - GetTailAddress
-  - UnstableGetTailAddress
-  - GetPageIndexForPage
-  - GetPageIndexForAddress
-  - GetPageSize
-  - GetAddressOfStartOfPageOfAddress
-  - GetFirstValidLogicalAddressOnPage
-  - GetOffsetOnSegment
-  - GetStartLogicalAddressOfSegment
-  - GetDeviceSectorSize
-  - AllocatePagesWithException
-  - AllocateCurrentAndNextPage
-  - ShiftReadOnlyAddressWithWait
-  - ShiftAddressesWithWait
-  - NeedToShiftAddress
-  - IssueShiftAddress
-  - ThrowTsavoriteException
-  - TryAllocateRetryNow
-  - WaitToRetryNow
-  - FindHeadAddressCutoffOnPage
-  - EvictPageForRecovery
-  - MemoryPageScan
-  - AsyncFlushPagesForReadOnly
-  - OnPagesClosedWorker
-  - OnPagesClosedWorkerCore
-  - EvictCallback
-  - DebugPrintAddresses
-  - RecoveryReset
-  - AsyncReadRecordToMemory
-  - AsyncReadBlittableRecordToMemory
-  - GetAndPopulateReadBuffer
-  - GetFlushPageRange
-  - PrepareFlushAsyncResult
-  - AsyncFlushPagesForRecovery
-  - AsyncFlushPagesForSnapshot
-  - FlushRunner
-  - AsyncReadPageFromDeviceToFrame
-  - VerifyRecordFromDiskCallback
-  - TryVerifyOrReissuePendingRead
-  - AsyncFlushPageCallback
-  - when
-  - UnsafeSkipError
-  - AsyncFlushPageForSnapshotCallback
-  - PrettyPrintLogicalAddress
+CreateCircularFlushBuffers: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateCircularReadBuffers: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetObjectLogTail: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetObjectLogTail: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculatePageObjectSizes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadObjectsForRecoveryPass2: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BaseToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetCore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeAllAllocatedPages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TruncateUntilAddressBlocking: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryComplete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCompleteMine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StopSizeTrackerForDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteInlinePageAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsAllocated: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyRecoveryInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSegment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePinnedPageArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeNativeLogPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecycleOrFreeNativeBlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginNativeSnapshotFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndNativeSnapshotFlush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementAllocatedPageCount: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetMainLogSegmentSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetObjectLogSegmentSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnstableGetTailAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetPageIndexForPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetPageSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAddressOfStartOfPageOfAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetFirstValidLogicalAddressOnPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOffsetOnSegment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetStartLogicalAddressOfSegment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetDeviceSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePagesWithException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateCurrentAndNextPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ShiftReadOnlyAddressWithWait: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ShiftAddressesWithWait: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NeedToShiftAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IssueShiftAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowTsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAllocateRetryNow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitToRetryNow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindHeadAddressCutoffOnPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EvictPageForRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MemoryPageScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncFlushPagesForReadOnly: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnPagesClosedWorker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnPagesClosedWorkerCore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EvictCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DebugPrintAddresses: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoveryReset: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAndPopulateReadBuffer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetFlushPageRange: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrepareFlushAsyncResult: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushRunner: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncReadPageFromDeviceToFrame: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyRecordFromDiskCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryVerifyOrReissuePendingRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncFlushPageCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+when: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeSkipError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncFlushPageForSnapshotCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrettyPrintLogicalAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

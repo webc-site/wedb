@@ -1,15 +1,14 @@
-fn:
-  - TryParseEndPoint
-  - TryParseInt32
-  - ClientClusterNode
-  - ClientClusterConfig
-  - GetSlotSequence
-  - AddWorker
-  - GetOrderedClusterInfo
-  - GetNodeInfo
-  - GetSlotRange
-  - PrintOrderedConfigList
-  - PrintConfig
-  - EqualsConfig
-  - GetConfigInfo
-  - GetNodeConfig
+TryParseEndPoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryParseInt32: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientClusterNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClientClusterConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSlotSequence: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetOrderedClusterInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSlotRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrintOrderedConfigList: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrintConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EqualsConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetConfigInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetNodeConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

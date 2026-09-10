@@ -1,20 +1,18 @@
-fn:
-  - SpanByteComparerModulo
-  - Equals
-  - GetHashCode64
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - InitialWriter
-  - ScanCursorFuncs
-  - CheckForRCU
-  - OnException
-  - OnStart
-  - OnStop
-test:
-  - SpanByteScanCursorTest
-  - SpanByteScanCursorFilterTest
-  - SpanByteScanCursorWithRCUTest
-  - SpanByteJumpToBeginAddressTest
-  - SpanByteIterationPendingCollisionTest
+SpanByteComparerModulo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanCursorFuncs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckForRCU: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteScanCursorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteScanCursorFilterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteScanCursorWithRCUTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteJumpToBeginAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteIterationPendingCollisionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

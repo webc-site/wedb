@@ -1,7 +1,6 @@
-fn:
-  - EmitResultCsv
-  - EmitAggregateCsv
-  - CsvAppendCommon
-  - CsvHeader
-  - CsvRow
-  - CsvEsc
+EmitResultCsv: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitAggregateCsv: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvAppendCommon: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvHeader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvRow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CsvEsc: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

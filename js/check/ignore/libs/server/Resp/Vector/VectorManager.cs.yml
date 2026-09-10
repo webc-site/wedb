@@ -1,4 +1,1 @@
-# 理由：Dispose 为 IDisposable 框架面：C# 侧用于排空重放/量化/清理通道并释放
-# 事件句柄；Rust 侧通道关闭经 complete() 显式接口表达，线程随通道终止，无需 Drop 外的清理方法。
-fn:
-  - Dispose
+Dispose: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

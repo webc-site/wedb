@@ -1,10 +1,9 @@
-fn:
-  - GetCurrentThread
-  - SetThreadAffinityMask
-  - LinuxMmap
-  - LinuxMunmap
-  - LinuxSchedSetAffinity
-  - Unmap
-  - TryPin
-  - PinFailed
-  - MapPage
+GetCurrentThread: C# 原型实验与演练脚本，非生产运行时代码
+SetThreadAffinityMask: C# 原型实验与演练脚本，非生产运行时代码
+LinuxMmap: C# 原型实验与演练脚本，非生产运行时代码
+LinuxMunmap: C# 原型实验与演练脚本，非生产运行时代码
+LinuxSchedSetAffinity: C# 原型实验与演练脚本，非生产运行时代码
+Unmap: C# 原型实验与演练脚本，非生产运行时代码
+TryPin: C# 原型实验与演练脚本，非生产运行时代码
+PinFailed: C# 原型实验与演练脚本，非生产运行时代码
+MapPage: C# 原型实验与演练脚本，非生产运行时代码

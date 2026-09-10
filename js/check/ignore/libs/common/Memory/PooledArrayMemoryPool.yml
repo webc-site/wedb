@@ -1,5 +1,4 @@
-fn:
-  - Rent
-  - OnPooledBufferDisposed
-  - ThrowArgumentOutOfRange
-  - ThrowObjectDisposed
+Rent: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理
+OnPooledBufferDisposed: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理
+ThrowArgumentOutOfRange: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理
+ThrowObjectDisposed: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理

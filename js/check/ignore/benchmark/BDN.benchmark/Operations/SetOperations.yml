@@ -1,20 +1,19 @@
-fn:
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - SAddRem
-  - SAddPopSingle
-  - SCard
-  - SMembers
-  - SMoveTwice
-  - SIsMember
-  - SMIsMember
-  - SRandMemberSingle
-  - SScan
-  - SUnion
-  - SUnionStore
-  - SInter
-  - SInterStore
-  - SInterCard
-  - SDiff
-  - SDiffStore
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SAddRem: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SAddPopSingle: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SCard: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SMembers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SMoveTwice: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SIsMember: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SMIsMember: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SRandMemberSingle: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SScan: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SUnion: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SUnionStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SInter: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SInterStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SInterCard: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SDiff: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SDiffStore: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

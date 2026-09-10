@@ -1,5 +1,4 @@
-fn:
-  - TryGetRespCommandsData
-  - TryWriteRespCommandsData
-  - GetCommandsToAddAndRemove
-  - GetUserConfirmation
+TryGetRespCommandsData: C# 原型实验与演练脚本，非生产运行时代码
+TryWriteRespCommandsData: C# 原型实验与演练脚本，非生产运行时代码
+GetCommandsToAddAndRemove: C# 原型实验与演练脚本，非生产运行时代码
+GetUserConfirmation: C# 原型实验与演练脚本，非生产运行时代码

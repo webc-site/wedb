@@ -1,3 +1,1 @@
-# r10 深审后语义吸收/死模块清理：对应 rust 能力已由内部化实现承接，详见提交记录
-fn:
-  - ConvertToHeap
+ConvertToHeap: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

@@ -1,3 +1,1 @@
-# 理由：Dispose 为 IDisposable 框架面（Rust 以所有权/Drop 语义承接，无需显式方法）。
-fn:
-  - Dispose
+Dispose: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

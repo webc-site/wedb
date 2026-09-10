@@ -1,24 +1,22 @@
-fn:
-  - AssertEqualsOracle
-test:
-  - EmptyBitmap_HasZeroCardinalityAndIsEmpty
-  - SetBit_SetsAndReturnsPrevious
-  - ChunkBoundaryOffsets_AllRoundTrip
-  - Promotion_ArrayToBitmap_AtThreshold
-  - Demotion_BitmapToArray_AfterRemoves
-  - Oscillation_AcrossThreshold_PreservesCorrectness
-  - RandomDenseSingleChunk_MatchesOracle
-  - SparseAcrossChunks_MatchesOracle
-  - SmallUniverse_BitPos_MatchesOracle
-  - BitPos_OnlyBit0_Set
-  - BitPos_FullFirstChunk_FindsZeroInSecond
-  - BitPos_GapBetweenChunks_FindsGap
-  - BitPos_MaxValue_Set
-  - BitPos_NoSetBits_ReturnsMinusOne
-  - Serialize_RoundTrip_Matches
-  - Deserialize_BadVersion_Throws
-  - Deserialize_DescendingChunkKeys_Throws
-  - Deserialize_BadCardinality_Throws
-  - Clone_IsDeep
-  - Enumerate_Ascending
-  - Clear_ResetsState
+AssertEqualsOracle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EmptyBitmap_HasZeroCardinalityAndIsEmpty: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetBit_SetsAndReturnsPrevious: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkBoundaryOffsets_AllRoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Promotion_ArrayToBitmap_AtThreshold: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Demotion_BitmapToArray_AfterRemoves: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Oscillation_AcrossThreshold_PreservesCorrectness: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomDenseSingleChunk_MatchesOracle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SparseAcrossChunks_MatchesOracle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SmallUniverse_BitPos_MatchesOracle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_OnlyBit0_Set: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_FullFirstChunk_FindsZeroInSecond: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_GapBetweenChunks_FindsGap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_MaxValue_Set: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitPos_NoSetBits_ReturnsMinusOne: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Serialize_RoundTrip_Matches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize_BadVersion_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize_DescendingChunkKeys_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize_BadCardinality_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Clone_IsDeep: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Enumerate_Ascending: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Clear_ResetsState: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

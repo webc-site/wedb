@@ -1,8 +1,6 @@
-fn:
-  - ReadOnlySpanBatch
-  - TotalEntries
-  - Setup
-  - TearDown
-  - LogWriter
-test:
-  - EnqueueWaitCommitBasicTest
+ReadOnlySpanBatch: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TotalEntries: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Setup: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TearDown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueWaitCommitBasicTest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

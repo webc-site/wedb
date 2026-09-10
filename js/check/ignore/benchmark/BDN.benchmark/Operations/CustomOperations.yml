@@ -1,9 +1,8 @@
-fn:
-  - CreateExtensions
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - CustomRawStringCommand
-  - CustomObjectCommand
-  - CustomTransaction
-  - CustomProcedure
+CreateExtensions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CustomRawStringCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CustomObjectCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CustomTransaction: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CustomProcedure: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

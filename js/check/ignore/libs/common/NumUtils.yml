@@ -1,6 +1,6 @@
-fn:
-  - WriteInt64
-  - WriteDouble
-  - ReadInt64
-  - WriteInt32
-  - TryReadDouble
+WriteInt64: C# 字节数组整数序列化，Rust 侧通过 itoa/to_le_bytes 原生支持
+WriteDouble: C# 字节数组浮点序列化，Rust 侧通过 ryu/dtoa 原生支持
+ReadInt64: C# 字节数组整数反序列化，Rust 侧通过 i64::from_le_bytes 原生支持
+WriteInt32: C# 字节数组整数序列化，Rust 侧通过 itoa/to_le_bytes 原生支持
+TryReadDouble: C# 字节数组浮点反序列化，Rust 侧通过 fast_float/parse 原生支持
+CountCharsInDouble: 零调用方死代码，Rust 侧通过 ryu/dtoa 高效格式化，无需手动计算字符数

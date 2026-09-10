@@ -1,10 +1,9 @@
-fn:
-  - ToString
-  - QuarantineLitmus
-  - Run
-  - Quarantine
-  - Pin
-  - DisturberLoop
-  - ReaderLoop
-  - ReadAndCheck
-  - ReclaimerLoop
+ToString: C# 原型实验与演练脚本，非生产运行时代码
+QuarantineLitmus: C# 原型实验与演练脚本，非生产运行时代码
+Run: C# 原型实验与演练脚本，非生产运行时代码
+Quarantine: C# 原型实验与演练脚本，非生产运行时代码
+Pin: C# 原型实验与演练脚本，非生产运行时代码
+DisturberLoop: C# 原型实验与演练脚本，非生产运行时代码
+ReaderLoop: C# 原型实验与演练脚本，非生产运行时代码
+ReadAndCheck: C# 原型实验与演练脚本，非生产运行时代码
+ReclaimerLoop: C# 原型实验与演练脚本，非生产运行时代码

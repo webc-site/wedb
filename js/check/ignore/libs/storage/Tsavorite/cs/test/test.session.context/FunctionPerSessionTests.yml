@@ -1,9 +1,7 @@
-fn:
-  - InitialUpdater
-  - CopyUpdater
-  - GetRMWModifiedFieldInfo
-  - GetRMWInitialFieldInfo
-  - Setup
-  - TearDown
-test:
-  - Should_create_multiple_sessions_with_different_callbacks
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWModifiedFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Should_create_multiple_sessions_with_different_callbacks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

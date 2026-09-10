@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - TearDown
-  - ParseUptime
-  - GetSectionHeaders
-  - HydrateStore
-  - GetKeyspaceLine
-test:
-  - ResetStatsTest
-  - UptimeIncreasesAcrossInfoCalls
-  - InfoSectionOptionsTest
-  - InfoDefaultMatchesNoArgsTest
-  - InfoAllWithModulesEqualsEverythingTest
-  - InfoHlogScanTest
-  - InfoKeyspaceEmptyDatabaseTest
-  - InfoKeyspaceCountsTest
-  - InfoKeyspaceExpiredKeysNotCountedTest
-  - InfoKeyspaceMultiDatabaseTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseUptime: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSectionHeaders: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HydrateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetKeyspaceLine: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetStatsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UptimeIncreasesAcrossInfoCalls: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoSectionOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoDefaultMatchesNoArgsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoAllWithModulesEqualsEverythingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoHlogScanTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoKeyspaceEmptyDatabaseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoKeyspaceCountsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoKeyspaceExpiredKeysNotCountedTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InfoKeyspaceMultiDatabaseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

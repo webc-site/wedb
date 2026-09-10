@@ -1,75 +1,34 @@
-# Lua C API P/Invoke 绑定层（指向 Lua 原生库的原始栈操作声明）；
-# rust 侧改用 mlua(luau feature) 高级 API 等价承接（LuaStateWrapper 内栈镜像），
-# 无逐函数 C 栈映射面；rust 侧保留同名占位方法体（恒 0）仅供注释映射对照。
-fn:
-  - lua_tolstring
-  - lua_pushlstring
-  - luaL_loadbufferx
-  - luaL_loadstring
-  - luaL_newstate
-  - lua_newstate
-  - luaL_openlibs
-  - lua_close
-  - lua_checkstack
-  - luaL_checknumber
-  - lua_rawlen
-  - lua_pcallk
-  - lua_rawseti
-  - lua_rawset
-  - lua_rawgeti
-  - lua_rawget
-  - luaL_ref
-  - luaL_unref
-  - lua_createtable
-  - lua_getglobal
-  - lua_setglobal
-  - lua_next
-  - lua_rotate
-  - lua_gc
-  - lua_gettop
-  - lua_type
-  - lua_pushnil
-  - lua_pushinteger
-  - lua_pushnumber
-  - lua_pushboolean
-  - lua_toboolean
-  - lua_settop
-  - lua_atpanic
-  - lua_pushcclosure
-  - lua_sethook
-  - lua_pushvalue
-  - lua_version
-  - checkBuffer
-  - knownStringToBuffer
-  - pushBuffer
-  - loadBuffer
-  - loadString
-  - getTop
-  - type_
-  - pushNil
-  - pushInteger
-  - pushNumber
-  - pushBoolean
-  - toBoolean
-  - pop
-  - atPanic
-  - newState
-  - openLibs
-  - checkStack
-  - checkNumber
-  - rawLen
-  - pushCFunction
-  - pCall
-  - rawSetInteger
-  - rawSet
-  - rawGetInteger
-  - rawGet
-  - unref
-  - createTable
-  - getGlobal
-  - setGlobal
-  - next
-  - pushValue
-  - setTop
-  - rotate
-  - setHook
+checkBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+knownStringToBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+loadBuffer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+loadString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+getTop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+type_: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushNil: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushNumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushBoolean: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+toBoolean: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+atPanic: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+newState: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+openLibs: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+checkStack: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+checkNumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rawLen: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushCFunction: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pCall: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rawSetInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rawSet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rawGetInteger: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rawGet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+unref: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+createTable: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+getGlobal: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+setGlobal: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+next: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+pushValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+setTop: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+rotate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+setHook: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

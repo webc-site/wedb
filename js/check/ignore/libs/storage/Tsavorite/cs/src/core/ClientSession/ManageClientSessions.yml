@@ -1,5 +1,4 @@
-fn:
-  - NewSession
-  - DisposeClientSession
-  - DumpRevivificationStats
-  - ResetRevivificationStats
+NewSession: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DisposeClientSession: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DumpRevivificationStats: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetRevivificationStats: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

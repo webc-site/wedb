@@ -5,6 +5,11 @@
 
 use std::{cmp::Ordering, mem::swap};
 
+use wutil::convert::{
+  milliseconds_from_diff_ticks, seconds_from_diff_ticks, unix_time_in_milliseconds_from_ticks,
+  unix_time_in_seconds_from_ticks,
+};
+
 use crate::{
   inputs::ObjectInput,
   objects::{
@@ -1062,32 +1067,16 @@ impl SortedSetObject {
       }
 
       if result >= 0 {
-        // .NET Ticks → Unix 时间（Unix 纪元在 .NET Ticks 轴上为 621355968000000000）
-        const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
         result = if is_timestamp {
-          // 对标 ConvertUtils.UnixTimeIn{Milliseconds,Seconds}FromTicks：非正入参 → -1
-          if result > 0 {
-            if is_milliseconds {
-              (result - UNIX_EPOCH_TICKS) / 10_000
-            } else {
-              (result - UNIX_EPOCH_TICKS) / 10_000_000
-            }
+          if is_milliseconds {
+            unix_time_in_milliseconds_from_ticks(result)
           } else {
-            -1
+            unix_time_in_seconds_from_ticks(result)
           }
+        } else if is_milliseconds {
+          milliseconds_from_diff_ticks(result, now)
         } else {
-          // 对标 ConvertUtils.{Milliseconds,Seconds}FromDiffUtcNowTicks：
-          // 差值非正 → -1；秒级四舍五入（+ TicksPerSecond/2 再除）
-          let diff = result - now;
-          if diff > 0 {
-            if is_milliseconds {
-              diff / 10_000
-            } else {
-              (diff + 5_000_000) / 10_000_000
-            }
-          } else {
-            -1
-          }
+          seconds_from_diff_ticks(result, now)
         };
       }
 

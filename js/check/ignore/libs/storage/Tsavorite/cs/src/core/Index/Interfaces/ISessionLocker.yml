@@ -1,5 +1,4 @@
-fn:
-  - TryLockEphemeralExclusive
-  - TryLockEphemeralShared
-  - UnlockEphemeralExclusive
-  - UnlockEphemeralShared
+TryLockEphemeralExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryLockEphemeralShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockEphemeralExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnlockEphemeralShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

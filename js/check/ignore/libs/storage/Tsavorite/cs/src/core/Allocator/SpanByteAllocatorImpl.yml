@@ -1,22 +1,21 @@
-fn:
-  - SpanByteAllocatorImpl
-  - FreeAllAllocatedPages
-  - FreePage
-  - AllocatePage
-  - IncrementAllocatedPageCount
-  - AllocatePinnedPageArray
-  - ReturnPage
-  - FreeNativeLogPage
-  - CreateLogRecord
-  - GetRMWCopyRecordSize
-  - PopulateRecordSizeInfo
-  - GetRMWInitialRecordSize
-  - GetUpsertRecordSize
-  - GetDeleteRecordSize
-  - OnDispose
-  - OnDisposeDiskRecord
-  - WriteInlinePageAsync
-  - WriteAsyncToDeviceForSnapshot
-  - VerifyCompatibleSectorSize
-  - ScanCursor
-  - MemoryPageScan
+SpanByteAllocatorImpl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeAllAllocatedPages: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreePage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IncrementAllocatedPageCount: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatePinnedPageArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReturnPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FreeNativeLogPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateLogRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWCopyRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PopulateRecordSizeInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRMWInitialRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetUpsertRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetDeleteRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDisposeDiskRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteInlinePageAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteAsyncToDeviceForSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyCompatibleSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanCursor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MemoryPageScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

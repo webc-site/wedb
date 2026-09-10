@@ -1,7 +1,6 @@
-fn:
-  - BeginIo
-  - EndIo
-  - TryDeferFree
-  - TryDrainDeferred
-  - HandOffInstalledBlocks
-  - HandOffDeferredBlocks
+BeginIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryDeferFree: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryDrainDeferred: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HandOffInstalledBlocks: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+HandOffDeferredBlocks: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,7 +1,6 @@
-fn:
-  - ProcessReplyAsString
-  - ProcessReplyAsNumber
-  - ProcessReplyAsStringArray
-  - ProcessReplyAsMemoryByte
-  - ProcessReplyAsMemoryByteArray
-  - CopyErrorToSpan
+ProcessReplyAsString: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ProcessReplyAsNumber: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ProcessReplyAsStringArray: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ProcessReplyAsMemoryByte: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ProcessReplyAsMemoryByteArray: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+CopyErrorToSpan: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

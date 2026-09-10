@@ -1,21 +1,20 @@
-fn:
-  - AuthenticateAsServerAsync
-  - AuthenticateAsClientAsync
-  - OnNetworkReceiveWithoutTLS
-  - OnNetworkReceiveWithTLSAsync
-  - UpdateNetworkBuffers
-  - ThrowInvalidOperationException
-  - GetNetworkSender
-  - SslReaderAsync
-  - SslReaderLoopAsync
-  - EndTransformNetworkToTransport
-  - TryProcessRequest
-  - DoubleNetworkReceiveBuffer
-  - ShrinkNetworkReceiveBuffer
-  - ShiftNetworkReceiveBuffer
-  - DoubleTransportReceiveBuffer
-  - ShiftTransportReceiveBuffer
-  - DisposeImpl
-  - DisposeNetworkSender
-  - Throttle
-  - LogSecurityInfo
+AuthenticateAsServerAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+AuthenticateAsClientAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+OnNetworkReceiveWithoutTLS: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+OnNetworkReceiveWithTLSAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+UpdateNetworkBuffers: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ThrowInvalidOperationException: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+GetNetworkSender: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+SslReaderAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+SslReaderLoopAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+EndTransformNetworkToTransport: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+TryProcessRequest: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+DoubleNetworkReceiveBuffer: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ShrinkNetworkReceiveBuffer: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ShiftNetworkReceiveBuffer: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+DoubleTransportReceiveBuffer: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ShiftTransportReceiveBuffer: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+DisposeImpl: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+DisposeNetworkSender: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+Throttle: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+LogSecurityInfo: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈

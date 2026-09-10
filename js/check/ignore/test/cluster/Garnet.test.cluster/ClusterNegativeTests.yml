@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-  - ClusterCommandWrongParameters
-test:
-  - ClusterAddSlotsPartialPackage
-  - ClusterExceptionInjectionAtPrimarySyncSession
-  - ClusterFailoverDuringRecovery
-  - ClusterCheckpointAcquireTest
-  - ClusterReplicaAttachIntenseWrite
-  - ClusterFailedToAddAofSyncTask
-  - ClusterReplicaSyncTimeoutTest
-  - ClusterParallelFailoverOnDistinctShards
-  - ClusterMeetFromReplica
-  - ClusterDontKnowReplicaFailTest
-  - ClusterReplicateFails
-  - ClusterFailoverSucceedsDuringEnsureReplicationAsync
-  - ClusterEnsureReplicationWorksAfterFailoverAsync
-  - ClusterFailoverResetsPrimaryOnTakeOverFailureAsync
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCommandWrongParameters: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAddSlotsPartialPackage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterExceptionInjectionAtPrimarySyncSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverDuringRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCheckpointAcquireTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicaAttachIntenseWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailedToAddAofSyncTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicaSyncTimeoutTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterParallelFailoverOnDistinctShards: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMeetFromReplica: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDontKnowReplicaFailTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicateFails: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverSucceedsDuringEnsureReplicationAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterEnsureReplicationWorksAfterFailoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverResetsPrimaryOnTakeOverFailureAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

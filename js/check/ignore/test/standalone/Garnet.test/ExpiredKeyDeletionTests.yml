@@ -1,11 +1,8 @@
-fn:
-  - Setup
-  - SetupServer
-  - TearDown
-  - TestExpiredKeyDeletionScanAsync
-  - CheckExistenceConditionOnAllKeys
-  - PopulateStore
-test:
-  - TestOnDemandExpiredKeyDeletionScan
-  - TestScheduledExpiredKeyDeletionViaSimulation
-  - TestExpiredKeyDeletionScanAsync
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestExpiredKeyDeletionScanAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckExistenceConditionOnAllKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestOnDemandExpiredKeyDeletionScan: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestScheduledExpiredKeyDeletionViaSimulation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

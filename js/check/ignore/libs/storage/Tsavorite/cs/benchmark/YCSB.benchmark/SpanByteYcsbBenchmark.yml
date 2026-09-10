@@ -1,8 +1,7 @@
-fn:
-  - SpanByteYcsbBenchmark
-  - RunYcsbUnsafeContext
-  - RunYcsbSafeContext
-  - Run
-  - SetupYcsbUnsafeContext
-  - SetupYcsbSafeContext
-  - CreateKeyVectors
+SpanByteYcsbBenchmark: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RunYcsbUnsafeContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RunYcsbSafeContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Run: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetupYcsbUnsafeContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetupYcsbSafeContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateKeyVectors: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

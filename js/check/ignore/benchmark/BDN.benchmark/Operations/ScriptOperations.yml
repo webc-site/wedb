@@ -1,13 +1,12 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - SetupOperation
-  - GlobalCleanup
-  - ScriptLoad
-  - ScriptExistsTrue
-  - ScriptExistsFalse
-  - Eval
-  - EvalSha
-  - SmallScript
-  - LargeScript
-  - ArrayReturn
+LuaParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ScriptLoad: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ScriptExistsTrue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ScriptExistsFalse: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Eval: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+EvalSha: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SmallScript: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LargeScript: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ArrayReturn: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

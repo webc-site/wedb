@@ -1,29 +1,27 @@
-fn:
-  - TestObjectValueComparerModulo
-  - Equals
-  - GetHashCode64
-  - OverflowTestKey
-  - Serialize
-  - WriteType
-  - CacheSerializedObjectData
-  - ClearSerializedObjectData
-  - Deserialize
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - OnStart
-  - OnException
-  - OnStop
-  - scanAndVerify
-  - OnCompleted
-  - OnError
-  - OnNext
-  - InitialWriter
-test:
-  - SerializedObjectCleanupTest
-  - CleanupWithoutCachedDataTest
-  - DiskWriteScanBasicTest
-  - BlittableScanJumpToBeginAddressTest
-  - ObjectScanCursorTest
-  - ObjectScanCursorFilterTest
+TestObjectValueComparerModulo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OverflowTestKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Serialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteType: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CacheSerializedObjectData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClearSerializedObjectData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+scanAndVerify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnCompleted: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnNext: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SerializedObjectCleanupTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CleanupWithoutCachedDataTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DiskWriteScanBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BlittableScanJumpToBeginAddressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectScanCursorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectScanCursorFilterTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

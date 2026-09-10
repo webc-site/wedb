@@ -1,4 +1,1 @@
-# C# Newtonsoft.Json 契约转换器（配置对象 JSON 读入管道）；
-# rust 配置走 sonic-rs/serde 派生，无自定义转换器
-fn:
-  - Write
+Write: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

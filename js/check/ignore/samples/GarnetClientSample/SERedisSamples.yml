@@ -1,14 +1,13 @@
-fn:
-  - SERedisSamples
-  - RunAll
-  - RespPing
-  - SingleSetRename
-  - SingleSetGet
-  - SingleIncr
-  - SingleIncrBy
-  - SingleDecrBy
-  - SingleDecr
-  - SingleIncrNoKey
-  - SingleExists
-  - SingleDelete
-  - RespPingAsync
+SERedisSamples: C# 样例工程与示例客户端代码，非核心服务端实现
+RunAll: C# 样例工程与示例客户端代码，非核心服务端实现
+RespPing: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleSetRename: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleSetGet: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncr: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncrBy: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDecrBy: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDecr: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleIncrNoKey: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleExists: C# 样例工程与示例客户端代码，非核心服务端实现
+SingleDelete: C# 样例工程与示例客户端代码，非核心服务端实现
+RespPingAsync: C# 样例工程与示例客户端代码，非核心服务端实现

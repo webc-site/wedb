@@ -1,21 +1,19 @@
-fn:
-  - Setup
-  - TearDown
-  - SubscribeAndPublish
-  - SendCommand
-  - ReadAvailable
-test:
-  - BasicSUBSCRIBE
-  - LargeSUBSCRIBE
-  - BasicPSUBSCRIBE
-  - BasicPUBSUB_CHANNELS
-  - BasicPUBSUB_NUMPAT
-  - BasicPUBSUB_NUMSUB
-  - PubSubModeRejectsDisallowedCommandsInResp2
-  - PubSubModeAllowsValidCommandsInResp2
-  - PubSubSelfPublishResp3NoLockError
-  - PubSubSelfPatternPublishResp3NoLockError
-  - PubSubModeAllowsRegularCommandsInResp3
-  - PubSubModeViaPsubscribeRejectsCommandsInResp2
-  - SelfPublishOnSubscribedChannelDoesNotCorruptConnection
-  - SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubscribeAndPublish: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadAvailable: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPSUBSCRIBE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_CHANNELS: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_NUMPAT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicPUBSUB_NUMSUB: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeRejectsDisallowedCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeAllowsValidCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubSelfPublishResp3NoLockError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubSelfPatternPublishResp3NoLockError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeAllowsRegularCommandsInResp3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PubSubModeViaPsubscribeRejectsCommandsInResp2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SelfPublishOnSubscribedChannelDoesNotCorruptConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SelfPublishOnPatternSubscribedChannelDoesNotCorruptConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

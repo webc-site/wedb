@@ -1,21 +1,20 @@
-fn:
-  - ToString
-  - DiskLogRecord
-  - CreateFromTransientLogRecord
-  - CopyFrom
-  - TransferFrom
-  - ClearValueIfHeap
-  - AsMemoryLogRecordRef
-  - AsDiskLogRecordRef
-  - GetRecordFieldInfo
-  - CalculateHeapMemorySize
-  - Serialize
-  - SerializeChunked
-  - WriteChunkedLengthPrefix
-  - SerializeInlinePortionForMigration
-  - SerializeInlinePortion
-  - DirectCopyInlinePortionOfRecord
-  - Deserialize
-  - GetChunkedRecordInlineSize
-  - CompleteDeserializeChunkedRecord
-  - GetSerializedSize
+ToString: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DiskLogRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateFromTransientLogRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyFrom: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方
+TransferFrom: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearValueIfHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsMemoryLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsDiskLogRecordRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordFieldInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CalculateHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Serialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeChunked: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteChunkedLengthPrefix: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeInlinePortionForMigration: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerializeInlinePortion: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DirectCopyInlinePortionOfRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Deserialize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetChunkedRecordInlineSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteDeserializeChunkedRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSerializedSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

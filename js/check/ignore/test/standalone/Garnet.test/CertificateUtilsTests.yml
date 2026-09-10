@@ -1,8 +1,6 @@
-fn:
-  - TearDown
-test:
-  - GetMachineCertificateByFileLoadsPfxCertificate
-  - GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile
-  - GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey
-  - GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension
-  - GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMachineCertificateByFileLoadsPfxCertificate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMachineCertificateByFileLoadsPemCertificateWithSeparateKeyFile: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMachineCertificateByFileLoadsPemCertificateWithEmbeddedKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMachineCertificateByFileDetectsPemContentsRegardlessOfExtension: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetMachineCertificateByFileDetectsPemWithLeadingBomAndBlankLines: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

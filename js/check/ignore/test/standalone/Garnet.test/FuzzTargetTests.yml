@@ -1,7 +1,5 @@
-fn:
-  - TearDown
-test:
-  - TestsForAllTargets
-  - GarnetEndToEnd
-  - LuaScriptCompilation
-  - RespCommandParsing
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestsForAllTargets: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GarnetEndToEnd: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaScriptCompilation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespCommandParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

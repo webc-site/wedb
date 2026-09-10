@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TransactionProcTest1
-  - TransactionProcTest2
-  - TransactionProcSampleUpdateTest
-  - TransactionProcSampleDeleteTest
-  - TransactionWriteExpiryProcTest
-  - TransactionObjectExpiryProcTest
-  - TransactionSortedSetRemoveProcTest
-  - TransactionDeleteProcTest
-  - TransactionObjectsOperTest
-  - TransactionListsOperTest
-  - TransactionSetProcTest
-  - TransactionHashProcTest
-  - TransactionProcFinalizeTest
-  - TransactionProcMSetPxTest
-  - TransactionProcMGetIfPMTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcSampleUpdateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcSampleDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionWriteExpiryProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionObjectExpiryProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionSortedSetRemoveProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionDeleteProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionObjectsOperTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionListsOperTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionSetProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionHashProcTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcFinalizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcMSetPxTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TransactionProcMGetIfPMTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

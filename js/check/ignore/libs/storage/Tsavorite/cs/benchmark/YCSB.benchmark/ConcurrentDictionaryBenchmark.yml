@@ -1,8 +1,7 @@
-fn:
-  - Equals
-  - ConcurrentDictionary_YcsbBenchmark
-  - RunYcsb
-  - Run
-  - SetupYcsb
-  - DoContinuousMeasurements
-  - CreateKeyVectors
+Equals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConcurrentDictionary_YcsbBenchmark: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RunYcsb: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Run: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetupYcsb: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoContinuousMeasurements: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateKeyVectors: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

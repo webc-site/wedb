@@ -202,10 +202,10 @@ impl LuaRunner_Functions {
     let bytes: Vec<u8> = match state.type_name(1) {
       Some("string") => state.known_string_to_buffer(1).unwrap_or_default(),
       Some("number") => {
-        if !stack_bytes(state, 1).is_some() {
+        let Some(bytes) = stack_bytes(state, 1) else {
           return lua_wrapped_error_view(state, 1, ConstantStrings::OUT_OF_MEMORY);
-        }
-        stack_bytes(state, 1).unwrap_or_default()
+        };
+        bytes
       }
       _ => Vec::new(),
     };
@@ -465,7 +465,7 @@ impl LuaRunner_Functions {
 
     // Initial key value onto stack
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Remove value
       state.pop(1);
 
@@ -821,7 +821,7 @@ impl LuaRunner_Functions {
     let mut array_length: i64 = 0;
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Pop value
       state.pop(1);
 
@@ -907,7 +907,7 @@ impl LuaRunner_Functions {
     let mut first_value = true;
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       let key_type = state.type_name(table_index + 1);
       if !matches!(key_type, Some("string") | Some("number")) {
         // Ignore non-string-ify-able keys
@@ -1328,7 +1328,7 @@ impl LuaRunner_Functions {
 
     // Measure the table and figure out if we're creating a map or an array
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       count += 1;
 
       // Remove value
@@ -1411,7 +1411,7 @@ impl LuaRunner_Functions {
     }
 
     state.push_nil();
-    while state.next() {
+    while state.lua_next() {
       // Now we have value on top, key one below it
 
       // Make a copy of the key (above the value)
@@ -1795,12 +1795,13 @@ impl LuaRunner_Functions {
       return lua_wrapped_error_view(state, 0, ConstantStrings::ERR_REDIS_SETRESP_ARG);
     }
 
-    let Some(num) = state.check_number(1).filter(|n| *n == 2.0 || *n == 3.0) else {
-      return lua_wrapped_error_view(state, 0, ConstantStrings::ERR_RESP_VERSION);
-    };
+    // C# 形态：栈 1 位须为数值类型，且取值为 2 或 3。
     if state.type_name(1) != Some("number") {
       return lua_wrapped_error_view(state, 0, ConstantStrings::ERR_RESP_VERSION);
     }
+    let Some(num) = state.check_number(1).filter(|n| *n == 2.0 || *n == 3.0) else {
+      return lua_wrapped_error_view(state, 0, ConstantStrings::ERR_RESP_VERSION);
+    };
 
     if let Some(session) = host.session.as_mut() {
       session.get().update_resp_protocol_version(num as u8);
@@ -2085,9 +2086,9 @@ impl LuaRunner_Functions {
     Self::garnet_call(state, host)
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:StructPack
+  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructPack
   ///
-  /// Lua 侧 struct.pack：格式串 + 值序列 → 二进制串。
+  /// Lua 侧 struct.pack：格式串 + 值序列（数值/字节串）→ 二进制串。
   pub fn struct_pack(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args == 0 || state.type_name(1) != Some("string") {
@@ -2095,14 +2096,20 @@ impl LuaRunner_Functions {
     }
 
     let format = state.known_string_to_buffer(1).unwrap_or_default();
-    let mut values: Vec<i64> = Vec::with_capacity((num_lua_args - 1).max(0) as usize);
+    let mut values: Vec<struct_codec::StructValue> =
+      Vec::with_capacity((num_lua_args - 1).max(0) as usize);
     for ix in 2..=num_lua_args {
       match state.type_name(ix) {
-        Some("number") => values.push(state.check_number(ix).unwrap_or_default() as i64),
+        Some("number") => {
+          values.push(struct_codec::StructValue::Number(
+            state.check_number(ix).unwrap_or_default(),
+          ));
+        }
         Some("string") => {
-          // 单字节字符串按字节值参与整型编码（C# TryEncodeInteger 的字符形态）。
-          let bytes = state.known_string_to_buffer(ix).unwrap_or_default();
-          values.push(bytes.first().copied().map_or(0, i64::from));
+          // 字节串原样参与（c/s 定长/原串编码，数值格式经 lua_tonumber 强转）。
+          values.push(struct_codec::StructValue::Bytes(
+            state.known_string_to_buffer(ix).unwrap_or_default(),
+          ));
         }
         _ => return lua_wrapped_error_view(state, 1, ConstantStrings::BAD_ARG_PACK),
       }
@@ -2120,7 +2127,7 @@ impl LuaRunner_Functions {
     }
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:StructUnpack
+  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructUnpack
   ///
   /// Lua 侧 struct.unpack：二进制串（+ 可选 1 基偏移）→ 值序列 + 消费位置。
   pub fn struct_unpack(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
@@ -2155,19 +2162,25 @@ impl LuaRunner_Functions {
       data.drain(..offset);
     }
 
-    let Some(values) = struct_codec::struct_unpack(&format, &data) else {
+    let Some(out) = struct_codec::struct_unpack(&format, &data) else {
       return lua_wrapped_error_view(state, 0, ConstantStrings::BAD_ARG_UNPACK);
     };
 
     // 参数帧丢弃：仅留返回值。返回形态对齐 C#：
     // (err, count, 值..., 下一可读位置)，经 Rotate(1, 2) 归位。
     state.clear_stack();
-    for value in values {
-      state.push_integer(value);
+    for value in &out.values {
+      match value {
+        struct_codec::StructValue::Number(n) => state.push_number(*n),
+        struct_codec::StructValue::Bytes(bytes) => {
+          if !state.try_push_buffer(bytes) {
+            return lua_wrapped_error_view(state, 0, ConstantStrings::OUT_OF_MEMORY);
+          }
+        }
+      }
     }
-    // 末位附加：消费后的 1 基读取位置（固定宽度格式的消费量即打包尺寸）。
-    let consumed = struct_codec::struct_size(&format).unwrap_or_default() as i64;
-    state.push_integer(consumed + 1);
+    // 末位附加：消费后的 1 基读取位置（含对齐填充与变长项的实际消费量）。
+    state.push_integer(out.consumed as i64 + 1);
 
     let decoded_count = state.get_top() as i64 - 1;
     state.push_nil();
@@ -2178,7 +2191,7 @@ impl LuaRunner_Functions {
     (decoded_count + 3) as i32
   }
 
-  /// libs/server/Lua/LuaRunner.Functions.cs:StructSize
+  /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructSize
   ///
   /// Lua 侧 struct.size：格式串 → 打包尺寸。
   pub fn struct_size(state: &mut LuaStateWrapper, _host: &mut HostShared) -> i32 {
@@ -2385,6 +2398,26 @@ mod tests {
   }
 
   #[test]
+  fn runner_end_to_end_struct_pack_unpack() {
+    // 端到端：struct.pack/unpack 走 loader block + 宿主栈契约
+    //（i2 = 2 字节整数 + d = 8 字节浮点，消费 10 字节 → 位置 11）。
+    let mut runner = LuaRunner::new(
+      LuaLoggingMode::Silent,
+      None,
+      HashSet::default(),
+      b"local a, b, c = struct.unpack('<i2d', struct.pack('<i2d', 7, 1.5)); assert(a == 7 and b == 1.5 and c == 11); return 'ok'".to_vec(),
+      false,
+      "0.0.0.0",
+    )
+    .unwrap();
+
+    let mut out = Vec::new();
+    runner.compile_for_runner(&mut out).unwrap();
+    let ret = runner.run_for_runner(None, None).unwrap();
+    assert_eq!(ret, RespObject::BulkString(b"ok".to_vec()));
+  }
+
+  #[test]
   fn runner_sandbox_hides_outer_globals() {
     // load_sandboxed 绑定 sandbox_env 后沙箱外全局（io）不可见。
     let mut runner = LuaRunner::new(
@@ -2453,14 +2486,15 @@ mod tests {
   #[test]
   fn struct_pack_size_roundtrip() {
     // 底层 codec 形态核验（Lua 入口经 struct_pack/struct_size 承接）。
+    use struct_codec::StructValue;
     assert_eq!(struct_codec::struct_size(b"<I"), Some(4));
     assert_eq!(
-      struct_codec::struct_pack(b"<I", &[42]),
+      struct_codec::struct_pack(b"<I", &[StructValue::Number(42.0)]),
       Some(vec![42, 0, 0, 0])
     );
     assert_eq!(
-      struct_codec::struct_unpack(b"<I", &[42, 0, 0, 0]),
-      Some(vec![42])
+      struct_codec::struct_unpack(b"<I", &[42, 0, 0, 0]).map(|out| out.values),
+      Some(vec![StructValue::Number(42.0)])
     );
   }
 }

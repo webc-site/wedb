@@ -1,20 +1,19 @@
-fn:
-  - DeleteDirectory
-  - when
-  - RecreateDirectory
-  - CreateLoggerFactoryInstance
-  - IgnoreIfNotRunningAzureTests
-  - CreateTestDevice
-  - ConvertedClassName
-  - EnsureExtendedLengthPathIfNeeded
-  - GetSinglePendingResult
-  - DoTwoThreadRandomKeyTest
-  - verification
-  - FindHashBucketEntryForKey
-  - OnTearDown
-  - Equals
-  - GetHashCode64
-  - LongKeyComparerModulo
-  - SpanByteKeyComparerModulo
-  - AsSliceRef
-  - SetSlice
+DeleteDirectory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+when: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecreateDirectory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateLoggerFactoryInstance: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IgnoreIfNotRunningAzureTests: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateTestDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConvertedClassName: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureExtendedLengthPathIfNeeded: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSinglePendingResult: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DoTwoThreadRandomKeyTest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+verification: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindHashBucketEntryForKey: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnTearDown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Equals: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetHashCode64: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LongKeyComparerModulo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SpanByteKeyComparerModulo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsSliceRef: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetSlice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

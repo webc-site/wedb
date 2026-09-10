@@ -1,11 +1,9 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-test:
-  - LogCompactBasicTest
-  - LogCompactTestNewEntries
-  - LogCompactAfterDeleteTest
-  - LogCompactBasicCustomFctnTest
-  - LogCompactCopyInPlaceCustomFctnTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogCompactBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogCompactTestNewEntries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogCompactAfterDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogCompactBasicCustomFctnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogCompactCopyInPlaceCustomFctnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

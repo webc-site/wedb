@@ -1,3 +1,2 @@
-fn:
-  - Begin
-  - InvokeCallback
+Begin: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+InvokeCallback: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈

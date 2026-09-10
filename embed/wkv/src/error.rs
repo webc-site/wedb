@@ -58,12 +58,4 @@ pub enum Error {
   Cpr(#[from] wcpr::Error),
 }
 
-impl Error {
-  /// 判断是否为数据类型不匹配（WRONGTYPE）错误
-  #[inline]
-  pub fn is_wrong_type(&self) -> bool {
-    matches!(self, Self::Value(wval::Error::InvalidCollectionType(_)))
-  }
-}
-
 pub type Result<T> = result::Result<T, Error>;

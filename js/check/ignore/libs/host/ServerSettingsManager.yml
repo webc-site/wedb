@@ -1,7 +1,6 @@
-fn:
-  - TryParseCommandLineArguments
-  - GetArgumentNameToValue
-  - TryParseArguments
-  - TryImportServerOptions
-  - TryExportServerOptions
-  - ConsolidateFlagArguments
+TryParseCommandLineArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetArgumentNameToValue: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryParseArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryImportServerOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryExportServerOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+ConsolidateFlagArguments: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

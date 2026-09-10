@@ -1,8 +1,7 @@
-fn:
-  - Prepare
-  - AddKey
-  - Main
-  - WriteSimpleString
-  - GetSingleSlotRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
+Prepare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteSimpleString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetCrossSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

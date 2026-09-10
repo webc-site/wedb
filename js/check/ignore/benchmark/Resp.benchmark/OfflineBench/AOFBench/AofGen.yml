@@ -1,17 +1,16 @@
-fn:
-  - WriterClusterAppendLog
-  - WriterClusterAppendLogFixedWidth
-  - WriteFixedWidthAddress
-  - WriteZeroPaddedInt64
-  - PatchAddress
-  - GetPageBuffers
-  - GetRespReplayMessages
-  - GetKVPairBuffer
-  - AofGen
-  - GetKey
-  - GetValue
-  - GenerateKVPairs
-  - GenerateData
-  - GeneratePages
-  - FillPage
-  - GenerateKeys
+WriterClusterAppendLog: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriterClusterAppendLogFixedWidth: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteFixedWidthAddress: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteZeroPaddedInt64: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PatchAddress: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetPageBuffers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRespReplayMessages: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetKVPairBuffer: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AofGen: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetValue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKVPairs: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GeneratePages: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+FillPage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKeys: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

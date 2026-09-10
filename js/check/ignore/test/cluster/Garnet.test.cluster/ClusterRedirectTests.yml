@@ -1,23 +1,21 @@
-fn:
-  - CheckFlag
-  - Setup
-  - TearDown
-  - ReplaceKey
-  - ReplaceValue
-  - GenerateSingleKeyCmdInstance
-  - SendToNodeFromSlot
-  - SendAndRedirectToNode
-  - SendToImportingNode
-  - SendToMigratingNode
-  - KeyForSlot
-  - SendReadReplies
-  - ReadLine
-  - ReadN
-  - ReadByte
-test:
-  - ClusterSingleKeyRedirectionTests
-  - ClusterScatterGatherGetCrossSlotRedirectTest
-  - ClusterMultiKeyRedirectionTests
-  - ClusterHostnamePreferredRedirectionTests
-  - ClusterHostnamePreferredAndNonHostnameRedirectionTests
-  - ClusterUnknownEndpointPreferredTests
+CheckFlag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplaceKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplaceValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateSingleKeyCmdInstance: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToNodeFromSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendAndRedirectToNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToImportingNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendToMigratingNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyForSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendReadReplies: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadLine: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadN: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadByte: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSingleKeyRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterScatterGatherGetCrossSlotRedirectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMultiKeyRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterHostnamePreferredRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterHostnamePreferredAndNonHostnameRedirectionTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterUnknownEndpointPreferredTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

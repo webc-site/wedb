@@ -1,3 +1,2 @@
-fn:
-  - HybridLogCheckpointSM
-  - NextState
+HybridLogCheckpointSM: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NextState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

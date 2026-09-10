@@ -1,23 +1,22 @@
-fn:
-  - IsValidRange
-  - RespOnlineBench
-  - SelectOpType
-  - WaitForMonitorIterationSwitch
-  - RecordValue
-  - InitializeClients
-  - InitializeThreadWorkers
-  - Run
-  - th
-  - median
-  - avg
-  - OpRunnerLightClient
-  - OpRunnerGarnetClientSession
-  - ZREM
-  - OpRunnerGarnetClientSessionParallel
-  - OpRunnerGarnetClientSync
-  - callbackMem
-  - callbackStr
-  - OpRunnerGarnetClient
-  - OpRunnerGarnetClientParallel
-  - OpRunnerSERedis
-  - OpRunnerSERedisParallel
+IsValidRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RespOnlineBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SelectOpType: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WaitForMonitorIterationSwitch: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RecordValue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InitializeClients: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InitializeThreadWorkers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Run: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+th: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+median: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+avg: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerLightClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerGarnetClientSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ZREM: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerGarnetClientSessionParallel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerGarnetClientSync: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+callbackMem: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+callbackStr: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerGarnetClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerGarnetClientParallel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerSERedis: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerSERedisParallel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

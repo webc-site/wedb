@@ -1,5 +1,4 @@
-fn:
-  - FromPinnedSpan
-  - ToArray
-  - RMWCompletionCallback
-  - ReadCompletionCallback
+FromPinnedSpan: C# PinnedSpanByte 构造函数，Rust 字节切片原生零拷贝无需固定内存
+ToArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RMWCompletionCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadCompletionCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

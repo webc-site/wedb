@@ -1,32 +1,30 @@
-fn:
-  - Setup
-  - TearDown
-  - WriteInto
-  - Callback
-  - IOCallback
-  - AllocateAlignedBuffer
-  - AssertBufferContents
-  - CreateDeviceForTest
-  - ProbeUringWorks
-  - CreateNativeForTest
-  - Cb
-  - SubmitReadsFromThreads
-test:
-  - IDevice_ReadAsyncBeforeInitialize_UsesCtorDefaults
-  - IDevice_WriteAsyncBeforeInitialize_UsesCtorDefaults
-  - IDevice_Initialize_OmitSegmentIdFromFilename_WithoutMinusOne_Throws
-  - NativeStorageDevice_DisposeBeforeInitialize_IsNoOp
-  - NativeStorageDevice_DisposeTwice_IsIdempotent
-  - NativeStorageDevice_InitializeTwice_Idempotent
-  - NativeStorageDevice_SectorSize_IsStableAcrossOpens
-  - DeviceSectorSize_IsConsistentAcrossDeviceTypes
-  - Native_Backend_RoundTrip
-  - Native_Backend_Parallel_64Reads
-  - Native_MultiCompletionThreads_ParallelMixed
-  - Native_MultipleDevices_MultiThread_NoCrossShardIndexReuse
-  - Native_HighThrottle_HighInFlight
-  - Native_ThrottleAboveMax_IsClampedAndStillWorks
-  - Native_ExplicitIoContexts_DefaultDepth_MultiRing
-  - Native_ExplicitQueueDepth_RoundTrips
-  - Native_Uring_SqPoll_RoundTrips
-  - Native_TryComplete_DoesNotThrow_BeforeAndAfterIO
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteInto: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Callback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IOCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllocateAlignedBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertBufferContents: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateDeviceForTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProbeUringWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateNativeForTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Cb: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SubmitReadsFromThreads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IDevice_ReadAsyncBeforeInitialize_UsesCtorDefaults: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IDevice_WriteAsyncBeforeInitialize_UsesCtorDefaults: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IDevice_Initialize_OmitSegmentIdFromFilename_WithoutMinusOne_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeStorageDevice_DisposeBeforeInitialize_IsNoOp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeStorageDevice_DisposeTwice_IsIdempotent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeStorageDevice_InitializeTwice_Idempotent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeStorageDevice_SectorSize_IsStableAcrossOpens: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeviceSectorSize_IsConsistentAcrossDeviceTypes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_Backend_RoundTrip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_Backend_Parallel_64Reads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_MultiCompletionThreads_ParallelMixed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_MultipleDevices_MultiThread_NoCrossShardIndexReuse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_HighThrottle_HighInFlight: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_ThrottleAboveMax_IsClampedAndStillWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_ExplicitIoContexts_DefaultDepth_MultiRing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_ExplicitQueueDepth_RoundTrips: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_Uring_SqPoll_RoundTrips: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Native_TryComplete_DoesNotThrow_BeforeAndAfterIO: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

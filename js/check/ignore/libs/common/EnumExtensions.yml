@@ -1,7 +1,6 @@
-fn:
-  - TryParseToEnum
-  - FromInt64
-  - ToEnumLiteral
-  - TryParseEnumToLong
-  - ToInt64
-  - TryParseUnderlying
+TryParseToEnum: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+FromInt64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ToEnumLiteral: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEnumToLong: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ToInt64: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseUnderlying: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

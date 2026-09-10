@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - PrepareToRecover
-  - Populate
-  - Verify
-test:
-  - ObjectRecoveryTest1
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrepareToRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Verify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectRecoveryTest1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,5 +1,4 @@
-fn:
-  - GlobalSetup
-  - IsAuthorized_DateTimeUtcNow
-  - IsAuthorized_CoarseTimeProvider
-  - IsAuthorized_CoarseTimeProviderTicks
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_DateTimeUtcNow: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_CoarseTimeProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsAuthorized_CoarseTimeProviderTicks: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

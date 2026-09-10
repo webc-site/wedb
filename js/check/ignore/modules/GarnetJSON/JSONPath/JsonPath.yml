@@ -1,25 +1,24 @@
-fn:
-  - JsonPath
-  - ParseMain
-  - IsStaticPath
-  - Evaluate
-  - EatWhitespace
-  - ParsePath
-  - CreatePathFilter
-  - ParseIndexer
-  - EnsureLength
-  - ParseArrayIndexer
-  - TryParseIndex
-  - ParseQuery
-  - TryParseExpression
-  - CreateUnexpectedCharacterException
-  - ParseExpression
-  - TryParseValue
-  - TryParseArrayLiteral
-  - ReadQuotedString
-  - TryParseEscapedCodepoint
-  - IsValidHex
-  - ReadRegexString
-  - ParseOperator
-  - ParseQuotedField
-  - ParseSide
+JsonPath: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseMain: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsStaticPath: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Evaluate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EatWhitespace: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParsePath: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CreatePathFilter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseIndexer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EnsureLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseArrayIndexer: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseIndex: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseQuery: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseExpression: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CreateUnexpectedCharacterException: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseExpression: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseValue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseArrayLiteral: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadQuotedString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseEscapedCodepoint: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsValidHex: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadRegexString: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseOperator: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseQuotedField: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ParseSide: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

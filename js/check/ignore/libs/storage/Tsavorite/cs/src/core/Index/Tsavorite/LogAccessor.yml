@@ -1,7 +1,6 @@
-fn:
-  - PopulateRecordSizeInfo
-  - ShiftAddresses
-  - Subscribe
-  - SubscribeEvictions
-  - SetLogSizeTracker
-  - ClearSerializedObjectData
+PopulateRecordSizeInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ShiftAddresses: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Subscribe: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SubscribeEvictions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetLogSizeTracker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ClearSerializedObjectData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

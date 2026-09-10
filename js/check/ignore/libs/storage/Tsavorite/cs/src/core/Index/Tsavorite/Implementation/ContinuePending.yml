@@ -1,8 +1,7 @@
-fn:
-  - ContinuePendingRead
-  - SpinWaitUntilClosed
-  - EphemeralSUnlock
-  - ContinuePendingRMW
-  - EphemeralXUnlock
-  - ContinuePendingConditionalCopyToTail
-  - ContinuePendingConditionalScanPush
+ContinuePendingRead: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SpinWaitUntilClosed: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralSUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralXUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingConditionalCopyToTail: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ContinuePendingConditionalScanPush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

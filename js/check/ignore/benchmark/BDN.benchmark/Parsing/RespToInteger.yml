@@ -1,11 +1,10 @@
-fn:
-  - ReadLengthHeader
-  - ReadInt64
-  - ReadIntWithLengthHeader
-  - ReadLongWithLengthHeader
-  - ReadULongWithLengthHeader
-  - ToRespIntegerTestCases
-  - ToRespLengthHeaderTestCases
-  - ToRespIntegerWithLengthHeader
-  - AsciiTestCase
-  - ToString
+ReadLengthHeader: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ReadInt64: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ReadIntWithLengthHeader: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ReadLongWithLengthHeader: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ReadULongWithLengthHeader: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToRespIntegerTestCases: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToRespLengthHeaderTestCases: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToRespIntegerWithLengthHeader: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AsciiTestCase: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

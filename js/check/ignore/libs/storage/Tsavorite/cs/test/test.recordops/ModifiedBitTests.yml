@@ -1,14 +1,12 @@
-fn:
-  - Setup
-  - TearDown
-  - OnTearDown
-  - Populate
-  - AssertLockandModified
-test:
-  - LockAndNotModify
-  - ResetModifyForNonExistingKey
-  - ModifyClientSession
-  - ModifyLUC
-  - ModifyUC
-  - ModifyLC
-  - CopyToTailAndVerifyResetTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertLockandModified: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockAndNotModify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetModifyForNonExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyClientSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyLUC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyUC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ModifyLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyToTailAndVerifyResetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

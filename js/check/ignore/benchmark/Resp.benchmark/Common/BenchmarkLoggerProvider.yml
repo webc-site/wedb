@@ -1,7 +1,6 @@
-fn:
-  - BenchmarkLoggerProvider
-  - CreateLogger
-  - BenchmarkLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr
+BenchmarkLoggerProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateLogger: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BenchmarkLogger: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BeginScope: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsEnabled: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetLevelStr: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

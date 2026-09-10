@@ -1,13 +1,12 @@
-fn:
-  - GlobalSetup
-  - RegisterModules
-  - SetupOperation
-  - SlowConsumeMessage
-  - ModuleJsonGetCommand
-  - ModuleJsonSetCommand
-  - ModuleJsonGetDeepPath
-  - ModuleJsonGetArrayPath
-  - ModuleJsonGetArrayElementsPath
-  - ModuleJsonGetFilterPath
-  - ModuleJsonGetRecursive
-  - GenerateLargeJson
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RegisterModules: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonSetCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetDeepPath: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetArrayPath: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetArrayElementsPath: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetFilterPath: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleJsonGetRecursive: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateLargeJson: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

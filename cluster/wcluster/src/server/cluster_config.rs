@@ -18,8 +18,7 @@ use crate::{
 /// 无向下兼容负担，异版本载荷在解码前即被拒绝
 pub const CLUSTER_CONFIG_VERSION: u8 = 2;
 
-/// 槽位空间上下界（Redis Cluster 语义：16384 槽）
-pub const MIN_HASH_SLOT_VALUE: usize = 0;
+/// 槽位空间上界（Redis Cluster 语义：16384 槽；下界 0 对 usize 恒真无需常量）
 pub const MAX_HASH_SLOT_VALUE: usize = 16384;
 
 /// CLUSTER NODES 中 bus 端口偏移（garnet 语义：bus port = port + 10000）
@@ -68,10 +67,6 @@ impl ClusterConfig {
     let mut config = Self { slot_map, workers };
     config.initialize_unassigned_worker();
     config
-  }
-
-  pub fn with_data(slot_map: Box<[HashSlot; MAX_HASH_SLOT_VALUE]>, workers: Vec<Worker>) -> Self {
-    Self { slot_map, workers }
   }
 
   /// garnet相对路径:Server:ClusterConfig:InitializeUnassignedWorker

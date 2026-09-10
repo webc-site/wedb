@@ -1,12 +1,11 @@
-fn:
-  - GetSegmentBlobName
-  - DetectHangs
-  - CancelAllRequests
-  - DeleteAsync
-  - TryReadAsync
-  - ReadFromBlobAsync
-  - WritePortionToBlobUnsafeAsync
-  - WritePortionToBlobAsync
-  - ReadFromBlobUnsafeAsync
-  - TryWriteAsync
-  - WriteToBlobAsync
+GetSegmentBlobName: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+DetectHangs: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+CancelAllRequests: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+DeleteAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+TryReadAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ReadFromBlobAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+WritePortionToBlobUnsafeAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+WritePortionToBlobAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ReadFromBlobUnsafeAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+TryWriteAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+WriteToBlobAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ClusterTLSInitialize
-  - ClusterTLSSlotInfo
-  - ClusterTLSAddDelSlots
-  - ClusterTLSSlotChangeStatus
-  - ClusterTLSRedirectMessage
-  - ClusterTLSMigrateSlots
-  - ClusterTLSMigrateSlotsExpiry
-  - ClusterTLSMigrateSlotsWithObjects
-  - ClusterTLSMigrateKeys
-  - ClusterTLSMigrateKeysWithObjects
-  - ClusterTLSMigrateContinuousReadWrite
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSInitialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSSlotInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSAddDelSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSSlotChangeStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSRedirectMessage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlots: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlotsExpiry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateSlotsWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateKeysWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterTLSMigrateContinuousReadWrite: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

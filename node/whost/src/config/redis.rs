@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 /// libs/host/Configuration/Redis/RedisConfigSerializer.cs:RedisConfigSerializer
 pub struct RedisConfigSerializer;
 
@@ -8,7 +10,7 @@ pub struct RedisSerializationException;
 pub struct RedisOptions;
 
 /// libs/host/Configuration/Redis/RedisOptions.cs:Option
-pub struct RedisOption<T>(std::marker::PhantomData<T>);
+pub struct RedisOption<T>(PhantomData<T>);
 
 /// libs/host/Configuration/Redis/RedisOptions.cs:RedisOptionAttribute
 pub struct RedisOptionAttribute;

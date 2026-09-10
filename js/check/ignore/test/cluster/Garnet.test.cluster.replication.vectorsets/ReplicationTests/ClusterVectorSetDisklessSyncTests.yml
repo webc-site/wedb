@@ -1,15 +1,13 @@
-fn:
-  - SetupDisklessCluster
-  - ForceDisklessFullSync
-  - PopulateVectorSet
-  - AssertFullyReplicated
-  - AssertOwnsItsIndex
-  - WaitForContextDrained
-test:
-  - VectorSetReadableOnReplicaAfterDisklessFullSync
-  - VectorSetReadableOnReplicaWithoutFullSync
-  - VectorSetReplicatedToEveryReplicaByDisklessFullSync
-  - VectorSetSurvivesFailoverAfterDisklessFullSync
-  - FreshVectorSetDoesNotReuseStreamedContextAfterDisklessFullSync
-  - VectorSetDisklessFullSyncRecoversAfterAbortedAttempt
-  - AbortedDisklessFullSyncLeavesNoOrphanNamespacedRecords
+SetupDisklessCluster: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ForceDisklessFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateVectorSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertFullyReplicated: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertOwnsItsIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForContextDrained: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetReadableOnReplicaAfterDisklessFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetReadableOnReplicaWithoutFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetReplicatedToEveryReplicaByDisklessFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetSurvivesFailoverAfterDisklessFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FreshVectorSetDoesNotReuseStreamedContextAfterDisklessFullSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetDisklessFullSyncRecoversAfterAbortedAttempt: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AbortedDisklessFullSyncLeavesNoOrphanNamespacedRecords: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

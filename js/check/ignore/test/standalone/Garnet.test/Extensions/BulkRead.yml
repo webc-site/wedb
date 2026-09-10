@@ -1,6 +1,5 @@
-fn:
-  - Prepare
-  - AddKey
-  - Main
-  - WriteSimpleString
-  - WriteBulkStringArray
+Prepare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteSimpleString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteBulkStringArray: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

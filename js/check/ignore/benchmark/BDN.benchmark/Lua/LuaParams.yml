@@ -1,4 +1,3 @@
-fn:
-  - LuaParams
-  - CreateOptions
-  - ToString
+LuaParams: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateOptions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

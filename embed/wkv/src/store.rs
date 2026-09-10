@@ -493,6 +493,12 @@ impl<D: Device> WedbStore<D> {
     self.gc_cfg.read().clone()
   }
 
+  /// 获取内置 GC 后台循环句柄（未启动返回 None）
+  #[inline]
+  pub fn gc_handle(&self) -> Option<&gc::GcHandle<D>> {
+    self.gc.get()
+  }
+
   /// 注入写监听端口（须在创建任何会话前调用；重复注入返回 false）
   pub fn set_write_listener(&self, listener: WriteListenerFn) -> bool {
     self.write_listener.set(listener).is_ok()
@@ -527,12 +533,6 @@ impl<D: Device> WedbStore<D> {
   #[inline]
   pub(crate) fn ttl_purge_listener(&self) -> Option<&TtlPurgeListenerFn> {
     self.ttl_purge_listener.get()
-  }
-
-  /// 获取内置 GC 后台循环句柄（未启动返回 None）
-  #[inline]
-  pub fn gc_handle(&self) -> Option<&gc::GcHandle<D>> {
-    self.gc.get()
   }
 
   /// 将内存中所有驻留脏页异步刷盘并同步设备

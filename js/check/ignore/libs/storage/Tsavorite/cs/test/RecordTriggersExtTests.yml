@@ -1,21 +1,19 @@
-fn:
-  - ExtRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - InsertN
-test:
-  - OnFlushReceivesCorrectLogicalAddress
-  - CallOnFlushFalseSkipsCallback
-  - OnTruncateFiresWithNewBeginAddress
-  - CallOnTruncateFalseSkipsCallback
-  - PostCopyToTailFiresFromCompaction
-  - CallPostCopyToTailFalseSkipsCallback
-  - DefaultRecordTriggersHasAllNewFlagsFalse
-  - SpanByteRecordTriggersHasAllNewFlagsFalse
+ExtRecordTriggers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDisposeDiskRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InsertN: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnFlushReceivesCorrectLogicalAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnFlushFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTruncateFiresWithNewBeginAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnTruncateFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostCopyToTailFiresFromCompaction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallPostCopyToTailFalseSkipsCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DefaultRecordTriggersHasAllNewFlagsFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SpanByteRecordTriggersHasAllNewFlagsFalse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

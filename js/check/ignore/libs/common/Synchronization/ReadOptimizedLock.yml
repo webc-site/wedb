@@ -1,13 +1,12 @@
-fn:
-  - CreateShared
-  - CreateExclusive
-  - CreateAllExclusive
-  - CalculateIndex
-  - TryAcquireSharedLock
-  - AcquireSharedLock
-  - ReleaseLock
-  - TryAcquireExclusiveLock
-  - AcquireExclusiveLock
-  - AcquireAllExclusiveLock
-  - TryPromoteSharedLock
-  - GetProcessorHint
+CreateShared: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CreateExclusive: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CreateAllExclusive: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+CalculateIndex: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryAcquireSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+ReleaseLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryAcquireExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+AcquireAllExclusiveLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryPromoteSharedLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+GetProcessorHint: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

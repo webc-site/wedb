@@ -1,20 +1,18 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - UpdateRecordSizeInfo
-  - GetTotalFillerLength
-  - InitializeKeyAndValue
-  - PopulateBoundarySizeInfo
-  - InitializeRecord
-  - ConvertToOverflow
-  - RestoreToOriginal
-  - ConvertToObject
-test:
-  - InlineHeaderTests
-  - InlineBasicTest
-  - ConversionTest
-  - MaxInlineKeyAtLimitStaysInline
-  - KeyAboveMaxInlineKeyBecomesOverflow
-  - MaxInlineValueAtLimitStaysInline
-  - ValueAboveMaxInlineValueBecomesOverflow
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpdateRecordSizeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetTotalFillerLength: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitializeKeyAndValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateBoundarySizeInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitializeRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConvertToOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestoreToOriginal: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConvertToObject: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InlineHeaderTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InlineBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConversionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineKeyAtLimitStaysInline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyAboveMaxInlineKeyBecomesOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueAtLimitStaysInline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValueAboveMaxInlineValueBecomesOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

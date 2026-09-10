@@ -225,18 +225,16 @@ fn test_tombstone_lifecycle_and_address_preservation() -> Void {
     assert_eq!(raw_header.prev_address, initial_prev_addr);
   }
 
-  // 墓碑标记下更新前驱地址
+  // 墓碑标记下前驱地址保持不变
   {
     let mut rec_mut = RecordMut::from_slice_mut(&mut buf)?;
     rec_mut.set_tombstone(true);
-    let new_prev_addr = 0x0000_8765_4321_0000_u64;
-    rec_mut.set_prev_address(new_prev_addr)?;
     assert!(rec_mut.is_tombstone());
-    assert_eq!(rec_mut.prev_address(), new_prev_addr);
+    assert_eq!(rec_mut.prev_address(), initial_prev_addr);
 
     let view = rec_mut.as_ref();
     assert!(view.is_tombstone());
-    assert_eq!(view.prev_address(), new_prev_addr);
+    assert_eq!(view.prev_address(), initial_prev_addr);
   }
 
   info!("墓碑删除状态生命周期与地址保持测试通过");

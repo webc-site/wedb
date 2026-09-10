@@ -1,6 +1,5 @@
-fn:
-  - TryImportOptions
-  - TryExportOptions
-  - TrySerializeOptions
-  - TryDeserializeOptions
-  - GetConfigProvider
+TryImportOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryExportOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TrySerializeOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+TryDeserializeOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetConfigProvider: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - RecreateDirectory
-  - TearDown
-  - OnTearDown
-  - DoRead
-  - CreateKVSettings
-test:
-  - LargeObjectTest
-  - MultiListObjectTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecreateDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateKVSettings: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiListObjectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

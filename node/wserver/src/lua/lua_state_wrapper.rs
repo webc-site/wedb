@@ -499,8 +499,9 @@ impl LuaStateWrapper {
   ///
   /// 表迭代（lua_next 语义）：弹出栈顶键，压入下一键值对并返回 true；
   /// 迭代结束仅消耗键、不压任何值（净 -1），返回 false。
-  #[allow(clippy::should_implement_trait)]
-  pub fn next(&mut self) -> bool {
+  ///
+  /// 命名避开 `Iterator::next` 的 trait 同名，避免误导为可迭代对象
+  pub fn lua_next(&mut self) -> bool {
     let key = self.interp_mut().stack.pop();
     let Some(key) = key else {
       return false;
@@ -509,26 +510,30 @@ impl LuaStateWrapper {
       self.interp_mut().stack.push(key);
       return false;
     };
-    // mlua 无 C 栈式 next：以 pairs 快照承接——收集键序，推进到当前键
-    // 的下一键值对（nil 键 = 起始）。回复表规模小，快照开销可忽略。
-    let pairs: Vec<(StackValue, StackValue)> = table
-      .clone()
-      .pairs::<StackValue, StackValue>()
-      .filter_map(Result::ok)
-      .collect();
-    let start = if matches!(key, Value::Nil) {
-      0
+    // mlua 无 C 栈式 next：沿 pairs 迭代流式推进到当前键的下一键值对
+    // （nil 键 = 起始），命中即止，避免整表快照的全量收集。
+    let mut next_pair: Option<(StackValue, StackValue)> = None;
+    if matches!(key, Value::Nil) {
+      next_pair = table
+        .clone()
+        .pairs::<StackValue, StackValue>()
+        .find_map(Result::ok);
     } else {
-      pairs
-        .iter()
-        .position(|(k, _)| *k == key)
-        .map_or(pairs.len(), |pos| pos + 1)
-    };
-    match pairs.get(start) {
+      let mut passed = false;
+      for pair in table.clone().pairs::<StackValue, StackValue>() {
+        let Ok((k, v)) = pair else { continue };
+        if passed {
+          next_pair = Some((k, v));
+          break;
+        }
+        passed = k == key;
+      }
+    }
+    match next_pair {
       Some((next_key, value)) => {
         let mut interp = self.interp_mut();
-        interp.stack.push(next_key.clone());
-        interp.stack.push(value.clone());
+        interp.stack.push(next_key);
+        interp.stack.push(value);
         true
       }
       None => false,
@@ -859,7 +864,7 @@ mod tests {
     // lua_next 语义：迭代尽头只耗键、不压值（净 -1）。
     state.push_nil();
     let mut seen = 0;
-    while state.next() {
+    while state.lua_next() {
       seen += 1;
       state.pop(1);
     }

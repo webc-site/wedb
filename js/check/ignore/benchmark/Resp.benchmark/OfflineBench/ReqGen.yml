@@ -1,13 +1,12 @@
-fn:
-  - ReqGen
-  - GetBufferSize
-  - GetRequest
-  - GetRequestArgs
-  - InitializeRNG
-  - ConvertToSERedisInput
-  - ProcessArgs
-  - OnResponse
-  - LongRandom
-  - ULongRandom
-  - RandomIntBitRange
-  - RandomString
+ReqGen: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetBufferSize: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRequest: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRequestArgs: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InitializeRNG: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ConvertToSERedisInput: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ProcessArgs: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OnResponse: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LongRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ULongRandom: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RandomIntBitRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RandomString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

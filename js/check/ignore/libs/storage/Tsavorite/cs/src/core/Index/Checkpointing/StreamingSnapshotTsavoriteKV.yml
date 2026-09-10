@@ -1,8 +1,7 @@
-fn:
-  - ScanPhase1Functions
-  - OnException
-  - OnStart
-  - OnStop
-  - StreamingSnapshotScanPhase1
-  - ScanPhase2Functions
-  - StreamingSnapshotScanPhase2
+ScanPhase1Functions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnStop: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StreamingSnapshotScanPhase1: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanPhase2Functions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+StreamingSnapshotScanPhase2: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

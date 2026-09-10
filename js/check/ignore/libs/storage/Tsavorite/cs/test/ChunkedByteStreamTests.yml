@@ -1,7 +1,5 @@
-fn:
-  - Consume
-  - MakeBytes
-test:
-  - ChunkedRawByteRoundTripTest
-  - ChunkedEmptyStreamStillSignalsFinalTest
-  - ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedRawByteRoundTripTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedEmptyStreamStillSignalsFinalTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ChunkedFinalFlushFailsWhenConsumerMakesNoProgressTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

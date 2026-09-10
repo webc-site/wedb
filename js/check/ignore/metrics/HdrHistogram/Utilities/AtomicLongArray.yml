@@ -1,5 +1,4 @@
-fn:
-  - AtomicLongArray
-  - LazySet
-  - IncrementAndGet
-  - AddAndGet
+AtomicLongArray: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+LazySet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+IncrementAndGet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持
+AddAndGet: C# HdrHistogram 移植实现，Rust 侧由 hdrhistogram crate 原生支持

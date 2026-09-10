@@ -1,39 +1,35 @@
-fn:
-  - GetUnitTests
-  - Setup
-  - TearDown
-  - ClusterSRPrimaryCheckpointRetrieve
-  - ClusterDivergentReplicasTest
-  - ClusterReplicate
-  - ExecuteRateLimit
-  - ValidateKeys
-  - RunWorkload
-  - RestartRecover
-test:
-  - ClusterSRTest
-  - ClusterSRNoCheckpointRestartSecondary
-  - ClusterSRPrimaryCheckpointAsync
-  - ClusterCheckpointRetrieveDisableStorageTier
-  - ClusterSRPrimaryCheckpointRetrieve
-  - ClusterSRAddReplicaAfterPrimaryCheckpoint
-  - ClusterSRPrimaryRestart
-  - ClusterSRRedirectWrites
-  - ClusterSRReplicaOfTest
-  - ClusterReplicationSimpleFailover
-  - ClusterFailoverAttachReplicas
-  - ClusterReplicationCheckpointCleanupTest
-  - ClusterMainMemoryReplicationAttachReplicas
-  - ClusterDivergentReplicasTest
-  - ClusterDivergentCheckpointTest
-  - ClusterDivergentReplicasMMTest
-  - ClusterDivergentCheckpointMMTest
-  - ClusterDivergentCheckpointMMFastCommitTest
-  - ClusterReplicationCheckpointAlignmentTestAsync
-  - ClusterReplicationLua
-  - ClusterReplicationStoredProc
-  - ClusterReplicationManualCheckpointingAsync
-  - ReplicaSyncTaskFaultsRecoverAsync
-  - ClusterReplicationMultiRestartRecover
-  - ClusterReplicationDivergentHistoryWithoutCheckpointAsync
-  - ClusterReplicationSimpleTransactionTest
-  - ClusterReplicationHlogSegmentCleanupTest
+GetUnitTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryCheckpointRetrieve: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentReplicasTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteRateLimit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunWorkload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestartRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRNoCheckpointRestartSecondary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryCheckpointAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCheckpointRetrieveDisableStorageTier: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRAddReplicaAfterPrimaryCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRPrimaryRestart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRRedirectWrites: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSRReplicaOfTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationSimpleFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverAttachReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationCheckpointCleanupTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMainMemoryReplicationAttachReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentReplicasMMTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointMMTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDivergentCheckpointMMFastCommitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationCheckpointAlignmentTestAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationLua: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationStoredProc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationManualCheckpointingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicaSyncTaskFaultsRecoverAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationMultiRestartRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationDivergentHistoryWithoutCheckpointAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationSimpleTransactionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationHlogSegmentCleanupTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

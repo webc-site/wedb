@@ -1,3 +1,2 @@
-fn:
-  - TrySelect
-  - ToString
+TrySelect: C# 原型实验与演练脚本，非生产运行时代码
+ToString: C# 原型实验与演练脚本，非生产运行时代码

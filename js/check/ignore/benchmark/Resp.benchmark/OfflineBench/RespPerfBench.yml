@@ -1,17 +1,16 @@
-fn:
-  - RespPerfBench
-  - AddSlotRange
-  - LoadData
-  - LightOperate
-  - GetDBSIZE
-  - LoadHLLData
-  - PerformAsyncGET
-  - CreateLocalDB
-  - PerformMGET
-  - Run
-  - LightOperateThreadRunner
-  - GarnetClientSessionOperateThreadRunner
-  - SERedisOperateThreadRunner
-  - InProcOperateThreadRunner
-  - MGetThreadRunner
-  - LoadDatabaseStringSet
+RespPerfBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AddSlotRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LightOperate: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetDBSIZE: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadHLLData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PerformAsyncGET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateLocalDB: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+PerformMGET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Run: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LightOperateThreadRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GarnetClientSessionOperateThreadRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SERedisOperateThreadRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InProcOperateThreadRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+MGetThreadRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadDatabaseStringSet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

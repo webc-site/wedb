@@ -1,58 +1,57 @@
-fn:
-  - Equals
-  - GetHashCode64
-  - PostInitialDeleter
-  - BucketLockTracker
-  - IncrementX
-  - IncrementS
-  - DecrementX
-  - DecrementS
-  - AddX
-  - AddS
-  - GetLockCounts
-  - AssertNoLocks
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - Populate
-  - AssertIsLocked
-  - PrepareRecordLocation
-  - ClearCountsOnError
-  - PopulateHei
-  - AssertTotalLockCounts
-  - AssertBucketLockCount
-  - EnumActionKeyIndices
-  - genHashCode
-  - enumKeys
-  - runManualLockThread
-  - enumKeysToLock
-  - runLTransientLockOpThread
-  - AddLockTableEntry
-  - VerifyAndUnlockChainInsertedKey
-  - PopulateAndEvict
-  - createKey
-  - getValue
-  - updater
-  - locker
-test:
-  - ManualLockCollidingHashCodes
-  - TestShiftHeadAddressLUC
-  - InMemorySimpleLockTxnTest
-  - InMemoryLongLockTest
-  - InMemoryDeleteTest
-  - StressManualLocks
-  - VerifyLocksAfterReadAndCTTTest
-  - VerifyCountsAfterFlushAndEvict
-  - VerifyCountAfterUpsertToTailTest
-  - VerifyCountAfterRMWToTailTest
-  - VerifyCountAfterDeleteToTailTest
-  - LockAndUnlockInLockTableOnlyTest
-  - VerifyCountAfterReadOnlyToUpdateRecordTest
-  - LockNewRecordThenUpdateAndUnlockTest
-  - LockNewRecordThenUnlockThenUpdateTest
-  - MultiSharedLockTest
-  - TryLockTimeSpanLimitTest
-  - TryLockCancellationTest
-  - TryPromoteLockTimeSpanLimitTest
-  - TryPromoteLockCancellationTest
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetHashCode64: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PostInitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BucketLockTracker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementS: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DecrementX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DecrementS: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddX: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddS: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertNoLocks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertIsLocked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrepareRecordLocation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClearCountsOnError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateHei: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertTotalLockCounts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertBucketLockCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnumActionKeyIndices: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+genHashCode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+enumKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runManualLockThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+enumKeysToLock: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+runLTransientLockOpThread: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddLockTableEntry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyAndUnlockChainInsertedKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateAndEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+createKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+updater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+locker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ManualLockCollidingHashCodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestShiftHeadAddressLUC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InMemorySimpleLockTxnTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InMemoryLongLockTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InMemoryDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StressManualLocks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyLocksAfterReadAndCTTTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCountsAfterFlushAndEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCountAfterUpsertToTailTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCountAfterRMWToTailTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCountAfterDeleteToTailTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockAndUnlockInLockTableOnlyTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyCountAfterReadOnlyToUpdateRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockNewRecordThenUpdateAndUnlockTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockNewRecordThenUnlockThenUpdateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiSharedLockTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryLockTimeSpanLimitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryLockCancellationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryPromoteLockTimeSpanLimitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryPromoteLockCancellationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InPlaceDeleter: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除

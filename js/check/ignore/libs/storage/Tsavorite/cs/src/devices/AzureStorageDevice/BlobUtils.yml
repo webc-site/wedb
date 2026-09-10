@@ -1,4 +1,3 @@
-fn:
-  - IsTransientStorageError
-  - IsTimeout
-  - httpStatusIndicatesTransientError
+IsTransientStorageError: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+IsTimeout: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+httpStatusIndicatesTransientError: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

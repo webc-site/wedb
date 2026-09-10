@@ -1,8 +1,7 @@
-fn:
-  - GetRef
-  - SelectInstance
-  - ComputeNewSafeToReclaimEpoch
-  - TryAcquireEntry
-  - ReserveEntry
-  - ReserveEntryWait
-  - ReserveEntryForThread
+GetRef: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+SelectInstance: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ComputeNewSafeToReclaimEpoch: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TryAcquireEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ReserveEntry: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ReserveEntryWait: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ReserveEntryForThread: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

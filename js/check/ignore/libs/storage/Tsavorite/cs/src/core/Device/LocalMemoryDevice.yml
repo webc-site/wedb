@@ -1,10 +1,9 @@
-fn:
-  - LocalMemoryDevice
-  - EnsureSegment
-  - EnsureSegmentSlow
-  - Enqueue
-  - WaitLatency
-  - AssignRingIdx
-  - ProcessorLoop
-  - RemoveSegmentAsync
-  - GetAllocatedBytes
+LocalMemoryDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureSegment: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureSegmentSlow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Enqueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitLatency: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AssignRingIdx: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProcessorLoop: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveSegmentAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAllocatedBytes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

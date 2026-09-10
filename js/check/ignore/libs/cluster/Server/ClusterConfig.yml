@@ -1,9 +1,8 @@
-fn:
-  - AppendSlotRange
-  - AppendSpecialStates
-  - AppendFormattedShardInfo
-  - AppendFormattedNodeInfo
-  - AppendFormattedSlotInfo
-  - AppendNodeNetworkingInfo
-  - AppendValueOrNull
-  - GetReplicas
+AppendSlotRange: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendSpecialStates: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedShardInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedNodeInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendFormattedSlotInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendNodeNetworkingInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AppendValueOrNull: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetReplicas: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

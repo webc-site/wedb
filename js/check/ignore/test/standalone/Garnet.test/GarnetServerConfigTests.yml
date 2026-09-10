@@ -1,51 +1,49 @@
-fn:
-  - GetFullExtensionBinPath
-  - TryParseGarnetConfOptions
-test:
-  - DefaultConfigurationOptionsCoverage
-  - OptionsDefaultAttributeUsage
-  - RangeIndexPreviewRequiresMinimumAofPageSize
-  - NativeAllocatorOptionParsing
-  - UseLegacyBufferPoolOptionParsing
-  - BufferPoolMemoryBudgetOptionParsing
-  - BufferPoolMemoryBudgetZeroDisablesCaching
-  - LoadModuleCsInvalidSpecIsRejected
-  - DeviceIoContextsAndQueueDepthOptions
-  - DeviceAioMaxDevicesOption
-  - DeviceUringSqPollOptions
-  - ImportExportConfigLocal
-  - ImportExportRedisConfigLocal
-  - ImportExportConfigAzure
-  - AzureStorageConfiguration
-  - LuaMemoryOptions
-  - LuaTimeoutOptions
-  - LuaLoggingOptions
-  - LuaAllowedFunctions
-  - ClusterReplicationReestablishmentTimeout
-  - ClusterReplicaResumeWithData
-  - EnableVectorSetPreview
-  - MinimumPageSizeWithVectorSetPreview
-  - VectorSetQuantizationTaskCount
-  - UnixSocketPath_CanParseValidPath
-  - UnixSocketPath_InvalidPathFails
-  - UnixSocketPermission_CanParseValidPermission
-  - UnixSocketPermission_InvalidPermissionFails
-  - CertFileName_AcceptsPemExtensions
-  - CertFileName_RejectsUnsupportedExtension
-  - ConnectionProtectionTest
-  - MultiTcpSocketTest
-  - ClusterPreferredEndpointTypeTest
-  - ClusterAnnounceHostnameTest
-  - RevivificationFlagOrderingIndependence
-  - AclStrictCustomCommands
-  - AofSizeLimitWithoutAofEnabled
-  - AofSegmentSizeFlowsToTsavoriteLogSettings
-  - MaxInlineValueSizeParsing
-  - MaxInlineValueSizeValidation
-  - MaxInlineValueSizeMustFitOnPage
-  - MaxInlineValueSizeDefaultBehavior
-  - MaxInlineKeySizeParsing
-  - MaxInlineKeySizeValidation
-  - MinimumPageSize
-  - MinimumReadCachePageSize
-  - InitialIORecordSizeParsing
+GetFullExtensionBinPath: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryParseGarnetConfOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DefaultConfigurationOptionsCoverage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OptionsDefaultAttributeUsage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RangeIndexPreviewRequiresMinimumAofPageSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeAllocatorOptionParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UseLegacyBufferPoolOptionParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferPoolMemoryBudgetOptionParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BufferPoolMemoryBudgetZeroDisablesCaching: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LoadModuleCsInvalidSpecIsRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeviceIoContextsAndQueueDepthOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeviceAioMaxDevicesOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeviceUringSqPollOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ImportExportConfigLocal: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ImportExportRedisConfigLocal: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ImportExportConfigAzure: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AzureStorageConfiguration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaMemoryOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaTimeoutOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaLoggingOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaAllowedFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationReestablishmentTimeout: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicaResumeWithData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnableVectorSetPreview: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MinimumPageSizeWithVectorSetPreview: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetQuantizationTaskCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnixSocketPath_CanParseValidPath: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnixSocketPath_InvalidPathFails: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnixSocketPermission_CanParseValidPermission: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnixSocketPermission_InvalidPermissionFails: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CertFileName_AcceptsPemExtensions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CertFileName_RejectsUnsupportedExtension: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConnectionProtectionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiTcpSocketTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterPreferredEndpointTypeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAnnounceHostnameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RevivificationFlagOrderingIndependence: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AclStrictCustomCommands: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofSizeLimitWithoutAofEnabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AofSegmentSizeFlowsToTsavoriteLogSettings: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueSizeParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueSizeValidation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueSizeMustFitOnPage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueSizeDefaultBehavior: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineKeySizeParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineKeySizeValidation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MinimumPageSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MinimumReadCachePageSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialIORecordSizeParsing: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

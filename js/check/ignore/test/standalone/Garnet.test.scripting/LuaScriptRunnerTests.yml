@@ -1,18 +1,16 @@
-fn:
-  - DebugClassicAssertIsTrue
-  - DebugClassicAssertAreEqual
-  - BeginScope
-  - IsEnabled
-test:
-  - CannotRunUnsafeScript
-  - LoadAndLoadStringNotExposed
-  - CanLoadScript
-  - CanRunScript
-  - KeysAndArgsCleared
-  - LuaLimittedManaged
-  - RedisLogDisabled
-  - RedisLogSilent
-  - AllowedFunctions
-  - InternalFunctionsIgnoredInAllowedFunctions
-  - Issue1165
-  - NeedsDisposeCheck
+DebugClassicAssertIsTrue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DebugClassicAssertAreEqual: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BeginScope: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsEnabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CannotRunUnsafeScript: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LoadAndLoadStringNotExposed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanLoadScript: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanRunScript: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeysAndArgsCleared: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LuaLimittedManaged: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisLogDisabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RedisLogSilent: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllowedFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InternalFunctionsIgnoredInAllowedFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Issue1165: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NeedsDisposeCheck: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,37 +1,35 @@
-fn:
-  - Setup
-  - TearDown
-  - CheckMetadata
-  - VerifyClusterResetFails
-  - GetStat
-  - ClusterRestartNodeDropGossip
-  - ExecuteHashSet
-  - ManualCollect
-  - ValidateHashSet
-  - UpgradeReplicasAsync
-test:
-  - ClusterSlotsTest
-  - ClusterSlotRangesTest
-  - ClusterShardsTest
-  - ClusterNodesHostnameTest
-  - ClusterForgetTest
-  - ClusterResetTest
-  - ClusterResetFailsForMasterWithKeysInSlotsTest
-  - ClusterResetFailsForMasterWithKeysInSlotsObjectStoreTest
-  - ClusterResetAfterFLushAllTest
-  - ClusterResetDisposesGossipConnections
-  - ClusterKeySlotTest
-  - ClusterClientList
-  - ClusterClientKill
-  - ClusterClientKillSlave
-  - FailoverBadOptions
-  - ClusterFailoverBadOptions
-  - ClusterSetSlotBadOptions
-  - ClusterRoleCommand
-  - ClusterNodeCommand
-  - ClusterMeetHostname
-  - ClusterFlushAll
-  - ClusterCheckpointUpgradeFrom
-  - ClusterReplicationObjectCollectTest
-  - ReplicasRestartAsReplicasAsync
-  - PrimaryUnavailableRecoveryAsync
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckMetadata: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyClusterResetFails: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRestartNodeDropGossip: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteHashSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ManualCollect: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateHashSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpgradeReplicasAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlotsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSlotRangesTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterShardsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterNodesHostnameTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterForgetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetFailsForMasterWithKeysInSlotsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetFailsForMasterWithKeysInSlotsObjectStoreTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetAfterFLushAllTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterResetDisposesGossipConnections: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterKeySlotTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterClientList: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterClientKill: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterClientKillSlave: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailoverBadOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverBadOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSetSlotBadOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterRoleCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterNodeCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMeetHostname: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFlushAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterCheckpointUpgradeFrom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationObjectCollectTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicasRestartAsReplicasAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrimaryUnavailableRecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

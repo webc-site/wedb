@@ -1,12 +1,10 @@
-fn:
-  - RunTransactionProc
-  - RunTransactionProcInternal
-  - IsSkippingOperations
-  - Watch
-  - AddTransactionStoreTypes
-  - AddTransactionStoreType
-  - GetSlotVerificationInput
-  - LocksAcquired
-  - ComputeCustomProcShardedLogAccess
-  - ComputeSublogAccessVector
-  - PromoteToTransaction
+RunTransactionProc: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+RunTransactionProcInternal: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+Watch: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+AddTransactionStoreTypes: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+AddTransactionStoreType: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+GetSlotVerificationInput: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+LocksAcquired: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+ComputeCustomProcShardedLogAccess: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+ComputeSublogAccessVector: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+PromoteToTransaction: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度

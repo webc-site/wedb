@@ -1,13 +1,11 @@
-fn:
-  - TestDeviceWriteRead
-  - IgnoreIfNotRunningAzureTests
-  - DeleteDirectory
-test:
-  - LocalStorageWriteRead
-  - PageBlobWriteRead
-  - PageBlobWriteReadWithLease
-  - TieredWriteRead
-  - ShardedWriteRead
-  - OmitSegmentIdTest
-  - ShardedReadCompletesWhenLaterShardThrows
-  - ShardedWriteCompletesWhenLaterShardThrows
+TestDeviceWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IgnoreIfNotRunningAzureTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalStorageWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PageBlobWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PageBlobWriteReadWithLease: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TieredWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShardedWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OmitSegmentIdTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShardedReadCompletesWhenLaterShardThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShardedWriteCompletesWhenLaterShardThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,7 +1,6 @@
-fn:
-  - RunOnline
-  - RunOnlineGarnetClientSessionParallel
-  - RunOnlineGarnetClientSession
-  - RunOnlineGarnetClientParallel
-  - RunOnlineGarnetClient
-  - RunOnlineLightClient
+RunOnline: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnlineGarnetClientSessionParallel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnlineGarnetClientSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnlineGarnetClientParallel: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnlineGarnetClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnlineLightClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

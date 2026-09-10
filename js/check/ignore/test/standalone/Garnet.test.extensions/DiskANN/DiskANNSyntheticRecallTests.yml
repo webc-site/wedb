@@ -1,23 +1,21 @@
-fn:
-  - Setup
-  - TearDown
-  - RunRecallTest
-  - AddVectors_FP32
-  - VsimQuery_FP32
-  - AddVectors_XB8
-  - VsimQuery_XB8
-  - GenerateGridVectors
-  - GenerateGridVectorsUInt8
-  - GenerateCircleVectors
-  - GenerateVariousRadiiCircleVectors
-  - ParseVsimIds
-  - BruteForceNearestNeighbors
-  - CountDictionaryIntersection
-  - CountPerDistance
-  - SquaredL2Distance_Raw
-  - SquaredL2Distance_XB8
-  - CosineDistance
-test:
-  - GridRecall_FP32_NoQuant
-  - GridRecall_XB8_XPREQ8
-  - CircleRecall_FP32_NoQuant
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RunRecallTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddVectors_FP32: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VsimQuery_FP32: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AddVectors_XB8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VsimQuery_XB8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateGridVectors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateGridVectorsUInt8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateCircleVectors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateVariousRadiiCircleVectors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseVsimIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BruteForceNearestNeighbors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountDictionaryIntersection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountPerDistance: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SquaredL2Distance_Raw: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SquaredL2Distance_XB8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CosineDistance: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GridRecall_FP32_NoQuant: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GridRecall_XB8_XPREQ8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CircleRecall_FP32_NoQuant: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

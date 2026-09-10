@@ -1,7 +1,6 @@
-fn:
-  - NeedInitialUpdate
-  - GetInitialLength
-  - InitialUpdater
-  - NeedCopyUpdate
-  - GetLength
-  - CopyUpdater
+NeedInitialUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetInitialLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+InitialUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+NeedCopyUpdate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CopyUpdater: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

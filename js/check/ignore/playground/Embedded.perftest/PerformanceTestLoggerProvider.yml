@@ -1,7 +1,6 @@
-fn:
-  - PerformanceTestLoggerProvider
-  - CreateLogger
-  - PerformanceTestLogger
-  - BeginScope
-  - IsEnabled
-  - GetLevelStr
+PerformanceTestLoggerProvider: C# 原型实验与演练脚本，非生产运行时代码
+CreateLogger: C# 原型实验与演练脚本，非生产运行时代码
+PerformanceTestLogger: C# 原型实验与演练脚本，非生产运行时代码
+BeginScope: C# 原型实验与演练脚本，非生产运行时代码
+IsEnabled: C# 原型实验与演练脚本，非生产运行时代码
+GetLevelStr: C# 原型实验与演练脚本，非生产运行时代码

@@ -18,7 +18,6 @@ members = [
   "wutil",
   "wval",
   "wobject",
-  "wsync",
 ]
 
 [workspace.dependencies]

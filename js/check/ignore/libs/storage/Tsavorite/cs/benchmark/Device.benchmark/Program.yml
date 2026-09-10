@@ -1,7 +1,6 @@
-fn:
-  - Main
-  - PrintBenchMarkSummary
-  - SetupDeviceBenchmark
-  - FillDeviceWithTestData
-  - GetDevice
-  - ParseBackend
+Main: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrintBenchMarkSummary: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetupDeviceBenchmark: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FillDeviceWithTestData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ParseBackend: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

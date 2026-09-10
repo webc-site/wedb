@@ -1,57 +1,56 @@
-fn:
-  - AllocatorGetPage
-  - AllocatorCalculateReadOnlyAddress
-  - BeginInflightEnqueue
-  - EndInflightEnqueue
-  - MaybeProducerDriveSafeTail
-  - ProducerDriveSafeTailSlow
-  - NotifyParkedWaiters
-  - NotifyParkedWaitersSlow
-  - RefreshSafeTailAddress
-  - AdvanceSafeTailFloor
-  - MaybeInvokePageShiftCallback
-  - CreateAsync
-  - CompleteLog
-  - TrueDispose
-  - UnsafeEnqueueRaw
-  - UnsafeCommitMetadataOnly
-  - TryEnqueue
-  - AllocateBlock
-  - ThrowException
-  - EnqueueAsync
-  - SlowEnqueueAsync
-  - WaitUncommittedAsync
-  - CommitStrongly
-  - CommitStronglyAsync
-  - EnqueueAndWaitForCommit
-  - TruncateUntilPageStart
-  - RemoveSingleIterator
-  - ReadRecordLengthAsync
-  - Align
-  - CommitCallback
-  - TryEnqueueCommitRecord
-  - ShouldCommmitMetadata
-  - CommitMetadataOnly
-  - UpdateCommittedState
-  - WriteCommitMetadata
-  - SerialCommitCallbackWorker
-  - RecoverReadOnlyAsync
-  - SignalWaitingROIterators
-  - LoadCommitMetadata
-  - RestoreLatestAsync
-  - RestoreSpecificCommitAsync
-  - CompleteRestoreFromCommit
-  - ResetRecoveryState
-  - TryAppend
-  - AsyncGetHeaderOnlyFromDiskCallback
-  - GetRecordAndFree
-  - GetRecordAsMemoryOwnerAndFree
-  - GetRecordLengthAndFree
-  - CommitInternal
-  - UnsafeGetLength
-  - UnsafeAlign
-  - VerifyChecksum
-  - GetChecksum
-  - SetHeader
-  - SetCommitRecordHeader
-  - ValidateAllocatedLength
+AllocatorGetPage: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocatorCalculateReadOnlyAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginInflightEnqueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndInflightEnqueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaybeProducerDriveSafeTail: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ProducerDriveSafeTailSlow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NotifyParkedWaiters: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+NotifyParkedWaitersSlow: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RefreshSafeTailAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AdvanceSafeTailFloor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaybeInvokePageShiftCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteLog: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TrueDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeEnqueueRaw: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeCommitMetadataOnly: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryEnqueue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateBlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ThrowException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SlowEnqueueAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitUncommittedAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitStrongly: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitStronglyAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueAndWaitForCommit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TruncateUntilPageStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RemoveSingleIterator: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadRecordLengthAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Align: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryEnqueueCommitRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ShouldCommmitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitMetadataOnly: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UpdateCommittedState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteCommitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SerialCommitCallbackWorker: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RecoverReadOnlyAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SignalWaitingROIterators: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LoadCommitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RestoreLatestAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RestoreSpecificCommitAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CompleteRestoreFromCommit: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetRecoveryState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAppend: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncGetHeaderOnlyFromDiskCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordAndFree: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordAsMemoryOwnerAndFree: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetRecordLengthAndFree: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitInternal: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeGetLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+UnsafeAlign: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyChecksum: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetChecksum: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetHeader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetCommitRecordHeader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ValidateAllocatedLength: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

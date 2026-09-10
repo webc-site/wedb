@@ -1,15 +1,14 @@
-fn:
-  - IsNullOrEmpty
-  - IsNullOrWhiteSpace
-  - defaultBindAny
-  - defaultBindLoopBack
-  - TryParseAddressList
-  - TryCreateEndpoint
-  - TryConnect
-  - TryCreateEndpointAsync
-  - TryConnectAsync
-  - TryValidateAddress
-  - MemoryBytes
-  - GigaBytes
-  - MegaBytes
-  - KiloBytes
+IsNullOrEmpty: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsNullOrWhiteSpace: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+defaultBindAny: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+defaultBindLoopBack: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryParseAddressList: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryCreateEndpoint: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryConnect: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryCreateEndpointAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryConnectAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryValidateAddress: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+MemoryBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GigaBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+MegaBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+KiloBytes: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

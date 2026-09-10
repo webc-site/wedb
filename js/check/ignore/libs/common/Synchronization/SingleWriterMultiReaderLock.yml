@@ -1,10 +1,9 @@
-fn:
-  - TryWriteLock
-  - WriteLock
-  - WriteUnlock
-  - TryReadLock
-  - ReadLock
-  - ReadUnlock
-  - TryUpgradeReadLock
-  - DowngradeWriteLock
-  - TryCloseLock
+TryWriteLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+WriteLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+WriteUnlock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryReadLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+ReadLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+ReadUnlock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryUpgradeReadLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+DowngradeWriteLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+TryCloseLock: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语

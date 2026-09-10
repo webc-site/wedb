@@ -1,22 +1,20 @@
-fn:
-  - BaseSetup
-  - RecreateDirectory
-  - BaseTearDown
-  - AssertEquivalentTailAddress
-  - ReadCompletionCallback
-  - Verify
-  - Setup
-  - TearDown
-  - SnapshotIterator
-  - OnStart
-  - OnException
-  - OnStop
-test:
-  - RecoveryCheck1
-  - RecoveryCheck2
-  - RecoveryCheck2Repeated
-  - RecoveryRollback
-  - RecoveryCheck3
-  - RecoveryCheck4
-  - RecoveryCheck5
-  - StreamingSnapshotBasicTest
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecreateDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertEquivalentTailAddress: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCompletionCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Verify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SnapshotIterator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck2Repeated: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryRollback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck4: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecoveryCheck5: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StreamingSnapshotBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

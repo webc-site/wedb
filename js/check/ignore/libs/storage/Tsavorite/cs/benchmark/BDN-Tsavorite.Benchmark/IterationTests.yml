@@ -1,11 +1,10 @@
-fn:
-  - FlushAndEvictProvider
-  - SetupStore
-  - PopulateStore
-  - SetupPopulatedStore
-  - TearDown
-  - Cursor
-  - ScanFunctions
-  - OnStart
-  - OnStop
-  - OnException
+FlushAndEvictProvider: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupPopulatedStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Cursor: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanFunctions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnStop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

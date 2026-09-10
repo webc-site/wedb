@@ -1,27 +1,25 @@
-fn:
-  - Setup
-  - TearDown
-  - ScanOptionKeywordAsLastTokenReturnsSyntaxError
-  - ScanWithCompleteOptionsReturnsCursorAndItems
-test:
-  - SeDbsizeTest
-  - SeKeysTest
-  - SeKeysCursorTest
-  - SeKeysNoDuplicatesUnderRcu
-  - CanDoMemoryUsage
-  - CanGetKeyType
-  - CanUsePatternsInKeysTest
-  - SeKeysPatternTest
-  - SeKeysPatternMatchingTest
-  - SeKeysPatternMatchingTestVerbatim
-  - CanUseScanWithEmptyStore
-  - CanUseScanWithMatch
-  - CanUseScanAllKeys
-  - CanUseScanKeysWithCount
-  - CanUseScanKeysWithMatchAndCount
-  - CanUseScanKeysCountAndStringType
-  - CanUseScanKeysCountAndTypeWithObjects
-  - CanUseScanKeysAndObjects
-  - CanUseScanKeysTypeAndMatch
-  - CustomObjectScanCommandTest
-  - CanUsePatternsInKeysTestLC
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanOptionKeywordAsLastTokenReturnsSyntaxError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanWithCompleteOptionsReturnsCursorAndItems: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeDbsizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysCursorTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysNoDuplicatesUnderRcu: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoMemoryUsage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanGetKeyType: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUsePatternsInKeysTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysPatternTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysPatternMatchingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeKeysPatternMatchingTestVerbatim: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanWithEmptyStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanWithMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanAllKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysWithCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysWithMatchAndCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysCountAndStringType: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysCountAndTypeWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysAndObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseScanKeysTypeAndMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CustomObjectScanCommandTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUsePatternsInKeysTestLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

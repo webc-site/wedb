@@ -1,12 +1,10 @@
-fn:
-  - Setup
-  - TearDown
-  - RentBurstAndReturn
-  - PopulateLocalCache
-test:
-  - CompletionOnlyThreadCreatesNoShard
-  - LocalByteCapIsSharedFairlyAcrossClasses
-  - MixedClassBurstStaysWithinOneThreadSlice
-  - DoubleReturnIsCaughtInDebug
-  - LegacyPathStillWorksWhenOriginReturnDisabled
-  - UnpinOnReturnModeRepinsAndReusesAcrossThreads
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RentBurstAndReturn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulateLocalCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CompletionOnlyThreadCreatesNoShard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LocalByteCapIsSharedFairlyAcrossClasses: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MixedClassBurstStaysWithinOneThreadSlice: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoubleReturnIsCaughtInDebug: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LegacyPathStillWorksWhenOriginReturnDisabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UnpinOnReturnModeRepinsAndReusesAcrossThreads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,11 +1,10 @@
-fn:
-  - RandomBytes
-  - BaseCommand
-  - GetSingleSlotRequest
-  - GetSingleSlotObjectRequest
-  - GetCrossSlotRequest
-  - SetupSingleSlotRequest
-  - singleSlotKeys
-  - crossSlotKeys
-  - DummyCommand
-  - EVALSHA
+RandomBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSingleSlotObjectRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetCrossSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetupSingleSlotRequest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+singleSlotKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+crossSlotKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DummyCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EVALSHA: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

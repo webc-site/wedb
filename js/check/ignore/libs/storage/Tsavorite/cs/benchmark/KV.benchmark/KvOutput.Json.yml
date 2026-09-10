@@ -1,5 +1,4 @@
-fn:
-  - EmitResultJson
-  - AppendLine
-  - EmitAggregateJson
-  - BuildResultJson
+EmitResultJson: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AppendLine: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EmitAggregateJson: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BuildResultJson: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

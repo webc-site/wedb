@@ -1,42 +1,40 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateRangeIndexWithFields
-  - SetRangeIndexFields
-  - AssertMovedFrom
-  - VerifyFieldsOnEndpoint
-  - WaitForSlotOwnership
-  - FindKeyOwnedByNode
-  - MakeFields
-  - AssertRiGetEventually
-  - IsTransientRiGetResponse
-  - AssertRangeIndexStreamedInManyChunks
-  - AssertRangeIndexReassembledInManyChunks
-  - VerifyRangeIndexOnReplica
-  - RestartNode
-  - Endpoint
-  - MigrateSlotsAndWaitCleanup
-  - MigrateSlotsAndWaitOwnership
-  - when
-  - CheckpointNode
-test:
-  - ClusterMigrateRangeIndexReplicatesToReplicaViaAof
-  - ClusterMigrateRangeIndexRecoversFromAof
-  - ClusterMigrateRangeIndexMultiChunkStreamReplicatesAndRecovers
-  - ClusterMigrateEmptyRangeIndexReplicatesAndRecovers
-  - ClusterMigrateRangeIndexRoundTripWithReplicas
-  - ClusterMigrateRangeIndexThenFailover
-  - ClusterMigrateRangeIndexCheckpointThenRecover
-  - ClusterMigrateRangeIndexSingleBySlot
-  - ClusterMigrateRangeIndexByKeys
-  - ClusterMigrateMixedRangeIndexAndRegularByKeys
-  - ClusterMigrateRangeIndexManyBySlot
-  - ClusterMigrateRangeIndexStressAsync
-  - ClusterMigrateRangeIndexWhileReadingAsync
-  - ClusterMigrateRangeIndexWithPauseDuringTransmitAsync
-  - ClusterMigrateRangeIndexWithPauseDuringDeleteAsync
-  - ClusterMigrateRangeIndexExceptionDuringTransmit
-  - ClusterMigrateRangeIndexThenFlushAndRead
-  - ClusterMigrateRangeIndexThenDelete
-  - ClusterMigrateRangeIndexThenCheckpointRestartAndContinue
-  - ClusterMigrateRangeIndexRoundTripThenRestart
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateRangeIndexWithFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetRangeIndexFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertMovedFrom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyFieldsOnEndpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WaitForSlotOwnership: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FindKeyOwnedByNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeFields: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRiGetEventually: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsTransientRiGetResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRangeIndexStreamedInManyChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertRangeIndexReassembledInManyChunks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VerifyRangeIndexOnReplica: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestartNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Endpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateSlotsAndWaitCleanup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateSlotsAndWaitOwnership: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckpointNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexReplicatesToReplicaViaAof: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexRecoversFromAof: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexMultiChunkStreamReplicatesAndRecovers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateEmptyRangeIndexReplicatesAndRecovers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexRoundTripWithReplicas: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexThenFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexCheckpointThenRecover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexSingleBySlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexByKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateMixedRangeIndexAndRegularByKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexManyBySlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexStressAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexWhileReadingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexWithPauseDuringTransmitAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexWithPauseDuringDeleteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexExceptionDuringTransmit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexThenFlushAndRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexThenDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexThenCheckpointRestartAndContinue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterMigrateRangeIndexRoundTripThenRestart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

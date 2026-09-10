@@ -1,11 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-  - ClusterReplicationAuth
-  - ClusterStartupWithoutAuthCreds
-test:
-  - ClusterBasicACLTest
-  - ClusterStartupWithoutAuthCreds
-  - ClusterReplicationAuth
-  - ClusterSimpleFailoverAuth
-  - ClusterSimpleACLReload
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterReplicationAuth: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterStartupWithoutAuthCreds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterBasicACLTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleFailoverAuth: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterSimpleACLReload: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

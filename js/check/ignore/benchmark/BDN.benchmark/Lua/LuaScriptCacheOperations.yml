@@ -1,12 +1,11 @@
-fn:
-  - LuaParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - IterationSetup
-  - LookupHit
-  - LookupMiss
-  - LoadOuterHit
-  - LoadScript
-  - LoadInnerHit
-  - LoadMiss
-  - Digest
+LuaParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IterationSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LookupHit: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LookupMiss: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadOuterHit: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadScript: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadInnerHit: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadMiss: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Digest: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

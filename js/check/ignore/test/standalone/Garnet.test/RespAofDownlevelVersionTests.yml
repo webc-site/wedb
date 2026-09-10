@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - GetInnermost
-  - RewriteAofHeaderVersion
-test:
-  - DownlevelV4AofRecoversOnCurrentBuild
-  - UplevelAofVersionIsRejected
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetInnermost: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RewriteAofHeaderVersion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DownlevelV4AofRecoversOnCurrentBuild: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UplevelAofVersionIsRejected: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

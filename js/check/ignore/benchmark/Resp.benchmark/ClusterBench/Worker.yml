@@ -1,7 +1,6 @@
-fn:
-  - Worker
-  - SelectRandomProvider
-  - RunOnline
-  - RunOffline
-  - GetMetrics
-  - GetProvider
+Worker: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SelectRandomProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOnline: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOffline: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetMetrics: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

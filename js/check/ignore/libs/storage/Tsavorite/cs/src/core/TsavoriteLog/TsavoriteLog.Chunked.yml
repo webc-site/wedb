@@ -1,14 +1,10 @@
-# C# TsavoriteLog.Chunked 分块入队族（EnqueueChunkedObject/Span、ChunkWriteState
-# 及其指针序列化辅助）为泛型序列化管道；rust 记录落盘由 wrecord 编码 + whlog
-# append 承担（key/value 组件化编码等价），无逐组件指针写器
-fn:
-  - EnqueueChunkedObject
-  - EnqueueChunkedSpan
-  - CreateChunkWriteState
-  - AnyRemaining
-  - CopyComponent
-  - WriteOneRecord
-  - MaterializeInput
-  - AllocateBlockPartialForTest
-  - AllocateBlockPartial
-  - Write
+EnqueueChunkedObject: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnqueueChunkedSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateChunkWriteState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AnyRemaining: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CopyComponent: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteOneRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MaterializeInput: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateBlockPartialForTest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AllocateBlockPartial: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Write: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

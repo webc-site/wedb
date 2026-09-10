@@ -1,8 +1,7 @@
-fn:
-  - InternalRefresh
-  - InternalCompletePending
-  - InternalCompletePendingRequests
-  - InRestPhase
-  - InternalCompletePendingRequest
-  - OnDisposeDiskRecord
-  - InternalCompletePendingRequestFromContext
+InternalRefresh: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalCompletePending: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalCompletePendingRequests: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InRestPhase: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalCompletePendingRequest: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDisposeDiskRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalCompletePendingRequestFromContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

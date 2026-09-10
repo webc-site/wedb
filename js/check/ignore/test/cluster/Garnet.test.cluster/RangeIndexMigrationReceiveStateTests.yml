@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-  - BuildPartialChunk
-  - CountTempFiles
-test:
-  - ProcessRecordAfterDispose_Throws
-  - DisposeDuringProcessRecord_DefersCleanupToWorker
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BuildPartialChunk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountTempFiles: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ProcessRecordAfterDispose_Throws: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeDuringProcessRecord_DefersCleanupToWorker: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,10 +1,9 @@
-fn:
-  - OperationParamsProvider
-  - SetAllParams
-  - GlobalSetup
-  - ConfigureServerOptions
-  - SlowConsumeMessage
-  - GlobalCleanup
-  - BuildAadAuthSettings
-  - BdnIssuerSigningTokenProvider
-  - SetupOperation
+OperationParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetAllParams: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ConfigureServerOptions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BuildAadAuthSettings: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BdnIssuerSigningTokenProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,9 +1,8 @@
-fn:
-  - GlobalSetup
-  - GlobalCleanup
-  - WriteInt32
-  - WriteInt64
-  - WriteInt32AsBulkString
-  - WriteInt32_AllAsciiLengths
-  - WriteInt64_AllAsciiLengths
-  - WriteInt32BulkString_AllAsciiLengths
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt32: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt64: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt32AsBulkString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt32_AllAsciiLengths: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt64_AllAsciiLengths: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+WriteInt32BulkString_AllAsciiLengths: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

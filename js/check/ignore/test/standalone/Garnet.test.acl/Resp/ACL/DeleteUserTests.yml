@@ -1,8 +1,6 @@
-fn:
-  - Setup
-test:
-  - DeleteSingleUser
-  - DeleteMultipleUser
-  - DeleteNonexistingUser
-  - DeleteDefaultUser
-  - DeleteNoUser
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteSingleUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteMultipleUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteNonexistingUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDefaultUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteNoUser: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,16 +1,14 @@
-fn:
-  - taskFactory
-  - DummyTask
-  - primaryCategoryTaskFactory
-  - PrimaryCategoryTask
-  - allCategoryTaskFactory
-  - AllCategoryTask
-  - ThrowingTaskFactory
-test:
-  - TestBasicRegisterAndRunAsync
-  - TestDoubleRegistrationAsync
-  - TestTaskPlacementCategoryCancellation
-  - TestTaskRegisterAfterDispose
-  - TestTaskFactoryException
-  - TestCleanupOnCompletion
-  - TestCleanupWithException
+taskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DummyTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+primaryCategoryTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PrimaryCategoryTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+allCategoryTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AllCategoryTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ThrowingTaskFactory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestBasicRegisterAndRunAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestDoubleRegistrationAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskPlacementCategoryCancellation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskRegisterAfterDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestTaskFactoryException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestCleanupOnCompletion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestCleanupWithException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

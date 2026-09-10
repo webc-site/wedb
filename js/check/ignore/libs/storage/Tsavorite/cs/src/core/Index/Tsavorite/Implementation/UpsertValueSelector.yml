@@ -1,6 +1,5 @@
-fn:
-  - GetUpsertRecordSize
-  - InitialWriter
-  - PostInitialWriter
-  - InPlaceWriter
-  - PostUpsertOperation
+GetUpsertRecordSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitialWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostInitialWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InPlaceWriter: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PostUpsertOperation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

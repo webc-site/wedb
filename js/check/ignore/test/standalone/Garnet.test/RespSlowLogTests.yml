@@ -1,10 +1,8 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - TestSlowLogHelp
-  - TestSlowLogGet
-  - TestSlowLogGetCount
-  - TestSlowLogGetWithEntry
-  - TestSlowLogLen
-  - TestSlowLogReset
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogHelp: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogGetCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogGetWithEntry: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogLen: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestSlowLogReset: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

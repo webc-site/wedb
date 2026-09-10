@@ -1,36 +1,34 @@
-fn:
-  - TrackedObjectValue
-  - ToString
-  - Deserialize
-  - Serialize
-  - DisposeCount
-  - DisposeDiskCount
-  - EvictCount
-  - TotalDispose
-  - TotalDisposeDisk
-  - TotalEvict
-  - LifecycleRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - NewSession
-test:
-  - CopyUpdateDoesNotFireOnDisposeCopyUpdated
-  - CopyUpdateDisposesSourceValueExactlyOnce
-  - DeleteFiresOnDisposeDeletedAndNoOnDisposeDiskRecord
-  - ScanInMemoryFiresOnDisposeDiskRecordOncePerRecord
-  - ScanDiskFiresOnDisposeDiskRecordOncePerRecord
-  - PendingReadFromDiskFiresOnDisposeDiskRecordOnce
-  - PageEvictionFiresOnEvictForEveryLiveRecord
-  - CallOnFlushGatesOnFlushInvocation
-  - CallOnDiskReadGatesOnDiskReadInvocation
-  - CallOnEvictGatingSuppressesOnEvictCallback
-  - ReadCacheEvictionFiresOnEvictWithReadCacheSource
-  - ReadCacheHeapSizeTrackerReturnsToZeroAfterUpdateAndEvict
-  - NoValueObjectIsDisposedMoreThanOnceAcrossLifecycle
+TrackedObjectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Deserialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Serialize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeDiskCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EvictCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalDisposeDisk: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LifecycleRecordTriggers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDisposeDiskRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NewSession: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdateDoesNotFireOnDisposeCopyUpdated: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdateDisposesSourceValueExactlyOnce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteFiresOnDisposeDeletedAndNoOnDisposeDiskRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanInMemoryFiresOnDisposeDiskRecordOncePerRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScanDiskFiresOnDisposeDiskRecordOncePerRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PendingReadFromDiskFiresOnDisposeDiskRecordOnce: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PageEvictionFiresOnEvictForEveryLiveRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnFlushGatesOnFlushInvocation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnDiskReadGatesOnDiskReadInvocation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CallOnEvictGatingSuppressesOnEvictCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCacheEvictionFiresOnEvictWithReadCacheSource: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCacheHeapSizeTrackerReturnsToZeroAfterUpdateAndEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NoValueObjectIsDisposedMoreThanOnceAcrossLifecycle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

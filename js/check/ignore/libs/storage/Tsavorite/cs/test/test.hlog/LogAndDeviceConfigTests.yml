@@ -1,5 +1,3 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - DeviceAndLogConfig
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeviceAndLogConfig: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,7 +1,6 @@
-fn:
-  - WriteLock
-  - WriteUnlock
-  - ReadLock
-  - ReaderLock
-  - ReadUnlock
-  - WaitForGrant
+WriteLock: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteUnlock: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadLock: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReaderLock: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ReadUnlock: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WaitForGrant: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

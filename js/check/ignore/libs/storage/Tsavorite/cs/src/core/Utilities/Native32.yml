@@ -1,41 +1,40 @@
-fn:
-  - IsExtendedLengthPath
-  - CreateFileW
-  - ReadFile
-  - WriteFile
-  - CreateIoCompletionPort
-  - GetQueuedCompletionStatus
-  - GetQueuedCompletionStatusEx
-  - GetFileSizeEx
-  - SetFilePointer
-  - SetEndOfFile
-  - GetDiskFreeSpace
-  - DeleteFileW
-  - GetDeviceSectorSize
-  - GetCurrentThread
-  - GetCurrentThreadId
-  - GetCurrentProcessorNumber
-  - GetActiveProcessorCount
-  - GetActiveProcessorGroupCount
-  - SetThreadGroupAffinity
-  - GetThreadGroupAffinity
-  - GetLogicalProcessorInformation
-  - GetLogicalProcessorsPerCore
-  - AffinitizeThreadRoundRobin
-  - GetNumGroupsProcsPerGroup
-  - AffinitizeThreadShardedNuma
-  - LookupPrivilegeValue
-  - GetCurrentProcess
-  - OpenProcessToken
-  - AdjustTokenPrivileges
-  - CloseHandle
-  - DeviceIoControl
-  - SetFilePointerEx
-  - SetFileValidData
-  - CreateFile
-  - EnableProcessPrivileges
-  - CTL_CODE
-  - EnableVolumePrivileges
-  - SetFileSize
-  - MakeHRFromErrorCode
-  - RtlNtStatusToDosError
+IsExtendedLengthPath: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateFileW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReadFile: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteFile: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateIoCompletionPort: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetQueuedCompletionStatus: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetQueuedCompletionStatusEx: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetFileSizeEx: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFilePointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetEndOfFile: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetDiskFreeSpace: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DeleteFileW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetDeviceSectorSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentThread: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentThreadId: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentProcessorNumber: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetActiveProcessorCount: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetActiveProcessorGroupCount: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetThreadGroupAffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetThreadGroupAffinity: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogicalProcessorInformation: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogicalProcessorsPerCore: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AffinitizeThreadRoundRobin: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetNumGroupsProcsPerGroup: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AffinitizeThreadShardedNuma: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LookupPrivilegeValue: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetCurrentProcess: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OpenProcessToken: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AdjustTokenPrivileges: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CloseHandle: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+DeviceIoControl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFilePointerEx: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFileValidData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateFile: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnableProcessPrivileges: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CTL_CODE: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnableVolumePrivileges: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetFileSize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MakeHRFromErrorCode: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RtlNtStatusToDosError: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

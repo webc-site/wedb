@@ -1,11 +1,10 @@
-fn:
-  - RegisterModules
-  - GlobalSetup
-  - SetupOperation
-  - SlowConsumeMessage
-  - ModuleNoOpRawStringReadCommand
-  - ModuleNoOpRawStringRmwCommand
-  - ModuleNoOpObjRmwCommand
-  - ModuleNoOpObjReadCommand
-  - ModuleNoOpProc
-  - ModuleNoOpTxn
+RegisterModules: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetupOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SlowConsumeMessage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpRawStringReadCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpRawStringRmwCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpObjRmwCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpObjReadCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpProc: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ModuleNoOpTxn: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

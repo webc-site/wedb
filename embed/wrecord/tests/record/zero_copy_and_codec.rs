@@ -183,7 +183,6 @@ fn test_empty_key_value_boundary() -> Void {
 /// 流式切分与连续页扫描测试
 /// 对标 C# Tsavorite LogRecordTests.cs / HybridLog Page Scan 零拷贝解构：
 /// - 验证连续多条变长记录在连续页切片中的无缝流式切分 (RecordRef::split_from_slice)
-/// - 验证 RecordMut::split_from_slice_mut 在流式原位修改时，记录间互不干扰，页末未写穿
 #[test]
 fn test_streaming_split_and_page_scan() -> Void {
   info!("开始测试: 流式切分与连续页扫描");
@@ -224,52 +223,6 @@ fn test_streaming_split_and_page_scan() -> Void {
   }
   assert_eq!(parsed_count, RECORD_COUNT);
   assert!(read_slice.is_empty());
-
-  // 2. 测试 RecordMut::split_from_slice_mut 原位流式修改
-  let mut mut_page = page_buf.clone();
-  let mut mut_slice = mut_page.as_mut_slice();
-  let mut mut_parsed_count = 0;
-
-  while !mut_slice.is_empty() {
-    let (mut rec, rest) = RecordMut::split_from_slice_mut(mut_slice)?;
-    let (exp_addr, ref exp_k, ref exp_v, exp_tomb) = ground_truth[mut_parsed_count];
-
-    assert_eq!(rec.prev_address(), exp_addr);
-    assert_eq!(rec.key(), exp_k.as_slice());
-    assert_eq!(rec.value(), exp_v.as_slice());
-    assert_eq!(rec.is_tombstone(), exp_tomb);
-
-    let mut updated_val = exp_v.clone();
-    updated_val.reverse();
-    if exp_tomb {
-      // 墓碑记录普通原位更新被拦截，须走显式复活路径
-      assert_eq!(
-        rec.update_value_in_place(&updated_val),
-        Err(Error::TombstoneUpdate)
-      );
-      rec.revivify_with_slack(&updated_val)?;
-      assert!(!rec.is_tombstone());
-    } else {
-      rec.update_value_in_place(&updated_val)?;
-    }
-    assert_eq!(rec.value(), updated_val.as_slice());
-
-    mut_slice = rest;
-    mut_parsed_count += 1;
-  }
-  assert_eq!(mut_parsed_count, RECORD_COUNT);
-
-  // 再次只读遍历验证更新全部生效
-  let mut verify_slice = mut_page.as_slice();
-  for (_, _, exp_v, _) in &ground_truth {
-    let (rec, rest) = RecordRef::split_from_slice(verify_slice)?;
-    let mut expected_reversed = exp_v.clone();
-    expected_reversed.reverse();
-
-    assert_eq!(rec.value(), expected_reversed.as_slice());
-    verify_slice = rest;
-  }
-  assert!(verify_slice.is_empty());
 
   info!("流式切分与连续页扫描测试通过");
   OK
@@ -316,15 +269,12 @@ fn test_unaligned_memory_access_safety() -> Void {
     rec_mut.update_value_in_place(new_val)?;
     assert_eq!(rec_mut.value(), new_val);
 
-    let new_addr = 0x0000_1111_2222_3333_u64;
-    rec_mut.set_prev_address(new_addr)?;
     rec_mut.set_tombstone(true);
-    assert_eq!(rec_mut.prev_address(), new_addr);
     assert!(rec_mut.is_tombstone());
 
     let reread_ref = RecordRef::from_slice(target_slice)?;
     assert_eq!(reread_ref.value(), new_val);
-    assert_eq!(reread_ref.prev_address(), new_addr);
+    assert_eq!(reread_ref.prev_address(), prev_addr);
     assert!(reread_ref.is_tombstone());
   }
 

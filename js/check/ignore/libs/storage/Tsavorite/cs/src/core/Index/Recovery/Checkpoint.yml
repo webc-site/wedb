@@ -1,9 +1,8 @@
-fn:
-  - CheckpointVersionShiftStart
-  - CheckpointVersionShiftEnd
-  - WriteHybridLogMetaInfo
-  - CleanupLogCheckpoint
-  - WriteIndexMetaInfo
-  - CleanupIndexCheckpoint
-  - InitializeIndexCheckpoint
-  - InitializeHybridLogCheckpoint
+CheckpointVersionShiftStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckpointVersionShiftEnd: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteHybridLogMetaInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CleanupLogCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WriteIndexMetaInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CleanupIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeHybridLogCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

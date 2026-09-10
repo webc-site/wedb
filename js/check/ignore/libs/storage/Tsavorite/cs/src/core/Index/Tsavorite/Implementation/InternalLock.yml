@@ -1,6 +1,5 @@
-fn:
-  - InternalTryLockShared
-  - InternalTryLockExclusive
-  - InternalUnlockShared
-  - InternalUnlockExclusive
-  - InternalPromoteLock
+InternalTryLockShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalTryLockExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalUnlockShared: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalUnlockExclusive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InternalPromoteLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

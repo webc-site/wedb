@@ -1,46 +1,44 @@
-fn:
-  - Setup
-  - TearDown
-  - ConnectAsync
-  - SetUserAsync
-  - CaptureExceptionAsync
-  - GetAcl
-  - Prepare
-  - Main
-  - WriteSimpleString
-  - Execute
-test:
-  - Parser_AcceptsUnknownNameAsCustomCommand
-  - Parser_RejectsNameWithWhitespace
-  - Parser_RejectsNonAsciiName
-  - Parser_RejectsNameWithLeadingNonAlphanumeric
-  - Parser_DenyPrecedenceOnSameName
-  - Parser_LastWriteWins_AllowAfterDeny
-  - Parser_CaseInsensitiveNormalization
-  - Parser_DescribeUserRoundTripPreservesCustomSets
-  - User_AddCustomCommand_NullThrows
-  - User_AddCustomCommand_RejectsMalformedNames
-  - User_DescribeUser_RoundTripsCustomAllowAndDeny
-  - PermissionSet_CustomSetsAreCaseInsensitive
-  - PermissionSet_DenyBeatsBitmap
-  - PermissionSet_AllowOverridesMissingBitmap
-  - PermissionSet_AllSentinelAllowsEverything
-  - PermissionSet_AllSentinelMinusName_DeniesThatName
-  - PermissionSet_DefaultFailsClosed
-  - PermissionSet_IsEquivalentToConsidersCustomSets
-  - SetUser_RejectsUnknownCustomName
-  - SetUser_AcceptsRegisteredCustomName
-  - SetUser_RejectsInvalidNameSyntax
-  - SetUser_AcceptsCommandRegisteredWithoutCommandInfo
-  - SetUser_AllowsSwapOfLooseLoadedName
-  - SetUser_AllowsSwapOfLooseLoadedName_DenyToAllow
-  - Dispatch_DenyPrecedence_PlusCategoryMinusName
-  - Dispatch_PlusNameFromNone_AllowsOnlyThatCommand
-  - Dispatch_CaseInsensitiveOnTheWire
-  - GetUser_IncludesCustomNameTokens
-  - Dispatch_CustomTxn_DenyPrecedence
-  - Dispatch_CustomTxn_AllowFromMinusAll
-  - Dispatch_CustomProcedure_DenyPrecedence
-  - Dispatch_CustomProcedure_AllowFromMinusAll
-  - StrictMode_StartupFails_WhenAclFileReferencesUnregisteredCustomCommand
-  - LenientMode_StartupSucceeds_WhenAclFileReferencesUnregisteredCustomCommand
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConnectAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUserAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CaptureExceptionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetAcl: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Prepare: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Main: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteSimpleString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Execute: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_AcceptsUnknownNameAsCustomCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_RejectsNameWithWhitespace: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_RejectsNonAsciiName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_RejectsNameWithLeadingNonAlphanumeric: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_DenyPrecedenceOnSameName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_LastWriteWins_AllowAfterDeny: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_CaseInsensitiveNormalization: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Parser_DescribeUserRoundTripPreservesCustomSets: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+User_AddCustomCommand_NullThrows: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+User_AddCustomCommand_RejectsMalformedNames: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+User_DescribeUser_RoundTripsCustomAllowAndDeny: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_CustomSetsAreCaseInsensitive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_DenyBeatsBitmap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_AllowOverridesMissingBitmap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_AllSentinelAllowsEverything: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_AllSentinelMinusName_DeniesThatName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_DefaultFailsClosed: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PermissionSet_IsEquivalentToConsidersCustomSets: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_RejectsUnknownCustomName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_AcceptsRegisteredCustomName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_RejectsInvalidNameSyntax: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_AcceptsCommandRegisteredWithoutCommandInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_AllowsSwapOfLooseLoadedName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetUser_AllowsSwapOfLooseLoadedName_DenyToAllow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_DenyPrecedence_PlusCategoryMinusName: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_PlusNameFromNone_AllowsOnlyThatCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_CaseInsensitiveOnTheWire: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetUser_IncludesCustomNameTokens: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_CustomTxn_DenyPrecedence: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_CustomTxn_AllowFromMinusAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_CustomProcedure_DenyPrecedence: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Dispatch_CustomProcedure_AllowFromMinusAll: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StrictMode_StartupFails_WhenAclFileReferencesUnregisteredCustomCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LenientMode_StartupSucceeds_WhenAclFileReferencesUnregisteredCustomCommand: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

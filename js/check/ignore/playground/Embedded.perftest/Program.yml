@@ -1,4 +1,3 @@
-fn:
-  - Main
-  - PrintBenchmarkConfig
-  - CreateLoggerFactory
+Main: C# 原型实验与演练脚本，非生产运行时代码
+PrintBenchmarkConfig: C# 原型实验与演练脚本，非生产运行时代码
+CreateLoggerFactory: C# 原型实验与演练脚本，非生产运行时代码

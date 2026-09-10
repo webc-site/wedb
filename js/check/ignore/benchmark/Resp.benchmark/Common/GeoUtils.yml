@@ -1,2 +1,1 @@
-fn:
-  - GetValidGeo
+GetValidGeo: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

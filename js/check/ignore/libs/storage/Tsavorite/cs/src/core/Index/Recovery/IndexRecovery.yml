@@ -1,5 +1,4 @@
-fn:
-  - RecoverFuzzyIndexAsync
-  - InitializeMainIndexRecovery
-  - BeginMainIndexRecovery
-  - AsyncPageReadCallback
+RecoverFuzzyIndexAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeMainIndexRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginMainIndexRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncPageReadCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

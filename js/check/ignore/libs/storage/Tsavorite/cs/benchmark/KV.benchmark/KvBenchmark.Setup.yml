@@ -1,8 +1,7 @@
-fn:
-  - ResolveDataPath
-  - CreateRunDir
-  - CleanStaleRunDirs
-  - IsPidAlive
-  - CreateDevice
-  - RumdHasDeletes
-  - TryReadOwnerPid
+ResolveDataPath: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateRunDir: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CleanStaleRunDirs: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsPidAlive: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RumdHasDeletes: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryReadOwnerPid: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

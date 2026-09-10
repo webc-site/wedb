@@ -1,7 +1,6 @@
-fn:
-  - Generate
-  - InitializeRNG
-  - ConvertToSERedisInput
-  - GenerateBatch
-  - GenerateArrayOp
-  - GenerateSingleKeyValueOp
+Generate: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+InitializeRNG: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ConvertToSERedisInput: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateBatch: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateArrayOp: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateSingleKeyValueOp: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,6 +1,5 @@
-fn:
-  - GetBitmapSizes
-  - GlobalSetup_Binary
-  - BinaryOperation
-  - GlobalCleanup
-  - ToString
+GetBitmapSizes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup_Binary: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BinaryOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ToString: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

@@ -1,9 +1,7 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - ScatterGatherGet
-  - ScatterGatherMixedGetSetPipeline
-  - ScatterGatherMixedGetTtlPipeline
-  - ScatterGatherMGet
-  - MGetOnDiskCompletesWithoutScatterGatherFlag
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMixedGetSetPipeline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMixedGetTtlPipeline: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ScatterGatherMGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MGetOnDiskCompletesWithoutScatterGatherFlag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

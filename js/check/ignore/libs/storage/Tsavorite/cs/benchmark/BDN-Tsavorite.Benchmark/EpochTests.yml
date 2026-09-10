@@ -1,5 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-  - ResumeSuspend
-  - MyAction
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResumeSuspend: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MyAction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

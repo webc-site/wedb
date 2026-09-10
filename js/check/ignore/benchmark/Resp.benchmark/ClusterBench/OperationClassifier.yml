@@ -1,4 +1,3 @@
-fn:
-  - IsReadOperation
-  - IsWriteOperation
-  - GetCorrespondingReadOperation
+IsReadOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+IsWriteOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetCorrespondingReadOperation: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

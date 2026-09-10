@@ -1,20 +1,19 @@
-fn:
-  - ExecuteForStringResult
-  - ExecuteForStringResultWithCancellationAsync
-  - TokenRegistrationStringCallback
-  - ExecuteForMemoryResultAsync
-  - ExecuteForMemoryResult
-  - ExecuteForMemoryResultWithCancellationAsync
-  - TokenRegistrationMemoryResultCallback
-  - ExecuteForStringArrayResult
-  - ExecuteForStringArrayResultWithCancellationAsync
-  - TokenRegistrationStringArrayCallback
-  - ExecuteForMemoryResultArrayAsync
-  - ExecuteForMemoryResultArray
-  - ExecuteForMemoryResultArrayWithCancellationAsync
-  - TokenRegistrationMemoryResultArrayCallback
-  - ExecuteForLongResultAsync
-  - ExecuteForLongResult
-  - ExecuteForLongResultWithCancellationAsync
-  - ExecuteNoResponse
-  - TokenRegistrationLongCallback
+ExecuteForStringResult: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForStringResultWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TokenRegistrationStringCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResultAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResult: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResultWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TokenRegistrationMemoryResultCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForStringArrayResult: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForStringArrayResultWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TokenRegistrationStringArrayCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResultArrayAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResultArray: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForMemoryResultArrayWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TokenRegistrationMemoryResultArrayCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForLongResultAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForLongResult: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteForLongResultWithCancellationAsync: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+ExecuteNoResponse: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现
+TokenRegistrationLongCallback: C# 客户端 SDK (GarnetClient/SERedis) 绑定，Rust 客户端在 node/wclient 中原生实现

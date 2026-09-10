@@ -1,6 +1,4 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - NativeDiskWriteReadCache
-  - NativeDiskWriteReadCache2
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeDiskWriteReadCache: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NativeDiskWriteReadCache2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

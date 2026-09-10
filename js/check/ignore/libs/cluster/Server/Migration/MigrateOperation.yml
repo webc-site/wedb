@@ -1,5 +1,4 @@
-fn:
-  - ThrowIfCancelled
-  - ContainsNamespace
-  - EncounteredVectorSet
-  - AddRangeIndexKey
+ThrowIfCancelled: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ContainsNamespace: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+EncounteredVectorSet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AddRangeIndexKey: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

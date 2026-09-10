@@ -1,17 +1,16 @@
-fn:
-  - WriteNewRecordInfo
-  - OnDispose
-  - OnDisposeDiskRecord
-  - IsRecordVersionNew
-  - IsEntryVersionNew
-  - CanElide
-  - IsFrozen
-  - GetMinRevivifiableAddress
-  - TryElideAndTransferToFreeList
-  - TryTransferToFreeList
-  - SetRecordInvalid
-  - CASRecordIntoChain
-  - VerifyInMemoryAddresses
-  - FindOrCreateTagAndTryEphemeralXLock
-  - FindTagAndTryEphemeralXLock
-  - FindTagAndTryEphemeralSLock
+WriteNewRecordInfo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDisposeDiskRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsRecordVersionNew: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsEntryVersionNew: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CanElide: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsFrozen: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetMinRevivifiableAddress: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryElideAndTransferToFreeList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryTransferToFreeList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SetRecordInvalid: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CASRecordIntoChain: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+VerifyInMemoryAddresses: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindOrCreateTagAndTryEphemeralXLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindTagAndTryEphemeralXLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FindTagAndTryEphemeralSLock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

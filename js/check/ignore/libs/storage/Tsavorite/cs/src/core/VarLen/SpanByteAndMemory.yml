@@ -1,6 +1,5 @@
-fn:
-  - SpanByteAndMemory
-  - FromPinnedSpan
-  - FromPinnedPointer
-  - ConvertToHeap
-  - EnsureHeapMemorySize
+SpanByteAndMemory: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromPinnedSpan: C# PinnedSpanByte 构造函数，Rust 字节切片原生零拷贝无需固定内存
+FromPinnedPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConvertToHeap: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EnsureHeapMemorySize: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - TearDown
-test:
-  - Permission_SetPermissionMatches
-  - Ping_DoesNotThrow
-  - SetGet_Equals
-  - Helpful_Exception_For_Missing_Path
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Permission_SetPermissionMatches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Ping_DoesNotThrow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetGet_Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Helpful_Exception_For_Missing_Path: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

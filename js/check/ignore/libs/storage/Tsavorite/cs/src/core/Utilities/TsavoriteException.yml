@@ -1,4 +1,3 @@
-fn:
-  - TsavoriteException
-  - TsavoriteIOException
-  - TsavoriteNoHybridLogException
+TsavoriteException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TsavoriteIOException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TsavoriteNoHybridLogException: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

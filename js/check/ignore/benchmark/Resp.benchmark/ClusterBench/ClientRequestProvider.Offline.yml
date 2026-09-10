@@ -1,15 +1,14 @@
-fn:
-  - PrepareBuffers
-  - SetWorkload
-  - BuildWorkload
-  - ComputeOfflineBufferSize
-  - GenerateRandomBatch
-  - AppendCommand
-  - GenerateReadBatchForKeys
-  - LoadData
-  - GenerateLoadBatch
-  - RunOffline
-  - RunOfflineLightClient
-  - RunOfflineGarnetClientSession
-  - RunOfflineGarnetClient
-  - RunOfflineSERedis
+PrepareBuffers: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SetWorkload: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BuildWorkload: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ComputeOfflineBufferSize: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateRandomBatch: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AppendCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateReadBatchForKeys: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateLoadBatch: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOffline: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOfflineLightClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOfflineGarnetClientSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOfflineGarnetClient: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunOfflineSERedis: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

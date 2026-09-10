@@ -1,8 +1,7 @@
-fn:
-  - ThrowUnexpectedToken
-  - ThrowInvalidStringLength
-  - ThrowInvalidLength
-  - ThrowExcessiveArgumentCount
-  - ThrowNotANumber
-  - ThrowIntegerOverflow
-  - Throw
+ThrowUnexpectedToken: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowInvalidStringLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowInvalidLength: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowExcessiveArgumentCount: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowNotANumber: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+ThrowIntegerOverflow: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Throw: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

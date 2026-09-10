@@ -1,38 +1,36 @@
-fn:
-  - TrackingRecordTriggers
-  - OnDispose
-  - OnDisposeDiskRecord
-  - OnEvict
-  - OnRecovery
-  - OnCheckpoint
-  - RecordDispose
-  - NeedCopyUpdate
-  - GetRMWInitialFieldInfo
-  - InitialUpdater
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - UpsertKey
-  - ObjTrackingRecordTriggers
-  - CopyUpdater
-  - UpsertObj
-test:
-  - DisposeOnMutableDeleteTest
-  - DisposeOnImmutableDeleteTest
-  - DisposeOnImmutableDeleteMultipleTest
-  - DisposeOnMutableExpireAndStopTest
-  - DisposeOnImmutableExpireAndStopTest
-  - DisposeOnMutableExpireAndResumeFitsTest
-  - DisposeOnMutableExpireAndResumeDoesNotFitTest
-  - DisposeOnImmutableExpireAndResumeTest
-  - ObjDisposeOnMutableDeleteTest
-  - ObjDisposeOnImmutableDeleteTest
-  - ObjDisposeOnImmutableDeleteMultipleTest
-  - ObjDisposeOnMutableExpireAndStopTest
-  - ObjDisposeOnImmutableExpireAndStopTest
-  - ObjDisposeOnMutableExpireAndResumeTest
-  - ObjDisposeOnImmutableExpireAndResumeTest
-  - ObjDisposeOnIPUFailThenNCUExpireAndStopTest
-  - ObjDisposeOnIPUFailThenNCUExpireAndResumeTest
-  - ObjDisposeOnIPUFailThenCUExpireAndStopTest
+TrackingRecordTriggers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnDisposeDiskRecord: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnEvict: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnRecovery: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnCheckpoint: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecordDispose: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NeedCopyUpdate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetRMWInitialFieldInfo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpsertKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjTrackingRecordTriggers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpsertObj: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnMutableDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnImmutableDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnImmutableDeleteMultipleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnMutableExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnImmutableExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnMutableExpireAndResumeFitsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnMutableExpireAndResumeDoesNotFitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeOnImmutableExpireAndResumeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnMutableDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnImmutableDeleteTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnImmutableDeleteMultipleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnMutableExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnImmutableExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnMutableExpireAndResumeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnImmutableExpireAndResumeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnIPUFailThenNCUExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnIPUFailThenNCUExpireAndResumeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjDisposeOnIPUFailThenCUExpireAndStopTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

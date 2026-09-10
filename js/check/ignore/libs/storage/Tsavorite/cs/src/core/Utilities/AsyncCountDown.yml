@@ -1,6 +1,5 @@
-fn:
-  - AsyncCountDown
-  - Remove
-  - TryCompleteAwaitingTask
-  - WaitUntilEmptyAsync
-  - GetOrCreateTaskCompletionSource
+AsyncCountDown: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+Remove: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryCompleteAwaitingTask: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitUntilEmptyAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetOrCreateTaskCompletionSource: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

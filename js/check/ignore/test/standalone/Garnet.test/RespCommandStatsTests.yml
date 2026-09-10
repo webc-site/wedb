@@ -1,15 +1,13 @@
-fn:
-  - StartServer
-  - Setup
-  - TearDown
-  - ParseCommandStatField
-  - ParseCommandStatFieldString
-test:
-  - CommandStatsDisabledByDefaultTest
-  - CommandStatsCallsTrackingTest
-  - CommandStatsFailedCallsTest
-  - CommandStatsUsecFieldsZeroTest
-  - CommandStatsMultipleCommandsTest
-  - CommandStatsSuccessRateTest
-  - CommandStatsInfoServerShowsMonitorStatus
-  - CommandStatsFormatMatchesRedisConvention
+StartServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseCommandStatField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ParseCommandStatFieldString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsDisabledByDefaultTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsCallsTrackingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsFailedCallsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsUsecFieldsZeroTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsMultipleCommandsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsSuccessRateTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsInfoServerShowsMonitorStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommandStatsFormatMatchesRedisConvention: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

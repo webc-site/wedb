@@ -1,6 +1,5 @@
-fn:
-  - UpdateMeetRequestsRecv
-  - UpdateMeetRequestsSucceed
-  - UpdateMeetRequestsFailed
-  - UpdateGossipBytesSend
-  - UpdateGossipBytesRecv
+UpdateMeetRequestsRecv: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateMeetRequestsSucceed: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateMeetRequestsFailed: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateGossipBytesSend: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateGossipBytesRecv: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

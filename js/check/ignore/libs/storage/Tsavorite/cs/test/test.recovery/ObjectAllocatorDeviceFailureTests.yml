@@ -1,15 +1,13 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - CreateStore
-  - ControlledReadFailureDevice
-  - FailNextRead
-  - RemoveSegmentAsync
-  - TryComplete
-  - Throttle
-test:
-  - PartialSectorReadFailureStopsFlush
-  - SnapshotPartialSectorSkipsReadBackOnFreshDevice
-  - HeaderReadFailureDefersPairedTruncation
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ControlledReadFailureDevice: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailNextRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RemoveSegmentAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryComplete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Throttle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PartialSectorReadFailureStopsFlush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SnapshotPartialSectorSkipsReadBackOnFreshDevice: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HeaderReadFailureDefersPairedTruncation: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

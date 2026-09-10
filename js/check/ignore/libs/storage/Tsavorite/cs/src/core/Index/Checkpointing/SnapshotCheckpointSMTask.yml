@@ -1,4 +1,3 @@
-fn:
-  - SnapshotCheckpointSMTask
-  - GlobalBeforeEnteringState
-  - ObjectLog_OnPrepare
+SnapshotCheckpointSMTask: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GlobalBeforeEnteringState: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ObjectLog_OnPrepare: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

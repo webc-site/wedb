@@ -1,9 +1,8 @@
-fn:
-  - TsavoriteExecutionContext
-  - RentPendingIoContext
-  - ReturnPendingIoContext
-  - MergeReadCopyOptions
-  - MergeRevivificationStatsTo
-  - ResetRevivificationStats
-  - WaitPending
-  - WaitPendingAsync
+TsavoriteExecutionContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+RentPendingIoContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReturnPendingIoContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MergeReadCopyOptions: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+MergeRevivificationStatsTo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ResetRevivificationStats: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitPending: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+WaitPendingAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

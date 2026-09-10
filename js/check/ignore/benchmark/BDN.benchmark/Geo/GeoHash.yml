@@ -1,4 +1,3 @@
-fn:
-  - GeoToLongValue
-  - GetCoordinatesFromLong
-  - GetGeoHashCode
+GeoToLongValue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetCoordinatesFromLong: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetGeoHashCode: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

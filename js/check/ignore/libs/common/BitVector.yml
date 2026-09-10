@@ -1,4 +1,4 @@
-fn:
-  - GetOffsets
-  - IsSet
-  - PopCount
+GetOffsets: C# 位偏移内部计算私有函数，Rust 侧使用位运算符 >> 3 和 & 7 原生计算
+IsSet: C# 位向量测试方法，Rust 侧通过位掩码原生判定
+PopCount: C# 位计数方法，Rust 标准库 u64::count_ones 原生支持
+CopyFrom: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方

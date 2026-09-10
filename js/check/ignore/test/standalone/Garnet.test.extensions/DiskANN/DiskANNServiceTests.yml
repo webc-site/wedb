@@ -1,16 +1,14 @@
-fn:
-  - Equals
-  - Setup
-  - TearDown
-  - ReadCallback
-  - dataCallbackDel
-  - WriteCallback
-  - DeleteCallback
-  - ReadModifyWriteCallback
-  - callbackDel
-  - InlineFilterCallback
-test:
-  - CheckInternalId
-  - VADD
-  - VSIM
-  - Recreate
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+dataCallbackDel: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadModifyWriteCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+callbackDel: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InlineFilterCallback: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckInternalId: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADD: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Recreate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

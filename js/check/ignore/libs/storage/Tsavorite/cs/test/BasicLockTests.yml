@@ -1,13 +1,11 @@
-fn:
-  - InPlaceWriter
-  - InitialUpdater
-  - InitialWriter
-  - InitialDeleter
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - UpdateFunc
-test:
-  - CollidingDeletedRecordTest
-  - SetInvalidOnException
+InPlaceWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialUpdater: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialWriter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InitialDeleter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+UpdateFunc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CollidingDeletedRecordTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetInvalidOnException: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

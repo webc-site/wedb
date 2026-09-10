@@ -1,9 +1,7 @@
-# .NET IEnumerable 管道与环形缓冲读端辅助；rust 等价环形缓冲迭代为惯用实现
-fn:
-  - GetEnumerator
-  - PeekFirst
-  - PeekLast
-  - Dequeue
-  - IsFull
-  - IsEmpty
-  - Iterate
+GetEnumerator: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PeekFirst: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+PeekLast: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Dequeue: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsFull: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+IsEmpty: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Iterate: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

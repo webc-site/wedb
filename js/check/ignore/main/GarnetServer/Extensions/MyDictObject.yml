@@ -1,7 +1,6 @@
-fn:
-  - Create
-  - Deserialize
-  - MyDict
-  - UpdateSize
-  - CloneObject
-  - SerializeObject
+Create: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Deserialize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+MyDict: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UpdateSize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CloneObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SerializeObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

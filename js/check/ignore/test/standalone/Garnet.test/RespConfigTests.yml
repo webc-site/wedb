@@ -1,27 +1,25 @@
-fn:
-  - RespConfigTests
-  - Setup
-  - TearDown
-  - RespConfigUtilizationTests
-  - RespConfigIndexUtilizationTests
-  - GetOverflowBucketAllocations
-  - RespConfigHeapUtilizationTests
-test:
-  - ConfigSetMemorySizeTest
-  - ConfigSetIndexSizeTest
-  - ConfigSetInlineMemorySizeUtilizationTest
-  - ConfigSetMemorySizeRecoveryTest
-  - ConfigSetIndexSizeUtilizationTest
-  - ConfigSetHeapMemorySizeUtilizationTest
-  - ConfigGetSetRuntimeOptionsTest
-  - RuntimeServerConfigRoundTripsEnumOption
-  - RuntimeServerConfigExposesDurationsInEveryDeclaredUnit
-  - ConfigSetSlowLogThresholdTakesEffectAtRuntime
-  - ConfigSetRuntimeOptionValidationTest
-  - ConfigGetAllAndReadOnlyRejectionTest
-  - ConfigAofReadOnlyParametersTest
-  - ConfigAofRuntimeAdjustableParametersTest
-  - ConfigCommitFreqRejectedWhenStartedAtZeroTest
-  - ConfigCommitFreqRuntimeAdjustableTest
-  - ConfigExpiredKeyDeletionScanRuntimeAdjustableTest
-  - ConfigExpiredObjectCollectionRuntimeAdjustableTest
+RespConfigTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespConfigUtilizationTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespConfigIndexUtilizationTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetOverflowBucketAllocations: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RespConfigHeapUtilizationTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetMemorySizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetIndexSizeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetInlineMemorySizeUtilizationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetMemorySizeRecoveryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetIndexSizeUtilizationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetHeapMemorySizeUtilizationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigGetSetRuntimeOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RuntimeServerConfigRoundTripsEnumOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RuntimeServerConfigExposesDurationsInEveryDeclaredUnit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetSlowLogThresholdTakesEffectAtRuntime: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigSetRuntimeOptionValidationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigGetAllAndReadOnlyRejectionTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigAofReadOnlyParametersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigAofRuntimeAdjustableParametersTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigCommitFreqRejectedWhenStartedAtZeroTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigCommitFreqRuntimeAdjustableTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigExpiredKeyDeletionScanRuntimeAdjustableTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConfigExpiredObjectCollectionRuntimeAdjustableTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

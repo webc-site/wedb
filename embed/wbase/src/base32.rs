@@ -184,18 +184,6 @@ pub const fn encode_u128(val: u128) -> Base32Buf128 {
   Base32Buf128(buf)
 }
 
-/// 将 64 位整数大端保序编码追加写入 String（0 临时堆分配）
-#[inline]
-pub fn push_base32_u64(val: u64, buf: &mut String) {
-  buf.push_str(encode_u64(val).as_str());
-}
-
-/// 将 128 位整数大端保序编码追加写入 String（0 临时堆分配）
-#[inline]
-pub fn push_base32_u128(val: u128, buf: &mut String) {
-  buf.push_str(encode_u128(val).as_str());
-}
-
 /// 快速判定字符串切片是否全部由合法的 Base32 字符构成（大小写无关）
 #[inline]
 pub fn is_base32(s: &str) -> bool {

@@ -1,19 +1,17 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - OnTearDown
-  - DoRead
-  - DoFlush
-  - DoReads
-test:
-  - ObjectInMemWriteReadUpsert
-  - ObjectInMemWriteReadRMW
-  - ObjectDiskWriteReadSingle
-  - ObjectDiskWriteRead
-  - LargeObjectDiskWriteReadSmallKeyBigValue
-  - LargeObjectMultiFlushedPages
-  - LargeObjectLinearizeFlushedPages
-  - ObjectDiskWriteReadOverflowValue
-  - LargeObjectDiskWriteReadBigKeyAndValue
-  - MaxInlineValueSizeZeroTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+OnTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoFlush: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoReads: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectInMemWriteReadUpsert: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectInMemWriteReadRMW: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectDiskWriteReadSingle: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectDiskWriteRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeObjectDiskWriteReadSmallKeyBigValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeObjectMultiFlushedPages: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeObjectLinearizeFlushedPages: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectDiskWriteReadOverflowValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeObjectDiskWriteReadBigKeyAndValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MaxInlineValueSizeZeroTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

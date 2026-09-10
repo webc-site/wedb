@@ -1,32 +1,30 @@
-fn:
-  - DeleteDirectory
-  - TotalEntries
-  - BaseSetup
-  - BaseTearDown
-  - Counter
-  - IncrementAndMaybeTruncateUntil
-  - ToString
-  - IsAsync
-  - AssertGetNext
-  - LogWriterAsync
-  - Setup
-  - TearDown
-  - TestConsumer
-  - Consume
-test:
-  - TestDisposeReleasesFileLocksWithCompletedCommit
-  - TsavoriteLogTest2
-  - TsavoriteLogConsumerTest
-  - TsavoriteLogAsyncConsumerTest
-  - TryEnqueue1
-  - TryEnqueue2
-  - TruncateUntilBasic
-  - EnqueueAndWaitForCommitAsyncBasicTest
-  - TruncateUntil2
-  - TruncateUntilPageStart
-  - CommitNoSpinWait
-  - CommitAsyncPrevTask
-  - RefreshUncommittedAsyncTest
-  - TsavoriteLogSimpleCommitCookieTest
-  - TsavoriteLogManualCommitTest
-  - TsavoriteLogAsyncConsumerTestAfterDisposeIterator
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TotalEntries: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BaseTearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Counter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementAndMaybeTruncateUntil: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ToString: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertGetNext: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LogWriterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestConsumer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Consume: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestDisposeReleasesFileLocksWithCompletedCommit: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogTest2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogAsyncConsumerTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnqueue1: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TryEnqueue2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntilBasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+EnqueueAndWaitForCommitAsyncBasicTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntil2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TruncateUntilPageStart: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitNoSpinWait: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CommitAsyncPrevTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RefreshUncommittedAsyncTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogSimpleCommitCookieTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogManualCommitTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TsavoriteLogAsyncConsumerTestAfterDisposeIterator: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

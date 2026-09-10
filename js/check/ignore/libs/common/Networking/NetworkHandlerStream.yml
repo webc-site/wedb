@@ -1,6 +1,3 @@
-# C# 对 INetworkHandler 的 Stream 包装：Seek 不支持、ReadAsyncInternalAsync 为
-# Stream 异步泵管道；rust compio TcpStream 直接 read/write，无包装层
-fn:
-  - Seek
-  - ReadAsyncInternalAsync
-  - Write
+Seek: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+ReadAsyncInternalAsync: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+Write: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈

@@ -1,7 +1,7 @@
-fn:
-  - Invalidate
-  - AsReadOnlySpan
-  - AsSpan
-  - ToArray
-  - FromLengthPrefixedPinnedPointer
-  - ToPointer
+Invalidate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsReadOnlySpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsSpan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToArray: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromLengthPrefixedPinnedPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ToPointer: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FromPinnedSpan: C# PinnedSpanByte 构造函数，Rust 字节切片原生零拷贝无需固定内存

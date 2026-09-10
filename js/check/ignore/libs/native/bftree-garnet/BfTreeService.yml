@@ -1,14 +1,14 @@
-fn:
-  - Noop
-  - InsertByPtr
-  - ReadByPtr
-  - ReadByPtrInto
-  - DeleteByPtr
-  - ScanWithCountByPtrCallback
-  - ScanWithEndKeyByPtrCallback
-  - ScanWithCount
-  - ScanWithEndKey
-  - ScanAll
-  - CprSnapshotByPtr
-  - DrainScanIteratorWithCallback
-  - DrainScanIteratorToList
+Dispose: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+Noop: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+InsertByPtr: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ReadByPtr: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ReadByPtrInto: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+DeleteByPtr: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ScanWithCountByPtrCallback: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ScanWithEndKeyByPtrCallback: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ScanWithCount: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ScanWithEndKey: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+ScanAll: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+CprSnapshotByPtr: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+DrainScanIteratorWithCallback: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接
+DrainScanIteratorToList: C# P/Invoke 操作系统底层绑定，Rust 侧通过 libc/nix 原生系统调用承接

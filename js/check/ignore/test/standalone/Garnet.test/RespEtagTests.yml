@@ -1,59 +1,57 @@
-fn:
-  - Setup
-  - TearDown
-  - MakeReadOnly
-test:
-  - SETReturnsEtagForNewData
-  - SetWithEtagClearsTTLWhenNoExpiryProvided
-  - SetIfMatchReturnsNewValueAndEtagWhenEtagMatches
-  - SetIfMatchWorksWithExpiration
-  - GetWithEtagReturnsValAndEtagForKey
-  - GetIfNotMatchReturnsDataWhenEtagDoesNotMatch
-  - SetIfGreaterWorksWithInitialETag
-  - SetIfGreaterWorksWithoutInitialETag
-  - DelIfGreaterOnAnAlreadyExistingKeyWithEtagWorks
-  - DelIfGreaterOnAnAlreadyExistingKeyWithoutEtagWorks
-  - DelIfGreaterOnAnAlreadyExistingKeyWithEtagRCUWorks
-  - DelIfGreaterOnAnAlreadyExistingKeyWithoutEtagRCUWorks
-  - SetIfGreaterWhenExpIsSentForExistingNonEtagKey
-  - SetIfMatchWhenExpIsSentForExistingNonEtagKey
-  - SetIfMatchSetsKeyValueOnNonExistingKey
-  - SetIfGreaterSetsKeyValueOnNonExistingKey
-  - SETOnAlreadyExistingSETDataOverridesItWithInitialEtag
-  - SETWITHETAGOnAlreadyExistingSETDataOverridesItButUpdatesEtag
-  - SETWITHETAGOnAlreadyExistingNonEtagDataOverridesItToInitialEtag
-  - DelIfGreaterOnNonExistingKeyWorks
-  - SETOnAlreadyExistingNonEtagDataOverridesIt
-  - SetIfMatchOnNonEtagDataReturnsNewEtagAndNoValue
-  - SetIfMatchReturnsNewEtagButNoValueWhenUsingNoGet
-  - GetIfNotMatchOnNonEtagDataReturnsNilForEtagAndCorrectData
-  - GetWithEtagOnNonEtagDataReturns0ForEtagAndCorrectData
-  - SingleEtagSetGet
-  - SingleUnicodeEtagSetGetGarnetClient
-  - LargeEtagSetGet
-  - SetExpiryForEtagSetData
-  - SetExpiryHighPrecisionForEtagSetDatat
-  - LockTakeReleaseOnAValueInitiallySET
-  - SingleDecrForEtagSetData
-  - SingleDecrByForEtagSetData
-  - SimpleIncrementInvalidValueForEtagSetdata
-  - SimpleIncrementOverflowForEtagSetData
-  - SimpleIncrementByFloatForEtagSetData
-  - SingleDeleteForEtagSetData
-  - SingleDeleteWithObjectStoreDisabledForEtagSetData
-  - SingleDeleteWithObjectStoreDisable_LTMForEtagSetData
-  - MultiKeyDeleteForEtagSetData
-  - MultiKeyUnlinkForEtagSetData
-  - SingleExistsForEtagSetData
-  - MultipleExistsKeysAndObjectsAndEtagData
-  - PersistTTLTestForEtagSetData
-  - PersistTestForEtagSetData
-  - KeyExpireStringTestForEtagSetData
-  - KeyExpireOptionsTestForEtagSetData
-  - MainObjectKeyForEtagSetData
-  - GetSliceTestForEtagSetData
-  - KeepTtlTestForDataInitiallySET
-  - StrlenTestOnEtagSetData
-  - TTLTestMillisecondsForEtagSetData
-  - GetDelTestForEtagSetData
-  - HyperLogLogCommandsShouldReturnWrongTypeErrorForEtagSetData
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeReadOnly: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETReturnsEtagForNewData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetWithEtagClearsTTLWhenNoExpiryProvided: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchReturnsNewValueAndEtagWhenEtagMatches: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchWorksWithExpiration: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetWithEtagReturnsValAndEtagForKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetIfNotMatchReturnsDataWhenEtagDoesNotMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfGreaterWorksWithInitialETag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfGreaterWorksWithoutInitialETag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterOnAnAlreadyExistingKeyWithEtagWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterOnAnAlreadyExistingKeyWithoutEtagWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterOnAnAlreadyExistingKeyWithEtagRCUWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterOnAnAlreadyExistingKeyWithoutEtagRCUWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfGreaterWhenExpIsSentForExistingNonEtagKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchWhenExpIsSentForExistingNonEtagKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchSetsKeyValueOnNonExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfGreaterSetsKeyValueOnNonExistingKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETOnAlreadyExistingSETDataOverridesItWithInitialEtag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETWITHETAGOnAlreadyExistingSETDataOverridesItButUpdatesEtag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETWITHETAGOnAlreadyExistingNonEtagDataOverridesItToInitialEtag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DelIfGreaterOnNonExistingKeyWorks: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SETOnAlreadyExistingNonEtagDataOverridesIt: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchOnNonEtagDataReturnsNewEtagAndNoValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetIfMatchReturnsNewEtagButNoValueWhenUsingNoGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetIfNotMatchOnNonEtagDataReturnsNilForEtagAndCorrectData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetWithEtagOnNonEtagDataReturns0ForEtagAndCorrectData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleEtagSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleUnicodeEtagSetGetGarnetClient: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LargeEtagSetGet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetExpiryHighPrecisionForEtagSetDatat: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LockTakeReleaseOnAValueInitiallySET: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDecrForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDecrByForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementInvalidValueForEtagSetdata: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementOverflowForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleIncrementByFloatForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDeleteForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDeleteWithObjectStoreDisabledForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleDeleteWithObjectStoreDisable_LTMForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyDeleteForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiKeyUnlinkForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleExistsForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleExistsKeysAndObjectsAndEtagData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistTTLTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PersistTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireStringTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeyExpireOptionsTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MainObjectKeyForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetSliceTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+KeepTtlTestForDataInitiallySET: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StrlenTestOnEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TTLTestMillisecondsForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetDelTestForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HyperLogLogCommandsShouldReturnWrongTypeErrorForEtagSetData: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

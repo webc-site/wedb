@@ -1,9 +1,8 @@
-fn:
-  - TryReadFromResp
-  - TryReadKeySpecHeader
-  - BeginSearchIndexParser
-  - BeginSearchKeywordParser
-  - BeginSearchUnknownParser
-  - FindKeysRangeParser
-  - FindKeysKeyNumParser
-  - FindKeysUnknownParser
+TryReadFromResp: C# 原型实验与演练脚本，非生产运行时代码
+TryReadKeySpecHeader: C# 原型实验与演练脚本，非生产运行时代码
+BeginSearchIndexParser: C# 原型实验与演练脚本，非生产运行时代码
+BeginSearchKeywordParser: C# 原型实验与演练脚本，非生产运行时代码
+BeginSearchUnknownParser: C# 原型实验与演练脚本，非生产运行时代码
+FindKeysRangeParser: C# 原型实验与演练脚本，非生产运行时代码
+FindKeysKeyNumParser: C# 原型实验与演练脚本，非生产运行时代码
+FindKeysUnknownParser: C# 原型实验与演练脚本，非生产运行时代码

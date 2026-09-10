@@ -17,7 +17,7 @@ fn cross_thread_return_routes_back_to_origin_and_reuses() -> Void {
 
   let pool = BufferPool::new(MIN_SECTOR_SIZE)?;
   let p1 = pool.get_with_policy(4096, false)?;
-  let ptr1 = p1.as_buf_ptr() as usize;
+  let ptr1 = p1.as_allocated_slice().as_ptr() as usize;
 
   // 异线程归还：经无锁 CAS 推入属主收件箱
   thread::spawn(move || drop(p1))
@@ -27,7 +27,7 @@ fn cross_thread_return_routes_back_to_origin_and_reuses() -> Void {
   // 属主线程重新租借：收割收件箱整链后复用
   let p2 = pool.get_with_policy(4096, false)?;
   assert_eq!(
-    p2.as_buf_ptr() as usize,
+    p2.as_allocated_slice().as_ptr() as usize,
     ptr1,
     "跨线程归还必须路由回属主线程并复用同一分配"
   );
@@ -45,13 +45,17 @@ fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
   // 正向：免清零租借填脏 -> 异线程脏归还 -> 属主默认 Get 惰性清零
   let mut p1 = pool.get_with_policy(4096, false)?;
   p1.as_allocated_slice_mut().fill(0xAB);
-  let ptr1 = p1.as_buf_ptr() as usize;
+  let ptr1 = p1.as_allocated_slice().as_ptr() as usize;
   thread::spawn(move || drop(p1))
     .join()
     .expect("异线程归还成功");
 
   let p2 = pool.get(4096)?;
-  assert_eq!(p2.as_buf_ptr() as usize, ptr1, "脏缓冲必须路由回属主复用");
+  assert_eq!(
+    p2.as_allocated_slice().as_ptr() as usize,
+    ptr1,
+    "脏缓冲必须路由回属主复用"
+  );
   assert!(
     p2.as_allocated_slice().iter().all(|&b| b == 0),
     "跨线程收割路径必须惰性清零脏缓冲"
@@ -66,7 +70,7 @@ fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
     .expect("异线程归还成功");
 
   let p4 = pool.get_with_policy(4096, false)?;
-  assert_eq!(p4.as_buf_ptr() as usize, ptr1);
+  assert_eq!(p4.as_allocated_slice().as_ptr() as usize, ptr1);
   assert!(
     p4.as_allocated_slice().iter().all(|&b| b == 0),
     "异线程急切清零后的缓冲必须保持全零"
@@ -90,7 +94,7 @@ fn large_class_cross_thread_return_shares_via_depot() -> Void {
     let p1 = p_clone1
       .get_with_policy(large_size, false)
       .expect("大缓冲租借成功");
-    let ptr1 = p1.as_buf_ptr() as usize;
+    let ptr1 = p1.as_allocated_slice().as_ptr() as usize;
     tx.send((p1, ptr1)).expect("发送成功");
   })
   .join()
@@ -108,7 +112,8 @@ fn large_class_cross_thread_return_shares_via_depot() -> Void {
     p_clone2
       .get_with_policy(large_size, false)
       .expect("复用租借成功")
-      .as_buf_ptr() as usize
+      .as_allocated_slice()
+      .as_ptr() as usize
   })
   .join()
   .expect("复用线程执行成功");
@@ -132,7 +137,7 @@ fn large_class_owner_return_shares_via_depot() -> Void {
     let p1 = p_clone1
       .get_with_policy(large_size, false)
       .expect("大缓冲租借成功");
-    let ptr1 = p1.as_buf_ptr() as usize;
+    let ptr1 = p1.as_allocated_slice().as_ptr() as usize;
     drop(p1); // 属主同线程归还 -> Depot，而非本地栈
     ptr1
   })
@@ -145,7 +150,8 @@ fn large_class_owner_return_shares_via_depot() -> Void {
     p_clone2
       .get_with_policy(large_size, false)
       .expect("复用租借成功")
-      .as_buf_ptr() as usize
+      .as_allocated_slice()
+      .as_ptr() as usize
   })
   .join()
   .expect("复用线程执行成功");

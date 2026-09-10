@@ -1,6 +1,5 @@
-fn:
-  - IntToBytes
-  - LongToBytes
-  - NumDigits
-  - NumDigitsInLong
-  - BytesToLong
+IntToBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongToBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NumDigits: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+NumDigitsInLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BytesToLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

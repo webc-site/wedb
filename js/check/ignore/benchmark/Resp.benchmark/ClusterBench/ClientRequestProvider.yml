@@ -1,19 +1,18 @@
-fn:
-  - ClientRequestProvider
-  - CombineSeed
-  - CreateZipfGenerator
-  - NextKeyIndex
-  - GenerateKey
-  - BuildCumulativePercent
-  - SelectOpType
-  - ShouldUseReplica
-  - ShouldGenerateMixedWorkload
-  - GetReadOperationType
-  - Stop
-  - DisposeWorkerPoolConnections
-  - FormatRequest
-  - AppendCommand
-  - GenerateValue
-  - CalculateRespSentBytes
-  - CalculateRespReceivedBytes
-  - OnResponse
+ClientRequestProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CombineSeed: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateZipfGenerator: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+NextKeyIndex: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateKey: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+BuildCumulativePercent: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SelectOpType: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ShouldUseReplica: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ShouldGenerateMixedWorkload: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetReadOperationType: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Stop: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DisposeWorkerPoolConnections: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+FormatRequest: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AppendCommand: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateValue: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CalculateRespSentBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CalculateRespReceivedBytes: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OnResponse: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

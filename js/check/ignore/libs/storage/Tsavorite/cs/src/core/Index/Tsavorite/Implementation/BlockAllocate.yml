@@ -1,7 +1,6 @@
-fn:
-  - TryBlockAllocate
-  - TryAllocateRecord
-  - SaveAllocationForRetry
-  - TryAllocateRecordReadCache
-  - GetAllocationForRetry
-  - OnDispose
+TryBlockAllocate: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAllocateRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SaveAllocationForRetry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TryAllocateRecordReadCache: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetAllocationForRetry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

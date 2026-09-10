@@ -1,8 +1,7 @@
-fn:
-  - TxnPerfBench
-  - SelectOpType
-  - DumpHistogram
-  - Run
-  - OpRunnerSERedis
-  - LoadData
-  - ResetRunner
+TxnPerfBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+SelectOpType: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DumpHistogram: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Run: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+OpRunnerSERedis: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+LoadData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ResetRunner: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

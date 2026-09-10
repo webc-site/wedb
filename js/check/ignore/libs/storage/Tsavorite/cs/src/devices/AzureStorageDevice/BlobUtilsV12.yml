@@ -1,19 +1,18 @@
-fn:
-  - OnSendingRequest
-  - GetServiceClients
-  - GetBlobClientOptions
-  - GetContainerClients
-  - GetBlockBlobClients
-  - GetPageBlobClients
-  - GetSubDirectory
-  - GetBlockBlobClient
-  - GetPageBlobClient
-  - GetBlobsAsync
-  - ForceDeleteAsync
-  - LeaseConflictOrExpired
-  - LeaseConflict
-  - LeaseExpired
-  - CannotDeleteBlobWithLease
-  - PreconditionFailed
-  - BlobDoesNotExist
-  - BlobAlreadyExists
+OnSendingRequest: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetServiceClients: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetBlobClientOptions: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetContainerClients: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetBlockBlobClients: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetPageBlobClients: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetSubDirectory: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetBlockBlobClient: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetPageBlobClient: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+GetBlobsAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+ForceDeleteAsync: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LeaseConflictOrExpired: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LeaseConflict: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+LeaseExpired: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+CannotDeleteBlobWithLease: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+PreconditionFailed: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+BlobDoesNotExist: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动
+BlobAlreadyExists: C# Azure Blob 云存储设备后端，Rust 当前版本专注本地高性能 NVMe/compio 驱动

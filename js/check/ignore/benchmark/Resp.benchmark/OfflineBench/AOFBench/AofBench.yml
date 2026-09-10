@@ -1,9 +1,8 @@
-fn:
-  - GetServerOptions
-  - AofBench
-  - GenerateData
-  - Run
-  - RunAofEnqueueBench
-  - RunAofReplayBench
-  - RunAofReplayBenchNoResp
-  - RunAofReplayBenchDirect
+GetServerOptions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AofBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GenerateData: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Run: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunAofEnqueueBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunAofReplayBench: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunAofReplayBenchNoResp: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+RunAofReplayBenchDirect: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

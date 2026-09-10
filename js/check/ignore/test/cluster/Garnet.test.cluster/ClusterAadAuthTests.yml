@@ -1,7 +1,5 @@
-fn:
-  - Setup
-  - TearDown
-  - ValidateConnectionsWithToken
-test:
-  - ValidateClusterAuthWithObjectId
-  - ValidateClusterAuthWithGroupOid
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateConnectionsWithToken: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateClusterAuthWithObjectId: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateClusterAuthWithGroupOid: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

@@ -1,8 +1,7 @@
-fn:
-  - MeasureElapsed
-  - MigrateRequest
-  - Run
-  - dbsize
-  - MigrateSlotRanges
-  - MigrateSlots
-  - MigrateKeys
+MeasureElapsed: C# 原型实验与演练脚本，非生产运行时代码
+MigrateRequest: C# 原型实验与演练脚本，非生产运行时代码
+Run: C# 原型实验与演练脚本，非生产运行时代码
+dbsize: C# 原型实验与演练脚本，非生产运行时代码
+MigrateSlotRanges: C# 原型实验与演练脚本，非生产运行时代码
+MigrateSlots: C# 原型实验与演练脚本，非生产运行时代码
+MigrateKeys: C# 原型实验与演练脚本，非生产运行时代码

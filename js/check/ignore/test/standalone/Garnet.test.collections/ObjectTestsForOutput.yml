@@ -1,13 +1,11 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateKeyOfSize
-test:
-  - CanUseZRangeWithLeftOverBuffer
-  - CanUseZPopMaxWithLeftOverBuffer
-  - CanUseHGETWithLeftOverBuffer
-  - CanUseHKEYSWithLeftOverBuffer
-  - CanUseLPOPWithLeftOverBuffer
-  - CanUseLRangeWithLeftOverBuffer
-  - CanUseSMembersWithLeftOverBuffer
-  - CanUseGETWithLeftOverBuffer
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateKeyOfSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZRangeWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseZPopMaxWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseHGETWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseHKEYSWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseLPOPWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseLRangeWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseSMembersWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseGETWithLeftOverBuffer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

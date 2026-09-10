@@ -1,10 +1,9 @@
-fn:
-  - HashTable
-  - IndexCheckpointBase
-  - IndexCheckpointMetadata
-  - LogCheckpointBase
-  - LogCheckpointMetadata
-  - LogSnapshot
-  - ObjectLogSnapshot
-  - TsavoriteLogCommitMetadata
-  - CommitNumber
+HashTable: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IndexCheckpointBase: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IndexCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogCheckpointBase: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+LogSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ObjectLogSnapshot: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+TsavoriteLogCommitMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitNumber: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

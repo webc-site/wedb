@@ -1,18 +1,17 @@
-fn:
-  - GetCookie
-  - InitializeIndexCheckpoint
-  - InitializeLogCheckpoint
-  - CommitIndexCheckpoint
-  - CleanupIndexCheckpoint
-  - CommitLogCheckpointMetadata
-  - CleanupLogCheckpoint
-  - CheckpointVersionShiftStart
-  - CheckpointVersionShiftEnd
-  - GetIndexCheckpointMetadata
-  - GetLogCheckpointMetadata
-  - GetIndexCheckpointTokens
-  - GetLogCheckpointTokens
-  - GetIndexDevice
-  - GetSnapshotLogDevice
-  - GetSnapshotObjectLogDevice
-  - OnRecovery
+GetCookie: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+InitializeLogCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CleanupIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CommitLogCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CleanupLogCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckpointVersionShiftStart: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckpointVersionShiftEnd: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetIndexCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogCheckpointMetadata: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetIndexCheckpointTokens: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetLogCheckpointTokens: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetIndexDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSnapshotLogDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetSnapshotObjectLogDevice: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnRecovery: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

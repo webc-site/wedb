@@ -1,12 +1,11 @@
-fn:
-  - ToString
-  - bstr
-  - _callback
-  - Throttle
-  - RemoveSegmentAsync
-  - TryComplete
-  - CreateHandle
-  - SetFileSize
-  - GetSegmentName
-  - GetOrAddHandle
-  - Start
+ToString: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+bstr: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+_callback: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+Throttle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+RemoveSegmentAsync: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+TryComplete: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+CreateHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+SetFileSize: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+GetSegmentName: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+GetOrAddHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+Start: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动

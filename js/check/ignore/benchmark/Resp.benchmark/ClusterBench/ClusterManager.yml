@@ -1,6 +1,5 @@
-fn:
-  - ClusterManager
-  - DiscoverPrimaryShards
-  - ValidateFullSlotCoverage
-  - ParseClusterConfig
-  - CompactRanges
+ClusterManager: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+DiscoverPrimaryShards: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ValidateFullSlotCoverage: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+ParseClusterConfig: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CompactRanges: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

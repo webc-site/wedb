@@ -1,7 +1,6 @@
-test:
-  - Increment_IncreasesCounterValue
-  - Increment_WithZeroValue_DoesNotChangeCounterValue
-  - Total_ReturnsSumOfCounterValues
-  - Increment_WithMaxValue_IncreasesCounterValue
-  - Increment_WithMinValue_IncreasesCounterValue
-  - IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue
+Increment_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithZeroValue_DoesNotChangeCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Total_ReturnsSumOfCounterValues: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithMaxValue_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Increment_WithMinValue_IncreasesCounterValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IncrementedTotal_WithMultipleThreads_ReturnsCorrectValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

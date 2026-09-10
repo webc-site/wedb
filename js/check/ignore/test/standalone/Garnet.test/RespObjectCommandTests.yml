@@ -1,18 +1,16 @@
-fn:
-  - Setup
-  - TearDown
-  - GetEncoding
-test:
-  - ObjectEncodingStringTest
-  - ObjectEncodingHashTest
-  - ObjectEncodingHashWithFieldExpirationTest
-  - ObjectEncodingListTest
-  - ObjectEncodingSetTest
-  - ObjectEncodingSortedSetTest
-  - ObjectEncodingMissingKeyReturnsNil
-  - ObjectRefcountTest
-  - ObjectIdletimeTest
-  - ObjectFreqTest
-  - ObjectHelpTest
-  - ObjectErrorsTest
-  - ObjectEncodingRawProtocolTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetEncoding: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingStringTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingHashTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingHashWithFieldExpirationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingListTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingSetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingSortedSetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingMissingKeyReturnsNil: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectRefcountTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectIdletimeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectFreqTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectHelpTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectErrorsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ObjectEncodingRawProtocolTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

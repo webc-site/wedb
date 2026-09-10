@@ -1,7 +1,6 @@
-fn:
-  - SplitBuckets
-  - OnDispose
-  - EphemeralXUnlock
-  - CheckCPRConsistencyDelete
-  - CreateNewRecordDelete
-  - SaveAllocationForRetry
+SplitBuckets: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralXUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckCPRConsistencyDelete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateNewRecordDelete: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SaveAllocationForRetry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

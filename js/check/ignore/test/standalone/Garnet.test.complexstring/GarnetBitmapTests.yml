@@ -1,79 +1,76 @@
-fn:
-  - Setup
-  - TearDown
-  - LongRandom
-  - ULongRandom
-  - ResponseToLong
-  - Count
-  - Bitpos
-  - CopyBitmap
-  - ApplyBitop
-  - BitOp_Binary_SameSize
-  - GetValueFromBitmap
-  - getUnsigned
-  - getSigned
-  - GetFromBitmapRedis
-  - SingleBitfieldReceive
-  - RandomIntBitRange
-  - setUnsignedBitfield
-  - setSignedBitfield
-  - CheckSignedBitfieldOverflowRedis
-  - CheckSignedBitfieldOverflow
-  - CheckUnsignedBitfieldOverflow
-  - BitSearch
-test:
-  - BitmapSetBitResponseTest
-  - BitmapSetBitBoundaryValidationNegativeTest
-  - BitmapBitOpNotRejectsMultipleSourceKeys
-  - BitmapGetBitResponseTest
-  - BitmapSetGetBitResponseTest
-  - BitmapSimpleSetGet_PCT
-  - BitmapSetGetBitTest_LTM
-  - BitmapSimpleBitCountTest
-  - BitmapBitCountBetweenOffsetsTest
-  - BitmapBitCountBetweenOffsetsTestV2
-  - BitmapBitCountNegativeOffsets
-  - BitmapBitCountTest_LTM
-  - BitmapSimpleBITCOUNT_PCT
-  - BitmapSimpleBitPosTests
-  - BitmapBitPosOffsetsTest
-  - BitmapBitPosTest_LTM
-  - BitmapBitPosTest_BoundaryConditions
-  - BitmapSimpleBITPOS_PCT
-  - BitOp_Unary_BitwiseNot
-  - BitOp_Binary_SameSize
-  - BitOp_Binary_DifferentTails
-  - BitOp_OverflowValues_StableUnderGCCompaction
-  - BitopNotTransactionAsync
-  - BitopAndTransactionAsync
-  - BitmapBitfieldGetTest
-  - BitmapBitfieldGetTest_PCT
-  - BitmapBitfieldGetTest_LTM
-  - BitmapBitfieldSetTest_PCT
-  - BitmapBitfieldSetTest
-  - BitmapBitfieldSetTest_LTM
-  - BitmapBitfieldSignedIncrTest_PCT
-  - BitmapBitfieldSignedIncrTest
-  - BitmapBitfieldIncrTest_LTM
-  - BitmapBitfieldUnsignedIncrTest
-  - BitmapBitfieldGrowingTest
-  - BitmapCmdsProcedureTest
-  - BitmapBitCountSimpleTest
-  - BitmapBitCountBitBoundaryUnderflowTest
-  - BitmapBitCountLongBitOffsetParsingTest
-  - BitmapBitCountInvalidArityTest
-  - BitmapBitPosFixedTests
-  - BitmapBitPosLongBitOffsetParsingTest
-  - BitmapBitPosLongOffsetBoundaryValidationTest
-  - BitmapBitPosOutOfBoundsEndOffsetByteModeTest
-  - BitmapBitPosOutOfBoundsEndOffsetBitModeTest
-  - BitmapBitPosBitModifierRequiresStartAndEndTest
-  - BitmapOperationNonExistentSourceKeys
-  - BitmapOperationInvalidOption
-  - BitmapOperationTooManyKeys
-  - BitmapBitPosBitOffsetTests
-  - BitmapBitPosBitInvalidMaskTests
-  - BitmapBitPosBitSearchSingleBitRangeTests
-  - BitmapBitfieldBoundaryTest
-  - BitmapBitfieldSigned64OverflowTest
-  - BitmapBitFieldInvalidOptionsTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LongRandom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ULongRandom: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResponseToLong: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Count: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Bitpos: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CopyBitmap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ApplyBitop: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitOp_Binary_SameSize: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetValueFromBitmap: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getUnsigned: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+getSigned: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetFromBitmapRedis: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SingleBitfieldReceive: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RandomIntBitRange: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+setUnsignedBitfield: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+setSignedBitfield: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSignedBitfieldOverflowRedis: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSignedBitfieldOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckUnsignedBitfieldOverflow: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitSearch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSetBitResponseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSetBitBoundaryValidationNegativeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitOpNotRejectsMultipleSourceKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapGetBitResponseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSetGetBitResponseTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSimpleSetGet_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSetGetBitTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSimpleBitCountTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountBetweenOffsetsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountBetweenOffsetsTestV2: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountNegativeOffsets: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSimpleBITCOUNT_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSimpleBitPosTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosOffsetsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosTest_BoundaryConditions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapSimpleBITPOS_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitOp_Unary_BitwiseNot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitOp_Binary_DifferentTails: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitOp_OverflowValues_StableUnderGCCompaction: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitopNotTransactionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitopAndTransactionAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldGetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldGetTest_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldGetTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSetTest_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSetTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSetTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSignedIncrTest_PCT: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSignedIncrTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldIncrTest_LTM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldUnsignedIncrTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldGrowingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapCmdsProcedureTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountSimpleTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountBitBoundaryUnderflowTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountLongBitOffsetParsingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitCountInvalidArityTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosFixedTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosLongBitOffsetParsingTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosLongOffsetBoundaryValidationTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosOutOfBoundsEndOffsetByteModeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosOutOfBoundsEndOffsetBitModeTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosBitModifierRequiresStartAndEndTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapOperationNonExistentSourceKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapOperationInvalidOption: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapOperationTooManyKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosBitOffsetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosBitInvalidMaskTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitPosBitSearchSingleBitRangeTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldBoundaryTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitfieldSigned64OverflowTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BitmapBitFieldInvalidOptionsTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

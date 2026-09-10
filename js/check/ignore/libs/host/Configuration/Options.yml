@@ -1,6 +1,5 @@
-fn:
-  - GetServerOptions
-  - GetDeviceType
-  - GetAuthenticationSettings
-  - GetFastAofTruncate
-  - IsValid
+GetServerOptions: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetDeviceType: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetAuthenticationSettings: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+GetFastAofTruncate: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+IsValid: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接

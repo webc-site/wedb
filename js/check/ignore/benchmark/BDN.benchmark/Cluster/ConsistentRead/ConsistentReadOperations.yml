@@ -1,5 +1,4 @@
-fn:
-  - ConsistentReadParamsProvider
-  - GlobalSetup
-  - GlobalCleanup
-  - MGet
+ConsistentReadParamsProvider: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+MGet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

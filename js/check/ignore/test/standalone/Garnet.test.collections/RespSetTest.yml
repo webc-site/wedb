@@ -1,70 +1,68 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateSet
-  - CreateLongSet
-test:
-  - CandDoSaddBasic
-  - CheckEmptySetKeyRemoved
-  - CanAddAndListMembers
-  - CanCheckIfMemberExistsInSet
-  - CanAddAndGetAllMembersWithPendingStatus
-  - CanReturnEmptySet
-  - CanDoMembersWhenEmptyKey
-  - CanRemoveField
-  - CanUseSScanNoParameters
-  - CanUseSScanWithMatch
-  - CanUseSScanWithCollection
-  - CanDoSScanWithCursor
-  - CanDoSetUnion
-  - CanDoSetUnionStore
-  - CanDoSetInter
-  - CanDoSetInterStore
-  - CanDoSdiff
-  - CanDoSdiffStoreOverwrittenKey
-  - CanDoSmoveBasic
-  - CanDoSRANDMEMBERWithCountCommandSE
-  - CanDoSinterCard
-  - CanDoSinterCardThowsErrors
-  - SInterWithFirstKeyNotExisting
-  - SInterStoreWithFirstKeyNotExisting
-  - SDiffWithFirstKeyNotExisting
-  - SDiffStoreWithFirstKeyNotExisting
-  - SUnionWithFirstKeyNotExisting
-  - SUnionStoreWithFirstKeyNotExisting
-  - CanAddAndListMembersLC
-  - CanCheckIfMemberExistsInSetLC
-  - CanDoSCARDCommandLC
-  - CanReturnEmptySetLC
-  - CanDoSREMLC
-  - CanDoSCARDCommandsLC
-  - CanDoSRANDMEMBERWithCountCommandLC
-  - CanDoSPOPCommandLC
-  - CanDoSPOPWithCountCommandLC
-  - CanDoSPOPWithMoreCountThanSetSizeCommandLC
-  - CanDoSMOVECommandLC
-  - CanDoSMOVECommandGC
-  - MultiWithNonExistingSet
-  - CanDoSetUnionLC
-  - CanDoSunionStoreLC
-  - CanDoSdiffLC
-  - CanDoSinterLC
-  - IntersectWithEmptySetReturnEmptySet
-  - IntersectWithNoKeysReturnError
-  - IntersectAndStoreWithNoKeysReturnError
-  - IntersectAndStoreWithNotExisingSetsOverwitesDestinationSet
-  - IntersectAndStoreWithNoSetsReturnErrWrongNumArgs
-  - CanDoSinterStoreLC
-  - CanDoSdiffStoreLC
-  - CanDoSinterCardLC
-  - CanDoSCARDCommandWhenKeyDoesNotExistLC
-  - CanDoSPOPCommandWhenKeyDoesNotExistLC
-  - CanUseNotExistingSetwithSMembers
-  - CanDoSdiffWhenKeyDoesNotExisting
-  - CanDoSdiffStoreWhenMemberKeysNotExisting
-  - CanDoSunionStoreWhenMemberKeysNotExisting
-  - CanDoSinterStoreWhenMemberKeysNotExisting
-  - CheckSetOperationsOnWrongTypeObjectSE
-  - CheckIfMemberExistsInSetLC
-  - CheckIfMemberExistsWithNoExistKey
-  - CheckIfMemberExistsWithInvalidParam
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateLongSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CandDoSaddBasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckEmptySetKeyRemoved: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanAddAndListMembers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanCheckIfMemberExistsInSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanAddAndGetAllMembersWithPendingStatus: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnEmptySet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoMembersWhenEmptyKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanRemoveField: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseSScanNoParameters: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseSScanWithMatch: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseSScanWithCollection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSScanWithCursor: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSetUnion: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSetUnionStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSetInter: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSetInterStore: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiff: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiffStoreOverwrittenKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSmoveBasic: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSRANDMEMBERWithCountCommandSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterCard: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterCardThowsErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SInterWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SInterStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SDiffWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SDiffStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SUnionWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SUnionStoreWithFirstKeyNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanAddAndListMembersLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanCheckIfMemberExistsInSetLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSCARDCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanReturnEmptySetLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSREMLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSCARDCommandsLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSRANDMEMBERWithCountCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSPOPCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSPOPWithCountCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSPOPWithMoreCountThanSetSizeCommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSMOVECommandLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSMOVECommandGC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultiWithNonExistingSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSetUnionLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSunionStoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiffLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntersectWithEmptySetReturnEmptySet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntersectWithNoKeysReturnError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntersectAndStoreWithNoKeysReturnError: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntersectAndStoreWithNotExisingSetsOverwitesDestinationSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+IntersectAndStoreWithNoSetsReturnErrWrongNumArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterStoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiffStoreLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterCardLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSCARDCommandWhenKeyDoesNotExistLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSPOPCommandWhenKeyDoesNotExistLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanUseNotExistingSetwithSMembers: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiffWhenKeyDoesNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSdiffStoreWhenMemberKeysNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSunionStoreWhenMemberKeysNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CanDoSinterStoreWhenMemberKeysNotExisting: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckSetOperationsOnWrongTypeObjectSE: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckIfMemberExistsInSetLC: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckIfMemberExistsWithNoExistKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckIfMemberExistsWithInvalidParam: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

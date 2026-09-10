@@ -1,3 +1,2 @@
-# GetEnumerator 为 .NET IEnumerable 管道；rust 侧 ArgSlice 向量迭代为切片惯用实现
-fn:
-  - GetEnumerator
+GetEnumerator: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作
+TryAddItem: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作

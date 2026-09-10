@@ -33,7 +33,6 @@
 use std::{
   fs::{self, File, OpenOptions},
   io::{Read, Write},
-  mem,
   path::{Path, PathBuf},
 };
 
@@ -541,13 +540,6 @@ impl RangeIndexChunkedDeserializer {
     if self.temp_path.exists() {
       let _ = fs::remove_file(&self.temp_path);
     }
-  }
-
-  /// 取走临时文件所有权，避免 Drop 时被删除
-  pub fn take_temp_path(mut self) -> PathBuf {
-    self.state = DeserializerState::Disposed;
-    self.file.take();
-    mem::take(&mut self.temp_path)
   }
 }
 

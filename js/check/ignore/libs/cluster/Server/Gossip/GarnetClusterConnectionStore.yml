@@ -1,13 +1,12 @@
-fn:
-  - UnsafeDisposeConnections
-  - CloseAll
-  - UnsafeGetConnection
-  - UnsafeAddConnection
-  - AcquireWriteLockAsync
-  - AddConnectionAsync
-  - GetOrAddAsync
-  - TryRemoveConnectionAsync
-  - GetConnection
-  - GetConnectionAtOffset
-  - GetRandomConnection
-  - GetConnectionInfo
+UnsafeDisposeConnections: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CloseAll: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UnsafeGetConnection: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+UnsafeAddConnection: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AcquireWriteLockAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+AddConnectionAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetOrAddAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryRemoveConnectionAsync: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetConnection: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetConnectionAtOffset: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetRandomConnection: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetConnectionInfo: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

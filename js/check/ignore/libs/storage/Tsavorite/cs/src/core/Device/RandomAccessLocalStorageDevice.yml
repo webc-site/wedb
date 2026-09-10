@@ -1,18 +1,17 @@
-fn:
-  - SegmentHandles
-  - GetOrCreate
-  - ToString
-  - bstr
-  - DrainPendingIO
-  - Throttle
-  - ReadWorkerAsync
-  - WriteWorkerAsync
-  - RentUmm
-  - RemoveSegmentAsync
-  - GetSegmentName
-  - CreateReadHandle
-  - CreateWriteHandle
-  - SetFileSize
-  - TryOpenDirectHandle
-  - AddHandle
-  - GetOrAddHandle
+SegmentHandles: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+GetOrCreate: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+ToString: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+bstr: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+DrainPendingIO: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+Throttle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+ReadWorkerAsync: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+WriteWorkerAsync: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+RentUmm: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+RemoveSegmentAsync: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+GetSegmentName: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+CreateReadHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+CreateWriteHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+SetFileSize: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+TryOpenDirectHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+AddHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动
+GetOrAddHandle: C# Windows 重叠 I/O (IOCP) 原生绑定，Rust 侧基于 io_uring/compio 异步驱动

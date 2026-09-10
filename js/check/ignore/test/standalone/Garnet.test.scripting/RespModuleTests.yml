@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - CreateTestModule
-test:
-  - TestModuleLoad
-  - TestModuleLoadUsingGarnetOptions
-  - TestModuleLoadCSArgs
-  - TestUninitializedModule
-  - TestAlreadyLoadedModule
-  - TestNonExistingModule
-  - TestNoOpModule
-  - TestNoAllowedPathsForModuleLoading
-  - TestModuleCommandNotEnabled
-  - TestModuleLoadUsingLoadModuleCSWithSpaceInPath
-  - TestModuleLoadUsingLoadModuleCSWithSpaceInPathAndArgs
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateTestModule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleLoad: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleLoadUsingGarnetOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleLoadCSArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestUninitializedModule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestAlreadyLoadedModule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestNonExistingModule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestNoOpModule: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestNoAllowedPathsForModuleLoading: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleCommandNotEnabled: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleLoadUsingLoadModuleCSWithSpaceInPath: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TestModuleLoadUsingLoadModuleCSWithSpaceInPathAndArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

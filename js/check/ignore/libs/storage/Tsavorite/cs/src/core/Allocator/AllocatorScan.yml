@@ -1,10 +1,7 @@
-fn:
-  - ClearSerializedObjectData
-  - PushScanImpl
-  - IterateHashChain
-  - GetFromDiskAndPushToReader
-  - ScanCursor
-  - ScanLookup
-  - ConditionalScanPush
-  - PrepareIOForConditionalScan
-  - MemoryPageScan
+ClearSerializedObjectData: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PushScanImpl: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+GetFromDiskAndPushToReader: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanCursor: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ScanLookup: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ConditionalScanPush: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+PrepareIOForConditionalScan: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

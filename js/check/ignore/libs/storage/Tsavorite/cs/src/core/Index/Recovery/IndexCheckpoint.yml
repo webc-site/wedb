@@ -1,13 +1,12 @@
-fn:
-  - TakeIndexFuzzyCheckpoint
-  - BeginMainIndexCheckpoint
-  - IsIndexFuzzyCheckpointCompleted
-  - AddIndexCheckpointWaitingList
-  - IsIndexFuzzyCheckpointCompletedAsync
-  - BeginNativeIndexCheckpointIo
-  - FlushRunner
-  - EndNativeIndexCheckpointIo
-  - skipReadCache
-  - IsMainIndexCheckpointCompleted
-  - IsMainIndexCheckpointCompletedAsync
-  - AsyncPageFlushCallback
+TakeIndexFuzzyCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginMainIndexCheckpoint: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsIndexFuzzyCheckpointCompleted: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AddIndexCheckpointWaitingList: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsIndexFuzzyCheckpointCompletedAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+BeginNativeIndexCheckpointIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+FlushRunner: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EndNativeIndexCheckpointIo: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+skipReadCache: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsMainIndexCheckpointCompleted: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+IsMainIndexCheckpointCompletedAsync: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+AsyncPageFlushCallback: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

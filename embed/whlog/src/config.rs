@@ -61,14 +61,6 @@ impl Default for HybridLogConfig {
 }
 
 impl HybridLogConfig {
-  /// 默认配置常量
-  pub const DEFAULT: Self = Self {
-    page_size: DEFAULT_PAGE_SIZE,
-    num_pages: DEFAULT_NUM_PAGES,
-    mutable_fraction: DEFAULT_MUTABLE_FRACTION,
-    initial_address: DEFAULT_INITIAL_ADDRESS,
-    ro_lag_num: RO_LAG_DENOM / 2,
-  };
   /// 创建并校验配置项
   pub fn new(page_size: usize, num_pages: usize, mutable_fraction: f64) -> Result<Self> {
     Self::with_initial_address(

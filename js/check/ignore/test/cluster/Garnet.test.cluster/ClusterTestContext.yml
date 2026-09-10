@@ -1,34 +1,33 @@
-fn:
-  - EnableGarnetLoggingEvents
-  - Setup
-  - ShutdownNode
-  - RestartNode
-  - TearDown
-  - RegisterCustomTxn
-  - CreateInstances
-  - SetRangeIndexStreamChunkSizeOnAllNodes
-  - CaptureNodeLogs
-  - CreateInstance
-  - DisposeCluster
-  - CreateConnection
-  - GenerateCredentials
-  - PopulatePrimary
-  - SimplePrimaryReplicaSetup
-  - SimplePopulateDB
-  - PopulatePrimaryRMW
-  - PopulatePrimaryWithObjects
-  - SimpleValidateDB
-  - ValidateKVCollectionAgainstReplica
-  - ValidateNodeObjects
-  - PopulatePrimaryAndTakeCheckpointTask
-  - SendAndValidateKeys
-  - ClusterFailoverSpinWait
-  - MeetAndAssignSlotsAllNodes
-  - FailoverTo
-  - AttachAndWaitForSyncAsync
-  - GenerateKeysWithPrefix
-  - GenerateIncreasingSizeValues
-  - ExecuteTxnBulkIncrement
-  - ExecuteTxnBulkRead
-  - ExecuteStoredProcBulkIncrement
-  - ExecuteBulkReadStoredProc
+EnableGarnetLoggingEvents: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ShutdownNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RestartNode: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RegisterCustomTxn: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateInstances: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SetRangeIndexStreamChunkSizeOnAllNodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CaptureNodeLogs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateInstance: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisposeCluster: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateConnection: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateCredentials: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimplePrimaryReplicaSetup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimplePopulateDB: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimaryRMW: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimaryWithObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleValidateDB: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateKVCollectionAgainstReplica: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ValidateNodeObjects: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimaryAndTakeCheckpointTask: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SendAndValidateKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterFailoverSpinWait: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MeetAndAssignSlotsAllNodes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailoverTo: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AttachAndWaitForSyncAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateKeysWithPrefix: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateIncreasingSizeValues: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteTxnBulkIncrement: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteTxnBulkRead: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteStoredProcBulkIncrement: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExecuteBulkReadStoredProc: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

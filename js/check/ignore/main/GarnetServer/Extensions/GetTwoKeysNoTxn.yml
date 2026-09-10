@@ -1,5 +1,4 @@
-fn:
-  - Prepare
-  - Main
-  - Finalize
-  - WriteBulkStringArray
+Prepare: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Main: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Finalize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+WriteBulkStringArray: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

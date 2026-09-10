@@ -1,87 +1,83 @@
-fn:
-  - RespVectorSetTests
-  - Setup
-  - TearDown
-  - AssertSameIds
-  - MatchedIds
-  - ExpectIds
-  - Format
-  - SeedMoviesForAdvancedFiltering
-  - InterruptedVectorSetDelete
-  - InterruptedVectorSetDeleteRecoveryAsync
-  - GenerateVADDOptions
-  - BuildDictionaryFromResponse
-  - ExpectSuccess
-  - AssertExpectedHashSlot
-  - DoRenameAsync
-  - CreateVectorSetAsync
-  - ReadVectorSetAsync
-  - CheckRAWAsync
-  - SimulateVectorSetStubRmw
-  - ReadRawVectorStub
-  - WriteAndVerify
-  - CreateGarnetServer
-  - GetOpts
-test:
-  - DisabledWithFeatureFlag
-  - WrongTypeForVectorSetOpsOnNonVectorSetKeys
-  - VADD
-  - VADDVariableLengthElementIds
-  - VADDXPREQB8
-  - VADDErrors
-  - VEMB_FP32Storage
-  - VectorSetOpacity
-  - VectorElementOpacity
-  - VSIM
-  - VSIMResp3
-  - VSIMWithAttribs
-  - VDIM
-  - VSIMWithAttributeFiltering
-  - VSIMCount
-  - VSIMWithFilterButWithoutWithAttribs
-  - VSIMWithAdvancedFiltering
-  - VSIMWithAdvancedFilteringELEWithAttribs
-  - VSIMWithAdvancedFilteringELEWithoutWithAttribs
-  - VSIMBadFilters
-  - VSIMComplexJsonAttributes
-  - VSIMErrors
-  - DeleteVectorSet
-  - FlushDB
-  - ExpirationAsync
-  - InterruptedVectorSetDelete_BeforeMark
-  - InterruptedVectorSetDelete
-  - InterruptedVectorSetDelete_DuringCleanup
-  - InterruptedVectorSetDelete_AfterCleanup
-  - InterruptedVectorSetDelete_AfterMark
-  - InterruptedVectorSetDelete_BeforeMark_RecoveryAsync
-  - InterruptedVectorSetDeleteRecoveryAsync
-  - InteterruptedVectorSetDelete_DuringCleanup_RecoveryAsync
-  - InteterruptedVectorSetDelete_AfterCleanup_RecoveryAsync
-  - InteterruptedVectorSetDelete_AfterMark_RecoveryAsync
-  - RepeatedVectorSetDeletes
-  - VectorReadBatchVariants
-  - MakeVectorElementKey
-  - RecreateIndexesOnRestoreAsync
-  - VINFO_NotFound
-  - VINFO
-  - VGETATTR_NotFound
-  - VGETATTR
-  - VGETATTR_BinaryAttributes
-  - VREM
-  - SimpleInternalIdReuse
-  - StressInternalIdReuse
-  - WithQuantizationBackfillAsync
-  - VADDLowMemoryStorageTierForcesDiskSpill
-  - RenamesAsync
-  - RenamesThenRecoverFromAOFAsync
-  - LotsOfVectorSetsAsync
-  - VEMBRawAsync
-  - HideInternalRecordsAsync
-  - TypeAsync
-  - SyntheticReplicationRaceWithConcurrentDelMustNotResurrectKey
-  - SyntheticReplicationRaceWithConcurrentDelThenStringSetMustNotCorrupt
-  - VectorRmwOnAbsentKeyRejectsSyntheticArgs
-  - VectorRmwOnRetypedStringKeyIsCanceledAndPreservesValue
-  - VectorSyntheticAppendLogRmwOnLiveIndexProceedsAndPreservesIndex
-  - VectorElementUpsertResizePreservesValue
-  - VSETATTRAsync
+RespVectorSetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertSameIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MatchedIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpectIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Format: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SeedMoviesForAdvancedFiltering: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDeleteRecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GenerateVADDOptions: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BuildDictionaryFromResponse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpectSuccess: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+AssertExpectedHashSlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DoRenameAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateVectorSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadVectorSetAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CheckRAWAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimulateVectorSetStubRmw: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReadRawVectorStub: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WriteAndVerify: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CreateGarnetServer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetOpts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DisabledWithFeatureFlag: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WrongTypeForVectorSetOpsOnNonVectorSetKeys: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADD: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADDVariableLengthElementIds: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADDXPREQB8: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADDErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VEMB_FP32Storage: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetOpacity: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorElementOpacity: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMResp3: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithAttribs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VDIM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithAttributeFiltering: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMCount: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithFilterButWithoutWithAttribs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithAdvancedFiltering: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithAdvancedFilteringELEWithAttribs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMWithAdvancedFilteringELEWithoutWithAttribs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMBadFilters: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMComplexJsonAttributes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSIMErrors: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteVectorSet: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FlushDB: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ExpirationAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete_BeforeMark: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete_DuringCleanup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete_AfterCleanup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete_AfterMark: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InterruptedVectorSetDelete_BeforeMark_RecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InteterruptedVectorSetDelete_DuringCleanup_RecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InteterruptedVectorSetDelete_AfterCleanup_RecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+InteterruptedVectorSetDelete_AfterMark_RecoveryAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RepeatedVectorSetDeletes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorReadBatchVariants: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeVectorElementKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RecreateIndexesOnRestoreAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VINFO_NotFound: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VINFO: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VGETATTR_NotFound: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VGETATTR: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VGETATTR_BinaryAttributes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VREM: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleInternalIdReuse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+StressInternalIdReuse: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+WithQuantizationBackfillAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VADDLowMemoryStorageTierForcesDiskSpill: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RenamesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RenamesThenRecoverFromAOFAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LotsOfVectorSetsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VEMBRawAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+HideInternalRecordsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TypeAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SyntheticReplicationRaceWithConcurrentDelMustNotResurrectKey: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SyntheticReplicationRaceWithConcurrentDelThenStringSetMustNotCorrupt: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorRmwOnAbsentKeyRejectsSyntheticArgs: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorRmwOnRetypedStringKeyIsCanceledAndPreservesValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSyntheticAppendLogRmwOnLiveIndexProceedsAndPreservesIndex: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorElementUpsertResizePreservesValue: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSETATTRAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

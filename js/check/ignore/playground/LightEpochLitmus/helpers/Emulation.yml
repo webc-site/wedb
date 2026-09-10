@@ -1,5 +1,4 @@
-fn:
-  - Detect
-  - TryGetCpuImplementer
-  - Emulated
-  - TryReadFile
+Detect: C# 原型实验与演练脚本，非生产运行时代码
+TryGetCpuImplementer: C# 原型实验与演练脚本，非生产运行时代码
+Emulated: C# 原型实验与演练脚本，非生产运行时代码
+TryReadFile: C# 原型实验与演练脚本，非生产运行时代码

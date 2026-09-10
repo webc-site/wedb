@@ -1,27 +1,25 @@
-fn:
-  - StringAndByteArrayComparer
-  - Equals
-  - Write
-  - ClusterVectorSetTests
-  - Setup
-  - TearDown
-  - Incr
-  - when
-  - CountGossipFaults
-  - SimpleSetupClusterAsync
-  - GetStoreWrapper
-test:
-  - BasicVADDReplicatesAsync
-  - ConcurrentVADDReplicatedVSimsAsync
-  - RepeatedCreateDeleteAsync
-  - MultipleReplicasWithVectorSetsAsync
-  - MultipleReplicasWithVectorSetsAndDeletesAsync
-  - VectorSetMigrateSingleBySlotAsync
-  - VectorSetMigrateByKeysAsync
-  - VectorSetMigrateManyBySlot
-  - MigrateVectorSetWhileModifyingAsync
-  - MigrateVectorSetBackAsync
-  - MigrateVectorStressAsync
-  - FailoverStopsVectorManagerReplicationTasksAsync
-  - ReplicaReplaysSyntheticVAddAgainstStringKeyAfterRacedDeleteAsync
-  - VSETATTRReplicatesAsync
+StringAndByteArrayComparer: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Equals: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Write: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterVectorSetTests: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Incr: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+when: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+CountGossipFaults: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+SimpleSetupClusterAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+GetStoreWrapper: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+BasicVADDReplicatesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ConcurrentVADDReplicatedVSimsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+RepeatedCreateDeleteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleReplicasWithVectorSetsAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MultipleReplicasWithVectorSetsAndDeletesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetMigrateSingleBySlotAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetMigrateByKeysAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VectorSetMigrateManyBySlot: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateVectorSetWhileModifyingAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateVectorSetBackAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MigrateVectorStressAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+FailoverStopsVectorManagerReplicationTasksAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ReplicaReplaysSyntheticVAddAgainstStringKeyAfterRacedDeleteAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+VSETATTRReplicatesAsync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

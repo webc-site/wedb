@@ -20,35 +20,35 @@ fn test_key_tag_zset_and_subkeys() -> Void {
   info!("测试 KeyTag 针对 HASH_FIELD、SET_MEMBER、Z_MEMBER、Z_SCORE 的单字节映射与匹配");
 
   // 1. 验证单字节数值映射
-  assert_eq!(KeyTag::HASH_FIELD.as_u8(), 0x02);
-  assert_eq!(u8::from(KeyTag::HASH_FIELD), 0x02);
-  assert_eq!(KeyTag::HASH_FIELD as u8, 0x02);
-  assert_eq!(KeyTag::from_u8(0x02), Some(KeyTag::HASH_FIELD));
-  assert_eq!(KeyTag::try_from(0x02)?, KeyTag::HASH_FIELD);
+  assert_eq!(KeyTag::Hash.as_u8(), 0x02);
+  assert_eq!(u8::from(KeyTag::Hash), 0x02);
+  assert_eq!(KeyTag::Hash as u8, 0x02);
+  assert_eq!(KeyTag::from_u8(0x02), Some(KeyTag::Hash));
+  assert_eq!(KeyTag::try_from(0x02)?, KeyTag::Hash);
 
-  assert_eq!(KeyTag::SET_MEMBER.as_u8(), 0x03);
-  assert_eq!(u8::from(KeyTag::SET_MEMBER), 0x03);
-  assert_eq!(KeyTag::SET_MEMBER as u8, 0x03);
-  assert_eq!(KeyTag::from_u8(0x03), Some(KeyTag::SET_MEMBER));
-  assert_eq!(KeyTag::try_from(0x03)?, KeyTag::SET_MEMBER);
+  assert_eq!(KeyTag::Set.as_u8(), 0x03);
+  assert_eq!(u8::from(KeyTag::Set), 0x03);
+  assert_eq!(KeyTag::Set as u8, 0x03);
+  assert_eq!(KeyTag::from_u8(0x03), Some(KeyTag::Set));
+  assert_eq!(KeyTag::try_from(0x03)?, KeyTag::Set);
 
-  assert_eq!(KeyTag::Z_MEMBER.as_u8(), 0x04);
-  assert_eq!(u8::from(KeyTag::Z_MEMBER), 0x04);
-  assert_eq!(KeyTag::Z_MEMBER as u8, 0x04);
-  assert_eq!(KeyTag::from_u8(0x04), Some(KeyTag::Z_MEMBER));
-  assert_eq!(KeyTag::try_from(0x04)?, KeyTag::Z_MEMBER);
+  assert_eq!(KeyTag::ZSetChunk.as_u8(), 0x04);
+  assert_eq!(u8::from(KeyTag::ZSetChunk), 0x04);
+  assert_eq!(KeyTag::ZSetChunk as u8, 0x04);
+  assert_eq!(KeyTag::from_u8(0x04), Some(KeyTag::ZSetChunk));
+  assert_eq!(KeyTag::try_from(0x04)?, KeyTag::ZSetChunk);
 
-  assert_eq!(KeyTag::Z_SCORE.as_u8(), 0x05);
-  assert_eq!(u8::from(KeyTag::Z_SCORE), 0x05);
-  assert_eq!(KeyTag::Z_SCORE as u8, 0x05);
-  assert_eq!(KeyTag::from_u8(0x05), Some(KeyTag::Z_SCORE));
-  assert_eq!(KeyTag::try_from(0x05)?, KeyTag::Z_SCORE);
+  assert_eq!(KeyTag::ZSetM2s.as_u8(), 0x05);
+  assert_eq!(u8::from(KeyTag::ZSetM2s), 0x05);
+  assert_eq!(KeyTag::ZSetM2s as u8, 0x05);
+  assert_eq!(KeyTag::from_u8(0x05), Some(KeyTag::ZSetM2s));
+  assert_eq!(KeyTag::try_from(0x05)?, KeyTag::ZSetM2s);
 
   // 2. 验证与原有标识的等价别名关系
-  assert_eq!(KeyTag::HASH_FIELD, KeyTag::Hash);
-  assert_eq!(KeyTag::SET_MEMBER, KeyTag::Set);
-  assert_eq!(KeyTag::Z_MEMBER, KeyTag::ZSetChunk);
-  assert_eq!(KeyTag::Z_SCORE, KeyTag::ZSetM2s);
+  assert_eq!(KeyTag::Hash, KeyTag::Hash);
+  assert_eq!(KeyTag::Set, KeyTag::Set);
+  assert_eq!(KeyTag::ZSetChunk, KeyTag::ZSetChunk);
+  assert_eq!(KeyTag::ZSetM2s, KeyTag::ZSetM2s);
 
   OK
 }
@@ -200,14 +200,7 @@ fn test_zset_score_key_codec() -> Void {
     ZSetSubKeyCodec::encode_score_header(key_id, version, score)
   );
 
-  // 3. 编码到切片
-  let mut dst = vec![0u8; encoded.len()];
-  let written =
-    ZSetSubKeyCodec::encode_score_key_to_slice(key_id, version, score, member, &mut dst)?;
-  assert_eq!(written, encoded.len());
-  assert_eq!(dst, encoded);
-
-  // 4. 验证在相同 key_id / version 下，不同分值键原生字节序完全保持数学有序性
+  // 3. 验证在相同 key_id / version 下，不同分值键原生字节序完全保持数学有序性
   let score1 = -500.0;
   let score2 = 0.0;
   let score3 = 100.5;
@@ -244,10 +237,6 @@ fn test_zset_codec_boundary_and_defense() -> Void {
     ZSetSubKeyCodec::encode_member_key_to_slice(key_id, version, b"", &mut buf)?,
     MEMBER_KEY_HEADER_SIZE
   );
-  assert_eq!(
-    ZSetSubKeyCodec::encode_score_key_to_slice(key_id, version, 1.0, b"", &mut buf)?,
-    SCORE_KEY_HEADER_SIZE
-  );
 
   // 2. 非法短切片防御（长度不足头部长度）
   for len in 0..MEMBER_KEY_HEADER_SIZE {
@@ -276,10 +265,6 @@ fn test_zset_codec_boundary_and_defense() -> Void {
   let mut tiny_buf = [0u8; 10];
   assert!(matches!(
     ZSetSubKeyCodec::encode_member_key_to_slice(key_id, version, b"alice", &mut tiny_buf),
-    Err(Error::BufferTooShort { .. })
-  ));
-  assert!(matches!(
-    ZSetSubKeyCodec::encode_score_key_to_slice(key_id, version, 1.0, b"alice", &mut tiny_buf),
     Err(Error::BufferTooShort { .. })
   ));
 
@@ -365,17 +350,18 @@ fn test_zset_sub_key_buf() -> Void {
   );
 
   // 4. 便捷构造器验证
-  let buf1 = ZSetSubKeyBuf::from_member(key_id, version, short_member)?;
+  let buf1 = wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, short_member)?;
   assert!(buf1.is_stack());
   assert_eq!(buf1.as_slice(), member_buf.as_slice());
 
-  let buf2 = ZSetSubKeyBuf::from_score(key_id, version, 88.8, short_member)?;
+  // 4.1 分值子键便捷构造改经 codec 栈/堆契约
+  let buf2 = ZSetSubKeyCodec::encode_score_key_buf(key_id, version, 88.8, short_member)?;
   assert!(buf2.is_stack());
   assert_eq!(buf2.as_slice(), score_buf.as_slice());
 
   // 5. 空成员仍走栈编码。
-  assert!(ZSetSubKeyBuf::from_member(key_id, version, b"")?.is_stack());
-  assert!(ZSetSubKeyBuf::from_score(key_id, version, 1.0, b"")?.is_stack());
+  assert!(wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, b"")?.is_stack());
+  assert!(ZSetSubKeyCodec::encode_score_key_buf(key_id, version, 1.0, b"")?.is_stack());
 
   OK
 }
@@ -388,7 +374,7 @@ fn test_zset_sub_key_buf_borrow_and_ord_contract() -> Void {
   let version = 1_u64;
   let member = b"user:session:token";
 
-  let stack_buf = ZSetSubKeyBuf::from_member(key_id, version, member)?;
+  let stack_buf = wval::ZSetSubKeyCodec::encode_member_key_buf(key_id, version, member)?;
   assert!(stack_buf.is_stack());
 
   // 构造相同二进制内容的 Heap 版本

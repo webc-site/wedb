@@ -171,21 +171,11 @@ fn test_record_mut_in_place_update() -> Void {
   // 确认失败的更新未破坏原有值
   assert_eq!(rec_mut.value(), updated_val);
 
-  // 4. 原位更新前驱地址
-  let new_prev_addr = 0x0000_0002_0000_0000_u64;
-  rec_mut.set_prev_address(new_prev_addr)?;
-  assert_eq!(rec_mut.prev_address(), new_prev_addr);
-
-  // 5. 尝试更新超出 48 位的非法地址
-  let invalid_addr = 1u64 << 48;
-  let err_addr = rec_mut.set_prev_address(invalid_addr);
-  assert_eq!(err_addr, Err(Error::AddressOverflow(invalid_addr)));
-
-  // 6. 转换为 RecordRef 检验最终一致性
+  // 4. 转换为 RecordRef 检验最终一致性
   let view = rec_mut.as_ref();
   assert_eq!(view.key(), key);
   assert_eq!(view.value(), updated_val);
-  assert_eq!(view.prev_address(), new_prev_addr);
+  assert_eq!(view.prev_address(), prev_addr);
 
   info!("原位值更新与防御拦截测试通过");
   OK

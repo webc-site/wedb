@@ -1,3 +1,2 @@
-# r10 深审后语义吸收/死模块清理：对应 rust 能力已由内部化实现承接，详见提交记录
-fn:
-  - IncrementVersion
+IncrementVersion: C# 事务命令与槽位校验旧实现，Rust 侧由 wserver::transaction 模块统一调度
+ReadVersion: C# 乐观锁版本读取，Rust 侧由 watch 版本字典原生原子读

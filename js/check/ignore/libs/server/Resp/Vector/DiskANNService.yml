@@ -1,9 +1,8 @@
-fn:
-  - create_index
-  - drop_index
-  - set_attribute
-  - search_vector
-  - search_element
-  - continue_search
-  - check_internal_id_valid
-  - check_external_id_valid
+create_index: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+drop_index: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+set_attribute: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+search_vector: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+search_element: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+continue_search: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+check_internal_id_valid: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+check_external_id_valid: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

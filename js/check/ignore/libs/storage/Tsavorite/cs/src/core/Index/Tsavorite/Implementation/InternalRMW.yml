@@ -1,9 +1,8 @@
-fn:
-  - SplitBuckets
-  - OnDispose
-  - CreatePendingRMWContext
-  - EphemeralXUnlock
-  - CheckCPRConsistencyRMW
-  - CreateNewRecordRMW
-  - SaveAllocationForRetry
-  - ReinitializeExpiredRecord
+SplitBuckets: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+OnDispose: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreatePendingRMWContext: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+EphemeralXUnlock: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CheckCPRConsistencyRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+CreateNewRecordRMW: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+SaveAllocationForRetry: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现
+ReinitializeExpiredRecord: C# Tsavorite 存储引擎内部组件，Rust 侧由 wkv/whlog/wbftree 原生实现

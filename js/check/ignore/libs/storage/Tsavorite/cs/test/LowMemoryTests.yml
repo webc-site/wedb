@@ -1,8 +1,6 @@
-fn:
-  - Setup
-  - DeleteDirectory
-  - TearDown
-  - Populate
-test:
-  - LowMemConcurrentUpsertReadTest
-  - LowMemConcurrentUpsertRMWReadTest
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+DeleteDirectory: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Populate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LowMemConcurrentUpsertReadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+LowMemConcurrentUpsertRMWReadTest: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

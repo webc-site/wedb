@@ -1,7 +1,6 @@
-fn:
-  - SetupSingleInstance
-  - AddSlotRange
-  - CreateGetSet
-  - CreateMGetMSet
-  - CreateCTXNSET
-  - Consume
+SetupSingleInstance: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+AddSlotRange: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateGetSet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateMGetMSet: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+CreateCTXNSET: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Consume: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

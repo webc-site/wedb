@@ -1,6 +1,5 @@
-fn:
-  - GlobalSetup
-  - GlobalCleanup
-  - Read_Span
-  - Read_Pinned
-  - FFI_Noop
+GlobalSetup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GlobalCleanup: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Read_Span: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+Read_Pinned: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+FFI_Noop: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

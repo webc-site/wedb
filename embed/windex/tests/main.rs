@@ -15,7 +15,6 @@ fn test_candidate_addresses_stack_heap_lifecycle() -> Void {
   let mut list = CandidateAddresses::new();
   assert_eq!(list.len(), 0);
   assert!(list.is_empty());
-  assert!(!list.is_heap_allocated());
   assert_eq!(list.as_slice(), Some([].as_slice()));
   assert_eq!(list.first(), None);
 
@@ -24,7 +23,6 @@ fn test_candidate_addresses_stack_heap_lifecycle() -> Void {
     list.push(i as u64 * 100);
   }
   assert_eq!(list.len(), 8);
-  assert!(!list.is_heap_allocated());
   assert_eq!(list.first(), Some(100));
   assert_eq!(list[0], 100);
   assert_eq!(list[7], 800);
@@ -40,19 +38,18 @@ fn test_candidate_addresses_stack_heap_lifecycle() -> Void {
     list.push(i as u64 * 100);
   }
   assert_eq!(list.len(), 12);
-  assert!(list.is_heap_allocated());
-  assert_eq!(list.as_slice(), None);
+  assert_eq!(list.as_slice(), None, "突破 8 槽位必须进入堆扩展");
   assert_eq!(list[11], 1200);
   assert!(list.contains(1200));
 
   // 3. 执行 retain 谓词过滤：过滤后剩余 6 个元素 (<= 8)，搬移回收至栈数组
   list.retain(|x| (x / 100) % 2 != 0); // 100, 300, 500, 700, 900, 1100
   assert_eq!(list.len(), 6);
-  assert!(
-    !list.is_heap_allocated(),
+  assert_eq!(
+    list.as_slice(),
+    Some(&[100, 300, 500, 700, 900, 1100][..]),
     "过滤后元素数 <= 8 必须回退回收至栈数组"
   );
-  assert_eq!(list.as_slice(), Some(&[100, 300, 500, 700, 900, 1100][..]));
 
   // 4. 原地降序重排
   list.sort_descending();
@@ -65,7 +62,7 @@ fn test_candidate_addresses_stack_heap_lifecycle() -> Void {
     heap_list.push(x);
   }
   assert_eq!(heap_list.len(), 15);
-  assert!(heap_list.is_heap_allocated());
+  assert_eq!(heap_list.as_slice(), None);
 
   heap_list.sort_descending();
   let mut expected = input.to_vec();
@@ -107,16 +104,16 @@ fn test_hardware_prefetch_and_batch_lookup() -> Void {
   for i in 0..count + 50 {
     query_keys.push(format!("batch_key_{}", i).into_bytes());
   }
-  let keys_slices: Vec<&[u8]> = query_keys.iter().map(|k| k.as_slice()).collect();
+  let query_hashes: Vec<u64> = query_keys.iter().map(|k| HashIndex::hash_key(k)).collect();
 
   // 1. 逐项单查 vs 批量预取查询
-  let mut single_results = Vec::with_capacity(keys_slices.len());
-  for &k in &keys_slices {
+  let mut single_results = Vec::with_capacity(query_keys.len());
+  for k in &query_keys {
     single_results.push(index.lookup_candidates(k));
   }
 
-  let mut batch_results = vec![CandidateAddresses::new(); keys_slices.len()];
-  index.lookup_candidates_batch(&keys_slices, &mut batch_results);
+  let mut batch_results = vec![CandidateAddresses::new(); query_hashes.len()];
+  index.lookup_candidates_batch_by_hash(&query_hashes, &mut batch_results);
 
   assert_eq!(single_results.len(), batch_results.len());
   for (single, batch) in single_results.iter().zip(&batch_results) {
@@ -125,27 +122,21 @@ fn test_hardware_prefetch_and_batch_lookup() -> Void {
 
   // 边界测试：空列表与超短列表（< 12）
   let mut empty_res = Vec::new();
-  index.lookup_candidates_batch(&[], &mut empty_res);
+  index.lookup_candidates_batch_by_hash(&[], &mut empty_res);
+  assert!(empty_res.is_empty());
 
-  let short_keys = [keys_slices[0], keys_slices[1], keys_slices[2]];
+  let short_hashes = &query_hashes[..3];
   let mut short_res = vec![CandidateAddresses::new(); 3];
-  index.lookup_candidates_batch(&short_keys, &mut short_res);
+  index.lookup_candidates_batch_by_hash(short_hashes, &mut short_res);
   assert_eq!(&short_res[0], &single_results[0]);
   assert_eq!(&short_res[1], &single_results[1]);
   assert_eq!(&short_res[2], &single_results[2]);
 
-  // 2. find_tag_batch 与 find_tag_batch_by_hash 流水线预取验证
-  let sample_count = 20;
-  let sample_keys: Vec<&[u8]> = keys[..sample_count].iter().map(|k| k.as_slice()).collect();
-  let sample_hashes = &hashes[..sample_count];
-
-  let mut results_by_key = vec![None; sample_count];
-  index.find_tag_batch(&sample_keys, &mut results_by_key);
-
-  let mut results_by_hash = vec![None; sample_count];
+  // 2. find_tag_batch_by_hash 流水线预取验证
+  let sample_hashes = &hashes[..20];
+  let mut results_by_hash = vec![None; sample_hashes.len()];
   index.find_tag_batch_by_hash(sample_hashes, &mut results_by_hash);
 
-  assert_eq!(results_by_key, results_by_hash);
   for (i, &res) in results_by_hash.iter().enumerate() {
     let expected_addr = (i as u64) + 1000;
     assert_eq!(res, Some(expected_addr));

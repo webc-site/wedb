@@ -1,16 +1,14 @@
-fn:
-  - Setup
-  - TearDown
-  - PopulatePrimary
-  - Validate
-  - ResetAndReAttach
-  - MakeHashFieldBytes
-test:
-  - ClusterDisklessSyncHugeObjectChunked
-  - ClusterEmptyReplicaDisklessSync
-  - ClusterDisklessSyncLargeValuesChunked
-  - ClusterAofReplayDisklessSync
-  - ClusterDBVersionAlignmentDisklessSync
-  - ClusterDisklessSyncParallelAttach
-  - ClusterDisklessSyncFailover
-  - ClusterDisklessSyncResetSyncManagerCts
+Setup: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+TearDown: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+PopulatePrimary: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+Validate: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ResetAndReAttach: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+MakeHashFieldBytes: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncHugeObjectChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterEmptyReplicaDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncLargeValuesChunked: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterAofReplayDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDBVersionAlignmentDisklessSync: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncParallelAttach: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncFailover: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+ClusterDisklessSyncResetSyncManagerCts: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖

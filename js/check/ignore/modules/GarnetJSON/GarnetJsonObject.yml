@@ -1,11 +1,9 @@
-fn:
-  - Create
-  - Deserialize
-  - GarnetJsonObject
-  - CloneObject
-  - SerializeObject
-  - TryGet
-  - TryGetRoot
-  - TryGetToWriter
-  - GetParentPath
-  - GetPropertyName
+Create: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+Deserialize: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+CloneObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+SerializeObject: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGet: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGetRoot: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+TryGetToWriter: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetParentPath: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+GetPropertyName: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现

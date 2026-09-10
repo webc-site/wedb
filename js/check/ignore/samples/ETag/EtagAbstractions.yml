@@ -1,6 +1,5 @@
-fn:
-  - PerformLockFreeSafeUpdate
-  - updateAction
-  - GetIfNotMatch
-  - GetWithEtag
-  - _updateItemIfMatch
+PerformLockFreeSafeUpdate: C# 样例工程与示例客户端代码，非核心服务端实现
+updateAction: C# 样例工程与示例客户端代码，非核心服务端实现
+GetIfNotMatch: C# 样例工程与示例客户端代码，非核心服务端实现
+GetWithEtag: C# 样例工程与示例客户端代码，非核心服务端实现
+_updateItemIfMatch: C# 样例工程与示例客户端代码，非核心服务端实现

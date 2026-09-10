@@ -1,5 +1,4 @@
-fn:
-  - GetServerOptions
-  - GarnetServerInstance
-  - GetClusterSession
-  - GetRespServerSession
+GetServerOptions: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GarnetServerInstance: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetClusterSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测
+GetRespServerSession: C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用 criterion/独立压测

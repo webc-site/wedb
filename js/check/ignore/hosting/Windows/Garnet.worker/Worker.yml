@@ -1,2 +1,1 @@
-fn:
-  - StopAsync
+StopAsync: Windows Service 宿主实现，Rust 侧采用独立跨平台守护进程启动
