@@ -19,10 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 bitcode.workspace = true
 fastrand.workspace = true
-gxhash.workspace = true
 itoa.workspace = true
-papaya.workspace = true
 parking_lot.workspace = true
+whasher.workspace = true
 
 [dev-dependencies]
 aok = "0.1.18"

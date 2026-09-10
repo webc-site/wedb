@@ -4,9 +4,8 @@ use std::{
   io::{self, Read, Write},
 };
 
-use gxhash::GxBuildHasher;
-use papaya::HashMap;
 use parking_lot::Mutex;
+use whasher::{GxPapayaMap, new_papaya_map};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -50,14 +49,14 @@ impl Ord for SortedSetEntry {
 
 /// 在 garnet 中的相对路径:libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetObject
 pub struct SortedSetObject {
-  pub dict: HashMap<Vec<u8>, f64, GxBuildHasher>,
+  pub dict: GxPapayaMap<Vec<u8>, f64>,
   pub tree: Mutex<BTreeSet<SortedSetEntry>>,
 }
 
 impl SortedSetObject {
   pub fn new() -> Self {
     Self {
-      dict: HashMap::with_hasher(GxBuildHasher::default()),
+      dict: new_papaya_map(),
       tree: Mutex::new(BTreeSet::new()),
     }
   }
@@ -69,7 +68,7 @@ impl SortedSetObject {
     let items: Vec<(Vec<u8>, f64)> =
       bitcode::decode(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    let dict = HashMap::with_hasher(GxBuildHasher::default());
+    let dict = new_papaya_map();
     let pin = dict.pin();
     let mut tree = BTreeSet::new();
 

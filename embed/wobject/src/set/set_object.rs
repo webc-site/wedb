@@ -1,7 +1,6 @@
 use std::io::{self, Read, Write};
 
-use gxhash::GxBuildHasher;
-use papaya::HashSet;
+use whasher::{GxPapayaSet, new_papaya_set};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -24,13 +23,13 @@ pub enum SetOperation {
 
 /// 在 garnet 中的相对路径:libs/server/Objects/Set/SetObject.cs:SetObject
 pub struct SetObject {
-  pub set: HashSet<Vec<u8>, GxBuildHasher>,
+  pub set: GxPapayaSet<Vec<u8>>,
 }
 
 impl SetObject {
   pub fn new() -> Self {
     Self {
-      set: HashSet::with_hasher(GxBuildHasher::default()),
+      set: new_papaya_set(),
     }
   }
 
@@ -41,7 +40,7 @@ impl SetObject {
     let items: Vec<Vec<u8>> =
       bitcode::decode(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    let set = HashSet::with_hasher(GxBuildHasher::default());
+    let set = new_papaya_set();
     let pin = set.pin();
     for item in items {
       pin.insert(item);

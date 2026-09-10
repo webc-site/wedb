@@ -2,11 +2,36 @@
 
 WeDB Base 是 [WeDB](https://github.com/webc-site/wedb) 的存储引擎底座。以 Rust 重写微软 [Garnet](https://github.com/microsoft/garnet) 的 C# 存储核心——Tsavorite 混合日志、无锁哈希索引、CPR 检查点、槽位复活、日志紧缩——以及 BfTree 范围索引，拆分为十七个职责单一的 crate，运行于 `compio` 异步运行时（Linux io_uring、Windows IOCP、macOS kqueue）。
 
+- [功能介绍](#功能介绍)
+- [使用演示](#使用演示)
+- [特性介绍](#特性介绍)
+- [设计思路](#设计思路)
+- [技术堆栈](#技术堆栈)
+- [目录结构](#目录结构)
+- [API 说明](#api-说明)
+  - [wkv —— 顶层引擎](#wkv-顶层引擎)
+  - [wbase —— L0 原语](#wbase-l0-原语)
+  - [wutil —— 公共工具与缓冲池](#wutil-公共工具与缓冲池)
+  - [wram —— 直接虚拟内存](#wram-直接虚拟内存)
+  - [whasher —— 哈希与并发字典](#whasher-哈希与并发字典)
+  - [wepoch —— 纪元保护](#wepoch-纪元保护)
+  - [wdev —— 异步设备](#wdev-异步设备)
+  - [wrecord —— 记录格式](#wrecord-记录格式)
+  - [wval —— 值层](#wval-值层)
+  - [windex —— 无锁哈希索引](#windex-无锁哈希索引)
+  - [whlog —— 混合日志分配器](#whlog-混合日志分配器)
+  - [wreviv —— 空闲槽位回收](#wreviv-空闲槽位回收)
+  - [wbftree —— BfTree 范围索引](#wbftree-bftree-范围索引)
+  - [wcompact —— 日志紧缩](#wcompact-日志紧缩)
+  - [wcpr —— CPR 检查点](#wcpr-cpr-检查点)
+  - [wsync —— Tsavorite 并发原语](#wsync-tsavorite-并发原语)
+  - [wobject —— 记录式对象层](#wobject-记录式对象层)
+
 ## 功能介绍
 
-工作区分层交付整套存储栈。底层 `wbase` 提供缓存行安全原语：48 位日志寻址、扇区对齐运算、自适应退避、TLS 线程标识。`wram` 管理直接虚拟内存与原生内存追踪，`wutil` 承载扇区对齐缓冲池（对标 Tsavorite `core/Utilities` 底层位）与 libs/common 工具。`whasher` 封装 AES 加速 GxHash、四链并行流式校验和与 Papaya 无锁并发字典。`wepoch` 提供纪元保护，支撑安全内存回收。`wdev` 基于 `compio` 抽象异步块设备。
+工作区分层交付整套存储栈。底层 `wbase` 提供缓存行安全原语：48 位日志寻址、扇区对齐运算、自适应退避、TLS 线程标识。`wram` 管理直接虚拟内存与原生内存追踪，`wutil` 承载扇区对齐缓冲池（对标 Tsavorite `core/Utilities` 底层位）与 libs/common 工具。`whasher` 封装 AES 加速 GxHash、四链并行流式校验和与 Papaya 无锁并发字典。`wepoch` 提供纪元保护，支撑安全内存回收。`wdev` 基于 `compio` 抽象异步块设备。`wsync` 承载 Tsavorite 并发原语（读优化锁、单写多读锁、旋转门 / 领袖屏障、计数事件）。
 
-核心层对标 Tsavorite。`wrecord` 定义 16 字节记录头与零拷贝记录视图。`windex` 实现 64 字节对齐的无锁哈希索引，含溢出桶池与桶级并发守卫。`whlog` 实现混合日志分配器与三区滑动窗口（可变 / 只读 / 磁盘）。`wreviv` 回收已删记录槽位。`wval` 叠加 Redis 值层：多租户命名空间编码、集合元数据、hash / set / zset 紧凑编解码。
+核心层对标 Tsavorite。`wrecord` 定义 16 字节记录头与零拷贝记录视图。`windex` 实现 64 字节对齐的无锁哈希索引，含溢出桶池与桶级并发守卫。`whlog` 实现混合日志分配器与三区滑动窗口（可变 / 只读 / 磁盘）。`wreviv` 回收已删记录槽位。`wval` 叠加 Redis 值层：多租户命名空间编码、集合元数据、hash / set / zset 紧凑编解码。`wobject` 提供记录式对象层——基于并发索引的内存 Hash / Set / List / SortedSet 对象，供服务端层消费。
 
 服务层编排核心模块。`wcpr` 驱动 CPR 检查点。`wcompact` 紧缩只读日志段并物理截断回收段文件。`wbftree` 管理基于 BfTree 的有序范围索引。`wkv` 把上述能力聚合为 `WedbStore` 单机引擎，提供存储会话、记录级 TTL、后台 GC、读缓存、检查点恢复与范围索引操作。
 
@@ -161,11 +186,13 @@ graph TD
     windex[windex 哈希索引]
     wreviv[wreviv 空闲槽位池]
     wval[wval 值编解码]
+    wobject[wobject 记录式对象层]
   end
   subgraph foundation[基础层]
     wrecord[wrecord 记录格式]
     wdev[wdev 异步设备]
     wepoch[wepoch 纪元保护]
+    wsync[wsync 并发原语]
     whasher[whasher 哈希与并发字典]
     wutil[wutil 缓冲池与工具]
     wram[wram 直接虚拟内存]
@@ -179,6 +206,7 @@ graph TD
   wkv --> windex
   wkv --> wreviv
   wkv --> wval
+  wobject --> whasher
   wcompact --> whlog
   wcompact --> windex
   wcompact --> wval
@@ -240,6 +268,7 @@ embed/
   whasher/   GxHash 后端、流式校验和、Papaya 并发字典
   wepoch/    LightEpoch 纪元保护与条目表
   wdev/      compio Device trait、SegmentedDevice、NullDevice、fsync 契约
+  wsync/     Tsavorite 并发原语：ReadOptimizedLock、SingleWriterMultiReaderLock、屏障、信号量
   wrecord/   16B 记录头、零拷贝视图、分块框架、SIMD 键比较
   wval/      命名空间与会话键编码、集合元数据、紧凑编解码、glob、TTL
   windex/    无锁哈希索引、溢出桶池、桶守卫
@@ -249,6 +278,7 @@ embed/
   wcompact/  LogCompactor、紧缩会话 trait、紧缩统计
   wcpr/      CPR 检查点状态机、索引检查点读写、元数据格式
   wkv/       WedbStore、会话、TTL、GC、读缓存、恢复编排
+  wobject/   记录式对象层：内存 Hash / Set / List / SortedSet 对象
   example/   工作区模板与测试脚手架（不发布）
   sh/        开发与发布脚本
   test.sh    全特性 cargo nextest 入口
@@ -372,3 +402,16 @@ embed/
 - `RecoveredCheckpoint<D>`——恢复出的 `CheckpointMeta` 与重建的 `HashIndex`、`HybridLog`、`LightEpoch`。
 - `write_index_checkpoint` / `read_index_checkpoint_truncated`、`take_index_checkpoint`、`IndexCkptHeader`、`next_token`。
 - `CheckpointManager`——`wkv` 包装之下的设备级管理器；`CheckpointMeta`、`CheckpointType`（`FoldOver` / `Snapshot`）、`StoreMeta`、`HlogMeta`、`IndexMeta`、文件命名助手。
+
+### wsync —— Tsavorite 并发原语
+
+- `ReadOptimizedLock` / `LockToken` / `LockType`、`SingleWriterMultiReaderLock`——对标 Tsavorite 的读写纪律与自旋重试环。
+- `DoubleTurnstileBarrier`、`LeaderBarrier`、`CountingEventSlim`、`Semaphore`——屏障与信号原语。
+- `ActiveWorkerMonitor`、`CooperativeDisposeGuard`——协作式停机记账。
+
+### wobject —— 记录式对象层
+
+- `HashObject` / `SetObject` / `ListObject` / `SortedSetObject`——基于无锁 `whasher::GxPapayaMap` / `GxPapayaSet` 索引的内存对象实现。
+- `HashOperation`、`SetOperation`、`ListOperation`、`SortedSetOperation` 枚举、`SortedSetEntry`（分值/成员全序）、`OperationDirection`。
+- bitcode `serialize` / `deserialize` 检查点载荷编解码。
+
