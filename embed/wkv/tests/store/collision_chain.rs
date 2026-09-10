@@ -262,9 +262,8 @@ fn test_delete_miss_on_full_chain_never_allocates_overflow() -> Void {
       })
       .expect("对照键搜索不可能耗尽");
     session.upsert(live.as_bytes(), b"live-value").await?;
-    let deleted = session.try_delete_raw_sync(
-      session.session_string_key(live.as_bytes()).as_slice(),
-    )?;
+    let deleted =
+      session.try_delete_raw_sync(session.session_string_key(live.as_bytes()).as_slice())?;
     assert_eq!(deleted, Ok(true), "真实存在键删除必须生效");
     assert_eq!(session.read(live.as_bytes()).await?, None);
 

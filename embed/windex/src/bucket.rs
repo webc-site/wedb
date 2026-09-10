@@ -332,13 +332,12 @@ impl HashBucket {
     let expected_hi = (tag as u64) & HashBucketEntry::TAG_MASK;
     for (slot, item) in self.entries[..DATA_ENTRIES].iter().enumerate() {
       let raw = item.load(Ordering::Relaxed);
-      if (raw >> HashBucketEntry::TAG_SHIFT) == expected_hi {
-        if raw & HashBucketEntry::ADDRESS_MASK != 0 {
+      if (raw >> HashBucketEntry::TAG_SHIFT) == expected_hi
+        && raw & HashBucketEntry::ADDRESS_MASK != 0 {
           // 命中屏障：保证调用方对命中地址记录数据的读取可见发布方全部前置写
           fence(Ordering::Acquire);
           return Some((slot, raw));
         }
-      }
     }
     None
   }

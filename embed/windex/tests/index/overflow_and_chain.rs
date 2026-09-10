@@ -307,7 +307,11 @@ fn test_find_tag_entry_never_allocates_and_supports_cas_elide() -> Void {
 
   // 1. 未命中探针（构造链上不存在的 Tag）：零分配
   let miss_hash = (9_999u64 << tag_shift) | 1;
-  assert!(index.find_tag_entry_by_hash_with_min_addr(miss_hash, 0).is_none());
+  assert!(
+    index
+      .find_tag_entry_by_hash_with_min_addr(miss_hash, 0)
+      .is_none()
+  );
   assert_eq!(
     index.overflow_bucket_count(),
     2,
@@ -340,7 +344,11 @@ fn test_find_tag_entry_never_allocates_and_supports_cas_elide() -> Void {
     .expect("CAS 后必须命中新地址");
   assert_eq!(hei.address(), new_addr);
   assert!(hei.try_elide(), "命中句柄原子脱钩必须成功");
-  assert!(index.find_tag_entry_by_hash_with_min_addr(hit_hash, 0).is_none());
+  assert!(
+    index
+      .find_tag_entry_by_hash_with_min_addr(hit_hash, 0)
+      .is_none()
+  );
 
   // 4. min_valid_addr 清退：同 Tag 多候选（陈旧截断 + 有效新版）时必须清退陈旧槽位
   //    并继续推进命中有效新版——与 find_or_create_tag_with_min_addr 口径一致
