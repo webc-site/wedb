@@ -136,7 +136,7 @@ fn read_frame_line(rest: &[u8]) -> Option<(&[u8], &[u8])> {
   Some((&rest[..pos], &rest[pos + 2..]))
 }
 
-/// 最小 RESP2 bulk-array 参数解析：仅支持 [`wnode::resp`] 产出的规范帧
+/// 最小 RESP2 bulk-array 参数解析：仅支持 [`wedb_standalone::resp`] 产出的规范帧
 /// (`*N\r\n` 头 + N 个 `$len\r\n<bytes>\r\n` 段)，供回放端从协议载荷提取
 /// 命令参数（对标 C# AofProcessor 经 SessionParser 重新解析 AOF 中的命令）
 fn parse_resp_args(frame: &[u8]) -> Option<Vec<&[u8]>> {
@@ -167,8 +167,8 @@ struct AofCollector {
   ops: Vec<PendingOp>,
 }
 
-impl wnode::Replay for AofCollector {
-  fn on_entry(&mut self, entry: wnode::AofEntryRef<'_>) -> wnode::AofResult<()> {
+impl wedb_standalone::Replay for AofCollector {
+  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
     self.ops.push(PendingOp {
       op: entry.op,
       key: entry.key.to_vec(),
@@ -226,7 +226,7 @@ async fn replay_apply(session: &StoreSession<SegmentedDevice>, entry: &PendingOp
         parse_resp_args(&entry.blob).ok_or_else(|| aok::Error::msg("malformed RI.DEL frame"))?;
       session.range_index_del(&entry.key, args[2]).await?;
     }
-    // 预留位：wnode 尚未接入 KV 编排，回放端按 UnknownOp 兜底语义跳过
+    // 预留位：wedb_standalone 尚未接入 KV 编排，回放端按 UnknownOp 兜底语义跳过
     AofOp::KvUpsert | AofOp::KvDelete => {}
     // TtlPurge 不经 on_entry 分发（NodeService::replay 走 on_ttl_purge 专用口，
     // 载荷由 TtlPurgePayload 定长 24B 解码），到达此处仅可能为直连场景，跳过
@@ -336,13 +336,13 @@ struct TtlPurgeCollector {
   purges: Vec<(u64, u64, Vec<u8>, u64)>,
 }
 
-impl wnode::Replay for TtlPurgeCollector {
-  fn on_entry(&mut self, entry: wnode::AofEntryRef<'_>) -> wnode::AofResult<()> {
+impl wedb_standalone::Replay for TtlPurgeCollector {
+  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
     self.mirrors.push((entry.op, entry.key.to_vec()));
     Ok(())
   }
 
-  fn on_ttl_purge(&mut self, key: &[u8], payload: TtlPurgePayload) -> wnode::AofResult<()> {
+  fn on_ttl_purge(&mut self, key: &[u8], payload: TtlPurgePayload) -> wedb_standalone::AofResult<()> {
     self
       .purges
       .push((payload.ns, payload.db, key.to_vec(), payload.expire_at_ms));
@@ -374,7 +374,7 @@ fn ttl_purge_single_deterministic_entry() -> Void {
         } else {
           AofOp::KvUpsert
         };
-        let _ = mirror_wal.enqueue(&wnode::encode_entry(op, 0, key, val));
+        let _ = mirror_wal.enqueue(&wedb_standalone::encode_entry(op, 0, key, val));
       }))
     );
 
