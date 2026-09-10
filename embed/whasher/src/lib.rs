@@ -312,6 +312,17 @@ pub fn new_papaya_map<K, V>() -> GxPapayaMap<K, V> {
     .build()
 }
 
+/// 基于硬件向量加速 gxhash 构建器的无锁高并发集合类型
+pub type GxPapayaSet<T> = papaya::HashSet<T, GxBuildHasher>;
+
+/// 创建搭载硬件向量加速 gxhash 构建器的无锁并发集合
+#[inline]
+pub fn new_papaya_set<T>() -> GxPapayaSet<T> {
+  papaya::HashSet::builder()
+    .hasher(GxBuildHasher::default())
+    .build()
+}
+
 /// 单次快速 64 位键哈希（采用 gxhash 硬件向量加速指令，单次耗时 ~0.31ns）
 ///
 /// 对标 C# `HashUtils.MurmurHash2x64A` 与 `Utility.HashBytes`（HyperLogLog、迁移 Sketch、
