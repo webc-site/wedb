@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/whasher"
-description = "Hardware-accelerated hashing, streaming checksums, and concurrent collections / 硬件加速哈希、流式校验和与并发集合"
+description = "Hardware-accelerated hashing, streaming checksums, and concurrent collections"
 keywords = ["hash", "gxhash", "checksum", "concurrent", "collections"]
 categories = ["algorithms", "data-structures", "concurrency", "caching", "database-implementations"]
 

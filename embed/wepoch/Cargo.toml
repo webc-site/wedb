@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wepoch"
-description = "LightEpoch epoch protection for safe memory reclamation / 面向安全内存回收的纪元保护"
+description = "LightEpoch epoch protection for safe memory reclamation"
 keywords = ["epoch", "smr", "lock-free", "memory-reclamation", "concurrency"]
 categories = ["concurrency", "memory-management", "data-structures", "database-implementations", "algorithms"]
 

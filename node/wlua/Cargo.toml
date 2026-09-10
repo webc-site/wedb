@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wlua"
-description = "wlua"
+description = "Lua scripting engine integration (Luau runtime) for server-side scripts"
 keywords = []
 categories = []
 

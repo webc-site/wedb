@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/ext_noop"
-description = "ext_noop"
+description = "No-op extension template for extension development and testing"
 keywords = []
 categories = []
 

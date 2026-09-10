@@ -5,7 +5,7 @@ edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wedb_standalone"
-description = "单机网络服务底座：RESP 协议帧、AOF 逻辑层与节点服务编排（对标 Garnet libs/server 单机半区）"
+description = "Standalone server foundation: RESP protocol, AOF logic layer, and node service orchestration"
 keywords = [ ]
 categories = [ ]
 

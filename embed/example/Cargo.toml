@@ -6,7 +6,7 @@ publish = false
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/example"
-description = "example"
+description = "Example crate for WeDB usage reference and documentation"
 keywords = []
 categories = []
 

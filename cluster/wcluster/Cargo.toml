@@ -1,6 +1,6 @@
 [package]
 name = "wcluster"
-description = "wcluster"
+description = "Cluster wiring layer: client/server sessions, cluster factory, and node assembly"
 
 [package.version]
 workspace = true

@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wconn"
-description = "wconn"
+description = "Network connection and session management: RESP protocol parser and client API"
 keywords = []
 categories = []
 

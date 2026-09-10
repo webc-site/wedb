@@ -5,7 +5,7 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/whost"
-description = "whost"
+description = "Server host process: configuration and node service entry point"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
