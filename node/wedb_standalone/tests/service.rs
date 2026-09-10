@@ -9,7 +9,7 @@ use tempfile::tempdir;
 use waof::{WalConfig, WalLog};
 use wdev::SegmentedDevice;
 use wkv::{StorageBackend, StoreConfig, TtlOpt, WedbStore};
-use wnode::{AofOp, NodeService, StoreSession, TreeTuning, TtlPurgePayload};
+use wedb_standalone::{AofOp, NodeService, StoreSession, TreeTuning, TtlPurgePayload};
 
 /// 与 wkv/tests/range_index_scan.rs TUNE 对齐的合法调优参数
 const TUNE: wkv::TreeTuning = wkv::TreeTuning {
@@ -48,8 +48,8 @@ struct CollectingReplay {
   seen: Vec<(AofOp, Vec<u8>)>,
 }
 
-impl wnode::Replay for CollectingReplay {
-  fn on_entry(&mut self, entry: wnode::AofEntryRef<'_>) -> wnode::AofResult<()> {
+impl wedb_standalone::Replay for CollectingReplay {
+  fn on_entry(&mut self, entry: wedb_standalone::AofEntryRef<'_>) -> wedb_standalone::AofResult<()> {
     self.seen.push((entry.op, entry.key.to_vec()));
     Ok(())
   }
