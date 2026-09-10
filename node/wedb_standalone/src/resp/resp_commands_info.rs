@@ -1,5 +1,7 @@
-use crate::acl::command_catalog_data::{CmdEntry, CMD_ENTRIES};
-use crate::types::RespCommand;
+use crate::{
+  acl::command_catalog_data::{CMD_ENTRIES, CmdEntry},
+  types::RespCommand,
+};
 
 pub struct RespCommandsInfo;
 
@@ -41,7 +43,9 @@ impl RespCommandsInfo {
 
   /// libs/server/Resp/RespCommandsInfo.cs:TryGetRespCommandInfo
   pub fn try_get_resp_command_info(name: &str) -> Option<&'static CmdEntry> {
-    CMD_ENTRIES.iter().find(|e| e.name.eq_ignore_ascii_case(name))
+    CMD_ENTRIES
+      .iter()
+      .find(|e| e.name.eq_ignore_ascii_case(name))
   }
 
   /// libs/server/Resp/RespCommandsInfo.cs:TryFastGetRespCommandInfo
@@ -51,7 +55,10 @@ impl RespCommandsInfo {
 
   /// libs/server/Resp/RespCommandsInfo.cs:TryGetRespSubCommandsInfo
   pub fn try_get_resp_sub_commands_info(parent: RespCommand) -> Vec<&'static CmdEntry> {
-    CMD_ENTRIES.iter().filter(|e| e.parent == Some(parent)).collect()
+    CMD_ENTRIES
+      .iter()
+      .filter(|e| e.parent == Some(parent))
+      .collect()
   }
 
   /// libs/server/Resp/RespCommandsInfo.cs:TryGetSimpleRespCommandInfo

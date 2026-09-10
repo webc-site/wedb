@@ -30,7 +30,10 @@ impl BitFieldType {
     if count == 0 || (is_signed && count > 64) || (!is_signed && count > 63) {
       return None;
     }
-    Some(Self { is_signed, bit_count: count })
+    Some(Self {
+      is_signed,
+      bit_count: count,
+    })
   }
 }
 
@@ -272,11 +275,7 @@ impl BitmapManagerBitfield {
       (Some(val), false)
     } else if sub_cmd.eq_ignore_ascii_case(b"SET") {
       let (old, ov) = Self::set_bitfield(bitmap, offset, b_type, arg, overflow_type);
-      if ov {
-        (None, true)
-      } else {
-        (Some(old), false)
-      }
+      if ov { (None, true) } else { (Some(old), false) }
     } else if sub_cmd.eq_ignore_ascii_case(b"INCRBY") {
       let (new_val, ov) = Self::check_bitfield_overflow(
         Self::get_value(bitmap, offset, b_type),

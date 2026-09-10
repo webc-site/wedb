@@ -6,11 +6,7 @@ impl RespCommandKeySpecification {
 
   /// libs/server/Resp/RespCommandKeySpecification.cs:TryGetStartIndex
   pub fn try_get_start_index(args: &[&[u8]]) -> Option<usize> {
-    if args.is_empty() {
-      None
-    } else {
-      Some(0)
-    }
+    if args.is_empty() { None } else { Some(0) }
   }
 
   /// libs/server/Resp/RespCommandKeySpecification.cs:ExtractKeys

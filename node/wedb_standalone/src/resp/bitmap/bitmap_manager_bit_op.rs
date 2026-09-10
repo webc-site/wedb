@@ -14,7 +14,10 @@ pub struct BitmapManagerBitOp;
 
 impl BitmapManagerBitOp {
   /// libs/server/Resp/Bitmap/BitmapManagerBitOp.cs:InvokeBitOperationUnsafe
-  pub fn invoke_bit_operation(op: BitmapOperation, sources: &[&[u8]]) -> Result<Vec<u8>, &'static str> {
+  pub fn invoke_bit_operation(
+    op: BitmapOperation,
+    sources: &[&[u8]],
+  ) -> Result<Vec<u8>, &'static str> {
     if sources.is_empty() {
       return Err("BITOP requires at least one source bitmap");
     }
@@ -84,7 +87,10 @@ impl BitmapManagerBitOp {
 
   /// libs/server/Resp/Bitmap/BitmapManagerBitOp.cs:InvokeNaryBitwiseOperation
   #[inline]
-  pub fn invoke_nary_bitwise_operation(op: BitmapOperation, sources: &[&[u8]]) -> Result<Vec<u8>, &'static str> {
+  pub fn invoke_nary_bitwise_operation(
+    op: BitmapOperation,
+    sources: &[&[u8]],
+  ) -> Result<Vec<u8>, &'static str> {
     Self::invoke_bit_operation(op, sources)
   }
 }

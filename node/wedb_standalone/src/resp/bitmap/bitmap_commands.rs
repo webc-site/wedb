@@ -3,18 +3,18 @@
 //! 同步快路径：字符串域直读直写，磁盘候选等须异步裁决时返回 `Ok(false)`
 //! 交调用方降级。位序对标 Redis/C#：bit 0 为首字节最高位。
 
-use super::super::{
-  basic_commands::MAX_STRING_PAYLOAD_BYTES,
-  cmd_strings as cs,
-  cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments},
-  parser::resp_ext::{RespSliceExt, RespVecExt},
-  resp_server_session::RespServerSession,
-};
 use super::{
+  super::{
+    basic_commands::MAX_STRING_PAYLOAD_BYTES,
+    cmd_strings as cs,
+    cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments},
+    parser::resp_ext::{RespSliceExt, RespVecExt},
+    resp_server_session::RespServerSession,
+  },
   bitmap_manager::BitmapManager,
   bitmap_manager_bit_op::{BitmapManagerBitOp, BitmapOperation},
   bitmap_manager_bit_pos::BitmapManagerBitPos,
-  bitmap_manager_bitfield::{BitmapManagerBitfield, BitFieldType, OverflowType},
+  bitmap_manager_bitfield::{BitFieldType, BitmapManagerBitfield, OverflowType},
 };
 
 fn parse_bitfield_offset(raw: &[u8], bit_count: u8) -> Option<i64> {
@@ -256,7 +256,13 @@ impl RespServerSession {
       }
     }
 
-    if BitmapManager::try_validate_bit_pos_offsets(start_offset, end_offset, offset_type, has_start, has_end) {
+    if BitmapManager::try_validate_bit_pos_offsets(
+      start_offset,
+      end_offset,
+      offset_type,
+      has_start,
+      has_end,
+    ) {
       output.write_resp_int(-1);
       return Ok(true);
     }
@@ -275,7 +281,8 @@ impl RespServerSession {
       }
     };
 
-    let mut pos = BitmapManagerBitPos::bit_pos_driver(&val, start_offset, end_offset, search_for, offset_type);
+    let mut pos =
+      BitmapManagerBitPos::bit_pos_driver(&val, start_offset, end_offset, search_for, offset_type);
     if pos == -1 && search_for == 0 && !has_end {
       pos = val.len() as i64 * 8;
     }
@@ -381,7 +388,10 @@ impl RespServerSession {
     read_only: bool,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 2 {
-      abort_with_wrong_number_of_arguments(output, if read_only { "BITFIELD_RO" } else { "BITFIELD" });
+      abort_with_wrong_number_of_arguments(
+        output,
+        if read_only { "BITFIELD_RO" } else { "BITFIELD" },
+      );
       return Ok(true);
     }
     let key = parse_state[0];
@@ -499,7 +509,8 @@ impl RespServerSession {
         if val.len() < required_bytes {
           val.resize(required_bytes, 0);
         }
-        let res = BitmapManagerBitfield::increment_bitfield(&mut val, offset, btype, incr, overflow);
+        let res =
+          BitmapManagerBitfield::increment_bitfield(&mut val, offset, btype, incr, overflow);
         results.push(res);
         if res.is_some() {
           modified = true;

@@ -148,7 +148,9 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     if parse_state.len() < 3 || parse_state.len() > 6 {
-      output.write_resp_error(&format!("wrong number of arguments for '{cmd_name}' command"));
+      output.write_resp_error(&format!(
+        "wrong number of arguments for '{cmd_name}' command"
+      ));
       return Ok(true);
     }
     let key = parse_state[0];

@@ -26,7 +26,7 @@ description: garnet 转写 rust
 lua 用 luau
 只能使用 cargo add 添加依赖，禁改 Cargo.toml
 
-让子代理通过运行 `./fork.sh <分支名>` 一键在 `/tmp/fork/<分支名>` 创建 worktree 分支。在分支中优化，写完、测试之后合并到当前目录，并清理 worktree。
+让子代理通过运行 `./fork.sh <分支名>` 一键在 `/tmp/fork/<分支名>` 创建 worktree 分支。在分支中优化，写完、测试后合并到主目录，删除分支。
 
 运行 `./js/check.js` 可以看到缺失实现或者文档注释的 c# 函数，还可以看到重复定义的 c#函数
 
