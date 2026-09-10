@@ -1,6 +1,8 @@
 [package]
 name = "wcluster"
 description = "Cluster wiring layer: client/server sessions, cluster factory, and node assembly"
+keywords = ["cluster", "distributed", "session", "node"]
+categories = ["concurrency", "network-programming"]
 
 [package.version]
 workspace = true

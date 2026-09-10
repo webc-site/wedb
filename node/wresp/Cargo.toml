@@ -6,8 +6,8 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wresp"
 description = "RESP (REdis Serialization Protocol) response writer and serializer"
-keywords = []
-categories = []
+keywords = ["resp", "redis", "protocol", "serialization"]
+categories = ["network-programming", "encoding"]
 
 [features]
 default = []

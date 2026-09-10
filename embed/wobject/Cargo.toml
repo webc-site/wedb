@@ -6,8 +6,8 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wobject"
 description = "In-memory record-backed objects: Hash, Set, List, and SortedSet implementations"
-keywords = []
-categories = []
+keywords = ["object", "hash", "set", "list", "sorted-set"]
+categories = ["data-structures", "database-implementations"]
 
 [features]
 default = []

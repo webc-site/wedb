@@ -6,8 +6,8 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/ext_json"
 description = "RedisJSON extension: JSON commands, JSONPath queries, and object integration"
-keywords = []
-categories = []
+keywords = ["json", "redis", "jsonpath", "extension"]
+categories = ["database-implementations", "encoding"]
 
 [features]
 default = []

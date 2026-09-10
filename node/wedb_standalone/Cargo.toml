@@ -6,8 +6,8 @@ license = "Apache-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wedb_standalone"
 description = "Standalone server foundation: RESP protocol, AOF logic layer, and node service orchestration"
-keywords = [ ]
-categories = [ ]
+keywords = ["server", "database", "resp", "redis", "aof"]
+categories = ["database-implementations", "network-programming"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,6 +1,8 @@
 [package]
 name = "wedb"
 description = "Cluster data-plane: AOF sync replication, range-index migration chunk streaming, and failover management"
+keywords = ["cluster", "replication", "aof", "failover"]
+categories = ["database-implementations", "concurrency"]
 
 [package.version]
 workspace = true

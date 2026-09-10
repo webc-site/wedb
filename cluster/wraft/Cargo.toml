@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Pure Raft-style consensus library: leader election state machine and pluggable consensus engine interface (zero IO, zero engine dependency)"
+keywords = ["raft", "consensus", "leader-election", "state-machine"]
+categories = ["algorithms", "concurrency"]
 
 [dependencies]
 gxhash = "3.5.0"

@@ -6,8 +6,8 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/ext_roaring"
 description = "Roaring Bitmap extension: Redis-compatible bitmap operations"
-keywords = []
-categories = []
+keywords = ["roaring-bitmap", "bitmap", "redis", "extension"]
+categories = ["data-structures", "database-implementations"]
 
 [features]
 default = []
