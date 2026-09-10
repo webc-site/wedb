@@ -1,0 +1,3 @@
+# 理由：Dispose 为 IDisposable 框架面（Rust 以所有权/Drop 语义承接，无需显式方法）。
+fn:
+  - Dispose

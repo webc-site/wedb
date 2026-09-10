@@ -9,7 +9,10 @@ use gxhash::HashMap as GxHashMap;
 use wdev::Device;
 use wobject::sorted_set::sorted_set_object::{SortedSetObject, SortedSetOperation};
 
-use super::{super::storage_session::StorageSession, common::ObjState};
+use super::{
+  super::storage_session::StorageSession,
+  common::{ObjState, RmwOutcome},
+};
 use crate::api::garnet_status::GarnetStatus;
 
 /// 聚合方式（ZUNION/ZINTER 权重合并语义）
@@ -36,16 +39,20 @@ pub enum ZSetRemoveRange<'k> {
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 有序集合读-改-写：载荷解码为 SortedSetObject 后交闭包变更，返回前自动回写
+  ///
+  /// `create` 为假时键缺失直接 Aborted（不物化空有序集合信封）
   async fn zset_rmw<R>(
     &self,
     key: &[u8],
+    create: bool,
     f: impl FnOnce(&mut SortedSetObject) -> Option<R>,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     self
       .rmw_object_store_operation(key, super::common::OBJ_TAG_SORTED_SET, |payload| {
         let mut obj = match payload {
           Some(bytes) => SortedSetObject::deserialize(&mut Cursor::new(bytes)).unwrap_or_default(),
-          None => SortedSetObject::new(),
+          None if create => SortedSetObject::new(),
+          None => return None,
         };
         let r = f(&mut obj)?;
         let mut out = Vec::new();
@@ -55,7 +62,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await
   }
 
-  /// 装载有序集合（缺失/类型不符快速出口）
+  /// 装载有序集合（缺失/类型不符快速出口；读路径专用）
   async fn zset_load(
     &self,
     key: &[u8],
@@ -86,41 +93,34 @@ impl<'a, D: Device> StorageSession<'a, D> {
     lt: bool,
     ch: bool,
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(_) => {
-        let n = self
-          .zset_rmw(key, |obj| {
-            let was_empty = obj.dict.pin().is_empty();
-            let mut count = 0i64;
-            for &(member, score) in members {
-              match obj.dict.pin().get(member).copied() {
-                Some(_prev) if nx => {}
-                Some(prev) => {
-                  let update = (gt && score > prev) || (lt && score < prev) || (!gt && !lt);
-                  if update {
-                    obj.operate(SortedSetOperation::Zadd, member, score);
-                    if ch {
-                      count += 1;
-                    }
-                  }
-                }
-                None => {
-                  obj.operate(SortedSetOperation::Zadd, member, score);
+    let added = self
+      .zset_rmw(key, true, |obj| {
+        let mut count = 0i64;
+        for &(member, score) in members {
+          match obj.dict.pin().get(member).copied() {
+            Some(_prev) if nx => {}
+            Some(prev) => {
+              let update = (gt && score > prev) || (lt && score < prev) || (!gt && !lt);
+              if update {
+                obj.operate(SortedSetOperation::Zadd, member, score);
+                if ch {
                   count += 1;
                 }
               }
             }
-            if was_empty && count == 0 {
-              None // 键本不存在且无新增：放弃物化空集合
-            } else {
-              Some(count)
+            None => {
+              obj.operate(SortedSetOperation::Zadd, member, score);
+              count += 1;
             }
-          })
-          .await?
-          .unwrap_or(0);
-        Ok((GarnetStatus::Ok, n))
-      }
+          }
+        }
+        // 计数为 0 时不写回：键缺失则放弃物化空集合，键已存在则载荷不变
+        (count > 0).then_some(count)
+      })
+      .await?;
+    match added {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => Ok((GarnetStatus::Ok, outcome.unwrap_or(0))),
     }
   }
 
@@ -132,22 +132,21 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key: &[u8],
     members: &[&[u8]],
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
-      Ok(Some(_)) => {
-        let removed = self
-          .zset_rmw(key, |obj| {
-            let mut n = 0i64;
-            for m in members {
-              if obj.operate(SortedSetOperation::Zrem, m, 0.0).is_some() {
-                n += 1;
-              }
-            }
-            Some((n, obj.dict.pin().is_empty()))
-          })
-          .await?;
-        let n = self.finalize_removal(key, removed, 0).await?;
+    let removed = self
+      .zset_rmw(key, false, |obj| {
+        let mut n = 0i64;
+        for m in members {
+          if obj.operate(SortedSetOperation::Zrem, m, 0.0).is_some() {
+            n += 1;
+          }
+        }
+        Some((n, obj.dict.pin().is_empty()))
+      })
+      .await?;
+    match removed {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
       }
     }
@@ -162,25 +161,23 @@ impl<'a, D: Device> StorageSession<'a, D> {
     min: &[u8],
     max: &[u8],
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
-      Ok(Some(_)) => {
-        let removed = self
-          .zset_rmw(key, |obj| {
-            let entries = sorted_view(obj);
-            let mut n = 0i64;
-            for (m, _s) in entries {
-              if lex_in_range(&m, min, max)
-                && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
-              {
-                n += 1;
-              }
-            }
-            Some((n, obj.dict.pin().is_empty()))
-          })
-          .await?;
-        let n = self.finalize_removal(key, removed, 0).await?;
+    let removed = self
+      .zset_rmw(key, false, |obj| {
+        let entries = sorted_view(obj);
+        let mut n = 0i64;
+        for (m, _s) in entries {
+          if lex_in_range(&m, min, max) && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
+          {
+            n += 1;
+          }
+        }
+        Some((n, obj.dict.pin().is_empty()))
+      })
+      .await?;
+    match removed {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
       }
     }
@@ -198,25 +195,24 @@ impl<'a, D: Device> StorageSession<'a, D> {
     let (Ok(min_b), Ok(max_b)) = (parse_score_bound(min), parse_score_bound(max)) else {
       return Ok((GarnetStatus::WrongType, 0));
     };
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
-      Ok(Some(_)) => {
-        let removed = self
-          .zset_rmw(key, |obj| {
-            let entries = sorted_view(obj);
-            let mut n = 0i64;
-            for (m, s) in entries {
-              if score_in_range(s, min_b, max_b)
-                && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
-              {
-                n += 1;
-              }
-            }
-            Some((n, obj.dict.pin().is_empty()))
-          })
-          .await?;
-        let n = self.finalize_removal(key, removed, 0).await?;
+    let removed = self
+      .zset_rmw(key, false, |obj| {
+        let entries = sorted_view(obj);
+        let mut n = 0i64;
+        for (m, s) in entries {
+          if score_in_range(s, min_b, max_b)
+            && obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some()
+          {
+            n += 1;
+          }
+        }
+        Some((n, obj.dict.pin().is_empty()))
+      })
+      .await?;
+    match removed {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
       }
     }
@@ -231,24 +227,23 @@ impl<'a, D: Device> StorageSession<'a, D> {
     start: i64,
     stop: i64,
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
-      Ok(Some(_)) => {
-        let removed = self
-          .zset_rmw(key, |obj| {
-            let entries = sorted_view(obj);
-            let (lo, hi) = clamp_rank_range(start, stop, entries.len());
-            let mut n = 0i64;
-            for (m, _s) in entries.into_iter().take(hi + 1).skip(lo) {
-              if obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some() {
-                n += 1;
-              }
-            }
-            Some((n, obj.dict.pin().is_empty()))
-          })
-          .await?;
-        let n = self.finalize_removal(key, removed, 0).await?;
+    let removed = self
+      .zset_rmw(key, false, |obj| {
+        let entries = sorted_view(obj);
+        let (lo, hi) = clamp_rank_range(start, stop, entries.len());
+        let mut n = 0i64;
+        for (m, _s) in entries.into_iter().take(hi + 1).skip(lo) {
+          if obj.operate(SortedSetOperation::Zrem, &m, 0.0).is_some() {
+            n += 1;
+          }
+        }
+        Some((n, obj.dict.pin().is_empty()))
+      })
+      .await?;
+    match removed {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
       }
     }
@@ -263,37 +258,36 @@ impl<'a, D: Device> StorageSession<'a, D> {
     count: usize,
     min: bool,
   ) -> wkv::Result<(GarnetStatus, Vec<(Vec<u8>, f64)>)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
-      Ok(Some(_)) => {
-        let popped = self
-          .zset_rmw(key, |obj| {
-            let mut entries = sorted_view(obj);
-            let mut out = Vec::with_capacity(count.min(entries.len()));
-            for _ in 0..count {
-              let item = if min {
-                entries.first().cloned()
+    let popped = self
+      .zset_rmw(key, false, |obj| {
+        let mut entries = sorted_view(obj);
+        let mut out = Vec::with_capacity(count.min(entries.len()));
+        for _ in 0..count {
+          let item = if min {
+            entries.first().cloned()
+          } else {
+            entries.last().cloned()
+          };
+          match item {
+            Some((m, s)) => {
+              obj.operate(SortedSetOperation::Zrem, &m, 0.0);
+              if min {
+                entries.remove(0);
               } else {
-                entries.last().cloned()
-              };
-              match item {
-                Some((m, s)) => {
-                  obj.operate(SortedSetOperation::Zrem, &m, 0.0);
-                  if min {
-                    entries.remove(0);
-                  } else {
-                    entries.pop();
-                  }
-                  out.push((m, s));
-                }
-                None => break,
+                entries.pop();
               }
+              out.push((m, s));
             }
-            Some((out, obj.dict.pin().is_empty()))
-          })
-          .await?;
-        let out = self.finalize_removal(key, popped, Vec::new()).await?;
+            None => break,
+          }
+        }
+        Some((out, obj.dict.pin().is_empty()))
+      })
+      .await?;
+    match popped {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
+      outcome => {
+        let out = self.finalize_removal(key, outcome, Vec::new()).await?;
         Ok((GarnetStatus::Ok, out))
       }
     }
@@ -308,17 +302,18 @@ impl<'a, D: Device> StorageSession<'a, D> {
     member: &[u8],
     delta: f64,
   ) -> wkv::Result<(GarnetStatus, Option<f64>)> {
-    match self.zset_load(key).await? {
-      Err(s) => Ok((s, None)),
-      Ok(_) => Ok((
-        GarnetStatus::Ok,
-        // Zincrby 语义：传入增量，返回新分值（见 wobject operate）
-        self
-          .zset_rmw(key, |obj| {
-            obj.operate(SortedSetOperation::Zincrby, member, delta)
-          })
-          .await?,
-      )),
+    // Zincrby 语义：传入增量，返回新分值（见 wobject operate；闭包 None 即放弃）
+    let outcome = self
+      .zset_rmw(key, true, |obj| {
+        obj
+          .operate(SortedSetOperation::Zincrby, member, delta)
+          .map(Some)
+      })
+      .await?;
+    match outcome {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
+      RmwOutcome::Aborted => Ok((GarnetStatus::Ok, None)),
+      RmwOutcome::Written(score) => Ok((GarnetStatus::Ok, score)),
     }
   }
 
@@ -673,9 +668,13 @@ impl<'a, D: Device> StorageSession<'a, D> {
     min: bool,
   ) -> wkv::Result<(GarnetStatus, Option<(Vec<u8>, Vec<(Vec<u8>, f64)>)>)> {
     for key in keys {
-      let (_, popped) = self.sorted_set_pop(key, count, min).await?;
+      let (status, popped) = self.sorted_set_pop(key, count, min).await?;
       if !popped.is_empty() {
         return Ok((GarnetStatus::Ok, Some(((*key).to_vec(), popped))));
+      }
+      if status != GarnetStatus::Ok && status != GarnetStatus::NotFound {
+        // 非 OK 且非缺失（如 WRONGTYPE）立即传播（对齐 C# SortedSetMPop）
+        return Ok((status, None));
       }
     }
     Ok((GarnetStatus::Ok, None))

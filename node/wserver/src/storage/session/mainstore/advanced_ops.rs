@@ -5,7 +5,7 @@ use std::{str, sync::atomic::Ordering::Relaxed};
 use wdev::Device;
 
 use super::super::storage_session::StorageSession;
-use crate::api::garnet_status::GarnetStatus;
+use crate::{api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput};
 
 /// 主存读-改-写操作描述（对标 C# StringInput.header.cmd 分发）
 #[derive(Debug, Clone, Copy)]
@@ -137,7 +137,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ) -> wkv::Result<(GarnetStatus, Option<f64>)> {
     let Some(val) = self.read_string(key).await? else {
       self
-        .upsert_string(key, format_delta(delta).as_bytes())
+        .upsert_string(key, ObjectOutput::format_double(delta).as_bytes())
         .await?;
       return Ok((GarnetStatus::Ok, Some(delta)));
     };
@@ -146,7 +146,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     };
     let updated = current + delta;
     self
-      .upsert_string(key, format_delta(updated).as_bytes())
+      .upsert_string(key, ObjectOutput::format_double(updated).as_bytes())
       .await?;
     Ok((GarnetStatus::Ok, Some(updated)))
   }
@@ -165,9 +165,4 @@ pub(crate) fn parse_f64(bytes: &[u8]) -> Option<f64> {
     .parse::<f64>()
     .ok()
     .filter(|v| v.is_finite())
-}
-
-/// f64 格式化为 Redis INCRBYFLOAT 口径（17 位有效数字最短表示）
-pub(crate) fn format_delta(v: f64) -> String {
-  format!("{v:.17}")
 }

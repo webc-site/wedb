@@ -2,7 +2,7 @@
 
 use wdev::Device;
 
-use super::super::storage_session::StorageSession;
+use super::{super::storage_session::StorageSession, common::RmwOutcome};
 use crate::api::garnet_status::GarnetStatus;
 
 impl<'a, D: Device> StorageSession<'a, D> {
@@ -16,7 +16,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key: &[u8],
     tag: u8,
     on_load: impl FnOnce(Option<Vec<u8>>) -> Option<(Vec<u8>, R)>,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     self.rmw_object_store_operation(key, tag, on_load).await
   }
 

@@ -25,6 +25,7 @@ pub mod resp_server_session_output;
 pub mod resp_server_session_slot_verify;
 pub mod session_logger;
 pub mod ttl_sync;
+pub mod vector;
 
 /// 单测共用装具：临时单文件库 + 批处理纪元会话（各命令文件的 #[cfg(test)] 共享，
 /// 一处定义避免逐文件复制）

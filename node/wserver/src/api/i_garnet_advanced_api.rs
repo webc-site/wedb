@@ -10,6 +10,7 @@ use crate::{
   api::garnet_status::GarnetStatus,
   storage::session::{
     mainstore::advanced_ops::{RmwResult, StringRMWOp},
+    objectstore::common::RmwOutcome,
     storage_session::StorageSession,
     unifiedstore::advanced_ops::UnifiedRMWOp,
   },
@@ -50,12 +51,14 @@ impl IGarnetAdvancedApi {
   }
 
   /// libs/server/API/IGarnetAdvancedApi.cs:RMW_ObjectStore
+  ///
+  /// 返回 [`RmwOutcome`] 三态（写回 / 放弃 / 类型不符）
   pub async fn rmw__object_store<D: Device, R>(
     ss: &StorageSession<'_, D>,
     key: &[u8],
     tag: u8,
     on_load: impl FnOnce(Option<Vec<u8>>) -> Option<(Vec<u8>, R)>,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     ss.rmw_object_store(key, tag, on_load).await
   }
 

@@ -108,8 +108,8 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// 条件删除（DELIIFGREATER 语义：记录 etag 小于给定值才删除）
   ///
   /// 缺口：C# etag 存于 Tsavorite 记录扩展字段（RMWMethods.Etags），wkv 记录无
-  /// etag 通道，本实现以当前字符串值按 u64 解析充当 etag（与
-  /// rmw_methods__etags 域"值为整数文本 = etag"约定一致），语义方向一致。
+  /// etag 通道，本实现以当前字符串值按 u64 解析充当 etag
+  /// （"值为整数文本 = etag"约定），语义方向一致。
   ///
   /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:DEL_Conditional
   pub async fn del_conditional(&self, key: &[u8], etag: u64) -> wkv::Result<GarnetStatus> {

@@ -45,7 +45,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
         changed = true;
       }
     }
-    self.upsert_string(key, &encode_registers(&regs)).await?;
+    // 寄存器未变化的既有键无需回写（值字节恒同，省一次落盘）
+    if changed || !existed {
+      self.upsert_string(key, &encode_registers(&regs)).await?;
+    }
     let status = if changed {
       if existed { 1 } else { -1 }
     } else {

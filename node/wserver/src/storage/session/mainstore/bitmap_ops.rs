@@ -314,28 +314,25 @@ fn bit_field_apply(buf: &mut Vec<u8>, op: BitFieldOp) -> Option<i64> {
     } => (is_signed, bits, offset, true, increment, wrap, sat),
   };
   let byte_idx = (offset / 8) as usize;
-  if byte_idx >= buf.len() && !is_write {
-    return Some(0);
-  }
+  // 位域末端字节：写路径须把缓冲增长到覆盖整个位域（对齐 C# RESP 层
+  // NewBlockAllocLengthFromType 的写前增长），只长到首字节会把高位截断丢失
   if is_write {
-    // 写路径按位域末端补齐缓冲（跨字节域一次到位，杜绝高位被截断）
-    let end = (offset + u64::from(bits)).div_ceil(8) as usize;
-    buf.resize(buf.len().max(end), 0);
-  }
-  let bit_off = (offset % 8) as u32;
-  let max_bit = buf.len() * 8;
-  if bit_off as usize + bits as usize > max_bit - byte_idx * 8 && !is_write {
+    let end_byte = ((offset + u64::from(bits) - 1) / 8) as usize;
+    if end_byte >= buf.len() {
+      buf.resize(end_byte + 1, 0);
+    }
+  } else if byte_idx >= buf.len() {
+    // 读路径：位域起点整体越界恒 0（对齐 C# GetBitfield）
     return Some(0);
   }
-  // 逐位读出当前位域
+  // 逐位读出当前位域：越界位按 0 续位（对齐 C# GetValue 的 vend 截断语义，
+  // 缺失位必须保持原位参与移位，而非整体截断）
   let mut current: i64 = 0;
   for k in 0..bits {
     let pos = offset + u64::from(k);
     let idx = (pos / 8) as usize;
-    if idx >= buf.len() {
-      break;
-    }
-    current = (current << 1) | i64::from(buf[idx] & (0x80u8 >> (pos % 8)) != 0);
+    let bit = idx < buf.len() && buf[idx] & (0x80u8 >> (pos % 8)) != 0;
+    current = (current << 1) | i64::from(bit);
   }
   // 符号扩展
   let old = if is_signed && bits < 64 {
@@ -397,4 +394,111 @@ fn bit_field_apply(buf: &mut Vec<u8>, op: BitFieldOp) -> Option<i64> {
     }
   }
   Some(result)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{BitFieldOp, bit_field_apply};
+
+  /// SET 跨越缓冲末端：整域必须落盘（修复只增长首字节的高位截断）
+  #[test]
+  fn set_extends_buffer_to_full_field_extent() {
+    let mut buf = Vec::new(); // 键缺失等价空缓冲
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Set {
+        is_signed: false,
+        bits: 16,
+        offset: 0,
+        value: 300,
+        wrap: false,
+        sat: false,
+      },
+    );
+    assert_eq!(r, Some(300));
+    assert_eq!(buf, vec![0x01, 0x2C]); // 300 = 0x012C
+    // 写后读回须全域一致
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Get {
+        is_signed: false,
+        bits: 16,
+        offset: 0,
+      },
+    );
+    assert_eq!(r, Some(300));
+  }
+
+  /// GET 部分跨越值末端：可得位按实读取、缺失位补 0（修复整体返 0 的误判）
+  #[test]
+  fn get_partial_overlap_reads_available_bits() {
+    let mut buf = vec![0xFFu8];
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Get {
+        is_signed: false,
+        bits: 8,
+        offset: 4,
+      },
+    );
+    assert_eq!(r, Some(0b1111_0000));
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Get {
+        is_signed: true,
+        bits: 8,
+        offset: 4,
+      },
+    );
+    assert_eq!(r, Some(-16)); // 0b11110000 作 i8 符号扩展
+    // 起点整体越界仍恒 0
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Get {
+        is_signed: false,
+        bits: 16,
+        offset: 8,
+      },
+    );
+    assert_eq!(r, Some(0));
+  }
+
+  /// 非对齐 SET 写回：邻位不受扰动，域后缓冲按需增长
+  #[test]
+  fn set_unaligned_neighbors_untouched() {
+    let mut buf = vec![0x00, 0xFF];
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::Set {
+        is_signed: false,
+        bits: 8,
+        offset: 4,
+        value: 0xAB,
+        wrap: false,
+        sat: false,
+      },
+    );
+    assert_eq!(r, Some(0xAB));
+    // 低半字节保留 0x0，位 4..12 = 0xAB，位 12..16 保留 0xF
+    assert_eq!(buf, vec![0x0A, 0xBF]);
+  }
+
+  /// FAIL 溢出：返回 None 且不落任何位
+  #[test]
+  fn incr_overflow_fail_writes_nothing() {
+    let mut buf = vec![0x00];
+    let r = bit_field_apply(
+      &mut buf,
+      BitFieldOp::IncrBy {
+        is_signed: false,
+        bits: 8,
+        offset: 0,
+        increment: 300,
+        wrap: false,
+        sat: false,
+      },
+    );
+    assert_eq!(r, None);
+    assert_eq!(buf, vec![0x00]);
+  }
 }

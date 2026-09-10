@@ -8,21 +8,28 @@ use std::io::Cursor;
 use wdev::Device;
 use wobject::list::list_object::{ListObject, ListOperation, OperationDirection};
 
-use super::{super::storage_session::StorageSession, common::ObjState};
+use super::{
+  super::storage_session::StorageSession,
+  common::{ObjState, RmwOutcome},
+};
 use crate::api::garnet_status::GarnetStatus;
 
 impl<'a, D: Device> StorageSession<'a, D> {
   /// 列表对象读-改-写：载荷解码为 ListObject 后交闭包变更，返回前自动回写
+  ///
+  /// `create` 为假时键缺失直接 Aborted（不物化空列表信封）
   async fn list_rmw<R>(
     &self,
     key: &[u8],
+    create: bool,
     f: impl FnOnce(&mut ListObject) -> Option<R>,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     self
       .rmw_object_store_operation(key, super::common::OBJ_TAG_LIST, |payload| {
         let mut obj = match payload {
           Some(bytes) => ListObject::deserialize(&mut Cursor::new(bytes)).unwrap_or_default(),
-          None => ListObject::new(),
+          None if create => ListObject::new(),
+          None => return None,
         };
         let r = f(&mut obj)?;
         let mut out = Vec::new();
@@ -32,7 +39,7 @@ impl<'a, D: Device> StorageSession<'a, D> {
       .await
   }
 
-  /// 装载列表（缺失/类型不符快速出口）
+  /// 装载列表（缺失/类型不符快速出口；读路径专用）
   async fn list_load(&self, key: &[u8]) -> wkv::Result<Result<Option<ListObject>, GarnetStatus>> {
     Ok(
       match self.obj_load(key, super::common::OBJ_TAG_LIST).await? {
@@ -55,28 +62,26 @@ impl<'a, D: Device> StorageSession<'a, D> {
     direction: OperationDirection,
     only_if_exists: bool,
   ) -> wkv::Result<(GarnetStatus, Option<usize>)> {
-    match self.list_load(key).await? {
-      Err(s) => Ok((s, None)),
-      Ok(None) if only_if_exists => Ok((GarnetStatus::Ok, None)),
-      Ok(_) => {
-        let len = self
-          .list_rmw(key, |obj| {
-            for v in values {
-              obj.operate(
-                if direction == OperationDirection::Left {
-                  ListOperation::Lpush
-                } else {
-                  ListOperation::Rpush
-                },
-                v,
-              );
-            }
-            Some(obj.count())
-          })
-          .await?
-          .unwrap_or(0);
-        Ok((GarnetStatus::Ok, Some(len)))
-      }
+    let outcome = self
+      .list_rmw(key, !only_if_exists, |obj| {
+        for v in values {
+          obj.operate(
+            if direction == OperationDirection::Left {
+              ListOperation::Lpush
+            } else {
+              ListOperation::Rpush
+            },
+            v,
+          );
+        }
+        Some(obj.count())
+      })
+      .await?;
+    match outcome {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
+      // LPUSHX 键缺失不物化：Aborted 即 only_if_exists 未命中
+      RmwOutcome::Aborted => Ok((GarnetStatus::Ok, None)),
+      RmwOutcome::Written(len) => Ok((GarnetStatus::Ok, Some(len))),
     }
   }
 
@@ -112,28 +117,27 @@ impl<'a, D: Device> StorageSession<'a, D> {
     count: usize,
     direction: OperationDirection,
   ) -> wkv::Result<(GarnetStatus, Vec<Vec<u8>>)> {
-    match self.list_load(key).await? {
-      Err(s) => Ok((s, Vec::new())),
-      Ok(None) => Ok((GarnetStatus::Ok, Vec::new())),
-      Ok(Some(_)) => {
-        let popped = self
-          .list_rmw(key, |obj| {
-            let op = if direction == OperationDirection::Left {
-              ListOperation::Lpop
-            } else {
-              ListOperation::Rpop
-            };
-            let mut out = Vec::new();
-            for _ in 0..count {
-              match obj.operate(op, b"") {
-                Some(v) => out.push(v),
-                None => break,
-              }
-            }
-            Some((out, obj.list.lock().is_empty()))
-          })
-          .await?;
-        let out = self.finalize_removal(key, popped, Vec::new()).await?;
+    let popped = self
+      .list_rmw(key, false, |obj| {
+        let op = if direction == OperationDirection::Left {
+          ListOperation::Lpop
+        } else {
+          ListOperation::Rpop
+        };
+        let mut out = Vec::new();
+        for _ in 0..count {
+          match obj.operate(op, b"") {
+            Some(v) => out.push(v),
+            None => break,
+          }
+        }
+        Some((out, obj.list.lock().is_empty()))
+      })
+      .await?;
+    match popped {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, Vec::new())),
+      outcome => {
+        let out = self.finalize_removal(key, outcome, Vec::new()).await?;
         Ok((GarnetStatus::Ok, out))
       }
     }
@@ -172,17 +176,20 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ///
   /// libs/server/Storage/Session/ObjectStore/ListOps.cs:ListTrim
   pub async fn list_trim(&self, key: &[u8], start: i64, stop: i64) -> wkv::Result<GarnetStatus> {
-    match self.list_load(key).await? {
-      Err(s) => Ok(s),
-      Ok(None) => Ok(GarnetStatus::NotFound),
-      Ok(Some(_)) => {
-        let trimmed = self
-          .list_rmw(key, |obj| {
-            obj.trim(start as isize, stop as isize);
-            Some(((), obj.list.lock().is_empty()))
-          })
-          .await?;
-        let () = self.finalize_removal(key, trimmed, ()).await?;
+    let trimmed = self
+      .list_rmw(key, false, |obj| {
+        obj.trim(start as isize, stop as isize);
+        Some(((), obj.list.lock().is_empty()))
+      })
+      .await?;
+    match trimmed {
+      RmwOutcome::WrongType => Ok(GarnetStatus::WrongType),
+      // Aborted 即键缺失（不物化空列表）
+      RmwOutcome::Aborted => Ok(GarnetStatus::NotFound),
+      RmwOutcome::Written(((), is_empty)) => {
+        if is_empty {
+          let _ = self.delete_string(key).await?;
+        }
         Ok(GarnetStatus::Ok)
       }
     }
@@ -255,21 +262,20 @@ impl<'a, D: Device> StorageSession<'a, D> {
     element: &[u8],
     before: bool,
   ) -> wkv::Result<(GarnetStatus, Option<usize>)> {
-    match self.list_load(key).await? {
-      Err(s) => Ok((s, None)),
-      Ok(None) => Ok((GarnetStatus::Ok, None)),
-      Ok(Some(_)) => {
-        let len = self
-          .list_rmw(key, |obj| {
-            let mut guard = obj.list.lock();
-            let pos = guard.iter().position(|v| *v == *pivot)?;
-            let idx = if before { pos } else { pos + 1 };
-            guard.insert(idx, element.to_vec());
-            Some(guard.len())
-          })
-          .await?;
-        Ok((GarnetStatus::Ok, len))
-      }
+    let len = self
+      .list_rmw(key, false, |obj| {
+        let mut guard = obj.list.lock();
+        let pos = guard.iter().position(|v| *v == *pivot)?;
+        let idx = if before { pos } else { pos + 1 };
+        guard.insert(idx, element.to_vec());
+        Some(guard.len())
+      })
+      .await?;
+    match len {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, None)),
+      // Aborted：键缺失或基准元素不存在
+      RmwOutcome::Aborted => Ok((GarnetStatus::Ok, None)),
+      RmwOutcome::Written(n) => Ok((GarnetStatus::Ok, Some(n))),
     }
   }
 
@@ -297,42 +303,41 @@ impl<'a, D: Device> StorageSession<'a, D> {
     element: &[u8],
     count: i64,
   ) -> wkv::Result<(GarnetStatus, i64)> {
-    match self.list_load(key).await? {
-      Err(s) => Ok((s, 0)),
-      Ok(None) => Ok((GarnetStatus::Ok, 0)),
-      Ok(Some(_)) => {
-        let removed = self
-          .list_rmw(key, |obj| {
-            let mut guard = obj.list.lock();
-            let mut n = 0i64;
-            if count >= 0 {
-              let mut remaining = if count == 0 { i64::MAX } else { count };
-              let mut i = 0usize;
-              while i < guard.len() && remaining > 0 {
-                if *guard[i].as_slice() == *element {
-                  guard.remove(i);
-                  remaining -= 1;
-                  n += 1;
-                } else {
-                  i += 1;
-                }
-              }
+    let removed = self
+      .list_rmw(key, false, |obj| {
+        let mut guard = obj.list.lock();
+        let mut n = 0i64;
+        if count >= 0 {
+          let mut remaining = if count == 0 { i64::MAX } else { count };
+          let mut i = 0usize;
+          while i < guard.len() && remaining > 0 {
+            if *guard[i].as_slice() == *element {
+              guard.remove(i);
+              remaining -= 1;
+              n += 1;
             } else {
-              let mut remaining = count.unsigned_abs() as i64;
-              let mut i = guard.len();
-              while i > 0 && remaining > 0 {
-                i -= 1;
-                if *guard[i].as_slice() == *element {
-                  guard.remove(i);
-                  remaining -= 1;
-                  n += 1;
-                }
-              }
+              i += 1;
             }
-            Some((n, guard.is_empty()))
-          })
-          .await?;
-        let n = self.finalize_removal(key, removed, 0).await?;
+          }
+        } else {
+          let mut remaining = count.unsigned_abs() as i64;
+          let mut i = guard.len();
+          while i > 0 && remaining > 0 {
+            i -= 1;
+            if *guard[i].as_slice() == *element {
+              guard.remove(i);
+              remaining -= 1;
+              n += 1;
+            }
+          }
+        }
+        Some((n, guard.is_empty()))
+      })
+      .await?;
+    match removed {
+      RmwOutcome::WrongType => Ok((GarnetStatus::WrongType, 0)),
+      outcome => {
+        let n = self.finalize_removal(key, outcome, 0).await?;
         Ok((GarnetStatus::Ok, n))
       }
     }
@@ -347,29 +352,23 @@ impl<'a, D: Device> StorageSession<'a, D> {
     index: i64,
     element: &[u8],
   ) -> wkv::Result<GarnetStatus> {
-    match self.list_load(key).await? {
-      Err(s) => Ok(s),
-      Ok(None) => Ok(GarnetStatus::NotFound),
-      Ok(Some(_)) => {
-        let done = self
-          .list_rmw(key, |obj| {
-            let mut guard = obj.list.lock();
-            let len = guard.len() as i64;
-            let idx = if index < 0 { len + index } else { index };
-            if idx < 0 || idx >= len {
-              return Some(false);
-            }
-            guard[idx as usize] = element.to_vec();
-            Some(true)
-          })
-          .await?
-          .unwrap_or(false);
-        Ok(if done {
-          GarnetStatus::Ok
-        } else {
-          GarnetStatus::NotFound
-        })
-      }
+    let done = self
+      .list_rmw(key, false, |obj| {
+        let mut guard = obj.list.lock();
+        let len = guard.len() as i64;
+        let idx = if index < 0 { len + index } else { index };
+        if idx < 0 || idx >= len {
+          return Some(false);
+        }
+        guard[idx as usize] = element.to_vec();
+        Some(true)
+      })
+      .await?;
+    match done {
+      RmwOutcome::WrongType => Ok(GarnetStatus::WrongType),
+      RmwOutcome::Written(true) => Ok(GarnetStatus::Ok),
+      // Aborted（键缺失，不物化空列表）/ Written(false)（索引越界）
+      _ => Ok(GarnetStatus::NotFound),
     }
   }
 }

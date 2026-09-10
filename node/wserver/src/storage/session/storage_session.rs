@@ -85,6 +85,14 @@ impl<'a, D: Device> StorageSession<'a, D> {
     self.watch_versions.lock().get(key).copied()
   }
 
+  /// 校验全部被监视键自登记以来无任何写入（对标 C#
+  /// WatchedKeysContainer.ValidateWatchVersion；尾地址代理：任一会话写入
+  /// 都会推进尾地址，属保守过估——只会多中止事务，不会漏检冲突）
+  pub fn validate_watch_version(&self) -> bool {
+    let now = self.batch.store.tail_address();
+    self.watch_versions.lock().values().all(|&v| v == now)
+  }
+
   /// 清空本会话的 WATCH 登记（对标 EXEC/DISCARD/UNWATCH 后的版本表释放）
   pub fn clear_watches(&self) {
     self.watch_versions.lock().clear();

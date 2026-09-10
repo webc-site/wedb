@@ -31,6 +31,7 @@ use super::{
   session_script_cache::SessionScriptCache,
 };
 use crate::{
+  objects::types::object_output::ObjectOutput,
   storage::session::common::array_key_iteration_functions::cluster_slot,
   transaction::txn_key_entry::{LockType, TxnKeyEntries},
 };
@@ -135,7 +136,9 @@ impl<'a> RespOut<'a> {
   /// RESP3 double（`,<num>\r\n`）。
   pub fn write_double(&mut self, value: f64) {
     self.buf.push(b',');
-    self.buf.extend_from_slice(format_double(value).as_bytes());
+    self
+      .buf
+      .extend_from_slice(ObjectOutput::format_double(value).as_bytes());
     self.buf.extend_from_slice(b"\r\n");
   }
 
@@ -151,19 +154,6 @@ impl<'a> RespOut<'a> {
     let mut buffer = itoa::Buffer::new();
     self.buf.extend_from_slice(buffer.format(value).as_bytes());
     self.buf.extend_from_slice(b"\r\n");
-  }
-}
-
-/// RESP3 double 文本（对齐 RespWriteUtils 的 inf/nan 文案）。
-fn format_double(value: f64) -> String {
-  if value == f64::INFINITY {
-    "inf".into()
-  } else if value == f64::NEG_INFINITY {
-    "-inf".into()
-  } else if value.is_nan() {
-    "nan".into()
-  } else {
-    format!("{value}")
   }
 }
 

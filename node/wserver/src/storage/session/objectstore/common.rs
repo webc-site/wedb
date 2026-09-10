@@ -8,7 +8,7 @@
 use wdev::Device;
 
 use super::super::storage_session::StorageSession;
-use crate::api::garnet_status::GarnetStatus;
+use crate::{api::garnet_status::GarnetStatus, objects::types::object_output::ObjectOutput};
 
 /// 对象类型标签：有序集合（GarnetObjectType.SortedSet）
 pub(crate) const OBJ_TAG_SORTED_SET: u8 = 1;
@@ -47,6 +47,29 @@ pub(crate) fn obj_encode(tag: u8, payload: &[u8]) -> Vec<u8> {
   out
 }
 
+/// 对象存 RMW 结果三态（一处定义，供 hash/set/list/zset 各 rmw 通路统一判定）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RmwOutcome<R> {
+  /// 闭包完成并已写回存储
+  Written(R),
+  /// 放弃写入（键缺失不物化 / 闭包拒绝 / 序列化失败），无存储变更
+  Aborted,
+  /// 键存在但信封类型不符（WRONGTYPE）
+  WrongType,
+}
+
+impl<R> RmwOutcome<R> {
+  /// 写回结果提取（Aborted 返回 `fallback`；WrongType 同样折算，调用方
+  /// 在状态已单独分派的前提下使用）
+  #[inline]
+  pub(crate) fn unwrap_or(self, fallback: R) -> R {
+    match self {
+      Self::Written(r) => r,
+      Self::Aborted | Self::WrongType => fallback,
+    }
+  }
+}
+
 /// 对象值信封解码：校验类型标签后返回载荷切片
 pub(crate) fn obj_decode(raw: &[u8], want: u8) -> Option<&[u8]> {
   raw
@@ -73,7 +96,10 @@ impl<'a, D: Device> StorageSession<'a, D> {
   }
 
   /// 对象存读-改-写统一入口：读现载荷（缺失为 None），闭包产出 (新载荷, 结果)，
-  /// 返回 `Ok(None)` 表示闭包放弃写入
+  /// 返回 [`RmwOutcome`] 三态（写回 / 放弃 / 类型不符）
+  ///
+  /// 单次读取闭环：类型判定与载荷解码共用一次读，调用方无需预先
+  /// obj_load 探型（消除各 ops 的双读模式）。
   ///
   /// libs/server/Storage/Session/ObjectStore/Common.cs:RMWObjectStoreOperation
   pub(crate) async fn rmw_object_store_operation<R>(
@@ -81,17 +107,17 @@ impl<'a, D: Device> StorageSession<'a, D> {
     key: &[u8],
     tag: u8,
     on_load: impl FnOnce(Option<Vec<u8>>) -> Option<(Vec<u8>, R)>,
-  ) -> wkv::Result<Option<R>> {
+  ) -> wkv::Result<RmwOutcome<R>> {
     // 类型校验：存在但标签不符即 WRONGTYPE（闭包不感知）
     match self.read_string(key).await? {
-      Some(raw) if obj_decode(&raw, tag).is_none() => Ok(None),
+      Some(raw) if obj_decode(&raw, tag).is_none() => Ok(RmwOutcome::WrongType),
       current => {
         let input = current.and_then(|raw| obj_decode(&raw, tag).map(<[u8]>::to_vec));
         if let Some((payload, r)) = on_load(input) {
           self.obj_save(key, tag, &payload).await?;
-          Ok(Some(r))
+          Ok(RmwOutcome::Written(r))
         } else {
-          Ok(None)
+          Ok(RmwOutcome::Aborted)
         }
       }
     }
@@ -114,21 +140,22 @@ impl<'a, D: Device> StorageSession<'a, D> {
 
   /// 移除族收尾（各对象类型共用）：集合被删空时整键回收并保留真实结果
   ///
-  /// `removed` 为闭包产出的 `(结果, 是否已删空)`；`None` 表示放弃写回（无变更），
-  /// 返回 `fallback`。
+  /// `removed` 为闭包产出的 `(结果, 是否已删空)`；`Aborted` 表示放弃写回
+  /// （无变更），返回 `fallback`。`WrongType` 须由调用方先行分派（各 ops
+  /// 的状态语义不同，不在本收尾点统一折算）。
   pub(crate) async fn finalize_removal<R>(
     &self,
     key: &[u8],
-    removed: Option<(R, bool)>,
+    removed: RmwOutcome<(R, bool)>,
     fallback: R,
   ) -> wkv::Result<R> {
     match removed {
-      Some((r, true)) => {
+      RmwOutcome::Written((r, true)) => {
         let _ = self.delete_string(key).await?;
         Ok(r)
       }
-      Some((r, false)) => Ok(r),
-      None => Ok(fallback),
+      RmwOutcome::Written((r, false)) => Ok(r),
+      RmwOutcome::Aborted | RmwOutcome::WrongType => Ok(fallback),
     }
   }
 
@@ -153,6 +180,9 @@ impl<'a, D: Device> StorageSession<'a, D> {
       return Ok((GarnetStatus::WrongType, Vec::new(), Vec::new()));
     };
     members.sort();
+    // count 下限钳制为 1：count=0 时若仍按"满页截断"处理会立即空游标终止，
+    // SCAN 第一页未产出任何成员即死（Redis 侧 COUNT<1 在 RESP 层拒绝）
+    let count = count.max(1);
     let mut items = Vec::new();
     let mut last: Option<Vec<u8>> = None;
     // 本页是否因 count 截断：仅截断时报告新游标，自然收尽返回空游标（终态）
@@ -303,14 +333,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
     self.process_resp_integer_array_output(output, items);
   }
 
-  /// 成员-分值对数组 RESP 输出（扁平交错）
+  /// 成员-分值对数组 RESP 输出（扁平交错；分值文本化复用
+  /// [`ObjectOutput::format_double`](crate::objects::types::object_output::ObjectOutput::format_double)
+  /// 一处定义）
   ///
   /// libs/server/Storage/Session/ObjectStore/Common.cs:ProcessRespArrayOutputAsPairs
   pub fn process_resp_array_output_as_pairs(&self, output: &mut Vec<u8>, pairs: &[(Vec<u8>, f64)]) {
     let mut flat = Vec::with_capacity(pairs.len() * 2);
     for (m, s) in pairs {
       flat.push(m.clone());
-      flat.push(format_score(*s).into_bytes());
+      flat.push(ObjectOutput::format_double(*s).into_bytes());
     }
     self.process_resp2_array_output(output, &flat);
   }
@@ -346,14 +378,5 @@ pub(crate) fn push_resp_array(output: &mut Vec<u8>, items: &[&[u8]]) {
     output.extend_from_slice(b"\r\n");
     output.extend_from_slice(item);
     output.extend_from_slice(b"\r\n");
-  }
-}
-
-/// 分值 RESP 文本化（整数分值省略小数点，对齐 Redis 输出口径）
-pub(crate) fn format_score(score: f64) -> String {
-  if score == score.trunc() && score.abs() < 1e17 {
-    format!("{}", score as i64)
-  } else {
-    format!("{score:.17}")
   }
 }
