@@ -789,11 +789,15 @@ eK9BrqY1JsNGGskNv57e0RI=
     }
     let clock_ticks = Arc::clone(&clock);
     let mut auth = GarnetAadAuthenticator::with_clock(
-      authorized,
-      audiences,
-      issuers,
-      IssuerSigningTokenProvider::create_for_test(JwkSet { keys: vec![jwk] }),
-      true,
+      AadAuthenticatorConfig {
+        authorized_app_ids: authorized,
+        audiences,
+        issuers,
+        signing_token_provider: IssuerSigningTokenProvider::create_for_test(JwkSet {
+          keys: vec![jwk],
+        }),
+        validate_username: true,
+      },
       Box::new(move || clock_ticks.ticks.load(Ordering::Relaxed)),
     );
 
