@@ -34,10 +34,14 @@ const GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP: &str = "ERR unknown subcommand '{
 /// 主命令名称表项
 type PrimaryEntry = (&'static str, RespCommand, bool);
 
-/// 主命令名称表（有序，二分检索）。`has_subcommands` 标记经子命令表分派。
+/// 主命令名称表（有序，二分检索）。`has_subcommands` 标记经子命令表分派；
+/// 逐项对标 RespCommandHashLookupData.cs:PopulatePrimaryTable（含 SLAVEOF/
+/// SECONDARYOF 同命令双名与 RI.* 点名命令）。
 static PRIMARY_TABLE: &[PrimaryEntry] = &[
+  ("ACL", RespCommand::Acl, true),
   ("APPEND", RespCommand::Append, false),
   ("ASKING", RespCommand::Asking, false),
+  ("ASYNC", RespCommand::Async, false),
   ("AUTH", RespCommand::Auth, false),
   ("BGSAVE", RespCommand::Bgsave, false),
   ("BITCOUNT", RespCommand::Bitcount, false),
@@ -45,14 +49,26 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("BITFIELD_RO", RespCommand::BitfieldRo, false),
   ("BITOP", RespCommand::Bitop, true),
   ("BITPOS", RespCommand::Bitpos, false),
+  ("BLMOVE", RespCommand::Blmove, false),
+  ("BLMPOP", RespCommand::Blmpop, false),
+  ("BLPOP", RespCommand::Blpop, false),
+  ("BRPOP", RespCommand::Brpop, false),
+  ("BRPOPLPUSH", RespCommand::Brpoplpush, false),
+  ("BZMPOP", RespCommand::Bzmpop, false),
+  ("BZPOPMAX", RespCommand::Bzpopmax, false),
+  ("BZPOPMIN", RespCommand::Bzpopmin, false),
   ("CLIENT", RespCommand::Client, true),
   ("CLUSTER", RespCommand::Cluster, true),
   ("COMMAND", RespCommand::Command, true),
+  ("COMMITAOF", RespCommand::Commitaof, false),
   ("CONFIG", RespCommand::Config, true),
+  ("CUSTOMOBJECTSCAN", RespCommand::Coscan, false),
   ("DBSIZE", RespCommand::Dbsize, false),
+  ("DEBUG", RespCommand::Debug, false),
   ("DECR", RespCommand::Decr, false),
   ("DECRBY", RespCommand::Decrby, false),
   ("DEL", RespCommand::Del, false),
+  ("DELIFGREATER", RespCommand::Delifgreater, false),
   ("DISCARD", RespCommand::Discard, false),
   ("DUMP", RespCommand::Dump, false),
   ("ECHO", RespCommand::Echo, false),
@@ -60,31 +76,61 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("EVALSHA", RespCommand::Evalsha, false),
   ("EXEC", RespCommand::Exec, false),
   ("EXISTS", RespCommand::Exists, false),
+  ("EXPDELSCAN", RespCommand::Expdelscan, false),
   ("EXPIRE", RespCommand::Expire, false),
+  ("EXPIREAT", RespCommand::Expireat, false),
   ("EXPIRETIME", RespCommand::Expiretime, false),
+  ("FAILOVER", RespCommand::Failover, false),
   ("FLUSHALL", RespCommand::Flushall, false),
   ("FLUSHDB", RespCommand::Flushdb, false),
   ("GEOADD", RespCommand::Geoadd, false),
+  ("GEODIST", RespCommand::Geodist, false),
+  ("GEOHASH", RespCommand::Geohash, false),
+  ("GEOPOS", RespCommand::Geopos, false),
+  ("GEORADIUS", RespCommand::Georadius, false),
+  ("GEORADIUSBYMEMBER", RespCommand::Georadiusbymember, false),
+  (
+    "GEORADIUSBYMEMBER_RO",
+    RespCommand::GeoradiusbymemberRo,
+    false,
+  ),
+  ("GEORADIUS_RO", RespCommand::GeoradiusRo, false),
+  ("GEOSEARCH", RespCommand::Geosearch, false),
+  ("GEOSEARCHSTORE", RespCommand::Geosearchstore, false),
   ("GET", RespCommand::Get, false),
   ("GETBIT", RespCommand::Getbit, false),
   ("GETDEL", RespCommand::Getdel, false),
   ("GETEX", RespCommand::Getex, false),
+  ("GETIFNOTMATCH", RespCommand::Getifnotmatch, false),
   ("GETRANGE", RespCommand::Getrange, false),
   ("GETSET", RespCommand::Getset, false),
-  ("HELLO", RespCommand::Hello, false),
+  ("GETWITHETAG", RespCommand::Getwithetag, false),
+  ("HCOLLECT", RespCommand::Hcollect, false),
   ("HDEL", RespCommand::Hdel, false),
+  ("HELLO", RespCommand::Hello, false),
   ("HEXISTS", RespCommand::Hexists, false),
+  ("HEXPIRE", RespCommand::Hexpire, false),
+  ("HEXPIREAT", RespCommand::Hexpireat, false),
+  ("HEXPIRETIME", RespCommand::Hexpiretime, false),
   ("HGET", RespCommand::Hget, false),
   ("HGETALL", RespCommand::Hgetall, false),
   ("HINCRBY", RespCommand::Hincrby, false),
+  ("HINCRBYFLOAT", RespCommand::Hincrbyfloat, false),
   ("HKEYS", RespCommand::Hkeys, false),
   ("HLEN", RespCommand::Hlen, false),
   ("HMGET", RespCommand::Hmget, false),
   ("HMSET", RespCommand::Hmset, false),
+  ("HPERSIST", RespCommand::Hpersist, false),
+  ("HPEXPIRE", RespCommand::Hpexpire, false),
+  ("HPEXPIREAT", RespCommand::Hpexpireat, false),
+  ("HPEXPIRETIME", RespCommand::Hpexpiretime, false),
+  ("HPTTL", RespCommand::Hpttl, false),
+  ("HRANDFIELD", RespCommand::Hrandfield, false),
   ("HSCAN", RespCommand::Hscan, false),
   ("HSET", RespCommand::Hset, false),
   ("HSETNX", RespCommand::Hsetnx, false),
   ("HSTRLEN", RespCommand::Hstrlen, false),
+  ("HTTL", RespCommand::Httl, false),
   ("HVALS", RespCommand::Hvals, false),
   ("INCR", RespCommand::Incr, false),
   ("INCRBY", RespCommand::Incrby, false),
@@ -95,7 +141,10 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("LATENCY", RespCommand::Latency, true),
   ("LCS", RespCommand::Lcs, false),
   ("LINDEX", RespCommand::Lindex, false),
+  ("LINSERT", RespCommand::Linsert, false),
   ("LLEN", RespCommand::Llen, false),
+  ("LMOVE", RespCommand::Lmove, false),
+  ("LMPOP", RespCommand::Lmpop, false),
   ("LPOP", RespCommand::Lpop, false),
   ("LPOS", RespCommand::Lpos, false),
   ("LPUSH", RespCommand::Lpush, false),
@@ -106,6 +155,8 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("LTRIM", RespCommand::Ltrim, false),
   ("MEMORY", RespCommand::Memory, true),
   ("MGET", RespCommand::Mget, false),
+  ("MIGRATE", RespCommand::Migrate, false),
+  ("MODULE", RespCommand::Module, true),
   ("MONITOR", RespCommand::Monitor, false),
   ("MSET", RespCommand::Mset, false),
   ("MSETNX", RespCommand::Msetnx, false),
@@ -114,6 +165,7 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("PERSIST", RespCommand::Persist, false),
   ("PEXPIRE", RespCommand::Pexpire, false),
   ("PEXPIREAT", RespCommand::Pexpireat, false),
+  ("PEXPIRETIME", RespCommand::Pexpiretime, false),
   ("PFADD", RespCommand::Pfadd, false),
   ("PFCOUNT", RespCommand::Pfcount, false),
   ("PFMERGE", RespCommand::Pfmerge, false),
@@ -127,38 +179,61 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("QUIT", RespCommand::Quit, false),
   ("READONLY", RespCommand::Readonly, false),
   ("READWRITE", RespCommand::Readwrite, false),
+  ("REGISTERCS", RespCommand::Registercs, false),
   ("RENAME", RespCommand::Rename, false),
   ("RENAMENX", RespCommand::Renamenx, false),
+  ("REPLICAOF", RespCommand::Replicaof, false),
   ("RESTORE", RespCommand::Restore, false),
+  ("RI.CONFIG", RespCommand::Riconfig, false),
+  ("RI.CREATE", RespCommand::Ricreate, false),
+  ("RI.DEL", RespCommand::Ridel, false),
+  ("RI.EXISTS", RespCommand::Riexists, false),
+  ("RI.GET", RespCommand::Riget, false),
+  ("RI.METRICS", RespCommand::Rimetrics, false),
+  ("RI.RANGE", RespCommand::Rirange, false),
+  ("RI.SCAN", RespCommand::Riscan, false),
+  ("RI.SET", RespCommand::Riset, false),
+  ("ROLE", RespCommand::Role, false),
   ("RPOP", RespCommand::Rpop, false),
   ("RPOPLPUSH", RespCommand::Rpoplpush, false),
   ("RPUSH", RespCommand::Rpush, false),
   ("RPUSHX", RespCommand::Rpushx, false),
+  ("RUNTXP", RespCommand::Runtxp, false),
   ("SADD", RespCommand::Sadd, false),
+  ("SAVE", RespCommand::Save, false),
   ("SCAN", RespCommand::Scan, false),
   ("SCARD", RespCommand::Scard, false),
   ("SCRIPT", RespCommand::Script, true),
   ("SDIFF", RespCommand::Sdiff, false),
   ("SDIFFSTORE", RespCommand::Sdiffstore, false),
+  ("SECONDARYOF", RespCommand::Secondaryof, false),
   ("SELECT", RespCommand::Select, false),
   ("SET", RespCommand::Set, false),
   ("SETBIT", RespCommand::Setbit, false),
   ("SETEX", RespCommand::Setex, false),
+  ("SETIFGREATER", RespCommand::Setifgreater, false),
+  ("SETIFMATCH", RespCommand::Setifmatch, false),
   ("SETNX", RespCommand::Setnx, false),
   ("SETRANGE", RespCommand::Setrange, false),
+  ("SETWITHETAG", RespCommand::Setwithetag, false),
   ("SINTER", RespCommand::Sinter, false),
+  ("SINTERCARD", RespCommand::Sintercard, false),
   ("SINTERSTORE", RespCommand::Sinterstore, false),
   ("SISMEMBER", RespCommand::Sismember, false),
+  ("SLAVEOF", RespCommand::Secondaryof, false),
   ("SLOWLOG", RespCommand::Slowlog, true),
   ("SMEMBERS", RespCommand::Smembers, false),
   ("SMISMEMBER", RespCommand::Smismember, false),
+  ("SMOVE", RespCommand::Smove, false),
   ("SPOP", RespCommand::Spop, false),
+  ("SPUBLISH", RespCommand::Spublish, false),
   ("SRANDMEMBER", RespCommand::Srandmember, false),
   ("SREM", RespCommand::Srem, false),
   ("SSCAN", RespCommand::Sscan, false),
   ("SSUBSCRIBE", RespCommand::Ssubscribe, false),
   ("STRLEN", RespCommand::Strlen, false),
   ("SUBSCRIBE", RespCommand::Subscribe, false),
+  ("SUBSTR", RespCommand::Substr, false),
   ("SUNION", RespCommand::Sunion, false),
   ("SUNIONSTORE", RespCommand::Sunionstore, false),
   ("SWAPDB", RespCommand::Swapdb, false),
@@ -168,27 +243,67 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("UNLINK", RespCommand::Unlink, false),
   ("UNSUBSCRIBE", RespCommand::Unsubscribe, false),
   ("UNWATCH", RespCommand::Unwatch, false),
+  ("VADD", RespCommand::Vadd, false),
+  ("VCARD", RespCommand::Vcard, false),
+  ("VDIM", RespCommand::Vdim, false),
+  ("VEMB", RespCommand::Vemb, false),
+  ("VGETATTR", RespCommand::Vgetattr, false),
+  ("VINFO", RespCommand::Vinfo, false),
+  ("VISMEMBER", RespCommand::Vismember, false),
+  ("VLINKS", RespCommand::Vlinks, false),
+  ("VRANDMEMBER", RespCommand::Vrandmember, false),
+  ("VREM", RespCommand::Vrem, false),
+  ("VSETATTR", RespCommand::Vsetattr, false),
+  ("VSIM", RespCommand::Vsim, false),
   ("WATCH", RespCommand::Watch, false),
+  ("WATCHMS", RespCommand::Watchms, false),
+  ("WATCHOS", RespCommand::Watchos, false),
   ("ZADD", RespCommand::Zadd, false),
   ("ZCARD", RespCommand::Zcard, false),
+  ("ZCOLLECT", RespCommand::Zcollect, false),
   ("ZCOUNT", RespCommand::Zcount, false),
+  ("ZDIFF", RespCommand::Zdiff, false),
+  ("ZDIFFSTORE", RespCommand::Zdiffstore, false),
+  ("ZEXPIRE", RespCommand::Zexpire, false),
+  ("ZEXPIREAT", RespCommand::Zexpireat, false),
+  ("ZEXPIRETIME", RespCommand::Zexpiretime, false),
   ("ZINCRBY", RespCommand::Zincrby, false),
+  ("ZINTER", RespCommand::Zinter, false),
+  ("ZINTERCARD", RespCommand::Zintercard, false),
+  ("ZINTERSTORE", RespCommand::Zinterstore, false),
   ("ZLEXCOUNT", RespCommand::Zlexcount, false),
+  ("ZMPOP", RespCommand::Zmpop, false),
+  ("ZMSCORE", RespCommand::Zmscore, false),
+  ("ZPERSIST", RespCommand::Zpersist, false),
+  ("ZPEXPIRE", RespCommand::Zpexpire, false),
+  ("ZPEXPIREAT", RespCommand::Zpexpireat, false),
+  ("ZPEXPIRETIME", RespCommand::Zpexpiretime, false),
   ("ZPOPMAX", RespCommand::Zpopmax, false),
   ("ZPOPMIN", RespCommand::Zpopmin, false),
+  ("ZPTTL", RespCommand::Zpttl, false),
+  ("ZRANDMEMBER", RespCommand::Zrandmember, false),
   ("ZRANGE", RespCommand::Zrange, false),
   ("ZRANGEBYLEX", RespCommand::Zrangebylex, false),
   ("ZRANGEBYSCORE", RespCommand::Zrangebyscore, false),
+  ("ZRANGESTORE", RespCommand::Zrangestore, false),
   ("ZRANK", RespCommand::Zrank, false),
   ("ZREM", RespCommand::Zrem, false),
   ("ZREMRANGEBYLEX", RespCommand::Zremrangebylex, false),
   ("ZREMRANGEBYRANK", RespCommand::Zremrangebyrank, false),
   ("ZREMRANGEBYSCORE", RespCommand::Zremrangebyscore, false),
+  ("ZREVRANGE", RespCommand::Zrevrange, false),
+  ("ZREVRANGEBYLEX", RespCommand::Zrevrangebylex, false),
+  ("ZREVRANGEBYSCORE", RespCommand::Zrevrangebyscore, false),
+  ("ZREVRANK", RespCommand::Zrevrank, false),
   ("ZSCAN", RespCommand::Zscan, false),
   ("ZSCORE", RespCommand::Zscore, false),
+  ("ZTTL", RespCommand::Zttl, false),
+  ("ZUNION", RespCommand::Zunion, false),
+  ("ZUNIONSTORE", RespCommand::Zunionstore, false),
 ];
 
-/// 子命令表：父命令 → (子命令名, RespCommand)
+/// 子命令表：父命令 → (子命令名, RespCommand)（按名 ASCII 有序，承接二分检索）
+/// Client 子命令表
 static CLIENT_SUBTABLE: &[(&str, RespCommand)] = &[
   ("GETNAME", RespCommand::ClientGetname),
   ("ID", RespCommand::ClientId),
@@ -200,12 +315,14 @@ static CLIENT_SUBTABLE: &[(&str, RespCommand)] = &[
   ("UNBLOCK", RespCommand::ClientUnblock),
 ];
 
+/// Config 子命令表
 static CONFIG_SUBTABLE: &[(&str, RespCommand)] = &[
   ("GET", RespCommand::ConfigGet),
   ("REWRITE", RespCommand::ConfigRewrite),
   ("SET", RespCommand::ConfigSet),
 ];
 
+/// Command 子命令表
 static COMMAND_SUBTABLE: &[(&str, RespCommand)] = &[
   ("COUNT", RespCommand::CommandCount),
   ("DOCS", RespCommand::CommandDocs),
@@ -214,6 +331,7 @@ static COMMAND_SUBTABLE: &[(&str, RespCommand)] = &[
   ("INFO", RespCommand::CommandInfo),
 ];
 
+/// Acl 子命令表
 static ACL_SUBTABLE: &[(&str, RespCommand)] = &[
   ("CAT", RespCommand::AclCat),
   ("DELUSER", RespCommand::AclDeluser),
@@ -227,29 +345,121 @@ static ACL_SUBTABLE: &[(&str, RespCommand)] = &[
   ("WHOAMI", RespCommand::AclWhoami),
 ];
 
+/// Script 子命令表
 static SCRIPT_SUBTABLE: &[(&str, RespCommand)] = &[
   ("EXISTS", RespCommand::ScriptExists),
   ("FLUSH", RespCommand::ScriptFlush),
   ("LOAD", RespCommand::ScriptLoad),
 ];
 
+/// Pubsub 子命令表
 static PUBSUB_SUBTABLE: &[(&str, RespCommand)] = &[
   ("CHANNELS", RespCommand::PubsubChannels),
   ("NUMPAT", RespCommand::PubsubNumpat),
   ("NUMSUB", RespCommand::PubsubNumsub),
 ];
 
+/// Latency 子命令表
 static LATENCY_SUBTABLE: &[(&str, RespCommand)] = &[
   ("HELP", RespCommand::LatencyHelp),
   ("HISTOGRAM", RespCommand::LatencyHistogram),
   ("RESET", RespCommand::LatencyReset),
 ];
 
+/// Slowlog 子命令表
 static SLOWLOG_SUBTABLE: &[(&str, RespCommand)] = &[
   ("GET", RespCommand::SlowlogGet),
   ("HELP", RespCommand::SlowlogHelp),
   ("LEN", RespCommand::SlowlogLen),
   ("RESET", RespCommand::SlowlogReset),
+];
+
+/// MODULE 子命令表
+static MODULE_SUBTABLE: &[(&str, RespCommand)] = &[("LOADCS", RespCommand::ModuleLoadcs)];
+
+/// Memory 子命令表
+static MEMORY_SUBTABLE: &[(&str, RespCommand)] = &[("USAGE", RespCommand::MemoryUsage)];
+
+/// Object 子命令表
+static OBJECT_SUBTABLE: &[(&str, RespCommand)] = &[
+  ("ENCODING", RespCommand::ObjectEncoding),
+  ("FREQ", RespCommand::ObjectFreq),
+  ("HELP", RespCommand::ObjectHelp),
+  ("IDLETIME", RespCommand::ObjectIdletime),
+  ("REFCOUNT", RespCommand::ObjectRefcount),
+];
+
+/// CLUSTER 子命令表（含 SET-CONFIG-EPOCH 连字符名）
+static CLUSTER_SUBTABLE: &[(&str, RespCommand)] = &[
+  ("ADDSLOTS", RespCommand::ClusterAddslots),
+  ("ADDSLOTSRANGE", RespCommand::ClusterAddslotsrange),
+  ("ADVANCE_TIME", RespCommand::ClusterAdvanceTime),
+  ("APPENDLOG", RespCommand::ClusterAppendlog),
+  ("ATTACH_SYNC", RespCommand::ClusterAttachSync),
+  ("BANLIST", RespCommand::ClusterBanlist),
+  (
+    "BEGIN_REPLICA_RECOVER",
+    RespCommand::ClusterBeginReplicaRecover,
+  ),
+  ("BUMPEPOCH", RespCommand::ClusterBumpepoch),
+  ("COUNTKEYSINSLOT", RespCommand::ClusterCountkeysinslot),
+  ("DELKEYSINSLOT", RespCommand::ClusterDelkeysinslot),
+  ("DELKEYSINSLOTRANGE", RespCommand::ClusterDelkeysinslotrange),
+  ("DELSLOTS", RespCommand::ClusterDelslots),
+  ("DELSLOTSRANGE", RespCommand::ClusterDelslotsrange),
+  ("ENDPOINT", RespCommand::ClusterEndpoint),
+  ("FAILOVER", RespCommand::ClusterFailover),
+  (
+    "FAILREPLICATIONOFFSET",
+    RespCommand::ClusterFailreplicationoffset,
+  ),
+  ("FAILSTOPWRITES", RespCommand::ClusterFailstopwrites),
+  ("FLUSHALL", RespCommand::ClusterFlushall),
+  ("FORGET", RespCommand::ClusterForget),
+  ("GETKEYSINSLOT", RespCommand::ClusterGetkeysinslot),
+  ("GOSSIP", RespCommand::ClusterGossip),
+  ("HELP", RespCommand::ClusterHelp),
+  ("INFO", RespCommand::ClusterInfo),
+  (
+    "INITIATE_REPLICA_SYNC",
+    RespCommand::ClusterInitiateReplicaSync,
+  ),
+  ("KEYSLOT", RespCommand::ClusterKeyslot),
+  ("MEET", RespCommand::ClusterMeet),
+  ("MIGRATE", RespCommand::ClusterMigrate),
+  ("MLOG_KEY_TIME", RespCommand::ClusterMlogKeyTime),
+  ("MTASKS", RespCommand::ClusterMtasks),
+  ("MYID", RespCommand::ClusterMyid),
+  ("MYPARENTID", RespCommand::ClusterMyparentid),
+  ("NODES", RespCommand::ClusterNodes),
+  ("PUBLISH", RespCommand::ClusterPublish),
+  ("REPLICAS", RespCommand::ClusterReplicas),
+  ("REPLICATE", RespCommand::ClusterReplicate),
+  ("RESERVE", RespCommand::ClusterReserve),
+  ("RESET", RespCommand::ClusterReset),
+  (
+    "SEND_CKPT_FILE_SEGMENT",
+    RespCommand::ClusterSendCkptFileSegment,
+  ),
+  ("SEND_CKPT_METADATA", RespCommand::ClusterSendCkptMetadata),
+  ("SET-CONFIG-EPOCH", RespCommand::ClusterSetconfigepoch),
+  ("SETSLOT", RespCommand::ClusterSetslot),
+  ("SETSLOTSRANGE", RespCommand::ClusterSetslotsrange),
+  ("SHARDS", RespCommand::ClusterShards),
+  ("SLOTS", RespCommand::ClusterSlots),
+  ("SLOTSTATE", RespCommand::ClusterSlotstate),
+  ("SNAPSHOT_DATA", RespCommand::ClusterSnapshotData),
+  ("SPUBLISH", RespCommand::ClusterSpublish),
+  ("SYNC", RespCommand::ClusterSync),
+];
+
+/// BITOP 子命令表（AND/OR/XOR/NOT/DIFF）
+static BITOP_SUBTABLE: &[(&str, RespCommand)] = &[
+  ("AND", RespCommand::BitopAnd),
+  ("DIFF", RespCommand::BitopDiff),
+  ("NOT", RespCommand::BitopNot),
+  ("OR", RespCommand::BitopOr),
+  ("XOR", RespCommand::BitopXor),
 ];
 
 /// 有序表二分检索（C# RespCommandHashLookup.Lookup 的表语义等价）
@@ -280,6 +490,11 @@ fn lookup_subcommand(parent: RespCommand, name: &[u8]) -> Option<RespCommand> {
     RespCommand::Pubsub => PUBSUB_SUBTABLE,
     RespCommand::Latency => LATENCY_SUBTABLE,
     RespCommand::Slowlog => SLOWLOG_SUBTABLE,
+    RespCommand::Module => MODULE_SUBTABLE,
+    RespCommand::Memory => MEMORY_SUBTABLE,
+    RespCommand::Object => OBJECT_SUBTABLE,
+    RespCommand::Cluster => CLUSTER_SUBTABLE,
+    RespCommand::Bitop => BITOP_SUBTABLE,
     _ => &[],
   };
   lookup_in_table(table, name)
@@ -998,6 +1213,81 @@ mod tests {
     assert_eq!(cmd, Some(RespCommand::Invalid));
     let out = s.take_output();
     assert_eq!(out, b"-ERR unknown command\r\n");
+  }
+
+  /// 主表二分检索回归：HELLO/HDEL 曾乱序致 HDEL 漏查；父命令与子命令表
+  /// 补齐 ACL/MODULE/BITOP/CLUSTER/MEMORY/OBJECT 后应全部分派成功
+
+  #[test]
+  fn primary_table_order_and_full_dispatch() {
+    let mut s = RespServerSession::default();
+
+    // 乱序回归：HDEL 位于 HELLO 之后曾不可达
+    let (cmd, args) = parse_one(&mut s, b"*3\r\n$4\r\nHDEL\r\n$1\r\nk\r\n$1\r\nf\r\n");
+    assert_eq!(cmd, Some(RespCommand::Hdel));
+    assert_eq!(args, vec![b"k".to_vec(), b"f".to_vec()]);
+
+    // 曾缺失的根命令（EXPIREAT / ZREVRANK / SUBSTR / LMOVE）
+    for (frame, expect) in [
+      (
+        &b"*3\r\n$8\r\nEXPIREAT\r\n$1\r\nk\r\n$1\r\n1\r\n"[..],
+        RespCommand::Expireat,
+      ),
+      (
+        &b"*3\r\n$8\r\nZREVRANK\r\n$1\r\nk\r\n$1\r\nm\r\n"[..],
+        RespCommand::Zrevrank,
+      ),
+      (
+        &b"*2\r\n$6\r\nSUBSTR\r\n$1\r\nk\r\n"[..],
+        RespCommand::Substr,
+      ),
+      (
+        &b"*5\r\n$5\r\nLMOVE\r\n$1\r\na\r\n$1\r\nb\r\n$4\r\nLEFT\r\n$5\r\nRIGHT\r\n"[..],
+        RespCommand::Lmove,
+      ),
+    ] {
+      let (cmd, _) = parse_one(&mut s, frame);
+      assert_eq!(cmd, Some(expect), "{frame:?}");
+    }
+
+    // 父命令分派补齐：ACL / MODULE / BITOP / OBJECT / MEMORY / CLUSTER
+    for (frame, expect) in [
+      (
+        &b"*2\r\n$3\r\nACL\r\n$3\r\nCAT\r\n"[..],
+        RespCommand::AclCat,
+      ),
+      (
+        &b"*2\r\n$6\r\nMODULE\r\n$6\r\nLOADCS\r\n"[..],
+        RespCommand::ModuleLoadcs,
+      ),
+      (
+        &b"*2\r\n$6\r\nMEMORY\r\n$5\r\nUSAGE\r\n$1\r\nk\r\n"[..],
+        RespCommand::MemoryUsage,
+      ),
+      (
+        &b"*3\r\n$6\r\nOBJECT\r\n$8\r\nENCODING\r\n$1\r\nk\r\n"[..],
+        RespCommand::ObjectEncoding,
+      ),
+      (
+        &b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n"[..],
+        RespCommand::ClusterMyid,
+      ),
+      (
+        &b"*3\r\n$7\r\nCLUSTER\r\n$16\r\nSET-CONFIG-EPOCH\r\n$1\r\n0\r\n"[..],
+        RespCommand::ClusterSetconfigepoch,
+      ),
+    ] {
+      let (cmd, _) = parse_one(&mut s, frame);
+      assert_eq!(cmd, Some(expect), "{frame:?}");
+    }
+
+    // BITOP NOT（连字段子命令 + 负载参数）
+    let (cmd, args) = parse_one(
+      &mut s,
+      b"*4\r\n$5\r\nBITOP\r\n$3\r\nNOT\r\n$3\r\ndst\r\n$3\r\nsrc\r\n",
+    );
+    assert_eq!(cmd, Some(RespCommand::BitopNot));
+    assert_eq!(args, vec![b"dst".to_vec(), b"src".to_vec()]);
   }
 
   #[test]
