@@ -25,22 +25,22 @@ const CLUSTER_ENABLED: bool = false;
 const PROTECTION_OPTION: ConnectionProtection = ConnectionProtection::No;
 
 /// libs/server/Auth/Settings/ConnectionProtectionOption.cs
+///
+/// rust 会话层仅按默认配置 `No` 接线（未接服务器选项与本地端点判定），故只保留
+/// 该单一档；`Local`/`Yes` 的完整 C# 语义由 `resp_server_session.rs` 的
+/// `ConnectionProtectionOption` 与 `can_run_with_protection` 承载
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConnectionProtection {
   No,
-  #[allow(dead_code)]
-  Local,
-  #[allow(dead_code)]
-  Yes,
 }
 
 impl ConnectionProtection {
   /// libs/server/Resp/RespServerSession.cs:CanRunDebug
   ///
   /// C# 还需 networkSender.IsLocalConnection() 配合 Local 档；rust 网络层未接
-  /// 端点判定，Local 档按拒绝处理
+  /// 端点判定，且本 crate 仅接线 No 档，受保护的管理命令恒拒绝
   const fn can_run(self) -> bool {
-    matches!(self, Self::Yes)
+    false
   }
 }
 

@@ -4,7 +4,7 @@
 //! 每块前置 `BlockHeader`（容量 + 对齐）以支撑 resize；用量簿记供
 //! INFO/监视面读取。
 
-use std::alloc::{Layout, alloc as std_alloc, dealloc as std_dealloc, realloc as std_realloc};
+use std::alloc::{Layout, alloc as std_alloc, realloc as std_realloc};
 
 use super::i_lua_allocator::ILuaAllocator;
 
@@ -116,10 +116,4 @@ impl Drop for LuaManagedAllocator {
     // mlua 的 luau VM 会在销毁时回调释放全部块；此处的用量簿记随之归零。
     self.allocated_bytes = 0;
   }
-}
-
-// 引用全局释放函数以保持与 C# Dispose 形态对齐的编译期校验。
-#[allow(dead_code)]
-fn _dealloc_unused() {
-  let _ = (std_dealloc, BlockHeader::LAYOUT);
 }
