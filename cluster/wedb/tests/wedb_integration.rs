@@ -1,13 +1,13 @@
 //! wedb 集群数据面集成测试：选主角色门控、AOF 同步与树文件迁移流重组
 use std::{future::Future, io, sync::Arc};
+
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use parking_lot::Mutex;
 use tempfile::tempdir;
 use wdev::SegmentedDevice;
 use wedb::{
-  AofSyncDriver, AofTransport, FailoverManager, NoopConsensus, Role,
-  TreeChunkFrame, TreeFileSink,
+  AofSyncDriver, AofTransport, FailoverManager, NoopConsensus, Role, TreeChunkFrame, TreeFileSink,
 };
 use wedb_standalone::{WalConfig, WalLog};
 
@@ -66,7 +66,9 @@ fn test_aof_sync_driver_progress() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = Arc::new(SegmentedDevice::single_file(dir.path().join("integration_sync.wal"))?);
+    let device = Arc::new(SegmentedDevice::single_file(
+      dir.path().join("integration_sync.wal"),
+    )?);
     let wal = Arc::new(WalLog::new(device, WalConfig::default())?);
 
     let a = wedb_standalone::encode_entry(wedb_standalone::AofOp::RiCreate, 1, b"k1", b"blob-a");

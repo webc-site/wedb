@@ -284,7 +284,6 @@ fn log2_exact(v: i64) -> i32 {
   63 - v.leading_zeros() as i32
 }
 
-
 #[cfg(test)]
 mod tests {
   use super::*;

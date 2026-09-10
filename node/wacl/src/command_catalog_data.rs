@@ -1,8 +1,9 @@
 //! ACL 命令目录静态数据（自 garnet/libs/resources/RespCommandsInfo.json 生成，
 //! 覆盖全部根命令与子命令的名称 / ACL 分类 / 父子关系）
 
-use super::RespAclCategories;
 use wresp::RespCommand;
+
+use super::RespAclCategories;
 
 /// 单条命令目录（RespCommandsInfo 中 ACL 消费的最小面）
 pub struct CmdEntry {

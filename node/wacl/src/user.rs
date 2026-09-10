@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use gxhash::{HashSet, HashSetExt};
 use parking_lot::{Mutex, RwLock};
+use wresp::RespCommand;
 
 use super::{
   AclPassword, RespAclCategories,
@@ -18,7 +19,6 @@ use super::{
   },
   command_permission_set::CommandPermissionSet,
 };
-use wresp::RespCommand;
 
 /// Garnet 用户
 pub struct User {

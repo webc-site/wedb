@@ -266,8 +266,9 @@ impl AccessControlList {
 mod tests {
   use std::{fs, thread};
 
-  use super::*;
   use wresp::RespCommand;
+
+  use super::*;
 
   /// 对标 garnet AclConfigurationFileTests.EmptyInput：空文件 → 仅 default 用户
   #[test]

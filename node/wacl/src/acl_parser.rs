@@ -13,11 +13,12 @@
 
 use std::sync::Arc;
 
+use wresp::RespCommand;
+
 use super::{
   AclPassword, RespAclCategories, access_control_list::AccessControlList, acl_exception::AclError,
   command_catalog as catalog, user::User, user_handle::UserHandle,
 };
-use wresp::RespCommand;
 
 /// 分类名对照表（对标 C# categoryNames；序即 ListCategories 的列举序）
 const CATEGORY_NAMES: [(&str, RespAclCategories); 25] = [

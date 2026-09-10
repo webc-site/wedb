@@ -190,8 +190,8 @@ impl Default for GarnetServerOptions {
 }
 
 pub use super::server_options::{
-  next_power_of_2, parse_size, parse_size_bytes, pretty_size, previous_power_of_2,
-  try_parse_size, try_parse_size_bytes,
+  next_power_of_2, parse_size, parse_size_bytes, pretty_size, previous_power_of_2, try_parse_size,
+  try_parse_size_bytes,
 };
 
 /// 位数的 log2（输入保证为 2 的幂且 > 0）。

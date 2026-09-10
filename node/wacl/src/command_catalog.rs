@@ -5,9 +5,10 @@
 //! garnet/libs/resources/RespCommandsInfo.json 生成），全部查询为无锁
 //! 单遍扫描——目录仅 356 条且 ACL 规则修改是管理频度操作。
 
+use wresp::RespCommand;
+
 use super::command_catalog_data::CMD_ENTRIES;
 pub(crate) use super::command_catalog_data::CmdEntry;
-use wresp::RespCommand;
 
 bitflags::bitflags! {
     /// RESP ACL 分类位集
