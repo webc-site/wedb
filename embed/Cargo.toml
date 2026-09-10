@@ -48,7 +48,7 @@ version = "0.1.4"
 path = "wbase"
 
 [workspace.dependencies.wbftree]
-version = "0.1.2"
+version = "0.1.3"
 path = "wbftree"
 
 [workspace.dependencies.wcompact]
@@ -60,7 +60,7 @@ version = "0.1.0"
 path = "wcpr"
 
 [workspace.dependencies.wdev]
-version = "0.1.1"
+version = "0.1.2"
 path = "wdev"
 
 [workspace.dependencies.wepoch]
@@ -68,7 +68,7 @@ version = "0.1.1"
 path = "wepoch"
 
 [workspace.dependencies.whasher]
-version = "0.1.5"
+version = "0.1.6"
 path = "whasher"
 
 [workspace.dependencies.whlog]
