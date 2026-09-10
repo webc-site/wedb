@@ -4,7 +4,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import yaml from "yaml";
 import garnetScan from "./check/garnetScan.js";
-import rustScan from "./check/rustScan.js";
+import rustScan, { CS_REF_REGEX, csPathNormalize } from "./check/rustScan.js";
 
 const ROOT_DIR = resolve(import.meta.dirname, ".."),
   GARNET_DIR = join(ROOT_DIR, "garnet"),
@@ -144,15 +144,15 @@ const ignoreLoadAndPrune = async (doc_file_fn_map) => {
       }
     }
 
-    const remaining_keys = Object.keys(dict);
-    if (remaining_keys.length === 0) {
+    const remaining_key_li = Object.keys(dict);
+    if (remaining_key_li.length === 0) {
       await rm(yml_path, { force: true });
       has_deleted_files = true;
     } else {
       if (modified || Array.isArray(data) || data.fn || data.test) {
         await Bun.write(yml_path, yaml.stringify(dict));
       }
-      file_ignore_map.set(cs_path, new Set(remaining_keys));
+      file_ignore_map.set(cs_path, new Set(remaining_key_li));
     }
   }
 
@@ -179,9 +179,65 @@ const ignoreLoadAndPrune = async (doc_file_fn_map) => {
   return [file_ignore_map, global_ignore_set];
 };
 
+const dupDefFind = (fn_doc_li) => {
+  const cs_ref_map = new Map();
+
+  for (const item of fn_doc_li) {
+    const { doc, file, fn, fn_path, line } = item;
+    if (!doc) continue;
+
+    const seen_set = new Set();
+    for (const match of doc.matchAll(CS_REF_REGEX)) {
+      const [, raw_cs_path, fn_name] = match,
+        cs_path = csPathNormalize(raw_cs_path),
+        key = cs_path + ":" + fn_name;
+
+      if (seen_set.has(key)) continue;
+      seen_set.add(key);
+
+      const loc_li = cs_ref_map.get(key) ?? [];
+      loc_li.push({ file, fn, fn_path, line });
+      cs_ref_map.set(key, loc_li);
+    }
+  }
+
+  const dup_li = [];
+  for (const [key, loc_li] of cs_ref_map.entries()) {
+    if (loc_li.length > 1) {
+      loc_li.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+      dup_li.push([key, loc_li]);
+    }
+  }
+
+  dup_li.sort(([a], [b]) => a.localeCompare(b));
+  return dup_li;
+};
+
+const dupDefFormat = (dup_li) => {
+  if (dup_li.length === 0) return [];
+
+  const line_li = [
+    "============================================================",
+    "  ⚠️  发现重复定义的 C# 函数（共 " + dup_li.length + " 处）",
+    "============================================================",
+    ""
+  ];
+
+  for (const [cs_ref, loc_li] of dup_li) {
+    line_li.push(cs_ref + " (出现 " + loc_li.length + " 次):");
+    for (const loc of loc_li) {
+      const fn_desc = loc.fn_path ? " (" + loc.fn_path + ")" : "";
+      line_li.push("  - " + loc.file + ":" + loc.line + fn_desc);
+    }
+    line_li.push("");
+  }
+
+  return line_li;
+};
+
 const check = async () => {
   const [fn_map, test_map] = await garnetScan(GARNET_DIR),
-    [doc_set, doc_file_fn_map] = await rustScan(ROOT_DIR),
+    [doc_set, doc_file_fn_map, fn_doc_li] = await rustScan(ROOT_DIR),
     [file_ignore_map, global_ignore_set] = await ignoreLoadAndPrune(doc_file_fn_map),
     isIgnored = (rel_path, name) => {
       if (global_ignore_set.has(name)) return true;
@@ -219,6 +275,13 @@ const check = async () => {
 
   for (const miss_dir of MISS_DIR_LI) {
     await missSync(miss_dir, active_miss_map);
+  }
+
+  const dup_li = dupDefFind(fn_doc_li),
+    dup_line_li = dupDefFormat(dup_li);
+
+  if (dup_line_li.length > 0) {
+    console.log(dup_line_li.join("\n"));
   }
 
   const miss_file_li = [...active_miss_map.keys()];

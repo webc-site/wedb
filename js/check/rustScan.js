@@ -9,7 +9,8 @@ const rsWalk = async (dir_path) => {
     file_li = [];
 
   for (const entry of entry_li) {
-    const { name } = entry;
+    const { name } = entry,
+      full_path = join(dir_path, name);
     if (
       name === "target" ||
       name === ".git" ||
@@ -20,7 +21,6 @@ const rsWalk = async (dir_path) => {
     ) {
       continue;
     }
-    const full_path = join(dir_path, name);
     if (entry.isDirectory()) {
       const sub_li = await rsWalk(full_path);
       file_li.push(...sub_li);
@@ -31,24 +31,26 @@ const rsWalk = async (dir_path) => {
   return file_li;
 };
 
-const CS_REF_REGEX =
-  /(?:^|[^\w./])([a-zA-Z0-9_\-./]+\.cs)::?([A-Za-z0-9_]+)/g;
+export const CS_REF_REGEX =
+  /(?:^|[^\w./])([a-zA-Z0-9_\-./]+\.cs)::?([A-Za-z_][A-Za-z0-9_]*)/g,
+  csPathNormalize = (raw_cs_path) => {
+    let cs_path = raw_cs_path;
+    const idx = cs_path.indexOf("garnet/");
+    if (idx !== -1) {
+      cs_path = cs_path.slice(idx + 7);
+    }
+    return cs_path.replace(/^\.?\//, "");
+  };
 
 const docTokenExtract = (text, doc_set, doc_file_fn_map) => {
   const word_li = text.match(/[A-Za-z_][A-Za-z0-9_]*/g);
   word_li?.forEach((word) => doc_set.add(word));
 
   for (const match of text.matchAll(CS_REF_REGEX)) {
-    const [, raw_cs_path, fn_name] = match;
-    let cs_path = raw_cs_path;
+    const [, raw_cs_path, fn_name] = match,
+      cs_path = csPathNormalize(raw_cs_path),
+      fn_set = doc_file_fn_map.get(cs_path) ?? new Set();
 
-    const idx = cs_path.indexOf("garnet/");
-    if (idx !== -1) {
-      cs_path = cs_path.slice(idx + 7);
-    }
-    cs_path = cs_path.replace(/^\.?\//, "");
-
-    const fn_set = doc_file_fn_map.get(cs_path) ?? new Set();
     fn_set.add(fn_name);
     doc_file_fn_map.set(cs_path, fn_set);
     doc_set.add(fn_name);
@@ -113,9 +115,22 @@ const rsDocExtract = (code, file_rel, doc_file_fn_map, parser) => {
       curr = curr.previousSibling;
     }
 
+    let parent = fn.parent,
+      type_name = "";
+    while (parent) {
+      if (parent.type === "impl_item") {
+        const type_node = parent.childForFieldName("type");
+        if (type_node) type_name = type_node.text + "::";
+        break;
+      }
+      parent = parent.parent;
+    }
+
     fn_doc_li.push({
       file: file_rel,
       fn: fn_name,
+      fn_path: type_name + fn_name,
+      line: fn.startPosition.row + 1,
       doc: doc_part_li.join("\n")
     });
   }
