@@ -230,12 +230,6 @@ impl CandidateAddresses {
     }
   }
 
-  /// 判定是否发生堆溢出扩展
-  #[inline]
-  pub fn is_heap_allocated(&self) -> bool {
-    !self.extra.is_empty()
-  }
-
   /// 保留满足谓词的候选地址
   #[inline]
   pub fn retain<F: FnMut(u64) -> bool>(&mut self, mut f: F) {
@@ -554,8 +548,6 @@ pub struct HashIndex {
 impl HashIndex {
   /// 硬件预取滑动窗口大小（1:1 对标 Garnet Tsavorite PrefetchSize = 12）
   pub const PREFETCH_WINDOW: usize = 12;
-  /// 批量查询分块大小（全栈缓冲）
-  pub const BATCH_CHUNK_SIZE: usize = 64;
   /// 栈上内联加锁条目数上限
   pub const INLINE_LOCK_ENTRIES: usize = 16;
   /// 自旋让步阈值（超过后让出 CPU 时间片）
@@ -1000,12 +992,6 @@ impl HashIndex {
     }
   }
 
-  /// 获取主哈希桶总数
-  #[inline]
-  pub fn bucket_count(&self) -> usize {
-    self.size
-  }
-
   /// 获取已分配的溢出桶总数
   #[inline]
   pub fn overflow_bucket_count(&self) -> u64 {
@@ -1106,31 +1092,6 @@ impl HashIndex {
     }
   }
 
-  /// 键批量统一驱动：按 [`Self::BATCH_CHUNK_SIZE`] 分块、块内哈希入栈缓冲后走 by_hash 回调
-  ///
-  /// 键仅哈希一次；小批次（<= 64）全栈分配零堆内存。
-  fn batch_pipeline_keys(&self, keys: &[&[u8]], mut by_hash: impl FnMut(&Self, &[u64])) {
-    let mut hashes_buf = [0u64; Self::BATCH_CHUNK_SIZE];
-    for keys_chunk in keys.chunks(Self::BATCH_CHUNK_SIZE) {
-      let chunk_len = keys_chunk.len();
-      for (slot, &k) in hashes_buf[..chunk_len].iter_mut().zip(keys_chunk) {
-        *slot = Self::hash_key(k);
-      }
-      by_hash(self, &hashes_buf[..chunk_len]);
-    }
-  }
-
-  /// 批量预取并查询键对应候选逻辑地址（对标 Garnet Tsavorite ContextReadWithPrefetch）
-  pub fn lookup_candidates_batch(&self, keys: &[&[u8]], results: &mut [CandidateAddresses]) {
-    let count = keys.len().min(results.len());
-    let mut offset = 0;
-    self.batch_pipeline_keys(&keys[..count], |index, hashes| {
-      let chunk = &mut results[offset..offset + hashes.len()];
-      offset += hashes.len();
-      index.lookup_candidates_batch_by_hash(hashes, chunk);
-    });
-  }
-
   /// 基于预先计算好的哈希值进行流水线批量预取与候选地址查询
   pub fn lookup_candidates_batch_by_hash(
     &self,
@@ -1152,17 +1113,6 @@ impl HashIndex {
     self.batch_pipeline(&hashes[..count], |index, hash| {
       results[idx] = index.find_tag_by_hash(hash);
       idx += 1;
-    });
-  }
-
-  /// 批量预取并快速单槽位探针查找（键路径版本，先哈希再走 by_hash 流水线）
-  pub fn find_tag_batch(&self, keys: &[&[u8]], results: &mut [Option<u64>]) {
-    let count = keys.len().min(results.len());
-    let mut offset = 0;
-    self.batch_pipeline_keys(&keys[..count], |index, hashes| {
-      let chunk = &mut results[offset..offset + hashes.len()];
-      offset += hashes.len();
-      index.find_tag_batch_by_hash(hashes, chunk);
     });
   }
 

@@ -4,7 +4,7 @@ use std::{
   fmt::{self, Debug, Formatter},
   mem::{ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
-  ptr::{NonNull, copy_nonoverlapping, eq},
+  ptr::{NonNull, copy_nonoverlapping},
   slice::{from_raw_parts, from_raw_parts_mut},
   sync::Arc,
 };
@@ -112,29 +112,10 @@ impl AlignedBuf {
     Ok(buf)
   }
 
-  /// 使用默认扇区大小（4096）创建全置零且长度等于容量的缓冲区
-  #[inline]
-  pub fn zeroed_with_sector_size(cap: usize) -> Result<Self> {
-    Self::zeroed(cap, DEFAULT_SECTOR_SIZE)
-  }
-
   /// 缓冲区当前逻辑数据长度
   #[inline]
   pub fn len(&self) -> usize {
     self.len
-  }
-
-  /// 是否持有实际分配的内存（非零容量悬垂哨兵）
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:IsAllocated
-  #[inline]
-  pub fn is_allocated(&self) -> bool {
-    self.cap > 0 && !eq(self.ptr.as_ptr(), dangling(self.align).as_ptr())
-  }
-
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:GetArrayAndUnalignedOffset
-  #[inline]
-  pub fn get_array_and_unaligned_offset(&self) -> (*const u8, usize) {
-    (self.ptr.as_ptr(), 0)
   }
 
   /// 缓冲区总容量（字节数）
@@ -245,16 +226,6 @@ impl AlignedBuf {
       .is_none_or(|(_, meta)| meta.clear_on_return)
   }
 
-  /// 动态调整归还清零策略 (对标 C# `SectorAlignedMemory.clearOnReturn`)
-  ///
-  /// 设为 `false` 适用于读目的地覆写场景，免去归还时的清零开销
-  #[inline]
-  pub fn set_clear_on_return(&mut self, clear: bool) {
-    if let Some((_, meta)) = self.pooled.as_mut() {
-      meta.clear_on_return = clear;
-    }
-  }
-
   /// 由缓冲池基于缓存节点重建 (携带 origin-return 路由)
   pub(crate) fn from_cached(node: CachedBuf, pool: Arc<BufferPool>, meta: BufMeta) -> Self {
     let node = ManuallyDrop::new(node);
@@ -285,12 +256,6 @@ impl AlignedBuf {
   #[inline]
   pub fn is_ptr_aligned(&self) -> bool {
     self.is_aligned_to(self.align)
-  }
-
-  /// 获取常量裸指针
-  #[inline]
-  pub fn as_buf_ptr(&self) -> *const u8 {
-    self.ptr.as_ptr()
   }
 
   /// 获取可变裸指针

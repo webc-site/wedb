@@ -659,12 +659,7 @@ fn test_subkey_buf_stack_and_heap() -> Void {
   assert_eq!(lbuf.len(), SUBKEY_HEADER_SIZE + 120);
   assert_eq!(&lbuf[SUBKEY_HEADER_SIZE..], long_payload.as_slice());
 
-  // 3. SubKeyRef::to_buf
-  let to_buf = sref.to_buf()?;
-  assert!(to_buf.is_stack());
-  assert_eq!(to_buf.as_slice(), sbuf.as_slice());
-
-  // 4. 转换 Vec
+  // 3. 转换 Vec
   let vec = sbuf.into_vec();
   assert_eq!(vec.len(), SUBKEY_HEADER_SIZE + short_payload.len());
 

@@ -45,20 +45,6 @@ impl<'a> RecordMut<'a> {
     Ok(Self { header, slice })
   }
 
-  /// 从可变字节切片中切分出首条记录原位视图与剩余未解析可变切片
-  #[inline]
-  pub fn split_from_slice_mut(slice: &'a mut [u8]) -> Result<(Self, &'a mut [u8])> {
-    let (header, phys_size) = parse_header_phys(slice)?;
-    let (rec_slice, rest) = slice.split_at_mut(phys_size);
-    Ok((
-      Self {
-        header,
-        slice: rec_slice,
-      },
-      rest,
-    ))
-  }
-
   /// 获取记录头引用
   #[inline]
   pub const fn header(&self) -> &RecordHeader {
@@ -199,16 +185,6 @@ impl<'a> RecordMut<'a> {
   #[inline(always)]
   pub const fn can_update_with_slack(&self, new_val_len: usize) -> bool {
     self.header.can_update_with_slack(new_val_len)
-  }
-
-  /// 原位更新前驱版本逻辑地址（同步写回底层切片，保留原有墓碑标记）
-  #[inline]
-  pub fn set_prev_address(&mut self, prev_addr: u64) -> Result<()> {
-    self.header.set_address(prev_addr)?;
-    self.sync_word();
-    let is_tombstone = self.header.is_tombstone();
-    trace!("原位更新记录前驱地址: prev_addr={prev_addr:#x}, is_tombstone={is_tombstone}");
-    Ok(())
   }
 
   /// 原位设置或清除墓碑标记（同步写回底层切片，保留原有前驱地址）

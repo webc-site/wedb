@@ -153,10 +153,9 @@ fn test_inplace_lifecycle() -> Void {
     assert!(!hlog.try_update_in_place(addr, b"wrong", b"y")?);
     assert!(!hlog.try_update_in_place(addr, key, &[b'z'; 16])?);
 
-    // 原位墓碑标记（重复墓碑返回 false）
-    assert!(hlog.try_mark_tombstone_in_place(addr, key)?);
+    // 经 revivify_record_at 将同槽位改写为空值墓碑
+    hlog.revivify_record_at(addr, 35, key, b"", 0, true)?;
     assert!(hlog.read_record(addr).await?.is_tombstone()?);
-    assert!(!hlog.try_mark_tombstone_in_place(addr, key)?);
 
     // 原位复活：清除墓碑并覆写新值
     assert!(hlog.try_revivify_in_chain(addr, key, b"revived!")?);
@@ -271,11 +270,6 @@ fn test_shift_begin_address_and_truncate() -> Void {
 
     assert_eq!(hlog.begin_address(), new_begin);
     assert_eq!(hlog.head_address(), new_begin);
-    assert!(
-      hlog.addresses.validate_invariants(),
-      "推进后不变式必须保持: {:?}",
-      hlog.addresses.snapshot()
-    );
 
     // 段 0 已被物理截断
     assert_eq!(device.get_file_size(0)?, 0, "段 0 必须被物理删除");

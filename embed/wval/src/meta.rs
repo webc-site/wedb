@@ -546,12 +546,6 @@ impl<'a> SubKeyRef<'a> {
     SubKeyCodec::encode_to_slice(self.tag, self.key_id, self.version, self.payload, dst)
   }
 
-  /// 编码为优先栈分配的缓冲区（短 payload 零堆分配）
-  #[inline]
-  pub fn to_buf(&self) -> Result<SubKeyBuf> {
-    SubKeyCodec::encode_to_buf(self.tag, self.key_id, self.version, self.payload)
-  }
-
   /// 预分配精准容量并编码为 Vec<u8>（单次堆分配；tag 已由解析保证合法，失败仅剩 usize 溢出）
   #[inline]
   pub fn to_vec(&self) -> Vec<u8> {

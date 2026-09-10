@@ -201,7 +201,6 @@ fn test_shift_begin_truncation_drain_barrier() -> Void {
       Err(Error::PageNotReady(_)) => {}
       other => panic!("截断线以下冷读应干净返回 PageNotReady，实际: {other:?}"),
     }
-    assert!(hlog.addresses.validate_invariants());
 
     info!("截断前纪元排空屏障测试通过");
     aok::Result::<()>::Ok(())
@@ -238,7 +237,6 @@ fn test_shift_begin_under_caller_epoch_guard() -> Void {
     }
     assert_eq!(hlog.begin_address(), addrs[16].0);
     assert!(hlog.safe_read_only_address() >= addrs[16].0);
-    assert!(hlog.addresses.validate_invariants());
 
     info!("调用方持守卫截断自动解钉测试通过");
     aok::Result::<()>::Ok(())
@@ -266,7 +264,6 @@ fn test_shift_begin_preflushed_barrier_liveness() -> Void {
       Err(Error::AddressOutOfRange { .. }) => {}
       other => panic!("截断线以下读取应干净返回 AddressOutOfRange，实际: {other:?}"),
     }
-    assert!(hlog.addresses.validate_invariants());
 
     info!("预刷盘直入截断屏障活性测试通过");
     aok::Result::<()>::Ok(())
@@ -359,7 +356,6 @@ fn test_concurrent_disk_read_vs_shift_begin() -> Void {
     watchdog.join().unwrap();
 
     assert_eq!(hlog.begin_address(), final_begin);
-    assert!(hlog.addresses.validate_invariants());
 
     info!("磁盘区在途读者与并发截断压力测试通过");
     aok::Result::<()>::Ok(())

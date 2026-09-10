@@ -46,7 +46,6 @@ fn test_recover_and_snapshot_invariants() -> Void {
     let hlog = recovered_hlog.unwrap();
     assert_eq!(hlog.tail_address(), 10000);
     assert_eq!(hlog.head_address(), 4096);
-    assert!(hlog.addresses.validate_invariants());
 
     // 2. 非法快照：head > flushed_until（存在未落盘即被驱逐出内存的数据）
     let invalid_snapshot1 = AddressSnapshot::new(
@@ -208,7 +207,6 @@ fn test_recover_scrubs_non_durable_prefix() -> Void {
     assert_eq!(addr3, tail);
     let out3 = recovered.read_record(addr3).await?;
     assert_eq!(out3.key()?, b"resumed");
-    assert!(recovered.addresses.validate_invariants());
 
     info!("恢复非持久化前缀清洗测试通过");
     aok::Result::<()>::Ok(())

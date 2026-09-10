@@ -87,7 +87,6 @@ fn test_extreme_overflow_depth_1024_plus_buckets() -> Void {
   info!("极限哈希冲突极深溢出链表操作（1024+ 溢出桶深度）、RCU 与槽位复用");
 
   let index = HashIndex::new(1)?;
-  assert_eq!(index.bucket_count(), 1);
 
   let total_keys = 7500;
   for i in 1..=total_keys {
@@ -261,7 +260,6 @@ fn test_overflow_pool_free_and_recycle() -> Void {
   info!("验证 OverflowPool 溢出桶回收复用与连续分配");
 
   let pool = OverflowPool::new();
-  assert!(!pool.has_free());
   assert_eq!(pool.allocated_count(), 0);
 
   let id1 = pool.allocate()?;
@@ -271,14 +269,11 @@ fn test_overflow_pool_free_and_recycle() -> Void {
   assert_eq!(id2, 2);
   assert_eq!(id3, 3);
   assert_eq!(pool.allocated_count(), 3);
-  assert!(!pool.has_free());
 
   pool.free(id2);
-  assert!(pool.has_free());
 
   let reused = pool.allocate()?;
   assert_eq!(reused, id2, "必须优先复用已回收的溢出桶 id2");
-  assert!(!pool.has_free());
   assert_eq!(pool.allocated_count(), 3, "复用回收桶不应增加总分配计数");
 
   let id4 = pool.allocate()?;

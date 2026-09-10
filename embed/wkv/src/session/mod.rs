@@ -102,12 +102,6 @@ impl<D: Device> StoreSession<D> {
     self.set_context(self.namespace(), db);
   }
 
-  /// 设置当前会话的命名空间并更新会话前缀
-  #[inline]
-  pub fn set_namespace(&self, ns: u64) {
-    self.set_context(ns, self.active_db());
-  }
-
   /// 设置是否在冷区读取成功后将记录自动提升追加到 Tail (对标 C# Garnet CopyReadsToTail)
   #[inline]
   pub fn set_copy_reads_to_tail(&self, enable: bool) {

@@ -34,8 +34,7 @@ fn test_record_header() -> Void {
   assert_eq!(header.entry_len, payload.len() as u32);
   header.verify(payload)?;
 
-  let mut bytes = [0u8; 8];
-  header.encode(&mut bytes);
+  let bytes = header.to_bytes();
   let decoded = RecordHeader::decode(&bytes)?;
   assert_eq!(header, decoded);
   assert_eq!(RecordHeader::decode_opt(&bytes), Some(header));
@@ -44,11 +43,6 @@ fn test_record_header() -> Void {
     RecordHeader::decode(&bytes[..7]),
     Err(Error::InvalidRecordHeader)
   ));
-
-  assert!(!RecordHeader::is_zero_slice(&bytes));
-  assert!(RecordHeader::is_zero_slice(&[0u8; 8]));
-  assert!(RecordHeader::is_zero_slice(&[0u8; 16]));
-  assert!(!RecordHeader::is_zero_slice(&[0u8; 7]));
 
   // 3. 损坏数据校验测试
   let mut corrupted = *payload;

@@ -1,59 +1,72 @@
+# r10 深审后语义吸收：C# 测试脚手架与 IFunctions 测试桩；rust wreviv 测试组等价覆盖
 fn:
-  - GetHashCode64
-  - GetRevivifiableFraction
-  - CopyToRMWInfo
-  - HasRecords
-  - SwapFreeRecordPool
-  - GetBinIndex
-  - GetBinCount
-  - GetRecordCount
-  - GetMaxRecordSize
-  - IsSet
-  - TryTakeFromBin
-  - WaitForRecords
-  - GetFreeRecordCount
-  - AssertElidable
-  - GetRevivifiableRecordCount
-  - GetMinRevivifiableKey
-  - Setup
-  - TearDown
-  - Populate
-  - AssertInfoValid
-  - VerifyKeyAndValue
-  - CheckExpectedLengthsBefore
-  - DeleteViaRMW
-  - PerformDeletion
-  - PrepareDeletes
-  - VerifyKey
-  - AllocateLogRecord
-  - beginIteration
-  - enumerateStrayFlags
-  - enumerateStrayRecords
-  - endIteration
-  - runAddThread
-  - runTakeThread
-  - runThread
-  - runDeleteThread
-  - runUpdateThread
-  - AllocateRecordAndInitializeSize
+- AllocateLogRecord
+- AllocateRecordAndInitializeSize
+- AssertElidable
+- AssertInfoValid
+- CheckExpectedLengthsBefore
+- CopyToRMWInfo
+- DeleteViaRMW
+- GetBinCount
+- GetBinIndex
+- GetFreeRecordCount
+- GetHashCode64
+- GetMaxRecordSize
+- GetMinRevivifiableKey
+- GetRMWInitialFieldInfo
+- GetRMWModifiedFieldInfo
+- GetRecordCount
+- GetRevivifiableFraction
+- GetRevivifiableRecordCount
+- GetUpsertFieldInfo
+- HasRecords
+- InPlaceWriter
+- InitialDeleter
+- InitialWriter
+- IsSet
+- PerformDeletion
+- Populate
+- PostCopyUpdater
+- PostInitialDeleter
+- PostInitialUpdater
+- PostInitialWriter
+- PrepareDeletes
+- RMWCompletionCallback
+- ReadCompletionCallback
+- Setup
+- SwapFreeRecordPool
+- TearDown
+- TryTakeFromBin
+- VerifyKey
+- VerifyKeyAndValue
+- WaitForRecords
+- beginIteration
+- endIteration
+- enumerateStrayFlags
+- enumerateStrayRecords
+- runAddThread
+- runDeleteThread
+- runTakeThread
+- runThread
+- runUpdateThread
 test:
-  - SimpleFixedLenTest
-  - SpanByteNoRevivLengthTest
-  - SpanByteSimpleTest
-  - SpanByteDeletionViaRMWRCURevivifiesOriginalRecordAfterTombstoning
-  - SpanByteIPUGrowAndRevivifyTest
-  - SpanByteReadOnlyMinAddressTest
-  - SpanByteUpdateRevivifyTest
-  - SimpleRevivifyTest
-  - DeleteEntireChainAndRevivifyTest
-  - DeleteAllRecordsAndRevivifyTest
-  - DeleteAllRecordsAndTakeSnapshotTest
-  - DeleteAllRecordsAndIterateTest
-  - LiveBinWrappingTest
-  - LiveBinWrappingNoRevivTest
-  - SimpleOverflowRevivifyTest
-  - SimplePendingOpsRevivifyTest
-  - SimpleObjectTest
-  - LiveThreadContentionOnOneRecordTest
-  - LiveFreeListThreadStressTest
-  - LiveInChainThreadStressTest
+- DeleteAllRecordsAndIterateTest
+- DeleteAllRecordsAndRevivifyTest
+- DeleteAllRecordsAndTakeSnapshotTest
+- DeleteEntireChainAndRevivifyTest
+- LiveBinWrappingNoRevivTest
+- LiveBinWrappingTest
+- LiveFreeListThreadStressTest
+- LiveInChainThreadStressTest
+- LiveThreadContentionOnOneRecordTest
+- SimpleFixedLenTest
+- SimpleObjectTest
+- SimpleOverflowRevivifyTest
+- SimplePendingOpsRevivifyTest
+- SimpleRevivifyTest
+- SpanByteDeletionViaRMWRCURevivifiesOriginalRecordAfterTombstoning
+- SpanByteIPUGrowAndRevivifyTest
+- SpanByteNoRevivLengthTest
+- SpanByteReadOnlyMinAddressTest
+- SpanByteSimpleTest
+- SpanByteUpdateRevivifyTest

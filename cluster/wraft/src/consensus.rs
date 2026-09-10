@@ -11,7 +11,7 @@
 //! - Follower 侧：收到的帧经 `wnode::Replay` 回放，与本地恢复共用一条
 //!   代码路径
 
-use std::{io, result, sync::atomic};
+use std::{result, sync::atomic};
 
 use crate::election::Role;
 
@@ -20,12 +20,6 @@ pub enum Error {
   /// 非 Leader 拒绝提案（附带已知 Leader，供重定向）
   #[error("not leader, redirect to {leader:?}")]
   NotLeader { leader: Option<u64> },
-  /// 提案未在多数派达成确认
-  #[error("proposal not committed: index {index}")]
-  NotCommitted { index: u64 },
-  /// 引擎内部错误
-  #[error(transparent)]
-  Io(#[from] io::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;

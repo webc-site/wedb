@@ -76,15 +76,6 @@ impl RecordHeader {
     Ok(())
   }
 
-  /// 将记录头编码到 8 字节目标切片中（小端字节序）
-  #[inline]
-  pub fn encode(&self, dest: &mut [u8]) {
-    debug_assert!(dest.len() >= RECORD_HEADER_LEN);
-    if let Some(chunk) = dest.first_chunk_mut::<RECORD_HEADER_LEN>() {
-      *chunk = self.to_bytes();
-    }
-  }
-
   /// 将记录头转为 8 字节定长数组（单次 64 位位移与编码）
   #[inline]
   pub const fn to_bytes(&self) -> [u8; RECORD_HEADER_LEN] {
@@ -99,16 +90,6 @@ impl RecordHeader {
     Self {
       entry_len: packed as u32,
       crc32: (packed >> 32) as u32,
-    }
-  }
-
-  /// 检查切片开头是否为全零记录头（单次 64 位无符号整数比对）
-  #[inline(always)]
-  pub const fn is_zero_slice(src: &[u8]) -> bool {
-    if let Some((chunk, _)) = src.split_first_chunk::<RECORD_HEADER_LEN>() {
-      u64::from_le_bytes(*chunk) == 0
-    } else {
-      false
     }
   }
 

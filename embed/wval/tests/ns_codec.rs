@@ -158,7 +158,7 @@ fn test_plan_a_tagged_key_encoding_and_roundtrip() {
   let user_key = b"user:1001";
 
   // 1. String Key: KeyTag::String (0x00)
-  let string_buf = NamespaceDbCodec::encode_string_key(ns, db, user_key);
+  let string_buf = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, user_key);
   // ns=1 (0x01), db=0 (0x00), tag=0x00, user_key
   assert_eq!(
     string_buf.as_slice(),
@@ -207,7 +207,7 @@ fn test_session_prefix_and_live_user_key_filtering() {
   assert_eq!(session_prefix.as_slice(), &[0x01, 0x00]);
 
   // 属于当前会话的 String 键
-  let str_key = NamespaceDbCodec::encode_string_key(session_ns, session_db, b"foo");
+  let str_key = NamespaceDbCodec::encode_tagged_key(session_ns, session_db, KeyTag::String, b"foo");
   let live_str = NamespaceDbCodec::extract_live_user_key(str_key.as_slice(), &session_prefix);
   assert_eq!(live_str, Some((KeyTag::String, b"foo".as_slice())));
 
@@ -225,14 +225,14 @@ fn test_session_prefix_and_live_user_key_filtering() {
   );
 
   // 属于另一个命名空间 (ns=2) 的键 -> 即使在 db 0 也必须被过滤 (None)
-  let other_ns_key = NamespaceDbCodec::encode_string_key(2, session_db, b"foo");
+  let other_ns_key = NamespaceDbCodec::encode_tagged_key(2, session_db, KeyTag::String, b"foo");
   assert_eq!(
     NamespaceDbCodec::extract_live_user_key(other_ns_key.as_slice(), &session_prefix),
     None
   );
 
   // 属于同一个命名空间但不同 db (db=1) 的键 -> 必须被过滤 (None)
-  let other_db_key = NamespaceDbCodec::encode_string_key(session_ns, 1, b"foo");
+  let other_db_key = NamespaceDbCodec::encode_tagged_key(session_ns, 1, KeyTag::String, b"foo");
   assert_eq!(
     NamespaceDbCodec::extract_live_user_key(other_db_key.as_slice(), &session_prefix),
     None
@@ -246,39 +246,21 @@ fn test_stack_and_heap_switching() {
 
   // 1. 短键 (总长 <= 62 字节走 Stack)
   let short_key = vec![b'a'; 50];
-  let buf_stack = NamespaceDbCodec::encode_string_key(ns, db, &short_key);
+  let buf_stack = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, &short_key);
   assert!(matches!(buf_stack.inner, KeyBufRepr::Stack(..)));
   assert_eq!(buf_stack.len(), 1 + 1 + 1 + 50);
 
   // 2. 长键 (总长 > 62 字节走 Heap)
   let long_key = vec![b'b'; 128];
-  let buf_heap = NamespaceDbCodec::encode_string_key(ns, db, &long_key);
+  let buf_heap = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, &long_key);
   assert!(matches!(buf_heap.inner, KeyBufRepr::Heap(..)));
   assert_eq!(buf_heap.len(), 1 + 1 + 1 + 128);
 
-  // 3. with_tagged_key 闭包验证
-  let mut executed = false;
-  NamespaceDbCodec::with_string_key(ns, db, b"hello", |slice| {
-    assert_eq!(slice, &[0x01, 0x00, 0x00, b'h', b'e', b'l', b'l', b'o']);
-    executed = true;
-  });
-  assert!(executed);
-
-  // 4. encode_to_slice 验证
-  let mut out = [0u8; 32];
-  let written =
-    NamespaceDbCodec::encode_to_slice(ns, db, KeyTag::String, b"hi", &mut out).expect("写入应成功");
-  assert_eq!(written, 5);
-  assert_eq!(&out[..5], &[0x01, 0x00, 0x00, b'h', b'i']);
-
-  // 空间不足报错
-  let err = NamespaceDbCodec::encode_to_slice(ns, db, KeyTag::String, b"hi", &mut out[..4]);
+  // 3. 栈/堆闭包读取验证
+  let buf = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, b"hello");
   assert_eq!(
-    err,
-    Err(Error::BufferTooShort {
-      expected: 5,
-      actual: 4
-    })
+    buf.as_slice(),
+    &[0x01, 0x00, 0x00, b'h', b'e', b'l', b'l', b'o']
   );
 }
 
@@ -328,7 +310,7 @@ fn test_tagged_key_buf_cross_variant_equality_and_traits() {
 
   // 1. 同一键通过 Stack 构造与通过 Heap 构造必须强相等 (PartialEq/Eq 基于内容切片)
   let mut stack_buf = [0u8; 62];
-  let full_slice = NamespaceDbCodec::encode_string_key(ns, db, payload);
+  let full_slice = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, payload);
   stack_buf[..full_slice.len()].copy_from_slice(full_slice.as_slice());
   // 在 unused 后缀故意填充脏数据，验证 PartialEq 仅比对有效长度
   stack_buf[full_slice.len()..].fill(0xAA);
@@ -377,7 +359,7 @@ fn test_strip_tag_helpers() {
   let session = SessionPrefixBuf::new(1, 0);
 
   // 1. String 键提取
-  let str_key = NamespaceDbCodec::encode_string_key(1, 0, b"my_string");
+  let str_key = NamespaceDbCodec::encode_tagged_key(1, 0, KeyTag::String, b"my_string");
   assert_eq!(
     NamespaceDbCodec::strip_string_key(str_key.as_slice(), &session),
     Some(b"my_string".as_slice())
@@ -433,8 +415,13 @@ fn test_sub_key_and_chunk_key_codecs() {
 
   // 2. 测试分块子键编码与解码 (HashChunk & SetChunk)
   let chunk_id = 1024u32;
-  let chunk_key =
-    NamespaceDbCodec::encode_chunk_key(ns, db, KeyTag::HashChunk, key_id, version, chunk_id);
+  let chunk_key = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns, db).as_slice(),
+    KeyTag::HashChunk,
+    key_id,
+    version,
+    chunk_id,
+  );
   assert!(chunk_key.is_stack());
   assert_eq!(
     NamespaceDbCodec::decode_tag(chunk_key.as_slice()),
@@ -461,7 +448,7 @@ fn test_sub_key_and_chunk_key_codecs() {
     Some(KeyTag::Meta)
   );
   // String 键不应被误判为 Meta
-  let str_key = NamespaceDbCodec::encode_string_key(ns, db, b"my_string");
+  let str_key = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::String, b"my_string");
   assert_eq!(
     NamespaceDbCodec::decode_meta_user_key(str_key.as_slice()),
     None
@@ -510,12 +497,17 @@ fn test_fast_path_and_boundary_decoding() {
   let version = 0xAABBCCDDEEFF0011u64;
   let field = b"fast_field";
 
-  let str_buf = NamespaceDbCodec::encode_string_key(ns_fast, db_fast, b"k1");
+  let str_buf = NamespaceDbCodec::encode_tagged_key(ns_fast, db_fast, KeyTag::String, b"k1");
   let meta_buf = NamespaceDbCodec::encode_meta_key(ns_fast, db_fast, b"m1");
   let sub_buf =
     NamespaceDbCodec::encode_sub_key(ns_fast, db_fast, KeyTag::Hash, key_id, version, field);
-  let chunk_buf =
-    NamespaceDbCodec::encode_chunk_key(ns_fast, db_fast, KeyTag::HashChunk, key_id, version, 42);
+  let chunk_buf = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns_fast, db_fast).as_slice(),
+    KeyTag::HashChunk,
+    key_id,
+    version,
+    42,
+  );
 
   // decode_tagged_key 快路径
   let (ns, db, tag, payload) =
@@ -594,8 +586,13 @@ fn test_fast_path_and_boundary_decoding() {
   let db_slow = 2000u64;
   let sub_slow =
     NamespaceDbCodec::encode_sub_key(ns_slow, db_slow, KeyTag::Set, key_id, version, b"elem1");
-  let chunk_slow =
-    NamespaceDbCodec::encode_chunk_key(ns_slow, db_slow, KeyTag::SetChunk, key_id, version, 999);
+  let chunk_slow = NamespaceDbCodec::encode_chunk_key_with_prefix(
+    SessionPrefixBuf::new(ns_slow, db_slow).as_slice(),
+    KeyTag::SetChunk,
+    key_id,
+    version,
+    999,
+  );
 
   assert_eq!(
     NamespaceDbCodec::decode_subkey_id_version(sub_slow.as_slice()),
@@ -624,38 +621,30 @@ fn test_fast_path_and_boundary_decoding() {
 }
 
 #[test]
-fn test_with_prefix_closure_helpers() {
+fn test_with_prefix_encoding_helpers() {
   let ns = 7u64;
   let db = 3u64;
 
-  // with_meta_key 闭包零堆分配路径
-  let mut meta_ran = false;
-  NamespaceDbCodec::with_meta_key(ns, db, b"h1", |k| {
-    assert_eq!(k, &[7, 3, 0x01, b'h', b'1']);
-    meta_ran = true;
-  });
-  assert!(meta_ran);
+  // Meta 键编码
+  let meta = NamespaceDbCodec::encode_meta_key(ns, db, b"h1");
+  assert_eq!(meta.as_slice(), &[7, 3, 0x01, b'h', b'1']);
 
-  // with_session_prefix 基于预计算前缀构造
+  // 基于预计算前缀构造
   let prefix = SessionPrefixBuf::new(ns, db);
-  let mut pref_ran = false;
-  NamespaceDbCodec::with_session_prefix(prefix.as_slice(), KeyTag::String, b"payload", |k| {
-    assert_eq!(k, &[7, 3, 0x00, b'p', b'a', b'y', b'l', b'o', b'a', b'd']);
-    pref_ran = true;
-  });
-  assert!(pref_ran);
+  let payload =
+    NamespaceDbCodec::encode_with_session_prefix(prefix.as_slice(), KeyTag::String, b"payload");
+  assert_eq!(
+    payload.as_slice(),
+    &[7, 3, 0x00, b'p', b'a', b'y', b'l', b'o', b'a', b'd']
+  );
 
-  // with_tagged_key 通用闭包
-  let mut tagged_ran = false;
-  NamespaceDbCodec::with_tagged_key(ns, db, KeyTag::Hash, &[1, 2], |k| {
-    assert_eq!(k, &[7, 3, 0x02, 1, 2]);
-    tagged_ran = true;
-  });
-  assert!(tagged_ran);
+  // 通用 tagged 键编码
+  let tagged = NamespaceDbCodec::encode_tagged_key(ns, db, KeyTag::Hash, &[1, 2]);
+  assert_eq!(tagged.as_slice(), &[7, 3, 0x02, 1, 2]);
 
-  // 与非闭包编码产物逐字节一致
+  // 闭包读取与非闭包编码产物逐字节一致
   let direct = NamespaceDbCodec::encode_meta_key(ns, db, b"h1");
-  NamespaceDbCodec::with_meta_key(ns, db, b"h1", |k| assert_eq!(k, direct.as_slice()));
+  assert_eq!(meta.as_slice(), direct.as_slice());
 }
 
 #[test]
@@ -683,8 +672,8 @@ fn test_varint_len_lut_and_fast_dispatch() {
 }
 
 #[test]
-fn test_replace_tag_and_ttl_codec() {
-  use wval::{KeyTag, NamespaceDbCodec, TTL_VAL_LEN, TtlCodec};
+fn test_ttl_codec() {
+  use wval::{TTL_VAL_LEN, TtlCodec};
 
   // 1. TtlCodec 编解码测试
   let ts = 1_700_000_000_123u64;
@@ -692,39 +681,4 @@ fn test_replace_tag_and_ttl_codec() {
   assert_eq!(enc.len(), TTL_VAL_LEN);
   assert_eq!(TtlCodec::decode(&enc), Some(ts));
   assert_eq!(TtlCodec::decode(&enc[..7]), None);
-
-  // 2. NamespaceDbCodec::replace_tag 与 replace_tag_at 测试
-  let str_key = NamespaceDbCodec::encode_tagged_key(1, 2, KeyTag::String, b"my_key");
-  let ttl_key = NamespaceDbCodec::replace_tag(&str_key, KeyTag::Ttl).unwrap();
-  let (_ns, _db, tag, payload) = NamespaceDbCodec::decode_tagged_key(&ttl_key).unwrap();
-  assert_eq!(tag, KeyTag::Ttl);
-  assert_eq!(payload, b"my_key");
-
-  // replace_tag_at 直接调用验证
-  let meta_key = NamespaceDbCodec::replace_tag_at(&str_key, 2, KeyTag::Meta);
-  let (_, _, meta_tag, meta_p) = NamespaceDbCodec::decode_tagged_key(&meta_key).unwrap();
-  assert_eq!(meta_tag, KeyTag::Meta);
-  assert_eq!(meta_p, b"my_key");
-
-  // 3. 多字节 varint 会话前缀替换验证（慢路径）
-  let multi_varint_key =
-    NamespaceDbCodec::encode_tagged_key(300, 500, KeyTag::String, b"big_session");
-  let multi_ttl_key = NamespaceDbCodec::replace_tag(&multi_varint_key, KeyTag::Ttl).unwrap();
-  let (ns_m, db_m, tag_m, p_m) = NamespaceDbCodec::decode_tagged_key(&multi_ttl_key).unwrap();
-  assert_eq!(ns_m, 300);
-  assert_eq!(db_m, 500);
-  assert_eq!(tag_m, KeyTag::Ttl);
-  assert_eq!(p_m, b"big_session");
-
-  // 4. 长键堆分配分支验证
-  let long_payload = vec![b'x'; 100];
-  let long_str_key = NamespaceDbCodec::encode_tagged_key(1, 2, KeyTag::String, &long_payload);
-  let long_ttl_key = NamespaceDbCodec::replace_tag(&long_str_key, KeyTag::Ttl).unwrap();
-  let (_, _, long_tag, long_p) = NamespaceDbCodec::decode_tagged_key(&long_ttl_key).unwrap();
-  assert_eq!(long_tag, KeyTag::Ttl);
-  assert_eq!(long_p, long_payload.as_slice());
-
-  // 5. 异常键防护
-  assert!(NamespaceDbCodec::replace_tag(&[], KeyTag::Ttl).is_none());
-  assert!(NamespaceDbCodec::replace_tag(&[1, 2], KeyTag::Ttl).is_none());
 }

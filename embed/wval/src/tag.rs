@@ -48,17 +48,6 @@ pub enum KeyTag {
 }
 
 impl KeyTag {
-  /// 哈希字段子键常量别名 (0x02)
-  pub const HASH_FIELD: Self = Self::Hash;
-  /// 无序集合成员子键常量别名 (0x03)
-  pub const SET_MEMBER: Self = Self::Set;
-  /// 有序集合成员子键常量别名 (0x04)
-  pub const Z_MEMBER: Self = Self::ZSetChunk;
-  /// 有序集合分值索引子键常量别名 (0x05)
-  pub const Z_SCORE: Self = Self::ZSetM2s;
-  /// key 级 TTL 记录常量别名 (0x09)
-  pub const TTL_RECORD: Self = Self::Ttl;
-
   /// KeyTag 物理键标签定长 1 字节
   pub const TAG_LEN: usize = 1;
 

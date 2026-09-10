@@ -247,22 +247,6 @@ impl<D: Device> GcManager<D> {
     }
   }
 
-  /// 当前是否正处于单轮 GC 执行中（执行闸状态）
-  #[inline]
-  pub fn is_inflight(&self) -> bool {
-    self.inflight.load(Relaxed)
-  }
-
-  /// 尝试获取单轮执行闸（成功返回 RAII 守卫，已被占用返回 None；供测试与并发模拟）
-  #[inline]
-  pub fn try_acquire_gate(&self) -> Option<RunGuard<'_>> {
-    if self.inflight.swap(true, Acquire) {
-      None
-    } else {
-      Some(RunGuard(&self.inflight))
-    }
-  }
-
   /// 单轮 GC：先过期扫描，后按间隔判定紧缩（供后台循环复用，亦可手动驱动）
   pub async fn run_once(&self) -> Result<()> {
     // 单轮闸：上一轮未结束（含后台与手动并发）则跳过本轮

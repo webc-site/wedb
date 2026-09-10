@@ -1,7 +1,4 @@
 use core::str::from_utf8;
-/// garnet/libs/common/NumUtils.cs:BytesPerULong
-pub const BYTES_PER_ULONG: i32 = 8;
-
 /// garnet/libs/common/NumUtils.cs:CountDigits
 pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
   if value == i64::MIN {
@@ -65,57 +62,6 @@ pub fn count_digits(value: i64, is_negative: &mut bool) -> i32 {
     return 18;
   }
   19
-}
-
-/// 小数部分最长判定位数（对标 C# 循环上限，fractionalDigits 最终最大可达 15）
-const MAX_FRACTIONAL_DIGITS: i32 = 14;
-
-/// C# `Double.Epsilon`（最小正非正规数 4.94e-324）的两倍容差
-///
-/// C# 原实现 `Math.Abs(value - Math.Round(value, fractionalDigits)) > 2 * Double.Epsilon`：
-/// 任意非零 f64 差值必然不小于 1 倍最小正非正规数，故该阈值语义等价于「差值非零即继续细化」；
-/// 不可误用 Rust 的 `f64::EPSILON`（机器精度 2.22e-16，比 C# Double.Epsilon 大 308 个数量级，
-/// 会让极近值提前收敛、少写小数位）
-const TWO_DOUBLE_EPSILON: f64 = 2.0 * f64::from_bits(1);
-
-/// garnet/libs/common/NumUtils.cs:CountCharsInDouble
-pub fn count_chars_in_double(
-  mut value: f64,
-  integer_digits: &mut i32,
-  sign_size: &mut u8,
-  fractional_digits: &mut i32,
-) -> i32 {
-  if value == 0.0 {
-    *integer_digits = 1;
-    *sign_size = 0;
-    *fractional_digits = 0;
-    return 1;
-  }
-
-  *sign_size = if value < 0.0 { 1 } else { 0 };
-  value = value.abs();
-  *integer_digits = if value < 10.0 {
-    1
-  } else {
-    value.log10() as i32 + 1
-  };
-
-  // C# Math.Round(value, digits) 默认银行家舍入（MidpointRounding.ToEven），round_ties_even 逐位对齐；
-  // scale 为 10 的精确幂（10^22 内 f64 可精确表示），累乘无舍入误差
-  *fractional_digits = 0;
-  let mut scale = 10_f64.powi(0);
-  while *fractional_digits <= MAX_FRACTIONAL_DIGITS {
-    let rounded = (value * scale).round_ties_even() / scale;
-    if (value - rounded).abs() > TWO_DOUBLE_EPSILON {
-      *fractional_digits += 1;
-      scale *= 10.0;
-    } else {
-      break;
-    }
-  }
-
-  let dot_size = if *fractional_digits != 0 { 1 } else { 0 };
-  *sign_size as i32 + *integer_digits + dot_size + *fractional_digits
 }
 
 /// 生成 `TryParse` 系列：UTF-8 解码 + 类型解析，成功写入 `value` 返回 true

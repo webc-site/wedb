@@ -1,5 +1,3 @@
-use std::fmt::{self, Display, Formatter};
-
 use bitcode::{Decode, Encode};
 use strum::{EnumString, FromRepr, IntoStaticStr};
 
@@ -35,22 +33,6 @@ pub struct Worker {
   pub replica_of_node_id: Option<String>,
   pub replication_offset: i64,
   pub hostname: Option<String>,
-}
-
-impl Display for Worker {
-  /// garnet相对路径:Server:Worker:ToString
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    write!(
-      f,
-      "{} {} {} {} {:?} {}",
-      self.nodeid.as_deref().unwrap_or(""),
-      self.address,
-      self.port,
-      self.config_epoch,
-      self.role,
-      self.replica_of_node_id.as_deref().unwrap_or("")
-    )
-  }
 }
 
 /// 本地 worker 身份入参（ClusterConfig:InitializeLocalWorker 的散参聚合）

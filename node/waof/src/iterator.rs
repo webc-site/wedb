@@ -37,18 +37,6 @@ impl<D: Device> WalScanIterator<D> {
     self.cur_address
   }
 
-  /// 获取迭代终止逻辑地址
-  #[inline]
-  pub fn end_address(&self) -> u64 {
-    self.end_address
-  }
-
-  /// 设置新的终止逻辑地址（用于动态追加日志后继续迭代）
-  #[inline]
-  pub fn set_end_address(&mut self, new_end: u64) {
-    self.end_address = new_end;
-  }
-
   /// 检查迭代是否已到达末尾
   #[inline]
   pub fn is_ended(&self) -> bool {
