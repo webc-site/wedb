@@ -54,14 +54,20 @@ impl GarnetClientSession {
     })
     .detach();
 
-    network::handshake(
+    let handshake = network::handshake(
       async |args| self.execute_async(args).await,
       "GarnetClientSession",
       self.auth_username.as_deref(),
       self.auth_password.as_deref(),
       self.client_name.as_deref(),
     )
-    .await
+    .await;
+    if handshake.is_err() {
+      // 握手失败（AUTH/SETINFO 报错，C# 同样上抛）：丢弃通道使网络泵退出、
+      // 连接关闭，避免僵尸连接上继续排队后续命令
+      self.tx = None;
+    }
+    handshake
   }
 
   /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync

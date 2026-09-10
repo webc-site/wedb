@@ -82,6 +82,9 @@ pub trait GarnetServer: Send + Sync {
   fn start(&self) -> io::Result<()>;
   /// 停止接受新连接并释放监听端口（libs/server/Servers/IGarnetServer.cs:Close）
   fn close(&self);
+  /// 释放服务器：关监听 → 排空处理器 → 清提供者表
+  ///（C# IGarnetServer 继承 IDisposable；GarnetServerBase.Dispose）
+  fn dispose(&self);
 }
 
 /// 服务器域错误（C# GarnetException 抛出点的本域投影）

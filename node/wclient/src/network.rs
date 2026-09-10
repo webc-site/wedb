@@ -96,10 +96,17 @@ fn parse_scalar(data: &mut &[u8]) -> Result<Option<Result<String>>> {
 }
 
 /// 将一条数组应答解析为 Result<Vec<String>>；不完整返回 Ok(None)
+///
+/// 标量应答（+/-/:/$）按 C# ProcessReplyAsStringArray 语义包装为单元素数组
 fn parse_array(data: &mut &[u8]) -> Result<Option<Result<Vec<String>>>> {
   match data[0] {
     b'*' => RespReadResponseUtils::try_read_string_array_with_length_header(data)
       .map(|a| a.map(|a| Ok(a.unwrap_or_default()))),
+    // 标量分支：包装为单元素数组（对齐 C# ProcessReplyAsStringArray）
+    b'+' => RespReadResponseUtils::try_read_simple_string(data).map(|s| s.map(|s| Ok(vec![s]))),
+    b':' => RespReadResponseUtils::try_read_integer_as_string(data).map(|s| s.map(|s| Ok(vec![s]))),
+    b'$' => RespReadResponseUtils::try_read_string_with_length_header(data)
+      .map(|s| s.map(|s| Ok(vec![s.unwrap_or_default()]))),
     b'-' => {
       RespReadResponseUtils::try_read_error_as_string(data).map(|e| e.map(|e| Err(Error::Other(e))))
     }
