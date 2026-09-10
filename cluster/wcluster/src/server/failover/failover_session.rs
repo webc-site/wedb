@@ -8,7 +8,7 @@ use std::{
 
 use compio::time::sleep;
 use parking_lot::Mutex;
-use wserver::aof::aof_address::AofAddress;
+use wedb_standalone::aof::aof_address::AofAddress;
 
 use crate::{
   client::GarnetClient,

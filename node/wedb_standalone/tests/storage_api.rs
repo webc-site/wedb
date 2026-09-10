@@ -8,9 +8,7 @@ use std::sync::Arc;
 use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
 use wdev::SegmentedDevice;
-use wkv::{StoreConfig, WedbStore};
-use wobject::{hash::hash_object::HashObject, list::list_object::OperationDirection};
-use wserver::{
+use wedb_standalone::{
   api::garnet_status::GarnetStatus,
   databases::{
     database_manager_base::{AOF_OP_UPSERT, enqueue_record},
@@ -28,6 +26,8 @@ use wserver::{
     storage_session::StorageSession,
   },
 };
+use wkv::{StoreConfig, WedbStore};
+use wobject::{hash::hash_object::HashObject, list::list_object::OperationDirection};
 
 type TestStore = Arc<WedbStore<SegmentedDevice>>;
 
@@ -400,7 +400,7 @@ fn test_multi_database_manager() -> aok::Void {
     assert_eq!(session.read(b"k").await?, Some(b"one".to_vec()));
 
     // 全库清空
-    use wserver::databases::i_database_manager::IDatabaseManager;
+    use wedb_standalone::databases::i_database_manager::IDatabaseManager;
     multi.flush_all_databases().await?;
     assert_eq!(session.read(b"k").await?, None);
     Ok(())
@@ -415,7 +415,7 @@ fn test_multi_database_manager() -> aok::Void {
 fn test_multi_saved_database_ids_error_semantics() -> aok::Void {
   use std::fs;
 
-  use wserver::databases::multi_database_manager::MultiDatabaseManager;
+  use wedb_standalone::databases::multi_database_manager::MultiDatabaseManager;
 
   let rt = Runtime::new()?;
   rt.block_on(async {
@@ -457,7 +457,9 @@ fn test_wobject_roundtrip() -> aok::Void {
 /// WRONGTYPE 传播 / 空结果不物化 / BITCOUNT 空值 / WATCH 登记语义
 #[test]
 fn test_review_r1_regressions() -> aok::Void {
-  use wserver::{api::i_garnet_api::IGarnetApi, storage::session::storage_session::StoreType};
+  use wedb_standalone::{
+    api::i_garnet_api::IGarnetApi, storage::session::storage_session::StoreType,
+  };
 
   let rt = Runtime::new()?;
   rt.block_on(async {
@@ -651,7 +653,7 @@ fn test_review_r1_regressions() -> aok::Void {
 /// 写路径去双读后的 WRONGTYPE 与缺键不物化
 #[test]
 fn test_review_r10_regressions() -> aok::Void {
-  use wserver::api::i_garnet_api::IGarnetApi;
+  use wedb_standalone::api::i_garnet_api::IGarnetApi;
 
   let rt = Runtime::new()?;
   rt.block_on(async {

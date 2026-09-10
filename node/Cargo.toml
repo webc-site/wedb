@@ -5,7 +5,6 @@ members = [
   "waof",
   "wclient",
   "whost",
-  "wserver",
   "wresp",
   "wacl",
   "wlua",

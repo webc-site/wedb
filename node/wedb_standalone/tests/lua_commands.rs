@@ -10,8 +10,7 @@ use aok::OK;
 use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
 use wdev::SegmentedDevice;
-use wkv::{StoreConfig, WedbStore};
-use wserver::{
+use wedb_standalone::{
   lua::{
     lua_commands::{LuaCommands, LuaSessionContext, StoreScriptCache},
     lua_options::{LuaLoggingMode, LuaOptions},
@@ -22,6 +21,7 @@ use wserver::{
   },
   storage::session::storage_session::StorageSession,
 };
+use wkv::{StoreConfig, WedbStore};
 
 type TestStore = Arc<WedbStore<SegmentedDevice>>;
 
