@@ -1,0 +1,43 @@
+[package]
+name = "wlua"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wlua"
+description = "Lua scripting engine integration (Luau runtime) for server-side scripts"
+keywords = ["lua", "luau", "scripting"]
+categories = ["scripting"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+coarsetime.workspace = true
+enum_dispatch = "0.3.13"
+gxhash.workspace = true
+itoa.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+sha1_smol.workspace = true
+sonic-rs.workspace = true
+wbase = { workspace = true, features = ["hash_slot", "convert", "num"] }
+whasher.workspace = true
+wresp.workspace = true
+wtxn = { version = "0.1.0", path = "../wtxn" }
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true
+
+
+[lints]
+workspace = true
+
+[build-dependencies]
+luau0-src = "0.21.0"

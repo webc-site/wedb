@@ -1,0 +1,606 @@
+- 文件:
+    - libs/server/Auth/Aad/IssuerSigningTokenProvider.cs
+    - libs/server/Auth/GarnetAadAuthenticator.cs
+  理由: 不实现 Azure Active Directory 微软内部的服务认证
+- 文件:
+    - libs/server/Resp/ByteArrayComparer.cs
+  理由: Rust 原生 &[u8] / Vec<u8> 支持按字节序列比较与哈希，无需 C# 辅助类
+- 文件:
+    - libs/server/AOF/LegacyRespCommand.cs
+  理由: 彻底移除旧版 v3 命令兼容层映射，无向下兼容包袱
+- 文件:
+    - libs/server/Servers/GarnetServerTcp.cs
+    - libs/server/Servers/GarnetServerBase.cs
+    - libs/server/Servers/IGarnetServer.cs
+    - libs/server/Servers/ServerTcpNetworkHandler.cs
+    - libs/server/Servers/ServerOptions.cs:
+        - NextPowerOf2
+        - ParseSize
+        - PrettySize
+        - PreviousPowerOf2
+        - TryParseSize
+  理由: 彻底移除阻塞式旧套接字服务器及旧版选项，统一收拢至 wnode::GarnetServer 与 GarnetServerOptions
+- 文件:
+    - libs/server/UnifiedOutput.cs:
+        - ConvertToHeap
+        - FromPinnedPointer
+  理由: 无需实现
+- 文件:
+    - libs/server/AOF/ReadConsistency/ReplicaReadSessionContext.cs:
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Auth/Settings/AadAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/AclAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/NoAuthSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/PasswordAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Cluster/IClusterProvider.cs:
+        - Dispose
+    - libs/server/InputHeader.cs:
+        - SetExpiredFlag
+        - SetHeader
+        - SetSetGetFlag
+        - ToPointer
+    - libs/server/Objects/Types/ObjectOutput.cs:
+        - ConvertToHeap
+    - libs/server/Resp/AsyncProcessor.cs
+    - libs/server/Resp/BasicCommands.cs:
+        - GetPendingScratchOutput
+    - libs/server/Resp/ClientCommands.cs:
+        - IsMatch
+    - libs/server/Resp/Parser/ParseUtils.cs:
+        - ReadBool
+        - ReadDouble
+        - ReadFloat
+        - ReadInt
+        - ReadLong
+        - ReadString
+        - TryReadBool
+        - TryReadInt
+        - TryReadLong
+    - libs/server/Resp/Parser/RespCommandHashLookup.cs
+    - libs/server/Resp/Parser/RespCommandHashLookupData.cs
+    - libs/server/Resp/Parser/RespCommandSimdPatterns.cs
+    - libs/server/Resp/Parser/SessionParseState.cs:
+        - EnsureCapacity
+        - Slice
+    - libs/server/Resp/RespCommandArgument.cs:
+        - Write
+    - libs/server/Resp/RespCommandKeySpecification.cs:
+        - Write
+    - libs/server/Resp/RespServerSession.cs:
+        - Write
+    - libs/server/Resp/RespServerSessionOutput.cs:
+        - TryWriteBulkString
+        - TryWriteDirect
+    - libs/server/Resp/SessionLogger.cs:
+        - BeginScope
+        - Log
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkSet.cs:
+        - GetEnumerator
+    - libs/server/Resp/Vector/DiskANNService.cs:
+        - check_external_id_valid
+        - check_internal_id_valid
+        - continue_search
+        - create_index
+        - drop_index
+        - search_element
+        - search_vector
+        - set_attribute
+    - libs/server/Resp/Vector/VectorManager.cs:
+        - Dispose
+    - libs/server/Servers/GarnetServerOptions.cs:
+        - Initialize
+    - libs/server/Storage/Functions/FunctionsState.cs:
+        - CopyDefaultResp
+        - CopyRespNumber
+        - GetCustomCommandFunctions
+        - GetCustomObjectFactory
+        - GetCustomObjectSubCommandFunctions
+    - libs/server/Storage/Functions/GarnetRecordTriggers.cs:
+        - OnCheckpoint
+        - OnDispose
+        - OnDisposeDiskRecord
+        - OnEvict
+        - OnRecovery
+    - libs/server/Storage/Functions/MainStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/MainStore/DeleteMethods.cs:
+        - InitialDeleter
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/MainStore/MainSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/MainStore/PrivateMethods.cs:
+        - CopyRespTo
+        - CopyRespToWithInput
+        - CopyRespWithEtagData
+        - EvaluateExpireCopyUpdate
+        - EvaluateExpireInPlace
+        - GetBitFieldArguments
+        - NormalizeRange
+        - TryCopyUpdateNumber
+        - TryCopyValueLengthToOutput
+        - TryInPlaceUpdateNumber
+        - WriteLogDelete
+        - WriteLogUpsert
+        - WriteValAndEtagToDst
+    - libs/server/Storage/Functions/MainStore/ReadMethods.cs:
+        - CheckRecordTypeMismatch
+    - libs/server/Storage/Functions/MainStore/ReadMethods.Etags.cs
+    - libs/server/Storage/Functions/MainStore/RMWMethods.cs:
+        - PostCopyUpdater
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/MainStore/RMWMethods.Etags.cs
+    - libs/server/Storage/Functions/MainStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/MainStore/VarLenInputMethods.cs:
+        - GetRMWInitialFieldInfo
+        - GetRMWModifiedFieldInfo
+        - GetUpsertFieldInfo
+    - libs/server/Storage/Functions/ObjectStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:
+        - InitialDeleter
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/ObjectStore/PrivateMethods.cs:
+        - GetCustomObjectCommand
+        - IncorrectObjectType
+        - WriteLogDelete
+        - WriteLogUpsert
+    - libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:
+        - PostCopyUpdater
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/ObjectStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/ObjectStore/VarLenInputMethods.cs
+    - libs/server/Storage/Functions/SessionFunctionsUtils.cs
+    - libs/server/Storage/Functions/SimpleGarnetObjectSessionFunctions.cs:
+        - InPlaceWriter
+        - InitialWriter
+    - libs/server/Storage/Functions/UnifiedStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/UnifiedStore/DeleteMethods.cs:
+        - InitialDeleter
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/UnifiedStore/PrivateMethods.cs:
+        - EvaluateExpireCopyUpdate
+        - EvaluateExpireInPlace
+        - WriteLogDelete
+        - WriteLogUpsert
+    - libs/server/Storage/Functions/UnifiedStore/RMWMethods.cs:
+        - HandleExpireCopyUpdate
+        - HandleExpireInPlaceUpdate
+        - HandlePersistCopyUpdate
+        - HandlePersistInPlaceUpdate
+        - PostCopyUpdater
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/UnifiedStore/UnifiedSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/UnifiedStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/UnifiedStore/VarLenInputMethods.cs
+    - libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:
+        - AlignOrPin
+        - AssertAlignment
+        - ConvertOutputToHeap
+        - GetRMWInitialFieldInfo
+        - GetRMWModifiedFieldInfo
+        - GetUpsertFieldInfo
+        - InPlaceWriter
+        - InitialDeleter
+        - InitialWriter
+        - LogRecordOperationsNotExpected
+        - ObjectOperationsNotExpected
+        - PostBatchKeyConsistentReadCallback
+        - PostCopyUpdater
+        - PostDeleteOperation
+        - PostInitialDeleter
+        - PostInitialUpdater
+        - PostInitialWriter
+        - PostRMWOperation
+        - PostSingleKeyConsistentReadCallback
+        - PostUpsertOperation
+        - PreBatchKeyConsistentReadCallback
+        - RMWCompletionCallback
+        - ReadCompletionCallback
+  理由: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - ObtainServerSession
+  理由: C# 需创建 RespServerSession 回放命令，Rust 侧通过 StorageSession/ReplayTarget 直接入库
+- 文件:
+    - libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:
+        - StoredProcRunnerWrapper
+  理由: C# AOF 回放存储过程局部函数，Rust 侧通过原生事务回放路由处理
+- 文件:
+    - libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:
+        - StoredProcRunnerBase
+  理由: C# AOF 回放存储过程底层执行函数，Rust 侧通过原生事务回放路由处理
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - CallFromLuaEntered
+  理由: C# 专属：因 P/Invoke 开销过大而手动在托管层缓存 StackTop/curStackSize 的回调入口钩子；Rust 直连 Luau C
+    API 无 P/Invoke 边界惩罚，直接通过 sys::lua_gettop 读栈
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - KnownCallFromLuaEntered
+  理由: C# 专属：已知参数个数时省略 NativeMethods.GetTop P/Invoke 的微优化；Rust 直连 Luau C API
+    无需手动维护托管栈深
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackIndexInBounds
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈下界越界检查辅助方法，基于 C# 托管 StackTop 字段
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackExpected
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈平衡检查辅助方法，核对 NativeMethods.GetTop 与托管 StackTop
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackNotFull
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈容量检查辅助方法，核对托管 curStackSize
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackNotEmpty
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈非空检查辅助方法，核对托管 StackTop > 0
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - LuaAtPanic
+  理由: C# 专属：[UnmanagedCallersOnly] 静态蹦床，转发 PanicLogger；Rust 在 context.rs 与
+    state.rs 经 catch_unwind 原生守卫处理
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - LuaAllocateBytes
+  理由: C# 专属：[UnmanagedCallersOnly] 静态蹦床，转发 GCHandle ILuaAllocator；Rust 由
+    allocator.rs::rust_lua_alloc 直挂 lua_Alloc
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.Struct.cs:
+        - TryGetFormat
+  理由: C# Lua 栈格式化参数读取与 ArrayPool 租借辅助，Rust 侧直接借用 &[u8] 切片
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.Struct.cs:
+        - AddAlignmentPadding
+  理由: C# struct.pack 对齐填充局部函数，Rust 侧由 get_to_align 纯函数原生计算
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - luaL_checknumber
+        - luaL_loadbufferx
+        - luaL_loadstring
+        - luaL_newstate
+        - luaL_openlibs
+        - luaL_ref
+        - luaL_unref
+        - lua_atpanic
+        - lua_checkstack
+        - lua_close
+        - lua_createtable
+        - lua_gc
+        - lua_getglobal
+        - lua_gettop
+        - lua_newstate
+        - lua_pcallk
+        - lua_pushboolean
+        - lua_pushcclosure
+        - lua_pushinteger
+        - lua_pushlstring
+        - lua_pushnil
+        - lua_pushnumber
+        - lua_pushvalue
+        - lua_rawgeti
+        - lua_rawlen
+        - lua_rawset
+        - lua_rawseti
+        - lua_setglobal
+        - lua_sethook
+        - lua_toboolean
+        - lua_tolstring
+        - lua_version
+  理由: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - AtPanic
+        - CheckBuffer
+        - CheckStack
+        - CreateTable
+        - GetTop
+        - NewState
+        - OpenLibs
+        - PushBuffer
+        - SetGlobal
+        - SetHook
+        - SetTop
+  理由: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - lua_type
+  理由: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 sys.rs 声明并由 LuaState::type_name 封装
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - PushCFunction
+  理由: C# P/Invoke 辅助函数（lua_pushcclosure 0 上值包装），Rust 侧由 LuaState::push_cfunction
+    直接封装
+- 文件:
+    - libs/server/TLS/CertificateUtils.cs
+    - libs/server/TLS/GarnetTlsOptions.cs
+    - libs/server/TLS/ServerCertificateSelector.cs
+  理由: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+- 文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:
+        - PromoteToTail
+  理由: C# 内部私有静态辅助方法（调用 StorageSession.PromoteRangeIndexToTail 发起 RIPROMOTE）；Rust
+    中只读存根在读取与紧缩时由 wkv 引擎闭环自愈，无需外部额外抽象
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - ToReadOnlySpan
+  理由: C# 内存指针转 Span 辅助，Rust 原生切片零拷贝
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - NetworkPurgeBP
+  理由: C# Tsavorite BufferPool 显式内存释放网络命令，Rust 侧缓冲区由全局/线程池分配器原生管理
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - ClusterPurgeBufferPool
+  理由: C# 集群节点 BufferPool 释放，Rust 侧内存分配器自动管理回收
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SetKeyOverflow
+  理由: C# 迁移分块超限溢出处理，Rust 迁移流式分块无溢出缓冲
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SetValueOverflowDeepCopy
+  理由: C# 迁移值溢出深拷贝，Rust 采用零拷贝分块写入
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SerializeObjectValue
+  理由: C# 对象序列化回退，Rust 侧由 GarnetObjectSerializer 统一序列化
+- 文件:
+    - libs/server/Storage/Functions/MainStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/UnifiedStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:
+        - InPlaceDeleter
+  理由: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除
+- 文件:
+    - libs/server/Storage/Session/ObjectStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O
+    阻塞轮询队列机制（objectContext.CompletePendingWithOutputs(wait: true)）；Rust 采用原生
+    async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending
+    队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/Storage/Session/UnifiedStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O 阻塞轮询队列机制（unified.CompletePendingWithOutputs(wait:
+    true)）；Rust 采用原生 async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的
+    pending 队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/Storage/Session/MainStore/BitmapOps.cs:
+        - ReleaseOverflowBuffers
+  理由: C# StringBitOperation 内用于在 GC 压缩下归还 IMemoryOwner 堆缓冲并释放 MemoryHandle
+    钉住句柄的局部静态辅助函数；Rust 采用 RAII 严格生命周期管理与 Drop 自动回收，无 GC 内存迁移与钉住需求，无需该辅助函数
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - GET_WithPending
+  理由: C# Tsavorite 专有异步 I/O 挂起标记（out bool pending）；Rust 基于原生 async/await 与 compio
+    协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending 队列，无需暴露 pending 状态
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - GET_CompletePending
+  理由: C# Tsavorite 专有异步 I/O 阻塞轮询队列机制（context.CompletePendingWithOutputs）；Rust
+    所有读操作均在 await 点同步闭环完成，无需跨调用轮询完成挂起 I/O
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - PromoteRangeIndexToTail
+  理由: C# Tsavorite 专有 RMW 机制（带 RIPROMOTE 操作码）；Rust wkv
+    采用追加写日志架构，只读存根在读取与紧缩时由底层引擎自动闭环自愈，无外部手动 RMW 晋升入口
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - RestoreRangeIndexStub
+  理由: C# Tsavorite 专有 RMW 机制（带 RIRESTORE 操作码回填裸指针）；Rust wkv 中在线树由
+    RangeIndexManager 统一托管生命周期并支持惰性恢复，存根不含裸指针，无需通过外部 RMW 覆写
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - ExtractTreePtr
+  理由: C# 专有裸内存指针提取辅助；Rust 采用 Arc<BfTreeService> 引用计数托管并受条带锁保护，不暴露裸指针
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - WriteScanToOutput
+  理由: C# 专有网络指针直接写入 RESP 协议的内部 helper；Rust Standalone 统一在
+    RespServerSessionRangeIndex 中进行流式类型安全 RESP 响应序列化
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - TryWriteRecordResp
+  理由: C# 专有网络指针写入 RESP 批量字符串 helper；Rust Standalone 统一在
+    RespServerSessionRangeIndex 中实现
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - BackfillArrayHeader
+  理由: C# 专有网络指针头长回填 helper；Rust Standalone 统一在 RespServerSessionRangeIndex 中实现
+- 文件:
+    - libs/server/Storage/Session/MainStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O
+    阻塞轮询队列机制（stringContext.CompletePendingWithOutputs(wait: true)）；Rust 采用原生
+    async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending
+    队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/API/GarnetApi.cs
+    - libs/server/API/GarnetApiObjectCommands.cs
+    - libs/server/API/GarnetWatchApi.cs
+    - libs/server/API/IGarnetAdvancedApi.cs
+    - libs/server/API/IGarnetApi.cs
+    - libs/server/ByteArrayWrapper.cs
+    - libs/server/ByteArrayWrapperComparer.cs
+    - libs/server/StringOutput.cs
+  理由: C# 专有接口多态跳板与 GC 钉住包装类，Rust 统一由 StorageSession 原生方法和切片借用直连，无需 OOP 多层跳板与包装类
+- 文件:
+    - libs/server/ArgSlice/ArgSliceVector.cs:
+        - GetEnumerator
+    - libs/server/ArgSlice/ScratchBufferAllocator.cs:
+        - ExpandScratchBuffer
+        - ExpandScratchBufferIfNeeded
+        - InitializeScratchBuffer
+        - TryRewindToOffset
+    - libs/server/ArgSlice/ScratchBufferBuilder.cs:
+        - CreateArgSliceAsOffset
+        - ExpandScratchBuffer
+        - ExpandScratchBufferIfNeeded
+        - FormatScratch
+        - FullBuffer
+        - GrowBuffer
+        - UTF8EncodeString
+  理由: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作
+- 文件:
+    - libs/server/Objects/List/ListObject.cs:
+        - Scan
+  理由: C# 侧直接抛 NotImplementedException（提示列表扫描用 LRANGE），Rust 侧不设列表 Scan 虚方法，1:1
+    保留该占位语义
+- 文件:
+    - libs/server/StoreWrapper.cs:
+        - AofSize
+        - AutoCheckpointBasedOnAofSizeLimitAsync
+        - CheckMultiDatabaseCompatibility
+        - CommitTaskAsync
+        - EnforceConsistentRead
+        - ExpiredKeyDeletionScanTaskAsync
+        - GetClusterEndpoint
+        - HasKeysInSlots
+        - HybridLogDistributionScan
+        - IndexAutoGrowTaskAsync
+        - StartGenericNodeTasks
+        - StartPrimaryTasks
+        - StartReplicaTasks
+        - SuspendPrimaryOnlyTasksAsync
+        - SuspendReplicaOnlyTasksAsync
+        - TryStartCommitTask
+        - TryStartExpiredKeyDeletionTask
+        - TryStartObjectCollectTask
+  理由: C# 单体服务包装层后台轮询任务，Rust 侧下沉到 wkv::gc / wcpr / whlog 独立生命周期管理
+- 文件:
+    - libs/server/Module/ModuleRegistrar.cs:
+        - LoadModule
+        - RegisterCommand
+        - RegisterProcedure
+        - RegisterTransaction
+    - libs/server/Module/ModuleUtils.cs
+  理由: C# .NET Assembly 动态反射加载机制，Rust 模块采用静态编译与编译期路由
+- 文件:
+    - libs/server/GarnetCheckpointManager.cs:
+        - SetCurrentSafeAofAddress
+  理由: C# Tsavorite CPR 检查点管理器 AOF 地址维护，Rust 由 wcpr/waof 原生检查点管理
+- 文件:
+    - libs/server/GarnetCheckpointManager.cs:
+        - SetRecoveredSafeAofAddress
+  理由: C# Tsavorite CPR 检查点恢复 AOF 地址，Rust 由 wcpr/waof 原生检查点管理
+- 文件:
+    - libs/server/GarnetCheckpointManager.cs:
+        - GetCookie
+  理由: C# 检查点元数据 Cookie 提取，Rust 侧使用 CheckpointMeta 原生序列化
+- 文件:
+    - libs/server/Providers/TsavoriteKVProviderBase.cs:
+        - GetSession
+    - libs/server/Providers/GarnetProvider.cs:
+        - Dispose
+        - GetSession
+        - RecoverAsync
+        - Start
+    - libs/server/Sessions/ISessionProvider.cs:
+        - GetSession
+    - libs/server/Cluster/IClusterFactory.cs:
+        - CreateCheckpointManager
+  理由: C# 存储会话与检查点工厂装配面，Rust 侧统一由 wkv 存储引擎会话生命周期与 databases 域原生承接，无需 .NET DI 工厂占位类
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - BeginTransaction
+        - ComputeCustomProcShardedLogAccess
+        - LocksAcquired
+  理由: wkv 纪元会话无 Tsavorite 存储上下文（由 TxnLockTable 承接加锁），且单机无 MultiLog 分片回放
+- 文件:
+    - libs/server/Transaction/TxnClusterSlotCheck.cs:
+        - CopyExistingKeysToScratchBuffer
+  理由: Rust 的 txn_keys 存储自有副本 Box<[u8]>，无接收缓冲指针重分配失效问题
+- 文件:
+    - libs/server/Storage/Functions/UnifiedStore/ReadMethods.cs
+  理由: C# Tsavorite 读取会话内部子命令解包与元数据回调函数，Rust 侧由 RespServerSession / basic_commands
+    直接调用存储会话原生接口处理，无需保留内部回调分发层
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - Read_RangeIndex
+  理由: C# 侧经 BfTree RangeIndexManager 读索引记录；wkv 将范围索引内置于引擎，由 scan_range 承接，无按键直读入口
+- 文件:
+    - libs/server/Storage/Session/MainStore/VectorStoreOps.cs
+  理由: 向量引擎在 resp/vector 与 objects/vector 独立转写承接，wkv 无底层向量存储原语，StorageSession
+    侧无需维护未挂载的向量存储占位接口
+- 文件:
+    - libs/server/Storage/Session/ObjectStore/Common.cs:
+        - CompletePendingAndGetGarnetStatus
+        - CopyPinnedSpanByteArrayToScratchBuffer
+        - CopyPinnedSpanBytePairsToScratchBuffer
+        - IsSupportedArrayType
+        - ProcessResp2ArrayOutput
+        - ProcessResp3ArrayOutput
+        - ProcessRespArrayOutput
+        - ProcessRespArrayOutputAsPairs
+        - ProcessRespInt64ArrayOutput
+        - ProcessRespIntegerArrayOutput
+        - ProcessRespSingleTokenOutput
+        - ThrowObjectStoreUninitializedException
+        - TryProcessRespSimple64IntOutput
+  理由: C# 专有内存钉住/暂存缓冲区拷贝与内部网络指针 RESP 序列化 helper，Rust 存储层已与 RESP 序列化层解耦，统一由
+    RespObject / RespServerSession 序列化，无遗留 pending 与未初始化异常需求
+- 文件:
+    - libs/server/Resp/RespServerSessionSlotVerify.cs:
+        - CanServeSlot
+        - CanServeSlotForCustomCommand
+        - CanServeSlotNoResponse
+    - libs/server/Transaction/TxnClusterSlotCheck.cs:
+        - SaveKeyArgSlice
+    - libs/server/Transaction/TxnKeyManager.cs:
+        - ResetCacheSlotVerificationResult
+        - VerifyKeyOwnership
+        - WriteCachedSlotVerificationMessage
+    - libs/server/Transaction/TransactionManager.cs:
+        - GetSlotVerificationInput
+  理由: 单机架构解耦：单机引擎 wedb_standalone 彻底剥离所有集群槽位校验与缓存侵入，槽位路由完整收敛至 wedb::ClusterSession
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - SetInternalWriteSession
+  理由: 内部状态位简化：AOF 回放会话在本域独立构造，无需外部注入会话状态
+- 文件:
+    - libs/server/Cluster/IClusterSession.cs:
+        - AcquireCurrentEpoch
+        - NetworkIterativeSlotVerify
+        - NetworkMultiKeySlotVerify
+        - NetworkMultiKeySlotVerifyNoResponse
+        - ProcessClusterCommands
+        - ReleaseCurrentEpoch
+        - ResetCachedSlotVerificationResult
+        - SetInternalWriteSession
+        - SetReadOnlySession
+        - SetReadWriteSession
+        - WriteCachedSlotVerificationMessage
+  理由: 无状态函数式重构：槽位校验外提为 wedb::slot_verify 纯函数无状态计算
+- 文件:
+    - libs/server/Objects/ItemBroker/CollectionItemBroker.cs:
+        - HandleCollectionUpdateWorker
+        - ParseScoreOrDefault
+  理由: 内部实现内联与严格类型化解析替代
+- 文件:
+    - libs/server/Custom/ExpandableMap.cs:
+        - MatchCommand
+        - MatchSubCommand
+  理由: 自定义命令改用哈希路由分派，无需线性遍历数组进行前缀匹配

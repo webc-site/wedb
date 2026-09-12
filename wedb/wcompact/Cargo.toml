@@ -1,0 +1,42 @@
+[package]
+name = "wcompact"
+version = "0.1.2"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wcompact"
+description = "HybridLog read-only segment compaction and garbage collection"
+keywords = ["compaction", "garbage-collection", "storage-engine", "hybridlog", "tsavorite"]
+categories = ["database-implementations", "asynchronous", "concurrency", "algorithms", "caching"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+wbase = { workspace = true, features = ["convert", "time"] }
+log = { workspace = true }
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wepoch.workspace = true
+whasher = { workspace = true }
+whlog = { workspace = true }
+windex = { workspace = true }
+wrecord = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["runtime"]
+
+[lints]
+workspace = true

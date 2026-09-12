@@ -1,0 +1,59 @@
+[package]
+name = "wbase"
+version = "0.1.5"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wbase"
+description = "Cacheline-safe storage primitives: 48-bit log addressing, sector alignment, backoff, varint"
+keywords = ["storage", "primitives", "alignment", "varint", "backoff"]
+categories = ["algorithms", "data-structures", "concurrency", "memory-management", "database-implementations"]
+
+[features]
+default = []
+addr = []
+align = []
+backoff = []
+base32 = []
+buf = []
+crc = ["dep:crc32fast"]
+float = []
+glob = []
+simd = ["dep:fearless_simd"]
+striped = ["dep:parking_lot", "align"]
+thread = []
+time = ["dep:coarsetime"]
+varint = []
+ascii = []
+num = []
+convert = ["time"]
+crc64 = []
+error = ["dep:thiserror"]
+hash = []
+hash_slot = []
+pool = ["align", "thread", "error", "dep:parking_lot", "dep:compio-buf"]
+map = ["dep:papaya", "dep:gxhash"]
+set = ["map"]
+
+[dependencies]
+coarsetime = { workspace = true, optional = true }
+compio-buf = { workspace = true, optional = true }
+crc32fast = { workspace = true, optional = true }
+fearless_simd = { version = "0.7.0", optional = true }
+gxhash = { workspace = true, optional = true }
+papaya = { workspace = true, optional = true }
+parking_lot = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+aok = "0.1.18"
+ctor = "1.0.13"
+log = "0.4.34"
+log_init = "0.1.39"
+
+[lints]
+workspace = true

@@ -1,0 +1,48 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "regress"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+publish = false
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+overflow-checks = false
+
+[profile.bench]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+
+[dependencies]
+compio = { version = "0.19.2", features = ["runtime", "time"] }
+tempfile = "3.27.0"
+wbftree = { version = "0.1.4", path = "../wedb/wbftree" }
+wdev = { version = "0.1.3", path = "../wedb/wdev" }
+wkv = { version = "0.1.1", path = "../wedb/wkv" }
+aok = "0.1.18"
+itoa = "1.0.18"
+sonic-rs = "0.5.10"
+fastrand = "2.5.0"
+
+[dev-dependencies]
+criterion = "0.8.2"
+ctor = "1.0.13"
+log = "0.4.34"
+log_init = "0.1.39"
+
+[[bench]]
+name = "regress"
+harness = false
+
+[[bin]]
+name = "regress-run"
+path = "src/bin/run.rs"
+

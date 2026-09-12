@@ -1,0 +1,51 @@
+[package]
+name = "wnode"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+bench = []
+
+[dependencies]
+async-lock.workspace = true
+bitcode.workspace = true
+bitflags.workspace = true
+clap = { version = "4.6.6", features = ["derive"] }
+coarsetime.workspace = true
+compio = { workspace = true, features = ["net", "io", "signal", "runtime", "time", "bytes", "dispatcher"] }
+crossfire = "3.1.20"
+event-listener.workspace = true
+fastrand.workspace = true
+gxhash.workspace = true
+hdrhistogram = "7"
+itoa.workspace = true
+log.workspace = true
+nested-text = "0.1.0"
+num_enum = "0.7.6"
+parking_lot = { workspace = true, features = ["arc_lock"] }
+serde = { workspace = true, features = ["derive"] }
+smallvec = "1.16.0"
+sonic-rs.workspace = true
+strum = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+wacl = { version = "0.1.1", path = "../wacl" }
+waof = { version = "0.1.2", path = "../waof" }
+wbase = { version = "0.1.5", path = "../wbase", features = ["ascii", "convert", "crc64", "glob", "hash", "hash_slot", "num", "time"] }
+wdev = { version = "0.1.3", path = "../wdev" }
+whasher.workspace = true
+wkv = { version = "0.1.1", path = "../wkv" }
+wlua = { version = "0.1.0", path = "../wlua" }
+wpubsub = { version = "0.1.0", path = "../wpubsub" }
+wresp = { version = "0.1.1", path = "../wresp" }
+wtxn = { version = "0.1.0", path = "../wtxn" }
+wval = { version = "0.1.2", path = "../wval" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true
+tempfile.workspace = true

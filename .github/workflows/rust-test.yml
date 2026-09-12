@@ -1,0 +1,59 @@
+name: rust-test (reusable)
+
+# 可复用工作流：给 wedb / node / cluster 各自的 test workflow 使用。
+# 在 CI 上不直接调用 ./test.sh（它依赖本机私有 cargo_sh 的 sh/env.sh），
+# 而是用公共 action 搭建等价环境，并执行与对应 test.sh 相同的测试命令：
+#   cargo nextest run --all-features
+# 想跑哪个组件的 test.sh, 用 with.dir 传入组件目录即可。
+
+on:
+  workflow_call:
+    inputs:
+      dir:
+        description: 组件目录 (wedb | node | cluster)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-test-${{ inputs.dir }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: test · ${{ inputs.dir }} · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest # Linux x86_64
+          - ubuntu-24.04-arm # Linux aarch64
+          - windows-latest # Windows x86_64
+          - macos-latest # macOS aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      # gxhash 要求 AES 指令集 (与 sh/env.sh 保持一致；aarch64 上 aes 属基线
+      # 特性，重复开启无副作用)，否则 x86_64 全新构建触发 gxhash compile_error
+      RUSTFLAGS: -C target-feature=+aes
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # 仓库无根 Cargo.toml：wedb / node / cluster 各自独立 workspace，
+          # 缓存须指向对应组件目录，否则保存缓存时 cargo metadata 在仓库根失败
+          workspaces: ${{ inputs.dir }}
+          cache-on-failure: true
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Run tests (${{ inputs.dir }})
+        run: cargo nextest run --all-features
+        working-directory: ${{ inputs.dir }}

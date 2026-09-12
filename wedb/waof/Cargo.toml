@@ -1,0 +1,42 @@
+[package]
+name = "waof"
+version = "0.1.2"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/waof"
+description = "Append-Only File (AOF) write-ahead log for replication"
+keywords = ["aof", "write-ahead-log", "replication", "wal"]
+categories = ["database-implementations", "filesystem"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+async-lock = { workspace = true }
+wbase = { workspace = true, features = ["crc"] }
+event-listener = { workspace = true }
+log.workspace = true
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wram = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+itoa.workspace = true
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["fs"]
+
+[lints]
+workspace = true

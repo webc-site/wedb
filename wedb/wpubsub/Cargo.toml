@@ -1,0 +1,19 @@
+[package]
+name = "wpubsub"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+itoa.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+wbase = { version = "0.1.5", path = "../wbase", features = ["glob", "map"] }
+wresp.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

@@ -1,0 +1,44 @@
+[package]
+name = "whlog"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/whlog"
+description = "HybridLog allocator with three-region sliding window and scan iterator"
+keywords = ["hybridlog", "allocator", "storage-engine", "circular-buffer", "log"]
+categories = ["database-implementations", "data-structures", "concurrency", "asynchronous", "memory-management"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bitcode = { workspace = true }
+itoa = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wepoch = { workspace = true }
+wrecord = { workspace = true }
+wbase = { workspace = true, features = ["align", "backoff", "pool"] }
+zmij = { workspace = true }
+
+[dependencies.compio]
+workspace = true
+features = ["runtime", "time"]
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+whasher = { workspace = true }
+
+[lints]
+workspace = true

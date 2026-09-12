@@ -1,0 +1,115 @@
+title: Embedded Key-Value Storage Benchmarks
+subtitle: Benchmarking wkv & wbftree against mainstream embedded databases
+system_info_title: System Environment
+cpu: CPU Model
+cores: CPU Cores
+arch: Architecture
+memory: Memory
+disk_type: Disk Type
+os: Operating System
+kernel: Kernel Version
+cores_format: "{physical} Physical / {logical} Logical Cores"
+params_title: Benchmark Parameters
+key_size: Key Size
+value_size: Value Size
+cache_size: Cache Size
+elements: Benchmark Elements
+comparison_title: Performance Comparison
+metric_col: Benchmark
+param_col: Parameter
+val_col: Setting
+hardware_col: Hardware
+spec_col: Specification
+benchmarks:
+  bulk_load: bulk load
+  individual_writes: individual writes
+  batch_writes: batch writes
+  nosync_writes: nosync writes
+  len: len()
+  random_reads: random reads
+  random_range_reads: random range reads
+  random_reads_4: random reads (4 threads)
+  random_reads_8: random reads (8 threads)
+  random_reads_16: random reads (16 threads)
+  random_reads_32: random reads (32 threads)
+  removals: removals
+  uncompacted_size: pre-compaction size
+  compacted_size: compacted size
+  memory: memory usage
+  peak_memory: memory usage
+notes: Performance metrics display relative multiplier in the first line (baseline 1.00X for lowest performance, higher is better) and disk throughput in the second line. Random reads and range scans report median of 3 runs. Cache sizes are configured uniformly where applicable.
+source_code: Benchmark source code located at
+chart:
+  write_section: Write Throughput Comparison (Higher is better)
+  read_section: Read Throughput Comparison (Higher is better)
+  space_section: Storage & Memory Overhead (Lower is better)
+  baseline: Baseline
+  lead: Leader
+  multiplier: Multiplier
+  throughput: Throughput
+params_desc_title: Configuration & Methodology Notes
+params_desc:
+  - label: Key/Value Spec
+    desc: 24B Key / 150B Value, binary keys and serialized payloads.
+  - label: Cache Budget
+    desc: Uniformly configured to 128 MiB, constraining read cache, buffer pool, and write buffer across engines.
+  - label: Workload Scale
+    desc: 6,000,000 records (~1.04 GiB raw writes), data size 10~30x the memory cache budget.
+  - label: Write Scenarios
+    desc: Standardized to RocksDB default durability (WAL enabled, OS cache buffered, no per-commit fsync); benchmarks evaluate individual, batch (1,000 items/batch), and async writes.
+  - label: Read Benchmarks
+    desc: 100,000 point lookups and 5,000 range scans (step 10), multi-threaded reads (4~32 threads), reporting median of 3 runs.
+  - label: Disk & Memory
+    desc: Disk usage measures physical file size pre/post compaction; memory records resident physical memory (RSS / Footprint).
+durability_title: Storage Architecture & Durability
+durability_desc: >-
+  Baseline Standard: All database engines are uniformly configured to match **RocksDB official defaults** (WAL enabled, `sync = false`, buffered in OS page cache, crash-safe, no per-commit hardware fsync; synced on buffer eviction, checkpoint, or explicit flush).
+durability_col_engine: Database
+durability_col_arch: Storage Architecture
+durability_col_sync: Default Durability
+durability_col_bulk: Bulk Load Ingestion
+durability_col_nosync: Strict Sync Mode (Optional)
+durability_col_verify: Verification & Consistency
+durability_li:
+  - engine: wkv
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wkv
+    arch: Append-Only HybridLog circular buffer (in-memory circular buffer + segmented file storage)
+    sync: Writes to HybridLog in-memory circular buffer without per-commit flush_all/fsync, pipeline background page flushing
+    bulk: Circular buffer streaming pipeline flush, unified flush_all and hardware sync after full completion
+    nosync: Optional strict hardware blocking sync (set_sync(true)), flush_all and hardware sync on every commit
+    verify: Full CRC32 checksums + Epoch lock-free concurrent safe reclamation
+  - engine: wbftree
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wbftree
+    arch: Cache-Buffer B-Tree architecture
+    sync: Writes to Cache-Buffer pool, dirty pages accumulate and flush via scheduled merges without per-commit fsync
+    bulk: Dirty pages merged and scheduled for batch flush, explicit flush on completion
+    nosync: In-memory page buffer fast writes, rely on buffer pool eviction and snapshot flushes
+    verify: Page-level CRC32 checksums + Snapshot read-only isolation
+  - engine: redb
+    url: https://github.com/cberner/redb
+    arch: Copy-on-Write B-Tree (MVCC)
+    sync: Durability::None, data written to OS kernel buffer cache without per-commit fsync
+    bulk: Single bulk transaction write, single fsync on final commit
+    nosync: Optional strict hardware blocking sync (Durability::Immediate), fsync on every commit
+    verify: Built-in page checksums + ACID crash consistency
+  - engine: fjall
+    url: https://github.com/fjall-rs/fjall
+    arch: Single-writer LSM-Tree architecture
+    sync: Writes to in-memory WAL buffer (PersistMode::Buffer) without per-commit hardware fsync
+    bulk: Single-writer txn stream append, single fsync on final commit
+    nosync: Optional strict hardware blocking sync (PersistMode::SyncAll), fsync on every commit
+    verify: CRC32 block checksums + WAL crash recovery
+  - engine: rocksdb
+    url: https://github.com/facebook/rocksdb
+    arch: LSM-Tree + native WriteBatch atomic commits
+    sync: Writes append to WAL file and MemTable buffered in OS page cache (WriteOptions default sync=false), without per-commit fsync
+    bulk: WriteBatch stream writes, single sync on final commit
+    nosync: Optional strict hardware blocking sync (WriteOptions::set_sync(true)), fsync on every commit
+    verify: Built-in block and WAL checksums
+  - engine: sqlite
+    url: https://www.sqlite.org
+    arch: Standard B-Tree + Write-Ahead Logging (WAL mode)
+    sync: Uses WAL mode recommended durability (PRAGMA synchronous = NORMAL), WAL writes buffered in OS cache without per-commit hardware fsync
+    bulk: Single transaction batch write, commit to WAL buffer, flushed via checkpoint
+    nosync: Optional strict physical persistence (PRAGMA synchronous = FULL), fsync on every WAL commit
+    verify: Page-level verification + WAL atomic transaction rollback

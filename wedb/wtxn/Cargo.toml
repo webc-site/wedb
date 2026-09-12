@@ -1,0 +1,22 @@
+[package]
+name = "wtxn"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags.workspace = true
+gxhash.workspace = true
+itoa.workspace = true
+log.workspace = true
+parking_lot = { workspace = true, features = ["arc_lock"] }
+smallvec.workspace = true
+waof.workspace = true
+wresp.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

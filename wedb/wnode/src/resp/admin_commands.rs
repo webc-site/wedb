@@ -1,0 +1,509 @@
+use wresp::{
+  RespCommand, RespSliceExt, RespVecExt, cmd_strings as cs,
+  cmd_strings::{
+    RESP_ERR_DEBUG_DISALLOWED, RESP_ERR_MODULE_DISALLOWED, RESP_ERR_REGISTERCS_DISALLOWED,
+    abort_with_error_message, abort_with_unknown_subcommand,
+    abort_with_unknown_subcommand_or_wrong_num_args, abort_with_wrong_number_of_arguments,
+    write_error_raw, write_raw,
+  },
+};
+
+use super::{parser::session_parse_state::strict_i32, resp_server_session::RespServerSession};
+
+/// GC 代数非法文案（本域两处复用）。
+const ERR_INVALID_GC_GENERATION: &str = "ERR Invalid GC generation.";
+
+/// libs/server/Servers/GarnetServerOptions.cs:MaxDatabases
+///
+/// C# 默认 16；rust 会话层未接服务器选项，按默认值校验 DBID
+const MAX_DATABASES: i64 = 16;
+
+/// 集群启用配置（单机模式默认为 false；C# 为 serverOptions.EnableCluster）
+const CLUSTER_ENABLED: bool = false;
+
+/// libs/server/Auth/Settings/ConnectionProtectionOption.cs（默认 No）
+///
+/// DEBUG/REGISTERCS/MODULE 的连接保护开关；C# 默认 No → CanRunDebug/CanRunModule
+/// 恒 false。rust 会话层未接服务器选项与本地连接判定，按默认值走拒绝路径
+const PROTECTION_OPTION: ConnectionProtection = ConnectionProtection::No;
+
+/// libs/server/Auth/Settings/ConnectionProtectionOption.cs
+///
+/// rust 会话层仅按默认配置 `No` 接线（未接服务器选项与本地端点判定），故只保留
+/// 该单一档；`Local`/`Yes` 的完整 C# 语义由 `resp_server_session.rs` 的
+/// `ConnectionProtectionOption` 与 `can_run_with_protection` 承载
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConnectionProtection {
+  No,
+}
+
+impl ConnectionProtection {
+  /// 连接保护判定（C# 还需 networkSender.IsLocalConnection() 配合 Local 档；
+  /// rust 网络层未接端点判定，且本 crate 仅接线 No 档，受保护的管理命令恒拒绝）
+  const fn can_run(self) -> bool {
+    false
+  }
+}
+
+impl RespServerSession {
+  /// libs/server/Resp/AdminCommands.cs:ProcessAdminCommands
+  ///
+  /// 管理命令派发器：C# 在此做未认证拦截（NOAUTH）后按 RespCommand 路由。
+  /// rust 默认认证器等价 NoAuth（IsAuthenticated = true），拦截不触发；命令
+  /// 路由归派发域（RespServerSession.cs:ProcessMessages，尚未建成），本函数
+  /// 仅承担认证门语义，无应答写出；保留形参以匹配 ProcessAdminCommands 统一输出签名
+  pub fn process_admin_commands(&mut self, _output: &mut Vec<u8>) -> wresp::Result<bool> {
+    // C#: CanAuthenticate && !IsAuthenticated → write RESP_ERR_NOAUTH；
+    // NoAuth 认证器 IsAuthenticated 恒 true，此分支在默认配置不可达
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:CheckScriptPermissions
+  ///
+  /// 脚本 no-script 位图检查（SCRIPT LOAD 域）；rust 脚本域未维护 no-script
+  /// 位图，等价 C# 位图为空的放行路径：恒允许
+  pub fn check_script_permissions(&mut self, _cmd: RespCommand) -> bool {
+    true
+  }
+  /// libs/server/Resp/AdminCommands.cs:CheckACLPermissions
+  ///
+  /// C#: (!IsAuthenticated || !CanAccessCommand) && !IsNoAuth → 拒绝。默认
+  /// NoAuth 认证器 IsAuthenticated = true → 恒放行；rust ACL（wacl）接线后
+  /// 在此分叉
+  pub fn check_acl_permissions(&mut self, _cmd: RespCommand) -> bool {
+    true
+  }
+  /// libs/server/Resp/AdminCommands.cs:CheckACLPermissionsForCustomCommand
+  ///
+  /// 自定义命令按名鉴权；同上按默认放行路径处理
+  pub fn check_acl_permissions_for_custom_command(&mut self, _cmd: RespCommand) -> bool {
+    true
+  }
+  /// libs/server/Resp/AdminCommands.cs:OnACLOrNoScriptFailure
+  ///
+  /// C# 清理在途自定义命令的会话引用（currentCustom*Command = null）
+  pub fn on_acl_or_no_script_failure(&mut self, _cmd: RespCommand) {
+    self.current_custom_command = None;
+  }
+  /// libs/server/Resp/AdminCommands.cs:CommitAOFAsync
+  ///
+  /// C# 委托 storeWrapper.CommitAOFAsync（异步 AOF 落盘闭环）
+  pub async fn commit_aof_async(&mut self) -> wresp::Result<bool> {
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkMonitor
+  pub fn network_monitor(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if !parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "MONITOR");
+      return Ok(true);
+    }
+
+    // C# MONITOR 未实现，字面回 "ERR unknown command"
+    write_error_raw(output, cs::RESP_ERR_GENERIC_UNK_CMD);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:TryImportCommandsData
+  ///
+  /// C# 命令信息 JSON 文件导入管道（文件存在性 → 允许路径校验 → 反序列化），
+  /// 服务于 REGISTERCS 的 INFO/DOCS 附件；rust 自定义命令域无该导入管道，
+  /// 恒按"不可访问命令信息文件"失败
+  pub fn try_import_commands_data(&mut self) -> bool {
+    false
+  }
+  /// libs/server/Resp/AdminCommands.cs:TryRegisterCustomCommands
+  ///
+  /// C# 经 .NET 反射加载装配件并实例化自定义命令类；rust 无装配域，恒按
+  /// "无法实例化类"失败（C# 语义内的注册失败路径）
+  pub fn try_register_custom_commands(&mut self) -> bool {
+    false
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkRegisterCs
+  pub fn network_register_cs(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 6 {
+      abort_with_wrong_number_of_arguments(output, "REGISTERCS");
+      return Ok(true);
+    }
+
+    if !PROTECTION_OPTION.can_run() {
+      // 对标 C# AbortWithErrorMessage(GenericErrCommandDisallowedWithOption,
+      // REGISTERCS, "enable-module-command")
+      abort_with_error_message(output, RESP_ERR_REGISTERCS_DISALLOWED);
+      return Ok(true);
+    }
+
+    // 选项解析之后的注册依赖 .NET 装配域（见 TryRegisterCustomCommands），
+    // rust 侧按注册失败路径降级
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_INSTANTIATING_CLASS);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkModuleLoad
+  pub fn network_module_load(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "MODULE|LOADCS");
+      return Ok(true);
+    }
+
+    if !PROTECTION_OPTION.can_run() {
+      abort_with_error_message(output, RESP_ERR_MODULE_DISALLOWED);
+      return Ok(true);
+    }
+
+    // .NET 装配件加载在 rust 无对应物（ModuleUtils 域未移植），按加载失败降级
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_INSTANTIATING_CLASS);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkCOMMITAOF
+  pub fn network_commitaof(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() > 1 {
+      abort_with_wrong_number_of_arguments(output, "COMMITAOF");
+      return Ok(true);
+    }
+
+    // 缺省提交全部活跃库；带 DBID 时先走库号校验
+    if parse_state.len() == 1 && !self.try_parse_database_id(parse_state, output)? {
+      return Ok(true);
+    }
+
+    // C# 阻塞等待 storeWrapper.CommitAOFAsync；rust 会话层无该通道
+    // （store_wrapper.rs:CommitAofAsync 未建成），按本域存储失败惯例降级
+    output.write_resp_error("generic error");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkHCOLLECT
+  pub fn network_hcollect(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "HCOLLECT");
+      return Ok(true);
+    }
+
+    // C# 走 storageApi.HashCollect（对象存储紧凑化扫描）；rust 对象存储域
+    // 无该入口，按扫描不可达的 C# 错误路径降级
+    write_error_raw(output, cs::RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkZCOLLECT
+  pub fn network_zcollect(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "ZCOLLECT");
+      return Ok(true);
+    }
+
+    write_error_raw(output, cs::RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkProcessClusterCommand
+  pub fn network_process_cluster_command(&mut self, output: &mut Vec<u8>) -> wresp::Result<bool> {
+    // C# clusterSession == null 即集群未启用；rust 会话无集群会话挂载点，
+    // 与 C# 禁用路径语义一致
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_CLUSTER_DISABLED);
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkDebug
+  pub fn network_debug(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "DEBUG");
+      return Ok(true);
+    }
+
+    if !PROTECTION_OPTION.can_run() {
+      abort_with_error_message(output, RESP_ERR_DEBUG_DISALLOWED);
+      return Ok(true);
+    }
+
+    let command = parse_state[0];
+    if command.eq_ignore_ascii_case(b"PANIC") {
+      // C# 刻意抛异常崩溃进程；rust 禁 panic 约束下按存储失败惯例降级
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"ERROR") {
+      if parse_state.len() != 2 {
+        return self.abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+          command.as_str_safe(),
+          "DEBUG",
+          output,
+        );
+      }
+      // DEBUG ERROR <string>：按 RESP 错误帧原样回显（客户端测试钩子）
+      write_error_raw(output, parse_state[1].as_str_safe());
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"LOG") {
+      if parse_state.len() != 2 {
+        return self.abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+          command.as_str_safe(),
+          "DEBUG",
+          output,
+        );
+      }
+      // C# 写服务器日志（logger.LogInformation）；rust 日志接线归派发域，
+      log::info!("{}", parse_state[1].as_str_safe());
+      write_raw(output, cs::RESP_OK);
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"FLUSHANDEVICT") {
+      if parse_state.len() != 1 {
+        return self.abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+          command.as_str_safe(),
+          "DEBUG",
+          output,
+        );
+      }
+      // C# 刷并驱逐主存储混合日志（mainStore.Log.FlushAndEvict）；rust wkv
+      // 无会话可达的同义入口，按存储失败惯例降级
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"FORCEGC") {
+      if parse_state.len() > 2 {
+        return self.abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+          command.as_str_safe(),
+          "DEBUG",
+          output,
+        );
+      }
+      if parse_state.len() == 2 {
+        let Some(generation) = strict_i32(parse_state[1]) else {
+          abort_with_error_message(output, ERR_INVALID_GC_GENERATION);
+          return Ok(true);
+        };
+        // C# 上界为 GC.MaxGeneration（.NET 恒为 2）；rust 无分代 GC，
+        // 按同值域拒绝非法代数
+        if !(0..=2).contains(&generation) {
+          abort_with_error_message(output, ERR_INVALID_GC_GENERATION);
+          return Ok(true);
+        }
+      }
+      // rust 无 GC.Collect 等价物；C# 回 "GC completed"
+      output.write_resp_simple_string("GC completed");
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"PURGEBP") {
+      if parse_state.len() != 2 {
+        return self.abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+          command.as_str_safe(),
+          "DEBUG",
+          output,
+        );
+      }
+      // PurgeBPCommand 域未建成（purge_bp_command.rs），按失败惯例降级
+      output.write_resp_error("generic error");
+      return Ok(true);
+    }
+
+    if command.eq_ignore_ascii_case(b"HELP") {
+      const DEBUG_HELP: [&str; 18] = [
+        "DEBUG <subcommand> [<arg> [value] [opt] ...]. Subcommands are:",
+        "ERROR <string>",
+        "\tReturn a Redis protocol error with <string> as message. Useful for clients",
+        "\tunit tests to simulate Redis errors.",
+        "LOG <message>",
+        "\tWrite <message> to the server log.",
+        "FLUSHANDEVICT",
+        "\tFlush the main store's in-memory log to disk and evict it (shifts HeadAddress to",
+        "\tTailAddress) so subsequent reads are served from disk.",
+        "FORCEGC [generation]",
+        "\tForce a blocking garbage collection of the given generation (default: max).",
+        "PURGEBP <manager-type>",
+        "\tPurge the network buffer pool for the given manager (MigrationManager,",
+        "\tReplicationManager, or ServerListener) and force a blocking GC.",
+        "PANIC",
+        "\tCrash the server simulating a panic.",
+        "HELP",
+        "\tPrints this help",
+      ];
+      output.write_resp_array_len(DEBUG_HELP.len());
+      for line in DEBUG_HELP {
+        output.write_resp_simple_string(line);
+      }
+      return Ok(true);
+    }
+
+    abort_with_unknown_subcommand(output, parse_state[0].as_str_safe(), "DEBUG");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkROLE
+  pub fn network_role(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if !parse_state.is_empty() {
+      abort_with_wrong_number_of_arguments(output, "ROLE");
+      return Ok(true);
+    }
+
+    // C# 集群分支依赖 clusterProvider；standalone 路径 = *3 master :0 *0
+    output.write_resp_array_len(3);
+    output.write_resp_bulk_string(b"master");
+    output.write_resp_int(0);
+    output.extend_from_slice(b"*0\r\n");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkSAVE
+  pub fn network_save(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() > 1 {
+      abort_with_wrong_number_of_arguments(output, "SAVE");
+      return Ok(true);
+    }
+
+    if parse_state.len() == 1 && !self.try_parse_database_id(parse_state, output)? {
+      return Ok(true);
+    }
+
+    // C# 阻塞等待 TakeCheckpointAsync(false)；rust 检查点通道未接线
+    // （store_wrapper.rs:TakeCheckpointAsync 未建成），按失败惯例降级并区分
+    // 既有 C# 错误语义（checkpoint already in progress 不可达）
+    output.write_resp_error("generic error");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkEXPDELSCAN
+  pub fn network_expdelscan(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() > 1 {
+      abort_with_wrong_number_of_arguments(output, "EXPDELSCAN");
+      return Ok(true);
+    }
+
+    // C# 先查 EXPIRED_KEY_DELETION_SCAN_FREQ 运行时配置；rust 运行时配置域
+    // 未建成（后台扫描亦未启用），该拦截不可达
+
+    let mut db_args: [&[u8]; 1] = [&[]];
+    if !parse_state.is_empty() {
+      db_args[0] = parse_state[0];
+      if !self.try_parse_database_id(&db_args, output)? {
+        return Ok(true);
+      }
+    }
+
+    // C# 调 storeWrapper.ExpiredKeyDeletionScan（可变区过期键删除扫描）；
+    // rust wkv 无会话可达入口，按失败惯例降级（绝不虚报扫描计数）
+    output.write_resp_error("generic error");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkLASTSAVE
+  pub fn network_lastsave(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() > 1 {
+      abort_with_wrong_number_of_arguments(output, "LASTSAVE");
+      return Ok(true);
+    }
+
+    if parse_state.len() == 1 && !self.try_parse_database_id(parse_state, output)? {
+      return Ok(true);
+    }
+
+    // C# 回数据库 LastSaveTime；rust 检查点域未接线无时间戳来源，按失败
+    // 惯例降级（不虚报时间戳）
+    output.write_resp_error("generic error");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
+  pub fn network_bgsave(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() > 2 {
+      abort_with_wrong_number_of_arguments(output, "BGSAVE");
+      return Ok(true);
+    }
+
+    // BGSAVE [SCHEDULE] [DBID]
+    let mut token_idx = 0usize;
+    if !parse_state.is_empty() && parse_state[0].eq_ignore_ascii_case(b"SCHEDULE") {
+      token_idx = 1;
+    }
+    if parse_state.len() > token_idx {
+      let db_args: [&[u8]; 1] = [parse_state[token_idx]];
+      if !self.try_parse_database_id(&db_args, output)? {
+        return Ok(true);
+      }
+    }
+
+    // C# 阻塞等待 TakeCheckpointAsync(true)；检查点通道缺口同 NetworkSAVE
+    output.write_resp_error("generic error");
+    Ok(true)
+  }
+  /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId
+  ///
+  /// 校验 DBID 令牌（C# TryGetInt i32 严格口径）；失败时已写出错误应答并返回 false
+  pub fn try_parse_database_id(
+    &mut self,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    let Some(db_id) = strict_i32(parse_state[0]) else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return Ok(false);
+    };
+    let db_id = i64::from(db_id);
+
+    // 集群模式禁非零 DBID；rust 集群会话域未挂载（等效集群未启用），拦截不可达
+    if CLUSTER_ENABLED && db_id > 0 {
+      abort_with_error_message(output, cs::RESP_ERR_DB_ID_CLUSTER_MODE);
+      return Ok(false);
+    }
+
+    if !(0..MAX_DATABASES).contains(&db_id) {
+      abort_with_error_message(output, cs::RESP_ERR_DB_INDEX_OUT_OF_RANGE);
+      return Ok(false);
+    }
+
+    Ok(true)
+  }
+  /// libs/server/Resp/Objects/ObjectStoreUtils.cs:AbortWithWrongNumberOfArgumentsOrUnknownSubcommand
+  ///
+  /// `ERR unknown subcommand or wrong number of arguments for '{0}'. Try {1} HELP`
+  fn abort_with_wrong_number_of_arguments_or_unknown_subcommand(
+    &mut self,
+    sub_command: &str,
+    cmd_name: &str,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    abort_with_unknown_subcommand_or_wrong_num_args(output, sub_command, cmd_name);
+    Ok(true)
+  }
+}

@@ -1,0 +1,33 @@
+[package]
+name = "ext_noop"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/ext_noop"
+description = "No-op extension template for extension development and testing"
+keywords = ["noop", "extension", "template", "example"]
+categories = []
+
+[features]
+default = []
+bench = []
+thiserror = ["dep:thiserror"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+thiserror.workspace = true
+
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = { workspace = true, optional = true }

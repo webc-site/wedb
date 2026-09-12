@@ -1,0 +1,30 @@
+[package]
+name = "whasher"
+version = "0.1.6"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/whasher"
+description = "Hardware-accelerated hashing, streaming checksums, and concurrent collections"
+keywords = ["hash", "gxhash", "checksum", "concurrent", "collections"]
+categories = ["algorithms", "data-structures", "concurrency", "caching", "database-implementations"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+gxhash = { workspace = true }
+papaya = { workspace = true }
+wbase = { workspace = true, features = ["map", "set"] }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+
+[lints]
+workspace = true

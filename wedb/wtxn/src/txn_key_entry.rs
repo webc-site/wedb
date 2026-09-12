@@ -1,0 +1,350 @@
+//! 事务键条目与加锁集合（对标 libs/server/Transaction/TxnKeyEntry.cs）
+//!
+//! 排序后按归并计划取锁——同哈希条目合并为最强锁型，守卫持有至解锁。
+
+use std::{
+  fmt,
+  sync::{Arc, LazyLock},
+  time::{Duration, Instant},
+};
+
+use super::txn_lock_table::{TxnKeyLockGuard, TxnLockTable};
+
+/// 进程级共享锁表
+static GLOBAL_LOCK_TABLE: LazyLock<Arc<TxnLockTable>> =
+  LazyLock::new(|| Arc::new(TxnLockTable::new()));
+
+/// libs/server/Transaction/TxnKeyEntry.cs:LockType
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum LockType {
+  None = 0,
+  Exclusive = 1,
+  Shared = 2,
+}
+
+/// Entry for a key to lock and unlock in transactions
+///
+/// 在 garnet 中的相对路径:libs/server/Transaction/TxnKeyEntry.cs:TxnKeyEntry
+#[derive(Debug, Clone, Copy)]
+pub struct TxnKeyEntry {
+  pub key_hash: i64,
+  pub lock_type: LockType,
+}
+
+impl TxnKeyEntry {
+  pub fn new(key_hash: i64, lock_type: LockType) -> Self {
+    Self {
+      key_hash,
+      lock_type,
+    }
+  }
+}
+
+impl fmt::Display for TxnKeyEntry {
+  /// 在 garnet 中的相对路径:libs/server/Transaction/TxnKeyEntry.cs:ToString
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let key_hash_sign = if self.key_hash < 0 { "-" } else { "" };
+    let lock_str = match self.lock_type {
+      LockType::None => "-",
+      LockType::Shared => "s",
+      LockType::Exclusive => "x",
+    };
+    write!(
+      f,
+      "{}{}:{}",
+      key_hash_sign,
+      self.key_hash.unsigned_abs(),
+      lock_str
+    )
+  }
+}
+
+/// 归并后的加锁计划项
+struct LockPlanSlot {
+  key_hash: i64,
+  exclusive: bool,
+}
+
+/// 事务键加锁集合（libs/server/Transaction/TxnKeyEntry.cs:TxnKeyEntries）
+pub struct TxnKeyEntries {
+  keys: Vec<TxnKeyEntry>,
+  unified_store_key_locked: bool,
+  /// 锁阶段标记（0 无 / 1 加锁中 / 2 解锁中；GetLockset 展示用）
+  pub phase: i32,
+  /// 已持有的锁守卫
+  held_locks: Vec<TxnKeyLockGuard>,
+}
+
+impl TxnKeyEntries {
+  pub fn new(initial_count: usize) -> Self {
+    Self {
+      keys: Vec::with_capacity(initial_count),
+      unified_store_key_locked: false,
+      phase: 0,
+      held_locks: Vec::new(),
+    }
+  }
+
+  /// 是否全为读锁（无排他条目）
+  pub fn is_read_only(&self) -> bool {
+    !self.keys.iter().any(|k| k.lock_type == LockType::Exclusive)
+  }
+
+  pub fn count(&self) -> usize {
+    self.keys.len()
+  }
+
+  /// 指定序号键的哈希
+  ///
+  /// 在 garnet 中的相对路径:libs/server/Transaction/TxnKeyEntry.cs:GetKeyHash
+  pub fn get_key_hash(&self, index: usize) -> i64 {
+    self.keys[index].key_hash
+  }
+
+  /// 待加锁键条目哈希迭代器
+  #[inline]
+  pub fn key_hashes(&self) -> impl Iterator<Item = i64> + '_ {
+    self.keys.iter().map(|k| k.key_hash)
+  }
+
+  /// 追加待锁键
+  ///
+  /// 在 garnet 中的相对路径:libs/server/Transaction/TxnKeyEntry.cs:AddKey
+  pub fn add_key(&mut self, key_hash: i64, lock_type: LockType) {
+    self.keys.push(TxnKeyEntry {
+      key_hash,
+      lock_type,
+    });
+  }
+
+  /// 归并加锁计划：按条带下标与键哈希全序升序排序，并在单次线性扫描中合并同条带锁位取最强锁型
+  fn lock_plan(&mut self) -> Vec<LockPlanSlot> {
+    if self.keys.is_empty() {
+      return Vec::new();
+    }
+    self
+      .keys
+      .sort_unstable_by(super::txn_key_entry_comparison::TxnKeyEntryComparison::compare);
+
+    let mut plan: Vec<LockPlanSlot> = Vec::with_capacity(self.keys.len());
+    for entry in &self.keys {
+      let stripe = TxnLockTable::stripe_index_for_hash(entry.key_hash);
+      let exclusive = entry.lock_type == LockType::Exclusive;
+      if let Some(last) = plan.last_mut()
+        && TxnLockTable::stripe_index_for_hash(last.key_hash) == stripe
+      {
+        last.exclusive |= exclusive;
+        continue;
+      }
+      plan.push(LockPlanSlot {
+        key_hash: entry.key_hash,
+        exclusive,
+      });
+    }
+    plan
+  }
+
+  /// 测试观测口：归并计划的条带取锁序列
+  #[cfg(test)]
+  fn test_lock_plan_stripes(&mut self) -> Vec<usize> {
+    self
+      .lock_plan()
+      .iter()
+      .map(|slot| TxnLockTable::stripe_index_for_hash(slot.key_hash))
+      .collect()
+  }
+
+  /// 阻塞加锁全部键（libs/server/Transaction/TxnKeyEntry.cs:LockAllKeys）
+  pub fn lock_all_keys(&mut self) {
+    self.phase = 1;
+    let plan = self.lock_plan();
+    if !plan.is_empty() {
+      let lock_table = Arc::clone(&*GLOBAL_LOCK_TABLE);
+      self.held_locks.extend(
+        plan
+          .into_iter()
+          .map(|slot| lock_table.lock_key(slot.key_hash, slot.exclusive)),
+      );
+      self.unified_store_key_locked = true;
+    }
+    self.phase = 0;
+  }
+
+  /// 限时尝试加锁全部键（libs/server/Transaction/TxnKeyEntry.cs:TryLockAllKeys）
+  pub fn try_lock_all_keys(&mut self, lock_timeout: Duration) -> bool {
+    self.phase = 1;
+    let plan = self.lock_plan();
+    if !plan.is_empty() {
+      let lock_table = Arc::clone(&*GLOBAL_LOCK_TABLE);
+      let start = Instant::now();
+      for slot in plan {
+        let remaining = if lock_timeout > Duration::ZERO {
+          let rem = lock_timeout.saturating_sub(start.elapsed());
+          if rem.is_zero() {
+            self.held_locks.clear();
+            self.unified_store_key_locked = false;
+            self.phase = 0;
+            return false;
+          }
+          rem
+        } else {
+          Duration::ZERO
+        };
+        match lock_table.try_lock_key_for(slot.key_hash, slot.exclusive, remaining) {
+          Some(guard) => self.held_locks.push(guard),
+          None => {
+            self.held_locks.clear();
+            self.unified_store_key_locked = false;
+            self.phase = 0;
+            return false;
+          }
+        }
+      }
+      self.unified_store_key_locked = true;
+    }
+    self.phase = 0;
+    true
+  }
+
+  /// 解锁全部键（libs/server/Transaction/TxnKeyEntry.cs:UnlockAllKeys）
+  pub fn unlock_all_keys(&mut self) {
+    self.phase = 2;
+    if self.unified_store_key_locked && !self.keys.is_empty() {
+      self.held_locks.clear();
+    }
+    self.keys.clear();
+    self.unified_store_key_locked = false;
+    self.phase = 0;
+  }
+
+  /// 锁集展示串（慢日志 / CLIENT INFO 用）
+  ///
+  /// 在 garnet 中的相对路径:libs/server/Transaction/TxnKeyEntry.cs:GetLockset
+  pub fn get_lockset(&self) -> String {
+    use std::fmt::Write as _;
+    let mut sb = String::new();
+    for entry in &self.keys {
+      let _ = write!(sb, "{entry}");
+    }
+    if !sb.is_empty() {
+      let phase_str = match self.phase {
+        0 => "none",
+        1 => "lock",
+        _ => "unlock",
+      };
+      let _ = write!(sb, " (phase: {phase_str}))");
+    }
+    sb
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::txn_key_entry_comparison::TxnKeyEntryComparison;
+
+  fn entries(pairs: &[(i64, LockType)]) -> TxnKeyEntries {
+    let mut e = TxnKeyEntries::new(4);
+    for &(hash, ty) in pairs {
+      e.add_key(hash, ty);
+    }
+    e
+  }
+
+  #[test]
+  fn add_and_read_back() {
+    let mut e = TxnKeyEntries::new(2);
+    let hash = TxnKeyEntryComparison::key_hash(b"k");
+    e.add_key(hash, LockType::Exclusive);
+    assert_eq!(e.count(), 1);
+    assert_eq!(e.get_key_hash(0), hash);
+    assert!(!e.is_read_only());
+  }
+
+  #[test]
+  fn shared_keys_are_read_only() {
+    let e = entries(&[(1, LockType::Shared), (2, LockType::Shared)]);
+    assert!(e.is_read_only());
+  }
+
+  #[test]
+  fn lock_and_unlock_roundtrip() {
+    let mut e = entries(&[(1, LockType::Exclusive), (2, LockType::Shared)]);
+    e.lock_all_keys();
+    assert!(e.count() > 0);
+    e.unlock_all_keys();
+    assert_eq!(e.count(), 0);
+  }
+
+  #[test]
+  fn try_lock_contention_fails_and_releases() {
+    const KEY_A: i64 = 9;
+    const KEY_B: i64 = 1 << 21;
+
+    let mut holder = entries(&[(KEY_A, LockType::Exclusive)]);
+    holder.lock_all_keys();
+
+    let mut contender = entries(&[(KEY_A, LockType::Exclusive), (KEY_B, LockType::Shared)]);
+    assert!(!contender.try_lock_all_keys(Duration::from_millis(5)));
+    let mut probe = entries(&[(KEY_B, LockType::Exclusive)]);
+    assert!(probe.try_lock_all_keys(Duration::from_millis(5)));
+    probe.unlock_all_keys();
+
+    holder.unlock_all_keys();
+    assert!(contender.try_lock_all_keys(Duration::from_millis(5)));
+  }
+
+  #[test]
+  fn duplicate_hashes_collapse_to_strongest_lock() {
+    let mut e = entries(&[(7, LockType::Shared), (7, LockType::Exclusive)]);
+    e.lock_all_keys();
+    e.unlock_all_keys();
+  }
+
+  #[test]
+  fn lock_plan_is_ordered_by_stripe_not_hash() {
+    let mut e = entries(&[
+      (0x3FF0_0000, LockType::Exclusive),
+      (0x4000_0000, LockType::Exclusive),
+    ]);
+    assert_eq!(e.test_lock_plan_stripes(), vec![0, 1023]);
+  }
+
+  #[test]
+  fn crossing_stripe_orders_lock_without_deadlock() {
+    use std::thread;
+
+    let sets: Vec<Vec<(i64, LockType)>> = vec![
+      vec![
+        (0x3FF0_0000, LockType::Exclusive),
+        (0x4000_0000, LockType::Exclusive),
+      ],
+      vec![
+        (0x0000_0000, LockType::Exclusive),
+        (0x7FF0_0000, LockType::Exclusive),
+      ],
+    ];
+    let handles: Vec<_> = sets
+      .into_iter()
+      .map(|set| {
+        thread::spawn(move || {
+          for _ in 0..64 {
+            let mut e = entries(&set);
+            e.lock_all_keys();
+            e.unlock_all_keys();
+          }
+        })
+      })
+      .collect();
+    for handle in handles {
+      handle.join().expect("竞争事务不得死锁");
+    }
+  }
+
+  #[test]
+  fn lockset_string_matches_csharp_shape() {
+    let e = entries(&[(-3, LockType::Exclusive), (5, LockType::Shared)]);
+    assert_eq!(e.get_lockset(), "-3:x5:s (phase: none))");
+  }
+}

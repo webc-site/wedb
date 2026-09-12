@@ -1,0 +1,289 @@
+- 文件:
+    - libs/common/Networking/BatchHeader.cs
+    - libs/common/Networking/BufferSizeUtils.cs
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - ReturnBuffer
+        - SeaaBuffer_Completed
+        - ThrowDisposed
+    - libs/common/Networking/LightConcurrentStack.cs:
+        - TryPop
+    - libs/common/Networking/NetworkHandler.cs:
+        - AuthenticateAsClientAsync
+        - AuthenticateAsServerAsync
+        - DisposeImpl
+        - DisposeNetworkSender
+        - DoubleNetworkReceiveBuffer
+        - DoubleTransportReceiveBuffer
+        - EndTransformNetworkToTransport
+        - GetNetworkSender
+        - LogSecurityInfo
+        - OnNetworkReceiveWithTLSAsync
+        - OnNetworkReceiveWithoutTLS
+        - ShiftNetworkReceiveBuffer
+        - ShiftTransportReceiveBuffer
+        - ShrinkNetworkReceiveBuffer
+        - SslReaderAsync
+        - SslReaderLoopAsync
+        - Throttle
+        - ThrowInvalidOperationException
+        - TryProcessRequest
+        - UpdateNetworkBuffers
+    - libs/common/Networking/NetworkHandlerStream.cs:
+        - ReadAsyncInternalAsync
+        - Seek
+        - Write
+    - libs/common/Networking/TaskToApm.cs:
+        - Begin
+        - InvokeCallback
+    - libs/common/Networking/TcpNetworkHandlerBase.cs:
+        - AllocateNetworkReceiveBuffer
+        - DisposeResources
+        - HandleReceiveFailure
+        - HandleReceiveWithTLSAsync
+        - HandleReceiveWithoutTLS
+        - RecvEventArgCompletedWithTLS
+        - RecvEventArgCompletedWithoutTLS
+  理由: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理，Rust 侧采用 compio 原生异步网络栈
+- 文件:
+    - libs/common/AsyncUtils.cs
+    - libs/common/ClientBase.cs:
+        - CompletePendingRequests
+        - Connect
+        - GetInternalBufferHead
+        - GetInternalBufferTail
+    - libs/common/CoarseTimeProvider.cs
+    - libs/common/Collections/ElasticCircularBuffer.cs:
+        - Dequeue
+        - GetEnumerator
+        - IsEmpty
+        - IsFull
+        - Iterate
+        - PeekFirst
+        - PeekLast
+    - libs/common/Collections/ReadOptimizedConcurrentSet.cs:
+        - Iterate
+        - TryAddAndGet
+    - libs/common/EnumExtensions.cs
+    - libs/common/EnumUtils.cs
+    - libs/common/ExceptionUtils.cs
+    - libs/common/FailoverOption.cs
+    - libs/common/FileUtils.cs
+    - libs/common/Format.cs:
+        - GigaBytes
+        - IsNullOrEmpty
+        - IsNullOrWhiteSpace
+        - KiloBytes
+        - MegaBytes
+        - MemoryBytes
+        - TryConnect
+        - TryConnectAsync
+        - TryCreateEndpoint
+        - TryCreateEndpointAsync
+        - TryParseAddressList
+        - TryValidateAddress
+        - defaultBindAny
+        - defaultBindLoopBack
+    - libs/common/GarnetException.cs
+    - libs/common/GarnetKeyComparer.cs:
+        - GetHashCode64
+        - StaticEquals
+        - StaticGetHashCode64
+    - libs/common/Generator.cs:
+        - DefaultHexId
+    - libs/common/HashUtils.cs:
+        - Rotl64
+    - libs/common/LightClient.cs
+    - libs/common/LightClientRequest.cs
+    - libs/common/Logging/FileLoggerProvider.cs:
+        - AddFile
+        - CreateLogger
+    - libs/common/Logging/LogFormatter.cs
+    - libs/common/NetworkBufferSettings.cs:
+        - CreateBufferPool
+        - GetInclusive
+    - libs/common/Numerics/IBinaryOperator.cs
+    - libs/common/Parsing/RespParsingException.cs
+    - libs/common/RandomUtils.cs:
+        - PickKRandomDistinctIndexesWithShuffle
+        - PickKRandomIndexesIteratively
+    - libs/common/ReaderWriterLock.cs:
+        - ReadLock
+        - ReadUnlock
+        - ReaderLock
+        - WaitForGrant
+        - WriteLock
+        - WriteUnlock
+    - libs/common/ReadOnlySequenceBuilder.cs
+    - libs/common/ReadOnlySequenceStream.cs:
+        - ReadByte
+        - Seek
+        - Write
+    - libs/common/RespMemoryWriter.cs:
+        - AsReadOnlySpan
+        - DecreaseArrayLength
+        - GetPosition
+        - Realloc
+        - ReallocateOutput
+        - ResetPosition
+        - TryWriteBulkString
+        - TryWriteDirect
+        - TryWriteFalse
+        - WriteAsciiDirect
+        - WriteDoubleBulkString
+        - WriteDoubleNumeric
+        - WriteEmptyMap
+        - WriteInt64
+        - WriteIntegerFromBytes
+        - WriteNewLine
+        - WriteOne
+        - WritePushLength
+        - WriteTrue
+        - WriteUtf8BulkString
+        - WriteVerbatimString
+        - WriteZero
+    - libs/common/RespWriteUtils.cs:
+        - GetBulkStringLength
+        - GetIntegerAsBulkStringLength
+        - TryWriteArrayItem
+        - TryWriteArrayLength
+        - TryWriteAsciiBulkString
+        - TryWriteAsciiDirect
+        - TryWriteBulkString
+        - TryWriteBulkStringLength
+        - TryWriteDirect
+        - TryWriteEmptyArray
+        - TryWriteEmptyMap
+        - TryWriteEmptySet
+        - TryWriteFalse
+        - TryWriteInfinity
+        - TryWriteInfinity_Numeric
+        - TryWriteInt32
+        - TryWriteInt32AsBulkString
+        - TryWriteInt64
+        - TryWriteInt64AsBulkString
+        - TryWriteInt64AsSimpleString
+        - TryWriteMapLength
+        - TryWriteNaN
+        - TryWriteNaN_Numeric
+        - TryWriteNewLine
+        - TryWriteNull
+        - TryWriteNullArray
+        - TryWriteOne
+        - TryWritePaddedBulkStringLength
+        - TryWritePushLength
+        - TryWriteSetLength
+        - TryWriteSimpleString
+        - TryWriteTrue
+        - TryWriteUtf8BulkString
+        - TryWriteVerbatimString
+        - TryWriteVerbatimStringHeader
+        - TryWriteZero
+        - WriteBytes
+        - WriteEtagValArray
+        - WriteNewline
+    - libs/common/SimpleObjectPool.cs:
+        - Checkout
+        - ThrowDisposed
+    - libs/common/SimpleStack.cs:
+        - ExtendStackBuffer
+    - libs/common/StreamProvider.cs
+    - libs/common/Testing/ExceptionInjectionHelper.cs:
+        - DisableException
+        - EnableException
+        - EnabledScope
+        - ResetAndWait
+        - ResetAndWaitAsync
+        - TriggerCondition
+        - TriggerException
+        - WaitOnClear
+        - WaitOnClearAsync
+    - libs/common/Testing/GarnetTestLoggingEventType.cs:
+        - LogTesting
+  理由: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+- 文件:
+    - libs/common/Memory/LimitedFixedBufferPool.cs:
+        - GetLevel
+        - GetStats
+        - Position
+    - libs/common/Memory/PooledArrayMemoryPool.cs:
+        - OnPooledBufferDisposed
+        - Rent
+        - ThrowArgumentOutOfRange
+        - ThrowObjectDisposed
+    - libs/common/Memory/PoolEntry.cs:
+        - Reuse
+  理由: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理
+- 文件:
+    - libs/common/Synchronization/ActiveWorkerMonitor.cs:
+        - TryEnter
+        - TryOpen
+    - libs/common/Synchronization/CooperativeDisposeGuard.cs
+    - libs/common/Synchronization/DoubleTurnstileBarrier.cs
+    - libs/common/Synchronization/LeaderBarrier.cs:
+        - TrySignalOrWait
+    - libs/common/Synchronization/ReadOptimizedLock.cs:
+        - AcquireAllExclusiveLock
+        - AcquireExclusiveLock
+        - AcquireSharedLock
+        - CalculateIndex
+        - CreateAllExclusive
+        - CreateExclusive
+        - CreateShared
+        - GetProcessorHint
+        - ReleaseLock
+        - TryAcquireExclusiveLock
+        - TryAcquireSharedLock
+        - TryPromoteSharedLock
+    - libs/common/Synchronization/SingleWriterMultiReaderLock.cs:
+        - DowngradeWriteLock
+        - ReadLock
+        - ReadUnlock
+        - TryCloseLock
+        - TryReadLock
+        - TryUpgradeReadLock
+        - TryWriteLock
+        - WriteLock
+        - WriteUnlock
+  理由: C# 同步与锁原语，Rust 侧采用 parking_lot 锁与原生并发原语
+- 文件:
+    - libs/common/NumUtils.cs:
+        - WriteInt32
+        - WriteInt64
+  理由: C# 字节数组整数序列化，Rust 侧通过 itoa/to_le_bytes 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - WriteDouble
+  理由: C# 字节数组浮点序列化，Rust 侧通过 ryu/dtoa 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - ReadInt64
+  理由: C# 字节数组整数反序列化，Rust 侧通过 i64::from_le_bytes 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - TryReadDouble
+  理由: C# 字节数组浮点反序列化，Rust 侧通过 fast_float/parse 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - CountCharsInDouble
+  理由: 零调用方死代码，Rust 侧通过 ryu/dtoa 高效格式化，无需手动计算字符数
+- 文件:
+    - libs/common/BitVector.cs:
+        - GetOffsets
+  理由: C# 位偏移内部计算私有函数，Rust 侧使用位运算符 >> 3 和 & 7 原生计算
+- 文件:
+    - libs/common/BitVector.cs:
+        - IsSet
+  理由: C# 位向量测试方法，Rust 侧通过位掩码原生判定
+- 文件:
+    - libs/common/BitVector.cs:
+        - PopCount
+  理由: C# 位计数方法，Rust 标准库 u64::count_ones 原生支持
+- 文件:
+    - libs/common/BitVector.cs:
+        - CopyFrom
+  理由: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方
+- 文件:
+    - libs/common/HashUtils.cs:
+        - MurmurHash3x64
+  理由: 零调用方死代码（恒等 MurmurHash3x128 首字投影），MurmurHash3x128 本体由
+    wbase::hash::murmur_hash3_x128 精确移植，128 位键 ID 由 whasher::hash128 (gxhash) 承担

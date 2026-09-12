@@ -1,0 +1,83 @@
+[package]
+name = "wedb_standalone"
+version = "0.1.2"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb_standalone"
+description = "Standalone server foundation: RESP protocol, AOF logic layer, and node service orchestration"
+keywords = ["server", "database", "resp", "redis", "aof"]
+categories = ["database-implementations", "network-programming"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+bench = [ ]
+
+[dependencies]
+gxhash.workspace = true
+parking_lot = { workspace = true, features = ["arc_lock"] }
+thiserror.workspace = true
+wval.workspace = true
+wnode = { version = "0.1.0", path = "../wnode" }
+wpubsub = { version = "0.1.0", path = "../wpubsub" }
+wtxn = { version = "0.1.0", path = "../wtxn" }
+clap = { version = "4.6.6", features = ["derive"] }
+
+[dependencies.coarsetime]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+
+[dependencies.itoa]
+workspace = true
+
+[dependencies.waof]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.whasher]
+workspace = true
+
+
+[dependencies.wkv]
+workspace = true
+
+[dependencies.wlua]
+workspace = true
+
+[dependencies.wresp]
+workspace = true
+
+[dependencies.wbase]
+features = ["convert", "ascii", "num", "hash_slot", "hash", "crc64", "glob", "time"]
+workspace = true
+
+[dependencies.wacl]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true
+
+
+[dev-dependencies.compio]
+workspace = true
+
+[dev-dependencies.tempfile]
+workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "wedb-standalone"
+path = "src/main.rs"
+

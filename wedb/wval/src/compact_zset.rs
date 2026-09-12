@@ -1,0 +1,1016 @@
+//! 紧凑连续内存有序集合容器与零拷贝编解码器
+//!
+//! 与 C# SortedSetObject 的表示对照（garnet/libs/server/Objects/SortedSet/SortedSetObject.cs）：
+//! - C#：`SortedSet<(double Score, byte[] Element)>`（红黑树）+ `Dictionary<byte[], double>`
+//!   反查 + 成员级 `Dictionary<byte[], long> expirationTimes` + PriorityQueue 惰性清理；
+//! - 本布局：单一连续字节缓冲，条目按（8 字节大端保序分值, 成员字典序）物理排列，
+//!   偏移数组 + 二分定位完成有序插入/排名/区间扫描，成员级过期以 flag 字节 + i64 ticks
+//!   内联存储（对标 C# keyLength|ExpirationBitMask + Int64，见 SortedSetObject.cs:175/:184）。
+//!   注：C# 侧无跳表（SkipList）结构，打平大集合的有序扫描由 zset 模块 ZScore 子键承担。
+//!
+//! 不用 bitcode 而手写逐字节布局的理由：热路径要求保序物理排列（range/rank 免排序）、
+//! 零拷贝切片视图与原位插入/删除，bitcode 均无法提供，属性能关键路径例外。
+
+use core::{cmp::Ordering, iter::FusedIterator, ops::Deref, ptr, result::Result as StdResult};
+
+use wbase::simd::fast_key_eq;
+
+use crate::{
+  error::{Error, Result},
+  zset::{decode_order_preserving_f64, encode_order_preserving_f64},
+};
+
+/// 紧凑有序集合条目零拷贝切片视图
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ZSetEntryRef<'a> {
+  /// 浮点分值
+  pub score: f64,
+  /// 8 字节大端保序编码分值
+  pub order_score: [u8; 8],
+  /// 成员二进制切片
+  pub member: &'a [u8],
+  /// 可选绝对过期 .NET Ticks（100ns 单位，0001-01-01 纪元，i64）
+  ///
+  /// 对标 C# SortedSetObject 成员级过期域 `Dictionary<byte[], long> expirationTimes`
+  /// （garnet/libs/server/Objects/SortedSet/SortedSetObject.cs:146，序列化 ReadInt64 见 :184），
+  /// 与 key 级 [`crate::ttl::TtlCodec`] 的 i64 ticks 同域
+  pub expire_at_ticks: Option<i64>,
+}
+
+impl<'a> Deref for ZSetEntryRef<'a> {
+  type Target = [u8];
+
+  #[inline(always)]
+  fn deref(&self) -> &Self::Target {
+    self.member
+  }
+}
+
+impl<'a> AsRef<[u8]> for ZSetEntryRef<'a> {
+  #[inline(always)]
+  fn as_ref(&self) -> &[u8] {
+    self.member
+  }
+}
+
+/// 紧凑有序集合全量流式切片迭代器
+#[derive(Debug, Clone)]
+pub struct CompactZSetIter<'a> {
+  slice: &'a [u8],
+  offset: usize,
+  remaining: usize,
+}
+
+impl<'a> Iterator for CompactZSetIter<'a> {
+  type Item = ZSetEntryRef<'a>;
+
+  #[inline]
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.remaining == 0 || self.offset >= self.slice.len() {
+      return None;
+    }
+
+    let (entry_len, entry) = CompactZSetCodec::parse_entry(self.slice, self.offset).ok()?;
+    self.offset += entry_len;
+    self.remaining -= 1;
+    Some(entry)
+  }
+
+  #[inline(always)]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    (self.remaining, Some(self.remaining))
+  }
+}
+
+impl<'a> ExactSizeIterator for CompactZSetIter<'a> {
+  #[inline(always)]
+  fn len(&self) -> usize {
+    self.remaining
+  }
+}
+
+impl<'a> FusedIterator for CompactZSetIter<'a> {}
+
+/// 紧凑有序集合元素总数前缀字节数（2 字节大端整数）
+pub const COMPACT_ZSET_COUNT_SIZE: usize = 2;
+/// 紧凑有序集合保序分值字节数（8 字节）
+pub const COMPACT_ZSET_SCORE_SIZE: usize = 8;
+/// 紧凑有序集合成员长度前缀字节数（2 字节大端整数）
+pub const COMPACT_ZSET_LEN_SIZE: usize = 2;
+/// 紧凑有序集合条目定长头部大小（8 字节保序分值 + 2 字节成员长度 = 10 字节）
+pub const COMPACT_ZSET_ENTRY_HEADER_SIZE: usize = COMPACT_ZSET_SCORE_SIZE + COMPACT_ZSET_LEN_SIZE;
+/// 紧凑有序集合成员级过期标记字节数（1 字节，非 0 表示携带 8 字节绝对过期时间戳）
+///
+/// 对标 C# SortedSetObject 以 `keyLength | ExpirationBitMask` 位掩码表达条目过期：
+/// 本布局 u16 长度字段无空闲位，改用显式 flag 字节实现同一语义
+pub const COMPACT_ZSET_EXPIRE_FLAG_SIZE: usize = 1;
+/// 紧凑有序集合成员级绝对过期时间戳字节数（8 字节大端 i64 .NET Ticks，100ns 单位）
+pub const COMPACT_ZSET_EXPIRE_TIME_SIZE: usize = 8;
+
+/// 条目原始解析结果元组 `(entry_total_len, order_score, member, expire_at_ticks)`
+pub type RawEntry<'a> = (usize, [u8; 8], &'a [u8], Option<i64>);
+
+/// 紧凑有序集合无状态编解码器
+pub struct CompactZSetCodec;
+
+/// 计算过期后缀（flag + 可选时间戳）序列化字节数
+#[inline(always)]
+const fn expire_suffix_len(expire_at_ticks: Option<i64>) -> usize {
+  if expire_at_ticks.is_some() {
+    COMPACT_ZSET_EXPIRE_FLAG_SIZE + COMPACT_ZSET_EXPIRE_TIME_SIZE
+  } else {
+    COMPACT_ZSET_EXPIRE_FLAG_SIZE
+  }
+}
+
+/// 将过期后缀（flag + 可选时间戳）原位写入目标裸指针（调用方保证剩余空间充足）
+#[inline(always)]
+unsafe fn write_expire_suffix(dst: *mut u8, expire_at_ticks: Option<i64>) {
+  // 安全性保证：调用方（reserve 后的 memmove 腾位区）保证 [dst, dst+9) 可写
+  unsafe {
+    match expire_at_ticks {
+      Some(exp) => {
+        *dst = 1;
+        ptr::copy_nonoverlapping(
+          exp.to_be_bytes().as_ptr(),
+          dst.add(COMPACT_ZSET_EXPIRE_FLAG_SIZE),
+          COMPACT_ZSET_EXPIRE_TIME_SIZE,
+        );
+      }
+      None => *dst = 0,
+    }
+  }
+}
+
+/// 向 Vec 末尾追加单个完整条目（容量由调用方预分配，安全 API 零回溯）
+#[inline]
+fn push_entry(
+  buf: &mut Vec<u8>,
+  order_score: [u8; 8],
+  member: &[u8],
+  expire_at_ticks: Option<i64>,
+) {
+  buf.extend_from_slice(&order_score);
+  buf.extend_from_slice(&(member.len() as u16).to_be_bytes());
+  buf.extend_from_slice(member);
+  match expire_at_ticks {
+    Some(exp) => {
+      buf.push(1);
+      buf.extend_from_slice(&exp.to_be_bytes());
+    }
+    None => buf.push(0),
+  }
+}
+
+impl CompactZSetCodec {
+  /// 从只读切片解析元素总数（const fn，单次模式匹配零越界检查）
+  #[inline]
+  pub const fn count(slice: &[u8]) -> Result<usize> {
+    match slice {
+      [b0, b1, ..] => Ok(u16::from_be_bytes([*b0, *b1]) as usize),
+      _ => Err(Error::BufferTooShort {
+        expected: COMPACT_ZSET_COUNT_SIZE,
+        actual: slice.len(),
+      }),
+    }
+  }
+
+  /// 解析指定偏移处的单个条目 `(entry_total_len, ZSetEntryRef)`
+  #[inline]
+  pub fn parse_entry(slice: &[u8], offset: usize) -> Result<(usize, ZSetEntryRef<'_>)> {
+    let (total_len, order_score, member, expire_at_ticks) =
+      Self::parse_entry_header(slice, offset)?;
+    let score = decode_order_preserving_f64(order_score);
+    Ok((
+      total_len,
+      ZSetEntryRef {
+        score,
+        order_score,
+        member,
+        expire_at_ticks,
+      },
+    ))
+  }
+
+  /// 快速解析指定偏移处的条目头部、成员借用与可选过期时间戳（不提前解码浮点数，极大加速过滤与查找）
+  ///
+  /// 条目物理布局：`[score: 8B][m_len: 2B be][member][exp_flag: 1B][exp_ts: 8B be (flag!=0)]`
+  #[inline(always)]
+  pub fn parse_entry_header(slice: &[u8], offset: usize) -> Result<RawEntry<'_>> {
+    let header_end = match offset.checked_add(COMPACT_ZSET_ENTRY_HEADER_SIZE) {
+      Some(end) if end <= slice.len() => end,
+      _ => {
+        return Err(Error::BufferTooShort {
+          expected: offset + COMPACT_ZSET_ENTRY_HEADER_SIZE,
+          actual: slice.len(),
+        });
+      }
+    };
+    unsafe {
+      let ptr = slice.as_ptr().add(offset);
+      let order_score = (ptr as *const [u8; COMPACT_ZSET_SCORE_SIZE]).read_unaligned();
+      let m_len = u16::from_be_bytes(
+        (ptr.add(COMPACT_ZSET_SCORE_SIZE) as *const [u8; COMPACT_ZSET_LEN_SIZE]).read_unaligned(),
+      ) as usize;
+      let m_end = match header_end.checked_add(m_len) {
+        Some(end) if end < slice.len() => end,
+        _ => {
+          return Err(Error::BufferTooShort {
+            expected: header_end.saturating_add(m_len + COMPACT_ZSET_EXPIRE_FLAG_SIZE),
+            actual: slice.len(),
+          });
+        }
+      };
+      // flag 字节位于成员之后（m_end < slice.len() 已校验，读取恒安全）
+      let flag = *slice.as_ptr().add(m_end);
+      if flag == 0 {
+        let total_len = m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE - offset;
+        Ok((
+          total_len,
+          order_score,
+          slice.get_unchecked(header_end..m_end),
+          None,
+        ))
+      } else {
+        let exp_end = m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE + COMPACT_ZSET_EXPIRE_TIME_SIZE;
+        if exp_end > slice.len() {
+          return Err(Error::BufferTooShort {
+            expected: exp_end,
+            actual: slice.len(),
+          });
+        }
+        let exp = (slice.as_ptr().add(m_end + COMPACT_ZSET_EXPIRE_FLAG_SIZE)
+          as *const [u8; COMPACT_ZSET_EXPIRE_TIME_SIZE])
+          .read_unaligned();
+        let total_len = exp_end - offset;
+        Ok((
+          total_len,
+          order_score,
+          slice.get_unchecked(header_end..m_end),
+          Some(i64::from_be_bytes(exp)),
+        ))
+      }
+    }
+  }
+
+  /// 校验紧凑有序集合切片合法性（大小端对齐、单调保序与长度匹配）
+  pub fn validate(slice: &[u8]) -> Result<usize> {
+    let count = Self::count(slice)?;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+    let mut prev: Option<([u8; 8], &[u8])> = None;
+
+    for _ in 0..count {
+      let (entry_len, order_score, member, _) = Self::parse_entry_header(slice, offset)?;
+      if let Some((prev_order, prev_member)) = prev {
+        let ord = prev_order
+          .cmp(&order_score)
+          .then_with(|| prev_member.cmp(member));
+        if ord != Ordering::Less {
+          return Err(Error::CorruptedCompactData(
+            "紧凑有序集合成员未按严格保序递增排列或存在重复项",
+          ));
+        }
+      }
+      prev = Some((order_score, member));
+      offset += entry_len;
+    }
+
+    if offset != slice.len() {
+      return Err(Error::BufferTooShort {
+        expected: offset,
+        actual: slice.len(),
+      });
+    }
+
+    Ok(count)
+  }
+
+  /// 内部辅助：构建条目起始偏移数组（栈优先，小集合零堆分配）
+  #[inline]
+  fn collect_offsets<F, R>(slice: &[u8], count: usize, f: F) -> Result<R>
+  where
+    F: FnOnce(&[usize]) -> R,
+  {
+    const STACK_CAP: usize = 256;
+    if count <= STACK_CAP {
+      let mut stack_offsets = [0usize; STACK_CAP];
+      let mut offset = COMPACT_ZSET_COUNT_SIZE;
+      for slot in stack_offsets.iter_mut().take(count) {
+        *slot = offset;
+        let (entry_len, ..) = Self::parse_entry_header(slice, offset)?;
+        offset += entry_len;
+      }
+      Ok(f(&stack_offsets[..count]))
+    } else {
+      let mut heap_offsets = Vec::with_capacity(count);
+      let mut offset = COMPACT_ZSET_COUNT_SIZE;
+      for _ in 0..count {
+        heap_offsets.push(offset);
+        let (entry_len, ..) = Self::parse_entry_header(slice, offset)?;
+        offset += entry_len;
+      }
+      Ok(f(&heap_offsets))
+    }
+  }
+
+  /// 在已知偏移切片上执行二分查找
+  ///
+  /// # 参数约束
+  /// `offsets` 必须由 `Self::collect_offsets` 在同一 `slice` 上构建（各元素均指向合法条目边界），
+  /// 条目解析经 [Self::parse_entry_header] 全程越界校验，任意输入皆不会产生未定义行为。
+  #[inline]
+  pub fn binary_search_offsets(
+    slice: &[u8],
+    offsets: &[usize],
+    order_score: [u8; 8],
+    member: &[u8],
+  ) -> Result<StdResult<usize, usize>> {
+    let mut low = 0;
+    let mut high = offsets.len();
+
+    while low < high {
+      let mid = (low + high) / 2;
+      let (_, entry_order, m, _) = Self::parse_entry_header(slice, offsets[mid])?;
+
+      let ord = entry_order.cmp(&order_score).then_with(|| m.cmp(member));
+
+      match ord {
+        Ordering::Less => low = mid + 1,
+        Ordering::Greater => high = mid,
+        Ordering::Equal => return Ok(Ok(mid)),
+      }
+    }
+    Ok(Err(low))
+  }
+
+  /// 扫描定位成员排名（0-indexed），不存在返回 None
+  pub fn rank_of(slice: &[u8], member: &[u8]) -> Option<usize> {
+    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
+      return None;
+    }
+    let count = u16::from_be_bytes([slice[0], slice[1]]) as usize;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+
+    for rank in 0..count {
+      let (entry_len, _, m, _) = Self::parse_entry_header(slice, offset).ok()?;
+      if fast_key_eq(m, member) {
+        return Some(rank);
+      }
+      offset += entry_len;
+    }
+
+    None
+  }
+
+  /// 获取指定排名的元素切片，越界返回 None
+  pub fn key_at_rank(slice: &[u8], rank: usize) -> Option<&[u8]> {
+    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
+      return None;
+    }
+    let count = u16::from_be_bytes([slice[0], slice[1]]) as usize;
+    if rank >= count {
+      return None;
+    }
+
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+    for cur_rank in 0..count {
+      let (entry_len, _, m, _) = Self::parse_entry_header(slice, offset).ok()?;
+      if cur_rank == rank {
+        return Some(m);
+      }
+      offset += entry_len;
+    }
+
+    None
+  }
+
+  /// 获取成员的分数值
+  pub fn score_of(slice: &[u8], member: &[u8]) -> Option<f64> {
+    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
+      return None;
+    }
+    let count = u16::from_be_bytes([slice[0], slice[1]]) as usize;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+
+    for _ in 0..count {
+      let (entry_len, order_score, m, _) = Self::parse_entry_header(slice, offset).ok()?;
+      if fast_key_eq(m, member) {
+        let score = decode_order_preserving_f64(order_score);
+        return Some(score);
+      }
+      offset += entry_len;
+    }
+
+    None
+  }
+
+  /// 插入或更新成员分值（新插入返回 true，更新已存在元素分值返回 false）
+  #[inline(always)]
+  pub fn insert(buf: &mut Vec<u8>, score: f64, member: &[u8]) -> Result<bool> {
+    Self::insert_with_expire(buf, score, member, None)
+  }
+
+  /// 插入或更新成员分值与成员级过期时间戳（对标 C# SortedSetObject 条目级 expiration，i64 ticks）
+  ///
+  /// 新插入返回 true；更新已存在元素（分值或过期时间变化）返回 false；
+  /// 分值与过期时间均未变化时直接短路返回 false，零写放大
+  pub fn insert_with_expire(
+    buf: &mut Vec<u8>,
+    score: f64,
+    member: &[u8],
+    expire_at_ticks: Option<i64>,
+  ) -> Result<bool> {
+    if member.len() > u16::MAX as usize {
+      return Err(Error::KeyLengthOverflow(member.len()));
+    }
+
+    if buf.is_empty() {
+      buf.extend_from_slice(&0u16.to_be_bytes());
+    } else if buf.len() < COMPACT_ZSET_COUNT_SIZE {
+      return Err(Error::BufferTooShort {
+        expected: COMPACT_ZSET_COUNT_SIZE,
+        actual: buf.len(),
+      });
+    }
+
+    let order_score = encode_order_preserving_f64(score);
+
+    let count = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+    if count == 0 {
+      // 防御：收敛到纯计数前缀，杜绝残留脏字节破坏紧凑布局
+      buf.truncate(COMPACT_ZSET_COUNT_SIZE);
+    }
+
+    const STACK_CAP: usize = 256;
+    let mut stack_offsets = [0usize; STACK_CAP];
+    let mut existing: Option<(usize, usize)> = None;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+
+    // 线性扫描定位既有成员（同时填充偏移数组供后续二分复用）
+    if count <= STACK_CAP {
+      for slot in stack_offsets.iter_mut().take(count) {
+        *slot = offset;
+        let (entry_len, entry_order, m, entry_exp) = Self::parse_entry_header(buf, offset)?;
+        if fast_key_eq(m, member) {
+          if entry_order == order_score && entry_exp == expire_at_ticks {
+            return Ok(false);
+          }
+          existing = Some((offset, entry_len));
+          break;
+        }
+        offset += entry_len;
+      }
+    } else {
+      for _ in 0..count {
+        let (entry_len, entry_order, m, entry_exp) = Self::parse_entry_header(buf, offset)?;
+        if fast_key_eq(m, member) {
+          if entry_order == order_score && entry_exp == expire_at_ticks {
+            return Ok(false);
+          }
+          existing = Some((offset, entry_len));
+          break;
+        }
+        offset += entry_len;
+      }
+    }
+
+    let is_new = if let Some((old_offset, old_len)) = existing {
+      let old_buf_len = buf.len();
+      buf.copy_within(old_offset + old_len..old_buf_len, old_offset);
+      buf.truncate(old_buf_len - old_len);
+      let new_count = (count - 1) as u16;
+      buf[0..COMPACT_ZSET_COUNT_SIZE].copy_from_slice(&new_count.to_be_bytes());
+      false
+    } else {
+      true
+    };
+
+    let count_after_del = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+    if count_after_del >= u16::MAX as usize {
+      return Err(Error::CompactCountOverflow(count_after_del + 1));
+    }
+
+    let insert_offset = if count_after_del == 0 {
+      buf.len()
+    } else if is_new && count_after_del <= STACK_CAP {
+      // is_new 保证上方扫描完整填充了 stack_offsets[..count]
+      let insert_idx = match Self::binary_search_offsets(
+        buf,
+        &stack_offsets[..count_after_del],
+        order_score,
+        member,
+      )? {
+        Ok(idx) | Err(idx) => idx,
+      };
+      if insert_idx == count_after_del {
+        buf.len()
+      } else {
+        stack_offsets[insert_idx]
+      }
+    } else {
+      Self::collect_offsets(buf, count_after_del, |offsets| {
+        Self::binary_search_offsets(buf, offsets, order_score, member).map(|found| {
+          let idx = match found {
+            Ok(idx) | Err(idx) => idx,
+          };
+          if idx == count_after_del {
+            buf.len()
+          } else {
+            offsets[idx]
+          }
+        })
+      })??
+    };
+
+    let new_entry_len =
+      COMPACT_ZSET_ENTRY_HEADER_SIZE + member.len() + expire_suffix_len(expire_at_ticks);
+    let old_len = buf.len();
+    buf.reserve(new_entry_len);
+
+    if insert_offset == old_len {
+      push_entry(buf, order_score, member, expire_at_ticks);
+    } else {
+      // 安全性保证：上方 reserve(new_entry_len) 已确保容量 >= old_len + new_entry_len，
+      // [insert_offset, old_len) 为已初始化字节；memmove 腾位后原位写入新条目，全程不越界
+      unsafe {
+        let p = buf.as_mut_ptr();
+        ptr::copy(
+          p.add(insert_offset),
+          p.add(insert_offset + new_entry_len),
+          old_len - insert_offset,
+        );
+        let [s0, s1, s2, s3, s4, s5, s6, s7] = order_score;
+        let [l0, l1] = (member.len() as u16).to_be_bytes();
+        ptr::copy_nonoverlapping(
+          [s0, s1, s2, s3, s4, s5, s6, s7, l0, l1].as_ptr(),
+          p.add(insert_offset),
+          COMPACT_ZSET_ENTRY_HEADER_SIZE,
+        );
+        ptr::copy_nonoverlapping(
+          member.as_ptr(),
+          p.add(insert_offset + COMPACT_ZSET_ENTRY_HEADER_SIZE),
+          member.len(),
+        );
+        write_expire_suffix(
+          p.add(insert_offset + COMPACT_ZSET_ENTRY_HEADER_SIZE + member.len()),
+          expire_at_ticks,
+        );
+        buf.set_len(old_len + new_entry_len);
+      }
+    }
+
+    let final_count = (count_after_del + 1) as u16;
+    buf[0..COMPACT_ZSET_COUNT_SIZE].copy_from_slice(&final_count.to_be_bytes());
+
+    Ok(is_new)
+  }
+
+  /// 删除指定成员（存在并删除返回 true，不存在返回 false）
+  pub fn remove(buf: &mut Vec<u8>, member: &[u8]) -> Result<bool> {
+    if buf.len() < COMPACT_ZSET_COUNT_SIZE {
+      return Ok(false);
+    }
+    let count = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+    if count == 0 {
+      return Ok(false);
+    }
+
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+    for _ in 0..count {
+      let (entry_len, _, m, _) = Self::parse_entry_header(buf, offset)?;
+      if fast_key_eq(m, member) {
+        // 尾部整体前移覆盖被删条目，随后物理收缩（与紧凑哈希删除路径一致的安全 API 实现）
+        buf.copy_within(offset + entry_len.., offset);
+        buf.truncate(buf.len() - entry_len);
+        let new_count = (count - 1) as u16;
+        buf[0..COMPACT_ZSET_COUNT_SIZE].copy_from_slice(&new_count.to_be_bytes());
+        return Ok(true);
+      }
+      offset += entry_len;
+    }
+
+    Ok(false)
+  }
+
+  /// 原地单次遍历压缩物理空间并淘汰已过期成员（对标 C# DeleteExpiredItemsWorker，零额外堆分配 O(N)）
+  /// 返回清除的过期成员数
+  ///
+  /// 过期域为 i64 .NET Ticks，`now` 直接取 `wbase::time::now_ticks()`，
+  /// 边界取严格 `exp < now`（恰好等于 now 未过期），与 key 级
+  /// [`crate::meta::CompactMetaValue::is_expired`] 口径一致
+  pub fn purge_expired(buf: &mut Vec<u8>, now: i64) -> Result<usize> {
+    if buf.len() < COMPACT_ZSET_COUNT_SIZE {
+      return Ok(0);
+    }
+    let count = u16::from_be_bytes([buf[0], buf[1]]) as usize;
+    let mut offset = COMPACT_ZSET_COUNT_SIZE;
+    let mut write_offset = COMPACT_ZSET_COUNT_SIZE;
+    let mut purged = 0;
+    let mut new_count = 0u16;
+
+    for _ in 0..count {
+      let (entry_len, _, _, exp) = Self::parse_entry_header(buf, offset)?;
+      if exp.is_some_and(|e| e < now) {
+        purged += 1;
+      } else {
+        if write_offset != offset {
+          buf.copy_within(offset..offset + entry_len, write_offset);
+        }
+        write_offset += entry_len;
+        new_count += 1;
+      }
+      offset += entry_len;
+    }
+
+    if purged > 0 {
+      buf.truncate(write_offset);
+      buf[0..COMPACT_ZSET_COUNT_SIZE].copy_from_slice(&new_count.to_be_bytes());
+    }
+    Ok(purged)
+  }
+
+  /// 读取指定偏移处的 8 字节保序分值（偏移由 `Self::collect_offsets` 产生，恒不越界）
+  #[inline(always)]
+  fn score_at(slice: &[u8], off: usize) -> [u8; COMPACT_ZSET_SCORE_SIZE] {
+    unsafe { (slice.as_ptr().add(off) as *const [u8; COMPACT_ZSET_SCORE_SIZE]).read_unaligned() }
+  }
+
+  /// 单趟构建偏移并二分定位分值区间，返回 `(区间起始字节偏移, 区间内元素个数)`
+  ///
+  /// 复用给 [Self::count_score_range] 与 [Self::range_with_options]，消除重复的左右边界搜索；
+  /// 时间复杂度 O(N) 偏移构建 + 两轮 O(log N) 边界二分，空间复杂度 O(1)（栈优先）。
+  fn score_range_span(
+    slice: &[u8],
+    count: usize,
+    min: f64,
+    min_inclusive: bool,
+    max: f64,
+    max_inclusive: bool,
+  ) -> Result<(usize, usize)> {
+    if min.is_nan() || max.is_nan() || min > max {
+      return Ok((slice.len(), 0));
+    }
+    let min_order = encode_order_preserving_f64(min);
+    let max_order = encode_order_preserving_f64(max);
+    if min_order > max_order || (min_order == max_order && (!min_inclusive || !max_inclusive)) {
+      return Ok((slice.len(), 0));
+    }
+
+    Self::collect_offsets(slice, count, |offsets| {
+      // 1. 左边界：首个满足下界的条目索引
+      let mut low = 0;
+      let mut high = count;
+      while low < high {
+        let mid = (low + high) / 2;
+        let entry_order = Self::score_at(slice, offsets[mid]);
+        let satisfies = if min_inclusive {
+          entry_order >= min_order
+        } else {
+          entry_order > min_order
+        };
+        if !satisfies {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      let start_idx = low;
+
+      // 2. 从 start_idx 起寻找右边界：首个超出上界的条目索引
+      let mut right_low = start_idx;
+      let mut high = count;
+      while right_low < high {
+        let mid = (right_low + high) / 2;
+        let entry_order = Self::score_at(slice, offsets[mid]);
+        let exceeds = if max_inclusive {
+          entry_order > max_order
+        } else {
+          entry_order >= max_order
+        };
+        if !exceeds {
+          right_low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      let end_idx = right_low;
+
+      let start_offset = if start_idx < count {
+        offsets[start_idx]
+      } else {
+        slice.len()
+      };
+      (start_offset, end_idx.saturating_sub(start_idx))
+    })
+  }
+
+  /// 区间分值元素计数（闭区间 [min, max]）
+  #[inline(always)]
+  pub fn count_range(slice: &[u8], min: f64, max: f64) -> usize {
+    Self::count_score_range(slice, min, true, max, true)
+  }
+
+  /// 区间分值元素计数（支持开闭区间控制；O(N) 偏移构建 + O(log N) 边界二分）
+  pub fn count_score_range(
+    slice: &[u8],
+    min: f64,
+    min_inclusive: bool,
+    max: f64,
+    max_inclusive: bool,
+  ) -> usize {
+    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
+      return 0;
+    }
+    let count = match Self::count(slice) {
+      Ok(c) if c > 0 => c,
+      _ => return 0,
+    };
+
+    // 全区间 O(1) 元数据直读短路
+    if min == f64::NEG_INFINITY && min_inclusive && max == f64::INFINITY && max_inclusive {
+      return count;
+    }
+
+    Self::score_range_span(slice, count, min, min_inclusive, max, max_inclusive)
+      .map_or(0, |(_, remaining)| remaining)
+  }
+
+  /// 获取指定分值范围的切片流式迭代器（闭区间 [min, max]）
+  #[inline(always)]
+  pub fn range(slice: &[u8], min: f64, max: f64) -> CompactZSetIter<'_> {
+    Self::range_with_options(slice, min, true, max, true)
+  }
+
+  /// 获取指定分值范围的切片流式迭代器（支持开闭区间控制）
+  pub fn range_with_options(
+    slice: &[u8],
+    min: f64,
+    min_inclusive: bool,
+    max: f64,
+    max_inclusive: bool,
+  ) -> CompactZSetIter<'_> {
+    let empty_iter = CompactZSetIter {
+      slice,
+      offset: slice.len(),
+      remaining: 0,
+    };
+
+    if slice.len() < COMPACT_ZSET_COUNT_SIZE {
+      return empty_iter;
+    }
+    let count = match Self::count(slice) {
+      Ok(c) if c > 0 => c,
+      _ => return empty_iter,
+    };
+
+    match Self::score_range_span(slice, count, min, min_inclusive, max, max_inclusive) {
+      Ok((start_offset, remaining)) => CompactZSetIter {
+        slice,
+        offset: start_offset,
+        remaining,
+      },
+      Err(_) => empty_iter,
+    }
+  }
+
+  /// 获取全量成员流式切片迭代器
+  #[inline]
+  pub fn iter_members(slice: &[u8]) -> CompactZSetIter<'_> {
+    let count = if slice.len() >= COMPACT_ZSET_COUNT_SIZE {
+      u16::from_be_bytes([slice[0], slice[1]]) as usize
+    } else {
+      0
+    };
+    CompactZSetIter {
+      slice,
+      offset: COMPACT_ZSET_COUNT_SIZE,
+      remaining: count,
+    }
+  }
+
+  /// 批量编码有序集合（同成员后写覆盖先写：稳定排序 + 反转去重保末次写入，O(N log N)）
+  ///
+  /// 条目项为 `(score, member, expire_at_ticks)`，与 `CompactHashCodec::encode` 同型
+  pub fn encode<'a, I>(entries: I) -> Result<Vec<u8>>
+  where
+    I: IntoIterator<Item = (f64, &'a [u8], Option<i64>)>,
+  {
+    let mut items: Vec<([u8; COMPACT_ZSET_SCORE_SIZE], &[u8], Option<i64>)> = entries
+      .into_iter()
+      .map(|(score, member, expire_at_ticks)| {
+        if member.len() > u16::MAX as usize {
+          return Err(Error::KeyLengthOverflow(member.len()));
+        }
+        Ok((encode_order_preserving_f64(score), member, expire_at_ticks))
+      })
+      .collect::<Result<_>>()?;
+
+    // 按成员稳定排序后保留每组最后一次出现的分值与过期时间（对齐逐条 insert 的覆盖语义）
+    items.sort_by(|a, b| a.1.cmp(b.1));
+    items.reverse();
+    items.dedup_by(|a, b| a.1 == b.1);
+    items.reverse();
+
+    if items.len() > u16::MAX as usize {
+      return Err(Error::CompactCountOverflow(items.len()));
+    }
+
+    // 最终排列：保序分值优先、成员字典序次之
+    items.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(b.1)));
+
+    let payload_len: usize = items
+      .iter()
+      .map(|(_, m, e)| COMPACT_ZSET_ENTRY_HEADER_SIZE + m.len() + expire_suffix_len(*e))
+      .sum();
+    let mut buf = Vec::with_capacity(COMPACT_ZSET_COUNT_SIZE + payload_len);
+    buf.extend_from_slice(&(items.len() as u16).to_be_bytes());
+    for (order_score, member, expire_at_ticks) in items {
+      push_entry(&mut buf, order_score, member, expire_at_ticks);
+    }
+    Ok(buf)
+  }
+}
+
+/// 紧凑连续内存有序集合容器（拥有所有权）
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CompactZSet {
+  raw: Vec<u8>,
+}
+
+impl CompactZSet {
+  /// 创建新的空紧凑有序集合
+  #[inline]
+  pub fn new() -> Self {
+    Self {
+      raw: vec![0u8; COMPACT_ZSET_COUNT_SIZE],
+    }
+  }
+
+  /// 创建指定预分配容量的紧凑有序集合
+  #[inline]
+  pub fn with_capacity(cap: usize) -> Self {
+    let mut raw = Vec::with_capacity(cap.max(COMPACT_ZSET_COUNT_SIZE));
+    raw.extend_from_slice(&0u16.to_be_bytes());
+    Self { raw }
+  }
+
+  /// 从已有字节切片解析构建
+  #[inline]
+  pub fn from_vec(raw: Vec<u8>) -> Result<Self> {
+    if raw.len() < COMPACT_ZSET_COUNT_SIZE {
+      return Err(Error::BufferTooShort {
+        expected: COMPACT_ZSET_COUNT_SIZE,
+        actual: raw.len(),
+      });
+    }
+    let _ = CompactZSetCodec::validate(&raw)?;
+    Ok(Self { raw })
+  }
+
+  /// 获取底层切片
+  #[inline(always)]
+  pub fn as_slice(&self) -> &[u8] {
+    &self.raw
+  }
+
+  /// 解构获取底层字节 Vec
+  #[inline(always)]
+  pub fn into_vec(self) -> Vec<u8> {
+    self.raw
+  }
+
+  /// 元素数量
+  #[inline(always)]
+  pub fn len(&self) -> usize {
+    CompactZSetCodec::count(&self.raw).unwrap_or(0)
+  }
+
+  /// 是否为空
+  #[inline(always)]
+  pub fn is_empty(&self) -> bool {
+    self.len() == 0
+  }
+
+  /// 获取成员排名
+  #[inline(always)]
+  pub fn rank_of(&self, member: &[u8]) -> Option<usize> {
+    CompactZSetCodec::rank_of(&self.raw, member)
+  }
+
+  /// 按排名获取成员切片
+  #[inline(always)]
+  pub fn key_at_rank(&self, rank: usize) -> Option<&[u8]> {
+    CompactZSetCodec::key_at_rank(&self.raw, rank)
+  }
+
+  /// 获取成员分值
+  #[inline(always)]
+  pub fn score_of(&self, member: &[u8]) -> Option<f64> {
+    CompactZSetCodec::score_of(&self.raw, member)
+  }
+
+  /// 插入或更新成员分值
+  #[inline(always)]
+  pub fn insert(&mut self, score: f64, member: &[u8]) -> Result<bool> {
+    CompactZSetCodec::insert(&mut self.raw, score, member)
+  }
+
+  /// 插入或更新成员分值与成员级过期时间戳
+  #[inline(always)]
+  pub fn insert_with_expire(
+    &mut self,
+    score: f64,
+    member: &[u8],
+    expire_at_ticks: Option<i64>,
+  ) -> Result<bool> {
+    CompactZSetCodec::insert_with_expire(&mut self.raw, score, member, expire_at_ticks)
+  }
+
+  /// 删除成员
+  #[inline(always)]
+  pub fn remove(&mut self, member: &[u8]) -> Result<bool> {
+    CompactZSetCodec::remove(&mut self.raw, member)
+  }
+
+  /// 原地清理已过期成员并压缩物理内存
+  #[inline(always)]
+  pub fn purge_expired(&mut self, now: i64) -> Result<usize> {
+    CompactZSetCodec::purge_expired(&mut self.raw, now)
+  }
+
+  /// 分值范围计数
+  #[inline(always)]
+  pub fn count_range(&self, min: f64, max: f64) -> usize {
+    CompactZSetCodec::count_range(&self.raw, min, max)
+  }
+
+  /// 分值区间计数（支持开闭区间控制）
+  #[inline(always)]
+  pub fn count_score_range(
+    &self,
+    min: f64,
+    min_inclusive: bool,
+    max: f64,
+    max_inclusive: bool,
+  ) -> usize {
+    CompactZSetCodec::count_score_range(&self.raw, min, min_inclusive, max, max_inclusive)
+  }
+
+  /// 分值范围流式切片迭代
+  #[inline(always)]
+  pub fn range(&self, min: f64, max: f64) -> CompactZSetIter<'_> {
+    CompactZSetCodec::range(&self.raw, min, max)
+  }
+
+  /// 分值区间切片流式迭代（支持开闭区间控制）
+  #[inline(always)]
+  pub fn range_with_options(
+    &self,
+    min: f64,
+    min_inclusive: bool,
+    max: f64,
+    max_inclusive: bool,
+  ) -> CompactZSetIter<'_> {
+    CompactZSetCodec::range_with_options(&self.raw, min, min_inclusive, max, max_inclusive)
+  }
+
+  /// 全量迭代
+  #[inline(always)]
+  pub fn iter_members(&self) -> CompactZSetIter<'_> {
+    CompactZSetCodec::iter_members(&self.raw)
+  }
+
+  /// 清空集合并重置为初始空状态
+  #[inline]
+  pub fn clear(&mut self) {
+    self.raw.clear();
+    self.raw.extend_from_slice(&0u16.to_be_bytes());
+    self.raw.shrink_to_fit();
+  }
+}
+
+impl<'a> IntoIterator for &'a CompactZSet {
+  type Item = ZSetEntryRef<'a>;
+  type IntoIter = CompactZSetIter<'a>;
+
+  #[inline(always)]
+  fn into_iter(self) -> Self::IntoIter {
+    self.iter_members()
+  }
+}
+
+impl Deref for CompactZSet {
+  type Target = [u8];
+
+  #[inline(always)]
+  fn deref(&self) -> &Self::Target {
+    &self.raw
+  }
+}
+
+impl AsRef<[u8]> for CompactZSet {
+  #[inline(always)]
+  fn as_ref(&self) -> &[u8] {
+    &self.raw
+  }
+}

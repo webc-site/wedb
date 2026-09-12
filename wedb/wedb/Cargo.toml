@@ -1,0 +1,53 @@
+[package]
+name = "wedb"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb"
+description = "Cluster wiring layer: client/server sessions, cluster factory, and node assembly"
+keywords = ["cluster", "distributed", "session", "node"]
+categories = ["concurrency", "network-programming"]
+
+[features]
+default = []
+bench = []
+
+[dependencies]
+bitcode.workspace = true
+clap = { version = "4.6.6", features = ["derive"] }
+coarsetime.workspace = true
+fastrand.workspace = true
+gxhash.workspace = true
+itoa.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+waof.workspace = true
+wbase = { workspace = true, features = ["hash_slot"] }
+wconn.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wnode = { version = "0.1.0", path = "../wnode" }
+wresp.workspace = true
+
+[dependencies.compio]
+workspace = true
+features = [ "runtime", "time" ]
+
+[dependencies.strum]
+workspace = true
+features = [ "derive" ]
+
+[dependencies.thiserror]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+tempfile.workspace = true
+waof.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wnode = { path = "../wnode" }
+
+[lints]
+workspace = true
