@@ -92,7 +92,7 @@ impl RespServerSession {
       .unwrap_or_default();
     output.write_resp_array_len(user_handles.len());
     for (_, user_handle) in user_handles {
-      let described = user_handle.read().describe_user();
+      let described = user_handle.user().describe_user();
       output.write_resp_bulk_string(described.as_bytes());
     }
     Ok(true)
@@ -196,7 +196,7 @@ impl RespServerSession {
     // 修改或创建同名用户
     let mut user_handle = acl.get_user_handle(username);
     if user_handle.is_none() {
-      let handle = Arc::new(parking_lot::RwLock::new(Arc::new(User::new(
+      let handle = Arc::new(wacl::UserHandle::new(Arc::new(User::new(
         username.to_string(),
       ))));
       match acl.add_user_handle(Arc::clone(&handle)) {
@@ -211,7 +211,7 @@ impl RespServerSession {
 
     loop {
       // 对用户权限的修改必须针对生效用户
-      let current_user = user_handle.read().clone();
+      let current_user = user_handle.user();
       let new_user = User::from_user(&current_user);
 
       // 记录操作前自定义命令集，只校验"新增"名（ACL 文件先于模块加载载入的
@@ -244,9 +244,7 @@ impl RespServerSession {
         }
       }
 
-      let mut slot = user_handle.write();
-      if Arc::ptr_eq(&*slot, &current_user) {
-        *slot = Arc::new(new_user);
+      if user_handle.try_set_user(Arc::new(new_user), &current_user) {
         break;
       }
     }
@@ -316,7 +314,7 @@ impl RespServerSession {
     let name = ctx
       .authenticator
       .and_then(|a| a.get_user_handle())
-      .map(|handle| handle.read().name.clone())
+      .map(|handle| handle.user().name.clone())
       .unwrap_or_default();
     output.write_resp_bulk_string(name.as_bytes());
     Ok(true)
@@ -456,7 +454,7 @@ impl RespServerSession {
       .authenticator
       .map(|a| a.get_access_control_list())
       .and_then(|acl| acl.get_user_handle(parse_state[0].as_str_safe()))
-      .map(|handle| User::from_user(&handle.read()));
+      .map(|handle| User::from_user(&handle.user()));
 
     match user {
       None => {

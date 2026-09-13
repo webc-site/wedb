@@ -638,7 +638,7 @@ impl RespServerSession {
     let mut acl = acl.lock();
     let success = acl.authenticate(username, password, acl_password_check);
     if success && let Some(user_handle) = acl.get_user_handle() {
-      self.user_handle = Some(user_handle.read().name.clone());
+      self.user_handle = Some(user_handle.user().name.clone());
     }
     success
   }
@@ -2253,7 +2253,7 @@ fn can_run_with_protection(option: ConnectionProtectionOption, is_local: bool) -
 /// ACL 口令校验闭包（wacl GarnetAclWithPasswordAuthenticator::authenticate_internal
 /// 的同语义承接：ascii_sanitize 为 wacl pub(crate)，按 >0x7F 折 '?' 规范化）
 fn acl_password_check(
-  user_handle: &Arc<parking_lot::RwLock<Arc<wacl::User>>>,
+  user_handle: &Arc<wacl::UserHandle>,
   _username: &[u8],
   password: &[u8],
 ) -> bool {
@@ -2262,7 +2262,7 @@ fn acl_password_check(
     .map(|&b| if b <= 0x7F { b as char } else { '?' })
     .collect();
   let hash = wacl::AclPassword::from_string(&sanitized);
-  let user = user_handle.read();
+  let user = user_handle.user();
   user.is_enabled() && user.validate_password(&hash)
 }
 

@@ -300,7 +300,7 @@ fn denied_command_returns_no_perm() {
   let acl = Arc::new(AccessControlList::new("", None).unwrap());
   AclParser::parse_acl_rule("user testuser on nopass +@all -type", Some(&acl)).unwrap();
   let handle = acl.get_user_handle("testuser").unwrap();
-  let user = handle.read().clone();
+  let user = handle.user();
 
   // 验证权限集合规则
   assert!(user.can_access_command(RespCommand::Get));
@@ -337,7 +337,7 @@ fn permitted_command_still_works() {
   let acl = Arc::new(AccessControlList::new("", None).unwrap());
   AclParser::parse_acl_rule("user testuser on nopass +@all -type", Some(&acl)).unwrap();
   let handle = acl.get_user_handle("testuser").unwrap();
-  let user = handle.read().clone();
+  let user = handle.user();
 
   assert!(user.can_access_command(RespCommand::Set));
   assert!(user.can_access_command(RespCommand::Get));
@@ -350,7 +350,7 @@ fn client_set_info_denied_returns_no_perm() {
   let acl = Arc::new(AccessControlList::new("", None).unwrap());
   AclParser::parse_acl_rule("user testuser on nopass +@all -client|setinfo", Some(&acl)).unwrap();
   let handle = acl.get_user_handle("testuser").unwrap();
-  let user = handle.read().clone();
+  let user = handle.user();
 
   assert!(user.can_access_command(RespCommand::Get));
   assert!(!user.can_access_command(RespCommand::ClientSetinfo));

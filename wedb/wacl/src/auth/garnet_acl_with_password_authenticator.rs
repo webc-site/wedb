@@ -32,7 +32,7 @@ impl GarnetAclWithPasswordAuthenticator {
   ) -> bool {
     // C# 经 Encoding.ASCII 规范口令字节后取 SHA-256 哈希
     let password_hash = AclPassword::from_string(&ascii_sanitize(password));
-    let user = user_handle.read().clone();
+    let user = user_handle.user();
     user.is_enabled() && user.validate_password(&password_hash)
   }
 }

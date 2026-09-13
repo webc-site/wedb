@@ -6,11 +6,15 @@
 
 use std::{
   iter::once,
-  sync::atomic::{AtomicBool, Ordering},
+  sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+  },
 };
 
+use arc_swap::ArcSwap;
 use gxhash::{HashSet, HashSetExt};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use wresp::RespCommand;
 
 use super::{
@@ -29,8 +33,8 @@ pub struct User {
   is_enabled: AtomicBool,
   /// 是否免密登录（对标 IsPasswordless 属性）
   is_passwordless: AtomicBool,
-  /// 启用的命令（对标 _enabledCommands，写侧整体换新）
-  enabled_commands: RwLock<CommandPermissionSet>,
+  /// 启用的命令（对标 _enabledCommands，写侧整体 CAS 换新）
+  enabled_commands: ArcSwap<CommandPermissionSet>,
   /// 全部允许的口令哈希（对标 _passwordHashes + lock）
   password_hashes: Mutex<HashSet<AclPassword>>,
 }
@@ -42,7 +46,7 @@ impl User {
       name,
       is_enabled: AtomicBool::new(false),
       is_passwordless: AtomicBool::new(false),
-      enabled_commands: RwLock::new(CommandPermissionSet::none()),
+      enabled_commands: ArcSwap::from_pointee(CommandPermissionSet::none()),
       password_hashes: Mutex::new(HashSet::new()),
     }
   }
@@ -53,7 +57,7 @@ impl User {
       name: user.name.clone(),
       is_enabled: AtomicBool::new(user.is_enabled()),
       is_passwordless: AtomicBool::new(user.is_passwordless()),
-      enabled_commands: RwLock::new(user.copy_command_permission_set()),
+      enabled_commands: ArcSwap::from_pointee(user.copy_command_permission_set()),
       password_hashes: Mutex::new(user.copy_password_hashes()),
     }
   }
@@ -87,7 +91,7 @@ impl User {
   /// libs/server/ACL/User.cs:CanAccessCommand
   #[inline]
   pub fn can_access_command(&self, command: RespCommand) -> bool {
-    self.enabled_commands.read().can_run_command(command)
+    self.enabled_commands.load().can_run_command(command)
   }
 
   /// 用户能否按名执行给定自定义（扩展）命令
@@ -97,7 +101,7 @@ impl User {
   pub fn can_access_custom_command(&self, generic_cmd: RespCommand, custom_name: &str) -> bool {
     self
       .enabled_commands
-      .read()
+      .load()
       .can_run_custom_command(generic_cmd, custom_name)
   }
 
@@ -105,43 +109,57 @@ impl User {
   ///
   /// libs/server/ACL/User.cs:AddCategory
   pub fn add_category(&self, category: RespAclCategories) -> Result<(), AclError> {
-    let mut perms = self.enabled_commands.write();
-    // 全允许档为无操作
-    if perms.is_all() {
-      return Ok(());
+    if category != RespAclCategories::ALL && category.is_empty() {
+      return Err(AclError::Acl(
+        "Unable to obtain ACL information, this shouldn't be possible".into(),
+      ));
     }
 
-    if category != RespAclCategories::ALL {
-      if category.is_empty() {
-        return Err(AclError::Acl(
-          "Unable to obtain ACL information, this shouldn't be possible".into(),
-        ));
-      }
+    let (cmds, desc_update) = if category != RespAclCategories::ALL {
       let cmds = Self::determine_command_details(commands_for_category(category));
+      let desc_update = format!("+@{}", AclParser::get_name_by_acl_category(category));
+      (Some(cmds), Some(desc_update))
+    } else {
+      (None, None)
+    };
 
-      // 已能跑全部成员即无操作
-      if cmds.iter().all(|&cmd| perms.can_run_command(cmd)) {
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 全允许档为无操作
+      if cur.is_all() {
         return Ok(());
       }
-      let desc_update = format!("+@{}", AclParser::get_name_by_acl_category(category));
 
-      let mut updated = perms.copy();
-      let mut deep = false;
-      for cmd in cmds {
-        // 存在命令重叠时需要深度合理化
-        deep = deep || updated.can_run_command(cmd);
-        updated.add_command(cmd);
+      let updated = if let (Some(cmds), Some(desc_update)) = (&cmds, &desc_update) {
+        // 已能跑全部成员即无操作
+        if cmds.iter().all(|&cmd| cur.can_run_command(cmd)) {
+          return Ok(());
+        }
+        let mut updated = cur.copy();
+        let mut deep = false;
+        for &cmd in cmds {
+          // 存在命令重叠时需要深度合理化
+          deep = deep || updated.can_run_command(cmd);
+          updated.add_command(cmd);
+        }
+        updated.description = Self::rationalize_acl_description(
+          &updated,
+          &format!("{} {desc_update}", updated.description),
+          deep,
+        );
+        updated
+      } else {
+        CommandPermissionSet::all()
+      };
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
       }
-      updated.description = Self::rationalize_acl_description(
-        &updated,
-        &format!("{} {desc_update}", updated.description),
-        deep,
-      );
-      *perms = updated;
-    } else {
-      *perms = CommandPermissionSet::all();
+      cur = prev;
     }
-    Ok(())
   }
 
   /// 加入给定命令（含其全部子命令）
@@ -152,69 +170,91 @@ impl User {
       AclError::Acl("Unable to obtain ACL information, this shouldn't be possible".into())
     })?;
     let to_add = Self::determine_command_details(once(info));
-
-    let mut perms = self.enabled_commands.write();
-    // 已能跑即无操作，跳过整理工作
-    if to_add.iter().all(|&cmd| perms.can_run_command(cmd)) {
-      return Ok(());
-    }
     let desc_update = format!("+{}", info.name);
 
-    let mut updated = perms.copy();
-    let mut deep = false;
-    for cmd in to_add {
-      deep = deep || updated.can_run_command(cmd);
-      updated.add_command(cmd);
-    }
-    updated.description = Self::rationalize_acl_description(
-      &updated,
-      &format!("{} {desc_update}", updated.description),
-      deep,
-    );
-    *perms = updated;
-    Ok(())
-  }
-
-  /// 移除给定分类
-  ///
-  /// libs/server/ACL/User.cs:RemoveCategory
-  pub fn remove_category(&self, category: RespAclCategories) -> Result<(), AclError> {
-    let mut perms = self.enabled_commands.write();
-    // 从全拒绝档移除是无操作
-    if perms.is_none() {
-      return Ok(());
-    }
-
-    if category != RespAclCategories::ALL {
-      if category.is_empty() {
-        return Err(AclError::Acl(
-          "Unable to obtain ACL information, this shouldn't be possible".into(),
-        ));
-      }
-      let cmds = Self::determine_command_details(commands_for_category(category));
-
-      // 一个成员都跑不了即无操作
-      if !cmds.iter().any(|&cmd| perms.can_run_command(cmd)) {
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 已能跑即无操作，跳过整理工作
+      if to_add.iter().all(|&cmd| cur.can_run_command(cmd)) {
         return Ok(());
       }
-      let desc_update = format!("-@{}", AclParser::get_name_by_acl_category(category));
 
-      let mut updated = perms.copy();
+      let mut updated = cur.copy();
       let mut deep = false;
-      for cmd in cmds {
+      for &cmd in &to_add {
         deep = deep || updated.can_run_command(cmd);
-        updated.remove_command(cmd);
+        updated.add_command(cmd);
       }
       updated.description = Self::rationalize_acl_description(
         &updated,
         &format!("{} {desc_update}", updated.description),
         deep,
       );
-      *perms = updated;
-    } else {
-      *perms = CommandPermissionSet::none();
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
+      }
+      cur = prev;
     }
-    Ok(())
+  }
+
+  /// 移除给定分类
+  ///
+  /// libs/server/ACL/User.cs:RemoveCategory
+  pub fn remove_category(&self, category: RespAclCategories) -> Result<(), AclError> {
+    if category != RespAclCategories::ALL && category.is_empty() {
+      return Err(AclError::Acl(
+        "Unable to obtain ACL information, this shouldn't be possible".into(),
+      ));
+    }
+
+    let (cmds, desc_update) = if category != RespAclCategories::ALL {
+      let cmds = Self::determine_command_details(commands_for_category(category));
+      let desc_update = format!("-@{}", AclParser::get_name_by_acl_category(category));
+      (Some(cmds), Some(desc_update))
+    } else {
+      (None, None)
+    };
+
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 从全拒绝档移除是无操作
+      if cur.is_none() {
+        return Ok(());
+      }
+
+      let updated = if let (Some(cmds), Some(desc_update)) = (&cmds, &desc_update) {
+        // 一个成员都跑不了即无操作
+        if !cmds.iter().any(|&cmd| cur.can_run_command(cmd)) {
+          return Ok(());
+        }
+        let mut updated = cur.copy();
+        let mut deep = false;
+        for &cmd in cmds {
+          deep = deep || updated.can_run_command(cmd);
+          updated.remove_command(cmd);
+        }
+        updated.description = Self::rationalize_acl_description(
+          &updated,
+          &format!("{} {desc_update}", updated.description),
+          deep,
+        );
+        updated
+      } else {
+        CommandPermissionSet::none()
+      };
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
+      }
+      cur = prev;
+    }
   }
 
   /// 移除给定命令（含其全部子命令）
@@ -225,27 +265,35 @@ impl User {
       AclError::Acl("Unable to obtain ACL information, this shouldn't be possible".into())
     })?;
     let to_remove = Self::determine_command_details(once(info));
-
-    let mut perms = self.enabled_commands.write();
-    // 全都跑不了即无操作
-    if to_remove.iter().all(|&cmd| !perms.can_run_command(cmd)) {
-      return Ok(());
-    }
     let desc_update = format!("-{}", info.name);
 
-    let mut updated = perms.copy();
-    let mut deep = false;
-    for cmd in to_remove {
-      deep = deep || updated.can_run_command(cmd);
-      updated.remove_command(cmd);
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 全都跑不了即无操作
+      if to_remove.iter().all(|&cmd| !cur.can_run_command(cmd)) {
+        return Ok(());
+      }
+
+      let mut updated = cur.copy();
+      let mut deep = false;
+      for &cmd in &to_remove {
+        deep = deep || updated.can_run_command(cmd);
+        updated.remove_command(cmd);
+      }
+      updated.description = Self::rationalize_acl_description(
+        &updated,
+        &format!("{} {desc_update}", updated.description),
+        deep,
+      );
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
+      }
+      cur = prev;
     }
-    updated.description = Self::rationalize_acl_description(
-      &updated,
-      &format!("{} {desc_update}", updated.description),
-      deep,
-    );
-    *perms = updated;
-    Ok(())
   }
 
   /// 按名允许自定义命令（名称规范化为大写；拒绝侧同步摘除）
@@ -261,23 +309,31 @@ impl User {
     let normalized = custom_name.to_ascii_uppercase();
     let desc_update = normalized.to_ascii_lowercase();
 
-    let mut perms = self.enabled_commands.write();
-    // 无操作快路：已允许
-    if perms.is_all()
-      || (perms.custom_allowed().contains(&normalized)
-        && !perms.custom_denied().contains(&normalized))
-    {
-      return Ok(());
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 无操作快路：已允许
+      if cur.is_all()
+        || (cur.custom_allowed().contains(&normalized)
+          && !cur.custom_denied().contains(&normalized))
+      {
+        return Ok(());
+      }
+      let mut updated = cur.copy();
+      updated.add_custom_command(&normalized);
+      updated.description = Self::rationalize_acl_description(
+        &updated,
+        &format!("{} +{desc_update}", updated.description),
+        false,
+      );
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
+      }
+      cur = prev;
     }
-    let mut updated = perms.copy();
-    updated.add_custom_command(&normalized);
-    updated.description = Self::rationalize_acl_description(
-      &updated,
-      &format!("{} +{desc_update}", updated.description),
-      false,
-    );
-    *perms = updated;
-    Ok(())
   }
 
   /// 按名拒绝自定义命令（显式拒绝覆盖任何 +@category 的放行）
@@ -292,23 +348,31 @@ impl User {
     let normalized = custom_name.to_ascii_uppercase();
     let desc_update = normalized.to_ascii_lowercase();
 
-    let mut perms = self.enabled_commands.write();
-    // 无操作快路：已显式拒绝且不在任何允许集
-    if !perms.is_all()
-      && perms.custom_denied().contains(&normalized)
-      && !perms.custom_allowed().contains(&normalized)
-    {
-      return Ok(());
+    let mut cur = self.enabled_commands.load();
+    loop {
+      // 无操作快路：已显式拒绝且不在任何允许集
+      if !cur.is_all()
+        && cur.custom_denied().contains(&normalized)
+        && !cur.custom_allowed().contains(&normalized)
+      {
+        return Ok(());
+      }
+      let mut updated = cur.copy();
+      updated.remove_custom_command(&normalized);
+      updated.description = Self::rationalize_acl_description(
+        &updated,
+        &format!("{} -{desc_update}", updated.description),
+        false,
+      );
+
+      let prev = self
+        .enabled_commands
+        .compare_and_swap(&*cur, Arc::new(updated));
+      if Arc::ptr_eq(&cur, &prev) {
+        return Ok(());
+      }
+      cur = prev;
     }
-    let mut updated = perms.copy();
-    updated.remove_custom_command(&normalized);
-    updated.description = Self::rationalize_acl_description(
-      &updated,
-      &format!("{} -{desc_update}", updated.description),
-      false,
-    );
-    *perms = updated;
-    Ok(())
   }
 
   /// 新增一个允许口令哈希
@@ -337,7 +401,9 @@ impl User {
   /// libs/server/ACL/User.cs:Reset
   pub fn reset(&self) {
     self.clear_passwords();
-    *self.enabled_commands.write() = CommandPermissionSet::none();
+    self
+      .enabled_commands
+      .store(Arc::new(CommandPermissionSet::none()));
     self.set_enabled(false);
   }
 
@@ -382,7 +448,7 @@ impl User {
     }
     // ACL
     {
-      let perms = self.enabled_commands.read();
+      let perms = self.enabled_commands.load();
       let perms_str = perms.description.trim();
       if !perms_str.is_empty() {
         out.push(' ');
@@ -396,21 +462,21 @@ impl User {
   ///
   /// libs/server/ACL/User.cs:GetEnabledCommandsDescription
   pub fn get_enabled_commands_description(&self) -> String {
-    self.enabled_commands.read().description.clone()
+    self.enabled_commands.load().description.clone()
   }
 
   /// 自定义命令允许集快照
   ///
   /// libs/server/ACL/User.cs:CustomCommandsAllowed
   pub fn custom_commands_allowed(&self) -> HashSet<String> {
-    self.enabled_commands.read().custom_allowed().clone()
+    self.enabled_commands.load().custom_allowed().clone()
   }
 
   /// 自定义命令拒绝集快照
   ///
   /// libs/server/ACL/User.cs:CustomCommandsDenied
   pub fn custom_commands_denied(&self) -> HashSet<String> {
-    self.enabled_commands.read().custom_denied().clone()
+    self.enabled_commands.load().custom_denied().clone()
   }
 
   /// 由命令信息条目推导其命令 / 子命令对
@@ -479,7 +545,7 @@ impl User {
   ///
   /// libs/server/ACL/User.cs:CopyCommandPermissionSet
   pub fn copy_command_permission_set(&self) -> CommandPermissionSet {
-    self.enabled_commands.read().copy()
+    self.enabled_commands.load().copy()
   }
 
   /// 口令哈希集的拷贝

@@ -17,6 +17,7 @@ rustdoc-args = [ "--cfg", "docsrs" ]
 default = [ ]
 
 [dependencies]
+arc-swap = "1.9.2"
 bitflags = "2.13.2"
 gxhash = "3.5.0"
 parking_lot = "0.12.5"

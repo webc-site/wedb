@@ -13,12 +13,11 @@
 
 use std::{borrow::Cow, sync::Arc};
 
-use parking_lot::RwLock;
 use wresp::RespCommand;
 
 use super::{
-  AclPassword, RespAclCategories, access_control_list::AccessControlList, acl_exception::AclError,
-  command_catalog as catalog, user::User,
+  AclPassword, RespAclCategories, UserHandle, access_control_list::AccessControlList,
+  acl_exception::AclError, command_catalog as catalog, user::User,
 };
 
 /// 分类名对照表（对标 C# categoryNames；序即 ListCategories 的列举序）
@@ -81,11 +80,11 @@ impl AclParser {
 
     // 从访问控制列表取 / 建用户
     let user = match acl.and_then(|acl| acl.get_user_handle(username)) {
-      Some(handle) => handle.read().clone(),
+      Some(handle) => handle.user(),
       None => {
         let user = Arc::new(User::new(username.to_string()));
         if let Some(acl) = acl {
-          acl.add_user_handle(Arc::new(RwLock::new(Arc::clone(&user))))?;
+          acl.add_user_handle(Arc::new(UserHandle::new(Arc::clone(&user))))?;
         }
         user
       }
@@ -640,7 +639,7 @@ mod tests {
     let acl = AccessControlList::new("", None).unwrap();
     AclParser::parse_acl_rule("user alice on +set", Some(&acl)).unwrap();
     let handle = acl.get_user_handle("alice").expect("alice added");
-    assert!(handle.read().can_access_command(RespCommand::Set));
+    assert!(handle.user().can_access_command(RespCommand::Set));
 
     // 再次解析同名规则：就地修改既有用户
     AclParser::parse_acl_rule("user alice on +get", Some(&acl)).unwrap();
@@ -648,7 +647,7 @@ mod tests {
       acl
         .get_user_handle("alice")
         .unwrap()
-        .read()
+        .user()
         .can_access_command(RespCommand::Get)
     );
     // 原有权限仍在
@@ -656,7 +655,7 @@ mod tests {
       acl
         .get_user_handle("alice")
         .unwrap()
-        .read()
+        .user()
         .can_access_command(RespCommand::Set)
     );
   }

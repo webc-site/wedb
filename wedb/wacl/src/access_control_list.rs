@@ -1,7 +1,7 @@
 //! 访问控制列表（对标 libs/server/ACL/AccessControlList.cs）
 //!
 //! 用户表为 papaya 并发字典（gxhash 构建器）；整体换表（Load）经
-//! `RwLock<Arc<..>>` 原子快照承接，读侧无锁；Save 以互斥锁串行化。
+//! `ArcSwap` 原子指针承接，读侧完全无锁；Save 以互斥锁串行化。
 
 use std::{
   fs::File,
@@ -10,7 +10,8 @@ use std::{
   sync::Arc,
 };
 
-use parking_lot::{Mutex, RwLock};
+use arc_swap::{ArcSwap, ArcSwapOption};
+use parking_lot::Mutex;
 use whasher::{GxPapayaMap, new_papaya_map};
 
 use super::{
@@ -26,10 +27,10 @@ type UsersMap = GxPapayaMap<String, Arc<UserHandle>>;
 
 /// 访问控制列表
 pub struct AccessControlList {
-  /// 全部已定义用户（底层为 papaya lock-free 并发字典）
-  users: UsersMap,
+  /// 全部已定义用户（整体换表原子性见 [`Self::load`]）
+  users: ArcSwap<UsersMap>,
   /// 当前默认用户句柄（快速默认查找）
-  default_user: RwLock<Option<Arc<UserHandle>>>,
+  default_user: ArcSwapOption<UserHandle>,
   /// Save 串行锁（对标 C# lock(this)）
   save_lock: Mutex<()>,
 }
@@ -49,7 +50,7 @@ impl AccessControlList {
     } else {
       // 未定义 ACL 文件时仅创建默认用户
       let handle = acl.create_default_user_handle(default_password)?;
-      *acl.default_user.write() = Some(handle);
+      acl.default_user.store(Some(handle));
     }
     Ok(acl)
   }
@@ -65,8 +66,8 @@ impl AccessControlList {
   /// 空表草稿（无默认用户；Load 的导入草稿与构造底座）
   fn scratch() -> Self {
     Self {
-      users: new_papaya_map(),
-      default_user: RwLock::new(None),
+      users: ArcSwap::from_pointee(new_papaya_map()),
+      default_user: ArcSwapOption::from(None),
       save_lock: Mutex::new(()),
     }
   }
@@ -75,29 +76,31 @@ impl AccessControlList {
   ///
   /// libs/server/ACL/AccessControlList.cs:GetUserHandle
   pub fn get_user_handle(&self, username: &str) -> Option<Arc<UserHandle>> {
-    self.users.pin().get(username).map(Arc::clone)
+    self.users.load().pin().get(username).map(Arc::clone)
   }
 
   /// 当前默认用户句柄
   ///
   /// libs/server/ACL/AccessControlList.cs:GetDefaultUserHandle
   pub fn get_default_user_handle(&self) -> Option<Arc<UserHandle>> {
-    self.default_user.read().clone()
+    self.default_user.load_full()
   }
 
   /// 加入用户（同名用户已存在即报错）
   ///
   /// libs/server/ACL/AccessControlList.cs:AddUserHandle
   pub fn add_user_handle(&self, user_handle: Arc<UserHandle>) -> Result<(), AclError> {
-    let username = user_handle.read().name.clone();
+    let user = user_handle.user();
+    let username = &user.name;
     // 已有同名用户则不可加入
     if self
       .users
+      .load()
       .pin()
       .try_insert(username.clone(), user_handle)
       .is_err()
     {
-      return Err(AclError::UserAlreadyExists(username));
+      return Err(AclError::UserAlreadyExists(username.clone()));
     }
     Ok(())
   }
@@ -111,14 +114,14 @@ impl AccessControlList {
         "The special 'default' user cannot be removed from the system".into(),
       ));
     }
-    Ok(self.users.pin().remove(username).is_some())
+    Ok(self.users.load().pin().remove(username).is_some())
   }
 
   /// 清空全部用户
   ///
   /// libs/server/ACL/AccessControlList.cs:ClearUsers
   pub fn clear_users(&self) {
-    self.users.pin().clear();
+    self.users.store(Arc::new(new_papaya_map()));
   }
 
   /// 全部用户名 / 句柄对快照
@@ -127,6 +130,7 @@ impl AccessControlList {
   pub fn get_user_handles(&self) -> Vec<(String, Arc<UserHandle>)> {
     self
       .users
+      .load()
       .pin()
       .iter()
       .map(|(name, handle)| (name.clone(), Arc::clone(handle)))
@@ -135,12 +139,12 @@ impl AccessControlList {
 
   /// 用户数
   pub fn len(&self) -> usize {
-    self.users.pin().len()
+    self.users.load().pin().len()
   }
 
   /// 是否无用户
   pub fn is_empty(&self) -> bool {
-    self.users.pin().is_empty()
+    self.users.load().pin().is_empty()
   }
 
   /// 创建默认用户（已存在则直接返回既有句柄）
@@ -165,7 +169,7 @@ impl AccessControlList {
       } else {
         default_user.set_passwordless(true);
       }
-      let default_user_handle = Arc::new(RwLock::new(Arc::new(default_user)));
+      let default_user_handle = Arc::new(UserHandle::new(Arc::new(default_user)));
       // 加入用户表；并发竞争（同名已存在）时重取并发创建的用户
       match self.add_user_handle(Arc::clone(&default_user_handle)) {
         Ok(()) => return Ok(default_user_handle),
@@ -212,13 +216,8 @@ impl AccessControlList {
     // 补回默认用户并更新缓存的默认句柄
     let default_handle = scratch.create_default_user_handle(default_password)?;
 
-    let _guard = self.save_lock.lock();
-    *self.default_user.write() = Some(default_handle);
-    let pin = self.users.pin();
-    pin.clear();
-    for (name, handle) in scratch.users.pin().iter() {
-      pin.insert(name.clone(), Arc::clone(handle));
-    }
+    self.default_user.store(Some(default_handle));
+    self.users.store(scratch.users.load_full());
     Ok(())
   }
 
@@ -234,9 +233,10 @@ impl AccessControlList {
     let _guard = self.save_lock.lock();
     let file = File::create(acl_configuration_file).map_err(|e| AclError::Acl(e.to_string()))?;
     let mut writer = BufWriter::with_capacity(1 << 16, file);
-    let pin = self.users.pin();
+    let users = self.users.load();
+    let pin = users.pin();
     for (_, user_handle) in pin.iter() {
-      writeln!(writer, "{}", user_handle.read().describe_user())
+      writeln!(writer, "{}", user_handle.user().describe_user())
         .map_err(|e| AclError::Acl(e.to_string()))?;
     }
     writer.flush().map_err(|e| AclError::Acl(e.to_string()))?;
@@ -317,8 +317,8 @@ mod tests {
     }
     // 自动创建的 default：免密 + 全权 + 启用
     let default = acl.get_default_user_handle().unwrap();
-    assert!(default.read().is_passwordless());
-    assert!(default.read().can_access_command(RespCommand::Get));
+    assert!(default.user().is_passwordless());
+    assert!(default.user().can_access_command(RespCommand::Get));
   }
 
   /// 对标 garnet AclConfigurationFileTests.WithDefaultRule：文件定义的 default 优先，
@@ -339,7 +339,7 @@ mod tests {
     let described = acl
       .get_default_user_handle()
       .unwrap()
-      .read()
+      .user()
       .describe_user();
     assert!(
       !described.contains('#'),
@@ -416,7 +416,7 @@ mod tests {
 
     let restored = AccessControlList::new("", Some(&file)).unwrap();
     assert_eq!(restored.len(), 2);
-    let alice = restored.get_user_handle("alice").unwrap().read().clone();
+    let alice = restored.get_user_handle("alice").unwrap().user();
     assert!(alice.is_enabled());
     assert!(alice.validate_password(&AclPassword::from_string("secret")));
     assert!(alice.can_access_command(RespCommand::Set));
@@ -425,7 +425,7 @@ mod tests {
       restored
         .get_default_user_handle()
         .unwrap()
-        .read()
+        .user()
         .validate_password(&AclPassword::from_string("passw0rd"))
     );
 
@@ -438,11 +438,11 @@ mod tests {
   #[test]
   fn user_handle_crud() {
     let acl = AccessControlList::new("", None).unwrap();
-    let handle = Arc::new(RwLock::new(Arc::new(User::new("bob".into()))));
+    let handle = Arc::new(UserHandle::new(Arc::new(User::new("bob".into()))));
     acl.add_user_handle(Arc::clone(&handle)).unwrap();
 
     // 重名不可加入
-    let dup = Arc::new(RwLock::new(Arc::new(User::new("bob".into()))));
+    let dup = Arc::new(UserHandle::new(Arc::new(User::new("bob".into()))));
     assert!(matches!(
       acl.add_user_handle(dup),
       Err(AclError::UserAlreadyExists(u)) if u == "bob"
