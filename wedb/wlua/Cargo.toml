@@ -29,7 +29,6 @@ wbase = { workspace = true, features = ["hash_slot", "convert", "num"] }
 whasher.workspace = true
 wresp.workspace = true
 wtxn = { version = "0.1.0", path = "../wtxn" }
-zmij.workspace = true
 
 [dev-dependencies]
 aok.workspace = true

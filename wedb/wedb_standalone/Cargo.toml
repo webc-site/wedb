@@ -17,12 +17,22 @@ rustdoc-args = [ "--cfg", "docsrs" ]
 default = [ ]
 bench = [ ]
 
-[dependencies]
-wconf.workspace = true
-wdatabase = { version = "0.1.0", path = "../wdatabase" }
-wmetric.workspace = true
-wobject.workspace = true
-wvector = { version = "0.1.0", path = "../wvector" }
+[dependencies.wconf]
+workspace = true
+
+[dependencies.wdatabase]
+version = "0.1.0"
+path = "../wdatabase"
+
+[dependencies.wmetric]
+workspace = true
+
+[dependencies.wobject]
+workspace = true
+
+[dependencies.wvector]
+version = "0.1.0"
+path = "../wvector"
 
 [dependencies.gxhash]
 workspace = true
@@ -93,8 +103,9 @@ workspace = true
 [dependencies.wacl]
 workspace = true
 
-[dev-dependencies]
-wbitmap = { path = "../wbitmap" }
+[dev-dependencies.wbitmap]
+path = "../wbitmap"
+version = "0.1.0"
 
 [dev-dependencies.aok]
 workspace = true
@@ -107,11 +118,11 @@ workspace = true
 
 [dev-dependencies.wbftree]
 path = "../wbftree"
-version = "0.1.4"
+version = "0.1.5"
 
 [dev-dependencies.wcpr]
 path = "../wcpr"
-version = "0.1.2"
+version = "0.1.3"
 
 [dev-dependencies.compio]
 workspace = true

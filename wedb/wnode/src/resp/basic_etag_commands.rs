@@ -106,7 +106,7 @@ impl RespServerSession {
       }
       Ok(Err(_)) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(cmd_strings::RESP_ERR_GENERIC);
       }
     }
     Ok(true)
@@ -213,7 +213,7 @@ impl RespServerSession {
       }
       Ok(Err(_)) => Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(cmd_strings::RESP_ERR_GENERIC);
         Ok(true)
       }
     }

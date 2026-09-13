@@ -1,5 +1,3 @@
-use core::hash::{Hash, Hasher};
-
 use aok::{OK, Result};
 use gxhash::{GxBuildHasher, HashSet, HashSetExt};
 use whasher::{
@@ -96,6 +94,37 @@ fn test_fast_hash_and_hash_value() -> Result<()> {
   for val in [-1i64, 0, 1, -42, 42, i64::MIN, i64::MAX] {
     assert_eq!(fast_hash_u64(val as u64), fast_hash(&val.to_le_bytes()));
   }
+
+  OK
+}
+
+#[test]
+fn test_avalanche_and_distribution() -> Result<()> {
+  let mut rng = Xs(0x243F_6A88_85A3_08D3);
+
+  // 雪崩：单比特翻转应引起约半数输出位翻转
+  let mut total_flips = 0u64;
+  let mut rounds = 0u64;
+  let mut min_flips = u32::MAX;
+  for _ in 0..256 {
+    let base = rng.next();
+    let h0 = fast_hash(&base.to_le_bytes());
+    for bit in 0..64u32 {
+      let flips = (h0 ^ fast_hash(&(base ^ (1u64 << bit)).to_le_bytes())).count_ones();
+      min_flips = min_flips.min(flips);
+      total_flips += flips as u64;
+      rounds += 1;
+    }
+  }
+  let ratio = total_flips as f64 / rounds as f64 / 64.0;
+  assert!((0.4..0.6).contains(&ratio), "雪崩翻转比例异常: {ratio}");
+  assert!(min_flips >= 8, "单比特翻转最小输出翻转位过少: {min_flips}");
+
+  // 分布：16384 个伪随机 8 字节键哈希无碰撞
+  let uniq: HashSet<u64> = (0..16384)
+    .map(|_| fast_hash(&rng.next().to_le_bytes()))
+    .collect();
+  assert_eq!(uniq.len(), 16384);
 
   OK
 }

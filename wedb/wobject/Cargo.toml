@@ -2,6 +2,10 @@
 name = "wobject"
 version = "0.1.0"
 edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wobject"
+description = "Object store and secondary in-memory data structures for wedb"
 
 [dependencies]
 bitcode.workspace = true
@@ -15,8 +19,6 @@ gxhash.workspace = true
 itoa.workspace = true
 num_enum = "0.7.6"
 parking_lot.workspace = true
-smallvec.workspace = true
-thiserror.workspace = true
 wbase = { workspace = true, features = ["ascii", "convert", "future", "glob", "num", "time"] }
 whasher.workspace = true
 wresp.workspace = true

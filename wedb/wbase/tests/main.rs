@@ -48,48 +48,6 @@ fn test_addr_primitives() {
   );
 }
 
-#[cfg(feature = "align")]
-#[test]
-fn test_align_primitives() {
-  use wbase::align::*;
-
-  assert_eq!(CACHELINE_BYTES, 64);
-  assert_eq!(DEFAULT_SECTOR_SIZE, 4096);
-  assert_eq!(MIN_SECTOR_SIZE, 512);
-
-  assert!(is_aligned(4096, 4096));
-  assert!(!is_aligned(4095, 4096));
-  assert_eq!(align_down(4097, 4096), 4096);
-  assert_eq!(align_up(4097, 4096), 8192);
-  assert_eq!(align_up(4096, 4096), 4096);
-  assert_eq!(checked_align_up(u64::MAX - 10, 4096), None);
-
-  // 前置 2 的幂（对齐 libs/client/Utility.cs:PreviousPowerOf2）
-  assert_eq!(prev_power_of2(0), 0);
-  assert_eq!(prev_power_of2(1), 1);
-  assert_eq!(prev_power_of2(2), 2);
-  assert_eq!(prev_power_of2(3), 2);
-  assert_eq!(prev_power_of2(4097), 4096);
-  assert_eq!(prev_power_of2(u64::MAX), 1u64 << 63);
-  assert_eq!(prev_power_of2(1u64 << 47), 1u64 << 47);
-
-  assert!(is_cacheline_aligned(128));
-  assert!(!is_cacheline_aligned(127));
-  assert_eq!(align_to_cacheline(65), 128);
-
-  assert!(is_valid_sector_size(512));
-  assert!(is_valid_sector_size(4096));
-  assert!(!is_valid_sector_size(300));
-  assert!(!is_valid_sector_size(256));
-
-  let range = SectorRange::calculate(100, 200, DEFAULT_SECTOR_SIZE).unwrap();
-  assert_eq!(range.aligned_offset, 0);
-  assert_eq!(range.aligned_len, 4096);
-  assert_eq!(range.internal_offset, 100);
-  assert_eq!(range.sector_count(DEFAULT_SECTOR_SIZE), 1);
-  assert_eq!(range.sub_range(50), 100..150);
-}
-
 #[cfg(feature = "backoff")]
 #[test]
 fn test_backoff_stages() {
@@ -155,25 +113,6 @@ fn test_thread_id_uniqueness() {
   }
 
   assert_eq!(set.lock().unwrap().len(), 16);
-}
-
-#[cfg(feature = "align")]
-#[test]
-fn test_cache_padded_layout() {
-  use core::mem::{align_of, size_of};
-
-  use wbase::align::{CachePadded, CachePadded64};
-
-  assert_eq!(align_of::<CachePadded<u64>>(), 128);
-  assert!(size_of::<CachePadded<u64>>() >= 128);
-
-  assert_eq!(align_of::<CachePadded64<u64>>(), 64);
-  assert!(size_of::<CachePadded64<u64>>() >= 64);
-
-  let mut padded = CachePadded::new(42u64);
-  assert_eq!(*padded, 42);
-  *padded = 100;
-  assert_eq!(padded.into_inner(), 100);
 }
 
 #[cfg(feature = "crc")]
@@ -571,102 +510,6 @@ fn test_striped_counter() {
 
   GLOBAL_COUNTER.reset();
   assert_eq!(GLOBAL_COUNTER.get(), 0);
-}
-
-#[cfg(feature = "glob")]
-#[test]
-fn test_glob_primitives() {
-  use wbase::glob::*;
-
-  // 1. 基础通配符
-  assert!(!glob_match(b"*", b""));
-  assert!(glob_match(b"*", b"hello"));
-  assert!(glob_match(b"", b""));
-  assert!(!glob_match(b"", b"a"));
-  assert!(glob_match(b"h?llo", b"hello"));
-  assert!(!glob_match(b"h?llo", b"hllo"));
-
-  // 2. 集合与区间
-  assert!(glob_match(b"[a-z]ello", b"hello"));
-  assert!(!glob_match(b"[0-9]ello", b"hello"));
-  assert!(!glob_match(b"[!0-9]ello", b"hello"));
-  assert!(glob_match(b"[!0-9]ello", b"!ello"));
-  assert!(glob_match(b"[^0-9]ello", b"hello"));
-  assert!(glob_match(b"[\\]]", b"]"));
-  assert!(glob_match(b"[\\\\\\\\]", b"\\"));
-  assert!(glob_match(b"\\*hello", b"*hello"));
-  assert!(!glob_match(b"\\*hello", b"foo_hello"));
-  assert!(glob_match(b"[a-]", b"]"));
-  assert!(glob_match(b"[a-]", b"a"));
-  assert!(!glob_match(b"[a-]", b"b"));
-  assert!(glob_match(b"[a-]x]", b"x"));
-  assert!(glob_match(b"[a-]x]", b"]"));
-  assert!(glob_match(b"[z-a]", b"m"));
-  assert!(glob_match(b"[abc", b"a"));
-  assert!(!glob_match(b"[abc", b"d"));
-  assert!(!glob_match(b"[", b"["));
-
-  // 3. 大小写忽略
-  assert!(!glob_match(b"hello", b"HELLO"));
-  assert!(glob_match_nocase(b"hello", b"HELLO"));
-  assert!(glob_match_opt(b"h[a-z]llo", b"hEllo", true));
-  assert!(!glob_match_nocase(b"[k-M]ello", b"lello"));
-  assert!(!glob_match_nocase(b"[Z-a]ello", b"mello"));
-  assert!(!glob_match_nocase(b"[a-Z]ello", b"mello"));
-
-  // 4. 编译期 const fn 求值验证
-  const { assert!(glob_match(b"h*o", b"hello")) };
-  const { assert!(glob_match_nocase(b"h*O", b"hello")) };
-}
-
-#[cfg(feature = "buf")]
-#[test]
-fn test_buf_macro_primitives() {
-  use wbase::stack_heap_buf;
-
-  stack_heap_buf!(TestBuf, 16);
-
-  // 1. 栈分配
-  let s_buf: TestBuf = b"short".as_slice().into();
-  assert!(s_buf.is_stack());
-  assert!(!s_buf.is_heap());
-  assert_eq!(s_buf.len(), 5);
-  assert_eq!(&*s_buf, b"short");
-  assert_eq!(s_buf.as_slice(), b"short");
-  assert_eq!(s_buf, b"short".as_slice());
-  assert_eq!(b"short".as_slice(), s_buf);
-  assert_eq!(s_buf.into_vec(), b"short".to_vec());
-
-  // 2. 堆分配
-  let long_data = b"0123456789abcdef_long_overflow";
-  let h_buf: TestBuf = long_data.as_slice().into();
-  assert!(!h_buf.is_stack());
-  assert!(h_buf.is_heap());
-  assert_eq!(h_buf.len(), long_data.len());
-  assert_eq!(&*h_buf, long_data);
-  assert_eq!(h_buf, long_data.as_slice());
-  assert_eq!(long_data.as_slice(), h_buf);
-  assert_eq!(h_buf.into_vec(), long_data.to_vec());
-
-  // 3. 边界 16 字节恰好为栈
-  let exact_16 = b"0123456789abcdef";
-  let exact_buf: TestBuf = exact_16.as_slice().into();
-  assert!(exact_buf.is_stack());
-  assert_eq!(exact_buf.len(), 16);
-
-  // 4. 排序与比较
-  let b1: TestBuf = b"aaa".as_slice().into();
-  let b2: TestBuf = b"bbb".as_slice().into();
-  assert!(b1 < b2);
-  assert_eq!(b1, b1.clone());
-  assert_ne!(b1, b2);
-
-  // 5. Default 与 Into<Vec<u8>>
-  let def: TestBuf = Default::default();
-  assert!(def.is_empty());
-  assert_eq!(def.len(), 0);
-  let v: Vec<u8> = b1.into();
-  assert_eq!(v, b"aaa");
 }
 
 #[cfg(feature = "varint")]

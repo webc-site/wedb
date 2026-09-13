@@ -163,7 +163,7 @@ impl RespServerSession {
       Ok(Some(alive)) => alive,
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -176,7 +176,7 @@ impl RespServerSession {
       Ok(Ok(_)) => {}
       Ok(Err(_)) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -187,7 +187,7 @@ impl RespServerSession {
         Ok(true) => {}
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -237,7 +237,7 @@ impl RespServerSession {
       }
       Ok(Some(None)) => output.write_resp_null(),
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -277,14 +277,14 @@ impl RespServerSession {
         match store.try_delete_sync(key) {
           Ok(Ok(_)) => output.write_resp_bulk_string(&val),
           Ok(Err(_)) => return Ok(false),
-          Err(_) => output.write_resp_error("generic error"),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
       Ok(Some(None)) => {
         output.write_resp_null();
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -308,7 +308,7 @@ impl RespServerSession {
         // 磁盘候选 / 异步裁决：整体降级
         Ok(None) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -392,7 +392,7 @@ impl RespServerSession {
       }
       Ok(None) => Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         Ok(true)
       }
     }
@@ -414,7 +414,7 @@ impl RespServerSession {
       }
       Ok(None) => Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         Ok(true)
       }
     }
@@ -451,7 +451,7 @@ impl RespServerSession {
       }
       Ok(None) => Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         Ok(true)
       }
     }
@@ -492,7 +492,7 @@ impl RespServerSession {
       }
       Ok(None) => Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         Ok(true)
       }
     }
@@ -542,7 +542,7 @@ fn rename_sync<'a, D: wdev::Device>(
     }
     Ok(None) => return Ok(false),
     Err(_) => {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
   };
@@ -552,7 +552,7 @@ fn rename_sync<'a, D: wdev::Device>(
     Ok(Some(ttl)) => ttl,
     Ok(None) => return Ok(false),
     Err(_) => {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
   };
@@ -567,7 +567,7 @@ fn rename_sync<'a, D: wdev::Device>(
       Ok(Some(false)) => {}
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -577,7 +577,7 @@ fn rename_sync<'a, D: wdev::Device>(
     Ok(Ok(_)) => {}
     Ok(Err(_)) => return Ok(false),
     Err(_) => {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
   }
@@ -586,7 +586,7 @@ fn rename_sync<'a, D: wdev::Device>(
       Ok(true) => {}
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -598,7 +598,7 @@ fn rename_sync<'a, D: wdev::Device>(
       Ok(true) => {}
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -607,7 +607,7 @@ fn rename_sync<'a, D: wdev::Device>(
     Ok(Ok(_)) => {}
     Ok(Err(_)) => return Ok(false),
     Err(_) => {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
   }

@@ -244,7 +244,7 @@ fn apply_set_with_expiry<'a, D: wdev::Device>(
     // 环形页翻转 / 既有 TTL 清除须异步：先于任何输出整体降级
     Ok(Err(_)) => return Ok(false),
     Err(_) => {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Err(());
     }
   }
@@ -307,7 +307,7 @@ impl RespServerSession {
         output.extend_from_slice(b"$-1\r\n");
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -399,7 +399,7 @@ impl RespServerSession {
             }
             Err(_) => {
               output.truncate(start_len);
-              output.write_resp_error("generic error");
+              output.write_resp_error(RESP_ERR_GENERIC);
             }
           },
           GetexExpiry::At(ticks) => match put_ttl_sync(store, key, ticks) {
@@ -410,7 +410,7 @@ impl RespServerSession {
             }
             Err(_) => {
               output.truncate(start_len);
-              output.write_resp_error("generic error");
+              output.write_resp_error(RESP_ERR_GENERIC);
             }
           },
         }
@@ -424,7 +424,7 @@ impl RespServerSession {
       }
       Err(_) => {
         output.truncate(start_len);
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
       }
     }
     Ok(true)
@@ -473,7 +473,7 @@ impl RespServerSession {
     match store.try_upsert_sync(key, value) {
       Ok(Ok(_)) => output.write_resp_simple_string("OK"),
       Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -532,7 +532,7 @@ impl RespServerSession {
         match store.try_upsert_sync(key, &existing) {
           Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
           Ok(Err(_)) => return Ok(false),
-          Err(_) => output.write_resp_error("generic error"),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
       Ok(Some(None)) => {
@@ -541,11 +541,11 @@ impl RespServerSession {
         match store.try_upsert_sync(key, &new_val) {
           Ok(Ok(_)) => output.write_resp_int(new_val.len() as i64),
           Ok(Err(_)) => return Ok(false),
-          Err(_) => output.write_resp_error("generic error"),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -594,7 +594,7 @@ impl RespServerSession {
       Ok(Some(Some(()))) => {}
       Ok(Some(None)) => output.write_resp_bulk_string(b""),
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -645,7 +645,7 @@ impl RespServerSession {
       // 异步闭环信号须整体降级，吞掉即静默丢写
       Ok(Err(_)) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -653,7 +653,7 @@ impl RespServerSession {
     match put_ttl_sync(store, key, expire_at_ticks) {
       Ok(true) => output.write_resp_simple_string("OK"),
       Ok(false) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -672,10 +672,10 @@ impl RespServerSession {
       Ok(Some(None)) => match store.try_upsert_sync(key, val) {
         Ok(Ok(_)) => output.write_resp_int(1),
         Ok(Err(_)) => return Ok(false),
-        Err(_) => output.write_resp_error("generic error"),
+        Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
       },
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -759,7 +759,7 @@ impl RespServerSession {
           // TTL 记录需磁盘裁决（或已过期待清除）：降级
           Ok(None) => return Ok(false),
           Err(_) => {
-            output.write_resp_error("generic error");
+            output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
@@ -775,7 +775,7 @@ impl RespServerSession {
           Ok(Some(alive)) => alive,
           Ok(None) => return Ok(false),
           Err(_) => {
-            output.write_resp_error("generic error");
+            output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
@@ -802,7 +802,7 @@ impl RespServerSession {
       Ok(Some(found)) => found,
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -823,7 +823,7 @@ impl RespServerSession {
         Ok(Some(ttl)) => Some(ttl),
         Ok(None) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -877,7 +877,7 @@ impl RespServerSession {
       Ok(Some(None)) => 0,
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -891,7 +891,7 @@ impl RespServerSession {
     match store.try_upsert_sync(key, buf.format(next).as_bytes()) {
       Ok(Ok(_)) => output.write_resp_int(next),
       Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -923,7 +923,7 @@ impl RespServerSession {
       Ok(Some(None)) => 0.0,
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error("generic error");
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -940,7 +940,7 @@ impl RespServerSession {
     match store.try_upsert_sync(key, formatted.as_bytes()) {
       Ok(Ok(_)) => output.write_resp_bulk_string(formatted.as_bytes()),
       Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -960,16 +960,16 @@ impl RespServerSession {
         match store.try_upsert_sync(key, &existing) {
           Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
           Ok(Err(_)) => return Ok(false),
-          Err(_) => output.write_resp_error("generic error"),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
       Ok(Some(None)) => match store.try_upsert_sync(key, val) {
         Ok(Ok(_)) => output.write_resp_int(val.len() as i64),
         Ok(Err(_)) => return Ok(false),
-        Err(_) => output.write_resp_error("generic error"),
+        Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
       },
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -1050,7 +1050,7 @@ impl RespServerSession {
     match store.try_read_sync(key, |v| v.len()) {
       Ok(Some(Some(len))) => output.write_resp_int(len as i64),
       Ok(Some(None)) | Ok(None) => output.write_resp_int(0),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -1407,7 +1407,7 @@ impl RespServerSession {
     check_arg_count!(parse_state, empty, output, "TIME");
 
     let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     };
     let seconds = elapsed.as_secs();
@@ -1481,7 +1481,7 @@ impl RespServerSession {
     match store.try_read_sync(key, |_| ()) {
       Ok(Some(_)) => output.extend_from_slice(b"$-1\r\n"),
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -1511,7 +1511,7 @@ impl RespServerSession {
       // C# 键缺失（status != OK）一律回 nil
       Ok(Some(None)) => output.extend_from_slice(b"$-1\r\n"),
       Ok(None) => return Ok(false),
-      Err(_) => output.write_resp_error("generic error"),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }

@@ -1,6 +1,6 @@
 [package]
 name = "wram"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
@@ -25,7 +25,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 libc = { workspace = true }
 log = { workspace = true }
-wbase = { version = "0.1.5", path = "../wbase", features = ["striped", "thread", "error"] }
+wbase = { version = "0.1.6", path = "../wbase", features = ["striped", "thread", "error"] }
 
 [dev-dependencies]
 aok = { workspace = true }

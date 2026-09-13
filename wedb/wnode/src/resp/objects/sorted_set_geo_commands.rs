@@ -482,7 +482,7 @@ impl RespServerSession {
         Ok(true) => {}
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -599,7 +599,7 @@ impl RespServerSession {
           Some(dest) => match zset_save_or_gc(store, dest, &SortedSetObject::new()) {
             Ok(true) => output.extend_from_slice(b":0\r\n"),
             Ok(false) => return Ok(false),
-            Err(_) => output.write_resp_error("generic error"),
+            Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
           },
           None => output.extend_from_slice(b"*0\r\n"),
         }
@@ -629,7 +629,7 @@ impl RespServerSession {
         match zset_save_or_gc(store, &dest, &dst) {
           Ok(true) => output.write_resp_int(count as i64),
           Ok(false) => return Ok(false),
-          Err(_) => output.write_resp_error("generic error"),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
     }

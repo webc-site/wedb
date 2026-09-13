@@ -17,7 +17,6 @@ gxhash.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 waof.workspace = true
-wbase.workspace = true
 wcpr.workspace = true
 wdev.workspace = true
 whasher.workspace = true

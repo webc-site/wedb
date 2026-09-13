@@ -14,13 +14,10 @@ default = [ ]
 bench = [ ]
 
 [dependencies]
-crossbeam-queue = "0.3.14"
 crossfire = "3.1.20"
 event-listener.workspace = true
-wconf.workspace = true
 wdatabase = { version = "0.1.0", path = "../wdatabase" }
 wmetric.workspace = true
-wobject.workspace = true
 
 [dependencies.bitcode]
 workspace = true

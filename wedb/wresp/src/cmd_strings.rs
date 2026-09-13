@@ -21,6 +21,8 @@ pub const RESP_RETURN_VAL_N1: &[u8] = b":-1\r\n";
 /// libs/server/Resp/CmdStrings.cs:RESP_RETURN_VAL_N2
 pub const RESP_RETURN_VAL_N2: &[u8] = b":-2\r\n";
 
+/// wnode 命令层通用兜底错误文案（经 write_resp_error 前置 `-ERR ` 后输出 `-ERR generic error\r\n`）
+pub const RESP_ERR_GENERIC: &str = "generic error";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOAUTH
 pub const RESP_ERR_NOAUTH: &str = "NOAUTH Authentication required.";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOPERM

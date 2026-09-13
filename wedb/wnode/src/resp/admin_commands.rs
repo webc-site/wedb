@@ -179,7 +179,7 @@ impl RespServerSession {
 
     // C# 阻塞等待 storeWrapper.CommitAOFAsync；rust 会话层无该通道
     // （store_wrapper.rs:CommitAofAsync 未建成），按本域存储失败惯例降级
-    output.write_resp_error("generic error");
+    output.write_resp_error(RESP_ERR_GENERIC);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkHCOLLECT
@@ -339,7 +339,7 @@ impl RespServerSession {
     let command = parse_state[0];
     if command.eq_ignore_ascii_case(b"PANIC") {
       // C# 刻意抛异常崩溃进程；rust 禁 panic 约束下按存储失败惯例降级
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
 
@@ -380,7 +380,7 @@ impl RespServerSession {
       }
       // C# 刷并驱逐主存储混合日志（mainStore.Log.FlushAndEvict）；rust wkv
       // 无会话可达的同义入口，按存储失败惯例降级
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
 
@@ -418,7 +418,7 @@ impl RespServerSession {
         );
       }
       // PurgeBPCommand 域未建成（purge_bp_command.rs），按失败惯例降级
-      output.write_resp_error("generic error");
+      output.write_resp_error(RESP_ERR_GENERIC);
       return Ok(true);
     }
 
@@ -525,7 +525,7 @@ impl RespServerSession {
     // C# 阻塞等待 TakeCheckpointAsync(false)；rust 检查点通道未接线
     // （store_wrapper.rs:TakeCheckpointAsync 未建成），按失败惯例降级并区分
     // 既有 C# 错误语义（checkpoint already in progress 不可达）
-    output.write_resp_error("generic error");
+    output.write_resp_error(RESP_ERR_GENERIC);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkEXPDELSCAN
@@ -549,7 +549,7 @@ impl RespServerSession {
 
     // C# 调 storeWrapper.ExpiredKeyDeletionScan（可变区过期键删除扫描）；
     // rust wkv 无会话可达入口，按失败惯例降级（绝不虚报扫描计数）
-    output.write_resp_error("generic error");
+    output.write_resp_error(RESP_ERR_GENERIC);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkLASTSAVE
@@ -566,7 +566,7 @@ impl RespServerSession {
 
     // C# 回数据库 LastSaveTime；rust 检查点域未接线无时间戳来源，按失败
     // 惯例降级（不虚报时间戳）
-    output.write_resp_error("generic error");
+    output.write_resp_error(RESP_ERR_GENERIC);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
@@ -590,7 +590,7 @@ impl RespServerSession {
     }
 
     // C# 阻塞等待 TakeCheckpointAsync(true)；检查点通道缺口同 NetworkSAVE
-    output.write_resp_error("generic error");
+    output.write_resp_error(RESP_ERR_GENERIC);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId

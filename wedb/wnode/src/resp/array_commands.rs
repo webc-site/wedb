@@ -125,7 +125,7 @@ impl RespServerSession {
         // 环形页翻转 / 复合对象元数据：须降级完整异步路由，本次不产生输出
         Ok(Err(_)) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -195,7 +195,7 @@ impl RespServerSession {
         Ok(Ok(_)) => {}
         Ok(Err(_)) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -236,7 +236,7 @@ impl RespServerSession {
         Ok(Ok(_)) => {}
         Ok(Err(_)) => return Ok(false),
         Err(_) => {
-          output.write_resp_error("generic error");
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }

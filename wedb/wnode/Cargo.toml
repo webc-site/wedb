@@ -2,14 +2,16 @@
 name = "wnode"
 version = "0.1.0"
 edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode"
+description = "Core server node runtime, network transport, and request handling for wedb"
 
 [features]
 default = []
 bench = []
 
 [dependencies]
-async-lock.workspace = true
-bitcode.workspace = true
 bitflags.workspace = true
 clap = { version = "4.6.6", features = ["derive"] }
 coarsetime.workspace = true
@@ -18,27 +20,24 @@ crossfire = "3.1.20"
 event-listener.workspace = true
 fastrand.workspace = true
 gxhash.workspace = true
-hdrhistogram = "7"
 itoa.workspace = true
 log.workspace = true
 memchr = "2.8.3"
 nested-text = "0.1.0"
-num_enum = "0.7.6"
 parking_lot = { workspace = true, features = ["arc_lock"] }
 serde = { workspace = true, features = ["derive"] }
 smallvec = "1.16.1"
 sonic-rs.workspace = true
 thiserror.workspace = true
-wacl = { version = "0.1.1", path = "../wacl" }
-waof = { version = "0.1.2", path = "../waof" }
-wbase = { version = "0.1.5", path = "../wbase", features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "time"] }
-wbftree = { version = "0.1.4", path = "../wbftree" }
+wacl = { version = "0.1.2", path = "../wacl" }
+waof = { version = "0.1.3", path = "../waof" }
+wbase = { version = "0.1.6", path = "../wbase", features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "time"] }
+wbftree = { version = "0.1.5", path = "../wbftree" }
 wbitmap.workspace = true
 wconf.workspace = true
-wcpr = { version = "0.1.2", path = "../wcpr" }
 wcustom.workspace = true
 wdatabase = { version = "0.1.0", path = "../wdatabase" }
-wdev = { version = "0.1.3", path = "../wdev" }
+wdev = { version = "0.1.4", path = "../wdev" }
 whasher.workspace = true
 whll.workspace = true
 wkv = { version = "0.1.1", path = "../wkv" }
@@ -46,9 +45,9 @@ wlua = { version = "0.1.0", path = "../wlua" }
 wmetric.workspace = true
 wobject.workspace = true
 wpubsub = { version = "0.1.0", path = "../wpubsub" }
-wresp = { version = "0.1.1", path = "../wresp" }
+wresp = { version = "0.1.2", path = "../wresp" }
 wtxn = { version = "0.1.0", path = "../wtxn" }
-wval = { version = "0.1.2", path = "../wval" }
+wval = { version = "0.1.3", path = "../wval" }
 wvector.workspace = true
 zmij.workspace = true
 
