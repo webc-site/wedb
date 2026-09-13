@@ -275,7 +275,7 @@ impl ReplicationManager {
   ///
   /// 更新主从同步时间戳
   pub fn update_last_primary_sync_time(&self) {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now_ms = wbase::time::now_ms() as i64;
     self
       .primary_sync_last_timestamp
       .store(now_ms, Ordering::Release);
@@ -287,7 +287,7 @@ impl ReplicationManager {
     if last == 0 {
       0
     } else {
-      let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+      let now_ms = wbase::time::now_ms() as i64;
       (now_ms.saturating_sub(last)) / 1000
     }
   }
@@ -667,7 +667,7 @@ impl ReplicationManager {
   /// < TimeSpan.FromSeconds(pollFrequency)` 的间隔检查（完整判定链见
   /// [`crate::server::cluster_provider::ClusterProvider::ensure_replication`]）
   pub fn ensure_replication_due(&self, poll_frequency_secs: i64) -> bool {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now_ms = wbase::time::now_ms() as i64;
     let interval_ms = poll_frequency_secs.saturating_mul(1000);
     let mut last = self
       .last_ensure_replication_attempt_ms

@@ -1121,8 +1121,8 @@ fn request_deletion_respects_suppress_cleanup() {
 
   // 正常删除：发布清理请求 + 丢弃索引
   manager.request_deletion(&index.to_bytes());
-  assert!(manager.request_cleanup_task_channel.has_pending());
-  assert_eq!(manager.request_cleanup_task_channel.try_read(), Some(64));
+  assert!(!manager.request_cleanup_task_channel.is_empty());
+  assert_eq!(manager.request_cleanup_task_channel.try_pop(), Some(64));
   assert_eq!(manager.service.card(64), 0);
 
   // SuppressCleanup：删除被忽略
@@ -1147,7 +1147,7 @@ fn request_deletion_respects_suppress_cleanup() {
   index.context = 66;
   index.flags = VectorSetFlags::SUPPRESS_CLEANUP;
   manager.request_deletion(&index.to_bytes());
-  assert!(!manager.request_cleanup_task_channel.has_pending());
+  assert!(manager.request_cleanup_task_channel.is_empty());
   assert_eq!(manager.service.card(66), 1);
 
   // 尺寸不符：忽略
@@ -1183,7 +1183,7 @@ fn drop_in_memory_index_flow() {
   // 请求丢弃：登记 + 信号
   manager.request_drop_in_memory_index(&key, &index.to_bytes());
   assert!(manager.requested_drops.contains(&key));
-  assert!(manager.request_drop_task_channel.has_pending());
+  assert!(!manager.request_drop_task_channel.is_empty());
 
   // 重复请求被拒
   manager.request_drop_in_memory_index(&key, &index.to_bytes());

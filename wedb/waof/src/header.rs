@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use strum::FromRepr;
-use wbase::crc::crc32;
+use wbase::crc::{Crc32Hasher, crc32};
 
 use super::error::{Error, Result};
 
@@ -60,6 +60,26 @@ impl RecordHeader {
     Self {
       entry_len: payload.len() as u32,
       crc32: payload_crc(payload),
+    }
+  }
+
+  /// 为分部件负载增量计算 CRC32 并创建记录头（scatter-write 入口）
+  ///
+  /// CRC32 线性可分段：分段累加与整包单遍结果逐位一致，调用方无须预拼
+  /// 整包即可得到与 [`Self::for_payload`] 完全相同的记录头
+  #[inline]
+  pub fn for_payload_parts(parts: &[&[u8]]) -> Self {
+    let total_len: usize = parts.iter().map(|part| part.len()).sum();
+    if total_len == 0 {
+      return Self::new(0, EMPTY_PAYLOAD_CRC);
+    }
+    let mut hasher = Crc32Hasher::new();
+    for part in parts {
+      hasher.update(part);
+    }
+    Self {
+      entry_len: total_len as u32,
+      crc32: hasher.finalize(),
     }
   }
 

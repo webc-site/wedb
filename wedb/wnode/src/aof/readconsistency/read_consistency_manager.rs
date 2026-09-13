@@ -278,21 +278,6 @@ impl ReadConsistencyManager {
     vsr.update_key_sequence_number(key_hash, sequence_number);
   }
 
-  /// 按哈希路由的 key 序列号推进（存储过程/无子日志下标侧入口）。
-  pub fn update_key_sequence_number_by_hash(&self, key_hash: i64, sequence_number: i64) {
-    let idx = self.virtual_sublog_idx_of_hash(key_hash);
-    self
-      .vsr(idx)
-      .update_key_sequence_number(key_hash, sequence_number);
-  }
-
-  /// 批量推进 key 哈希序列号（直接消费切片，对标 C# CustomProcedureKeyHashCollection 迭代行为）。
-  pub fn update_key_sequence_numbers(&self, hashes: &[i64], sequence_number: i64) {
-    for &hash in hashes {
-      self.update_key_sequence_number_by_hash(hash, sequence_number);
-    }
-  }
-
   /// libs/server/AOF/ReadConsistency/ReadConsistencyManager.cs:CheckConsistencyManagerVersion
   ///
   /// 会话上下文与当前版本同步：首次或版本变更即重置会话状态。
@@ -453,7 +438,11 @@ mod tests {
     let m = manager();
     let key = b"rk";
     assert_eq!(m.get_key_sequence_number(key, false), 0);
-    m.update_key_sequence_number_by_hash(GarnetLog::hash(key), 11);
+    m.update_virtual_sublog_key_sequence_number(
+      m.virtual_sublog_idx_of_hash(GarnetLog::hash(key)),
+      GarnetLog::hash(key),
+      11,
+    );
     assert_eq!(m.get_key_sequence_number(key, false), 11);
     assert!(m.get_key_sequence_number(key, true) >= 11);
   }
@@ -489,7 +478,7 @@ mod tests {
     let m = manager();
     let key = b"proto";
     let hash = GarnetLog::hash(key);
-    m.update_key_sequence_number_by_hash(hash, 5);
+    m.update_virtual_sublog_key_sequence_number(m.virtual_sublog_idx_of_hash(hash), hash, 5);
 
     let ctx = ReplicaReadSessionContext::default();
     m.pre_single_key_consistent_read(hash, &ctx, Duration::from_millis(10));
@@ -508,7 +497,7 @@ mod tests {
     if m.virtual_sublog_idx_of_hash(h1) == m.virtual_sublog_idx_of_hash(h2) {
       return;
     }
-    m.update_key_sequence_number_by_hash(h1, 3);
+    m.update_virtual_sublog_key_sequence_number(m.virtual_sublog_idx_of_hash(h1), h1, 3);
 
     let ctx = ReplicaReadSessionContext::default();
     let got1 = m.pre_batch_key_consistent_read(k1, &ctx, Duration::from_millis(10));
@@ -541,13 +530,5 @@ mod tests {
     m.advance_virtual_sublog_time(0, 12);
     m.advance_virtual_sublog_time(1, 12);
     assert!(!m.replay_barrier.in_progress());
-  }
-
-  #[test]
-  fn update_key_sequence_numbers_advances_slice() {
-    let m = ReadConsistencyManager::new(1, 1, 1, -1, 0);
-    let hash = m.key_hash(b"proc-key");
-    m.update_key_sequence_numbers(&[hash], 9);
-    assert_eq!(m.get_key_sequence_number_by_hash(hash), 9);
   }
 }

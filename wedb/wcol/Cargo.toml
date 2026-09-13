@@ -5,9 +5,9 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wcol"
-description = "wcol"
-keywords = []
-categories = []
+description = "Collection objects (list/set/hash/zset/geo) and BfTree range-index operator layer for wedb"
+keywords = ["collections", "list", "set", "hash", "zset"]
+categories = ["data-structures", "database-implementations"]
 
 [features]
 default = []

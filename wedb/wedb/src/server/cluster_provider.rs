@@ -5,14 +5,16 @@ use std::sync::{
 
 use compio::runtime::spawn;
 use parking_lot::RwLock;
-use waof::AofAddress;
+use waof::{AofAddress, WalLog};
 use wbase::future::yield_now;
 use wdatabase::checkpoint_version;
 use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wmetric::MetricsItem;
 use wnode::{
-  ClusterProvider as WnodeClusterProvider, RoleInfo, session_parse_state_extensions::ManagerType,
+  ClusterProvider as WnodeClusterProvider, RoleInfo,
+  aof::garnet_append_only_file::GarnetAppendOnlyFile, resp::vector::vector_manager::VectorManager,
+  session_parse_state_extensions::ManagerType,
 };
 use wresp::RespCommand;
 
@@ -28,11 +30,25 @@ use crate::server::{
   gossip::gossip_manager::GossipManager,
   migration::migration_manager::MigrationManager,
   replication::{
-    checkpoint_entry::CheckpointEntry, recovery_status::RecoveryStatus,
-    replication_manager::ReplicationManager, store_commit::StoreCommitChannel,
+    aof_replication_pump::AofReplicationPump, checkpoint_entry::CheckpointEntry,
+    cluster_replication_session::ClusterReplicationSession, recovery_status::RecoveryStatus,
+    replica_sync_session::ReplicaSyncSession, replication_manager::ReplicationManager,
+    store_commit::StoreCommitChannel,
   },
   worker::NodeRole,
 };
+
+/// 主端 AOF 推流装配面（CLUSTER INITIATE_REPLICA_SYNC 发起侧依赖束：
+/// 物理日志 + 推流泵 + 主端同步会话；AOF 门控点亮时经
+/// [`ClusterProvider::set_primary_replication`] 一次注入）
+pub struct PrimaryReplicationAssets {
+  /// 主端物理日志（同步策略协商的位点基准 + 推流数据源）
+  pub wal: Arc<WalLog<SegmentedDevice>>,
+  /// 主端推流泵（attach 副本 sink 后同栈分发新写入）
+  pub pump: Arc<AofReplicationPump>,
+  /// 主端副本同步会话（策略协商 + 建连 + 补扫）
+  pub sync_session: Arc<ReplicaSyncSession>,
+}
 
 /// WeDB 分布式集群提供者核心门面（对标 C# Garnet.cluster.ClusterProvider）
 pub struct ClusterProvider {
@@ -54,6 +70,16 @@ pub struct ClusterProvider {
   /// CLUSTER RESET 的 HasKeysInSlots 扫描与 HARD 清库经此下发。装配期
   /// 一次注入，未注入时集群命令族仍可用，仅 RESET 慢路径降级报错）
   store: RwLock<Option<Arc<WedbStore<SegmentedDevice>>>>,
+  /// 向量集合管理器（CLUSTER RESERVE 迁移预保留面，对标 C#
+  /// RespServerSession 会话持有的 vectorManager；装配期一次注入）
+  vector_manager: RwLock<Option<Arc<VectorManager>>>,
+  /// AOF 门面（MLOG_KEY_TIME 序列号读取面，对标 C#
+  /// storeWrapper.appendOnlyFile；AOF 门控点亮时注入，未启用为 None）
+  aof: RwLock<Option<Arc<GarnetAppendOnlyFile>>>,
+  /// 副本接收面会话（CLUSTER APPENDLOG 落盘重放；AOF 门控点亮时注入）
+  replica_replication: RwLock<Option<Arc<ClusterReplicationSession<SegmentedDevice>>>>,
+  /// 主端推流装配面（CLUSTER INITIATE_REPLICA_SYNC 发起面）
+  primary_replication: RwLock<Option<Arc<PrimaryReplicationAssets>>>,
 }
 
 impl Default for ClusterProvider {
@@ -71,6 +97,10 @@ impl Default for ClusterProvider {
       seq_reset_hook: RwLock::new(None),
       self_weak: OnceLock::new(),
       store: RwLock::new(None),
+      vector_manager: RwLock::new(None),
+      aof: RwLock::new(None),
+      replica_replication: RwLock::new(None),
+      primary_replication: RwLock::new(None),
     }
   }
 }
@@ -350,6 +380,55 @@ impl ClusterProvider {
   /// 共享存储引擎（未注入时 None）
   pub fn try_store(&self) -> Option<Arc<WedbStore<SegmentedDevice>>> {
     self.store.read().clone()
+  }
+
+  /// 注入向量集合管理器（集群装配期一次调用；对标 C# RespServerSession
+  /// 会话持有的 vectorManager——CLUSTER RESERVE 迁移预保留面）
+  pub fn set_vector_manager(&self, vector_manager: Arc<VectorManager>) {
+    *self.vector_manager.write() = Some(vector_manager);
+  }
+
+  /// 向量集合管理器（未注入时 None）
+  pub fn try_vector_manager(&self) -> Option<Arc<VectorManager>> {
+    self.vector_manager.read().clone()
+  }
+
+  /// 注入 AOF 门面（AOF 门控点亮时装配期一次调用；对标 C#
+  /// storeWrapper.appendOnlyFile 可达面——MLOG_KEY_TIME 序列号读取）
+  pub fn set_aof(&self, aof: Option<Arc<GarnetAppendOnlyFile>>) {
+    *self.aof.write() = aof;
+  }
+
+  /// AOF 门面（AOF 门控未点亮时 None）
+  pub fn try_aof(&self) -> Option<Arc<GarnetAppendOnlyFile>> {
+    self.aof.read().clone()
+  }
+
+  /// 注入副本接收面会话（AOF 门控点亮时装配期一次调用；CLUSTER APPENDLOG
+  /// 记录帧经此落盘重放，对标 C# 会话侧 replicaReplaySession 可达面）
+  pub fn set_replica_replication_session(
+    &self,
+    session: Option<Arc<ClusterReplicationSession<SegmentedDevice>>>,
+  ) {
+    *self.replica_replication.write() = session;
+  }
+
+  /// 副本接收面会话（未注入时 None）
+  pub fn try_replica_replication_session(
+    &self,
+  ) -> Option<Arc<ClusterReplicationSession<SegmentedDevice>>> {
+    self.replica_replication.read().clone()
+  }
+
+  /// 注入主端推流装配面（AOF 门控点亮时装配期一次调用；CLUSTER
+  /// INITIATE_REPLICA_SYNC 发起面）
+  pub fn set_primary_replication(&self, assets: Option<Arc<PrimaryReplicationAssets>>) {
+    *self.primary_replication.write() = assets;
+  }
+
+  /// 主端推流装配面（未注入时 None）
+  pub fn try_primary_replication(&self) -> Option<Arc<PrimaryReplicationAssets>> {
+    self.primary_replication.read().clone()
   }
 
   /// 注册序列号生成器复位勾子（集群装配期注入）

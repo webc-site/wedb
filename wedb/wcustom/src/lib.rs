@@ -21,12 +21,13 @@ pub mod custom_raw_string_functions;
 pub mod custom_resp_commands;
 pub mod custom_transaction_procedure;
 pub mod expandable_map;
+pub mod module;
 pub mod object_input_extensions;
 
 pub use custom_command_manager::{
   CommandType, CustomCommandDocs, CustomCommandInfo, CustomCommandManager, CustomObjectCommand,
   CustomObjectCommandWrapper, CustomProcedureWrapper, CustomRawStringCommand, CustomTransaction,
-  RawStringCommandSpec, RawStringFn, SharedCustomCommandManager,
+  CustomTransactionProcFactory, RawStringCommandSpec, RawStringFn, SharedCustomCommandManager,
 };
 pub use custom_command_manager_session::CustomCommandManagerSession;
 pub use custom_command_registration::CustomCommandRegistration;
@@ -38,4 +39,5 @@ pub use custom_raw_string_functions::CustomRawStringFunctions;
 pub use custom_resp_commands::CustomRespCommands;
 pub use custom_transaction_procedure::CustomTransactionProcedure;
 pub use expandable_map::ExpandableMap;
+pub use module::{GarnetModule, ModuleLoadContext};
 pub use object_input_extensions::ObjectInputExtensions;

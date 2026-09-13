@@ -19,14 +19,13 @@ pub fn sanitize_error_str(s: &str, max_len: usize) -> &str {
   }
 }
 
-use wbase::num::{strict_i32, strict_i64};
+use wbase::num::strict_i64;
 
 pub trait RespSliceExt {
   fn as_str_safe(&self) -> &str;
   /// 严格解析：参数整体须为合法整数（对应 C# parseState.TryGetInt / TryGetLong，
   /// allowLeadingZeros: false —— 前导零、空白、尾随垃圾一律失败），失败返回 None
   fn try_parse_i64(&self) -> Option<i64>;
-  fn try_parse_i32(&self) -> Option<i32>;
 }
 
 impl RespSliceExt for [u8] {
@@ -37,10 +36,6 @@ impl RespSliceExt for [u8] {
   #[inline]
   fn try_parse_i64(&self) -> Option<i64> {
     strict_i64(self)
-  }
-  #[inline]
-  fn try_parse_i32(&self) -> Option<i32> {
-    strict_i32(self)
   }
 }
 
@@ -143,16 +138,5 @@ mod tests {
     let mut buf2 = Vec::new();
     buf2.write_resp_error("ERR already has prefix");
     assert_eq!(buf2, b"-ERR already has prefix\r\n");
-  }
-
-  #[test]
-  fn try_parse_i32_strict() {
-    assert_eq!(b"42".try_parse_i32(), Some(42));
-    assert_eq!(b"-7".try_parse_i32(), Some(-7));
-    assert_eq!(b"2147483647".try_parse_i32(), Some(i32::MAX));
-    assert_eq!(b"-2147483648".try_parse_i32(), Some(i32::MIN));
-    assert_eq!(b"2147483648".try_parse_i32(), None);
-    assert_eq!(b"-2147483649".try_parse_i32(), None);
-    assert_eq!(b"007".try_parse_i32(), None);
   }
 }

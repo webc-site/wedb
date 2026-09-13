@@ -19,6 +19,7 @@ use std::{
   },
 };
 
+use itoa;
 use wbase::time::now_ms;
 use wbitmap::BitmapOperation;
 use wcol::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
@@ -54,6 +55,9 @@ use crate::{
 /// 错误文案——命令层 `Ok(false)` 约定不残留输出，慢路径执行器
 /// [`SlowWait`] 承接闭环；仅当宿主未挂慢路径执行器时兜底写明错误而非静默
 const RESP_ERR_ASYNC_REQUIRED: &str = "ERR command requires asynchronous completion";
+
+/// DBID 合法上界（AdminCommands.cs:MaxDatabases 默认 16；慢路径防御性重校验）
+const MAX_DBID_UPPER_BOUND: i64 = 16;
 
 /// 慢路径异步扫描/清库 IO 失败的兜底错误文案（存储层 wkv::Error 统一
 /// 降噪为此单行，杜绝把内部错误细节泄漏给客户端）
@@ -497,6 +501,34 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           C::Riconfig => ri_cmds::network_riconfig(&refs, ri, &self.session, &mut output).await,
           _ => ri_cmds::network_rimetrics(&refs, ri, &self.session, &mut output).await,
         };
+      }
+      // ---- 过期键删除扫描（AdminCommands.cs:NetworkEXPDELSCAN：C# 阻塞
+      // 等待 storeWrapper.ExpiredKeyDeletionScan；应答 *2 计数对
+      // `*2\r\n$N\r\n<expired>\r\n$N\r\n<scanned>\r\n`，DBID 已在快
+      // 路径 try_parse_database_id 校验，此处防御性重解析）
+      C::Expdelscan => {
+        let db_id = match refs.first() {
+          None => None,
+          Some(arg) => match strict_i32(arg) {
+            // 集群模式禁非零 DBID 同快路径口径；此处仅承接已校验参数
+            Some(v) if (0..MAX_DBID_UPPER_BOUND).contains(&(i64::from(v))) => {
+              Some(u64::try_from(v).unwrap_or(0))
+            }
+            _ => {
+              write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED);
+              return output;
+            }
+          },
+        };
+        match self.session.store.expired_key_deletion_scan(db_id).await {
+          Ok((expired, scanned)) => {
+            let mut buf = itoa::Buffer::new();
+            output.write_resp_array_len(2);
+            output.write_resp_bulk_string(buf.format(expired).as_bytes());
+            output.write_resp_bulk_string(buf.format(scanned).as_bytes());
+          }
+          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+        }
       }
       // 未接入慢路径分派表的命令：写明错误，绝不静默
       _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),

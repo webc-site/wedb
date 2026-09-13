@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wmetric"
 description = "Metrics, statistics, and slowlog container for wedb"
+keywords = ["metrics", "telemetry", "slowlog", "latency", "statistics"]
 
 [lints]
 workspace = true

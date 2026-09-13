@@ -11,6 +11,8 @@ use gxhash::{HashMap, HashSet};
 use parking_lot::RwLock;
 use wval::GarnetObjectType;
 
+use crate::custom_transaction_procedure::CustomTransactionProcedure;
+
 /// 模块加载失败通用文案（对齐 CmdStrings.RESP_ERR_MODULE_ONLOAD，本域两处复用）。
 const ERR_MODULE_FAILED_TO_LOAD: &str = "ERR module failed to load";
 
@@ -39,6 +41,10 @@ pub enum CommandType {
 
 /// 自定义原始字符串命令的处理函数形态（输入参数 → 应答字节）。
 pub type RawStringFn = fn(&[&[u8]]) -> Vec<u8>;
+
+/// 自定义事务过程工厂（C# `Func<CustomTransactionProcedure>`：执行期
+/// 实例化三段式过程体）。
+pub type CustomTransactionProcFactory = fn() -> CustomTransactionProcedure;
 
 /// 已注册的自定义原始字符串命令。
 #[derive(Clone)]
@@ -122,6 +128,8 @@ pub struct CustomTransaction {
   pub id: u8,
   /// 元数。
   pub arity: i32,
+  /// 过程体工厂（C# proc 委托；执行期实例化三段式过程）。
+  pub proc: CustomTransactionProcFactory,
 }
 
 /// 已注册的自定义过程包装。
@@ -285,10 +293,12 @@ impl CustomCommandManager {
     Ok(ext_id)
   }
 
-  /// 注册自定义事务（对应 C# CustomCommandManager.Register(CustomTransactionProcedure) 重载）；返回事务 id。
+  /// 注册自定义事务（对应 C# CustomCommandManager.Register(CustomTransactionProcedure)
+  /// 重载：name + proc 工厂）；返回事务 id。
   pub fn register_transaction(
     &mut self,
     name: &str,
+    proc: CustomTransactionProcFactory,
     command_info: Option<CustomCommandInfo>,
     command_docs: Option<CustomCommandDocs>,
   ) -> Result<u8, &'static str> {
@@ -308,6 +318,7 @@ impl CustomCommandManager {
       name: name.to_lowercase(),
       id: cmd_id as u8,
       arity,
+      proc,
     };
 
     let slot = cmd_id as usize;
@@ -644,6 +655,11 @@ mod tests {
     echo_impl
   }
 
+  /// 测试用过程体工厂（默认空事务三段式）
+  fn stub_proc_fn() -> CustomTransactionProcedure {
+    CustomTransactionProcedure::new(0)
+  }
+
   #[test]
   fn raw_string_command_registration_and_lookup() {
     let mut manager = CustomCommandManager::new();
@@ -798,13 +814,16 @@ mod tests {
     let mut manager = CustomCommandManager::new();
 
     let txn_id = manager
-      .register_transaction("MYTXN", Some(info("MYTXN", -3)), None)
+      .register_transaction("MYTXN", stub_proc_fn, Some(info("MYTXN", -3)), None)
       .unwrap();
     assert_eq!(txn_id, 0);
     let txn = manager
       .try_get_custom_transaction_procedure(txn_id)
       .unwrap();
     assert_eq!(txn.arity, -3);
+    // 过程体工厂可实例化（C# entry.proc() 同径）
+    assert_eq!(txn.id, 0);
+    assert_eq!((txn.proc)().id, 0);
     assert!(manager.try_get_custom_transaction_procedure(9).is_none());
 
     let proc_id = manager

@@ -116,23 +116,47 @@ impl RingBuffer {
     header: &[u8; RECORD_HEADER_LEN],
     payload: &[u8],
   ) {
-    let total_len = RECORD_HEADER_LEN + payload.len();
+    self.write_record_parts(logical_offset, header, &[payload]);
+  }
+
+  /// 分部件写入完整 WAL 记录（头 + 逐负载部件，scatter-write 零整包拼接）：
+  /// 非回绕边界单次寻址顺序拷贝各部件，回绕边界逐部件交给 [`Self::write_bytes`] 自动回绕。
+  /// 产出页与 [`Self::write_record`] 整包写入逐字节一致
+  #[inline]
+  pub fn write_record_parts(
+    &self,
+    logical_offset: u64,
+    header: &[u8; RECORD_HEADER_LEN],
+    parts: &[&[u8]],
+  ) {
+    let payload_len: usize = parts.iter().map(|part| part.len()).sum();
+    let total_len = RECORD_HEADER_LEN + payload_len;
     debug_assert!(total_len <= self.capacity);
     let cap = self.capacity;
     let ring_off = self.ring_offset(logical_offset);
     let raw = self.ptr.as_ptr();
     if ring_off + total_len <= cap {
       unsafe {
-        let dest = raw.add(ring_off);
+        let mut dest = raw.add(ring_off);
         copy_nonoverlapping(header.as_ptr(), dest, RECORD_HEADER_LEN);
-        if !payload.is_empty() {
-          copy_nonoverlapping(payload.as_ptr(), dest.add(RECORD_HEADER_LEN), payload.len());
+        dest = dest.add(RECORD_HEADER_LEN);
+        for part in parts {
+          if part.is_empty() {
+            continue;
+          }
+          copy_nonoverlapping(part.as_ptr(), dest, part.len());
+          dest = dest.add(part.len());
         }
       }
     } else {
       self.write_bytes(logical_offset, header);
-      if !payload.is_empty() {
-        self.write_bytes(logical_offset + RECORD_HEADER_LEN as u64, payload);
+      let mut offset = logical_offset + RECORD_HEADER_LEN as u64;
+      for part in parts {
+        if part.is_empty() {
+          continue;
+        }
+        self.write_bytes(offset, part);
+        offset += part.len() as u64;
       }
     }
   }

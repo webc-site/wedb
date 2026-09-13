@@ -466,14 +466,25 @@ impl<D: Device> WalLog<D> {
   }
 
   /// 将数据追加到 WAL 内存缓冲区，返回起始逻辑地址（支持多线程并发无锁预占地址）
+  #[inline]
   pub fn enqueue(&self, payload: &[u8]) -> Result<u64> {
+    self.enqueue_parts(&[payload])
+  }
+
+  /// 将多个负载部件按序追加为单条 WAL 记录（scatter-write，零整包拼接），返回起始逻辑地址
+  ///
+  /// 产出的记录帧与 [`Self::enqueue`] 预拼整包后写入逐字节一致（记录头经
+  /// `RecordHeader::for_payload_parts` 分段累加，CRC32 线性等价），调用方免去
+  /// 预拼整包 Vec 的整量拷贝；恢复侧扫描路径零改动
+  pub fn enqueue_parts(&self, parts: &[&[u8]]) -> Result<u64> {
     // u64 口径计算记录总长，规避 32 位平台上 +RECORD_HEADER_LEN 的 usize 溢出
-    let record_len = RECORD_HEADER_LEN as u64 + payload.len() as u64;
+    let payload_len: usize = parts.iter().map(|part| part.len()).sum();
+    let record_len = RECORD_HEADER_LEN as u64 + payload_len as u64;
     self.check_record_len(record_len)?;
 
     // 预先计算记录头与 CRC32，避免在持有在途槽位期间耗费 CPU 算力拖慢并发提交
-    let header = RecordHeader::for_payload(payload);
-    self.enqueue_with(header.to_bytes(), payload)
+    let header = RecordHeader::for_payload_parts(parts);
+    self.enqueue_with_parts(header.to_bytes(), parts)
   }
 
   /// 原样写入完整记录帧（8 字节记录头 + 负载），返回起始逻辑地址
@@ -492,7 +503,7 @@ impl<D: Device> WalLog<D> {
       return Err(Error::InvalidRecordHeader);
     }
     self.check_record_len(frame.len() as u64)?;
-    self.enqueue_with(*header, payload)
+    self.enqueue_with_parts(*header, &[payload])
   }
 
   /// 单条记录总长上限：负载以 u32 编码长度，且须完整落入环形缓冲区
@@ -513,39 +524,51 @@ impl<D: Device> WalLog<D> {
     Ok(())
   }
 
-  /// 入队公共路径：注册在途槽位 → CAS 预占地址 → 写入环形缓冲 → 释放槽位
-  fn enqueue_with(&self, header_bytes: [u8; RECORD_HEADER_LEN], payload: &[u8]) -> Result<u64> {
+  /// 入队公共路径：注册在途槽位 → CAS 预占地址 → 分部件写入环形缓冲 → 释放槽位
+  fn enqueue_with_parts(
+    &self,
+    header_bytes: [u8; RECORD_HEADER_LEN],
+    parts: &[&[u8]],
+  ) -> Result<u64> {
+    let payload_len: usize = parts.iter().map(|part| part.len()).sum();
     // 1. 注册在途槽位（发布下界，防止 commit 提前刷盘未就绪内存）
     let (slot_idx, current_tail) = self.acquire_inflight_slot();
 
     // 2. CAS 预占逻辑地址范围（槽位值由 reserve_address 全程维护为当前预占下界；
     //    BufferFull 失败路径由 reserve_address 内部释放槽位）
     let reserved_addr = self.reserve_address(
-      RECORD_HEADER_LEN as u64 + payload.len() as u64,
+      RECORD_HEADER_LEN as u64 + payload_len as u64,
       current_tail,
       slot_idx,
     )?;
 
-    // 3. 写入记录头与负载数据到环形缓冲区（单次寻址快路径）
+    // 3. 分部件写入记录头与负载数据到环形缓冲区（单次寻址快路径，零整包拼接）
     // 此刻槽位值 == reserved_addr（CAS 成功路径中尾地址未再变化），
     // 故 safe_tail 至多覆盖到 reserved_addr，绝不越过尚未写入的本记录
     self
       .ring_buffer
-      .write_record(reserved_addr, &header_bytes, payload);
+      .write_record_parts(reserved_addr, &header_bytes, parts);
 
     // 4. 推流端口在槽位释放前触发：推流序与 AOF 地址序原子一致，
-    // 并发写入下从侧应用序与主侧重启重放序永不发散（小记录栈上拼帧杜绝堆分配）
+    // 并发写入下从侧应用序与主侧重启重放序永不发散。推流契约要求连续完整帧，
+    // 故仅在 sink 存在时现场拼帧（小帧栈上缓冲，大帧单次分配）
     if let Some(sink) = self.replication_sink.get() {
-      let total_len = RECORD_HEADER_LEN + payload.len();
+      let total_len = RECORD_HEADER_LEN + payload_len;
       if total_len <= SMALL_FRAME_STACK_BUF_SIZE {
         let mut buf = [0u8; SMALL_FRAME_STACK_BUF_SIZE];
         buf[..RECORD_HEADER_LEN].copy_from_slice(&header_bytes);
-        buf[RECORD_HEADER_LEN..total_len].copy_from_slice(payload);
+        let mut offset = RECORD_HEADER_LEN;
+        for part in parts {
+          buf[offset..offset + part.len()].copy_from_slice(part);
+          offset += part.len();
+        }
         sink.call(reserved_addr, &buf[..total_len]);
       } else {
         let mut full_frame = Vec::with_capacity(total_len);
         full_frame.extend_from_slice(&header_bytes);
-        full_frame.extend_from_slice(payload);
+        for part in parts {
+          full_frame.extend_from_slice(part);
+        }
         sink.call(reserved_addr, &full_frame);
       }
     }

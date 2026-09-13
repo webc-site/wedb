@@ -10,7 +10,7 @@ use std::{fmt, io};
 use gxhash::{HashMap as GxHashMap, HashSet as GxHashSet};
 use wbase::{
   glob::glob_match_nocase,
-  hash_slot::{CLUSTER_SLOTS as WBASE_CLUSTER_SLOTS, hash_slot as cluster_slot},
+  hash_slot::hash_slot as cluster_slot,
   time::now_ticks,
 };
 use wdev::Device;
@@ -24,9 +24,6 @@ pub(crate) const TAG_STRING: u8 = KeyTag::String.as_u8();
 pub(crate) const TAG_META: u8 = KeyTag::Meta.as_u8();
 /// 物理键标签：key 级 TTL 记录
 pub(crate) const TAG_TTL: u8 = KeyTag::Ttl.as_u8();
-
-/// Redis 集群槽位数（libs/server/Cluster/ClusterSlotUtils.cs 语义常量）
-pub const CLUSTER_SLOTS: u16 = WBASE_CLUSTER_SLOTS;
 
 /// SCAN TYPE 过滤三态（C# NetworkSCAN 的 matchType：`null` / `typeof(string)`
 /// / 具体对象 Type；字符串类型不在 [`GarnetObjectType`] 域内，独立承载）

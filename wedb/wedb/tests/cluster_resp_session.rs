@@ -20,6 +20,7 @@ use wkv::{StoreConfig, WedbStore};
 use wnode::{
   MessageConsumerFace, RespSessionConsumer,
   resp::{garnet_api::StoreGarnetApi, resp_server_session::RespServerSessionOptions},
+  service::StorageSessionProvider,
 };
 
 /// 装配双主节点拓扑：node_1（本地）持 0..8192，node_2@7001 持 8192..16384
@@ -948,4 +949,133 @@ fn cluster_slotstate_projection() {
   // 越界 → "ERR Slot out of range"
   let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "SLOTSTATE", "16384"]));
   assert_eq!(out, b"-ERR Slot out of range\r\n");
+}
+
+// ---------------------------------------------------------------------------
+// 零依赖指令接线回归：CLUSTER RESERVE / ADVANCE_TIME / MLOG_KEY_TIME /
+// APPENDLOG（AOF 门控关闭路径的报错口径）
+// ---------------------------------------------------------------------------
+
+/// CLUSTER RESERVE：VECTOR_SET_CONTEXTS 预保留上下文 → *n + 逐上下文
+/// 十进制简单串；非法类型 / 非法计数按 C# 元数与文案口径拒绝
+#[test]
+fn cluster_reserve_contexts() {
+  let dir = tempfile::tempdir().unwrap();
+  let (_store, _broker, vector_manager) = wnode::service::open_node(dir.path().join("reserve.db"))
+    .unwrap();
+  let cp = two_primary_provider();
+  cp.set_vector_manager(vector_manager);
+  let mut consumer = cluster_consumer(&cp);
+
+  // 预保留 3 个上下文 → *3 + 3 个十进制简单串
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "RESERVE", "VECTOR_SET_CONTEXTS", "3"]),
+  );
+  assert_eq!(out, b"*3\r\n+8\r\n+16\r\n+24\r\n");
+
+  // 未识别保留类型 → "Unrecognized reservation type"
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "RESERVE", "STRING_CONTEXTS", "3"]),
+  );
+  assert_eq!(out, b"-Unrecognized reservation type\r\n");
+
+  // 计数非正 → 元数错误
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "RESERVE", "VECTOR_SET_CONTEXTS", "0"]),
+  );
+  assert_eq!(
+    out,
+    b"-ERR wrong number of arguments for 'cluster|reserve' command\r\n"
+  );
+}
+
+/// CLUSTER RESERVE：向量管理器未装配 → 集群未初始化口径
+#[test]
+fn cluster_reserve_without_vector_manager_rejected() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "RESERVE", "VECTOR_SET_CONTEXTS", "2"]),
+  );
+  assert_eq!(out, b"-ERR Cluster not initialized\r\n");
+}
+
+/// CLUSTER ADVANCE_TIME：元数错误回显完整命令名；AOF 门控关闭（无重放
+/// 驱动）按 C# 静默口径无应答
+#[test]
+fn cluster_advance_time_gate_and_silence() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "ADVANCE_TIME", "0"]));
+  assert_eq!(
+    out,
+    b"-ERR wrong number of arguments for 'cluster|advancetime' command\r\n"
+  );
+
+  // 无重放驱动（AOF 未挂）→ C# GetReplayDriver?.SignalTimeAdvance 同口径
+  // 静默无应答
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "ADVANCE_TIME", "0", "7"]),
+  );
+  assert_eq!(out, b"");
+}
+
+/// CLUSTER MLOG_KEY_TIME：AOF 门控关闭（单物理日志）→ C#
+/// RESP_ERR_MULTI_LOG_DISABLED 同口径显式报错
+#[test]
+fn cluster_mlog_key_time_disabled_without_aof() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "MLOG_KEY_TIME", "key1"]));
+  assert_eq!(out, b"-ERR Multi-log disabled\r\n");
+}
+
+/// CLUSTER APPENDLOG：副本接收会话未注入（AOF 门控关闭）→ 集群未初始化口径
+#[test]
+fn cluster_appendlog_without_replica_session_rejected() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&[
+      "CLUSTER",
+      "APPENDLOG",
+      "node_1",
+      "0",
+      "-1",
+      "-1",
+      "-1",
+    ]),
+  );
+  assert_eq!(out, b"-ERR Cluster not initialized\r\n");
+}
+
+/// AOF 门控点亮路径冒烟：open_with_aof 装配后 aof() 在场；单物理日志形态
+/// 下 MLOG_KEY_TIME 仍按 C# 单日志部署口径回 RESP_ERR_MULTI_LOG_DISABLED
+#[test]
+fn cluster_mlog_key_time_with_aof_single_log() {
+  let dir = tempfile::tempdir().unwrap();
+  let provider = StorageSessionProvider::open_with_aof(dir.path().join("aof.db"), None, {
+    |network_sender_id, api| {
+      Some(RespSessionConsumer::new(
+        network_sender_id,
+        RespServerSessionOptions::default(),
+        api,
+      ))
+    }
+  })
+  .unwrap();
+  assert!(provider.aof().is_some(), "AOF 门控点亮后门面在场");
+
+  let cp = two_primary_provider();
+  cp.set_aof(provider.aof().cloned());
+  let mut consumer = cluster_consumer(&cp);
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "MLOG_KEY_TIME", "key1"]));
+  assert_eq!(out, b"-ERR Multi-log disabled\r\n");
 }

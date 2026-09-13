@@ -9,8 +9,8 @@
 
 use std::str::from_utf8;
 
-use wbitmap::{BitFieldOverflow, parse_bitfield_overflow_slice};
 use wbase::num::{strict_f64, strict_i32, strict_i64};
+use wbitmap::{BitFieldOverflow, parse_bitfield_overflow_slice};
 use wcol::{
   list::list_object::OperationDirection,
   sortedsetgeo::{
@@ -19,9 +19,7 @@ use wcol::{
   },
 };
 use wmetric::{InfoMetricsType, LatencyMetricsType};
-use wresp::{
-  ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption, cmd_strings,
-};
+use wresp::{ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption, cmd_strings};
 
 pub use crate::key_spec::*;
 use crate::storage::session::objectstore::sorted_set_ops::ZSetAggregate;
@@ -533,7 +531,11 @@ pub fn try_get_geo_search_options(
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetManagerType
 pub fn try_get_manager_type(parse_state: &SessionParseState, idx: usize) -> Option<ManagerType> {
-  let arg = parse_state.ext_bytes(idx)?;
+  manager_type_from_token(parse_state.ext_bytes(idx)?)
+}
+
+/// ManagerType 字节令牌解析（ASCII 大小写不敏感；DEBUG PURGEBP 切片侧复用）
+pub fn manager_type_from_token(arg: &[u8]) -> Option<ManagerType> {
   let value = if eq_upper_ignore_case(arg, b"MIGRATIONMANAGER") {
     ManagerType::MigrationManager
   } else if eq_upper_ignore_case(arg, b"REPLICATIONMANAGER") {
@@ -544,6 +546,17 @@ pub fn try_get_manager_type(parse_state: &SessionParseState, idx: usize) -> Opti
     return None;
   };
   Some(value)
+}
+
+impl ManagerType {
+  /// PurgeBPCommand.cs:ManagerTypeExtensions.ToReadOnlySpan——清洗完成简单串
+  pub fn gc_completed_text(self) -> &'static str {
+    match self {
+      ManagerType::MigrationManager => "GC completed for MigrationManager",
+      ManagerType::ReplicationManager => "GC completed for ReplicationManager",
+      ManagerType::ServerListener => "GC completed for ServerListener",
+    }
+  }
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetOperationDirection
@@ -580,10 +593,6 @@ pub fn try_get_expire_option(parse_state: &SessionParseState, idx: usize) -> Opt
   wresp::try_get_expire_option(arg)
 }
 
-pub fn expire_option_from_token(arg: &[u8]) -> Option<ExpireOption> {
-  wresp::expire_option_from_token(arg)
-}
-
 /// libs/server/SessionParseStateExtensions.cs:TryGetSortedSetAggregateType
 pub fn try_get_sorted_set_aggregate_type(
   parse_state: &SessionParseState,
@@ -600,11 +609,6 @@ pub fn try_get_expiration_option(
 ) -> Option<ExpirationOption> {
   let token = parse_state.ext_bytes(idx)?;
   wresp::try_get_expiration_option(token)
-}
-
-/// libs/server/SessionParseStateExtensions.cs:TryGetExpirationOptionWithToken
-pub fn expiration_option_from_token(token: &[u8]) -> Option<ExpirationOption> {
-  wresp::expiration_option_from_token(token)
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetGeoDistanceUnit

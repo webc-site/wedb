@@ -418,7 +418,7 @@ impl From<TaggedKeyBuf> for Vec<u8> {
 fn write_key_parts(prefix: &[u8], tag: KeyTag, payload: &[u8], dst: &mut [u8]) {
   let prefix_len = prefix.len();
   dst[..prefix_len].copy_from_slice(prefix);
-  dst[prefix_len] = tag as u8;
+  dst[prefix_len] = tag.as_u8();
   dst[prefix_len + KeyTag::TAG_LEN..prefix_len + KeyTag::TAG_LEN + payload.len()]
     .copy_from_slice(payload);
 }
@@ -544,7 +544,7 @@ impl NamespaceDbCodec {
     } else {
       let mut vec = Vec::with_capacity(total_len);
       vec.extend_from_slice(prefix);
-      vec.push(tag as u8);
+      vec.push(tag.as_u8());
       vec.extend_from_slice(payload);
       TaggedKeyBuf::from_heap(vec)
     }
@@ -597,7 +597,7 @@ impl NamespaceDbCodec {
       let mut buf = [0u8; STACK_KEY_CAP];
       let p_len = prefix.len();
       buf[..p_len].copy_from_slice(prefix);
-      buf[p_len] = tag as u8;
+      buf[p_len] = tag.as_u8();
       let hdr_start = p_len + KeyTag::TAG_LEN;
       buf[hdr_start..hdr_start + U64_BYTE_LEN].copy_from_slice(&k);
       buf[hdr_start + U64_BYTE_LEN..hdr_start + SUBKEY_META_HEADER_LEN].copy_from_slice(&v);
@@ -606,7 +606,7 @@ impl NamespaceDbCodec {
     } else {
       let mut vec = Vec::with_capacity(total_len);
       vec.extend_from_slice(prefix);
-      vec.push(tag as u8);
+      vec.push(tag.as_u8());
       vec.extend_from_slice(&k);
       vec.extend_from_slice(&v);
       vec.extend_from_slice(field);
@@ -635,7 +635,7 @@ impl NamespaceDbCodec {
       let mut buf = [0u8; STACK_KEY_CAP];
       let p_len = prefix.len();
       buf[..p_len].copy_from_slice(prefix);
-      buf[p_len] = KeyTag::Vector as u8;
+      buf[p_len] = KeyTag::Vector.as_u8();
       let ctx_start = p_len + KeyTag::TAG_LEN;
       buf[ctx_start..ctx_start + U64_BYTE_LEN].copy_from_slice(&ctx_bytes);
       buf[ctx_start + U64_BYTE_LEN..total_len].copy_from_slice(key);
@@ -643,7 +643,7 @@ impl NamespaceDbCodec {
     } else {
       let mut vec = Vec::with_capacity(total_len);
       vec.extend_from_slice(prefix);
-      vec.push(KeyTag::Vector as u8);
+      vec.push(KeyTag::Vector.as_u8());
       vec.extend_from_slice(&ctx_bytes);
       vec.extend_from_slice(key);
       TaggedKeyBuf::from_heap(vec)
@@ -669,11 +669,11 @@ impl NamespaceDbCodec {
     if key.len() <= STACK_KEY_CAP {
       let mut buf = [0u8; STACK_KEY_CAP];
       buf[..key.len()].copy_from_slice(key);
-      buf[tag_offset] = new_tag as u8;
+      buf[tag_offset] = new_tag.as_u8();
       TaggedKeyBuf::from_stack(buf, key.len() as u8)
     } else {
       let mut vec = key.to_vec();
-      vec[tag_offset] = new_tag as u8;
+      vec[tag_offset] = new_tag.as_u8();
       TaggedKeyBuf::from_heap(vec)
     }
   }
@@ -760,7 +760,7 @@ impl NamespaceDbCodec {
   ) -> Option<&'a [u8]> {
     let rest = key.strip_prefix(session_prefix)?;
     let (&tag_byte, payload) = rest.split_first()?;
-    if tag_byte == expected_tag as u8 {
+    if tag_byte == expected_tag.as_u8() {
       Some(payload)
     } else {
       None
@@ -868,7 +868,7 @@ impl NamespaceDbCodec {
       [ns_b, db_b, tag_byte, payload @ ..]
         if *ns_b < VARINT_1B_FIRST_BYTE_LIMIT && *db_b < VARINT_1B_FIRST_BYTE_LIMIT =>
       {
-        if *tag_byte == KeyTag::Meta as u8 {
+        if *tag_byte == KeyTag::Meta.as_u8() {
           Some(payload)
         } else {
           None
@@ -881,7 +881,7 @@ impl NamespaceDbCodec {
         };
         if let Some((_, rest)) = key.split_at_checked(prefix_len) {
           match rest {
-            [tag_byte, payload @ ..] if *tag_byte == KeyTag::Meta as u8 => Some(payload),
+            [tag_byte, payload @ ..] if *tag_byte == KeyTag::Meta.as_u8() => Some(payload),
             _ => None,
           }
         } else {

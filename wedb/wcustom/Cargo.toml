@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wcustom"
 description = "Custom commands and extensions registry for wedb"
+keywords = ["custom-commands", "modules", "extensibility", "transactions", "procedures"]
 
 [dependencies]
 gxhash.workspace = true

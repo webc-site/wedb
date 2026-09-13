@@ -2,7 +2,7 @@
 //!
 //! VADD 在 Q8 等量化器建表前插入向量时，会产生"建表 → 分片回填"两阶段
 //! 量化请求；C# 侧经无界 Channel 交由线程池 worker 处理，Rust 侧以
-//! [`super::cleanup::vector_set_cleanup_work_channel::VectorSetCleanupWorkChannel`]
+//! [`wbase::pool::EventWorkQueue`]
 //! 承接通道语义，worker 协程基于 compio 驱动；锁竞争时的协作让步以 Task.Yield / Task.Delay 退避对标实现。
 
 use std::{

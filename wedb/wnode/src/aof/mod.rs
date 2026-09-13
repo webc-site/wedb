@@ -13,7 +13,8 @@ pub mod sublog;
 pub mod waof_sublog;
 
 pub use aof_processor::{
-  AofProcessor, AofReplayError, RangeIndexSessionFace, ReplayInput, ReplayInputSlice,
+  AofProcessor, AofReplayError, RangeIndexReplayFace, RangeIndexReplayFuture,
+  RangeIndexSessionFace, RangeIndexSessionFuture, ReplayInput, ReplayInputSlice,
 };
 pub use garnet_append_only_file::GarnetAppendOnlyFile;
 pub use garnet_log::{GarnetLog, InMemorySublog, LogRecord, SublogBackend};

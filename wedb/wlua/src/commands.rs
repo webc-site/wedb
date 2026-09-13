@@ -20,9 +20,6 @@ use crate::{
   runner::RespOut,
 };
 
-/// EVAL/EVALSHA numkeys 非法时报错文案（C# CmdStrings
-/// RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER）
-const ERR_VALUE_NOT_INTEGER: &[u8] = b"ERR value is not an integer or out of range.";
 /// SCRIPT FLUSH 选项非法文案（本域两处复用）。
 const ERR_SCRIPT_FLUSH_OPTION: &[u8] = b"ERR SCRIPT FLUSH only support SYNC|ASYNC option";
 
@@ -123,11 +120,17 @@ impl LuaCommands {
     }
 
     let Some(n) = strict_i64(&ctx.args[1]) else {
-      Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
+      Self::abort_with_error_message(
+        ctx,
+        wresp::cmd_strings::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes(),
+      );
       return None;
     };
     if !(0..=(count as i64 - 2)).contains(&n) {
-      Self::abort_with_error_message(ctx, ERR_VALUE_NOT_INTEGER);
+      Self::abort_with_error_message(
+        ctx,
+        wresp::cmd_strings::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes(),
+      );
       return None;
     }
     Some(count)

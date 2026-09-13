@@ -312,16 +312,18 @@ impl<D: Device> MessageConsumerFace for ClusterReplicationSession<D> {
   /// libs/server/Servers/ServerTcpNetworkHandler.cs 的 TryConsumeMessages 集群
   /// 分发路径：解析二进制安全 RESP 数组帧，CLUSTER APPENDLOG 交
   /// [`Self::process_append_log`]；初始化帧回 +OK，记录帧无应答（对标 C#
-  /// NetworkClusterAppendLog 的应答面），异常回 -ERR 错误行
-  fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>) {
+  /// NetworkClusterAppendLog 的应答面），异常回 -ERR 错误行。应答直写
+  /// 调用方缓冲（记录帧热路径零堆分配）
+  fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
     let Some((consumed, items)) = parse_resp_frame(req_buffer) else {
-      return (0, Vec::new());
+      return 0;
     };
 
     // 客户端握手命令面：CLIENT SETINFO / SETNAME 回 +OK（GarnetClientSession
     // ConnectAsync 握手契约，C# 服务端全 RESP 会话承接；本会话仅承载握手放行）
     if !items.is_empty() && items[0] == b"CLIENT" {
-      return (consumed, b"+OK\r\n".to_vec());
+      resp_buf.extend_from_slice(RESP_OK);
+      return consumed;
     }
 
     // 非 CLUSTER APPENDLOG 帧非本会话协议面（协议契约外输入）
@@ -329,17 +331,25 @@ impl<D: Device> MessageConsumerFace for ClusterReplicationSession<D> {
       || !items[0].eq_ignore_ascii_case(b"CLUSTER")
       || !items[1].eq_ignore_ascii_case(b"APPENDLOG")
     {
-      return (consumed, ERR_UNEXPECTED_CLUSTER_CMD.to_vec());
+      resp_buf.extend_from_slice(ERR_UNEXPECTED_CLUSTER_CMD);
+      return consumed;
     }
     if items.len() > 8 {
-      return (consumed, ERR_MALFORMED_APPENDLOG_FRAME.to_vec());
+      resp_buf.extend_from_slice(ERR_MALFORMED_APPENDLOG_FRAME);
+      return consumed;
     }
 
     match self.dispatch_append_log_args(&items) {
-      Ok(AppendLogOutcome::Initialized) => (consumed, RESP_OK.to_vec()),
-      Ok(AppendLogOutcome::Record) => (consumed, Vec::new()),
-      Err(e) => (consumed, format!("-ERR {e}\r\n").into_bytes()),
+      Ok(AppendLogOutcome::Initialized) => resp_buf.extend_from_slice(RESP_OK),
+      // 记录帧无应答（对标 C# 普通记录不回写）
+      Ok(AppendLogOutcome::Record) => {}
+      Err(e) => {
+        resp_buf.extend_from_slice(b"-ERR ");
+        resp_buf.extend_from_slice(e.to_string().as_bytes());
+        resp_buf.extend_from_slice(b"\r\n");
+      }
     }
+    consumed
   }
 
   fn dispose(&mut self) {

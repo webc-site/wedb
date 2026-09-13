@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wdatabase"
 description = "Garnet logical database and multi-database management"
+keywords = ["database", "multi-database", "garnet", "logical-database"]
 
 [lints]
 workspace = true

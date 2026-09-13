@@ -8,7 +8,7 @@ use std::sync::Arc;
 use parking_lot::Mutex as ParkingMutex;
 use wcustom::{
   CommandType, CustomCommandDocs, CustomCommandInfo, CustomCommandManager, CustomTransaction,
-  RawStringCommandSpec, RawStringFn,
+  CustomTransactionProcFactory, RawStringCommandSpec, RawStringFn,
 };
 
 /// 命令注册 API
@@ -55,18 +55,20 @@ impl RegisterApi {
   /// 注册自定义事务过程，返回事务 id
   ///
   /// libs/server/Servers/RegisterApi.cs:NewTransactionProc
+  ///
+  /// `proc` 为过程体工厂（C# `Func<CustomTransactionProcedure>`；
+  /// RUNTXP 执行期实例化三段式过程）。
   pub fn new_transaction_proc(
     &self,
     name: &str,
+    proc: CustomTransactionProcFactory,
     command_info: Option<CustomCommandInfo>,
     command_docs: Option<CustomCommandDocs>,
   ) -> Result<u8, &'static str> {
-    // C# 收 Func<CustomTransactionProcedure> 工厂；custom 域注册表以元数据
-    // 承接（过程体随 custom 会话面接线）
     self
       .command_manager
       .lock()
-      .register_transaction(name, command_info, command_docs)
+      .register_transaction(name, proc, command_info, command_docs)
   }
 
   /// 注册自定义对象类型，返回类型扩展 id
@@ -140,6 +142,12 @@ mod tests {
   use std::sync::Arc;
 
   use super::*;
+  use wcustom::CustomTransactionProcedure;
+
+  /// 测试用过程体工厂（默认空事务三段式）
+  fn stub_proc() -> CustomTransactionProcedure {
+    CustomTransactionProcedure::new(0)
+  }
 
   #[test]
   fn registers_commands_transactions_and_modules() {
@@ -156,7 +164,7 @@ mod tests {
     assert!(manager.lock().try_get_custom_command(cmd_id).is_some());
 
     let txn_id = api
-      .new_transaction_proc("MYTXN", None, None)
+      .new_transaction_proc("MYTXN", stub_proc, None, None)
       .expect("事务过程注册成功");
     assert!(api.get_custom_transaction_procedure(txn_id).is_some());
 

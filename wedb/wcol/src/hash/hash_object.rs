@@ -97,12 +97,6 @@ impl Ord for ExpirationQueueEntry {
 /// 反转堆序 → BinaryHeap 即最小堆
 pub type ExpirationQueue = BinaryHeap<Reverse<ExpirationQueueEntry>>;
 
-#[derive(Debug, Clone, bitcode::Encode, bitcode::Decode)]
-pub struct HashWire {
-  pub entries: Vec<(Vec<u8>, Vec<u8>)>,
-  pub expirations: Option<Vec<(Vec<u8>, i64)>>,
-}
-
 /// 哈希对象
 ///
 /// libs/server/Objects/Hash/HashObject.cs:HashObject
@@ -116,6 +110,16 @@ pub struct HashObject {
   pub expiration_queue: Option<ExpirationQueue>,
   /// 堆内存记账（相对值；C# 语义见文件头刻意差异）
   pub heap_memory_size: i64,
+}
+
+/// 序列化/反序列化编码形状
+///
+/// 刻意差异：bitcode 0.6 的零拷贝借用编码仅支持 `&str`，`&[u8]` 无 `Encode`
+/// 实现，编码侧无法借引条目免 clone（owned 收集为格式约束下的最优解）
+#[derive(Debug, Clone, bitcode::Encode, bitcode::Decode)]
+struct HashWire {
+  entries: Vec<(Vec<u8>, Vec<u8>)>,
+  expirations: Option<Vec<(Vec<u8>, i64)>>,
 }
 
 impl HashObject {
@@ -186,42 +190,33 @@ impl HashObject {
   }
 
   /// 序列化为字节向量（过滤已过期条目；带过期成员附加 ticks）
+  ///
+  /// 单遍 filter 收集（容量预分配免 collect 增长重分配），替代原
+  /// has_expirations 双分支遍历
   pub fn serialize_to_vec(&self) -> Vec<u8> {
     let now = now_ticks();
     let has_expirations = self.expiration_times.is_some();
-    let entries: Vec<(Vec<u8>, Vec<u8>)> = if has_expirations {
-      self
-        .hash
-        .iter()
-        .filter(|(k, _)| !self.is_expired_at(k, now))
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect()
-    } else {
-      self
-        .hash
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect()
-    };
+    let mut entries: Vec<(Vec<u8>, Vec<u8>)> = Vec::with_capacity(self.hash.len());
+    for (k, v) in &self.hash {
+      if !has_expirations || !self.is_expired_at(k, now) {
+        entries.push((k.clone(), v.clone()));
+      }
+    }
 
     let expirations = self.expiration_times.as_ref().and_then(|times| {
-      let active: Vec<(Vec<u8>, i64)> = times
-        .iter()
-        .filter(|(k, exp)| **exp >= now && self.hash.contains_key(*k))
-        .map(|(k, exp)| (k.clone(), *exp))
-        .collect();
-      if active.is_empty() {
-        None
-      } else {
-        Some(active)
+      let mut active: Vec<(Vec<u8>, i64)> = Vec::with_capacity(times.len());
+      for (k, exp) in times {
+        if *exp >= now && self.hash.contains_key(k) {
+          active.push((k.clone(), *exp));
+        }
       }
+      (!active.is_empty()).then_some(active)
     });
 
-    let wire = HashWire {
+    bitcode::encode(&HashWire {
       entries,
       expirations,
-    };
-    bitcode::encode(&wire)
+    })
   }
 
   /// 序列化为二进制流（过滤已过期条目；带过期成员附加 ticks）

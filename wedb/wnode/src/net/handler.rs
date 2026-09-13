@@ -9,9 +9,9 @@
 //! 4. 慢客户端控制（Throttle 背压写回）；
 //! 5. 优雅关停与资源回收（Dispose）。
 
-use std::{io, sync::Arc};
+use std::{io, mem::MaybeUninit, sync::Arc};
 
-use compio::buf::BufResult;
+use compio::buf::{BufResult, IoBuf, IoBufMut, ReserveError, SetLen};
 use wbase::{
   pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool},
   throttle::NetworkSenderThrottle,
@@ -24,6 +24,49 @@ use crate::{
 
 /// 读取前缓冲预留最小空闲容量阈值（不足时向前平移或扩容）
 const MIN_READ_SPACE: usize = 4096;
+
+/// 追加式接收读缓冲（所有权进出读操作，compio 驱动要求 'static）
+///
+/// compio 对裸 `Vec` 的读约定为覆盖语义（读目标为整段容量、完成后长度
+/// 截断为本次读取数），半包残余字节会被下一批读取破坏；此包装把读目标
+/// 改为空闲容量段、完成后按追加推进长度，网络字节得以在缓冲内跨批次
+/// 累积 —— C# NetworkHandler 的 bytesRead 累积读取模型等价物
+struct RecvAppend(Vec<u8>);
+
+impl IoBuf for RecvAppend {
+  fn as_init(&self) -> &[u8] {
+    &self.0
+  }
+}
+
+impl IoBufMut for RecvAppend {
+  fn as_uninit(&mut self) -> &mut [MaybeUninit<u8>] {
+    // 读目标：空闲容量段（驱动自段首写入本次读取字节）
+    self.0.spare_capacity_mut()
+  }
+
+  fn reserve(&mut self, len: usize) -> Result<(), ReserveError> {
+    self
+      .0
+      .try_reserve(len)
+      .map_err(|e| ReserveError::ReserveFailed(Box::new(e)))
+  }
+}
+
+impl SetLen for RecvAppend {
+  unsafe fn set_len(&mut self, len: usize) {
+    // 契约：len 为绝对总长，[buf_len(), len) 已由驱动写入初始化字节，
+    // 且 len <= buf_len() + 空闲容量，Vec::set_len 合法
+    unsafe { self.0.set_len(len) };
+  }
+
+  unsafe fn advance_to(&mut self, len: usize) {
+    // 驱动读完成路径（BufResultExt::map_advanced）以本次写入空闲容量段
+    // 的字节数调用；追加语义下总长推进 len
+    let current = self.0.len();
+    unsafe { self.0.set_len(current + len) };
+  }
+}
 
 /// 连接网络处理器
 pub struct NetworkHandler<C: MessageConsumerFace> {
@@ -79,99 +122,192 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
   }
 
   /// 连接泵主循环
+  ///
+  /// 缓冲管理双形态（C# NetworkHandler 的 bytesRead/readHead 模型）：
+  /// - 直读形态（主路径）：会话暴露接收缓冲（[`MessageConsumerFace::take_recv_scratch`]），
+  ///   网络字节零拷贝直入会话缓冲，消费游标驻留会话跨批次持久；
+  ///   MIN_READ_SPACE 平移仅在整段消费完时由会话执行（游标清零复位，
+  ///   offset/解析指针同时失效安全），半包残余只扩不平。
+  /// - 回退形态（兼容路径）：池化缓冲切片喂 [`MessageConsumerFace::try_consume_messages_into`]，
+  ///   批次级整量拷贝进会话，游标驻留泵。
   async fn drive_loop<P: SessionProviderFace<Consumer = C>>(
     &mut self,
     stream: &mut ConnectionStream,
     session_provider: Arc<P>,
     sender_id: u64,
   ) -> io::Result<()> {
-    // 池化接收缓冲（容量 64KB，RAII 自动归还句柄）
+    // 池化接收缓冲（握手期 + 回退形态；容量 64KB，RAII 自动归还句柄）
     let mut pooled = self.buffer_pool.get(0);
     // 池化发送缓冲（容量 64KB，连接生命周期内复用，RAII 自动归还句柄）
     let mut resp_pooled = self.buffer_pool.get(DEFAULT_BUFFER_SIZE);
+    // 接收游标（回退形态：pooled 内已消费偏移；直读形态游标驻留会话）
     let mut read_pos = 0usize;
+    // 直读形态定型标志（会话创建点探测，其后恒定）
+    let mut scratch_mode = false;
 
     loop {
-      let mut raw_buf = pooled.take_buffer().expect("pooled buffer active");
-      // 在读取前，如果空闲空间不足预留阈值：
-      if raw_buf.capacity().saturating_sub(raw_buf.len()) < MIN_READ_SPACE {
-        // 若前面已有消费，进行向前平移对齐以腾出尾部空间
-        if read_pos > 0 {
-          raw_buf.copy_within(read_pos.., 0);
-          let keep = raw_buf.len() - read_pos;
-          raw_buf.truncate(keep);
-          read_pos = 0;
+      // ── 网络读取段 ──
+      if scratch_mode {
+        let Some(session) = self.session.as_mut() else {
+          break;
+        };
+        let Some(mut scratch) = session.take_recv_scratch() else {
+          break;
+        };
+        // 空闲空间不足预留阈值：整段消费完的缓冲已由会话清零复位（无需平移）；
+        // 半包残余不可平移（会话游标驻留），仅扩容
+        if scratch.capacity().saturating_sub(scratch.len()) < MIN_READ_SPACE {
+          scratch.reserve(DEFAULT_BUFFER_SIZE);
         }
-        // 若平移后空闲空间仍小于阈值（例如遇到单条超大报文），则扩容
+        // 零拷贝：网络字节追加直入会话自有接收缓冲（半包残余驻留缓冲头部）
+        let BufResult(read_res, wrapped) = stream.read(RecvAppend(scratch)).await;
+        // 取回缓冲，归还先于一切退出路径（半包残余字节必须驻留会话）
+        scratch = wrapped.0;
+        if let Some(session) = self.session.as_mut() {
+          session.return_recv_scratch(scratch);
+        }
+        match read_res {
+          Ok(0) => break, // 对端正常关闭
+          Ok(_) => {}
+          Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
+          Err(e) => return Err(e),
+        }
+      } else {
+        let mut raw_buf = pooled.take_buffer().expect("pooled buffer active");
+        // 在读取前，如果空闲空间不足预留阈值：
         if raw_buf.capacity().saturating_sub(raw_buf.len()) < MIN_READ_SPACE {
-          raw_buf.reserve(DEFAULT_BUFFER_SIZE);
+          // 若前面已有消费，进行向前平移对齐以腾出尾部空间
+          if read_pos > 0 {
+            raw_buf.copy_within(read_pos.., 0);
+            let keep = raw_buf.len() - read_pos;
+            raw_buf.truncate(keep);
+            read_pos = 0;
+          }
+          // 若平移后空闲空间仍小于阈值（例如遇到单条超大报文），则扩容
+          if raw_buf.capacity().saturating_sub(raw_buf.len()) < MIN_READ_SPACE {
+            raw_buf.reserve(DEFAULT_BUFFER_SIZE);
+          }
+        }
+
+        // 零拷贝：网卡数据追加直入池化缓冲（跨批次累积，半包不丢）
+        let BufResult(read_res, wrapped) = stream.read(RecvAppend(raw_buf)).await;
+        raw_buf = wrapped.0;
+        pooled.set_buffer(raw_buf);
+
+        match read_res {
+          Ok(0) => break, // 对端正常关闭
+          Ok(_) => {}
+          Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
+          Err(e) => return Err(e),
+        }
+
+        // 握手阶段：识别 WireFormat::Ascii
+        if self.session.is_none() {
+          let raw_buf = pooled.vec_ref();
+          if raw_buf.len() - read_pos < 4 {
+            continue;
+          }
+          let session = session_provider
+            .get_session(WireFormat::Ascii, sender_id)
+            .ok_or_else(|| {
+              io::Error::new(io::ErrorKind::ConnectionRefused, "会话提供者拒绝建立会话")
+            })?;
+          self.set_session(session);
+          // 直读面探测（创建点一次定型）：把未消费的批次字节迁入会话自有
+          // 接收缓冲，此后网络字节零拷贝直入。此迁移点会话游标必为零
+          //（回退消费从未发生），字节流无缝衔接、无重复并入；旧接收缓冲
+          // 即刻 RAII 归还池（消除批次级 64KB 双份驻留）
+          if let Some(session) = self.session.as_mut()
+            && let Some(mut scratch) = session.take_recv_scratch()
+          {
+            scratch.extend_from_slice(&pooled[read_pos..]);
+            session.return_recv_scratch(scratch);
+            scratch_mode = true;
+            read_pos = 0;
+            pooled = self.buffer_pool.get(0);
+          }
         }
       }
 
-      // 零拷贝直接读取网卡数据进入池化缓冲
-      let BufResult(res, returned) = stream.read(raw_buf).await;
-      pooled.set_buffer(returned);
-
-      match res {
-        Ok(0) => break, // 对端正常关闭
-        Ok(_) => {}
-        Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
-        Err(e) => return Err(e),
-      }
-
-      let raw_buf = pooled.vec_mut();
-
-      // 握手阶段：识别 WireFormat::Ascii
-      if self.session.is_none() {
-        if raw_buf.len() - read_pos < 4 {
-          continue;
-        }
-        let session = session_provider
-          .get_session(WireFormat::Ascii, sender_id)
-          .ok_or_else(|| {
-            io::Error::new(io::ErrorKind::ConnectionRefused, "会话提供者拒绝建立会话")
-          })?;
-        self.set_session(session);
-      }
-
+      // ── 消费段 ──
       let Some(session) = self.session.as_mut() else {
         break;
       };
-
       resp_pooled.clear();
-      loop {
-        let raw_buf = pooled.vec_ref();
-        if read_pos < raw_buf.len() {
-          let consumed =
-            session.try_consume_messages_into(&raw_buf[read_pos..], resp_pooled.vec_mut());
-          if consumed == 0 {
+      // 协议违规哨兵（直读形态；C# RespParsingException → 发尽应答后断连）
+      let mut parse_violation = false;
+      if scratch_mode {
+        loop {
+          match session.try_consume_scratch_into(resp_pooled.vec_mut()) {
+            // 整段消费完毕（缓冲已复位）→ 等下一批网络字节
+            Some(0) => break,
+            // 半包残余 / 流水线余量：挂起命令解除后继续消化
+            Some(_) => {}
+            // 协议违规：游标原样，发尽本轮应答后断连
+            None => {
+              parse_violation = true;
+              break;
+            }
+          }
+
+          // 阻塞/慢路径挂起：await 驱动至完成后继续消费流水线余量
+          //（blocked 命令恰好收尾缓冲时消费返回 0，挂起检查必须先于跳出）
+          let mut resumed = false;
+          if let Some(blocked) = session.take_blocked_wait() {
+            let (cmd, result) = blocked.resolve().await;
+            session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
+            resumed = true;
+          }
+
+          if let Some(slow) = session.take_slow_wait() {
+            let reply = slow.resolve().await;
+            if !reply.is_empty() {
+              resp_pooled.vec_mut().extend_from_slice(&reply);
+            }
+            resumed = true;
+          }
+
+          // 半包残余等更多网络字节
+          if !resumed {
             break;
           }
-          read_pos += consumed;
         }
-
-        // 阻塞命令挂起：await 驱动至完成（compio 挂起不占线程；C# 为专线
-        // 网络线程 BlockingWait），写出应答后继续消费流水线余量
-        if let Some(blocked) = session.take_blocked_wait() {
-          let (cmd, result) = blocked.resolve().await;
-          session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
-        }
-
-        // 慢路径命令挂起：await 驱动至完成（对照 C# 网络线程同步执行
-        // SCAN/KEYS/DBSIZE/CLUSTER RESET 等慢命令），应答按流水线顺序
-        // 追加后继续消费流水线余量
-        if let Some(slow) = session.take_slow_wait() {
-          let reply = slow.resolve().await;
-          if !reply.is_empty() {
-            resp_pooled.vec_mut().extend_from_slice(&reply);
+      } else {
+        loop {
+          let raw_buf = pooled.vec_ref();
+          if read_pos < raw_buf.len() {
+            let consumed =
+              session.try_consume_messages_into(&raw_buf[read_pos..], resp_pooled.vec_mut());
+            if consumed == 0 {
+              break;
+            }
+            read_pos += consumed;
           }
-        }
 
-        if read_pos >= pooled.vec_ref().len() {
-          break;
+          // 阻塞命令挂起：await 驱动至完成（compio 挂起不占线程；C# 为专线
+          // 网络线程 BlockingWait），写出应答后继续消费流水线余量
+          if let Some(blocked) = session.take_blocked_wait() {
+            let (cmd, result) = blocked.resolve().await;
+            session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
+          }
+
+          // 慢路径命令挂起：await 驱动至完成（对照 C# 网络线程同步执行
+          // SCAN/KEYS/DBSIZE/CLUSTER RESET 等慢命令），应答按流水线顺序
+          // 追加后继续消费流水线余量
+          if let Some(slow) = session.take_slow_wait() {
+            let reply = slow.resolve().await;
+            if !reply.is_empty() {
+              resp_pooled.vec_mut().extend_from_slice(&reply);
+            }
+          }
+
+          if read_pos >= pooled.vec_ref().len() {
+            break;
+          }
         }
       }
 
+      // ── 写出段（双形态共用：Throttle 背压 + 缓冲复用）──
       if !resp_pooled.is_empty() {
         if self.throttle.enter_send().await.is_err() {
           break;
@@ -199,12 +335,20 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
         }
       }
 
-      let raw_buf = pooled.vec_mut();
-      if read_pos == raw_buf.len() {
-        raw_buf.clear();
-        read_pos = 0;
-        if raw_buf.capacity() > DEFAULT_BUFFER_SIZE {
-          pooled = self.buffer_pool.get(0);
+      // 协议违规：应答已发尽，断连（C# DisposeNetworkSender 语义）
+      if parse_violation {
+        break;
+      }
+
+      // ── 收尾段（回退形态：整段消费完则复位缓冲，超规归还换新）──
+      if !scratch_mode {
+        let raw_buf = pooled.vec_mut();
+        if read_pos == raw_buf.len() {
+          raw_buf.clear();
+          read_pos = 0;
+          if raw_buf.capacity() > DEFAULT_BUFFER_SIZE {
+            pooled = self.buffer_pool.get(0);
+          }
         }
       }
     }

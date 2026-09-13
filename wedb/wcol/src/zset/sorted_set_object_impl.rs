@@ -12,10 +12,12 @@ use wbase::{
   },
   time::now_ticks,
 };
-use wresp::{SortedSetAddOption, equals_ignore_case, try_get_sorted_set_add_option};
+use wresp::{
+  ExpirationWithOption, SortedSetAddOption, equals_ignore_case, try_get_sorted_set_add_option,
+};
 
 use super::sorted_set_object::{
-  ExpirationWithOption, SortedSetEntry, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
+  SortedSetEntry, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
 };
 use crate::{
   parse_utils::{try_get_int, try_get_long, try_parse_with_infinity},

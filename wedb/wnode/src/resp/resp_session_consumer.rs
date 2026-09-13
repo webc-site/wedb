@@ -5,7 +5,7 @@
 //! `ClusterSession` 切面（C# 构造函数 clusterProvider == null 与否），
 //! 命令消费主循环完全一致。
 
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::RuntimeServerConfig;
@@ -62,21 +62,18 @@ impl RespSessionConsumer {
   pub fn set_runtime_config(&mut self, config: Arc<RuntimeServerConfig>) {
     self.session.set_runtime_config(config);
   }
+
+  /// 注入自定义命令注册表（对标 C# storeWrapper.customCommandManager：
+  /// RUNTXP 过程体解析与自定义命令族共用）
+  pub fn set_custom_command_manager(
+    &mut self,
+    manager: Arc<parking_lot::Mutex<wcustom::CustomCommandManager>>,
+  ) {
+    self.session.attach_custom_command_manager(manager);
+  }
 }
 
 impl MessageConsumerFace for RespSessionConsumer {
-  fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>) {
-    if req_buffer.is_empty() {
-      return (0, Vec::new());
-    }
-    match self.session.try_consume_messages(req_buffer) {
-      // ProcessMessages 尾部 output 经 take_output 提取（C# 写网络的托管等价）
-      Some(consumed) => (consumed, self.session.take_output()),
-      // 协议违规（C# RespParsingException）：不消费字节，由网络层断连
-      None => (0, Vec::new()),
-    }
-  }
-
   fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
     if req_buffer.is_empty() {
       return 0;
@@ -87,6 +84,26 @@ impl MessageConsumerFace for RespSessionConsumer {
         consumed
       }
       None => 0,
+    }
+  }
+
+  fn take_recv_scratch(&mut self) -> Option<Vec<u8>> {
+    // 会话自有接收缓冲整体移交泵直填（mem::take 占位，归还前缓冲为空壳）
+    Some(mem::take(&mut self.session.recv_buffer))
+  }
+
+  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+    self.session.recv_buffer = buf;
+  }
+
+  fn try_consume_scratch_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+    match self.session.try_consume_pending() {
+      Some(remaining) => {
+        self.session.take_output_into(resp_buf);
+        Some(remaining)
+      }
+      // 协议违规（C# RespParsingException）：应答面丢弃，由泵断连
+      None => None,
     }
   }
 

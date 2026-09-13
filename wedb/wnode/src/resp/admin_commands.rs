@@ -1,5 +1,6 @@
 use std::mem;
 
+use wbase::num::strict_i32;
 use wcol::{
   hash::hash_object::HashOperation, sortedset::sorted_set_object::SortedSetOperation,
   types::object_output::ObjectOutput,
@@ -12,16 +13,18 @@ use wresp::{
     abort_with_unknown_subcommand_or_wrong_num_args, write_error_raw, write_raw,
   },
 };
-use wbase::num::strict_i32;
 
 use super::resp_server_session::RespServerSession;
-use crate::resp::{
-  objects::{
-    hash_commands::{HashLoad, hash_load_sync},
-    object_store_utils::{hash_to_blob, make_object_input, obj_save_or_gc},
-    sorted_set_commands::{ZsetLoad, zset_load_sync, zset_save_or_gc},
+use crate::{
+  resp::{
+    objects::{
+      hash_commands::{HashLoad, hash_load_sync},
+      object_store_utils::{hash_to_blob, make_object_input, obj_save_or_gc},
+      sorted_set_commands::{ZsetLoad, zset_load_sync, zset_save_or_gc},
+    },
+    slow_path::SlowWait,
   },
-  slow_path::SlowWait,
+  session_parse_state_extensions::manager_type_from_token,
 };
 
 /// GC 代数非法文案（本域两处复用）。
@@ -178,17 +181,13 @@ impl RespServerSession {
     output.write_resp_simple_string("AOF file committed");
     Ok(true)
   }
-  /// 检查点族路由公共骨架（SAVE / BGSAVE / LASTSAVE）
+  /// 慢路径转挂公共骨架（SAVE / BGSAVE / LASTSAVE / EXPDELSCAN）
   ///
   /// 参数校验在会话侧闭环后，闭包转挂存储执行域慢路径（checkpoint 通道 /
-  /// lastsave 时间戳随 StoreGarnetApi 注入）；C# 网络线程 BlockingWait 的
-  /// compio 等价物。存储执行域未挂载 = 装配缺口，按失败惯例降级
-  fn route_checkpoint_command(
-    &mut self,
-    cmd: RespCommand,
-    parse_state: &[&[u8]],
-    output: &mut Vec<u8>,
-  ) {
+  /// lastsave 时间戳随 StoreGarnetApi 注入，过期键扫描经 store 原语）；
+  /// C# 网络线程 BlockingWait 的 compio 等价物。存储执行域未挂载 = 装配
+  /// 缺口，按失败惯例降级
+  fn route_slow_command(&mut self, cmd: RespCommand, parse_state: &[&[u8]], output: &mut Vec<u8>) {
     if let Some(api) = &self.garnet_api {
       let args: Vec<Vec<u8>> = parse_state.iter().map(|a| a.to_vec()).collect();
       self.pending_slow = Some(SlowWait::for_command(api, cmd, args));
@@ -431,8 +430,21 @@ impl RespServerSession {
           output,
         );
       }
-      // PurgeBPCommand 域未建成（purge_bp_command.rs），按失败惯例降级
-      output.write_resp_error(RESP_ERR_GENERIC);
+      // C# TryGetManagerType：解析失败回语法错误
+      let Some(manager_type) = manager_type_from_token(parse_state[1]) else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+        return Ok(true);
+      };
+      // C# ClusterPurgeBufferPool：clusterSession == null → CLUSTER_DISABLED
+      let Some(cluster) = self.cluster_session.clone() else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_CLUSTER_DISABLED);
+        return Ok(true);
+      };
+      // 集群切面转发 clusterProvider.PurgeBufferPool（MigrationManager /
+      // ReplicationManager 双分支；ServerListener 对标 C# GarnetException 拒绝）
+      cluster.purge_buffer_pool(manager_type);
+      // C# 成功路径 GC.Collect 后回 "GC completed for <type>"
+      output.write_resp_simple_string(manager_type.gc_completed_text());
       return Ok(true);
     }
 
@@ -534,7 +546,7 @@ impl RespServerSession {
     }
 
     // C# 阻塞等待 TakeCheckpointAsync(false)：闭包转挂存储执行域
-    self.route_checkpoint_command(RespCommand::Save, parse_state, output);
+    self.route_slow_command(RespCommand::Save, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkEXPDELSCAN
@@ -545,20 +557,16 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, <= 1, output, "EXPDELSCAN");
 
-    // C# 先查 EXPIRED_KEY_DELETION_SCAN_FREQ 运行时配置；rust 运行时配置域
-    // 未建成（后台扫描亦未启用），该拦截不可达
+    // C# 先查 EXPIRED_KEY_DELETION_SCAN_FREQ 运行时配置；rust 后台扫描
+    // 未启用（freq 恒 0），该拦截不可达
 
-    let mut db_args: [&[u8]; 1] = [&[]];
-    if !parse_state.is_empty() {
-      db_args[0] = parse_state[0];
-      if !self.try_parse_database_id(&db_args, output)? {
-        return Ok(true);
-      }
+    if !parse_state.is_empty() && !self.try_parse_database_id(parse_state, output)? {
+      return Ok(true);
     }
 
-    // C# 调 storeWrapper.ExpiredKeyDeletionScan（可变区过期键删除扫描）；
-    // rust wkv 无会话可达入口，按失败惯例降级（绝不虚报扫描计数）
-    output.write_resp_error(RESP_ERR_GENERIC);
+    // C# 调 storeWrapper.ExpiredKeyDeletionScan（可变区过期键删除扫描）：
+    // 转挂存储执行域慢路径（exec_slow 的 Expdelscan 臂），应答 *2 计数对
+    self.route_slow_command(RespCommand::Expdelscan, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkLASTSAVE
@@ -574,7 +582,7 @@ impl RespServerSession {
     }
 
     // C# 回数据库 LastSaveTime：经存储执行域 checkpoint 通道读取
-    self.route_checkpoint_command(RespCommand::Lastsave, parse_state, output);
+    self.route_slow_command(RespCommand::Lastsave, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
@@ -598,7 +606,7 @@ impl RespServerSession {
     }
 
     // C# 阻塞等待 TakeCheckpointAsync(true)：闭包同 SAVE 转挂存储执行域
-    self.route_checkpoint_command(RespCommand::Bgsave, parse_state, output);
+    self.route_slow_command(RespCommand::Bgsave, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId

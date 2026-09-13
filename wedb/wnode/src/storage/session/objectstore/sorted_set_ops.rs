@@ -11,7 +11,6 @@ use wcol::{
 use wdev::Device;
 /// 聚合方式（ZUNION/ZINTER 权重合并语义，收敛对标 wresp::SortedSetAggregateType）
 pub use wresp::SortedSetAggregateType as ZSetAggregate;
-pub use wresp::SortedSetAggregateType;
 
 use super::{
   super::storage_session::StorageSession,

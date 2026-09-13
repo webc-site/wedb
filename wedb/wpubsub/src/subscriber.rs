@@ -6,7 +6,6 @@
 
 use std::{
   collections::VecDeque,
-  mem::take,
   sync::{
     Arc,
     atomic::{AtomicU64, Ordering::Relaxed},
@@ -84,13 +83,6 @@ impl PubSubMailbox {
       q.push_back(message);
       true
     }
-  }
-
-  /// 取走全部待投递消息（会话线程收敛点）
-  #[inline]
-  pub fn drain(&self) -> Vec<PubSubMessage> {
-    let mut q = self.queue.lock();
-    take(&mut *q).into_iter().collect()
   }
 
   /// 取走全部待投递消息排入指定缓冲中，返回排出的消息数（复用外部缓冲）
@@ -171,10 +163,10 @@ mod tests {
     assert_eq!(mailbox.len(), 2);
     assert_eq!(mailbox.dropped_count(), 1);
 
-    let messages = mailbox.drain();
-    assert_eq!(messages.len(), 2);
-    assert_eq!(messages[0].channel.as_ref(), b"a");
-    assert_eq!(messages[1].channel.as_ref(), b"b");
+    let mut buf = Vec::new();
+    assert_eq!(mailbox.drain_into(&mut buf), 2);
+    assert_eq!(buf[0].channel.as_ref(), b"a");
+    assert_eq!(buf[1].channel.as_ref(), b"b");
     assert!(mailbox.is_empty());
   }
 
@@ -204,7 +196,9 @@ mod tests {
   fn mailbox_pattern_message_keeps_pattern() {
     let mailbox = PubSubMailbox::new(4);
     mailbox.pattern_publish(b"a*", b"ab", b"v");
-    let messages = mailbox.drain();
+    let mut buf = Vec::new();
+    mailbox.drain_into(&mut buf);
+    let messages = buf;
     assert_eq!(messages[0].kind, PubSubMessageKind::Pattern);
     assert_eq!(messages[0].pattern.as_deref(), Some(b"a*".as_slice()));
   }

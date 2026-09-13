@@ -86,6 +86,17 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
     }
   }
 
+  /// 分部件直通零整包拼接（WalLog::enqueue_parts 产出页与 enqueue 逐字节一致）
+  fn enqueue_parts(&self, parts: &[&[u8]]) -> i64 {
+    match self.wal.enqueue_parts(parts) {
+      Ok(addr) => addr as i64,
+      Err(err) => {
+        log::error!("WaofSublog 日志入队失败: {err:?}");
+        -1
+      }
+    }
+  }
+
   fn tail_address(&self) -> i64 {
     self.wal.tail_address() as i64
   }

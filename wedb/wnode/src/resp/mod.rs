@@ -7,6 +7,7 @@ pub mod basic_commands;
 pub mod basic_etag_commands;
 pub mod bitmap;
 pub mod client_commands;
+pub mod config_commands;
 pub mod garnet_api;
 pub mod hyperloglog;
 pub mod info_provider;

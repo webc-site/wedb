@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use wnode::resp::resp_server_session::RespServerSession;
+use wnode::txn_resp_commands::TxnRespCommandsExt;
 use wresp::{ArgSlice, RespCommand};
 use wtxn::{
   LockType, StoreType, TransactionManager, TransactionStoreTypes, TxnCommandKeys,

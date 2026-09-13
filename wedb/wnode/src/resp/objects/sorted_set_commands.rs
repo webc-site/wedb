@@ -12,11 +12,10 @@ use gxhash::HashMap;
 use memchr::memmem;
 use wresp::format_double;
 use wcol::{
-  sortedset::sorted_set_object::{
-    ExpirationWithOption, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
-  },
+  sortedset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
   types::object_output::ObjectOutput,
 };
+use wresp::ExpirationWithOption;
 use wbase::num::{strict_f64, strict_i32};
 use wresp::{
   ExpireOption, RespCommand, RespSliceExt, RespVecExt, check_arg_count,

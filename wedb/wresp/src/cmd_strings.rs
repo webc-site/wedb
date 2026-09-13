@@ -4,7 +4,7 @@
 //! 而 C# 大量错误常量自带 `ERR`/`WRONGTYPE` 等完整前缀（经 RespWriteUtils.
 //! TryWriteError 以 `-<msg>\r\n` 原样写出），故此处提供不加工前缀的原样写出。
 
-pub use crate::{MAX_ERROR_MSG_LEN, RespVecExt, sanitize_error_str};
+use crate::sanitize_error_str;
 
 /// libs/server/Resp/CmdStrings.cs:RESP_OK
 pub const RESP_OK: &[u8] = b"+OK\r\n";

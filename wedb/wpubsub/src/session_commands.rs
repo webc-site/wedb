@@ -117,13 +117,6 @@ impl PubSubSession {
       .map_or(0, |(_, mailbox)| mailbox.drain_into(buf))
   }
 
-  /// 取走全部待投递消息（分配新 Vec，兼容非热路径）
-  pub fn drain_mailbox(&self) -> Vec<PubSubMessage> {
-    self
-      .wire
-      .as_ref()
-      .map_or_else(Vec::new, |(_, mailbox)| mailbox.drain())
-  }
 }
 
 /// 退订应答帧共同体：`*3: 头（unsubscribe/punsubscribe）、名、计数`

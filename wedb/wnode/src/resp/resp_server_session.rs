@@ -33,10 +33,10 @@ use wmetric::{
 };
 use wpubsub::SubscribeBroker;
 use wresp::{
-  RespSliceExt, RespVecExt, SessionParseState, cmd_strings as cs,
+  MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, SessionParseState, cmd_strings as cs,
   cmd_strings::{RESP_WRONGPASS_INVALID_USERNAME_PASSWORD, write_map_len_resp2},
-  is_cluster_sub_command, is_data_command, is_read_only,
-  key_spec::KeySpecificationFlags,
+  is_cluster_sub_command, is_data_command, is_read_only, key_spec::KeySpecificationFlags,
+  sanitize_error_str,
 };
 use wtxn::{TransactionManager, TxnCommandKeys, TxnKeySpec, TxnQueuedCommandInfo, WatchVersionMap};
 
@@ -57,6 +57,10 @@ pub const REDIS_PROTOCOL_VERSION: &str = "7.4.3";
 /// 存储执行域未挂载时的拒绝文案（C# 构造必带 storeWrapper 无此态；
 /// rust 侧为宿主装配缺口的显式防线）
 const ERR_STORE_DOMAIN_NOT_ATTACHED: &str = "ERR store execution domain not attached";
+
+/// 接收缓冲默认驻留容量（对标泵 64KB 池化接收缓冲水位；scratch 直读形态
+/// 整段消费完毕后超限容量即释放回归此水位）
+const DEFAULT_RECV_BUFFER_CAPACITY: usize = 1 << 16;
 
 use wresp::RespCommand;
 use wtxn::TxnState;
@@ -268,6 +272,10 @@ pub struct RespServerSession {
   /// 同线程，跨线程转移仅发生在无在途事务的消费间隙 —— Send 由该不变量
   /// 人工担保（[`GarnetApi`] 同款论证）
   pub(crate) txn_manager: Option<TransactionManager>,
+  /// 自定义命令注册表（C# storeWrapper.customCommandManager；RUNTXP 过程体
+  /// 解析用，None = 宿主未装配）
+  pub(crate) custom_command_manager:
+    Option<Arc<parking_lot::Mutex<wcustom::CustomCommandManager>>>,
   /// 发布订阅会话接线（C# subscribeBroker 字段 + numActiveChannels；
   /// 默认无 broker = --pubsub 关闭形态，命令面按同款禁用文案回错）
   pub pubsub: wpubsub::PubSubSession,
@@ -356,6 +364,7 @@ impl RespServerSession {
       pending_slow: None,
       runtime_config: RuntimeServerConfig::shared_default(),
       txn_manager: None,
+      custom_command_manager: None,
       pubsub: wpubsub::PubSubSession::with_mailbox_capacity(None, 4),
       slow_log_container: None,
       global_latency_metrics: None,
@@ -394,6 +403,15 @@ impl RespServerSession {
   /// 的依赖倒置形态；AOF 事务日志由 wtxn 默认无日志形态承接）
   pub fn attach_transaction_components(&mut self, watch_version_map: Arc<WatchVersionMap>) {
     self.txn_manager = Some(TransactionManager::new(watch_version_map, None));
+  }
+
+  /// 注入自定义命令注册表（C# storeWrapper.customCommandManager；RUNTXP
+  /// 过程体解析与自定义命令族共用）
+  pub fn attach_custom_command_manager(
+    &mut self,
+    manager: Arc<parking_lot::Mutex<wcustom::CustomCommandManager>>,
+  ) {
+    self.custom_command_manager = Some(manager);
   }
 
   /// 注入发布订阅中枢（C# 构造函数 `subscribeBroker` 装配；重建会话接线，
@@ -689,6 +707,55 @@ impl RespServerSession {
     Some(consumed)
   }
 
+  /// 泵直读消费入口（scratch 模式，网络泵专属）
+  ///
+  /// 接收缓冲由泵经 take/return 直填（网络字节零拷贝直入），[`Self::read_head`]
+  /// 跨批次持久不回退 —— C# TryConsumeMessages 的 `bytesRead = bytesReceived`+
+  /// `readHead` 持久游标模型。事务排队字节（MULTI..EXEC 跨批次）因此驻留
+  /// 接收缓冲，EXEC 据此回退重解析排队命令（C# 同源语义，拷贝形态做不到）。
+  ///
+  /// 返回消费后残余字节数（半包长度；`0` = 整段消费完毕，缓冲清零复位，
+  /// 容量保留复用）；`None` = 协议违规（泵断连）
+  pub fn try_consume_pending(&mut self) -> Option<usize> {
+    self.bytes_read = self.recv_buffer.len();
+    let prev_read_head = self.read_head;
+
+    self.enter_and_get_response_object();
+    self.process_messages();
+    // 协议违规（C# RespParsingException → DisposeNetworkSender）：游标不回退，
+    // None 表达致命错误，由泵关闭连接
+    if self.parse_violation {
+      self.parse_violation = false;
+      self.exit_and_return_response_object();
+      return None;
+    }
+
+    // 本轮新增消费字节（EXEC 回退重解析可致游标暂时回退，saturating 兜底）
+    let newly_consumed = self.read_head.saturating_sub(prev_read_head);
+    // 事务在途（C# IsSkippingOperations / `if (!txnSkip) readHead = 0` 对偶
+    // 语义）：排队字节与 txn_start_head 偏移必须驻留缓冲供 EXEC 回退重解析，
+    // 禁止清零复位
+    if self.read_head >= self.bytes_read && self.txn_state == TxnState::None {
+      // 整段消费完毕且无在途事务：缓冲清零复位（平移仅在整段消费完执行，
+      // offset/解析指针同时失效安全 —— C# ShiftNetworkReceiveBuffer 的托管
+      // 等价）；超大批次容量释放，回归默认驻留水位
+      if self.recv_buffer.capacity() > DEFAULT_RECV_BUFFER_CAPACITY {
+        self.recv_buffer = Vec::with_capacity(DEFAULT_RECV_BUFFER_CAPACITY);
+      } else {
+        self.recv_buffer.clear();
+      }
+      self.bytes_read = 0;
+      self.read_head = 0;
+      self.end_read_head = 0;
+    }
+    self.exit_and_return_response_object();
+
+    if let Some(metrics) = &mut self.session_metrics {
+      metrics.incr_total_net_input_bytes(newly_consumed as u64);
+    }
+    Some(self.bytes_read.saturating_sub(self.read_head))
+  }
+
   /// libs/server/Resp/RespServerSession.cs:ProcessMessages
   ///
   /// 主循环：解析 → 权限/订阅模式/事务门 → 分派 → 指标。rust 侧 ACL 与
@@ -870,11 +937,14 @@ impl RespServerSession {
         self.output.extend_from_slice(b"+OK\r\n");
         true
       }
-      // C# ProcessBasicCommands switch：MULTI / EXEC / DISCARD / UNWATCH
+      // C# ProcessBasicCommands switch：MULTI / EXEC / DISCARD / UNWATCH / RUNTXP
       RespCommand::Multi => self.network_multi(),
       RespCommand::Exec => self.network_exec(),
       RespCommand::Discard => self.network_discard(),
       RespCommand::Unwatch => self.network_unwatch(),
+      // C# ProcessBasicCommands：RUNTXP
+      //（libs/server/Resp/RespServerSession.cs:RespCommand.RUNTXP）
+      RespCommand::Runtxp => self.network_runtxp(),
       // C# 链式回退：fast 表未命中的命令继续走 array → other 分派链
       _ => self.process_array_commands(cmd),
     }
@@ -944,37 +1014,54 @@ impl RespServerSession {
 
   /// MULTI（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_multi(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_multi(session))
   }
 
   /// EXEC（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_exec(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_exec(session))
   }
 
   /// DISCARD（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_discard(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_discard(session))
   }
 
   /// WATCH（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_watch(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_watch(session))
   }
 
   /// WATCHMS（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_watch_ms(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_watch_ms(session))
   }
 
   /// WATCHOS（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_watch_os(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_watch_os(session))
   }
 
   /// UNWATCH（会话侧路由，实现委托 wtxn::TransactionManager）
   fn network_unwatch(&mut self) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     self.with_txn_manager(|txn, session| txn.network_unwatch(session))
+  }
+
+  /// RUNTXP（会话侧路由，实现委托 wtxn::TransactionManager）；过程体经
+  /// 会话注册表解析器实例化执行（C# NetworkRUNTXP + TryTransactionProc）
+  fn network_runtxp(&mut self) -> bool {
+    use crate::txn_resp_commands::{SessionTxnProcResolver, TxnRespCommandsExt};
+    let mut resolver = SessionTxnProcResolver {
+      registry: self.custom_command_manager.clone(),
+    };
+    self.with_txn_manager(|txn, session| txn.network_runtxp(session, &mut resolver))
   }
 
   /// 事务管理器暂借共同骨架（take → 调用 → 归还，规避 &mut self 双重借用）。
@@ -995,6 +1082,7 @@ impl RespServerSession {
   /// 排队命令（会话侧路由，实现委托 wtxn::TransactionManager）；
   /// 命令元数据取自 resp 命令信息域（C# SimpleRespCommandInfo 同源）
   fn network_skip(&mut self, cmd: RespCommand) -> bool {
+    use crate::txn_resp_commands::TxnRespCommandsExt;
     let info = self.txn_queued_command_info(cmd);
     self.with_txn_manager(|txn, session| txn.network_skip(session, cmd, info.as_ref()))
   }
@@ -1654,7 +1742,7 @@ impl RespServerSession {
 
   /// 写错误应答并置 commandErrorWritten（对标 C# AbortWithErrorMessage）
   pub fn abort_error_message(&mut self, message: &str) {
-    let clean = cs::sanitize_error_str(message, cs::MAX_ERROR_MSG_LEN);
+    let clean = sanitize_error_str(message, MAX_ERROR_MSG_LEN);
     self.output.extend_from_slice(b"-");
     self.output.extend_from_slice(clean.as_bytes());
     self.output.extend_from_slice(b"\r\n");
@@ -1663,7 +1751,7 @@ impl RespServerSession {
 
   /// 参数数量错误应答（对标 C# AbortWithWrongNumberOfArguments）
   pub fn abort_wrong_num_args(&mut self, cmd_name: &str) {
-    let clean = cs::sanitize_error_str(cmd_name, cs::MAX_PARAM_NAME_LEN);
+    let clean = sanitize_error_str(cmd_name, cs::MAX_PARAM_NAME_LEN);
     self
       .output
       .extend_from_slice(b"-ERR wrong number of arguments for '");
@@ -1678,8 +1766,8 @@ impl RespServerSession {
     sub_command: &str,
     cmd_name: &str,
   ) {
-    let clean_sub = cs::sanitize_error_str(sub_command, cs::MAX_PARAM_NAME_LEN);
-    let clean_cmd = cs::sanitize_error_str(cmd_name, cs::MAX_PARAM_NAME_LEN);
+    let clean_sub = sanitize_error_str(sub_command, cs::MAX_PARAM_NAME_LEN);
+    let clean_cmd = sanitize_error_str(cmd_name, cs::MAX_PARAM_NAME_LEN);
     self
       .output
       .extend_from_slice(b"-ERR unknown subcommand or wrong number of arguments for '");
@@ -2969,5 +3057,97 @@ mod tests {
     s.abort_error_message("ERR broken\r\nINJECT");
     assert_eq!(s.take_output(), b"-ERR broken\r\n");
     assert!(s.command_error_written);
+  }
+
+  // ---- scratch 直读消费（try_consume_pending 持久游标模型，网络泵语义）----
+
+  /// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+  fn pump_feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+    s.recv_buffer.extend_from_slice(bytes);
+    s.try_consume_pending()
+  }
+
+  #[test]
+  fn scratch_pending_half_packet_and_full_reset() {
+    let mut s = session(0);
+    // 批1：半包（PING 前半）→ 残余驻留，游标不动
+    assert_eq!(pump_feed(&mut s, b"*1\r\n$4\r\nPI"), Some(10));
+    assert_eq!(s.read_head, 0);
+    // 批2：补齐 → 整段消费完毕，缓冲清零复位（容量保留）
+    assert_eq!(pump_feed(&mut s, b"NG\r\n"), Some(0));
+    assert!(s.recv_buffer.is_empty());
+    assert_eq!(s.bytes_read, 0);
+    assert_eq!(s.read_head, 0);
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), "+PONG\r\n");
+    // 复位后再来一批：从零游标重新消费
+    assert_eq!(pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n"), Some(0));
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), "+PONG\r\n");
+  }
+
+  #[test]
+  fn scratch_pending_pipeline_partial_tail() {
+    // 整段消费 + 半包尾随并存：游标推进越过已消费前缀，不丢后续流水线
+    let mut s = session(0);
+    assert_eq!(
+      pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n*1\r\n$4\r\nPI"),
+      Some(10)
+    );
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), "+PONG\r\n");
+    assert_eq!(s.read_head, 14);
+    // 补齐后续解析
+    assert_eq!(pump_feed(&mut s, b"NG\r\n"), Some(0));
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), "+PONG\r\n");
+    assert!(s.recv_buffer.is_empty());
+  }
+
+  #[test]
+  fn scratch_pending_multi_exec_cross_batch_replay() {
+    // 跨批次事务：排队命令字节驻留接收缓冲，EXEC 回退重解析真执行
+    //（C# bytesRead/readHead 持久游标语义；拷贝形态只能得到空数组）
+    use std::sync::Arc as StdArc;
+    let mut s = session(0);
+    s.attach_transaction_components(StdArc::new(wtxn::WatchVersionMap::new(64)));
+
+    assert_eq!(pump_feed(&mut s, b"*1\r\n$5\r\nMULTI\r\n"), Some(0));
+    assert_eq!(s.take_output(), b"+OK\r\n");
+    assert_eq!(pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n"), Some(0));
+    assert_eq!(s.take_output(), b"+QUEUED\r\n");
+    // EXEC：先写数组头，随后回退到 MULTI 尾重解析 PING 真执行（+PONG）
+    assert_eq!(pump_feed(&mut s, b"*1\r\n$4\r\nEXEC\r\n"), Some(0));
+    assert_eq!(s.take_output(), b"*1\r\n+PONG\r\n");
+    // 事务收尾：缓冲复位、游标归零
+    assert!(s.recv_buffer.is_empty());
+    assert_eq!(s.txn_state, wtxn::TxnState::None);
+  }
+
+  #[test]
+  fn scratch_pending_multi_exec_same_batch_matches_redis() {
+    // 同批 MULTI..EXEC：回退重解析与跨批次形态应答一致（真 Redis 字节序）
+    use std::sync::Arc as StdArc;
+    let mut s = session(0);
+    s.attach_transaction_components(StdArc::new(wtxn::WatchVersionMap::new(64)));
+    assert_eq!(
+      pump_feed(
+        &mut s,
+        b"*1\r\n$5\r\nMULTI\r\n*1\r\n$4\r\nPING\r\n*1\r\n$4\r\nEXEC\r\n"
+      ),
+      Some(0)
+    );
+    assert_eq!(s.take_output(), b"+OK\r\n+QUEUED\r\n*1\r\n+PONG\r\n");
+  }
+
+  #[test]
+  fn scratch_pending_violation_signals_none() {
+    let mut s = session(0);
+    // 畸形数组计数（C# RespParsingException）→ None，泵断连
+    assert_eq!(pump_feed(&mut s, b"*A\r\nGET\r\n"), None);
+    assert!(!s.parse_violation, "哨兵应被消费复位");
+  }
+
+  #[test]
+  fn scratch_pending_empty_is_harmless_noop() {
+    let mut s = session(0);
+    assert_eq!(pump_feed(&mut s, b""), Some(0));
+    assert!(s.take_output().is_empty());
   }
 }

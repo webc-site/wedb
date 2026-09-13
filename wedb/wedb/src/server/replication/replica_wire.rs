@@ -56,11 +56,13 @@ impl FrameSink {
       Self::Reject => false,
       Self::Fn(f) => f(frame),
       Self::Session { session, seen } => {
-        let (consumed, resp) = session.lock().try_consume_messages(frame);
+        // 直写消费（应答落临时 scratch 复用缓冲，记录帧热路径零堆分配）
+        let mut scratch = Vec::new();
+        let consumed = session.lock().try_consume_messages_into(frame, &mut scratch);
         if let Some(counter) = seen {
           *counter.lock() += 1;
         }
-        consumed == frame.len() && (resp.is_empty() || resp == b"+OK\r\n")
+        consumed == frame.len() && (scratch.is_empty() || scratch == b"+OK\r\n")
       }
     }
   }
