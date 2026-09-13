@@ -4,7 +4,7 @@
 
 use wcol::ListTreeOps;
 use wdev::Device;
-use wval::CollectionType;
+use wval::GarnetObjectType;
 
 use crate::{error::Result, session::StoreSession};
 
@@ -76,7 +76,7 @@ impl<D: Device> StoreSession<D> {
   /// 按索引修改列表元素 (LSET)
   pub async fn bftree_lset(&self, key: &[u8], index: i64, element: &[u8]) -> Result<()> {
     let loaded = self
-      .load_bftree_meta_stub(key, CollectionType::List)
+      .load_bftree_meta_stub(key, GarnetObjectType::List)
       .await?;
     let Some((_, stub, Some(list_stub))) = loaded else {
       return Err(wcol::Error::InvalidArgument("ERR no such key").into());
@@ -101,6 +101,6 @@ impl<D: Device> StoreSession<D> {
 
   /// 获取列表总长度 (O(1) 读取元数据)
   pub async fn bftree_llen(&self, key: &[u8]) -> Result<usize> {
-    self.bftree_card(key, CollectionType::List).await
+    self.bftree_card(key, GarnetObjectType::List).await
   }
 }

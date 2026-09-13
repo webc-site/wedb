@@ -17,7 +17,7 @@ use wbftree::{
 use wcol::RiTreeOps;
 use wdev::Device;
 use wrecord::RecordHeader;
-use wval::{CollectionType, META_VALUE_SIZE, MetaValue, StorageEncoding};
+use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 use crate::{
   error::{Error, Result},
@@ -35,7 +35,7 @@ pub enum RangeIndexError {
   #[error("ERR range index not found")]
   NotFound,
   /// 键类型不匹配
-  #[error("WRONGTYPE Operation against a key holding the wrong kind of value")]
+  #[error("WRONGTYPE Operation against a key holding the wrong kind of value.")]
   WrongType,
   /// 键值长度超限
   #[error(
@@ -207,7 +207,7 @@ impl<D: Device> StoreSession<D> {
 
     let meta_k = self.session_meta_key(key);
     let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-    let mut meta = MetaValue::new(key_id, CollectionType::RangeIndex, 1, 0);
+    let mut meta = MetaValue::new(key_id, GarnetObjectType::RangeIndex, 1, 0);
     meta.set_encoding(StorageEncoding::FlattenedTree);
 
     let val = encode_meta_stub_record(&meta, &stub);
@@ -258,7 +258,7 @@ impl<D: Device> StoreSession<D> {
     self
       .store
       .update_key_id_meta(meta.key_id, meta.version, true);
-    if meta.collection_type != CollectionType::RangeIndex {
+    if meta.collection_type != GarnetObjectType::RangeIndex {
       return Err(RangeIndexError::WrongType);
     }
     if bytes.len() < META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE {
@@ -632,7 +632,7 @@ impl<D: Device> StoreSession<D> {
   /// 检查索引是否存在且为 RangeIndex (1:1 对标 libs/server/Storage/Session/MainStore/RangeIndexOps.cs:RangeIndexExists)
   pub async fn range_index_exists(&self, key: &[u8]) -> Result<bool> {
     if let Some(meta) = self.load_meta(key).await?
-      && meta.collection_type == CollectionType::RangeIndex
+      && meta.collection_type == GarnetObjectType::RangeIndex
     {
       return Ok(true);
     }
@@ -711,7 +711,7 @@ impl<D: Device> StoreSession<D> {
     let meta_k = self.session_meta_key(key);
     let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
     let count = tree.ri_len().unwrap_or(0) as u64;
-    let mut meta = MetaValue::new(key_id, CollectionType::RangeIndex, 1, count);
+    let mut meta = MetaValue::new(key_id, GarnetObjectType::RangeIndex, 1, count);
     meta.set_encoding(StorageEncoding::FlattenedTree);
 
     let val = encode_meta_stub_record(&meta, &stub);
@@ -840,7 +840,7 @@ impl<D: Device> StoreSession<D> {
     // 写入新键元数据记录（Meta + 新存根，定长纯栈编码）
     let new_meta_k = self.session_meta_key(new_key);
     let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-    let mut meta = MetaValue::new(key_id, CollectionType::RangeIndex, 1, old_meta.size);
+    let mut meta = MetaValue::new(key_id, GarnetObjectType::RangeIndex, 1, old_meta.size);
     meta.set_encoding(StorageEncoding::FlattenedTree);
     let val = encode_meta_stub_record(&meta, &stub);
     self.upsert_raw(&new_meta_k, &val).await?;
@@ -860,7 +860,7 @@ fn recreated_stub_record(val: &[u8], new_tree_handle: u64) -> Option<([u8; 128],
     return None;
   }
   let meta = MetaValue::from_slice(&val[..META_VALUE_SIZE]).ok()?;
-  if meta.collection_type != CollectionType::RangeIndex
+  if meta.collection_type != GarnetObjectType::RangeIndex
     && (meta.encoding() != StorageEncoding::FlattenedTree || meta.size == 0)
   {
     return None;

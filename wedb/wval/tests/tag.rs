@@ -1,6 +1,6 @@
 use aok::{OK, Void};
 use log::info;
-use wval::{CollectionType, KeyTag};
+use wval::{GarnetObjectType, KeyTag};
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {
@@ -54,23 +54,23 @@ fn test_key_tag_roundtrip_and_properties() -> Void {
 
 #[test]
 fn test_collection_type_roundtrip_and_properties() -> Void {
-  info!("测试 CollectionType 往返与属性转换");
+  info!("测试 GarnetObjectType 往返与属性转换");
 
   let types = [
-    (CollectionType::SortedSet, 1, "zset"),
-    (CollectionType::List, 2, "list"),
-    (CollectionType::Hash, 3, "hash"),
-    (CollectionType::Set, 4, "set"),
-    (CollectionType::RangeIndex, 5, "rangeindex"),
-    (CollectionType::All, 0xfb, "all"),
+    (GarnetObjectType::SortedSet, 1, "zset"),
+    (GarnetObjectType::List, 2, "list"),
+    (GarnetObjectType::Hash, 3, "hash"),
+    (GarnetObjectType::Set, 4, "set"),
+    (GarnetObjectType::RangeIndex, 5, "rangeindex"),
+    (GarnetObjectType::All, 0xfb, "all"),
   ];
 
   for (col_type, byte_val, redis_name) in types {
     assert_eq!(col_type.as_u8(), byte_val);
     assert_eq!(u8::from(col_type), byte_val);
-    assert_eq!(CollectionType::from_u8(byte_val), Some(col_type));
-    assert_eq!(CollectionType::try_from(byte_val)?, col_type);
-    assert_eq!(CollectionType::from_repr(byte_val), Some(col_type));
+    assert_eq!(GarnetObjectType::from_u8(byte_val), Some(col_type));
+    assert_eq!(GarnetObjectType::try_from(byte_val)?, col_type);
+    assert_eq!(GarnetObjectType::from_repr(byte_val), Some(col_type));
     assert_eq!(col_type.as_str(), redis_name);
     assert_eq!(col_type.as_ref(), redis_name);
     assert_eq!(col_type.to_string(), redis_name);
@@ -78,11 +78,11 @@ fn test_collection_type_roundtrip_and_properties() -> Void {
   }
 
   // 非法 collection type 校验 (0 为 Null 对象，6 未分配)
-  assert_eq!(CollectionType::from_u8(0), Some(CollectionType::Null));
-  assert_eq!(CollectionType::from_u8(6), None);
-  assert_eq!(CollectionType::from_repr(6), None);
-  assert_eq!(CollectionType::from_u8(0xfc), None);
-  assert!(CollectionType::try_from(6).is_err());
+  assert_eq!(GarnetObjectType::from_u8(0), Some(GarnetObjectType::Null));
+  assert_eq!(GarnetObjectType::from_u8(6), None);
+  assert_eq!(GarnetObjectType::from_repr(6), None);
+  assert_eq!(GarnetObjectType::from_u8(0xfc), None);
+  assert!(GarnetObjectType::try_from(6).is_err());
 
   OK
 }

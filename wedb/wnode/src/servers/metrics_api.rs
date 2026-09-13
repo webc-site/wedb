@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
 use wmetric::{
   DEFAULT_INFO, GarnetInfoMetrics, GarnetLatencyMetrics, GarnetServerMonitor, InfoMetricsType,
   InfoProvider, LatencyMetricsType, MetricsItem,
@@ -14,15 +13,16 @@ use wmetric::{
 
 /// 指标 API
 pub struct MetricsApi {
-  /// 服务器监视器（C# provider.StoreWrapper.monitor）
-  monitor: Option<Arc<Mutex<GarnetServerMonitor>>>,
+  /// 服务器监视器（C# provider.StoreWrapper.monitor；监视器全体方法
+  /// `&self`，内部状态自持互斥/原子，无外层锁）
+  monitor: Option<Arc<GarnetServerMonitor>>,
 }
 
 impl MetricsApi {
   /// 构造指标 API（监视器未启用传 None，复位族转为空操作）
   ///
   /// libs/server/Servers/MetricsApi.cs:MetricsApi
-  pub fn new(monitor: Option<Arc<Mutex<GarnetServerMonitor>>>) -> Self {
+  pub fn new(monitor: Option<Arc<GarnetServerMonitor>>) -> Self {
     Self { monitor }
   }
 
@@ -61,7 +61,7 @@ impl MetricsApi {
   /// libs/server/Servers/MetricsApi.cs:ResetInfoMetrics
   pub fn reset_info_metrics(&self, info_metrics_type: InfoMetricsType) {
     if let Some(monitor) = &self.monitor {
-      monitor.lock().reset_event_flags[info_metrics_type.idx()] = true;
+      monitor.set_info_reset_flag(info_metrics_type);
     }
   }
 
@@ -69,9 +69,8 @@ impl MetricsApi {
   pub fn reset_info_metrics_all(&self, info_metrics_types: Option<&[InfoMetricsType]>) {
     let sections = info_metrics_types.unwrap_or(DEFAULT_INFO);
     if let Some(monitor) = &self.monitor {
-      let mut monitor = monitor.lock();
       for &section in sections {
-        monitor.reset_event_flags[section.idx()] = true;
+        monitor.set_info_reset_flag(section);
       }
     }
   }
@@ -83,7 +82,7 @@ impl MetricsApi {
     let Some(monitor) = &self.monitor else {
       return Vec::new();
     };
-    let Some(global_latency_metrics) = monitor.lock().global_latency_metrics() else {
+    let Some(global_latency_metrics) = monitor.global_latency_metrics() else {
       return Vec::new();
     };
     global_latency_metrics
@@ -100,7 +99,7 @@ impl MetricsApi {
     let Some(monitor) = &self.monitor else {
       return Vec::new();
     };
-    let Some(global_latency_metrics) = monitor.lock().global_latency_metrics() else {
+    let Some(global_latency_metrics) = monitor.global_latency_metrics() else {
       return Vec::new();
     };
     let global_latency_metrics = global_latency_metrics.lock();
@@ -121,7 +120,7 @@ impl MetricsApi {
   /// libs/server/Servers/MetricsApi.cs:ResetLatencyMetrics
   pub fn reset_latency_metrics(&self, latency_metrics_type: LatencyMetricsType) {
     if let Some(monitor) = &self.monitor {
-      monitor.lock().reset_latency_metrics[latency_metrics_type.idx()] = true;
+      monitor.set_latency_reset_flag(latency_metrics_type);
     }
   }
 
@@ -129,9 +128,8 @@ impl MetricsApi {
   pub fn reset_latency_metrics_all(&self, latency_metrics_types: Option<&[LatencyMetricsType]>) {
     let types = latency_metrics_types.unwrap_or(GarnetLatencyMetrics::DEFAULT_LATENCY_TYPES);
     if let Some(monitor) = &self.monitor {
-      let mut monitor = monitor.lock();
       for &latency_metrics_type in types {
-        monitor.reset_latency_metrics[latency_metrics_type.idx()] = true;
+        monitor.set_latency_reset_flag(latency_metrics_type);
       }
     }
   }
@@ -243,12 +241,11 @@ mod tests {
 
   #[test]
   fn reset_flags_set_on_monitor() {
-    let monitor = Arc::new(Mutex::new(GarnetServerMonitor::new(1, true, true, false)));
+    let monitor = Arc::new(GarnetServerMonitor::new(1, true, true, false));
     let api = MetricsApi::new(Some(Arc::clone(&monitor)));
     api.reset_info_metrics(InfoMetricsType::Stats);
     api.reset_latency_metrics(LatencyMetricsType::NetRsLat);
-    let monitor = monitor.lock();
-    assert!(monitor.reset_event_flags[InfoMetricsType::Stats.idx()]);
-    assert!(monitor.reset_latency_metrics[LatencyMetricsType::NetRsLat.idx()]);
+    assert!(monitor.info_reset_flag(InfoMetricsType::Stats));
+    assert!(monitor.latency_reset_flag(LatencyMetricsType::NetRsLat));
   }
 }

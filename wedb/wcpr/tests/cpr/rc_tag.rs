@@ -13,7 +13,7 @@ use std::sync::{Arc, atomic};
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
-use wcpr::{CheckpointManager, CheckpointType};
+use wcpr::CheckpointType;
 use wdev::SegmentedDevice;
 use wepoch::Participant;
 use windex::{HashBucket, HashBucketEntry, HashIndex};
@@ -87,15 +87,12 @@ fn rc_entry_tag_survives_checkpoint_roundtrip() -> Void {
     let expected_main = (rc_addr & !HashBucketEntry::READ_CACHE_BIT) - RC_VIRTUAL_BASE;
     assert_ne!(expected_main, 0, "前置条件：主日志真实地址必须非零");
 
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
 
     // 销毁重建：全新设备句柄 + 全新引擎实例
     drop(store);
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let restored = CheckpointManager::recover::<MiniStore>(&ckpt_dir, meta.token, device).await?;
+    let restored = wcpr::recover::<_, MiniStore>(&ckpt_dir, meta.token, device).await?;
     let p2 = restored.session()?;
 
     // 核心回归点：tag 保真 → find_tag 必须命中（修复前 tag 清零，此处为 None）
@@ -151,14 +148,11 @@ fn broken_rc_chain_slot_sanitized_on_roundtrip() -> Void {
       "前置条件：断链条目必须是 RC 虚拟形态"
     );
 
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
 
     drop(store);
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let restored = CheckpointManager::recover::<MiniStore>(&ckpt_dir, meta.token, device).await?;
+    let restored = wcpr::recover::<_, MiniStore>(&ckpt_dir, meta.token, device).await?;
     let p2 = restored.session()?;
 
     // 断链条目：槽位净化归零，键不可见（绝不将物理偏移误当主日志地址）

@@ -18,6 +18,7 @@ itoa.workspace = true
 log.workspace = true
 num_enum = "0.7.6"
 parking_lot = { workspace = true, features = ["arc_lock"] }
+wbase = { workspace = true, features = ["convert"] }
 wresp.workspace = true
 
 [dev-dependencies]

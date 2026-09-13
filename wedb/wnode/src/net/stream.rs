@@ -38,6 +38,17 @@ impl ConnectionStream {
       Self::Unix(s) => s.write_all(buf).await,
     }
   }
+
+  /// 本地端点文本（C# networkSender.LocalEndpointName；UDS 无端口语义，恒空串）
+  pub fn local_endpoint(&self) -> String {
+    match self {
+      Self::Tcp(s) => s
+        .local_addr()
+        .map_or(String::new(), |addr| addr.to_string()),
+      #[cfg(unix)]
+      Self::Unix(_) => String::new(),
+    }
+  }
 }
 
 /// 会话底层独占网络写发送器

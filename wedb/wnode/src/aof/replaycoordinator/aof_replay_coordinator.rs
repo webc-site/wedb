@@ -366,6 +366,30 @@ impl AofReplayCoordinator {
     self.leader_barriers.lock().remove(&barrier_id).is_some()
   }
 
+  /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ProcessSynchronizedOperation
+  ///
+  /// 需跨子日志同步的操作统一处理：首个到场者为 leader 且全员到齐（或单
+  /// 参与者）时执行操作并清理栅栏；否则阻塞参与者直接返回 `None`。C# 经
+  /// LeaderBarrier 阻塞等待 + AsyncUtils.BlockingWait，rust 侧多日志回放为
+  /// 顺序驱动，未到齐即非 leader 直接跳过（无阻塞等待面）。
+  pub fn process_synchronized_operation<R>(
+    &self,
+    sublog_idx: usize,
+    sequence_number: i64,
+    participant_count: i16,
+    barrier_id: i32,
+    operation: impl FnOnce() -> R,
+  ) -> Option<R> {
+    let _ = sublog_idx;
+    let key = BarrierKey::new(barrier_id, sequence_number);
+    if !self.get_barrier(key, participant_count) {
+      return None;
+    }
+    let result = operation();
+    self.try_remove_barrier(key);
+    Some(result)
+  }
+
   /// 多日志拓扑标志。
   pub fn multi_log_enabled(&self) -> bool {
     self.multi_log_enabled

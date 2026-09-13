@@ -4,7 +4,7 @@
 
 use wcol::{ZRangeByScoreOpt, ZSetTreeOps};
 use wdev::Device;
-use wval::CollectionType;
+use wval::GarnetObjectType;
 
 use crate::{error::Result, session::StoreSession};
 
@@ -19,7 +19,7 @@ impl<D: Device> StoreSession<D> {
   /// 在 ObjectStore 层拦截后转交对象实现，单一真值源）
   pub async fn bftree_zadd(&self, key: &[u8], member: &[u8], score: f64) -> Result<bool> {
     self
-      .with_bftree_write_or_create(key, CollectionType::ZSET, |tree| {
+      .with_bftree_write_or_create(key, GarnetObjectType::ZSET, |tree| {
         let is_new = tree.zadd(member, score)?;
         Ok((if is_new { 1 } else { 0 }, is_new))
       })
@@ -31,7 +31,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_remove(
         key,
-        CollectionType::ZSET,
+        GarnetObjectType::ZSET,
         || false,
         |tree| {
           let removed = tree.zrem(member)?;
@@ -46,7 +46,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::ZSET,
+        GarnetObjectType::ZSET,
         || None,
         |tree| tree.zscore(member).map_err(Into::into),
       )
@@ -84,7 +84,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::ZSET,
+        GarnetObjectType::ZSET,
         || 0,
         |tree| tree.zrange_by_score(min, max, on_item).map_err(Into::into),
       )
@@ -125,7 +125,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::ZSET,
+        GarnetObjectType::ZSET,
         || 0,
         |tree| tree.zrange_by_score_ext(opt, on_item).map_err(Into::into),
       )
@@ -168,7 +168,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::ZSET,
+        GarnetObjectType::ZSET,
         || 0,
         |tree| {
           tree
@@ -194,7 +194,7 @@ impl<D: Device> StoreSession<D> {
     max_inc: bool,
   ) -> Result<usize> {
     let loaded = self
-      .load_bftree_meta_stub(key, CollectionType::ZSET)
+      .load_bftree_meta_stub(key, GarnetObjectType::ZSET)
       .await?;
     let Some((meta, stub, _)) = loaded else {
       return Ok(0);
@@ -216,7 +216,7 @@ impl<D: Device> StoreSession<D> {
 
   /// 获取有序集合总基数 (O(1) 读取元数据)
   pub async fn bftree_zcard(&self, key: &[u8]) -> Result<usize> {
-    self.bftree_card(key, CollectionType::ZSET).await
+    self.bftree_card(key, GarnetObjectType::ZSET).await
   }
 
   // =========================================================================

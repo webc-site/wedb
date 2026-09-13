@@ -346,10 +346,10 @@ mod tests {
 
   #[test]
   fn command_list_length_covers_all_commands() {
-    // Reset = 369 为最大有效命令 → 需 370 位 → 6 个 u64
+    // QUIT = 367 为最大有效命令 → 需 368 位 → 6 个 u64
     let len = CommandPermissionSet::get_command_list_length();
     assert_eq!(len, 6);
-    assert!(len * 64 > RespCommand::Reset as u16 as usize);
+    assert!(len * 64 > wresp::LAST_VALID_COMMAND as u16 as usize);
   }
 
   #[test]

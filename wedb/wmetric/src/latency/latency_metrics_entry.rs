@@ -43,8 +43,9 @@ impl LatencyMetricsEntry {
 
 /// Stopwatch tick ↔ 微秒换算辅助（服务端延迟值以 tick 计量）。
 pub mod time_stamp {
-  /// Stopwatch tick 频率：10_000_000/s（.NET TimeSpan.TicksPerSecond）。
-  pub const TICKS_PER_SECOND: u64 = 10_000_000;
+  /// Stopwatch tick 频率（.NET TimeSpan.TicksPerSecond）：派生自
+  /// wbase::convert::TICKS_PER_SECOND 单处定义（10_000_000/s）。
+  pub const TICKS_PER_SECOND: u64 = wbase::convert::TICKS_PER_SECOND as u64;
   /// tick → 微秒除数（对齐 OutputScalingFactor.TimeStampToMicroseconds）。
   pub const TICKS_PER_MICROSECOND: u64 = TICKS_PER_SECOND / 1_000_000;
   /// tick → 秒除数（对齐 OutputScalingFactor.TimeStampToSeconds）。

@@ -25,8 +25,9 @@ impl ConstantStrings {
   pub const ERR_UNKNOWN: &[u8] = b"ERR Unknown Redis command called from script";
   /// `CmdStrings.RESP_ERR_GENERIC_UNK_CMD`
   ///
-  /// 通用未知命令错误文本（ProcessSingleRespTerm 的特判比对串）。
-  pub const RESP_ERR_GENERIC_UNK_CMD: &[u8] = b"ERR unknown command";
+  /// 通用未知命令错误文本（ProcessSingleRespTerm 的特判比对串）；
+  /// 派生自 wresp::cmd_strings 单处定义（str → as_bytes）。
+  pub const RESP_ERR_GENERIC_UNK_CMD: &[u8] = cmd_strings::RESP_ERR_GENERIC_UNK_CMD.as_bytes();
   /// `CmdStrings.LUA_ERR_Lua_redis_lib_command_arguments_must_be_strings_or_integers`
   pub const ERR_BAD_ARG: &[u8] = b"ERR Lua redis lib command arguments must be strings or integers";
   /// `CmdStrings.LUA_ERR_wrong_number_of_arguments`

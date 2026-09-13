@@ -1,7 +1,7 @@
-use wresp::{RespCommand, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i32};
+use wresp::{RespCommand, RespVecExt, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i32};
 
 use super::{slow_log_container::SlowLogContainer, slowlog_entry::SlowLogEntry};
-use crate::{latency::latency_metrics_entry::time_stamp, resp_write_utils::RespWriteUtils};
+use crate::latency::latency_metrics_entry::time_stamp;
 
 /// SLOWLOG 命令的响应编码（对标
 /// libs/server/Metrics/Slowlog/RespSlowlogCommands.cs:RespSlowlogCommands，
@@ -37,15 +37,15 @@ impl RespSlowlogCommands {
   /// libs/server/Metrics/Slowlog/RespSlowlogCommands.cs:NetworkSlowLogHelp
   ///
   /// SLOWLOG HELP：不接受附加参数，输出子命令帮助文本数组。
-  pub fn network_slow_log_help(arg_count: usize, output: &mut String) -> Result<(), String> {
+  pub fn network_slow_log_help(arg_count: usize, output: &mut Vec<u8>) -> Result<(), String> {
     if arg_count != 0 {
       return Err(wrong_num_args("slowlog help"));
     }
 
     let slow_log_commands = super::resp_slowlog_help::RespSlowlogHelp::get_slow_log_commands();
-    RespWriteUtils::push_array_length(output, slow_log_commands.len());
+    output.write_resp_array_len(slow_log_commands.len());
     for command in slow_log_commands {
-      RespWriteUtils::push_simple_string(output, command);
+      output.write_resp_simple_string(command);
     }
     Ok(())
   }
@@ -57,7 +57,7 @@ impl RespSlowlogCommands {
   pub fn network_slow_log_get(
     args: &[&[u8]],
     container: Option<&SlowLogContainer>,
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) -> Result<(), String> {
     if args.len() > 1 {
       return Err(wrong_num_args("slowlog get"));
@@ -66,48 +66,47 @@ impl RespSlowlogCommands {
     let mut count: i32 = 10;
     if let Some(arg) = args.first() {
       let Some(parsed) = parse_i32(arg).filter(|&c| c >= -1) else {
-        output.push('-');
-        output.push_str(RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1);
-        output.push_str("\r\n");
+        output.write_resp_error(RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1);
         return Ok(());
       };
       count = parsed;
     }
 
     let Some(container) = container else {
-      RespWriteUtils::push_array_length(output, 0);
+      output.write_resp_array_len(0);
       return Ok(());
     };
 
     let entries = container.get_entries(count);
-    RespWriteUtils::push_array_length(output, entries.len());
+    output.write_resp_array_len(entries.len());
     for entry in &entries {
       // 每条目：id、timestamp、duration、参数数组、client ip:port、client name。
-      RespWriteUtils::push_array_length(output, 6);
-      RespWriteUtils::push_integer(output, i64::from(entry.id));
-      RespWriteUtils::push_integer(output, i64::from(entry.timestamp));
-      RespWriteUtils::push_integer(output, i64::from(entry.duration));
+      output.write_resp_array_len(6);
+      output.write_resp_int(i64::from(entry.id));
+      output.write_resp_int(i64::from(entry.timestamp));
+      output.write_resp_int(i64::from(entry.duration));
 
       let command_name = format!("{:?}", entry.command);
       match &entry.arguments {
         None => {
-          RespWriteUtils::push_array_length(output, 1);
-          RespWriteUtils::push_bulk_string(output, &command_name);
+          output.write_resp_array_len(1);
+          output.write_resp_bulk_string(command_name.as_bytes());
         }
         Some(bytes) => {
           // 反序列化解析状态快照（`[count i32][4B 长度前缀 + 数据]` 布局，
           // 对齐 SessionParseState.SerializeTo）。
           let tokens = deserialize_args(bytes);
-          RespWriteUtils::push_array_length(output, tokens.len() + 1);
-          RespWriteUtils::push_bulk_string(output, &command_name);
+          output.write_resp_array_len(tokens.len() + 1);
+          output.write_resp_bulk_string(command_name.as_bytes());
           for token in &tokens {
-            RespWriteUtils::push_bulk_string_bytes(output, token);
+            // 二进制安全直写，非 UTF-8 token 零破坏
+            output.write_resp_bulk_string(token);
           }
         }
       }
 
-      RespWriteUtils::push_bulk_string(output, &entry.client_ip_port);
-      RespWriteUtils::push_bulk_string(output, &entry.client_name);
+      output.write_resp_bulk_string(entry.client_ip_port.as_bytes());
+      output.write_resp_bulk_string(entry.client_name.as_bytes());
     }
     Ok(())
   }
@@ -118,15 +117,12 @@ impl RespSlowlogCommands {
   pub fn network_slow_log_len(
     arg_count: usize,
     container: Option<&SlowLogContainer>,
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) -> Result<(), String> {
     if arg_count != 0 {
       return Err(wrong_num_args("slowlog len"));
     }
-    RespWriteUtils::push_integer(
-      output,
-      i64::from(container.map_or(0, SlowLogContainer::count)),
-    );
+    output.write_resp_int(i64::from(container.map_or(0, SlowLogContainer::count)));
     Ok(())
   }
 
@@ -136,7 +132,7 @@ impl RespSlowlogCommands {
   pub fn network_slow_log_reset(
     arg_count: usize,
     container: Option<&SlowLogContainer>,
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) -> Result<(), String> {
     if arg_count != 0 {
       return Err(wrong_num_args("slowlog reset"));
@@ -144,7 +140,7 @@ impl RespSlowlogCommands {
     if let Some(container) = container {
       container.clear();
     }
-    RespWriteUtils::push_simple_string(output, "OK");
+    output.write_resp_simple_string("OK");
     Ok(())
   }
 

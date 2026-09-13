@@ -24,7 +24,7 @@ use wbftree::{
 };
 use wcol::{LIST_STUB_SIZE, ListStub};
 use wdev::Device;
-use wval::{CollectionType, META_VALUE_SIZE, MetaValue, StorageEncoding};
+use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 use crate::{
   error::Result,
@@ -78,7 +78,7 @@ impl<D: Device> StoreSession<D> {
   pub(crate) async fn load_bftree_meta_stub(
     &self,
     key: &[u8],
-    expected_type: CollectionType,
+    expected_type: GarnetObjectType,
   ) -> Result<Option<(MetaValue, RangeIndexStub, Option<ListStub>)>> {
     let meta_k = self.session_meta_key(key);
     let loaded = self
@@ -95,7 +95,7 @@ impl<D: Device> StoreSession<D> {
         {
           return Err(RangeIndexError::WrongType.into());
         }
-        if expected_type == CollectionType::List {
+        if expected_type == GarnetObjectType::List {
           if bytes.len() < META_VALUE_SIZE + LIST_STUB_SIZE {
             return Ok(LoadedStub::NotFound);
           }
@@ -204,7 +204,7 @@ impl<D: Device> StoreSession<D> {
 
   /// O(1) 直读 BfTree 集合元素总数 (直读主存元记录 MetaValue.size，严禁扫树)
   #[inline]
-  pub(crate) async fn bftree_card(&self, key: &[u8], col_type: CollectionType) -> Result<usize> {
+  pub(crate) async fn bftree_card(&self, key: &[u8], col_type: GarnetObjectType) -> Result<usize> {
     let loaded = self.load_bftree_meta_stub(key, col_type).await?;
     let Some((meta, ..)) = loaded else {
       return Ok(0);
@@ -219,7 +219,7 @@ impl<D: Device> StoreSession<D> {
   pub(crate) async fn with_bftree_read<R, F>(
     &self,
     key: &[u8],
-    expected_type: CollectionType,
+    expected_type: GarnetObjectType,
     on_missing: impl FnOnce() -> R,
     op: F,
   ) -> Result<R>
@@ -243,7 +243,7 @@ impl<D: Device> StoreSession<D> {
   pub(crate) async fn with_bftree_write_or_create<R, F>(
     &self,
     key: &[u8],
-    col_type: CollectionType,
+    col_type: GarnetObjectType,
     op: F,
   ) -> Result<R>
   where
@@ -295,7 +295,7 @@ impl<D: Device> StoreSession<D> {
   pub(crate) async fn with_bftree_remove<R, F>(
     &self,
     key: &[u8],
-    col_type: CollectionType,
+    col_type: GarnetObjectType,
     on_missing: impl FnOnce() -> R,
     op: F,
   ) -> Result<R>
@@ -333,7 +333,7 @@ impl<D: Device> StoreSession<D> {
     F: FnOnce(&TreeReadGuard<'_>, &ListStub) -> Result<R>,
   {
     let loaded = self
-      .load_bftree_meta_stub(key, CollectionType::List)
+      .load_bftree_meta_stub(key, GarnetObjectType::List)
       .await?;
     let Some((_, stub, Some(list_stub))) = loaded else {
       return Ok(on_missing());
@@ -350,7 +350,7 @@ impl<D: Device> StoreSession<D> {
     F: FnOnce(&TreeReadGuard<'_>, &mut ListStub) -> Result<usize>,
   {
     let loaded = self
-      .load_bftree_meta_stub(key, CollectionType::List)
+      .load_bftree_meta_stub(key, GarnetObjectType::List)
       .await?;
     if let Some((mut meta, stub, Some(mut list_stub))) = loaded {
       let tree = self.acquire_tree_read(key, &stub).await?;
@@ -371,7 +371,7 @@ impl<D: Device> StoreSession<D> {
       };
       drop(tree);
       let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-      let mut meta = MetaValue::new(key_id, CollectionType::List, 1, new_len as u64);
+      let mut meta = MetaValue::new(key_id, GarnetObjectType::List, 1, new_len as u64);
       meta.set_encoding(StorageEncoding::FlattenedTree);
       if let Err(e) = self.save_bftree_list_stub(key, &meta, &list_stub).await {
         let _ = self.store.range_index.delete_index(key);
@@ -399,7 +399,7 @@ impl<D: Device> StoreSession<D> {
     F: FnOnce(&TreeReadGuard<'_>, &mut ListStub) -> Result<(bool, R)>,
   {
     let loaded = self
-      .load_bftree_meta_stub(key, CollectionType::List)
+      .load_bftree_meta_stub(key, GarnetObjectType::List)
       .await?;
     let Some((mut meta, stub, Some(mut list_stub))) = loaded else {
       return Ok(on_missing());

@@ -221,5 +221,3 @@ impl From<GarnetObjectType> for u8 {
   }
 }
 
-/// 全局统一强类型集合类型别名（1:1 映射 GarnetObjectType）
-pub type CollectionType = GarnetObjectType;

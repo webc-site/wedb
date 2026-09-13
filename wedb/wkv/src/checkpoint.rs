@@ -1,6 +1,7 @@
 //! RangeIndex 检查点快照与故障恢复模块 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint 与 RebuildFromSnapshotIfPending)
 
 use std::{
+  marker::PhantomData,
   path::Path,
   sync::{Arc, atomic::Ordering},
 };
@@ -8,7 +9,7 @@ use std::{
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 use wdev::Device;
 use windex::{HashBucket, HashBucketEntry};
-use wval::{CollectionType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding};
+use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding};
 
 use crate::{
   config::StoreConfig,
@@ -99,7 +100,7 @@ impl<D: Device> WedbStore<D> {
             && let Ok(val) = record.value()
             && val.len() >= META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE
             && let Ok(meta) = MetaValue::from_slice(val)
-            && (meta.collection_type == CollectionType::RangeIndex
+            && (meta.collection_type == GarnetObjectType::RangeIndex
               || (meta.encoding() == StorageEncoding::FlattenedTree && meta.size > 0))
           {
             let stub_slice = &val[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];
@@ -328,9 +329,7 @@ impl<D: Device> WedbStore<D> {
     checkpoint_dir: impl AsRef<Path>,
     cp_type: wcpr::CheckpointType,
   ) -> Result<wcpr::CheckpointMeta> {
-    let mgr = wcpr::CheckpointManager::<D>::new();
-    mgr
-      .create_checkpoint(self, checkpoint_dir, cp_type)
+    wcpr::create_checkpoint(self, checkpoint_dir, cp_type)
       .await
       .map_err(Error::from)
   }
@@ -343,9 +342,7 @@ impl<D: Device> WedbStore<D> {
     cp_type: wcpr::CheckpointType,
     token: u128,
   ) -> Result<wcpr::CheckpointMeta> {
-    let mgr = wcpr::CheckpointManager::<D>::new();
-    mgr
-      .create_checkpoint_with_token(self, checkpoint_dir, cp_type, token)
+    wcpr::create_checkpoint_with_token(self, checkpoint_dir, cp_type, token)
       .await
       .map_err(Error::from)
   }
@@ -361,7 +358,7 @@ impl<D: Device> WedbStore<D> {
     token: u128,
     device: Arc<D>,
   ) -> Result<Self> {
-    wcpr::CheckpointManager::<D>::recover(checkpoint_dir, token, device)
+    wcpr::recover(checkpoint_dir, token, device)
       .await
       .map_err(Error::from)
   }
@@ -371,7 +368,7 @@ impl<D: Device> WedbStore<D> {
   /// 容量契约同 [`Self::recover`]：恢复配置完全由检查点 StoreMeta 决定。
   #[inline]
   pub async fn recover_latest(checkpoint_dir: impl AsRef<Path>, device: Arc<D>) -> Result<Self> {
-    wcpr::CheckpointManager::<D>::recover_latest(checkpoint_dir, device)
+    wcpr::recover_latest(checkpoint_dir, device)
       .await
       .map_err(Error::from)
   }
@@ -390,7 +387,8 @@ define_listener! {
 /// Wedb 存储引擎专用检查点管理器（对标 Garnet `GarnetCheckpointManager` /
 /// `GarnetClusterCheckpointManager`——后者在前者之上追加版本切换委托与复制域钩子）
 pub struct CheckpointManager<D: Device = wdev::SegmentedDevice> {
-  inner: wcpr::CheckpointManager<D>,
+  /// 设备类型标记（恢复入口 [`CheckpointManager::recover`] 产出 [`WedbStore<D>`]）
+  _marker: PhantomData<D>,
   /// libs/cluster/Server/Replication/GarnetClusterCheckpointManager.cs:checkpointVersionShiftStart
   version_shift_start: parking_lot::RwLock<Option<VersionShiftFn>>,
   /// libs/cluster/Server/Replication/GarnetClusterCheckpointManager.cs:checkpointVersionShiftEnd
@@ -408,7 +406,7 @@ impl<D: Device> CheckpointManager<D> {
   #[inline]
   pub const fn new() -> Self {
     Self {
-      inner: wcpr::CheckpointManager::new(),
+      _marker: PhantomData,
       version_shift_start: parking_lot::RwLock::new(None),
       version_shift_end: parking_lot::RwLock::new(None),
     }
@@ -457,7 +455,7 @@ impl<D: Device> CheckpointManager<D> {
     let dir = checkpoint_dir.as_ref();
     // Token 预知签发（进程守卫 + 目录下界，与 wcpr::create_checkpoint 内部同源），
     // 使版本切换回调可在快照发起前携带新版本号
-    let floor = wcpr::CheckpointManager::<D>::find_latest_checkpoint(dir)?.unwrap_or(0);
+    let floor = wcpr::find_latest_checkpoint(dir)?.unwrap_or(0);
     let token = wcpr::next_token_above(floor);
     self
       .create_checkpoint_with_token(store, dir, cp_type, token)
@@ -473,17 +471,13 @@ impl<D: Device> CheckpointManager<D> {
     cp_type: wcpr::CheckpointType,
     token: u128,
   ) -> wcpr::Result<wcpr::CheckpointMeta> {
-    let old_version =
-      wcpr::CheckpointManager::<D>::find_latest_checkpoint(checkpoint_dir.as_ref())?
-        .map(|t| t as i64)
-        .unwrap_or(0);
+    let old_version = wcpr::find_latest_checkpoint(checkpoint_dir.as_ref())?
+      .map(|t| t as i64)
+      .unwrap_or(0);
     let new_version = token as i64;
 
     self.fire_version_shift_start(old_version, new_version);
-    let meta = self
-      .inner
-      .create_checkpoint_with_token(store, checkpoint_dir, cp_type, token)
-      .await;
+    let meta = wcpr::create_checkpoint_with_token(store, checkpoint_dir, cp_type, token).await;
     match &meta {
       Ok(_) => self.fire_version_shift_end(old_version, new_version),
       Err(_) => {
@@ -500,7 +494,7 @@ impl<D: Device> CheckpointManager<D> {
     token: u128,
     device: Arc<D>,
   ) -> wcpr::Result<WedbStore<D>> {
-    wcpr::CheckpointManager::<D>::recover(checkpoint_dir, token, device).await
+    wcpr::recover(checkpoint_dir, token, device).await
   }
 
   /// 实例恢复方法
@@ -520,7 +514,7 @@ impl<D: Device> CheckpointManager<D> {
     checkpoint_dir: impl AsRef<Path>,
     device: Arc<D>,
   ) -> wcpr::Result<WedbStore<D>> {
-    wcpr::CheckpointManager::<D>::recover_latest(checkpoint_dir, device).await
+    wcpr::recover_latest(checkpoint_dir, device).await
   }
 
   /// 实例恢复最新方法
@@ -536,31 +530,31 @@ impl<D: Device> CheckpointManager<D> {
   /// 列出目标目录中所有可用的 Checkpoint Token
   #[inline]
   pub fn list_checkpoints(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<Vec<u128>> {
-    wcpr::CheckpointManager::<D>::list_checkpoints(checkpoint_dir)
+    wcpr::list_checkpoints(checkpoint_dir)
   }
 
   /// 检索目标目录中最新的有效 Checkpoint Token
   #[inline]
   pub fn find_latest_checkpoint(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<Option<u128>> {
-    wcpr::CheckpointManager::<D>::find_latest_checkpoint(checkpoint_dir)
+    wcpr::find_latest_checkpoint(checkpoint_dir)
   }
 
   /// 清理指定 Token 的快照物理文件
   #[inline]
   pub fn purge_checkpoint(checkpoint_dir: impl AsRef<Path>, token: u128) -> wcpr::Result<()> {
-    wcpr::CheckpointManager::<D>::purge_checkpoint(checkpoint_dir, token)
+    wcpr::purge_checkpoint(checkpoint_dir, token)
   }
 
   /// 清空目标目录下全部 Checkpoint 文件
   #[inline]
   pub fn purge_all(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<()> {
-    wcpr::CheckpointManager::<D>::purge_all(checkpoint_dir)
+    wcpr::purge_all(checkpoint_dir)
   }
 
   /// 保留最新 keep 个检查点
   #[inline]
   pub fn purge_outdated(checkpoint_dir: impl AsRef<Path>, keep: usize) -> wcpr::Result<Vec<u128>> {
-    wcpr::CheckpointManager::<D>::purge_outdated(checkpoint_dir, keep)
+    wcpr::purge_outdated(checkpoint_dir, keep)
   }
 
   /// 实例清理方法
@@ -595,9 +589,6 @@ impl<D: Device> CheckpointManager<D> {
     token: u128,
     rc_skip: impl Fn(u64) -> u64,
   ) -> wcpr::Result<wcpr::IndexMeta> {
-    self
-      .inner
-      .take_index_checkpoint(index, entry_count, checkpoint_dir, token, rc_skip)
-      .await
+    wcpr::take_index_checkpoint(index, entry_count, checkpoint_dir, token, rc_skip).await
   }
 }

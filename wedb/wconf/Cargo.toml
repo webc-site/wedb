@@ -15,7 +15,7 @@ bitflags.workspace = true
 itoa.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-wbase = { version = "0.1.6", path = "../wbase" }
+wbase = { version = "0.1.6", path = "../wbase", features = ["hash_slot"] }
 wresp.workspace = true
 
 [dev-dependencies]

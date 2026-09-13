@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration};
 use aok::{OK, Void};
 use compio::{runtime::Runtime, time::sleep};
 use tempfile::tempdir;
-use wcpr::{CheckpointManager, CheckpointType};
+use wcpr::CheckpointType;
 use wdev::SegmentedDevice;
 
 use super::support::{MiniStore, Watchdog};
@@ -37,7 +37,6 @@ fn writers_and_checkpoints_run_concurrently() -> Void {
     let ckpt_dir = dir.path().join("checkpoints");
     let db_path = dir.path().join("concurrent.db");
     let store = MiniStore::open(&db_path)?;
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
 
     // 阶段一：全部写者先行落盘（后续所有检查点的必然包含前缀）
     for w in 0..WRITERS {
@@ -48,9 +47,7 @@ fn writers_and_checkpoints_run_concurrently() -> Void {
           .await?;
       }
     }
-    let first = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let first = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
 
     // 阶段二：写者与周期检查点并行推进
     let mut handles = Vec::new();
@@ -92,9 +89,8 @@ fn writers_and_checkpoints_run_concurrently() -> Void {
       let mut last_tail = first.hlog_meta.tail_address;
       for _ in 0..3 {
         sleep(Duration::from_millis(1)).await;
-        let meta = mgr
-          .create_checkpoint(&ckpt_store, &ckpt_task_dir, CheckpointType::FoldOver)
-          .await?;
+        let meta =
+          wcpr::create_checkpoint(&ckpt_store, &ckpt_task_dir, CheckpointType::FoldOver).await?;
         assert!(
           meta.token > *tokens.last().expect("tokens 非空"),
           "并发检查点 token 必须严格递增"
@@ -144,7 +140,7 @@ fn writers_and_checkpoints_run_concurrently() -> Void {
     // 崩溃恢复：recover_latest 选取最后一次检查点，
     // 阶段一前缀必须完整；阶段二键按一致性截断语义「存在即正确」
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let restored = CheckpointManager::recover_latest::<MiniStore>(&ckpt_dir, device).await?;
+    let restored = wcpr::recover_latest::<_, MiniStore>(&ckpt_dir, device).await?;
     let p_restored = restored.session()?;
     for w in 0..WRITERS {
       for j in 1..PHASE1_OPS {

@@ -14,8 +14,18 @@ use wdev::Device;
 use wkv::StoreSession;
 use wvector::store::StoreCallbacks;
 
-/// 简单的轻量 Future 阻塞驱动器（不依赖特定运行时）
+/// 轻量 Future 阻塞驱动器
+///
+/// compio runtime 上下文内（DiskANN 同步回调由 VADD 任务在 runtime 线程上
+/// 调入）：走 [`Runtime::block_on`] 内联驱动本 runtime 任务队列与 I/O driver。
+/// 禁止 park 等待——慢路径（脏页落盘）需要 driver 收割完成事件，park 住
+/// 单线程执行域后永远无人唤醒。
+/// 纯线程上下文（无 runtime）：退回 park 式驱动（waker 由外部线程唤醒）
 fn block_on<F: Future>(f: F) -> F::Output {
+  if let Some(rt) = compio::runtime::Runtime::try_current() {
+    return rt.block_on(f);
+  }
+
   struct ThreadWaker(Thread);
   impl Wake for ThreadWaker {
     fn wake(self: Arc<Self>) {

@@ -30,8 +30,8 @@ pub enum ChunkStreamError {
 ///
 /// libs/server/Resp/RangeIndex/RangeIndexChunkedSerializer.cs:MinChunkSize
 /// （= 8B hash + 4B stubLen + 35B stub；小于此值的缓冲永远装不下尾部框，
-/// 流将无法完成）
-pub const MIN_CHUNK_SIZE: usize = 8 + 4 + wbftree::RANGE_INDEX_STUB_SIZE;
+/// 流将无法完成）。单处定义在 wbftree::chunk（引擎域），此处转导出。
+pub use wbftree::MIN_CHUNK_SIZE;
 
 /// 分块序列化器（会话域包装）
 pub struct RangeIndexChunkedSerializer(pub(super) Engine);

@@ -10,7 +10,7 @@
 //! VectorManager.RecordType=1、RangeIndexManager.RangeIndexRecordType=2）与 Namespace
 //! 字节（byte 7）不在本层承载：记录类型判别由 wval 键前缀 KeyTag（enum u8）与
 //! MetaValue.collection_type（值载荷）承载——如 RangeIndex 存根记录 = wval
-//! `CollectionType::RangeIndex` 元数据 + wbftree 存根载荷（wkv::range_index），
+//! `GarnetObjectType::RangeIndex` 元数据 + wbftree 存根载荷（wkv::range_index），
 //! 命名空间由 wval 会话前缀（ns+db varint）编入物理键。与 C# 中 RecordInfo/RDH 属
 //! Tsavorite 核心、RecordType 语义由 Garnet 调用方解释的分层等价。
 

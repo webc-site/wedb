@@ -10,7 +10,7 @@ use wdev::Device;
 use whlog::HybridLog;
 use windex::HashIndex;
 use wval::{
-  CollectionType, KeyTag, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding, TtlCodec,
+  GarnetObjectType, KeyTag, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding, TtlCodec,
 };
 
 use crate::{
@@ -67,7 +67,7 @@ impl<D: Device> CompactSession<D> for StoreSession<D> {
     let actual_val = if !is_tombstone
       && val.len() >= META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE
       && let Ok(meta) = MetaValue::from_slice(val)
-      && (meta.collection_type == CollectionType::RangeIndex
+      && (meta.collection_type == GarnetObjectType::RangeIndex
         || (meta.encoding() == StorageEncoding::FlattenedTree && meta.size > 0))
       && let Ok(mut stub) =
         RangeIndexStub::decode(&val[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE])

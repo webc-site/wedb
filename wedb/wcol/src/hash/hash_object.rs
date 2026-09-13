@@ -8,7 +8,7 @@
 //! （MemoryUtils.*Overhead）不适用于 Rust，这里仅按条目字节数做相对记账。
 
 use std::{
-  cmp::{Ordering, Reverse},
+  cmp::Reverse,
   collections::BinaryHeap,
   io::{self, Read, Write},
 };
@@ -70,32 +70,8 @@ pub enum HashExpireResult {
   KeyAlreadyExpired = 2,
 }
 
-/// 过期队列条目：按 (expiration, key) 升序的最小堆元素
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExpirationQueueEntry {
-  expiration: i64,
-  key: Vec<u8>,
-}
-
-impl PartialOrd for ExpirationQueueEntry {
-  #[inline]
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl Ord for ExpirationQueueEntry {
-  #[inline]
-  fn cmp(&self, other: &Self) -> Ordering {
-    self
-      .expiration
-      .cmp(&other.expiration)
-      .then_with(|| self.key.cmp(&other.key))
-  }
-}
-
-/// 反转堆序 → BinaryHeap 即最小堆
-pub type ExpirationQueue = BinaryHeap<Reverse<ExpirationQueueEntry>>;
+/// 过期队列条目/队列单处定义：[`crate::types::expiration_queue`]（Hash/SortedSet 共用）
+pub use crate::types::{ExpirationQueue, ExpirationQueueEntry};
 
 #[derive(Debug, Clone, bitcode::Encode, bitcode::Decode)]
 pub struct HashWire {

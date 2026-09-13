@@ -21,10 +21,10 @@ pub struct CommandStats {
 }
 
 impl CommandStats {
-  /// 统计数组容量：覆盖全部有效 `RespCommand` 值（最后一个有效成员为 Reset，
+  /// 统计数组容量：覆盖全部有效 `RespCommand` 值（最后一个有效成员为 QUIT，
   /// Invalid = 65535 不占槽位）。
   ///（对齐 C# `(int)RespCommandExtensions.LastValidCommand + 1`）
-  pub const ENTRY_COUNT: usize = RespCommand::Reset as u16 as usize + 1;
+  pub const ENTRY_COUNT: usize = wresp::LAST_VALID_COMMAND as u16 as usize + 1;
 
   /// libs/server/Metrics/CommandStats.cs:CommandStats（构造，条目清零）。
   pub fn new() -> Self {
@@ -113,7 +113,10 @@ mod tests {
   #[test]
   fn counters_per_command() {
     let mut stats = CommandStats::new();
-    assert_eq!(stats.entries.len(), RespCommand::Reset as u16 as usize + 1);
+    assert_eq!(
+      stats.entries.len(),
+      wresp::LAST_VALID_COMMAND as u16 as usize + 1
+    );
 
     stats.increment_calls(RespCommand::Get);
     stats.increment_calls(RespCommand::Get);

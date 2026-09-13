@@ -23,9 +23,9 @@ pub use argument::{
 };
 pub use check_args::{ArgCountMatcher, check_exact_arg_count, check_min_arg_count};
 pub use command::{
-  RespCommand, is_cluster_sub_command, is_data_command, is_legal_on_range_index,
-  is_legal_on_vector_set, is_range_index_command, is_read_only, is_vector_set_command,
-  is_write_only, one_if_read, one_if_write,
+  LAST_VALID_COMMAND, RespCommand, is_cluster_sub_command, is_data_command,
+  is_legal_on_range_index, is_legal_on_vector_set, is_range_index_command, is_read_only,
+  is_vector_set_command, is_write_only, one_if_read, one_if_write,
 };
 pub use ext::{
   MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, sanitize_error_str, strict_i32, strict_i64,

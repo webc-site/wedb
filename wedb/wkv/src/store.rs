@@ -21,7 +21,7 @@ use wepoch::LightEpoch;
 use whlog::HybridLog;
 use windex::{HashBucket, HashBucketEntry, HashIndex};
 use wrecord::{HEADER_SIZE, RecordHeader};
-use wval::{CollectionType, KeyTag, META_VALUE_SIZE, MetaValue, NamespaceDbCodec};
+use wval::{GarnetObjectType, KeyTag, META_VALUE_SIZE, MetaValue, NamespaceDbCodec};
 
 use crate::{
   config::{GcConfig, StoreConfig},
@@ -786,7 +786,7 @@ impl<D: Device> WedbStore<D> {
           if let Some(user_key) = NamespaceDbCodec::decode_meta_user_key(key_slice)
             && val_slice.len() >= META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE
             && let Ok(meta) = MetaValue::from_slice(&val_slice[..META_VALUE_SIZE])
-            && meta.collection_type == CollectionType::RangeIndex
+            && meta.collection_type == GarnetObjectType::RangeIndex
           {
             let stub_slice =
               &mut val_slice[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];

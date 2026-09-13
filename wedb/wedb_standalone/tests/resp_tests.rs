@@ -19,11 +19,13 @@ use wbase::{
   crc64::hash as rdb_crc64_hash,
   time::now_ticks,
 };
-use wnode::resp::{
-  basic_commands::IncrCmd,
-  key_admin_commands::{ExpireCmd, TtlCmd},
-  resp_server_session::RespServerSession,
-  ttl_sync::{put_ttl_sync, ttl_of_sync},
+use wnode::{
+  resp::{
+    basic_commands::IncrCmd,
+    key_admin_commands::{ExpireCmd, TtlCmd},
+    resp_server_session::RespServerSession,
+  },
+  storage::session::common::ttl_sync::{put_ttl_sync, ttl_of_sync},
 };
 
 /// test/standalone/Garnet.test/RespTests.cs:SingleSetGet

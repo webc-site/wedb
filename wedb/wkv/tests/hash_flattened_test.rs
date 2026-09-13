@@ -16,7 +16,7 @@ use tempfile::{TempDir, tempdir};
 use wbase::time::now_ticks;
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, TtlOpt, WedbStore};
-use wval::{CollectionType, MetaValue, StorageEncoding};
+use wval::{GarnetObjectType, MetaValue, StorageEncoding};
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {
@@ -78,7 +78,7 @@ fn test_flattened_hash_basic_crud_and_hlen() -> Void {
 
     // 6. 验证元数据存储编码为 Flattened
     let meta = session.load_meta(key).await?.expect("meta exists");
-    assert_eq!(meta.collection_type, CollectionType::Hash);
+    assert_eq!(meta.collection_type, GarnetObjectType::Hash);
     assert_eq!(meta.encoding(), StorageEncoding::Flattened);
     assert_eq!(meta.size, 2);
 
@@ -421,7 +421,7 @@ fn test_ghost_meta_record_self_healing() -> Void {
 
     // 手动构造并写入一条 size == 0 的幽灵元记录
     let meta_k = session.session_meta_key(key);
-    let mut ghost_meta = MetaValue::new(999, CollectionType::Hash, 1, 0);
+    let mut ghost_meta = MetaValue::new(999, GarnetObjectType::Hash, 1, 0);
     ghost_meta.set_encoding(StorageEncoding::Flattened);
     session.upsert_raw(&meta_k, &ghost_meta.to_bytes()).await?;
 

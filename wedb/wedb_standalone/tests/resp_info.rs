@@ -94,10 +94,10 @@ fn execute_info(
   args: &[&[u8]],
   reset_cb: &mut impl FnMut(InfoMetricsType),
 ) -> String {
-  let mut out = String::new();
+  let mut out = Vec::new();
   let mut info = GarnetInfoMetrics::new();
   InfoCommand::network_info(args, 0, provider, &mut info, reset_cb, &mut out);
-  out
+  String::from_utf8(out).unwrap()
 }
 
 fn get_section_headers(info_output: &str) -> Vec<String> {

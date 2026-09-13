@@ -8,7 +8,7 @@ use aok::{OK, Void};
 use log::info;
 use wbase::float::encode_f64;
 use wval::{
-  CollectionType, CompactHash, CompactHashCodec, CompactMetaValue, CompactSet, CompactSetCodec,
+  GarnetObjectType, CompactHash, CompactHashCodec, CompactMetaValue, CompactSet, CompactSetCodec,
   CompactZSet, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, SubKeyBuf, ZSetEntryRef,
 };
 
@@ -31,7 +31,7 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
 
   let meta = MetaValue::new(
     0x0102_0304_0506_0708,
-    CollectionType::ZSET,
+    GarnetObjectType::ZSET,
     0x1122_3344_5566_7788,
     500,
   )
@@ -45,7 +45,7 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
     &raw_bytes[0..8],
     &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
   );
-  assert_eq!(raw_bytes[8], CollectionType::ZSET.as_u8());
+  assert_eq!(raw_bytes[8], GarnetObjectType::ZSET.as_u8());
   assert_eq!(raw_bytes[9], StorageEncoding::Flattened.as_u8());
   assert_eq!(
     &raw_bytes[16..24],
@@ -58,14 +58,14 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
 
   // 2. CompactMetaValue (16B)
   let cmeta = CompactMetaValue::new(
-    CollectionType::Hash,
+    GarnetObjectType::Hash,
     StorageEncoding::Compact,
     42,
     1_800_000_000_000,
   );
   let cbytes = cmeta.to_bytes();
   assert_eq!(cbytes.len(), 16);
-  assert_eq!(cbytes[0], CollectionType::Hash.as_u8());
+  assert_eq!(cbytes[0], GarnetObjectType::Hash.as_u8());
   assert_eq!(cbytes[1], StorageEncoding::Compact.as_u8());
   assert_eq!(u32::from_be_bytes(cbytes[4..8].try_into().unwrap()), 42);
   assert_eq!(

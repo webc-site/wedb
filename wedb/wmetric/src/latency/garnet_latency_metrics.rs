@@ -1,13 +1,14 @@
 use std::mem::size_of;
 
 use hdrhistogram::Histogram;
+use wresp::RespVecExt;
 
 use super::{
   garnet_latency_metrics_session::GarnetLatencyMetricsSession,
   latency_metrics_entry::time_stamp::TICKS_PER_MICROSECOND,
   latency_metrics_type::LatencyMetricsType,
 };
-use crate::{metrics_item::MetricsItem, resp_write_utils::RespWriteUtils};
+use crate::metrics_item::MetricsItem;
 
 /// RespServerSession 汇总的延迟指标（服务器侧，单缓冲直方图）。
 ///（对标 libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:GarnetLatencyMetrics）
@@ -123,7 +124,7 @@ impl GarnetLatencyMetrics {
     &self,
     idx: usize,
     event_type: LatencyMetricsType,
-    response: &mut String,
+    response: &mut Vec<u8>,
   ) -> bool {
     let Some(hist) = self.metrics.get(idx) else {
       return false;
@@ -136,50 +137,48 @@ impl GarnetLatencyMetrics {
     };
 
     let cmd_type = event_type.cs_name();
-    response.push_str(&RespWriteUtils::bulk_string(cmd_type));
-    response.push_str("*6\r\n");
-    response.push_str(&RespWriteUtils::bulk_string("calls"));
-    response.push_str(&format!(":{}\r\n", p[0].value));
-    response.push_str(&RespWriteUtils::bulk_string("size"));
-    response.push_str(&format!(
-      ":{}\r\n", // C# GetEstimatedFootprintInBytes 的等价估算：桶数 × 每桶 8 字节。
-      (hist.distinct_values() as u64) * (size_of::<u64>() as u64)
-    ));
-    response.push_str(&RespWriteUtils::bulk_string(
-      if LatencyMetricsType::IS_TICKS[idx] {
-        "histogram_usec"
-      } else {
-        "histogram_cnt"
-      },
-    ));
-    response.push_str(&format!("*{}\r\n", (p.len() - 1) * 2));
+    response.write_resp_bulk_string(cmd_type.as_bytes());
+    response.write_resp_array_len(6);
+    response.write_resp_bulk_string(b"calls");
+    // calls 为已格式化计数字符串，按整数行原样落帧
+    response.extend_from_slice(b":");
+    response.extend_from_slice(p[0].value.as_bytes());
+    response.extend_from_slice(b"\r\n");
+    response.write_resp_bulk_string(b"size");
+    // C# GetEstimatedFootprintInBytes 的等价估算：桶数 × 每桶 8 字节。
+    response.write_resp_int((hist.distinct_values() as i64) * (size_of::<u64>() as i64));
+    response.write_resp_bulk_string(if LatencyMetricsType::IS_TICKS[idx] {
+      b"histogram_usec" as &[u8]
+    } else {
+      b"histogram_cnt"
+    });
+    response.write_resp_array_len((p.len() - 1) * 2);
     for item in &p[1..] {
-      response.push_str(&RespWriteUtils::bulk_string(&item.name));
-      response.push_str(&RespWriteUtils::bulk_string(&item.value));
+      response.write_resp_bulk_string(item.name.as_bytes());
+      response.write_resp_bulk_string(item.value.as_bytes());
     }
     true
   }
 
   /// libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:GetRespHistograms
   ///
-  /// 多类别直方图的 RESP 编码；无任何样本返回 `*0\r\n`。
-  pub fn get_resp_histograms(&self, events: &[LatencyMetricsType]) -> String {
+  /// 多类别直方图的 RESP 编码；无任何样本回 `*0\r\n`。
+  pub fn get_resp_histograms(&self, events: &[LatencyMetricsType], output: &mut Vec<u8>) {
     let mut cmd_count = 0;
-    let mut response = String::new();
+    let mut response = Vec::new();
 
     for event_type in events {
       let idx = event_type.idx();
-      let mut cmd_histogram = String::new();
-      if self.get_resp_histogram(idx, *event_type, &mut cmd_histogram) {
-        response.push_str(&cmd_histogram);
+      if self.get_resp_histogram(idx, *event_type, &mut response) {
         cmd_count += 1;
       }
     }
 
     if cmd_count == 0 {
-      "*0\r\n".into()
+      output.extend_from_slice(b"*0\r\n");
     } else {
-      format!("*{}\r\n", cmd_count * 2) + response.as_str()
+      output.write_resp_array_len(cmd_count * 2);
+      output.extend_from_slice(&response);
     }
   }
 

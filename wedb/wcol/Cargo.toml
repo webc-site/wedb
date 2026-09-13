@@ -21,7 +21,7 @@ workspace = true
 
 [dependencies]
 wbftree = { workspace = true }
-wbase = { workspace = true, features = ["convert", "float", "num", "time"] }
+wbase = { workspace = true, features = ["convert", "float", "future", "num", "time"] }
 thiserror.workspace = true
 wval.workspace = true
 wresp.workspace = true
@@ -34,7 +34,7 @@ zmij.workspace = true
 itoa.workspace = true
 num_enum = "0.7.6"
 crossfire = "3.1.20"
-compio.workspace = true
+compio = { workspace = true, features = ["time"] }
 event-listener.workspace = true
 bitcode.workspace = true
 fastrand.workspace = true

@@ -8,8 +8,9 @@ use wresp::RespCommand;
 pub const FIRST_DATA_COMMAND: RespCommand = RespCommand::Append;
 /// 末个数据命令（libs/server/Resp/Parser/RespCommand.cs:LastDataCommand = EVALSHA）
 pub const LAST_DATA_COMMAND: RespCommand = RespCommand::Evalsha;
-/// 最后一个有效命令（libs/server/Resp/Parser/RespCommand.cs:LastValidCommand）
-pub const LAST_VALID_COMMAND: RespCommand = RespCommand::Reset;
+/// 最后一个有效命令（libs/server/Resp/Parser/RespCommand.cs:LastValidCommand；
+/// 单处定义在 wresp，此处转导出）
+pub use wresp::LAST_VALID_COMMAND;
 
 /// C# 枚举成员名（如 `ACL_CAT`）→ [`RespCommand`]（大小写不敏感）
 ///
@@ -385,8 +386,6 @@ pub fn resp_command_from_cs_name(name: &str) -> Option<RespCommand> {
     "AUTH" => Some(RespCommand::Auth),
     "HELLO" => Some(RespCommand::Hello),
     "QUIT" => Some(RespCommand::Quit),
-    "RESET" => Some(RespCommand::Reset),
-    "SUNSUBSCRIBE" => Some(RespCommand::Sunsubscribe),
     "INVALID" => Some(RespCommand::Invalid),
     _ => None,
   }
@@ -763,8 +762,6 @@ pub fn resp_command_to_cs_name(cmd: RespCommand) -> &'static str {
     RespCommand::Auth => "AUTH",
     RespCommand::Hello => "HELLO",
     RespCommand::Quit => "QUIT",
-    RespCommand::Reset => "RESET",
-    RespCommand::Sunsubscribe => "SUNSUBSCRIBE",
     RespCommand::Invalid => "INVALID",
   }
 }

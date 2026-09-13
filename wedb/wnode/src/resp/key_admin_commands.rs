@@ -20,11 +20,13 @@ use wresp::{
   strict_i32, strict_i64, unpack_args,
 };
 
-use super::{
-  resp_server_session::RespServerSession,
-  ttl_sync::{del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync},
+use super::resp_server_session::RespServerSession;
+use crate::{
+  session_parse_state_extensions::expire_option_from_token,
+  storage::session::common::ttl_sync::{
+    del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
+  },
 };
-use crate::session_parse_state_extensions::expire_option_from_token;
 
 /// DUMP 载荷版本/校验和非法文案（本域多处复用）。
 const ERR_DUMP_VERSION_CHECKSUM: &str = "ERR DUMP payload version or checksum are wrong";
@@ -333,7 +335,7 @@ impl RespServerSession {
   ///
   /// EXPIRE/PEXPIRE/EXPIREAT/PEXPIREAT 共同体：完整 C# 参数校验次序
   /// （个数 → 整数 → 非负 → NX/XX/GT/LT 选项组合），过期经
-  /// [`super::ttl_sync`] 同步落 TTL 记录；磁盘候选/过期清除须异步时整体降级
+  /// [`crate::storage::session::common::ttl_sync`] 同步落 TTL 记录；磁盘候选/过期清除须异步时整体降级
   pub fn network_expire<'a, D: wdev::Device>(
     &mut self,
     command: ExpireCmd,

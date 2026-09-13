@@ -1,14 +1,36 @@
 use std::{fs, sync::Arc};
 
+use parking_lot::Mutex;
 use wacl::{
-  AccessControlList, AclParser, GarnetAclWithPasswordAuthenticator, IGarnetAuthenticator,
-  auth::settings::acl_authentication_settings::AclAuthenticationSettings,
+  AccessControlList, AclParser, GarnetAclAuthenticator, GarnetAclWithPasswordAuthenticator,
+  IGarnetAuthenticator, auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
-use wnode::resp::{acl_commands::AclCtx, resp_server_session::RespServerSession};
+use wnode::resp::{
+  acl_commands::AclCtx,
+  resp_server_session::{RespServerSession, RespServerSessionOptions},
+};
 use wresp::{RespCommand, cmd_strings};
 
 fn acl_settings(acl_file: Option<String>) -> AclAuthenticationSettings {
   AclAuthenticationSettings::new(acl_file, String::new())
+}
+
+/// 构造挂载 ACL 认证器的会话（对标 C# 构造函数 ACL 档装配）
+fn acl_session(acl: &Arc<AccessControlList>) -> RespServerSession {
+  let mut session = RespServerSession::new(
+    1,
+    RespServerSessionOptions {
+      default_user: "default".into(),
+      ..RespServerSessionOptions::default()
+    },
+  );
+  session.attach_acl(
+    Some(Arc::new(Mutex::new(GarnetAclAuthenticator::new(
+      Arc::clone(acl),
+    )))),
+    None,
+  );
+  session
 }
 
 fn ctx_for<'a>(
@@ -360,5 +382,102 @@ fn client_set_info_denied_returns_no_perm() {
   assert_eq!(
     session.output,
     b"-NOPERM this user has no permissions to run the command\r\n"
+  );
+}
+
+/// 会话级 ACL 门控端到端（对标 C# RespServerSession.cs:653 的
+/// CheckACLPermissions 主循环门）：
+/// PING → NOAUTH → AUTH badpass → WRONGPASS → AUTH ok → PONG；
+/// ACL SETUSER default -ping 后同一会话句柄经 CAS 换新，PING → NOPERM
+#[test]
+fn session_level_acl_gating_end_to_end() {
+  let acl = Arc::new(AccessControlList::new("", None).unwrap());
+  // default 用户改为需口令（resetpass 关免密），构造期认证失败 → 会话未认证
+  AclParser::parse_acl_rule("user default resetpass >pw +@all", Some(&acl)).unwrap();
+  let mut session = acl_session(&acl);
+  assert!(session.user_handle.is_none(), "构造期口令不符未认证");
+
+  // 1. 未认证 PING → NOAUTH
+  assert!(
+    session
+      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
+      .is_some()
+  );
+  assert_eq!(
+    session.take_output(),
+    b"-NOAUTH Authentication required.\r\n"
+  );
+
+  // 2. AUTH badpass → WRONGPASS
+  assert!(
+    session
+      .try_consume_messages(b"*2\r\n$4\r\nAUTH\r\n$7\r\nbadpass\r\n")
+      .is_some()
+  );
+  assert_eq!(
+    session.take_output(),
+    format!("-{}\r\n", cmd_strings::RESP_WRONGPASS_INVALID_PASSWORD).as_bytes()
+  );
+  assert!(session.user_handle.is_none(), "认证失败不记录句柄");
+
+  // 3. AUTH pw → +OK，句柄落位 default 用户
+  assert!(
+    session
+      .try_consume_messages(b"*2\r\n$4\r\nAUTH\r\n$2\r\npw\r\n")
+      .is_some()
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+  assert_eq!(session.user_handle.as_ref().unwrap().user().name, "default");
+
+  // 4. 认证后 PING → +PONG（+@all 放行）
+  assert!(
+    session
+      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
+      .is_some()
+  );
+  assert_eq!(session.take_output(), b"+PONG\r\n");
+
+  // 5. ACL SETUSER default -ping → +OK；会话持同一 UserHandle，
+  //    SETUSER 经 TrySetUser CAS 换新即时生效
+  assert!(
+    session
+      .try_consume_messages(b"*4\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$7\r\ndefault\r\n$5\r\n-ping\r\n")
+      .is_some()
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+
+  // 6. 同会话 PING → NOPERM
+  assert!(
+    session
+      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
+      .is_some()
+  );
+  assert_eq!(
+    session.take_output(),
+    b"-NOPERM this user has no permissions to run the command\r\n"
+  );
+}
+
+/// 未挂载认证器（NoAuth 档）的会话门控恒放行（对标 C# GetDefaultUserHandle
+/// +@all 默认用户兜底）
+#[test]
+fn no_auth_session_allows_all_commands() {
+  let mut session = RespServerSession::new(2, RespServerSessionOptions::default());
+  assert!(session.user_handle.is_none());
+  assert!(
+    session
+      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
+      .is_some()
+  );
+  assert_eq!(session.take_output(), b"+PONG\r\n");
+  assert!(
+    session
+      .try_consume_messages(b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n")
+      .is_some()
+  );
+  // 存储执行域未挂载时明确报错，证明命令已通过 ACL 门进入分派
+  assert_eq!(
+    session.take_output(),
+    b"-ERR store execution domain not attached\r\n"
   );
 }

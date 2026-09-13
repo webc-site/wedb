@@ -373,8 +373,6 @@ pub enum RespCommand {
   Auth = 365,
   Hello = 366,
   Quit = 367,
-  Sunsubscribe = 368,
-  Reset = 369,
   Invalid = 65535,
 }
 
@@ -386,6 +384,12 @@ const LAST_DATA_COMMAND: RespCommand = RespCommand::Evalsha;
 const FIRST_READ_COMMAND: RespCommand = RespCommand::Bitcount;
 /// 读命令区间上界（C# LastReadCommand = EVAL - 1）
 const LAST_READ_COMMAND: RespCommand = RespCommand::Riscan;
+
+/// 最后一个有效命令（除 INVALID 外枚举最大值 = QUIT = 367）
+///
+/// libs/server/Resp/Parser/RespCommand.cs:RespCommandExtensions.LastValidCommand
+/// （`Enum.GetValues<RespCommand>().Where(cmd => cmd != INVALID).Max()`）
+pub const LAST_VALID_COMMAND: RespCommand = RespCommand::Quit;
 
 /// 判定命令是否为只读命令（读区间双侧判定，无符号下溢天然出界）
 ///

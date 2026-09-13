@@ -7,7 +7,10 @@ use std::sync::Arc;
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wresp::RespCommand;
 
-use crate::resp::{BlockedWait, slow_path::SlowWait};
+use crate::{
+  resp::{BlockedWait, slow_path::SlowWait},
+  servers::consumer_registry::{ConsumerEntry, ConsumerRegistry},
+};
 
 /// 会话线格式（对标 WireFormat）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,13 +20,15 @@ pub enum WireFormat {
   Ascii = 255,
 }
 
-/// 活跃会话枚举面（会话经此枚举其他会话）
+/// 活跃会话枚举面（C# GarnetServerBase 的 ActiveConsumers；锚点实现见
+/// [`crate::servers::consumer_registry::ConsumerRegistry`]）
+///
+/// rust 会话体为连接任务独占（C# 为跨线程裸读会话字段），枚举面承接为
+/// 注册表条目：注册快照 + 动态字段镜像 + kill 触发位，注销时机 = 会话
+/// dispose（网络泵释放）
 pub trait ServerEnumerate: Send + Sync {
-  /// 消费者类型
-  type Consumer: MessageConsumerFace;
-
-  /// 全部活跃消息消费者
-  fn active_consumers(&self) -> Vec<Arc<Self::Consumer>>;
+  /// 全部活跃消息消费者（注册表条目句柄）
+  fn active_consumers(&self) -> Vec<Arc<ConsumerEntry>>;
 }
 
 /// 消息消费者面（底层网络读写切片泵消费端）
@@ -43,6 +48,11 @@ pub trait MessageConsumerFace: Send + 'static {
     }
     consumed
   }
+
+  /// 会话累计命令数镜像进注册表条目（网络泵逐批调用；监视器瞬时 ops/s
+  /// 数据源——C# MainMonitorTaskAsync 跨线程直读 sessionMetrics，rust
+  /// 会话体连接任务独占，承接为泵侧同任务拷贝）。默认空操作
+  fn mirror_session_counters(&mut self, _entry: &ConsumerEntry) {}
 
   /// libs/common/Networking/IServerHook.cs:DisposeMessageConsumer
   /// 释放会话资源
@@ -97,4 +107,10 @@ pub trait SessionProviderFace: Send + Sync {
   /// libs/common/Networking/IServerHook.cs:TryCreateMessageConsumer
   /// 创建会话消费者
   fn get_session(&self, wire_format: WireFormat, network_sender: u64) -> Option<Self::Consumer>;
+
+  /// 活跃消费者注册表（libs/server/Servers/GarnetServerBase.cs 的 activeHandlers
+  /// 域；网络泵建连/释放经此注册/注销；None = 未装配，泵侧跳过注册）
+  fn consumer_registry(&self) -> Option<Arc<ConsumerRegistry>> {
+    None
+  }
 }

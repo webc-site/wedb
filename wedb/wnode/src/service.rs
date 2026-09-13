@@ -12,7 +12,7 @@
 use std::{
   path::Path,
   result,
-  sync::{Arc, atomic::Ordering},
+  sync::{Arc, atomic::{AtomicUsize, Ordering}},
 };
 
 use thiserror::Error;
@@ -55,6 +55,7 @@ use crate::{
       vector_store_callbacks::WedbVectorStoreCallbacks,
     },
   },
+  servers::consumer_registry::ConsumerRegistry,
   storage::session::storage_session::StorageSession,
   traits::{SessionProviderFace, WireFormat},
 };
@@ -534,6 +535,11 @@ pub struct StorageSessionProvider<F> {
   pub vector_manager: Arc<VectorManager>,
   /// 服务器级运行时配置（CONFIG GET/SET 与 OBJECT_SCAN_COUNT_LIMIT 热更源）
   pub runtime_config: Arc<RuntimeServerConfig>,
+  /// 活跃消费者注册表（C# GarnetServerBase.activeHandlers 域；CLIENT
+  /// LIST/KILL 与监视器枚举面）
+  pub registry: Arc<ConsumerRegistry>,
+  /// 量化消费者协程已拉起数量（上限 quantization_task_count，跨 worker runtime 分摊）
+  quantization_started: AtomicUsize,
   /// 差异钩子：按发送端装配会话消费者（None = 拒绝建连）
   decorate: F,
 }
@@ -543,14 +549,19 @@ where
   F: Fn(u64, StoreGarnetApi<SegmentedDevice>) -> Option<RespSessionConsumer>,
 {
   /// 统一装配体：打开单文件存储引擎、共享经纪与向量集合管理器后构造基座
-  ///（run 闭包一行装配；store 句柄经公开字段供集群 set_store 下达）
+  ///（run 闭包一行装配；store 句柄经公开字段供集群 set_store 下达）。
+  /// 注册表随装配进程级安装（CLIENT 族命令/dispose 归并直取）
   pub fn open(data_path: impl AsRef<Path>, decorate: F) -> crate::Result<Self> {
     let (store, broker, vector_manager) = open_node(data_path)?;
+    let registry = Arc::new(ConsumerRegistry::new());
+    registry.install_global();
     Ok(Self {
       store,
       broker,
       vector_manager,
       runtime_config: RuntimeServerConfig::shared_default(),
+      registry,
+      quantization_started: AtomicUsize::new(0),
       decorate,
     })
   }
@@ -568,11 +579,24 @@ where
     _wire_format: WireFormat,
     network_sender_id: u64,
   ) -> Option<RespSessionConsumer> {
+    // 量化消费者协程随首个 worker runtime 惰性拉起（C# 宿主启动序列
+    // VectorManager.StartQuantizationTasks(QuantizationTaskCount)；
+    // 逐 worker 分摊直至配额用尽，避免单 runtime 独扛全部量化负载）
+    let quota = self.vector_manager.quantization_task_count.max(1);
+    if self.quantization_started.fetch_add(1, Ordering::Relaxed) < quota {
+      self.vector_manager.start_quantization_tasks(1);
+    }
+
     let session = self.store.new_session().ok()?;
     let api = StoreGarnetApi::new(session).with_vector_manager(Arc::clone(&self.vector_manager));
     let mut consumer = (self.decorate)(network_sender_id, api)?;
     consumer.set_item_broker(self.broker.clone());
     consumer.set_runtime_config(self.runtime_config.clone());
     Some(consumer)
+  }
+
+  /// 活跃消费者注册表（网络泵建连/注册、释放/注销的入口）
+  fn consumer_registry(&self) -> Option<Arc<ConsumerRegistry>> {
+    Some(Arc::clone(&self.registry))
   }
 }

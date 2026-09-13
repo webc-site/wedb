@@ -261,16 +261,20 @@ impl<L: TxnAofLog> TransactionManager<L> {
 
   /// WATCH 系共同实现
   ///
+  /// `cmd_name` 为本命令名（小写），填入错误文案 `{0}` 槽位
+  ///（对标 C# string.Format(CmdStrings.GenericErrWrongNumArgs, ...)）
+  ///
   /// libs/server/Transaction/TxnRespCommands.cs:CommonWATCH
   pub fn common_watch(
     &mut self,
     session: &mut (impl TxnSession + ?Sized),
     store_type: StoreType,
+    cmd_name: &str,
   ) -> bool {
     let count = session.arg_count();
-    // 至少一个键（C# 以未格式化模板直接回错，1:1 保留）
+    // 至少一个键
     if count == 0 {
-      session.write_error(GENERIC_ERR_WRONG_NUM_ARGS);
+      session.write_error(&GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", cmd_name));
       return true;
     }
 
@@ -288,19 +292,19 @@ impl<L: TxnAofLog> TransactionManager<L> {
   /// WATCH MS key [key ..]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_MS）
   pub fn network_watch_ms(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::Main)
+    self.common_watch(session, StoreType::Main, "watchms")
   }
 
   /// WATCH OS key [key ..]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_OS）
   pub fn network_watch_os(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::Object)
+    self.common_watch(session, StoreType::Object, "watchos")
   }
 
   /// WATCH key [key ...]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH）
   pub fn network_watch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::All)
+    self.common_watch(session, StoreType::All, "watch")
   }
 
   /// UNWATCH（libs/server/Transaction/TxnRespCommands.cs:NetworkUNWATCH）

@@ -11,7 +11,10 @@
 
 use std::{io, sync::Arc};
 
-use compio::buf::BufResult;
+use compio::{
+  buf::BufResult,
+  runtime::{CancelToken, Cancelled, FutureExt, spawn},
+};
 use wbase::{
   pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool},
   throttle::NetworkSenderThrottle,
@@ -19,6 +22,7 @@ use wbase::{
 
 use crate::{
   net::stream::ConnectionStream,
+  servers::consumer_registry::{ConsumerEntry, ConsumerRegistry},
   traits::{MessageConsumerFace, SessionProviderFace, WireFormat},
 };
 
@@ -32,6 +36,13 @@ pub struct NetworkHandler<C: MessageConsumerFace> {
   buffer_pool: Arc<LimitedFixedBufferPool>,
   throttle: NetworkSenderThrottle,
   session: Option<C>,
+  /// 活跃消费者注册表（C# GarnetServerBase 域；释放时注销）
+  consumers: Option<Arc<ConsumerRegistry>>,
+  /// 本连接的注册条目（字节镜像 / KILL 触发位载体）
+  consumer_entry: Option<Arc<ConsumerEntry>>,
+  /// 挂起读打断令牌（哨兵任务在终止态取消之；compio CancelToken 线程亲和，
+  /// 与泵/哨兵同运行时创建驱动）
+  kill_token: Option<CancelToken>,
 }
 
 impl<C: MessageConsumerFace> NetworkHandler<C> {
@@ -48,6 +59,9 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
       buffer_pool,
       throttle: NetworkSenderThrottle::new(throttle_max),
       session: None,
+      consumers: None,
+      consumer_entry: None,
+      kill_token: None,
     }
   }
 
@@ -59,6 +73,11 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
   /// 释放网络处理器
   pub fn dispose(&mut self) {
     self.throttle.close();
+    // 注销先于会话释放（C# GarnetServerTcp.DisposeMessageConsumer：TryRemove
+    // → Session.Dispose 顺序），监视器不会同轮双计条目字节镜像与 dispose 归并
+    if let (Some(registry), Some(entry)) = (self.consumers.take(), self.consumer_entry.take()) {
+      registry.unregister(entry.id);
+    }
     if let Some(mut session) = self.session.take() {
       session.dispose();
     }
@@ -108,8 +127,16 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
         }
       }
 
-      // 零拷贝直接读取网卡数据进入池化缓冲
-      let BufResult(res, returned) = stream.read(raw_buf).await;
+      // 零拷贝直接读取网卡数据进入池化缓冲；有注册条目时挂取消令牌
+      //（CLIENT KILL / 注销经哨兵打断挂起读，C# 直关套接字的等价物）
+      let read_res = match self.kill_token.clone() {
+        Some(token) => stream.read(raw_buf).with_cancel(token).fail_fast().await,
+        None => Ok(stream.read(raw_buf).await),
+      };
+      let BufResult(res, returned) = match read_res {
+        Ok(pair) => pair,
+        Err(Cancelled) => break,
+      };
       pooled.set_buffer(returned);
 
       match res {
@@ -132,6 +159,21 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
             io::Error::new(io::ErrorKind::ConnectionRefused, "会话提供者拒绝建立会话")
           })?;
         self.set_session(session);
+
+        // 注册活跃消费者（C# GarnetServerTcp.HandleNewConnection 的
+        // activeHandlers.TryAdd；会话 id 即网络发送器 id）并挂终止哨兵
+        if let Some(registry) = session_provider.consumer_registry() {
+          let entry = registry.register(
+            sender_id as i64,
+            self.remote_endpoint.clone(),
+            stream.local_endpoint(),
+          );
+          self.consumers = Some(registry);
+          self.consumer_entry = Some(Arc::clone(&entry));
+          let kill_token = CancelToken::new();
+          self.kill_token = Some(kill_token.clone());
+          spawn_kill_watcher(entry, kill_token);
+        }
       }
 
       let Some(session) = self.session.as_mut() else {
@@ -139,6 +181,7 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
       };
 
       resp_pooled.clear();
+      let batch_start = read_pos;
       loop {
         let raw_buf = pooled.vec_ref();
         if read_pos < raw_buf.len() {
@@ -169,6 +212,15 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
 
         if read_pos >= pooled.vec_ref().len() {
           break;
+        }
+      }
+
+      // 镜像累加（监视器瞬时吞吐/ops/s 源；会话 dispose 时随条目注销换轨到
+      // 历史归并，二者不双计）
+      if let Some(entry) = &self.consumer_entry {
+        entry.add_net_bytes((read_pos - batch_start) as u64, resp_pooled.len() as u64);
+        if let Some(session) = self.session.as_mut() {
+          session.mirror_session_counters(entry);
         }
       }
 
@@ -217,4 +269,29 @@ impl<C: MessageConsumerFace> Drop for NetworkHandler<C> {
   fn drop(&mut self) {
     self.dispose();
   }
+}
+
+/// KILL/注销哨兵：监听终止广播并打断挂起中的读
+///
+/// C# CLIENT KILL 经 `networkSender.TryClose()` 直关套接字；rust 连接任务
+/// 独占套接字，等价物为「注册条目 kill 位 + CancelToken」——被杀连接的
+/// 挂起 `read` 由哨兵秒级打断，泵随之走 dispose（注销 + 会话释放）。
+/// 令牌与泵同运行时驱动（compio CancelToken 线程亲和；KILL 方仅置原子位
+/// 与广播事件，跨线程安全）
+fn spawn_kill_watcher(entry: Arc<ConsumerEntry>, kill_token: CancelToken) {
+  spawn(async move {
+    loop {
+      // 双重检查防错过唤醒（对齐 ShutdownCoordinator::wait 防竞态模式）
+      if entry.is_terminating() {
+        break;
+      }
+      let listener = entry.listen_terminate();
+      if entry.is_terminating() {
+        break;
+      }
+      listener.await;
+    }
+    kill_token.cancel();
+  })
+  .detach();
 }

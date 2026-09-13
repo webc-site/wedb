@@ -1,7 +1,6 @@
 use std::{
   fs::{read_dir, remove_dir_all, remove_file},
   future::Future,
-  marker::PhantomData,
   path::Path,
   str,
   sync::{
@@ -262,7 +261,7 @@ fn index_mismatch(desc: &str, actual: u64, expected: u64) -> Error {
 /// `list_checkpoints` 依赖「目录内 Token 的大小序即版本新旧序」，墙钟回拨（NTP
 /// 步进/手动校时）由两层守卫兜底，保证签发值严格单调递增：
 /// - 进程级：`issue_token_after` 以历史签发最大值为下界 +1 续发；
-/// - 跨进程重启：[`CheckpointManager::create_checkpoint`] 将目录内现存最大 Token
+/// - 跨进程重启：[`create_checkpoint`] 将目录内现存最大 Token
 ///   作为签发下界，重启后回拨同样无法颠倒版本序。
 pub fn next_token() -> u128 {
   issue_token_after(candidate_token(), 0)
@@ -273,7 +272,7 @@ pub fn next_token() -> u128 {
 /// 供 Garnet 检查点管理器层（wkv::CheckpointManager）在需要**预知** Token 的
 /// 场景（版本切换回调先于快照执行、回调需携带新版本号，对标 C#
 /// GarnetClusterCheckpointManager.checkpointVersionShiftStart 携 newVersion）
-/// 使用：本函数与 [`CheckpointManager::create_checkpoint`] 内部签发共用同一
+/// 使用：本函数与 [`create_checkpoint`] 内部签发共用同一
 /// 串行闸门，目录下界 + 进程历史的墙钟回拨双重防御语义完全一致
 pub fn next_token_above(floor: u128) -> u128 {
   issue_token_after(candidate_token(), floor)
@@ -320,7 +319,7 @@ pub(crate) async fn sync_checkpoint_dir(dir: &Path) -> Result<()> {
 /// 之前必须先令 token 目录树整体持久，确保 meta 可见即快照全量可见。
 ///
 /// 目录枚举使用 std `read_dir`：compio-fs 0.12.1 未提供异步目录遍历原语，而
-/// getdents 属纯元数据 syscall（无数据面 I/O），与 [`CheckpointManager::purge_all`]
+/// getdents 属纯元数据 syscall（无数据面 I/O），与 [`purge_all`]
 /// 等目录维护路径一致保持同步实现；文件数据 fsync 走 compio 异步定位 I/O。
 /// 递归经 `Box::pin` 装箱，深度受快照子目录结构约束（个位数层级）。
 pub(crate) async fn sync_dir_tree(dir: &Path) -> Result<()> {
@@ -345,759 +344,672 @@ fn rm_path_best_effort(path: &Path) {
   }
 }
 
-/// 异步快照与崩溃恢复管理器
+// 异步快照与崩溃恢复设施（模块级函数集，无管理器对象）
+//
+// C# 侧无单一对应物，职责按文件级映射聚合（garnet 中的相对路径）：
+// - `libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs`
+//   ——检查点文件集的提交/列举/清理（Purge/PurgeAll/token 历史回收）
+// - `libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs`
+//   ——PREPARE→WAIT_FLUSH→PERSISTENCE_CALLBACK 状态机编排（见 `create_checkpoint`）
+// - `libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs`
+//   ——恢复选点与地址状态机重建（见 `recover_checkpoint_components`）
+//
+// Garnet 服务器侧 `libs/server/GarnetCheckpointManager.cs` 仅在元数据 cookie 中追加
+// 复制历史 ID 与 AOF 安全地址（GetCookie），属复制/AOF 域，不在本 crate 范围。
+
+/// 异步生成并原子落盘 HashIndex 快照（纯 compio 异步 I/O，全程零线程创建）
 ///
-/// C# 侧无单一对应物，职责按文件级映射聚合（garnet 中的相对路径）：
-/// - `libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs`
-///   ——检查点文件集的提交/列举/清理（Purge/PurgeAll/token 历史回收）
-/// - `libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs`
-///   ——PREPARE→WAIT_FLUSH→PERSISTENCE_CALLBACK 状态机编排（见 [`Self::create_checkpoint`]）
-/// - `libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs`
-///   ——恢复选点与地址状态机重建（见 [`Self::recover_checkpoint_components`]）
+/// `rc_skip` 为 ReadCache 易失指针解析闭包（无 ReadCache 时传恒等闭包 `|addr| addr`）。
+/// 创建持久化 Checkpoint 快照
 ///
-/// Garnet 服务器侧 `libs/server/GarnetCheckpointManager.cs` 仅在元数据 cookie 中追加
-/// 复制历史 ID 与 AOF 安全地址（GetCookie），属复制/AOF 域，不在本 crate 范围。
-#[derive(Debug)]
-pub struct CheckpointManager<D: Device = wdev::SegmentedDevice> {
-  _marker: PhantomData<D>,
+/// 核心流程（对标 C# FullCheckpointSM 状态机 REST → PREPARE → WAIT_FLUSH →
+/// PERSISTENCE_CALLBACK → REST 的闭环语义）：
+/// 1. 生成全局唯一 128 位快照版本 Token。
+/// 2. PREPARE：捕获一致性截断点 TailAddress。
+/// 3. 封印只读边界：将 `[0, tail)` 冻结为只读（ShiftReadOnlyToTail），后续更新一律 RCU 追加。
+/// 4. Epoch 排空屏障：等待全部前置纪元在途操作完成，索引与日志对截断点趋于静稳。
+/// 5. WAIT_FLUSH：刷写全部脏页并同步设备，随后为所有 RangeIndex 执行 CPR 快照，
+///    并原子刷写 HashIndex 快照 `index_<token>.ckpt`。
+/// 6. PERSISTENCE_CALLBACK：写入 `checkpoint_<token>.meta` 元数据文件（最后落盘，
+///    崩溃时未完成检查点绝不会出现在恢复视图中）。
+///
+/// # 调用方契约
+/// - 必须在纪元保护区外调用（会话操作作用域之外）：调用方自持纪元会使排空屏障
+///   永远无法完成，本方法以 [`Error::CheckpointWhileEpochProtected`] fail-fast
+///   拒绝（对照 C#：Garnet CHECKPOINT 命令与周期紧缩任务均在会话作用域外串行
+///   驱动检查点，契约靠外部调用约定成立；wedb 将其显式化为类型化错误）。
+/// - 单线程测试等场景天然满足：会话操作守卫均为 RAII 作用域，操作返回即退出保护区。
+///
+/// # 崩溃一致性与并发语义
+/// - Token 签发的目录下界（floor）在进程级闸门内计算：并发持有闸门的
+///   [`create_checkpoint_with_token`] 可能正以调用方指定的大 Token 发布，
+///   闸门外枚举目录会读到陈旧视图，签发值可能小于已发布 Token，颠倒
+///   「目录内 Token 的大小序即版本新旧序」不变式（recover_latest/purge_outdated
+///   依赖此不变式）；闸门内计算覆盖跨进程重启后的墙钟回拨，签发闸门全局串行，
+///   并发创建亦不撞号。
+/// - 快照一致性点与前台写入可见性边界：检查点严格限定在 PREPARE 捕获的 tail 时点。
+///   屏障放行后到 flush_all 结束期间，新起会话仅能对 `[tail, ∞)` 做 RCU 追加（只读区
+///   已封印，`[0, tail)` 的字节绝无在途改写）；这些超界追加可能随本次 flush_all 一并
+///   落盘并使 FlushedUntilAddress 超前 tail，恢复阶段按截断点 tail 丢弃全部超界索引
+///   互不相交，`recover` 仅读取某一 Token 的不可变文件集（原子 rename 发布），与并发
+///   的创建/清理操作互不撕裂。Token 由签发闸门全局唯一，对同一 Token 并发/重复调用
+///   [`create_checkpoint_with_token`] 属调用方违约（失败清场与临时文件路径均按
+///   Token 独占假设执行），须保证 Token 唯一。
+pub async fn create_checkpoint<D: Device, S: CprStore<Device = D>>(
+  store: &S,
+  checkpoint_dir: impl AsRef<Path>,
+  cp_type: CheckpointType,
+) -> Result<CheckpointMeta> {
+  if store.epoch().thread_protected() {
+    return Err(Error::CheckpointWhileEpochProtected);
+  }
+  let dir = checkpoint_dir.as_ref();
+  let _gate = lock_ckpt_gate().await;
+  // 跨进程墙钟回拨防御：目录内 Token 的大小序即版本新旧序（recover_latest/
+  // purge_outdated 依赖此不变式）。目录现存最大 Token 作为签发下界，重启后 NTP
+  // 步进回拨同样无法使新版本倒序（避免恢复到陈旧检查点、误清最新检查点）；
+  // floor 必须在闸门内计算——并发持有闸门的 create_checkpoint_with_token 可能
+  // 正在发布更大 Token 的检查点，闸门外取 floor 会读到陈旧目录视图（论证见
+  // 本方法文档「崩溃一致性与并发语义」首条）。
+  let floor = list_checkpoints(dir)?.last().copied().unwrap_or(0);
+  let token = issue_token_after(candidate_token(), floor);
+  create_gated(store, dir, cp_type, token).await
 }
 
-impl<D: Device> Default for CheckpointManager<D> {
-  fn default() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
+/// 使用指定 Token 创建持久化 Checkpoint 快照
+///
+/// 进程级串行化（见 `lock_ckpt_gate`）：SAVE 手动触发与周期快照并发调用时依次
+/// 排队执行，杜绝两次检查点在宿主状态机上的并发叠加；等待者以异步互斥挂起排队，
+/// 精确事件唤醒，不阻塞任何 reactor 线程且零空转开销。
+///
+/// 失败清场：任一阶段失败（如磁盘满 ENOSPC、注入故障）时 best-effort 回收本
+/// Token 的全部物理文件（含半截 `.tmp` 与孤儿 token 子目录）——元数据最后落盘
+/// 保证失败检查点绝无进入恢复视图的可能，清场仅回收磁盘空间。注意该 Token 若
+/// 恰有历史文件集亦会被一并回收，对同一 Token 的重复/复用调用属调用方违约。
+pub async fn create_checkpoint_with_token<D: Device, S: CprStore<Device = D>>(
+  store: &S,
+  checkpoint_dir: impl AsRef<Path>,
+  cp_type: CheckpointType,
+  token: u128,
+) -> Result<CheckpointMeta> {
+  if store.epoch().thread_protected() {
+    return Err(Error::CheckpointWhileEpochProtected);
   }
+  let dir = checkpoint_dir.as_ref();
+  let _gate = lock_ckpt_gate().await;
+  create_gated(store, dir, cp_type, token).await
 }
 
-impl<D: Device> CheckpointManager<D> {
-  /// 创建 CheckpointManager 实例
-  pub const fn new() -> Self {
-    Self {
-      _marker: PhantomData,
-    }
+/// 闸门内创建主流程（调用方须已持有进程级闸门）：创建 + 失败清场
+async fn create_gated<D: Device, S: CprStore<Device = D>>(
+  store: &S,
+  dir: &Path,
+  cp_type: CheckpointType,
+  token: u128,
+) -> Result<CheckpointMeta> {
+  let res = create_checkpoint_inner(store, dir, cp_type, token).await;
+  if let Err(e) = &res {
+    warn!("Checkpoint 创建失败，已回收本 Token 残留文件: token={token:#x}, err={e}");
+    let _ = purge_checkpoint(dir, token);
+  }
+  res
+}
+
+/// 检查点创建主流程（调用方须已持有闸门，见 [`create_checkpoint_with_token`]）
+async fn create_checkpoint_inner<D: Device, S: CprStore<Device = D>>(
+  store: &S,
+  dir: &Path,
+  cp_type: CheckpointType,
+  token: u128,
+) -> Result<CheckpointMeta> {
+  // 0. 调用方契约前置校验：处于纪元保护区时 fail-fast 拒绝（零副作用——位于建目录、
+  //    封印只读边界等一切状态变更之前）。C# Tsavorite/Garnet 的检查点由外部串行驱动
+  //    （CHECKPOINT 命令、StoreWrapper.CompactionTaskAsync 均在会话作用域外调用），
+  //    「不在保护区内发起」仅靠调用约定成立；wedb 将其升级为类型化错误：若在保护
+  //    区内跳过排空屏障继续创建，「数据页已刷盘但索引插入尚未提交」的丢失更新窗口
+  //    将静默打开（静稳性缺口），fail-fast 把缺口暴露为可操作的显式错误而非脏快照。
+  //    单线程测试等合法场景天然满足：会话操作守卫均为 RAII 作用域，返回即退保护。
+  //    判定须覆盖 TLS 作用域与 Participant 句柄双轨保护（[`LightEpoch::thread_protected`]）：
+  //    仅查 TLS 轨会漏放「Participant::enter 守卫内发起检查点」的调用，该调用将以
+  //    自钉纪元使下方排空屏障谓词永假——fail-fast 退化为无限自旋
+  if store.epoch().thread_protected() {
+    return Err(Error::CheckpointWhileEpochProtected);
   }
 
-  /// 创建指定设备类型的 CheckpointManager 实例
-  pub const fn with_device() -> Self {
-    Self::new()
+  create_dir_all(dir).await?;
+
+  // 注：不持有跨 await 的共享 BfTree 外层屏障（对标差异，刻意为之）。
+  // Garnet 的 SetCheckpointBarrier 从 VersionShift 起阻塞树写入直至快照完成，
+  // 但本流程在 tail 捕获与 CPR 快照之间存在多个 await（epoch 排空、flush_all、
+  // index 快照异步 I/O）；BfTreeService 的写者等待是同步忙自旋、不让出 executor，
+  // 若屏障跨 await 持有，同一 compio worker 线程上的树写任务将永久自旋霸占
+  // 线程，checkpoint 的 I/O 事件永远无法收割，形成死锁。
+  // 快照互斥因此仅由 cpr_snapshot 内部的同步短屏障承担：快照自身绝无撕裂；
+  // tail 捕获到快照之间落进的树写入会包含进快照（恢复态可能超前于 hlog tail，
+  // 表现为「多存不丢」，符合尽力持久化语义）。未配置持久工作文件时跳过快照，
+  // 非磁盘后端则由 take_bftree_checkpoint 显式报错。
+
+  // CPR 检查点两阶段状态机初始化 (1:1 对标 C# FullCheckpointSM: REST -> PREPARE -> IN_PROGRESS -> WAIT_FLUSH -> COMPLETE -> REST)
+  let mut phase = CprPhase::Rest;
+
+  // 1. PREPARE：捕获一致性截断点（对标 C# PREPARE 阶段的 startLogicalAddress 捕获）
+  phase = phase.next_phase();
+  debug!("CPR 状态机转换: REST -> PREPARE, token={token:#x}");
+  let tail = store.tail_address();
+
+  // 2. 封印只读边界（对标 C# FoldOver WAIT_FLUSH 的 ShiftReadOnlyToTail）：
+  //    这是崩溃一致性的核心前置条件——先封印后刷盘，保证刷盘期间没有任何在途
+  //    写入可以原位改写 `[0, tail)` 内已被捕获的字节，彻底消除检查点撕裂窗口
+  store.shift_read_only_address(tail);
+
+  // 3. IN_PROGRESS：Epoch 排空屏障（对标 C# 状态机 TrackLastVersion + IN_PROGRESS 语义）：
+  //    此时调用方必不在纪元保护区（步骤 0 契约校验已拒绝保护区内调用），推进全局
+  //    纪元并异步等待所有前置纪元的在途操作完成，确保索引对 `[0, tail)`
+  //    区间趋于静稳，杜绝「数据页已刷盘但索引插入尚未提交」的丢失更新窗口
+  phase = phase.next_phase();
+  debug!("CPR 状态机转换: PREPARE -> IN_PROGRESS, token={token:#x}");
+  let fence_epoch = store.epoch().current_epoch();
+
+  // 基于 crossfire::oneshot 的事件驱动零轮询等待屏障：
+  // 在前置纪元排空时，由注册在 LightEpoch 上的 action 精准发送完成信号，彻底消除 sleep 轮询
+  let (tx, rx) = oneshot::<()>();
+  store.epoch().bump_current_epoch_action(move || {
+    tx.send(());
+  });
+
+  // 优先收割已就绪动作
+  store.epoch().drain();
+  if store.hlog().safe_read_only_address() < tail || !store.epoch().is_safe_to_reclaim(fence_epoch)
+  {
+    // 慢路径：被动挂起等待前置纪元完全排空并精准触发通知（零轮询、零 CPU）
+    let _ = rx.await;
+  }
+  // 收割 SafeReadOnlyAddress 推进等全部就绪的延迟动作
+  store.epoch().drain();
+
+  // 4. WAIT_FLUSH：刷写 HybridLog 所有未落盘内存脏页至存储介质并同步设备
+  phase = phase.next_phase();
+  debug!("CPR 状态机转换: IN_PROGRESS -> WAIT_FLUSH, token={token:#x}");
+  store.flush_all().await?;
+
+  // 5. 同步遍历 store 为所有 RangeIndex 执行 CPR 快照
+  //    (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
+  let _ = store.take_range_index_checkpoints(dir, token)?;
+
+  // 5.1 持久化 token 子目录树：RangeIndex 快照必须先于 meta 达到掉电持久
+  //    （纯 compio 异步 fsync，全程零线程创建）
+  let mut token_buf = itoa::Buffer::new();
+  let token_dir = dir.join(token_buf.format(token));
+  if metadata(&token_dir).await.is_ok() {
+    sync_dir_tree(&token_dir).await?;
   }
 
-  /// 异步生成并原子落盘 HashIndex 快照（纯 compio 异步 I/O，全程零线程创建）
-  ///
-  /// `rc_skip` 为 ReadCache 易失指针解析闭包（无 ReadCache 时传恒等闭包 `|addr| addr`）。
-  pub async fn take_index_checkpoint(
-    &self,
-    index: &HashIndex,
-    entry_count: usize,
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    rc_skip: impl Fn(u64) -> u64,
-  ) -> Result<IndexMeta> {
-    take_index_checkpoint(index, entry_count, checkpoint_dir, token, rc_skip).await
+  // 6. 原子刷写 Index Checkpoint（纯 compio 异步定位 I/O：io_uring 下磁盘 I/O 由内核
+  //    完成，reactor 仅提交/收割完成事件，大索引刷盘不再需要线程池中转）。
+  //    传入 ReadCache 解析闭包：指向易失读缓存的索引条目在快照前必须顺链回写为主日志
+  //    真实地址（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:SkipReadCacheBucket），否则恢复后这些键将永久不可见
+  let index_meta = take_index_checkpoint(store.index(), store.entry_count(), dir, token, |addr| {
+    store.skip_read_cache(addr)
+  })
+  .await?;
+
+  let hlog_meta = HlogMeta {
+    begin_address: store.begin_address(),
+    head_address: store.head_address(),
+    flushed_until_address: store.hlog().flushed_until_address(),
+    tail_address: tail,
+  };
+
+  let store_meta = store.checkpoint_store_meta();
+
+  let mut meta = CheckpointMeta {
+    token,
+    cp_type,
+    index_meta,
+    hlog_meta,
+    store_meta,
+    created_at: now_ms(),
+    format_version: FORMAT_VERSION,
+    integrity_crc32: 0,
+  };
+  // 发布前封签：封签之外仅封签字段自身例外，恢复时逐字段比对拦截落盘后篡改
+  meta.seal();
+
+  // 7. COMPLETE (PERSISTENCE_CALLBACK)：写入元数据文件并原子 rename
+  phase = phase.next_phase();
+  debug!("CPR 状态机转换: WAIT_FLUSH -> COMPLETE, token={token:#x}");
+
+  let meta_bytes = meta.encode();
+  let tmp_meta_path = dir.join(meta_tmp_filename(token));
+  let final_meta_path = dir.join(meta_filename(token));
+
+  let mut file = File::create(&tmp_meta_path).await?;
+  file.write_all_at(meta_bytes, 0).await.0?;
+  file.sync_all().await?;
+
+  rename(&tmp_meta_path, &final_meta_path).await?;
+  sync_checkpoint_dir(dir).await?;
+
+  // 8. 状态机闭环：COMPLETE -> REST
+  let _ = phase.next_phase();
+  debug!("CPR 状态机闭环: COMPLETE -> REST, token={token:#x}");
+
+  info!(
+    "成功创建 Checkpoint: token={token:#x}, type={cp_type:?}, entry_count={}, tail={tail:#x}",
+    index_meta.entry_count
+  );
+
+  Ok(meta)
+}
+
+/// 从指定 Checkpoint 进行崩溃恢复，重构并实例化底层核心组件集合
+///
+/// 恢复流程：
+/// 1. 读取并反序列化 `checkpoint_<token>.meta` 元数据文件。
+/// 2. 从 `index_<token>.ckpt` 二进制快照无损重建 64B Cacheline 对齐的 HashIndex。
+/// 3. 重建 LightEpoch 与底层 HybridLog 实例。
+/// 4. 从底层 Device 预热读取尾部活跃页数据至内存页缓冲，恢复地址状态机（Head、Tail、ReadOnly 等）。
+///
+/// # 数据链信任边界（与 waof 自同步扫描的刻意差异，与 C# 一致）
+///
+/// 恢复对 `[flushed, tail)` 日志数据链不做逐记录 CRC 重放校验：该区间的完整性完全
+/// 信任创建时 `flush_all` + device sync 的时序闭环（脏页按序刷盘、元数据最后落盘），
+/// 这与 C# Tsavorite 恢复路径一致——C# 亦不重放主日志 CRC，仅校验快照文件自身校验和。
+/// 介质损坏（位翻转、半截写入）不在恢复期拦截，而在读路径暴露：数据记录自带 CRC，
+/// 读取时校验失败即显式报错。waof 则选择恢复期全量自同步扫描前摄暴露损坏，两者是
+/// 面向不同 RTO/数据量权衡的刻意分化，非实现遗漏。
+pub async fn recover_checkpoint_components<D: Device>(
+  checkpoint_dir: impl AsRef<Path>,
+  token: u128,
+  device: Arc<D>,
+) -> Result<RecoveredCheckpoint<D>> {
+  let dir = checkpoint_dir.as_ref();
+  let meta_path = dir.join(meta_filename(token));
+  if metadata(&meta_path).await.is_err() {
+    return Err(Error::MetaNotFound(meta_path));
   }
 
-  /// 创建持久化 Checkpoint 快照
-  ///
-  /// 核心流程（对标 C# FullCheckpointSM 状态机 REST → PREPARE → WAIT_FLUSH →
-  /// PERSISTENCE_CALLBACK → REST 的闭环语义）：
-  /// 1. 生成全局唯一 128 位快照版本 Token。
-  /// 2. PREPARE：捕获一致性截断点 TailAddress。
-  /// 3. 封印只读边界：将 `[0, tail)` 冻结为只读（ShiftReadOnlyToTail），后续更新一律 RCU 追加。
-  /// 4. Epoch 排空屏障：等待全部前置纪元在途操作完成，索引与日志对截断点趋于静稳。
-  /// 5. WAIT_FLUSH：刷写全部脏页并同步设备，随后为所有 RangeIndex 执行 CPR 快照，
-  ///    并原子刷写 HashIndex 快照 `index_<token>.ckpt`。
-  /// 6. PERSISTENCE_CALLBACK：写入 `checkpoint_<token>.meta` 元数据文件（最后落盘，
-  ///    崩溃时未完成检查点绝不会出现在恢复视图中）。
-  ///
-  /// # 调用方契约
-  /// - 必须在纪元保护区外调用（会话操作作用域之外）：调用方自持纪元会使排空屏障
-  ///   永远无法完成，本方法以 [`Error::CheckpointWhileEpochProtected`] fail-fast
-  ///   拒绝（对照 C#：Garnet CHECKPOINT 命令与周期紧缩任务均在会话作用域外串行
-  ///   驱动检查点，契约靠外部调用约定成立；wedb 将其显式化为类型化错误）。
-  /// - 单线程测试等场景天然满足：会话操作守卫均为 RAII 作用域，操作返回即退出保护区。
-  ///
-  /// # 崩溃一致性与并发语义
-  /// - Token 签发的目录下界（floor）在进程级闸门内计算：并发持有闸门的
-  ///   [`Self::create_checkpoint_with_token`] 可能正以调用方指定的大 Token 发布，
-  ///   闸门外枚举目录会读到陈旧视图，签发值可能小于已发布 Token，颠倒
-  ///   「目录内 Token 的大小序即版本新旧序」不变式（recover_latest/purge_outdated
-  ///   依赖此不变式）；闸门内计算覆盖跨进程重启后的墙钟回拨，签发闸门全局串行，
-  ///   并发创建亦不撞号。
-  /// - 快照一致性点与前台写入可见性边界：检查点严格限定在 PREPARE 捕获的 tail 时点。
-  ///   屏障放行后到 flush_all 结束期间，新起会话仅能对 `[tail, ∞)` 做 RCU 追加（只读区
-  ///   已封印，`[0, tail)` 的字节绝无在途改写）；这些超界追加可能随本次 flush_all 一并
-  ///   落盘并使 FlushedUntilAddress 超前 tail，恢复阶段按截断点 tail 丢弃全部超界索引
-  ///   条目并钳制 FlushedUntilAddress——tail 之后落盘的写入对本检查点不可见。
-  /// - 持久化闭环：`index_<token>.ckpt` 与 `checkpoint_<token>.meta` 均经 tmp 写入 +
-  ///   fsync + 原子 rename，并随后 fsync 父目录保证 rename 目录项掉电持久；
-  ///   RangeIndex 快照子目录树（含冷树 `fs::copy` 文件与中间目录项）在 meta 发布前
-  ///   被整体递归 fsync——meta 可见即该 Token 文件集全量可见。
-  /// - 并发检查点：进程级闸门（`lock_ckpt_gate`）将 SAVE 手动触发与周期快照等并发
-  ///   调用串行化，杜绝两次检查点在宿主状态机上的并发叠加；各 Token 的文件集
-  ///   互不相交，`recover` 仅读取某一 Token 的不可变文件集（原子 rename 发布），与并发
-  ///   的创建/清理操作互不撕裂。Token 由签发闸门全局唯一，对同一 Token 并发/重复调用
-  ///   [`Self::create_checkpoint_with_token`] 属调用方违约（失败清场与临时文件路径均按
-  ///   Token 独占假设执行），须保证 Token 唯一。
-  pub async fn create_checkpoint<S: CprStore<Device = D>>(
-    &self,
-    store: &S,
-    checkpoint_dir: impl AsRef<Path>,
-    cp_type: CheckpointType,
-  ) -> Result<CheckpointMeta> {
-    if store.epoch().thread_protected() {
-      return Err(Error::CheckpointWhileEpochProtected);
-    }
-    let dir = checkpoint_dir.as_ref();
-    let _gate = lock_ckpt_gate().await;
-    // 跨进程墙钟回拨防御：目录内 Token 的大小序即版本新旧序（recover_latest/
-    // purge_outdated 依赖此不变式）。目录现存最大 Token 作为签发下界，重启后 NTP
-    // 步进回拨同样无法使新版本倒序（避免恢复到陈旧检查点、误清最新检查点）；
-    // floor 必须在闸门内计算——并发持有闸门的 create_checkpoint_with_token 可能
-    // 正在发布更大 Token 的检查点，闸门外取 floor 会读到陈旧目录视图（论证见
-    // 本方法文档「崩溃一致性与并发语义」首条）。
-    let floor = Self::list_checkpoints(dir)?.last().copied().unwrap_or(0);
-    let token = issue_token_after(candidate_token(), floor);
-    Self::create_gated(store, dir, cp_type, token).await
-  }
-
-  /// 使用指定 Token 创建持久化 Checkpoint 快照
-  ///
-  /// 进程级串行化（见 `lock_ckpt_gate`）：SAVE 手动触发与周期快照并发调用时依次
-  /// 排队执行，杜绝两次检查点在宿主状态机上的并发叠加；等待者以异步互斥挂起排队，
-  /// 精确事件唤醒，不阻塞任何 reactor 线程且零空转开销。
-  ///
-  /// 失败清场：任一阶段失败（如磁盘满 ENOSPC、注入故障）时 best-effort 回收本
-  /// Token 的全部物理文件（含半截 `.tmp` 与孤儿 token 子目录）——元数据最后落盘
-  /// 保证失败检查点绝无进入恢复视图的可能，清场仅回收磁盘空间。注意该 Token 若
-  /// 恰有历史文件集亦会被一并回收，对同一 Token 的重复/复用调用属调用方违约。
-  pub async fn create_checkpoint_with_token<S: CprStore<Device = D>>(
-    &self,
-    store: &S,
-    checkpoint_dir: impl AsRef<Path>,
-    cp_type: CheckpointType,
-    token: u128,
-  ) -> Result<CheckpointMeta> {
-    if store.epoch().thread_protected() {
-      return Err(Error::CheckpointWhileEpochProtected);
-    }
-    let dir = checkpoint_dir.as_ref();
-    let _gate = lock_ckpt_gate().await;
-    Self::create_gated(store, dir, cp_type, token).await
-  }
-
-  /// 闸门内创建主流程（调用方须已持有进程级闸门）：创建 + 失败清场
-  async fn create_gated<S: CprStore<Device = D>>(
-    store: &S,
-    dir: &Path,
-    cp_type: CheckpointType,
-    token: u128,
-  ) -> Result<CheckpointMeta> {
-    let res = Self::create_checkpoint_inner(store, dir, cp_type, token).await;
-    if let Err(e) = &res {
-      warn!("Checkpoint 创建失败，已回收本 Token 残留文件: token={token:#x}, err={e}");
-      let _ = Self::purge_checkpoint(dir, token);
-    }
-    res
-  }
-
-  /// 检查点创建主流程（调用方须已持有闸门，见 [`Self::create_checkpoint_with_token`]）
-  async fn create_checkpoint_inner<S: CprStore<Device = D>>(
-    store: &S,
-    dir: &Path,
-    cp_type: CheckpointType,
-    token: u128,
-  ) -> Result<CheckpointMeta> {
-    // 0. 调用方契约前置校验：处于纪元保护区时 fail-fast 拒绝（零副作用——位于建目录、
-    //    封印只读边界等一切状态变更之前）。C# Tsavorite/Garnet 的检查点由外部串行驱动
-    //    （CHECKPOINT 命令、StoreWrapper.CompactionTaskAsync 均在会话作用域外调用），
-    //    「不在保护区内发起」仅靠调用约定成立；wedb 将其升级为类型化错误：若在保护
-    //    区内跳过排空屏障继续创建，「数据页已刷盘但索引插入尚未提交」的丢失更新窗口
-    //    将静默打开（静稳性缺口），fail-fast 把缺口暴露为可操作的显式错误而非脏快照。
-    //    单线程测试等合法场景天然满足：会话操作守卫均为 RAII 作用域，返回即退保护。
-    //    判定须覆盖 TLS 作用域与 Participant 句柄双轨保护（[`LightEpoch::thread_protected`]）：
-    //    仅查 TLS 轨会漏放「Participant::enter 守卫内发起检查点」的调用，该调用将以
-    //    自钉纪元使下方排空屏障谓词永假——fail-fast 退化为无限自旋
-    if store.epoch().thread_protected() {
-      return Err(Error::CheckpointWhileEpochProtected);
-    }
-
-    create_dir_all(dir).await?;
-
-    // 注：不持有跨 await 的共享 BfTree 外层屏障（对标差异，刻意为之）。
-    // Garnet 的 SetCheckpointBarrier 从 VersionShift 起阻塞树写入直至快照完成，
-    // 但本流程在 tail 捕获与 CPR 快照之间存在多个 await（epoch 排空、flush_all、
-    // index 快照异步 I/O）；BfTreeService 的写者等待是同步忙自旋、不让出 executor，
-    // 若屏障跨 await 持有，同一 compio worker 线程上的树写任务将永久自旋霸占
-    // 线程，checkpoint 的 I/O 事件永远无法收割，形成死锁。
-    // 快照互斥因此仅由 cpr_snapshot 内部的同步短屏障承担：快照自身绝无撕裂；
-    // tail 捕获到快照之间落进的树写入会包含进快照（恢复态可能超前于 hlog tail，
-    // 表现为「多存不丢」，符合尽力持久化语义）。未配置持久工作文件时跳过快照，
-    // 非磁盘后端则由 take_bftree_checkpoint 显式报错。
-
-    // CPR 检查点两阶段状态机初始化 (1:1 对标 C# FullCheckpointSM: REST -> PREPARE -> IN_PROGRESS -> WAIT_FLUSH -> COMPLETE -> REST)
-    let mut phase = CprPhase::Rest;
-
-    // 1. PREPARE：捕获一致性截断点（对标 C# PREPARE 阶段的 startLogicalAddress 捕获）
-    phase = phase.next_phase();
-    debug!("CPR 状态机转换: REST -> PREPARE, token={token:#x}");
-    let tail = store.tail_address();
-
-    // 2. 封印只读边界（对标 C# FoldOver WAIT_FLUSH 的 ShiftReadOnlyToTail）：
-    //    这是崩溃一致性的核心前置条件——先封印后刷盘，保证刷盘期间没有任何在途
-    //    写入可以原位改写 `[0, tail)` 内已被捕获的字节，彻底消除检查点撕裂窗口
-    store.shift_read_only_address(tail);
-
-    // 3. IN_PROGRESS：Epoch 排空屏障（对标 C# 状态机 TrackLastVersion + IN_PROGRESS 语义）：
-    //    此时调用方必不在纪元保护区（步骤 0 契约校验已拒绝保护区内调用），推进全局
-    //    纪元并异步等待所有前置纪元的在途操作完成，确保索引对 `[0, tail)`
-    //    区间趋于静稳，杜绝「数据页已刷盘但索引插入尚未提交」的丢失更新窗口
-    phase = phase.next_phase();
-    debug!("CPR 状态机转换: PREPARE -> IN_PROGRESS, token={token:#x}");
-    let fence_epoch = store.epoch().current_epoch();
-
-    // 基于 crossfire::oneshot 的事件驱动零轮询等待屏障：
-    // 在前置纪元排空时，由注册在 LightEpoch 上的 action 精准发送完成信号，彻底消除 sleep 轮询
-    let (tx, rx) = oneshot::<()>();
-    store.epoch().bump_current_epoch_action(move || {
-      tx.send(());
+  // 1. 读取元数据文件（bitcode 极速反序列化）
+  // 对标 libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs:ThrowIfInvalidMetadataSize
+  // 的「损坏元数据具名拒绝」语义：C# 元数据为设备日志上的长度前缀流（读首部
+  // int 长度，<= 0 或超 64MB 上限即抛 TsavoriteException，把截断/损坏文件变成
+  // 具名错误而非巨型分配）；本实现元数据经 `read` 整文件读入后按二进制
+  // bitcode 反序列化，无长度前缀分配路径，截断在 decode 与下方
+  // 版本/Token/完整性封签逐项校验中显式报错，等价达成「损坏元数据绝不静默
+  // 恢复、绝不引发失控分配」的防护目标。
+  let meta_bytes = read(&meta_path).await?;
+  let meta = CheckpointMeta::decode(&meta_bytes)?;
+  if meta.token != token {
+    return Err(Error::TokenMismatch {
+      expected: token,
+      actual: meta.token,
     });
+  }
 
-    // 优先收割已就绪动作
-    store.epoch().drain();
-    if store.hlog().safe_read_only_address() < tail
-      || !store.epoch().is_safe_to_reclaim(fence_epoch)
+  if meta.format_version > FORMAT_VERSION {
+    return Err(Error::UnsupportedMetaVersion {
+      actual: meta.format_version,
+      supported: FORMAT_VERSION,
+    });
+  }
+
+  // 完整性封签校验（v2 起强制）：JSON 文本级篡改/介质位翻转虽可通过反序列化
+  // （结构合法），但无法通过逐字段摘要比对——在此拦截「静默错误恢复」类损坏，
+  // recover_latest 依此回退至更早的有效检查点。遗留格式（< v2）按旧语义放行。
+  if meta.format_version >= INTEGRITY_FROM_VERSION {
+    let digest = meta.integrity_digest();
+    if digest != meta.integrity_crc32 {
+      return Err(Error::MetaChecksumMismatch {
+        expected: meta.integrity_crc32,
+        actual: digest,
+      });
+    }
+  }
+
+  let epoch = Arc::new(LightEpoch::new(meta.store_meta.max_sessions));
+  let hlog_config = HybridLogConfig::new(
+    meta.store_meta.page_size,
+    meta.store_meta.num_pages,
+    meta.store_meta.mutable_fraction,
+  )?;
+
+  if meta.index_meta.size != meta.store_meta.index_size {
+    return Err(index_mismatch(
+      "索引元数据大小与配置大小不匹配",
+      meta.index_meta.size as u64,
+      meta.store_meta.index_size as u64,
+    ));
+  }
+
+  let begin = meta.hlog_meta.begin_address;
+  let tail = meta.hlog_meta.tail_address;
+  let flushed = meta.hlog_meta.flushed_until_address;
+
+  if tail < hlog_config.initial_address {
+    return Err(addr_violation(
+      "TailAddress",
+      tail,
+      "小于日志起始基准地址",
+      hlog_config.initial_address,
+      "",
+    ));
+  }
+  if begin > tail {
+    return Err(addr_violation(
+      "BeginAddress",
+      begin,
+      "超出 TailAddress",
+      tail,
+      "",
+    ));
+  }
+  if meta.hlog_meta.head_address > tail {
+    return Err(addr_violation(
+      "HeadAddress",
+      meta.hlog_meta.head_address,
+      "超出 TailAddress",
+      tail,
+      "",
+    ));
+  }
+  if meta.hlog_meta.head_address < begin {
+    return Err(addr_violation(
+      "HeadAddress",
+      meta.hlog_meta.head_address,
+      "低于 BeginAddress",
+      begin,
+      "",
+    ));
+  }
+  if flushed < begin {
+    return Err(addr_violation(
+      "FlushedUntilAddress",
+      flushed,
+      "小于 BeginAddress",
+      begin,
+      "",
+    ));
+  }
+  // 不变式 head <= flushed：已从内存驱逐的数据必须早已落盘，违反即为元数据损坏
+  if flushed < meta.hlog_meta.head_address {
+    return Err(addr_violation(
+      "FlushedUntilAddress",
+      flushed,
+      "低于 HeadAddress",
+      meta.hlog_meta.head_address,
+      "，存在未落盘的已驱逐页",
+    ));
+  }
+
+  let index_path = dir.join(index_filename(token));
+  let (index, index_meta) = read_index_checkpoint_truncated(&index_path, token, Some(tail)).await?;
+
+  if index_meta.size != meta.store_meta.index_size {
+    return Err(index_mismatch(
+      "索引快照实际大小与引擎配置大小不匹配",
+      index_meta.size as u64,
+      meta.store_meta.index_size as u64,
+    ));
+  }
+  if index_meta.overflow_count != meta.index_meta.overflow_count {
+    return Err(index_mismatch(
+      "索引快照溢出桶数量与元数据不一致",
+      index_meta.overflow_count,
+      meta.index_meta.overflow_count,
+    ));
+  }
+  if index_meta.entry_count != meta.index_meta.entry_count {
+    return Err(index_mismatch(
+      "索引快照条目总数与元数据不一致",
+      index_meta.entry_count as u64,
+      meta.index_meta.entry_count as u64,
+    ));
+  }
+
+  let hlog = Arc::new(HybridLog::new(
+    hlog_config.clone(),
+    Arc::clone(&device),
+    Arc::clone(&epoch),
+  )?);
+
+  let curr_page = hlog_config.page_id(tail);
+  let offset = hlog_config.page_offset(tail);
+  let page_start = hlog_config.page_start_address(curr_page);
+
+  // 若尾页包含历史有效数据，从底层设备预热加载至内存缓冲，以确保后续追加写入不损坏同页已有记录
+  if offset > 0 && tail > hlog_config.initial_address {
+    let tail_buf = device.read_range(page_start, hlog_config.page_size).await?;
     {
-      // 慢路径：被动挂起等待前置纪元完全排空并精准触发通知（零轮询、零 CPU）
-      let _ = rx.await;
+      let mut guard = hlog.buffer.write_page(curr_page);
+      guard.copy_from_slice(&tail_buf);
     }
-    // 收割 SafeReadOnlyAddress 推进等全部就绪的延迟动作
-    store.epoch().drain();
-
-    // 4. WAIT_FLUSH：刷写 HybridLog 所有未落盘内存脏页至存储介质并同步设备
-    phase = phase.next_phase();
-    debug!("CPR 状态机转换: IN_PROGRESS -> WAIT_FLUSH, token={token:#x}");
-    store.flush_all().await?;
-
-    // 5. 同步遍历 store 为所有 RangeIndex 执行 CPR 快照
-    //    (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotAllTreesForCheckpoint)
-    let _ = store.take_range_index_checkpoints(dir, token)?;
-
-    // 5.1 持久化 token 子目录树：RangeIndex 快照必须先于 meta 达到掉电持久
-    //    （纯 compio 异步 fsync，全程零线程创建）
-    let mut token_buf = itoa::Buffer::new();
-    let token_dir = dir.join(token_buf.format(token));
-    if metadata(&token_dir).await.is_ok() {
-      sync_dir_tree(&token_dir).await?;
-    }
-
-    // 6. 原子刷写 Index Checkpoint（纯 compio 异步定位 I/O：io_uring 下磁盘 I/O 由内核
-    //    完成，reactor 仅提交/收割完成事件，大索引刷盘不再需要线程池中转）。
-    //    传入 ReadCache 解析闭包：指向易失读缓存的索引条目在快照前必须顺链回写为主日志
-    //    真实地址（对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:SkipReadCacheBucket），否则恢复后这些键将永久不可见
-    let index_meta =
-      take_index_checkpoint(store.index(), store.entry_count(), dir, token, |addr| {
-        store.skip_read_cache(addr)
-      })
-      .await?;
-
-    let hlog_meta = HlogMeta {
-      begin_address: store.begin_address(),
-      head_address: store.head_address(),
-      flushed_until_address: store.hlog().flushed_until_address(),
-      tail_address: tail,
-    };
-
-    let store_meta = store.checkpoint_store_meta();
-
-    let mut meta = CheckpointMeta {
-      token,
-      cp_type,
-      index_meta,
-      hlog_meta,
-      store_meta,
-      created_at: now_ms(),
-      format_version: FORMAT_VERSION,
-      integrity_crc32: 0,
-    };
-    // 发布前封签：封签之外仅封签字段自身例外，恢复时逐字段比对拦截落盘后篡改
-    meta.seal();
-
-    // 7. COMPLETE (PERSISTENCE_CALLBACK)：写入元数据文件并原子 rename
-    phase = phase.next_phase();
-    debug!("CPR 状态机转换: WAIT_FLUSH -> COMPLETE, token={token:#x}");
-
-    let meta_bytes = meta.encode();
-    let tmp_meta_path = dir.join(meta_tmp_filename(token));
-    let final_meta_path = dir.join(meta_filename(token));
-
-    let mut file = File::create(&tmp_meta_path).await?;
-    file.write_all_at(meta_bytes, 0).await.0?;
-    file.sync_all().await?;
-
-    rename(&tmp_meta_path, &final_meta_path).await?;
-    sync_checkpoint_dir(dir).await?;
-
-    // 8. 状态机闭环：COMPLETE -> REST
-    let _ = phase.next_phase();
-    debug!("CPR 状态机闭环: COMPLETE -> REST, token={token:#x}");
-
-    info!(
-      "成功创建 Checkpoint: token={token:#x}, type={cp_type:?}, entry_count={}, tail={tail:#x}",
-      index_meta.entry_count
-    );
-
-    Ok(meta)
+    hlog.buffer.set_page_id(curr_page);
+  } else {
+    hlog.buffer.clear_page(curr_page);
   }
 
-  /// 从指定 Checkpoint 进行崩溃恢复，重构并实例化底层核心组件集合
-  ///
-  /// 恢复流程：
-  /// 1. 读取并反序列化 `checkpoint_<token>.meta` 元数据文件。
-  /// 2. 从 `index_<token>.ckpt` 二进制快照无损重建 64B Cacheline 对齐的 HashIndex。
-  /// 3. 重建 LightEpoch 与底层 HybridLog 实例。
-  /// 4. 从底层 Device 预热读取尾部活跃页数据至内存页缓冲，恢复地址状态机（Head、Tail、ReadOnly 等）。
-  ///
-  /// # 数据链信任边界（与 waof 自同步扫描的刻意差异，与 C# 一致）
-  ///
-  /// 恢复对 `[flushed, tail)` 日志数据链不做逐记录 CRC 重放校验：该区间的完整性完全
-  /// 信任创建时 `flush_all` + device sync 的时序闭环（脏页按序刷盘、元数据最后落盘），
-  /// 这与 C# Tsavorite 恢复路径一致——C# 亦不重放主日志 CRC，仅校验快照文件自身校验和。
-  /// 介质损坏（位翻转、半截写入）不在恢复期拦截，而在读路径暴露：数据记录自带 CRC，
-  /// 读取时校验失败即显式报错。waof 则选择恢复期全量自同步扫描前摄暴露损坏，两者是
-  /// 面向不同 RTO/数据量权衡的刻意分化，非实现遗漏。
-  pub async fn recover_checkpoint_components(
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    device: Arc<D>,
-  ) -> Result<RecoveredCheckpoint<D>> {
-    let dir = checkpoint_dir.as_ref();
-    let meta_path = dir.join(meta_filename(token));
-    if metadata(&meta_path).await.is_err() {
-      return Err(Error::MetaNotFound(meta_path));
-    }
+  // 设置地址边界：
+  // - head_address 设定为当前活跃页起始地址，确保该页之前的所有历史页面在读取时正确路由至底层 Device
+  // - FoldOver: read_only_address 推进至 tail，确保历史数据封印为只读，后续更新全部走 RCU 追加
+  // - Snapshot: read_only_address 基于 mutable_fraction 计算，保留内存可变区原位覆写能力（对齐 C# Tsavorite CalculateReadOnlyAddress）
+  let head = page_start.max(meta.hlog_meta.head_address);
+  let ro = if meta.cp_type == CheckpointType::FoldOver {
+    tail
+  } else {
+    hlog_config
+      .calculate_read_only_address(head, tail)
+      .max(head)
+  };
 
-    // 1. 读取元数据文件（bitcode 极速反序列化）
-    // 对标 libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs:ThrowIfInvalidMetadataSize
-    // 的「损坏元数据具名拒绝」语义：C# 元数据为设备日志上的长度前缀流（读首部
-    // int 长度，<= 0 或超 64MB 上限即抛 TsavoriteException，把截断/损坏文件变成
-    // 具名错误而非巨型分配）；本实现元数据经 `read` 整文件读入后按二进制
-    // bitcode 反序列化，无长度前缀分配路径，截断在 decode 与下方
-    // 版本/Token/完整性封签逐项校验中显式报错，等价达成「损坏元数据绝不静默
-    // 恢复、绝不引发失控分配」的防护目标。
-    let meta_bytes = read(&meta_path).await?;
-    let meta = CheckpointMeta::decode(&meta_bytes)?;
-    if meta.token != token {
-      return Err(Error::TokenMismatch {
-        expected: token,
-        actual: meta.token,
-      });
-    }
+  // 钳制 FlushedUntilAddress 至截断点：封印 tail 之后新起的 RCU 追加可能随本次
+  // flush_all 一并落盘，使持久化值超前截断点。恢复视图必须以截断点为准——
+  // `[begin, tail)` 已由 flush_all + device.sync 保证落盘，钳制至 tail 只会引发
+  // 后续可能的冗余重刷，绝不漏刷任何脏页，同时维持 flushed_until <= tail 单调不变式
+  let flushed = flushed.min(tail);
 
-    if meta.format_version > FORMAT_VERSION {
-      return Err(Error::UnsupportedMetaVersion {
-        actual: meta.format_version,
-        supported: FORMAT_VERSION,
-      });
-    }
+  hlog.addresses.begin_address.store(begin, Ordering::Release);
+  hlog.addresses.head_address.store(head, Ordering::Release);
+  hlog
+    .addresses
+    .safe_head_address
+    .store(head, Ordering::Release);
+  hlog
+    .addresses
+    .read_only_address
+    .store(ro, Ordering::Release);
+  hlog
+    .addresses
+    .safe_read_only_address
+    .store(ro, Ordering::Release);
+  hlog
+    .addresses
+    .flushed_until_address
+    .store(flushed, Ordering::Release);
+  hlog.addresses.tail_address.store(tail, Ordering::Release);
 
-    // 完整性封签校验（v2 起强制）：JSON 文本级篡改/介质位翻转虽可通过反序列化
-    // （结构合法），但无法通过逐字段摘要比对——在此拦截「静默错误恢复」类损坏，
-    // recover_latest 依此回退至更早的有效检查点。遗留格式（< v2）按旧语义放行。
-    if meta.format_version >= INTEGRITY_FROM_VERSION {
-      let digest = meta.integrity_digest();
-      if digest != meta.integrity_crc32 {
-        return Err(Error::MetaChecksumMismatch {
-          expected: meta.integrity_crc32,
-          actual: digest,
-        });
+  info!(
+    "成功完成 Checkpoint 崩溃恢复组件加载: token={token:#x}, entry_count={}, tail={tail:#x}, head={head:#x}, ro={ro:#x}",
+    meta.index_meta.entry_count
+  );
+
+  Ok(RecoveredCheckpoint {
+    meta,
+    index: Arc::new(index),
+    hlog,
+    epoch,
+  })
+}
+
+/// 从指定 Checkpoint 进行崩溃恢复，重构并实例化全新的宿主存储引擎
+pub async fn recover<D: Device, S: CprRecover<Device = D>>(
+  checkpoint_dir: impl AsRef<Path>,
+  token: u128,
+  device: Arc<D>,
+) -> Result<S> {
+  let dir = checkpoint_dir.as_ref();
+  let recovered = recover_checkpoint_components(dir, token, Arc::clone(&device)).await?;
+  S::from_recovered(recovered, dir, device).await
+}
+
+/// 从目录中最新的有效 Checkpoint 执行崩溃恢复
+///
+/// 自最新 Token 起由新到旧逐一尝试，自动跳过损坏或不完整的检查点
+/// （对标 C# Tsavorite GetClosestHybridLogCheckpointInfo 对无效 Token 的
+/// 容错跳过语义，及 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:
+/// GetClosestHybridLogCheckpointInfo / GetClosestIndexCheckpointInfo——上游
+/// d20d63993 将该跳过路径的吞异常改为 LogWarning，使「坏检查点被跳过」可区分于
+/// 「检查点集为空」；本实现自始即以 `warn!` 记录被跳过的 Token 与原因，语义一致）。
+/// 目录中不存在任何 Token 时返回 `NoValidCheckpoint`。
+///
+/// 排序稳定性：候选 Token 集为调用时刻的目录快照（数值升序，u128 全序确定），
+/// 扫描期间新落地的检查点留待下一次调用发现，不扰动本轮尝试序；与并发的
+/// [`purge_outdated`] 相互作用时，被清理 Token 的恢复按「文件缺失」容错
+/// 回退至更早版本，不会产生撕裂视图。
+pub async fn recover_latest<D: Device, S: CprRecover<Device = D>>(
+  checkpoint_dir: impl AsRef<Path>,
+  device: Arc<D>,
+) -> Result<S> {
+  let dir = checkpoint_dir.as_ref();
+  let tokens = list_checkpoints(dir)?;
+  let mut first_err = None;
+  for token in tokens.into_iter().rev() {
+    match recover::<D, S>(dir, token, Arc::clone(&device)).await {
+      Ok(store) => return Ok(store),
+      Err(e) => {
+        warn!("跳过无效 Checkpoint（回退至更早版本）: token={token:#x}, err={e}");
+        // 保留最新 Token 的错误作为代表性失败原因
+        first_err.get_or_insert(e);
       }
     }
+  }
+  Err(first_err.unwrap_or(Error::NoValidCheckpoint(dir.to_path_buf())))
+}
 
-    let epoch = Arc::new(LightEpoch::new(meta.store_meta.max_sessions));
-    let hlog_config = HybridLogConfig::new(
-      meta.store_meta.page_size,
-      meta.store_meta.num_pages,
-      meta.store_meta.mutable_fraction,
-    )?;
+/// 列出目标目录中所有可用的 Checkpoint Token
+///
+/// 目录枚举为纯元数据 syscall（compio-fs 0.12.1 未提供 read_dir 异步原语），保持同步实现。
+pub fn list_checkpoints(checkpoint_dir: impl AsRef<Path>) -> Result<Vec<u128>> {
+  let dir = checkpoint_dir.as_ref();
+  if !dir.exists() {
+    return Ok(Vec::new());
+  }
 
-    if meta.index_meta.size != meta.store_meta.index_size {
-      return Err(index_mismatch(
-        "索引元数据大小与配置大小不匹配",
-        meta.index_meta.size as u64,
-        meta.store_meta.index_size as u64,
-      ));
-    }
-
-    let begin = meta.hlog_meta.begin_address;
-    let tail = meta.hlog_meta.tail_address;
-    let flushed = meta.hlog_meta.flushed_until_address;
-
-    if tail < hlog_config.initial_address {
-      return Err(addr_violation(
-        "TailAddress",
-        tail,
-        "小于日志起始基准地址",
-        hlog_config.initial_address,
-        "",
-      ));
-    }
-    if begin > tail {
-      return Err(addr_violation(
-        "BeginAddress",
-        begin,
-        "超出 TailAddress",
-        tail,
-        "",
-      ));
-    }
-    if meta.hlog_meta.head_address > tail {
-      return Err(addr_violation(
-        "HeadAddress",
-        meta.hlog_meta.head_address,
-        "超出 TailAddress",
-        tail,
-        "",
-      ));
-    }
-    if meta.hlog_meta.head_address < begin {
-      return Err(addr_violation(
-        "HeadAddress",
-        meta.hlog_meta.head_address,
-        "低于 BeginAddress",
-        begin,
-        "",
-      ));
-    }
-    if flushed < begin {
-      return Err(addr_violation(
-        "FlushedUntilAddress",
-        flushed,
-        "小于 BeginAddress",
-        begin,
-        "",
-      ));
-    }
-    // 不变式 head <= flushed：已从内存驱逐的数据必须早已落盘，违反即为元数据损坏
-    if flushed < meta.hlog_meta.head_address {
-      return Err(addr_violation(
-        "FlushedUntilAddress",
-        flushed,
-        "低于 HeadAddress",
-        meta.hlog_meta.head_address,
-        "，存在未落盘的已驱逐页",
-      ));
-    }
-
-    let index_path = dir.join(index_filename(token));
-    let (index, index_meta) =
-      read_index_checkpoint_truncated(&index_path, token, Some(tail)).await?;
-
-    if index_meta.size != meta.store_meta.index_size {
-      return Err(index_mismatch(
-        "索引快照实际大小与引擎配置大小不匹配",
-        index_meta.size as u64,
-        meta.store_meta.index_size as u64,
-      ));
-    }
-    if index_meta.overflow_count != meta.index_meta.overflow_count {
-      return Err(index_mismatch(
-        "索引快照溢出桶数量与元数据不一致",
-        index_meta.overflow_count,
-        meta.index_meta.overflow_count,
-      ));
-    }
-    if index_meta.entry_count != meta.index_meta.entry_count {
-      return Err(index_mismatch(
-        "索引快照条目总数与元数据不一致",
-        index_meta.entry_count as u64,
-        meta.index_meta.entry_count as u64,
-      ));
-    }
-
-    let hlog = Arc::new(HybridLog::new(
-      hlog_config.clone(),
-      Arc::clone(&device),
-      Arc::clone(&epoch),
-    )?);
-
-    let curr_page = hlog_config.page_id(tail);
-    let offset = hlog_config.page_offset(tail);
-    let page_start = hlog_config.page_start_address(curr_page);
-
-    // 若尾页包含历史有效数据，从底层设备预热加载至内存缓冲，以确保后续追加写入不损坏同页已有记录
-    if offset > 0 && tail > hlog_config.initial_address {
-      let tail_buf = device.read_range(page_start, hlog_config.page_size).await?;
-      {
-        let mut guard = hlog.buffer.write_page(curr_page);
-        guard.copy_from_slice(&tail_buf);
-      }
-      hlog.buffer.set_page_id(curr_page);
-    } else {
-      hlog.buffer.clear_page(curr_page);
-    }
-
-    // 设置地址边界：
-    // - head_address 设定为当前活跃页起始地址，确保该页之前的所有历史页面在读取时正确路由至底层 Device
-    // - FoldOver: read_only_address 推进至 tail，确保历史数据封印为只读，后续更新全部走 RCU 追加
-    // - Snapshot: read_only_address 基于 mutable_fraction 计算，保留内存可变区原位覆写能力（对齐 C# Tsavorite CalculateReadOnlyAddress）
-    let head = page_start.max(meta.hlog_meta.head_address);
-    let ro = if meta.cp_type == CheckpointType::FoldOver {
-      tail
-    } else {
-      hlog_config
-        .calculate_read_only_address(head, tail)
-        .max(head)
-    };
-
-    // 钳制 FlushedUntilAddress 至截断点：封印 tail 之后新起的 RCU 追加可能随本次
-    // flush_all 一并落盘，使持久化值超前截断点。恢复视图必须以截断点为准——
-    // `[begin, tail)` 已由 flush_all + device.sync 保证落盘，钳制至 tail 只会引发
-    // 后续可能的冗余重刷，绝不漏刷任何脏页，同时维持 flushed_until <= tail 单调不变式
-    let flushed = flushed.min(tail);
-
-    hlog.addresses.begin_address.store(begin, Ordering::Release);
-    hlog.addresses.head_address.store(head, Ordering::Release);
-    hlog
-      .addresses
-      .safe_head_address
-      .store(head, Ordering::Release);
-    hlog
-      .addresses
-      .read_only_address
-      .store(ro, Ordering::Release);
-    hlog
-      .addresses
-      .safe_read_only_address
-      .store(ro, Ordering::Release);
-    hlog
-      .addresses
-      .flushed_until_address
-      .store(flushed, Ordering::Release);
-    hlog.addresses.tail_address.store(tail, Ordering::Release);
-
-    info!(
-      "成功完成 Checkpoint 崩溃恢复组件加载: token={token:#x}, entry_count={}, tail={tail:#x}, head={head:#x}, ro={ro:#x}",
-      meta.index_meta.entry_count
-    );
-
-    Ok(RecoveredCheckpoint {
-      meta,
-      index: Arc::new(index),
-      hlog,
-      epoch,
+  let mut tokens: Vec<u128> = read_dir(dir)?
+    .flatten()
+    .filter_map(|entry| {
+      let name = entry.file_name();
+      let name_str = name.to_str()?;
+      name_str
+        .strip_prefix(META_PREFIX)
+        .and_then(|s| s.strip_suffix(META_EXT))
+        .and_then(parse_token)
     })
+    .collect();
+
+  tokens.sort_unstable();
+  tokens.dedup();
+  Ok(tokens)
+}
+
+/// 获取目标目录中最新的 Checkpoint Token
+pub fn find_latest_checkpoint(checkpoint_dir: impl AsRef<Path>) -> Result<Option<u128>> {
+  let tokens = list_checkpoints(checkpoint_dir)?;
+  Ok(tokens.last().copied())
+}
+
+/// 清理指定 Token 的快照物理文件（包含 meta 与 ckpt 文件及临时文件，彻底回收 token 子目录）
+/// 对标 C# Tsavorite CheckpointManager.Purge(Guid)
+///
+/// unlink/rmdir 为纯元数据 syscall（compio-fs 0.12.1 未提供 remove_dir_all 异步原语），
+/// 保持同步实现，与 wdev/wbftree 的目录维护路径一致。
+pub fn purge_checkpoint(checkpoint_dir: impl AsRef<Path>, token: u128) -> Result<()> {
+  let dir = checkpoint_dir.as_ref();
+  let b32 = token_to_base32(token);
+
+  // 清理 Base32 命名快照文件与临时文件
+  let files = [
+    meta_filename(token),
+    index_filename(token),
+    meta_tmp_filename(token),
+    index_tmp_filename(token),
+  ];
+  for f in &files {
+    rm_path_best_effort(&dir.join(f));
   }
+  // 清理 Base32 命名的子目录
+  rm_path_best_effort(&dir.join(b32.as_str()));
+  Ok(())
+}
 
-  /// 从指定 Checkpoint 进行崩溃恢复，重构并实例化全新的宿主存储引擎
-  pub async fn recover<S: CprRecover<Device = D>>(
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    device: Arc<D>,
-  ) -> Result<S> {
-    let dir = checkpoint_dir.as_ref();
-    let recovered = Self::recover_checkpoint_components(dir, token, Arc::clone(&device)).await?;
-    S::from_recovered(recovered, dir, device).await
+/// 同步清扫检查点目录的全部残留物：RangeIndex 快照子树、孤儿 `.tmp`/`.ckpt`/`.meta`
+/// 文件与孤儿 token 子目录（meta 已丢失但快照子目录残留）
+///
+/// 同步实现论证：`read_dir`/`unlink`/`rmdir` 全部为纯元数据 syscall（无数据面 I/O，
+/// 微秒级返回，混入异步管理器不构成阻塞风险）；compio-fs 0.12.1 未提供 `read_dir`
+/// 与递归 `remove_dir_all` 异步原语（仅有单层 `remove_dir`，递归删除仍需同步枚举），
+/// 若为元数据 syscall 引入 blocking 线程池中转，反而引入跨线程调度与线程创建开销，
+/// 违背 thread-per-core 零线程创建约束。与 [`list_checkpoints`]、
+/// [`purge_checkpoint`] 保持同一同步口径。
+fn sweep_checkpoint_residue(dir: &Path) {
+  let ri_dir = dir.join("rangeindex");
+  if ri_dir.exists() {
+    let _ = remove_dir_all(ri_dir);
   }
-
-  /// 实例恢复方法（便捷转发至关联静态方法）
-  pub async fn recover_store<S: CprRecover<Device = D>>(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    device: Arc<D>,
-  ) -> Result<S> {
-    Self::recover(checkpoint_dir, token, device).await
-  }
-
-  /// 从目录中最新的有效 Checkpoint 执行崩溃恢复
-  ///
-  /// 自最新 Token 起由新到旧逐一尝试，自动跳过损坏或不完整的检查点
-  /// （对标 C# Tsavorite GetClosestHybridLogCheckpointInfo 对无效 Token 的
-  /// 容错跳过语义，及 libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:
-  /// GetClosestHybridLogCheckpointInfo / GetClosestIndexCheckpointInfo——上游
-  /// d20d63993 将该跳过路径的吞异常改为 LogWarning，使「坏检查点被跳过」可区分于
-  /// 「检查点集为空」；本实现自始即以 `warn!` 记录被跳过的 Token 与原因，语义一致）。
-  /// 目录中不存在任何 Token 时返回 `NoValidCheckpoint`。
-  ///
-  /// 排序稳定性：候选 Token 集为调用时刻的目录快照（数值升序，u128 全序确定），
-  /// 扫描期间新落地的检查点留待下一次调用发现，不扰动本轮尝试序；与并发的
-  /// [`Self::purge_outdated`] 相互作用时，被清理 Token 的恢复按「文件缺失」容错
-  /// 回退至更早版本，不会产生撕裂视图。
-  pub async fn recover_latest<S: CprRecover<Device = D>>(
-    checkpoint_dir: impl AsRef<Path>,
-    device: Arc<D>,
-  ) -> Result<S> {
-    let dir = checkpoint_dir.as_ref();
-    let tokens = Self::list_checkpoints(dir)?;
-    let mut first_err = None;
-    for token in tokens.into_iter().rev() {
-      match Self::recover::<S>(dir, token, Arc::clone(&device)).await {
-        Ok(store) => return Ok(store),
-        Err(e) => {
-          warn!("跳过无效 Checkpoint（回退至更早版本）: token={token:#x}, err={e}");
-          // 保留最新 Token 的错误作为代表性失败原因
-          first_err.get_or_insert(e);
-        }
-      }
-    }
-    Err(first_err.unwrap_or(Error::NoValidCheckpoint(dir.to_path_buf())))
-  }
-
-  /// 实例恢复最新方法（便捷转发至关联静态方法）
-  pub async fn recover_latest_store<S: CprRecover<Device = D>>(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    device: Arc<D>,
-  ) -> Result<S> {
-    Self::recover_latest(checkpoint_dir, device).await
-  }
-
-  /// 列出目标目录中所有可用的 Checkpoint Token
-  ///
-  /// 目录枚举为纯元数据 syscall（compio-fs 0.12.1 未提供 read_dir 异步原语），保持同步实现。
-  pub fn list_checkpoints(checkpoint_dir: impl AsRef<Path>) -> Result<Vec<u128>> {
-    let dir = checkpoint_dir.as_ref();
-    if !dir.exists() {
-      return Ok(Vec::new());
-    }
-
-    let mut tokens: Vec<u128> = read_dir(dir)?
-      .flatten()
-      .filter_map(|entry| {
-        let name = entry.file_name();
-        let name_str = name.to_str()?;
-        name_str
-          .strip_prefix(META_PREFIX)
-          .and_then(|s| s.strip_suffix(META_EXT))
-          .and_then(parse_token)
-      })
-      .collect();
-
-    tokens.sort_unstable();
-    tokens.dedup();
-    Ok(tokens)
-  }
-
-  /// 获取目标目录中最新的 Checkpoint Token
-  pub fn find_latest_checkpoint(checkpoint_dir: impl AsRef<Path>) -> Result<Option<u128>> {
-    let tokens = Self::list_checkpoints(checkpoint_dir)?;
-    Ok(tokens.last().copied())
-  }
-
-  /// 清理指定 Token 的快照物理文件（包含 meta 与 ckpt 文件及临时文件，彻底回收 token 子目录）
-  /// 对标 C# Tsavorite CheckpointManager.Purge(Guid)
-  ///
-  /// unlink/rmdir 为纯元数据 syscall（compio-fs 0.12.1 未提供 remove_dir_all 异步原语），
-  /// 保持同步实现，与 wdev/wbftree 的目录维护路径一致。
-  pub fn purge_checkpoint(checkpoint_dir: impl AsRef<Path>, token: u128) -> Result<()> {
-    let dir = checkpoint_dir.as_ref();
-    let b32 = token_to_base32(token);
-
-    // 清理 Base32 命名快照文件与临时文件
-    let files = [
-      meta_filename(token),
-      index_filename(token),
-      meta_tmp_filename(token),
-      index_tmp_filename(token),
-    ];
-    for f in &files {
-      rm_path_best_effort(&dir.join(f));
-    }
-    // 清理 Base32 命名的子目录
-    rm_path_best_effort(&dir.join(b32.as_str()));
-    Ok(())
-  }
-
-  /// 同步清扫检查点目录的全部残留物：RangeIndex 快照子树、孤儿 `.tmp`/`.ckpt`/`.meta`
-  /// 文件与孤儿 token 子目录（meta 已丢失但快照子目录残留）
-  ///
-  /// 同步实现论证：`read_dir`/`unlink`/`rmdir` 全部为纯元数据 syscall（无数据面 I/O，
-  /// 微秒级返回，混入异步管理器不构成阻塞风险）；compio-fs 0.12.1 未提供 `read_dir`
-  /// 与递归 `remove_dir_all` 异步原语（仅有单层 `remove_dir`，递归删除仍需同步枚举），
-  /// 若为元数据 syscall 引入 blocking 线程池中转，反而引入跨线程调度与线程创建开销，
-  /// 违背 thread-per-core 零线程创建约束。与 [`CheckpointManager::list_checkpoints`]、
-  /// [`CheckpointManager::purge_checkpoint`] 保持同一同步口径。
-  fn sweep_checkpoint_residue(dir: &Path) {
-    let ri_dir = dir.join("rangeindex");
-    if ri_dir.exists() {
-      let _ = remove_dir_all(ri_dir);
-    }
-    // 彻底清理任何残留的临时文件（.tmp）、孤儿快照文件与失去 meta 的孤儿 token 子目录
-    if let Ok(entries) = read_dir(dir) {
-      for entry in entries.flatten() {
-        let name = entry.file_name();
-        if let Some(name_str) = name.to_str() {
-          if name_str.ends_with(TMP_EXT)
-            || name_str.ends_with(INDEX_EXT)
-            || name_str.ends_with(META_EXT)
-          {
-            let _ = remove_file(entry.path());
-          } else if parse_token(name_str).is_some() && entry.file_type().is_ok_and(|t| t.is_dir()) {
-            // 孤儿 token 目录（Base32 格式）：meta 已丢失但 RangeIndex 快照子目录残留
-            // （对标 C# CheckpointManager RemoveOutdated 的陈旧检查点清理语义）
-            let _ = remove_dir_all(entry.path());
-          }
+  // 彻底清理任何残留的临时文件（.tmp）、孤儿快照文件与失去 meta 的孤儿 token 子目录
+  if let Ok(entries) = read_dir(dir) {
+    for entry in entries.flatten() {
+      let name = entry.file_name();
+      if let Some(name_str) = name.to_str() {
+        if name_str.ends_with(TMP_EXT)
+          || name_str.ends_with(INDEX_EXT)
+          || name_str.ends_with(META_EXT)
+        {
+          let _ = remove_file(entry.path());
+        } else if parse_token(name_str).is_some() && entry.file_type().is_ok_and(|t| t.is_dir()) {
+          // 孤儿 token 目录（Base32 格式）：meta 已丢失但 RangeIndex 快照子目录残留
+          // （对标 C# CheckpointManager RemoveOutdated 的陈旧检查点清理语义）
+          let _ = remove_dir_all(entry.path());
         }
       }
     }
   }
+}
 
-  /// 清理目标目录下所有快照物理文件（对标 C# Tsavorite CheckpointManager.PurgeAll）
-  pub fn purge_all(checkpoint_dir: impl AsRef<Path>) -> Result<()> {
-    let dir = checkpoint_dir.as_ref();
-    if !dir.exists() {
-      return Ok(());
-    }
-    let tokens = Self::list_checkpoints(dir)?;
-    for token in tokens {
-      Self::purge_checkpoint(dir, token)?;
-    }
-    Self::sweep_checkpoint_residue(dir);
-    Ok(())
+/// 清理目标目录下所有快照物理文件（对标 C# Tsavorite CheckpointManager.PurgeAll）
+pub fn purge_all(checkpoint_dir: impl AsRef<Path>) -> Result<()> {
+  let dir = checkpoint_dir.as_ref();
+  if !dir.exists() {
+    return Ok(());
   }
+  let tokens = list_checkpoints(dir)?;
+  for token in tokens {
+    purge_checkpoint(dir, token)?;
+  }
+  sweep_checkpoint_residue(dir);
+  Ok(())
+}
 
-  /// 保留最新 `keep` 个检查点，清理更早的全部快照物理文件
-  ///
-  /// 磁盘空间回收入口（对标 C# Tsavorite Recovery 后 "Purge all log/index checkpoints
-  /// that were not used for recovery" 的陈旧检查点回收语义）：每次成功恢复或周期性
-  /// 快照后调用，即可将检查点磁盘占用约束在 `keep` 个版本之内。
-  ///
-  /// 返回本轮被清理的 Token 列表（由旧到新）。`keep` 为 0 时清理全部可识别的检查点
-  /// 文件集；对不存在或不可识别的文件不做任何触碰。
-  ///
-  /// 调用方契约：删除为纯 unlink，不感知在途使用者——正在被 `recover_latest` 尝试的
-  /// Token 若同被并发清理，该轮恢复按文件缺失容错回退至更早版本（不产生撕裂视图）；
-  /// 因此调用方应遵循「恢复成功后再回收、且保留用于恢复的那一版」的时序约定。
-  pub fn purge_outdated(checkpoint_dir: impl AsRef<Path>, keep: usize) -> Result<Vec<u128>> {
-    let dir = checkpoint_dir.as_ref();
-    let mut tokens = Self::list_checkpoints(dir)?;
-    let boundary = tokens.len().saturating_sub(keep);
-    for &token in &tokens[..boundary] {
-      Self::purge_checkpoint(dir, token)?;
-    }
-    tokens.truncate(boundary);
-    Ok(tokens)
+/// 保留最新 `keep` 个检查点，清理更早的全部快照物理文件
+///
+/// 磁盘空间回收入口（对标 C# Tsavorite Recovery 后 "Purge all log/index checkpoints
+/// that were not used for recovery" 的陈旧检查点回收语义）：每次成功恢复或周期性
+/// 快照后调用，即可将检查点磁盘占用约束在 `keep` 个版本之内。
+///
+/// 返回本轮被清理的 Token 列表（由旧到新）。`keep` 为 0 时清理全部可识别的检查点
+/// 文件集；对不存在或不可识别的文件不做任何触碰。
+///
+/// 调用方契约：删除为纯 unlink，不感知在途使用者——正在被 `recover_latest` 尝试的
+/// Token 若同被并发清理，该轮恢复按文件缺失容错回退至更早版本（不产生撕裂视图）；
+/// 因此调用方应遵循「恢复成功后再回收、且保留用于恢复的那一版」的时序约定。
+pub fn purge_outdated(checkpoint_dir: impl AsRef<Path>, keep: usize) -> Result<Vec<u128>> {
+  let dir = checkpoint_dir.as_ref();
+  let mut tokens = list_checkpoints(dir)?;
+  let boundary = tokens.len().saturating_sub(keep);
+  for &token in &tokens[..boundary] {
+    purge_checkpoint(dir, token)?;
   }
-
-  /// 实例清理方法（便捷转发至关联静态方法）
-  pub fn purge(&self, checkpoint_dir: impl AsRef<Path>, token: u128) -> Result<()> {
-    Self::purge_checkpoint(checkpoint_dir, token)
-  }
-
-  /// 实例全量清理方法（便捷转发至关联静态方法）
-  pub fn purge_all_checkpoints(&self, checkpoint_dir: impl AsRef<Path>) -> Result<()> {
-    Self::purge_all(checkpoint_dir)
-  }
-
-  /// 实例保留最新 N 个检查点方法（便捷转发至关联静态方法）
-  pub fn purge_outdated_checkpoints(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    keep: usize,
-  ) -> Result<Vec<u128>> {
-    Self::purge_outdated(checkpoint_dir, keep)
-  }
+  tokens.truncate(boundary);
+  Ok(tokens)
 }
 
 #[cfg(test)]
@@ -1196,7 +1108,7 @@ mod tests {
   /// 快照 Token 规范 Base32 编码解析与目录列举验证
   #[test]
   fn test_token_parsing_and_listing() {
-    use super::CheckpointManager;
+    use super::{list_checkpoints, purge_checkpoint};
     use crate::{meta_filename, parse_token, token_to_base32};
 
     let token = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210_u128;
@@ -1213,14 +1125,13 @@ mod tests {
     let f1 = dir.path().join(meta_filename(token));
     write(f1, b"").unwrap();
 
-    let list = CheckpointManager::<wdev::SegmentedDevice>::list_checkpoints(dir.path()).unwrap();
+    let list = list_checkpoints(dir.path()).unwrap();
     assert_eq!(list.len(), 1);
     assert_eq!(list[0], token);
 
     // 3. 清理
-    CheckpointManager::<wdev::SegmentedDevice>::purge_checkpoint(dir.path(), token).unwrap();
-    let list_after =
-      CheckpointManager::<wdev::SegmentedDevice>::list_checkpoints(dir.path()).unwrap();
+    purge_checkpoint(dir.path(), token).unwrap();
+    let list_after = list_checkpoints(dir.path()).unwrap();
     assert!(list_after.is_empty());
   }
 }

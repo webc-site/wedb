@@ -20,6 +20,7 @@ pub mod endpoint;
 pub mod error;
 pub mod inputs;
 pub mod key_spec;
+pub mod logging;
 pub mod net;
 pub mod resp;
 pub mod role_info;
@@ -52,6 +53,10 @@ pub use key_spec::{
 };
 #[cfg(unix)]
 pub use net::UdsGuard;
+pub use logging::{
+  ConsoleLogger, FileLoggerOutput, FileLoggerProvider, FanoutLogger, LogFormatter, LoggingBuilder,
+  MemoryForwardLogger, MemoryLogger, MemoryLoggerProvider,
+};
 pub use net::{
   ConnectionStream, DirectWriter, NetworkHandler, SessionReader, TCP_LISTEN_BACKLOG, bind_reuseport,
 };

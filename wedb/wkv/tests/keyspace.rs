@@ -15,7 +15,7 @@ use wbase::{
 };
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, TtlOpt, WedbStore};
-use wval::{CollectionType, MetaValue};
+use wval::{GarnetObjectType, MetaValue};
 
 /// 构造独立临时库（4KB 页 / 16 页，GC 关闭避免后台物理删除干扰断言）
 async fn open_store(tag: &str) -> aok::Result<(TempDir, Arc<WedbStore<SegmentedDevice>>)> {
@@ -110,7 +110,7 @@ fn test_keyspace_collections() -> Void {
     let session = store.new_session()?;
 
     // 存活集合键（size = 2）计 1 个，无 TTL
-    let meta = MetaValue::new(1, CollectionType::Hash, 0, 2);
+    let meta = MetaValue::new(1, GarnetObjectType::Hash, 0, 2);
     session.save_meta(b"coll", &meta).await?;
     assert_eq!(store.keyspace_stats().await?, (1, 0));
 
@@ -124,7 +124,7 @@ fn test_keyspace_collections() -> Void {
     assert_eq!(store.keyspace_stats().await?, (1, 1));
 
     // 幽灵元记录（size = 0）不计入 keyCount
-    let ghost = MetaValue::new(2, CollectionType::Hash, 0, 0);
+    let ghost = MetaValue::new(2, GarnetObjectType::Hash, 0, 0);
     let meta_k = session.session_meta_key(b"ghost");
     session.upsert_raw(&meta_k, &ghost.to_bytes()).await?;
     assert_eq!(store.keyspace_stats().await?, (1, 1));

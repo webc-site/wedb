@@ -9,8 +9,33 @@
     - libs/server/AOF/LegacyRespCommand.cs
   理由: 彻底移除旧版 v3 命令兼容层映射，无向下兼容包袱
 - 文件:
-    - libs/server/Servers/GarnetServerTcp.cs
-    - libs/server/Servers/GarnetServerBase.cs
+    - libs/server/Servers/GarnetServerTcp.cs:
+        - AcceptEventArg_Completed
+        - ActiveClusterSessions
+        - Close
+        - Dispose
+        - DisposeMessageConsumer
+        - GetBufferPoolStats
+        - HandleAcceptError
+        - HandleNewConnection
+        - Purge
+        - Start
+        - TryCreateMessageConsumer
+    - libs/server/Servers/GarnetServerBase.cs:
+        - ActiveClusterSessions
+        - AddSession
+        - Close
+        - Dispose
+        - DisposeActiveHandlers
+        - GetSessionProviders
+        - IncrementConnectionsDisposed
+        - IncrementConnectionsReceived
+        - Register
+        - ResetConnectionsDiposed
+        - ResetConnectionsReceived
+        - Start
+        - Unregister
+        - get_conn_active
     - libs/server/Servers/IGarnetServer.cs
     - libs/server/Servers/ServerTcpNetworkHandler.cs
     - libs/server/Servers/ServerOptions.cs:
@@ -598,3 +623,8 @@
         - MatchCommand
         - MatchSubCommand
   理由: 自定义命令改用哈希路由分派，无需线性遍历数组进行前缀匹配
+- 文件:
+    - libs/server/Custom/CustomTransactionProcedure.cs:
+        - RewindScratchBuffer
+        - CreateArgSlice
+  理由: C# scratch 缓冲回退与 PinnedSpanByte 切片铸造，rust 侧切片原生零拷贝无需投影
