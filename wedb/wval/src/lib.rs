@@ -15,7 +15,6 @@ mod ns_codec;
 mod sample;
 mod tag;
 mod ttl;
-mod zset;
 
 pub use compact_hash::{
   COMPACT_HASH_COUNT_SIZE, COMPACT_HASH_EXPIRE_FLAG_SIZE, COMPACT_HASH_EXPIRE_TIME_SIZE,
@@ -30,7 +29,7 @@ pub use compact_zset::{
   COMPACT_ZSET_EXPIRE_TIME_SIZE, COMPACT_ZSET_LEN_SIZE, COMPACT_ZSET_SCORE_SIZE, CompactZSet,
   CompactZSetCodec, CompactZSetIter, ZSetEntryRef,
 };
-pub use error::{BitcodeError, BitcodeResult, Error, Result};
+pub use error::{Error, Result};
 pub use meta::{
   COMPACT_META_VALUE_SIZE, CompactMetaValue, META_VALUE_SIZE, MetaValue, SUBKEY_HEADER_SIZE,
   SUBKEY_STACK_CAP, StorageEncoding, SubKeyBuf, SubKeyCodec, SubKeyRef,
@@ -43,4 +42,3 @@ pub use ns_codec::{
 pub use sample::{SAMPLE_STACK_CAP, sample_distinct_indices};
 pub use tag::{CollectionType, GarnetObjectType, KeyTag};
 pub use ttl::{TTL_VAL_LEN, TtlCodec};
-pub use zset::{decode_order_preserving_f64, encode_order_preserving_f64};

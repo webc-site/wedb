@@ -14,10 +14,11 @@ use wdatabase::{
   DEFAULT_VERSION_MAP_SIZE, DatabaseManager, DatabaseManagerFactory, GarnetDatabase,
   IDatabaseManager,
 };
+use waof::AofHeader;
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wnode::{
-  aof::{AofHeader, waof_sublog::single_log_aof},
+  aof::waof_sublog::single_log_aof,
   api::garnet_status::GarnetStatus,
   storage::session::{
     common::array_key_iteration_functions::cluster_slot,

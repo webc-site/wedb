@@ -17,7 +17,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 
 [dependencies]
-bitcode = { workspace = true }
 fastrand = { workspace = true }
 gxhash.workspace = true
 thiserror = { workspace = true }

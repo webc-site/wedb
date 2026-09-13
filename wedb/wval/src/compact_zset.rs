@@ -13,12 +13,12 @@
 
 use core::{cmp::Ordering, iter::FusedIterator, ops::Deref, ptr, result::Result as StdResult};
 
-use wbase::simd::fast_key_eq;
-
-use crate::{
-  error::{Error, Result},
-  zset::{decode_order_preserving_f64, encode_order_preserving_f64},
+use wbase::{
+  float::{decode_f64, encode_f64},
+  simd::fast_key_eq,
 };
+
+use crate::error::{Error, Result};
 
 /// 紧凑有序集合条目零拷贝切片视图
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -180,7 +180,7 @@ impl CompactZSetCodec {
   pub fn parse_entry(slice: &[u8], offset: usize) -> Result<(usize, ZSetEntryRef<'_>)> {
     let (total_len, order_score, member, expire_at_ticks) =
       Self::parse_entry_header(slice, offset)?;
-    let score = decode_order_preserving_f64(order_score);
+    let score = decode_f64(order_score);
     Ok((
       total_len,
       ZSetEntryRef {
@@ -395,7 +395,7 @@ impl CompactZSetCodec {
     for _ in 0..count {
       let (entry_len, order_score, m, _) = Self::parse_entry_header(slice, offset).ok()?;
       if fast_key_eq(m, member) {
-        let score = decode_order_preserving_f64(order_score);
+        let score = decode_f64(order_score);
         return Some(score);
       }
       offset += entry_len;
@@ -433,7 +433,7 @@ impl CompactZSetCodec {
       });
     }
 
-    let order_score = encode_order_preserving_f64(score);
+    let order_score = encode_f64(score);
 
     let count = u16::from_be_bytes([buf[0], buf[1]]) as usize;
     if count == 0 {
@@ -650,8 +650,8 @@ impl CompactZSetCodec {
     if min.is_nan() || max.is_nan() || min > max {
       return Ok((slice.len(), 0));
     }
-    let min_order = encode_order_preserving_f64(min);
-    let max_order = encode_order_preserving_f64(max);
+    let min_order = encode_f64(min);
+    let max_order = encode_f64(max);
     if min_order > max_order || (min_order == max_order && (!min_inclusive || !max_inclusive)) {
       return Ok((slice.len(), 0));
     }
@@ -801,7 +801,7 @@ impl CompactZSetCodec {
         if member.len() > u16::MAX as usize {
           return Err(Error::KeyLengthOverflow(member.len()));
         }
-        Ok((encode_order_preserving_f64(score), member, expire_at_ticks))
+        Ok((encode_f64(score), member, expire_at_ticks))
       })
       .collect::<Result<_>>()?;
 

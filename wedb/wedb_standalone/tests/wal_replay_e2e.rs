@@ -11,12 +11,12 @@ use std::sync::Arc;
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
-use waof::{AofEntryType, WalConfig, WalLog};
+use waof::{AofEntryType, AofHeader, WalConfig, WalLog};
 use wbftree::{StorageBackend, TreeTuning};
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wnode::{
-  aof::{AofHeader, ReplayInput, garnet_log::RecordShape},
+  aof::{ReplayInput, garnet_log::RecordShape},
   resp,
   service::NodeService,
 };

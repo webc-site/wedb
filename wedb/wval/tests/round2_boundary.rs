@@ -17,11 +17,11 @@ fn _log_init() {
 }
 
 // ============================================================================
-// 3. MetaValue 与 CompactMetaValue 全局大端序与 bitcode 往返测试
+// 3. MetaValue 与 CompactMetaValue 全局大端序测试
 // ============================================================================
 #[test]
 fn test_round2_meta_value_and_compact_meta_value() -> Void {
-  info!("开始测试: MetaValue 与 CompactMetaValue 全局大端序与 bitcode 往返");
+  info!("开始测试: MetaValue 与 CompactMetaValue 全局大端序布局");
 
   // 1. MetaValue (32B)
   assert_eq!(size_of::<MetaValue>(), 32);
@@ -55,11 +55,6 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
     500
   );
 
-  // bitcode 往返
-  let bc = meta.encode_bitcode();
-  let decoded_meta = MetaValue::decode_bitcode(&bc)?;
-  assert_eq!(meta, decoded_meta);
-
   // 2. CompactMetaValue (16B)
   let cmeta = CompactMetaValue::new(
     CollectionType::Hash,
@@ -77,11 +72,7 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
     1_800_000_000_000
   );
 
-  let c_bc = cmeta.encode_bitcode();
-  let decoded_cmeta = CompactMetaValue::decode_bitcode(&c_bc)?;
-  assert_eq!(cmeta, decoded_cmeta);
-
-  info!("MetaValue 与 CompactMetaValue 全局大端序与 bitcode 往返测试通过");
+  info!("MetaValue 与 CompactMetaValue 全局大端序测试通过");
   OK
 }
 
@@ -346,7 +337,7 @@ fn test_round2_compact_zset_randomized_model_crosscheck() -> Void {
         .map(|(m, (bits, exp))| ((*m).clone(), *bits, *exp))
         .collect();
       ordered.sort_by_key(|(m, bits, _)| {
-        let sortable = u64::from_be_bytes(wval::encode_order_preserving_f64(f64::from_bits(*bits)));
+        let sortable = u64::from_be_bytes(wbase::float::encode_f64(f64::from_bits(*bits)));
         (sortable, m.clone())
       });
       let entries: Vec<wval::ZSetEntryRef> = zset.iter_members().collect();

@@ -1481,10 +1481,10 @@ mod tests {
   use std::{sync::Arc, thread, time::Duration};
 
   use compio::runtime::Runtime;
-  use waof::{AofAddress, AofEntryType};
+  use waof::{AofAddress, AofEntryType, SequenceNumberGenerator};
 
   use super::*;
-  use crate::aof::{SequenceNumberGenerator, sublog::Sublog};
+  use crate::aof::sublog::Sublog;
 
   fn log_with(sublogs: usize, replay_tasks: i32) -> GarnetLog {
     let options = RuntimeServerOptions {

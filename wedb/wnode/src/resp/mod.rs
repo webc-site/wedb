@@ -49,12 +49,3 @@ pub use resp_server_session::{
   ConnectionProtectionOption, DatabaseSessionSlot, RespServerSession, RespServerSessionOptions,
 };
 pub use resp_session_consumer::RespSessionConsumer;
-pub use wresp::{
-  IRespSerializable, Resp2, Resp3, RespMemoryWriter, RespProtocol, RespWriter,
-  argument::{
-    ArgumentBase, RespCommandArgument, RespCommandArgumentFlags, RespCommandArgumentType,
-  },
-  key_spec::{
-    BeginSearchMethod, FindKeysMethod, KeySpecificationFlags, RespCommandKeySpecification,
-  },
-};

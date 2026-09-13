@@ -89,14 +89,10 @@ pub trait RawDistanceComputer: Send + Sync {
   fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32;
 }
 
-pub use RawDistanceComputer as DynDistanceComputer;
-
 /// 原始字节查询距离计算机（查询向量到量化/全精度向量，零动态分派）。
 pub trait RawQueryComputer: Send + Sync {
   fn evaluate_similarity(&self, a: &[u8]) -> f32;
 }
-
-pub use RawQueryComputer as DynQueryComputer;
 
 /// 球面 1-bit 量化（Redis `BIN`）。
 ///
@@ -215,7 +211,7 @@ impl WedbQuantizer for Spherical1Bit {
   }
 }
 
-impl DynDistanceComputer for iface::DistanceComputer {
+impl RawDistanceComputer for iface::DistanceComputer {
   fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32 {
     <Self as DistanceFunction<Opaque<'_>, Opaque<'_>, _>>::evaluate_similarity(
       self,
@@ -226,7 +222,7 @@ impl DynDistanceComputer for iface::DistanceComputer {
   }
 }
 
-impl DynQueryComputer for iface::QueryComputer {
+impl RawQueryComputer for iface::QueryComputer {
   fn evaluate_similarity(&self, a: &[u8]) -> f32 {
     <Self as PreprocessedDistanceFunction<Opaque<'_>, _>>::evaluate_similarity(self, Opaque::new(a))
       .unwrap()
@@ -326,7 +322,7 @@ impl WedbQuantizer for MinMax8Bit {
   }
 }
 
-impl DynDistanceComputer for FnPtr<MinMax8> {
+impl RawDistanceComputer for FnPtr<MinMax8> {
   fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32 {
     let a = MinMax8::from_bytes(a);
     let b = MinMax8::from_bytes(b);
@@ -357,7 +353,7 @@ impl MinMax8BitQueryComputer {
   }
 }
 
-impl DynQueryComputer for MinMax8BitQueryComputer {
+impl RawQueryComputer for MinMax8BitQueryComputer {
   fn evaluate_similarity(&self, a: &[u8]) -> f32 {
     let a = MinMax8::from_bytes(a);
     self.0.evaluate_similarity(a)

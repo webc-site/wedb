@@ -48,12 +48,13 @@ use std::sync::Arc;
 
 pub use aof::{
   AofProcessor, AofReplayError, GarnetAppendOnlyFile, GarnetLog, InMemorySublog, LogRecord,
-  RangeIndexReplayerFace, RangeIndexSessionFace, ReplayInput, ShardedLog, SingleLog, Sublog,
-  SublogBackend,
+  RangeIndexSessionFace, ReplayInput, ShardedLog, SingleLog, Sublog, SublogBackend,
 };
 pub use args::{DEFAULT_BIND, DEFAULT_DIR, DEFAULT_PORT, NodeArgs, ServerArgs};
 pub use buffer_pool::{
-  DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool, PooledBuffer,
+  DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, DEFAULT_MAX_RECEIVE_BUFFER_SIZE,
+  DEFAULT_SEND_BUFFER_SIZE, LimitedFixedBufferPool, NetworkBufferSettings, PooledBuffer,
+  SEND_BUFFER_OVERHEAD_RESERVE,
 };
 pub use cluster_provider::{ClusterProvider, NoopClusterProvider};
 pub use cluster_session::{ClusterSession, ClusterSessionFace, ClusterSlotVerificationInput};
@@ -78,7 +79,7 @@ pub use net::{
 pub use resp::RespSessionConsumer;
 pub use role_info::RoleInfo;
 pub use server::{GarnetServer, NodeServerBuilder, ServerBootstrap, run_node};
-pub use servers::{GarnetServerOptions, MetricsApi, RegisterApi, ServerOptions};
+pub use servers::{MetricsApi, RegisterApi};
 pub use shutdown::ShutdownCoordinator;
 pub use signal::{SIGINT_LABEL, SIGTERM_LABEL, SIGTERM_NUM, wait_shutdown_signal};
 pub use storage::{StorageScriptingApi, StorageSession};

@@ -25,9 +25,10 @@ pub struct SlowLogContainer {
 impl SlowLogContainer {
   /// libs/server/Metrics/Slowlog/SlowLogContainer.cs:SlowLogContainer（构造）。
   pub fn new(size: i32) -> Self {
+    let cap = size.max(0) as usize;
     Self {
-      size: size.max(0) as usize,
-      log_entries: Mutex::new(VecDeque::new()),
+      size: cap,
+      log_entries: Mutex::new(VecDeque::with_capacity(cap)),
       id: AtomicI64::new(0),
     }
   }
@@ -41,14 +42,17 @@ impl SlowLogContainer {
 
   /// libs/server/Metrics/Slowlog/SlowLogContainer.cs:Add
   ///
-  /// 以自动分配 id 入库，超出容量即裁掉最旧条目。
+  /// 以自动分配 id 入库，满容时先出后入环形裁剪，零动态扩容。
   pub fn add(&self, mut entry: SlowLogEntry) {
     entry.id = self.id.fetch_add(1, Relaxed) as i32;
+    if self.size == 0 {
+      return;
+    }
     let mut entries = self.log_entries.lock();
-    entries.push_back(entry);
-    while entries.len() > self.size {
+    if entries.len() >= self.size {
       entries.pop_front();
     }
+    entries.push_back(entry);
   }
 
   /// libs/server/Metrics/Slowlog/SlowLogContainer.cs:Clear
@@ -63,14 +67,16 @@ impl SlowLogContainer {
   /// 取最新 `count` 条快照（-1 返回全部）。
   pub fn get_entries(&self, count: i32) -> Vec<SlowLogEntry> {
     let entries = self.log_entries.lock();
-    if count < 0 || count as usize >= entries.len() {
-      return entries.iter().cloned().collect();
-    }
-    entries
-      .iter()
-      .skip(entries.len() - count as usize)
-      .cloned()
-      .collect()
+    let total = entries.len();
+    let take_count = if count < 0 {
+      total
+    } else {
+      (count as usize).min(total)
+    };
+    let skip_count = total - take_count;
+    let mut result = Vec::with_capacity(take_count);
+    result.extend(entries.iter().skip(skip_count).cloned());
+    result
   }
 }
 

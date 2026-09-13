@@ -69,17 +69,17 @@ impl fmt::Debug for CacheAlignedLock {
 }
 
 /// 共享读守卫：存续期间索引不可被丢弃或重建（对齐 C# VectorSetLock 共享形态）。
-pub struct VectorSetSharedGuard {
-  stripes: Arc<[CacheAlignedLock; STRIPE_COUNT]>,
+pub struct VectorSetSharedGuard<'a> {
+  stripes: &'a [CacheAlignedLock; STRIPE_COUNT],
   stripe: usize,
 }
 
 const _: () = assert!(
-  mem::size_of::<VectorSetSharedGuard>() == 16,
+  mem::size_of::<VectorSetSharedGuard<'static>>() == 16,
   "VectorSetSharedGuard 需保持 16 字节以利用 CPU 寄存器传递"
 );
 
-impl VectorSetSharedGuard {
+impl<'a> VectorSetSharedGuard<'a> {
   /// 获取当前守卫锁定的条带索引。
   #[inline]
   pub fn stripe(&self) -> usize {
@@ -87,7 +87,7 @@ impl VectorSetSharedGuard {
   }
 }
 
-impl Drop for VectorSetSharedGuard {
+impl<'a> Drop for VectorSetSharedGuard<'a> {
   #[inline]
   fn drop(&mut self) {
     // SAFETY: self.stripe 在加锁时由 stripe_for(key) 经 STRIPE_MASK 截断，必然 < STRIPE_COUNT
@@ -97,7 +97,7 @@ impl Drop for VectorSetSharedGuard {
   }
 }
 
-impl fmt::Debug for VectorSetSharedGuard {
+impl<'a> fmt::Debug for VectorSetSharedGuard<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("VectorSetSharedGuard")
       .field("stripe", &self.stripe)
@@ -105,18 +105,18 @@ impl fmt::Debug for VectorSetSharedGuard {
   }
 }
 
-/// 独占写守卫（对齐 C# VectorSetLock 独占形态；持有全局条带引用，可跨作用域移交）。
-pub struct VectorSetLockGuard {
-  stripes: Arc<[CacheAlignedLock; STRIPE_COUNT]>,
+/// 独占写守卫（对齐 C# VectorSetLock 独占形态；持有条带借用引用）。
+pub struct VectorSetLockGuard<'a> {
+  stripes: &'a [CacheAlignedLock; STRIPE_COUNT],
   stripe: usize,
 }
 
 const _: () = assert!(
-  mem::size_of::<VectorSetLockGuard>() == 16,
+  mem::size_of::<VectorSetLockGuard<'static>>() == 16,
   "VectorSetLockGuard 需保持 16 字节以利用 CPU 寄存器传递"
 );
 
-impl VectorSetLockGuard {
+impl<'a> VectorSetLockGuard<'a> {
   /// 获取当前守卫锁定的条带索引。
   #[inline]
   pub fn stripe(&self) -> usize {
@@ -124,7 +124,7 @@ impl VectorSetLockGuard {
   }
 }
 
-impl Drop for VectorSetLockGuard {
+impl<'a> Drop for VectorSetLockGuard<'a> {
   #[inline]
   fn drop(&mut self) {
     // SAFETY: self.stripe 在加锁时由 stripe_for(key) 经 STRIPE_MASK 截断，必然 < STRIPE_COUNT
@@ -134,7 +134,7 @@ impl Drop for VectorSetLockGuard {
   }
 }
 
-impl fmt::Debug for VectorSetLockGuard {
+impl<'a> fmt::Debug for VectorSetLockGuard<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("VectorSetLockGuard")
       .field("stripe", &self.stripe)
@@ -210,21 +210,21 @@ impl VectorSetLocks {
 
   /// 获取共享锁（读路径；guard 存续期间阻止索引被丢弃）。
   #[inline]
-  pub fn acquire_shared(&self, key: &[u8]) -> VectorSetSharedGuard {
+  pub fn acquire_shared<'a>(&'a self, key: &[u8]) -> VectorSetSharedGuard<'a> {
     let stripe = stripe_for(key);
     // SAFETY: stripe_for 由 STRIPE_MASK 截断，必然 < STRIPE_COUNT
     unsafe { self.stripes.get_unchecked(stripe) }
       .0
       .lock_shared();
     VectorSetSharedGuard {
-      stripes: Arc::clone(&self.stripes),
+      stripes: &self.stripes,
       stripe,
     }
   }
 
   /// 尝试非阻塞共享锁获取；竞争时返回 None。
   #[inline]
-  pub fn try_acquire_shared(&self, key: &[u8]) -> Option<VectorSetSharedGuard> {
+  pub fn try_acquire_shared<'a>(&'a self, key: &[u8]) -> Option<VectorSetSharedGuard<'a>> {
     let stripe = stripe_for(key);
     // SAFETY: stripe_for 由 STRIPE_MASK 截断，必然 < STRIPE_COUNT
     if unsafe { self.stripes.get_unchecked(stripe) }
@@ -232,7 +232,7 @@ impl VectorSetLocks {
       .try_lock_shared()
     {
       Some(VectorSetSharedGuard {
-        stripes: Arc::clone(&self.stripes),
+        stripes: &self.stripes,
         stripe,
       })
     } else {
@@ -242,21 +242,21 @@ impl VectorSetLocks {
 
   /// 获取独占锁（VREM / VSETATTR / 重建等写路径）。
   #[inline]
-  pub fn acquire_exclusive(&self, key: &[u8]) -> VectorSetLockGuard {
+  pub fn acquire_exclusive<'a>(&'a self, key: &[u8]) -> VectorSetLockGuard<'a> {
     let stripe = stripe_for(key);
     // SAFETY: stripe_for 由 STRIPE_MASK 截断，必然 < STRIPE_COUNT
     unsafe { self.stripes.get_unchecked(stripe) }
       .0
       .lock_exclusive();
     VectorSetLockGuard {
-      stripes: Arc::clone(&self.stripes),
+      stripes: &self.stripes,
       stripe,
     }
   }
 
   /// 尝试非阻塞独占锁获取；竞争时返回 None。
   #[inline]
-  pub fn try_acquire_exclusive(&self, key: &[u8]) -> Option<VectorSetLockGuard> {
+  pub fn try_acquire_exclusive<'a>(&'a self, key: &[u8]) -> Option<VectorSetLockGuard<'a>> {
     let stripe = stripe_for(key);
     // SAFETY: stripe_for 由 STRIPE_MASK 截断，必然 < STRIPE_COUNT
     if unsafe { self.stripes.get_unchecked(stripe) }
@@ -264,7 +264,7 @@ impl VectorSetLocks {
       .try_lock_exclusive()
     {
       Some(VectorSetLockGuard {
-        stripes: Arc::clone(&self.stripes),
+        stripes: &self.stripes,
         stripe,
       })
     } else {
@@ -285,9 +285,9 @@ impl VectorSetLocks {
 
 /// `read_vector_index_core` 的三态结果（对齐 C# 的 status + wouldBlock 出参）。
 #[derive(Debug)]
-pub enum ReadIndexOutcome {
+pub enum ReadIndexOutcome<'a> {
   /// 命中：索引记录 + 持有共享锁的守卫（存续期间索引不可被丢弃）。
-  Hit(Index, VectorSetSharedGuard),
+  Hit(Index, VectorSetSharedGuard<'a>),
   /// 键不存在（C# readRes != OK）。
   NotFound,
   /// 锁竞争：调用方应让出线程后异步重试（仅 non_blocking 形态）。
@@ -371,7 +371,10 @@ impl<S: StoreCallbacks> VectorManager<S> {
   ///
   /// 只读取向量集合索引（不创建）；需重建时自动重建。
   /// 命中时以共享锁守卫返回（guard 存续期间索引不可被删除）。
-  pub fn read_vector_index(&self, key: &[u8]) -> (Option<Index>, Option<VectorSetSharedGuard>) {
+  pub fn read_vector_index<'a>(
+    &'a self,
+    key: &[u8],
+  ) -> (Option<Index>, Option<VectorSetSharedGuard<'a>>) {
     match self.read_vector_index_core(key, false) {
       ReadIndexOutcome::Hit(index, guard) => (Some(index), Some(guard)),
       ReadIndexOutcome::NotFound | ReadIndexOutcome::WouldBlock => (None, None),
@@ -383,7 +386,11 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 锁升降级读协议：共享读 →（需重建）→ 独占重建 → 降级共享重读。
   /// `non_blocking == true` 时任一锁竞争都以 [`ReadIndexOutcome::WouldBlock`]
   /// 让步返回（调用方让出线程后异步重试，对齐 C# 线程池协作语义）。
-  pub fn read_vector_index_core(&self, key: &[u8], non_blocking: bool) -> ReadIndexOutcome {
+  pub fn read_vector_index_core<'a>(
+    &'a self,
+    key: &[u8],
+    non_blocking: bool,
+  ) -> ReadIndexOutcome<'a> {
     loop {
       // 阶段 1：共享读
       let shared = if non_blocking {
@@ -459,11 +466,11 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 创建/重建。`create == None` 对齐 InitialUpdater: NO 的 arg 语义：
   /// 缺失即报错。命中/建成后以共享锁守卫返回（C# 重建后同样降级共享，
   /// 避免持独占锁执行插入）。
-  pub fn read_or_create_vector_index(
-    &self,
+  pub fn read_or_create_vector_index<'a>(
+    &'a self,
     key: &[u8],
     create: Option<&CreateIndexParams>,
-  ) -> Result<(Index, VectorSetSharedGuard), VectorManagerResult> {
+  ) -> Result<(Index, VectorSetSharedGuard<'a>), VectorManagerResult> {
     let mut demand_exclusive = false;
 
     loop {
@@ -563,14 +570,17 @@ impl<S: StoreCallbacks> VectorManager<S> {
   ///
   /// 为指定键获取独占锁（VREM / VSETATTR 等写路径的前置）。
   #[inline]
-  pub fn acquire_exclusive_locks(&self, key: &[u8]) -> VectorSetLockGuard {
+  pub fn acquire_exclusive_locks<'a>(&'a self, key: &[u8]) -> VectorSetLockGuard<'a> {
     self.vector_set_locks.acquire_exclusive(key)
   }
 
   /// libs/server/Resp/Vector/VectorManager.Locking.cs:ReadForDeleteVectorIndex
   ///
   /// 删除路径：独占锁下读取索引（阻止读取期间的并发重建/使用）。
-  pub fn read_for_delete_vector_index(&self, key: &[u8]) -> Option<(Index, VectorSetLockGuard)> {
+  pub fn read_for_delete_vector_index<'a>(
+    &'a self,
+    key: &[u8],
+  ) -> Option<(Index, VectorSetLockGuard<'a>)> {
     let exclusive = self.acquire_exclusive_locks(key);
     let stored = self.read_stored_index(key)?;
     let index = Index::from_bytes(&stored)?;

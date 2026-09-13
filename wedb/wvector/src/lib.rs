@@ -28,8 +28,7 @@ pub use provider::{
   DistanceComputer, QueryComputer, ToDistanceComputer, WedbProvider, WedbProviderError,
 };
 pub use quantization::{
-  DynDistanceComputer, DynQueryComputer, MinMax8Bit, QuantizerError, RawDistanceComputer,
-  RawQueryComputer, Spherical1Bit, WedbQuantizer,
+  MinMax8Bit, QuantizerError, RawDistanceComputer, RawQueryComputer, Spherical1Bit, WedbQuantizer,
 };
 pub use service::{
   DiskANNService, DiskAnnInsertResult, Index, IndexConfig, SearchHit, SearchOutput, SearchParams,

@@ -705,25 +705,19 @@ impl<D: Device> WalLog<D> {
       match step_res {
         Ok(committed) => {
           last_committed = committed;
-          // 批量唤醒所有达标的 Follower
-          let to_wake = {
+          // 原地 retain_mut 筛选批量唤醒达标 Follower，消除每次刷盘的额外堆分配
+          {
             let mut lock = self.commit_pipeline.lock();
-            let mut remaining = Vec::with_capacity(lock.waiters.len());
-            let mut ready = Vec::new();
-            for waiter in lock.waiters.drain(..) {
+            lock.waiters.retain_mut(|waiter| {
               if waiter.target <= committed {
-                ready.push(waiter);
+                if let Some(tx) = waiter.tx.take() {
+                  tx.send(Ok(committed));
+                }
+                false
               } else {
-                remaining.push(waiter);
+                true
               }
-            }
-            lock.waiters = remaining;
-            ready
-          };
-          for mut w in to_wake {
-            if let Some(tx) = w.tx.take() {
-              tx.send(Ok(committed));
-            }
+            });
           }
           self.commit_event.notify(usize::MAX);
         }

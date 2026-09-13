@@ -1,6 +1,6 @@
 //! RESP 键规格模型（对标 libs/server/Resp/RespCommandInfoSimplifiedStructs.cs 与 RespCommandKeySpecification.cs）
 
-pub use wresp::key_spec::KeySpecificationFlags;
+pub(crate) use wresp::key_spec::KeySpecificationFlags;
 
 /// 简化版 begin_search 规格（对标 C# SimpleRespKeySpecBeginSearch）
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

@@ -48,9 +48,12 @@ use super::{
     aof_replay_coordinator::AofReplayCoordinator,
   },
 };
-use crate::storage::session::{
-  mainstore::advanced_ops::StringRMWOp, objectstore::common::obj_decode,
-  storage_session::StorageSession,
+use crate::{
+  resp::rangeindex::range_index_manager_replication::RangeIndexManagerReplication,
+  storage::session::{
+    mainstore::advanced_ops::StringRMWOp, objectstore::common::obj_decode,
+    storage_session::StorageSession,
+  },
 };
 
 /// 范围索引存储会话抽象接口（解耦具体设备类型，消除 unsafe 裸指针转换）
@@ -160,10 +163,7 @@ impl<D: Device> RangeIndexSessionFace for wkv::StoreSession<D> {
   }
 }
 
-use crate::resp::rangeindex::range_index_manager_replication::RangeIndexManagerReplication;
 
-/// 范围索引 AOF 回放处理器具象类型别名（消除虚表开销）
-pub type RangeIndexReplayerFace = RangeIndexManagerReplication;
 
 /// AOF 重放域错误（C# GarnetException 回放路径的 rust 形态）。
 #[derive(Debug, thiserror::Error)]

@@ -6,9 +6,7 @@ use thiserror::Error;
 ///
 /// 全变体仅承载纯数据（零 drop 胶水、可 Copy），以支撑本 crate 编解码函数
 /// 全量 const 化——编译期求值契约由 tests/meta_and_subkey.rs 的 `const` 断言
-/// 显式锁定。bitcode::Error 含堆载荷（debug 构建为 `Cow<'static, str>`，
-/// 带 drop 胶水），并入本枚举将使全体 const fn 陷入 E0493（常量求值禁止
-/// drop），故独立为 [`BitcodeError`] 承载，见其文档。
+/// 显式锁定。
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
   /// 缓冲区长度不足
@@ -57,19 +55,5 @@ pub enum Error {
   NonCanonicalEncoding,
 }
 
-/// bitcode 编解码错误（保留原始错误链）
-///
-/// 对齐 wcpr 的保留策略：Display 透出底层错误信息，`source()` 亦指向原始
-/// `bitcode::Error`，不做字符串化有损降级，调用方可继续向下解构错误链。
-/// 仅由非 const 的 bitcode 路径（[`crate::meta::MetaValue::decode_bitcode`]
-/// 等）返回；不提供 `From<BitcodeError> for Error` 的降级转换，杜绝错误链
-/// 在传播途中静默丢失。
-#[derive(Error, Debug)]
-#[error("bitcode 编解码失败: {0}")]
-pub struct BitcodeError(#[from] bitcode::Error);
-
 /// 值层模块结果类型
 pub type Result<T> = result::Result<T, Error>;
-
-/// bitcode 路径结果类型（错误为保留原始错误链的 [`BitcodeError`]）
-pub type BitcodeResult<T> = result::Result<T, BitcodeError>;

@@ -479,29 +479,6 @@ fn test_compile_time_const_evaluation() {
   ));
 }
 
-#[test]
-fn test_meta_value_bitcode_serialization() -> Void {
-  info!("测试 MetaValue 与 StorageEncoding 的 bitcode 序列化往返");
-
-  let meta =
-    MetaValue::new(10086, CollectionType::ZSET, 3, 500).with_encoding(StorageEncoding::Flattened);
-  let encoded = meta.encode_bitcode();
-  assert!(!encoded.is_empty());
-
-  let decoded = MetaValue::decode_bitcode(&encoded)?;
-  assert_eq!(meta, decoded);
-  assert_eq!(decoded.key_id, 10086);
-  assert_eq!(decoded.collection_type, CollectionType::ZSET);
-  assert_eq!(decoded.encoding(), StorageEncoding::Flattened);
-  assert_eq!(decoded.version, 3);
-  assert_eq!(decoded.size, 500);
-
-  // 错误输入防御
-  let bad_data = [0xFFu8; 2];
-  assert!(MetaValue::decode_bitcode(&bad_data).is_err());
-
-  OK
-}
 
 #[test]
 fn test_compact_meta_value_16_bytes() -> Void {
@@ -609,10 +586,6 @@ fn test_compact_meta_value_16_bytes() -> Void {
     None
   );
 
-  // 8. bitcode 序列化往返
-  let bc = cmeta.encode_bitcode();
-  let from_bc = CompactMetaValue::decode_bitcode(&bc)?;
-  assert_eq!(cmeta, from_bc);
 
   OK
 }

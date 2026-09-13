@@ -1,4 +1,3 @@
-use bitcode::{Decode, Encode};
 use strum::{AsRefStr, Display, FromRepr, IntoStaticStr};
 
 use crate::error::{Error, Result};
@@ -19,8 +18,6 @@ use crate::error::{Error, Result};
   Display,
   AsRefStr,
   IntoStaticStr,
-  Encode,
-  Decode,
 )]
 #[repr(u8)]
 pub enum KeyTag {
@@ -147,8 +144,6 @@ impl From<KeyTag> for u8 {
   Display,
   AsRefStr,
   IntoStaticStr,
-  Encode,
-  Decode,
 )]
 #[strum(serialize_all = "lowercase")]
 #[repr(u8)]

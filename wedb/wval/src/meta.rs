@@ -1,8 +1,7 @@
-use bitcode::{Decode, Encode};
 use wbase::{buf::put_header_payload, stack_heap_buf};
 
 use crate::{
-  error::{BitcodeError, BitcodeResult, Error, Result},
+  error::{Error, Result},
   tag::{CollectionType, KeyTag},
 };
 
@@ -56,7 +55,7 @@ pub const SUBKEY_STACK_CAP: usize = 128;
 
 /// 底层物理存储编码策略（小集合紧凑内联 vs 大集合打平子键/BfTree）
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StorageEncoding {
   /// 紧凑内联编码（单主 Key 连续内存内联存储，消除写放大与索引膨胀）
   #[default]
@@ -115,7 +114,7 @@ impl StorageEncoding {
 /// - `[16..24)`: `version: u64` (逻辑删除版本号，支持 O(1) 秒删与事务乐观失效)
 /// - `[24..32)`: `size: u64` (元素计数，保证 HLEN/SCARD/ZCARD 恒为 O(1))
 #[repr(C, align(8))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MetaValue {
   /// 集合全局唯一自增 ID
   pub key_id: u64,
@@ -308,21 +307,6 @@ impl MetaValue {
       })
     }
   }
-
-  /// 使用 bitcode 编码为二进制字节向量
-  #[inline]
-  pub fn encode_bitcode(&self) -> Vec<u8> {
-    bitcode::encode(self)
-  }
-
-  /// 从 bitcode 二进制切片解码 MetaValue
-  ///
-  /// 错误为 [`crate::error::BitcodeError`]：保留原始 `bitcode::Error` 错误链
-  /// （Display 与 `source()` 均透出底层错误），不做字符串化降级
-  #[inline]
-  pub fn decode_bitcode(src: &[u8]) -> BitcodeResult<Self> {
-    bitcode::decode(src).map_err(BitcodeError::from)
-  }
 }
 
 /// 16 字节定长紧凑集合元数据（单 64 字节缓存行容纳 4 条，大端序持久化）：
@@ -332,7 +316,7 @@ impl MetaValue {
 /// - `size: u32` (4 字节元素计数，[4..8))
 /// - `expire_at_ticks: i64` (8 字节绝对 .NET Ticks 过期时间戳，0 表示永不过期（100ns 单位，0001-01-01 纪元），[8..16))
 #[repr(C, align(8))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompactMetaValue {
   /// 集合逻辑数据结构类型
   pub collection_type: CollectionType,
@@ -520,21 +504,6 @@ impl CompactMetaValue {
         actual: dst.len(),
       })
     }
-  }
-
-  /// 使用 bitcode 编码为二进制字节向量
-  #[inline]
-  pub fn encode_bitcode(&self) -> Vec<u8> {
-    bitcode::encode(self)
-  }
-
-  /// 从 bitcode 二进制切片解码
-  ///
-  /// 错误为 [`crate::error::BitcodeError`]：保留原始 `bitcode::Error` 错误链
-  /// （Display 与 `source()` 均透出底层错误），不做字符串化降级
-  #[inline]
-  pub fn decode_bitcode(src: &[u8]) -> BitcodeResult<Self> {
-    bitcode::decode(src).map_err(BitcodeError::from)
   }
 }
 

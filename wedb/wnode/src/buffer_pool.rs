@@ -7,7 +7,7 @@
 //! 采用 crossfire 无锁有界 MPMC 队列架构，彻底消除锁争抢、分片遍历与跨核缓存颠簸。
 
 use std::{
-  mem::forget,
+  fmt,
   ops::{Deref, DerefMut},
   sync::{
     Arc,
@@ -16,6 +16,7 @@ use std::{
 };
 
 use crossfire::flavor::{Array, Queue};
+use wbase::align::CachePadded;
 
 /// 默认网络缓冲区大小：64KB
 pub const DEFAULT_BUFFER_SIZE: usize = 1 << 16;
@@ -53,12 +54,9 @@ impl PooledBuffer {
     self.buffer.as_mut().expect("pooled buffer active")
   }
 
-  /// 提取底层 Vec 并放弃自动归还池
+  /// 提取底层 Vec 并放弃自动归还池（析构正常递减借出计数并释放 pool Arc，杜绝 Arc 泄漏）
   pub fn take(mut self) -> Vec<u8> {
-    self.pool.borrowed_count.fetch_sub(1, Relaxed);
-    let buf = self.buffer.take().unwrap_or_default();
-    forget(self);
-    buf
+    self.buffer.take().unwrap_or_default()
   }
 
   /// 临时提取底层 Vec 用于所有权转移（如异步 I/O），后续须通过 [`Self::set_buffer`] 归还
@@ -99,13 +97,33 @@ impl Drop for PooledBuffer {
   }
 }
 
+impl fmt::Debug for PooledBuffer {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("PooledBuffer")
+      .field("len", &self.as_slice().len())
+      .field("capacity", &self.buffer.as_ref().map(|v| v.capacity()).unwrap_or(0))
+      .finish()
+  }
+}
+
 /// 固定大小网络缓冲池（基于 crossfire::flavor::Array 纯原子无锁架构）
 pub struct LimitedFixedBufferPool {
   queue: Array<Vec<u8>>,
   buffer_size: usize,
   max_pool_size: usize,
-  allocated_count: AtomicUsize,
-  pub(crate) borrowed_count: AtomicUsize,
+  allocated_count: CachePadded<AtomicUsize>,
+  pub(crate) borrowed_count: CachePadded<AtomicUsize>,
+}
+
+impl fmt::Debug for LimitedFixedBufferPool {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("LimitedFixedBufferPool")
+      .field("buffer_size", &self.buffer_size)
+      .field("max_pool_size", &self.max_pool_size)
+      .field("borrowed_count", &self.borrowed_count())
+      .field("free_count", &self.free_count())
+      .finish()
+  }
 }
 
 impl LimitedFixedBufferPool {
@@ -126,8 +144,8 @@ impl LimitedFixedBufferPool {
       queue: Array::new(cap),
       buffer_size: size,
       max_pool_size: cap,
-      allocated_count: AtomicUsize::new(0),
-      borrowed_count: AtomicUsize::new(0),
+      allocated_count: CachePadded::new(AtomicUsize::new(0)),
+      borrowed_count: CachePadded::new(AtomicUsize::new(0)),
     })
   }
 
@@ -143,10 +161,7 @@ impl LimitedFixedBufferPool {
     };
 
     let buffer = match buf {
-      Some(mut v) => {
-        v.clear();
-        v
-      }
+      Some(v) => v,
       None => {
         self.allocated_count.fetch_add(1, Relaxed);
         Vec::with_capacity(target_size)
@@ -202,6 +217,83 @@ impl LimitedFixedBufferPool {
   pub fn max_pool_size(&self) -> usize {
     self.max_pool_size
   }
+
+  /// 校验缓冲池规格是否满足指定的网络配置（对标 Garnet networkPool.Validate）
+  #[inline]
+  pub fn validate(&self, settings: &NetworkBufferSettings) -> bool {
+    self.buffer_size >= settings.send_buffer_size
+      && self.buffer_size >= settings.initial_receive_buffer_size
+  }
+}
+
+/// 发送缓冲区首部与帧开销预留（对标 Garnet `SendBufferOverheadReserve = 256`）
+pub const SEND_BUFFER_OVERHEAD_RESERVE: usize = 256;
+
+/// 默认发送缓冲大小：128KB (1 << 17)
+pub const DEFAULT_SEND_BUFFER_SIZE: usize = 1 << 17;
+
+/// 默认初始接收缓冲大小：128KB (1 << 17)
+pub const DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE: usize = 1 << 17;
+
+/// 默认最大接收缓冲大小：1MB (1 << 20)
+pub const DEFAULT_MAX_RECEIVE_BUFFER_SIZE: usize = 1 << 20;
+
+/// 网络缓冲区规格配置（1:1 对标 Garnet common `NetworkBufferSettings`）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NetworkBufferSettings {
+  pub send_buffer_size: usize,
+  pub initial_receive_buffer_size: usize,
+  pub max_receive_buffer_size: usize,
+}
+
+impl Default for NetworkBufferSettings {
+  fn default() -> Self {
+    Self::new(
+      DEFAULT_SEND_BUFFER_SIZE,
+      DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE,
+      DEFAULT_MAX_RECEIVE_BUFFER_SIZE,
+    )
+  }
+}
+
+impl NetworkBufferSettings {
+  /// 创建网络缓冲区配置
+  pub const fn new(
+    send_buffer_size: usize,
+    initial_receive_buffer_size: usize,
+    max_receive_buffer_size: usize,
+  ) -> Self {
+    Self {
+      send_buffer_size,
+      initial_receive_buffer_size,
+      max_receive_buffer_size,
+    }
+  }
+
+  /// 单条记录/分块最大有效载荷（扣除批次头与帧开销预留）
+  #[inline]
+  pub const fn max_send_buffer_content_size(&self) -> usize {
+    self.send_buffer_size.saturating_sub(SEND_BUFFER_OVERHEAD_RESERVE)
+  }
+
+  /// 计算一组网络配置的包含型（Inclusive）外包规格（最大发送、最小初始接收、最大接收）
+  pub fn get_inclusive(settings: &[Self]) -> Self {
+    let mut max_send = DEFAULT_SEND_BUFFER_SIZE;
+    let mut min_recv = DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE;
+    let mut max_recv = DEFAULT_MAX_RECEIVE_BUFFER_SIZE;
+    for s in settings {
+      max_send = max_send.max(s.send_buffer_size);
+      min_recv = min_recv.min(s.initial_receive_buffer_size);
+      max_recv = max_recv.max(s.max_receive_buffer_size);
+    }
+    Self::new(max_send, min_recv, max_recv)
+  }
+
+  /// 依据当前设置创建对应的定长网络缓冲池
+  pub fn create_buffer_pool(&self, max_pool_size: usize) -> Arc<LimitedFixedBufferPool> {
+    let pool_size = self.send_buffer_size.max(self.initial_receive_buffer_size);
+    LimitedFixedBufferPool::new(pool_size, max_pool_size)
+  }
 }
 
 #[cfg(test)]
@@ -209,6 +301,16 @@ mod tests {
   use std::thread;
 
   use super::*;
+
+  #[test]
+  fn test_buffer_pool_cache_line_alignment() {
+    use std::mem::align_of;
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    assert_eq!(align_of::<CachePadded<AtomicUsize>>(), 128);
+    let alloc_addr = &*pool.allocated_count as *const AtomicUsize as usize;
+    let borrow_addr = &*pool.borrowed_count as *const AtomicUsize as usize;
+    assert!(alloc_addr.abs_diff(borrow_addr) >= 128);
+  }
 
   #[test]
   fn test_buffer_pool_reuse_and_purge() {
@@ -247,10 +349,13 @@ mod tests {
   #[test]
   fn test_buffer_pool_take_and_drop() {
     let pool = LimitedFixedBufferPool::new(1024, 16);
+    assert_eq!(Arc::strong_count(&pool), 1);
     let b = pool.get(1024);
+    assert_eq!(Arc::strong_count(&pool), 2);
     assert_eq!(pool.borrowed_count(), 1);
 
     let vec = b.take();
+    assert_eq!(Arc::strong_count(&pool), 1);
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 0);
     assert_eq!(vec.capacity(), 1024);

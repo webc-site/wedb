@@ -1,6 +1,7 @@
 use aok::{OK, Void};
 use log::info;
-use wval::{KeyTag, decode_order_preserving_f64, encode_order_preserving_f64};
+use wbase::float::{decode_f64, encode_f64};
+use wval::KeyTag;
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {
@@ -73,8 +74,8 @@ fn test_order_preserving_f64_codec() -> Void {
   for i in 0..test_floats.len() - 1 {
     let a = test_floats[i];
     let b = test_floats[i + 1];
-    let enc_a = encode_order_preserving_f64(a);
-    let enc_b = encode_order_preserving_f64(b);
+    let enc_a = encode_f64(a);
+    let enc_b = encode_f64(b);
 
     assert!(
       enc_a < enc_b,
@@ -84,8 +85,8 @@ fn test_order_preserving_f64_codec() -> Void {
 
   // 2. 验证往返还原无损性（含 -0.0 与 +0.0 符号位区分）
   for &v in &test_floats {
-    let enc = encode_order_preserving_f64(v);
-    let dec = decode_order_preserving_f64(enc);
+    let enc = encode_f64(v);
+    let dec = decode_f64(enc);
 
     assert_eq!(
       dec.to_bits(),
@@ -98,10 +99,10 @@ fn test_order_preserving_f64_codec() -> Void {
 
   // 3. 密集步进区间保序验证
   let mut current = -10.0;
-  let mut prev_enc = encode_order_preserving_f64(current);
+  let mut prev_enc = encode_f64(current);
   for _ in 0..1000 {
     current += 0.02;
-    let enc = encode_order_preserving_f64(current);
+    let enc = encode_f64(current);
     assert!(prev_enc < enc);
     prev_enc = enc;
   }
@@ -129,8 +130,8 @@ fn test_extreme_floats_and_denormals() -> Void {
   ];
 
   for &val in &extremes {
-    let enc = encode_order_preserving_f64(val);
-    let dec = decode_order_preserving_f64(enc);
+    let enc = encode_f64(val);
+    let dec = decode_f64(enc);
 
     // 位级精确 100% 往返无损还原
     assert_eq!(
@@ -160,8 +161,8 @@ fn test_extreme_floats_and_denormals() -> Void {
   for i in 0..non_nan_extremes.len() - 1 {
     let a = non_nan_extremes[i];
     let b = non_nan_extremes[i + 1];
-    let enc_a = encode_order_preserving_f64(a);
-    let enc_b = encode_order_preserving_f64(b);
+    let enc_a = encode_f64(a);
+    let enc_b = encode_f64(b);
     assert!(enc_a < enc_b, "极端数值序校验失败: {a:?} 应小于 {b:?}");
   }
 

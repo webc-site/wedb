@@ -62,8 +62,8 @@ use rand::seq::index::sample;
 use crate::{
   fsm::{FreeSpaceMap, FsmError},
   quantization::{
-    self, DynDistanceComputer, DynQueryComputer, MinMax8BitQueryComputer, QuantizerError,
-    QuantizerImpl, Spherical1Bit, WedbQuantizer,
+    self, MinMax8BitQueryComputer, QuantizerError, QuantizerImpl, RawDistanceComputer,
+    RawQueryComputer, Spherical1Bit, WedbQuantizer,
   },
   service::SearchResults,
   store::{Callbacks, Context, StoreCallbacks, StoreError, Term, VectorSetId},
@@ -164,7 +164,7 @@ fn safe_cast_slice<T: VectorRepr>(s: &[u8]) -> Cow<'_, [T]> {
   }
 }
 
-impl<T: VectorRepr> DynDistanceComputer for FullPrecisionDistance<T> {
+impl<T: VectorRepr> RawDistanceComputer for FullPrecisionDistance<T> {
   #[inline]
   fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32 {
     let a_slice = safe_cast_slice::<T>(a);
@@ -176,7 +176,7 @@ impl<T: VectorRepr> DynDistanceComputer for FullPrecisionDistance<T> {
 /// 全精度查询距离包装器。
 pub struct FullPrecisionQueryDistance<T: VectorRepr>(pub T::QueryDistance);
 
-impl<T: VectorRepr> DynQueryComputer for FullPrecisionQueryDistance<T> {
+impl<T: VectorRepr> RawQueryComputer for FullPrecisionQueryDistance<T> {
   #[inline]
   fn evaluate_similarity(&self, a: &[u8]) -> f32 {
     let a_slice = safe_cast_slice::<T>(a);
@@ -197,11 +197,11 @@ impl DistanceComputer {
   #[inline]
   pub fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32 {
     match self {
-      Self::Spherical(c) => DynDistanceComputer::evaluate_similarity(c, a, b),
-      Self::MinMax(c) => DynDistanceComputer::evaluate_similarity(c, a, b),
-      Self::FullU8(c) => DynDistanceComputer::evaluate_similarity(c, a, b),
-      Self::FullI8(c) => DynDistanceComputer::evaluate_similarity(c, a, b),
-      Self::FullF32(c) => DynDistanceComputer::evaluate_similarity(c, a, b),
+      Self::Spherical(c) => RawDistanceComputer::evaluate_similarity(c, a, b),
+      Self::MinMax(c) => RawDistanceComputer::evaluate_similarity(c, a, b),
+      Self::FullU8(c) => RawDistanceComputer::evaluate_similarity(c, a, b),
+      Self::FullI8(c) => RawDistanceComputer::evaluate_similarity(c, a, b),
+      Self::FullF32(c) => RawDistanceComputer::evaluate_similarity(c, a, b),
     }
   }
 }
@@ -226,11 +226,11 @@ impl QueryComputer {
   #[inline]
   pub fn evaluate_similarity(&self, a: &[u8]) -> f32 {
     match self {
-      Self::Spherical(c) => DynQueryComputer::evaluate_similarity(c, a),
-      Self::MinMax(c) => DynQueryComputer::evaluate_similarity(c, a),
-      Self::FullU8(c) => DynQueryComputer::evaluate_similarity(c, a),
-      Self::FullI8(c) => DynQueryComputer::evaluate_similarity(c, a),
-      Self::FullF32(c) => DynQueryComputer::evaluate_similarity(c, a),
+      Self::Spherical(c) => RawQueryComputer::evaluate_similarity(c, a),
+      Self::MinMax(c) => RawQueryComputer::evaluate_similarity(c, a),
+      Self::FullU8(c) => RawQueryComputer::evaluate_similarity(c, a),
+      Self::FullI8(c) => RawQueryComputer::evaluate_similarity(c, a),
+      Self::FullF32(c) => RawQueryComputer::evaluate_similarity(c, a),
     }
   }
 }
