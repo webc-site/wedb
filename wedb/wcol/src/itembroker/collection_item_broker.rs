@@ -217,7 +217,7 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
       session_id_to_observer: new_concurrent_map(),
       keys_to_observers: new_concurrent_map(),
       keys_to_observers_time_last_clean: AtomicU64::new(
-        coarsetime::Clock::now_since_epoch().as_secs(),
+        wbase::time::now_secs(),
       ),
       store,
       main_loop_task_status: AtomicI32::new(MAIN_LOOP_NOT_STARTED),
@@ -583,7 +583,7 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
       }
     }
     self.keys_to_observers_time_last_clean.store(
-      coarsetime::Clock::now_since_epoch().as_secs(),
+      wbase::time::now_secs(),
       Ordering::Relaxed,
     );
   }
@@ -609,7 +609,7 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
       self.handle_broker_event(next_event);
 
       // 观察表周期清理
-      let now = coarsetime::Clock::now_since_epoch().as_secs();
+      let now = wbase::time::now_secs();
       let last = self
         .keys_to_observers_time_last_clean
         .load(Ordering::Relaxed);

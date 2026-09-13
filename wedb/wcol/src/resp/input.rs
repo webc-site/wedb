@@ -3,7 +3,6 @@
 use std::{mem::size_of, ptr::copy_nonoverlapping};
 
 use bitflags::bitflags;
-use coarsetime::Clock;
 use wresp::{RespCommand, SessionParseState};
 use wval::GarnetObjectType;
 
@@ -74,9 +73,7 @@ impl RespInputHeader {
     if flags.contains(RespInputFlags::DETERMINISTIC) {
       flags.contains(RespInputFlags::EXPIRED)
     } else {
-      let now_ticks =
-        Clock::now_since_epoch().as_millis() as i64 * 10_000 + 621_355_968_000_000_000;
-      expire_time < now_ticks
+      expire_time < wbase::time::now_ticks()
     }
   }
 

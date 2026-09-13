@@ -348,7 +348,7 @@ impl ClusterManager {
 
   /// 检查节点是否处于封禁期（按秒级时间戳判定）
   pub fn is_banned(&self, node_id: &str) -> bool {
-    let now = coarsetime::Clock::now_since_epoch().as_secs() as i64;
+    let now = wbase::time::now_secs() as i64;
     let ban_list = self.worker_ban_list.read();
     if let Some(&expiry) = ban_list.get(node_id) {
       expiry > now
@@ -359,7 +359,7 @@ impl ClusterManager {
 
   /// 封禁节点指定秒数
   pub fn ban_node(&self, node_id: &str, expiry_seconds: u64) {
-    let expiry = (coarsetime::Clock::now_since_epoch().as_secs() + expiry_seconds) as i64;
+    let expiry = (wbase::time::now_secs() + expiry_seconds) as i64;
     self
       .worker_ban_list
       .write()
@@ -370,7 +370,7 @@ impl ClusterManager {
   ///
   /// 获取当前封禁列表
   pub fn get_ban_list(&self) -> Vec<String> {
-    let now = coarsetime::Clock::now_since_epoch().as_secs() as i64;
+    let now = wbase::time::now_secs() as i64;
     let ban_list = self.worker_ban_list.read();
     ban_list
       .iter()
@@ -387,7 +387,7 @@ impl ClusterManager {
 
   /// 清理已过期的封禁条目
   pub fn cleanup_ban_list(&self) {
-    let now = coarsetime::Clock::now_since_epoch().as_secs() as i64;
+    let now = wbase::time::now_secs() as i64;
     // 仅需过期时间戳判定，键为被封禁节点 ID 忽略
     self
       .worker_ban_list

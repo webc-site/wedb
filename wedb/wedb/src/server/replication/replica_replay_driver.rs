@@ -97,7 +97,7 @@ impl ReplicaReplayDriver {
 
   /// 构造位点确认 ACK 消息包，供副本向主节点汇报已重放位点
   pub fn create_replication_ack(&self, node_id: &str) -> ReplicationAck {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
+    let now_ms = wbase::time::now_ms();
     ReplicationAck {
       node_id: node_id.to_string(),
       physical_sublog_idx: self.physical_sublog_idx,

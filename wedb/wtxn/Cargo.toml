@@ -15,7 +15,7 @@ log.workspace = true
 parking_lot.workspace = true
 smallvec.workspace = true
 waof.workspace = true
-wbase = { workspace = true, features = ["striped"] }
+wbase = { workspace = true, features = ["num", "striped"] }
 wresp.workspace = true
 
 [lints]

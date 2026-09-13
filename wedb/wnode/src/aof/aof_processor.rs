@@ -717,19 +717,11 @@ impl AofProcessor {
         if !header.unsafe_truncate_log() {
           log::warn!("AOF 日志安全截断跳过或未执行");
         }
-        target
-          .store
-          .flush_all()
-          .await
-          .map_err(|e| format!("FlushAll replay failed: {e}"))?;
+        target.store.flush_all().await?;
       }
       AofEntryType::FlushDb => {
         // C# FlushDatabase(dbId)；wkv 无按库命名空间，降级全清（缺口见汇报）
-        target
-          .store
-          .flush_all()
-          .await
-          .map_err(|e| format!("FlushDb replay failed: {e}"))?;
+        target.store.flush_all().await?;
       }
       AofEntryType::StoredProcedure => {
         // 存储过程重放：过程注册表由 custom 域承载（缺口见汇报），跳过执行

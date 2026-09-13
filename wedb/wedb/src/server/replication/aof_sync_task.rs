@@ -99,7 +99,7 @@ impl AofSyncTask {
     remote_node_id: String,
     send_buffer_pool: Arc<ReplicationSendBufferPool>,
   ) -> Self {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now_ms = wbase::time::now_ms() as i64;
     Self {
       physical_sublog_idx,
       start_address,
@@ -223,7 +223,7 @@ impl AofSyncTask {
 
     let prev = self.acked_address.fetch_max(acked_offset, Ordering::AcqRel);
     if acked_offset > prev {
-      let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+      let now_ms = wbase::time::now_ms() as i64;
       self.last_ack_timestamp.store(now_ms, Ordering::Release);
       self
         .shipped_watermark_address
@@ -389,7 +389,7 @@ mod tests {
     assert_eq!(task.throttle(50), None);
 
     // 超时判定
-    let now = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now = wbase::time::now_ms() as i64;
     assert!(!task.is_ack_timed_out(now, 5000));
     assert!(task.is_ack_timed_out(now + 10000, 5000));
   }

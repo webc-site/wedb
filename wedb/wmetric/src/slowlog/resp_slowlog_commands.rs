@@ -1,4 +1,5 @@
-use wresp::{RespCommand, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i32};
+use wbase::num::strict_i32;
+use wresp::{RespCommand, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS};
 
 use super::{slow_log_container::SlowLogContainer, slowlog_entry::SlowLogEntry};
 use crate::{latency::latency_metrics_entry::time_stamp, resp_write_utils::RespWriteUtils};

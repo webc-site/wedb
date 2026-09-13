@@ -17,7 +17,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-coarsetime.workspace = true
 enum_dispatch = "0.3.13"
 gxhash.workspace = true
 itoa.workspace = true
@@ -25,7 +24,7 @@ log.workspace = true
 parking_lot.workspace = true
 sha1_smol.workspace = true
 sonic-rs.workspace = true
-wbase = { features = ["hash_slot", "convert", "num", "map"], path = "../wbase", version = "0.1.6" }
+wbase = { workspace = true, features = ["hash_slot", "convert", "num", "map", "time"] }
 wresp.workspace = true
 wtxn = { version = "0.1.0", path = "../wtxn" }
 

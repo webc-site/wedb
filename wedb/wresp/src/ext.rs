@@ -3,6 +3,9 @@ use core::str;
 /// 最大单行错误文案长度（防恶意巨幅文案攻击）
 pub const MAX_ERROR_MSG_LEN: usize = 512;
 
+// 过渡期兼容转发（实现单一落 wbase::num；存量调用方迁移完成后删除）
+pub use wbase::num::{strict_i32, strict_i64};
+
 /// 净化错误文案：以 `\r` 或 `\n` 截断防止 RESP 协议帧注入，并截断至最大长度（确保 UTF-8 字符边界）
 #[inline]
 pub fn sanitize_error_str(s: &str, max_len: usize) -> &str {
@@ -16,45 +19,6 @@ pub fn sanitize_error_str(s: &str, max_len: usize) -> &str {
     let boundary = truncated.floor_char_boundary(max_len);
     &truncated[..boundary]
   }
-}
-
-/// C# 严格整数解析（对照 RespReadUtils.TryReadInt64Safe allowLeadingZeros: false 语义）：
-/// 可选 +/- 号；首数字 '0' 且后续仍有数字即拒绝（"0"/"-0"
-/// 合法，"007" 非法）；须为纯数字且整体消费；负值域至 i64::MIN；
-/// 溢出返回 None
-#[inline]
-pub fn strict_i64(raw: &[u8]) -> Option<i64> {
-  let (digits, negative) = match raw {
-    [b'+', rest @ ..] => (rest, false),
-    [b'-', rest @ ..] => (rest, true),
-    rest => (rest, false),
-  };
-  if digits.is_empty() || (digits.len() > 1 && digits[0] == b'0') {
-    return None;
-  }
-  let mut number: u64 = 0;
-  for &d in digits {
-    if !d.is_ascii_digit() {
-      return None;
-    }
-    number = number.checked_mul(10)?.checked_add(u64::from(d - b'0'))?;
-  }
-  if negative {
-    if number == i64::MIN.unsigned_abs() {
-      Some(i64::MIN)
-    } else {
-      let positive = i64::try_from(number).ok()?;
-      Some(-positive)
-    }
-  } else {
-    i64::try_from(number).ok()
-  }
-}
-
-/// 同 [`strict_i64`] 的 i32 值域版（C# int.MaxValue 上限语义）
-#[inline]
-pub fn strict_i32(raw: &[u8]) -> Option<i32> {
-  i32::try_from(strict_i64(raw)?).ok()
 }
 
 pub trait RespSliceExt {

@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use wbase::ConcurrentMap;
-use wresp::{cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i64};
+use wbase::{num::strict_i64, ConcurrentMap};
+use wresp::cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS;
 
 #[cfg(test)]
 use crate::sender::ScratchBufferNetworkSender;

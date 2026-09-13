@@ -5,8 +5,10 @@ use wresp::{
     RESP_ERR_GENERIC, RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, abort_with_error_message, write_error_raw,
   },
-  strict_i32, strict_i64, unpack_args,
+  unpack_args,
 };
+
+use wbase::num::{strict_i32, strict_i64};
 
 use crate::{
   resp::{resp_server_session::RespServerSession, ttl_sync::read_adjudicated_sync},

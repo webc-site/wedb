@@ -10,9 +10,9 @@
 use std::str::from_utf8;
 
 use wbitmap::{BitFieldOverflow, parse_bitfield_overflow_slice};
+use wbase::num::{strict_f64, strict_i32, strict_i64};
 use wcol::{
   list::list_object::OperationDirection,
-  parse_utils::strict_f64,
   sortedsetgeo::{
     geo_hash::GeoDistanceUnitType,
     sorted_set_geo_object_impl::{GeoOrder, GeoOriginType, GeoSearchOptions, GeoSearchType},
@@ -20,8 +20,7 @@ use wcol::{
 };
 use wmetric::{InfoMetricsType, LatencyMetricsType};
 use wresp::{
-  ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption, cmd_strings, strict_i32,
-  strict_i64,
+  ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption, cmd_strings,
 };
 
 pub use crate::key_spec::*;
@@ -1106,10 +1105,20 @@ mod tests {
     assert_eq!(dest, -1);
     assert_eq!(opts.unwrap().radius, f64::INFINITY);
 
-    // "Infinity" 非 3/4 字节白名单 → not a valid radius
+    // "Infinity" 全拼同样在扩展白名单内（wbase::num::strict_f64 统一口径）
     let state = state_of(&[b"member", b"Infinity", b"KM"]);
     let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
+    assert!(
+      err.is_none(),
+      "unexpected: {:?}",
+      err.map(|e| String::from_utf8_lossy(&e).into_owned())
+    );
+    assert_eq!(opts.unwrap().radius, f64::INFINITY);
+
+    // 负 infinity 半径依旧拒绝（仅拒绝负半径，非词形拒绝）
+    let state = state_of(&[b"member", b"-infinity", b"KM"]);
+    let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
     assert!(opts.is_none());
-    assert_eq!(err.as_deref(), Some(RESP_ERR_NOT_VALID_RADIUS.as_bytes()));
+    assert_eq!(err.as_deref(), Some(RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes()));
   }
 }

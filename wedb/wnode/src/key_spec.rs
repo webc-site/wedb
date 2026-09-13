@@ -2,6 +2,8 @@
 
 pub(crate) use wresp::key_spec::KeySpecificationFlags;
 
+use wbase::num::strict_i64;
+
 /// 简化版 begin_search 规格（对标 C# SimpleRespKeySpecBeginSearch）
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SimpleRespKeySpecBeginSearch {
@@ -39,33 +41,6 @@ pub struct SimpleRespKeySpec {
   pub find_keys: SimpleRespKeySpecFindKeys,
   /// 键规格标记位图
   pub flags: KeySpecificationFlags,
-}
-
-#[inline]
-fn parse_ascii_i64(bytes: &[u8]) -> Option<i64> {
-  if bytes.is_empty() {
-    return None;
-  }
-  let (negative, digits) = match bytes[0] {
-    b'-' => (true, &bytes[1..]),
-    b'+' => (false, &bytes[1..]),
-    _ => (false, bytes),
-  };
-  if digits.is_empty() {
-    return None;
-  }
-  let mut val: i64 = 0;
-  for &d in digits {
-    if !d.is_ascii_digit() {
-      return None;
-    }
-    val = val.checked_mul(10)?.checked_add((d - b'0') as i64)?;
-  }
-  if negative {
-    val.checked_neg()
-  } else {
-    Some(val)
-  }
 }
 
 impl SimpleRespKeySpec {
@@ -147,7 +122,7 @@ impl SimpleRespKeySpec {
         return None;
       }
       let key_num_bytes = get_arg(key_num_idx as usize)?;
-      let key_num = parse_ascii_i64(key_num_bytes.as_ref())?;
+      let key_num = strict_i64(key_num_bytes.as_ref())?;
       if key_num <= 0 {
         return None;
       }

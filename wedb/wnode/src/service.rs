@@ -488,25 +488,17 @@ pub type DefaultNodeHandles = (
 /// 单机/集群功能一致的统一节点装配三件套（存储域初始化 + 经纪 +
 /// 向量管理器，对标 C# GarnetServer InitializeServer）
 pub fn open_node(data_path: impl AsRef<Path>) -> crate::Result<DefaultNodeHandles> {
-  let device = SegmentedDevice::single_file(data_path.as_ref())
-    .map_err(|e| crate::Error::Custom(format!("打开存储设备失败: {e}")))?;
+  let device = SegmentedDevice::single_file(data_path.as_ref())?;
   let mut config = wkv::StoreConfig::auto();
   config.gc.enabled = true;
-  let store = WedbStore::open_shared(config, Arc::new(device))
-    .map_err(|e| crate::Error::Custom(format!("打开存储引擎失败: {e}")))?;
+  let store = WedbStore::open_shared(config, Arc::new(device))?;
 
-  let broker_session = store
-    .new_session()
-    .map_err(|e| crate::Error::Custom(format!("创建经纪取件会话失败: {e}")))?;
+  let broker_session = store.new_session()?;
   let broker = Arc::new(SharedItemBroker::new(Arc::new(CollectionItemBroker::new(
     CollectionItemSource::new(broker_session),
   ))));
 
-  let vector_session = Arc::new(
-    store
-      .new_session()
-      .map_err(|e| crate::Error::Custom(format!("创建向量存储会话失败: {e}")))?,
-  );
+  let vector_session = Arc::new(store.new_session()?);
   let vector_callbacks = Callbacks::new(Arc::new(WedbVectorStoreCallbacks::new(vector_session)));
   let vector_manager = Arc::new(VectorManager::new(
     VectorManagerOptions::default(),

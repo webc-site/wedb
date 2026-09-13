@@ -11,9 +11,9 @@ use std::str;
 use wdev::Device;
 use wkv::ConsistentReadFunctions;
 use wlua::{ScratchBufferNetworkSender, ScriptingApi};
-use wresp::{
-  cmd_strings::{RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOPERM},
-  strict_i64,
+use wbase::num::strict_i64;
+use wresp::cmd_strings::{
+  RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOPERM,
 };
 
 use crate::storage::session::storage_session::StorageSession;

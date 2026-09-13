@@ -10,17 +10,18 @@ use std::str;
 
 use gxhash::HashMap;
 use memchr::memmem;
-use wbase::num::format_double;
+use wresp::format_double;
 use wcol::{
   sortedset::sorted_set_object::{
     ExpirationWithOption, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
   },
   types::object_output::ObjectOutput,
 };
+use wbase::num::{strict_f64, strict_i32};
 use wresp::{
   ExpireOption, RespCommand, RespSliceExt, RespVecExt, check_arg_count,
   cmd_strings::{self as cs, RESP_ERR_GENERIC},
-  strict_i32, try_get_expire_option,
+  try_get_expire_option,
 };
 use wval::GarnetObjectType;
 
@@ -30,7 +31,6 @@ use crate::{
       ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, make_object_input, obj_load_typed_sync,
       obj_save_or_gc, run_sync_rmw, zset_from_blob, zset_to_blob,
     },
-    parser::session_parse_state::strict_f64,
     resp_server_session::RespServerSession,
   },
   session_parse_state_extensions::try_get_timeout_bytes,

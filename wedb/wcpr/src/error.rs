@@ -29,7 +29,11 @@ pub enum Error {
   #[error(transparent)]
   Epoch(#[from] wepoch::Error),
 
-  /// 宿主存储引擎端口错误
+  /// 宿主存储引擎端口错误（wkv 紧缩/检查点映射的兜底变体）
+  ///
+  /// 保留 String 而非类型化：wcpr 依赖无环约束下不能依赖 wbftree/wkv
+  /// （BfTree 快照、RangeIndex 恢复、配置校验等宿主专属错误无公共类型可
+  /// 转发），确属跨层动态文案，见 wkv/src/checkpoint.rs 的 cpr_err 映射
   #[error("宿主存储引擎错误: {0}")]
   Host(String),
 

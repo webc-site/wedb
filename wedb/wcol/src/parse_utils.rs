@@ -1,7 +1,8 @@
 //! 集合层共享解析工具
 
 use wbase::num;
-use wresp::{equals_ignore_case, strict_i64};
+use wbase::num::strict_i64;
+use wresp::equals_ignore_case;
 
 use crate::geo::{GeoDistanceUnitType, GeoHash};
 
@@ -22,12 +23,6 @@ pub fn try_get_long(v: &[u8]) -> Option<i64> {
 #[inline]
 pub fn try_get_int(v: &[u8]) -> Option<i32> {
   try_get_long(v).and_then(|v| i32::try_from(v).ok())
-}
-
-/// 严格解析 f64
-#[inline]
-pub fn strict_f64(raw: &[u8], _can_be_infinite: bool) -> Option<f64> {
-  try_parse_with_infinity(raw)
 }
 
 /// 解析 GEO 距离单位词元（m/km/mi/ft）

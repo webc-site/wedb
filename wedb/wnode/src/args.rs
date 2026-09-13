@@ -121,7 +121,7 @@ impl NodeArgs {
 
   /// 从 NestedText 字符串解析配置（唯一的配置文件格式）
   pub fn from_nested_text_str(s: &str) -> Result<Self> {
-    nested_text::from_str(s).map_err(|e| Error::Custom(format!("NestedText 配置解析失败: {e}")))
+    nested_text::from_str(s).map_err(Error::Config)
   }
 
   /// 从 NestedText 文件加载配置

@@ -9,10 +9,10 @@
 //! `strict_i32`/`strict_f32`（逐项对齐 C# `parseState.TryGetInt`/
 //! `TryGetFloat` 的严格语义），错误文案与命令应答对齐 C# 字面量。
 
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
-use wbase::num::format_double;
-use wresp::{cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i32};
+use wresp::format_double;
+use wresp::strict_i32;
 use wvector::{VectorDistanceMetricType, VectorQuantType, VectorValueType};
 use zmij::Buffer;
 
@@ -76,17 +76,37 @@ const ERR_EXPECTED_INTEGER_COUNT: &[u8] = b"ERR expected integer count";
 const ERR_MAX_ALLOCATIONS_EXCEEDED: &[u8] =
   b"ERR Maximum Vector Set allocations exceeded, cannot issue new context";
 
+/// 参数数量错误文案单源模板（对齐 CmdStrings.GenericErrWrongNumArgs；
+/// concat! 编译期静态化，杜绝运行时 replace 堆分配）。
+macro_rules! wrong_num_args {
+  ($cmd:literal) => {
+    concat!("ERR wrong number of arguments for '", $cmd, "' command")
+  };
+}
+
+/// 选项重复文案（对齐 C# `"<OPT> specified multiple times"` 字面量）。
+macro_rules! err_dup {
+  ($opt:literal) => {
+    VectorReply::err(concat!($opt, " specified multiple times").as_bytes())
+  };
+}
+
 /// 命令应答（RESP 数据模型）。
+///
+/// 静态文案（错误/简单字符串）以 `&'static [u8]` 借用承载，动态载荷
+/// （存储读出值、数值格式化、非常量错误）经 `Cow<'static, [u8]>` 落堆：
+/// 检索命中 id/属性的源缓冲（`SimilarityOutput`）为函数局部量，应答归还
+/// 后即释放，故借用上限为 'static，非静态载荷一律 Owned。
 #[derive(Debug, Clone, PartialEq)]
 pub enum VectorReply {
-  /// 简单字符串（+...）。
-  Simple(Vec<u8>),
+  /// 简单字符串（+...，载荷恒为编译期常量文案）。
+  Simple(&'static [u8]),
   /// 错误（-...，含完整前缀）。
-  Error(Vec<u8>),
+  Error(Cow<'static, [u8]>),
   /// 整数。
   Integer(i64),
   /// 批量字符串（None = NULL）。
-  Bulk(Option<Vec<u8>>),
+  Bulk(Option<Cow<'static, [u8]>>),
   /// 数组。
   Array(Vec<VectorReply>),
   /// 空（NULL）数组 `*-1\r\n`（对齐 RespWriteUtils.TryWriteNullArray）。
@@ -100,6 +120,12 @@ pub enum VectorReply {
 }
 
 impl VectorReply {
+  /// 静态错误文案应答（借用零分配）。
+  #[inline]
+  fn err(msg: &'static [u8]) -> Self {
+    Self::Error(Cow::Borrowed(msg))
+  }
+
   /// 编码为 RESP2 字节（Double 退化为 bulk 字符串、Map 退化为双倍长度数组）。
   pub fn encode_resp2(&self, out: &mut Vec<u8>) {
     match self {
@@ -236,7 +262,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// 键存在但不是 Vector Set（索引记录尺寸/格式非法）的错误路径。
   pub fn abort_vector_set_wrong_type(&self, key: &[u8]) -> Option<VectorReply> {
     if self.manager.read_stored_index(key).is_some() {
-      Some(VectorReply::Error(ERR_VECTOR_SET_WRONG_TYPE.to_vec()))
+      Some(VectorReply::err(ERR_VECTOR_SET_WRONG_TYPE))
     } else {
       None
     }
@@ -244,12 +270,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
   /// Vector Set 预览未启用的统一拒绝。
   fn abort_disabled(&self) -> VectorReply {
-    VectorReply::Error(ERR_VECTOR_SET_DISABLED.to_vec())
-  }
-
-  /// 参数数量错误（对齐 CmdStrings.GenericErrWrongNumArgs 模板）。
-  fn abort_wrong_number_of_arguments(cmd: &str) -> VectorReply {
-    VectorReply::Error(GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", cmd).into_bytes())
+    VectorReply::err(ERR_VECTOR_SET_DISABLED)
   }
 
   // ======================== VADD ========================
@@ -271,7 +292,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() < 4 {
-      return Self::abort_wrong_number_of_arguments("VADD");
+      return VectorReply::err(wrong_num_args!("VADD").as_bytes());
     }
 
     let key = args[0];
@@ -284,96 +305,97 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       // C# TryGetInt（严格 i32）；缺失/非法/非正统一报 REDUCE 文案
       let v = args.get(cur_ix).and_then(|a| strict_i32(a));
       let Some(v) = v.filter(|v| *v > 0) else {
-        return VectorReply::Error(ERR_REDUCE_MUST_BE_POSITIVE.to_vec());
+        return VectorReply::err(ERR_REDUCE_MUST_BE_POSITIVE);
       };
       reduce_dims = v as u32;
       cur_ix += 1;
     }
 
     // 向量格式分派：FP32 / VALUES num / XU8|XB8 / XI8
+    // 查询向量零拷贝：FP32/XU8/XI8 借用接收缓冲参数，仅 VALUES 文本浮点落缓冲
     let Some(&kind) = args.get(cur_ix) else {
-      return Self::abort_wrong_number_of_arguments("VADD");
+      return VectorReply::err(wrong_num_args!("VADD").as_bytes());
     };
     let value_type;
-    let values: Vec<u8>;
+    let values: Cow<'_, [u8]>;
     let vector_dims: i32;
     if eq_ignore_case(kind, b"FP32") {
       cur_ix += 1;
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VADD");
+        return VectorReply::err(wrong_num_args!("VADD").as_bytes());
       };
       if as_bytes.len() % 4 != 0 {
-        return VectorReply::Error(ERR_INVALID_VECTOR_SPEC.to_vec());
+        return VectorReply::err(ERR_INVALID_VECTOR_SPEC);
       }
       vector_dims = (as_bytes.len() / 4) as i32;
       if vector_dims > MAX_VECTOR_DIMENSIONS as i32 {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::FP32;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else if eq_ignore_case(kind, b"VALUES") {
       cur_ix += 1;
       let Some(count_raw) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VADD");
+        return VectorReply::err(wrong_num_args!("VADD").as_bytes());
       };
       let Some(n) = strict_i32(count_raw).filter(|n| *n > 0) else {
-        return VectorReply::Error(ERR_INVALID_VECTOR_SPEC.to_vec());
+        return VectorReply::err(ERR_INVALID_VECTOR_SPEC);
       };
       cur_ix += 1;
       if n > MAX_VECTOR_DIMENSIONS as i32 {
         return self.abort_too_many_dimensions();
       }
       if cur_ix + n as usize > args.len() {
-        return Self::abort_wrong_number_of_arguments("VADD");
+        return VectorReply::err(wrong_num_args!("VADD").as_bytes());
       }
       value_type = VectorValueType::FP32;
       let mut floats = Vec::with_capacity(n as usize * 4);
       for _ in 0..n {
         let Some(f) = args.get(cur_ix).and_then(|a| strict_f32(a, true)) else {
-          return VectorReply::Error(ERR_INVALID_VECTOR_SPEC.to_vec());
+          return VectorReply::err(ERR_INVALID_VECTOR_SPEC);
         };
         floats.extend_from_slice(&f.to_le_bytes());
         cur_ix += 1;
       }
       vector_dims = n;
-      values = floats;
+      values = Cow::Owned(floats);
     } else if eq_ignore_case(kind, b"XU8") || eq_ignore_case(kind, b"XB8") {
       // XB8 为向后兼容别名，推荐 XU8
       cur_ix += 1;
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VADD");
+        return VectorReply::err(wrong_num_args!("VADD").as_bytes());
       };
       vector_dims = as_bytes.len() as i32;
       if vector_dims > MAX_VECTOR_DIMENSIONS as i32 {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::XU8;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else if eq_ignore_case(kind, b"XI8") {
       cur_ix += 1;
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VADD");
+        return VectorReply::err(wrong_num_args!("VADD").as_bytes());
       };
       vector_dims = as_bytes.len() as i32;
       if vector_dims > MAX_VECTOR_DIMENSIONS as i32 {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::XI8;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else {
-      return VectorReply::Error(ERR_INVALID_VECTOR_SPEC.to_vec());
+      return VectorReply::err(ERR_INVALID_VECTOR_SPEC);
     }
 
     if reduce_dims as i32 > vector_dims {
-      return VectorReply::Error(ERR_REDUCE_EXCEEDS_DIMS.to_vec());
+      return VectorReply::err(ERR_REDUCE_EXCEEDS_DIMS);
     }
 
     // 元素键
     let Some(&element) = args.get(cur_ix) else {
-      return Self::abort_wrong_number_of_arguments("VADD");
+      return VectorReply::err(wrong_num_args!("VADD").as_bytes());
     };
     cur_ix += 1;
 
@@ -389,65 +411,65 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       let opt = args[cur_ix];
       // REDUCE 在元素之后无论何种写法均非法
       if eq_ignore_case(opt, b"REDUCE") {
-        return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+        return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
       }
       if eq_ignore_case(opt, b"CAS") {
         if cas_seen {
-          return VectorReply::Error(b"CAS specified multiple times".to_vec());
+          return err_dup!("CAS");
         }
         // CAS 仅识别不处理
         cas_seen = true;
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"NOQUANT") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::NoQuant);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"Q8") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::Q8);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"BIN") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::Bin);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"XNOQUANT_U8") || eq_ignore_case(opt, b"XPREQ8") {
         // XPREQ8 为向后兼容别名，推荐 XNOQUANT_U8
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::XnoQuantU8);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"XNOQUANT_I8") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::XnoQuantI8);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"XBIN_I8") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::XbinI8);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"XBIN_U8") {
         if quant.is_some() {
-          return VectorReply::Error(ERR_QUANT_SPECIFIED_TWICE.to_vec());
+          return VectorReply::err(ERR_QUANT_SPECIFIED_TWICE);
         }
         quant = Some(VectorQuantType::XbinU8);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"EF") {
         if build_ef.is_some() {
-          return VectorReply::Error(b"EF specified multiple times".to_vec());
+          return err_dup!("EF");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+          return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
         };
         let Some(v) = strict_i32(v).filter(|v| *v > 0 && *v <= MAX_EXPLORATION_FACTOR as i32)
         else {
@@ -457,21 +479,21 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"SETATTR") {
         if attributes.is_some() {
-          return VectorReply::Error(b"SETATTR specified multiple times".to_vec());
+          return err_dup!("SETATTR");
         }
         cur_ix += 1;
         let Some(attr) = args.get(cur_ix) else {
-          return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+          return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
         };
         attributes = Some(attr);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"M") {
         if num_links.is_some() {
-          return VectorReply::Error(b"M specified multiple times".to_vec());
+          return err_dup!("M");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+          return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
         };
         let Some(v) = strict_i32(v).filter(|v| (MIN_M..=MAX_M).contains(v)) else {
           return Self::abort_m_range();
@@ -480,11 +502,11 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"XDISTANCE_METRIC") {
         if distance_metric.is_some() {
-          return VectorReply::Error(b"XDISTANCE_METRIC specified multiple times".to_vec());
+          return err_dup!("XDISTANCE_METRIC");
         }
         cur_ix += 1;
         let Some(metric) = args.get(cur_ix) else {
-          return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+          return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
         };
         distance_metric = Some(if eq_ignore_case(metric, b"L2") {
           VectorDistanceMetricType::L2
@@ -495,16 +517,16 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         } else if eq_ignore_case(metric, b"XCOSINE_NORMALIZED") {
           VectorDistanceMetricType::XCosineNormalized
         } else {
-          return VectorReply::Error(ERR_INVALID_DISTANCE_METRIC.to_vec());
+          return VectorReply::err(ERR_INVALID_DISTANCE_METRIC);
         });
         cur_ix += 1;
       } else {
-        return VectorReply::Error(ERR_INVALID_OPTION_AFTER_ELEMENT.to_vec());
+        return VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT);
       }
     }
 
     if key.is_empty() {
-      return VectorReply::Error(ERR_EMPTY_VECTOR_SET_KEY.to_vec());
+      return VectorReply::err(ERR_EMPTY_VECTOR_SET_KEY);
     }
 
     // 默认值（对齐 C#：Q8 / 200 / 16 / L2）
@@ -523,7 +545,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         | VectorQuantType::XnoQuantI8
     ) && reduce_dims != 0
     {
-      return VectorReply::Error(ERR_QUANT_MISMATCH.to_vec());
+      return VectorReply::err(ERR_QUANT_MISMATCH);
     }
 
     // 向量维度（供 manager 校验）
@@ -545,7 +567,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
     };
     let (index, _lock) = match self.manager.read_or_create_vector_index(key, Some(&params)) {
       Ok(acquired) => acquired,
-      Err(_) => return VectorReply::Error(ERR_MAX_ALLOCATIONS_EXCEEDED.to_vec()),
+      Err(_) => return VectorReply::err(ERR_MAX_ALLOCATIONS_EXCEEDED),
     };
 
     // 经 manager 执行插入（重复/参数不匹配校验在 try_add 内）
@@ -578,33 +600,35 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         }
       }
       Ok(VectorManagerResult::BadParams) => {
-        VectorReply::Error(VectorManagerResult::BadParams.error_msg().to_vec())
+        VectorReply::err(VectorManagerResult::BadParams.error_msg())
       }
-      Ok(other) => VectorReply::Error(other.error_msg().to_vec()),
-      Err(e) => VectorReply::Error(e.message),
+      Ok(other) => VectorReply::err(other.error_msg()),
+      Err(e) => VectorReply::Error(e.message.into()),
     }
   }
 
   /// 维度上限错误。
   fn abort_too_many_dimensions(&self) -> VectorReply {
     VectorReply::Error(
-      format!("ERR vector exceeds maximum of {MAX_VECTOR_DIMENSIONS} dimensions").into_bytes(),
+      format!("ERR vector exceeds maximum of {MAX_VECTOR_DIMENSIONS} dimensions")
+        .into_bytes()
+        .into(),
     )
   }
 
   /// EF 范围错误。
   fn abort_ef_range() -> VectorReply {
-    VectorReply::Error(ERR_EF_RANGE.to_vec())
+    VectorReply::err(ERR_EF_RANGE)
   }
 
   /// M 范围错误。
   fn abort_m_range() -> VectorReply {
-    VectorReply::Error(ERR_M_RANGE.to_vec())
+    VectorReply::err(ERR_M_RANGE)
   }
 
   /// FILTER-EF 范围错误。
   fn abort_filter_ef_range() -> VectorReply {
-    VectorReply::Error(ERR_FILTER_EF_RANGE.to_vec())
+    VectorReply::err(ERR_FILTER_EF_RANGE)
   }
 
   // ======================== VSIM ========================
@@ -625,7 +649,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() < 3 {
-      return Self::abort_wrong_number_of_arguments("VSIM");
+      return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
     }
 
     let key = args[0];
@@ -634,69 +658,73 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
     let mut element: Option<&[u8]> = None;
     let mut value_type = VectorValueType::Invalid;
-    let mut values: Vec<u8> = Vec::new();
+    // 查询向量零拷贝：ELE/FP32/XU8/XI8 借用接收缓冲参数，仅 VALUES 文本浮点落缓冲
+    let values: Cow<'_, [u8]>;
 
     if eq_ignore_case(kind, b"ELE") {
       // C# 对缺失的元素参数不做显式校验（空切片语义），此处以空串承接
       element = Some(args.get(cur_ix).copied().unwrap_or(b""));
       cur_ix += 1;
+      values = Cow::Borrowed(&[]);
     } else if eq_ignore_case(kind, b"FP32") {
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VSIM");
+        return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
       };
       if as_bytes.len() % 4 != 0 {
-        return VectorReply::Error(ERR_FP32_MULTIPLE_OF_4.to_vec());
+        return VectorReply::err(ERR_FP32_MULTIPLE_OF_4);
       }
       if as_bytes.len() / 4 > MAX_VECTOR_DIMENSIONS as usize {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::FP32;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else if eq_ignore_case(kind, b"XU8") || eq_ignore_case(kind, b"XB8") {
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VSIM");
+        return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
       };
       if as_bytes.len() > MAX_VECTOR_DIMENSIONS as usize {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::XU8;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else if eq_ignore_case(kind, b"XI8") {
       let Some(as_bytes) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VSIM");
+        return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
       };
       if as_bytes.len() > MAX_VECTOR_DIMENSIONS as usize {
         return self.abort_too_many_dimensions();
       }
       value_type = VectorValueType::XI8;
-      values = as_bytes.to_vec();
+      values = Cow::Borrowed(*as_bytes);
       cur_ix += 1;
     } else if eq_ignore_case(kind, b"VALUES") {
       let Some(count_raw) = args.get(cur_ix) else {
-        return Self::abort_wrong_number_of_arguments("VSIM");
+        return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
       };
       let Some(n) = strict_i32(count_raw).filter(|n| *n > 0) else {
-        return VectorReply::Error(ERR_VALUES_COUNT_MUST_BE_POSITIVE.to_vec());
+        return VectorReply::err(ERR_VALUES_COUNT_MUST_BE_POSITIVE);
       };
       if n > MAX_VECTOR_DIMENSIONS as i32 {
         return self.abort_too_many_dimensions();
       }
       cur_ix += 1;
       if cur_ix + n as usize > args.len() {
-        return Self::abort_wrong_number_of_arguments("VSIM");
+        return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
       }
       value_type = VectorValueType::FP32;
+      let mut floats = Vec::with_capacity(n as usize * 4);
       for _ in 0..n {
         let Some(f) = args.get(cur_ix).and_then(|a| strict_f32(a, true)) else {
-          return VectorReply::Error(ERR_VALUES_MUST_BE_FLOAT.to_vec());
+          return VectorReply::err(ERR_VALUES_MUST_BE_FLOAT);
         };
-        values.extend_from_slice(&f.to_le_bytes());
+        floats.extend_from_slice(&f.to_le_bytes());
         cur_ix += 1;
       }
+      values = Cow::Owned(floats);
     } else {
-      return VectorReply::Error(ERR_VSIM_EXPECTED_KIND.to_vec());
+      return VectorReply::err(ERR_VSIM_EXPECTED_KIND);
     }
 
     // 选项（默认值对齐 C#：count=10 / delta=2 / EF=100 / FILTER-EF=16）
@@ -715,23 +743,23 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       let opt = args[cur_ix];
       if eq_ignore_case(opt, b"WITHSCORES") {
         if with_scores {
-          return VectorReply::Error(b"WITHSCORES specified multiple times".to_vec());
+          return err_dup!("WITHSCORES");
         }
         with_scores = true;
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"WITHATTRIBS") {
         if with_attribs {
-          return VectorReply::Error(b"WITHATTRIBS specified multiple times".to_vec());
+          return err_dup!("WITHATTRIBS");
         }
         with_attribs = true;
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"COUNT") {
         if count.is_some() {
-          return VectorReply::Error(b"COUNT specified multiple times".to_vec());
+          return err_dup!("COUNT");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return Self::abort_wrong_number_of_arguments("VSIM");
+          return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
         };
         let Some(v) = strict_i32(v).filter(|v| *v >= 0 && *v <= MAX_RETRIEVE_COUNT as i32) else {
           return Self::abort_count_range();
@@ -740,24 +768,24 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"EPSILON") {
         if epsilon.is_some() {
-          return VectorReply::Error(b"EPSILON specified multiple times".to_vec());
+          return err_dup!("EPSILON");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return Self::abort_wrong_number_of_arguments("VSIM");
+          return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
         };
         let Some(v) = strict_f32(v, true).filter(|v| *v > 0.0) else {
-          return VectorReply::Error(ERR_EPSILON_MUST_BE_POSITIVE.to_vec());
+          return VectorReply::err(ERR_EPSILON_MUST_BE_POSITIVE);
         };
         epsilon = Some(v);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"EF") {
         if ef.is_some() {
-          return VectorReply::Error(b"EF specified multiple times".to_vec());
+          return err_dup!("EF");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return Self::abort_wrong_number_of_arguments("VSIM");
+          return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
         };
         let Some(v) = strict_i32(v).filter(|v| *v > 0 && *v <= MAX_EXPLORATION_FACTOR as i32)
         else {
@@ -767,21 +795,21 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"FILTER") {
         if filter.is_some() {
-          return VectorReply::Error(b"FILTER specified multiple times".to_vec());
+          return err_dup!("FILTER");
         }
         cur_ix += 1;
         let Some(f) = args.get(cur_ix) else {
-          return Self::abort_wrong_number_of_arguments("VSIM");
+          return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
         };
         filter = Some(f);
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"FILTER-EF") {
         if filter_ef.is_some() {
-          return VectorReply::Error(b"FILTER-EF specified multiple times".to_vec());
+          return err_dup!("FILTER-EF");
         }
         cur_ix += 1;
         let Some(v) = args.get(cur_ix) else {
-          return Self::abort_wrong_number_of_arguments("VSIM");
+          return VectorReply::err(wrong_num_args!("VSIM").as_bytes());
         };
         let Some(v) = strict_i32(v).filter(|v| *v >= 4 && *v <= MAX_FILTERING_SCALE_FACTOR as i32)
         else {
@@ -791,20 +819,20 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"TRUTH") {
         if _truth {
-          return VectorReply::Error(b"TRUTH specified multiple times".to_vec());
+          return err_dup!("TRUTH");
         }
         // TODO 语义与 C# 一致：仅识别
         _truth = true;
         cur_ix += 1;
       } else if eq_ignore_case(opt, b"NOTHREAD") {
         if _no_thread {
-          return VectorReply::Error(b"NOTHREAD specified multiple times".to_vec());
+          return err_dup!("NOTHREAD");
         }
         // C# 忽略 NOTHREAD
         _no_thread = true;
         cur_ix += 1;
       } else {
-        return VectorReply::Error(ERR_UNKNOWN_OPTION.to_vec());
+        return VectorReply::err(ERR_UNKNOWN_OPTION);
       }
     }
     // EPSILON / FILTER-EF 参与检索（对齐 C# 传参语义：maxFilteringEffort ??= 16
@@ -837,7 +865,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
     let output = match result {
       Ok(out) => out,
-      Err(e) => return VectorReply::Error(e.message),
+      Err(e) => return VectorReply::Error(e.message.into()),
     };
 
     // 拆包命中
@@ -875,11 +903,11 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() < 2 || args.len() > 3 {
-      return Self::abort_wrong_number_of_arguments("VEMB");
+      return VectorReply::err(wrong_num_args!("VEMB").as_bytes());
     }
     let raw = if args.len() == 3 {
       if !eq_ignore_case(args[2], b"RAW") {
-        return VectorReply::Error(ERR_VEMB_UNEXPECTED_OPTION.to_vec());
+        return VectorReply::err(ERR_VEMB_UNEXPECTED_OPTION);
       }
       true
     } else {
@@ -904,8 +932,8 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
             VectorQuantType::Invalid => b"fp32",
           };
           let mut items = vec![
-            VectorReply::Simple(quant_name.to_vec()),
-            VectorReply::Bulk(Some(bytes)),
+            VectorReply::Simple(quant_name),
+            VectorReply::Bulk(Some(bytes.into())),
             VectorReply::Double(norm),
           ];
           // 仅 Q8 追加量化范围
@@ -935,7 +963,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 1 {
-      return Self::abort_wrong_number_of_arguments("VCARD");
+      return VectorReply::err(wrong_num_args!("VCARD").as_bytes());
     }
     let Some(index) = self.read_index(args[0]) else {
       return VectorReply::Integer(0);
@@ -949,11 +977,11 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 1 {
-      return Self::abort_wrong_number_of_arguments("VDIM");
+      return VectorReply::err(wrong_num_args!("VDIM").as_bytes());
     }
     let Some(index) = self.read_index(args[0]) else {
       // 对齐 C# NOTFOUND → "ERR Key not found"
-      return VectorReply::Error(ERR_KEY_NOT_FOUND.to_vec());
+      return VectorReply::err(ERR_KEY_NOT_FOUND);
     };
     VectorReply::Integer(i64::from(index.dimensions))
   }
@@ -964,14 +992,14 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 2 {
-      return Self::abort_wrong_number_of_arguments("VGETATTR");
+      return VectorReply::err(wrong_num_args!("VGETATTR").as_bytes());
     }
     let Some(index) = self.read_index(args[0]) else {
       // 对齐 C# NOTFOUND → null
       return VectorReply::Bulk(None);
     };
     match self.manager.service.get_attribute(index.context, args[1]) {
-      Some(attr) => VectorReply::Bulk(Some(attr)),
+      Some(attr) => VectorReply::Bulk(Some(attr.into())),
       None => VectorReply::Bulk(None),
     }
   }
@@ -985,7 +1013,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 1 {
-      return Self::abort_wrong_number_of_arguments("VINFO");
+      return VectorReply::err(wrong_num_args!("VINFO").as_bytes());
     }
     let Some(index) = self.read_index(args[0]) else {
       // 对齐 C# NOTFOUND → null 数组
@@ -1000,9 +1028,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       VectorQuantType::XnoQuantI8 => b"xnoquant_i8",
       VectorQuantType::XbinI8 => b"xbin_i8",
       VectorQuantType::XbinU8 => b"xbin_u8",
-      VectorQuantType::Invalid => {
-        return VectorReply::Error(b"ERR Invalid VectorQuantType".to_vec());
-      }
+      VectorQuantType::Invalid => return VectorReply::err(b"ERR Invalid VectorQuantType"),
     };
     let metric: &[u8] = match index.distance_metric {
       VectorDistanceMetricType::Cosine => b"cosine",
@@ -1010,28 +1036,29 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       VectorDistanceMetricType::L2 => b"l2",
       VectorDistanceMetricType::XCosineNormalized => b"cosine-normalized",
     };
-    let bulk_u32 = |v: u32| VectorReply::Bulk(Some(v.to_string().into_bytes()));
+    let bulk_u32 = |v: u32| VectorReply::Bulk(Some(v.to_string().into_bytes().into()));
     VectorReply::Array(vec![
-      VectorReply::Simple(b"quant-type".to_vec()),
-      VectorReply::Simple(quant.to_vec()),
-      VectorReply::Simple(b"distance-metric".to_vec()),
-      VectorReply::Simple(metric.to_vec()),
-      VectorReply::Simple(b"input-vector-dimensions".to_vec()),
+      VectorReply::Simple(b"quant-type"),
+      VectorReply::Simple(quant),
+      VectorReply::Simple(b"distance-metric"),
+      VectorReply::Simple(metric),
+      VectorReply::Simple(b"input-vector-dimensions"),
       bulk_u32(index.dimensions),
-      VectorReply::Simple(b"reduced-dimensions".to_vec()),
+      VectorReply::Simple(b"reduced-dimensions"),
       bulk_u32(index.reduce_dims),
-      VectorReply::Simple(b"build-exploration-factor".to_vec()),
+      VectorReply::Simple(b"build-exploration-factor"),
       bulk_u32(index.build_exploration_factor),
-      VectorReply::Simple(b"num-links".to_vec()),
+      VectorReply::Simple(b"num-links"),
       bulk_u32(index.num_links),
-      VectorReply::Simple(b"size".to_vec()),
+      VectorReply::Simple(b"size"),
       VectorReply::Bulk(Some(
         self
           .manager
           .service
           .card(index.context)
           .to_string()
-          .into_bytes(),
+          .into_bytes()
+          .into(),
       )),
     ])
   }
@@ -1048,7 +1075,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 2 {
-      return Self::abort_wrong_number_of_arguments("VISMEMBER");
+      return VectorReply::err(wrong_num_args!("VISMEMBER").as_bytes());
     }
     let member = self
       .read_index(args[0])
@@ -1070,10 +1097,10 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 2 && args.len() != 3 {
-      return Self::abort_wrong_number_of_arguments("VLINKS");
+      return VectorReply::err(wrong_num_args!("VLINKS").as_bytes());
     }
     if args.len() == 3 && !eq_ignore_case(args[2], b"WITHSCORES") {
-      return VectorReply::Error(ERR_VLINKS_UNEXPECTED_OPTION.to_vec());
+      return VectorReply::err(ERR_VLINKS_UNEXPECTED_OPTION);
     }
     let Some(index) = self.read_index(args[0]) else {
       return VectorReply::Bulk(None);
@@ -1082,7 +1109,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       Some(links) => VectorReply::Array(
         links
           .into_iter()
-          .map(|l| VectorReply::Bulk(Some(l)))
+          .map(|l| VectorReply::Bulk(Some(l.into())))
           .collect(),
       ),
       None => VectorReply::Bulk(None),
@@ -1097,12 +1124,12 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.is_empty() || args.len() > 2 {
-      return Self::abort_wrong_number_of_arguments("VRANDMEMBER");
+      return VectorReply::err(wrong_num_args!("VRANDMEMBER").as_bytes());
     }
     let count = match args.get(1) {
       Some(raw) => {
         let Some(v) = strict_i32(raw) else {
-          return VectorReply::Error(ERR_EXPECTED_INTEGER_COUNT.to_vec());
+          return VectorReply::err(ERR_EXPECTED_INTEGER_COUNT);
         };
         v
       }
@@ -1122,14 +1149,14 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       .sample(index.context, count.max(0) as usize);
     if count == 1 && args.len() == 1 {
       return match samples.into_iter().next() {
-        Some(s) => VectorReply::Bulk(Some(s)),
+        Some(s) => VectorReply::Bulk(Some(s.into())),
         None => VectorReply::Bulk(None),
       };
     }
     VectorReply::Array(
       samples
         .into_iter()
-        .map(|v| VectorReply::Bulk(Some(v)))
+        .map(|v| VectorReply::Bulk(Some(v.into())))
         .collect(),
     )
   }
@@ -1140,7 +1167,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 2 {
-      return Self::abort_wrong_number_of_arguments("VREM");
+      return VectorReply::err(wrong_num_args!("VREM").as_bytes());
     }
     let Some(index) = self.read_index(args[0]) else {
       return VectorReply::Integer(0);
@@ -1164,7 +1191,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       return self.abort_disabled();
     }
     if args.len() != 3 {
-      return Self::abort_wrong_number_of_arguments("VSETATTR");
+      return VectorReply::err(wrong_num_args!("VSETATTR").as_bytes());
     }
     let found = self.read_index(args[0]).is_some_and(|index| {
       self
@@ -1183,7 +1210,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 /// COUNT 范围错误。
 impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   fn abort_count_range() -> VectorReply {
-    VectorReply::Error(ERR_COUNT_RANGE.to_vec())
+    VectorReply::err(ERR_COUNT_RANGE)
   }
 }
 
@@ -1240,12 +1267,13 @@ impl RespServerSessionVectors {
         .and_then(|attrs| attrs.get(result_index))
         .copied()
       {
-        Some(a) if !a.is_empty() => VectorReply::Bulk(Some(a.to_vec())),
+        // 命中属性源为函数局部检索缓冲，应答需拥有数据（仅此处落堆）
+        Some(a) if !a.is_empty() => VectorReply::Bulk(Some(a.to_vec().into())),
         // RESP3：空属性写 NULL
         _ => VectorReply::Bulk(None),
       };
       if !with_scores && !with_attribs {
-        plain.push(VectorReply::Bulk(Some(id.to_vec())));
+        plain.push(VectorReply::Bulk(Some(id.to_vec().into())));
       } else {
         // 分数与属性齐备时以二元素数组为 map 值（顺序：score → attr）
         let value = if with_scores && with_attribs {
@@ -1255,7 +1283,7 @@ impl RespServerSessionVectors {
         } else {
           attr_reply
         };
-        map.push((VectorReply::Bulk(Some(id.to_vec())), value));
+        map.push((VectorReply::Bulk(Some(id.to_vec().into())), value));
       }
       written += 1;
     }
@@ -1301,14 +1329,15 @@ impl RespServerSessionVectors {
       if has_filter && (filter_bitmap[result_index >> 3] >> (result_index & 7)) & 1 == 0 {
         continue;
       }
-      items.push(VectorReply::Bulk(Some(id.to_vec())));
+      // 命中 id/属性源为函数局部检索缓冲，应答需拥有数据（仅此处落堆）
+      items.push(VectorReply::Bulk(Some(id.to_vec().into())));
       if with_scores {
         items.push(VectorReply::Double(f64::from(
           distances.get(result_index).copied().unwrap_or(0.0),
         )));
       }
       if with_attribs && let Some(attr) = attributes.and_then(|attrs| attrs.get(result_index)) {
-        items.push(VectorReply::Bulk(Some(attr.to_vec())));
+        items.push(VectorReply::Bulk(Some(attr.to_vec().into())));
       }
       written += 1;
     }

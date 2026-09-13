@@ -27,11 +27,6 @@ pub const TIMEOUT_ERROR: &[u8] = b"ERR Lua script exceeded configured timeout";
 /// 超时截止槽（单调毫秒；挂给 VM 中断回调读取）。
 type Deadline = Cell<Option<i64>>;
 
-/// 当前单调毫秒（coarsetime；超时截止的时钟基准）。
-pub fn now_monotonic_millis() -> i64 {
-  coarsetime::Clock::now_since_epoch().as_millis() as i64
-}
-
 /// Lua 状态：VM 指针 + 可选自定义分配器 + 超时截止。
 ///
 /// `!Send`：VM 与宿主回调窗口同线程，不得跨线程移交。
@@ -668,7 +663,8 @@ unsafe extern "C" fn interrupt_trampoline(l: *mut sys::lua_State, _count: c_int)
     return;
   }
   // SAFETY：slot 随 LuaState 存活，仅本线程读写（中断同线程触发）。
-  let expired = unsafe { (*slot).get() }.is_some_and(|deadline| now_monotonic_millis() >= deadline);
+  let expired =
+    unsafe { (*slot).get() }.is_some_and(|deadline| wbase::time::now_ms() as i64 >= deadline);
   if expired {
     // SAFETY：压串后长跳转至宿主 lua_pcall；跳越帧无析构对象。
     unsafe {

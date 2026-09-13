@@ -15,76 +15,18 @@
 //! - 整数（TryReadInt32Safe/TryReadInt64Safe, allowLeadingZeros: false）：
 //!   可选 +/- 号、拒绝前导零（单独 0 允许）、纯数字整体消费、值域校验；
 //! - 浮点（Utf8Parser.TryParse + TryReadInfinity 白名单）：NaN 恒拒绝，
-//!   inf 字面量仅 INF/+INF/-INF（大小写不敏感）且须 canBeInfinite。
+//!   inf 字面量白名单 inf/+inf/-inf/infinity/+infinity/-infinity
+//!   （大小写不敏感）且须 canBeInfinite；实现单一落 [`wbase::num`]。
 
 use std::{ptr::null, str::from_utf8};
 
-use wresp::{
-  ArgSlice, MAX_ARGUMENT_LENGTH_BYTES as MAX_ARG_LEN, SessionParseState, strict_i32, strict_i64,
-};
+use wbase::num::{strict_i32, strict_i64};
+use wresp::{ArgSlice, MAX_ARGUMENT_LENGTH_BYTES as MAX_ARG_LEN, SessionParseState};
 
 pub const MAX_ARGUMENT_LENGTH_BYTES: usize = MAX_ARG_LEN as usize;
 
-/// 是否为 Rust parse 额外接受的 inf 字面量形式（inf/infinity ± 前缀，
-/// 大小写不敏感）；C# Utf8Parser 不接受这些字面量
-#[inline]
-fn is_inf_literal(raw: &[u8]) -> bool {
-  const LITERALS: [&[u8]; 6] = [
-    b"inf",
-    b"+inf",
-    b"-inf",
-    b"infinity",
-    b"+infinity",
-    b"-infinity",
-  ];
-  LITERALS.iter().any(|l| raw.eq_ignore_ascii_case(l))
-}
-
-/// libs/server/Resp/Parser/ParseUtils.cs:TryReadDouble
-///
-/// C# 双分支：Utf8Parser.TryParse 整体消费成功即返回（数值溢出得的 ±inf 亦
-/// 接受，如 "1e999"）；失败且 canBeInfinite 时走 TryReadInfinity 白名单
-///（INF/+INF/-INF，大小写不敏感）。NaN 恒拒绝
-#[inline]
-pub fn strict_f64(raw: &[u8], can_be_infinite: bool) -> Option<f64> {
-  if let Some(v) = from_utf8(raw).ok().and_then(|t| t.parse::<f64>().ok()) {
-    // Rust parse 接受 inf/infinity/nan 字面量 → 视作 Utf8Parser 失败，落入白名单
-    if !v.is_nan() && !(v.is_infinite() && is_inf_literal(raw)) {
-      return Some(v);
-    }
-  }
-  if can_be_infinite {
-    if raw.eq_ignore_ascii_case(b"INF") || raw.eq_ignore_ascii_case(b"+INF") {
-      return Some(f64::INFINITY);
-    }
-    if raw.eq_ignore_ascii_case(b"-INF") {
-      return Some(f64::NEG_INFINITY);
-    }
-  }
-  None
-}
-
-/// libs/server/Resp/Parser/ParseUtils.cs:TryReadFloat
-///
-/// 同 [`strict_f64`] 的 f32 版（TryReadInfinity float 重载同白名单）
-#[inline]
-pub fn strict_f32(raw: &[u8], can_be_infinite: bool) -> Option<f32> {
-  if let Some(v) = from_utf8(raw).ok().and_then(|t| t.parse::<f32>().ok())
-    && !v.is_nan()
-    && !(v.is_infinite() && is_inf_literal(raw))
-  {
-    return Some(v);
-  }
-  if can_be_infinite {
-    if raw.eq_ignore_ascii_case(b"INF") || raw.eq_ignore_ascii_case(b"+INF") {
-      return Some(f32::INFINITY);
-    }
-    if raw.eq_ignore_ascii_case(b"-INF") {
-      return Some(f32::NEG_INFINITY);
-    }
-  }
-  None
-}
+// 过渡期兼容转发（实现单一落 wbase::num；存量调用方迁移完成后删除）
+pub use wbase::num::{strict_f32, strict_f64};
 
 /// libs/server/Resp/Parser/SessionParseState.cs:InitializeWithArgument
 ///
@@ -338,9 +280,9 @@ mod tests {
     assert_eq!(try_get_double(&state, 0, false), None);
     assert_eq!(try_get_double(&state, 1, true), Some(f64::NEG_INFINITY));
     assert_eq!(try_get_double(&state, 4, true), Some(f64::INFINITY));
-    // NaN 恒拒绝；"Infinity" 非白名单（C# 仅 3/4 字节 INF 形式）
+    // NaN 恒拒绝；infinity 全拼在扩展白名单内（wbase::num::strict_f64 统一口径）
     assert_eq!(try_get_double(&state, 2, true), None);
-    assert_eq!(try_get_double(&state, 5, true), None);
+    assert_eq!(try_get_double(&state, 5, true), Some(f64::INFINITY));
     assert_eq!(try_get_float(&state, 3, false), Some(1000.0));
     // 数值溢出至 inf（"1e999"）：C# Utf8Parser 首分支接受，不受白名单约束
     assert_eq!(strict_f64(b"1e999", false), Some(f64::INFINITY));

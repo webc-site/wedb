@@ -10,6 +10,7 @@ use wbase::{
 };
 use wcol::object_store_utils::is_object_envelope;
 use wconf::ServerConfig;
+use wbase::num::{strict_f64, strict_i32, strict_i64};
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{
@@ -17,11 +18,10 @@ use wresp::{
     abort_with_unsupported_option, write_raw,
   },
   key_spec::KeySpecificationFlags,
-  strict_i32, strict_i64, unpack_args,
+  unpack_args,
 };
 
 use super::{
-  parser::session_parse_state::strict_f64,
   resp_server_session::RespServerSession,
   ttl_sync::{del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync},
 };

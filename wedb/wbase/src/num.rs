@@ -146,6 +146,98 @@ pub fn try_parse_with_infinity(source: &[u8], value: &mut f64) -> bool {
   false
 }
 
+/// C# 严格整数解析（对照 RespReadUtils.TryReadInt64Safe allowLeadingZeros: false 语义）：
+/// 可选 +/- 号；首数字 '0' 且后续仍有数字即拒绝（"0"/"-0"
+/// 合法，"007" 非法）；须为纯数字且整体消费；负值域至 i64::MIN；
+/// 溢出返回 None
+#[inline]
+pub fn strict_i64(raw: &[u8]) -> Option<i64> {
+  let (digits, negative) = match raw {
+    [b'+', rest @ ..] => (rest, false),
+    [b'-', rest @ ..] => (rest, true),
+    rest => (rest, false),
+  };
+  if digits.is_empty() || (digits.len() > 1 && digits[0] == b'0') {
+    return None;
+  }
+  let mut number: u64 = 0;
+  for &d in digits {
+    if !d.is_ascii_digit() {
+      return None;
+    }
+    number = number.checked_mul(10)?.checked_add(u64::from(d - b'0'))?;
+  }
+  if negative {
+    if number == i64::MIN.unsigned_abs() {
+      Some(i64::MIN)
+    } else {
+      let positive = i64::try_from(number).ok()?;
+      Some(-positive)
+    }
+  } else {
+    i64::try_from(number).ok()
+  }
+}
+
+/// 同 [`strict_i64`] 的 i32 值域版（C# int.MaxValue 上限语义）
+#[inline]
+pub fn strict_i32(raw: &[u8]) -> Option<i32> {
+  i32::try_from(strict_i64(raw)?).ok()
+}
+
+/// inf/infinity 词形符号判定（inf/+inf/-inf/infinity/+infinity/-infinity，
+/// 大小写不敏感）：Some(true) → +∞，Some(false) → -∞
+#[inline]
+fn infinity_sign(raw: &[u8]) -> Option<bool> {
+  let (body, positive) = match raw {
+    [b'+', rest @ ..] => (rest, true),
+    [b'-', rest @ ..] => (rest, false),
+    rest => (rest, true),
+  };
+  (body.eq_ignore_ascii_case(b"inf") || body.eq_ignore_ascii_case(b"infinity"))
+    .then_some(positive)
+}
+
+/// 生成严格浮点解析函数（C# ParseUtils.cs:TryReadDouble/TryReadFloat 口径）：
+/// [`try_parse_f32`]/[`try_parse_f64`]（Utf8Parser 整体消费语义，NaN 恒拒绝）
+/// 成功即返回；失败且 `can_be_infinite` 时落 inf 词形白名单
+///（TryReadInfinity 扩展词表，含 infinity 全拼，大小写不敏感）
+macro_rules! strict_float {
+  ($(#[$meta:meta])* $name:ident, $ty:ty, $parse:ident) => {
+    $(#[$meta])*
+    #[inline]
+    pub fn $name(raw: &[u8], can_be_infinite: bool) -> Option<$ty> {
+      let mut value = 0.0;
+      if $parse(raw, &mut value) {
+        return Some(value);
+      }
+      if can_be_infinite {
+        return match infinity_sign(raw) {
+          Some(true) => Some(<$ty>::INFINITY),
+          Some(false) => Some(<$ty>::NEG_INFINITY),
+          None => None,
+        };
+      }
+      None
+    }
+  };
+}
+
+strict_float!(
+  /// C# ParseUtils.cs:TryReadDouble：严格解析 f64；`can_be_infinite` 放行
+  /// inf 词形白名单（inf/+inf/-inf/infinity/+infinity/-infinity）
+  strict_f64,
+  f64,
+  try_parse_f64
+);
+
+strict_float!(
+  /// 同 [`strict_f64`] 的 f32 版（C# ParseUtils.cs:TryReadFloat）
+  strict_f32,
+  f32,
+  try_parse_f32
+);
+
 /// garnet/libs/common/NumUtils.cs:GetNextOffset
 ///
 /// 提取最低置位偏移并原位清除该位。`value == 0` 时 C# 的 `1UL << 64`
@@ -159,40 +251,72 @@ pub fn get_next_offset(value: &mut u64) -> i32 {
   offset
 }
 
-/// 将双精度浮点数格式化为 Redis/Garnet 标准文本形式：
-/// - NaN → "nan"
-/// - +inf → "inf"
-/// - -inf → "-inf"
-/// - 有限数值通过 zmij::Buffer 零堆分配格式化为最短往返表示
-#[inline]
-pub fn format_double(value: f64, buf: &mut zmij::Buffer) -> &str {
-  if value.is_nan() {
-    "nan"
-  } else if value.is_infinite() {
-    if value > 0.0 { "inf" } else { "-inf" }
-  } else {
-    let s = buf.format(value);
-    if let Some(stripped) = s.strip_suffix(".0") {
-      stripped
-    } else {
-      s
-    }
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
-  fn test_format_double() {
-    let mut buf = zmij::Buffer::new();
-    assert_eq!(format_double(1.25, &mut buf), "1.25");
-    assert_eq!(format_double(0.0, &mut buf), "0");
-    assert_eq!(format_double(2.0, &mut buf), "2");
-    assert_eq!(format_double(-42.5, &mut buf), "-42.5");
-    assert_eq!(format_double(f64::NAN, &mut buf), "nan");
-    assert_eq!(format_double(f64::INFINITY, &mut buf), "inf");
-    assert_eq!(format_double(f64::NEG_INFINITY, &mut buf), "-inf");
+  fn strict_i64_strict() {
+    assert_eq!(strict_i64(b"42"), Some(42));
+    assert_eq!(strict_i64(b"-7"), Some(-7));
+    assert_eq!(strict_i64(b"+3"), Some(3));
+    assert_eq!(strict_i64(b"0"), Some(0));
+    assert_eq!(strict_i64(b"-0"), Some(0));
+    assert_eq!(strict_i64(b"+0"), Some(0));
+    assert_eq!(strict_i64(b"9223372036854775807"), Some(i64::MAX));
+    assert_eq!(strict_i64(b"-9223372036854775808"), Some(i64::MIN));
+    assert_eq!(strict_i64(b"007"), None);
+    assert_eq!(strict_i64(b"-007"), None);
+    assert_eq!(strict_i64(b"abc"), None);
+    assert_eq!(strict_i64(b""), None);
+    assert_eq!(strict_i64(b"1 2"), None);
+    assert_eq!(strict_i64(b" 1"), None);
+    assert_eq!(strict_i64(b"5 "), None);
+    assert_eq!(strict_i64(b"1x"), None);
+    assert_eq!(strict_i64(b"9223372036854775808"), None);
+    assert_eq!(strict_i64(b"-9223372036854775809"), None);
+  }
+
+  #[test]
+  fn strict_i32_strict() {
+    assert_eq!(strict_i32(b"42"), Some(42));
+    assert_eq!(strict_i32(b"-7"), Some(-7));
+    assert_eq!(strict_i32(b"2147483647"), Some(i32::MAX));
+    assert_eq!(strict_i32(b"-2147483648"), Some(i32::MIN));
+    assert_eq!(strict_i32(b"2147483648"), None);
+    assert_eq!(strict_i32(b"-2147483649"), None);
+    assert_eq!(strict_i32(b"007"), None);
+    assert_eq!(strict_i32(b"01"), None);
+  }
+
+  #[test]
+  fn strict_f64_infinity_forms() {
+    // 数值溢出得的 ±inf 保留（Utf8Parser 口径）
+    assert_eq!(strict_f64(b"1e999", false), Some(f64::INFINITY));
+    // NaN 恒拒绝
+    assert_eq!(strict_f64(b"nan", true), None);
+    // inf 词形仅 can_be_infinite 放行
+    assert_eq!(strict_f64(b"inf", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"INF", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"+inf", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"+Inf", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"-inf", true), Some(f64::NEG_INFINITY));
+    assert_eq!(strict_f64(b"-INF", true), Some(f64::NEG_INFINITY));
+    assert_eq!(strict_f64(b"infinity", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"+infinity", true), Some(f64::INFINITY));
+    assert_eq!(strict_f64(b"-INFINITY", true), Some(f64::NEG_INFINITY));
+    assert_eq!(strict_f64(b"inf", false), None);
+    assert_eq!(strict_f64(b"infinity", false), None);
+    assert_eq!(strict_f64(b"info", true), None);
+    assert_eq!(strict_f64(b"", true), None);
+  }
+
+  #[test]
+  fn strict_f32_infinity_forms() {
+    assert_eq!(strict_f32(b"1e999", true), Some(f32::INFINITY));
+    assert_eq!(strict_f32(b"inf", true), Some(f32::INFINITY));
+    assert_eq!(strict_f32(b"-infinity", true), Some(f32::NEG_INFINITY));
+    assert_eq!(strict_f32(b"nan", true), None);
+    assert_eq!(strict_f32(b"inf", false), None);
   }
 }

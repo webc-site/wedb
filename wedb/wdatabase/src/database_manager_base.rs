@@ -220,7 +220,7 @@ impl<D: Device> DatabaseManagerBase<D> {
     }
 
     let token = meta.token;
-    db.update_last_save(coarsetime::Clock::now_since_epoch().as_millis());
+    db.update_last_save(wbase::time::now_ms());
     db.store.set_current_version(checkpoint_version(token));
 
     Ok(true)

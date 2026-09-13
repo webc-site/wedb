@@ -1078,9 +1078,9 @@ impl RespServerSession {
         self.abort_wrong_num_args("TIME");
         return true;
       }
-      let now = coarsetime::Clock::now_since_epoch();
-      let secs = now.as_secs();
-      let usecs = (now.as_nanos() % 1_000_000_000) / 1000;
+      let now_nanos = wbase::time::now_nanos();
+      let secs = now_nanos / 1_000_000_000;
+      let usecs = (now_nanos % 1_000_000_000) / 1_000;
       let mut b1 = itoa::Buffer::new();
       let s_str = b1.format(secs);
       let mut b2 = itoa::Buffer::new();

@@ -29,7 +29,6 @@ whasher.workspace = true
 parking_lot.workspace = true
 bitflags.workspace = true
 gxhash.workspace = true
-coarsetime.workspace = true
 zmij.workspace = true
 itoa.workspace = true
 num_enum = "0.7.6"
@@ -40,6 +39,7 @@ bitcode.workspace = true
 fastrand.workspace = true
 
 [dev-dependencies]
+wbase = { workspace = true, features = ["future"] }
 aok.workspace = true
 ctor.workspace = true
 fastrand.workspace = true

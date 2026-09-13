@@ -9,17 +9,16 @@
 use std::{
   alloc::Layout,
   any::TypeId,
-  borrow::Cow,
   future,
   marker::PhantomData,
   mem,
   ops::{Deref, DerefMut},
-  ptr::{self, NonNull},
+  ptr::NonNull,
   sync::atomic::{AtomicBool, AtomicU64, Ordering},
   thread::available_parallelism,
 };
 
-use bytemuck::{bytes_of, bytes_of_mut, cast_slice, try_cast_slice};
+use bytemuck::{bytes_of, bytes_of_mut, cast_slice};
 use diskann::{
   ANNError, ANNResult,
   error::StandardError,
@@ -41,6 +40,7 @@ use diskann::{
     DataProvider, Delete, ElementStatus, HasId, NeighborAccessor, NeighborAccessorMut, NoopGuard,
     SetElement,
   },
+  utils::vector_repr::BufferedDistance,
   utils::VectorRepr,
 };
 use diskann_providers::common::{FnPtr, MinMax8};
@@ -53,7 +53,9 @@ use diskann_utils::{
   views::{Matrix, MatrixView},
 };
 use diskann_vector::{
-  DistanceFunction, PreprocessedDistanceFunction, contains::ContainsSimd, distance::Metric,
+  DistanceFunction, PreprocessedDistanceFunction, UnalignedSlice,
+  contains::ContainsSimd,
+  distance::{Distance, DistanceProvider, Metric},
 };
 use gxhash::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
@@ -144,43 +146,48 @@ pub enum WedbProviderError {
 diskann::convert_error!(WedbProviderError);
 diskann::always_escalate!(WedbProviderError);
 
-/// 全精度两两距离包装器。
-pub struct FullPrecisionDistance<T: VectorRepr>(pub T::Distance);
+/// 原生全精度元素（u8/i8/f32）：其 [`VectorRepr::Distance`] /
+/// [`VectorRepr::QueryDistance`] 恒为 diskann 原生 [`Distance`] /
+/// [`BufferedDistance`]，二者官方实现 `UnalignedSlice` 入参的零拷贝 SIMD
+/// 距离核，据此将任意字节区间（含未对齐页内向量）无分配提升为元素视图。
+pub trait NativeElement: VectorRepr + DistanceProvider<Self> {}
+impl NativeElement for u8 {}
+impl NativeElement for i8 {}
+impl NativeElement for f32 {}
 
+/// 字节区间提升为未对齐 `T` 元素视图（长度按元素尺寸截断，与原 cast 语义一致）。
+///
+/// # Safety
+/// `s` 在返回的 [`UnalignedSlice`] 借用期内整段可读；`UnalignedSlice` 契约仅
+/// 要求 `read_unaligned` 有效性，对指针对齐无任何要求（diskann-vector
+/// unaligned.rs），故任意合法字节切片均满足。
 #[inline]
-fn safe_cast_slice<T: VectorRepr>(s: &[u8]) -> Cow<'_, [T]> {
-  match try_cast_slice::<u8, T>(s) {
-    Ok(aligned) => Cow::Borrowed(aligned),
-    Err(_) => {
-      let len = s.len() / mem::size_of::<T>();
-      let mut vec = Vec::<T>::with_capacity(len);
-      let bytes_to_copy = len * mem::size_of::<T>();
-      unsafe {
-        ptr::copy_nonoverlapping(s.as_ptr(), vec.as_mut_ptr() as *mut u8, bytes_to_copy);
-        vec.set_len(len);
-      }
-      Cow::Owned(vec)
-    }
-  }
+unsafe fn unaligned_view<T>(s: &[u8]) -> UnalignedSlice<'_, T> {
+  // SAFETY: 见函数级安全论证（UnalignedSlice 仅要求 read_unaligned 有效性）
+  unsafe { UnalignedSlice::new(s.as_ptr().cast(), s.len() / mem::size_of::<T>()) }
 }
 
-impl<T: VectorRepr> RawDistanceComputer for FullPrecisionDistance<T> {
+/// 全精度两两距离包装器。
+pub struct FullPrecisionDistance<T: NativeElement>(Distance<T, T>);
+
+impl<T: NativeElement> RawDistanceComputer for FullPrecisionDistance<T> {
   #[inline]
   fn evaluate_similarity(&self, a: &[u8], b: &[u8]) -> f32 {
-    let a_slice = safe_cast_slice::<T>(a);
-    let b_slice = safe_cast_slice::<T>(b);
-    self.0.evaluate_similarity(&a_slice, &b_slice)
+    // 零拷贝：HNSW 遍历中页内邻居向量地址几乎必然非对齐，统一走官方
+    // UnalignedSlice SIMD 核（read_unaligned 语义），消除每次距离计算的
+    // 堆分配与整体拷贝
+    unsafe { self.0.evaluate_similarity(unaligned_view::<T>(a), unaligned_view::<T>(b)) }
   }
 }
 
 /// 全精度查询距离包装器。
-pub struct FullPrecisionQueryDistance<T: VectorRepr>(pub T::QueryDistance);
+pub struct FullPrecisionQueryDistance<T: NativeElement>(BufferedDistance<T, T>);
 
-impl<T: VectorRepr> RawQueryComputer for FullPrecisionQueryDistance<T> {
+impl<T: NativeElement> RawQueryComputer for FullPrecisionQueryDistance<T> {
   #[inline]
   fn evaluate_similarity(&self, a: &[u8]) -> f32 {
-    let a_slice = safe_cast_slice::<T>(a);
-    self.0.evaluate_similarity(&a_slice)
+    // 零拷贝：同 FullPrecisionDistance，查询侧邻居向量未对齐直读
+    unsafe { self.0.evaluate_similarity(unaligned_view::<T>(a)) }
   }
 }
 
@@ -243,7 +250,7 @@ impl PreprocessedDistanceFunction<&[u8]> for QueryComputer {
 }
 
 /// 全精度距离/查询计算机装配 trait。
-pub trait ToDistanceComputer: VectorRepr {
+pub trait ToDistanceComputer: NativeElement {
   fn to_distance_computer(metric: Metric, dim: usize) -> DistanceComputer;
   fn to_query_computer(query: &[Self], metric: Metric) -> QueryComputer;
 }
@@ -251,12 +258,16 @@ pub trait ToDistanceComputer: VectorRepr {
 impl ToDistanceComputer for u8 {
   #[inline]
   fn to_distance_computer(metric: Metric, dim: usize) -> DistanceComputer {
-    DistanceComputer::FullU8(FullPrecisionDistance(Self::distance(metric, Some(dim))))
+    DistanceComputer::FullU8(FullPrecisionDistance(Self::distance_comparer(
+      metric,
+      Some(dim),
+    )))
   }
   #[inline]
   fn to_query_computer(query: &[Self], metric: Metric) -> QueryComputer {
-    QueryComputer::FullU8(FullPrecisionQueryDistance(Self::query_distance(
-      query, metric,
+    QueryComputer::FullU8(FullPrecisionQueryDistance(BufferedDistance::new(
+      query.into(),
+      metric,
     )))
   }
 }
@@ -264,12 +275,16 @@ impl ToDistanceComputer for u8 {
 impl ToDistanceComputer for i8 {
   #[inline]
   fn to_distance_computer(metric: Metric, dim: usize) -> DistanceComputer {
-    DistanceComputer::FullI8(FullPrecisionDistance(Self::distance(metric, Some(dim))))
+    DistanceComputer::FullI8(FullPrecisionDistance(Self::distance_comparer(
+      metric,
+      Some(dim),
+    )))
   }
   #[inline]
   fn to_query_computer(query: &[Self], metric: Metric) -> QueryComputer {
-    QueryComputer::FullI8(FullPrecisionQueryDistance(Self::query_distance(
-      query, metric,
+    QueryComputer::FullI8(FullPrecisionQueryDistance(BufferedDistance::new(
+      query.into(),
+      metric,
     )))
   }
 }
@@ -277,12 +292,16 @@ impl ToDistanceComputer for i8 {
 impl ToDistanceComputer for f32 {
   #[inline]
   fn to_distance_computer(metric: Metric, dim: usize) -> DistanceComputer {
-    DistanceComputer::FullF32(FullPrecisionDistance(Self::distance(metric, Some(dim))))
+    DistanceComputer::FullF32(FullPrecisionDistance(Self::distance_comparer(
+      metric,
+      Some(dim),
+    )))
   }
   #[inline]
   fn to_query_computer(query: &[Self], metric: Metric) -> QueryComputer {
-    QueryComputer::FullF32(FullPrecisionQueryDistance(Self::query_distance(
-      query, metric,
+    QueryComputer::FullF32(FullPrecisionQueryDistance(BufferedDistance::new(
+      query.into(),
+      metric,
     )))
   }
 }

@@ -2,7 +2,7 @@
 
 use std::str;
 
-use wbase::num::format_double;
+use wresp::format_double;
 use wdev::Device;
 use zmij::Buffer;
 

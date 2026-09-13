@@ -27,15 +27,20 @@ pub trait ServerEnumerate: Send + Sync {
 }
 
 /// 消息消费者面（底层网络读写切片泵消费端）
+///
+/// 应答主形态为 [`Self::try_consume_messages_into`]（零拷贝直写泵写缓冲）；
+/// 分配形态 [`Self::try_consume_messages`] 为存量兼容面（集群复制会话与
+/// 副本流水线 FrameSink 等外部调用方仍依赖，默认桥接实现，勿在新路径使用）
 pub trait MessageConsumerFace: Send + 'static {
-  /// 消费接收缓冲区中的消息
+  /// 兼容形态：消费接收缓冲区中的消息，应答整体落在独立 Vec 中
   ///
   /// 返回 (已消费字节数, 待写回应答载荷)：`consumed == 0` 表示尚未凑齐完整帧
   fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>);
 
-  /// 零拷贝消费消息：将应答直接追加到调用方传入的写缓冲区中，避免中间 Vec 堆分配与二次拷贝
+  /// 零拷贝消费消息（主形态）：将应答直接追加到调用方传入的写缓冲区，
+  /// 避免中间 Vec 堆分配与二次拷贝
   ///
-  /// 默认实现向下兼容：
+  /// 默认实现向下兼容存量仅实现分配形态的消费者：
   fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
     let (consumed, resp) = self.try_consume_messages(req_buffer);
     if !resp.is_empty() {

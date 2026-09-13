@@ -17,8 +17,10 @@ use wresp::{
     write_raw,
   },
   length::{try_read_length, try_write_length},
-  strict_i32, strict_i64, unpack_args,
+  unpack_args,
 };
+
+use wbase::num::{strict_i32, strict_i64};
 
 use super::{
   resp_server_session::RespServerSession,

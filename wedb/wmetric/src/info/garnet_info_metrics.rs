@@ -280,7 +280,7 @@ impl GarnetInfoMetrics {
   fn populate_server_info(&mut self, provider: &impl InfoProvider) {
     let facts = provider.server_facts();
     let uptime_secs =
-      coarsetime::Clock::now_since_epoch().as_secs() as i64 - facts.startup_timestamp_unix_secs;
+      wbase::time::now_secs() as i64 - facts.startup_timestamp_unix_secs;
     let uptime_secs = uptime_secs.max(0);
     self.server_info = Some(vec![
       MetricsItem::new("garnet_version", facts.version),
@@ -1191,7 +1191,7 @@ pub fn generate_default_hex_id() -> String {
   static STATE: AtomicU64 = AtomicU64::new(0);
   let mut state = STATE.fetch_add(1, Ordering::Relaxed);
   if state == 0 {
-    state = coarsetime::Clock::now_since_epoch().as_nanos() | 1;
+    state = wbase::time::now_nanos() | 1;
   }
   let mut out = String::with_capacity(40);
   while out.len() < 40 {

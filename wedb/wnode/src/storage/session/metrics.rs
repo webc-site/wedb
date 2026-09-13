@@ -33,7 +33,7 @@ impl<'a, D: Device, CR: ConsistentReadFunctions> StorageSession<'a, D, CR> {
   ///
   /// libs/server/Storage/Session/Metrics.cs:StartPendingMetrics
   pub fn start_pending_metrics(&self) {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
+    let now_ms = wbase::time::now_ms();
     self.pending_start_ms.store(now_ms, Relaxed);
   }
 
@@ -43,7 +43,7 @@ impl<'a, D: Device, CR: ConsistentReadFunctions> StorageSession<'a, D, CR> {
   pub fn stop_pending_metrics(&self) {
     let start = self.pending_start_ms.swap(0, Relaxed);
     if start != 0 {
-      let now_ms = coarsetime::Clock::now_since_epoch().as_millis();
+      let now_ms = wbase::time::now_ms();
       self
         .pending_total_ms
         .fetch_add(now_ms.saturating_sub(start), Relaxed);

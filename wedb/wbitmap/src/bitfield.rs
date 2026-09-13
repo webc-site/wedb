@@ -6,7 +6,7 @@
 //! （curr/cend/vend）读写；Rust 侧以游标下标承接，`vend`（位图末端）截断
 //! 语义保持不变。
 
-use wresp::strict_i64;
+use wbase::num::strict_i64;
 
 use crate::manager::{index, length_in_bytes, try_validate_bitfield_offset};
 

@@ -200,7 +200,7 @@ impl GossipManager {
     }
     let count = ((total as f64 * (self.gossip_sample_percent as f64 / 100.0)).ceil() as usize)
       .clamp(1, total);
-    let start_time = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let start_time = wbase::time::now_ms() as i64;
     for _ in 0..count {
       let mut min_send = start_time;
       let mut curr_node = None;

@@ -8,14 +8,13 @@
 use std::{error::Error, fmt, marker::PhantomData, mem, str};
 
 use gxhash::HashSet;
-use wbase::hash_slot::hash_slot as cluster_slot;
+use wbase::{hash_slot::hash_slot as cluster_slot, num::strict_i32};
 use wresp::{
   read::{
     try_read_as_span, try_read_error_as_span, try_read_signed_array_length,
     try_read_signed_map_length, try_read_signed_set_length, try_read_span_with_length_header,
     try_read_unsigned_array_length, try_read_verbatim_string_length,
   },
-  strict_i32,
 };
 use wtxn::txn_key_entry::{LockType, TxnKeyEntries};
 
@@ -28,7 +27,6 @@ use crate::{
   limited_allocator::LuaLimitedManagedAllocator,
   loader::LuaRunnerLoader,
   managed_allocator::LuaManagedAllocator,
-  now_monotonic_millis,
   options::{LuaLoggingMode, LuaMemoryManagementMode, LuaOptions},
   sender::{ScratchBufferBuilder, ScratchBufferNetworkSender},
   strings::ConstantStrings,
@@ -1149,7 +1147,7 @@ impl LuaRunner {
   ///
   /// 请求当前执行立即超时（中断钩子在下一检查点抛出超时错误）。
   pub fn request_timeout(&mut self) {
-    self.state.try_set_hook(Some(now_monotonic_millis()));
+    self.state.try_set_hook(Some(wbase::time::now_ms() as i64));
   }
 
   /// libs/server/Lua/LuaRunner.cs:TryResetParameters

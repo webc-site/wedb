@@ -9,6 +9,8 @@
 
 use core::str::from_utf8;
 
+use wbase::num::strict_f64;
+
 use wcol::{
   parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat},
   sortedset::sorted_set_object::{SortedSetObject, SortedSetOperation},
@@ -32,7 +34,6 @@ use crate::resp::{
     object_store_utils::make_object_input,
     sorted_set_commands::{ZsetLoad, parse_pairs_payload, zset_load_sync, zset_save_or_gc},
   },
-  parser::session_parse_state::strict_f64,
   resp_server_session::RespServerSession,
 };
 

@@ -7,6 +7,12 @@ use coarsetime::Clock;
 
 pub const UNIX_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
 
+/// 获取自 UNIX 纪元以来的当前秒时间戳（u64）
+#[inline(always)]
+pub fn now_secs() -> u64 {
+  Clock::now_since_epoch().as_secs()
+}
+
 /// 获取自 UNIX 纪元以来的当前毫秒时间戳（u64）
 #[inline(always)]
 pub fn now_ms() -> u64 {

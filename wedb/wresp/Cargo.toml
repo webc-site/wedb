@@ -22,6 +22,7 @@ itoa.workspace = true
 num_enum = "0.7.6"
 smallvec.workspace = true
 thiserror.workspace = true
+wbase = { workspace = true, features = ["num"] }
 zmij.workspace = true
 
 [dev-dependencies]

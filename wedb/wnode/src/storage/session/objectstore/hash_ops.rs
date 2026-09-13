@@ -4,9 +4,8 @@
 //! 缺口见 `hash_time_to_live`。哈希对象为空时删除键（对齐 Redis 对象生命周期）。
 
 use wbase::num::try_parse_i64;
-use wcol::{
-  hash::hash_object::HashObject, parse_utils::strict_f64, types::object_output::ObjectOutput,
-};
+use wbase::num::strict_f64;
+use wcol::{hash::hash_object::HashObject, types::object_output::ObjectOutput};
 use wdev::Device;
 
 use super::{
@@ -241,7 +240,7 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
   /// 字段存在但非数值 → WRONGTYPE（不覆盖写）。对齐 C# HashIncrement /
   /// HashIncrementFloat：字段缺失时原样存增量实参文本（incrSlice.ToArray()）；
   /// 浮点增量 NaN 字面量拒绝、±INF 先解析后报错；结果以最短往返文本落存
-  /// （ObjectOutput::format_double 一处定义）；整数溢出按 C# unchecked 回绕。
+  /// （ObjectOutput::format_double，底层 wresp::format_double 单源）；整数溢出按 C# unchecked 回绕。
   ///
   /// libs/server/Storage/Session/ObjectStore/HashOps.cs:HashIncrement
   pub async fn hash_increment(
@@ -275,7 +274,7 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
                 return None; // RESP_ERR_GENERIC_NAN_INFINITY_INCR
               }
               let new = cur + d;
-              // 最短往返文本落存（ObjectOutput::format_double 一处定义）
+              // 最短往返文本落存（ObjectOutput::format_double，底层 wresp::format_double 单源）
               let text = ObjectOutput::format_double(new);
               let bytes = text.into_bytes();
               obj.update_size(field, b, false);

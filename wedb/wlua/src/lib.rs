@@ -46,7 +46,7 @@ pub use managed_allocator::LuaManagedAllocator;
 pub use options::{LuaLoggingMode, LuaMemoryManagementMode, LuaOptions};
 pub use runner::*;
 pub use sender::*;
-pub use state::{LuaState, now_monotonic_millis};
+pub use state::LuaState;
 pub use strings::*;
 pub use timeout::{LuaTimeoutManager, TimeoutCookie};
 pub use tracked_allocator::LuaTrackedAllocator;
@@ -55,7 +55,7 @@ pub use tracked_allocator::LuaTrackedAllocator;
 mod tests {
   use std::ffi::c_void;
 
-  use super::{Error, LuaState, now_monotonic_millis};
+  use super::{Error, LuaState};
 
   #[test]
   fn push_pop_and_types() {
@@ -275,7 +275,7 @@ mod tests {
   fn timeout_interrupt_raises_error() {
     let mut state = LuaState::new();
     // 截止已过：下一 safepoint（循环回边）即中断。
-    state.try_set_hook(Some(now_monotonic_millis()));
+    state.try_set_hook(Some(wbase::time::now_ms() as i64));
     state
       .load_string("local i = 0; while true do i = i + 1 end")
       .unwrap();

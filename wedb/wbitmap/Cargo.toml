@@ -19,8 +19,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints]
 workspace = true
 
-[dependencies]
-wresp = { workspace = true }
-
 [dev-dependencies]
 aok = { workspace = true }
+
+[dependencies]
+wbase = { workspace = true, features = ["num"] }

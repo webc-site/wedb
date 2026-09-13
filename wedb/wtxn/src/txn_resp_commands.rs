@@ -10,13 +10,13 @@
 
 use std::time::Duration;
 
+use wbase::num::strict_i32;
 use wresp::{
   RespCommand,
   cmd_strings::{
     GENERIC_ERR_WRONG_NUM_ARGS, RESP_ERR_DEBUG_DISALLOWED, RESP_ERR_GENERIC_UNK_CMD,
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
   },
-  strict_i32,
 };
 
 use crate::{

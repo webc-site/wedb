@@ -563,8 +563,8 @@ fn auxiliary_commands() {
     panic!("RAW 应为数组: {raw:?}");
   };
   assert_eq!(items.len(), 3);
-  assert_eq!(items[0], VectorReply::Simple(b"fp32".to_vec()));
-  assert_eq!(items[1], VectorReply::Bulk(Some(f32_bytes(&[5.0, 6.0]))));
+  assert_eq!(items[0], VectorReply::Simple(b"fp32"));
+  assert_eq!(items[1], VectorReply::Bulk(Some(f32_bytes(&[5.0, 6.0]).into())));
 
   // VEMB 非法选项
   assert_eq!(
@@ -580,7 +580,7 @@ fn auxiliary_commands() {
   // VGETATTR / VSETATTR（成功 1 / 缺失 0，非错误）
   assert_eq!(
     sess.network_vgetattr(&[b"aux", b"e1"]),
-    VectorReply::Bulk(Some(b"{\"tag\":\"x\"}".to_vec()))
+    VectorReply::Bulk(Some(b"{\"tag\":\"x\"}".to_vec().into()))
   );
   assert_eq!(
     sess.network_vsetattr(&[b"aux", b"e1", b"{}"]),
@@ -592,7 +592,7 @@ fn auxiliary_commands() {
   );
   assert_eq!(
     sess.network_vgetattr(&[b"aux", b"e1"]),
-    VectorReply::Bulk(Some(b"{}".to_vec()))
+    VectorReply::Bulk(Some(b"{}".to_vec().into()))
   );
 
   // VLINKS（缺失元素 → null）
@@ -677,7 +677,7 @@ fn disabled_and_reply_encoding() {
 
   // RESP2/RESP3 编码差异（含 map / null array）
   let reply = VectorReply::Array(vec![
-    VectorReply::Bulk(Some(b"a".to_vec())),
+    VectorReply::Bulk(Some(b"a".to_vec().into())),
     VectorReply::Double(2.0),
     VectorReply::Boolean(true),
   ]);
@@ -689,7 +689,7 @@ fn disabled_and_reply_encoding() {
   assert_eq!(s(&r3), "*3\r\n$1\r\na\r\n,2\r\n#t\r\n");
 
   let map = VectorReply::Map(vec![(
-    VectorReply::Bulk(Some(b"id".to_vec())),
+    VectorReply::Bulk(Some(b"id".to_vec().into())),
     VectorReply::Double(1.5),
   )]);
   let mut m2 = Vec::new();

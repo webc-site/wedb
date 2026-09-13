@@ -50,30 +50,37 @@ use crate::{
 
 /// 复制面错误（C# 以 GarnetException 上抛的会话侧失败）
 #[derive(Debug, thiserror::Error)]
-#[error("RangeIndex replication: {0}")]
-pub struct ReplicationError(pub String);
+pub enum ReplicationError {
+  /// 动态协议文案（损坏条目 / 状态机违例等携带上下文快照的失败）
+  #[error("RangeIndex replication: {0}")]
+  Msg(String),
+
+  /// 文件 I/O 失败
+  #[error(transparent)]
+  Io(#[from] io::Error),
+
+  /// 分块流错误（反序列化器构造 / 喂块 / 读取器推进）
+  #[error(transparent)]
+  ChunkStream(#[from] ChunkStreamError),
+
+  /// BfTree 存根解码失败（RI.CREATE 回放重建路径）
+  #[error("Failed to recreate BfTree during AOF replay: {0}")]
+  StubDecode(#[from] wbftree::Error),
+
+  /// 存储引擎 RangeIndex 错误（AOF 回放透传）
+  #[error(transparent)]
+  RangeIndex(#[from] wkv::RangeIndexError),
+}
 
 impl From<String> for ReplicationError {
   fn from(message: String) -> Self {
-    Self(message)
+    Self::Msg(message)
   }
 }
 
 impl From<&str> for ReplicationError {
   fn from(message: &str) -> Self {
-    Self(message.to_string())
-  }
-}
-
-impl From<io::Error> for ReplicationError {
-  fn from(e: io::Error) -> Self {
-    Self(e.to_string())
-  }
-}
-
-impl From<ChunkStreamError> for ReplicationError {
-  fn from(e: ChunkStreamError) -> Self {
-    Self(e.to_string())
+    Self::Msg(message.to_string())
   }
 }
 
@@ -150,10 +157,7 @@ struct StreamReassemblyState {
 impl StreamReassemblyState {
   fn new(temp_path: PathBuf) -> Result<Self, ReplicationError> {
     Ok(Self {
-      deserializer: Mutex::new(
-        RangeIndexChunkedDeserializer::new(temp_path)
-          .map_err(|e| ReplicationError(e.to_string()))?,
-      ),
+      deserializer: Mutex::new(RangeIndexChunkedDeserializer::new(temp_path)?),
       activity: Mutex::new(ReassemblyActivity::start_activity()),
     })
   }
@@ -191,7 +195,7 @@ impl RangeIndexManagerReplication {
   /// 分块装不下尾部框会导致流永远无法完成（C# 抛 ArgumentOutOfRangeException）
   pub fn set_aof_stream_chunk_size(&self, chunk_size: usize) -> ReplicationResult {
     if chunk_size < MIN_CHUNK_SIZE {
-      return Err(ReplicationError(format!(
+      return Err(ReplicationError::Msg(format!(
         "Range index AOF stream chunk size must be at least {MIN_CHUNK_SIZE} bytes, got {chunk_size}"
       )));
     }
@@ -289,18 +293,17 @@ impl RangeIndexManagerReplication {
     input: &ReplayInput,
   ) -> ReplicationResult {
     let Some(stub_bytes) = input.args.first() else {
-      return Err(ReplicationError(format!(
+      return Err(ReplicationError::Msg(format!(
         "Corrupt RI.CREATE AOF entry: no stub argument (expected {RANGE_INDEX_STUB_SIZE} bytes)"
       )));
     };
     if stub_bytes.len() != RANGE_INDEX_STUB_SIZE {
-      return Err(ReplicationError(format!(
+      return Err(ReplicationError::Msg(format!(
         "Corrupt RI.CREATE AOF entry: stub size {}, expected {RANGE_INDEX_STUB_SIZE}",
         stub_bytes.len()
       )));
     }
-    let stub = RangeIndexStub::decode(stub_bytes)
-      .map_err(|e| ReplicationError(format!("Failed to recreate BfTree during AOF replay: {e}")))?;
+    let stub = RangeIndexStub::decode(stub_bytes)?;
     let tuning = TreeTuning::from(&stub);
     let backend = storage_backend_from_u8(stub.storage_backend);
     // 已存在 = 重复回放（引擎在登记冲突时不会留下半初始化实例，等价 C#
@@ -308,9 +311,7 @@ impl RangeIndexManagerReplication {
     match session.ri_create(key, backend, tuning).await {
       Ok(()) => Ok(()),
       Err(RangeIndexError::AlreadyExists) => Ok(()),
-      Err(e) => Err(ReplicationError(format!(
-        "RI.CREATE AOF replay failed for key: {e}"
-      ))),
+      Err(e) => Err(e.into()),
     }
   }
 
@@ -325,7 +326,7 @@ impl RangeIndexManagerReplication {
     input: &ReplayInput,
   ) -> ReplicationResult {
     let (Some(field), Some(value)) = (input.args.first(), input.args.get(1)) else {
-      return Err(ReplicationError(
+      return Err(ReplicationError::Msg(
         "Corrupt RI.SET AOF entry: field/value arguments missing".to_string(),
       ));
     };
@@ -333,7 +334,7 @@ impl RangeIndexManagerReplication {
       Ok(()) => Ok(()),
       // NOTFOUND / WRONGTYPE：回放面静默跳过（C# 提前 return 口径）
       Err(RangeIndexError::NotFound | RangeIndexError::WrongType) => Ok(()),
-      Err(e) => Err(ReplicationError(format!("RI.SET AOF replay failed: {e}"))),
+      Err(e) => Err(e.into()),
     }
   }
 
@@ -348,14 +349,14 @@ impl RangeIndexManagerReplication {
     input: &ReplayInput,
   ) -> ReplicationResult {
     let Some(field) = input.args.first() else {
-      return Err(ReplicationError(
+      return Err(ReplicationError::Msg(
         "Corrupt RI.DEL AOF entry: field argument missing".to_string(),
       ));
     };
     match session.ri_del(key, field).await {
       Ok(_) => Ok(()),
       Err(RangeIndexError::NotFound | RangeIndexError::WrongType) => Ok(()),
-      Err(e) => Err(ReplicationError(format!("RI.DEL AOF replay failed: {e}"))),
+      Err(e) => Err(e.into()),
     }
   }
 
@@ -418,7 +419,7 @@ impl RangeIndexManagerReplication {
       // !is_complete 下 read_next_chunk 必有进展；0 字节即协议违例
       if written == 0 {
         stream_activity.on_error("ZeroLengthChunkFromReader");
-        return Err(ReplicationError(
+        return Err(ReplicationError::Msg(
           "ReplicateRangeIndexStream: reader returned zero-length chunk while the stream is incomplete".to_string(),
         ));
       }
@@ -479,7 +480,7 @@ impl RangeIndexManagerReplication {
     input: &ReplayInput,
   ) -> ReplicationResult {
     let Some(chunk) = input.args.first() else {
-      return Err(ReplicationError(
+      return Err(ReplicationError::Msg(
         "Corrupt RangeIndexStreamChunk AOF entry: chunk argument missing".to_string(),
       ));
     };
@@ -535,7 +536,7 @@ impl RangeIndexManagerReplication {
         String::from_utf8_lossy(key)
       );
       self.remove_and_dispose_stream_reassembly(key, "ChunkProcessingError");
-      return Err(ReplicationError(format!(
+      return Err(ReplicationError::Msg(format!(
         "HandleRangeIndexStreamReplay: failed to process range index stream chunk for key {}: {detail}",
         String::from_utf8_lossy(key)
       )));
@@ -559,7 +560,7 @@ impl RangeIndexManagerReplication {
           String::from_utf8_lossy(key)
         );
         self.remove_and_dispose_stream_reassembly(key, "PublishFailed");
-        return Err(ReplicationError(format!(
+        return Err(ReplicationError::Msg(format!(
           "HandleRangeIndexStreamReplay: PublishMigratedIndex failed during AOF replay for key {}",
           String::from_utf8_lossy(key)
         )));
@@ -575,7 +576,7 @@ impl RangeIndexManagerReplication {
         String::from_utf8_lossy(key)
       );
       self.remove_and_dispose_stream_reassembly(key, "FinalChunkButDeserializerIncomplete");
-      return Err(ReplicationError(format!(
+      return Err(ReplicationError::Msg(format!(
         "HandleRangeIndexStreamReplay: final range index stream chunk flag set but stream is incomplete for key {}",
         String::from_utf8_lossy(key)
       )));

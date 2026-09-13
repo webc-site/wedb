@@ -61,14 +61,14 @@ impl NodeConnection {
   /// libs/cluster/Server/Gossip/GarnetServerNode.cs:UpdateGossipSend
   #[inline]
   pub fn update_send_time(&self) {
-    let now = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now = wbase::time::now_ms() as i64;
     self.last_send.store(now, Ordering::Release);
   }
 
   /// libs/cluster/Server/Gossip/GarnetServerNode.cs:UpdateGossipRecv
   #[inline]
   pub fn update_recv_time(&self) {
-    let now = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now = wbase::time::now_ms() as i64;
     self.last_recv.store(now, Ordering::Release);
   }
 
@@ -77,7 +77,7 @@ impl NodeConnection {
   pub fn get_connection_info(&self) -> ConnectionInfo {
     let ping = self.last_send.load(Ordering::Acquire);
     let pong = self.last_recv.load(Ordering::Acquire);
-    let now = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now = wbase::time::now_ms() as i64;
     let last_io = if pong == 0 {
       0
     } else {

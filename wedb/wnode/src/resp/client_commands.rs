@@ -9,8 +9,9 @@ use std::str::from_utf8;
 use wresp::{
   RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{abort_with_error_message, write_raw},
-  strict_i64,
 };
+
+use wbase::num::strict_i64;
 
 use super::resp_server_session::RespServerSession;
 use crate::session_parse_state_extensions::try_get_client_name_bytes;

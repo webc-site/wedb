@@ -221,8 +221,8 @@ impl<T: GarnetApiFace + 'static> From<Arc<T>> for GarnetApi {
 pub struct StoreGarnetApi<D: Device> {
   /// 底层存储会话
   session: StoreSession<D>,
-  /// 向量集合管理器
-  vector_manager: Option<Arc<VectorManager>>,
+  /// Vector Set 命令处理层（构造期缓存，杜绝每条向量命令克隆 `Arc<VectorManager>`）
+  vector_session: Option<RespServerSessionVectors>,
   /// 检查点通道（未注入 = SAVE/BGSAVE 显式拒绝，LASTSAVE 回 0）
   checkpoint: Option<CheckpointCtx>,
 }
@@ -234,14 +234,14 @@ impl<D: Device> StoreGarnetApi<D> {
   pub fn new(session: StoreSession<D>) -> Self {
     Self {
       session,
-      vector_manager: None,
+      vector_session: None,
       checkpoint: None,
     }
   }
 
-  /// 关联向量集合管理器
+  /// 关联向量集合管理器（构造期包装为命令处理层，单次 Arc 持有）
   pub fn with_vector_manager(mut self, vector_manager: Arc<VectorManager>) -> Self {
-    self.vector_manager = Some(vector_manager);
+    self.vector_session = Some(RespServerSessionVectors::new(vector_manager));
     self
   }
 
@@ -262,10 +262,9 @@ impl<D: Device + 'static> From<StoreGarnetApi<D>> for GarnetApi {
 impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, args: &[&[u8]]) {
     if is_vector_set_command(cmd)
-      && let Some(vm) = &self.vector_manager
+      && let Some(vectors) = &self.vector_session
     {
       let resp3 = session.resp_protocol_version == 3;
-      let vectors = RespServerSessionVectors::new(vm.clone());
       let reply = match cmd {
         RespCommand::Vadd => vectors.network_vadd_impl(args, resp3),
         RespCommand::Vsim => vectors.network_vsim_impl(args, resp3),
@@ -281,13 +280,14 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
         RespCommand::Vsetattr => vectors.network_vsetattr_impl(args, resp3),
         _ => unreachable!(),
       };
-      let mut output = mem::take(&mut session.output);
+      // 应答直写会话输出缓冲（self 借用 vectors 与 session.output 不相交，
+      // 免 mem::take/换回的二次搬移）
+      let output = &mut session.output;
       if resp3 {
-        reply.encode_resp3(&mut output);
+        reply.encode_resp3(output);
       } else {
-        reply.encode_resp2(&mut output);
+        reply.encode_resp2(output);
       }
-      session.output = output;
       return;
     }
     let batch = self.session.enter_batch();

@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 async-lock.workspace = true
-coarsetime.workspace = true
+wbase = { workspace = true, features = ["time"] }
 gxhash.workspace = true
 log.workspace = true
 parking_lot.workspace = true

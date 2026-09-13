@@ -2,7 +2,7 @@
 //! （对标 libs/server/Lua/LuaTimeoutManager.cs:LuaTimeoutManager）。
 //!
 //! C# 以毫秒 Cookie + 有序 Tick 队列驱动；Rust 以单调毫秒时钟
-//! （coarsetime）+ 最小截止期限扫描承接同等语义。
+//! （wbase::time）+ 最小截止期限扫描承接同等语义。
 
 use gxhash::HashMap;
 

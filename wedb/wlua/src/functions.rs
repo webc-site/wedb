@@ -15,7 +15,7 @@ use crate::{
   LuaState,
   api::ScriptingApi,
   cache::SessionScriptCache,
-  functions_struct as struct_codec, now_monotonic_millis,
+  functions_struct as struct_codec,
   options::LuaLoggingMode,
   runner::{
     HostShared, LuaRunner, clear_callback_context, lua_wrapped_error_view,
@@ -126,7 +126,7 @@ impl LuaRunnerFunctions {
   /// 满足 LuaCFunction 统一函数指针签名 (LuaState, HostShared) -> i32 规范，保留 _host 参数
   pub fn request_timeout(state: &mut LuaState, _host: &mut HostShared) -> i32 {
     state.clear_stack();
-    state.try_set_hook(Some(now_monotonic_millis()));
+    state.try_set_hook(Some(wbase::time::now_ms() as i64));
     0
   }
 

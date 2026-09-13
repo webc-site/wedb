@@ -1,17 +1,15 @@
 //! 范围索引 AOF 复制活动追踪（对标 libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs）
 //!
 //! C# 以 `Stopwatch.GetTimestamp` + `ILogger` 记录一次流式发送 / 一次流重组的
-//! 全程度量；Rust 侧以 coarsetime 粗粒度时钟 + `log` 门面承接，字段为普通
+//! 全程度量；Rust 侧以 wbase::time 粗粒度时钟 + `log` 门面承接，字段为普通
 //! 值语义（活动实例不跨线程共享，由持有方单线程驱动）。
-
-use coarsetime::Clock;
 
 use super::range_index_manager_migration::PublishMigratedIndexResult;
 
-/// 纳秒时间戳（coarsetime 粗粒度时钟，活动计时足够）
+/// 纳秒时间戳（wbase::time 粗粒度时钟，活动计时足够）
 #[inline]
 fn now_ns() -> u64 {
-  Clock::now_since_epoch().as_u64()
+  wbase::time::now_nanos()
 }
 
 /// 流式发送活动（对标 libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs:StreamActivity）
