@@ -1192,7 +1192,7 @@ fn drop_in_memory_index_flow() {
   // SuppressCleanup 忽略
   index.flags = VectorSetFlags::SUPPRESS_CLEANUP;
   manager.request_drop_in_memory_index(b"other", &index.to_bytes());
-  assert!(!manager.requested_drops.contains(b"other"));
+  assert!(!manager.requested_drops.contains(b"other".as_slice()));
 
   // 直接丢弃
   assert_eq!(manager.service.card(80), 1);

@@ -6,3 +6,4 @@ pub mod pool_cross_thread;
 pub mod pool_get_return;
 pub mod pool_ladder;
 pub mod pool_stress;
+pub mod pool_work_set;

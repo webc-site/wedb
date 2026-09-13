@@ -14,7 +14,10 @@ pub use access_control_list::AccessControlList;
 pub use acl_exception::AclError;
 pub use acl_parser::AclParser;
 pub use acl_password::AclPassword;
-pub use auth::*;
+pub use auth::{
+  GarnetAclAuthenticator, GarnetAclWithPasswordAuthenticator, GarnetAuthenticator,
+  GarnetNoAuthAuthenticator, GarnetPasswordAuthenticator, IGarnetAuthenticator,
+};
 pub use command_catalog::RespAclCategories;
 pub use command_permission_set::CommandPermissionSet;
 pub use secrets_utility::constant_equals;

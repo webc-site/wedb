@@ -1,20 +1,18 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-mod error;
-pub use error::{Error, Result};
-
-mod parser;
-pub use parser::*;
-
-mod session;
-pub use session::*;
-
-mod client;
-pub use client::*;
-
 mod api;
-pub use api::*;
-
+mod client;
+mod error;
 mod network;
-// 在途命令通道类型仅为 crate 内网络泵服务，模块保持私有
+mod parser;
+mod session;
 mod types;
+
+pub use api::{InfoMetricsType, SortedSetPairCollection};
+pub use client::GarnetClient;
+pub use error::{Error, Result};
+pub use parser::{MAX_ARGUMENT_LENGTH_BYTES, RespReadResponseUtils};
+pub use session::{
+  GarnetClientSession, encode_append_log_frame, encode_append_log_init_frame,
+  encode_cluster_append_log_frame,
+};

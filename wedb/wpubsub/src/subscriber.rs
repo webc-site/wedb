@@ -4,12 +4,16 @@
 //! 写会话输出缓冲；Rust 会话为单线程属主结构，中枢经 [`PubSubSink`] 投递，
 //! 会话侧以 [`PubSubMailbox`] 收取后在自身线程编码回放。
 
-use std::sync::{
-  Arc,
-  atomic::{AtomicU64, Ordering::Relaxed},
+use std::{
+  collections::VecDeque,
+  mem::take,
+  sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering::Relaxed},
+  },
 };
 
-use crossfire::flavor::{Array, Queue};
+use parking_lot::Mutex;
 
 /// 消息类别（通道直投 / 模式命中）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,12 +49,16 @@ pub trait PubSubSink: Send + Sync {
 
 /// 邮箱投递面：有界队列 + 溢出丢弃计数
 ///
-/// C# 侧发布即直写会话缓冲（背压由网络发送器承担）；Rust 面以有界邮箱
-/// 解耦线程。基于 crossfire::flavor::Array 纯原子无锁队列实现快路径零锁投递与单属主无锁消费，
-/// 彻底消除 Waker 注册表、Future 轮询机与 channel 包装开销。
+/// C# 侧发布即直写会话缓冲（背压由网络发送器承担）；Rust 面以轻量有界邮箱
+/// 解耦线程。采用 parking_lot::Mutex<VecDeque> 有锁队列架构：
+/// - 零预分配：初始无大块内存空置，按需扩容
+/// - 极低锁竞争：仅发布端短时推入，属主会话线程单次批量 drain 消费
+/// - 有界保护：达到上限容量时安全丢弃并原子递增 dropped 计数
 pub struct PubSubMailbox {
-  /// 纯原子无锁队列
-  queue: Array<PubSubMessage>,
+  /// 内部有界双端队列
+  queue: Mutex<VecDeque<PubSubMessage>>,
+  /// 最大容量上限
+  capacity: usize,
   /// 溢出丢弃计数
   dropped: AtomicU64,
 }
@@ -59,18 +67,21 @@ impl PubSubMailbox {
   /// 创建容量为 `capacity` 的邮箱
   pub fn new(capacity: usize) -> Self {
     Self {
-      queue: Array::new(capacity.max(1)),
+      queue: Mutex::new(VecDeque::new()),
+      capacity: capacity.max(1),
       dropped: AtomicU64::new(0),
     }
   }
 
-  /// 尝试发布消息入队（无锁推入，满则丢弃并原子递增溢出计数）
+  /// 尝试发布消息入队（满则丢弃并原子递增溢出计数）
   #[inline]
   pub fn try_publish(&self, message: PubSubMessage) -> bool {
-    if self.queue.push(message).is_err() {
+    let mut q = self.queue.lock();
+    if q.len() >= self.capacity {
       self.dropped.fetch_add(1, Relaxed);
       false
     } else {
+      q.push_back(message);
       true
     }
   }
@@ -78,35 +89,32 @@ impl PubSubMailbox {
   /// 取走全部待投递消息（会话线程收敛点）
   #[inline]
   pub fn drain(&self) -> Vec<PubSubMessage> {
-    let mut msgs = Vec::with_capacity(self.len());
-    self.drain_into(&mut msgs);
-    msgs
+    let mut q = self.queue.lock();
+    take(&mut *q).into_iter().collect()
   }
 
   /// 取走全部待投递消息排入指定缓冲中，返回排出的消息数（复用外部缓冲）
   #[inline]
   pub fn drain_into(&self, buf: &mut Vec<PubSubMessage>) -> usize {
-    let pending = self.queue.len();
-    if pending > 0 {
-      buf.reserve(pending);
+    let mut q = self.queue.lock();
+    let count = q.len();
+    if count > 0 {
+      buf.reserve(count);
+      buf.extend(q.drain(..));
     }
-    let start_len = buf.len();
-    while let Some(msg) = self.queue.pop() {
-      buf.push(msg);
-    }
-    buf.len() - start_len
+    count
   }
 
   /// 当前积压长度
   #[inline]
   pub fn len(&self) -> usize {
-    self.queue.len()
+    self.queue.lock().len()
   }
 
   /// 队列是否为空
   #[inline]
   pub fn is_empty(&self) -> bool {
-    self.queue.is_empty()
+    self.queue.lock().is_empty()
   }
 
   /// 累计溢出丢弃数
