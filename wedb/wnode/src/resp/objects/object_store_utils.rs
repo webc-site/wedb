@@ -25,14 +25,13 @@ pub use wobject::object_store_utils::{
 use wobject::types::object_output::ObjectOutput;
 use wresp::{
   RespVecExt,
-  cmd_strings::{RESP_ERR_WRONG_TYPE, abort_with_wrong_number_of_arguments, write_error_raw},
+  cmd_strings::{
+    RESP_ERR_GENERIC, RESP_ERR_WRONG_TYPE, abort_with_wrong_number_of_arguments, write_error_raw,
+  },
 };
 
 use crate::resp::resp_server_session::RespServerSession;
 pub(crate) use crate::storage::session::objectstore::common::{obj_decode, obj_encode};
-
-/// 存储层错误统一应答文案（本命令面多处复用，单点维护）
-pub const ERR_GENERIC: &str = "generic error";
 
 impl RespServerSession {
   /// 参数数量错误中止（始终消费完整命令，返回 true）
@@ -129,7 +128,7 @@ pub fn obj_load_typed_sync<T, D: Device>(
     }
     Ok(Some(SyncObj::Present(p))) => ObjLoad::Present(deserialize(&p)),
     Err(_) => {
-      RespVecExt::write_resp_error(output, ERR_GENERIC);
+      RespVecExt::write_resp_error(output, RESP_ERR_GENERIC);
       ObjLoad::Error
     }
   }
@@ -286,7 +285,7 @@ where
       }
       Ok(false) => return RespRmwOutcome::Degrade,
       Err(_) => {
-        RespVecExt::write_resp_error(output, ERR_GENERIC);
+        RespVecExt::write_resp_error(output, RESP_ERR_GENERIC);
         return RespRmwOutcome::Error;
       }
     }

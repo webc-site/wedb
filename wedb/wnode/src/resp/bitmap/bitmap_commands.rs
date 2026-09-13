@@ -12,13 +12,12 @@ use wbitmap::{
   try_validate_bit_pos_offsets,
 };
 use wresp::{
-  RespSliceExt, RespVecExt, cmd_strings as cs,
-  cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments},
+  RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
+  cmd_strings::{RESP_ERR_GENERIC, abort_with_error_message, abort_with_wrong_number_of_arguments},
 };
 
 use super::super::{
-  basic_commands::MAX_STRING_PAYLOAD_BYTES, objects::object_store_utils::ERR_GENERIC,
-  resp_server_session::RespServerSession,
+  basic_commands::MAX_STRING_PAYLOAD_BYTES, resp_server_session::RespServerSession,
 };
 
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_WRONG_NUMBER_OF_ARGUMENTS
@@ -69,10 +68,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      abort_with_wrong_number_of_arguments(output, "SETBIT");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "SETBIT");
     let key = parse_state[0];
     let Some(offset) = parse_bit_offset(parse_state[1]) else {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
@@ -91,7 +87,7 @@ impl RespServerSession {
       // 磁盘候选：降级
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -111,7 +107,7 @@ impl RespServerSession {
     match store.try_upsert_sync(key, &val) {
       Ok(Ok(_)) => output.write_resp_int(old_bit as i64),
       Ok(Err(_)) => return Ok(false),
-      Err(_) => output.write_resp_error(ERR_GENERIC),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -123,10 +119,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      abort_with_wrong_number_of_arguments(output, "GETBIT");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "GETBIT");
     let key = parse_state[0];
     let Some(offset) = parse_bit_offset(parse_state[1]) else {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
@@ -360,7 +353,7 @@ impl RespServerSession {
         Ok(Some(None)) => {}
         Ok(None) => return Ok(false),
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -383,7 +376,7 @@ impl RespServerSession {
               Ok(Ok(_)) => longest as i64,
               Ok(Err(_)) => return Ok(false),
               Err(_) => {
-                output.write_resp_error(ERR_GENERIC);
+                output.write_resp_error(RESP_ERR_GENERIC);
                 return Ok(true);
               }
             }
@@ -393,7 +386,7 @@ impl RespServerSession {
         }
         // C# GarnetException（源被吞并后 DIFF 单源）→ 通用错误应答
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -411,10 +404,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "BITFIELD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "BITFIELD");
 
     // BITFIELD key [GET encoding offset] [SET encoding offset value]
     //            [INCRBY encoding offset increment] [OVERFLOW WRAP|SAT|FAIL]
@@ -547,10 +537,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "BITFIELD_RO");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "BITFIELD_RO");
 
     let key = parse_state[0];
     let mut secondary_command_args: Vec<BitFieldCmdArgs> = Vec::new();
@@ -631,7 +618,7 @@ impl RespServerSession {
       Ok(Some(None)) => None,
       Ok(None) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     };
@@ -667,7 +654,7 @@ impl RespServerSession {
         match bit_field_execute(args, buf) {
           Some((v, false)) => output.write_resp_int(v),
           Some((_, true)) => write_bitfield_nil(self, output),
-          None => output.write_resp_error(ERR_GENERIC),
+          None => output.write_resp_error(RESP_ERR_GENERIC),
         }
         dirty = true;
       }
@@ -678,7 +665,7 @@ impl RespServerSession {
         Ok(Ok(_)) => {}
         // 回写降级
         Ok(Err(_)) => return Ok(false),
-        Err(_) => output.write_resp_error(ERR_GENERIC),
+        Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
       }
     }
     Ok(true)
@@ -715,7 +702,7 @@ impl RespServerSession {
       match bit_field_execute(args, buf) {
         Some((v, false)) => output.write_resp_int(v),
         Some((_, true)) => write_bitfield_nil(self, output),
-        None => output.write_resp_error(ERR_GENERIC),
+        None => output.write_resp_error(RESP_ERR_GENERIC),
       }
       *dirty = true;
     }

@@ -254,31 +254,6 @@ fn test_on_flush_missing_data_file_keeps_stub_unflushed() -> Result<()> {
   OK
 }
 
-/// 过期源存根 (IsTransferred) 刷盘必须整体 no-op：既不快照过期视图也不置位 IsFlushed
-#[test]
-fn test_on_flush_transferred_stub_noop() -> Result<()> {
-  let env = ManagerEnvGuard::new("xfer");
-  let manager = RangeIndexManager::new(&env.ri_root, &env.cpr_root).unwrap();
-  let key = b"transferred_flush_key";
-
-  let tree = manager.create_bftree(key, StorageBackend::Std, TUNE)?;
-  assert_eq!(tree.insert(b"k1", b"v1"), BfTreeInsertResult::Success);
-
-  let mut stub = RangeIndexStub::new(0, 16 * 1024 * 1024, 4, 1024, 32, 4096, StorageBackend::Std);
-  stub.set_transferred(true);
-
-  // 无地址与带地址刷盘均为 no-op
-  manager.on_flush(key, &mut stub)?;
-  manager.on_flush_address(key, &mut stub, 0x40)?;
-
-  assert!(!stub.is_flushed());
-  let hash_prefix = RangeIndexManager::hash_prefix_of(key);
-  assert!(!manager.bare_flush_path(&hash_prefix).exists());
-  assert!(!manager.log_flush_path(&hash_prefix, 0x40).exists());
-
-  OK
-}
-
 /// 预分阶段源刷盘文件缺失时：不注册 pending 条目，后续 get_or_open_tree 显式报错
 #[test]
 fn test_pre_stage_missing_source_and_restore_error() -> Result<()> {

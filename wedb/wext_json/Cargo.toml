@@ -1,10 +1,10 @@
 [package]
-name = "ext_json"
+name = "wext_json"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
-homepage = "https://github.com/webc-site/wedb/tree/main/ext_json"
+homepage = "https://github.com/webc-site/wedb/tree/main/wext_json"
 description = "RedisJSON extension: JSON commands, JSONPath queries, and object integration"
 keywords = ["json", "redis", "jsonpath", "extension"]
 categories = ["database-implementations", "encoding"]

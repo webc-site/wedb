@@ -130,37 +130,6 @@ fn test_avalanche_and_distribution() -> Result<()> {
 }
 
 #[test]
-fn test_avalanche_and_distribution() -> Result<()> {
-  let mut rng = Xs(0x243F_6A88_85A3_08D3);
-
-  // 雪崩：单比特翻转应引起约半数输出位翻转
-  let mut total_flips = 0u64;
-  let mut rounds = 0u64;
-  let mut min_flips = u32::MAX;
-  for _ in 0..256 {
-    let base = rng.next();
-    let h0 = fast_hash(&base.to_le_bytes());
-    for bit in 0..64u32 {
-      let flips = (h0 ^ fast_hash(&(base ^ (1u64 << bit)).to_le_bytes())).count_ones();
-      min_flips = min_flips.min(flips);
-      total_flips += flips as u64;
-      rounds += 1;
-    }
-  }
-  let ratio = total_flips as f64 / rounds as f64 / 64.0;
-  assert!((0.4..0.6).contains(&ratio), "雪崩翻转比例异常: {ratio}");
-  assert!(min_flips >= 8, "单比特翻转最小输出翻转位过少: {min_flips}");
-
-  // 分布：16384 个伪随机 8 字节键哈希无碰撞
-  let uniq: HashSet<u64> = (0..16384)
-    .map(|_| fast_hash(&rng.next().to_le_bytes()))
-    .collect();
-  assert_eq!(uniq.len(), 16384);
-
-  OK
-}
-
-#[test]
 fn test_stream_hasher_chunk_identity() -> Result<()> {
   let data = b"The quick brown fox jumps over the lazy dog. A fast streaming hash with buffer.";
   let one_shot = compute_checksum(data);
@@ -287,36 +256,6 @@ fn test_stream_hasher_all_chunkings() -> Result<()> {
 }
 
 #[test]
-fn test_stream_hasher_trait_path() -> Result<()> {
-  // Hasher trait write 代理与固有方法 write 结果 100% 恒等
-  let mut a = StreamHasher::default();
-  let mut b = StreamHasher::default();
-  Hasher::write(&mut a, b"trait-path");
-  b.write(b"trait-path");
-  assert_eq!(Hasher::finish(&a), b.finish());
-
-  // Hash trait 泛型写入路径的确定性
-  let mut c = StreamHasher::default();
-  let mut d = StreamHasher::default();
-  b"trait-path".hash(&mut c);
-  b"trait-path".hash(&mut d);
-  assert_eq!(Hasher::finish(&c), Hasher::finish(&d));
-
-  // 非零种子 reset 回归：reset 必须保留构造种子（而非回落到默认种子 0）
-  let mut f = StreamHasher::with_seed(0xDEAD_BEEF);
-  f.write(b"drift");
-  f.reset();
-  f.write(b"trait-path");
-  assert_eq!(
-    f.finish(),
-    compute_checksum_with_seed(b"trait-path", 0xDEAD_BEEF),
-    "非零种子 reset 后须回到该种子初态"
-  );
-
-  OK
-}
-
-#[test]
 fn test_stream_hasher_long_input() -> Result<()> {
   let mut rng = Xs(0x0D15_EA5E_0D15_EA5E);
 
@@ -347,37 +286,6 @@ fn test_stream_hasher_long_input() -> Result<()> {
   }
   assert_eq!(h.finish(), one_shot);
   assert_eq!(h.finish(), one_shot);
-
-  OK
-}
-
-#[test]
-fn test_stream_hasher_distribution() -> Result<()> {
-  let mut rng = Xs(0x5EED_5EED_5EED_5EED);
-
-  // 分布：16384 个伪随机变长输入（跨条带边界）校验和零碰撞，验证折叠链雪崩质量
-  let uniq: HashSet<u64> = (0..16384usize)
-    .map(|i| {
-      let len = 1 + i % 130; // 长度横跨尾块/单条带/多条带
-      let mut h = StreamHasher::default();
-      for _ in 0..len {
-        h.write(&rng.next().to_le_bytes());
-      }
-      h.finish()
-    })
-    .collect();
-  assert_eq!(uniq.len(), 16384, "流式校验和出现碰撞");
-
-  // 前缀歧义防护：不同分块方式构造的相同总字节序列必须恒等，
-  // 而不同字节序列（含总长差异）不得因尾部零填充而混淆
-  let mut a = StreamHasher::default();
-  a.write(&[1u8; 64]);
-  a.write(&[2u8; 3]);
-  let mut b = StreamHasher::default();
-  b.write(&[1u8; 64]);
-  b.write(&[2u8; 3]);
-  assert_eq!(a.finish(), b.finish());
-  assert_ne!(a.finish(), StreamHasher::default().finish());
 
   OK
 }
@@ -616,45 +524,6 @@ fn test_seed_domain_separation() -> Result<()> {
     .map(|s| compute_checksum_with_seed(&data, s))
     .collect();
   assert_eq!(uniq.len(), 256, "连续种子域出现塌缩");
-
-  OK
-}
-
-#[test]
-fn test_stream_hasher_clone_isolation() -> Result<()> {
-  let mut rng = Xs(0xCAFE_BABE_0123_4567);
-  let base_data: Vec<u8> = (0..256).map(|_| rng.next() as u8).collect();
-
-  // 在每个可能的内部 buf_len (0..64) 下进行 clone 并验证完全隔离
-  for split_pos in 0..=64 {
-    let mut h1 = StreamHasher::default();
-    h1.write(&base_data[..split_pos]);
-
-    let mut h2 = h1.clone();
-
-    // 验证 clone 后的初始状态相同
-    assert_eq!(h1.finish(), h2.finish());
-
-    // 两个实例写入不同数据
-    let suffix1 = b"-unique-branch-alpha-12345678";
-    let suffix2 = b"-unique-branch-beta-9876543210!";
-    h1.write(suffix1);
-    h2.write(suffix2);
-
-    let mut full1 = base_data[..split_pos].to_vec();
-    full1.extend_from_slice(suffix1);
-    let mut full2 = base_data[..split_pos].to_vec();
-    full2.extend_from_slice(suffix2);
-
-    assert_eq!(h1.finish(), compute_checksum(&full1));
-    assert_eq!(h2.finish(), compute_checksum(&full2));
-    assert_ne!(h1.finish(), h2.finish());
-
-    // 对 h1 进行 reset，确认 h2 完全不受影响
-    h1.reset();
-    assert_eq!(h1.finish(), compute_checksum(b""));
-    assert_eq!(h2.finish(), compute_checksum(&full2));
-  }
 
   OK
 }

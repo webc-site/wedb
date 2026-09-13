@@ -20,7 +20,11 @@ use wobject::{
   },
   types::object_output::ObjectOutput,
 };
-use wresp::{RespSliceExt, RespVecExt, cmd_strings as cs, equals_ignore_case};
+use wresp::{
+  RespSliceExt, RespVecExt, check_arg_count,
+  cmd_strings::{self as cs, RESP_ERR_GENERIC},
+  equals_ignore_case,
+};
 use wval::GarnetObjectType;
 
 use crate::resp::{
@@ -411,10 +415,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "GEOADD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "GEOADD");
 
     let key = parse_state[0];
 
@@ -516,10 +517,7 @@ impl RespServerSession {
       SortedSetOperation::Geohash => "GEOHASH",
       _ => "GEOPOS",
     };
-    if parse_state.is_empty() {
-      cs::abort_with_wrong_number_of_arguments(output, name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, name);
 
     let key = parse_state[0];
     let mut obj = match zset_load_sync(store, key, output) {

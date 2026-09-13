@@ -4,7 +4,7 @@
 //! PFADD/PFCOUNT/PFMERGE 直读本模块 [`HyperLogLog`] 的稀疏/稠密编码；
 //! 载荷按稀疏实际占用截断存储，稠密恒为 12304 字节。
 
-use whll::HyperLogLog;
+use whyperlog::HyperLogLog;
 use wresp::check_arg_count;
 
 use crate::resp::resp_server_session::RespServerSession;

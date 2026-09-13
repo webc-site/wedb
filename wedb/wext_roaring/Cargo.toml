@@ -1,10 +1,10 @@
 [package]
-name = "ext_roaring"
+name = "wext_roaring"
 version = "0.1.0"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
-homepage = "https://github.com/webc-site/wedb/tree/main/ext_roaring"
+homepage = "https://github.com/webc-site/wedb/tree/main/wext_roaring"
 description = "Roaring Bitmap extension: Redis-compatible bitmap operations"
 keywords = ["roaring-bitmap", "bitmap", "redis", "extension"]
 categories = ["data-structures", "database-implementations"]

@@ -5,10 +5,9 @@ use wobject::{
 use wresp::{
   RespCommand, RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{
-    RESP_ERR_DEBUG_DISALLOWED, RESP_ERR_MODULE_DISALLOWED, RESP_ERR_REGISTERCS_DISALLOWED,
-    abort_with_error_message, abort_with_unknown_subcommand,
-    abort_with_unknown_subcommand_or_wrong_num_args, abort_with_wrong_number_of_arguments,
-    write_error_raw, write_raw,
+    RESP_ERR_DEBUG_DISALLOWED, RESP_ERR_GENERIC, RESP_ERR_MODULE_DISALLOWED,
+    RESP_ERR_REGISTERCS_DISALLOWED, abort_with_error_message, abort_with_unknown_subcommand,
+    abort_with_unknown_subcommand_or_wrong_num_args, write_error_raw, write_raw,
   },
   strict_i32,
 };
@@ -459,10 +458,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "ROLE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "ROLE");
 
     // C# 集群分支依赖 clusterProvider；standalone 路径 = *3 master :0 *0
     let Some(cluster) = self.cluster_session.clone() else {

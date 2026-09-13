@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
 members = [
-  "example",
-  "ext_json",
-  "ext_noop",
-  "ext_roaring",
+  "wexample",
+  "wext_json",
+  "wext_noop",
+  "wext_roaring",
   "wacl",
   "waof",
   "wbase",
@@ -22,7 +22,7 @@ members = [
   "wedb_standalone",
   "wepoch",
   "whasher",
-  "whll",
+  "whyperlog",
   "whlog",
   "windex",
   "wkv",
@@ -105,9 +105,9 @@ path = "wepoch"
 version = "0.1.7"
 path = "whasher"
 
-[workspace.dependencies.whll]
+[workspace.dependencies.whyperlog]
 version = "0.1.0"
-path = "whll"
+path = "whyperlog"
 
 [workspace.dependencies.whlog]
 version = "0.1.4"
@@ -176,6 +176,18 @@ path = "wobject"
 [workspace.dependencies.wcustom]
 version = "0.1.0"
 path = "wcustom"
+
+[workspace.dependencies.wdatabase]
+version = "0.1.0"
+path = "wdatabase"
+
+[workspace.dependencies.wpubsub]
+version = "0.1.0"
+path = "wpubsub"
+
+[workspace.dependencies.wtxn]
+version = "0.1.0"
+path = "wtxn"
 
 [workspace.dependencies.futures-util]
 version = "0.3.34"

@@ -12,7 +12,7 @@ use wobject::{
   sortedset::sorted_set_object::ExpirationWithOption,
   types::object_output::ObjectOutput,
 };
-use wresp::{ExpireOption, RespVecExt, cmd_strings as cs, try_get_expire_option};
+use wresp::{ExpireOption, RespVecExt, check_arg_count, cmd_strings as cs, try_get_expire_option};
 use wval::GarnetObjectType;
 
 use crate::resp::{
@@ -240,10 +240,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "HGET");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "HGET");
     let key = parse_state[0];
     if let Rmw::Degrade = self.hash_rmw(
       store,
@@ -267,10 +264,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "HGETALL");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "HGETALL");
     let key = parse_state[0];
     match hash_load_sync(store, key, output) {
       HashLoad::Degrade => return Ok(false),
@@ -301,10 +295,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "HMGET");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "HMGET");
     let key = parse_state[0];
     match hash_load_sync(store, key, output) {
       HashLoad::Degrade => return Ok(false),
@@ -337,10 +328,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "HLEN");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "HLEN");
     let key = parse_state[0];
     match hash_load_sync(store, key, output) {
       HashLoad::Degrade => return Ok(false),
@@ -371,10 +359,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "HDEL");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "HDEL");
     let key = parse_state[0];
     match self.hash_rmw(
       store,
@@ -407,10 +392,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "HEXISTS");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "HEXISTS");
     let key = parse_state[0];
     match hash_load_sync(store, key, output) {
       HashLoad::Degrade => return Ok(false),
@@ -443,10 +425,7 @@ impl RespServerSession {
     is_keys: bool,
   ) -> wresp::Result<bool> {
     let name = if is_keys { "HKEYS" } else { "HVALS" };
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, name);
     let key = parse_state[0];
     let op = if is_keys {
       HashOperation::Hkeys
@@ -570,10 +549,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "HSTRLEN");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "HSTRLEN");
     let key = parse_state[0];
     match hash_load_sync(store, key, output) {
       HashLoad::Degrade => return Ok(false),
@@ -606,10 +582,7 @@ impl RespServerSession {
     is_float: bool,
   ) -> wresp::Result<bool> {
     let name = if is_float { "HINCRBYFLOAT" } else { "HINCRBY" };
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, name);
 
     let key = parse_state[0];
     let op = if is_float {
@@ -724,10 +697,7 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.len() <= 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "HTTL");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "HTTL");
 
     let key = parse_state[0];
     let Some((fields_start, num_fields)) = parse_fields_header(parse_state, 1, output) else {
@@ -763,10 +733,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() <= 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "HPERSIST");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "HPERSIST");
 
     let key = parse_state[0];
     let Some((fields_start, num_fields)) = parse_fields_header(parse_state, 1, output) else {

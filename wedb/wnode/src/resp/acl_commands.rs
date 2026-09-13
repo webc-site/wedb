@@ -11,11 +11,8 @@ use wacl::{
   auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
 use wresp::{
-  RespSliceExt, RespVecExt, cmd_strings as cs,
-  cmd_strings::{
-    abort_with_error_message, abort_with_wrong_number_of_arguments, write_error_raw,
-    write_map_len_resp2, write_raw,
-  },
+  RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
+  cmd_strings::{abort_with_error_message, write_error_raw, write_map_len_resp2, write_raw},
 };
 
 use super::resp_server_session::RespServerSession;
@@ -84,10 +81,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 不允许附加参数
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|list");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "acl|list");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }
@@ -113,10 +107,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|users");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "acl|users");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }
@@ -171,10 +162,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 必须至少有用户名
-    if parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|setuser");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "acl|setuser");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }
@@ -275,10 +263,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 必须至少有用户名
-    if parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|deluser");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "acl|deluser");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }
@@ -322,10 +307,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 不允许附加参数
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|whoami");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "acl|whoami");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }
@@ -350,10 +332,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 不允许附加参数
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|load");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "acl|load");
     if !Self::validate_acl_authenticator(ctx, output) || !Self::validate_acl_file_use(ctx, output) {
       return Ok(true);
     }
@@ -389,10 +368,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 不允许附加参数
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "acl|save");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "acl|save");
     if !Self::validate_acl_authenticator(ctx, output) || !Self::validate_acl_file_use(ctx, output) {
       return Ok(true);
     }
@@ -427,10 +403,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() > 1 {
-      abort_with_wrong_number_of_arguments(output, "acl|genpass");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, <= 1, output, "acl|genpass");
 
     // 默认长度
     let mut length = GENPASS_DEFAULT_LENGTH;
@@ -474,10 +447,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 必须提供用户名
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "acl|getuser");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "acl|getuser");
     if !Self::validate_acl_authenticator(ctx, output) {
       return Ok(true);
     }

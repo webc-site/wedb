@@ -1,11 +1,11 @@
 [package]
-name = "wedb_example"
+name = "wexample"
 version = "0.1.0"
 edition = "2024"
 publish = false
 license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
-homepage = "https://github.com/webc-site/wedb/tree/main/example"
+homepage = "https://github.com/webc-site/wedb/tree/main/wexample"
 description = "Example crate for WeDB usage reference and documentation"
 keywords = ["example", "documentation"]
 categories = ["example"]

@@ -12,14 +12,23 @@ pub const MAX_ARGUMENT_LENGTH_BYTES: isize = wresp::MAX_ARGUMENT_LENGTH_BYTES as
 pub struct RespReadResponseUtils;
 
 impl RespReadResponseUtils {
-  /// libs/client/RespReadResponseUtils.cs:TryReadSimpleString
-  pub fn try_read_simple_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    Ok(read_token_line(ptr, b'+')?.map(str::to_string))
+  /// 单行应答读取三胞胎（TryReadSimpleString / TryReadIntegerAsString / TryReadErrorAsString）
+  /// 仅 token 字节不同，合并为带 token 参数的单函数
+  #[inline]
+  pub fn try_read_token_as_string(ptr: &mut &[u8], token: u8) -> Result<Option<String>> {
+    Ok(read_token_line(ptr, token)?.map(str::to_string))
   }
 
-  /// libs/client/RespReadResponseUtils.cs:TryReadIntegerAsString
+  /// libs/client/RespReadResponseUtils.cs:TryReadSimpleString（薄包装委托）
+  #[inline]
+  pub fn try_read_simple_string(ptr: &mut &[u8]) -> Result<Option<String>> {
+    Self::try_read_token_as_string(ptr, b'+')
+  }
+
+  /// libs/client/RespReadResponseUtils.cs:TryReadIntegerAsString（薄包装委托）
+  #[inline]
   pub fn try_read_integer_as_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    Ok(read_token_line(ptr, b':')?.map(str::to_string))
+    Self::try_read_token_as_string(ptr, b':')
   }
 
   pub fn try_read_integer(ptr: &mut &[u8]) -> Result<Option<i64>> {
@@ -32,9 +41,10 @@ impl RespReadResponseUtils {
     }
   }
 
-  /// libs/client/RespReadResponseUtils.cs:TryReadErrorAsString
+  /// libs/client/RespReadResponseUtils.cs:TryReadErrorAsString（薄包装委托）
+  #[inline]
   pub fn try_read_error_as_string(ptr: &mut &[u8]) -> Result<Option<String>> {
-    Ok(read_token_line(ptr, b'-')?.map(str::to_string))
+    Self::try_read_token_as_string(ptr, b'-')
   }
 
   /// RESP3 null: `_\r\n`

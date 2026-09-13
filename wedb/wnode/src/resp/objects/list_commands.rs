@@ -16,14 +16,17 @@ use wobject::{
   parse_utils::try_get_int,
   types::object_output::ObjectOutput,
 };
-use wresp::{RespCommand, RespSliceExt, RespVecExt, cmd_strings as cs};
+use wresp::{
+  RespCommand, RespSliceExt, RespVecExt, check_arg_count,
+  cmd_strings::{self as cs, RESP_ERR_GENERIC},
+};
 use wval::GarnetObjectType;
 
 use crate::{
   resp::{
     objects::object_store_utils::{
-      ERR_GENERIC, ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, list_from_blob,
-      list_to_blob, make_object_input, obj_load_typed_sync, obj_save_or_gc, run_sync_rmw,
+      ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, list_from_blob, list_to_blob,
+      make_object_input, obj_load_typed_sync, obj_save_or_gc, run_sync_rmw,
     },
     resp_server_session::RespServerSession,
   },
@@ -200,10 +203,7 @@ impl RespServerSession {
     op: ListOperation,
     cmd_name: &str,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, cmd_name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, cmd_name);
 
     let key = parse_state[0];
 
@@ -228,7 +228,7 @@ impl RespServerSession {
               self.notify_collection_update(key);
             }
             Ok(false) => return Ok(false),
-            Err(_) => output.write_resp_error(ERR_GENERIC),
+            Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
           }
         }
       }
@@ -262,10 +262,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     is_left: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      cs::abort_with_wrong_number_of_arguments(output, "LPOP");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "LPOP");
 
     let key = parse_state[0];
 
@@ -303,10 +300,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "LPOS");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "LPOS");
 
     let key = parse_state[0];
 
@@ -353,10 +347,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "LMPOP");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "LMPOP");
 
     let Some(num_keys) = parse_state[0].try_parse_i64() else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
@@ -430,10 +421,7 @@ impl RespServerSession {
       RespCommand::Brpop
     };
     let cmd_name = if is_left { "BLPOP" } else { "BRPOP" };
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, cmd_name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, cmd_name);
 
     let timeout = match try_get_timeout_bytes(parse_state[parse_state.len() - 1]) {
       Ok(timeout) => timeout,
@@ -482,7 +470,7 @@ impl RespServerSession {
         Ok(true) => {}
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -512,10 +500,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 5 {
-      cs::abort_with_wrong_number_of_arguments(output, "BLMOVE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 5, output, "BLMOVE");
 
     let src_key = parse_state[0];
     let dst_key = parse_state[1];
@@ -560,10 +545,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "BRPOPLPUSH");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "BRPOPLPUSH");
 
     let timeout = match try_get_timeout_bytes(parse_state[2]) {
       Ok(timeout) => timeout,
@@ -608,10 +590,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "LLEN");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "LLEN");
     let key = parse_state[0];
     match list_load_sync(store, key, output) {
       ListLoad::Degrade => return Ok(false),
@@ -642,10 +621,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "LTRIM");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "LTRIM");
     let key = parse_state[0];
     // C#：start/end 非整数报错
     let (Some(start), Some(stop)) = (try_get_int(parse_state[1]), try_get_int(parse_state[2]))
@@ -671,7 +647,7 @@ impl RespServerSession {
         match list_save_or_gc(store, key, &obj) {
           Ok(true) => output.extend_from_slice(cs::RESP_OK),
           Ok(false) => return Ok(false),
-          Err(_) => output.write_resp_error(ERR_GENERIC),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
       }
     }
@@ -687,10 +663,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "LRANGE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "LRANGE");
     let key = parse_state[0];
     let (Some(start), Some(stop)) = (try_get_int(parse_state[1]), try_get_int(parse_state[2]))
     else {
@@ -727,10 +700,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "LINDEX");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "LINDEX");
     let key = parse_state[0];
     let Some(index) = try_get_int(parse_state[1]) else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -770,10 +740,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "LINSERT");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 4, output, "LINSERT");
     let key = parse_state[0];
 
     match list_load_sync(store, key, output) {
@@ -795,7 +762,7 @@ impl RespServerSession {
             Ok(true) => self.notify_collection_update(key),
             Ok(false) => return Ok(false),
             Err(_) => {
-              output.write_resp_error(ERR_GENERIC);
+              output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
@@ -816,10 +783,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "LREM");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "LREM");
     let key = parse_state[0];
     let Some(count) = try_get_int(parse_state[1]) else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -845,7 +809,7 @@ impl RespServerSession {
             Ok(true) => {}
             Ok(false) => return Ok(false),
             Err(_) => {
-              output.write_resp_error(ERR_GENERIC);
+              output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
@@ -866,10 +830,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "LMOVE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 4, output, "LMOVE");
 
     let (Some(src_dir), Some(dst_dir)) = (
       parse_direction(parse_state[2]),
@@ -898,10 +859,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "RPOPLPUSH");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "RPOPLPUSH");
 
     self.list_move_core(
       parse_state[0],
@@ -991,7 +949,7 @@ impl RespServerSession {
         Ok(true) => self.notify_collection_update(src_key),
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -1019,7 +977,7 @@ impl RespServerSession {
       Ok(true) => {}
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -1027,7 +985,7 @@ impl RespServerSession {
       Ok(true) => self.notify_collection_update(dst_key),
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -1052,10 +1010,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "LSET");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "LSET");
     let key = parse_state[0];
 
     match list_load_sync(store, key, output) {
@@ -1079,7 +1034,7 @@ impl RespServerSession {
             Ok(true) => {}
             Ok(false) => return Ok(false),
             Err(_) => {
-              output.write_resp_error(ERR_GENERIC);
+              output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
@@ -1102,10 +1057,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "BLMPOP");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "BLMPOP");
 
     let timeout = match try_get_timeout_bytes(parse_state[0]) {
       Ok(timeout) => timeout,
@@ -1304,7 +1256,7 @@ fn pop_first_nonempty(
       Ok(true) => {}
       Ok(false) => return Some(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Some(true);
       }
     }

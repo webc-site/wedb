@@ -1,7 +1,7 @@
 use wresp::{
   Resp2, Resp3, RespProtocol, RespVecExt, RespWriter, check_arg_count, cmd_strings as cs,
   cmd_strings::{
-    RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    RESP_ERR_GENERIC, RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, abort_with_error_message, write_error_raw,
   },
   strict_i32, strict_i64, unpack_args,

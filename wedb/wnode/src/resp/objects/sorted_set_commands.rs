@@ -18,16 +18,17 @@ use wobject::{
   types::object_output::ObjectOutput,
 };
 use wresp::{
-  ExpireOption, RespCommand, RespSliceExt, RespVecExt, cmd_strings as cs, strict_i32,
-  try_get_expire_option,
+  ExpireOption, RespCommand, RespSliceExt, RespVecExt, check_arg_count,
+  cmd_strings::{self as cs, RESP_ERR_GENERIC},
+  strict_i32, try_get_expire_option,
 };
 use wval::GarnetObjectType;
 
 use crate::{
   resp::{
     objects::object_store_utils::{
-      ERR_GENERIC, ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, make_object_input,
-      obj_load_typed_sync, obj_save_or_gc, run_sync_rmw, zset_from_blob, zset_to_blob,
+      ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, make_object_input, obj_load_typed_sync,
+      obj_save_or_gc, run_sync_rmw, zset_from_blob, zset_to_blob,
     },
     parser::session_parse_state::strict_f64,
     resp_server_session::RespServerSession,
@@ -190,10 +191,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZADD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "ZADD");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -223,10 +221,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZSCORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "ZSCORE");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -251,10 +246,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZREM");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZREM");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -289,10 +281,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZCARD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "ZCARD");
 
     let key = parse_state[0];
     match self.zset_rmw(store, key, SortedSetOperation::Zcard, &[], (0, 0), output) {
@@ -362,10 +351,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     range_opts: SortedSetRangeOpts,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZRANGE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "ZRANGE");
 
     let key = parse_state[0];
     let mut obj = match zset_load_sync(store, key, output) {
@@ -416,7 +402,7 @@ impl RespServerSession {
         match zset_save_or_gc(store, dst_key, &SortedSetObject::new()) {
           Ok(true) => output.extend_from_slice(b":0\r\n"),
           Ok(false) => return Ok(false),
-          Err(_) => output.write_resp_error(ERR_GENERIC),
+          Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
         return Ok(true);
       }
@@ -450,7 +436,7 @@ impl RespServerSession {
         self.notify_collection_update(dst_key);
       }
       Ok(false) => return Ok(false),
-      Err(_) => output.write_resp_error(ERR_GENERIC),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -464,10 +450,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZMSCORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZMSCORE");
 
     let key = parse_state[0];
     let mut obj = match zset_load_sync(store, key, output) {
@@ -505,10 +488,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZMPOP");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "ZMPOP");
 
     let Some(num_keys) = parse_state[0].try_parse_i64() else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -576,7 +556,7 @@ impl RespServerSession {
         Ok(true) => {}
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -599,10 +579,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZCOUNT");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "ZCOUNT");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -627,10 +604,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZLEXCOUNT");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "ZLEXCOUNT");
 
     let key = parse_state[0];
     let mut obj = match zset_load_sync(store, key, output) {
@@ -672,10 +646,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZINCRBY");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "ZINCRBY");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -701,10 +672,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     ascending: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZRANK");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZRANK");
 
     let key = parse_state[0];
     let with_score = parse_state.len() > 2 && parse_state[2].eq_ignore_ascii_case(b"WITHSCORE");
@@ -752,10 +720,7 @@ impl RespServerSession {
       RemoveRangeKind::Score => ("ZREMRANGEBYSCORE", SortedSetOperation::Zremrangebyscore),
       RemoveRangeKind::Lex => ("ZREMRANGEBYLEX", SortedSetOperation::Zremrangebylex),
     };
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, name);
 
     let key = parse_state[0];
     let payload_start = output.len();
@@ -886,10 +851,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZDIFFSTORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "ZDIFFSTORE");
 
     let dst = parse_state[0];
     let Some((keys, _)) = parse_diff_args(&parse_state[1..], "ZDIFFSTORE", output) else {
@@ -909,7 +871,7 @@ impl RespServerSession {
         self.notify_collection_update(dst);
       }
       Ok(false) => return Ok(false),
-      Err(_) => output.write_resp_error(ERR_GENERIC),
+      Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
     Ok(true)
   }
@@ -946,10 +908,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZINTERCARD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZINTERCARD");
 
     let Some(num_keys) = parse_state[0].try_parse_i64() else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -1102,10 +1061,7 @@ impl RespServerSession {
       RespCommand::Bzpopmax
     };
     let cmd_name = if is_min { "BZPOPMIN" } else { "BZPOPMAX" };
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, cmd_name);
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, cmd_name);
     let timeout = match try_get_timeout_bytes(parse_state[parse_state.len() - 1]) {
       Ok(timeout) => timeout,
       Err(error) => {
@@ -1142,7 +1098,7 @@ impl RespServerSession {
           Ok(true) => {}
           Ok(false) => return Ok(false),
           Err(_) => {
-            output.write_resp_error(ERR_GENERIC);
+            output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
@@ -1171,10 +1127,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "BZMPOP");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "BZMPOP");
 
     let timeout = match try_get_timeout_bytes(parse_state[0]) {
       Ok(timeout) => timeout,
@@ -1264,7 +1217,7 @@ impl RespServerSession {
         Ok(true) => {}
         Ok(false) => return Ok(false),
         Err(_) => {
-          output.write_resp_error(ERR_GENERIC);
+          output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
@@ -1288,10 +1241,7 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZEXPIRE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "ZEXPIRE");
 
     let key = parse_state[0];
     // 解析过期时长与选项词元（NX/XX/GT/LT），压缩进 ExpirationWithOption 字
@@ -1346,10 +1296,7 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZTTL");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZTTL");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -1377,10 +1324,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZPERSIST");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "ZPERSIST");
 
     let key = parse_state[0];
     match self.zset_rmw(
@@ -1418,10 +1362,7 @@ fn sorted_set_combine_store<'s, D: wdev::Device>(
   } else {
     "ZUNIONSTORE"
   };
-  if parse_state.len() < 3 {
-    cs::abort_with_wrong_number_of_arguments(output, name);
-    return Ok(true);
-  }
+  check_arg_count!(parse_state, >= 3, output, name);
   let dst = parse_state[0];
   let Some(args) = parse_combine_args(&parse_state[1..], name, output) else {
     return Ok(true);
@@ -1440,7 +1381,7 @@ fn sorted_set_combine_store<'s, D: wdev::Device>(
       notify(dst);
     }
     Ok(false) => return Ok(false),
-    Err(_) => output.write_resp_error(ERR_GENERIC),
+    Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
   }
   Ok(true)
 }

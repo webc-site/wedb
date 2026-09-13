@@ -80,15 +80,8 @@ impl SingleLog {
     self.log.reset();
   }
 
-  /// libs/server/AOF/SingleLog.cs:Initialize
-  #[inline]
-  pub fn initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64) {
-    self
-      .log
-      .safe_initialize(begin_address, committed_until_address, last_commit_num);
-  }
-
-  /// libs/server/AOF/SingleLog.cs:SafeInitialize
+  /// libs/server/AOF/SingleLog.cs:SafeInitialize（C# SingleLog 无 Initialize/SafeInitialize，
+  /// 此为 rust 侧对齐 Sublog 后端的扩展；Initialize 与 SafeInitialize 同体，收敛为单一实现 + 薄包装）
   #[inline]
   pub fn safe_initialize(
     &self,
@@ -99,6 +92,12 @@ impl SingleLog {
     self
       .log
       .safe_initialize(begin_address, committed_until_address, last_commit_num);
+  }
+
+  /// libs/server/AOF/SingleLog.cs:Initialize（与 SafeInitialize 同体，薄包装委托）
+  #[inline]
+  pub fn initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64) {
+    self.safe_initialize(begin_address, committed_until_address, last_commit_num);
   }
 
   #[inline]

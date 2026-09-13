@@ -12,8 +12,8 @@ use wconf::ServerConfig;
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{
-    abort_with_error_message, abort_with_unknown_subcommand, abort_with_unsupported_option,
-    write_error_raw, write_raw,
+    RESP_ERR_GENERIC, abort_with_error_message, abort_with_unknown_subcommand,
+    abort_with_unsupported_option, write_error_raw, write_raw,
   },
   key_spec::KeySpecificationFlags,
   strict_i32, strict_i64, unpack_args,

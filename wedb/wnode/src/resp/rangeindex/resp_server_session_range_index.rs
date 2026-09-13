@@ -20,8 +20,8 @@ use wbftree::{RangeIndexStub, ScanRecord, ScanReturnField, TreeTuning};
 use wdev::Device;
 use wkv::{RangeIndexError, StoreSession};
 use wresp::{
-  RespSliceExt, RespVecExt, Result,
-  cmd_strings::{self as cs, abort_with_error_message, abort_with_wrong_number_of_arguments},
+  RespSliceExt, RespVecExt, Result, check_arg_count,
+  cmd_strings::{self as cs, abort_with_error_message},
 };
 
 use super::range_index_manager::RangeIndexManager;
@@ -235,10 +235,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "RI.CREATE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "RI.CREATE");
     let key = parse_state[0];
 
     let options = match parse_ricreate_options(parse_state) {
@@ -286,10 +283,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 3 {
-      abort_with_wrong_number_of_arguments(output, "RI.SET");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "RI.SET");
     let (key, field, value) = (parse_state[0], parse_state[1], parse_state[2]);
 
     match session.range_index_set(key, field, value).await {
@@ -323,10 +317,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 2 {
-      abort_with_wrong_number_of_arguments(output, "RI.GET");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "RI.GET");
     let (key, field) = (parse_state[0], parse_state[1]);
 
     match session.range_index_get(key, field).await {
@@ -356,10 +347,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 2 {
-      abort_with_wrong_number_of_arguments(output, "RI.DEL");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "RI.DEL");
     let (key, field) = (parse_state[0], parse_state[1]);
 
     match session.range_index_del(key, field).await {
@@ -386,10 +374,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() < 4 {
-      abort_with_wrong_number_of_arguments(output, "RI.SCAN");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 4, output, "RI.SCAN");
     let (key, start) = (parse_state[0], parse_state[1]);
 
     if !parse_state[2].eq_ignore_ascii_case(b"COUNT") {
@@ -429,10 +414,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() < 3 {
-      abort_with_wrong_number_of_arguments(output, "RI.RANGE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 3, output, "RI.RANGE");
     let (key, start, end) = (parse_state[0], parse_state[1], parse_state[2]);
     let return_field = parse_fields_option(parse_state, 3, 4);
 
@@ -471,10 +453,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "RI.EXISTS");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "RI.EXISTS");
 
     let exists = session
       .range_index_exists(parse_state[0])
@@ -498,10 +477,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "RI.CONFIG");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "RI.CONFIG");
 
     match session.range_index_config(parse_state[0]).await {
       Ok(stub) => write_config_resp(output, &stub),
@@ -527,10 +503,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "RI.METRICS");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "RI.METRICS");
 
     match session.range_index_metrics(parse_state[0]).await {
       Ok(m) => write_metrics_resp(
@@ -562,10 +535,7 @@ impl RespServerSession {
       abort_with_error_message(output, RI_DISABLED);
       return Ok(true);
     }
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "RI.LEN");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "RI.LEN");
 
     match session.range_index_len(parse_state[0]).await {
       Ok(len) => output.write_resp_int(len as i64),

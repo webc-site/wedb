@@ -13,13 +13,16 @@ use wobject::{
   },
   types::object_output::ObjectOutput,
 };
-use wresp::{RespSliceExt, RespVecExt, cmd_strings as cs};
+use wresp::{
+  RespSliceExt, RespVecExt, check_arg_count,
+  cmd_strings::{self as cs, RESP_ERR_GENERIC},
+};
 use wval::GarnetObjectType;
 
 use crate::resp::{
   objects::object_store_utils::{
-    ERR_GENERIC, ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, make_object_input,
-    obj_load_typed_sync, obj_save_or_gc, run_sync_rmw, set_from_blob, set_to_blob,
+    ObjLoad, RespRmwOutcome, SyncRmwCmd, SyncRmwHandlers, make_object_input, obj_load_typed_sync,
+    obj_save_or_gc, run_sync_rmw, set_from_blob, set_to_blob,
   },
   resp_server_session::RespServerSession,
 };
@@ -174,10 +177,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SADD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SADD");
 
     let key = parse_state[0];
     match self.set_rmw(
@@ -212,10 +212,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SREM");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SREM");
 
     let key = parse_state[0];
     match self.set_rmw(
@@ -249,10 +246,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "SCARD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "SCARD");
     let key = parse_state[0];
     match set_load_sync(store, key, output) {
       SetLoad::Degrade => return Ok(false),
@@ -283,10 +277,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      cs::abort_with_wrong_number_of_arguments(output, "SMEMBERS");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "SMEMBERS");
     let key = parse_state[0];
     match set_load_sync(store, key, output) {
       SetLoad::Degrade => return Ok(false),
@@ -317,10 +308,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SISMEMBER");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "SISMEMBER");
     let key = parse_state[0];
     match set_load_sync(store, key, output) {
       SetLoad::Degrade => return Ok(false),
@@ -351,10 +339,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SMISMEMBER");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SMISMEMBER");
     let key = parse_state[0];
     match set_load_sync(store, key, output) {
       SetLoad::Degrade => return Ok(false),
@@ -441,7 +426,7 @@ impl RespServerSession {
           Ok(true) => {}
           Ok(false) => return Ok(false),
           Err(_) => {
-            output.write_resp_error(ERR_GENERIC);
+            output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
@@ -524,10 +509,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "SMOVE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 3, output, "SMOVE");
 
     let source_key = parse_state[0];
     let destination_key = parse_state[1];
@@ -571,7 +553,7 @@ impl RespServerSession {
       Ok(true) => {}
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -579,7 +561,7 @@ impl RespServerSession {
       Ok(true) => {}
       Ok(false) => return Ok(false),
       Err(_) => {
-        output.write_resp_error(ERR_GENERIC);
+        output.write_resp_error(RESP_ERR_GENERIC);
         return Ok(true);
       }
     }
@@ -596,10 +578,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      cs::abort_with_wrong_number_of_arguments(output, "SINTER");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "SINTER");
 
     let objs = match load_many(store, parse_state, output) {
       Ok(Some(objs)) => objs,
@@ -621,10 +600,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SINTERSTORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SINTERSTORE");
 
     let dst = parse_state[0];
     let objs = match load_many(store, &parse_state[1..], output) {
@@ -647,10 +623,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // Need at least numkeys + 1 key
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SINTERCARD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SINTERCARD");
 
     let Some(num_keys) = parse_state[0].try_parse_i64() else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -711,10 +684,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      cs::abort_with_wrong_number_of_arguments(output, "SUNION");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "SUNION");
 
     let objs = match load_many(store, parse_state, output) {
       Ok(Some(objs)) => objs,
@@ -736,10 +706,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SUNIONSTORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SUNIONSTORE");
 
     let dst = parse_state[0];
     let objs = match load_many(store, &parse_state[1..], output) {
@@ -761,10 +728,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() {
-      cs::abort_with_wrong_number_of_arguments(output, "SDIFF");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, !empty, output, "SDIFF");
 
     let objs = match load_many(store, parse_state, output) {
       Ok(Some(objs)) => objs,
@@ -786,10 +750,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SDIFFSTORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= 2, output, "SDIFFSTORE");
 
     let dst = parse_state[0];
     let objs = match load_many(store, &parse_state[1..], output) {
@@ -858,7 +819,7 @@ fn combine_store<'a, D: wdev::Device>(
   match set_save_or_gc(store, dst, result) {
     Ok(true) => output.write_resp_int(result.set.len() as i64),
     Ok(false) => return Ok(false),
-    Err(_) => output.write_resp_error(ERR_GENERIC),
+    Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
   }
   Ok(true)
 }

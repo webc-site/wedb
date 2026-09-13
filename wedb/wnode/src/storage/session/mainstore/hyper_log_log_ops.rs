@@ -4,7 +4,7 @@
 //! 数据格式及 C# 语义完全对齐。
 
 use wdev::Device;
-use whll::{HyperLogLog, SPARSE_SIZE_MAX_CAP};
+use whyperlog::{HyperLogLog, SPARSE_SIZE_MAX_CAP};
 
 use super::super::storage_session::StorageSession;
 use crate::types::GarnetStatus;

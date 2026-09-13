@@ -7,7 +7,7 @@
 use std::str::from_utf8;
 
 use wresp::{
-  RespVecExt, cmd_strings as cs,
+  RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments, write_raw},
   strict_i64,
 };
@@ -33,10 +33,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "client|info");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "client|info");
 
     // C# 拼行后 WriteLargeVerbatimString（RESP3 verbatim / RESP2 bulk）；rust
     // 会话恒默认 RESP2，按 bulk string 应答
@@ -62,10 +59,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if !parse_state.is_empty() {
-      abort_with_wrong_number_of_arguments(output, "CLIENT|GETNAME");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, empty, output, "CLIENT|GETNAME");
     // C# IsNullOrEmpty → nil（空名视同未设置）
     match self.client_name.as_deref() {
       Some(name) if !name.is_empty() => output.write_resp_bulk_string(name.as_bytes()),
@@ -80,10 +74,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 {
-      abort_with_wrong_number_of_arguments(output, "CLIENT|SETNAME");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1, output, "CLIENT|SETNAME");
 
     // 对标 C# TryGetClientName：33..=126 可打印字符，空串允许（清名语义）
     match try_get_client_name_bytes(parse_state[0]) {
@@ -102,10 +93,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 2 {
-      abort_with_wrong_number_of_arguments(output, "CLIENT|SETINFO");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 2, output, "CLIENT|SETINFO");
 
     let option = parse_state[0];
     let value = parse_state[1];

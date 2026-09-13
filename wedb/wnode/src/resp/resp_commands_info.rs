@@ -208,42 +208,6 @@ pub(crate) fn acl_category_descriptions(cats: RespAclCategories) -> Vec<&'static
     .collect()
 }
 
-/// ACL 分类的 C# 枚举成员名（导出 JSON 面；声明序）
-#[cfg(test)]
-pub(crate) fn acl_category_member_names(cats: RespAclCategories) -> Vec<&'static str> {
-  const ALL: [(u32, &str); 24] = [
-    (1, "Admin"),
-    (1 << 1, "Bitmap"),
-    (1 << 2, "Blocking"),
-    (1 << 3, "Connection"),
-    (1 << 4, "Dangerous"),
-    (1 << 5, "Geo"),
-    (1 << 6, "Hash"),
-    (1 << 7, "HyperLogLog"),
-    (1 << 8, "Fast"),
-    (1 << 9, "KeySpace"),
-    (1 << 10, "List"),
-    (1 << 11, "PubSub"),
-    (1 << 12, "Read"),
-    (1 << 13, "Scripting"),
-    (1 << 14, "Set"),
-    (1 << 15, "SortedSet"),
-    (1 << 16, "Slow"),
-    (1 << 17, "Stream"),
-    (1 << 18, "String"),
-    (1 << 19, "Transaction"),
-    (1 << 20, "Write"),
-    (1 << 21, "Garnet"),
-    (1 << 22, "Custom"),
-    (1 << 23, "Vector"),
-  ];
-  ALL
-    .iter()
-    .filter(|(bit, _)| cats.bits() & bit != 0)
-    .map(|(_, name)| *name)
-    .collect()
-}
-
 /// ACL 分类成员名串解析（"Fast, String, Write"；大小写不敏感）
 pub(crate) fn acl_categories_from_member_names(names: &str) -> Option<RespAclCategories> {
   const ALL: [(&str, u32); 24] = [
@@ -386,119 +350,6 @@ impl RespCommandsInfo {
 impl IRespSerializable for RespCommandsInfo {
   fn to_resp_format<B: RespBuffer, P: RespProtocol>(&self, writer: &mut RespWriter<B, P>) {
     self.to_resp_format(writer);
-  }
-}
-
-impl RespCommandsInfo {
-  /// 逆向为 JSON 导入结构（C# 导出面：类自身即 JSON 契约，经
-  /// `DefaultRespCommandsDataProvider.TryExportRespCommandsData` 序列化；
-  /// 空/默认字段的省略差异仅为字节面，语义一致）
-  #[cfg(test)]
-  pub(crate) fn to_import(&self) -> RespCommandsInfoImport {
-    let flags = {
-      let names = self.flags.member_names();
-      (!names.is_empty()).then(|| names.join(", "))
-    };
-    let acl_categories = {
-      let names = acl_category_member_names(self.acl_categories);
-      (!names.is_empty()).then(|| names.join(", "))
-    };
-    let store_type = (!matches!(self.store_type, StoreType::None))
-      .then_some(match self.store_type {
-        StoreType::Main => "Main",
-        StoreType::Object => "Object",
-        StoreType::All => "All",
-        StoreType::None => "None",
-      })
-      .map(str::to_string);
-    let key_specifications = (!self.key_specifications.is_empty())
-      .then(|| self.key_specifications.iter().map(ks_to_import).collect());
-    let sub_commands = (!self.sub_commands.is_empty())
-      .then(|| self.sub_commands.iter().map(|sc| sc.to_import()).collect());
-
-    RespCommandsInfoImport {
-      command: cs_name_of(self.command).to_string(),
-      name: self.name.clone(),
-      is_internal: self.is_internal,
-      arity: self.arity,
-      flags,
-      first_key: self.first_key,
-      last_key: self.last_key,
-      step: self.step,
-      acl_categories,
-      tips: (!self.tips.is_empty()).then(|| self.tips.clone()),
-      key_specifications,
-      store_type,
-      sub_commands,
-    }
-  }
-}
-
-/// C# 枚举成员名（`Command` 字段导出用）
-#[cfg(test)]
-fn cs_name_of(cmd: RespCommand) -> &'static str {
-  super::resp_commands_info_data::resp_command_to_cs_name(cmd)
-}
-
-/// 键规格逆向导入结构（C# 导出经 KeySpecConverter 写 TypeDiscriminator）
-#[cfg(test)]
-fn ks_to_import(ks: &RespCommandKeySpecification) -> KeySpecificationImport {
-  let begin_search = ks.begin_search.as_ref().map(|m| match m {
-    BeginSearchMethod::Index(index) => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      index: Some(*index),
-      ..Default::default()
-    },
-    BeginSearchMethod::Keyword {
-      keyword,
-      start_from,
-    } => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      keyword: Some(keyword.clone()),
-      start_from: Some(*start_from),
-      ..Default::default()
-    },
-    BeginSearchMethod::Unknown => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      ..Default::default()
-    },
-  });
-  let find_keys = ks.find_keys.as_ref().map(|m| match m {
-    FindKeysMethod::Range {
-      last_key,
-      key_step,
-      limit,
-    } => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      last_key: Some(*last_key),
-      key_step: Some(*key_step),
-      limit: Some(*limit),
-      ..Default::default()
-    },
-    FindKeysMethod::KeyNum {
-      key_num_idx,
-      first_key,
-      key_step,
-    } => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      key_num_idx: Some(*key_num_idx),
-      first_key: Some(*first_key),
-      key_step: Some(*key_step),
-      ..Default::default()
-    },
-    FindKeysMethod::Unknown => KeySpecMethodImport {
-      discriminator: m.discriminator().to_string(),
-      ..Default::default()
-    },
-  });
-  KeySpecificationImport {
-    begin_search,
-    find_keys,
-    notes: ks.notes.clone(),
-    flags: {
-      let names = ks.flags.descriptions();
-      (!names.is_empty()).then(|| names.join(", "))
-    },
   }
 }
 
@@ -1016,7 +867,6 @@ pub fn get_resp_command_name(cmd: RespCommand) -> String {
 
 #[cfg(test)]
 mod tests {
-  use gxhash::{GxBuildHasher, HashMap};
   use wacl::RespAclCategories;
   use wresp::{RespCommand, RespMemoryWriter};
   use wtxn::StoreType;
@@ -1025,7 +875,7 @@ mod tests {
     RespCommandFlags, acl_categories_from_member_names, get_resp_command_name, individual_acls,
     try_fast_get_resp_command_info, try_get_commandsfor_acl_category,
     try_get_resp_command_info_by_cmd, try_get_resp_command_info_by_name,
-    try_get_resp_commands_info, try_get_resp_commands_info_count,
+    try_get_resp_commands_info_count,
   };
 
   /// 表初始化 + 基本检索（COMMAND 表快照的入口断言）
@@ -1145,36 +995,6 @@ mod tests {
       "$9\r\nfind_keys\r\n*4\r\n$4\r\ntype\r\n$5\r\nrange\r\n$4\r\nspec\r\n*6\r\n$7\r\nlastkey\r\n:0\r\n$7\r\nkeystep\r\n:1\r\n$5\r\nlimit\r\n:0\r\n*0\r\n",
     );
     assert_eq!(String::from_utf8(w.into_inner()).unwrap(), expected);
-  }
-
-  /// 导出 → 再导入闭环（C# TryExportRespCommandsData 面的等价校验）
-  #[test]
-  fn export_import_roundtrip() {
-    use super::super::resp_command_data_provider::get_resp_commands_data_provider;
-
-    let all = try_get_resp_commands_info(false).unwrap();
-    let mut exports: Vec<super::RespCommandsInfoImport> = Vec::with_capacity(all.len());
-    let mut expected_arity: HashMap<String, i32> = HashMap::with_hasher(GxBuildHasher::default());
-    for info in all.values() {
-      exports.push(info.to_import());
-      expected_arity.insert(info.name.to_lowercase(), info.arity);
-    }
-
-    let provider = get_resp_commands_data_provider();
-    let json = provider.try_export_resp_commands_data(&exports).unwrap();
-    let reimported = provider
-      .try_import_resp_commands_data::<super::RespCommandsInfoImport>(&json)
-      .unwrap();
-    assert_eq!(reimported.len(), all.len(), "重导入条目数一致");
-    for entry in reimported {
-      let info = entry.convert(false, 0).expect("重导入可转换");
-      assert_eq!(
-        expected_arity.get(&info.name.to_lowercase()),
-        Some(&info.arity),
-        "{} arity 保持",
-        info.name
-      );
-    }
   }
 
   #[test]
