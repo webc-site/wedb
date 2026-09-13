@@ -20,13 +20,11 @@
 
 use std::{ptr::null, str::from_utf8};
 
-use wbase::num::{strict_i32, strict_i64};
+use wbase::num::{strict_f32, strict_f64, strict_i32, strict_i64};
 use wresp::{ArgSlice, MAX_ARGUMENT_LENGTH_BYTES as MAX_ARG_LEN, SessionParseState};
 
 pub const MAX_ARGUMENT_LENGTH_BYTES: usize = MAX_ARG_LEN as usize;
 
-// 过渡期兼容转发（实现单一落 wbase::num；存量调用方迁移完成后删除）
-pub use wbase::num::{strict_f32, strict_f64};
 
 /// libs/server/Resp/Parser/SessionParseState.cs:InitializeWithArgument
 ///

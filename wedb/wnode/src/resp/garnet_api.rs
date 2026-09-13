@@ -32,8 +32,8 @@ use wresp::{
     write_error_raw,
   },
   command::is_vector_set_command,
-  strict_i32,
 };
+use wbase::num::strict_i32;
 
 use super::{
   basic_commands::{IncrCmd, ObjectSubCmd, parse_flush_options},

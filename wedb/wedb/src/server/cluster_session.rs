@@ -21,7 +21,8 @@ use wnode::{
   ClusterSlotVerificationInput, RoleInfo, StorageSession, cluster_session::ClusterSessionFace,
   extract_keys_from_slice, resp::slow_path::SlowWait,
 };
-use wresp::{RespCommand, RespVecExt, strict_i64};
+use wbase::num::strict_i64;
+use wresp::{RespCommand, RespVecExt};
 
 use crate::{
   error::Error,
@@ -677,7 +678,7 @@ impl ClusterSessionFace for ClusterSession {
         }
         let mut expiry_secs: i64 = 60;
         if let Some(exp) = args.get(1) {
-          match wresp::strict_i64(exp) {
+          match strict_i64(exp) {
             Some(v) => expiry_secs = v,
             None => {
               output.extend_from_slice(b"-ERR value is not an integer or out of range.\r\n");

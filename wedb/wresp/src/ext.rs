@@ -3,8 +3,6 @@ use core::str;
 /// 最大单行错误文案长度（防恶意巨幅文案攻击）
 pub const MAX_ERROR_MSG_LEN: usize = 512;
 
-// 过渡期兼容转发（实现单一落 wbase::num；存量调用方迁移完成后删除）
-pub use wbase::num::{strict_i32, strict_i64};
 
 /// 净化错误文案：以 `\r` 或 `\n` 截断防止 RESP 协议帧注入，并截断至最大长度（确保 UTF-8 字符边界）
 #[inline]
@@ -20,6 +18,8 @@ pub fn sanitize_error_str(s: &str, max_len: usize) -> &str {
     &truncated[..boundary]
   }
 }
+
+use wbase::num::{strict_i32, strict_i64};
 
 pub trait RespSliceExt {
   fn as_str_safe(&self) -> &str;

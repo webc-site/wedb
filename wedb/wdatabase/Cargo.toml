@@ -12,12 +12,11 @@ workspace = true
 
 [dependencies]
 async-lock.workspace = true
-wbase = { workspace = true, features = ["time"] }
+wbase = { workspace = true, features = ["map", "time"] }
 gxhash.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 waof.workspace = true
-wbase = { version = "0.1.6", path = "../wbase", features = ["map"] }
 wcpr.workspace = true
 wdev.workspace = true
 whasher.workspace = true

@@ -28,7 +28,7 @@ pub use command::{
   is_write_only, one_if_read, one_if_write,
 };
 pub use ext::{
-  MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, sanitize_error_str, strict_i32, strict_i64,
+  MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, sanitize_error_str,
 };
 pub use frame::parse_resp_frame;
 pub use i_resp_serializable::IRespSerializable;

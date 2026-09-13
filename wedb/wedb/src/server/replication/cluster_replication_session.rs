@@ -22,7 +22,8 @@ use std::{
 use waof::WalLog;
 use wdev::Device;
 use wnode::MessageConsumerFace;
-use wresp::{parse_resp_frame, strict_i64};
+use wbase::num::strict_i64;
+use wresp::parse_resp_frame;
 
 use crate::server::{
   cluster_provider::ClusterProvider, replication::replication_manager::ReplicationManager,
@@ -301,7 +302,7 @@ const ERR_MALFORMED_APPENDLOG_FRAME: &[u8] = b"-ERR malformed APPENDLOG frame\r\
 /// 初始化成功 +OK 响应
 const RESP_OK: &[u8] = b"+OK\r\n";
 
-/// 字节解析 i64（复用 wresp::strict_i64 保证安全与无溢出）
+/// 字节解析 i64（复用 wbase::num::strict_i64 保证安全与无溢出）
 #[inline]
 fn parse_i64_fast(bytes: &[u8]) -> io::Result<i64> {
   strict_i64(bytes).ok_or_else(|| Error::new(ErrorKind::InvalidInput, "value is not an integer"))

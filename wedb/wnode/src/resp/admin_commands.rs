@@ -11,8 +11,8 @@ use wresp::{
     RESP_ERR_REGISTERCS_DISALLOWED, abort_with_error_message, abort_with_unknown_subcommand,
     abort_with_unknown_subcommand_or_wrong_num_args, write_error_raw, write_raw,
   },
-  strict_i32,
 };
+use wbase::num::strict_i32;
 
 use super::resp_server_session::RespServerSession;
 use crate::resp::{
