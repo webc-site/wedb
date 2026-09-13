@@ -176,7 +176,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
     let channel = &self.cleanup_task_channel;
     while channel.wait_to_read().await {
       self.cleanup_gate.wait().await;
-      let Some(context) = channel.try_read() else {
+      let Some(context) = channel.try_pop() else {
         continue;
       };
       if let Err(e) = panic::catch_unwind(AssertUnwindSafe(|| {
@@ -203,7 +203,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
     self.on_start();
     let channel = &self.request_cleanup_task_channel;
     while channel.wait_to_read().await {
-      let Some(context) = channel.try_read() else {
+      let Some(context) = channel.try_pop() else {
         continue;
       };
       self.process_request_cleanup(context);
@@ -226,11 +226,11 @@ impl<S: StoreCallbacks> VectorManager<S> {
     self.on_start();
     let channel = &self.request_drop_task_channel;
     while channel.wait_to_read().await {
-      if channel.try_read().is_none() {
+      if channel.try_pop().is_none() {
         continue;
       }
       // 每趟服务整个积压（信号本身无载荷，多余信号直接排空）
-      channel.drain_pending();
+      channel.drain().len();
       self.process_request_drop_once();
     }
     self.on_stop();
@@ -331,7 +331,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
         Some(bytes) => super::vector_manager_index::Index::from_bytes(&bytes)
           .is_none_or(|live| live.context != context),
       };
-      if needs_delete && !self.request_cleanup_task_channel.try_publish(context) {
+      if needs_delete && !self.request_cleanup_task_channel.push(context) {
         log::warn!("Could not request delete of abandoned Vector Set");
       }
     }
@@ -347,10 +347,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
       if let Some(contexts) = meta.get_need_cleanup() {
         let offset = Self::offset_for_context_metadata(i);
         for ctx in contexts {
-          if self
-            .cleanup_task_channel
-            .try_publish(offset + u64::from(ctx))
-          {
+          if self.cleanup_task_channel.push(offset + u64::from(ctx)) {
             queued += 1;
           }
         }
@@ -393,7 +390,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
         drop(metas);
         self.dirty_context_metadatas.lock().insert(context_index);
         self.update_context_metadata();
-        if !self.cleanup_task_channel.try_publish(context) {
+        if !self.cleanup_task_channel.push(context) {
           log::warn!("Could not request cleanup of Vector Set context: {context}");
         }
       }

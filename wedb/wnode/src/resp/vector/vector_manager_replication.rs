@@ -115,7 +115,7 @@ impl ReplicationRuntime {
   pub(crate) fn replicate(&self, log_arg: i64, namespace_bytes: &[u8], key: &[u8], value: &[u8]) {
     self.last_arg.store(log_arg as usize, Ordering::Relaxed);
     self.log_count.fetch_add(1, Ordering::Relaxed);
-    let _ = self.replication_log.try_publish(ReplicationRecord {
+    let _ = self.replication_log.push(ReplicationRecord {
       log_arg,
       namespace_bytes: namespace_bytes.to_vec(),
       key: key.to_vec(),
@@ -151,7 +151,8 @@ impl ReplicationRuntime {
   /// 副本重放与操作是否已处于完全静默状态（通道关闭或无排队且无进行中操作）。
   #[inline(always)]
   pub fn is_quiescent(&self) -> bool {
-    self.replay_channel.is_completed() || (!self.replay_channel.has_pending() && !self.is_blocked())
+    self.replay_channel.is_closed()
+      || (!self.replay_channel.is_empty() == false && !self.is_blocked())
   }
 }
 
@@ -182,23 +183,19 @@ impl<S: StoreCallbacks> VectorManager<S> {
       .replication
       .replicate(VADD_APPEND_LOG_ARG, &[], key, element);
     // 数据面经重放通道随队（对齐 C# 的 parseState 参数携带）
-    if !self
-      .replication
-      .replay_channel
-      .try_publish(VaddReplicationState {
-        key: key.to_vec(),
-        dims,
-        reduce_dims: 0,
-        value_type: VectorValueType::FP32,
-        values: values.to_vec(),
-        element: element.to_vec(),
-        quantizer: quant,
-        build_exploration_factor: 0,
-        attributes: attributes.to_vec(),
-        num_links: 0,
-        distance_metric: VectorDistanceMetricType::Cosine,
-      })
-    {
+    if !self.replication.replay_channel.push(VaddReplicationState {
+      key: key.to_vec(),
+      dims,
+      reduce_dims: 0,
+      value_type: VectorValueType::FP32,
+      values: values.to_vec(),
+      element: element.to_vec(),
+      quantizer: quant,
+      build_exploration_factor: 0,
+      attributes: attributes.to_vec(),
+      num_links: 0,
+      distance_metric: VectorDistanceMetricType::Cosine,
+    }) {
       log::warn!("向量重放通道发布失败");
     }
   }
@@ -255,7 +252,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
   pub async fn run_replication_replay_task_loop(self: Arc<Self>) {
     let channel = &self.replication.replay_channel;
     while channel.wait_to_read().await {
-      while let Some(state) = channel.try_read() {
+      while let Some(state) = channel.try_pop() {
         self.replication.enter_operation();
         self.handle_vector_set_add_replication(&state);
         self.replication.exit_operation();
@@ -317,7 +314,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 重置重放任务（返回剩余未消费项数）。
   pub fn reset_replay_tasks_async(&self) -> usize {
     self.replication.replay_started.store(0, Ordering::Release);
-    let count = self.replication.replay_channel.drain_pending();
+    let count = self.replication.replay_channel.drain().len();
     self.replication.block_event.notify(usize::MAX);
     count
   }
@@ -326,7 +323,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
   ///
   /// 关闭重放通道（不再接收新项）。
   pub fn shutdown_replay_tasks(&self) {
-    self.replication.replay_channel.complete();
+    self.replication.replay_channel.close();
     self.replication.active.store(false, Ordering::Release);
     self
       .replication

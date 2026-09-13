@@ -86,7 +86,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
   pub async fn run_quantization_task_loop(self: Arc<Self>) {
     let channel = &self.quantization_channel;
     while channel.wait_to_read().await {
-      while let Some(state) = channel.try_read() {
+      while let Some(state) = channel.try_pop() {
         for attempt in 0u32.. {
           if self.try_process_quantization_request(&state) {
             break;
@@ -97,7 +97,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
           } else {
             sleep(Duration::from_millis(1)).await;
           }
-          if channel.is_completed() {
+          if channel.is_closed() {
             return;
           }
         }
@@ -129,14 +129,11 @@ impl<S: StoreCallbacks> VectorManager<S> {
             .fetch_add(1, Ordering::Relaxed);
           // 表就绪后为每个分片调度回填
           for i in 0..self.quantization_task_count.max(1) {
-            if !self
-              .quantization_channel
-              .try_publish(QuantizationState::new(
-                state.key.clone(),
-                QuantizationStep::BackfillQuantizedVectors,
-                i,
-              ))
-            {
+            if !self.quantization_channel.push(QuantizationState::new(
+              state.key.clone(),
+              QuantizationStep::BackfillQuantizedVectors,
+              i,
+            )) {
               log::warn!("回填量化向量任务发布失败");
             }
           }

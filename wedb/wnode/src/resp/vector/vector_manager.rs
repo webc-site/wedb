@@ -449,14 +449,11 @@ impl<S: StoreCallbacks> VectorManager<S> {
       DiskAnnInsertResult::True => Ok(VectorManagerResult::OK),
       DiskAnnInsertResult::QuantizationRequested => {
         // 建表请求以 Vector Set 键入量化通道（回填分片在表就绪后调度）
-        if !self
-          .quantization_channel
-          .try_publish(QuantizationState::new(
-            key.to_vec(),
-            QuantizationStep::BuildQuantizationTable,
-            0,
-          ))
-        {
+        if !self.quantization_channel.push(QuantizationState::new(
+          key.to_vec(),
+          QuantizationStep::BuildQuantizationTable,
+          0,
+        )) {
           log::warn!("建表请求发布至量化通道失败");
         }
         Ok(VectorManagerResult::OK)
@@ -514,7 +511,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
       return;
     }
 
-    if !self.request_cleanup_task_channel.try_publish(index.context) {
+    if !self.request_cleanup_task_channel.push(index.context) {
       log::error!("Could not submit request for Vector Set cleanup, aborting delete");
       return;
     }
@@ -547,7 +544,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
         log::error!("Drop triggered multiple times for same index");
         return;
       }
-      let _ = self.request_drop_task_channel.try_publish(());
+      let _ = self.request_drop_task_channel.push(());
     }
   }
 
@@ -988,7 +985,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
     }
 
     // 恢复未完成的清理
-    let _ = self.cleanup_task_channel.try_publish(0);
+    let _ = self.cleanup_task_channel.push(0);
 
     true
   }

@@ -347,7 +347,7 @@ fn request_quantization_if_needed<S: StoreCallbacks>(
   context: u64,
 ) {
   if manager.service.needs_quantization(context) {
-    let _ = channel.try_publish(QuantizationState::new(
+    let _ = channel.push(QuantizationState::new(
       key.to_vec(),
       QuantizationStep::BuildQuantizationTable,
       0,

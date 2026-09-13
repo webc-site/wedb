@@ -151,97 +151,6 @@ impl CallbackWire {
   }
 }
 
-/// 溢流暂存通道（有锁连续缓冲队列 + 事件驱动挂起与唤醒）
-///
-/// 单生产者单消费者、常态为空（仅客户端命令通道饱和时启用）的低竞争场景，
-/// 遵循 crossfire 官方实践指导采用有锁队列：无锁环形队列按容量预分配槽位
-///（10_000 × OverflowEntry ≈ 600KB/连接），有锁队列零预分配按需增长，
-/// 且免锁套娃与跨核缓存颠簸。
-struct OverflowChannel {
-  queue: Mutex<VecDeque<OverflowEntry>>,
-  event: Event,
-  closed: AtomicBool,
-  /// 在途帧标志：泵手上持有已出队、未入客户端通道的帧（直发禁入，保序）
-  in_flight: AtomicBool,
-}
-
-impl OverflowChannel {
-  fn new() -> Self {
-    Self {
-      queue: Mutex::new(VecDeque::new()),
-      event: Event::new(),
-      closed: AtomicBool::new(false),
-      in_flight: AtomicBool::new(false),
-    }
-  }
-
-  /// 推入溢流帧；超过上限返回 false（调用方断连，防对端假死内存无界膨胀）
-  fn push(&self, entry: OverflowEntry) -> bool {
-    {
-      let mut q = self.queue.lock();
-      if q.len() >= TcpSessionWire::MAX_OVERFLOW_ENTRIES {
-        return false;
-      }
-      q.push_back(entry);
-    }
-    self.event.notify(1);
-    true
-  }
-
-  /// 非阻塞取出一帧（贪婪消费路径）；出队即置在途标志（保序）
-  fn try_pop(&self) -> Option<OverflowEntry> {
-    let entry = self.queue.lock().pop_front()?;
-    self.in_flight.store(true, Ordering::Release);
-    Some(entry)
-  }
-
-  /// 队列无积压且无在途帧时新帧方可直发（保序：在途帧已离开队列但未入
-  /// 客户端通道，直发会插队致复制流乱序）
-  fn is_empty(&self) -> bool {
-    let q = self.queue.lock();
-    q.is_empty() && !self.in_flight.load(Ordering::Acquire)
-  }
-
-  /// 帧退回队首（贪婪消费遇饱和时保序）；本泵随即在 [`Self::recv`] 锁内重取，无需唤醒
-  fn push_front(&self, entry: OverflowEntry) {
-    self.queue.lock().push_front(entry);
-  }
-
-  /// 异步挂起直至取出一帧；通道关闭且已排空时返回 None
-  ///
-  /// 空查与注册监听同持锁，与持锁的 [`Self::close`] 串行化，无丢唤醒窗口
-  async fn recv(&self) -> Option<OverflowEntry> {
-    loop {
-      let listener = {
-        let mut q = self.queue.lock();
-        if let Some(entry) = q.pop_front() {
-          // 出队即置在途：帧在泵手上、未入客户端通道期间直发会插队
-          self.in_flight.store(true, Ordering::Release);
-          return Some(entry);
-        }
-        // 上一迭代在途帧已全部入客户端通道，清除在途标志
-        self.in_flight.store(false, Ordering::Release);
-        if self.closed.load(Ordering::Acquire) {
-          return None;
-        }
-        self.event.listen()
-      };
-      listener.await;
-    }
-  }
-
-  /// 关闭通道（wire 释放时），唤醒所有等待中的泵
-  ///
-  /// 持锁 store + notify：与 [`Self::recv`] 的空查→注册监听互斥，
-  /// 消除「notify 先于注册即丢失」的挂死窗口
-  fn close(&self) {
-    let q = self.queue.lock();
-    self.closed.store(true, Ordering::Release);
-    self.event.notify(usize::MAX);
-    drop(q);
-  }
-}
-
 /// TCP 会话形态：wconn 客户端会话 + 溢流事件驱动泵
 ///
 /// 对标 C# GarnetClientSession 的网络面组合：Fire-and-forget 帧写入
@@ -250,8 +159,9 @@ impl OverflowChannel {
 pub struct TcpSessionWire {
   client: GarnetClientSession,
   node_id: String,
-  /// 通道饱和帧的溢流暂存（有锁队列，零预分配按需增长）
-  overflow: Arc<OverflowChannel>,
+  overflow: Arc<wbase::pool::EventWorkQueue<OverflowEntry>>,
+  /// 在途帧标志：泵手上持有已出队、未入客户端通道的帧（直发禁入，保序）
+  in_flight: Arc<AtomicBool>,
   pump_alive: Arc<AtomicBool>,
 }
 
@@ -301,11 +211,12 @@ impl TcpSessionWire {
       ));
     }
 
-    let overflow = Arc::new(OverflowChannel::new());
+    let overflow = Arc::new(wbase::pool::EventWorkQueue::new());
     let wire = Arc::new(Self {
       client,
       node_id: node_id.to_string(),
       overflow: Arc::clone(&overflow),
+      in_flight: Arc::new(AtomicBool::new(false)),
       pump_alive: Arc::new(AtomicBool::new(true)),
     });
     wire.start_pump(overflow);
@@ -313,14 +224,35 @@ impl TcpSessionWire {
   }
 
   /// 溢流搬运泵：事件驱动被动唤醒，尝试把饱和帧排入客户端命令通道（Weak 弱引用破环，防孤儿任务泄漏）
-  fn start_pump(self: &Arc<Self>, overflow: Arc<OverflowChannel>) {
+  fn start_pump(self: &Arc<Self>, overflow: Arc<wbase::pool::EventWorkQueue<OverflowEntry>>) {
     let weak_wire = Arc::downgrade(self);
     let alive = Arc::clone(&self.pump_alive);
     spawn(async move {
+      let mut pending_entry = None;
       while alive.load(Ordering::Acquire) {
-        // 无挂起条目时被动挂起等待唤醒，消灭固定周期的空转轮询
-        let Some(entry) = overflow.recv().await else {
-          break; // 通道关闭（wire 释放）且已排空
+        let entry = if let Some(p) = pending_entry.take() {
+          p
+        } else {
+          // 等待队列有新数据或关闭
+          if !overflow.wait_to_read().await {
+            break; // 通道关闭（wire 释放）且已排空
+          }
+          if !alive.load(Ordering::Acquire) {
+            break;
+          }
+          let Some(wire) = weak_wire.upgrade() else {
+            break;
+          };
+          match overflow.try_pop() {
+            Some(e) => {
+              wire.in_flight.store(true, Ordering::Release);
+              e
+            }
+            None => {
+              wire.in_flight.store(false, Ordering::Release);
+              continue;
+            }
+          }
         };
 
         if !alive.load(Ordering::Acquire) {
@@ -335,9 +267,7 @@ impl TcpSessionWire {
           break;
         }
 
-        // 异步推入客户端命令通道：饱和时被动挂起等待网络泵腾出缓冲，
-        // 由 crossfire 内建 Waker 精确唤醒，零轮询零 sleep（对标 C# 发送缓冲满
-        // 时 Send 内部自动 Flush 的阻塞背压）
+        // 异步推入客户端命令通道
         if wire
           .client
           .execute_cluster_append_log_async(
@@ -354,8 +284,12 @@ impl TcpSessionWire {
           break;
         }
 
-        // 发送成功后尽力贪婪非阻塞消费当前已就绪的溢流条目，摊薄调度开销
+        // 本次发送成功，清除 in_flight
+        wire.in_flight.store(false, Ordering::Release);
+
+        // 贪婪非阻塞消费
         while let Some(next) = overflow.try_pop() {
+          wire.in_flight.store(true, Ordering::Release);
           if wire
             .client
             .execute_cluster_append_log(
@@ -368,11 +302,12 @@ impl TcpSessionWire {
             )
             .is_err()
           {
-            // 通道再次饱和：帧退回队首保序，主路径经 recv().await 重取后
-            // 走异步 await 挂起等待腾出缓冲
-            overflow.push_front(next);
+            // 通道饱和，暂存到 pending_entry，等待下一轮 async 重发
+            pending_entry = Some(next);
             break;
           }
+          // 发送成功，清除 in_flight，继续消费
+          wire.in_flight.store(false, Ordering::Release);
         }
       }
     })
@@ -401,7 +336,7 @@ impl TcpSessionWire {
     };
 
     // 若溢流队列为空则直发客户端通道；若已有积压或直发满则入队保序
-    let should_try_direct = self.overflow.is_empty();
+    let should_try_direct = self.overflow.is_empty() && !self.in_flight.load(Ordering::Acquire);
     if !should_try_direct
       || self
         .client

@@ -24,6 +24,7 @@
 mod aligned_buf;
 mod budget;
 mod depot;
+mod event_queue;
 mod inbox;
 pub mod limited;
 mod tls;
@@ -45,6 +46,7 @@ use std::{
 pub use aligned_buf::AlignedBuf;
 pub(crate) use budget::Budget;
 pub(crate) use depot::Depot;
+pub use event_queue::EventWorkQueue;
 pub(crate) use inbox::{ChainIter, CrossThreadInbox, FreeNode, SEALED};
 pub use limited::{
   DEFAULT_BUFFER_SIZE, DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE,
