@@ -1004,6 +1004,48 @@ impl ClusterSessionFace for ClusterSession {
         }
         true
       }
+      // libs/cluster/Session/RespClusterSlotManagementCommands.cs:NetworkClusterSlotState
+      RespCommand::ClusterSlotstate => {
+        if args.len() != 1 {
+          wrong_num_args(output, cluster_sub_name(cmd));
+          return true;
+        }
+        let Some(slot) = strict_i64(args[0]) else {
+          write_error(output, err::INVALID_SLOT);
+          return true;
+        };
+        if ClusterConfig::out_of_range(slot.max(0) as usize) {
+          write_error(output, err::SLOT_OUT_OF_RANGE);
+          return true;
+        }
+        let slot = slot as u16;
+        let Some(m) = self.cluster_manager() else {
+          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          return true;
+        };
+        // C# 状态符号投影：STABLE "=" IMPORTING "<" MIGRATING ">" OFFLINE "x" FAIL "*"
+        let state_str = match m.current_config().get_state(slot) {
+          SlotState::Stable => "=",
+          SlotState::Importing => "<",
+          SlotState::Migrating => ">",
+          SlotState::Offline => "x",
+          SlotState::Fail => "*",
+          SlotState::Node | SlotState::Invalid => "x",
+        };
+        let owner = m
+          .current_config()
+          .get_owner_id_from_slot(slot)
+          .unwrap_or_default();
+        let mut buf = itoa::Buffer::new();
+        output.push(b'+');
+        output.extend_from_slice(buf.format(slot).as_bytes());
+        output.push(b' ');
+        output.extend_from_slice(state_str.as_bytes());
+        output.push(b' ');
+        output.extend_from_slice(owner.as_bytes());
+        output.extend_from_slice(b"\r\n");
+        true
+      }
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterMeet
       RespCommand::ClusterMeet => {
         if args.len() != 2 {

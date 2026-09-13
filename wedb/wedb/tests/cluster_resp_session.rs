@@ -925,3 +925,27 @@ fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame_bytes: &[u8])
   });
   out
 }
+
+/// CLUSTER SLOTSTATE：槽位状态符号投影（STABLE "=" / MIGRATING ">" 等）
+#[test]
+fn cluster_slotstate_projection() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let m = cp.cluster_manager().unwrap();
+
+  // 槽 5061（bar）本地 STABLE → "+5061 = node_1"
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "SLOTSTATE", "5061"]));
+  assert_eq!(out, b"+5061 = node_1\r\n");
+
+  // 置 MIGRATING 后 → "> node_1"（属主仍为源节点）
+  {
+    let mut config = m.current_config.write();
+    config.slot_map[5061].state = SlotState::Migrating;
+  }
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "SLOTSTATE", "5061"]));
+  assert_eq!(out, b"+5061 > node_1\r\n");
+
+  // 越界 → "ERR Slot out of range"
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "SLOTSTATE", "16384"]));
+  assert_eq!(out, b"-ERR Slot out of range\r\n");
+}

@@ -319,6 +319,15 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
     use super::array_commands::parse_scan_filter;
     use crate::{storage::session::storage_session::StorageSession, types::GarnetStatus};
 
+    // 检查点族须在会话纪元保护区外发起（wcpr fail-fast 契约：批处理纪元
+    // 守卫内自钉纪元会令排空屏障谓词永假），先于 batch 域闭环
+    if matches!(
+      cmd,
+      RespCommand::Save | RespCommand::Bgsave | RespCommand::Lastsave
+    ) {
+      return self.checkpoint_command_slow(cmd).await;
+    }
+
     let refs: Vec<&[u8]> = args.iter().map(|a| a.as_slice()).collect();
     // 慢路径执行域：独立批处理纪元 + 只读扫描会话（慢命令不登记/推进
     // WATCH，独立版本表与 GarnetDatabase 的共享面语义等价）
@@ -489,9 +498,33 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           _ => ri_cmds::network_rimetrics(&refs, ri, &self.session, &mut output).await,
         };
       }
-      // ---- 检查点族（AdminCommands.cs:NetworkSAVE/NetworkBGSAVE/NetworkLASTSAVE：
-      // C# 阻塞等待 storeWrapper.TakeCheckpointAsync，rust 映射为
-      // WedbStore::create_checkpoint（wcpr 通道）；LASTSAVE 为纯读取
+      // 未接入慢路径分派表的命令：写明错误，绝不静默
+      _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),
+    }
+    output
+  }
+}
+
+impl<D: Device> StoreGarnetApi<D> {
+  /// 检查点族慢路径执行段（AdminCommands.cs:NetworkSAVE/NetworkBGSAVE/
+  /// NetworkLASTSAVE：C# 阻塞等待 storeWrapper.TakeCheckpointAsync，rust
+  /// 映射为 WedbStore::create_checkpoint（wcpr 通道）；LASTSAVE 为纯读取）
+  ///
+  /// 独立方法承载以脱离调用方的批处理纪元保护区（wcpr 契约：
+  /// CheckpointWhileEpochProtected fail-fast）
+  async fn checkpoint_command_slow(&self, cmd: RespCommand) -> Vec<u8> {
+    use RespCommand as C;
+    use wresp::RespVecExt;
+
+    let mut output = Vec::new();
+    match cmd {
+      C::Lastsave => {
+        let secs = match &self.checkpoint {
+          Some(ctx) => ctx.last_save_ms.load(Ordering::Acquire) / 1000,
+          None => 0,
+        };
+        output.write_resp_int(secs);
+      }
       C::Save | C::Bgsave => {
         let Some(ctx) = &self.checkpoint else {
           write_error_raw(&mut output, RESP_ERR_CHECKPOINT_UNWIRED);
@@ -513,18 +546,13 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             }
           }
           // C# SAVE/BGSAVE 失败统一回并发检查点错误
-          Err(_) => write_error_raw(&mut output, RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS),
+          Err(e) => {
+            log::warn!("checkpoint failed: {e}");
+            write_error_raw(&mut output, RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS);
+          }
         }
       }
-      C::Lastsave => {
-        let secs = match &self.checkpoint {
-          Some(ctx) => ctx.last_save_ms.load(Ordering::Acquire) / 1000,
-          None => 0,
-        };
-        output.write_resp_int(secs);
-      }
-      // 未接入慢路径分派表的命令：写明错误，绝不静默
-      _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),
+      _ => unreachable!("checkpoint_command_slow 仅承接检查点族"),
     }
     output
   }

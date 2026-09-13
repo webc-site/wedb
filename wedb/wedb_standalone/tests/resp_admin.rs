@@ -215,3 +215,175 @@ mod admin_collect {
     });
   }
 }
+
+// ---------------------------------------------------------------------------
+// SAVE / BGSAVE / LASTSAVE / COMMITAOF 接线回归
+//（C# NetworkSAVE → storeWrapper.TakeCheckpointAsync；NetworkCOMMITAOF →
+// CommitAOFAsync 后恒回 "AOF file committed"）
+// ---------------------------------------------------------------------------
+
+use std::sync::Arc;
+
+use compio::runtime::Runtime;
+use wdev::SegmentedDevice;
+use wkv::{StoreConfig, WedbStore};
+use wnode::{
+  MessageConsumerFace, RespSessionConsumer,
+  resp::{
+    garnet_api::{CheckpointCtx, StoreGarnetApi},
+    resp_server_session::RespServerSessionOptions as Opts,
+  },
+};
+
+/// 挂检查点通道的会话消费者（独立临时目录）
+fn checkpoint_consumer() -> (
+  RespSessionConsumer,
+  std::path::PathBuf,
+  Arc<std::sync::atomic::AtomicI64>,
+) {
+  let dir = tempfile::tempdir().unwrap().keep();
+  let device = Arc::new(SegmentedDevice::single_file(dir.join("admin.db")).unwrap());
+  let mut config = StoreConfig::new(16384, 65536, 64, 0.5).unwrap();
+  config.gc.enabled = false;
+  let store = Arc::new(WedbStore::open(config, device).unwrap());
+  let cp_dir = dir.join("Store").join("checkpoints");
+  let last_save_ms = Arc::new(std::sync::atomic::AtomicI64::new(0));
+  let api = StoreGarnetApi::new(store.new_session().unwrap()).with_checkpoint_ctx(CheckpointCtx {
+    dir: cp_dir.clone(),
+    last_save_ms: Arc::clone(&last_save_ms),
+  });
+  (
+    RespSessionConsumer::new(1, Opts::default(), Arc::new(api)),
+    cp_dir,
+    last_save_ms,
+  )
+}
+
+/// 单命令往返（同步快路径）
+fn roundtrip(c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
+  let (consumed, out) = c.try_consume_messages(frame);
+  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  out
+}
+
+/// 慢命令往返（网络泵角色由 block_on 承担）
+fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
+  let (consumed, mut out) = c.try_consume_messages(frame);
+  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let Some(slow) = c.take_slow_wait() else {
+    return out;
+  };
+  rt.block_on(async {
+    out.extend_from_slice(&slow.resolve().await);
+  });
+  out
+}
+
+/// COMMITAOF → "AOF file committed"（C# 无视提交结果恒回该文案）
+#[test]
+fn commitaof_replies_fixed_text() {
+  let mut s = RespServerSession::default();
+  let mut out = Vec::new();
+  let _ = s.network_commitaof(&[], &mut out).unwrap();
+  assert_eq!(out, b"+AOF file committed\r\n");
+
+  let mut out = Vec::new();
+  let _ = s.network_commitaof(&[b"0"], &mut out).unwrap();
+  assert_eq!(out, b"+AOF file committed\r\n");
+}
+
+/// SAVE / BGSAVE / LASTSAVE：检查点通道闭环 + LASTSAVE 时间戳推进
+#[test]
+fn save_bgsave_lastsave_via_checkpoint_channel() {
+  let rt = Runtime::new().unwrap();
+  let (mut c, cp_dir, last_save_ms) = checkpoint_consumer();
+
+  // 无检查点前 LASTSAVE → :0（C# DateTimeOffset.FromUnixTimeSeconds(0) 初值；
+  // LASTSAVE 经存储执行域 checkpoint 通道读取，慢路径闭环）
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, b"*1\r\n$8\r\nLASTSAVE\r\n"),
+    b":0\r\n"
+  );
+
+  // SAVE → +OK；检查点目录产生快照；last_save_ms 推进
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, b"*1\r\n$4\r\nSAVE\r\n"),
+    b"+OK\r\n"
+  );
+  let dir_ok = std::fs::read_dir(&cp_dir)
+    .map(|entries| entries.count() > 0)
+    .unwrap_or(false);
+  assert!(dir_ok, "检查点目录应生成快照条目: {}", cp_dir.display());
+  let after_save_ms = last_save_ms.load(std::sync::atomic::Ordering::Acquire);
+  assert!(after_save_ms > 0, "SAVE 后 last_save_ms 应推进");
+
+  // LASTSAVE → 秒级时间戳（与 SAVE 时刻一致，慢路径读取）
+  let out = slow_roundtrip(&rt, &mut c, b"*1\r\n$8\r\nLASTSAVE\r\n");
+  let expect = format!(":{}\r\n", after_save_ms / 1000);
+  assert_eq!(out, expect.as_bytes());
+
+  // BGSAVE → "Background saving started"
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, b"*1\r\n$6\r\nBGSAVE\r\n"),
+    b"+Background saving started\r\n"
+  );
+
+  // SAVE 带 DBID 参数校验：非法 DBID → 拒绝（同步段）
+  assert_eq!(
+    roundtrip(&mut c, b"*2\r\n$4\r\nSAVE\r\n$3\r\nABC\r\n"),
+    b"-ERR value is not an integer or out of range.\r\n"
+  );
+}
+
+/// INFO：wmetric 段分发接线（server 段真实填充 + cluster/replication 投影；
+/// 对标 C# NetworkINFO 的段分发口径）
+#[test]
+fn info_sections_via_wmetric_provider() {
+  let (mut c, _dir, _ts) = checkpoint_consumer();
+
+  // INFO（无参）→ DEFAULT 集合 bulk string 帧
+  let out = roundtrip(&mut c, b"*1\r\n$4\r\nINFO\r\n");
+  let text = String::from_utf8_lossy(&out);
+  assert!(
+    text.starts_with('$'),
+    "应为 bulk string 帧: {}",
+    &text[..24]
+  );
+  assert!(text.contains("# Server\r\n"), "应含 Server 段: {text}");
+  assert!(text.contains("garnet_version:"), "应含版本指标: {text}");
+  assert!(text.contains("run_id:"), "应含运行实例 id: {text}");
+  assert!(text.contains("cluster_enabled:0\r\n"), "单机形态: {text}");
+  assert!(
+    text.contains("connected_slaves:0"),
+    "应含 Replication 段: {text}"
+  );
+  assert!(
+    text.contains("connected_clients:"),
+    "应含 Clients 段: {text}"
+  );
+  assert!(!text.contains("db0:"), "键空间空库不出段: {text}");
+
+  // 非法段 → C# 口径错误
+  let out = roundtrip(&mut c, b"*2\r\n$4\r\nINFO\r\n$6\r\nNOSUCH\r\n");
+  assert_eq!(out, b"-ERR Invalid section NOSUCH. Try INFO HELP\r\n");
+}
+
+/// INFO CLUSTER 单段与 INFO RESET / INFO HELP 语义
+#[test]
+fn info_cluster_section_and_reset_help() {
+  let (mut c, _dir, _ts) = checkpoint_consumer();
+
+  let out = roundtrip(&mut c, b"*2\r\n$4\r\nINFO\r\n$7\r\nCLUSTER\r\n");
+  let text = String::from_utf8_lossy(&out);
+  assert_eq!(text, "$30\r\n# Cluster\r\ncluster_enabled:0\r\n\r\n");
+
+  // RESET → +OK（C# resetEventFlags 置位路径）
+  assert_eq!(
+    roundtrip(&mut c, b"*2\r\n$4\r\nINFO\r\n$5\r\nRESET\r\n"),
+    b"+OK\r\n"
+  );
+
+  // HELP → 数组形态帮助文本
+  let out = roundtrip(&mut c, b"*2\r\n$4\r\nINFO\r\n$4\r\nHELP\r\n");
+  assert_eq!(out[0], b'*');
+}
