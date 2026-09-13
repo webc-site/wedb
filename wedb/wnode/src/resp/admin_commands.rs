@@ -1,6 +1,6 @@
 use std::mem;
 
-use wobject::{
+use wcol::{
   hash::hash_object::HashOperation, sortedset::sorted_set_object::SortedSetOperation,
   types::object_output::ObjectOutput,
 };

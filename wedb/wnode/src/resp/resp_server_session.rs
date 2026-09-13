@@ -21,6 +21,7 @@ use wacl::{
   command_catalog::normalize_for_acls,
 };
 use wbase::time::now_ms;
+use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig};
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, ScratchBufferNetworkSender, ScriptingApi,
@@ -30,7 +31,6 @@ use wmetric::{
   GarnetLatencyMetrics, GarnetLatencyMetricsSession, GarnetSessionMetrics, LatencyMetricsType,
   SlowLogContainer,
 };
-use wobject::itembroker::collection_item_observer::CollectionItemResult;
 use wpubsub::SubscribeBroker;
 use wresp::{
   RespSliceExt, RespVecExt, SessionParseState, cmd_strings as cs,

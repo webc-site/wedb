@@ -8,11 +8,11 @@
 use std::cell::Cell;
 
 use wbase::glob::glob_match;
-use wdev::Device;
-use wobject::{
+use wcol::{
   hash::hash_object::HashObject, list::list_object::ListObject, set::set_object::SetObject,
   sortedset::sorted_set_object::SortedSetObject,
 };
+use wdev::Device;
 use wval::GarnetObjectType;
 
 use super::super::storage_session::StorageSession;

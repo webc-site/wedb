@@ -13,6 +13,9 @@ use compio::{
   runtime::{Runtime, spawn},
   time::sleep,
 };
+use wcol::itembroker::{
+  collection_item_broker::CollectionItemBroker, item_broker_face::SharedItemBroker,
+};
 use wconf::RuntimeServerConfig;
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
@@ -22,9 +25,6 @@ use wnode::{
     garnet_api::StoreGarnetApi, objects::collection_item_source::CollectionItemSource,
     resp_server_session::RespServerSessionOptions,
   },
-};
-use wobject::itembroker::{
-  collection_item_broker::CollectionItemBroker, item_broker_face::SharedItemBroker,
 };
 
 /// 双客户端测试装配：共享存储 + 共享经纪 + 共享运行时配置

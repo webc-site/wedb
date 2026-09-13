@@ -5,7 +5,7 @@
 //! 扫描）；rust 存储域为 compio 异步（hlog 冷区扫描 / 清库 / 槽键判定
 //! 均须跨 await），同步消费循环无法闭环。
 //!
-//! 统一模型（与 [`wobject::itembroker::item_broker_face::BlockedWait`]
+//! 统一模型（与 [`wcol::itembroker::item_broker_face::BlockedWait`]
 //! 同形）：命令同步段返回 `Ok(false)`（须异步闭环且不残留输出）→ 会话挂起
 //! [`SlowWait`] 并停止消费本批 → 网络泵 `take_slow_wait` 后 await
 //! [`SlowWait::resolve`]（compio 挂起不占线程）→ 应答字节按流水线顺序

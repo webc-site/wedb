@@ -23,9 +23,7 @@ use wbase::convert::{
   TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS,
   unix_timestamp_in_milliseconds_to_ticks, unix_timestamp_in_seconds_to_ticks,
 };
-use wdev::Device;
-use wkv::WedbStore;
-use wobject::{
+use wcol::{
   hash::hash_object::HashOperation,
   list::list_object::ListOperation,
   object_store_utils::{
@@ -36,6 +34,8 @@ use wobject::{
   sortedset::sorted_set_object::SortedSetOperation,
   types::object_output::ObjectOutput,
 };
+use wdev::Device;
+use wkv::WedbStore;
 use wresp::RespCommand;
 use wval::{GarnetObjectType, NamespaceDbCodec};
 

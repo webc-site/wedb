@@ -3,13 +3,13 @@ use std::{path::Path, sync::Arc};
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
-use wcpr::CheckpointType;
-use wdev::SegmentedDevice;
-use wkv::{StoreConfig, WedbStore};
-use wobject::{
+use wcol::{
   sortedset::sorted_set_object::SortedSetObject,
   types::garnet_object_serializer::{GarnetObjectSerializer, GarnetObjectValue},
 };
+use wcpr::CheckpointType;
+use wdev::SegmentedDevice;
+use wkv::{StoreConfig, WedbStore};
 
 const KEY_NUM: &[u8] = &[0];
 
@@ -156,7 +156,7 @@ fn hash_and_sorted_set_serialize_with_snapshot_timestamp() {
   use std::io::Cursor;
 
   use wbase::time::now_ticks;
-  use wobject::{HashObject, SortedSetObject};
+  use wcol::{HashObject, SortedSetObject};
   use wresp::ExpireOption;
 
   let now = now_ticks();

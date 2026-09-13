@@ -61,6 +61,13 @@ impl<D: Device> StoreSession<D> {
     Self::sub_key_with_prefix(prefix.as_slice(), tag, key_id, version, field)
   }
 
+  /// 生成当前会话专属向量存储物理键（定长刚性帧隔离公理：[prefix][KeyTag::Vector][context: 8B be][key]）
+  #[inline(always)]
+  pub fn vector_key(&self, context: u64, key: &[u8]) -> TaggedKeyBuf {
+    let prefix = self.session_prefix();
+    NamespaceDbCodec::encode_vector_key_with_prefix(prefix.as_slice(), context, key)
+  }
+
   /// 从完整 TTL 物理键反解 `(ns, db, 用户键)`（供后台过期扫描器逆解，零堆分配）
   ///
   /// 非 TTL 记录键（标签不符或前缀非法）安全返回 None

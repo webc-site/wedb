@@ -16,13 +16,13 @@ use core::str;
 use std::marker::PhantomData;
 
 use wbase::time::now_ticks;
-use wdev::Device;
-use wkv::BatchStoreSession;
-pub(crate) use wobject::object_store_utils::{
+pub(crate) use wcol::object_store_utils::{
   hash_from_blob, hash_to_blob, is_object_envelope, list_from_blob, list_to_blob,
   make_object_input, set_from_blob, set_to_blob, zset_from_blob, zset_to_blob,
 };
-use wobject::types::object_output::ObjectOutput;
+use wcol::types::object_output::ObjectOutput;
+use wdev::Device;
+use wkv::BatchStoreSession;
 use wresp::{
   RespVecExt,
   cmd_strings::{

@@ -12,7 +12,7 @@ use std::{
 
 use wdev::Device;
 use wkv::StoreSession;
-use wvector::store::{StoreCallbacks, make_physical_key};
+use wvector::store::StoreCallbacks;
 
 /// 简单的轻量 Future 阻塞驱动器（不依赖特定运行时）
 fn block_on<F: Future>(f: F) -> F::Output {
@@ -69,7 +69,7 @@ impl<D: Device + 'static> StoreCallbacks for WedbVectorStoreCallbacks<D> {
         break;
       }
       let key = &rest[4..total];
-      let phys_key = make_physical_key(context, key);
+      let phys_key = self.session.vector_key(context, key);
 
       // 优先走纯内存同步快速直读
       let read_done = match self
@@ -97,7 +97,7 @@ impl<D: Device + 'static> StoreCallbacks for WedbVectorStoreCallbacks<D> {
   where
     F: FnMut(&[u8]),
   {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = self.session.vector_key(context, key);
     match self.session.try_read_raw_in_memory(&phys_key, |val| f(val)) {
       Ok(Some(Some(_))) => true,
       Ok(Some(None)) => false,
@@ -113,7 +113,7 @@ impl<D: Device + 'static> StoreCallbacks for WedbVectorStoreCallbacks<D> {
   }
 
   fn write(&self, context: u64, key: &[u8], value: &[u8]) -> bool {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = self.session.vector_key(context, key);
     match self.session.try_upsert_raw_sync(&phys_key, value) {
       Ok(Ok(_)) => true,
       _ => block_on(self.session.upsert_raw(&phys_key, value)).is_ok(),
@@ -121,7 +121,7 @@ impl<D: Device + 'static> StoreCallbacks for WedbVectorStoreCallbacks<D> {
   }
 
   fn delete(&self, context: u64, key: &[u8]) -> bool {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = self.session.vector_key(context, key);
     block_on(self.session.delete_raw(&phys_key)).unwrap_or(false)
   }
 

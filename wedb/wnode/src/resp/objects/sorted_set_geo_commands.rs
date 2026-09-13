@@ -9,7 +9,7 @@
 
 use core::str::from_utf8;
 
-use wobject::{
+use wcol::{
   parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat},
   sortedset::sorted_set_object::{SortedSetObject, SortedSetOperation},
   sortedsetgeo::{

@@ -12,6 +12,16 @@ use wbftree::{
 
 use crate::{CollectionError, Result, prefix::TreePrefix};
 
+/// 列表操作方向（对标 libs/server/Objects/List/ListObject.cs:OperationDirection）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum OperationDirection {
+  #[default]
+  Unknown = 0,
+  Left = 1,
+  Right = 2,
+}
+
 /// List 存根总字节大小 (35 字节 RangeIndexStub + 8 字节 head + 8 字节 tail)
 pub const LIST_STUB_SIZE: usize = 51;
 

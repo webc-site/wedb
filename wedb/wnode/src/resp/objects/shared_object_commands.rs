@@ -2,13 +2,13 @@
 //!
 //! ObjectScan 是四类集合对象共用的 ZSCAN/HSCAN/SSCAN/COSCAN 入口：
 //! 参数校验与光标解析在本层完成，对象遍历经 ObjectInput 走各对象的
-//! scan 分片（有序集合侧见 wobject::sortedset::sorted_set_object_impl::scan_operate）。
+//! scan 分片（有序集合侧见 wcol::sortedset::sorted_set_object_impl::scan_operate）。
 
-use wconf::ServerConfigType;
-use wobject::{
+use wcol::{
   ObjectInput, hash::hash_object::HashOperation, set::set_object::SetOperation,
   sortedset::sorted_set_object::SortedSetOperation, types::object_output::ObjectOutput,
 };
+use wconf::ServerConfigType;
 use wresp::{RespSliceExt, RespVecExt, cmd_strings as cs};
 use wval::GarnetObjectType;
 

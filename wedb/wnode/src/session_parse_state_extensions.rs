@@ -10,8 +10,7 @@
 use std::str::from_utf8;
 
 use wbitmap::{BitFieldOverflow, parse_bitfield_overflow_slice};
-use wmetric::{InfoMetricsType, LatencyMetricsType};
-use wobject::{
+use wcol::{
   list::list_object::OperationDirection,
   parse_utils::strict_f64,
   sortedsetgeo::{
@@ -19,6 +18,7 @@ use wobject::{
     sorted_set_geo_object_impl::{GeoOrder, GeoOriginType, GeoSearchOptions, GeoSearchType},
   },
 };
+use wmetric::{InfoMetricsType, LatencyMetricsType};
 use wresp::{
   ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption, cmd_strings, strict_i32,
   strict_i64,

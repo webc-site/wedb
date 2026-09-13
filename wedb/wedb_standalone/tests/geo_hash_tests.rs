@@ -1,4 +1,4 @@
-use wobject::GeoHash;
+use wcol::GeoHash;
 
 /// test/standalone/Garnet.test.collections/GeoHashTests.cs:CanEncodeAndDecodeCoordinates
 #[test]

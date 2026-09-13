@@ -5,8 +5,8 @@
 
 use std::num::NonZeroI64;
 
+use wcol::list::list_object::{ListObject, ListOperation, OperationDirection};
 use wdev::Device;
-use wobject::list::list_object::{ListObject, ListOperation, OperationDirection};
 
 use super::{super::storage_session::StorageSession, common::RmwOutcome};
 use crate::types::GarnetStatus;

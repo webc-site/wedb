@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use wobject::itembroker::collection_item_observer::CollectionItemResult;
+use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wresp::RespCommand;
 
 use crate::{BlockedWait, resp::slow_path::SlowWait};

@@ -1,7 +1,7 @@
 //! 有序集合 RESP 命令（对标 libs/server/Resp/Objects/SortedSetCommands.cs）
 //!
 //! 命令层只做参数校验与编解码：语义全部下沉到
-//! [`wobject::sortedset::sorted_set_object::SortedSetObject`] 的
+//! [`wcol::sortedset::sorted_set_object::SortedSetObject`] 的
 //! operate/ObjectInput 通道（与 C# GarnetObjectBase.Operate 分层一致），
 //! 存取经与 storage 会话域共享的 `[类型标签][载荷]` 信封
 //! （见 [`crate::resp::objects::object_store_utils`]）。
@@ -11,7 +11,7 @@ use std::str;
 use gxhash::HashMap;
 use memchr::memmem;
 use wbase::num::format_double;
-use wobject::{
+use wcol::{
   sortedset::sorted_set_object::{
     ExpirationWithOption, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
   },

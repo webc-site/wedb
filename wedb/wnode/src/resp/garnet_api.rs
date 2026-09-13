@@ -12,9 +12,9 @@
 use std::{mem, ptr, sync::Arc};
 
 use wbitmap::BitmapOperation;
+use wcol::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wdev::Device;
 use wkv::{BatchStoreSession, StoreSession};
-use wobject::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wresp::{
   RespCommand,
   cmd_strings::{

@@ -1,6 +1,6 @@
 use std::{mem::size_of, ptr::copy_nonoverlapping};
 
-use wobject::{RespInputFlags, RespInputHeader};
+use wcol::{RespInputFlags, RespInputHeader};
 use wresp::{RespCommand, SessionParseState};
 
 /// 各 Input 类型统一的序列化布局 `[3B header][arg1][parse_state]` 的公共骨架

@@ -626,6 +626,42 @@ impl NamespaceDbCodec {
     Self::encode_sub_key_with_prefix(prefix, tag, key_id, version, &chunk_id.to_be_bytes())
   }
 
+  /// 基于会话前缀编码向量存储物理键（定长刚性帧隔离公理：[prefix][KeyTag::Vector][context: 8B be][key]）
+  #[inline]
+  pub fn encode_vector_key_with_prefix(prefix: &[u8], context: u64, key: &[u8]) -> TaggedKeyBuf {
+    let total_len = prefix.len() + KeyTag::TAG_LEN + U64_BYTE_LEN + key.len();
+    let ctx_bytes = context.to_be_bytes();
+    if total_len <= STACK_KEY_CAP {
+      let mut buf = [0u8; STACK_KEY_CAP];
+      let p_len = prefix.len();
+      buf[..p_len].copy_from_slice(prefix);
+      buf[p_len] = KeyTag::Vector as u8;
+      let ctx_start = p_len + KeyTag::TAG_LEN;
+      buf[ctx_start..ctx_start + U64_BYTE_LEN].copy_from_slice(&ctx_bytes);
+      buf[ctx_start + U64_BYTE_LEN..total_len].copy_from_slice(key);
+      TaggedKeyBuf::from_stack(buf, total_len as u8)
+    } else {
+      let mut vec = Vec::with_capacity(total_len);
+      vec.extend_from_slice(prefix);
+      vec.push(KeyTag::Vector as u8);
+      vec.extend_from_slice(&ctx_bytes);
+      vec.extend_from_slice(key);
+      TaggedKeyBuf::from_heap(vec)
+    }
+  }
+
+  /// 从完整向量物理键中反解 `(ns, db, context, key)`
+  #[inline]
+  pub fn decode_vector_key(key: &[u8]) -> Option<(u64, u64, u64, &[u8])> {
+    let (ns, db, tag, payload) = Self::decode_tagged_key(key).ok()?;
+    if tag != KeyTag::Vector || payload.len() < U64_BYTE_LEN {
+      return None;
+    }
+    let (ctx_bytes, user_key) = payload.split_at(U64_BYTE_LEN);
+    let context = u64::from_be_bytes(ctx_bytes.try_into().ok()?);
+    Some((ns, db, context, user_key))
+  }
+
   /// 已知 tag_offset 时的高速替换方法（跳过 decode_tagged_key，零额外解析，栈优先零堆分配）
   #[inline]
   pub fn replace_tag_at(key: &[u8], tag_offset: usize, new_tag: KeyTag) -> TaggedKeyBuf {

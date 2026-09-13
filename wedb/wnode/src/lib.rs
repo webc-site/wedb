@@ -54,7 +54,7 @@ pub use endpoint::ServerEndpoint;
 pub use error::{Error, Result};
 pub use inputs::{CustomProcedureInput, StringInput, UnifiedInput};
 use resp::objects::collection_item_source::CollectionItemSource;
-use wobject::itembroker::item_broker_face::{BlockedWait as BaseBlockedWait, SharedItemBroker};
+use wcol::itembroker::item_broker_face::{BlockedWait as BaseBlockedWait, SharedItemBroker};
 
 pub type ItemBroker = SharedItemBroker<CollectionItemSource<wdev::SegmentedDevice>>;
 pub type BlockedWait = BaseBlockedWait<Arc<ItemBroker>>;

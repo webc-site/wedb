@@ -28,7 +28,6 @@ members = [
   "wkv",
   "wlua",
   "wnode",
-  "wobject",
   "wmetric",
   "wpubsub",
   "wram",
@@ -168,10 +167,6 @@ path = "wcol"
 [workspace.dependencies.wvector]
 version = "0.1.0"
 path = "wvector"
-
-[workspace.dependencies.wobject]
-version = "0.1.0"
-path = "wobject"
 
 [workspace.dependencies.wcustom]
 version = "0.1.0"

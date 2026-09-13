@@ -1,12 +1,12 @@
 //! 哈希命令（对标 libs/server/Resp/Objects/HashCommands.cs）
 //!
 //! 命令层只做参数校验与编解码：语义全部下沉到
-//! [`wobject::hash::hash_object::HashObject`] 的 operate/ObjectInput
+//! [`wcol::hash::hash_object::HashObject`] 的 operate/ObjectInput
 //! 通道（与 C# GarnetObjectBase.Operate 分层一致），存取经与 storage 会话域
 //! 共享的 `[类型标签][载荷]` 信封（见 [`super::object_store_utils`]）。
 
 use wbase::{convert::UNIX_EPOCH_TICKS, time::now_ticks};
-use wobject::{
+use wcol::{
   hash::hash_object::{HashObject, HashOperation},
   parse_utils::{try_get_int, try_get_long},
   sortedset::sorted_set_object::ExpirationWithOption,

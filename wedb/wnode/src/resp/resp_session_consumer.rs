@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
+use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::RuntimeServerConfig;
-use wobject::itembroker::collection_item_observer::CollectionItemResult;
 use wresp::RespCommand;
 
 use super::{

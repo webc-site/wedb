@@ -1,12 +1,12 @@
 //! 集合命令（对标 libs/server/Resp/Objects/SetCommands.cs）
 //!
 //! 命令层只做参数校验与编解码：单键语义全部下沉到
-//! [`wobject::set::set_object::SetObject`] 的 operate/ObjectInput
+//! [`wcol::set::set_object::SetObject`] 的 operate/ObjectInput
 //! 通道（与 C# GarnetObjectBase.Operate 分层一致）；SINTER/SUNION/SDIFF
 //! 族为多键聚合，对标 libs/server/Storage/Session/ObjectStore/SetOps.cs
 //! 的装载-折叠语义在命令层就地求值。存取经与 storage 会话域共享的
 //! `[类型标签][载荷]` 信封（见 [`super::object_store_utils`]）。
-use wobject::{
+use wcol::{
   set::{
     set_object::{SetObject, SetOperation},
     set_object_impl::NO_COUNT,

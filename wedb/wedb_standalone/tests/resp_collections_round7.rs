@@ -616,5 +616,5 @@ fn hincrby_non_integer_field() {
   });
 }
 
+use wcol::sortedset::sorted_set_object::SortedSetRangeOpts;
 use wnode::resp::resp_server_session::RespServerSession;
-use wobject::sortedset::sorted_set_object::SortedSetRangeOpts;

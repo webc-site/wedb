@@ -17,6 +17,9 @@ rustdoc-args = [ "--cfg", "docsrs" ]
 default = [ ]
 bench = [ ]
 
+[dependencies]
+wcol = { version = "0.1.0", path = "../wcol" }
+
 [dependencies.wconf]
 workspace = true
 
@@ -25,9 +28,6 @@ version = "0.1.0"
 path = "../wdatabase"
 
 [dependencies.wmetric]
-workspace = true
-
-[dependencies.wobject]
 workspace = true
 
 [dependencies.wvector]

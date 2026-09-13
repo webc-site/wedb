@@ -1,7 +1,7 @@
 //! 列表命令（对标 libs/server/Resp/Objects/ListCommands.cs）
 //!
 //! 命令层只做参数校验与编解码：语义全部下沉到
-//! [`wobject::list::list_object::ListObject`] 的 operate/ObjectInput
+//! [`wcol::list::list_object::ListObject`] 的 operate/ObjectInput
 //! 通道（与 C# GarnetObjectBase.Operate 分层一致），存取经与 storage 会话域
 //! 共享的 `[类型标签][载荷]` 信封（见 [`super::object_store_utils`]）。
 //!
@@ -10,7 +10,7 @@
 //!（C# 网络线程 BlockingWait 的 compio 挂起等价物）；未注入经纪的独立
 //! 会话域（单测/脚本）保留立即可取路径。
 
-use wobject::{
+use wcol::{
   itembroker::collection_item_observer::CollectionItemResult,
   list::list_object::{ListObject, ListOperation, OperationDirection},
   parse_utils::try_get_int,

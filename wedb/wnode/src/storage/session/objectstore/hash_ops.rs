@@ -4,10 +4,10 @@
 //! 缺口见 `hash_time_to_live`。哈希对象为空时删除键（对齐 Redis 对象生命周期）。
 
 use wbase::num::try_parse_i64;
-use wdev::Device;
-use wobject::{
+use wcol::{
   hash::hash_object::HashObject, parse_utils::strict_f64, types::object_output::ObjectOutput,
 };
+use wdev::Device;
 
 use super::{
   super::storage_session::StorageSession,

@@ -25,10 +25,10 @@ fn parse_bulk_array(frame: &[u8]) -> Vec<Vec<u8>> {
   }
   items
 }
+use wcol::sortedset::sorted_set_object::SortedSetOperation;
 use wnode::resp::objects::{
   sorted_set_commands::RemoveRangeKind, sorted_set_geo_commands::GeoSearchCommandKind,
 };
-use wobject::sortedset::sorted_set_object::SortedSetOperation;
 
 const ENTRIES: &[(&[u8], &[u8])] = &[
   (b"a", b"1"),

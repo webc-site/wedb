@@ -6,11 +6,11 @@
 
 use bitflags::bitflags;
 
-use super::geo_hash::{GeoDistanceUnitType, GeoHash};
+use super::sorted_set_object::{SortedSetEntry, SortedSetObject};
 use crate::{
+  geo::geo_hash::{GeoDistanceUnitType, GeoHash},
   parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat},
-  sortedset::sorted_set_object::{SortedSetEntry, SortedSetObject},
-  types::{ObjectInput, object_output::ObjectOutput},
+  resp::{ObjectInput, ObjectOutput},
 };
 
 bitflags! {

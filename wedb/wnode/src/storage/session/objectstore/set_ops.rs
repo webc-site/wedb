@@ -3,8 +3,8 @@
 //! 全部经 [`StorageSession`] 对象信封读写 [`SetObject`]；集合为空时
 //! 删除键（对齐 Redis 对象生命周期）。并/交/差以调用方键序单遍折叠。
 
+use wcol::set::set_object::SetObject;
 use wdev::Device;
-use wobject::set::set_object::SetObject;
 
 use super::{super::storage_session::StorageSession, common::RmwOutcome};
 use crate::types::GarnetStatus;

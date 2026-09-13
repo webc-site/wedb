@@ -43,6 +43,8 @@ pub enum KeyTag {
   /// value = 8 字节大端 i64 绝对 .NET Ticks 过期时间戳
   /// （[`crate::ttl::TtlCodec`] 编解码；独立旁路记录，避免双真值来源）
   Ttl = 0x09,
+  /// 向量索引与图拓扑物理子键 (0x0A)
+  Vector = 0x0A,
 }
 
 impl KeyTag {
@@ -75,6 +77,7 @@ impl KeyTag {
       Self::HashChunk => "HashChunk",
       Self::SetChunk => "SetChunk",
       Self::Ttl => "Ttl",
+      Self::Vector => "Vector",
     }
   }
 

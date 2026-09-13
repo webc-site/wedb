@@ -6,7 +6,7 @@ use compio::{
 };
 use gxhash::HashMap;
 use parking_lot::Mutex;
-use wobject::{
+use wcol::{
   itembroker::{
     collection_item_broker::{
       CollectionItemBroker, CollectionItemStore, TryGetOutcome, try_get_next_list_item,

@@ -1,7 +1,9 @@
+//! 集合 RESP 输入结构（对标 libs/server/InputHeader.cs）
+
 use std::{mem::size_of, ptr::copy_nonoverlapping};
 
 use bitflags::bitflags;
-use wbase::convert::utc_now_ticks;
+use coarsetime::Clock;
 use wresp::{RespCommand, SessionParseState};
 use wval::GarnetObjectType;
 
@@ -14,7 +16,6 @@ bitflags! {
   }
 }
 
-/// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:RespInputHeader
 /// Header for RESP inputs. Occupies 3 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RespInputHeader {
@@ -67,18 +68,18 @@ impl RespInputHeader {
     self.data[2] |= RespInputFlags::SET_GET.bits();
   }
 
-  /// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:CheckExpiry
   #[inline]
   pub fn check_expiry(&self, expire_time: i64) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);
     if flags.contains(RespInputFlags::DETERMINISTIC) {
       flags.contains(RespInputFlags::EXPIRED)
     } else {
-      expire_time < utc_now_ticks()
+      let now_ticks =
+        Clock::now_since_epoch().as_millis() as i64 * 10_000 + 621_355_968_000_000_000;
+      expire_time < now_ticks
     }
   }
 
-  /// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:CheckSetGetFlag
   #[inline]
   pub fn check_set_get_flag(&self) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);
@@ -86,7 +87,7 @@ impl RespInputHeader {
   }
 }
 
-/// 在 garnet 中的相对路径:garnet/libs/server/InputHeader.cs:ObjectInput
+/// 集合操作输入对象
 #[derive(Debug, Clone)]
 pub struct ObjectInput {
   pub header: RespInputHeader,
@@ -145,8 +146,7 @@ impl ObjectInput {
   }
 
   /// # Safety
-  /// `length` 不小于 [`Self::serialized_length`]，
-  /// ArgSlice 指针须在调用期间有效
+  /// `length` 不小于 [`Self::serialized_length`]
   pub unsafe fn copy_to(&self, dest: *mut u8, length: usize) -> usize {
     unsafe {
       debug_assert!(length >= self.serialized_length());
@@ -170,7 +170,7 @@ impl ObjectInput {
   }
 
   /// # Safety
-  /// `src` 须指向一段由 `copy_to` 产出的完整布局前缀；`src` 布局另含 arg2（i32），须一并可读
+  /// `src` 须指向一段由 `copy_to` 产出的完整布局前缀
   pub unsafe fn deserialize_from(&mut self, src: *const u8) -> usize {
     unsafe {
       let mut curr = src;
@@ -190,4 +190,12 @@ impl ObjectInput {
       (curr as usize) - (src as usize)
     }
   }
+}
+
+/// 扫描输入上下文
+#[derive(Debug, Clone)]
+pub struct ScanInput {
+  pub cursor: usize,
+  pub pattern: Option<Vec<u8>>,
+  pub count: usize,
 }
