@@ -80,12 +80,12 @@ impl InfoProvider for TestInfoProvider {
 }
 
 fn execute_info(provider: &TestInfoProvider, section: Option<&[u8]>) -> String {
-  let mut out = String::new();
+  let mut out = Vec::new();
   let mut info = GarnetInfoMetrics::new();
   let mut reset_flag = |_| {};
   let args: Vec<&[u8]> = section.into_iter().collect();
   InfoCommand::network_info(&args, 0, provider, &mut info, &mut reset_flag, &mut out);
-  out
+  String::from_utf8(out).expect("INFO 应答应为 UTF-8 文本")
 }
 
 fn parse_command_stat_field(line: &str, field_name: &str) -> u64 {

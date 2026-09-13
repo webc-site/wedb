@@ -20,8 +20,7 @@ papaya.workspace = true
 
 [dependencies.wbase]
 features = ["addr", "align", "crc", "time", "error", "convert", "simd", "backoff"]
-path = "../wbase"
-version = "0.1.6"
+workspace = true
 
 [dependencies.fastrand]
 workspace = true

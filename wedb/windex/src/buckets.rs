@@ -5,7 +5,7 @@ use std::{
   slice::{Iter, IterMut, from_raw_parts, from_raw_parts_mut},
 };
 
-use wram::{DirectVirtualMemory, DirectVmBlock};
+use crate::ram::{DirectVirtualMemory, DirectVmBlock};
 
 use crate::{Result, bucket::HashBucket, error::Error};
 

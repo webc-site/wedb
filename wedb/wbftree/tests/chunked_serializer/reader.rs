@@ -8,134 +8,85 @@ use wbftree::{
 
 use super::common::{ChunkDriver, TestDirGuard, assert_round_trip, create_stub, random_bytes};
 
-/// 测试单块往返一致性（SerializerHelper 驱动）
+/// 两种分块驱动全量参与往返：序列化直驱与 MigrationReader 必须逐字节等价
+const ALL_DRIVERS: [ChunkDriver; 2] = [ChunkDriver::SerializerHelper, ChunkDriver::MigrationReader];
+
+/// 测试单块往返一致性（双驱动）
 #[test]
-fn round_trip_single_chunk_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_sc_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    b"mykey",
-    &random_bytes(1024, 42),
-    DEFAULT_MIGRATION_CHUNK_SIZE,
-  )
+fn round_trip_single_chunk() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_single_chunk");
+    assert_round_trip(
+      driver,
+      td.path(),
+      b"mykey",
+      &random_bytes(1024, 42),
+      DEFAULT_MIGRATION_CHUNK_SIZE,
+    )?;
+  }
+  OK
 }
 
-/// 测试单块往返一致性（MigrationReader 驱动）
+/// 测试多块流式往返一致性（双驱动）
 #[test]
-fn round_trip_single_chunk_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_sc_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    b"mykey",
-    &random_bytes(1024, 42),
-    DEFAULT_MIGRATION_CHUNK_SIZE,
-  )
+fn round_trip_multi_chunk() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_multi_chunk");
+    assert_round_trip(
+      driver,
+      td.path(),
+      b"largekey",
+      &random_bytes(DEFAULT_MIGRATION_CHUNK_SIZE * 3 + 1000, 123),
+      DEFAULT_MIGRATION_CHUNK_SIZE,
+    )?;
+  }
+  OK
 }
 
-/// 测试多块流式往返一致性（SerializerHelper 驱动）
+/// 测试键长度大于单块大小的往返一致性（双驱动）
 #[test]
-fn round_trip_multi_chunk_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_mc_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    b"largekey",
-    &random_bytes(DEFAULT_MIGRATION_CHUNK_SIZE * 3 + 1000, 123),
-    DEFAULT_MIGRATION_CHUNK_SIZE,
-  )
+fn round_trip_key_larger_than_chunk() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_key_larger");
+    assert_round_trip(
+      driver,
+      td.path(),
+      &random_bytes(200, 66),
+      &random_bytes(100, 55),
+      64,
+    )?;
+  }
+  OK
 }
 
-/// 测试多块流式往返一致性（MigrationReader 驱动）
+/// 测试超小数据块分片的往返一致性（双驱动）
 #[test]
-fn round_trip_multi_chunk_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_mc_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    b"largekey",
-    &random_bytes(DEFAULT_MIGRATION_CHUNK_SIZE * 3 + 1000, 123),
-    DEFAULT_MIGRATION_CHUNK_SIZE,
-  )
+fn round_trip_small_chunk() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_small_chunk");
+    assert_round_trip(driver, td.path(), b"k", &random_bytes(500, 77), 64)?;
+  }
+  OK
 }
 
-/// 测试键长度大于单块大小的往返一致性（SerializerHelper 驱动）
+/// 测试文件数据刚好填满首块的往返一致性（双驱动）
 #[test]
-fn round_trip_key_larger_than_chunk_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_klarge_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    &random_bytes(200, 66),
-    &random_bytes(100, 55),
-    64,
-  )
+fn round_trip_file_exactly_fills_first_chunk() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_fill_first");
+    assert_round_trip(driver, td.path(), b"k", &random_bytes(51, 88), 64)?;
+  }
+  OK
 }
 
-/// 测试键长度大于单块大小的往返一致性（MigrationReader 驱动）
+/// 测试精确最小分块阈值下的往返一致性（双驱动）
 #[test]
-fn round_trip_key_larger_than_chunk_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_klarge_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    &random_bytes(200, 66),
-    &random_bytes(100, 55),
-    64,
-  )
-}
-
-/// 测试超小数据块分片的往返一致性（SerializerHelper 驱动）
-#[test]
-fn round_trip_small_chunk_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_small_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    b"k",
-    &random_bytes(500, 77),
-    64,
-  )
-}
-
-/// 测试超小数据块分片的往返一致性（MigrationReader 驱动）
-#[test]
-fn round_trip_small_chunk_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_small_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    b"k",
-    &random_bytes(500, 77),
-    64,
-  )
-}
-
-/// 测试文件数据刚好填满首块的往返一致性（SerializerHelper 驱动）
-#[test]
-fn round_trip_file_exactly_fills_first_chunk_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_fill1_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    b"k",
-    &random_bytes(51, 88),
-    64,
-  )
-}
-
-/// 测试文件数据刚好填满首块的往返一致性（MigrationReader 驱动）
-#[test]
-fn round_trip_file_exactly_fills_first_chunk_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_fill1_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    b"k",
-    &random_bytes(51, 88),
-    64,
-  )
+fn round_trip_exact_min_chunk_size() -> Result<()> {
+  for driver in ALL_DRIVERS {
+    let td = TestDirGuard::new("rt_min_chunk");
+    assert_round_trip(driver, td.path(), b"k", &random_bytes(300, 31), MIN_CHUNK_SIZE)?;
+  }
+  OK
 }
 
 /// 读取截断文件时 MigrationReader 返回错误
@@ -196,30 +147,4 @@ fn reader_destination_below_minimum_throws() -> Result<()> {
   assert!(reader.read_next_chunk(&mut too_small).is_err());
 
   OK
-}
-
-/// 测试精确最小分块阈值下的往返一致性（SerializerHelper 驱动）
-#[test]
-fn round_trip_exact_min_chunk_size_serializer() -> Result<()> {
-  let td = TestDirGuard::new("rt_min_ser");
-  assert_round_trip(
-    ChunkDriver::SerializerHelper,
-    td.path(),
-    b"k",
-    &random_bytes(300, 31),
-    MIN_CHUNK_SIZE,
-  )
-}
-
-/// 测试精确最小分块阈值下的往返一致性（MigrationReader 驱动）
-#[test]
-fn round_trip_exact_min_chunk_size_reader() -> Result<()> {
-  let td = TestDirGuard::new("rt_min_rdr");
-  assert_round_trip(
-    ChunkDriver::MigrationReader,
-    td.path(),
-    b"k",
-    &random_bytes(300, 31),
-    MIN_CHUNK_SIZE,
-  )
 }

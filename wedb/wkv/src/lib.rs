@@ -25,13 +25,7 @@ pub use error::{Error, Result};
 pub use gc::{GcHandle, GcManager, GcStatsSnapshot, RunGuard};
 pub use range_index::{RangeIndexError, RangeIndexMetrics, TreeReadGuard};
 pub use read_cache::{ReadCache, is_read_cache_addr};
-pub use session::{
-  BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, HASH_DOWNGRADE_BYTE_THRESHOLD,
-  HASH_DOWNGRADE_ITEM_THRESHOLD, HASH_MAX_COMPACT_ENTRIES, HASH_MAX_COMPACT_VALUE,
-  HASH_UPGRADE_BYTE_THRESHOLD, HASH_UPGRADE_ITEM_THRESHOLD, MAX_COMPACT_TOTAL_BYTES,
-  RawCollectionRead, SET_MAX_COMPACT_ENTRIES, SET_MAX_COMPACT_VALUE, StoreSession,
-  ZSET_MAX_COMPACT_ENTRIES, ZSET_MAX_COMPACT_MEMBER, should_downgrade_hash, should_upgrade_hash,
-};
+pub use session::{BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, StoreSession};
 pub use store::{
   DefaultWedbStore, KEY_ID_ASSIGN_MARGIN, ObjectRmwListenerFn, ObjectRmwNotification,
   RangeIndexCreateListenerFn, RangeIndexDropListenerFn, RangeIndexListenerFn, TtlPurgeListenerFn,

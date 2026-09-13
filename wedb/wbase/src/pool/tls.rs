@@ -3,6 +3,7 @@
 //! 每个线程独占私有 `local` 数组，借取和归还纯指针操作，**0 锁、0 原子操作、< 1ns**；
 //! 线程终止时通过 TLS RAII 确定性析构自动密封 inbox 并将遗留缓冲区回收至全局条带仓库。
 
+use crate::thread::current_thread_id;
 use std::{
   cell::RefCell,
   sync::{Arc, Weak},
@@ -274,5 +275,3 @@ thread_local! {
   pub(crate) static TLS_POOLS: RefCell<TlsPoolManager> = const { RefCell::new(TlsPoolManager::new()) };
 }
 
-/// 获取当前线程全局唯一且单调递增的非零线程 ID（统一复用 wbase 原语）
-pub use crate::thread::current_thread_id;

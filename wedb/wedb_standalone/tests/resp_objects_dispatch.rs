@@ -1,8 +1,10 @@
-//! 端到端集成测试：对象族命令经分派表真执行（对标 garnet/test/
-//! standalone/Garnet.test.collections 的 RespHashTests / RespSetTests /
-//! RespSortedSetTests / RespListTests 与 RespBitmapTests）——命令过完整
-//! 会话主循环（解析 → 门控 → GarnetApi 分派 → 存储落盘 → 应答回写），
-//! 覆盖 Hash/Set/ZSet/List/Bitmap/HLL/Geo/Scan 八族与 SELECT 真切库
+//! 端到端集成测试：对象族命令经分派表真执行——命令过完整会话主循环
+//! （解析 → 门控 → GarnetApi 分派 → 存储落盘 → 应答回写）。
+//!
+//! 逐命令语义细节由直调套件权威覆盖（resp_hash.rs / resp_set.rs /
+//! resp_list.rs / resp_sorted_set.rs / garnet_bitmap.rs / hyperloglog.rs /
+//! geo_hash_tests.rs），本文件只为每族抽样 1-2 条保住「命令名 → 分派路由 →
+//! 真执行」维度，并保留 SELECT / SWAPDB 分派语义。
 use std::sync::Arc;
 
 use compio::runtime::Runtime;
@@ -47,292 +49,76 @@ fn frame(parts: &[&[u8]]) -> Vec<u8> {
   f
 }
 
-/// Hash 族闭环（RespHashTests.cs:CanAddAndListHashItems 等）
+/// Hash 族分派抽样（RespHashTests.cs）
 #[test]
 fn hash_family_end_to_end() {
   let mut c = consumer();
-  // HSET h f v → :1
   assert_eq!(
     rt(&mut c, &frame(&[b"HSET", b"h", b"f1", b"v1"])),
     b":1\r\n"
   );
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HSET", b"h", b"f2", b"v2"])),
-    b":1\r\n"
-  );
-  // HGET h f1 → v1
   assert_eq!(rt(&mut c, &frame(&[b"HGET", b"h", b"f1"])), b"$2\r\nv1\r\n");
-  // HLEN → :2
-  assert_eq!(rt(&mut c, &frame(&[b"HLEN", b"h"])), b":2\r\n");
-  // HEXISTS h f1 → :1；HEXISTS h miss → :0
-  assert_eq!(rt(&mut c, &frame(&[b"HEXISTS", b"h", b"f1"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"HEXISTS", b"h", b"miss"])), b":0\r\n");
-  // HSTRLEN h f1 → :2
-  assert_eq!(rt(&mut c, &frame(&[b"HSTRLEN", b"h", b"f1"])), b":2\r\n");
-  // HINCRBY h cnt 5 → :5
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HINCRBY", b"h", b"cnt", b"5"])),
-    b":5\r\n"
-  );
-  // HMGET h f1 miss f2 → [v1, nil, v2]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HMGET", b"h", b"f1", b"miss", b"f2"])),
-    b"*3\r\n$2\r\nv1\r\n$-1\r\n$2\r\nv2\r\n"
-  );
-  // HKEYS/HVALS：此刻 3 字段（f1/f2/cnt，成员序无断言仅数量）
-  assert_eq!(&rt(&mut c, &frame(&[b"HKEYS", b"h"]))[..2], b"*3");
-  assert_eq!(&rt(&mut c, &frame(&[b"HVALS", b"h"]))[..2], b"*3");
-  // HDEL h f1 → :1；HGET f1 → nil
-  assert_eq!(rt(&mut c, &frame(&[b"HDEL", b"h", b"f1"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"HGET", b"h", b"f1"])), b"$-1\r\n");
-  // HSETNX h f3 v3 → :1；重复 → :0
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HSETNX", b"h", b"f3", b"v3"])),
-    b":1\r\n"
-  );
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HSETNX", b"h", b"f3", b"vx"])),
-    b":0\r\n"
-  );
-  // HMSET 废弃别名回 +OK
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HMSET", b"h", b"f4", b"v4"])),
-    b"+OK\r\n"
-  );
-  // HGETALL → 3 字段（f2/f3/cnt/f4 中 f2、f3、cnt、f4 —— HDEL 只删了 f1）
-  let out = rt(&mut c, &frame(&[b"HGETALL", b"h"]));
-  assert!(out.starts_with(b"*8\r\n"), "HGETALL 应 4 字段: {out:?}");
 }
 
-/// Set 族闭环（RespSetTests.cs:CanAddListItems 等）
+/// Set 族分派抽样（RespSetTests.cs）
 #[test]
 fn set_family_end_to_end() {
   let mut c = consumer();
-  // SADD s a b c → :3；重复 a → :0
   assert_eq!(
-    rt(&mut c, &frame(&[b"SADD", b"s", b"a", b"b", b"c"])),
-    b":3\r\n"
+    rt(&mut c, &frame(&[b"SADD", b"s", b"a", b"b"])),
+    b":2\r\n"
   );
-  assert_eq!(rt(&mut c, &frame(&[b"SADD", b"s", b"a"])), b":0\r\n");
-  // SCARD → :3
-  assert_eq!(rt(&mut c, &frame(&[b"SCARD", b"s"])), b":3\r\n");
-  // SISMEMBER s a → :1；miss → :0
   assert_eq!(rt(&mut c, &frame(&[b"SISMEMBER", b"s", b"a"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"SISMEMBER", b"s", b"z"])), b":0\r\n");
-  // SMISMEMBER s a z → [1, 0]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"SMISMEMBER", b"s", b"a", b"z"])),
-    b"*2\r\n:1\r\n:0\r\n"
-  );
-  // SMEMBERS → 3 元素
-  assert_eq!(&rt(&mut c, &frame(&[b"SMEMBERS", b"s"]))[..2], b"*3");
-  // SADD t c d；SINTER s t → [c]
-  assert_eq!(rt(&mut c, &frame(&[b"SADD", b"t", b"c", b"d"])), b":2\r\n");
-  assert_eq!(
-    rt(&mut c, &frame(&[b"SINTER", b"s", b"t"])),
-    b"*1\r\n$1\r\nc\r\n"
-  );
-  // SINTERCARD s t LIMIT 0 → :1
-  assert_eq!(
-    rt(
-      &mut c,
-      &frame(&[b"SINTERCARD", b"2", b"s", b"t", b"LIMIT", b"0"])
-    ),
-    b":1\r\n"
-  );
-  // SUNION s t → 4 元素
-  assert_eq!(&rt(&mut c, &frame(&[b"SUNION", b"s", b"t"]))[..2], b"*4");
-  // SDIFF s t → 2 元素（a b）
-  assert_eq!(&rt(&mut c, &frame(&[b"SDIFF", b"s", b"t"]))[..2], b"*2");
-  // SUNIONSTORE dst s t → :4
-  assert_eq!(
-    rt(&mut c, &frame(&[b"SUNIONSTORE", b"dst", b"s", b"t"])),
-    b":4\r\n"
-  );
-  // SMOVE s t a → :1；SISMEMBER t a → :1
-  assert_eq!(rt(&mut c, &frame(&[b"SMOVE", b"s", b"t", b"a"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"SISMEMBER", b"t", b"a"])), b":1\r\n");
-  // SPOP sp（独立键单成员，无 count）→ 单 bulk 元素
-  assert_eq!(rt(&mut c, &frame(&[b"SADD", b"sp", b"x"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"SPOP", b"sp"])), b"$1\r\nx\r\n");
-  // SREM s b c → :1/:1（s 此刻 {b,c}）；SCARD → :0
-  assert_eq!(rt(&mut c, &frame(&[b"SREM", b"s", b"b"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"SREM", b"s", b"c"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"SCARD", b"s"])), b":0\r\n");
 }
 
-/// ZSet 族闭环（RespSortedSetTests.cs:CanAddSortedSet 等）
+/// ZSet 族分派抽样（RespSortedSetTests.cs）
 #[test]
 fn zset_family_end_to_end() {
   let mut c = consumer();
-  // ZADD z 1 a 2 b 3 c → :3
   assert_eq!(
-    rt(
-      &mut c,
-      &frame(&[b"ZADD", b"z", b"1", b"a", b"2", b"b", b"3", b"c"])
-    ),
-    b":3\r\n"
+    rt(&mut c, &frame(&[b"ZADD", b"z", b"1", b"a"])),
+    b":1\r\n"
   );
-  // ZSCORE z a → 1
   assert_eq!(rt(&mut c, &frame(&[b"ZSCORE", b"z", b"a"])), b"$1\r\n1\r\n");
-  // ZMSCORE z a miss → [1, nil]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZMSCORE", b"z", b"a", b"miss"])),
-    b"*2\r\n$1\r\n1\r\n$-1\r\n"
-  );
-  // ZCARD → :3
-  assert_eq!(rt(&mut c, &frame(&[b"ZCARD", b"z"])), b":3\r\n");
-  // ZRANGE z 0 -1 → [a 1 b 2 c 3]（带分值需 WITHSCORES；裸形态仅成员）
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZRANGE", b"z", b"0", b"-1"])),
-    b"*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n"
-  );
-  // ZRANGE WITHSCORES
-  assert_eq!(
-    rt(
-      &mut c,
-      &frame(&[b"ZRANGE", b"z", b"0", b"-1", b"WITHSCORES"])
-    ),
-    b"*6\r\n$1\r\na\r\n$1\r\n1\r\n$1\r\nb\r\n$1\r\n2\r\n$1\r\nc\r\n$1\r\n3\r\n"
-  );
-  // ZREVRANGE z 0 0 → [c]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZREVRANGE", b"z", b"0", b"0"])),
-    b"*1\r\n$1\r\nc\r\n"
-  );
-  // ZRANK z b → :1；ZREVRANK z b → :1
-  assert_eq!(rt(&mut c, &frame(&[b"ZRANK", b"z", b"b"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"ZREVRANK", b"z", b"b"])), b":1\r\n");
-  // ZCOUNT z 1 2 → :2
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZCOUNT", b"z", b"1", b"2"])),
-    b":2\r\n"
-  );
-  // ZINCRBY z 10 a → 11
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZINCRBY", b"z", b"10", b"a"])),
-    b"$2\r\n11\r\n"
-  );
-  // ZRANGEBYSCORE z 2 3 → [b c]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZRANGEBYSCORE", b"z", b"2", b"3"])),
-    b"*2\r\n$1\r\nb\r\n$1\r\nc\r\n"
-  );
-  // ZPOPMIN z → [b 2]（a 已被 ZINCRBY 推到 11）
-  assert_eq!(
-    rt(&mut c, &frame(&[b"ZPOPMIN", b"z"])),
-    b"*2\r\n$1\r\nb\r\n$1\r\n2\r\n"
-  );
-  // ZREM z c → :1；ZCARD → :1
-  assert_eq!(rt(&mut c, &frame(&[b"ZREM", b"z", b"c"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"ZCARD", b"z"])), b":1\r\n");
 }
 
-/// List 族闭环（RespListTests.cs:CanAddListItems 等）
+/// List 族分派抽样（RespListTests.cs）
 #[test]
 fn list_family_end_to_end() {
   let mut c = consumer();
-  // RPUSH l a b c → :3
   assert_eq!(
-    rt(&mut c, &frame(&[b"RPUSH", b"l", b"a", b"b", b"c"])),
-    b":3\r\n"
+    rt(&mut c, &frame(&[b"RPUSH", b"l", b"a", b"b"])),
+    b":2\r\n"
   );
-  // LLEN → :3
-  assert_eq!(rt(&mut c, &frame(&[b"LLEN", b"l"])), b":3\r\n");
-  // LRANGE l 0 -1 → [a b c]
   assert_eq!(
     rt(&mut c, &frame(&[b"LRANGE", b"l", b"0", b"-1"])),
-    b"*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n"
+    b"*2\r\n$1\r\na\r\n$1\r\nb\r\n"
   );
-  // LINDEX l 1 → b
-  assert_eq!(rt(&mut c, &frame(&[b"LINDEX", b"l", b"1"])), b"$1\r\nb\r\n");
-  // LSET l 1 B → +OK；LINDEX 验证
-  assert_eq!(rt(&mut c, &frame(&[b"LSET", b"l", b"1", b"B"])), b"+OK\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"LINDEX", b"l", b"1"])), b"$1\r\nB\r\n");
-  // LPUSH l z → :4；LRANGE 0 0 → [z]
-  assert_eq!(rt(&mut c, &frame(&[b"LPUSH", b"l", b"z"])), b":4\r\n");
-  assert_eq!(
-    rt(&mut c, &frame(&[b"LRANGE", b"l", b"0", b"0"])),
-    b"*1\r\n$1\r\nz\r\n"
-  );
-  // LPOP l → z
-  assert_eq!(rt(&mut c, &frame(&[b"LPOP", b"l"])), b"$1\r\nz\r\n");
-  // RPOPLPUSH l l2 → c；LRANGE l2 → [c]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"RPOPLPUSH", b"l", b"l2"])),
-    b"$1\r\nc\r\n"
-  );
-  assert_eq!(
-    rt(&mut c, &frame(&[b"LRANGE", b"l2", b"0", b"-1"])),
-    b"*1\r\n$1\r\nc\r\n"
-  );
-  // LREM l 0 a → :1
-  assert_eq!(rt(&mut c, &frame(&[b"LREM", b"l", b"0", b"a"])), b":1\r\n");
-  // LTRIM l 0 0 → +OK；LLEN → :1
-  assert_eq!(
-    rt(&mut c, &frame(&[b"LTRIM", b"l", b"0", b"0"])),
-    b"+OK\r\n"
-  );
-  assert_eq!(rt(&mut c, &frame(&[b"LLEN", b"l"])), b":1\r\n");
-  // LPUSHX miss x → :0（键缺失不物化）；RPUSHX l d → :2
-  assert_eq!(rt(&mut c, &frame(&[b"LPUSHX", b"miss", b"x"])), b":0\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"RPUSHX", b"l", b"d"])), b":2\r\n");
 }
 
-/// Bitmap 族闭环（RespBitmapTests.cs:CanSetGetBit 等）
+/// Bitmap 族分派抽样（RespBitmapTests.cs）
 #[test]
 fn bitmap_family_end_to_end() {
   let mut c = consumer();
-  // SETBIT bk 7 1 → :0；GETBIT bk 7 → :1
   assert_eq!(
     rt(&mut c, &frame(&[b"SETBIT", b"bk", b"7", b"1"])),
     b":0\r\n"
   );
   assert_eq!(rt(&mut c, &frame(&[b"GETBIT", b"bk", b"7"])), b":1\r\n");
-  // SETBIT bk 9 1 → :0；BITCOUNT bk → :2
-  assert_eq!(
-    rt(&mut c, &frame(&[b"SETBIT", b"bk", b"9", b"1"])),
-    b":0\r\n"
-  );
-  assert_eq!(rt(&mut c, &frame(&[b"BITCOUNT", b"bk"])), b":2\r\n");
-  // BITPOS bk 1 0 → :7
-  assert_eq!(
-    rt(&mut c, &frame(&[b"BITPOS", b"bk", b"1", b"0"])),
-    b":7\r\n"
-  );
-  // BITFIELD bk GET u8 0 → 1（MSB-first 位序：offset 7 落字节 0 最低位，
-  // u8 窗口覆盖 offset 0-7 整字节 → 0x01）
-  assert_eq!(
-    rt(&mut c, &frame(&[b"BITFIELD", b"bk", b"GET", b"u8", b"0"])),
-    b"*1\r\n:1\r\n"
-  );
-  // BITOP NOT dst bk → :2；GETBIT dst 7 → :0
-  assert_eq!(
-    rt(&mut c, &frame(&[b"BITOP", b"NOT", b"dst", b"bk"])),
-    b":2\r\n"
-  );
-  assert_eq!(rt(&mut c, &frame(&[b"GETBIT", b"dst", b"7"])), b":0\r\n");
 }
 
-/// HyperLogLog 族闭环（RespHyperLogLogTests.cs）
+/// HyperLogLog 族分派抽样（RespHyperLogLogTests.cs）
 #[test]
 fn hll_family_end_to_end() {
   let mut c = consumer();
-  // PFADD p a b → :1；PFADD p a → :0
   assert_eq!(rt(&mut c, &frame(&[b"PFADD", b"p", b"a", b"b"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"PFADD", b"p", b"a"])), b":0\r\n");
-  // PFCOUNT p → :2
   assert_eq!(rt(&mut c, &frame(&[b"PFCOUNT", b"p"])), b":2\r\n");
-  // PFMERGE pd p → +OK；PFCOUNT pd → :2
-  assert_eq!(rt(&mut c, &frame(&[b"PFMERGE", b"pd", b"p"])), b"+OK\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"PFCOUNT", b"pd"])), b":2\r\n");
 }
 
-/// Geo 族闭环（RespSortedSetGeoTests.cs:CanUseGeoAdd / CanUseGeoPos）
+/// Geo 族分派抽样（RespSortedSetGeoTests.cs）
 #[test]
 fn geo_family_end_to_end() {
   let mut c = consumer();
-  // GEOADD g lon lat member → :1
   assert_eq!(
     rt(
       &mut c,
@@ -340,21 +126,12 @@ fn geo_family_end_to_end() {
     ),
     b":1\r\n"
   );
-  // GEOPOS g Palermo → 坐标负载含 13.36138
   let out = rt(&mut c, &frame(&[b"GEOPOS", b"g", b"Palermo"]));
   let payload = String::from_utf8_lossy(&out);
   assert!(payload.contains("13.36138"), "{payload}");
-  // GEODIST g Palermo Palermo → 0
-  assert_eq!(
-    rt(&mut c, &frame(&[b"GEODIST", b"g", b"Palermo", b"Palermo"])),
-    b"$1\r\n0\r\n"
-  );
-  // GEOHASH g Palermo → 非 null bulk
-  let out = rt(&mut c, &frame(&[b"GEOHASH", b"g", b"Palermo"]));
-  assert!(out.starts_with(b"*1\r\n$"), "GEOHASH 应答: {out:?}");
 }
 
-/// 对象扫描族闭环（HSCAN/SSCAN/ZSCAN，RespHashTests.cs:CanScanHashItems 等）
+/// 对象扫描族分派抽样（HSCAN，RespHashTests.cs:CanScanHashItems）
 #[test]
 fn object_scan_family_end_to_end() {
   let mut c = consumer();
@@ -362,32 +139,13 @@ fn object_scan_family_end_to_end() {
     rt(&mut c, &frame(&[b"HSET", b"h", b"f1", b"v1"])),
     b":1\r\n"
   );
-  assert_eq!(rt(&mut c, &frame(&[b"SADD", b"s", b"a"])), b":1\r\n");
-  assert_eq!(rt(&mut c, &frame(&[b"ZADD", b"z", b"1", b"a"])), b":1\r\n");
   // HSCAN h 0 → [cursor, [f1, v1]]
   let out = rt(&mut c, &frame(&[b"HSCAN", b"h", b"0"]));
   assert!(
     out.starts_with(b"*2\r\n$1\r\n0\r\n*2\r\n"),
     "HSCAN: {out:?}"
   );
-  // SSCAN s 0 → [cursor, [a]]
-  let out = rt(&mut c, &frame(&[b"SSCAN", b"s", b"0"]));
-  assert!(
-    out.starts_with(b"*2\r\n$1\r\n0\r\n*1\r\n"),
-    "SSCAN: {out:?}"
-  );
-  // ZSCAN z 0 → [cursor, [a, 1]]
-  let out = rt(&mut c, &frame(&[b"ZSCAN", b"z", b"0"]));
-  assert!(
-    out.starts_with(b"*2\r\n$1\r\n0\r\n*2\r\n"),
-    "ZSCAN: {out:?}"
-  );
-  // 键缺失 → [0, 空数组]
-  assert_eq!(
-    rt(&mut c, &frame(&[b"HSCAN", b"miss", b"0"])),
-    b"*2\r\n$1\r\n0\r\n*0\r\n"
-  );
-  // 非法光标 → 错误
+  // 非法光标 → 分派层参数校验错误
   assert_eq!(
     rt(&mut c, &frame(&[b"HSCAN", b"h", b"-1"])),
     b"-ERR invalid cursor\r\n"

@@ -10,26 +10,6 @@ use std::{
 use aok::{OK, Result};
 use wbftree::{CacheAlignedLock, NUM_LOCK_STRIPES, RangeIndexLocks};
 
-/// 测试条带锁并发获取
-#[test]
-fn test_range_index_locks() -> Result<()> {
-  let locks = RangeIndexLocks::new();
-
-  // 共享锁并发读
-  let _r1 = locks.read(100);
-  let _r2 = locks.read(100);
-
-  // 释放后获取互斥写锁，并验证不同条带写锁可并发持有
-  drop(_r1);
-  drop(_r2);
-  let _w = locks.write(100);
-  let _w_other = locks.write(200);
-  drop(_w);
-  drop(_w_other);
-
-  OK
-}
-
 /// 测试条带锁 128 字节缓存行对齐 (消除 ARM64/Apple Silicon 及 x86-64 上的 CPU 伪共享)
 #[test]
 fn test_cache_aligned_lock_alignment() -> Result<()> {

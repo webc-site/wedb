@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-  "wexample",
   "wext_json",
   "wext_noop",
   "wext_roaring",
@@ -30,7 +29,6 @@ members = [
   "wnode",
   "wmetric",
   "wpubsub",
-  "wram",
   "wrecord",
   "wresp",
   "wreviv",
@@ -120,10 +118,6 @@ path = "windex"
 version = "0.1.0"
 path = "wmetric"
 
-[workspace.dependencies.wram]
-version = "0.1.6"
-path = "wram"
-
 [workspace.dependencies.wrecord]
 version = "0.1.4"
 path = "wrecord"
@@ -175,6 +169,10 @@ path = "wcustom"
 [workspace.dependencies.wdatabase]
 version = "0.1.0"
 path = "wdatabase"
+
+[workspace.dependencies.wnode]
+version = "0.1.0"
+path = "wnode"
 
 [workspace.dependencies.wpubsub]
 version = "0.1.0"

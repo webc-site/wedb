@@ -10,7 +10,7 @@ use std::{fmt, io};
 use gxhash::{HashMap as GxHashMap, HashSet as GxHashSet};
 use wbase::{
   glob::glob_match_nocase,
-  hash_slot::{CLUSTER_SLOTS as WBASE_CLUSTER_SLOTS, hash_slot},
+  hash_slot::{CLUSTER_SLOTS as WBASE_CLUSTER_SLOTS, hash_slot as cluster_slot},
   time::now_ticks,
 };
 use wdev::Device;
@@ -177,7 +177,7 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
           };
           match rest.split_first() {
             Some((&t, user_key)) if t == TAG_STRING || t == TAG_META => {
-              if slots.contains(&hash_slot(user_key)) {
+              if slots.contains(&cluster_slot(user_key)) {
                 found = true;
                 return Ok(false); // 早退
               }
@@ -441,10 +441,4 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
     keys.sort_unstable();
     Ok(keys)
   }
-}
-
-/// Redis 集群槽位计算：CRC16-XMODEM 取模 16384（含 `{...}` 哈希标签语义）
-#[inline]
-pub fn cluster_slot(key: &[u8]) -> u16 {
-  hash_slot(key)
 }

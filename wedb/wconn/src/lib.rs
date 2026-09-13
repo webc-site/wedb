@@ -11,7 +11,7 @@ mod types;
 pub use api::{InfoMetricsType, SortedSetPairCollection};
 pub use client::GarnetClient;
 pub use error::{Error, Result};
-pub use parser::{MAX_ARGUMENT_LENGTH_BYTES, RespReadResponseUtils};
+pub use parser::RespReadResponseUtils;
 pub use session::{
   GarnetClientSession, encode_append_log_frame, encode_append_log_init_frame,
   encode_cluster_append_log_frame,

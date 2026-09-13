@@ -16,7 +16,7 @@ bench = [ ]
 [dependencies]
 crossfire = "3.1.20"
 event-listener.workspace = true
-wdatabase = { version = "0.1.0", path = "../wdatabase" }
+wdatabase = { workspace = true }
 wmetric.workspace = true
 
 [dependencies.bitcode]
@@ -61,8 +61,7 @@ workspace = true
 workspace = true
 
 [dependencies.wnode]
-version = "0.1.0"
-path = "../wnode"
+workspace = true
 
 [dependencies.wresp]
 workspace = true
@@ -94,8 +93,7 @@ workspace = true
 workspace = true
 
 [dev-dependencies.wnode]
-path = "../wnode"
-version = "0.1.0"
+workspace = true
 
 [lints]
 workspace = true

@@ -1183,7 +1183,7 @@ impl RespServerSession {
       let text = {
         let provider = super::info_provider::SessionInfoSource::new(self);
         let mut info = wmetric::GarnetInfoMetrics::new();
-        let mut out = String::new();
+        let mut out = Vec::new();
         wmetric::InfoCommand::network_info(
           &args,
           self.active_db_id,
@@ -1195,7 +1195,7 @@ impl RespServerSession {
         );
         out
       };
-      self.output.extend_from_slice(text.as_bytes());
+      self.output.extend_from_slice(&text);
       return true;
     }
     let args = self.get_arg_slices();
@@ -1932,7 +1932,9 @@ impl ScriptingApi for RespScriptingApi<'_> {
     request.write_resp_bulk_string(key);
     let mut sender = ScratchBufferNetworkSender::new();
     self.dispatch_resp(&request, &mut sender);
-    parse_bulk_reply(sender.get_response())
+    wresp::parse_bulk_reply(sender.get_response())
+      .map(|opt| opt.map(<[u8]>::to_vec))
+      .map_err(reply_error_str)
   }
 
   /// SET 特例（C# api.SET）：+OK 或错误应答
@@ -1943,7 +1945,7 @@ impl ScriptingApi for RespScriptingApi<'_> {
     request.write_resp_bulk_string(value);
     let mut sender = ScratchBufferNetworkSender::new();
     self.dispatch_resp(&request, &mut sender);
-    parse_simple_reply(sender.get_response())
+    wresp::parse_simple_reply(sender.get_response()).map_err(reply_error_str)
   }
 
   fn resp_protocol_version(&self) -> u8 {
@@ -2070,35 +2072,11 @@ impl wtxn::TxnSession for RespServerSession {
   }
 }
 
-/// 解析 RESP 批量串/null 应答（GET 特例回包）
-fn parse_bulk_reply(reply: &[u8]) -> Result<Option<Vec<u8>>, &'static str> {
-  if reply.first() == Some(&b'$') {
-    let text = str::from_utf8(&reply[1..]).map_err(|_| "protocol error")?;
-    let Some(crlf) = text.find("\r\n") else {
-      return Err("protocol error");
-    };
-    let len: isize = text[..crlf].parse().map_err(|_| "protocol error")?;
-    if len < 0 {
-      return Ok(None);
-    }
-    let start = 1 + crlf + 2;
-    let end = start + len as usize;
-    if reply.len() >= end {
-      return Ok(Some(reply[start..end].to_vec()));
-    }
-  }
-  if reply.first() == Some(&b'-') {
-    return Err("script error");
-  }
-  Err("protocol error")
-}
-
-/// 解析 RESP 简单串应答（SET 特例回包：+OK）
-fn parse_simple_reply(reply: &[u8]) -> Result<(), &'static str> {
-  match reply.first() {
-    Some(b'+') => Ok(()),
-    Some(b'-') => Err("script error"),
-    _ => Err("protocol error"),
+/// [`wresp::ReplyError`] → [`ScriptingApi`] 的 `&'static str` 错误面映射
+fn reply_error_str(err: wresp::ReplyError) -> &'static str {
+  match err {
+    wresp::ReplyError::ErrorReply => "script error",
+    wresp::ReplyError::Malformed => "protocol error",
   }
 }
 

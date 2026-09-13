@@ -26,7 +26,7 @@ sha1_smol.workspace = true
 sonic-rs.workspace = true
 wbase = { workspace = true, features = ["hash_slot", "convert", "num", "map", "time"] }
 wresp.workspace = true
-wtxn = { version = "0.1.0", path = "../wtxn" }
+wtxn = { workspace = true }
 
 [dev-dependencies]
 aok.workspace = true

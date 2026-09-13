@@ -21,7 +21,7 @@ workspace = true
 
 [dependencies]
 wbftree = { workspace = true }
-wbase = { features = ["convert", "float", "future", "map", "num", "time"], path = "../wbase", version = "0.1.6" }
+wbase = { workspace = true, features = ["convert", "float", "future", "map", "num", "time"] }
 thiserror.workspace = true
 wval.workspace = true
 wresp.workspace = true

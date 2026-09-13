@@ -17,7 +17,7 @@ use std::{
 
 use wbase::{Error, Result};
 
-use crate::tracker::NativeMemoryTracker;
+use super::tracker::NativeMemoryTracker;
 
 #[cfg(windows)]
 unsafe extern "system" {

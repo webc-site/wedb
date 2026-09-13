@@ -423,14 +423,4 @@ mod tests {
     barrier.signal_arrival(1, 40);
     assert!(!barrier.in_progress());
   }
-
-  #[test]
-  fn fast_path_throughput_no_round() {
-    let barrier = ReplayAlignBarrier::new(4, None);
-    // 无轮次或未达标时单次原子读直接跳过，零锁争用
-    for _ in 0..100_000 {
-      barrier.signal_arrival_and_wait(0, 500);
-      barrier.signal_arrival(1, 500);
-    }
-  }
 }

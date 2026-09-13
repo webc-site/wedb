@@ -41,7 +41,7 @@ pub use options::{
   expire_option_from_token, try_get_exist_options, try_get_expiration_option,
   try_get_expire_option, try_get_sorted_set_add_option, try_get_sorted_set_aggregate_type,
 };
-pub use read::MAX_ARGUMENT_LENGTH_BYTES;
+pub use read::{MAX_ARGUMENT_LENGTH_BYTES, ReplyError, parse_bulk_reply, parse_simple_reply};
 pub use resp_memory_writer::{
   Resp2, Resp3, RespBuffer, RespMemoryWriter, RespProtocol, RespWriter, format_double,
 };

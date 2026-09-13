@@ -1,12 +1,11 @@
 use core::str;
 
-use wresp::read::{try_read_as_span, try_read_signed_length_header};
+use wresp::{
+  MAX_ARGUMENT_LENGTH_BYTES,
+  read::{try_read_as_span, try_read_signed_length_header},
+};
 
 use crate::{Error, Result};
-
-/// libs/common/RespReadUtils.cs:MaxArgumentLengthBytes（单 bulk string 长度上限，
-/// 对齐 Redis 默认 512MB 上限）
-pub const MAX_ARGUMENT_LENGTH_BYTES: isize = wresp::MAX_ARGUMENT_LENGTH_BYTES as isize;
 
 /// libs/client/RespReadResponseUtils.cs:RespReadResponseUtils
 pub struct RespReadResponseUtils;

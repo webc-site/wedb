@@ -6,10 +6,9 @@ use std::{
 
 use aok::{OK, Void};
 use log::info;
-use wbase::float::encode_f64;
 use wval::{
-  CompactHash, CompactHashCodec, CompactMetaValue, CompactSet, CompactSetCodec, CompactZSet,
-  GarnetObjectType, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, SubKeyBuf, ZSetEntryRef,
+  CompactHash, CompactHashCodec, CompactMetaValue, GarnetObjectType, KeyTag, META_VALUE_SIZE,
+  MetaValue, StorageEncoding, SubKeyBuf,
 };
 
 #[ctor::ctor(unsafe)]
@@ -112,6 +111,8 @@ fn test_round2_subkey_buf_stack_heap_contracts() -> Void {
 }
 
 // ============================================================================
+
+// ============================================================================
 // 5. CompactHash 重复键批量编码与原地淘汰测试
 // ============================================================================
 #[test]
@@ -157,216 +158,5 @@ fn test_round2_compact_hash_duplicate_keys_and_large_scale() -> Void {
   assert_eq!(hash.find_field(b"f3"), Some(b"no_expire".as_slice()));
 
   info!("CompactHash 重复键批量编码与原地淘汰测试通过");
-  OK
-}
-
-// ============================================================================
-// 6. CompactSet 大规模堆回退 (> 512 元素) 测试
-// ============================================================================
-#[test]
-fn test_round2_compact_set_large_scale_heap_fallback() -> Void {
-  info!("开始测试: CompactSet 大规模堆回退 (> 512 元素) 与二分查找");
-
-  let mut set = CompactSet::new();
-  const TOTAL: usize = 600; // 超过 STACK_CAP 512，触发 heap_offsets
-
-  for i in 0..TOTAL {
-    let member = format!("key_{:05}", i);
-    assert!(set.insert(member.as_bytes())?);
-  }
-  assert_eq!(set.len(), TOTAL);
-
-  // 再次插入重复项 -> 返回 false
-  assert!(!set.insert(b"key_00100")?);
-  assert_eq!(set.len(), TOTAL);
-
-  // 二分查找测试
-  assert_eq!(set.binary_search(b"key_00000")?, Ok(0));
-  assert_eq!(set.binary_search(b"key_00599")?, Ok(599));
-  assert!(set.contains(b"key_00350"));
-  assert!(!set.contains(b"key_99999"));
-
-  // 删除元素
-  assert!(set.remove(b"key_00350")?);
-  assert_eq!(set.len(), TOTAL - 1);
-  assert!(!set.contains(b"key_00350"));
-
-  // 验证有序单调递增性
-  CompactSetCodec::validate(set.as_slice())?;
-
-  info!("CompactSet 大规模堆回退与二分查找测试通过");
-  OK
-}
-
-// ============================================================================
-// 7. CompactZSet 大规模堆回退 (> 256 元素) 与精细区间选项测试
-// ============================================================================
-#[test]
-fn test_round2_compact_zset_large_scale_heap_fallback_and_ranges() -> Void {
-  info!("开始测试: CompactZSet 大规模堆回退 (> 256 元素) 与精细区间控制");
-
-  let mut zset = CompactZSet::new();
-  const TOTAL: usize = 300; // 超过 STACK_CAP 256，触发 heap_offsets
-
-  for i in 0..TOTAL {
-    let member = format!("player_{:04}", i);
-    let score = i as f64;
-    assert!(zset.insert(score, member.as_bytes())?);
-  }
-  assert_eq!(zset.len(), TOTAL);
-
-  // 1. 开闭区间组合测试
-  // [10.0, 20.0] -> 11 个元素 (10..=20)
-  assert_eq!(zset.count_score_range(10.0, true, 20.0, true), 11);
-  // (10.0, 20.0] -> 10 个元素 (11..=20)
-  assert_eq!(zset.count_score_range(10.0, false, 20.0, true), 10);
-  // [10.0, 20.0) -> 10 个元素 (10..20)
-  assert_eq!(zset.count_score_range(10.0, true, 20.0, false), 10);
-  // (10.0, 20.0) -> 9 个元素 (11..20)
-  assert_eq!(zset.count_score_range(10.0, false, 20.0, false), 9);
-
-  // 2. 单点退化区间
-  // [15.0, 15.0] -> 1 个元素
-  assert_eq!(zset.count_score_range(15.0, true, 15.0, true), 1);
-  // (15.0, 15.0] -> 0 个元素
-  assert_eq!(zset.count_score_range(15.0, false, 15.0, true), 0);
-  // [15.0, 15.0) -> 0 个元素
-  assert_eq!(zset.count_score_range(15.0, true, 15.0, false), 0);
-  // (15.0, 15.0) -> 0 个元素
-  assert_eq!(zset.count_score_range(15.0, false, 15.0, false), 0);
-
-  // 3. 反向与越界区间
-  assert_eq!(zset.count_score_range(50.0, true, 20.0, true), 0);
-  assert_eq!(zset.count_score_range(500.0, true, 600.0, true), 0);
-
-  // 4. 流式切片迭代器与 options 联动
-  let range_res: Vec<ZSetEntryRef> = zset.range_with_options(10.0, false, 13.0, true).collect();
-  assert_eq!(range_res.len(), 3); // 11.0, 12.0, 13.0
-  assert_eq!(range_res[0].score, 11.0);
-  assert_eq!(range_res[1].score, 12.0);
-  assert_eq!(range_res[2].score, 13.0);
-
-  // 5. 排名与分值查询在大集合下的正确性
-  assert_eq!(zset.rank_of(b"player_0000"), Some(0));
-  assert_eq!(zset.rank_of(b"player_0299"), Some(299));
-  assert_eq!(zset.score_of(b"player_0150"), Some(150.0));
-  assert_eq!(zset.key_at_rank(150), Some(b"player_0150".as_slice()));
-
-  // 6. 删除元素
-  assert!(zset.remove(b"player_0150")?);
-  assert_eq!(zset.len(), TOTAL - 1);
-  assert_eq!(zset.rank_of(b"player_0150"), None);
-
-  info!("CompactZSet 大规模堆回退与精细区间控制测试通过");
-  OK
-}
-
-// ============================================================================
-// 8. CompactZSet 成员级过期随机模型交叉验证（确定性种子）
-// ============================================================================
-/// 随机操作流与 BTreeMap 参考模型全量对照：插入/更新/删除/过期淘汰后，
-/// 排序、分值位级还原、过期时间戳、rank、区间计数必须与模型 100% 一致
-#[test]
-fn test_round2_compact_zset_randomized_model_crosscheck() -> Void {
-  use std::collections::BTreeMap;
-
-  use wval::CompactZSetCodec;
-
-  let mut rng = fastrand::Rng::with_seed(0x5EED_C0DE);
-  let mut zset = wval::CompactZSet::new();
-  // 模型：member -> (score_bits, expire_at_ticks)；有序视图按 (保序分值, member) 展开
-  let mut model: BTreeMap<Vec<u8>, (u64, Option<i64>)> = BTreeMap::new();
-  let now = 5_000i64;
-
-  let member = |rng: &mut fastrand::Rng| format!("m{:03}", rng.u32(0..120)).into_bytes();
-
-  for round in 0..2000 {
-    let op = rng.u8(..) % 10;
-    let m = member(&mut rng);
-    match op {
-      0..=4 => {
-        // 插入或更新（随机分值含极值与随机过期）
-        let score = [
-          f64::NAN,
-          f64::NEG_INFINITY,
-          -0.0,
-          0.0,
-          1e300,
-          -1e-300,
-          rng.f64() * 2000.0 - 1000.0,
-        ][(rng.u8(..) % 7) as usize];
-        let exp = match rng.u8(..) % 3 {
-          0 => None,
-          1 => Some(now + rng.i64(1..500)), // 存活
-          _ => Some(rng.i64(0..now)),       // 已过期（严格小于口径）
-        };
-        zset.insert_with_expire(score, &m, exp)?;
-        model.insert(m, (score.to_bits(), exp));
-      }
-      5..=6 => {
-        let removed = zset.remove(&m)?;
-        assert_eq!(
-          removed,
-          model.remove(&m).is_some(),
-          "round {round} remove 语义不一致"
-        );
-      }
-      7 => {
-        // 过期淘汰交叉验证
-        let expected: Vec<_> = model
-          .iter()
-          .filter(|(_, (_, e))| e.is_some_and(|x| x < now))
-          .map(|(k, _)| k.clone())
-          .collect();
-        let purged = zset.purge_expired(now)?;
-        assert_eq!(purged, expected.len(), "round {round} purge 数量不一致");
-        for k in &expected {
-          model.remove(k);
-        }
-      }
-      _ => {}
-    }
-
-    // 定期全量一致性校验
-    if round % 97 == 0 || round == 1999 {
-      CompactZSetCodec::validate(zset.as_slice())?;
-      assert_eq!(zset.len(), model.len(), "round {round} 基数不一致");
-      // 有序视图：按 (保序分值位, member) 排序展开模型
-      type ModelEntry = (Vec<u8>, u64, Option<i64>);
-      let mut ordered: Vec<ModelEntry> = model
-        .iter()
-        .map(|(m, (bits, exp))| ((*m).clone(), *bits, *exp))
-        .collect();
-      ordered.sort_by_key(|(m, bits, _)| {
-        let sortable = u64::from_be_bytes(encode_f64(f64::from_bits(*bits)));
-        (sortable, m.clone())
-      });
-      let entries: Vec<wval::ZSetEntryRef> = zset.iter_members().collect();
-      assert_eq!(entries.len(), ordered.len());
-      for (entry, (m, bits, exp)) in entries.iter().zip(ordered.iter()) {
-        assert_eq!(entry.member, m.as_slice(), "round {round} 成员次序不一致");
-        assert_eq!(
-          entry.score.to_bits(),
-          *bits,
-          "round {round} 分值位级还原不一致"
-        );
-        assert_eq!(
-          entry.expire_at_ticks, *exp,
-          "round {round} 过期时间戳不一致"
-        );
-      }
-      // rank / score 抽查
-      for (rank, (m, bits, _)) in ordered.iter().enumerate() {
-        assert_eq!(zset.rank_of(m), Some(rank), "round {round} rank 不一致");
-        assert_eq!(
-          zset.score_of(m).map(|s| s.to_bits()),
-          Some(*bits),
-          "round {round} score_of 不一致"
-        );
-      }
-    }
-  }
-
-  info!("CompactZSet 随机模型交叉验证（2000 轮）通过");
   OK
 }

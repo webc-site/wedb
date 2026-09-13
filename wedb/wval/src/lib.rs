@@ -7,8 +7,6 @@
 //! （对标 Garnet 中 Tsavorite core 与 libs/server 值对象层的分层约束）。
 
 mod compact_hash;
-mod compact_set;
-mod compact_zset;
 mod error;
 mod meta;
 mod ns_codec;
@@ -20,14 +18,6 @@ pub use compact_hash::{
   COMPACT_HASH_COUNT_SIZE, COMPACT_HASH_EXPIRE_FLAG_SIZE, COMPACT_HASH_EXPIRE_TIME_SIZE,
   COMPACT_HASH_LEN_SIZE, CompactHash, CompactHashCodec, CompactHashIter, FieldValueRef,
   HashEntryRef,
-};
-pub use compact_set::{
-  COMPACT_SET_COUNT_SIZE, COMPACT_SET_LEN_SIZE, CompactSet, CompactSetCodec, CompactSetIter,
-};
-pub use compact_zset::{
-  COMPACT_ZSET_COUNT_SIZE, COMPACT_ZSET_ENTRY_HEADER_SIZE, COMPACT_ZSET_EXPIRE_FLAG_SIZE,
-  COMPACT_ZSET_EXPIRE_TIME_SIZE, COMPACT_ZSET_LEN_SIZE, COMPACT_ZSET_SCORE_SIZE, CompactZSet,
-  CompactZSetCodec, CompactZSetIter, ZSetEntryRef,
 };
 pub use error::{Error, Result};
 pub use meta::{

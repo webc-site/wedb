@@ -21,7 +21,7 @@ wcpr.workspace = true
 wdev.workspace = true
 whasher.workspace = true
 wkv.workspace = true
-wtxn = { version = "0.1.0", path = "../wtxn" }
+wtxn = { workspace = true }
 wval.workspace = true
 
 [dev-dependencies]

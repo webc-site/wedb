@@ -23,7 +23,7 @@ parking_lot.workspace = true
 rand = "0.9.5"
 smallvec.workspace = true
 thiserror.workspace = true
-wbase = { version = "0.1.6", path = "../wbase", features = ["map"] }
+wbase = { workspace = true, features = ["map"] }
 
 [dev-dependencies]
 futures-executor = "0.3.34"

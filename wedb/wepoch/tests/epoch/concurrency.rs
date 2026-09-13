@@ -442,13 +442,13 @@ fn active_instance_count_saturates_on_drop_after_reset() -> Void {
 fn unified_current_thread_id_consistency() -> Void {
   info!("验证线程标识唯一原语");
 
-  let main_tid = wbase::current_thread_id();
+  let main_tid = wbase::thread::current_thread_id();
   assert!(main_tid > 0, "thread_id 必须大于 0");
 
   let mut handles = Vec::new();
   for _ in 0..8 {
     handles.push(thread::spawn(|| {
-      let tid = wbase::current_thread_id();
+      let tid = wbase::thread::current_thread_id();
       assert!(tid > 0);
       tid
     }));

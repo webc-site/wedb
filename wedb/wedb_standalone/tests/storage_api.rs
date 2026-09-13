@@ -17,11 +17,11 @@ use wdatabase::{
 };
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
+use wbase::hash_slot::hash_slot as cluster_slot;
 use wnode::{
   GarnetStatus,
   aof::waof_sublog::single_log_aof,
   storage::session::{
-    common::array_key_iteration_functions::cluster_slot,
     mainstore::{
       advanced_ops::StringRMWOp,
       bitmap_ops::{BitFieldOp, BitmapOp},
@@ -481,6 +481,65 @@ fn test_multi_database_manager() -> aok::Void {
     use wdatabase::IDatabaseManager;
     multi.flush_all_databases().await?;
     assert_eq!(session.read(b"k").await?, None);
+    Ok(())
+  })
+}
+
+/// 数据库管理器契约：检查点暂停/恢复幂等、快照计数、建库幂等、单库清空隔离
+/// （与上方单/多库管理器测试互补：AOF 重放与检查点截断语义见彼处）
+#[test]
+fn test_database_manager_pause_snapshot_contract() -> aok::Void {
+  use wdatabase::{MultiDatabaseManager, SingleDatabaseManager};
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (dir, store) = open_store("pause_snapshot.db")?;
+
+    // 单库：TryGetOrAddDatabase 恒返回 db0（不新增）；暂停/恢复幂等；快照仅含 db0
+    let db = Arc::new(GarnetDatabase::new(
+      0,
+      Arc::clone(&store),
+      Arc::clone(&store.device),
+      dir.path().join("0"),
+      None::<Arc<()>>,
+    ));
+    let single = SingleDatabaseManager::new(dir.path().to_path_buf(), Arc::clone(&db));
+    let (got_db, added) = single.try_get_or_add_database().unwrap();
+    assert!(!added);
+    assert_eq!(got_db.id, 0);
+
+    assert!(single.try_pause_checkpoints());
+    assert!(!single.try_pause_checkpoints(), "已处于暂停态不得重复暂停");
+    single.resume_checkpoints();
+    assert!(single.try_pause_checkpoints(), "恢复后可再次暂停");
+
+    let snapshot = single.get_databases_snapshot();
+    assert_eq!(snapshot.len(), 1);
+    assert_eq!(snapshot[0].id, 0);
+
+    // 多库：建库幂等（added 标志）与快照计数
+    let manager = MultiDatabaseManager::<_, ()>::new(Arc::clone(&store), dir.path().to_path_buf());
+    let db0 = manager.try_add_database(0, Arc::clone(&store))?;
+    manager.handle_database_added(&db0);
+    let (db1, added1) = manager.try_get_or_add_database(1).await?;
+    assert!(added1);
+    assert_eq!(db1.id, 1);
+    let (_again, added_again) = manager.try_get_or_add_database(1).await?;
+    assert!(!added_again, "二次获取同一库不得重复添加");
+    assert_eq!(manager.get_databases_snapshot().len(), 2);
+
+    // 单库清空隔离：flush_database(0) 只清 db0，db1 键值不受波及
+    let session = store.new_session()?;
+    session.set_active_db(0);
+    session.upsert(b"pk", b"v0").await?;
+    session.set_active_db(1);
+    session.upsert(b"pk", b"v1").await?;
+
+    manager.flush_database(0).await?;
+    session.set_active_db(0);
+    assert_eq!(session.read(b"pk").await?, None);
+    session.set_active_db(1);
+    assert_eq!(session.read(b"pk").await?, Some(b"v1".to_vec()));
     Ok(())
   })
 }

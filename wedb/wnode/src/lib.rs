@@ -57,11 +57,11 @@ pub use net::{
 };
 pub use resp::RespSessionConsumer;
 pub use role_info::RoleInfo;
-pub use server::{GarnetServer, NodeServerBuilder, ServerBootstrap, run_node};
+pub use server::{GarnetServer, ServerBootstrap, run_node};
 pub use servers::{MetricsApi, RegisterApi};
 pub use shutdown::ShutdownCoordinator;
 pub use signal::{SIGINT_LABEL, SIGTERM_LABEL, SIGTERM_NUM, wait_shutdown_signal};
-pub use storage::{StorageScriptingApi, StorageSession};
+pub use storage::StorageSession;
 pub use task::{TaskManager, TaskPlacementCategory, TaskType};
 pub use tls::IGarnetTlsOptions;
 pub use traits::{MessageConsumerFace, ServerEnumerate, SessionProviderFace, WireFormat};

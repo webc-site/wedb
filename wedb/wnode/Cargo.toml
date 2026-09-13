@@ -33,9 +33,9 @@ waof.workspace = true
 wbase = { workspace = true, features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "pool", "time"] }
 wbftree.workspace = true
 wbitmap.workspace = true
-wcol = { version = "0.1.0", path = "../wcol" }
+wcol = { workspace = true }
 wconf.workspace = true
-wcpr = { version = "0.1.3", path = "../wcpr" }
+wcpr = { workspace = true }
 wcustom.workspace = true
 wdatabase.workspace = true
 wdev.workspace = true

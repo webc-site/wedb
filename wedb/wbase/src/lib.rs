@@ -87,8 +87,6 @@ pub mod striped;
 
 #[cfg(feature = "thread")]
 pub mod thread;
-#[cfg(feature = "thread")]
-pub use thread::current_thread_id;
 
 #[cfg(feature = "time")]
 pub mod time;

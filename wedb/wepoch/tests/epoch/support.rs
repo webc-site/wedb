@@ -8,7 +8,7 @@ use std::{
   thread::{JoinHandle, spawn, yield_now},
 };
 
-use wbase::current_thread_id;
+use wbase::thread::current_thread_id;
 use wepoch::LightEpoch;
 
 /// 后台常驻读事务线程（对标 Garnet ParkedReaderThread）

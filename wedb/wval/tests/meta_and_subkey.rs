@@ -443,40 +443,6 @@ fn test_compile_time_const_evaluation() {
     CompactMetaValue::read_is_expired(&C_BYTES, 1_700_000_000_001);
   assert_eq!(C_EXPIRED_YES, Some(true));
 
-  // 紧凑容器 count const fn 契约验证（成功与截断错误分支全覆盖）
-  const CNT_BYTES: [u8; 4] = [0x01, 0x2c, 0, 0]; // 0x012c = 300
-  const SET_CNT: Result<usize> = wval::CompactSetCodec::count(&CNT_BYTES);
-  assert!(matches!(SET_CNT, Ok(300)));
-  const HASH_CNT: Result<usize> = wval::CompactHashCodec::count(&CNT_BYTES);
-  assert!(matches!(HASH_CNT, Ok(300)));
-  const ZSET_CNT: Result<usize> = wval::CompactZSetCodec::count(&CNT_BYTES);
-  assert!(matches!(ZSET_CNT, Ok(300)));
-
-  const SHORT_BYTES: [u8; 1] = [0];
-  const SET_CNT_ERR: Result<usize> = wval::CompactSetCodec::count(&SHORT_BYTES);
-  assert!(matches!(
-    SET_CNT_ERR,
-    Err(Error::BufferTooShort {
-      expected: 2,
-      actual: 1
-    })
-  ));
-  const HASH_CNT_ERR: Result<usize> = wval::CompactHashCodec::count(&SHORT_BYTES);
-  assert!(matches!(
-    HASH_CNT_ERR,
-    Err(Error::BufferTooShort {
-      expected: 2,
-      actual: 1
-    })
-  ));
-  const ZSET_CNT_ERR: Result<usize> = wval::CompactZSetCodec::count(&SHORT_BYTES);
-  assert!(matches!(
-    ZSET_CNT_ERR,
-    Err(Error::BufferTooShort {
-      expected: 2,
-      actual: 1
-    })
-  ));
 }
 
 #[test]

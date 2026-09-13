@@ -6,13 +6,8 @@
 //! - [`raw`]：纯引擎 KV 面——一切 `*_raw` 物理键操作、unprotected 变体与批量读
 //!   （对标 ClientSession 的 Upsert/Read/Delete 快慢路径）；
 //! - [`keys`]：键编码域——会话前缀物理键纯函数（对标 C# StorageSession 的键编码）；
-//! - [`collection`]：集合元数据与紧凑编码操作（对标 C# StorageSession/MainObjectStore
-//!   的元数据与分块存储）。
 
 mod collection;
-mod collection_bftree;
-pub mod collection_flattened;
-pub mod collection_hash;
 pub mod consistent_read;
 mod keys;
 mod raw;
@@ -26,11 +21,6 @@ use std::{
   },
 };
 
-pub use collection::RawCollectionRead;
-pub use collection_flattened::{
-  HASH_DOWNGRADE_BYTE_THRESHOLD, HASH_DOWNGRADE_ITEM_THRESHOLD, HASH_UPGRADE_BYTE_THRESHOLD,
-  HASH_UPGRADE_ITEM_THRESHOLD, should_downgrade_hash, should_upgrade_hash,
-};
 pub use consistent_read::{ConsistentReadContext, ConsistentReadFunctions};
 use parking_lot::Mutex;
 use wdev::Device;
@@ -41,21 +31,6 @@ use crate::{
   error::Result,
   store::{ObjectRmwNotification, WedbStore},
 };
-
-/// 小哈希紧凑内联最大字段数（激进阈值 32768 项门限）
-pub const HASH_MAX_COMPACT_ENTRIES: usize = HASH_UPGRADE_ITEM_THRESHOLD;
-/// 小哈希紧凑内联单个值最大字节数
-pub const HASH_MAX_COMPACT_VALUE: usize = 1024;
-/// 小集合紧凑内联最大元素数
-pub const SET_MAX_COMPACT_ENTRIES: usize = 32768;
-/// 小集合紧凑内联单个元素最大字节数
-pub const SET_MAX_COMPACT_VALUE: usize = 1024;
-/// 小有序集合紧凑内联最大元素数
-pub const ZSET_MAX_COMPACT_ENTRIES: usize = 32768;
-/// 小有序集合紧凑内联单个元素最大字节数
-pub const ZSET_MAX_COMPACT_MEMBER: usize = 1024;
-/// 紧凑内联编码总大小安全门限（1MB 字节）
-pub const MAX_COMPACT_TOTAL_BYTES: usize = HASH_UPGRADE_BYTE_THRESHOLD;
 
 /// 客户端并发会话句柄（绑定一个 LightEpoch 参与者）
 pub struct StoreSession<D: Device> {

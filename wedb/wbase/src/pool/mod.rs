@@ -56,12 +56,12 @@ pub use limited::{
 };
 use parking_lot::Mutex;
 pub(crate) use tls::TLS_POOLS;
-pub use tls::current_thread_id;
 pub use work_set::EventWorkSet;
 
 use crate::{
   align::{MIN_SECTOR_SIZE, is_valid_sector_size},
   error::{Error, Result},
+  thread::current_thread_id,
 };
 
 #[inline]

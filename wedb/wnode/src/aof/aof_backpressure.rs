@@ -306,8 +306,12 @@ mod tests {
   fn dispose_releases_all() {
     let gate = AofBackpressure::new(1, 100);
     gate.publish_shipped_address(0, 0);
+    // 尾地址超预算且无复制端推进：处于滞留态。
+    assert!(!gate.is_released(0, 1_000_000));
+
     gate.dispose();
-    // 关停后慢路径立即返回（不阻塞测试）。
+    // 关停置位后立即放行，同步慢路径不阻塞。
+    assert!(gate.is_released(0, 1_000_000));
     gate.wait_slow(0, 1_000_000);
   }
 

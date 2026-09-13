@@ -1,15 +1,19 @@
-//! RangeIndex 会话层功能测试 (1:1 移植 C# Garnet.test.rangeindex/RespRangeIndexTests)
+//! RangeIndex 会话层功能测试
 //!
-//! 用例与 C# 对应关系（未逐一移植的说明）：
-//! - CRUD / WrongType / InvalidKV / Exists / MultipleFields：一一对应移植；
-//! - Scan/Range 语义：字段投影与非存在索引报错在此移植，流式/零拷贝细节见
-//!   `range_index_scan.rs`；
-//! - Eviction/Flush/Promote 族（RIEviction*、RIFlushPromote*）：C# 依赖页刷盘
-//!   OnFlush 触发器与 RIPROMOTE 体系，wedb 该管线为预留未接线（见 wbftree
-//!   lib.rs），树级等价语义由 wbftree tests/manager_and_stub 覆盖；
+//! 与 wedb_standalone/tests/range_index_tests.rs（RespRangeIndexTests 权威移植）
+//! 去重后，本文件只保留 wkv 会话层独有维度：
+//! - InvalidKV 三向校验（键长 / 记录上限 / 记录下限）；
+//! - 并发多客户端最终一致性；
 //! - Checkpoint/Recover 族：多树检查点恢复、双检查点恢复到最新/指定版本、
-//!   恢复后删除重建在此移植，存根自愈细节见 `checkpoint/index_checkpoint.rs`；
-//! - RIAofReplayTest：AOF 重放在 wedb_standalone 层（apply → log → replay）实现。
+//!   恢复后删除重建（存根自愈细节见 `checkpoint/index_checkpoint.rs`）；
+//! - RIRESTORE 存根重绑自愈；
+//! - 驱逐重开与 OnFlush 快照数据保留（Eviction/Flush/Promote 族的 C# 管线
+//!   在 wedb 为预留未接线，见 wbftree lib.rs）；
+//! - RIRENAME 元数据继承。
+//!
+//! CRUD / WrongType / Exists / MultipleFields / Scan / Range / LEN 计数等
+//! 一一对应语义已在 wedb_standalone 权威覆盖；RIAofReplayTest 亦在
+//! wedb_standalone 层（apply → log → replay）实现。
 //!
 //! 并发语义差异：C# RIDel 对不存在的字段返回 0，本实现 bf-tree 墓碑删除不区分
 //! 字段是否存在，删除恒返回 true（幂等），见 wedb_standalone ri_del 注释。
@@ -19,7 +23,7 @@ use std::sync::Arc;
 use aok::{OK, Result, Void};
 use compio::runtime::{Runtime, spawn};
 use tempfile::tempdir;
-use wbftree::{ScanReturnField, StorageBackend, TreeTuning};
+use wbftree::{StorageBackend, TreeTuning};
 use wcpr::CheckpointType;
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, RangeIndexError, StoreConfig, WedbStore};
@@ -39,338 +43,6 @@ fn open_store(dir: &tempfile::TempDir, name: &str) -> Result<Arc<WedbStore<Segme
     .with_range_index_dir(dir.path().join("range_indexes"));
   let device = Arc::new(SegmentedDevice::single_file(dir.path().join(name))?);
   Ok(Arc::new(WedbStore::open(config, device)?))
-}
-
-/// RICreateBasicTest：创建后 exists 为真且可回读配置
-#[test]
-fn test_ri_create_basic() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_basic.db")?;
-    let session = store.new_session()?;
-
-    assert!(!session.range_index_exists(b"idx").await?);
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    assert!(session.range_index_exists(b"idx").await?);
-
-    let stub = session.range_index_config(b"idx").await?;
-    assert_eq!(stub.min_record_size, TUNE.min_record_size as u32);
-    assert_eq!(stub.max_record_size, TUNE.max_record_size as u32);
-    assert_eq!(stub.max_key_len, TUNE.max_key_len as u32);
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RICreateDuplicateReturnsErrorTest：重复创建报 AlreadyExists
-#[test]
-fn test_ri_create_duplicate_returns_error() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_dup.db")?;
-    let session = store.new_session()?;
-
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    let err = session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await;
-    assert!(matches!(err, Err(RangeIndexError::AlreadyExists)));
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RICreateThenDeleteTest：删除后索引消失，可重建
-#[test]
-fn test_ri_create_then_delete() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_del.db")?;
-    let session = store.new_session()?;
-
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    session
-      .range_index_set(b"idx", b"field1", b"value1")
-      .await?;
-    assert!(session.delete(b"idx").await?);
-
-    assert!(!session.range_index_exists(b"idx").await?);
-    let err = session.range_index_get(b"idx", b"field1").await;
-    assert!(matches!(err, Err(RangeIndexError::NotFound)));
-
-    // 重建后索引为空且可写
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    assert_eq!(session.range_index_get(b"idx", b"field1").await?, None);
-    session
-      .range_index_set(b"idx", b"field1", b"value2")
-      .await?;
-    assert_eq!(
-      session.range_index_get(b"idx", b"field1").await?,
-      Some(b"value2".to_vec())
-    );
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RICreateWithDefaultsTest + RICreateWithAllOptionsTest：零值调优走引擎默认，全量
-/// 自定义调优按配置回读
-#[test]
-fn test_ri_create_with_defaults_and_all_options() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_opts.db")?;
-    let session = store.new_session()?;
-
-    // 零值调优 (0 = 引擎默认) 可创建且可写
-    let defaults = TreeTuning::default();
-    session
-      .range_index_create(b"idx_def", StorageBackend::Std, defaults)
-      .await?;
-    let big_value = vec![b'v'; 128];
-    session
-      .range_index_set(b"idx_def", b"field", &big_value)
-      .await?;
-    assert_eq!(
-      session.range_index_get(b"idx_def", b"field").await?,
-      Some(big_value)
-    );
-
-    // 解析后的默认值已固化进存根 (对标 C#)：min=64/max=1024/max_key=128
-    let def_stub = session.range_index_config(b"idx_def").await?;
-    assert_eq!(def_stub.min_record_size, 64);
-    assert_eq!(def_stub.max_record_size, 1024);
-    assert_eq!(def_stub.max_key_len, 128);
-
-    // 全量自定义调优逐字段回读
-    let all = TreeTuning {
-      cache_size: 128 * 1024,
-      min_record_size: 16,
-      max_record_size: 2048,
-      max_key_len: 64,
-      leaf_page_size: 8192,
-    };
-    session
-      .range_index_create(b"idx_all", StorageBackend::Std, all)
-      .await?;
-    let stub = session.range_index_config(b"idx_all").await?;
-    assert_eq!(stub.cache_size, all.cache_size as u64);
-    assert_eq!(stub.min_record_size, all.min_record_size as u32);
-    assert_eq!(stub.max_record_size, all.max_record_size as u32);
-    assert_eq!(stub.max_key_len, all.max_key_len as u32);
-    assert_eq!(stub.leaf_page_size, all.leaf_page_size as u32);
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RISetAndGetBasicTest / RISetOverwriteTest / RIGetNonExistentFieldTest /
-/// RIGetNonExistentIndexTest / RISetOnNonExistentIndexTest / RIDelFieldTest
-#[test]
-fn test_ri_point_ops_semantics() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_point.db")?;
-    let session = store.new_session()?;
-
-    // 未创建索引：get/set/del 一律 NotFound
-    assert!(matches!(
-      session.range_index_get(b"nope", b"f").await,
-      Err(RangeIndexError::NotFound)
-    ));
-    assert!(matches!(
-      session.range_index_set(b"nope", b"f", b"v").await,
-      Err(RangeIndexError::NotFound)
-    ));
-    assert!(matches!(
-      session.range_index_del(b"nope", b"f").await,
-      Err(RangeIndexError::NotFound)
-    ));
-
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-
-    // set + get 基础往返
-    session
-      .range_index_set(b"idx", b"field1", b"value1")
-      .await?;
-    assert_eq!(
-      session.range_index_get(b"idx", b"field1").await?,
-      Some(b"value1".to_vec())
-    );
-
-    // 覆盖写返回新值
-    session
-      .range_index_set(b"idx", b"field1", b"value2")
-      .await?;
-    assert_eq!(
-      session.range_index_get(b"idx", b"field1").await?,
-      Some(b"value2".to_vec())
-    );
-
-    // 不存在的字段 → None
-    assert_eq!(session.range_index_get(b"idx", b"missing").await?, None);
-
-    // 删除字段：墓碑语义，重复删除幂等返回 true
-    assert!(session.range_index_del(b"idx", b"field1").await?);
-    assert_eq!(session.range_index_get(b"idx", b"field1").await?, None);
-    assert!(session.range_index_del(b"idx", b"field1").await?);
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RIMultipleFieldsTest：多字段独立读写互不干扰
-#[test]
-fn test_ri_multiple_fields() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_multi.db")?;
-    let session = store.new_session()?;
-
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    for i in 0..5 {
-      session
-        .range_index_set(
-          b"idx",
-          format!("field{i}").as_bytes(),
-          format!("value{i}").as_bytes(),
-        )
-        .await?;
-    }
-    for i in 0..5 {
-      assert_eq!(
-        session
-          .range_index_get(b"idx", format!("field{i}").as_bytes())
-          .await?,
-        Some(format!("value{i}").into_bytes())
-      );
-    }
-    // 覆盖其中一个不影响其余
-    session
-      .range_index_set(b"idx", b"f2", b"overwritten")
-      .await?;
-    assert_eq!(
-      session.range_index_get(b"idx", b"f2").await?,
-      Some(b"overwritten".to_vec())
-    );
-    assert_eq!(
-      session.range_index_get(b"idx", b"field3").await?,
-      Some(b"value3".to_vec())
-    );
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RIWrongTypeOnNormalKeyTest / RIWrongTypeGetOnNormalKeyTest / RINormalGetOnRangeIndexKeyTest：
-/// 普通字符串键与 RangeIndex 键相互 WRONGTYPE 隔离
-#[test]
-fn test_ri_wrong_type_isolation() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_wtype.db")?;
-    let session = store.new_session()?;
-
-    // 普通字符串键上的 RI 操作 → WRONGTYPE
-    session.upsert(b"str_key", b"plain").await?;
-    assert!(matches!(
-      session.range_index_get(b"str_key", b"f").await,
-      Err(RangeIndexError::WrongType)
-    ));
-    assert!(matches!(
-      session.range_index_set(b"str_key", b"f", b"v").await,
-      Err(RangeIndexError::WrongType)
-    ));
-
-    // RangeIndex 键上的普通读取不泄露索引数据
-    session
-      .range_index_create(b"ri_key", StorageBackend::Std, TUNE)
-      .await?;
-    session
-      .range_index_set(b"ri_key", b"field", b"secret")
-      .await?;
-    let normal = session.read(b"ri_key").await;
-    assert!(
-      matches!(normal, Ok(None)) || normal.is_err(),
-      "普通 GET 不得返回 RangeIndex 数据"
-    );
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RIScanOnNonExistentIndexTest / RIRangeOnNonExistentIndexTest + 字段投影语义
-/// (RIScanBasicTest / RIScanFieldsKeyTest / RIScanFieldsValueTest / RIRangeBasicTest)
-#[test]
-fn test_ri_scan_range_semantics() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_scan.db")?;
-    let session = store.new_session()?;
-
-    // 非存在索引 → NotFound
-    assert!(matches!(
-      session
-        .range_index_scan(b"nope", b"", 10, ScanReturnField::KeyAndValue)
-        .await,
-      Err(RangeIndexError::NotFound)
-    ));
-    assert!(matches!(
-      session
-        .range_index_range(b"nope", b"a", b"z", ScanReturnField::KeyAndValue)
-        .await,
-      Err(RangeIndexError::NotFound)
-    ));
-
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    for i in 0..10u32 {
-      session
-        .range_index_set(
-          b"idx",
-          format!("key{i:02}").as_bytes(),
-          format!("val{i:02}").as_bytes(),
-        )
-        .await?;
-    }
-
-    // KeyOnly 投影：值为空
-    let keys = session
-      .range_index_scan(b"idx", b"key00", 3, ScanReturnField::Key)
-      .await?;
-    assert_eq!(keys.len(), 3);
-    assert!(keys.iter().all(|r| !r.key.is_empty() && r.value.is_empty()));
-
-    // ValueOnly 投影：键为空
-    let vals = session
-      .range_index_scan(b"idx", b"key00", 3, ScanReturnField::Value)
-      .await?;
-    assert_eq!(vals.len(), 3);
-    assert!(vals.iter().all(|r| r.key.is_empty() && !r.value.is_empty()));
-
-    // 闭区间范围
-    let ranged = session
-      .range_index_range(b"idx", b"key03", b"key06", ScanReturnField::KeyAndValue)
-      .await?;
-    assert_eq!(ranged.len(), 4);
-    assert_eq!(ranged.first().unwrap().key, b"key03");
-    assert_eq!(ranged.last().unwrap().key, b"key06");
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
 }
 
 /// RISetInvalidKVFieldTooLongTest / RISetInvalidKVValueTooLongTest /
@@ -406,26 +78,6 @@ fn test_ri_invalid_kv_validation() -> Void {
     session
       .range_index_set(b"idx", &[b'k'; TUNE.max_key_len], &[b'v'; 100])
       .await?;
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-/// RIExistsBasicTest：exists 精确区分不存在 / 存在 / 已删除
-#[test]
-fn test_ri_exists_basic() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "ri_exists.db")?;
-    let session = store.new_session()?;
-
-    assert!(!session.range_index_exists(b"idx").await?);
-    session
-      .range_index_create(b"idx", StorageBackend::Std, TUNE)
-      .await?;
-    assert!(session.range_index_exists(b"idx").await?);
-    session.delete(b"idx").await?;
-    assert!(!session.range_index_exists(b"idx").await?);
     aok::Result::<()>::Ok(())
   })?;
   OK
@@ -784,67 +436,42 @@ fn test_ri_flush_trigger_and_lazy_recovery_preserves_data() -> Void {
   OK
 }
 
-/// RI.LEN O(1) 元数据直读与空索引生命周期
+/// RIRENAME 独有覆盖：删空后重命名继承旧索引元数据（len=0），改名后可继续写入，
+/// 整键删除物理清理。纯 LEN 计数语义由
+/// wedb_standalone/tests/range_index_tests.rs:ri_len_basic_test 权威覆盖。
 #[test]
-fn test_ri_len_o1_and_empty_lifecycle() -> Void {
+fn test_ri_rename_range_index_lifecycle() -> Void {
   Runtime::new()?.block_on(async {
     let dir = tempdir()?;
-    let store = open_store(&dir, "ri_len.db")?;
+    let store = open_store(&dir, "ri_rename.db")?;
     let session = store.new_session()?;
 
     let key = b"my_ri";
     session
       .range_index_create(key, StorageBackend::Std, TUNE)
       .await?;
-
-    // 1. 新建空索引：exists 为 true，len 为 0
-    assert!(session.range_index_exists(key).await?);
-    assert_eq!(session.range_index_len(key).await?, 0);
-
-    // 2. 插入 field1：len 净增为 1
     session.range_index_set(key, b"field1", b"value1").await?;
-    assert_eq!(session.range_index_len(key).await?, 1);
 
-    // 3. 更新已存在 field1：len 保持为 1
+    // 覆盖写不增长 len
     session
       .range_index_set(key, b"field1", b"value1_updated")
       .await?;
     assert_eq!(session.range_index_len(key).await?, 1);
-    assert_eq!(
-      session.range_index_get(key, b"field1").await?,
-      Some(b"value1_updated".to_vec())
-    );
 
-    // 4. 插入 field2：len 净增为 2
-    session.range_index_set(key, b"field2", b"value2").await?;
-    assert_eq!(session.range_index_len(key).await?, 2);
-
-    // 5. 删除不存在字段：幂等返回 true，len 保持为 2
-    assert!(session.range_index_del(key, b"non_existent").await?);
-    assert_eq!(session.range_index_len(key).await?, 2);
-
-    // 6. 删除 field1：len 净减为 1
+    // 删空后重命名：继承旧索引元数据长度 0
     assert!(session.range_index_del(key, b"field1").await?);
-    assert_eq!(session.range_index_len(key).await?, 1);
-
-    // 7. 删除 field2：len 降至 0，此时索引仍然存活且存在
-    assert!(session.range_index_del(key, b"field2").await?);
-    assert_eq!(session.range_index_len(key).await?, 0);
-    assert!(session.range_index_exists(key).await?);
-
-    // 8. 重命名测试：继承旧索引元数据长度 0
     let new_key = b"my_ri_renamed";
     session.rename_range_index(key, new_key).await?;
     assert!(session.range_index_exists(new_key).await?);
     assert_eq!(session.range_index_len(new_key).await?, 0);
 
-    // 9. 在重命名索引上继续写入并验证计数
+    // 改名后的索引可继续写入并验证计数
     session
       .range_index_set(new_key, b"field_x", b"value_x")
       .await?;
     assert_eq!(session.range_index_len(new_key).await?, 1);
 
-    // 10. 删除整键：物理清理索引文件
+    // 删除整键：物理清理索引文件，len 报 NotFound
     assert!(session.delete(new_key).await?);
     assert!(!session.range_index_exists(new_key).await?);
     assert!(matches!(

@@ -170,7 +170,7 @@ impl<'a, D: Device, CR: ConsistentReadFunctions> StorageSession<'a, D, CR> {
   /// RMWMethods.PostInitialUpdater+InPlaceUpdater 在完成实际写入后调用）
   ///
   /// 挂点为本会话四个写入口（值写 / 删除 / TTL 变更）与 lua 脚本同步写
-  /// 路径（storage_scripting_api 的 upsert_sync / delete_sync）；objectstore
+  /// 路径（RespScriptingApi 的 redis.call 落地面）；objectstore
   /// 各 ops 经 obj_save / rmw_object_store_operation / finalize_removal 全部
   /// 漏斗至此，RESP 命令层（main_store_ops / bitmap_ops / hyper_log_log_ops
   /// 等）经 upsert_string / delete_string 亦全部覆盖本挂点。

@@ -10,6 +10,7 @@ mod error;
 mod guard;
 mod overflow_pool;
 mod prefetch;
+pub mod ram;
 mod table;
 
 pub use bucket::{

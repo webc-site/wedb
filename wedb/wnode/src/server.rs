@@ -10,7 +10,7 @@
 //!    - Phase 1: 广播取消令牌，秒级打断所有核心的 accept 阻塞；
 //!    - Phase 2: 关闭监听套接字与 UDS 守卫，阻断新连接；
 //!    - Phase 3: 排空在途请求与工作线程，释放缓冲池与会话资源。
-//! 5. 统一服务端启动流水线（模板方法模式 ServerBootstrap）与服务器构建器（NodeServerBuilder）。
+//! 5. 统一服务端启动流水线（模板方法模式 ServerBootstrap，服务端唯一入口）。
 
 use std::{
   fs::create_dir_all,
@@ -35,7 +35,7 @@ use parking_lot::Mutex;
 use wbase::pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool};
 
 use crate::{
-  args::{NodeArgs, ServerArgs},
+  args::ServerArgs,
   cluster_provider::{ClusterProvider, NoopClusterProvider},
   endpoint::ServerEndpoint,
   net::{ConnectionStream, handler::NetworkHandler, socket_opt::bind_reuseport, uds::UdsGuard},
@@ -43,102 +43,6 @@ use crate::{
   signal::wait_shutdown_signal,
   traits::SessionProviderFace,
 };
-
-/// 宿主服务器构建器
-pub struct NodeServerBuilder<P = ()> {
-  endpoints: Vec<String>,
-  network_buffer_size: usize,
-  network_send_throttle_max: usize,
-  threads: Option<NonZeroUsize>,
-  session_provider: Option<Arc<P>>,
-}
-
-impl Default for NodeServerBuilder<()> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl NodeServerBuilder<()> {
-  /// 创建默认构建器
-  pub fn new() -> Self {
-    Self {
-      endpoints: Vec::new(),
-      network_buffer_size: DEFAULT_BUFFER_SIZE,
-      network_send_throttle_max: 8,
-      threads: None,
-      session_provider: None,
-    }
-  }
-}
-
-impl<P> NodeServerBuilder<P> {
-  /// 从节点参数初始化端点与线程配置
-  pub fn from_node_args(mut self, args: &NodeArgs) -> Self {
-    self.endpoints = args.endpoints();
-    self.threads = args.threads.and_then(NonZeroUsize::new);
-    self
-  }
-
-  /// 增加网络监听端点
-  pub fn endpoint(mut self, ep: impl Into<String>) -> Self {
-    self.endpoints.push(ep.into());
-    self
-  }
-
-  /// 设置监听端点列表
-  pub fn endpoints(mut self, eps: impl IntoIterator<Item = impl Into<String>>) -> Self {
-    self.endpoints = eps.into_iter().map(Into::into).collect();
-    self
-  }
-
-  /// 设置网络缓冲区池大小
-  pub fn network_buffer_size(mut self, size: usize) -> Self {
-    self.network_buffer_size = size;
-    self
-  }
-
-  /// 设置慢客户端发送流控阈值
-  pub fn network_send_throttle_max(mut self, max: usize) -> Self {
-    self.network_send_throttle_max = max;
-    self
-  }
-
-  /// 设置工作线程数
-  pub fn threads(mut self, threads: Option<NonZeroUsize>) -> Self {
-    self.threads = threads;
-    self
-  }
-
-  /// 设置会话提供者
-  pub fn session_provider<NewP: SessionProviderFace>(
-    self,
-    provider: Arc<NewP>,
-  ) -> NodeServerBuilder<NewP> {
-    NodeServerBuilder {
-      endpoints: self.endpoints,
-      network_buffer_size: self.network_buffer_size,
-      network_send_throttle_max: self.network_send_throttle_max,
-      threads: self.threads,
-      session_provider: Some(provider),
-    }
-  }
-}
-
-impl<P: SessionProviderFace + 'static> NodeServerBuilder<P> {
-  /// 构建宿主服务器实例
-  pub fn build(self) -> io::Result<GarnetServer<P>> {
-    let session_provider = self
-      .session_provider
-      .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "未指定 session_provider"))?;
-    Ok(GarnetServer::new(
-      &self.endpoints,
-      self.network_buffer_size,
-      self.network_send_throttle_max,
-      session_provider,
-    ))
-  }
-}
 
 /// 统一服务端启动流水线（模板方法模式）
 ///

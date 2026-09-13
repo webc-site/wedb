@@ -881,3 +881,51 @@ pub fn get_serialized_record_span<'a>(
 
   Ok(true)
 }
+
+/// 整包应答解析错误形态（脚本 GET/SET 特例回包解析专用）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReplyError {
+  /// `-ERR...\r\n` 错误应答（脚本执行错误）
+  ErrorReply,
+  /// 其余不可识别形态（协议错误）
+  Malformed,
+}
+
+/// 解析整包 RESP 批量串/null 应答（零拷贝返回载荷切片）
+///
+/// `$len\r\n<payload>\r\n` → `Ok(Some(载荷))`；`$-1\r\n` → `Ok(None)`；
+/// `-...\r\n` → `Err(ReplyError::ErrorReply)`；其余 → `Err(ReplyError::Malformed)`
+pub fn parse_bulk_reply(reply: &[u8]) -> std::result::Result<Option<&[u8]>, ReplyError> {
+  if reply.first() == Some(&b'$') {
+    let text = str::from_utf8(&reply[1..]).map_err(|_| ReplyError::Malformed)?;
+    let Some(crlf) = text.find("\r\n") else {
+      return Err(ReplyError::Malformed);
+    };
+    let len: isize = text[..crlf].parse().map_err(|_| ReplyError::Malformed)?;
+    if len < 0 {
+      return Ok(None);
+    }
+    let start = 1 + crlf + 2;
+    let end = start + len as usize;
+    if reply.len() >= end {
+      return Ok(Some(&reply[start..end]));
+    }
+    return Err(ReplyError::Malformed);
+  }
+  if reply.first() == Some(&b'-') {
+    return Err(ReplyError::ErrorReply);
+  }
+  Err(ReplyError::Malformed)
+}
+
+/// 解析整包 RESP 简单串应答（SET 特例回包：`+OK`）
+///
+/// `+...\r\n` → `Ok(())`；`-...\r\n` → `Err(ReplyError::ErrorReply)`；
+/// 其余 → `Err(ReplyError::Malformed)`
+pub fn parse_simple_reply(reply: &[u8]) -> std::result::Result<(), ReplyError> {
+  match reply.first() {
+    Some(b'+') => Ok(()),
+    Some(b'-') => Err(ReplyError::ErrorReply),
+    _ => Err(ReplyError::Malformed),
+  }
+}

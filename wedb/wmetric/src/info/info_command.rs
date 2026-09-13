@@ -1,8 +1,10 @@
+use wresp::RespWriter;
+
 use super::{
   garnet_info_metrics::{ALL_INFO_SET, DEFAULT_INFO, GarnetInfoMetrics, InfoProvider},
   info_help::InfoHelp,
 };
-use crate::{info_metrics_type::InfoMetricsType, resp_write_utils::RespWriteUtils};
+use crate::info_metrics_type::InfoMetricsType;
 
 /// INFO 命令的响应编码（对标
 /// libs/server/Metrics/Info/InfoCommand.cs:InfoCommand，
@@ -24,7 +26,7 @@ impl InfoCommand {
     provider: &impl InfoProvider,
     info: &mut GarnetInfoMetrics,
     set_reset_flag: &mut impl FnMut(InfoMetricsType),
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) {
     let mut sections: Vec<InfoMetricsType> = Vec::new();
     let mut reset = false;
@@ -61,9 +63,9 @@ impl InfoCommand {
     }
 
     if let Some(invalid) = invalid_section {
-      output.push_str("-ERR Invalid section ");
-      output.push_str(&invalid);
-      output.push_str(". Try INFO HELP\r\n");
+      output.extend_from_slice(b"-ERR Invalid section ");
+      output.extend_from_slice(invalid.as_bytes());
+      output.extend_from_slice(b". Try INFO HELP\r\n");
       return;
     }
 
@@ -71,7 +73,7 @@ impl InfoCommand {
       Self::get_help_message(output);
     } else if reset {
       set_reset_flag(InfoMetricsType::Stats);
-      RespWriteUtils::push_simple_string(output, "OK");
+      RespWriter::new_ref(output).write_simple_string("OK");
     } else {
       let sections_slice = if sections.is_empty() {
         DEFAULT_INFO
@@ -79,10 +81,11 @@ impl InfoCommand {
         &sections[..]
       };
       let info_text = info.get_resp_info(sections_slice, db_id, provider);
+      let mut w = RespWriter::new_ref(output);
       if info_text.is_empty() {
-        output.push_str("$-1\r\n");
+        w.write_direct(b"$-1\r\n");
       } else {
-        RespWriteUtils::push_bulk_string(output, &info_text);
+        w.write_ascii_bulk_string(&info_text);
       }
     }
   }
@@ -90,11 +93,12 @@ impl InfoCommand {
   /// libs/server/Metrics/Info/InfoCommand.cs:GetHelpMessage
   ///
   /// 输出 INFO 帮助文本数组（批量串形式）。
-  pub fn get_help_message(output: &mut String) {
+  pub fn get_help_message(output: &mut Vec<u8>) {
     let sections_help = InfoHelp::get_info_type_help_message();
-    RespWriteUtils::push_array_length(output, sections_help.len());
+    let mut w = RespWriter::new_ref(output);
+    w.write_array_length(sections_help.len());
     for section_info in sections_help {
-      RespWriteUtils::push_bulk_string(output, section_info);
+      w.write_ascii_bulk_string(section_info);
     }
   }
 

@@ -25,7 +25,7 @@ thiserror = { workspace = true }
 wdev = { workspace = true }
 wepoch = { workspace = true }
 wrecord = { workspace = true }
-wbase = { features = ["addr", "align", "backoff", "pool", "thread"], path = "../wbase", version = "0.1.6" }
+wbase = { workspace = true, features = ["addr", "align", "backoff", "pool", "thread"] }
 zmij = { workspace = true }
 event-listener.workspace = true
 

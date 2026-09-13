@@ -25,7 +25,7 @@ use super::{
   vector_manager_locking::CreateIndexParams,
 };
 use wbase::num::strict_f32;
-use crate::storage::session::common::array_key_iteration_functions::cluster_slot;
+use wbase::hash_slot::hash_slot as cluster_slot;
 
 /// VADD 的 M 取值边界（libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVADD 的 MinM/MaxM）。
 const MIN_M: i32 = 4;

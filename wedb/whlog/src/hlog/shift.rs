@@ -12,10 +12,8 @@ use std::{
 
 use compio::time::sleep;
 use log::trace;
-use wbase::{
-  backoff::{Backoff, BackoffStage, SLEEP_DURATION},
-  current_thread_id,
-};
+use wbase::backoff::{Backoff, BackoffStage, SLEEP_DURATION};
+use wbase::thread::current_thread_id;
 use wdev::Device;
 use wepoch::LightEpoch;
 

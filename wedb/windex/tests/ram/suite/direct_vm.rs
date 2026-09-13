@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use aok::{OK, Void};
 use log::info;
-use wram::{DirectVirtualMemory, DirectVmBlock, NativeMemoryTracker, system_page_size};
+use windex::ram::{DirectVirtualMemory, DirectVmBlock, NativeMemoryTracker, system_page_size};
 
 static TRACKER_LOCK: Mutex<()> = Mutex::new(());
 

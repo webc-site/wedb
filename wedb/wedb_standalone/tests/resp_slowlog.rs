@@ -18,37 +18,37 @@ fn serialize_args(args: &[&[u8]]) -> Vec<u8> {
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogHelp
 #[test]
 fn test_slow_log_help() {
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_help(0, &mut out).is_ok());
   // 12 个帮助条目
-  assert!(out.starts_with("*12\r\n"));
+  assert!(out.starts_with(b"*12\r\n"));
 }
 
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogGet
 #[test]
 fn test_slow_log_get() {
   let container = SlowLogContainer::new(10);
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_get(&[], Some(&container), &mut out).is_ok());
-  assert_eq!(out, "*0\r\n");
+  assert_eq!(out, b"*0\r\n");
 }
 
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogGetCount
 #[test]
 fn test_slow_log_get_count() {
   let container = SlowLogContainer::new(10);
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_get(&[b"-1"], Some(&container), &mut out).is_ok());
-  assert_eq!(out, "*0\r\n");
+  assert_eq!(out, b"*0\r\n");
 }
 
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogGetWithEntry
 #[test]
 fn test_slow_log_get_with_entry() {
   let container = SlowLogContainer::new(10);
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_get(&[b"-1"], Some(&container), &mut out).is_ok());
-  assert_eq!(out, "*0\r\n");
+  assert_eq!(out, b"*0\r\n");
 
   let slow_log_threshold = 3_000_000;
   let timeout = format!("{}", 0.1 + (slow_log_threshold as f32 / 1_000_000.0));
@@ -70,35 +70,38 @@ fn test_slow_log_get_with_entry() {
   out.clear();
   assert!(RespSlowlogCommands::network_slow_log_get(&[b"-1"], Some(&container), &mut out).is_ok());
   // 包含 1 条 entry，每条 6 个元素
-  assert!(out.starts_with("*1\r\n*6\r\n:0\r\n"));
-  assert!(out.contains("$5\r\nBlpop\r\n"));
-  assert!(out.contains("$3\r\nfoo\r\n"));
-  assert!(out.contains(&format!("${}\r\n{}\r\n", timeout.len(), timeout)));
+  assert!(out.starts_with(b"*1\r\n*6\r\n:0\r\n"));
+  assert!(String::from_utf8_lossy(&out).contains("$5\r\nBlpop\r\n"));
+  assert!(String::from_utf8_lossy(&out).contains("$3\r\nfoo\r\n"));
+  assert!(
+  String::from_utf8_lossy(&out)
+    .contains(&format!("${}\r\n{}\r\n", timeout.len(), timeout))
+);
 
   // SLOWLOG RESET
   out.clear();
   assert!(RespSlowlogCommands::network_slow_log_reset(0, Some(&container), &mut out).is_ok());
-  assert_eq!(out, "+OK\r\n");
+  assert_eq!(out, b"+OK\r\n");
 
   out.clear();
   assert!(RespSlowlogCommands::network_slow_log_get(&[b"-1"], Some(&container), &mut out).is_ok());
-  assert_eq!(out, "*0\r\n");
+  assert_eq!(out, b"*0\r\n");
 }
 
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogLen
 #[test]
 fn test_slow_log_len() {
   let container = SlowLogContainer::new(10);
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_len(0, Some(&container), &mut out).is_ok());
-  assert_eq!(out, ":0\r\n");
+  assert_eq!(out, b":0\r\n");
 }
 
 /// test/standalone/Garnet.test/RespSlowLogTests.cs:TestSlowLogReset
 #[test]
 fn test_slow_log_reset() {
   let container = SlowLogContainer::new(10);
-  let mut out = String::new();
+  let mut out = Vec::new();
   assert!(RespSlowlogCommands::network_slow_log_reset(0, Some(&container), &mut out).is_ok());
-  assert_eq!(out, "+OK\r\n");
+  assert_eq!(out, b"+OK\r\n");
 }

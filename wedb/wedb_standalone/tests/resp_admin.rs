@@ -1,5 +1,6 @@
 use wconf::{RuntimeServerConfig, ServerConfig};
 use wnode::resp::resp_server_session::RespServerSession;
+use wresp::{ArgSlice, RespCommand};
 
 /// test/standalone/Garnet.test/RespAdminCommandsTests.cs:PingTest
 #[test]
@@ -68,19 +69,20 @@ fn echo_with_message_test() {
 #[test]
 fn time_command_test() {
   let mut s = RespServerSession::default();
-  let mut out = Vec::new();
-  let _ = s.network_time(&[], &mut out).unwrap();
-  assert!(out.starts_with(b"*2\r\n$"));
+  assert!(s.process_other_commands(RespCommand::Time));
+  assert!(s.output.starts_with(b"*2\r\n$"));
 }
 
 /// test/standalone/Garnet.test/RespAdminCommandsTests.cs:TimeWithReturnErrorTest
 #[test]
 fn time_with_return_error_test() {
   let mut s = RespServerSession::default();
-  let mut out = Vec::new();
-  let _ = s.network_time(&[b"X"], &mut out).unwrap();
+  // 经解析状态注入 1 个多余参数，走真实 TIME 分派路径断言参数校验
+  s.parse_state.count = 1;
+  s.parse_state.root_buffer.push(ArgSlice::new(b"X".as_ptr(), 1));
+  assert!(s.process_other_commands(RespCommand::Time));
   assert_eq!(
-    out,
+    s.output,
     b"-ERR wrong number of arguments for 'TIME' command\r\n"
   );
 }

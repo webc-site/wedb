@@ -559,7 +559,7 @@ impl<D: Device> WalLog<D> {
   /// 获取一个在途槽位并写入当前 tail 作为安全下界（根据线程 ID 亲和优先分配槽位，thread-per-core 零竞争）
   fn acquire_inflight_slot(&self) -> (usize, u64) {
     let slots_len = self.inflight_slots.len();
-    let start = (wbase::current_thread_id() as usize) % slots_len;
+    let start = (wbase::thread::current_thread_id() as usize) % slots_len;
     let mut spins = 0u32;
     loop {
       let current_tail = self.tail_address.load(Ordering::Acquire);

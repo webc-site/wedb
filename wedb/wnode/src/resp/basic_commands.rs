@@ -1,8 +1,4 @@
-use std::{
-  fmt::Write as _,
-  str,
-  time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fmt::Write as _, str};
 
 use wbase::{
   convert::{TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS},
@@ -1410,33 +1406,6 @@ impl RespServerSession {
       output,
     )
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkTIME
-  pub fn network_time(
-    &mut self,
-    parse_state: &[&[u8]],
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, empty, output, "TIME");
-
-    let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
-      output.write_resp_error(RESP_ERR_GENERIC);
-      return Ok(true);
-    };
-    let seconds = elapsed.as_secs();
-    let micros = elapsed.subsec_micros();
-    // 对标 C# 应答帧：*2 + 秒 + 6 位微秒
-    output.write_resp_array_len(2);
-    let mut buf = itoa::Buffer::new();
-    output.write_resp_bulk_string(buf.format(seconds).as_bytes());
-    let mut micro_buf = [b'0'; 6];
-    let s = buf.format(micros).as_bytes();
-    if s.len() <= 6 {
-      micro_buf[6 - s.len()..].copy_from_slice(s);
-    }
-    output.write_resp_bulk_string(&micro_buf);
-    Ok(true)
-  }
-
   /// libs/server/Resp/BasicCommands.cs:NetworkMemoryUsage
   pub fn network_memory_usage<'a, D: wdev::Device>(
     &mut self,

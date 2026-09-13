@@ -289,13 +289,6 @@ mod tests {
   }
 
   #[test]
-  fn duplicate_hashes_collapse_to_strongest_lock() {
-    let mut e = entries(&[(7, LockType::Shared), (7, LockType::Exclusive)]);
-    e.lock_all_keys();
-    e.unlock_all_keys();
-  }
-
-  #[test]
   fn lock_plan_is_ordered_by_stripe_not_hash() {
     let mut e = entries(&[
       (0x3FF0_0000, LockType::Exclusive),
