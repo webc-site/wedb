@@ -1,5 +1,5 @@
 use wbase::num::strict_i32;
-use wresp::{RespCommand, RespWriter, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS};
+use wresp::{RespCommand, RespVecExt, cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS};
 
 use super::{slow_log_container::SlowLogContainer, slowlog_entry::SlowLogEntry};
 use crate::latency::latency_metrics_entry::time_stamp;
@@ -44,10 +44,9 @@ impl RespSlowlogCommands {
     }
 
     let slow_log_commands = super::resp_slowlog_help::RespSlowlogHelp::get_slow_log_commands();
-    let mut w = RespWriter::new_ref(output);
-    w.write_array_length(slow_log_commands.len());
+    output.write_resp_array_len(slow_log_commands.len());
     for command in slow_log_commands {
-      w.write_simple_string(command);
+      output.write_resp_simple_string(command);
     }
     Ok(())
   }
@@ -68,49 +67,47 @@ impl RespSlowlogCommands {
     let mut count: i32 = 10;
     if let Some(arg) = args.first() {
       let Some(parsed) = parse_i32(arg).filter(|&c| c >= -1) else {
-        output.extend_from_slice(b"-");
-        output.extend_from_slice(RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1.as_bytes());
-        output.extend_from_slice(b"\r\n");
+        output.write_resp_error(RESP_ERR_COUNT_IS_OUT_OF_RANGE_N1);
         return Ok(());
       };
       count = parsed;
     }
 
     let Some(container) = container else {
-      RespWriter::new_ref(output).write_array_length(0);
+      output.write_resp_array_len(0);
       return Ok(());
     };
 
     let entries = container.get_entries(count);
-    let mut w = RespWriter::new_ref(output);
-    w.write_array_length(entries.len());
+    output.write_resp_array_len(entries.len());
     for entry in &entries {
       // 每条目：id、timestamp、duration、参数数组、client ip:port、client name。
-      w.write_array_length(6);
-      w.write_int64(i64::from(entry.id));
-      w.write_int64(i64::from(entry.timestamp));
-      w.write_int64(i64::from(entry.duration));
+      output.write_resp_array_len(6);
+      output.write_resp_int(i64::from(entry.id));
+      output.write_resp_int(i64::from(entry.timestamp));
+      output.write_resp_int(i64::from(entry.duration));
 
       let command_name = format!("{:?}", entry.command);
       match &entry.arguments {
         None => {
-          w.write_array_length(1);
-          w.write_ascii_bulk_string(&command_name);
+          output.write_resp_array_len(1);
+          output.write_resp_bulk_string(command_name.as_bytes());
         }
         Some(bytes) => {
           // 反序列化解析状态快照（`[count i32][4B 长度前缀 + 数据]` 布局，
           // 对齐 SessionParseState.SerializeTo）。
           let tokens = deserialize_args(bytes);
-          w.write_array_length(tokens.len() + 1);
-          w.write_ascii_bulk_string(&command_name);
+          output.write_resp_array_len(tokens.len() + 1);
+          output.write_resp_bulk_string(command_name.as_bytes());
           for token in &tokens {
-            w.write_bulk_string(token);
+            // 二进制安全直写，非 UTF-8 token 零破坏
+            output.write_resp_bulk_string(token);
           }
         }
       }
 
-      w.write_ascii_bulk_string(&entry.client_ip_port);
-      w.write_ascii_bulk_string(&entry.client_name);
+      output.write_resp_bulk_string(entry.client_ip_port.as_bytes());
+      output.write_resp_bulk_string(entry.client_name.as_bytes());
     }
     Ok(())
   }
@@ -126,7 +123,7 @@ impl RespSlowlogCommands {
     if arg_count != 0 {
       return Err(wrong_num_args("slowlog len"));
     }
-    RespWriter::new_ref(output).write_int64(i64::from(container.map_or(0, SlowLogContainer::count)));
+    output.write_resp_int(i64::from(container.map_or(0, SlowLogContainer::count)));
     Ok(())
   }
 
@@ -144,7 +141,7 @@ impl RespSlowlogCommands {
     if let Some(container) = container {
       container.clear();
     }
-    RespWriter::new_ref(output).write_simple_string("OK");
+    output.write_resp_simple_string("OK");
     Ok(())
   }
 

@@ -17,8 +17,9 @@ use std::{
 
 use smallvec::SmallVec;
 use wacl::{
-  GarnetAclAuthenticator, auth::settings::acl_authentication_settings::AclAuthenticationSettings,
-  command_catalog::normalize_for_acls,
+  GarnetAclAuthenticator,
+  auth::settings::acl_authentication_settings::AclAuthenticationSettings,
+  command_catalog::{is_no_auth, normalize_for_acls},
 };
 use wbase::time::now_ms;
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
@@ -162,8 +163,10 @@ pub struct RespServerSession {
   /// 客户端库版本（CLIENT SETINFO LIB-VER）
   pub client_lib_version: Option<String>,
 
-  /// 当前认证用户（C# _userHandle；ACL 域为并行转写，此持用户名）
-  pub user_handle: Option<String>,
+  /// 当前认证用户句柄（C# _userHandle；指向 wacl ACL 域用户快照，
+  /// ACL SETUSER 经同一句柄 CAS 换新即时生效。NoAuth 档无 ACL 实例可取
+  /// GetDefaultUserHandle，保持 None，门控按恒放行承接）
+  pub user_handle: Option<Arc<wacl::UserHandle>>,
   /// 认证器是否支持认证（C# _authenticator.CanAuthenticate；NoAuth 为 false）
   pub authenticator_can_authenticate: bool,
 
@@ -519,6 +522,7 @@ impl RespServerSession {
     if let Some(cluster) = self.cluster_session.take() {
       cluster.dispose();
     }
+    self.merge_metrics_history_session_dispose();
   }
 
   /// libs/server/Resp/RespServerSessionSlotVerify.cs:CanServeSlot
@@ -600,8 +604,8 @@ impl RespServerSession {
   }
 
   /// libs/server/Resp/RespServerSession.cs:SetUserHandle
-  pub fn set_user_handle(&mut self, user_handle: &str) {
-    self.user_handle = Some(user_handle.to_string());
+  pub fn set_user_handle(&mut self, user_handle: Arc<wacl::UserHandle>) {
+    self.user_handle = Some(user_handle);
   }
 
   /// libs/server/Resp/RespServerSession.cs:UpdateRespProtocolVersion
@@ -611,14 +615,12 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:AuthenticateUser
   ///
-  /// ACL 认证器挂载时按其校验（定位用户 → 口令比对 → 记录句柄）；NoAuth 档
-  /// CanAuthenticate = false → 恒置默认用户且返回 false
+  /// ACL 认证器挂载时按其校验（定位用户 → 口令比对 → 记录句柄
+  /// `aclAuthenticator.GetUserHandle()`）；NoAuth 档 CanAuthenticate = false
+  /// → 恒返回 false（C# 取 accessControlList.GetDefaultUserHandle 兜底，
+  /// rust 无 ACL 实例可取，门控对该档恒放行承接同一网络效果）
   pub fn authenticate_user(&mut self, username: &[u8], password: &[u8]) -> bool {
     if !self.authenticator_can_authenticate {
-      // 不支持认证的认证器直接落到默认用户（C# GetDefaultUserHandle 分支）
-      if self.user_handle.is_none() {
-        self.user_handle = Some("default".to_string());
-      }
       return false;
     }
     let Some(acl) = &self.acl_authenticator else {
@@ -628,7 +630,7 @@ impl RespServerSession {
     let mut acl = acl.lock();
     let success = acl.authenticate(username, password, acl_password_check);
     if success && let Some(user_handle) = acl.get_user_handle() {
-      self.user_handle = Some(user_handle.user().name.clone());
+      self.user_handle = Some(Arc::clone(user_handle));
     }
     success
   }
@@ -720,34 +722,45 @@ impl RespServerSession {
       };
 
       if cmd != RespCommand::Invalid {
-        // RESP2 订阅模式仅放行 (P|S)SUBSCRIBE/(P|S)UNSUBSCRIBE/PING/QUIT/RESET
-        //（libs/server/Resp/Parser/RespCommand.cs:IsAllowedInSubscriptionMode）
-        if self.is_subscription_session
-          && self.resp_protocol_version == 2
-          && !is_allowed_in_subscription_mode(cmd)
-        {
-          // 对标 libs/server/Resp/CmdStrings.cs:GenericPubSubCommandNotAllowed 与 PR #1669
-          // 本库错误文案规范为：ERR {name} command not allowed while in subscribe mode
-          let name = super::resp_commands_info_data::resp_command_to_cs_name(cmd);
-          self.write_error_response(&format!(
-            "ERR {name} command not allowed while in subscribe mode"
-          ));
-        } else if self.txn_state != TxnState::None {
-          // C# 事务门：Running 直通（事务 API 与单机同一执行路径）；
-          // Started 排队（EXEC/MULTI/DISCARD/QUIT 特例，余者 NetworkSKIP）
-          self.process_transactional_command(cmd);
-        } else if self.cluster_session.is_none() || self.can_serve_slot(cmd) {
-          // C# 分派链：ProcessBasicCommands → ProcessArrayCommands →
-          // ProcessOtherCommands（事务入队/直通形态由分派域承载）；
-          // 集群门控：clusterSession == null || CanServeSlot(cmd)
-          self.process_basic_commands(cmd);
-        }
-
-        if let Some(metrics) = &mut self.session_metrics {
-          metrics.incr_total_commands_processed(1);
-          if self.command_error_written {
-            self.command_error_written = false;
+        // C# 门 CheckACLPermissions(cmd) && CheckScriptPermissions(cmd)
+        //（libs/server/Resp/RespServerSession.cs:653）：通过方执行；拒绝按
+        // 认证态回 NOPERM / NOAUTH（libs/server/Resp/AdminCommands.cs:
+        // OnACLOrNoScriptFailure 的错误写出段）
+        if self.check_acl_gate(cmd) {
+          // RESP2 订阅模式仅放行 (P|S)SUBSCRIBE/(P|S)UNSUBSCRIBE/PING/QUIT/RESET
+          //（libs/server/Resp/Parser/RespCommand.cs:IsAllowedInSubscriptionMode）
+          if self.is_subscription_session
+            && self.resp_protocol_version == 2
+            && !is_allowed_in_subscription_mode(cmd)
+          {
+            // 对标 libs/server/Resp/CmdStrings.cs:GenericPubSubCommandNotAllowed 与 PR #1669
+            // 本库错误文案规范为：ERR {name} command not allowed while in subscribe mode
+            let name = super::resp_commands_info_data::resp_command_to_cs_name(cmd);
+            self.write_error_response(&format!(
+              "ERR {name} command not allowed while in subscribe mode"
+            ));
+          } else if self.txn_state != TxnState::None {
+            // C# 事务门：Running 直通（事务 API 与单机同一执行路径）；
+            // Started 排队（EXEC/MULTI/DISCARD/QUIT 特例，余者 NetworkSKIP）
+            self.process_transactional_command(cmd);
+          } else if self.cluster_session.is_none() || self.can_serve_slot(cmd) {
+            // C# 分派链：ProcessBasicCommands → ProcessArrayCommands →
+            // ProcessOtherCommands（事务入队/直通形态由分派域承载）；
+            // 集群门控：clusterSession == null || CanServeSlot(cmd)
+            self.process_basic_commands(cmd);
           }
+
+          if let Some(metrics) = &mut self.session_metrics {
+            metrics.incr_total_commands_processed(1);
+            if self.command_error_written {
+              self.command_error_written = false;
+            }
+          }
+        } else {
+          // 已认证 → NOPERM；未认证 → NOAUTH
+          self.write_acl_permission_error(self.user_handle.is_some());
+          // C# 直接 TryWriteError 不置 commandErrorWritten；撤销 abort 副作用
+          self.command_error_written = false;
         }
       } else {
         self.contains_slow_command = true;
@@ -894,7 +907,7 @@ impl RespServerSession {
       RespCommand::Subscribe => self.process_pubsub_command(cmd, false),
       RespCommand::Ssubscribe => self.process_pubsub_command(cmd, true),
       RespCommand::Psubscribe => self.process_pubsub_command(cmd, false),
-      RespCommand::Unsubscribe | RespCommand::Punsubscribe | RespCommand::Sunsubscribe => {
+      RespCommand::Unsubscribe | RespCommand::Punsubscribe => {
         self.process_pubsub_command(cmd, false)
       }
       RespCommand::Publish | RespCommand::Spublish => self.process_pubsub_command(cmd, false),
@@ -932,7 +945,7 @@ impl RespServerSession {
       RespCommand::Subscribe => self.network_subscribe(shard, &args),
       RespCommand::Ssubscribe => self.network_subscribe(true, &args),
       RespCommand::Psubscribe => self.network_psubscribe(&args),
-      RespCommand::Unsubscribe | RespCommand::Sunsubscribe => self.network_unsubscribe(&args),
+      RespCommand::Unsubscribe => self.network_unsubscribe(&args),
       RespCommand::Punsubscribe => self.network_punsubscribe(&args),
       RespCommand::Publish | RespCommand::Spublish => self.network_publish(shard, &args),
       RespCommand::PubsubChannels => self.network_pubsub_channels(&args),
@@ -1865,12 +1878,31 @@ impl RespServerSession {
     true
   }
 
-  /// C# CheckACLPermissions：ACL 域为并行转写，NoAuth 语义下已认证会话恒
-  /// 放行（ScriptingApi 接入点；ACL 落地后改接用户权限集）。
-  /// 命名避让 admin_commands 域的 ACL 命令处理器（同名 C# 入口）
-  /// 保留形参以匹配 CheckACLPermissions 接口签名规范
-  pub fn acl_allows_command(&self, _command: &str) -> bool {
-    !self.authenticator_can_authenticate
+  /// C# CheckACLPermissions 会话门（AdminCommands.cs 的会话承接；命令名经
+  /// 大小写不敏感解析回 [`RespCommand`] 后走同一门控）
+  ///
+  /// 解析失败的命令名按放行（C# Enum.TryParse 失败走未知命令路径，不入门）
+  pub fn acl_allows_command(&self, command: &str) -> bool {
+    match super::resp_commands_info_data::resp_command_from_cs_name(command) {
+      Some(cmd) => self.check_acl_gate(cmd),
+      None => true,
+    }
+  }
+
+  /// C# 单命令 ACL 门（libs/server/Resp/AdminCommands.cs:CheckACLPermissions）
+  ///
+  /// `(!IsAuthenticated || !CanAccessCommand) && !IsNoAuth` → 拒绝。NoAuth 档
+  /// （无认证器挂载）对应 C# GetDefaultUserHandle（+@all 默认用户）恒放行。
+  /// 自定义命令按名鉴权（CheckACLPermissionsForCustomCommand）待 custom 域
+  /// 注册表接线，当前按位图判定放行路径承接
+  pub fn check_acl_gate(&self, cmd: RespCommand) -> bool {
+    if !self.authenticator_can_authenticate || is_no_auth(cmd) {
+      return true;
+    }
+    self
+      .user_handle
+      .as_ref()
+      .is_some_and(|handle| handle.user().can_access_command(cmd))
   }
 
   /// 构建 NoScript 命令集位图（对齐 LuaRunner InitializeNoScriptDetails 集合）
@@ -2164,7 +2196,7 @@ impl RespServerSession {
     self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_psubscribe(s, wire, args))
   }
 
-  /// 退订通道（C# NetworkUNSUBSCRIBE / NetworkSUNSUBSCRIBE）
+  /// 退订通道（C# NetworkUNSUBSCRIBE）
   #[inline]
   pub fn network_unsubscribe(&mut self, args: &[&[u8]]) -> bool {
     self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_unsubscribe(s, wire, args))
@@ -2322,7 +2354,9 @@ mod tests {
     assert_eq!(s.id, 42);
     assert_eq!(s.resp_protocol_version, DEFAULT_RESP_VERSION);
     assert!(s.client_name.is_none());
-    assert!(s.user_handle.is_some(), "构造即默认用户");
+    // NoAuth 档无 ACL 实例，不持用户句柄；门控按恒放行承接
+    assert!(s.user_handle.is_none());
+    assert!(s.check_acl_gate(RespCommand::Get), "NoAuth 档恒放行");
 
     // HELLO [3] 经命令路径升级协议版本，proto/id 回写会话状态
     let mut out = Vec::new();
@@ -2710,12 +2744,26 @@ mod tests {
   #[test]
   fn auth_default_user_fallback() {
     let mut s = session(13);
-    // NoAuth：无法认证 → 恒 false，但保持默认用户
+    // NoAuth：无法认证 → 恒 false，无 ACL 实例可取默认句柄
     assert!(!s.authenticate_user(b"other", b"pwd"));
-    assert_eq!(s.user_handle.as_deref(), Some("default"));
-    // 显式切换用户句柄（ACL 域接入点）
-    s.set_user_handle("admin");
-    assert_eq!(s.user_handle.as_deref(), Some("admin"));
+    assert!(s.user_handle.is_none());
+    // 门控对 NoAuth 档恒放行（C# GetDefaultUserHandle +@all 兜底语义）
+    assert!(s.check_acl_gate(RespCommand::Get));
+    // 挂载 ACL 认证器（CanAuthenticate = true）后，无权限用户 → 拒绝
+    let acl = Arc::new(wacl::AccessControlList::new("", None).unwrap());
+    s.attach_acl(
+      Some(Arc::new(parking_lot::Mutex::new(
+        wacl::GarnetAclAuthenticator::new(acl),
+      ))),
+      None,
+    );
+    let handle = Arc::new(wacl::UserHandle::new(Arc::new(wacl::User::new(
+      "admin".into(),
+    ))));
+    s.set_user_handle(handle);
+    assert_eq!(s.user_handle.as_ref().unwrap().user().name, "admin");
+    // 已认证但用户无命令权限 → 拒绝
+    assert!(!s.check_acl_gate(RespCommand::Get));
   }
 
   #[test]

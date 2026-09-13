@@ -35,7 +35,7 @@ pub enum RangeIndexError {
   #[error("ERR range index not found")]
   NotFound,
   /// 键类型不匹配
-  #[error("WRONGTYPE Operation against a key holding the wrong kind of value")]
+  #[error("WRONGTYPE Operation against a key holding the wrong kind of value.")]
   WrongType,
   /// 键值长度超限
   #[error(

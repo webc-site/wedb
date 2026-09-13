@@ -1,4 +1,4 @@
-use wresp::RespWriter;
+use wresp::RespVecExt;
 
 use super::{
   garnet_info_metrics::{ALL_INFO_SET, DEFAULT_INFO, GarnetInfoMetrics, InfoProvider},
@@ -31,7 +31,7 @@ impl InfoCommand {
     let mut sections: Vec<InfoMetricsType> = Vec::new();
     let mut reset = false;
     let mut help = false;
-    let mut invalid_section: Option<String> = None;
+    let mut invalid_section: Option<&[u8]> = None;
 
     for arg in args {
       if arg.eq_ignore_ascii_case(InfoHelp::RESET.as_bytes()) {
@@ -57,14 +57,15 @@ impl InfoCommand {
           sections.push(section_type);
         }
       } else {
-        invalid_section = Some(String::from_utf8_lossy(arg).into_owned());
+        invalid_section = Some(arg);
         break;
       }
     }
 
     if let Some(invalid) = invalid_section {
+      // 段名原样回显（二进制安全，不做 lossy 转写）
       output.extend_from_slice(b"-ERR Invalid section ");
-      output.extend_from_slice(invalid.as_bytes());
+      output.extend_from_slice(invalid);
       output.extend_from_slice(b". Try INFO HELP\r\n");
       return;
     }
@@ -73,7 +74,7 @@ impl InfoCommand {
       Self::get_help_message(output);
     } else if reset {
       set_reset_flag(InfoMetricsType::Stats);
-      RespWriter::new_ref(output).write_simple_string("OK");
+      output.write_resp_simple_string("OK");
     } else {
       let sections_slice = if sections.is_empty() {
         DEFAULT_INFO
@@ -81,11 +82,10 @@ impl InfoCommand {
         &sections[..]
       };
       let info_text = info.get_resp_info(sections_slice, db_id, provider);
-      let mut w = RespWriter::new_ref(output);
       if info_text.is_empty() {
-        w.write_direct(b"$-1\r\n");
+        output.extend_from_slice(b"$-1\r\n");
       } else {
-        w.write_ascii_bulk_string(&info_text);
+        output.write_resp_bulk_string(info_text.as_bytes());
       }
     }
   }
@@ -95,10 +95,9 @@ impl InfoCommand {
   /// 输出 INFO 帮助文本数组（批量串形式）。
   pub fn get_help_message(output: &mut Vec<u8>) {
     let sections_help = InfoHelp::get_info_type_help_message();
-    let mut w = RespWriter::new_ref(output);
-    w.write_array_length(sections_help.len());
+    output.write_resp_array_len(sections_help.len());
     for section_info in sections_help {
-      w.write_ascii_bulk_string(section_info);
+      output.write_resp_bulk_string(section_info.as_bytes());
     }
   }
 

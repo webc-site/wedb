@@ -278,9 +278,9 @@ mod tests {
     assert_eq!(try_get_double(&state, 0, false), None);
     assert_eq!(try_get_double(&state, 1, true), Some(f64::NEG_INFINITY));
     assert_eq!(try_get_double(&state, 4, true), Some(f64::INFINITY));
-    // NaN 恒拒绝；infinity 全拼在扩展白名单内（wbase::num::strict_f64 统一口径）
+    // NaN 恒拒绝；infinity 全拼不在 TryReadInfinity 白名单（仅 inf/+inf/-inf）
     assert_eq!(try_get_double(&state, 2, true), None);
-    assert_eq!(try_get_double(&state, 5, true), Some(f64::INFINITY));
+    assert_eq!(try_get_double(&state, 5, true), None);
     assert_eq!(try_get_float(&state, 3, false), Some(1000.0));
     // 数值溢出至 inf（"1e999"）：C# Utf8Parser 首分支接受，不受白名单约束
     assert_eq!(strict_f64(b"1e999", false), Some(f64::INFINITY));

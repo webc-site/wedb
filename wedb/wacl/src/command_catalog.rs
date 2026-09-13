@@ -127,8 +127,9 @@ pub const fn is_no_auth(cmd: RespCommand) -> bool {
   v <= (RespCommand::Quit as u16).wrapping_sub(RespCommand::Auth as u16)
 }
 
-/// 最后一个有效命令（除 INVALID 外的最大值，对标 C# LastValidCommand）
-pub const LAST_VALID_COMMAND: RespCommand = RespCommand::Reset;
+/// 最后一个有效命令（除 INVALID 外的最大值，对标 C# LastValidCommand；
+/// 单处定义在 wresp，此处转导出）
+pub use wresp::LAST_VALID_COMMAND;
 
 /// 按 RespCommand 取 ACL 目录条目（含子命令条目）
 #[inline]

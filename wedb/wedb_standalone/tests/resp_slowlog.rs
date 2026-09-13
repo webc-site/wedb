@@ -70,13 +70,11 @@ fn test_slow_log_get_with_entry() {
   out.clear();
   assert!(RespSlowlogCommands::network_slow_log_get(&[b"-1"], Some(&container), &mut out).is_ok());
   // 包含 1 条 entry，每条 6 个元素
-  assert!(out.starts_with(b"*1\r\n*6\r\n:0\r\n"));
-  assert!(String::from_utf8_lossy(&out).contains("$5\r\nBlpop\r\n"));
-  assert!(String::from_utf8_lossy(&out).contains("$3\r\nfoo\r\n"));
-  assert!(
-  String::from_utf8_lossy(&out)
-    .contains(&format!("${}\r\n{}\r\n", timeout.len(), timeout))
-);
+  let text = String::from_utf8_lossy(&out);
+  assert!(text.starts_with("*1\r\n*6\r\n:0\r\n"));
+  assert!(text.contains("$5\r\nBlpop\r\n"));
+  assert!(text.contains("$3\r\nfoo\r\n"));
+  assert!(text.contains(&format!("${}\r\n{}\r\n", timeout.len(), timeout)));
 
   // SLOWLOG RESET
   out.clear();

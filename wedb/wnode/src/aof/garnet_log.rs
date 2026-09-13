@@ -1390,7 +1390,18 @@ pub struct RecordShape<'a> {
   pub database_id: u8,
 }
 
-use wtxn::SublogAccess;
+use wtxn::{SublogAccess, TxnEntryType};
+
+/// 事务端口枚举 → AOF 条目类型的单一映射点
+///
+/// wtxn 不感知物理判别值，全部事务 / 存储过程条目经此翻译后入队
+fn txn_entry_type_to_aof(entry: TxnEntryType) -> waof::AofEntryType {
+  match entry {
+    TxnEntryType::TxnStart => waof::AofEntryType::TxnStart,
+    TxnEntryType::TxnCommit => waof::AofEntryType::TxnCommit,
+    TxnEntryType::StoredProcedure => waof::AofEntryType::StoredProcedure,
+  }
+}
 
 impl wtxn::TxnAofLog for GarnetLog {
   #[inline]
@@ -1416,25 +1427,37 @@ impl wtxn::TxnAofLog for GarnetLog {
   #[inline]
   fn enqueue_txn(
     &self,
-    op_type: waof::AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     access: &SublogAccess<'_>,
   ) {
-    self.enqueue_txn(op_type, txn_version, session_id, access);
+    self.enqueue_txn(
+      txn_entry_type_to_aof(op_type),
+      txn_version,
+      session_id,
+      access,
+    );
   }
 
   #[inline]
   fn enqueue_stored_proc(
     &self,
-    op_type: waof::AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     proc_id: u8,
     payload: &[u8],
     access: &SublogAccess<'_>,
   ) {
-    self.enqueue_stored_proc(op_type, txn_version, session_id, proc_id, payload, access);
+    self.enqueue_stored_proc(
+      txn_entry_type_to_aof(op_type),
+      txn_version,
+      session_id,
+      proc_id,
+      payload,
+      access,
+    );
   }
 }
 

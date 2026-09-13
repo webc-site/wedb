@@ -25,7 +25,6 @@ pub mod resp_server_session;
 pub mod resp_server_session_output;
 pub mod resp_session_consumer;
 pub mod slow_path;
-pub mod ttl_sync;
 pub mod vector;
 
 use std::sync::Arc;

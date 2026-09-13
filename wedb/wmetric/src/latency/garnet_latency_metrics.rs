@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use hdrhistogram::Histogram;
-use wresp::RespWriter;
+use wresp::RespVecExt;
 
 use super::{
   garnet_latency_metrics_session::GarnetLatencyMetricsSession,
@@ -137,49 +137,48 @@ impl GarnetLatencyMetrics {
     };
 
     let cmd_type = event_type.cs_name();
-    let mut w = RespWriter::new_ref(response);
-    w.write_ascii_bulk_string(cmd_type);
-    w.write_direct(b"*6\r\n");
-    w.write_ascii_bulk_string("calls");
-    w.write_direct(format!(":{}\r\n", p[0].value).as_bytes());
-    w.write_ascii_bulk_string("size");
+    response.write_resp_bulk_string(cmd_type.as_bytes());
+    response.write_resp_array_len(6);
+    response.write_resp_bulk_string(b"calls");
+    // calls 为已格式化计数字符串，按整数行原样落帧
+    response.extend_from_slice(b":");
+    response.extend_from_slice(p[0].value.as_bytes());
+    response.extend_from_slice(b"\r\n");
+    response.write_resp_bulk_string(b"size");
     // C# GetEstimatedFootprintInBytes 的等价估算：桶数 × 每桶 8 字节。
-    w.write_direct(format!(":{}\r\n", (hist.distinct_values() as u64) * (size_of::<u64>() as u64)).as_bytes());
-    w.write_ascii_bulk_string(if LatencyMetricsType::IS_TICKS[idx] {
-      "histogram_usec"
+    response.write_resp_int((hist.distinct_values() as i64) * (size_of::<u64>() as i64));
+    response.write_resp_bulk_string(if LatencyMetricsType::IS_TICKS[idx] {
+      b"histogram_usec" as &[u8]
     } else {
-      "histogram_cnt"
+      b"histogram_cnt"
     });
-    w.write_direct(format!("*{}\r\n", (p.len() - 1) * 2).as_bytes());
+    response.write_resp_array_len((p.len() - 1) * 2);
     for item in &p[1..] {
-      w.write_ascii_bulk_string(&item.name);
-      w.write_ascii_bulk_string(&item.value);
+      response.write_resp_bulk_string(item.name.as_bytes());
+      response.write_resp_bulk_string(item.value.as_bytes());
     }
     true
   }
 
   /// libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:GetRespHistograms
   ///
-  /// 多类别直方图的 RESP 编码；无任何样本返回 `*0\r\n`。
-  pub fn get_resp_histograms(&self, events: &[LatencyMetricsType]) -> Vec<u8> {
+  /// 多类别直方图的 RESP 编码；无任何样本回 `*0\r\n`。
+  pub fn get_resp_histograms(&self, events: &[LatencyMetricsType], output: &mut Vec<u8>) {
     let mut cmd_count = 0;
     let mut response = Vec::new();
 
     for event_type in events {
       let idx = event_type.idx();
-      let mut cmd_histogram = Vec::new();
-      if self.get_resp_histogram(idx, *event_type, &mut cmd_histogram) {
-        response.extend_from_slice(&cmd_histogram);
+      if self.get_resp_histogram(idx, *event_type, &mut response) {
         cmd_count += 1;
       }
     }
 
     if cmd_count == 0 {
-      b"*0\r\n".to_vec()
+      output.extend_from_slice(b"*0\r\n");
     } else {
-      let mut out = format!("*{}\r\n", cmd_count * 2).into_bytes();
-      out.extend_from_slice(&response);
-      out
+      output.write_resp_array_len(cmd_count * 2);
+      output.extend_from_slice(&response);
     }
   }
 

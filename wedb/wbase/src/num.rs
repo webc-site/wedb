@@ -185,23 +185,11 @@ pub fn strict_i32(raw: &[u8]) -> Option<i32> {
   i32::try_from(strict_i64(raw)?).ok()
 }
 
-/// inf/infinity 词形符号判定（inf/+inf/-inf/infinity/+infinity/-infinity，
-/// 大小写不敏感）：Some(true) → +∞，Some(false) → -∞
-#[inline]
-fn infinity_sign(raw: &[u8]) -> Option<bool> {
-  let (body, positive) = match raw {
-    [b'+', rest @ ..] => (rest, true),
-    [b'-', rest @ ..] => (rest, false),
-    rest => (rest, true),
-  };
-  (body.eq_ignore_ascii_case(b"inf") || body.eq_ignore_ascii_case(b"infinity"))
-    .then_some(positive)
-}
-
 /// 生成严格浮点解析函数（C# ParseUtils.cs:TryReadDouble/TryReadFloat 口径）：
 /// [`try_parse_f32`]/[`try_parse_f64`]（Utf8Parser 整体消费语义，NaN 恒拒绝）
-/// 成功即返回；失败且 `can_be_infinite` 时落 inf 词形白名单
-///（TryReadInfinity 扩展词表，含 infinity 全拼，大小写不敏感）
+/// 成功即返回；失败且 `can_be_infinite` 时落 [`try_parse_with_infinity`]
+/// 同款 inf 词形白名单（RespReadUtils.TryReadInfinity：inf/+inf/-inf，
+/// 3-4 字节，大小写不敏感；infinity 全拼非法）
 macro_rules! strict_float {
   ($(#[$meta:meta])* $name:ident, $ty:ty, $parse:ident) => {
     $(#[$meta])*
@@ -212,11 +200,13 @@ macro_rules! strict_float {
         return Some(value);
       }
       if can_be_infinite {
-        return match infinity_sign(raw) {
-          Some(true) => Some(<$ty>::INFINITY),
-          Some(false) => Some(<$ty>::NEG_INFINITY),
-          None => None,
-        };
+        // RespReadUtils.TryReadInfinity 词形白名单
+        if raw.eq_ignore_ascii_case(b"inf") || raw.eq_ignore_ascii_case(b"+inf") {
+          return Some(<$ty>::INFINITY);
+        }
+        if raw.eq_ignore_ascii_case(b"-inf") {
+          return Some(<$ty>::NEG_INFINITY);
+        }
       }
       None
     }
@@ -225,7 +215,7 @@ macro_rules! strict_float {
 
 strict_float!(
   /// C# ParseUtils.cs:TryReadDouble：严格解析 f64；`can_be_infinite` 放行
-  /// inf 词形白名单（inf/+inf/-inf/infinity/+infinity/-infinity）
+  /// inf 词形白名单（inf/+inf/-inf）
   strict_f64,
   f64,
   try_parse_f64
@@ -295,16 +285,17 @@ mod tests {
     assert_eq!(strict_f64(b"1e999", false), Some(f64::INFINITY));
     // NaN 恒拒绝
     assert_eq!(strict_f64(b"nan", true), None);
-    // inf 词形仅 can_be_infinite 放行
+    // inf 词形仅 can_be_infinite 放行（TryReadInfinity 白名单：3-4 字节）
     assert_eq!(strict_f64(b"inf", true), Some(f64::INFINITY));
     assert_eq!(strict_f64(b"INF", true), Some(f64::INFINITY));
     assert_eq!(strict_f64(b"+inf", true), Some(f64::INFINITY));
     assert_eq!(strict_f64(b"+Inf", true), Some(f64::INFINITY));
     assert_eq!(strict_f64(b"-inf", true), Some(f64::NEG_INFINITY));
     assert_eq!(strict_f64(b"-INF", true), Some(f64::NEG_INFINITY));
-    assert_eq!(strict_f64(b"infinity", true), Some(f64::INFINITY));
-    assert_eq!(strict_f64(b"+infinity", true), Some(f64::INFINITY));
-    assert_eq!(strict_f64(b"-INFINITY", true), Some(f64::NEG_INFINITY));
+    // infinity 全拼不在白名单（C# RespReadUtils.TryReadInfinity 仅认 3/4 字节）
+    assert_eq!(strict_f64(b"infinity", true), None);
+    assert_eq!(strict_f64(b"+infinity", true), None);
+    assert_eq!(strict_f64(b"-INFINITY", true), None);
     assert_eq!(strict_f64(b"inf", false), None);
     assert_eq!(strict_f64(b"infinity", false), None);
     assert_eq!(strict_f64(b"info", true), None);
@@ -315,7 +306,8 @@ mod tests {
   fn strict_f32_infinity_forms() {
     assert_eq!(strict_f32(b"1e999", true), Some(f32::INFINITY));
     assert_eq!(strict_f32(b"inf", true), Some(f32::INFINITY));
-    assert_eq!(strict_f32(b"-infinity", true), Some(f32::NEG_INFINITY));
+    assert_eq!(strict_f32(b"-inf", true), Some(f32::NEG_INFINITY));
+    assert_eq!(strict_f32(b"-infinity", true), None);
     assert_eq!(strict_f32(b"nan", true), None);
     assert_eq!(strict_f32(b"inf", false), None);
   }

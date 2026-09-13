@@ -1,6 +1,4 @@
-use std::str::from_utf8;
-
-use wresp::RespWriter;
+use wresp::RespVecExt;
 
 use super::{
   garnet_latency_metrics::GarnetLatencyMetrics, latency_metrics_type::LatencyMetricsType,
@@ -24,10 +22,9 @@ impl RespLatencyCommands {
       return Err("ERR Unknown subcommand or wrong number of arguments for LATENCY HELP.");
     }
     let latency_commands = super::resp_latency_help::RespLatencyHelp::get_latency_commands();
-    let mut w = RespWriter::new_ref(output);
-    w.write_array_length(latency_commands.len());
+    output.write_resp_array_len(latency_commands.len());
     for command in latency_commands {
-      w.write_simple_string(command);
+      output.write_resp_simple_string(command);
     }
     Ok(())
   }
@@ -44,20 +41,18 @@ impl RespLatencyCommands {
     let (events, invalid_event) = Self::parse_events(args);
 
     if let Some(invalid) = invalid_event {
+      // 事件名原样回显（二进制安全，不做 lossy 转写）
       output.extend_from_slice(b"-ERR Invalid event ");
-      if let Ok(valid) = from_utf8(invalid) {
-        output.extend_from_slice(valid.as_bytes());
-      } else {
-        output.extend_from_slice(invalid);
-      }
+      output.extend_from_slice(invalid);
       output.extend_from_slice(b". Try LATENCY HELP\r\n");
       return;
     }
 
     match metrics {
       None => output.extend_from_slice(b"*0\r\n"),
-      Some(m) => output.extend_from_slice(
-        &m.get_resp_histograms(events.as_deref().unwrap_or(&LatencyMetricsType::ALL)),
+      Some(m) => m.get_resp_histograms(
+        events.as_deref().unwrap_or(&LatencyMetricsType::ALL),
+        output,
       ),
     }
   }
@@ -75,11 +70,7 @@ impl RespLatencyCommands {
 
     if let Some(invalid) = invalid_event {
       output.extend_from_slice(b"-ERR Invalid type ");
-      if let Ok(valid) = from_utf8(invalid) {
-        output.extend_from_slice(valid.as_bytes());
-      } else {
-        output.extend_from_slice(invalid);
-      }
+      output.extend_from_slice(invalid);
       output.extend_from_slice(b"\r\n");
       return;
     }
@@ -88,7 +79,7 @@ impl RespLatencyCommands {
     for &event in events {
       set_reset_flag(event);
     }
-    RespWriter::new_ref(output).write_int64(events.len() as i64);
+    output.write_resp_int(events.len() as i64);
   }
 
   /// 解析事件参数：返回 `(去重事件表, 首个非法事件)`。

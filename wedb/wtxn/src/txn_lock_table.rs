@@ -15,6 +15,10 @@ use wbase::striped::StripedRwLock;
 pub const STRIPE_COUNT: usize = 1 << 10;
 
 /// 一把已持有的条带锁守卫
+///
+/// Send/Sync 不变量：守卫仅绑定单一条件带的读写锁，()` 占位数据无线程
+/// 亲和状态；parking_lot 读写锁的释放不要求原加锁线程，跨线程转移守卫
+/// 只改变"谁来 drop"，锁语义不变
 #[derive(Debug)]
 pub enum TxnKeyLockGuard<'a> {
   /// 共享锁守卫
@@ -22,9 +26,6 @@ pub enum TxnKeyLockGuard<'a> {
   /// 排他锁守卫
   Exclusive(RwLockWriteGuard<'a, ()>),
 }
-
-unsafe impl<'a> Send for TxnKeyLockGuard<'a> {}
-unsafe impl<'a> Sync for TxnKeyLockGuard<'a> {}
 
 /// 条带化键锁表
 #[derive(Debug)]
@@ -117,24 +118,6 @@ impl TxnLockTable {
   /// 阻塞加共享锁（返回 RAII 守卫；锁释放由守卫 drop 承接）
   pub fn lock_shared(&self, key_hash: i64) -> TxnKeyLockGuard<'_> {
     self.lock_key(key_hash, false)
-  }
-
-  /// 带超时的尝试加排他锁
-  pub fn try_lock_exclusive_for(
-    &self,
-    key_hash: i64,
-    timeout: Duration,
-  ) -> Option<TxnKeyLockGuard<'_>> {
-    self.try_lock_key_for(key_hash, true, timeout)
-  }
-
-  /// 带超时的尝试加共享锁
-  pub fn try_lock_shared_for(
-    &self,
-    key_hash: i64,
-    timeout: Duration,
-  ) -> Option<TxnKeyLockGuard<'_>> {
-    self.try_lock_key_for(key_hash, false, timeout)
   }
 }
 

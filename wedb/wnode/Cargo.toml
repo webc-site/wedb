@@ -20,6 +20,7 @@ event-listener.workspace = true
 fastrand.workspace = true
 gxhash.workspace = true
 itoa.workspace = true
+jiff = "0.2.37"
 log.workspace = true
 memchr = "2.8.3"
 nested-text = "0.1.0"

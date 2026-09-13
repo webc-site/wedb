@@ -10,8 +10,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
 use wcpr::{
-  CheckpointManager, CheckpointMeta, CheckpointType, read_index_checkpoint_truncated,
-  write_index_checkpoint,
+  CheckpointMeta, CheckpointType, read_index_checkpoint_truncated, write_index_checkpoint,
 };
 use wdev::SegmentedDevice;
 use whlog::HybridLogConfig;
@@ -108,10 +107,8 @@ fn fold_over_checkpoint_roundtrip() -> Void {
     let ghost_addr = store.hlog.tail_address() + 0x100;
     store.index.insert(b"ghost:entry", ghost_addr)?;
 
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
-    let meta: CheckpointMeta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta: CheckpointMeta =
+      wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
     let token = meta.token;
     assert_eq!(meta.cp_type, CheckpointType::FoldOver);
     assert_eq!(
@@ -129,7 +126,7 @@ fn fold_over_checkpoint_roundtrip() -> Void {
     drop(p);
     drop(store);
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let restored = CheckpointManager::recover::<MiniStore>(&ckpt_dir, token, device).await?;
+    let restored = wcpr::recover::<_, MiniStore>(&ckpt_dir, token, device).await?;
     assert_eq!(
       restored.meta.as_ref().expect("恢复实例必含 meta"),
       &meta,
@@ -206,16 +203,13 @@ fn snapshot_checkpoint_rebuilds_mutable_region() -> Void {
     let ghost_addr = store.hlog.tail_address() + 0x100;
     store.index.insert(b"ghost:entry", ghost_addr)?;
 
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::Snapshot)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::Snapshot).await?;
     let token = meta.token;
 
     drop(p);
     drop(store);
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let restored = CheckpointManager::recover::<MiniStore>(&ckpt_dir, token, device).await?;
+    let restored = wcpr::recover::<_, MiniStore>(&ckpt_dir, token, device).await?;
 
     // Snapshot 语义：read_only = calculate_read_only_address(head, tail).max(head)
     let snapshot_meta = restored.meta.as_ref().expect("恢复实例必含 meta");

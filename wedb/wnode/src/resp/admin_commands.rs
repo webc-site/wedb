@@ -70,14 +70,6 @@ impl RespServerSession {
   pub fn check_script_permissions(&mut self, _cmd: RespCommand) -> bool {
     true
   }
-  /// libs/server/Resp/AdminCommands.cs:CheckACLPermissions
-  ///
-  /// C#: (!IsAuthenticated || !CanAccessCommand) && !IsNoAuth → 拒绝。默认
-  /// NoAuth 认证器 IsAuthenticated = true → 恒放行；rust ACL（wacl）接线后
-  /// 在此分叉
-  pub fn check_acl_permissions(&mut self, _cmd: RespCommand) -> bool {
-    true
-  }
   /// libs/server/Resp/AdminCommands.cs:CheckACLPermissionsForCustomCommand
   ///
   /// 自定义命令按名鉴权；同上按默认放行路径处理

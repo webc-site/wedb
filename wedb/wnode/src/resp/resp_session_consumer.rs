@@ -17,7 +17,11 @@ use super::{
   resp_server_session::{RespServerSession, RespServerSessionOptions},
   slow_path::SlowWait,
 };
-use crate::{MessageConsumerFace, cluster_session::ClusterSession};
+use crate::{
+  MessageConsumerFace,
+  cluster_session::ClusterSession,
+  servers::consumer_registry::ConsumerEntry,
+};
 
 /// 对应 libs/server/Resp/RespServerSession.cs:RespServerSession 会话网络消费驱动
 pub struct RespSessionConsumer {
@@ -92,6 +96,12 @@ impl MessageConsumerFace for RespSessionConsumer {
 
   fn dispose(&mut self) {
     self.session.dispose();
+  }
+
+  fn mirror_session_counters(&mut self, entry: &ConsumerEntry) {
+    if let Some(metrics) = &self.session.session_metrics {
+      entry.set_commands_processed(metrics.get_total_commands_processed());
+    }
   }
 
   fn take_blocked_wait(&mut self) -> Option<BlockedWait> {

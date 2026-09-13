@@ -1,8 +1,8 @@
 use std::{
   future::Future,
   sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+    Arc, OnceLock,
+    atomic::{AtomicBool, AtomicU64, Ordering},
   },
   time::Duration,
 };
@@ -23,15 +23,17 @@ use super::{
 /// 服务器指标监视器：周期采样活跃会话，维护全局指标与瞬时吞吐。
 ///（对标 libs/server/Metrics/GarnetServerMonitor.cs:GarnetServerMonitor）
 ///
-/// C# 经 `ActiveConsumers()` 直查会话；会话/服务器域尚未落地，此处以
-/// [`SessionSample`] / [`ServerSample`] 快照入参承接同等聚合语义。
+/// C# 经 `ActiveConsumers()` 直查会话；rust 会话体为连接任务独占，采样经
+/// [`SessionSample`] / [`ServerSample`] 拥有型快照承接同等聚合语义。
 /// 可变状态收敛在 `Mutex<MonitorState>` 内，支持并发的历史并入
-///（对齐 C# SingleWriterMultiReaderLock 的保护范围）。
+///（对齐 C# SingleWriterMultiReaderLock 的保护范围）；
+/// 复位标志为原子位（对齐 C# resetEventFlags / resetLatencyMetrics 字典），
+/// 全体方法 `&self`——采样循环可在无外层互斥下驱动（C# 为后台 Task）。
 pub struct GarnetServerMonitor {
   /// INFO RESET 置位的事件复位标志（下标 = InfoMetricsType 判别值）。
-  pub reset_event_flags: [bool; InfoMetricsType::ALL.len()],
+  reset_event_flags: [AtomicBool; InfoMetricsType::ALL.len()],
   /// LATENCY RESET 置位的延迟类别复位标志（下标 = 类别判别值）。
-  pub reset_latency_metrics: [bool; LatencyMetricsType::ALL.len()],
+  reset_latency_metrics: [AtomicBool; LatencyMetricsType::ALL.len()],
   /// 采样周期。
   monitor_sampling_frequency: Duration,
   /// 迭代时钟：与全部会话侧延迟指标共享（奇偶切版本）。
@@ -39,6 +41,11 @@ pub struct GarnetServerMonitor {
   /// 全局指标 + 累加器 + 上轮瞬时基线。
   state: Mutex<MonitorState>,
 }
+
+/// 进程级监视器槽（C# storeWrapper.monitor 的单服务器进程级承接；
+/// 会话 dispose 归并经 [`GarnetServerMonitor::global`] 直取，免去会话体
+/// 持有句柄）
+static GLOBAL_MONITOR: OnceLock<Arc<GarnetServerMonitor>> = OnceLock::new();
 
 /// 监视器可变状态（C# 的 globalMetrics / accSessionMetrics / accCommandStats /
 /// instant_* 字段组）。
@@ -51,18 +58,19 @@ struct MonitorState {
   instant_commands_processed: u64,
 }
 
-/// 单个活跃会话的采样快照。
-pub struct SessionSample<'a> {
+/// 单个活跃会话的采样快照（拥有型：采样循环与活会话任务并发，持有型引用
+/// 不可达；rust 承接为逐字段值拷贝，对齐 C# 直读后的瞬时视图）
+pub struct SessionSample {
   /// 会话指标。
-  pub metrics: &'a GarnetSessionMetrics,
+  pub metrics: GarnetSessionMetrics,
   /// 会话命令统计（未启用为 None）。
-  pub command_stats: Option<&'a CommandStats>,
-  /// 会话延迟指标（未启用为 None）。
-  pub latency: Option<&'a GarnetLatencyMetricsSession>,
+  pub command_stats: Option<CommandStats>,
+  /// 会话延迟指标（未启用为 None；Arc 活句柄，合并经内部互斥）。
+  pub latency: Option<Arc<GarnetLatencyMetricsSession>>,
 }
 
 /// 单个服务器的采样快照。
-pub struct ServerSample<'a> {
+pub struct ServerSample {
   /// 收到的连接数。
   pub total_connections_received: i64,
   /// 已释放的连接数。
@@ -70,22 +78,22 @@ pub struct ServerSample<'a> {
   /// 活跃连接数。
   pub total_connections_active: i64,
   /// 活跃会话采样。
-  pub sessions: Vec<SessionSample<'a>>,
+  pub sessions: Vec<SessionSample>,
 }
 
-/// 单轮迭代的外部输入（会话/服务器域复位回调集合）。
-pub struct MonitorIterationInputs<'a, F1 = fn(), F2 = fn(), F3 = fn(), F4 = fn(LatencyMetricsType)>
-{
+/// 单轮迭代的外部输入（会话/服务器域复位回调集合；拥有型——采样循环与
+/// 活会话任务并发，借用型回调无法跨 await 持有）
+pub struct MonitorIterationInputs {
   /// 全部服务器的采样快照。
-  pub servers: &'a [ServerSample<'a>],
+  pub servers: Vec<ServerSample>,
   /// 复位全部活跃会话的延迟指标。
-  pub reset_all_session_latency: &'a mut F1,
+  pub reset_all_session_latency: Box<dyn FnMut()>,
   /// 复位全部活跃会话的会话指标（STATS 复位路径）。
-  pub reset_active_sessions: &'a mut F2,
+  pub reset_active_sessions: Box<dyn FnMut()>,
   /// 复位全部活跃会话的命令统计（COMMANDSTATS 复位路径）。
-  pub reset_active_command_stats: &'a mut F3,
+  pub reset_active_command_stats: Box<dyn FnMut()>,
   /// 复位指定类别的活跃会话延迟指标。
-  pub reset_session_latency: &'a mut F4,
+  pub reset_session_latency: Box<dyn FnMut(LatencyMetricsType)>,
 }
 
 impl GarnetServerMonitor {
@@ -100,8 +108,8 @@ impl GarnetServerMonitor {
     track_command_stats: bool,
   ) -> Self {
     Self {
-      reset_event_flags: [false; InfoMetricsType::ALL.len()],
-      reset_latency_metrics: [false; LatencyMetricsType::ALL.len()],
+      reset_event_flags: [const { AtomicBool::new(false) }; InfoMetricsType::ALL.len()],
+      reset_latency_metrics: [const { AtomicBool::new(false) }; LatencyMetricsType::ALL.len()],
       monitor_sampling_frequency: Duration::from_secs(metrics_sampling_frequency_secs),
       monitor_iterations: Arc::new(AtomicU64::new(0)),
       state: Mutex::new(MonitorState {
@@ -113,6 +121,38 @@ impl GarnetServerMonitor {
         instant_commands_processed: 0,
       }),
     }
+  }
+
+  /// 进程级安装监视器槽（幂等；首次安装生效，返回是否由本次写入）。
+  ///
+  /// libs/server/StoreWrapper.cs:226（monitor 随 StoreWrapper 构造）的进程级承接
+  pub fn install_global(self: &Arc<Self>) -> bool {
+    GLOBAL_MONITOR.set(Arc::clone(self)).is_ok()
+  }
+
+  /// 取进程级监视器（未安装为 None；C# `storeWrapper.monitor != null` 判定）
+  pub fn global() -> Option<Arc<Self>> {
+    GLOBAL_MONITOR.get().cloned()
+  }
+
+  /// 置位 INFO 段复位标志（C# monitor.resetEventFlags[e] = true）
+  pub fn set_info_reset_flag(&self, info_metrics_type: InfoMetricsType) {
+    self.reset_event_flags[info_metrics_type.idx()].store(true, Ordering::Relaxed);
+  }
+
+  /// 置位延迟类别复位标志（C# monitor.resetLatencyMetrics[e] = true）
+  pub fn set_latency_reset_flag(&self, latency_metrics_type: LatencyMetricsType) {
+    self.reset_latency_metrics[latency_metrics_type.idx()].store(true, Ordering::Relaxed);
+  }
+
+  /// 读取 INFO 段复位标志
+  pub fn info_reset_flag(&self, info_metrics_type: InfoMetricsType) -> bool {
+    self.reset_event_flags[info_metrics_type.idx()].load(Ordering::Relaxed)
+  }
+
+  /// 读取延迟类别复位标志
+  pub fn latency_reset_flag(&self, latency_metrics_type: LatencyMetricsType) -> bool {
+    self.reset_latency_metrics[latency_metrics_type.idx()].load(Ordering::Relaxed)
   }
 
   /// libs/server/Metrics/GarnetServerMonitor.cs:GlobalMetrics
@@ -142,6 +182,24 @@ impl GarnetServerMonitor {
       g.instantaneous_net_input_tpt,
       g.instantaneous_net_output_tpt,
     )
+  }
+
+  /// 全局会话指标累计（网络入/出字节与已处理命令数；track_stats 关闭为
+  /// None）。INFO STATS 数据面与 dispose 归并的验证入口
+  ///（对齐 C# GlobalMetrics.globalSessionMetrics 的 get_total_* 访问器）
+  pub fn global_totals(&self) -> Option<(u64, u64, u64)> {
+    let state = self.state.lock();
+    state
+      .global_metrics
+      .global_session_metrics
+      .as_ref()
+      .map(|m| {
+        (
+          m.total_net_input_bytes,
+          m.total_net_output_bytes,
+          m.total_commands_processed,
+        )
+      })
   }
 
   /// 共享迭代时钟（会话侧延迟指标构造用）。
@@ -236,15 +294,15 @@ impl GarnetServerMonitor {
   ///
   /// 累加单台服务器的活跃会话指标 / 命令统计 / 延迟指标，随后以累加值
   /// 重建全局会话指标与命令统计。
-  fn add_current_server_stats(state: &mut MonitorState, server: &ServerSample<'_>) {
+  fn add_current_server_stats(state: &mut MonitorState, server: &ServerSample) {
     for session in &server.sessions {
-      state.acc_session_metrics.add(session.metrics);
-      if let (Some(acc), Some(stats)) = (&mut state.acc_command_stats, session.command_stats) {
+      state.acc_session_metrics.add(&session.metrics);
+      if let (Some(acc), Some(stats)) = (&mut state.acc_command_stats, &session.command_stats) {
         acc.add(stats);
       }
       if let (Some(global_latency), Some(latency)) = (
         &state.global_metrics.global_latency_metrics,
-        session.latency,
+        &session.latency,
       ) {
         global_latency.lock().merge(latency);
       }
@@ -288,13 +346,13 @@ impl GarnetServerMonitor {
   /// INFO RESET 触发的清理：STATS 标志复位瞬时吞吐、连接计数、全局/历史
   /// 会话指标（活跃部分经 `reset_active_sessions` 回调下沉到服务器域）；
   /// COMMANDSTATS 标志复位全局/历史命令统计（经 `reset_active_command_stats`）。
-  fn cleanup_global_stats<F1: FnMut(), F2: FnMut()>(
+  fn cleanup_global_stats(
     state: &mut MonitorState,
-    flags: &mut [bool],
-    mut reset_active_sessions: F1,
-    mut reset_active_command_stats: F2,
+    flags: &[AtomicBool],
+    reset_active_sessions: &mut dyn FnMut(),
+    reset_active_command_stats: &mut dyn FnMut(),
   ) {
-    if flags[InfoMetricsType::Stats as usize] {
+    if flags[InfoMetricsType::Stats as usize].load(Ordering::Relaxed) {
       log::info!("Resetting latency metrics for commands");
       state.global_metrics.instantaneous_net_input_tpt = 0.0;
       state.global_metrics.instantaneous_net_output_tpt = 0.0;
@@ -310,10 +368,10 @@ impl GarnetServerMonitor {
       }
 
       reset_active_sessions();
-      flags[InfoMetricsType::Stats as usize] = false;
+      flags[InfoMetricsType::Stats as usize].store(false, Ordering::Relaxed);
     }
 
-    if flags[InfoMetricsType::CommandStats as usize] {
+    if flags[InfoMetricsType::CommandStats as usize].load(Ordering::Relaxed) {
       log::info!("Resetting command stats");
       if let Some(global_stats) = &mut state.global_metrics.global_command_stats {
         global_stats.reset();
@@ -322,7 +380,7 @@ impl GarnetServerMonitor {
         history.reset();
       }
       reset_active_command_stats();
-      flags[InfoMetricsType::CommandStats as usize] = false;
+      flags[InfoMetricsType::CommandStats as usize].store(false, Ordering::Relaxed);
     }
   }
 
@@ -330,16 +388,16 @@ impl GarnetServerMonitor {
   ///
   /// LATENCY RESET 触发的清理：复位全局延迟指标并将复位下沉到活跃会话
   ///（经 `reset_session_latency` 回调）。
-  fn cleanup_global_latency_metrics<F: FnMut(LatencyMetricsType)>(
+  fn cleanup_global_latency_metrics(
     state: &mut MonitorState,
-    flags: &mut [bool],
-    mut reset_session_latency: F,
+    flags: &[AtomicBool],
+    reset_session_latency: &mut dyn FnMut(LatencyMetricsType),
   ) {
     if !Self::track_latency(state) {
       return;
     }
-    for (idx, flagged) in flags.iter_mut().enumerate() {
-      if !*flagged {
+    for (idx, flagged) in flags.iter().enumerate() {
+      if !flagged.load(Ordering::Relaxed) {
         continue;
       }
       let Some(event_type) = LatencyMetricsType::ALL.get(idx).copied() else {
@@ -350,7 +408,7 @@ impl GarnetServerMonitor {
       if let Some(global_latency) = &state.global_metrics.global_latency_metrics {
         global_latency.lock().reset(event_type);
       }
-      *flagged = false;
+      flagged.store(false, Ordering::Relaxed);
     }
   }
 
@@ -368,15 +426,7 @@ impl GarnetServerMonitor {
   }
 
   /// 对应 MainMonitorTaskAsync 的单轮迭代体（C# 主循环内除 Task.Delay 外的全部步骤）。
-  fn monitor_iteration<F1, F2, F3, F4>(
-    &mut self,
-    inputs: &mut MonitorIterationInputs<'_, F1, F2, F3, F4>,
-  ) where
-    F1: FnMut(),
-    F2: FnMut(),
-    F3: FnMut(),
-    F4: FnMut(LatencyMetricsType),
-  {
+  fn monitor_iteration(&self, inputs: &mut MonitorIterationInputs) {
     let mut state = self.state.lock();
 
     // 复位上一版本的会话级延迟指标（即将成为当前版本）。
@@ -389,7 +439,7 @@ impl GarnetServerMonitor {
     Self::reset_and_add_global_history(&mut state);
 
     let (mut total_received, mut total_disposed, mut total_active) = (0i64, 0i64, 0i64);
-    for server in inputs.servers {
+    for server in &inputs.servers {
       total_received += server.total_connections_received;
       total_disposed += server.total_connections_disposed;
       total_active += server.total_connections_active;
@@ -404,13 +454,13 @@ impl GarnetServerMonitor {
     // INFO RESET 清理。
     Self::cleanup_global_stats(
       &mut state,
-      &mut self.reset_event_flags,
+      &self.reset_event_flags,
       &mut inputs.reset_active_sessions,
       &mut inputs.reset_active_command_stats,
     );
     Self::cleanup_global_latency_metrics(
       &mut state,
-      &mut self.reset_latency_metrics,
+      &self.reset_latency_metrics,
       &mut inputs.reset_session_latency,
     );
   }
@@ -421,18 +471,14 @@ impl GarnetServerMonitor {
   /// `cancelled` 为取消探测（对齐 CancellationToken），取消即退出
   ///（对齐 C# 取消终止 + done.Set()）。输入每轮经 `resolve` 重新取用
   ///（对齐 C# 直查活跃会话）。
-  pub async fn main_monitor_task_async<S, Fut, F1, F2, F3, F4>(
-    &mut self,
+  pub async fn main_monitor_task_async<S, Fut>(
+    &self,
     mut sleep: S,
     cancelled: impl Fn() -> bool,
-    mut resolve: impl FnMut() -> MonitorIterationInputs<'static, F1, F2, F3, F4>,
+    mut resolve: impl FnMut() -> MonitorIterationInputs,
   ) where
     S: FnMut(Duration) -> Fut,
     Fut: Future<Output = ()>,
-    F1: FnMut() + 'static,
-    F2: FnMut() + 'static,
-    F3: FnMut() + 'static,
-    F4: FnMut(LatencyMetricsType) + 'static,
   {
     while !cancelled() {
       sleep(self.monitor_sampling_frequency).await;

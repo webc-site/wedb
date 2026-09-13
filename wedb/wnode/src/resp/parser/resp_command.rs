@@ -182,7 +182,6 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("RENAME", RespCommand::Rename, false),
   ("RENAMENX", RespCommand::Renamenx, false),
   ("REPLICAOF", RespCommand::Replicaof, false),
-  ("RESET", RespCommand::Reset, false),
   ("RESTORE", RespCommand::Restore, false),
   ("RI.CONFIG", RespCommand::Riconfig, false),
   ("RI.CREATE", RespCommand::Ricreate, false),
@@ -236,7 +235,6 @@ static PRIMARY_TABLE: &[PrimaryEntry] = &[
   ("SUBSTR", RespCommand::Substr, false),
   ("SUNION", RespCommand::Sunion, false),
   ("SUNIONSTORE", RespCommand::Sunionstore, false),
-  ("SUNSUBSCRIBE", RespCommand::Sunsubscribe, false),
   ("SWAPDB", RespCommand::Swapdb, false),
   ("TIME", RespCommand::Time, false),
   ("TTL", RespCommand::Ttl, false),
@@ -579,10 +577,8 @@ pub const fn is_allowed_in_subscription_mode(cmd: RespCommand) -> bool {
       | RespCommand::Psubscribe
       | RespCommand::Punsubscribe
       | RespCommand::Ssubscribe
-      | RespCommand::Sunsubscribe
       | RespCommand::Ping
       | RespCommand::Quit
-      | RespCommand::Reset
   )
 }
 
@@ -1699,11 +1695,9 @@ mod tests {
       RespCommand::Ssubscribe,
       RespCommand::Psubscribe,
       RespCommand::Unsubscribe,
-      RespCommand::Sunsubscribe,
       RespCommand::Punsubscribe,
       RespCommand::Ping,
       RespCommand::Quit,
-      RespCommand::Reset,
     ] {
       assert!(
         is_allowed_in_subscription_mode(cmd),

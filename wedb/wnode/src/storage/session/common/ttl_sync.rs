@@ -1,8 +1,10 @@
 //! key 级 TTL 记录的同步快路径读写（批处理纪元上下文专用）
 //!
-//! wkv 的 `expire_at`/`persist`/`pttl_ms` 全为异步入口（内含磁盘 I/O 与物理清除），
-//! 而 RESP 命令层是同步函数、经 `Ok(false)` 向调用方发降级信号。本模块在
-//! [`wkv::BatchStoreSession`] 纪元保护下，用 wkv 公开的 raw 同步内核
+//! 归属存储层（对标 libs/server/Storage/Functions/SessionFunctionsUtils.cs 的
+//! 过期评估域：C# 的过期判定与 TTL 记录操作在存储会话函数层完成，RESP 命令
+//! 层仅调用）。wkv 的 `expire_at`/`persist`/`pttl_ms` 全为异步入口（内含磁盘
+//! I/O 与物理清除），而 RESP 命令层是同步函数、经 `Ok(false)` 向调用方发降级
+//! 信号。本模块在 [`wkv::BatchStoreSession`] 纪元保护下，用 wkv 公开的 raw 同步内核
 //! （`try_read_raw_in_memory`/`try_modify_raw_in_place_unprotected`/
 //! `try_upsert_raw_sync`/`try_delete_raw_sync`）实现 TTL 记录的最深同步路径：
 //! 可变区命中的读写删全部零 I/O 闭环；遇磁盘候选或环形页翻转时返回降级信号，

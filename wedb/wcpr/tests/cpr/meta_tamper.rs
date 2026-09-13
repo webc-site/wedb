@@ -7,8 +7,8 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
 use wcpr::{
-  CheckpointManager, CheckpointMeta, CheckpointType, Error, FORMAT_VERSION, HlogMeta, IndexMeta,
-  StoreMeta, meta_filename, meta_tmp_filename,
+  CheckpointMeta, CheckpointType, Error, FORMAT_VERSION, HlogMeta, IndexMeta, StoreMeta,
+  meta_filename, meta_tmp_filename,
 };
 use wdev::SegmentedDevice;
 
@@ -69,17 +69,14 @@ fn tampered_meta_field_rejected_by_integrity_seal() -> Void {
     let ckpt_dir = dir.path().join("checkpoints");
     let store = MiniStore::open(dir.path().join("seal.db"))?;
     let p = store.session()?;
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
 
     store.put(&p, b"seal:key", b"v").await?;
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
 
     tamper_meta(&ckpt_dir, meta.token, |m| m.created_at += 1)?;
 
     let device = Arc::new(SegmentedDevice::single_file(dir.path().join("seal.db"))?);
-    let err = CheckpointManager::recover::<MiniStore>(&ckpt_dir, meta.token, device)
+    let err = wcpr::recover::<_, MiniStore>(&ckpt_dir, meta.token, device)
       .await
       .err()
       .expect("字段篡改必须导致恢复失败");
@@ -102,12 +99,9 @@ fn single_bit_flip_rejects_recovery() -> Void {
     let ckpt_dir = dir.path().join("checkpoints");
     let store = MiniStore::open(dir.path().join("flip.db"))?;
     let p = store.session()?;
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
 
     store.put(&p, b"flip:key", b"payload").await?;
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
     let token = meta.token;
 
     // 1. meta 中部字节位翻转：恢复必须失败（结构破坏报解析错误，数值破坏报封签错误）
@@ -118,7 +112,7 @@ fn single_bit_flip_rejects_recovery() -> Void {
     bytes[mid] ^= 0x01;
     fs::write(&meta_path, &bytes)?;
     let device = Arc::new(SegmentedDevice::single_file(dir.path().join("flip.db"))?);
-    let err = CheckpointManager::recover::<MiniStore>(&ckpt_dir, token, device).await;
+    let err = wcpr::recover::<_, MiniStore>(&ckpt_dir, token, device).await;
     assert!(err.is_err(), "meta 位翻转必须拒绝恢复");
     drop(err);
 
@@ -132,7 +126,7 @@ fn single_bit_flip_rejects_recovery() -> Void {
     ckpt_bytes[64 + 8] ^= 0x80;
     fs::write(&index_path, &ckpt_bytes)?;
     let device = Arc::new(SegmentedDevice::single_file(dir.path().join("flip.db"))?);
-    let err = CheckpointManager::recover::<MiniStore>(&ckpt_dir, token, device).await;
+    let err = wcpr::recover::<_, MiniStore>(&ckpt_dir, token, device).await;
     let err = err.err().expect("index 位翻转必须导致恢复失败");
     assert!(
       matches!(err, Error::ChecksumMismatch { .. }),
@@ -159,11 +153,11 @@ fn tmp_residue_never_enters_recovery_view() -> Void {
     fs::write(ckpt_dir.join(meta_tmp_filename(42)), b"{\"half\":")?;
     fs::write(ckpt_dir.join(wcpr::index_tmp_filename(42)), b"half-written")?;
     assert!(
-      CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?.is_empty(),
+      wcpr::list_checkpoints(&ckpt_dir)?.is_empty(),
       ".tmp 残留不得进入 token 列表"
     );
     let device = Arc::new(SegmentedDevice::single_file(dir.path().join("residue.db"))?);
-    let err = CheckpointManager::recover_latest::<MiniStore>(&ckpt_dir, Arc::clone(&device))
+    let err = wcpr::recover_latest::<_, MiniStore>(&ckpt_dir, Arc::clone(&device))
       .await
       .err()
       .expect("纯 tmp 残留目录必须恢复失败");
@@ -174,10 +168,8 @@ fn tmp_residue_never_enters_recovery_view() -> Void {
 
     // 正式检查点发布后：tmp 残留被无视，恢复直达有效版本
     store.put(&p, b"residue:key", b"v").await?;
-    let meta = CheckpointManager::<SegmentedDevice>::new()
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
-    let restored = CheckpointManager::recover_latest::<MiniStore>(&ckpt_dir, device).await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
+    let restored = wcpr::recover_latest::<_, MiniStore>(&ckpt_dir, device).await?;
     let p_restored = restored.session()?;
     assert_eq!(
       restored.get(&p_restored, b"residue:key").await?.as_deref(),
@@ -187,7 +179,7 @@ fn tmp_residue_never_enters_recovery_view() -> Void {
     // 孤儿 index ckpt（meta 缺失）：同样不进恢复视图
     fs::write(ckpt_dir.join(wcpr::index_filename(42)), b"orphan-ckpt")?;
     assert_eq!(
-      CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?,
+      wcpr::list_checkpoints(&ckpt_dir)?,
       vec![meta.token],
       "孤儿 ckpt 不得进入 token 列表"
     );
@@ -206,16 +198,11 @@ fn corrupted_latest_falls_back_to_older_checkpoint() -> Void {
     let ckpt_dir = dir.path().join("checkpoints");
     let store = MiniStore::open(dir.path().join("fallback.db"))?;
     let p = store.session()?;
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
 
     store.put(&p, b"fb:key", b"v1").await?;
-    mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
     store.put(&p, b"fb:key", b"v2").await?;
-    let meta2 = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta2 = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
 
     // 篡改最新检查点（跳过封签校验的干净字段改写同样触发拦截）
     tamper_meta(&ckpt_dir, meta2.token, |m| {
@@ -225,7 +212,7 @@ fn corrupted_latest_falls_back_to_older_checkpoint() -> Void {
     let device = Arc::new(SegmentedDevice::single_file(
       dir.path().join("fallback.db"),
     )?);
-    let restored = CheckpointManager::recover_latest::<MiniStore>(&ckpt_dir, device).await?;
+    let restored = wcpr::recover_latest::<_, MiniStore>(&ckpt_dir, device).await?;
     let p_restored = restored.session()?;
     assert_eq!(
       restored.get(&p_restored, b"fb:key").await?.as_deref(),
@@ -269,12 +256,9 @@ fn token_mismatch_and_future_version_rejected() -> Void {
     let ckpt_dir = dir.path().join("checkpoints");
     let store = MiniStore::open(dir.path().join("reject.db"))?;
     let p = store.session()?;
-    let mgr = CheckpointManager::<SegmentedDevice>::new();
 
     store.put(&p, b"reject:key", b"v").await?;
-    let meta = mgr
-      .create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver)
-      .await?;
+    let meta = wcpr::create_checkpoint(&store, &ckpt_dir, CheckpointType::FoldOver).await?;
     let token = meta.token;
 
     // meta 复制到异名 token：恢复时 token 须严格比对
@@ -282,7 +266,7 @@ fn token_mismatch_and_future_version_rejected() -> Void {
     let alien_token = token.wrapping_add(1);
     fs::copy(&src, ckpt_dir.join(meta_filename(alien_token)))?;
     let device = Arc::new(SegmentedDevice::single_file(dir.path().join("reject.db"))?);
-    let err = CheckpointManager::recover::<MiniStore>(&ckpt_dir, alien_token, Arc::clone(&device))
+    let err = wcpr::recover::<_, MiniStore>(&ckpt_dir, alien_token, Arc::clone(&device))
       .await
       .err()
       .expect("异名 token 恢复必须失败");
@@ -297,7 +281,7 @@ fn token_mismatch_and_future_version_rejected() -> Void {
       // 重封签使封签自洽，确保拒绝来自版本门控而非封签校验
       m.seal();
     })?;
-    let err = CheckpointManager::recover::<MiniStore>(&ckpt_dir, token, device)
+    let err = wcpr::recover::<_, MiniStore>(&ckpt_dir, token, device)
       .await
       .err()
       .expect("超前版本恢复必须失败");

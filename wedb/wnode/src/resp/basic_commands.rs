@@ -17,13 +17,15 @@ use wresp::{
   unpack_args,
 };
 
-use super::{
-  resp_server_session::RespServerSession,
-  ttl_sync::{del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync},
-};
-use crate::session_parse_state_extensions::{
-  SimpleRespKeySpec, extract_keys_and_flags_from_slice, extract_keys_from_slice,
-  try_get_client_name_bytes,
+use super::resp_server_session::RespServerSession;
+use crate::{
+  session_parse_state_extensions::{
+    SimpleRespKeySpec, extract_keys_and_flags_from_slice, extract_keys_from_slice,
+    try_get_client_name_bytes,
+  },
+  storage::session::common::ttl_sync::{
+    del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
+  },
 };
 
 /// 字符串类命令负载上限（libs/server/Resp/Bitmap/BitmapManager.cs:MaxBitmapPayloadBytes，
@@ -627,7 +629,7 @@ impl RespServerSession {
     self.network_setex_impl(true, "PSETEX", parse_state, store, output)
   }
   /// SETEX/PSETEX 共同实现体（对应 C# NetworkSETEX highPrecision 参数化实现）；写值后经
-  /// [`super::ttl_sync::put_ttl_sync`] 同步落 TTL 记录
+  /// [`crate::storage::session::common::ttl_sync::put_ttl_sync`] 同步落 TTL 记录
   fn network_setex_impl<'a, D: wdev::Device>(
     &mut self,
     high_precision: bool,

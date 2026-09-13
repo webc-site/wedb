@@ -16,7 +16,9 @@ pub mod system_metrics;
 
 pub use command_stats::{CommandStats, CommandStatsEntry};
 pub use garnet_server_metrics::GarnetServerMetrics;
-pub use garnet_server_monitor::GarnetServerMonitor;
+pub use garnet_server_monitor::{
+  GarnetServerMonitor, MonitorIterationInputs, ServerSample, SessionSample,
+};
 pub use garnet_session_metrics::GarnetSessionMetrics;
 pub use hybrid_log_scan_metrics::HybridLogScanMetrics;
 pub use info::{

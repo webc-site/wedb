@@ -11,6 +11,8 @@ use gxhash::{HashMap, HashSet};
 use parking_lot::RwLock;
 use wval::GarnetObjectType;
 
+use crate::custom_transaction_procedure::CustomTransactionProcedure;
+
 /// 模块加载失败通用文案（对齐 CmdStrings.RESP_ERR_MODULE_ONLOAD，本域两处复用）。
 const ERR_MODULE_FAILED_TO_LOAD: &str = "ERR module failed to load";
 
@@ -113,6 +115,10 @@ pub struct CustomObjectCommandWrapper {
   pub next_sub_id: usize,
 }
 
+/// 自定义事务过程工厂（C# `Func<CustomTransactionProcedure>` 的所有权投影：
+/// 每次调用产出全新过程实例；过程实现经闭包自持存储句柄与输入输出面）。
+pub type TxnProcFactory = Arc<dyn Fn() -> Box<dyn CustomTransactionProcedure> + Send + Sync>;
+
 /// 已注册的自定义事务过程。
 #[derive(Clone)]
 pub struct CustomTransaction {
@@ -122,6 +128,8 @@ pub struct CustomTransaction {
   pub id: u8,
   /// 元数。
   pub arity: i32,
+  /// 过程实例工厂（C# procCreator；None = 仅元数据登记）。
+  pub factory: Option<TxnProcFactory>,
 }
 
 /// 已注册的自定义过程包装。
@@ -286,9 +294,12 @@ impl CustomCommandManager {
   }
 
   /// 注册自定义事务（对应 C# CustomCommandManager.Register(CustomTransactionProcedure) 重载）；返回事务 id。
+  ///
+  /// `factory` 为过程实例工厂（C# procCreator；None = 仅元数据登记）。
   pub fn register_transaction(
     &mut self,
     name: &str,
+    factory: Option<TxnProcFactory>,
     command_info: Option<CustomCommandInfo>,
     command_docs: Option<CustomCommandDocs>,
   ) -> Result<u8, &'static str> {
@@ -308,6 +319,7 @@ impl CustomCommandManager {
       name: name.to_lowercase(),
       id: cmd_id as u8,
       arity,
+      factory,
     };
 
     let slot = cmd_id as usize;
@@ -620,6 +632,28 @@ pub type SharedCustomCommandManager = Arc<RwLock<CustomCommandManager>>;
 #[cfg(test)]
 mod tests {
   use super::*;
+  use wtxn::{TransactionManager, TxnProcedure};
+
+  /// 测试过程体（id 透传，三段式空操作）
+  struct DemoProc {
+    id: u8,
+  }
+
+  impl TxnProcedure for DemoProc {
+    fn id(&self) -> u8 {
+      self.id
+    }
+
+    fn prepare(&mut self, _txn_manager: &mut TransactionManager) -> bool {
+      true
+    }
+
+    fn main(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {}
+
+    fn finalize(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {}
+  }
+
+  impl CustomTransactionProcedure for DemoProc {}
 
   fn info(name: &str, arity: i32) -> CustomCommandInfo {
     CustomCommandInfo {
@@ -798,14 +832,32 @@ mod tests {
     let mut manager = CustomCommandManager::new();
 
     let txn_id = manager
-      .register_transaction("MYTXN", Some(info("MYTXN", -3)), None)
+      .register_transaction("MYTXN", None, Some(info("MYTXN", -3)), None)
       .unwrap();
     assert_eq!(txn_id, 0);
     let txn = manager
       .try_get_custom_transaction_procedure(txn_id)
       .unwrap();
     assert_eq!(txn.arity, -3);
+    assert!(txn.factory.is_none());
     assert!(manager.try_get_custom_transaction_procedure(9).is_none());
+
+    // 带工厂注册（独立管理器：工厂槽位 id = 0），实例可重建
+    let mut factory_manager = CustomCommandManager::new();
+    let factory_id = factory_manager
+      .register_transaction(
+        "MYTXN2",
+        Some(Arc::new(|| Box::new(DemoProc { id: 0 }))),
+        None,
+        None,
+      )
+      .unwrap();
+    assert_eq!(factory_id, 0);
+    let factory_txn = factory_manager
+      .try_get_custom_transaction_procedure(factory_id)
+      .unwrap();
+    let built = (factory_txn.factory.expect("factory"))();
+    assert_eq!(built.id(), factory_id);
 
     let proc_id = manager
       .register_procedure("MYPROC", None, Some(docs("MYPROC")))

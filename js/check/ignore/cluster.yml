@@ -552,8 +552,8 @@
         - CreateCheckpointManager
     - libs/cluster/SessionParseStateExtensions.cs
     - libs/cluster/Session/ChunkedRecordReassembler.cs
-    - libs/cluster/Session/ClusterCommandInfo.cs
-    - libs/cluster/Session/ClusterCommands.cs
+    - libs/cluster/Session/ClusterCommands.cs:
+        - ProcessClusterCommands
     - libs/cluster/Session/ClusterKeyIterationFunctions.cs
     - libs/cluster/Session/ClusterSession.cs:
         - Send
@@ -561,43 +561,41 @@
         - SetUserHandle
         - UnsafeBumpAndWaitForEpochTransitionAsync
         - UnsafeSetConfig
-    - libs/cluster/Session/FailoverCommand.cs
     - libs/cluster/Session/MigrateCommand.cs
     - libs/cluster/Session/RangeIndexMigrationReceiveSession.cs
-    - libs/cluster/Session/ReplicaOfCommand.cs
     - libs/cluster/Session/RespClusterBasicCommands.cs:
         - NetworkClusterBumpEpoch
-        - NetworkClusterEndpoint
-        - NetworkClusterForget
-        - NetworkClusterHelp
         - NetworkClusterInfo
-        - NetworkClusterMeet
         - NetworkClusterMyId
-        - NetworkClusterMyParentId
         - NetworkClusterNodes
-        - NetworkClusterPublish
-        - NetworkClusterSetConfigEpoch
         - NetworkClusterShards
         - WriteAsciiLargeRespString
         - WriteLargeAsciiDirectString
-    - libs/cluster/Session/RespClusterFailoverCommands.cs
-    - libs/cluster/Session/RespClusterMigrateCommands.cs
+    - libs/cluster/Session/RespClusterMigrateCommands.cs:
+        - CompleteChunkedRecordReassembly
+        - NetworkClusterMigrate
+        - Process
+        - TrackImportProgress
     - libs/cluster/Session/RespClusterReplicationCommands.cs:
         - LogPrimaryStream
         - NetworkClusterAdvanceTime
         - NetworkClusterAttachSync
         - NetworkClusterBeginReplicaRecover
-        - NetworkClusterFlushAll
         - NetworkClusterInitiateReplicaSync
         - NetworkClusterMlogKeyTime
-        - NetworkClusterReplicas
-        - NetworkClusterReplicate
         - NetworkClusterReserve
         - NetworkClusterSendCheckpointFileSegment
         - NetworkClusterSendCheckpointMetadata
         - NetworkClusterSnapshotData
         - NetworkClusterSync
-    - libs/cluster/Session/RespClusterSlotManagementCommands.cs
+    - libs/cluster/Session/RespClusterSlotManagementCommands.cs:
+        - NetworkClusterAddSlotsRange
+        - NetworkClusterCountKeysInSlot
+        - NetworkClusterDelKeysInSlotRange
+        - NetworkClusterDelSlotsRange
+        - NetworkClusterGetKeysInSlot
+        - NetworkClusterKeySlot
+        - NetworkClusterSlots
     - libs/cluster/Session/SlotVerifiedState.cs
     - libs/cluster/Session/TransferOption.cs
     - libs/cluster/Session/SlotVerification/ClusterSlotVerify.cs:

@@ -1105,20 +1105,16 @@ mod tests {
     assert_eq!(dest, -1);
     assert_eq!(opts.unwrap().radius, f64::INFINITY);
 
-    // "Infinity" 全拼同样在扩展白名单内（wbase::num::strict_f64 统一口径）
+    // "Infinity" 全拼不在 TryReadInfinity 白名单（仅 inf/+inf/-inf）→ not a valid radius
     let state = state_of(&[b"member", b"Infinity", b"KM"]);
     let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
-    assert!(
-      err.is_none(),
-      "unexpected: {:?}",
-      err.map(|e| String::from_utf8_lossy(&e).into_owned())
-    );
-    assert_eq!(opts.unwrap().radius, f64::INFINITY);
+    assert!(opts.is_none());
+    assert_eq!(err.as_deref(), Some(RESP_ERR_NOT_VALID_RADIUS.as_bytes()));
 
-    // 负 infinity 半径依旧拒绝（仅拒绝负半径，非词形拒绝）
+    // 负 infinity 全拼同样词形拒绝（未过词形门，走不到负半径判定）
     let state = state_of(&[b"member", b"-infinity", b"KM"]);
     let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
     assert!(opts.is_none());
-    assert_eq!(err.as_deref(), Some(RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes()));
+    assert_eq!(err.as_deref(), Some(RESP_ERR_NOT_VALID_RADIUS.as_bytes()));
   }
 }

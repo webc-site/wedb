@@ -28,17 +28,20 @@ use std::{
 use compio::{
   net::TcpListener,
   runtime::{CancelToken, Cancelled, FutureExt, Runtime, spawn},
+  time,
 };
 use crossfire::oneshot::oneshot;
 use log::{debug, error, info};
 use parking_lot::Mutex;
 use wbase::pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool};
+use wmetric::{GarnetServerMonitor, LatencyMetricsType, MonitorIterationInputs};
 
 use crate::{
   args::ServerArgs,
   cluster_provider::{ClusterProvider, NoopClusterProvider},
   endpoint::ServerEndpoint,
   net::{ConnectionStream, handler::NetworkHandler, socket_opt::bind_reuseport, uds::UdsGuard},
+  servers::consumer_registry::ConsumerRegistry,
   shutdown::ShutdownCoordinator,
   signal::wait_shutdown_signal,
   traits::SessionProviderFace,
@@ -59,6 +62,8 @@ pub struct ServerBootstrap<A, C = NoopClusterProvider> {
   network_buffer_size: usize,
   network_send_throttle_max: usize,
   banner: String,
+  /// 指标采样频率秒数（0 = 禁用监视器任务；C# MetricsSamplingFrequency）
+  metrics_sampling_frequency: u64,
 }
 
 impl<A: ServerArgs> ServerBootstrap<A, NoopClusterProvider> {
@@ -70,6 +75,7 @@ impl<A: ServerArgs> ServerBootstrap<A, NoopClusterProvider> {
       network_buffer_size: DEFAULT_BUFFER_SIZE,
       network_send_throttle_max: 8,
       banner: "WeDB 数据库服务".into(),
+      metrics_sampling_frequency: 0,
     }
   }
 }
@@ -86,7 +92,14 @@ impl<A: ServerArgs, C: ClusterProvider> ServerBootstrap<A, C> {
       network_buffer_size: self.network_buffer_size,
       network_send_throttle_max: self.network_send_throttle_max,
       banner: self.banner,
+      metrics_sampling_frequency: self.metrics_sampling_frequency,
     }
+  }
+
+  /// 设置指标采样频率秒数（0 = 禁用；C# MetricsSamplingFrequency）
+  pub fn metrics_sampling_frequency(mut self, seconds: u64) -> Self {
+    self.metrics_sampling_frequency = seconds;
+    self
   }
 
   /// 设置服务启动横幅/标识名称
@@ -160,10 +173,14 @@ impl<A: ServerArgs, C: ClusterProvider> ServerBootstrap<A, C> {
     let args = self.args;
     let network_buffer_size = self.network_buffer_size;
     let network_send_throttle_max = self.network_send_throttle_max;
+    let metrics_sampling_frequency = self.metrics_sampling_frequency;
     let assemble = session_provider_factory;
 
     rt.block_on(async move {
       let session_provider = assemble(&args, &cluster_provider)?;
+
+      // 活跃消费者注册表（监视器采样源；构造服务器前取用）
+      let registry = session_provider.consumer_registry();
 
       // 4. 基于配置与端点构造 GarnetServer
       let endpoints = args.node_args().endpoints();
@@ -174,9 +191,22 @@ impl<A: ServerArgs, C: ClusterProvider> ServerBootstrap<A, C> {
         session_provider,
       );
 
-      // 5. 启动服务并阻塞监听系统停机信号
+      // 5. 启动指标监视器采样循环（C# StoreWrapper 构造 monitor 于
+      //    MetricsSamplingFrequency > 0 时；StoreWrapper.Start()（宿主启动
+      //    序列）→ monitor?.Start() 拉起 MainMonitorTaskAsync 后台采样）
+      if metrics_sampling_frequency > 0
+        && let Some(registry) = registry
+      {
+        start_server_monitor(
+          server.shutdown_coordinator().clone(),
+          registry,
+          metrics_sampling_frequency,
+        );
+      }
+
+      // 6. 启动服务并阻塞监听系统停机信号
       let run_res = server.run_until_shutdown(threads, &banner).await;
-      // 6. 停机清理与集群配置持久化刷盘
+      // 7. 停机清理与集群配置持久化刷盘
       if cluster_provider.is_cluster_enabled() {
         cluster_provider.flush_config();
       }
@@ -568,6 +598,46 @@ pub fn run_node<P: SessionProviderFace + 'static>(
     .banner(banner)
     .run_with_provider(session_provider)
 }
+
+/// 启动服务器指标监视器采样循环
+///
+/// libs/server/Metrics/GarnetServerMonitor.cs:Start（宿主启动序列
+/// StoreWrapper.Start() → monitor?.Start()，频率 > 0 才拉起后台采样任务）。
+/// 监视器随宿主进程级安装（dispose 归并直取），停机协调器充当
+/// C# CancellationToken——stop 即取消采样循环
+fn start_server_monitor(
+  coordinator: ShutdownCoordinator,
+  registry: Arc<ConsumerRegistry>,
+  frequency_secs: u64,
+) {
+  let monitor = Arc::new(GarnetServerMonitor::new(frequency_secs, true, false, false));
+  monitor.install_global();
+
+  spawn(async move {
+    monitor
+      .main_monitor_task_async(
+        time::sleep,
+        || coordinator.is_stopped(),
+        || MonitorIterationInputs {
+          servers: vec![registry.monitor_sample()],
+          reset_all_session_latency: Box::new(no_reset_session_latency),
+          reset_active_sessions: Box::new(no_reset_sessions),
+          reset_active_command_stats: Box::new(no_reset_command_stats),
+          reset_session_latency: Box::new(no_reset_latency_event),
+        },
+      )
+      .await;
+  })
+  .detach();
+  info!("服务器指标监视器已启动: 采样频率 {frequency_secs}s");
+}
+
+/// 无活跃会话复位回调（C# ActiveConsumers 遍历复位；rust 会话体独占于
+/// 连接任务，会话级延迟/统计复位随 dispose 域承接——fn 指针零捕获形态）
+fn no_reset_sessions() {}
+fn no_reset_command_stats() {}
+fn no_reset_session_latency() {}
+fn no_reset_latency_event(_: LatencyMetricsType) {}
 
 struct TcpAcceptContext<P: SessionProviderFace> {
   core_id: usize,

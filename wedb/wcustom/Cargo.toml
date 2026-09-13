@@ -11,6 +11,7 @@ description = "Custom commands and extensions registry for wedb"
 gxhash.workspace = true
 parking_lot.workspace = true
 wresp.workspace = true
+wtxn.workspace = true
 wval.workspace = true
 
 [lints]

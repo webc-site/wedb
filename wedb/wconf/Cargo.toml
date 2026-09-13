@@ -15,7 +15,7 @@ bitflags.workspace = true
 itoa.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-wbase = { workspace = true }
+wbase = { workspace = true, features = ["hash_slot"] }
 wresp.workspace = true
 
 [dev-dependencies]

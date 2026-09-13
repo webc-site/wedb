@@ -762,7 +762,6 @@
         - WatchTestWithSetWithEtag
         - updateKey
     - test/standalone/Garnet.test.vectorset/ConcurrentVaddDiskSpillTests.cs:
-        - ConcurrentVaddToSpilledSetMakesProgress
         - Setup
         - TearDown
     - test/standalone/Garnet.test.vectorset/RespVectorSetTests.cs:
@@ -834,7 +833,8 @@
         - WrongTypeForVectorSetOpsOnNonVectorSetKeys
     - test/standalone/Garnet.test.vectorset/TestProjectSetup.cs:
         - SetPort
-    - test/standalone/Garnet.test.vectorset/VectorCleanupVsResetRaceTests.cs
+    - test/standalone/Garnet.test.vectorset/VectorCleanupVsResetRaceTests.cs:
+        - GetStoreWrapper
     - test/standalone/Garnet.test.vectorset/VectorElementKeyTests.cs
     - test/standalone/Garnet.test.vectorset/VectorSetOverwriteTests.cs
     - test/standalone/Garnet.test.vectorset/VectorSetRecallSmokeTests.cs:

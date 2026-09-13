@@ -27,6 +27,10 @@ pub enum Error {
   #[error("地址解析失败: {0}")]
   AddrParse(String),
 
+  /// 日志器装配失败（C# GarnetServer 构造器日志装配段；log SetLoggerError 场景）
+  #[error("日志器安装失败: {0}")]
+  LogInstall(String),
+
   #[error("服务已停机")]
   Stopped,
 }

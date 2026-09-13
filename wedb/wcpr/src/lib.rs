@@ -11,7 +11,9 @@ pub use error::{Error, Result};
 /// 杜绝「图省事传 None」的误用面
 pub use index_ckpt::{IndexCkptHeader, read_index_checkpoint_truncated, write_index_checkpoint};
 pub use manager::{
-  CheckpointManager, CprRecover, CprStore, RecoveredCheckpoint, next_token, next_token_above,
+  CprRecover, CprStore, RecoveredCheckpoint, create_checkpoint, create_checkpoint_with_token,
+  find_latest_checkpoint, list_checkpoints, next_token, next_token_above, purge_all,
+  purge_checkpoint, purge_outdated, recover, recover_checkpoint_components, recover_latest,
   take_index_checkpoint,
 };
 pub use meta::{
