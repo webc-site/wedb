@@ -1,0 +1,15 @@
+node_modules
+.codegraph
+*.lock
+*.scip
+/sh
+/garnet
+
+# moon
+.moon/cache
+.moon/docker
+.bench_run/
+
+
+# check.js 缺失明细产物
+/check/miss/

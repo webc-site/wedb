@@ -1,0 +1,27 @@
+[package]
+name = "whll"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/whll"
+description = "High performance HyperLogLog cardinality estimation algorithm"
+keywords = ["hyperloglog", "cardinality", "probabilistic-data-structures"]
+categories = ["data-structures", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags = { workspace = true }
+wbase = { workspace = true, features = ["hash"] }
+
+[dev-dependencies]
+aok = { workspace = true }

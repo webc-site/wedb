@@ -1,0 +1,31 @@
+[package]
+name = "wreviv"
+version = "0.1.2"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wreviv"
+description = "Size-binned free record pool for slot revivification"
+keywords = ["memory-pool", "revivification", "free-list", "recycling", "storage"]
+categories = ["memory-management", "data-structures", "concurrency", "database-implementations", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["addr"] }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+gxhash = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+
+[lints]
+workspace = true

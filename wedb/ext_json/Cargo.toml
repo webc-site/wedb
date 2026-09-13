@@ -1,0 +1,31 @@
+[package]
+name = "ext_json"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/ext_json"
+description = "RedisJSON extension: JSON commands, JSONPath queries, and object integration"
+keywords = ["json", "redis", "jsonpath", "extension"]
+categories = ["database-implementations", "encoding"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+sonic-rs.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+
+
+[lints]
+workspace = true

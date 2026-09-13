@@ -1,0 +1,31 @@
+[package]
+name = "ext_roaring"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/ext_roaring"
+description = "Roaring Bitmap extension: Redis-compatible bitmap operations"
+keywords = ["roaring-bitmap", "bitmap", "redis", "extension"]
+categories = ["data-structures", "database-implementations"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+roaring = "0.11.5"
+thiserror.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+
+
+[lints]
+workspace = true

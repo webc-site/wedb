@@ -1,0 +1,115 @@
+title: 嵌入式键值存储性能评测
+subtitle: wkv 与 wbftree 对比主流嵌入式引擎综合性能评测
+system_info_title: 测试环境
+cpu: CPU 型号
+cores: CPU 核心数
+arch: 系统架构
+memory: 内存容量
+disk_type: 磁盘类型
+os: 操作系统
+kernel: 内核版本
+cores_format: "{physical} 物理核心 / {logical} 逻辑核心"
+params_title: 评测配置
+key_size: 键大小
+value_size: 值大小
+cache_size: 缓存大小
+elements: 基准数据量
+comparison_title: 性能评测
+metric_col: 指标
+param_col: 配置项
+val_col: 设定值
+hardware_col: 硬件项
+spec_col: 规格
+benchmarks:
+  bulk_load: 批量导入
+  individual_writes: 单条逐笔写入
+  batch_writes: 事务批量写入
+  nosync_writes: 异步批量写入
+  len: 记录总数
+  random_reads: 随机点查
+  random_range_reads: 范围扫描
+  random_reads_4: 4 线程随机读
+  random_reads_8: 8 线程随机读
+  random_reads_16: 16 线程随机读
+  random_reads_32: 32 线程随机读
+  removals: 记录删除
+  uncompacted_size: 整理前磁盘占用
+  compacted_size: 整理后磁盘占用
+  memory: 内存占用
+  peak_memory: 内存占用
+notes: 性能指标第一行为相对倍数（以同项最低性能为 1.00X 基准，越大越优），第二行为实际磁盘吞吐；随机点查与范围扫描取 3 次运行中位数；各引擎缓存大小尽可能统一配置。
+source_code: 评测源码位于
+chart:
+  write_section: 写入吞吐对比 (吞吐越高越优)
+  read_section: 读取吞吐对比 (吞吐越高越优)
+  space_section: 存储与内存占用 (越小越优)
+  baseline: 基准
+  lead: 领先
+  multiplier: 倍数
+  throughput: 吞吐
+params_desc_title: 配置参数与统计说明
+params_desc:
+  - label: 键值规格
+    desc: 24B 键 / 150B 值，二进制键与结构体载荷。
+  - label: 缓存预算
+    desc: 统一配置 128 MiB，统筹约束各引擎读缓存 (Block Cache)、缓冲池与写缓冲 (MemTable)。
+  - label: 负载规模
+    desc: 全量导入 6,000,000 条记录 (~1.04 GiB 原始写入)，数据量超出内存缓存 10~30 倍。
+  - label: 写入场景
+    desc: 采用 RocksDB 默认持久化 (WAL 开启，内核缓冲，不逐笔 fsync)；评测单条逐笔、事务批量 (1,000条/批) 与异步批量。
+  - label: 查询测试
+    desc: 随机点查 100,000 项，范围扫描 5,000 次 (步长 10)，多线程覆盖 4~32 线程，取 3 轮中位数。
+  - label: 空间与内存
+    desc: 磁盘统计落盘与紧缩后大小；内存记录测试完成后的常驻物理内存 (RSS / Footprint)。
+durability_title: 存储架构与持久化说明
+durability_desc: >-
+  基准规范：各引擎默认持久化策略统一对标 **RocksDB 官方默认**（启用 WAL、`sync = false`、操作系统页缓存缓冲，进程崩溃安全，不逐笔硬件 fsync；换页、检查点或显式 flush 时刷盘）。
+durability_col_engine: 引擎
+durability_col_arch: 存储架构
+durability_col_sync: 默认事务持久化
+durability_col_bulk: 批量导入持久化
+durability_col_nosync: 严格物理落盘 (可选 Sync 模式)
+durability_col_verify: 数据校验与一致性
+durability_li:
+  - engine: wkv
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wkv
+    arch: Append-Only 混合日志环形缓冲 (HybridLog 内存环形页 + 分段文件存储)
+    sync: 写入 HybridLog 内存环形页与日志缓冲，不逐笔调用 flush_all 物理 fsync，满页后台流水线分段落盘
+    bulk: 环形缓冲区流式流水线换页，全部写入完成后统一执行 flush_all 与设备物理 sync
+    nosync: 可选严格硬件阻塞落盘 (set_sync(true))，每次 commit 执行 flush_all 强制设备物理 sync
+    verify: CRC32 全包校验 + Epoch 安全无锁并发保护
+  - engine: wbftree
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wbftree
+    arch: 缓存页缓冲池 (Cache-Buffer B-Tree 架构)
+    sync: 写入 Cache-Buffer 缓冲池，内存脏页在缓冲池中累积并批量合并调度落盘，不逐笔调用硬件 fsync
+    bulk: 批量脏页合并调度落盘，结束统一执行 flush
+    nosync: 内存页缓存快速写入，依托缓冲池淘汰与快照落盘
+    verify: 页面级 CRC32 校验 + Snapshot 只读隔离
+  - engine: redb
+    url: https://github.com/cberner/redb
+    arch: 写时复制 B-Tree (Copy-on-Write / MVCC)
+    sync: 采用内核缓冲模式 (Durability::None)，数据写入操作系统内核缓存，跳过逐笔物理 fsync
+    bulk: 单次大事务批量写入，全量写入完成后统一执行一次 fsync
+    nosync: 可选严格硬件阻塞落盘 (Durability::Immediate)，每次 commit 阻塞执行操作系统物理 fsync
+    verify: 内置页面校验和 + ACID 事务崩溃一致性
+  - engine: fjall
+    url: https://github.com/fjall-rs/fjall
+    arch: 单写者 LSM-Tree 架构
+    sync: 写入 WAL 内存/内核缓冲 (PersistMode::Buffer)，不逐笔调用磁盘物理 fsync
+    bulk: 单写者事务流式追加，仅在全量写入完成后的最终 commit 执行一次物理 fsync
+    nosync: 可选严格硬件阻塞落盘 (PersistMode::SyncAll)，每次 commit 阻塞执行操作系统物理 fsync
+    verify: 数据块 CRC32 校验和 + WAL 崩溃安全恢复
+  - engine: rocksdb
+    url: https://github.com/facebook/rocksdb
+    arch: LSM-Tree + 原生 WriteBatch 批量提交
+    sync: 写入 WAL 文件与 MemTable，操作系统内核缓冲 (WriteOptions 默认 sync=false)，不逐笔调用硬件 fsync
+    bulk: WriteBatch 流式分批写入，全量写入完成后的最终 commit 触发落盘并同步
+    nosync: 可选严格硬件阻塞落盘 (WriteOptions::set_sync(true))，每次 commit 强制 WAL 物理 fsync
+    verify: SSTable 数据块与 WAL 内置 Checksum 校验
+  - engine: sqlite
+    url: https://www.sqlite.org
+    arch: 标准 B-Tree + 预写日志 (WAL 模式)
+    sync: 采用 WAL 模式官方推荐配置 (PRAGMA synchronous = NORMAL)，WAL 写入由操作系统内核缓冲，不逐笔调用硬件 fsync
+    bulk: 单次大事务批量插入，全量完成后通过 wal_checkpoint(TRUNCATE) 刷盘
+    nosync: 可选严格物理落盘 (PRAGMA synchronous = FULL)，每次 commit 强制 WAL 硬件物理 fsync
+    verify: 页面级校验 + WAL 事务原子性与断电回滚保证

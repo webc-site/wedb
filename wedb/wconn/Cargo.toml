@@ -1,0 +1,36 @@
+[package]
+name = "wconn"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wconn"
+description = "Network connection and session management: RESP protocol parser and client API"
+keywords = ["network", "connection", "session", "resp"]
+categories = ["network-programming", "database-implementations"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
+crossfire = "3.1.20"
+itoa.workspace = true
+log.workspace = true
+thiserror.workspace = true
+wresp.workspace = true
+zmij.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+
+
+[lints]
+workspace = true

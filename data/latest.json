@@ -1,0 +1,36 @@
+{
+  "commit": "f7872561",
+  "message": ".",
+  "date": "2026-09-12 01:35:28",
+  "author": "x-at-01",
+  "metrics": {
+    "wbftree_delete": {
+      "ops": 674548.3868195565,
+      "latency_us": 1.48247334
+    },
+    "wbftree_insert": {
+      "ops": 644415.8784002841,
+      "latency_us": 1.5517929236666665
+    },
+    "wbftree_read": {
+      "ops": 358633.4273251774,
+      "latency_us": 2.7883625
+    },
+    "wbftree_scan_10": {
+      "ops": 295317.0163200452,
+      "latency_us": 3.3861915999999996
+    },
+    "wkv_delete": {
+      "ops": 1835221.5499642554,
+      "latency_us": 0.54489334
+    },
+    "wkv_get_hot": {
+      "ops": 1957523.3485065536,
+      "latency_us": 0.5108495900000001
+    },
+    "wkv_upsert": {
+      "ops": 3806058.1821013293,
+      "latency_us": 0.26273902083333334
+    }
+  }
+}

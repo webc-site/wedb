@@ -1,0 +1,23 @@
+[package]
+name = "wmetric"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+coarsetime.workspace = true
+gxhash.workspace = true
+hdrhistogram = "7"
+itoa.workspace = true
+log.workspace = true
+num_enum = "0.7.6"
+parking_lot = { workspace = true, features = ["arc_lock"] }
+thiserror.workspace = true
+wresp.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

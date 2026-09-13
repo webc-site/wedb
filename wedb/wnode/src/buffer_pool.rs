@@ -1,0 +1,349 @@
+//! 网络缓冲区池化管理
+//!
+//! 1:1 对标微软 Garnet LimitedFixedBufferPool 与 NetworkBufferSettings
+//!
+//! 统一管理收发网络缓冲区，避免频繁堆分配与内存抖动。默认块大小 64KB (1 << 16)；
+//! 提供快速借出、RAII 自动归还复用、Purge 清理及统计指标导出。
+//! 采用 crossfire 无锁有界 MPMC 队列架构，彻底消除锁争抢、分片遍历与跨核缓存颠簸。
+
+use std::{
+  mem::forget,
+  ops::{Deref, DerefMut},
+  sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering::Relaxed},
+  },
+};
+
+use crossfire::flavor::{Array, Queue};
+
+/// 默认网络缓冲区大小：64KB
+pub const DEFAULT_BUFFER_SIZE: usize = 1 << 16;
+/// 池内最大常驻闲置缓冲数
+pub const DEFAULT_MAX_POOL_SIZE: usize = 1024;
+
+/// 池化借出的缓冲区句柄（RAII 自动归还）
+pub struct PooledBuffer {
+  buffer: Option<Vec<u8>>,
+  pool: Arc<LimitedFixedBufferPool>,
+}
+
+impl PooledBuffer {
+  /// 获取底层切片引用
+  #[inline]
+  pub fn as_slice(&self) -> &[u8] {
+    self.buffer.as_deref().unwrap_or(&[])
+  }
+
+  /// 获取底层可变切片引用
+  #[inline]
+  pub fn as_mut_slice(&mut self) -> &mut [u8] {
+    self.buffer.as_deref_mut().unwrap_or(&mut [])
+  }
+
+  /// 获取底层 Vec 引用
+  #[inline]
+  pub fn vec_ref(&self) -> &Vec<u8> {
+    self.buffer.as_ref().expect("pooled buffer active")
+  }
+
+  /// 获取底层可变 Vec 引用
+  #[inline]
+  pub fn vec_mut(&mut self) -> &mut Vec<u8> {
+    self.buffer.as_mut().expect("pooled buffer active")
+  }
+
+  /// 提取底层 Vec 并放弃自动归还池
+  pub fn take(mut self) -> Vec<u8> {
+    self.pool.borrowed_count.fetch_sub(1, Relaxed);
+    let buf = self.buffer.take().unwrap_or_default();
+    forget(self);
+    buf
+  }
+
+  /// 临时提取底层 Vec 用于所有权转移（如异步 I/O），后续须通过 [`Self::set_buffer`] 归还
+  #[inline]
+  pub fn take_buffer(&mut self) -> Option<Vec<u8>> {
+    self.buffer.take()
+  }
+
+  /// 归还或更新底层 Vec
+  #[inline]
+  pub fn set_buffer(&mut self, buf: Vec<u8>) {
+    self.buffer = Some(buf);
+  }
+}
+
+impl Deref for PooledBuffer {
+  type Target = Vec<u8>;
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    self.vec_ref()
+  }
+}
+
+impl DerefMut for PooledBuffer {
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    self.vec_mut()
+  }
+}
+
+impl Drop for PooledBuffer {
+  fn drop(&mut self) {
+    if let Some(buf) = self.buffer.take() {
+      self.pool.return_buffer(buf);
+    } else {
+      self.pool.borrowed_count.fetch_sub(1, Relaxed);
+    }
+  }
+}
+
+/// 固定大小网络缓冲池（基于 crossfire::flavor::Array 纯原子无锁架构）
+pub struct LimitedFixedBufferPool {
+  queue: Array<Vec<u8>>,
+  buffer_size: usize,
+  max_pool_size: usize,
+  allocated_count: AtomicUsize,
+  pub(crate) borrowed_count: AtomicUsize,
+}
+
+impl LimitedFixedBufferPool {
+  /// 创建网络缓冲池
+  pub fn new(buffer_size: usize, max_pool_size: usize) -> Arc<Self> {
+    let size = if buffer_size == 0 {
+      DEFAULT_BUFFER_SIZE
+    } else {
+      buffer_size
+    };
+    let cap = if max_pool_size == 0 {
+      DEFAULT_MAX_POOL_SIZE
+    } else {
+      max_pool_size
+    };
+
+    Arc::new(Self {
+      queue: Array::new(cap),
+      buffer_size: size,
+      max_pool_size: cap,
+      allocated_count: AtomicUsize::new(0),
+      borrowed_count: AtomicUsize::new(0),
+    })
+  }
+
+  /// 借出一个指定最小容量的缓冲区
+  pub fn get(self: &Arc<Self>, min_size: usize) -> PooledBuffer {
+    self.borrowed_count.fetch_add(1, Relaxed);
+    let target_size = min_size.max(self.buffer_size);
+
+    let buf = if target_size == self.buffer_size {
+      self.queue.pop()
+    } else {
+      None
+    };
+
+    let buffer = match buf {
+      Some(mut v) => {
+        v.clear();
+        v
+      }
+      None => {
+        self.allocated_count.fetch_add(1, Relaxed);
+        Vec::with_capacity(target_size)
+      }
+    };
+
+    PooledBuffer {
+      buffer: Some(buffer),
+      pool: Arc::clone(self),
+    }
+  }
+
+  /// 归还缓冲区到底层池
+  pub fn return_buffer(&self, mut buf: Vec<u8>) {
+    self.borrowed_count.fetch_sub(1, Relaxed);
+    if buf.capacity() == self.buffer_size {
+      buf.clear();
+      let _ = self.queue.push(buf);
+    }
+  }
+
+  /// 清空池内所有闲置缓冲区
+  pub fn purge(&self) {
+    while self.queue.pop().is_some() {}
+  }
+
+  /// 当前池中闲置可用缓冲区数量
+  #[inline]
+  pub fn free_count(&self) -> usize {
+    self.queue.len()
+  }
+
+  /// 当前池中闲置可用缓冲区数量（别名）
+  #[inline]
+  pub fn pool_size(&self) -> usize {
+    self.queue.len()
+  }
+
+  /// 当前借出中的缓冲区数量
+  #[inline]
+  pub fn borrowed_count(&self) -> usize {
+    self.borrowed_count.load(Relaxed)
+  }
+
+  /// 累计分配的新缓冲区总数
+  #[inline]
+  pub fn allocated_count(&self) -> usize {
+    self.allocated_count.load(Relaxed)
+  }
+
+  /// 最大常驻闲置缓冲数
+  #[inline]
+  pub fn max_pool_size(&self) -> usize {
+    self.max_pool_size
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::thread;
+
+  use super::*;
+
+  #[test]
+  fn test_buffer_pool_reuse_and_purge() {
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    assert_eq!(pool.allocated_count(), 0);
+    assert_eq!(pool.free_count(), 0);
+    assert_eq!(pool.pool_size(), 0);
+
+    {
+      let mut b1 = pool.get(512);
+      assert_eq!(pool.allocated_count(), 1);
+      assert_eq!(pool.borrowed_count(), 1);
+      b1.extend_from_slice(b"hello world");
+      assert_eq!(b1.as_slice(), b"hello world");
+    }
+
+    // Drop 后自动归还
+    assert_eq!(pool.borrowed_count(), 0);
+    assert_eq!(pool.free_count(), 1);
+    assert_eq!(pool.pool_size(), 1);
+
+    // 再次借出应复用
+    {
+      let b2 = pool.get(1024);
+      assert_eq!(pool.allocated_count(), 1);
+      assert_eq!(pool.free_count(), 0);
+      assert!(b2.is_empty());
+    }
+
+    assert_eq!(pool.free_count(), 1);
+    pool.purge();
+    assert_eq!(pool.free_count(), 0);
+    assert_eq!(pool.pool_size(), 0);
+  }
+
+  #[test]
+  fn test_buffer_pool_take_and_drop() {
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    let b = pool.get(1024);
+    assert_eq!(pool.borrowed_count(), 1);
+
+    let vec = b.take();
+    assert_eq!(pool.borrowed_count(), 0);
+    assert_eq!(pool.free_count(), 0);
+    assert_eq!(vec.capacity(), 1024);
+  }
+
+  #[test]
+  fn test_buffer_pool_take_buffer_and_set_buffer() {
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    let mut b = pool.get(1024);
+    assert_eq!(pool.borrowed_count(), 1);
+
+    let mut inner = b.take_buffer().expect("buffer should exist");
+    assert!(b.as_slice().is_empty());
+    inner.extend_from_slice(b"ownership transferred");
+    b.set_buffer(inner);
+
+    assert_eq!(b.as_slice(), b"ownership transferred");
+    drop(b);
+
+    assert_eq!(pool.borrowed_count(), 0);
+    assert_eq!(pool.free_count(), 1);
+  }
+
+  #[test]
+  fn test_buffer_pool_dropped_without_set_buffer() {
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    let mut b = pool.get(1024);
+    assert_eq!(pool.borrowed_count(), 1);
+
+    let _inner = b.take_buffer().expect("buffer should exist");
+    drop(b);
+
+    // 析构时若未归还底层 Vec，也应正确扣减借出计数，避免 borrowed 泄漏
+    assert_eq!(pool.borrowed_count(), 0);
+    assert_eq!(pool.free_count(), 0);
+  }
+
+  #[test]
+  fn test_buffer_pool_oversized_allocation() {
+    let pool = LimitedFixedBufferPool::new(1024, 16);
+    {
+      let b = pool.get(2048);
+      assert_eq!(pool.allocated_count(), 1);
+      assert_eq!(pool.borrowed_count(), 1);
+      assert!(b.capacity() >= 2048);
+    }
+    // 超大缓冲区不进入定长池，直接 drop
+    assert_eq!(pool.borrowed_count(), 0);
+    assert_eq!(pool.free_count(), 0);
+  }
+
+  #[test]
+  fn test_buffer_pool_capacity_limit() {
+    // 验证池容量有界，超出 max_pool_size 的归还被丢弃
+    let pool = LimitedFixedBufferPool::new(1024, 2);
+    let b1 = pool.get(1024);
+    let b2 = pool.get(1024);
+    let b3 = pool.get(1024);
+    assert_eq!(pool.allocated_count(), 3);
+    assert_eq!(pool.borrowed_count(), 3);
+
+    drop(b1);
+    drop(b2);
+    assert_eq!(pool.free_count(), 2);
+
+    // 第三个归还时池已满，应丢弃并不增加 free_count
+    drop(b3);
+    assert_eq!(pool.free_count(), 2);
+    assert_eq!(pool.borrowed_count(), 0);
+  }
+
+  #[test]
+  fn test_buffer_pool_multithread_contention() {
+    let pool = LimitedFixedBufferPool::new(1024, 64);
+    let mut handles = Vec::new();
+
+    for _ in 0..4 {
+      let p = Arc::clone(&pool);
+      handles.push(thread::spawn(move || {
+        for _ in 0..100 {
+          let mut b = p.get(1024);
+          b.extend_from_slice(b"worker data");
+          assert_eq!(b.as_slice(), b"worker data");
+        }
+      }));
+    }
+
+    for h in handles {
+      h.join().unwrap();
+    }
+
+    assert_eq!(pool.borrowed_count(), 0);
+    pool.purge();
+    assert_eq!(pool.free_count(), 0);
+  }
+}

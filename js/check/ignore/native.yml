@@ -1,0 +1,28 @@
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_are_all_threads_in_next_version
+        - bftree_cpr_snapshot
+        - bftree_create
+        - bftree_delete
+        - bftree_insert
+        - bftree_new_from_cpr_snapshot
+        - bftree_read
+        - bftree_scan_drop
+        - bftree_scan_next
+        - bftree_scan_with_count
+        - bftree_scan_with_end_key
+  理由: C# P/Invoke 原生动态库导入声明，Rust 原生直接依赖并调用 bf_tree crate，无需 FFI 胶水层
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_drop
+  理由: C# P/Invoke 原生动态库导入声明，Rust 原生直接依赖并调用 bf_tree crate，由 Drop trait 自动释放，无需 FFI
+    胶水层
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_noop
+  理由: C# P/Invoke 跨语言边界开销微基准测试函数声明，Rust 原生调用无跨语言边界开销，无需实现
+- 文件:
+    - libs/native/bftree-garnet/BfTreeService.cs:
+        - DrainScanIteratorToList
+  理由: C# 内部私有迭代器收集至列表辅助方法，Rust 侧由 scan_with_count / scan_with_end_key 内部复用
+    ScanRecord::sink 承接，无需独立实现

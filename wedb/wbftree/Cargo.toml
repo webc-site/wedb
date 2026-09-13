@@ -1,0 +1,41 @@
+[package]
+name = "wbftree"
+version = "0.1.4"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wbftree"
+description = "BfTree ordered range index with multi-tree registry and chunked migration"
+keywords = ["bftree", "range-index", "ordered-index", "storage-engine", "key-value"]
+categories = ["database-implementations", "data-structures", "asynchronous", "caching", "concurrency"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bf-tree = { workspace = true }
+fastrand = { workspace = true }
+log.workspace = true
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["align", "backoff", "base32", "striped", "time"] }
+wepoch.workspace = true
+whasher = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+fastrand = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["time"]
+
+[lints]
+workspace = true

@@ -1,0 +1,26 @@
+[package]
+name = "wbitmap"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wbitmap"
+description = "High performance bitmap and bitfield operations"
+keywords = ["bitmap", "bitfield"]
+categories = ["data-structures", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+wresp = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }

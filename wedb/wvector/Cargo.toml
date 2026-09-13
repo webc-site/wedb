@@ -1,0 +1,26 @@
+[package]
+name = "wvector"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+bytemuck = { version = "1.25.2", features = ["must_cast"] }
+crossfire = "3.1.20"
+diskann = "0.59.0"
+diskann-providers = "0.59.0"
+diskann-quantization = { version = "0.59.0", features = ["flatbuffers"] }
+diskann-utils = "0.59.0"
+diskann-vector = "0.59.0"
+enum_dispatch = "0.3.13"
+gxhash.workspace = true
+parking_lot.workspace = true
+rand = "0.9.5"
+smallvec.workspace = true
+thiserror.workspace = true
+whasher.workspace = true
+
+[dev-dependencies]
+futures-executor = "0.3.34"

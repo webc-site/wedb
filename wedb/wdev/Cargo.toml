@@ -1,0 +1,42 @@
+[package]
+name = "wdev"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wdev"
+description = "compio-powered async block device abstraction with segmented files"
+keywords = ["async-io", "block-device", "storage", "compio", "segmented"]
+categories = ["asynchronous", "filesystem", "database-implementations", "memory-management", "concurrency"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+futures-util = { workspace = true, default-features = false, features = ["alloc"] }
+gxhash.workspace = true
+libc = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["align", "base32", "map", "pool"] }
+
+[target.'cfg(windows)'.dependencies]
+papaya.workspace = true
+
+[dependencies.compio]
+workspace = true
+features = ["fs", "runtime"]
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

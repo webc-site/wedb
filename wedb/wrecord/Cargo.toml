@@ -1,0 +1,31 @@
+[package]
+name = "wrecord"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wrecord"
+description = "16-byte record format with zero-copy views and SIMD key compare"
+keywords = ["record-format", "zero-copy", "simd", "codec", "storage"]
+categories = ["database-implementations", "encoding", "data-structures", "algorithms", "concurrency"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+log = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["addr", "simd"] }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log = { workspace = true }
+log_init = { workspace = true }
+
+[lints]
+workspace = true

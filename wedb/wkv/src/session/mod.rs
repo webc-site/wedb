@@ -1,0 +1,346 @@
+//! 客户端会话层（对标 C# Garnet Tsavorite cs/src/core/ClientSession/ClientSession.cs）
+//!
+//! 三层拆分（纯移动，行为语义不变）：
+//! - `mod.rs`：会话核心——StoreSession/BatchStoreSession 定义、纪元参与者生命周期、
+//!   context（ns/db）管理与 enter_batch（对标 ClientSession 与 IUnsafeContext/UnsafeContext）；
+//! - [`raw`]：纯引擎 KV 面——一切 `*_raw` 物理键操作、unprotected 变体与批量读
+//!   （对标 ClientSession 的 Upsert/Read/Delete 快慢路径）；
+//! - [`keys`]：键编码域——会话前缀物理键纯函数（对标 C# StorageSession 的键编码）；
+//! - [`collection`]：集合元数据与紧凑编码操作（对标 C# StorageSession/MainObjectStore
+//!   的元数据与分块存储）。
+
+mod collection;
+mod collection_bftree;
+pub mod collection_flattened;
+pub mod collection_hash;
+pub mod consistent_read;
+mod keys;
+mod raw;
+
+use std::{
+  ops::Deref,
+  result::Result as StdResult,
+  sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering::Relaxed},
+  },
+};
+
+pub use collection::RawCollectionRead;
+pub use collection_flattened::{
+  HASH_DOWNGRADE_BYTE_THRESHOLD, HASH_DOWNGRADE_ITEM_THRESHOLD, HASH_UPGRADE_BYTE_THRESHOLD,
+  HASH_UPGRADE_ITEM_THRESHOLD, should_downgrade_hash, should_upgrade_hash,
+};
+pub use consistent_read::{ConsistentReadContext, ConsistentReadFunctions};
+use parking_lot::Mutex;
+use wdev::Device;
+use wepoch::{EpochGuard, Participant};
+use wval::SessionPrefixBuf;
+
+use crate::{
+  error::Result,
+  store::{ObjectRmwNotification, WedbStore},
+};
+
+/// 小哈希紧凑内联最大字段数（激进阈值 32768 项门限）
+pub const HASH_MAX_COMPACT_ENTRIES: usize = HASH_UPGRADE_ITEM_THRESHOLD;
+/// 小哈希紧凑内联单个值最大字节数
+pub const HASH_MAX_COMPACT_VALUE: usize = 1024;
+/// 小集合紧凑内联最大元素数
+pub const SET_MAX_COMPACT_ENTRIES: usize = 32768;
+/// 小集合紧凑内联单个元素最大字节数
+pub const SET_MAX_COMPACT_VALUE: usize = 1024;
+/// 小有序集合紧凑内联最大元素数
+pub const ZSET_MAX_COMPACT_ENTRIES: usize = 32768;
+/// 小有序集合紧凑内联单个元素最大字节数
+pub const ZSET_MAX_COMPACT_MEMBER: usize = 1024;
+/// 紧凑内联编码总大小安全门限（1MB 字节）
+pub const MAX_COMPACT_TOTAL_BYTES: usize = HASH_UPGRADE_BYTE_THRESHOLD;
+
+/// 客户端并发会话句柄（绑定一个 LightEpoch 参与者）
+pub struct StoreSession<D: Device> {
+  pub store: Arc<WedbStore<D>>,
+  pub participant: Participant,
+  pub copy_reads_to_tail: AtomicBool,
+  pub record_elision: AtomicBool,
+  pub namespace: AtomicU64,
+  pub active_db: AtomicU64,
+}
+
+impl<D: Device> StoreSession<D> {
+  /// 创建新的客户端会话（默认 ns=0, db=0）
+  pub fn new(store: Arc<WedbStore<D>>, participant: Participant) -> Self {
+    Self {
+      store,
+      participant,
+      copy_reads_to_tail: AtomicBool::new(false),
+      record_elision: AtomicBool::new(false),
+      namespace: AtomicU64::new(0),
+      active_db: AtomicU64::new(0),
+    }
+  }
+
+  /// 获取当前会话的命名空间
+  #[inline(always)]
+  pub fn namespace(&self) -> u64 {
+    self.namespace.load(Relaxed)
+  }
+
+  /// 获取当前会话的活跃数据库编号
+  #[inline(always)]
+  pub fn active_db(&self) -> u64 {
+    self.active_db.load(Relaxed)
+  }
+
+  /// 获取当前会话的 19 字节前缀缓冲（方案 A）
+  ///
+  /// 前缀由 `namespace`/`active_db` 两个原子变量唯一决定，`SessionPrefixBuf::new` 为
+  /// const fn 纯栈上构造（19 字节零堆分配），按需重算完全免去 RwLock 读锁的原子计数器开销。
+  /// 会话内命令严格串行执行，两个原子变量不存在撕裂风险。
+  #[inline(always)]
+  pub fn session_prefix(&self) -> SessionPrefixBuf {
+    SessionPrefixBuf::new(self.namespace.load(Relaxed), self.active_db.load(Relaxed))
+  }
+
+  /// 原子更新当前会话的命名空间与活跃数据库编号（前缀由 `session_prefix` 按需重算）
+  pub fn set_context(&self, ns: u64, db: u64) {
+    self.namespace.store(ns, Relaxed);
+    self.active_db.store(db, Relaxed);
+  }
+
+  /// 设置当前会话的活跃数据库编号并更新会话前缀
+  #[inline]
+  pub fn set_active_db(&self, db: u64) {
+    self.set_context(self.namespace(), db);
+  }
+
+  /// 设置是否在冷区读取成功后将记录自动提升追加到 Tail (对标 C# Garnet CopyReadsToTail)
+  #[inline]
+  pub fn set_copy_reads_to_tail(&self, enable: bool) {
+    self.copy_reads_to_tail.store(enable, Relaxed);
+  }
+
+  /// 获取当前是否开启冷读提升回 Tail
+  #[inline]
+  pub fn copy_reads_to_tail(&self) -> bool {
+    self.copy_reads_to_tail.load(Relaxed)
+  }
+
+  /// 设置是否开启记录脱钩剔除回收 (对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs:EnableRecordElision)
+  #[inline]
+  pub fn set_record_elision(&self, enable: bool) {
+    self.record_elision.store(enable, Relaxed);
+  }
+
+  /// 获取当前是否开启记录脱钩剔除回收
+  #[inline]
+  pub fn record_elision(&self) -> bool {
+    self.record_elision.load(Relaxed)
+  }
+
+  /// 是否可能发生复活/脱钩类并发记录变更（决定 traceback 前是否加 ephemeral 桶锁）
+  ///
+  /// 对标 Helpers.cs FindOrCreateTagAndTryEphemeralXLock 的 "Ephemeral must lock the bucket before traceback" 协议；
+  /// C# BasicSessionLocker 无条件加锁，此处等效裁剪为仅复活相关配置开启时加锁——复活功能全关时
+  /// 记录槽位绝无被抽走的风险，免锁语义等价
+  #[inline]
+  pub fn ephemeral_lock_enabled(&self) -> bool {
+    self.store.config.enable_revivification || self.record_elision()
+  }
+
+  /// 进入批处理纪元保护上下文（严格对标 libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs:BeginUnsafe）
+  #[inline]
+  pub fn enter_batch(&self) -> BatchStoreSession<'_, D> {
+    let guard = self.participant.enter();
+    BatchStoreSession {
+      session: self,
+      _guard: guard,
+    }
+  }
+
+  /// 获取关联存储引擎引用
+  #[inline]
+  pub fn store(&self) -> &Arc<WedbStore<D>> {
+    &self.store
+  }
+
+  /// 获取关联纪元参与者引用
+  #[inline]
+  pub fn participant(&self) -> &Participant {
+    &self.participant
+  }
+
+  /// 创建一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
+  #[inline]
+  pub fn consistent_read<'a, F: ConsistentReadFunctions + ?Sized>(
+    &'a self,
+    functions: &'a F,
+  ) -> ConsistentReadContext<'a, D, F> {
+    ConsistentReadContext::new(self, functions)
+  }
+}
+
+/// 惰建复用的会话槽位（后台专用扫描会话缓存）
+///
+/// 对标 Garnet 专用扫描 StorageSession（`KeyspaceScanStorageSession` +
+/// `KeyspaceScanLock` / StoreExpiredKeyDeletionDbStorageSession）：取用-归还
+/// 两段式，以所有权取还替代在互斥守卫内跨 await；槽位为空或被并发取走时懒建
+/// 新会话，异常路径丢弃由下次取用重建。
+pub(crate) struct SessionSlot<D: Device> {
+  slot: Mutex<Option<StoreSession<D>>>,
+}
+
+impl<D: Device> SessionSlot<D> {
+  /// 创建空槽位
+  pub(crate) const fn new() -> Self {
+    Self {
+      slot: Mutex::new(None),
+    }
+  }
+
+  /// 取出（或懒建）专用会话；用毕须 [`Self::restore`](Self::restore) 归还
+  pub(crate) fn take(&self, store: &Arc<WedbStore<D>>) -> Result<StoreSession<D>> {
+    match self.slot.lock().take() {
+      Some(s) => Ok(s),
+      None => store.new_session(),
+    }
+  }
+
+  /// 归还专用会话
+  pub(crate) fn restore(&self, session: StoreSession<D>) {
+    *self.slot.lock() = Some(session);
+  }
+}
+
+/// 批处理会话上下文（严格对标 C# Garnet IUnsafeContext 与 UnsafeContext）
+///
+/// 在处理网络流水线（Pipeline）批量命令时，外层仅进入并持有一次纪元保护，
+/// 批处理期间的所有内存直读完全跳过原子 enter/exit，
+/// 将纪元保护开销降至绝对零，极大释放多核高并发吞吐。
+pub struct BatchStoreSession<'a, D: Device> {
+  pub session: &'a StoreSession<D>,
+  _guard: EpochGuard<'a>,
+}
+
+impl<'a, D: Device> Deref for BatchStoreSession<'a, D> {
+  type Target = StoreSession<D>;
+
+  #[inline(always)]
+  fn deref(&self) -> &Self::Target {
+    self.session
+  }
+}
+
+impl<'a, D: Device> BatchStoreSession<'a, D> {
+  /// 创建一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
+  #[inline]
+  pub fn consistent_read<'b, F: ConsistentReadFunctions + ?Sized>(
+    &'b self,
+    functions: &'b F,
+  ) -> ConsistentReadContext<'b, D, F> {
+    ConsistentReadContext::new(self.session, functions)
+  }
+
+  /// 同步内存直读快路径（在已保护纪元下执行，彻底绕过 enter() 原子开销）
+  #[inline(always)]
+  pub fn try_read_in_memory<R>(
+    &self,
+    key: &[u8],
+    f: impl FnOnce(&[u8]) -> R,
+  ) -> Result<Option<Option<R>>> {
+    self.session.try_read_in_memory_unprotected(key, f)
+  }
+
+  /// 在批处理纪元保护下尝试原位读-改-写记录（完全绕过 enter() 原子开销）
+  #[inline(always)]
+  pub fn try_modify_in_place<R>(
+    &self,
+    key: &[u8],
+    f: impl FnOnce(&mut [u8]) -> Option<R>,
+  ) -> Result<Option<R>> {
+    self.session.try_modify_in_place_unprotected(key, f)
+  }
+
+  /// 在批处理已有纪元保护下尝试利用动态松弛原位覆写记录的值（严格对标 Tsavorite TrySetPinnedValueSpan 原位覆写语义）
+  #[inline(always)]
+  pub fn try_modify_with_slack(&self, key: &[u8], new_val: &[u8]) -> Result<bool> {
+    self.session.try_modify_with_slack_unprotected(key, new_val)
+  }
+
+  /// 纯同步快速路径写入当前会话普通字符串键（严格对标 C# UnsafeContext 的 SET 快路径）
+  ///
+  /// 语义与 [`StoreSession::try_upsert_sync`] 完全一致且零 enter() 原子开销：
+  /// - `Ok(Ok(addr))`：纯内存写入成功（原位更新 / 复活 / 盲追加）；
+  /// - `Ok(Err(page_id))`：环形缓冲区翻转（精确 page_id）或 TTL 清除需异步闭环
+  ///   （`u64::MAX`），调用方须先 drop 本守卫再降级 `upsert().await`，随后可重回批处理。
+  #[inline(always)]
+  pub fn try_upsert_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<u64, u64>> {
+    self.session.try_upsert_sync_unprotected(key, val)
+  }
+
+  /// 同步读当前会话普通字符串键快路径（TTL 快门控 + 内存直读，零 enter() 原子开销）
+  ///
+  /// 返回三态：
+  /// - `Ok(Some(Some(r)))`：内存命中，闭包零拷贝消费；
+  /// - `Ok(Some(None))`：内存中明确不存在（无候选 / 墓碑）；
+  /// - `Ok(None)`：须降级全异步 `read_with().await`（存在磁盘候选，或 TTL 记录标签
+  ///   命中需异步过期裁决——`check_expired` 含磁盘路径与物理清除，绝不跨纪元 await）。
+  #[inline(always)]
+  pub fn try_read_sync<R>(
+    &self,
+    key: &[u8],
+    f: impl FnOnce(&[u8]) -> R,
+  ) -> Result<Option<Option<R>>> {
+    self.session.try_read_sync_unprotected(key, f)
+  }
+
+  /// 纯同步快速路径物理删除当前会话普通字符串键（零 enter() 原子开销）
+  #[inline(always)]
+  pub fn try_delete_sync(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
+    self.session.try_delete_sync_unprotected(key)
+  }
+
+  /// 写入或更新键值对
+  #[inline(always)]
+  pub async fn upsert(&self, key: &[u8], val: &[u8]) -> Result<u64> {
+    self.session.upsert(key, val).await
+  }
+
+  /// 读取键值对
+  #[inline(always)]
+  pub async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    self.session.read(key).await
+  }
+
+  /// 删除键值对
+  #[inline(always)]
+  pub async fn delete(&self, key: &[u8]) -> Result<bool> {
+    self.session.delete(key).await
+  }
+
+  /// 批量读取当前会话普通字符串记录（12 项流水线预取）
+  #[inline(always)]
+  pub async fn read_batch_with<K, F>(&self, keys: &[K], on_item: F) -> Result<()>
+  where
+    K: AsRef<[u8]>,
+    F: FnMut(usize, Option<&[u8]>),
+  {
+    self.session.read_batch_with(keys, on_item).await
+  }
+
+  /// 纯内存批量直读当前会话普通字符串记录（零堆分配与零异步开销）
+  #[inline(always)]
+  pub fn try_read_batch_in_memory<K, F>(&self, keys: &[K], on_item: F) -> Result<()>
+  where
+    K: AsRef<[u8]>,
+    F: FnMut(usize, Option<&[u8]>),
+  {
+    self.session.try_read_batch_in_memory(keys, on_item)
+  }
+
+  /// 触发对象 RMW 增量日志通知
+  #[inline(always)]
+  pub fn notify_object_rmw(&self, notif: &ObjectRmwNotification<'_>) {
+    self.store.notify_object_rmw(notif);
+  }
+}
