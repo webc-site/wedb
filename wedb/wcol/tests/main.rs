@@ -3,9 +3,9 @@ use std::{env, fs, ops::Deref, path::PathBuf};
 use aok::{OK, Result};
 use wbftree::BfTreeService;
 use wcol::{
-  CollectionError, LIST_STUB_SIZE, ListStub, ListTree, ListTreeOps, RiTreeOps, SetTreeOps,
-  TreePrefix, ZSetTreeOps, decode_order_score, encode_order_score, i64_from_order_idx,
-  normalize_range, order_idx_from_i64,
+  Error, LIST_STUB_SIZE, ListStub, ListTree, ListTreeOps, RiTreeOps, SetTreeOps, TreePrefix,
+  ZSetTreeOps, decode_order_score, encode_order_score, i64_from_order_idx, normalize_range,
+  order_idx_from_i64,
 };
 
 /// 隔离的临时测试树 RAII 守卫
@@ -189,7 +189,7 @@ fn test_zset_crud_and_score_update() -> Result<()> {
   // 4. 非法分值 NaN 拦截
   assert!(matches!(
     tree.zadd(b"player_nan", f64::NAN),
-    Err(CollectionError::InvalidArgument(_))
+    Err(Error::InvalidArgument(_))
   ));
 
   OK
@@ -376,14 +376,8 @@ fn test_list_fifo_lifo_and_index_range() -> Result<()> {
   assert!(tree.lrange(&stub, 0, -1)?.is_empty());
 
   // 空值容错：禁止空元素
-  assert!(matches!(
-    tree.lpush(&mut stub, b""),
-    Err(CollectionError::EmptyValue)
-  ));
-  assert!(matches!(
-    tree.rpush(&mut stub, b""),
-    Err(CollectionError::EmptyValue)
-  ));
+  assert!(matches!(tree.lpush(&mut stub, b""), Err(Error::EmptyValue)));
+  assert!(matches!(tree.rpush(&mut stub, b""), Err(Error::EmptyValue)));
 
   // RPUSH 3 个元素: ["one", "two", "three"]
   assert_eq!(tree.rpush(&mut stub, b"one")?, 1);
@@ -582,18 +576,9 @@ fn test_collection_corruption_and_extreme_index_guards() -> Result<()> {
 
   // 2. ZSet 非法反查索引检测
   tree.insert(&[TreePrefix::ZSetMember as u8, b'x'], &[0x01, 0x02]); // 长度为 2 != 8
-  assert!(matches!(
-    tree.zscore(b"x"),
-    Err(CollectionError::Corrupted(_))
-  ));
-  assert!(matches!(
-    tree.zadd(b"x", 1.0),
-    Err(CollectionError::Corrupted(_))
-  ));
-  assert!(matches!(
-    tree.zrem(b"x"),
-    Err(CollectionError::Corrupted(_))
-  ));
+  assert!(matches!(tree.zscore(b"x"), Err(Error::Corrupted(_))));
+  assert!(matches!(tree.zadd(b"x", 1.0), Err(Error::Corrupted(_))));
+  assert!(matches!(tree.zrem(b"x"), Err(Error::Corrupted(_))));
 
   OK
 }

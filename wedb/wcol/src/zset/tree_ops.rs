@@ -15,7 +15,7 @@ use wbase::float;
 use wbftree::{BfTreeInsertResult, BfTreeReadResult, BfTreeService, ScanReturnField};
 
 use crate::{
-  CollectionError, Result,
+  Error, Result,
   prefix::{TreePrefix, with_prefixed_key, with_prefixed_key2},
 };
 
@@ -204,7 +204,7 @@ pub trait ZSetTreeOps {
 impl ZSetTreeOps for BfTreeService {
   fn zadd(&self, member: &[u8], score: f64) -> Result<bool> {
     if score.is_nan() {
-      return Err(CollectionError::InvalidArgument("score 不能为 NaN"));
+      return Err(Error::InvalidArgument("score 不能为 NaN"));
     }
     let score = if score == 0.0 { 0.0 } else { score };
     let new_order = encode_order_score(score);
@@ -215,8 +215,8 @@ impl ZSetTreeOps for BfTreeService {
       let exists = match res {
         BfTreeReadResult::Found if len == 8 => true,
         BfTreeReadResult::NotFound | BfTreeReadResult::Deleted => false,
-        BfTreeReadResult::Found => return Err(CollectionError::Corrupted("ZSet 反查索引长度异常")),
-        _ => return Err(CollectionError::InvalidArgument("zadd 读取反查索引失败")),
+        BfTreeReadResult::Found => return Err(Error::Corrupted("ZSet 反查索引长度异常")),
+        _ => return Err(Error::InvalidArgument("zadd 读取反查索引失败")),
       };
 
       if exists {
@@ -231,13 +231,13 @@ impl ZSetTreeOps for BfTreeService {
       // 写入主分值索引
       let insert_res = with_score_key(&new_order, member, |k| self.insert(k, ZSET_VAL_PLACEHOLDER));
       if insert_res != BfTreeInsertResult::Success {
-        return Err(CollectionError::InvalidArgument("zadd 写入分值索引失败"));
+        return Err(Error::InvalidArgument("zadd 写入分值索引失败"));
       }
 
       // 写入反查索引 (复用已构造好的 mem_key)
       let member_res = self.insert(mem_key, &new_order);
       if member_res != BfTreeInsertResult::Success {
-        return Err(CollectionError::InvalidArgument("zadd 写入反查索引失败"));
+        return Err(Error::InvalidArgument("zadd 写入反查索引失败"));
       }
 
       Ok(!exists)
@@ -257,8 +257,8 @@ impl ZSetTreeOps for BfTreeService {
           Ok(true)
         }
         BfTreeReadResult::NotFound | BfTreeReadResult::Deleted => Ok(false),
-        BfTreeReadResult::Found => Err(CollectionError::Corrupted("ZSet 反查索引长度异常")),
-        _ => Err(CollectionError::InvalidArgument("zrem 读取失败")),
+        BfTreeReadResult::Found => Err(Error::Corrupted("ZSet 反查索引长度异常")),
+        _ => Err(Error::InvalidArgument("zrem 读取失败")),
       }
     })
   }
@@ -273,8 +273,8 @@ impl ZSetTreeOps for BfTreeService {
           Ok(Some(if score == 0.0 { 0.0 } else { score }))
         }
         BfTreeReadResult::NotFound | BfTreeReadResult::Deleted => Ok(None),
-        BfTreeReadResult::Found => Err(CollectionError::Corrupted("ZSet 反查索引长度异常")),
-        _ => Err(CollectionError::InvalidArgument("zscore 读取失败")),
+        BfTreeReadResult::Found => Err(Error::Corrupted("ZSet 反查索引长度异常")),
+        _ => Err(Error::InvalidArgument("zscore 读取失败")),
       }
     })
   }

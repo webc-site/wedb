@@ -11,7 +11,7 @@ use wbftree::{
 };
 
 use crate::{
-  CollectionError, Result,
+  Error, Result,
   prefix::{TreePrefix, with_prefixed_key},
 };
 
@@ -99,8 +99,8 @@ impl RiTreeOps for BfTreeService {
       let exists = self.contains_key(k);
       match self.insert(k, val) {
         BfTreeInsertResult::Success => Ok(!exists),
-        BfTreeInsertResult::InvalidKV => Err(CollectionError::KeyTooLong),
-        _ => Err(CollectionError::InvalidArgument("ri_set 插入失败")),
+        BfTreeInsertResult::InvalidKV => Err(Error::KeyTooLong),
+        _ => Err(Error::InvalidArgument("ri_set 插入失败")),
       }
     })
   }
@@ -110,7 +110,7 @@ impl RiTreeOps for BfTreeService {
       self.read_callback(k, |res, bytes| match res {
         BfTreeReadResult::Found => Ok(f(Some(bytes))),
         BfTreeReadResult::NotFound | BfTreeReadResult::Deleted => Ok(f(None)),
-        _ => Err(CollectionError::InvalidArgument("ri_get 读取失败")),
+        _ => Err(Error::InvalidArgument("ri_get 读取失败")),
       })
     })
   }
@@ -120,7 +120,7 @@ impl RiTreeOps for BfTreeService {
       let exists = self.contains_key(k);
       match self.delete(k) {
         BfTreeDeleteResult::Success => Ok(exists),
-        _ => Err(CollectionError::InvalidArgument("ri_del 删除失败")),
+        _ => Err(Error::InvalidArgument("ri_del 删除失败")),
       }
     })
   }

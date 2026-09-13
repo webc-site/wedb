@@ -7,7 +7,7 @@
 use wbftree::{BfTreeDeleteResult, BfTreeInsertResult, BfTreeService, ScanReturnField};
 
 use crate::{
-  CollectionError, Result,
+  Error, Result,
   prefix::{TreePrefix, with_prefixed_key},
 };
 
@@ -55,8 +55,8 @@ impl SetTreeOps for BfTreeService {
       }
       match self.insert(k, SET_VAL_PLACEHOLDER) {
         BfTreeInsertResult::Success => Ok(true),
-        BfTreeInsertResult::InvalidKV => Err(CollectionError::KeyTooLong),
-        _ => Err(CollectionError::InvalidArgument("sadd 插入失败")),
+        BfTreeInsertResult::InvalidKV => Err(Error::KeyTooLong),
+        _ => Err(Error::InvalidArgument("sadd 插入失败")),
       }
     })
   }
@@ -69,7 +69,7 @@ impl SetTreeOps for BfTreeService {
       }
       match self.delete(k) {
         BfTreeDeleteResult::Success => Ok(true),
-        _ => Err(CollectionError::InvalidArgument("srem 删除失败")),
+        _ => Err(Error::InvalidArgument("srem 删除失败")),
       }
     })
   }

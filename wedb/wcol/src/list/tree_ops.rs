@@ -10,7 +10,7 @@ use wbftree::{
   BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexStub, ScanReturnField,
 };
 
-use crate::{CollectionError, Result, prefix::TreePrefix};
+use crate::{Error, Result, prefix::TreePrefix};
 
 /// 列表操作方向（对标 libs/server/Objects/List/ListObject.cs:OperationDirection）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -153,7 +153,7 @@ impl ListStub {
   #[inline]
   pub fn encode_into(&self, out: &mut [u8]) -> Result<()> {
     if out.len() < LIST_STUB_SIZE {
-      return Err(CollectionError::InvalidArgument("输出切片长度不足 51 字节"));
+      return Err(Error::InvalidArgument("输出切片长度不足 51 字节"));
     }
     out[..LIST_STUB_SIZE].copy_from_slice(&self.encode());
     Ok(())
@@ -184,9 +184,7 @@ impl ListStub {
   /// 从切片解码 ListStub (零拷贝，返回 Result)
   #[inline]
   pub fn decode(bytes: &[u8]) -> Result<Self> {
-    Self::decode_opt(bytes).ok_or(CollectionError::Corrupted(
-      "ListStub 存根数据损坏或长度不足",
-    ))
+    Self::decode_opt(bytes).ok_or(Error::Corrupted("ListStub 存根数据损坏或长度不足"))
   }
 
   /// 获取当前列表长度
@@ -259,39 +257,39 @@ pub trait ListTreeOps {
 impl ListTreeOps for BfTreeService {
   fn lpush(&self, stub: &mut ListStub, element: &[u8]) -> Result<usize> {
     if element.is_empty() {
-      return Err(CollectionError::EmptyValue);
+      return Err(Error::EmptyValue);
     }
     let new_head = stub
       .head
       .checked_sub(1)
-      .ok_or(CollectionError::InvalidArgument("list head 下溢"))?;
+      .ok_or(Error::InvalidArgument("list head 下溢"))?;
     let key = list_key_from_i64(new_head);
     match self.insert(&key, element) {
       BfTreeInsertResult::Success => {
         stub.head = new_head;
         Ok(stub.len())
       }
-      BfTreeInsertResult::InvalidKV => Err(CollectionError::KeyTooLong),
-      _ => Err(CollectionError::InvalidArgument("lpush 插入失败")),
+      BfTreeInsertResult::InvalidKV => Err(Error::KeyTooLong),
+      _ => Err(Error::InvalidArgument("lpush 插入失败")),
     }
   }
 
   fn rpush(&self, stub: &mut ListStub, element: &[u8]) -> Result<usize> {
     if element.is_empty() {
-      return Err(CollectionError::EmptyValue);
+      return Err(Error::EmptyValue);
     }
     let new_tail = stub
       .tail
       .checked_add(1)
-      .ok_or(CollectionError::InvalidArgument("list tail 上溢"))?;
+      .ok_or(Error::InvalidArgument("list tail 上溢"))?;
     let key = list_key_from_i64(stub.tail);
     match self.insert(&key, element) {
       BfTreeInsertResult::Success => {
         stub.tail = new_tail;
         Ok(stub.len())
       }
-      BfTreeInsertResult::InvalidKV => Err(CollectionError::KeyTooLong),
-      _ => Err(CollectionError::InvalidArgument("rpush 插入失败")),
+      BfTreeInsertResult::InvalidKV => Err(Error::KeyTooLong),
+      _ => Err(Error::InvalidArgument("rpush 插入失败")),
     }
   }
 
@@ -303,7 +301,7 @@ impl ListTreeOps for BfTreeService {
     let next_head = stub
       .head
       .checked_add(1)
-      .ok_or(CollectionError::InvalidArgument("list head 上溢"))?;
+      .ok_or(Error::InvalidArgument("list head 上溢"))?;
     let (res, val) = self.read(&key);
     match res {
       BfTreeReadResult::Found => {
@@ -317,7 +315,7 @@ impl ListTreeOps for BfTreeService {
         stub.reset_if_empty();
         Ok(None)
       }
-      _ => Err(CollectionError::InvalidArgument("lpop 读取失败")),
+      _ => Err(Error::InvalidArgument("lpop 读取失败")),
     }
   }
 
@@ -328,7 +326,7 @@ impl ListTreeOps for BfTreeService {
     let target_idx = stub
       .tail
       .checked_sub(1)
-      .ok_or(CollectionError::InvalidArgument("list tail 下溢"))?;
+      .ok_or(Error::InvalidArgument("list tail 下溢"))?;
     let key = list_key_from_i64(target_idx);
     let (res, val) = self.read(&key);
     match res {
@@ -343,7 +341,7 @@ impl ListTreeOps for BfTreeService {
         stub.reset_if_empty();
         Ok(None)
       }
-      _ => Err(CollectionError::InvalidArgument("rpop 读取失败")),
+      _ => Err(Error::InvalidArgument("rpop 读取失败")),
     }
   }
 
@@ -365,7 +363,7 @@ impl ListTreeOps for BfTreeService {
     self.read_callback(&key, |res, bytes| match res {
       BfTreeReadResult::Found => Ok(f(Some(bytes))),
       BfTreeReadResult::NotFound | BfTreeReadResult::Deleted => Ok(f(None)),
-      _ => Err(CollectionError::InvalidArgument("lindex 读取失败")),
+      _ => Err(Error::InvalidArgument("lindex 读取失败")),
     })
   }
 
@@ -394,22 +392,22 @@ impl ListTreeOps for BfTreeService {
 
   fn lset(&self, stub: &ListStub, index: i64, element: &[u8]) -> Result<()> {
     if element.is_empty() {
-      return Err(CollectionError::EmptyValue);
+      return Err(Error::EmptyValue);
     }
     let len = stub.len() as i64;
     if len == 0 || index >= len || index < -len {
-      return Err(CollectionError::InvalidArgument("index out of range"));
+      return Err(Error::InvalidArgument("index out of range"));
     }
     let actual_offset = if index >= 0 { index } else { len + index };
     let actual_idx = stub
       .head
       .checked_add(actual_offset)
-      .ok_or(CollectionError::InvalidArgument("index overflow"))?;
+      .ok_or(Error::InvalidArgument("index overflow"))?;
     let key = list_key_from_i64(actual_idx);
     match self.insert(&key, element) {
       BfTreeInsertResult::Success => Ok(()),
-      BfTreeInsertResult::InvalidKV => Err(CollectionError::KeyTooLong),
-      _ => Err(CollectionError::InvalidArgument("lset 修改失败")),
+      BfTreeInsertResult::InvalidKV => Err(Error::KeyTooLong),
+      _ => Err(Error::InvalidArgument("lset 修改失败")),
     }
   }
 
@@ -448,11 +446,11 @@ impl ListTreeOps for BfTreeService {
     let new_head = stub
       .head
       .checked_add(s as i64)
-      .ok_or(CollectionError::InvalidArgument("list head 溢出"))?;
+      .ok_or(Error::InvalidArgument("list head 溢出"))?;
     let new_tail = stub
       .head
       .checked_add(e as i64 + 1)
-      .ok_or(CollectionError::InvalidArgument("list tail 溢出"))?;
+      .ok_or(Error::InvalidArgument("list tail 溢出"))?;
     stub.head = new_head;
     stub.tail = new_tail;
     stub.reset_if_empty();

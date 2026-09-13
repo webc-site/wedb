@@ -2,7 +2,7 @@
 //!
 //! 在 garnet 中的相对路径:libs/server/Storage/Session/ObjectStore/ListOps.cs
 
-use wcol::{CollectionError, ListTreeOps};
+use wcol::ListTreeOps;
 use wdev::Device;
 use wval::CollectionType;
 
@@ -79,7 +79,7 @@ impl<D: Device> StoreSession<D> {
       .load_bftree_meta_stub(key, CollectionType::List)
       .await?;
     let Some((_, stub, Some(list_stub))) = loaded else {
-      return Err(CollectionError::InvalidArgument("ERR no such key").into());
+      return Err(wcol::Error::InvalidArgument("ERR no such key").into());
     };
     let tree = self.acquire_tree_read(key, &stub).await?;
     tree.lset(&list_stub, index, element).map_err(Into::into)

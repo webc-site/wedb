@@ -77,8 +77,8 @@ impl From<wbftree::Error> for RangeIndexError {
   }
 }
 
-impl From<wcol::CollectionError> for RangeIndexError {
-  fn from(err: wcol::CollectionError) -> Self {
+impl From<wcol::Error> for RangeIndexError {
+  fn from(err: wcol::Error) -> Self {
     Self::Internal(err.to_string())
   }
 }
@@ -465,7 +465,7 @@ impl<D: Device> StoreSession<D> {
         }
         Ok(())
       }
-      Err(wcol::CollectionError::KeyTooLong) => Err(RangeIndexError::InvalidKV {
+      Err(wcol::Error::KeyTooLong) => Err(RangeIndexError::InvalidKV {
         min_record_size: stub.min_record_size,
         max_record_size: stub.max_record_size,
         max_key_len: stub.max_key_len,

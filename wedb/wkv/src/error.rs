@@ -1,7 +1,6 @@
 use std::{io, result};
 
 use thiserror::Error;
-use wcol::CollectionError;
 
 use crate::range_index::RangeIndexError;
 
@@ -50,7 +49,7 @@ pub enum Error {
   BfTree(#[from] wbftree::Error),
 
   #[error(transparent)]
-  Collection(#[from] CollectionError),
+  Collection(#[from] wcol::Error),
 
   #[error(transparent)]
   RangeIndex(#[from] RangeIndexError),

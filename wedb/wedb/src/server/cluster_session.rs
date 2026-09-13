@@ -19,8 +19,11 @@ use wnode::{
 use wresp::RespCommand;
 
 use crate::server::{
-  cluster_config::LOCAL_WORKER_ID, cluster_manager::ClusterManager,
-  cluster_provider::ClusterProvider, slot_verify::SlotVerifySessionState,
+  cluster::{ClusterPreferredEndpointType, IClusterProvider},
+  cluster_config::LOCAL_WORKER_ID,
+  cluster_manager::ClusterManager,
+  cluster_provider::ClusterProvider,
+  slot_verify::{ClusterSlotVerificationState, SlotVerifySessionState},
 };
 
 /// 集群 RESP 会话实现

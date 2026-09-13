@@ -58,11 +58,11 @@ impl From<TreePrefix> for u8 {
 }
 
 impl TryFrom<u8> for TreePrefix {
-  type Error = crate::CollectionError;
+  type Error = crate::Error;
 
   #[inline]
   fn try_from(val: u8) -> Result<Self, Self::Error> {
-    Self::from_u8(val).ok_or(crate::CollectionError::InvalidArgument("无效的树前缀"))
+    Self::from_u8(val).ok_or(crate::Error::InvalidArgument("无效的树前缀"))
   }
 }
 

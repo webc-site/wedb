@@ -14,7 +14,7 @@ pub mod set;
 pub mod types;
 pub mod zset;
 
-pub use error::{CollectionError, Error, Result};
+pub use error::{Error, Result};
 pub use geo::{GeoAddOptions, GeoDistanceUnitType, GeoHash, GeoOrder, GeoOriginType};
 pub use hash::hash_object::{HashObject, HashOperation};
 pub use itembroker::{
