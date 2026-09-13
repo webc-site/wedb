@@ -18,8 +18,8 @@ use wdatabase::{
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wnode::{
+  GarnetStatus,
   aof::waof_sublog::single_log_aof,
-  api::garnet_status::GarnetStatus,
   storage::session::{
     common::array_key_iteration_functions::cluster_slot,
     mainstore::{

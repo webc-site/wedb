@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use gxhash::HashSet;
 use parking_lot::RwLock;
+use wbase::hash_slot::MAX_HASH_SLOT_VALUE;
 
 use crate::server::{
-  cluster_config::MAX_HASH_SLOT_VALUE,
   cluster_provider::ClusterProvider,
   migration::{
     migrate_session::{MigrateSession, MigrateTaskSpec},

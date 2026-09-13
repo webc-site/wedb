@@ -1,5 +1,11 @@
 mod support;
 
+macro_rules! a {
+  ($($x:expr),* $(,)?) => {
+    &[$($x as &[u8]),*]
+  };
+}
+
 use core::str;
 
 use support::with_batch;
@@ -322,5 +328,71 @@ fn check_set_operations_on_wrong_type_object_se() {
       out,
       b"-WRONGTYPE Operation against a key holding the wrong kind of value.\r\n"
     );
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSetTests.cs:CanDoSmove
+#[test]
+fn smove_paths() {
+  with_batch(|s, batch| {
+    s.set_add(a![b"ss1", b"a"], batch, &mut Vec::new()).unwrap();
+    s.set_add(a![b"ss1", b"b"], batch, &mut Vec::new()).unwrap();
+
+    let mut out = Vec::new();
+    s.set_move(a![b"ss1", b"ss2", b"a"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    out.clear();
+    s.set_is_member(a![b"ss2", b"a"], batch, &mut out).unwrap();
+    assert_eq!(out, b":1\r\n");
+    out.clear();
+    s.set_is_member(a![b"ss1", b"a"], batch, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // 源缺失 → :0
+    out.clear();
+    s.set_move(a![b"ssmiss", b"ss2", b"a"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSetTests.cs:CanDoSMisMember
+#[test]
+fn smismember_mixed_membership() {
+  with_batch(|s, batch| {
+    s.set_add(a![b"smi7", b"a"], batch, &mut Vec::new())
+      .unwrap();
+    s.set_add(a![b"smi7", b"b"], batch, &mut Vec::new())
+      .unwrap();
+
+    let mut out = Vec::new();
+    s.set_multi_is_member(a![b"smi7", b"a", b"x", b"b"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"*3\r\n:1\r\n:0\r\n:1\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSetTests.cs:CanDoSRandMemberWithCount（负数去重全展开）
+#[test]
+fn srandmember_negative_count() {
+  with_batch(|s, batch| {
+    for m in [&b"m1"[..], b"m2", b"m3"] {
+      s.set_add(a![b"sr7", m], batch, &mut Vec::new()).unwrap();
+    }
+
+    let mut out = Vec::new();
+    s.set_random_member(a![b"sr7", b"-2"], batch, &mut out)
+      .unwrap();
+    // *2 数组头 + 2 × ("$2\r\n" + 成员 + \r\n 共 8B)
+    assert_eq!(out.len(), 20);
+    assert!(out.starts_with(b"*2\r\n"));
+
+    // C# PickKRandomIndexes 负 count 不去重：|count|>基数时允许重复
+    out.clear();
+    s.set_random_member(a![b"sr7", b"-10"], batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"*10\r\n"));
   });
 }

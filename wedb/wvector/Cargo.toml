@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 bytemuck = { version = "1.25.2", features = ["must_cast"] }
-crossfire = "3.1.20"
 diskann = "0.59.0"
 diskann-providers = "0.59.0"
 diskann-quantization = { version = "0.59.0", features = ["flatbuffers"] }

@@ -12,11 +12,6 @@
 //! - 通用信息指标模型 (MetricsItem)
 
 pub mod aof;
-pub mod api {
-  pub mod garnet_status {
-    pub use crate::types::GarnetStatus;
-  }
-}
 pub mod args;
 pub mod cluster_provider;
 pub mod cluster_session;
@@ -40,8 +35,6 @@ pub mod tls;
 pub mod traits;
 pub mod types;
 
-use std::sync::Arc;
-
 pub use aof::{
   AofProcessor, AofReplayError, GarnetAppendOnlyFile, GarnetLog, InMemorySublog, LogRecord,
   RangeIndexSessionFace, ReplayInput, ShardedLog, SingleLog, Sublog, SublogBackend,
@@ -53,11 +46,6 @@ pub use conf::Conf;
 pub use endpoint::ServerEndpoint;
 pub use error::{Error, Result};
 pub use inputs::{CustomProcedureInput, StringInput, UnifiedInput};
-use resp::objects::collection_item_source::CollectionItemSource;
-use wcol::itembroker::item_broker_face::{BlockedWait as BaseBlockedWait, SharedItemBroker};
-
-pub type ItemBroker = SharedItemBroker<CollectionItemSource<wdev::SegmentedDevice>>;
-pub type BlockedWait = BaseBlockedWait<Arc<ItemBroker>>;
 pub use key_spec::{
   SimpleRespKeySpec, SimpleRespKeySpecBeginSearch, SimpleRespKeySpecFindKeys,
   extract_keys_and_flags_from_slice, extract_keys_from_slice,

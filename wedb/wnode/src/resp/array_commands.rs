@@ -1,3 +1,4 @@
+use wcol::object_store_utils::is_object_envelope;
 use wresp::{
   Resp2, Resp3, RespProtocol, RespVecExt, RespWriter, check_arg_count, cmd_strings as cs,
   cmd_strings::{
@@ -8,7 +9,7 @@ use wresp::{
 };
 
 use crate::{
-  resp::resp_server_session::RespServerSession,
+  resp::{resp_server_session::RespServerSession, ttl_sync::read_adjudicated_sync},
   storage::session::{
     common::array_key_iteration_functions::ScanTypeFilter, storage_session::StorageSession,
   },
@@ -163,8 +164,20 @@ impl RespServerSession {
     let start_len = writer.len();
     writer.write_array_length(parse_state.len());
     for key in parse_state {
-      match store.try_read_sync(key, |v| writer.write_bulk_string(v)) {
-        Ok(Some(Some(()))) => {}
+      let mut is_obj = false;
+      let res = read_adjudicated_sync(store, key, |v| {
+        if is_object_envelope(v) {
+          is_obj = true;
+        } else {
+          writer.write_bulk_string(v);
+        }
+      });
+      match res {
+        Ok(Some(Some(()))) => {
+          if is_obj {
+            writer.write_null();
+          }
+        }
         Ok(Some(None)) | Err(_) => writer.write_null(),
         Ok(None) => {
           writer.buf_mut().truncate(start_len);
@@ -377,9 +390,15 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     unpack_args!(parse_state, output, "TYPE", [key]);
-    match store.try_read_sync(key, |_| ()) {
-      Ok(Some(Some(_))) => {
-        output.write_resp_simple_string("string");
+    match read_adjudicated_sync(store, key, |val| match val.first() {
+      Some(1) => "zset",
+      Some(2) => "list",
+      Some(3) => "hash",
+      Some(4) => "set",
+      _ => "string",
+    }) {
+      Ok(Some(Some(kind))) => {
+        output.write_resp_simple_string(kind);
       }
       Ok(Some(None)) | Err(_) => {
         output.write_resp_simple_string("none");

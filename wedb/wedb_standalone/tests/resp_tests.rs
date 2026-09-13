@@ -1,5 +1,11 @@
 mod support;
 
+macro_rules! a {
+  ($($x:expr),* $(,)?) => {
+    &[$($x as &[u8]),*]
+  };
+}
+
 use core::str;
 
 use support::with_batch;
@@ -1165,4 +1171,66 @@ fn dbsize_keys_scan_fallback_to_async() {
   let mut out = Vec::new();
   let ok = s.network_scan(&[b"0"], &mut out).unwrap();
   assert!(!ok, "scan should return false to degrade to async");
+}
+
+/// test/standalone/Garnet.test/RespTests.cs:CanDoExpireNX_XX_GT_LT
+#[test]
+fn expire_options_nx_gt_lt() {
+  with_batch(|s, batch| {
+    let mut out = Vec::new();
+    s.network_set(a![b"ex7", b"v"], batch, &mut out).unwrap();
+
+    // NX：无 TTL 时成功，已有 TTL 时拒绝
+    out.clear();
+    s.network_expire(
+      ExpireCmd::Expire,
+      a![b"ex7", b"100", b"NX"],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    out.clear();
+    s.network_expire(
+      ExpireCmd::Expire,
+      a![b"ex7", b"100", b"NX"],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // GT：新 TTL 不大于现有 → :0
+    out.clear();
+    s.network_expire(ExpireCmd::Expire, a![b"ex7", b"50", b"GT"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // LT：新 TTL 小于现有 → :1
+    out.clear();
+    s.network_expire(ExpireCmd::Expire, a![b"ex7", b"10", b"LT"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    // NX+XX 不兼容
+    out.clear();
+    s.network_expire(
+      ExpireCmd::Expire,
+      a![b"ex7", b"10", b"NX", b"XX"],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(
+      out,
+      b"-ERR NX and XX, GT or LT options at the same time are not compatible\r\n"
+    );
+
+    // 负过期 → INVALID_EXPIRE_TIME
+    out.clear();
+    s.network_expire(ExpireCmd::Expire, a![b"ex7", b"-1"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR invalid expire time, must be >= 0\r\n");
+  });
 }

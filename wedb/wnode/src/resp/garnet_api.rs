@@ -762,6 +762,7 @@ fn dispatch_slow<D: Device>(
     C::Dbsize => session.network_dbsize(args, output),
     C::Keys => session.network_keys(args, output),
     C::Scan => session.network_scan(args, output),
+    C::Coscan => session.network_coscan(args, batch, output),
 
     // ---- 清库族（ProcessOtherCommands：选项校验同步承接，清库降级异步闭环）
     C::Flushdb => session.network_flushdb(args, output),

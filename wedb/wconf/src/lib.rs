@@ -22,7 +22,7 @@ pub mod units;
 
 pub use cluster_config::{
   ClusterConfigError, ClusterConfigOptions, DEFAULT_BUS_PORT_OFFSET, DEFAULT_CLUSTER_TIMEOUT_SECS,
-  DEFAULT_REPLICA_SYNC_DELAY_MS, MAX_HASH_SLOT_VALUE,
+  DEFAULT_REPLICA_SYNC_DELAY_MS,
 };
 pub use config_kind::ConfigKind;
 pub use config_meta::{

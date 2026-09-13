@@ -8,6 +8,7 @@ use wbase::{
   convert::{TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS},
   time::now_ticks,
 };
+use wcol::object_store_utils::is_object_envelope;
 use wconf::ServerConfig;
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
@@ -294,9 +295,17 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     unpack_args!(parse_state, output, "GET", [key]);
     match read_adjudicated_sync(store, key, |v| {
-      output.write_resp_bulk_string(v);
+      if is_object_envelope(v) {
+        Err(())
+      } else {
+        output.write_resp_bulk_string(v);
+        Ok(())
+      }
     }) {
-      Ok(Some(Some(()))) => {}
+      Ok(Some(Some(Ok(())))) => {}
+      Ok(Some(Some(Err(())))) => {
+        output.write_resp_error(cs::RESP_ERR_WRONG_TYPE);
+      }
       Ok(Some(None)) => {
         output.extend_from_slice(b"$-1\r\n");
       }
@@ -378,9 +387,14 @@ impl RespServerSession {
 
     let start_len = output.len();
     match read_adjudicated_sync(store, key, |v| {
-      output.write_resp_bulk_string(v);
+      if is_object_envelope(v) {
+        Err(())
+      } else {
+        output.write_resp_bulk_string(v);
+        Ok(())
+      }
     }) {
-      Ok(Some(Some(()))) => {
+      Ok(Some(Some(Ok(())))) => {
         // 过期应用须先于应答闭环；同步 TTL 写遭环形页翻转时整体降级，
         // 回退已向输出缓冲写入的 bulk string，杜绝慢路径重执致双应答
         match expiry {
@@ -408,6 +422,10 @@ impl RespServerSession {
             }
           },
         }
+      }
+      Ok(Some(Some(Err(())))) => {
+        output.truncate(start_len);
+        output.write_resp_error(cs::RESP_ERR_WRONG_TYPE);
       }
       Ok(Some(None)) => {
         output.extend_from_slice(b"$-1\r\n");

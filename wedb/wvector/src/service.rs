@@ -21,6 +21,7 @@ use std::{
     Arc,
     atomic::{AtomicUsize, Ordering},
   },
+  thread::yield_now,
 };
 
 use diskann::{
@@ -636,11 +637,17 @@ fn ensure_index_ready_or_init<S: StoreCallbacks, F, E>(index: &Index<S>, init: F
 where
   F: FnOnce() -> Option<E>,
 {
+  let mut spin_count = 0usize;
   loop {
     match index.state.load(Ordering::Acquire).into() {
       IndexState::Ready => break,
       IndexState::SettingStartPoints => {
-        spin_loop();
+        spin_count += 1;
+        if spin_count < 32 {
+          spin_loop();
+        } else {
+          yield_now();
+        }
         continue;
       }
       IndexState::NoStartPoints => {

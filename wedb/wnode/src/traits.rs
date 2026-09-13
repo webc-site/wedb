@@ -7,7 +7,7 @@ use std::sync::Arc;
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wresp::RespCommand;
 
-use crate::{BlockedWait, resp::slow_path::SlowWait};
+use crate::resp::{BlockedWait, slow_path::SlowWait};
 
 /// 会话线格式（对标 WireFormat）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

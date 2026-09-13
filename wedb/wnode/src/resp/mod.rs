@@ -27,6 +27,9 @@ pub mod slow_path;
 pub mod ttl_sync;
 pub mod vector;
 
+use std::sync::Arc;
+
+use objects::collection_item_source::CollectionItemSource;
 pub use resp_command_data_common::try_import_resp_commands_data;
 pub use resp_command_data_provider::{
   DefaultRespCommandsDataProvider, IRespCommandData, get_resp_commands_data_provider,
@@ -49,3 +52,7 @@ pub use resp_server_session::{
   ConnectionProtectionOption, DatabaseSessionSlot, RespServerSession, RespServerSessionOptions,
 };
 pub use resp_session_consumer::RespSessionConsumer;
+use wcol::itembroker::item_broker_face::{BlockedWait as BaseBlockedWait, SharedItemBroker};
+
+pub type ItemBroker = SharedItemBroker<CollectionItemSource<wdev::SegmentedDevice>>;
+pub type BlockedWait = BaseBlockedWait<Arc<ItemBroker>>;

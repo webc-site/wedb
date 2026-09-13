@@ -41,17 +41,15 @@ use wresp::{
 use wtxn::{TransactionManager, TxnCommandKeys, TxnKeySpec, TxnQueuedCommandInfo, WatchVersionMap};
 
 use super::{
+  BlockedWait, ItemBroker,
   parser::{
     resp_command::{MruCommandCache, is_allowed_in_subscription_mode},
     session_parse_state::MAX_ARGUMENT_LENGTH_BYTES,
   },
   resp_commands_info::try_get_simple_resp_command_info,
+  slow_path::SlowWait,
 };
-use crate::{
-  BlockedWait, ItemBroker,
-  cluster_session::{ClusterSession, ClusterSlotVerificationInput},
-  resp::slow_path::SlowWait,
-};
+use crate::cluster_session::{ClusterSession, ClusterSlotVerificationInput};
 
 /// libs/host/GarnetServer.cs:RedisProtocolVersion（HELLO 应答 version 字段）
 pub const REDIS_PROTOCOL_VERSION: &str = "7.4.3";

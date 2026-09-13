@@ -142,6 +142,44 @@ impl RespServerSession {
     )
   }
 
+  /// COSCAN key cursor [MATCH pattern] [COUNT count] [NOVALUES]
+  ///
+  /// COSCAN 分派承接（对标 C# RespServerSession.cs: COSCAN => ObjectScan(GarnetObjectType.All)）
+  pub fn network_coscan<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    if parse_state.len() < 2 {
+      return Ok(self.abort_with_wrong_number_of_arguments("COSCAN", output));
+    }
+    let key = parse_state[0];
+    let tag = match store.try_read_sync(key, |v| v.first().copied()) {
+      Ok(Some(Some(Some(tag)))) => tag,
+      Ok(Some(Some(None))) | Ok(Some(None)) => {
+        output.write_resp_array_len(2);
+        output.write_resp_bulk_string(b"0");
+        output.write_resp_array_len(0);
+        return Ok(true);
+      }
+      Ok(None) => return Ok(false),
+      Err(_) => {
+        output.write_resp_error(cs::RESP_ERR_GENERIC);
+        return Ok(true);
+      }
+    };
+    match tag {
+      3 => self.network_hscan(parse_state, store, output),
+      4 => self.network_sscan(parse_state, store, output),
+      1 => self.network_zscan(parse_state, store, output),
+      _ => {
+        output.write_resp_error(cs::RESP_ERR_WRONG_TYPE);
+        Ok(true)
+      }
+    }
+  }
+
   /// 对象扫描的存储接线公共体：校验 → 装载 → scan operate → 负载
   ///
   /// C# ObjectScan 经 storageApi.ObjectScan 在存储层装载求值；rust 同步

@@ -9,7 +9,6 @@
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use crossfire::flavor::{Array, Queue};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::store::{Callbacks, Context, StoreCallbacks, StoreError, Term};
@@ -24,6 +23,43 @@ const ZERO_BLOCK: [u8; BLOCK_SIZE_BYTES] = [0u8; BLOCK_SIZE_BYTES];
 const FAST_SIZE: usize = 1024;
 /// FSM 块键前缀（`_fsm`，块号左移 32 位组合成宽 id 键）。
 const FSM_KEY_PREFIX: u32 = u32::from_be_bytes(*b"_fsm");
+
+/// 基于标准互斥锁的快速空闲队列（锁竞争极低场景下避免无锁环形预分配的内存虚高与缓存颠簸）
+#[derive(Debug, Default)]
+struct FastFreeList(Mutex<Vec<u32>>);
+
+impl FastFreeList {
+  fn new(capacity: usize) -> Self {
+    Self(Mutex::new(Vec::with_capacity(capacity)))
+  }
+
+  #[inline]
+  fn push(&self, id: u32) -> Result<(), ()> {
+    let mut v = self.0.lock();
+    if v.len() < FAST_SIZE {
+      v.push(id);
+      Ok(())
+    } else {
+      Err(())
+    }
+  }
+
+  #[inline]
+  fn pop(&self) -> Option<u32> {
+    self.0.lock().pop()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.0.lock().is_empty()
+  }
+
+  #[cfg(test)]
+  #[inline]
+  fn len(&self) -> usize {
+    self.0.lock().len()
+  }
+}
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum FsmError {
@@ -77,7 +113,7 @@ pub struct FreeSpaceMap<S: StoreCallbacks> {
   /// 扫块后置位的"存在空闲 id"信号，避免多余块读。
   has_free_ids: AtomicBool,
   /// 已删 id 快速空闲队列。
-  fast_free_list: Array<u32>,
+  fast_free_list: FastFreeList,
   id_minter: RwLock<IdMinter>,
   total_used: AtomicUsize,
   reuse_enabled: AtomicBool,
@@ -97,7 +133,7 @@ impl<S: StoreCallbacks> FreeSpaceMap<S> {
     let mut this = Self {
       callbacks,
       has_free_ids: AtomicBool::new(false),
-      fast_free_list: Array::new(FAST_SIZE),
+      fast_free_list: FastFreeList::new(FAST_SIZE),
       id_minter: RwLock::new(IdMinter {
         next_id: 0,
         max_block: u32::MAX,

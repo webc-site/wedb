@@ -1,8 +1,7 @@
 use std::{
   hint::spin_loop,
   sync::atomic::{AtomicU64, Ordering, fence},
-  thread::{sleep, yield_now},
-  time::Duration,
+  thread::yield_now,
 };
 
 use wbase::backoff::Backoff;
@@ -56,14 +55,8 @@ impl HashIndex {
   pub const SPIN_LIMIT_MAX_EXP: usize = 5;
   /// 自旋抖动掩码
   pub const SPIN_LIMIT_JITTER_MASK: usize = 0x7;
-  /// yield 让核重试预算（越过此值进入睡眠退避段）
-  pub const YIELD_RETRY_BUDGET: usize = 1024;
-  /// 睡眠退避重试预算（100µs→1ms 封顶，合计约 8-16s 耐心窗口，抵御高负载下 CPU 调度毛刺）
-  pub const SLEEP_RETRY_BUDGET: usize = 16384;
-  /// 睡眠退避起始等待时间（微秒）
-  pub const SLEEP_BASE_MICROS: u64 = 100;
-  /// 睡眠退避递增上限（微秒）
-  pub const SLEEP_MAX_ADDITIONAL_MICROS: u64 = 900;
+  /// yield 让核重试预算（自旋后让出 CPU 时间片，达到预算后报超时）
+  pub const YIELD_RETRY_BUDGET: usize = 16384;
 
   /// 创建指定容量的哈希索引表
   ///
@@ -823,8 +816,7 @@ impl HashIndex {
 
   /// 统一核心加锁驱动引擎（零堆分配回滚、指数退避防活锁）
   ///
-  /// 重试预算分三段：短自旋（32 次）→ yield 让核（[`Self::YIELD_RETRY_BUDGET`]）→
-  /// 睡眠退避（[`Self::SLEEP_RETRY_BUDGET`]，100µs→1ms 封顶）后报 [`Error::LockTimeout`]
+  /// 重试预算：短自旋（32 次）→ yield 让核（[`Self::YIELD_RETRY_BUDGET`]），达到预算后报 [`Error::LockTimeout`]
   fn acquire_unique_locked_entries(
     &self,
     unique_entries: &[(usize, bool)],
@@ -870,7 +862,7 @@ impl HashIndex {
       }
 
       retry_count += 1;
-      if retry_count >= Self::YIELD_RETRY_BUDGET + Self::SLEEP_RETRY_BUDGET {
+      if retry_count >= Self::YIELD_RETRY_BUDGET {
         return Err(Error::LockTimeout);
       }
 
@@ -881,17 +873,8 @@ impl HashIndex {
         for _ in 0..spin_limit {
           spin_loop();
         }
-      } else if retry_count < Self::YIELD_RETRY_BUDGET {
-        yield_now();
       } else {
-        // 耐心等待阶段：临界区可合法跨越慢速 I/O await（如 ZADD 持锁写盘），持有者
-        // 被 OS 冻结或 I/O 抖动时纯 yield 预算会瞬间烧穿并产生伪 LockTimeout（并发
-        // 回归测试在全量套件高负载下曾偶发）。改为 100µs→1ms 封顶的指数睡眠退避，
-        // 给出秒级等待窗口后再判超时
-        let elapsed = retry_count - Self::YIELD_RETRY_BUDGET;
-        let backoff_us = Self::SLEEP_BASE_MICROS
-          .saturating_add(((elapsed >> 3) as u64).min(Self::SLEEP_MAX_ADDITIONAL_MICROS));
-        sleep(Duration::from_micros(backoff_us));
+        yield_now();
       }
     }
   }

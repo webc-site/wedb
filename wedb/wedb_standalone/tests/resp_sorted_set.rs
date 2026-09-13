@@ -1,5 +1,11 @@
 mod support;
 
+macro_rules! a {
+  ($($x:expr),* $(,)?) => {
+    &[$($x as &[u8]),*]
+  };
+}
+
 use core::str;
 
 use support::with_batch;
@@ -25,9 +31,10 @@ fn parse_bulk_array(frame: &[u8]) -> Vec<Vec<u8>> {
   }
   items
 }
-use wcol::sortedset::sorted_set_object::SortedSetOperation;
-use wnode::resp::objects::{
-  sorted_set_commands::RemoveRangeKind, sorted_set_geo_commands::GeoSearchCommandKind,
+use wcol::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
+use wnode::resp::{
+  RespServerSession,
+  objects::{sorted_set_commands::RemoveRangeKind, sorted_set_geo_commands::GeoSearchCommandKind},
 };
 
 const ENTRIES: &[(&[u8], &[u8])] = &[
@@ -990,5 +997,347 @@ fn check_geo_sorted_set_operations_on_wrong_type_object_se() {
     )
     .unwrap();
     assert_eq!(out, wrongtype);
+  });
+}
+
+/// 批量 ZADD 便捷封装（entries 为 (score, member) 序）
+fn zadd<'a, D: wdev::Device>(
+  s: &mut RespServerSession,
+  batch: &wkv::BatchStoreSession<'a, D>,
+  key: &[u8],
+  entries: &[(&[u8], &[u8])],
+) -> Vec<u8> {
+  let mut args: Vec<&[u8]> = vec![key];
+  for &(score, member) in entries {
+    args.push(score);
+    args.push(member);
+  }
+  let mut out = Vec::new();
+  s.sorted_set_add(&args, batch, &mut out).unwrap();
+  out
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanGetRankAndRevRank
+#[test]
+fn zrank_and_zrevrank_with_score() {
+  with_batch(|s, batch| {
+    let key = b"zr7";
+    let entries = &[(b"10".as_slice(), &b"a"[..]), (b"20", b"b"), (b"30", b"c")];
+    assert_eq!(zadd(s, batch, key, entries), b":3\r\n");
+
+    let mut out = Vec::new();
+    s.sorted_set_rank(a![key, b"b"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    out.clear();
+    s.sorted_set_rank(a![key, b"missing"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"$-1\r\n");
+
+    out.clear();
+    s.sorted_set_rank(a![key, b"b", b"WITHSCORE"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"*2\r\n:1\r\n$2\r\n20\r\n");
+
+    out.clear();
+    s.sorted_set_rank(a![key, b"b"], batch, &mut out, false)
+      .unwrap();
+    assert_eq!(out, b":1\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanRemoveRangeByRankOrScore
+#[test]
+fn zremrangebyrank_and_byscore() {
+  with_batch(|s, batch| {
+    let key = b"zrem7";
+    zadd(
+      s,
+      batch,
+      key,
+      &[
+        (b"1", b"m1"),
+        (b"2", b"m2"),
+        (b"3", b"m3"),
+        (b"4", b"m4"),
+        (b"5", b"m5"),
+      ],
+    );
+
+    let mut out = Vec::new();
+    s.sorted_set_remove_range(a![key, b"0", b"1"], batch, &mut out, RemoveRangeKind::Rank)
+      .unwrap();
+    assert_eq!(out, b":2\r\n");
+
+    out.clear();
+    s.sorted_set_length(a![key], batch, &mut out).unwrap();
+    assert_eq!(out, b":3\r\n");
+
+    out.clear();
+    s.sorted_set_remove_range(
+      a![key, b"4", b"+inf"],
+      batch,
+      &mut out,
+      RemoveRangeKind::Score,
+    )
+    .unwrap();
+    assert_eq!(out, b":2\r\n");
+
+    out.clear();
+    s.sorted_set_remove_range(
+      a![key, b"-inf", b"+inf"],
+      batch,
+      &mut out,
+      RemoveRangeKind::Score,
+    )
+    .unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    // 删空自愈：元记录随空集合消亡
+    out.clear();
+    s.sorted_set_length(a![key], batch, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+  });
+}
+
+/// 非法 min/max → RESP_ERR_MIN_MAX_NOT_VALID_STRING（无句点，逐字节）
+#[test]
+fn zlexcount_and_invalid_lex_bounds() {
+  with_batch(|s, batch| {
+    let key = b"zlex7";
+    zadd(
+      s,
+      batch,
+      key,
+      &[(b"0", b"alpha"), (b"0", b"beta"), (b"0", b"gamma")],
+    );
+
+    let mut out = Vec::new();
+    s.sorted_set_length_by_value(a![key, b"[alpha", b"[beta"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":2\r\n");
+
+    out.clear();
+    s.sorted_set_length_by_value(a![key, b"alpha", b"beta"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR min or max not valid string range item\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanPopMinWithCount
+#[test]
+fn zpopmin_with_count() {
+  with_batch(|s, batch| {
+    let key = b"zpop7";
+    zadd(s, batch, key, &[(b"1", b"a"), (b"2", b"b"), (b"3", b"c")]);
+
+    let mut out = Vec::new();
+    s.sorted_set_pop(a![key, b"2"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"*4\r\n$1\r\na\r\n$1\r\n1\r\n$1\r\nb\r\n$1\r\n2\r\n");
+
+    out.clear();
+    s.sorted_set_length(a![key], batch, &mut out).unwrap();
+    assert_eq!(out, b":1\r\n");
+
+    out.clear();
+    s.sorted_set_pop(a![b"missing7", b"2"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"*0\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanGetRandomMember
+#[test]
+fn zrandmember_count_and_withscores() {
+  with_batch(|s, batch| {
+    let key = b"zrand7";
+    zadd(
+      s,
+      batch,
+      key,
+      &[(b"1", b"a"), (b"2", b"b"), (b"3", b"c"), (b"4", b"d")],
+    );
+
+    let mut out = Vec::new();
+    s.sorted_set_random_member(a![key], batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"$1\r\n"));
+
+    out.clear();
+    s.sorted_set_random_member(a![key, b"10"], batch, &mut out)
+      .unwrap();
+    // count 超过基数 → 全量 member 数组（随机序，仅验长度）
+    assert_eq!(out.len(), 32);
+    assert!(out.starts_with(b"*4\r\n"));
+
+    out.clear();
+    s.sorted_set_random_member(a![key, b"2", b"WITHSCORES"], batch, &mut out)
+      .unwrap();
+    assert!(out.starts_with(b"*4\r\n"));
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanDoZRangeStore（REV + LIMIT 组合）
+#[test]
+fn zrangestore_byscore_rev_limit() {
+  with_batch(|s, batch| {
+    zadd(
+      s,
+      batch,
+      b"zsrc7",
+      &[
+        (b"1", b"a"),
+        (b"2", b"b"),
+        (b"3", b"c"),
+        (b"4", b"d"),
+        (b"5", b"e"),
+      ],
+    );
+
+    let mut out = Vec::new();
+    s.sorted_set_range_store(
+      a![
+        b"zdst7", b"zsrc7", b"(1", b"(5", b"BYSCORE", b"LIMIT", b"1", b"2",
+      ],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b":2\r\n");
+
+    out.clear();
+    s.sorted_set_range(
+      a![b"zdst7", b"0", b"-1", b"WITHSCORES"],
+      batch,
+      &mut out,
+      SortedSetRangeOpts::NONE,
+    )
+    .unwrap();
+    assert_eq!(out, b"*4\r\n$1\r\nc\r\n$1\r\n3\r\n$1\r\nd\r\n$1\r\n4\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanDoBzPopMin（立即可取 + 缺键 null + 非法 timeout）
+#[test]
+fn bzpopmin_immediate_paths() {
+  with_batch(|s, batch| {
+    zadd(s, batch, b"bz7", &[(b"1.5", b"m")]);
+
+    let mut out = Vec::new();
+    s.sorted_set_blocking_pop(a![b"bz7", b"0"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"*3\r\n$3\r\nbz7\r\n$1\r\nm\r\n$3\r\n1.5\r\n");
+
+    out.clear();
+    s.sorted_set_blocking_pop(a![b"nobz7", b"0"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"$-1\r\n");
+
+    out.clear();
+    s.sorted_set_blocking_pop(a![b"k", b"abc"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b"-ERR timeout is not a float or out of range\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanDoZUnionStoreWithWeightsAndAggregate
+#[test]
+fn zunionstore_weights_aggregate() {
+  with_batch(|s, batch| {
+    zadd(s, batch, b"zu1", &[(b"1", b"a"), (b"2", b"b")]);
+    zadd(s, batch, b"zu2", &[(b"10", b"a"), (b"3", b"c")]);
+
+    let mut out = Vec::new();
+    s.sorted_set_union_store(
+      a![
+        b"zuout",
+        b"2",
+        b"zu1",
+        b"zu2",
+        b"WEIGHTS",
+        b"2",
+        b"1",
+        b"AGGREGATE",
+        b"SUM",
+      ],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b":3\r\n");
+
+    out.clear();
+    s.sorted_set_range(
+      a![b"zuout", b"0", b"-1", b"WITHSCORES"],
+      batch,
+      &mut out,
+      SortedSetRangeOpts::NONE,
+    )
+    .unwrap();
+    // a = 2*1 + 10 = 12；b = 4；c = 3
+    assert_eq!(
+      out,
+      b"*6\r\n$1\r\nc\r\n$1\r\n3\r\n$1\r\nb\r\n$1\r\n4\r\n$1\r\na\r\n$2\r\n12\r\n"
+    );
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:CanDoZIncrBy 非浮点 → RESP_ERR_NOT_VALID_FLOAT
+#[test]
+fn zincrby_invalid_float() {
+  with_batch(|s, batch| {
+    let mut out = Vec::new();
+    s.sorted_set_increment(a![b"zi7", b"abc", b"m"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR value is not a valid float\r\n");
+  });
+}
+
+/// round7 口径回归：ZMPOP numkeys 语义对齐 C#
+/// （SortedSetCommands.cs ZMPOP —— numkeys<1 → NOT_INTEGER 含句点；
+/// 参数不足容纳 numkeys+MIN/MAX → SYNTAX_ERROR）
+#[test]
+fn zmpop_numkeys_error_wording() {
+  with_batch(|s, batch| {
+    let mut out = Vec::new();
+    s.sorted_set_m_pop(a![b"0", b"k1", b"MIN"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
+
+    out.clear();
+    s.sorted_set_m_pop(a![b"2", b"k1", b"MIN"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR syntax error\r\n");
+  });
+}
+
+/// round7 口径回归：GEOSEARCH COUNT 非整数 → 含句点文案
+/// （SessionParseStateExtensions.cs:TryGetGeoSearchOptions COUNT 分支）
+#[test]
+fn geosearch_count_error_wording() {
+  with_batch(|s, batch| {
+    zadd(s, batch, b"geo7", &[(b"13.361389", b"Paris")]);
+
+    let mut out = Vec::new();
+    s.geo_search_commands(
+      a![
+        b"geo7",
+        b"FROMLONLAT",
+        b"13.36",
+        b"38.11",
+        b"BYRADIUS",
+        b"100",
+        b"km",
+        b"COUNT",
+        b"xyz",
+      ],
+      batch,
+      &mut out,
+      GeoSearchCommandKind::GeoSearch,
+    )
+    .unwrap();
+    assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
   });
 }

@@ -8,6 +8,7 @@ use wbase::{
   crc64::hash as rdb_crc64_hash,
   time::now_ticks,
 };
+use wcol::object_store_utils::is_object_envelope;
 use wkv::TtlOpt;
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
@@ -271,8 +272,14 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     unpack_args!(parse_state, output, "GETDEL", [key]);
 
-    match store.try_read_sync(key, |v| v.to_vec()) {
-      Ok(Some(Some(val))) => {
+    match store.try_read_sync(key, |v| {
+      if is_object_envelope(v) {
+        Err(())
+      } else {
+        Ok(v.to_vec())
+      }
+    }) {
+      Ok(Some(Some(Ok(val)))) => {
         // 先删后答：删除遇异步闭环（环形页翻转/复合对象）时整体降级，
         // 避免已答出旧值而键未删成
         match store.try_delete_sync(key) {
@@ -280,6 +287,9 @@ impl RespServerSession {
           Ok(Err(_)) => return Ok(false),
           Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
         }
+      }
+      Ok(Some(Some(Err(())))) => {
+        output.write_resp_error(cs::RESP_ERR_WRONG_TYPE);
       }
       Ok(Some(None)) => {
         output.write_resp_null();

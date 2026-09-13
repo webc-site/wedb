@@ -416,7 +416,7 @@ fn test_skip_replay_prefix_bound() -> aok::Void {
 /// 对象存 RMW（Hash / Set）重放闭环
 #[test]
 fn test_object_store_rmw_replay_loop() -> aok::Void {
-  use wnode::api::garnet_status::GarnetStatus;
+  use wnode::GarnetStatus;
 
   let rt = Runtime::new()?;
   rt.block_on(async {

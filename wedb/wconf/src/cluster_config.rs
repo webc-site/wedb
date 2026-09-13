@@ -1,9 +1,7 @@
 //! 集群配置选项与常量规范（对标 libs/cluster/Server/ClusterConfig.cs 中配置面）
 
 use serde::{Deserialize, Serialize};
-
-/// 集群槽位空间上界（Redis Cluster 规范：16384 槽）
-pub const MAX_HASH_SLOT_VALUE: usize = 16384;
+use wbase::hash_slot::MAX_HASH_SLOT_VALUE;
 
 /// CLUSTER NODES 中 bus 端口默认偏移量（bus port = port + 10000）
 pub const DEFAULT_BUS_PORT_OFFSET: i32 = 10000;

@@ -1,5 +1,11 @@
 mod support;
 
+macro_rules! a {
+  ($($x:expr),* $(,)?) => {
+    &[$($x as &[u8]),*]
+  };
+}
+
 use core::str;
 
 use support::with_batch;
@@ -455,5 +461,19 @@ fn can_do_hrandfield_command_lc() {
     out.clear();
     s.hash_random_field(&[b"nokey"], batch, &mut out).unwrap();
     assert_eq!(out, b"$-1\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespHashTests.cs:CanDoHincrbyErr（非法整数）
+#[test]
+fn hincrby_non_integer_field() {
+  with_batch(|s, batch| {
+    s.hash_set(a![b"h7", b"f", b"str"], batch, &mut Vec::new())
+      .unwrap();
+
+    let mut out = Vec::new();
+    s.hash_increment(a![b"h7", b"f", b"5"], batch, &mut out, false)
+      .unwrap();
+    assert_eq!(out, b"-ERR hash value is not an integer.\r\n");
   });
 }

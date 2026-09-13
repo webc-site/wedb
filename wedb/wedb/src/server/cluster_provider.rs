@@ -818,7 +818,52 @@ impl WnodeClusterProvider for ClusterProvider {
   }
 
   #[inline]
+  fn is_replica_node(&self, node_id: &str) -> bool {
+    IClusterProvider::is_replica_node(self, node_id)
+  }
+
+  #[inline]
   fn get_run_id(&self) -> String {
     IClusterProvider::get_run_id(self)
+  }
+
+  #[inline]
+  fn get_primary_info(&self) -> (AofAddress, Vec<RoleInfo>) {
+    IClusterProvider::get_primary_info(self)
+  }
+
+  #[inline]
+  fn get_replica_info(&self) -> RoleInfo {
+    IClusterProvider::get_replica_info(self)
+  }
+
+  #[inline]
+  fn get_replication_info(&self) -> Vec<MetricsItem> {
+    IClusterProvider::get_replication_info(self)
+  }
+
+  #[inline]
+  fn get_checkpoint_info(&self) -> Vec<MetricsItem> {
+    IClusterProvider::get_checkpoint_info(self)
+  }
+
+  #[inline]
+  fn get_gossip_stats(&self, metrics_disabled: bool) -> Vec<MetricsItem> {
+    IClusterProvider::get_gossip_stats(self, metrics_disabled)
+  }
+
+  #[inline]
+  fn get_buffer_pool_stats(&self) -> Vec<MetricsItem> {
+    IClusterProvider::get_buffer_pool_stats(self)
+  }
+
+  #[inline]
+  fn purge_buffer_pool(&self, manager_type: ManagerType) {
+    IClusterProvider::purge_buffer_pool(self, manager_type);
+  }
+
+  #[inline]
+  fn reset_gossip_stats(&self) {
+    IClusterProvider::reset_gossip_stats(self);
   }
 }
