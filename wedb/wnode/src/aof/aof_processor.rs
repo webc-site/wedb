@@ -18,7 +18,11 @@ use std::{
   },
 };
 
-use waof::{AofAddress, AofEntryType, AofHeader, AofHeaderType, AofShardedHeader};
+use parking_lot::RwLock;
+use waof::{
+  AofAddress, AofEntryType, AofHeader, AofHeaderType, AofShardedHeader,
+  AofShardedLogTransactionHeader, AofSingleLogTransactionHeader,
+};
 use wbase::convert::{
   TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS,
   unix_timestamp_in_milliseconds_to_ticks, unix_timestamp_in_seconds_to_ticks,
@@ -42,10 +46,14 @@ use wval::{GarnetObjectType, NamespaceDbCodec};
 use super::{
   garnet_append_only_file::GarnetAppendOnlyFile,
   garnet_log::GarnetLog,
-  readconsistency::read_consistency_manager::ReadConsistencyManager,
+  readconsistency::{
+    custom_procedure_key_hash_collection::CustomProcedureKeyHashCollection,
+    read_consistency_manager::ReadConsistencyManager,
+  },
   replaycoordinator::{
     aof_replay_context::{ReplayOperation, TransactionGroup},
-    aof_replay_coordinator::AofReplayCoordinator,
+    aof_replay_coordinator::{AofReplayCoordinator, BarrierKey},
+    stored_proc_replay::{StoredProcReplayer, stored_proc_args, stored_proc_payload},
   },
 };
 use crate::{
@@ -416,6 +424,17 @@ pub struct ReplayTarget<'a, 'b, D: Device> {
   pub store_version: i64,
 }
 
+impl<'a, 'b, D: Device> ReplayTarget<'a, 'b, D> {
+  /// 装配重放落点（版本取自存储当前值，装配点统一经此构造）。
+  pub fn new(session: &'b StorageSession<'a, D>, store: &Arc<WedbStore<D>>) -> Self {
+    Self {
+      session,
+      store: Arc::clone(store),
+      store_version: store.current_version(),
+    }
+  }
+}
+
 /// libs/server/AOF/AofProcessor.cs:AofProcessor
 ///
 /// AOF 重放处理器。
@@ -433,6 +452,9 @@ pub struct AofProcessor {
   /// 范围索引重放面（C# activeRangeIndexManager；RangeIndexPreview 关闭 /
   /// 未注入为 None，RI 族条目重放按 C# 同文案失败）。
   range_index: Option<Arc<RangeIndexManagerReplication>>,
+  /// 存储过程重放执行面（C# 经 replayContext.respServerSession 承接；
+  /// rust 回放驱动经注册面装配，未注入为 None）。
+  stored_proc_replayer: RwLock<Option<Arc<dyn StoredProcReplayer>>>,
 }
 
 impl AofProcessor {
@@ -454,7 +476,19 @@ impl AofProcessor {
       using_sharded_log: options_physical > 1,
       using_single_physical_log_multi_replay: options_physical == 1 && virtual_count > 1,
       range_index: None,
+      stored_proc_replayer: RwLock::new(None),
     }
+  }
+
+  /// 注入存储过程重放执行面（C# 由 storeWrapper.customCommandManager 经
+  /// 回放会话承接；rust 恢复/复制驱动经注册面装配）。
+  pub fn set_stored_proc_replayer(&mut self, replayer: Arc<dyn StoredProcReplayer>) {
+    *self.stored_proc_replayer.write() = Some(replayer);
+  }
+
+  /// 存储过程重放执行面快照。
+  pub fn stored_proc_replayer(&self) -> Option<Arc<dyn StoredProcReplayer>> {
+    self.stored_proc_replayer.read().clone()
   }
 
   /// 注入范围索引重放面（C# 由 storeWrapper.activeRangeIndexManager 装配）。
@@ -542,7 +576,9 @@ impl AofProcessor {
 
   /// libs/server/AOF/AofProcessor.cs:GetSynchronizedOperationParams
   ///
-  /// 提取（序列号, 参与者数）：单物理日志用条目地址，分片用内嵌序列号。
+  /// 提取（序列号, 参与者数）：事务头形态取头内参与者数（SingleLog 取
+  /// 条目地址为序、Sharded 取内嵌序列号），其余形态取条目地址 +
+  /// 全量回放任务数（C# BasicHeader 兜底分支）。
   pub fn get_synchronized_operation_params(
     &self,
     entry: &[u8],
@@ -550,19 +586,94 @@ impl AofProcessor {
   ) -> Option<(i64, i16)> {
     let header = AofHeader::parse(entry)?;
     match header.header_type()? {
-      AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => {
-        Some((entry_address, self.replay_task_count() as i16))
+      AofHeaderType::SingleLogTransactionHeader => {
+        let h = AofSingleLogTransactionHeader::parse(entry)?;
+        Some((entry_address, h.participant_count))
       }
-      AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        let sh = AofShardedHeader::parse(entry)?;
-        Some((sh.sequence_number, self.replay_task_count() as i16))
+      AofHeaderType::ShardedLogTransactionHeader => {
+        let h = AofShardedLogTransactionHeader::parse(entry)?;
+        Some((h.sharded.sequence_number, h.participant_count))
       }
-      _ => None,
+      _ => Some((entry_address, self.replay_task_count() as i16)),
     }
   }
 
   fn replay_task_count(&self) -> usize {
     self.append_only_file.virtual_sublog_count() / self.append_only_file.log().size().max(1)
+  }
+
+  /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ReplayStoredProc
+  ///
+  /// 存储过程回放包装（单 / 分片日志统一入口）：
+  /// - 单物理日志：直接重放（无收集器，对齐 C# `tracker: null`）；
+  /// - 多日志拓扑：经同步栅栏（`LeaderBarrierType.CustomStoredProc` 类别，
+  ///   键为会话 id + 序列号）裁决，仅领导者执行；领导者以
+  ///   [`CustomProcedureKeyHashCollection`] 收集过程触达键哈希，回放后
+  ///   推进其读一致性时间戳（顺序差异见该类型文档）。
+  pub async fn replay_stored_proc(
+    &self,
+    virtual_sublog_idx: usize,
+    entry: &[u8],
+    log_address_sequence_number: i64,
+  ) -> Result<(), AofReplayError> {
+    let Some(replayer) = self.stored_proc_replayer() else {
+      return Err("AOF 存储过程条目回放未装配执行面（custom 注册表未注入）".to_string().into());
+    };
+    let header = AofHeader::parse(entry).ok_or("存储过程条目头损坏")?;
+    let proc_id = header.procedure_id;
+    let session_id = header.session_id;
+    let args =
+      stored_proc_args::decode(stored_proc_payload(entry)?).ok_or("存储过程输入载荷损坏")?;
+
+    if !self.append_only_file.multi_log_enabled() {
+      let mut hashes = Vec::new();
+      return replayer.replay(proc_id, session_id, &args, &mut hashes);
+    }
+
+    let Some((sequence_number, participant_count)) =
+      self.get_synchronized_operation_params(entry, log_address_sequence_number)
+    else {
+      return Err("存储过程条目缺少同步操作参数".into());
+    };
+
+    let barrier_key = BarrierKey::new(session_id, sequence_number);
+    if !self.coordinator.get_barrier(barrier_key, participant_count) {
+      // 非领导者：等待领导者执行（顺序回放面无阻塞等待，对齐 C# 栅栏等待）
+      return Ok(());
+    }
+
+    let result = self.run_stored_proc_with_tracker(
+      virtual_sublog_idx,
+      &replayer,
+      proc_id,
+      session_id,
+      &args,
+      sequence_number,
+    );
+    self.coordinator.try_remove_barrier(barrier_key);
+    result
+  }
+
+  /// 多日志存储过程重放（C# StoredProcRunnerWrapper + StoredProcRunnerBase
+  /// 合流）：收集器登记过程触达键哈希并推进读一致性时间戳。
+  fn run_stored_proc_with_tracker(
+    &self,
+    virtual_sublog_idx: usize,
+    replayer: &Arc<dyn StoredProcReplayer>,
+    proc_id: u8,
+    session_id: i32,
+    args: &[Vec<u8>],
+    sequence_number: i64,
+  ) -> Result<(), AofReplayError> {
+    let _ = virtual_sublog_idx;
+    let mut tracker = CustomProcedureKeyHashCollection::new(&self.append_only_file);
+    let mut hashes = Vec::new();
+    let result = replayer.replay(proc_id, session_id, args, &mut hashes);
+    if result.is_ok() && !hashes.is_empty() {
+      tracker.extend(hashes);
+      tracker.update_sequence_number(sequence_number);
+    }
+    result
   }
 
   /// libs/server/AOF/AofProcessor.cs:ProcessAofRecordInternal
@@ -732,7 +843,9 @@ impl AofProcessor {
           .map_err(|e| format!("FlushDb replay failed: {e}"))?;
       }
       AofEntryType::StoredProcedure => {
-        // 存储过程重放：过程注册表由 custom 域承载（缺口见汇报），跳过执行
+        self
+          .replay_stored_proc(virtual_sublog_idx, entry, log_address_sequence_number)
+          .await?;
       }
       AofEntryType::TxnCommit => {
         // 模糊区事务组重放（FIFO）
@@ -1563,6 +1676,130 @@ pub fn invalid_aof_address(physical_sublog_count: usize) -> AofAddress {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::collections::HashMap as StdHashMap;
+
+  use parking_lot::Mutex;
+  use wcustom::{CustomCommandManager, CustomTransactionProcedure};
+  use wtxn::{LockType, TransactionManager, TxnProcedure};
+
+  /// AOF 存储过程条目端到端回放：入队 → recover 扫描 → 处理器分发 →
+  /// 注册表工厂重建过程执行全链闭环
+  ///（对标 C# ReplayStoredProc → StoredProcRunnerBase → RunCustomTxnProcAtReplica）。
+  #[test]
+  fn stored_proc_entry_replays_via_recover() -> aok::Void {
+    use crate::aof::garnet_log::InMemorySublog;
+    use crate::aof::replaycoordinator::stored_proc_replay::StoredProcRegistryReplayer;
+    use crate::aof::sublog::Sublog;
+    use compio::runtime::Runtime;
+    use wconf::RuntimeServerOptions;
+
+    let rt = Runtime::new()?;
+    rt.block_on(async {
+      // 过程 SET 语义（args 两两为 key/value），数据面经工厂闭包自持
+      let data = Arc::new(Mutex::new(StdHashMap::new()));
+      let mut manager = CustomCommandManager::new();
+      let proc_data = Arc::clone(&data);
+      let proc_id = manager
+        .register_transaction(
+          "SETX",
+          Some(Arc::new(move || {
+            Box::new(ProcSet {
+              data: Arc::clone(&proc_data),
+              args: Vec::new(),
+            })
+          })),
+          None,
+          None,
+        )
+        .unwrap();
+
+      // 单物理日志拓扑 AOF
+      let options = RuntimeServerOptions::default();
+      let backends: Vec<Arc<Sublog>> = vec![Arc::new(Sublog::Mem(InMemorySublog::new()))];
+      let aof = Arc::new(GarnetAppendOnlyFile::new(
+        Arc::new(GarnetLog::new(&options, backends, None)),
+        &options,
+        None,
+      ));
+      let log = aof.log();
+
+      // 入队存储过程条目（载荷 = 过程参数序列）
+      let mut body = Vec::new();
+      stored_proc_args::encode(&[b"pk".to_vec(), b"pv".to_vec()], &mut body);
+      log.enqueue_stored_proc(
+        AofEntryType::StoredProcedure,
+        5,
+        7,
+        proc_id,
+        &body,
+        &wtxn::SublogAccess::default(),
+      );
+      log.commit();
+
+      // 处理器装配注册表执行面并恢复回放
+      let mut processor = AofProcessor::new(Arc::clone(&aof));
+      processor.set_stored_proc_replayer(Arc::new(StoredProcRegistryReplayer::new(
+        Arc::new(parking_lot::Mutex::new(manager)),
+      )));
+
+      let dir = std::env::temp_dir().join(format!("wnode-proc-replay-{}", std::process::id()));
+      std::fs::create_dir_all(&dir)?;
+      let device = Arc::new(wdev::SegmentedDevice::single_file(dir.join("data.db"))?);
+      let store = Arc::new(WedbStore::open(wkv::StoreConfig::new(16384, 65536, 64, 0.5)?, device)?);
+      let session = store.new_session()?;
+      let storage = StorageSession::new(session.enter_batch(), Arc::new(wtxn::WatchVersionMap::new(16)));
+      let target = ReplayTarget::new(&storage, &store);
+
+      let replayed = crate::aof::recover::aof_recover::AofRecover::single_log_recover(
+        &processor, &aof, 0, 0, -1, &target,
+      )
+      .await?;
+      assert_eq!(replayed, 1, "存储过程条目应被重放");
+
+      // 过程执行效果落库（is_recovering 路径的最终状态）
+      assert_eq!(
+        data.lock().get(b"pk".as_slice()).map(Vec::as_slice),
+        Some(b"pv".as_slice()),
+        "过程重放写入生效"
+      );
+      let _ = std::fs::remove_dir_all(&dir);
+      aok::OK
+    })
+  }
+
+  /// 测试过程体：SET 语义（args 两两为 key/value）
+  struct ProcSet {
+    data: Arc<Mutex<StdHashMap<Vec<u8>, Vec<u8>>>>,
+    args: Vec<Vec<u8>>,
+  }
+
+  impl TxnProcedure for ProcSet {
+    fn id(&self) -> u8 {
+      0
+    }
+
+    fn prepare(&mut self, txn_manager: &mut TransactionManager) -> bool {
+      for key in self.args.iter().step_by(2) {
+        txn_manager.save_key_entry_to_lock(key, LockType::Exclusive);
+      }
+      !self.args.is_empty()
+    }
+
+    fn main(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {
+      let mut data = self.data.lock();
+      for pair in self.args.chunks(2) {
+        data.insert(pair[0].clone(), pair[1].clone());
+      }
+    }
+
+    fn finalize(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {}
+  }
+
+  impl CustomTransactionProcedure for ProcSet {
+    fn bind_args(&mut self, args: &[Vec<u8>]) {
+      self.args = args.to_vec();
+    }
+  }
 
   #[test]
   fn replay_input_parses_integration_bytes() {

@@ -28,10 +28,11 @@ use parking_lot::RwLock;
 use wbase::{
   backoff::backoff,
   base32::{BASE32_LEN_U64, BASE32_LEN_U128, Base32Buf128, encode_u64, encode_u128},
+  map::{ConcurrentMap, new_concurrent_map},
   striped::{CacheAlignedLock as BaseCacheAlignedLock, StripedRwLock},
 };
 use wepoch::LightEpoch;
-use whasher::{GxPapayaMap, fast_hash, hash128, new_papaya_map};
+use whasher::{fast_hash, hash128};
 
 use crate::{
   error::{Error, Result},
@@ -181,7 +182,7 @@ pub struct RangeIndexManager {
   /// 迁移临时目录 ({ri_log_root}/migration-tmp/)
   pub(crate) migration_temp_dir: PathBuf,
   /// 在线索引字典 (按 128 位 key_id 纯整数索引，零堆分配，基于 papaya 高性能无锁并发字典与硬件向量加速 gxhash)
-  pub(crate) live_indexes: GxPapayaMap<u128, Arc<TreeEntry>>,
+  pub(crate) live_indexes: ConcurrentMap<u128, Arc<TreeEntry>>,
   /// 全局检查点进行中标记
   pub(crate) checkpoint_in_progress: AtomicBool,
   /// 带地址刷盘文件存在疑似标记 (生成计数，惰性恢复的目录扫描门控)
@@ -261,7 +262,7 @@ impl RangeIndexManager {
       ri_log_root,
       cpr_dir,
       migration_temp_dir,
-      live_indexes: new_papaya_map(),
+      live_indexes: new_concurrent_map(),
       checkpoint_in_progress: AtomicBool::new(false),
       addr_flush_gen: AtomicU64::new(1),
       addr_flush_settled_gen: AtomicU64::new(0),
@@ -438,7 +439,7 @@ impl RangeIndexManager {
 
   /// 获取在线索引字典引用 (用于检查点遍历与恢复注册)
   #[inline]
-  pub fn live_indexes(&self) -> &GxPapayaMap<u128, Arc<TreeEntry>> {
+  pub fn live_indexes(&self) -> &ConcurrentMap<u128, Arc<TreeEntry>> {
     &self.live_indexes
   }
 

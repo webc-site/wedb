@@ -9,6 +9,7 @@ use std::{
 };
 
 use clap::Parser;
+use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
@@ -65,6 +66,14 @@ pub struct NodeArgs {
   /// AOF 周期提交毫秒数
   #[arg(long)]
   pub aof_commit_ms: Option<u64>,
+
+  /// 日志追加文件路径（设置后日志同步落文件；对标 serverSettings.FileLogger）
+  #[arg(long)]
+  pub file_logger: Option<String>,
+
+  /// 控制台日志最低级别（trace/debug/info/warn/error；对标 serverSettings.LogLevel）
+  #[arg(long)]
+  pub log_level: Option<String>,
 }
 
 fn default_bind() -> String {
@@ -95,6 +104,25 @@ impl Default for NodeArgs {
       threads: None,
       compaction_freq_secs: default_compaction_freq(),
       aof_commit_ms: None,
+      file_logger: None,
+      log_level: None,
+    }
+  }
+}
+
+impl NodeArgs {
+  /// 解析最低日志级别（serverSettings.LogLevel；缺省 Information，
+  /// 未知级别回退 Information）
+  ///
+  /// libs/host/Configuration/CommandLineTypes.cs:LogLevel 解析投影
+  pub fn minimum_log_level(&self) -> LevelFilter {
+    match self.log_level.as_deref().map(str::to_ascii_lowercase).as_deref() {
+      Some("trace") => LevelFilter::Trace,
+      Some("debug") => LevelFilter::Debug,
+      Some("warn") | Some("warning") => LevelFilter::Warn,
+      Some("error") => LevelFilter::Error,
+      Some("off") => LevelFilter::Off,
+      _ => LevelFilter::Info,
     }
   }
 }

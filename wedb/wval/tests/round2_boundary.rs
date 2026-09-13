@@ -6,6 +6,7 @@ use std::{
 
 use aok::{OK, Void};
 use log::info;
+use wbase::float::encode_f64;
 use wval::{
   CollectionType, CompactHash, CompactHashCodec, CompactMetaValue, CompactSet, CompactSetCodec,
   CompactZSet, KeyTag, META_VALUE_SIZE, MetaValue, StorageEncoding, SubKeyBuf, ZSetEntryRef,
@@ -337,7 +338,7 @@ fn test_round2_compact_zset_randomized_model_crosscheck() -> Void {
         .map(|(m, (bits, exp))| ((*m).clone(), *bits, *exp))
         .collect();
       ordered.sort_by_key(|(m, bits, _)| {
-        let sortable = u64::from_be_bytes(wbase::float::encode_f64(f64::from_bits(*bits)));
+        let sortable = u64::from_be_bytes(encode_f64(f64::from_bits(*bits)));
         (sortable, m.clone())
       });
       let entries: Vec<wval::ZSetEntryRef> = zset.iter_members().collect();

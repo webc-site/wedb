@@ -12,9 +12,9 @@
 use std::{io, sync::Arc};
 
 use compio::buf::BufResult;
+use wbase::pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool};
 
 use crate::{
-  buffer_pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool},
   net::stream::ConnectionStream,
   throttle::NetworkSenderThrottle,
   traits::{MessageConsumerFace, SessionProviderFace, WireFormat},

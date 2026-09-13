@@ -9,5 +9,5 @@ pub mod subscriber;
 
 pub use pattern_subscription_entry::{PatternSubscriberSet, PatternSubscriptionEntry};
 pub use session_commands::*;
-pub use subscribe_broker::{MessageBroker, SubscribeBroker};
+pub use subscribe_broker::SubscribeBroker;
 pub use subscriber::{PubSubMailbox, PubSubMessage, PubSubMessageKind, PubSubSink};

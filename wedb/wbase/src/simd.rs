@@ -34,7 +34,7 @@ pub fn fast_key_eq(a: &[u8], b: &[u8]) -> bool {
 /// 16B 步进 + 末 16B 重叠尾读的向量化比对 (aarch64 NEON / x86_64 SSE2 起步)
 ///
 /// 主循环逐块比对、首异即短路返回；存在余数 (len 非 16 对齐) 时借末 16B 重叠块
-/// 一次性收尾，与逐指令手写版本语义一致 (穷举差异位测试锁定，见 wrecord::simd)
+/// 一次性收尾，与逐指令手写版本语义一致 (穷举差异位测试锁定，见 tests/suite/simd.rs)
 #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
 #[inline(always)]
 fn simd_key_eq<S: Simd>(simd: S, a: &[u8], b: &[u8], len: usize) -> bool {

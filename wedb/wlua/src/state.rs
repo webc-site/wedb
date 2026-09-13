@@ -27,9 +27,10 @@ pub const TIMEOUT_ERROR: &[u8] = b"ERR Lua script exceeded configured timeout";
 /// 超时截止槽（单调毫秒；挂给 VM 中断回调读取）。
 type Deadline = Cell<Option<i64>>;
 
-/// 当前单调毫秒（coarsetime；超时截止的时钟基准）。
+/// 当前毫秒时钟（coarsetime 委托 `wbase::time::now_ms` 单一实现；超时截止基准）
+#[inline]
 pub fn now_monotonic_millis() -> i64 {
-  coarsetime::Clock::now_since_epoch().as_millis() as i64
+  wbase::time::now_ms() as i64
 }
 
 /// Lua 状态：VM 指针 + 可选自定义分配器 + 超时截止。

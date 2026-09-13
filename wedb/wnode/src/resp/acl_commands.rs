@@ -4,14 +4,14 @@
 //! 函数经 [`AclCtx`] 显式注入 ACL 认证器 / 认证设置 / 自定义命令注册
 //! 查询面（对标 C# 会话内 `_authenticator` + `storeWrapper` 的同一取数）。
 
-use std::{fmt::Display, sync::Arc};
+use std::{fmt::Display, mem, sync::Arc};
 
 use wacl::{
   AccessControlList, AclError, AclParser, GarnetAclAuthenticator, User,
   auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
 use wresp::{
-  RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
+  RespCommand, RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{abort_with_error_message, write_error_raw, write_map_len_resp2, write_raw},
 };
 
@@ -75,7 +75,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclList
   pub fn network_acl_list(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -102,7 +102,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclUsers
   pub fn network_acl_users(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -127,7 +127,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclCat
   pub fn network_acl_cat(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -156,7 +156,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclSetUser
   pub fn network_acl_set_user(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -257,7 +257,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclDelUser
   pub fn network_acl_del_user(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -301,7 +301,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclWhoAmI
   pub fn network_acl_who_am_i(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -326,7 +326,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclLoad
   pub fn network_acl_load(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -362,7 +362,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclSave
   pub fn network_acl_save(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -398,7 +398,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclGenPass
   pub fn network_acl_gen_pass(
-    &mut self,
+    &self,
     _ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -441,7 +441,7 @@ impl RespServerSession {
   ///
   /// libs/server/Resp/ACLCommands.cs:NetworkAclGetUser
   pub fn network_acl_get_user(
-    &mut self,
+    &self,
     ctx: &AclCtx,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -484,5 +484,56 @@ impl RespServerSession {
       }
     }
     Ok(true)
+  }
+}
+
+impl RespServerSession {
+  /// C# ProcessOtherCommands 的 ACL arm 集（实现为本文件各 network_acl_* 函数）
+  ///
+  /// ACL LIST/USERS/CAT/SETUSER/DELUSER/WHOAMI/LOAD/SAVE/GENPASS/GETUSER；
+  /// `None` 表示命令不属于本族，调用方继续后续分派。
+  /// 上下文就地构建（认证器 guard 局部保活，ctx 持其解引用）
+  pub fn process_acl_commands(&mut self, cmd: RespCommand) -> Option<bool> {
+    if !matches!(
+      cmd,
+      RespCommand::AclList
+        | RespCommand::AclUsers
+        | RespCommand::AclCat
+        | RespCommand::AclSetuser
+        | RespCommand::AclDeluser
+        | RespCommand::AclWhoami
+        | RespCommand::AclLoad
+        | RespCommand::AclSave
+        | RespCommand::AclGenpass
+        | RespCommand::AclGetuser
+    ) {
+      return None;
+    }
+    let args = self.get_arg_slices();
+    let mut output = mem::take(&mut self.output);
+    let auth_guard = self.acl_authenticator.as_ref().map(|acl| acl.lock());
+    let ctx = AclCtx {
+      authenticator: auth_guard.as_deref(),
+      acl_settings: self.acl_settings.as_deref(),
+      is_custom_command_registered: None,
+    };
+    let handled = match cmd {
+      RespCommand::AclList => self.network_acl_list(&ctx, &args, &mut output),
+      RespCommand::AclUsers => self.network_acl_users(&ctx, &args, &mut output),
+      RespCommand::AclCat => self.network_acl_cat(&ctx, &args, &mut output),
+      RespCommand::AclSetuser => self.network_acl_set_user(&ctx, &args, &mut output),
+      RespCommand::AclDeluser => self.network_acl_del_user(&ctx, &args, &mut output),
+      RespCommand::AclWhoami => self.network_acl_who_am_i(&ctx, &args, &mut output),
+      RespCommand::AclLoad => self.network_acl_load(&ctx, &args, &mut output),
+      RespCommand::AclSave => self.network_acl_save(&ctx, &args, &mut output),
+      RespCommand::AclGenpass => self.network_acl_gen_pass(&ctx, &args, &mut output),
+      RespCommand::AclGetuser => self.network_acl_get_user(&ctx, &args, &mut output),
+      _ => {
+        self.output = output;
+        return None;
+      }
+    };
+    self.output = output;
+    Some(handled.unwrap_or(true))
   }
 }

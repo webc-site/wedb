@@ -367,6 +367,9 @@
         - SerializeObjectValue
   理由: C# 对象序列化回退，Rust 侧由 GarnetObjectSerializer 统一序列化
 - 文件:
+    - libs/server/Custom/CustomTransactionProcedure.cs:
+        - CreateArgSlice
+        - RewindScratchBuffer
     - libs/server/Storage/Functions/MainStore/DeleteMethods.cs:
         - InPlaceDeleter
     - libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:
@@ -450,17 +453,21 @@
     - libs/server/ArgSlice/ArgSliceVector.cs:
         - GetEnumerator
     - libs/server/ArgSlice/ScratchBufferAllocator.cs:
+        - CreateArgSlice
         - ExpandScratchBuffer
         - ExpandScratchBufferIfNeeded
         - InitializeScratchBuffer
+        - RewindScratchBuffer
         - TryRewindToOffset
     - libs/server/ArgSlice/ScratchBufferBuilder.cs:
+        - CreateArgSlice
         - CreateArgSliceAsOffset
         - ExpandScratchBuffer
         - ExpandScratchBufferIfNeeded
         - FormatScratch
         - FullBuffer
         - GrowBuffer
+        - RewindScratchBuffer
         - UTF8EncodeString
   理由: C# 堆外临时内存切片与缓冲构建器，Rust 侧直接基于原生切片与 Vec 操作
 - 文件:

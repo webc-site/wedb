@@ -62,10 +62,12 @@ pub mod num;
 pub mod pool;
 #[cfg(feature = "pool")]
 pub use pool::{
-  AlignedBuf, BufferPool, CLASS_CAPACITIES_SECTORS, DEFAULT_LARGE_BUDGET_BYTES,
-  DEFAULT_SMALL_BUDGET_BYTES, DEPOT_STRIPE_CAP, LARGE_TIER_MIN_BYTES, MAX_LOCAL_PER_CLASS,
-  MAX_POOLED_SECTORS, MIN_THREAD_LOCAL_BYTES, NUM_CLASSES, PoolStats, class_capacity_bytes,
-  class_capacity_sectors, class_of_sectors,
+  AlignedBuf, BufferPool, CLASS_CAPACITIES_SECTORS, DEFAULT_BUFFER_SIZE,
+  DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE, DEFAULT_LARGE_BUDGET_BYTES, DEFAULT_MAX_POOL_SIZE,
+  DEFAULT_MAX_RECEIVE_BUFFER_SIZE, DEFAULT_SEND_BUFFER_SIZE, DEFAULT_SMALL_BUDGET_BYTES,
+  DEPOT_STRIPE_CAP, LARGE_TIER_MIN_BYTES, LimitedFixedBufferPool, MAX_LOCAL_PER_CLASS,
+  MAX_POOLED_SECTORS, MIN_THREAD_LOCAL_BYTES, NUM_CLASSES, NetworkBufferSettings, PoolStats,
+  PooledBuffer, class_capacity_bytes, class_capacity_sectors, class_of_sectors,
 };
 
 #[cfg(feature = "simd")]

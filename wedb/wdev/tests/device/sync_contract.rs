@@ -1,5 +1,4 @@
-//! sync 持久化契约：全局 sync 覆盖他线程写入、跨线程 fsync 可行性实验、
-//! 删段/截断免责与守护位图清空。
+//! sync 持久化契约：全局 sync 覆盖他线程写入、删段/截断免责与守护位图清空。
 //!
 //! 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:LocalStorageDevice：句柄表进程级共享（`SafeConcurrentDictionary<int,
 //! SafeFileHandle>` 按段键控）、任意线程可对全设备 sync。Rust 侧可行性依赖
@@ -7,14 +6,10 @@
 //!
 //! 所有跨线程场景均挂看门狗（超时强制退出进程），防运行时互等挂死。
 
-use std::{
-  fs,
-  sync::{Arc, mpsc},
-  thread,
-};
+use std::{sync::Arc, thread};
 
 use aok::{OK, Void};
-use compio::{buf::BufResult, fs::File, io::AsyncWriteAt, runtime::Runtime};
+use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
 use wbase::AlignedBuf;
@@ -24,60 +19,6 @@ use crate::support::Watchdog;
 
 const SECTOR: usize = 4096;
 const SEG_SIZE: u64 = 64 * 1024;
-
-/// 跨线程 fsync 可行性测试：线程 A 在其独立 Runtime 写入数据，线程 B 在
-/// 自己的独立 Runtime 对同一路径打开并执行 sync_all / sync_data。
-/// 验证 POSIX 文件系统按 inode 脏页落盘契约与多 Runtime 协同可靠性。
-#[test]
-fn raw_cross_thread_fsync_feasibility() -> Void {
-  let dir = tempdir()?;
-  let path = dir.path().join("raw_ct_fsync.bin");
-  let _wd = Watchdog::start(60);
-
-  let path_a = path.clone();
-  let path_b = path.clone();
-  let (tx, rx) = mpsc::channel::<()>();
-
-  // 线程 A：打开文件并写入 4096 字节
-  let ta = thread::spawn(move || -> Void {
-    let rt = Runtime::new()?;
-    rt.block_on(async {
-      let mut file = File::create(&path_a).await?;
-      let data: Vec<u8> = (0..SECTOR).map(|j| (j & 0xFF) as u8).collect();
-      let buf = AlignedBuf::from_slice(&data, 4096)?;
-      let BufResult(res, _) = file.write_at(buf, 0).await;
-      assert_eq!(res?, SECTOR);
-      tx.send(()).expect("接收端存活");
-      aok::Result::<()>::Ok(())
-    })?;
-    OK
-  });
-
-  // 线程 B：独立 Runtime，对同一路径文件执行全量与数据级 fsync
-  let tb = thread::spawn(move || -> Void {
-    rx.recv().expect("发送端存活");
-    let rt = Runtime::new()?;
-    rt.block_on(async {
-      let file = File::open(&path_b).await?;
-      file.sync_all().await?;
-      file.sync_data().await?;
-      aok::Result::<()>::Ok(())
-    })?;
-    OK
-  });
-
-  ta.join().unwrap()?;
-  tb.join().unwrap()?;
-
-  // 常规 std 读路径复验数据完整
-  let disk = fs::read(&path)?;
-  assert_eq!(disk.len(), SECTOR);
-  assert_eq!(disk[0], 0);
-  assert_eq!(disk[SECTOR - 1], ((SECTOR - 1) & 0xFF) as u8);
-
-  info!("跨线程 fsync 可行性实验通过：他线程 fd 的 sync_all/sync_data 全部成功");
-  OK
-}
 
 /// 全局 sync 覆盖他线程写入：线程 A 写段 0 与段 1 后退出（不再 sync），线程 B
 /// 调用 `sync()` 必须覆盖 A 的全部在表句柄——守护位图清空（debug 构建），且

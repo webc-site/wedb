@@ -96,8 +96,8 @@
     - libs/common/LightClientRequest.cs
     - libs/common/Logging/FileLoggerProvider.cs:
         - AddFile
+        - BeginScope
         - CreateLogger
-    - libs/common/Logging/LogFormatter.cs
     - libs/common/NetworkBufferSettings.cs:
         - CreateBufferPool
         - GetInclusive

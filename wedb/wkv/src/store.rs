@@ -12,7 +12,7 @@ use compio::runtime::Runtime;
 use crossfire::oneshot::{TxOneshot, oneshot};
 use gxhash::{GxBuildHasher, HashSet};
 use itoa::Buffer;
-use papaya::{HashMap as PapayaMap, Operation};
+use papaya::Operation;
 use parking_lot::{Mutex, RwLock};
 use wbase::time::{now_ms, now_ticks};
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub, StorageBackend, TreeTuning};
@@ -32,8 +32,8 @@ use crate::{
   ttl::{TTL_VALUE_LEN, TtlProbe},
 };
 
-/// 集合版本映射并发字典（基于无锁高效 papaya 与硬件向量加速 GxBuildHasher）
-pub type KeyIdVersionsMap = PapayaMap<u64, (u64, bool), GxBuildHasher>;
+/// 集合版本映射并发字典（单一来源 `wbase::map::ConcurrentMap`：papaya 无锁结构 + gxhash 构建器）
+pub type KeyIdVersionsMap = wbase::map::ConcurrentMap<u64, (u64, bool)>;
 
 /// Group Commit 挂起等待者契约（对标 Garnet TsavoriteLog.CommitTask）
 struct FlushWaiter {
@@ -246,12 +246,10 @@ define_listener! {
   TtlWriteListenerFn, (ns: u64, db: u64, key: &[u8], expire_at_ticks: Option<i64>);
 }
 
-/// 创建集合版本映射字典
+/// 创建集合版本映射字典（委托 `wbase::map::new_concurrent_map` 单一实现）
 #[inline]
 pub fn new_key_id_versions_map() -> KeyIdVersionsMap {
-  PapayaMap::builder()
-    .hasher(GxBuildHasher::default())
-    .build()
+  wbase::map::new_concurrent_map()
 }
 
 /// key_id 分配安全余量（恢复时在持久化水位之上预留的分配额度）

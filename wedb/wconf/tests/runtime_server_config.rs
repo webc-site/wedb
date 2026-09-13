@@ -6,8 +6,8 @@ use std::{
 };
 
 use wconf::{
-  ConfigError, ConfigKind, ConfigNameComparer, ConfigOwner, LogCompactionType, RuntimeServerConfig,
-  RuntimeServerOptions, ServerConfigType, TestOwner,
+  ConfigError, ConfigKind, ConfigNameComparer, ConfigOwner, GarnetServerOptions, LogCompactionType,
+  RuntimeServerConfig, RuntimeServerOptions, ServerConfigType, TestOwner,
 };
 
 #[test]
@@ -229,6 +229,13 @@ fn try_set_readonly_rejected() {
       name: "aof-memory".into()
     })
   );
+  // 追加档只读参数同样拒绝运行期写入
+  assert_eq!(
+    config.try_set(ServerConfigType::AppendOnly, "yes"),
+    Err(ConfigError::ReadOnly {
+      name: "appendonly".into()
+    })
+  );
 }
 
 #[test]
@@ -300,6 +307,17 @@ fn name_comparer_matches_csharp_ascii() {
     ConfigNameComparer::hash_code(b"cluster-timeout"),
     ConfigNameComparer::hash_code(b"CLUSTER-TIMEOUT")
   );
+  // ASCII 大写化：字母转换、数字保持
+  assert_eq!(ConfigNameComparer::to_upper_ascii(b'a'), b'A');
+  assert_eq!(ConfigNameComparer::to_upper_ascii(b'0'), b'0');
+}
+
+/// C# RuntimeServerConfig.cs:SecondsFromTimeSpan（非正值归 0 秒）
+#[test]
+fn seconds_from_time_span_non_positive_is_zero() {
+  assert_eq!(RuntimeServerConfig::seconds_from_time_span(60), 60);
+  assert_eq!(RuntimeServerConfig::seconds_from_time_span(0), 0);
+  assert_eq!(RuntimeServerConfig::seconds_from_time_span(-1), 0);
 }
 
 #[test]
@@ -357,4 +375,32 @@ fn resp_format_of_runtime_slots() {
     config.resp_format(ServerConfigType::AofSyncMaxLagBytes),
     "-1"
   );
+}
+
+/// libs/test/standalone/Garnet.test/GarnetServerConfigTests.cs:MinimumPageSize
+///
+/// 页尺寸消费面校验：512B 以下在 server-options 消费期拒绝；
+/// 384B 下取 2 的幂收敛到 256B 亦被拒；512B / 1k 接受。
+#[test]
+fn minimum_page_size() {
+  let page_bits = |page_size: &str| {
+    GarnetServerOptions {
+      page_size: page_size.into(),
+      ..GarnetServerOptions::default()
+    }
+    .page_size_bits()
+  };
+
+  // 256B 解析合法但低于最小页 512B，消费期拒绝
+  let err = page_bits("256").unwrap_err();
+  assert!(err.to_string().contains("512"), "文案需含最小页值: {err}");
+
+  // 384B 下取 2 的幂 = 256B，同样拒绝
+  assert!(page_bits("384").is_err());
+
+  // 512B 恰好达标 → 2^9
+  assert_eq!(page_bits("512").unwrap(), 9);
+
+  // 1k 接受 → 2^10
+  assert_eq!(page_bits("1k").unwrap(), 10);
 }

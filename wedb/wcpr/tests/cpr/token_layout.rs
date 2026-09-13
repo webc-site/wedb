@@ -194,7 +194,7 @@ fn purge_all_sweeps_all_residue() -> Void {
       b"stale",
     )?;
 
-    mgr.purge_all_checkpoints(&ckpt_dir)?;
+    CheckpointManager::<SegmentedDevice>::purge_all(&ckpt_dir)?;
     let entries: Vec<_> = fs::read_dir(&ckpt_dir)?
       .flatten()
       .map(|e| e.file_name())

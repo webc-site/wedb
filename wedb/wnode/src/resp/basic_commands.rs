@@ -13,7 +13,7 @@ use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
   cmd_strings::{
     RESP_ERR_GENERIC, abort_with_error_message, abort_with_unknown_subcommand,
-    abort_with_unsupported_option, write_error_raw, write_raw,
+    abort_with_unsupported_option, write_raw,
   },
   key_spec::KeySpecificationFlags,
   strict_i32, strict_i64, unpack_args,
@@ -38,12 +38,6 @@ const ERR_NOT_INTEGER: &str = cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER;
 const ERR_OFFSET_OUT_OF_RANGE: &str = cs::RESP_ERR_GENERIC_OFFSETOUTOFRANGE;
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_STRING_EXCEEDS_MAX_SIZE
 const ERR_STRING_EXCEEDS_MAX: &str = "ERR string exceeds maximum allowed size (proto-max-bulk-len)";
-/// libs/server/Auth/GarnetNoAuthAuthenticator.cs:CanAuthenticate
-///
-/// rust 会话尚未接线认证器；C# 默认（无 AuthSettings）即 NoAuth 认证器，
-/// CanAuthenticate = false，AUTH/HELLO 认证按该路径报错（文案与 C# 逐字节一致）
-const CAN_AUTHENTICATE: bool = false;
-
 /// TimeSpan.MaxValue.TotalSeconds 对标上限（libs/server/Resp/BasicCommands.cs:NetworkGETEX）
 pub const MAX_TIMESPAN_SECONDS: i64 = i64::MAX / TICKS_PER_SECOND;
 /// TimeSpan.MaxValue.TotalMilliseconds 对标上限（libs/server/Resp/BasicCommands.cs:NetworkGETEX）
@@ -1425,29 +1419,6 @@ impl RespServerSession {
     Ok(true)
   }
 
-  /// libs/server/Resp/BasicCommands.cs:NetworkAUTH
-  pub fn network_auth<'a, D: wdev::Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    _store: &wkv::BatchStoreSession<'a, D>,
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    // AUTH [<username>] <password>
-    check_arg_count!(parse_state, 1..=2, output, "AUTH");
-
-    if CAN_AUTHENTICATE {
-      // 认证器接线后：AuthenticateUser 成功回 OK；失败按用户名有无回
-      // WRONGPASS（Invalid password / Invalid username/password combination）
-      write_raw(output, cs::RESP_OK);
-    } else {
-      // C# 默认 GarnetNoAuthAuthenticator：CanAuthenticate = false
-      write_error_raw(
-        output,
-        "ERR Client sent AUTH, but configured authenticator does not accept passwords",
-      );
-    }
-    Ok(true)
-  }
   /// libs/server/Resp/BasicCommands.cs:NetworkMemoryUsage
   pub fn network_memory_usage<'a, D: wdev::Device>(
     &mut self,
@@ -1543,11 +1514,10 @@ impl RespServerSession {
     }
     Ok(true)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkASYNC
-  pub fn network_async<'a, D: wdev::Device>(
+  /// ASYNC 参数应用核心（ON/OFF/BARRIER；respProtocolVersion >= 3 才可用）
+  pub(crate) fn apply_async_param(
     &mut self,
     parse_state: &[&[u8]],
-    _store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // rust 会话未携带 respProtocolVersion（默认 RESP2），C# RESP2 下同样直接报
@@ -1572,6 +1542,16 @@ impl RespServerSession {
     write_raw(output, cs::RESP_OK);
     Ok(true)
   }
+  /// libs/server/Resp/BasicCommands.cs:NetworkASYNC
+  pub fn network_async<'a, D: wdev::Device>(
+    &mut self,
+    parse_state: &[&[u8]],
+    _store: &wkv::BatchStoreSession<'a, D>,
+    output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    self.apply_async_param(parse_state, output)
+  }
+
   /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
   ///
   /// 校验 → 认证 → 升级协议版本 / 落客户端名 → 组 HELLO 应答 map。应答

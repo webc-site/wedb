@@ -410,11 +410,7 @@ impl GarnetAppendOnlyFile {
     let storage = StorageSession::new(batch, Arc::clone(&db.version_map));
     let aof_clone = Arc::clone(&self);
     let processor = AofProcessor::new(self);
-    let target = ReplayTarget {
-      session: &storage,
-      store: Arc::clone(&db.store),
-      store_version: db.store.current_version(),
-    };
+    let target = ReplayTarget::new(&storage, &db.store);
     let until_address = if until == u64::MAX {
       -1
     } else {

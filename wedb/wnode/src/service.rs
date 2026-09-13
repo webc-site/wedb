@@ -428,11 +428,7 @@ impl<D: Device> NodeService<D> {
     processor.set_range_index_manager(Arc::new(RangeIndexManagerReplication::new(Arc::clone(
       &target_session.store.range_index,
     ))));
-    let target = ReplayTarget {
-      session: &storage,
-      store: Arc::clone(&target_session.store),
-      store_version: target_session.store.current_version(),
-    };
+    let target = ReplayTarget::new(&storage, &target_session.store);
     let replayed = AofRecover::single_log_recover(&processor, &self.aof, 0, 0, -1, &target).await?;
     Ok(replayed)
   }

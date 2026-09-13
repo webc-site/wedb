@@ -12,6 +12,7 @@ pub mod command_catalog_data;
 pub mod command_permission_set;
 pub mod secrets_utility;
 pub mod user;
+pub mod user_handle;
 
 pub use access_control_list::AccessControlList;
 pub use acl_exception::AclError;
@@ -22,6 +23,8 @@ pub use command_catalog::RespAclCategories;
 pub use command_permission_set::CommandPermissionSet;
 pub use secrets_utility::constant_equals;
 pub use user::User;
+pub use user_handle::UserHandleExt;
 
-/// 用户并发句柄（直接基于 RwLock<Arc<User>>，消除无意义单字段包装类开销）。
+/// 用户并发句柄（对标 libs/server/ACL/UserHandle.cs:UserHandle —— RwLock 承接
+/// C# 引用换新语义；CAS 换新原语见 [`UserHandleExt::try_set_user`]）。
 pub type UserHandle = RwLock<Arc<User>>;

@@ -58,7 +58,7 @@ fn test_purge_check() -> Void {
 
     // 3. 单个快照清理（对标 Purge(guid)）
     let remove_target = tokens[2];
-    manager.purge(&ckpt_dir, remove_target)?;
+    CheckpointManager::<SegmentedDevice>::purge_checkpoint(&ckpt_dir, remove_target)?;
 
     let listed_after_one = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
     assert_eq!(listed_after_one.len(), 5);
@@ -79,7 +79,7 @@ fn test_purge_check() -> Void {
     );
 
     // 4. 全量快照清理（对标 PurgeAll()）
-    manager.purge_all_checkpoints(&ckpt_dir)?;
+    CheckpointManager::<SegmentedDevice>::purge_all(&ckpt_dir)?;
     let empty_list = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
     assert!(empty_list.is_empty(), "purge_all 必须彻底清空所有快照");
 

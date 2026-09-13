@@ -259,7 +259,8 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// `VADD key [REDUCE dim] (FP32 | XU8 | XI8 | VALUES num) vector element
   ///   [CAS] [NOQUANT | Q8 | BIN | XNOQUANT_U8 | XPREQ8 | XNOQUANT_I8 | XBIN_I8 | XBIN_U8]
   ///   [EF build-exploration-factor] [SETATTR attributes] [M numlinks]
-  ///   [XDISTANCE_METRIC L2 | COSINE | IP | XCOSINE_NORMALIZED]`
+  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVADD
+  #[inline]
   pub fn network_vadd(&self, args: &[&[u8]]) -> VectorReply {
     self.network_vadd_impl(args, false)
   }
@@ -612,7 +613,8 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   ///
   /// `VSIM key (ELE | FP32 | XU8 | XI8 | VALUES num) (vector | element)
   ///   [WITHSCORES] [WITHATTRIBS] [COUNT num] [EPSILON delta] [EF factor]
-  ///   [FILTER expression] [FILTER-EF effort] [TRUTH] [NOTHREAD]`
+  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVSIM
+  #[inline]
   pub fn network_vsim(&self, args: &[&[u8]]) -> VectorReply {
     self.network_vsim_impl(args, false)
   }
@@ -1035,6 +1037,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   }
 
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVISMEMBER
+  #[inline]
   pub fn network_vismember(&self, args: &[&[u8]]) -> VectorReply {
     self.network_vismember_impl(args, false)
   }
@@ -1150,6 +1153,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   }
 
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVSETATTR
+  #[inline]
   pub fn network_vsetattr(&self, args: &[&[u8]]) -> VectorReply {
     self.network_vsetattr_impl(args, false)
   }

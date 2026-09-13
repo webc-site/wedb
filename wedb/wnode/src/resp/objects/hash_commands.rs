@@ -597,10 +597,7 @@ impl RespServerSession {
     parse_state: &'a [&'a [u8]],
     output: &mut Vec<u8>,
   ) -> Option<HashExpireArgs<'a>> {
-    if parse_state.len() <= 4 {
-      cs::abort_with_wrong_number_of_arguments(output, "HEXPIRE");
-      return None;
-    }
+    check_arg_count!(parse_state, >= 5, output, "HEXPIRE", return None);
 
     let key = parse_state[0];
 

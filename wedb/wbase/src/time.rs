@@ -19,6 +19,12 @@ pub fn now_nanos() -> u64 {
   Clock::now_since_epoch().as_nanos()
 }
 
+/// 获取自 UNIX 纪元以来的当前秒级时间戳（i64）
+#[inline(always)]
+pub fn now_secs() -> i64 {
+  Clock::now_since_epoch().as_secs() as i64
+}
+
 /// 获取当前 .NET Ticks（i64，100ns 单位，0001-01-01 纪元，对标 C# `DateTimeOffset.UtcNow.UtcTicks`）
 ///
 /// TTL/过期域的统一时钟：过期时间戳一律以 ticks 存储（对标 Garnet RecordDataHeader

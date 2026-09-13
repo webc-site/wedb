@@ -84,11 +84,4 @@ impl RespWriteUtils {
     Self::push_bulk_string(&mut out, s);
     out
   }
-
-  /// 写入二进制安全批量串（参数 token 场景）。
-  pub fn bulk_string_bytes(s: &[u8]) -> String {
-    let mut out = String::with_capacity(8 + s.len());
-    Self::push_bulk_string_bytes(&mut out, s);
-    out
-  }
 }

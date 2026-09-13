@@ -100,6 +100,11 @@ fn fmt_aof_null_device(o: &RuntimeServerOptions) -> String {
 }
 
 /// 静态元数据表（下标 == `ServerConfigType` 判别值）。纯编译期常量，零运行时分配。
+///
+/// 对标 C# 静态构建方法：每个 `ConfigMeta::read_only` 条目即 C# `SetReadOnly`
+/// 局部函数的调用点，每个 `ConfigMeta::runtime` 条目即 C# `Set` 局部函数的调用点。
+///
+/// libs/server/Config/RuntimeServerConfig.cs:BuildMeta
 pub static META: [ConfigMeta; RuntimeServerConfig::TABLE_SIZE] = [
   // 0: None
   ConfigMeta::EMPTY,
@@ -417,6 +422,8 @@ pub static META: [ConfigMeta; RuntimeServerConfig::TABLE_SIZE] = [
 ];
 
 /// 参数名（含别名）→ 类型的静态查找表。纯编译期常量，零运行时分配。
+///
+/// libs/server/Config/RuntimeServerConfig.cs:BuildNameLookup
 pub static NAME_LOOKUP: [(&[u8], ServerConfigType); 36] = [
   (b"timeout", ServerConfigType::Timeout),
   (b"save", ServerConfigType::Save),
@@ -502,6 +509,8 @@ pub static NAME_LOOKUP: [(&[u8], ServerConfigType); 36] = [
 ];
 
 /// 本表处理的全部类型（可设置 + 只读），供 CONFIG GET *。纯编译期常量，零运行时分配。
+///
+/// libs/server/Config/RuntimeServerConfig.cs:BuildRuntimeTypes
 pub static RUNTIME_TYPES: [ServerConfigType; 35] = [
   ServerConfigType::Timeout,
   ServerConfigType::Save,
@@ -1045,10 +1054,7 @@ impl RuntimeServerConfig {
     Ok(())
   }
 
-  /// libs/server/Config/RuntimeServerConfig.cs:RespFormat
-  ///
-  /// 以 RESP 字符串表示读取当前值。
-  /// 暴露全部静态元数据表供检验。
+  /// 暴露全部静态元数据表供检验（C# 侧 Meta 为类内私有静态字段，无独立访问器）。
   #[inline]
   pub fn meta() -> &'static [ConfigMeta] {
     &META
@@ -1189,6 +1195,9 @@ impl RuntimeServerConfig {
     }
   }
 
+  /// libs/server/Config/RuntimeServerConfig.cs:RespFormat
+  ///
+  /// 以 RESP 字符串表示读取当前值。
   pub fn resp_format(&self, type_: ServerConfigType) -> String {
     let meta = &META[type_ as usize];
     if meta.read_only {

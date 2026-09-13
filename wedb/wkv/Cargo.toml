@@ -20,7 +20,7 @@ papaya.workspace = true
 
 [dependencies.wbase]
 workspace = true
-features = ["addr", "align", "crc", "time", "error", "convert", "simd"]
+features = ["addr", "align", "crc", "time", "error", "convert", "simd", "map"]
 
 [dependencies.fastrand]
 workspace = true

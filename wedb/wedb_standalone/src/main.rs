@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use wnode::{
-  NodeArgs, RespSessionConsumer, ServerArgs, ServerBootstrap,
+  LoggingBuilder, NodeArgs, RespSessionConsumer, ServerArgs, ServerBootstrap,
   resp::resp_server_session::RespServerSessionOptions, service::StorageSessionProvider,
 };
 
@@ -34,6 +34,17 @@ impl ServerArgs for StandaloneArgs {
 
 fn main() -> wnode::Result<()> {
   let args = StandaloneArgs::parse();
+
+  // C# GarnetServer 构造器日志装配段：控制台（DisableConsoleLogger 未设）
+  // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）
+  let mut logging = LoggingBuilder::new().with_minimum_level(args.node.minimum_log_level());
+  if let Some(file) = &args.node.file_logger {
+    logging = logging.add_file(file, 0);
+  }
+  logging
+    .install()
+    .map_err(|e| wnode::Error::Custom(format!("日志器安装失败: {e}")))?;
+
   ServerBootstrap::new(args)
     .banner("WeDB Standalone 单机节点")
     .run(|args, _noop_cluster| {

@@ -23,6 +23,9 @@ pub enum TxnKeyLockGuard<'a> {
   Exclusive(RwLockWriteGuard<'a, ()>),
 }
 
+unsafe impl<'a> Send for TxnKeyLockGuard<'a> {}
+unsafe impl<'a> Sync for TxnKeyLockGuard<'a> {}
+
 /// 条带化键锁表
 #[derive(Debug)]
 pub struct TxnLockTable {

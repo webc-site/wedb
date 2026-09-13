@@ -252,14 +252,29 @@ impl<D: Device, A: DatabaseAof<D>> MultiDatabaseManager<D, A> {
 
   /// 异步等待多库 AOF 提交落盘（若 db_id < 0 则等待所有活跃库；对标 C# MultiDatabaseManager.WaitForCommitToAofAsync）
   pub async fn wait_for_commit_to_aof_async(&self, db_id: i64) -> wkv::Result<bool> {
-    let _guard = self.content_lock.read().await;
-    let pin = self.databases.pin();
-    for (id, db) in pin.iter() {
-      if (db_id < 0 || *id == db_id)
-        && let Some(aof) = &db.aof
-      {
-        aof.wait_for_commit_async(0).await;
+    let aofs: Vec<Arc<A>> = {
+      let _guard = self.content_lock.read().await;
+      let pin = self.databases.pin();
+      if db_id >= 0 {
+        pin
+          .get(&db_id)
+          .and_then(|db| db.aof.as_ref().map(Arc::clone))
+          .into_iter()
+          .collect()
+      } else {
+        let mut list = Vec::new();
+        for (_, db) in pin.iter() {
+          if let Some(aof) = &db.aof
+            && !list.iter().any(|existing| Arc::ptr_eq(existing, aof))
+          {
+            list.push(Arc::clone(aof));
+          }
+        }
+        list
       }
+    };
+    for aof in aofs {
+      aof.wait_for_commit_async(0).await;
     }
     Ok(true)
   }

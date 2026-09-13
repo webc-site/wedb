@@ -1,5 +1,6 @@
-//! 审计 round7 集成测试：补齐 C# Garnet.test.collections / Garnet.test 覆盖
-//! 而 Rust 侧缺失的高价值场景，并固化 round7 错误口径修复（句点差异）。
+//! 集合族过期与边界场景集成测试：补齐 C# Garnet.test.collections /
+//! Garnet.test 覆盖而 Rust 侧缺失的高价值场景（*WithExpiredItems 用例族、
+//! 错误口径与参数边界）。
 //!
 //! 场景来源逐条标注 C# 测试文件:方法名。
 

@@ -118,16 +118,6 @@ impl DirectVmBlock {
       unsafe { from_raw_parts_mut(self.aligned_ptr, self.avail_len()) }
     }
   }
-
-  /// 获取指定偏移与长度的对齐子可变切片
-  #[inline]
-  pub fn slice_mut(&mut self, range: Range<usize>) -> Result<&mut [u8]> {
-    let (start_ptr, len) = self.check_range(range)?;
-    if len == 0 {
-      return Ok(&mut []);
-    }
-    Ok(unsafe { from_raw_parts_mut(start_ptr, len) })
-  }
 }
 
 impl Drop for DirectVmBlock {

@@ -378,11 +378,6 @@ impl<D: Device> CheckpointManager<D> {
     }
   }
 
-  /// 创建指定设备类型的 CheckpointManager 实例
-  pub const fn with_device() -> Self {
-    Self::new()
-  }
-
   /// 异步生成并原子落盘 HashIndex 快照（纯 compio 异步 I/O，全程零线程创建）
   ///
   /// `rc_skip` 为 ReadCache 易失指针解析闭包（无 ReadCache 时传恒等闭包 `|addr| addr`）。
@@ -1080,24 +1075,6 @@ impl<D: Device> CheckpointManager<D> {
     Ok(tokens)
   }
 
-  /// 实例清理方法（便捷转发至关联静态方法）
-  pub fn purge(&self, checkpoint_dir: impl AsRef<Path>, token: u128) -> Result<()> {
-    Self::purge_checkpoint(checkpoint_dir, token)
-  }
-
-  /// 实例全量清理方法（便捷转发至关联静态方法）
-  pub fn purge_all_checkpoints(&self, checkpoint_dir: impl AsRef<Path>) -> Result<()> {
-    Self::purge_all(checkpoint_dir)
-  }
-
-  /// 实例保留最新 N 个检查点方法（便捷转发至关联静态方法）
-  pub fn purge_outdated_checkpoints(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    keep: usize,
-  ) -> Result<Vec<u128>> {
-    Self::purge_outdated(checkpoint_dir, keep)
-  }
 }
 
 #[cfg(test)]

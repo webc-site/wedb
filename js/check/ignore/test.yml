@@ -914,7 +914,9 @@
         - WaitAndReset
     - test/standalone/Garnet.test/GarnetServerConfigTests.cs:
         - AclStrictCustomCommands
+        - AofSegmentSizeFlowsToTsavoriteLogSettings
         - AofSizeLimitWithoutAofEnabled
+        - DefaultConfigurationOptionsCoverage
         - AzureStorageConfiguration
         - BufferPoolMemoryBudgetOptionParsing
         - BufferPoolMemoryBudgetZeroDisablesCaching

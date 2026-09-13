@@ -26,7 +26,7 @@ pub mod object_input_extensions;
 pub use custom_command_manager::{
   CommandType, CustomCommandDocs, CustomCommandInfo, CustomCommandManager, CustomObjectCommand,
   CustomObjectCommandWrapper, CustomProcedureWrapper, CustomRawStringCommand, CustomTransaction,
-  RawStringCommandSpec, RawStringFn, SharedCustomCommandManager,
+  RawStringCommandSpec, RawStringFn, SharedCustomCommandManager, TxnProcFactory,
 };
 pub use custom_command_manager_session::CustomCommandManagerSession;
 pub use custom_command_registration::CustomCommandRegistration;

@@ -503,17 +503,6 @@ impl<D: Device> CheckpointManager<D> {
     wcpr::CheckpointManager::<D>::recover(checkpoint_dir, token, device).await
   }
 
-  /// 实例恢复方法
-  #[inline]
-  pub async fn recover_store(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    device: Arc<D>,
-  ) -> wcpr::Result<WedbStore<D>> {
-    Self::recover(checkpoint_dir, token, device).await
-  }
-
   /// 从目录中最新的有效 Checkpoint 执行崩溃恢复
   #[inline]
   pub async fn recover_latest(
@@ -521,16 +510,6 @@ impl<D: Device> CheckpointManager<D> {
     device: Arc<D>,
   ) -> wcpr::Result<WedbStore<D>> {
     wcpr::CheckpointManager::<D>::recover_latest(checkpoint_dir, device).await
-  }
-
-  /// 实例恢复最新方法
-  #[inline]
-  pub async fn recover_latest_store(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    device: Arc<D>,
-  ) -> wcpr::Result<WedbStore<D>> {
-    Self::recover_latest(checkpoint_dir, device).await
   }
 
   /// 列出目标目录中所有可用的 Checkpoint Token
@@ -563,27 +542,6 @@ impl<D: Device> CheckpointManager<D> {
     wcpr::CheckpointManager::<D>::purge_outdated(checkpoint_dir, keep)
   }
 
-  /// 实例清理方法
-  #[inline]
-  pub fn purge(&self, checkpoint_dir: impl AsRef<Path>, token: u128) -> wcpr::Result<()> {
-    Self::purge_checkpoint(checkpoint_dir, token)
-  }
-
-  /// 实例全量清理方法
-  #[inline]
-  pub fn purge_all_checkpoints(&self, checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<()> {
-    Self::purge_all(checkpoint_dir)
-  }
-
-  /// 实例保留最新 N 个检查点方法
-  #[inline]
-  pub fn purge_outdated_checkpoints(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    keep: usize,
-  ) -> wcpr::Result<Vec<u128>> {
-    Self::purge_outdated(checkpoint_dir, keep)
-  }
 
   /// 异步生成并原子落盘 HashIndex 快照
   #[inline]

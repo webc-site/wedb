@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use whasher::GxPapayaMap;
+use wbase::map::ConcurrentMap;
 use wresp::{cmd_strings::GENERIC_ERR_WRONG_NUM_ARGS, strict_i64};
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ const ERR_SCRIPT_FLUSH_OPTION: &[u8] = b"ERR SCRIPT FLUSH only support SYNC|ASYN
 #[derive(Default)]
 pub struct StoreScriptCache {
   /// 摘要 → 共享脚本句柄。
-  map: GxPapayaMap<ScriptHashKey, Arc<LuaScriptHandle>>,
+  map: ConcurrentMap<ScriptHashKey, Arc<LuaScriptHandle>>,
 }
 
 impl StoreScriptCache {

@@ -25,6 +25,7 @@ mod aligned_buf;
 mod budget;
 mod depot;
 mod inbox;
+pub mod limited;
 mod tls;
 
 use std::{
@@ -45,6 +46,11 @@ pub use aligned_buf::AlignedBuf;
 pub(crate) use budget::Budget;
 pub(crate) use depot::Depot;
 pub(crate) use inbox::{ChainIter, CrossThreadInbox, FreeNode, SEALED};
+pub use limited::{
+  DEFAULT_BUFFER_SIZE, DEFAULT_INITIAL_RECEIVE_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE,
+  DEFAULT_MAX_RECEIVE_BUFFER_SIZE, DEFAULT_SEND_BUFFER_SIZE, LimitedFixedBufferPool,
+  NetworkBufferSettings, PooledBuffer,
+};
 use parking_lot::Mutex;
 pub(crate) use tls::TLS_POOLS;
 pub use tls::current_thread_id;

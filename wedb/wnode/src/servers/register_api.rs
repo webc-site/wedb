@@ -8,7 +8,7 @@ use std::sync::Arc;
 use parking_lot::Mutex as ParkingMutex;
 use wcustom::{
   CommandType, CustomCommandDocs, CustomCommandInfo, CustomCommandManager, CustomTransaction,
-  RawStringCommandSpec, RawStringFn,
+  RawStringCommandSpec, RawStringFn, TxnProcFactory,
 };
 
 /// 命令注册 API
@@ -58,15 +58,14 @@ impl RegisterApi {
   pub fn new_transaction_proc(
     &self,
     name: &str,
+    factory: Option<TxnProcFactory>,
     command_info: Option<CustomCommandInfo>,
     command_docs: Option<CustomCommandDocs>,
   ) -> Result<u8, &'static str> {
-    // C# 收 Func<CustomTransactionProcedure> 工厂；custom 域注册表以元数据
-    // 承接（过程体随 custom 会话面接线）
     self
       .command_manager
       .lock()
-      .register_transaction(name, command_info, command_docs)
+      .register_transaction(name, factory, command_info, command_docs)
   }
 
   /// 注册自定义对象类型，返回类型扩展 id
@@ -140,6 +139,29 @@ mod tests {
   use std::sync::Arc;
 
   use super::*;
+  use wcustom::CustomTransactionProcedure;
+  use wtxn::{TransactionManager, TxnProcedure};
+
+  /// 测试过程体（id 透传，三段式空操作）
+  struct DemoProc {
+    id: u8,
+  }
+
+  impl TxnProcedure for DemoProc {
+    fn id(&self) -> u8 {
+      self.id
+    }
+
+    fn prepare(&mut self, _txn_manager: &mut TransactionManager) -> bool {
+      true
+    }
+
+    fn main(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {}
+
+    fn finalize(&mut self, _txn_manager: &mut TransactionManager, _output: &mut Vec<u8>) {}
+  }
+
+  impl CustomTransactionProcedure for DemoProc {}
 
   #[test]
   fn registers_commands_transactions_and_modules() {
@@ -156,9 +178,26 @@ mod tests {
     assert!(manager.lock().try_get_custom_command(cmd_id).is_some());
 
     let txn_id = api
-      .new_transaction_proc("MYTXN", None, None)
+      .new_transaction_proc("MYTXN", None, None, None)
       .expect("事务过程注册成功");
     assert!(api.get_custom_transaction_procedure(txn_id).is_some());
+
+    // 带工厂注册：AOF 回放经工厂重建过程实例（首个注册槽位 id = 0）
+    let mut factory_manager = CustomCommandManager::new();
+    let factory_id = factory_manager
+      .register_transaction(
+        "MYTXN2",
+        Some(Arc::new(|| Box::new(DemoProc { id: 0 }))),
+        None,
+        None,
+      )
+      .expect("带工厂事务过程注册成功");
+    assert_eq!(factory_id, 0);
+    let factory_txn = factory_manager
+      .try_get_custom_transaction_procedure(factory_id)
+      .expect("事务过程可查");
+    let built = (factory_txn.factory.expect("factory"))();
+    assert_eq!(built.id(), factory_id);
 
     let type_id = api.new_type("MyType").expect("类型注册成功");
     let (obj_type, sub_id) = api

@@ -203,17 +203,6 @@ impl StoreConfig {
     Self::from_memory_budget_with_keys(memory_bytes, None)
   }
 
-  /// 根据目标物理内存预算（字节），自适应推导并自动化规划所有细节参数（哈希索引、日志环形缓冲、并发会话）
-  ///
-  /// 规划保证：
-  /// 1. 严格不超标：`index_bytes + hlog_bytes <= memory_bytes`，杜绝盲目向上取整导致溢出；
-  /// 2. 向下兼容任意低内存约束（如 32MB、64MB、128MB、256MB、1GB 等），不设 256MB 硬编码壁垒；
-  /// 3. 若提供 `expected_keys`，按数据规模自适应权衡哈希桶与日志缓冲区；否则按 37.5% 索引 + 62.5% 日志配比。
-  #[must_use]
-  pub fn from_memory_budget(memory_bytes: u64) -> Self {
-    Self::from_memory_budget_with_keys(memory_bytes, None)
-  }
-
   /// 根据目标内存预算与预期键数量自适应推导最优细节参数
   #[must_use]
   pub fn from_memory_budget_with_keys(memory_bytes: u64, expected_keys: Option<u64>) -> Self {

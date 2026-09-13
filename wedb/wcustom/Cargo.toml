@@ -11,6 +11,7 @@ description = "Custom commands and extensions registry for wedb"
 gxhash.workspace = true
 parking_lot.workspace = true
 wresp.workspace = true
+wtxn = { version = "0.1.0", path = "../wtxn" }
 wval.workspace = true
 
 [lints]

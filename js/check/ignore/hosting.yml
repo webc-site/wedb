@@ -37,12 +37,12 @@
         - CreateDatabase
         - CreateStore
         - DeleteDirectory
-        - FlushMemoryLogger
         - GetVersion
         - LoadModules
         - ValidateCustomCommandACLs
     - libs/host/MemoryLogger.cs:
         - AddMemory
+        - BeginScope
         - CreateLogger
         - FlushLogger
     - libs/host/ServerSettingsManager.cs:

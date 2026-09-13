@@ -7,7 +7,7 @@ use std::{
   },
 };
 
-use wnode::{
+use wbase::pool::{
   DEFAULT_MAX_RECEIVE_BUFFER_SIZE, LimitedFixedBufferPool, NetworkBufferSettings, PooledBuffer,
 };
 

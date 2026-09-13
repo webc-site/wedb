@@ -20,7 +20,6 @@ mod error;
 mod header;
 mod record_mut;
 mod record_ref;
-mod simd;
 
 pub use chunk::{CHUNK_LEN_PREFIX_SIZE, ChunkCodec, ChunkIter};
 pub use codec::{
