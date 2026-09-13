@@ -14,12 +14,9 @@ use compio::{
   runtime::{JoinHandle, spawn},
   time::sleep,
 };
-use wbase::future::yield_now;
+use wbase::{future::yield_now, pool::EventWorkQueue};
 
-use super::{
-  cleanup::vector_set_cleanup_work_channel::VectorSetCleanupWorkChannel,
-  vector_manager::VectorManager, vector_manager_locking::ReadIndexOutcome,
-};
+use super::{vector_manager::VectorManager, vector_manager_locking::ReadIndexOutcome};
 
 /// 量化流程阶段。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,7 +51,7 @@ impl QuantizationState {
 }
 
 /// 量化请求工作通道（manager 持有）。
-pub type QuantizationChannel = VectorSetCleanupWorkChannel<QuantizationState>;
+pub type QuantizationChannel = EventWorkQueue<QuantizationState>;
 
 use wvector::store::StoreCallbacks;
 

@@ -142,10 +142,10 @@ This detached-thread example adapts the concurrent map test. Ownership crosses t
 ```rust
 use std::{sync::Arc, thread};
 
-use whasher::{GxPapayaMap, new_papaya_map};
+use wbase::{ConcurrentMap, new_concurrent_map};
 
 fn main() {
-  let map: Arc<GxPapayaMap<u64, u64>> = Arc::new(new_papaya_map());
+  let map: Arc<ConcurrentMap<u64, u64>> = Arc::new(new_concurrent_map());
   thread::scope(|scope| {
     for t in 0..4u64 {
       let map = Arc::clone(&map);
@@ -457,10 +457,10 @@ fn main() {
 ```rust
 use std::{sync::Arc, thread};
 
-use whasher::{GxPapayaMap, new_papaya_map};
+use wbase::{ConcurrentMap, new_concurrent_map};
 
 fn main() {
-  let map: Arc<GxPapayaMap<u64, u64>> = Arc::new(new_papaya_map());
+  let map: Arc<ConcurrentMap<u64, u64>> = Arc::new(new_concurrent_map());
   thread::scope(|scope| {
     for t in 0..4u64 {
       let map = Arc::clone(&map);

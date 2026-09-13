@@ -9,6 +9,7 @@ pub mod bitmap;
 pub mod client_commands;
 pub mod garnet_api;
 pub mod hyperloglog;
+pub mod info_provider;
 pub mod key_admin_commands;
 pub mod metrics_commands;
 pub mod objects;

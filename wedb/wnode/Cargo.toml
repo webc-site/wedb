@@ -36,6 +36,7 @@ wbftree.workspace = true
 wbitmap.workspace = true
 wcol = { version = "0.1.0", path = "../wcol" }
 wconf.workspace = true
+wcpr = { version = "0.1.3", path = "../wcpr" }
 wcustom.workspace = true
 wdatabase.workspace = true
 wdev.workspace = true

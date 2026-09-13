@@ -3,7 +3,7 @@ use std::mem::{align_of, size_of};
 use aok::{OK, Void};
 use log::info;
 use wval::{
-  COMPACT_META_VALUE_SIZE, CollectionType, CompactMetaValue, Error, KeyTag, META_VALUE_SIZE,
+  COMPACT_META_VALUE_SIZE, CompactMetaValue, Error, GarnetObjectType, KeyTag, META_VALUE_SIZE,
   MetaValue, NamespaceDbCodec, Result, SUBKEY_HEADER_SIZE, StorageEncoding, SubKeyBuf, SubKeyCodec,
   SubKeyRef,
 };
@@ -23,9 +23,9 @@ fn test_meta_value_memory_layout() -> Void {
   // 严格断言 8 字节对齐（保证所有 u64 字段天然对齐，具备单总线周期原子访问能力）
   assert_eq!(align_of::<MetaValue>(), 8);
 
-  let meta = MetaValue::new(1001, CollectionType::Hash, 1, 100);
+  let meta = MetaValue::new(1001, GarnetObjectType::Hash, 1, 100);
   assert_eq!(meta.key_id, 1001);
-  assert_eq!(meta.collection_type, CollectionType::Hash);
+  assert_eq!(meta.collection_type, GarnetObjectType::Hash);
   assert_eq!(meta.version, 1);
   assert_eq!(meta.size, 100);
   assert_eq!(meta.reserved, [0u8; 7]);
@@ -39,7 +39,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
 
   let original = MetaValue::new(
     0x0123_4567_89ab_cdef,
-    CollectionType::ZSET,
+    GarnetObjectType::ZSET,
     0x0000_0000_0000_002a,
     10_000_000,
   );
@@ -49,7 +49,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
 
   // 验证大端序字节排布
   assert_eq!(&bytes[0..8], &0x0123_4567_89ab_cdef_u64.to_be_bytes());
-  assert_eq!(bytes[8], CollectionType::ZSET.as_u8());
+  assert_eq!(bytes[8], GarnetObjectType::ZSET.as_u8());
   assert_eq!(&bytes[9..16], &[0u8; 7]);
   assert_eq!(&bytes[16..24], &42u64.to_be_bytes());
   assert_eq!(&bytes[24..32], &10_000_000u64.to_be_bytes());
@@ -85,7 +85,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
     })
   ));
 
-  // 非法 CollectionType 拦截
+  // 非法 GarnetObjectType 拦截
   let mut corrupt_bytes = bytes;
   corrupt_bytes[8] = 0xff; // 非法类型
   assert!(matches!(
@@ -124,7 +124,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
 fn test_meta_value_state_transitions() -> Void {
   info!("测试 MetaValue 状态机单调递增与容量修改");
 
-  let mut meta = MetaValue::new(8888, CollectionType::Set, 1, 0);
+  let mut meta = MetaValue::new(8888, GarnetObjectType::Set, 1, 0);
   assert_eq!(meta.version, 1);
   assert_eq!(meta.size, 0);
 
@@ -305,7 +305,7 @@ fn test_subkey_tag_closure() -> Void {
 fn test_meta_value_fast_field_readers() -> Void {
   info!("测试 MetaValue 快速字段读取方法与边界防御");
 
-  let meta = MetaValue::new(9999, CollectionType::List, 77, 4321);
+  let meta = MetaValue::new(9999, GarnetObjectType::List, 77, 4321);
   let bytes = meta.to_bytes();
 
   // 1. 快速读取
@@ -313,7 +313,7 @@ fn test_meta_value_fast_field_readers() -> Void {
   assert_eq!(MetaValue::read_size(&bytes)?, 4321);
   assert_eq!(
     MetaValue::read_collection_type(&bytes)?,
-    CollectionType::List
+    GarnetObjectType::List
   );
 
   // 2. 边界截断防御
@@ -393,14 +393,14 @@ fn test_subkey_header_codec_and_helpers() -> Void {
 
 #[test]
 fn test_compile_time_const_evaluation() {
-  const META: MetaValue = MetaValue::new(42, CollectionType::Hash, 1, 10);
+  const META: MetaValue = MetaValue::new(42, GarnetObjectType::Hash, 1, 10);
   const BYTES: [u8; 32] = META.to_bytes();
   const VERSION: Result<u64> = MetaValue::read_version(&BYTES);
   assert!(matches!(VERSION, Ok(1)));
   const SIZE: Result<u64> = MetaValue::read_size(&BYTES);
   assert!(matches!(SIZE, Ok(10)));
-  const TYPE: Result<CollectionType> = MetaValue::read_collection_type(&BYTES);
-  assert!(matches!(TYPE, Ok(CollectionType::Hash)));
+  const TYPE: Result<GarnetObjectType> = MetaValue::read_collection_type(&BYTES);
+  assert!(matches!(TYPE, Ok(GarnetObjectType::Hash)));
 
   const HDR: [u8; 17] = SubKeyCodec::encode_header(KeyTag::Hash, 42, 1);
   const DEC_HDR: Result<(KeyTag, u64, u64)> = SubKeyCodec::decode_header(&HDR);
@@ -417,7 +417,7 @@ fn test_compile_time_const_evaluation() {
 
   // CompactMetaValue 编译期求值与快速探针验证
   const CMETA: CompactMetaValue = CompactMetaValue::new(
-    CollectionType::ZSET,
+    GarnetObjectType::ZSET,
     StorageEncoding::Flattened,
     888,
     1_700_000_000_000,
@@ -425,8 +425,8 @@ fn test_compile_time_const_evaluation() {
   const C_BYTES: [u8; 16] = CMETA.to_bytes();
   const C_DEC: Result<CompactMetaValue> = CompactMetaValue::from_slice(&C_BYTES);
   assert!(matches!(C_DEC, Ok(cm) if cm.size == 888 && cm.expire_at_ticks == 1_700_000_000_000));
-  const C_TYPE: Option<CollectionType> = CompactMetaValue::read_collection_type(&C_BYTES);
-  assert_eq!(C_TYPE, Some(CollectionType::ZSET));
+  const C_TYPE: Option<GarnetObjectType> = CompactMetaValue::read_collection_type(&C_BYTES);
+  assert_eq!(C_TYPE, Some(GarnetObjectType::ZSET));
   const C_ENC: Option<StorageEncoding> = CompactMetaValue::read_encoding(&C_BYTES);
   assert_eq!(C_ENC, Some(StorageEncoding::Flattened));
   const C_SIZE: Option<u32> = CompactMetaValue::read_size(&C_BYTES);
@@ -490,12 +490,12 @@ fn test_compact_meta_value_16_bytes() -> Void {
 
   // 2. 构造与字段检查
   let mut cmeta = CompactMetaValue::new(
-    CollectionType::Hash,
+    GarnetObjectType::Hash,
     StorageEncoding::Compact,
     100,
     1_700_000_000_000,
   );
-  assert_eq!(cmeta.collection_type, CollectionType::Hash);
+  assert_eq!(cmeta.collection_type, GarnetObjectType::Hash);
   assert_eq!(cmeta.encoding, StorageEncoding::Compact);
   assert_eq!(cmeta.size, 100);
   assert_eq!(cmeta.expire_at_ticks, 1_700_000_000_000);
@@ -507,7 +507,7 @@ fn test_compact_meta_value_16_bytes() -> Void {
   assert!(cmeta.is_expired(1_700_000_000_001));
 
   // 永不过期 (expire_at_ticks == 0)
-  let no_exp = CompactMetaValue::new(CollectionType::Set, StorageEncoding::Flattened, 50, 0);
+  let no_exp = CompactMetaValue::new(GarnetObjectType::Set, StorageEncoding::Flattened, 50, 0);
   assert!(!no_exp.is_expired(i64::MAX));
 
   // 4. 计数增减

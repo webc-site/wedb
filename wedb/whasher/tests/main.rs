@@ -1,9 +1,8 @@
 use aok::{OK, Result};
 use gxhash::{GxBuildHasher, HashSet, HashSetExt};
 use whasher::{
-  GxPapayaMap, StreamHasher, compute_checksum, compute_checksum_with_seed, fast_hash,
-  fast_hash_u64, fast_hash_with_seed, hash_set_with_capacity, hash128, new_hash_map,
-  new_papaya_map,
+  StreamHasher, compute_checksum, compute_checksum_with_seed, fast_hash, fast_hash_u64,
+  fast_hash_with_seed, hash_set_with_capacity, hash128, new_hash_map,
 };
 
 #[ctor::ctor(unsafe)]
@@ -626,39 +625,6 @@ fn test_large_input_structural_soundness() -> Result<()> {
   );
   let h = hash128(&big, 0x1111_2222_3333_4444, 0x5555_6666_7777_8888);
   assert_ne!((h >> 64) as u64, h as u64, "128 位高低半区不退化");
-
-  OK
-}
-
-#[test]
-fn test_papaya_map() -> Result<()> {
-  use std::{sync::Arc, thread};
-
-  let map: Arc<GxPapayaMap<u64, u64>> = Arc::new(new_papaya_map());
-
-  let mut handles = Vec::new();
-  for t in 0..4u64 {
-    let map_clone = Arc::clone(&map);
-    handles.push(thread::spawn(move || {
-      let map_pin = map_clone.pin();
-      for i in 0..1000u64 {
-        let key = t * 1000 + i;
-        map_pin.insert(key, key * 2);
-      }
-    }));
-  }
-
-  for h in handles {
-    h.join().unwrap();
-  }
-
-  let pin = map.pin();
-  assert_eq!(map.len(), 4000);
-
-  for key in 0..4000u64 {
-    assert_eq!(pin.get(&key), Some(&(key * 2)));
-  }
-  assert_eq!(pin.get(&9999), None);
 
   OK
 }

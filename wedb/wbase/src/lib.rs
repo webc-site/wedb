@@ -54,6 +54,10 @@ pub mod hash_slot;
 
 #[cfg(any(feature = "map", feature = "set"))]
 pub mod map;
+#[cfg(feature = "map")]
+pub use map::{ConcurrentMap, new_concurrent_map};
+#[cfg(feature = "set")]
+pub use map::{ConcurrentSet, new_concurrent_set};
 
 #[cfg(feature = "num")]
 pub mod num;

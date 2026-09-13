@@ -12,7 +12,6 @@
 use std::{
   future::Future,
   hint::spin_loop,
-  ops::Deref,
   sync::{
     Arc,
     atomic::{AtomicI64, Ordering},
@@ -262,18 +261,7 @@ impl SublogBackend for InMemorySublog {
   }
 }
 
-/// 缓存行对齐的提交事件（128B 对齐，消除跨物理子日志并发通知时的缓存行伪共享）
-#[repr(align(128))]
-pub struct CacheAlignedEvent(pub Event);
-
-impl Deref for CacheAlignedEvent {
-  type Target = Event;
-
-  #[inline(always)]
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
-}
+use wbase::align::CachePadded;
 
 /// 单日志 / 分片双拓扑容器（对标 libs/server/AOF/GarnetLog.cs:GarnetLog）。
 pub struct GarnetLog {
@@ -298,7 +286,7 @@ pub struct GarnetLog {
   /// AofAutoCommit（C# 派生属性 CommitFrequencyMs == 0）。
   auto_commit: bool,
   /// 提交事件分发（每个物理子日志独立通知，128B 缓存行对齐消除伪共享）
-  commit_events: Box<[CacheAlignedEvent]>,
+  commit_events: Box<[CachePadded<Event>]>,
 }
 
 impl GarnetLog {
@@ -327,7 +315,7 @@ impl GarnetLog {
     };
 
     let commit_events = (0..physical_sublog_count)
-      .map(|_| CacheAlignedEvent(Event::new()))
+      .map(|_| CachePadded::new(Event::new()))
       .collect::<Vec<_>>()
       .into_boxed_slice();
 

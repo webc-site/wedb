@@ -9,23 +9,15 @@ use wcol::{
   types::object_output::ObjectOutput,
 };
 use wdev::Device;
+/// 聚合方式（ZUNION/ZINTER 权重合并语义，收敛对标 wresp::SortedSetAggregateType）
+pub use wresp::SortedSetAggregateType as ZSetAggregate;
+pub use wresp::SortedSetAggregateType;
 
 use super::{
   super::storage_session::StorageSession,
   common::{GarnetObjectPayload, RmwOutcome},
 };
 use crate::types::GarnetStatus;
-
-/// 聚合方式（ZUNION/ZINTER 权重合并语义）
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ZSetAggregate {
-  /// 求和
-  Sum,
-  /// 取最小
-  Min,
-  /// 取最大
-  Max,
-}
 
 /// 移除区间种类（C# SortedSetRemoveRange 按 RangeType 分发）
 #[derive(Debug, Clone, Copy)]
@@ -841,7 +833,7 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
         for (m, &s) in dict.iter() {
           let ws = s * w;
           match acc.get_mut(m) {
-            Some(slot) => *slot = apply_aggregate(aggregate, *slot, ws),
+            Some(slot) => *slot = aggregate.apply(*slot, ws),
             None => {
               acc.insert(m.clone(), ws);
             }
@@ -851,7 +843,7 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
         // 交语义：仅保留本键也有的成员并聚合分值
         acc.retain(|m, s| match dict.get(m) {
           Some(&other) => {
-            *s = apply_aggregate(aggregate, *s, other * w);
+            *s = aggregate.apply(*s, other * w);
             // NaN → 0：兼容 C# SortedSetIntersection 的显式缺陷行为
             //（"That's what the references do. Arguably we're doing bug
             // compatible behaviour here."，Sum 遇 +inf/-inf 相加产生 NaN 时
@@ -899,15 +891,6 @@ fn sorted_view(obj: &SortedSetObject) -> Vec<(Vec<u8>, f64)> {
     .iter()
     .map(|e| (e.member.clone(), e.score))
     .collect()
-}
-
-/// 聚合两分值
-fn apply_aggregate(agg: ZSetAggregate, a: f64, b: f64) -> f64 {
-  match agg {
-    ZSetAggregate::Sum => a + b,
-    ZSetAggregate::Min => a.min(b),
-    ZSetAggregate::Max => a.max(b),
-  }
 }
 
 /// 排名区间归一化（负数自尾计数，返回非负闭区间 [lo, hi]，空集为 (1, 0)）

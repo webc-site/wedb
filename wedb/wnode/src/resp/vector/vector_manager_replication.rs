@@ -20,14 +20,12 @@ use compio::{
   time::timeout as compio_timeout,
 };
 use event_listener::{Event, Listener};
+use wbase::pool::EventWorkQueue;
 use wvector::{VectorDistanceMetricType, VectorQuantType, VectorSetFlags, VectorValueType};
 
-use super::{
-  cleanup::vector_set_cleanup_work_channel::VectorSetCleanupWorkChannel,
-  vector_manager::{
-    VADD_APPEND_LOG_ARG, VADD_SET_FLAGS_ARG, VREM_APPEND_LOG_ARG, VSETATTR_APPEND_LOG_ARG,
-    VectorManager,
-  },
+use super::vector_manager::{
+  VADD_APPEND_LOG_ARG, VADD_SET_FLAGS_ARG, VREM_APPEND_LOG_ARG, VSETATTR_APPEND_LOG_ARG,
+  VectorManager,
 };
 
 /// VADD 重放状态（对齐 C# VADDReplicationState record struct）。
@@ -73,9 +71,9 @@ pub struct ReplicationRecord {
 /// 副本运行时：重放通道 + 阻塞事件 + 活动标志。
 pub struct ReplicationRuntime {
   /// 重放通道（主 → 本机重放应用）。
-  replay_channel: VectorSetCleanupWorkChannel<VaddReplicationState>,
+  replay_channel: EventWorkQueue<VaddReplicationState>,
   /// 合成写记录流（对齐 AOF 注入语义）。
-  replication_log: VectorSetCleanupWorkChannel<ReplicationRecord>,
+  replication_log: EventWorkQueue<ReplicationRecord>,
   /// 阻塞事件计数（副本操作进行中时置位，对齐 CountingEventSlim）。
   blocked: AtomicUsize,
   /// 阻塞事件驱动通知（对齐 CountingEventSlim 事件驱动通知）。
@@ -100,8 +98,8 @@ impl ReplicationRuntime {
   /// 创建运行时。
   pub fn new() -> Self {
     Self {
-      replay_channel: VectorSetCleanupWorkChannel::new(),
-      replication_log: VectorSetCleanupWorkChannel::new(),
+      replay_channel: EventWorkQueue::new(),
+      replication_log: EventWorkQueue::new(),
       blocked: AtomicUsize::new(0),
       block_event: Event::new(),
       replay_started: AtomicUsize::new(0),

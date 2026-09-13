@@ -1,4 +1,3 @@
-pub mod cleanup;
 pub mod resp_server_session_vectors;
 pub mod vector_manager;
 pub mod vector_manager_callbacks;

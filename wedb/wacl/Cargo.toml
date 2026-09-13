@@ -23,7 +23,7 @@ gxhash = "3.5.0"
 parking_lot = "0.12.5"
 sha2 = "0.11.0"
 thiserror.workspace = true
-whasher.workspace = true
+wbase = { version = "0.1.6", path = "../wbase", features = ["map"] }
 wresp.workspace = true
 
 [dev-dependencies]

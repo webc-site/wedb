@@ -17,7 +17,7 @@ use wbase::{
 };
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, StoreSession, TtlOpt, WedbStore};
-use wval::{CollectionType, CompactHashCodec, META_VALUE_SIZE, MetaValue, StorageEncoding};
+use wval::{CompactHashCodec, GarnetObjectType, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 #[ctor::ctor(unsafe)]
 fn _log_init() {
@@ -47,7 +47,7 @@ async fn put_hash(
   for (f, v) in fields {
     hash.set_field(f, v, None)?;
   }
-  let meta = MetaValue::new(key_id, CollectionType::Hash, 0, fields.len() as u64);
+  let meta = MetaValue::new(key_id, GarnetObjectType::Hash, 0, fields.len() as u64);
   session
     .save_compact_meta(key, &meta, hash.as_slice())
     .await?;
@@ -346,7 +346,7 @@ fn test_lazy_purge_on_read_compresses_payload() -> Void {
 
     // 到期字段对读取不可见：meta.size 同步缩减，载荷中 dead 消失
     let rc = session
-      .load_collection_raw_read(b"ht:lazy", CollectionType::Hash)
+      .load_collection_raw_read(b"ht:lazy", GarnetObjectType::Hash)
       .await?
       .expect("存活集合必须可见");
     assert_eq!(rc.meta.size, 1, "purge 后元素计数必须同步缩减");
@@ -377,7 +377,7 @@ fn test_lazy_purge_on_read_compresses_payload() -> Void {
     // 稳态：再次读取零回写（无过期字段可清），内容稳定
     let addr_stable = store.index.find_tag(&session.session_meta_key(b"ht:lazy"));
     let rc2 = session
-      .load_collection_raw_read(b"ht:lazy", CollectionType::Hash)
+      .load_collection_raw_read(b"ht:lazy", GarnetObjectType::Hash)
       .await?
       .unwrap();
     assert_eq!(rc2.meta.size, 1);
@@ -412,7 +412,7 @@ fn test_unflagged_hash_read_zero_overhead() -> Void {
 
     for _ in 0..3 {
       let rc = session
-        .load_collection_raw_read(b"ht:plain", CollectionType::Hash)
+        .load_collection_raw_read(b"ht:plain", GarnetObjectType::Hash)
         .await?
         .expect("集合必须可见");
       assert_eq!(rc.meta.size, 2);

@@ -230,6 +230,73 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
     Ok(deleted)
   }
 
+  /// 统计命中给定集群槽位的用户键数（原始日志计数，不按版本去重）
+  ///
+  /// libs/cluster/Session/ClusterCommands.cs:CountKeysInSlot
+  ///（C# ClusterKeyIterationFunctions.CountKeys 同为 Tsavorite 原始迭代计数）
+  pub async fn count_keys_in_slot(&self, slot: u16) -> wkv::Result<usize> {
+    let prefix = self.batch.session_prefix();
+    let prefix_slice = prefix.as_slice();
+    let mut count = 0usize;
+    self
+      .batch
+      .store
+      .hlog()
+      .scan(
+        self.batch.store.begin_address(),
+        self.batch.store.tail_address(),
+        |_addr, rec| {
+          let key = rec.key();
+          if let Some(rest) = key.strip_prefix(prefix_slice)
+            && matches!(
+              rest.split_first(),
+              Some((&t, user_key)) if (t == TAG_STRING || t == TAG_META) && cluster_slot(user_key) == slot
+            )
+          {
+            count += 1;
+          }
+          Ok(true)
+        },
+      )
+      .await
+      .map_err(scan_err)?;
+    Ok(count)
+  }
+
+  /// 列出命中给定集群槽位的用户键（至多 `key_count` 个，早停）
+  ///
+  /// libs/cluster/Session/ClusterCommands.cs:GetKeysInSlot
+  pub async fn get_keys_in_slot(&self, slot: u16, key_count: usize) -> wkv::Result<Vec<Vec<u8>>> {
+    let prefix = self.batch.session_prefix();
+    let prefix_slice = prefix.as_slice();
+    let mut keys = Vec::new();
+    self
+      .batch
+      .store
+      .hlog()
+      .scan(
+        self.batch.store.begin_address(),
+        self.batch.store.tail_address(),
+        |_addr, rec| {
+          let key = rec.key();
+          if let Some(rest) = key.strip_prefix(prefix_slice)
+            && let Some((&t, user_key)) = rest.split_first()
+            && (t == TAG_STRING || t == TAG_META)
+            && cluster_slot(user_key) == slot
+          {
+            keys.push(user_key.to_vec());
+            if keys.len() >= key_count {
+              return Ok(false);
+            }
+          }
+          Ok(true)
+        },
+      )
+      .await
+      .map_err(scan_err)?;
+    Ok(keys)
+  }
+
   /// 列出当前库全部匹配键（KEYS 语义，无分页；匹配口径同 [`Self::db_scan`]：
   /// C# UnifiedStoreGetDBKeys 的 ignoreCase=true，读一致性会话下对标
   /// C# ConsistentUnifiedStoreGetDBKeys 逐键执行一致读协议）

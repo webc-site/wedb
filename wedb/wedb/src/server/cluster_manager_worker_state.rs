@@ -113,8 +113,9 @@ impl ClusterManager {
       }
     }
 
-    if let Some(repl_mgr) = self.cluster_provider.replication_manager()
-      && !repl_mgr.begin_recovery(RecoveryStatus::ClusterReplicate, upgrade_lock)
+    let repl_mgr = self.cluster_provider.replication_manager();
+    if let Some(ref rm) = repl_mgr
+      && !rm.begin_recovery(RecoveryStatus::ClusterReplicate, upgrade_lock)
     {
       return Err(Error::CannotAcquireRecoveryLock);
     }
@@ -126,6 +127,9 @@ impl ClusterManager {
         .bump_local_node_config_epoch();
     }
     self.flush_config();
+    if let Some(ref rm) = repl_mgr {
+      rm.end_recovery(RecoveryStatus::NoRecovery, false);
+    }
     Ok(())
   }
 

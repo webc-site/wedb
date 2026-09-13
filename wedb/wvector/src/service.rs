@@ -36,7 +36,7 @@ use diskann::{
 use diskann_providers::index::wrapped_async::DiskANNIndex;
 use diskann_vector::{DistanceFunction, distance::Metric};
 use enum_dispatch::enum_dispatch;
-use whasher::GxPapayaMap;
+use wbase::ConcurrentMap;
 
 use crate::{
   provider::{DynamicQuantization, ToDistanceComputer, WedbProvider, WedbProviderError},
@@ -734,13 +734,13 @@ pub struct SearchParams {
 
 /// 向量索引服务：context → 索引实例的并发注册表。
 pub struct DiskANNService<S: StoreCallbacks> {
-  indexes: GxPapayaMap<u64, Arc<Index<S>>>,
+  indexes: ConcurrentMap<u64, Arc<Index<S>>>,
 }
 
 impl<S: StoreCallbacks> Default for DiskANNService<S> {
   fn default() -> Self {
     Self {
-      indexes: GxPapayaMap::default(),
+      indexes: ConcurrentMap::default(),
     }
   }
 }

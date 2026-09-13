@@ -8,7 +8,7 @@ use std::{
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 use wdev::Device;
 use windex::{HashBucket, HashBucketEntry};
-use wval::{CollectionType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding};
+use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, StorageEncoding};
 
 use crate::{
   config::StoreConfig,
@@ -99,7 +99,7 @@ impl<D: Device> WedbStore<D> {
             && let Ok(val) = record.value()
             && val.len() >= META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE
             && let Ok(meta) = MetaValue::from_slice(val)
-            && (meta.collection_type == CollectionType::RangeIndex
+            && (meta.collection_type == GarnetObjectType::RangeIndex
               || (meta.encoding() == StorageEncoding::FlattenedTree && meta.size > 0))
           {
             let stub_slice = &val[META_VALUE_SIZE..META_VALUE_SIZE + RANGE_INDEX_STUB_SIZE];

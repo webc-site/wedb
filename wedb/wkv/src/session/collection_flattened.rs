@@ -15,7 +15,7 @@ use std::sync::atomic::Ordering;
 use gxhash::HashSet;
 use wbase::time::now_ticks;
 use wdev::Device;
-use wval::{CollectionType, CompactHashCodec, KeyTag, MetaValue, StorageEncoding};
+use wval::{CompactHashCodec, GarnetObjectType, KeyTag, MetaValue, StorageEncoding};
 
 use crate::{error::Result, session::StoreSession};
 
@@ -204,7 +204,7 @@ impl<D: Device> StoreSession<D> {
   pub async fn flattened_hset(&self, user_key: &[u8], field: &[u8], value: &[u8]) -> Result<bool> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
     if let Some((mut meta, payload_opt)) = self
-      .load_collection_raw_write(user_key, CollectionType::Hash)
+      .load_collection_raw_write(user_key, GarnetObjectType::Hash)
       .await?
     {
       if meta.encoding() == StorageEncoding::Compact
@@ -219,7 +219,7 @@ impl<D: Device> StoreSession<D> {
         .await
     } else {
       let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-      let mut meta = MetaValue::new(key_id, CollectionType::Hash, 1, 0);
+      let mut meta = MetaValue::new(key_id, GarnetObjectType::Hash, 1, 0);
       meta.set_encoding(StorageEncoding::Flattened);
       self
         .flattened_hset_inner(user_key, &mut meta, field, value)
@@ -259,7 +259,8 @@ impl<D: Device> StoreSession<D> {
     let Some(meta) = self.load_meta(user_key).await? else {
       return Ok(None);
     };
-    if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
+    if meta.collection_type != GarnetObjectType::Hash
+      || meta.encoding() != StorageEncoding::Flattened
     {
       return Ok(None);
     }
@@ -283,7 +284,8 @@ impl<D: Device> StoreSession<D> {
     let Some(mut meta) = self.load_meta(user_key).await? else {
       return Ok(false);
     };
-    if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
+    if meta.collection_type != GarnetObjectType::Hash
+      || meta.encoding() != StorageEncoding::Flattened
     {
       return Ok(false);
     }
@@ -477,7 +479,8 @@ impl<D: Device> StoreSession<D> {
     let Some(meta) = self.load_meta(user_key).await? else {
       return Ok(false);
     };
-    if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
+    if meta.collection_type != GarnetObjectType::Hash
+      || meta.encoding() != StorageEncoding::Flattened
     {
       return Ok(false);
     }
@@ -490,7 +493,8 @@ impl<D: Device> StoreSession<D> {
     let Some(meta) = self.load_meta(user_key).await? else {
       return Ok(0);
     };
-    if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
+    if meta.collection_type != GarnetObjectType::Hash
+      || meta.encoding() != StorageEncoding::Flattened
     {
       return Ok(0);
     }
@@ -506,7 +510,8 @@ impl<D: Device> StoreSession<D> {
     let Some(meta) = self.load_meta(user_key).await? else {
       return Ok(vec![None; fields.len()]);
     };
-    if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
+    if meta.collection_type != GarnetObjectType::Hash
+      || meta.encoding() != StorageEncoding::Flattened
     {
       return Ok(vec![None; fields.len()]);
     }

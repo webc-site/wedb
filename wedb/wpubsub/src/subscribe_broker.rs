@@ -11,21 +11,18 @@
 //! C# 的懒初始化（sid/initialized 竞态协调）在构造即完成的 Rust 结构下
 //! 无存在必要；Broadcast 中首达即写的会话输出路径由 [`PubSubSink`] 承接。
 
-use std::{
-  collections::VecDeque,
-  sync::{
-    Arc,
-    atomic::{
-      AtomicBool, AtomicU64,
-      Ordering::{Acquire, Relaxed, Release},
-    },
+use std::sync::{
+  Arc,
+  atomic::{
+    AtomicBool, AtomicU64,
+    Ordering::{Acquire, Relaxed, Release},
   },
 };
 
-use parking_lot::Mutex;
 use wbase::{
   glob::glob_match,
   map::{ConcurrentMap, new_concurrent_map},
+  pool::EventWorkQueue,
 };
 
 use crate::{
@@ -51,8 +48,8 @@ pub struct SubscribeBroker<S = Arc<PubSubMailbox>> {
   subscriptions: ChannelSubscriptions<S>,
   /// 模式订阅表（C# patternSubscriptions）
   pattern_subscriptions: PatternSubscriptions<S>,
-  /// 待分发队列（单消费者批处理排水，零预分配，彻底消除无锁通道套锁反模式）
-  pending_queue: Mutex<VecDeque<PendingEntry>>,
+  /// 待分发队列（低频事件驱动工作队列，内存按需收缩，零空置浪费）
+  pending_queue: EventWorkQueue<PendingEntry>,
   /// 上一次消费的日志地址（C# previousAddress；跳页检测）
   previous_address: AtomicU64,
   /// 专日志页大小位宽（C# pageSizeBits；跳页告警判定用）
@@ -71,7 +68,7 @@ impl<S: PubSubSink> SubscribeBroker<S> {
     Self {
       subscriptions: new_concurrent_map(),
       pattern_subscriptions: new_concurrent_map(),
-      pending_queue: Mutex::new(VecDeque::new()),
+      pending_queue: EventWorkQueue::new(),
       previous_address: AtomicU64::new(0),
       page_size_bits: page_size_bytes.max(2).ilog2(),
       disposed: AtomicBool::new(false),
@@ -188,16 +185,10 @@ impl<S: PubSubSink> SubscribeBroker<S> {
       return 0;
     }
 
-    let batch = {
-      let mut q = self.pending_queue.lock();
-      let pending = q.len();
-      if pending == 0 {
-        return 0;
-      }
-      let mut batch = Vec::with_capacity(pending);
-      batch.extend(q.drain(..));
-      batch
-    };
+    let batch = self.pending_queue.drain();
+    if batch.is_empty() {
+      return 0;
+    }
 
     let mut total_notified = 0;
     let subscriptions = if !self.subscriptions.is_empty() {
@@ -363,10 +354,7 @@ impl<S: PubSubSink> SubscribeBroker<S> {
     if self.disposed.load(Acquire) || self.is_idle() {
       return;
     }
-    self
-      .pending_queue
-      .lock()
-      .push_back((key.into(), value.into()));
+    self.pending_queue.push((key.into(), value.into()));
   }
 
   /// 通道异步发布：零锁并发入队待分发队列
@@ -441,7 +429,7 @@ impl<S: PubSubSink> SubscribeBroker<S> {
 
   /// 排空待分发队列（丢弃积压消息）
   pub fn clear(&self) {
-    self.pending_queue.lock().clear();
+    self.pending_queue.clear();
   }
 
   /// 释放中枢：停止接收并清空全部订阅与待发队列

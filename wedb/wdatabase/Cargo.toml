@@ -17,6 +17,7 @@ gxhash.workspace = true
 log.workspace = true
 parking_lot.workspace = true
 waof.workspace = true
+wbase = { version = "0.1.6", path = "../wbase", features = ["map"] }
 wcpr.workspace = true
 wdev.workspace = true
 whasher.workspace = true

@@ -25,8 +25,7 @@ log.workspace = true
 parking_lot.workspace = true
 sha1_smol.workspace = true
 sonic-rs.workspace = true
-wbase = { workspace = true, features = ["hash_slot", "convert", "num"] }
-whasher.workspace = true
+wbase = { features = ["hash_slot", "convert", "num", "map"], path = "../wbase", version = "0.1.6" }
 wresp.workspace = true
 wtxn = { version = "0.1.0", path = "../wtxn" }
 

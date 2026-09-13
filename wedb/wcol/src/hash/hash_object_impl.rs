@@ -10,9 +10,12 @@ use wbase::{
   },
   num::{try_parse_f64, try_parse_i64},
 };
-use wresp::cmd_strings::{
-  RESP_ERR_GENERIC_NAN_INFINITY_INCR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
-  RESP_ERR_NOT_VALID_FLOAT,
+use wresp::{
+  ExpirationWithOption,
+  cmd_strings::{
+    RESP_ERR_GENERIC_NAN_INFINITY_INCR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+    RESP_ERR_NOT_VALID_FLOAT,
+  },
 };
 
 use super::hash_object::{
@@ -20,7 +23,6 @@ use super::hash_object::{
 };
 use crate::{
   parse_utils::try_parse_with_infinity,
-  sortedset::sorted_set_object::ExpirationWithOption,
   types::{ObjectInput, object_output::ObjectOutput},
 };
 

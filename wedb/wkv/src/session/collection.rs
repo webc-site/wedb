@@ -10,7 +10,7 @@
 
 use wbase::time::now_ticks;
 use wdev::Device;
-use wval::{CollectionType, CompactHashCodec, META_VALUE_SIZE, MetaValue, StorageEncoding};
+use wval::{CompactHashCodec, GarnetObjectType, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 use crate::{error::Result, session::StoreSession, ttl::TtlOpt};
 
@@ -37,7 +37,7 @@ impl<D: Device> StoreSession<D> {
 
     let mut meta_del = false;
     if let Some(mut meta) = self.load_meta(key).await? {
-      if meta.collection_type == CollectionType::RangeIndex || meta.encoding().is_flattened() {
+      if meta.collection_type == GarnetObjectType::RangeIndex || meta.encoding().is_flattened() {
         // 统一 RangeIndex 与打平集合（whlog 打平 / BfTree 树算子）生命周期：
         // 原子墓碑 + 版本号栅栏 + 树排空与磁盘释放（whlog 打平键无树文件时
         // delete_index 为幂等 no-op）
@@ -164,7 +164,7 @@ impl<D: Device> StoreSession<D> {
     match self.try_read_raw_in_memory_with_addr(&meta_k, Some(first_addr), |bytes| {
       bytes.len() >= META_VALUE_SIZE
         && MetaValue::from_slice(bytes)
-          .is_ok_and(|m| m.size > 0 || m.collection_type == CollectionType::RangeIndex)
+          .is_ok_and(|m| m.size > 0 || m.collection_type == GarnetObjectType::RangeIndex)
     })? {
       Some(Some(is_active)) => Ok(Some(is_active)),
       Some(None) => Ok(Some(false)),
@@ -198,7 +198,7 @@ impl<D: Device> StoreSession<D> {
     match self.read_raw_with(&meta_k, MetaValue::from_slice).await? {
       Some(meta) => {
         let meta = meta?;
-        let is_alive = meta.size > 0 || meta.collection_type == CollectionType::RangeIndex;
+        let is_alive = meta.size > 0 || meta.collection_type == GarnetObjectType::RangeIndex;
         if is_alive && self.has_ttl_tag(user_key)? && self.check_expired(user_key).await? {
           return Ok(None);
         }
@@ -231,7 +231,7 @@ impl<D: Device> StoreSession<D> {
   pub async fn load_collection_raw_read(
     &self,
     key: &[u8],
-    expected: CollectionType,
+    expected: GarnetObjectType,
   ) -> Result<Option<RawCollectionRead>> {
     let Some((meta, bytes)) = self.load_live_meta_bytes(key).await? else {
       return Ok(None);
@@ -242,7 +242,8 @@ impl<D: Device> StoreSession<D> {
     if meta.encoding() == StorageEncoding::Compact {
       // 字段级惰性 purge 单探针门控：reserved 标志位一次读取；仅 Hash 走 purge
       //（Set/ZSet 紧凑载荷布局不同，且其写路径从不置位本标志，防御性双检）
-      if meta.collection_type == CollectionType::Hash && Self::get_meta_has_expire(&meta.reserved) {
+      if meta.collection_type == GarnetObjectType::Hash && Self::get_meta_has_expire(&meta.reserved)
+      {
         // 字段级过期域与 key 级同为 i64 .NET Ticks（wval compact_hash），同域直比
         let now = now_ticks();
         let has_expired = bytes.len() > META_VALUE_SIZE
@@ -313,7 +314,7 @@ impl<D: Device> StoreSession<D> {
   async fn purge_expired_hash_read(&self, key: &[u8]) -> Result<Option<RawCollectionRead>> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[key])?;
     let Some((mut meta, Some(mut payload))) = self
-      .load_collection_raw_write(key, CollectionType::Hash)
+      .load_collection_raw_write(key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(None);
@@ -345,7 +346,7 @@ impl<D: Device> StoreSession<D> {
   pub async fn load_collection_raw_write(
     &self,
     key: &[u8],
-    expected: CollectionType,
+    expected: GarnetObjectType,
   ) -> Result<Option<(MetaValue, Option<Vec<u8>>)>> {
     let Some((meta, mut bytes)) = self.load_live_meta_bytes(key).await? else {
       return Ok(None);
@@ -500,7 +501,7 @@ impl<D: Device> StoreSession<D> {
   pub async fn collect_expired_hash_fields(&self, user_key: &[u8], now: i64) -> Result<u64> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
     let Some((mut meta, Some(mut payload))) = self
-      .load_collection_raw_write(user_key, CollectionType::Hash)
+      .load_collection_raw_write(user_key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(0);
@@ -547,7 +548,7 @@ impl<D: Device> StoreSession<D> {
   async fn hash_field_ttl(&self, key: &[u8], field: &[u8], cmd: FieldTtlCmd) -> Result<i32> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[key])?;
     let Some((mut meta, payload_opt)) = self
-      .load_collection_raw_write(key, CollectionType::Hash)
+      .load_collection_raw_write(key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(-2);

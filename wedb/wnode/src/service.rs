@@ -10,9 +10,12 @@
 //! 取写入时存储版本（checkpoint token，重放端跳过低版本条目）。
 
 use std::{
-  path::Path,
+  path::{Path, PathBuf},
   result,
-  sync::{Arc, atomic::Ordering},
+  sync::{
+    Arc,
+    atomic::{AtomicI64, Ordering},
+  },
 };
 
 use thiserror::Error;
@@ -45,7 +48,7 @@ use crate::{
   },
   resp::{
     RespSessionConsumer,
-    garnet_api::StoreGarnetApi,
+    garnet_api::{CheckpointCtx, StoreGarnetApi},
     objects::{
       collection_item_source::CollectionItemSource, object_store_utils::is_object_envelope,
     },
@@ -534,6 +537,11 @@ pub struct StorageSessionProvider<F> {
   pub vector_manager: Arc<VectorManager>,
   /// 服务器级运行时配置（CONFIG GET/SET 与 OBJECT_SCAN_COUNT_LIMIT 热更源）
   pub runtime_config: Arc<RuntimeServerConfig>,
+  /// 检查点目录（SAVE/BGSAVE 落点，C# GetStoreCheckpointDirectory 口径：
+  /// 数据目录下 Store/checkpoints）
+  pub checkpoint_dir: PathBuf,
+  /// 最近成功检查点时刻（Unix 毫秒，服务器级共享，LASTSAVE 数据源）
+  pub last_save_ms: Arc<AtomicI64>,
   /// 差异钩子：按发送端装配会话消费者（None = 拒绝建连）
   decorate: F,
 }
@@ -545,12 +553,22 @@ where
   /// 统一装配体：打开单文件存储引擎、共享经纪与向量集合管理器后构造基座
   ///（run 闭包一行装配；store 句柄经公开字段供集群 set_store 下达）
   pub fn open(data_path: impl AsRef<Path>, decorate: F) -> crate::Result<Self> {
+    let data_path = data_path.as_ref();
     let (store, broker, vector_manager) = open_node(data_path)?;
+    // 检查点目录：C# CheckpointBaseDirectory 缺省时回落数据目录的
+    // Store/checkpoints（对标 GetStoreCheckpointDirectory(0)）
+    let checkpoint_dir = data_path
+      .parent()
+      .unwrap_or_else(|| Path::new("."))
+      .join("Store")
+      .join("checkpoints");
     Ok(Self {
       store,
       broker,
       vector_manager,
       runtime_config: RuntimeServerConfig::shared_default(),
+      checkpoint_dir,
+      last_save_ms: Arc::new(AtomicI64::new(0)),
       decorate,
     })
   }
@@ -569,7 +587,13 @@ where
     network_sender_id: u64,
   ) -> Option<RespSessionConsumer> {
     let session = self.store.new_session().ok()?;
-    let api = StoreGarnetApi::new(session).with_vector_manager(Arc::clone(&self.vector_manager));
+    let checkpoint = CheckpointCtx {
+      dir: self.checkpoint_dir.clone(),
+      last_save_ms: Arc::clone(&self.last_save_ms),
+    };
+    let api = StoreGarnetApi::new(session)
+      .with_vector_manager(Arc::clone(&self.vector_manager))
+      .with_checkpoint_ctx(checkpoint);
     let mut consumer = (self.decorate)(network_sender_id, api)?;
     consumer.set_item_broker(self.broker.clone());
     consumer.set_runtime_config(self.runtime_config.clone());

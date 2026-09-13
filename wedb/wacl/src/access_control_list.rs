@@ -12,7 +12,7 @@ use std::{
 
 use arc_swap::{ArcSwap, ArcSwapOption};
 use parking_lot::Mutex;
-use whasher::{GxPapayaMap, new_papaya_map};
+use wbase::{ConcurrentMap, new_concurrent_map};
 
 use super::{
   AclPassword, RespAclCategories, UserHandle, acl_exception::AclError, acl_parser::AclParser,
@@ -23,7 +23,7 @@ use super::{
 pub const DEFAULT_USER_NAME: &str = "default";
 
 /// 用户表类型（用户名 -> 用户句柄）
-type UsersMap = GxPapayaMap<String, Arc<UserHandle>>;
+type UsersMap = ConcurrentMap<String, Arc<UserHandle>>;
 
 /// 访问控制列表
 pub struct AccessControlList {
@@ -66,7 +66,7 @@ impl AccessControlList {
   /// 空表草稿（无默认用户；Load 的导入草稿与构造底座）
   fn scratch() -> Self {
     Self {
-      users: ArcSwap::from_pointee(new_papaya_map()),
+      users: ArcSwap::from_pointee(new_concurrent_map()),
       default_user: ArcSwapOption::from(None),
       save_lock: Mutex::new(()),
     }
@@ -121,7 +121,7 @@ impl AccessControlList {
   ///
   /// libs/server/ACL/AccessControlList.cs:ClearUsers
   pub fn clear_users(&self) {
-    self.users.store(Arc::new(new_papaya_map()));
+    self.users.store(Arc::new(new_concurrent_map()));
   }
 
   /// 全部用户名 / 句柄对快照

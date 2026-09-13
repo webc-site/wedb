@@ -1672,11 +1672,7 @@ fn combine_sets(
         };
         let w = weights.get(i).copied().unwrap_or(1.0);
         let s = score * w;
-        agg_score = match aggregate {
-          ZSetAggregate::Sum => agg_score + s,
-          ZSetAggregate::Min => agg_score.min(s),
-          ZSetAggregate::Max => agg_score.max(s),
-        };
+        agg_score = aggregate.apply(agg_score, s);
       }
       entries.push((member.clone(), agg_score));
     }
@@ -1693,11 +1689,7 @@ fn combine_sets(
       let weighted = score * weight;
       match combined.get_mut(member.as_slice()) {
         Some(existing) => {
-          *existing = match aggregate {
-            ZSetAggregate::Sum => *existing + weighted,
-            ZSetAggregate::Min => (*existing).min(weighted),
-            ZSetAggregate::Max => (*existing).max(weighted),
-          };
+          *existing = aggregate.apply(*existing, weighted);
         }
         None => {
           combined.insert(member.clone(), weighted);

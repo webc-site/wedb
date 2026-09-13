@@ -25,8 +25,6 @@
 //!   `RangeIndexChunkedDeserializer.cs` 的 `System.IO.Hashing.XxHash64` 流式校验
 //!   （Append / GetHashAndReset；此处为非破坏 `finish` + 显式 `reset`，语义等价且更灵活）
 //! - [`HashMap`] / [`HashSet`] / [`GxBuildHasher`] ← C# Dictionary/HashSet 默认随机化哈希防御
-//! - [`GxPapayaMap`] / [`new_papaya_map`] ← C# `ConcurrentDictionary`
-//!   （papaya 无锁并发字典 + gxhash 构建器；单一来源 `wbase::map::ConcurrentMap`，此处为门面别名再导出）
 //! - [`mix13`] / [`splitmix64`] / [`mix_thread_id`] / [`GOLDEN_RATIO_64`]：
 //!   Rust 侧条带锁/分片基础设施原语，无 C# 函数一一对应
 //!
@@ -43,7 +41,6 @@ use core::{
 };
 
 use gxhash::{GxBuildHasher, HashMap, HashSet};
-use wbase::map::{ConcurrentMap, new_concurrent_map};
 
 /// 流式条带宽度（64 字节，匹配 gxhash 大输入 ILP 路径的 4 倍向量宽度）
 const STRIPE: usize = 64;
@@ -319,20 +316,6 @@ pub fn new_hash_map<K, V>() -> HashMap<K, V> {
 #[inline]
 pub fn hash_set_with_capacity<T>(capacity: usize) -> HashSet<T> {
   HashSet::with_capacity_and_hasher(capacity, GxBuildHasher::default())
-}
-
-/// 基于硬件向量加速 gxhash 构建器的无锁高并发字典类型
-///
-/// papaya 并发哈希字典（无锁读、分段写）统一搭载 [`GxBuildHasher`]，对应 C#
-/// `ConcurrentDictionary`。定义的单一来源是 `wbase::map::ConcurrentMap`
-/// （转写规范：并发字典在 wedb/wbase/map.rs 中定义，本 crate 作为哈希/并发集合
-/// 门面别名再导出，两处类型恒同——均为 `papaya::HashMap<K, V, gxhash::GxBuildHasher>`）。
-pub type GxPapayaMap<K, V> = ConcurrentMap<K, V>;
-
-/// 创建搭载硬件向量加速 gxhash 构建器的无锁并发字典（委托 `wbase::map` 单一实现）
-#[inline]
-pub fn new_papaya_map<K, V>() -> GxPapayaMap<K, V> {
-  new_concurrent_map()
 }
 
 /// gxhash 单次直算的抗碰撞安全上限（32 KiB）

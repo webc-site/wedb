@@ -1,8 +1,8 @@
 use aok::{OK, Void};
 use log::info;
 use wval::{
-  CollectionType, CompactHash, CompactHashCodec, CompactSet, CompactSetCodec, CompactZSet,
-  CompactZSetCodec, FieldValueRef, HashEntryRef, META_VALUE_SIZE, MetaValue, StorageEncoding,
+  CompactHash, CompactHashCodec, CompactSet, CompactSetCodec, CompactZSet, CompactZSetCodec,
+  FieldValueRef, GarnetObjectType, HashEntryRef, META_VALUE_SIZE, MetaValue, StorageEncoding,
   ZSetEntryRef,
 };
 
@@ -19,7 +19,7 @@ fn test_meta_value_storage_encoding() -> Void {
   info!("测试 MetaValue 的 StorageEncoding 扩展与二进制兼容性");
 
   // 1. 默认新建 MetaValue，默认编码必须为 Compact (0)
-  let mut meta = MetaValue::new(1001, CollectionType::Hash, 1, 0);
+  let mut meta = MetaValue::new(1001, GarnetObjectType::Hash, 1, 0);
   assert_eq!(meta.encoding(), StorageEncoding::Compact);
   assert_eq!(meta.reserved[0], 0);
 

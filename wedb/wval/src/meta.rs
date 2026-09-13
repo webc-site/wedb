@@ -2,7 +2,7 @@ use wbase::{buf::put_header_payload, stack_heap_buf};
 
 use crate::{
   error::{Error, Result},
-  tag::{CollectionType, KeyTag},
+  tag::{GarnetObjectType, KeyTag},
 };
 
 /// 元数据大端布局中读取位于 `offset` 处的 u64（const fn，调用方保证长度充足）
@@ -109,7 +109,7 @@ impl StorageEncoding {
 ///
 /// 内存排布（32 字节，大端序保序持久化）：
 /// - `[0..8)`: `key_id: u64` (集合全局唯一自增 ID)
-/// - `[8..9)`: `collection_type: CollectionType` (集合逻辑数据结构类型)
+/// - `[8..9)`: `collection_type: GarnetObjectType` (集合逻辑数据结构类型)
 /// - `[9..16)`: `reserved: [u8; 7]` (显式填充并预留扩展标志位，其中 reserved 首字节为 StorageEncoding)
 /// - `[16..24)`: `version: u64` (逻辑删除版本号，支持 O(1) 秒删与事务乐观失效)
 /// - `[24..32)`: `size: u64` (元素计数，保证 HLEN/SCARD/ZCARD 恒为 O(1))
@@ -119,7 +119,7 @@ pub struct MetaValue {
   /// 集合全局唯一自增 ID
   pub key_id: u64,
   /// 集合逻辑数据结构类型（Hash / Set / ZSet / List）
-  pub collection_type: CollectionType,
+  pub collection_type: GarnetObjectType,
   /// 显式预留字节（reserved 首字节存储 StorageEncoding，避免未初始化内存 UB）
   pub reserved: [u8; 7],
   /// 逻辑删除版本号
@@ -131,7 +131,12 @@ pub struct MetaValue {
 impl MetaValue {
   /// 构造新的集合元数据记录（const fn）
   #[inline(always)]
-  pub const fn new(key_id: u64, collection_type: CollectionType, version: u64, size: u64) -> Self {
+  pub const fn new(
+    key_id: u64,
+    collection_type: GarnetObjectType,
+    version: u64,
+    size: u64,
+  ) -> Self {
     Self {
       key_id,
       collection_type,
@@ -246,11 +251,11 @@ impl MetaValue {
 
   /// 从只读切片快速读取逻辑集合类型（const fn）
   #[inline(always)]
-  pub const fn read_collection_type(slice: &[u8]) -> Result<CollectionType> {
+  pub const fn read_collection_type(slice: &[u8]) -> Result<GarnetObjectType> {
     if let Err(e) = ensure_len(slice, TYPE_OFFSET + 1) {
       return Err(e);
     }
-    match CollectionType::from_u8(slice[TYPE_OFFSET]) {
+    match GarnetObjectType::from_u8(slice[TYPE_OFFSET]) {
       Some(t) => Ok(t),
       None => Err(Error::InvalidCollectionType(slice[TYPE_OFFSET])),
     }
@@ -266,7 +271,7 @@ impl MetaValue {
     let key_id = u64::from_be_bytes([
       slice[0], slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7],
     ]);
-    let collection_type = match CollectionType::from_u8(slice[TYPE_OFFSET]) {
+    let collection_type = match GarnetObjectType::from_u8(slice[TYPE_OFFSET]) {
       Some(t) => t,
       None => return Err(Error::InvalidCollectionType(slice[TYPE_OFFSET])),
     };
@@ -310,7 +315,7 @@ impl MetaValue {
 }
 
 /// 16 字节定长紧凑集合元数据（单 64 字节缓存行容纳 4 条，大端序持久化）：
-/// - `collection_type: CollectionType` (1 字节，[0..1))
+/// - `collection_type: GarnetObjectType` (1 字节，[0..1))
 /// - `encoding: StorageEncoding` (1 字节，[1..2))
 /// - `reserved: [u8; 2]` (2 字节对齐填充预留，[2..4))
 /// - `size: u32` (4 字节元素计数，[4..8))
@@ -319,7 +324,7 @@ impl MetaValue {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompactMetaValue {
   /// 集合逻辑数据结构类型
-  pub collection_type: CollectionType,
+  pub collection_type: GarnetObjectType,
   /// 底层物理存储编码策略
   pub encoding: StorageEncoding,
   /// 显式预留对齐字节
@@ -334,7 +339,7 @@ impl CompactMetaValue {
   /// 构造新的 16 字节紧凑元数据（const fn）
   #[inline(always)]
   pub const fn new(
-    collection_type: CollectionType,
+    collection_type: GarnetObjectType,
     encoding: StorageEncoding,
     size: u32,
     expire_at_ticks: i64,
@@ -418,7 +423,7 @@ impl CompactMetaValue {
         let expire_at_ticks = i64::from_be_bytes([*b8, *b9, *b10, *b11, *b12, *b13, *b14, *b15]);
 
         let type_byte = (w0 >> 56) as u8;
-        let collection_type = match CollectionType::from_u8(type_byte) {
+        let collection_type = match GarnetObjectType::from_u8(type_byte) {
           Some(t) => t,
           None => return Err(Error::InvalidCollectionType(type_byte)),
         };
@@ -447,11 +452,11 @@ impl CompactMetaValue {
 
   /// 零拷贝读取集合数据结构类型（const fn，1 条指令快速提取）
   #[inline]
-  pub const fn read_collection_type(slice: &[u8]) -> Option<CollectionType> {
+  pub const fn read_collection_type(slice: &[u8]) -> Option<GarnetObjectType> {
     if slice.len() < COMPACT_META_VALUE_SIZE {
       return None;
     }
-    CollectionType::from_u8(slice[0])
+    GarnetObjectType::from_u8(slice[0])
   }
 
   /// 零拷贝读取物理存储编码（const fn，1 条指令快速提取；未知编码字节 None）

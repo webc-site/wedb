@@ -4,7 +4,7 @@
 
 use wcol::SetTreeOps;
 use wdev::Device;
-use wval::CollectionType;
+use wval::GarnetObjectType;
 
 use crate::{error::Result, session::StoreSession};
 
@@ -20,7 +20,7 @@ impl<D: Device> StoreSession<D> {
       return Ok(0);
     }
     self
-      .with_bftree_write_or_create(key, CollectionType::Set, |tree| {
+      .with_bftree_write_or_create(key, GarnetObjectType::Set, |tree| {
         let mut added = 0u64;
         for m in members {
           if tree.sadd(m.as_ref())? {
@@ -45,7 +45,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_remove(
         key,
-        CollectionType::Set,
+        GarnetObjectType::Set,
         || 0,
         |tree| {
           let mut removed = 0u64;
@@ -65,7 +65,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::Set,
+        GarnetObjectType::Set,
         || false,
         |tree| tree.sismember(member).map_err(Into::into),
       )
@@ -81,7 +81,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::Set,
+        GarnetObjectType::Set,
         || vec![false; members.len()],
         |tree| {
           let mut results = Vec::with_capacity(members.len());
@@ -96,7 +96,7 @@ impl<D: Device> StoreSession<D> {
 
   /// 获取集合基数 (O(1) 读取元数据)
   pub async fn bftree_scard(&self, key: &[u8]) -> Result<usize> {
-    self.bftree_card(key, CollectionType::Set).await
+    self.bftree_card(key, GarnetObjectType::Set).await
   }
 
   /// 获取集合所有成员
@@ -135,7 +135,7 @@ impl<D: Device> StoreSession<D> {
     self
       .with_bftree_read(
         key,
-        CollectionType::Set,
+        GarnetObjectType::Set,
         || 0,
         |tree| {
           tree

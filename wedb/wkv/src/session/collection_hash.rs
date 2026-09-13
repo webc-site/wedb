@@ -9,7 +9,7 @@
 use std::sync::atomic::Ordering;
 
 use wdev::Device;
-use wval::{CollectionType, CompactHashCodec, KeyTag, MetaValue, StorageEncoding};
+use wval::{CompactHashCodec, GarnetObjectType, KeyTag, MetaValue, StorageEncoding};
 
 use crate::{
   error::Result,
@@ -24,13 +24,13 @@ impl<D: Device> StoreSession<D> {
   pub async fn hset(&self, user_key: &[u8], field: &[u8], value: &[u8]) -> Result<bool> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
     let (mut meta, mut payload) = match self
-      .load_collection_raw_write(user_key, CollectionType::Hash)
+      .load_collection_raw_write(user_key, GarnetObjectType::Hash)
       .await?
     {
       Some((meta, payload_opt)) => (meta, payload_opt.unwrap_or_default()),
       None => {
         let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-        let mut meta = MetaValue::new(key_id, CollectionType::Hash, 1, 0);
+        let mut meta = MetaValue::new(key_id, GarnetObjectType::Hash, 1, 0);
         meta.set_encoding(StorageEncoding::Compact);
         (meta, Vec::new())
       }
@@ -90,7 +90,7 @@ impl<D: Device> StoreSession<D> {
     f: impl FnOnce(&[u8]) -> R,
   ) -> Result<Option<R>> {
     let Some(raw) = self
-      .load_collection_raw_read(user_key, CollectionType::Hash)
+      .load_collection_raw_read(user_key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(None);
@@ -115,7 +115,7 @@ impl<D: Device> StoreSession<D> {
   pub async fn hdel(&self, user_key: &[u8], field: &[u8]) -> Result<bool> {
     let _key_lock = self.store.index.acquire_keys_lock_exclusive(&[user_key])?;
     let Some((mut meta, payload_opt)) = self
-      .load_collection_raw_write(user_key, CollectionType::Hash)
+      .load_collection_raw_write(user_key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(false);
@@ -144,7 +144,7 @@ impl<D: Device> StoreSession<D> {
     let Some(meta) = self.load_meta(user_key).await? else {
       return Ok(0);
     };
-    if meta.collection_type != CollectionType::Hash {
+    if meta.collection_type != GarnetObjectType::Hash {
       return Ok(0);
     }
     Ok(meta.size as usize)
@@ -153,7 +153,7 @@ impl<D: Device> StoreSession<D> {
   /// 判断哈希表中指定字段是否存在（透明路由 Compact 与 Flattened 打平存储）
   pub async fn hexists(&self, user_key: &[u8], field: &[u8]) -> Result<bool> {
     let Some(raw) = self
-      .load_collection_raw_read(user_key, CollectionType::Hash)
+      .load_collection_raw_read(user_key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(false);
@@ -171,7 +171,7 @@ impl<D: Device> StoreSession<D> {
   /// 批量读取哈希字段值（透明路由 Compact 与 Flattened 打平存储）
   pub async fn hmget(&self, user_key: &[u8], fields: &[&[u8]]) -> Result<Vec<Option<Vec<u8>>>> {
     let Some(raw) = self
-      .load_collection_raw_read(user_key, CollectionType::Hash)
+      .load_collection_raw_read(user_key, GarnetObjectType::Hash)
       .await?
     else {
       return Ok(vec![None; fields.len()]);

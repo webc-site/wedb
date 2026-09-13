@@ -8,7 +8,6 @@
 
 use std::{
   hint::spin_loop,
-  ops::Deref,
   sync::{
     Arc, Weak,
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
@@ -45,36 +44,7 @@ impl LogTailHandle {
   }
 }
 
-/// 缓存行对齐的原子水位（128B 对齐，消除跨核伪共享 False Sharing 与相邻行预取颠簸，对标 C# PaddedLong）
-#[repr(align(128))]
-#[derive(Debug)]
-pub struct CacheAlignedAtomicI64(pub AtomicI64);
-
-impl CacheAlignedAtomicI64 {
-  #[inline]
-  pub const fn new(val: i64) -> Self {
-    Self(AtomicI64::new(val))
-  }
-
-  #[inline]
-  pub fn load(&self, order: Ordering) -> i64 {
-    self.0.load(order)
-  }
-
-  #[inline]
-  pub fn store(&self, val: i64, order: Ordering) {
-    self.0.store(val, order);
-  }
-}
-
-impl Deref for CacheAlignedAtomicI64 {
-  type Target = AtomicI64;
-
-  #[inline]
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
-}
+use wbase::align::CachePadded;
 
 /// libs/server/AOF/AofBackpressure.cs:AofBackpressure
 ///
@@ -89,7 +59,7 @@ pub struct AofBackpressure {
   /// 子日志数。
   sublog_count: usize,
   /// 各子日志已发布水位（128B 缓存行对齐，固定容量切片）。
-  shipped_watermark: Box<[CacheAlignedAtomicI64]>,
+  shipped_watermark: Box<[CachePadded<AtomicI64>]>,
   /// 关停标志：置位后所有等待方立即放行。
   disposed: AtomicBool,
   /// 拥有日志（尾地址反查），读写锁支持并发读尾，避免排队互斥。
@@ -102,7 +72,7 @@ impl AofBackpressure {
   /// libs/server/AOF/AofBackpressure.cs:AofBackpressure（构造）。
   pub fn new(sublog_count: usize, aof_sync_max_lag_bytes: i64) -> Self {
     let shipped_watermark = (0..sublog_count)
-      .map(|_| CacheAlignedAtomicI64::new(i64::MAX))
+      .map(|_| CachePadded::new(AtomicI64::new(i64::MAX)))
       .collect::<Vec<_>>()
       .into_boxed_slice();
 

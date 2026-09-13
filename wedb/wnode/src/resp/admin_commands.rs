@@ -15,10 +15,13 @@ use wresp::{
 };
 
 use super::resp_server_session::RespServerSession;
-use crate::resp::objects::{
-  hash_commands::{HashLoad, hash_load_sync},
-  object_store_utils::{hash_to_blob, make_object_input, obj_save_or_gc},
-  sorted_set_commands::{ZsetLoad, zset_load_sync, zset_save_or_gc},
+use crate::resp::{
+  objects::{
+    hash_commands::{HashLoad, hash_load_sync},
+    object_store_utils::{hash_to_blob, make_object_input, obj_save_or_gc},
+    sorted_set_commands::{ZsetLoad, zset_load_sync, zset_save_or_gc},
+  },
+  slow_path::SlowWait,
 };
 
 /// GC 代数非法文案（本域两处复用）。
@@ -170,10 +173,28 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // C# 阻塞等待 storeWrapper.CommitAOFAsync；rust 会话层无该通道
-    // （store_wrapper.rs:CommitAofAsync 未建成），按本域存储失败惯例降级
-    output.write_resp_error(RESP_ERR_GENERIC);
+    // C# BlockingWait(CommitAofAsync(dbId)) 后无视结果恒回固定文案；
+    // 本装配 AOF 域未挂 provider（C# EnableAOF=false 路径同此可观测行为）
+    output.write_resp_simple_string("AOF file committed");
     Ok(true)
+  }
+  /// 检查点族路由公共骨架（SAVE / BGSAVE / LASTSAVE）
+  ///
+  /// 参数校验在会话侧闭环后，闭包转挂存储执行域慢路径（checkpoint 通道 /
+  /// lastsave 时间戳随 StoreGarnetApi 注入）；C# 网络线程 BlockingWait 的
+  /// compio 等价物。存储执行域未挂载 = 装配缺口，按失败惯例降级
+  fn route_checkpoint_command(
+    &mut self,
+    cmd: RespCommand,
+    parse_state: &[&[u8]],
+    output: &mut Vec<u8>,
+  ) {
+    if let Some(api) = &self.garnet_api {
+      let args: Vec<Vec<u8>> = parse_state.iter().map(|a| a.to_vec()).collect();
+      self.pending_slow = Some(SlowWait::for_command(api, cmd, args));
+    } else {
+      output.write_resp_error(RESP_ERR_GENERIC);
+    }
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkHCOLLECT
   ///
@@ -512,10 +533,8 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // C# 阻塞等待 TakeCheckpointAsync(false)；rust 检查点通道未接线
-    // （store_wrapper.rs:TakeCheckpointAsync 未建成），按失败惯例降级并区分
-    // 既有 C# 错误语义（checkpoint already in progress 不可达）
-    output.write_resp_error(RESP_ERR_GENERIC);
+    // C# 阻塞等待 TakeCheckpointAsync(false)：闭包转挂存储执行域
+    self.route_checkpoint_command(RespCommand::Save, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkEXPDELSCAN
@@ -554,9 +573,8 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // C# 回数据库 LastSaveTime；rust 检查点域未接线无时间戳来源，按失败
-    // 惯例降级（不虚报时间戳）
-    output.write_resp_error(RESP_ERR_GENERIC);
+    // C# 回数据库 LastSaveTime：经存储执行域 checkpoint 通道读取
+    self.route_checkpoint_command(RespCommand::Lastsave, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:NetworkBGSAVE
@@ -579,8 +597,8 @@ impl RespServerSession {
       }
     }
 
-    // C# 阻塞等待 TakeCheckpointAsync(true)；检查点通道缺口同 NetworkSAVE
-    output.write_resp_error(RESP_ERR_GENERIC);
+    // C# 阻塞等待 TakeCheckpointAsync(true)：闭包同 SAVE 转挂存储执行域
+    self.route_checkpoint_command(RespCommand::Bgsave, parse_state, output);
     Ok(true)
   }
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId

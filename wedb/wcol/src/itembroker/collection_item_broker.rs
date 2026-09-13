@@ -27,12 +27,12 @@ use crossfire::{
   oneshot::{RxOneshot as OneshotAsyncRx, TxOneshot as OneshotTx, oneshot},
 };
 use parking_lot::Mutex;
-use whasher::{GxPapayaMap as HashMap, new_papaya_map};
+use wbase::{ConcurrentMap, new_concurrent_map};
 
 /// 键观察者队列（按订阅顺序；对应 C# ConcurrentQueue<CollectionItemObserver>）
 type ObserverQueue = Mutex<VecDeque<Arc<CollectionItemObserver>>>;
 /// 观察键 → 观察者队列映射（gxhash 构建器，全项目并发容器唯一出处约束）
-type KeysToObservers = HashMap<Vec<u8>, ObserverQueue>;
+type KeysToObservers = ConcurrentMap<Vec<u8>, ObserverQueue>;
 use wresp::RespCommand;
 
 use crate::{
@@ -171,7 +171,7 @@ pub struct CollectionItemBroker<S, Spawner = CompioTaskSpawner> {
   events_rx: Mutex<Option<AsyncRx<List<CollectionItemBrokerEvent>>>>,
 
   /// 会话 ID → 观察者
-  session_id_to_observer: HashMap<usize, Arc<CollectionItemObserver>>,
+  session_id_to_observer: ConcurrentMap<usize, Arc<CollectionItemObserver>>,
 
   /// 观察键 → 观察者队列（按订阅顺序；并发无锁哈希表分片索引，对应 C# ConcurrentQueue）
   keys_to_observers: KeysToObservers,
@@ -214,8 +214,8 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     Self {
       events_tx,
       events_rx: Mutex::new(Some(events_rx)),
-      session_id_to_observer: new_papaya_map(),
-      keys_to_observers: new_papaya_map(),
+      session_id_to_observer: new_concurrent_map(),
+      keys_to_observers: new_concurrent_map(),
       keys_to_observers_time_last_clean: AtomicU64::new(
         coarsetime::Clock::now_since_epoch().as_secs(),
       ),

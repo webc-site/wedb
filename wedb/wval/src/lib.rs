@@ -40,5 +40,5 @@ pub use ns_codec::{
   SessionPrefixBuf, TaggedKeyBuf, U64_BYTE_LEN,
 };
 pub use sample::{SAMPLE_STACK_CAP, sample_distinct_indices};
-pub use tag::{CollectionType, GarnetObjectType, KeyTag};
+pub use tag::{GarnetObjectType, KeyTag};
 pub use ttl::{TTL_VAL_LEN, TtlCodec};

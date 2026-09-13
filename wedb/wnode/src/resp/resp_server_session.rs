@@ -54,14 +54,6 @@ use crate::cluster_session::{ClusterSession, ClusterSlotVerificationInput};
 /// libs/host/GarnetServer.cs:RedisProtocolVersion（HELLO 应答 version 字段）
 pub const REDIS_PROTOCOL_VERSION: &str = "7.4.3";
 
-/// INFO 预设应答静态常量
-const RESP_INFO_CLUSTER_ENABLED: &[u8] = b"$31\r\n# Cluster\r\ncluster_enabled:1\r\n\r\n";
-const RESP_INFO_CLUSTER_DISABLED: &[u8] = b"$31\r\n# Cluster\r\ncluster_enabled:0\r\n\r\n";
-const RESP_INFO_SERVER_ENABLED: &[u8] =
-  b"$57\r\n# Server\r\nredis_version:7.2.0\r\n# Cluster\r\ncluster_enabled:1\r\n\r\n";
-const RESP_INFO_SERVER_DISABLED: &[u8] =
-  b"$57\r\n# Server\r\nredis_version:7.2.0\r\n# Cluster\r\ncluster_enabled:0\r\n\r\n";
-
 /// 存储执行域未挂载时的拒绝文案（C# 构造必带 storeWrapper 无此态；
 /// rust 侧为宿主装配缺口的显式防线）
 const ERR_STORE_DOMAIN_NOT_ATTACHED: &str = "ERR store execution domain not attached";
@@ -1185,19 +1177,25 @@ impl RespServerSession {
       return handled;
     }
     if cmd == RespCommand::Info {
-      let is_cluster = self.parse_state.count != 0
-        && self
-          .parse_state
-          .get_arg_slice_by_ref(0)
-          .as_slice()
-          .eq_ignore_ascii_case(b"CLUSTER");
-      let reply = match (is_cluster, self.cluster_session.is_some()) {
-        (true, true) => RESP_INFO_CLUSTER_ENABLED,
-        (true, false) => RESP_INFO_CLUSTER_DISABLED,
-        (false, true) => RESP_INFO_SERVER_ENABLED,
-        (false, false) => RESP_INFO_SERVER_DISABLED,
+      // libs/server/Metrics/Info/InfoCommand.cs:NetworkINFO（wmetric 段分发：
+      // 段解析 + 各信息域填充经 SessionInfoSource 数据源承接）
+      let args = self.get_arg_slices();
+      let text = {
+        let provider = super::info_provider::SessionInfoSource::new(self);
+        let mut info = wmetric::GarnetInfoMetrics::new();
+        let mut out = String::new();
+        wmetric::InfoCommand::network_info(
+          &args,
+          self.active_db_id,
+          &provider,
+          &mut info,
+          // C# monitor.resetEventFlags[STATS] 置位；服务器级监视器未装配为 no-op
+          &mut |_| {},
+          &mut out,
+        );
+        out
       };
-      self.output.extend_from_slice(reply);
+      self.output.extend_from_slice(text.as_bytes());
       return true;
     }
     let args = self.get_arg_slices();

@@ -36,10 +36,10 @@ pub use key_spec::{
   ALL_FLAGS, BeginSearchMethod, FindKeysMethod, KeySpecificationFlags, RespCommandKeySpecification,
 };
 pub use options::{
-  ExistOptions, ExpirationOption, ExpireOption, SortedSetAddOption, SortedSetAggregateType,
-  equals_ignore_case, expiration_option_from_token, expire_option_from_token,
-  try_get_exist_options, try_get_expiration_option, try_get_expire_option,
-  try_get_sorted_set_add_option, try_get_sorted_set_aggregate_type,
+  ExistOptions, ExpirationOption, ExpirationWithOption, ExpireOption, SortedSetAddOption,
+  SortedSetAggregateType, equals_ignore_case, expiration_option_from_token,
+  expire_option_from_token, try_get_exist_options, try_get_expiration_option,
+  try_get_expire_option, try_get_sorted_set_add_option, try_get_sorted_set_aggregate_type,
 };
 pub use read::MAX_ARGUMENT_LENGTH_BYTES;
 pub use resp_memory_writer::{

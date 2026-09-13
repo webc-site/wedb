@@ -120,6 +120,68 @@ pub fn expire_option_from_token(arg: &[u8]) -> Option<ExpireOption> {
   try_get_expire_option(arg)
 }
 
+/// 复合过期时间戳与条件选项（对标 Garnet libs/server/ExpirationWithOption.cs）
+///
+/// 低 4 位存储 [`ExpireOption`]，高 60 位存储粗粒度 .NET Ticks（1600ns 分辨率）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ExpirationWithOption {
+  word: i64,
+}
+
+impl ExpirationWithOption {
+  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long, ExpireOption)
+  #[inline]
+  pub fn new(expiration_time_in_ticks: i64, expire_option: ExpireOption) -> Self {
+    Self {
+      word: ((expiration_time_in_ticks >> 4) << 4) | (expire_option.bits() as i64 & 0xF),
+    }
+  }
+
+  /// 由既有 64 位整型字构筑（对照 C# ExpirationWithOption(long word) 单参构造）
+  #[inline]
+  pub fn from_word(word: i64) -> Self {
+    Self { word }
+  }
+
+  /// 由 (word_head, word_tail) 两个 i32 拼装（C# RespServerSession 传参形态）
+  #[inline]
+  pub fn from_word_head_tail(word_head: i32, word_tail: i32) -> Self {
+    Self {
+      word: ((((word_head as u32) as u64) << 32) | (word_tail as u32 as u64)) as i64,
+    }
+  }
+
+  /// libs/server/ExpirationWithOption.cs:ExpirationTimeInTicks
+  #[inline]
+  pub fn expiration_time_in_ticks(&self) -> i64 {
+    (self.word >> 4) << 4
+  }
+
+  /// libs/server/ExpirationWithOption.cs:ExpireOption
+  #[inline]
+  pub fn expire_option(&self) -> ExpireOption {
+    ExpireOption::from_bits_truncate((self.word & 0xF) as u8)
+  }
+
+  /// libs/server/ExpirationWithOption.cs:Word
+  #[inline]
+  pub fn word(&self) -> i64 {
+    self.word
+  }
+
+  /// libs/server/ExpirationWithOption.cs:WordHead
+  #[inline]
+  pub fn word_head(&self) -> i32 {
+    ((self.word >> 32) & 0xFFFF_FFFF) as i32
+  }
+
+  /// libs/server/ExpirationWithOption.cs:WordTail
+  #[inline]
+  pub fn word_tail(&self) -> i32 {
+    (self.word & 0xFFFF_FFFF) as i32
+  }
+}
+
 /// SET/EXPIRE 过期形式（对标 Garnet.server:ExpirationOption）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ExpirationOption {
@@ -210,6 +272,18 @@ pub enum SortedSetAggregateType {
   Sum,
   Min,
   Max,
+}
+
+impl SortedSetAggregateType {
+  /// 对两分值执行聚合运算（SUM / MIN / MAX）
+  #[inline(always)]
+  pub fn apply(self, a: f64, b: f64) -> f64 {
+    match self {
+      Self::Sum => a + b,
+      Self::Min => a.min(b),
+      Self::Max => a.max(b),
+    }
+  }
 }
 
 /// 解析有序集合聚合方式（SUM/MIN/MAX）
@@ -339,5 +413,27 @@ mod tests {
     assert_eq!(try_get_sorted_set_aggregate_type(b"avg"), None);
     assert_eq!(try_get_sorted_set_aggregate_type(b"summ"), None);
     assert_eq!(try_get_sorted_set_aggregate_type(b""), None);
+  }
+
+  #[test]
+  fn test_sorted_set_aggregate_apply() {
+    assert_eq!(SortedSetAggregateType::Sum.apply(2.5, 3.5), 6.0);
+    assert_eq!(SortedSetAggregateType::Min.apply(2.5, 3.5), 2.5);
+    assert_eq!(SortedSetAggregateType::Max.apply(2.5, 3.5), 3.5);
+  }
+
+  #[test]
+  fn test_expiration_with_option() {
+    let ticks = 1_000_000_000i64;
+    let opt = ExpireOption::GT;
+    let e = ExpirationWithOption::new(ticks, opt);
+    assert_eq!(e.expire_option(), ExpireOption::GT);
+    assert_eq!(e.expiration_time_in_ticks(), (ticks >> 4) << 4);
+
+    let head = e.word_head();
+    let tail = e.word_tail();
+    let reconstructed = ExpirationWithOption::from_word_head_tail(head, tail);
+    assert_eq!(e, reconstructed);
+    assert_eq!(e.word(), reconstructed.word());
   }
 }

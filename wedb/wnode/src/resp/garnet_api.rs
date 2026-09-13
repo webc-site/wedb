@@ -9,8 +9,17 @@
 //! 宿主构造会话后经 [`RespServerSession::set_garnet_api`] 注入，
 //! 会话主循环在槽位门放行后经 [`GarnetApi::exec`] 进入存储执行域。
 
-use std::{mem, ptr, sync::Arc};
+use std::{
+  mem,
+  path::PathBuf,
+  ptr,
+  sync::{
+    Arc,
+    atomic::{AtomicI64, Ordering},
+  },
+};
 
+use wbase::time::now_ms;
 use wbitmap::BitmapOperation;
 use wcol::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wdev::Device;
@@ -18,8 +27,9 @@ use wkv::{BatchStoreSession, StoreSession};
 use wresp::{
   RespCommand,
   cmd_strings::{
-    RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_SWAPDB_UNSUPPORTED,
-    RESP_ERR_WRONG_TYPE, RESP_OK, write_error_raw,
+    RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_SWAPDB_UNSUPPORTED, RESP_ERR_WRONG_TYPE, RESP_OK,
+    write_error_raw,
   },
   command::is_vector_set_command,
   strict_i32,
@@ -48,6 +58,20 @@ const RESP_ERR_ASYNC_REQUIRED: &str = "ERR command requires asynchronous complet
 /// 慢路径异步扫描/清库 IO 失败的兜底错误文案（存储层 wkv::Error 统一
 /// 降噪为此单行，杜绝把内部错误细节泄漏给客户端）
 const RESP_ERR_SLOW_PATH_IO: &str = "ERR slow path storage error";
+
+/// 检查点通道未装配（宿主未注入 [`CheckpointCtx`]）时的显式拒绝文案
+const RESP_ERR_CHECKPOINT_UNWIRED: &str = "ERR checkpoint channel not configured";
+
+/// SAVE / BGSAVE / LASTSAVE 检查点通道（对标 C# storeWrapper 检查点域句柄；
+/// 服务器级共享，由 StorageSessionProvider 装配期注入）
+#[derive(Clone)]
+pub struct CheckpointCtx {
+  /// 检查点目录（C# GetStoreCheckpointDirectory(0) 口径）
+  pub dir: PathBuf,
+  /// 最近成功检查点时刻（Unix 毫秒；0 = 尚无检查点，对齐 C#
+  /// GarnetDatabase 构造期 `DateTimeOffset.FromUnixTimeSeconds(0)`）
+  pub last_save_ms: Arc<AtomicI64>,
+}
 
 /// libs/server/API/IGarnetApi.cs:IGarnetApi
 ///
@@ -199,6 +223,8 @@ pub struct StoreGarnetApi<D: Device> {
   session: StoreSession<D>,
   /// 向量集合管理器
   vector_manager: Option<Arc<VectorManager>>,
+  /// 检查点通道（未注入 = SAVE/BGSAVE 显式拒绝，LASTSAVE 回 0）
+  checkpoint: Option<CheckpointCtx>,
 }
 
 impl<D: Device> StoreGarnetApi<D> {
@@ -209,12 +235,20 @@ impl<D: Device> StoreGarnetApi<D> {
     Self {
       session,
       vector_manager: None,
+      checkpoint: None,
     }
   }
 
   /// 关联向量集合管理器
   pub fn with_vector_manager(mut self, vector_manager: Arc<VectorManager>) -> Self {
     self.vector_manager = Some(vector_manager);
+    self
+  }
+
+  /// 关联检查点通道（SAVE/BGSAVE/LASTSAVE 经此闭环，对标 C#
+  /// storeWrapper.TakeCheckpointAsync 的存储可达面）
+  pub fn with_checkpoint_ctx(mut self, ctx: CheckpointCtx) -> Self {
+    self.checkpoint = Some(ctx);
     self
   }
 }
@@ -454,6 +488,40 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           C::Riconfig => ri_cmds::network_riconfig(&refs, ri, &self.session, &mut output).await,
           _ => ri_cmds::network_rimetrics(&refs, ri, &self.session, &mut output).await,
         };
+      }
+      // ---- 检查点族（AdminCommands.cs:NetworkSAVE/NetworkBGSAVE/NetworkLASTSAVE：
+      // C# 阻塞等待 storeWrapper.TakeCheckpointAsync，rust 映射为
+      // WedbStore::create_checkpoint（wcpr 通道）；LASTSAVE 为纯读取
+      C::Save | C::Bgsave => {
+        let Some(ctx) = &self.checkpoint else {
+          write_error_raw(&mut output, RESP_ERR_CHECKPOINT_UNWIRED);
+          return output;
+        };
+        match self
+          .session
+          .store
+          .create_checkpoint(&ctx.dir, wcpr::CheckpointType::FoldOver)
+          .await
+        {
+          Ok(_) => {
+            ctx.last_save_ms.store(now_ms() as i64, Ordering::Release);
+            if matches!(cmd, C::Bgsave) {
+              // C# BGSAVE 成功应答文案
+              output.write_resp_simple_string("Background saving started");
+            } else {
+              output.extend_from_slice(RESP_OK);
+            }
+          }
+          // C# SAVE/BGSAVE 失败统一回并发检查点错误
+          Err(_) => write_error_raw(&mut output, RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS),
+        }
+      }
+      C::Lastsave => {
+        let secs = match &self.checkpoint {
+          Some(ctx) => ctx.last_save_ms.load(Ordering::Acquire) / 1000,
+          None => 0,
+        };
+        output.write_resp_int(secs);
       }
       // 未接入慢路径分派表的命令：写明错误，绝不静默
       _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),

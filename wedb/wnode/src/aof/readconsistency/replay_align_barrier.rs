@@ -7,7 +7,6 @@
 //! 栅栏仅是性能辅助——前缀一致性由读侧等待保证，轮次早/晚/超时放弃均不
 //! 影响正确性。到达按虚拟子日志去重。Fast path：无轮次时单次原子读 + 比较。
 
-use core::ops::Deref;
 use std::{
   hint::spin_loop,
   sync::{
@@ -19,26 +18,7 @@ use std::{
 
 use event_listener::{Event, Listener};
 use parking_lot::Mutex;
-
-/// 128 字节缓存行对齐的 AtomicU64，彻底消除多核并发访问相邻槽位时的 CPU 伪共享（False Sharing）
-#[repr(align(128))]
-pub struct CacheAlignedAtomicU64(pub AtomicU64);
-
-impl Deref for CacheAlignedAtomicU64 {
-  type Target = AtomicU64;
-
-  #[inline(always)]
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
-}
-
-impl CacheAlignedAtomicU64 {
-  #[inline(always)]
-  pub const fn new(val: u64) -> Self {
-    Self(AtomicU64::new(val))
-  }
-}
+use wbase::align::CachePadded;
 
 /// 轮次：唯一ID + 目标前沿 + 未到达参与者数 + 权威放行标志。
 struct Round {
@@ -153,7 +133,7 @@ pub struct ReplayAlignBarrier {
   current_round: Mutex<Option<Arc<Round>>>,
   /// 每参与者最近到达的轮次 ID（对标 C# lastArrivedRound，无锁原子比对去重）。
   /// 128 字节缓存行对齐，彻底消除多核并发伪共享。
-  last_arrived_round: Box<[CacheAlignedAtomicU64]>,
+  last_arrived_round: Box<[CachePadded<AtomicU64>]>,
   /// 每参与者复用唤醒事件（对标 C# participantEvents）。
   participant_events: Box<[ParticipantEvent]>,
   /// 阻塞等待上限（None = 永等；C# replicaSyncTimeout）。
@@ -172,7 +152,7 @@ impl ReplayAlignBarrier {
       active_round_id: AtomicU64::new(0),
       current_round: Mutex::new(None),
       last_arrived_round: (0..participant_count)
-        .map(|_| CacheAlignedAtomicU64::new(0))
+        .map(|_| CachePadded::new(AtomicU64::new(0)))
         .collect(),
       participant_events: (0..participant_count)
         .map(|_| ParticipantEvent::new())

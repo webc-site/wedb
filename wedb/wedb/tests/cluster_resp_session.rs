@@ -525,3 +525,403 @@ fn cluster_reset_hard_flushes_keys() {
   });
   assert_eq!(out, b":0\r\n");
 }
+
+// ---------------------------------------------------------------------------
+// CLUSTER 子命令族接线回归（SETSLOT/ADDSLOTS/DELSLOTS 族 / MEET / FORGET /
+// REPLICAS / MYPARENTID / BANLIST / MTASKS / ENDPOINT / SETCONFIGEPOCH /
+// COUNTKEYSINSLOT / GETKEYSINSLOT / FLUSHALL / GOSSIP / REPLICAOF / FAILOVER）
+// ---------------------------------------------------------------------------
+
+/// 由字符串片段构造 RESP 数组帧
+fn frame(parts: &[&str]) -> Vec<u8> {
+  let mut out = format!("*{}\r\n", parts.len());
+  for p in parts {
+    out.push_str(&format!("${}\r\n{p}\r\n", p.len()));
+  }
+  out.into_bytes()
+}
+
+/// 挂共享存储的集群会话消费者（provider.set_store 与执行域同源：
+/// COUNTKEYSINSLOT / GETKEYSINSLOT / FLUSHALL 慢路径经 provider 下达）
+fn cluster_store_consumer(
+  cp: &ClusterProvider,
+) -> (RespSessionConsumer, Arc<WedbStore<SegmentedDevice>>) {
+  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let dir = tempfile::tempdir().unwrap().keep();
+  let device = Arc::new(SegmentedDevice::single_file(dir.join("cluster.db")).unwrap());
+  let mut config = StoreConfig::new(16384, 65536, 64, 0.5).unwrap();
+  config.gc.enabled = false;
+  let store = Arc::new(WedbStore::open(config, device).unwrap());
+  cp.set_store(Arc::clone(&store));
+  let consumer = RespSessionConsumer::with_cluster_session(
+    1,
+    RespServerSessionOptions {
+      max_databases: 2,
+      ..RespServerSessionOptions::default()
+    },
+    cluster_session,
+    Arc::new(StoreGarnetApi::new(store.new_session().unwrap())),
+  );
+  (consumer, store)
+}
+
+/// CLUSTER SETSLOT：MIGRATING 保持本地服务 → STABLE 复位 → NODE 属主转移
+#[test]
+fn cluster_setslot_state_transitions() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let m = cp.cluster_manager().unwrap();
+
+  // 本地槽 5061（bar）置 MIGRATING → +OK 且槽位仍由本地服务
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "MIGRATING", "node_2"]),
+  );
+  assert_eq!(out, b"+OK\r\n");
+  assert_eq!(m.current_config().get_state(5061), SlotState::Migrating);
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["GET", "bar"])),
+    b"$-1\r\n"
+  );
+
+  // STABLE 复位
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "STABLE"]),
+  );
+  assert_eq!(out, b"+OK\r\n");
+  assert_eq!(m.current_config().get_state(5061), SlotState::Stable);
+
+  // NODE 转移属主至 node_2 → 后续 GET bar → MOVED
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "NODE", "node_2"]),
+  );
+  assert_eq!(out, b"+OK\r\n");
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["GET", "bar"])),
+    b"-MOVED 5061 127.0.0.1:7001\r\n"
+  );
+
+  // 非法槽位状态 → "not supported."；STABLE 带 node-id → 语法错误
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "FOO", "node_2"]),
+  );
+  assert_eq!(out, b"-ERR Slot state FOO not supported.\r\n");
+  let out = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "STABLE", "node_2"]),
+  );
+  assert_eq!(out, b"-ERR syntax error\r\n");
+
+  // 属主转回本地并复位，避免影响其他用例（每用例独立 provider，无实际污染）
+  let _ = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "NODE", "node_1"]),
+  );
+  let _ = roundtrip(
+    &mut consumer,
+    &frame(&["CLUSTER", "SETSLOT", "5061", "STABLE"]),
+  );
+}
+
+/// CLUSTER ADDSLOTS / DELSLOTS / ADDSLOTSRANGE / DELSLOTSRANGE：占用、未指派
+/// 与越界错误语义
+#[test]
+fn cluster_addslots_delslots_semantics() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let m = cp.cluster_manager().unwrap();
+
+  // 槽 200 本地已持有 → ADDSLOTS 报 busy
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "ADDSLOTS", "200"]));
+  assert_eq!(out, b"-ERR Slot 200 is already busy\r\n");
+
+  // DELSLOTS 200 → +OK（槽解指派）→ ADDSLOTS 200 → +OK（回收）
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "DELSLOTS", "200"])),
+    b"+OK\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "ADDSLOTS", "200"])),
+    b"+OK\r\n"
+  );
+  assert_eq!(m.current_config().get_state(200), SlotState::Stable);
+
+  // 重复 DELSLOTS → not assigned
+  assert_eq!(
+    roundtrip(
+      &mut consumer,
+      &frame(&["CLUSTER", "DELSLOTS", "200", "200"])
+    ),
+    b"-ERR Slot 200 specified multiple times\r\n"
+  );
+  assert_eq!(
+    roundtrip(
+      &mut consumer,
+      &frame(&["CLUSTER", "DELSLOTSRANGE", "200", "202"])
+    ),
+    b"+OK\r\n"
+  );
+  assert_eq!(
+    roundtrip(
+      &mut consumer,
+      &frame(&["CLUSTER", "ADDSLOTSRANGE", "200", "202"])
+    ),
+    b"+OK\r\n"
+  );
+  for slot in [200u16, 201, 202] {
+    assert_eq!(m.current_config().get_state(slot), SlotState::Stable);
+  }
+
+  // 越界 → "ERR Slot out of range"；区间参数个数为奇 → 元数错误
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "ADDSLOTS", "16384"])),
+    b"-ERR Slot out of range\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "ADDSLOTSRANGE", "300"])),
+    b"-ERR wrong number of arguments for 'cluster|addslotsrange' command\r\n"
+  );
+}
+
+/// COUNTKEYSINSLOT / GETKEYSINSLOT：本地槽真扫描（慢路径），远端槽 MOVED 重定向
+#[test]
+fn cluster_countkeys_getkeys_in_slot() {
+  let rt = Runtime::new().unwrap();
+  let cp = two_primary_provider();
+  let (mut consumer, _store) = cluster_store_consumer(&cp);
+
+  assert_eq!(cluster_slot(b"bar"), 5061);
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["SET", "bar", "v"])),
+    b"+OK\r\n"
+  );
+
+  // COUNTKEYSINSLOT 5061 → :1（慢路径扫描）
+  let out = slow_roundtrip(
+    &rt,
+    &mut consumer,
+    &frame(&["CLUSTER", "COUNTKEYSINSLOT", "5061"]),
+  );
+  assert_eq!(out, b":1\r\n");
+
+  // GETKEYSINSLOT 5061 10 → *1 bar
+  let out = slow_roundtrip(
+    &rt,
+    &mut consumer,
+    &frame(&["CLUSTER", "GETKEYSINSLOT", "5061", "10"]),
+  );
+  assert_eq!(out, b"*1\r\n$3\r\nbar\r\n");
+
+  // 远端槽 12182（foo）→ MOVED
+  let out = slow_roundtrip(
+    &rt,
+    &mut consumer,
+    &frame(&["CLUSTER", "COUNTKEYSINSLOT", "12182"]),
+  );
+  assert_eq!(out, b"-MOVED 12182 127.0.0.1:7001\r\n");
+}
+
+/// CLUSTER FLUSHALL：慢路径清库闭环
+#[test]
+fn cluster_flushall_slow_path() {
+  let rt = Runtime::new().unwrap();
+  let cp = two_primary_provider();
+  let (mut consumer, _store) = cluster_store_consumer(&cp);
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["SET", "bar", "v"])),
+    b"+OK\r\n"
+  );
+
+  let out = slow_roundtrip(&rt, &mut consumer, &frame(&["CLUSTER", "FLUSHALL"]));
+  assert_eq!(out, b"+OK\r\n");
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["GET", "bar"])),
+    b"$-1\r\n"
+  );
+}
+
+/// CLUSTER MYPARENTID / BANLIST / MTASKS / ENDPOINT / REPLICAS / FORGET
+#[test]
+fn cluster_node_inspection_commands() {
+  let cp = two_primary_provider();
+  let m = cp.cluster_manager().unwrap();
+  let mut consumer = cluster_consumer(&cp);
+
+  // 主节点视角：MYPARENTID = 自身 id；BANLIST 空；MTASKS :0
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "MYPARENTID"])),
+    b"$6\r\nnode_1\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "BANLIST"])),
+    b"*0\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "MTASKS"])),
+    b":0\r\n"
+  );
+
+  // ENDPOINT 已知 / 未知节点
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "ENDPOINT", "node_2"])),
+    b"$14\r\n127.0.0.1:7001\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "ENDPOINT", "ghost"])),
+    b"$12\r\nunassigned:0\r\n"
+  );
+
+  // 翻转为 node_2 副本：MYPARENTID → node_2；REPLICAS node_2 → 本节点行
+  m.current_config.write().make_replica_of(Some("node_2"));
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "MYPARENTID"])),
+    b"$6\r\nnode_2\r\n"
+  );
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "REPLICAS", "node_2"]));
+  let text = String::from_utf8_lossy(&out);
+  assert!(text.starts_with("*1\r\n$"), "node_2 应有 1 个副本: {text}");
+  assert!(text.contains("node_1"), "副本行应为 node_1: {text}");
+
+  // FORGET 未知节点 → "I don't know about node"
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "FORGET", "ghost"])),
+    b"-ERR I don't know about node ghost.\r\n"
+  );
+  // FORGET 自身 → 拒绝
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "FORGET", "node_1"])),
+    b"-ERR I tried hard but I can't forget myself\r\n"
+  );
+}
+
+/// CLUSTER SET-CONFIG-EPOCH：多节点拓扑拒绝指派（C# NumWorkers > 1 分支）
+#[test]
+fn cluster_setconfigepoch_rejected_on_multi_worker() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["CLUSTER", "SET-CONFIG-EPOCH", "9"])),
+    b"-ERR The user can assign a config epoch only when the node does not know any other node\r\n"
+  );
+}
+
+/// CLUSTER HELP：数组形态帮助文本（对标 ClusterCommandInfo.GetClusterCommands）
+#[test]
+fn cluster_help_array() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let out = roundtrip(&mut consumer, &frame(&["CLUSTER", "HELP"]));
+  let text = String::from_utf8_lossy(&out);
+  assert!(
+    text.starts_with("*64\r\n"),
+    "应返回 64 行帮助: {}",
+    &text[..40]
+  );
+  assert!(text.contains("+ADDSLOTS <slot> [<slot> ...]"), "{text}");
+}
+
+/// REPLICAOF NO ONE：副本翻主（保留数据）；REPLICAOF <addr> <port>：配置翻转 +OK
+#[test]
+fn cluster_replicaof_semantics() {
+  let rt = Runtime::new().unwrap();
+  let cp = two_primary_provider();
+  let m = cp.cluster_manager().unwrap();
+  let mut consumer = cluster_consumer(&cp);
+
+  // 主节点执行 REPLICAOF NO ONE → +OK（幂等，仍为主）
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["REPLICAOF", "NO", "ONE"])),
+    b"+OK\r\n"
+  );
+  assert!(m.current_config().is_primary());
+
+  // REPLICAOF 127.0.0.1 7001 → 未知端口/地址解析失败路径
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["REPLICAOF", "127.0.0.1", "ABC"])),
+    b"-ERR REPLICAOF failed to parse port 'ABC'\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["REPLICAOF", "10.0.0.1", "7000"])),
+    b"-ERR I don't know about node 10.0.0.1:7000.\r\n"
+  );
+
+  // 已知节点 → 配置翻转 +OK（慢路径闭环）
+  let out = slow_roundtrip(
+    &rt,
+    &mut consumer,
+    &frame(&["REPLICAOF", "127.0.0.1", "7001"]),
+  );
+  assert_eq!(out, b"+OK\r\n");
+  assert!(m.current_config().is_replica());
+  assert_eq!(m.current_config().local_node_primary_id(), Some("node_2"));
+
+  // 副本再执行 REPLICAOF NO ONE → +OK 且翻回主节点
+  let out = slow_roundtrip(&rt, &mut consumer, &frame(&["REPLICAOF", "NO", "ONE"]));
+  assert_eq!(out, b"+OK\r\n");
+  assert!(m.current_config().is_primary());
+}
+
+/// 顶层 FAILOVER：非主节点拒绝（C# Cannot failover a non-master node）+ 选项解析
+#[test]
+fn cluster_failover_top_level_semantics() {
+  let cp = two_primary_provider();
+  let m = cp.cluster_manager().unwrap();
+  let mut consumer = cluster_consumer(&cp);
+
+  // 翻为副本角色后 FAILOVER → 拒绝
+  m.current_config.write().make_replica_of(Some("node_2"));
+  let out = roundtrip(&mut consumer, &frame(&["FAILOVER"]));
+  assert_eq!(out, b"-ERR Cannot failover a non-master node\r\n");
+
+  // 非法选项 → 语法错误
+  assert_eq!(
+    roundtrip(&mut consumer, &frame(&["FAILOVER", "BOGUS"])),
+    b"-ERR syntax error\r\n"
+  );
+}
+
+/// CLUSTER GOSSIP WITHMEET：合并自身配置并回当前配置字节（WITHMEET 强制应答）
+#[test]
+fn cluster_gossip_withmeet_roundtrip() {
+  let cp = two_primary_provider();
+  let mut consumer = cluster_consumer(&cp);
+  let payload = cp
+    .cluster_manager()
+    .unwrap()
+    .current_config()
+    .to_byte_array();
+
+  let payload_str = payload.iter().map(|&b| b as char).collect::<String>();
+  let parts = vec![
+    "CLUSTER".to_string(),
+    "GOSSIP".to_string(),
+    "WITHMEET".to_string(),
+    payload_str,
+  ];
+  let mut f = format!("*{}\r\n", parts.len());
+  for p in &parts {
+    f.push_str(&format!("${}\r\n{p}\r\n", p.len()));
+  }
+  let (consumed, out) = consumer.try_consume_messages(f.as_bytes());
+  assert_eq!(consumed, f.len());
+
+  // WITHMEET 强制回配置字节：bulk string 且非空
+  assert_eq!(out[0], b'$');
+  assert!(out.len() > 10, "应回非空配置载荷: {}", out.len());
+}
+
+/// 慢命令往返（同步段消费挂起 → block_on 驱动慢路径应答）
+fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame_bytes: &[u8]) -> Vec<u8> {
+  let (consumed, mut out) = c.try_consume_messages(frame_bytes);
+  assert_eq!(consumed, frame_bytes.len(), "帧应被完整消费");
+  let Some(slow) = c.take_slow_wait() else {
+    return out;
+  };
+  rt.block_on(async {
+    out.extend_from_slice(&slow.resolve().await);
+  });
+  out
+}

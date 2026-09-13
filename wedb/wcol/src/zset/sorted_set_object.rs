@@ -17,6 +17,7 @@ use std::{
 use bitflags::bitflags;
 use gxhash::{GxBuildHasher, HashMap};
 use wbase::{glob::glob_match, time::now_ticks};
+pub use wresp::ExpirationWithOption;
 use wresp::{
   ExpireOption,
   cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
@@ -98,56 +99,6 @@ pub enum SortedSetOrderOperation {
   ByScore,
   /// 按字典序（要求同分）
   ByLex,
-}
-
-/// 过期时间戳（.NET Ticks）+ 过期选项的压缩编码：低 4 位为选项，高位为 ticks
-///
-/// libs/server/ExpirationWithOption.cs:ExpirationWithOption
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExpirationWithOption {
-  word: i64,
-}
-
-impl ExpirationWithOption {
-  /// libs/server/ExpirationWithOption.cs:ExpirationWithOption(long, ExpireOption)
-  #[inline]
-  pub fn new(expiration_time_in_ticks: i64, expire_option: ExpireOption) -> Self {
-    Self {
-      word: ((expiration_time_in_ticks >> 4) << 4) | (expire_option.bits() as i64 & 0xF),
-    }
-  }
-
-  /// 由既有 64 位整型字构筑（对照 C# ExpirationWithOption(long word) 单参构造）
-  #[inline]
-  pub fn from_word(word: i64) -> Self {
-    Self { word }
-  }
-
-  /// 由 (word_head, word_tail) 两个 i32 拼装（C# RespServerSession 传参形态）
-  #[inline]
-  pub fn from_word_head_tail(word_head: i32, word_tail: i32) -> Self {
-    Self {
-      word: ((((word_head as u32) as u64) << 32) | (word_tail as u32 as u64)) as i64,
-    }
-  }
-
-  /// libs/server/ExpirationWithOption.cs:ExpirationTimeInTicks
-  #[inline]
-  pub fn expiration_time_in_ticks(&self) -> i64 {
-    (self.word >> 4) << 4
-  }
-
-  /// libs/server/ExpirationWithOption.cs:ExpireOption
-  #[inline]
-  pub fn expire_option(&self) -> ExpireOption {
-    ExpireOption::from_bits_truncate((self.word & 0xF) as u8)
-  }
-
-  /// libs/server/ExpirationWithOption.cs:Word
-  #[inline]
-  pub fn word(&self) -> i64 {
-    self.word
-  }
 }
 
 /// 成员级过期操作结果码

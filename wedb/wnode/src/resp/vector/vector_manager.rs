@@ -15,6 +15,7 @@ use std::{
 
 use gxhash::HashMap;
 use parking_lot::Mutex;
+use wbase::pool::{EventWorkQueue, EventWorkSet};
 use wvector::{
   Callbacks, DiskANNService, DiskAnnInsertResult, SearchHit, SearchParams,
   VectorDistanceMetricType, VectorIdFormat, VectorQuantType, VectorSetFlags, VectorValueType,
@@ -22,10 +23,6 @@ use wvector::{
 };
 
 use super::{
-  cleanup::{
-    vector_set_cleanup_work_channel::VectorSetCleanupWorkChannel,
-    vector_set_cleanup_work_set::VectorSetCleanupWorkSet,
-  },
   vector_manager_cleanup::{CleanupGate, CleanupRuntime},
   vector_manager_context_metadata::ContextMetadata,
   vector_manager_index::{INDEX_SIZE, Index},
@@ -181,7 +178,7 @@ pub struct VectorManager<S: StoreCallbacks = WedbVectorStoreCallbacks<wdev::Segm
   /// 恢复期发现的元数据记录。
   pub recovered_metadata: Mutex<HashMap<i32, ContextMetadata>>,
   /// 已请求丢弃的内存索引（键 → context）。
-  pub requested_drops: VectorSetCleanupWorkSet<u64>,
+  pub requested_drops: EventWorkSet<Vec<u8>, u64>,
   /// 可能已删除的键（清理完成性检查）。
   pub potentially_deleted: Mutex<HashMap<Vec<u8>, u64>>,
   /// VADD/VREM 键 → 索引记录登记表（存储会话桥接承接）。
@@ -189,11 +186,11 @@ pub struct VectorManager<S: StoreCallbacks = WedbVectorStoreCallbacks<wdev::Segm
   /// 向量集合键锁注册表。
   pub vector_set_locks: VectorSetLocks,
   /// 清理任务通道（context 载荷）。
-  pub cleanup_task_channel: VectorSetCleanupWorkChannel<u64>,
+  pub cleanup_task_channel: EventWorkQueue<u64>,
   /// 请求清理通道（context 载荷）。
-  pub request_cleanup_task_channel: VectorSetCleanupWorkChannel<u64>,
+  pub request_cleanup_task_channel: EventWorkQueue<u64>,
   /// 请求丢弃通道（无载荷信号）。
-  pub request_drop_task_channel: VectorSetCleanupWorkChannel<()>,
+  pub request_drop_task_channel: EventWorkQueue<()>,
   /// 量化工作通道。
   pub quantization_channel: QuantizationChannel,
   /// 量化分片数。
@@ -235,13 +232,13 @@ impl<S: StoreCallbacks> VectorManager<S> {
       metadata_store: Mutex::new(HashMap::default()),
       recovered_indexes: Mutex::new(HashMap::default()),
       recovered_metadata: Mutex::new(HashMap::default()),
-      requested_drops: VectorSetCleanupWorkSet::new(),
+      requested_drops: EventWorkSet::new(),
       potentially_deleted: Mutex::new(HashMap::default()),
       key_index_registry: Mutex::new(HashMap::default()),
       vector_set_locks: VectorSetLocks::default(),
-      cleanup_task_channel: VectorSetCleanupWorkChannel::new(),
-      request_cleanup_task_channel: VectorSetCleanupWorkChannel::new(),
-      request_drop_task_channel: VectorSetCleanupWorkChannel::new(),
+      cleanup_task_channel: EventWorkQueue::new(),
+      request_cleanup_task_channel: EventWorkQueue::new(),
+      request_drop_task_channel: EventWorkQueue::new(),
       quantization_channel: QuantizationChannel::new(),
       quantization_task_count,
       quantization_requests_processed: AtomicUsize::new(0),

@@ -591,11 +591,7 @@ pub fn try_get_sorted_set_aggregate_type(
   idx: usize,
 ) -> Option<ZSetAggregate> {
   let arg = parse_state.ext_bytes(idx)?;
-  match wresp::try_get_sorted_set_aggregate_type(arg)? {
-    wresp::SortedSetAggregateType::Sum => Some(ZSetAggregate::Sum),
-    wresp::SortedSetAggregateType::Min => Some(ZSetAggregate::Min),
-    wresp::SortedSetAggregateType::Max => Some(ZSetAggregate::Max),
-  }
+  wresp::try_get_sorted_set_aggregate_type(arg)
 }
 
 /// libs/server/SessionParseStateExtensions.cs:TryGetExpirationOption

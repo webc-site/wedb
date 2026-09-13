@@ -9,10 +9,12 @@ use wbase::{convert::UNIX_EPOCH_TICKS, time::now_ticks};
 use wcol::{
   hash::hash_object::{HashObject, HashOperation},
   parse_utils::{try_get_int, try_get_long},
-  sortedset::sorted_set_object::ExpirationWithOption,
   types::object_output::ObjectOutput,
 };
-use wresp::{ExpireOption, RespVecExt, check_arg_count, cmd_strings as cs, try_get_expire_option};
+use wresp::{
+  ExpirationWithOption, ExpireOption, RespVecExt, check_arg_count, cmd_strings as cs,
+  try_get_expire_option,
+};
 use wval::GarnetObjectType;
 
 use crate::resp::{

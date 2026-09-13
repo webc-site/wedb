@@ -16,7 +16,7 @@ use wbase::{
 };
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, TtlOpt, WedbStore};
-use wval::{CollectionType, MetaValue, TtlCodec};
+use wval::{GarnetObjectType, MetaValue, TtlCodec};
 
 /// 构造独立临时库（4KB 页 / 16 页，GC 关闭避免后台物理删除干扰断言）
 async fn open_store(tag: &str) -> aok::Result<(TempDir, Arc<WedbStore<SegmentedDevice>>)> {
@@ -336,7 +336,7 @@ fn test_expired_collection_invisible_on_meta_read() -> Void {
     let session = store.new_session()?;
 
     // 存活集合（Hash size=2）设 TTL，过期后未 GC
-    let meta = MetaValue::new(1, CollectionType::Hash, 0, 2);
+    let meta = MetaValue::new(1, GarnetObjectType::Hash, 0, 2);
     session.save_meta(b"coll", &meta).await?;
     assert_eq!(
       session
@@ -362,7 +362,7 @@ fn test_expired_collection_invisible_on_meta_read() -> Void {
     assert!(!session.contains_key(b"coll").await?);
 
     // 未过期集合照常可见
-    let live = MetaValue::new(2, CollectionType::Hash, 0, 3);
+    let live = MetaValue::new(2, GarnetObjectType::Hash, 0, 3);
     session.save_meta(b"coll:live", &live).await?;
     assert_eq!(
       session

@@ -61,10 +61,15 @@ impl<T> EventWorkQueue<T> {
     true
   }
 
-  /// 尝试取出一项
+  /// 尝试取出一项（当空置率高时按需收缩容量，零空置浪费）
   #[inline]
   pub fn try_pop(&self) -> Option<T> {
-    self.queue.lock().pop_front()
+    let mut q = self.queue.lock();
+    let item = q.pop_front()?;
+    if q.capacity() > 64 && q.len() <= q.capacity() / 4 {
+      q.shrink_to_fit();
+    }
+    Some(item)
   }
 
   /// 尝试读取一项（对标 Garnet TryRead）
@@ -96,10 +101,30 @@ impl<T> EventWorkQueue<T> {
     }
   }
 
-  /// 丢弃并返回所有排队元素
+  /// 丢弃并返回所有排队元素（取走后置换为空队列，零内存空置）
   pub fn drain(&self) -> Vec<T> {
     let mut q = self.queue.lock();
     take(&mut *q).into_iter().collect()
+  }
+
+  /// 取走所有待处理元素排入指定缓冲，并收缩空闲内存
+  pub fn drain_into(&self, buf: &mut Vec<T>) -> usize {
+    let mut q = self.queue.lock();
+    let count = q.len();
+    buf.extend(q.drain(..));
+    if q.capacity() > 64 {
+      q.shrink_to_fit();
+    }
+    count
+  }
+
+  /// 清空队列并释放过剩容量
+  pub fn clear(&self) {
+    let mut q = self.queue.lock();
+    q.clear();
+    if q.capacity() > 64 {
+      q.shrink_to_fit();
+    }
   }
 
   /// 关闭队列并唤醒所有等待者

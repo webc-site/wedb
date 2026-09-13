@@ -11,7 +11,7 @@ description = "Publish-subscribe broker and message distribution for wedb"
 itoa.workspace = true
 log.workspace = true
 parking_lot.workspace = true
-wbase = { version = "0.1.6", path = "../wbase", features = ["glob", "map"] }
+wbase = { version = "0.1.6", path = "../wbase", features = ["glob", "map", "pool"] }
 wresp.workspace = true
 
 [lints]
