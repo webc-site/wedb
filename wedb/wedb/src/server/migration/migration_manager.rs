@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gxhash::HashSet;
-use wnode::{DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool};
+use wbase::pool::{DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool};
 
 use crate::server::{
   cluster_provider::ClusterProvider,

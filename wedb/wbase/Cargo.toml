@@ -40,6 +40,8 @@ set = ["map"]
 coarsetime = { workspace = true, optional = true }
 compio-buf = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
+crossfire = "3.1.20"
+event-listener.workspace = true
 fearless_simd = { version = "0.7.0", optional = true }
 gxhash = { workspace = true, optional = true }
 papaya = { workspace = true, optional = true }

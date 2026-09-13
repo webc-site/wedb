@@ -24,75 +24,6 @@ fn open_store(dir: &tempfile::TempDir, name: &str) -> Result<Arc<WedbStore<Segme
 }
 
 #[test]
-fn test_bftree_hash_crud_and_scan() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let store = open_store(&dir, "hash.db")?;
-    let session = store.new_session()?;
-    let key = b"my_hash";
-
-    // 1. 初始为空
-    assert_eq!(session.bftree_hlen(key).await?, 0);
-    assert_eq!(session.bftree_hget(key, b"f1").await?, None);
-
-    // 2. 插入字段
-    assert!(session.bftree_hset(key, b"f1", b"v1").await?);
-    assert!(session.bftree_hset(key, b"f2", b"v2").await?);
-    // 覆盖已有字段返回 false
-    assert!(!session.bftree_hset(key, b"f1", b"v1_updated").await?);
-
-    assert_eq!(session.bftree_hlen(key).await?, 2);
-    assert_eq!(
-      session.bftree_hget(key, b"f1").await?,
-      Some(b"v1_updated".to_vec())
-    );
-    assert_eq!(session.bftree_hget(key, b"f2").await?, Some(b"v2".to_vec()));
-
-    // 3. 扫描
-    let records = session.bftree_hscan(key, b"", 10).await?;
-    assert_eq!(records.len(), 2);
-    assert_eq!(records[0], (b"f1".to_vec(), b"v1_updated".to_vec()));
-    assert_eq!(records[1], (b"f2".to_vec(), b"v2".to_vec()));
-
-    let mut scanned = Vec::new();
-    let count = session
-      .bftree_hscan_stream(key, b"", 10, |k, v| {
-        scanned.push((k.to_vec(), v.to_vec()));
-        true
-      })
-      .await?;
-    assert_eq!(count, 2);
-    assert_eq!(scanned, records);
-
-    // 4. 删除单个字段
-    assert!(session.bftree_hdel(key, b"f1").await?);
-    assert_eq!(session.bftree_hlen(key).await?, 1);
-    assert_eq!(session.bftree_hget(key, b"f1").await?, None);
-    assert_eq!(session.bftree_hget(key, b"f2").await?, Some(b"v2".to_vec()));
-
-    // 5. 删空触发严格生命周期释放
-    assert!(session.bftree_hdel(key, b"f2").await?);
-    assert_eq!(session.bftree_hlen(key).await?, 0);
-    assert_eq!(session.bftree_hget(key, b"f2").await?, None);
-    assert!(session.load_meta(key).await?.is_none());
-
-    // 磁盘数据文件必须已被 unlink 删除
-    let ri_dir = dir.path().join("range_indexes").join("rangeindex");
-    let entries: Vec<_> = fs::read_dir(&ri_dir)?
-      .filter_map(|e| e.ok())
-      .filter(|e| e.path().extension().is_some_and(|ext| ext == "bftree"))
-      .collect();
-    assert!(
-      entries.is_empty(),
-      "删空后不得残留孤儿数据文件: {entries:?}"
-    );
-
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
-#[test]
 fn test_bftree_set_crud_and_scan() -> Void {
   Runtime::new()?.block_on(async {
     let dir = tempdir()?;
@@ -357,7 +288,6 @@ fn test_bftree_session_delete_cleans_file() -> Void {
     let store = open_store(&dir, "del_clean.db")?;
     let session = store.new_session()?;
 
-    session.bftree_hset(b"h_key", b"f", b"v").await?;
     session.bftree_sadd(b"s_key", b"m").await?;
     session.bftree_zadd(b"z_key", b"m", 1.0).await?;
     session.bftree_lpush(b"l_key", b"e").await?;
@@ -367,10 +297,9 @@ fn test_bftree_session_delete_cleans_file() -> Void {
       .filter_map(|e| e.ok())
       .filter(|e| e.path().extension().is_some_and(|ext| ext == "bftree"))
       .count();
-    assert_eq!(count, 4, "创建 4 个集合应对应 4 个数据文件");
+    assert_eq!(count, 3, "创建 3 个集合应对应 3 个数据文件");
 
     // 调用 session.delete 统一删除
-    assert!(session.delete(b"h_key").await?);
     assert!(session.delete(b"s_key").await?);
     assert!(session.delete(b"z_key").await?);
     assert!(session.delete(b"l_key").await?);
@@ -398,9 +327,6 @@ fn test_bftree_checkpoint_and_recovery() -> Void {
       let store = open_store(&dir, "cpr_collection.db")?;
       let session = store.new_session()?;
 
-      session.bftree_hset(b"cpr_hash", b"k1", b"v1").await?;
-      session.bftree_hset(b"cpr_hash", b"k2", b"v2").await?;
-
       session.bftree_sadd(b"cpr_set", b"m1").await?;
       session.bftree_sadd(b"cpr_set", b"m2").await?;
 
@@ -420,17 +346,6 @@ fn test_bftree_checkpoint_and_recovery() -> Void {
     let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
     let recovered = Arc::new(CheckpointManager::recover(&ckpt_dir, token, device).await?);
     let session = recovered.new_session()?;
-
-    // 验证 Hash 恢复
-    assert_eq!(session.bftree_hlen(b"cpr_hash").await?, 2);
-    assert_eq!(
-      session.bftree_hget(b"cpr_hash", b"k1").await?,
-      Some(b"v1".to_vec())
-    );
-    assert_eq!(
-      session.bftree_hget(b"cpr_hash", b"k2").await?,
-      Some(b"v2".to_vec())
-    );
 
     // 验证 Set 恢复
     assert_eq!(session.bftree_scard(b"cpr_set").await?, 2);
@@ -456,14 +371,10 @@ fn test_bftree_checkpoint_and_recovery() -> Void {
     );
 
     // 恢复后继续追加写入与删除
-    assert!(session.bftree_hset(b"cpr_hash", b"k3", b"v3").await?);
-    assert_eq!(session.bftree_hlen(b"cpr_hash").await?, 3);
-
     assert_eq!(session.bftree_rpush(b"cpr_list", b"item3").await?, 3);
     assert_eq!(session.bftree_llen(b"cpr_list").await?, 3);
 
     // 删空验证
-    session.delete(b"cpr_hash").await?;
     session.delete(b"cpr_set").await?;
     session.delete(b"cpr_zset").await?;
     session.delete(b"cpr_list").await?;
@@ -479,12 +390,12 @@ fn test_bftree_strict_drain_with_ttl_and_version_fence() -> Void {
     let dir = tempdir()?;
     let store = open_store(&dir, "strict_drain.db")?;
     let session = store.new_session()?;
-    let key = b"ttl_drain_bftree_hash";
+    let key = b"ttl_drain_bftree_set";
 
-    // 1. 创建 BfTree Hash 并插入字段
-    assert!(session.bftree_hset(key, b"f1", b"v1").await?);
-    assert!(session.bftree_hset(key, b"f2", b"v2").await?);
-    assert_eq!(session.bftree_hlen(key).await?, 2);
+    // 1. 创建 BfTree Set 并插入成员
+    assert!(session.bftree_sadd(key, b"m1").await?);
+    assert!(session.bftree_sadd(key, b"m2").await?);
+    assert_eq!(session.bftree_scard(key).await?, 2);
 
     // 2. 设置随键 TTL
     let future_ticks = now_ticks() + 3600 * 10_000_000;
@@ -499,14 +410,14 @@ fn test_bftree_strict_drain_with_ttl_and_version_fence() -> Void {
     let old_version = old_meta.version;
     assert_eq!(old_version, 1);
 
-    // 3. 删除第 1 个字段
-    assert!(session.bftree_hdel(key, b"f1").await?);
-    assert_eq!(session.bftree_hlen(key).await?, 1);
+    // 3. 删除第 1 个成员
+    assert!(session.bftree_srem(key, b"m1").await?);
+    assert_eq!(session.bftree_scard(key).await?, 1);
     assert!(session.ttl_of(key).await?.is_some());
 
-    // 4. 删除第 2 个字段（最后一个字段），触发严格删空自愈
-    assert!(session.bftree_hdel(key, b"f2").await?);
-    assert_eq!(session.bftree_hlen(key).await?, 0);
+    // 4. 删除第 2 个成员（最后一个成员），触发严格删空自愈
+    assert!(session.bftree_srem(key, b"m2").await?);
+    assert_eq!(session.bftree_scard(key).await?, 0);
 
     // 5. 校验：元记录被清除，随键 TTL 彻底清理，无孤儿 TTL
     assert!(session.load_meta(key).await?.is_none());
@@ -526,16 +437,13 @@ fn test_bftree_strict_drain_with_ttl_and_version_fence() -> Void {
     );
 
     // 7. 重建同名键：分配新 key_id，旧数据完全不可见，版本号栅栏隔离
-    assert!(session.bftree_hset(key, b"f1", b"v1_reborn").await?);
+    assert!(session.bftree_sadd(key, b"m1_reborn").await?);
     let new_meta = session.load_meta(key).await?.expect("new meta");
     assert_ne!(new_meta.key_id, old_key_id);
     assert_eq!(new_meta.version, 1);
-    assert_eq!(session.bftree_hlen(key).await?, 1);
-    assert_eq!(
-      session.bftree_hget(key, b"f1").await?,
-      Some(b"v1_reborn".to_vec())
-    );
-    assert_eq!(session.bftree_hget(key, b"f2").await?, None);
+    assert_eq!(session.bftree_scard(key).await?, 1);
+    assert!(session.bftree_sismember(key, b"m1_reborn").await?);
+    assert!(!session.bftree_sismember(key, b"m2").await?);
 
     aok::Result::<()>::Ok(())
   })?;

@@ -24,8 +24,6 @@ pub enum TreePrefix {
   ListIndex = 0x04,
   /// 范围索引裸键 (0x05)
   RangeIndexKey = 0x05,
-  /// 哈希字段索引 (0x06)
-  HashField = 0x06,
 }
 
 /// 栈缓冲区阈值（1024 字节，对齐 L1 缓存，消除绝大多数键编码堆分配）
@@ -47,7 +45,6 @@ impl TreePrefix {
       0x03 => Some(Self::SetMember),
       0x04 => Some(Self::ListIndex),
       0x05 => Some(Self::RangeIndexKey),
-      0x06 => Some(Self::HashField),
       _ => None,
     }
   }

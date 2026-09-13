@@ -49,7 +49,7 @@ workspace = true
 
 [dependencies.wbase]
 workspace = true
-features = [ "future", "hash_slot" ]
+features = ["future", "hash_slot", "pool"]
 
 [dependencies.wconn]
 workspace = true

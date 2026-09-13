@@ -101,30 +101,60 @@ impl NetworkSenderThrottle {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::Arc;
-
-  use compio::runtime::Runtime;
+  use std::{
+    future::Future,
+    pin::pin,
+    sync::Arc,
+    task::{Context, Poll, Waker},
+    thread,
+    time::Duration,
+  };
 
   use super::*;
 
+  fn block_on<F: Future>(f: F) -> F::Output {
+    let waker = Waker::noop();
+    let mut cx = Context::from_waker(waker);
+    let mut f = pin!(f);
+    loop {
+      if let Poll::Ready(res) = f.as_mut().poll(&mut cx) {
+        return res;
+      }
+      thread::yield_now();
+    }
+  }
+
   #[test]
-  fn test_throttle_lifecycle() {
-    let throttle = Arc::new(NetworkSenderThrottle::new(2));
+  fn test_throttle_basic() {
+    let throttle = NetworkSenderThrottle::new(2);
     assert_eq!(throttle.in_flight(), 0);
 
-    Runtime::new().unwrap().block_on(async {
-      assert!(throttle.enter_send().await.is_ok());
-      assert_eq!(throttle.in_flight(), 1);
+    assert!(block_on(throttle.enter_send()).is_ok());
+    assert_eq!(throttle.in_flight(), 1);
 
-      assert!(throttle.enter_send().await.is_ok());
-      assert_eq!(throttle.in_flight(), 2);
+    assert!(block_on(throttle.enter_send()).is_ok());
+    assert_eq!(throttle.in_flight(), 2);
 
-      throttle.exit_send();
-      assert_eq!(throttle.in_flight(), 1);
+    throttle.exit_send();
+    assert_eq!(throttle.in_flight(), 1);
 
-      throttle.close();
-      assert!(throttle.is_closed());
-      assert_eq!(throttle.enter_send().await, Err(ThrottleClosed));
+    throttle.exit_send();
+    assert_eq!(throttle.in_flight(), 0);
+  }
+
+  #[test]
+  fn test_throttle_close() {
+    let throttle = Arc::new(NetworkSenderThrottle::new(1));
+    assert!(block_on(throttle.enter_send()).is_ok());
+
+    let t = throttle.clone();
+    thread::spawn(move || {
+      thread::sleep(Duration::from_millis(20));
+      t.close();
     });
+
+    let result = block_on(throttle.enter_send());
+    assert_eq!(result, Err(ThrottleClosed));
+    assert!(throttle.is_closed());
   }
 }

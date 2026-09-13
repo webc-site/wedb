@@ -75,6 +75,9 @@ pub struct TxnKeyEntries {
   held_locks: SmallVec<[TxnKeyLockGuard<'static>; 4]>,
 }
 
+unsafe impl Send for TxnKeyEntries {}
+unsafe impl Sync for TxnKeyEntries {}
+
 impl TxnKeyEntries {
   pub fn new(initial_count: usize) -> Self {
     Self {

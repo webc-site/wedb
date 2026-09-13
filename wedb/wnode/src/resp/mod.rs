@@ -10,7 +10,7 @@ pub mod client_commands;
 pub mod garnet_api;
 pub mod hyperloglog;
 pub mod key_admin_commands;
-pub mod m_get_read_arg_batch;
+pub mod metrics_commands;
 pub mod objects;
 pub mod parser;
 pub mod rangeindex;

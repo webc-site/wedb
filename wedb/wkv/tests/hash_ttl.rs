@@ -3,9 +3,8 @@
 //!
 //! 覆盖：hexpire_at 四返回码（-2/-1/0/1）与 NX/XX/GT/LT 四条件、hpersist 四态、
 //! 读路径字段级惰性 purge（到期后读不可见且物理回写压缩载荷）、has_expire 粘性
-//! 标志置位与未置位时读路径零额外开销（记录地址不变断言零回写）、GC run_once
-//! 驱动后台字段收集闭环（物理清除 + 统计口径）、过去时间戳立即删字段与删空即
-//! 删键、以及 WRONGTYPE 传播。
+//! 标志置位与未置位时读路径零额外开销（记录地址不变断言零回写）、过去时间戳
+//! 立即删字段与删空即删键、以及 WRONGTYPE 传播。
 
 use std::{sync::Arc, time::Duration};
 
@@ -17,7 +16,7 @@ use wbase::{
   time::now_ticks,
 };
 use wdev::SegmentedDevice;
-use wkv::{GcConfig, GcManager, StoreConfig, StoreSession, TtlOpt, WedbStore};
+use wkv::{StoreConfig, StoreSession, TtlOpt, WedbStore};
 use wval::{CollectionType, CompactHashCodec, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 #[ctor::ctor(unsafe)]
@@ -435,68 +434,6 @@ fn test_unflagged_hash_read_zero_overhead() -> Void {
   OK
 }
 
-/// 测试 5: GC run_once 驱动后台字段收集闭环——到期字段物理清除 + 统计口径
-///（对标 Garnet ObjectCollectTask 后台收集可观测性）
-#[test]
-fn test_gc_run_once_collects_expired_fields() -> Void {
-  Runtime::new()?.block_on(async {
-    let dir = tempdir()?;
-    let device = Arc::new(SegmentedDevice::single_file(
-      dir.path().join("hash_ttl_gc.db"),
-    )?);
-    let mut config = StoreConfig::new(1024, 4096, 16, 0.5)?;
-    config.gc = GcConfig {
-      compaction_max_segments: 0,
-      ..GcConfig::default()
-    };
-    config.gc.enabled = false;
-    let store = Arc::new(WedbStore::open(config, device)?);
-    let session = store.new_session()?;
-    let mgr = GcManager::new(&store);
-
-    put_hash(&session, b"ht:gc", 1, &[(b"live", b"v1"), (b"dead", b"v2")]).await?;
-    assert_eq!(
-      session
-        .hexpire_at(
-          b"ht:gc",
-          b"dead",
-          now_ticks() + TICKS_PER_MILLISECOND * 50,
-          TtlOpt::NONE
-        )
-        .await?,
-      1
-    );
-    sleep(Duration::from_millis(120)).await;
-
-    mgr.run_once().await?;
-    let st = mgr.stats();
-    assert_eq!(
-      st.last_scan_fields_deleted, 1,
-      "后台收集必须物理清除到期字段"
-    );
-    assert_eq!(st.expired_fields_deleted, 1);
-    assert_eq!(st.expired_deleted, 0, "无 key 级 TTL 时不得误删键");
-    assert_eq!(st.last_scan_deleted, 0);
-
-    // 物理闭环验证：载荷压缩、size 回写、live 字段完好
-    let meta_rec = read_meta_record(&session, b"ht:gc").await?;
-    assert_eq!(MetaValue::read_size(&meta_rec), Ok(1));
-    let payload = &meta_rec[META_VALUE_SIZE..];
-    assert_eq!(CompactHashCodec::count(payload).ok(), Some(1));
-    assert!(CompactHashCodec::find(payload, b"live").is_some());
-    assert!(CompactHashCodec::find(payload, b"dead").is_none());
-
-    // 再跑一轮：标志粘性但无过期字段，幂等零清除
-    mgr.run_once().await?;
-    let st2 = mgr.stats();
-    assert_eq!(st2.last_scan_fields_deleted, 0, "幂等双检后必须零清除");
-    assert_eq!(st2.expired_fields_deleted, 1, "累计数必须保持");
-
-    aok::Result::<()>::Ok(())
-  })?;
-  OK
-}
-
 /// 测试 6: 过去时间戳立即物理删除字段（返回 1）；NX 条件先行拒绝时绝不误删；
 /// 删除最后一个存活字段后集合随之消亡（删空即删键，含 key 级 TTL 清除）
 #[test]
@@ -645,20 +582,6 @@ fn test_hexpire_unsupported_encoding_returns_minus3() -> Void {
     assert_eq!(session.hpersist(b"ht:flat", b"a").await?, -3);
     // 数据不受影响
     assert_eq!(session.hget(b"ht:flat", b"a").await?, Some(b"1".to_vec()));
-
-    // FlattenedTree（BfTree 树）后端：同口径 -3
-    assert!(session.bftree_hset(b"ht:tree", b"a", b"1").await?);
-    assert_eq!(
-      session
-        .hexpire_at(b"ht:tree", b"a", future, TtlOpt::NONE)
-        .await?,
-      -3
-    );
-    assert_eq!(session.hpersist(b"ht:tree", b"a").await?, -3);
-    assert_eq!(
-      session.bftree_hget(b"ht:tree", b"a").await?,
-      Some(b"1".to_vec())
-    );
 
     // 对照组：不存在的键仍 -2（口径互不吞没）
     assert_eq!(

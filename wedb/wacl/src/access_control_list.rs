@@ -26,8 +26,8 @@ type UsersMap = GxPapayaMap<String, Arc<UserHandle>>;
 
 /// 访问控制列表
 pub struct AccessControlList {
-  /// 全部已定义用户（整体换表原子性见 [`Self::load`]）
-  users: RwLock<Arc<UsersMap>>,
+  /// 全部已定义用户（底层为 papaya lock-free 并发字典）
+  users: UsersMap,
   /// 当前默认用户句柄（快速默认查找）
   default_user: RwLock<Option<Arc<UserHandle>>>,
   /// Save 串行锁（对标 C# lock(this)）
@@ -65,7 +65,7 @@ impl AccessControlList {
   /// 空表草稿（无默认用户；Load 的导入草稿与构造底座）
   fn scratch() -> Self {
     Self {
-      users: RwLock::new(Arc::new(new_papaya_map())),
+      users: new_papaya_map(),
       default_user: RwLock::new(None),
       save_lock: Mutex::new(()),
     }
@@ -75,7 +75,7 @@ impl AccessControlList {
   ///
   /// libs/server/ACL/AccessControlList.cs:GetUserHandle
   pub fn get_user_handle(&self, username: &str) -> Option<Arc<UserHandle>> {
-    self.users.read().pin().get(username).map(Arc::clone)
+    self.users.pin().get(username).map(Arc::clone)
   }
 
   /// 当前默认用户句柄
@@ -93,7 +93,6 @@ impl AccessControlList {
     // 已有同名用户则不可加入
     if self
       .users
-      .read()
       .pin()
       .try_insert(username.clone(), user_handle)
       .is_err()
@@ -112,14 +111,14 @@ impl AccessControlList {
         "The special 'default' user cannot be removed from the system".into(),
       ));
     }
-    Ok(self.users.read().pin().remove(username).is_some())
+    Ok(self.users.pin().remove(username).is_some())
   }
 
   /// 清空全部用户
   ///
   /// libs/server/ACL/AccessControlList.cs:ClearUsers
   pub fn clear_users(&self) {
-    *self.users.write() = Arc::new(new_papaya_map());
+    self.users.pin().clear();
   }
 
   /// 全部用户名 / 句柄对快照
@@ -128,7 +127,6 @@ impl AccessControlList {
   pub fn get_user_handles(&self) -> Vec<(String, Arc<UserHandle>)> {
     self
       .users
-      .read()
       .pin()
       .iter()
       .map(|(name, handle)| (name.clone(), Arc::clone(handle)))
@@ -137,12 +135,12 @@ impl AccessControlList {
 
   /// 用户数
   pub fn len(&self) -> usize {
-    self.users.read().pin().len()
+    self.users.pin().len()
   }
 
   /// 是否无用户
   pub fn is_empty(&self) -> bool {
-    self.users.read().pin().is_empty()
+    self.users.pin().is_empty()
   }
 
   /// 创建默认用户（已存在则直接返回既有句柄）
@@ -214,9 +212,13 @@ impl AccessControlList {
     // 补回默认用户并更新缓存的默认句柄
     let default_handle = scratch.create_default_user_handle(default_password)?;
 
-    // 原子换表 + 换默认句柄
+    let _guard = self.save_lock.lock();
     *self.default_user.write() = Some(default_handle);
-    *self.users.write() = scratch.users.into_inner();
+    let pin = self.users.pin();
+    pin.clear();
+    for (name, handle) in scratch.users.pin().iter() {
+      pin.insert(name.clone(), Arc::clone(handle));
+    }
     Ok(())
   }
 
@@ -232,8 +234,7 @@ impl AccessControlList {
     let _guard = self.save_lock.lock();
     let file = File::create(acl_configuration_file).map_err(|e| AclError::Acl(e.to_string()))?;
     let mut writer = BufWriter::with_capacity(1 << 16, file);
-    let users = self.users.read();
-    let pin = users.pin();
+    let pin = self.users.pin();
     for (_, user_handle) in pin.iter() {
       writeln!(writer, "{}", user_handle.read().describe_user())
         .map_err(|e| AclError::Acl(e.to_string()))?;

@@ -32,10 +32,10 @@ use compio::{
 use crossfire::oneshot::oneshot;
 use log::{debug, error, info};
 use parking_lot::Mutex;
+use wbase::pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool};
 
 use crate::{
   args::{NodeArgs, ServerArgs},
-  buffer_pool::LimitedFixedBufferPool,
   cluster_provider::{ClusterProvider, NoopClusterProvider},
   endpoint::ServerEndpoint,
   net::{ConnectionStream, handler::NetworkHandler, socket_opt::bind_reuseport, uds::UdsGuard},
@@ -64,7 +64,7 @@ impl NodeServerBuilder<()> {
   pub fn new() -> Self {
     Self {
       endpoints: Vec::new(),
-      network_buffer_size: crate::DEFAULT_BUFFER_SIZE,
+      network_buffer_size: DEFAULT_BUFFER_SIZE,
       network_send_throttle_max: 8,
       threads: None,
       session_provider: None,
@@ -163,7 +163,7 @@ impl<A: ServerArgs> ServerBootstrap<A, NoopClusterProvider> {
     Self {
       args,
       cluster_provider: NoopClusterProvider,
-      network_buffer_size: crate::DEFAULT_BUFFER_SIZE,
+      network_buffer_size: DEFAULT_BUFFER_SIZE,
       network_send_throttle_max: 8,
       banner: "WeDB 数据库服务".into(),
     }

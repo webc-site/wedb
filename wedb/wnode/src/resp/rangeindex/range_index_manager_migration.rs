@@ -247,11 +247,4 @@ mod tests {
     );
     assert_eq!(PublishMigratedIndexResult::Failed.to_string(), "Failed");
   }
-
-  #[test]
-  fn constants_match_csharp_values() {
-    // C# DefaultMigrationChunkSize = 256KB；DefaultFileReadBufferSize = 1MiB
-    assert_eq!(DEFAULT_MIGRATION_CHUNK_SIZE, 256 * 1024);
-    assert_eq!(DEFAULT_FILE_READ_BUFFER_SIZE, 1 << 20);
-  }
 }

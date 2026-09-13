@@ -3,8 +3,8 @@ use std::{env, fs, ops::Deref, path::PathBuf};
 use aok::{OK, Result};
 use wbftree::BfTreeService;
 use wcol::{
-  CollectionError, HashTreeOps, LIST_STUB_SIZE, ListStub, ListTree, ListTreeOps, RiTreeOps,
-  SetTreeOps, TreePrefix, ZSetTreeOps, decode_order_score, encode_order_score, i64_from_order_idx,
+  CollectionError, LIST_STUB_SIZE, ListStub, ListTree, ListTreeOps, RiTreeOps, SetTreeOps,
+  TreePrefix, ZSetTreeOps, decode_order_score, encode_order_score, i64_from_order_idx,
   normalize_range, order_idx_from_i64,
 };
 
@@ -39,106 +39,7 @@ impl Drop for TempTree {
 }
 
 // ============================================================================
-// 1. Hash 集合测试
-// ============================================================================
-
-#[test]
-fn test_hash_crud_and_empty_value_tolerance() -> Result<()> {
-  let tree = TempTree::new("hash_crud")?;
-
-  // 1. 正常插入与读取
-  assert!(tree.hset(b"user:name", b"Alice")?);
-  assert_eq!(tree.hget(b"user:name")?, Some(b"Alice".to_vec()));
-  assert_eq!(
-    tree.hget_callback(b"user:name", |opt| opt.map(|v| v.len()))?,
-    Some(5)
-  );
-  assert!(tree.hexists(b"user:name")?);
-  assert_eq!(tree.hlen()?, 1);
-
-  // 2. 覆盖更新 (返回 false)
-  assert!(!tree.hset(b"user:name", b"Bob")?);
-  assert_eq!(tree.hget(b"user:name")?, Some(b"Bob".to_vec()));
-  assert_eq!(
-    tree.hget_callback(b"user:name", |opt| opt.map(|v| v.to_vec()))?,
-    Some(b"Bob".to_vec())
-  );
-  assert_eq!(tree.hlen()?, 1);
-
-  // 3. 空值容错 (tag=0 空串)
-  assert!(tree.hset(b"user:bio", b"")?);
-  assert_eq!(tree.hget(b"user:bio")?, Some(Vec::new()));
-  assert_eq!(
-    tree.hget_callback(b"user:bio", |opt| opt.map(|v| v.is_empty()))?,
-    Some(true)
-  );
-  assert!(tree.hexists(b"user:bio")?);
-  assert_eq!(tree.hlen()?, 2);
-
-  // 4. 读取不存在的字段
-  assert_eq!(tree.hget(b"user:nonexistent")?, None);
-  assert!(!tree.hexists(b"user:nonexistent")?);
-
-  // 5. 删除字段
-  assert!(tree.hdel(b"user:name")?);
-  assert!(!tree.hdel(b"user:name")?); // 再次删除返回 false
-  assert_eq!(tree.hget(b"user:name")?, None);
-  assert_eq!(tree.hlen()?, 1);
-
-  // 6. 删除空串字段
-  assert!(tree.hdel(b"user:bio")?);
-  assert_eq!(tree.hlen()?, 0);
-
-  OK
-}
-
-#[test]
-fn test_hash_streaming_scan() -> Result<()> {
-  let tree = TempTree::new("hash_scan")?;
-
-  for i in 0..100 {
-    let key = format!("field:{:03}", i);
-    let val = format!("val:{:03}", i);
-    tree.hset(key.as_bytes(), val.as_bytes())?;
-  }
-  assert_eq!(tree.hlen()?, 100);
-
-  // 全量流式扫描
-  let mut scanned = 0;
-  tree.hscan(b"", usize::MAX, |k, v| {
-    let expected_key = format!("field:{:03}", scanned);
-    let expected_val = format!("val:{:03}", scanned);
-    assert_eq!(k, expected_key.as_bytes());
-    assert_eq!(v, expected_val.as_bytes());
-    scanned += 1;
-    true
-  })?;
-  assert_eq!(scanned, 100);
-
-  // 提前终止扫描 (仅扫描前 10 条)
-  let mut count = 0;
-  let res = tree.hscan(b"", 50, |_k, _v| {
-    count += 1;
-    count < 10
-  })?;
-  assert_eq!(res, 10);
-  assert_eq!(count, 10);
-
-  // 起始键扫描
-  let mut from_50_count = 0;
-  tree.hscan(b"field:050", 20, |k, _v| {
-    let expected_key = format!("field:{:03}", 50 + from_50_count);
-    assert_eq!(k, expected_key.as_bytes());
-    from_50_count += 1;
-    true
-  })?;
-  assert_eq!(from_50_count, 20);
-
-  OK
-}
-
-// ============================================================================
-// 2. Set 集合测试
+// 1. Set 集合测试
 // ============================================================================
 
 #[test]
@@ -652,36 +553,6 @@ fn test_large_scale_and_extreme_boundary() -> Result<()> {
   let center_right = list_tree.lindex(&stub, 1000)?;
   assert_eq!(center_left, Some(b"elem:0000".to_vec()));
   assert_eq!(center_right, Some(b"elem:0000".to_vec()));
-
-  // 3. Hash 批量循环与覆盖校验
-  let hash_tree = TempTree::new("boundary_hash")?;
-  for i in 0..2000 {
-    let field = format!("f:{:05}", i);
-    let val = format!("v:{:05}", i);
-    hash_tree.hset(field.as_bytes(), val.as_bytes())?;
-  }
-  assert_eq!(hash_tree.hlen()?, 2000);
-
-  OK
-}
-
-#[test]
-fn test_hash_short_field_and_padded_value_roundtrip() -> Result<()> {
-  let tree = TempTree::new("hash_padded")?;
-
-  // 1 字节键 + 1 字节值 (field_len + 1 + value.len() = 3 < 4, 触发 TAG_PADDED)
-  assert!(tree.hset(b"k", b"v")?);
-  assert_eq!(tree.hget(b"k")?, Some(b"v".to_vec()));
-  assert!(tree.hexists(b"k")?);
-
-  // 覆盖为多字节值
-  assert!(!tree.hset(b"k", b"longer_value")?);
-  assert_eq!(tree.hget(b"k")?, Some(b"longer_value".to_vec()));
-
-  // 再次覆盖为空值
-  assert!(!tree.hset(b"k", b"")?);
-  assert_eq!(tree.hget(b"k")?, Some(Vec::new()));
-
   OK
 }
 
@@ -709,20 +580,7 @@ fn test_collection_corruption_and_extreme_index_guards() -> Result<()> {
   assert_eq!(tree.lrange(&stub, i64::MIN, 0)?.len(), 1);
   assert!(tree.lrange(&stub, 10, i64::MAX)?.is_empty());
 
-  // 2. Hash 非法损坏标签检测 (直接向底层插入非法标签)
-  let mut corrupt_key = vec![TreePrefix::HashField as u8];
-  corrupt_key.extend_from_slice(b"corrupt_field");
-  tree.insert(&corrupt_key, &[0xFF, 0x01, 0x02, 0x03]);
-  assert!(matches!(
-    tree.hget(b"corrupt_field"),
-    Err(CollectionError::Corrupted(_))
-  ));
-  assert!(matches!(
-    tree.hscan(b"", 10, |_, _| true),
-    Err(CollectionError::Corrupted(_))
-  ));
-
-  // 3. ZSet 非法反查索引检测
+  // 2. ZSet 非法反查索引检测
   tree.insert(&[TreePrefix::ZSetMember as u8, b'x'], &[0x01, 0x02]); // 长度为 2 != 8
   assert!(matches!(
     tree.zscore(b"x"),
@@ -804,9 +662,8 @@ fn test_ri_crud_and_scanning() -> Result<()> {
 fn test_anti_penetration_binary_and_prefix_isolation() -> Result<()> {
   let tree = TempTree::new("anti_penetration")?;
 
-  // 1. 同名键跨五大集合类型存入同一棵树，物理隔离互不干扰
+  // 1. 同名键跨四大树集合类型存入同一棵树，物理隔离互不干扰
   let common_key = b"same_name";
-  assert!(tree.hset(common_key, b"hash_val")?);
   assert!(tree.sadd(common_key)?);
   assert!(tree.zadd(common_key, 99.5)?);
   assert!(tree.ri_set(common_key, b"ri_val")?);
@@ -815,19 +672,17 @@ fn test_anti_penetration_binary_and_prefix_isolation() -> Result<()> {
   tree.rpush(&mut stub, common_key)?;
 
   // 验证各自的数据与长度隔离
-  assert_eq!(tree.hget(common_key)?, Some(b"hash_val".to_vec()));
   assert!(tree.sismember(common_key)?);
   assert_eq!(tree.zscore(common_key)?, Some(99.5));
   assert_eq!(tree.ri_get(common_key)?, Some(b"ri_val".to_vec()));
   assert_eq!(tree.lindex(&stub, 0)?, Some(common_key.to_vec()));
 
-  assert_eq!(tree.hlen()?, 1);
   assert_eq!(tree.scard()?, 1);
   assert_eq!(tree.zcard()?, 1);
   assert_eq!(tree.ri_len()?, 1);
   assert_eq!(tree.llen(&stub), 1);
 
-  // 2. 用户键包含二进制 \0 与特殊前缀字节 (0x01..=0x06)，杜绝前缀穿透
+  // 2. 用户键包含二进制 \0 与特殊前缀字节 (0x01..=0x05)，杜绝前缀穿透
   let special_keys: &[&[u8]] = &[
     b"\0",
     b"\0\0\0\0",
@@ -836,33 +691,22 @@ fn test_anti_penetration_binary_and_prefix_isolation() -> Result<()> {
     b"\x03",
     b"\x04",
     b"\x05",
-    b"\x06",
     b"\x01prefix_trick",
     b"\x05range_trick",
     b"user\0name\0with\0zeros",
   ];
 
   for &k in special_keys {
-    assert!(tree.hset(k, b"h_val")?);
     assert!(tree.sadd(k)?);
     assert!(tree.zadd(k, 123.0)?);
     assert!(tree.ri_set(k, b"r_val")?);
 
-    assert_eq!(tree.hget(k)?, Some(b"h_val".to_vec()));
     assert!(tree.sismember(k)?);
     assert_eq!(tree.zscore(k)?, Some(123.0));
     assert_eq!(tree.ri_get(k)?, Some(b"r_val".to_vec()));
   }
 
-  // 3. 扫描隔离验证：hscan 不会扫到 set / zset / ri 的键
-  let mut h_scanned_keys = Vec::new();
-  tree.hscan(b"", 100, |k, _| {
-    h_scanned_keys.push(k.to_vec());
-    true
-  })?;
-  assert_eq!(h_scanned_keys.len(), 1 + special_keys.len());
-  assert!(h_scanned_keys.contains(&common_key.to_vec()));
-
+  // 3. 扫描隔离验证：sscan 不会扫到 zset / ri 的键
   let mut s_scanned_keys = Vec::new();
   tree.sscan(b"", 100, |k| {
     s_scanned_keys.push(k.to_vec());

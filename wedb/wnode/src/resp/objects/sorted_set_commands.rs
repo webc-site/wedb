@@ -1470,10 +1470,7 @@ fn parse_diff_args<'p>(
   name: &str,
   output: &mut Vec<u8>,
 ) -> Option<(Vec<&'p [u8]>, bool)> {
-  if parse_state.len() < 2 {
-    cs::abort_with_wrong_number_of_arguments(output, name);
-    return None;
-  }
+  check_arg_count!(parse_state, >= 2, output, name, return None);
 
   let Some(n_keys) = parse_state[0].try_parse_i64() else {
     cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -1512,10 +1509,7 @@ fn parse_combine_args<'p>(
   name: &str,
   output: &mut Vec<u8>,
 ) -> Option<CombineArgs<'p>> {
-  if parse_state.len() < 2 {
-    cs::abort_with_wrong_number_of_arguments(output, name);
-    return None;
-  }
+  check_arg_count!(parse_state, >= 2, output, name, return None);
 
   let Some(n_keys) = parse_state[0].try_parse_i64() else {
     cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);

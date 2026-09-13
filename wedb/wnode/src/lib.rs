@@ -7,8 +7,6 @@
 //! - 统一网络流抽象 (ConnectionStream: TCP / Unix Domain Socket)
 //! - 多端点监听解析 (ServerEndpoint: TCP / UDS)
 //! - 多核端口复用监听 (SO_REUSEPORT) 与 UDS 自动资源闭环治理
-//! - 网络缓冲区池化管理 (LimitedFixedBufferPool, PooledBuffer)
-//! - 慢客户端背压流控 (NetworkSenderThrottle)
 //! - 统一网络服务与会话抽象 (WireFormat, SessionProviderFace, MessageConsumerFace)
 //! - 统一节点宿主服务器门面 (GarnetServer)
 //! - 通用信息指标模型 (MetricsItem)
@@ -20,7 +18,6 @@ pub mod api {
   }
 }
 pub mod args;
-pub mod buffer_pool;
 pub mod cluster_provider;
 pub mod cluster_session;
 pub mod conf;
@@ -39,7 +36,6 @@ pub mod shutdown;
 pub mod signal;
 pub mod storage;
 pub mod task;
-pub mod throttle;
 pub mod tls;
 pub mod traits;
 pub mod types;
@@ -51,11 +47,6 @@ pub use aof::{
   RangeIndexSessionFace, ReplayInput, ShardedLog, SingleLog, Sublog, SublogBackend,
 };
 pub use args::{DEFAULT_BIND, DEFAULT_DIR, DEFAULT_PORT, NodeArgs, ServerArgs};
-pub use buffer_pool::{
-  DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, DEFAULT_MAX_RECEIVE_BUFFER_SIZE,
-  DEFAULT_SEND_BUFFER_SIZE, LimitedFixedBufferPool, NetworkBufferSettings, PooledBuffer,
-  SEND_BUFFER_OVERHEAD_RESERVE,
-};
 pub use cluster_provider::{ClusterProvider, NoopClusterProvider};
 pub use cluster_session::{ClusterSession, ClusterSessionFace, ClusterSlotVerificationInput};
 pub use conf::Conf;
@@ -84,7 +75,6 @@ pub use shutdown::ShutdownCoordinator;
 pub use signal::{SIGINT_LABEL, SIGTERM_LABEL, SIGTERM_NUM, wait_shutdown_signal};
 pub use storage::{StorageScriptingApi, StorageSession};
 pub use task::{TaskManager, TaskPlacementCategory, TaskType};
-pub use throttle::{NetworkSenderThrottle, ThrottleClosed};
 pub use tls::IGarnetTlsOptions;
 pub use traits::{MessageConsumerFace, ServerEnumerate, SessionProviderFace, WireFormat};
 pub use types::GarnetStatus;

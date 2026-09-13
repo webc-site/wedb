@@ -277,6 +277,9 @@ pub struct TransactionManager<L: TxnAofLog = ()> {
   pub is_replaying: bool,
 }
 
+unsafe impl<L: TxnAofLog + Send> Send for TransactionManager<L> {}
+unsafe impl<L: TxnAofLog + Sync> Sync for TransactionManager<L> {}
+
 impl<L: TxnAofLog> TransactionManager<L> {
   /// 构造泛型事务管理器（静态单态化消除虚表间接寻址）
   pub fn new(watch_version_map: Arc<WatchVersionMap>, aof_log: Option<L>) -> Self {

@@ -16,20 +16,29 @@ use std::{
 };
 
 use smallvec::SmallVec;
-use wacl::command_catalog::normalize_for_acls;
+use wacl::{
+  GarnetAclAuthenticator, auth::settings::acl_authentication_settings::AclAuthenticationSettings,
+  command_catalog::normalize_for_acls,
+};
 use wbase::time::now_ms;
 use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig};
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, ScratchBufferNetworkSender, ScriptingApi,
   SessionScriptCache, StoreScriptCache,
 };
-use wmetric::{GarnetLatencyMetricsSession, GarnetSessionMetrics, LatencyMetricsType};
+use wmetric::{
+  GarnetLatencyMetrics, GarnetLatencyMetricsSession, GarnetSessionMetrics, LatencyMetricsType,
+  SlowLogContainer,
+};
 use wobject::itembroker::collection_item_observer::CollectionItemResult;
+use wpubsub::SubscribeBroker;
 use wresp::{
-  RespVecExt, SessionParseState, cmd_strings as cs,
+  RespSliceExt, RespVecExt, SessionParseState, cmd_strings as cs,
   cmd_strings::{RESP_WRONGPASS_INVALID_USERNAME_PASSWORD, write_map_len_resp2},
   is_cluster_sub_command, is_data_command, is_read_only,
+  key_spec::KeySpecificationFlags,
 };
+use wtxn::{TransactionManager, TxnCommandKeys, TxnKeySpec, TxnQueuedCommandInfo, WatchVersionMap};
 
 use super::{
   parser::{
@@ -259,7 +268,30 @@ pub struct RespServerSession {
 
   /// 运行时配置（C# storeWrapper.runtimeConfig；OBJECT_SCAN_COUNT_LIMIT 等
   /// 热更读取源，CONFIG SET 经同一实例生效）
-  runtime_config: Arc<RuntimeServerConfig>,
+  pub(crate) runtime_config: Arc<RuntimeServerConfig>,
+
+  /// 事务管理器（C# txnManager；构造期注入 WatchVersionMap 后创建，
+  /// None = 宿主未挂事务组件，MULTI 按未接线报错）
+  /// C# txnManager；构造期注入 WatchVersionMap 后创建，None = 宿主未挂
+  /// 事务组件，MULTI 按未接线报错。锁表守卫使 TransactionManager 类型层面
+  /// !Send，而会话消费为单线程串行（compio 任务亲和）：守卫的获取与释放
+  /// 同线程，跨线程转移仅发生在无在途事务的消费间隙 —— Send 由该不变量
+  /// 人工担保（[`GarnetApi`] 同款论证）
+  pub(crate) txn_manager: Option<TransactionManager>,
+  /// 发布订阅会话接线（C# subscribeBroker 字段 + numActiveChannels；
+  /// 默认无 broker = --pubsub 关闭形态，命令面按同款禁用文案回错）
+  pub pubsub: wpubsub::PubSubSession,
+  /// 慢日志容器（C# storeWrapper.slowLogContainer；None = 未启用）
+  pub(crate) slow_log_container: Option<Arc<SlowLogContainer>>,
+  /// 全局延迟指标（C# storeWrapper.monitor.GlobalMetrics.globalLatencyMetrics）
+  pub(crate) global_latency_metrics: Option<Arc<parking_lot::Mutex<GarnetLatencyMetrics>>>,
+  /// 慢日志批次起始 tick（C# slowLogStartTime；try_consume_messages 入口刷新）
+  pub(crate) slow_log_start_ticks: i64,
+  /// ACL 认证器（C# _authenticator 的 ACL 档实例；None = NoAuth 档。
+  /// authenticate 记录句柄需 &mut，以 parking_lot 互斥承接）
+  pub(crate) acl_authenticator: Option<Arc<parking_lot::Mutex<GarnetAclAuthenticator>>>,
+  /// ACL 认证设置（C# storeWrapper.aclSettings；ACL LOAD/SAVE 配置文件定位）
+  pub(crate) acl_settings: Option<Arc<AclAuthenticationSettings>>,
 }
 
 impl RespServerSession {
@@ -333,6 +365,13 @@ impl RespServerSession {
       pending_block: None,
       pending_slow: None,
       runtime_config: RuntimeServerConfig::shared_default(),
+      txn_manager: None,
+      pubsub: wpubsub::PubSubSession::with_mailbox_capacity(None, 4),
+      slow_log_container: None,
+      global_latency_metrics: None,
+      slow_log_start_ticks: 0,
+      acl_authenticator: None,
+      acl_settings: None,
     };
     session.authenticate_user(options.default_user.as_bytes(), &[]);
     session
@@ -359,6 +398,44 @@ impl RespServerSession {
   /// 当前运行时配置（命令层热更读取入口）
   pub(crate) fn runtime_config(&self) -> &Arc<RuntimeServerConfig> {
     &self.runtime_config
+  }
+
+  /// 注入事务组件（C# 构造函数 `new TransactionManager(storeWrapper.watchversionMap, ...)`
+  /// 的依赖倒置形态；AOF 事务日志由 wtxn 默认无日志形态承接）
+  pub fn attach_transaction_components(&mut self, watch_version_map: Arc<WatchVersionMap>) {
+    self.txn_manager = Some(TransactionManager::new(watch_version_map, None));
+  }
+
+  /// 注入发布订阅中枢（C# 构造函数 `subscribeBroker` 装配；重建会话接线，
+  /// 邮箱容量取 wpubsub 默认值）
+  pub fn attach_pubsub(&mut self, broker: Arc<SubscribeBroker>) {
+    self.pubsub = wpubsub::PubSubSession::new(broker);
+  }
+
+  /// 注入慢日志容器（C# storeWrapper.slowLogContainer，容量取服务器配置）
+  pub fn set_slow_log_container(&mut self, container: Arc<SlowLogContainer>) {
+    self.slow_log_container = Some(container);
+  }
+
+  /// 注入全局延迟指标（C# storeWrapper.monitor.GlobalMetrics.globalLatencyMetrics）
+  pub fn set_global_latency_metrics(
+    &mut self,
+    metrics: Arc<parking_lot::Mutex<GarnetLatencyMetrics>>,
+  ) {
+    self.global_latency_metrics = Some(metrics);
+  }
+
+  /// 注入 ACL 认证器与设置（C# 构造函数 `_authenticator` + `storeWrapper.serverOptions`
+  /// 的 ACL 档装配；None 分量分别承接 NoAuth 档与无 ACL 文件形态）。
+  /// ACL 档挂载即置 CanAuthenticate（C# GarnetACLAuthenticator.CanAuthenticate = true）
+  pub fn attach_acl(
+    &mut self,
+    authenticator: Option<Arc<parking_lot::Mutex<GarnetAclAuthenticator>>>,
+    settings: Option<Arc<AclAuthenticationSettings>>,
+  ) {
+    self.authenticator_can_authenticate = authenticator.is_some();
+    self.acl_authenticator = authenticator;
+    self.acl_settings = settings;
   }
 
   /// 集合更新唤醒（C# StorageSession ListOps/SortedSetOps 写成功后
@@ -544,15 +621,26 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:AuthenticateUser
   ///
-  /// C# 依认证器结果回退默认用户；NoAuth 认证器 CanAuthenticate = false →
-  /// 恒置默认用户且返回 false（rust 认证器域为并行转写，按 NoAuth 语义承接）
-  /// 保留 _username 与 _password 形参以对标 AuthenticateUser 接口契约
-  pub fn authenticate_user(&mut self, _username: &[u8], _password: &[u8]) -> bool {
-    // 不支持认证的认证器直接落到默认用户（C# GetDefaultUserHandle 分支）
-    if !self.authenticator_can_authenticate && self.user_handle.is_none() {
-      self.user_handle = Some("default".to_string());
+  /// ACL 认证器挂载时按其校验（定位用户 → 口令比对 → 记录句柄）；NoAuth 档
+  /// CanAuthenticate = false → 恒置默认用户且返回 false
+  pub fn authenticate_user(&mut self, username: &[u8], password: &[u8]) -> bool {
+    if !self.authenticator_can_authenticate {
+      // 不支持认证的认证器直接落到默认用户（C# GetDefaultUserHandle 分支）
+      if self.user_handle.is_none() {
+        self.user_handle = Some("default".to_string());
+      }
+      return false;
     }
-    self.authenticator_can_authenticate
+    let Some(acl) = &self.acl_authenticator else {
+      return false;
+    };
+    // 认证器可变态内 &mut（记录用户句柄）；会话消费串行，锁无竞争
+    let mut acl = acl.lock();
+    let success = acl.authenticate(username, password, acl_password_check);
+    if success && let Some(user_handle) = acl.get_user_handle() {
+      self.user_handle = Some(user_handle.read().name.clone());
+    }
+    success
   }
 
   /// libs/server/Resp/RespServerSession.cs:CanRunDebug
@@ -654,6 +742,10 @@ impl RespServerSession {
           self.write_error_response(&format!(
             "ERR {name} command not allowed while in subscribe mode"
           ));
+        } else if self.txn_state != TxnState::None {
+          // C# 事务门：Running 直通（事务 API 与单机同一执行路径）；
+          // Started 排队（EXEC/MULTI/DISCARD/QUIT 特例，余者 NetworkSKIP）
+          self.process_transactional_command(cmd);
         } else if self.cluster_session.is_none() || self.can_serve_slot(cmd) {
           // C# 分派链：ProcessBasicCommands → ProcessArrayCommands →
           // ProcessOtherCommands（事务入队/直通形态由分派域承载）；
@@ -740,70 +832,222 @@ impl RespServerSession {
   ///
   /// fast 命令族分派（WARNING: 仅 @fast 命令，慢命令走 OtherCommands）。
   /// 命令实现位于 resp 命令文件（并行域），经 [`GarnetApi`] 注入面
-  /// 接入；PING 的零参分支在会话侧闭环。
+  /// 接入；PING/QUIT/事务族在会话侧闭环。
   pub fn process_basic_commands(&mut self, cmd: RespCommand) -> bool {
-    if cmd == RespCommand::Ping {
-      if self.parse_state.count == 0 {
-        // C# NetworkPING：+PONG
-        self.output.extend_from_slice(b"+PONG\r\n");
-        return true;
+    match cmd {
+      RespCommand::Ping => {
+        if self.parse_state.count == 0 {
+          // C# NetworkPING：+PONG
+          self.output.extend_from_slice(b"+PONG\r\n");
+        } else if self.parse_state.count == 1 {
+          // C# NetworkArrayPING: bulk string message
+          let msg = self.parse_state.get_arg_slice_by_ref(0).as_slice();
+          self.output.write_resp_bulk_string(msg);
+        } else {
+          self.abort_wrong_num_args("PING");
+        }
+        true
       }
-      if self.parse_state.count == 1 {
-        // C# NetworkArrayPING: bulk string message
-        let msg = self.parse_state.get_arg_slice_by_ref(0).as_slice();
-        self.output.write_resp_bulk_string(msg);
-        return true;
+      RespCommand::Asking => {
+        if self.parse_state.count != 0 {
+          self.abort_wrong_num_args("ASKING");
+          return true;
+        }
+        self.session_asking = 2;
+        self.output.extend_from_slice(b"+OK\r\n");
+        true
       }
-      self.abort_wrong_num_args("PING");
-      return true;
-    }
-    if cmd == RespCommand::Asking {
-      if self.parse_state.count != 0 {
-        self.abort_wrong_num_args("ASKING");
-        return true;
+      RespCommand::Quit => {
+        self.to_dispose = true;
+        self.output.extend_from_slice(b"+OK\r\n");
+        true
       }
-      self.session_asking = 2;
-      self.output.extend_from_slice(b"+OK\r\n");
-      return true;
-    }
-    if cmd == RespCommand::Quit {
-      self.to_dispose = true;
-      self.output.extend_from_slice(b"+OK\r\n");
-      return true;
-    }
-    if cmd == RespCommand::Readonly {
-      self.read_only_session = true;
-      // C# NetworkREADONLY：clusterSession?.SetReadOnlySession()
-      if let Some(cluster) = &self.cluster_session {
-        cluster.set_read_only_session();
+      RespCommand::Readonly => {
+        self.read_only_session = true;
+        // C# NetworkREADONLY：clusterSession?.SetReadOnlySession()
+        if let Some(cluster) = &self.cluster_session {
+          cluster.set_read_only_session();
+        }
+        self.output.extend_from_slice(b"+OK\r\n");
+        true
       }
-      self.output.extend_from_slice(b"+OK\r\n");
-      return true;
-    }
-    if cmd == RespCommand::Readwrite {
-      self.read_only_session = false;
-      // C# NetworkREADWRITE：clusterSession?.SetReadWriteSession()
-      if let Some(cluster) = &self.cluster_session {
-        cluster.set_read_write_session();
+      RespCommand::Readwrite => {
+        self.read_only_session = false;
+        // C# NetworkREADWRITE：clusterSession?.SetReadWriteSession()
+        if let Some(cluster) = &self.cluster_session {
+          cluster.set_read_write_session();
+        }
+        self.output.extend_from_slice(b"+OK\r\n");
+        true
       }
-      self.output.extend_from_slice(b"+OK\r\n");
-      return true;
+      // C# ProcessBasicCommands switch：MULTI / EXEC / DISCARD / UNWATCH
+      RespCommand::Multi => self.network_multi(),
+      RespCommand::Exec => self.network_exec(),
+      RespCommand::Discard => self.network_discard(),
+      RespCommand::Unwatch => self.network_unwatch(),
+      // C# 链式回退：fast 表未命中的命令继续走 array → other 分派链
+      _ => self.process_array_commands(cmd),
     }
-    // C# 链式回退：fast 表未命中的命令继续走 array → other 分派链
-    self.process_array_commands(cmd)
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessArrayCommands
+  ///
+  /// @fast 数组族会话级命令（WARNING: 仅 @fast，慢命令走 OtherCommands）；
+  /// 存储面数组命令经 [`GarnetApi`] 注入面承接。
   pub fn process_array_commands(&mut self, cmd: RespCommand) -> bool {
-    // C# 链式回退末端：未归类命令走 other（慢命令）分派
-    self.process_other_commands(cmd)
+    match cmd {
+      // C# ProcessArrayCommands：WATCH / WATCHMS / WATCHOS
+      RespCommand::Watch => self.network_watch(),
+      RespCommand::Watchms => self.network_watch_ms(),
+      RespCommand::Watchos => self.network_watch_os(),
+      // 发布订阅族（C# ProcessArrayCommands 的 pub/sub 段；wire 为会话自持）
+      RespCommand::Subscribe => self.process_pubsub_command(cmd, false),
+      RespCommand::Ssubscribe => self.process_pubsub_command(cmd, true),
+      RespCommand::Psubscribe => self.process_pubsub_command(cmd, false),
+      RespCommand::Unsubscribe | RespCommand::Punsubscribe | RespCommand::Sunsubscribe => {
+        self.process_pubsub_command(cmd, false)
+      }
+      RespCommand::Publish | RespCommand::Spublish => self.process_pubsub_command(cmd, false),
+      RespCommand::PubsubChannels | RespCommand::PubsubNumsub | RespCommand::PubsubNumpat => {
+        self.process_pubsub_command(cmd, false)
+      }
+      // C# 链式回退末端：未归类命令走 other（慢命令）分派
+      _ => self.process_other_commands(cmd),
+    }
+  }
+
+  /// 事务门分派（C# ProcessMessages 的 `txnManager.state != TxnState.None` 分支）
+  fn process_transactional_command(&mut self, cmd: RespCommand) -> bool {
+    if self.txn_state == TxnState::Running {
+      // C# ProcessBasicCommands(cmd, ref transactionalApi)：事务执行态直通
+      return self.process_basic_commands(cmd);
+    }
+    match cmd {
+      RespCommand::Exec => self.network_exec(),
+      RespCommand::Multi => self.network_multi(),
+      RespCommand::Discard => self.network_discard(),
+      RespCommand::Quit => {
+        self.to_dispose = true;
+        self.output.extend_from_slice(b"+OK\r\n");
+        true
+      }
+      _ => self.network_skip(cmd),
+    }
+  }
+
+  /// pub/sub 命令会话侧统一入参（wire 为会话自持接线，参数取解析态）
+  fn process_pubsub_command(&mut self, cmd: RespCommand, shard: bool) -> bool {
+    let args = self.get_arg_slices();
+    match cmd {
+      RespCommand::Subscribe => self.network_subscribe(shard, &args),
+      RespCommand::Ssubscribe => self.network_subscribe(true, &args),
+      RespCommand::Psubscribe => self.network_psubscribe(&args),
+      RespCommand::Unsubscribe | RespCommand::Sunsubscribe => self.network_unsubscribe(&args),
+      RespCommand::Punsubscribe => self.network_punsubscribe(&args),
+      RespCommand::Publish | RespCommand::Spublish => self.network_publish(shard, &args),
+      RespCommand::PubsubChannels => self.network_pubsub_channels(&args),
+      RespCommand::PubsubNumsub => self.network_pubsub_numsub(&args),
+      RespCommand::PubsubNumpat => self.network_pubsub_numpat(&args),
+      _ => true,
+    }
+  }
+
+  /// MULTI（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_multi(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_multi(session))
+  }
+
+  /// EXEC（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_exec(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_exec(session))
+  }
+
+  /// DISCARD（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_discard(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_discard(session))
+  }
+
+  /// WATCH（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_watch(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_watch(session))
+  }
+
+  /// WATCHMS（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_watch_ms(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_watch_ms(session))
+  }
+
+  /// WATCHOS（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_watch_os(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_watch_os(session))
+  }
+
+  /// UNWATCH（会话侧路由，实现委托 wtxn::TransactionManager）
+  fn network_unwatch(&mut self) -> bool {
+    self.with_txn_manager(|txn, session| txn.network_unwatch(session))
+  }
+
+  /// 事务管理器暂借共同骨架（take → 调用 → 归还，规避 &mut self 双重借用）。
+  /// 未接线（None）= 宿主装配缺口，明确报错不静默
+  fn with_txn_manager(
+    &mut self,
+    f: impl FnOnce(&mut TransactionManager, &mut Self) -> bool,
+  ) -> bool {
+    let Some(mut txn) = self.txn_manager.take() else {
+      self.abort_error_message(cs::RESP_ERR_GENERIC_UNK_CMD);
+      return true;
+    };
+    let ok = f(&mut txn, self);
+    self.txn_manager = Some(txn);
+    ok
+  }
+
+  /// 排队命令（会话侧路由，实现委托 wtxn::TransactionManager）；
+  /// 命令元数据取自 resp 命令信息域（C# SimpleRespCommandInfo 同源）
+  fn network_skip(&mut self, cmd: RespCommand) -> bool {
+    let info = self.txn_queued_command_info(cmd);
+    self.with_txn_manager(|txn, session| txn.network_skip(session, cmd, info.as_ref()))
+  }
+
+  /// 当前排队命令元数据（C# SimpleRespCommandInfo → TxnQueuedCommandInfo 投影；
+  /// 键窗口按解析态参数即时解析，对齐 C# LockKeys 的 parseState 取数形态）
+  fn txn_queued_command_info(&self, cmd: RespCommand) -> Option<TxnQueuedCommandInfo> {
+    let info = try_get_simple_resp_command_info(normalize_for_acls(cmd))?;
+    let name = super::resp_commands_info_data::resp_command_to_cs_name(cmd);
+    let args = self.get_arg_slices();
+    let key_specs: Vec<TxnKeySpec> = info
+      .key_specs
+      .iter()
+      .filter_map(|spec| {
+        let (first_idx, last_idx, step) =
+          spec.get_key_search_args_slice(&args, info.is_sub_command)?;
+        Some(TxnKeySpec::new(
+          first_idx,
+          last_idx as i64,
+          step,
+          spec.flags.contains(KeySpecificationFlags::RO),
+        ))
+      })
+      .collect();
+    let keys = (!key_specs.is_empty()).then_some(TxnCommandKeys {
+      store_type: info.store_type,
+      key_specs,
+    });
+    Some(TxnQueuedCommandInfo {
+      name: name.to_string(),
+      arity: i32::from(info.arity),
+      allowed_in_txn: info.allowed_in_txn,
+      is_sub_command: info.is_sub_command,
+      keys,
+    })
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessOtherCommands
   ///
-  /// 慢命令族分派（此处可安全放 @slow 命令；C# containsSlowCommand = true）
+  /// 慢命令族分派（此处可安全放 @slow 命令）。containsSlowCommand 的置位
+  /// 单点收敛在存储执行域 `dispatch_slow` 入口——本会话分派链对 fast 存储
+  /// 命令（GET/SET 等）保持直通，段位判定与 C# 三段 switch 等效
   pub fn process_other_commands(&mut self, cmd: RespCommand) -> bool {
-    self.contains_slow_command = true;
     // Lua 脚本族（C# NetworkEVAL / NetworkEVALSHA / NetworkScript*）
     if matches!(
       cmd,
@@ -857,8 +1101,13 @@ impl RespServerSession {
       return true;
     }
     if cmd == RespCommand::Async {
-      self.output.extend_from_slice(b"+OK\r\n");
-      return true;
+      // C# NetworkASYNC：委托 basic_commands 单一定义（RESP3 才可用；
+      // BARRIER 的批量等待由 compio 单线程模型天然串行化承接）
+      let args = self.get_arg_slices();
+      let mut output = mem::take(&mut self.output);
+      let r = self.apply_async_param(&args, &mut output);
+      self.output = output;
+      return matches!(r, Ok(true));
     }
     if cmd == RespCommand::ClientInfo {
       let args = self.get_arg_slices();
@@ -916,9 +1165,26 @@ impl RespServerSession {
       let args = self.get_arg_slices();
       return self.write_via_local("role error", |s, out| s.network_role(&args, out));
     }
+    // C# NetworkCOMMAND（COMMAND 根命令）：带参报未知子命令，无参列全部命令
     if cmd == RespCommand::Command {
-      self.output.extend_from_slice(b"*0\r\n");
-      return true;
+      return self.write_via_local("command error", |s, out| s.network_command_root(out));
+    }
+    // C# NetworkAUTH（ProcessOtherCommands 段）
+    if cmd == RespCommand::Auth {
+      let args = self.get_arg_slices();
+      return self.network_auth_session(&args).unwrap_or(true);
+    }
+    // LATENCY / SLOWLOG 族（C# Metrics/Latency、Metrics/Slowlog 的会话 partial）
+    if let Some(handled) = self.process_metrics_commands(cmd) {
+      return handled;
+    }
+    // ACL 族（C# ProcessAdminCommands 的 ACL 段）
+    if let Some(handled) = self.process_acl_commands(cmd) {
+      return handled;
+    }
+    // MONITOR / DEBUG / SAVE 族 / REGISTERCS / MODULE（C# ProcessAdminCommands）
+    if let Some(handled) = self.process_admin_session_commands(cmd) {
+      return handled;
     }
     if cmd == RespCommand::Info {
       let is_cluster = self.parse_state.count != 0
@@ -954,6 +1220,55 @@ impl RespServerSession {
     }
     self.output = out;
     true
+  }
+
+  /// COMMAND 根命令入口
+  pub fn network_command_root(&mut self, output: &mut Vec<u8>) -> wresp::Result<bool> {
+    let args = self.get_arg_slices();
+    if !args.is_empty() {
+      cs::abort_with_unknown_subcommand(output, args[0].as_str_safe(), "COMMAND");
+    } else {
+      self.write_command_response(output)?;
+    }
+    Ok(true)
+  }
+
+  /// libs/server/Resp/BasicCommands.cs:NetworkAUTH
+  ///
+  /// AUTH [<username>] <password>：NoAuth 档回认证器拒绝文案；ACL 档经
+  /// [`RespServerSession::authenticate_user`] 校验后按用户名有无回 WRONGPASS 变体
+  pub fn network_auth_session(&mut self, parse_state: &[&[u8]]) -> wresp::Result<bool> {
+    wresp::check_arg_count!(parse_state, 1..=2, &mut self.output, "AUTH");
+
+    if !self.authenticator_can_authenticate {
+      // C# 默认 GarnetNoAuthAuthenticator：CanAuthenticate = false
+      cs::write_error_raw(
+        self.get_string_output(),
+        "ERR Client sent AUTH, but configured authenticator does not accept passwords",
+      );
+      return Ok(true);
+    }
+
+    let username = if parse_state.len() == 2 {
+      parse_state[0]
+    } else {
+      &[]
+    };
+    let password = parse_state[parse_state.len() - 1];
+    if self.authenticate_user(username, password) {
+      cs::write_raw(self.get_string_output(), cs::RESP_OK);
+    } else if username.is_empty() {
+      cs::write_error_raw(
+        self.get_string_output(),
+        cs::RESP_WRONGPASS_INVALID_PASSWORD,
+      );
+    } else {
+      cs::write_error_raw(
+        self.get_string_output(),
+        cs::RESP_WRONGPASS_INVALID_USERNAME_PASSWORD,
+      );
+    }
+    Ok(true)
   }
 
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomTxn / NetworkCustomProcedure /
@@ -1001,7 +1316,7 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:Process（admin 族回退）
   pub fn process(&mut self, cmd: RespCommand) -> bool {
-    let args = self.collect_arg_slices();
+    let args = self.get_arg_slices();
     self.dispatch_via_garnet_api(cmd, &args);
     true
   }
@@ -1407,12 +1722,6 @@ impl RespServerSession {
       args.push(self.parse_state.get_arg_slice_by_ref(i).as_slice());
     }
     args
-  }
-
-  /// 汇集解析态参数切片（向后兼容接口）
-  #[inline]
-  pub fn collect_arg_slices<'a>(&self) -> Vec<&'a [u8]> {
-    self.get_arg_slices().to_vec()
   }
 
   /// 汇集解析态参数所有权副本（Lua 脚本上下文等需独立所有权场景用）
@@ -1852,84 +2161,83 @@ impl wpubsub::PubSubSessionCommands for RespServerSession {
 }
 
 impl RespServerSession {
-  /// 订阅通道（委托 wpubsub::PubSubSessionCommands）
-  #[inline]
-  pub fn network_subscribe(
+  /// pub/sub 命令共同骨架：trait 默认实现同时借用会话输出面与自持 wire，
+  /// take→调用→归还规避字段级双重借用；占位 wire 零堆分配（Vec::new 不分配）
+  fn with_pubsub(
     &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    shard: bool,
-    args: &[&[u8]],
+    f: impl FnOnce(&mut Self, &mut wpubsub::PubSubSession) -> bool,
   ) -> bool {
-    wpubsub::PubSubSessionCommands::network_subscribe(self, wire, shard, args)
+    let mut wire = mem::replace(
+      &mut self.pubsub,
+      wpubsub::PubSubSession::with_mailbox_capacity(None, 0),
+    );
+    let ok = f(self, &mut wire);
+    self.pubsub = wire;
+    ok
   }
 
-  /// 模式订阅（委托 wpubsub::PubSubSessionCommands）
+  /// 订阅通道（C# NetworkSUBSCRIBE / NetworkSSUBSCRIBE；wire 为会话自持接线）
   #[inline]
-  pub fn network_psubscribe(&mut self, wire: &mut wpubsub::PubSubSession, args: &[&[u8]]) -> bool {
-    wpubsub::PubSubSessionCommands::network_psubscribe(self, wire, args)
+  pub fn network_subscribe(&mut self, shard: bool, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| {
+      wpubsub::PubSubSessionCommands::network_subscribe(s, wire, shard, args)
+    })
   }
 
-  /// 退订通道（委托 wpubsub::PubSubSessionCommands）
+  /// 模式订阅（C# NetworkPSUBSCRIBE）
   #[inline]
-  pub fn network_unsubscribe(&mut self, wire: &mut wpubsub::PubSubSession, args: &[&[u8]]) -> bool {
-    wpubsub::PubSubSessionCommands::network_unsubscribe(self, wire, args)
+  pub fn network_psubscribe(&mut self, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_psubscribe(s, wire, args))
   }
 
-  /// 退订模式（委托 wpubsub::PubSubSessionCommands）
+  /// 退订通道（C# NetworkUNSUBSCRIBE / NetworkSUNSUBSCRIBE）
   #[inline]
-  pub fn network_punsubscribe(
-    &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    args: &[&[u8]],
-  ) -> bool {
-    wpubsub::PubSubSessionCommands::network_punsubscribe(self, wire, args)
+  pub fn network_unsubscribe(&mut self, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_unsubscribe(s, wire, args))
   }
 
-  /// 发布消息（委托 wpubsub::PubSubSessionCommands）
+  /// 退订模式（C# NetworkPUNSUBSCRIBE）
   #[inline]
-  pub fn network_publish(
-    &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    shard: bool,
-    args: &[&[u8]],
-  ) -> bool {
-    wpubsub::PubSubSessionCommands::network_publish(self, wire, shard, args)
+  pub fn network_punsubscribe(&mut self, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_punsubscribe(s, wire, args))
   }
 
-  /// 列出活跃通道（委托 wpubsub::PubSubSessionCommands）
+  /// 发布消息（C# NetworkPUBLISH / NetworkSPUBLISH）
   #[inline]
-  pub fn network_pubsub_channels(
-    &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    args: &[&[u8]],
-  ) -> bool {
-    wpubsub::PubSubSessionCommands::network_pubsub_channels(self, wire, args)
+  pub fn network_publish(&mut self, shard: bool, args: &[&[u8]]) -> bool {
+    self
+      .with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_publish(s, wire, shard, args))
   }
 
-  /// 活跃模式订阅数（委托 wpubsub::PubSubSessionCommands）
+  /// 列出活跃通道（C# NetworkPUBSUB_CHANNELS）
   #[inline]
-  pub fn network_pubsub_numpat(
-    &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    args: &[&[u8]],
-  ) -> bool {
-    wpubsub::PubSubSessionCommands::network_pubsub_numpat(self, wire, args)
+  pub fn network_pubsub_channels(&mut self, args: &[&[u8]]) -> bool {
+    self
+      .with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_pubsub_channels(s, wire, args))
   }
 
-  /// 指定通道订阅数（委托 wpubsub::PubSubSessionCommands）
+  /// 活跃模式订阅数（C# NetworkPUBSUB_NUMPAT）
   #[inline]
-  pub fn network_pubsub_numsub(
-    &mut self,
-    wire: &mut wpubsub::PubSubSession,
-    args: &[&[u8]],
-  ) -> bool {
-    wpubsub::PubSubSessionCommands::network_pubsub_numsub(self, wire, args)
+  pub fn network_pubsub_numpat(&mut self, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_pubsub_numpat(s, wire, args))
   }
 
-  /// 会话推送编码收敛点（委托 wpubsub::PubSubSessionCommands）
+  /// 指定通道订阅数（C# NetworkPUBSUB_NUMSUB）
   #[inline]
-  pub fn drain_pubsub_frames(&mut self, wire: &mut wpubsub::PubSubSession) -> usize {
-    wpubsub::PubSubSessionCommands::drain_pubsub_frames(self, wire)
+  pub fn network_pubsub_numsub(&mut self, args: &[&[u8]]) -> bool {
+    self.with_pubsub(|s, wire| wpubsub::PubSubSessionCommands::network_pubsub_numsub(s, wire, args))
+  }
+
+  /// 会话推送编码收敛点（C# Publish / PatternPublish）
+  #[inline]
+  pub fn drain_pubsub_frames(&mut self) -> usize {
+    let mut wire = mem::replace(
+      &mut self.pubsub,
+      wpubsub::PubSubSession::with_mailbox_capacity(None, 0),
+    );
+    let n = wpubsub::PubSubSessionCommands::drain_pubsub_frames(self, &mut wire);
+    self.pubsub = wire;
+    n
   }
 }
 
@@ -1940,6 +2248,22 @@ fn can_run_with_protection(option: ConnectionProtectionOption, is_local: bool) -
     ConnectionProtectionOption::No => false,
     ConnectionProtectionOption::Local => is_local,
   }
+}
+
+/// ACL 口令校验闭包（wacl GarnetAclWithPasswordAuthenticator::authenticate_internal
+/// 的同语义承接：ascii_sanitize 为 wacl pub(crate)，按 >0x7F 折 '?' 规范化）
+fn acl_password_check(
+  user_handle: &Arc<parking_lot::RwLock<Arc<wacl::User>>>,
+  _username: &[u8],
+  password: &[u8],
+) -> bool {
+  let sanitized: String = password
+    .iter()
+    .map(|&b| if b <= 0x7F { b as char } else { '?' })
+    .collect();
+  let hash = wacl::AclPassword::from_string(&sanitized);
+  let user = user_handle.read();
+  user.is_enabled() && user.validate_password(&hash)
 }
 
 /// 命令 arity 纯判定逻辑（供 is_command_arity_valid 使用）。
@@ -2026,20 +2350,42 @@ mod tests {
     assert!(s.client_name.is_none());
     assert!(s.user_handle.is_some(), "构造即默认用户");
 
-    // HELLO [3] 升级协议版本
-    s.update_resp_protocol_version(3);
+    // HELLO [3] 经命令路径升级协议版本，proto/id 回写会话状态
+    let mut out = Vec::new();
+    assert!(s.process_hello_command_state(Some(3), b"", None, &mut out));
+    let text = String::from_utf8(out).unwrap();
+    assert!(
+      text.contains("$5\r\nproto\r\n:3\r\n"),
+      "resp=3 expected: {text}"
+    );
+    assert!(
+      text.contains("$2\r\nid\r\n:42\r\n"),
+      "真实 Id expected: {text}"
+    );
     assert_eq!(s.resp_protocol_version, 3);
 
+    // 二次 HELLO 2 降级
+    let mut out = Vec::new();
+    assert!(s.process_hello_command_state(Some(2), b"", None, &mut out));
+    assert_eq!(s.resp_protocol_version, 2);
+
+    // CLIENT ID 透传会话 Id（含参数个数防御）
+    s.parse_state.initialize(0);
+    assert!(s.process_other_commands(RespCommand::ClientId));
+    assert_eq!(String::from_utf8(s.take_output()).unwrap(), ":42\r\n");
+    s.parse_state.initialize(1);
+    assert!(s.process_other_commands(RespCommand::ClientId));
+    assert_eq!(
+      String::from_utf8(s.take_output()).unwrap(),
+      "-ERR wrong number of arguments for 'client|id' command\r\n"
+    );
+
+    // 客户端元数据 setter
     s.set_client_name(Some("webc"));
     assert_eq!(s.client_name.as_deref(), Some("webc"));
     s.set_client_lib_info(Some("phpredis"), Some("6.0.2"));
     assert_eq!(s.client_lib_name.as_deref(), Some("phpredis"));
     assert_eq!(s.client_lib_version.as_deref(), Some("6.0.2"));
-
-    // useAsync 由 ASYNC 命令置位
-    assert!(!s.use_async);
-    s.use_async = true;
-    assert!(s.use_async);
   }
 
   #[test]
@@ -2054,29 +2400,6 @@ mod tests {
       info,
       "id=7 addr=127.0.0.1:6380 laddr= age=0 flags=N db=0 resp=2 lib-name=redis-py lib-ver=5.0.1"
     );
-  }
-
-  #[test]
-  fn hello_answer_uses_session_state() {
-    let mut s = session(9);
-    let mut out = Vec::new();
-    let ok = s.process_hello_command_state(Some(3), b"", None, &mut out);
-    assert!(ok);
-    let text = String::from_utf8(out).unwrap();
-    // proto 回写会话当前版本（3），id 为真实会话 Id
-    assert!(
-      text.contains("$5\r\nproto\r\n:3\r\n"),
-      "resp=3 expected: {text}"
-    );
-    assert!(
-      text.contains("$2\r\nid\r\n:9\r\n"),
-      "真实 Id expected: {text}"
-    );
-    assert_eq!(s.resp_protocol_version, 3);
-    // 二次 HELLO 2 降级
-    let mut out = Vec::new();
-    assert!(s.process_hello_command_state(Some(2), b"", None, &mut out));
-    assert_eq!(s.resp_protocol_version, 2);
   }
 
   #[test]
@@ -2208,22 +2531,6 @@ mod tests {
     assert!(!s.send_and_reset(), "空缓冲冲洗 = 无进展");
     let total = s.session_metrics.as_ref().unwrap().total_net_output_bytes;
     assert_eq!(total, 13);
-  }
-
-  #[test]
-  fn client_id_writes_session_id() {
-    let mut s = session(777);
-    s.parse_state.initialize(0);
-    assert!(s.process_other_commands(RespCommand::ClientId));
-    assert_eq!(String::from_utf8(s.take_output()).unwrap(), ":777\r\n");
-
-    // 带参数即报参数错误
-    s.parse_state.initialize(1);
-    assert!(s.process_other_commands(RespCommand::ClientId));
-    assert_eq!(
-      String::from_utf8(s.take_output()).unwrap(),
-      "-ERR wrong number of arguments for 'client|id' command\r\n"
-    );
   }
 
   #[test]
@@ -2556,6 +2863,130 @@ mod tests {
     s.bytes_read = invalid_frame.len();
     assert_eq!(s.get_command(), None);
     assert_eq!(s.read_head, 0);
+  }
+
+  // ---- 新接线命令族的会话级回归（NoAuth / 未装配 / 禁用语义对齐 C#）----
+
+  fn session_frame(frame: &[u8]) -> (RespServerSession, Vec<u8>) {
+    let mut s = session(0);
+    let consumed = s.try_consume_messages(frame);
+    assert!(consumed.is_some());
+    let out = s.take_output();
+    (s, out)
+  }
+
+  #[test]
+  fn auth_noauth_rejects_with_configured_error() {
+    // C# NoAuth 认证器：AUTH 回 "does not accept passwords"
+    let (_, out) = session_frame(b"*2\r\n$4\r\nAUTH\r\n$3\r\npwd\r\n");
+    assert_eq!(
+      out,
+      b"-ERR Client sent AUTH, but configured authenticator does not accept passwords\r\n"
+    );
+  }
+
+  #[test]
+  fn async_resp2_reports_unsupported() {
+    let (_, out) = session_frame(b"*2\r\n$5\r\nASYNC\r\n$2\r\nON\r\n");
+    assert_eq!(out, b"-ERR command not supported in RESP2\r\n");
+  }
+
+  #[test]
+  fn command_root_with_args_reports_unknown_subcommand() {
+    let (_, out) = session_frame(b"*2\r\n$7\r\nCOMMAND\r\n$4\r\nNOPE\r\n");
+    assert_eq!(out, b"-ERR unknown subcommand 'NOPE'.\r\n");
+  }
+
+  #[test]
+  fn latency_help_lists_subcommands() {
+    let (_, out) = session_frame(b"*2\r\n$7\r\nLATENCY\r\n$4\r\nHELP\r\n");
+    assert!(out.starts_with(b"*"), "帮助文本数组: {out:?}");
+    assert!(String::from_utf8_lossy(&out).contains("HISTOGRAM"));
+  }
+
+  #[test]
+  fn latency_histogram_without_monitor_is_empty_array() {
+    let (_, out) = session_frame(b"*2\r\n$7\r\nLATENCY\r\n$9\r\nHISTOGRAM\r\n");
+    assert_eq!(out, b"*0\r\n");
+  }
+
+  #[test]
+  fn slowlog_len_without_container_is_zero() {
+    let (_, out) = session_frame(b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nLEN\r\n");
+    assert_eq!(out, b":0\r\n");
+  }
+
+  #[test]
+  fn acl_cat_without_authenticator_reports_disabled() {
+    let (_, out) = session_frame(b"*2\r\n$3\r\nACL\r\n$3\r\nCAT\r\n");
+    assert_eq!(out, b"-ERR ACL Authenticator is disabled.\r\n");
+  }
+
+  #[test]
+  fn publish_without_broker_reports_disabled() {
+    let (_, out) = session_frame(b"*3\r\n$7\r\nPUBLISH\r\n$1\r\nc\r\n$1\r\nv\r\n");
+    assert_eq!(
+      out,
+      b"-ERR PUBLISH is disabled, enable it with --pubsub option.\r\n"
+    );
+  }
+
+  #[test]
+  fn subscribe_without_broker_reports_disabled() {
+    let (_, out) = session_frame(b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n");
+    assert_eq!(
+      out,
+      b"-ERR SUBSCRIBE is disabled, enable it with --pubsub option.\r\n"
+    );
+  }
+
+  #[test]
+  fn multi_without_txn_components_reports_error() {
+    // 事务组件未注入 = 宿主装配缺口：明确报错不静默
+    let (_, out) = session_frame(b"*1\r\n$5\r\nMULTI\r\n");
+    assert_eq!(out, b"-ERR unknown command\r\n");
+  }
+
+  #[test]
+  fn watch_in_txn_gate_is_registered_with_components() {
+    use std::sync::Arc as StdArc;
+    let mut s = session(0);
+    s.attach_transaction_components(StdArc::new(wtxn::WatchVersionMap::new(64)));
+    // WATCH 无键：参数错误（事务域 abort 文案）
+    let consumed = s.try_consume_messages(b"*1\r\n$5\r\nWATCH\r\n");
+    assert!(consumed.is_some());
+    assert!(
+      s.take_output()
+        .starts_with(b"-ERR wrong number of arguments")
+    );
+  }
+
+  #[test]
+  fn multi_exec_roundtrip_without_writes() {
+    use std::sync::Arc as StdArc;
+    let mut s = session(0);
+    s.attach_transaction_components(StdArc::new(wtxn::WatchVersionMap::new(64)));
+    // MULTI → +OK；EXEC 空事务 → 空数组
+    assert!(s.try_consume_messages(b"*1\r\n$5\r\nMULTI\r\n").is_some());
+    assert_eq!(s.take_output(), b"+OK\r\n");
+    // 排队命令（PING 在事务内跳过执行仅登记）
+    assert!(s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n").is_some());
+    assert_eq!(s.take_output(), b"+QUEUED\r\n");
+    assert!(s.try_consume_messages(b"*1\r\n$4\r\nEXEC\r\n").is_some());
+    assert_eq!(s.take_output(), b"*1\r\n");
+  }
+
+  #[test]
+  fn attach_pubsub_enables_publish_path() {
+    use std::sync::Arc as StdArc;
+    let mut s = session(0);
+    s.attach_pubsub(StdArc::new(wpubsub::SubscribeBroker::new(4096)));
+    assert!(
+      s.try_consume_messages(b"*3\r\n$7\r\nPUBLISH\r\n$1\r\nc\r\n$1\r\nv\r\n")
+        .is_some()
+    );
+    // broker 已接线：发布到无订阅者通道回 :0（不再是禁用错误）
+    assert_eq!(s.take_output(), b":0\r\n");
   }
 
   #[test]

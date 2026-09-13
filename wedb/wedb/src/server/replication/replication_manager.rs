@@ -12,7 +12,7 @@ use crossfire::oneshot::{TxOneshot, oneshot};
 use log::{error, info, trace, warn};
 use parking_lot::{Mutex, RwLock};
 use waof::{AofAddress, AofEntryType, FIRST_VALID_AOF_ADDRESS};
-use wnode::{DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool};
+use wbase::pool::{DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool};
 
 use crate::server::replication::{
   aof_sync_driver_store::AofSyncDriverStore,

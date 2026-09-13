@@ -94,6 +94,19 @@ impl SessionParseStateExtensionAccess for SessionParseState {
   }
 }
 
+/// 解析态序列化快照（C# parseState.SerializeTo 的安全零拷贝封装，
+/// 供慢日志入库等快照场景使用）
+pub fn serialize_snapshot(parse_state: &SessionParseState) -> Vec<u8> {
+  let len = parse_state.get_serialized_length();
+  let mut buf = vec![0u8; len];
+  if len > 0 {
+    unsafe {
+      parse_state.serialize_to(buf.as_mut_ptr(), len);
+    }
+  }
+  buf
+}
+
 /// libs/server/SessionParseStateExtensions.cs:TryGetInfoMetricsType
 #[inline]
 pub fn try_get_info_metrics_type(

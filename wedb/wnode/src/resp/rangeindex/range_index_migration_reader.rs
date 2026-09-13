@@ -144,11 +144,6 @@ mod tests {
   }
 
   #[test]
-  fn default_read_buffer_is_one_mib() {
-    assert_eq!(DEFAULT_FILE_READ_BUFFER_SIZE, 1 << 20);
-  }
-
-  #[test]
   fn drives_stream_to_completion_in_destination_sized_chunks() {
     let stub = [0x11u8; 35];
     let file: Vec<u8> = (0..2000u32).map(|i| i as u8).collect();

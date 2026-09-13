@@ -1,10 +1,9 @@
-//! 千万级 BfTree 集合会话管理模块 (Hash / Set / ZSet / List)
+//! 千万级 BfTree 集合会话管理模块 (Set / ZSet / List)
 //!
 //! 基于集合库 `wcol` 与底层存储 `wbftree` / `RangeIndexManager` 构建，
 //! 遵循零拷贝、极致性能、单次迭代、栈分配与严格删空生命周期规范。
 //!
 //! 支持集合操作：
-//! - Hash: `bftree_hset`, `bftree_hget`, `bftree_hdel`, `bftree_hlen`, `bftree_hscan`, `bftree_hscan_stream`
 //! - Set: `bftree_sadd`, `bftree_srem`, `bftree_sismember`, `bftree_scard`, `bftree_sscan`, `bftree_sscan_stream`
 //! - ZSet: `bftree_zadd`, `bftree_zrem`, `bftree_zscore`, `bftree_zrange_by_score`, `bftree_zrange_by_score_stream`, `bftree_zcount`, `bftree_zcard`
 //! - List: `bftree_lpush`, `bftree_rpush`, `bftree_lpop`, `bftree_rpop`, `bftree_lindex`, `bftree_lrange`, `bftree_lset`, `bftree_ltrim`, `bftree_llen`
@@ -13,7 +12,6 @@
 //! - 删空生命周期：集合元素清零时写墓碑删除主存元记录、清理 TTL，并调用 `RangeIndexManager::delete_index` 排空在途写者并删除底层磁盘数据文件；
 //! - CPR 检查点与故障恢复：无缝接入 `snapshot_all_trees_for_checkpoint` 与 `recover_range_indexes`。
 
-pub mod hash;
 pub mod list;
 pub mod set;
 pub mod zset;

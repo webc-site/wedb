@@ -93,28 +93,6 @@ fn user_word_capacity_limits_and_errors() -> Void {
   OK
 }
 
-/// 验证通过 Participant 句柄访问与操作用户字
-#[test]
-fn user_word_via_participant() -> Void {
-  info!("验证通过 Participant 句柄访问与操作用户字");
-
-  const CAPACITY: usize = 8;
-  let epoch = Arc::new(LightEpoch::new(CAPACITY));
-  let word_idx = epoch.allocate_user_word(999)?;
-
-  let p1 = epoch.register()?;
-  assert_eq!(p1.user_word(word_idx)?, 999);
-
-  p1.set_user_word(word_idx, 555)?;
-  assert_eq!(p1.user_word(word_idx)?, 555);
-
-  p1.user_word_atomic(word_idx)?
-    .fetch_add(45, Ordering::SeqCst);
-  assert_eq!(p1.user_word(word_idx)?, 600);
-
-  OK
-}
-
 /// 验证多线程并发抢注用户字槽位，位掩码 CAS 恰好分配唯一索引
 #[test]
 fn concurrent_user_word_allocation_race() -> Void {

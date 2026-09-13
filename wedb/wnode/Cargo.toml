@@ -31,7 +31,7 @@ sonic-rs.workspace = true
 thiserror.workspace = true
 wacl.workspace = true
 waof.workspace = true
-wbase = { workspace = true, features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "time"] }
+wbase = { workspace = true, features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "pool", "time"] }
 wbftree.workspace = true
 wbitmap.workspace = true
 wconf.workspace = true

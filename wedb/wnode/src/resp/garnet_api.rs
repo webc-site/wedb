@@ -26,9 +26,10 @@ use wresp::{
 };
 
 use super::{
-  basic_commands::{IncrCmd, parse_flush_options},
+  basic_commands::{IncrCmd, ObjectSubCmd, parse_flush_options},
   key_admin_commands::{ExpireCmd, ExpireTimeCmd, TtlCmd},
   objects::{sorted_set_commands::RemoveRangeKind, sorted_set_geo_commands::GeoSearchCommandKind},
+  rangeindex::resp_server_session_range_index as ri_cmds,
   resp_server_session::RespServerSession,
   slow_path::{SlowFuture, SlowWait},
 };
@@ -429,6 +430,31 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           output.extend_from_slice(RESP_OK);
         }
       }
+      // ---- RangeIndex 族（resp_server_session_range_index.rs：解析校验与
+      // 执行一体在异步段闭环；ri 门取存储域共享范围索引管理器）
+      C::Ricreate
+      | C::Riset
+      | C::Riget
+      | C::Ridel
+      | C::Riscan
+      | C::Rirange
+      | C::Riexists
+      | C::Riconfig
+      | C::Rimetrics => {
+        let ri = Some(self.session.store.range_index.as_ref());
+        // 解析校验 + 执行一体闭环；应答直写 output（错误映射在处理器内）
+        let _ = match cmd {
+          C::Ricreate => ri_cmds::network_ricreate(&refs, ri, &self.session, &mut output).await,
+          C::Riset => ri_cmds::network_riset(&refs, ri, &self.session, &mut output).await,
+          C::Riget => ri_cmds::network_riget(&refs, ri, &self.session, &mut output).await,
+          C::Ridel => ri_cmds::network_ridel(&refs, ri, &self.session, &mut output).await,
+          C::Riscan => ri_cmds::network_riscan(&refs, ri, &self.session, &mut output).await,
+          C::Rirange => ri_cmds::network_rirange(&refs, ri, &self.session, &mut output).await,
+          C::Riexists => ri_cmds::network_riexists(&refs, ri, &self.session, &mut output).await,
+          C::Riconfig => ri_cmds::network_riconfig(&refs, ri, &self.session, &mut output).await,
+          _ => ri_cmds::network_rimetrics(&refs, ri, &self.session, &mut output).await,
+        };
+      }
       // 未接入慢路径分派表的命令：写明错误，绝不静默
       _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),
     }
@@ -475,9 +501,9 @@ async fn collect_envelope_keys<'a, D: wdev::Device>(
   Ok(keys.into_iter().collect())
 }
 
-/// 分派表（IGarnetApi 命令执行入口的具体命中集：字符串族、键管理族、
-/// 多键数组族与对象族——C# 会话分派链三段 switch 的 rust 单表承接形态；
-/// 慢命令族 / 后台扫描族接入清单见 crate 汇报）
+/// 分派表 · fast 段（C# ProcessBasicCommands + ProcessArrayCommands 的存储命令
+/// switch：字符串族、多键数组族、键管理族与对象集合族；@fast 语义，不置位
+/// containsSlowCommand）。未命中命令落入 [`dispatch_slow`]（C# 链式回退）
 fn dispatch<D: Device>(
   session: &mut RespServerSession,
   cmd: RespCommand,
@@ -511,8 +537,6 @@ fn dispatch<D: Device>(
     C::Mget => session.network_mget(args, batch, output),
     C::Mset => session.network_mset(args, batch, output),
     C::Msetnx => session.network_msetnx(args, batch, output),
-    C::Type => session.network_type(args, batch, output),
-    C::Lcs => session.network_lcs(args, batch, output),
 
     // ---- 键管理族（KeyAdminCommands.cs）
     C::Exists => session.network_exists(args, batch, output),
@@ -534,16 +558,6 @@ fn dispatch<D: Device>(
     // ---- 库切换族（ArrayCommands.cs:NetworkSELECT / NetworkSWAPDB）
     C::Select => session.network_select(args, batch, output),
     C::Swapdb => session.network_swapdb(args, output),
-
-    // ---- 全库扫描族（校验同步承接，扫描降级异步闭环）
-    C::Dbsize => session.network_dbsize(args, output),
-    C::Keys => session.network_keys(args, output),
-    C::Scan => session.network_scan(args, output),
-
-    // ---- 清库族（BasicCommands.cs:NetworkFLUSHDB / NetworkFLUSHALL：
-    // 选项校验同步承接，清库降级异步闭环）
-    C::Flushdb => session.network_flushdb(args, output),
-    C::Flushall => session.network_flushall(args, output),
 
     // ---- 哈希族（Objects/HashCommands.cs）
     C::Hset => session.hash_set(args, batch, output),
@@ -722,6 +736,37 @@ fn dispatch<D: Device>(
       session.geo_search_commands(args, batch, output, GeoSearchCommandKind::GeoSearchStore)
     }
 
+    // fast 段未命中 → 慢段（C# ProcessOtherCommands / ProcessAdminCommands 链式回退）
+    _ => dispatch_slow(session, cmd, args, batch, output),
+  }
+}
+
+/// 分派表 · slow 段（C# ProcessOtherCommands + ProcessAdminCommands 的存储命令
+/// switch：TYPE/LCS/DBSIZE/KEYS/SCAN/清库族/CONFIG/对象收集/ETAG/OBJECT/
+/// MEMORY/RI 族）。入口置位 containsSlowCommand（NET_RS 直方图分桶，C# 同款
+/// 首行语义——本段皆 @slow，单点定义杜绝逐臂重复）
+fn dispatch_slow<D: Device>(
+  session: &mut RespServerSession,
+  cmd: RespCommand,
+  args: &[&[u8]],
+  batch: &BatchStoreSession<'_, D>,
+  output: &mut Vec<u8>,
+) -> wresp::Result<bool> {
+  use RespCommand as C;
+
+  session.contains_slow_command = true;
+  match cmd {
+    // ---- 慢命令族（ProcessOtherCommands：TYPE / LCS / DBSIZE / KEYS / SCAN）
+    C::Type => session.network_type(args, batch, output),
+    C::Lcs => session.network_lcs(args, batch, output),
+    C::Dbsize => session.network_dbsize(args, output),
+    C::Keys => session.network_keys(args, output),
+    C::Scan => session.network_scan(args, output),
+
+    // ---- 清库族（ProcessOtherCommands：选项校验同步承接，清库降级异步闭环）
+    C::Flushdb => session.network_flushdb(args, output),
+    C::Flushall => session.network_flushall(args, output),
+
     // ---- 会话族（无存储写，仅经统一注入面保持单一路径）
     C::Hello => session.network_hello(args, batch, output),
 
@@ -736,8 +781,43 @@ fn dispatch<D: Device>(
     C::Hcollect => session.network_hcollect(args, batch, output),
     C::Zcollect => session.network_zcollect(args, batch, output),
 
+    // ---- COMMAND 族（ProcessOtherCommands：命令元数据自省，无存储面）
+    C::CommandCount => session.network_command_count(args, batch, output),
+    C::CommandDocs => session.network_command_docs(args, batch, output),
+    C::CommandInfo => session.network_command_info(args, batch, output),
+    C::CommandGetkeys => session.network_command_getkeys(args, batch, output),
+    C::CommandGetkeysandflags => session.network_command_getkeysandflags(args, batch, output),
+
+    // ---- MEMORY / OBJECT 族（ProcessOtherCommands：BasicCommands.cs）
+    C::MemoryUsage => session.network_memory_usage(args, batch, output),
+    C::ObjectHelp => session.network_objecthelp(args, batch, output),
+    C::ObjectEncoding => session.network_object(ObjectSubCmd::Encoding, args, batch, output),
+    C::ObjectFreq => session.network_object(ObjectSubCmd::Freq, args, batch, output),
+    C::ObjectIdletime => session.network_object(ObjectSubCmd::Idletime, args, batch, output),
+    C::ObjectRefcount => session.network_object(ObjectSubCmd::Refcount, args, batch, output),
+
+    // ---- Etag 族（ProcessOtherCommands：BasicEtagCommands.cs）
+    C::Getwithetag => session.network_getwithetag(args, batch, output),
+    C::Getifnotmatch => session.network_getifnotmatch(args, batch, output),
+    C::Setifmatch => session.network_setifmatch(args, batch, output),
+    C::Setifgreater => session.network_setifgreater(args, batch, output),
+    C::Setwithetag => session.network_setwithetag(args, batch, output),
+    C::Delifgreater => session.network_delifgreater(args, batch, output),
+
+    // ---- RangeIndex 族（ProcessOtherCommands：RespServerSessionRangeIndex.cs；
+    // wkv 范围索引走 compio 异步存储路径，同步段直接降级 SlowWait 异步闭环）
+    C::Ricreate
+    | C::Riset
+    | C::Riget
+    | C::Ridel
+    | C::Riscan
+    | C::Rirange
+    | C::Riexists
+    | C::Riconfig
+    | C::Rimetrics => Ok(false),
+
     // 未接入分派表的命令：按 C# ProcessAdminCommands 尾部兜底明确报错，
-    // 绝不静默吞命令（Vector/RangeIndex 异步族接入计划见 crate 汇报）
+    // 绝不静默吞命令
     _ => {
       write_error_raw(output, RESP_ERR_GENERIC_UNK_CMD);
       Ok(true)
@@ -803,5 +883,51 @@ mod tests {
     resp_session.output.clear();
     api.exec(&mut resp_session, RespCommand::Vdim, &[b"mykey"]);
     assert_eq!(resp_session.output, b":2\r\n");
+  }
+
+  #[test]
+  fn test_etag_family_dispatch_via_store() {
+    // Etag 族接入分派表（C# ProcessOtherCommands 段）：SETWITHETAG →
+    // GETWITHETAG → DELIFGREATER 全链路真存储读写
+    let dir = tempdir().unwrap();
+    let config = StoreConfig::new(1024, 64 * 1024, 16, 0.5).unwrap();
+    let device = Arc::new(SegmentedDevice::single_file(dir.path().join("e.db")).unwrap());
+    let store = Arc::new(WedbStore::open(config, device).unwrap());
+    let session = store.new_session().unwrap();
+    let api = StoreGarnetApi::new(session);
+    let mut s = RespServerSession::new(1, RespServerSessionOptions::default());
+
+    // SETWITHETAG key val → +OK
+    api.exec(&mut s, RespCommand::Setwithetag, &[b"k", b"v1"]);
+    assert_eq!(s.output, b"+OK\r\n");
+    s.output.clear();
+
+    // GETWITHETAG key → [val, etag] 双元素数组
+    api.exec(&mut s, RespCommand::Getwithetag, &[b"k"]);
+    assert_eq!(s.output, b"*2\r\n$2\r\nv1\r\n:0\r\n");
+    s.output.clear();
+
+    // DELIFGREATER key 5 → 删除计数 1
+    api.exec(&mut s, RespCommand::Delifgreater, &[b"k", b"5"]);
+    assert_eq!(s.output, b":1\r\n");
+  }
+
+  #[test]
+  fn test_ri_commands_suspend_to_slow_path() {
+    // RI 族经 dispatch_slow 返回 Ok(false)：同步段挂起 SlowWait 停止本批
+    // 消费，网络泵 await 闭环（compio 异步存储路径的统一承接形态）
+    let dir = tempdir().unwrap();
+    let config = StoreConfig::new(1024, 64 * 1024, 16, 0.5).unwrap();
+    let device = Arc::new(SegmentedDevice::single_file(dir.path().join("ri.db")).unwrap());
+    let store = Arc::new(WedbStore::open(config, device).unwrap());
+    let _session = store.new_session().unwrap();
+    let api: GarnetApi = StoreGarnetApi::new(store.new_session().unwrap()).into();
+    let mut s = RespServerSession::new(1, RespServerSessionOptions::default());
+    s.set_garnet_api(api.clone());
+
+    api.exec(&mut s, RespCommand::Riget, &[b"idx", b"f"]);
+    // 应答不残留（本次无输出），挂起慢路径执行体由网络泵驱动
+    assert!(s.output.is_empty());
+    assert!(s.pending_slow.is_some());
   }
 }

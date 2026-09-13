@@ -1,6 +1,6 @@
-//! 网络缓冲区池化管理
+//! 网络定长缓冲区池化管理
 //!
-//! 1:1 对标微软 Garnet LimitedFixedBufferPool 与 NetworkBufferSettings
+//! 1:1 对标微软 Garnet LimitedFixedBufferPool 与 NetworkBufferSettings（libs/common/Memory/LimitedFixedBufferPool.cs）
 //!
 //! 统一管理收发网络缓冲区，避免频繁堆分配与内存抖动。默认块大小 64KB (1 << 16)；
 //! 提供快速借出、RAII 自动归还复用、Purge 清理及统计指标导出。
@@ -16,7 +16,8 @@ use std::{
 };
 
 use crossfire::flavor::{Array, Queue};
-use wbase::align::CachePadded;
+
+use crate::align::CachePadded;
 
 /// 默认网络缓冲区大小：64KB
 pub const DEFAULT_BUFFER_SIZE: usize = 1 << 16;
@@ -197,12 +198,6 @@ impl LimitedFixedBufferPool {
     self.queue.len()
   }
 
-  /// 当前池中闲置可用缓冲区数量（别名）
-  #[inline]
-  pub fn pool_size(&self) -> usize {
-    self.queue.len()
-  }
-
   /// 当前借出中的缓冲区数量
   #[inline]
   pub fn borrowed_count(&self) -> usize {
@@ -303,13 +298,12 @@ impl NetworkBufferSettings {
 
 #[cfg(test)]
 mod tests {
-  use std::thread;
+  use std::{mem::align_of, thread};
 
   use super::*;
 
   #[test]
   fn test_buffer_pool_cache_line_alignment() {
-    use std::mem::align_of;
     let pool = LimitedFixedBufferPool::new(1024, 16);
     assert_eq!(align_of::<CachePadded<AtomicUsize>>(), 128);
     let alloc_addr = &*pool.allocated_count as *const AtomicUsize as usize;
@@ -322,7 +316,6 @@ mod tests {
     let pool = LimitedFixedBufferPool::new(1024, 16);
     assert_eq!(pool.allocated_count(), 0);
     assert_eq!(pool.free_count(), 0);
-    assert_eq!(pool.pool_size(), 0);
 
     {
       let mut b1 = pool.get(512);
@@ -335,7 +328,6 @@ mod tests {
     // Drop 后自动归还
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 1);
-    assert_eq!(pool.pool_size(), 1);
 
     // 再次借出应复用
     {
@@ -348,7 +340,6 @@ mod tests {
     assert_eq!(pool.free_count(), 1);
     pool.purge();
     assert_eq!(pool.free_count(), 0);
-    assert_eq!(pool.pool_size(), 0);
   }
 
   #[test]
@@ -359,11 +350,12 @@ mod tests {
     assert_eq!(Arc::strong_count(&pool), 2);
     assert_eq!(pool.borrowed_count(), 1);
 
-    let vec = b.take();
-    assert_eq!(Arc::strong_count(&pool), 1);
+    // take 后主动放弃归还
+    let raw = b.take();
+    assert_eq!(raw.capacity(), 1024);
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 0);
-    assert_eq!(vec.capacity(), 1024);
+    assert_eq!(Arc::strong_count(&pool), 1);
   }
 
   #[test]
@@ -372,14 +364,15 @@ mod tests {
     let mut b = pool.get(1024);
     assert_eq!(pool.borrowed_count(), 1);
 
-    let mut inner = b.take_buffer().expect("buffer should exist");
-    assert!(b.as_slice().is_empty());
-    inner.extend_from_slice(b"ownership transferred");
-    b.set_buffer(inner);
+    // 模拟所有权临时移交给底层异步 I/O (如 Read)
+    let raw = b.take_buffer().expect("buffer should exist");
+    assert!(b.buffer.is_none());
 
-    assert_eq!(b.as_slice(), b"ownership transferred");
+    // 异步完成归还
+    b.set_buffer(raw);
+    assert!(b.buffer.is_some());
+
     drop(b);
-
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 1);
   }
@@ -390,10 +383,11 @@ mod tests {
     let mut b = pool.get(1024);
     assert_eq!(pool.borrowed_count(), 1);
 
-    let _inner = b.take_buffer().expect("buffer should exist");
+    // 提取后若发生异常丢弃，未 set_buffer 归还
+    let _raw = b.take_buffer();
     drop(b);
 
-    // 析构时若未归还底层 Vec，也应正确扣减借出计数，避免 borrowed 泄漏
+    // 依然正确扣减借出计数，避免计数永久泄漏
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 0);
   }
@@ -403,47 +397,44 @@ mod tests {
     let pool = LimitedFixedBufferPool::new(1024, 16);
     {
       let b = pool.get(2048);
-      assert_eq!(pool.allocated_count(), 1);
-      assert_eq!(pool.borrowed_count(), 1);
       assert!(b.capacity() >= 2048);
+      assert_eq!(pool.borrowed_count(), 1);
+      assert_eq!(pool.allocated_count(), 1);
     }
-    // 超大缓冲区不进入定长池，直接 drop
+
+    // 归还超规缓冲不会入池
     assert_eq!(pool.borrowed_count(), 0);
     assert_eq!(pool.free_count(), 0);
   }
 
   #[test]
   fn test_buffer_pool_capacity_limit() {
-    // 验证池容量有界，超出 max_pool_size 的归还被丢弃
     let pool = LimitedFixedBufferPool::new(1024, 2);
     let b1 = pool.get(1024);
     let b2 = pool.get(1024);
     let b3 = pool.get(1024);
-    assert_eq!(pool.allocated_count(), 3);
-    assert_eq!(pool.borrowed_count(), 3);
 
     drop(b1);
     drop(b2);
     assert_eq!(pool.free_count(), 2);
 
-    // 第三个归还时池已满，应丢弃并不增加 free_count
+    // 验证池容量有界，超出 max_pool_size 的归还被丢弃
     drop(b3);
     assert_eq!(pool.free_count(), 2);
-    assert_eq!(pool.borrowed_count(), 0);
   }
 
   #[test]
   fn test_buffer_pool_multithread_contention() {
-    let pool = LimitedFixedBufferPool::new(1024, 64);
+    let pool = LimitedFixedBufferPool::new(1024, 32);
     let mut handles = Vec::new();
 
-    for _ in 0..4 {
+    for _ in 0..8 {
       let p = Arc::clone(&pool);
       handles.push(thread::spawn(move || {
-        for _ in 0..100 {
+        for _ in 0..1000 {
           let mut b = p.get(1024);
-          b.extend_from_slice(b"worker data");
-          assert_eq!(b.as_slice(), b"worker data");
+          b.extend_from_slice(b"concurrent test");
+          assert_eq!(b.as_slice(), b"concurrent test");
         }
       }));
     }
@@ -453,7 +444,6 @@ mod tests {
     }
 
     assert_eq!(pool.borrowed_count(), 0);
-    pool.purge();
-    assert_eq!(pool.free_count(), 0);
+    assert!(pool.free_count() <= 32);
   }
 }

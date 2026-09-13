@@ -207,9 +207,6 @@ impl<D: Device> StoreSession<D> {
       .load_collection_raw_write(user_key, CollectionType::Hash)
       .await?
     {
-      if meta.encoding() == StorageEncoding::FlattenedTree {
-        return self.bftree_hset(user_key, field, value).await;
-      }
       if meta.encoding() == StorageEncoding::Compact
         && let Some(payload) = payload_opt
       {
@@ -288,11 +285,6 @@ impl<D: Device> StoreSession<D> {
     };
     if meta.collection_type != CollectionType::Hash || meta.encoding() != StorageEncoding::Flattened
     {
-      if meta.collection_type == CollectionType::Hash
-        && meta.encoding() == StorageEncoding::FlattenedTree
-      {
-        return self.bftree_hdel(user_key, field).await;
-      }
       return Ok(false);
     }
     self.flattened_hdel_inner(user_key, &mut meta, field).await

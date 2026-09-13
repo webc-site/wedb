@@ -380,10 +380,12 @@ fn test_scan_inflight_zero_header_respin() -> Void {
 
     // 握手通道：扫描闭包读到 k0（零洞前驱）后唤醒生产者，生产者以与 encode_at
     // 完全一致的无锁裸指针路径补写 k1（零洞恰被扫描器触达时走自旋重试路径）
+    let (ready_tx, ready_rx) = mpsc::channel::<()>();
     let (encode_tx, encode_rx) = mpsc::channel::<()>();
     let producer = {
       let hlog = Arc::clone(&hlog);
       thread::spawn(move || {
+        let _ = ready_tx.send(());
         if encode_rx.recv().is_err() {
           return;
         }
@@ -395,6 +397,7 @@ fn test_scan_inflight_zero_header_respin() -> Void {
         let _ = encode_to_slice(dst, 0, b"k1", b"v1", false);
       })
     };
+    let _ = ready_rx.recv();
 
     let mut scanned = Vec::new();
     hlog

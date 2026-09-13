@@ -1,3 +1,5 @@
+use std::mem;
+
 use wobject::{
   hash::hash_object::HashOperation, sortedset::sorted_set_object::SortedSetOperation,
   types::object_output::ObjectOutput,
@@ -30,41 +32,33 @@ const MAX_DATABASES: i64 = 16;
 /// 集群启用配置（单机模式默认为 false；C# 为 serverOptions.EnableCluster）
 const CLUSTER_ENABLED: bool = false;
 
-/// libs/server/Auth/Settings/ConnectionProtectionOption.cs（默认 No）
-///
-/// DEBUG/REGISTERCS/MODULE 的连接保护开关；C# 默认 No → CanRunDebug/CanRunModule
-/// 恒 false。rust 会话层未接服务器选项与本地连接判定，按默认值走拒绝路径
-const PROTECTION_OPTION: ConnectionProtection = ConnectionProtection::No;
-
-/// libs/server/Auth/Settings/ConnectionProtectionOption.cs
-///
-/// rust 会话层仅按默认配置 `No` 接线（未接服务器选项与本地端点判定），故只保留
-/// 该单一档；`Local`/`Yes` 的完整 C# 语义由 `resp_server_session.rs` 的
-/// `ConnectionProtectionOption` 与 `can_run_with_protection` 承载
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ConnectionProtection {
-  No,
-}
-
-impl ConnectionProtection {
-  /// 连接保护判定（C# 还需 networkSender.IsLocalConnection() 配合 Local 档；
-  /// rust 网络层未接端点判定，且本 crate 仅接线 No 档，受保护的管理命令恒拒绝）
-  const fn can_run(self) -> bool {
-    false
-  }
-}
-
 impl RespServerSession {
-  /// libs/server/Resp/AdminCommands.cs:ProcessAdminCommands
+  /// C# ProcessOtherCommands / ProcessAdminCommands 的 admin 会话级 arm 集
+  ///（实现为本文件各 network_* 处理器）
   ///
-  /// 管理命令派发器：C# 在此做未认证拦截（NOAUTH）后按 RespCommand 路由。
-  /// rust 默认认证器等价 NoAuth（IsAuthenticated = true），拦截不触发；命令
-  /// 路由归派发域（RespServerSession.cs:ProcessMessages，尚未建成），本函数
-  /// 仅承担认证门语义，无应答写出；保留形参以匹配 ProcessAdminCommands 统一输出签名
-  pub fn process_admin_commands(&mut self, _output: &mut Vec<u8>) -> wresp::Result<bool> {
-    // C#: CanAuthenticate && !IsAuthenticated → write RESP_ERR_NOAUTH；
-    // NoAuth 认证器 IsAuthenticated 恒 true，此分支在默认配置不可达
-    Ok(true)
+  /// MONITOR / DEBUG / REGISTERCS / MODULE LOADCS / SAVE / BGSAVE / LASTSAVE /
+  /// COMMITAOF / EXPDELSCAN（C# ProcessAdminCommands switch 的无存储面子集）；
+  /// `None` 表示命令不属于本族，调用方继续后续分派
+  pub fn process_admin_session_commands(&mut self, cmd: RespCommand) -> Option<bool> {
+    let args = self.get_arg_slices();
+    let mut output = mem::take(&mut self.output);
+    let handled = match cmd {
+      RespCommand::Monitor => self.network_monitor(&args, &mut output),
+      RespCommand::Debug => self.network_debug(&args, &mut output),
+      RespCommand::Registercs => self.network_register_cs(&args, &mut output),
+      RespCommand::ModuleLoadcs => self.network_module_load(&args, &mut output),
+      RespCommand::Save => self.network_save(&args, &mut output),
+      RespCommand::Bgsave => self.network_bgsave(&args, &mut output),
+      RespCommand::Lastsave => self.network_lastsave(&args, &mut output),
+      RespCommand::Commitaof => self.network_commitaof(&args, &mut output),
+      RespCommand::Expdelscan => self.network_expdelscan(&args, &mut output),
+      _ => {
+        self.output = output;
+        return None;
+      }
+    };
+    self.output = output;
+    Some(handled.unwrap_or(true))
   }
   /// libs/server/Resp/AdminCommands.cs:CheckScriptPermissions
   ///
@@ -134,7 +128,7 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, >= 6, output, "REGISTERCS");
 
-    if !PROTECTION_OPTION.can_run() {
+    if !self.can_run_module() {
       // 对标 C# AbortWithErrorMessage(GenericErrCommandDisallowedWithOption,
       // REGISTERCS, "enable-module-command")
       abort_with_error_message(output, RESP_ERR_REGISTERCS_DISALLOWED);
@@ -154,7 +148,7 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, !empty, output, "MODULE|LOADCS");
 
-    if !PROTECTION_OPTION.can_run() {
+    if !self.can_run_module() {
       abort_with_error_message(output, RESP_ERR_MODULE_DISALLOWED);
       return Ok(true);
     }
@@ -313,7 +307,7 @@ impl RespServerSession {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_CLUSTER_DISABLED);
       return Ok(true);
     };
-    let args = self.collect_arg_slices();
+    let args = self.get_arg_slices();
     cluster.process_cluster_commands(cmd, &args, output);
     // 集群切面挂起的慢路径（CLUSTER RESET 的 HasKeysInSlots 扫描等）
     // 转挂会话慢路径槽，网络泵 await 闭环
@@ -330,7 +324,7 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, !empty, output, "DEBUG");
 
-    if !PROTECTION_OPTION.can_run() {
+    if !self.can_run_debug() {
       abort_with_error_message(output, RESP_ERR_DEBUG_DISALLOWED);
       return Ok(true);
     }

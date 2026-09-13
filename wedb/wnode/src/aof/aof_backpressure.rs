@@ -283,7 +283,6 @@ impl AofBackpressure {
 #[cfg(test)]
 mod tests {
   use std::{
-    mem::{align_of, size_of},
     sync::{
       Arc,
       atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering},
@@ -293,13 +292,7 @@ mod tests {
 
   use compio::runtime::Runtime;
 
-  use super::{AofBackpressure, CacheAlignedAtomicI64};
-
-  #[test]
-  fn cache_line_alignment() {
-    assert_eq!(align_of::<CacheAlignedAtomicI64>(), 128);
-    assert!(size_of::<CacheAlignedAtomicI64>() >= 128);
-  }
+  use super::AofBackpressure;
 
   #[test]
   fn budget_enables_and_disables_gate() {

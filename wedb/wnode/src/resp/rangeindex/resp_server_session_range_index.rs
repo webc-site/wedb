@@ -24,7 +24,6 @@ use wresp::{
   cmd_strings::{self as cs, abort_with_error_message},
 };
 
-use super::range_index_manager::RangeIndexManager;
 use crate::resp::resp_server_session::RespServerSession;
 
 /// 预览命令未启用时的统一错误（C# AbortWithErrorMessage 文案）
@@ -219,331 +218,431 @@ fn write_metrics_resp(
   output.write_resp_bulk_string(if is_recovered { b"true" } else { b"false" });
 }
 
-impl RespServerSession {
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRICREATE
-  ///
-  /// RI.CREATE key [MEMORY | DISK] [CACHESIZE n] [MINRECORD n] [MAXRECORD n]
-  /// [MAXKEYLEN n] [PAGESIZE n]；重复创建报 "ERR index already exists"
-  pub async fn network_ricreate<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
-    }
-    check_arg_count!(parse_state, !empty, output, "RI.CREATE");
-    let key = parse_state[0];
-
-    let options = match parse_ricreate_options(parse_state) {
-      Ok(options) => options,
-      Err(message) => {
-        abort_with_error_message(output, message);
-        return Ok(true);
-      }
-    };
-    let tuning = match options.validate() {
-      Ok(tuning) => tuning,
-      Err(message) => {
-        abort_with_error_message(output, message);
-        return Ok(true);
-      }
-    };
-
-    let backend = if options.backend_byte == 1 {
-      wbftree::StorageBackend::Memory
-    } else {
-      wbftree::StorageBackend::Std
-    };
-    match session.range_index_create(key, backend, tuning).await {
-      Ok(()) => output.extend_from_slice(cs::RESP_OK),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      // 已存在 / 长度越界等： errorMsg 文案即错误内容（C# errorMsg 路径）
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRICREATE
+///
+/// RI.CREATE key [MEMORY | DISK] [CACHESIZE n] [MINRECORD n] [MAXRECORD n]
+/// [MAXKEYLEN n] [PAGESIZE n]；重复创建报 "ERR index already exists"
+pub async fn network_ricreate<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
   }
+  check_arg_count!(parse_state, !empty, output, "RI.CREATE");
+  let key = parse_state[0];
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRISET
-  ///
-  /// RI.SET key field value
-  pub async fn network_riset<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
+  let options = match parse_ricreate_options(parse_state) {
+    Ok(options) => options,
+    Err(message) => {
+      abort_with_error_message(output, message);
       return Ok(true);
     }
-    check_arg_count!(parse_state, 3, output, "RI.SET");
-    let (key, field, value) = (parse_state[0], parse_state[1], parse_state[2]);
-
-    match session.range_index_set(key, field, value).await {
-      Ok(()) => output.extend_from_slice(cs::RESP_OK),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      // 索引不存在 → C# storage 层 errorMsg "ERR no such range index"
-      // (RangeIndexOps.cs:212/220)，网络层 errorMsg.Length > 0 分支原样写出——
-      // 与 GET/DEL 等网络层硬编码的 "ERR range index not found" 是两条不同文案
-      Err(RangeIndexError::NotFound) => {
-        abort_with_error_message(output, "ERR no such range index");
-      }
-      // InvalidKV 长度越界等：errorMsg 文案即错误内容（C# errorMsg 路径）
-      Err(e) => abort_with_error_message(output, &e.to_string()),
+  };
+  let tuning = match options.validate() {
+    Ok(tuning) => tuning,
+    Err(message) => {
+      abort_with_error_message(output, message);
+      return Ok(true);
     }
-    Ok(true)
+  };
+
+  let backend = if options.backend_byte == 1 {
+    wbftree::StorageBackend::Memory
+  } else {
+    wbftree::StorageBackend::Std
+  };
+  match session.range_index_create(key, backend, tuning).await {
+    Ok(()) => output.extend_from_slice(cs::RESP_OK),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
+    }
+    // 已存在 / 长度越界等： errorMsg 文案即错误内容（C# errorMsg 路径）
+    Err(e) => abort_with_error_message(output, &e.to_string()),
   }
+  Ok(true)
+}
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIGET
-  ///
-  /// RI.GET key field：命中回批量字符串；键或字段缺失回 null 批量字符串
-  pub async fn network_riget<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
-    }
-    check_arg_count!(parse_state, 2, output, "RI.GET");
-    let (key, field) = (parse_state[0], parse_state[1]);
-
-    match session.range_index_get(key, field).await {
-      Ok(Some(value)) => output.write_resp_bulk_string(&value),
-      // 字段不存在 → null（C# RangeIndexResult.NotFound → WriteNull）
-      Ok(None) => output.write_resp_null(),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      // 索引不存在 → "ERR range index not found"（含于 Display，走统一上抛）
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRISET
+///
+/// RI.SET key field value
+pub async fn network_riset<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
   }
+  check_arg_count!(parse_state, 3, output, "RI.SET");
+  let (key, field, value) = (parse_state[0], parse_state[1], parse_state[2]);
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIDEL
-  ///
-  /// RI.DEL key field（删除树内字段；整键删除走标准 DEL）
-  pub async fn network_ridel<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
+  match session.range_index_set(key, field, value).await {
+    Ok(()) => output.extend_from_slice(cs::RESP_OK),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
     }
-    check_arg_count!(parse_state, 2, output, "RI.DEL");
-    let (key, field) = (parse_state[0], parse_state[1]);
-
-    match session.range_index_del(key, field).await {
-      Ok(_) => output.write_resp_int(1),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
+    // 索引不存在 → C# storage 层 errorMsg "ERR no such range index"
+    // (RangeIndexOps.cs:212/220)，网络层 errorMsg.Length > 0 分支原样写出——
+    // 与 GET/DEL 等网络层硬编码的 "ERR range index not found" 是两条不同文案
+    Err(RangeIndexError::NotFound) => {
+      abort_with_error_message(output, "ERR no such range index");
     }
-    Ok(true)
+    // InvalidKV 长度越界等：errorMsg 文案即错误内容（C# errorMsg 路径）
+    Err(e) => abort_with_error_message(output, &e.to_string()),
   }
+  Ok(true)
+}
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRISCAN
-  ///
-  /// RI.SCAN key start COUNT n [FIELDS KEY|VALUE|BOTH]
-  pub async fn network_riscan<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
-    }
-    check_arg_count!(parse_state, >= 4, output, "RI.SCAN");
-    let (key, start) = (parse_state[0], parse_state[1]);
-
-    if !parse_state[2].eq_ignore_ascii_case(b"COUNT") {
-      abort_with_error_message(output, "ERR syntax error, expected COUNT");
-      return Ok(true);
-    }
-    let Some(count) = parse_state[3].try_parse_i64().filter(|c| *c > 0) else {
-      abort_with_error_message(output, "ERR invalid count");
-      return Ok(true);
-    };
-    let return_field = parse_fields_option(parse_state, 4, 5);
-
-    match session
-      .range_index_scan(key, start, count as usize, return_field)
-      .await
-    {
-      Ok(records) => write_scan_records(output, &records, return_field),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIGET
+///
+/// RI.GET key field：命中回批量字符串；键或字段缺失回 null 批量字符串
+pub async fn network_riget<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
   }
+  check_arg_count!(parse_state, 2, output, "RI.GET");
+  let (key, field) = (parse_state[0], parse_state[1]);
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIRANGE
-  ///
-  /// RI.RANGE key start end [FIELDS KEY|VALUE|BOTH]：闭区间 [start, end]
-  pub async fn network_rirange<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
+  match session.range_index_get(key, field).await {
+    Ok(Some(value)) => output.write_resp_bulk_string(&value),
+    // 字段不存在 → null（C# RangeIndexResult.NotFound → WriteNull）
+    Ok(None) => output.write_resp_null(),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
     }
-    check_arg_count!(parse_state, >= 3, output, "RI.RANGE");
-    let (key, start, end) = (parse_state[0], parse_state[1], parse_state[2]);
-    let return_field = parse_fields_option(parse_state, 3, 4);
-
-    match session
-      .range_index_range(key, start, end, return_field)
-      .await
-    {
-      Ok(records) => write_scan_records(output, &records, return_field),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      // 内存模式不支持 → C# 网络层按命令硬编码文案（行 458 "ERR RI.RANGE ..."）；
-      // 错误变体 Display 带的是 RI.SCAN 文案，此处按 C# 网络层口径覆写
-      Err(RangeIndexError::MemoryModeNotSupported) => {
-        abort_with_error_message(
-          output,
-          "ERR RI.RANGE is not supported for MEMORY-mode indexes",
-        );
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+    // 索引不存在 → "ERR range index not found"（含于 Display，走统一上抛）
+    Err(e) => abort_with_error_message(output, &e.to_string()),
   }
+  Ok(true)
+}
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIEXISTS
-  ///
-  /// RI.EXISTS key：非 RI 键一律 :0（不回 WRONGTYPE）
-  pub async fn network_riexists<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
-    }
-    check_arg_count!(parse_state, 1, output, "RI.EXISTS");
-
-    let exists = session
-      .range_index_exists(parse_state[0])
-      .await
-      .unwrap_or(false);
-    output.write_resp_int(i64::from(exists));
-    Ok(true)
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIDEL
+///
+/// RI.DEL key field（删除树内字段；整键删除走标准 DEL）
+pub async fn network_ridel<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
   }
+  check_arg_count!(parse_state, 2, output, "RI.DEL");
+  let (key, field) = (parse_state[0], parse_state[1]);
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRICONFIG
-  ///
-  /// RI.CONFIG key：索引配置 12 元素交替数组
-  pub async fn network_riconfig<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
+  match session.range_index_del(key, field).await {
+    Ok(_) => output.write_resp_int(1),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
     }
-    check_arg_count!(parse_state, 1, output, "RI.CONFIG");
-
-    match session.range_index_config(parse_state[0]).await {
-      Ok(stub) => write_config_resp(output, &stub),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+    Err(e) => abort_with_error_message(output, &e.to_string()),
   }
+  Ok(true)
+}
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIMETRICS
-  ///
-  /// RI.METRICS key：树句柄与生命周期标志 8 元素交替数组
-  pub async fn network_rimetrics<D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRISCAN
+///
+/// RI.SCAN key start COUNT n [FIELDS KEY|VALUE|BOTH]
+pub async fn network_riscan<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, >= 4, output, "RI.SCAN");
+  let (key, start) = (parse_state[0], parse_state[1]);
+
+  if !parse_state[2].eq_ignore_ascii_case(b"COUNT") {
+    abort_with_error_message(output, "ERR syntax error, expected COUNT");
+    return Ok(true);
+  }
+  let Some(count) = parse_state[3].try_parse_i64().filter(|c| *c > 0) else {
+    abort_with_error_message(output, "ERR invalid count");
+    return Ok(true);
+  };
+  let return_field = parse_fields_option(parse_state, 4, 5);
+
+  match session
+    .range_index_scan(key, start, count as usize, return_field)
+    .await
+  {
+    Ok(records) => write_scan_records(output, &records, return_field),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
     }
-    check_arg_count!(parse_state, 1, output, "RI.METRICS");
+    Err(e) => abort_with_error_message(output, &e.to_string()),
+  }
+  Ok(true)
+}
 
-    match session.range_index_metrics(parse_state[0]).await {
-      Ok(m) => write_metrics_resp(
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIRANGE
+///
+/// RI.RANGE key start end [FIELDS KEY|VALUE|BOTH]：闭区间 [start, end]
+pub async fn network_rirange<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, >= 3, output, "RI.RANGE");
+  let (key, start, end) = (parse_state[0], parse_state[1], parse_state[2]);
+  let return_field = parse_fields_option(parse_state, 3, 4);
+
+  match session
+    .range_index_range(key, start, end, return_field)
+    .await
+  {
+    Ok(records) => write_scan_records(output, &records, return_field),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
+    }
+    // 内存模式不支持 → C# 网络层按命令硬编码文案（行 458 "ERR RI.RANGE ..."）；
+    // 错误变体 Display 带的是 RI.SCAN 文案，此处按 C# 网络层口径覆写
+    Err(RangeIndexError::MemoryModeNotSupported) => {
+      abort_with_error_message(
         output,
-        m.tree_handle,
-        m.is_live,
-        m.is_flushed,
-        m.is_recovered,
-      ),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
+        "ERR RI.RANGE is not supported for MEMORY-mode indexes",
+      );
     }
-    Ok(true)
+    Err(e) => abort_with_error_message(output, &e.to_string()),
   }
+  Ok(true)
+}
 
-  /// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRILEN
-  ///
-  /// RI.LEN key：返回索引中键值对总数（O(1) 元数据直读）
-  pub async fn network_rilen<D: Device>(
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIEXISTS
+///
+/// RI.EXISTS key：非 RI 键一律 :0（不回 WRONGTYPE）
+pub async fn network_riexists<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, 1, output, "RI.EXISTS");
+
+  let exists = session
+    .range_index_exists(parse_state[0])
+    .await
+    .unwrap_or(false);
+  output.write_resp_int(i64::from(exists));
+  Ok(true)
+}
+
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRICONFIG
+///
+/// RI.CONFIG key：索引配置 12 元素交替数组
+pub async fn network_riconfig<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, 1, output, "RI.CONFIG");
+
+  match session.range_index_config(parse_state[0]).await {
+    Ok(stub) => write_config_resp(output, &stub),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
+    }
+    Err(e) => abort_with_error_message(output, &e.to_string()),
+  }
+  Ok(true)
+}
+
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRIMETRICS
+///
+/// RI.METRICS key：树句柄与生命周期标志 8 元素交替数组
+pub async fn network_rimetrics<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, 1, output, "RI.METRICS");
+
+  match session.range_index_metrics(parse_state[0]).await {
+    Ok(m) => write_metrics_resp(
+      output,
+      m.tree_handle,
+      m.is_live,
+      m.is_flushed,
+      m.is_recovered,
+    ),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
+    }
+    Err(e) => abort_with_error_message(output, &e.to_string()),
+  }
+  Ok(true)
+}
+
+/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRILEN
+///
+/// RI.LEN key：返回索引中键值对总数（O(1) 元数据直读）
+pub async fn network_rilen<D: Device, R>(
+  parse_state: &[&[u8]],
+  ri: Option<R>,
+  session: &StoreSession<D>,
+  output: &mut Vec<u8>,
+) -> Result<bool> {
+  if ri.is_none() {
+    abort_with_error_message(output, RI_DISABLED);
+    return Ok(true);
+  }
+  check_arg_count!(parse_state, 1, output, "RI.LEN");
+
+  match session.range_index_len(parse_state[0]).await {
+    Ok(len) => output.write_resp_int(len as i64),
+    Err(RangeIndexError::WrongType) => {
+      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
+    }
+    Err(e) => abort_with_error_message(output, &e.to_string()),
+  }
+  Ok(true)
+}
+
+impl RespServerSession {
+  #[inline]
+  pub async fn network_ricreate<D: Device, R>(
     &mut self,
     parse_state: &[&[u8]],
-    ri: Option<&RangeIndexManager>,
+    ri: Option<R>,
     session: &StoreSession<D>,
     output: &mut Vec<u8>,
   ) -> Result<bool> {
-    if ri.is_none() {
-      abort_with_error_message(output, RI_DISABLED);
-      return Ok(true);
-    }
-    check_arg_count!(parse_state, 1, output, "RI.LEN");
+    network_ricreate(parse_state, ri, session, output).await
+  }
 
-    match session.range_index_len(parse_state[0]).await {
-      Ok(len) => output.write_resp_int(len as i64),
-      Err(RangeIndexError::WrongType) => {
-        abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-      }
-      Err(e) => abort_with_error_message(output, &e.to_string()),
-    }
-    Ok(true)
+  #[inline]
+  pub async fn network_riset<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_riset(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_riget<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_riget(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_ridel<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_ridel(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_rilen<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_rilen(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_riscan<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_riscan(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_rirange<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_rirange(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_riexists<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_riexists(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_riconfig<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_riconfig(parse_state, ri, session, output).await
+  }
+
+  #[inline]
+  pub async fn network_rimetrics<D: Device, R>(
+    &mut self,
+    parse_state: &[&[u8]],
+    ri: Option<R>,
+    session: &StoreSession<D>,
+    output: &mut Vec<u8>,
+  ) -> Result<bool> {
+    network_rimetrics(parse_state, ri, session, output).await
   }
 }

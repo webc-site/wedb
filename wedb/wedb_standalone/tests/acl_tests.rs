@@ -28,7 +28,7 @@ fn ctx_for<'a>(
 fn basic_whoami_test() {
   let acl = Arc::new(AccessControlList::new("", None).unwrap());
   let mut auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   assert!(auth.authenticate(b"x", b""));
   let settings = acl_settings(None);
@@ -63,7 +63,7 @@ fn basic_list_test() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   // default user
   let mut out = Vec::new();
@@ -107,7 +107,7 @@ fn basic_users_test() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session.network_acl_users(&ctx, &[], &mut out).unwrap();
@@ -134,7 +134,7 @@ fn basic_gen_pass_test() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   // default 64 hex chars
   let mut out = Vec::new();
@@ -183,7 +183,7 @@ fn get_user_test() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session
@@ -210,7 +210,7 @@ fn get_user_not_found_test() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session
@@ -226,11 +226,11 @@ fn delete_single_user() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(None);
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session
-    .network_acl_set_user(&ctx, &[b"testuser", b">passwd"], &mut out)
+    .network_acl_set_user(&ctx, &[b"testuser" as &[u8], b">passwd" as &[u8]], &mut out)
     .unwrap();
   assert_eq!(out, b"+OK\r\n");
 
@@ -260,7 +260,7 @@ fn acl_load() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(Some(file.display().to_string()));
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session.network_acl_load(&ctx, &[], &mut out).unwrap();
@@ -278,7 +278,7 @@ fn acl_save() {
   let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
   let settings = acl_settings(Some(file.display().to_string()));
   let ctx = ctx_for(&auth, &settings, None);
-  let mut session = RespServerSession::default();
+  let session = RespServerSession::default();
 
   let mut out = Vec::new();
   session.network_acl_load(&ctx, &[], &mut out).unwrap();

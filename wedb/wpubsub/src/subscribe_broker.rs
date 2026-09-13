@@ -61,9 +61,6 @@ pub struct SubscribeBroker<S = Arc<PubSubMailbox>> {
   disposed: AtomicBool,
 }
 
-/// 消息中枢别名（支持单机与集群统一复用）
-pub type MessageBroker<S = Arc<PubSubMailbox>> = SubscribeBroker<S>;
-
 impl<S: PubSubSink> SubscribeBroker<S> {
   /// 构造中枢
   ///

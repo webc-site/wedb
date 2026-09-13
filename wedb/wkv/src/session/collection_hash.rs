@@ -8,7 +8,6 @@
 
 use std::sync::atomic::Ordering;
 
-use wcol::HashTreeOps;
 use wdev::Device;
 use wval::{CollectionType, CompactHashCodec, KeyTag, MetaValue, StorageEncoding};
 
@@ -37,10 +36,6 @@ impl<D: Device> StoreSession<D> {
       }
     };
 
-    if meta.encoding() == StorageEncoding::FlattenedTree {
-      // BfTree 树后端：转发树算子（bftree_hset 内部自管元数据与存根）
-      return self.bftree_hset(user_key, field, value).await;
-    }
     if meta.encoding() == StorageEncoding::Flattened {
       return self
         .flattened_hset_inner(user_key, &mut meta, field, value)
@@ -100,9 +95,7 @@ impl<D: Device> StoreSession<D> {
     else {
       return Ok(None);
     };
-    if raw.meta.encoding() == StorageEncoding::FlattenedTree {
-      self.bftree_hget_with(user_key, field, f).await
-    } else if raw.meta.encoding() == StorageEncoding::Flattened {
+    if raw.meta.encoding() == StorageEncoding::Flattened {
       let sub_k = self.sub_key(KeyTag::Hash, raw.meta.key_id, raw.meta.version, field);
       self.read_raw_with(&sub_k, f).await
     } else if let Some(payload) = raw.compact_payload() {
@@ -127,9 +120,7 @@ impl<D: Device> StoreSession<D> {
     else {
       return Ok(false);
     };
-    if meta.encoding() == StorageEncoding::FlattenedTree {
-      self.bftree_hdel(user_key, field).await
-    } else if meta.encoding() == StorageEncoding::Flattened {
+    if meta.encoding() == StorageEncoding::Flattened {
       self.flattened_hdel_inner(user_key, &mut meta, field).await
     } else {
       let mut payload = payload_opt.unwrap_or_default();
@@ -167,9 +158,7 @@ impl<D: Device> StoreSession<D> {
     else {
       return Ok(false);
     };
-    if raw.meta.encoding() == StorageEncoding::FlattenedTree {
-      self.bftree_hexists(user_key, field).await
-    } else if raw.meta.encoding() == StorageEncoding::Flattened {
+    if raw.meta.encoding() == StorageEncoding::Flattened {
       let sub_k = self.sub_key(KeyTag::Hash, raw.meta.key_id, raw.meta.version, field);
       self.contains_key_raw(&sub_k).await
     } else if let Some(payload) = raw.compact_payload() {
@@ -187,23 +176,7 @@ impl<D: Device> StoreSession<D> {
     else {
       return Ok(vec![None; fields.len()]);
     };
-    if raw.meta.encoding() == StorageEncoding::FlattenedTree {
-      // BfTree 树后端：单次装载存根后逐字段零拷贝点查（免逐字段重复 load meta）
-      self
-        .with_bftree_read(
-          user_key,
-          CollectionType::Hash,
-          || vec![None; fields.len()],
-          |tree| {
-            let mut results = Vec::with_capacity(fields.len());
-            for field in fields {
-              results.push(tree.hget_callback(field, |opt| opt.map(|v| v.to_vec()))?);
-            }
-            Ok(results)
-          },
-        )
-        .await
-    } else if raw.meta.encoding() == StorageEncoding::Flattened {
+    if raw.meta.encoding() == StorageEncoding::Flattened {
       self.hmget_flattened_inner(&raw.meta, fields).await
     } else {
       let payload = raw.compact_payload().unwrap_or(&[]);
