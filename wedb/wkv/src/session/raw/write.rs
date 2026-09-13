@@ -1,8 +1,8 @@
 //! 物理键写入与删除路径（对标 C# Garnet ClientSession 的 Upsert/Delete 快慢路径）
 
-use std::{hint::spin_loop, result::Result as StdResult};
+use std::result::Result as StdResult;
 
-use wbase::simd::fast_key_eq;
+use wbase::{backoff::Backoff, simd::fast_key_eq};
 use wdev::Device;
 use wrecord::{RecordHeader, record_size};
 
@@ -70,6 +70,7 @@ impl<D: Device> StoreSession<D> {
       session: self,
       alloc: None,
     };
+    let mut backoff = Backoff::new();
     loop {
       let begin_addr = self.store.begin_address();
       let mut hei = self
@@ -87,7 +88,7 @@ impl<D: Device> StoreSession<D> {
           Some(latch) => Some(latch),
           None => {
             self.participant.refresh();
-            spin_loop();
+            backoff.snooze();
             continue;
           }
         }
@@ -113,7 +114,7 @@ impl<D: Device> StoreSession<D> {
           // 会截断碰撞键的主日志链（丢键），自旋重读等待恢复
           let real = self.store.read_cache.skip_read_cache(addr);
           if real == 0 {
-            spin_loop();
+            backoff.snooze();
             continue;
           }
           real
@@ -258,7 +259,7 @@ impl<D: Device> StoreSession<D> {
       // 真实帧足印暂存会话内，下一轮优先复用；替代原先直接落全局复活池（下一轮
       // 重新尾部分配）
       retry_alloc.alloc = Some((new_addr, alloc_size));
-      spin_loop();
+      backoff.snooze();
     }
   }
 
@@ -355,6 +356,7 @@ impl<D: Device> StoreSession<D> {
       session: self,
       alloc: None,
     };
+    let mut backoff = Backoff::new();
     'retry: loop {
       let begin_addr = self.store.begin_address();
       // 严格对标 C# InternalDelete 的 FindTag 语义（Helpers.cs:FindTagAndTryEphemeralXLock →
@@ -380,7 +382,7 @@ impl<D: Device> StoreSession<D> {
           Some(latch) => Some(latch),
           None => {
             self.participant.refresh();
-            spin_loop();
+            backoff.snooze();
             continue 'retry;
           }
         }
@@ -407,7 +409,7 @@ impl<D: Device> StoreSession<D> {
           // 链头条目刚滑出窗口（驱逐方 cleanse 尚未把槽位恢复为主日志地址）：
           // 槽位此刻承载的是 Tag 碰撞键的存活缓存条目，elide 会令碰撞键不可达（丢键），
           // 以 prev=0 盲插会截断其主日志链——自旋重读等待槽位恢复
-          spin_loop();
+          backoff.snooze();
           continue;
         }
         if matched == Some(true) {
@@ -445,7 +447,7 @@ impl<D: Device> StoreSession<D> {
           // 优化6（对标 BlockAllocate.cs:SaveAllocationForRetry）：CAS 失败的分配
           // 暂存会话内，下一轮优先复用
           retry_alloc.alloc = Some((new_addr, alloc_size));
-          spin_loop();
+          backoff.snooze();
           continue;
         }
         // 链头为 Tag 碰撞键的缓存记录：脱钩至首个主日志地址继续回溯；
@@ -519,7 +521,7 @@ impl<D: Device> StoreSession<D> {
             // IsClosed → RETRY_LATER）：刷新纪元后整链重试（密封在途记录终将解封，
             // 此时按常规路径删除）
             self.participant.refresh();
-            spin_loop();
+            backoff.snooze();
             continue 'retry;
           }
           Some(MemoryRecordProbe::Tombstone { .. }) => {
@@ -545,7 +547,7 @@ impl<D: Device> StoreSession<D> {
                 self.notify_write_listener(key, &[], true);
                 return Ok(Ok(true));
               }
-              spin_loop();
+              backoff.snooze();
               continue;
             }
 
@@ -634,7 +636,7 @@ impl<D: Device> StoreSession<D> {
       // 真实帧足印暂存会话内，下一轮优先复用；替代原先直接落全局复活池（下一轮
       // 重新尾部分配）
       retry_alloc.alloc = Some((new_addr, alloc_size));
-      spin_loop();
+      backoff.snooze();
     }
   }
 

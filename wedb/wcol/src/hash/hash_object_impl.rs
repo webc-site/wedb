@@ -34,7 +34,7 @@ pub(crate) const RESP_ERR_GENERIC_NAN_INFINITY: &[u8] = b"ERR value is NaN or In
 /// 取第 i 个参数字节
 ///
 #[inline]
-fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
+fn arg(input: &ObjectInput, i: usize) -> &[u8] {
   input.parse_state.get_arg_slice_by_ref(i).as_slice()
 }
 
@@ -42,7 +42,7 @@ fn arg<'a>(input: &ObjectInput, i: usize) -> &'a [u8] {
 ///
 /// libs/server/Objects/Hash/HashObjectImpl.cs:GetByteSpanFromInput
 #[inline]
-fn get_byte_span_from_input<'a>(input: &ObjectInput, index: usize) -> &'a [u8] {
+fn get_byte_span_from_input(input: &ObjectInput, index: usize) -> &[u8] {
   arg(input, index)
 }
 

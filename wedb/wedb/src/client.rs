@@ -1,11 +1,4 @@
-use std::{
-  str::from_utf8,
-  sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-  },
-  time::Duration,
-};
+use std::{str::from_utf8, sync::Arc, time::Duration};
 
 use compio::time::timeout;
 use itoa::Buffer as IntBuf;
@@ -23,7 +16,6 @@ pub struct GarnetClient {
   pub endpoint: String,
   auth_username: Option<String>,
   auth_password: Option<String>,
-  connected: AtomicBool,
   inner: RwLock<Option<Arc<ConnClient>>>,
 }
 
@@ -37,7 +29,6 @@ impl GarnetClient {
       endpoint,
       auth_username: None,
       auth_password: None,
-      connected: AtomicBool::new(false),
       inner: RwLock::new(None),
     }
   }
@@ -51,14 +42,18 @@ impl GarnetClient {
       endpoint,
       auth_username,
       auth_password,
-      connected: AtomicBool::new(false),
       inner: RwLock::new(None),
     }
   }
 
   #[inline]
   pub fn is_connected(&self) -> bool {
-    self.connected.load(Ordering::Acquire)
+    self.inner.read().is_some()
+  }
+
+  #[inline]
+  fn client(&self) -> Option<Arc<ConnClient>> {
+    self.inner.read().clone()
   }
 
   /// 建立底层 wconn 连接（集群控制面包装：构造 GarnetClient 委托会话并握手）
@@ -76,7 +71,6 @@ impl GarnetClient {
     let connect_res = timeout(Duration::from_millis(200), client.connect_async()).await;
     if matches!(connect_res, Ok(Ok(()))) {
       *self.inner.write() = Some(Arc::new(client));
-      self.connected.store(true, Ordering::Release);
     }
   }
 
@@ -88,8 +82,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:ExecuteClusterFailReplicationOffsetAsync
   pub async fn execute_cluster_fail_replication_offset_async(&self, offset: &str) -> String {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       client
         .execute_for_string_result_async(&["CLUSTER", "FAILREPLICATIONOFFSET", offset])
         .await
@@ -101,8 +94,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:ExecuteClusterFailStopWritesAsync
   pub async fn execute_cluster_fail_stop_writes_async(&self, node_id: &[u8]) -> String {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       let node_id_str = from_utf8(node_id).unwrap_or("");
       client
         .execute_for_string_result_async(&["CLUSTER", "FAILSTOPWRITES", node_id_str])
@@ -115,8 +107,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:ExecuteClusterFailoverAsync
   pub async fn failover(&self, option: FailoverOption) -> bool {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       let cmd: &[&str] = match option {
         FailoverOption::Default => &["CLUSTER", "FAILOVER"],
         FailoverOption::Force => &["CLUSTER", "FAILOVER", "FORCE"],
@@ -134,8 +125,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:GossipAsync
   pub async fn gossip_async(&self, data: &[u8]) -> Result<Vec<u8>> {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       Ok(
         client
           .execute_for_bytes_result_async(&[b"CLUSTER", b"GOSSIP", data])
@@ -148,8 +138,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:GossipWithMeetAsync
   pub async fn gossip_with_meet_async(&self, data: &[u8]) -> Result<Vec<u8>> {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       Ok(
         client
           .execute_for_bytes_result_async(&[b"CLUSTER", b"GOSSIP", b"WITHMEET", data])
@@ -162,8 +151,7 @@ impl GarnetClient {
 
   /// libs/client/GarnetClientAPI/GarnetClientServerCommands.cs:ReplicaOfAsync
   pub async fn replica_of(&self, ip: &str, port: i32) -> String {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       let mut port_buf = IntBuf::new();
       let port_str = port_buf.format(port);
       client
@@ -177,8 +165,7 @@ impl GarnetClient {
 
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:ExecuteClusterPublishNoResponse
   pub async fn cluster_publish_async(&self, is_spublish: bool, channel: &[u8], message: &[u8]) {
-    let client = self.inner.read().clone();
-    if let Some(client) = client {
+    if let Some(client) = self.client() {
       let subcmd: &[u8] = if is_spublish { b"SPUBLISH" } else { b"PUBLISH" };
       if let Err(err) = client
         .execute_for_bytes_result_async(&[b"CLUSTER", subcmd, channel, message])
@@ -190,7 +177,6 @@ impl GarnetClient {
   }
 
   pub fn dispose(&self) {
-    self.connected.store(false, Ordering::Release);
     *self.inner.write() = None;
   }
 }

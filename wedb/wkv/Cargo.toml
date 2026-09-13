@@ -19,8 +19,9 @@ gxhash.workspace = true
 papaya.workspace = true
 
 [dependencies.wbase]
-workspace = true
-features = ["addr", "align", "crc", "time", "error", "convert", "simd"]
+features = ["addr", "align", "crc", "time", "error", "convert", "simd", "backoff"]
+path = "../wbase"
+version = "0.1.6"
 
 [dependencies.fastrand]
 workspace = true

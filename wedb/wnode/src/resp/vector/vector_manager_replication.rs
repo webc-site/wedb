@@ -151,8 +151,7 @@ impl ReplicationRuntime {
   /// 副本重放与操作是否已处于完全静默状态（通道关闭或无排队且无进行中操作）。
   #[inline(always)]
   pub fn is_quiescent(&self) -> bool {
-    self.replay_channel.is_closed()
-      || (!self.replay_channel.is_empty() == false && !self.is_blocked())
+    self.replay_channel.is_closed() || (self.replay_channel.is_empty() && !self.is_blocked())
   }
 }
 

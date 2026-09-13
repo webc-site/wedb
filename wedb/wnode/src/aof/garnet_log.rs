@@ -18,6 +18,7 @@ use std::{
     atomic::{AtomicI64, Ordering},
   },
   thread,
+  time::Duration,
 };
 
 use event_listener::{Event, Listener};
@@ -27,7 +28,6 @@ use waof::{
   AofShardedLogTransactionHeader, AofSingleLogTransactionHeader, REPLAY_TASK_ACCESS_VECTOR_BYTES,
   SequenceNumberGenerator,
 };
-use wbase::future::yield_now;
 use wconf::RuntimeServerOptions;
 
 use super::{aof_backpressure::AofBackpressure, sharded_log::ShardedLog, single_log::SingleLog};
@@ -97,24 +97,7 @@ pub trait SublogBackend: Send + Sync {
   fn safe_initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64);
 
   /// 异步等待提交落盘至指定地址（0 表示等待当前尾地址；对标 C# TsavoriteLog.WaitForCommitAsync）。
-  fn wait_for_commit_async(&self, until_address: i64) -> impl Future<Output = ()> + '_ {
-    let target = if until_address == 0 {
-      self.tail_address()
-    } else {
-      until_address
-    };
-    async move {
-      let mut spins = 0u32;
-      while self.committed_until_address() < target {
-        if spins < 16 {
-          spin_loop();
-          spins += 1;
-        } else {
-          yield_now().await;
-        }
-      }
-    }
-  }
+  fn wait_for_commit_async(&self, until_address: i64) -> impl Future<Output = ()> + '_;
 }
 
 /// 内建内存子日志（测试与无盘场景）。
@@ -843,7 +826,7 @@ impl GarnetLog {
         }
         listener.wait();
       } else {
-        thread::yield_now();
+        thread::sleep(Duration::from_micros(50));
       }
     }
   }

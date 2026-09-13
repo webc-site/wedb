@@ -14,7 +14,6 @@
 //!（AofSyncDriverStore::prune_timed_out_replicas）与副本 throttle 水位共同治理。
 
 use std::{
-  collections::VecDeque,
   io::{self, Error, ErrorKind},
   sync::{
     Arc,
@@ -23,8 +22,8 @@ use std::{
 };
 
 use compio::runtime::spawn;
-use event_listener::Event;
 use parking_lot::Mutex;
+use wbase::pool::EventWorkQueue;
 use wconn::GarnetClientSession;
 use wdev::SegmentedDevice;
 use wnode::MessageConsumerFace;
@@ -159,7 +158,7 @@ impl CallbackWire {
 pub struct TcpSessionWire {
   client: GarnetClientSession,
   node_id: String,
-  overflow: Arc<wbase::pool::EventWorkQueue<OverflowEntry>>,
+  overflow: Arc<EventWorkQueue<OverflowEntry>>,
   /// 在途帧标志：泵手上持有已出队、未入客户端通道的帧（直发禁入，保序）
   in_flight: Arc<AtomicBool>,
   pump_alive: Arc<AtomicBool>,
@@ -211,7 +210,7 @@ impl TcpSessionWire {
       ));
     }
 
-    let overflow = Arc::new(wbase::pool::EventWorkQueue::new());
+    let overflow = Arc::new(EventWorkQueue::new());
     let wire = Arc::new(Self {
       client,
       node_id: node_id.to_string(),
@@ -224,7 +223,7 @@ impl TcpSessionWire {
   }
 
   /// 溢流搬运泵：事件驱动被动唤醒，尝试把饱和帧排入客户端命令通道（Weak 弱引用破环，防孤儿任务泄漏）
-  fn start_pump(self: &Arc<Self>, overflow: Arc<wbase::pool::EventWorkQueue<OverflowEntry>>) {
+  fn start_pump(self: &Arc<Self>, overflow: Arc<EventWorkQueue<OverflowEntry>>) {
     let weak_wire = Arc::downgrade(self);
     let alive = Arc::clone(&self.pump_alive);
     spawn(async move {

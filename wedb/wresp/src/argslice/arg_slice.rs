@@ -14,7 +14,12 @@ impl ArgSlice {
     Self { ptr, length }
   }
 
+  /// 转换为切片（对标 C# PinnedSpanByte.Span）
+  ///
+  /// 指针生命周期解耦自容器本身，指向会话网络帧缓冲区；
+  /// 使得持有参数视图的同时能够解耦借用会话其它正交字段（如网络写缓冲区）。
   #[inline]
+  #[allow(clippy::extra_unused_lifetimes)]
   pub fn as_slice<'a>(&self) -> &'a [u8] {
     if self.ptr.is_null() || self.length == 0 {
       &[]

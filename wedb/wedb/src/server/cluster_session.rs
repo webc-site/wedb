@@ -9,7 +9,7 @@ use std::sync::{
   atomic::{AtomicBool, Ordering},
 };
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use wbase::hash_slot::hash_slot as cluster_slot;
 use wkv::WedbStore;
 use wnode::{
@@ -19,21 +19,16 @@ use wnode::{
 use wresp::RespCommand;
 
 use crate::server::{
-  cluster::{ClusterPreferredEndpointType, IClusterProvider},
-  cluster_config::LOCAL_WORKER_ID,
-  cluster_manager::ClusterManager,
-  cluster_provider::ClusterProvider,
-  slot_verify::{ClusterSlotVerificationState, SlotVerifySessionState},
+  cluster_config::LOCAL_WORKER_ID, cluster_manager::ClusterManager,
+  cluster_provider::ClusterProvider, slot_verify::SlotVerifySessionState,
 };
 
 /// 集群 RESP 会话实现
 pub struct ClusterSession {
   cluster_provider: Arc<ClusterProvider>,
-  remote_node_id: RwLock<Option<String>>,
   read_only: AtomicBool,
   internal_write: AtomicBool,
   is_replicating: AtomicBool,
-  cached_slot_error: Mutex<Option<Vec<u8>>>,
   /// CLUSTER RESET 等需异步闭环命令挂起的慢路径执行体
   ///（会话侧经 [`ClusterSessionFace::take_pending_slow`] 取走驱动）
   pending_slow: Mutex<Option<SlowWait>>,
@@ -44,11 +39,9 @@ impl ClusterSession {
   pub fn new(cluster_provider: Arc<ClusterProvider>) -> Self {
     Self {
       cluster_provider,
-      remote_node_id: RwLock::new(None),
       read_only: AtomicBool::new(false),
       internal_write: AtomicBool::new(false),
       is_replicating: AtomicBool::new(false),
-      cached_slot_error: Mutex::new(None),
       pending_slow: Mutex::new(None),
     }
   }
@@ -64,16 +57,6 @@ impl ClusterSession {
       read_only_session: self.read_only.load(Ordering::Relaxed),
       internal_write: self.internal_write.load(Ordering::Relaxed),
     }
-  }
-
-  /// libs/cluster/Session/ClusterSession.cs:RemoteNodeId
-  pub fn remote_node_id(&self) -> Option<String> {
-    self.remote_node_id.read().clone()
-  }
-
-  /// libs/cluster/Session/ClusterSession.cs:SetRemoteNodeId
-  pub fn set_remote_node_id(&self, id: Option<String>) {
-    *self.remote_node_id.write() = id;
   }
 
   /// libs/cluster/Session/ClusterSession.cs:IsReplicating
@@ -103,35 +86,6 @@ impl ClusterSession {
 
   /// libs/cluster/Session/ClusterSession.cs:ReleaseCurrentEpoch
   pub fn release_current_epoch(&self) {}
-
-  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
-  ///
-  /// 单键迭代槽位校验（MGET 散列聚集读等逐键路径）；失败缓存首错供
-  /// [`Self::take_cached_slot_error`] 回读
-  pub fn network_iterative_slot_verify(&self, key: &[u8], read_only: bool, asking: bool) -> bool {
-    let Some(cm) = self.cluster_manager() else {
-      return true;
-    };
-    let state = cm.verify_key(
-      key,
-      read_only,
-      self.slot_verify_session_state(asking),
-      ClusterPreferredEndpointType::Ip,
-    );
-    if state == ClusterSlotVerificationState::Ok {
-      true
-    } else {
-      let mut err = Vec::new();
-      state.write_resp_error(&mut err);
-      *self.cached_slot_error.lock() = Some(err);
-      false
-    }
-  }
-
-  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:WriteCachedSlotVerificationMessage
-  pub fn take_cached_slot_error(&self) -> Option<Vec<u8>> {
-    self.cached_slot_error.lock().take()
-  }
 }
 
 impl ClusterSessionFace for ClusterSession {

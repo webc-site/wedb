@@ -4,10 +4,7 @@
 //! 使用 `event_listener::Event` 实现轻量异步事件通知，消灭通道与堆分配；
 //! 内部状态与结果由单一 `parking_lot::Mutex` 保护。
 
-use std::{
-  fmt,
-  task::{Context, Poll, Waker},
-};
+use std::fmt;
 
 use event_listener::Event;
 use parking_lot::Mutex;
@@ -27,12 +24,11 @@ pub enum ObserverStatus {
   SessionDisposed,
 }
 
-/// 观察者内部可变状态（状态 + 结果 + waker 同锁）
+/// 观察者内部可变状态（状态 + 结果）
 #[derive(Debug, Default)]
 struct ObserverState {
   status: ObserverStatus,
   result: CollectionItemResult,
-  waker: Option<Waker>,
 }
 
 /// 阻塞命令观察者
@@ -103,38 +99,17 @@ impl CollectionItemObserver {
     }
   }
 
-  /// 可轮询形态（供无运行时的确定性驱动）
-  pub fn poll_wait(&self, cx: &mut Context<'_>) -> Poll<()> {
-    let mut state = self.state.lock();
-    if state.status != ObserverStatus::WaitingForResult {
-      Poll::Ready(())
-    } else {
-      let update = match &state.waker {
-        Some(w) => !w.will_wake(cx.waker()),
-        None => true,
-      };
-      if update {
-        state.waker = Some(cx.waker().clone());
-      }
-      Poll::Pending
-    }
-  }
-
   /// 安全设置结果：仅当仍处 WaitingForResult 时生效并唤醒等待者
   ///
   /// libs/server/Objects/ItemBroker/CollectionItemObserver.cs:HandleSetResult
   pub fn handle_set_result(&self, result: CollectionItemResult) {
-    let waker = {
+    {
       let mut state = self.state.lock();
       if state.status != ObserverStatus::WaitingForResult {
         return;
       }
       state.result = result;
       state.status = ObserverStatus::ResultSet;
-      state.waker.take()
-    };
-    if let Some(waker) = waker {
-      waker.wake();
     }
     self.notify_done();
   }
@@ -143,7 +118,7 @@ impl CollectionItemObserver {
   ///
   /// libs/server/Objects/ItemBroker/CollectionItemObserver.cs:TryForceUnblock
   pub fn try_force_unblock(&self, throw_error: bool) -> bool {
-    let waker = {
+    {
       let mut state = self.state.lock();
       if state.status != ObserverStatus::WaitingForResult {
         return false;
@@ -154,10 +129,6 @@ impl CollectionItemObserver {
         CollectionItemResult::empty()
       };
       state.status = ObserverStatus::ResultSet;
-      state.waker.take()
-    };
-    if let Some(waker) = waker {
-      waker.wake();
     }
     self.notify_done();
     true
@@ -167,13 +138,9 @@ impl CollectionItemObserver {
   ///
   /// libs/server/Objects/ItemBroker/CollectionItemObserver.cs:HandleSessionDisposed
   pub fn handle_session_disposed(&self) {
-    let waker = {
+    {
       let mut state = self.state.lock();
       state.status = ObserverStatus::SessionDisposed;
-      state.waker.take()
-    };
-    if let Some(waker) = waker {
-      waker.wake();
     }
     self.notify_done();
   }
@@ -385,67 +352,5 @@ mod tests {
 
     assert_eq!(obs.status(), ObserverStatus::ResultSet);
     assert!(obs.result().found());
-  }
-
-  #[test]
-  fn poll_wait_flow() {
-    use std::task::Waker;
-
-    let obs = CollectionItemObserver::new(5, RespCommand::Blpop, vec![]);
-    let waker = Waker::noop();
-    let mut cx = Context::from_waker(waker);
-
-    // 未就绪返回 Pending
-    assert_eq!(obs.poll_wait(&mut cx), Poll::Pending);
-
-    // 设置结果后立即 Ready
-    obs.handle_set_result(CollectionItemResult::single(
-      b"key".to_vec(),
-      b"val".to_vec(),
-    ));
-    assert_eq!(obs.poll_wait(&mut cx), Poll::Ready(()));
-    // 再次 poll 仍为 Ready
-    assert_eq!(obs.poll_wait(&mut cx), Poll::Ready(()));
-  }
-
-  #[test]
-  fn wait_result_and_poll_wait() {
-    use std::{sync::Arc, task::Waker, time::Duration};
-
-    use compio::{
-      runtime::{Runtime, spawn},
-      time::timeout,
-    };
-
-    let obs = Arc::new(CollectionItemObserver::new(6, RespCommand::Blpop, vec![]));
-    let obs_clone = obs.clone();
-
-    // 1. 无运行时下使用 noop waker 登记
-    let waker = Waker::noop();
-    let mut cx = Context::from_waker(waker);
-    assert_eq!(obs.poll_wait(&mut cx), Poll::Pending);
-
-    // 2. 运行时内异步等待，验证真实 waker 正确覆盖 noop waker 且及时唤醒
-    Runtime::new().unwrap().block_on(async {
-      timeout(Duration::from_secs(5), async {
-        let handle = spawn(async move {
-          yield_now().await;
-          obs_clone.handle_set_result(CollectionItemResult::single(
-            b"key".to_vec(),
-            b"val".to_vec(),
-          ));
-        });
-
-        obs.wait_result().await;
-        handle.await.unwrap();
-      })
-      .await
-      .expect("wait_result_and_poll_wait should complete within timeout");
-    });
-
-    assert_eq!(obs.status(), ObserverStatus::ResultSet);
-    assert!(obs.result().found());
-    // 3. 已就绪后再次 poll_wait 立即 Ready
-    assert_eq!(obs.poll_wait(&mut cx), Poll::Ready(()));
   }
 }

@@ -2,4 +2,6 @@
 //!
 //! 基于 `wbase::pool::EventWorkQueue<T>`。
 
-pub type VectorSetCleanupWorkChannel<T> = wbase::pool::EventWorkQueue<T>;
+use wbase::pool::EventWorkQueue;
+
+pub type VectorSetCleanupWorkChannel<T> = EventWorkQueue<T>;

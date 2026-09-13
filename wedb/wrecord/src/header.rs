@@ -402,18 +402,9 @@ impl RecordHeader {
   }
 
   /// 原子设置失效状态（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:SetInvalidAtomic）
+  #[inline(always)]
   pub fn set_invalid_atomic(atomic_word: &AtomicU64) {
-    loop {
-      let expected = atomic_word.load(Ordering::Acquire);
-      let new_word = expected | SEALED_BIT;
-      if atomic_word
-        .compare_exchange_weak(expected, new_word, Ordering::AcqRel, Ordering::Acquire)
-        .is_ok()
-      {
-        return;
-      }
-      spin_loop();
-    }
+    atomic_word.fetch_or(SEALED_BIT, Ordering::AcqRel);
   }
 
   /// 是否带有密封标记（对标 libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs:IsSealed）
