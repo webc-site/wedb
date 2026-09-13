@@ -17,8 +17,8 @@ use wnode::resp::{
   basic_commands::IncrCmd,
   key_admin_commands::{ExpireCmd, TtlCmd},
   resp_server_session::RespServerSession,
-  ttl_sync::{put_ttl_sync, ttl_of_sync},
 };
+use wnode::storage::session::common::ttl_sync::{put_ttl_sync, ttl_of_sync};
 
 /// test/standalone/Garnet.test/RespTests.cs:SingleSetGet
 #[test]

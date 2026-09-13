@@ -7,7 +7,7 @@
 use std::{fmt::Display, mem, sync::Arc};
 
 use wacl::{
-  AccessControlList, AclError, AclParser, GarnetAclAuthenticator, User,
+  AccessControlList, AclError, AclParser, GarnetAclAuthenticator, User, UserHandleExt,
   auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
 use wresp::{
@@ -244,9 +244,9 @@ impl RespServerSession {
         }
       }
 
-      let mut slot = user_handle.write();
-      if Arc::ptr_eq(&*slot, &current_user) {
-        *slot = Arc::new(new_user);
+      // CAS 换新：竞争失败（并发 SETUSER）重取当前用户重建副本重试
+      //（libs/server/ACL/UserHandle.cs:TrySetUser）
+      if user_handle.try_set_user(Arc::new(new_user), &current_user) {
         break;
       }
     }

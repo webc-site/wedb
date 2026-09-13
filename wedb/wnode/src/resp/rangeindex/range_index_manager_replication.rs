@@ -24,7 +24,7 @@ use wbftree::{
   RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer, RangeIndexManager as Engine,
   RangeIndexStub, StorageBackend, StorageBackendType, TreeTuning,
 };
-use whasher::{GxPapayaMap, new_papaya_map};
+use wbase::map::{ConcurrentMap, new_concurrent_map};
 use wkv::RangeIndexError;
 use wobject::RespInputFlags;
 use wresp::RespCommand;
@@ -166,7 +166,7 @@ pub struct RangeIndexManagerReplication {
   /// 迁移流 AOF 分块大小（测试可调小以演练多块路径）
   aof_stream_chunk_size: AtomicUsize,
   /// 进行中逐键流重组状态（键字节 → 状态）
-  reassembly: GxPapayaMap<Vec<u8>, Arc<StreamReassemblyState>>,
+  reassembly: ConcurrentMap<Vec<u8>, Arc<StreamReassemblyState>>,
 }
 
 impl RangeIndexManagerReplication {
@@ -175,7 +175,7 @@ impl RangeIndexManagerReplication {
     Self {
       engine,
       aof_stream_chunk_size: AtomicUsize::new(DEFAULT_MIGRATION_CHUNK_SIZE),
-      reassembly: new_papaya_map(),
+      reassembly: new_concurrent_map(),
     }
   }
 

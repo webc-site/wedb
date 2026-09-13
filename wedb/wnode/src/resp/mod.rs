@@ -24,7 +24,6 @@ pub mod resp_server_session;
 pub mod resp_server_session_output;
 pub mod resp_session_consumer;
 pub mod slow_path;
-pub mod ttl_sync;
 pub mod vector;
 
 pub use resp_command_data_common::try_import_resp_commands_data;

@@ -1,7 +1,8 @@
 use std::{fs, sync::Arc};
 
 use wacl::{
-  AccessControlList, AclParser, GarnetAclWithPasswordAuthenticator, IGarnetAuthenticator,
+  AccessControlList, AclParser, GarnetAclAuthenticator, GarnetAclWithPasswordAuthenticator,
+  IGarnetAuthenticator,
   auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
 use wnode::resp::{acl_commands::AclCtx, resp_server_session::RespServerSession};
@@ -359,6 +360,113 @@ fn client_set_info_denied_returns_no_perm() {
   session.write_acl_permission_error(true);
   assert_eq!(
     session.output,
+    b"-NOPERM this user has no permissions to run the command\r\n"
+  );
+}
+
+/// 会话级 ACL 门控全链路（对标 test/standalone/Garnet.test.acl/Resp/ACL/
+/// SetUserTests.cs:ProtectedDefaultUserErrorHandlingTest 与 Resp/
+/// GarnetAuthenticatorTests.cs 的 PING → NOAUTH → AUTH → PING 序列）
+#[test]
+fn session_auth_gates_commands_until_authenticated() {
+  // ACL 档：default 用户带口令（C# useAcl + defaultPassword 装配）
+  let acl = Arc::new(AccessControlList::new("", None).unwrap());
+  AclParser::parse_acl_rule("user default on >pwd +@all", Some(&acl)).unwrap();
+  let mut session = RespServerSession::default();
+  session.attach_acl(
+    Some(Arc::new(parking_lot::Mutex::new(GarnetAclAuthenticator::new(Arc::clone(
+      &acl,
+    ))))),
+    None,
+  );
+
+  // 未认证 ACL LIST → NOAUTH（ProtectedDefaultUserErrorHandlingTest）
+  assert_eq!(
+    session.try_consume_messages(b"*2\r\n$3\r\nACL\r\n$4\r\nLIST\r\n"),
+    Some(23)
+  );
+  assert_eq!(session.take_output(), b"-NOAUTH Authentication required.\r\n");
+
+  // 未认证 PING → NOAUTH
+  assert_eq!(
+    session.try_consume_messages(b"*1\r\n$4\r\nPING\r\n"),
+    Some(14)
+  );
+  assert_eq!(session.take_output(), b"-NOAUTH Authentication required.\r\n");
+
+  // AUTH default pwd → +OK
+  assert_eq!(
+    session.try_consume_messages(b"*3\r\n$4\r\nAUTH\r\n$7\r\ndefault\r\n$3\r\npwd\r\n"),
+    Some(36)
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+
+  // 认证后 PING → +PONG
+  assert_eq!(
+    session.try_consume_messages(b"*1\r\n$4\r\nPING\r\n"),
+    Some(14)
+  );
+  assert_eq!(session.take_output(), b"+PONG\r\n");
+
+  // default 仍持 nopass 标志（C# ACLParser：>pwd 只加哈希不清免密）→ 任意口令通过
+  assert_eq!(
+    session.try_consume_messages(b"*3\r\n$4\r\nAUTH\r\n$7\r\ndefault\r\n$1\r\nx\r\n"),
+    Some(34)
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+
+  // 未知用户 → WRONGPASS 用户名口令组合变体（BasicCommands.NetworkAUTH）
+  assert_eq!(
+    session.try_consume_messages(b"*3\r\n$4\r\nAUTH\r\n$6\r\nnobody\r\n$1\r\nx\r\n"),
+    Some(33)
+  );
+  assert_eq!(
+    session.take_output(),
+    b"-WRONGPASS Invalid username/password combination\r\n"
+  );
+}
+
+/// SETUSER 经会话主循环改权后即时生效（句柄 CAS 换新，会话无感）
+#[test]
+fn session_setuser_revokes_permission_live() {
+  let acl = Arc::new(AccessControlList::new("", None).unwrap());
+  AclParser::parse_acl_rule("user default on nopass +@all", Some(&acl)).unwrap();
+  let mut session = RespServerSession::default();
+  session.attach_acl(
+    Some(Arc::new(parking_lot::Mutex::new(GarnetAclAuthenticator::new(Arc::clone(
+      &acl,
+    ))))),
+    None,
+  );
+
+  // 认证（nopass 空口令）
+  assert_eq!(
+    session.try_consume_messages(b"*2\r\n$4\r\nAUTH\r\n$7\r\ndefault\r\n"),
+    Some(27)
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+  assert_eq!(
+    session.try_consume_messages(b"*1\r\n$4\r\nPING\r\n"),
+    Some(14)
+  );
+  assert_eq!(session.take_output(), b"+PONG\r\n");
+
+  // ACL SETUSER default -ping → +OK（bulk 串 "-ping" 需 $5 长度前缀）
+  assert_eq!(
+    session.try_consume_messages(
+      b"*4\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$7\r\ndefault\r\n$5\r\n-ping\r\n"
+    ),
+    Some(50)
+  );
+  assert_eq!(session.take_output(), b"+OK\r\n");
+
+  // 权限撤销即时生效（同一会话持旧句柄实例，读到的已是换新后的用户）
+  assert_eq!(
+    session.try_consume_messages(b"*1\r\n$4\r\nPING\r\n"),
+    Some(14)
+  );
+  assert_eq!(
+    session.take_output(),
     b"-NOPERM this user has no permissions to run the command\r\n"
   );
 }

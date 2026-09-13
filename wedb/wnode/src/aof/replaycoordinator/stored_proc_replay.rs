@@ -173,7 +173,7 @@ impl StoredProcReplayer for StoredProcRegistryReplayer {
       proc.inner.bind_args(args);
 
       let mut output = Vec::new();
-      let ok = txn_manager.run_transaction_proc(&mut proc, &mut output, true);
+      let ok = txn_manager.run_transaction_proc(&mut proc, &[], &mut output, true);
       if !ok {
         return Err(AofReplayError::Replay(format!(
           "AOF 存储过程 {proc_id} 事务重放失败（prepare/lock/abort 路径）"

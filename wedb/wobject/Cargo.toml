@@ -19,8 +19,7 @@ gxhash.workspace = true
 itoa.workspace = true
 num_enum = "0.7.6"
 parking_lot.workspace = true
-wbase = { workspace = true, features = ["ascii", "convert", "future", "glob", "num", "time"] }
-whasher.workspace = true
+wbase = { workspace = true, features = ["ascii", "convert", "future", "glob", "map", "num", "time"] }
 wresp.workspace = true
 wval.workspace = true
 zmij.workspace = true

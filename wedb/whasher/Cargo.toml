@@ -18,7 +18,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 gxhash = { workspace = true }
-wbase = { workspace = true, features = ["map", "set"] }
 
 [dev-dependencies]
 aok = { workspace = true }

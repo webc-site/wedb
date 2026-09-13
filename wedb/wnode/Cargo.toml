@@ -32,14 +32,13 @@ sonic-rs.workspace = true
 thiserror.workspace = true
 wacl.workspace = true
 waof.workspace = true
-wbase = { workspace = true, features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "num", "pool", "time"] }
+wbase = { workspace = true, features = ["ascii", "convert", "crc64", "future", "glob", "hash", "hash_slot", "map", "num", "pool", "time"] }
 wbftree.workspace = true
 wbitmap.workspace = true
 wconf.workspace = true
 wcustom.workspace = true
 wdatabase.workspace = true
 wdev.workspace = true
-whasher.workspace = true
 whyperlog.workspace = true
 wkv.workspace = true
 wlua.workspace = true

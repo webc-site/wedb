@@ -22,7 +22,7 @@ impl RespServerSession {
   /// `None` 表示命令不属于本族，调用方继续后续分派）
   pub fn process_metrics_commands(&mut self, cmd: RespCommand) -> Option<bool> {
     let args = self.get_arg_slices();
-    let mut out = String::new();
+    let mut out = Vec::new();
     let result: Result<(), String> = match cmd {
       RespCommand::LatencyHelp => {
         RespLatencyCommands::network_latency_help(args.len(), &mut out).map_err(String::from)
@@ -69,7 +69,7 @@ impl RespServerSession {
     };
     match result {
       Ok(()) => {
-        self.output.extend_from_slice(out.as_bytes());
+        self.output.extend_from_slice(&out);
         Some(true)
       }
       Err(ref message) => {

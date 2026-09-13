@@ -20,7 +20,7 @@ pub mod watch_version_map;
 pub use store_type::StoreType;
 pub use transaction_manager::{
   REPLAY_TASK_ACCESS_VECTOR_BYTES, SublogAccess, SublogVirtualVectors, TransactionGuard,
-  TransactionManager, TransactionStoreTypes, TxnAofLog, TxnProcedure,
+  TransactionManager, TransactionStoreTypes, TxnAofLog, TxnEntryType, TxnProcedure,
 };
 pub use txn_key_entry::{LockType, TxnKeyEntries, TxnKeyEntry};
 pub use txn_key_entry_comparison::TxnKeyEntryComparison;

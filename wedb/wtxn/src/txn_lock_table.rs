@@ -23,6 +23,10 @@ pub enum TxnKeyLockGuard<'a> {
   Exclusive(RwLockWriteGuard<'a, ()>),
 }
 
+// 不变量：守卫由 [`crate::txn_key_entry::TxnKeyEntries`] 以 `'static` 转置持有
+//（自引用条带锁的借用拆解），生命周期由 TxnLockTable 的条带锁存续保证；
+// 守卫跨 await/线程移交要求 Send/Sync（parking_lot ReadGuard 非 Sync，
+// 编译器无法自动推导，此处人工核验条带锁 () 载荷无跨线程状态泄漏）
 unsafe impl<'a> Send for TxnKeyLockGuard<'a> {}
 unsafe impl<'a> Sync for TxnKeyLockGuard<'a> {}
 

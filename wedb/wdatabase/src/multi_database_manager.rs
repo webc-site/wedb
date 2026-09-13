@@ -13,7 +13,7 @@ use async_lock::RwLock;
 use gxhash::HashMap as GxHashMap;
 use parking_lot::Mutex;
 use wdev::Device;
-use whasher::{GxPapayaMap, new_papaya_map};
+use wbase::map::{ConcurrentMap, new_concurrent_map};
 use wkv::WedbStore;
 
 use super::{
@@ -30,7 +30,7 @@ pub struct MultiDatabaseManager<D: Device, A: DatabaseAof<D> = ()> {
   /// 共享存储引擎
   pub store: Arc<WedbStore<D>>,
   /// 库注册表：db_id -> 库
-  pub databases: GxPapayaMap<i64, Arc<GarnetDatabase<D, A>>>,
+  pub databases: ConcurrentMap<i64, Arc<GarnetDatabase<D, A>>>,
   /// 库表结构变更锁（SWAPDB / 批量恢复；异步感知，允许持锁跨越内部 await）
   pub content_lock: RwLock<()>,
   /// 共享 AOF 域（None 表示未启用 AOF；对标 C# StoreWrapper 构造期一次性
@@ -46,7 +46,7 @@ impl<D: Device, A: DatabaseAof<D>> MultiDatabaseManager<D, A> {
     Self {
       base: DatabaseManagerBase::new(checkpoint_root.join("0")),
       store,
-      databases: new_papaya_map(),
+      databases: new_concurrent_map(),
       content_lock: RwLock::new(()),
       aof_factory: Mutex::new(None),
       checkpoint_root,

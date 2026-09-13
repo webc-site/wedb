@@ -1,9 +1,10 @@
 use std::str::from_utf8;
 
+use wresp::RespVecExt;
+
 use super::{
   garnet_latency_metrics::GarnetLatencyMetrics, latency_metrics_type::LatencyMetricsType,
 };
-use crate::resp_write_utils::RespWriteUtils;
 
 /// LATENCY 命令的响应编码（对标
 /// libs/server/Metrics/Latency/RespLatencyCommands.cs:RespLatencyCommands，
@@ -18,14 +19,14 @@ impl RespLatencyCommands {
   ///
   /// LATENCY HELP：不接受附加参数，输出子命令帮助文本数组；
   /// 参数个数不符时返回错误串（对齐 C# AbortWithErrorMessage）。
-  pub fn network_latency_help(arg_count: usize, output: &mut String) -> Result<(), &'static str> {
+  pub fn network_latency_help(arg_count: usize, output: &mut Vec<u8>) -> Result<(), &'static str> {
     if arg_count != 0 {
       return Err("ERR Unknown subcommand or wrong number of arguments for LATENCY HELP.");
     }
     let latency_commands = super::resp_latency_help::RespLatencyHelp::get_latency_commands();
-    RespWriteUtils::push_array_length(output, latency_commands.len());
+    output.write_resp_array_len(latency_commands.len());
     for command in latency_commands {
-      RespWriteUtils::push_simple_string(output, command);
+      output.write_resp_simple_string(command);
     }
     Ok(())
   }
@@ -37,26 +38,25 @@ impl RespLatencyCommands {
   pub fn network_latency_histogram(
     args: &[&[u8]],
     metrics: Option<&GarnetLatencyMetrics>,
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) {
     let (events, invalid_event) = Self::parse_events(args);
 
     if let Some(invalid) = invalid_event {
-      output.push_str("-ERR Invalid event ");
+      output.extend_from_slice(b"-ERR Invalid event ");
       if let Ok(valid) = from_utf8(invalid) {
-        output.push_str(valid);
+        output.extend_from_slice(valid.as_bytes());
       } else {
-        output.push_str(&String::from_utf8_lossy(invalid));
+        output.extend_from_slice(String::from_utf8_lossy(invalid).as_bytes());
       }
-      output.push_str(". Try LATENCY HELP\r\n");
+      output.extend_from_slice(b". Try LATENCY HELP\r\n");
       return;
     }
 
-    let response = metrics.map_or_else(
-      || "*0\r\n".to_string(),
-      |m| m.get_resp_histograms(events.as_deref().unwrap_or(&LatencyMetricsType::ALL)),
-    );
-    output.push_str(&response);
+    match metrics {
+      None => output.extend_from_slice(b"*0\r\n"),
+      Some(m) => m.get_resp_histograms(events.as_deref().unwrap_or(&LatencyMetricsType::ALL), output),
+    }
   }
 
   /// libs/server/Metrics/Latency/RespLatencyCommands.cs:NetworkLatencyReset
@@ -66,18 +66,18 @@ impl RespLatencyCommands {
   pub fn network_latency_reset(
     args: &[&[u8]],
     set_reset_flag: &mut impl FnMut(LatencyMetricsType),
-    output: &mut String,
+    output: &mut Vec<u8>,
   ) {
     let (events, invalid_event) = Self::parse_events(args);
 
     if let Some(invalid) = invalid_event {
-      output.push_str("-ERR Invalid type ");
+      output.extend_from_slice(b"-ERR Invalid type ");
       if let Ok(valid) = from_utf8(invalid) {
-        output.push_str(valid);
+        output.extend_from_slice(valid.as_bytes());
       } else {
-        output.push_str(&String::from_utf8_lossy(invalid));
+        output.extend_from_slice(String::from_utf8_lossy(invalid).as_bytes());
       }
-      output.push_str("\r\n");
+      output.extend_from_slice(b"\r\n");
       return;
     }
 
@@ -85,7 +85,7 @@ impl RespLatencyCommands {
     for &event in events {
       set_reset_flag(event);
     }
-    RespWriteUtils::push_integer(output, events.len() as i64);
+    output.write_resp_int(events.len() as i64);
   }
 
   /// 解析事件参数：返回 `(去重事件表, 首个非法事件)`。

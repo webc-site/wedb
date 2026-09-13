@@ -6,7 +6,7 @@
 use std::{hint::spin_loop, thread};
 
 use event_listener::{Event, Listener};
-use whasher::{GxPapayaMap as ConcurrentMap, new_papaya_map};
+use wbase::map::{ConcurrentMap, new_concurrent_map};
 
 /// 按键的未完成清理工作集合（按键字节的字典序等价比较）。
 pub struct VectorSetCleanupWorkSet<TValue> {
@@ -17,7 +17,7 @@ pub struct VectorSetCleanupWorkSet<TValue> {
 impl<TValue> Default for VectorSetCleanupWorkSet<TValue> {
   fn default() -> Self {
     Self {
-      entries: new_papaya_map(),
+      entries: new_concurrent_map(),
       event: Event::new(),
     }
   }

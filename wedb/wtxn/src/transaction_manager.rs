@@ -15,7 +15,6 @@ use std::{sync::Arc, time::Duration};
 
 use bitflags::bitflags;
 use smallvec::SmallVec;
-use waof::AofEntryType;
 
 use crate::{
   StoreType, TxnState,
@@ -41,6 +40,21 @@ pub struct SublogAccess<'a> {
   pub participant_count: usize,
 }
 
+/// 事务域写入 AOF 的标记条目端口枚举（对标 libs/server/AOF/AofEntryType.cs
+/// 中事务基建涉及的三个判别：TxnStart / TxnCommit / StoredProcedure）。
+///
+/// 事务基建不反向依赖 AOF 实现：判别映射到 `waof::AofEntryType` 由
+/// 日志实现方（`GarnetLog` 的 `TxnAofLog` impl）承接，本枚举不含判别值
+/// （单一映射点，杜绝两处定义）
+pub enum TxnEntryType {
+  /// 事务开始（libs/server/AOF/AofEntryType.cs:TxnStart）
+  TxnStart,
+  /// 事务提交（libs/server/AOF/AofEntryType.cs:TxnCommit）
+  TxnCommit,
+  /// 存储过程（libs/server/AOF/AofEntryType.cs:StoredProcedure）
+  StoredProcedure,
+}
+
 /// 事务 AOF 日志接口（解耦底层事务管理与物理日志实现）
 pub trait TxnAofLog: Send + Sync {
   /// 物理日志分片数
@@ -54,7 +68,7 @@ pub trait TxnAofLog: Send + Sync {
   /// 追加事务标记条目（TxnStart / TxnCommit）
   fn enqueue_txn(
     &self,
-    op_type: AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     access: &SublogAccess<'_>,
@@ -62,7 +76,7 @@ pub trait TxnAofLog: Send + Sync {
   /// 追加存储过程条目
   fn enqueue_stored_proc(
     &self,
-    op_type: AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     proc_id: u8,
@@ -95,7 +109,7 @@ impl<T: TxnAofLog + ?Sized> TxnAofLog for Arc<T> {
   #[inline]
   fn enqueue_txn(
     &self,
-    op_type: AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     access: &SublogAccess<'_>,
@@ -106,7 +120,7 @@ impl<T: TxnAofLog + ?Sized> TxnAofLog for Arc<T> {
   #[inline]
   fn enqueue_stored_proc(
     &self,
-    op_type: AofEntryType,
+    op_type: TxnEntryType,
     txn_version: i64,
     session_id: i32,
     proc_id: u8,
@@ -141,7 +155,7 @@ impl TxnAofLog for () {
   #[inline]
   fn enqueue_txn(
     &self,
-    _op_type: AofEntryType,
+    _op_type: TxnEntryType,
     _txn_version: i64,
     _session_id: i32,
     _access: &SublogAccess<'_>,
@@ -151,7 +165,7 @@ impl TxnAofLog for () {
   #[inline]
   fn enqueue_stored_proc(
     &self,
-    _op_type: AofEntryType,
+    _op_type: TxnEntryType,
     _txn_version: i64,
     _session_id: i32,
     _proc_id: u8,
@@ -402,7 +416,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
       && !self.stored_proc_mode
       && let Some(log) = &self.aof_log
     {
-      self.enqueue_txn_marker(log, AofEntryType::TxnStart);
+      self.enqueue_txn_marker(log, TxnEntryType::TxnStart);
     }
 
     self.state = TxnState::Running;
@@ -417,7 +431,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
       && !self.stored_proc_mode
       && let Some(log) = &self.aof_log
     {
-      self.enqueue_txn_marker(log, AofEntryType::TxnCommit);
+      self.enqueue_txn_marker(log, TxnEntryType::TxnCommit);
     }
     if !internal_txn {
       self.watch_container.reset();
@@ -498,7 +512,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
 
   /// AOF 记录事务标记条目（TxnStart / TxnCommit）
   #[inline]
-  fn enqueue_txn_marker(&self, log: &L, op_type: AofEntryType) {
+  fn enqueue_txn_marker(&self, log: &L, op_type: TxnEntryType) {
     let (physical_vector, virtual_vectors, participant_count) = self.compute_sublog_access_vector();
     log.enqueue_txn(
       op_type,
@@ -562,7 +576,11 @@ impl<L: TxnAofLog> TransactionManager<L> {
   /// AOF 记录自定义过程条目
   ///
   /// libs/server/Transaction/TransactionManager.cs:Log
-  fn log_proc(&mut self, proc: &(impl TxnProcedure<L> + ?Sized)) {
+  ///
+  /// `proc_input` 为调用方序列化的解析态快照（C# `ref CustomProcedureInput`，
+  /// `SessionParseState.SerializeTo` 布局：`[count i32][每参数 4B 长度前缀 + 数据]`），
+  /// 单日志拓扑 C# 亦全量写入（GarnetLog.cs:986 Enqueue(header, ref procInput)）
+  fn log_proc(&mut self, proc: &(impl TxnProcedure<L> + ?Sized), proc_input: &[u8]) {
     debug_assert!(self.stored_proc_mode);
     if self.perform_writes
       && let Some(log) = &self.aof_log
@@ -570,12 +588,11 @@ impl<L: TxnAofLog> TransactionManager<L> {
       let (physical_vector, virtual_vectors, participant_count) =
         self.compute_sublog_access_vector();
       log.enqueue_stored_proc(
-        AofEntryType::StoredProcedure,
+        TxnEntryType::StoredProcedure,
         self.txn_version,
         self.session_id,
         proc.id(),
-        // 过程输入负载由 custom 域序列化接管；单日志拓扑恒空体直通
-        &[],
+        proc_input,
         &SublogAccess {
           physical_vector,
           virtual_vectors: &virtual_vectors,
@@ -595,6 +612,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
   pub fn run_transaction_proc(
     &mut self,
     proc: &mut (impl TxnProcedure<L> + ?Sized),
+    proc_input: &[u8],
     output: &mut Vec<u8>,
     is_replaying: bool,
   ) -> bool {
@@ -631,7 +649,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     // 短路；托管宿主回放期可能仍持日志句柄，故显式以 is_replaying 短路，
     // 网络效果同 C#（回放不重复落盘）
     if !is_replaying {
-      self.log_proc(proc);
+      self.log_proc(proc, proc_input);
     }
 
     // 提交（隐含 Reset(true)，C# running 标记至此闭环）
@@ -643,5 +661,95 @@ impl<L: TxnAofLog> TransactionManager<L> {
     }
 
     true
+  }
+}
+
+#[cfg(test)]
+mod proc_input_tests {
+  use std::sync::Arc;
+
+  use parking_lot::Mutex;
+
+  use super::{
+    SublogAccess, TransactionManager, TxnAofLog, TxnEntryType, TxnProcedure,
+  };
+  use crate::watch_version_map::WatchVersionMap;
+
+  /// 记录入队参数的桩日志（捕获 enqueue_stored_proc 载荷）
+  struct RecordingLog {
+    payloads: Mutex<Vec<Vec<u8>>>,
+  }
+
+  impl TxnAofLog for RecordingLog {
+    fn size(&self) -> usize {
+      0
+    }
+    fn replay_task_count(&self) -> usize {
+      0
+    }
+    fn get_physical_sublog_idx(&self, _key_hash: i64) -> usize {
+      0
+    }
+    fn get_replay_task_idx(&self, _key_hash: i64) -> usize {
+      0
+    }
+    fn enqueue_txn(
+      &self,
+      _op_type: TxnEntryType,
+      _txn_version: i64,
+      _session_id: i32,
+      _access: &SublogAccess<'_>,
+    ) {
+    }
+    fn enqueue_stored_proc(
+      &self,
+      _op_type: TxnEntryType,
+      _txn_version: i64,
+      _session_id: i32,
+      _proc_id: u8,
+      payload: &[u8],
+      _access: &SublogAccess<'_>,
+    ) {
+      self.payloads.lock().push(payload.to_vec());
+    }
+  }
+
+  /// 空过程（仅 id）
+  struct NoopProc {
+    id: u8,
+  }
+
+  impl TxnProcedure<Arc<RecordingLog>> for NoopProc {
+    fn id(&self) -> u8 {
+      self.id
+    }
+    fn prepare(&mut self, _txn_manager: &mut TransactionManager<Arc<RecordingLog>>) -> bool {
+      true
+    }
+    fn main(&mut self, _txn_manager: &mut TransactionManager<Arc<RecordingLog>>, _output: &mut Vec<u8>) {
+    }
+    fn finalize(
+      &mut self,
+      _txn_manager: &mut TransactionManager<Arc<RecordingLog>>,
+      _output: &mut Vec<u8>,
+    ) {
+    }
+  }
+
+  /// 主侧入队载荷 = proc_input（C# Log 的 ref procInput 全量写入，
+  /// 与回放端 stored_proc_args::decode 布局对齐）
+  #[test]
+  fn log_proc_writes_procedure_input_payload() {
+    let log = Arc::new(RecordingLog {
+      payloads: Mutex::new(Vec::new()),
+    });
+    let mut txn: TransactionManager<Arc<RecordingLog>> =
+      TransactionManager::new(Arc::new(WatchVersionMap::new(16)), Some(Arc::clone(&log)));
+    let mut proc = NoopProc { id: 7 };
+    let mut output = Vec::new();
+    // C# PerformWrites：写入模式才落 AOF（run 内经键登记置位）
+    txn.save_key_entry_to_lock(b"k", crate::LockType::Exclusive);
+    assert!(txn.run_transaction_proc(&mut proc, &[1, 2, 3], &mut output, false));
+    assert_eq!(log.payloads.lock().clone(), vec![vec![1, 2, 3]]);
   }
 }
