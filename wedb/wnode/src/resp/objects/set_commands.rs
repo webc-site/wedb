@@ -445,10 +445,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() || parse_state.len() > 2 {
-      cs::abort_with_wrong_number_of_arguments(output, "SRANDMEMBER");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1..=2, output, "SRANDMEMBER");
 
     let key = parse_state[0];
 

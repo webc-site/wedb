@@ -80,8 +80,17 @@ impl SingleLog {
     self.log.reset();
   }
 
-  /// libs/server/AOF/SingleLog.cs:SafeInitialize（C# SingleLog 无 Initialize/SafeInitialize，
-  /// 此为 rust 侧对齐 Sublog 后端的扩展；Initialize 与 SafeInitialize 同体，收敛为单一实现 + 薄包装）
+  /// libs/server/AOF/SingleLog.cs:Initialize（C# SingleLog 未暴露 Initialize/SafeInitialize，
+  /// 此对齐底层 TsavoriteLog:Initialize:547/572 的实现体）
+  #[inline]
+  pub fn initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64) {
+    self
+      .log
+      .safe_initialize(begin_address, committed_until_address, last_commit_num);
+  }
+
+  /// libs/server/AOF/SingleLog.cs:SafeInitialize（对齐 C# TsavoriteLog.SafeInitialize
+  /// 包装 Initialize 的方向；与 Initialize 同体，收敛为薄包装委托）
   #[inline]
   pub fn safe_initialize(
     &self,
@@ -89,15 +98,7 @@ impl SingleLog {
     committed_until_address: i64,
     last_commit_num: i64,
   ) {
-    self
-      .log
-      .safe_initialize(begin_address, committed_until_address, last_commit_num);
-  }
-
-  /// libs/server/AOF/SingleLog.cs:Initialize（与 SafeInitialize 同体，薄包装委托）
-  #[inline]
-  pub fn initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64) {
-    self.safe_initialize(begin_address, committed_until_address, last_commit_num);
+    self.initialize(begin_address, committed_until_address, last_commit_num);
   }
 
   #[inline]

@@ -479,7 +479,6 @@ fn test_compile_time_const_evaluation() {
   ));
 }
 
-
 #[test]
 fn test_compact_meta_value_16_bytes() -> Void {
   info!("测试 16 字节 CompactMetaValue 内存排布与功能");
@@ -585,7 +584,6 @@ fn test_compact_meta_value_16_bytes() -> Void {
     CompactMetaValue::read_is_expired(&bytes[..15], 1_700_000_000_000),
     None
   );
-
 
   OK
 }

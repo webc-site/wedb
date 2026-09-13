@@ -202,12 +202,12 @@ impl RespServerSession {
       HashOperation::Hmset => "HMSET",
       _ => "HSET",
     };
-    if (op != HashOperation::Hsetnx && (parse_state.len() == 1 || parse_state.len() % 2 != 1))
-      || (op == HashOperation::Hsetnx && parse_state.len() != 3)
-    {
-      cs::abort_with_wrong_number_of_arguments(output, cmd_name);
-      return Ok(true);
-    }
+    let valid = if op == HashOperation::Hsetnx {
+      parse_state.len() == 3
+    } else {
+      parse_state.len() > 1 && parse_state.len() % 2 == 1
+    };
+    check_arg_count!(valid, output, cmd_name);
 
     let key = parse_state[0];
     let args = &parse_state[1..];
@@ -468,10 +468,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() || parse_state.len() > 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "HRANDFIELD");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1..=3, output, "HRANDFIELD");
 
     let key = parse_state[0];
 

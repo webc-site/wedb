@@ -7,14 +7,13 @@ use std::{num::NonZeroI64, sync::Arc};
 
 use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
-use waof::AofEntryType;
+use waof::{AofEntryType, AofHeader};
 use wbase::convert::TICKS_PER_MILLISECOND;
 use wconf::RuntimeServerOptions;
 use wdatabase::{
   DEFAULT_VERSION_MAP_SIZE, DatabaseManager, DatabaseManagerFactory, GarnetDatabase,
   IDatabaseManager,
 };
-use waof::AofHeader;
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wnode::{

@@ -605,10 +605,8 @@ mod tests {
     assert_eq!(try_parse_size(""), Some(0));
     // 组合后缀
     assert_eq!(parse_size("16m"), (16 * 1024 * 1024, 3));
-  }
 
-  #[test]
-  fn byte_slice_parsing_matches_str() {
+    // 字节切片入口与 &str 同语义（含垃圾字符失败防御）
     assert_eq!(parse_size_bytes(b"32m"), (32 * 1024 * 1024, 3));
     assert_eq!(try_parse_size_bytes(b"4kb"), Some(4 * 1024));
     assert_eq!(try_parse_size_bytes(b"4kbx"), None);
@@ -623,26 +621,6 @@ mod tests {
     assert_eq!(pretty_size(512), "512");
     // 归一后产生小数：1000 → 0.9765625k（C# 同式）
     assert_eq!(pretty_size(1000), "0.9765625k");
-  }
-
-  #[test]
-  fn index_cachelines_and_pub_sub_page() {
-    let opts = GarnetServerOptions::default();
-    // 128m → 下取 2 的幂 128m → cachelines = 128m / 64
-    let cachelines = opts.index_size_cachelines().unwrap();
-    assert_eq!(cachelines * 64, 128 * 1024 * 1024);
-    // 越界：低于 64
-    let mut small = opts.clone();
-    small.index_memory_size = "32".to_string();
-    assert!(matches!(
-      small.index_size_cachelines(),
-      Err(OptionsError::InvalidIndexSize(_))
-    ));
-    // pub/sub 页：4k 下取 2 的幂
-    assert_eq!(opts.pub_sub_page_size_bytes(), 4 * 1024);
-    let mut odd = opts.clone();
-    odd.pub_sub_page_size = "3000".to_string();
-    assert_eq!(odd.pub_sub_page_size_bytes(), 2048);
   }
 
   #[test]

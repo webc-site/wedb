@@ -8,7 +8,7 @@ use std::str::from_utf8;
 
 use wresp::{
   RespVecExt, check_arg_count, cmd_strings as cs,
-  cmd_strings::{abort_with_error_message, abort_with_wrong_number_of_arguments, write_raw},
+  cmd_strings::{abort_with_error_message, write_raw},
   strict_i64,
 };
 
@@ -125,10 +125,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() != 1 && parse_state.len() != 2 {
-      abort_with_wrong_number_of_arguments(output, "client|unblock");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1..=2, output, "client|unblock");
 
     // 解析目标客户端 ID（C# TryGetLong 严格口径）
     let Some(client_id) = strict_i64(parse_state[0]) else {

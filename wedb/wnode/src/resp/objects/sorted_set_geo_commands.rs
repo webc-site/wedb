@@ -561,10 +561,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     kind: GeoSearchCommandKind,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < kind.params_required() {
-      cs::abort_with_wrong_number_of_arguments(output, kind.name());
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, >= kind.params_required(), output, kind.name());
 
     // GEOSEARCHSTORE：首参为目标键，源为第二参
     let source_idx = usize::from(kind == GeoSearchCommandKind::GeoSearchStore);

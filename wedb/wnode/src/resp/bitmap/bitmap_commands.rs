@@ -13,7 +13,7 @@ use wbitmap::{
 };
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
-  cmd_strings::{RESP_ERR_GENERIC, abort_with_error_message, abort_with_wrong_number_of_arguments},
+  cmd_strings::{RESP_ERR_GENERIC, abort_with_error_message},
 };
 
 use super::super::{
@@ -161,10 +161,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     let count = parse_state.len();
-    if count != 1 && count != 3 && count != 4 {
-      abort_with_wrong_number_of_arguments(output, "BITCOUNT");
-      return Ok(true);
-    }
+    check_arg_count!(count == 1 || count == 3 || count == 4, output, "BITCOUNT");
     let key = parse_state[0];
 
     // 缺省 start=0 / end=-1（全量）
@@ -220,11 +217,8 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
+    check_arg_count!(parse_state, 2..=5, output, "BITPOS");
     let count = parse_state.len();
-    if !(2..=5).contains(&count) {
-      abort_with_wrong_number_of_arguments(output, "BITPOS");
-      return Ok(true);
-    }
     let key = parse_state[0];
 
     // bit 参数须为单字符 '0'/'1'

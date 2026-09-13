@@ -163,8 +163,6 @@ impl<D: Device> RangeIndexSessionFace for wkv::StoreSession<D> {
   }
 }
 
-
-
 /// AOF 重放域错误（C# GarnetException 回放路径的 rust 形态）。
 #[derive(Debug, thiserror::Error)]
 pub enum AofReplayError {

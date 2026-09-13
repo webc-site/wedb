@@ -310,11 +310,12 @@ impl RespServerSession {
     output: &mut Vec<u8>,
     is_min: bool,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() || parse_state.len() > 2 {
-      // C# 按 command.ToString() 取 ZPOPMIN/ZPOPMAX
-      cs::abort_with_wrong_number_of_arguments(output, if is_min { "ZPOPMIN" } else { "ZPOPMAX" });
-      return Ok(true);
-    }
+    check_arg_count!(
+      parse_state,
+      1..=2,
+      output,
+      if is_min { "ZPOPMIN" } else { "ZPOPMAX" }
+    );
 
     let key = parse_state[0];
     let op = if is_min {
@@ -385,10 +386,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.len() < 4 || parse_state.len() > 9 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZRANGESTORE");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 4..=9, output, "ZRANGESTORE");
 
     let dst_key = parse_state[0];
     let src_key = parse_state[1];
@@ -754,10 +752,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    if parse_state.is_empty() || parse_state.len() > 3 {
-      cs::abort_with_wrong_number_of_arguments(output, "ZRANDMEMBER");
-      return Ok(true);
-    }
+    check_arg_count!(parse_state, 1..=3, output, "ZRANDMEMBER");
 
     let key = parse_state[0];
     let mut obj = match zset_load_sync(store, key, output) {
