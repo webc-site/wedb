@@ -221,7 +221,7 @@ impl AofSyncDriverStore {
 
   /// 扫描并剔除 ACK 超时的副本连接（单次批量写锁 + 锁外清理）
   pub fn prune_timed_out_replicas(&self, timeout_ms: i64) -> Vec<String> {
-    let now_ms = coarsetime::Clock::now_since_epoch().as_millis() as i64;
+    let now_ms = wbase::time::now_ms() as i64;
     // 依驱动自身 ACK 状态判定，键为副本 ID 忽略
     self
       .registry

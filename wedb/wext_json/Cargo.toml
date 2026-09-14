@@ -19,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 sonic-rs.workspace = true
 thiserror.workspace = true
+wcustom.workspace = true
 
 [dev-dependencies]
 aok.workspace = true

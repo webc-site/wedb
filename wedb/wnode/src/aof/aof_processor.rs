@@ -12,6 +12,7 @@ use std::{
   borrow::Cow,
   future::Future,
   path::Path,
+  pin::Pin,
   sync::{
     Arc,
     atomic::{AtomicI64, Ordering},
@@ -56,119 +57,165 @@ use super::{
     stored_proc_replay::{StoredProcReplayer, stored_proc_args, stored_proc_payload},
   },
 };
-use crate::{
-  resp::rangeindex::range_index_manager_replication::RangeIndexManagerReplication,
-  storage::session::{
-    mainstore::advanced_ops::StringRMWOp, objectstore::common::obj_decode,
-    storage_session::StorageSession,
-  },
+use crate::storage::session::{
+  mainstore::advanced_ops::StringRMWOp, objectstore::common::obj_decode,
+  storage_session::StorageSession,
 };
 
-/// 范围索引存储会话抽象接口（解耦具体设备类型，消除 unsafe 裸指针转换）
+/// [`RangeIndexSessionFace`] 方法的 boxed future 形态（dyn 兼容；wkv 会话
+/// future 非 Send，与原 RPITIT 形态传播性质一致）
+pub type RangeIndexSessionFuture<'a, T> =
+  Pin<Box<dyn Future<Output = Result<T, wkv::RangeIndexError>> + 'a>>;
+
+/// 范围索引存储会话抽象接口（解耦具体设备类型，消除 unsafe 裸指针转换；
+/// dyn 兼容形态：future boxed，供跨域 trait object 持有）
 pub trait RangeIndexSessionFace: Send + Sync {
   /// 创建范围索引
-  fn ri_create(
-    &self,
-    key: &[u8],
+  fn ri_create<'a>(
+    &'a self,
+    key: &'a [u8],
     backend: wbftree::StorageBackend,
     tuning: wbftree::TreeTuning,
-  ) -> impl Future<Output = Result<(), wkv::RangeIndexError>>;
+  ) -> RangeIndexSessionFuture<'a, ()>;
 
   /// 插入 / 更新键值
-  fn ri_set(
-    &self,
-    key: &[u8],
-    field: &[u8],
-    value: &[u8],
-  ) -> impl Future<Output = Result<(), wkv::RangeIndexError>>;
+  fn ri_set<'a>(
+    &'a self,
+    key: &'a [u8],
+    field: &'a [u8],
+    value: &'a [u8],
+  ) -> RangeIndexSessionFuture<'a, ()>;
 
   /// 删除键值
-  fn ri_del(
-    &self,
-    key: &[u8],
-    field: &[u8],
-  ) -> impl Future<Output = Result<bool, wkv::RangeIndexError>>;
+  fn ri_del<'a>(&'a self, key: &'a [u8], field: &'a [u8]) -> RangeIndexSessionFuture<'a, bool>;
 
   /// 发布迁移索引文件
-  fn ri_publish(
-    &self,
-    key: &[u8],
-    stub_bytes: &[u8],
-    temp_path: &Path,
+  fn ri_publish<'a>(
+    &'a self,
+    key: &'a [u8],
+    stub_bytes: &'a [u8],
+    temp_path: &'a Path,
     replace: bool,
-  ) -> impl Future<Output = Result<(), wkv::RangeIndexError>>;
+  ) -> RangeIndexSessionFuture<'a, ()>;
 }
 
 impl<D: Device> RangeIndexSessionFace for wkv::BatchStoreSession<'_, D> {
-  async fn ri_create(
-    &self,
-    key: &[u8],
+  fn ri_create<'a>(
+    &'a self,
+    key: &'a [u8],
     backend: wbftree::StorageBackend,
     tuning: wbftree::TreeTuning,
-  ) -> Result<(), wkv::RangeIndexError> {
-    self.range_index_create(key, backend, tuning).await
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move { self.range_index_create(key, backend, tuning).await })
   }
 
-  async fn ri_set(
-    &self,
-    key: &[u8],
-    field: &[u8],
-    value: &[u8],
-  ) -> Result<(), wkv::RangeIndexError> {
-    self.range_index_set(key, field, value).await
+  fn ri_set<'a>(
+    &'a self,
+    key: &'a [u8],
+    field: &'a [u8],
+    value: &'a [u8],
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move { self.range_index_set(key, field, value).await })
   }
 
-  async fn ri_del(&self, key: &[u8], field: &[u8]) -> Result<bool, wkv::RangeIndexError> {
-    self.range_index_del(key, field).await
+  fn ri_del<'a>(&'a self, key: &'a [u8], field: &'a [u8]) -> RangeIndexSessionFuture<'a, bool> {
+    Box::pin(async move { self.range_index_del(key, field).await })
   }
 
-  async fn ri_publish(
-    &self,
-    key: &[u8],
-    stub_bytes: &[u8],
-    temp_path: &Path,
+  fn ri_publish<'a>(
+    &'a self,
+    key: &'a [u8],
+    stub_bytes: &'a [u8],
+    temp_path: &'a Path,
     replace: bool,
-  ) -> Result<(), wkv::RangeIndexError> {
-    self
-      .publish_migrated_range_index(key, stub_bytes, temp_path, replace)
-      .await
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move {
+      self
+        .publish_migrated_range_index(key, stub_bytes, temp_path, replace)
+        .await
+    })
   }
 }
 
 impl<D: Device> RangeIndexSessionFace for wkv::StoreSession<D> {
-  async fn ri_create(
-    &self,
-    key: &[u8],
+  fn ri_create<'a>(
+    &'a self,
+    key: &'a [u8],
     backend: wbftree::StorageBackend,
     tuning: wbftree::TreeTuning,
-  ) -> Result<(), wkv::RangeIndexError> {
-    self.range_index_create(key, backend, tuning).await
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move { self.range_index_create(key, backend, tuning).await })
   }
 
-  async fn ri_set(
-    &self,
-    key: &[u8],
-    field: &[u8],
-    value: &[u8],
-  ) -> Result<(), wkv::RangeIndexError> {
-    self.range_index_set(key, field, value).await
+  fn ri_set<'a>(
+    &'a self,
+    key: &'a [u8],
+    field: &'a [u8],
+    value: &'a [u8],
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move { self.range_index_set(key, field, value).await })
   }
 
-  async fn ri_del(&self, key: &[u8], field: &[u8]) -> Result<bool, wkv::RangeIndexError> {
-    self.range_index_del(key, field).await
+  fn ri_del<'a>(&'a self, key: &'a [u8], field: &'a [u8]) -> RangeIndexSessionFuture<'a, bool> {
+    Box::pin(async move { self.range_index_del(key, field).await })
   }
 
-  async fn ri_publish(
-    &self,
-    key: &[u8],
-    stub_bytes: &[u8],
-    temp_path: &Path,
+  fn ri_publish<'a>(
+    &'a self,
+    key: &'a [u8],
+    stub_bytes: &'a [u8],
+    temp_path: &'a Path,
     replace: bool,
-  ) -> Result<(), wkv::RangeIndexError> {
-    self
-      .publish_migrated_range_index(key, stub_bytes, temp_path, replace)
-      .await
+  ) -> RangeIndexSessionFuture<'a, ()> {
+    Box::pin(async move {
+      self
+        .publish_migrated_range_index(key, stub_bytes, temp_path, replace)
+        .await
+    })
   }
+}
+
+/// [`RangeIndexReplayFace`] 方法的 boxed future 形态（dyn 兼容）
+pub type RangeIndexReplayFuture<'a> =
+  Pin<Box<dyn Future<Output = Result<(), AofReplayError>> + 'a>>;
+
+/// 范围索引 AOF 回放面（aof 域所需最小方法集；resp 侧复制面
+/// `RangeIndexManagerReplication` 实现——依赖方向 resp → aof 单边干净）
+///
+/// dyn 兼容形态：会话参数取 [`RangeIndexSessionFace`] trait object。
+pub trait RangeIndexReplayFace: Send + Sync {
+  /// RI.CREATE AOF 回放（错误文案 "RangeIndex replay failed: …" 由实现方拼装）
+  fn handle_range_index_create_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a>;
+
+  /// RI.SET AOF 回放（错误文案 "RangeIndex replay failed: …" 由实现方拼装）
+  fn handle_range_index_set_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a>;
+
+  /// RI.DEL AOF 回放（错误文案 "RangeIndex replay failed: …" 由实现方拼装）
+  fn handle_range_index_del_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a>;
+
+  /// 迁移索引流块 AOF 回放（错误文案 "RangeIndexStreamChunk replay failed: …"
+  /// 由实现方拼装）
+  fn handle_range_index_stream_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a>;
 }
 
 /// AOF 重放域错误（C# GarnetException 回放路径的 rust 形态）。
@@ -450,8 +497,8 @@ pub struct AofProcessor {
   /// 单物理日志 + 多回放任务拓扑。
   using_single_physical_log_multi_replay: bool,
   /// 范围索引重放面（C# activeRangeIndexManager；RangeIndexPreview 关闭 /
-  /// 未注入为 None，RI 族条目重放按 C# 同文案失败）。
-  range_index: Option<Arc<RangeIndexManagerReplication>>,
+  /// 未注入为 None，RI 族条目重放按 C# 同文案失败）
+  range_index: Option<Arc<dyn RangeIndexReplayFace>>,
   /// 存储过程重放执行面（C# 经 replayContext.respServerSession 承接；
   /// rust 回放驱动经注册面装配，未注入为 None）。
   stored_proc_replayer: RwLock<Option<Arc<dyn StoredProcReplayer>>>,
@@ -492,12 +539,12 @@ impl AofProcessor {
   }
 
   /// 注入范围索引重放面（C# 由 storeWrapper.activeRangeIndexManager 装配）。
-  pub fn set_range_index_manager(&mut self, manager: Arc<RangeIndexManagerReplication>) {
+  pub fn set_range_index_manager(&mut self, manager: Arc<dyn RangeIndexReplayFace>) {
     self.range_index = Some(manager);
   }
 
   /// 范围索引重放面句柄。
-  pub fn range_index_manager(&self) -> Option<&Arc<RangeIndexManagerReplication>> {
+  pub fn range_index_manager(&self) -> Option<&Arc<dyn RangeIndexReplayFace>> {
     self.range_index.as_ref()
   }
 
@@ -1050,7 +1097,6 @@ impl AofProcessor {
         let input = ReplayInput::deserialize(&payload).ok_or("StreamChunk input 损坏")?;
         ri.handle_range_index_stream_replay(&target.session.batch, key, &input)
           .await
-          .map_err(|e| format!("RangeIndexStreamChunk replay failed: {e}").into())
       }
       _ => Err(format!("Unknown AOF header operation type {op_type:?}").into()),
     }
@@ -1123,7 +1169,8 @@ impl AofProcessor {
         }
         _ => unreachable!("RI 族判别已收敛"),
       };
-      return result.map_err(|e| format!("RangeIndex replay failed: {e}").into());
+      // 错误文案（"RangeIndex replay failed: …"）由回放面实现方拼装
+      return result;
     }
     // TTL 物理清除确定性重放（C# DELIFEXPIM：Expired|Deterministic 标志下
     // CheckExpiry 恒真 → 删除）；主端已判定到期，重放端幂等执行统一 DEL

@@ -67,9 +67,7 @@ fn test_collection_type_roundtrip_and_properties() -> Void {
 
   for (col_type, byte_val, redis_name) in types {
     assert_eq!(col_type.as_u8(), byte_val);
-    assert_eq!(u8::from(col_type), byte_val);
     assert_eq!(GarnetObjectType::from_u8(byte_val), Some(col_type));
-    assert_eq!(GarnetObjectType::try_from(byte_val)?, col_type);
     assert_eq!(GarnetObjectType::from_repr(byte_val), Some(col_type));
     assert_eq!(col_type.as_str(), redis_name);
     assert_eq!(col_type.as_ref(), redis_name);
@@ -82,7 +80,6 @@ fn test_collection_type_roundtrip_and_properties() -> Void {
   assert_eq!(GarnetObjectType::from_u8(6), None);
   assert_eq!(GarnetObjectType::from_repr(6), None);
   assert_eq!(GarnetObjectType::from_u8(0xfc), None);
-  assert!(GarnetObjectType::try_from(6).is_err());
 
   OK
 }

@@ -142,6 +142,12 @@ mod tests {
   use std::sync::Arc;
 
   use super::*;
+  use wcustom::DefaultTxnProc;
+
+  /// 测试用过程体工厂（默认空事务三段式；Arc 闭包产出 trait 对象）
+  fn stub_proc() -> TxnProcFactory {
+    Arc::new(|| Box::new(DefaultTxnProc { id: 0 }))
+  }
 
   #[test]
   fn registers_commands_transactions_and_modules() {
@@ -158,7 +164,7 @@ mod tests {
     assert!(manager.lock().try_get_custom_command(cmd_id).is_some());
 
     let txn_id = api
-      .new_transaction_proc("MYTXN", None, None, None)
+      .new_transaction_proc("MYTXN", Some(stub_proc()), None, None)
       .expect("事务过程注册成功");
     assert!(api.get_custom_transaction_procedure(txn_id).is_some());
 

@@ -150,7 +150,7 @@ fn reset_stats_test() {
 /// test/standalone/Garnet.test/RespInfoTests.cs:UptimeIncreasesAcrossInfoCalls
 #[test]
 fn uptime_increases_across_info_calls() {
-  let now = coarsetime::Clock::now_since_epoch().as_secs() as i64;
+  let now = wbase::time::now_ms() as i64 / 1000;
   let provider = InfoTestProvider {
     start_time: now - 10,
     dbs: vec![DbSnapshot {

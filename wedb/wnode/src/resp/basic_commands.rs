@@ -5,7 +5,7 @@ use wbase::{
   time::now_ticks,
 };
 use wcol::object_store_utils::is_object_envelope;
-use wconf::ServerConfig;
+use super::config_commands::ServerConfig;
 use wbase::num::{strict_f64, strict_i32, strict_i64};
 use wresp::{
   RespSliceExt, RespVecExt, check_arg_count, cmd_strings as cs,
@@ -13,6 +13,7 @@ use wresp::{
     RESP_ERR_GENERIC, abort_with_error_message, abort_with_unknown_subcommand,
     abort_with_unsupported_option, write_raw,
   },
+  sanitize_error_str,
   key_spec::KeySpecificationFlags,
   unpack_args,
 };
@@ -261,8 +262,8 @@ fn apply_set_with_expiry<'a, D: wdev::Device>(
 /// `ERR Syntax error in {0} option '{1}'`（零堆分配直接写入，净化防换行注入）
 #[inline]
 fn write_syntax_error_option(output: &mut Vec<u8>, cmd: &str, option: &str) {
-  let clean_cmd = cs::sanitize_error_str(cmd, cs::MAX_PARAM_NAME_LEN);
-  let clean_option = cs::sanitize_error_str(option, cs::MAX_PARAM_NAME_LEN);
+  let clean_cmd = sanitize_error_str(cmd, cs::MAX_PARAM_NAME_LEN);
+  let clean_option = sanitize_error_str(option, cs::MAX_PARAM_NAME_LEN);
   output.extend_from_slice(b"-ERR Syntax error in ");
   output.extend_from_slice(clean_cmd.as_bytes());
   output.extend_from_slice(b" option '");

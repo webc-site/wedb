@@ -55,9 +55,6 @@ workspace = true
 version = "4.6.6"
 features = [ "derive" ]
 
-[dependencies.coarsetime]
-workspace = true
-
 [dependencies.compio]
 workspace = true
 

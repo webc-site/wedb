@@ -22,6 +22,7 @@ use std::{
 
 use event_listener::{Event, Listener};
 use parking_lot::Mutex;
+use smallvec::SmallVec;
 use waof::{
   AofAddress, AofChunkHeader, AofEntryType, AofHeader, AofHeaderType, AofShardedHeader,
   AofShardedLogTransactionHeader, AofSingleLogTransactionHeader, REPLAY_TASK_ACCESS_VECTOR_BYTES,
@@ -44,6 +45,18 @@ pub struct LogRecord {
 pub trait SublogBackend: Send + Sync {
   /// 追加一条记录，返回其起始逻辑地址。
   fn enqueue(&self, payload: &[u8]) -> i64;
+  /// 分部件追加单条记录（scatter-write，零整包拼接），返回起始逻辑地址。
+  ///
+  /// 产出记录与 [`Self::enqueue`] 预拼整包后写入逐字节一致；默认实现回落
+  /// 拼接整包（内存后端覆写为单次拷贝直存，waof 后端直通零拷贝）。
+  fn enqueue_parts(&self, parts: &[&[u8]]) -> i64 {
+    let total_len: usize = parts.iter().map(|part| part.len()).sum();
+    let mut payload = Vec::with_capacity(total_len);
+    for part in parts {
+      payload.extend_from_slice(part);
+    }
+    self.enqueue(&payload)
+  }
   /// 尾地址（下一记录的写入点）。
   fn tail_address(&self) -> i64;
   /// begin 地址。
@@ -134,6 +147,15 @@ impl InMemorySublog {
 
 impl SublogBackend for InMemorySublog {
   fn enqueue(&self, payload: &[u8]) -> i64 {
+    self.enqueue_parts(&[payload])
+  }
+
+  fn enqueue_parts(&self, parts: &[&[u8]]) -> i64 {
+    let total_len: usize = parts.iter().map(|part| part.len()).sum();
+    let mut payload = Vec::with_capacity(total_len);
+    for part in parts {
+      payload.extend_from_slice(part);
+    }
     let mut records = self.records.lock();
     let address = records
       .last()
@@ -142,7 +164,7 @@ impl SublogBackend for InMemorySublog {
       });
     records.push(LogRecord {
       address,
-      payload: payload.to_vec(),
+      payload,
     });
     address
   }
@@ -962,6 +984,10 @@ impl GarnetLog {
 
   /// 头编码 + 负载拼装的通用入队：按拓扑选择 Basic/Sharded 头，
   /// 返回逻辑地址。
+  ///
+  /// 负载以部件表 scatter-write 直达子日志（Sharded 头拆为 Basic 头 + 序列号
+  /// 两部件，布局与 `AofShardedHeader::to_bytes` 逐字节一致），零整包 Vec：
+  /// 大 value/input 不再经历"拼整包 → enqueue 整量拷贝"的两轮 memcpy。
   fn enqueue_with_header(&self, record: &RecordShape<'_>) -> i64 {
     let RecordShape {
       op_type,
@@ -972,51 +998,49 @@ impl GarnetLog {
       input,
       database_id,
     } = *record;
-    let header_size = if self.using_single_physical_log() {
-      AofHeader::TOTAL_SIZE
-    } else {
-      AofShardedHeader::TOTAL_SIZE
-    };
-    let value_len_prefix = if op_type.has_chunk_value() {
-      KEY_LEN_PREFIX_SIZE
-    } else {
+    let mut header = AofHeader::new();
+    header.op_type = op_type as u8;
+    header.store_version = version;
+    header.session_id = session_id;
+    header.database_id = database_id;
+
+    let physical_sublog_idx = if self.using_single_physical_log() {
       0
-    };
-    let mut payload = Vec::with_capacity(
-      header_size + KEY_LEN_PREFIX_SIZE + key.len() + value_len_prefix + value.len() + input.len(),
-    );
-    let physical_sublog_idx;
-    if self.using_single_physical_log() {
-      physical_sublog_idx = 0;
-      let mut header = AofHeader::new();
-      header.set_header_type(AofHeaderType::BasicHeader);
-      header.op_type = op_type as u8;
-      header.store_version = version;
-      header.session_id = session_id;
-      header.database_id = database_id;
-      payload.extend_from_slice(&header.to_bytes());
     } else {
-      physical_sublog_idx = self.get_physical_sublog_idx(Self::hash(key));
-      let mut header = AofHeader::new();
-      header.set_header_type(AofHeaderType::ShardedHeader);
-      header.op_type = op_type as u8;
-      header.store_version = version;
-      header.session_id = session_id;
-      header.database_id = database_id;
-      let sharded = AofShardedHeader {
-        basic: header,
-        sequence_number: self.next_sequence_number(),
-      };
-      payload.extend_from_slice(&sharded.to_bytes());
+      self.get_physical_sublog_idx(Self::hash(key))
+    };
+    header.set_header_type(if self.using_single_physical_log() {
+      AofHeaderType::BasicHeader
+    } else {
+      AofHeaderType::ShardedHeader
+    });
+    // 单物理日志无序列号占位（不入部件表）；分片拓扑序列号紧跟 Basic 头之后
+    let seq_bytes = if self.using_single_physical_log() {
+      [0u8; 8]
+    } else {
+      self.next_sequence_number().to_le_bytes()
+    };
+    let basic_bytes = header.to_bytes();
+    let key_len_bytes = (key.len() as u32).to_le_bytes();
+    let value_len_bytes;
+
+    let mut parts: SmallVec<[&[u8]; 8]> = SmallVec::new();
+    parts.push(&basic_bytes[..]);
+    if !self.using_single_physical_log() {
+      parts.push(&seq_bytes[..]);
     }
-    payload.extend_from_slice(&(key.len() as u32).to_le_bytes());
-    payload.extend_from_slice(key);
+    parts.push(&key_len_bytes[..]);
+    parts.push(key);
     if op_type.has_chunk_value() {
-      payload.extend_from_slice(&(value.len() as u32).to_le_bytes());
-      payload.extend_from_slice(value);
+      value_len_bytes = (value.len() as u32).to_le_bytes();
+      parts.push(&value_len_bytes[..]);
+      parts.push(value);
     }
-    payload.extend_from_slice(input);
-    let address = self.get_sub_log(physical_sublog_idx).enqueue(&payload);
+    parts.push(input);
+
+    let address = self
+      .get_sub_log(physical_sublog_idx)
+      .enqueue_parts(&parts);
     if self.auto_commit {
       self.commit();
     }
@@ -1041,7 +1065,8 @@ impl GarnetLog {
   /// libs/server/AOF/GarnetLog.cs:EnqueueSpanChunked
   ///
   /// 大记录分块写入：全量长度预先盖入分块头，使读取器可按组件预分配。
-  /// `write_value` / `write_input` 选择组件（key 恒写）。
+  /// `write_value` / `write_input` 选择组件（key 恒写）。各片以部件表
+  /// scatter-write 直达子日志，零整包 Vec。
   pub fn enqueue_span_chunked(&self, chunk: &ChunkedShape<'_>) -> i64 {
     let ChunkedShape {
       record:
@@ -1075,14 +1100,7 @@ impl GarnetLog {
     let page_payload = (1usize << self.unsafe_get_log_page_size_bits() as u32)
       - header_size
       - AofChunkHeader::TOTAL_SIZE;
-    let mut chunks: Vec<Vec<u8>> = Vec::new();
-    let mut emit = |mut chunk: Vec<u8>, key: &[u8], value: &[u8]| {
-      chunk.extend_from_slice(key);
-      chunk.extend_from_slice(value);
-      chunks.push(chunk);
-    };
 
-    let mut first = Vec::with_capacity(header_size + AofChunkHeader::TOTAL_SIZE + key.len());
     let mut header = AofHeader::new();
     header.set_header_type(if using_single_physical_log {
       AofHeaderType::BasicChunkHeader
@@ -1093,32 +1111,46 @@ impl GarnetLog {
     header.store_version = version;
     header.session_id = session_id;
     header.database_id = database_id;
-    first.extend_from_slice(&header.to_bytes());
-    if !using_single_physical_log {
-      let sequence_number = self.next_sequence_number();
-      first.extend_from_slice(&sequence_number.to_le_bytes());
-    }
-    first.extend_from_slice(&chunk_header.to_bytes());
-    emit(first, key, &[]);
+    let basic_bytes = header.to_bytes();
+    // Sharded 分块头 = Basic 分块头 + 序列号两部件，布局与整包编码逐字节一致；
+    // 单物理日志无序列号占位（不入部件表）
+    let seq_bytes = if using_single_physical_log {
+      [0u8; 8]
+    } else {
+      self.next_sequence_number().to_le_bytes()
+    };
+    let chunk_bytes = chunk_header.to_bytes();
 
-    let remaining = if write_value { value } else { &[][..] };
-    for piece in remaining.chunks(page_payload.max(1)) {
-      let piece_chunk = Vec::with_capacity(piece.len());
-      emit(piece_chunk, &[], piece);
+    let physical_sublog_idx = if using_single_physical_log {
+      0
+    } else {
+      self.get_physical_sublog_idx(chunk_header.key_hash)
+    };
+
+    // 首片：头 + [序列号] + 分块头 + key
+    let mut parts: SmallVec<[&[u8]; 8]> = SmallVec::new();
+    parts.push(&basic_bytes[..]);
+    if !using_single_physical_log {
+      parts.push(&seq_bytes[..]);
+    }
+    parts.push(&chunk_bytes[..]);
+    parts.push(key);
+    let mut address = self
+      .get_sub_log(physical_sublog_idx)
+      .enqueue_parts(&parts);
+
+    if write_value {
+      // 溢出 value 按页上界分片（空 value 零分片，与旧拼包路径一致）
+      for piece in value.chunks(page_payload.max(1)) {
+        address = self
+          .get_sub_log(physical_sublog_idx)
+          .enqueue_parts(&[piece]);
+      }
     }
     if write_input {
-      let input_chunk = Vec::with_capacity(input.len());
-      emit(input_chunk, &[], input);
-    }
-
-    let mut address = 0;
-    for chunk in chunks {
-      let physical_sublog_idx = if using_single_physical_log {
-        0
-      } else {
-        self.get_physical_sublog_idx(chunk_header.key_hash)
-      };
-      address = self.get_sub_log(physical_sublog_idx).enqueue(&chunk);
+      address = self
+        .get_sub_log(physical_sublog_idx)
+        .enqueue_parts(&[input]);
     }
     if self.auto_commit {
       self.commit();

@@ -175,9 +175,6 @@ pub enum GarnetObjectType {
 }
 
 impl GarnetObjectType {
-  /// ZSet 别名常量（指向 SortedSet = 1，wedb 架构词汇统一用 ZSet）
-  pub const ZSET: Self = Self::SortedSet;
-
   /// 从 1 字节整数解析集合与对象类型 (const fn)
   #[inline(always)]
   pub const fn from_u8(val: u8) -> Option<Self> {
@@ -202,21 +199,5 @@ impl GarnetObjectType {
       Self::RangeIndex => "rangeindex",
       Self::All => "all",
     }
-  }
-}
-
-impl TryFrom<u8> for GarnetObjectType {
-  type Error = Error;
-
-  #[inline]
-  fn try_from(val: u8) -> Result<Self> {
-    Self::from_repr(val).ok_or(Error::InvalidCollectionType(val))
-  }
-}
-
-impl From<GarnetObjectType> for u8 {
-  #[inline(always)]
-  fn from(t: GarnetObjectType) -> Self {
-    t as Self
   }
 }

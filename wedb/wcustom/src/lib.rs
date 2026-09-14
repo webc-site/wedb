@@ -21,6 +21,7 @@ pub mod custom_raw_string_functions;
 pub mod custom_resp_commands;
 pub mod custom_transaction_procedure;
 pub mod expandable_map;
+pub mod module;
 pub mod object_input_extensions;
 
 pub use custom_command_manager::{
@@ -36,6 +37,7 @@ pub use custom_object_functions::CustomObjectFunctions;
 pub use custom_procedure_base::CustomProcedureBase;
 pub use custom_raw_string_functions::CustomRawStringFunctions;
 pub use custom_resp_commands::CustomRespCommands;
-pub use custom_transaction_procedure::CustomTransactionProcedure;
+pub use custom_transaction_procedure::{CustomTransactionProcedure, DefaultTxnProc};
 pub use expandable_map::ExpandableMap;
+pub use module::{GarnetModule, ModuleLoadContext};
 pub use object_input_extensions::ObjectInputExtensions;

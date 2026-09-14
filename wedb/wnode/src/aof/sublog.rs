@@ -34,6 +34,11 @@ impl Sublog {
   }
 
   #[inline(always)]
+  pub fn enqueue_parts(&self, parts: &[&[u8]]) -> i64 {
+    SublogBackend::enqueue_parts(self, parts)
+  }
+
+  #[inline(always)]
   pub fn tail_address(&self) -> i64 {
     SublogBackend::tail_address(self)
   }
@@ -120,6 +125,14 @@ impl SublogBackend for Sublog {
     match self {
       Self::Mem(m) => m.enqueue(payload),
       Self::Waof(w) => w.enqueue(payload),
+    }
+  }
+
+  #[inline(always)]
+  fn enqueue_parts(&self, parts: &[&[u8]]) -> i64 {
+    match self {
+      Self::Mem(m) => m.enqueue_parts(parts),
+      Self::Waof(w) => w.enqueue_parts(parts),
     }
   }
 

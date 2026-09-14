@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wpubsub"
 description = "Publish-subscribe broker and message distribution for wedb"
+keywords = ["pubsub", "publish-subscribe", "broker", "messaging"]
 
 [dependencies]
 itoa.workspace = true

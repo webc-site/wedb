@@ -137,12 +137,6 @@ impl ExpirationWithOption {
     }
   }
 
-  /// 由既有 64 位整型字构筑（对照 C# ExpirationWithOption(long word) 单参构造）
-  #[inline]
-  pub fn from_word(word: i64) -> Self {
-    Self { word }
-  }
-
   /// 由 (word_head, word_tail) 两个 i32 拼装（C# RespServerSession 传参形态）
   #[inline]
   pub fn from_word_head_tail(word_head: i32, word_tail: i32) -> Self {
@@ -173,12 +167,6 @@ impl ExpirationWithOption {
   #[inline]
   pub fn word_head(&self) -> i32 {
     ((self.word >> 32) & 0xFFFF_FFFF) as i32
-  }
-
-  /// libs/server/ExpirationWithOption.cs:WordTail
-  #[inline]
-  pub fn word_tail(&self) -> i32 {
-    (self.word & 0xFFFF_FFFF) as i32
   }
 }
 
@@ -430,9 +418,8 @@ mod tests {
     assert_eq!(e.expire_option(), ExpireOption::GT);
     assert_eq!(e.expiration_time_in_ticks(), (ticks >> 4) << 4);
 
-    let head = e.word_head();
-    let tail = e.word_tail();
-    let reconstructed = ExpirationWithOption::from_word_head_tail(head, tail);
+    let reconstructed =
+      ExpirationWithOption::from_word_head_tail(e.word_head(), (e.word() & 0xFFFF_FFFF) as i32);
     assert_eq!(e, reconstructed);
     assert_eq!(e.word(), reconstructed.word());
   }

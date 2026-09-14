@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wnode"
 description = "Core server node runtime, network transport, and request handling for wedb"
+keywords = ["server", "network", "resp", "runtime", "async"]
 
 [features]
 default = []

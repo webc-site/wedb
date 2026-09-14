@@ -1,4 +1,5 @@
-use wconf::{RuntimeServerConfig, ServerConfig};
+use wconf::RuntimeServerConfig;
+use wnode::resp::config_commands::ServerConfig;
 use wnode::resp::resp_server_session::RespServerSession;
 use wresp::{ArgSlice, RespCommand};
 
@@ -233,12 +234,23 @@ use wnode::{
   MessageConsumerFace, RespSessionConsumer,
   resp::{
     garnet_api::{CheckpointCtx, StoreGarnetApi},
-    resp_server_session::RespServerSessionOptions as Opts,
+    resp_server_session::{ConnectionProtectionOption, RespServerSessionOptions as Opts},
   },
 };
 
 /// 挂检查点通道的会话消费者（独立临时目录）
 fn checkpoint_consumer() -> (
+  RespSessionConsumer,
+  std::path::PathBuf,
+  Arc<std::sync::atomic::AtomicI64>,
+) {
+  checkpoint_consumer_with(|opts| opts)
+}
+
+/// 同 [`Self::checkpoint_consumer`]，允许定制会话选项
+fn checkpoint_consumer_with(
+  customize: impl FnOnce(Opts) -> Opts,
+) -> (
   RespSessionConsumer,
   std::path::PathBuf,
   Arc<std::sync::atomic::AtomicI64>,
@@ -255,7 +267,7 @@ fn checkpoint_consumer() -> (
     last_save_ms: Arc::clone(&last_save_ms),
   });
   (
-    RespSessionConsumer::new(1, Opts::default(), Arc::new(api)),
+    RespSessionConsumer::new(1, customize(Opts::default()), Arc::new(api)),
     cp_dir,
     last_save_ms,
   )
@@ -388,4 +400,48 @@ fn info_cluster_section_and_reset_help() {
   // HELP → 数组形态帮助文本
   let out = roundtrip(&mut c, b"*2\r\n$4\r\nINFO\r\n$4\r\nHELP\r\n");
   assert_eq!(out[0], b'*');
+}
+
+// ---------------------------------------------------------------------------
+// DEBUG PURGEBP / EXPDELSCAN 接线回归
+//（C# PurgeBPCommand：clusterSession == null → CLUSTER_DISABLED，成功回
+// "GC completed for <type>"；NetworkEXPDELSCAN → storeWrapper.
+// ExpiredKeyDeletionScan，应答 *2 计数对）
+// ---------------------------------------------------------------------------
+
+/// DEBUG PURGEBP：单机无集群切面 → CLUSTER_DISABLED；ManagerType 解析
+/// 失败 → 语法错误
+#[test]
+fn purgebp_without_cluster_disabled() {
+  let (mut c, _dir, _ts) = checkpoint_consumer_with(|opts| Opts {
+    enable_debug_command: ConnectionProtectionOption::Yes,
+    ..opts
+  });
+
+  let out = roundtrip(&mut c, b"*3\r\n$5\r\nDEBUG\r\n$7\r\nPURGEBP\r\n$16\r\nMigrationManager\r\n");
+  assert_eq!(
+    out,
+    b"-ERR This instance has cluster support disabled\r\n"
+  );
+
+  let out = roundtrip(&mut c, b"*3\r\n$5\r\nDEBUG\r\n$7\r\nPURGEBP\r\n$4\r\nnope\r\n");
+  assert_eq!(out, b"-ERR syntax error\r\n");
+}
+
+/// EXPDELSCAN：空库慢路径闭环，应答 *2 计数对（expired=0 scanned=0）
+#[test]
+fn expdelscan_reports_zero_counts_on_empty_store() {
+  let rt = Runtime::new().unwrap();
+  let (mut c, _dir, _ts) = checkpoint_consumer();
+
+  // 非法 DBID → 快路径拦截（C# TryParseDatabaseId 口径）
+  let out = roundtrip(&mut c, b"*2\r\n$10\r\nEXPDELSCAN\r\n$3\r\nabc\r\n");
+  assert_eq!(
+    out,
+    b"-ERR value is not an integer or out of range.\r\n"
+  );
+
+  // 无参 → 慢路径默认库 0：*2 + 两个十进制计数 bulk string
+  let out = slow_roundtrip(&rt, &mut c, b"*1\r\n$10\r\nEXPDELSCAN\r\n");
+  assert_eq!(out, b"*2\r\n$1\r\n0\r\n$1\r\n0\r\n");
 }

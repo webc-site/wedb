@@ -12,7 +12,10 @@ use std::{marker::PhantomData, ptr, sync::Arc};
 use waof::AofAddress;
 use wresp::RespCommand;
 
-use crate::{RoleInfo, key_spec::SimpleRespKeySpec, resp::slow_path::SlowWait};
+use crate::{
+  RoleInfo, key_spec::SimpleRespKeySpec, resp::slow_path::SlowWait,
+  session_parse_state_extensions::ManagerType,
+};
 
 /// 槽位多键校验函数指针类型
 pub type SlotVerifyFn =
@@ -112,6 +115,14 @@ pub trait ClusterSessionFace: Send + Sync {
   fn take_pending_slow(&self) -> Option<SlowWait> {
     None
   }
+
+  /// DEBUG PURGEBP 集群侧缓冲池清洗（C# RespServerSession.ClusterPurgeBufferPool
+  /// → clusterProvider.PurgeBufferPool；`manager_type` 已由命令层解析）
+  ///
+  /// 默认 no-op：无集群装配面的宿主由命令层回 CLUSTER_DISABLED，不经此面
+  fn purge_buffer_pool(&self, manager_type: ManagerType) {
+    let _ = manager_type;
+  }
 }
 
 /// 静态虚表声明，消除动态分发
@@ -127,6 +138,7 @@ pub struct ClusterSessionVtable {
   pub aof_sublog_count: unsafe fn(*const ()) -> usize,
   pub dispose: unsafe fn(*const ()),
   pub take_pending_slow: unsafe fn(*const ()) -> Option<SlowWait>,
+  pub purge_buffer_pool: unsafe fn(*const (), ManagerType),
   pub drop: unsafe fn(*const ()),
   pub clone: unsafe fn(*const ()) -> *const (),
 }
@@ -166,6 +178,9 @@ impl ClusterSession {
         aof_sublog_count: |ptr| unsafe { (*(ptr as *const T)).aof_sublog_count() },
         dispose: |ptr| unsafe { (*(ptr as *const T)).dispose() },
         take_pending_slow: |ptr| unsafe { (*(ptr as *const T)).take_pending_slow() },
+        purge_buffer_pool: |ptr, manager_type| unsafe {
+          (*(ptr as *const T)).purge_buffer_pool(manager_type)
+        },
         drop: |ptr| unsafe { drop(Arc::from_raw(ptr as *const T)) },
         clone: |ptr| unsafe {
           let arc = Arc::from_raw(ptr as *const T);
@@ -246,6 +261,12 @@ impl ClusterSession {
   #[inline]
   pub fn take_pending_slow(&self) -> Option<SlowWait> {
     unsafe { (self.vtable.take_pending_slow)(self.ptr) }
+  }
+
+  /// DEBUG PURGEBP 集群侧缓冲池清洗（转发切面实现）
+  #[inline]
+  pub fn purge_buffer_pool(&self, manager_type: ManagerType) {
+    unsafe { (self.vtable.purge_buffer_pool)(self.ptr, manager_type) }
   }
 }
 

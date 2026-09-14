@@ -39,7 +39,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
 
   let original = MetaValue::new(
     0x0123_4567_89ab_cdef,
-    GarnetObjectType::ZSET,
+    GarnetObjectType::SortedSet,
     0x0000_0000_0000_002a,
     10_000_000,
   );
@@ -49,7 +49,7 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
 
   // 验证大端序字节排布
   assert_eq!(&bytes[0..8], &0x0123_4567_89ab_cdef_u64.to_be_bytes());
-  assert_eq!(bytes[8], GarnetObjectType::ZSET.as_u8());
+  assert_eq!(bytes[8], GarnetObjectType::SortedSet.as_u8());
   assert_eq!(&bytes[9..16], &[0u8; 7]);
   assert_eq!(&bytes[16..24], &42u64.to_be_bytes());
   assert_eq!(&bytes[24..32], &10_000_000u64.to_be_bytes());
@@ -417,7 +417,7 @@ fn test_compile_time_const_evaluation() {
 
   // CompactMetaValue 编译期求值与快速探针验证
   const CMETA: CompactMetaValue = CompactMetaValue::new(
-    GarnetObjectType::ZSET,
+    GarnetObjectType::SortedSet,
     StorageEncoding::Flattened,
     888,
     1_700_000_000_000,
@@ -426,7 +426,7 @@ fn test_compile_time_const_evaluation() {
   const C_DEC: Result<CompactMetaValue> = CompactMetaValue::from_slice(&C_BYTES);
   assert!(matches!(C_DEC, Ok(cm) if cm.size == 888 && cm.expire_at_ticks == 1_700_000_000_000));
   const C_TYPE: Option<GarnetObjectType> = CompactMetaValue::read_collection_type(&C_BYTES);
-  assert_eq!(C_TYPE, Some(GarnetObjectType::ZSET));
+  assert_eq!(C_TYPE, Some(GarnetObjectType::SortedSet));
   const C_ENC: Option<StorageEncoding> = CompactMetaValue::read_encoding(&C_BYTES);
   assert_eq!(C_ENC, Some(StorageEncoding::Flattened));
   const C_SIZE: Option<u32> = CompactMetaValue::read_size(&C_BYTES);

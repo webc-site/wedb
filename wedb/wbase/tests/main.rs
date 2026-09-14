@@ -709,34 +709,19 @@ fn test_crc64_primitives() {
 
 #[cfg(feature = "map")]
 #[test]
-fn test_concurrent_map() {
-  use std::{sync::Arc, thread};
-
+fn test_concurrent_map_smoke() {
+  // 插/查/删冒烟：并发语义细节由 papaya 库自身测试覆盖
   use wbase::{ConcurrentMap, new_concurrent_map};
 
-  let map: Arc<ConcurrentMap<u64, u64>> = Arc::new(new_concurrent_map());
-
-  let mut handles = Vec::new();
-  for t in 0..4u64 {
-    let map_clone = Arc::clone(&map);
-    handles.push(thread::spawn(move || {
-      let map_pin = map_clone.pin();
-      for i in 0..1000u64 {
-        let key = t * 1000 + i;
-        map_pin.insert(key, key * 2);
-      }
-    }));
-  }
-
-  for h in handles {
-    h.join().unwrap();
-  }
+  let map: ConcurrentMap<u64, u64> = new_concurrent_map();
 
   let pin = map.pin();
-  assert_eq!(map.len(), 4000);
-
-  for key in 0..4000u64 {
-    assert_eq!(pin.get(&key), Some(&(key * 2)));
-  }
-  assert_eq!(pin.get(&9999), None);
+  pin.insert(1, 10);
+  pin.insert(2, 20);
+  assert_eq!(pin.get(&1), Some(&10));
+  assert_eq!(pin.get(&2), Some(&20));
+  assert_eq!(pin.get(&3), None);
+  assert_eq!(pin.remove(&1), Some(&10));
+  assert_eq!(pin.get(&1), None);
+  assert_eq!(map.len(), 1);
 }

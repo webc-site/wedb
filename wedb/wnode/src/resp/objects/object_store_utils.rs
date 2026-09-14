@@ -58,15 +58,6 @@ impl RespServerSession {
     true
   }
 }
-pub(super) enum SyncObj {
-  /// 键不存在
-  Missing,
-  /// 存在但非本类型信封
-  WrongType,
-  /// 命中，返回剥壳后的 bitcode 载荷
-  Present(Vec<u8>),
-}
-
 /// 对象同步装载三态（四类对象共用）
 pub enum ObjLoad<T> {
   /// 磁盘候选：命令须降级异步重放（未写任何输出）
@@ -91,27 +82,10 @@ pub enum RespRmwOutcome {
   Done { result1: i64, payload_written: bool },
 }
 
-/// 同步读对象信封（零 I/O 快路径）
-///
-/// 返回 `Ok(None)` 表示磁盘候选须降级异步裁决；`Err` 为存储层错误
-pub(super) fn obj_load_sync<D: Device>(
-  store: &BatchStoreSession<'_, D>,
-  key: &[u8],
-  tag: u8,
-) -> wkv::Result<Option<SyncObj>> {
-  // 闭包内直接判型并剥壳：跳过整值拷贝，仅命中载荷分配一次
-  match store.try_read_sync(key, |raw| match obj_decode(raw, tag) {
-    None => SyncObj::WrongType,
-    Some(p) => SyncObj::Present(p.to_vec()),
-  })? {
-    // 磁盘候选 / TTL 待裁决：降级
-    None => Ok(None),
-    Some(None) => Ok(Some(SyncObj::Missing)),
-    Some(Some(obj)) => Ok(Some(obj)),
-  }
-}
-
 /// 通用同步对象装载
+///
+/// 解码进读闭包：信封剥壳后零拷贝直喂反序列化器，命中路径不再经历
+/// "剥壳载荷 → Vec 整拷 → 反序列化器二次切片"的整值拷贝
 pub fn obj_load_typed_sync<T, D: Device>(
   store: &BatchStoreSession<'_, D>,
   key: &[u8],
@@ -119,14 +93,18 @@ pub fn obj_load_typed_sync<T, D: Device>(
   output: &mut Vec<u8>,
   deserialize: impl FnOnce(&[u8]) -> T,
 ) -> ObjLoad<T> {
-  match obj_load_sync(store, key, tag) {
+  // 读侧降级约定：Ok(None) 磁盘候选 / TTL 待裁决；Some(None) 键缺失
+  match store.try_read_sync(key, |raw| match obj_decode(raw, tag) {
+    None => Err(()),
+    Some(p) => Ok(deserialize(p)),
+  }) {
     Ok(None) => ObjLoad::Degrade,
-    Ok(Some(SyncObj::Missing)) => ObjLoad::Missing,
-    Ok(Some(SyncObj::WrongType)) => {
+    Ok(Some(None)) => ObjLoad::Missing,
+    Ok(Some(Some(Err(())))) => {
       write_error_raw(output, RESP_ERR_WRONG_TYPE);
       ObjLoad::Error
     }
-    Ok(Some(SyncObj::Present(p))) => ObjLoad::Present(deserialize(&p)),
+    Ok(Some(Some(Ok(obj)))) => ObjLoad::Present(obj),
     Err(_) => {
       RespVecExt::write_resp_error(output, RESP_ERR_GENERIC);
       ObjLoad::Error

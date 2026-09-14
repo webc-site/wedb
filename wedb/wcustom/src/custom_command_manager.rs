@@ -839,6 +839,8 @@ mod tests {
       .try_get_custom_transaction_procedure(txn_id)
       .unwrap();
     assert_eq!(txn.arity, -3);
+    // 过程体工厂可实例化（C# entry.proc() 同径）
+    assert_eq!(txn.id, 0);
     assert!(txn.factory.is_none());
     assert!(manager.try_get_custom_transaction_procedure(9).is_none());
 

@@ -453,7 +453,11 @@ mod tests {
     let m = manager();
     let key = b"rk";
     assert_eq!(m.get_key_sequence_number(key, false), 0);
-    m.update_key_sequence_number_by_hash(GarnetLog::hash(key), 11);
+    m.update_virtual_sublog_key_sequence_number(
+      m.virtual_sublog_idx_of_hash(GarnetLog::hash(key)),
+      GarnetLog::hash(key),
+      11,
+    );
     assert_eq!(m.get_key_sequence_number(key, false), 11);
     assert!(m.get_key_sequence_number(key, true) >= 11);
   }
@@ -489,7 +493,7 @@ mod tests {
     let m = manager();
     let key = b"proto";
     let hash = GarnetLog::hash(key);
-    m.update_key_sequence_number_by_hash(hash, 5);
+    m.update_virtual_sublog_key_sequence_number(m.virtual_sublog_idx_of_hash(hash), hash, 5);
 
     let ctx = ReplicaReadSessionContext::default();
     m.pre_single_key_consistent_read(hash, &ctx, Duration::from_millis(10));
@@ -508,7 +512,7 @@ mod tests {
     if m.virtual_sublog_idx_of_hash(h1) == m.virtual_sublog_idx_of_hash(h2) {
       return;
     }
-    m.update_key_sequence_number_by_hash(h1, 3);
+    m.update_virtual_sublog_key_sequence_number(m.virtual_sublog_idx_of_hash(h1), h1, 3);
 
     let ctx = ReplicaReadSessionContext::default();
     let got1 = m.pre_batch_key_consistent_read(k1, &ctx, Duration::from_millis(10));
@@ -541,13 +545,5 @@ mod tests {
     m.advance_virtual_sublog_time(0, 12);
     m.advance_virtual_sublog_time(1, 12);
     assert!(!m.replay_barrier.in_progress());
-  }
-
-  #[test]
-  fn update_key_sequence_numbers_advances_slice() {
-    let m = ReadConsistencyManager::new(1, 1, 1, -1, 0);
-    let hash = m.key_hash(b"proc-key");
-    m.update_key_sequence_numbers(&[hash], 9);
-    assert_eq!(m.get_key_sequence_number_by_hash(hash), 9);
   }
 }

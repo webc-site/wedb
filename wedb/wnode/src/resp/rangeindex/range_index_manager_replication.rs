@@ -31,8 +31,8 @@ use wresp::RespCommand;
 
 use crate::{
   aof::{
-    RangeIndexSessionFace,
-    aof_processor::{ReplayInput, ReplayInputSlice},
+    RangeIndexReplayFace, RangeIndexReplayFuture, RangeIndexSessionFace,
+    aof_processor::{AofReplayError, ReplayInput, ReplayInputSlice},
     garnet_append_only_file::GarnetAppendOnlyFile,
     garnet_log::RecordShape,
   },
@@ -626,6 +626,60 @@ impl RangeIndexManagerReplication {
       state.activity.lock().end_and_log(key, reason);
       state.deserializer.lock().dispose();
     }
+  }
+}
+
+/// AOF 回放面接线（aof 域 [`RangeIndexReplayFace`] 的本域实现：委托固有
+/// 方法并按 aof 处理器原样拼装错误文案，行为字节级等价）
+impl RangeIndexReplayFace for RangeIndexManagerReplication {
+  fn handle_range_index_create_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a> {
+    // 固有方法优先（方法调用语法恒先查固有 impl，非递归）
+    Box::pin(async move {
+      let result = self.handle_range_index_create_replay(session, key, input).await;
+      result.map_err(|e| AofReplayError::from(format!("RangeIndex replay failed: {e}")))
+    })
+  }
+
+  fn handle_range_index_set_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a> {
+    Box::pin(async move {
+      let result = self.handle_range_index_set_replay(session, key, input).await;
+      result.map_err(|e| AofReplayError::from(format!("RangeIndex replay failed: {e}")))
+    })
+  }
+
+  fn handle_range_index_del_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a> {
+    Box::pin(async move {
+      let result = self.handle_range_index_del_replay(session, key, input).await;
+      result.map_err(|e| AofReplayError::from(format!("RangeIndex replay failed: {e}")))
+    })
+  }
+
+  fn handle_range_index_stream_replay<'a>(
+    &'a self,
+    session: &'a dyn RangeIndexSessionFace,
+    key: &'a [u8],
+    input: &'a ReplayInput,
+  ) -> RangeIndexReplayFuture<'a> {
+    Box::pin(async move {
+      let result = self.handle_range_index_stream_replay(session, key, input).await;
+      result
+        .map_err(|e| AofReplayError::from(format!("RangeIndexStreamChunk replay failed: {e}")))
+    })
   }
 }
 

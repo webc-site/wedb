@@ -15,14 +15,23 @@ use std::{
 use compio::runtime::spawn;
 use gxhash::HashSet as GxHashSet;
 use parking_lot::{Mutex, RwLock};
-use wbase::hash_slot::hash_slot as cluster_slot;
+use waof::AofAddress;
+use wbase::{
+  hash_slot::hash_slot as cluster_slot,
+  num::{strict_i32, strict_i64},
+};
 use wkv::WedbStore;
 use wnode::{
   ClusterSlotVerificationInput, RoleInfo, StorageSession, cluster_session::ClusterSessionFace,
-  extract_keys_from_slice, resp::slow_path::SlowWait,
+  extract_keys_from_slice, resp::slow_path::SlowWait, session_parse_state_extensions::ManagerType,
 };
-use wbase::num::strict_i64;
-use wresp::{RespCommand, RespVecExt};
+use wresp::{
+  RespCommand, RespVecExt,
+  cmd_strings::{
+    RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
+    abort_with_wrong_number_of_arguments, write_error_raw,
+  },
+};
 
 use crate::{
   error::Error,
@@ -30,22 +39,23 @@ use crate::{
     cluster::{ClusterPreferredEndpointType, IClusterProvider},
     cluster_config::{CLUSTER_CONFIG_VERSION, ClusterConfig, LOCAL_WORKER_ID},
     cluster_manager::ClusterManager,
-    cluster_provider::ClusterProvider,
+    cluster_provider::{ClusterProvider, PrimaryReplicationAssets},
     failover::failover_option::FailoverOption,
     hash_slot::SlotState,
-    replication::recovery_status::RecoveryStatus,
+    replication::{
+      checkpoint_entry::CheckpointEntry, cluster_replication_session::AppendLogOutcome,
+      recovery_status::RecoveryStatus, sync_metadata::SyncMetadata,
+    },
     slot_verify::{ClusterSlotVerificationState, SlotVerifySessionState},
     worker::NodeRole,
   },
 };
 
-/// libs/cluster/CmdStrings.cs 集群域 RESP 错误文案
-#[allow(dead_code)]
+/// libs/cluster/CmdStrings.cs 集群域 RESP 错误文案（通用文案与 wresp 单源，
+/// 仅集群专属文案留存本表）
 mod err {
   /// libs/cluster/CmdStrings.cs:RESP_ERR_GENERIC_SLOT_OUT_OFF_RANGE
   pub const SLOT_OUT_OF_RANGE: &str = "ERR Slot out of range";
-  /// libs/cluster/CmdStrings.cs:RESP_ERR_GENERIC_CONFIG_UPDATE
-  pub const CONFIG_UPDATE: &str = "ERR Updating the config epoch";
   /// libs/cluster/CmdStrings.cs:RESP_ERR_GENERIC_CONFIG_EPOCH_ASSIGNMENT
   pub const CONFIG_EPOCH_ASSIGNMENT: &str =
     "ERR The user can assign a config epoch only when the node does not know any other node";
@@ -61,10 +71,8 @@ mod err {
   pub const SLOT_STATE: &str = "ERR Invalid slot state";
   /// libs/cluster/CmdStrings.cs:RESP_ERR_INVALID_SLOT
   pub const INVALID_SLOT: &str = "ERR Invalid or out of range slot";
-  /// libs/cluster/CmdStrings.cs:RESP_SYNTAX_ERROR
-  pub const SYNTAX_ERROR: &str = "ERR syntax error";
-  /// libs/cluster/CmdStrings.cs:RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER
-  pub const VALUE_NOT_INTEGER: &str = "ERR value is not an integer or out of range.";
+  /// libs/cluster/CmdStrings.cs:RESP_ERR_MULTI_LOG_DISABLED
+  pub const MULTI_LOG_DISABLED: &str = "ERR Multi-log disabled";
 }
 
 /// 集群 RESP 会话实现
@@ -182,20 +190,12 @@ impl ClusterSession {
     self.internal_write.store(val, Ordering::Relaxed);
   }
 
-  /// libs/cluster/Session/ClusterSession.cs:AcquireCurrentEpoch
-  ///
-  /// 纪元保护由 wepoch 域独立承接（会话无自旋等待语义）
-  pub fn acquire_current_epoch(&self) {}
-
-  /// libs/cluster/Session/ClusterSession.cs:ReleaseCurrentEpoch
-  pub fn release_current_epoch(&self) {}
-
   /// libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterGossip
   ///
   /// gossip 载荷合并 + 配置应答（lastSentConfig 变更判定）+ 复制健康检查
   fn network_cluster_gossip(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
     if args.is_empty() || args.len() > 2 {
-      wrong_num_args(output, "gossip");
+      abort_with_wrong_number_of_arguments(output, "gossip");
       return true;
     }
     let (with_meet, payload) = if args.len() > 1 {
@@ -207,7 +207,7 @@ impl ClusterSession {
       gm.stats.update_gossip_bytes_recv(payload.len() as i64);
     }
     let Some(m) = self.cluster_manager() else {
-      write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
       return true;
     };
     if !payload.is_empty() {
@@ -245,10 +245,10 @@ impl ClusterSession {
         .update_gossip_bytes_send(current_bytes.len() as i64);
     }
     if changed || with_meet {
-      write_bulk_string(output, &current_bytes);
+      output.write_resp_bulk_string(&current_bytes);
       *self.last_sent_config.lock() = Some(current_bytes);
     } else {
-      write_bulk_string(output, b"");
+      output.write_resp_bulk_string(b"");
     }
     // gossip 后的复制健康检查（C# EnsureReplication）
     let remote = self.remote_node_id.read().clone();
@@ -259,7 +259,7 @@ impl ClusterSession {
   /// libs/cluster/Session/RespClusterFailoverCommands.cs:NetworkClusterFailover
   fn network_cluster_failover(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
     if args.len() > 2 {
-      wrong_num_args(output, "failover");
+      abort_with_wrong_number_of_arguments(output, "failover");
       return true;
     }
     let mut option = FailoverOption::Default;
@@ -273,32 +273,29 @@ impl ClusterSession {
       } else if arg0.eq_ignore_ascii_case(b"TAKEOVER") {
         option = FailoverOption::Takeover;
       } else {
-        write_error(
-          output,
-          &format!(
-            "ERR Failover option ({}) not supported",
-            String::from_utf8_lossy(arg0)
-          ),
-        );
+        output.write_resp_error(&format!(
+          "ERR Failover option ({}) not supported",
+          String::from_utf8_lossy(arg0)
+        ));
         return true;
       }
       if let Some(arg1) = args.get(1) {
         match strict_i64(arg1) {
           Some(v) => timeout_secs = v,
           None => {
-            write_error(output, err::VALUE_NOT_INTEGER);
+            output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
             return true;
           }
         }
       }
     }
     let Some(fm) = self.cluster_provider.failover_manager() else {
-      write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
       return true;
     };
     if abort {
       fm.try_abort_replica_failover();
-      write_ok(output);
+      output.write_resp_simple_string("OK");
       return true;
     }
     // 副本身份校验（C# current.IsReplica && LocalNodePrimaryId != null）
@@ -313,7 +310,7 @@ impl ClusterSession {
       })
       .unwrap_or((false, (None, 0)));
     if !is_replica {
-      write_error(output, "ERR Node is not configured as a REPLICA");
+      output.write_resp_error("ERR Node is not configured as a REPLICA");
       return true;
     }
     let timeout = if timeout_secs > 0 {
@@ -323,34 +320,31 @@ impl ClusterSession {
     };
     if !fm.try_start_replica_failover(option, timeout) {
       let (addr, port) = primary_addr;
-      write_error(
-        output,
-        &format!(
-          "ERR failed to start failover for primary({}:{port})",
-          addr.unwrap_or_default(),
-          port = port
-        ),
-      );
+      output.write_resp_error(&format!(
+        "ERR failed to start failover for primary({}:{port})",
+        addr.unwrap_or_default(),
+        port = port
+      ));
       return true;
     }
-    write_ok(output);
+    output.write_resp_simple_string("OK");
     true
   }
 
   /// libs/cluster/Session/ReplicaOfCommand.cs:NetworkTryREPLICAOF
   fn network_replicaof(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
     if args.len() != 2 {
-      wrong_num_args(output, "replicaof");
+      abort_with_wrong_number_of_arguments(output, "replicaof");
       return true;
     }
     // REPLICAOF NO ONE：解除从属（保留数据），转为主节点
     if args[0].eq_ignore_ascii_case(b"NO") && args[1].eq_ignore_ascii_case(b"ONE") {
       let Some(rm) = self.cluster_provider.replication_manager() else {
-        write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+        output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
         return true;
       };
       if !rm.begin_recovery(RecoveryStatus::ReplicaOfNoOne, false) {
-        write_error(output, ERR_RECOVERY_LOCK);
+        output.write_resp_error(ERR_RECOVERY_LOCK);
         return true;
       }
       if let Some(m) = self.cluster_manager() {
@@ -360,32 +354,26 @@ impl ClusterSession {
       rm.reset_replica_replay_driver_store();
       self.cluster_provider.bump_current_epoch();
       rm.end_recovery(RecoveryStatus::NoRecovery, false);
-      write_ok(output);
+      output.write_resp_simple_string("OK");
       return true;
     }
     let Some(port) = strict_i64(args[1]) else {
-      write_error(
-        output,
-        &format!(
-          "ERR REPLICAOF failed to parse port '{}'",
-          String::from_utf8_lossy(args[1])
-        ),
-      );
+      output.write_resp_error(&format!(
+        "ERR REPLICAOF failed to parse port '{}'",
+        String::from_utf8_lossy(args[1])
+      ));
       return true;
     };
     let addr = String::from_utf8_lossy(args[0]).into_owned();
     let Some(m) = self.cluster_manager() else {
-      write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
       return true;
     };
     let Some(primary_id) = m
       .current_config()
       .get_worker_node_id_from_address(&addr, port as i32)
     else {
-      write_error(
-        output,
-        &format!("ERR I don't know about node {addr}:{port}."),
-      );
+      output.write_resp_error(&format!("ERR I don't know about node {addr}:{port}."));
       return true;
     };
     // 数据同步发起面（C# TryReplicateDiskbasedSyncAsync）：配置翻转经
@@ -393,9 +381,9 @@ impl ClusterSession {
     *self.pending_slow.lock() = Some(SlowWait::new(async move {
       let mut out = Vec::new();
       match m.try_add_replica_async(&primary_id, true, false).await {
-        Ok(()) => write_ok(&mut out),
-        Err(Error::CannotAcquireRecoveryLock) => write_error(&mut out, ERR_RECOVERY_LOCK),
-        Err(e) => write_error(&mut out, &replicate_err_text(e)),
+        Ok(()) => out.write_resp_simple_string("OK"),
+        Err(Error::CannotAcquireRecoveryLock) => out.write_resp_error(ERR_RECOVERY_LOCK),
+        Err(e) => out.write_resp_error(&replicate_err_text(e)),
       }
       out
     }));
@@ -416,20 +404,20 @@ impl ClusterSession {
       i += 1;
       if arg.eq_ignore_ascii_case(b"TO") {
         let Some(addr) = args.get(i) else {
-          write_error(output, err::SYNTAX_ERROR);
+          output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
           return true;
         };
         replica_address = String::from_utf8_lossy(addr).into_owned();
         i += 1;
         let Some(port) = args.get(i).copied().and_then(strict_i64) else {
-          write_error(output, err::VALUE_NOT_INTEGER);
+          output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return true;
         };
         replica_port = port;
         i += 1;
       } else if arg.eq_ignore_ascii_case(b"TIMEOUT") {
         let Some(t) = args.get(i).copied().and_then(strict_i64) else {
-          write_error(output, err::VALUE_NOT_INTEGER);
+          output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return true;
         };
         timeout_ms = t;
@@ -443,17 +431,17 @@ impl ClusterSession {
         // TAKEOVER 额外豁免同步等待语义（C# FailoverOption.TAKEOVER）
         option_takeover = true;
       } else {
-        write_error(output, err::SYNTAX_ERROR);
+        output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
         return true;
       }
     }
     let Some(m) = self.cluster_manager() else {
-      write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
       return true;
     };
     let is_primary = m.current_config().local_node_role() == NodeRole::Primary;
     if !is_primary {
-      write_error(output, err::CANNOT_FAILOVER_FROM_NON_MASTER);
+      output.write_resp_error(err::CANNOT_FAILOVER_FROM_NON_MASTER);
       return true;
     }
     // TO 目标校验：须为已知节点、副本角色、且隶属于本节点
@@ -462,30 +450,28 @@ impl ClusterSession {
       let Some(replica_id) =
         config.get_worker_node_id_from_address(&replica_address, replica_port as i32)
       else {
-        write_error(output, err::UNKNOWN_ENDPOINT);
+        output.write_resp_error(err::UNKNOWN_ENDPOINT);
         return true;
       };
       let Some(worker) = config.get_worker_from_node_id(&replica_id) else {
-        write_error(output, err::UNKNOWN_ENDPOINT);
+        output.write_resp_error(err::UNKNOWN_ENDPOINT);
         return true;
       };
       if worker.role != NodeRole::Replica {
-        write_error(
-          output,
-          &format!("ERR Node @{replica_address}:{replica_port} is not a replica."),
-        );
+        output.write_resp_error(&format!(
+          "ERR Node @{replica_address}:{replica_port} is not a replica."
+        ));
         return true;
       }
       if worker.replica_of_node_id.as_deref() != config.local_node_id() {
-        write_error(
-          output,
-          &format!("ERR Node @{replica_address}:{replica_port} is not my replica."),
-        );
+        output.write_resp_error(&format!(
+          "ERR Node @{replica_address}:{replica_port} is not my replica."
+        ));
         return true;
       }
     }
     let Some(fm) = self.cluster_provider.failover_manager() else {
-      write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
       return true;
     };
     if abort {
@@ -506,7 +492,228 @@ impl ClusterSession {
       };
       fm.try_start_primary_failover(&replica_address, replica_port as i32, option, timeout);
     }
-    write_ok(output);
+    output.write_resp_simple_string("OK");
+    true
+  }
+
+  /// libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterReserve
+  ///
+  /// 迁移预保留向量集上下文（仅节点间使用）：`args[0]` 须为
+  /// VECTOR_SET_CONTEXTS，`args[1]` 为正整数上下文数；应答 `*n` +
+  /// 逐上下文十进制简单串（C# TryWriteInt64AsSimpleString）
+  fn network_cluster_reserve(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    // C# parseState.Count < 2 / 非法计数 → invalidParameters（元数错误）
+    if args.len() < 2 {
+      abort_with_wrong_number_of_arguments(output, cluster_sub_name(RespCommand::ClusterReserve));
+      return true;
+    }
+    if !args[0].eq_ignore_ascii_case(b"VECTOR_SET_CONTEXTS") {
+      write_error_raw(output, "Unrecognized reservation type");
+      return true;
+    }
+    let count = match strict_i64(args[1]) {
+      Some(v) if v > 0 => v as usize,
+      _ => {
+        abort_with_wrong_number_of_arguments(output, cluster_sub_name(RespCommand::ClusterReserve));
+        return true;
+      }
+    };
+    let Some(vm) = self.cluster_provider.try_vector_manager() else {
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
+      return true;
+    };
+    match vm.reserve_contexts_for_migration(count) {
+      Some(contexts) => {
+        output.write_resp_array_len(contexts.len());
+        for ctx in contexts {
+          let mut buf = itoa::Buffer::new();
+          output.write_resp_simple_string(buf.format(ctx));
+        }
+      }
+      // 上下文空间耗尽（C# 无对应失败分支；超 u32::MAX 编址上限显式拒绝）
+      None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
+    }
+    true
+  }
+
+  /// libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterAdvanceTime
+  ///
+  /// 副本侧时间脉冲（2 参：子日志下标 + 序列号）；解析失败 / 越界 /
+  /// 恢复中均无应答写出（C# 同口径静默）
+  fn network_cluster_advance_time(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    if args.len() != 2 {
+      abort_with_wrong_number_of_arguments(
+        output,
+        cluster_sub_name(RespCommand::ClusterAdvanceTime),
+      );
+      return true;
+    }
+    let (Some(idx), Some(sequence_number)) = (strict_i32(args[0]), strict_i64(args[1])) else {
+      // C# 解析失败仅记日志
+      return true;
+    };
+    let Some(rm) = self.cluster_provider.replication_manager() else {
+      return true;
+    };
+    // 子日志越界或恢复中（C# CannotStreamAOF）不可推进
+    if idx < 0 || idx as usize >= rm.sublog_count() || rm.cannot_stream_aof() {
+      return true;
+    }
+    if let Some(driver) = rm
+      .replica_replay_driver_store
+      .get_replay_driver(idx as usize)
+    {
+      driver.signal_time_advance(sequence_number);
+    }
+    true
+  }
+
+  /// libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterMlogKeyTime
+  ///
+  /// 多日志键序列号查询（1-2 参：键 + 可选 FRONTIER）：主端回序列号生成器
+  /// 最新值，副本回键的重放序列号。AOF 门控未点亮 / 单物理日志按 C#
+  /// RESP_ERR_MULTI_LOG_DISABLED 同口径显式报错
+  fn network_cluster_mlog_key_time(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    if args.is_empty() || args.len() > 2 {
+      abort_with_wrong_number_of_arguments(
+        output,
+        cluster_sub_name(RespCommand::ClusterMlogKeyTime),
+      );
+      return true;
+    }
+    let Some(aof) = self
+      .cluster_provider
+      .try_aof()
+      .filter(|a| a.multi_log_enabled())
+    else {
+      output.write_resp_error(err::MULTI_LOG_DISABLED);
+      return true;
+    };
+    let is_primary = self
+      .cluster_manager()
+      .is_some_and(|m| m.current_config().is_primary());
+    let sequence_number = if is_primary {
+      // 主端：序列号生成器最新值
+      aof.get_sequence_number()
+    } else {
+      // 副本：键的重放序列号（C# GetBool(1) 解析失败按 false；无管理器 -1）
+      let frontier = args
+        .get(1)
+        .and_then(|a| strict_i64(a))
+        .is_some_and(|v| v != 0);
+      aof
+        .read_consistency_manager()
+        .map_or(-1, |m| m.get_key_sequence_number(args[0], frontier))
+    };
+    output.write_resp_int(sequence_number);
+    true
+  }
+
+  /// libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterAppendLog
+  ///
+  /// 主端 AOF 记录帧接收（5-6 参：nodeId、子日志下标、三位地址、可选 AOF
+  /// 页）：初始化帧回 +OK，记录帧无应答（C# 同口径）；接收会话未装配或
+  /// 处理失败显式报错（C# 为异常断流）
+  fn network_cluster_appendlog(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    if args.len() < 5 || args.len() > 6 {
+      abort_with_wrong_number_of_arguments(output, cluster_sub_name(RespCommand::ClusterAppendlog));
+      return true;
+    }
+    let Some(session) = self.cluster_provider.try_replica_replication_session() else {
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
+      return true;
+    };
+    let (Some(idx), Some(previous), Some(current), Some(next)) = (
+      strict_i64(args[1]),
+      strict_i64(args[2]),
+      strict_i64(args[3]),
+      strict_i64(args[4]),
+    ) else {
+      // C# 解析失败仅记日志
+      return true;
+    };
+    let node_id = String::from_utf8_lossy(args[0]).into_owned();
+    let payload = args.get(5).copied().unwrap_or(&[]);
+    match session.process_append_log(
+      &node_id,
+      idx.max(0) as usize,
+      previous,
+      current,
+      next,
+      payload,
+    ) {
+      Ok(AppendLogOutcome::Initialized) => output.write_resp_simple_string("OK"),
+      // C# 普通记录帧不回写
+      Ok(AppendLogOutcome::Record) => {}
+      Err(e) => output.write_resp_error(&format!("ERR {e}")),
+    }
+    true
+  }
+
+  /// libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterInitiateReplicaSync
+  ///
+  /// 主端同步发起（5 参：副本节点 id、指派主 id、检查点条目、副本 AOF
+  /// 起止位点）：按上报元数据构造同步请求，策略协商 + 建连 + 补扫交
+  /// 慢路径承载（C# BlockingWait 等价）；成功 +OK，失败回错误文案
+  fn network_cluster_initiate_replica_sync(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    if args.len() != 5 {
+      abort_with_wrong_number_of_arguments(
+        output,
+        cluster_sub_name(RespCommand::ClusterInitiateReplicaSync),
+      );
+      return true;
+    }
+    let Some(assets) = self.cluster_provider.try_primary_replication() else {
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
+      return true;
+    };
+    let replica_node_id = String::from_utf8_lossy(args[0]).into_owned();
+    let assigned_primary_id = String::from_utf8_lossy(args[1]).into_owned();
+    let Some(checkpoint_entry) = CheckpointEntry::from_byte_array(args[2]) else {
+      output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return true;
+    };
+    let replica_aof_begin = AofAddress::from_span(args[3]);
+    let replica_aof_tail = AofAddress::from_span(args[4]);
+    // 副本 endpoint 反查（C# TryBeginDiskbasedSyncAsync 内经配置定位副本）
+    let Some(endpoint) = self.cluster_manager().and_then(|m| {
+      m.current_config()
+        .get_endpoint_from_node_id(&replica_node_id)
+    }) else {
+      output.write_resp_error(&format!("ERR I don't know about node {replica_node_id}."));
+      return true;
+    };
+    let meta = SyncMetadata {
+      full_sync: false,
+      origin_node_role: NodeRole::Replica,
+      origin_node_id: replica_node_id,
+      current_primary_repl_id: assigned_primary_id,
+      current_store_version: 0,
+      current_aof_begin_address: replica_aof_begin,
+      current_aof_tail_address: replica_aof_tail,
+      current_replication_offset: replica_aof_tail,
+      checkpoint_entry: Some(checkpoint_entry),
+    };
+    let PrimaryReplicationAssets {
+      wal,
+      pump,
+      sync_session,
+    } = &*assets;
+    let endpoint = endpoint.to_string();
+    let wal = Arc::clone(wal);
+    let pump = Arc::clone(pump);
+    let sync_session = Arc::clone(sync_session);
+    *self.pending_slow.lock() = Some(SlowWait::new(async move {
+      let mut out = Vec::new();
+      match sync_session
+        .initiate_replica_sync(&pump, &wal, &endpoint, &meta, false)
+        .await
+      {
+        Ok(_) => out.write_resp_simple_string("OK"),
+        Err(msg) => out.write_resp_error(&msg),
+      }
+      out
+    }));
     true
   }
 }
@@ -583,8 +790,7 @@ impl ClusterSessionFace for ClusterSession {
       }
       RespCommand::ClusterKeyslot => {
         if args.len() != 1 {
-          output
-            .extend_from_slice(b"-ERR wrong number of arguments for 'cluster|keyslot' command\r\n");
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let slot = cluster_slot(args[0]);
@@ -652,7 +858,7 @@ impl ClusterSessionFace for ClusterSession {
             output.extend_from_slice(b"+STILL\r\n");
           }
         } else {
-          output.extend_from_slice(b"-ERR Cluster not initialized\r\n");
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
         }
         true
       }
@@ -664,8 +870,7 @@ impl ClusterSessionFace for ClusterSession {
       // ReleaseCurrentEpoch 纪元让渡）的整段语义
       RespCommand::ClusterReset => {
         if args.len() > 2 {
-          output
-            .extend_from_slice(b"-ERR wrong number of arguments for 'cluster|reset' command\r\n");
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         // C# soft = option.EqualsUpperCaseSpanIgnoringCase("SOFT")：仅显式
@@ -681,7 +886,7 @@ impl ClusterSessionFace for ClusterSession {
           match strict_i64(exp) {
             Some(v) => expiry_secs = v,
             None => {
-              output.extend_from_slice(b"-ERR value is not an integer or out of range.\r\n");
+              output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
               return true;
             }
           }
@@ -699,7 +904,7 @@ impl ClusterSessionFace for ClusterSession {
             }));
           }
           // 集群管理器或存储未装配：明确报错，绝不静默吞命令
-          _ => output.extend_from_slice(b"-ERR Cluster not initialized\r\n"),
+          _ => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
         }
         true
       }
@@ -713,32 +918,29 @@ impl ClusterSessionFace for ClusterSession {
           !args.is_empty()
         };
         if !valid {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         match Self::try_parse_slots(args, range) {
           Err((msg, slot)) => {
             if msg == "duplicate" {
               let mut buf = itoa::Buffer::new();
-              write_error(
-                output,
-                &format!("ERR Slot {} specified multiple times", buf.format(slot)),
-              );
+              output.write_resp_error(&format!(
+                "ERR Slot {} specified multiple times",
+                buf.format(slot)
+              ));
             } else {
-              write_error(output, msg);
+              output.write_resp_error(msg);
             }
           }
           Ok(slots) => match self.cluster_manager().map(|m| m.try_add_slots(&slots)) {
             Some(Err(Error::SlotNotFree(slot))) => {
               let mut buf = itoa::Buffer::new();
-              write_error(
-                output,
-                &format!("ERR Slot {} is already busy", buf.format(slot)),
-              );
+              output.write_resp_error(&format!("ERR Slot {} is already busy", buf.format(slot)));
             }
             // C# slotIndex == -1 的非冲突失败路径同回 +OK
-            Some(_) => write_ok(output),
-            None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+            Some(_) => output.write_resp_simple_string("OK"),
+            None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
           },
         }
         true
@@ -752,31 +954,28 @@ impl ClusterSessionFace for ClusterSession {
           !args.is_empty()
         };
         if !valid {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         match Self::try_parse_slots(args, range) {
           Err((msg, slot)) => {
             if msg == "duplicate" {
               let mut buf = itoa::Buffer::new();
-              write_error(
-                output,
-                &format!("ERR Slot {} specified multiple times", buf.format(slot)),
-              );
+              output.write_resp_error(&format!(
+                "ERR Slot {} specified multiple times",
+                buf.format(slot)
+              ));
             } else {
-              write_error(output, msg);
+              output.write_resp_error(msg);
             }
           }
           Ok(slots) => match self.cluster_manager().map(|m| m.try_remove_slots(&slots)) {
             Some(Err(Error::SlotNotLocal(slot))) => {
               let mut buf = itoa::Buffer::new();
-              write_error(
-                output,
-                &format!("ERR Slot {} is not assigned", buf.format(slot)),
-              );
+              output.write_resp_error(&format!("ERR Slot {} is not assigned", buf.format(slot)));
             }
-            Some(_) => write_ok(output),
-            None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+            Some(_) => output.write_resp_simple_string("OK"),
+            None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
           },
         }
         true
@@ -784,41 +983,35 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterSlotManagementCommands.cs:NetworkClusterSetSlot
       RespCommand::ClusterSetslot => {
         if args.len() < 2 || args.len() > 3 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(slot) = strict_i64(args[0]) else {
-          write_error(output, err::INVALID_SLOT);
+          output.write_resp_error(err::INVALID_SLOT);
           return true;
         };
         let Some(slot_state) = parse_slot_state(args[1]) else {
           let state_str = String::from_utf8_lossy(args[1]);
-          write_error(
-            output,
-            &format!("ERR Slot state {state_str} not supported."),
-          );
+          output.write_resp_error(&format!("ERR Slot state {state_str} not supported."));
           return true;
         };
         if matches!(slot_state, SlotState::Invalid | SlotState::Offline) {
           let state_str = String::from_utf8_lossy(args[1]);
-          write_error(
-            output,
-            &format!("ERR Slot state {state_str} not supported."),
-          );
+          output.write_resp_error(&format!("ERR Slot state {state_str} not supported."));
           return true;
         }
         let node_id = args.get(2).map(|a| String::from_utf8_lossy(a).into_owned());
         // C# 语法约束：STABLE 不带 node-id，其余状态必须带
         if (slot_state == SlotState::Stable) == node_id.is_some() {
-          write_error(output, err::SYNTAX_ERROR);
+          output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
           return true;
         }
         if ClusterConfig::out_of_range(slot.max(0) as usize) {
-          write_error(output, err::SLOT_OUT_OF_RANGE);
+          output.write_resp_error(err::SLOT_OUT_OF_RANGE);
           return true;
         }
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         let node_id_str = node_id.as_deref().unwrap_or_default();
@@ -836,24 +1029,24 @@ impl ClusterSessionFace for ClusterSession {
           Ok(()) => {
             // C# UnsafeBumpAndWaitForEpochTransitionAsync：纪元推进由 provider 承接
             self.cluster_provider.bump_current_epoch();
-            write_ok(output);
+            output.write_resp_simple_string("OK");
           }
-          Err(e) => write_error(output, &slot_state_err_text(e)),
+          Err(e) => output.write_resp_error(&slot_state_err_text(e)),
         }
         true
       }
       // libs/cluster/Session/RespClusterSlotManagementCommands.cs:NetworkClusterSetSlotsRange
       RespCommand::ClusterSetslotsrange => {
         if args.len() < 3 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(slot_state) = parse_slot_state(args[0]) else {
-          write_error(output, err::SLOT_STATE);
+          output.write_resp_error(err::SLOT_STATE);
           return true;
         };
         if matches!(slot_state, SlotState::Invalid | SlotState::Offline) {
-          write_error(output, err::SLOT_STATE);
+          output.write_resp_error(err::SLOT_STATE);
           return true;
         }
         let stable = slot_state == SlotState::Stable;
@@ -866,17 +1059,17 @@ impl ClusterSessionFace for ClusterSession {
           Err((msg, slot)) => {
             if msg == "duplicate" {
               let mut buf = itoa::Buffer::new();
-              write_error(
-                output,
-                &format!("ERR Slot {} specified multiple times", buf.format(slot)),
-              );
+              output.write_resp_error(&format!(
+                "ERR Slot {} specified multiple times",
+                buf.format(slot)
+              ));
             } else {
-              write_error(output, msg);
+              output.write_resp_error(msg);
             }
           }
           Ok(slots) => {
             let Some(m) = self.cluster_manager() else {
-              write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+              output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
               return true;
             };
             let node_id_str = node_id.as_deref().unwrap_or_default();
@@ -894,9 +1087,9 @@ impl ClusterSessionFace for ClusterSession {
             match result {
               Ok(()) => {
                 self.cluster_provider.bump_current_epoch();
-                write_ok(output);
+                output.write_resp_simple_string("OK");
               }
-              Err(e) => write_error(output, &slot_state_err_text(e)),
+              Err(e) => output.write_resp_error(&slot_state_err_text(e)),
             }
           }
         }
@@ -905,15 +1098,15 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/ClusterCommands.cs:NetworkClusterCountKeysInSlot
       RespCommand::ClusterCountkeysinslot => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(slot) = strict_i64(args[0]) else {
-          write_error(output, err::INVALID_SLOT);
+          output.write_resp_error(err::INVALID_SLOT);
           return true;
         };
         if ClusterConfig::out_of_range(slot.max(0) as usize) {
-          write_error(output, err::SLOT_OUT_OF_RANGE);
+          output.write_resp_error(err::SLOT_OUT_OF_RANGE);
           return true;
         }
         let slot = slot as u16;
@@ -930,26 +1123,26 @@ impl ClusterSessionFace for ClusterSession {
               count_keys_in_slot_slow(store, slot).await
             }));
           }
-          None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+          None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
         }
         true
       }
       // libs/cluster/Session/ClusterCommands.cs:NetworkClusterGetKeysInSlot
       RespCommand::ClusterGetkeysinslot => {
         if args.len() != 2 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(slot) = strict_i64(args[0]) else {
-          write_error(output, err::INVALID_SLOT);
+          output.write_resp_error(err::INVALID_SLOT);
           return true;
         };
         let Some(key_count) = strict_i64(args[1]) else {
-          write_error(output, err::VALUE_NOT_INTEGER);
+          output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return true;
         };
         if ClusterConfig::out_of_range(slot.max(0) as usize) {
-          write_error(output, err::SLOT_OUT_OF_RANGE);
+          output.write_resp_error(err::SLOT_OUT_OF_RANGE);
           return true;
         }
         let slot = slot as u16;
@@ -967,7 +1160,7 @@ impl ClusterSessionFace for ClusterSession {
               get_keys_in_slot_slow(store, slot, key_count).await
             }));
           }
-          None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+          None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
         }
         true
       }
@@ -975,11 +1168,11 @@ impl ClusterSessionFace for ClusterSession {
       RespCommand::ClusterDelkeysinslot | RespCommand::ClusterDelkeysinslotrange => {
         let range = cmd == RespCommand::ClusterDelkeysinslotrange;
         if range && (args.is_empty() || !args.len().is_multiple_of(2)) {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         if !range && args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let parsed = if range {
@@ -991,7 +1184,7 @@ impl ClusterSessionFace for ClusterSession {
           }
         };
         let Ok(slots) = parsed else {
-          write_error(output, err::INVALID_SLOT);
+          output.write_resp_error(err::INVALID_SLOT);
           return true;
         };
         let slots: Vec<u16> = slots.into_iter().map(|s| s as u16).collect();
@@ -1001,27 +1194,27 @@ impl ClusterSessionFace for ClusterSession {
               del_keys_in_slots_slow(store, slots).await
             }));
           }
-          None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+          None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
         }
         true
       }
       // libs/cluster/Session/RespClusterSlotManagementCommands.cs:NetworkClusterSlotState
       RespCommand::ClusterSlotstate => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(slot) = strict_i64(args[0]) else {
-          write_error(output, err::INVALID_SLOT);
+          output.write_resp_error(err::INVALID_SLOT);
           return true;
         };
         if ClusterConfig::out_of_range(slot.max(0) as usize) {
-          write_error(output, err::SLOT_OUT_OF_RANGE);
+          output.write_resp_error(err::SLOT_OUT_OF_RANGE);
           return true;
         }
         let slot = slot as u16;
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         // C# 状态符号投影：STABLE "=" IMPORTING "<" MIGRATING ">" OFFLINE "x" FAIL "*"
@@ -1050,17 +1243,14 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterMeet
       RespCommand::ClusterMeet => {
         if args.len() != 2 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(port) = strict_i64(args[1]) else {
-          write_error(
-            output,
-            &format!(
-              "ERR Invalid port '{}' specified. Please make sure the port is a valid number",
-              String::from_utf8_lossy(args[1])
-            ),
-          );
+          output.write_resp_error(&format!(
+            "ERR Invalid port '{}' specified. Please make sure the port is a valid number",
+            String::from_utf8_lossy(args[1])
+          ));
           return true;
         };
         let ip = String::from_utf8_lossy(args[0]).into_owned();
@@ -1072,13 +1262,13 @@ impl ClusterSessionFace for ClusterSession {
           })
           .detach();
         }
-        write_ok(output);
+        output.write_resp_simple_string("OK");
         true
       }
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterForget
       RespCommand::ClusterForget => {
         if args.is_empty() || args.len() > 2 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let mut expiry_seconds: i64 = 60;
@@ -1086,14 +1276,14 @@ impl ClusterSessionFace for ClusterSession {
           match strict_i64(exp) {
             Some(v) => expiry_seconds = v,
             None => {
-              write_error(output, err::VALUE_NOT_INTEGER);
+              output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
               return true;
             }
           }
         }
         let node_id = String::from_utf8_lossy(args[0]).into_owned();
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         match m.try_remove_worker(&node_id, expiry_seconds.max(0) as u64) {
@@ -1102,26 +1292,26 @@ impl ClusterSessionFace for ClusterSession {
             if let Some(mm) = self.cluster_provider.migration_manager() {
               mm.try_remove_migration_task_node(&node_id);
             }
-            write_ok(output);
+            output.write_resp_simple_string("OK");
           }
-          Err(Error::CannotForgetMyself) => write_error(output, err::CANNOT_FORGET_MYSELF),
-          Err(Error::CannotForgetPrimary) => write_error(output, err::CANNOT_FORGET_MY_PRIMARY),
+          Err(Error::CannotForgetMyself) => output.write_resp_error(err::CANNOT_FORGET_MYSELF),
+          Err(Error::CannotForgetPrimary) => output.write_resp_error(err::CANNOT_FORGET_MY_PRIMARY),
           Err(Error::NodeNotFound(id)) => {
-            write_error(output, &format!("ERR I don't know about node {id}."))
+            output.write_resp_error(&format!("ERR I don't know about node {id}."))
           }
-          Err(e) => write_error(output, &e.to_string()),
+          Err(e) => output.write_resp_error(&e.to_string()),
         }
         true
       }
       // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterReplicas
       RespCommand::ClusterReplicas => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let node_id = String::from_utf8_lossy(args[0]).into_owned();
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         // C# ListReplicas：对 nodeid 的每个副本输出 CLUSTER NODES 格式行
@@ -1137,26 +1327,26 @@ impl ClusterSessionFace for ClusterSession {
             })
             .collect()
         };
-        write_array_bulk_strings(output, &replicas);
+        output.write_resp_array_len(replicas.len());
+        for item in &replicas {
+          output.write_resp_bulk_string(item.as_bytes());
+        }
         true
       }
       // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterReplicate
       RespCommand::ClusterReplicate => {
         if args.is_empty() || args.len() > 2 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         if let Some(flag) = args.get(1)
           && !flag.eq_ignore_ascii_case(b"SYNC")
           && !flag.eq_ignore_ascii_case(b"ASYNC")
         {
-          write_error(
-            output,
-            &format!(
-              "ERR Invalid CLUSTER REPLICATE FLAG ({}) not valid",
-              String::from_utf8_lossy(flag)
-            ),
-          );
+          output.write_resp_error(&format!(
+            "ERR Invalid CLUSTER REPLICATE FLAG ({}) not valid",
+            String::from_utf8_lossy(flag)
+          ));
           return true;
         }
         // 同步发起面（C# TryReplicateDiskbasedSyncAsync 的配置前段）：配置翻转
@@ -1164,18 +1354,17 @@ impl ClusterSessionFace for ClusterSession {
         // make_replica_of + flush）；数据面 attach 依赖装配期重连钩子
         let node_id = String::from_utf8_lossy(args[0]).into_owned();
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         *self.pending_slow.lock() = Some(SlowWait::new(async move {
           let mut out = Vec::new();
           match m.try_add_replica_async(&node_id, true, false).await {
-            Ok(()) => write_ok(&mut out),
-            Err(Error::CannotAcquireRecoveryLock) => write_error(
-              &mut out,
-              "ERR Recovery in progress, could not acquire recoverLock",
-            ),
-            Err(e) => write_error(&mut out, &replicate_err_text(e)),
+            Ok(()) => out.write_resp_simple_string("OK"),
+            Err(Error::CannotAcquireRecoveryLock) => {
+              out.write_resp_error("ERR Recovery in progress, could not acquire recoverLock")
+            }
+            Err(e) => out.write_resp_error(&replicate_err_text(e)),
           }
           out
         }));
@@ -1184,35 +1373,33 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterSetConfigEpoch
       RespCommand::ClusterSetconfigepoch => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let Some(config_epoch) = strict_i64(args[0]) else {
-          write_error(output, err::VALUE_NOT_INTEGER);
+          output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return true;
         };
         let Some(m) = self.cluster_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         if m.current_config().num_workers() > 1 {
-          write_error(output, err::CONFIG_EPOCH_ASSIGNMENT);
+          output.write_resp_error(err::CONFIG_EPOCH_ASSIGNMENT);
           return true;
         }
         match m.try_set_local_config_epoch(config_epoch) {
-          Ok(()) => write_ok(output),
+          Ok(()) => output.write_resp_simple_string("OK"),
           // C# RESP_ERR_GENERIC_CONFIG_EPOCH_NOT_SET
-          Err(_) => write_error(
-            output,
-            "ERR Node config epoch was not set due to invalid epoch specified",
-          ),
+          Err(_) => output
+            .write_resp_error("ERR Node config epoch was not set due to invalid epoch specified"),
         }
         true
       }
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterEndpoint
       RespCommand::ClusterEndpoint => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let node_id = String::from_utf8_lossy(args[0]).into_owned();
@@ -1223,13 +1410,13 @@ impl ClusterSessionFace for ClusterSession {
         let text = endpoint
           .map(|a| a.to_string())
           .unwrap_or_else(|| "unassigned:0".to_string());
-        write_bulk_string(output, text.as_bytes());
+        output.write_resp_bulk_string(text.as_bytes());
         true
       }
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterHelp
       RespCommand::ClusterHelp => {
         if !args.is_empty() {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         output.write_resp_array_len(CLUSTER_HELP.len());
@@ -1241,20 +1428,23 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterSlotManagementCommands.cs:NetworkClusterBanList
       RespCommand::ClusterBanlist => {
         if !args.is_empty() {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let banlist = self
           .cluster_manager()
           .map(|m| m.get_ban_list())
           .unwrap_or_default();
-        write_array_bulk_strings(output, &banlist);
+        output.write_resp_array_len(banlist.len());
+        for item in &banlist {
+          output.write_resp_bulk_string(item.as_bytes());
+        }
         true
       }
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterMyParentId
       RespCommand::ClusterMyparentid => {
         if !args.is_empty() {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let parent = self.cluster_manager().map(|m| {
@@ -1269,15 +1459,15 @@ impl ClusterSessionFace for ClusterSession {
           }
         });
         match parent {
-          Some(id) => write_bulk_string(output, id.as_bytes()),
-          None => write_bulk_string(output, b""),
+          Some(id) => output.write_resp_bulk_string(id.as_bytes()),
+          None => output.write_resp_bulk_string(b""),
         }
         true
       }
       // libs/cluster/Session/RespClusterMigrateCommands.cs:NetworkClusterMTasks
       RespCommand::ClusterMtasks => {
         if !args.is_empty() {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let mtasks = self
@@ -1296,7 +1486,7 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterFailoverCommands.cs:NetworkClusterFailStopWrites
       RespCommand::ClusterFailstopwrites => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let node_id = String::from_utf8_lossy(args[0]).into_owned();
@@ -1314,18 +1504,18 @@ impl ClusterSessionFace for ClusterSession {
           .replication_manager()
           .map(|rm| rm.get_current_replication_offset().to_aof_string())
           .unwrap_or_default();
-        write_bulk_string(output, offset.as_bytes());
+        output.write_resp_bulk_string(offset.as_bytes());
         true
       }
       // libs/cluster/Session/RespClusterFailoverCommands.cs:NetworkClusterFailReplicationOffset
       RespCommand::ClusterFailreplicationoffset => {
         if args.len() != 1 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         let primary_offset = waof::AofAddress::from_span(args[0]);
         let Some(rm) = self.cluster_provider.replication_manager() else {
-          write_error(output, ERR_CLUSTER_NOT_INITIALIZED);
+          output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
           return true;
         };
         *self.pending_slow.lock() = Some(SlowWait::new(async move {
@@ -1334,7 +1524,7 @@ impl ClusterSessionFace for ClusterSession {
             .wait_for_replication_offset_async(&primary_offset, Duration::from_secs(10))
             .await;
           let r_offset = rm.get_current_replication_offset();
-          write_bulk_string(&mut out, r_offset.to_aof_string().as_bytes());
+          out.write_resp_bulk_string(r_offset.to_aof_string().as_bytes());
           out
         }));
         true
@@ -1342,14 +1532,14 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterFlushAll
       RespCommand::ClusterFlushall => {
         if !args.is_empty() {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         match self.cluster_provider.try_store() {
           Some(store) => {
             *self.pending_slow.lock() = Some(SlowWait::new(cluster_flush_all_slow(store)));
           }
-          None => write_error(output, ERR_CLUSTER_NOT_INITIALIZED),
+          None => output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED),
         }
         true
       }
@@ -1358,7 +1548,7 @@ impl ClusterSessionFace for ClusterSession {
       // libs/cluster/Session/RespClusterBasicCommands.cs:NetworkClusterPublish
       RespCommand::ClusterPublish | RespCommand::ClusterSpublish => {
         if args.len() != 2 {
-          wrong_num_args(output, cluster_sub_name(cmd));
+          abort_with_wrong_number_of_arguments(output, cluster_sub_name(cmd));
           return true;
         }
         if let Some(m) = self.cluster_manager() {
@@ -1373,6 +1563,18 @@ impl ClusterSessionFace for ClusterSession {
       RespCommand::Replicaof | RespCommand::Secondaryof => self.network_replicaof(args, output),
       // libs/cluster/Session/FailoverCommand.cs:TryFAILOVER（顶层 FAILOVER）
       RespCommand::Failover => self.network_failover(args, output),
+      // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterReserve
+      RespCommand::ClusterReserve => self.network_cluster_reserve(args, output),
+      // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterAdvanceTime
+      RespCommand::ClusterAdvanceTime => self.network_cluster_advance_time(args, output),
+      // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterMlogKeyTime
+      RespCommand::ClusterMlogKeyTime => self.network_cluster_mlog_key_time(args, output),
+      // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterAppendLog
+      RespCommand::ClusterAppendlog => self.network_cluster_appendlog(args, output),
+      // libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterInitiateReplicaSync
+      RespCommand::ClusterInitiateReplicaSync => {
+        self.network_cluster_initiate_replica_sync(args, output)
+      }
       _ => {
         output.extend_from_slice(b"-ERR unknown subcommand or not implemented for 'CLUSTER'\r\n");
         true
@@ -1419,6 +1621,11 @@ impl ClusterSessionFace for ClusterSession {
   fn take_pending_slow(&self) -> Option<SlowWait> {
     self.pending_slow.lock().take()
   }
+
+  /// DEBUG PURGEBP 集群侧缓冲池清洗（转发 ClusterProvider 实现）
+  fn purge_buffer_pool(&self, manager_type: ManagerType) {
+    IClusterProvider::purge_buffer_pool(&*self.cluster_provider, manager_type);
+  }
 }
 
 /// CLUSTER RESET 慢路径执行段（对标 C# `TryReset` + `FlushDB(true)` 整链）
@@ -1441,7 +1648,7 @@ async fn cluster_reset_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.extend_from_slice(b"-ERR slow path storage error\r\n");
+    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
     return out;
   };
   {
@@ -1450,13 +1657,11 @@ async fn cluster_reset_slow(
     // 槽键判定（libs/cluster/Server/ClusterManagerWorkerState.cs:TryReset 首段）
     match storage.has_keys_in_slots(&slots).await {
       Ok(true) => {
-        out.extend_from_slice(
-          b"-ERR CLUSTER RESET can't be called with master nodes containing keys\r\n",
-        );
+        out.write_resp_error("ERR CLUSTER RESET can't be called with master nodes containing keys");
         return out;
       }
       Err(_) => {
-        out.extend_from_slice(b"-ERR slow path storage error\r\n");
+        out.write_resp_error(ERR_SLOW_PATH_STORAGE);
         return out;
       }
       Ok(false) => {}
@@ -1466,13 +1671,13 @@ async fn cluster_reset_slow(
     // `StorageSession::delete_all_user_keys`——Meta 键走版本栅栏 + 树文件
     // 排空的完整异步删除，杜绝 try_delete_sync 对复合对象的静默降级丢失）
     if !soft && storage.delete_all_user_keys().await.is_err() {
-      out.extend_from_slice(b"-ERR slow path storage error\r\n");
+      out.write_resp_error(ERR_SLOW_PATH_STORAGE);
       return out;
     }
   }
   match manager.try_reset(soft, expiry_secs.max(0) as u64) {
     Ok(()) => out.extend_from_slice(b"+OK\r\n"),
-    Err(_) => out.extend_from_slice(b"-ERR Cluster reset failed\r\n"),
+    Err(_) => out.write_resp_error("ERR Cluster reset failed"),
   }
   out
 }
@@ -1552,81 +1757,43 @@ const CLUSTER_HELP: [&str; 64] = [
   "\tPrints this help.",
 ];
 
-/// 写 +OK 简单串
-#[inline]
-fn write_ok(output: &mut Vec<u8>) {
-  output.extend_from_slice(b"+OK\r\n");
-}
-
-/// 写 `-ERR <msg>\r\n`
-#[inline]
-fn write_error(output: &mut Vec<u8>, msg: &str) {
-  output.push(b'-');
-  output.extend_from_slice(msg.as_bytes());
-  output.extend_from_slice(b"\r\n");
-}
-
-/// 写 bulk string 帧（`$<len>\r\n<payload>\r\n`）
-#[inline]
-fn write_bulk_string(output: &mut Vec<u8>, payload: &[u8]) {
-  let mut buf = itoa::Buffer::new();
-  output.push(b'$');
-  output.extend_from_slice(buf.format(payload.len()).as_bytes());
-  output.extend_from_slice(b"\r\n");
-  output.extend_from_slice(payload);
-  output.extend_from_slice(b"\r\n");
-}
-
-/// 写数组帧，元素为 bulk string（REPLICAS / BANLIST 形态）
-fn write_array_bulk_strings(output: &mut Vec<u8>, items: &[String]) {
-  let mut buf = itoa::Buffer::new();
-  output.push(b'*');
-  output.extend_from_slice(buf.format(items.len()).as_bytes());
-  output.extend_from_slice(b"\r\n");
-  for item in items {
-    write_bulk_string(output, item.as_bytes());
-  }
-}
-
-/// 元数校验错误（C# invalidParameters → GenericErrWrongNumArgs('cluster|sub')）
-fn wrong_num_args(output: &mut Vec<u8>, sub: &str) {
-  write_error(
-    output,
-    &format!("ERR wrong number of arguments for 'cluster|{sub}' command"),
-  );
-}
-
-/// 子命令 RESP 名（错误文案回显用）
+/// 子命令 RESP 名（错误文案回显用，C# GenericErrWrongNumArgs 完整命令名形态）
 fn cluster_sub_name(cmd: RespCommand) -> &'static str {
   match cmd {
-    RespCommand::ClusterAddslots => "addslots",
-    RespCommand::ClusterAddslotsrange => "addslotsrange",
-    RespCommand::ClusterDelslots => "delslots",
-    RespCommand::ClusterDelslotsrange => "delslotsrange",
-    RespCommand::ClusterSetslot => "setslot",
-    RespCommand::ClusterSetslotsrange => "setslotsrange",
-    RespCommand::ClusterCountkeysinslot => "countkeysinslot",
-    RespCommand::ClusterGetkeysinslot => "getkeysinslot",
-    RespCommand::ClusterDelkeysinslot => "delkeysinslot",
-    RespCommand::ClusterDelkeysinslotrange => "delkeysinslotrange",
-    RespCommand::ClusterMeet => "meet",
-    RespCommand::ClusterForget => "forget",
-    RespCommand::ClusterReplicas => "replicas",
-    RespCommand::ClusterReplicate => "replicate",
-    RespCommand::ClusterSetconfigepoch => "set-config-epoch",
-    RespCommand::ClusterEndpoint => "endpoint",
-    RespCommand::ClusterHelp => "help",
-    RespCommand::ClusterBanlist => "banlist",
-    RespCommand::ClusterMyparentid => "myparentid",
-    RespCommand::ClusterMtasks => "mtasks",
-    RespCommand::ClusterFailover | RespCommand::Failover => "failover",
-    RespCommand::ClusterFailstopwrites => "failstopwrites",
-    RespCommand::ClusterFailreplicationoffset => "failreplicationoffset",
-    RespCommand::ClusterFlushall => "flushall",
-    RespCommand::ClusterGossip => "gossip",
-    RespCommand::ClusterPublish => "publish",
-    RespCommand::ClusterSpublish => "spublish",
-    RespCommand::Replicaof | RespCommand::Secondaryof => "replicaof",
+    RespCommand::ClusterAddslots => "cluster|addslots",
+    RespCommand::ClusterAddslotsrange => "cluster|addslotsrange",
+    RespCommand::ClusterAdvanceTime => "cluster|advancetime",
+    RespCommand::ClusterAppendlog => "cluster|appendlog",
+    RespCommand::ClusterInitiateReplicaSync => "cluster|initiate_replica_sync",
+    RespCommand::ClusterDelslots => "cluster|delslots",
+    RespCommand::ClusterDelslotsrange => "cluster|delslotsrange",
+    RespCommand::ClusterSetslot => "cluster|setslot",
+    RespCommand::ClusterSetslotsrange => "cluster|setslotsrange",
+    RespCommand::ClusterCountkeysinslot => "cluster|countkeysinslot",
+    RespCommand::ClusterGetkeysinslot => "cluster|getkeysinslot",
+    RespCommand::ClusterDelkeysinslot => "cluster|delkeysinslot",
+    RespCommand::ClusterDelkeysinslotrange => "cluster|delkeysinslotrange",
+    RespCommand::ClusterMeet => "cluster|meet",
+    RespCommand::ClusterForget => "cluster|forget",
+    RespCommand::ClusterReplicas => "cluster|replicas",
+    RespCommand::ClusterReplicate => "cluster|replicate",
+    RespCommand::ClusterReset => "cluster|reset",
+    RespCommand::ClusterReserve => "cluster|reserve",
+    RespCommand::ClusterSetconfigepoch => "cluster|set-config-epoch",
+    RespCommand::ClusterEndpoint => "cluster|endpoint",
+    RespCommand::ClusterHelp => "cluster|help",
+    RespCommand::ClusterBanlist => "cluster|banlist",
+    RespCommand::ClusterMlogKeyTime => "cluster|mlogkeytime",
+    RespCommand::ClusterMyparentid => "cluster|myparentid",
+    RespCommand::ClusterMtasks => "cluster|mtasks",
+    RespCommand::ClusterFailover | RespCommand::Failover => "cluster|failover",
+    RespCommand::ClusterFailstopwrites => "cluster|failstopwrites",
+    RespCommand::ClusterFailreplicationoffset => "cluster|failreplicationoffset",
+    RespCommand::ClusterFlushall => "cluster|flushall",
+    RespCommand::ClusterGossip => "cluster|gossip",
+    RespCommand::ClusterPublish => "cluster|publish",
+    RespCommand::ClusterSpublish => "cluster|spublish",
+    RespCommand::Replicaof | RespCommand::Secondaryof => "cluster|replicaof",
     _ => "cluster",
   }
 }
@@ -1689,7 +1856,7 @@ async fn count_keys_in_slot_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    write_error(&mut out, ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
@@ -1701,7 +1868,7 @@ async fn count_keys_in_slot_slow(
       out.extend_from_slice(buf.format(n).as_bytes());
       out.extend_from_slice(b"\r\n");
     }
-    Err(_) => write_error(&mut out, ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -1714,7 +1881,7 @@ async fn get_keys_in_slot_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    write_error(&mut out, ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
@@ -1725,9 +1892,12 @@ async fn get_keys_in_slot_slow(
         .into_iter()
         .map(|k| String::from_utf8_lossy(&k).into_owned())
         .collect();
-      write_array_bulk_strings(&mut out, &rendered);
+      out.write_resp_array_len(rendered.len());
+      for item in &rendered {
+        out.write_resp_bulk_string(item.as_bytes());
+      }
     }
-    Err(_) => write_error(&mut out, ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -1739,14 +1909,14 @@ async fn del_keys_in_slots_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    write_error(&mut out, ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
   let storage = StorageSession::new_readonly(batch);
   match storage.delete_slot_keys(&slots).await {
-    Ok(_) => write_ok(&mut out),
-    Err(_) => write_error(&mut out, ERR_SLOW_PATH_STORAGE),
+    Ok(_) => out.write_resp_simple_string("OK"),
+    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -1756,14 +1926,14 @@ async fn del_keys_in_slots_slow(
 async fn cluster_flush_all_slow(store: Arc<WedbStore<wdev::SegmentedDevice>>) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    write_error(&mut out, ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
   let storage = StorageSession::new_readonly(batch);
   match storage.delete_all_user_keys().await {
-    Ok(_) => write_ok(&mut out),
-    Err(_) => write_error(&mut out, ERR_SLOW_PATH_STORAGE),
+    Ok(_) => out.write_resp_simple_string("OK"),
+    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
   }
   out
 }

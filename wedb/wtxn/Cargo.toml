@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wtxn"
 description = "Transaction manager, key lock table, and watched keys tracking for wedb"
+keywords = ["transactions", "concurrency", "optimistic-locking", "watch", "locking"]
 
 [dependencies]
 bitflags.workspace = true
@@ -15,7 +16,6 @@ log.workspace = true
 parking_lot.workspace = true
 smallvec.workspace = true
 wbase = { workspace = true, features = ["num", "striped"] }
-wresp.workspace = true
 
 [lints]
 workspace = true

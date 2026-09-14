@@ -19,7 +19,7 @@ use std::{
 };
 
 use thiserror::Error;
-use waof::{AofEntryType, WalLog};
+use waof::{AofEntryType, WalConfig, WalLog};
 use wbase::convert::unix_time_in_milliseconds_from_ticks;
 use wbftree::{RangeIndexStub, StorageBackend, StorageBackendType, TreeTuning};
 use wcol::{
@@ -27,6 +27,7 @@ use wcol::{
   itembroker::{collection_item_broker::CollectionItemBroker, item_broker_face::SharedItemBroker},
 };
 use wconf::{RuntimeServerConfig, RuntimeServerOptions};
+use wcustom::{CustomCommandManager, GarnetModule, ModuleLoadContext};
 use wdatabase::DEFAULT_VERSION_MAP_SIZE;
 use wdev::{Device, SegmentedDevice};
 use wkv::{
@@ -540,6 +541,15 @@ pub struct StorageSessionProvider<F> {
   pub registry: Arc<ConsumerRegistry>,
   /// 量化消费者协程已拉起数量（上限 quantization_task_count，跨 worker runtime 分摊）
   quantization_started: AtomicUsize,
+  /// AOF 门面（C# storeWrapper.appendOnlyFile；EnableAOF 门控——
+  /// [`Self::open`] 默认关闭恒 None，[`Self::open_with_aof`] 点亮）
+  aof: Option<Arc<GarnetAppendOnlyFile>>,
+  /// 自定义命令注册表（C# storeWrapper.customCommandManager；模块 on_load
+  /// 注册面，服务器级共享）
+  command_manager: Arc<parking_lot::Mutex<CustomCommandManager>>,
+  /// 已装载模块表（冷路径：仅启动期 on_load 与关停期枚举，无热访问——
+  /// 动态分发开销可忽略，换取模块实现方零耦合）
+  modules: Vec<Arc<dyn GarnetModule>>,
   /// 差异钩子：按发送端装配会话消费者（None = 拒绝建连）
   decorate: F,
 }
@@ -550,7 +560,8 @@ where
 {
   /// 统一装配体：打开单文件存储引擎、共享经纪与向量集合管理器后构造基座
   ///（run 闭包一行装配；store 句柄经公开字段供集群 set_store 下达）。
-  /// 注册表随装配进程级安装（CLIENT 族命令/dispose 归并直取）
+  /// 注册表随装配进程级安装（CLIENT 族命令/dispose 归并直取）；
+  /// AOF 门控默认关闭（`aof = None`，行为与历史逐字节一致）
   pub fn open(data_path: impl AsRef<Path>, decorate: F) -> crate::Result<Self> {
     let data_path = data_path.as_ref();
     let (store, broker, vector_manager) = open_node(data_path)?;
@@ -572,8 +583,82 @@ where
       last_save_ms: Arc::new(AtomicI64::new(0)),
       registry,
       quantization_started: AtomicUsize::new(0),
+      aof: None,
+      command_manager: Arc::new(parking_lot::Mutex::new(CustomCommandManager::new())),
+      modules: Vec::new(),
       decorate,
     })
+  }
+
+  /// AOF 门控点亮装配（C# StoreWrapper.EnableAOF 语义）：在 [`Self::open`]
+  /// 基础上建独立 WAL 设备 → [`WalLog`] → [`single_log_aof`] 工厂 →
+  /// [`NodeService::with_node_args`] 注册全部 AOF 写监听端口。
+  ///
+  /// `aof_commit_ms`：周期提交毫秒数（None 用 RuntimeServerOptions 默认）。
+  /// 返回的基座 `aof()` 在场，宿主据此注入集群面（set_aof /
+  /// set_replica_replication_session / set_primary_replication）
+  pub fn open_with_aof(
+    data_path: impl AsRef<Path>,
+    aof_commit_ms: Option<u8>,
+    decorate: F,
+  ) -> crate::Result<Self> {
+    let mut provider = Self::open(data_path.as_ref(), decorate)?;
+    // WAL 物理日志设备（NodeArgs.wal_dir 口径：<dir>/wal，独立于数据文件）
+    let wal_dir = data_path
+      .as_ref()
+      .parent()
+      .unwrap_or_else(|| Path::new("."))
+      .join("wal");
+    let wal_device = Arc::new(SegmentedDevice::single_file(wal_dir.join("wal.log"))?);
+    let wal = Arc::new(
+      WalLog::new(wal_device, WalConfig::default())
+        .map_err(|e| std::io::Error::other(e.to_string()))?,
+    );
+    let args = NodeArgs {
+      aof_commit_ms,
+      ..NodeArgs::default()
+    };
+    // 写监听端口注册 + 服务级会话（对标 C# EnableAOF 构造段）
+    let node = NodeService::with_node_args(&args, Arc::clone(&provider.store), Arc::clone(&wal))
+      .map_err(|e| std::io::Error::other(e.to_string()))?;
+    provider.aof = Some(Arc::clone(node.aof()));
+    Ok(provider)
+  }
+
+  /// 装载模块表（C# ModuleRegistrar.RegisterModule：逐模块驱动 on_load，
+  /// 模块经上下文注册命令；模块名重复登记报错即中止——冷路径从严）
+  pub fn load_modules(&mut self, modules: Vec<Arc<dyn GarnetModule>>) -> crate::Result<()> {
+    for module in modules {
+      {
+        let mut manager = self.command_manager.lock();
+        let mut ctx = ModuleLoadContext {
+          manager: &mut manager,
+        };
+        module.on_load(&mut ctx);
+        ctx
+          .register_module(module.name(), module.version())
+          .map_err(|e| {
+            std::io::Error::other(format!("module {} load failed: {e}", module.name()))
+          })?;
+      }
+      self.modules.push(module);
+    }
+    Ok(())
+  }
+
+  /// 注册表句柄（RegisterApi 装配源，对标 storeWrapper.customCommandManager）
+  pub fn command_manager(&self) -> Arc<parking_lot::Mutex<CustomCommandManager>> {
+    Arc::clone(&self.command_manager)
+  }
+
+  /// 已装载模块表（诊断与关停枚举用）
+  pub fn modules(&self) -> &[Arc<dyn GarnetModule>] {
+    &self.modules
+  }
+
+  /// AOF 门面（AOF 门控未点亮时 None）
+  pub fn aof(&self) -> Option<&Arc<GarnetAppendOnlyFile>> {
+    self.aof.as_ref()
   }
 }
 
@@ -608,6 +693,7 @@ where
     let mut consumer = (self.decorate)(network_sender_id, api)?;
     consumer.set_item_broker(self.broker.clone());
     consumer.set_runtime_config(self.runtime_config.clone());
+    consumer.set_custom_command_manager(Arc::clone(&self.command_manager));
     Some(consumer)
   }
 

@@ -6,6 +6,7 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/webc-site/wedb.git"
 homepage = "https://github.com/webc-site/wedb/tree/main/wconf"
 description = "Configuration options and runtime server configuration for wedb"
+keywords = ["config", "settings", "runtime-configuration", "garnet", "database"]
 
 [lints]
 workspace = true
@@ -16,7 +17,6 @@ itoa.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 wbase = { workspace = true, features = ["hash_slot"] }
-wresp.workspace = true
 
 [dev-dependencies]
 aok.workspace = true

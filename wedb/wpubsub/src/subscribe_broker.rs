@@ -515,9 +515,9 @@ mod tests {
 
     let notified = f.broker.publish_now(b"news.tech", b"hello");
     assert_eq!(notified, 1);
-    let messages = f.mailbox.drain();
-    assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0].channel.as_ref(), b"news.tech");
+    let mut buf = Vec::new();
+    assert_eq!(f.mailbox.drain_into(&mut buf), 1);
+    assert_eq!(buf[0].channel.as_ref(), b"news.tech");
 
     // 不命中模式：零通知
     assert_eq!(f.broker.publish_now(b"other", b"x"), 0);
@@ -531,7 +531,8 @@ mod tests {
     assert_eq!(f.broker.publish_now(b"ch", b"v"), 0);
     f.broker.subscribe(b"ch", 7, f.mailbox.clone());
     assert_eq!(f.broker.publish_now(b"ch", b"v"), 1);
-    let messages = f.mailbox.drain();
+    let mut messages = Vec::new();
+    f.mailbox.drain_into(&mut messages);
     assert_eq!(messages[0].value.as_ref(), b"v");
   }
 
@@ -560,7 +561,9 @@ mod tests {
     payload.extend_from_slice(b"v1");
 
     assert_eq!(f.broker.consume(&payload, 8, 24), 1);
-    assert_eq!(f.mailbox.drain()[0].value.as_ref(), b"v1");
+    let mut buf = Vec::new();
+    f.mailbox.drain_into(&mut buf);
+    assert_eq!(buf[0].value.as_ref(), b"v1");
 
     // 跳页告警：非页边界 + 越过期望地址 → 日志路径（返回值不受影响）
     assert_eq!(f.broker.consume(&payload, 100, 132), 1);
@@ -632,7 +635,9 @@ mod tests {
     f.broker.publish_fast(b"ch1", b"v4");
     assert_eq!(f.broker.consume_pending(), 1);
     assert_eq!(f.mailbox.len(), 1);
-    assert_eq!(f.mailbox.drain()[0].value.as_ref(), b"v4");
+    let mut buf4 = Vec::new();
+    f.mailbox.drain_into(&mut buf4);
+    assert_eq!(buf4[0].value.as_ref(), b"v4");
   }
 
   #[test]

@@ -3,7 +3,7 @@
 //! VADD/VREM/VSETATTR 以合成写注入 AOF 供副本重放；主侧经重放通道
 //! （VADDReplicationState）把全量同步数据应用到本机索引。
 //! C# 的多 reader Channel + CountingEventSlim 以
-//! [`super::cleanup::vector_set_cleanup_work_channel::VectorSetCleanupWorkChannel`]
+//! [`wbase::pool::EventWorkQueue`]
 //! 与等待计数承接；多日志场景的多写者语义由通道的并发安全保证。
 
 use std::{

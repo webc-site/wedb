@@ -53,22 +53,6 @@ impl<T> EventWorkQueue<T> {
     true
   }
 
-  /// 推入头部（供溢流重试等场景使用）
-  pub fn push_front(&self, item: T) -> bool {
-    if self.closed.load(Ordering::Acquire) {
-      return false;
-    }
-    {
-      let mut q = self.queue.lock();
-      if self.closed.load(Ordering::Acquire) {
-        return false;
-      }
-      q.push_front(item);
-    }
-    self.event.notify(1);
-    true
-  }
-
   /// 尝试取出一项（当空置率高时按需收缩容量，零空置浪费）
   #[inline]
   pub fn try_pop(&self) -> Option<T> {
@@ -78,18 +62,6 @@ impl<T> EventWorkQueue<T> {
       q.shrink_to_fit();
     }
     Some(item)
-  }
-
-  /// 尝试读取一项（对标 Garnet TryRead）
-  #[inline]
-  pub fn try_read(&self) -> Option<T> {
-    self.try_pop()
-  }
-
-  /// 是否有待处理项（对标 Garnet HasPending）
-  #[inline]
-  pub fn has_pending(&self) -> bool {
-    !self.is_empty()
   }
 
   /// 异步等待直至可能有元素可读；通道关闭且排空时返回 false

@@ -17,7 +17,6 @@ use std::{
 use bitflags::bitflags;
 use gxhash::{GxBuildHasher, HashMap};
 use wbase::{glob::glob_match, time::now_ticks};
-pub use wresp::ExpirationWithOption;
 use wresp::{
   ExpireOption,
   cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,

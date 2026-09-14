@@ -70,11 +70,12 @@ fn test_garnet_server_lifecycle() -> aok::Result<()> {
 
   struct EchoConsumer;
   impl MessageConsumerFace for EchoConsumer {
-    fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>) {
+    fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
       if req_buffer.starts_with(b"PING\r\n") {
-        (6, b"+PONG\r\n".to_vec())
+        resp_buf.extend_from_slice(b"+PONG\r\n");
+        6
       } else {
-        (0, Vec::new())
+        0
       }
     }
     fn dispose(&mut self) {}
@@ -127,11 +128,12 @@ fn test_garnet_server_uds_lifecycle() -> aok::Result<()> {
 
   struct EchoConsumer;
   impl MessageConsumerFace for EchoConsumer {
-    fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>) {
+    fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
       if req_buffer.starts_with(b"PING\r\n") {
-        (6, b"+PONG\r\n".to_vec())
+        resp_buf.extend_from_slice(b"+PONG\r\n");
+        6
       } else {
-        (0, Vec::new())
+        0
       }
     }
     fn dispose(&mut self) {}

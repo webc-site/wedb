@@ -21,7 +21,7 @@ use std::{
 };
 
 use memchr::memmem;
-use wresp::{RespCommand, cmd_strings as cs};
+use wresp::{RespCommand, cmd_strings as cs, sanitize_error_str};
 use wtxn::TxnState;
 
 use super::{super::resp_server_session::RespServerSession, session_parse_state};
@@ -1096,9 +1096,9 @@ impl RespServerSession {
     // 未知子命令错误文案（BITOP → 语法错误；CLUSTER/LATENCY 带帮助提示，
     // 其余为无提示版 —— 逐字节对齐 C# CmdStrings，净化防换行注入）
     let sub_text = String::from_utf8_lossy(sub_command);
-    let clean_sub = cs::sanitize_error_str(&sub_text, cs::MAX_PARAM_NAME_LEN);
+    let clean_sub = sanitize_error_str(&sub_text, cs::MAX_PARAM_NAME_LEN);
     let parent = resp_command_to_cs_name(parent_cmd);
-    let clean_parent = cs::sanitize_error_str(parent, cs::MAX_PARAM_NAME_LEN);
+    let clean_parent = sanitize_error_str(parent, cs::MAX_PARAM_NAME_LEN);
     *specific_error = Some(if parent_cmd == RespCommand::Bitop {
       cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes().to_vec()
     } else if matches!(parent_cmd, RespCommand::Cluster | RespCommand::Latency) {

@@ -24,7 +24,6 @@ use wbase::num::{strict_i32, strict_i64};
 
 use super::resp_server_session::RespServerSession;
 use crate::{
-  session_parse_state_extensions::expire_option_from_token,
   storage::session::common::ttl_sync::{
     del_ttl_sync, probe_alive, put_ttl_sync, read_adjudicated_sync, ttl_of_sync,
   },
@@ -102,7 +101,7 @@ pub enum ExpireTimeCmd {
 
 /// 解析单个过期选项 NX/XX/GT/LT（大小写不敏感）
 fn try_parse_expire_option(raw: &[u8]) -> bool {
-  expire_option_from_token(raw).is_some()
+  wresp::expire_option_from_token(raw).is_some()
 }
 
 impl RespServerSession {

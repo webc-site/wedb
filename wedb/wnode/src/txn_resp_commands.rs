@@ -1,6 +1,6 @@
 //! 事务 RESP 命令面（对标 libs/server/Transaction/TxnRespCommands.cs —— C#
-//! RespServerSession partial，Rust 侧为 [`TransactionManager`] 的跨文件
-//! `impl` 块，逐调用传 `&mut impl TxnSession`）
+//! RespServerSession partial 的宿主侧承接，经 [`TxnRespCommandsExt`] 扩展
+//! [`TransactionManager`]；逐调用传 `&mut impl TxnSession`）
 //!
 //! 光标模型映射：C# `readHead/endReadHead` 对应会话 `read_head/end_read_head`；
 //! NetworkMULTI 记录的 `txnStartHead` 在 C# 取自命令解析后的 readHead
@@ -8,9 +8,11 @@
 //! EXEC 据此回退光标重放排队命令：第一遍（Started）排队校验，重放遍
 //! （Running）真执行，末尾 EXEC 再次进入本面触发提交。
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use parking_lot::Mutex as ParkingMutex;
 use wbase::num::strict_i32;
+use wcustom::CustomCommandManager;
 use wresp::{
   RespCommand,
   cmd_strings::{
@@ -18,14 +20,13 @@ use wresp::{
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
   },
 };
-
-use crate::{
-  StoreType,
-  transaction_manager::{TransactionManager, TxnAofLog},
-  txn_key_manager::TxnCommandKeys,
-  txn_session::TxnSession,
-  txn_state::TxnState,
+use wtxn::{
+  StoreType, TransactionManager, TxnAofLog, TxnProcHandle, TxnProcResolver, TxnQueuedCommandInfo,
+  TxnSession, TxnState,
 };
+
+use crate::aof::replaycoordinator::stored_proc_replay::stored_proc_args;
+use crate::resp::resp_server_session::RespServerSession;
 
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_NESTED_MULTI
 const RESP_ERR_GENERIC_NESTED_MULTI: &str = "ERR MULTI calls can not be nested";
@@ -45,51 +46,74 @@ const RESP_ERR_SWAPDB_IN_TXN_UNSUPPORTED: &str =
   "ERR SWAPDB is currently unsupported inside a transaction.";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_TRANSACTION_PROCEDURE
 const RESP_ERR_NO_TRANSACTION_PROCEDURE: &str = "ERR Could not get transaction procedure";
+/// libs/server/Custom/CustomRespCommands.cs:TryTransactionProc 失败文案
+const RESP_ERR_TRANSACTION_FAILED: &str = "ERR Transaction failed.";
 
-/// 排队命令元数据（C# SimpleRespCommandInfo 中 NetworkSKIP 所需子集的本域
-/// 投影；宿主从 resp 命令信息域构建）
-#[derive(Debug, Clone)]
-pub struct TxnQueuedCommandInfo {
-  /// 命令名（错误回显用）
-  pub name: String,
-  /// 元数（C# Arity；0 不校验 / 正值精确 / 负值至少）
-  pub arity: i32,
-  /// 是否允许出现在事务内（C# AllowedInTxn）
-  pub allowed_in_txn: bool,
-  /// 是否子命令（键参数窗口额外偏移；C# IsSubCommand，BITOP 同此论）
-  pub is_sub_command: bool,
-  /// 键登记元数据（C# KeySpecs 的检索窗口投影；None = 无键面）
-  pub keys: Option<TxnCommandKeys>,
-}
+/// 事务 RESP 命令面（C# RespServerSession partial 的扩展 trait 形态；
+/// RESP 应答字节序列与 C# 1:1）
+pub trait TxnRespCommandsExt<L: TxnAofLog = ()> {
+  /// MULTI（libs/server/Transaction/TxnRespCommands.cs:NetworkMULTI）
+  fn network_multi(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
 
-/// 自定义事务过程句柄（C# CustomTransactionProcedure 的元数据投影；
-/// 执行体经 [`TxnProcResolver::try_transaction_proc`] 回调承接）
-pub struct TxnProcHandle {
-  /// 过程名
-  pub name: String,
-  /// 元数（C# arity；0 不校验 / 正值精确 / 负值至少）
-  pub arity: i32,
-}
+  /// EXEC（libs/server/Transaction/TxnRespCommands.cs:NetworkEXEC）
+  fn network_exec(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
 
-/// 自定义事务过程解析面（C# customCommandManagerSession 的 RUNTXP 相关投影；
-/// custom 域注册表接入时实现）
-pub trait TxnProcResolver<S: ?Sized, L: TxnAofLog = ()> {
-  /// 取注册的自定义事务过程（C# GetCustomTransactionProcedure；未注册为
-  /// None，对应 C# 抛异常路径）
-  fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<TxnProcHandle>;
-  /// 执行过程三段式（C# TryTransactionProc → RunTransactionProc）；输出
-  /// 写入会话输出缓冲
-  fn try_transaction_proc(
+  /// 排队第一遍：跳过命令仅做校验与键登记
+  ///
+  /// libs/server/Transaction/TxnRespCommands.cs:NetworkSKIP
+  ///
+  /// `info` 为 None = 未知命令 / 不允许入事务（C# 同错回退）。
+  fn network_skip(
     &mut self,
-    txn_id: u8,
-    txn_manager: &mut TransactionManager<L>,
+    session: &mut (impl TxnSession + ?Sized),
+    cmd: RespCommand,
+    info: Option<&TxnQueuedCommandInfo>,
+  ) -> bool;
+
+  /// DISCARD（libs/server/Transaction/TxnRespCommands.cs:NetworkDISCARD）
+  fn network_discard(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
+
+  /// WATCH 系共同实现
+  ///
+  /// libs/server/Transaction/TxnRespCommands.cs:CommonWATCH
+  fn common_watch(&mut self, session: &mut (impl TxnSession + ?Sized), store_type: StoreType)
+    -> bool;
+
+  /// WATCH MS key [key ..]
+  ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_MS）
+  fn network_watch_ms(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
+
+  /// WATCH OS key [key ..]
+  ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_OS）
+  fn network_watch_os(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
+
+  /// WATCH key [key ...]
+  ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH）
+  fn network_watch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
+
+  /// UNWATCH（libs/server/Transaction/TxnRespCommands.cs:NetworkUNWATCH）
+  fn network_unwatch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool;
+
+  /// RUNTXP 快路径（libs/server/Transaction/TxnRespCommands.cs:NetworkRUNTXPFast）
+  ///
+  /// C# 从接收缓冲元数据槽直读参数计数；托管解析态已携带计数，直通慢路径。
+  fn network_runtxp_fast<S: TxnSession + ?Sized>(
+    &mut self,
     session: &mut S,
+    resolver: &mut (impl TxnProcResolver<S, L> + ?Sized),
+  ) -> bool;
+
+  /// RUNTXP id arg [arg ...]
+  ///（libs/server/Transaction/TxnRespCommands.cs:NetworkRUNTXP）
+  fn network_runtxp<S: TxnSession + ?Sized>(
+    &mut self,
+    session: &mut S,
+    resolver: &mut (impl TxnProcResolver<S, L> + ?Sized),
   ) -> bool;
 }
 
-impl<L: TxnAofLog> TransactionManager<L> {
-  /// MULTI（libs/server/Transaction/TxnRespCommands.cs:NetworkMULTI）
-  pub fn network_multi(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+impl<L: TxnAofLog> TxnRespCommandsExt<L> for TransactionManager<L> {
+  fn network_multi(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
     if self.state != TxnState::None {
       session.write_error(RESP_ERR_GENERIC_NESTED_MULTI);
       self.abort();
@@ -108,8 +132,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     true
   }
 
-  /// EXEC（libs/server/Transaction/TxnRespCommands.cs:NetworkEXEC）
-  pub fn network_exec(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+  fn network_exec(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
     // 执行中再次 EXEC：越过并提交（重放遍的收尾）
     if self.state == TxnState::Running {
       self.commit(false);
@@ -150,12 +173,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     true
   }
 
-  /// 排队第一遍：跳过命令仅做校验与键登记
-  ///
-  /// libs/server/Transaction/TxnRespCommands.cs:NetworkSKIP
-  ///
-  /// `info` 为 None = 未知命令 / 不允许入事务（C# 同错回退）。
-  pub fn network_skip(
+  fn network_skip(
     &mut self,
     session: &mut (impl TxnSession + ?Sized),
     cmd: RespCommand,
@@ -246,8 +264,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     true
   }
 
-  /// DISCARD（libs/server/Transaction/TxnRespCommands.cs:NetworkDISCARD）
-  pub fn network_discard(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+  fn network_discard(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
     if self.state == TxnState::None {
       session.write_error(RESP_ERR_GENERIC_DISCARD_WO_MULTI);
       return true;
@@ -261,20 +278,16 @@ impl<L: TxnAofLog> TransactionManager<L> {
 
   /// WATCH 系共同实现
   ///
-  /// `cmd_name` 为本命令名（小写），填入错误文案 `{0}` 槽位
-  ///（对标 C# string.Format(CmdStrings.GenericErrWrongNumArgs, ...)）
-  ///
   /// libs/server/Transaction/TxnRespCommands.cs:CommonWATCH
-  pub fn common_watch(
+  fn common_watch(
     &mut self,
     session: &mut (impl TxnSession + ?Sized),
     store_type: StoreType,
-    cmd_name: &str,
   ) -> bool {
     let count = session.arg_count();
-    // 至少一个键
+    // 至少一个键（C# 以未格式化模板直接回错，1:1 保留）
     if count == 0 {
-      session.write_error(&GENERIC_ERR_WRONG_NUM_ARGS.replace("{0}", cmd_name));
+      session.write_error(GENERIC_ERR_WRONG_NUM_ARGS);
       return true;
     }
 
@@ -291,24 +304,23 @@ impl<L: TxnAofLog> TransactionManager<L> {
 
   /// WATCH MS key [key ..]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_MS）
-  pub fn network_watch_ms(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::Main, "watchms")
+  fn network_watch_ms(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+    self.common_watch(session, StoreType::Main)
   }
 
   /// WATCH OS key [key ..]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH_OS）
-  pub fn network_watch_os(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::Object, "watchos")
+  fn network_watch_os(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+    self.common_watch(session, StoreType::Object)
   }
 
   /// WATCH key [key ...]
   ///（libs/server/Transaction/TxnRespCommands.cs:NetworkWATCH）
-  pub fn network_watch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
-    self.common_watch(session, StoreType::All, "watch")
+  fn network_watch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+    self.common_watch(session, StoreType::All)
   }
 
-  /// UNWATCH（libs/server/Transaction/TxnRespCommands.cs:NetworkUNWATCH）
-  pub fn network_unwatch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
+  fn network_unwatch(&mut self, session: &mut (impl TxnSession + ?Sized)) -> bool {
     if self.state == TxnState::None {
       self.watch_container.reset();
     }
@@ -316,10 +328,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     true
   }
 
-  /// RUNTXP 快路径（libs/server/Transaction/TxnRespCommands.cs:NetworkRUNTXPFast）
-  ///
-  /// C# 从接收缓冲元数据槽直读参数计数；托管解析态已携带计数，直通慢路径。
-  pub fn network_runtxp_fast<S: TxnSession + ?Sized>(
+  fn network_runtxp_fast<S: TxnSession + ?Sized>(
     &mut self,
     session: &mut S,
     resolver: &mut (impl TxnProcResolver<S, L> + ?Sized),
@@ -327,9 +336,7 @@ impl<L: TxnAofLog> TransactionManager<L> {
     self.network_runtxp(session, resolver)
   }
 
-  /// RUNTXP id arg [arg ...]
-  ///（libs/server/Transaction/TxnRespCommands.cs:NetworkRUNTXP）
-  pub fn network_runtxp<S: TxnSession + ?Sized>(
+  fn network_runtxp<S: TxnSession + ?Sized>(
     &mut self,
     session: &mut S,
     resolver: &mut (impl TxnProcResolver<S, L> + ?Sized),
@@ -379,12 +386,87 @@ impl<L: TxnAofLog> TransactionManager<L> {
   }
 }
 
+/// RUNTXP 过程解析器（C# customCommandManagerSession.GetCustomTransactionProcedure
+/// + RespServerSession.TryTransactionProc 的会话侧承接）
+pub(crate) struct SessionTxnProcResolver {
+  /// 自定义命令注册表（C# storeWrapper.customCommandManager；未装配为 None）
+  pub registry: Option<Arc<ParkingMutex<CustomCommandManager>>>,
+}
+
+impl TxnProcResolver<RespServerSession> for SessionTxnProcResolver {
+  fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<TxnProcHandle> {
+    let registry = self.registry.as_ref()?;
+    let txn = registry.lock().try_get_custom_transaction_procedure(txn_id)?;
+    Some(TxnProcHandle {
+      name: txn.name,
+      arity: txn.arity,
+    })
+  }
+
+  fn try_transaction_proc(
+    &mut self,
+    txn_id: u8,
+    txn_manager: &mut TransactionManager,
+    session: &mut RespServerSession,
+  ) -> bool {
+    // C# TryTransactionProc（libs/server/Custom/CustomRespCommands.cs:18）：
+    // 指标计数 → 过程输入构造 → 三段式执行 → 输出落线（空输出成功回 +OK，
+    // 失败回 "ERR Transaction failed."）
+    if let Some(metrics) = &mut session.session_metrics {
+      metrics.incr_total_transaction_commands_received(1);
+    }
+
+    // 实例化过程体（C# GetCustomTransactionProcedure 的 entry.proc()；
+    // 工厂闭包自持存储句柄，AOF 回放 / 会话执行同径重建）
+    let Some(mut proc) = self.registry.as_ref().and_then(|registry| {
+      registry
+        .lock()
+        .try_get_custom_transaction_procedure(txn_id)
+        .and_then(|txn| txn.factory)
+    })
+    .map(|factory| factory()) else {
+      session.write_error(RESP_ERR_NO_TRANSACTION_PROCEDURE);
+      return true;
+    };
+
+    // 过程输入绑定（C# procInput 引用参数；首参为过程 id，不计入参数窗口）
+    let args: Vec<Vec<u8>> = (1..session.arg_count())
+      .map(|c| session.get_arg(c).to_vec())
+      .collect();
+    proc.bind_args(&args);
+
+    // procInput 全量编码随 AOF StoredProcedure 条目落盘（C# Log 同款语义；
+    // 回放侧 stored_proc_args::decode 重建参数序列）
+    let mut proc_input = Vec::new();
+    stored_proc_args::encode(&args, &mut proc_input);
+
+    let mut output = Vec::new();
+    if txn_manager.run_transaction_proc(&mut *proc, &proc_input, &mut output, false) {
+      if output.is_empty() {
+        session.write_ok();
+      } else {
+        session.output.extend_from_slice(&output);
+      }
+    } else {
+      if let Some(metrics) = &mut session.session_metrics {
+        metrics.incr_total_transaction_execution_failed(1);
+      }
+      if output.is_empty() {
+        session.write_error(RESP_ERR_TRANSACTION_FAILED);
+      } else {
+        session.output.extend_from_slice(&output);
+      }
+    }
+    true
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::sync::Arc;
 
   use super::*;
-  use crate::{txn_session::MockTxnSession, watch_version_map::WatchVersionMap};
+  use wtxn::{MockTxnSession, WatchVersionMap};
 
   fn manager() -> TransactionManager {
     TransactionManager::new(Arc::new(WatchVersionMap::new(64)), None)
@@ -424,5 +506,38 @@ mod tests {
 
     assert!(txn.network_unwatch(&mut session));
     assert_eq!(session.output, b"+OK\r\n");
+  }
+
+  #[test]
+  fn runtxp_resolves_registered_proc_end_to_end() {
+    use wcustom::{CustomTransactionProcedure, DefaultTxnProc};
+
+    let registry = Arc::new(ParkingMutex::new(CustomCommandManager::new()));
+    let id = registry
+      .lock()
+      .register_transaction(
+        "mock-proc",
+        Some(Arc::new(|| Box::new(DefaultTxnProc { id: 0 }) as Box<dyn CustomTransactionProcedure>)),
+        None,
+        None,
+      )
+      .unwrap();
+
+    let mut s = RespServerSession::default();
+    s.attach_transaction_components(Arc::new(wtxn::WatchVersionMap::new(64)));
+    s.attach_custom_command_manager(registry);
+
+    // RUNTXP <id>：注册过的空事务过程 → 提交回 +OK
+    //（test/standalone/Garnet.test.scripting/RespTransactionProcTests.cs:TransactionProcTest1）
+    let frame = format!("*2\r\n$6\r\nRUNTXP\r\n$1\r\n{id}\r\n");
+    assert!(s.try_consume_messages(frame.as_bytes()).is_some());
+    assert_eq!(s.take_output(), b"+OK\r\n");
+
+    // 未注册 id → C# GetCustomTransactionProcedure 抛异常同款错误
+    assert!(s.try_consume_messages(b"*2\r\n$6\r\nRUNTXP\r\n$1\r\n9\r\n").is_some());
+    assert_eq!(
+      s.take_output(),
+      b"-ERR Could not get transaction procedure\r\n"
+    );
   }
 }

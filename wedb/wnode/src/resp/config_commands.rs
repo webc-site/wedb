@@ -8,9 +8,8 @@ use wresp::{
   },
 };
 
-use crate::{
-  runtime_server_config::RuntimeServerConfig,
-  server_config_type::ServerConfigType,
+use wconf::{
+  RuntimeServerConfig, ServerConfigType,
   units::{previous_power_of_2, try_parse_size_bytes},
 };
 
@@ -337,7 +336,7 @@ impl ServerConfig {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::runtime_server_options::RuntimeServerOptions;
+  use wconf::RuntimeServerOptions;
 
   /// 无持有方的默认运行时配置（测试夹具）
   fn config() -> RuntimeServerConfig {

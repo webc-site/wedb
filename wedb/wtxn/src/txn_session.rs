@@ -1,5 +1,3 @@
-use wresp::cmd_strings::RESP_OK;
-
 use crate::TxnState;
 
 /// 事务会话交互抽象（对标 Garnet 会话中驱动事务与解析命令所需面的最小接口）
@@ -153,7 +151,8 @@ impl TxnSession for MockTxnSession {
 
   #[inline]
   fn write_ok(&mut self) {
-    self.output.extend_from_slice(RESP_OK);
+    // libs/server/Resp/CmdStrings.cs:RESP_OK
+    self.output.extend_from_slice(b"+OK\r\n");
   }
 
   #[inline]
@@ -172,8 +171,11 @@ impl TxnSession for MockTxnSession {
 
   #[inline]
   fn write_array_len(&mut self, count: usize) {
-    use wresp::RespVecExt;
-    self.output.write_resp_array_len(count);
+    // `*<count>\r\n`（wresp::RespWriter::write_array_length 的本域直写形态）
+    let mut buf = itoa::Buffer::new();
+    self.output.push(b'*');
+    self.output.extend_from_slice(buf.format(count).as_bytes());
+    self.output.extend_from_slice(b"\r\n");
   }
 
   #[inline]

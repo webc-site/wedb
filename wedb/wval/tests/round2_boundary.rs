@@ -30,7 +30,7 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
 
   let meta = MetaValue::new(
     0x0102_0304_0506_0708,
-    GarnetObjectType::ZSET,
+    GarnetObjectType::SortedSet,
     0x1122_3344_5566_7788,
     500,
   )
@@ -44,7 +44,7 @@ fn test_round2_meta_value_and_compact_meta_value() -> Void {
     &raw_bytes[0..8],
     &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
   );
-  assert_eq!(raw_bytes[8], GarnetObjectType::ZSET.as_u8());
+  assert_eq!(raw_bytes[8], GarnetObjectType::SortedSet.as_u8());
   assert_eq!(raw_bytes[9], StorageEncoding::Flattened.as_u8());
   assert_eq!(
     &raw_bytes[16..24],

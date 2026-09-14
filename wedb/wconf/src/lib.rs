@@ -15,7 +15,6 @@ pub mod garnet_options;
 pub mod log_compaction_type;
 pub mod runtime_server_config;
 pub mod runtime_server_options;
-pub mod server_config;
 pub mod server_config_type;
 pub mod server_options;
 pub mod units;
@@ -43,7 +42,6 @@ pub use garnet_options::{
 pub use log_compaction_type::LogCompactionType;
 pub use runtime_server_config::RuntimeServerConfig;
 pub use runtime_server_options::RuntimeServerOptions;
-pub use server_config::ServerConfig;
 pub use server_config_type::ServerConfigType;
 pub use server_options::{DEFAULT_RESP_VERSION, MIN_PAGE_SIZE_BYTES, ServerOptions};
 pub use units::{

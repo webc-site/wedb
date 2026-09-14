@@ -240,27 +240,6 @@ impl CollectionItemResult {
       ..Self::default()
     }
   }
-
-  /// 常量实例（供初始化复用）
-  pub const EMPTY: CollectionItemResult = CollectionItemResult {
-    key: None,
-    item: None,
-    score: None,
-    items: None,
-    scores: None,
-    is_force_unblocked: false,
-    is_type_mismatch: false,
-  };
-
-  pub const FORCE_UNBLOCKED: CollectionItemResult = CollectionItemResult {
-    is_force_unblocked: true,
-    ..CollectionItemResult::EMPTY
-  };
-
-  pub const TYPE_MISMATCH: CollectionItemResult = CollectionItemResult {
-    is_type_mismatch: true,
-    ..CollectionItemResult::EMPTY
-  };
 }
 
 #[cfg(test)]
@@ -312,11 +291,8 @@ mod tests {
     assert!(multi.found());
     assert_eq!(multi.scores.as_ref().unwrap().len(), 2);
 
-    assert!(!CollectionItemResult::EMPTY.found());
-    const {
-      assert!(CollectionItemResult::TYPE_MISMATCH.is_type_mismatch);
-    }
-    assert!(!CollectionItemResult::FORCE_UNBLOCKED.found());
+    assert!(!CollectionItemResult::default().found());
+    assert!(CollectionItemResult::type_mismatch().is_type_mismatch);
   }
 
   #[test]
