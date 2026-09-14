@@ -623,6 +623,8 @@ impl<B: RespBuffer, P: RespProtocol> RespWriter<B, P> {
   }
 
   /// 写浮点数（根据 P 静态分派：RESP3 为 `,val\r\n`，RESP2 降级为 bulk string）
+  ///
+  /// 在 garnet 中的相对路径:libs/common/RespWriteUtils.cs:TryWriteDoubleNumeric
   #[inline(always)]
   pub fn write_double_numeric(&mut self, value: f64) {
     P::write_double(self.buf_mut(), value);
@@ -635,6 +637,8 @@ impl<B: RespBuffer, P: RespProtocol> RespWriter<B, P> {
   }
 
   /// 强制以 bulk string 格式写双精度浮点数
+  ///
+  /// 在 garnet 中的相对路径:libs/common/RespWriteUtils.cs:TryWriteDoubleBulkString
   #[inline]
   pub fn write_double_bulk_string(&mut self, value: f64) {
     let mut fbuf = FloatBuf::new();

@@ -47,7 +47,7 @@ use super::{
     resp_command::{MruCommandCache, is_allowed_in_subscription_mode},
     session_parse_state::MAX_ARGUMENT_LENGTH_BYTES,
   },
-  resp_commands_info::try_get_simple_resp_command_info,
+  resp_commands_info::{RespCommandFlags, try_get_simple_resp_command_info},
   slow_path::SlowWait,
 };
 use crate::cluster_session::{ClusterSession, ClusterSlotVerificationInput};
@@ -1087,6 +1087,7 @@ impl RespServerSession {
       return true;
     }
     if cmd == RespCommand::Time {
+      // 在 garnet 中的相对路径:libs/server/Resp/BasicCommands.cs:NetworkTIME
       if self.parse_state.count != 0 {
         self.abort_wrong_num_args("TIME");
         return true;
@@ -1907,37 +1908,51 @@ impl RespServerSession {
 
   /// 构建 NoScript 命令集位图（对齐 LuaRunner InitializeNoScriptDetails 集合）
   ///
-  /// NoScript 命令集按 [`RespCommand`] 判别值置位（C# RespCommandsInfo 的
-  /// NoScript 标志集）；FCALL/FUNCTION/EVAL_RO/EVALSHA_RO 判别值待 types 域
-  /// 扩表后由同一集合补齐（缺口已列入汇报）。
+  /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:InitializeNoScriptDetails
+  ///
+  /// 从 [`super::resp_commands_info::try_get_resp_commands_info`]（externalOnly
+  /// 口径）的 NoScript 标志动态构建：顶层命令与子命令的判别值升序铺开，
+  /// 位图按字节粒度置位（C# `ulongIndex = stepped / sizeof(ulong)`、
+  /// `bitIndex = stepped % sizeof(ulong)`，除数为 8 字节而非 64 位）。
+  /// Garnet 命令数据无 FCALL/FCALL_RO/EVAL_RO/EVALSHA_RO/FUNCTION（Redis 侧
+  /// 命令，Garnet RespCommandsInfo 未定义），故无对应位。
   pub fn no_script_details() -> (i32, Vec<u64>) {
-    const NO_SCRIPT_COMMANDS: &[RespCommand] = &[
-      RespCommand::Eval,
-      RespCommand::Evalsha,
-      RespCommand::Flushall,
-      RespCommand::Flushdb,
-      RespCommand::Psubscribe,
-      RespCommand::Script,
-      RespCommand::Subscribe,
-      RespCommand::Swapdb,
-    ];
-    let bits = u64::BITS as usize;
-    let words = NO_SCRIPT_COMMANDS
-      .iter()
-      .map(|cmd| {
-        let raw: u16 = (*cmd).into();
-        raw as usize / bits
-      })
-      .max()
-      .unwrap_or(0)
-      + 1;
-    let mut bitmap = vec![0u64; words];
-    for cmd in NO_SCRIPT_COMMANDS {
-      let raw: u16 = (*cmd).into();
-      let bit = raw as usize;
-      bitmap[bit / bits] |= 1u64 << (bit % bits);
+    const BITS_PER_WORD: usize = std::mem::size_of::<u64>(); // C# sizeof(ulong) = 8
+
+    let Some(all_commands) = super::resp_commands_info::try_get_resp_commands_info(true) else {
+      // 命令元数据导入失败（C# 抛 InvalidOperationException 路径）；数据为
+      // 构建期内嵌资源，运行时不可达，按空位图退化
+      return (0, vec![0]);
+    };
+
+    let mut no_script: Vec<u16> = all_commands
+      .values()
+      .flat_map(|info| std::iter::once(info).chain(info.sub_commands.iter()))
+      .filter(|info| info.flags.intersects(RespCommandFlags::NO_SCRIPT))
+      .filter(|info| info.command != RespCommand::None)
+      .map(|info| info.command as u16)
+      .collect();
+    no_script.sort_unstable();
+    no_script.dedup();
+
+    let Some(&start) = no_script.first() else {
+      return (0, vec![0]);
+    };
+    let end = no_script.last().copied().expect("非空");
+    let size = (end - start) as usize + 1;
+    let mut num_words = size / BITS_PER_WORD;
+    // C# 上游怪癖：余数对 numULongs 而非字宽取模，1:1 保留
+    if !size.is_multiple_of(num_words) {
+      num_words += 1;
     }
-    (0, bitmap)
+
+    let mut bitmap = vec![0_u64; num_words];
+    for discriminant in no_script {
+      let stepped = (discriminant - start) as usize;
+      bitmap[stepped / BITS_PER_WORD] |= 1_u64 << (stepped % BITS_PER_WORD);
+    }
+
+    (start as i32, bitmap)
   }
 }
 
@@ -1958,8 +1973,10 @@ impl ScriptingApi for RespScriptingApi<'_> {
   }
 
   /// GET 特例（C# api.GET）：RESP 请求闭环后解析批量串/null 应答
+  ///（C# 为存储 API 直连，rust 重入会话解析面，须带完整数组头）
   fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>, &'static str> {
-    let mut request = Vec::with_capacity(key.len() + 16);
+    let mut request = Vec::with_capacity(key.len() + 21);
+    request.extend_from_slice(b"*2\r\n");
     request.write_resp_bulk_string(b"GET");
     request.write_resp_bulk_string(key);
     let mut sender = ScratchBufferNetworkSender::new();
@@ -1969,9 +1986,10 @@ impl ScriptingApi for RespScriptingApi<'_> {
       .map_err(reply_error_str)
   }
 
-  /// SET 特例（C# api.SET）：+OK 或错误应答
+  /// SET 特例（C# api.SET）：+OK 或错误应答（同上，带完整数组头）
   fn set(&mut self, key: &[u8], value: &[u8]) -> Result<(), &'static str> {
-    let mut request = Vec::with_capacity(key.len() + value.len() + 24);
+    let mut request = Vec::with_capacity(key.len() + value.len() + 29);
+    request.extend_from_slice(b"*3\r\n");
     request.write_resp_bulk_string(b"SET");
     request.write_resp_bulk_string(key);
     request.write_resp_bulk_string(value);
@@ -2299,7 +2317,10 @@ mod tests {
   use waof::AofAddress;
 
   use super::*;
-  use crate::{ClusterSessionFace, RoleInfo, resp::garnet_api::GarnetApiFace};
+  use crate::{
+    ClusterSessionFace, RoleInfo,
+    resp::{garnet_api::GarnetApiFace, resp_commands_info},
+  };
 
   fn session(id: i64) -> RespServerSession {
     RespServerSession::new(id, RespServerSessionOptions::default())
@@ -2768,32 +2789,35 @@ mod tests {
 
   #[test]
   fn no_script_bitmap_sets_discriminants() {
+    // 对标 C# InitializeNoScriptDetails：NoScript 标志动态构建、字节粒度位图
     let (start, bitmap) = RespServerSession::no_script_details();
-    assert_eq!(start, 0);
-    let bits = u64::BITS as usize;
+
+    let info = |cmd: RespCommand| {
+      resp_commands_info::try_get_resp_command_info_by_cmd(cmd, false).expect("命令元数据已导入")
+    };
+    let stepped = |cmd: RespCommand| u16::from(cmd) as usize - start as usize;
+
+    // NoScript 标志命令置位（含顶层与子命令代表）；字节粒度索引与实现同径
     for cmd in [
       RespCommand::Eval,
       RespCommand::Evalsha,
-      RespCommand::Flushall,
-      RespCommand::Flushdb,
+      RespCommand::Watch,
       RespCommand::Subscribe,
-      RespCommand::Swapdb,
+      RespCommand::Async,
+      RespCommand::AclCat, // 子命令代表（ACL 顶层无 NoScript，ACL|CAT 有）
     ] {
-      let raw: u16 = cmd.into();
-      assert_ne!(
-        bitmap[raw as usize / bits] & (1 << (raw as usize % bits)),
-        0,
-        "{cmd:?} 应置位"
+      assert!(
+        info(cmd).flags.intersects(RespCommandFlags::NO_SCRIPT),
+        "{cmd:?} 前置：元数据须带 NoScript 标志"
       );
+      let byte = stepped(cmd);
+      assert_ne!(bitmap[byte / 8] & (1 << (byte % 8)), 0, "{cmd:?} 应置位");
     }
-    // 非 NoScript 命令不应置位
-    let raw: u16 = RespCommand::Get.into();
-    assert_eq!(
-      bitmap[raw as usize / bits] & (1 << (raw as usize % bits)),
-      0
-    );
-    // SCRIPT 判别值 278 落于第 5 个字，位图须覆盖
-    assert!(bitmap.len() > 4);
+    // 非 NoScript 命令不应置位（取 start 之上界内命令：INFO=265）
+    let byte = stepped(RespCommand::Info);
+    assert_eq!(bitmap[byte / 8] & (1 << (byte % 8)), 0);
+    // 位图覆盖最大判别值（WATCHOS 为 NoScript 集上界）
+    assert!(bitmap.len() * 8 > stepped(RespCommand::Watchos));
   }
 
   #[test]

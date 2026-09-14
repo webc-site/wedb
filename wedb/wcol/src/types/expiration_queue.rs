@@ -1,4 +1,6 @@
-//! 成员级过期队列（Hash / SortedSet 共用，对应 C# PriorityQueue<byte[], long>）
+//! 成员级过期队列（Hash / SortedSet 共用，对应 C# PriorityQueue<byte[], long>
+//! 在 libs/server/Objects/Hash/HashObject.cs 与
+//! libs/server/Objects/SortedSet/SortedSetObject.cs 的内联定义）
 
 use std::{
   cmp::{Ordering, Reverse},

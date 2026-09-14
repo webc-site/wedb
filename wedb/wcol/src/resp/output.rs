@@ -208,19 +208,22 @@ impl ObjectOutput {
     wresp::format_double(value, &mut buf).to_string()
   }
 
-  /// bulk string 形式的双精度
+  /// bulk string 形式的双精度（TryWriteDoubleBulkString 映射单点维护在
+  /// 下层 [`wresp` RespWriter::write_double_bulk_string]）
   #[inline]
   pub fn write_double_bulk_string(&mut self, value: f64) {
     self.writer2().write_double_bulk_string(value);
   }
 
-  /// 泛型写数值形式的双精度
+  /// 泛型写数值形式的双精度（TryWriteDoubleNumeric 映射单点维护在
+  /// 下层 RespWriter::write_double_numeric）
   #[inline(always)]
   pub fn write_double_numeric_p<P: wresp::RespProtocol>(&mut self, value: f64) {
     self.writer::<P>().write_double_numeric(value);
   }
 
   /// 数值形式的双精度：RESP3 写 `,<v>\r\n`，RESP2 退化为 bulk string
+  ///（映射单点在下层 RespWriter::write_double_numeric）
   #[inline]
   pub fn write_double_numeric(&mut self, value: f64, resp_protocol_version: u8) {
     if resp_protocol_version >= 3 {

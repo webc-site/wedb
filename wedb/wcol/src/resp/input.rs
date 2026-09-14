@@ -77,6 +77,7 @@ impl RespInputHeader {
     }
   }
 
+  /// 在 garnet 中的相对路径:libs/server/InputHeader.cs:CheckSetGetFlag
   #[inline]
   pub fn check_set_get_flag(&self) -> bool {
     let flags = RespInputFlags::from_bits_truncate(self.data[2]);

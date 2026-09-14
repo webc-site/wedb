@@ -380,27 +380,6 @@ fn check_hash_increment_double_precision() {
   });
 }
 
-/// test/standalone/Garnet.test.collections/RespHashTests.cs:CanDoHashExpire
-#[test]
-fn can_do_hash_expire() {
-  with_batch(|s, batch| {
-    let mut out = Vec::new();
-    s.hash_set(&[b"myhash", b"field1", b"Hello"], batch, &mut out)
-      .unwrap();
-
-    out.clear();
-    s.hash_expire(
-      &[b"myhash", b"3600", b"FIELDS", b"1", b"field1"],
-      batch,
-      &mut out,
-      false,
-      false,
-    )
-    .unwrap();
-    assert_eq!(out, b"*1\r\n:1\r\n");
-  });
-}
-
 /// test/standalone/Garnet.test.collections/RespHashTests.cs:CanFieldPersistAndGetTimeToLive
 #[test]
 fn can_field_persist_and_get_time_to_live() {

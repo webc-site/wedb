@@ -49,8 +49,12 @@ pub trait PubSubSink: Send + Sync {
 
 /// 邮箱投递面：有界队列 + 溢出丢弃计数
 ///
-/// C# 侧发布即直写会话缓冲（背压由网络发送器承担）；Rust 面以轻量有界邮箱
-/// 解耦线程。采用 parking_lot::Mutex<VecDeque> 有锁队列架构：
+/// C# 侧无会话邮箱：SubscribeBroker.Broadcast 直调 `session.Publish` 写会话
+/// 输出缓冲（libs/server/PubSub/SubscribeBroker.cs:87/:108，实现见
+/// libs/server/Resp/RespServerSession.cs），背压由网络发送器承担；Rust 面以
+/// 轻量有界邮箱解耦线程（会话单线程属主模型的域内投影）。
+/// 采用 parking_lot::Mutex<VecDeque> 有锁队列架构（低争用 → 有锁队列：
+/// 临界段仅 push_back / 整批 take，无 CAS 重试与内存序开销）：
 /// - 零预分配：初始无大块内存空置，按需扩容
 /// - 极低锁竞争：仅发布端短时推入，属主会话线程单次批量 drain 消费
 /// - 有界保护：达到上限容量时安全丢弃并原子递增 dropped 计数

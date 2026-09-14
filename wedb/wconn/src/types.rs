@@ -48,6 +48,12 @@ impl CommandItem {
 }
 
 /// 命令通道发送端类型别名（客户端与会话共用）
+///
+/// 有界 mpsc 的容量语义对应 C# 在途命令窗口上限：GarnetClient 预分配
+/// tcsArray 槽位（libs/client/GarnetClient.cs:56/:180，maxOutstandingTasks）、
+/// GarnetClientSession 以 ElasticCircularBuffer<TaskCompletionSource> 排队
+///（libs/client/ClientSession/GarnetClientSession.cs:27）；逐命令
+/// crossfire oneshot 即 TaskCompletionSource 的零锁等价物。
 pub(crate) type ChannelTx = MAsyncTx<mpsc::Array<CommandItem>>;
 
 /// 发送命令帧并等待应答回传：请求往返的公共路径（客户端与会话共用）

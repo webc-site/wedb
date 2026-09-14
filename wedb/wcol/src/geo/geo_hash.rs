@@ -28,6 +28,7 @@ impl GeoHash {
   pub const BITS_OF_PRECISION: u32 = 52;
   pub const CODE_LENGTH: usize = 11;
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:GeoToLongValue
   pub fn geo_to_long_value(latitude: f64, longitude: f64) -> i64 {
     if !(Self::LATITUDE_MIN..=Self::LATITUDE_MAX).contains(&latitude)
       || !(Self::LONGITUDE_MIN..=Self::LONGITUDE_MAX).contains(&longitude)
@@ -46,6 +47,8 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 对标 GeoHash.cs GeoToLongValue 的内嵌局部函数 Quantize（C# 局部函数
+  /// 不被扫描器索引，映射归并到父方法 GeoToLongValue，避免重复登记）
   pub fn quantize(value: f64, range_reciprocal: f64) -> u32 {
     let y = (value.mul_add(range_reciprocal, 1.5).to_bits()) >> 20;
     if y == (2.0f64.to_bits() >> 20) {
@@ -55,6 +58,7 @@ impl GeoHash {
     }
   }
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:GetCoordinatesFromLong
   pub fn get_coordinates_from_long(hash: i64) -> (f64, f64) {
     let full_hash = (hash as u64) << (u64::BITS - Self::BITS_OF_PRECISION);
     let (lat_quantized, lon_quantized) = Self::morton_decode(full_hash);
@@ -70,17 +74,22 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 对标 GeoHash.cs GetCoordinatesFromLong 的内嵌局部函数 Dequantize
+  ///（C# 局部函数不被扫描器索引，映射归并到父方法）
   pub fn dequantize(quantized_value: u32, range_max: f64) -> f64 {
     let value = f64::from_bits(((quantized_value as u64) << 20) | (1023_u64 << 52));
     (range_max + range_max).mul_add(value - 1.0, -range_max)
   }
 
   #[inline]
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:MortonEncode
   pub fn morton_encode(x: u32, y: u32) -> u64 {
     Self::spread(x) | (Self::spread(y) << 1)
   }
 
   #[inline]
+  /// 对标 GeoHash.cs MortonEncode 的内嵌局部函数 Spread（C# 局部函数
+  /// 不被扫描器索引，映射归并到父方法）
   pub fn spread(x: u32) -> u64 {
     let mut y = x as u64;
     y = (y | (y << 16)) & 0x0000_FFFF_0000_FFFF;
@@ -91,11 +100,14 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:MortonDecode
   pub fn morton_decode(x: u64) -> (u32, u32) {
     (Self::squash(x), Self::squash(x >> 1))
   }
 
   #[inline]
+  /// 对标 GeoHash.cs MortonDecode 的内嵌局部函数 Squash（C# 局部函数
+  /// 不被扫描器索引，映射归并到父方法）
   pub fn squash(x: u64) -> u32 {
     let mut y = x & 0x5555_5555_5555_5555;
     y = (y | (y >> 1)) & 0x3333_3333_3333_3333;
@@ -106,6 +118,8 @@ impl GeoHash {
     y as u32
   }
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:GetGeoHashCode
+  ///（C# 返回 string，rust 为零分配 [u8; 11] 定长码）
   pub fn get_geo_hash_code(hash: i64) -> [u8; Self::CODE_LENGTH] {
     const BASE32_CHARS: &[u8; 32] = b"0123456789bcdefghjkmnpqrstuvwxyz";
     let mut hash = hash;
@@ -119,6 +133,7 @@ impl GeoHash {
     code
   }
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:Distance
   pub fn distance(source_lat: f64, source_lon: f64, target_lat: f64, target_lon: f64) -> f64 {
     const EARTH_RADIUS_IN_METERS: f64 = 6_372_797.560_856;
 
@@ -135,10 +150,14 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 对标 GeoHash.cs Distance 的内嵌局部函数 DegreesToRadians（C# 局部
+  /// 函数不被扫描器索引，映射归并到父方法）
   pub fn degrees_to_radians(degrees: f64) -> f64 {
     degrees * PI / 180.0
   }
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:IsPointWithinRadius
+  ///（C# ref double distance 出参 → Option<f64>：入圈 None/Some(距离) 反转，None = 不在圈内）
   pub fn is_point_within_radius(
     radius: f64,
     lat_center_point: f64,
@@ -150,6 +169,8 @@ impl GeoHash {
     (distance < radius).then_some(distance)
   }
 
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:GetDistanceWhenInRectangle
+  ///（C# bool + ref double distance → Option<f64>）
   pub fn get_distance_when_in_rectangle(
     width_mts: f64,
     height_mts: f64,
@@ -172,6 +193,7 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:GetGeoErrorByPrecision
   pub fn get_geo_error_by_precision() -> (f64, f64) {
     const LAT_BITS: i32 = GeoHash::BITS_OF_PRECISION as i32 / 2;
     const LONG_BITS: i32 = GeoHash::BITS_OF_PRECISION as i32 - LAT_BITS;
@@ -182,6 +204,7 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:ConvertValueToMeters
   pub fn convert_value_to_meters(value: f64, unit: GeoDistanceUnitType) -> f64 {
     match unit {
       GeoDistanceUnitType::Km => value / 0.001,
@@ -192,6 +215,7 @@ impl GeoHash {
   }
 
   #[inline]
+  /// 在 garnet 中的相对路径:libs/server/Objects/SortedSetGeo/GeoHash.cs:ConvertMetersToUnits
   pub fn convert_meters_to_units(value: f64, unit: GeoDistanceUnitType) -> f64 {
     match unit {
       GeoDistanceUnitType::Km => value * 0.001,

@@ -4,7 +4,12 @@
 //!
 //! 统一管理收发网络缓冲区，避免频繁堆分配与内存抖动。默认块大小 64KB (1 << 16)；
 //! 提供快速借出、RAII 自动归还复用、Purge 清理及统计指标导出。
-//! 采用 crossfire 无锁有界 MPMC 队列架构，彻底消除锁争抢、分片遍历与跨核缓存颠簸。
+//!
+//! 队列选型：C# 侧每层池为 `ConcurrentQueue<PoolEntry>`（libs/common/Memory/PoolLevel.cs:16），
+//! 借出/归还是每 I/O 两次的纯非阻塞 TryDequeue/Enqueue（LimitedFixedBufferPool.cs:158/:120），
+//! 竞争激烈且无需异步等待 → crossfire::flavor::Array（有界 MPMC 环，`Queue` trait 的
+//! push/pop 即 TryDequeue/Enqueue 的零 CAS 重试等价物），容量上限语义对应 C#
+//! `Interlocked.Increment(size) <= maxEntriesPerLevel` 的入池裁断（LimitedFixedBufferPool.cs:117）。
 
 use std::{
   fmt,

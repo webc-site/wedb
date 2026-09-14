@@ -8,6 +8,14 @@ use event_listener::Event;
 use parking_lot::Mutex;
 
 /// 标准通用的低频异步工作队列（对标 Garnet VectorSetCleanupWorkChannel）
+///
+/// C# 原语为 `Channel.CreateUnbounded<T>(SingleReader = true)`（libs/server/Resp/
+/// Vector/Cleanup/VectorSetCleanupWorkChannel.cs:19），四个口一一对应：
+/// TryPublish→push（:25）、TryRead→try_pop（:40）、WaitToReadAsync→wait_to_read（:30）、
+/// BlockingWait(Completion)→close+drain（:48）。
+/// 选型依据：清理/分发事件低频（锁竞争不激烈），按「低争用 → 有锁队列」原则采用
+/// `parking_lot::Mutex<VecDeque>` + `event_listener::Event`——临界段仅指针搬移，
+/// 缓存友好、无 CAS 重试与内存序开销，语义与 C# 通道完全等价。
 pub struct EventWorkQueue<T> {
   queue: Mutex<VecDeque<T>>,
   event: Event,

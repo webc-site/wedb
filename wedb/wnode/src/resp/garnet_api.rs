@@ -19,7 +19,7 @@ use std::{
   },
 };
 
-use wbase::time::now_ms;
+use wbase::{num::strict_i32, time::now_ms};
 use wbitmap::BitmapOperation;
 use wcol::sortedset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wdev::Device;
@@ -33,7 +33,6 @@ use wresp::{
   },
   command::is_vector_set_command,
 };
-use wbase::num::strict_i32;
 
 use super::{
   basic_commands::{IncrCmd, ObjectSubCmd, parse_flush_options},
@@ -70,6 +69,9 @@ pub struct CheckpointCtx {
   pub dir: PathBuf,
   /// 最近成功检查点时刻（Unix 毫秒；0 = 尚无检查点，对齐 C#
   /// GarnetDatabase 构造期 `DateTimeOffset.FromUnixTimeSeconds(0)`）
+  ///
+  /// 刻意差异（对照 C#）：C# LastSaveTime 挂在每个 GarnetDatabase（每库
+  /// 一个值）；rust 检查点通道全局单例，多库共享本单值
   pub last_save_ms: Arc<AtomicI64>,
 }
 
@@ -507,8 +509,13 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
 
 impl<D: Device> StoreGarnetApi<D> {
   /// 检查点族慢路径执行段（AdminCommands.cs:NetworkSAVE/NetworkBGSAVE/
-  /// NetworkLASTSAVE：C# 阻塞等待 storeWrapper.TakeCheckpointAsync，rust
-  /// 映射为 WedbStore::create_checkpoint（wcpr 通道）；LASTSAVE 为纯读取）
+  /// NetworkLASTSAVE；rust 映射为 WedbStore::create_checkpoint（wcpr 通道）；
+  /// LASTSAVE 为纯读取）
+  ///
+  /// SAVE 同步等待检查点完成（C# NetworkSAVE：AsyncUtils.BlockingWait）；
+  /// BGSAVE 对标 SingleDatabaseManager.cs:TakeCheckpointAsync(background=true)
+  /// ——检查点后台任务承接（LastSaveTime 在任务完成时落定），命令即回
+  /// "Background saving started"
   ///
   /// 独立方法承载以脱离调用方的批处理纪元保护区（wcpr 契约：
   /// CheckpointWhileEpochProtected fail-fast）
@@ -530,25 +537,42 @@ impl<D: Device> StoreGarnetApi<D> {
           write_error_raw(&mut output, RESP_ERR_CHECKPOINT_UNWIRED);
           return output;
         };
-        match self
-          .session
-          .store
-          .create_checkpoint(&ctx.dir, wcpr::CheckpointType::FoldOver)
-          .await
-        {
-          Ok(_) => {
-            ctx.last_save_ms.store(now_ms() as i64, Ordering::Release);
-            if matches!(cmd, C::Bgsave) {
-              // C# BGSAVE 成功应答文案
-              output.write_resp_simple_string("Background saving started");
-            } else {
+        if matches!(cmd, C::Bgsave) {
+          // C# background=true：TryPauseCheckpoints 通过后即返回 true，
+          // 检查点任务后台跑完（ResumeCheckpoints / LastSaveTime 在其
+          // finally/尾部）；rust 以 detach 的 compio 任务承接
+          let store = Arc::clone(&self.session.store);
+          let dir = ctx.dir.clone();
+          let last_save_ms = Arc::clone(&ctx.last_save_ms);
+          compio::runtime::spawn(async move {
+            if let Err(e) = store
+              .create_checkpoint(&dir, wcpr::CheckpointType::FoldOver)
+              .await
+            {
+              log::warn!("background checkpoint failed: {e}");
+              return;
+            }
+            last_save_ms.store(now_ms() as i64, Ordering::Release);
+          })
+          .detach();
+          // C# BGSAVE 成功应答文案
+          output.write_resp_simple_string("Background saving started");
+        } else {
+          match self
+            .session
+            .store
+            .create_checkpoint(&ctx.dir, wcpr::CheckpointType::FoldOver)
+            .await
+          {
+            Ok(_) => {
+              ctx.last_save_ms.store(now_ms() as i64, Ordering::Release);
               output.extend_from_slice(RESP_OK);
             }
-          }
-          // C# SAVE/BGSAVE 失败统一回并发检查点错误
-          Err(e) => {
-            log::warn!("checkpoint failed: {e}");
-            write_error_raw(&mut output, RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS);
+            // C# SAVE 失败回并发检查点错误
+            Err(e) => {
+              log::warn!("checkpoint failed: {e}");
+              write_error_raw(&mut output, RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS);
+            }
           }
         }
       }

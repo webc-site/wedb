@@ -29,7 +29,10 @@ use crossfire::{
 use parking_lot::Mutex;
 use wbase::{ConcurrentMap, new_concurrent_map};
 
-/// 键观察者队列（按订阅顺序；对应 C# ConcurrentQueue<CollectionItemObserver>）
+/// 键观察者队列（按订阅顺序；对应 C# ConcurrentQueue<CollectionItemObserver>，
+/// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:38，外层
+/// keysToObserversLock（SingleWriterMultiReaderLock，:47）由 papaya 无锁分片
+/// + 每键短临界段 Mutex 承接）
 type ObserverQueue = Mutex<VecDeque<Arc<CollectionItemObserver>>>;
 /// 观察键 → 观察者队列映射（gxhash 构建器，全项目并发容器唯一出处约束）
 type KeysToObservers = ConcurrentMap<Vec<u8>, ObserverQueue>;
@@ -165,7 +168,11 @@ impl TaskSpawner for CompioTaskSpawner {
 ///
 /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:CollectionItemBroker
 pub struct CollectionItemBroker<S, Spawner = CompioTaskSpawner> {
-  /// 事件发送端（对应 Garnet AsyncQueue<CollectionItemBrokerEvent>，零锁并发投递）
+  /// 事件发送端（对应 Garnet AsyncQueue<CollectionItemBrokerEvent>，
+  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:31；C# AsyncQueue 为
+  /// ConcurrentQueue + SemaphoreSlim（libs/storage/Tsavorite/cs/src/core/
+  /// Utilities/AsyncQueue.cs:25/:27-28），crossfire mpsc::List 为其零锁等价物，
+  /// 多生产者投递 + 单主循环 recv 消费，零锁并发投递）
   events_tx: MTx<List<CollectionItemBrokerEvent>>,
   /// 事件接收端（单主循环消费，启动时 take 独占）
   events_rx: Mutex<Option<AsyncRx<List<CollectionItemBrokerEvent>>>>,
@@ -188,7 +195,9 @@ pub struct CollectionItemBroker<S, Spawner = CompioTaskSpawner> {
   /// 取消标记（C# CancellationTokenSource）
   cts_cancelled: AtomicBool,
 
-  /// dispose 完成通知发送端（单次非阻塞投递，对标 C# ManualResetEventSlim / TaskCompletionSource）
+  /// dispose 完成通知发送端（单次非阻塞投递，对标 C# ManualResetEventSlim done，
+  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:53；oneshot 单次
+  /// 语义较事件标志更精确且免 Reset）
   done_tx: Mutex<Option<OneshotTx<()>>>,
   /// dispose 完成通知接收端
   done_rx: Mutex<Option<OneshotAsyncRx<()>>>,
@@ -216,9 +225,7 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
       events_rx: Mutex::new(Some(events_rx)),
       session_id_to_observer: new_concurrent_map(),
       keys_to_observers: new_concurrent_map(),
-      keys_to_observers_time_last_clean: AtomicU64::new(
-        wbase::time::now_secs(),
-      ),
+      keys_to_observers_time_last_clean: AtomicU64::new(wbase::time::now_secs()),
       store,
       main_loop_task_status: AtomicI32::new(MAIN_LOOP_NOT_STARTED),
       cts_cancelled: AtomicBool::new(false),
@@ -582,10 +589,9 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
         pin.remove(key);
       }
     }
-    self.keys_to_observers_time_last_clean.store(
-      wbase::time::now_secs(),
-      Ordering::Relaxed,
-    );
+    self
+      .keys_to_observers_time_last_clean
+      .store(wbase::time::now_secs(), Ordering::Relaxed);
   }
 
   /// 主循环：消费事件队列，周期性清理观察表

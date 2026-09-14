@@ -9,6 +9,12 @@ use std::{
 use event_listener::{Event, Listener};
 use parking_lot::Mutex;
 
+/// 自旋阶段上限（对齐 `crate::backoff` 三阶退避第一阶段的 SPIN_LIMIT = 32 语义；
+/// 因 backoff 为独立 feature 门控，此处按同一阶梯取值命名常量）
+const SPIN_LIMIT: u32 = 32;
+/// 让核阶段上限（超过后转入事件阻塞等待，避免 sleep 轮询）
+const YIELD_LIMIT: u32 = 64;
+
 /// 标准通用的按键未完成工作集合（对标 Garnet VectorSetCleanupWorkSet）
 ///
 /// 条目仅在工作完成后移除，因此"集合中不存在"即意味着工作已完成（而非仅出队）。
@@ -65,10 +71,10 @@ impl<K: Eq + Hash, V> EventWorkSet<K, V> {
   {
     let mut spins = 0u32;
     while self.contains(key) {
-      if spins < 32 {
+      if spins < SPIN_LIMIT {
         spin_loop();
         spins += 1;
-      } else if spins < 64 {
+      } else if spins < YIELD_LIMIT {
         thread::yield_now();
         spins += 1;
       } else {

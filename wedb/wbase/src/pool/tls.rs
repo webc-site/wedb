@@ -3,7 +3,6 @@
 //! 每个线程独占私有 `local` 数组，借取和归还纯指针操作，**0 锁、0 原子操作、< 1ns**；
 //! 线程终止时通过 TLS RAII 确定性析构自动密封 inbox 并将遗留缓冲区回收至全局条带仓库。
 
-use crate::thread::current_thread_id;
 use std::{
   cell::RefCell,
   sync::{Arc, Weak},
@@ -13,6 +12,7 @@ use super::{
   BufferPool, CachedBuf, NUM_CLASSES,
   inbox::{ChainIter, CrossThreadInbox, SEALED},
 };
+use crate::thread::current_thread_id;
 
 /// 线程私有单池缓存 (对标 C# ThreadShard)
 pub(crate) struct TlsPoolEntry {
@@ -274,4 +274,3 @@ impl TlsPoolManager {
 thread_local! {
   pub(crate) static TLS_POOLS: RefCell<TlsPoolManager> = const { RefCell::new(TlsPoolManager::new()) };
 }
-

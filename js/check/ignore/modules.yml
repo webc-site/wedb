@@ -99,3 +99,13 @@
     - modules/RoaringBitmap/RoaringBitmapObject.cs:
         - RoaringBitmapObject
   理由: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+- 文件:
+    - test/standalone/Garnet.test.vectorset/VectorSetCleanupWorkChannelTests.cs:
+        - PublishedItemIsReadable
+        - CompletedChannelRejectsPublishesAndReleasesWaiters
+        - CompleteAndWaitForConsumerTaskDrainsBeforeReturning
+    - test/standalone/Garnet.test.vectorset/VectorSetCleanupWorkSetTests.cs:
+        - AddedWorkIsPendingUntilCompleted
+        - EntriesCanBeEnumerated
+        - WaitForCompletionBlocksUntilTheEntryIsCompleted
+  理由: 清理通道等价物为 wbase EventWorkQueue 单处实现，发布/完成/等待语义由 wbase 队列单测覆盖，向量域专测不单独落地

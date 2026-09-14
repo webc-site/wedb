@@ -628,3 +628,28 @@
         - RewindScratchBuffer
         - CreateArgSlice
   理由: C# scratch 缓冲回退与 PinnedSpanByte 切片铸造，rust 侧切片原生零拷贝无需投影
+- 文件:
+    - libs/server/Objects/Types/ObjectOutput.cs:
+        - FromPinnedPointer
+  理由: Rust ObjectOutput 为托管 Vec 缓冲，无 pinned 指针形态，指针出参经切片/缓冲承接
+- 文件:
+    - libs/server/ArgSlice/ScratchBufferBuilder.cs:
+        - RewindScratchBuffer
+        - CreateArgSlice
+    - libs/server/ArgSlice/ScratchBufferAllocator.cs:
+        - RewindScratchBuffer
+        - CreateArgSlice
+  理由: Rust ScratchBufferBuilder（wlua sender.rs）为 Vec 重建式实现，reset 清空后重拼装，无 C# 切片指针回退与栈式多缓冲分配器语义
+- 文件:
+    - libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:
+        - NetworkIterativeSlotVerify
+        - WriteCachedSlotVerificationMessage
+  理由: 集群迭代式槽位校验慢路径未在本迭代落地；槽位校验基础面 ClusterSlotVerificationInput 与 NetworkMultiKeySlotVerify 已建
+- 文件:
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkChannel.cs:
+        - CompleteAndWaitForConsumerTask
+        - DrainPending
+        - WaitForCompletion
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkSet.cs:
+        - WaitForCompletion
+  理由: 等价物单处实现为 wbase EventWorkQueue（跨任务队列与完成计数），C# 专用 Channel 包装类不再同名落地

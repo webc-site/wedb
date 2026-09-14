@@ -9,12 +9,10 @@ use std::{error::Error, fmt, marker::PhantomData, mem, str};
 
 use gxhash::HashSet;
 use wbase::{hash_slot::hash_slot as cluster_slot, num::strict_i32};
-use wresp::{
-  read::{
-    try_read_as_span, try_read_error_as_span, try_read_signed_array_length,
-    try_read_signed_map_length, try_read_signed_set_length, try_read_span_with_length_header,
-    try_read_unsigned_array_length, try_read_verbatim_string_length,
-  },
+use wresp::read::{
+  try_read_as_span, try_read_error_as_span, try_read_signed_array_length,
+  try_read_signed_map_length, try_read_signed_set_length, try_read_span_with_length_header,
+  try_read_unsigned_array_length, try_read_verbatim_string_length,
 };
 use wtxn::txn_key_entry::{LockType, TxnKeyEntries};
 
@@ -1692,38 +1690,6 @@ impl LuaRunner {
     } else {
       Err("Lua VM did not return expected value".into())
     }
-  }
-
-  /// libs/server/Lua/LuaRunner.cs:InitializeNoScriptDetails
-  ///
-  /// 构建 NoScript 命令位图（start, bitmap）。resp 域 RespCommandsInfo 为
-  /// 并行转写域：此处以 NoScript 命令名字典序索引承接位图形状，待 resp
-  /// 域就绪后切换为 RespCommand 枚举位图。
-  pub fn initialize_no_script_details() -> (i32, Vec<u64>) {
-    const NO_SCRIPT_COMMANDS: &[&str] = &[
-      "EVAL",
-      "EVALSHA",
-      "EVALSHA_RO",
-      "EVAL_RO",
-      "FCALL",
-      "FCALL_RO",
-      "FLUSHALL",
-      "FLUSHDB",
-      "FUNCTION",
-      "PSUBSCRIBE",
-      "SCRIPT",
-      "SUBSCRIBE",
-      "SWAPDB",
-    ];
-
-    let start = 0i32;
-    let bits = u64::BITS as usize;
-    let mut bitmap = vec![0u64; NO_SCRIPT_COMMANDS.len().div_ceil(bits).max(1)];
-    for index in 0..NO_SCRIPT_COMMANDS.len() {
-      bitmap[index / bits] |= 1u64 << (index % bits);
-    }
-
-    (start, bitmap)
   }
 
   /// 脚本 SHA1 摘要键（SCRIPT/EVAL 调度路径使用）。

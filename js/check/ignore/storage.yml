@@ -3135,3 +3135,7 @@
     - libs/storage/Tsavorite/cs/test/test.hlog/SpanByteIterationTests.cs:
         - SpanByteIterateLookupSnapshotEmitsKeyRcudAboveSnapshotTail
   理由: C# SpanByte 测试用例，Rust 中已有 wkv 完备单元测试覆盖
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs:
+        - FromPinnedPointer
+  理由: Rust 无 pinned 指针，可变长记录以 &[u8] 切片借用承接，无指针包装类型
