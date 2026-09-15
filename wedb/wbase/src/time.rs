@@ -25,6 +25,17 @@ pub fn now_nanos() -> u64 {
   Clock::now_since_epoch().as_nanos()
 }
 
+/// Stopwatch tick 换算率（100ns/tick；.NET Core `Stopwatch.Frequency` 恒 10 MHz）
+pub const NANOS_PER_TICK: u64 = 100;
+
+/// 获取当前 Stopwatch 刻度（i64，100ns 单调域，对标 C# `System.Diagnostics.Stopwatch.GetTimestamp`）
+///
+/// 延迟度量/慢日志域的统一计时源：起始与截止刻度同取 [`now_stopwatch_ticks`]
+#[inline(always)]
+pub fn now_stopwatch_ticks() -> i64 {
+  (now_nanos() / NANOS_PER_TICK).min(i64::MAX as u64) as i64
+}
+
 /// 获取当前 .NET Ticks（i64，100ns 单位，0001-01-01 纪元，对标 C# `DateTimeOffset.UtcNow.UtcTicks`）
 ///
 /// TTL/过期域的统一时钟：过期时间戳一律以 ticks 存储（对标 Garnet RecordDataHeader
@@ -33,3 +44,13 @@ pub fn now_nanos() -> u64 {
 pub fn now_ticks() -> i64 {
   (Clock::now_since_epoch().as_nanos() / 100) as i64 + UNIX_EPOCH_TICKS
 }
+
+/// 当前单调时刻（coarsetime VDSO 零系统调用；C# 侧差值计时域
+/// `DateTime.UtcNow` 差值的 coarsetime 单调对标，超时判定/剩余毫秒
+/// 换算统一经此取点，不直连 coarsetime）
+#[inline(always)]
+pub fn now_instant() -> Instant {
+  Instant::now()
+}
+
+pub use coarsetime::{Duration as InstantDuration, Instant};

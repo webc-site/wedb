@@ -6,10 +6,10 @@ use std::{
   time::Duration,
 };
 
-use coarsetime::{self, Duration as CoarsetimeDuration, Instant};
 use compio::time::timeout;
 use parking_lot::Mutex;
 use waof::AofAddress;
+use wbase::time::{Instant, InstantDuration as CoarsetimeDuration, now_instant};
 
 use crate::{
   client::GarnetClient,
@@ -109,7 +109,7 @@ impl FailoverSession {
       failover_timeout,
       option,
       clients: Mutex::new(clients),
-      failover_deadline: Instant::now() + CoarsetimeDuration::from(failover_timeout),
+      failover_deadline: now_instant() + CoarsetimeDuration::from(failover_timeout),
       status: AtomicU8::new(FailoverStatus::BeginFailover as u8),
       old_config,
       primary_client: Mutex::new(None),
@@ -149,7 +149,7 @@ impl FailoverSession {
 
   /// libs/cluster/Server/Failover/FailoverSession.cs:FailoverTimeout
   pub fn failover_timeout_reached(&self) -> bool {
-    Instant::now() > self.failover_deadline
+    now_instant() > self.failover_deadline
   }
 
   /// libs/cluster/Server/Failover/FailoverSession.cs:Dispose
@@ -372,7 +372,7 @@ impl FailoverSession {
       if self.failover_timeout_reached() {
         return false;
       }
-      let remaining = (self.failover_deadline - Instant::now()).as_millis();
+      let remaining = (self.failover_deadline - now_instant()).as_millis();
       let timeout = Duration::from_millis(remaining);
       if !rm
         .wait_for_replication_offset_async(&primary_offset, timeout)
