@@ -284,7 +284,10 @@ mod tests {
     }
 
     // Leader 身份已释放：后续提交可重新升级
-    assert!(matches!(pipeline.enter(301, || step.watermark()), Enter::Lead));
+    assert!(matches!(
+      pipeline.enter(301, || step.watermark()),
+      Enter::Lead
+    ));
   }
 
   #[test]
@@ -316,8 +319,7 @@ mod tests {
     };
 
     let pipeline_bg = Arc::clone(&pipeline);
-    let handle =
-      thread::spawn(move || block_on(pipeline_bg.wait(rx, 500, || 0)).unwrap_err());
+    let handle = thread::spawn(move || block_on(pipeline_bg.wait(rx, 500, || 0)).unwrap_err());
 
     // Leader 步进失败：Follower 收中断哨兵，Leader 身份释放
     assert!(block_on(pipeline.run_leader(FailingStep)).is_err());

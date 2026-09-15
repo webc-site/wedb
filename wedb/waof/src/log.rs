@@ -583,10 +583,9 @@ impl<D: Device> WalLog<D> {
     }
 
     // 2. 状态机协商：判定成为 Leader 还是 Follower
-    match self
-      .commit_pipeline
-      .enter(target, || self.committed_until_address.load(Ordering::Acquire))
-    {
+    match self.commit_pipeline.enter(target, || {
+      self.committed_until_address.load(Ordering::Acquire)
+    }) {
       Enter::Done(committed) => return Ok(committed),
       Enter::Follow(rx) => {
         // 3. Follower 分支：挂起等待 Leader 批量唤醒（0 重复物理 I/O）

@@ -1,7 +1,10 @@
 //! 并发刷盘回归：多线程 flush_all 下 Group Commit Leader/Follower 协商的
 //! 唤醒完整性与持久化水位一致性（对标 Garnet TsavoriteLog Group Commit）。
 
-use std::{sync::Arc, thread::spawn};
+use std::{
+  sync::{Arc, atomic::Ordering},
+  thread::spawn,
+};
 
 use aok::{OK, Void};
 use compio::runtime::Runtime;
@@ -68,7 +71,7 @@ fn test_flush_all_concurrent_waiters_site_consistency() -> Void {
   rt.block_on(store.flush_all())?;
   let tail = store.tail_address();
   assert_eq!(
-    store.synced_until.load(std::sync::atomic::Ordering::Acquire),
+    store.synced_until.load(Ordering::Acquire),
     tail,
     "静默后硬件 sync 水位须追平尾地址"
   );

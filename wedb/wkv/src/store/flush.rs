@@ -1,7 +1,4 @@
-use std::{
-  io,
-  sync::atomic::Ordering,
-};
+use std::{io, sync::atomic::Ordering};
 
 use wbase::group_commit::{Enter, GroupCommitStep};
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
@@ -106,10 +103,7 @@ impl<D: Device> WedbStore<D> {
     }
 
     // 2. 状态机协商：判定成为 Leader 还是 Follower
-    match self
-      .flush_pipeline
-      .enter(target, || self.synced_until())
-    {
+    match self.flush_pipeline.enter(target, || self.synced_until()) {
       Enter::Done(_) => return Ok(()),
       Enter::Follow(rx) => {
         // 3. Follower 分支：挂起等待 Leader 批量唤醒，绝不重复发起 I/O
@@ -178,7 +172,11 @@ impl<D: Device> GroupCommitStep for FlushStep<'_, D> {
       let end_page = self.store.hlog.config.page_id(target.saturating_sub(1));
       if start_page <= end_page {
         self.store.on_flush_pages(start_page, end_page)?;
-        self.store.hlog.flush_pages_range(start_page, end_page).await?;
+        self
+          .store
+          .hlog
+          .flush_pages_range(start_page, end_page)
+          .await?;
       }
     }
 

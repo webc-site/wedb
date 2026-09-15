@@ -55,11 +55,7 @@ fn test_commit_to_concurrent_waiters_consistency() -> Void {
     // 静默后位点一致性：提交水位 == 刷盘水位 == 尾地址，且扫描闭环
     let tail = wal.tail_address();
     assert_eq!(wal.committed_until_address(), tail, "提交水位须追平尾地址");
-    assert_eq!(
-      wal.flushed_until_address(),
-      tail,
-      "刷盘水位须追平尾地址"
-    );
+    assert_eq!(wal.flushed_until_address(), tail, "刷盘水位须追平尾地址");
 
     let mut iter = wal.scan(wal.begin_address(), tail);
     let records = iter.collect_all().await?;
