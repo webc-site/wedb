@@ -385,17 +385,6 @@ impl SortedSetObject {
     }
   }
 
-  /// 导出为 (member, score) 数组（`from_entries` 的逆操作）
-  ///
-  /// 无 C# 对应（wkv blob 回写出口）
-  pub fn to_entries(&self) -> Vec<(Vec<u8>, f64)> {
-    self
-      .sorted_set_dict
-      .iter()
-      .map(|(m, s)| (m.clone(), *s))
-      .collect()
-  }
-
   /// 判断两集合是否相等（两侧同键同分；成员级过期参与比较）
   ///
   /// libs/server/Objects/SortedSet/SortedSetObject.cs:Equals

@@ -3,7 +3,6 @@
 use std::{mem::size_of, ptr::copy_nonoverlapping};
 
 use bitflags::bitflags;
-use wbase::time::now_ticks;
 use wresp::{RespCommand, SessionParseState};
 use wval::GarnetObjectType;
 
@@ -56,33 +55,6 @@ impl RespInputHeader {
   #[inline]
   pub fn set_sub_id(&mut self, sub_id: u8) {
     self.data[1] = sub_id;
-  }
-
-  #[inline]
-  pub fn set_expired_flag(&mut self) {
-    self.data[2] |= RespInputFlags::EXPIRED.bits();
-  }
-
-  #[inline]
-  pub fn set_set_get_flag(&mut self) {
-    self.data[2] |= RespInputFlags::SET_GET.bits();
-  }
-
-  #[inline]
-  pub fn check_expiry(&self, expire_time: i64) -> bool {
-    let flags = RespInputFlags::from_bits_truncate(self.data[2]);
-    if flags.contains(RespInputFlags::DETERMINISTIC) {
-      flags.contains(RespInputFlags::EXPIRED)
-    } else {
-      expire_time < now_ticks()
-    }
-  }
-
-  /// 在 garnet 中的相对路径:libs/server/InputHeader.cs:CheckSetGetFlag
-  #[inline]
-  pub fn check_set_get_flag(&self) -> bool {
-    let flags = RespInputFlags::from_bits_truncate(self.data[2]);
-    flags.contains(RespInputFlags::SET_GET)
   }
 }
 

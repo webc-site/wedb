@@ -230,18 +230,6 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
     self.session.try_read_in_memory_unprotected(key, f)
   }
 
-  /// 同步内存直读快路径并披露记录物理尺寸（MEMORY USAGE 统计内核）
-  #[inline(always)]
-  pub fn try_read_in_memory_with_size<R>(
-    &self,
-    key: &[u8],
-    f: impl FnOnce(&[u8], usize) -> R,
-  ) -> Result<Option<Option<R>>> {
-    self
-      .session
-      .try_read_tag_in_memory_with_size(key, KeyTag::String, f)
-  }
-
   /// 在批处理纪元保护下尝试原位读-改-写记录（完全绕过 enter() 原子开销）
   #[inline(always)]
   pub fn try_modify_in_place<R>(

@@ -229,9 +229,6 @@ impl LimitedFixedBufferPool {
   }
 }
 
-/// 发送缓冲区首部与帧开销预留（对标 Garnet `SendBufferOverheadReserve = 256`）
-pub const SEND_BUFFER_OVERHEAD_RESERVE: usize = 256;
-
 /// 默认发送缓冲大小：128KB (1 << 17)
 pub const DEFAULT_SEND_BUFFER_SIZE: usize = 1 << 17;
 
@@ -271,14 +268,6 @@ impl NetworkBufferSettings {
       initial_receive_buffer_size,
       max_receive_buffer_size,
     }
-  }
-
-  /// 单条记录/分块最大有效载荷（扣除批次头与帧开销预留）
-  #[inline]
-  pub const fn max_send_buffer_content_size(&self) -> usize {
-    self
-      .send_buffer_size
-      .saturating_sub(SEND_BUFFER_OVERHEAD_RESERVE)
   }
 
   /// 计算一组网络配置的包含型（Inclusive）外包规格（最大发送、最小初始接收、最大接收）

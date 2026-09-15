@@ -107,11 +107,6 @@ impl<'a> SearchResults<'a> {
     !self.overflow_ids.is_empty()
   }
 
-  /// 提取溢出余项。
-  pub fn into_overflows(self) -> (Vec<u8>, Vec<f32>) {
-    (self.overflow_ids, self.overflow_dists)
-  }
-
   /// 把缓冲内结果 + overflow 物化合并为单一输出结构。
   pub fn into_search_output(self) -> SearchOutput {
     let found = self.index + self.overflow_dists.len();
@@ -1005,17 +1000,6 @@ impl<S: StoreCallbacks> DiskANNService<S> {
       return Err(SearchError);
     }
     self.run_element_search(context, &index, external_id, params)
-  }
-
-  /// diskann-garnet/DiskANNService.cs:ContinueSearch
-  ///
-  /// C# 侧未实现（NotImplementedException），对齐为不支持。
-  pub fn continue_search(
-    &self,
-    _context: u64,
-    _continuation: u64,
-  ) -> Result<SearchOutput, SearchError> {
-    Err(SearchError)
   }
 
   /// diskann-garnet/DiskANNService.cs:CheckInternalIdValid

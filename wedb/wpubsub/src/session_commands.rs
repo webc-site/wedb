@@ -99,12 +99,6 @@ impl PubSubSession {
     self.num_active_channels
   }
 
-  /// 设置活跃订阅数
-  #[inline]
-  pub fn set_num_active_channels(&mut self, count: i32) {
-    self.num_active_channels = count;
-  }
-
   /// 取走全部待投递消息排入自身缓冲并返回切片（零堆分配复用内部 msg_buf）
   #[inline]
   pub fn drain_mailbox_into(&mut self) -> &[PubSubMessage] {
@@ -113,15 +107,6 @@ impl PubSubSession {
       mailbox.drain_into(&mut self.msg_buf);
     }
     &self.msg_buf
-  }
-
-  /// 取走全部待投递消息排入指定缓冲中，返回排出的消息数（复用外部缓冲）
-  #[inline]
-  pub fn drain_mailbox_to(&self, buf: &mut Vec<PubSubMessage>) -> usize {
-    self
-      .wire
-      .as_ref()
-      .map_or(0, |(_, mailbox)| mailbox.drain_into(buf))
   }
 }
 

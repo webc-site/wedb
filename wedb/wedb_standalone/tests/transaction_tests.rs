@@ -274,13 +274,12 @@ fn transaction_proc_test1() {
 fn txn_command_coverage() {
   let mut txn = manager();
   assert_eq!(txn.state, TxnState::None);
-  assert!(!txn.is_skipping_operations());
   txn.state = TxnState::Started;
-  assert!(txn.is_skipping_operations());
+  assert_eq!(txn.state, TxnState::Started);
   txn.state = TxnState::Aborted;
-  assert!(txn.is_skipping_operations());
+  assert_eq!(txn.state, TxnState::Aborted);
   txn.state = TxnState::Running;
-  assert!(!txn.is_skipping_operations());
+  assert_eq!(txn.state, TxnState::Running);
 
   // Store type mapping
   let mut txn = manager();

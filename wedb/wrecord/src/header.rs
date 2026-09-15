@@ -499,13 +499,6 @@ impl RecordHeader {
       | ((words as u64 & FILLER_WORDS_VALUE_MASK) << FILLER_WORDS_SHIFT);
   }
 
-  /// 设置键长度位段（const fn；调用方须保证不超出 24 位上限）
-  #[inline(always)]
-  pub const fn set_key_len(&mut self, key_len: u32) {
-    self.rdh_word =
-      (self.rdh_word & !KEY_LEN_MASK) | (((key_len as u64) & KEY_LEN_VALUE_MASK) << KEY_LEN_SHIFT);
-  }
-
   /// 设置值长度位段（const fn）
   #[inline(always)]
   pub const fn set_val_len(&mut self, val_len: u32) {

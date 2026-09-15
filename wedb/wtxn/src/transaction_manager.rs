@@ -324,24 +324,9 @@ impl<L: TxnAofLog> TransactionManager<L> {
     self.session_id = session_id;
   }
 
-  /// 链式绑定会话标识
-  #[inline]
-  pub fn with_session_id(mut self, session_id: i32) -> Self {
-    self.session_id = session_id;
-    self
-  }
-
   /// 是否启用 AOF（libs/server/Transaction/TransactionManager.cs:AofEnabled）
   pub fn aof_enabled(&self) -> bool {
     self.aof_log.is_some()
-  }
-
-  /// TransactionManager.cs:Reset()（internal 无参重载）
-  ///
-  /// 以当前事务态决定复位后的运行标志（`Reset(state == TxnState.Running)`）
-  pub fn reset_current(&mut self) {
-    let is_running = self.state == TxnState::Running;
-    self.reset(is_running);
   }
 
   /// 重置事务状态
@@ -442,14 +427,6 @@ impl<L: TxnAofLog> TransactionManager<L> {
   /// 中止事务（libs/server/Transaction/TransactionManager.cs:Abort）
   pub fn abort(&mut self) {
     self.state = TxnState::Aborted;
-  }
-
-  /// 跳过（排队）模式判定
-  ///
-  /// libs/server/Transaction/TransactionManager.cs:IsSkippingOperations
-  #[inline]
-  pub fn is_skipping_operations(&self) -> bool {
-    self.state == TxnState::Started || self.state == TxnState::Aborted
   }
 
   /// 事务是否只读（C# keyEntries.IsReadOnly）

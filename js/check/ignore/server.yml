@@ -11,14 +11,38 @@
     信封编解码单点在 wcol object_store_utils（obj_encode/obj_decode）+ 各对象
     serialize_to_vec，第二套 garnet_object_serializer 实现已删除"
 - 文件:
+    - libs/server/Lua/LuaRunner.cs:
+        - ResetCompilation
+  理由: C# 全仓亦零调用；rust 脚本缓存清理走 SessionScriptCache 自有链，无 runner 复位消费点
+- 文件:
+    - libs/server/Lua/LuaLimitedManagedAllocator.cs:
+        - ContainsRef
+        - GetDataStartRef
+        - GetNextFreeBlockRef
+        - GetPrevFreeBlockRef
+        - GetRefVal
+        - IsValidBlockRef
+        - MoveToHeadOfFreeList
+        - TryCoalesceSingleBlock
+        - UpdateDebugAllocatedBytes
+  理由: "C# 遍历/诊断 API 的对标面；rust 分配路径已内联承接（合并循环直调
+        coalesce_pair、debug_allocated_bytes 字段在 alloc/free 直接读写），零引用删除"
+- 文件:
     - libs/server/InputHeader.cs:
         - CheckExpiry
+        - CheckSetGetFlag
         - CopyTo
         - SetExpiredFlag
         - SetHeader
         - SetSetGetFlag
         - ToPointer
-  理由: Rust 统一收敛至 ReplayInput 与 SessionParseState，淘汰 C# 遗留输入结构体
+  理由: "Rust 统一收敛至 ReplayInput 与 SessionParseState，淘汰 C# 遗留输入结构体；
+    expired/setget 标志机制随 wcol 对象信封轨删除（TTL 在 wkv 层裁决）"
+- 文件:
+    - libs/server/Resp/Vector/DiskANNService.cs:
+        - ContinueSearch
+  理由: "C# 本身抛 NotImplementedException 的未实现 API；rust 侧恒 Err 占位函数
+    continue_search 已按零引用占位红线删除，落地时随链实现"
 - 文件:
     - libs/server/AOF/LegacyRespCommand.cs
   理由: 彻底移除旧版 v3 命令兼容层映射，无向下兼容包袱
@@ -675,8 +699,10 @@
 - 文件:
     - libs/server/Objects/ItemBroker/CollectionItemBroker.cs:
         - HandleCollectionUpdateWorker
+        - MoveCollectionItemAsync
         - ParseScoreOrDefault
-  理由: 内部实现内联与严格类型化解析替代
+  理由: "内部实现内联与严格类型化解析替代；MoveCollectionItemAsync 的 BLMOVE
+    语义由 park_broker_wait 登记 + 主循环 try_move_next_list_item 即时移动分置承接"
 - 文件:
     - libs/server/Custom/CustomTransactionProcedure.cs:
         - CreateArgSlice

@@ -221,13 +221,6 @@ impl ListObject {
     obj
   }
 
-  /// 导出为元素数组（`from_items` 的逆操作）
-  ///
-  /// 无 C# 对应（wkv blob 回写出口）
-  pub fn to_items(&self) -> Vec<Vec<u8>> {
-    self.list.iter().cloned().collect()
-  }
-
   /// 对象操作统一入口（RESP 分派，具体实现在 partial 分片中）
   ///
   /// 刻意差异：C# 对 switch default 抛 GarnetException（LPOP/RPOP/LMOVE 等经

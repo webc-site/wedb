@@ -12,7 +12,6 @@
 
 use std::collections::BTreeMap;
 
-use bitflags::bitflags;
 use wbase::hash::murmur_hash2_x64_a;
 
 /// 寄存器位数
@@ -41,16 +40,6 @@ pub const SPARSE_MEMORY_SECTOR_SIZE: usize = 1 << 7;
 pub enum HllDtype {
   Sparse = 0,
   Dense = 1,
-}
-
-bitflags! {
-  /// HyperLogLog 状态标志（Rust 侧辅助：C# 以 GarnetException 表达的非法结构）
-  #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-  pub struct HllValid: u8 {
-    const NONE = 0;
-    const HYLL = 1;
-    const LENGTH = 1 << 1;
-  }
 }
 
 /// Garnet HyperLogLog 实例参数（寄存器数、编码容量均由 pbit 决定）
@@ -1032,25 +1021,6 @@ impl HyperLogLog {
     }
 
     f_updated
-  }
-
-  /// 稠密寄存器计数（1:1 对齐 C# DenseCountNonZero 的实际行为）
-  ///
-  /// 刻意差异说明：C# 函数名为 DenseCountNonZero，但实现统计的是**零值寄存
-  /// 器数**（`cnt += lz == 0 ? 1 : 0`），命名与行为相悖；且 C# 内无任何调用
-  /// 点。Rust 保留同名函数并复刻该行为，防后续接入时出现两侧偏差
-  ///
-  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:DenseCountNonZero
-  pub fn dense_count_non_zero(&self, ptr: &[u8]) -> usize {
-    let mut cnt = 0;
-    let regs = &ptr[HLL_HEADER_BYTES..];
-
-    for idx in 0..self.mcnt as u16 {
-      let lz = self.get_register(regs, idx);
-      cnt += usize::from(lz == 0);
-    }
-
-    cnt
   }
 
   /// 稀疏非零寄存器计数

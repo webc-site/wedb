@@ -150,12 +150,6 @@ impl RangeIndexStub {
     self.flags = 0;
   }
 
-  /// 清零树句柄裸指针 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:ClearTreeHandle)
-  #[inline]
-  pub fn clear_tree_handle(&mut self) {
-    self.tree_handle = 0;
-  }
-
   /// 标记已从检查点恢复并清零句柄 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoint)
   #[inline]
   pub fn mark_recovered_from_checkpoint(&mut self) {

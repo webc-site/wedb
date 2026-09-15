@@ -305,15 +305,6 @@ impl<P: RespProtocol> RespWriter<Vec<u8>, P> {
     }
   }
 
-  /// 创建指定容量与协议标记的内存写出器
-  #[inline]
-  pub fn with_capacity_p(capacity: usize) -> Self {
-    Self {
-      out: Vec::with_capacity(capacity),
-      _phantom: PhantomData,
-    }
-  }
-
   /// 消费写出器，返回底层缓冲
   #[inline]
   pub fn into_inner(self) -> Vec<u8> {
@@ -596,12 +587,6 @@ impl<B: RespBuffer, P: RespProtocol> RespWriter<B, P> {
   #[inline(always)]
   pub fn write_resp2_null(&mut self) {
     Resp2::write_null(self.buf_mut());
-  }
-
-  /// 固定写 RESP2 null 数组: `*-1\r\n`
-  #[inline(always)]
-  pub fn write_resp2_null_array(&mut self) {
-    Resp2::write_null_array(self.buf_mut());
   }
 
   /// 固定写 RESP3 null: `_\r\n`

@@ -107,18 +107,6 @@ pub const fn align_up(val: u64, align: u64) -> u64 {
   }
 }
 
-/// 判定是否按 64 字节缓存行对齐
-#[inline(always)]
-pub const fn is_cacheline_aligned(val: u64) -> bool {
-  is_aligned(val, CACHELINE_BYTES as u64)
-}
-
-/// 向上按 64 字节缓存行对齐
-#[inline(always)]
-pub const fn align_to_cacheline(val: u64) -> u64 {
-  align_up(val, CACHELINE_BYTES as u64)
-}
-
 /// 128 字节缓存行对齐包装器
 ///
 /// 严格防御 CPU 伪共享 (False Sharing)，对齐 Apple Silicon M 系列与 Neoverse ARM64 及双缓存行预取场景

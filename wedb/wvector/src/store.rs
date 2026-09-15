@@ -23,7 +23,6 @@ use std::{
 
 use bytemuck::Pod;
 use diskann::provider::ExecutionContext;
-use smallvec::SmallVec;
 
 /// 内部项类型命名空间位（对标 diskann-garnet/DiskANNService.cs 顶部的常量）。
 pub mod term {
@@ -92,16 +91,6 @@ pub fn namespace_bytes(context: u64) -> (usize, [u8; 4]) {
   } else {
     (4, (context as u32).to_le_bytes())
   }
-}
-
-/// 构造统一格式物理键：`[命名空间字节][键字节]`（栈上预分配 64 字节，超长回退堆分配）。
-#[inline]
-pub fn make_physical_key(context: u64, key: &[u8]) -> SmallVec<[u8; 64]> {
-  let (ns_len, ns_buf) = namespace_bytes(context);
-  let mut out = SmallVec::with_capacity(ns_len + key.len());
-  out.extend_from_slice(&ns_buf[..ns_len]);
-  out.extend_from_slice(key);
-  out
 }
 
 /// `[4B LE 长度][载荷]` 键流切片迭代器（零分配，单一实现；
@@ -275,12 +264,6 @@ impl<S: StoreCallbacks> Callbacks<S> {
     &self.store
   }
 
-  /// 内部 id 项是否存在（存在性探测：读取但忽略值）。
-  pub fn exists_iid(&self, ctx: &Context, id: u32, length_hint: usize) -> bool {
-    let key = [4u32, id];
-    self.read_multi_bool(ctx, bytemuck::bytes_of(&key), length_hint)
-  }
-
   /// 宽 id 项是否存在。
   pub fn exists_wid(&self, ctx: &Context, key: u64, length_hint: usize) -> bool {
     self.read_bool(ctx, &key.to_le_bytes(), length_hint)
@@ -326,24 +309,6 @@ impl<S: StoreCallbacks> Callbacks<S> {
           Some(vec)
         }
       };
-    });
-    result
-  }
-
-  /// 读单个项原始字节（变长属性/元数据读取专用快速通道）。
-  pub fn read_varsize_bytes(&self, ctx: &Context, id: u32) -> Option<Vec<u8>> {
-    let mut result = None;
-    self.read_bool_raw(ctx, &id.to_le_bytes(), |data| {
-      result = Some(data.to_vec());
-    });
-    result
-  }
-
-  /// 读变长外部 id（直接物化为 VectorSetId，避免冗余包装与容量闲置）。
-  pub fn read_varsize_id(&self, ctx: &Context, id: u32) -> Option<VectorSetId> {
-    let mut result = None;
-    self.read_bool_raw(ctx, &id.to_le_bytes(), |data| {
-      result = Some(VectorSetId::from(data));
     });
     result
   }
@@ -440,16 +405,6 @@ impl<S: StoreCallbacks> Callbacks<S> {
   /// 日志通道。
   pub fn log(&self, ctx: &Context, msg: &str) {
     self.store.log(ctx.inner, msg);
-  }
-
-  fn read_multi_bool(&self, ctx: &Context, keys: &[u8], length_hint: usize) -> bool {
-    let mut called = false;
-    self
-      .store
-      .read_multi(ctx.inner, keys, length_hint, |_: u32, _: &[u8]| {
-        called = true
-      });
-    called
   }
 
   fn read_bool(&self, ctx: &Context, key: &[u8], _length_hint: usize) -> bool {

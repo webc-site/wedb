@@ -64,9 +64,6 @@ pub const RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER: &str = "ERR bit is not an integer
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER
 pub const RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER: &str =
   "ERR bit offset is not an integer or out of range";
-/// SELECT/SWAPDB 族的整数解析失败文案（无句点变体，本仓库多域复用）
-pub const RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER_NO_PERIOD: &str =
-  "ERR value is not an integer or out of range";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER
 pub const RESP_ERR_PROTOCOL_VALUE_IS_NOT_INTEGER: &str =
   "ERR Protocol version is not an integer or out of range.";
@@ -151,25 +148,15 @@ pub const GENERIC_ERR_WRONG_NUM_ARGS: &str = "ERR wrong number of arguments for 
 pub const RESP_ERR_WRONG_NUMBER_OF_ARGUMENTS: &str = "ERR wrong number of arguments";
 /// LMPOP/SMPOP/BZMPOP 等命令的 numkeys 校验文案（跨 list/set/sortedset 三域复用）
 pub const RESP_ERR_GENERIC_NUMKEYS: &str = "ERR numkeys should be greater than 0";
-/// libs/server/Resp/CmdStrings.cs:GenericErrAtLeastOneKey
-pub const RESP_ERR_GENERIC_AT_LEAST_ONE_KEY: &str =
-  "ERR at least 1 input key is needed for '{0}' command";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_INVALIDCURSOR
 pub const RESP_ERR_GENERIC_INVALIDCURSOR: &str = "ERR invalid cursor";
 /// libs/server/Objects/GarnetObjectBase.cs 对象命令不支持的通用文案
 /// （跨 hash/set/list/sortedset 四对象域复用）
 pub const RESP_ERR_GENERIC_UNSUPPORTED_OPERATION: &str = "ERR unsupported operation";
-/// libs/server/Resp/CmdStrings.cs:GenericErrUnsupportedOption
-pub const GENERIC_ERR_UNSUPPORTED_OPTION: &str = "ERR Unsupported option {0}";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommand
 pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND: &str = "ERR unknown subcommand '{0}'. Try {1} HELP";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommandNoHelp
 pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND_NO_HELP: &str = "ERR unknown subcommand '{0}'.";
-/// libs/server/Resp/CmdStrings.cs:GenericErrUnknownSubCommandOrWrongNumberOfArguments
-pub const GENERIC_ERR_UNKNOWN_SUB_COMMAND_OR_WRONG_NUM_ARGS: &str =
-  "ERR unknown subcommand or wrong number of arguments for '{0}'. Try {1} HELP";
-/// libs/server/Resp/CmdStrings.cs:GenericErrCommandDisallowedWithOption
-pub const GENERIC_ERR_COMMAND_DISALLOWED_WITH_OPTION: &str = "ERR {0} command not allowed. If the {1} option is set to \"local\", you can run it from a local connection, otherwise you need to set this option in the configuration file, and then restart the server.";
 /// libs/server/Resp/CmdStrings.cs:GenericUnknownClientType
 pub const GENERIC_UNKNOWN_CLIENT_TYPE: &str = "ERR Unknown client type '{0}'";
 /// libs/server/Resp/CmdStrings.cs:GenericErrDuplicateFilter

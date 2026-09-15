@@ -7,12 +7,19 @@
 
 use gxhash::gxhash64;
 use wnode::resp::vector::vector_manager_index::{INDEX_SIZE, Index};
-use wvector::{
-  VectorDistanceMetricType, VectorQuantType, VectorSetFlags,
-  store::{make_physical_key, namespace_bytes},
-};
+use wvector::{VectorDistanceMetricType, VectorQuantType, VectorSetFlags, store::namespace_bytes};
 
 const KEY_HASH_SEED: i64 = 0;
+
+/// 物理键拼装：`[命名空间字节][键字节]`（生产键编码构件 namespace_bytes 的测试装配）
+#[inline]
+fn physical_key(context: u64, key: &[u8]) -> Vec<u8> {
+  let (ns_len, ns_buf) = namespace_bytes(context);
+  let mut out = Vec::with_capacity(ns_len + key.len());
+  out.extend_from_slice(&ns_buf[..ns_len]);
+  out.extend_from_slice(key);
+  out
+}
 
 #[inline]
 fn key_hash(bytes: &[u8]) -> u64 {
@@ -79,7 +86,7 @@ fn make_vector_element_key_matches_csharp_semantics() {
     for &ctx0_start in &CONTEXT_STARTS {
       for i in 0..20 {
         let ctx0 = ctx0_start + i;
-        let phys_key0 = make_physical_key(ctx0, k0);
+        let phys_key0 = physical_key(ctx0, k0);
 
         // 验证命名空间编码头
         let (ns_len, ns_buf) = namespace_bytes(ctx0);
@@ -90,7 +97,7 @@ fn make_vector_element_key_matches_csharp_semantics() {
           for &ctx1_start in &CONTEXT_STARTS {
             for j in 0..5 {
               let ctx1 = ctx1_start + j;
-              let phys_key1 = make_physical_key(ctx1, k1);
+              let phys_key1 = physical_key(ctx1, k1);
 
               let equal = phys_key0.as_slice() == phys_key1.as_slice();
               let expected = k0 == k1 && ctx0 == ctx1;

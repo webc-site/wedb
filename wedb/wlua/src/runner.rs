@@ -784,14 +784,6 @@ impl LuaRunner {
     self.host.function_registry_index != -1
   }
 
-  /// libs/server/Lua/LuaRunner.cs:ResetCompilation
-  pub fn reset_compilation(&mut self) {
-    if self.host.function_registry_index != -1 {
-      self.state.unref(self.host.function_registry_index);
-      self.host.function_registry_index = -1;
-    }
-  }
-
   /// libs/server/Lua/LuaRunner.Functions.cs:CompileCommon
   ///
   /// 编译脚本：经 load_sandboxed 装载，(err, func) 双值返回。
@@ -1680,11 +1672,6 @@ impl LuaRunner {
   /// 脚本 SHA1 摘要键（SCRIPT/EVAL 调度路径使用）。
   pub fn script_digest(&self) -> ScriptHashKey {
     SessionScriptCache::get_script_digest(&self.source)
-  }
-
-  /// 宿主共享态访问（LuaCommands 调度入口）。
-  pub fn host_mut(&mut self) -> &mut HostShared {
-    &mut self.host
   }
 
   /// 脚本源码。

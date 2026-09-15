@@ -20,7 +20,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 workspace = true
 
 [dependencies]
-bitflags = { workspace = true }
 wbase = { workspace = true, features = ["hash"] }
 
 [dev-dependencies]

@@ -317,28 +317,6 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     observer.result()
   }
 
-  /// 异步等待 srcKey 出件并移入 dstKey（BLMOVE 语义，见 C# MoveCollectionItemAsync）
-  ///
-  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:MoveCollectionItemAsync
-  pub async fn move_collection_item_async(
-    self: &Arc<Self>,
-    command: RespCommand,
-    src_key: Vec<u8>,
-    session_id: usize,
-    timeout_seconds: f64,
-    cmd_args: Vec<Vec<u8>>,
-  ) -> CollectionItemResult {
-    self
-      .get_collection_item_async(
-        command,
-        vec![src_key],
-        session_id,
-        timeout_seconds,
-        cmd_args,
-      )
-      .await
-  }
-
   /// 内部公共路径（对应 GetCollectionItemAsync(observer, keys, timeout) 实现）：
   /// 登记观察者 → 启动主循环 → 入队 NewObserver → 等待 → 收尾
   async fn get_collection_item_async_inner(

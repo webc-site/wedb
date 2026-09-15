@@ -580,8 +580,6 @@ pub struct AofChunkHeader {
 impl AofChunkHeader {
   /// 头尺寸。
   pub const TOTAL_SIZE: usize = 3 * size_of::<u32>() + size_of::<u64>() + size_of::<i64>();
-  /// objectId 字段偏移。
-  pub const OBJECT_ID_OFFSET: usize = 3 * size_of::<u32>();
 
   /// 序列化为 28B（LE 布局，字段偏移对标 C# AofChunkHeader FieldOffset 0/4/8/12/20）。
   #[inline]

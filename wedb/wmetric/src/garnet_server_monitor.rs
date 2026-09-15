@@ -220,11 +220,6 @@ impl GarnetServerMonitor {
     })
   }
 
-  /// 共享迭代时钟（会话侧延迟指标构造用）。
-  pub fn shared_iterations(&self) -> Arc<AtomicU64> {
-    self.monitor_iterations.clone()
-  }
-
   /// libs/server/Metrics/GarnetServerMonitor.cs:AddMetricsHistorySessionDispose
   ///
   /// 会话释放时将其指标并入历史（会话指标 / 延迟指标 / 命令统计均可空）；

@@ -1,4 +1,14 @@
 - 文件:
+    - libs/common/RespReadUtils.cs:
+        - TryReadInt32
+        - TryReadInt64
+        - TryReadInt64WithLengthHeader
+        - TryReadUInt64WithLengthHeader
+  理由: "整数 WithLengthHeader 族整族删除（见 task/reject/with-length-header-family.md）：
+        C# 侧 TryReadInt64/UInt64WithLengthHeader 亦零生产调用，Int32 变体仅客户端
+        转发面引用；rust 命令参数解析由 session_parse_state strict_i32/strict_i64
+        承接，wconn 客户端应答解析自有实现，本体读取函数无消费面"
+- 文件:
     - libs/common/Networking/BatchHeader.cs
     - libs/common/Networking/BufferSizeUtils.cs
     - libs/common/Networking/GarnetTcpNetworkSender.cs:

@@ -1,7 +1,5 @@
 //! 集合 RESP 结构化输出（对标 libs/server/Objects/Types/ObjectOutput.cs）
 
-use std::mem::take;
-
 use bitflags::bitflags;
 use wresp::RespWriter;
 use zmij::Buffer;
@@ -54,18 +52,6 @@ impl ObjectOutput {
   #[inline]
   pub fn has_wrong_type(&self) -> bool {
     self.output_flags.contains(ObjectOutputFlags::WRONG_TYPE)
-  }
-
-  /// 对象已空、须移除键
-  #[inline]
-  pub fn has_remove_key(&self) -> bool {
-    self.output_flags.contains(ObjectOutputFlags::REMOVE_KEY)
-  }
-
-  /// 取走 RESP 负载
-  #[inline]
-  pub fn take_payload(&mut self) -> Vec<u8> {
-    take(&mut self.payload)
   }
 
   // ---- 以下统一代理至 wresp::RespWriter ----

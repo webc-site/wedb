@@ -181,12 +181,6 @@ impl Participant {
       .store(val, Ordering::Release);
     Ok(())
   }
-
-  /// 获取参与者对应用户字的原子引用
-  #[inline]
-  pub fn user_word_atomic(&self, word_index: usize) -> Result<&AtomicI64> {
-    self.user_word_ref(word_index)
-  }
 }
 
 impl Drop for Participant {

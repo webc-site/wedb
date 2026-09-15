@@ -161,37 +161,12 @@ impl LuaLimitedManagedAllocator {
     }
   }
 
-  /// libs/server/Lua/LuaLimitedManagerAllocator.cs:GetNextFreeBlockRef
-  ///
-  /// 空闲链中 `block_ref` 的后继。
-  pub fn get_next_free_block_ref(&self, block_ref: BlockRef) -> Option<BlockRef> {
-    let pos = self.free_list.iter().position(|&r| r == block_ref)?;
-    self.free_list.get(pos + 1).copied()
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetPrevFreeBlockRef
-  pub fn get_prev_free_block_ref(&self, block_ref: BlockRef) -> Option<BlockRef> {
-    let pos = self.free_list.iter().position(|&r| r == block_ref)?;
-    if pos == 0 {
-      None
-    } else {
-      Some(self.free_list[pos - 1])
-    }
-  }
-
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetNextAdjacentBlockRef
   ///
   /// 地址相邻的后继块（不考虑状态）。
   pub fn get_next_adjacent_block_ref(&self, block_ref: BlockRef) -> Option<BlockRef> {
     let idx = self.block_idx(block_ref)?;
     self.blocks.get(idx + 1).map(|b| b_ref_idx(b.offset))
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetRefVal
-  ///
-  /// 块引用对应的池内偏移。
-  pub fn get_ref_val(&self, block_ref: BlockRef) -> Option<usize> {
-    Some(self.block(block_ref)?.offset)
   }
 
   /// 是否处于 infallible 分配区域。
@@ -309,20 +284,6 @@ impl LuaLimitedManagedAllocator {
     self.block(block_ref).map(|b| b.offset)
   }
 
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:ContainsRef
-  ///
-  /// 偏移是否落在池内（等价 C# 的块指针包含判定）。
-  pub fn contains_ref(&self, offset: usize) -> bool {
-    offset < self.pool.len()
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:IsValidBlockRef
-  ///
-  /// 引用是否对应池内的有效块。
-  pub fn is_valid_block_ref(&self, block_ref: BlockRef) -> bool {
-    self.block(block_ref).is_some()
-  }
-
   /// 对应 DebugCheck 诊断入口，调用 check_correctness
   pub fn debug_check(&self) -> bool {
     self.check_correctness()
@@ -387,29 +348,6 @@ impl LuaLimitedManagedAllocator {
     }
   }
 
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:MoveToHeadOfFreeList
-  pub fn move_to_head_of_free_list(&mut self, block_ref: BlockRef) {
-    self.remove_from_free_list(block_ref);
-    self.free_list.insert(0, block_ref);
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:TryCoalesceSingleBlock
-  ///
-  /// `block_ref` 与后继空闲块合并一次；成功返回 true。
-  pub fn try_coalesce_single_block(&mut self, block_ref: BlockRef) -> bool {
-    let Some(next) = self.get_next_adjacent_block_ref(block_ref) else {
-      return false;
-    };
-    if !self
-      .block(next)
-      .is_some_and(|b| b.state == BlockState::Free)
-    {
-      return false;
-    }
-    self.coalesce_pair(block_ref, next);
-    true
-  }
-
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:SplitInUseBlock
   ///
   /// 在用块按 `first_size` 分裂，尾部转为空闲块；返回尾部引用。
@@ -422,13 +360,6 @@ impl LuaLimitedManagedAllocator {
   /// 空闲块按 `first_size` 分裂（头部保留原状态，尾部为新空闲块）。
   pub fn split_free_block(&mut self, block_ref: BlockRef, first_size: usize) -> Option<BlockRef> {
     self.split_common(block_ref, first_size, BlockState::Free)
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetDataStartRef
-  ///
-  /// 块内数据区起始（块头之后）。
-  pub fn get_data_start_ref(&self, block_ref: BlockRef) -> Option<usize> {
-    Some(self.block(block_ref)?.offset + BLOCK_HEADER_SIZE)
   }
 
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:GetFreeList
@@ -463,11 +394,6 @@ impl LuaLimitedManagedAllocator {
     } else {
       None
     }
-  }
-
-  /// libs/server/Lua/LuaLimitedManagedAllocator.cs:UpdateDebugAllocatedBytes
-  pub fn update_debug_allocated_bytes(&mut self, delta: i64) {
-    self.debug_allocated_bytes = (self.debug_allocated_bytes as i64 + delta).max(0) as usize;
   }
 
   /// libs/server/Lua/LuaLimitedManagedAllocator.cs:SplitCommon

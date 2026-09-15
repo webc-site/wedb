@@ -13,11 +13,21 @@ use wnode::resp::vector::{
 use wvector::{
   Callbacks, DiskAnnInsertResult, IndexConfig, VectorDistanceMetricType, VectorIdFormat,
   VectorQuantType, VectorSetFlags, VectorValueType,
-  store::{StoreCallbacks, make_physical_key},
+  store::{StoreCallbacks, namespace_bytes},
   unpack_length_prefixed,
 };
 
 type TestMap = HashMap<(u64, Vec<u8>), Vec<u8>>;
+
+/// 物理键拼装：`[命名空间字节][键字节]`（生产键编码构件 namespace_bytes 的测试装配）
+#[inline]
+fn physical_key(context: u64, key: &[u8]) -> Vec<u8> {
+  let (ns_len, ns_buf) = namespace_bytes(context);
+  let mut out = Vec::with_capacity(ns_len + key.len());
+  out.extend_from_slice(&ns_buf[..ns_len]);
+  out.extend_from_slice(key);
+  out
+}
 
 /// 内存存储桩（统一物理键读写；生产路径由 wkv 磁盘会话承接）。
 struct TestVectorStore {
@@ -47,7 +57,7 @@ impl StoreCallbacks for TestVectorStore {
         break;
       }
       let key = &rest[4..total];
-      if let Some(value) = guard.get(&(context, make_physical_key(context, key).to_vec())) {
+      if let Some(value) = guard.get(&(context, physical_key(context, key).to_vec())) {
         f(index, value);
       }
       index += 1;
@@ -59,7 +69,7 @@ impl StoreCallbacks for TestVectorStore {
   where
     F: FnMut(&[u8]),
   {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = physical_key(context, key);
     let guard = self.data.lock();
     match guard.get(&(context, phys_key.as_slice().to_vec())) {
       Some(value) => {
@@ -71,7 +81,7 @@ impl StoreCallbacks for TestVectorStore {
   }
 
   fn write(&self, context: u64, key: &[u8], value: &[u8]) -> bool {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = physical_key(context, key);
     self
       .data
       .lock()
@@ -80,7 +90,7 @@ impl StoreCallbacks for TestVectorStore {
   }
 
   fn delete(&self, context: u64, key: &[u8]) -> bool {
-    let phys_key = make_physical_key(context, key);
+    let phys_key = physical_key(context, key);
     self
       .data
       .lock()
@@ -96,7 +106,7 @@ impl StoreCallbacks for TestVectorStore {
     if write_len == 0 {
       return true;
     }
-    let phys_key = make_physical_key(context, key);
+    let phys_key = physical_key(context, key);
     let mut guard = self.data.lock();
     let entry = guard
       .entry((context, phys_key.as_slice().to_vec()))

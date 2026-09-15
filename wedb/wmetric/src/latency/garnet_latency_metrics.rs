@@ -184,26 +184,12 @@ impl GarnetLatencyMetrics {
 
   /// libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:GetLatencyMetrics
   ///
-  /// 指定类别的分位数指标（对齐 C# 单类别重载）。
+  /// 指定类别的分位数指标（对齐 C# 单类别重载；多类别重载的 rust 消费面
+  /// metrics_api::get_latency_metrics_all 以循环单类别承接，重载不转写）。
   pub fn get_latency_metrics(&self, latency_metrics_type: LatencyMetricsType) -> Vec<MetricsItem> {
     self
       .get_percentiles(latency_metrics_type.idx())
       .unwrap_or_default()
-  }
-
-  /// 对应 C# GetLatencyMetrics 多类别重载，迭代产出有样本类别的 (类别, 分位数指标) 序列。
-  pub fn get_latency_metrics_multi(
-    &self,
-    latency_metrics_types: &[LatencyMetricsType],
-  ) -> Vec<(LatencyMetricsType, Vec<MetricsItem>)> {
-    latency_metrics_types
-      .iter()
-      .filter_map(|&event_type| {
-        self
-          .get_percentiles(event_type.idx())
-          .map(|items| (event_type, items))
-      })
-      .collect()
   }
 
   /// libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:Dump

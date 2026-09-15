@@ -109,16 +109,6 @@ impl TxnLockTable {
   ) -> Option<TxnKeyLockGuard<'_>> {
     self.try_lock_stripe_for(Self::stripe_index_for_hash(key_hash), exclusive, timeout)
   }
-
-  /// 阻塞加排他锁（返回 RAII 守卫；锁释放由守卫 drop 承接）
-  pub fn lock_exclusive(&self, key_hash: i64) -> TxnKeyLockGuard<'_> {
-    self.lock_key(key_hash, true)
-  }
-
-  /// 阻塞加共享锁（返回 RAII 守卫；锁释放由守卫 drop 承接）
-  pub fn lock_shared(&self, key_hash: i64) -> TxnKeyLockGuard<'_> {
-    self.lock_key(key_hash, false)
-  }
 }
 
 #[cfg(test)]
