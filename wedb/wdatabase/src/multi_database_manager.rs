@@ -94,22 +94,6 @@ impl<D: Device, A: DatabaseAof<D>> MultiDatabaseManager<D, A> {
       .store(db.store.tail_address(), Relaxed);
   }
 
-  /// 库表内容写锁（持锁期间注册表串行变更）
-  ///
-  /// libs/server/Databases/MultiDatabaseManager.cs:TryGetDatabasesContentWriteLock
-  pub fn try_get_databases_content_write_lock(
-    &self,
-  ) -> Option<async_lock::RwLockWriteGuard<'_, ()>> {
-    self.content_lock.try_write()
-  }
-
-  /// 库表内容读锁
-  ///
-  /// libs/server/Databases/MultiDatabaseManager.cs:TryGetDatabasesContentReadLock
-  pub fn try_get_databases_content_read_lock(&self) -> Option<async_lock::RwLockReadGuard<'_, ()>> {
-    self.content_lock.try_read()
-  }
-
   /// 取已持久化的库编号集合（检查点目录下有子目录的编号）
   ///
   /// 两分支对标 libs/server/Databases/MultiDatabaseManager.cs:TryGetSavedDatabaseIds
@@ -157,19 +141,6 @@ impl<D: Device, A: DatabaseAof<D>> MultiDatabaseManager<D, A> {
     Ok(ids)
   }
 
-  /// 暂停全部检查点（成功则返回释放闭包所需标志）
-  ///
-  /// libs/server/Databases/MultiDatabaseManager.cs:RunPausedCheckpointsAndReleaseLocksAsync
-  pub async fn run_paused_checkpoints_and_release_locks(&self) -> wkv::Result<()> {
-    let pin = self.databases.pin();
-    for (_, db) in pin.iter() {
-      self.base.resume_checkpoints(db);
-    }
-    Ok(())
-  }
-
-  /// 对单个库拍检查点
-  ///
   /// 对单个库拍检查点
   ///
   /// libs/server/Databases/MultiDatabaseManager.cs:TakeOneCheckpointAsync
@@ -281,8 +252,11 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     Ok(())
   }
 
-  /// 满足 IDatabaseManager trait 接口规范，多库检查点保留 _background 参数
+  /// 满足 IDatabaseManager trait 接口规范，多库检查点保留 _background 参数。
+  /// 持内容读锁跨等待，防并发 swap-db 移动库容器错配 LASTSAVE
+  ///（对标 MultiDatabaseManager.cs:147 TakeCheckpointAsync 锁门控）
   async fn take_checkpoint_async(&self, _background: bool, db_id: i64) -> wkv::Result<bool> {
+    let _content = self.content_lock.read().await;
     let mut taken = false;
     if db_id < 0 {
       for db in self.get_databases_snapshot() {
@@ -296,7 +270,10 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     Ok(taken)
   }
 
+  /// 持内容读锁防 LASTSAVE 错配（对标 MultiDatabaseManager.cs:230
+  /// TakeOnDemandCheckpointAsync 锁门控）
   async fn take_on_demand_checkpoint_async(&self, entry_ms: u64, db_id: i64) -> wkv::Result<()> {
+    let _content = self.content_lock.read().await;
     if let Some(db) = self.get_db_by_id(db_id) {
       self
         .base
@@ -306,10 +283,13 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     Ok(())
   }
 
+  /// 持内容读锁防并发 swap-db（对标 MultiDatabaseManager.cs:261
+  /// TaskCheckpointBasedOnAofSizeLimitAsync 锁门控）
   async fn task_checkpoint_based_on_aof_size_limit_async(
     &self,
     aof_size_limit: u64,
   ) -> wkv::Result<()> {
+    let _content = self.content_lock.read().await;
     for (_, db) in self.databases.pin().iter() {
       self
         .base
@@ -319,7 +299,10 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     Ok(())
   }
 
+  /// 持内容读锁确保 swap-db 不在途（对标 MultiDatabaseManager.cs:322
+  /// CommitToAofAsync 锁门控）
   async fn commit_to_aof_async(&self, db_id: i64) -> wkv::Result<()> {
+    let _content = self.content_lock.read().await;
     if db_id < 0 {
       for (_, db) in self.databases.pin().iter() {
         self.base.commit_aof(db).await?;
@@ -348,12 +331,6 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
       total += self.base.replay_database_aof(db, until).await?;
     }
     Ok(total)
-  }
-
-  fn grow_indexes_if_needed_async(&self) -> wkv::Result<bool> {
-    self.databases.pin().iter().try_fold(false, |acc, (_, db)| {
-      self.base.grow_index_if_needed_async(db).map(|g| acc | g)
-    })
   }
 
   async fn execute_object_collection(&self, db_id: i64) -> wkv::Result<usize> {

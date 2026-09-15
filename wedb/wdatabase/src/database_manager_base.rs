@@ -324,16 +324,6 @@ impl<D: Device> DatabaseManagerBase<D> {
     Ok(count)
   }
 
-  /// 存储索引按需增长
-  ///
-  /// libs/server/Databases/DatabaseManagerBase.cs:GrowIndexIfNeededAsync
-  pub fn grow_index_if_needed_async<A: DatabaseAof<D>>(
-    &self,
-    db: &GarnetDatabase<D, A>,
-  ) -> wkv::Result<bool> {
-    Ok(!db.store_index_maxed_out.load(Relaxed))
-  }
-
   /// 检查点后清理：保留最近 2 份快照，清除过期令牌
   ///
   /// libs/server/Databases/DatabaseManagerBase.cs:RunPostCheckpointCleanup

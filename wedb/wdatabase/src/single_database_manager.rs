@@ -41,23 +41,6 @@ impl<D: Device, A: DatabaseAof<D>> SingleDatabaseManager<D, A> {
     self.base.try_get_or_add_database(&self.db)
   }
 
-  /// 单库恢复检查点
-  ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:RecoverCheckpointAsync
-  /// 保留 _replica_recover 形参以匹配 SingleDatabaseManager.RecoverCheckpointAsync 签名规范
-  pub async fn recover_checkpoint(
-    &self,
-    _replica_recover: bool,
-    recover_from_token: Option<u128>,
-  ) -> wkv::Result<()> {
-    // 副本恢复与主恢复同以快照为基准（差异由 AOF 追平承担）
-    self
-      .base
-      .recover_database_checkpoint_async(&self.db, recover_from_token)
-      .await
-      .map(|_checkpoint| ())
-  }
-
   /// 单库暂停检查点
   ///
   /// libs/server/Databases/SingleDatabaseManager.cs:TryPauseCheckpoints
@@ -78,31 +61,6 @@ impl<D: Device, A: DatabaseAof<D>> SingleDatabaseManager<D, A> {
   /// 保留 _background 形参以匹配 SingleDatabaseManager.TakeCheckpointAsync 签名规范
   pub async fn take_checkpoint(&self, _background: bool) -> wkv::Result<bool> {
     self.base.take_database_checkpoint_async(&self.db).await
-  }
-
-  /// 单库按需检查点
-  ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:TakeOnDemandCheckpointAsync
-  pub async fn take_on_demand_checkpoint(&self, entry_ms: u64) -> wkv::Result<()> {
-    self
-      .base
-      .take_on_demand_checkpoint_async(&self.db, entry_ms)
-      .await
-  }
-
-  /// AOF 达限检查点
-  ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:TaskCheckpointBasedOnAofSizeLimitAsync
-  pub async fn task_checkpoint_based_on_aof_size_limit(&self, limit: u64) -> wkv::Result<()> {
-    self.base.checkpoint_if_aof_exceeds(&self.db, limit).await?;
-    Ok(())
-  }
-
-  /// 单库 AOF 提交
-  ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:CommitToAofAsync
-  pub async fn commit_to_aof(&self) -> wkv::Result<()> {
-    self.base.commit_aof(&self.db).await
   }
 
   /// 等待单库 AOF 提交完成（事件驱动无锁等待）
@@ -133,13 +91,6 @@ impl<D: Device, A: DatabaseAof<D>> SingleDatabaseManager<D, A> {
   /// libs/server/Databases/SingleDatabaseManager.cs:ReplayAOF
   pub async fn replay_aof(&self, until: u64) -> wkv::Result<u64> {
     self.base.replay_database_aof(&self.db, until).await
-  }
-
-  /// 单库索引增长
-  ///
-  /// libs/server/Databases/SingleDatabaseManager.cs:GrowIndexesIfNeededAsync
-  pub fn grow_indexes_if_needed(&self) -> wkv::Result<bool> {
-    self.base.grow_index_if_needed_async(&self.db)
   }
 
   /// 单库对象收集（对象信封扫描统计）
@@ -250,10 +201,15 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for SingleDatabaseManager
 
   async fn recover_checkpoint_async(
     &self,
-    replica_recover: bool,
+    _replica_recover: bool,
     recover_from_token: Option<u128>,
   ) -> wkv::Result<()> {
-    SingleDatabaseManager::recover_checkpoint(self, replica_recover, recover_from_token).await
+    // 副本恢复与主恢复同以快照为基准（差异由 AOF 追平承担）
+    self
+      .base
+      .recover_database_checkpoint_async(&self.db, recover_from_token)
+      .await
+      .map(|_checkpoint| ())
   }
 
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
@@ -263,19 +219,26 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for SingleDatabaseManager
 
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
   async fn take_on_demand_checkpoint_async(&self, entry_ms: u64, _db_id: i64) -> wkv::Result<()> {
-    SingleDatabaseManager::take_on_demand_checkpoint(self, entry_ms).await
+    self
+      .base
+      .take_on_demand_checkpoint_async(&self.db, entry_ms)
+      .await
   }
 
   async fn task_checkpoint_based_on_aof_size_limit_async(
     &self,
     aof_size_limit: u64,
   ) -> wkv::Result<()> {
-    SingleDatabaseManager::task_checkpoint_based_on_aof_size_limit(self, aof_size_limit).await
+    self
+      .base
+      .checkpoint_if_aof_exceeds(&self.db, aof_size_limit)
+      .await?;
+    Ok(())
   }
 
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
   async fn commit_to_aof_async(&self, _db_id: i64) -> wkv::Result<()> {
-    SingleDatabaseManager::commit_to_aof(self).await
+    self.base.commit_aof(&self.db).await
   }
 
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
@@ -289,10 +252,6 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for SingleDatabaseManager
 
   async fn replay_aof(&self, until: u64) -> wkv::Result<u64> {
     SingleDatabaseManager::replay_aof(self, until).await
-  }
-
-  fn grow_indexes_if_needed_async(&self) -> wkv::Result<bool> {
-    SingleDatabaseManager::grow_indexes_if_needed(self)
   }
 
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id

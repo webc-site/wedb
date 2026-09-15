@@ -39,8 +39,6 @@ pub struct GarnetDatabase<D: Device, A: DatabaseAof<D> = ()> {
   pub last_save_store_tail_address: AtomicU64,
   /// 上次保存时间（毫秒 Unix 时间戳，0 表示从未保存）
   pub last_save_ms: AtomicU64,
-  /// 存储索引是否已达上限
-  pub store_index_maxed_out: AtomicBool,
   /// 检查点暂停标志（对标 CheckpointingLock 写锁占位）
   pub checkpoint_paused: AtomicBool,
   /// 对象堆大小追踪器
@@ -65,7 +63,6 @@ impl<D: Device, A: DatabaseAof<D>> GarnetDatabase<D, A> {
       aof,
       last_save_store_tail_address: AtomicU64::new(0),
       last_save_ms: AtomicU64::new(0),
-      store_index_maxed_out: AtomicBool::new(false),
       checkpoint_paused: AtomicBool::new(false),
       size_tracker: Arc::new(CacheSizeTracker::new()),
     }

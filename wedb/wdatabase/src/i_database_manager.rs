@@ -110,11 +110,6 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// libs/server/Databases/IDatabaseManager.cs:ReplayAOF
   fn replay_aof(&self, until: u64) -> impl Future<Output = wkv::Result<u64>>;
 
-  /// 按需增长存储索引
-  ///
-  /// libs/server/Databases/IDatabaseManager.cs:GrowIndexesIfNeededAsync
-  fn grow_indexes_if_needed_async(&self) -> wkv::Result<bool>;
-
   /// 执行对象收集扫描，返回遍历对象数
   ///
   /// libs/server/Databases/IDatabaseManager.cs:ExecuteObjectCollection
