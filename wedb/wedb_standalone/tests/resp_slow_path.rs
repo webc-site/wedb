@@ -4,7 +4,7 @@
 //! 挂起、网络泵侧 await 驱动闭环（此处以 compio Runtime 的 block_on 承担
 //! 网络泵角色），对标 garnet/test/standalone/Garnet.test 的 SCAN/KEYS/
 //! DBSIZE 用例族（RespTests / RespTestsBytes）
-use std::{sync::Arc, thread::sleep, time::Duration};
+use std::{str::from_utf8, sync::Arc, thread::sleep, time::Duration};
 
 use compio::runtime::Runtime;
 use wdev::SegmentedDevice;
@@ -314,7 +314,7 @@ fn info_keyspace_via_slow_path() {
 
   // 空库：仅段头，无条目（C# 仅列出至少持有一个键的库）
   let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
-  let text = std::str::from_utf8(&out).unwrap();
+  let text = from_utf8(&out).unwrap();
   assert!(text.contains("# Keyspace\r\n"), "{text}");
   assert!(!text.contains("db0"), "空库不得出条目: {text}");
 
@@ -325,7 +325,7 @@ fn info_keyspace_via_slow_path() {
     b":1\r\n"
   );
   let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
-  let text = std::str::from_utf8(&out).unwrap();
+  let text = from_utf8(&out).unwrap();
   assert!(
     text.contains("db0:keys=2,expires=1,avg_ttl=0"),
     "键数与 TTL 计数应同时上报: {text}"
@@ -337,6 +337,6 @@ fn info_keyspace_via_slow_path() {
     b":1\r\n"
   );
   let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
-  let text = std::str::from_utf8(&out).unwrap();
+  let text = from_utf8(&out).unwrap();
   assert!(text.contains("db0:keys=1,expires=0,avg_ttl=0"), "{text}");
 }

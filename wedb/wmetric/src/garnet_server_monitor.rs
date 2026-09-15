@@ -222,7 +222,12 @@ impl GarnetServerMonitor {
 
   /// 是否开启逐命令统计追踪（C# serverOptions.CommandStatsMonitor 的监视器侧投影）。
   pub fn tracks_command_stats(&self) -> bool {
-    self.state.lock().global_metrics.global_command_stats.is_some()
+    self
+      .state
+      .lock()
+      .global_metrics
+      .global_command_stats
+      .is_some()
   }
 
   /// 是否开启延迟追踪（C# serverOptions.LatencyMonitor 的监视器侧投影）。

@@ -138,7 +138,10 @@ fn command_stats_calls_tracking_test() {
   let get_count = 5u64;
   let provider = TestInfoProvider {
     command_stats_monitor: true,
-    stats: vec![("set".into(), set_count, 0, 0), ("get".into(), get_count, 0, 0)],
+    stats: vec![
+      ("set".into(), set_count, 0, 0),
+      ("get".into(), get_count, 0, 0),
+    ],
   };
   let info = execute_info(&provider, Some(b"COMMANDSTATS"));
   let lines: Vec<&str> = info.split("\r\n").collect();

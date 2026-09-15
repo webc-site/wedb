@@ -73,7 +73,14 @@ fn main() -> wnode::Result<()> {
       // Lua 超时管理器装配（同集群 main：C# StoreWrapper 构造段 +
       // GarnetServer.cs:Start 的 luaTimeoutManager.Start()）。
       // 标量先行拷出：会话工厂随 provider 存活，不得借用 args。
-      let (enable_lua, lua_timeout_ms, lua_txn_mode, max_databases, commandstats_monitor, latency_monitor) = (
+      let (
+        enable_lua,
+        lua_timeout_ms,
+        lua_txn_mode,
+        max_databases,
+        commandstats_monitor,
+        latency_monitor,
+      ) = (
         node.enable_lua,
         node.lua_script_timeout_ms,
         node.lua_transaction_mode,

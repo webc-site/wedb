@@ -5,7 +5,7 @@
 //! 执行后 calls 必计、错误应答随 commandErrorWritten 计 failed、ACL 拒绝计
 //! rejected，INFO COMMANDSTATS 段按 Redis 约定输出。
 
-use std::sync::Arc;
+use std::{str::from_utf8, sync::Arc};
 
 use parking_lot::Mutex;
 use wacl::{
@@ -47,14 +47,16 @@ fn roundtrip(session: &mut RespServerSession, frame: &[u8]) -> Vec<u8> {
 
 /// cmdstat 行断言（INFO COMMANDSTATS 段内的 Redis 约定格式）
 fn assert_cmdstat(info: &[u8], cmd: &str, calls: u64, rejected: u64, failed: u64) {
-  let text = std::str::from_utf8(info).unwrap();
+  let text = from_utf8(info).unwrap();
   let line = text
     .split("\r\n")
     .find(|l| l.starts_with(&format!("cmdstat_{cmd}:")))
     .unwrap_or_else(|| panic!("缺少 cmdstat_{cmd} 条目: {text}"));
   assert_eq!(
     line,
-    format!("cmdstat_{cmd}:calls={calls},usec=0,usec_per_call=0.00,rejected_calls={rejected},failed_calls={failed}"),
+    format!(
+      "cmdstat_{cmd}:calls={calls},usec=0,usec_per_call=0.00,rejected_calls={rejected},failed_calls={failed}"
+    ),
   );
 }
 
@@ -72,7 +74,10 @@ fn commandstats_calls_failed_rejected_end_to_end() {
   );
 
   // 2. PING 放行 → calls ping=1
-  assert_eq!(roundtrip(&mut session, b"*1\r\n$4\r\nPING\r\n"), b"+PONG\r\n");
+  assert_eq!(
+    roundtrip(&mut session, b"*1\r\n$4\r\nPING\r\n"),
+    b"+PONG\r\n"
+  );
 
   // 3. PING 参数过多 → 错误应答 → calls ping=2 failed=1
   assert_eq!(
@@ -94,11 +99,8 @@ fn commandstats_calls_failed_rejected_end_to_end() {
   );
 
   // 5. INFO COMMANDSTATS 段（同步路径）输出三计数
-  let info = roundtrip(
-    &mut session,
-    b"*2\r\n$4\r\nINFO\r\n$12\r\ncommandstats\r\n",
-  );
-  let text = std::str::from_utf8(&info).unwrap();
+  let info = roundtrip(&mut session, b"*2\r\n$4\r\nINFO\r\n$12\r\ncommandstats\r\n");
+  let text = from_utf8(&info).unwrap();
   assert!(text.contains("cmdstat_auth"), "AUTH 应有统计条目: {text}");
   assert_cmdstat(&info, "ping", 2, 1, 1);
   assert_cmdstat(&info, "auth", 1, 0, 0);
@@ -108,11 +110,8 @@ fn commandstats_calls_failed_rejected_end_to_end() {
 #[test]
 fn commandstats_disabled_by_default() {
   let session = &mut RespServerSession::default();
-  let info = roundtrip(
-    session,
-    b"*2\r\n$4\r\nINFO\r\n$12\r\ncommandstats\r\n",
-  );
-  let text = std::str::from_utf8(&info).unwrap();
+  let info = roundtrip(session, b"*2\r\n$4\r\nINFO\r\n$12\r\ncommandstats\r\n");
+  let text = from_utf8(&info).unwrap();
   assert!(text.contains("Commandstats"));
   assert!(
     text.contains("Command stats monitoring is disabled"),

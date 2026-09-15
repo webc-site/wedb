@@ -546,7 +546,9 @@ impl ClusterProvider {
   /// 注入副本重放最大滞后字节数（C# serverOptions.AofReplayMaxLagBytes 的
   /// 装配期注入；INFO 复制段直读）
   pub fn set_aof_replay_max_lag_bytes(&self, value: i32) {
-    self.aof_replay_max_lag_bytes.store(value, Ordering::Relaxed);
+    self
+      .aof_replay_max_lag_bytes
+      .store(value, Ordering::Relaxed);
   }
 }
 
@@ -686,7 +688,10 @@ impl IClusterProvider for ClusterProvider {
       items.push(MetricsItem::new("replication_offset_acc_lag", acc_lag));
       items.push(MetricsItem::new(
         "aof_replay_max_lag_bytes",
-        self.aof_replay_max_lag_bytes.load(Ordering::Relaxed).to_string(),
+        self
+          .aof_replay_max_lag_bytes
+          .load(Ordering::Relaxed)
+          .to_string(),
       ));
       items.push(MetricsItem::new(
         "physical_sublog_max_sequence_vector",

@@ -12,14 +12,13 @@ use std::sync::OnceLock;
 use wbase::time::now_ms;
 use wconf::ServerConfigType;
 use wmetric::{
-  DbSnapshot, GarnetServerMonitor, GlobalMetricsSnapshot, InfoProvider, MetricsItem, ServerFacts,
-  info::garnet_info_metrics::generate_default_hex_id,
+  CommandStats, DbSnapshot, GarnetServerMonitor, GlobalMetricsSnapshot, InfoProvider, MetricsItem,
+  ServerFacts, info::garnet_info_metrics::generate_default_hex_id,
 };
 use wresp::RespCommand;
 
 use super::{
-  resp_commands_info_data::resp_command_to_cs_name,
-  resp_server_session::RespServerSession,
+  resp_commands_info_data::resp_command_to_cs_name, resp_server_session::RespServerSession,
 };
 
 /// 进程启动时刻（Unix 秒；C# StoreWrapper.ProcessStartTime 的进程生命周期代理）
@@ -112,11 +111,9 @@ impl InfoProvider for SessionInfoSource<'_> {
       // 监视器未装配：回落本会话
       None => true,
     };
-    if merge_local
-      && let Some(stats) = &self.session.command_stats
-    {
+    if merge_local && let Some(stats) = &self.session.command_stats {
       aggregate
-        .get_or_insert_with(wmetric::CommandStats::new)
+        .get_or_insert_with(CommandStats::new)
         .add(&stats.lock());
     }
     let Some(aggregate) = aggregate else {
@@ -258,12 +255,15 @@ impl InfoProvider for KeyspaceScanSource {
     self
       .stats
       .iter()
-      .map(|&(id, _, _)| DbSnapshot { id, ..DbSnapshot::default() })
+      .map(|&(id, ..)| DbSnapshot {
+        id,
+        ..DbSnapshot::default()
+      })
       .collect()
   }
 
   fn max_database_id(&self) -> i32 {
-    self.stats.last().map_or(-1, |&(id, _, _)| id)
+    self.stats.last().map_or(-1, |&(id, ..)| id)
   }
 
   fn global_metrics(&self) -> Option<GlobalMetricsSnapshot> {
@@ -279,7 +279,7 @@ impl InfoProvider for KeyspaceScanSource {
     self
       .stats
       .iter()
-      .find(|&&(id, _, _)| id == db_id)
+      .find(|&&(id, ..)| id == db_id)
       .map_or((0, 0), |&(_, keys, expires)| (keys, expires))
   }
 

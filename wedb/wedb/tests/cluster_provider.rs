@@ -138,8 +138,8 @@ fn replica_safe_truncate_physically_shifts_log_begin() {
 #[test]
 fn replication_info_replica_lag_fields() {
   use wconf::RuntimeServerOptions;
-  use wnode::{GarnetAppendOnlyFile, GarnetLog, InMemorySublog, Sublog};
   use wmetric::MetricsItem;
+  use wnode::{GarnetAppendOnlyFile, GarnetLog, InMemorySublog, Sublog};
 
   let provider = ClusterProvider::new();
   provider

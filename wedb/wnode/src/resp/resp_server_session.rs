@@ -17,6 +17,7 @@ use std::{
 };
 
 use itoa::Buffer;
+use parking_lot::Mutex;
 use smallvec::SmallVec;
 use wacl::{
   AclPassword, GarnetAclAuthenticator, UserHandle,
@@ -373,7 +374,7 @@ impl RespServerSession {
         .then(GarnetSessionMetrics::default),
       command_stats: options
         .command_stats_monitor
-        .then(|| Arc::new(parking_lot::Mutex::new(CommandStats::new()))),
+        .then(|| Arc::new(Mutex::new(CommandStats::new()))),
       latency_metrics,
       parse_state: SessionParseState::new(),
       recv_buffer: Vec::with_capacity(1 << 16),
@@ -809,8 +810,10 @@ impl RespServerSession {
   /// 延迟监视开启即启动 NET_RS_LAT 计时；慢日志门开启时起始刻度与延迟
   /// 计时同源（LatencyMetrics.Get(NET_RS_LAT)），无延迟监视取系统秒表
   fn latency_batch_start(&mut self) {
-    let slow_log_enabled =
-      self.runtime_config.get_microseconds(ServerConfigType::SlowlogLogSlowerThan) > 0;
+    let slow_log_enabled = self
+      .runtime_config
+      .get_microseconds(ServerConfigType::SlowlogLogSlowerThan)
+      > 0;
     let Some(latency) = &self.latency_metrics else {
       if slow_log_enabled {
         self.slow_log_start_ticks = now_stopwatch_ticks();
@@ -1499,23 +1502,23 @@ impl RespServerSession {
         // 放行到函数尾兜底分派（C# ProcessOtherCommands 末端
         // ProcessAdminCommands 形态），由存储执行域承接
       } else {
-      let text = {
-        let provider = super::info_provider::SessionInfoSource::new(self);
-        let mut info = GarnetInfoMetrics::new();
-        let mut out = Vec::new();
-        InfoCommand::network_info(
-          &args,
-          self.active_db_id,
-          &provider,
-          &mut info,
-          // C# monitor.resetEventFlags[STATS] 置位；服务器级监视器未装配为 no-op
-          &mut |_| {},
-          &mut out,
-        );
-        out
-      };
-      self.output.extend_from_slice(&text);
-      return true;
+        let text = {
+          let provider = super::info_provider::SessionInfoSource::new(self);
+          let mut info = GarnetInfoMetrics::new();
+          let mut out = Vec::new();
+          InfoCommand::network_info(
+            &args,
+            self.active_db_id,
+            &provider,
+            &mut info,
+            // C# monitor.resetEventFlags[STATS] 置位；服务器级监视器未装配为 no-op
+            &mut |_| {},
+            &mut out,
+          );
+          out
+        };
+        self.output.extend_from_slice(&text);
+        return true;
       }
     }
     // 自定义命令族（C# ProcessOtherCommands 的 RespCommand.CustomTxn /

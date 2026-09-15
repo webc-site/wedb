@@ -449,9 +449,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
           return output;
         };
-        let Ok(max_databases) = <[u8; 4]>::try_from(max_db_bytes)
-          .map(i32::from_le_bytes)
-        else {
+        let Ok(max_databases) = <[u8; 4]>::try_from(max_db_bytes).map(i32::from_le_bytes) else {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
           return output;
         };
@@ -474,8 +472,11 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
         }
         self.session.set_context(ns, db);
         let provider = super::info_provider::KeyspaceScanSource::new(stats);
-        let text = GarnetInfoMetrics::new()
-          .get_resp_info(&[InfoMetricsType::Keyspace], db as i32, &provider);
+        let text = GarnetInfoMetrics::new().get_resp_info(
+          &[InfoMetricsType::Keyspace],
+          db as i32,
+          &provider,
+        );
         if text.is_empty() {
           output.extend_from_slice(b"$-1\r\n");
         } else {
