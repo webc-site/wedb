@@ -298,8 +298,7 @@ impl ReplayInput {
     buf[8..16].copy_from_slice(&input.arg1.to_le_bytes());
     buf[16..24].copy_from_slice(&input.arg2.to_le_bytes());
     buf[24..32].copy_from_slice(&input.arg3.to_le_bytes());
-    let args_len =
-      waof::encode_arg_sequence(input.args, &mut buf[REPLAY_INPUT_HEADER_SIZE..]);
+    let args_len = waof::encode_arg_sequence(input.args, &mut buf[REPLAY_INPUT_HEADER_SIZE..]);
     Some(&buf[..REPLAY_INPUT_HEADER_SIZE + args_len])
   }
 
@@ -1389,16 +1388,30 @@ impl AofProcessor {
       .map_err(AofReplayError::Store)?;
     match obj_type {
       GarnetObjectType::Hash => {
-        replay_object_channel::<HashObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
-          .await
+        replay_object_channel::<HashObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
+        )
+        .await
       }
       GarnetObjectType::Set => {
         replay_object_channel::<SetObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
           .await
       }
       GarnetObjectType::List => {
-        replay_object_channel::<ListObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
-          .await
+        replay_object_channel::<ListObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
+        )
+        .await
       }
       GarnetObjectType::SortedSet => {
         replay_object_channel::<SortedSetObject, D>(
@@ -1576,12 +1589,12 @@ impl AofProcessor {
     Some((sequence_number > until_sequence_number, sequence_number))
   }
 
-/// 条目 key 速览（事务组加锁集提取面；不在场返回 None）。
-pub fn peek_entry_key(entry: &[u8]) -> Option<&[u8]> {
-  let offset = AofHeader::skip_header(entry)?;
-  let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
-  entry.get(offset + 4..offset + 4 + len)
-}
+  /// 条目 key 速览（事务组加锁集提取面；不在场返回 None）。
+  pub fn peek_entry_key(entry: &[u8]) -> Option<&[u8]> {
+    let offset = AofHeader::skip_header(entry)?;
+    let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
+    entry.get(offset + 4..offset + 4 + len)
+  }
 }
 
 /// 四对象类型重放单通道约束（本地封闭 trait，仅 Hash/Set/List/SortedSet 实现；
@@ -1725,10 +1738,11 @@ impl ReplayObject for SortedSetObject {
   }
 }
 
-/// 整对象回放泛型单通道（libs/server/AOF/AofProcessor.cs:ObjectStoreRMW
-/// 的对象应用段）：信封域现载荷 → [`ReplayObject::load`] →
-/// [`ReplayObject::apply`] → 删空走双域删除自愈，非空回写信封（键缺失按
-/// 空对象重建，与 ObjectStoreRMW 重放会话 NeedToCreate=true 口径一致）。
+/// 整对象回放泛型单通道（C# AofProcessor.ObjectStoreRMW 经 Tsavorite
+/// objectContext 多态的对象应用段，rust 侧以 [`ReplayObject`] 静态分发：
+/// 信封域现载荷 → [`ReplayObject::load`] → [`ReplayObject::apply`] →
+/// 删空走双域删除自愈，非空回写信封；键缺失按空对象重建，与 ObjectStoreRMW
+/// 重放会话 NeedToCreate=true 口径一致）。
 async fn replay_object_channel<T: ReplayObject, D: Device>(
   session: &StorageSession<'_, D>,
   key: &[u8],
@@ -1744,7 +1758,10 @@ async fn replay_object_channel<T: ReplayObject, D: Device>(
     .unwrap_or_default();
   obj.apply(obj_input, out, resp_version);
   if obj.is_empty() {
-    session.delete_string(key).await.map_err(AofReplayError::Store)?;
+    session
+      .delete_string(key)
+      .await
+      .map_err(AofReplayError::Store)?;
   } else {
     let blob = obj.dump();
     session
