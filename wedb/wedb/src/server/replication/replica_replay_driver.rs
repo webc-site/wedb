@@ -53,23 +53,21 @@ impl ReplicaReplayDriver {
     self.is_resumed.store(false, Ordering::Release);
   }
 
-  /// libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplayDriver.cs:ReplayedOffset
-  ///
-  /// 当前已重放位点
+  /// 当前已重放位点（内部重放推进记账；C# ReplicaReplayDriver 无对应成员
+  /// ——C# ConsumeDirect 在应用记录后直接推进 replicationManager 位点，
+  /// rust 副本运行期尚无存储应用链，以此记账推进进度；背景重放任务落地后
+  /// 由此回推 replicationManager 权威位点）
   #[inline]
   pub fn replayed_offset(&self) -> i64 {
     self.replayed_offset.load(Ordering::Acquire)
   }
 
-  /// 原子更新已重放位点（单调递增推进）
-  #[inline]
-  pub fn set_replayed_offset(&self, offset: i64) {
-    self.replayed_offset.fetch_max(offset, Ordering::AcqRel);
-  }
-
   /// libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplayDriver.cs:ConsumeDirect
   ///
-  /// 直接模式重放消费 AOF 数据块并驱动复制位点单调前进
+  /// 直接模式重放消费 AOF 数据块。C# ConsumeDirect 在 ProcessAofRecordInternal
+  /// 应用记录后推进复制位点（applied）；rust 直接模式当前无存储应用链
+  ///（on_record 由调用方注入，生产装配传空回调），仅记账内部重放位点，
+  /// 复制位点推进语义（enqueued）由调用方承担
   pub fn consume_direct(
     &self,
     record: &[u8],
