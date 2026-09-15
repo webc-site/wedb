@@ -122,7 +122,8 @@ pub fn complete_len(data: &[u8]) -> Option<usize> {
         (data.len() >= nl + 1 + header as usize + 2).then(|| nl + 1 + header as usize + 2)
       }
     }
-    b'*' => {
+    // 聚合帧（* 数组 / % map）：header 为子帧数（map 的 header 是对数，子帧翻倍）
+    b'*' | b'%' => {
       let header: i64 = String::from_utf8_lossy(&data[1..nl])
         .trim_end()
         .parse()
@@ -130,9 +131,10 @@ pub fn complete_len(data: &[u8]) -> Option<usize> {
       if header < 0 {
         return Some(nl + 1);
       }
+      let items = if kind == b'%' { header * 2 } else { header };
       let mut rest = &data[nl + 1..];
       let mut total = nl + 1;
-      for _ in 0..header {
+      for _ in 0..items {
         let used = complete_len(rest)?;
         rest = &rest[used..];
         total += used;
