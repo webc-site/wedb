@@ -56,12 +56,14 @@ pub enum ServerConfigType {
   AofCommitWait = 34,
   AofSizeLimit = 35,
   FastAofTruncate = 36,
-  AofNullDevice = 37,
 }
 
 impl ServerConfigType {
   /// C# 侧声明的全部成员（含 NONE/ALL），按判别值升序。
-  pub const ALL_MEMBERS: [ServerConfigType; 38] = [
+  ///
+  /// 刻意差异：C# 的 AOF_NULL_DEVICE 对应 rust 无盘 AOF 能力已由
+  /// InMemorySublog 内存子日志承载，选项与配置槽整链淘汰，不再声明。
+  pub const ALL_MEMBERS: [ServerConfigType; 37] = [
     Self::None,
     Self::All,
     Self::Timeout,
@@ -99,6 +101,5 @@ impl ServerConfigType {
     Self::AofCommitWait,
     Self::AofSizeLimit,
     Self::FastAofTruncate,
-    Self::AofNullDevice,
   ];
 }

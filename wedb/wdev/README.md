@@ -23,7 +23,6 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 - `device`: device trait `Device` defining sector size, segment size, Direct I/O, and read/write interfaces
 - `segmented_device`: segmented-file device; handles held Thread-Local per (device id, segment id) as `Rc<File>` (zero cross-core contention; papaya is compiled in only for the Windows deferred-deletion queue)
 - `chunk`: sector/segment slicing, cross-segment and single-segment I/O boundary iteration with alignment checks
-- `null`: `NullDevice`, instant fake-success I/O with zero physical I/O
 - `sys`: dependency-free cross-platform hardware probing (CPU cores, system memory), falling back to `FALLBACK_CPU_CORES = 4` and `FALLBACK_SYSTEM_MEMORY_BYTES = 4 GiB`
 - `error`: error types (alignment / out-of-bounds / missing-segment validation errors)
 
@@ -31,7 +30,6 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 
 - `Device`: abstraction; `write_aligned` / `read_aligned` require offset / len to be multiples of sector_size with aligned buffers, while `read_range` has no alignment requirement (exact logical-range reads in buffered-I/O mode)
 - `SegmentedDevice`: segmented-file device; `dir_sync_count()` observes parent-directory fsyncs
-- `NullDevice`: empty device for tests and benchmarks
 - `detect_cpu_cores()` / `detect_system_memory()`: hardware probing
 - Re-exports `wbase::BufferPool` for building aligned buffers
 
@@ -45,7 +43,7 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 
 ## Test Coverage
 
-tests/device/ covers: alignment and invalid parameters, cross-segment round_trip, boundary and overflow defense, sync durability and cross-thread sync contracts (ghost-segment defense, remove/truncate immunity), directory fsync lifecycle, segment recovery and mismatch detection, fixed-width Base32 segment-name ordering (lexicographic = numeric), truncate and reset, capacity eviction (segmented and single-file bounded), 32/64-way concurrency and cold-open races, multi-OS-thread shared runtime, null device.
+tests/device/ covers: alignment and invalid parameters, cross-segment round_trip, boundary and overflow defense, sync durability and cross-thread sync contracts (ghost-segment defense, remove/truncate immunity), directory fsync lifecycle, segment recovery and mismatch detection, fixed-width Base32 segment-name ordering (lexicographic = numeric), truncate and reset, capacity eviction (segmented and single-file bounded), 32/64-way concurrency and cold-open races, multi-OS-thread shared runtime.
 
 
 ---
@@ -71,7 +69,6 @@ wdev 提供段文件设备（`SegmentedDevice`）、Direct I/O 与设备抽象�
 - `device`：设备抽象 trait `Device`，定义扇区尺寸、段尺寸、Direct I/O 与读写接口
 - `segmented_device`：段文件设备实现，句柄按（设备编号， 段号）Thread-Local 持有 `Rc<File>`（零跨核争用；papaya 仅 Windows 延迟删除队列参与编译）
 - `chunk`：扇区与分段切片计算，跨段 / 单段 I/O 边界切片迭代与对齐校验
-- `null`：`NullDevice` 空设备，I/O 即时假成功、零物理 I/O
 - `sys`：跨平台零依赖硬件探测（CPU 核数、系统内存），探测失败回退 `FALLBACK_CPU_CORES = 4`、`FALLBACK_SYSTEM_MEMORY_BYTES = 4 GiB`
 - `error`：错误类型（对齐 / 越界 / 段不存在等 I/O 参数校验错误族）
 
@@ -79,7 +76,6 @@ wdev 提供段文件设备（`SegmentedDevice`）、Direct I/O 与设备抽象�
 
 - `Device`：设备抽象；`write_aligned` / `read_aligned` 要求 offset / len 为 sector_size 整数倍且缓冲区地址对齐，`read_range` 便捷读取无对齐要求（缓冲 I/O 模式按逻辑范围精确直读）
 - `SegmentedDevice`：段文件设备；`dir_sync_count()` 计数器可观测父目录 fsync 次数
-- `NullDevice`：测试与基准用空设备
 - `detect_cpu_cores()` / `detect_system_memory()`：硬件探测
 - 另导出 `wbase::BufferPool` 供调用方直接构建对齐缓冲
 
@@ -93,5 +89,5 @@ wdev 提供段文件设备（`SegmentedDevice`）、Direct I/O 与设备抽象�
 
 ## 测试覆盖
 
-tests/device/ 覆盖：对齐与非法参数、跨段读写 round_trip、边界与溢出防御、sync 持久化与跨线程 sync 契约（幽灵段防御、删段/截断免责）、目录 fsync 生命周期、段恢复与不匹配检测、定长 Base32 段名字典序保序、截断与 reset、容量逐出（分段与单文件有界）、32/64 并发与冷打开竞态、多 OS 线程共享运行时、null 设备。
+tests/device/ 覆盖：对齐与非法参数、跨段读写 round_trip、边界与溢出防御、sync 持久化与跨线程 sync 契约（幽灵段防御、删段/截断免责）、目录 fsync 生命周期、段恢复与不匹配检测、定长 Base32 段名字典序保序、截断与 reset、容量逐出（分段与单文件有界）、32/64 并发与冷打开竞态、多 OS 线程共享运行时。
 

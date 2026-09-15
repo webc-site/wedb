@@ -28,7 +28,6 @@
 mod chunk;
 mod device;
 mod error;
-mod null;
 mod segmented_device;
 mod sys;
 
@@ -38,7 +37,6 @@ use std::{io, path::Path};
 
 pub use device::Device;
 pub use error::{Error, Result};
-pub use null::NullDevice;
 pub use segmented_device::SegmentedDevice;
 pub use sys::{MAX_SEGMENT_SIZE, detect_cpu_cores, detect_system_memory};
 

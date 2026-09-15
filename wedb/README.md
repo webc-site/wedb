@@ -285,7 +285,7 @@ wedb/
   wram/      direct virtual memory, native memory tracker (buffer pool re-exported from wbase)
   whasher/   GxHash backends, streaming checksums, Papaya concurrent maps
   wepoch/    LightEpoch protection and entry table
-  wdev/      compio Device trait, SegmentedDevice, NullDevice, fsync contract
+  wdev/      compio Device trait, SegmentedDevice, fsync contract
   wrecord/   16B record header, zero-copy views, chunk framing, SIMD key compare
   wval/      namespace and session key codec, collection metadata, compact codecs, glob, TTL
   windex/    lock-free hash index, overflow pool, bucket guards
@@ -355,7 +355,6 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 - `Device` / `StorageDevice` traits — async read / write / flush with segment lifecycle.
 - `SegmentedDevice` — growable segmented file (`single_file` and `segmented` constructors), `SegmentChunk` / `SegmentChunks`, `FileMap`.
-- `NullDevice` — discard sink for benchmarks.
 - `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wbase::BufferPool` (Utilities-layer primitive).
 
 ### wrecord — record format
@@ -693,7 +692,7 @@ wedb/
   wram/      直接虚拟内存、原生内存追踪（缓冲池兼容再导出自 wbase）
   whasher/   GxHash 后端、流式校验和、Papaya 并发字典
   wepoch/    LightEpoch 纪元保护与条目表
-  wdev/      compio Device trait、SegmentedDevice、NullDevice、fsync 契约
+  wdev/      compio Device trait、SegmentedDevice、fsync 契约
   wrecord/   16B 记录头、零拷贝视图、分块框架、SIMD 键比较
   wval/      命名空间与会话键编码、集合元数据、紧凑编解码、glob、TTL
   windex/    无锁哈希索引、溢出桶池、桶守卫
@@ -763,7 +762,6 @@ wedb/
 
 - `Device` / `StorageDevice` trait——异步读 / 写 / 刷与段生命周期。
 - `SegmentedDevice`——可增长分段文件（`single_file` 与 `segmented` 构造器）、`SegmentChunk` / `SegmentChunks`、`FileMap`。
-- `NullDevice`——基准测试用丢弃设备。
 - `sys::detect_system_memory` / `detect_cpu_cores`、`MAX_SEGMENT_SIZE`；再导出 `wbase::BufferPool`（Utilities 层原语）。
 
 ### wrecord —— 记录格式
