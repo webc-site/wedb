@@ -7,9 +7,9 @@
   理由: Rust 原生 &[u8] / Vec<u8> 支持按字节序列比较与哈希，无需 C# 辅助类
 - 文件:
     - libs/server/Objects/Types/GarnetObjectSerializer.cs
-  理由: "C# 独立对象存的 Tsavorite 序列化器；Rust 单库 wkv 模型无独立对象存，
-    信封编解码单点在 wcol object_store_utils（obj_encode/obj_decode）+ 各对象
-    serialize_to_vec，第二套 garnet_object_serializer 实现已删除"
+  理由: C# 独立对象存的 Tsavorite 序列化器；Rust 单库 wkv 模型无独立对象存， 信封编解码单点在 wcol
+    object_store_utils（obj_encode/obj_decode）+ 各对象 serialize_to_vec，第二套
+    garnet_object_serializer 实现已删除
 - 文件:
     - libs/server/Lua/LuaRunner.cs:
         - ResetCompilation
@@ -25,8 +25,8 @@
         - MoveToHeadOfFreeList
         - TryCoalesceSingleBlock
         - UpdateDebugAllocatedBytes
-  理由: "C# 遍历/诊断 API 的对标面；rust 分配路径已内联承接（合并循环直调
-        coalesce_pair、debug_allocated_bytes 字段在 alloc/free 直接读写），零引用删除"
+  理由: C# 遍历/诊断 API 的对标面；rust 分配路径已内联承接（合并循环直调 coalesce_pair、debug_allocated_bytes
+    字段在 alloc/free 直接读写），零引用删除
 - 文件:
     - libs/server/InputHeader.cs:
         - CheckExpiry
@@ -36,13 +36,13 @@
         - SetHeader
         - SetSetGetFlag
         - ToPointer
-  理由: "Rust 统一收敛至 ReplayInput 与 SessionParseState，淘汰 C# 遗留输入结构体；
-    expired/setget 标志机制随 wcol 对象信封轨删除（TTL 在 wkv 层裁决）"
+  理由: Rust 统一收敛至 ReplayInput 与 SessionParseState，淘汰 C# 遗留输入结构体； expired/setget
+    标志机制随 wcol 对象信封轨删除（TTL 在 wkv 层裁决）
 - 文件:
     - libs/server/Resp/Vector/DiskANNService.cs:
         - ContinueSearch
-  理由: "C# 本身抛 NotImplementedException 的未实现 API；rust 侧恒 Err 占位函数
-    continue_search 已按零引用占位红线删除，落地时随链实现"
+  理由: C# 本身抛 NotImplementedException 的未实现 API；rust 侧恒 Err 占位函数 continue_search
+    已按零引用占位红线删除，落地时随链实现
 - 文件:
     - libs/server/AOF/LegacyRespCommand.cs
   理由: 彻底移除旧版 v3 命令兼容层映射，无向下兼容包袱
@@ -78,7 +78,8 @@
     - libs/server/Servers/ServerTcpNetworkHandler.cs
     - libs/server/Servers/ServerOptions.cs
     - libs/server/Servers/GarnetServerOptions.cs
-  理由: 彻底淘汰旧版启动配置类 ServerOptions 与 GarnetServerOptions，统一收拢至活配置面 NodeArgs 与 RuntimeServerConfig / RuntimeServerOptions
+  理由: 彻底淘汰旧版启动配置类 ServerOptions 与 GarnetServerOptions，统一收拢至活配置面 NodeArgs 与
+    RuntimeServerConfig / RuntimeServerOptions
 - 文件:
     - libs/server/Servers/RegisterApi.cs:
         - NewModule
@@ -688,10 +689,8 @@
   理由: 内部状态位简化：AOF 回放会话在本域独立构造，无需外部注入会话状态
 - 文件:
     - libs/server/Cluster/IClusterSession.cs:
-        - AcquireCurrentEpoch
         - NetworkIterativeSlotVerify
         - NetworkMultiKeySlotVerifyNoResponse
-        - ReleaseCurrentEpoch
         - ResetCachedSlotVerificationResult
         - SetInternalWriteSession
         - WriteCachedSlotVerificationMessage
@@ -701,8 +700,8 @@
         - HandleCollectionUpdateWorker
         - MoveCollectionItemAsync
         - ParseScoreOrDefault
-  理由: "内部实现内联与严格类型化解析替代；MoveCollectionItemAsync 的 BLMOVE
-    语义由 park_broker_wait 登记 + 主循环 try_move_next_list_item 即时移动分置承接"
+  理由: 内部实现内联与严格类型化解析替代；MoveCollectionItemAsync 的 BLMOVE 语义由 park_broker_wait 登记 +
+    主循环 try_move_next_list_item 即时移动分置承接
 - 文件:
     - libs/server/Custom/CustomTransactionProcedure.cs:
         - CreateArgSlice
@@ -764,17 +763,19 @@
     - libs/server/Databases/MultiDatabaseManager.cs:
         - GrowIndexesIfNeededAsync
     - libs/server/Databases/DatabaseManagerBase.cs:
-        - GrowIndexesIfNeededAsync
         - GrowIndexIfNeededAsync
+        - GrowIndexesIfNeededAsync
     - libs/server/Databases/IDatabaseManager.cs:
         - GrowIndexesIfNeededAsync
-  理由: 在线索引扩容（GrowIndexAsync/SplitIndex）未转写，next/db.md 条 1 认领；虚设门面（读标志位恒真）删除，扩容实现落地时随 StartGenericNodeTasks 等价装配重建
+  理由: 在线索引扩容（GrowIndexAsync/SplitIndex）未转写，next/db.md 条 1
+    认领；虚设门面（读标志位恒真）删除，扩容实现落地时随 StartGenericNodeTasks 等价装配重建
 - 文件:
     - libs/server/Databases/MultiDatabaseManager.cs:
+        - RunPausedCheckpointsAndReleaseLocksAsync
         - TryGetDatabasesContentReadLock
         - TryGetDatabasesContentWriteLock
-        - RunPausedCheckpointsAndReleaseLocksAsync
-  理由: C# 类内自用锁原语与私有延续，rust 检查点/AOF/交换操作直接以 content_lock（async_lock RwLock）在操作内持锁，无独立门面；检查点暂停域随需求落地时并入 take_checkpoint_async
+  理由: C# 类内自用锁原语与私有延续，rust 检查点/AOF/交换操作直接以 content_lock（async_lock
+    RwLock）在操作内持锁，无独立门面；检查点暂停域随需求落地时并入 take_checkpoint_async
 - 文件:
     - libs/server/Resp/Vector/VectorManager.Replication.cs:
         - ApplyVectorSetAdd
@@ -826,47 +827,44 @@
 - 文件:
     - libs/server/AOF/Recover/RecoverLogDriver.cs:
         - Consume
-        - Throttle
-        - ReplayedRecordCount
         - CreateAndRunIntraPageParallelReplayTasks
-  理由: Rust 已决策顺序恢复/单通道，Consume/页内并行任务/节流接口面
-    无消费方，重放计数由 run 返回值承接
+        - ReplayedRecordCount
+        - Throttle
+  理由: Rust 已决策顺序恢复/单通道，Consume/页内并行任务/节流接口面 无消费方，重放计数由 run 返回值承接
 - 文件:
     - libs/server/AOF/Recover/RecoverReplayTask.cs:
         - RecoverReplayTaskAsync
         - ReplayPage
-  理由: Rust 已决策顺序恢复/单通道，页级双闸栏并行回放任务整面不实现，
-    归属判定语义由 processor.can_replay 单点承接
+  理由: Rust 已决策顺序恢复/单通道，页级双闸栏并行回放任务整面不实现， 归属判定语义由 processor.can_replay 单点承接
 - 文件:
     - libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:
-        - Equals
         - ClearSessionTxn
+        - Equals
         - ProcessSynchronizedOperation
   理由: BarrierKey 相等性由 derive(PartialEq) 承接；Rust 多日志回放为
     顺序驱动/单通道，跨子日志同步栅栏操作面与显式清组入口无调用链
 - 文件:
     - libs/server/AOF/AofBackpressure.cs:
         - SetLog
-  理由: Rust 装配点经 set_weak_log 弱引用形态注入（防 GarnetLog 引用环），
-    强引用 SetLog 形态零调用，连同 LogTailHandle::GarnetStrong 变体一并移除
+  理由: Rust 装配点经 set_weak_log 弱引用形态注入（防 GarnetLog 引用环）， 强引用 SetLog 形态零调用，连同
+    LogTailHandle::GarnetStrong 变体一并移除
 - 文件:
     - libs/server/Resp/RangeIndex/RangeIndexManager.cs:
         - UnregisterIndex
-  理由: C# UnregisterIndex 为 DisposeTreeUnderLock(deleteFiles=false) 单行便捷包装，
-    Rust 调用方直接使用 dispose_tree_under_lock(key, false) 显式形态，零引用重复面删除
+  理由: C# UnregisterIndex 为 DisposeTreeUnderLock(deleteFiles=false) 单行便捷包装， Rust
+    调用方直接使用 dispose_tree_under_lock(key, false) 显式形态，零引用重复面删除
 - 文件:
     - libs/server/Resp/BasicCommands.cs:
         - NetworkGETAsync
         - NetworkGET_SG
         - NetworkQUIT
-        - ParseGETAndKey
         - NextCommandMaybeGet
+        - ParseGETAndKey
         - TryGetSimpleCommandInfo
-  理由: "GET 异步/SG 批量路径已折叠进 network_get 单点（try_read_sync 的
-    Ok(None) 降级承接磁盘冷读，rust 命令层无接收缓冲前视入口，SG 助手
-    ParseGETAndKey/NextCommandMaybeGet/SetResult 恒值虚设）；QUIT 分派在
-    process_basic_commands 内联臂（to_dispose + +OK）；TryGetSimpleCommandInfo
-    由 prepare_command_keys_context 单源承接（COMMAND GETKEYS 族）"
+  理由: GET 异步/SG 批量路径已折叠进 network_get 单点（try_read_sync 的 Ok(None) 降级承接磁盘冷读，rust
+    命令层无接收缓冲前视入口，SG 助手 ParseGETAndKey/NextCommandMaybeGet/SetResult 恒值虚设）；QUIT
+    分派在 process_basic_commands 内联臂（to_dispose + +OK）；TryGetSimpleCommandInfo 由
+    prepare_command_keys_context 单源承接（COMMAND GETKEYS 族）
 - 文件:
     - libs/server/Resp/Parser/SessionParseState.cs:
         - InitializeWithArgument
@@ -875,7 +873,6 @@
 - 文件:
     - libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:
         - DisposeIncompleteStreamReassembly
-  理由: C# 锚点 RangeIndexManager.Dispose()（丢弃未完成 RI 流重组）在
-    rust 无管理器 Dispose 生命周期域（engine 为共享 Arc，树与临时文件
-    生命周期在 wkv/wdev 域）；ds.net 条 1 检查点/RI 复制流转写时随
+  理由: C# 锚点 RangeIndexManager.Dispose()（丢弃未完成 RI 流重组）在 rust 无管理器 Dispose
+    生命周期域（engine 为共享 Arc，树与临时文件 生命周期在 wkv/wdev 域）；ds.net 条 1 检查点/RI 复制流转写时随
     RangeIndexManager.Dispose 域重建
