@@ -1180,7 +1180,7 @@ fn dispatch_slow<D: Device>(
 
     // ---- INFO 族（ProcessOtherCommands：纯显式 KEYSPACE 段请求经会话
     // process_other_commands 放行至此，全库扫描计数降级异步闭环）
-    C::Info => session.network_info(args, output),
+    C::Info => session.try_info_keyspace_slow_path(args, output),
 
     // ---- 清库族（ProcessOtherCommands：选项校验同步承接，清库降级异步闭环）
     C::Flushdb => session.network_flushdb(args, output),

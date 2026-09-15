@@ -1536,14 +1536,15 @@ impl RespServerSession {
     true
   }
 
-  /// libs/server/Metrics/Info/InfoCommand.cs:NetworkINFO（KEYSPACE 慢路径
-  /// 同步段）
+  /// INFO 纯显式 KEYSPACE 段请求的降级判定（rust compio 异步存储域特有
+  /// 降级点，无 C# 对标函数——C# GetKeyspaceStats 网络线程同步执行；rust
+  /// 存储域扫描须跨 await，与 [`Self::network_dbsize`] 同构降级 Ok(false)
+  /// 挂 SlowWait 异步闭环）
   ///
-  /// 唯一到达路径：会话 [`Self::process_other_commands`] 放行的纯显式
-  /// KEYSPACE 段请求（DEFAULT/ALL 段集合不含 KEYSPACE，其余 INFO 请求在
-  /// 会话侧同步闭环）。全库扫描须跨 await——对标 C# GetKeyspaceStats 的
-  /// 专用扫描会话同步执行，rust 与 DBSIZE 同构降级慢路径异步闭环
-  pub fn network_info(
+  /// 唯一到达路径：[`Self::process_other_commands`] 放行的纯显式 KEYSPACE
+  /// 段请求（DEFAULT/ALL 段集合不含 KEYSPACE，其余 INFO 请求在会话侧
+  /// 同步闭环）
+  pub(crate) fn try_info_keyspace_slow_path(
     &mut self,
     _parse_state: &[&[u8]],
     _output: &mut Vec<u8>,
