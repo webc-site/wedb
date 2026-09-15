@@ -12,11 +12,8 @@ use diskann::utils::VectorRepr;
 use diskann_providers::common::{BufferedFnPtr, FnPtr, MinMax8};
 use diskann_quantization::{
   CompressInto,
-  algorithms::{
-    Transform, TransformKind,
-    transforms::{NewTransformError, TargetDim},
-  },
-  alloc::{AllocatorError, GlobalAllocator, Poly, ScopedAllocator},
+  algorithms::{Transform, TransformKind, transforms::TargetDim},
+  alloc::{GlobalAllocator, Poly, ScopedAllocator},
   minmax::{self, MinMaxQuantizer},
   num::POSITIVE_ONE_F32,
   spherical::{
@@ -28,31 +25,11 @@ use diskann_utils::views::MatrixView;
 use diskann_vector::{DistanceFunction, PreprocessedDistanceFunction, distance::Metric};
 use enum_dispatch::enum_dispatch;
 use parking_lot::RwLock;
-use thiserror::Error;
 
-use crate::provider::{DistanceComputer, QueryComputer};
-
-#[derive(Debug, Error)]
-pub enum QuantizerError {
-  #[error("Quantization training error: {0}")]
-  Training(String),
-  #[error("Quantization alloc error: {0}")]
-  Alloc(#[from] AllocatorError),
-  #[error("Query computer error: {0}")]
-  QueryComputer(String),
-  #[error("Binary quantization error: {0}")]
-  Compression(String),
-  #[error("No quantizer found")]
-  NoQuantizer,
-  #[error("Got zero dimension")]
-  ZeroDim,
-  #[error("Transform error: {0}")]
-  BadTransform(#[from] NewTransformError),
-  #[error("Unsupported serialization/deserialization")]
-  UnsupportedSerialization,
-  #[error("Quantizer deserialization error: {0}")]
-  Deserialization(String),
-}
+use crate::{
+  error::QuantizerError,
+  provider::{DistanceComputer, QueryComputer},
+};
 
 /// 量化器 trait（diskann-garnet GarnetQuantizer 的等价承接）。
 #[enum_dispatch]

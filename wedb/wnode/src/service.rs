@@ -13,7 +13,6 @@ use std::{
   fs::{OpenOptions, create_dir_all},
   io,
   path::{Path, PathBuf},
-  result,
   sync::{
     Arc,
     atomic::{AtomicBool, AtomicI64, AtomicUsize, Ordering},
@@ -23,7 +22,6 @@ use std::{
 
 use compio::{runtime::spawn, time::sleep};
 use parking_lot::{Mutex, RwLock};
-use thiserror::Error;
 use wacl::{AccessControlList, GarnetAclAuthenticator};
 use waof::{WalConfig, WalLog};
 use wbase::{convert::unix_time_in_milliseconds_from_ticks, entry_type::AofEntryType};
@@ -37,8 +35,8 @@ use wcustom::{CustomCommandManager, SharedCustomCommandManager};
 use wdatabase::{DEFAULT_VERSION_MAP_SIZE, GarnetDatabase, SingleDatabaseManager};
 use wdev::{Device, SegmentedDevice};
 use wkv::{
-  DEFAULT_GC_COMPACTION_INTERVAL_MS, DEFAULT_GC_SCAN_INTERVAL_MS, RangeIndexError, StoreConfig,
-  StoreEvent, StoreEventSink, StoreSession, WedbStore,
+  DEFAULT_GC_COMPACTION_INTERVAL_MS, DEFAULT_GC_SCAN_INTERVAL_MS, StoreConfig, StoreEvent,
+  StoreEventSink, StoreSession, WedbStore,
 };
 use wlua::LuaTimeoutManager;
 use wpubsub::SubscribeBroker;
@@ -49,7 +47,7 @@ use wvector::Callbacks;
 
 use crate::{
   aof::{
-    AofProcessor, AofReplayError, ReplayInput, ReplayInputSlice, aof_processor::ReplayTarget,
+    AofProcessor, ReplayInput, ReplayInputSlice, aof_processor::ReplayTarget,
     garnet_append_only_file::GarnetAppendOnlyFile, garnet_log::RecordShape,
     recover::aof_recover::AofRecover, waof_sublog::single_log_aof,
   },
@@ -68,24 +66,6 @@ use crate::{
   storage::session::storage_session::StorageSession,
   traits::{SessionProviderFace, WireFormat},
 };
-
-#[derive(Error, Debug)]
-pub enum Error {
-  /// 存储引擎错误（含会话创建失败）
-  #[error(transparent)]
-  Store(#[from] wkv::Error),
-  /// 范围索引操作错误
-  #[error(transparent)]
-  RangeIndex(#[from] RangeIndexError),
-  /// WAL 物理层错误
-  #[error(transparent)]
-  Wal(#[from] waof::Error),
-  /// AOF 重放错误
-  #[error(transparent)]
-  Aof(#[from] AofReplayError),
-}
-
-pub type Result<T> = result::Result<T, Error>;
 
 /// 节点共享引擎句柄类型别名（收敛 `Arc<WedbStore<D>>` 复合泛型签名）
 pub type SharedStore<D> = Arc<WedbStore<D>>;
@@ -153,7 +133,7 @@ impl<D: Device> NodeService<D> {
   /// ExpiredKeyDeletionTask）：调用方已经 `open_shared`/`start_gc` 启动过则此处
   /// 为 no-op；未启动且 `gc.enabled` 时在此补启——服务端形态 TTL 主动过期
   /// 与紧缩调度由此保证，不依赖调用方记得手动启动
-  pub fn new(store: SharedStore<D>, aof: Arc<GarnetAppendOnlyFile>) -> Result<Self>
+  pub fn new(store: SharedStore<D>, aof: Arc<GarnetAppendOnlyFile>) -> crate::Result<Self>
   where
     D: 'static,
   {
@@ -161,7 +141,7 @@ impl<D: Device> NodeService<D> {
   }
 
   /// 公共装配体：注册全部 AOF 写监听端口并拉起会话。
-  fn assemble(store: SharedStore<D>, aof: Arc<GarnetAppendOnlyFile>) -> Result<Self>
+  fn assemble(store: SharedStore<D>, aof: Arc<GarnetAppendOnlyFile>) -> crate::Result<Self>
   where
     D: 'static,
   {
@@ -381,7 +361,7 @@ impl<D: Device> NodeService<D> {
     key: &[u8],
     storage_backend: StorageBackendType,
     tuning: TreeTuning,
-  ) -> Result<()> {
+  ) -> crate::Result<()> {
     self
       .session
       .range_index_create(key, storage_backend, tuning)
@@ -390,7 +370,7 @@ impl<D: Device> NodeService<D> {
   }
 
   /// 设置范围索引字段并预写 WAL
-  pub async fn ri_set(&self, key: &[u8], field: &[u8], value: &[u8]) -> Result<()> {
+  pub async fn ri_set(&self, key: &[u8], field: &[u8], value: &[u8]) -> crate::Result<()> {
     self.session.range_index_set(key, field, value).await?;
     Ok(())
   }
@@ -400,7 +380,7 @@ impl<D: Device> NodeService<D> {
   /// 与 Garnet `RangeIndexDel`"字段不存在则不写 AOF"的刻意差异：
   /// bf-tree 墓碑删除不区分字段是否存在（`BfTreeDeleteResult` 无
   /// NotFound 语义），故删除恒落日志，回放端按幂等删除处理
-  pub async fn ri_del(&self, key: &[u8], field: &[u8]) -> Result<bool> {
+  pub async fn ri_del(&self, key: &[u8], field: &[u8]) -> crate::Result<bool> {
     let deleted = self.session.range_index_del(key, field).await?;
     Ok(deleted)
   }
@@ -420,7 +400,7 @@ impl<D: Device> NodeService<D> {
   pub async fn replay_into_session<D2: Device>(
     &self,
     target_session: &StoreSession<D2>,
-  ) -> Result<u64> {
+  ) -> crate::Result<u64> {
     let _pause = target_session.store.pause_aof_listeners();
     let batch = target_session.enter_batch();
     let storage = StorageSession::new(
@@ -447,7 +427,7 @@ impl NodeService<SegmentedDevice> {
   pub fn with_wal(
     store: SharedStore<SegmentedDevice>,
     wal: Arc<WalLog<SegmentedDevice>>,
-  ) -> Result<Self> {
+  ) -> crate::Result<Self> {
     Self::with_node_args(&NodeArgs::default(), store, wal)
   }
 
@@ -456,7 +436,7 @@ impl NodeService<SegmentedDevice> {
     args: &NodeArgs,
     store: SharedStore<SegmentedDevice>,
     wal: Arc<WalLog<SegmentedDevice>>,
-  ) -> Result<Self> {
+  ) -> crate::Result<Self> {
     let mut opts = RuntimeServerOptions::default();
     if let Some(commit_ms) = args.aof_commit_ms {
       opts.commit_frequency_ms = commit_ms as i32;
@@ -638,9 +618,7 @@ fn open_wal(
     .append(true)
     .open(&wal_file_path)?;
   let wal_device = Arc::new(SegmentedDevice::single_file(&wal_file_path)?);
-  let wal = Arc::new(
-    WalLog::new(wal_device, WalConfig::default()).map_err(|e| io::Error::other(e.to_string()))?,
-  );
+  let wal = Arc::new(WalLog::new(wal_device, WalConfig::default())?);
   Ok((wal_dir, wal))
 }
 

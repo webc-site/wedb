@@ -73,6 +73,24 @@ pub const RESP_ERR_UNSUPPORTED_PROTOCOL_VERSION: &str = "ERR Unsupported protoco
 pub const RESP_ERR_NOT_VALID_FLOAT: &str = "ERR value is not a valid float";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_TIMEOUT_NOT_VALID_FLOAT
 pub const RESP_ERR_TIMEOUT_NOT_VALID_FLOAT: &str = "ERR timeout is not a float or out of range";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOT_VALID_RADIUS
+pub const RESP_ERR_NOT_VALID_RADIUS: &str = "ERR need numeric radius";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_RADIUS_IS_NEGATIVE
+pub const RESP_ERR_RADIUS_IS_NEGATIVE: &str = "ERR radius cannot be negative";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOT_VALID_WIDTH
+pub const RESP_ERR_NOT_VALID_WIDTH: &str = "ERR need numeric width";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOT_VALID_HEIGHT
+pub const RESP_ERR_NOT_VALID_HEIGHT: &str = "ERR need numeric height";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE
+pub const RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE: &str = "ERR height or width cannot be negative";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT
+pub const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &str =
+  "ERR unsupported unit provided. please use M, KM, FT, MI";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_COUNT_IS_NOT_POSITIVE
+pub const RESP_ERR_COUNT_IS_NOT_POSITIVE: &str = "ERR COUNT must be > 0";
+/// 慢路径异步扫描/清库 IO 失败的兜底文案（非 C# 文案：存储层错误统一降噪为
+/// 此单行，杜绝内部错误细节泄漏给客户端；wnode 执行域与 wedb 集群域共用）
+pub const RESP_ERR_SLOW_PATH_STORAGE: &str = "ERR slow path storage error";
 /// libs/server/Resp/CmdStrings.cs:RESP_WRONGPASS_INVALID_PASSWORD
 pub const RESP_WRONGPASS_INVALID_PASSWORD: &str = "WRONGPASS Invalid password";
 /// libs/server/Resp/CmdStrings.cs:RESP_WRONGPASS_INVALID_USERNAME_PASSWORD
