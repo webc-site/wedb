@@ -1,0 +1,32 @@
+[package]
+name = "wdatabase"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wdatabase"
+description = "Garnet logical database and multi-database management"
+keywords = ["database", "multi-database", "garnet", "logical-database"]
+
+[lints]
+workspace = true
+
+[dependencies]
+async-lock.workspace = true
+wbase = { workspace = true, features = ["map", "time"] }
+gxhash.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+waof.workspace = true
+wcpr.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wtxn = { workspace = true }
+wval.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+compio = { workspace = true, features = ["runtime"] }
+ctor.workspace = true
+log_init.workspace = true
+tempfile.workspace = true

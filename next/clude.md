@@ -1,0 +1,85 @@
+# clude 待办
+
+1. [P1] MIGRATE 源端驱动未接生产，M3 SLOTS 变体与 M4 checkpoint 网络导入缺失
+   位置：wedb/src/server/migration/migrate_driver.rs:177（run_keys_migration_driver 仅被 wedb/tests/cluster_migration.rs:19 调用，无生产触发链）
+   位置：wedb/wresp/src/command.rs:360-363、wedb/wnode/src/resp/parser/resp_command.rs:435-445（SNAPSHOT_DATA / SEND_CKPT_METADATA / SEND_CKPT_FILE_SEGMENT 仅注册枚举，无处理逻辑）
+   对标：garnet/libs/cluster/Session/MigrateCommand.cs、garnet/libs/cluster/Server/Migration/MigrationDriver.cs（发送驱动）
+   对标：garnet/libs/cluster/Server/Migration/MigrateSessionKeys.cs（键集迁移）、MigrateSessionSlots.cs（槽位迁移）、MigrateScanFunctions.cs、MigrateSessionCommonUtils.cs、MigrationManager.cs
+   问题：源端仅落地 internode 接收 arm（wedb/src/server/cluster_session.rs:1533 cluster_migrate_slow）；KEYS 停等驱动无生产调用方；SLOTS 变体（get_keys_in_slot → 分批停等 → delete_slot_keys 游标循环，get_keys_in_slot 在 wedb/wnode/src/storage/session/common/array_key_iteration_functions.rs:263 仅有查询形态）与 checkpoint 网络导入均缺
+   改法：打通源端 MIGRATE 命令解析到 run_keys_migration_driver 的触发链，按 M3-M4 实施；停等循环必须有超时，杜绝死锁。不做：kind 2-5（vector/RangeIndex/chunked 帧）、AUTH 透传、并行迁移任务；已点亮无需再做：CLUSTER FLUSHALL / PUBLISH / SPUBLISH
+
+2. [P2] wnode 四个巨型文件拆分
+   位置：wedb/wnode/src/resp/resp_server_session.rs:1（3993 行）、wedb/wnode/src/aof/aof_processor.rs:1（1915 行）、wedb/wnode/src/resp/basic_commands.rs:1（1915 行）、wedb/wnode/src/aof/garnet_log.rs:1（1736 行）
+   对标：garnet/libs/server/Resp/RespServerSession.cs（C# 用 partial class 拆分为多文件）、RespServerSessionSlotVerify.cs、RespServerSessionOutput.cs
+   问题：四个文件持续膨胀（3311→3993、1781→1915、1825→1915），storage/session 仍触 wresp（wedb/wnode/src/storage/session/mainstore/main_store_ops.rs:10），下沉前置未解
+   改法：aof + storage/session + resp/rangeindex 连体拆（约 17k 行），拆后 facade 保留聚合
+
+3. [已完成] 命令名 ↔ RespCommand 双向映射收敛为 strum 派生
+   位置：wedb/wresp/src/command.rs（RespCommand 派生 strum::EnumString、Display、IntoStaticStr、AsRefStr）、wedb/wnode/src/resp/resp_commands_info_data.rs（删除 740 行手写 match，收敛为直接调用 strum 派生方法）
+   对标：garnet/libs/server/Resp/Parser/RespCommand.cs:Enum.TryParse、Enum.GetName
+   归档：task/done/resp-command-strum-dedup.md
+
+4. [P2] waof/wkv Group-Commit 双实现
+   位置：wedb/waof/src/log.rs:579-622（CommitWaiter 注册 + Leader 级联循环）、wedb/wkv/src/store/flush.rs:29（FlushPipeline，Leader 级联 :142-174）
+   对标：garnet/libs/server/AOF/GarnetAppendOnlyFile.cs（commit pipeline）、garnet/libs/server/StoreWrapper.cs:CommitAOFAsync、WaitForCommitAsync
+   问题：同一 Leader/Follower 模式（waiters 注册 / Leader 级联 / 批量唤醒）两份实现
+   改法：抽公共 GroupCommitPipeline 入 wbase，随 wkv 重构窗口一并做
+
+5. [P2] key_spec 双模型缺单一转换点
+   位置：wedb/wresp/src/key_spec.rs:16（KeySpecificationFlags / BeginSearchMethod / FindKeysMethod / RespCommandKeySpecification 完整版）、wedb/wnode/src/key_spec.rs:8（SimpleRespKeySpec 族简化版，basic_commands.rs / cluster_session.rs / session_parse_state_extensions.rs 消费）
+   对标：garnet/libs/server/Resp/RespCommandKeySpecification.cs（完整版）、garnet/libs/server/Resp/RespCommandInfoSimplifiedStructs.cs（简化版）
+   问题：两套键规格模型并行，无 From/单一转换点
+   改法：建立单一转换点或统一为一套
+
+6. [P2] wcol ObjectInput 包装开销
+   位置：wedb/wcol/src/resp/input.rs:91（ObjectInput）、wedb/wcol/src/types/i_garnet_object.rs:18（operate(&ObjectInput, ...)）
+   对标：garnet/libs/server/InputHeader.cs（ObjectInput 定义）、garnet/libs/server/Objects/Types/IGarnetObject.cs:Operate
+   问题：对象层传参需先包装 ObjectInput，&[&[u8]] 参数须经转换
+   改法：operate 直收 &[&[u8]]（消包装）→ ArgSlice offset 化（消 unsafe Send/Sync 裸指针契约）
+
+7. [P2] 五处 src 内集成测试外移 tests/
+   位置：wedb/wnode/src/resp/resp_server_session.rs:2725、wedb/wnode/src/txn_resp_commands.rs:493（MockTxnSession:503）、wedb/wpubsub/src/session_commands.rs:506（MockSession:511）、wedb/wcpr/src/manager.rs:967、wedb/wcompact/src/compactor/mod.rs:304
+   对标：SKILL.md L98（集成测试放 tests/）
+   问题：完整 RESP 流、端到端事务流、PubSub 流、checkpoint 与 compaction 组件级测试留在 src
+   改法：移至各 crate tests/ 目录
+
+8. [P3] 手写自旋退避阶梯统一至 wbase::backoff
+   位置：wedb/wrecord/src/header.rs:384、wedb/wnode/src/aof/garnet_log.rs:820-828、wedb/wnode/src/aof/sharded_log.rs:58、wedb/wkv/src/read_cache.rs:204（wedb/waof/src/log.rs:517 已用 wbase::backoff，可作样板）
+   对标：SKILL.md L18（锁用 parking_lot）— 统一退避同理
+   问题：spin→yield 阶梯多处手写，wbase 已有统一实现但采用面不足
+   改法：全仓统一使用 wbase::backoff::Backoff
+
+9. [P3] 巨型 match 命令分派表驱动
+   位置：wedb/wnode/src/resp/resp_server_session.rs:1012（process_basic_commands）、:1076（process_array_commands）、:1248（process_other_commands）
+   对标：garnet/libs/server/Resp/RespServerSession.cs（C# switch + partial class 分散管理）、garnet/libs/server/Resp/Parser/RespCommandHashLookup.cs（hash 快查表）
+   问题：数千行 match 样板分派，RespAclCategories（wedb/wnode/src/resp/resp_commands_info.rs:174）未用于路由
+   改法：表驱动或数据驱动命令分派
+
+11. [P3] service.rs get_session 注入链收敛
+    位置：wedb/wnode/src/service.rs:966-989（attach_transaction_components / set_item_broker / set_runtime_config / set_custom_command_manager / attach_acl / attach_pubsub 逐个注入）
+    对标：SKILL.md L78（重复散落面收敛）
+    问题：会话依赖注入调用分散，可收敛
+    改法：会话依赖打包为结构体一次注入
+
+12. [P3] RespClusterIterativeSlotVerify 迭代式槽位校验
+    位置：wedb/wedb/src/server/slot_verify.rs:282（multi_key_slot_verify 仅同槽批量形态）
+    对标：garnet/libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify、garnet/libs/server/Transaction/TxnKeyManager.cs:VerifyKeyOwnership、LockKeys
+    问题：迭代形态未覆盖，已在 js/check/ignore/server.yml:696-700 登记为能力缺口
+    改法：补齐迭代式校验路径
+
+13. [P3] StoreWrapper.Reset 存储级拆除重建
+    位置：wedb/wnode/tests/vector_set_cleanup_vs_reset_race.rs:9-11（测试注释自证 rust 侧未落地）
+    对标：garnet/libs/server/StoreWrapper.cs:Reset(int dbId = 0)、StoreWrapper.cs:ResetRevivificationStats（后者已落地 wedb/wdatabase/src/single_database_manager.rs:161）
+    问题：Pause + Reset + Resume 语义未实现
+    改法：落地后补 vector_set_cleanup_vs_reset_race 的三段锤击
+
+14. [P3] 高价值测试残项：T7 N>2 并发轮次、T9 真提交周期臂
+    位置：wedb/wnode/src/aof/readconsistency/replay_align_barrier.rs:358（现有 4 个单元测试，无 N>2 并发轮次）、wedb/wnode/src/service.rs:462（aof_commit_ms 接线在位，缺真提交 + 周期臂测试）
+    对标：garnet/libs/server/AOF/ReadConsistency/ReplayAlignBarrier.cs（T7）、test/standalone/AofUpsertStoreCkptRecoverTestAsync（T8 参照）
+    问题：T1-T8 已有对应测试落地，唯此两项未覆盖
+    改法：补 T7 并发轮次测试与 T9 真提交 + aof_commit_ms 周期臂测试
+
+15. [P3] flush_evict 对抗并发测试根治
+    位置：wedb/wkv/tests/store/flush_evict.rs:136（test_adversarial_heavy_concurrency_with_eviction）
+    问题：12 线程调度级对抗测试偶发 flaky；.config/nextest.toml 已移除 retries 兜底，仅剩 slow-timeout
+    改法：根治竞态或加确定性同步

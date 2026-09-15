@@ -1,0 +1,26 @@
+[package]
+name = "wtxn"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wtxn"
+description = "Transaction manager, key lock table, and watched keys tracking for wedb"
+keywords = ["transactions", "concurrency", "optimistic-locking", "watch", "locking"]
+
+[dependencies]
+bitflags.workspace = true
+gxhash.workspace = true
+itoa.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+smallvec.workspace = true
+wbase = { workspace = true, features = ["entry_type", "striped"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

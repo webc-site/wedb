@@ -1,0 +1,112 @@
+[package]
+name = "wedb"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb"
+description = "Cluster wiring layer: client/server sessions, cluster factory, and node assembly"
+keywords = [ "cluster", "distributed", "session", "node" ]
+categories = [ "concurrency", "network-programming" ]
+
+[features]
+default = [ ]
+bench = [ ]
+tls = ["wnode/tls"]
+
+[dependencies]
+crossfire = "3.1.20"
+event-listener.workspace = true
+wconf.workspace = true
+wdatabase = { workspace = true }
+wlua = { version = "0.1.0", path = "../wlua" }
+wmetric.workspace = true
+
+[dependencies.bitcode]
+workspace = true
+
+[dependencies.clap]
+version = "4.6.6"
+features = [ "derive" ]
+
+[dependencies.coarsetime]
+workspace = true
+
+[dependencies.fastrand]
+workspace = true
+
+[dependencies.gxhash]
+workspace = true
+
+[dependencies.itoa]
+workspace = true
+
+[dependencies.log]
+workspace = true
+
+[dependencies.parking_lot]
+workspace = true
+
+[dependencies.waof]
+workspace = true
+
+[dependencies.wbase]
+workspace = true
+features = ["entry_type", "future", "hash_slot", "num", "pool", "time"]
+
+[dependencies.wconn]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.wkv]
+workspace = true
+
+[dependencies.wnode]
+workspace = true
+
+[dependencies.wresp]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+features = [ "runtime", "time" ]
+
+[dependencies.strum]
+workspace = true
+features = [ "derive" ]
+
+[dependencies.thiserror]
+workspace = true
+
+[dev-dependencies]
+wtxn = { path = "../wtxn" }
+wval.workspace = true
+
+[dev-dependencies.aok]
+workspace = true
+
+[dev-dependencies.tempfile]
+workspace = true
+
+[dev-dependencies.waof]
+workspace = true
+
+[dev-dependencies.wdev]
+workspace = true
+
+[dev-dependencies.wedb_test]
+workspace = true
+
+[dev-dependencies.wnode_test]
+workspace = true
+
+[dev-dependencies.wkv]
+workspace = true
+
+[dev-dependencies.wnode]
+workspace = true
+
+[lints]
+workspace = true

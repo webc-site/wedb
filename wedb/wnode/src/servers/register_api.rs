@@ -1,0 +1,174 @@
+//! 命令注册 API（对标 libs/server/Servers/RegisterApi.cs:RegisterApi）
+//!
+//! C# 经 provider.StoreWrapper.customCommandManager 落注册表；托管面持
+//! 自定义命令管理器句柄（Arc + Mutex，注册面为可变操作）。
+
+use wcustom::{
+  CommandType, CustomCommandDocs, CustomCommandInfo, CustomTransaction, RawStringCommandSpec,
+  RawStringFn, Result as CustomResult, SharedCustomCommandManager, TxnProcFactory,
+};
+
+/// 命令注册 API
+pub struct RegisterApi {
+  /// 自定义命令管理器（C# provider.StoreWrapper.customCommandManager）
+  command_manager: SharedCustomCommandManager,
+}
+
+impl RegisterApi {
+  /// 构造注册 API
+  ///
+  /// libs/server/Servers/RegisterApi.cs:RegisterApi
+  pub fn new(command_manager: SharedCustomCommandManager) -> Self {
+    Self { command_manager }
+  }
+
+  /// 注册自定义原始字符串命令，返回命令 id
+  ///
+  /// libs/server/Servers/RegisterApi.cs:NewCommand（RawString 重载）
+  ///
+  /// `expiration_ticks`：-1 清除既有过期；0 保持；>0 设定过期。
+  pub fn new_command(
+    &self,
+    name: &str,
+    command_type: CommandType,
+    custom_functions: RawStringFn,
+    command_info: Option<CustomCommandInfo>,
+    command_docs: Option<CustomCommandDocs>,
+    expiration_ticks: i64,
+  ) -> CustomResult<u16> {
+    self
+      .command_manager
+      .write()
+      .register_raw_string_command(RawStringCommandSpec {
+        name,
+        command_type,
+        functions: custom_functions,
+        command_info,
+        command_docs,
+        expiration_ticks,
+      })
+  }
+
+  /// 注册自定义事务过程，返回事务 id
+  ///
+  /// libs/server/Servers/RegisterApi.cs:NewTransactionProc
+  ///
+  /// `factory` 为过程实例工厂（C# 收 `Func<CustomTransactionProcedure>`，
+  /// AOF 回放 / 会话执行两侧据此重建过程实例；None = 仅元数据登记）。
+  pub fn new_transaction_proc(
+    &self,
+    name: &str,
+    factory: Option<TxnProcFactory>,
+    command_info: Option<CustomCommandInfo>,
+    command_docs: Option<CustomCommandDocs>,
+  ) -> CustomResult<u8> {
+    self
+      .command_manager
+      .write()
+      .register_transaction(name, factory, command_info, command_docs)
+  }
+
+  /// 注册自定义对象类型，返回类型扩展 id
+  ///
+  /// libs/server/Servers/RegisterApi.cs:NewType
+  ///
+  /// C# 收工厂对象；custom 域以类型名登记承接（对象工厂随对象域接线）。
+  pub fn new_type(&self, type_name: &str) -> CustomResult<u8> {
+    self.command_manager.write().register_type(type_name)
+  }
+
+  /// 注册自定义对象命令，返回（类型 id, 子命令 id）
+  ///
+  /// 对标 RegisterApi NewCommand（对象工厂重载）；C# 收
+  /// `CustomObjectFunctions` 实例，rust 以 [`wcustom::CustomObjectFns`]
+  /// 函数指针集承接（None = 仅元数据登记）
+  pub fn new_command_object(
+    &self,
+    type_name: &str,
+    name: &str,
+    command_type: CommandType,
+    functions: Option<wcustom::CustomObjectFns>,
+    command_info: Option<CustomCommandInfo>,
+    command_docs: Option<CustomCommandDocs>,
+  ) -> CustomResult<(u8, u8)> {
+    self.command_manager.write().register_object_command(
+      type_name,
+      name,
+      command_type,
+      functions,
+      command_info,
+      command_docs,
+    )
+  }
+
+  /// 注册自定义过程，返回过程 id
+  ///
+  /// libs/server/Servers/RegisterApi.cs:NewProcedure
+  pub fn new_procedure(
+    &self,
+    name: &str,
+    command_info: Option<CustomCommandInfo>,
+    command_docs: Option<CustomCommandDocs>,
+  ) -> CustomResult<u8> {
+    self
+      .command_manager
+      .write()
+      .register_procedure(name, command_info, command_docs)
+  }
+
+  /// 查注册的自定义事务过程（RUNTXP 路由用）
+  pub fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<CustomTransaction> {
+    self
+      .command_manager
+      .read()
+      .try_get_custom_transaction_procedure(txn_id)
+      .cloned()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::sync::Arc;
+
+  use parking_lot::RwLock;
+  use wcustom::{CustomCommandManager, CustomTxnProc, DefaultTxnProc};
+
+  use super::*;
+
+  /// 测试用过程体工厂（默认空事务三段式；函数指针产出静态分派过程）
+  fn stub_proc() -> wcustom::CustomTxnProc {
+    CustomTxnProc::Default(DefaultTxnProc { id: 0 })
+  }
+
+  #[test]
+  fn registers_commands_and_transactions() {
+    let manager = Arc::new(RwLock::new(CustomCommandManager::new()));
+    let api = RegisterApi::new(manager.clone());
+
+    fn ok_fn(_args: &[&[u8]]) -> Vec<u8> {
+      b"ok".to_vec()
+    }
+    let functions: RawStringFn = ok_fn;
+    let cmd_id = api
+      .new_command("MYCMD", CommandType::Read, functions, None, None, 0)
+      .expect("原始命令注册成功");
+    assert!(manager.read().try_get_custom_command(cmd_id).is_some());
+
+    let txn_id = api
+      .new_transaction_proc("MYTXN", Some(stub_proc), None, None)
+      .expect("事务过程注册成功");
+    assert!(api.get_custom_transaction_procedure(txn_id).is_some());
+
+    let type_id = api.new_type("MyType").expect("类型注册成功");
+    let (obj_type, sub_id) = api
+      .new_command_object("MyType", "MYOBJCMD", CommandType::Read, None, None, None)
+      .expect("对象命令注册成功");
+    assert_eq!(obj_type, type_id);
+    assert_eq!(sub_id, 0);
+
+    let proc_id = api
+      .new_procedure("MYPROC", None, None)
+      .expect("过程注册成功");
+    assert!(manager.read().try_get_custom_procedure(proc_id).is_some());
+  }
+}

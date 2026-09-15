@@ -1,0 +1,167 @@
+//! 集群端到端网络复制推流与位点闭环集成测试
+//!
+//! 深度对标 Garnet C#:
+//! - Primary: AofSyncTask + AofSyncDriver + AofReplicationPump (信号唤醒增量拉取)
+//! - Wire: encode_append_log_init_frame (-1/-1/-1) + encode_append_log_frame
+//! - Replica: ClusterReplicationSession (NetworkClusterAppendLog + ProcessPrimaryStream)
+
+use std::{sync::Arc, time::Duration};
+
+use compio::{runtime::Runtime, time::sleep};
+use waof::{AofAddress, WalConfig, WalLog};
+use wconn::encode_append_log_init_frame;
+use wdev::SegmentedDevice;
+use wedb::server::{
+  cluster_config::ClusterConfig,
+  cluster_manager::ClusterManager,
+  cluster_provider::ClusterProvider,
+  replication::{
+    aof_replication_pump::AofReplicationPump, aof_sync_driver::AofSyncDriver,
+    cluster_replication_session::ClusterReplicationSession, driver_registry::DriverLifecycle,
+    replica_wire::CallbackWire, replication_manager::ReplicationManager,
+  },
+  worker::{LocalWorkerSpec, NodeRole, Worker},
+};
+use wnode::MessageConsumerFace;
+
+fn create_wal(dir: &tempfile::TempDir, name: &str) -> Arc<WalLog<SegmentedDevice>> {
+  let path = dir.path().join(name);
+  let dev = Arc::new(SegmentedDevice::single_file(path).expect("create device"));
+  Arc::new(WalLog::new(dev, WalConfig::default()).expect("create wal"))
+}
+
+fn setup_replica_provider(
+  local_id: &str,
+  primary_id: &str,
+) -> (Arc<ClusterProvider>, Arc<ReplicationManager>) {
+  let provider = Arc::new(ClusterProvider::default());
+  provider.initialize_replication_manager();
+  let rm = provider.replication_manager().expect("rm ready");
+
+  let cm = Arc::new(ClusterManager::new(provider.clone()));
+  let mut config = ClusterConfig::new();
+  config.initialize_local_worker(LocalWorkerSpec {
+    node_id: local_id,
+    address: "127.0.0.1",
+    port: 7001,
+    config_epoch: 1,
+    role: NodeRole::Replica,
+    replica_of_node_id: Some(primary_id),
+    hostname: None,
+  });
+  config.workers.push(Worker {
+    nodeid: Some(primary_id.to_string()),
+    address: "127.0.0.1".to_string(),
+    port: 7000,
+    config_epoch: 1,
+    role: NodeRole::Primary,
+    replica_of_node_id: None,
+    replication_offset: 0,
+    hostname: None,
+  });
+  *cm.current_config.write() = config;
+  *provider.cluster_manager.write() = Some(cm);
+
+  (provider, rm)
+}
+
+#[test]
+fn test_replication_full_chain_stream() {
+  Runtime::new().unwrap().block_on(async {
+    let dir = tempfile::tempdir().unwrap();
+    let primary_wal = create_wal(&dir, "primary.wal");
+    let replica_wal = create_wal(&dir, "replica.wal");
+
+    let primary_id = "primary-node-1";
+    let replica_id = "replica-node-1";
+
+    let primary_mgr = ReplicationManager::with_options(1, None);
+    let (replica_provider, replica_mgr) = setup_replica_provider(replica_id, primary_id);
+
+    // 1. 初始化 Replica 接收端会话
+    let mut replica_session =
+      ClusterReplicationSession::new(replica_provider.clone(), replica_wal.clone(), None);
+
+    // 2. 发送握手帧 (-1/-1/-1)，对标 C# ExecuteClusterAppendLogInit
+    let init_frame = encode_append_log_init_frame(primary_id, 0, -1, -1, -1);
+    let (consumed, resp) = replica_session.try_consume_messages(&init_frame);
+    assert_eq!(consumed, init_frame.len());
+    assert_eq!(resp, b"+OK\r\n", "握手应答必须为 +OK");
+    assert!(
+      replica_mgr.has_active_replication_stream(),
+      "握手成功后副本标记活跃复制流"
+    );
+
+    let replica_replay_driver = replica_mgr
+      .replica_replay_driver_store
+      .get_replay_driver(0)
+      .expect("重放驱动必须已注册");
+
+    // 3. 构建 Primary 端同步驱动，接线 CallbackWire 直通 Replica 会话
+    let wire = Arc::new(CallbackWire::new(replica_session.clone()));
+
+    let primary_driver_store = primary_mgr.aof_sync_driver_store.clone();
+    let sync_driver = Arc::new(AofSyncDriver::new(
+      primary_id.to_string(),
+      replica_id.to_string(),
+      &AofAddress::create(1, 0),
+    ));
+    sync_driver.attach_wire(wire);
+    assert!(primary_driver_store.try_add_replication_driver(sync_driver.clone(), false));
+
+    // 4. 挂接推流泵到 Primary WAL（入队信号唤醒增量拉取）
+    let pump = AofReplicationPump::new(primary_driver_store.clone());
+    assert!(pump.attach_wake(&primary_wal));
+
+    // 5. 主端连续写入业务记录：唤醒循环按地址序拉取并转发到从端
+    let records = [
+      b"SET user:1 alice".as_slice(),
+      b"SET user:2 bob".as_slice(),
+      b"DEL user:1".as_slice(),
+    ];
+
+    for r in &records {
+      primary_wal.enqueue(r).expect("enqueue primary wal");
+    }
+    primary_wal.commit().await.expect("commit primary wal");
+    // 唤醒循环为独立 compio 任务：让出调度点待其完成增量拉取
+    sleep(Duration::from_millis(50)).await;
+    let primary_tail = primary_wal.tail_address() as i64;
+    assert!(primary_tail > 0);
+
+    // 6. 验证从端 WAL 与位点闭环
+    assert_eq!(
+      replica_wal.tail_address() as i64,
+      primary_tail,
+      "副本 WAL 尾部应严格等于主端写入尾"
+    );
+    assert_eq!(
+      replica_mgr.get_replication_offset(0),
+      primary_tail,
+      "副本复制位点应同步推进至日志尾"
+    );
+    assert_eq!(
+      replica_replay_driver.replayed_offset(),
+      primary_tail,
+      "副本直接重放驱动位点应追平"
+    );
+
+    // 7. 验证安全截断水位
+    let safe_cut = primary_driver_store.safe_truncate_sublog(primary_tail + 1000, 0, i64::MAX);
+    assert_eq!(
+      safe_cut, primary_tail,
+      "安全截断水位应受在册副本已发位点约束"
+    );
+
+    // 8. 节流机制测试：信号化拉取下报备由 pump_backlog 自动履行
+    //（throttle_replica 以 publish_delta=1 门限即时发布），此处验证
+    // 高水位报备的幂等语义——已发布水位不得重复报备
+    let task = sync_driver.get_task(0).unwrap();
+    let wm = task.throttle(10);
+    assert_eq!(wm, None, "已报备水位不得重复发布");
+
+    // 9. 资源释放与断开
+    sync_driver.dispose();
+    assert!(!sync_driver.is_connected());
+  });
+}

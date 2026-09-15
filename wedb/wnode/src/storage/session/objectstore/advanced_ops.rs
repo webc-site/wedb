@@ -1,0 +1,33 @@
+//! 对象存高级操作（对标 libs/server/Storage/Session/ObjectStore/AdvancedOps.cs，C# 为 StorageSession partial）
+
+use wdev::Device;
+
+use super::{super::storage_session::StorageSession, common::RmwOutcome};
+use crate::types::GarnetStatus;
+
+impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> {
+  /// 对象存通用 RMW：按类型标签装载载荷后交回调变更并回写
+  ///
+  /// `tag` 取 GarnetObjectType as u8；闭包返回 None 表示放弃写入。
+  ///
+  /// libs/server/Storage/Session/ObjectStore/AdvancedOps.cs:RMW_ObjectStore
+  pub async fn rmw_object_store<R>(
+    &self,
+    key: &[u8],
+    tag: u8,
+    on_load: impl FnOnce(Option<&[u8]>) -> Option<(Vec<u8>, R)>,
+  ) -> wkv::Result<RmwOutcome<R>> {
+    self.rmw_object_store_operation(key, tag, on_load).await
+  }
+
+  /// 对象存通用读：返回 (状态, 剥壳载荷)
+  ///
+  /// libs/server/Storage/Session/ObjectStore/AdvancedOps.cs:Read_ObjectStore
+  pub async fn read_object_store(
+    &self,
+    key: &[u8],
+    tag: u8,
+  ) -> wkv::Result<(GarnetStatus, Option<Vec<u8>>)> {
+    self.read_object_store_operation(key, tag).await
+  }
+}

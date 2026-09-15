@@ -1,0 +1,72 @@
+[package]
+name = "wnode"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode"
+description = "Core server node runtime, network transport, and request handling for wedb"
+keywords = ["server", "network", "resp", "runtime", "async"]
+
+[package.metadata.cargo-machete]
+ignored = ["rustls-pki-types"]
+
+[features]
+default = ["roaring"]
+bench = []
+tls = ["dep:compio-tls", "dep:rustls-pki-types", "dep:rustls-pemfile"]
+roaring = ["dep:wext_roaring"]
+
+[dependencies]
+bitflags.workspace = true
+compio = { workspace = true, features = ["net", "io", "signal", "runtime", "time", "bytes", "dispatcher"] }
+compio-tls = { version = "0.10.0", default-features = false, features = ["rustls", "ring"], optional = true }
+crossfire = "3.1.20"
+event-listener.workspace = true
+fastrand.workspace = true
+gxhash.workspace = true
+itoa.workspace = true
+jiff = "0.2.37"
+log = { workspace = true, features = ["std"] }
+memchr = "2.8.3"
+parking_lot = { workspace = true, features = ["arc_lock"] }
+rustls-pemfile = { version = "2.2.0", optional = true }
+rustls-pki-types = { version = "1.15.1", optional = true }
+serde = { workspace = true, features = ["derive"] }
+smallvec = "1.16.1"
+sonic-rs.workspace = true
+thiserror.workspace = true
+wacl.workspace = true
+waof.workspace = true
+wbase = { workspace = true, features = ["ascii", "convert", "crc64", "entry_type", "future", "glob", "hash", "hash_slot", "num", "pool", "striped", "time"] }
+wbftree.workspace = true
+wbitmap.workspace = true
+wcol = { workspace = true }
+wconf.workspace = true
+wcustom.workspace = true
+wdatabase.workspace = true
+wdev.workspace = true
+wext_roaring = { workspace = true, optional = true }
+whyperlog.workspace = true
+wkv.workspace = true
+wlua.workspace = true
+wmetric.workspace = true
+wpubsub.workspace = true
+wresp.workspace = true
+wtxn.workspace = true
+wval.workspace = true
+wvector.workspace = true
+zmij.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true
+rcgen = "0.13.2"
+tempfile.workspace = true
+wvector.workspace = true
+wedb_test.workspace = true
+wnode_test.workspace = true

@@ -1,0 +1,6 @@
+# 若后续需要 JSON 支持，按编译期静态特性重新实现
+- 文件:
+    - modules/GarnetJSON/GarnetJsonObject.cs
+    - modules/GarnetJSON/JsonModule.cs
+  理由: 暂不实现 JSON 模块（wext_json 已按 dual-track-cleanup 删除，属非对标裁剪）；
+    C# 自研 JSON DOM 导航/序列化与模块加载生命周期不移植，若后续需要按编译期静态特性重新实现

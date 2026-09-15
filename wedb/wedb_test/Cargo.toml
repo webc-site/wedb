@@ -1,0 +1,28 @@
+[package]
+name = "wedb_test"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb_test"
+description = "Wedb integration-test support: shared small-budget store config assembly"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies]
+aok.workspace = true
+compio = { version = "0.19.2", features = ["net", "io", "runtime"] }
+ctor.workspace = true
+log = "0.4.34"
+log_init.workspace = true
+tempfile.workspace = true
+wdev.workspace = true
+
+[dependencies.wkv]
+workspace = true
+
+[dev-dependencies]
+fastrand.workspace = true
+
+[lints]
+workspace = true

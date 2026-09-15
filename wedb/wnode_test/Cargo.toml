@@ -1,0 +1,26 @@
+[package]
+name = "wnode_test"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode_test"
+description = "Wedb integration-test support over wnode: session factory, server harness, socket IO"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies.wnode]
+workspace = true
+
+[dependencies.wedb_test]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+features = ["io", "net"]
+
+[lints]
+workspace = true
