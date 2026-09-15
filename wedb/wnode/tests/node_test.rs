@@ -162,7 +162,7 @@ fn test_garnet_server_uds_lifecycle() -> aok::Result<()> {
       Some(self.buf.len() - self.head)
     }
     fn take_recv_scratch(&mut self) -> Vec<u8> {
-      std::mem::take(&mut self.buf)
+      take(&mut self.buf)
     }
     fn return_recv_scratch(&mut self, buf: Vec<u8>) {
       self.buf = buf;
