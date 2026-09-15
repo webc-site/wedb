@@ -1,6 +1,5 @@
 use std::{
   hint::spin_loop,
-  mem,
   ops::Deref,
   sync::{
     Arc, OnceLock,
@@ -10,16 +9,11 @@ use std::{
 };
 
 use async_lock::Mutex as AsyncLockMutex;
-use crossfire::{
-  MAsyncTx,
-  mpsc::Array,
-  oneshot::{TxOneshot, oneshot},
-};
-use event_listener::Event;
-use parking_lot::Mutex;
+use crossfire::{MAsyncTx, mpsc::Array};
 use wbase::{
   align::{align_down, align_up},
   backoff::{Backoff, BackoffStage},
+  group_commit::{Enter, GroupCommitPipeline, GroupCommitStep},
   pool::AlignedBuf,
   thread::current_thread_id,
 };
@@ -34,17 +28,8 @@ use super::{
   ring_buffer::RingBuffer,
 };
 
-/// AOF 提交等待者（Follower 登记通道）
-pub struct CommitWaiter {
-  pub target: u64,
-  pub tx: Option<TxOneshot<Result<u64>>>,
-}
-
-/// AOF Group Commit 流水线状态机（严格对标 Garnet TsavoriteLog Group Commit）
-pub struct CommitPipelineState {
-  pub is_committing: bool,
-  pub waiters: Vec<CommitWaiter>,
-}
+/// 流水线中断错误消息（Follower 侧统一映射，避免雷同字符串散落）
+const PIPELINE_BROKEN: &str = "Commit pipeline broken";
 
 /// 复制流推流唤醒信号发送端类型（容量 1 有界通道的发送端；
 /// 满即折叠去重——多帧写入只留一个未处理信号）
@@ -73,10 +58,8 @@ pub struct WalLogInner<D: Device> {
   pub inflight_slots: Box<[AtomicU64]>,
   /// 提交刷盘互斥锁
   pub commit_lock: async_lock::Mutex<()>,
-  /// 提交落盘流水线状态机（支持并发合并 Group Commit）
-  pub commit_pipeline: Mutex<CommitPipelineState>,
-  /// 提交落盘事件通知（支持多任务等待提交无锁广播唤醒）
-  pub commit_event: Event,
+  /// 提交落盘流水线（支持并发合并 Group Commit）
+  pub commit_pipeline: GroupCommitPipeline,
   /// 复制流推流唤醒信号发送端（宿主经 [`WalLog::set_replication_wake`] 注入；
   /// 帧数据不流经信号——推流端从环形缓冲按地址拉取，`safe_tail_address()`
   /// 即安全可读面）
@@ -93,6 +76,47 @@ impl<D: Device> WalLogInner<D> {
       .inflight_slots
       .iter()
       .fold(tail, |min, slot| min.min(slot.load(Ordering::Acquire)))
+  }
+
+  /// 执行物理段写入与 fdatasync
+  pub(crate) async fn flush_and_sync_range(&self, flushed: u64, safe_tail: u64) -> Result<u64> {
+    if safe_tail <= flushed {
+      return Ok(self.committed_until_address.load(Ordering::Acquire));
+    }
+
+    let sector_size = self.device.sector_size() as u64;
+    let start_aligned = align_down(flushed, sector_size);
+    let end_aligned = align_up(safe_tail, sector_size);
+
+    let write_buf = self.ring_buffer.copy_range_with_padding(
+      start_aligned,
+      safe_tail,
+      end_aligned,
+      self.device.pool(),
+    )?;
+
+    let expected_len = write_buf.len();
+    let (res, _) = self.device.write_aligned(start_aligned, write_buf).await;
+    let written_len = res?;
+    if written_len != expected_len {
+      return Err(Error::ShortWrite {
+        expected: expected_len,
+        written: written_len,
+      });
+    }
+
+    if let Err(e) = self.device.sync_data().await {
+      return Err(e.into());
+    }
+
+    self
+      .flushed_until_address
+      .store(safe_tail, Ordering::Release);
+    self
+      .committed_until_address
+      .store(safe_tail, Ordering::Release);
+
+    Ok(safe_tail)
   }
 }
 
@@ -153,11 +177,7 @@ impl<D: Device> WalLog<D> {
         config,
         inflight_slots: slots,
         commit_lock: AsyncLockMutex::new(()),
-        commit_pipeline: Mutex::new(CommitPipelineState {
-          is_committing: false,
-          waiters: Vec::new(),
-        }),
-        commit_event: Event::new(),
+        commit_pipeline: GroupCommitPipeline::new(),
         replication_wake: OnceLock::new(),
       }),
     })
@@ -269,7 +289,6 @@ impl<D: Device> WalLog<D> {
       self.ring_buffer.write_bytes(preload_start, data.as_slice());
     }
 
-    self.commit_event.notify(usize::MAX);
     drop(guard);
     Ok(cur)
   }
@@ -564,164 +583,31 @@ impl<D: Device> WalLog<D> {
     }
 
     // 2. 状态机协商：判定成为 Leader 还是 Follower
-    let rx = {
-      let mut lock = self.commit_pipeline.lock();
-      let committed = self.committed_until_address.load(Ordering::Acquire);
-      if target <= committed {
-        return Ok(committed);
+    match self
+      .commit_pipeline
+      .enter(target, || self.committed_until_address.load(Ordering::Acquire))
+    {
+      Enter::Done(committed) => return Ok(committed),
+      Enter::Follow(rx) => {
+        // 3. Follower 分支：挂起等待 Leader 批量唤醒（0 重复物理 I/O）
+        return self
+          .commit_pipeline
+          .wait(rx, target, || {
+            self.committed_until_address.load(Ordering::Acquire)
+          })
+          .await
+          .map_err(|_| Error::PipelineBroken(PIPELINE_BROKEN.into()));
       }
-
-      if lock.is_committing {
-        // 当前已有 Leader 在执行落盘流水线，登记为 Follower 挂起等待，绝不重复发起 I/O
-        let (tx, rx) = oneshot::<Result<u64>>();
-        lock.waiters.push(CommitWaiter {
-          target,
-          tx: Some(tx),
-        });
-        Some(rx)
-      } else {
-        // 升级为 Leader，接管物理刷盘管道
-        lock.is_committing = true;
-        None
-      }
-    };
-
-    // 3. Follower 分支：挂起等待 Leader 批量唤醒（0 重复物理 I/O）
-    if let Some(rx) = rx {
-      return match rx.await {
-        Ok(res) => res,
-        Err(_) => {
-          let committed = self.committed_until_address.load(Ordering::Acquire);
-          if target <= committed {
-            Ok(committed)
-          } else {
-            Err(Error::PipelineBroken("Commit pipeline broken".into()))
-          }
-        }
-      };
+      // 升级为 Leader，接管物理刷盘管道
+      Enter::Lead => {}
     }
 
-    // 4. Leader 级联写盘主循环（Cascade Loop）
-    self.run_commit_pipeline_leader_loop().await
-  }
-
-  /// Leader 级联刷盘驱动主循环
-  async fn run_commit_pipeline_leader_loop(&self) -> Result<u64> {
+    // 4. Leader 级联写盘主循环（Cascade Loop）：持提交锁与 reset/truncate/recover 串行
     let _commit_guard = self.commit_lock.lock().await;
-    let mut last_committed;
-
-    loop {
-      // (1) 收集当前批次目标：当前 safe_tail 与所有挂起 Follower 的最大需求
-      let batch_target = {
-        let lock = self.commit_pipeline.lock();
-        let max_waiter_target = lock.waiters.iter().map(|w| w.target).max().unwrap_or(0);
-        self.safe_tail_address().max(max_waiter_target)
-      };
-
-      let flushed = self.flushed_until_address.load(Ordering::Acquire);
-      let step_res = if batch_target > flushed {
-        self.flush_and_sync_range(flushed, batch_target).await
-      } else {
-        Ok(self.committed_until_address.load(Ordering::Acquire))
-      };
-
-      match step_res {
-        Ok(committed) => {
-          last_committed = committed;
-          // 原地 retain_mut 筛选批量唤醒达标 Follower，消除每次刷盘的额外堆分配
-          {
-            let mut lock = self.commit_pipeline.lock();
-            lock.waiters.retain_mut(|waiter| {
-              if waiter.target <= committed {
-                if let Some(tx) = waiter.tx.take() {
-                  tx.send(Ok(committed));
-                }
-                false
-              } else {
-                true
-              }
-            });
-          }
-          self.commit_event.notify(usize::MAX);
-        }
-        Err(e) => {
-          // 遇到物理错误，唤醒所有挂起的 Follower
-          let to_fail = {
-            let mut lock = self.commit_pipeline.lock();
-            lock.is_committing = false;
-            mem::take(&mut lock.waiters)
-          };
-          for mut w in to_fail {
-            if let Some(tx) = w.tx.take() {
-              tx.send(Err(Error::PipelineBroken("Commit pipeline error".into())));
-            }
-          }
-          self.commit_event.notify(usize::MAX);
-          return Err(e);
-        }
-      }
-
-      // (2) 检查是否有新累积的更大目标
-      let should_continue = {
-        let mut lock = self.commit_pipeline.lock();
-        let new_safe_tail = self.safe_tail_address();
-        let has_lagging_waiters = lock.waiters.iter().any(|w| w.target > last_committed);
-        let has_new_tail = new_safe_tail > last_committed;
-
-        if has_lagging_waiters || has_new_tail {
-          true
-        } else {
-          lock.is_committing = false;
-          false
-        }
-      };
-
-      if !should_continue {
-        break;
-      }
-    }
-    Ok(last_committed)
-  }
-
-  /// 执行物理段写入与 fdatasync
-  async fn flush_and_sync_range(&self, flushed: u64, safe_tail: u64) -> Result<u64> {
-    if safe_tail <= flushed {
-      return Ok(self.committed_until_address.load(Ordering::Acquire));
-    }
-
-    let sector_size = self.device.sector_size() as u64;
-    let start_aligned = align_down(flushed, sector_size);
-    let end_aligned = align_up(safe_tail, sector_size);
-
-    let write_buf = self.ring_buffer.copy_range_with_padding(
-      start_aligned,
-      safe_tail,
-      end_aligned,
-      self.device.pool(),
-    )?;
-
-    let expected_len = write_buf.len();
-    let (res, _) = self.device.write_aligned(start_aligned, write_buf).await;
-    let written_len = res?;
-    if written_len != expected_len {
-      return Err(Error::ShortWrite {
-        expected: expected_len,
-        written: written_len,
-      });
-    }
-
-    if let Err(e) = self.device.sync_data().await {
-      return Err(e.into());
-    }
-
     self
-      .flushed_until_address
-      .store(safe_tail, Ordering::Release);
-    self
-      .committed_until_address
-      .store(safe_tail, Ordering::Release);
-
-    Ok(safe_tail)
+      .commit_pipeline
+      .run_leader(WalCommitStep { wal: &self.inner })
+      .await
   }
 
   /// 高速提交栅栏（Fast Commit Barrier）：等待指定逻辑地址提交落盘（0 表示等待当前尾地址）
@@ -746,7 +632,6 @@ impl<D: Device> WalLog<D> {
     for slot in self.inflight_slots.iter() {
       slot.store(u64::MAX, Ordering::Release);
     }
-    self.commit_event.notify(usize::MAX);
   }
 
   /// 追加写入并等待提交持久化（对照 libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:EnqueueAndWaitForCommitAsync）
@@ -818,7 +703,6 @@ impl<D: Device> WalLog<D> {
     }
     // 与 commit 一致采用 fdatasync 快速刷盘
     self.device.sync_data().await?;
-    self.commit_event.notify(usize::MAX);
     drop(guard);
     Ok(())
   }
@@ -875,5 +759,34 @@ impl<D: Device> WalLog<D> {
   #[inline]
   pub fn config(&self) -> &WalConfig {
     &self.config
+  }
+}
+
+/// WAL 提交步进器：批次目标取安全尾地址（在途写入下界），水位取已提交位点，
+/// 物理持久化复用环形缓冲刷盘 + fdatasync 单点实现
+struct WalCommitStep<'a, D: Device> {
+  wal: &'a WalLogInner<D>,
+}
+
+impl<D: Device> GroupCommitStep for WalCommitStep<'_, D> {
+  type Error = Error;
+
+  #[inline]
+  fn tail(&self) -> u64 {
+    self.wal.safe_tail_address()
+  }
+
+  #[inline]
+  fn watermark(&self) -> u64 {
+    self.wal.committed_until_address.load(Ordering::Acquire)
+  }
+
+  async fn step(&self, target: u64) -> Result<u64> {
+    let flushed = self.wal.flushed_until_address.load(Ordering::Acquire);
+    if target > flushed {
+      self.wal.flush_and_sync_range(flushed, target).await
+    } else {
+      Ok(self.wal.committed_until_address.load(Ordering::Acquire))
+    }
   }
 }

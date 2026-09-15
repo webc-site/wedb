@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-lock = { workspace = true }
-wbase = { workspace = true, features = ["align", "backoff", "crc", "entry_type", "pool", "thread"] }
+wbase = { workspace = true, features = ["align", "backoff", "crc", "entry_type", "group-commit", "pool", "thread"] }
 event-listener = { workspace = true }
 log.workspace = true
 thiserror = { workspace = true }
