@@ -97,21 +97,31 @@ impl InfoProvider for SessionInfoSource<'_> {
 
   /// 聚合命令统计（C# GarnetInfoMetrics.cs:PopulateCommandStatsInfo 的聚合
   /// 面：周期采样开启时 globalCommandStats 已含 history + 活跃会话的上一轮
-  /// 采样，直接取用；仅命令统计开启（无周期采样）时取 history，活跃会话
-  /// 未归并部分以本会话补并——rust 会话体独占于连接任务，全量活跃枚举面
-  /// 归 ConsumerRegistry 采样域）
+  /// 采样，直接取用；仅命令统计开启（无周期采样）时取 history 并补并活跃
+  /// 会话未归并计数；监视器未装配时回落本会话统计——C# 中该组合态不存在
+  ///（monitor == null 蕴含开关全关），rust 会话级开关独立于装配面，开关
+  /// 开启即如实上报本会话可达计数）
   fn command_stats(&self) -> Vec<(String, u64, u64, u64)> {
-    let Some(monitor) = GarnetServerMonitor::global() else {
-      return Vec::new();
+    let monitor = GarnetServerMonitor::global();
+    let mut aggregate = monitor.as_ref().and_then(|m| m.command_stats_aggregate());
+    let merge_local = match &monitor {
+      // 周期采样开启：活跃会话镜像已并入 global，无需补并
+      Some(m) if m.tracks_command_stats() => false,
+      // 仅命令统计开启：补并本会话
+      Some(_) => true,
+      // 监视器未装配：回落本会话
+      None => true,
     };
-    let Some(mut aggregate) = monitor.command_stats_aggregate() else {
-      return Vec::new();
-    };
-    if !monitor.tracks_command_stats()
+    if merge_local
       && let Some(stats) = &self.session.command_stats
     {
-      aggregate.add(&stats.lock());
+      aggregate
+        .get_or_insert_with(wmetric::CommandStats::new)
+        .add(&stats.lock());
     }
+    let Some(aggregate) = aggregate else {
+      return Vec::new();
+    };
 
     // C# 逐命令输出路径：零计数跳过（calls 与 rejected 均零），
     // RespCommandsInfo.GetRespCommandName 小写化，"unknown" 跳过

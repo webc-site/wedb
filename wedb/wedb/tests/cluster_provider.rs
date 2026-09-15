@@ -132,3 +132,63 @@ fn replica_safe_truncate_physically_shifts_log_begin() {
     "截断不得回退副本复制位点"
   );
 }
+
+/// INFO 复制段副本侧滞后指标组（对标 libs/cluster/Server/ClusterProvider.cs
+/// GetReplicationInfo 副本分支尾部 5 字段）
+#[test]
+fn replication_info_replica_lag_fields() {
+  use wconf::RuntimeServerOptions;
+  use wnode::{GarnetAppendOnlyFile, GarnetLog, InMemorySublog, Sublog};
+  use wmetric::MetricsItem;
+
+  let provider = ClusterProvider::new();
+  provider
+    .cluster_manager()
+    .unwrap()
+    .try_set_local_node_role(NodeRole::Replica);
+
+  // 内存单子日志 AOF 门面（装配期 set_aof 注入）
+  let options = RuntimeServerOptions::default();
+  let log = Arc::new(GarnetLog::new(
+    &options,
+    vec![Arc::new(Sublog::Mem(InMemorySublog::new()))],
+    None,
+  ));
+  provider.set_aof(Some(Arc::new(GarnetAppendOnlyFile::new(
+    Arc::clone(&log),
+    &options,
+    None,
+  ))));
+  provider.set_aof_replay_max_lag_bytes(1024);
+
+  // 复制位点清零：日志尾与位点的差 = 滞后
+  let rm = provider.replication_manager().unwrap();
+  rm.set_current_replication_offset(AofAddress::create(1, 0));
+
+  let info = provider.get_replication_info();
+  let get = |name: &str| {
+    info
+      .iter()
+      .find(|i: &&MetricsItem| i.name == name)
+      .map(|i| i.value.clone())
+  };
+
+  let tail = log.get_tail_address(0);
+  assert_eq!(
+    get("replication_offset_vector_lag").unwrap(),
+    tail.to_string(),
+    "向量滞后 = 日志尾 - 复制位点"
+  );
+  assert_eq!(
+    get("replication_offset_acc_lag").unwrap(),
+    tail.to_string(),
+    "聚合滞后 = 逐槽差之和（单槽即同值）"
+  );
+  assert_eq!(get("aof_replay_max_lag_bytes").unwrap(), "1024");
+  // 读一致性管理器未装配：对齐 C# rcm == null 分支输出 -1
+  assert_eq!(get("physical_sublog_max_sequence_vector").unwrap(), "-1");
+  assert_eq!(
+    get("physical_sublog_max_drift_sequence_vector").unwrap(),
+    "-1"
+  );
+}

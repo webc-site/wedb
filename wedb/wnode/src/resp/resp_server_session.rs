@@ -1487,16 +1487,18 @@ impl RespServerSession {
       // 纯显式 KEYSPACE 段请求需全库扫描计数（C# PopulateKeyspaceInfo →
       // GetKeyspaceStats 专用扫描会话；DEFAULT/ALL 段集合不含 KEYSPACE，
       // 普通 INFO 不受影响）——存储域扫描须跨 await，与 DBSIZE 同构降级
-      // 慢路径（exec_slow Info 分支闭环）。混合段名（如 INFO server
-      // keyspace）不降级，keyspace 段按 wmetric 缺省形态呈现，避免丢段
+      // 慢路径（garnet_api dispatch_slow Info 臂挂 SlowWait 闭环）。混合段
+      // 名（如 INFO server keyspace）不降级，keyspace 段按 wmetric 缺省
+      // 形态呈现，避免丢段
       let args = self.get_arg_slices();
-      if !args.is_empty()
+      let keyspace_only = !args.is_empty()
         && args
           .iter()
-          .all(|a| InfoMetricsType::from_name(a) == Some(InfoMetricsType::Keyspace))
-      {
-        return false;
-      }
+          .all(|a| InfoMetricsType::from_name(a) == Some(InfoMetricsType::Keyspace));
+      if keyspace_only {
+        // 放行到函数尾兜底分派（C# ProcessOtherCommands 末端
+        // ProcessAdminCommands 形态），由存储执行域承接
+      } else {
       let text = {
         let provider = super::info_provider::SessionInfoSource::new(self);
         let mut info = GarnetInfoMetrics::new();
@@ -1514,6 +1516,7 @@ impl RespServerSession {
       };
       self.output.extend_from_slice(&text);
       return true;
+      }
     }
     // 自定义命令族（C# ProcessOtherCommands 的 RespCommand.CustomTxn /
     // CustomRawStringCmd / CustomProcedure → NetworkCustomTxn /
@@ -1528,6 +1531,21 @@ impl RespServerSession {
     let args = self.get_arg_slices();
     self.dispatch_via_garnet_api(cmd, &args);
     true
+  }
+
+  /// libs/server/Metrics/Info/InfoCommand.cs:NetworkINFO（KEYSPACE 慢路径
+  /// 同步段）
+  ///
+  /// 唯一到达路径：会话 [`Self::process_other_commands`] 放行的纯显式
+  /// KEYSPACE 段请求（DEFAULT/ALL 段集合不含 KEYSPACE，其余 INFO 请求在
+  /// 会话侧同步闭环）。全库扫描须跨 await——对标 C# GetKeyspaceStats 的
+  /// 专用扫描会话同步执行，rust 与 DBSIZE 同构降级慢路径异步闭环
+  pub fn network_info(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    Ok(false)
   }
 
   /// 本地缓冲写出 → 并回会话输出（CLIENT/CLUSTER/ROLE 族 take/log/restore

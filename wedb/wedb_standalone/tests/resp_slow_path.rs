@@ -303,3 +303,40 @@ fn memory_usage_live_key_fast_path() {
   assert_eq!(out[0], b':', "活键应直接整数应答: {out:?}");
   assert!(c.take_slow_wait().is_none(), "活键不应挂起慢路径");
 }
+
+/// INFO KEYSPACE 慢路径闭环（对标 C# PopulateKeyspaceInfo →
+/// GetKeyspaceStats：活键数与带 TTL 键数；DEFAULT/ALL 段集合不含
+/// KEYSPACE，仅显式请求触发全库扫描）
+#[test]
+fn info_keyspace_via_slow_path() {
+  let rt = Runtime::new().unwrap();
+  let mut c = consumer();
+
+  // 空库：仅段头，无条目（C# 仅列出至少持有一个键的库）
+  let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
+  let text = std::str::from_utf8(&out).unwrap();
+  assert!(text.contains("# Keyspace\r\n"), "{text}");
+  assert!(!text.contains("db0"), "空库不得出条目: {text}");
+
+  set_keys(&mut c, &["k1", "k2"]);
+  // k1 加 TTL → expires=1
+  assert_eq!(
+    roundtrip(&mut c, b"*3\r\n$6\r\nEXPIRE\r\n$2\r\nk1\r\n$3\r\n100\r\n"),
+    b":1\r\n"
+  );
+  let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
+  let text = std::str::from_utf8(&out).unwrap();
+  assert!(
+    text.contains("db0:keys=2,expires=1,avg_ttl=0"),
+    "键数与 TTL 计数应同时上报: {text}"
+  );
+
+  // DEL 带 TTL 的键 → 键数与 expires 同步回落
+  assert_eq!(
+    roundtrip(&mut c, b"*2\r\n$3\r\nDEL\r\n$2\r\nk1\r\n"),
+    b":1\r\n"
+  );
+  let out = slow_roundtrip(&rt, &mut c, b"*2\r\n$4\r\nINFO\r\n$8\r\nkeyspace\r\n");
+  let text = std::str::from_utf8(&out).unwrap();
+  assert!(text.contains("db0:keys=1,expires=0,avg_ttl=0"), "{text}");
+}
