@@ -155,22 +155,18 @@ impl GossipManager {
     }
 
     // 2. 同步当前已知的集群节点并建立连接
+    //（对标 C# Gossip.cs:InitConnectionsAsync 经 GetWorkerInfoForGossip
+    // 收集节点三元组；封禁与自己跳过由本层过滤）
     let auth_user = self.cluster_provider.cluster_username();
     let auth_pwd = self.cluster_provider.cluster_password();
     {
       let config = cluster_mgr.current_config();
-      for w in &config.workers[1..=config.num_workers()] {
-        if let Some(ref nid) = w.nodeid
-          && !cluster_mgr.is_banned(nid)
-          && !config.local_node_id().is_some_and(|lid| lid == nid)
-        {
-          self.connection_store.get_or_add_with_auth(
-            nid,
-            &w.address,
-            w.port,
-            auth_user.as_deref(),
-            auth_pwd.as_deref(),
-          );
+      let local_id = config.local_node_id().map(String::from);
+      for (nid, address, port) in config.get_worker_info_for_gossip() {
+        if !cluster_mgr.is_banned(&nid) && local_id.as_deref() != Some(nid.as_str()) {
+          self
+            .connection_store
+            .get_or_add_with_auth(&nid, &address, port, auth_user.as_deref(), auth_pwd.as_deref());
         }
       }
     }

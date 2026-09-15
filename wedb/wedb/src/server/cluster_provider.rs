@@ -66,8 +66,6 @@ pub struct ClusterProvider {
   cluster_node_timeout_ms: AtomicU64,
   /// Garnet 当前纪元（对标 C# ClusterProvider.GarnetCurrentEpoch，初始为 1）
   garnet_current_epoch: AtomicI64,
-  /// 序列号生成器复位勾子（故障转移后抬升生成器起点；对标 C# appendOnlyFile.ResetSequenceNumberGenerator）
-  seq_reset_hook: RwLock<Option<fn()>>,
   /// 弱引用自身（用于按需向上派生包含本对象的会话，无锁读取）
   self_weak: OnceLock<Weak<ClusterProvider>>,
   /// 共享存储引擎（对标 C# clusterProvider.storeWrapper 的存储可达面；
@@ -101,7 +99,6 @@ impl Default for ClusterProvider {
       replication_reestablishment_timeout_secs: AtomicI32::new(0),
       cluster_node_timeout_ms: AtomicU64::new(DEFAULT_CLUSTER_NODE_TIMEOUT_MS),
       garnet_current_epoch: AtomicI64::new(1),
-      seq_reset_hook: RwLock::new(None),
       self_weak: OnceLock::new(),
       store: RwLock::new(None),
       vector_manager: RwLock::new(None),
@@ -442,15 +439,13 @@ impl ClusterProvider {
     self.primary_replication.read().clone()
   }
 
-  /// 注册序列号生成器复位勾子（集群装配期注入）
-  pub fn set_seq_reset_hook(&self, hook: Option<fn()>) {
-    *self.seq_reset_hook.write() = hook;
-  }
-
-  /// 执行序列号生成器复位（故障转移触发时调用；对标 C# appendOnlyFile.ResetSequenceNumberGenerator）
+  /// 执行序列号生成器复位（故障转移触发时调用；对标 C#
+  /// ReplicaFailoverSession.cs:154 经 storeWrapper.appendOnlyFile 直达
+  /// GarnetAppendOnlyFile.ResetSequenceNumberGenerator，AOF 门面未装配
+  /// 时空转——单物理日志模式 C# 侧同样短路）
   pub fn reset_sequence_number_generator(&self) {
-    if let Some(hook) = self.seq_reset_hook.read().as_ref() {
-      hook();
+    if let Some(aof) = self.try_aof() {
+      aof.reset_sequence_number_generator();
     }
   }
 }
