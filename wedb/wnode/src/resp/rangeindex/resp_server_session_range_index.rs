@@ -13,14 +13,21 @@
 //! found"（Display 同文案承接）；SCAN/RANGE 内存模式不支持为网络层按命令
 //! 硬编码文案（"ERR RI.SCAN/RANGE is not supported for MEMORY-mode indexes"，
 //! RANGE 处覆写变体 Display 的 SCAN 文案），WRONGTYPE 走 CmdStrings 同款文案。
+//!
+//! 协议错误差异：RI.CREATE 数值选项非法时 C# 抛 RespParsingException →
+//! catch 块回 `ERR Protocol Error: ...` 后 DisposeNetworkSender 断开会话
+//! （RespServerSession.cs:522-540）；rust RI 族经 exec_slow 异步闭环
+//! （无会话可变面，parse_violation 哨兵不可达），文案字节级对齐而连接
+//! 保持，断连语义为已知差异。
 
 use std::result::Result as StdResult;
 
+use wbase::num::strict_i32;
 use wbftree::{RangeIndexStub, ScanRecord, ScanReturnField, StorageBackendType, TreeTuning};
 use wdev::Device;
 use wkv::{RangeIndexError, StoreSession};
 use wresp::{
-  RespSliceExt, RespVecExt, Result, check_arg_count,
+  RespVecExt, Result, check_arg_count,
   cmd_strings::{self as cs, abort_with_error_message},
 };
 
@@ -83,8 +90,67 @@ impl RiCreateOptions {
   }
 }
 
+/// RI.CREATE 数值选项解析失败两态（C# GetLong → RespParsingException，
+/// SessionParseState.cs:402 + ParseUtils.cs:64 + RespReadUtils.cs:126）
+enum RiNumError {
+  /// 非数字 / 尾随垃圾 / u64 溢出 → C# ThrowNotANumber（回显原始参数）
+  NotANumber(Vec<u8>),
+  /// u64 域内但超 i64 → C# ThrowIntegerOverflow（数字串不含符号）
+  Overflow { digits: String },
+}
+
+/// RI.CREATE 数值选项解析（C# parseState.GetLong 口径：allowLeadingZeros
+/// 默认 true，前导零合法；失败两态见 [`RiNumError`]）
+fn ri_option_long(parse_state: &[&[u8]], idx: usize) -> StdResult<i64, String> {
+  let raw = parse_state[idx];
+  let (digits, negative) = match raw {
+    [b'+', rest @ ..] => (rest, false),
+    [b'-', rest @ ..] => (rest, true),
+    rest => (rest, false),
+  };
+  // C# TryReadUInt64：空串 / 中途非数字 / u64 溢出 → TryReadInt64 失败 →
+  // ReadLong 外层 ThrowNotANumber（尾随垃圾 bytesRead != length 同此）
+  let mut number = 0_u64;
+  for &d in digits {
+    match (d as char).to_digit(10) {
+      Some(v) => match number.checked_mul(10).and_then(|n| n.checked_add(u64::from(v))) {
+        Some(n) => number = n,
+        None => return Err(ri_num_error_text(RiNumError::NotANumber(raw.to_vec()))),
+      },
+      None => return Err(ri_num_error_text(RiNumError::NotANumber(raw.to_vec()))),
+    }
+  }
+  let overflow = RiNumError::Overflow {
+    digits: String::from_utf8_lossy(digits).into_owned(),
+  };
+  if negative {
+    if number > i64::MIN.unsigned_abs() {
+      return Err(ri_num_error_text(overflow));
+    }
+    if number == i64::MIN.unsigned_abs() {
+      return Ok(i64::MIN);
+    }
+  } else if number > i64::MAX as u64 {
+    return Err(ri_num_error_text(overflow));
+  }
+  Ok(if negative { -(number as i64) } else { number as i64 })
+}
+
+/// 两态协议错误文案（C# RespServerSession.cs:522 catch 块
+/// `ERR Protocol Error: {ex.Message}` 前缀；断连副作用见模块文档）
+fn ri_num_error_text(e: RiNumError) -> String {
+  match e {
+    RiNumError::NotANumber(arg) => {
+      format!("ERR Protocol Error: Unable to parse number: {}", String::from_utf8_lossy(&arg))
+    }
+    RiNumError::Overflow { digits } => format!(
+      "ERR Protocol Error: Unable to parse integer. The given number is larger than allowed: {digits}"
+    ),
+  }
+}
+
 /// 解析 RI.CREATE 可选关键字参数（idx 从 1 起；C# while 循环逐分支形态）
-fn parse_ricreate_options(parse_state: &[&[u8]]) -> StdResult<RiCreateOptions, &'static str> {
+fn parse_ricreate_options(parse_state: &[&[u8]]) -> StdResult<RiCreateOptions, String> {
   let mut options = RiCreateOptions::new();
   let mut idx = 1;
   while idx < parse_state.len() {
@@ -100,40 +166,40 @@ fn parse_ricreate_options(parse_state: &[&[u8]]) -> StdResult<RiCreateOptions, &
       if arg.eq_ignore_ascii_case(b"CACHESIZE") {
         idx += 1;
         if idx >= parse_state.len() {
-          return Err("ERR CACHESIZE requires a value");
+          return Err("ERR CACHESIZE requires a value".into());
         }
-        options.cache_size = parse_state[idx].try_parse_i64().unwrap_or(0);
+        options.cache_size = ri_option_long(parse_state, idx)?;
         idx += 1;
       } else if arg.eq_ignore_ascii_case(b"MINRECORD") {
         idx += 1;
         if idx >= parse_state.len() {
-          return Err("ERR MINRECORD requires a value");
+          return Err("ERR MINRECORD requires a value".into());
         }
-        options.min_record_size = parse_state[idx].try_parse_i64().unwrap_or(0);
+        options.min_record_size = ri_option_long(parse_state, idx)?;
         idx += 1;
       } else if arg.eq_ignore_ascii_case(b"MAXRECORD") {
         idx += 1;
         if idx >= parse_state.len() {
-          return Err("ERR MAXRECORD requires a value");
+          return Err("ERR MAXRECORD requires a value".into());
         }
-        options.max_record_size = parse_state[idx].try_parse_i64().unwrap_or(0);
+        options.max_record_size = ri_option_long(parse_state, idx)?;
         idx += 1;
       } else if arg.eq_ignore_ascii_case(b"MAXKEYLEN") {
         idx += 1;
         if idx >= parse_state.len() {
-          return Err("ERR MAXKEYLEN requires a value");
+          return Err("ERR MAXKEYLEN requires a value".into());
         }
-        options.max_key_len = parse_state[idx].try_parse_i64().unwrap_or(0);
+        options.max_key_len = ri_option_long(parse_state, idx)?;
         idx += 1;
       } else if arg.eq_ignore_ascii_case(b"PAGESIZE") {
         idx += 1;
         if idx >= parse_state.len() {
-          return Err("ERR PAGESIZE requires a value");
+          return Err("ERR PAGESIZE requires a value".into());
         }
-        options.leaf_page_size = parse_state[idx].try_parse_i64().unwrap_or(0);
+        options.leaf_page_size = ri_option_long(parse_state, idx)?;
         idx += 1;
       } else {
-        return Err("ERR unknown option");
+        return Err("ERR unknown option".into());
       }
     }
   }
@@ -370,7 +436,8 @@ pub async fn network_riscan<D: Device, R>(
     abort_with_error_message(output, "ERR syntax error, expected COUNT");
     return Ok(true);
   }
-  let Some(count) = parse_state[3].try_parse_i64().filter(|c| *c > 0) else {
+  // C# TryGetInt（int32）：非整数（含溢出）或 <=0 同报（:361-364）
+  let Some(count) = strict_i32(parse_state[3]).filter(|c| *c > 0) else {
     abort_with_error_message(output, "ERR invalid count");
     return Ok(true);
   };
@@ -506,31 +573,6 @@ pub async fn network_rimetrics<D: Device, R>(
   Ok(true)
 }
 
-/// libs/server/Resp/RangeIndex/RespServerSessionRangeIndex.cs:NetworkRILEN
-///
-/// RI.LEN key：返回索引中键值对总数（O(1) 元数据直读）
-pub async fn network_rilen<D: Device, R>(
-  parse_state: &[&[u8]],
-  ri: Option<R>,
-  session: &StoreSession<D>,
-  output: &mut Vec<u8>,
-) -> Result<bool> {
-  if ri.is_none() {
-    abort_with_error_message(output, RI_DISABLED);
-    return Ok(true);
-  }
-  check_arg_count!(parse_state, 1, output, "RI.LEN");
-
-  match session.range_index_len(parse_state[0]).await {
-    Ok(len) => output.write_resp_int(len as i64),
-    Err(RangeIndexError::WrongType) => {
-      abort_with_error_message(output, cs::RESP_ERR_WRONG_TYPE);
-    }
-    Err(e) => abort_with_error_message(output, &e.to_string()),
-  }
-  Ok(true)
-}
-
 impl RespServerSession {
   #[inline]
   pub async fn network_ricreate<D: Device, R>(
@@ -574,17 +616,6 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> Result<bool> {
     network_ridel(parse_state, ri, session, output).await
-  }
-
-  #[inline]
-  pub async fn network_rilen<D: Device, R>(
-    &mut self,
-    parse_state: &[&[u8]],
-    ri: Option<R>,
-    session: &StoreSession<D>,
-    output: &mut Vec<u8>,
-  ) -> Result<bool> {
-    network_rilen(parse_state, ri, session, output).await
   }
 
   #[inline]
