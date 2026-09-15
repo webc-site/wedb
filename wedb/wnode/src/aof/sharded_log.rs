@@ -209,9 +209,9 @@ impl ShardedLog {
   }
 
   /// libs/server/AOF/ShardedLog.cs:Reset
-  pub fn reset(&self) {
+  pub async fn reset_async(&self) {
     for log in &self.sublog {
-      log.reset();
+      log.reset_async().await;
     }
   }
 

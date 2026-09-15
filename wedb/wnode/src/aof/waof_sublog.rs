@@ -254,24 +254,15 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
     self.wal.config().buffer_size as i64
   }
 
-  fn reset(&self) {
+  /// 重置日志：cookie 复位 + 转发权威 [`WalLog::reset`]
+  /// （libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:Reset 的
+  /// 设备面实现——持提交锁原子复位位点 + sync_data 串行化；原手抄四原子无锁
+  /// 复位，与在途 commit_to 并发会撕裂位点，已删）。
+  async fn reset_async(&self) {
     self.cookie.store(NO_COOKIE, Ordering::Release);
-    let begin_addr =
-      (self.wal.device().start_segment() as u64) * self.wal.device().segment_size().unwrap_or(0);
-    self.wal.begin_address.store(begin_addr, Ordering::Release);
-    self.wal.tail_address.store(begin_addr, Ordering::Release);
-    self
-      .wal
-      .flushed_until_address
-      .store(begin_addr, Ordering::Release);
-    self
-      .wal
-      .committed_until_address
-      .store(begin_addr, Ordering::Release);
-    for slot in self.wal.inflight_slots.iter() {
-      slot.store(u64::MAX, Ordering::Release);
+    if let Err(err) = self.wal.reset().await {
+      log::error!("WaofSublog 日志重置失败: {err:?}");
     }
-    self.wal.commit_event.notify(usize::MAX);
   }
 
   fn safe_initialize(

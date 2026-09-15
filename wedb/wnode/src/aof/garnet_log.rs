@@ -103,8 +103,9 @@ pub trait SublogBackend: Send + Sync {
   fn log_page_size_bits(&self) -> i32;
   /// 内存占用。
   fn memory_size_bytes(&self) -> i64;
-  /// 重置日志。
-  fn reset(&self);
+  /// 重置日志（对标 C# TsavoriteLog.Reset 的路由面；设备后端持提交锁原子复位
+  /// 位点并 sync_data 串行化，须在日志静默后调用）。
+  fn reset_async(&self) -> impl Future<Output = ()> + '_;
   /// 安全初始化子日志位点（对标 C# TsavoriteLog.SafeInitialize / Initialize）。
   fn safe_initialize(&self, begin_address: i64, committed_until_address: i64, last_commit_num: i64);
 
@@ -231,7 +232,9 @@ impl SublogBackend for InMemorySublog {
       .sum()
   }
 
-  fn reset(&self) {
+  /// 内存后端无设备态（C# 无对应物）：清记录 + 位点归 1，无锁无 I/O，
+  /// 语义对标 TsavoriteLog.Reset 的内存等价
+  async fn reset_async(&self) {
     self.records.lock().clear();
     self.begin.store(1, Ordering::Release);
     self.committed_until.store(1, Ordering::Release);
@@ -649,12 +652,13 @@ impl GarnetLog {
 
   /// libs/server/AOF/GarnetLog.cs:Reset
   ///
-  /// 重置日志（C# Reset 路由：逐物理子日志回退内存位点；FLUSHDB/FLUSHALL 出口）。
-  pub fn reset(&self) {
+  /// 重置日志（C# Reset 路由：逐物理子日志回退位点；FLUSHDB/FLUSHALL 出口。
+  /// 设备后端持提交锁原子复位并 sync_data，对标 TsavoriteLog.Reset 持锁语义）。
+  pub async fn reset_async(&self) {
     if let Some(single) = &self.single_log {
-      single.reset();
+      single.reset_async().await;
     } else if let Some(sharded) = &self.sharded_log {
-      sharded.reset();
+      sharded.reset_async().await;
     }
   }
 

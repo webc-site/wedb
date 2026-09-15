@@ -89,8 +89,8 @@ impl Sublog {
   }
 
   #[inline(always)]
-  pub fn reset(&self) {
-    SublogBackend::reset(self)
+  pub async fn reset_async(&self) {
+    SublogBackend::reset_async(self).await
   }
 
   #[inline(always)]
@@ -249,10 +249,10 @@ impl SublogBackend for Sublog {
   }
 
   #[inline(always)]
-  fn reset(&self) {
+  async fn reset_async(&self) {
     match self {
-      Self::Mem(m) => m.reset(),
-      Self::Waof(w) => w.reset(),
+      Self::Mem(m) => m.reset_async().await,
+      Self::Waof(w) => w.reset_async().await,
     }
   }
 
