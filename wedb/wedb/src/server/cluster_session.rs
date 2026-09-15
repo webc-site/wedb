@@ -1900,7 +1900,7 @@ pub const DEFAULT_CLUSTER_CMD_NAME: &str = "cluster";
 /// 子命令 RESP 名（错误文案回显用，对标 C# `ClusterSession.cs:119-121` 与 `RespCommandsInfo.GetRespCommandName(command).ToLowerInvariant()`）
 #[inline]
 pub fn cluster_sub_name(cmd: RespCommand) -> &'static str {
-  try_get_resp_command_info(cmd).map_or(DEFAULT_CLUSTER_CMD_NAME, |e| e.name)
+  try_get_resp_command_info(cmd).map_or(DEFAULT_CLUSTER_CMD_NAME, |e| e.name.as_str())
 }
 
 /// SessionParseStateExtensions.cs:TryGetSlotState（ASCII 大小写不敏感）
