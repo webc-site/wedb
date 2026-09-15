@@ -12,12 +12,6 @@
    问题：索引满后无自动扩容，CONFIG 增长请求恒报失败
    改法：补后台 IndexAutoGrow 任务消费 grow_indexes_if_needed_async；备选按 SKILL check/ignore 登记差异。关联 StoreWrapper.Reset（Pause+Reset+Resume）同未落地
 
-7. [P1] 指标接线两缺
-   位置：wedb/wnode/src/server.rs:116 metrics_sampling_frequency builder 与 :242 启动门已在，但 wedb/wedb/src/main.rs 与 wedb_standalone 均未调用（恒 0 监视器永不启动）；wedb/wmetric/src/command_stats.rs 表无 per-command 递增，wedb/wnode/src/resp/info_provider.rs 无 commandstats 段
-   对标：garnet/libs/server/Resp/RespServerSession.cs:587-598、:683-715 CommandStatsMonitor；garnet/libs/host/Configuration/Options.cs:344-360
-   问题：监视器与命令统计全链断
-   改法：宿主入口透传采样频率；monitor 开启时挂 CommandStats 表并补 INFO 段
-
 32. [P2] 对标注释风格统一
     位置：全仓 94 处「在 garnet 中的相对路径:函数名」范式
     对标：SKILL 文档注释格式条款

@@ -6,11 +6,6 @@
    问题：四个文件持续膨胀（3311→3993、1781→1915、1825→1915），storage/session 仍触 wresp（wedb/wnode/src/storage/session/mainstore/main_store_ops.rs:10），下沉前置未解
    改法：aof + storage/session + resp/rangeindex 连体拆（约 17k 行），拆后 facade 保留聚合
 
-3. [已完成] 命令名 ↔ RespCommand 双向映射收敛为 strum 派生
-   位置：wedb/wresp/src/command.rs（RespCommand 派生 strum::EnumString、Display、IntoStaticStr、AsRefStr）、wedb/wnode/src/resp/resp_commands_info_data.rs（删除 740 行手写 match，收敛为直接调用 strum 派生方法）
-   对标：garnet/libs/server/Resp/Parser/RespCommand.cs:Enum.TryParse、Enum.GetName
-   归档：task/done/resp-command-strum-dedup.md
-
 5. [P2] key_spec 双模型缺单一转换点
    位置：wedb/wresp/src/key_spec.rs:16（KeySpecificationFlags / BeginSearchMethod / FindKeysMethod / RespCommandKeySpecification 完整版）、wedb/wnode/src/key_spec.rs:8（SimpleRespKeySpec 族简化版，basic_commands.rs / cluster_session.rs / session_parse_state_extensions.rs 消费）
    对标：garnet/libs/server/Resp/RespCommandKeySpecification.cs（完整版）、garnet/libs/server/Resp/RespCommandInfoSimplifiedStructs.cs（简化版）
