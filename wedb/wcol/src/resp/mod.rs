@@ -3,5 +3,5 @@
 pub mod input;
 pub mod output;
 
-pub use input::{ObjectInput, RespInputFlags, RespInputHeader, ScanInput};
+pub use input::{ObjectInput, RespInputFlags, RespInputHeader};
 pub use output::{ObjectOutput, ObjectOutputFlags};

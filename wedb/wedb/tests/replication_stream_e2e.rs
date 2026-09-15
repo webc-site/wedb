@@ -35,7 +35,7 @@ fn setup_replica_provider(
   primary_id: &str,
 ) -> (Arc<ClusterProvider>, Arc<ReplicationManager>) {
   let provider = Arc::new(ClusterProvider::default());
-  provider.initialize_replication_manager();
+  provider.initialize_replication_manager(1, None, false);
   let rm = provider.replication_manager().expect("rm ready");
 
   let cm = Arc::new(ClusterManager::new(provider.clone()));
@@ -75,7 +75,7 @@ fn test_replication_full_chain_stream() {
     let primary_id = "primary-node-1";
     let replica_id = "replica-node-1";
 
-    let primary_mgr = ReplicationManager::with_options(1, None);
+    let primary_mgr = ReplicationManager::with_options(1, None, false);
     let (replica_provider, replica_mgr) = setup_replica_provider(replica_id, primary_id);
 
     // 1. 初始化 Replica 接收端会话

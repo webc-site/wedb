@@ -114,7 +114,7 @@ impl RangeIndexManagerMigration {
       .await?
       .ok_or(RangeIndexError::NotFound)?;
 
-    let engine = &session.store.range_index;
+    let engine = session.store.range_index();
     if stub.storage_backend == StorageBackendType::Memory.to_u8() {
       return Err(MigrationError::Invalid(
         "SnapshotForMigration: memory-only trees cannot be migrated".to_string(),

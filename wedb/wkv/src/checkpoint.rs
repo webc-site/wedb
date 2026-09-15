@@ -6,6 +6,7 @@ use std::{
   sync::{Arc, atomic::Ordering},
 };
 
+use wbase::addr::is_read_cache;
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 use wcpr::Error as WcprError;
 use wdev::Device;
@@ -15,7 +16,6 @@ use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec, Stora
 use crate::{
   config::StoreConfig,
   error::{Error, Result},
-  read_cache::is_read_cache_addr,
   store::{KEY_ID_ASSIGN_MARGIN, WedbStore},
 };
 
@@ -88,7 +88,7 @@ impl<D: Device> WedbStore<D> {
             continue;
           }
           let mut addr = entry.address();
-          if is_read_cache_addr(addr) {
+          if is_read_cache(addr) {
             addr = self.read_cache.skip_read_cache(addr);
           }
           if addr < begin_addr {
@@ -306,6 +306,11 @@ impl<D: Device> wcpr::CprRecover for WedbStore<D> {
 
 /// Wedb 存储引擎专用检查点管理器（对标 Garnet `GarnetCheckpointManager` /
 /// `GarnetClusterCheckpointManager`——后者在前者之上追加版本切换委托与复制域钩子）
+///
+/// 单面收敛：只承载有类型锚定价值的创建/恢复入口（`recover`/`recover_latest`
+/// 产出 [`WedbStore`]、`create_checkpoint` 内含 Token 预知逻辑）；purge 族与
+/// list/find 族等无锚定价值的面调用方直用 `wcpr` 自由函数，杜绝双面转发
+///（对标 C# 单类继承基类单实现，无两层同名入口）
 pub struct CheckpointManager<D: Device = wdev::SegmentedDevice> {
   /// 设备类型标记（恢复入口 [`CheckpointManager::recover`] 产出 [`WedbStore<D>`]）
   _marker: PhantomData<D>,
@@ -336,7 +341,6 @@ impl<D: Device> CheckpointManager<D> {
   /// Token 已被整体回收、版本未实际切换；C# 版本号在 PREPARE 即切换、失败亦
   /// 已生效，属两地版本承载机制的固有差异，语义上均保证「End 必然晚于同轮
   /// Start 且快照成功才发布 End」）
-  #[inline]
   pub async fn create_checkpoint<S: wcpr::CprStore<Device = D>>(
     &self,
     store: &S,
@@ -359,7 +363,7 @@ impl<D: Device> CheckpointManager<D> {
   /// 对标 C# GarnetClusterCheckpointManager 的 checkpointVersionShiftStart/End
   /// 委托——rust 侧无 hooks 槽，杜绝运行时动态分发）
   #[inline]
-  pub async fn create_checkpoint_with_token<S: wcpr::CprStore<Device = D>>(
+  async fn create_checkpoint_with_token<S: wcpr::CprStore<Device = D>>(
     &self,
     store: &S,
     checkpoint_dir: impl AsRef<Path>,
@@ -379,17 +383,6 @@ impl<D: Device> CheckpointManager<D> {
     wcpr::recover(checkpoint_dir, token, device).await
   }
 
-  /// 实例恢复方法
-  #[inline]
-  pub async fn recover_store(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    token: u128,
-    device: Arc<D>,
-  ) -> wcpr::Result<WedbStore<D>> {
-    Self::recover(checkpoint_dir, token, device).await
-  }
-
   /// 从目录中最新的有效 Checkpoint 执行崩溃恢复
   #[inline]
   pub async fn recover_latest(
@@ -397,45 +390,5 @@ impl<D: Device> CheckpointManager<D> {
     device: Arc<D>,
   ) -> wcpr::Result<WedbStore<D>> {
     wcpr::recover_latest(checkpoint_dir, device).await
-  }
-
-  /// 实例恢复最新方法
-  #[inline]
-  pub async fn recover_latest_store(
-    &self,
-    checkpoint_dir: impl AsRef<Path>,
-    device: Arc<D>,
-  ) -> wcpr::Result<WedbStore<D>> {
-    Self::recover_latest(checkpoint_dir, device).await
-  }
-
-  /// 列出目标目录中所有可用的 Checkpoint Token
-  #[inline]
-  pub fn list_checkpoints(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<Vec<u128>> {
-    wcpr::list_checkpoints(checkpoint_dir)
-  }
-
-  /// 检索目标目录中最新的有效 Checkpoint Token
-  #[inline]
-  pub fn find_latest_checkpoint(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<Option<u128>> {
-    wcpr::find_latest_checkpoint(checkpoint_dir)
-  }
-
-  /// 清理指定 Token 的快照物理文件
-  #[inline]
-  pub fn purge_checkpoint(checkpoint_dir: impl AsRef<Path>, token: u128) -> wcpr::Result<()> {
-    wcpr::purge_checkpoint(checkpoint_dir, token)
-  }
-
-  /// 清空目标目录下全部 Checkpoint 文件
-  #[inline]
-  pub fn purge_all(checkpoint_dir: impl AsRef<Path>) -> wcpr::Result<()> {
-    wcpr::purge_all(checkpoint_dir)
-  }
-
-  /// 保留最新 keep 个检查点
-  #[inline]
-  pub fn purge_outdated(checkpoint_dir: impl AsRef<Path>, keep: usize) -> wcpr::Result<Vec<u128>> {
-    wcpr::purge_outdated(checkpoint_dir, keep)
   }
 }

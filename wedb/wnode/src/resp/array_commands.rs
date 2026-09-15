@@ -32,19 +32,24 @@ pub(crate) struct ScanFilter {
   pub pattern: Vec<u8>,
   /// 模式为 `*` 时全量放行（C# allKeys）
   pub all_keys: bool,
-  /// 单页计数（默认 10；C# countValue）
+  /// 单页计数（默认 10；负/零钳 0——C# countValue 直传扫描层
+  /// `acceptedCount >= count`，首条匹配后即停）
   pub count: usize,
-  /// 已知 TYPE 参数映射的过滤类型（C# matchType；未知类型保持 None）
+  /// 已知 TYPE 参数映射的过滤类型（C# matchType）
   pub type_filter: Option<ScanTypeFilter>,
-  /// TYPE 参数出现过（含未知类型——此时单页无上限，C# 同口径）
+  /// TYPE 参数出现过（此时单页无上限，C# `long.MaxValue` 同口径）
   pub type_given: bool,
+  /// TYPE 值不属于五类已知类型（C# DbScan 对非空未知 typeObject 直接
+  /// 回空列表 + 游标 0，ArrayKeyIterationFunctions.cs:82-84）
+  pub type_unknown: bool,
 }
 
 /// 解析 SCAN 参数（cursor + MATCH/COUNT/TYPE 选项）
 ///
 /// 校验口径 1:1 对标 C# NetworkSCAN：cursor 非法/负值、选项缺参、COUNT
-/// 非整数均返回完整 RESP 错误行；未知 TYPE 值不报错（C# 掉出 if 链后
-/// matchType 保持 null 的兼容行为），仅令单页计数失去上限。
+/// 非整数均返回完整 RESP 错误行；未知选项静默跳过（C# if/else-if 链无
+/// else 分支）；TYPE 匹配为大小写敏感双字面量（C# SequenceEqual），
+/// 未知 TYPE 值由慢路径直接回空结果（C# DbScan 提前返回同口径）。
 /// [`RespServerSession::network_scan`] 的共享解析单源（快路径校验段与
 /// 慢路径执行段同一入口，单次实现）
 pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static str> {
@@ -62,6 +67,7 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
     count: 10,
     type_filter: None,
     type_given: false,
+    type_unknown: false,
   };
   let mut token_idx = 1;
   while token_idx < args.len() {
@@ -79,10 +85,10 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
+      // C# TryGetLong 仅校验整数性；负/零钳 0，扫描层 max(1) 后首条
+      // 匹配即停（C# acceptedCount >= count 同语义）
       match strict_i64(args[token_idx]) {
-        Some(n) if n > 0 => filter.count = n as usize,
-        // C# TryGetInt 仅校验整数性；负/零 count 由扫描层钳 1
-        Some(_) => {}
+        Some(n) => filter.count = n.max(0) as usize,
         None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER),
       }
       token_idx += 1;
@@ -91,25 +97,22 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
       filter.type_given = true;
+      // C# SequenceEqual 大小写敏感，仅认双字面量（zset/ZSET 等）
       filter.type_filter = match args[token_idx] {
-        t if t.eq_ignore_ascii_case(b"zset") => {
-          Some(ScanTypeFilter::Object(GarnetObjectType::SortedSet))
+        b"zset" | b"ZSET" => Some(ScanTypeFilter::Object(GarnetObjectType::SortedSet)),
+        b"list" | b"LIST" => Some(ScanTypeFilter::Object(GarnetObjectType::List)),
+        b"set" | b"SET" => Some(ScanTypeFilter::Object(GarnetObjectType::Set)),
+        b"hash" | b"HASH" => Some(ScanTypeFilter::Object(GarnetObjectType::Hash)),
+        b"string" | b"STRING" => Some(ScanTypeFilter::String),
+        // 未知类型：C# DbScan 对非空未知 typeObject 回空列表 + 游标 0
+        _ => {
+          filter.type_unknown = true;
+          None
         }
-        t if t.eq_ignore_ascii_case(b"list") => {
-          Some(ScanTypeFilter::Object(GarnetObjectType::List))
-        }
-        t if t.eq_ignore_ascii_case(b"set") => Some(ScanTypeFilter::Object(GarnetObjectType::Set)),
-        t if t.eq_ignore_ascii_case(b"hash") => {
-          Some(ScanTypeFilter::Object(GarnetObjectType::Hash))
-        }
-        t if t.eq_ignore_ascii_case(b"string") => Some(ScanTypeFilter::String),
-        // 未知类型：matchType 保持 null（C# if 链掉出的兼容行为）
-        _ => None,
       };
       token_idx += 1;
-    } else {
-      return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
     }
+    // 未知选项：C# if/else-if 链无 else，静默跳过（仅消费参数名本身）
   }
   Ok(filter)
 }

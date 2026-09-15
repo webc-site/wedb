@@ -12,6 +12,7 @@ use std::{
 use async_lock::RwLock;
 use parking_lot::Mutex;
 use wbase::map::{ConcurrentMap, new_concurrent_map};
+use wcpr;
 use wdev::Device;
 use wkv::{CheckpointManager, Error, WedbStore};
 
@@ -239,7 +240,7 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     for db_id in self.try_get_saved_database_ids()? {
       let (db, _) = self.try_get_or_add_database(db_id).await?;
       if let Some(token) = recover_from_token.or_else(|| {
-        wkv::CheckpointManager::<D>::find_latest_checkpoint(&db.checkpoint_dir)
+        wcpr::find_latest_checkpoint(&db.checkpoint_dir)
           .ok()
           .flatten()
       }) {
@@ -368,17 +369,27 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
       .collect()
   }
 
+  /// 清空指定库（截断族，对标 MultiDatabaseManager.cs:FlushDatabase 的
+  /// TryGetOrAddDatabase + FlushDatabase 路由）
   async fn flush_database(&self, db_id: i64) -> wkv::Result<()> {
     if let Some(db) = self.get_db_by_id(db_id) {
-      self.base.reset_database(&db).await?;
+      self.base.flush_database(&db).await?;
     }
     Ok(())
+  }
+
+  /// 重置指定库（拆除重建族）
+  ///
+  /// libs/server/Databases/MultiDatabaseManager.cs:Reset
+  async fn reset(&self, db_id: i64) -> wkv::Result<()> {
+    let (db, _) = self.try_get_or_add_database(db_id).await?;
+    self.base.reset_database(&db).await
   }
 
   async fn flush_all_databases(&self) -> wkv::Result<()> {
     let dbs = self.get_databases_snapshot();
     for db in dbs {
-      self.base.reset_database(&db).await?;
+      self.base.flush_database(&db).await?;
     }
     Ok(())
   }

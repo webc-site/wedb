@@ -24,25 +24,18 @@ use crate::{
   store::StoreEvent,
 };
 
+/// 单条记录探针分类（主链回溯与多候选扫描共用，严格对照
+/// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:105-131
+/// 单遍分类：密封记录按 C# IsValidTracebackRecord 口径参与键比对，命中即降级重试）
 #[derive(Debug)]
 pub(super) enum ReadProbeResult<T> {
-  /// Tag 碰撞未匹配：携带 `prev_address` 供磁盘候选链收集
+  /// Tag 碰撞未匹配：携带 `prev_address` 供回溯与磁盘候选链收集
   Miss(u64),
   Tombstone,
   /// 关闭/密封在途记录命中（严格对照 InternalRead.cs:118 IsClosedOrTombstoned →
   /// RETRY_LATER：刷新纪元后整链重试）
   Retry,
   Found(T),
-}
-
-#[derive(Debug)]
-pub(super) enum TraceBackResult<T> {
-  Found(T),
-  Tombstone,
-  /// 关闭/密封在途记录命中（严格对照 InternalRead.cs:105-106 与 118 IsClosedOrTombstoned
-  /// → RETRY_LATER；密封记录按 C# IsValidTracebackRecord 口径参与键比对，命中即降级重试）
-  Retry,
-  TraceBack(u64),
 }
 
 /// 内存直读内部结果（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类，附加磁盘候选透传）

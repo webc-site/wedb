@@ -1,8 +1,10 @@
-//! 范围索引树操作 (RiTreeOps)
+//! 范围索引树操作（RiTreeOps，extension trait：BfTreeService 定义于 wbftree，
+//! 孤儿规则下以单实现 trait 扩展其 ri_* 语义面；降固有方法块需 wbftree 反向
+//! 依赖 wkv 的 CollectionError，依赖成环不可行）
 //!
 //! - Key: `sub_key: &[u8]`
 //! - Val: `val: &[u8]`
-//! - 接口：`ri_set`, `ri_get`, `ri_get_callback`, `ri_del`, `ri_exists`, `ri_scan`, `ri_range`, `ri_len`
+//! - 接口：`ri_set`, `ri_get`, `ri_get_callback`, `ri_del`, `ri_len`, `ri_scan_with_field`, `ri_range_with_field`
 //! - 直接将子键透传至底层独立 BfTree，零拼接开销，单树物理隔离
 
 /// 在 garnet 中的相对路径:libs/server/Storage/Session/MainStore/RangeIndexOps.cs

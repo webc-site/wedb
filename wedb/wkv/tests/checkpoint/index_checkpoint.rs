@@ -57,7 +57,7 @@ fn test_fuzzy_index_truncation_and_token_dir_cleanup() -> Void {
     }
 
     // 验证 purge_checkpoint 彻底清理包含父目录在内的 token 专属目录
-    CheckpointManager::<wdev::SegmentedDevice>::purge_checkpoint(&ckpt_dir, token)?;
+    wcpr::purge_checkpoint(&ckpt_dir, token)?;
     assert!(!token_dir.exists(), "token 专属目录必须被连根彻底删除");
     assert!(!ckpt_dir.join(wcpr::meta_filename(token)).exists());
     assert!(!ckpt_dir.join(wcpr::index_filename(token)).exists());
@@ -495,7 +495,7 @@ fn test_range_index_cpr_stub_healing_recovery() -> Void {
     let token_dir = ckpt_dir.join(b32.as_str());
     assert!(token_dir.exists());
 
-    CheckpointManager::<wdev::SegmentedDevice>::purge_checkpoint(&ckpt_dir, token)?;
+    wcpr::purge_checkpoint(&ckpt_dir, token)?;
     assert!(
       !token_dir.exists(),
       "purge 后 token 专属目录必须被彻底物理清除"

@@ -398,6 +398,15 @@ impl GarnetAppendOnlyFile {
     self.log().truncate_until_async(until).await;
   }
 
+  /// 重置日志（位点归零）
+  ///
+  /// C# ResetDatabase 直调 `AppendOnlyFile.Log.Reset()`；rust 经
+  /// [`DatabaseAof::reset_async`] 接线，真身路由至 [`GarnetLog::reset_async`]
+  #[inline]
+  pub async fn reset_async(&self) {
+    self.log().reset_async().await;
+  }
+
   /// 物理提交刷盘
   #[inline]
   pub async fn commit_flush_async(&self) {
@@ -461,6 +470,11 @@ impl<D: wdev::Device> DatabaseAof<D> for GarnetAppendOnlyFile {
     until: &'a waof::AofAddress,
   ) -> impl Future<Output = ()> + 'a {
     self.truncate_until_async(until)
+  }
+
+  #[inline]
+  fn reset_async(&self) -> impl Future<Output = ()> + '_ {
+    self.reset_async()
   }
 
   #[inline]
