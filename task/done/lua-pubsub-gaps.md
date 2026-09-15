@@ -102,3 +102,47 @@ SortedSetOps.cs:17 _zcollectTaskLock（per StorageSession 各一把）；Dispose
 5. HCOLLECT/ZCOLLECT 互斥
 6. ./clippy.sh 零警告、./test.sh 全过、bun ./js/check.js 无新增缺失
 7. 合并 dev 后并回主目录
+
+## 验证结果
+
+分支 w4-lua-pubsub（worktree /tmp/fork/w4-lua-pubsub），7 个实现提交 + 1 个
+dev 合并提交，已并回主目录 dev（merge commit e242174），worktree 与分支已清理。
+
+一 no-script 门（关键甄别修正）：实现中发现任务给定的「挂上常驻」理解有误——
+C# 位图实际挂在内嵌 processor（SessionScriptCache 构造的独立 RespServerSession，
+仅承接脚本内 redis.call）上，外层连接会话位图恒 null，主循环命令不受限（C# 测
+试 CanDoScriptFlush 中 SCRIPT LOAD 后 EVALSHA 照常执行为证）。rust 无内嵌
+processor，改为「脚本执行窗口挂载、run_lua_command 结束摘除」承接同一可观测语
+义。另修两处：C# 门查顶层判别值（位图含子命令位但不可达），rust 解析器产出子
+命令判别值，查位图前经归一表（子命令→顶层）映射，否则 SCRIPT|EXISTS 等被误拦；
+门链按 C# noScriptPassed 短路语义重构（首版误把 ACL 失败短路标成 no-script 失
+败，未认证 PING 错回 NOSCRIPT，ACL e2e 测试暴露后修正）。测试：门级单元
+（挂载拦 EVAL/EVALSHA/SUBSCRIBE、归一放行 SCRIPT|EXISTS 与 ACL|CAT、摘除恢复）、
+窗口端到端（EVAL 内 SUBSCRIBE 回 NOSCRIPT、窗口外 SUBSCRIBE 放行）、位图判别
+集既有测试保留。
+
+二 集群发布钩子：wnode ClusterSessionFace 增 cluster_publish（默认 false，虚表
+扩展），wedb ClusterSession 实现经 cluster_manager 在场判定 + 内联 block_on
+（compio 单线程等价 C# BlockingWait）驱动 try_cluster_publish_async；wpubsub
+PubSubSessionCommands 增 has_cluster_session/cluster_publish（默认 false/空，
+单机路径不变），network_publish 对标 C# :108-112/:140-147 顺序（SPUBLISH 无集
+群会话广播前回 CLUSTER_DISABLED；本地广播 + drain 后转发；转发闭环后才应答）。
+测试：mock 单机行为不变 + 集群在场转发触发与应答序。
+
+三 Lua 装配：status_reply 改回裸 text（返回值转换层 string→simple string 已支
+持）；set_user_handle 甄别为架构等效死代码删除并登记 ignore
+（js/check/ignore/libs/server/Lua/SessionScriptCache.yml）。
+
+四 HCOLLECT/ZCOLLECT 互斥：StoreGarnetApi 增 hcollect/zcollect_in_progress 两
+个 AtomicBool（对标 _hcollectTaskLock/_zcollectTaskLock 单写位、独立两把），
+exec_slow `*` 臂 CAS 抢占，失败映射 already-in-progress 常量文案（wresp 两常
+量从零引用转为生产引用）；C# Dispose 自旋等锁由 Arc 所有权天然承担。测试：置
+位重入拒绝、双锁独立性、释放恢复。
+
+验收：./clippy.sh 零警告（无 allow）；cargo nextest --all-features 全 workspace
+2054 全过（合并 dev 后含指标代理 opCount/commandStats 变更）；bun ./js/check.js
+无新增缺失、无重复定义。
+
+范围外记录：C# RespServerSession.SetUserHandle(:368-371) 还向 clusterSession
+传播用户句柄，wnode ClusterSessionFace 无对应切面方法，属集群装配面缺口，未在
+本次范围。
