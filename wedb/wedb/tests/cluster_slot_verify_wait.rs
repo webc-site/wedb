@@ -447,7 +447,7 @@ fn resp_session_defers_set_until_migration_advances() {
     cfg.gc.enabled = false;
     let exec_store = Arc::new(WedbStore::open(cfg, device).unwrap());
     let api = Arc::new(StoreGarnetApi::new(exec_store.new_session().unwrap()));
-    let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+    let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
     let mut consumer = RespSessionConsumer::with_cluster_session(
       1,
       RespServerSessionOptions {

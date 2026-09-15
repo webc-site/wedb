@@ -9,7 +9,7 @@ mod net;
 mod store;
 
 pub use config::test_store_config;
-pub use net::{SilentNode, wait_for};
+pub use net::{GossipNode, SilentNode, wait_for};
 pub use store::open_test_store;
 
 /// 测试日志初始化（对标 C# TestBase/OneTimeSetUp 的一次性日志装配）：

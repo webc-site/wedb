@@ -193,7 +193,11 @@ impl ReplicationManager {
 
   /// libs/cluster/Server/Replication/ReplicationManager.cs:SetSublogReplicationOffset
   ///
-  /// 设置指定子日志的复制偏移（对标 C# 直接赋值）
+  /// 设置指定子日志的复制偏移（对标 C# 直接赋值）。C# 推进源在重放链
+  /// （ReplicaReplayDriver 应用记录进存储后调用，applied 语义）；rust 当前
+  /// 生产推进源为副本会话流式落盘面（enqueued 语义，见
+  /// cluster_replication_session::process_primary_stream），背景重放任务
+  /// 落地后切回应用后推进
   pub fn set_sublog_replication_offset(&self, sublog_idx: usize, offset: i64) {
     self.replication_offset.write().set(sublog_idx, offset);
     self.wake_offset_waiters();
@@ -201,7 +205,8 @@ impl ReplicationManager {
 
   /// libs/cluster/Server/Replication/ReplicationManager.cs:GetSublogReplicationOffset
   ///
-  /// 获取指定子日志的复制偏移（别名）
+  /// 获取指定子日志的复制偏移（别名；C# 消费方 TryApplyPendingPulse 守卫与
+  /// syncReplay 位点校验属背景重放任务转写范围，先行对标保留）
   pub fn get_sublog_replication_offset(&self, sublog_idx: usize) -> i64 {
     self.get_replication_offset(sublog_idx)
   }

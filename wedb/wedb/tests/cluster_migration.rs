@@ -459,7 +459,7 @@ fn two_primary_provider() -> Arc<ClusterProvider> {
 fn migrate_consumer(
   cp: &ClusterProvider,
 ) -> (RespSessionConsumer, Arc<WedbStore<SegmentedDevice>>) {
-  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
   let store = migrate_store("mig_recv.db");
   cp.set_store(Arc::clone(&store));
   let mut consumer = RespSessionConsumer::with_cluster_session(

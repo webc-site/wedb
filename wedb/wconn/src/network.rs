@@ -5,10 +5,12 @@
 //! 对标 libs/client/GarnetClientProcessReplies.cs:ProcessReplies（C# 侧同样的
 //! 应答泵在 GarnetClient/GarnetClientSession 各有一份，此处收敛为单一定义）。
 //!
-//! 循环每轮：限时收一条命令 → 非阻塞清空通道积压 → 一次性批量写入 →
-//! 循环读取应答按 FIFO 逐条派发；应答不完整时保留未消费字节等下一个读事件。
-//! 命令空闲期以读探测承接对端断链感知（C# networkSender 接收环常驻读的
-//! 等价形态）：EOF 即网络泵退出，发送端经 `is_connected` 观测到断连。
+//! 循环每轮：先排空 read_buf 中已有完整应答（解析以「read_buf 无完整应答」为
+//! 退出条件，对标 C# ProcessReplies 读事件内排空语义，TCP 合包一次送达的
+//! 多条应答全部就地认领）→ 队首应答不完整则阻塞读补齐 → 队列空时限时收新
+//! 命令、非阻塞清空通道积压、一次性批量写入。应答不完整时保留未消费字节等
+//! 下一个读事件拼接。命令空闲期以读探测承接对端断链感知（C# networkSender
+//! 接收环常驻读的等价形态）：EOF 即网络泵退出，发送端经 `is_connected` 观测到断连。
 
 use std::{collections::VecDeque, io, time::Duration};
 
@@ -216,6 +218,64 @@ fn orphan_error_reply(read_buf: &[u8]) -> Option<String> {
   }
 }
 
+/// 派发 read_buf 中全部完整应答（在 garnet 中的相对路径:
+/// libs/client/ClientSession/GarnetClientSession.cs:TryConsumeMessages →
+/// ProcessReplies 的 `while (readHead < bytesRead)` 排空语义）：逐条解析队首
+/// 应答，完整即出队回传，以「read_buf 无完整应答或队列空」为退出条件而非
+/// 每轮必 read；未消费字节保留 read_buf 原样，等后续读事件拼接后整体重试
+fn dispatch_replies(queue: &mut VecDeque<CommandItem>, read_buf: &mut Vec<u8>) -> Result<()> {
+  let mut data = read_buf.as_slice();
+  let mut consumed = 0;
+  while !data.is_empty() && !queue.is_empty() {
+    let before = data.len();
+    // 弹出队首派发：解析完整即回传应答，未到齐则原样退回队列等后续读事件
+    let mut front = queue.pop_front().unwrap();
+    let complete = match front.resp_tx {
+      // 发出即忘：无应答可等，直接完成（保留分支防未 retain 清空的残留项）
+      ReplyTx::None => true,
+      ReplyTx::Str(tx) => match parse_scalar(&mut data)? {
+        Some(reply) => {
+          tx.send(reply);
+          true
+        }
+        None => {
+          front.resp_tx = ReplyTx::Str(tx);
+          queue.push_front(front);
+          false
+        }
+      },
+      ReplyTx::Bytes(tx) => match parse_bytes(&mut data)? {
+        Some(reply) => {
+          tx.send(reply);
+          true
+        }
+        None => {
+          front.resp_tx = ReplyTx::Bytes(tx);
+          queue.push_front(front);
+          false
+        }
+      },
+      ReplyTx::Array(tx) => match parse_array(&mut data)? {
+        Some(reply) => {
+          tx.send(reply);
+          true
+        }
+        None => {
+          front.resp_tx = ReplyTx::Array(tx);
+          queue.push_front(front);
+          false
+        }
+      },
+    };
+    if !complete {
+      break; // 应答不完整：保留 read_buf 原样，等下一个读事件整体重试
+    }
+    consumed += before - data.len();
+  }
+  read_buf.drain(..consumed);
+  Ok(())
+}
+
 /// 网络循环主泵（详见模块文档）
 pub(super) async fn network_loop(
   mut stream: TcpStream,
@@ -228,9 +288,37 @@ pub(super) async fn network_loop(
   let mut chunk = vec![0u8; READ_CHUNK];
 
   loop {
+    // 先排空缓冲中已有完整应答再等新数据：TCP 合包一次送达的多条应答、
+    // 上一命令周期滞留的应答就地全部认领，绝不滞留给下一条命令
+    dispatch_replies(&mut queue, &mut read_buf)?;
+
+    if !queue.is_empty() {
+      // 队首应答不完整：阻塞读补齐（在途请求对端必有回数据或断链，无永挂面）
+      let BufResult(read_res, return_chunk) = stream.read(chunk).await;
+      chunk = return_chunk;
+      let n = read_res?;
+      if n == 0 {
+        return Err(Error::Other("EOF".into()));
+      }
+      read_buf.extend_from_slice(&chunk[..n]);
+      continue;
+    }
+
     match timeout(RECV_IDLE_PROBE, rx.recv()).await {
       // 新命令就绪：随后的 try_recv 清空通道积压（批量写入摊薄 syscall 次数）
-      Ok(Ok(first)) => drain_ready(&rx, first, &mut queue),
+      Ok(Ok(first)) => {
+        drain_ready(&rx, first, &mut queue);
+        for item in &queue {
+          out_buf.extend_from_slice(&item.frame);
+        }
+        let BufResult(write_res, mut buf) = stream.write_all(out_buf).await;
+        write_res?;
+        buf.clear();
+        out_buf = buf;
+
+        // 发出即忘帧写出即完成（协议约定无应答），清出队列避免下轮重复写出
+        queue.retain(|item| !matches!(item.resp_tx, ReplyTx::None));
+      }
       // 会话句柄全部丢弃：网络泵自然退出
       Ok(Err(_)) => break,
       // 空闲期 EOF 探测：读事件即对端断链 / 服务端主动数据的感知点
@@ -249,85 +337,11 @@ pub(super) async fn network_loop(
         // 滞留错误应答感知：fire-and-forget 记录帧（APPENDLOG）已被 retain
         // 清出应答队列，服务端拒收回写的 `-ERR` 错误行无人认领滞留 read_buf
         //——判流失效断连（C# 连接异常等价，驱动主端剔除副本转入重同步，
-        // 防 shipped_watermark 静默推进扩大主从分歧）
-        if queue.is_empty()
-          && let Some(err) = orphan_error_reply(&read_buf)
-        {
+        // 防 shipped_watermark 静默推进扩大主从分歧）。此分支队列必空
+        if let Some(err) = orphan_error_reply(&read_buf) {
           return Err(Error::Other(err));
         }
-        continue;
       }
-    }
-
-    for item in &queue {
-      out_buf.extend_from_slice(&item.frame);
-    }
-    let BufResult(write_res, mut buf) = stream.write_all(out_buf).await;
-    write_res?;
-    buf.clear();
-    out_buf = buf;
-
-    // 发出即忘帧写出即完成（协议约定无应答），清出队列避免下轮重复写出
-    queue.retain(|item| !matches!(item.resp_tx, ReplyTx::None));
-
-    while !queue.is_empty() {
-      let BufResult(read_res, return_chunk) = stream.read(chunk).await;
-      chunk = return_chunk;
-      let n = read_res?;
-      if n == 0 {
-        return Err(Error::Other("EOF".into()));
-      }
-      read_buf.extend_from_slice(&chunk[..n]);
-
-      let mut data = read_buf.as_slice();
-      let mut consumed = 0;
-      while !data.is_empty() && !queue.is_empty() {
-        let before = data.len();
-        // 弹出队首派发：解析完整即回传应答，未到齐则原样退回队列等下一个读事件
-        let mut front = queue.pop_front().unwrap();
-        let complete = match front.resp_tx {
-          // 发出即忘：无应答可等，直接完成（保留分支防未 retain 清空的残留项）
-          ReplyTx::None => true,
-          ReplyTx::Str(tx) => match parse_scalar(&mut data)? {
-            Some(reply) => {
-              tx.send(reply);
-              true
-            }
-            None => {
-              front.resp_tx = ReplyTx::Str(tx);
-              queue.push_front(front);
-              false
-            }
-          },
-          ReplyTx::Bytes(tx) => match parse_bytes(&mut data)? {
-            Some(reply) => {
-              tx.send(reply);
-              true
-            }
-            None => {
-              front.resp_tx = ReplyTx::Bytes(tx);
-              queue.push_front(front);
-              false
-            }
-          },
-          ReplyTx::Array(tx) => match parse_array(&mut data)? {
-            Some(reply) => {
-              tx.send(reply);
-              true
-            }
-            None => {
-              front.resp_tx = ReplyTx::Array(tx);
-              queue.push_front(front);
-              false
-            }
-          },
-        };
-        if !complete {
-          break; // 应答不完整：保留 read_buf 原样，等下一个读事件整体重试
-        }
-        consumed += before - data.len();
-      }
-      read_buf.drain(..consumed);
     }
   }
   Ok(())
@@ -335,7 +349,15 @@ pub(super) async fn network_loop(
 
 #[cfg(test)]
 mod tests {
+  use std::future::pending;
+
+  use compio::{
+    net::TcpListener,
+    runtime::{Runtime, spawn},
+  };
+
   use super::*;
+  use crate::client::GarnetClient;
 
   #[test]
   fn encode_command_frame() {
@@ -346,5 +368,63 @@ mod tests {
     let mut out_str = Vec::new();
     encode_str_command(&mut out_str, &["GET", "k1"]);
     assert_eq!(&out_str, b"*2\r\n$3\r\nGET\r\n$2\r\nk1\r\n");
+  }
+
+  /// 合包滞留回归：静默假端点读首帧后一次性合包写回两条应答，此后不再读
+  /// socket、不发任何字节。第二条命令的应答此时已在 read_buf 缓冲，泵必须
+  /// 先排空缓冲再等新数据（旧行为先阻塞 read 即永挂，此处 5s 超时兜底转失败）
+  #[test]
+  fn coalesced_reply_drain() {
+    Runtime::new().unwrap().block_on(async {
+      let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+      let addr = listener.local_addr().unwrap().to_string();
+
+      // 首帧长度由编码器算出，累计读容忍 TCP 分段
+      let mut probe = Vec::new();
+      encode_str_command(&mut probe, &["GET", "k1"]);
+      let frame_len = probe.len();
+
+      // 假端点：读首帧 → 合包写回两条应答（+OK 认领首命令，$2\r\nv2 滞留
+      // read_buf 等第二条命令）→ 永久静默（连接保持打开不关）
+      spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        let mut acc = Vec::new();
+        let mut buf = vec![0u8; 1024];
+        while acc.len() < frame_len {
+          let BufResult(res, next) = sock.read(buf).await;
+          buf = next;
+          let n = res.unwrap();
+          assert!(n > 0, "对端提前关闭");
+          acc.extend_from_slice(&buf[..n]);
+        }
+        sock
+          .write_all(b"+OK\r\n$2\r\nv2\r\n".to_vec())
+          .await
+          .0
+          .unwrap();
+        pending::<()>().await;
+      })
+      .detach();
+
+      let mut client = GarnetClient::new(addr, None, None, None, 16);
+      client.connect_async().await.unwrap();
+
+      // 首命令：一次读事件带回 r1+r2，r1 认领后 r2 滞留 read_buf
+      let r1 = client
+        .execute_for_string_result_async(&["GET", "k1"])
+        .await
+        .unwrap();
+      assert_eq!(r1, "OK");
+
+      // 第二条命令：应答已在缓冲且端点静默——泵若先阻塞 read（旧行为）即永挂
+      let r2 = timeout(
+        Duration::from_secs(5),
+        client.execute_for_string_result_async(&["GET", "k2"]),
+      )
+      .await
+      .unwrap_or_else(|_| panic!("合包滞留应答未被消费，第二条命令超时"))
+      .unwrap();
+      assert_eq!(r2, "v2");
+    });
   }
 }

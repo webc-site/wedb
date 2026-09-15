@@ -10,22 +10,6 @@ use crate::error::{Error, Result};
 /// 不完整重试路径
 pub const MAX_ARGUMENT_LENGTH_BYTES: i32 = 512 * 1_024 * 1_024;
 
-/// garnet/libs/common/RespReadUtils.cs:TryReadSign
-#[inline(always)]
-pub fn try_read_sign(input: &[u8], is_negative: &mut bool) -> bool {
-  if let Some(&b) = input.first() {
-    if b == b'-' {
-      *is_negative = true;
-      return true;
-    }
-    if b == b'+' {
-      *is_negative = false;
-      return true;
-    }
-  }
-  false
-}
-
 /// garnet/libs/common/RespReadUtils.cs:TryReadUInt64
 #[inline]
 pub fn try_read_u64(ptr: &mut &[u8], value: &mut u64, bytes_read: &mut usize) -> Result<bool> {
@@ -68,65 +52,6 @@ pub fn try_read_u64(ptr: &mut &[u8], value: &mut u64, bytes_read: &mut usize) ->
 
   *bytes_read = i;
   *ptr = read_head;
-  Ok(true)
-}
-
-/// garnet/libs/common/RespReadUtils.cs:TryReadInt64Safe
-#[inline]
-pub fn try_read_i64_safe(
-  ptr: &mut &[u8],
-  value: &mut i64,
-  bytes_read: &mut usize,
-  sign_read: &mut bool,
-  overflow: &mut bool,
-  allow_leading_zeros: bool,
-) -> Result<bool> {
-  *bytes_read = 0;
-  *value = 0;
-  *overflow = false;
-
-  // Parse optional leading sign
-  let mut is_negative = false;
-  *sign_read = try_read_sign(ptr, &mut is_negative);
-  if *sign_read {
-    *ptr = &(*ptr)[1..];
-    *bytes_read = 1;
-  }
-
-  if !allow_leading_zeros {
-    // Do not allow leading zeros
-    if ptr.len() > 1 && ptr[0] == b'0' {
-      return Ok(false);
-    }
-  }
-
-  // Parse digits as u64
-  let mut number = 0;
-  let mut digits_read = 0;
-  // 刻意差异：C# 对仅有符号（零数字）的输入会以 value=0、bytesRead=1 返回
-  // true（TryReadUInt64 恒 Ok，零数字不报错）；此处按"未读到数字即失败"降级，
-  // 拒绝 "+" / "-" 空数字形式，避免空 bulk-string 数字（"$0\r\n\r\n"）被
-  // 静默解析为 0
-  if !try_read_u64(ptr, &mut number, &mut digits_read)? || digits_read == 0 {
-    return Ok(false);
-  }
-
-  // Check for overflows and convert digits to i64, if possible
-  if is_negative {
-    if number > (i64::MAX as u64) + 1 {
-      *overflow = true;
-      return Ok(false);
-    }
-    *value = -1 - (number.wrapping_sub(1) as i64);
-  } else {
-    if number > i64::MAX as u64 {
-      *overflow = true;
-      return Ok(false);
-    }
-    *value = number as i64;
-  }
-
-  *bytes_read += digits_read;
   Ok(true)
 }
 

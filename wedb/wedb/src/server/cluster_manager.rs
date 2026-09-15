@@ -2,7 +2,7 @@ use std::{
   fmt::Write as _,
   sync::{
     Arc,
-    atomic::{AtomicBool, AtomicI32, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
   },
   time::Duration,
 };
@@ -50,6 +50,10 @@ pub struct ClusterManager {
   pub current_config: RwLock<ClusterConfig>,
   pub cluster_provider: Arc<ClusterProvider>,
   pub(crate) flush_count: AtomicI32,
+  /// 配置演化版本号：flush_config 统一出口递增。C# 以 CurrentConfig 对象
+  /// 引用变化（每次演化替换新对象）供 gossip 增量判定，rust 配置为 RwLock
+  /// 原地改写，以此计数器等价对标（Gossip.cs:FlushConfig 调用域）
+  config_version: AtomicI64,
   pub(crate) worker_ban_list: RwLock<gxhash::HashMap<String, i64>>,
   pub(crate) active_merge_lock: RwLock<()>,
 }
@@ -62,9 +66,17 @@ impl ClusterManager {
       current_config,
       cluster_provider,
       flush_count: AtomicI32::new(0),
+      config_version: AtomicI64::new(0),
       worker_ban_list: RwLock::new(HashMap::default()),
       active_merge_lock: RwLock::new(()),
     }
+  }
+
+  /// 当前配置演化版本号（gossip 增量判定键，对标 GarnetServerNode.lastConfig
+  /// 引用比较语义）
+  #[inline]
+  pub fn config_version(&self) -> i64 {
+    self.config_version.load(Ordering::Acquire)
   }
 
   /// 获取当前集群配置读句柄
@@ -198,8 +210,11 @@ impl ClusterManager {
   }
 
   /// libs/cluster/Server/ClusterManager.cs:FlushConfig
+  ///
+  /// 全部配置演化路径的统一出口，递增 config_version 驱动 gossip 增量判定
   pub fn flush_config(&self) {
     self.flush_count.fetch_add(1, Ordering::SeqCst);
+    self.config_version.fetch_add(1, Ordering::Release);
   }
 
   /// libs/cluster/Server/ClusterManagerWorkerState.cs:TryInitializeLocalWorker

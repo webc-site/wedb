@@ -747,7 +747,23 @@ impl RespServerSession {
   /// RespParsingException，catch 块先写 `ERR Protocol Error: {msg}` 到
   /// 累积输出再断连，rust 同序：错误落在 [`Self::output`] 中此前命令
   /// 应答之后，由调用方发出后断连）。
+  ///
+  /// 批首尾纪元快照取放（C# :490 `clusterSession?.AcquireCurrentEpoch()` /
+  /// :576 finally `clusterSession?.ReleaseCurrentEpoch()`）：批内会话持当前
+  /// 纪元快照，批外清零——配置过渡静止等待的观测窗口
   pub fn try_consume_messages(&mut self, req_buffer: &[u8]) -> Option<usize> {
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.acquire_current_epoch();
+    }
+    let consumed = self.try_consume_messages_body(req_buffer);
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.release_current_epoch();
+    }
+    consumed
+  }
+
+  /// 批消费体（[`Self::try_consume_messages`] 的纪元快照保护段）
+  fn try_consume_messages_body(&mut self, req_buffer: &[u8]) -> Option<usize> {
     self.recv_buffer.clear();
     self.recv_buffer.extend_from_slice(req_buffer);
     self.bytes_read = self.recv_buffer.len();
@@ -789,6 +805,18 @@ impl RespServerSession {
   /// 容量保留复用）；`None` = 协议违规（`ERR Protocol Error` 与同批此前
   /// 应答已落 [`Self::output`]，泵发尽后断连）
   pub fn try_consume_pending(&mut self) -> Option<usize> {
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.acquire_current_epoch();
+    }
+    let remaining = self.try_consume_pending_body();
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.release_current_epoch();
+    }
+    remaining
+  }
+
+  /// 批消费体（[`Self::try_consume_pending`] 的纪元快照保护段）
+  fn try_consume_pending_body(&mut self) -> Option<usize> {
     self.bytes_read = self.recv_buffer.len();
     let prev_read_head = self.read_head;
 
@@ -1481,26 +1509,6 @@ impl RespServerSession {
     Ok(true)
   }
 
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomTxn / NetworkCustomProcedure /
-  /// NetworkCustomRawStringCmd 共同骨架
-  ///
-  /// arity 校验 → 分派 → 清空当前自定义命令槽。对象命令走
-  /// [`Self::network_custom_obj_cmd`] 存储执行域；事务/过程/原始字符串
-  /// 命令执行域未接线，按 arity 校验语义闭环后明确报错。
-  pub fn network_custom_txn(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomProcedure
-  pub fn network_custom_procedure(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomRawStringCmd
-  pub fn network_custom_raw_string_cmd(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomObjCmd
   ///
   /// 自定义对象命令执行入口（arity 校验 → 注册表解析 → 存储执行域分派）。
@@ -1564,7 +1572,10 @@ impl RespServerSession {
     }
   }
 
-  /// 自定义命令共同路径（事务/过程/原始字符串族）：IsCommandArityValid → 清槽
+  /// 自定义命令共同路径（C# ProcessOtherCommands 的 NetworkCustomTxn /
+  /// NetworkCustomProcedure / NetworkCustomRawStringCmd 三 local function
+  /// 的共同骨架；分派臂 [`Self::process_other_commands`] 直接走本函数）：
+  /// IsCommandArityValid → 清槽
   fn run_custom_command(&mut self) -> bool {
     let Some((_kind, custom)) = self.current_custom_command.take() else {
       return true;
@@ -2652,7 +2663,7 @@ fn session_now_ms() -> i64 {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::atomic::{AtomicBool, Ordering};
+  use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
   use compio::time::sleep;
   use parking_lot::Mutex;
@@ -2927,7 +2938,7 @@ mod tests {
       },
     ));
     // arity 3 → 恰 2 参数 → 通过并清槽（执行域未接线，报 unknown 不静默）
-    assert!(s.network_custom_txn());
+    assert!(s.run_custom_command());
     assert!(s.current_custom_command.is_none());
     assert!(
       String::from_utf8(s.take_output())
@@ -2945,7 +2956,7 @@ mod tests {
         arity: 3,
       },
     ));
-    assert!(s.network_custom_procedure());
+    assert!(s.run_custom_command());
     assert!(s.current_custom_command.is_none());
     assert!(
       String::from_utf8(s.take_output())
@@ -2954,11 +2965,12 @@ mod tests {
     );
   }
 
-  /// 桩切面：记录只读写态并按开关注写 MOVED
+  /// 桩切面：记录只读写态与批纪元快照并按开关注写 MOVED
   struct StubClusterSession {
     read_only: AtomicBool,
     redirect: AtomicBool,
     disposed: AtomicBool,
+    local_epoch: AtomicI64,
   }
 
   impl StubClusterSession {
@@ -2967,6 +2979,7 @@ mod tests {
         read_only: AtomicBool::new(false),
         redirect: AtomicBool::new(false),
         disposed: AtomicBool::new(false),
+        local_epoch: AtomicI64::new(0),
       }
     }
   }
@@ -2982,6 +2995,19 @@ mod tests {
 
     fn is_internal_write_session(&self) -> bool {
       false
+    }
+
+    fn local_current_epoch(&self) -> i64 {
+      self.local_epoch.load(Ordering::Relaxed)
+    }
+
+    fn acquire_current_epoch(&self) {
+      // 桩无 provider 可达面，置位即批内哨兵（LocalCurrentEpoch != 0）
+      self.local_epoch.store(1, Ordering::Relaxed);
+    }
+
+    fn release_current_epoch(&self) {
+      self.local_epoch.store(0, Ordering::Relaxed);
     }
 
     fn network_multi_key_slot_verify(

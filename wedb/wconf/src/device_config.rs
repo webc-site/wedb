@@ -15,7 +15,8 @@ pub enum DeviceType {
   LocalMemory = 2,
   /// 分片存储设备
   Sharded = 3,
-  /// 空设备（NullDevice）
+  /// 空设备形态（对标 Tsavorite.core DeviceType.cs:Null = byte.MaxValue；
+  /// rust 无 NullDevice，无盘场景由 InMemorySublog 承载，占位待设备面裁决）
   Null = 4,
 }
 
