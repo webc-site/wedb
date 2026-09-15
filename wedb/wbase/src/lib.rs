@@ -42,6 +42,9 @@ pub mod future;
 #[cfg(feature = "glob")]
 pub mod glob;
 
+#[cfg(feature = "group-commit")]
+pub mod group_commit;
+
 #[cfg(feature = "hash")]
 pub mod hash;
 
