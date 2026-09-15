@@ -1,6 +1,6 @@
 //! 集群提供者抽象面（对标 libs/server/Cluster/IClusterProvider.cs）
 
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 use waof::AofAddress;
 use wmetric::MetricsItem;
@@ -28,8 +28,8 @@ pub trait CheckpointCallbackFace: Send + Sync {
 ///
 /// 集群提供者抽象接口
 pub trait IClusterProvider: Send + Sync + CheckpointCallbackFace {
-  /// 创建集群会话
-  fn create_cluster_session(&self) -> ClusterSession;
+  /// 创建集群会话（注册进 provider 活跃会话表，返回共享句柄）
+  fn create_cluster_session(&self) -> Arc<ClusterSession>;
 
   /// 判定是否为主节点
   fn is_primary(&self) -> bool;

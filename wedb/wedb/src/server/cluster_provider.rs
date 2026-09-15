@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use compio::runtime::spawn;
+use coarsetime::Instant;
 use itoa::Buffer;
 use parking_lot::RwLock;
 use waof::{AofAddress, WalLog};
@@ -14,7 +15,8 @@ use wkv::WedbStore;
 use wmetric::MetricsItem;
 use wnode::{
   ClusterProvider as WnodeClusterProvider, RoleInfo,
-  aof::garnet_append_only_file::GarnetAppendOnlyFile, resp::vector::vector_manager::VectorManager,
+  aof::garnet_append_only_file::GarnetAppendOnlyFile,
+  cluster_session::ClusterSessionFace, resp::vector::vector_manager::VectorManager,
   session_parse_state_extensions::ManagerType,
 };
 use wresp::RespCommand;
@@ -66,6 +68,10 @@ pub struct ClusterProvider {
   cluster_node_timeout_ms: AtomicU64,
   /// Garnet 当前纪元（对标 C# ClusterProvider.GarnetCurrentEpoch，初始为 1）
   garnet_current_epoch: AtomicI64,
+  /// 活跃集群会话弱引用表（C# GarnetServerBase.activeHandlers 承接的集群
+  /// 会话枚举面：会话体归连接任务独占，此处仅存弱引用，过期即会话已亡，
+  /// 枚举时自清扫免注销钩子；BumpAndWaitForEpochTransition 的静止等待遍历源）
+  cluster_sessions: RwLock<Vec<Weak<ClusterSession>>>,
   /// 弱引用自身（用于按需向上派生包含本对象的会话，无锁读取）
   self_weak: OnceLock<Weak<ClusterProvider>>,
   /// 共享存储引擎（对标 C# clusterProvider.storeWrapper 的存储可达面；
@@ -99,6 +105,7 @@ impl Default for ClusterProvider {
       replication_reestablishment_timeout_secs: AtomicI32::new(0),
       cluster_node_timeout_ms: AtomicU64::new(DEFAULT_CLUSTER_NODE_TIMEOUT_MS),
       garnet_current_epoch: AtomicI64::new(1),
+      cluster_sessions: RwLock::new(Vec::new()),
       self_weak: OnceLock::new(),
       store: RwLock::new(None),
       vector_manager: RwLock::new(None),
@@ -354,11 +361,52 @@ impl ClusterProvider {
 
   /// libs/cluster/Server/ClusterProvider.cs:BumpAndWaitForEpochTransitionAsync
   ///
-  /// 推进集群纪元并等待所有集群会话纪元过渡完成（1:1 对标 C# await Task.Yield() 零轮询让步）
+  /// 推进集群纪元并自旋等待全部活跃集群会话批内纪元快照追平（C# 遍历
+  /// storeWrapper.Servers → ActiveClusterSessions 逐会话重试至
+  /// LocalCurrentEpoch 追平，快照 0 = 批外空闲放行；rust 每轮以
+  /// yield_now 让步执行器，对标 C# await Task.Yield()）。以
+  /// cluster_node_timeout_ms 为上限，超时返 false（C# 无限自旋；调用方
+  /// 同款忽略返值放行，false 仅表达静止未达成）
   pub async fn bump_and_wait_for_epoch_transition_async(&self) -> bool {
-    self.bump_current_epoch();
-    yield_now().await;
+    let current_epoch = self.bump_current_epoch();
+    let start = Instant::now();
+    while !self.all_sessions_caught_up(current_epoch) {
+      if start.elapsed().as_millis() >= self.cluster_node_timeout_ms() {
+        return false;
+      }
+      yield_now().await;
+    }
     true
+  }
+
+  /// 纪元推进全会话静止的命令批内同步形态（C# 命令侧
+  /// `AsyncUtils.BlockingWait(BumpAndWaitForEpochTransitionAsync())` 的
+  /// 语义：网络线程阻塞等待，见 RespClusterSlotManagementCommands.cs:493）
+  ///
+  /// compio 单线程每核下，发起会话所在线程的其余会话必处批外（快照 0），
+  /// 阻塞自旋仅等他核会话收尾，无死锁；上限与追平判定同异步形态
+  pub fn bump_and_wait_for_epoch_transition(&self) -> bool {
+    let current_epoch = self.bump_current_epoch();
+    let start = Instant::now();
+    while !self.all_sessions_caught_up(current_epoch) {
+      if start.elapsed().as_millis() >= self.cluster_node_timeout_ms() {
+        return false;
+      }
+      std::thread::yield_now();
+    }
+    true
+  }
+
+  /// 全部活跃集群会话纪元是否追平（ClusterProvider.cs:377
+  /// ActiveClusterSessions 枚举的等价面；枚举时顺带清扫过期弱引用）
+  fn all_sessions_caught_up(&self, current_epoch: i64) -> bool {
+    let mut sessions = self.cluster_sessions.write();
+    sessions.retain(|weak| weak.upgrade().is_some());
+    sessions.iter().filter_map(Weak::upgrade).all(|s| {
+      let entry_epoch = s.local_current_epoch();
+      // C# 判定取反：entryEpoch != 0 && entryEpoch < currentEpoch 才重试
+      entry_epoch == 0 || entry_epoch >= current_epoch
+    })
   }
 
   /// 注入共享存储引擎（集群装配期一次调用；对标 C# 构造期经 storeWrapper
@@ -452,12 +500,18 @@ impl ClusterProvider {
 
 impl IClusterProvider for ClusterProvider {
   /// libs/cluster/Server/ClusterProvider.cs:CreateClusterSession
-  fn create_cluster_session(&self) -> ClusterSession {
-    if let Some(cp) = self.self_weak.get().and_then(|w| w.upgrade()) {
-      ClusterSession::new(cp)
-    } else {
-      ClusterSession::new(Arc::new(Self::default()))
-    }
+  ///
+  /// 构造即登记活跃会话弱引用表（C# 侧会话经 activeHandlers 承载，此处为
+  /// 等价枚举源）。返回注册进表的同一 `Arc`——调用方（会话消费者装配 /
+  /// 测试）持强引用，弱引用与会话生命周期闭合；C# 返回 IClusterSession
+  /// 接口形态，rust 经 `Into<wnode ClusterSession>` 达成同款擦除
+  fn create_cluster_session(&self) -> Arc<ClusterSession> {
+    let Some(cp) = self.self_weak.get().and_then(|w| w.upgrade()) else {
+      return Arc::new(ClusterSession::new(Arc::new(Self::default())));
+    };
+    let session = Arc::new(ClusterSession::new(cp));
+    self.cluster_sessions.write().push(Arc::downgrade(&session));
+    session
   }
 
   fn allow_data_loss(&self) -> bool {

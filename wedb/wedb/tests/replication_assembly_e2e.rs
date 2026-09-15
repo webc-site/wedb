@@ -56,7 +56,7 @@ macro_rules! start_node {
       Some(RespSessionConsumer::with_cluster_session(
         network_sender_id,
         options,
-        Arc::new(cluster.create_cluster_session()),
+        cluster.create_cluster_session(),
         api,
       ))
     };
@@ -265,7 +265,7 @@ fn production_assembly_replicates_over_real_tcp() -> Void {
 fn primary_arm_without_assets_reports_not_initialized() -> Void {
   Runtime::new().unwrap().block_on(async {
     let provider = ClusterProvider::new();
-    let cluster_session = Arc::new(provider.create_cluster_session());
+    let cluster_session = provider.create_cluster_session();
     let mut consumer = cluster_consumer(&provider, Arc::clone(&cluster_session));
 
     let frame = initiate_frame();
@@ -324,7 +324,7 @@ fn primary_arm_after_wiring_proceeds_past_not_initialized() -> Void {
       "装配后三类资产应在位"
     );
 
-    let cluster_session = Arc::new(provider.create_cluster_session());
+    let cluster_session = provider.create_cluster_session();
     let mut consumer = cluster_consumer(&provider, Arc::clone(&cluster_session));
 
     let frame = initiate_frame();

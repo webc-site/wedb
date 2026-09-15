@@ -85,7 +85,7 @@ fn main() -> Result<()> {
           Some(RespSessionConsumer::with_cluster_session(
             network_sender_id,
             options,
-            Arc::new(cluster.create_cluster_session()),
+            cluster.create_cluster_session(),
             api,
           ))
         }
