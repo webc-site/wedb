@@ -125,6 +125,11 @@ impl<D: Device> StoreSession<D> {
 
   /// 写入 TTL 记录（定长 8B .NET Ticks：可变区原位改写优先，失败降级 RCU 盲插）
   ///
+  /// 粗化口径（garnet/libs/server/ExpirationWithOption.cs:22-23）：写入前
+  /// `(ticks >> 4) << 4` 清零低 4 位（1600ns 分辨率），与 C# key 级过期及
+  /// rust HFE/ZSet 成员过期（wresp ExpirationWithOption::new）同一粗化门；
+  /// 持久化格式 8B 大端 ticks 不变（仅值域粗化）。
+  ///
   /// 取舍：原位改写零追加、零哈希表 CAS，是 EXPIRE 反复续期的主路径；记录已落盘
   /// 或复活槽位不适配时，upsert 写路径自身含链内复活/盲插兜底，无需在此重复处理。
   /// 原位改写走 raw unprotected 内核，本异步入口须自带纪元保护（对标 C# Tsavorite：
@@ -132,7 +137,9 @@ impl<D: Device> StoreSession<D> {
   /// 长度守卫：现存值非定长 8B（外部经 upsert_raw 误写或损坏日志）时放弃原位改写，
   /// 降级 RCU 重写自愈——杜绝 copy_from_slice 长度失配 panic
   pub async fn put_ttl(&self, user_key: &[u8], expire_at_ticks: i64) -> Result<()> {
-    let bytes = TtlCodec::encode(expire_at_ticks);
+    // 4-bit coarse 粗化（ExpirationWithOption.cs:22-23 的 (ticks >> 4) << 4）
+    let coarse = (expire_at_ticks >> 4) << 4;
+    let bytes = TtlCodec::encode(coarse);
     let ttl_k = self.ttl_key(user_key);
     let in_place = {
       let _guard = self.participant.enter();
