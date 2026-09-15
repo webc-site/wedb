@@ -747,7 +747,23 @@ impl RespServerSession {
   /// RespParsingException，catch 块先写 `ERR Protocol Error: {msg}` 到
   /// 累积输出再断连，rust 同序：错误落在 [`Self::output`] 中此前命令
   /// 应答之后，由调用方发出后断连）。
+  ///
+  /// 批首尾纪元快照取放（C# :490 `clusterSession?.AcquireCurrentEpoch()` /
+  /// :576 finally `clusterSession?.ReleaseCurrentEpoch()`）：批内会话持当前
+  /// 纪元快照，批外清零——配置过渡静止等待的观测窗口
   pub fn try_consume_messages(&mut self, req_buffer: &[u8]) -> Option<usize> {
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.acquire_current_epoch();
+    }
+    let consumed = self.try_consume_messages_body(req_buffer);
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.release_current_epoch();
+    }
+    consumed
+  }
+
+  /// 批消费体（[`Self::try_consume_messages`] 的纪元快照保护段）
+  fn try_consume_messages_body(&mut self, req_buffer: &[u8]) -> Option<usize> {
     self.recv_buffer.clear();
     self.recv_buffer.extend_from_slice(req_buffer);
     self.bytes_read = self.recv_buffer.len();
@@ -789,6 +805,18 @@ impl RespServerSession {
   /// 容量保留复用）；`None` = 协议违规（`ERR Protocol Error` 与同批此前
   /// 应答已落 [`Self::output`]，泵发尽后断连）
   pub fn try_consume_pending(&mut self) -> Option<usize> {
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.acquire_current_epoch();
+    }
+    let remaining = self.try_consume_pending_body();
+    if let Some(cs) = self.cluster_session.as_ref() {
+      cs.release_current_epoch();
+    }
+    remaining
+  }
+
+  /// 批消费体（[`Self::try_consume_pending`] 的纪元快照保护段）
+  fn try_consume_pending_body(&mut self) -> Option<usize> {
     self.bytes_read = self.recv_buffer.len();
     let prev_read_head = self.read_head;
 
@@ -2635,7 +2663,7 @@ fn session_now_ms() -> i64 {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::atomic::{AtomicBool, Ordering};
+  use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
   use compio::time::sleep;
   use parking_lot::Mutex;
@@ -2937,11 +2965,12 @@ mod tests {
     );
   }
 
-  /// 桩切面：记录只读写态并按开关注写 MOVED
+  /// 桩切面：记录只读写态与批纪元快照并按开关注写 MOVED
   struct StubClusterSession {
     read_only: AtomicBool,
     redirect: AtomicBool,
     disposed: AtomicBool,
+    local_epoch: AtomicI64,
   }
 
   impl StubClusterSession {
@@ -2950,6 +2979,7 @@ mod tests {
         read_only: AtomicBool::new(false),
         redirect: AtomicBool::new(false),
         disposed: AtomicBool::new(false),
+        local_epoch: AtomicI64::new(0),
       }
     }
   }
@@ -2965,6 +2995,19 @@ mod tests {
 
     fn is_internal_write_session(&self) -> bool {
       false
+    }
+
+    fn local_current_epoch(&self) -> i64 {
+      self.local_epoch.load(Ordering::Relaxed)
+    }
+
+    fn acquire_current_epoch(&self) {
+      // 桩无 provider 可达面，置位即批内哨兵（LocalCurrentEpoch != 0）
+      self.local_epoch.store(1, Ordering::Relaxed);
+    }
+
+    fn release_current_epoch(&self) {
+      self.local_epoch.store(0, Ordering::Relaxed);
     }
 
     fn network_multi_key_slot_verify(

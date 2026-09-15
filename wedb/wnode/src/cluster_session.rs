@@ -81,6 +81,22 @@ pub trait ClusterSessionFace: Send + Sync {
   /// 写与清库条目在副本回放会话上不被拒绝
   fn is_internal_write_session(&self) -> bool;
 
+  /// 会话批次级纪元快照（0 = 批外空闲，非 0 = 批内持有的 provider 纪元；
+  /// 配置过渡静止等待的观测面）
+  ///
+  /// libs/server/Cluster/IClusterSession.cs:LocalCurrentEpoch
+  fn local_current_epoch(&self) -> i64;
+
+  /// 消费批首获取纪元快照（RespServerSession 批入口调用）
+  ///
+  /// libs/server/Cluster/IClusterSession.cs:AcquireCurrentEpoch
+  fn acquire_current_epoch(&self);
+
+  /// 消费批尾释放纪元快照（RespServerSession 批 finally 调用）
+  ///
+  /// libs/server/Cluster/IClusterSession.cs:ReleaseCurrentEpoch
+  fn release_current_epoch(&self);
+
   /// 多键槽位归属校验；返回 [`SlotVerifyGate::Redirected`] 表示已向
   /// `output` 写入 MOVED/ASK 等重定向错误（调用方据此跳过命令执行，对标
   /// CanServeSlot 取反门）；返回 [`SlotVerifyGate::Wait`] 表示键正处于
@@ -167,6 +183,9 @@ pub struct ClusterSessionVtable {
   pub set_read_only_session: unsafe fn(*const ()),
   pub set_read_write_session: unsafe fn(*const ()),
   pub is_internal_write_session: unsafe fn(*const ()) -> bool,
+  pub local_current_epoch: unsafe fn(*const ()) -> i64,
+  pub acquire_current_epoch: unsafe fn(*const ()),
+  pub release_current_epoch: unsafe fn(*const ()),
   pub network_multi_key_slot_verify: SlotVerifyFn,
   pub process_cluster_commands: ProcessClusterCmdFn,
   pub is_primary: unsafe fn(*const ()) -> bool,
@@ -207,6 +226,9 @@ impl ClusterSession {
         is_internal_write_session: |ptr| unsafe {
           (*(ptr as *const T)).is_internal_write_session()
         },
+        local_current_epoch: |ptr| unsafe { (*(ptr as *const T)).local_current_epoch() },
+        acquire_current_epoch: |ptr| unsafe { (*(ptr as *const T)).acquire_current_epoch() },
+        release_current_epoch: |ptr| unsafe { (*(ptr as *const T)).release_current_epoch() },
         network_multi_key_slot_verify: |ptr, input, args, output| unsafe {
           (*(ptr as *const T)).network_multi_key_slot_verify(input, args, output)
         },
@@ -254,6 +276,24 @@ impl ClusterSession {
   #[inline]
   pub fn is_internal_write_session(&self) -> bool {
     unsafe { (self.vtable.is_internal_write_session)(self.ptr) }
+  }
+
+  /// 会话批次级纪元快照（0 = 批外空闲；C# LocalCurrentEpoch）
+  #[inline]
+  pub fn local_current_epoch(&self) -> i64 {
+    unsafe { (self.vtable.local_current_epoch)(self.ptr) }
+  }
+
+  /// 消费批首获取纪元快照（C# AcquireCurrentEpoch）
+  #[inline]
+  pub fn acquire_current_epoch(&self) {
+    unsafe { (self.vtable.acquire_current_epoch)(self.ptr) }
+  }
+
+  /// 消费批尾释放纪元快照（C# ReleaseCurrentEpoch）
+  #[inline]
+  pub fn release_current_epoch(&self) {
+    unsafe { (self.vtable.release_current_epoch)(self.ptr) }
   }
 
   #[inline]

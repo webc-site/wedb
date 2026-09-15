@@ -8,7 +8,7 @@ use std::{
   str::from_utf8,
   sync::{
     Arc,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicI64, Ordering},
   },
   time::Duration,
 };
@@ -90,6 +90,9 @@ pub struct ClusterSession {
   last_sent_config: Mutex<Option<Vec<u8>>>,
   read_only: AtomicBool,
   internal_write: AtomicBool,
+  /// 批次级纪元快照（C# _localCurrentEpoch：0 = 批外空闲，非 0 = 批内
+  /// 持有的 provider 纪元；消费批首尾取放，provider 静止等待的观测面）
+  local_current_epoch: AtomicI64,
   /// CLUSTER RESET 等需异步闭环命令挂起的慢路径执行体
   ///（会话侧经 [`ClusterSessionFace::take_pending_slow`] 取走驱动）
   pending_slow: Mutex<Option<SlowWait>>,
@@ -111,6 +114,7 @@ impl ClusterSession {
       last_sent_config: Mutex::new(None),
       read_only: AtomicBool::new(false),
       internal_write: AtomicBool::new(false),
+      local_current_epoch: AtomicI64::new(0),
       pending_slow: Mutex::new(None),
       fatal_disconnect: Mutex::new(None),
       slot_wait_memo: Mutex::new(None),
@@ -128,6 +132,18 @@ impl ClusterSession {
       read_only_session: self.read_only.load(Ordering::Relaxed),
       internal_write: self.internal_write.load(Ordering::Relaxed),
     }
+  }
+
+  /// libs/cluster/Session/ClusterSession.cs:UnsafeBumpAndWaitForEpochTransitionAsync
+  ///
+  /// 释放本会话批内快照 → provider 推进纪元并等全会话静止 → 重取快照。
+  /// C# 命令侧以 `AsyncUtils.BlockingWait` 驱动的同步批内形态（网络线程
+  /// 阻塞等待语义），本会话自身快照先行清零，不阻塞静止等待收敛
+  pub fn unsafe_bump_and_wait_for_epoch_transition(&self) -> bool {
+    self.release_current_epoch();
+    let caught_up = self.cluster_provider.bump_and_wait_for_epoch_transition();
+    self.acquire_current_epoch();
+    caught_up
   }
 
   /// libs/cluster/Session/ClusterSession.cs:Redirect（槽位非本地属主 → MOVED）
@@ -358,7 +374,8 @@ impl ClusterSession {
       }
       rm.try_update_for_failover();
       rm.reset_replica_replay_driver_store();
-      self.cluster_provider.bump_current_epoch();
+      // C# ReplicaOfCommand.cs:48 BlockingWait(UnsafeBumpAndWait...)
+      self.unsafe_bump_and_wait_for_epoch_transition();
       rm.end_recovery(RecoveryStatus::NoRecovery, false);
       output.write_resp_simple_string("OK");
       return true;
@@ -1085,8 +1102,9 @@ impl ClusterSessionFace for ClusterSession {
         };
         match result {
           Ok(()) => {
-            // C# UnsafeBumpAndWaitForEpochTransitionAsync：纪元推进由 provider 承接
-            self.cluster_provider.bump_current_epoch();
+            // C# RespClusterSlotManagementCommands.cs:493
+            // BlockingWait(UnsafeBumpAndWait...)——网络线程阻塞等全会话静止
+            self.unsafe_bump_and_wait_for_epoch_transition();
             output.write_resp_simple_string("OK");
           }
           Err(e) => output.write_resp_error(&slot_state_err_text(e)),
@@ -1138,7 +1156,9 @@ impl ClusterSessionFace for ClusterSession {
             };
             match result {
               Ok(()) => {
-                self.cluster_provider.bump_current_epoch();
+                // C# RespClusterSlotManagementCommands.cs:593
+                // BlockingWait(UnsafeBumpAndWait...)
+                self.unsafe_bump_and_wait_for_epoch_transition();
                 output.write_resp_simple_string("OK");
               }
               Err(e) => output.write_resp_error(&slot_state_err_text(e)),
@@ -1576,7 +1596,8 @@ impl ClusterSessionFace for ClusterSession {
             m.try_reset_replica();
           }
         }
-        self.cluster_provider.bump_current_epoch();
+        // C# RespClusterFailoverCommands.cs:128 BlockingWait(UnsafeBumpAndWait...)
+        self.unsafe_bump_and_wait_for_epoch_transition();
         let offset = self
           .cluster_provider
           .replication_manager()
@@ -1677,6 +1698,29 @@ impl ClusterSessionFace for ClusterSession {
   /// libs/cluster/Session/ClusterSession.cs:IsInternalWriteSession
   fn is_internal_write_session(&self) -> bool {
     self.internal_write()
+  }
+
+  /// 批次级纪元快照读取（0 = 批外空闲）
+  ///
+  /// libs/cluster/Session/ClusterSession.cs:LocalCurrentEpoch
+  fn local_current_epoch(&self) -> i64 {
+    self.local_current_epoch.load(Ordering::Acquire)
+  }
+
+  /// 消费批首快照 provider 当前纪元
+  ///
+  /// libs/cluster/Session/ClusterSession.cs:AcquireCurrentEpoch
+  fn acquire_current_epoch(&self) {
+    self
+      .local_current_epoch
+      .store(self.cluster_provider.current_epoch(), Ordering::Release);
+  }
+
+  /// 消费批尾清零快照
+  ///
+  /// libs/cluster/Session/ClusterSession.cs:ReleaseCurrentEpoch
+  fn release_current_epoch(&self) {
+    self.local_current_epoch.store(0, Ordering::Release);
   }
 
   /// 主节点复制信息（委派 ClusterProvider 实现）

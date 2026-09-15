@@ -80,7 +80,7 @@ fn two_primary_provider() -> Arc<ClusterProvider> {
 /// 存储同步注入集群提供者（槽位校验 exists 探测与命令执行同源，对标
 /// C# clusterProvider.storeWrapper 单一存储面）
 fn cluster_consumer(cp: &ClusterProvider) -> RespSessionConsumer {
-  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
   let dir = tempfile::tempdir().unwrap().keep();
   let device = Arc::new(SegmentedDevice::single_file(dir.join("gate.db")).unwrap());
   // 小预算测试配置（对标 C# 16MB 基线），GC 关闭保持历史语义
@@ -213,7 +213,7 @@ fn flush_replica_internal_write_session_executes() {
     .current_config
     .write()
     .make_replica_of(Some("node_2"));
-  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
   cluster_session.set_internal_write(true);
   let store = reset_store("flush-replica.db");
   cp.set_store(Arc::clone(&store));
@@ -536,7 +536,7 @@ fn reset_consumer(
   cp: &ClusterProvider,
   store: &Arc<WedbStore<SegmentedDevice>>,
 ) -> RespSessionConsumer {
-  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
   RespSessionConsumer::with_cluster_session(
     1,
     RespServerSessionOptions {
@@ -711,7 +711,7 @@ use wedb_test::resp_frame_str;
 fn cluster_store_consumer(
   cp: &ClusterProvider,
 ) -> (RespSessionConsumer, Arc<WedbStore<SegmentedDevice>>) {
-  let cluster_session: Arc<ClusterSession> = Arc::new(cp.create_cluster_session());
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
   let dir = tempfile::tempdir().unwrap().keep();
   let device = Arc::new(SegmentedDevice::single_file(dir.join("cluster.db")).unwrap());
   // 小预算测试配置（对标 C# 16MB 基线），GC 关闭保持历史语义
