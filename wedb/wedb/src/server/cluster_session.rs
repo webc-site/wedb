@@ -60,7 +60,10 @@ use crate::{
       checkpoint_entry::CheckpointEntry, cluster_replication_session::AppendLogOutcome,
       recovery_status::RecoveryStatus, sync_metadata::SyncMetadata,
     },
-    slot_verify::{ClusterSlotVerificationState, SlotVerifySessionState},
+    slot_verify::{
+      ClusterSlotVerificationState, IterativeSlotVerifyCache, SlotVerifyKind,
+      SlotVerifySessionState,
+    },
     worker::NodeRole,
   },
 };
@@ -150,6 +153,10 @@ pub struct ClusterSession {
   /// 槽位校验等待交接记忆（超时旗标 + 异步存在性裁决缓存）：等待体与
   /// 下一次门评之间的确定性交接，防挂起-重评活锁
   slot_wait_memo: Mutex<Option<Arc<SlotWaitMemo>>>,
+  /// 迭代式槽位校验缓存态（C# RespClusterIterativeSlotVerify.cs 的
+  /// cachedVerificationResult / configSnapshot / initialized 成员投影；
+  /// 事务 Prepare 段逐键校验的会话级缓存）
+  iterative_slot_verify: Mutex<IterativeSlotVerifyCache>,
 }
 
 impl ClusterSession {
@@ -165,7 +172,13 @@ impl ClusterSession {
       pending_slow: Mutex::new(None),
       fatal_disconnect: Mutex::new(None),
       slot_wait_memo: Mutex::new(None),
+      iterative_slot_verify: Mutex::new(IterativeSlotVerifyCache::default()),
     }
+  }
+
+  /// 集群重定向端点偏好（C# serverOptions.ClusterPreferredEndpointType）
+  fn preferred_endpoint_type(&self) -> ClusterPreferredEndpointType {
+    self.cluster_provider.preferred_endpoint_type()
   }
 
   fn cluster_manager(&self) -> Option<Arc<ClusterManager>> {
@@ -197,7 +210,7 @@ impl ClusterSession {
   fn redirect_slot(&self, slot: u16, output: &mut Vec<u8>) {
     if let Some(m) = self.cluster_manager() {
       let config = m.current_config();
-      let (endpoint, port) = config.get_endpoint_from_slot(slot, ClusterPreferredEndpointType::Ip);
+      let (endpoint, port) = config.get_endpoint_from_slot(slot, self.preferred_endpoint_type());
       ClusterSlotVerificationState::Moved {
         slot,
         endpoint,
@@ -205,6 +218,82 @@ impl ClusterSession {
       }
       .write_resp_error(output);
     }
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
+  ///
+  /// 事务 Prepare 段逐键迭代校验（C# TxnKeyManager.VerifyKeyOwnership 的
+  /// 下游）：首键初始化缓存，后续键跨槽 → CROSSSLOT、状态漂移 → TRYAGAIN；
+  /// 失败后缓存记首个错误由 [`Self::write_cached_slot_verification_message`]
+  /// 落线
+  pub fn network_iterative_slot_verify(
+    &self,
+    key: &[u8],
+    read_only: bool,
+    session_asking: bool,
+  ) -> bool {
+    let Some(cm) = self.cluster_manager() else {
+      return true;
+    };
+    let session = self.slot_verify_session_state(session_asking);
+    let mut cache = self.iterative_slot_verify.lock();
+    cm.iterative_slot_verify(
+      &mut cache,
+      key,
+      read_only,
+      session,
+      self.preferred_endpoint_type(),
+    )
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:WriteCachedSlotVerificationMessage
+  ///
+  /// 缓存裁决非 OK 时按缓存槽位与当前配置重造错误消息写输出
+  ///（C# GetSlotVerificationMessage(config, cachedVerificationResult)）
+  pub fn write_cached_slot_verification_message(&self, output: &mut Vec<u8>) {
+    let (slot, state) = {
+      let cache = self.iterative_slot_verify.lock();
+      if !cache.initialized() || cache.state() == SlotVerifyKind::Ok {
+        return;
+      }
+      (cache.slot(), cache.state())
+    };
+    let Some(cm) = self.cluster_manager() else {
+      return;
+    };
+    let config = cm.current_config();
+    let pref = self.preferred_endpoint_type();
+    let verification = match state {
+      SlotVerifyKind::Moved => {
+        let (endpoint, port) = config.get_endpoint_from_slot(slot, pref);
+        ClusterSlotVerificationState::Moved {
+          slot,
+          endpoint,
+          port,
+        }
+      }
+      SlotVerifyKind::Ask => {
+        let (endpoint, port) = config.ask_endpoint_from_slot(slot, pref);
+        ClusterSlotVerificationState::Ask {
+          slot,
+          endpoint,
+          port,
+        }
+      }
+      SlotVerifyKind::ClusterDown => ClusterSlotVerificationState::ClusterDown,
+      SlotVerifyKind::CrossSlot => ClusterSlotVerificationState::CrossSlot,
+      SlotVerifyKind::TryAgain => ClusterSlotVerificationState::TryAgain,
+      SlotVerifyKind::Ok => return,
+    };
+    verification.write_resp_error(output);
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:ResetCachedSlotVerificationResult
+  ///
+  /// 新事务批次起点重置缓存（C# 顺带取 CurrentConfig 快照；rust 逐键取读锁
+  /// 无需快照，见 slot_verify 迭代缓存态注释）
+  pub fn reset_cached_slot_verification_result(&self) {
+    self.iterative_slot_verify.lock().reset();
   }
 
   /// libs/cluster/Session/ClusterCommands.cs:TryParseSlots
@@ -1083,6 +1172,26 @@ impl ClusterSessionFace for ClusterSession {
     self.read_only.store(false, Ordering::Relaxed);
   }
 
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:ResetCachedSlotVerificationResult
+  fn reset_cached_slot_verification_result(&self) {
+    ClusterSession::reset_cached_slot_verification_result(self);
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
+  fn network_iterative_slot_verify(
+    &self,
+    key: &[u8],
+    read_only: bool,
+    session_asking: bool,
+  ) -> bool {
+    ClusterSession::network_iterative_slot_verify(self, key, read_only, session_asking)
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:WriteCachedSlotVerificationMessage
+  fn write_cached_slot_verification_message(&self, output: &mut Vec<u8>) {
+    ClusterSession::write_cached_slot_verification_message(self, output);
+  }
+
   /// libs/cluster/Session/SlotVerification/RespClusterSlotVerify.cs:NetworkMultiKeySlotVerify
   ///
   /// 依键规格提取键位做多键槽位校验；键规格未命中键（参数形态不含键）按
@@ -1116,7 +1225,7 @@ impl ClusterSessionFace for ClusterSession {
       input.read_only,
       session,
       input.wait_for_stable_slot,
-      ClusterPreferredEndpointType::Ip,
+      self.preferred_endpoint_type(),
       memo.as_deref(),
     ) {
       GateVerdict::Serve => SlotVerifyGate::Serve,
@@ -1135,7 +1244,7 @@ impl ClusterSessionFace for ClusterSession {
           read_only: input.read_only,
           session,
           wait_for_stable: input.wait_for_stable_slot,
-          pref_type: ClusterPreferredEndpointType::Ip,
+          pref_type: self.preferred_endpoint_type(),
         };
         *self.slot_wait_memo.lock() = Some(Arc::clone(&memo));
         let waiter = Arc::clone(&cm);
@@ -1205,17 +1314,16 @@ impl ClusterSessionFace for ClusterSession {
         if let Some(m) = self.cluster_manager() {
           let info = m
             .current_config()
-            .get_slots_info(ClusterPreferredEndpointType::Ip);
+            .get_slots_info(self.preferred_endpoint_type());
           output.extend_from_slice(info.as_bytes());
         }
         true
       }
       RespCommand::ClusterShards => {
         if let Some(m) = self.cluster_manager() {
-          let info = m.current_config().get_shards_info(
-            Some(&self.cluster_provider),
-            ClusterPreferredEndpointType::Ip,
-          );
+          let info = m
+            .current_config()
+            .get_shards_info(Some(&self.cluster_provider), self.preferred_endpoint_type());
           output.extend_from_slice(info.as_bytes());
         }
         true

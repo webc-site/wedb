@@ -325,3 +325,114 @@ where
 
   first_res
 }
+
+/// 槽位验证状态类别（不含重定向端点载荷；对标 C# SlotVerifiedState 枚举——
+/// 迭代校验的状态一致性比较只看类别，端点/端口差异不算状态变化）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SlotVerifyKind {
+  /// 验证通过
+  #[default]
+  Ok,
+  /// 槽位未提供服务
+  ClusterDown,
+  /// MOVED 重定向
+  Moved,
+  /// ASK 重定向
+  Ask,
+  /// 多键跨槽
+  CrossSlot,
+  /// 重哈希中状态不一致
+  TryAgain,
+}
+
+impl ClusterSlotVerificationState {
+  /// 状态类别（迭代校验一致性比较的投影面，C# 比较的是 SlotVerifiedState 枚举）
+  pub fn kind(&self) -> SlotVerifyKind {
+    match self {
+      Self::Ok => SlotVerifyKind::Ok,
+      Self::ClusterDown => SlotVerifyKind::ClusterDown,
+      Self::Moved { .. } => SlotVerifyKind::Moved,
+      Self::Ask { .. } => SlotVerifyKind::Ask,
+      Self::CrossSlot => SlotVerifyKind::CrossSlot,
+      Self::TryAgain => SlotVerifyKind::TryAgain,
+    }
+  }
+}
+
+/// 迭代式槽位校验缓存态（C# ClusterSession 成员 cachedVerificationResult /
+/// configSnapshot / initialized 的投影；configSnapshot 不缓存——rust
+/// ClusterConfig 整体克隆过重，逐键经 ClusterManager 读锁取当前配置，
+/// 毫秒级 Prepare 窗口内由 RwLock 写阻塞保证无撕裂）
+#[derive(Debug, Default)]
+pub struct IterativeSlotVerifyCache {
+  /// 是否已记录首键裁决（C# initialized）
+  initialized: bool,
+  /// 缓存裁决槽位（C# cachedVerificationResult.slot）
+  slot: u16,
+  /// 缓存裁决状态（C# cachedVerificationResult.state）
+  state: SlotVerifyKind,
+}
+
+/// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
+///
+/// 迭代步进：首键初始化缓存并透传裁决；后续键与缓存槽位不一致 → CROSSSLOT、
+/// 状态类别变化 → TRYAGAIN（缓存记首个偏差），一致透传本键裁决
+pub fn iterative_slot_verify_step(
+  cache: &mut IterativeSlotVerifyCache,
+  verdict: ClusterSlotVerificationState,
+  slot: u16,
+) -> bool {
+  // 首键：初始化结果缓存
+  if !cache.initialized {
+    let ok = verdict.kind() == SlotVerifyKind::Ok;
+    *cache = IterativeSlotVerifyCache {
+      initialized: true,
+      slot,
+      state: verdict.kind(),
+    };
+    return ok;
+  }
+
+  // 首键已失败：短路捕获首个错误（C# 校验失败提前返回）
+  if cache.state != SlotVerifyKind::Ok {
+    return false;
+  }
+
+  // 键间槽位变化 → CROSSSLOT
+  if slot != cache.slot {
+    cache.state = SlotVerifyKind::CrossSlot;
+    return false;
+  }
+
+  // 状态类别变化（任一键可能已迁移）→ TRYAGAIN
+  if verdict.kind() != cache.state {
+    cache.state = SlotVerifyKind::TryAgain;
+    return false;
+  }
+
+  verdict.kind() == SlotVerifyKind::Ok
+}
+
+impl IterativeSlotVerifyCache {
+  /// 缓存的验证状态类别（write_cached 错误构造输入；未初始化恒 Ok 不出错误行）
+  pub fn state(&self) -> SlotVerifyKind {
+    self.state
+  }
+
+  /// 缓存裁决槽位
+  pub fn slot(&self) -> u16 {
+    self.slot
+  }
+
+  /// 是否已记录首键裁决
+  pub fn initialized(&self) -> bool {
+    self.initialized
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:ResetCachedSlotVerificationResult
+  ///
+  /// 重置缓存（新事务批次起点）
+  pub fn reset(&mut self) {
+    *self = Self::default();
+  }
+}

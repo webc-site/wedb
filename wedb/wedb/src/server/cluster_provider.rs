@@ -1,7 +1,7 @@
 use std::{
   sync::{
     Arc, OnceLock, Weak,
-    atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU8, AtomicU64, Ordering},
   },
   thread,
 };
@@ -26,7 +26,9 @@ use wresp::RespCommand;
 use crate::{
   args::DEFAULT_CLUSTER_NODE_TIMEOUT_MS,
   server::{
-    cluster::{CheckpointCallbackFace, CheckpointMetadata, IClusterProvider},
+    cluster::{
+      CheckpointCallbackFace, CheckpointMetadata, ClusterPreferredEndpointType, IClusterProvider,
+    },
     cluster_manager::ClusterManager,
     cluster_session::ClusterSession,
     connection_info::ConnectionInfo,
@@ -86,6 +88,10 @@ pub struct ClusterProvider {
   /// gossip 抽样百分比（C# GarnetServerOptions.GossipSamplePercent，
   /// 默认 100 = 全量广播；装配期自 ClusterArgs 注入）
   gossip_sample_percent: AtomicI32,
+  /// 集群重定向端点偏好（C# serverOptions.ClusterPreferredEndpointType；
+  /// MOVED/ASK 重定向与 CLUSTER SLOTS/SHARDS 输出的地址形态源，装配期自
+  /// ClusterArgs 注入）
+  preferred_endpoint_type: AtomicU8,
   /// Garnet 当前纪元（对标 C# ClusterProvider.GarnetCurrentEpoch，初始为 1）
   garnet_current_epoch: AtomicI64,
   /// 副本重放最大滞后字节数（C# GarnetServerOptions.AofReplayMaxLagBytes，
@@ -131,6 +137,7 @@ impl Default for ClusterProvider {
       cluster_node_timeout_ms: AtomicU64::new(DEFAULT_CLUSTER_NODE_TIMEOUT_MS),
       gossip_delay_ms: AtomicU64::new(DEFAULT_GOSSIP_DELAY_MS),
       gossip_sample_percent: AtomicI32::new(DEFAULT_GOSSIP_SAMPLE_PERCENT),
+      preferred_endpoint_type: AtomicU8::new(ClusterPreferredEndpointType::Ip as u8),
       garnet_current_epoch: AtomicI64::new(1),
       aof_replay_max_lag_bytes: AtomicI32::new(-1),
       cluster_sessions: RwLock::new(Vec::new()),
@@ -260,6 +267,24 @@ impl ClusterProvider {
   /// gossip 抽样百分比（未注入时取默认值）
   pub fn gossip_sample_percent(&self) -> i32 {
     self.gossip_sample_percent.load(Ordering::Acquire)
+  }
+
+  /// 注入集群重定向端点偏好（装配期一次调用；对标 C#
+  /// serverOptions.ClusterPreferredEndpointType，默认 Ip）
+  pub fn set_preferred_endpoint_type(&self, pref_type: ClusterPreferredEndpointType) {
+    self
+      .preferred_endpoint_type
+      .store(pref_type as u8, Ordering::Release);
+  }
+
+  /// 集群重定向端点偏好（未注入时取默认值 Ip）
+  pub fn preferred_endpoint_type(&self) -> ClusterPreferredEndpointType {
+    // 判别值仅经 set_preferred_endpoint_type / 默认值写入，恒落在枚举域内
+    match self.preferred_endpoint_type.load(Ordering::Acquire) {
+      1 => ClusterPreferredEndpointType::Hostname,
+      2 => ClusterPreferredEndpointType::Unknown,
+      _ => ClusterPreferredEndpointType::Ip,
+    }
   }
 
   /// libs/cluster/Server/Replication/ReplicationManager.cs:EnsureReplication

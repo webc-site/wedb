@@ -81,6 +81,7 @@ features = [ "derive" ]
 workspace = true
 
 [dev-dependencies]
+wcustom.workspace = true
 wtxn = { path = "../wtxn" }
 wval.workspace = true
 

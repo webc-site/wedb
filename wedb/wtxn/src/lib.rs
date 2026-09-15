@@ -14,6 +14,7 @@ pub mod txn_key_spec;
 pub mod txn_lock_table;
 pub mod txn_proc;
 pub mod txn_session;
+pub mod txn_slot_verify;
 pub mod txn_state;
 pub mod txn_watched_keys_container;
 pub mod watch_version_map;
@@ -32,6 +33,7 @@ pub use txn_proc::{TxnProcHandle, TxnProcResolver, TxnQueuedCommandInfo};
 #[doc(hidden)]
 pub use txn_session::MockTxnSession;
 pub use txn_session::TxnSession;
+pub use txn_slot_verify::TxnSlotVerifyFace;
 pub use txn_state::TxnState;
 pub use txn_watched_keys_container::TxnWatchedKeysContainer;
 pub use watch_version_map::{DEFAULT_VERSION_MAP_SIZE, WatchVersionMap};

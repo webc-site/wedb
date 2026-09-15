@@ -20,6 +20,7 @@ use wbase::entry_type::REPLAY_TASK_ACCESS_VECTOR_BYTES;
 use crate::{
   StoreType, TxnState,
   txn_key_entry::{LockType, TxnKeyEntries},
+  txn_slot_verify::TxnSlotVerifyFace,
   txn_watched_keys_container::TxnWatchedKeysContainer,
   watch_version_map::WatchVersionMap,
 };
@@ -287,6 +288,10 @@ pub struct TransactionManager<L: TxnAofLog = ()> {
   pub is_replaying: bool,
   /// 事务涉及的键集合（集群槽位校验用；对标 C# txnKeysParseState）
   pub txn_keys: Vec<Box<[u8]>>,
+  /// 迭代式槽位校验切面（C# TxnKeyManager 持 respSession.clusterSession 引用
+  /// 的函数化投影；None = 单机 / 回放宿主无集群面，全部校验函数短路——同
+  /// C# clusterEnabled 判定。RUNTXP 执行前由会话侧注入）
+  slot_verifier: Option<Arc<dyn TxnSlotVerifyFace>>,
 }
 
 unsafe impl<L: TxnAofLog + Send> Send for TransactionManager<L> {}
@@ -315,7 +320,14 @@ impl<L: TxnAofLog> TransactionManager<L> {
       stored_proc_mode: false,
       is_replaying: false,
       txn_keys: Vec::new(),
+      slot_verifier: None,
     }
+  }
+
+  /// 注入迭代式槽位校验切面（RUNTXP 执行前会话侧调用；C# 构造期持
+  /// respSession 引用的等价形态）
+  pub fn set_slot_verifier(&mut self, verifier: Arc<dyn TxnSlotVerifyFace>) {
+    self.slot_verifier = Some(verifier);
   }
 
   /// 设置会话标识（对齐 C# Session.ID 绑定）
@@ -327,6 +339,24 @@ impl<L: TxnAofLog> TransactionManager<L> {
   /// 是否启用 AOF（libs/server/Transaction/TransactionManager.cs:AofEnabled）
   pub fn aof_enabled(&self) -> bool {
     self.aof_log.is_some()
+  }
+
+  /// 键归属校验：集群切面在场时迭代校验键所有权，失败置事务 Aborted
+  ///
+  /// libs/server/Transaction/TxnKeyManager.cs:VerifyKeyOwnership
+  ///
+  /// 切面缺席（单机）或 AOF 回放期短路（C# !clusterEnabled || IsReplaying）
+  pub fn verify_key_ownership(&mut self, key: &[u8], lock_type: LockType) {
+    let Some(verifier) = self.slot_verifier.as_ref() else {
+      return;
+    };
+    if self.is_replaying {
+      return;
+    }
+    let read_only = lock_type == LockType::Shared;
+    if !verifier.network_iterative_slot_verify(key, read_only) {
+      self.state = TxnState::Aborted;
+    }
   }
 
   /// 重置事务状态
@@ -619,6 +649,12 @@ impl<L: TxnAofLog> TransactionManager<L> {
     let running = false;
     self.is_replaying = is_replaying;
 
+    // 集群启用时重置迭代槽位校验缓存（C# ResetCacheSlotVerificationResult；
+    // 切面缺席即 clusterEnabled false 短路）
+    if let Some(verifier) = self.slot_verifier.as_ref() {
+      verifier.reset_cached_slot_verification_result();
+    }
+
     self.stored_proc_mode = true;
 
     // 准备段
@@ -628,6 +664,10 @@ impl<L: TxnAofLog> TransactionManager<L> {
     }
 
     if self.state == TxnState::Aborted {
+      // 写出缓存槽位验证错误（C# WriteCachedSlotVerificationMessage）
+      if let Some(verifier) = self.slot_verifier.as_ref() {
+        verifier.write_cached_slot_verification_message(output);
+      }
       self.reset(running);
       return false;
     }

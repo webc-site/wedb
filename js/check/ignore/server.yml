@@ -681,10 +681,6 @@
         - CanServeSlotNoResponse
     - libs/server/Transaction/TxnClusterSlotCheck.cs:
         - SaveKeyArgSlice
-    - libs/server/Transaction/TxnKeyManager.cs:
-        - ResetCacheSlotVerificationResult
-        - VerifyKeyOwnership
-        - WriteCachedSlotVerificationMessage
     - libs/server/Transaction/TransactionManager.cs:
         - GetSlotVerificationInput
   理由: 单机架构解耦：单机引擎 wedb_standalone 彻底剥离所有集群槽位校验与缓存侵入，槽位路由完整收敛至 wedb::ClusterSession
@@ -694,12 +690,10 @@
   理由: 内部状态位简化：AOF 回放会话在本域独立构造，无需外部注入会话状态
 - 文件:
     - libs/server/Cluster/IClusterSession.cs:
-        - NetworkIterativeSlotVerify
         - NetworkMultiKeySlotVerifyNoResponse
-        - ResetCachedSlotVerificationResult
         - SetInternalWriteSession
-        - WriteCachedSlotVerificationMessage
-  理由: 无状态函数式重构：槽位校验外提为 wedb::slot_verify 纯函数无状态计算
+  理由: 无状态函数式重构：槽位校验外提为 wedb::slot_verify 纯函数无状态计算；迭代式校验
+    NetworkIterativeSlotVerify 族经 wtxn::TxnSlotVerifyFace 切面落地（RUNTXP 逐键校验链）
 - 文件:
     - libs/server/Objects/ItemBroker/CollectionItemBroker.cs:
         - HandleCollectionUpdateWorker
@@ -725,12 +719,6 @@
         - RewindScratchBuffer
   理由: Rust ScratchBufferBuilder（wlua sender.rs）为 Vec 重建式实现，reset 清空后重拼装，无 C#
     切片指针回退与栈式多缓冲分配器语义
-- 文件:
-    - libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:
-        - NetworkIterativeSlotVerify
-        - WriteCachedSlotVerificationMessage
-  理由: 集群迭代式槽位校验慢路径未在本迭代落地；槽位校验基础面 ClusterSlotVerificationInput 与
-    NetworkMultiKeySlotVerify 已建
 - 文件:
     - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkChannel.cs:
         - CompleteAndWaitForConsumerTask

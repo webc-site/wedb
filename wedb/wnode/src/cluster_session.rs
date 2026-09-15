@@ -39,6 +39,12 @@ pub type SlotVerifyFn =
 /// 集群命令处理函数指针类型
 pub type ProcessClusterCmdFn = unsafe fn(*const (), RespCommand, &[&[u8]], &mut Vec<u8>) -> bool;
 
+/// 迭代式槽位校验函数指针类型（key, read_only, session_asking）
+pub type IterativeSlotVerifyFn = unsafe fn(*const (), &[u8], bool, bool) -> bool;
+
+/// 缓存槽位验证错误写出函数指针类型
+pub type WriteCachedVerifyMsgFn = unsafe fn(*const (), &mut Vec<u8>);
+
 /// 集群槽位验证输入（借阅键规格，命令热路径零克隆）
 ///
 /// libs/server/Cluster/ClusterSlotVerificationInput.cs:ClusterSlotVerificationInput
@@ -177,6 +183,30 @@ pub trait ClusterSessionFace: Send + Sync {
     let _ = manager_type;
   }
 
+  /// 重置迭代式槽位校验缓存（事务批次起点；无集群切面 no-op）
+  ///
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:ResetCachedSlotVerificationResult
+  fn reset_cached_slot_verification_result(&self) {}
+
+  /// 事务 Prepare 段逐键迭代校验；false = 校验失败（无集群切面恒放行，
+  /// 同 C# clusterEnabled false 短路；`session_asking` 对标 C#
+  /// VerifyKeyOwnership 内取 respSession.SessionAsking）
+  ///
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
+  fn network_iterative_slot_verify(
+    &self,
+    _key: &[u8],
+    _read_only: bool,
+    _session_asking: bool,
+  ) -> bool {
+    true
+  }
+
+  /// 写出缓存槽位验证错误（无集群切面 no-op）
+  ///
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:WriteCachedSlotVerificationMessage
+  fn write_cached_slot_verification_message(&self, _output: &mut Vec<u8>) {}
+
   /// 集群态 PUBLISH/SPUBLISH 跨节点广播（C# PubSubCommands.cs:140-147：
   /// EnableCluster 时网络线程 BlockingWait clusterProvider.ClusterPublishAsync；
   /// rust 会话→集群域唯一通道是本切面，C# 直连 provider 的形态由宿主实现
@@ -211,6 +241,9 @@ pub struct ClusterSessionVtable {
   pub take_fatal_disconnect: unsafe fn(*const ()) -> Option<String>,
   pub purge_buffer_pool: unsafe fn(*const (), ManagerType),
   pub cluster_publish: unsafe fn(*const (), RespCommand, &[u8], &[u8]) -> bool,
+  pub reset_cached_slot_verification_result: unsafe fn(*const ()),
+  pub network_iterative_slot_verify: IterativeSlotVerifyFn,
+  pub write_cached_slot_verification_message: WriteCachedVerifyMsgFn,
   pub drop: unsafe fn(*const ()),
   pub clone: unsafe fn(*const ()) -> *const (),
 }
@@ -262,6 +295,15 @@ impl ClusterSession {
         },
         cluster_publish: |ptr, cmd, channel, message| unsafe {
           (*(ptr as *const T)).cluster_publish(cmd, channel, message)
+        },
+        reset_cached_slot_verification_result: |ptr| unsafe {
+          (*(ptr as *const T)).reset_cached_slot_verification_result()
+        },
+        network_iterative_slot_verify: |ptr, key, read_only, session_asking| unsafe {
+          (*(ptr as *const T)).network_iterative_slot_verify(key, read_only, session_asking)
+        },
+        write_cached_slot_verification_message: |ptr, output| unsafe {
+          (*(ptr as *const T)).write_cached_slot_verification_message(output)
         },
         drop: |ptr| unsafe { drop(Arc::from_raw(ptr as *const T)) },
         clone: |ptr| unsafe {
@@ -385,6 +427,26 @@ impl ClusterSession {
   #[inline]
   pub fn cluster_publish(&self, cmd: RespCommand, channel: &[u8], message: &[u8]) -> bool {
     unsafe { (self.vtable.cluster_publish)(self.ptr, cmd, channel, message) }
+  }
+
+  #[inline]
+  pub fn reset_cached_slot_verification_result(&self) {
+    unsafe { (self.vtable.reset_cached_slot_verification_result)(self.ptr) }
+  }
+
+  #[inline]
+  pub fn network_iterative_slot_verify(
+    &self,
+    key: &[u8],
+    read_only: bool,
+    session_asking: bool,
+  ) -> bool {
+    unsafe { (self.vtable.network_iterative_slot_verify)(self.ptr, key, read_only, session_asking) }
+  }
+
+  #[inline]
+  pub fn write_cached_slot_verification_message(&self, output: &mut Vec<u8>) {
+    unsafe { (self.vtable.write_cached_slot_verification_message)(self.ptr, output) }
   }
 }
 

@@ -161,6 +161,9 @@ fn main() -> Result<()> {
       // 校验等待（CanOperateOnKey / WaitForSlotToStabalize 挂起重评）的超时
       // 上限源，超时后按 ASK/CLUSTERDOWN 终评，杜绝命令永久挂起
       cluster.set_cluster_node_timeout_ms(args.cluster_node_timeout_ms);
+      // 集群重定向端点偏好（C# serverOptions.ClusterPreferredEndpointType）：
+      // MOVED/ASK 重定向与 CLUSTER SLOTS/SHARDS 输出的地址形态源
+      cluster.set_preferred_endpoint_type(args.cluster_preferred_endpoint_type);
       // gossip 参数注入（C# GarnetServerOptions.GossipDelay /
       // GossipSamplePercent → ClusterManager 构造读取；对标
       // ClusterProvider.cs:60 构造期百分比校验）

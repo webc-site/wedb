@@ -8,7 +8,7 @@
 //! EXEC 据此回退光标重放排队命令：第一遍（Started）排队校验，重放遍
 //! （Running）真执行，末尾 EXEC 再次进入本面触发提交。
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use smallvec::SmallVec;
 use wbase::num::strict_i32;
@@ -22,13 +22,38 @@ use wresp::{
 };
 use wtxn::{
   StoreType, TransactionManager, TxnAofLog, TxnProcHandle, TxnProcResolver, TxnQueuedCommandInfo,
-  TxnSession, TxnState,
+  TxnSession, TxnSlotVerifyFace, TxnState,
 };
 
 use crate::{
-  aof::replaycoordinator::stored_proc_replay::stored_proc_args,
+  aof::replaycoordinator::stored_proc_replay::stored_proc_args, cluster_session::ClusterSession,
   resp::resp_server_session::RespServerSession,
 };
+
+/// 迭代式槽位校验适配（会话集群切面 + ASKING 会话态绑定；C#
+/// VerifyKeyOwnership 内取 respSession.SessionAsking 的等价物）
+struct IterativeSlotVerifyAdapter {
+  /// 会话集群切面句柄
+  cluster: ClusterSession,
+  /// 会话 ASKING 剩余计数（C# sessionAsking，非零即导入槽放行）
+  session_asking: u8,
+}
+
+impl TxnSlotVerifyFace for IterativeSlotVerifyAdapter {
+  fn reset_cached_slot_verification_result(&self) {
+    self.cluster.reset_cached_slot_verification_result();
+  }
+
+  fn network_iterative_slot_verify(&self, key: &[u8], read_only: bool) -> bool {
+    self
+      .cluster
+      .network_iterative_slot_verify(key, read_only, self.session_asking != 0)
+  }
+
+  fn write_cached_slot_verification_message(&self, output: &mut Vec<u8>) {
+    self.cluster.write_cached_slot_verification_message(output);
+  }
+}
 
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_GENERIC_NESTED_MULTI
 const RESP_ERR_GENERIC_NESTED_MULTI: &str = "ERR MULTI calls can not be nested";
@@ -468,6 +493,16 @@ impl TxnProcResolver<RespServerSession> for SessionTxnProcResolver {
     // 回放侧 stored_proc_args::decode 重建参数序列）
     let mut proc_input = Vec::new();
     stored_proc_args::encode(&args, &mut proc_input);
+
+    // 迭代式槽位校验切面注入（C# TxnKeyManager 构造期持 respSession 引用
+    // 的等价形态：集群切面在场时把校验面交给事务管理器，单机 None 剥离；
+    // session_asking 在此绑定，对标 C# VerifyKeyOwnership 取 respSession.SessionAsking）
+    if let Some(cluster) = &session.cluster_session {
+      txn_manager.set_slot_verifier(Arc::new(IterativeSlotVerifyAdapter {
+        cluster: cluster.clone(),
+        session_asking: session.session_asking,
+      }));
+    }
 
     let mut output = Vec::new();
     if txn_manager.run_transaction_proc(&mut proc, &proc_input, &mut output, false) {

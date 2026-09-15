@@ -4,6 +4,7 @@ use std::{
     Arc,
     atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
   },
+  thread,
   time::Duration,
 };
 
@@ -27,8 +28,8 @@ use crate::{
     connection_info::ConnectionInfo,
     hash_slot::SlotState,
     slot_verify::{
-      ClusterSlotVerificationState, SlotVerifySessionState, multi_key_slot_verify,
-      single_key_slot_verify,
+      ClusterSlotVerificationState, IterativeSlotVerifyCache, SlotVerifySessionState,
+      iterative_slot_verify_step, multi_key_slot_verify, single_key_slot_verify,
     },
     worker::{LocalWorkerSpec, NodeRole},
   },
@@ -714,6 +715,86 @@ impl ClusterManager {
       ClusterSlotVerificationState::Ok => GateVerdict::Serve,
       redirect => GateVerdict::Redirect(redirect),
     }
+  }
+
+  /// libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
+  ///
+  /// 迭代式槽位校验的单键验证步（事务 Prepare 同步上下文专用）：批量门评的
+  /// Wait 挂起重评在此不可用，CanOperateOnKey 自旋内联为线程让出重试（对标
+  /// C# Thread.Yield 自旋），超时上限取 cluster_node_timeout_ms，超时按
+  /// NotOperable 终评（MIGRATING → ASK）；磁盘候选键（同步探测 None、异步
+  /// 裁决不可达）同沿超时终评，登记差异——C# Exists 同步等 IO 完成即时裁决
+  pub fn evaluate_iterative_key_gate(
+    &self,
+    key: &[u8],
+    read_only: bool,
+    session: SlotVerifySessionState,
+    pref_type: ClusterPreferredEndpointType,
+  ) -> ClusterSlotVerificationState {
+    let slot = cluster_slot(key);
+    let config = self.current_config();
+    let is_recovering = self.is_recovering();
+
+    // can_operate 组装（同门评内核：仅 MIGRATING 本地臂消费；同步自旋至
+    // 裁决或超时）
+    let can_operate = if config.get_state(slot) == SlotState::Migrating
+      && config.is_local(
+        slot,
+        if read_only {
+          session.read_only_session
+        } else {
+          session.internal_write
+        },
+      ) {
+      let ctx = GateCtx {
+        read_only,
+        session,
+        wait_for_stable: false,
+        pref_type,
+        memo: None,
+      };
+      let deadline = now_ms().saturating_add(self.cluster_provider.cluster_node_timeout_ms());
+      loop {
+        match self.resolve_can_operate(key, slot, &ctx, 0) {
+          KeyOperable::Operable => break true,
+          KeyOperable::NotOperable => break false,
+          // 迁移推进 / 磁盘候选裁决未落：让出线程等推进方，超时强制终评
+          KeyOperable::AccessPending | KeyOperable::ExistsPending => {
+            if now_ms() >= deadline {
+              break false;
+            }
+            thread::yield_now();
+          }
+        }
+      }
+    } else {
+      true
+    };
+
+    single_key_slot_verify(
+      &config,
+      slot,
+      read_only,
+      session,
+      is_recovering,
+      can_operate,
+      pref_type,
+    )
+  }
+
+  /// 迭代式槽位校验整批步进（C# NetworkIterativeSlotVerify 逐键循环形态：
+  /// 缓存步进 + 单键验证，供集群会话迭代入口复用）
+  pub fn iterative_slot_verify(
+    &self,
+    cache: &mut IterativeSlotVerifyCache,
+    key: &[u8],
+    read_only: bool,
+    session: SlotVerifySessionState,
+    pref_type: ClusterPreferredEndpointType,
+  ) -> bool {
+    let slot = cluster_slot(key);
+    let verdict = self.evaluate_iterative_key_gate(key, read_only, session, pref_type);
+    iterative_slot_verify_step(cache, verdict, slot)
   }
 
   /// 挂起等待体：轮询至终评或超时（ClusterSlotVerify.cs:CanOperateOnKey /

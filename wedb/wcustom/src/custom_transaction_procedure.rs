@@ -15,9 +15,10 @@ pub trait CustomTransactionProcedure: TxnProcedure {
   /// 绑定过程输入参数（C# `Prepare/Main(api, ref procInput)` 的 procInput 投影）
   fn bind_args(&mut self, _args: &[Vec<u8>]) {}
 
-  /// 锁键登记（C# AddKey）
+  /// 锁键登记（C# AddKey：SaveKeyEntryToLock + VerifyKeyOwnership 调用序）
   fn add_key(&self, txn_manager: &mut TransactionManager, key: &[u8], lock_type: LockType) {
     txn_manager.save_key_entry_to_lock(key, lock_type);
+    txn_manager.verify_key_ownership(key, lock_type);
   }
 }
 
@@ -63,7 +64,7 @@ impl TxnProcedure for SetTxnProc {
 
   fn prepare(&mut self, txn_manager: &mut TransactionManager) -> bool {
     for key in self.args.iter().step_by(2) {
-      txn_manager.save_key_entry_to_lock(key, LockType::Exclusive);
+      self.add_key(txn_manager, key, LockType::Exclusive);
     }
     !self.args.is_empty()
   }

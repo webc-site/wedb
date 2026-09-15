@@ -3,6 +3,8 @@
 use clap::{ArgMatches, Parser};
 use wconf::{ConfigFileArgs, NodeArgs, NodeOptionsError, ServerArgs};
 
+use crate::server::cluster::ClusterPreferredEndpointType;
+
 /// 默认集群节点心跳与故障检测超时毫秒数
 pub const DEFAULT_CLUSTER_NODE_TIMEOUT_MS: u64 = 15000;
 /// 默认集群 gossip 周期秒数（garnet/libs/server/Servers/GarnetServerOptions.cs:246 GossipDelay）
@@ -35,6 +37,12 @@ pub struct ClusterArgs {
   /// 每轮 gossip 与多少百分比的集群节点通信（0-100，100 = 全量广播）
   #[arg(long, default_value_t = DEFAULT_GOSSIP_SAMPLE_PERCENT)]
   pub gossip_sample_percent: i32,
+
+  /// 集群重定向（MOVED/ASK）与 CLUSTER SLOTS/SHARDS 输出向客户端通告的
+  /// 端点形态（值 ip/hostname/unknown；对标 C# Options.cs:60 选项
+  /// cluster-preferred-endpoint-type，默认 ip）
+  #[arg(long = "cluster-preferred-endpoint-type", default_value = "ip")]
+  pub cluster_preferred_endpoint_type: ClusterPreferredEndpointType,
 }
 
 impl ServerArgs for ClusterArgs {
@@ -130,6 +138,38 @@ mod tests {
       let args = ClusterArgs::try_parse_from(["wedb", "--log-level", level_str]).unwrap();
       assert_eq!(args.node_args().minimum_log_level(), expected);
     }
+  }
+
+  #[test]
+  fn test_cluster_args_preferred_endpoint_type() {
+    // 默认 ip（C# enum 首成员 Ip = 默认值）
+    let args = ClusterArgs::try_parse_from(["wedb"]).unwrap();
+    assert_eq!(
+      args.cluster_preferred_endpoint_type,
+      ClusterPreferredEndpointType::Ip
+    );
+
+    // 显式 hostname（重定向通告主机名形态）
+    let args =
+      ClusterArgs::try_parse_from(["wedb", "--cluster-preferred-endpoint-type", "hostname"])
+        .unwrap();
+    assert_eq!(
+      args.cluster_preferred_endpoint_type,
+      ClusterPreferredEndpointType::Hostname
+    );
+
+    // unknown / 非法值
+    let args =
+      ClusterArgs::try_parse_from(["wedb", "--cluster-preferred-endpoint-type", "unknown"])
+        .unwrap();
+    assert_eq!(
+      args.cluster_preferred_endpoint_type,
+      ClusterPreferredEndpointType::Unknown
+    );
+    assert!(
+      ClusterArgs::try_parse_from(["wedb", "--cluster-preferred-endpoint-type", "dnswithcare"])
+        .is_err()
+    );
   }
 
   #[test]
