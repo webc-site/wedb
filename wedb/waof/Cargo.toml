@@ -25,9 +25,9 @@ thiserror = { workspace = true }
 wdev = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 itoa.workspace = true
-bitcode.workspace = true
 parking_lot.workspace = true
 crossfire = "3.1.20"
+bitcode.workspace = true
 
 [dev-dependencies]
 wedb_test.workspace = true

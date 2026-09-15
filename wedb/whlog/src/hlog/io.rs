@@ -500,27 +500,4 @@ impl<D: Device> HybridLog<D> {
       listener.await;
     }
   }
-
-  /// 沿反向指针链遍历历史版本记录（对标 Garnet IterateKeyVersions）
-  ///
-  /// 从给定起始逻辑地址 `start_addr` 开始沿着 `prev_address` 反向追溯历史版本，
-  /// 每条记录调用闭包 `f(addr, record)`，若闭包返回 `Ok(false)` 则提前终止回溯。
-  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs:IterateHashChain
-  pub async fn iterate_version_chain<F>(&self, start_addr: u64, mut f: F) -> Result<()>
-  where
-    F: FnMut(u64, &RecordOutput) -> Result<bool>,
-  {
-    let mut curr = start_addr;
-    let begin = self.addresses.begin();
-    while curr >= begin && curr != 0 {
-      let record = self.read_record(curr).await?;
-      let prev = record.prev_address()?;
-      let cont = f(curr, &record)?;
-      if !cont || prev == 0 || prev >= curr {
-        break;
-      }
-      curr = prev;
-    }
-    Ok(())
-  }
 }

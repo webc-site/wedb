@@ -1,10 +1,9 @@
-use bitcode::{Decode, Encode};
 use parking_lot::Mutex;
 
 use crate::address::AddressManager;
 
 /// 异步页面待刷盘区间（对标 Garnet PageAsyncFlushResult）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PageFlushRange {
   /// 起始逻辑地址（包含）
   pub from_address: u64,

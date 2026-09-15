@@ -44,9 +44,6 @@ const ERR_LUA_INVOKE_FAILED: &[u8] = b"ERR An error occurred while invoking a Lu
 const INITIAL_KEYS_CAPACITY: usize = 5;
 const INITIAL_ARGV_CAPACITY: usize = 5;
 
-/// redis 默认版本号（C# 构造默认 "0.0.0.0"）。
-pub const DEFAULT_REDIS_VERSION: &str = "0.0.0.0";
-
 /// 脚本运行错误的 RESP 前缀。
 const ERR_PREFIX: &[u8] = b"ERR ";
 

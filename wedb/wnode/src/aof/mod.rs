@@ -20,4 +20,3 @@ pub use garnet_log::{GarnetLog, InMemorySublog, LogRecord, SublogBackend};
 pub use sharded_log::ShardedLog;
 pub use single_log::SingleLog;
 pub use sublog::Sublog;
-pub use waof_sublog::*;

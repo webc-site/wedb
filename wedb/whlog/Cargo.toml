@@ -17,7 +17,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-bitcode = { workspace = true }
 itoa = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
