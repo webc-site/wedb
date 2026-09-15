@@ -1,7 +1,8 @@
+use std::{sync::Arc, thread::spawn};
+
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
-use std::{sync::Arc, thread::spawn};
 
 use super::support::{WalFixture, make_pattern_payload, make_payload};
 
@@ -230,7 +231,11 @@ fn test_reset_concurrent_with_commit_lock_serialization() -> Void {
     let begin = wal.begin_address();
     assert_eq!(begin, wal.tail_address(), "reset 后尾位点须归零");
     assert_eq!(begin, wal.flushed_until_address(), "reset 后刷盘位点须归零");
-    assert_eq!(begin, wal.committed_until_address(), "reset 后提交位点须归零");
+    assert_eq!(
+      begin,
+      wal.committed_until_address(),
+      "reset 后提交位点须归零"
+    );
 
     // 复用：重置后写入提交扫描闭环
     for i in 0..8 {
