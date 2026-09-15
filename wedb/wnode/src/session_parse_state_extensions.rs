@@ -18,7 +18,12 @@ use wcol::{
 use wmetric::{InfoMetricsType, LatencyMetricsType};
 use wresp::{
   ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption,
-  SortedSetAggregateType as ZSetAggregate, cmd_strings,
+  SortedSetAggregateType as ZSetAggregate,
+  cmd_strings::{
+    self, RESP_ERR_COUNT_IS_NOT_POSITIVE, RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE,
+    RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT, RESP_ERR_NOT_VALID_HEIGHT, RESP_ERR_NOT_VALID_RADIUS,
+    RESP_ERR_NOT_VALID_WIDTH, RESP_ERR_RADIUS_IS_NEGATIVE,
+  },
 };
 
 pub use crate::key_spec::*;
@@ -268,17 +273,19 @@ pub fn try_get_geo_search_options(
 
     // 半径
     let Some(radius) = parse_state.ext_bytes(token).and_then(strict_double) else {
-      return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_RADIUS));
+      return (None, dest_idx, err(RESP_ERR_NOT_VALID_RADIUS));
     };
     token += 1;
     if radius < 0.0 {
-      return (None, dest_idx, err(cmd_strings::RESP_ERR_RADIUS_IS_NEGATIVE));
+      return (None, dest_idx, err(RESP_ERR_RADIUS_IS_NEGATIVE));
     }
     opts.radius = radius;
     opts.search_type = GeoSearchType::ByRadius;
     match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
       Some(unit) => opts.unit = unit,
-      None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+      None => {
+        return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+      }
     }
     token += 1;
   }
@@ -354,16 +361,18 @@ pub fn try_get_geo_search_options(
         }
         match parse_state.ext_bytes(token).and_then(strict_double) {
           Some(radius) => opts.radius = radius,
-          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_RADIUS)),
+          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_RADIUS)),
         }
         token += 1;
         if opts.radius < 0.0 {
-          return (None, dest_idx, err(cmd_strings::RESP_ERR_RADIUS_IS_NEGATIVE));
+          return (None, dest_idx, err(RESP_ERR_RADIUS_IS_NEGATIVE));
         }
         opts.search_type = GeoSearchType::ByRadius;
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => {
+            return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+          }
         }
         token += 1;
         continue;
@@ -383,21 +392,23 @@ pub fn try_get_geo_search_options(
         }
         match parse_state.ext_bytes(token).and_then(strict_double) {
           Some(w) => opts.box_width = w,
-          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_WIDTH)),
+          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_WIDTH)),
         }
         token += 1;
         match parse_state.ext_bytes(token).and_then(strict_double) {
           // C# boxHeight getter/setter 即 radius（BYBOX 高度复用半径字段）
           Some(h) => opts.radius = h,
-          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_HEIGHT)),
+          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_HEIGHT)),
         }
         token += 1;
         if opts.box_width < 0.0 || opts.radius < 0.0 {
-          return (None, dest_idx, err(cmd_strings::RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE));
+          return (None, dest_idx, err(RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE));
         }
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => {
+            return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+          }
         }
         token += 1;
         continue;
@@ -434,7 +445,7 @@ pub fn try_get_geo_search_options(
       }
       token += 1;
       if opts.count_value <= 0 {
-        return (None, dest_idx, err(cmd_strings::RESP_ERR_COUNT_IS_NOT_POSITIVE));
+        return (None, dest_idx, err(RESP_ERR_COUNT_IS_NOT_POSITIVE));
       }
       if count > token
         && parse_state

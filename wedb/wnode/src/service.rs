@@ -35,8 +35,8 @@ use wcustom::{CustomCommandManager, SharedCustomCommandManager};
 use wdatabase::{DEFAULT_VERSION_MAP_SIZE, GarnetDatabase, SingleDatabaseManager};
 use wdev::{Device, SegmentedDevice};
 use wkv::{
-  DEFAULT_GC_COMPACTION_INTERVAL_MS, DEFAULT_GC_SCAN_INTERVAL_MS, StoreConfig,
-  StoreEvent, StoreEventSink, StoreSession, WedbStore,
+  DEFAULT_GC_COMPACTION_INTERVAL_MS, DEFAULT_GC_SCAN_INTERVAL_MS, StoreConfig, StoreEvent,
+  StoreEventSink, StoreSession, WedbStore,
 };
 use wlua::LuaTimeoutManager;
 use wpubsub::SubscribeBroker;
