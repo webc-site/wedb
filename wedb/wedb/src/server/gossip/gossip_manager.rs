@@ -164,9 +164,13 @@ impl GossipManager {
       let local_id = config.local_node_id().map(String::from);
       for (nid, address, port) in config.get_worker_info_for_gossip() {
         if !cluster_mgr.is_banned(&nid) && local_id.as_deref() != Some(nid.as_str()) {
-          self
-            .connection_store
-            .get_or_add_with_auth(&nid, &address, port, auth_user.as_deref(), auth_pwd.as_deref());
+          self.connection_store.get_or_add_with_auth(
+            &nid,
+            &address,
+            port,
+            auth_user.as_deref(),
+            auth_pwd.as_deref(),
+          );
         }
       }
     }
