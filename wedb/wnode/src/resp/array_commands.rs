@@ -425,21 +425,6 @@ impl RespServerSession {
     }
   }
 
-  /// libs/server/Resp/ArrayCommands.cs:NetworkArrayPING
-  pub fn network_array_ping(
-    &mut self,
-    parse_state: &[&[u8]],
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, <= 1, output, "PING");
-    if parse_state.is_empty() {
-      output.write_resp_simple_string("PONG");
-    } else {
-      output.write_resp_bulk_string(parse_state[0]);
-    }
-    Ok(true)
-  }
-
   /// libs/server/Resp/ArrayCommands.cs:NetworkLCS
   pub fn network_lcs<'a, D: wdev::Device>(
     &mut self,

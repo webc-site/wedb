@@ -3,15 +3,11 @@
 //! 统一管理工作线程的停机通知，基于 AtomicBool + event_listener::Event 实现 O(1) 广播，
 //! 消除为每个任务创建 bounded_async(1) 与 Mutex<Vec<AsyncTx>> 遍历发送的反模式。
 
-use std::{
-  sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-  },
-  time::Duration,
+use std::sync::{
+  Arc,
+  atomic::{AtomicBool, Ordering},
 };
 
-use compio::time::timeout;
 use event_listener::{Event, EventListener};
 
 struct ShutdownCoordinatorInner {
@@ -74,17 +70,5 @@ impl ShutdownCoordinator {
       return;
     }
     listener.await;
-  }
-
-  /// 阻塞或超时等待停机唤醒
-  pub async fn wait_stopped(&self, fallback_timeout: Duration) {
-    if self.is_stopped() {
-      return;
-    }
-    let listener = self.listen();
-    if self.is_stopped() {
-      return;
-    }
-    let _ = timeout(fallback_timeout, listener).await;
   }
 }

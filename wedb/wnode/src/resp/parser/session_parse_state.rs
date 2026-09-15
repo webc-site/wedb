@@ -27,22 +27,6 @@ use wresp::{ArgSlice, MAX_ARGUMENT_LENGTH_BYTES as MAX_ARG_LEN, SessionParseStat
 
 pub const MAX_ARGUMENT_LENGTH_BYTES: usize = MAX_ARG_LEN as usize;
 
-/// libs/server/Resp/Parser/SessionParseState.cs:InitializeWithArgument
-///
-/// 以单参数初始化解析态（C# 重载 InitializeWithArgument(arg)）
-#[inline]
-pub fn initialize_with_argument(state: &mut SessionParseState, arg: ArgSlice) {
-  state.initialize_with_arg(arg);
-}
-
-/// libs/server/Resp/Parser/SessionParseState.cs:InitializeWithArguments
-///
-/// 以参数数组初始化解析态（C# 重载 InitializeWithArguments(params)）
-#[inline]
-pub fn initialize_with_arguments(state: &mut SessionParseState, args: &[ArgSlice]) {
-  state.initialize_with_args(args);
-}
-
 /// libs/server/Resp/Parser/SessionParseState.cs:SetArgument
 ///
 /// 写入指定下标的参数；下标越过 Count 时推进 Count（i >= Count → Count = i + 1）

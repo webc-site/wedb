@@ -210,9 +210,7 @@ pub struct RespServerSession {
   pub contains_slow_command: bool,
   /// 命令执行期写出的错误标记（CommandStats 失败判定；C# commandErrorWritten）
   pub command_error_written: bool,
-  /// 会话是否请求关闭（CLIENT KILL / TryKill；C# networkSender.TryClose 语义）
-  pub kill_requested: bool,
-  /// 会话是否待释放（QUIT；C# toDispose）
+  /// 会话是否待释放（QUIT；C# toDispose；网络泵发尽应答后断连）
   pub to_dispose: bool,
 
   /// 会话指标（C# sessionMetrics；采样关闭时为 None）
@@ -363,7 +361,6 @@ impl RespServerSession {
       wait_for_aof_blocking: false,
       contains_slow_command: false,
       command_error_written: false,
-      kill_requested: false,
       to_dispose: false,
       session_metrics: options
         .metrics_sampling_frequency
@@ -952,8 +949,6 @@ impl RespServerSession {
         break;
       }
     }
-
-    self.flush_if_pending();
   }
 
   /// libs/server/Resp/RespServerSession.cs:EnterAndGetResponseObject
@@ -1407,6 +1402,16 @@ impl RespServerSession {
       self.output.extend_from_slice(&text);
       return true;
     }
+    // 自定义命令族（C# ProcessOtherCommands 的 RespCommand.CustomTxn /
+    // CustomRawStringCmd / CustomProcedure → NetworkCustomTxn /
+    // NetworkCustomRawStringCmd / NetworkCustomProcedure；CustomObjCmd 经
+    // dispatch_via_garnet_api 的存储执行域承接）
+    if matches!(
+      cmd,
+      RespCommand::Customtxn | RespCommand::Customrawstringcmd | RespCommand::Customprocedure
+    ) {
+      return self.run_custom_command();
+    }
     let args = self.get_arg_slices();
     self.dispatch_via_garnet_api(cmd, &args);
     true
@@ -1784,18 +1789,6 @@ impl RespServerSession {
     Some(self.recv_buffer[start..start + len].to_vec())
   }
 
-  /// libs/server/Resp/RespServerSession.cs:TryKill
-  ///
-  /// 尝试杀死会话：首次调用关闭底层连接并返回 true，后续调用返回 false
-  pub fn try_kill(&mut self) -> bool {
-    if self.kill_requested {
-      false
-    } else {
-      self.kill_requested = true;
-      true
-    }
-  }
-
   /// libs/server/Resp/RespServerSession.cs:SendAndReset
   ///
   /// 冲洗输出缓冲；缓冲无新增字节时返回 false（C# 抛 GarnetException：
@@ -1853,11 +1846,11 @@ impl RespServerSession {
     }
   }
 
-  /// 有待发送字节时标记关闭（ProcessMessages 尾部）
-  fn flush_if_pending(&mut self) {
-    if !self.output.is_empty() && self.to_dispose {
-      self.kill_requested = true;
-    }
+  /// 取走会话待释放哨兵（C# ProcessMessages 尾部 `if (toDispose)
+  /// DisposeNetworkSender(true)` 的信号通道：QUIT 置位，网络泵发尽本轮
+  /// 累积应答后据此断连；取走即复位）
+  pub fn take_dispose_request(&mut self) -> bool {
+    mem::take(&mut self.to_dispose)
   }
 
   /// libs/server/Resp/RespServerSession.cs:WriteDirectLarge
@@ -1865,28 +1858,6 @@ impl RespServerSession {
   /// 大块直写输出缓冲（rust 托管缓冲天然可扩容，等价一次追加）
   pub fn write_direct_large(&mut self, src: &[u8]) {
     self.output.extend_from_slice(src);
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:DebugSend
-  ///
-  /// 调试路径：逐字节发送（EnableAOF + WaitForCommit 时先等 AOF 提交）。
-  /// rust 侧以逐字节冲洗计数承接语义；`enable_aof_wait` 由调用方依
-  /// serverOptions 传入。
-  pub fn debug_send(&mut self, enable_aof_wait: bool) {
-    if self.output.is_empty() {
-      return;
-    }
-    if enable_aof_wait {
-      // C# storeWrapper.WaitForCommitAsync() 阻塞等提交；AOF 链路（本域）
-      // 提供 wait_for_commit 入口，此处标记等待语义
-      self.wait_for_aof_blocking = false;
-    }
-    let bytes = self.output.len();
-    self.flushed_bytes += bytes as u64;
-    if let Some(metrics) = &mut self.session_metrics {
-      metrics.incr_total_net_output_bytes(bytes as u64);
-    }
-    self.output.clear();
   }
 
   /// libs/server/Resp/RespServerSession.cs:TrySwitchActiveDatabaseSession
@@ -1994,21 +1965,6 @@ impl RespServerSession {
     }
   }
 
-  /// libs/server/Resp/RespServerSession.cs:CreateConsistentReadApi
-  ///
-  /// 仅集群 + AOF 多日志启用时创建（C# 条件同）；一致读 API 本体由
-  /// readconsistency 域（本周期 aof 链）承接，会话侧建专用槽位
-  pub fn create_consistent_read_api(
-    &mut self,
-    enable_cluster: bool,
-    multilog_enabled: bool,
-  ) -> Option<DatabaseSessionSlot> {
-    (enable_cluster && multilog_enabled).then(|| DatabaseSessionSlot {
-      id: 0,
-      created_ticks: session_now_ms(),
-    })
-  }
-
   /// libs/server/Resp/RespServerSession.cs:SwitchActiveDatabaseSession
   pub fn switch_active_database_session(&mut self, db_session: DatabaseSessionSlot) {
     self.active_db_id = db_session.id;
@@ -2036,16 +1992,6 @@ impl RespServerSession {
     &mut self.output
   }
 
-  /// libs/server/Resp/RespServerSession.cs:GetObjectOutput
-  pub fn get_object_output(&mut self) -> &mut Vec<u8> {
-    &mut self.output
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:GetUnifiedOutput
-  pub fn get_unified_output(&mut self) -> &mut Vec<u8> {
-    &mut self.output
-  }
-
   /// 写错误应答并置 commandErrorWritten（对标 C# AbortWithErrorMessage）
   pub fn abort_error_message(&mut self, message: &str) {
     let clean = sanitize_error_str(message, MAX_ERROR_MSG_LEN);
@@ -2063,24 +2009,6 @@ impl RespServerSession {
       .extend_from_slice(b"-ERR wrong number of arguments for '");
     self.output.extend_from_slice(clean.as_bytes());
     self.output.extend_from_slice(b"' command\r\n");
-    self.command_error_written = true;
-  }
-
-  /// 未知子命令或参数数量错误应答（对标 C# AbortWithWrongNumberOfArgumentsOrUnknownSubcommand）
-  pub fn abort_with_wrong_num_args_or_unknown_subcommand(
-    &mut self,
-    sub_command: &str,
-    cmd_name: &str,
-  ) {
-    let clean_sub = sanitize_error_str(sub_command, cs::MAX_PARAM_NAME_LEN);
-    let clean_cmd = sanitize_error_str(cmd_name, cs::MAX_PARAM_NAME_LEN);
-    self
-      .output
-      .extend_from_slice(b"-ERR unknown subcommand or wrong number of arguments for '");
-    self.output.extend_from_slice(clean_sub.as_bytes());
-    self.output.extend_from_slice(b"'. Try ");
-    self.output.extend_from_slice(clean_cmd.as_bytes());
-    self.output.extend_from_slice(b" HELP\r\n");
     self.command_error_written = true;
   }
 
@@ -2904,13 +2832,6 @@ mod tests {
     let mut single = session(2);
     assert!(!single.try_switch_active_database_session(1));
     assert!(!single.try_swap_database_sessions(0, 1));
-  }
-
-  #[test]
-  fn kill_once_and_dispose() {
-    let mut s = session(3);
-    assert!(s.try_kill());
-    assert!(!s.try_kill(), "重复 kill 返回 false");
   }
 
   #[test]

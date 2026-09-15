@@ -106,9 +106,9 @@ pub struct ConsumerEntry {
 }
 
 impl ConsumerEntry {
-  /// KILL 语义位（首杀即真，重复杀假；与 RespServerSession 的 try_kill
-  /// 同语义的注册表侧投影——被杀会话体归其连接任务独占，跨会话只能经
-  /// 此触发位 + 网络泵哨兵关闭连接）
+  /// KILL 语义位（首杀即真，重复杀假；C# networkSender.TryClose /
+  /// RespServerSession.cs:TryKill 的注册表侧投影——被杀会话体归其连接任务
+  /// 独占，跨会话只能经此触发位 + 网络泵哨兵关闭连接）
   pub fn kill_session(&self) -> bool {
     let first = !self.kill_flag.swap(true, Ordering::AcqRel);
     if first {

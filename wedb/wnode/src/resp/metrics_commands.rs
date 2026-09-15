@@ -5,12 +5,11 @@
 
 use std::sync::Arc;
 
-use parking_lot::Mutex;
 use wbase::time::now_nanos;
 use wconf::ServerConfigType;
 use wmetric::{
-  GarnetLatencyMetrics, GarnetLatencyMetricsSession, RespLatencyCommands, RespSlowlogCommands,
-  SlowLogContainer, latency::latency_metrics_entry::time_stamp::TICKS_PER_MICROSECOND,
+  RespLatencyCommands, RespSlowlogCommands, SlowLogContainer,
+  latency::latency_metrics_entry::time_stamp::TICKS_PER_MICROSECOND,
   slowlog::resp_slowlog_commands::SlowLogContext,
 };
 use wresp::RespCommand;
@@ -131,11 +130,4 @@ impl RespServerSession {
 /// 慢日志容器构造（libs/server/StoreWrapper.cs:243 —— serverOptions.SlowLogMaxEntries）
 pub fn new_slow_log_container(max_entries: i32) -> Arc<SlowLogContainer> {
   Arc::new(SlowLogContainer::new(max_entries))
-}
-
-/// 全局延迟指标构造（C# GarnetServerMonitor.GlobalMetrics.globalLatencyMetrics）
-pub fn new_global_latency_metrics() -> Arc<parking_lot::Mutex<GarnetLatencyMetrics>> {
-  Arc::new(Mutex::new(GarnetLatencyMetrics::new(
-    GarnetLatencyMetricsSession::DEFAULT_LATENCY_TYPES,
-  )))
 }

@@ -127,6 +127,11 @@ impl MessageConsumerFace for RespSessionConsumer {
     self.session.fatal_disconnect
   }
 
+  /// 会话待释放哨兵转发（QUIT → toDispose；泵发尽应答后断连）
+  fn take_dispose_request(&mut self) -> bool {
+    self.session.take_dispose_request()
+  }
+
   fn take_recv_scratch(&mut self) -> Option<Vec<u8>> {
     // 会话自有接收缓冲整体移交泵直填（mem::take 占位，归还前缓冲为空壳）
     Some(mem::take(&mut self.session.recv_buffer))

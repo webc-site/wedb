@@ -19,20 +19,3 @@ pub struct RoleInfo {
   /// 实例端口（C# port）
   pub port: i32,
 }
-
-impl RoleInfo {
-  /// 指标打印（C# ToString：ip=...,port=...,state=...,offset=...,lag=...,sequenceNumber=...）
-  ///
-  /// libs/server/Cluster/RoleInfo.cs:ToString
-  pub fn to_metrics_string(&self) -> String {
-    format!(
-      "ip={},port={},state={},offset={},lag={},sequenceNumber={}",
-      self.address,
-      self.port,
-      self.replication_state,
-      self.replication_offset,
-      self.replication_lag,
-      self.sequence_number
-    )
-  }
-}

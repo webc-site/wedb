@@ -507,6 +507,15 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
         }
       }
 
+      // 会话待释放哨兵（QUIT → toDispose）：应答已发尽，主动断连
+      //（C# Process 尾部 if (toDispose) DisposeNetworkSender(true) 语义；
+      // dispose 请求取走即复位，命中即退出泵循环走 dispose 收尾）
+      if let Some(session) = self.session.as_mut()
+        && session.take_dispose_request()
+      {
+        break;
+      }
+
       // 协议违规 / 致命断流：应答已发尽，断连（C# DisposeNetworkSender 语义）
       if parse_violation || fatal_disconnect {
         break;

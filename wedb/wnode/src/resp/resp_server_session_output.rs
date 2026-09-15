@@ -25,26 +25,6 @@ impl RespServerSession {
     RespWriter::new_ref_p(&mut self.output)
   }
 
-  /// 外层单次协议分派（执行零开销泛型闭包）
-  #[inline]
-  pub fn with_protocol_writer<R, F2, F3>(&mut self, f2: F2, f3: F3) -> R
-  where
-    F2: FnOnce(&mut RespWriter<&mut Vec<u8>, Resp2>) -> R,
-    F3: FnOnce(&mut RespWriter<&mut Vec<u8>, Resp3>) -> R,
-  {
-    if self.resp_protocol_version >= 3 {
-      f3(&mut self.writer3())
-    } else {
-      f2(&mut self.writer2())
-    }
-  }
-
-  /// libs/server/Resp/RespServerSessionOutput.cs:ProcessOutput
-  #[inline]
-  pub fn process_output(&mut self, output: &[u8]) {
-    self.output.extend_from_slice(output);
-  }
-
   /// libs/server/Resp/RespServerSessionOutput.cs:WriteAsciiBulkString
   #[inline]
   pub fn write_ascii_bulk_string(&mut self, message: &str) {

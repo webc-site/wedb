@@ -195,12 +195,6 @@ impl RangeIndexManagerReplication {
     Ok(())
   }
 
-  /// 进行中逐键流重组数量
-  #[inline]
-  pub fn pending_stream_reassembly_count(&self) -> usize {
-    self.reassembly.pin().len()
-  }
-
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexSet
   ///
   /// 以 RI.SET RMW 形状直写入队 AOF（无合成 RMW 通道；stored_proc_mode 下
@@ -584,23 +578,6 @@ impl RangeIndexManagerReplication {
     )?);
     let state = pin.get_or_insert(key.to_vec(), new_state);
     Ok(Arc::clone(state))
-  }
-
-  /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:DisposeIncompleteStreamReassembly
-  ///
-  /// 丢弃全部进行中的流重组状态（管理器释放路径调用）
-  pub fn dispose_incomplete_stream_reassembly(&self) {
-    let keys: Vec<Vec<u8>> = {
-      let pin = self.reassembly.pin();
-      pin.iter().map(|(k, _)| k.clone()).collect()
-    };
-    for key in keys {
-      log::warn!(
-        "DisposeIncompleteStreamReassembly: discarding incomplete range index stream reassembly for key {}",
-        String::from_utf8_lossy(&key)
-      );
-      self.remove_and_dispose_stream_reassembly(&key, "CleanupIncomplete");
-    }
   }
 
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:RemoveAndDisposeStreamReassembly

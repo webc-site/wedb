@@ -258,3 +258,133 @@ fn scratch_pump_violation_disconnects() {
   });
   server.stop();
 }
+
+// ---- QUIT 待释放哨兵（C# Process 尾部 if (toDispose) DisposeNetworkSender）----
+
+/// QUIT 语义桩：应答 +OK 后置待释放哨兵（对标 RespServerSession 的 Quit 臂
+/// + take_dispose_request 通道）
+struct QuitConsumer {
+  buf: Vec<u8>,
+  head: usize,
+  pending_dispose: bool,
+}
+
+impl QuitConsumer {
+  fn new() -> Self {
+    Self {
+      buf: Vec::new(),
+      head: 0,
+      pending_dispose: false,
+    }
+  }
+}
+
+impl MessageConsumerFace for QuitConsumer {
+  fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
+    if req_buffer.starts_with(b"PING\r\n") {
+      resp_buf.extend_from_slice(b"+PONG\r\n");
+      6
+    } else if req_buffer.starts_with(b"QUIT\r\n") {
+      resp_buf.extend_from_slice(b"+OK\r\n");
+      self.pending_dispose = true;
+      6
+    } else {
+      0
+    }
+  }
+
+  fn take_dispose_request(&mut self) -> bool {
+    self.pending_dispose
+  }
+
+  fn take_recv_scratch(&mut self) -> Option<Vec<u8>> {
+    Some(take(&mut self.buf))
+  }
+
+  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+    self.buf = buf;
+  }
+
+  fn try_consume_scratch_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+    loop {
+      let rest = &self.buf[self.head..];
+      if rest.starts_with(b"PING\r\n") {
+        self.head += 6;
+        resp_buf.extend_from_slice(b"+PONG\r\n");
+      } else if rest.starts_with(b"QUIT\r\n") {
+        self.head += 6;
+        resp_buf.extend_from_slice(b"+OK\r\n");
+        self.pending_dispose = true;
+      } else if b"PING\r\n".starts_with(rest) || b"QUIT\r\n".starts_with(rest) {
+        break; // 半包待续
+      } else {
+        return None;
+      }
+    }
+    if self.head >= self.buf.len() {
+      self.buf.clear();
+      self.head = 0;
+      return Some(0);
+    }
+    Some(self.buf.len() - self.head)
+  }
+
+  fn dispose(&mut self) {}
+}
+
+struct QuitProvider;
+impl SessionProviderFace for QuitProvider {
+  type Consumer = QuitConsumer;
+  fn get_session(&self, _wf: WireFormat, _id: u64) -> Option<QuitConsumer> {
+    Some(QuitConsumer::new())
+  }
+}
+
+/// QUIT 断连（回退形态）：+OK 应答发出后服务端主动关闭（客户端读到 EOF）
+#[test]
+fn pump_quit_replies_then_disconnects() {
+  let (server, addr) = spawn_server(Arc::new(QuitProvider));
+  Runtime::new().unwrap().block_on(async {
+    let mut stream = TcpStream::connect(addr.parse::<SocketAddr>().unwrap())
+      .await
+      .unwrap();
+    stream.write_all(b"QUIT\r\n".to_vec()).await.unwrap();
+    let mut acc = Vec::new();
+    loop {
+      let BufResult(res, ret) = stream.read(vec![0u8; 4096]).await;
+      let n = res.unwrap();
+      acc.extend_from_slice(&ret[..n]);
+      if n == 0 {
+        break;
+      }
+    }
+    assert_eq!(&acc, b"+OK\r\n", "QUIT 应答发尽后断连");
+  });
+  server.stop();
+}
+
+/// QUIT 断连（直读形态）：先 PING 保持连接，QUIT 后发尽 +OK 即 EOF
+#[test]
+fn scratch_pump_quit_replies_then_disconnects() {
+  let (server, addr) = spawn_server(Arc::new(QuitProvider));
+  Runtime::new().unwrap().block_on(async {
+    let mut stream = TcpStream::connect(addr.parse::<SocketAddr>().unwrap())
+      .await
+      .unwrap();
+    stream
+      .write_all(b"PING\r\nQUIT\r\n".to_vec())
+      .await
+      .unwrap();
+    let mut acc = Vec::new();
+    loop {
+      let BufResult(res, ret) = stream.read(vec![0u8; 4096]).await;
+      let n = res.unwrap();
+      acc.extend_from_slice(&ret[..n]);
+      if n == 0 {
+        break;
+      }
+    }
+    assert_eq!(&acc, b"+PONG\r\n+OK\r\n", "批内应答全部发尽后断连");
+  });
+  server.stop();
+}

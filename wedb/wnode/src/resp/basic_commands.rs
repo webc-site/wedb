@@ -441,34 +441,6 @@ impl RespServerSession {
     }
     Ok(true)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkGETAsync
-  ///
-  /// C# 异步 GET 路径（GET_WithPending + 完成端口）；rust 侧统一由
-  /// `try_read_sync` 的 `Ok(None)` → `Ok(false)` 降级信号承接磁盘冷读与
-  /// TTL 过期裁决，故语义与 [`Self::network_get`] 同体
-  pub fn network_get_async<'a, D: wdev::Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    store: &wkv::BatchStoreSession<'a, D>,
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    self.network_get(parse_state, store, output)
-  }
-  /// libs/server/Resp/BasicCommands.cs:NetworkGET_SG
-  ///
-  /// C# 贯通 SG 接收缓冲批量解析与 Session.Get (SG) 执行段；rust 单命令
-  /// 持有本命令的 parse_state，无接收缓冲访问入口，故退化为单键 GET 语义——
-  /// 单命令场景（SG 本就会走简单路径）应答逐字节一致，仅损失多 GET 流水线
-  /// 的批量合并吞吐
-  pub fn network_get_sg<'a, D: wdev::Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    store: &wkv::BatchStoreSession<'a, D>,
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    self.network_get(parse_state, store, output)
-  }
-
   /// libs/server/Resp/BasicCommands.cs:NetworkSET
   pub fn network_set<'a, D: wdev::Device>(
     &mut self,
@@ -1043,12 +1015,6 @@ impl RespServerSession {
     write_raw(output, cs::RESP_OK);
     Ok(true)
   }
-  /// libs/server/Resp/BasicCommands.cs:NetworkQUIT
-  pub fn network_quit(&mut self, output: &mut Vec<u8>) -> wresp::Result<bool> {
-    self.to_dispose = true;
-    output.write_resp_simple_string("OK");
-    Ok(true)
-  }
 
   /// FLUSHDB/FLUSHALL 副本只读拦截单源
   ///
@@ -1097,18 +1063,6 @@ impl RespServerSession {
     }
     // Garnet 单库，FLUSHALL 与 FLUSHDB 共用 FlushDb
     self.flush_db("FLUSHALL", parse_state, output)
-  }
-  /// libs/server/Resp/BasicCommands.cs:NetworkREADONLY
-  pub fn network_readonly(&mut self, output: &mut Vec<u8>) -> wresp::Result<bool> {
-    self.read_only_session = true;
-    write_raw(output, cs::RESP_OK);
-    Ok(true)
-  }
-  /// libs/server/Resp/BasicCommands.cs:NetworkREADWRITE
-  pub fn network_readwrite(&mut self, output: &mut Vec<u8>) -> wresp::Result<bool> {
-    self.read_only_session = false;
-    write_raw(output, cs::RESP_OK);
-    Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkSTRLEN
   pub fn network_strlen<'a, D: wdev::Device>(
@@ -1709,52 +1663,6 @@ impl RespServerSession {
     }
     // 清库在慢路径执行段闭环（选项由同一解析器重新解析）
     Ok(false)
-  }
-  /// libs/server/Resp/BasicCommands.cs:ParseGETAndKey
-  ///
-  /// SG GET 前视解析依赖接收缓冲直读（rust 命令层无此入口），SG 路径已退化为
-  /// 单键 GET，本助手无调用方；恒 false 即"放弃批量"
-  pub fn parse_get_and_key<'a, D: wdev::Device>(
-    &mut self,
-    _parse_state: &[&[u8]],
-    _store: &wkv::BatchStoreSession<'a, D>,
-    _output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    Ok(false)
-  }
-  /// libs/server/Resp/BasicCommands.cs:NextCommandMaybeGet
-  ///
-  /// 接收缓冲上对 `*2\r\n$3\r\nGET\r\n` 前缀的单次比较；rust 命令层无接收
-  /// 缓冲访问，恒 false（放弃批量而非出错）
-  pub fn next_command_maybe_get(&self) -> bool {
-    false
-  }
-  /// libs/server/Resp/BasicCommands.cs:TryGetSimpleCommandInfo
-  pub fn try_get_simple_command_info<'a, D: wdev::Device>(
-    &mut self,
-    cmd_name: &[u8],
-    _store: &wkv::BatchStoreSession<'a, D>,
-    _output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    let name_str = cmd_name.as_str_safe();
-    if let Some(cmd) = super::resp_commands_info_data::resp_command_from_cs_name(name_str)
-      && super::resp_commands_info::try_get_simple_resp_command_info(cmd).is_some()
-    {
-      return Ok(true);
-    }
-    Ok(false)
-  }
-  /// libs/server/Resp/BasicCommands.cs:SetResult
-  ///
-  /// C# SG pending 输出槽数组管理（惰性分配/幂次扩容）；rust 无 scratch 槽
-  /// 机制，SG 已退化单键路径，无调用方
-  pub fn set_result<'a, D: wdev::Device>(
-    &mut self,
-    _parse_state: &[&[u8]],
-    _store: &wkv::BatchStoreSession<'a, D>,
-    _output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    Ok(true)
   }
 }
 

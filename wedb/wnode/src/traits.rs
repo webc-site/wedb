@@ -63,6 +63,13 @@ pub trait MessageConsumerFace: Send + 'static {
     false
   }
 
+  /// 取走会话待释放哨兵（C# RespServerSession.Process 尾部 `if (toDispose)
+  /// DisposeNetworkSender(true)` 的信号通道：QUIT 置位，泵发尽本轮累积
+  /// 应答后据此主动断连）。默认 false
+  fn take_dispose_request(&mut self) -> bool {
+    false
+  }
+
   /// 取走会话自有接收缓冲供泵直读（scratch 直读形态，对齐 C# RespServerSession
   /// 的 bytesRead/readHead 私有缓冲模型：网络字节零拷贝直入会话缓冲，游标
   /// 跨批次持久）

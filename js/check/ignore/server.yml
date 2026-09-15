@@ -854,3 +854,28 @@
         - UnregisterIndex
   理由: C# UnregisterIndex 为 DisposeTreeUnderLock(deleteFiles=false) 单行便捷包装，
     Rust 调用方直接使用 dispose_tree_under_lock(key, false) 显式形态，零引用重复面删除
+- 文件:
+    - libs/server/Resp/BasicCommands.cs:
+        - NetworkGETAsync
+        - NetworkGET_SG
+        - NetworkQUIT
+        - ParseGETAndKey
+        - NextCommandMaybeGet
+        - TryGetSimpleCommandInfo
+  理由: "GET 异步/SG 批量路径已折叠进 network_get 单点（try_read_sync 的
+    Ok(None) 降级承接磁盘冷读，rust 命令层无接收缓冲前视入口，SG 助手
+    ParseGETAndKey/NextCommandMaybeGet/SetResult 恒值虚设）；QUIT 分派在
+    process_basic_commands 内联臂（to_dispose + +OK）；TryGetSimpleCommandInfo
+    由 prepare_command_keys_context 单源承接（COMMAND GETKEYS 族）"
+- 文件:
+    - libs/server/Resp/Parser/SessionParseState.cs:
+        - InitializeWithArgument
+  理由: 零引用薄包装删除；初始化单点为 wresp SessionParseState 的
+    initialize_with_arg/initialize_with_args（C# 两重载对应面已在）
+- 文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:
+        - DisposeIncompleteStreamReassembly
+  理由: C# 锚点 RangeIndexManager.Dispose()（丢弃未完成 RI 流重组）在
+    rust 无管理器 Dispose 生命周期域（engine 为共享 Arc，树与临时文件
+    生命周期在 wkv/wdev 域）；ds.net 条 1 检查点/RI 复制流转写时随
+    RangeIndexManager.Dispose 域重建
