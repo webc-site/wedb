@@ -8,8 +8,7 @@
 
 use std::sync::Arc;
 
-use clap::Parser;
-use wconf::ServerArgs;
+use wconf::{ConfigFileArgs, ServerArgs};
 use wedb::{
   ClusterArgs,
   server::{
@@ -38,11 +37,15 @@ const REPLICATION_REESTABLISHMENT_TIMEOUT_SECS: i32 = 1;
 const DEFAULT_LOG_FLUSH_INTERVAL: i32 = 0;
 
 fn main() -> Result<()> {
-  let args = ClusterArgs::parse();
+  // 三层配置合并解析：默认值 → --config nested_text 文件 → 命令行显式项
+  // （对标 ServerSettingsManager.cs:TryParseCommandLineArguments）
+  let args =
+    ClusterArgs::from_args_iter(std::env::args_os()).map_err(|e| Error::InvalidArgument(e.to_string()))?;
 
   // C# GarnetServer 构造器日志装配段：控制台（DisableConsoleLogger 未设）
   // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）
   let node = args.node_args();
+  let metrics_sampling_frequency_secs = node.metrics_sampling_frequency_secs;
   let mut logging = LoggingBuilder::new().with_minimum_level(node.minimum_log_level());
   if let Some(file) = &node.file_logger {
     logging = logging.add_file(file, DEFAULT_LOG_FLUSH_INTERVAL);
@@ -53,6 +56,7 @@ fn main() -> Result<()> {
 
   ServerBootstrap::new(args)
     .with_cluster_provider(ClusterProvider::new())
+    .metrics_sampling_frequency(metrics_sampling_frequency_secs)
     .banner("WeDB 分布式集群节点")
     .run_async(|args, cluster| async move {
       let node = args.node_args();
@@ -117,7 +121,11 @@ fn main() -> Result<()> {
       .with_requirepass(node.requirepass.as_deref())
       // 发布订阅装配覆盖（C# 默认 DisablePubSub = false；--disable-pubsub
       // 关闭 / --pubsub-page-size 调页，端点 accept 之前生效）
-      .with_pubsub_config(node.disable_pubsub, node.pubsub_page_size);
+      .with_pubsub_config(node.disable_pubsub, node.pubsub_page_size)
+      // 运行时配置 + 慢日志装配覆盖（--slowlog-log-slower-than /
+      // --slowlog-max-len / --object-scan-count-limit / --aof-commit-ms /
+      // --max-databases 播种，端点 accept 之前生效）
+      .with_runtime_server_options(node.runtime_server_options());
       // 存储注入集群提供者（对标 C# clusterProvider.storeWrapper 装配期建立；
       // CLUSTER RESET 的 HasKeysInSlots 扫描与 HARD 清库经此下达）
       cluster.set_store(Arc::clone(&provider.store));

@@ -14,6 +14,7 @@ use wacl::{
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::RuntimeServerConfig;
 use wcustom::SharedCustomCommandManager;
+use wmetric::SlowLogContainer;
 use wpubsub::{PubSubMailbox, SubscribeBroker};
 use wresp::RespCommand;
 use wtxn::WatchVersionMap;
@@ -83,6 +84,12 @@ impl RespSessionConsumer {
   /// 共享同一实例，CONFIG SET 即时全服务器生效）
   pub fn set_runtime_config(&mut self, config: Arc<RuntimeServerConfig>) {
     self.session.set_runtime_config(config);
+  }
+
+  /// 注入慢日志容器（对标 C# StoreWrapper.cs:243 slowLogContainer 装配：
+  /// 服务器级共享，容量启动期定死）
+  pub fn set_slow_log_container(&mut self, container: Arc<SlowLogContainer>) {
+    self.session.set_slow_log_container(container);
   }
 
   /// 注入自定义命令注册表（对标 C# storeWrapper.customCommandManager：
