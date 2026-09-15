@@ -1065,12 +1065,15 @@ impl RespServerSession {
       }
     };
 
+    // C# GenericParamShouldBeGreaterThanZero 替换 {0}="numkeys"（注意与 LMPOP 的
+    // 无 Parameter 前缀版文案不同源）
+    let err_numkeys = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
     let Some(num_keys) = parse_state[1].try_parse_i64() else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+      cs::abort_with_error_message(output, &err_numkeys);
       return Ok(true);
     };
     if num_keys < 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+      cs::abort_with_error_message(output, &err_numkeys);
       return Ok(true);
     }
     if parse_state.len() != num_keys as usize + 3 && parse_state.len() != num_keys as usize + 5 {
@@ -1094,7 +1097,9 @@ impl RespServerSession {
       match parse_state[num_keys as usize + 4].try_parse_i64() {
         Some(c) if c >= 1 => pop_count = c,
         _ => {
-          cs::abort_with_error_message(output, "ERR count should be greater than 0");
+          // C# GenericParamShouldBeGreaterThanZero 替换 {0}="count"
+          let err_count = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "count");
+          cs::abort_with_error_message(output, &err_count);
           return Ok(true);
         }
       }

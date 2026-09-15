@@ -183,6 +183,8 @@ pub const GENERIC_ERR_DUPLICATE_FILTER: &str = "ERR Filter '{0}' defined multipl
 pub const GENERIC_PUBSUB_COMMAND_NOT_ALLOWED: &str = "ERR Can't execute '{0}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT are allowed in this context";
 /// libs/server/Resp/CmdStrings.cs:GenericErrShouldBeGreaterThanZero
 pub const GENERIC_ERR_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR {0} should be greater than 0";
+/// libs/server/Resp/CmdStrings.cs:GenericErrNotAFloat（SortedSet WEIGHTS 固定替换 {0}="weight"）
+pub const GENERIC_ERR_NOT_A_FLOAT_WEIGHT: &str = "ERR weight value is not a valid float";
 /// libs/server/Resp/CmdStrings.cs:GenericParamShouldBeGreaterThanZero
 pub const GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR Parameter `{0}` should be greater than 0";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownOptionConfigSet

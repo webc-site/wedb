@@ -7,7 +7,7 @@
 //! （GEOSEARCH 族走 FROMMEMBER/FROMLONLAT + BYRADIUS/BYBOX 关键字，
 //! GEORADIUS 族为位置参数）；存取经与 storage 会话域共享的信封编解码。
 
-use core::str::from_utf8;
+use std::borrow::Cow;
 
 use wbase::num::strict_f64;
 use wcol::{
@@ -15,7 +15,7 @@ use wcol::{
     GeoAddOptions, GeoOrder, GeoOriginType, GeoSearchOptions, GeoSearchType,
     geo_hash::GeoDistanceUnitType,
   },
-  parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat},
+  parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat, GeoLonLatError},
   types::object_output::ObjectOutput,
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation},
 };
@@ -88,10 +88,20 @@ struct ParsedGeoSearch {
   dest: Option<Vec<u8>>,
 }
 
-// GEO 族错误文案已收归 wresp::cmd_strings 单点（C# CmdStrings.cs 对应物），
-// 经 `cs::` 别名引用；此处仅留本命令族特有的经纬度静态文案（C# GenericErrLonLat
-// 的无参形态，含坐标的格式化形态见 session_parse_state_extensions 域）
-const RESP_ERR_INVALID_LON_LAT: &str = "ERR invalid longitude,latitude pair";
+/// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 两态错误组装：
+/// 非浮点 → RESP_ERR_NOT_VALID_FLOAT；越界 → GenericErrLonLat 回显坐标
+///（{lon:F6},{lat:F6}，六位小数）
+fn geo_lon_lat_checked(
+  lon: &[u8],
+  lat: &[u8],
+) -> Result<(f64, f64), Cow<'static, str>> {
+  try_get_geo_lon_lat(lon, lat).map_err(|e| match e {
+    GeoLonLatError::NotFloat => Cow::Borrowed(cs::RESP_ERR_NOT_VALID_FLOAT),
+    GeoLonLatError::OutOfRange(lon, lat) => Cow::Owned(format!(
+      "ERR invalid longitude,latitude pair {lon:.6},{lat:.6}"
+    )),
+  })
+}
 
 /// 解析双精度（TryGetDouble 严格语义；单一实现 [`strict_f64`]，
 /// canBeInfinite: true 对齐 parseState.TryGetDouble 默认值）
@@ -105,7 +115,7 @@ fn parse_double(token: &[u8]) -> Option<f64> {
 fn try_get_geo_search_options(
   args: &[&[u8]],
   kind: GeoSearchCommandKind,
-) -> Result<ParsedGeoSearch, &'static [u8]> {
+) -> Result<ParsedGeoSearch, Cow<'static, str>> {
   let mut opts = GeoSearchOptions {
     unit: GeoDistanceUnitType::M,
     ..Default::default()
@@ -135,9 +145,7 @@ fn try_get_geo_search_options(
       let (Some(lon_tok), Some(lat_tok)) = (args.first().copied(), args.get(1).copied()) else {
         return Err(wrong_args(kind));
       };
-      let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
-        return Err(RESP_ERR_INVALID_LON_LAT.as_bytes());
-      };
+      let (lon, lat) = geo_lon_lat_checked(lon_tok, lat_tok)?;
       opts.lon = lon;
       opts.lat = lat;
       opts.origin = GeoOriginType::FromLonLat;
@@ -148,10 +156,10 @@ fn try_get_geo_search_options(
       return Err(wrong_args(kind));
     };
     let Some(radius) = parse_double(radius_tok) else {
-      return Err(cs::RESP_ERR_NOT_VALID_RADIUS.as_bytes());
+      return Err(cs::RESP_ERR_NOT_VALID_RADIUS.into());
     };
     if radius < 0.0 {
-      return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes());
+      return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.into());
     }
     opts.radius = radius;
     opts.search_type = GeoSearchType::ByRadius;
@@ -161,7 +169,7 @@ fn try_get_geo_search_options(
       return Err(wrong_args(kind));
     };
     let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-      return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
+      return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.into());
     };
     opts.unit = unit;
     idx += 1;
@@ -175,7 +183,7 @@ fn try_get_geo_search_options(
     if geo_search_family {
       if equals_ignore_case(token, b"FROMMEMBER") {
         if opts.origin != GeoOriginType::Undefined {
-          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into());
         }
         let Some(member) = args.get(idx) else {
           arg_num_error = true;
@@ -189,16 +197,14 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"FROMLONLAT") {
         if opts.origin != GeoOriginType::Undefined {
-          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into());
         }
         let (Some(lon_tok), Some(lat_tok)) = (args.get(idx).copied(), args.get(idx + 1).copied())
         else {
           arg_num_error = true;
           break;
         };
-        let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
-          return Err(RESP_ERR_INVALID_LON_LAT.as_bytes());
-        };
+        let (lon, lat) = geo_lon_lat_checked(lon_tok, lat_tok)?;
         opts.lon = lon;
         opts.lat = lat;
         opts.origin = GeoOriginType::FromLonLat;
@@ -208,7 +214,7 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"BYRADIUS") {
         if opts.search_type != GeoSearchType::Undefined {
-          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into());
         }
         let (Some(radius_tok), Some(unit_tok)) =
           (args.get(idx).copied(), args.get(idx + 1).copied())
@@ -217,13 +223,13 @@ fn try_get_geo_search_options(
           break;
         };
         let Some(radius) = parse_double(radius_tok) else {
-          return Err(cs::RESP_ERR_NOT_VALID_RADIUS.as_bytes());
+          return Err(cs::RESP_ERR_NOT_VALID_RADIUS.into());
         };
         if radius < 0.0 {
-          return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes());
+          return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.into());
         }
         let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
+          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.into());
         };
         opts.radius = radius;
         opts.search_type = GeoSearchType::ByRadius;
@@ -234,7 +240,7 @@ fn try_get_geo_search_options(
 
       if equals_ignore_case(token, b"BYBOX") {
         if opts.search_type != GeoSearchType::Undefined {
-          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+          return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into());
         }
         let (Some(width_tok), Some(height_tok), Some(unit_tok)) = (
           args.get(idx).copied(),
@@ -245,16 +251,16 @@ fn try_get_geo_search_options(
           break;
         };
         let Some(width) = parse_double(width_tok) else {
-          return Err(cs::RESP_ERR_NOT_VALID_WIDTH.as_bytes());
+          return Err(cs::RESP_ERR_NOT_VALID_WIDTH.into());
         };
         let Some(height) = parse_double(height_tok) else {
-          return Err(cs::RESP_ERR_NOT_VALID_HEIGHT.as_bytes());
+          return Err(cs::RESP_ERR_NOT_VALID_HEIGHT.into());
         };
         if width < 0.0 || height < 0.0 {
-          return Err(cs::RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE.as_bytes());
+          return Err(cs::RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE.into());
         }
         let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
+          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.into());
         };
         opts.box_width = width;
         // 高度复用 radius 槽位（C# GeoSearchOptions.boxHeight 即 radius）
@@ -281,10 +287,10 @@ fn try_get_geo_search_options(
         break;
       };
       let Some(v) = count_tok.try_parse_i64() else {
-        return Err(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
+        return Err(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.into());
       };
       if v <= 0 {
-        return Err(cs::RESP_ERR_COUNT_IS_NOT_POSITIVE.as_bytes());
+        return Err(cs::RESP_ERR_COUNT_IS_NOT_POSITIVE.into());
       }
       opts.count_value = v;
       idx += 1;
@@ -340,7 +346,7 @@ fn try_get_geo_search_options(
       continue;
     }
 
-    return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+    return Err(cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into());
   }
 
   // 圆心与形状均必填
@@ -366,32 +372,24 @@ fn try_get_geo_search_options(
 }
 
 /// wrong number of arguments 错误帧（按命令名展开）
-fn wrong_args(kind: GeoSearchCommandKind) -> &'static [u8] {
+fn wrong_args(kind: GeoSearchCommandKind) -> Cow<'static, str> {
   match kind {
-    GeoSearchCommandKind::GeoSearch => b"ERR wrong number of arguments for 'GEOSEARCH' command",
-    GeoSearchCommandKind::GeoSearchStore => {
-      b"ERR wrong number of arguments for 'GEOSEARCHSTORE' command"
-    }
-    GeoSearchCommandKind::GeoRadius => b"ERR wrong number of arguments for 'GEORADIUS' command",
-    GeoSearchCommandKind::GeoRadiusRo => {
-      b"ERR wrong number of arguments for 'GEORADIUS_RO' command"
-    }
-    GeoSearchCommandKind::GeoRadiusByMember => {
-      b"ERR wrong number of arguments for 'GEORADIUSBYMEMBER' command"
-    }
-    GeoSearchCommandKind::GeoRadiusByMemberRo => {
-      b"ERR wrong number of arguments for 'GEORADIUSBYMEMBER_RO' command"
-    }
+    GeoSearchCommandKind::GeoSearch => "ERR wrong number of arguments for 'GEOSEARCH' command".into(),
+    GeoSearchCommandKind::GeoSearchStore => "ERR wrong number of arguments for 'GEOSEARCHSTORE' command".into(),
+    GeoSearchCommandKind::GeoRadius => "ERR wrong number of arguments for 'GEORADIUS' command".into(),
+    GeoSearchCommandKind::GeoRadiusRo => "ERR wrong number of arguments for 'GEORADIUS_RO' command".into(),
+    GeoSearchCommandKind::GeoRadiusByMember => "ERR wrong number of arguments for 'GEORADIUSBYMEMBER' command".into(),
+    GeoSearchCommandKind::GeoRadiusByMemberRo => "ERR wrong number of arguments for 'GEORADIUSBYMEMBER_RO' command".into(),
   }
 }
 
 /// STORE 与 WITH* 互斥错误帧（对标 CmdStrings.GenericErrStoreCommand）
-fn store_incompat(kind: GeoSearchCommandKind) -> &'static [u8] {
+fn store_incompat(kind: GeoSearchCommandKind) -> Cow<'static, str> {
   match kind {
-    GeoSearchCommandKind::GeoSearchStore => b"ERR STORE option in GEOSEARCHSTORE is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
-    GeoSearchCommandKind::GeoRadius => b"ERR STORE option in GEORADIUS is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
-    GeoSearchCommandKind::GeoRadiusByMember => b"ERR STORE option in GEORADIUSBYMEMBER is not compatible with WITHDIST, WITHHASH and WITHCOORD options",
-    _ => cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes(),
+    GeoSearchCommandKind::GeoSearchStore => "ERR STORE option in GEOSEARCHSTORE is not compatible with WITHDIST, WITHHASH and WITHCOORD options".into(),
+    GeoSearchCommandKind::GeoRadius => "ERR STORE option in GEORADIUS is not compatible with WITHDIST, WITHHASH and WITHCOORD options".into(),
+    GeoSearchCommandKind::GeoRadiusByMember => "ERR STORE option in GEORADIUSBYMEMBER is not compatible with WITHDIST, WITHHASH and WITHCOORD options".into(),
+    _ => cs::RESP_ERR_GENERIC_SYNTAX_ERROR.into(),
   }
 }
 
@@ -440,8 +438,8 @@ impl RespServerSession {
         cs::write_error_raw(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      if try_get_geo_lon_lat(parse_state[idx], parse_state[idx + 1]).is_none() {
-        cs::write_error_raw(output, RESP_ERR_INVALID_LON_LAT);
+      if let Err(e) = geo_lon_lat_checked(parse_state[idx], parse_state[idx + 1]) {
+        cs::write_error_raw(output, &e);
         return Ok(true);
       }
       idx += 3;
@@ -559,8 +557,7 @@ impl RespServerSession {
       Ok(p) => p,
       // 具体错误文本（参数个数/单位/半径/COUNT/STORE 互斥等）逐字透传
       Err(e) => {
-        let msg = from_utf8(e).unwrap_or("");
-        cs::write_error_raw(output, msg);
+        cs::write_error_raw(output, &e);
         return Ok(true);
       }
     };
