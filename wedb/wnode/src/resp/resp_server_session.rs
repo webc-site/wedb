@@ -120,6 +120,11 @@ pub struct RespServerSessionOptions {
   /// Lua 超时管理器（C# storeWrapper.luaTimeoutManager；服务装配期按
   /// 「EnableLua 且超时非无限」创建，tick 任务周期驱动；None = 无超时）
   pub lua_timeout_manager: Option<Arc<LuaTimeoutManager>>,
+  /// AOF 启用开关（C# storeWrapper.serverOptions.EnableAOF）
+  pub enable_aof: bool,
+  /// AOF 提交等待开关（C# storeWrapper.serverOptions.WaitForCommit；
+  /// 与 enable_aof 同时开启时解析器按命令依赖性维护 AOF 阻塞标记）
+  pub wait_for_commit: bool,
 }
 
 impl Default for RespServerSessionOptions {
@@ -137,6 +142,9 @@ impl Default for RespServerSessionOptions {
       lua_options: LuaOptions::default(),
       lua_txn_mode: false,
       lua_timeout_manager: None,
+      // C# GarnetServerOptions 默认：EnableAOF = false、WaitForCommit = false
+      enable_aof: false,
+      wait_for_commit: false,
     }
   }
 }
@@ -266,6 +274,10 @@ pub struct RespServerSession {
   /// EnableDebugCommand 镜像（C# storeWrapper.serverOptions.EnableDebugCommand）
   connection_protection_debug: ConnectionProtectionOption,
 
+  /// AOF 提交等待门控（C# storeWrapper.serverOptions 的 EnableAOF &&
+  /// WaitForCommit 投影；解析器按此决定是否维护 wait_for_aof_blocking）
+  pub(crate) aof_commit_mode_gate: bool,
+
   /// 集群会话切面（C# clusterSession；None = 单机形态，命令路径与
   /// C# clusterSession == null 分支一致）
   pub(crate) cluster_session: Option<ClusterSession>,
@@ -376,6 +388,7 @@ impl RespServerSession {
       flushed_bytes: 0,
       current_custom_command: None,
       connection_protection_debug: options.enable_debug_command,
+      aof_commit_mode_gate: options.enable_aof && options.wait_for_commit,
       mru_cache: Default::default(),
       session_script_cache: options.enable_lua.then(|| {
         // C# SessionScriptCache 构造注入 timeoutManager（服务装配期按

@@ -723,7 +723,7 @@ impl AofProcessor {
         // 取出的整组按序重放（恢复路径免锁；副本路径的事务锁由事务域承载）
         self
           .process_transaction_group_operations(virtual_sublog_idx, &group, as_replica, target)
-          .await;
+          .await?;
         return Ok(false);
       }
       super::replaycoordinator::aof_replay_coordinator::TxnAction::None => {}
@@ -871,22 +871,23 @@ impl AofProcessor {
     };
     self
       .process_transaction_group_operations(sublog_idx, &group, true, target)
-      .await;
+      .await?;
     Ok(())
   }
 
   /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ProcessTransactionGroupOperations
   ///
-  /// 顺序重放事务组全部操作（组提交原子性由恢复免锁 / 副本锁集保障）。
+  /// 顺序重放事务组全部操作（组提交原子性由恢复免锁 / 副本锁集保障）；
+  /// 组内条目失败即上抛（C# 无 catch，异常沿 Recover 传播至恢复失败）。
   pub async fn process_transaction_group_operations<D: Device>(
     &self,
     sublog_idx: usize,
     group: &TransactionGroup,
     as_replica: bool,
     target: &ReplayTarget<'_, '_, D>,
-  ) {
+  ) -> Result<(), AofReplayError> {
     for op in &group.operations {
-      let result = match op {
+      match op {
         ReplayOperation::Record(entry) => match AofHeader::parse(entry) {
           Some(header) => {
             self
@@ -898,18 +899,16 @@ impl AofProcessor {
                 group.start_sequence_number,
                 target,
               )
-              .await
+              .await?
           }
-          None => Err("模糊区条目头损坏".to_string().into()),
+          None => return Err("模糊区条目头损坏".to_string().into()),
         },
         ReplayOperation::Chunk(acc) => {
-          super::aof_processor_chunk_replay::replay_chunk(self, (**acc).clone(), target).await
+          super::aof_processor_chunk_replay::replay_chunk(self, (**acc).clone(), target).await?
         }
       };
-      if let Err(e) = result {
-        log::warn!("AOF 重放事务组操作失败: {e:?}");
-      }
     }
+    Ok(())
   }
 
   /// libs/server/AOF/AofProcessor.cs:ReplayOpDispatch
@@ -1226,15 +1225,18 @@ impl AofProcessor {
         return Ok(());
       }
       _ => {
-        // C# 此处对全部命令走完整 RMW 重放（条件 SET 族 SETEXNX/SETEXXX/
-        // SETKEEPTTL* 经 MainSessionFunctions 重新评估 NX/XX 条件）。
-        // 此处保持告警，避免未知命令静默吞没。
-        log::warn!(
-          "AOF StoreRMW replay skipped unsupported cmd {:?} (key length {})",
-          input.cmd,
-          key.len()
+        // C# RMW 重放面对未覆盖命令抛 GarnetException("Unsupported
+        // operation on input")（MainStore/RMWMethods.cs InPlaceUpdaterWorker
+        // default 尾部）——恢复显式失败，杜绝未知命令静默吞没恢复数据
+        //（写入端新增 RMW 编码而重放端漏配时立即暴露）
+        return Err(
+          format!(
+            "StoreRMW replay failed: unsupported cmd {:?} (key length {})",
+            input.cmd,
+            key.len()
+          )
+          .into(),
         );
-        return Ok(());
       }
     };
     session
