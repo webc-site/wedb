@@ -125,3 +125,31 @@ DETERMINISTIC 标志），不携带 ExpireOption；aof_processor.rs Pexpireat �
 3. bun ./js/check.js 无新增缺失/重复（MultiLogRecover 经 ignore 登记不新增缺失）。
 4. SublogBackend 双方法语义分离：max 恒容量、memory 随水位；
    committed_begin_address 全链不再返回 begin_address。
+
+## 验证结果
+
+1. 分支 w4-waof-sem 共 10 个提交（含两次 dev 合并），主目录合并至
+   c7f2425 后 worktree 与分支已清理，独立 target 目录已删。
+2. ./clippy.sh：分支与主目录均 3 tasks 全过，-D warnings 硬门禁零警告，
+   无 allow。
+3. ./test.sh：主目录合并后 HEAD 2041 passed / 1 skipped，regress 回归门禁
+   2 passed。过程中的 store::crud::test_session_lifecycle_rapid_churn 与
+   flush_database 首轮失败经主目录基线复跑判定为既有 flaky（LightEpoch
+   会话 churn 偶发驱逐竞争，6 次基线复现 1 次，与本次改动无关）。
+4. bun ./js/check.js：分支与主目录均退出码 0，无输出；multi_log_recover
+   删除后 MultiLogRecover 经 js/check/ignore/libs_server_AOF_Recover.yml
+   登记，无新增缺失/重复。
+5. 新增测试（3 组全过）：
+   - wnode garnet_log::committed_begin_snapshot_lifecycle（初值
+     FirstValidAddress → commit 采样 → safe_initialize 恢复 → reset 归 1）
+   - wnode garnet_log::memory_size_capacity_and_usage（内存后端容量/占用口径）
+   - wedb_standalone aof_domain::waof_sublog_memory_watermark_and_committed_begin
+     （max 恒环形容量、memory = tail - begin 水位、快照/恢复/重置全链）
+   - wkv ttl::test_put_ttl_coarse_ticks_rounding（落盘值低 4 位恒零、
+     等价性、GT 严格大于口径）
+6. 粗化涟漪修正：expire_at 入口统一粗化（GT/LT 条件判定与落盘同值，对齐
+   C# RESP 边界 ExpirationWithOption 粗化后编码的同源性）；flush_database/
+   swap_database/ttl_purge/service 四处测试断言对齐存储值粗化口径。
+7. group-commit 并发面零触碰：waof/src/log.rs 与 CommitPipelineState 无改动，
+   waof_sublog 仅新增原子快照字段，并发回归（truncate_and_evict、aof_domain
+   reset 并发族）全过。
