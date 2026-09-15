@@ -312,3 +312,55 @@ fn garnet_log_reset_async_zeroes_wal_and_reusable() -> Void {
     OK
   })
 }
+
+/// WaofSublog 容量/占用双方法 + CommittedBeginAddress 独立快照：
+/// max 恒环形窗口容量（TsavoriteLog.MaxMemorySizeBytes，TsavoriteLog.cs:196）、
+/// memory = tail - begin 随写入推进随截断收缩（:201 当前占用）；
+/// committed_begin 初值 FirstValidAddress、commit 采样 begin（:2696）、
+/// safe_initialize 恢复（:528/:596）、reset 归 1（:244-246）
+#[test]
+fn waof_sublog_memory_watermark_and_committed_begin() -> Void {
+  use wnode::aof::{Sublog, SublogBackend, waof_sublog::WaofSublog};
+
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, _store, wal) = open_node("waof_watermark", SMALL_RING)?;
+    let backend = Sublog::Waof(WaofSublog::new(Arc::clone(&wal)));
+
+    // 空日志：容量恒 buffer_size，占用为 begin→tail 间距（初始 0）
+    assert_eq!(backend.max_memory_size_bytes(), SMALL_RING as i64);
+    let initial_span = backend.tail_address() - backend.begin_address();
+    assert!(initial_span >= 0);
+
+    // 写入 + 提交：占用 = tail - begin 严格增长；committed_begin 随 commit 采样
+    let before = backend.tail_address();
+    backend.enqueue(&[b'x'; 512]);
+    assert_eq!(
+      backend.memory_size_bytes(),
+      backend.tail_address() - backend.begin_address(),
+      "占用 = 环形窗口有效字节"
+    );
+    assert!(backend.memory_size_bytes() > initial_span);
+    backend.commit(backend.tail_address(), 0);
+    assert_eq!(
+      backend.committed_begin_address(),
+      before,
+      "commit 快照 = 提交时刻 begin"
+    );
+
+    // 恢复链：safe_initialize 以 begin 参数恢复 committed_begin
+    let begin = backend.begin_address();
+    backend.safe_initialize(begin, backend.committed_until_address(), 0);
+    assert_eq!(backend.committed_begin_address(), begin);
+
+    // reset 归 FirstValidAddress
+    backend.reset_async().await;
+    assert_eq!(backend.committed_begin_address(), 1);
+    assert_eq!(
+      backend.memory_size_bytes(),
+      backend.tail_address() - backend.begin_address()
+    );
+
+    OK
+  })
+}

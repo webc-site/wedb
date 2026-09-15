@@ -1702,6 +1702,50 @@ mod tests {
     assert_eq!(log.begin_address().get(0), Some(5));
   }
 
+  /// CommittedBeginAddress 独立快照语义（TsavoriteLog.cs:120）：
+  /// 初值 FirstValidAddress → commit 采样 begin（:2696）→ safe_initialize
+  /// 恢复（:528/:596）→ reset 归 FirstValidAddress（:244-246）。
+  #[test]
+  fn committed_begin_snapshot_lifecycle() {
+    let sublog = InMemorySublog::new();
+    // 初值 = FirstValidAddress（TsavoriteLog.cs:244 构造语义）
+    assert_eq!(sublog.committed_begin_address(), 1);
+
+    // 提交后 committed_begin = 提交时刻 begin 快照
+    sublog.enqueue(b"payload");
+    sublog.commit(sublog.tail_address(), NO_COOKIE);
+    assert_eq!(sublog.committed_begin_address(), 1);
+
+    // begin 前移（TruncateUntil 语义）后 commit 重新采样：快照跟随新 begin，
+    // 与实时 begin 在无恢复干扰时同值但路径独立
+    sublog.shift_begin_address(64);
+    assert_eq!(sublog.begin_address(), 64);
+    sublog.commit(sublog.tail_address(), NO_COOKIE);
+    assert_eq!(sublog.committed_begin_address(), 64);
+
+    // 恢复链：safe_initialize 以 begin 参数恢复 CommittedBeginAddress
+    //（TsavoriteLog.cs:528/:596 Initialize = beginAddress）
+    sublog.safe_initialize(128, 256, 0);
+    assert_eq!(sublog.committed_begin_address(), 128);
+
+    // reset 归 FirstValidAddress（TsavoriteLog.cs:244-246）
+    Runtime::new().unwrap().block_on(sublog.reset_async());
+    assert_eq!(sublog.committed_begin_address(), 1);
+  }
+
+  /// 容量/占用双方法口径（TsavoriteLog.cs:196/:201）：内存后端无页预算，
+  /// max 与当前占用同值，占用 = 记录 payload 字节和。
+  #[test]
+  fn memory_size_capacity_and_usage() {
+    let sublog = InMemorySublog::new();
+    assert_eq!(sublog.memory_size_bytes(), 0);
+    sublog.enqueue(b"0123456789");
+    sublog.enqueue(b"0123");
+    assert_eq!(sublog.memory_size_bytes(), 14);
+    // 无预算上限：容量随用随长（差异已在 trait 注释声明）
+    assert_eq!(sublog.max_memory_size_bytes(), 14);
+  }
+
   #[test]
   fn test_garnet_log_advanced_methods() {
     let log = log_with(2, 1);
