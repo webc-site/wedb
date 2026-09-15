@@ -154,7 +154,9 @@ fn ensure_replication_gate_chain() -> Void {
     let rm = provider.replication_manager().unwrap();
     assert_eq!(rm.last_primary_sync_seconds(), 0);
 
-    // 2. 开启轮询 + 设为 REPLICA：到期即推进心跳（gossip 来自其 primary）
+    // 2. 开启轮询 + 设为 REPLICA：到期进入重连判定链，但不刷新心跳
+    //（对标 C#：EnsureReplication 本体无 UpdateLastPrimarySyncTime，心跳
+    // 仅随同步建立推进——见副本 APPENDLOG 初始化帧握手挂点）
     provider.set_replication_reestablishment_timeout(60);
     let cm = provider.cluster_manager().unwrap();
     cm.try_initialize_local_worker(LocalWorkerSpec {
@@ -168,8 +170,11 @@ fn ensure_replication_gate_chain() -> Void {
     });
     provider.ensure_replication(Some("primary_1"));
     assert!(!rm.has_active_replication_stream());
-    rm.update_last_primary_sync_time();
-    assert!(rm.last_primary_sync_seconds() >= 0);
+    assert_eq!(
+      rm.last_primary_sync_seconds(),
+      0,
+      "重连轮询不得制造虚假心跳"
+    );
 
     // 3. 节流：频率窗口内第二次调用不再重置尝试时间戳（经 due 判定面验证）
     assert!(!rm.ensure_replication_due(60), "窗口内应被节流");

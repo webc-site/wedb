@@ -29,10 +29,6 @@ const DATA_FILE: &str = "wedb-cluster.db";
 /// C# 构造：EnableCluster 时 maxDatabases = 2
 const CLUSTER_MAX_DATABASES: i32 = 2;
 
-/// 副本重连轮询频率秒数（C# ClusterConfig.ReplicationPollFrequencySeconds
-/// 默认 1；0 = 禁用自动重连）
-const REPLICATION_REESTABLISHMENT_TIMEOUT_SECS: i32 = 1;
-
 /// 日志文件刷盘间隔（0 表示立即刷盘）
 const DEFAULT_LOG_FLUSH_INTERVAL: i32 = 0;
 
@@ -143,10 +139,16 @@ fn main() -> Result<()> {
       if let Some(wal) = provider.wal() {
         wire_replication_data_plane(&cluster, Arc::clone(wal));
       }
-      // 副本重连轮询频率（REPLICAOF 数据面点亮：断链后 ensure_replication
-      // 按此节奏自动后台直调 recover_replication 向主端发
-      // INITIATEREPLICASYNC 重建推流；0 = 禁用）
-      cluster.set_replication_reestablishment_timeout(REPLICATION_REESTABLISHMENT_TIMEOUT_SECS);
+      // 副本重连轮询频率与 FastAofTruncate 注入（对标 C# EnsureReplication 读
+      // runtimeConfig.GetInt(ServerConfigType.
+      // CLUSTER_REPLICATION_REESTABLISHMENT_TIMEOUT)：默认 0 = 禁用自动重连，
+      // --config 经 RuntimeServerOptions 可设；FastAofTruncate 同源自
+      // serverOptions——副本接收面跳跃重对齐分支的开关）
+      let runtime_options = node.runtime_server_options();
+      cluster.set_replication_reestablishment_timeout(
+        runtime_options.cluster_replication_reestablishment_timeout,
+      );
+      cluster.set_fast_aof_truncate(runtime_options.fast_aof_truncate);
       // 集群节点超时（C# GarnetServerOptions.ClusterTimeout 等价物）：槽位
       // 校验等待（CanOperateOnKey / WaitForSlotToStabalize 挂起重评）的超时
       // 上限源，超时后按 ASK/CLUSTERDOWN 终评，杜绝命令永久挂起

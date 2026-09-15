@@ -564,7 +564,9 @@
         - SendAndReset
         - SetUserHandle
         - UnsafeSetConfig
-    - libs/cluster/Session/MigrateCommand.cs
+    - libs/cluster/Session/MigrateCommand.cs:
+        - Expired
+        - HandleCommandParsingErrors
     - libs/cluster/Session/RangeIndexMigrationReceiveSession.cs
     - libs/cluster/Session/RespClusterBasicCommands.cs:
         - NetworkClusterBumpEpoch

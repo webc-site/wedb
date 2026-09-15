@@ -27,8 +27,6 @@ pub const DEFAULT_BIND: &str = "127.0.0.1";
 pub const DEFAULT_BIND_ANY: &str = "0.0.0.0";
 /// 默认工作目录
 pub const DEFAULT_DIR: &str = "./data";
-/// 默认周期自动紧缩间隔秒数
-pub const DEFAULT_COMPACTION_FREQ_SECS: u64 = 60;
 
 /// 默认发布订阅分发日志页大小字节（C# PubSubPageSize = "4k"）
 pub const DEFAULT_PUBSUB_PAGE_SIZE: usize = 4096;
@@ -105,11 +103,6 @@ pub struct NodeArgs {
   /// 工作线程数（默认按可用 CPU 物理核心数）
   #[arg(short = 't', long)]
   pub threads: Option<usize>,
-
-  /// 周期自动紧缩间隔秒数（0 表示禁用）
-  #[arg(long, default_value_t = DEFAULT_COMPACTION_FREQ_SECS)]
-  #[serde(default = "default_compaction_freq")]
-  pub compaction_freq_secs: u64,
 
   /// 是否启用 AOF 持久化日志（对标 C# Options.cs:209 EnableAOF）
   #[arg(long, default_value_t = false)]
@@ -232,10 +225,6 @@ fn default_dir() -> PathBuf {
   PathBuf::from(DEFAULT_DIR)
 }
 
-const fn default_compaction_freq() -> u64 {
-  DEFAULT_COMPACTION_FREQ_SECS
-}
-
 const fn default_pubsub_page_size() -> usize {
   DEFAULT_PUBSUB_PAGE_SIZE
 }
@@ -276,7 +265,6 @@ impl Default for NodeArgs {
       tls_cert: None,
       tls_key: None,
       threads: None,
-      compaction_freq_secs: default_compaction_freq(),
       aof: false,
       disable_pubsub: false,
       pubsub_page_size: default_pubsub_page_size(),
@@ -385,7 +373,6 @@ impl NodeArgs {
       tls_cert,
       tls_key,
       threads,
-      compaction_freq_secs,
       aof,
       disable_pubsub,
       pubsub_page_size,

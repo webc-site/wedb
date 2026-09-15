@@ -33,6 +33,7 @@ use wedb::server::{
     migrate_session::{MigrateSession, MigrateTaskSpec},
     sketch::Sketch,
     sketch_status::SketchStatus,
+    transfer_option::TransferOption,
   },
   slot_verify::{ClusterSlotVerificationState, SlotVerifySessionState},
   worker::{LOCAL_WORKER_ID, LocalWorkerSpec, NodeRole, Worker},
@@ -107,15 +108,16 @@ fn prepare_migrating(cp: &ClusterProvider, slot: u16) {
 /// 经集群提供者自带迁移管理器注册管辖槽位的迁移任务
 fn add_migration_task(cp: &ClusterProvider, slots: &[u16], sketch: Sketch) -> Arc<MigrateSession> {
   let spec = MigrateTaskSpec {
-    source_node_id: "node_src",
-    target_address: "127.0.0.1",
+    source_node_id: "node_src".to_string(),
+    target_address: "127.0.0.1".to_string(),
     target_port: 7001,
-    target_node_id: "node_tgt",
-    username: "",
-    passwd: "",
+    target_node_id: "node_tgt".to_string(),
+    username: "".to_string(),
+    passwd: "".to_string(),
     copy_option: false,
     replace_option: false,
     timeout: 0,
+    transfer_option: TransferOption::Slots,
   };
   let slot_set = slots.iter().map(|&s| s as i32).collect();
   cp.migration_manager()

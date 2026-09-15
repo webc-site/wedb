@@ -1185,7 +1185,13 @@ impl AofProcessor {
       }
       RespCommand::Pexpireat => {
         // 绝对 Unix 毫秒 → ticks（KeyAdminCommands.cs:426 的 PEXPIREAT，
-        // 负夹 0/上界钳制单点与命令端同函数）
+        // 负夹 0/上界钳制单点与命令端同函数）。
+        // 刻意差异声明：C# EXPIRE 族条件（NX/XX/GT/LT）经 ExpirationWithOption
+        // word 低 4 位随 AOF 完整携带、副本端重评估（UnifiedStore/PrivateMethods.cs:
+        // 108 WriteLogRMW 置 Deterministic 后条件语义仍在）；rust AOF 条目由
+        // TtlWrite 镜像产出，仅携带主端线性化后的绝对毫秒、不携带 ExpireOption，
+        // 故重放按无条件绝对过期执行（TtlOpt::NONE）——主端写事件已按条件裁决，
+        // 副本端丢失条件不影响镜像一致性，但携带面弱于 C# word 编码
         session
           .expire_at_ticks(key, expire_at_milliseconds_to_ticks(input.arg1))
           .await

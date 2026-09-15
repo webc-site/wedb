@@ -4,7 +4,7 @@ use aok::Void;
 use compio::runtime::Runtime;
 use gxhash::HashSet;
 use parking_lot::Mutex;
-use wbase::hash_slot::hash_slot as cluster_slot;
+use wbase::{future::yield_now, hash_slot::hash_slot as cluster_slot};
 use wdev::SegmentedDevice;
 use wedb::{
   error::Error,
@@ -21,6 +21,7 @@ use wedb::{
       migration_manager::MigrationManager,
       sketch::Sketch,
       sketch_status::SketchStatus,
+      transfer_option::TransferOption,
     },
     worker::{LOCAL_WORKER_ID, LocalWorkerSpec, NodeRole, Worker},
   },
@@ -148,15 +149,16 @@ fn cluster_simple_migrate_slots() {
   assert_eq!(mgr.get_migration_task_count(), 0);
 
   let spec = MigrateTaskSpec {
-    source_node_id: "src",
-    target_address: "10.0.0.2",
+    source_node_id: "src".to_string(),
+    target_address: "10.0.0.2".to_string(),
     target_port: 7002,
-    target_node_id: "dst",
-    username: "",
-    passwd: "",
+    target_node_id: "dst".to_string(),
+    username: "".to_string(),
+    passwd: "".to_string(),
     copy_option: false,
     replace_option: false,
     timeout: 0,
+    transfer_option: TransferOption::Keys,
   };
 
   let slots: HashSet<i32> = [1, 2].into_iter().collect();
@@ -258,15 +260,16 @@ fn cluster_migrate_session_methods_test() -> Void {
   cm.try_add_slots(&slots_to_add)?;
 
   let spec = MigrateTaskSpec {
-    source_node_id: "local_node",
-    target_address: "127.0.0.1",
+    source_node_id: "local_node".to_string(),
+    target_address: "127.0.0.1".to_string(),
     target_port: 7001,
-    target_node_id: "target_node",
-    username: "",
-    passwd: "",
+    target_node_id: "target_node".to_string(),
+    username: "".to_string(),
+    passwd: "".to_string(),
     copy_option: false,
     replace_option: false,
     timeout: 0,
+    transfer_option: TransferOption::Keys,
   };
 
   let session = MigrateSession::new(
@@ -282,15 +285,16 @@ fn cluster_migrate_session_methods_test() -> Void {
 
   // 2. overlap check
   let other_spec = MigrateTaskSpec {
-    source_node_id: "local_node",
-    target_address: "127.0.0.1",
+    source_node_id: "local_node".to_string(),
+    target_address: "127.0.0.1".to_string(),
     target_port: 7001,
-    target_node_id: "target_node",
-    username: "",
-    passwd: "",
+    target_node_id: "target_node".to_string(),
+    username: String::new(),
+    passwd: String::new(),
     copy_option: false,
     replace_option: false,
     timeout: 0,
+    transfer_option: TransferOption::Keys,
   };
   let session_overlap = MigrateSession::new(
     Arc::clone(&cp),
@@ -554,15 +558,16 @@ fn migrate_driver_rejects_object_keys_without_losing_ownership() {
     // 错误显式列明对象键清单——不静默跳过
     let cp = ClusterProvider::new();
     let spec = MigrateTaskSpec {
-      source_node_id: "node_1",
-      target_address: "127.0.0.1",
+      source_node_id: "node_1".to_string(),
+      target_address: "127.0.0.1".to_string(),
       target_port: 1,
-      target_node_id: "node_2",
-      username: "",
-      passwd: "",
+      target_node_id: "node_2".to_string(),
+      username: "".to_string(),
+      passwd: "".to_string(),
       copy_option: false,
       replace_option: false,
       timeout: 0,
+      transfer_option: TransferOption::Keys,
     };
     let keys = vec![b"mig:str".to_vec(), b"mig:obj".to_vec()];
     let err = run_keys_migration_driver(Arc::clone(&cp), Arc::clone(&store), spec, &keys)
@@ -602,15 +607,16 @@ fn migrate_driver_pure_string_keys_reach_connect_phase() {
 
     let cp = ClusterProvider::new();
     let spec = MigrateTaskSpec {
-      source_node_id: "node_1",
-      target_address: "127.0.0.1",
+      source_node_id: "node_1".to_string(),
+      target_address: "127.0.0.1".to_string(),
       target_port: 1,
-      target_node_id: "node_2",
-      username: "",
-      passwd: "",
+      target_node_id: "node_2".to_string(),
+      username: "".to_string(),
+      passwd: "".to_string(),
       copy_option: false,
       replace_option: false,
       timeout: 0,
+      transfer_option: TransferOption::Keys,
     };
     let err = run_keys_migration_driver(cp, Arc::clone(&store), spec, &[b"mig:pure".to_vec()])
       .await
@@ -862,17 +868,18 @@ async fn scripted_migrate_target(
 }
 
 /// 迁移驱动发送侧 spec（timeout 由用例覆写）
-fn migrate_spec(port: i32, timeout_ms: i32) -> MigrateTaskSpec<'static> {
+fn migrate_spec(port: i32, timeout_ms: i32) -> MigrateTaskSpec {
   MigrateTaskSpec {
-    source_node_id: "node_1",
-    target_address: "127.0.0.1",
+    source_node_id: "node_1".to_string(),
+    target_address: "127.0.0.1".to_string(),
     target_port: port,
-    target_node_id: "node_2",
-    username: "",
-    passwd: "",
+    target_node_id: "node_2".to_string(),
+    username: String::new(),
+    passwd: String::new(),
     copy_option: false,
     replace_option: false,
     timeout: timeout_ms,
+    transfer_option: TransferOption::Keys,
   }
 }
 
@@ -1162,4 +1169,406 @@ fn migrate_driver_node_assignment_failure_fails_explicitly() {
     );
     assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
   });
+}
+
+// ---------------------------------------------------------------------------
+// M3 源端生产链（next/clude.md 条 1 / gemini.md 条 3）：SLOTS 驱动全链、
+// MIGRATE 命令入口（KEYS 同步 / SLOTS 后台）与解析错误路径
+// ---------------------------------------------------------------------------
+
+use wedb::server::migration::migrate_driver::{
+  run_slots_migration_task, try_add_slots_migration_task,
+};
+
+/// 构造落在指定槽位的键（prefix+i 枚举直到 hash 命中）
+fn key_in_slot(prefix: &str, slot: u16) -> String {
+  (0u32..)
+    .map(|i| format!("{prefix}{i}"))
+    .find(|k| cluster_slot(k.as_bytes()) == slot)
+    .unwrap()
+}
+
+/// 把 provider 中远端节点（node_2）端口改写为假目标端端口
+/// （命令入口按集群配置解析 target_node_id，须与之对齐）
+fn retarget_remote_port(cp: &ClusterProvider, port: i32) {
+  let m = cp.cluster_manager().unwrap();
+  let mut config = m.current_config.write();
+  if let Some(w) = config
+    .workers
+    .iter_mut()
+    .find(|w| w.nodeid.as_deref() == Some("node_2"))
+  {
+    w.port = port;
+  }
+}
+
+/// SLOTS 驱动直调全链成功：帧序握手 → IMPORTING → 批次 → 哨兵 → NODE →
+/// Ok(条数)；已传键删除、槽位交权 node_2、任务移除（对标
+/// 驱动循环成功路径与 C# MigrateSlotsDriverInlineAsync 对齐）
+#[test]
+fn slots_migration_task_full_flow_success() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let cp = two_primary_provider();
+    let store = migrate_store("st_ok.db");
+    let slot = 100u16;
+    let k1 = key_in_slot("st_a", slot);
+    let k2 = key_in_slot("st_b", slot);
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+      storage.upsert_string(k2.as_bytes(), b"v2").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本（单连接）：握手×2 + IMPORTING + 批次 + 哨兵 + NODE 全 +OK
+    // （单槽一段 range，各帧一次）
+    let addr = scripted_migrate_target(vec![vec![b"+OK\r\n"; 6]], Arc::clone(&seen)).await;
+    let spec = MigrateTaskSpec {
+      transfer_option: TransferOption::Slots,
+      ..migrate_spec(port_of(&addr), 0)
+    };
+    let slots: HashSet<i32> = [slot as i32].into_iter().collect();
+    let session = try_add_slots_migration_task(&cp, spec.clone(), &slots).unwrap();
+    let migrated = run_slots_migration_task(Arc::clone(&store), spec, Arc::clone(&session))
+      .await
+      .unwrap();
+    assert_eq!(migrated, 2, "两键应计数迁移");
+
+    // 非 copy：已确认传输的键从源端删除
+    assert_eq!(read_str(&store, k1.as_bytes()).await, None);
+    assert_eq!(read_str(&store, k2.as_bytes()).await, None);
+
+    // 帧序：SETINFO → SETNAME → IMPORTING → MIGRATE(批) → MIGRATE(哨兵) → NODE
+    let frames = seen.lock();
+    assert_eq!(frames.len(), 6, "帧序应精确: {frames:?}");
+    assert!(frames[0].starts_with("CLIENT SETINFO"), "{frames:?}");
+    assert!(frames[1].starts_with("CLIENT SETNAME"), "{frames:?}");
+    assert!(frames[2].contains("IMPORTING"), "{frames:?}");
+    assert!(frames[3].contains("MIGRATE"), "{frames:?}");
+    assert!(frames[4].contains("MIGRATE"), "{frames:?}");
+    assert!(frames[5].contains("NODE"), "{frames:?}");
+    drop(frames);
+
+    // 槽位交权：本端槽位 Stable 且归属 node_2（relinquish_ownership 生效）
+    let m = cp.cluster_manager().unwrap();
+    let remote_wid = m.current_config.read().get_worker_id_from_node_id("node_2");
+    assert_eq!(m.current_config.read().get_state(slot), SlotState::Stable);
+    assert_eq!(
+      m.current_config.read().get_worker_id_from_slot(slot),
+      remote_wid as usize
+    );
+
+    // finally 移除任务（对标 TryStartMigrationTaskAsync finally）
+    assert_eq!(
+      cp.migration_manager().unwrap().get_migration_task_count(),
+      0,
+      "迁移任务结束必须移除"
+    );
+  });
+}
+
+/// SLOTS 驱动批次拒绝：显式报错 + recover STABLE + 源端键保留 + 任务移除
+#[test]
+fn slots_migration_task_batch_reject_recovers() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let cp = two_primary_provider();
+    let store = migrate_store("st_reject.db");
+    let slot = 120u16;
+    let k1 = key_in_slot("st_r", slot);
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本：握手×2 +OK、IMPORTING +OK、批次 -ERR、STABLE +OK
+    let addr = scripted_migrate_target(
+      vec![vec![
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"-ERR rejected\r\n",
+        b"+OK\r\n",
+      ]],
+      Arc::clone(&seen),
+    )
+    .await;
+    let spec = MigrateTaskSpec {
+      transfer_option: TransferOption::Slots,
+      ..migrate_spec(port_of(&addr), 0)
+    };
+    let slots: HashSet<i32> = [slot as i32].into_iter().collect();
+    let session = try_add_slots_migration_task(&cp, spec.clone(), &slots).unwrap();
+    let err = run_slots_migration_task(Arc::clone(&store), spec, Arc::clone(&session))
+      .await
+      .unwrap_err();
+    assert!(
+      format!("{err:?}").contains("rejected"),
+      "应透出远端拒绝: {err:?}"
+    );
+    assert!(
+      seen
+        .lock()
+        .iter()
+        .any(|f| f.contains("SETSLOTSRANGE STABLE")),
+      "批次拒绝必须 recover STABLE: {:?}",
+      seen.lock()
+    );
+    assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
+    assert_eq!(
+      cp.migration_manager().unwrap().get_migration_task_count(),
+      0,
+      "失败路径同样必须移除任务"
+    );
+  });
+}
+
+/// SLOTS 游标推进与对象键守卫：槽内对象信封键跳过（留源端、驱动不失败），
+/// string 键全部迁移删除——删除游标只推进到已确认传输键，绝不全槽清除
+#[test]
+fn slots_migration_skips_object_keys_and_finishes() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let cp = two_primary_provider();
+    let store = migrate_store("st_obj.db");
+    let slot = 140u16;
+    let k1 = key_in_slot("st_o", slot);
+    let k2 = key_in_slot("st_p", slot);
+    let obj_key = key_in_slot("st_obj", slot);
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+      storage.upsert_string(k2.as_bytes(), b"v2").await.unwrap();
+      storage
+        .upsert_tag(obj_key.as_bytes(), KeyTag::ObjectEnvelope, b"\x01p")
+        .await
+        .unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let addr = scripted_migrate_target(vec![vec![b"+OK\r\n"; 7]], Arc::clone(&seen)).await;
+    let spec = MigrateTaskSpec {
+      transfer_option: TransferOption::Slots,
+      ..migrate_spec(port_of(&addr), 0)
+    };
+    let slots: HashSet<i32> = [slot as i32].into_iter().collect();
+    let session = try_add_slots_migration_task(&cp, spec.clone(), &slots).unwrap();
+    let migrated = run_slots_migration_task(Arc::clone(&store), spec, Arc::clone(&session))
+      .await
+      .unwrap();
+    assert_eq!(migrated, 2, "仅 string 键计数迁移");
+
+    // string 键删除，对象键保留源端（孤儿键投影声明见 migrate_driver 模块注释）
+    assert_eq!(read_str(&store, k1.as_bytes()).await, None);
+    assert_eq!(read_str(&store, k2.as_bytes()).await, None);
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      assert!(
+        storage
+          .batch
+          .contains_key(obj_key.as_bytes())
+          .await
+          .unwrap(),
+        "对象键必须保留源端"
+      );
+    }
+    assert_eq!(
+      cp.migration_manager().unwrap().get_migration_task_count(),
+      0
+    );
+  });
+}
+
+/// MIGRATE 命令 KEYS 形态（同步慢路径投影）：+OK、键删除、帧序正确
+#[test]
+fn migrate_command_keys_variant_runs_driver() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let cp = two_primary_provider();
+    let (mut consumer, store) = migrate_consumer(&cp);
+    let k1 = local_slot_key("mc_k");
+    assert_eq!(
+      drive(
+        &rt,
+        &mut consumer,
+        &resp_frame(&[b"SET", k1.as_bytes(), b"v1"]),
+      ),
+      b"+OK\r\n"
+    );
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let addr = scripted_migrate_target(vec![vec![b"+OK\r\n"; 6]], Arc::clone(&seen)).await;
+    let port = port_of(&addr);
+    retarget_remote_port(&cp, port);
+
+    let port_text = port.to_string();
+    let frame = resp_frame(&[
+      b"MIGRATE",
+      b"127.0.0.1",
+      port_text.as_bytes(),
+      b"",
+      b"0",
+      b"0",
+      b"KEYS",
+      k1.as_bytes(),
+    ]);
+    assert_eq!(
+      drive(&rt, &mut consumer, &frame),
+      b"+OK\r\n",
+      "KEYS 变体应答 +OK"
+    );
+    assert_eq!(read_str(&store, k1.as_bytes()).await, None, "键应迁移删除");
+
+    let frames = seen.lock();
+    assert!(frames.iter().any(|f| f.contains("IMPORTING")), "{frames:?}");
+    assert!(frames.iter().any(|f| f.contains("MIGRATE")), "{frames:?}");
+    assert!(frames.iter().any(|f| f.contains("NODE")), "{frames:?}");
+  });
+}
+
+/// MIGRATE 命令 SLOTS 形态（后台驱动投影）：命令立即 +OK，后台任务完成
+/// 键迁移删除并移除任务
+#[test]
+fn migrate_command_slots_variant_runs_background_driver() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let cp = two_primary_provider();
+    let (mut consumer, store) = migrate_consumer(&cp);
+    let slot = 200u16;
+    let k1 = key_in_slot("mc_s", slot);
+    assert_eq!(
+      drive(
+        &rt,
+        &mut consumer,
+        &resp_frame(&[b"SET", k1.as_bytes(), b"v1"]),
+      ),
+      b"+OK\r\n"
+    );
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let addr = scripted_migrate_target(vec![vec![b"+OK\r\n"; 6]], Arc::clone(&seen)).await;
+    let port = port_of(&addr);
+    retarget_remote_port(&cp, port);
+
+    let port_text = port.to_string();
+    let slot_text = slot.to_string();
+    let frame = resp_frame(&[
+      b"MIGRATE",
+      b"127.0.0.1",
+      port_text.as_bytes(),
+      b"",
+      b"0",
+      b"0",
+      b"SLOTS",
+      slot_text.as_bytes(),
+    ]);
+    assert_eq!(
+      drive(&rt, &mut consumer, &frame),
+      b"+OK\r\n",
+      "SLOTS 变体立即 +OK"
+    );
+
+    // 轮询驱动后台任务：键迁移删除、槽位交权、任务移除
+    let m = cp.cluster_manager().unwrap();
+    let remote_wid = m.current_config.read().get_worker_id_from_node_id("node_2");
+    let mut done = false;
+    for _ in 0..2000 {
+      let key_gone = read_str(&store, k1.as_bytes()).await.is_none();
+      let task_done = cp
+        .migration_manager()
+        .map(|mm| mm.get_migration_task_count() == 0)
+        .unwrap_or(false);
+      let owned = {
+        let cfg = m.current_config.read();
+        cfg.get_state(slot) == SlotState::Stable
+          && cfg.get_worker_id_from_slot(slot) == remote_wid as usize
+      };
+      if key_gone && task_done && owned {
+        done = true;
+        break;
+      }
+      yield_now().await;
+    }
+    assert!(done, "后台驱动应在有限轮次内完成迁移并交权");
+  });
+}
+
+/// MIGRATE 命令解析错误路径：目标不在集群配置 → Unknown endpoint；
+/// KEYS 跨槽 → CROSSSLOT；SLOTS 非本端槽 → slot not owned 文案
+#[test]
+fn migrate_command_parse_errors() {
+  let rt = Runtime::new().unwrap();
+  let cp = two_primary_provider();
+  let (mut consumer, _store) = migrate_consumer(&cp);
+
+  // 未知目标端（端口不在集群配置）
+  let out = drive(
+    &rt,
+    &mut consumer,
+    &resp_frame(&[
+      b"MIGRATE",
+      b"127.0.0.1",
+      b"59999",
+      b"",
+      b"0",
+      b"0",
+      b"SLOTS",
+      b"1",
+    ]),
+  );
+  assert_eq!(out, b"-ERR Unknown endpoint\r\n");
+
+  // KEYS 跨槽（两键不同槽）→ CROSSSLOT
+  let ka = local_slot_key("mc_ca");
+  let mut kb = local_slot_key("mc_cb");
+  while cluster_slot(kb.as_bytes()) == cluster_slot(ka.as_bytes()) {
+    kb = local_slot_key(&format!("{kb}x"));
+  }
+  let out = drive(
+    &rt,
+    &mut consumer,
+    &resp_frame(&[
+      b"MIGRATE",
+      b"127.0.0.1",
+      b"7001",
+      b"",
+      b"0",
+      b"0",
+      b"KEYS",
+      ka.as_bytes(),
+      kb.as_bytes(),
+    ]),
+  );
+  assert!(out.starts_with(b"-CROSSSLOT"), "跨槽 KEYS 应拒绝: {out:?}");
+
+  // SLOTS 非本端槽（8192..16384 归 node_2）→ slot not owned
+  let remote_slot = "9000";
+  let out = drive(
+    &rt,
+    &mut consumer,
+    &resp_frame(&[
+      b"MIGRATE",
+      b"127.0.0.1",
+      b"7001",
+      b"",
+      b"0",
+      b"0",
+      b"SLOTS",
+      remote_slot.as_bytes(),
+    ]),
+  );
+  assert!(
+    out.starts_with(b"-ERR slot 9000 not owned by current node."),
+    "非本端槽应拒绝: {out:?}"
+  );
 }

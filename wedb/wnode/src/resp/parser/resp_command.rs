@@ -384,17 +384,19 @@ static OBJECT_SUBTABLE: &[(&str, RespCommand)] = &[
 ];
 
 /// CLUSTER 子命令表（含 SET-CONFIG-EPOCH 连字符名）
+///
+/// 检查点传输流六命令（ATTACH_SYNC / BEGIN_REPLICA_RECOVER /
+/// SEND_CKPT_FILE_SEGMENT / SEND_CKPT_METADATA / SNAPSHOT_DATA / SYNC，对标
+/// C# RespClusterReplicationCommands.cs 的 recvCheckpointHandler 接收链）
+/// 不注册：执行臂随检查点传输流（M4）落地时重建；RespCommand 枚举变体
+/// 保留（对标 C# RespCommand.cs 枚举全成员，IsClusterSubCommand 区间判定
+/// 依赖 CLUSTER_SYNC 上界）。
 static CLUSTER_SUBTABLE: &[(&str, RespCommand)] = &[
   ("ADDSLOTS", RespCommand::ClusterAddslots),
   ("ADDSLOTSRANGE", RespCommand::ClusterAddslotsrange),
   ("ADVANCE_TIME", RespCommand::ClusterAdvanceTime),
   ("APPENDLOG", RespCommand::ClusterAppendlog),
-  ("ATTACH_SYNC", RespCommand::ClusterAttachSync),
   ("BANLIST", RespCommand::ClusterBanlist),
-  (
-    "BEGIN_REPLICA_RECOVER",
-    RespCommand::ClusterBeginReplicaRecover,
-  ),
   ("BUMPEPOCH", RespCommand::ClusterBumpepoch),
   ("COUNTKEYSINSLOT", RespCommand::ClusterCountkeysinslot),
   ("DELKEYSINSLOT", RespCommand::ClusterDelkeysinslot),
@@ -431,20 +433,13 @@ static CLUSTER_SUBTABLE: &[(&str, RespCommand)] = &[
   ("REPLICATE", RespCommand::ClusterReplicate),
   ("RESERVE", RespCommand::ClusterReserve),
   ("RESET", RespCommand::ClusterReset),
-  (
-    "SEND_CKPT_FILE_SEGMENT",
-    RespCommand::ClusterSendCkptFileSegment,
-  ),
-  ("SEND_CKPT_METADATA", RespCommand::ClusterSendCkptMetadata),
   ("SET-CONFIG-EPOCH", RespCommand::ClusterSetconfigepoch),
   ("SETSLOT", RespCommand::ClusterSetslot),
   ("SETSLOTSRANGE", RespCommand::ClusterSetslotsrange),
   ("SHARDS", RespCommand::ClusterShards),
   ("SLOTS", RespCommand::ClusterSlots),
   ("SLOTSTATE", RespCommand::ClusterSlotstate),
-  ("SNAPSHOT_DATA", RespCommand::ClusterSnapshotData),
   ("SPUBLISH", RespCommand::ClusterSpublish),
-  ("SYNC", RespCommand::ClusterSync),
 ];
 
 /// BITOP 子命令表（AND/OR/XOR/NOT/DIFF）

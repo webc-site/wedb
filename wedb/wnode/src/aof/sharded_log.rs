@@ -160,10 +160,13 @@ impl ShardedLog {
   }
 
   /// libs/server/AOF/ShardedLog.cs:CommittedBeginAddress
+  ///
+  /// 各子日志已提交 begin 快照（TsavoriteLog.CommittedBeginAddress，
+  /// TsavoriteLog.cs:120；非实时 begin）。
   pub fn committed_begin_address(&self) -> AofAddress {
     let mut result = AofAddress::create(self.len() as i32, 0);
     for (i, log) in self.sublog.iter().enumerate() {
-      result[i] = log.begin_address();
+      result[i] = log.committed_begin_address();
     }
     result
   }
@@ -187,7 +190,7 @@ impl ShardedLog {
   pub fn max_memory_size_bytes(&self) -> AofAddress {
     let mut result = AofAddress::create(self.len() as i32, 0);
     for (i, log) in self.sublog.iter().enumerate() {
-      result[i] = log.memory_size_bytes();
+      result[i] = log.max_memory_size_bytes();
     }
     result
   }
