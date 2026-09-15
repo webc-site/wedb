@@ -80,8 +80,6 @@ pub struct RuntimeServerOptions {
   pub aof_size_limit: Option<String>,
   /// GarnetServerOptions.cs:FastAofTruncate（默认 false）。
   pub fast_aof_truncate: bool,
-  /// GarnetServerOptions.cs:UseAofNullDevice（默认 false）。
-  pub use_aof_null_device: bool,
 }
 
 impl Default for RuntimeServerOptions {
@@ -120,7 +118,6 @@ impl Default for RuntimeServerOptions {
       wait_for_commit: false,
       aof_size_limit: Some(String::new()),
       fast_aof_truncate: false,
-      use_aof_null_device: false,
     }
   }
 }

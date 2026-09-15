@@ -19,7 +19,7 @@ use crate::{
 };
 
 /// 全部已声明 ServerConfigType 的槽位数
-pub const TABLE_SIZE: usize = (ServerConfigType::AofNullDevice as u16 + 1) as usize;
+pub const TABLE_SIZE: usize = (ServerConfigType::FastAofTruncate as u16 + 1) as usize;
 
 /// 全部 CONFIG 类型的槽位表（对标 libs/server/Config/RuntimeServerConfig.cs:RuntimeServerConfig）。
 ///
@@ -91,9 +91,6 @@ fn fmt_aof_size_limit(o: &RuntimeServerOptions) -> String {
 }
 fn fmt_fast_aof_truncate(o: &RuntimeServerOptions) -> String {
   if o.fast_aof_truncate { "yes" } else { "no" }.into()
-}
-fn fmt_aof_null_device(o: &RuntimeServerOptions) -> String {
-  if o.use_aof_null_device { "yes" } else { "no" }.into()
 }
 
 /// 静态元数据表（下标 == `ServerConfigType` 判别值）。纯编译期常量，零运行时分配。
@@ -409,19 +406,12 @@ pub static META: [ConfigMeta; RuntimeServerConfig::TABLE_SIZE] = [
     ConfigTimeUnit::None,
     fmt_fast_aof_truncate,
   ),
-  // 37: AofNullDevice
-  ConfigMeta::read_only(
-    "aof-null-device",
-    ConfigKind::BOOL,
-    ConfigTimeUnit::None,
-    fmt_aof_null_device,
-  ),
 ];
 
 /// 参数名（含别名）→ 类型的静态查找表。纯编译期常量，零运行时分配。
 ///
 /// libs/server/Config/RuntimeServerConfig.cs:BuildNameLookup
-pub static NAME_LOOKUP: [(&[u8], ServerConfigType); 36] = [
+pub static NAME_LOOKUP: [(&[u8], ServerConfigType); 35] = [
   (b"timeout", ServerConfigType::Timeout),
   (b"save", ServerConfigType::Save),
   (b"appendonly", ServerConfigType::AppendOnly),
@@ -502,13 +492,12 @@ pub static NAME_LOOKUP: [(&[u8], ServerConfigType); 36] = [
   (b"aof-commit-wait", ServerConfigType::AofCommitWait),
   (b"aof-size-limit", ServerConfigType::AofSizeLimit),
   (b"fast-aof-truncate", ServerConfigType::FastAofTruncate),
-  (b"aof-null-device", ServerConfigType::AofNullDevice),
 ];
 
 /// 本表处理的全部类型（可设置 + 只读），供 CONFIG GET *。纯编译期常量，零运行时分配。
 ///
 /// libs/server/Config/RuntimeServerConfig.cs:BuildRuntimeTypes
-pub static RUNTIME_TYPES: [ServerConfigType; 35] = [
+pub static RUNTIME_TYPES: [ServerConfigType; 34] = [
   ServerConfigType::Timeout,
   ServerConfigType::Save,
   ServerConfigType::AppendOnly,
@@ -543,7 +532,6 @@ pub static RUNTIME_TYPES: [ServerConfigType; 35] = [
   ServerConfigType::AofCommitWait,
   ServerConfigType::AofSizeLimit,
   ServerConfigType::FastAofTruncate,
-  ServerConfigType::AofNullDevice,
 ];
 
 /// 进程级共享默认配置（无服务器注入时会话的回落源）。C# 侧恒由
@@ -559,7 +547,7 @@ impl RuntimeServerConfig {
   /// 取最大判别值 + 1，无需哨兵成员，枚举空洞亦可安全下标。
   #[inline]
   pub const fn compute_table_size() -> usize {
-    (ServerConfigType::AofNullDevice as u16 + 1) as usize
+    (ServerConfigType::FastAofTruncate as u16 + 1) as usize
   }
 
   pub const TABLE_SIZE: usize = Self::compute_table_size();

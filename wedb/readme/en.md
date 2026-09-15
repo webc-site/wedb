@@ -257,7 +257,7 @@ wedb/
   wram/      direct virtual memory, native memory tracker (buffer pool re-exported from wbase)
   whasher/   GxHash backends, streaming checksums, Papaya concurrent maps
   wepoch/    LightEpoch protection and entry table
-  wdev/      compio Device trait, SegmentedDevice, NullDevice, fsync contract
+  wdev/      compio Device trait, SegmentedDevice, fsync contract
   wrecord/   16B record header, zero-copy views, chunk framing, SIMD key compare
   wval/      namespace and session key codec, collection metadata, compact codecs, glob, TTL
   windex/    lock-free hash index, overflow pool, bucket guards
@@ -327,7 +327,6 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 - `Device` / `StorageDevice` traits — async read / write / flush with segment lifecycle.
 - `SegmentedDevice` — growable segmented file (`single_file` and `segmented` constructors), `SegmentChunk` / `SegmentChunks`, `FileMap`.
-- `NullDevice` — discard sink for benchmarks.
 - `sys::detect_system_memory` / `detect_cpu_cores`, `MAX_SEGMENT_SIZE`; re-exports `wbase::BufferPool` (Utilities-layer primitive).
 
 ### wrecord — record format

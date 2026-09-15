@@ -11,7 +11,6 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 - `device`: device trait `Device` defining sector size, segment size, Direct I/O, and read/write interfaces
 - `segmented_device`: segmented-file device; handles held Thread-Local per (device id, segment id) as `Rc<File>` (zero cross-core contention; papaya is compiled in only for the Windows deferred-deletion queue)
 - `chunk`: sector/segment slicing, cross-segment and single-segment I/O boundary iteration with alignment checks
-- `null`: `NullDevice`, instant fake-success I/O with zero physical I/O
 - `sys`: dependency-free cross-platform hardware probing (CPU cores, system memory), falling back to `FALLBACK_CPU_CORES = 4` and `FALLBACK_SYSTEM_MEMORY_BYTES = 4 GiB`
 - `error`: error types (alignment / out-of-bounds / missing-segment validation errors)
 
@@ -19,7 +18,6 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 
 - `Device`: abstraction; `write_aligned` / `read_aligned` require offset / len to be multiples of sector_size with aligned buffers, while `read_range` has no alignment requirement (exact logical-range reads in buffered-I/O mode)
 - `SegmentedDevice`: segmented-file device; `dir_sync_count()` observes parent-directory fsyncs
-- `NullDevice`: empty device for tests and benchmarks
 - `detect_cpu_cores()` / `detect_system_memory()`: hardware probing
 - Re-exports `wbase::BufferPool` for building aligned buffers
 
@@ -33,4 +31,4 @@ It is built on the compio async runtime: io_uring on Linux, IOCP on Windows, kqu
 
 ## Test Coverage
 
-tests/device/ covers: alignment and invalid parameters, cross-segment round_trip, boundary and overflow defense, sync durability and cross-thread sync contracts (ghost-segment defense, remove/truncate immunity), directory fsync lifecycle, segment recovery and mismatch detection, fixed-width Base32 segment-name ordering (lexicographic = numeric), truncate and reset, capacity eviction (segmented and single-file bounded), 32/64-way concurrency and cold-open races, multi-OS-thread shared runtime, null device.
+tests/device/ covers: alignment and invalid parameters, cross-segment round_trip, boundary and overflow defense, sync durability and cross-thread sync contracts (ghost-segment defense, remove/truncate immunity), directory fsync lifecycle, segment recovery and mismatch detection, fixed-width Base32 segment-name ordering (lexicographic = numeric), truncate and reset, capacity eviction (segmented and single-file bounded), 32/64-way concurrency and cold-open races, multi-OS-thread shared runtime.

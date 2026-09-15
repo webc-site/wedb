@@ -9,8 +9,8 @@ use wconf::{
 
 #[test]
 fn table_size() {
-  assert_eq!(RuntimeServerConfig::compute_table_size(), 38);
-  assert_eq!(RuntimeServerConfig::meta().len(), 38);
+  assert_eq!(RuntimeServerConfig::compute_table_size(), 37);
+  assert_eq!(RuntimeServerConfig::meta().len(), 37);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn runtime_types_cover_settable_and_readonly() {
   assert!(!types.contains(&ServerConfigType::SlaveReadOnly));
   assert!(types.contains(&ServerConfigType::ClusterNodeTimeout));
   assert!(types.contains(&ServerConfigType::Dir));
-  assert!(types.contains(&ServerConfigType::AofNullDevice));
+  assert!(types.contains(&ServerConfigType::FastAofTruncate));
 }
 
 #[test]

@@ -53,7 +53,6 @@ fn default_configuration_options_coverage() {
   assert!(!o.wait_for_commit);
   assert_eq!(o.aof_size_limit.as_deref(), Some(""));
   assert!(!o.fast_aof_truncate);
-  assert!(!o.use_aof_null_device);
 
   // 节点通用参数默认值
   let args = NodeArgs::default();
