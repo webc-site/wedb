@@ -6,35 +6,11 @@
    问题：解析层与 COMMAND 目录已注册，执行层无臂成幽灵命令；C# 全量同步三段握手（INITIATE_REPLICA_SYNC → ATTACH_SYNC → SYNC/SEND_CKPT 检查点流）rust 只有首段 + AOF 直推，非空库副本无法达成一致。
    改法：与检查点传输流一并立项补臂；短期先从 resp_commands_info_data.rs 与 COMMAND 目录摘除六项，消除幽灵注册。
 
-2. [P1] 配置纪元全会话静止机制被删空
-   位置：wedb/wedb/src/server/cluster_provider.rs:371-374（bump_and_wait_for_epoch_transition_async = bump + yield_now）；wedb/wnode/src/cluster_session.rs ClusterSessionFace 全文无 epoch 快照方法；调用点 wedb/wedb/src/server/failover/failover_session.rs:262/:402/:419
-   对标：garnet/libs/cluster/Server/ClusterProvider.cs:366-391、garnet/libs/cluster/Session/ClusterSession.cs:185-196、garnet/libs/server/Resp/RespServerSession.cs:490/:576
-   问题：在途会话可持旧 config 完成槽位判定与写入，failover / setslot / replicaof 的配置过渡非原子。
-   改法：ClusterSessionFace 增批次级 epoch 快照（u64 原子，批首尾置取），bump_and_wait 轮询活跃会话快照至追平（带 cluster_node_timeout_ms 上限）。
-
-3. [P1] 副本 AOF 位点推进超前于重放应用
-   位置：wedb/wedb/src/server/replication/cluster_replication_session.rs:247（enqueue_raw）、:263-274（consume_direct 空回调）、:276-278（set_sublog_replication_offset）
-   对标：garnet/libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplayDriver.cs:137/148/164
-   问题：确认语义从 replayed 降级为 enqueued，掉电窗口内主端认为副本已确认而存储层尚未应用。
-   改法：位点上报改挂「存储应用完成」事件，或文档化 enqueued 语义并同步调整主端 data_loss_check 口径。
-
-4. [P1] gossip 增量判定以 epoch 替代配置版本
-   位置：wedb/wedb/src/server/gossip/gossip_manager.rs:236-238（last_sent_epoch != epoch 才发送）、:256（成功后记账）
-   对标：garnet/libs/cluster/Server/Gossip/GarnetServerNode.cs:162-178
-   问题：配置内容变化而 epoch 未变时增量判定漏发，gossip 收敛依赖全量兜底。
-   改法：判定键改配置版本号（与 try_peek_version 同源），成功后记账。
-
 5. [P1] INFO commandstats/gossip/bufferpool/checkpoint 段恒空
    位置：wedb/wnode/src/resp/info_provider.rs:57（command_stats_monitor: false 硬编码）、:94-95（command_stats 恒空）、:147/:152/:162（keyspace/gossip/buffer_pool/checkpoint 空实现）；wedb/wnode/src/resp/resp_server_session.rs:934-935（command_error_written 置位后无消费）
    对标：garnet/libs/server/Resp/RespServerSession.cs:683-716、garnet/libs/cluster/Server/ClusterProvider.cs:272-333
    问题：InfoProvider 接口面已布好但全部返回空，观测面空转，无 per-command 维度。
    改法：补 CommandStats 挂会话主循环三出口计数；集群侧把 gossip/迁移/复制 manager 既有内部计数导出为 MetricsItem。
-
-6. [P2] wconn 应答消费滞留，TCP 合包可致命令永挂
-   位置：wedb/wconn/src/network.rs:276-277（内层 while !queue.is_empty() 先 stream.read 后解析；:254 orphan_error_reply 仅兜队列空时的滞留 -ERR）
-   对标：garnet/libs/client/ClientSession/GarnetClientSession.cs:Execute
-   问题：一次 read 读到多条应答、队列命令数少于应答数时剩余应答滞留 read_buf；下一条命令的应答已在缓冲仍先阻塞等新 socket 数据。
-   改法：泵循环先排空 read_buf 中已有完整应答再等新数据；补逐帧应答静默端点的合包形态测试。
 
 7. [P2] MOVED/ASK 端点偏好硬编码 Ip，配置面半接线
    位置：wedb/wedb/src/server/cluster_session.rs:139（redirect_slot）、:825（SlotVerifyRequest.pref_type 写死 Ip）；wedb/wedb/src/server/cluster_config.rs:479-491（get_endpoint_from_slot 已有 Hostname 分支）；全仓无 preferred-endpoint 配置键
@@ -59,18 +35,6 @@
     对标：garnet/libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplaySession.cs:54-72
     问题：C# 检测跳页/超长跳过时 SafeInitialize 重对齐并推进位点，rust 容错弱于 C#。
     改法：补跳过重对齐分支，或明确依赖上层 resync 并文档化。
-
-11. [P2] 迁移停等无超时、参数与结果吞没
-    位置：wedb/wedb/src/server/migration/migrate_driver.rs:259-262/:311-314/:341-344（STABLE 回滚三元组复制三份）、:355/:361/:365（let _ = 吞返回值）；migrate_session.rs:23（timeout 死字段）
-    对标：garnet/libs/cluster/Server/Migration/ClusterMigrateDriver.cs、garnet/libs/cluster/Session/RespClusterMigrateCommands.cs（TryRecoverFromFailureAsync）
-    问题：批次停等无 timeout 目标挂起任务永挂；批次失败时远端已导入批次不回滚。
-    改法：停等加超时；提取 STABLE 回滚辅助函数；接失败 recover 路径。
-
-12. [P2] MEET 响应未验配置版本即反序列化，失败残留临时连接
-    位置：wedb/wedb/src/server/gossip/gossip_manager.rs:98（直接 from_byte_array，gossip 路径有 :263 try_peek_version 防护）、:115（仅成功取得 target_id 才 try_remove，空应答/失败/超时路径残留临时连接）
-    对标：garnet/libs/cluster/Server/Gossip/Gossip.cs:196-221
-    问题：残留连接被 broadcast_gossip_async 继续遍历，向未知节点 gossip。
-    改法：MEET 响应先 peek version 再反序列化；created 连接统一 dispose。
 
 14. [P2] handle_aof_commit_mode 缺配置门控
     位置：wedb/wnode/src/resp/parser/resp_command.rs:729（调用点）、:939-947（函数体无条件执行）

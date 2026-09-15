@@ -6,18 +6,6 @@
    问题：停机与槽位变更的 flush_config 调用点已接（cluster_provider.rs:508、cluster_manager_slot_state.rs 多处、server.rs 停机段），但写盘与启动恢复缺失，重启后 MEET/Gossip 全部重来
    改法：flush_config 落盘写 cluster_config_path；启动读盘后 from_byte_array 恢复并 init_local(recover_config=true)
 
-2. [P1] gossip 参数写死且缺首轮 MEET
-   位置：wedb/wedb/src/server/gossip/gossip_manager.rs:43-44（gossip_delay 恒 100ms、sample_percent 恒 100）、:55-66 start 无首轮 MEET、:95 meet_timeout 取 gossip_delay.max(3s)
-   对标：garnet/libs/server/Servers/GarnetServerOptions.cs:246 GossipDelay（默认 5s）、GossipSamplePercent；garnet/libs/cluster/Server/Gossip/Gossip.cs:100-112 TryStartGossipTasks（先对全部已知 worker 跑一轮 RunMeetTask）
-   问题：与 C# 默认差 50 倍且无配置面；启动不对已恢复节点先发 MEET
-   改法：三参数从启动配置注入（默认对齐 C#），start 内对已恢复 worker 先 try_meet_async 一轮
-
-3. [P1] epoch 过渡等待简化成单次 yield
-   位置：wedb/wedb/src/server/cluster_provider.rs:397-400 bump_and_wait_for_epoch_transition_async 只 bump + yield_now
-   对标：garnet/libs/cluster/Server/ClusterProvider.cs:366-389（遍历全部活跃集群会话自旋重试至 LocalCurrentEpoch 追平）
-   问题：注释自称 1:1 对标，实际全会话追平判定缺失
-   改法：接 wnode 会话表实现全会话 epoch 追平，或修正注释声明差异
-
 4. [P1] 副本重连超时默认值与注释双错
    位置：wedb/wedb/src/main.rs:36 REPLICATION_REESTABLISHMENT_TIMEOUT_SECS = 1，注释称 C# 默认 1
    对标：garnet/libs/host/defaults.conf:527（ClusterReplicationReestablishmentTimeout = 0 = 禁用）；garnet/libs/cluster/Server/Replication/ReplicationManager.cs:184-189（pollFrequency==0 直接 return）

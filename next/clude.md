@@ -83,3 +83,8 @@
     位置：wedb/wkv/tests/store/flush_evict.rs:136（test_adversarial_heavy_concurrency_with_eviction）
     问题：12 线程调度级对抗测试偶发 flaky；.config/nextest.toml 已移除 retries 兜底，仅剩 slow-timeout
     改法：根治竞态或加确定性同步
+
+16. [P3] whlog append_scan 偶发失败
+    位置：wedb/whlog/src/hlog/append_scan.rs test_scan_inflight_zero_header_respin
+    问题：全量并发跑偶发 FAIL，单跑 -p whlog 稳定过；对并发调度或跨测试干扰敏感
+    改法：根治竞态或加确定性同步（处理路径同条 15）
