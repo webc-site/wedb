@@ -61,13 +61,14 @@ use parking_lot::{Mutex, RwLock};
 use rand::seq::index::sample;
 
 use crate::{
-  fsm::{FreeSpaceMap, FsmError},
+  error::{QuantizerError, StoreError, WedbProviderError},
+  fsm::FreeSpaceMap,
   quantization::{
-    self, MinMax8BitQueryComputer, QuantizerError, QuantizerImpl, RawDistanceComputer,
-    RawQueryComputer, Spherical1Bit, WedbQuantizer,
+    self, MinMax8BitQueryComputer, QuantizerImpl, RawDistanceComputer, RawQueryComputer,
+    Spherical1Bit, WedbQuantizer,
   },
   service::SearchResults,
-  store::{Callbacks, Context, StoreCallbacks, StoreError, Term, VectorSetId},
+  store::{Callbacks, Context, StoreCallbacks, Term, VectorSetId},
   types::VectorQuantType,
 };
 
@@ -122,28 +123,6 @@ impl AsPooled<Undef> for AdjList {
 
   fn modify(&mut self, _args: Undef) {}
 }
-
-/// WedbProvider 内部与桥接错误。
-#[derive(Debug, thiserror::Error)]
-pub enum WedbProviderError {
-  #[error("Wedb store operation failed")]
-  Store(#[from] StoreError),
-  #[error("FSM error")]
-  Fsm(#[from] FsmError),
-  #[error("Start point invalid")]
-  StartPoint,
-  #[error("Allocation failed")]
-  AllocFailed(#[from] AllocatorError),
-  #[error("Invalid quantizer for vector data")]
-  InvalidQuantizer,
-  #[error("Quantizer error: {0}")]
-  Quantizer(#[from] QuantizerError),
-  #[error("Post processing error: {0}")]
-  PostProcessing(String),
-}
-
-diskann::convert_error!(WedbProviderError);
-diskann::always_escalate!(WedbProviderError);
 
 /// 原生全精度元素（u8/i8/f32）：其 [`VectorRepr::Distance`] /
 /// [`VectorRepr::QueryDistance`] 恒为 diskann 原生 [`Distance`] /

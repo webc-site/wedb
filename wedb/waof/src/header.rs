@@ -357,6 +357,27 @@ impl AofHeader {
     }
   }
 
+  /// 条目序列号提取单点（重放链各入口共用，对标 C#
+  /// AofProcessor.cs:GetSynchronizedOperationParams / CanReplay / SkipReplay 与
+  /// AofReplayCoordinator.cs:UpdateMaxSequenceNumberFromHeader 的统一取数语义：
+  /// 分片形态（ShardedHeader / ShardedChunkHeader / ShardedLogTransactionHeader）
+  /// 取内嵌 sequenceNumber，其余形态无内嵌序号、由调用方以条目地址兜底）。
+  /// 头缺失 / 未知类型 / 分片段截断返回 None（对齐 C# GarnetException 路径）。
+  #[inline]
+  pub fn sequence_number_of(entry: &[u8], fallback: i64) -> Option<i64> {
+    let header = Self::parse(entry)?;
+    match header.header_type()? {
+      AofHeaderType::ShardedHeader
+      | AofHeaderType::ShardedChunkHeader
+      | AofHeaderType::ShardedLogTransactionHeader => {
+        // ShardedLogTransactionHeader 的 sequenceNumber 位于 sharded 段
+        //（FieldOffset 16），解析前 24B 即可取得
+        AofShardedHeader::parse(entry).map(|sh| sh.sequence_number)
+      }
+      _ => Some(fallback),
+    }
+  }
+
   /// libs/server/AOF/AofHeader.cs:GetChunkedHeaderRef
   ///
   /// 返回分块记录的内嵌 [`AofChunkHeader`] 在条目内的偏移；

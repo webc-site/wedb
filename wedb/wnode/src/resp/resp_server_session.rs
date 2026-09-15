@@ -22,7 +22,7 @@ use wacl::{
   AclPassword, GarnetAclAuthenticator, UserHandle,
   auth::settings::acl_authentication_settings::AclAuthenticationSettings,
 };
-use wbase::time::{now_ms, now_nanos};
+use wbase::time::{now_ms, now_nanos, now_stopwatch_ticks};
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig};
 use wlua::{
@@ -44,7 +44,6 @@ use wtxn::{TransactionManager, TxnCommandKeys, TxnKeySpec, TxnQueuedCommandInfo,
 
 use super::{
   BlockedWait, ItemBroker,
-  metrics_commands::now_stopwatch_ticks,
   parser::{
     resp_command::{MAX_RESP_ARRAY_LENGTH, MruCommandCache, is_allowed_in_subscription_mode},
     session_parse_state::MAX_ARGUMENT_LENGTH_BYTES,

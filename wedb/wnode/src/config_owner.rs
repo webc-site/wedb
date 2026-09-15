@@ -22,8 +22,9 @@ where
 {
   match msg {
     // aof-commit-freq 变更落点（对标 ReconcilePrimaryTask(CommitTask) →
-    // TryStartCommitTask）。rust 提交模型为同步 group commit（wkv
-    // `FlushPipeline` / WaofSublog 刷盘状态机），无 C# `CommitTaskAsync`
+    // TryStartCommitTask）。rust 提交模型为同步 group commit（wbase
+    // `GroupCommitPipeline` 统一驱动 wkv 刷盘与 WaofSublog 提交），无 C#
+    // `CommitTaskAsync`
     // 周期任务域；提交间隔在 AOF 日志构造期固化（`single_log_aof`），0 值
     // 切换已被 `RuntimeServerConfig` 拒绝（CommitFreqZero /
     // CommitFreqAutoCommitStart），安全值域 {-1, >0} 间变更无周期任务可重启，

@@ -25,20 +25,17 @@ use waof::{
 };
 use wbase::{
   convert::{
-    TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS,
-    unix_timestamp_in_milliseconds_to_ticks, unix_timestamp_in_seconds_to_ticks,
+    duration_milliseconds_to_ticks, duration_seconds_to_ticks, expire_at_milliseconds_to_ticks,
+    expire_at_seconds_to_ticks,
   },
   entry_type::AofEntryType,
 };
 use wcol::{
+  HashObject, ListObject, ObjectInput, ObjectOutput, SetObject, SortedSetObject,
   hash::hash_object::HashOperation,
   list::list_object::ListOperation,
-  object_store_utils::{
-    hash_from_blob, hash_to_blob, list_from_blob, list_to_blob, make_object_input, obj_decode,
-    set_from_blob, set_to_blob, zset_from_blob, zset_to_blob,
-  },
+  object_store_utils::{make_object_input, obj_decode},
   set::set_object::SetOperation,
-  types::object_output::ObjectOutput,
   zset::sorted_set_object::SortedSetOperation,
 };
 use wdev::Device;
@@ -277,10 +274,10 @@ impl<'a, T: AsRef<[u8]>> ReplayInputSlice<'a, T> {
 }
 
 impl ReplayInput {
-  /// 计算切片序列化字节数
+  /// 计算切片序列化字节数（32B 固定头 + 参数序列区）
   #[inline]
   pub fn encoded_len_for_slices(args: &[impl AsRef<[u8]>]) -> usize {
-    36 + args.iter().map(|a| 4 + a.as_ref().len()).sum::<usize>()
+    REPLAY_INPUT_HEADER_SIZE + waof::arg_sequence_len(args)
   }
 
   /// 序列化到缓冲切片，返回已写入切片（若缓冲不足则返回 None）
@@ -301,16 +298,8 @@ impl ReplayInput {
     buf[8..16].copy_from_slice(&input.arg1.to_le_bytes());
     buf[16..24].copy_from_slice(&input.arg2.to_le_bytes());
     buf[24..32].copy_from_slice(&input.arg3.to_le_bytes());
-    buf[32..36].copy_from_slice(&(input.args.len() as u32).to_le_bytes());
-    let mut cursor = 36;
-    for arg in input.args {
-      let slice = arg.as_ref();
-      buf[cursor..cursor + 4].copy_from_slice(&(slice.len() as u32).to_le_bytes());
-      cursor += 4;
-      buf[cursor..cursor + slice.len()].copy_from_slice(slice);
-      cursor += slice.len();
-    }
-    Some(&buf[..total_len])
+    let args_len = waof::encode_arg_sequence(input.args, &mut buf[REPLAY_INPUT_HEADER_SIZE..]);
+    Some(&buf[..REPLAY_INPUT_HEADER_SIZE + args_len])
   }
 
   /// 统一零分配/低分配写入助手：优先使用 512B 栈缓冲，超大载荷自动回落堆缓冲
@@ -349,36 +338,15 @@ impl ReplayInput {
     Self::encode_to_slice(&slice_input, &mut into[start..]);
   }
 
-  /// 反序列化（C# StringInput.DeserializeFrom 的组合形态）。
+  /// 反序列化（C# StringInput.DeserializeFrom 的组合形态；参数序列区
+  /// 经 waof 单点解码）。
   pub fn deserialize(bytes: &[u8]) -> Option<Self> {
     if bytes.len() < REPLAY_INPUT_HEADER_SIZE {
       return None;
     }
     let cmd = RespCommand::try_from(u16::from_le_bytes([bytes[0], bytes[1]])).ok()?;
-    // 参数区：[count u32][逐参 (len u32 + bytes)]，起点 = 固定头 32
-    let mut cursor = REPLAY_INPUT_HEADER_SIZE;
-    if cursor + 4 > bytes.len() {
-      return None;
-    }
-    let args_count = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
-    cursor += 4;
-    let max_possible_args = (bytes.len() - cursor) / 4;
-    if args_count > max_possible_args {
-      return None;
-    }
-    let mut args = Vec::with_capacity(args_count);
-    for _ in 0..args_count {
-      if cursor + 4 > bytes.len() {
-        return None;
-      }
-      let len = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
-      cursor += 4;
-      if cursor + len > bytes.len() {
-        return None;
-      }
-      args.push(bytes[cursor..cursor + len].to_vec());
-      cursor += len;
-    }
+    // 参数序列区：waof 单点（count 防爆破 + 逐参边界校验）
+    let args = waof::decode_arg_sequence(&bytes[REPLAY_INPUT_HEADER_SIZE..])?;
     Some(Self {
       cmd,
       flags: bytes[2],
@@ -564,32 +532,26 @@ impl AofProcessor {
 
   /// libs/server/AOF/AofProcessor.cs:GetSynchronizedOperationParams
   ///
-  /// 提取（序列号, 参与者数）：事务头形态取头内参与者数（SingleLog 取
-  /// 条目地址为序、Sharded 取内嵌序列号），其余形态取条目地址 +
-  /// 全量回放任务数（C# BasicHeader 兜底分支）。
+  /// 提取（序列号, 参与者数）：序列号经 [`AofHeader::sequence_number_of`]
+  /// 单点（分片形态取内嵌、其余取条目地址）；参与者数事务头形态取头内
+  /// 值，其余取全量回放任务数（C# BasicHeader 兜底分支）。
   pub fn get_synchronized_operation_params(
     &self,
     entry: &[u8],
     entry_address: i64,
   ) -> Option<(i64, i16)> {
     let header = AofHeader::parse(entry)?;
-    match header.header_type()? {
+    let sequence_number = AofHeader::sequence_number_of(entry, entry_address)?;
+    let participant_count = match header.header_type()? {
       AofHeaderType::SingleLogTransactionHeader => {
-        let h = AofSingleLogTransactionHeader::parse(entry)?;
-        Some((entry_address, h.participant_count))
+        AofSingleLogTransactionHeader::parse(entry)?.participant_count
       }
       AofHeaderType::ShardedLogTransactionHeader => {
-        let h = AofShardedLogTransactionHeader::parse(entry)?;
-        Some((h.sharded.sequence_number, h.participant_count))
+        AofShardedLogTransactionHeader::parse(entry)?.participant_count
       }
-      AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => {
-        Some((entry_address, self.replay_task_count() as i16))
-      }
-      AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        let sh = AofShardedHeader::parse(entry)?;
-        Some((sh.sequence_number, self.replay_task_count() as i16))
-      }
-    }
+      _ => self.replay_task_count() as i16,
+    };
+    Some((sequence_number, participant_count))
   }
 
   /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ReplayStoredProc
@@ -1197,47 +1159,36 @@ impl AofProcessor {
       }
       RespCommand::Expire => {
         // 重放边界换算（对标 KeyAdminCommands.cs:423 的 EXPIRE→AddSeconds）：
-        // 相对秒 → 相对 ticks
+        // 相对秒 → 时长 ticks（饱和乘法单点与命令端同源）
         session
-          .expire_in_ticks(key, input.arg1.max(0).saturating_mul(TICKS_PER_SECOND))
+          .expire_in_ticks(key, duration_seconds_to_ticks(input.arg1.max(0)))
           .await
           .map_err(|e| format!("Expire replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Pexpire => {
-        // 相对毫秒 → 相对 ticks（KeyAdminCommands.cs:424 的 PEXPIRE→AddMilliseconds）
+        // 相对毫秒 → 时长 ticks（KeyAdminCommands.cs:424 的 PEXPIRE→AddMilliseconds，
+        // 饱和乘法单点与命令端同源）
         session
-          .expire_in_ticks(key, input.arg1.max(0).saturating_mul(TICKS_PER_MILLISECOND))
+          .expire_in_ticks(key, duration_milliseconds_to_ticks(input.arg1.max(0)))
           .await
           .map_err(|e| format!("Pexpire replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Expireat => {
-        // 绝对 Unix 秒 → ticks（KeyAdminCommands.cs:423 的 EXPIREAT）
+        // 绝对 Unix 秒 → ticks（KeyAdminCommands.cs:425 的 EXPIREAT，
+        // 负夹 0/上界钳制单点与命令端同函数）
         session
-          .expire_at_ticks(
-            key,
-            unix_timestamp_in_seconds_to_ticks(
-              input
-                .arg1
-                .clamp(0, (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND),
-            ),
-          )
+          .expire_at_ticks(key, expire_at_seconds_to_ticks(input.arg1))
           .await
           .map_err(|e| format!("Expireat replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Pexpireat => {
-        // 绝对 Unix 毫秒 → ticks（KeyAdminCommands.cs:426 的 PEXPIREAT）
+        // 绝对 Unix 毫秒 → ticks（KeyAdminCommands.cs:426 的 PEXPIREAT，
+        // 负夹 0/上界钳制单点与命令端同函数）
         session
-          .expire_at_ticks(
-            key,
-            unix_timestamp_in_milliseconds_to_ticks(
-              input
-                .arg1
-                .clamp(0, (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND),
-            ),
-          )
+          .expire_at_ticks(key, expire_at_milliseconds_to_ticks(input.arg1))
           .await
           .map_err(|e| format!("Pexpireat replay failed: {e}"))?;
         return Ok(());
@@ -1258,7 +1209,7 @@ impl AofProcessor {
       }
       RespCommand::Setex => {
         let val = input.args.first().map_or(&[][..], Vec::as_slice);
-        let ticks = input.arg1.max(0).saturating_mul(TICKS_PER_SECOND);
+        let ticks = duration_seconds_to_ticks(input.arg1.max(0));
         session
           .setex(key, val, ticks)
           .await
@@ -1267,7 +1218,7 @@ impl AofProcessor {
       }
       RespCommand::Psetex => {
         let val = input.args.first().map_or(&[][..], Vec::as_slice);
-        let ticks = input.arg1.max(0).saturating_mul(TICKS_PER_MILLISECOND);
+        let ticks = duration_milliseconds_to_ticks(input.arg1.max(0));
         session
           .setex(key, val, ticks)
           .await
@@ -1419,57 +1370,51 @@ impl AofProcessor {
     let mut out = ObjectOutput::new();
     let resp_version = session.resp_protocol_version();
 
-    // 整对象回放统一内核：信封域读现载荷（记录挂 ObjectEnvelope 物理键）→
-    // operate → 删空走双域删除自愈，非空回写信封（键缺失按空对象重建，与
-    // ObjectStoreRMW 重放会话 NeedToCreate=true 口径一致）
+    // 信封域读现载荷（记录挂 ObjectEnvelope 物理键），单通道按类型分发
     let raw = session
       .read_tag_with(key, KeyTag::ObjectEnvelope, |r| r.to_vec())
       .await
       .map_err(AofReplayError::Store)?;
-    let load = |want: u8| -> Option<Vec<u8>> {
-      raw
-        .as_deref()
-        .and_then(|r| obj_decode(r, want))
-        .map(Vec::from)
-    };
-    macro_rules! replay_object {
-      ($want:expr, $from_blob:ident, $to_blob:ident) => {{
-        let mut obj = load($want).map(|p| $from_blob(&p)).unwrap_or_default();
-        obj.operate(&obj_input, &mut out, resp_version);
-        if obj.is_empty() {
-          session
-            .delete_string(key)
-            .await
-            .map_err(AofReplayError::Store)?;
-        } else {
-          let blob = $to_blob(&obj);
-          session
-            .obj_save(key, $want, &blob)
-            .await
-            .map_err(AofReplayError::Store)?;
-        }
-      }};
-    }
     match obj_type {
       GarnetObjectType::Hash => {
-        replay_object!(GarnetObjectType::Hash as u8, hash_from_blob, hash_to_blob)
+        replay_object_channel::<HashObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
+        )
+        .await
       }
       GarnetObjectType::Set => {
-        replay_object!(GarnetObjectType::Set as u8, set_from_blob, set_to_blob)
+        replay_object_channel::<SetObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
+          .await
       }
       GarnetObjectType::List => {
-        replay_object!(GarnetObjectType::List as u8, list_from_blob, list_to_blob)
+        replay_object_channel::<ListObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
+        )
+        .await
       }
       GarnetObjectType::SortedSet => {
-        replay_object!(
-          GarnetObjectType::SortedSet as u8,
-          zset_from_blob,
-          zset_to_blob
+        replay_object_channel::<SortedSetObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
         )
+        .await
       }
-      _ => {}
+      _ => Ok(()),
     }
-    Ok(())
   }
 
   /// libs/server/AOF/AofProcessor.cs:ObjectStoreDelete
@@ -1575,14 +1520,15 @@ impl AofProcessor {
   ) -> Option<(bool, i64)> {
     let header = AofHeader::parse(entry)?;
     let log = self.append_only_file.log();
+    // 序列号单点：分片形态取内嵌，其余取条目地址
+    let sequence_number = AofHeader::sequence_number_of(entry, entry_address)?;
     match header.header_type()? {
       AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => {
         let op_type = AofEntryType::try_from(header.op_type).ok()?;
         if !op_type.has_key() {
-          return Some((true, entry_address));
+          return Some((true, sequence_number));
         }
-        let chunk = header.is_chunked();
-        let routing = if chunk {
+        let routing = if header.is_chunked() {
           let (_, ch) = AofHeader::get_chunked_header_ref(entry)?;
           ch.key_hash
         } else {
@@ -1593,21 +1539,20 @@ impl AofProcessor {
         };
         Some((
           replay_task_idx == log.get_replay_task_idx(routing),
-          entry_address,
+          sequence_number,
         ))
       }
       AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        let sh = AofShardedHeader::parse(entry)?;
         let op_type = AofEntryType::try_from(header.op_type).ok()?;
         if !op_type.has_key() {
-          return Some((replay_task_idx == 0, sh.sequence_number));
+          return Some((replay_task_idx == 0, sequence_number));
         }
         let offset = AofHeader::skip_header(entry)?;
         let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
         let key = entry.get(offset + 4..offset + 4 + len)?;
         Some((
           replay_task_idx == log.get_replay_task_idx(GarnetLog::hash(key)),
-          sh.sequence_number,
+          sequence_number,
         ))
       }
       _ => None,
@@ -1627,14 +1572,9 @@ impl AofProcessor {
     if until_sequence_number == -1 {
       return Some((true, -1));
     }
-    let header = AofHeader::parse(entry)?;
-    let sequence_number = match header.header_type()? {
-      AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => log_address_sequence_number,
-      AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        AofShardedHeader::parse(entry)?.sequence_number
-      }
-      _ => log_address_sequence_number,
-    };
+    // 序列号单点：分片形态取内嵌（含 ShardedLogTransactionHeader，对齐
+    // C# SkipReplay 的 txnHeader.shardedHeader.sequenceNumber 分支），其余取条目地址
+    let sequence_number = AofHeader::sequence_number_of(entry, log_address_sequence_number)?;
     Some((sequence_number > until_sequence_number, sequence_number))
   }
 
@@ -1644,6 +1584,181 @@ impl AofProcessor {
     let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
     entry.get(offset + 4..offset + 4 + len)
   }
+}
+
+/// 四对象类型重放单通道约束（本地封闭 trait，仅 Hash/Set/List/SortedSet 实现；
+/// 对标 C# AofProcessor.ObjectStoreRMW<TObjectContext> 经 Tsavorite
+/// objectContext 的泛型单通道，静态分发无 dyn）。
+trait ReplayObject: Default {
+  /// 信封内层类型标签（GarnetObjectType 判别值）
+  const TAG: u8;
+
+  /// 从信封载荷装载（损坏按空对象，对齐 from_blob 口径）
+  fn load(raw: &[u8]) -> Self;
+
+  /// 序列化为信封载荷
+  fn dump(&self) -> Vec<u8>;
+
+  /// 空对象判定（删空自愈阈值）
+  fn is_empty(&self) -> bool;
+
+  /// RESP 语义操作（委托各对象固有 operate）
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool;
+}
+
+impl ReplayObject for HashObject {
+  const TAG: u8 = GarnetObjectType::Hash as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for SetObject {
+  const TAG: u8 = GarnetObjectType::Set as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for ListObject {
+  const TAG: u8 = GarnetObjectType::List as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for SortedSetObject {
+  const TAG: u8 = GarnetObjectType::SortedSet as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+/// 整对象回放泛型单通道（C# AofProcessor.ObjectStoreRMW 经 Tsavorite
+/// objectContext 多态的对象应用段，rust 侧以 [`ReplayObject`] 静态分发：
+/// 信封域现载荷 → [`ReplayObject::load`] → [`ReplayObject::apply`] →
+/// 删空走双域删除自愈，非空回写信封；键缺失按空对象重建，与 ObjectStoreRMW
+/// 重放会话 NeedToCreate=true 口径一致）。
+async fn replay_object_channel<T: ReplayObject, D: Device>(
+  session: &StorageSession<'_, D>,
+  key: &[u8],
+  raw: Option<Vec<u8>>,
+  obj_input: &ObjectInput,
+  out: &mut ObjectOutput,
+  resp_version: u8,
+) -> Result<(), AofReplayError> {
+  let mut obj = raw
+    .as_deref()
+    .and_then(|r| obj_decode(r, T::TAG))
+    .map(T::load)
+    .unwrap_or_default();
+  obj.apply(obj_input, out, resp_version);
+  if obj.is_empty() {
+    session
+      .delete_string(key)
+      .await
+      .map_err(AofReplayError::Store)?;
+  } else {
+    let blob = obj.dump();
+    session
+      .obj_save(key, T::TAG, &blob)
+      .await
+      .map_err(AofReplayError::Store)?;
+  }
+  Ok(())
 }
 
 /// 物理键 context 切换守卫（构造时解出 `(ns, db, 用户键)` 并切会话

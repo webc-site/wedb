@@ -134,18 +134,6 @@ fn test_shift_read_only_to_tail_and_flush_all() -> Void {
   OK
 }
 
-/// 测试 15: PageFlushRange bitcode 序列化往返
-#[test]
-fn test_bitcode_roundtrip() -> Void {
-  let range = PageFlushRange::new(4096, 8192);
-  let encoded_range = bitcode::encode(&range);
-  let decoded_range: PageFlushRange = bitcode::decode(&encoded_range)?;
-  assert_eq!(range, decoded_range);
-
-  info!("bitcode 序列化往返测试通过");
-  OK
-}
-
 /// 测试 16: shift_read_only_to_tail 之后调用 shift_begin_address，单调状态机不变式严格保持
 #[test]
 fn test_shift_begin_after_shift_read_only_to_tail_preserves_invariants() -> Void {

@@ -1,10 +1,6 @@
-use std::{
-  io,
-  sync::atomic::{AtomicU64, Ordering},
-};
+use std::{io, sync::atomic::Ordering};
 
-use crossfire::oneshot::{TxOneshot, oneshot};
-use parking_lot::Mutex;
+use wbase::group_commit::{Enter, GroupCommitStep};
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 use wdev::Device;
 use wrecord::{HEADER_SIZE, RecordHeader};
@@ -13,41 +9,8 @@ use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, NamespaceDbCodec};
 use super::WedbStore;
 use crate::error::{Error, Result};
 
-/// Group Commit 挂起等待者契约（对标 Garnet TsavoriteLog.CommitTask）
-pub(crate) struct FlushWaiter {
-  pub(crate) target: u64,
-  pub(crate) tx: Option<TxOneshot<Result<()>>>,
-}
-
-/// 刷盘流水线互斥状态
-pub(crate) struct FlushState {
-  pub(crate) is_flushing: bool,
-  pub(crate) waiters: Vec<FlushWaiter>,
-}
-
-/// 对标 Garnet 的 Group Commit / Pipeline Flush 控制器
-pub struct FlushPipeline {
-  pub(crate) state: Mutex<FlushState>,
-  /// 硬件已完成 sync 持久化的最高连续逻辑地址水位
-  pub synced_until: AtomicU64,
-}
-
-impl FlushPipeline {
-  pub fn new(initial_addr: u64) -> Self {
-    Self {
-      state: Mutex::new(FlushState {
-        is_flushing: false,
-        waiters: Vec::new(),
-      }),
-      synced_until: AtomicU64::new(initial_addr),
-    }
-  }
-
-  #[inline]
-  pub fn synced_until(&self) -> u64 {
-    self.synced_until.load(Ordering::Acquire)
-  }
-}
+/// 流水线中断错误消息（Follower 侧统一映射）
+const PIPELINE_BROKEN: &str = "Flush pipeline broken";
 
 impl<D: Device> WedbStore<D> {
   /// 刷盘前遍历指定页面范围内的原位记录，触发 OnFlush 事件
@@ -135,127 +98,32 @@ impl<D: Device> WedbStore<D> {
     let target = self.tail_address();
 
     // 1. 快速短路（0 I/O）：目标水位已被硬件 sync 持久化覆盖
-    if target <= self.flush_pipeline.synced_until() {
+    if target <= self.synced_until() {
       return Ok(());
     }
 
     // 2. 状态机协商：判定成为 Leader 还是 Follower
-    let rx = {
-      let mut lock = self.flush_pipeline.state.lock();
-
-      // 双重检查防并发竞态
-      if target <= self.flush_pipeline.synced_until() {
-        return Ok(());
+    match self.flush_pipeline.enter(target, || self.synced_until()) {
+      Enter::Done(_) => return Ok(()),
+      Enter::Follow(rx) => {
+        // 3. Follower 分支：挂起等待 Leader 批量唤醒，绝不重复发起 I/O
+        return self
+          .flush_pipeline
+          .wait(rx, target, || self.synced_until())
+          .await
+          .map(|_| ())
+          .map_err(|_| io::Error::other(PIPELINE_BROKEN).into());
       }
-
-      if lock.is_flushing {
-        // 当前已有 Leader 在刷盘，登记为 Follower 挂起等待，绝不重复发起 I/O
-        let (tx, rx) = oneshot::<Result<()>>();
-        lock.waiters.push(FlushWaiter {
-          target,
-          tx: Some(tx),
-        });
-        Some(rx)
-      } else {
-        // 升级为 Leader，接管物理刷盘管道
-        lock.is_flushing = true;
-        None
-      }
-    };
-
-    // 3. Follower 分支：挂起等待 Leader 批量唤醒
-    if let Some(rx) = rx {
-      return match rx.await {
-        Ok(res) => res,
-        Err(_) => Err(io::Error::other("Flush pipeline broken").into()),
-      };
+      // 升级为 Leader，接管物理刷盘管道
+      Enter::Lead => {}
     }
 
     // 4. Leader 级联执行循环（Cascade Loop）
-    self.run_flush_pipeline_leader_loop().await
-  }
-
-  /// Leader 级联刷盘驱动主循环
-  async fn run_flush_pipeline_leader_loop(&self) -> Result<()> {
-    loop {
-      // (1) 收集当前批次目标：当前 tail 与所有挂起 Follower 的最大需求
-      let batch_target = {
-        let lock = self.flush_pipeline.state.lock();
-        let max_waiter_target = lock.waiters.iter().map(|w| w.target).max().unwrap_or(0);
-        let cur_tail = self.tail_address();
-        cur_tail.max(max_waiter_target)
-      };
-
-      let synced = self.flush_pipeline.synced_until();
-      let res: Result<()> = async {
-        if batch_target > synced {
-          // (2) 增量页刷盘：仅从当前 flushed_until 所在页刷到 batch_target 所在页
-          // 彻底杜绝从 head 到 tail 的全量重复扫描与重复页写锁占用
-          let flushed = self.hlog.flushed_until_address();
-          if batch_target > flushed {
-            let start_page = self.hlog.config.page_id(flushed);
-            let end_page = self.hlog.config.page_id(batch_target.saturating_sub(1));
-            if start_page <= end_page {
-              self.on_flush_pages(start_page, end_page)?;
-              self.hlog.flush_pages_range(start_page, end_page).await?;
-            }
-          }
-
-          // (3) 物理介质持久化（硬件 fsync）：全系统单协程串行执行，彻底消除抖动争抢
-          self.device.sync().await.map_err(Error::from)?;
-
-          // (4) 推进持久化水位
-          let current_flushed = self.hlog.flushed_until_address();
-          let new_synced = batch_target.min(current_flushed);
-          self
-            .flush_pipeline
-            .synced_until
-            .fetch_max(new_synced, Ordering::AcqRel);
-        }
-        Ok(())
-      }
-      .await;
-
-      // (5) 异常分发或批量成功唤醒
-      let mut lock = self.flush_pipeline.state.lock();
-      match res {
-        Ok(()) => {
-          let current_synced = self.flush_pipeline.synced_until();
-          // 批量精准唤醒所有位点已覆盖的 Follower
-          lock.waiters.retain_mut(|w| {
-            if w.target <= current_synced {
-              if let Some(tx) = w.tx.take() {
-                tx.send(Ok(()));
-              }
-              false
-            } else {
-              true
-            }
-          });
-
-          // (6) 级联检查：若仍有更高水位的 Follower 积压，或有新追加记录超过 synced
-          let has_higher_waiters = !lock.waiters.is_empty();
-          let tail_advanced = self.tail_address() > current_synced;
-
-          if !has_higher_waiters && !tail_advanced {
-            // 管道完全排空，释放 Leader 身份并退出
-            lock.is_flushing = false;
-            return Ok(());
-          }
-          // 仍有积压，Leader 继续下一轮批处理
-        }
-        Err(err) => {
-          // 发生错误，向所有等待者广播错误，释放 Leader 身份，杜绝死锁
-          for mut w in lock.waiters.drain(..) {
-            if let Some(tx) = w.tx.take() {
-              tx.send(Err(io::Error::other("Pipeline flush failed").into()));
-            }
-          }
-          lock.is_flushing = false;
-          return Err(err);
-        }
-      }
-    }
+    self
+      .flush_pipeline
+      .run_leader(FlushStep { store: self })
+      .await
+      .map(|_| ())
   }
 
   /// 将内存所有页面刷盘并全部驱逐至磁盘区（对标 Tsavorite FlushAndEvict）
@@ -267,5 +135,60 @@ impl<D: Device> WedbStore<D> {
     self.shift_read_only_address(tail);
     self.shift_head_address(tail);
     Ok(())
+  }
+
+  /// 读取硬件已完成 sync 持久化的最高连续逻辑地址水位
+  #[inline]
+  pub(crate) fn synced_until(&self) -> u64 {
+    self.synced_until.load(Ordering::Acquire)
+  }
+}
+
+/// KV 页刷盘步进器：批次目标取混合日志尾地址，水位取硬件 sync 持久化位点，
+/// 物理持久化为增量页刷盘（原位 OnFlush 事件 + 页批量落盘）+ 硬件 fsync
+struct FlushStep<'a, D: Device> {
+  store: &'a WedbStore<D>,
+}
+
+impl<D: Device> GroupCommitStep for FlushStep<'_, D> {
+  type Error = Error;
+
+  #[inline]
+  fn tail(&self) -> u64 {
+    self.store.tail_address()
+  }
+
+  #[inline]
+  fn watermark(&self) -> u64 {
+    self.store.synced_until()
+  }
+
+  async fn step(&self, target: u64) -> Result<u64> {
+    // (1) 增量页刷盘：仅从当前 flushed_until 所在页刷到 target 所在页，
+    // 彻底杜绝从 head 到 tail 的全量重复扫描与重复页写锁占用
+    let flushed = self.store.hlog.flushed_until_address();
+    if target > flushed {
+      let start_page = self.store.hlog.config.page_id(flushed);
+      let end_page = self.store.hlog.config.page_id(target.saturating_sub(1));
+      if start_page <= end_page {
+        self.store.on_flush_pages(start_page, end_page)?;
+        self
+          .store
+          .hlog
+          .flush_pages_range(start_page, end_page)
+          .await?;
+      }
+    }
+
+    // (2) 物理介质持久化（硬件 fsync）：全系统单协程串行执行，彻底消除抖动争抢
+    self.store.device.sync().await.map_err(Error::from)?;
+
+    // (3) 推进持久化水位（页粒度刷盘可能越过目标，取 min）
+    let new_synced = target.min(self.store.hlog.flushed_until_address());
+    self
+      .store
+      .synced_until
+      .fetch_max(new_synced, Ordering::AcqRel);
+    Ok(new_synced)
   }
 }

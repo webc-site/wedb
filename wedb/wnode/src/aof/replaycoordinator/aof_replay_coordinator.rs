@@ -13,10 +13,7 @@ use std::{mem::take, sync::Arc};
 
 use gxhash::HashMap;
 use parking_lot::{Mutex, RwLock};
-use waof::{
-  AofHeader, AofHeaderType, AofShardedHeader, AofShardedLogTransactionHeader,
-  AofSingleLogTransactionHeader,
-};
+use waof::{AofHeader, AofShardedLogTransactionHeader, AofSingleLogTransactionHeader};
 use wbase::entry_type::AofEntryType;
 
 use crate::aof::{
@@ -242,7 +239,8 @@ impl AofReplayCoordinator {
             .map(|c| c as u8)
             .unwrap_or(0);
           let start_sequence_number =
-            self.txn_header_sequence_number(entry, log_address_sequence_number);
+            AofHeader::sequence_number_of(entry, log_address_sequence_number)
+              .unwrap_or(log_address_sequence_number);
           ctx.add_transaction_group(
             session_id,
             virtual_sublog_idx,
@@ -274,17 +272,6 @@ impl AofReplayCoordinator {
     AofShardedLogTransactionHeader::parse(entry).map(|h| h.participant_count)
   }
 
-  /// 事务头序列号（分片取内嵌；其余取条目地址）。
-  fn txn_header_sequence_number(&self, entry: &[u8], entry_address: i64) -> i64 {
-    if let Some(h) = AofShardedLogTransactionHeader::parse(entry) {
-      return h.sharded.sequence_number;
-    }
-    if let Some(sh) = AofShardedHeader::parse(entry) {
-      return sh.sequence_number;
-    }
-    entry_address
-  }
-
   /// 分块记录入组（分块路径的事务缓冲；C# 分块形态 AddOrReplay）。
   pub fn buffer_chunk_operation(
     &self,
@@ -306,21 +293,20 @@ impl AofReplayCoordinator {
   /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:UpdateMaxSequenceNumberFromHeader
   ///
   /// 按头型取序列号并推进虚拟子日志最大值（无 key 条目的时间推进）。
+  /// 序列号经 waof 头层单点（分片三形态取内嵌——含 C# 的
+  /// ShardedLogTransactionHeader 分支——其余取条目地址）。
   pub fn update_max_sequence_number_from_header(
     &self,
     virtual_sublog_idx: usize,
     entry: &[u8],
     log_address_sequence_number: i64,
   ) {
-    let Some(header) = AofHeader::parse(entry) else {
+    if AofHeader::parse(entry).is_none() {
       return;
-    };
-    let sequence_number = match header.header_type() {
-      Some(AofHeaderType::ShardedHeader) | Some(AofHeaderType::ShardedChunkHeader) => {
-        AofShardedHeader::parse(entry).map_or(0, |sh| sh.sequence_number)
-      }
-      _ => log_address_sequence_number,
-    };
+    }
+    // 分片段截断的损坏条目以 0 兜底（对齐既有 map_or(0, …) 口径）
+    let sequence_number =
+      AofHeader::sequence_number_of(entry, log_address_sequence_number).unwrap_or(0);
     if let Some(manager) = self.consistency_manager.read().as_ref() {
       manager.update_virtual_sublog_max_sequence_number(virtual_sublog_idx, sequence_number);
     }

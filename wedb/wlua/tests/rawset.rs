@@ -1,7 +1,10 @@
 use aok::{Error, OK, Result, Void};
 use gxhash::HashSet;
 use log::info;
-use wlua::{DEFAULT_REDIS_VERSION, LuaLoggingMode, LuaMemoryManagementMode, LuaRunner, RespObject};
+use wlua::{LuaLoggingMode, LuaMemoryManagementMode, LuaRunner, RespObject};
+
+/// redis 默认版本号（C# LuaRunner 构造默认 "0.0.0.0"）。
+const DEFAULT_REDIS_VERSION: &str = "0.0.0.0";
 
 fn run_script(source: &[u8]) -> Result<RespObject> {
   let mut runner = LuaRunner::new(

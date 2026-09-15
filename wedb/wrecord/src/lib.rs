@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! 记录格式层：记录头、键值编解码、分块框架与零拷贝记录视图
+//! 记录格式层：记录头、键值编解码与零拷贝记录视图
 //!
 //! 纯记录格式，不感知任何 Redis 值层语义——zset/set/hash 紧凑编解码、
 //! 打平子键、集合元数据均位于上层 wval（对标 Garnet 中 Tsavorite core
@@ -14,14 +14,12 @@
 //! 命名空间由 wval 会话前缀（ns+db varint）编入物理键。与 C# 中 RecordInfo/RDH 属
 //! Tsavorite 核心、RecordType 语义由 Garnet 调用方解释的分层等价。
 
-mod chunk;
 mod codec;
 mod error;
 mod header;
 mod record_mut;
 mod record_ref;
 
-pub use chunk::{CHUNK_LEN_PREFIX_SIZE, ChunkCodec, ChunkIter};
 pub use codec::{
   MAX_KEY_LEN, checked_record_size, encode_to_slice, record_size, try_encode_to_vec,
 };

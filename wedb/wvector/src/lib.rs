@@ -11,6 +11,7 @@
 //! - [`types`]：距离度量、量化类型与标志位
 
 pub mod element_data;
+pub mod error;
 pub mod filter;
 pub mod fsm;
 pub mod provider;
@@ -20,23 +21,21 @@ pub mod store;
 pub mod types;
 
 pub use element_data::{PrepareError, PreparedVectorData, native_format, prepare_vector_data};
+pub use error::{FsmError, QuantizerError, StoreError, WedbProviderError};
 pub use filter::{
   CompileError, ExprProgram, ExprToken, ExprTokenType, OpCode, run as evaluate_filter, try_compile,
 };
-pub use fsm::{FreeSpaceMap, FsmError, ReuseGuard};
-pub use provider::{
-  DistanceComputer, QueryComputer, ToDistanceComputer, WedbProvider, WedbProviderError,
-};
+pub use fsm::{FreeSpaceMap, ReuseGuard};
+pub use provider::{DistanceComputer, QueryComputer, ToDistanceComputer, WedbProvider};
 pub use quantization::{
-  MinMax8Bit, QuantizerError, RawDistanceComputer, RawQueryComputer, Spherical1Bit, WedbQuantizer,
+  MinMax8Bit, RawDistanceComputer, RawQueryComputer, Spherical1Bit, WedbQuantizer,
 };
 pub use service::{
   DiskANNService, DiskAnnInsertResult, Index, IndexConfig, SearchHit, SearchOutput, SearchParams,
   SearchResults,
 };
 pub use store::{
-  Callbacks, Context, LengthPrefixedIter, StoreCallbacks, StoreError, Term, VectorSetId,
-  unpack_length_prefixed,
+  Callbacks, Context, LengthPrefixedIter, StoreCallbacks, Term, VectorSetId, unpack_length_prefixed,
 };
 pub use types::{
   VectorDistanceMetricType, VectorIdFormat, VectorQuantType, VectorSetFlags, VectorValueType,

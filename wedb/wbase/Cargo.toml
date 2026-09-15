@@ -33,6 +33,7 @@ entry_type = ["dep:strum"]
 error = ["dep:thiserror"]
 hash = []
 hash_slot = []
+group-commit = ["dep:parking_lot", "dep:thiserror", "future"]
 pool = ["align", "thread", "error", "dep:parking_lot", "dep:compio-buf"]
 map = ["dep:papaya", "dep:gxhash"]
 

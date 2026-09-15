@@ -143,52 +143,6 @@ pub struct IndexMeta {
   pub entry_count: usize,
 }
 
-impl IndexMeta {
-  /// 二进制元数据长度（3 个 64 位无符号整数 = 24 字节）
-  pub const META_SIZE: usize = 24;
-
-  /// 编码为 24 字节定长数组（小端编码，const fn）
-  #[inline(always)]
-  pub const fn to_bytes(&self) -> [u8; Self::META_SIZE] {
-    let s = (self.size as u64).to_le_bytes();
-    let o = self.overflow_count.to_le_bytes();
-    let e = (self.entry_count as u64).to_le_bytes();
-    [
-      s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], o[0], o[1], o[2], o[3], o[4], o[5], o[6],
-      o[7], e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7],
-    ]
-  }
-
-  /// 从 24 字节定长数组解码元数据（const fn）
-  #[inline(always)]
-  pub const fn from_bytes(bytes: [u8; Self::META_SIZE]) -> Self {
-    let size = u64::from_le_bytes([
-      bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-    ]) as usize;
-    let overflow_count = u64::from_le_bytes([
-      bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
-    ]);
-    let entry_count = u64::from_le_bytes([
-      bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
-    ]) as usize;
-    Self {
-      size,
-      overflow_count,
-      entry_count,
-    }
-  }
-
-  /// 从切片解码元数据（const fn，不足 24 字节返回 None）
-  #[inline(always)]
-  pub const fn decode_opt(src: &[u8]) -> Option<Self> {
-    if let Some(bytes) = src.first_chunk::<{ Self::META_SIZE }>() {
-      Some(Self::from_bytes(*bytes))
-    } else {
-      None
-    }
-  }
-}
-
 /// 混合日志（HybridLog）逻辑地址状态快照元数据
 ///
 /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs:HybridLogRecoveryInfo
@@ -206,58 +160,6 @@ pub struct HlogMeta {
   pub flushed_until_address: u64,
   /// 追加尾部逻辑地址（下一条记录写入位置）
   pub tail_address: u64,
-}
-
-impl HlogMeta {
-  /// 二进制元数据长度（4 个 64 位无符号整数 = 32 字节）
-  pub const META_SIZE: usize = 32;
-
-  /// 编码为 32 字节定长数组（小端编码，const fn）
-  #[inline(always)]
-  pub const fn to_bytes(&self) -> [u8; Self::META_SIZE] {
-    let b = self.begin_address.to_le_bytes();
-    let h = self.head_address.to_le_bytes();
-    let f = self.flushed_until_address.to_le_bytes();
-    let t = self.tail_address.to_le_bytes();
-    [
-      b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], h[0], h[1], h[2], h[3], h[4], h[5], h[6],
-      h[7], f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], t[0], t[1], t[2], t[3], t[4], t[5],
-      t[6], t[7],
-    ]
-  }
-
-  /// 从 32 字节定长数组解码元数据（const fn）
-  #[inline(always)]
-  pub const fn from_bytes(bytes: [u8; Self::META_SIZE]) -> Self {
-    let begin_address = u64::from_le_bytes([
-      bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-    ]);
-    let head_address = u64::from_le_bytes([
-      bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
-    ]);
-    let flushed_until_address = u64::from_le_bytes([
-      bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
-    ]);
-    let tail_address = u64::from_le_bytes([
-      bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31],
-    ]);
-    Self {
-      begin_address,
-      head_address,
-      flushed_until_address,
-      tail_address,
-    }
-  }
-
-  /// 从切片解码元数据（const fn，不足 32 字节返回 None）
-  #[inline(always)]
-  pub const fn decode_opt(src: &[u8]) -> Option<Self> {
-    if let Some(bytes) = src.first_chunk::<{ Self::META_SIZE }>() {
-      Some(Self::from_bytes(*bytes))
-    } else {
-      None
-    }
-  }
 }
 
 /// 存储引擎配置元数据（用于在崩溃恢复时无缝还原配置）
@@ -382,7 +284,8 @@ impl CheckpointMeta {
     self.integrity_crc32 = self.integrity_digest();
   }
 
-  /// 使用 bitcode 编码为二进制字节
+  /// 使用 bitcode 编码为二进制字节（检查点元数据唯一持久化格式，元数据文件
+  /// checkpoint_*.meta 落盘走此路径，恢复由 [`CheckpointMeta::decode`] 承接）
   #[inline]
   pub fn encode(&self) -> Vec<u8> {
     bitcode::encode(self)
@@ -392,43 +295,5 @@ impl CheckpointMeta {
   #[inline]
   pub fn decode(bytes: &[u8]) -> Result<Self> {
     bitcode::decode(bytes).map_err(Error::from)
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::{HlogMeta, IndexMeta};
-
-  /// IndexMeta 定长二进制编解码：往返一致、不足 24 字节拒绝
-  #[test]
-  fn index_meta_codec_roundtrip() {
-    let im = IndexMeta {
-      size: 2048,
-      overflow_count: 32,
-      entry_count: 8888,
-    };
-    let im_bytes = im.to_bytes();
-    assert_eq!(im_bytes.len(), IndexMeta::META_SIZE);
-    let im_decoded = IndexMeta::from_bytes(im_bytes);
-    assert_eq!(im_decoded, im);
-    assert_eq!(IndexMeta::decode_opt(&im_bytes), Some(im));
-    assert_eq!(IndexMeta::decode_opt(&im_bytes[..23]), None);
-  }
-
-  /// HlogMeta 定长二进制编解码：往返一致、不足 32 字节拒绝
-  #[test]
-  fn hlog_meta_codec_roundtrip() {
-    let hm = HlogMeta {
-      begin_address: 64,
-      head_address: 4096,
-      flushed_until_address: 8192,
-      tail_address: 16384,
-    };
-    let hm_bytes = hm.to_bytes();
-    assert_eq!(hm_bytes.len(), HlogMeta::META_SIZE);
-    let hm_decoded = HlogMeta::from_bytes(hm_bytes);
-    assert_eq!(hm_decoded, hm);
-    assert_eq!(HlogMeta::decode_opt(&hm_bytes), Some(hm));
-    assert_eq!(HlogMeta::decode_opt(&hm_bytes[..31]), None);
   }
 }

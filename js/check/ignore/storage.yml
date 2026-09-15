@@ -203,6 +203,8 @@
         - ClearSerializedObjectData
         - ConditionalScanPush
         - GetFromDiskAndPushToReader
+        - IterateHashChain
+        - IterateKeyVersions
         - PrepareIOForConditionalScan
         - PushScanImpl
         - ScanCursor
@@ -416,6 +418,7 @@
         - IncrementAllocatedPageCount
         - InitializeRecord
         - IsLastRecordOnPage
+        - IterateKeyVersions
         - LoadObjectsForRecoveryPass2
         - MemoryPageScan
         - ObjectAllocatorImpl
@@ -642,6 +645,7 @@
         - GetRMWInitialRecordSize
         - GetUpsertRecordSize
         - IncrementAllocatedPageCount
+        - IterateKeyVersions
         - MemoryPageScan
         - OnDispose
         - OnDisposeDiskRecord
@@ -691,6 +695,7 @@
         - FreeNativeLogPage
         - FreePage
         - IncrementAllocatedPageCount
+        - IterateKeyVersions
         - MemoryPageScan
         - ReturnPage
         - ScanCursor
@@ -1493,6 +1498,7 @@
     - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/UpsertValueSelector.cs
     - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs:
         - ClearSerializedObjectData
+        - IterateKeyVersions
         - PopulateRecordSizeInfo
         - SetLogSizeTracker
         - ShiftAddresses

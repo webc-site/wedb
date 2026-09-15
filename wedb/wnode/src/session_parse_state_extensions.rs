@@ -18,7 +18,12 @@ use wcol::{
 use wmetric::{InfoMetricsType, LatencyMetricsType};
 use wresp::{
   ExpirationOption, ExpireOption, SessionParseState, SortedSetAddOption,
-  SortedSetAggregateType as ZSetAggregate, cmd_strings,
+  SortedSetAggregateType as ZSetAggregate,
+  cmd_strings::{
+    self, RESP_ERR_COUNT_IS_NOT_POSITIVE, RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE,
+    RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT, RESP_ERR_NOT_VALID_HEIGHT, RESP_ERR_NOT_VALID_RADIUS,
+    RESP_ERR_NOT_VALID_WIDTH, RESP_ERR_RADIUS_IS_NEGATIVE,
+  },
 };
 
 pub use crate::key_spec::*;
@@ -51,16 +56,8 @@ pub enum ManagerType {
   ServerListener,
 }
 
-/// GEO/BITFIELD 族错误文案（C# CmdStrings 同名常量；cmd_strings 域由并行
-/// 代理扩表，此处本地对齐同一字节文本，避免跨域改文件）
-const RESP_ERR_NOT_VALID_RADIUS: &str = "ERR need numeric radius";
-const RESP_ERR_RADIUS_IS_NEGATIVE: &str = "ERR radius cannot be negative";
-const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &str =
-  "ERR unsupported unit provided. please use M, KM, FT, MI";
-const RESP_ERR_NOT_VALID_WIDTH: &str = "ERR need numeric width";
-const RESP_ERR_NOT_VALID_HEIGHT: &str = "ERR need numeric height";
-const RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE: &str = "ERR height or width cannot be negative";
-const RESP_ERR_COUNT_IS_NOT_POSITIVE: &str = "ERR COUNT must be > 0";
+/// BITFIELD 族错误文案（C# CmdStrings 同名常量；GEO 族文案已收归
+/// wresp::cmd_strings 单点，经 `cmd_strings::` 前缀引用）
 const RESP_ERR_TIMEOUT_IS_NEGATIVE: &str = "ERR timeout is negative";
 const RESP_ERR_TIMEOUT_IS_OUT_OF_RANGE: &str = "ERR timeout is out of range";
 
@@ -286,7 +283,9 @@ pub fn try_get_geo_search_options(
     opts.search_type = GeoSearchType::ByRadius;
     match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
       Some(unit) => opts.unit = unit,
-      None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+      None => {
+        return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+      }
     }
     token += 1;
   }
@@ -371,7 +370,9 @@ pub fn try_get_geo_search_options(
         opts.search_type = GeoSearchType::ByRadius;
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => {
+            return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+          }
         }
         token += 1;
         continue;
@@ -405,7 +406,9 @@ pub fn try_get_geo_search_options(
         }
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => {
+            return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT));
+          }
         }
         token += 1;
         continue;

@@ -321,6 +321,11 @@
         - ObtainServerSession
   理由: C# 需创建 RespServerSession 回放命令，Rust 侧通过 StorageSession/ReplayTarget 直接入库
 - 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - Serialize
+        - Deserialize
+  理由: 带长度字节的双进制形态零生产消费（C# ToByteArray/FromByteArray 唯一上游 FAILOVER 的字节参数由 rust from_span 裸 8B LE 承接）；AofAddress 编码面收敛为 from_span 与 from_string/to_aof_string 两形态
+- 文件:
     - libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:
         - StoredProcRunnerWrapper
   理由: C# AOF 回放存储过程局部函数，Rust 侧通过原生事务回放路由处理

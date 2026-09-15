@@ -19,7 +19,7 @@ gxhash.workspace = true
 papaya.workspace = true
 
 [dependencies.wbase]
-features = ["addr", "align", "crc", "time", "error", "convert", "simd", "backoff", "float", "map"]
+features = ["addr", "align", "crc", "time", "error", "convert", "simd", "backoff", "float", "map", "group-commit"]
 workspace = true
 
 [dependencies.fastrand]
