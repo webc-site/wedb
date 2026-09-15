@@ -130,6 +130,20 @@ fn main() -> Result<()> {
       // --slowlog-max-len / --object-scan-count-limit / --aof-commit-ms /
       // --max-databases 播种，端点 accept 之前生效）
       .with_runtime_server_options(node.runtime_server_options());
+      // 运行时配置投影（复制域装配族共用一次投影：物理子日志数 / 重连轮询
+      // 频率 / FastAofTruncate 同源读取）
+      let runtime_options = node.runtime_server_options();
+      // 复制域管理器生产装配（对标 C# ReplicationManager 构造期：以
+      // CheckpointDir/cluster 持久化复制历史，Recover && fileSize > 0 门控
+      // 恢复，否则初始化新历史；rust 装配期以真实目录重建默认实例，须先于
+      // set_aof / wire_replication_data_plane 等挂 rm 资产的注入）
+      cluster.initialize_replication_manager(
+        usize::try_from(runtime_options.aof_physical_sublog_count)
+          .unwrap_or(1)
+          .max(1),
+        Some(&provider.checkpoint_dir.join("cluster")),
+        node.recover,
+      );
       // 存储注入集群提供者（对标 C# clusterProvider.storeWrapper 装配期建立；
       // CLUSTER RESET 的 HasKeysInSlots 扫描与 HARD 清库经此下达）
       cluster.set_store(Arc::clone(&provider.store));
@@ -152,7 +166,6 @@ fn main() -> Result<()> {
       // CLUSTER_REPLICATION_REESTABLISHMENT_TIMEOUT)：默认 0 = 禁用自动重连，
       // --config 经 RuntimeServerOptions 可设；FastAofTruncate 同源自
       // serverOptions——副本接收面跳跃重对齐分支的开关）
-      let runtime_options = node.runtime_server_options();
       cluster.set_replication_reestablishment_timeout(
         runtime_options.cluster_replication_reestablishment_timeout,
       );
@@ -172,11 +185,18 @@ fn main() -> Result<()> {
       cluster.set_gossip_delay_ms(args.gossip_delay_secs * 1000);
       cluster.set_gossip_sample_percent(args.gossip_sample_percent);
       // 复制域启动恢复（对标 C# GarnetServer.Start → Provider.RecoverAsync →
-      // rm.RecoverAsync：replication history 恢复 + PRIMARY 侧检查点内存
-      // 索引重建；数据面 checkpoint/AOF 恢复已由上方 open_recovered* 承接）
+      // rm.RecoverAsync：PRIMARY 侧检查点内存索引重建；复制历史恢复已在 rm
+      // 构造门控完成，数据面 checkpoint/AOF 恢复已由上方 open_recovered* 承接）
       if node.recover
         && let Some(rm) = cluster.replication_manager()
       {
+        // 位点回填（对标 C# RecoverCheckpointAndAOFAsync 尾段
+        // replicationOffset.SetValue(ref replayedUntil)：重放后 AOF 尾为
+        // gossip 广播与 failover 判定基线，先于 InitializeCheckpointStore；
+        // 无 AOF 形态 recovered_aof_tail 为 None 跳过，对标 C# EnableAOF 门控）
+        if let Some(tail) = provider.recovered_aof_tail() {
+          rm.set_current_replication_offset(tail);
+        }
         rm.recover_async(cluster.is_primary()).await;
       }
       Ok(Arc::new(provider))

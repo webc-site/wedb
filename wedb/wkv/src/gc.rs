@@ -522,8 +522,8 @@ impl<D: Device> GcManager<D> {
   }
 }
 
-/// 单轮 GC 执行闸守卫：Drop 时自动释放执行闸，确保任务取消时不残留死锁
-pub struct RunGuard<'a>(&'a AtomicBool);
+/// 单轮 GC 执行闸守卫（GC 循环内部专用，Drop 时自动释放执行闸，确保任务取消时不残留死锁）
+struct RunGuard<'a>(&'a AtomicBool);
 
 impl Drop for RunGuard<'_> {
   fn drop(&mut self) {

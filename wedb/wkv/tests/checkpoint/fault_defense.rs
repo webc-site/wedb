@@ -10,7 +10,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wcpr::{CheckpointType, Error};
+use wcpr::{self, CheckpointType, Error};
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, StoreConfig, WedbStore};
 
@@ -135,7 +135,7 @@ fn test_corrupted_files_defense() -> Void {
       File::create(&tmp_index)?.write_all(b"half written index")?;
 
       // list_checkpoints 应当只列出已完成 rename 的正规文件
-      let list = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
+      let list = wcpr::list_checkpoints(&ckpt_dir)?;
       assert_eq!(list, vec![token]);
 
       // 恢复应正常成功

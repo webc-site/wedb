@@ -23,9 +23,9 @@ pub use config::{
 };
 pub use error::{CollectionError, CollectionResult, Error, Result};
 pub use etag::ETAG_VALUE_LEN;
-pub use gc::{GcHandle, GcManager, GcStatsSnapshot, RunGuard};
+pub use gc::{GcHandle, GcManager, GcStatsSnapshot};
 pub use range_index::{RangeIndexError, RangeIndexMetrics, TreeReadGuard};
-pub use read_cache::{ReadCache, is_read_cache_addr};
+pub use read_cache::ReadCache;
 pub use session::{
   BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, RecordRead, StoreSession,
 };

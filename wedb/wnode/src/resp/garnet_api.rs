@@ -690,7 +690,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
       | C::Riexists
       | C::Riconfig
       | C::Rimetrics => {
-        let ri = Some(self.session.store.range_index.as_ref());
+        let ri = Some(self.session.store.range_index().as_ref());
         // 解析校验 + 执行一体闭环；应答直写 output（错误映射在处理器内）
         let _ = match cmd {
           C::Ricreate => ri_cmds::network_ricreate(&refs, ri, &self.session, &mut output).await,

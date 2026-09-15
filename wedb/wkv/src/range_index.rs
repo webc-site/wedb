@@ -9,7 +9,7 @@ use std::{
 
 use compio::runtime::spawn_blocking;
 use thiserror::Error as ThisError;
-use wbase::simd::fast_key_eq;
+use wbase::{addr::is_read_cache, simd::fast_key_eq};
 use wbftree::{
   self, BfTreeService, Error as WbftreeError, RANGE_INDEX_STUB_SIZE, RangeIndexManager,
   RangeIndexStub, ScanRecord, ScanReturnField, StorageBackendType, TreeTuning,
@@ -20,7 +20,6 @@ use wval::{GarnetObjectType, META_VALUE_SIZE, MetaValue, StorageEncoding};
 
 use crate::{
   error::{CollectionError, Error, Result},
-  read_cache::is_read_cache_addr,
   ri::RiTreeOps,
   session::StoreSession,
   store::StoreEvent,
@@ -284,7 +283,7 @@ impl<D: Device> StoreSession<D> {
     let meta = MetaValue::from_slice(&bytes[..META_VALUE_SIZE])
       .map_err(|e| RangeIndexError::Internal(e.to_string()))?;
     // TTL 守卫 (与 load_meta 口径一致)：过期集合视同不存在
-    if self.has_ttl_tag(key)? && self.check_expired(key).await? {
+    if !self.probe_alive(key).await? {
       return Ok(None);
     }
     self
@@ -379,7 +378,7 @@ impl<D: Device> StoreSession<D> {
     {
       let _guard = self.participant.enter();
       if let Some(addr) = self.store.index.find_tag(&meta_k)
-        && !is_read_cache_addr(addr)
+        && !is_read_cache(addr)
       {
         let closed = self
           .store

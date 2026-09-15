@@ -12,7 +12,7 @@ use std::sync::Arc;
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
-use wbase::align::DEFAULT_SECTOR_SIZE;
+use wbase::{addr::is_read_cache, align::DEFAULT_SECTOR_SIZE};
 use wdev::{Device, SegmentedDevice};
 use windex::{HashBucketEntry, HashIndex};
 use wkv::{StoreConfig, StoreSession, WedbStore};
@@ -138,7 +138,7 @@ fn test_rc_collision_head_buried_delete() -> Void {
     let phys_v = session.session_string_key(&victim);
     let victim_slot = store.index.find_tag(phys_v.as_slice()).unwrap();
     assert!(
-      wkv::is_read_cache_addr(victim_slot),
+      is_read_cache(victim_slot),
       "冷读回填后 victim 槽位头必须为 ReadCache 条目"
     );
 
@@ -164,7 +164,7 @@ fn test_rc_collision_head_buried_delete() -> Void {
     );
     let phys_t = session.session_string_key(twin.as_bytes());
     assert!(
-      wkv::is_read_cache_addr(store.index.find_tag(phys_t.as_slice()).unwrap()),
+      is_read_cache(store.index.find_tag(phys_t.as_slice()).unwrap()),
       "冷读回填后 twin 槽位头必须为 ReadCache 条目"
     );
 

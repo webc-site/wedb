@@ -402,9 +402,7 @@ fn test_single_database_manager() -> aok::Void {
     // 检查点落盘（域统一：单机形态 AOF 随检查点截断至尾——对标 C#
     // InitiateCheckpointAsync 第 4 步 TruncateUntil(TailAddress) + Commit）
     assert!(single.take_checkpoint(true).await?);
-    assert!(
-      wkv::CheckpointManager::<SegmentedDevice>::find_latest_checkpoint(dir.path())?.is_some()
-    );
+    assert!(wcpr::find_latest_checkpoint(dir.path())?.is_some());
 
     // 清空（含 AOF 重置，对标 C# ResetDatabase 的 Log.Reset）
     single.flush_database().await?;

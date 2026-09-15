@@ -17,11 +17,13 @@ use wval::GarnetObjectType;
 
 use crate::types::{ObjectInput, i_garnet_object::IGarnetObject};
 
-/// ZSCAN 输入参数（ReadScanInput 的解析产物）
-#[derive(Debug, Clone, Default)]
-pub struct ScanInput {
+/// ZSCAN 族扫描输入参数（ReadScanInput 解析产物，pattern 零拷贝借用）
+///
+/// libs/server/Objects/Types/GarnetObjectBase.cs:ReadScanInput out 参数组
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ScanInput<'a> {
   pub cursor: i64,
-  pub pattern: Vec<u8>,
+  pub pattern: &'a [u8],
   pub count: i64,
   pub is_no_value: bool,
 }
@@ -46,64 +48,65 @@ pub trait GarnetObjectBase: IGarnetObject {
     };
     writer.write_all(&[type_byte])
   }
+}
 
-  /// 解析 ZSCAN 族输入：光标 / MATCH pattern / COUNT n / NOVALUES
-  ///
-  /// libs/server/Objects/Types/GarnetObjectBase.cs:ReadScanInput
-  /// （limit_count_in_output <= 0 时不钳制；解析失败返回错误文本）
-  fn read_scan_input(
-    &self,
-    input: &ObjectInput,
-    limit_count_in_output: i32,
-  ) -> Result<ScanInput, &'static [u8]> {
-    let mut result = ScanInput {
-      cursor: 0,
-      pattern: Vec::new(),
-      count: 10,
-      is_no_value: false,
-    };
+/// 解析 ZSCAN 族输入单点（HSCAN/SSCAN/ZSCAN 三对象共用；解析不依赖对象实例
+/// 故为自由函数）：光标 / MATCH pattern / COUNT n / NOVALUES
+///
+/// libs/server/Objects/Types/GarnetObjectBase.cs:ReadScanInput
+/// （COUNT 无条件钳制到 limit_count_in_output，对标 C# countInInput >
+/// limitCountInOutput；解析失败返回错误文本，由调用方写 RESP 错误）
+pub fn read_scan_input(
+  input: &ObjectInput,
+  limit_count_in_output: i32,
+) -> Result<ScanInput<'_>, &'static [u8]> {
+  let mut result = ScanInput {
+    cursor: 0,
+    pattern: &[],
+    count: 10,
+    is_no_value: false,
+  };
 
-    let Some(cursor) = (if input.parse_state.count > 0 {
-      strict_i64(input.arg(0))
-    } else {
-      None
-    })
-    .filter(|c| *c >= 0) else {
-      return Err(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
-    };
-    result.cursor = cursor;
+  let Some(cursor) = (if input.parse_state.count > 0 {
+    strict_i64(input.arg(0))
+  } else {
+    None
+  })
+  .filter(|c| *c >= 0) else {
+    return Err(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
+  };
+  result.cursor = cursor;
 
-    let mut curr_token_idx = 1;
-    while curr_token_idx < input.parse_state.count {
-      let param = input.arg(curr_token_idx);
-      curr_token_idx += 1;
+  let mut curr_token_idx = 1;
+  while curr_token_idx < input.parse_state.count {
+    let param = input.arg(curr_token_idx);
+    curr_token_idx += 1;
 
-      if equals_ignore_case(param, b"MATCH") {
-        if curr_token_idx >= input.parse_state.count {
-          return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-        }
-        result.pattern = input.arg(curr_token_idx).to_vec();
-        curr_token_idx += 1;
-      } else if equals_ignore_case(param, b"COUNT") {
-        if curr_token_idx >= input.parse_state.count {
-          return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-        }
-        match strict_i32(input.arg(curr_token_idx)) {
-          Some(c) => {
-            curr_token_idx += 1;
-            result.count = i64::from(c);
-            // limit_count_in_output > 0 时钳制单轮数量（对标 C# countInInput > limitCountInOutput）
-            if limit_count_in_output > 0 && result.count > i64::from(limit_count_in_output) {
-              result.count = i64::from(limit_count_in_output);
-            }
-          }
-          None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes()),
-        }
-      } else if equals_ignore_case(param, b"NOVALUES") {
-        result.is_no_value = true;
+    if equals_ignore_case(param, b"MATCH") {
+      if curr_token_idx >= input.parse_state.count {
+        return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
       }
+      result.pattern = input.arg(curr_token_idx);
+      curr_token_idx += 1;
+    } else if equals_ignore_case(param, b"COUNT") {
+      if curr_token_idx >= input.parse_state.count {
+        return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+      }
+      match strict_i32(input.arg(curr_token_idx)) {
+        Some(c) => {
+          curr_token_idx += 1;
+          result.count = i64::from(c);
+          // 无条件钳制单轮数量（对标 C# countInInput > limitCountInOutput）
+          if result.count > i64::from(limit_count_in_output) {
+            result.count = i64::from(limit_count_in_output);
+          }
+        }
+        None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes()),
+      }
+    } else if equals_ignore_case(param, b"NOVALUES") {
+      result.is_no_value = true;
     }
-
-    Ok(result)
   }
+
+  Ok(result)
 }

@@ -11,7 +11,7 @@ use wbase::{
     milliseconds_from_diff_ticks, seconds_from_diff_ticks, unix_time_in_milliseconds_from_ticks,
     unix_time_in_seconds_from_ticks,
   },
-  num::{strict_i32, strict_i64},
+  num::strict_i32,
   time::now_ticks,
 };
 use wresp::{
@@ -23,7 +23,7 @@ use super::sorted_set_object::{
 };
 use crate::{
   parse_utils::try_parse_with_infinity,
-  types::{ObjectInput, object_output::ObjectOutput},
+  types::{ObjectInput, garnet_object_base::read_scan_input, object_output::ObjectOutput},
 };
 
 // ---- CmdStrings 中 ZRANGE 族专用错误串（cmd_strings.rs 不在本周期改动范围） ----
@@ -49,8 +49,7 @@ pub(crate) const RESP_ERR_LIMIT_NOT_SUPPORTED: &[u8] =
 pub(crate) const RESP_ERR_GENERIC_SCORE_NAN: &[u8] = b"ERR resulting score is not a number (NaN)";
 
 use wresp::cmd_strings::{
-  RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
-  RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOT_VALID_FLOAT,
+  RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NOT_VALID_FLOAT,
 };
 
 /// [`sorted_set_range`] 出错标记：range 回复不可能为负，ZRANGESTORE 借此区分
@@ -120,15 +119,6 @@ pub enum SpecialRanges {
   None = 0,
   InfiniteMin = 1,
   InfiniteMax = 2,
-}
-
-/// ZSCAN 解析结果
-#[derive(Debug, Clone, Default)]
-struct ScanParams<'p> {
-  cursor: i64,
-  pattern: &'p [u8],
-  count: i64,
-  is_no_value: bool,
 }
 
 /// 取第 i 个参数字节
@@ -1377,72 +1367,21 @@ impl SortedSetObject {
 
   // ---- Scan（ZSCAN 分派） ----
 
-  /// ZSCAN 的对象层入口（解析光标/MATCH/COUNT/NOVALUES 后走 [`Self::scan`]）。
+  /// ZSCAN 的对象层入口（参数解析走 GarnetObjectBase::ReadScanInput 单点后
+  /// 走 [`Self::scan`]；分值可空项的 null 回写与 HSCAN/SSCAN 分叉，故独立成体）。
   pub(crate) fn scan_operate(
     &mut self,
     input: &ObjectInput,
     output: &mut ObjectOutput,
     resp_protocol_version: u8,
   ) {
-    // 单轮最多返回的条目数由调用方经 arg2 下发
-    let limit_count_in_output = input.arg2 as i64;
-
-    // 默认 COUNT
-    let mut params = ScanParams {
-      cursor: 0,
-      pattern: &[],
-      count: 10,
-      is_no_value: false,
+    let params = match read_scan_input(input, input.arg2) {
+      Ok(params) => params,
+      Err(msg) => {
+        output.write_error(msg);
+        return;
+      }
     };
-
-    if input.parse_state.count > 0 {
-      match strict_i64(arg(input, 0)) {
-        Some(c) if c >= 0 => params.cursor = c,
-        _ => {
-          output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
-          return;
-        }
-      }
-    } else {
-      output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
-      return;
-    }
-
-    let mut curr_token_idx = 1;
-    while curr_token_idx < input.parse_state.count {
-      let param = arg(input, curr_token_idx);
-      curr_token_idx += 1;
-
-      if equals_ignore_case(param, b"MATCH") {
-        if curr_token_idx >= input.parse_state.count {
-          output.write_error(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-          return;
-        }
-        params.pattern = arg(input, curr_token_idx);
-        curr_token_idx += 1;
-      } else if equals_ignore_case(param, b"COUNT") {
-        if curr_token_idx >= input.parse_state.count {
-          output.write_error(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-          return;
-        }
-        match strict_i32(arg(input, curr_token_idx)) {
-          Some(c) => {
-            curr_token_idx += 1;
-            params.count = c as i64;
-            // 无条件钳制到输出上限（对标 C# countInInput > limitCountInOutput）
-            if params.count > limit_count_in_output {
-              params.count = limit_count_in_output;
-            }
-          }
-          None => {
-            output.write_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
-            return;
-          }
-        }
-      } else if equals_ignore_case(param, b"NOVALUES") {
-        params.is_no_value = true;
-      }
-    }
 
     let (items, cursor_output) = self.scan(
       params.cursor,

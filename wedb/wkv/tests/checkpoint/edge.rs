@@ -6,7 +6,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wcpr::{CheckpointType, Error as CprError};
+use wcpr::{self, CheckpointType, Error as CprError};
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, StoreConfig, WedbStore};
 
@@ -210,8 +210,7 @@ fn test_checkpoint_under_epoch_protected_caller() -> Void {
         "必须返回 CheckpointWhileEpochProtected 类型化错误"
       );
       assert!(
-        !ckpt_dir.exists()
-          || CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?.is_empty(),
+        !ckpt_dir.exists() || wcpr::list_checkpoints(&ckpt_dir)?.is_empty(),
         "被拒绝的 Checkpoint 绝不能留下可恢复视图"
       );
       store.epoch.suspend();

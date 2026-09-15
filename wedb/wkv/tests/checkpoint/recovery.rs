@@ -7,7 +7,7 @@ use compio::runtime::Runtime;
 use itoa::Buffer;
 use log::info;
 use tempfile::tempdir;
-use wcpr::CheckpointType;
+use wcpr::{self, CheckpointType};
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, StoreConfig, WedbStore};
 
@@ -108,8 +108,8 @@ fn test_simple_recovery_foldover() -> Void {
       );
 
       // 清理快照
-      CheckpointManager::<SegmentedDevice>::purge_all(&ckpt_dir)?;
-      assert!(CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?.is_empty());
+      wcpr::purge_all(&ckpt_dir)?;
+      assert!(wcpr::list_checkpoints(&ckpt_dir)?.is_empty());
     }
 
     info!("LocalDeviceSimpleRecoveryTest(FoldOver) 复刻测试通过");
