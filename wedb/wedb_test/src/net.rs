@@ -3,6 +3,7 @@
 use std::{
   net::SocketAddr,
   str::from_utf8,
+  sync::Arc,
   time::{Duration, Instant},
 };
 
@@ -91,12 +92,19 @@ async fn serve(mut stream: TcpStream, ready_replies: usize) {
 /// 从缓冲解析一个完整 RESP2 数组帧（`*N\r\n` + N 个 `$len\r\npayload\r\n`），
 /// 返回帧总字节数；不完整返回 None
 fn try_parse_frame(buf: &[u8]) -> Option<usize> {
+  parse_frame(buf).map(|(len, _)| len)
+}
+
+/// 从缓冲解析一个完整 RESP2 数组帧，返回（帧总字节数，各 bulk 载荷的 owned 副本）；
+/// 不完整返回 None
+fn parse_frame(buf: &[u8]) -> Option<(usize, Vec<Vec<u8>>)> {
   if buf.first() != Some(&b'*') {
     return None;
   }
   let header_end = buf.iter().position(|b| *b == b'\n')? + 1;
   let argc: usize = from_utf8(&buf[1..header_end - 2]).ok()?.parse().ok()?;
   let mut pos = header_end;
+  let mut payloads = Vec::with_capacity(argc);
   for _ in 0..argc {
     if buf.get(pos) != Some(&b'$') {
       return None;
@@ -106,12 +114,75 @@ fn try_parse_frame(buf: &[u8]) -> Option<usize> {
       .ok()?
       .parse()
       .ok()?;
-    pos = len_line_end + len + 2;
-    if pos > buf.len() {
+    let payload_start = len_line_end;
+    let payload_end = payload_start + len;
+    if payload_end + 2 > buf.len() {
       return None;
     }
+    payloads.push(buf[payload_start..payload_end].to_vec());
+    pos = payload_end + 2;
   }
-  Some(pos)
+  Some((pos, payloads))
+}
+
+/// gossip 靶端：对 `CLUSTER GOSSIP [WITHMEET] <blob>` 请求回预置 bulk string
+/// 载荷（gossip 增量判定、MEET 应答验证的受控对端），其余命令逐帧回 `+OK`
+pub struct GossipNode {
+  addr: SocketAddr,
+}
+
+impl GossipNode {
+  /// 绑定随机端口；reply 为 gossip 请求的 bulk string 应答载荷
+  pub async fn bind(reply: Arc<Vec<u8>>) -> Self {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    spawn(async move {
+      while let Ok((stream, _)) = listener.accept().await {
+        let reply = Arc::clone(&reply);
+        spawn(async move { gossip_serve(stream, reply).await }).detach();
+      }
+    })
+    .detach();
+    Self { addr }
+  }
+
+  /// 假端点监听端口
+  pub fn port(&self) -> u16 {
+    self.addr.port()
+  }
+}
+
+/// gossip 服务循环：CLUSTER GOSSIP 帧回预置 bulk 载荷，其余帧回 `+OK`
+async fn gossip_serve(mut stream: TcpStream, reply: Arc<Vec<u8>>) {
+  let mut acc: Vec<u8> = Vec::new();
+  let mut buf = vec![0u8; 8192];
+  loop {
+    let BufResult(res, next) = stream.read(buf).await;
+    buf = next;
+    let n = match res {
+      Ok(n) if n > 0 => n,
+      _ => {
+        log::debug!("[gossip_serve] read end: {res:?}");
+        break;
+      }
+    };
+    acc.extend_from_slice(&buf[..n]);
+    while let Some((frame_len, payloads)) = parse_frame(&acc) {
+      acc.drain(..frame_len);
+      let is_gossip = payloads.len() >= 2 && payloads[0] == b"CLUSTER" && payloads[1] == b"GOSSIP";
+      let resp = if is_gossip {
+        let mut r = format!("${}\r\n", reply.len()).into_bytes();
+        r.extend_from_slice(&reply);
+        r.extend_from_slice(b"\r\n");
+        r
+      } else {
+        b"+OK\r\n".to_vec()
+      };
+      if stream.write_all(resp).await.is_err() {
+        return;
+      }
+    }
+  }
 }
 
 #[cfg(test)]
