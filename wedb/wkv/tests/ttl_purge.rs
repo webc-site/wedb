@@ -113,7 +113,8 @@ fn purge_with_event_sink_suppresses_writes_and_emits_purge() -> Void {
         ns: 5,
         db: 2,
         key: key.to_vec(),
-        expire_at: past,
+        // 事件携带存储值：put_ttl 落盘前 4-bit coarse 粗化（ExpirationWithOption.cs:22-23）
+        expire_at: (past >> 4) << 4,
       }),
       "TtlPurge 必须恰好收到一次且 (ns, db, key, expire_at) 正确"
     );
@@ -165,7 +166,8 @@ fn purge_event_covers_expire_at_past_and_persist_branches() -> Void {
         ns: 0,
         db: 0,
         key: b"k:exp".to_vec(),
-        expire_at: past,
+        // expire_at 入口粗化后参与过去判定与事件（ExpirationWithOption.cs:22-23）
+        expire_at: (past >> 4) << 4,
       })
     );
 
@@ -173,9 +175,11 @@ fn purge_event_covers_expire_at_past_and_persist_branches() -> Void {
     let expired = now_ticks() - TICKS_PER_SECOND;
     session.upsert(b"k:persist", b"v").await?;
     session.put_ttl(b"k:persist", expired).await?;
+    // put_ttl 落盘前 4-bit coarse 粗化（ExpirationWithOption.cs:22-23）
+    let expired = (expired >> 4) << 4;
     assert_eq!(
       session.read_raw(&session.ttl_key(b"k:persist")).await?,
-      Some(TtlCodec::encode(expired as i64).to_vec())
+      Some(TtlCodec::encode(expired).to_vec())
     );
     let before = log.lock().len();
     assert_eq!(session.persist(b"k:persist").await?, 0);

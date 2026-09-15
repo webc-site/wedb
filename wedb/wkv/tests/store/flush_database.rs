@@ -60,7 +60,12 @@ fn test_flush_database_isolation() -> Void {
     // 库 1 完好：数据与 TTL 侧车记录不受影响
     db1.set_context(0, 1);
     assert_eq!(db1.read(b"k1").await?, Some(b"v1".to_vec()));
-    assert_eq!(db1.ttl_of(b"k1").await?, Some(i64::MAX));
+    // put_ttl 落盘前 4-bit coarse 粗化（ExpirationWithOption.cs:22-23），
+    // i64::MAX 读回为低 4 位清零值
+    assert_eq!(
+      db1.ttl_of(b"k1").await?,
+      Some((i64::MAX >> 4) << 4)
+    );
 
     // 命名空间 1 的库 0 完好
     ns1.set_context(1, 0);

@@ -72,8 +72,8 @@ fn test_swap_databases_full_domain() -> Void {
     );
     assert_eq!(
       s0.ttl_of(b"obj1").await?,
-      Some(i64::MAX),
-      "对象键 TTL 须随迁"
+      Some((i64::MAX >> 4) << 4),
+      "对象键 TTL 须随迁（put_ttl 落盘前 4-bit coarse 粗化）"
     );
     assert_eq!(
       s0.read(b"own").await?,
@@ -85,7 +85,8 @@ fn test_swap_databases_full_domain() -> Void {
 
     // db1 现持有原 db0 数据（含 TTL / ETag 旁路记录）
     assert_eq!(s1.read(b"str0").await?, Some(b"v0".to_vec()));
-    assert_eq!(s1.ttl_of(b"str0").await?, Some(i64::MAX));
+    // put_ttl 落盘前 4-bit coarse 粗化（ExpirationWithOption.cs:22-23）
+    assert_eq!(s1.ttl_of(b"str0").await?, Some((i64::MAX >> 4) << 4));
     assert_eq!(
       s1.etag_of(b"str0").await?,
       Some(42),
@@ -230,8 +231,8 @@ fn test_swap_databases_survives_checkpoint_recovery() -> Void {
     assert_eq!(session.read(b"k0").await?, Some(b"v0".to_vec()));
     assert_eq!(
       session.ttl_of(b"k0").await?,
-      Some(i64::MAX),
-      "TTL 须随交换持久"
+      Some((i64::MAX >> 4) << 4),
+      "TTL 须随交换持久（put_ttl 落盘前 4-bit coarse 粗化）"
     );
     let env_k = session.session_tag_key(KeyTag::ObjectEnvelope, b"h0");
     assert_eq!(session.read_raw(&env_k).await?, Some(b"\x03hash".to_vec()));
