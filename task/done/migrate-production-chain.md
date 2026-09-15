@@ -138,3 +138,86 @@ SLOTS 变体删除游标基于「已确认 ACK 的键才删」，但远端置 NO
 3. bun ./js/check.js 无新增缺失/重复。
 4. CLUSTER_SUBTABLE 六项摘除后无新增「注册而无臂」；run_keys_migration_driver
    与 run_slots_migration_driver 均有生产调用点。
+
+
+## 验证结果
+
+实现落地：
+
+1. wedb/wedb/src/server/migration/migrate_driver.rs
+   - run_slots_migration_task + try_add_slots_migration_task（对标
+     MigrateSessionSlots.cs:MigrateSlotsDriverInlineAsync /
+     ScanStoreTaskAsync，串行单任务投影）：IMPORTING → MIGRATING → 纪元
+     转换（bump_and_wait_for_epoch_transition_async，对标
+     BeginAsyncMigrationTaskAsync 该调用点；C# 失败静默 return 致状态悬挂，
+     rust 改显式 recover + Err 收敛）→ 逐槽游标循环（批量取键 → sketch
+     收录切 TRANSMITTING 分批停等传输 → 切 DELETING 删已确认键 → 清
+     sketch）→ 哨兵 → NODE → relinquish，失败统一 recover，finally 移除
+     任务。
+   - 甄别修正：删除游标只推进到「批次 ACK 成功」的键，不用
+     delete_slot_keys 全槽清除（其语义是 DELKEYSINSLOT 管理命令，迁移
+     驱动误用会删掉未传输的对象信封键——丢数据）；不可迁移键（对象键/
+     竞态改写键）登记 untouchable 防游标死循环，键保留源端并 log 留痕。
+   - run_keys_migration_driver 补 sketch 收录与 TRANSMITTING / DELETING /
+     MIGRATED / INITIALIZING 状态推进（对标 MigrateKeysAsync /
+     DeleteKeysAsync），can_access_key 键级门控自此真实生效；结束移除任务
+     （上轮遗留缺口关闭）。
+   - begin/end_migration_phase 抽取，KEYS 与 SLOTS 两驱动共用停等与
+     recover 基建；模块注释补孤儿键投影安全声明（net.md 条 19）。
+2. TransferOption 重建为 libs/cluster/Session/TransferOption.cs 三态
+   （NONE/KEYS/SLOTS，repr u8）独立模块；MigrateTaskSpec 增 transfer_option
+   并 String 化（对标 C# MigrateSession 拥有型字段，跨慢路径/后台任务必需），
+   命令臂消费分派——原 migration_manager.rs 双态死枚举删除。
+3. cluster_session.rs 新增 network_try_migrate（对标 MigrateCommand.cs:
+   NetworkTryMIGRATE + ClusterSession.cs:110 顶层分派）：port/db/timeout
+   strict 解析、COPY/REPLACE/AUTH/AUTH2 选项（AUTH 为 redis MIGRATE 标准
+   选项、供源端连目标端认证，不属于微软认证红线，spec.username/passwd
+   字段自此有流入）、KEYS/SLOTS/SLOTSRANGE 三形态校验（首错保留，错误
+   文案对标 HandleCommandParsingErrors）、目标节点归属（UNKNOWNTARGET）
+   与角色（TARGETNODENOTMASTER）校验。KEYS 变体挂慢路径同步驱动（C#
+   BlockingWait 投影），SLOTS 变体注册后 spawn detached 立即 +OK
+   （fire-and-forget 投影）。无键空形态 +OK（C# NONE 空跑投影）。
+   未映射 MigrateCmdParseState：HOSTNAME_RESOLUTION_FAILED（无 DNS 基建）、
+   NOTMIGRATING（与 rust 驱动自动编排语义互斥，见甄别）、
+   MULTI_TRANSFER_OPTION（归并 Parsing）、FAILEDTOADDKEY（注册失败走
+   IOERR）。
+4. wnode/src/resp/parser/resp_command.rs CLUSTER_SUBTABLE 摘除
+   ATTACH_SYNC / BEGIN_REPLICA_RECOVER / SEND_CKPT_FILE_SEGMENT /
+   SEND_CKPT_METADATA / SNAPSHOT_DATA / SYNC 六项（甄别确认全部属 C#
+   recvCheckpointHandler 检查点传输流，无一属 MIGRATE 语义；
+   DisableClusterCheckpointFromFileProvider 配置形态在 garnet 源码不存在，
+   不可作为锚点）。RespCommand 枚举变体与 strum 全枚举映射保留（C# 同样
+   保留全部枚举成员；is_cluster_sub_command 区间判定依赖 CLUSTER_SYNC
+   上界；strum 收敛后摘项即破坏枚举名双射，ds.net 条 1 的摘除建议在该
+   项归档后已过时）。C# 顶层 "SYNC" → CLUSTER_SYNC 注册 rust 本就不存在，
+   维持现状留 M4。
+
+测试（wedb/wedb/tests/cluster_migration.rs，复用上轮脚本化假目标端）：
+
+- slots_migration_task_full_flow_success：单槽全链成功，帧序 SETINFO →
+  SETNAME → IMPORTING → 批次 → 哨兵 → NODE，键删除、槽位交权 node_2、
+  任务移除
+- slots_migration_task_batch_reject_recovers：批次 -ERR → recover STABLE +
+  显式报错 + 键保留 + 任务移除
+- slots_migration_skips_object_keys_and_finishes：槽内对象信封键跳过留
+  源端（驱动不失败），string 键全部迁移删除
+- migrate_command_keys_variant_runs_driver：MIGRATE KEYS 帧入口 → 同步
+  +OK + 键删除
+- migrate_command_slots_variant_runs_background_driver：MIGRATE SLOTS 帧
+  入口 → 立即 +OK，轮询验证后台完成（键删除 + 交权 + 任务移除）
+- migrate_command_parse_errors：Unknown endpoint / CROSSSLOT / slot not
+  owned 三条解析错误文案
+
+验收：
+
+- ./sh/clippy.sh 零警告（无 allow）
+- ./test.sh 全过：2041 tests + regress 2 tests（曾出现一次
+  ttl_purge_single_deterministic_entry 瞬时失败，单包复跑 462 全过、全量
+  复跑全过，定性为全局共享 target 与并发 worktree 互踩，非代码问题）
+- bun ./js/check.js 无输出（无新增缺失；初跑报三组重复登记，按「主登记
+  唯一」消解：begin/end_migration_phase 与测试注释改机制描述，
+  run_slots_migration_task / run_keys_migration_driver /
+  network_try_migrate 保留唯一主登记；无删除 rust 符号，无 ignore 新增）
+
+合并：分支 w4-migrate-m3 先 merge dev（无冲突），后合入主目录 dev，
+worktree 与分支已清理。
