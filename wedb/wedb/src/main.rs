@@ -46,6 +46,8 @@ fn main() -> Result<()> {
   // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）
   let node = args.node_args();
   let metrics_sampling_frequency_secs = node.metrics_sampling_frequency_secs;
+  let latency_monitor = node.latency_monitor;
+  let commandstats_monitor = node.commandstats_monitor;
   let mut logging = LoggingBuilder::new().with_minimum_level(node.minimum_log_level());
   if let Some(file) = &node.file_logger {
     logging = logging.add_file(file, DEFAULT_LOG_FLUSH_INTERVAL);
@@ -57,6 +59,8 @@ fn main() -> Result<()> {
   ServerBootstrap::new(args)
     .with_cluster_provider(ClusterProvider::new())
     .metrics_sampling_frequency(metrics_sampling_frequency_secs)
+    .latency_monitor(latency_monitor)
+    .commandstats_monitor(commandstats_monitor)
     .banner("WeDB 分布式集群节点")
     .run_async(|args, cluster| async move {
       let node = args.node_args();
@@ -64,10 +68,12 @@ fn main() -> Result<()> {
       // LuaOptions.Timeout != Infinite 时 new LuaTimeoutManager；
       // GarnetServer.cs:Start 对应的定时循环由 tick 任务承接）。
       // 标量先行拷出：会话工厂随 provider 存活，不得借用 args。
-      let (enable_lua, lua_timeout_ms, lua_txn_mode) = (
+      let (enable_lua, lua_timeout_ms, lua_txn_mode, commandstats_monitor, latency_monitor) = (
         node.enable_lua,
         node.lua_script_timeout_ms,
         node.lua_transaction_mode,
+        node.commandstats_monitor,
+        node.latency_monitor,
       );
       let lua_timeout_manager = assemble_lua_timeout(enable_lua, lua_timeout_ms);
       let lua_options = wlua::LuaOptions {
@@ -80,6 +86,8 @@ fn main() -> Result<()> {
         move |network_sender_id, api| {
           let options = RespServerSessionOptions {
             max_databases: CLUSTER_MAX_DATABASES,
+            latency_monitor,
+            command_stats_monitor: commandstats_monitor,
             enable_lua,
             lua_options: lua_options.clone(),
             lua_txn_mode,

@@ -172,6 +172,9 @@ impl MessageConsumerFace for RespSessionConsumer {
     if let Some(metrics) = &self.session.session_metrics {
       entry.set_commands_processed(metrics.get_total_commands_processed());
     }
+    // 逐命令统计共享句柄挂接（幂等；C# 监视器经 ActiveConsumers 直查
+    // GetCommandStats 的镜像承接，CommandStatsMonitor 关闭为空操作）
+    entry.attach_command_stats(self.session.command_stats.clone());
   }
 
   fn take_blocked_wait(&mut self) -> Option<BlockedWait> {

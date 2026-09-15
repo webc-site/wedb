@@ -176,7 +176,7 @@ mod tests {
       None
     }
 
-    fn command_stats(&self) -> Vec<(String, u64, u64)> {
+    fn command_stats(&self) -> Vec<(String, u64, u64, u64)> {
       Vec::new()
     }
 

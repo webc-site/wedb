@@ -459,15 +459,19 @@ impl RespServerSession {
   /// SessionDispose(sessionMetrics, LatencyMetrics, commandStats)` 的命令域
   /// 适配点；锚点为 [`RespServerSession::dispose`]）
   ///
-  /// commandStats 会话域未启用恒 None；监视器未装配时为无害空操作
+  /// 命令统计读共享句柄快照归并；监视器未装配时为无害空操作
   pub(crate) fn merge_metrics_history_session_dispose(&self) {
     let Some(monitor) = GarnetServerMonitor::global() else {
       return;
     };
+    let command_stats = self
+      .command_stats
+      .as_deref()
+      .map(|stats| stats.lock().clone());
     monitor.add_metrics_history_session_dispose(
       self.session_metrics.as_ref(),
       self.get_latency_metrics().as_deref(),
-      None,
+      command_stats.as_ref(),
     );
   }
 }

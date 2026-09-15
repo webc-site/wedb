@@ -2,9 +2,10 @@
 //!
 //! C# INFO 数据面直读 storeWrapper / monitor / clusterProvider；rust 会话
 //! 可达面为运行时配置 + 集群会话切面（ROLE 投影）+ 进程级静态量。存储域
-//! 段（STORE / PERSISTENCE / KEYSPACE）需存储域快照通道，当前返回空集：
-//! 键空间按「空库跳过」口径不出段、持久化段随 EnableAOF=false 跳过——
-//! 均为 wmetric 段填充器的缺省形态，绝不虚报计数。
+//! 段（STORE / PERSISTENCE）需存储域快照通道，当前返回空集：持久化段随
+//! EnableAOF=false 跳过——wmetric 段填充器的缺省形态，绝不虚报计数。
+//! KEYSPACE 段经慢路径扫描通道承接（显式 `INFO KEYSPACE` 请求降级
+//! exec_slow，逐库扫描统计，见 resp_server_session 的 INFO 分派）。
 
 use std::sync::OnceLock;
 
@@ -14,8 +15,12 @@ use wmetric::{
   DbSnapshot, GarnetServerMonitor, GlobalMetricsSnapshot, InfoProvider, MetricsItem, ServerFacts,
   info::garnet_info_metrics::generate_default_hex_id,
 };
+use wresp::RespCommand;
 
-use super::resp_server_session::RespServerSession;
+use super::{
+  resp_commands_info_data::resp_command_to_cs_name,
+  resp_server_session::RespServerSession,
+};
 
 /// 进程启动时刻（Unix 秒；C# StoreWrapper.ProcessStartTime 的进程生命周期代理）
 fn startup_unix_secs() -> i64 {
@@ -54,7 +59,7 @@ impl<'a> SessionInfoSource<'a> {
         0
       },
       latency_monitor: self.session.get_latency_metrics().is_some(),
-      command_stats_monitor: false,
+      command_stats_monitor: self.session.command_stats.is_some(),
       startup_timestamp_unix_secs: startup_unix_secs(),
       log_dir: String::new(),
     }
@@ -90,12 +95,42 @@ impl InfoProvider for SessionInfoSource<'_> {
       })
   }
 
-  /// 聚合命令统计（服务器级聚合容器未装配：COMMANDSTATS 段不出指标）
-  fn command_stats(&self) -> Vec<(String, u64, u64)> {
-    Vec::new()
+  /// 聚合命令统计（C# GarnetInfoMetrics.cs:PopulateCommandStatsInfo 的聚合
+  /// 面：周期采样开启时 globalCommandStats 已含 history + 活跃会话的上一轮
+  /// 采样，直接取用；仅命令统计开启（无周期采样）时取 history，活跃会话
+  /// 未归并部分以本会话补并——rust 会话体独占于连接任务，全量活跃枚举面
+  /// 归 ConsumerRegistry 采样域）
+  fn command_stats(&self) -> Vec<(String, u64, u64, u64)> {
+    let Some(monitor) = GarnetServerMonitor::global() else {
+      return Vec::new();
+    };
+    let Some(mut aggregate) = monitor.command_stats_aggregate() else {
+      return Vec::new();
+    };
+    if !monitor.tracks_command_stats()
+      && let Some(stats) = &self.session.command_stats
+    {
+      aggregate.add(&stats.lock());
+    }
+
+    // C# 逐命令输出路径：零计数跳过（calls 与 rejected 均零），
+    // RespCommandsInfo.GetRespCommandName 小写化，"unknown" 跳过
+    aggregate
+      .entries
+      .iter()
+      .enumerate()
+      .filter(|(_, e)| e.calls > 0 || e.rejected_calls > 0)
+      .filter_map(|(idx, e)| {
+        let cmd = RespCommand::try_from(idx as u16).ok()?;
+        let name = resp_command_to_cs_name(cmd).to_lowercase();
+        (name != "unknown").then_some((name, e.calls, e.rejected_calls, e.failed_calls))
+      })
+      .collect()
   }
 
-  /// 键空间计数（仅显式 INFO KEYSPACE 触达；空库快照下不被调用）
+  /// 键空间计数：仅显式 `INFO KEYSPACE` 触达，走慢路径扫描通道
+  ///（exec_slow Info 分支逐库扫描，段文本由慢路径数据源填充），
+  /// 同步面不触达本方法
   fn keyspace_stats(&self, _db_id: i32) -> (u64, u64) {
     (0, 0)
   }

@@ -11,7 +11,7 @@ use wresp::RespCommand;
 
 struct TestInfoProvider {
   command_stats_monitor: bool,
-  stats: Vec<(String, u64, u64)>,
+  stats: Vec<(String, u64, u64, u64)>,
 }
 
 impl InfoProvider for TestInfoProvider {
@@ -46,7 +46,7 @@ impl InfoProvider for TestInfoProvider {
     None
   }
 
-  fn command_stats(&self) -> Vec<(String, u64, u64)> {
+  fn command_stats(&self) -> Vec<(String, u64, u64, u64)> {
     self.stats.clone()
   }
 
@@ -138,7 +138,7 @@ fn command_stats_calls_tracking_test() {
   let get_count = 5u64;
   let provider = TestInfoProvider {
     command_stats_monitor: true,
-    stats: vec![("set".into(), set_count, 0), ("get".into(), get_count, 0)],
+    stats: vec![("set".into(), set_count, 0, 0), ("get".into(), get_count, 0, 0)],
   };
   let info = execute_info(&provider, Some(b"COMMANDSTATS"));
   let lines: Vec<&str> = info.split("\r\n").collect();
@@ -170,7 +170,7 @@ fn command_stats_failed_calls_test() {
 fn command_stats_usec_fields_zero_test() {
   let provider = TestInfoProvider {
     command_stats_monitor: true,
-    stats: vec![("set".into(), 100, 0)],
+    stats: vec![("set".into(), 100, 0, 0)],
   };
   let info = execute_info(&provider, Some(b"COMMANDSTATS"));
   let lines: Vec<&str> = info.split("\r\n").collect();
@@ -192,10 +192,10 @@ fn command_stats_multiple_commands_test() {
   let provider = TestInfoProvider {
     command_stats_monitor: true,
     stats: vec![
-      ("set".into(), 1, 0),
-      ("get".into(), 1, 0),
-      ("del".into(), 1, 0),
-      ("ping".into(), 1, 0),
+      ("set".into(), 1, 0, 0),
+      ("get".into(), 1, 0, 0),
+      ("del".into(), 1, 0, 0),
+      ("ping".into(), 1, 0, 0),
     ],
   };
   let info = execute_info(&provider, Some(b"COMMANDSTATS"));
@@ -239,7 +239,7 @@ fn command_stats_info_server_shows_monitor_status() {
 fn command_stats_format_matches_redis_convention() {
   let provider = TestInfoProvider {
     command_stats_monitor: true,
-    stats: vec![("set".into(), 1, 0)],
+    stats: vec![("set".into(), 1, 0, 0)],
   };
   let info = execute_info(&provider, Some(b"COMMANDSTATS"));
   let lines: Vec<&str> = info.split("\r\n").collect();

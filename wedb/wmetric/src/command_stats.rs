@@ -15,6 +15,7 @@ pub struct CommandStatsEntry {
 /// 内置命令的逐命令使用统计：以 `RespCommand` 判别值为下标的数组，O(1) 访问。
 /// 每个会话持有独立实例（单写者，无需加锁）。
 ///（对标 libs/server/Metrics/CommandStats.cs:CommandStats）
+#[derive(Debug, Clone)]
 pub struct CommandStats {
   /// 以 `(int)RespCommand` 为下标的逐命令统计条目。
   pub entries: Vec<CommandStatsEntry>,

@@ -220,6 +220,30 @@ impl GarnetServerMonitor {
     })
   }
 
+  /// 是否开启逐命令统计追踪（C# serverOptions.CommandStatsMonitor 的监视器侧投影）。
+  pub fn tracks_command_stats(&self) -> bool {
+    self.state.lock().global_metrics.global_command_stats.is_some()
+  }
+
+  /// 是否开启延迟追踪（C# serverOptions.LatencyMonitor 的监视器侧投影）。
+  pub fn tracks_latency(&self) -> bool {
+    let state = self.state.lock();
+    Self::track_latency(&state)
+  }
+
+  /// INFO COMMANDSTATS 聚合快照（C# PopulateCommandStatsInfo 的
+  /// monitor.GlobalMetrics 读取形态：周期采样开启时 globalCommandStats 已含
+  /// history + 活跃会话的上轮采样；仅命令统计开启时取 historyCommandStats，
+  /// 活跃会话未归并部分由调用方补并）。
+  pub fn command_stats_aggregate(&self) -> Option<CommandStats> {
+    let state = self.state.lock();
+    let g = &state.global_metrics;
+    if let Some(global) = &g.global_command_stats {
+      return Some(global.clone());
+    }
+    g.history_command_stats.clone()
+  }
+
   /// libs/server/Metrics/GarnetServerMonitor.cs:AddMetricsHistorySessionDispose
   ///
   /// 会话释放时将其指标并入历史（会话指标 / 延迟指标 / 命令统计均可空）；

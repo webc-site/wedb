@@ -203,10 +203,11 @@ pub trait InfoProvider {
   /// 全局指标快照（监视器未启用为 None）。
   fn global_metrics(&self) -> Option<GlobalMetricsSnapshot>;
 
-  /// 聚合命令统计：`(cmdstat 名(小写), calls, rejected_calls)`，
-  /// 已过滤 calls/rejected 均为 0 与 "unknown"（对齐 C# PopulateCommandStatsInfo
-  /// 的聚合 + RespCommandsInfo.GetRespCommandName 解析路径）。
-  fn command_stats(&self) -> Vec<(String, u64, u64)>;
+  /// 聚合命令统计：`(cmdstat 名(小写), calls, rejected_calls, failed_calls)`，
+  /// 已过滤 calls/rejected/failed 均为 0 与 "unknown"（对齐 C#
+  /// PopulateCommandStatsInfo 的聚合 + RespCommandsInfo.GetRespCommandName
+  /// 解析路径）。
+  fn command_stats(&self) -> Vec<(String, u64, u64, u64)>;
 
   /// 库的 (键数, 过期键数)。
   fn keyspace_stats(&self, db_id: i32) -> (u64, u64);
@@ -635,11 +636,11 @@ impl GarnetInfoMetrics {
       Some(
         stats
           .into_iter()
-          .map(|(name, calls, rejected)| {
+          .map(|(name, calls, rejected, failed)| {
             MetricsItem::new(
               format!("cmdstat_{name}"),
               format!(
-                "calls={calls},usec=0,usec_per_call=0.00,rejected_calls={rejected},failed_calls=0"
+                "calls={calls},usec=0,usec_per_call=0.00,rejected_calls={rejected},failed_calls={failed}"
               ),
             )
           })

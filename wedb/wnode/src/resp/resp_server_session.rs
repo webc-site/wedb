@@ -24,14 +24,14 @@ use wacl::{
 };
 use wbase::time::{now_ms, now_nanos, now_stopwatch_ticks};
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
-use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig};
+use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig, ServerConfigType};
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, LuaTimeoutManager, ScratchBufferNetworkSender,
   ScriptingApi, SessionScriptCache, StoreScriptCache,
 };
 use wmetric::{
-  GarnetInfoMetrics, GarnetLatencyMetrics, GarnetLatencyMetricsSession, GarnetSessionMetrics,
-  InfoCommand, LatencyMetricsType, SlowLogContainer,
+  CommandStats, GarnetInfoMetrics, GarnetLatencyMetrics, GarnetLatencyMetricsSession,
+  GarnetSessionMetrics, InfoCommand, LatencyMetricsType, SlowLogContainer,
 };
 use wpubsub::{PubSubSession, PubSubSessionCommands, SubscribeBroker};
 use wresp::{
@@ -107,6 +107,8 @@ pub struct RespServerSessionOptions {
   pub latency_monitor: bool,
   /// 指标采样频率（> 0 时启用会话指标，C# MetricsSamplingFrequency）
   pub metrics_sampling_frequency: bool,
+  /// 逐命令统计开关（挂 CommandStats 表，C# serverOptions.CommandStatsMonitor）
+  pub command_stats_monitor: bool,
   /// 默认用户句柄名（C# accessControlList.GetDefaultUserHandle()）
   pub default_user: String,
   /// 是否启用 Lua 脚本（C# storeWrapper.serverOptions.EnableLua + enableScripts）
@@ -130,6 +132,7 @@ impl Default for RespServerSessionOptions {
       enable_debug_command: ConnectionProtectionOption::No,
       latency_monitor: false,
       metrics_sampling_frequency: false,
+      command_stats_monitor: false,
       default_user: "default".to_string(),
       enable_lua: false,
       // C# 默认链：LuaOptions 默认（超时无限、Silent、Native）、
@@ -214,6 +217,10 @@ pub struct RespServerSession {
 
   /// 会话指标（C# sessionMetrics；采样关闭时为 None）
   pub session_metrics: Option<GarnetSessionMetrics>,
+  /// 逐命令统计表（C# commandStats；CommandStatsMonitor 关闭时为 None。
+  /// 单写者为主循环递增，monitor 采样 / dispose 归并 / INFO 聚合为读者，
+  /// 以 parking_lot 互斥承接）
+  pub(crate) command_stats: Option<Arc<parking_lot::Mutex<CommandStats>>>,
   /// 延迟指标（C# LatencyMetrics；监视关闭时为 None；监视器迭代时钟由
   /// 延迟指标实例内部持有 —— C# LatencyMetrics._monitorIterations）
   latency_metrics: Option<Arc<GarnetLatencyMetricsSession>>,
@@ -364,6 +371,9 @@ impl RespServerSession {
       session_metrics: options
         .metrics_sampling_frequency
         .then(GarnetSessionMetrics::default),
+      command_stats: options
+        .command_stats_monitor
+        .then(|| Arc::new(parking_lot::Mutex::new(CommandStats::new()))),
       latency_metrics,
       parse_state: SessionParseState::new(),
       recv_buffer: Vec::with_capacity(1 << 16),
@@ -768,8 +778,9 @@ impl RespServerSession {
     self.bytes_read = self.recv_buffer.len();
     self.read_head = 0;
 
+    self.latency_batch_start();
     self.enter_and_get_response_object();
-    self.process_messages();
+    let op_count = self.process_messages();
     // 协议违规（C# RespParsingException 传播出 ProcessMessages → catch 块：
     // 写 `ERR Protocol Error: {msg}` 追加在累积应答之后 → Send → 断连）。
     // 不回退游标、不计消费字节；None 表达致命错误，应答面（含此前命令
@@ -785,12 +796,56 @@ impl RespServerSession {
       return None;
     }
     let consumed = self.read_head;
+    self.latency_batch_stop(consumed, op_count);
     self.exit_and_return_response_object();
 
     if let Some(metrics) = &mut self.session_metrics {
       metrics.incr_total_net_input_bytes(consumed as u64);
     }
     Some(consumed)
+  }
+
+  /// 批次消费入口的延迟/慢日志起始装配（C# TryConsumeMessages:481/:486-490）：
+  /// 延迟监视开启即启动 NET_RS_LAT 计时；慢日志门开启时起始刻度与延迟
+  /// 计时同源（LatencyMetrics.Get(NET_RS_LAT)），无延迟监视取系统秒表
+  fn latency_batch_start(&mut self) {
+    let slow_log_enabled =
+      self.runtime_config.get_microseconds(ServerConfigType::SlowlogLogSlowerThan) > 0;
+    let Some(latency) = &self.latency_metrics else {
+      if slow_log_enabled {
+        self.slow_log_start_ticks = now_stopwatch_ticks();
+      }
+      return;
+    };
+    latency.start(LatencyMetricsType::NetRsLat, now_stopwatch_ticks() as u64);
+    if slow_log_enabled {
+      self.slow_log_start_ticks = latency.get(LatencyMetricsType::NetRsLat) as i64;
+    }
+  }
+
+  /// 批次消费出口的延迟停表（C# TryConsumeMessages:586-598）：有成功消费
+  /// 字节才记录——慢命令批次切 NET_RS_LAT_ADMIN 桶，随后把字节/命令数
+  /// 记入吞吐直方图
+  fn latency_batch_stop(&mut self, consumed: usize, op_count: u64) {
+    let Some(latency) = &self.latency_metrics else {
+      return;
+    };
+    if consumed == 0 {
+      return;
+    }
+    let now = now_stopwatch_ticks() as u64;
+    if self.contains_slow_command {
+      latency.stop_and_switch(
+        LatencyMetricsType::NetRsLat,
+        LatencyMetricsType::NetRsLatAdmin,
+        now,
+      );
+      self.contains_slow_command = false;
+    } else {
+      latency.stop(LatencyMetricsType::NetRsLat, now);
+    }
+    latency.record_value(LatencyMetricsType::NetRsBytes, consumed as i64);
+    latency.record_value(LatencyMetricsType::NetRsOps, op_count as i64);
   }
 
   /// 泵直读消费入口（scratch 模式，网络泵专属）
@@ -819,8 +874,9 @@ impl RespServerSession {
     self.bytes_read = self.recv_buffer.len();
     let prev_read_head = self.read_head;
 
+    self.latency_batch_start();
     self.enter_and_get_response_object();
-    self.process_messages();
+    let op_count = self.process_messages();
     // 协议违规（C# RespParsingException → catch 块写协议错误 → Send 累积
     // 应答 → DisposeNetworkSender）：游标不回退，None 表达致命错误，
     // 由泵发尽应答（含协议错误）后关闭连接
@@ -838,6 +894,7 @@ impl RespServerSession {
 
     // 本轮新增消费字节（EXEC 回退重解析可致游标暂时回退，saturating 兜底）
     let newly_consumed = self.read_head.saturating_sub(prev_read_head);
+    self.latency_batch_stop(newly_consumed, op_count);
     // 事务在途（C# IsSkippingOperations / `if (!txnSkip) readHead = 0` 对偶
     // 语义）：排队字节与 txn_start_head 偏移必须驻留缓冲供 EXEC 回退重解析，
     // 禁止清零复位
@@ -869,14 +926,15 @@ impl RespServerSession {
   /// 位图 null 的放行路径，门仅承载 ACL）→ 订阅模式/事务/槽位门 → 分派 →
   /// 指标；被拒命令回 NOPERM/NOAUTH（C# :688-706 else 分支）。命令未完整
   /// 到达时双游标回退到本轮起点（C# `endReadHead = readHead = _origReadHead`）。
-  pub fn process_messages(&mut self) {
+  /// 返回本批有效命令数（C# opCount 字段的批内增量，延迟吞吐直方图消费）
+  pub fn process_messages(&mut self) -> u64 {
     // 挂起中的阻塞/慢路径命令未完成前不再消费新命令（C# 网络线程
     // BlockingWait 期间本就读不到后续命令）
     if self.pending_block.is_some() || self.pending_slow.is_some() {
-      return;
+      return 0;
     }
 
-    self.slow_log_start_ticks = now_stopwatch_ticks();
+    let mut op_count = 0u64;
     let mut orig_read_head = self.read_head;
 
     while self.bytes_read.saturating_sub(self.read_head) >= 4 {
@@ -944,10 +1002,28 @@ impl RespServerSession {
               }
             }
           }
+
+          // libs/server/Resp/RespServerSession.cs:683-689（CommandStats 门控：
+          // 执行后 calls 必计；失败随 commandErrorWritten 标志计并复位）
+          if let Some(stats) = &self.command_stats {
+            let mut stats = stats.lock();
+            stats.increment_calls(cmd);
+            if self.command_error_written {
+              stats.increment_failed(cmd);
+              self.command_error_written = false;
+            }
+          }
         } else {
           // C# :688-706 else 分支：已认证 → NOPERM；未认证 → NOAUTH
           self.write_acl_permission_error(self.acl_user_handle.is_some());
+          // libs/server/Resp/RespServerSession.cs:715（ACL/脚本权限拒绝计数）
+          if let Some(stats) = &self.command_stats {
+            stats.lock().increment_rejected(cmd);
+          }
         }
+
+        // C# :719 if (LatencyMetrics != null) opCount++
+        op_count += 1;
 
         self.handle_slow_log(cmd);
 
@@ -955,9 +1031,6 @@ impl RespServerSession {
           metrics.incr_total_commands_processed(1);
           metrics.add_total_write_commands_processed(one_if_write(cmd));
           metrics.add_total_read_commands_processed(one_if_read(cmd));
-          if self.command_error_written {
-            self.command_error_written = false;
-          }
         }
       } else {
         self.contains_slow_command = true;
@@ -976,6 +1049,7 @@ impl RespServerSession {
         break;
       }
     }
+    op_count
   }
 
   /// libs/server/Resp/RespServerSession.cs:EnterAndGetResponseObject
