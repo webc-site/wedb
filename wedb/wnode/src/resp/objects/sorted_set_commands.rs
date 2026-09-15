@@ -917,9 +917,7 @@ impl RespServerSession {
     };
     // C# GenericErrAtLeastOneKey 替换 {0}="ZINTERCARD"
     if num_keys < 1 {
-      output.extend_from_slice(
-        format!("-ERR at least 1 input key is needed for 'ZINTERCARD' command\r\n").as_bytes(),
-      );
+      output.extend_from_slice(b"-ERR at least 1 input key is needed for 'ZINTERCARD' command\r\n");
       return Ok(true);
     }
 
@@ -991,7 +989,11 @@ impl RespServerSession {
     } else {
       0
     };
-    output.write_resp_int(if limit > 0 { card.min(i64::from(limit)) } else { card });
+    output.write_resp_int(if limit > 0 {
+      card.min(i64::from(limit))
+    } else {
+      card
+    });
     Ok(true)
   }
 

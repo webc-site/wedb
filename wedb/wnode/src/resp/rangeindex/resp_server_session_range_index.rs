@@ -105,9 +105,7 @@ fn ri_option_long(parse_state: &[&[u8]], idx: usize) -> StdResult<i64, String> {
   let raw = parse_state[idx];
   let (digits, negative) = match raw {
     // C# ReadLong：length == 0 直接 ThrowNotANumber（ParseUtils.cs:69-71）
-    [] | [b'+'] | [b'-'] => {
-      return Err(ri_num_error_text(RiNumError::NotANumber(raw.to_vec())))
-    }
+    [] | [b'+'] | [b'-'] => return Err(ri_num_error_text(RiNumError::NotANumber(raw.to_vec()))),
     [b'+', rest @ ..] => (rest, false),
     [b'-', rest @ ..] => (rest, true),
     rest => (rest, false),
@@ -117,7 +115,10 @@ fn ri_option_long(parse_state: &[&[u8]], idx: usize) -> StdResult<i64, String> {
   let mut number = 0_u64;
   for &d in digits {
     match (d as char).to_digit(10) {
-      Some(v) => match number.checked_mul(10).and_then(|n| n.checked_add(u64::from(v))) {
+      Some(v) => match number
+        .checked_mul(10)
+        .and_then(|n| n.checked_add(u64::from(v)))
+      {
         Some(n) => number = n,
         None => return Err(ri_num_error_text(RiNumError::NotANumber(raw.to_vec()))),
       },
@@ -137,7 +138,11 @@ fn ri_option_long(parse_state: &[&[u8]], idx: usize) -> StdResult<i64, String> {
   } else if number > i64::MAX as u64 {
     return Err(ri_num_error_text(overflow));
   }
-  Ok(if negative { -(number as i64) } else { number as i64 })
+  Ok(if negative {
+    -(number as i64)
+  } else {
+    number as i64
+  })
 }
 
 /// 两态协议错误文案（C# RespServerSession.cs:522 catch 块
@@ -145,7 +150,10 @@ fn ri_option_long(parse_state: &[&[u8]], idx: usize) -> StdResult<i64, String> {
 fn ri_num_error_text(e: RiNumError) -> String {
   match e {
     RiNumError::NotANumber(arg) => {
-      format!("ERR Protocol Error: Unable to parse number: {}", String::from_utf8_lossy(&arg))
+      format!(
+        "ERR Protocol Error: Unable to parse number: {}",
+        String::from_utf8_lossy(&arg)
+      )
     }
     RiNumError::Overflow { digits } => format!(
       "ERR Protocol Error: Unable to parse integer. The given number is larger than allowed: {digits}"
@@ -315,7 +323,7 @@ pub async fn network_ricreate<D: Device, R>(
   let tuning = match options.validate() {
     Ok(tuning) => tuning,
     Err(message) => {
-      abort_with_error_message(output, &message);
+      abort_with_error_message(output, message);
       return Ok(true);
     }
   };
@@ -691,8 +699,14 @@ mod tests {
     assert_eq!(ri_option_long(&[b"007"], 0).ok(), Some(7));
     assert_eq!(ri_option_long(&[b"-007"], 0).ok(), Some(-7));
     assert_eq!(ri_option_long(&[b"+5"], 0).ok(), Some(5));
-    assert_eq!(ri_option_long(&[b"9223372036854775807"], 0).ok(), Some(i64::MAX));
-    assert_eq!(ri_option_long(&[b"-9223372036854775808"], 0).ok(), Some(i64::MIN));
+    assert_eq!(
+      ri_option_long(&[b"9223372036854775807"], 0).ok(),
+      Some(i64::MAX)
+    );
+    assert_eq!(
+      ri_option_long(&[b"-9223372036854775808"], 0).ok(),
+      Some(i64::MIN)
+    );
 
     // 非数字 / 尾随垃圾 / u64 溢出 → ThrowNotANumber（回显原始参数）
     for raw in ["abc", "12x", "", "99999999999999999999"] {

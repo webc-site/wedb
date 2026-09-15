@@ -15,7 +15,7 @@
 //! - CONFIG GET 经 HELLO 3 升级后写 %N map 头（ServerConfig.cs:69
 //!   WriteMapLength）
 
-use std::sync::Arc;
+use std::{mem::forget, sync::Arc};
 
 use compio::{net::TcpStream, runtime::Runtime};
 use tempfile::tempdir;
@@ -199,7 +199,15 @@ fn parse_width_and_error_text_quirks() {
     .await;
     assert_error(
       &mut s,
-      &[b"BZMPOP", b"0.1", b"1", b"z", b"MIN", b"COUNT", b"3000000000"],
+      &[
+        b"BZMPOP",
+        b"0.1",
+        b"1",
+        b"z",
+        b"MIN",
+        b"COUNT",
+        b"3000000000",
+      ],
       "-ERR Parameter `count` should be greater than 0\r\n",
     )
     .await;
@@ -276,17 +284,25 @@ fn scan_parse_quirks_match_csharp() {
     let empty: &[u8] = b"*2\r\n$1\r\n0\r\n*0\r\n";
 
     // 未知选项静默跳过（C# if/else-if 链无 else）
-    send_cmd(&mut s, &[b"SCAN", b"0", b"FOO", b"BAR"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"FOO", b"BAR"])
+      .await
+      .expect("scan");
     assert_eq!(read_reply(&mut s).await, empty);
 
     // COUNT 0 / 负值合法（TryGetLong 仅校验整数性），扫描层钳 1 条语义
-    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"0"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"0"])
+      .await
+      .expect("scan");
     assert_eq!(read_reply(&mut s).await, empty);
-    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"-5"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"-5"])
+      .await
+      .expect("scan");
     assert_eq!(read_reply(&mut s).await, empty);
 
     // 未知 TYPE 值（非五类双字面量）：空列表 + 游标 0（DbScan :82-84）
-    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"Zset"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"Zset"])
+      .await
+      .expect("scan");
     assert_eq!(read_reply(&mut s).await, empty);
 
     // COUNT 非整数 / cursor 负值仍报错（回归不变）
@@ -296,29 +312,33 @@ fn scan_parse_quirks_match_csharp() {
       "-ERR value is not an integer or out of range.\r\n",
     )
     .await;
-    assert_error(
-      &mut s,
-      &[b"SCAN", b"-1"],
-      "-ERR invalid cursor\r\n",
-    )
-    .await;
+    assert_error(&mut s, &[b"SCAN", b"-1"], "-ERR invalid cursor\r\n").await;
 
     // 种子：字符串键 + zset 键（物理扫描序按日志地址，不逐字节断言键序）
     cmd(&mut s, &[b"SET", b"foo", b"bar"]).await;
     cmd(&mut s, &[b"ZADD", b"z", b"1", b"m"]).await;
 
     // TYPE zset 精确匹配 → 命中 z 键
-    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"zset"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"zset"])
+      .await
+      .expect("scan");
     let reply = read_reply(&mut s).await;
     assert!(reply.starts_with(b"*2\r\n"), "SCAN *2 expected: {reply:?}");
-    assert!(window_contains(&reply, b"$1\r\nz\r\n"), "z 键命中 expected: {reply:?}");
+    assert!(
+      window_contains(&reply, b"$1\r\nz\r\n"),
+      "z 键命中 expected: {reply:?}"
+    );
 
     // TYPE Zset（混合大小写）在非空库仍空回——大小写敏感 + 未知即空
-    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"Zset"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"Zset"])
+      .await
+      .expect("scan");
     assert_eq!(read_reply(&mut s).await, empty);
 
     // COUNT 0 有键库：单页至多 1 条（首条匹配后 acceptedCount >= count 停）
-    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"0"]).await.expect("scan");
+    send_cmd(&mut s, &[b"SCAN", b"0", b"COUNT", b"0"])
+      .await
+      .expect("scan");
     let reply = read_reply(&mut s).await;
     assert!(reply.starts_with(b"*2\r\n"), "SCAN *2 expected: {reply:?}");
     // 第二元素数组长度 <= 1（键数组头 = 应答最后一个 '*' 聚合帧）
@@ -350,7 +370,7 @@ fn ri_create_numeric_protocol_errors() {
     )
     .expect("open with aof"),
   );
-  std::mem::forget(dir);
+  forget(dir);
   let (_server, addr) = start_server(provider);
   let mut s = rt.block_on(async { TcpStream::connect(addr).await.expect("connect") });
   rt.block_on(async {

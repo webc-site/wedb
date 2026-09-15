@@ -1116,12 +1116,7 @@ impl RespServerSession {
       RespCommand::Blmpop,
       timeout,
       || keys.iter().map(|k| k.to_vec()).collect(),
-      || {
-        vec![
-          vec![pop_direction as u8],
-          pop_count.to_le_bytes().to_vec(),
-        ]
-      },
+      || vec![vec![pop_direction as u8], pop_count.to_le_bytes().to_vec()],
     ) {
       return Ok(true);
     }
