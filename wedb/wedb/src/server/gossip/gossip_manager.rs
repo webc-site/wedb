@@ -59,7 +59,8 @@ impl GossipManager {
     self.cluster_provider.gossip_sample_percent()
   }
 
-  /// libs/cluster/Server/Gossip/Gossip.cs:TryStartGossipTasks
+  /// Gossip.cs TryStartGossipTasks 的实现体（C# 方法在 ClusterManager，
+  /// 映射见 ClusterManager::try_start_gossip_tasks）
   ///
   /// 启动先对全部已知 worker 跑一轮 MEET（对标 RunMeetTask = Task.Run
   /// (TryMeetAsync)，恢复上线的节点据此尽快重入集群），再起 gossip 主循环

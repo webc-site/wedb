@@ -517,7 +517,6 @@
         - UnsafeGetConnection
     - libs/cluster/Server/Gossip/GarnetServerNode.cs:
         - GetClientTimeoutMilliseconds
-        - GetMostRecentConfig
         - ResetCts
     - libs/cluster/Server/Gossip/Gossip.cs:
         - DisposeBannedWorkerConnectionsAsync

@@ -1,7 +1,10 @@
 //! gossip 管理器集成测试：配置演化增量判定、MEET 应答验证与失败清理、
 //! 首轮 MEET（对标 Gossip.cs TryStartGossipTasks / TryMeetAsync 与
 //! GarnetServerNode.GetMostRecentConfig）
-use std::{sync::Arc, time::Duration};
+use std::{
+  sync::{Arc, atomic::Ordering},
+  time::Duration,
+};
 
 use aok::Void;
 use compio::runtime::Runtime;
@@ -30,7 +33,7 @@ fn provider_with_local(node_id: &str, port: i32) -> Arc<ClusterProvider> {
   cp
 }
 
-/// libs/cluster/Server/Gossip/Gossip.cs:FlushConfig 调用域（配置演化统一出口）
+/// 对标 Gossip.cs 的 FlushConfig 调用域（配置演化统一出口）
 ///
 /// flush_config 每次调用递增 config_version；无变化的 merge 不递增
 #[test]
@@ -59,7 +62,7 @@ fn test_config_version_increments_on_config_evolution() -> Void {
   })
 }
 
-/// libs/cluster/Server/Gossip/GarnetServerNode.cs:GetMostRecentConfig
+/// 对标 GarnetServerNode.cs 的 GetMostRecentConfig
 ///
 /// 配置未演化时空包 ping（empty_send），配置演化后（config_version 递增）
 /// 下一轮发全量（full_send）——本地 epoch 不变的演化也必须触发
@@ -77,48 +80,23 @@ fn test_gossip_incremental_judgement_by_config_version() -> Void {
 
     // 第 1 轮：首发的全量
     gm.broadcast_gossip_async().await;
-    assert_eq!(
-      gm.stats
-        .gossip_full_send
-        .load(std::sync::atomic::Ordering::Acquire),
-      1
-    );
-    assert_eq!(
-      gm.stats
-        .gossip_empty_send
-        .load(std::sync::atomic::Ordering::Acquire),
-      0
-    );
+    assert_eq!(gm.stats.gossip_full_send.load(Ordering::Acquire), 1);
+    assert_eq!(gm.stats.gossip_empty_send.load(Ordering::Acquire), 0);
 
     // 第 2 轮：配置未演化 → 空包 ping
     gm.broadcast_gossip_async().await;
-    assert_eq!(
-      gm.stats
-        .gossip_full_send
-        .load(std::sync::atomic::Ordering::Acquire),
-      1
-    );
-    assert_eq!(
-      gm.stats
-        .gossip_empty_send
-        .load(std::sync::atomic::Ordering::Acquire),
-      1
-    );
+    assert_eq!(gm.stats.gossip_full_send.load(Ordering::Acquire), 1);
+    assert_eq!(gm.stats.gossip_empty_send.load(Ordering::Acquire), 1);
 
     // 配置演化（bump epoch，本地 epoch 计数变化前旧行为判不出发散）→ 第 3 轮必须再发全量
     assert!(cm.try_bump_cluster_epoch());
     gm.broadcast_gossip_async().await;
-    assert_eq!(
-      gm.stats
-        .gossip_full_send
-        .load(std::sync::atomic::Ordering::Acquire),
-      2
-    );
+    assert_eq!(gm.stats.gossip_full_send.load(Ordering::Acquire), 2);
     aok::OK
   })
 }
 
-/// libs/cluster/Server/Gossip/Gossip.cs:TryMeetAsync 空应答分支
+/// 对标 Gossip.cs 的 TryMeetAsync 空应答分支
 ///
 /// 空应答不计成败，created 临时连接必须回收（不残留被广播遍历）
 #[test]
@@ -138,7 +116,7 @@ fn test_meet_empty_reply_reclaims_temp_connection() -> Void {
   })
 }
 
-/// libs/cluster/Server/Gossip/Gossip.cs:TryMeetAsync 版本校验分支
+/// 对标 Gossip.cs 的 TryMeetAsync 版本校验分支
 ///
 /// 应答线格式版本不兼容：拒绝反序列化、记失败、回收 created 临时连接
 #[test]
@@ -159,17 +137,14 @@ fn test_meet_incompatible_version_reclaims_temp_connection() -> Void {
       "版本不兼容后临时连接应被回收"
     );
     assert!(
-      gm.stats
-        .meet_requests_failed
-        .load(std::sync::atomic::Ordering::Acquire)
-        >= 1,
+      gm.stats.meet_requests_failed.load(Ordering::Acquire) >= 1,
       "版本不兼容应记 meet 失败"
     );
     aok::OK
   })
 }
 
-/// libs/cluster/Server/Gossip/Gossip.cs:TryMeetAsync 成功分支
+/// 对标 Gossip.cs 的 TryMeetAsync 成功分支
 ///
 /// 成功应答：merge 对方配置入本地、created 连接以正式 nodeId 交接入库；
 /// 本地 epoch 不变的新节点信息也进入配置（版本号随之递增）
@@ -211,7 +186,7 @@ fn test_meet_success_merges_and_hands_off_connection() -> Void {
   })
 }
 
-/// libs/cluster/Server/Gossip/Gossip.cs:TryStartGossipTasks
+/// 对标 Gossip.cs 的 TryStartGossipTasks
 ///
 /// start 对已恢复配置的全部已知 worker 先跑一轮 MEET：连接以正式 nodeId
 /// 入库且 gossip 主循环点亮
