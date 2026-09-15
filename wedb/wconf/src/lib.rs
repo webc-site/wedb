@@ -27,7 +27,7 @@ pub use device_config::{
 pub use error::ConfigError;
 pub use log_compaction_type::LogCompactionType;
 pub use node_options::{
-  ConfigFileArgs, DEFAULT_BIND, DEFAULT_BIND_ANY, DEFAULT_COMPACTION_FREQ_SECS, DEFAULT_DIR,
+  ConfigFileArgs, DEFAULT_BIND, DEFAULT_BIND_ANY, DEFAULT_DIR,
   DEFAULT_MAX_DATABASES, DEFAULT_OBJECT_SCAN_COUNT_LIMIT, DEFAULT_PORT, DEFAULT_PUBSUB_PAGE_SIZE,
   DEFAULT_RESP_VERSION, DEFAULT_SLOW_LOG_MAX_ENTRIES, DEFAULT_SLOW_LOG_THRESHOLD, NodeArgs,
   NodeOptionsError, ServerArgs,

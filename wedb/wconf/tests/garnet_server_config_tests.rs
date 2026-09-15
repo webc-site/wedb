@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use wconf::{
-  DEFAULT_BIND, DEFAULT_COMPACTION_FREQ_SECS, DEFAULT_DIR, DEFAULT_PORT, DEFAULT_PUBSUB_PAGE_SIZE,
+  DEFAULT_BIND, DEFAULT_DIR, DEFAULT_PORT, DEFAULT_PUBSUB_PAGE_SIZE,
   DEFAULT_RESP_VERSION, LogCompactionType, NodeArgs, RuntimeServerConfig, RuntimeServerOptions,
   ServerConfigType,
   size::{
@@ -69,7 +69,6 @@ fn default_configuration_options_coverage() {
   assert_eq!(args.metrics_sampling_frequency_secs, 0);
   assert_eq!(args.dir, PathBuf::from(DEFAULT_DIR));
   assert_eq!(args.wal_dir(), PathBuf::from("./data/wal"));
-  assert_eq!(args.compaction_freq_secs, DEFAULT_COMPACTION_FREQ_SECS);
   assert_eq!(args.pubsub_page_size, DEFAULT_PUBSUB_PAGE_SIZE);
   assert_eq!(DEFAULT_RESP_VERSION, 2);
   assert!(!args.aof);
