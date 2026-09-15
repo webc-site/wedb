@@ -1,0 +1,15 @@
+- 理由: 集群域零引用孤儿清理（task/done/cluster-domain-orphans.md）
+  文件:
+    - libs/cluster/Server/ClusterConfig.cs:
+        - GetLocalNodeReplicaIds
+        - GetRemoteNodeIds
+        - GetHostNameFromNodeId
+        - IsMigratingSlot
+        - GetReplicaEndpoints
+        - GetSlotCountForState
+        - GetWorkerNodeIdFromAddressOrHostname
+    - libs/cluster/Server/ClusterManager.cs:
+        - UnsafeSetConfig
+- 文件:
+    - libs/cluster/Server/ClusterManager.cs:
+        - ListReplicas

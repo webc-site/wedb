@@ -367,11 +367,12 @@ impl FailoverSession {
     // 基于 crossfire::oneshot 事件驱动等待，零轮询零空转
     self.set_status(FailoverStatus::WaitingForSync);
     if let Some(rm) = self.cluster_provider.replication_manager() {
-      let now = Instant::now();
-      if now >= self.failover_deadline {
+      // C# `if (FailoverTimeout)`（ReplicaFailoverSession.cs:97）：位点
+      // 等待前先做超时终判（failover_timeout_reached 接线）
+      if self.failover_timeout_reached() {
         return false;
       }
-      let remaining = (self.failover_deadline - now).as_millis();
+      let remaining = (self.failover_deadline - Instant::now()).as_millis();
       let timeout = Duration::from_millis(remaining);
       if !rm
         .wait_for_replication_offset_async(&primary_offset, timeout)

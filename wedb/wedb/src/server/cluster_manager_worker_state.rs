@@ -132,9 +132,4 @@ impl ClusterManager {
     }
     Ok(())
   }
-
-  /// libs/cluster/Server/ClusterManagerWorkerState.cs:ListReplicas
-  pub fn list_replicas(&self, node_id: &str) -> Vec<String> {
-    self.current_config.read().get_replica_ids(node_id)
-  }
 }

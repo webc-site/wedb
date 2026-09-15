@@ -190,29 +190,12 @@ impl ClusterConfig {
     self.workers[LOCAL_WORKER_ID].config_epoch
   }
 
-  /// libs/cluster/Server/ClusterConfig.cs:LocalNodeEndpoint
-  pub fn local_node_endpoint(&self) -> String {
-    format!(
-      "{}:{}",
-      self.workers[LOCAL_WORKER_ID].address, self.workers[LOCAL_WORKER_ID].port
-    )
-  }
-
   /// libs/cluster/Server/ClusterConfig.cs:GetLocalNodePrimaryAddress
   pub fn get_local_node_primary_address(&self) -> (Option<String>, i32) {
     if let Some(id) = self.workers[LOCAL_WORKER_ID].replica_of_node_id.as_deref() {
       self.get_worker_address_from_node_id(id)
     } else {
       (None, -1)
-    }
-  }
-
-  /// libs/cluster/Server/ClusterConfig.cs:GetLocalNodeReplicaIds
-  pub fn get_local_node_replica_ids(&self) -> Vec<String> {
-    if let Some(id) = self.local_node_id() {
-      self.get_replica_ids(id)
-    } else {
-      vec![]
     }
   }
 }
@@ -303,16 +286,6 @@ impl ClusterConfig {
       .fold(0, i64::max)
   }
 
-  /// libs/cluster/Server/ClusterConfig.cs:GetRemoteNodeIds
-  pub fn get_remote_node_ids(&self) -> Vec<String> {
-    self
-      .workers
-      .iter()
-      .skip(2)
-      .filter_map(|w| w.nodeid.clone())
-      .collect()
-  }
-
   /// 按节点 id 查找 worker（下标从 1 起，0 号保留位除外），大小写不敏感。
   fn worker_by_node_id(&self, node_id: &str) -> Option<(usize, &Worker)> {
     self.workers.iter().enumerate().skip(1).find(|(_idx, w)| {
@@ -354,13 +327,6 @@ impl ClusterConfig {
       None => (None, -1),
     }
   }
-
-  /// libs/cluster/Server/ClusterConfig.cs:GetHostNameFromNodeId
-  pub fn get_host_name_from_node_id(&self, node_id: &str) -> Option<String> {
-    self
-      .get_worker_from_node_id(node_id)
-      .and_then(|w| w.hostname.clone())
-  }
 }
 
 impl ClusterConfig {
@@ -371,15 +337,6 @@ impl ClusterConfig {
       .slot_map
       .get(slot as usize)
       .is_some_and(|s| s.state == SlotState::Importing)
-  }
-
-  /// libs/cluster/Server/ClusterConfig.cs:IsMigratingSlot
-  #[inline]
-  pub fn is_migrating_slot(&self, slot: u16) -> bool {
-    self
-      .slot_map
-      .get(slot as usize)
-      .is_some_and(|s| s.state == SlotState::Migrating)
   }
 
   /// libs/cluster/Server/ClusterConfig.cs:GetState
@@ -516,19 +473,6 @@ impl ClusterConfig {
     replicas
   }
 
-  /// libs/cluster/Server/ClusterConfig.cs:GetReplicaEndpoints
-  pub fn get_replica_endpoints(&self, nodeid: &str) -> Vec<(String, i32)> {
-    let mut endpoints = Vec::new();
-    for worker in self.workers.iter().skip(1) {
-      if let Some(ref rep_of) = worker.replica_of_node_id
-        && rep_of.eq_ignore_ascii_case(nodeid)
-      {
-        endpoints.push((worker.address.clone(), worker.port));
-      }
-    }
-    endpoints
-  }
-
   /// libs/cluster/Server/ClusterConfig.cs:GetWorkerAddress
   #[inline]
   pub fn get_worker_address(&self, worker_id: u16) -> (String, i32) {
@@ -545,11 +489,6 @@ impl ClusterConfig {
       }
     }
     result
-  }
-
-  /// libs/cluster/Server/ClusterConfig.cs:GetSlotCountForState
-  pub fn get_slot_count_for_state(&self, state: SlotState) -> usize {
-    self.slot_map.iter().filter(|s| s.state == state).count()
   }
 
   /// 单遍扫描统计全部槽位状态计数；CLUSTER INFO 需要 4 个状态计数时
@@ -575,20 +514,6 @@ impl ClusterConfig {
     self.workers[1..]
       .iter()
       .find(|w| w.address == address && w.port == port)
-      .and_then(|w| w.nodeid.clone())
-  }
-
-  /// libs/cluster/Server/ClusterConfig.cs:GetWorkerNodeIdFromAddressOrHostname
-  pub fn get_worker_node_id_from_address_or_hostname(
-    &self,
-    address: &str,
-    port: i32,
-  ) -> Option<String> {
-    self
-      .workers
-      .get(2..=self.num_workers())?
-      .iter()
-      .find(|w| w.port == port && (w.address == address || w.hostname.as_deref() == Some(address)))
       .and_then(|w| w.nodeid.clone())
   }
 

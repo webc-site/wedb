@@ -67,13 +67,6 @@ impl ClusterManager {
     }
   }
 
-  /// NOTE: Unsafe! DO NOT USE, other than benchmarking
-  /// libs/cluster/Server/ClusterManager.cs:UnsafeSetConfig
-  #[cfg(any(test, feature = "bench"))]
-  pub fn unsafe_set_config(&self, cluster_config: ClusterConfig) {
-    *self.current_config.write() = cluster_config;
-  }
-
   /// 获取当前集群配置读句柄
   #[inline]
   pub fn current_config(&self) -> parking_lot::RwLockReadGuard<'_, ClusterConfig> {

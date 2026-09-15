@@ -90,7 +90,6 @@ pub struct ClusterSession {
   last_sent_config: Mutex<Option<Vec<u8>>>,
   read_only: AtomicBool,
   internal_write: AtomicBool,
-  is_replicating: AtomicBool,
   /// CLUSTER RESET 等需异步闭环命令挂起的慢路径执行体
   ///（会话侧经 [`ClusterSessionFace::take_pending_slow`] 取走驱动）
   pending_slow: Mutex<Option<SlowWait>>,
@@ -112,7 +111,6 @@ impl ClusterSession {
       last_sent_config: Mutex::new(None),
       read_only: AtomicBool::new(false),
       internal_write: AtomicBool::new(false),
-      is_replicating: AtomicBool::new(false),
       pending_slow: Mutex::new(None),
       fatal_disconnect: Mutex::new(None),
       slot_wait_memo: Mutex::new(None),
@@ -183,16 +181,6 @@ impl ClusterSession {
       }
     }
     Ok(slots)
-  }
-
-  /// libs/cluster/Session/ClusterSession.cs:IsReplicating
-  pub fn is_replicating(&self) -> bool {
-    self.is_replicating.load(Ordering::Relaxed)
-  }
-
-  /// libs/cluster/Session/ClusterSession.cs:SetReplicating
-  pub fn set_replicating(&self, rep: bool) {
-    self.is_replicating.store(rep, Ordering::Relaxed);
   }
 
   /// 内部写标志位存取（trait 面 is_internal_write_session 处标注 C# 映射）

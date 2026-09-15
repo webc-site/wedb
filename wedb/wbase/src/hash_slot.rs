@@ -32,9 +32,6 @@ pub const CLUSTER_SLOTS: u16 = 16384;
 /// Redis 集群槽位数（usize 形式，供数组长度与槽位映射表统一定义）
 pub const MAX_HASH_SLOT_VALUE: usize = 16384;
 
-/// Redis 集群总线端口默认偏移量（节点端口 + 10000）
-pub const DEFAULT_BUS_PORT_OFFSET: u16 = 10000;
-
 /// garnet/libs/common/HashSlotUtils.cs:Hash
 pub fn hash(data: &[u8]) -> u16 {
   let mut result: u16 = 0;

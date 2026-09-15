@@ -759,6 +759,23 @@
         - StoreExpiredKeyDeletionScan
   理由: 彻底清理孤儿门面方法与重复转发，AOF/检查点/对象收集/过期扫描统一由原生管理器与底座单通道承接，消除双轨门面
 - 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - GrowIndexesIfNeededAsync
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - GrowIndexesIfNeededAsync
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - GrowIndexesIfNeededAsync
+        - GrowIndexIfNeededAsync
+    - libs/server/Databases/IDatabaseManager.cs:
+        - GrowIndexesIfNeededAsync
+  理由: 在线索引扩容（GrowIndexAsync/SplitIndex）未转写，next/db.md 条 1 认领；虚设门面（读标志位恒真）删除，扩容实现落地时随 StartGenericNodeTasks 等价装配重建
+- 文件:
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - TryGetDatabasesContentReadLock
+        - TryGetDatabasesContentWriteLock
+        - RunPausedCheckpointsAndReleaseLocksAsync
+  理由: C# 类内自用锁原语与私有延续，rust 检查点/AOF/交换操作直接以 content_lock（async_lock RwLock）在操作内持锁，无独立门面；检查点暂停域随需求落地时并入 take_checkpoint_async
+- 文件:
     - libs/server/Resp/Vector/VectorManager.Replication.cs:
         - ApplyVectorSetAdd
         - HandleVectorSetRenameCopy

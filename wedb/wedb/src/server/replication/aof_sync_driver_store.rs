@@ -305,16 +305,6 @@ impl AofSyncDriverStore {
     safe_limit
   }
 
-  /// libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriverStore.cs:AssertDoesNotExist
-  ///
-  /// 断言指定远端副本驱动在仓库中不存在（调试状态一致性校验）
-  pub fn assert_does_not_exist(&self, remote_node_id: &str) {
-    debug_assert!(
-      self.registry.get(remote_node_id).is_none(),
-      "syncDriver with {remote_node_id} should not exist!"
-    );
-  }
-
   /// libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriverStore.cs:PublishShippedAddress
   ///
   /// 收集指定子日志跨所有副本已推送的最小高水位（无副本时返回 i64::MAX 解除门控）
