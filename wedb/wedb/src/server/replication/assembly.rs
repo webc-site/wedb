@@ -20,7 +20,7 @@
 use std::{sync::Arc, time::Duration};
 
 use compio::time::timeout;
-use waof::{AofAddress, WalLog};
+use waof::WalLog;
 use wdev::SegmentedDevice;
 
 use super::{
@@ -69,11 +69,9 @@ pub fn wire_replication_data_plane(
   cluster.set_wal(wal);
 }
 
-/// 单槽位点序列化为 span 字节（C# `AofAddress.Span` 形态：去长度头）
+/// 单槽位点序列化为 span 字节（C# `AofAddress.Span` 形态：8B LE 裸字节，无长度头）
 fn aof_span(address: i64) -> Vec<u8> {
-  let mut bytes = AofAddress::create(1, address).serialize();
-  bytes.remove(0);
-  bytes
+  address.to_le_bytes().to_vec()
 }
 
 /// 副本重连发起动作（EnsureReplication 第 7 步后台任务体；对标 C#
@@ -172,6 +170,7 @@ pub async fn recover_replication(provider: &Arc<ClusterProvider>, primary: &str)
 #[cfg(test)]
 mod tests {
   use super::*;
+  use waof::AofAddress;
 
   /// span 序列化与主端 AofAddress::from_span 的往返（C# beginAddress.Span /
   /// FromSpan 契约）
