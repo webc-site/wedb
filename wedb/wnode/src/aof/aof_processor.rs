@@ -1229,12 +1229,14 @@ impl AofProcessor {
         // operation on input")（MainStore/RMWMethods.cs InPlaceUpdaterWorker
         // default 尾部）——恢复显式失败，杜绝未知命令静默吞没恢复数据
         //（写入端新增 RMW 编码而重放端漏配时立即暴露）
-        return Err(format!(
-          "StoreRMW replay failed: unsupported cmd {:?} (key length {})",
-          input.cmd,
-          key.len()
-        )
-        .into());
+        return Err(
+          format!(
+            "StoreRMW replay failed: unsupported cmd {:?} (key length {})",
+            input.cmd,
+            key.len()
+          )
+          .into(),
+        );
       }
     };
     session
