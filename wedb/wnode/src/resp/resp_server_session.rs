@@ -16,6 +16,7 @@ use std::{
   sync::{Arc, OnceLock, atomic::AtomicU64},
 };
 
+use gxhash::HashMap as GxHashMap;
 use itoa::Buffer;
 use smallvec::SmallVec;
 use wacl::{
@@ -2177,12 +2178,20 @@ impl RespServerSession {
 impl RespServerSession {
   /// Lua 命令（EVAL / EVALSHA / SCRIPT 等）会话侧接线：构建 [`LuaSessionContext`] 并分派
   /// （输出缓冲为脚本期本地缓冲，结束后并入会话输出）。
+  ///
+  /// 脚本期 no-script 位图在本窗口挂载、结束摘除：C# 位图挂在内嵌 processor
+  /// （SessionScriptCache 构造的独立 RespServerSession，仅承接脚本内
+  /// redis.call）上，LuaRunner.cs:242 构造期挂载且常驻，外层连接会话位图
+  /// 恒 null——主循环命令不受 no-script 门限；rust 无内嵌 processor，脚本
+  /// 内 redis.call 经 [`RespScriptingApi`] 重入共享会话，以窗口式挂/摘承接
+  /// 同一可观测语义。
   fn run_lua_command(&mut self, cmd: RespCommand) -> bool {
     let Some(mut session_cache) = self.session_script_cache.take() else {
       // C# CheckLuaEnabled：未启用直接回错
       self.abort_error_message("ERR Lua is disabled.");
       return true;
     };
+    self.attach_no_script_bitmap();
     let store_cache = Arc::clone(&self.store_script_cache);
     let args = self.collect_args();
     // 配置链取值先行克隆（api 的 &mut 借用窗口内不可再借 &self）。
@@ -2214,6 +2223,9 @@ impl RespServerSession {
         _ => true,
       };
     }
+    // 脚本窗口关闭：外层连接命令恢复 no-script 门豁免（对齐 C# 外层会话
+    // 位图恒 null）
+    self.no_script_bitmap = None;
     self.session_script_cache = Some(session_cache);
     self.output.extend_from_slice(&script_out);
     true
@@ -2258,15 +2270,40 @@ impl RespServerSession {
     })
   }
 
-  /// 装配脚本期 no-script 位图（C# LuaRunner.cs:242：LuaRunner 构造期
-  /// `(noScriptStart, noScriptBitmap) = NoScriptDetails`；挂上后常驻——
-  /// C# 不摘除，本连接此后命令均受 [`Self::check_script_permissions`] 门检）
+  /// 挂载脚本期 no-script 位图（C# LuaRunner.cs:242：LuaRunner 构造期
+  /// `(noScriptStart, noScriptBitmap) = NoScriptDetails` 的字段赋值动作；
+  /// 挂/摘时机由 [`Self::run_lua_command` 的脚本窗口承接，见该处语义说明]）
   pub(crate) fn attach_no_script_bitmap(&mut self) {
     if self.no_script_bitmap.is_none() {
       let (start, bitmap) = Self::no_script_bitmap_source();
       self.no_script_start = *start;
       self.no_script_bitmap = Some(Arc::clone(bitmap));
     }
+  }
+
+  /// 子命令判别值 → 顶层命令判别值归一表（C# 门语义对齐：ProcessMessages
+  /// 解析产出顶层命令（SCRIPT/ACL/CLUSTER 等的子命令在分派 handler 内二次
+  /// 解析），CheckScriptPermissions 查顶层判别值——位图虽含子命令位（构建
+  /// 端 InitializeNoScriptDetails 一并收集），顶层查询命中不了子命令位；
+  /// rust 解析器直接产出子命令判别值，查位图前须归一，否则 SCRIPT|EXISTS
+  /// 等被位图中的子命令位误拦）
+  fn no_script_gate_cmd(cmd: RespCommand) -> u16 {
+    static TABLE: OnceLock<GxHashMap<u16, u16>> = OnceLock::new();
+    let table = TABLE.get_or_init(|| {
+      let Some(all_commands) = super::resp_commands_info::try_get_resp_commands_info(true) else {
+        return GxHashMap::default();
+      };
+      all_commands
+        .values()
+        .flat_map(|info| {
+          info
+            .sub_commands
+            .iter()
+            .map(|sub| (sub.command as u16, info.command as u16))
+        })
+        .collect()
+    });
+    table.get(&(cmd as u16)).copied().unwrap_or(cmd as u16)
   }
 
   /// libs/server/Resp/RespServerSession.cs:CheckScriptPermissions（实现体
@@ -2279,7 +2316,7 @@ impl RespServerSession {
     let Some(bitmap) = &self.no_script_bitmap else {
       return true;
     };
-    let ix = i32::from(cmd as u16) - self.no_script_start;
+    let ix = i32::from(Self::no_script_gate_cmd(cmd)) - self.no_script_start;
     if ix >= 0 {
       let word_ix = ix as usize / size_of::<u64>(); // C# sizeof(ulong) = 8
       if let Some(&word) = bitmap.get(word_ix)
@@ -2395,11 +2432,6 @@ impl ScriptingApi for RespScriptingApi<'_> {
 
   fn check_acl_permissions(&self, command: &str) -> bool {
     self.0.acl_allows_command(command)
-  }
-
-  /// 装配脚本期 no-script 位图（C# LuaRunner.cs:242 构造期挂载动作）
-  fn attach_no_script_bitmap(&mut self) {
-    self.0.attach_no_script_bitmap();
   }
 
   fn set_transaction_mode(&mut self, enabled: bool) {
@@ -3347,33 +3379,36 @@ mod tests {
     assert!(s.acl_allows_command("GET"));
   }
 
-  /// C# 脚本期 no-script 门：位图挂载后 NoScript 命令拦截，主循环回 NOSCRIPT
+  /// C# 脚本期 no-script 门：位图挂载后 NoScript 命令拦截（AdminCommands.cs:
+  /// 95-115）；子命令判别值归一到顶层（SCRIPT|EXISTS 查 SCRIPT 顶层位——
+  /// C# 位图虽含子命令位，门查顶层命中不了，同款放行）
   #[test]
-  fn no_script_gate_blocks_after_script_phase() {
+  fn no_script_gate_blocks_script_phase_commands() {
     let mut s = session(44);
-    // 未进入脚本期：位图未挂载，等价 C# noScriptBitmap == null 恒放行
+    // 位图未挂载：等价 C# noScriptBitmap == null 恒放行
     assert!(s.check_script_permissions(RespCommand::Subscribe));
 
     s.attach_no_script_bitmap();
-    // 挂载后：NoScript 命令拒绝，普通命令放行（AdminCommands.cs:95-115）
+    // 挂载（脚本窗口）后：顶层 NoScript 命令拒绝，普通数据命令放行
     assert!(!s.check_script_permissions(RespCommand::Subscribe));
     assert!(!s.check_script_permissions(RespCommand::Eval));
+    assert!(!s.check_script_permissions(RespCommand::Evalsha));
     assert!(s.check_script_permissions(RespCommand::Get));
+    // 子命令归一：SCRIPT|EXISTS 归一到顶层 SCRIPT（无 NoScript 标志）放行，
+    // 对齐 C# 门查顶层的可观测行为
+    assert!(s.check_script_permissions(RespCommand::ScriptExists));
+    assert!(s.check_script_permissions(RespCommand::AclCat));
 
-    // 主循环：SUBSCRIBE 回 NOSCRIPT 文案（C# :710），位图常驻（C# 不摘除）
-    assert!(
-      s.try_consume_messages(b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n")
-        .is_some()
-    );
-    assert_eq!(
-      String::from_utf8(s.take_output()).unwrap(),
-      "-ERR This Redis command is not allowed from script\r\n"
-    );
+    // 窗口关闭（run_lua_command 尾部摘除）：恢复放行
+    s.no_script_bitmap = None;
+    assert!(s.check_script_permissions(RespCommand::Subscribe));
   }
 
-  /// C# 脚本内 redis.call 禁令：EVAL 内 SUBSCRIBE 经重入主循环同门拦截
+  /// 脚本窗口边界：EVAL 内 redis.call('SUBSCRIBE') 被门拦回 NOSCRIPT
+  ///（C# 内嵌 processor 位图语义）；EVAL 结束后主循环 SUBSCRIBE 恢复放行
+  ///（C# 外层会话位图恒 null），并正常进入订阅态
   #[test]
-  fn script_internal_subscribe_rejected_with_noscript() {
+  fn script_window_scopes_no_script_gate() {
     let mut s = RespServerSession::new(
       45,
       RespServerSessionOptions {
@@ -3381,6 +3416,7 @@ mod tests {
         ..RespServerSessionOptions::default()
       },
     );
+    // EVAL 内 SUBSCRIBE：重入主循环被拦，错误回写脚本结果
     let frame = b"*3\r\n$4\r\nEVAL\r\n$35\r\nreturn redis.call('SUBSCRIBE','ch')\r\n$1\r\n0\r\n";
     assert!(s.try_consume_messages(frame).is_some());
     let out = s.take_output();
@@ -3389,6 +3425,20 @@ mod tests {
       text.contains("not allowed from script"),
       "脚本内 SUBSCRIBE 应回 NOSCRIPT: {text}"
     );
+
+    // 窗口已摘除：主循环 SUBSCRIBE 不再受 no-script 门限（未接 broker 的
+    // 会话按禁用文案回错，而非 NOSCRIPT——门放行即可证）
+    assert!(
+      s.try_consume_messages(b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n")
+        .is_some()
+    );
+    let out = s.take_output();
+    let text = String::from_utf8_lossy(&out);
+    assert!(
+      text.contains("SUBSCRIBE is disabled"),
+      "窗口外 SUBSCRIBE 应被门放行（回订阅禁用文案）: {text}"
+    );
+    assert!(!s.is_subscription_session);
   }
 
   #[test]

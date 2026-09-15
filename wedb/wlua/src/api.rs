@@ -24,11 +24,6 @@ pub trait ScriptingApi {
   /// ACL 权限检查（对标 CheckACLPermissions）。
   fn check_acl_permissions(&self, command: &str) -> bool;
 
-  /// 装配脚本期 no-script 位图（对标 LuaRunner.cs:242 构造期
-  /// `(noScriptStart, noScriptBitmap) = NoScriptDetails` 挂载动作；挂上后
-  /// 会话级常驻，主循环命令门据此拦截脚本禁调命令）。
-  fn attach_no_script_bitmap(&mut self) {}
-
   /// 事务模式切换（对标 SetTransactionMode；默认空操作）。
   fn set_transaction_mode(&mut self, _enabled: bool) {}
 
