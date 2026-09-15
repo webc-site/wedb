@@ -25,8 +25,8 @@ use waof::{
 };
 use wbase::{
   convert::{
-    TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS,
-    unix_timestamp_in_milliseconds_to_ticks, unix_timestamp_in_seconds_to_ticks,
+    duration_milliseconds_to_ticks, duration_seconds_to_ticks, expire_at_milliseconds_to_ticks,
+    expire_at_seconds_to_ticks,
   },
   entry_type::AofEntryType,
 };
@@ -1197,47 +1197,36 @@ impl AofProcessor {
       }
       RespCommand::Expire => {
         // 重放边界换算（对标 KeyAdminCommands.cs:423 的 EXPIRE→AddSeconds）：
-        // 相对秒 → 相对 ticks
+        // 相对秒 → 时长 ticks（饱和乘法单点与命令端同源）
         session
-          .expire_in_ticks(key, input.arg1.max(0).saturating_mul(TICKS_PER_SECOND))
+          .expire_in_ticks(key, duration_seconds_to_ticks(input.arg1.max(0)))
           .await
           .map_err(|e| format!("Expire replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Pexpire => {
-        // 相对毫秒 → 相对 ticks（KeyAdminCommands.cs:424 的 PEXPIRE→AddMilliseconds）
+        // 相对毫秒 → 时长 ticks（KeyAdminCommands.cs:424 的 PEXPIRE→AddMilliseconds，
+        // 饱和乘法单点与命令端同源）
         session
-          .expire_in_ticks(key, input.arg1.max(0).saturating_mul(TICKS_PER_MILLISECOND))
+          .expire_in_ticks(key, duration_milliseconds_to_ticks(input.arg1.max(0)))
           .await
           .map_err(|e| format!("Pexpire replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Expireat => {
-        // 绝对 Unix 秒 → ticks（KeyAdminCommands.cs:423 的 EXPIREAT）
+        // 绝对 Unix 秒 → ticks（KeyAdminCommands.cs:425 的 EXPIREAT，
+        // 负夹 0/上界钳制单点与命令端同函数）
         session
-          .expire_at_ticks(
-            key,
-            unix_timestamp_in_seconds_to_ticks(
-              input
-                .arg1
-                .clamp(0, (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND),
-            ),
-          )
+          .expire_at_ticks(key, expire_at_seconds_to_ticks(input.arg1))
           .await
           .map_err(|e| format!("Expireat replay failed: {e}"))?;
         return Ok(());
       }
       RespCommand::Pexpireat => {
-        // 绝对 Unix 毫秒 → ticks（KeyAdminCommands.cs:426 的 PEXPIREAT）
+        // 绝对 Unix 毫秒 → ticks（KeyAdminCommands.cs:426 的 PEXPIREAT，
+        // 负夹 0/上界钳制单点与命令端同函数）
         session
-          .expire_at_ticks(
-            key,
-            unix_timestamp_in_milliseconds_to_ticks(
-              input
-                .arg1
-                .clamp(0, (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND),
-            ),
-          )
+          .expire_at_ticks(key, expire_at_milliseconds_to_ticks(input.arg1))
           .await
           .map_err(|e| format!("Pexpireat replay failed: {e}"))?;
         return Ok(());
@@ -1258,7 +1247,7 @@ impl AofProcessor {
       }
       RespCommand::Setex => {
         let val = input.args.first().map_or(&[][..], Vec::as_slice);
-        let ticks = input.arg1.max(0).saturating_mul(TICKS_PER_SECOND);
+        let ticks = duration_seconds_to_ticks(input.arg1.max(0));
         session
           .setex(key, val, ticks)
           .await
@@ -1267,7 +1256,7 @@ impl AofProcessor {
       }
       RespCommand::Psetex => {
         let val = input.args.first().map_or(&[][..], Vec::as_slice);
-        let ticks = input.arg1.max(0).saturating_mul(TICKS_PER_MILLISECOND);
+        let ticks = duration_milliseconds_to_ticks(input.arg1.max(0));
         session
           .setex(key, val, ticks)
           .await

@@ -532,17 +532,6 @@ impl Deref for VectorSetId {
   }
 }
 
-/// 存储回调失败（garnet.rs GarnetError 的等价承接）。
-#[derive(Debug, thiserror::Error, PartialEq, Eq, Clone, Copy)]
-pub enum StoreError {
-  #[error("store read failed")]
-  Read,
-  #[error("store write failed")]
-  Write,
-  #[error("store delete failed")]
-  Delete,
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

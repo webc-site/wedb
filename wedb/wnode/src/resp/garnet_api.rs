@@ -32,8 +32,8 @@ use wresp::{
   RespCommand,
   cmd_strings::{
     RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_SWAPDB_UNSUPPORTED, RESP_ERR_WRONG_TYPE, RESP_OK,
-    write_error_raw,
+    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_SLOW_PATH_STORAGE, RESP_ERR_SWAPDB_UNSUPPORTED,
+    RESP_ERR_WRONG_TYPE, RESP_OK, write_error_raw,
   },
   command::is_vector_set_command,
 };
@@ -73,10 +73,6 @@ const RESP_ERR_ASYNC_REQUIRED: &str = "ERR command requires asynchronous complet
 
 /// DBID 合法上界（AdminCommands.cs:MaxDatabases 默认 16；慢路径防御性重校验）
 const MAX_DBID_UPPER_BOUND: i64 = 16;
-
-/// 慢路径异步扫描/清库 IO 失败的兜底错误文案（存储层 wkv::Error 统一
-/// 降噪为此单行，杜绝把内部错误细节泄漏给客户端）
-const RESP_ERR_SLOW_PATH_IO: &str = "ERR slow path storage error";
 
 /// 检查点通道未装配（宿主未注入 [`CheckpointCtx`]）时的显式拒绝文案
 const RESP_ERR_CHECKPOINT_UNWIRED: &str = "ERR checkpoint channel not configured";
@@ -386,13 +382,13 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
         match storage.read_string(key).await {
           Ok(Some(v)) => output.write_resp_bulk_string(&v),
           Ok(None) => output.extend_from_slice(b"$-1\r\n"),
-          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
         }
       }
       // ---- 全库扫描族（同步段仅校验，异步段承载实际扫描）
       C::Dbsize => match storage.db_size().await {
         Ok(n) => output.write_resp_int(n as i64),
-        Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+        Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
       },
       C::Keys => {
         let pattern = refs.first().copied().unwrap_or(b"*");
@@ -403,7 +399,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
               output.write_resp_bulk_string(key);
             }
           }
-          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
         }
       }
       C::Scan => {
@@ -434,7 +430,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             let key_refs: Vec<&[u8]> = keys.iter().map(|k| k.as_slice()).collect();
             RespServerSession::write_output_for_scan(cursor as i64, &key_refs, &mut output)
           }
-          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
         }
       }
       // ---- 清库族（BasicCommands.cs:ExecuteFlushDb：选项单源重解析 +
@@ -445,7 +441,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
       // 统计与 RespServerSession::network_memory_usage 同口径）
       C::MemoryUsage => {
         let key = refs.first().copied().unwrap_or(&[]);
-        let resp_err = |output: &mut Vec<u8>| write_error_raw(output, RESP_ERR_SLOW_PATH_IO);
+        let resp_err = |output: &mut Vec<u8>| write_error_raw(output, RESP_ERR_SLOW_PATH_STORAGE);
         match storage
           .read_tag_with_size(key, KeyTag::String, |_v, size| size)
           .await
@@ -481,12 +477,12 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           storage.batch.store.flush_all_databases().await
         };
         if flushed.is_err() {
-          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO);
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
           return output;
         }
         // UNSAFETRUNCATELOG：物理截断历史段（C# ShiftBeginAddress truncateLog）
         if opts.unsafe_truncate_log && storage.batch.store.truncate().await.is_err() {
-          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO);
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
           return output;
         }
         output.extend_from_slice(RESP_OK);
@@ -543,7 +539,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
         let keys = match collect_envelope_keys(&storage, tag).await {
           Ok(keys) => keys,
           Err(_) => {
-            write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO);
+            write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
             return output;
           }
         };
@@ -558,7 +554,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             Ok((GarnetStatus::WrongType, _)) => wrong_type = true,
             Ok(_) => {}
             Err(_) => {
-              write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO);
+              write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
               return output;
             }
           }
@@ -589,7 +585,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           .custom_object_slow(&storage, &obj_cmd, tag, &fns, cmd_refs, &mut output)
           .await
         {
-          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO);
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
         }
       }
       // ---- RangeIndex 族（resp_server_session_range_index.rs：解析校验与
@@ -642,7 +638,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             output.write_resp_bulk_string(buf.format(expired).as_bytes());
             output.write_resp_bulk_string(buf.format(scanned).as_bytes());
           }
-          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_IO),
+          Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
         }
       }
       // 未接入慢路径分派表的命令：写明错误，绝不静默

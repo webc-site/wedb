@@ -52,6 +52,7 @@ wkv.workspace = true
 wlua.workspace = true
 wmetric.workspace = true
 wpubsub.workspace = true
+wresources = { version = "0.1.0", path = "../wresources" }
 wresp.workspace = true
 wtxn.workspace = true
 wval.workspace = true
