@@ -1,6 +1,7 @@
 //! 集群键迁移协议帧编解码与发送驱动 (MigrateDriver)
 //!
-//! 对标 Garnet C# libs/cluster/Server/Migration/ClusterMigrateDriver.cs
+//! 对标 Garnet C# libs/cluster/Server/Migration/ClusterMigrateDriver.cs、
+//! libs/cluster/Server/Migration/MigrationDriver.cs（任务启动/恢复编排）
 //! 与 libs/cluster/Session/RespClusterMigrateCommands.cs。
 //!
 //! 帧格式定义 (M1/M2 单一真值源)：
@@ -9,9 +10,15 @@
 //!
 //! 显式裁剪（禁止静默丢键）：本链路仅支持 string 记录 (kind=1)。Hash/Set/
 //! ZSet/List/向量集等对象记录（KeyTag::ObjectEnvelope 域 / 集合元记录）
-//! 不发帧，迁移入口对含对象键的请求整体拒绝并显式报错。对象/大值 chunk
-//! 迁移属未实现（对标 C# ChunkedRecordReassembler 分相重组 + 全类型序列
-//! 化），待 M 系列帧扩展立项补全。
+//! 不发帧，KEYS 入口对含对象键的请求整体拒绝并显式报错；SLOTS 游标循环
+//! 对对象键跳过传输、保留源端并留痕。对象/大值 chunk 迁移属未实现（对标
+//! C# ChunkedRecordReassembler 分相重组 + 全类型序列化），待 M 系列帧扩展
+//! 立项补全。
+//!
+//! 孤儿键投影（net.md 条 19，安全声明）：槽位移交（远端 NODE + gossip 传
+//! 播）与源端物理删除存在交错窗口，窗口内按槽路由的读可能在源端命中尚未
+//! 删除的旧键投影（孤儿键）。键不丢、最终一致；C# 的 DELETING 分相与
+//! gossip 传播交错存在同形窗口，属双方共有的安全投影而非缺陷。
 
 use std::{future::Future, io, io::ErrorKind, sync::Arc, time::Duration};
 
@@ -35,6 +42,7 @@ use crate::{
       migrate_session::{MigrateSession, MigrateTaskSpec},
       migrate_state::MigrateState,
       sketch::Sketch,
+      sketch_status::SketchStatus,
     },
   },
 };
@@ -284,17 +292,215 @@ async fn set_slot_ranges_checked(
   Ok(())
 }
 
-/// 执行 CLUSTER MIGRATE 发送驱动 (M2 KEYS 路径)
+/// 迁移目标客户端构造（用户名/口令非空才携带，对标 MigrateSession.cs:
+/// GetGarnetClient 的 authUsername/authPassword 透传）
+fn connect_migrate_client(spec: &MigrateTaskSpec) -> GarnetClient {
+  GarnetClient::with_auth(
+    format!("{}:{}", spec.target_address, spec.target_port),
+    (!spec.username.is_empty()).then(|| spec.username.to_string()),
+    (!spec.passwd.is_empty()).then(|| spec.passwd.to_string()),
+  )
+}
+
+/// 迁移前置编排（对标 MigrationDriver.cs:BeginAsyncMigrationTaskAsync 的
+/// IMPORT / MIGRATING / 纪元转换段）：建立连接 → 远端置 IMPORTING →
+/// 本端置 MIGRATING →（SLOTS 链）纪元转换等待；任一失败点统一 recover
+async fn begin_migration_phase(
+  client: &GarnetClient,
+  session: &MigrateSession,
+  ranges: &[(i32, i32)],
+  dur: Duration,
+  source_node_id: &str,
+  epoch_gate: bool,
+) -> Result<()> {
+  client.connect_async().await;
+  if !client.is_connected() {
+    session.reset_local_slot();
+    return Err(Error::Io(io::Error::new(
+      ErrorKind::ConnectionRefused,
+      "无法连接迁移目标节点",
+    )));
+  }
+
+  // 远端置槽位 IMPORTING（停等限时，失败 → recover）
+  if let Err(err) =
+    set_slot_ranges_checked(client, dur, "IMPORTING", ranges, Some(source_node_id)).await
+  {
+    let poisoned = is_timeout_err(&err);
+    try_recover_from_failure(client, session, ranges, dur, &err.to_string(), poisoned).await;
+    return Err(err);
+  }
+
+  // 本端置槽位 MIGRATING（失败 → recover）
+  if !session.try_prepare_local_for_migration() {
+    try_recover_from_failure(client, session, ranges, dur, "本端准备迁移槽位失败", false).await;
+    return Err(Error::InvalidArgument("本端准备迁移槽位失败".into()));
+  }
+
+  // 纪元转换等待（对标 BeginAsyncMigrationTaskAsync 的
+  // BumpAndWaitForEpochTransitionAsync，仅 SLOTS 链调用；C# 失败静默
+  // return 致任务与槽位状态悬挂，rust 显式 recover + Err 收敛）
+  if epoch_gate
+    && !session
+      .cluster_provider
+      .bump_and_wait_for_epoch_transition_async()
+      .await
+  {
+    try_recover_from_failure(client, session, ranges, dur, "迁移纪元转换等待失败", false).await;
+    return Err(Error::InvalidArgument("迁移纪元转换等待失败".into()));
+  }
+  Ok(())
+}
+
+/// 迁移收尾编排（对标 MigrationDriver.cs:BeginAsyncMigrationTaskAsync 的
+/// 完成哨兵 / NODE / RelinquishOwnership 段）；任一失败点统一 recover。
+/// C# 收尾段的 SuspendConfigMerge + TryMeetAsync gossip 汇聚未投影（依赖
+/// gossip 会话基建，属范围外），槽位视图一致性由 gossip 周期汇聚兜底
+async fn end_migration_phase(
+  client: &GarnetClient,
+  session: &MigrateSession,
+  ranges: &[(i32, i32)],
+  dur: Duration,
+  spec: &MigrateTaskSpec,
+) -> Result<()> {
+  // 完成哨兵空载荷帧：应答非 OK 即判败——吞没响应会让远端导入残缺而
+  // 源端照常交权（对标 HandleMigrateTaskResponseAsync 应答校验）
+  if let Err(err) = send_batch_and_wait(
+    client,
+    dur,
+    spec.source_node_id.as_str(),
+    spec.replace_option,
+    &[],
+  )
+  .await
+  {
+    let poisoned = is_timeout_err(&err);
+    try_recover_from_failure(client, session, ranges, dur, &err.to_string(), poisoned).await;
+    return Err(err);
+  }
+  // 远端置槽位 NODE（失败 → recover，对标 BeginAsyncMigrationTaskAsync NODE 分支）
+  if let Err(err) = set_slot_ranges_checked(
+    client,
+    dur,
+    "NODE",
+    ranges,
+    Some(spec.target_node_id.as_str()),
+  )
+  .await
+  {
+    let poisoned = is_timeout_err(&err);
+    try_recover_from_failure(client, session, ranges, dur, &err.to_string(), poisoned).await;
+    return Err(err);
+  }
+  // 本端释放归属（失败 → recover，对标 BeginAsyncMigrationTaskAsync
+  // RelinquishOwnership 分支）
+  if !session.relinquish_ownership() {
+    try_recover_from_failure(
+      client,
+      session,
+      ranges,
+      dur,
+      "本端释放槽位所有权失败",
+      false,
+    )
+    .await;
+    return Err(Error::InvalidArgument("本端释放槽位所有权失败".into()));
+  }
+  Ok(())
+}
+
+/// 读取单键活值与 TTL 毫秒：string 域未命中（不存在 / 已过期 / 竞态改写
+/// 为对象记录）返回 None，调用方决定跳过或登记不可迁移
+async fn read_live_string(
+  storage: &StorageSession<'_, SegmentedDevice>,
+  key: &[u8],
+) -> Result<Option<(Vec<u8>, i64)>> {
+  let Some(val) = storage.read_string(key).await? else {
+    return Ok(None);
+  };
+  let ttl_ms = match storage.batch.ttl_of(key).await? {
+    Some(exp) => {
+      if exp <= now_ticks() {
+        return Ok(None); // 已过期，跳过
+      }
+      (exp - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND
+    }
+    None => 0,
+  };
+  Ok(Some((val, ttl_ms)))
+}
+
+/// 键清单批量传输：逐键读活值、按字节/条数上限分批装帧停等 ACK，
+/// 返回（已确认 ACK 的键, 确认条数）。中途失败已 ACK 批次不回传（失败
+/// 路径不删除任何键，键权保留源端，对标 C# 传输失败不 DeleteKeys）
+async fn transmit_keys(
+  storage: &StorageSession<'_, SegmentedDevice>,
+  client: &GarnetClient,
+  dur: Duration,
+  spec: &MigrateTaskSpec,
+  keys: &[Vec<u8>],
+) -> Result<(Vec<Vec<u8>>, usize)> {
+  let mut transferred = Vec::new();
+  let mut migrated_count = 0usize;
+  let mut cur_batch: Vec<(Vec<u8>, Vec<u8>, i64)> = Vec::new();
+  let mut cur_batch_bytes = 0usize;
+
+  for key in keys {
+    let Some((val, ttl_ms)) = read_live_string(storage, key).await? else {
+      // 竞态兜底：键被并发删除/过期/改写为对象记录 → 不发帧、不计入
+      // 删除清单，键权保留在源端（绝不波及未成功传输的键）
+      continue;
+    };
+
+    let item_bytes = key.len() + val.len() + 17;
+    if !cur_batch.is_empty()
+      && (cur_batch.len() >= MAX_MIGRATION_BATCH_COUNT
+        || cur_batch_bytes + item_bytes > MAX_MIGRATION_BATCH_BYTES)
+    {
+      send_batch_and_wait(
+        client,
+        dur,
+        spec.source_node_id.as_str(),
+        spec.replace_option,
+        &cur_batch,
+      )
+      .await?;
+      migrated_count += cur_batch.len();
+      transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
+      cur_batch.clear();
+      cur_batch_bytes = 0;
+    }
+
+    cur_batch_bytes += item_bytes;
+    cur_batch.push((key.clone(), val, ttl_ms));
+  }
+
+  if !cur_batch.is_empty() {
+    send_batch_and_wait(
+      client,
+      dur,
+      spec.source_node_id.as_str(),
+      spec.replace_option,
+      &cur_batch,
+    )
+    .await?;
+    migrated_count += cur_batch.len();
+    transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
+  }
+  Ok((transferred, migrated_count))
+}
+
+/// 执行 CLUSTER MIGRATE 发送驱动 (KEYS 路径，对标
+/// MigrationDriver.cs:TryStartMigrationTaskAsync 的 KEYS 分支 +
+/// MigrateSessionKeys.cs:MigrateKeysAsync)
 ///
 /// 严格停等架构（全部远端 await 经 [`wait_remote`] 限时，目标挂起不至永挂）：
-/// 1. 注册迁移任务
-/// 2. 远端置槽位为 IMPORTING
-/// 3. 本端置槽位为 MIGRATING
-/// 4. 逐批装帧并发送 CLUSTER MIGRATE，批次停等 ACK (+OK)
-/// 5. 发送完成哨兵空载荷帧 (recordCount = 0)
-/// 6. 远端与本端切换槽位归属为 NODE / 释放所有权
-/// 7. 任一失败点统一 [`try_recover_from_failure`] 回滚（远端 STABLE +
-///    本端回退 + FAIL 留痕 + 弃连）
+/// 1. 对象键预检（零副作用拒绝）→ 提取槽位 + sketch 收录 → 注册迁移任务
+/// 2. 前置编排 [`begin_migration_phase`]：IMPORTING → MIGRATING
+/// 3. sketch 切 TRANSMITTING，逐批装帧发送 CLUSTER MIGRATE 停等 ACK
+/// 4. 收尾编排 [`end_migration_phase`]：哨兵 → NODE → relinquish
+/// 5. 非 copy 删除「已确认 ACK」的键（DELETING 门控），sketch 归位
+/// 6. finally 移除迁移任务（对标 KEYS 分支 finally TryRemoveMigrationTask）
 ///
 /// 限制（显式裁剪，禁止静默丢键）：迁移帧仅支持 string 记录 (kind=1)。
 /// 请求键清单含对象记录键（Hash/Set/ZSet/List/向量集等）时，入口预检
@@ -304,7 +510,7 @@ async fn set_slot_ranges_checked(
 pub async fn run_keys_migration_driver(
   cluster_provider: Arc<ClusterProvider>,
   store: Arc<WedbStore<SegmentedDevice>>,
-  spec: MigrateTaskSpec<'_>,
+  spec: MigrateTaskSpec,
   keys: &[Vec<u8>],
 ) -> Result<usize> {
   let Some(migration_mgr) = cluster_provider.migration_manager() else {
@@ -331,221 +537,221 @@ pub async fn run_keys_migration_driver(
     }
   }
 
-  // 1. 提取槽位集合
+  // 1. 提取槽位集合并收录 sketch（对标 MigrateCommand.cs 解析期
+  //    sketch.HashAndStore：键级门控 can_access_key 据此生效）
   let mut slots = HashSet::default();
+  let sketch = Sketch::new();
   for k in keys {
     slots.insert(cluster_slot(k) as i32);
+    sketch.hash_and_store(k);
   }
 
   // 2. 注册任务
   let session = migration_mgr
-    .try_add_migration_task(spec, slots, Sketch::new())
+    .try_add_migration_task(spec.clone(), slots, sketch)
     .ok_or_else(|| Error::InvalidArgument("创建迁移任务失败 (槽位冲突或超限)".into()))?;
 
-  let client = GarnetClient::with_auth(
-    format!("{}:{}", spec.target_address, spec.target_port),
-    if spec.username.is_empty() {
-      None
-    } else {
-      Some(spec.username.to_string())
-    },
-    if spec.passwd.is_empty() {
-      None
-    } else {
-      Some(spec.passwd.to_string())
-    },
-  );
-  client.connect_async().await;
-  if !client.is_connected() {
-    session.reset_local_slot();
-    return Err(Error::Io(io::Error::new(
-      ErrorKind::ConnectionRefused,
-      "无法连接迁移目标节点",
-    )));
-  }
+  // 3. 执行 + finally 移除任务
+  let res = execute_keys_migration(&store, &spec, &session, keys).await;
+  migration_mgr.try_remove_migration_task_session(Arc::clone(&session));
+  res
+}
 
+/// KEYS 驱动执行体（任务注册后调用；失败统一 recover，见各编排函数）
+async fn execute_keys_migration(
+  store: &Arc<WedbStore<SegmentedDevice>>,
+  spec: &MigrateTaskSpec,
+  session: &Arc<MigrateSession>,
+  keys: &[Vec<u8>],
+) -> Result<usize> {
+  let client = connect_migrate_client(spec);
   let ranges = session.get_ranges();
   let dur = wait_dur(spec.timeout);
 
-  // 3. 远端置槽位 IMPORTING（停等限时，失败 → recover）
-  if let Err(err) = set_slot_ranges_checked(
+  begin_migration_phase(
     &client,
-    dur,
-    "IMPORTING",
+    session,
     &ranges,
-    Some(spec.source_node_id),
+    dur,
+    spec.source_node_id.as_str(),
+    false,
   )
-  .await
-  {
-    try_recover_from_failure(
-      &client,
-      &session,
-      &ranges,
-      dur,
-      &err.to_string(),
-      is_timeout_err(&err),
-    )
-    .await;
-    return Err(err);
-  }
+  .await?;
 
-  // 4. 本端置槽位 MIGRATING（失败 → recover）
-  if !session.try_prepare_local_for_migration() {
-    try_recover_from_failure(
-      &client,
-      &session,
-      &ranges,
-      dur,
-      "本端准备迁移槽位失败",
-      false,
-    )
-    .await;
-    return Err(Error::InvalidArgument("本端准备迁移槽位失败".into()));
-  }
+  // TRANSMITTING：载荷在途，源端对已收录键的写等待（对标
+  // MigrateKeysFromStoreAsync 的 sketch.SetStatus(TRANSMITTING)）
+  session.sketch.set_status(SketchStatus::Transmitting);
 
-  // 5. 逐键读取并分批发送
   let wkv_session = store.new_session()?;
   let batch = wkv_session.enter_batch();
   let storage = StorageSession::new_readonly(batch);
 
-  let mut migrated_count = 0;
-  // 已确认传输成功（批次 ACK +OK）的键：源端删除游标只允许推进到这里
-  let mut transferred: Vec<Vec<u8>> = Vec::new();
-  let mut cur_batch: Vec<(Vec<u8>, Vec<u8>, i64)> = Vec::new();
-  let mut cur_batch_bytes = 0;
-
-  for key in keys {
-    let Some(val) = storage.read_string(key).await? else {
-      // 预检后的竞态兜底：键被并发删除/过期/改写为对象记录 → 不发帧、
-      // 不计入删除清单，键权保留在源端（绝不波及未成功传输的键）
-      continue;
-    };
-    let ttl_ms = match storage.batch.ttl_of(key).await? {
-      Some(exp) => {
-        let now = now_ticks();
-        if exp <= now {
-          continue; // 已过期，跳过
-        }
-        (exp - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND
-      }
-      None => 0,
-    };
-
-    let item_bytes = key.len() + val.len() + 17;
-    if !cur_batch.is_empty()
-      && (cur_batch.len() >= MAX_MIGRATION_BATCH_COUNT
-        || cur_batch_bytes + item_bytes > MAX_MIGRATION_BATCH_BYTES)
-    {
-      // 发送当前批次并限时停等 ACK（超时/拒绝均判败 → recover）
-      if let Err(err) = send_batch_and_wait(
-        &client,
-        dur,
-        spec.source_node_id,
-        spec.replace_option,
-        &cur_batch,
-      )
-      .await
-      {
-        try_recover_from_failure(
-          &client,
-          &session,
-          &ranges,
-          dur,
-          &err.to_string(),
-          is_timeout_err(&err),
-        )
-        .await;
-        return Err(err);
-      }
-      migrated_count += cur_batch.len();
-      transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
-      cur_batch.clear();
-      cur_batch_bytes = 0;
-    }
-
-    cur_batch_bytes += item_bytes;
-    cur_batch.push((key.clone(), val, ttl_ms));
-  }
-
-  if !cur_batch.is_empty() {
-    if let Err(err) = send_batch_and_wait(
-      &client,
-      dur,
-      spec.source_node_id,
-      spec.replace_option,
-      &cur_batch,
-    )
-    .await
-    {
-      try_recover_from_failure(
-        &client,
-        &session,
-        &ranges,
-        dur,
-        &err.to_string(),
-        is_timeout_err(&err),
-      )
-      .await;
+  let (transferred, migrated_count) = match transmit_keys(&storage, &client, dur, spec, keys).await
+  {
+    Ok(res) => res,
+    Err(err) => {
+      let poisoned = is_timeout_err(&err);
+      try_recover_from_failure(&client, session, &ranges, dur, &err.to_string(), poisoned).await;
       return Err(err);
     }
-    migrated_count += cur_batch.len();
-    transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
-  }
+  };
 
-  // 6. 发送空载荷完成哨兵：应答非 OK 即判败——吞没响应会让远端导入残缺
-  //    而源端照常交权（对标 HandleMigrateTaskResponseAsync 应答校验）
-  if let Err(err) =
-    send_batch_and_wait(&client, dur, spec.source_node_id, spec.replace_option, &[]).await
-  {
-    try_recover_from_failure(
-      &client,
-      &session,
-      &ranges,
-      dur,
-      &err.to_string(),
-      is_timeout_err(&err),
-    )
-    .await;
-    return Err(err);
-  }
+  end_migration_phase(&client, session, &ranges, dur, spec).await?;
 
-  // 7. 远端置槽位 NODE（失败 → recover，对标 BeginAsyncMigrationTaskAsync NODE 分支）
-  if let Err(err) =
-    set_slot_ranges_checked(&client, dur, "NODE", &ranges, Some(spec.target_node_id)).await
-  {
-    try_recover_from_failure(
-      &client,
-      &session,
-      &ranges,
-      dur,
-      &err.to_string(),
-      is_timeout_err(&err),
-    )
-    .await;
-    return Err(err);
-  }
-  // 本端释放归属（失败 → recover，对标 BeginAsyncMigrationTaskAsync
-  // RelinquishOwnership 分支）
-  if !session.relinquish_ownership() {
-    try_recover_from_failure(
-      &client,
-      &session,
-      &ranges,
-      dur,
-      "本端释放槽位所有权失败",
-      false,
-    )
-    .await;
-    return Err(Error::InvalidArgument("本端释放槽位所有权失败".into()));
-  }
-
-  // 8. 若非 copy 选项，仅删除「已确认传输成功」的键——未传输键（对象键/
-  //    中途失败键/竞态改写键）一律保留在源端，杜绝静默丢键
+  // 非 copy：删除「已确认传输成功」的键——未传输键（对象键/中途失败键/
+  // 竞态改写键）一律保留在源端，杜绝静默丢键；DELETING 门控读写全等待
+  // （对标 DeleteKeysAsync 的 DELETING → 删除 → MIGRATED 序列）
   if !spec.copy_option {
+    session.sketch.set_status(SketchStatus::Deleting);
     for key in &transferred {
       let _ = storage.delete_string(key).await;
     }
   }
+  // MIGRATED 释放等待操作后归位（对标 MigrateKeysAsync finally 的
+  // INITIALIZING；两态对 can_access_key 均放行，连续设置无观察窗口）
+  session.sketch.set_status(SketchStatus::Migrated);
+  session.sketch.set_status(SketchStatus::Initializing);
 
+  Ok(migrated_count)
+}
+
+/// 注册 SLOTS 迁移任务（命令臂同步段，对标 MigrateCommand.cs 解析尾的
+/// TryAddMigrationTask）；槽位冲突/超限显式失败
+pub fn try_add_slots_migration_task(
+  cluster_provider: &Arc<ClusterProvider>,
+  spec: MigrateTaskSpec,
+  slots: &HashSet<i32>,
+) -> Result<Arc<MigrateSession>> {
+  let Some(migration_mgr) = cluster_provider.migration_manager() else {
+    return Err(Error::ClusterNotInitialized);
+  };
+  migration_mgr
+    .try_add_migration_task(spec, slots.clone(), Sketch::new())
+    .ok_or_else(|| Error::InvalidArgument("创建迁移任务失败 (槽位冲突或超限)".into()))
+}
+
+/// 执行已注册的 SLOTS/SLOTSRANGE 迁移任务（对标
+/// MigrationDriver.cs:BeginAsyncMigrationTaskAsync；命令臂以 spawn
+/// detached 后台任务调用，finally 移除任务对标 TryStartMigrationTaskAsync
+/// SLOTS 分支）
+///
+/// 前置编排 IMPORTING → MIGRATING → 纪元转换；驱动循环（对标
+/// MigrateSessionSlots.cs:MigrateSlotsDriverInlineAsync / ScanStoreTaskAsync，
+/// C# ParallelMigrateTaskCount 并行扫描投影为串行单任务，并行迁移任务
+/// 明确不做）：逐槽游标推进——批量取键 → sketch 收录并切 TRANSMITTING
+/// 分批停等传输 → 切 DELETING 删除已确认键 → 清 sketch，直到槽内无可迁
+/// 键；收尾编排哨兵 → NODE → relinquish。
+///
+/// 删除游标只推进到「批次 ACK 成功」的键（对标 C# MigrateOperation.
+/// DeleteKeys 只删 sketch 收录键；绝不使用 delete_slot_keys 全槽清除——
+/// 槽内对象信封键未传输，误删即丢数据）。
+pub async fn run_slots_migration_task(
+  store: Arc<WedbStore<SegmentedDevice>>,
+  spec: MigrateTaskSpec,
+  session: Arc<MigrateSession>,
+) -> Result<usize> {
+  let res = execute_slots_migration(&store, &spec, &session).await;
+  if let Some(migration_mgr) = session.cluster_provider.migration_manager() {
+    migration_mgr.try_remove_migration_task_session(Arc::clone(&session));
+  }
+  res
+}
+
+/// SLOTS 驱动执行体（任务注册后调用；失败统一 recover，见各编排函数）
+async fn execute_slots_migration(
+  store: &Arc<WedbStore<SegmentedDevice>>,
+  spec: &MigrateTaskSpec,
+  session: &Arc<MigrateSession>,
+) -> Result<usize> {
+  let client = connect_migrate_client(spec);
+  let ranges = session.get_ranges();
+  let dur = wait_dur(spec.timeout);
+
+  begin_migration_phase(
+    &client,
+    session,
+    &ranges,
+    dur,
+    spec.source_node_id.as_str(),
+    true,
+  )
+  .await?;
+
+  let wkv_session = store.new_session()?;
+  let batch = wkv_session.enter_batch();
+  let storage = StorageSession::new_readonly(batch);
+
+  let mut migrated_count = 0usize;
+  // 槽序稳定推进（HashSet 迭代无序，排序后逐槽处理）
+  let mut sorted_slots: Vec<i32> = session.get_slots().iter().copied().collect();
+  sorted_slots.sort_unstable();
+  for slot in sorted_slots {
+    // 不可迁移键登记（对象信封键 / 并发改写键 / 已死键）：驱动游标每轮
+    // 自槽头重扫，须剔除以收敛；键保留源端（孤儿键投影声明见模块注释）
+    let mut untouchable: HashSet<Vec<u8>> = HashSet::default();
+    loop {
+      // INITIALIZING 扫描收键（对标 ScanStoreTaskAsync 的
+      // SetStatus(INITIALIZING) → Scan）
+      let keys = storage
+        .get_keys_in_slot(slot as u16, MAX_MIGRATION_BATCH_COUNT)
+        .await?;
+      let work: Vec<Vec<u8>> = keys
+        .iter()
+        .filter(|k| !untouchable.contains(*k))
+        .cloned()
+        .collect();
+      if work.is_empty() {
+        break;
+      }
+
+      // TRANSMITTING：分批停等传输（对标 TRANSMITTING → TransmitSlotsAsync）
+      session.sketch.set_status(SketchStatus::Transmitting);
+      for k in &work {
+        session.sketch.hash_and_store(k);
+      }
+      let (transferred, moved) = match transmit_keys(&storage, &client, dur, spec, &work).await {
+        Ok(res) => res,
+        Err(err) => {
+          let poisoned = is_timeout_err(&err);
+          try_recover_from_failure(&client, session, &ranges, dur, &err.to_string(), poisoned)
+            .await;
+          return Err(err);
+        }
+      };
+      migrated_count += moved;
+
+      // DELETING：删除已确认传输键 → 清 sketch 进入下一轮（对标
+      // DELETING → DeleteKeys → sketch.Clear()）
+      session.sketch.set_status(SketchStatus::Deleting);
+      for key in &transferred {
+        let _ = storage.delete_string(key).await;
+      }
+      session.sketch.clear();
+
+      // 活值未命中的键登记不可迁移（显式留痕，键权保留源端）
+      let transferred_set: HashSet<&[u8]> = transferred.iter().map(|k| k.as_slice()).collect();
+      let stuck: Vec<Vec<u8>> = work
+        .iter()
+        .filter(|k| !transferred_set.contains(k.as_slice()))
+        .cloned()
+        .collect();
+      if !stuck.is_empty() {
+        log::error!(
+          "槽 {slot} 有 {} 个键不可迁移（对象记录或已不存在），保留源端: {}",
+          stuck.len(),
+          stuck
+            .iter()
+            .map(|k| String::from_utf8_lossy(k))
+            .collect::<Vec<_>>()
+            .join(", ")
+        );
+        for key in stuck {
+          untouchable.insert(key);
+        }
+      }
+    }
+  }
+
+  end_migration_phase(&client, session, &ranges, dur, spec).await?;
   Ok(migrated_count)
 }
