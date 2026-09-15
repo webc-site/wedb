@@ -20,7 +20,9 @@ pub struct NodeConnection {
   pub client: Arc<GarnetClient>,
   pub last_send: AtomicI64,
   pub last_recv: AtomicI64,
-  pub last_sent_epoch: AtomicI64,
+  /// 上次全量发送时的配置演化版本号（对标 GarnetServerNode.lastConfig
+  /// 引用比较：配置版本变化才发全量）
+  pub last_sent_config_version: AtomicI64,
   pub has_sent_full: AtomicBool,
   pub initialized: AtomicBool,
   pub disposed: AtomicBool,
@@ -52,7 +54,7 @@ impl NodeConnection {
       client,
       last_send: AtomicI64::new(0),
       last_recv: AtomicI64::new(0),
-      last_sent_epoch: AtomicI64::new(-1),
+      last_sent_config_version: AtomicI64::new(-1),
       has_sent_full: AtomicBool::new(false),
       initialized: AtomicBool::new(false),
       disposed: AtomicBool::new(false),

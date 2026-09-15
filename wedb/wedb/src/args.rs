@@ -5,6 +5,10 @@ use wconf::{NodeArgs, ServerArgs};
 
 /// 默认集群节点心跳与故障检测超时毫秒数
 pub const DEFAULT_CLUSTER_NODE_TIMEOUT_MS: u64 = 15000;
+/// 默认集群 gossip 周期秒数（garnet/libs/server/Servers/GarnetServerOptions.cs:246 GossipDelay）
+pub const DEFAULT_GOSSIP_DELAY_SECS: u64 = 5;
+/// 默认 gossip 抽样百分比（garnet/libs/server/Servers/GarnetServerOptions.cs:241 GossipSamplePercent）
+pub const DEFAULT_GOSSIP_SAMPLE_PERCENT: i32 = 100;
 /// 默认集群拓扑配置文件名（node dir 内）
 pub const DEFAULT_CLUSTER_CONFIG_FILE: &str = "nodes.conf";
 
@@ -23,6 +27,14 @@ pub struct ClusterArgs {
   /// 集群节点心跳与故障检测超时毫秒数
   #[arg(long, default_value_t = DEFAULT_CLUSTER_NODE_TIMEOUT_MS)]
   pub cluster_node_timeout_ms: u64,
+
+  /// 集群 gossip 协议每节点发送更新配置的周期秒数
+  #[arg(long, default_value_t = DEFAULT_GOSSIP_DELAY_SECS)]
+  pub gossip_delay_secs: u64,
+
+  /// 每轮 gossip 与多少百分比的集群节点通信（0-100，100 = 全量广播）
+  #[arg(long, default_value_t = DEFAULT_GOSSIP_SAMPLE_PERCENT)]
+  pub gossip_sample_percent: i32,
 }
 
 impl ServerArgs for ClusterArgs {

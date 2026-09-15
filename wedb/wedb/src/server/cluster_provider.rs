@@ -39,6 +39,14 @@ use crate::{
   },
 };
 
+/// gossip 周期默认毫秒数（garnet/libs/server/Servers/GarnetServerOptions.cs:246
+/// GossipDelay = 5，秒）
+pub const DEFAULT_GOSSIP_DELAY_MS: u64 = 5000;
+
+/// gossip 抽样百分比默认值（garnet/libs/server/Servers/GarnetServerOptions.cs:241
+/// GossipSamplePercent = 100）
+pub const DEFAULT_GOSSIP_SAMPLE_PERCENT: i32 = 100;
+
 /// 主端 AOF 推流装配面（CLUSTER INITIATE_REPLICA_SYNC 发起侧依赖束：
 /// 物理日志 + 推流泵 + 主端同步会话；AOF 门控点亮时经
 /// [`ClusterProvider::set_primary_replication`] 一次注入）
@@ -64,6 +72,13 @@ pub struct ClusterProvider {
   /// RuntimeServerConfig ClusterNodeTimeout 的毫秒形态；槽位校验等待与
   /// 挂起重评的超时上限取此值，装配期自 ClusterArgs 注入）
   cluster_node_timeout_ms: AtomicU64,
+  /// gossip 周期毫秒数（C# GarnetServerOptions.GossipDelay 的毫秒形态，
+  /// 默认 5000；gossip 主循环 sleep 与 gossip 发送超时源，装配期自
+  /// ClusterArgs 注入）
+  gossip_delay_ms: AtomicU64,
+  /// gossip 抽样百分比（C# GarnetServerOptions.GossipSamplePercent，
+  /// 默认 100 = 全量广播；装配期自 ClusterArgs 注入）
+  gossip_sample_percent: AtomicI32,
   /// Garnet 当前纪元（对标 C# ClusterProvider.GarnetCurrentEpoch，初始为 1）
   garnet_current_epoch: AtomicI64,
   /// 弱引用自身（用于按需向上派生包含本对象的会话，无锁读取）
@@ -98,6 +113,8 @@ impl Default for ClusterProvider {
       auth_container: RwLock::new((None, None)),
       replication_reestablishment_timeout_secs: AtomicI32::new(0),
       cluster_node_timeout_ms: AtomicU64::new(DEFAULT_CLUSTER_NODE_TIMEOUT_MS),
+      gossip_delay_ms: AtomicU64::new(DEFAULT_GOSSIP_DELAY_MS),
+      gossip_sample_percent: AtomicI32::new(DEFAULT_GOSSIP_SAMPLE_PERCENT),
       garnet_current_epoch: AtomicI64::new(1),
       self_weak: OnceLock::new(),
       store: RwLock::new(None),
@@ -191,6 +208,28 @@ impl ClusterProvider {
   /// 集群节点超时毫秒数（未注入时取默认值）
   pub fn cluster_node_timeout_ms(&self) -> u64 {
     self.cluster_node_timeout_ms.load(Ordering::Acquire)
+  }
+
+  /// 注入 gossip 周期毫秒数（装配期一次调用；对标 GarnetServerOptions.GossipDelay
+  /// 秒转毫秒，默认 5000）
+  pub fn set_gossip_delay_ms(&self, ms: u64) {
+    self.gossip_delay_ms.store(ms, Ordering::Release);
+  }
+
+  /// gossip 周期毫秒数（未注入时取默认值）
+  pub fn gossip_delay_ms(&self) -> u64 {
+    self.gossip_delay_ms.load(Ordering::Acquire)
+  }
+
+  /// 注入 gossip 抽样百分比（装配期一次调用；对标
+  /// GarnetServerOptions.GossipSamplePercent，默认 100）
+  pub fn set_gossip_sample_percent(&self, pct: i32) {
+    self.gossip_sample_percent.store(pct, Ordering::Release);
+  }
+
+  /// gossip 抽样百分比（未注入时取默认值）
+  pub fn gossip_sample_percent(&self) -> i32 {
+    self.gossip_sample_percent.load(Ordering::Acquire)
   }
 
   /// libs/cluster/Server/Replication/ReplicationManager.cs:EnsureReplication

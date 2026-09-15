@@ -29,6 +29,11 @@ pub enum Error {
 
   #[error("服务已停机")]
   Stopped,
+
+  /// 启动参数非法（对标 C# GarnetServer 构造期 ArgumentException，
+  /// 如 ClusterProvider.cs:60 GossipSamplePercent 越界校验）
+  #[error("参数非法: {0}")]
+  InvalidArgument(String),
 }
 
 pub type Result<T> = result::Result<T, Error>;

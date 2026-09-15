@@ -143,6 +143,16 @@ fn main() -> Result<()> {
       // 校验等待（CanOperateOnKey / WaitForSlotToStabalize 挂起重评）的超时
       // 上限源，超时后按 ASK/CLUSTERDOWN 终评，杜绝命令永久挂起
       cluster.set_cluster_node_timeout_ms(args.cluster_node_timeout_ms);
+      // gossip 参数注入（C# GarnetServerOptions.GossipDelay /
+      // GossipSamplePercent → ClusterManager 构造读取；对标
+      // ClusterProvider.cs:60 构造期百分比校验）
+      if !(0..=100).contains(&args.gossip_sample_percent) {
+        return Err(Error::InvalidArgument(
+          "Gossip sample fraction should be in range [0,100]".into(),
+        ));
+      }
+      cluster.set_gossip_delay_ms(args.gossip_delay_secs * 1000);
+      cluster.set_gossip_sample_percent(args.gossip_sample_percent);
       // 复制域启动恢复（对标 C# GarnetServer.Start → Provider.RecoverAsync →
       // rm.RecoverAsync：replication history 恢复 + PRIMARY 侧检查点内存
       // 索引重建；数据面 checkpoint/AOF 恢复已由上方 open_recovered* 承接）
