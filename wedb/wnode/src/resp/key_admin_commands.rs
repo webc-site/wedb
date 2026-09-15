@@ -1,10 +1,10 @@
 use itoa::Buffer;
 use wbase::{
   convert::{
-    TICKS_PER_MILLISECOND, TICKS_PER_SECOND, UNIX_EPOCH_TICKS,
-    milliseconds_from_diff_utc_now_ticks, seconds_from_diff_utc_now_ticks,
-    unix_time_in_milliseconds_from_ticks, unix_time_in_seconds_from_ticks,
-    unix_timestamp_in_milliseconds_to_ticks, unix_timestamp_in_seconds_to_ticks,
+    expire_after_ms_to_ticks, expire_after_to_ticks, expire_at_milliseconds_to_ticks,
+    expire_at_seconds_to_ticks, milliseconds_from_diff_utc_now_ticks,
+    seconds_from_diff_utc_now_ticks, unix_time_in_milliseconds_from_ticks,
+    unix_time_in_seconds_from_ticks,
   },
   crc64::hash as rdb_crc64_hash,
   num::{strict_i32, strict_i64},
@@ -66,19 +66,15 @@ impl ExpireCmd {
   ///
   /// EXPIRE → UtcNow.AddSeconds(...).UtcTicks、PEXPIRE → AddMilliseconds、
   /// EXPIREAT → UnixTimestampInSecondsToTicks、PEXPIREAT →
-  /// UnixTimestampInMillisecondsToTicks；绝对时间戳乘加前夹取可表示上界
-  /// （超界饱和至 i64::MAX ticks，杜绝 debug 构建溢出 panic，C# unchecked
-  /// 环绕对应的确定性降级）
+  /// UnixTimestampInMillisecondsToTicks；乘加/钳制公式统一委托
+  /// [`wbase::convert`] 单点（超界钳到最大可表示 ticks，杜绝 debug 构建
+  /// 溢出 panic，C# unchecked 环绕对应的确定性降级），与 AOF 重放端同函数
   fn expire_at_ticks(self, expiration: i64) -> i64 {
     match self {
-      Self::Expire => now_ticks().saturating_add(expiration.saturating_mul(TICKS_PER_SECOND)),
-      Self::Pexpire => now_ticks().saturating_add(expiration.saturating_mul(TICKS_PER_MILLISECOND)),
-      Self::Expireat => unix_timestamp_in_seconds_to_ticks(
-        expiration.min((i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND),
-      ),
-      Self::Pexpireat => unix_timestamp_in_milliseconds_to_ticks(
-        expiration.min((i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND),
-      ),
+      Self::Expire => expire_after_to_ticks(now_ticks(), expiration),
+      Self::Pexpire => expire_after_ms_to_ticks(now_ticks(), expiration),
+      Self::Expireat => expire_at_seconds_to_ticks(expiration),
+      Self::Pexpireat => expire_at_milliseconds_to_ticks(expiration),
     }
   }
 }
@@ -188,8 +184,9 @@ impl RespServerSession {
       }
     }
     if expiry > 0 {
-      // C#：DateTimeOffset.UtcNow.Ticks + TimeSpan.FromSeconds(expiry).Ticks
-      let expire_at_ticks = now_ticks().saturating_add(expiry.saturating_mul(TICKS_PER_SECOND));
+      // C#：DateTimeOffset.UtcNow.Ticks + TimeSpan.FromSeconds(expiry).Ticks；
+      // 换算单点与 EXPIRE 同源（expire_after_to_ticks）
+      let expire_at_ticks = expire_after_to_ticks(now_ticks(), expiry);
       match put_ttl_sync(store, key, expire_at_ticks) {
         Ok(true) => {}
         Ok(false) => return Ok(false),
