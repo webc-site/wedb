@@ -38,7 +38,8 @@ use enum_dispatch::enum_dispatch;
 use wbase::map::ConcurrentMap;
 
 use crate::{
-  provider::{DynamicQuantization, ToDistanceComputer, WedbProvider, WedbProviderError},
+  error::WedbProviderError,
+  provider::{DynamicQuantization, ToDistanceComputer, WedbProvider},
   store::{Callbacks, Context, LengthPrefixedIter, StoreCallbacks, VectorSetId},
   types::{VectorDistanceMetricType, VectorQuantType},
 };

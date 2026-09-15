@@ -13,6 +13,7 @@ use papaya::Operation;
 use parking_lot::{Mutex, RwLock};
 use wbase::{
   align::DEFAULT_SECTOR_SIZE,
+  group_commit::GroupCommitPipeline,
   map::{ConcurrentMap, new_concurrent_map},
   time::now_ms,
 };
@@ -38,7 +39,6 @@ pub mod gc;
 pub mod keyspace;
 
 pub use event::*;
-pub use flush::FlushPipeline;
 
 /// 集合版本映射并发字典（基于无锁高效 papaya 与硬件向量加速 GxBuildHasher）
 pub type KeyIdVersionsMap = ConcurrentMap<u64, (u64, bool)>;
@@ -87,8 +87,10 @@ pub struct WedbStore<D: Device> {
   pub index: Arc<HashIndex>,
   /// 混合日志分配器（内存可变/只读/磁盘三区滑动）
   pub hlog: Arc<HybridLog<D>>,
-  /// Group Commit 刷盘流水线控制器（对标 Garnet TsavoriteLog.ongoingCommitRequests）
-  pub flush_pipeline: FlushPipeline,
+  /// Group Commit 刷盘流水线（对标 Garnet TsavoriteLog.ongoingCommitRequests）
+  pub flush_pipeline: GroupCommitPipeline,
+  /// 硬件已完成 sync 持久化的最高连续逻辑地址水位
+  pub synced_until: AtomicU64,
   /// 纪元并发保护管理器
   pub epoch: Arc<LightEpoch>,
   /// 底层块存储设备
@@ -218,12 +220,14 @@ impl<D: Device> WedbStore<D> {
       }),
     );
     let gc_cfg = Arc::new(RwLock::new(config.gc.clone()));
-    let flush_pipeline = FlushPipeline::new(hlog.flushed_until_address());
+    let flush_pipeline = GroupCommitPipeline::new();
+    let synced_until = hlog.flushed_until_address();
     Ok(Self {
       config,
       index,
       hlog,
       flush_pipeline,
+      synced_until: AtomicU64::new(synced_until),
       epoch,
       device,
       next_key_id: AtomicU64::new(Self::generate_initial_key_id()),

@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 use gxhash::{GxBuildHasher, HashMap, HashSet};
 use serde::Serialize;
 use sonic_rs::Deserialize;
+use wresources::RESP_COMMANDS_INFO_JSON;
 use wresp::{
   IRespSerializable, RespAclCategories, RespBuffer, RespCommand, RespProtocol, RespWriter,
   catalog::LAST_VALID_COMMAND,
@@ -25,9 +26,6 @@ use super::{
   resp_command_info_simplified_structs::{SimpleRespCommandInfo, populate_simple_command_info},
   resp_commands_info_data::{FIRST_DATA_COMMAND, LAST_DATA_COMMAND, resp_command_from_cs_name},
 };
-
-/// 内嵌命令元数据（C# Garnet.resources:RespCommandsInfo.json）
-const RESP_COMMANDS_INFO_JSON: &str = include_str!("RespCommandsInfo.json");
 
 /// 未知命令名（C# UnknownCommandName）
 const UNKNOWN_COMMAND_NAME: &str = "UNKNOWN";
@@ -204,46 +202,6 @@ pub(crate) fn acl_category_descriptions(cats: RespAclCategories) -> Vec<&'static
     .filter(|(bit, _)| cats.bits() & bit != 0)
     .map(|(_, desc)| *desc)
     .collect()
-}
-
-/// ACL 分类成员名串解析（"Fast, String, Write"；大小写不敏感）
-pub(crate) fn acl_categories_from_member_names(names: &str) -> Option<RespAclCategories> {
-  const ALL: [(&str, u32); 24] = [
-    ("ADMIN", 1),
-    ("BITMAP", 1 << 1),
-    ("BLOCKING", 1 << 2),
-    ("CONNECTION", 1 << 3),
-    ("DANGEROUS", 1 << 4),
-    ("GEO", 1 << 5),
-    ("HASH", 1 << 6),
-    ("HYPERLOGLOG", 1 << 7),
-    ("FAST", 1 << 8),
-    ("KEYSPACE", 1 << 9),
-    ("LIST", 1 << 10),
-    ("PUBSUB", 1 << 11),
-    ("READ", 1 << 12),
-    ("SCRIPTING", 1 << 13),
-    ("SET", 1 << 14),
-    ("SORTEDSET", 1 << 15),
-    ("SLOW", 1 << 16),
-    ("STREAM", 1 << 17),
-    ("STRING", 1 << 18),
-    ("TRANSACTION", 1 << 19),
-    ("WRITE", 1 << 20),
-    ("GARNET", 1 << 21),
-    ("CUSTOM", 1 << 22),
-    ("VECTOR", 1 << 23),
-  ];
-  let mut bits = 0u32;
-  for name in names.split(',') {
-    let trimmed = name.trim().to_ascii_uppercase();
-    let bit = ALL
-      .iter()
-      .find(|(member, _)| *member == trimmed)
-      .map(|(_, bit)| *bit)?;
-    bits |= bit;
-  }
-  Some(RespAclCategories::from_bits_retain(bits))
 }
 
 /// libs/server/Resp/RespCommandsInfo.cs:RespCommandsInfo
@@ -489,7 +447,7 @@ impl RespCommandsInfoImport {
       None => RespCommandFlags::empty(),
     };
     let acl_categories = match &self.acl_categories {
-      Some(a) => acl_categories_from_member_names(a)?,
+      Some(a) => RespAclCategories::from_member_names(a)?,
       None => RespAclCategories::from_bits_retain(0),
     };
     let store_type = match &self.store_type {
@@ -869,10 +827,9 @@ mod tests {
   use wtxn::StoreType;
 
   use super::{
-    RespCommandFlags, acl_categories_from_member_names, get_resp_command_name, individual_acls,
-    try_fast_get_resp_command_info, try_get_commandsfor_acl_category,
-    try_get_resp_command_info_by_cmd, try_get_resp_command_info_by_name,
-    try_get_resp_commands_info_count,
+    RespCommandFlags, get_resp_command_name, individual_acls, try_fast_get_resp_command_info,
+    try_get_commandsfor_acl_category, try_get_resp_command_info_by_cmd,
+    try_get_resp_command_info_by_name, try_get_resp_commands_info_count,
   };
 
   /// 表初始化 + 基本检索（COMMAND 表快照的入口断言）
@@ -996,7 +953,7 @@ mod tests {
 
   #[test]
   fn individual_acls_yields_single_bits() {
-    let cats = acl_categories_from_member_names("Fast, String, Write").unwrap();
+    let cats = RespAclCategories::from_member_names("Fast, String, Write").unwrap();
     let bits = individual_acls(cats);
     assert_eq!(
       bits,

@@ -11,7 +11,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::store::{Callbacks, Context, StoreCallbacks, StoreError, Term};
+use crate::{
+  error::{FsmError, StoreError},
+  store::{Callbacks, Context, StoreCallbacks, Term},
+};
 
 /// 每块承载的 id 数（2^16）。
 const BLOCK_SIZE_IDS: usize = 1 << 16;
@@ -59,14 +62,6 @@ impl FastFreeList {
   fn len(&self) -> usize {
     self.0.lock().len()
   }
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum FsmError {
-  #[error(transparent)]
-  Store(#[from] StoreError),
-  #[error("requested ID is out of range {0}")]
-  IdOutOfRange(u32),
 }
 
 /// `next_id()` 返回的守卫：量化阶段切换期间以读屏障保证 id 占用与

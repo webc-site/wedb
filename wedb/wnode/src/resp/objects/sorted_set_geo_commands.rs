@@ -88,17 +88,10 @@ struct ParsedGeoSearch {
   dest: Option<Vec<u8>>,
 }
 
-// ---- CmdStrings 中 GEO 族错误串（对标 libs/server/Resp/CmdStrings.cs） ----
-
-const RESP_ERR_NOT_VALID_RADIUS: &[u8] = b"ERR need numeric radius";
-const RESP_ERR_RADIUS_IS_NEGATIVE: &[u8] = b"ERR radius cannot be negative";
-const RESP_ERR_NOT_VALID_WIDTH: &[u8] = b"ERR need numeric width";
-const RESP_ERR_NOT_VALID_HEIGHT: &[u8] = b"ERR need numeric height";
-const RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE: &[u8] = b"ERR height or width cannot be negative";
-const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &[u8] =
-  b"ERR unsupported unit provided. please use M, KM, FT, MI";
-const RESP_ERR_COUNT_IS_NOT_POSITIVE: &[u8] = b"ERR COUNT must be > 0";
-const RESP_ERR_INVALID_LON_LAT: &[u8] = b"ERR invalid longitude,latitude pair";
+// GEO 族错误文案已收归 wresp::cmd_strings 单点（C# CmdStrings.cs 对应物），
+// 经 `cs::` 别名引用；此处仅留本命令族特有的经纬度静态文案（C# GenericErrLonLat
+// 的无参形态，含坐标的格式化形态见 session_parse_state_extensions 域）
+const RESP_ERR_INVALID_LON_LAT: &str = "ERR invalid longitude,latitude pair";
 
 /// 解析双精度（TryGetDouble 严格语义；单一实现 [`strict_f64`]，
 /// canBeInfinite: true 对齐 parseState.TryGetDouble 默认值）
@@ -143,7 +136,7 @@ fn try_get_geo_search_options(
         return Err(wrong_args(kind));
       };
       let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
-        return Err(RESP_ERR_INVALID_LON_LAT);
+        return Err(RESP_ERR_INVALID_LON_LAT.as_bytes());
       };
       opts.lon = lon;
       opts.lat = lat;
@@ -155,10 +148,10 @@ fn try_get_geo_search_options(
       return Err(wrong_args(kind));
     };
     let Some(radius) = parse_double(radius_tok) else {
-      return Err(RESP_ERR_NOT_VALID_RADIUS);
+      return Err(cs::RESP_ERR_NOT_VALID_RADIUS.as_bytes());
     };
     if radius < 0.0 {
-      return Err(RESP_ERR_RADIUS_IS_NEGATIVE);
+      return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes());
     }
     opts.radius = radius;
     opts.search_type = GeoSearchType::ByRadius;
@@ -168,7 +161,7 @@ fn try_get_geo_search_options(
       return Err(wrong_args(kind));
     };
     let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-      return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+      return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
     };
     opts.unit = unit;
     idx += 1;
@@ -204,7 +197,7 @@ fn try_get_geo_search_options(
           break;
         };
         let Some((lon, lat)) = try_get_geo_lon_lat(lon_tok, lat_tok) else {
-          return Err(RESP_ERR_INVALID_LON_LAT);
+          return Err(RESP_ERR_INVALID_LON_LAT.as_bytes());
         };
         opts.lon = lon;
         opts.lat = lat;
@@ -224,13 +217,13 @@ fn try_get_geo_search_options(
           break;
         };
         let Some(radius) = parse_double(radius_tok) else {
-          return Err(RESP_ERR_NOT_VALID_RADIUS);
+          return Err(cs::RESP_ERR_NOT_VALID_RADIUS.as_bytes());
         };
         if radius < 0.0 {
-          return Err(RESP_ERR_RADIUS_IS_NEGATIVE);
+          return Err(cs::RESP_ERR_RADIUS_IS_NEGATIVE.as_bytes());
         }
         let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-          return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
         };
         opts.radius = radius;
         opts.search_type = GeoSearchType::ByRadius;
@@ -252,16 +245,16 @@ fn try_get_geo_search_options(
           break;
         };
         let Some(width) = parse_double(width_tok) else {
-          return Err(RESP_ERR_NOT_VALID_WIDTH);
+          return Err(cs::RESP_ERR_NOT_VALID_WIDTH.as_bytes());
         };
         let Some(height) = parse_double(height_tok) else {
-          return Err(RESP_ERR_NOT_VALID_HEIGHT);
+          return Err(cs::RESP_ERR_NOT_VALID_HEIGHT.as_bytes());
         };
         if width < 0.0 || height < 0.0 {
-          return Err(RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE);
+          return Err(cs::RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE.as_bytes());
         }
         let Some(unit) = try_get_geo_distance_unit(unit_tok) else {
-          return Err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
+          return Err(cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT.as_bytes());
         };
         opts.box_width = width;
         // 高度复用 radius 槽位（C# GeoSearchOptions.boxHeight 即 radius）
@@ -291,7 +284,7 @@ fn try_get_geo_search_options(
         return Err(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       };
       if v <= 0 {
-        return Err(RESP_ERR_COUNT_IS_NOT_POSITIVE);
+        return Err(cs::RESP_ERR_COUNT_IS_NOT_POSITIVE.as_bytes());
       }
       opts.count_value = v;
       idx += 1;
@@ -448,7 +441,7 @@ impl RespServerSession {
         return Ok(true);
       }
       if try_get_geo_lon_lat(parse_state[idx], parse_state[idx + 1]).is_none() {
-        cs::write_error_raw(output, from_utf8(RESP_ERR_INVALID_LON_LAT).unwrap_or(""));
+        cs::write_error_raw(output, RESP_ERR_INVALID_LON_LAT);
         return Ok(true);
       }
       idx += 3;
@@ -503,10 +496,7 @@ impl RespServerSession {
       SortedSetOperation::Geodist => {
         // GEODIST key m1 m2 [unit]：单位词元合法性前置校验
         if parse_state.len() == 4 && try_get_geo_distance_unit(parse_state[3]).is_none() {
-          cs::write_error_raw(
-            output,
-            from_utf8(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT).unwrap_or(""),
-          );
+          cs::write_error_raw(output, cs::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT);
           return Ok(true);
         }
         "GEODIST"

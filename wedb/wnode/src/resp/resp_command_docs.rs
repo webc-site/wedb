@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use gxhash::{GxBuildHasher, HashMap, HashSet};
 use sonic_rs::Deserialize;
+use wresources::RESP_COMMANDS_DOCS_JSON;
 use wresp::{
   IRespSerializable, RespBuffer, RespCommand, RespProtocol, RespWriter,
   argument::{
@@ -20,9 +21,6 @@ use super::{
   resp_command_data_provider::IRespCommandData,
   resp_commands_info::{try_get_resp_command_info_by_cmd, try_get_resp_command_names},
 };
-
-/// 内嵌命令文档（C# Garnet.resources:RespCommandsDocs.json）
-const RESP_COMMANDS_DOCS_JSON: &str = include_str!("RespCommandsDocs.json");
 
 /// libs/server/Resp/RespCommandDocs.cs:RespCommandGroup
 ///

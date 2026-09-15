@@ -2,10 +2,10 @@
 //! 派生，对标 C# `Enum.TryParse`/`ToString` 的大小写不敏感双向解析；
 //! resp_commands_info 域导入 / 导出 JSON 时使用）
 //!
-//! 与 wresp::catalog 的 CMD_ENTRIES（RespCommandsInfo.json 的 ACL 消费面，
-//! 355 命令）非同一份元数据：本表覆盖全枚举（含 BITOP_\* / SETEXNX 等
-//! 非真实命令与 NONE / INVALID / RESET 等 16 个目录表缺口），被 JSON
-//! 导入导出 / 分派命名 / 脚本 ACL 路径广泛消费。
+//! 与 wresp::catalog 的目录表（RespCommandsInfo.json 的 ACL 消费面，
+//! 353 命令）同源自 wresources 内嵌 JSON 但非同一份元数据：本表覆盖全枚举
+//! （含 BITOP_\* / SETEXNX 等非真实命令与 NONE / INVALID / RESET 等 16 个
+//! 目录表缺口），被 JSON 导入导出 / 分派命名 / 脚本 ACL 路径广泛消费。
 
 use std::str::FromStr;
 
