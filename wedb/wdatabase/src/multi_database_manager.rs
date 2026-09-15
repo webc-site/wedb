@@ -12,6 +12,7 @@ use std::{
 use async_lock::RwLock;
 use parking_lot::Mutex;
 use wbase::map::{ConcurrentMap, new_concurrent_map};
+use wcpr;
 use wdev::Device;
 use wkv::{CheckpointManager, Error, WedbStore};
 
@@ -239,7 +240,7 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for MultiDatabaseManager<
     for db_id in self.try_get_saved_database_ids()? {
       let (db, _) = self.try_get_or_add_database(db_id).await?;
       if let Some(token) = recover_from_token.or_else(|| {
-        wkv::CheckpointManager::<D>::find_latest_checkpoint(&db.checkpoint_dir)
+        wcpr::find_latest_checkpoint(&db.checkpoint_dir)
           .ok()
           .flatten()
       }) {

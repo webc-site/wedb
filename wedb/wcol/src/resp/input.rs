@@ -162,11 +162,3 @@ impl ObjectInput {
     }
   }
 }
-
-/// 扫描输入上下文
-#[derive(Debug, Clone)]
-pub struct ScanInput {
-  pub cursor: usize,
-  pub pattern: Option<Vec<u8>>,
-  pub count: usize,
-}

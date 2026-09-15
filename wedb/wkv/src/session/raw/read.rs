@@ -1,13 +1,13 @@
 //! 物理键单点读取路径（对标 C# Garnet ClientSession 的 Read 快慢路径）
 
-use wbase::simd::fast_key_eq;
+use wbase::{addr::is_read_cache, simd::fast_key_eq};
 use wdev::Device;
 use windex::{CandidateAddresses, HashBucketEntry};
 use wrecord::record_size;
 use wval::KeyTag;
 
-use super::{MemRead, ReadProbeResult, TraceBackResult};
-use crate::{error::Result, read_cache::is_read_cache_addr, session::StoreSession};
+use super::{MemRead, ReadProbeResult};
+use crate::{error::Result, session::StoreSession};
 
 /// 记录读消费者抽象：命中时向闭包披露值切片与记录物理分配尺寸
 ///
@@ -30,6 +30,35 @@ impl<R, F: FnOnce(&[u8]) -> R> RecordRead<R> for F {
   #[inline(always)]
   fn read_record(self, value: &[u8], _physical_size: usize) -> R {
     self(value)
+  }
+}
+
+/// 单条记录探针分类单点（严格对照 InternalRead.cs:118 IsClosedOrTombstoned：
+/// closed 优先于 tombstone 判定，closed → RETRY_LATER、tombstone → NOTFOUND、
+/// 键匹配 → 消费读闭包、Tag 碰撞 → 携带 prev_address 供回溯/磁盘候选收集）
+///
+/// 主链回溯（try_read_mem）与多候选扫描（try_read_mem_fallback）的
+/// immutable/memory 双分区四调用点共用，杜绝同构闭包体四处复制；
+/// 无错误路径，由调用方闭包以 `Ok(..)` 适配 whlog 访问 API
+#[inline]
+fn probe_hlog_record<R, F: RecordRead<R>>(
+  rec: wrecord::RecordRef<'_>,
+  key: &[u8],
+  f: &mut Option<F>,
+) -> ReadProbeResult<R> {
+  if rec.matches_key(key) {
+    if rec.is_closed() {
+      ReadProbeResult::Retry
+    } else if rec.is_tombstone() {
+      ReadProbeResult::Tombstone
+    } else {
+      // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+      let func = unsafe { f.take().unwrap_unchecked() };
+      ReadProbeResult::Found(func.read_record(rec.value(), rec.physical_size()))
+    }
+  } else {
+    // 发生 15 位 Tag 碰撞，沿反向链表回溯前驱版本（prev_address）
+    ReadProbeResult::Miss(rec.prev_address())
   }
 }
 
@@ -285,7 +314,7 @@ impl<D: Device> StoreSession<D> {
     let safe_ro_addr = self.store.safe_read_only_address();
 
     // 1. ReadCache 内存直读快路径（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:DRAM 纳秒级纯内存直读）
-    while is_read_cache_addr(curr_addr) {
+    while is_read_cache(curr_addr) {
       // 读侧驱逐等待协议（严格对标 ReadCache.cs:ReadCacheNeedToWaitForEviction）：
       // 地址滑出 RC 环形窗口（abs < head）时短自旋等待驱逐方 cleanse 完成并发布
       // ClosedUntilAddress，再按 UpdateRecordSourceToCurrentHashEntry 语义回链头重探
@@ -323,63 +352,33 @@ impl<D: Device> StoreSession<D> {
     }
 
     // 2. 内存常态快路径（99%+ 场景）：处于 HLog 内存驻留区，单次快照三分区判定后直读与回溯
-    if !is_read_cache_addr(curr_addr) && curr_addr >= head_addr {
+    if !is_read_cache(curr_addr) && curr_addr >= head_addr {
       // 严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TraceBackForKeyMatch 实现反向链表回溯：
       // 每跳 IsValidTracebackRecord 口径消费 is_closed（密封在途记录参与键比对，
       // 命中降级 RETRY_LATER）；read_only 之前的记录走纯指针直读（CreateLogRecord +
       // GetPhysicalAddress 口径），真可变区保留页锁探针
       while curr_addr >= head_addr {
-        // 探针闭包以字面量直接内联传入两分支（不用 &mut 提取：间接层会阻断
+        // 探针以单点函数直接内联传入两分支（不用 &mut 提取：间接层会阻断
         // with_*_record 与闭包的一体化内联，热点工况实测退化 ~12%）
         let probed = if curr_addr < ro_addr {
           // SAFETY: 调用方纪元保护 + curr_addr ∈ [head_addr, ro_addr) 均为进入前
           // 快照，双门槛契约见 with_immutable_record 文档；该分区驻留由快照门槛保证，
           // 直接产出探针结果（包装 Some 与页锁分支的 Option 口径对齐）
           Some(unsafe {
-            self.store.hlog.with_immutable_record(curr_addr, |rec| {
-              if rec.matches_key(key) {
-                // C# InternalRead.cs:118 IsClosedOrTombstoned：closed → RETRY_LATER，
-                // tombstone → NOTFOUND（closed 优先于 tombstone 判定）
-                if rec.is_closed() {
-                  Ok(TraceBackResult::Retry)
-                } else if rec.is_tombstone() {
-                  Ok(TraceBackResult::Tombstone)
-                } else {
-                  // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-                  let func = f.take().unwrap_unchecked();
-                  Ok(TraceBackResult::Found(
-                    func.read_record(rec.value(), rec.physical_size()),
-                  ))
-                }
-              } else {
-                // 发生 15 位 Tag 碰撞，沿反向链表回溯前驱版本（prev_address）
-                Ok(TraceBackResult::TraceBack(rec.prev_address()))
-              }
-            })
-          }?)
+            self
+              .store
+              .hlog
+              .with_immutable_record(curr_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
+          })
         } else {
-          self.store.hlog.with_memory_record(curr_addr, |rec| {
-            if rec.matches_key(key) {
-              if rec.is_closed() {
-                Ok(TraceBackResult::Retry)
-              } else if rec.is_tombstone() {
-                Ok(TraceBackResult::Tombstone)
-              } else {
-                // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-                let func = unsafe { f.take().unwrap_unchecked() };
-                Ok(TraceBackResult::Found(
-                  func.read_record(rec.value(), rec.physical_size()),
-                ))
-              }
-            } else {
-              // 发生 15 位 Tag 碰撞，沿反向链表回溯前驱版本（prev_address）
-              Ok(TraceBackResult::TraceBack(rec.prev_address()))
-            }
-          })?
+          self
+            .store
+            .hlog
+            .with_memory_record(curr_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
         };
 
         match probed {
-          Some(TraceBackResult::Found(val)) => {
+          Some(ReadProbeResult::Found(val)) => {
             // 不可变区命中：对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable 预提升挂入 ReadCache，
             // 后续读取直接命中纯 DRAM 缓存，免重复回溯主日志；
             // 提升门槛维持 safe_read_only 快照（严格对标 C# CopyFromImmutable 仅作用于
@@ -389,9 +388,9 @@ impl<D: Device> StoreSession<D> {
             }
             return Ok(MemRead::Done(Some(val)));
           }
-          Some(TraceBackResult::Tombstone) => return Ok(MemRead::Done(None)),
-          Some(TraceBackResult::Retry) => return Ok(MemRead::Retry),
-          Some(TraceBackResult::TraceBack(next_addr)) if next_addr != 0 => {
+          Some(ReadProbeResult::Tombstone) => return Ok(MemRead::Done(None)),
+          Some(ReadProbeResult::Retry) => return Ok(MemRead::Retry),
+          Some(ReadProbeResult::Miss(next_addr)) if next_addr != 0 => {
             curr_addr = next_addr;
             continue;
           }
@@ -404,7 +403,7 @@ impl<D: Device> StoreSession<D> {
     //    严格对标 Tsavorite InternalRead.cs:142-157：
     //    若链条未伸入有效磁盘区（curr_addr < begin_addr），确认该键在整个存储中不存在，
     //    直接返回 MemRead::Done(None)，彻底消除无效的多候选扫描与二次哈希遍历！
-    if curr_addr == 0 || (!is_read_cache_addr(curr_addr) && curr_addr < begin_addr) {
+    if curr_addr == 0 || (!is_read_cache(curr_addr) && curr_addr < begin_addr) {
       return Ok(MemRead::Done(None));
     }
 
@@ -448,7 +447,7 @@ impl<D: Device> StoreSession<D> {
 
     for &addr in addrs.iter() {
       let mut cur_addr = addr;
-      if is_read_cache_addr(cur_addr) {
+      if is_read_cache(cur_addr) {
         // 读侧驱逐等待协议（严格对标 ReadCache.cs:ReadCacheNeedToWaitForEviction，
         // 与主路径 try_read_mem 口径一致）：滑出窗口时自旋等待清洗完成后回链头重探，
         // 杜绝驱逐窗口内候选被静默丢弃
@@ -489,44 +488,16 @@ impl<D: Device> StoreSession<D> {
         let probe = if cur_addr < ro_addr {
           // SAFETY: 调用方纪元保护 + cur_addr ∈ [head_addr, ro_addr)，走无锁纯指针直读
           Some(unsafe {
-            self.store.hlog.with_immutable_record(cur_addr, |rec| {
-              if rec.matches_key(key) {
-                // C# InternalRead.cs:118 IsClosedOrTombstoned：closed → RETRY_LATER，
-                // tombstone → NOTFOUND（closed 优先于 tombstone 判定）
-                if rec.is_closed() {
-                  Ok(ReadProbeResult::Retry)
-                } else if rec.is_tombstone() {
-                  Ok(ReadProbeResult::Tombstone)
-                } else {
-                  // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-                  let func = f.take().unwrap_unchecked();
-                  Ok(ReadProbeResult::Found(
-                    func.read_record(rec.value(), rec.physical_size()),
-                  ))
-                }
-              } else {
-                Ok(ReadProbeResult::Miss(rec.prev_address()))
-              }
-            })?
+            self
+              .store
+              .hlog
+              .with_immutable_record(cur_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
           })
         } else {
-          self.store.hlog.with_memory_record(cur_addr, |rec| {
-            if rec.matches_key(key) {
-              if rec.is_closed() {
-                Ok(ReadProbeResult::Retry)
-              } else if rec.is_tombstone() {
-                Ok(ReadProbeResult::Tombstone)
-              } else {
-                // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-                let func = unsafe { f.take().unwrap_unchecked() };
-                Ok(ReadProbeResult::Found(
-                  func.read_record(rec.value(), rec.physical_size()),
-                ))
-              }
-            } else {
-              Ok(ReadProbeResult::Miss(rec.prev_address()))
-            }
-          })?
+          self
+            .store
+            .hlog
+            .with_memory_record(cur_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
         };
 
         if let Some(probe) = probe {
@@ -755,7 +726,7 @@ impl<D: Device> StoreSession<D> {
     tag: KeyTag,
     f: impl FnOnce(&[u8]) -> R,
   ) -> Result<Option<R>> {
-    if self.has_ttl_tag(user_key)? && self.check_expired(user_key).await? {
+    if !self.probe_alive(user_key).await? {
       return Ok(None);
     }
     let rec_k = self.session_tag_key(tag, user_key);
@@ -773,7 +744,7 @@ impl<D: Device> StoreSession<D> {
     tag: KeyTag,
     f: impl FnOnce(&[u8], usize) -> R,
   ) -> Result<Option<R>> {
-    if self.has_ttl_tag(user_key)? && self.check_expired(user_key).await? {
+    if !self.probe_alive(user_key).await? {
       return Ok(None);
     }
     let rec_k = self.session_tag_key(tag, user_key);

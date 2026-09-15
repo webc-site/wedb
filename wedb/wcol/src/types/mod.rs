@@ -5,12 +5,12 @@ pub mod i_garnet_object;
 
 pub use expiration_queue::{ExpirationQueue, ExpirationQueueEntry};
 pub use garnet_object::GarnetObject;
-pub use garnet_object_base::GarnetObjectBase;
+pub use garnet_object_base::{GarnetObjectBase, ScanInput};
 pub use i_garnet_object::IGarnetObject;
 
 pub use crate::resp::{
   input,
-  input::{ObjectInput, RespInputFlags, RespInputHeader, ScanInput},
+  input::{ObjectInput, RespInputFlags, RespInputHeader},
   output as object_output,
   output::{ObjectOutput, ObjectOutputFlags},
 };

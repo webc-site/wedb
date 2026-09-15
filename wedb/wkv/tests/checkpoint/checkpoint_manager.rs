@@ -6,7 +6,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wcpr::{CheckpointType, Error};
+use wcpr::{self, CheckpointType, Error};
 use wdev::SegmentedDevice;
 use wkv::{CheckpointManager, StoreConfig, WedbStore};
 
@@ -49,18 +49,18 @@ fn test_purge_check() -> Void {
     }
 
     // 1. 验证 list_checkpoints
-    let listed = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
+    let listed = wcpr::list_checkpoints(&ckpt_dir)?;
     assert_eq!(listed, tokens);
 
     // 2. 验证 find_latest_checkpoint
-    let latest = CheckpointManager::<SegmentedDevice>::find_latest_checkpoint(&ckpt_dir)?;
+    let latest = wcpr::find_latest_checkpoint(&ckpt_dir)?;
     assert_eq!(latest, Some(*tokens.last().unwrap()));
 
     // 3. 单个快照清理（对标 Purge(guid)）
     let remove_target = tokens[2];
-    CheckpointManager::<SegmentedDevice>::purge_checkpoint(&ckpt_dir, remove_target)?;
+    wcpr::purge_checkpoint(&ckpt_dir, remove_target)?;
 
-    let listed_after_one = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
+    let listed_after_one = wcpr::list_checkpoints(&ckpt_dir)?;
     assert_eq!(listed_after_one.len(), 5);
     assert!(!listed_after_one.contains(&remove_target));
 
@@ -79,8 +79,8 @@ fn test_purge_check() -> Void {
     );
 
     // 4. 全量快照清理（对标 PurgeAll()）
-    CheckpointManager::<SegmentedDevice>::purge_all(&ckpt_dir)?;
-    let empty_list = CheckpointManager::<SegmentedDevice>::list_checkpoints(&ckpt_dir)?;
+    wcpr::purge_all(&ckpt_dir)?;
+    let empty_list = wcpr::list_checkpoints(&ckpt_dir)?;
     assert!(empty_list.is_empty(), "purge_all 必须彻底清空所有快照");
 
     info!("CheckpointManagerPurgeCheck 复刻测试通过");

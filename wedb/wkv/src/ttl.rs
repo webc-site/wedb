@@ -120,7 +120,13 @@ impl<D: Device> StoreSession<D> {
   /// 读取 TTL 记录的绝对过期 .NET Ticks（None = 无 TTL；记录值非法长度亦按无 TTL 容错）
   pub async fn ttl_of(&self, user_key: &[u8]) -> Result<Option<i64>> {
     let ttl_k = self.ttl_key(user_key);
-    Ok(self.read_raw_with(&ttl_k, ttl_val).await?.flatten())
+    self.ttl_record_of(&ttl_k).await
+  }
+
+  /// 按 TTL 物理键读取绝对过期 .NET Ticks 单点（ttl_of 与紧缩会话
+  /// read_ttl_expiry 共用；TTL 记录不存在 / 墓碑 / 值非法长度一律 None 容错）
+  pub(crate) async fn ttl_record_of(&self, ttl_k: &[u8]) -> Result<Option<i64>> {
+    Ok(self.read_raw_with(ttl_k, ttl_val).await?.flatten())
   }
 
   /// 写入 TTL 记录（定长 8B .NET Ticks：可变区原位改写优先，失败降级 RCU 盲插）
@@ -213,6 +219,20 @@ impl<D: Device> StoreSession<D> {
         _ => TtlProbe::Pass,
       },
     }
+  }
+
+  /// 惰性过期裁决 + TTL 快门控单点（对标 C# SessionFunctionsUtils 过期判定单点形态）
+  ///
+  /// `has_ttl_tag` 单次哈希探针快门控（无 TTL 记录零额外 I/O 直接放行）+ 零成本短路
+  /// 后才进入 `check_expired` 完整裁决（含磁盘路径与 purge_expired 物理清除）。
+  /// 返回 true = 键存活（无 TTL 或未到期）；false = 已过期且已物理清除（读入口视同不存在）。
+  ///
+  /// 读入口统一接线（read_tag_with/read_tag_with_size/contains_key/load_meta/
+  /// load_range_index_stub/rmw）：本键在整条同步调用链内的 TTL 裁决只在此入口
+  /// 做一次，内部裸读（read_raw_with）绝不嵌套二次裁决
+  #[inline]
+  pub(crate) async fn probe_alive(&self, user_key: &[u8]) -> Result<bool> {
+    Ok(!(self.has_ttl_tag(user_key)? && self.check_expired(user_key).await?))
   }
 
   /// 惰性过期检查：key 已过期则物理删除（数据 + TTL 记录）并返回 true
