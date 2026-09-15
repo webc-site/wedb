@@ -96,3 +96,51 @@ C# ClusterProvider.cs:255-259 副本分支尾部 5 字段，rust get_replication
 - 不实现加载 C# 模块、不实现微软认证；死代码直删不占位
 - 删除的 rust 符号若曾对应 C# 函数，在 js/check/ignore 登记；bun ./js/check.js
   基线零输出，收尾须保持无新增缺失/重复
+
+## 验证结果
+
+合并：w4-info-metrics（7 commit，含 merge dev 一次，冲突解于
+wedb_standalone/src/main.rs 双方新增元组项并集）→ dev 主目录合并成功。
+
+验收：
+- ./clippy.sh 零警告（禁 allow），--tests 亦零输出
+- ./test.sh：wedb 域 2032 测试 2031 过；regress 域 2/2 过
+- 唯一失败 ttl_purge_single_deterministic_entry
+  （wedb_standalone/tests/service.rs，DELIFEXPIM arg1 断言 left=0 right=1）
+  经 fork 基点 9372268（无本任务任何改动）复跑同样失败，为既有问题，
+  与本任务改动面（wconf 开关 / wmetric 聚合 / 会话计数与延迟 / INFO /
+  复制段 / KEYSPACE）无交集，按范围外只记录不修改
+- bun ./js/check.js 零输出，无新增缺失/重复（中途出现 NetworkINFO 重复
+  定义一次，降级门改名 try_info_keyspace_slow_path 后消除）
+- 合并后主目录关键测试 8/8 过（三计数 / COMMANDSTATS 段 / KEYSPACE /
+  复制段滞后指标）
+
+落地清单：
+- wconf：NodeArgs 增 latency-monitor / commandstats-monitor（对标
+  Options.cs:344-360）
+- wnode：RespServerSession 挂 CommandStats 表，主循环三出口计数
+  （RespServerSession.cs:683-716）；NET_RS_LAT 延迟链路复活（:481/:591-598，
+  stop_and_switch 启用）；dispose 归并传命令统计（:405）；ConsumerEntry
+  命令统计镜像承接监视器采样（ActiveConsumers 直查等价）；server.rs
+  monitor 三开关构造与启动门对齐（GarnetServerMonitor.cs:64、
+  StoreWrapper.cs:226），装配与采样循环拆分（C# Start 仅频率>0 拉起）
+- wmetric：CommandStats Clone、monitor 聚合读取（command_stats_aggregate /
+  tracks_command_stats / tracks_latency）、InfoProvider::command_stats
+  扩 4 元组输出真 failed_calls
+- wedb：复制段补 5 个副本侧滞后指标（ClusterProvider.cs:255-259），含
+  aof_replay_max_lag_bytes 注入面
+- KEYSPACE：UnifiedStoreGetKeyspaceStats 转写（活键口径对齐 DBSIZE，
+  带 TTL 经 has_ttl_tag，对应 C# HasExpiration）；纯显式 INFO KEYSPACE
+  请求经 dispatch_slow Ok(false) 协议降级慢路径，切活跃库前缀逐库扫描
+  后恢复，段文本经 wmetric 段填充器一处定义
+- 两 main：采样频率（已有）+ 两开关 builder + 会话选项装配
+
+范围外记录（不修改）：
+- ttl_purge_single_deterministic_entry 既有失败（见上）
+- gossip_stats / buffer_pool_stats / checkpoint_info 段：wedb 侧
+  IClusterProvider 数据已备，会话 INFO 到 wedb 的通道须经 ClusterSession
+  切面，该文件并发代理占用中，留待后续接线
+- databases() / hlog_scan_dump 存储域快照通道（STORE / MEMORY / HLOGSCAN
+  段真数据）另任务域
+- CONFIG SET 对 commandstats / latency 开关的热更联动不在本任务
+  （ds.data 条 2 另有待办）
