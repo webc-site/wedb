@@ -36,7 +36,7 @@ use wmetric::{
 use wpubsub::{PubSubSession, PubSubSessionCommands, SubscribeBroker};
 use wresp::{
   MAX_ERROR_MSG_LEN, ReplyError, RespCommand, RespSliceExt, RespVecExt, SessionParseState,
-  cmd_strings as cs, cmd_strings::write_map_len_resp2, is_cluster_sub_command, is_data_command,
+  cmd_strings as cs, cmd_strings::write_map_len, is_cluster_sub_command, is_data_command,
   is_no_auth, is_read_only, key_spec::KeySpecificationFlags, normalize_for_acls, one_if_read,
   one_if_write, sanitize_error_str,
 };
@@ -2134,7 +2134,8 @@ impl RespServerSession {
       self.set_client_name(Some(name));
     }
 
-    // 应答 map（RESP2 退化为双倍数组）；字段序对齐 C#：server/version/
+    // 应答 map 按升级后的协议版本写头（C# BasicCommands.cs:1829 WriteMapLength：
+    // RESP3 %8、RESP2 双倍数组）；字段序对齐 C#：server/version/
     // garnet_version/proto/id/mode/role + modules 空数组；proto/id 直读会话状态；
     // mode/role 集群形态（C# EnableCluster && IsReplica 分支）
     let (mode, role) = match &self.cluster_session {
@@ -2148,7 +2149,7 @@ impl RespServerSession {
         },
       ),
     };
-    write_map_len_resp2(output, 8);
+    write_map_len(output, 8, self.resp_protocol_version);
     output.write_resp_bulk_string(b"server");
     output.write_resp_bulk_string(b"redis");
     output.write_resp_bulk_string(b"version");
@@ -2753,6 +2754,8 @@ mod tests {
     let mut out = Vec::new();
     assert!(s.process_hello_command_state(Some(3), b"", b"", None, &mut out));
     let text = String::from_utf8(out).unwrap();
+    // 升级到 RESP3 后 map 头写 %8（C# BasicCommands.cs:1829 WriteMapLength）
+    assert!(text.starts_with("%8\r\n"), "RESP3 map 头 expected: {text}");
     assert!(
       text.contains("$5\r\nproto\r\n:3\r\n"),
       "resp=3 expected: {text}"
@@ -2769,6 +2772,16 @@ mod tests {
       info,
       "id=7 addr=127.0.0.1:6380 laddr= age=0 flags=N db=0 resp=3 lib-name=redis-py lib-ver=5.0.1"
     );
+  }
+
+  #[test]
+  fn hello_resp2_keeps_doubled_array_header() {
+    // RESP2 会话 map 头退化为双倍长度数组（C# WriteMapLength else 分支）
+    let mut s = session(9);
+    let mut out = Vec::new();
+    assert!(s.process_hello_command_state(None, b"", b"", None, &mut out));
+    let text = String::from_utf8(out).unwrap();
+    assert!(text.starts_with("*16\r\n"), "RESP2 数组头 expected: {text}");
   }
 
   #[test]

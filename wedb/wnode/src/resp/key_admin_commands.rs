@@ -467,6 +467,9 @@ impl RespServerSession {
   }
 
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkEXPIRETIME
+  ///
+  /// 参数个数错误恒报 EXPIRETIME（C# `nameof(RespCommand.EXPIRETIME)` quirk，
+  /// PEXPIRETIME 同文案）
   pub fn network_expiretime<'a, D: wdev::Device>(
     &mut self,
     command: ExpireTimeCmd,
@@ -474,12 +477,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let cmd_name = if command == ExpireTimeCmd::Pexpiretime {
-      "PEXPIRETIME"
-    } else {
-      "EXPIRETIME"
-    };
-    unpack_args!(parse_state, output, cmd_name, [key]);
+    unpack_args!(parse_state, output, "EXPIRETIME", [key]);
 
     match expiretime_read_sync(store, key) {
       Ok(Some(read)) => {
