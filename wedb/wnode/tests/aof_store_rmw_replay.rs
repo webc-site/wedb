@@ -90,8 +90,10 @@ fn store_rmw_replay_unknown_cmd_fails_recover() {
 
     let replay_session = store.new_session().unwrap();
     let batch = replay_session.enter_batch();
-    let storage =
-      StorageSession::new(batch, Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE)));
+    let storage = StorageSession::new(
+      batch,
+      Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE)),
+    );
     let processor = AofProcessor::new(Arc::clone(&aof));
     let target = ReplayTarget::new(&storage, &store);
     let result = AofRecover::single_log_recover(&processor, &aof, 0, 0, -1, &target).await;
@@ -122,8 +124,10 @@ fn store_rmw_replay_unknown_cmd_in_txn_group_propagates() {
 
     let replay_session = store.new_session().unwrap();
     let batch = replay_session.enter_batch();
-    let storage =
-      StorageSession::new(batch, Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE)));
+    let storage = StorageSession::new(
+      batch,
+      Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE)),
+    );
     let processor = AofProcessor::new(Arc::clone(&aof));
     let target = ReplayTarget::new(&storage, &store);
     let result = AofRecover::single_log_recover(&processor, &aof, 0, 0, -1, &target).await;

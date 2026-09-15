@@ -320,7 +320,7 @@ fn garnet_log_reset_async_zeroes_wal_and_reusable() -> Void {
 /// safe_initialize 恢复（:528/:596）、reset 归 1（:244-246）
 #[test]
 fn waof_sublog_memory_watermark_and_committed_begin() -> Void {
-  use wnode::aof::{Sublog, SublogBackend, waof_sublog::WaofSublog};
+  use wnode::aof::{Sublog, waof_sublog::WaofSublog};
 
   let rt = Runtime::new()?;
   rt.block_on(async {

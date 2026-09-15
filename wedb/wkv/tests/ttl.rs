@@ -395,7 +395,14 @@ fn test_put_ttl_coarse_ticks_rounding() -> Void {
     // 全精度比较口径：expire_at 对既有粗化值做 GT 判定，等值（严格大于口径）拒绝
     assert_eq!(
       session
-        .expire_at(b"ck", stored, TtlOpt { gt: true, ..TtlOpt::NONE })
+        .expire_at(
+          b"ck",
+          stored,
+          TtlOpt {
+            gt: true,
+            ..TtlOpt::NONE
+          }
+        )
         .await?,
       0,
       "等值重设按 GT 严格大于口径拒绝"

@@ -274,7 +274,10 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
   /// 当前占用：环形窗口有效字节数 = tail - begin（C# TsavoriteLog.MemorySizeBytes
   /// "Actual memory used by log" 的 waof 承载形态；截断后随 begin 前移收缩）。
   fn memory_size_bytes(&self) -> i64 {
-    (self.wal.tail_address().saturating_sub(self.wal.begin_address())) as i64
+    (self
+      .wal
+      .tail_address()
+      .saturating_sub(self.wal.begin_address())) as i64
   }
 
   fn committed_begin_address(&self) -> i64 {
