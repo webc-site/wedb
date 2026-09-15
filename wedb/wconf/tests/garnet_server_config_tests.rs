@@ -59,7 +59,10 @@ fn default_configuration_options_coverage() {
   // 保护模式默认开，bind 未显式 → 端点回环回退
   assert_eq!(args.bind, None);
   assert!(args.protected_mode);
-  assert_eq!(args.endpoints(), vec![format!("{DEFAULT_BIND}:{DEFAULT_PORT}")]);
+  assert_eq!(
+    args.endpoints(),
+    vec![format!("{DEFAULT_BIND}:{DEFAULT_PORT}")]
+  );
   assert_eq!(args.slow_log_max_entries, 128);
   assert_eq!(args.max_databases, 16);
   assert_eq!(args.object_scan_count_limit, 1000);

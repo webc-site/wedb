@@ -5,7 +5,7 @@
 //! 公共流程（单机/集群功能一致，存储 + 经纪 + 向量三件套同源），
 //! 单机差异仅为 RespSessionConsumer::new 构造（无集群切面）。
 
-use std::sync::Arc;
+use std::{env::args_os, sync::Arc};
 
 use clap::{ArgMatches, Parser};
 use wconf::{ConfigFileArgs, NodeArgs, NodeOptionsError, ServerArgs};
@@ -46,8 +46,8 @@ impl ConfigFileArgs for StandaloneArgs {
 fn main() -> wnode::Result<()> {
   // 三层配置合并解析：默认值 → --config nested_text 文件 → 命令行显式项
   // （对标 ServerSettingsManager.cs:TryParseCommandLineArguments）
-  let args = StandaloneArgs::from_args_iter(std::env::args_os())
-    .map_err(|e| Error::InvalidArgument(e.to_string()))?;
+  let args =
+    StandaloneArgs::from_args_iter(args_os()).map_err(|e| Error::InvalidArgument(e.to_string()))?;
 
   // C# GarnetServer 构造器日志装配段：控制台（DisableConsoleLogger 未设）
   // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）
@@ -132,7 +132,7 @@ fn main() -> wnode::Result<()> {
 
 #[cfg(test)]
 mod tests {
-  use std::{fs, path::Path};
+  use std::{env::temp_dir, fs, path::Path};
 
   use wconf::ConfigFileArgs;
 
@@ -154,7 +154,7 @@ mod tests {
   #[test]
   fn test_standalone_config_file_cli_override_projection() {
     // 端到端：nested_text 文件加载 → CLI 覆盖 → 运行时选项投影生效
-    let file = std::env::temp_dir().join("wedb-standalone-e2e.nt");
+    let file = temp_dir().join("wedb-standalone-e2e.nt");
     fs::write(
       &file,
       "port: 7020\nslow_log_threshold: 2500\nslow_log_max_entries: 64\nmax_databases: 8\nobject_scan_count_limit: 777\n",

@@ -4,6 +4,7 @@
 //! 配置文件格式钦定 nested_text（C# GarnetConf/RedisConf 双格式不转写）。
 
 use std::{
+  env::args_os,
   ffi::OsString,
   fs,
   io::Error,
@@ -319,14 +320,11 @@ impl NodeArgs {
   /// 生成网络端点定义列表（bind 未显式指定时按 protected-mode 回退，
   /// 对标 Format.cs:TryParseAddressList 的保护模式绑定域）
   pub fn endpoints(&self) -> Vec<String> {
-    let bind = self
-      .bind
-      .as_deref()
-      .unwrap_or(if self.protected_mode {
-        DEFAULT_BIND
-      } else {
-        DEFAULT_BIND_ANY
-      });
+    let bind = self.bind.as_deref().unwrap_or(if self.protected_mode {
+      DEFAULT_BIND
+    } else {
+      DEFAULT_BIND_ANY
+    });
     let mut eps = vec![format!("{bind}:{}", self.port)];
     if let Some(ref u) = self.unixsocket {
       eps.push(format!("unix:{u}"));
@@ -378,11 +376,32 @@ impl NodeArgs {
       };
     }
     over![
-      bind, port, unixsocket, dir, wal_dir, requirepass, tls_cert, tls_key, threads,
-      compaction_freq_secs, aof, disable_pubsub, pubsub_page_size, recover, aof_commit_ms,
-      file_logger, log_level, slow_log_threshold, slow_log_max_entries, max_databases,
-      protected_mode, object_scan_count_limit, metrics_sampling_frequency_secs,
-      enable_lua, lua_script_timeout_ms, lua_transaction_mode,
+      bind,
+      port,
+      unixsocket,
+      dir,
+      wal_dir,
+      requirepass,
+      tls_cert,
+      tls_key,
+      threads,
+      compaction_freq_secs,
+      aof,
+      disable_pubsub,
+      pubsub_page_size,
+      recover,
+      aof_commit_ms,
+      file_logger,
+      log_level,
+      slow_log_threshold,
+      slow_log_max_entries,
+      max_databases,
+      protected_mode,
+      object_scan_count_limit,
+      metrics_sampling_frequency_secs,
+      enable_lua,
+      lua_script_timeout_ms,
+      lua_transaction_mode,
     ];
   }
 
@@ -415,7 +434,7 @@ pub trait ConfigFileArgs: clap::CommandFactory + clap::FromArgMatches + Sized {
 
   /// 从进程命令行参数解析（C# Options 命令行解析入口的对标形态）
   fn from_args() -> Result<Self, NodeOptionsError> {
-    Self::from_args_iter(std::env::args_os())
+    Self::from_args_iter(args_os())
   }
 }
 
@@ -491,11 +510,13 @@ impl<T: ServerArgs> ServerArgs for Arc<T> {
 
 #[cfg(test)]
 mod tests {
+  use std::env::temp_dir;
+
   use super::*;
 
   /// 写临时 nested_text 配置文件（进程内唯一名，测试结束自清理）
   fn temp_config(name: &str, content: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("wedb-node-options-{name}.nt"));
+    let path = temp_dir().join(format!("wedb-node-options-{name}.nt"));
     fs::write(&path, content).unwrap();
     path
   }
@@ -594,7 +615,8 @@ dir: /tmp/wedb_data
     assert_eq!(args.endpoints(), vec!["0.0.0.0:6379"]);
 
     let args =
-      NodeArgs::try_parse_from(["wedb", "--protected-mode", "false", "--bind", "10.0.0.8"]).unwrap();
+      NodeArgs::try_parse_from(["wedb", "--protected-mode", "false", "--bind", "10.0.0.8"])
+        .unwrap();
     assert_eq!(args.endpoints(), vec!["10.0.0.8:6379"]);
 
     let args = NodeArgs::try_parse_from(["wedb"]).unwrap();
@@ -644,7 +666,7 @@ dir: /tmp/wedb_data
   fn test_config_export_round_trip() {
     // 导出合并后配置 → 重新加载一致
     let file = temp_config("export-src", "port: 7002\nslow_log_max_entries: 64\n");
-    let export = std::env::temp_dir().join("wedb-node-options-export-out.nt");
+    let export = temp_dir().join("wedb-node-options-export-out.nt");
     let args = NodeArgs::from_args_iter([
       "wedb",
       "--config",

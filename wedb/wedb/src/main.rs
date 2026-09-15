@@ -6,7 +6,7 @@
 //! ClusterSession 切面，maxDatabases = 2），槽位验证、MOVED/ASK 重定向、
 //! CLUSTER 命令族、ROLE/HELLO 集群分支均由会话主循环经切面驱动。
 
-use std::sync::Arc;
+use std::{env::args_os, sync::Arc};
 
 use wconf::{ConfigFileArgs, ServerArgs};
 use wedb::{
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
   // 三层配置合并解析：默认值 → --config nested_text 文件 → 命令行显式项
   // （对标 ServerSettingsManager.cs:TryParseCommandLineArguments）
   let args =
-    ClusterArgs::from_args_iter(std::env::args_os()).map_err(|e| Error::InvalidArgument(e.to_string()))?;
+    ClusterArgs::from_args_iter(args_os()).map_err(|e| Error::InvalidArgument(e.to_string()))?;
 
   // C# GarnetServer 构造器日志装配段：控制台（DisableConsoleLogger 未设）
   // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）

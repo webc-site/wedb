@@ -6,8 +6,8 @@
 //! （对标 C# StoreWrapper.cs:243 slowLogContainer 构造）。
 
 use tempfile::tempdir;
-use wedb_test::test_store_config;
 use wconf::{NodeArgs, ServerConfigType};
+use wedb_test::test_store_config;
 use wmetric::{SlowLogContainer, SlowLogEntry};
 use wnode::{resp::resp_session_consumer::RespSessionConsumer, service::StorageSessionProvider};
 use wresp::RespCommand;
@@ -29,11 +29,13 @@ fn runtime_options_seeded_into_provider() {
   let dir = tempdir().unwrap();
   let data_path = dir.path().join("data").join("config-entry.db");
 
-  let mut node_args = NodeArgs::default();
-  node_args.slow_log_threshold = 1500;
-  node_args.slow_log_max_entries = 7;
-  node_args.object_scan_count_limit = 333;
-  node_args.max_databases = 4;
+  let node_args = NodeArgs {
+    slow_log_threshold: 1500,
+    slow_log_max_entries: 7,
+    object_scan_count_limit: 333,
+    max_databases: 4,
+    ..Default::default()
+  };
 
   let provider = StorageSessionProvider::open_with_config(
     test_store_config(),
@@ -63,7 +65,9 @@ fn runtime_options_seeded_into_provider() {
     333
   );
   assert_eq!(
-    provider.runtime_config.resp_format(ServerConfigType::Databases),
+    provider
+      .runtime_config
+      .resp_format(ServerConfigType::Databases),
     "4"
   );
 

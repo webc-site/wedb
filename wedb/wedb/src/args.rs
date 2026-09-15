@@ -72,7 +72,7 @@ impl ClusterArgs {
 
 #[cfg(test)]
 mod tests {
-  use std::fs;
+  use std::{env::temp_dir, fs};
 
   use clap::Parser;
   use log::LevelFilter;
@@ -136,7 +136,7 @@ mod tests {
   fn test_cluster_args_config_file_and_cli_extras() {
     // 文件为基（node 域）+ CLI 显式覆盖；集群扩展参数仅命令行面
     // （serde 忽略文件中的未知键，嵌套文本只承载 NodeArgs 字段）
-    let file = std::env::temp_dir().join("wedb-cluster-args-config.nt");
+    let file = temp_dir().join("wedb-cluster-args-config.nt");
     fs::write(
       &file,
       "port: 7010\nslow_log_threshold: 3000\nunknown_key: 1\n",

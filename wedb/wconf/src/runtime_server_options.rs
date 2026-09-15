@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use itoa::Buffer;
 
-use crate::log_compaction_type::LogCompactionType;
+use crate::{log_compaction_type::LogCompactionType, node_options::DEFAULT_SLOW_LOG_MAX_ENTRIES};
 
 /// `RuntimeServerConfig` 消费的启动选项子集。
 ///
@@ -101,7 +101,7 @@ impl Default for RuntimeServerOptions {
       compaction_force_delete: false,
       compaction_type: LogCompactionType::None,
       slow_log_threshold: 0,
-      slow_log_max_entries: crate::node_options::DEFAULT_SLOW_LOG_MAX_ENTRIES,
+      slow_log_max_entries: DEFAULT_SLOW_LOG_MAX_ENTRIES,
       object_scan_count_limit: 1000,
       enable_scatter_gather_get: true,
       aof_size_limit_enforce_frequency_secs: 5,
