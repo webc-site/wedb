@@ -76,8 +76,8 @@ impl SingleLog {
 
   /// libs/server/AOF/SingleLog.cs:Reset
   #[inline]
-  pub fn reset(&self) {
-    self.log.reset();
+  pub async fn reset_async(&self) {
+    self.log.reset_async().await;
   }
 
   /// libs/server/AOF/SingleLog.cs:Initialize（C# SingleLog 未暴露 Initialize/SafeInitialize，

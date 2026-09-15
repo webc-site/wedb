@@ -1,6 +1,7 @@
 use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
+use std::{sync::Arc, thread::spawn};
 
 use super::support::{WalFixture, make_pattern_payload, make_payload};
 
@@ -183,6 +184,64 @@ fn test_reset_and_reuse() -> Void {
     }
 
     info!("SingleLog.Reset 重置与复用测试通过");
+    aok::Result::<()>::Ok(())
+  })?;
+
+  OK
+}
+
+/// 对标 C# TsavoriteLog.Reset 持锁原子复位语义（注释 WARNING: Run after database
+/// is quiesced 的防御性实现）：后台线程并发 commit_to 与主循环 reset 竞争提交锁，
+/// 验证串行化无死锁，静默后位点原子归零且日志可复用。
+#[test]
+fn test_reset_concurrent_with_commit_lock_serialization() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let fixture = WalFixture::single_file("reset_concurrent.log", 64 * 1024)?;
+    let wal = fixture.wal;
+
+    // 预写一批并提交，形成非零基线位点
+    for i in 0..32 {
+      wal.enqueue(&make_payload(64, i as u8))?;
+    }
+    wal.commit().await?;
+    let target = wal.tail_address();
+    assert!(target > 0);
+
+    // 后台线程独立 runtime 持续 commit_to(旧尾)，与主循环 reset 竞争提交锁
+    let wal_bg = Arc::clone(&wal);
+    let handle = spawn(move || {
+      let bg_rt = Runtime::new().expect("后台 runtime 创建成功");
+      bg_rt.block_on(async {
+        for _ in 0..200 {
+          let _ = wal_bg.commit_to(target).await;
+        }
+      });
+    });
+
+    // 主循环反复 reset：持提交锁与 Leader 级联串行化（无死锁、无位点撕裂 panic）
+    for _ in 0..200 {
+      wal.reset().await?;
+    }
+    handle.join().expect("后台提交线程正常结束");
+
+    // 静默后终局 reset：四原子一致归零（原子复位，无竞争残留）
+    wal.reset().await?;
+    let begin = wal.begin_address();
+    assert_eq!(begin, wal.tail_address(), "reset 后尾位点须归零");
+    assert_eq!(begin, wal.flushed_until_address(), "reset 后刷盘位点须归零");
+    assert_eq!(begin, wal.committed_until_address(), "reset 后提交位点须归零");
+
+    // 复用：重置后写入提交扫描闭环
+    for i in 0..8 {
+      wal.enqueue(&make_payload(64, (i + 200) as u8))?;
+    }
+    let new_tail = wal.commit().await?;
+    assert_eq!(wal.tail_address(), new_tail);
+    let mut iter = wal.scan(wal.begin_address(), new_tail);
+    assert_eq!(iter.collect_all().await?.len(), 8);
+
+    info!("Reset 并发 commit 竞争串行化与复位一致性测试通过");
     aok::Result::<()>::Ok(())
   })?;
 

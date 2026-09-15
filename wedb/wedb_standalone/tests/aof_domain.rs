@@ -271,3 +271,44 @@ fn set_ex_ttl_replays_to_replica() -> Void {
     OK
   })
 }
+
+/// 缺口 5：GarnetLog 重置路由——single_log_aof 装配链路
+/// GarnetLog.reset_async → SingleLog.reset_async → WaofSublog.reset_async
+/// → WalLog::reset（持提交锁原子复位 + sync_data），位点归零后日志可复用
+/// （对标 C# GarnetLog.Reset → SingleLog.Reset → TsavoriteLog.Reset 路由）
+#[test]
+fn garnet_log_reset_async_zeroes_wal_and_reusable() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let (_dir, store, wal) = open_node("garnet_reset", SMALL_RING)?;
+    let service = NodeService::with_wal(Arc::clone(&store), Arc::clone(&wal))?;
+
+    // 写入并提交，形成非零位点
+    let value = vec![b'v'; 256];
+    for i in 0..16u32 {
+      service
+        .session()
+        .upsert(format!("rk:{i}").as_bytes(), &value)
+        .await?;
+    }
+    wal.commit().await?;
+    assert!(wal.tail_address() > 0, "重置前尾位点须非零");
+
+    // GarnetLog 路由重置：WaofSublog 转发 WalLog::reset（持锁原子复位）
+    service.aof().log().reset_async().await;
+    let begin = wal.begin_address();
+    assert_eq!(begin, wal.tail_address(), "重置后尾位点须归零");
+    assert_eq!(begin, wal.flushed_until_address(), "重置后刷盘位点须归零");
+    assert_eq!(begin, wal.committed_until_address(), "重置后提交位点须归零");
+    assert_eq!(wal.total_size(), 0);
+
+    // 复用：重置后新写入可提交并扫描
+    service.session().upsert(b"rk:after", b"fresh").await?;
+    wal.commit().await?;
+    let entries = scan_all(&service).await;
+    assert_eq!(entries.len(), 1, "重置后仅新写入可扫描");
+    assert_eq!(entries[0].op, AofEntryType::StoreUpsert);
+
+    OK
+  })
+}
