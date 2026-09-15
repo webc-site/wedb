@@ -50,15 +50,21 @@ fn session_without_requirepass_allows_all() -> aok::Result<()> {
     // 未认证 PING 直接放行
     let req = b"*1\r\n$4\r\nPING\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+PONG\r\n");
 
     // SET 命令直接放行
     resp.clear();
     let req = b"*3\r\n$3\r\nSET\r\n$1\r\na\r\n$1\r\nb\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+OK\r\n");
 
     aok::OK
@@ -92,8 +98,11 @@ fn session_with_empty_requirepass_allows_all() -> aok::Result<()> {
 
     let req = b"*1\r\n$4\r\nPING\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+PONG\r\n");
 
     aok::OK
@@ -131,29 +140,41 @@ fn session_with_requirepass_lifecycle() -> aok::Result<()> {
 
     // 1. 未认证时执行 PING 拦截为 -NOAUTH
     let req = b"*1\r\n$4\r\nPING\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"-NOAUTH Authentication required.\r\n");
 
     // 2. 未认证时执行 SET 同样拦截为 -NOAUTH
     resp.clear();
     let req = b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"-NOAUTH Authentication required.\r\n");
 
     // 3. AUTH 错误密码被拒绝（单参数形式）
     resp.clear();
     let req = b"*2\r\n$4\r\nAUTH\r\n$9\r\nwrongpass\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"-WRONGPASS Invalid password\r\n");
 
     // 4. AUTH 错误用户名或密码被拒绝（双参数形式）
     resp.clear();
     let req = b"*3\r\n$4\r\nAUTH\r\n$7\r\ndefault\r\n$9\r\nwrongpass\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(
       resp,
       b"-WRONGPASS Invalid username/password combination\r\n"
@@ -162,35 +183,50 @@ fn session_with_requirepass_lifecycle() -> aok::Result<()> {
     // 5. 再次执行 PING 仍然被 -NOAUTH 拦截
     resp.clear();
     let req = b"*1\r\n$4\r\nPING\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"-NOAUTH Authentication required.\r\n");
 
     // 6. AUTH 正确密码成功通过（双参数 AUTH default <pass>）
     resp.clear();
     let req = b"*3\r\n$4\r\nAUTH\r\n$7\r\ndefault\r\n$18\r\nmy_secret_password\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+OK\r\n");
 
     // 7. 认证成功后执行 PING 正常返回 +PONG
     resp.clear();
     let req = b"*1\r\n$4\r\nPING\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+PONG\r\n");
 
     // 8. 认证成功后执行 SET/GET 读写正常放行
     resp.clear();
     let req = b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+OK\r\n");
 
     resp.clear();
     let req = b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"$3\r\nbar\r\n");
 
     aok::OK
@@ -227,22 +263,31 @@ fn consumer_attach_acl_delegation() -> aok::Result<()> {
 
     // 未认证 PING
     let req = b"*1\r\n$4\r\nPING\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"-NOAUTH Authentication required.\r\n");
 
     // AUTH 成功
     resp.clear();
     let req = b"*2\r\n$4\r\nAUTH\r\n$11\r\nmanual_pass\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+OK\r\n");
 
     // 认证后 PING 放行
     resp.clear();
     let req = b"*1\r\n$4\r\nPING\r\n";
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+PONG\r\n");
 
     aok::OK

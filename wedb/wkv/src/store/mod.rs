@@ -142,6 +142,14 @@ pub struct WedbStore<D: Device> {
 }
 
 impl<D: Device> WedbStore<D> {
+  /// RangeIndex 管理器显式访问器（上层编排经此消费引擎 RI 域，杜绝跨层
+  /// 字段直取；对标 C# storeWrapper.RangeIndexManager 可达面；返回共享句柄
+  /// 引用，克隆方按需 Arc::clone）
+  #[inline]
+  pub fn range_index(&self) -> &Arc<wbftree::RangeIndexManager> {
+    &self.range_index
+  }
+
   /// 生成初始集合唯一 ID（高 48 位毫秒时间戳 + 低 16 位随机数）
   #[inline]
   fn generate_initial_key_id() -> u64 {

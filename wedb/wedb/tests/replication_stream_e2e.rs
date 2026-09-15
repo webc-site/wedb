@@ -35,7 +35,7 @@ fn setup_replica_provider(
   primary_id: &str,
 ) -> (Arc<ClusterProvider>, Arc<ReplicationManager>) {
   let provider = Arc::new(ClusterProvider::default());
-  provider.initialize_replication_manager();
+  provider.initialize_replication_manager(1, None, false);
   let rm = provider.replication_manager().expect("rm ready");
 
   let cm = Arc::new(ClusterManager::new(provider.clone()));
@@ -75,7 +75,7 @@ fn test_replication_full_chain_stream() {
     let primary_id = "primary-node-1";
     let replica_id = "replica-node-1";
 
-    let primary_mgr = ReplicationManager::with_options(1, None);
+    let primary_mgr = ReplicationManager::with_options(1, None, false);
     let (replica_provider, replica_mgr) = setup_replica_provider(replica_id, primary_id);
 
     // 1. 初始化 Replica 接收端会话
@@ -84,8 +84,10 @@ fn test_replication_full_chain_stream() {
 
     // 2. 发送握手帧 (-1/-1/-1)，对标 C# ExecuteClusterAppendLogInit
     let init_frame = encode_append_log_init_frame(primary_id, 0, -1, -1, -1);
-    let (consumed, resp) = replica_session.try_consume_messages(&init_frame);
-    assert_eq!(consumed, init_frame.len());
+    let mut resp = Vec::new();
+    replica_session.recv_buffer.extend_from_slice(&init_frame);
+    let remaining = replica_session.try_consume_messages_into(&mut resp);
+    assert_eq!(remaining, Some(0));
     assert_eq!(resp, b"+OK\r\n", "握手应答必须为 +OK");
     assert!(
       replica_mgr.has_active_replication_stream(),

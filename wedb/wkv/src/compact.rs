@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use wbase::addr::is_read_cache;
 use wbftree::{RANGE_INDEX_STUB_SIZE, RangeIndexStub};
 use wcompact::{
   self, CompactMetaInfo, CompactSession, CompactStore, CompactionStats, CompactionType,
@@ -16,10 +17,8 @@ use wval::{
 
 use crate::{
   error::{Error, Result},
-  read_cache::is_read_cache_addr,
   session::StoreSession,
   store::WedbStore,
-  ttl::TTL_VALUE_LEN,
 };
 
 /// 宿主引擎错误 → 紧缩域错误的类型化重映射（穷尽匹配，无字符串化降级）
@@ -100,33 +99,14 @@ impl<D: Device> CompactSession<D> for StoreSession<D> {
       .map_err(WcompactError::from)
   }
 
+  /// TTL 记录读取转发 wkv 过期判定单点（[`StoreSession::ttl_record_of`]，与
+  /// ttl_of 同一 read_raw_with 内核 + TtlCodec 解码，杜绝第二套 8B 大端手写解码）
   #[inline]
   async fn read_ttl_expiry(&self, ttl_key: &[u8]) -> wcompact::Result<Option<i64>> {
-    let mem_exp = {
-      let _guard = self.participant.enter();
-      let Some(first_addr) = self.store.index.find_tag(ttl_key) else {
-        return Ok(None);
-      };
-      self
-        .try_read_raw_in_memory_with_addr(ttl_key, Some(first_addr), |v| {
-          <[u8; TTL_VALUE_LEN]>::try_from(v)
-            .ok()
-            .map(i64::from_be_bytes)
-        })
-        .map_err(WcompactError::from)?
-    };
-    match mem_exp {
-      Some(Some(Some(exp))) => Ok(Some(exp)),
-      Some(None) | Some(Some(None)) => Ok(None),
-      None => {
-        if let Some(raw_ttl) = self.read_raw(ttl_key).await.map_err(WcompactError::from)?
-          && let Ok(be) = <[u8; TTL_VALUE_LEN]>::try_from(raw_ttl.as_slice())
-        {
-          return Ok(Some(i64::from_be_bytes(be)));
-        }
-        Ok(None)
-      }
-    }
+    self
+      .ttl_record_of(ttl_key)
+      .await
+      .map_err(WcompactError::from)
   }
 }
 
@@ -169,7 +149,7 @@ impl<D: Device> CompactStore for WedbStore<D> {
 
   #[inline]
   fn is_read_cache_addr(&self, addr: u64) -> bool {
-    is_read_cache_addr(addr)
+    is_read_cache(addr)
   }
 
   #[inline]

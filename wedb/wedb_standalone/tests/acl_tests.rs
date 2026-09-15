@@ -46,6 +46,12 @@ fn ctx_for<'a>(
 }
 
 /// test/standalone/Garnet.test.acl/Resp/ACL/BasicTests.cs:BasicWhoamiTest
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn basic_whoami_test() {
   let acl = Arc::new(AccessControlList::new("", None).unwrap());
@@ -398,22 +404,14 @@ fn session_level_acl_gating_end_to_end() {
   assert!(session.user_handle.is_none(), "构造期口令不符未认证");
 
   // 1. 未认证 PING → NOAUTH
-  assert!(
-    session
-      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
   assert_eq!(
     session.take_output(),
     b"-NOAUTH Authentication required.\r\n"
   );
 
   // 2. AUTH badpass → WRONGPASS
-  assert!(
-    session
-      .try_consume_messages(b"*2\r\n$4\r\nAUTH\r\n$7\r\nbadpass\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*2\r\n$4\r\nAUTH\r\n$7\r\nbadpass\r\n").is_some());
   assert_eq!(
     session.take_output(),
     format!("-{}\r\n", cmd_strings::RESP_WRONGPASS_INVALID_PASSWORD).as_bytes()
@@ -421,37 +419,27 @@ fn session_level_acl_gating_end_to_end() {
   assert!(session.user_handle.is_none(), "认证失败不记录句柄");
 
   // 3. AUTH pw → +OK，句柄落位 default 用户
-  assert!(
-    session
-      .try_consume_messages(b"*2\r\n$4\r\nAUTH\r\n$2\r\npw\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*2\r\n$4\r\nAUTH\r\n$2\r\npw\r\n").is_some());
   assert_eq!(session.take_output(), b"+OK\r\n");
   assert_eq!(session.user_handle.as_deref(), Some("default"));
 
   // 4. 认证后 PING → +PONG（+@all 放行）
-  assert!(
-    session
-      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
   assert_eq!(session.take_output(), b"+PONG\r\n");
 
   // 5. ACL SETUSER default -ping → +OK；会话持同一 UserHandle，
   //    SETUSER 经 TrySetUser CAS 换新即时生效
   assert!(
-    session
-      .try_consume_messages(b"*4\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$7\r\ndefault\r\n$5\r\n-ping\r\n")
-      .is_some()
+    feed(
+      &mut session,
+      b"*4\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$7\r\ndefault\r\n$5\r\n-ping\r\n"
+    )
+    .is_some()
   );
   assert_eq!(session.take_output(), b"+OK\r\n");
 
   // 6. 同会话 PING → NOPERM
-  assert!(
-    session
-      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
   assert_eq!(
     session.take_output(),
     b"-NOPERM this user has no permissions to run the command\r\n"
@@ -465,17 +453,9 @@ fn no_auth_session_allows_all_commands() {
   let mut session = RespServerSession::new(2, RespServerSessionOptions::default());
   // NoAuth 档构造即落到默认用户（C# GetDefaultUserHandle 兜底语义）
   assert_eq!(session.user_handle.as_deref(), Some("default"));
-  assert!(
-    session
-      .try_consume_messages(b"*1\r\n$4\r\nPING\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
   assert_eq!(session.take_output(), b"+PONG\r\n");
-  assert!(
-    session
-      .try_consume_messages(b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n")
-      .is_some()
-  );
+  assert!(feed(&mut session, b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n").is_some());
   // 存储执行域未挂载时明确报错，证明命令已通过 ACL 门进入分派
   assert_eq!(
     session.take_output(),

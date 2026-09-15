@@ -60,16 +60,16 @@ fn consumer() -> RespSessionConsumer {
 
 /// 单命令往返（同步快路径）
 fn roundtrip(c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// 慢命令往返：同步段消费（挂起不产输出）→ 网络泵 await 慢路径 →
 /// 应答按流水线顺序写回（此处 block_on 承担网络泵角色）
 fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, mut out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   let Some(slow) = c.take_slow_wait() else {
     return out;
   };
@@ -93,6 +93,17 @@ fn set_keys(c: &mut RespSessionConsumer, keys: &[&str]) {
 }
 
 /// FLUSHDB / FLUSHALL：清库闭环 + 语法校验
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn flushdb_and_flushall_clear_database() {
   let rt = Runtime::new().unwrap();
@@ -493,7 +504,7 @@ fn swapdb_survives_save_and_recover() {
 
   // 重启恢复：快照中交换后视图 1:1 重现
   rt.block_on(async {
-    let token = CheckpointManager::<SegmentedDevice>::find_latest_checkpoint(&cp_dir)
+    let token = wcpr::find_latest_checkpoint(&cp_dir)
       .unwrap()
       .expect("SAVE 后必须存在快照");
     let device = Arc::new(SegmentedDevice::single_file(&db_file).unwrap());

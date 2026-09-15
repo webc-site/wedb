@@ -15,25 +15,17 @@ use std::{
 
 use fastrand::Rng;
 use gxhash::{GxBuildHasher, HashMap, HashSet};
-use wbase::{
-  glob::glob_match,
-  num::{strict_i32, strict_i64},
-  time::now_ticks,
-};
+use wbase::{glob::glob_match, time::now_ticks};
 use wresp::{
   ExpireOption,
-  cmd_strings::{
-    RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
-    RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
-  },
-  equals_ignore_case,
+  cmd_strings::RESP_ERR_GENERIC_UNSUPPORTED_OPERATION as RESP_ERR_UNSUPPORTED_OPERATION,
 };
 use wval::GarnetObjectType;
 
 use crate::types::{
   ObjectInput,
   expiration_queue::{ExpirationQueue, ExpirationQueueEntry},
+  garnet_object_base::read_scan_input,
   object_output::{ObjectOutput, ObjectOutputFlags},
 };
 
@@ -758,64 +750,21 @@ pub(crate) fn scan_operate_shared(
   output: &mut ObjectOutput,
   do_scan: impl FnOnce(i64, i64, &[u8], bool) -> (Vec<Vec<u8>>, i64),
 ) {
-  // 单轮最多返回的条目数由调用方经 arg2 下发
-  let limit_count_in_output = input.arg2 as i64;
-
-  // 默认 COUNT
-  let mut pattern: &[u8] = &[];
-  let mut count = 10_i64;
-  let mut is_no_value = false;
-
-  let cursor = if input.parse_state.count > 0 {
-    match strict_i64(arg(input, 0)) {
-      Some(c) if c >= 0 => c,
-      _ => {
-        output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
-        return;
-      }
+  // 参数解析走 GarnetObjectBase::ReadScanInput 单点（错误直接写 RESP 错误）
+  let params = match read_scan_input(input, input.arg2) {
+    Ok(params) => params,
+    Err(msg) => {
+      output.write_error(msg);
+      return;
     }
-  } else {
-    output.write_error(RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes());
-    return;
   };
 
-  let mut curr_token_idx = 1;
-  while curr_token_idx < input.parse_state.count {
-    let param = arg(input, curr_token_idx);
-    curr_token_idx += 1;
-
-    if equals_ignore_case(param, b"MATCH") {
-      if curr_token_idx >= input.parse_state.count {
-        output.write_error(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-        return;
-      }
-      pattern = arg(input, curr_token_idx);
-      curr_token_idx += 1;
-    } else if equals_ignore_case(param, b"COUNT") {
-      if curr_token_idx >= input.parse_state.count {
-        output.write_error(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-        return;
-      }
-      match strict_i32(arg(input, curr_token_idx)) {
-        Some(c) => {
-          curr_token_idx += 1;
-          count = c as i64;
-          // 无条件钳制到输出上限（对标 C# countInInput > limitCountInOutput）
-          if count > limit_count_in_output {
-            count = limit_count_in_output;
-          }
-        }
-        None => {
-          output.write_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
-          return;
-        }
-      }
-    } else if equals_ignore_case(param, b"NOVALUES") {
-      is_no_value = true;
-    }
-  }
-
-  let (items, cursor_output) = do_scan(cursor, count, pattern, is_no_value);
+  let (items, cursor_output) = do_scan(
+    params.cursor,
+    params.count,
+    params.pattern,
+    params.is_no_value,
+  );
   let items_len = items.len();
 
   output.write_array_length(2);
@@ -831,11 +780,4 @@ pub(crate) fn scan_operate_shared(
   }
 
   output.result1 = items_len as i64;
-}
-
-/// 取第 i 个参数字节
-///
-#[inline]
-fn arg(input: &ObjectInput, i: usize) -> &[u8] {
-  input.arg(i)
 }

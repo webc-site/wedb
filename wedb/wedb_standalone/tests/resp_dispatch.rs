@@ -30,12 +30,23 @@ fn consumer() -> RespSessionConsumer {
 
 /// 单命令往返
 fn roundtrip(consumer: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = consumer.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(consumer, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// GET/SET/DEL/EXPIRE/TTL 核心数据命令闭环
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn core_data_commands_execute_in_store_domain() {
   let mut c = consumer();
@@ -140,8 +151,8 @@ fn pipeline_frames_all_executed() {
     *3\r\n$3\r\nSET\r\n$2\r\np2\r\n$2\r\nv2\r\n\
     *2\r\n$3\r\nGET\r\n$2\r\np1\r\n\
     *2\r\n$3\r\nGET\r\n$2\r\np2\r\n";
-  let (consumed, out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len());
+  let (consumed, out) = pump(&mut c, frame);
+  assert_eq!(consumed, Some(0));
   assert_eq!(out, b"+OK\r\n+OK\r\n$2\r\nv1\r\n$2\r\nv2\r\n");
 }
 

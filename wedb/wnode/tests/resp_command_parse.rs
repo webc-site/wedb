@@ -34,6 +34,12 @@ fn parse_one(
 }
 
 /// 热命令 16 字节模式表 + 内联 + 小写慢路径
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn fast_paths_parse_hot_commands() {
   let mut s = RespServerSession::default();
@@ -278,7 +284,7 @@ fn malformed_array_header_raises_violation() {
   // 消费方视角：try_consume_messages 以 None 表达致命错误，协议错误
   // 已落输出（C# catch 块 ERR Protocol Error 文案对标）
   let mut s2 = RespServerSession::default();
-  assert_eq!(s2.try_consume_messages(b"*A\r\nGET\r\n"), None);
+  assert_eq!(feed(&mut s2, b"*A\r\nGET\r\n"), None);
   assert!(s2.parse_violation.is_none(), "哨兵应被消费并复位");
   assert_eq!(
     s2.take_output(),
@@ -337,25 +343,29 @@ fn malformed_array_header_raises_violation() {
 /// 应答之后 → Send 整体发出 → DisposeNetworkSender 断连）
 #[test]
 fn protocol_violation_writes_error_after_prior_replies() {
-  let mut s = RespServerSession::default();
+  // None = 断连哨兵（泵发尽应答后关闭连接），违规字节驻留缓冲不会
+  // 被同会话续消费——每个违规形态独立会话验证
 
   // 合法 PING + 违规数组头同批：应答顺序 = +PONG → 协议错误
-  assert_eq!(s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n*A\r\n"), None);
+  let mut s = RespServerSession::default();
+  assert_eq!(feed(&mut s, b"*1\r\n$4\r\nPING\r\n*A\r\n"), None);
   assert_eq!(
     s.take_output(),
     b"+PONG\r\n-ERR Protocol Error: Unexpected character 'A'.\r\n"
   );
-  // 哨兵已消费复位（下批消费不受残留影响）
+  // 哨兵已消费复位
   assert!(s.parse_violation.is_none());
 
   // 违规形态多样性：负长度 / 终止符不符
-  assert_eq!(s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n*-2\r\n"), None);
+  let mut s = RespServerSession::default();
+  assert_eq!(feed(&mut s, b"*1\r\n$4\r\nPING\r\n*-2\r\n"), None);
   assert_eq!(
     s.take_output(),
     b"+PONG\r\n-ERR Protocol Error: Invalid string length '-2'.\r\n"
   );
 
-  assert_eq!(s.try_consume_messages(b"PING\r\n*1X\r\n"), None);
+  let mut s = RespServerSession::default();
+  assert_eq!(feed(&mut s, b"PING\r\n*1X\r\n"), None);
   assert_eq!(
     s.take_output(),
     b"+PONG\r\n-ERR Protocol Error: Unexpected character 'X'.\r\n"
@@ -431,11 +441,7 @@ fn aof_commit_mode_gate_controls_flag_maintenance() {
 #[test]
 fn inline_malformed_skips_line() {
   let mut s = RespServerSession::default();
-  s.recv_buffer
-    .extend_from_slice(b"garbage\r\n*1\r\n$4\r\nPING\r\n");
-  s.bytes_read = s.recv_buffer.len();
-  s.read_head = 0;
-  let consumed = s.try_consume_messages(b"garbage\r\n*1\r\n$4\r\nPING\r\n");
+  let consumed = feed(&mut s, b"garbage\r\n*1\r\n$4\r\nPING\r\n");
   // 畸形行被跳过后仍解析到 PING
   assert!(consumed.is_some());
 }

@@ -49,6 +49,12 @@ async fn run_iterations(monitor: &GarnetServerMonitor, registry: &ConsumerRegist
 
 /// 采样循环驱动：迭代时钟推进、连接计数与瞬时吞吐滚动
 ///（C# MainMonitorTaskAsync + UpdateInstantaneousMetrics）
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn monitor_sampling_loop_rolls_metrics() -> aok::Result<()> {
   let rt = Runtime::new()?;
@@ -102,7 +108,7 @@ fn session_dispose_merges_into_monitor_history() -> aok::Result<()> {
     );
     // PING 一条命令：会话指标累计网络入出与命令数（出字节随 take_output
     // 计入，对齐网络泵取走应答的真实时序）
-    assert!(session.try_consume_messages(b"PING\r\n").is_some());
+    assert!(feed(&mut session, b"PING\r\n").is_some());
     let _ = session.take_output();
     assert!(
       session

@@ -127,11 +127,11 @@ impl<D: Device, A: DatabaseAof<D>> SingleDatabaseManager<D, A> {
     vec![Arc::clone(&self.db)]
   }
 
-  /// 单库清空
+  /// 单库清空（截断族）
   ///
   /// libs/server/Databases/SingleDatabaseManager.cs:FlushDatabase
   pub async fn flush_database(&self) -> wkv::Result<()> {
-    self.base.reset_database(&self.db).await
+    self.base.flush_database(&self.db).await
   }
 
   /// 全部清空（单库即 db0）
@@ -139,6 +139,13 @@ impl<D: Device, A: DatabaseAof<D>> SingleDatabaseManager<D, A> {
   /// libs/server/Databases/SingleDatabaseManager.cs:FlushAllDatabases
   pub async fn flush_all_databases(&self) -> wkv::Result<()> {
     self.flush_database().await
+  }
+
+  /// 单库重置（拆除重建族：数据清空 + AOF 位点归零 + 保存点复位）
+  ///
+  /// libs/server/Databases/SingleDatabaseManager.cs:Reset
+  pub async fn reset(&self) -> wkv::Result<()> {
+    self.base.reset_database(&self.db).await
   }
 
   /// 单库不支持交换（恒 false）
@@ -279,6 +286,11 @@ impl<D: Device, A: DatabaseAof<D>> IDatabaseManager<D> for SingleDatabaseManager
   /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
   async fn flush_database(&self, _db_id: i64) -> wkv::Result<()> {
     SingleDatabaseManager::flush_database(self).await
+  }
+
+  /// 满足 IDatabaseManager trait 接口规范，单库实现始终操作默认 db，保留 _db_id
+  async fn reset(&self, _db_id: i64) -> wkv::Result<()> {
+    SingleDatabaseManager::reset(self).await
   }
 
   async fn flush_all_databases(&self) -> wkv::Result<()> {

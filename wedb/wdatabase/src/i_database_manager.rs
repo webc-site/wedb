@@ -140,6 +140,11 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// libs/server/Databases/IDatabaseManager.cs:FlushDatabase
   fn flush_database(&self, db_id: i64) -> impl Future<Output = wkv::Result<()>>;
 
+  /// 重置指定库（数据清空 + AOF 位点归零 + 保存点复位）
+  ///
+  /// libs/server/Databases/IDatabaseManager.cs:Reset
+  fn reset(&self, db_id: i64) -> impl Future<Output = wkv::Result<()>>;
+
   /// 清空全部库数据
   ///
   /// libs/server/Databases/IDatabaseManager.cs:FlushAllDatabases

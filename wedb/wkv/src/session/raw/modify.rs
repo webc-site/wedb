@@ -1,8 +1,9 @@
 //! 原位读-改-写路径（对标 C# Tsavorite InternalRMW & InPlaceUpdaterWorker）
 
+use wbase::addr::is_read_cache;
 use wdev::Device;
 
-use crate::{error::Result, read_cache::is_read_cache_addr, session::StoreSession};
+use crate::{error::Result, session::StoreSession};
 
 impl<D: Device> StoreSession<D> {
   /// 尝试在内存可变区原位读-改-写记录（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs:InternalRMW.cs & InPlaceUpdaterWorker）
@@ -35,7 +36,7 @@ impl<D: Device> StoreSession<D> {
   ) -> Result<Option<R>> {
     if let Some(addr) = self.store.index.find_tag(key) {
       let read_only_addr = self.store.hlog.read_only_address();
-      let mut cur = if is_read_cache_addr(addr) {
+      let mut cur = if is_read_cache(addr) {
         self.store.read_cache.skip_read_cache(addr)
       } else {
         addr
@@ -108,7 +109,7 @@ impl<D: Device> StoreSession<D> {
   pub fn try_modify_raw_with_slack_unprotected(&self, key: &[u8], new_val: &[u8]) -> Result<bool> {
     if let Some(addr) = self.store.index.find_tag(key) {
       let read_only_addr = self.store.hlog.read_only_address();
-      let mut cur = if is_read_cache_addr(addr) {
+      let mut cur = if is_read_cache(addr) {
         self.store.read_cache.skip_read_cache(addr)
       } else {
         addr
@@ -196,9 +197,9 @@ impl<D: Device> StoreSession<D> {
   where
     F: FnOnce(Option<&[u8]>) -> Option<(R, Vec<u8>)>,
   {
-    if self.has_ttl_tag(user_key)? && self.check_expired(user_key).await? {
-      // 已惰性清除，旧值按 None 处理
-    }
+    // 惰性过期裁决（probe_alive 单点）：已过期键物理清除后，旧值经墓碑路径按
+    // None 处理（闭包 updater(None)）
+    self.probe_alive(user_key).await?;
     let str_k = self.session_string_key(user_key);
     self.rmw_raw(&str_k, updater).await
   }

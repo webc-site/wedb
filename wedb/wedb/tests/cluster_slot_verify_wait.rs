@@ -190,6 +190,17 @@ fn assert_ask(verdict: GateVerdict) {
 }
 
 /// 用例 1：MIGRATING + 键存在 → OK；键不存在 → ASK；对象信封域同语义
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn migrating_key_exists_serves_and_missing_redirects_ask() {
   Runtime::new().unwrap().block_on(async {
@@ -462,8 +473,12 @@ fn resp_session_defers_set_until_migration_advances() {
 
     // TRANSMITTING 拦写：命令不执行、无应答、游标回退零消费
     let frame = b"*3\r\n$3\r\nSET\r\n$18\r\nverify_wait_resp_1\r\n$2\r\nv1\r\n";
-    let (consumed, out) = consumer.try_consume_messages(frame);
-    assert_eq!(consumed, 0, "挂起时游标应回退（零消费）");
+    let (consumed, out) = pump(&mut consumer, frame);
+    assert_eq!(
+      consumed,
+      Some(frame.len()),
+      "挂起时游标应回退（字节驻留缓冲零消费）"
+    );
     assert!(out.is_empty(), "挂起时不应有应答");
 
     // 取走等待体并驱动：后台推进迁移状态（TRANSMITTING → MIGRATED）
@@ -476,9 +491,11 @@ fn resp_session_defers_set_until_migration_advances() {
     let _ = adv.await;
     assert!(reply.is_empty(), "等待体不产出应答字节");
 
-    // 游标已回退：重新消费同一帧，门评放行 → 命令执行 +OK
-    let (consumed, out) = consumer.try_consume_messages(frame);
-    assert_eq!(consumed, frame.len(), "重评后应完整消费");
+    // 游标已回退：驻留字节原位续解析（泵下一轮直读同一缓冲），门评放行
+    // → 命令执行 +OK（持久游标模型：重放不重喂字节）
+    let mut out = Vec::new();
+    let consumed = consumer.try_consume_messages_into(&mut out);
+    assert_eq!(consumed, Some(0), "重评后应完整消费");
     assert_eq!(out, b"+OK\r\n", "out={:?}", String::from_utf8_lossy(&out));
 
     // 写落在执行域源端（键可访问且存在 → OK，未丢写）

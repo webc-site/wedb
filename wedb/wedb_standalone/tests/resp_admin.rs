@@ -5,6 +5,17 @@ use wnode::resp::{config_commands::ServerConfig, resp_server_session::RespServer
 use wresp::{ArgSlice, RespCommand};
 
 /// test/standalone/Garnet.test/RespAdminCommandsTests.cs:PingTest
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn ping_test() {
   let mut s = RespServerSession::default();
@@ -143,8 +154,12 @@ mod admin_collect {
   }
 
   fn feed(consumer: &mut RespSessionConsumer, args: &[&str]) -> Vec<u8> {
-    let (consumed, resp) = consumer.try_consume_messages(&resp_frame_str(args));
-    assert!(consumed > 0);
+    // 泵等价序：直填会话接收缓冲 → 唯一入口消费
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(&resp_frame_str(args));
+    consumer.return_recv_scratch(scratch);
+    let mut resp = Vec::new();
+    assert!(consumer.try_consume_messages_into(&mut resp).is_some());
     resp
   }
 
@@ -271,15 +286,15 @@ fn checkpoint_consumer_with(
 
 /// 单命令往返（同步快路径）
 fn roundtrip(c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// 慢命令往返（网络泵角色由 block_on 承担）
 fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, mut out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   let Some(slow) = c.take_slow_wait() else {
     return out;
   };

@@ -49,7 +49,7 @@ fn resp(parts: &[&[u8]]) -> Vec<u8> {
 /// 消费一条命令并取回响应
 fn cmd(s: &mut RespServerSession, parts: Vec<Vec<u8>>) -> Vec<u8> {
   let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
-  s.try_consume_messages(&resp(&refs)).expect("协议违规");
+  feed(s, &resp(&refs)).expect("协议违规");
   s.take_output()
 }
 
@@ -79,6 +79,12 @@ fn evalsha_parts(digest: &str, keys: &[&[u8]], argv: &[&[u8]]) -> Vec<Vec<u8>> {
 
 /// test/standalone/Garnet.test.scripting/LuaScriptTests.cs:CanDoEvalSetGet
 /// redis.call 直连存储端到端：SET → GET → INCR。
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn test_eval_redis_call_roundtrip() {
   let (_dir, store) = open_test_store("lua-eval.db").expect("open test store");

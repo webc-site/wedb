@@ -19,8 +19,6 @@ pub use itembroker::{
   ItemBrokerFinisher, ObserverStatus, SharedItemBroker, TaskSpawner, TryGetOutcome,
 };
 pub use list::list_object::{ListObject, ListOperation, OperationDirection};
-pub use resp::{
-  ObjectInput, ObjectOutput, ObjectOutputFlags, RespInputFlags, RespInputHeader, ScanInput,
-};
+pub use resp::{ObjectInput, ObjectOutput, ObjectOutputFlags, RespInputFlags, RespInputHeader};
 pub use set::set_object::{SetObject, SetOperation};
 pub use zset::sorted_set_object::{SortedSetObject, SortedSetOperation};

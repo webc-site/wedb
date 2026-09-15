@@ -1,3 +1,10 @@
+//! Microsoft Garnet 官方架构对标的独立只读非脏页内存日志（ReadCache）
+//!
+//! 生产开关：`StoreConfig::enable_read_cache`（默认关闭；启用通道见其文档，
+//! 生产命令行不暴露——引擎回写窗撕裂观察项未闭环 + C# 默认 false）。
+//! 地址位原语（READ_CACHE_BIT 判定/清除/打标）单点在 [`wbase::addr`]，
+//! 本模块直连消费，不再设包装层。
+
 use std::{
   hint::spin_loop,
   slice::from_raw_parts_mut,
@@ -11,7 +18,7 @@ use std::{
 use itoa::Buffer;
 use parking_lot::Mutex;
 use wbase::{
-  addr::{self},
+  addr::{is_read_cache, to_absolute, with_read_cache},
   align::CachePadded,
 };
 use whlog::{CircularPageBuffer, HybridLogConfig};
@@ -19,24 +26,6 @@ use windex::HashIndex;
 use wrecord::{HEADER_SIZE, RecordHeader, encode_to_slice, record_size};
 
 use crate::error::{Error, Result};
-
-/// 判断给定逻辑地址是否属于 ReadCache 独立只读内存日志
-#[inline(always)]
-pub const fn is_read_cache_addr(addr: u64) -> bool {
-  addr::is_read_cache(addr)
-}
-
-/// 还原去除了 ReadCache 标记位的绝对逻辑地址
-#[inline(always)]
-pub const fn absolute_address(addr: u64) -> u64 {
-  addr::to_absolute(addr)
-}
-
-/// 为本地逻辑地址打上 ReadCache 标志位
-#[inline(always)]
-pub const fn tag_read_cache_addr(addr: u64) -> u64 {
-  addr::with_read_cache(addr)
-}
 
 /// Microsoft Garnet 官方架构对标的独立只读非脏页内存日志（ReadCache）
 ///
@@ -197,7 +186,7 @@ impl ReadCache {
           let min_head = new_tail.saturating_sub(self.capacity);
           self.head_address.fetch_max(min_head, Release);
 
-          return Some(tag_read_cache_addr(curr_tail));
+          return Some(with_read_cache(curr_tail));
         }
 
         // CAS 冲突自旋提示，降低 CPU 流水线惩罚与总线锁颠簸
@@ -273,7 +262,7 @@ impl ReadCache {
       let key_start = HEADER_SIZE;
       let key_end = key_start + header.key_len() as usize;
       let key = &slice[key_start..key_end];
-      let rc_addr = tag_read_cache_addr(page_start_addr + offset as u64);
+      let rc_addr = with_read_cache(page_start_addr + offset as u64);
       let prev_addr = header.address();
 
       if prev_addr == 0 {
@@ -292,11 +281,11 @@ impl ReadCache {
     tagged_addr: u64,
     f: impl FnOnce(&[u8], &[u8], u64) -> R,
   ) -> Option<R> {
-    if !self.is_enabled || !is_read_cache_addr(tagged_addr) {
+    if !self.is_enabled || !is_read_cache(tagged_addr) {
       return None;
     }
 
-    let abs_addr = absolute_address(tagged_addr);
+    let abs_addr = to_absolute(tagged_addr);
     let head = self.head_address.load(Acquire);
     let tail = self.tail_address.load(Acquire);
 
@@ -357,10 +346,10 @@ impl ReadCache {
   /// 进度不受阻塞，等待有界。
   #[inline]
   pub fn need_to_wait_for_eviction(&self, tagged_addr: u64, refresh: impl FnMut()) -> bool {
-    if !self.is_enabled || !is_read_cache_addr(tagged_addr) {
+    if !self.is_enabled || !is_read_cache(tagged_addr) {
       return false;
     }
-    let abs_addr = absolute_address(tagged_addr);
+    let abs_addr = to_absolute(tagged_addr);
     if abs_addr >= self.head_address.load(Acquire) {
       return false;
     }
@@ -423,14 +412,14 @@ impl ReadCache {
   #[inline]
   pub fn skip_read_cache(&self, mut addr: u64) -> u64 {
     let mut spins = 0;
-    while is_read_cache_addr(addr) && spins < 32 {
+    while is_read_cache(addr) && spins < 32 {
       spins += 1;
       match self.with_record(addr, |_, _, prev| prev) {
         Some(prev) => addr = prev,
         None => return 0, // 缓存记录已滑出窗口或已失效，断链返回 0 杜绝将物理偏移当主日志地址
       }
     }
-    if is_read_cache_addr(addr) {
+    if is_read_cache(addr) {
       0 // 超过最大跃点数或环路，安全返回 0
     } else {
       addr
@@ -455,7 +444,7 @@ mod tests {
     assert!(!rc.need_to_wait_for_eviction(rc_addr, || ()));
 
     let off = ReadCache::new(4096, 4, false)?;
-    assert!(!off.need_to_wait_for_eviction(tag_read_cache_addr(0), || ()));
+    assert!(!off.need_to_wait_for_eviction(with_read_cache(0), || ()));
     Ok(())
   }
 
@@ -466,7 +455,7 @@ mod tests {
     let rc = ReadCache::new(4096, 4, true)?;
     let index = HashIndex::new(16)?;
     let rc_addr = rc.append(b"k", b"v", 0, &index).expect("append 应成功");
-    let abs_addr = absolute_address(rc_addr);
+    let abs_addr = to_absolute(rc_addr);
 
     // 模拟驱逐方完成 head 推进、cleanse 尚未发布 ClosedUntilAddress 的窗口
     rc.head_address.fetch_max(abs_addr + 1, Release);

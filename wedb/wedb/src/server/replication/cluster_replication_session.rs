@@ -91,8 +91,13 @@ pub struct ClusterReplicationSession<D: Device> {
   wal: Arc<WalLog<D>>,
   /// 重放推进端口（None = 落盘-only 形态，仅位点记账）
   replay_hook: Option<ReplicaReplayHook>,
-  /// 致命断流哨兵（APPENDLOG 拒收 / 畸形帧；泵经
-  /// [`MessageConsumerFace::take_fatal_disconnect`] 取走断连）
+  /// 会话自有接收缓冲（泵经 take/return 直填，网络字节零拷贝直入；
+  /// 缓冲驻留会话跨批持久，对齐 C# IMessageConsumer 单形态的缓冲模型）
+  pub recv_buffer: Vec<u8>,
+  /// 已消费游标（整段消费完随缓冲复位）
+  read_head: usize,
+  /// 致命断流哨兵（APPENDLOG 拒收 / 畸形帧；消费 None 通道承运，
+  /// [`MessageConsumerFace::take_fatal_disconnect`] 为泵逐批复查兜底）
   fatal_disconnect: bool,
 }
 
@@ -103,6 +108,8 @@ impl<D: Device> Clone for ClusterReplicationSession<D> {
       provider: Arc::clone(&self.provider),
       wal: Arc::clone(&self.wal),
       replay_hook: self.replay_hook.clone(),
+      recv_buffer: self.recv_buffer.clone(),
+      read_head: self.read_head,
       fatal_disconnect: self.fatal_disconnect,
     }
   }
@@ -122,6 +129,8 @@ impl<D: Device> ClusterReplicationSession<D> {
       provider,
       wal,
       replay_hook,
+      recv_buffer: Vec::new(),
+      read_head: 0,
       fatal_disconnect: false,
     }
   }
@@ -355,70 +364,89 @@ fn parse_i64_fast(bytes: &[u8]) -> io::Result<i64> {
 
 impl<D: Device> MessageConsumerFace for ClusterReplicationSession<D> {
   /// libs/server/Servers/ServerTcpNetworkHandler.cs 的 TryConsumeMessages 集群
-  /// 分发路径：解析二进制安全 RESP 数组帧，CLUSTER APPENDLOG 交
-  /// [`Self::process_append_log`]；初始化帧回 +OK，记录帧无应答（对标 C#
-  /// NetworkClusterAppendLog 的应答面）；畸形帧与处理失败置致命断流
-  ///（C# RespParsingException / GarnetException clientResponse:false 上抛
-  /// → RespServerSession catch → 断连），泵发尽应答后断连。应答直写
-  /// 调用方缓冲（记录帧热路径零堆分配）
-  fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
-    let parsed = match parse_resp_frame(req_buffer) {
-      Ok(Some(parsed)) => parsed,
-      // 半包未到齐：等更多网络字节
-      Ok(None) => return 0,
-      // 畸形帧（*-1 前导 / 坏 sigil / $-1 元素 / 溢出）：协议违规断流
-      //（C# RespParsingException → catch 块写协议错误行后断连），游标不
-      // 推进，泵取走致命信号后断连
-      Err(e) => {
-        log::error!("APPENDLOG 帧解析违规断流: {e}");
-        resp_buf.extend_from_slice(b"-ERR Protocol Error: ");
-        resp_buf.extend_from_slice(e.to_string().as_bytes());
-        resp_buf.extend_from_slice(b"\r\n");
-        self.fatal_disconnect = true;
-        return 0;
+  /// 分发路径：消费会话自有接收缓冲中自游标起的全部完整帧，解析二进制安全
+  /// RESP 数组帧，CLUSTER APPENDLOG 交 [`Self::process_append_log`]；初始化
+  /// 帧回 +OK，记录帧无应答（对标 C# NetworkClusterAppendLog 的应答面）；
+  /// 畸形帧与处理失败置致命断流（C# RespParsingException /
+  /// GarnetException clientResponse:false 上抛 → RespServerSession catch →
+  /// 断连），泵发尽应答后断连。应答直写调用方缓冲（记录帧热路径零堆分配）
+  fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+    loop {
+      let parsed = match parse_resp_frame(&self.recv_buffer[self.read_head..]) {
+        Ok(Some(parsed)) => parsed,
+        // 半包未到齐：等更多网络字节
+        Ok(None) => break,
+        // 畸形帧（*-1 前导 / 坏 sigil / $-1 元素 / 溢出）：协议违规断流
+        //（C# RespParsingException → catch 块写协议错误行后断连），None
+        // 表达致命错误，泵发尽应答后断连
+        Err(e) => {
+          log::error!("APPENDLOG 帧解析违规断流: {e}");
+          resp_buf.extend_from_slice(b"-ERR Protocol Error: ");
+          resp_buf.extend_from_slice(e.to_string().as_bytes());
+          resp_buf.extend_from_slice(b"\r\n");
+          self.fatal_disconnect = true;
+          return None;
+        }
+      };
+      let (consumed, items) = parsed;
+      self.read_head += consumed;
+
+      // 客户端握手命令面：CLIENT SETINFO / SETNAME 回 +OK（GarnetClientSession
+      // ConnectAsync 握手契约，C# 服务端全 RESP 会话承接；本会话仅承载握手放行）
+      if !items.is_empty() && items[0] == b"CLIENT" {
+        resp_buf.extend_from_slice(RESP_OK);
+        continue;
       }
-    };
-    let (consumed, items) = parsed;
 
-    // 客户端握手命令面：CLIENT SETINFO / SETNAME 回 +OK（GarnetClientSession
-    // ConnectAsync 握手契约，C# 服务端全 RESP 会话承接；本会话仅承载握手放行）
-    if !items.is_empty() && items[0] == b"CLIENT" {
-      resp_buf.extend_from_slice(RESP_OK);
-      return consumed;
-    }
+      // 非 CLUSTER APPENDLOG 帧非本会话协议面（协议契约外输入）
+      if items.len() < 7
+        || !items[0].eq_ignore_ascii_case(b"CLUSTER")
+        || !items[1].eq_ignore_ascii_case(b"APPENDLOG")
+      {
+        resp_buf.extend_from_slice(ERR_UNEXPECTED_CLUSTER_CMD);
+        continue;
+      }
+      if items.len() > 8 {
+        resp_buf.extend_from_slice(ERR_MALFORMED_APPENDLOG_FRAME);
+        continue;
+      }
 
-    // 非 CLUSTER APPENDLOG 帧非本会话协议面（协议契约外输入）
-    if items.len() < 7
-      || !items[0].eq_ignore_ascii_case(b"CLUSTER")
-      || !items[1].eq_ignore_ascii_case(b"APPENDLOG")
-    {
-      resp_buf.extend_from_slice(ERR_UNEXPECTED_CLUSTER_CMD);
-      return consumed;
-    }
-    if items.len() > 8 {
-      resp_buf.extend_from_slice(ERR_MALFORMED_APPENDLOG_FRAME);
-      return consumed;
-    }
-
-    match self.dispatch_append_log_args(&items) {
-      Ok(AppendLogOutcome::Initialized) => resp_buf.extend_from_slice(RESP_OK),
-      // 记录帧无应答（对标 C# 普通记录不回写）
-      Ok(AppendLogOutcome::Record) => {}
-      // 处理失败（角色不符 / divergent / 恢复中 / 重复初始化）：不给应答
-      // 直接断流（C# GarnetException clientResponse:false 口径）——若回
-      // -ERR 行保连，fire-and-forget 推流端无人消费应答，主端
-      // shipped_watermark 静默推进，主从分歧扩大
-      Err(e) => {
-        log::error!("APPENDLOG 处理失败断流: {e}");
-        self.fatal_disconnect = true;
+      match self.dispatch_append_log_args(&items) {
+        Ok(AppendLogOutcome::Initialized) => resp_buf.extend_from_slice(RESP_OK),
+        // 记录帧无应答（对标 C# 普通记录不回写）
+        Ok(AppendLogOutcome::Record) => {}
+        // 处理失败（角色不符 / divergent / 恢复中 / 重复初始化）：不给应答
+        // 直接断流（C# GarnetException clientResponse:false 口径）——若回
+        // -ERR 行保连，fire-and-forget 推流端无人消费应答，主端
+        // shipped_watermark 静默推进，主从分歧扩大
+        Err(e) => {
+          log::error!("APPENDLOG 处理失败断流: {e}");
+          self.fatal_disconnect = true;
+          return None;
+        }
       }
     }
-    consumed
+
+    // 整段消费完毕：缓冲清零复位（半包残余驻留头部不可平移）
+    if self.read_head >= self.recv_buffer.len() {
+      self.recv_buffer.clear();
+      self.read_head = 0;
+      return Some(0);
+    }
+    Some(self.recv_buffer.len() - self.read_head)
   }
 
   /// 致命断流信号消费：畸形帧 / APPENDLOG 拒收登记后由泵取走，发尽应答断连
   fn take_fatal_disconnect(&mut self) -> bool {
     take(&mut self.fatal_disconnect)
+  }
+
+  fn take_recv_scratch(&mut self) -> Vec<u8> {
+    take(&mut self.recv_buffer)
+  }
+
+  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+    self.recv_buffer = buf;
   }
 
   fn dispose(&mut self) {

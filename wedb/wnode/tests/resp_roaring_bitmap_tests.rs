@@ -42,8 +42,11 @@ fn setup(db: &str) -> RespSessionConsumer {
 fn exec(consumer: &mut RespSessionConsumer, parts: &[&[u8]]) -> Vec<u8> {
   let req = resp_frame(parts);
   let mut resp = Vec::new();
-  let consumed = consumer.try_consume_messages_into(&req, &mut resp);
-  assert_eq!(consumed, req.len(), "命令须整段消费: {parts:?}");
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(&req);
+  consumer.return_recv_scratch(scratch);
+  let consumed = consumer.try_consume_messages_into(&mut resp);
+  assert_eq!(consumed, Some(0), "命令须整段消费: {parts:?}");
   resp
 }
 

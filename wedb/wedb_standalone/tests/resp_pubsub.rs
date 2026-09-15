@@ -16,6 +16,12 @@ fn output(s: &mut RespServerSession) -> String {
 }
 
 /// test/standalone/Garnet.test/RespPubSubTests.cs:BasicSUBSCRIBE
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn basic_subscribe() {
   let broker = Arc::new(SubscribeBroker::new(4096));
@@ -252,36 +258,36 @@ fn pub_sub_mode_resp2_whitelist_commands() {
   s.is_subscription_session = true;
 
   // 1. PING: 允许，正常响应 +PONG
-  let consumed = s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n");
-  assert_eq!(consumed, Some(14));
+  let consumed = feed(&mut s, b"*1\r\n$4\r\nPING\r\n");
+  assert_eq!(consumed, Some(0));
   assert_eq!(output(&mut s), "+PONG\r\n");
 
   // 2. RESET: 允许，不报错
-  let consumed = s.try_consume_messages(b"*1\r\n$5\r\nRESET\r\n");
+  let consumed = feed(&mut s, b"*1\r\n$5\r\nRESET\r\n");
   assert!(consumed.is_some());
   let out = output(&mut s);
   assert!(!out.contains("Can't execute"));
 
   // 3. SUNSUBSCRIBE: 允许，不报错
-  let consumed = s.try_consume_messages(b"*1\r\n$12\r\nSUNSUBSCRIBE\r\n");
+  let consumed = feed(&mut s, b"*1\r\n$12\r\nSUNSUBSCRIBE\r\n");
   assert!(consumed.is_some());
   let out = output(&mut s);
   assert!(!out.contains("Can't execute"));
 
   // 4. SUBSCRIBE: 允许，不报错
-  let consumed = s.try_consume_messages(b"*2\r\n$9\r\nSUBSCRIBE\r\n$3\r\nfoo\r\n");
+  let consumed = feed(&mut s, b"*2\r\n$9\r\nSUBSCRIBE\r\n$3\r\nfoo\r\n");
   assert!(consumed.is_some());
   let out = output(&mut s);
   assert!(!out.contains("Can't execute"));
 
   // 5. QUIT: 允许，不报错
-  let consumed = s.try_consume_messages(b"*1\r\n$4\r\nQUIT\r\n");
+  let consumed = feed(&mut s, b"*1\r\n$4\r\nQUIT\r\n");
   assert!(consumed.is_some());
   let out = output(&mut s);
   assert!(!out.contains("Can't execute"));
 
   // 6. GET: 非白名单命令，拦截报错并保持连接
-  let consumed = s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
+  let consumed = feed(&mut s, b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
   assert!(consumed.is_some());
   assert_eq!(
     output(&mut s),
@@ -289,7 +295,7 @@ fn pub_sub_mode_resp2_whitelist_commands() {
   );
 
   // 7. SET: 非白名单命令，拦截报错并保持连接
-  let consumed = s.try_consume_messages(b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");
+  let consumed = feed(&mut s, b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");
   assert!(consumed.is_some());
   assert_eq!(
     output(&mut s),
@@ -297,7 +303,7 @@ fn pub_sub_mode_resp2_whitelist_commands() {
   );
 
   // 8. PUBLISH: 非白名单命令，拦截报错并保持连接（对标 PubSubModeRejectsDisallowedCommandsInResp2）
-  let consumed = s.try_consume_messages(b"*3\r\n$7\r\nPUBLISH\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");
+  let consumed = feed(&mut s, b"*3\r\n$7\r\nPUBLISH\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");
   assert!(consumed.is_some());
   assert_eq!(
     output(&mut s),
@@ -305,13 +311,13 @@ fn pub_sub_mode_resp2_whitelist_commands() {
   );
 
   // 9. 保持连接验证：后续允许命令仍正常执行
-  let consumed = s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n");
-  assert_eq!(consumed, Some(14));
+  let consumed = feed(&mut s, b"*1\r\n$4\r\nPING\r\n");
+  assert_eq!(consumed, Some(0));
   assert_eq!(output(&mut s), "+PONG\r\n");
 
   // 9. RESP3 模式验证：RESP3 不拦截非白名单命令
   s.resp_protocol_version = 3;
-  let consumed = s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
+  let consumed = feed(&mut s, b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
   assert!(consumed.is_some());
   let out = output(&mut s);
   assert!(!out.contains("Can't execute"));

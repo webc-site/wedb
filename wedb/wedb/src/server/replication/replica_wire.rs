@@ -56,18 +56,21 @@ impl FrameSink {
       Self::Reject => false,
       Self::Fn(f) => f(frame),
       Self::Session { session, seen } => {
-        // 直写消费（应答落临时 scratch 复用缓冲，记录帧热路径零堆分配）；
-        // 致命断流（APPENDLOG 拒收 / 畸形帧）视同 sink 拒收 → 内存通道转
-        // 断连态，主端健康面感知（对标 C# 异常断链 → 写失败 → 剔除重同步）
+        // 生产等价消费序（对标网络泵：帧入会话自有接收缓冲 → 唯一入口
+        // 消费 → 致命断流哨兵复查）；应答落临时 scratch 复用缓冲，记录帧
+        // 热路径零堆分配。致命断流（APPENDLOG 拒收 / 畸形帧）视同 sink
+        // 拒收 → 内存通道转断连态，主端健康面感知（对标 C# 异常断链 →
+        // 写失败 → 剔除重同步）
         let mut scratch = Vec::new();
         let mut session = session.lock();
-        let consumed = session.try_consume_messages_into(frame, &mut scratch);
+        session.recv_buffer.extend_from_slice(frame);
+        let remaining = session.try_consume_messages_into(&mut scratch);
         let fatal = session.take_fatal_disconnect();
         drop(session);
         if let Some(counter) = seen {
           *counter.lock() += 1;
         }
-        !fatal && consumed == frame.len() && (scratch.is_empty() || scratch == b"+OK\r\n")
+        !fatal && remaining == Some(0) && (scratch.is_empty() || scratch == b"+OK\r\n")
       }
     }
   }

@@ -103,12 +103,23 @@ fn cluster_consumer(cp: &ClusterProvider) -> RespSessionConsumer {
 
 /// 单命令往返（单帧完整到达）
 fn roundtrip(consumer: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = consumer.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(consumer, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// 集群形态下基础命令与会话命令族
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn cluster_session_basic_commands() {
   let cp = two_primary_provider();
@@ -236,8 +247,8 @@ fn flush_replica_internal_write_session_executes() {
   assert_eq!(roundtrip(&mut consumer, set_frame.as_bytes()), b"+OK\r\n");
 
   // FLUSHDB → 慢路径 +OK（门放行，库已清）
-  let (consumed, out) = consumer.try_consume_messages(b"*1\r\n$7\r\nFLUSHDB\r\n");
-  assert_eq!(consumed, 17);
+  let (consumed, out) = pump(&mut consumer, b"*1\r\n$7\r\nFLUSHDB\r\n");
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("FLUSHDB 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -246,8 +257,8 @@ fn flush_replica_internal_write_session_executes() {
   assert_eq!(out, b"+OK\r\n");
 
   // 清库生效：DBSIZE → :0
-  let (consumed, out) = consumer.try_consume_messages(b"*1\r\n$6\r\nDBSIZE\r\n");
-  assert_eq!(consumed, 16);
+  let (consumed, out) = pump(&mut consumer, b"*1\r\n$6\r\nDBSIZE\r\n");
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("DBSIZE 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -460,8 +471,8 @@ fn cluster_session_pipeline_mixed_local_remote() {
   let cp = two_primary_provider();
   let mut consumer = cluster_consumer(&cp);
   let frame = b"*2\r\n$3\r\nGET\r\n$3\r\nbar\r\n*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n";
-  let (consumed, out) = consumer.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len());
+  let (consumed, out) = pump(&mut consumer, frame);
+  assert_eq!(consumed, Some(0));
   // bar(5061) 本地 → nil（未写过）；foo(12182) 远端 → MOVED
   assert_eq!(out, b"$-1\r\n-MOVED 12182 127.0.0.1:7001\r\n");
 }
@@ -525,8 +536,8 @@ fn standalone_session_cluster_disabled() {
     Arc::new(UnreachableApi),
   );
   let frame = b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n";
-  let (consumed, out) = consumer.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len());
+  let (consumed, out) = pump(&mut consumer, frame);
+  assert_eq!(consumed, Some(0));
   assert_eq!(out, b"-ERR This instance has cluster support disabled\r\n");
 }
 
@@ -571,8 +582,8 @@ fn cluster_reset_soft_without_keys() {
   let mut consumer = reset_consumer(&cp, &store);
 
   // CLUSTER RESET → +OK（慢路径：HasKeysInSlots 判定 + TryReset）
-  let (consumed, out) = consumer.try_consume_messages(b"*2\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n");
-  assert_eq!(consumed, 28);
+  let (consumed, out) = pump(&mut consumer, b"*2\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n");
+  assert_eq!(consumed, Some(0));
   assert!(out.is_empty(), "同步段仅校验，不残留输出");
   let slow = consumer.take_slow_wait().expect("RESET 应挂起慢路径");
   let mut out = out;
@@ -582,9 +593,7 @@ fn cluster_reset_soft_without_keys() {
   assert_eq!(out, b"+OK\r\n");
 
   // SOFT 重置保留节点 ID（HARD 才换新 id）
-  let out = consumer
-    .try_consume_messages(b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n")
-    .1;
+  let out = pump(&mut consumer, b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n").1;
   assert_eq!(out, b"$6\r\nnode_1\r\n");
 }
 
@@ -603,13 +612,13 @@ fn cluster_reset_with_local_slot_keys_rejected() {
     .find(|k| cluster_slot(k.as_bytes()) < 8192)
     .unwrap();
   let frame = format!("*3\r\n$3\r\nSET\r\n${}\r\n{key}\r\n$1\r\nv\r\n", key.len());
-  let (consumed, out) = consumer.try_consume_messages(frame.as_bytes());
-  assert_eq!(consumed, frame.len());
+  let (consumed, out) = pump(&mut consumer, frame.as_bytes());
+  assert_eq!(consumed, Some(0));
   assert_eq!(out, b"+OK\r\n");
 
   // CLUSTER RESET → 槽键在场拒绝
-  let (consumed, out) = consumer.try_consume_messages(b"*2\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n");
-  assert_eq!(consumed, 28);
+  let (consumed, out) = pump(&mut consumer, b"*2\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n");
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("RESET 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -621,18 +630,20 @@ fn cluster_reset_with_local_slot_keys_rejected() {
   );
 
   // 参数校验（同步段）：多余参数 / 非整数过期秒数
-  let out = consumer
-    .try_consume_messages(
-      b"*5\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nSOFT\r\n$1\r\n6\r\n$1\r\n7\r\n",
-    )
-    .1;
+  let out = pump(
+    &mut consumer,
+    b"*5\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nSOFT\r\n$1\r\n6\r\n$1\r\n7\r\n",
+  )
+  .1;
   assert_eq!(
     out,
     b"-ERR wrong number of arguments for 'cluster|reset' command\r\n"
   );
-  let out = consumer
-    .try_consume_messages(b"*4\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nSOFT\r\n$1\r\nx\r\n")
-    .1;
+  let out = pump(
+    &mut consumer,
+    b"*4\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nSOFT\r\n$1\r\nx\r\n",
+  )
+  .1;
   assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
 }
 
@@ -651,13 +662,13 @@ fn cluster_reset_hard_flushes_keys() {
     .find(|k| cluster_slot(k.as_bytes()) < 8192)
     .unwrap();
   let frame = format!("*3\r\n$3\r\nSET\r\n${}\r\n{key}\r\n$1\r\nv\r\n", key.len());
-  let (consumed, out) = consumer.try_consume_messages(frame.as_bytes());
-  assert_eq!(consumed, frame.len());
+  let (consumed, out) = pump(&mut consumer, frame.as_bytes());
+  assert_eq!(consumed, Some(0));
   assert_eq!(out, b"+OK\r\n");
 
   // 先 DBSIZE 验证 :1（慢路径计数）
-  let (consumed, out) = consumer.try_consume_messages(b"*1\r\n$6\r\nDBSIZE\r\n");
-  assert_eq!(consumed, 16);
+  let (consumed, out) = pump(&mut consumer, b"*1\r\n$6\r\nDBSIZE\r\n");
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("DBSIZE 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -677,9 +688,11 @@ fn cluster_reset_hard_flushes_keys() {
   }
 
   // CLUSTER RESET HARD → +OK（含清库）
-  let (consumed, out) =
-    consumer.try_consume_messages(b"*3\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nHARD\r\n");
-  assert_eq!(consumed, 38);
+  let (consumed, out) = pump(
+    &mut consumer,
+    b"*3\r\n$7\r\nCLUSTER\r\n$5\r\nRESET\r\n$4\r\nHARD\r\n",
+  );
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("RESET 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -688,8 +701,8 @@ fn cluster_reset_hard_flushes_keys() {
   assert_eq!(out, b"+OK\r\n");
 
   // HARD 清库后：DBSIZE → :0
-  let (consumed, out) = consumer.try_consume_messages(b"*1\r\n$6\r\nDBSIZE\r\n");
-  assert_eq!(consumed, 16);
+  let (consumed, out) = pump(&mut consumer, b"*1\r\n$6\r\nDBSIZE\r\n");
+  assert_eq!(consumed, Some(0));
   let slow = consumer.take_slow_wait().expect("DBSIZE 应挂起慢路径");
   let mut out = out;
   rt.block_on(async {
@@ -1121,8 +1134,8 @@ fn cluster_gossip_withmeet_roundtrip() {
   for p in &parts {
     f.push_str(&format!("${}\r\n{p}\r\n", p.len()));
   }
-  let (consumed, out) = consumer.try_consume_messages(f.as_bytes());
-  assert_eq!(consumed, f.len());
+  let (consumed, out) = pump(&mut consumer, f.as_bytes());
+  assert_eq!(consumed, Some(0));
 
   // WITHMEET 强制回配置字节：bulk string 且非空
   assert_eq!(out[0], b'$');
@@ -1131,8 +1144,8 @@ fn cluster_gossip_withmeet_roundtrip() {
 
 /// 慢命令往返（同步段消费挂起 → block_on 驱动慢路径应答）
 fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame_bytes: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(frame_bytes);
-  assert_eq!(consumed, frame_bytes.len(), "帧应被完整消费");
+  let (consumed, mut out) = pump(c, frame_bytes);
+  assert_eq!(consumed, Some(0), "帧应被完整消费");
   let Some(slow) = c.take_slow_wait() else {
     return out;
   };

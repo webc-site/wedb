@@ -17,6 +17,7 @@ use std::{str::from_utf8, sync::Arc};
 
 use compio::{BufResult, io::AsyncRead, net::TcpStream, runtime::Runtime};
 use tempfile::tempdir;
+use waof::FIRST_VALID_AOF_ADDRESS;
 use wedb_test::test_store_config;
 use wnode::{
   aof::{
@@ -92,6 +93,21 @@ fn recover_checkpoint_and_aof_after_restart() {
       session_factory,
     ))
     .expect("open recovered"),
+  );
+  // --recover 后位点回填值（对标 C# RecoverCheckpointAndAOFAsync 尾段
+  // replicationOffset.SetValue(ref replayedUntil) 的回填值来源）：等于重放
+  // 后 AOF 尾地址，且已越过初始位点（SAVE 后增量经重放推进）
+  let recovered_tail = provider2
+    .recovered_aof_tail()
+    .expect("--recover 形态须点亮恢复位点");
+  assert_eq!(
+    recovered_tail,
+    provider2.aof().expect("aof enabled").log().tail_address(),
+    "恢复位点须等于重放后 AOF 尾"
+  );
+  assert!(
+    recovered_tail.get(0).unwrap_or(0) > FIRST_VALID_AOF_ADDRESS,
+    "SAVE 后增量重放须推进恢复位点"
   );
   let (server2, addr2) = start_server(Arc::clone(&provider2));
   rt.block_on(async {

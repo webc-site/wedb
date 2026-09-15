@@ -426,7 +426,13 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             return output;
           }
         };
-        // TYPE 参数出现时单页无上限（含未知类型，C# long.MaxValue 同口径）
+        // 未知 TYPE 值：C# DbScan 对非空未知 typeObject 直接回空列表 +
+        // 游标 0（ArrayKeyIterationFunctions.cs:82-84），不触达扫描
+        if filter.type_unknown {
+          RespServerSession::write_output_for_scan(0, &[], &mut output);
+          return output;
+        }
+        // TYPE 参数出现时单页无上限（C# long.MaxValue 同口径）
         let count = if filter.type_given {
           usize::MAX
         } else {
@@ -684,7 +690,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
       | C::Riexists
       | C::Riconfig
       | C::Rimetrics => {
-        let ri = Some(self.session.store.range_index.as_ref());
+        let ri = Some(self.session.store.range_index().as_ref());
         // 解析校验 + 执行一体闭环；应答直写 output（错误映射在处理器内）
         let _ = match cmd {
           C::Ricreate => ri_cmds::network_ricreate(&refs, ri, &self.session, &mut output).await,

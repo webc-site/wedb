@@ -774,58 +774,85 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:TryConsumeMessages
   ///
-  /// 解析并分派接收缓冲中的全部完整命令，返回已消费字节数（C# 返回 readHead）。
+  /// 唯一消费形态（C# IMessageConsumer 单方法）：接收缓冲驻留会话、由泵经
+  /// take/return 直填（网络字节零拷贝直入），解析并分派接收缓冲中自
+  /// [`Self::read_head`] 游标起的全部完整命令。游标跨批次持久不回退——
+  /// C# `bytesRead = bytesReceived` + `readHead` 持久游标模型；事务排队
+  /// 字节（MULTI..EXEC 跨批次）因此驻留接收缓冲，EXEC 据此回退重解析
+  /// 排队命令（C# IsSkippingOperations 禁平移同源语义）。
+  ///
   /// 分派经 [`GarnetApi`] 注入面；协议违规以 None 表达（C# 抛
   /// RespParsingException，catch 块先写 `ERR Protocol Error: {msg}` 到
   /// 累积输出再断连，rust 同序：错误落在 [`Self::output`] 中此前命令
   /// 应答之后，由调用方发出后断连）。
   ///
+  /// 返回消费后残余字节数（半包长度；`0` = 整段消费完毕，缓冲清零复位，
+  /// 容量保留复用）；`None` = 协议违规 / 致命断流（应答面已落
+  /// [`Self::output`]，泵发尽后断连）。
+  ///
   /// 批首尾纪元快照取放（C# :490 `clusterSession?.AcquireCurrentEpoch()` /
   /// :576 finally `clusterSession?.ReleaseCurrentEpoch()`）：批内会话持当前
   /// 纪元快照，批外清零——配置过渡静止等待的观测窗口
-  pub fn try_consume_messages(&mut self, req_buffer: &[u8]) -> Option<usize> {
+  pub fn try_consume_messages(&mut self) -> Option<usize> {
     if let Some(cs) = self.cluster_session.as_ref() {
       cs.acquire_current_epoch();
     }
-    let consumed = self.try_consume_messages_body(req_buffer);
+    let remaining = self.try_consume_messages_body();
     if let Some(cs) = self.cluster_session.as_ref() {
       cs.release_current_epoch();
     }
-    consumed
+    remaining
   }
 
   /// 批消费体（[`Self::try_consume_messages`] 的纪元快照保护段）
-  fn try_consume_messages_body(&mut self, req_buffer: &[u8]) -> Option<usize> {
-    self.recv_buffer.clear();
-    self.recv_buffer.extend_from_slice(req_buffer);
+  fn try_consume_messages_body(&mut self) -> Option<usize> {
     self.bytes_read = self.recv_buffer.len();
-    self.read_head = 0;
+    let prev_read_head = self.read_head;
 
     self.latency_batch_start();
     self.enter_and_get_response_object();
     let op_count = self.process_messages();
     // 协议违规（C# RespParsingException 传播出 ProcessMessages → catch 块：
     // 写 `ERR Protocol Error: {msg}` 追加在累积应答之后 → Send → 断连）。
-    // 不回退游标、不计消费字节；None 表达致命错误，应答面（含此前命令
-    // 累积应答 + 协议错误）交由调用方发出后断连
+    // 游标不回退，None 表达致命错误，应答面（含此前命令累积应答 + 协议
+    // 错误）交由调用方发出后断连
     if self.write_protocol_error() {
       self.exit_and_return_response_object();
       return None;
     }
+
     // 切面致命断流（GarnetException clientResponse:false）：不写错误行，
     // 发尽累积应答后断连（None 通道与协议违规共用）
     if self.fatal_disconnect {
       self.exit_and_return_response_object();
       return None;
     }
-    let consumed = self.read_head;
-    self.latency_batch_stop(consumed, op_count);
+
+    // 本轮新增消费字节（EXEC 回退重解析可致游标暂时回退，saturating 兜底）
+    let newly_consumed = self.read_head.saturating_sub(prev_read_head);
+    self.latency_batch_stop(newly_consumed, op_count);
+    // 事务在途（C# IsSkippingOperations / `if (!txnSkip) readHead = 0` 对偶
+    // 语义）：排队字节与 txn_start_head 偏移必须驻留缓冲供 EXEC 回退重解析，
+    // 禁止清零复位
+    if self.read_head >= self.bytes_read && self.txn_state == TxnState::None {
+      // 整段消费完毕且无在途事务：缓冲清零复位（平移仅在整段消费完执行，
+      // offset/解析指针同时失效安全 —— C# ShiftNetworkReceiveBuffer 的托管
+      // 等价）；超大批次容量释放，回归默认驻留水位
+      if self.recv_buffer.capacity() > DEFAULT_RECV_BUFFER_CAPACITY {
+        self.recv_buffer = Vec::with_capacity(DEFAULT_RECV_BUFFER_CAPACITY);
+      } else {
+        self.recv_buffer.clear();
+      }
+      self.bytes_read = 0;
+      self.read_head = 0;
+      self.end_read_head = 0;
+    }
     self.exit_and_return_response_object();
 
     if let Some(metrics) = &mut self.session_metrics {
-      metrics.incr_total_net_input_bytes(consumed as u64);
+      metrics.incr_total_net_input_bytes(newly_consumed as u64);
     }
-    Some(consumed)
+    Some(self.bytes_read.saturating_sub(self.read_head))
   }
 
   /// 批次消费入口的延迟/慢日志起始装配（C# TryConsumeMessages:481/:486-490）：
@@ -871,77 +898,6 @@ impl RespServerSession {
     }
     latency.record_value(LatencyMetricsType::NetRsBytes, consumed as i64);
     latency.record_value(LatencyMetricsType::NetRsOps, op_count as i64);
-  }
-
-  /// 泵直读消费入口（scratch 模式，网络泵专属）
-  ///
-  /// 接收缓冲由泵经 take/return 直填（网络字节零拷贝直入），[`Self::read_head`]
-  /// 跨批次持久不回退 —— C# TryConsumeMessages 的 `bytesRead = bytesReceived`+
-  /// `readHead` 持久游标模型。事务排队字节（MULTI..EXEC 跨批次）因此驻留
-  /// 接收缓冲，EXEC 据此回退重解析排队命令（C# 同源语义，拷贝形态做不到）。
-  ///
-  /// 返回消费后残余字节数（半包长度；`0` = 整段消费完毕，缓冲清零复位，
-  /// 容量保留复用）；`None` = 协议违规（`ERR Protocol Error` 与同批此前
-  /// 应答已落 [`Self::output`]，泵发尽后断连）
-  pub fn try_consume_pending(&mut self) -> Option<usize> {
-    if let Some(cs) = self.cluster_session.as_ref() {
-      cs.acquire_current_epoch();
-    }
-    let remaining = self.try_consume_pending_body();
-    if let Some(cs) = self.cluster_session.as_ref() {
-      cs.release_current_epoch();
-    }
-    remaining
-  }
-
-  /// 批消费体（[`Self::try_consume_pending`] 的纪元快照保护段）
-  fn try_consume_pending_body(&mut self) -> Option<usize> {
-    self.bytes_read = self.recv_buffer.len();
-    let prev_read_head = self.read_head;
-
-    self.latency_batch_start();
-    self.enter_and_get_response_object();
-    let op_count = self.process_messages();
-    // 协议违规（C# RespParsingException → catch 块写协议错误 → Send 累积
-    // 应答 → DisposeNetworkSender）：游标不回退，None 表达致命错误，
-    // 由泵发尽应答（含协议错误）后关闭连接
-    if self.write_protocol_error() {
-      self.exit_and_return_response_object();
-      return None;
-    }
-
-    // 切面致命断流（GarnetException clientResponse:false）：不写错误行，
-    // 发尽累积应答后断连（None 通道与协议违规共用）
-    if self.fatal_disconnect {
-      self.exit_and_return_response_object();
-      return None;
-    }
-
-    // 本轮新增消费字节（EXEC 回退重解析可致游标暂时回退，saturating 兜底）
-    let newly_consumed = self.read_head.saturating_sub(prev_read_head);
-    self.latency_batch_stop(newly_consumed, op_count);
-    // 事务在途（C# IsSkippingOperations / `if (!txnSkip) readHead = 0` 对偶
-    // 语义）：排队字节与 txn_start_head 偏移必须驻留缓冲供 EXEC 回退重解析，
-    // 禁止清零复位
-    if self.read_head >= self.bytes_read && self.txn_state == TxnState::None {
-      // 整段消费完毕且无在途事务：缓冲清零复位（平移仅在整段消费完执行，
-      // offset/解析指针同时失效安全 —— C# ShiftNetworkReceiveBuffer 的托管
-      // 等价）；超大批次容量释放，回归默认驻留水位
-      if self.recv_buffer.capacity() > DEFAULT_RECV_BUFFER_CAPACITY {
-        self.recv_buffer = Vec::with_capacity(DEFAULT_RECV_BUFFER_CAPACITY);
-      } else {
-        self.recv_buffer.clear();
-      }
-      self.bytes_read = 0;
-      self.read_head = 0;
-      self.end_read_head = 0;
-    }
-    self.exit_and_return_response_object();
-
-    if let Some(metrics) = &mut self.session_metrics {
-      metrics.incr_total_net_input_bytes(newly_consumed as u64);
-    }
-    Some(self.bytes_read.saturating_sub(self.read_head))
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessMessages
@@ -2515,7 +2471,17 @@ struct RespScriptingApi<'a>(&'a mut RespServerSession);
 impl ScriptingApi for RespScriptingApi<'_> {
   /// 分派 RESP 请求（C# TryConsumeMessages + ScratchBufferNetworkSender 组合）
   fn dispatch_resp(&mut self, request: &[u8], sender: &mut ScratchBufferNetworkSender) {
-    let _ = self.0.try_consume_messages(request);
+    // 对标 C# LuaRunner.Functions.cs:ProcessCommandFromScripting 尾部
+    // `respServerSession.TryConsumeMessages(request.ptr, request.length)`：
+    // 脚本格式化缓冲切为接收内容重入消费装配（C# recvBufferPtr = reqBuffer
+    // + 入口 `if (!txnSkip) readHead = 0` 的游标归零）；外层批 EVAL 帧之后
+    // 的剩余字节随缓冲替换失效，与 C# 指针切换行为一致
+    let session = &mut *self.0;
+    session.recv_buffer.clear();
+    session.recv_buffer.extend_from_slice(request);
+    session.read_head = 0;
+    session.end_read_head = 0;
+    let _ = session.try_consume_messages();
     sender.write_response_bytes(&self.0.output);
     self.0.send_and_reset();
   }
@@ -3393,10 +3359,7 @@ mod tests {
     let mut s = session(31);
     s.attach_cluster_session(Arc::clone(&stub));
     // GET key：槽位门重定向（分派不再执行）
-    assert!(
-      s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-MOVED 0 stub:1\r\n"
@@ -3408,10 +3371,7 @@ mod tests {
     let stub = Arc::new(StubClusterSession::new());
     let mut s = session(32);
     s.attach_cluster_session(Arc::clone(&stub));
-    assert!(
-      s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
     // 本地放行 → 无重定向；存储执行域未挂载时明确报错（不再静默空应答）
     let sent = String::from_utf8(s.take_output()).unwrap();
     assert!(!sent.starts_with("-MOVED"));
@@ -3423,10 +3383,7 @@ mod tests {
     let stub = Arc::new(StubClusterSession::new());
     let mut s = session(33);
     s.attach_cluster_session(Arc::clone(&stub));
-    assert!(
-      s.try_consume_messages(b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$7\r\nCLUSTER\r\n$4\r\nMYID\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "+STUBCLUSTER\r\n"
@@ -3488,10 +3445,7 @@ mod tests {
     assert!(s.check_acl_permissions(RespCommand::Set));
 
     // 主循环整链：放行命令照常进入分派（存储域未挂载 → 非 ACL 错误）
-    assert!(
-      s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-ERR store execution domain not attached\r\n"
@@ -3518,20 +3472,14 @@ mod tests {
     assert!(!s.check_acl_permissions(RespCommand::Set), "位图外命令拒绝");
 
     // 主循环：被拒命令回 C# NOPERM 文案（RespServerSession.cs:697-700）
-    assert!(
-      s.try_consume_messages(b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-NOPERM this user has no permissions to run the command\r\n"
     );
 
     // 放行命令照常进入分派
-    assert!(
-      s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-ERR store execution domain not attached\r\n"
@@ -3550,10 +3498,7 @@ mod tests {
     assert!(s.acl_user_handle.is_none());
 
     assert!(!s.check_acl_permissions(RespCommand::Get));
-    assert!(
-      s.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
     assert_eq!(
       String::from_utf8(s.take_output()).unwrap(),
       "-NOAUTH Authentication required.\r\n"
@@ -3612,7 +3557,7 @@ mod tests {
     );
     // EVAL 内 SUBSCRIBE：重入主循环被拦，错误回写脚本结果
     let frame = b"*3\r\n$4\r\nEVAL\r\n$35\r\nreturn redis.call('SUBSCRIBE','ch')\r\n$1\r\n0\r\n";
-    assert!(s.try_consume_messages(frame).is_some());
+    assert!(pump_feed(&mut s, frame).is_some());
     let out = s.take_output();
     let text = String::from_utf8_lossy(&out);
     assert!(
@@ -3622,10 +3567,7 @@ mod tests {
 
     // 窗口已摘除：主循环 SUBSCRIBE 不再受 no-script 门限（未接 broker 的
     // 会话按禁用文案回错，而非 NOSCRIPT——门放行即可证）
-    assert!(
-      s.try_consume_messages(b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n").is_some());
     let out = s.take_output();
     let text = String::from_utf8_lossy(&out);
     assert!(
@@ -3679,7 +3621,7 @@ mod tests {
     );
     // EVAL "return 'pong'" 0 → 脚本结果写回会话输出
     let frame = b"*3\r\n$4\r\nEVAL\r\n$13\r\nreturn 'pong'\r\n$1\r\n0\r\n";
-    let consumed = s.try_consume_messages(frame);
+    let consumed = pump_feed(&mut s, frame);
     assert!(consumed.is_some());
     let out = s.take_output();
     let text = String::from_utf8_lossy(&out);
@@ -3689,7 +3631,7 @@ mod tests {
     let out = s.take_output();
     assert!(out.is_empty());
     let frame = b"*2\r\n$6\r\nSCRIPT\r\n$4\r\nLOAD\r\n";
-    let consumed = s.try_consume_messages(frame);
+    let consumed = pump_feed(&mut s, frame);
     assert!(consumed.is_some());
     let out = s.take_output();
     assert!(
@@ -3751,7 +3693,7 @@ mod tests {
     // EVAL "while true do end" 0（C# TimeoutScript 的死循环形态）。
     let frame = b"*3\r\n$4\r\nEVAL\r\n$17\r\nwhile true do end\r\n$1\r\n0\r\n";
     let start = Instant::now();
-    let consumed = s.try_consume_messages(frame);
+    let consumed = pump_feed(&mut s, frame);
     let elapsed = start.elapsed();
     stop.store(true, Ordering::Relaxed);
     ticker.join().unwrap();
@@ -3773,10 +3715,10 @@ mod tests {
 
     // 超时机制不误伤：同会话后续脚本与普通命令均可用。
     let frame = b"*3\r\n$4\r\nEVAL\r\n$9\r\nreturn 42\r\n$1\r\n0\r\n";
-    assert!(s.try_consume_messages(frame).is_some());
+    assert!(pump_feed(&mut s, frame).is_some());
     assert_eq!(String::from_utf8_lossy(&s.take_output()), ":42\r\n");
     let frame = b"*1\r\n$4\r\nPING\r\n";
-    assert!(s.try_consume_messages(frame).is_some());
+    assert!(pump_feed(&mut s, frame).is_some());
     assert_eq!(String::from_utf8_lossy(&s.take_output()), "+PONG\r\n");
   }
 
@@ -3801,7 +3743,7 @@ mod tests {
 
     let frame = b"*3\r\n$4\r\nEVAL\r\n$17\r\nwhile true do end\r\n$1\r\n0\r\n".to_vec();
     let session_thread = thread::spawn(move || {
-      let consumed = s.try_consume_messages(&frame);
+      let consumed = pump_feed(&mut s, &frame);
       (consumed.is_some(), s.take_output())
     });
 
@@ -3839,7 +3781,7 @@ mod tests {
       script.len(),
       String::from_utf8_lossy(script)
     );
-    assert!(s.try_consume_messages(frame.as_bytes()).is_some());
+    assert!(pump_feed(&mut s, frame.as_bytes()).is_some());
     assert_eq!(String::from_utf8_lossy(&s.take_output()), ":5000050000\r\n");
   }
 
@@ -3871,7 +3813,7 @@ mod tests {
       script.len(),
       String::from_utf8_lossy(script)
     );
-    assert!(s.try_consume_messages(frame.as_bytes()).is_some());
+    assert!(pump_feed(&mut s, frame.as_bytes()).is_some());
     // RESP2 下 Lua string 返回 bulk 形态（$4\r\nPONG\r\n）。
     assert_eq!(String::from_utf8_lossy(&s.take_output()), "$4\r\nPONG\r\n");
   }
@@ -3924,7 +3866,7 @@ mod tests {
 
   fn session_frame(frame: &[u8]) -> (RespServerSession, Vec<u8>) {
     let mut s = session(0);
-    let consumed = s.try_consume_messages(frame);
+    let consumed = pump_feed(&mut s, frame);
     assert!(consumed.is_some());
     let out = s.take_output();
     (s, out)
@@ -4008,7 +3950,7 @@ mod tests {
     let mut s = session(0);
     s.attach_transaction_components(StdArc::new(WtxnWatchVersionMap::new(64)));
     // WATCH 无键：参数错误（事务域 abort 文案）
-    let consumed = s.try_consume_messages(b"*1\r\n$5\r\nWATCH\r\n");
+    let consumed = pump_feed(&mut s, b"*1\r\n$5\r\nWATCH\r\n");
     assert!(consumed.is_some());
     assert!(
       s.take_output()
@@ -4021,14 +3963,15 @@ mod tests {
     use std::sync::Arc as StdArc;
     let mut s = session(0);
     s.attach_transaction_components(StdArc::new(WtxnWatchVersionMap::new(64)));
-    // MULTI → +OK；EXEC 空事务 → 空数组
-    assert!(s.try_consume_messages(b"*1\r\n$5\r\nMULTI\r\n").is_some());
+    // MULTI → +OK；EXEC → 回放排队命令的 1 元素数组（持久游标模型下
+    // 排队 PING 字节驻留缓冲真执行，C# IsSkippingOperations 同源语义）
+    assert!(pump_feed(&mut s, b"*1\r\n$5\r\nMULTI\r\n").is_some());
     assert_eq!(s.take_output(), b"+OK\r\n");
     // 排队命令（PING 在事务内跳过执行仅登记）
-    assert!(s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n").is_some());
+    assert!(pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n").is_some());
     assert_eq!(s.take_output(), b"+QUEUED\r\n");
-    assert!(s.try_consume_messages(b"*1\r\n$4\r\nEXEC\r\n").is_some());
-    assert_eq!(s.take_output(), b"*1\r\n");
+    assert!(pump_feed(&mut s, b"*1\r\n$4\r\nEXEC\r\n").is_some());
+    assert_eq!(s.take_output(), b"*1\r\n+PONG\r\n");
   }
 
   #[test]
@@ -4036,10 +3979,7 @@ mod tests {
     use std::sync::Arc as StdArc;
     let mut s = session(0);
     s.attach_pubsub(StdArc::new(WpubsubSubscribeBroker::new(4096)));
-    assert!(
-      s.try_consume_messages(b"*3\r\n$7\r\nPUBLISH\r\n$1\r\nc\r\n$1\r\nv\r\n")
-        .is_some()
-    );
+    assert!(pump_feed(&mut s, b"*3\r\n$7\r\nPUBLISH\r\n$1\r\nc\r\n$1\r\nv\r\n").is_some());
     // broker 已接线：发布到无订阅者通道回 :0（不再是禁用错误）
     assert_eq!(s.take_output(), b":0\r\n");
   }
@@ -4052,12 +3992,12 @@ mod tests {
     assert!(s.command_error_written);
   }
 
-  // ---- scratch 直读消费（try_consume_pending 持久游标模型，网络泵语义）----
+  // ---- 唯一消费入口（持久游标模型，网络泵语义）----
 
   /// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
   fn pump_feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
     s.recv_buffer.extend_from_slice(bytes);
-    s.try_consume_pending()
+    s.try_consume_messages()
   }
 
   #[test]
@@ -4143,18 +4083,14 @@ mod tests {
   }
 
   /// 致命断流哨兵（GarnetException clientResponse:false 等价）：置位后
-  /// try_consume_messages / try_consume_pending 回 None 且不写错误行，
-  /// 泵发尽累积应答后断连
+  /// try_consume_messages 回 None 且不写错误行，泵发尽累积应答后断连
   #[test]
   fn fatal_disconnect_signals_none_without_error_line() {
     let mut s = session(0);
     s.fatal_disconnect = true;
-    assert!(s.try_consume_messages(b"*1\r\n$4\r\nPING\r\n").is_none());
+    assert!(pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n").is_none());
     // 同批命令应答照常发尽（+PONG），致命断流不追加任何错误行
     assert_eq!(s.take_output(), b"+PONG\r\n");
-
-    // scratch 直读形态同一 None 通道
-    assert!(s.try_consume_pending().is_none());
   }
 
   #[test]

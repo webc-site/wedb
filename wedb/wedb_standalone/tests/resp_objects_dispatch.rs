@@ -35,12 +35,23 @@ fn consumer() -> RespSessionConsumer {
 
 /// 单命令往返
 fn rt(c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// Hash 族分派冒烟（RespHashTests.cs:CanAddAndListHashItems 等；细节由 resp_hash.rs 承接）
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn hash_family_end_to_end() {
   let mut c = consumer();
@@ -212,8 +223,8 @@ fn swapdb_same_db_ok_cross_db_degrades() {
   );
   // 跨库交换挂起慢路径（同步段不残留输出），网络泵 await 后产出兜底
   // 应答（SWAPDB 慢表接入前的 ASYNC_REQUIRED）
-  let (consumed, out) = c.try_consume_messages(&resp_frame(&[b"SWAPDB", b"0", b"1"]));
-  assert!(consumed > 0);
+  let (consumed, out) = pump(&mut c, &resp_frame(&[b"SWAPDB", b"0", b"1"]));
+  assert!(consumed.is_some());
   assert!(out.is_empty(), "同步段仅校验，不残留输出");
   let slow = c.take_slow_wait().expect("跨库 SWAPDB 应挂起慢路径");
   let out = Runtime::new().unwrap().block_on(slow.resolve());
