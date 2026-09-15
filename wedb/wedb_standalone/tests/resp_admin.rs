@@ -109,7 +109,8 @@ fn config_get_slave_read_only_test() {
   let mut s = ServerConfig;
   let rc = RuntimeServerConfig::with_defaults();
   let mut out = Vec::new();
-  s.network_config_get(&[b"slave-read-only"], &rc, &mut out)
+  // RESP2 会话（双倍数组口径）
+  s.network_config_get(&[b"slave-read-only"], &rc, 2, &mut out)
     .unwrap();
   assert_eq!(out, b"*2\r\n$15\r\nslave-read-only\r\n$3\r\nyes\r\n");
 }

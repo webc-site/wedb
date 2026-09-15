@@ -186,7 +186,8 @@ pub const GENERIC_ERR_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR {0} should be gre
 /// libs/server/Resp/CmdStrings.cs:GenericErrNotAFloat（SortedSet WEIGHTS 固定替换 {0}="weight"）
 pub const GENERIC_ERR_NOT_A_FLOAT_WEIGHT: &str = "ERR weight value is not a valid float";
 /// libs/server/Resp/CmdStrings.cs:GenericParamShouldBeGreaterThanZero
-pub const GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR Parameter `{0}` should be greater than 0";
+pub const GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO: &str =
+  "ERR Parameter `{0}` should be greater than 0";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownOptionConfigSet
 pub const GENERIC_ERR_UNKNOWN_OPTION_CONFIG_SET: &str =
   "ERR Unknown option or number of arguments for CONFIG SET - '{0}'";

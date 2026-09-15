@@ -2807,7 +2807,10 @@ mod tests {
     // dbId >= MaxDatabases 与负数 → DB index is out of range.
     for dbid in ["4", "5", "-1"] {
       let mut out = Vec::new();
-      assert!(!s.try_parse_database_id(&[dbid.as_bytes()], &mut out).unwrap());
+      assert!(
+        !s.try_parse_database_id(&[dbid.as_bytes()], &mut out)
+          .unwrap()
+      );
       assert_eq!(
         String::from_utf8(out).unwrap(),
         "-ERR DB index is out of range.\r\n"

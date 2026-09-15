@@ -15,7 +15,7 @@ use wcol::{
     GeoAddOptions, GeoOrder, GeoOriginType, GeoSearchOptions, GeoSearchType,
     geo_hash::GeoDistanceUnitType,
   },
-  parse_utils::{try_get_geo_distance_unit, try_get_geo_lon_lat, GeoLonLatError},
+  parse_utils::{GeoLonLatError, try_get_geo_distance_unit, try_get_geo_lon_lat},
   types::object_output::ObjectOutput,
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation},
 };
@@ -91,10 +91,7 @@ struct ParsedGeoSearch {
 /// libs/server/SessionParseStateExtensions.cs:TryGetGeoLonLat 两态错误组装：
 /// 非浮点 → RESP_ERR_NOT_VALID_FLOAT；越界 → GenericErrLonLat 回显坐标
 ///（{lon:F6},{lat:F6}，六位小数）
-fn geo_lon_lat_checked(
-  lon: &[u8],
-  lat: &[u8],
-) -> Result<(f64, f64), Cow<'static, str>> {
+fn geo_lon_lat_checked(lon: &[u8], lat: &[u8]) -> Result<(f64, f64), Cow<'static, str>> {
   try_get_geo_lon_lat(lon, lat).map_err(|e| match e {
     GeoLonLatError::NotFloat => Cow::Borrowed(cs::RESP_ERR_NOT_VALID_FLOAT),
     GeoLonLatError::OutOfRange(lon, lat) => Cow::Owned(format!(
@@ -374,12 +371,24 @@ fn try_get_geo_search_options(
 /// wrong number of arguments 错误帧（按命令名展开）
 fn wrong_args(kind: GeoSearchCommandKind) -> Cow<'static, str> {
   match kind {
-    GeoSearchCommandKind::GeoSearch => "ERR wrong number of arguments for 'GEOSEARCH' command".into(),
-    GeoSearchCommandKind::GeoSearchStore => "ERR wrong number of arguments for 'GEOSEARCHSTORE' command".into(),
-    GeoSearchCommandKind::GeoRadius => "ERR wrong number of arguments for 'GEORADIUS' command".into(),
-    GeoSearchCommandKind::GeoRadiusRo => "ERR wrong number of arguments for 'GEORADIUS_RO' command".into(),
-    GeoSearchCommandKind::GeoRadiusByMember => "ERR wrong number of arguments for 'GEORADIUSBYMEMBER' command".into(),
-    GeoSearchCommandKind::GeoRadiusByMemberRo => "ERR wrong number of arguments for 'GEORADIUSBYMEMBER_RO' command".into(),
+    GeoSearchCommandKind::GeoSearch => {
+      "ERR wrong number of arguments for 'GEOSEARCH' command".into()
+    }
+    GeoSearchCommandKind::GeoSearchStore => {
+      "ERR wrong number of arguments for 'GEOSEARCHSTORE' command".into()
+    }
+    GeoSearchCommandKind::GeoRadius => {
+      "ERR wrong number of arguments for 'GEORADIUS' command".into()
+    }
+    GeoSearchCommandKind::GeoRadiusRo => {
+      "ERR wrong number of arguments for 'GEORADIUS_RO' command".into()
+    }
+    GeoSearchCommandKind::GeoRadiusByMember => {
+      "ERR wrong number of arguments for 'GEORADIUSBYMEMBER' command".into()
+    }
+    GeoSearchCommandKind::GeoRadiusByMemberRo => {
+      "ERR wrong number of arguments for 'GEORADIUSBYMEMBER_RO' command".into()
+    }
   }
 }
 
