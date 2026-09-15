@@ -98,15 +98,48 @@ self.cluster_session.is_some()（None = 单机形态，与 C# EnableCluster
 修法：删两常量；try_parse_database_id 改读 self.max_databases 与
 self.cluster_session.is_some()，判定顺序对齐 C#。
 
-## 实施顺序
+## 实施结果
 
-1. wresp cmd_strings：write_map_len 运行时分派 + Parameter 模板常量（一处定义）
-2. CONFIG GET / HELLO 接 map 头分派；SUBSTR 实名；PEXPIRETIME quirk
-3. 文案批：WEIGHTS / ZPOPMIN / BLMPOP / GEO 两态
-4. DBID：删硬编码、接会话字段与集群门
-5. 测试：config_commands RESP2/RESP3 字节断言、HELLO map 头、DBID 四态
-   （含集群 stub）、新集成测试 resp_error_text_tests.rs 收口文案字节断言
+1. wresp cmd_strings：write_map_len 运行时按 resp_protocol_version 分派
+   （对标 RespServerSessionOutput.cs:WriteMapLength，一处定义）+
+   GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO 模板常量。
+2. CONFIG GET（config_commands.rs network_config_get 加协议版本参数）与
+   HELLO（resp_server_session.rs process_hello_command_state，升级后写 %8）
+   接 map 头分派；范围外同模式记录：acl_commands.rs:462 write_map_len_resp2(3)
+   （对标 ACLCommands.cs:477）未改。
+   SUBSTR 报实名（network_get_range 加 cmd_name 参数，garnet_api 分派
+   GETRANGE/SUBSTR 各传）；PEXPIRETIME 恒报 EXPIRETIME（quirk 对齐）。
+3. 文案批：WEIGHTS → "ERR weight value is not a valid float"
+   （cs 新增 GENERIC_ERR_NOT_A_FLOAT_WEIGHT）；ZPOPMIN/ZPOPMAX →
+   cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE；BLMPOP numkeys/count →
+   Parameter 反引号模板（LMPOP 文案不动）；GEO lon/lat 两态——wcol
+   parse_utils::try_get_geo_lon_lat 改返回 GeoLonLatError
+   （NotFloat / OutOfRange(f64, f64)），geo_commands 三处调用点
+   （GEOADD 预检 / GEORADIUS 圆心 / FROMLONLAT）接两态文案，错误通道改
+   Cow<str>，删除无数值的 RESP_ERR_INVALID_LON_LAT。
+4. DBID：删 MAX_DATABASES / CLUSTER_ENABLED 硬编码，try_parse_database_id
+   改读 self.max_databases（RespServerSessionOptions 装配投影，SELECT/SWAPDB
+   同源）与 self.cluster_session.is_some()（真实集群门），判定序对齐 C#。
+5. 测试：config_commands RESP2/RESP3 头字节断言；HELLO %8 与 *16 双侧
+   断言；DBID 范围门四态 + 集群门拦截/0 放行（resp_server_session.rs tests
+   StubClusterSession 复用）；新集成测试 wnode/tests/resp_error_text_tests.rs
+   收口全部文案字节断言；wnode_test complete_len 补 % 聚合帧读取。
+
+## 附加清理（check.js 重复消解触发）
+
+session_parse_state_extensions.rs 的 try_get_geo_search_options /
+try_get_geo_lon_lat / try_geo_lon_lat_pair 为无调用方死代码（GEO 命令实际
+走 sorted_set_geo_commands.rs 本地解析），且纬度边界手写 ±85.05112878 偏离
+C# GeoHash 的 ±90（wcol GeoHash 常量已对齐 ±90）——整段删除，TryGetGeoLonLat
+映射收敛活路径单点；同步删除仅覆盖死代码的集成测试段。范围外记录：
+session 版 ±85.05 边界漂移已随死代码删除而消亡，不再单列。
 
 ## 验证结果
 
-（完成后追加）
+- 静态检查：./clippy.sh 全仓 0 警告（未用 allow，全目标含 tests）。
+- 自动化测试：./test.sh 2035 项全过 + 回归门 2 项全过（worktree 干净轮；
+  原 2038 中净减 3 项为死代码专属测试，活路径由新增集成测试承接）。
+- 检查脚本：bun ./js/check.js 0 缺失 0 重复（新增 geo_lon_lat_checked 与
+  session 死代码的 TryGetGeoLonLat 双映射，经死代码删除后消解）。
+- 合并：分支先并 dev（无冲突），再合并回主目录 dev（fast-forward 面
+  458 插入 / 560 删除，合并后编译干净）。
