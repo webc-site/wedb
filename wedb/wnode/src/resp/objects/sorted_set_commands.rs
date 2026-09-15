@@ -330,7 +330,8 @@ impl RespServerSession {
       Some(c) => match strict_i32(c) {
         Some(v) if v >= 0 => v,
         _ => {
-          output.extend_from_slice(b"-ERR value is out of range, must be >= 0\r\n");
+          // C# popCount < 0 → RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE（含句点）
+          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
           return Ok(true);
         }
       },
@@ -1553,7 +1554,8 @@ fn parse_combine_args<'p>(
         match strict_f64(parse_state[idx], true) {
           Some(w) => parsed.push(w),
           None => {
-            output.extend_from_slice(b"-ERR weight value is not a float\r\n");
+            // C# GenericErrNotAFloat 替换 {0}="weight"（SortedSetCommands.cs:1107）
+            cs::abort_with_error_message(output, cs::GENERIC_ERR_NOT_A_FLOAT_WEIGHT);
             return None;
           }
         }

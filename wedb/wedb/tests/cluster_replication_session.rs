@@ -103,6 +103,70 @@ fn cluster_replication_session_process_append_log_flow() {
   assert_eq!(div_err.kind(), ErrorKind::InvalidData);
 }
 
+/// 构造带 8B 记录头的完整记录帧
+fn record_frame(payload: &[u8]) -> Vec<u8> {
+  let mut frame = Vec::new();
+  frame.extend_from_slice(&RecordHeader::for_payload(payload).to_bytes());
+  frame.extend_from_slice(payload);
+  frame
+}
+
+/// FastAofTruncate 跳跃重对齐（对标 C# ReplicaReplaySession.cs:54-74
+/// SafeInitialize 分支）：主端 checkpoint 后截断 AOF 推流产生跳跃帧
+///（currentAddress > previousAddress），副本本地地址空间重对齐后断点续流；
+/// 开关关闭时同帧保持 Divergent 断流（对标 C# 无重对齐分支即 divergent 异常）
+#[test]
+fn cluster_replication_session_fast_aof_truncate_realignment() {
+  let dir = tempfile::tempdir().unwrap();
+  let (provider, wal) = setup_replica_environment(&dir, "replica_1", "primary_1");
+  // 开启 FastAofTruncate（对标 C# serverOptions.FastAofTruncate = true）
+  provider.set_fast_aof_truncate(true);
+  let session = ClusterReplicationSession::new(provider.clone(), wal.clone(), None);
+
+  // 初始化帧：注册重放驱动
+  let outcome = session
+    .process_append_log("primary_1", 0, -1, -1, -1, &[])
+    .expect("init success");
+  assert_eq!(outcome, AppendLogOutcome::Initialized);
+
+  // 稳态帧：记录区间 [0, frame_len)，与主端地址严格衔接
+  let steady = record_frame(b"steady_state_record_payload");
+  session
+    .process_append_log("primary_1", 0, 0, 0, steady.len() as i64, &steady)
+    .expect("steady record success");
+  assert_eq!(wal.tail_address() as i64, steady.len() as i64);
+
+  // 跳跃帧：主端截断后从跳跃点 4096 重推（previousAddress = 上一帧 next）
+  let skip_frame = record_frame(b"post_truncate_record");
+  let skip_current = 4096i64;
+  let skip_next = skip_current + skip_frame.len() as i64;
+  let outcome = session
+    .process_append_log(
+      "primary_1",
+      0,
+      steady.len() as i64,
+      skip_current,
+      skip_next,
+      &skip_frame,
+    )
+    .expect("skip frame realigned and appended");
+  assert_eq!(outcome, AppendLogOutcome::Record);
+  // 断点续流：本地地址空间前跳对齐跳跃点，记录落盘衔接跳跃点
+  assert_eq!(wal.begin_address() as i64, skip_current);
+  assert_eq!(wal.tail_address() as i64, skip_next);
+  // 位点随重对齐推进至跳跃点、随落盘推进至 next
+  let rm = provider.replication_manager().unwrap();
+  assert_eq!(rm.get_replication_offset(0), skip_next);
+
+  // 关闭开关：同一跳跃场景不再重对齐，Divergent 断流
+  provider.set_fast_aof_truncate(false);
+  let tail = wal.tail_address() as i64;
+  let err = session
+    .process_append_log("primary_1", 0, tail, 8192, 8192 + 10, &skip_frame)
+    .unwrap_err();
+  assert_eq!(err.kind(), ErrorKind::InvalidData);
+}
+
 #[test]
 fn cluster_replication_session_message_consumer_try_consume() {
   let dir = tempfile::tempdir().unwrap();

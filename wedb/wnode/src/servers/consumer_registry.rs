@@ -23,7 +23,7 @@ use event_listener::{Event, EventListener};
 use gxhash::HashMap;
 use parking_lot::{Mutex, RwLock};
 use wbase::time::now_ms;
-use wmetric::{GarnetSessionMetrics, ServerSample};
+use wmetric::{CommandStats, GarnetSessionMetrics, ServerSample};
 
 use crate::{session_parse_state_extensions::ClientType, traits::ServerEnumerate};
 
@@ -97,6 +97,10 @@ pub struct ConsumerEntry {
   net_output_bytes: AtomicU64,
   /// 累计命令数镜像（会话消费者逐批同步；监视器瞬时 ops/s 源）
   commands_processed: AtomicU64,
+  /// 逐命令统计句柄镜像（C# 监视器经 ActiveConsumers 直查
+  /// RespServerSession.GetCommandStats 的承接：会话体独占，镜像共享句柄，
+  /// 会话消费者逐批挂接；监视器采样时克隆快照）
+  command_stats: RwLock<Option<Arc<Mutex<CommandStats>>>>,
   /// KILL 触发位（C# networkSender.TryClose；首杀即真，重复杀假）
   kill_flag: AtomicBool,
   /// 注销标志（泵已释放该连接；唤醒并退出哨兵任务）
@@ -141,6 +145,20 @@ impl ConsumerEntry {
   /// 直读 sessionMetrics.TotalCommandsProcessed 的累计口径）
   pub fn set_commands_processed(&self, total: u64) {
     self.commands_processed.store(total, Ordering::Release);
+  }
+
+  /// 挂接逐命令统计句柄（幂等；C# ActiveConsumers 直查 GetCommandStats 的
+  /// 共享句柄承接，CommandStatsMonitor 关闭为空操作）
+  pub fn attach_command_stats(&self, stats: Option<Arc<Mutex<CommandStats>>>) {
+    if stats.is_some() {
+      *self.command_stats.write() = stats;
+    }
+  }
+
+  /// 逐命令统计快照（监视器采样面；未挂接为 None）
+  pub fn command_stats_snapshot(&self) -> Option<CommandStats> {
+    let handle = self.command_stats.read().clone()?;
+    Some(handle.lock().clone())
   }
 
   /// 读取动态字段镜像（值拷贝，不持锁跨调用）
@@ -239,6 +257,7 @@ impl ConsumerRegistry {
       net_input_bytes: AtomicU64::new(0),
       net_output_bytes: AtomicU64::new(0),
       commands_processed: AtomicU64::new(0),
+      command_stats: RwLock::new(None),
       kill_flag: AtomicBool::new(false),
       removed: AtomicBool::new(false),
       kill_event: Event::new(),
@@ -297,8 +316,9 @@ impl ConsumerRegistry {
   /// 监视器服务器快照（C# MainMonitorTaskAsync 经 ActiveConsumers 直查的
   /// 服务器域承接：连接计数 + 会话采样）。
   ///
-  /// 会话指标镜像仅承接网络字节（网络泵逐批写入）；命令计数等会话内部
-  /// 计数随会话 dispose 经监视器历史归并（域界差异，见模块注释）
+  /// 会话指标镜像仅承接网络字节与命令计数（网络泵逐批写入）；逐命令统计
+  /// 经共享句柄快照承接，会话内部延迟指标随 dispose 域归并（域界差异，
+  /// 见模块注释）
   pub fn monitor_sample(&self) -> ServerSample {
     let entries = self.active_consumers();
     let sessions: Vec<_> = entries
@@ -310,7 +330,7 @@ impl ConsumerRegistry {
           total_commands_processed: entry.commands_processed.load(Ordering::Acquire),
           ..GarnetSessionMetrics::default()
         },
-        command_stats: None,
+        command_stats: entry.command_stats_snapshot(),
         latency: None,
       })
       .collect();

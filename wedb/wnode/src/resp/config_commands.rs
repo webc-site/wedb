@@ -11,8 +11,7 @@ use wkv::WedbStore;
 use wresp::{
   RespSliceExt, RespVecExt, Result,
   cmd_strings::{
-    self as cs, abort_with_wrong_number_of_arguments, write_error_raw, write_map_len_resp2,
-    write_raw,
+    self as cs, abort_with_wrong_number_of_arguments, write_error_raw, write_map_len, write_raw,
   },
 };
 
@@ -122,6 +121,7 @@ impl ServerConfig {
     &mut self,
     parse_state: &[&[u8]],
     runtime_config: &RuntimeServerConfig,
+    resp_protocol_version: u8,
     output: &mut Vec<u8>,
   ) -> Result<bool> {
     if parse_state.is_empty() {
@@ -159,8 +159,9 @@ impl ServerConfig {
       return Ok(true);
     }
 
-    // RESP2 map 退化为双倍数组；slave-read-only 固定返回 "yes"（Redis 标准兼容常量）
-    write_map_len_resp2(output, parameters.len());
+    // 命中参数对按协议版本写 map 头（C# WriteMapLength：RESP3 %N、RESP2 双倍
+    // 数组）；slave-read-only 固定返回 "yes"（Redis 标准兼容常量）
+    write_map_len(output, parameters.len(), resp_protocol_version);
     for config_type in parameters {
       if config_type == ServerConfigType::SlaveReadOnly {
         output.write_resp_bulk_string(b"slave-read-only");
@@ -441,7 +442,7 @@ mod tests {
 
     // 零参 → wrong args
     let mut out = Vec::new();
-    s.network_config_get(&[], &rc, &mut out).unwrap();
+    s.network_config_get(&[], &rc, 2, &mut out).unwrap();
     assert_eq!(
       out,
       b"-ERR wrong number of arguments for 'CONFIG|GET' command\r\n"
@@ -449,19 +450,19 @@ mod tests {
 
     // 未知参数 → 空列表
     let mut out = Vec::new();
-    s.network_config_get(&[b"maxmemory"], &rc, &mut out)
+    s.network_config_get(&[b"maxmemory"], &rc, 2, &mut out)
       .unwrap();
     assert_eq!(out, b"*0\r\n");
 
     // slave-read-only → 单条 map（RESP2 双倍数组），固定回 yes
     let mut out = Vec::new();
-    s.network_config_get(&[b"slave-read-only"], &rc, &mut out)
+    s.network_config_get(&[b"slave-read-only"], &rc, 2, &mut out)
       .unwrap();
     assert_eq!(out, b"*2\r\n$15\r\nslave-read-only\r\n$3\r\nyes\r\n");
 
     // 运行时表参数：CONFIG GET cluster-node-timeout → 默认 60
     let mut out = Vec::new();
-    s.network_config_get(&[b"cluster-node-timeout"], &rc, &mut out)
+    s.network_config_get(&[b"cluster-node-timeout"], &rc, 2, &mut out)
       .unwrap();
     assert_eq!(out, b"*2\r\n$20\r\ncluster-node-timeout\r\n$2\r\n60\r\n");
 
@@ -470,6 +471,7 @@ mod tests {
     s.network_config_get(
       &[b"cluster-node-timeout", b"CLUSTER-NODE-TIMEOUT"],
       &rc,
+      2,
       &mut out,
     )
     .unwrap();
@@ -479,18 +481,43 @@ mod tests {
     rc.try_set(ServerConfigType::ClusterNodeTimeout, "120")
       .unwrap();
     let mut out = Vec::new();
-    s.network_config_get(&[b"cluster-timeout"], &rc, &mut out)
+    s.network_config_get(&[b"cluster-timeout"], &rc, 2, &mut out)
       .unwrap();
     assert_eq!(out, b"*2\r\n$20\r\ncluster-node-timeout\r\n$3\r\n120\r\n");
 
     // "*" 输出含只读回落参数与运行时参数
     let mut out = Vec::new();
-    s.network_config_get(&[b"*"], &rc, &mut out).unwrap();
+    s.network_config_get(&[b"*"], &rc, 2, &mut out).unwrap();
     let text = String::from_utf8_lossy(&out);
     assert!(text.contains("slave-read-only"), "{text}");
     assert!(text.contains("cluster-node-timeout"), "{text}");
     assert!(text.contains("aof-commit-freq"), "{text}");
     assert!(text.contains("databases"), "{text}");
+  }
+
+  #[test]
+  fn config_get_writes_resp3_map_header() {
+    // C# ServerConfig.cs:69 WriteMapLength：RESP3 客户端写 %N 头
+    let mut s = ServerConfig;
+    let rc = config();
+
+    // RESP3：单参数 → %1（一对名值）+ 名值两 bulk
+    let mut out = Vec::new();
+    s.network_config_get(&[b"cluster-node-timeout"], &rc, 3, &mut out)
+      .unwrap();
+    assert_eq!(out, b"%1\r\n$20\r\ncluster-node-timeout\r\n$2\r\n60\r\n");
+
+    // RESP3：slave-read-only 单条，固定 yes
+    let mut out = Vec::new();
+    s.network_config_get(&[b"slave-read-only"], &rc, 3, &mut out)
+      .unwrap();
+    assert_eq!(out, b"%1\r\n$15\r\nslave-read-only\r\n$3\r\nyes\r\n");
+
+    // 零命中两协议同回空数组（C# RESP_EMPTYLIST）
+    let mut out = Vec::new();
+    s.network_config_get(&[b"maxmemory"], &rc, 3, &mut out)
+      .unwrap();
+    assert_eq!(out, b"*0\r\n");
   }
 
   #[test]

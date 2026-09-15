@@ -671,12 +671,12 @@ fn get_slice_test() {
       .unwrap();
 
     let mut out = Vec::new();
-    s.network_get_range(&[b"k", b"-2", b"-1"], batch, &mut out)
+    s.network_get_range(&[b"k", b"-2", b"-1"], batch, &mut out, "GETRANGE")
       .unwrap();
     assert_eq!(out, b"$2\r\ncd\r\n");
 
     let mut out = Vec::new();
-    s.network_get_range(&[b"k", b"0", b"999"], batch, &mut out)
+    s.network_get_range(&[b"k", b"0", b"999"], batch, &mut out, "GETRANGE")
       .unwrap();
     assert_eq!(out, b"$7\r\n\x00ab\x00\x00cd\r\n");
   });
@@ -1531,7 +1531,7 @@ fn string_commands_on_collection_keys_return_wrongtype() {
 
       // 5. GETRANGE
       out.clear();
-      s.network_get_range(&[key, b"0", b"10"], batch, &mut out)
+      s.network_get_range(&[key, b"0", b"10"], batch, &mut out, "GETRANGE")
         .unwrap();
       assert_eq!(out, WRONG_TYPE_ERR);
 

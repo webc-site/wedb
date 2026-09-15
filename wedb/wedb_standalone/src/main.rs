@@ -53,6 +53,8 @@ fn main() -> wnode::Result<()> {
   // + 可选落文件（serverSettings.FileLogger）+ 最低级别（serverSettings.LogLevel）
   let node = &args.node;
   let metrics_sampling_frequency_secs = node.metrics_sampling_frequency_secs;
+  let latency_monitor = node.latency_monitor;
+  let commandstats_monitor = node.commandstats_monitor;
   let mut logging = LoggingBuilder::new().with_minimum_level(node.minimum_log_level());
   if let Some(file) = &node.file_logger {
     logging = logging.add_file(file, 0);
@@ -63,17 +65,30 @@ fn main() -> wnode::Result<()> {
 
   ServerBootstrap::new(args)
     .metrics_sampling_frequency(metrics_sampling_frequency_secs)
+    .latency_monitor(latency_monitor)
+    .commandstats_monitor(commandstats_monitor)
     .banner("WeDB Standalone 单机节点")
     .run_async(|args, _noop_cluster| async move {
       let node = args.node_args();
       // Lua 超时管理器装配（同集群 main：C# StoreWrapper 构造段 +
       // GarnetServer.cs:Start 的 luaTimeoutManager.Start()）。
       // 标量先行拷出：会话工厂随 provider 存活，不得借用 args。
-      let (enable_lua, lua_timeout_ms, lua_txn_mode, max_databases) = (
+      let (
+        enable_lua,
+        lua_timeout_ms,
+        lua_txn_mode,
+        max_databases,
+        enable_aof,
+        commandstats_monitor,
+        latency_monitor,
+      ) = (
         node.enable_lua,
         node.lua_script_timeout_ms,
         node.lua_transaction_mode,
         node.max_databases,
+        node.aof,
+        node.commandstats_monitor,
+        node.latency_monitor,
       );
       let lua_timeout_manager = assemble_lua_timeout(enable_lua, lua_timeout_ms);
       let lua_options = wlua::LuaOptions {
@@ -85,10 +100,15 @@ fn main() -> wnode::Result<()> {
           network_sender_id,
           RespServerSessionOptions {
             max_databases,
+            latency_monitor,
+            command_stats_monitor: commandstats_monitor,
             enable_lua,
             lua_options: lua_options.clone(),
             lua_txn_mode,
             lua_timeout_manager: lua_timeout_manager.clone(),
+            // C# serverOptions.EnableAOF 投影；WaitForCommit 无 CLI 参数源，
+            // 默认 false（C# 默认同值，AOF 阻塞标记不维护）
+            enable_aof,
             ..RespServerSessionOptions::default()
           },
           api,

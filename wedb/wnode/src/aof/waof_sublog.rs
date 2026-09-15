@@ -44,6 +44,10 @@ pub struct WaofSublog<D: Device> {
   /// WalLog 无 commit 元数据持久化区（刻意架构差异，见 WalLog::recover 文档），
   /// cookie 仅进程内可见；跨重启的恢复上界由调用方按扫描终点界定。
   cookie: AtomicI64,
+  /// 已提交 begin 快照（C# TsavoriteLog.CommittedBeginAddress：commit 记录
+  /// 写出的 begin 值；初值 1 = FirstValidAddress，进程内恢复链由
+  /// safe_initialize 以 begin 参数恢复）。
+  committed_begin: AtomicI64,
 }
 
 impl<D: Device> Deref for WaofSublog<D> {
@@ -61,6 +65,7 @@ impl<D: Device> WaofSublog<D> {
     Self {
       wal,
       cookie: AtomicI64::new(NO_COOKIE),
+      committed_begin: AtomicI64::new(1),
     }
   }
 }
@@ -105,6 +110,11 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
   /// （CommitPipelineState），自动合并并发提交并由单一 Leader 串行刷盘，外层无需多余的三态 CAS。
   fn commit(&self, until_address: i64, cookie: i64) {
     self.cookie.store(cookie, Ordering::Release);
+    // commit 记录写出 begin 快照（C# TsavoriteLog.WriteCommitMetadata：
+    // info.BeginAddress = BeginAddress，TsavoriteLog.cs:2696）
+    self
+      .committed_begin
+      .store(self.wal.begin_address() as i64, Ordering::Release);
     let wal = Arc::clone(&self.wal);
     let run_flush = move |wal: Arc<WalLog<D>>| async move {
       let res = if until_address <= 0 {
@@ -227,6 +237,11 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
   /// 物理刷盘提交：环形缓冲 → 设备（WalLog::commit 持提交锁刷盘 + 位点推进）。
   async fn commit_flush_async(&self, cookie: i64) {
     self.cookie.store(cookie, Ordering::Release);
+    // commit 记录写出 begin 快照（C# TsavoriteLog.WriteCommitMetadata：
+    // info.BeginAddress = BeginAddress，TsavoriteLog.cs:2696）
+    self
+      .committed_begin
+      .store(self.wal.begin_address() as i64, Ordering::Release);
     if let Err(err) = self.wal.commit().await {
       log::error!("WaofSublog 物理刷盘失败: {err:?}");
     }
@@ -250,8 +265,23 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
     self.wal.config().buffer_size.trailing_zeros() as i32
   }
 
-  fn memory_size_bytes(&self) -> i64 {
+  /// 容量上限：环形缓冲窗口字节数（C# TsavoriteLog.MaxMemorySizeBytes 的
+  /// 磁盘形态 = MaxAllocatedPageCount * PageSize，waof 定长窗口即总容量）。
+  fn max_memory_size_bytes(&self) -> i64 {
     self.wal.config().buffer_size as i64
+  }
+
+  /// 当前占用：环形窗口有效字节数 = tail - begin（C# TsavoriteLog.MemorySizeBytes
+  /// "Actual memory used by log" 的 waof 承载形态；截断后随 begin 前移收缩）。
+  fn memory_size_bytes(&self) -> i64 {
+    (self
+      .wal
+      .tail_address()
+      .saturating_sub(self.wal.begin_address())) as i64
+  }
+
+  fn committed_begin_address(&self) -> i64 {
+    self.committed_begin.load(Ordering::Acquire)
   }
 
   /// 重置日志：cookie 复位 + 转发权威 [`WalLog::reset`]
@@ -260,6 +290,9 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
   /// 并发会撕裂位点，已删）。
   async fn reset_async(&self) {
     self.cookie.store(NO_COOKIE, Ordering::Release);
+    // CommittedBeginAddress 归 FirstValidAddress（C# TsavoriteLog.Reset，
+    // TsavoriteLog.cs:244-246）
+    self.committed_begin.store(1, Ordering::Release);
     if let Err(err) = self.wal.reset().await {
       log::error!("WaofSublog 日志重置失败: {err:?}");
     }
@@ -276,6 +309,11 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
     } else {
       self.cookie.store(NO_COOKIE, Ordering::Release);
     }
+    // 恢复自 commit 记录（C# TsavoriteLog.Initialize：
+    // CommittedBeginAddress = beginAddress，TsavoriteLog.cs:528/:596）
+    self
+      .committed_begin
+      .store(begin_address.max(0), Ordering::Release);
     self.wal.safe_initialize(
       begin_address.max(0) as u64,
       committed_until_address.max(0) as u64,

@@ -1,9 +1,17 @@
 //! AOF 恢复（对标 libs/server/AOF/Recover/AofRecover.cs）
 //!
-//! 库级恢复编排：按子日志数选择单日志 / 多日志恢复路径，统计重放条目并
-//! 汇报吞吐面（C# 计数器 + 日志；rust 侧返回计数由调用方处置）。
+//! 库级恢复编排：单日志恢复路径，统计重放条目并汇报吞吐面（C# 计数器 +
+//! 日志；rust 侧返回计数由调用方处置）。
+//!
+//! 多物理日志恢复（C# MultiLogRecover，AofRecover.cs:127）不在 rust 生产域：
+//! 其恢复上界收敛自各子日志 commit cookie（RecoverLatestSequenceNumber），
+//! waof 承载下 WaofSublog cookie 仅进程内可见（无 commit 元数据持久化区），
+//! 多物理日志恢复上界无从收敛；生产域唯一物理装配工厂 single_log_aof 恒单
+//! WaofSublog，与 C# MultiLogEnabled 默认 false（GarnetServerOptions.cs:1243）
+//! 关闭形态一致。差异已登记 js/check/ignore；ShardedLog / 地址向量 /
+//! RecoverLogDriver 拓扑语义面保留，物理装配点亮待 waof commit 元数据
+//! 持久化后另立任务。
 
-use waof::AofAddress;
 use wdev::Device;
 
 use crate::aof::{
@@ -62,32 +70,5 @@ impl AofRecover {
       target,
     )
     .await
-  }
-
-  /// libs/server/AOF/Recover/AofRecover.cs:MultiLogRecover
-  ///
-  /// 多日志恢复：逐物理子日志装配 driver（C# 并行 Task.WhenAll；rust 侧由
-  /// 调用方跨 driver 并行，本入口顺序串联），累计重放条目数。
-  pub async fn multi_log_recover<D: Device>(
-    processor: &AofProcessor,
-    aof: &GarnetAppendOnlyFile,
-    db_id: i64,
-    until_address: &AofAddress,
-    until_sequence_number: i64,
-    target: &ReplayTarget<'_, '_, D>,
-  ) -> Result<u64, AofReplayError> {
-    processor.switch_active_database_context(db_id);
-    let mut total = 0u64;
-    for physical_sublog_idx in 0..aof.log().size() {
-      let begin = aof.log().get_sub_log(physical_sublog_idx).begin_address();
-      let driver = RecoverLogDriver::new(
-        physical_sublog_idx,
-        begin,
-        until_address.get(physical_sublog_idx).unwrap_or(-1),
-        until_sequence_number,
-      );
-      total += driver.run(processor, aof, target).await?;
-    }
-    Ok(total)
   }
 }

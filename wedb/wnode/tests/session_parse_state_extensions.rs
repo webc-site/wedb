@@ -7,20 +7,17 @@
 use std::slice::from_ref;
 
 use wbitmap::BitFieldOverflow;
-use wcol::{
-  geo::{GeoDistanceUnitType, GeoOrder, GeoOriginType, GeoSearchType},
-  list::list_object::OperationDirection,
-};
+use wcol::list::list_object::OperationDirection;
 use wmetric::{InfoMetricsType, LatencyMetricsType};
 use wnode::{
   key_spec::{SimpleRespKeySpec, SimpleRespKeySpecBeginSearch, SimpleRespKeySpecFindKeys},
   session_parse_state_extensions::{
     ClientType, extract_command_keys, extract_command_keys_and_flags, try_get_bit_field_overflow,
     try_get_bitfield_encoding, try_get_bitfield_offset, try_get_client_name, try_get_client_type,
-    try_get_expiration_option, try_get_expire_option, try_get_geo_search_options,
-    try_get_info_metrics_type, try_get_key_search_args_from_simple_key_spec,
-    try_get_latency_metrics_type, try_get_manager_type, try_get_operation_direction,
-    try_get_sorted_set_add_option, try_get_sorted_set_aggregate_type, try_get_timeout,
+    try_get_expiration_option, try_get_expire_option, try_get_info_metrics_type,
+    try_get_key_search_args_from_simple_key_spec, try_get_latency_metrics_type,
+    try_get_manager_type, try_get_operation_direction, try_get_sorted_set_add_option,
+    try_get_sorted_set_aggregate_type, try_get_timeout,
   },
 };
 use wresp::{
@@ -31,7 +28,6 @@ use wresp::{
 /// C# CmdStrings 同名常量（src 本地对齐文本；此处同文内联断言）
 const RESP_ERR_TIMEOUT_IS_NEGATIVE: &str = "ERR timeout is negative";
 const RESP_ERR_TIMEOUT_IS_OUT_OF_RANGE: &str = "ERR timeout is out of range";
-const RESP_ERR_NOT_VALID_RADIUS: &str = "ERR need numeric radius";
 
 fn state_of(args: &[&[u8]]) -> SessionParseState {
   let slices: Vec<ArgSlice> = args
@@ -158,51 +154,6 @@ fn operation_direction_and_aggregate() {
 }
 
 #[test]
-fn geo_search_options_full_parse() {
-  // GEOSEARCH key FROMLONLAT 1 2 BYRADIUS 30 km ASC COUNT 10 ANY WITHCOORD
-  let state = state_of(&[
-    b"FROMLONLAT",
-    b"1",
-    b"2",
-    b"BYRADIUS",
-    b"30",
-    b"KM",
-    b"ASC",
-    b"COUNT",
-    b"10",
-    b"ANY",
-    b"WITHCOORD",
-  ]);
-  let (opts, dest, err) = try_get_geo_search_options(&state, "GEOSEARCH");
-  assert!(
-    err.is_none(),
-    "unexpected error: {:?}",
-    err.map(|e| String::from_utf8_lossy(&e).into_owned())
-  );
-  assert_eq!(dest, -1);
-  let opts = opts.unwrap();
-  assert_eq!(opts.origin, GeoOriginType::FromLonLat);
-  assert_eq!(opts.search_type, GeoSearchType::ByRadius);
-  assert_eq!(opts.radius, 30.0);
-  assert_eq!(opts.unit, GeoDistanceUnitType::Km);
-  assert_eq!(opts.sort, GeoOrder::Ascending);
-  assert_eq!(opts.count_value, 10);
-  assert!(opts.with_count_any);
-  assert!(opts.with_coord);
-}
-
-#[test]
-fn geo_search_requires_origin_and_shape() {
-  let state = state_of(&[b"ASC"]);
-  let (opts, _, err) = try_get_geo_search_options(&state, "GEOSEARCH");
-  assert!(opts.is_none());
-  assert_eq!(
-    err.as_deref(),
-    Some("ERR wrong number of arguments for 'GEOSEARCH' command".as_bytes())
-  );
-}
-
-#[test]
 fn key_search_args_range_type() {
   // MSET key1 val1 key2 val2：begin_search_index=1（扣除命令名后），lastkey=4，step=2
   let state = state_of(&[b"key1", b"val1", b"key2", b"val2"]);
@@ -305,31 +256,4 @@ fn bitfield_strict_int_semantics() {
     try_get_bitfield_offset(&state_of(&[b"#+7"]), 0),
     Some((7, true))
   );
-}
-
-#[test]
-fn geo_radius_accepts_inf_literal() {
-  // C# TryGetDouble 默认 canBeInfinite: true → INF 半径合法（仅拒绝负半径）
-  //（GEORADIUSBYMEMBER 以成员为原点，避免 GEORADIUS 的经纬度先行读取）
-  let state = state_of(&[b"member", b"INF", b"KM"]);
-  let (opts, dest, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
-  assert!(
-    err.is_none(),
-    "unexpected: {:?}",
-    err.map(|e| String::from_utf8_lossy(&e).into_owned())
-  );
-  assert_eq!(dest, -1);
-  assert_eq!(opts.unwrap().radius, f64::INFINITY);
-
-  // "Infinity" 非 3/4 字节白名单 → not a valid radius
-  let state = state_of(&[b"member", b"Infinity", b"KM"]);
-  let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
-  assert!(opts.is_none());
-  assert_eq!(err.as_deref(), Some(RESP_ERR_NOT_VALID_RADIUS.as_bytes()));
-
-  // 负 infinity 全拼同样词形拒绝（未过词形门，走不到负半径判定）
-  let state = state_of(&[b"member", b"-infinity", b"KM"]);
-  let (opts, _, err) = try_get_geo_search_options(&state, "GEORADIUSBYMEMBER");
-  assert!(opts.is_none());
-  assert_eq!(err.as_deref(), Some(RESP_ERR_NOT_VALID_RADIUS.as_bytes()));
 }

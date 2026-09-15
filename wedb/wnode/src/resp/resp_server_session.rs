@@ -18,6 +18,7 @@ use std::{
 
 use gxhash::HashMap as GxHashMap;
 use itoa::Buffer;
+use parking_lot::Mutex;
 use smallvec::SmallVec;
 use wacl::{
   AclPassword, GarnetAclAuthenticator, UserHandle,
@@ -25,19 +26,19 @@ use wacl::{
 };
 use wbase::time::{now_ms, now_nanos, now_stopwatch_ticks};
 use wcol::itembroker::collection_item_observer::CollectionItemResult;
-use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig};
+use wconf::{DEFAULT_RESP_VERSION, RuntimeServerConfig, ServerConfigType};
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, LuaTimeoutManager, ScratchBufferNetworkSender,
   ScriptingApi, SessionScriptCache, StoreScriptCache,
 };
 use wmetric::{
-  GarnetInfoMetrics, GarnetLatencyMetrics, GarnetLatencyMetricsSession, GarnetSessionMetrics,
-  InfoCommand, LatencyMetricsType, SlowLogContainer,
+  CommandStats, GarnetInfoMetrics, GarnetLatencyMetrics, GarnetLatencyMetricsSession,
+  GarnetSessionMetrics, InfoCommand, InfoMetricsType, LatencyMetricsType, SlowLogContainer,
 };
 use wpubsub::{PubSubSession, PubSubSessionCommands, SubscribeBroker};
 use wresp::{
   MAX_ERROR_MSG_LEN, ReplyError, RespCommand, RespSliceExt, RespVecExt, SessionParseState,
-  cmd_strings as cs, cmd_strings::write_map_len_resp2, is_cluster_sub_command, is_data_command,
+  cmd_strings as cs, cmd_strings::write_map_len, is_cluster_sub_command, is_data_command,
   is_no_auth, is_read_only, key_spec::KeySpecificationFlags, normalize_for_acls, one_if_read,
   one_if_write, sanitize_error_str,
 };
@@ -108,6 +109,8 @@ pub struct RespServerSessionOptions {
   pub latency_monitor: bool,
   /// 指标采样频率（> 0 时启用会话指标，C# MetricsSamplingFrequency）
   pub metrics_sampling_frequency: bool,
+  /// 逐命令统计开关（挂 CommandStats 表，C# serverOptions.CommandStatsMonitor）
+  pub command_stats_monitor: bool,
   /// 默认用户句柄名（C# accessControlList.GetDefaultUserHandle()）
   pub default_user: String,
   /// 是否启用 Lua 脚本（C# storeWrapper.serverOptions.EnableLua + enableScripts）
@@ -121,6 +124,11 @@ pub struct RespServerSessionOptions {
   /// Lua 超时管理器（C# storeWrapper.luaTimeoutManager；服务装配期按
   /// 「EnableLua 且超时非无限」创建，tick 任务周期驱动；None = 无超时）
   pub lua_timeout_manager: Option<Arc<LuaTimeoutManager>>,
+  /// AOF 启用开关（C# storeWrapper.serverOptions.EnableAOF）
+  pub enable_aof: bool,
+  /// AOF 提交等待开关（C# storeWrapper.serverOptions.WaitForCommit；
+  /// 与 enable_aof 同时开启时解析器按命令依赖性维护 AOF 阻塞标记）
+  pub wait_for_commit: bool,
 }
 
 impl Default for RespServerSessionOptions {
@@ -131,6 +139,7 @@ impl Default for RespServerSessionOptions {
       enable_debug_command: ConnectionProtectionOption::No,
       latency_monitor: false,
       metrics_sampling_frequency: false,
+      command_stats_monitor: false,
       default_user: "default".to_string(),
       enable_lua: false,
       // C# 默认链：LuaOptions 默认（超时无限、Silent、Native）、
@@ -138,6 +147,9 @@ impl Default for RespServerSessionOptions {
       lua_options: LuaOptions::default(),
       lua_txn_mode: false,
       lua_timeout_manager: None,
+      // C# GarnetServerOptions 默认：EnableAOF = false、WaitForCommit = false
+      enable_aof: false,
+      wait_for_commit: false,
     }
   }
 }
@@ -215,6 +227,10 @@ pub struct RespServerSession {
 
   /// 会话指标（C# sessionMetrics；采样关闭时为 None）
   pub session_metrics: Option<GarnetSessionMetrics>,
+  /// 逐命令统计表（C# commandStats；CommandStatsMonitor 关闭时为 None。
+  /// 单写者为主循环递增，monitor 采样 / dispose 归并 / INFO 聚合为读者，
+  /// 以 parking_lot 互斥承接）
+  pub(crate) command_stats: Option<Arc<parking_lot::Mutex<CommandStats>>>,
   /// 延迟指标（C# LatencyMetrics；监视关闭时为 None；监视器迭代时钟由
   /// 延迟指标实例内部持有 —— C# LatencyMetrics._monitorIterations）
   latency_metrics: Option<Arc<GarnetLatencyMetricsSession>>,
@@ -266,6 +282,10 @@ pub struct RespServerSession {
 
   /// EnableDebugCommand 镜像（C# storeWrapper.serverOptions.EnableDebugCommand）
   connection_protection_debug: ConnectionProtectionOption,
+
+  /// AOF 提交等待门控（C# storeWrapper.serverOptions 的 EnableAOF &&
+  /// WaitForCommit 投影；解析器按此决定是否维护 wait_for_aof_blocking）
+  pub(crate) aof_commit_mode_gate: bool,
 
   /// 集群会话切面（C# clusterSession；None = 单机形态，命令路径与
   /// C# clusterSession == null 分支一致）
@@ -371,6 +391,9 @@ impl RespServerSession {
       session_metrics: options
         .metrics_sampling_frequency
         .then(GarnetSessionMetrics::default),
+      command_stats: options
+        .command_stats_monitor
+        .then(|| Arc::new(Mutex::new(CommandStats::new()))),
       latency_metrics,
       parse_state: SessionParseState::new(),
       recv_buffer: Vec::with_capacity(1 << 16),
@@ -383,6 +406,7 @@ impl RespServerSession {
       flushed_bytes: 0,
       current_custom_command: None,
       connection_protection_debug: options.enable_debug_command,
+      aof_commit_mode_gate: options.enable_aof && options.wait_for_commit,
       mru_cache: Default::default(),
       session_script_cache: options.enable_lua.then(|| {
         // C# SessionScriptCache 构造注入 timeoutManager（服务装配期按
@@ -777,8 +801,9 @@ impl RespServerSession {
     self.bytes_read = self.recv_buffer.len();
     self.read_head = 0;
 
+    self.latency_batch_start();
     self.enter_and_get_response_object();
-    self.process_messages();
+    let op_count = self.process_messages();
     // 协议违规（C# RespParsingException 传播出 ProcessMessages → catch 块：
     // 写 `ERR Protocol Error: {msg}` 追加在累积应答之后 → Send → 断连）。
     // 不回退游标、不计消费字节；None 表达致命错误，应答面（含此前命令
@@ -794,12 +819,58 @@ impl RespServerSession {
       return None;
     }
     let consumed = self.read_head;
+    self.latency_batch_stop(consumed, op_count);
     self.exit_and_return_response_object();
 
     if let Some(metrics) = &mut self.session_metrics {
       metrics.incr_total_net_input_bytes(consumed as u64);
     }
     Some(consumed)
+  }
+
+  /// 批次消费入口的延迟/慢日志起始装配（C# TryConsumeMessages:481/:486-490）：
+  /// 延迟监视开启即启动 NET_RS_LAT 计时；慢日志门开启时起始刻度与延迟
+  /// 计时同源（LatencyMetrics.Get(NET_RS_LAT)），无延迟监视取系统秒表
+  fn latency_batch_start(&mut self) {
+    let slow_log_enabled = self
+      .runtime_config
+      .get_microseconds(ServerConfigType::SlowlogLogSlowerThan)
+      > 0;
+    let Some(latency) = &self.latency_metrics else {
+      if slow_log_enabled {
+        self.slow_log_start_ticks = now_stopwatch_ticks();
+      }
+      return;
+    };
+    latency.start(LatencyMetricsType::NetRsLat, now_stopwatch_ticks() as u64);
+    if slow_log_enabled {
+      self.slow_log_start_ticks = latency.get(LatencyMetricsType::NetRsLat) as i64;
+    }
+  }
+
+  /// 批次消费出口的延迟停表（C# TryConsumeMessages:586-598）：有成功消费
+  /// 字节才记录——慢命令批次切 NET_RS_LAT_ADMIN 桶，随后把字节/命令数
+  /// 记入吞吐直方图
+  fn latency_batch_stop(&mut self, consumed: usize, op_count: u64) {
+    let Some(latency) = &self.latency_metrics else {
+      return;
+    };
+    if consumed == 0 {
+      return;
+    }
+    let now = now_stopwatch_ticks() as u64;
+    if self.contains_slow_command {
+      latency.stop_and_switch(
+        LatencyMetricsType::NetRsLat,
+        LatencyMetricsType::NetRsLatAdmin,
+        now,
+      );
+      self.contains_slow_command = false;
+    } else {
+      latency.stop(LatencyMetricsType::NetRsLat, now);
+    }
+    latency.record_value(LatencyMetricsType::NetRsBytes, consumed as i64);
+    latency.record_value(LatencyMetricsType::NetRsOps, op_count as i64);
   }
 
   /// 泵直读消费入口（scratch 模式，网络泵专属）
@@ -828,8 +899,9 @@ impl RespServerSession {
     self.bytes_read = self.recv_buffer.len();
     let prev_read_head = self.read_head;
 
+    self.latency_batch_start();
     self.enter_and_get_response_object();
-    self.process_messages();
+    let op_count = self.process_messages();
     // 协议违规（C# RespParsingException → catch 块写协议错误 → Send 累积
     // 应答 → DisposeNetworkSender）：游标不回退，None 表达致命错误，
     // 由泵发尽应答（含协议错误）后关闭连接
@@ -847,6 +919,7 @@ impl RespServerSession {
 
     // 本轮新增消费字节（EXEC 回退重解析可致游标暂时回退，saturating 兜底）
     let newly_consumed = self.read_head.saturating_sub(prev_read_head);
+    self.latency_batch_stop(newly_consumed, op_count);
     // 事务在途（C# IsSkippingOperations / `if (!txnSkip) readHead = 0` 对偶
     // 语义）：排队字节与 txn_start_head 偏移必须驻留缓冲供 EXEC 回退重解析，
     // 禁止清零复位
@@ -874,19 +947,20 @@ impl RespServerSession {
   /// libs/server/Resp/RespServerSession.cs:ProcessMessages
   ///
   /// 主循环：解析 → ACL 门 + no-script 门（C# :653 CheckACLPermissions(cmd)
-  /// && CheckScriptPermissions(cmd)，位图由脚本期 [`Self::attach_no_script_bitmap`]
-  /// 挂载，脚本内 redis.call 重入同门）→ 订阅模式/事务/槽位门 → 分派 →
-  /// 指标；被拒命令 ACL 失败回 NOPERM/NOAUTH、no-script 失败回 NOSCRIPT
-  /// （C# :688-712）。命令未完整到达时双游标回退到本轮起点
-  ///（C# `endReadHead = readHead = _origReadHead`）。
-  pub fn process_messages(&mut self) {
+  /// && CheckScriptPermissions(cmd)，位图仅在脚本执行窗口挂载——C# 位图挂
+  /// 内嵌 processor，脚本内 redis.call 重入同门）→ 订阅模式/事务/槽位门 →
+  /// 分派 → 指标；被拒命令 ACL 失败回 NOPERM/NOAUTH、no-script 失败回
+  /// NOSCRIPT（C# :688-715，两分支均 IncrementRejected）。命令未完整到达时
+  /// 双游标回退到本轮起点（C# `endReadHead = readHead = _origReadHead`）。
+  /// 返回本批有效命令数（C# opCount 字段的批内增量，延迟吞吐直方图消费）
+  pub fn process_messages(&mut self) -> u64 {
     // 挂起中的阻塞/慢路径命令未完成前不再消费新命令（C# 网络线程
     // BlockingWait 期间本就读不到后续命令）
     if self.pending_block.is_some() || self.pending_slow.is_some() {
-      return;
+      return 0;
     }
 
-    self.slow_log_start_ticks = now_stopwatch_ticks();
+    let mut op_count = 0u64;
     let mut orig_read_head = self.read_head;
 
     while self.bytes_read.saturating_sub(self.read_head) >= 4 {
@@ -959,14 +1033,34 @@ impl RespServerSession {
               }
             }
           }
+
+          // libs/server/Resp/RespServerSession.cs:683-689（CommandStats 门控：
+          // 执行后 calls 必计；失败随 commandErrorWritten 标志计并复位）
+          if let Some(stats) = &self.command_stats {
+            let mut stats = stats.lock();
+            stats.increment_calls(cmd);
+            if self.command_error_written {
+              stats.increment_failed(cmd);
+              self.command_error_written = false;
+            }
+          }
         } else if script_permitted {
           // C# :688-706 else 分支：已认证 → NOPERM；未认证 → NOAUTH
           self.write_acl_permission_error(self.acl_user_handle.is_some());
+          // libs/server/Resp/RespServerSession.cs:715（ACL/脚本权限拒绝计数）
+          if let Some(stats) = &self.command_stats {
+            stats.lock().increment_rejected(cmd);
+          }
         } else {
-          // C# :708-712 else 分支：NOSCRIPT（C# :715 另计
-          // commandStats.IncrementRejected，rust 无命令拒绝计数面）
+          // C# :708-712 else 分支：NOSCRIPT（C# :715 同计拒绝数）
           self.write_error_response(cs::RESP_ERR_NOSCRIPT);
+          if let Some(stats) = &self.command_stats {
+            stats.lock().increment_rejected(cmd);
+          }
         }
+
+        // C# :719 if (LatencyMetrics != null) opCount++
+        op_count += 1;
 
         self.handle_slow_log(cmd);
 
@@ -974,9 +1068,6 @@ impl RespServerSession {
           metrics.incr_total_commands_processed(1);
           metrics.add_total_write_commands_processed(one_if_write(cmd));
           metrics.add_total_read_commands_processed(one_if_read(cmd));
-          if self.command_error_written {
-            self.command_error_written = false;
-          }
         }
       } else {
         self.contains_slow_command = true;
@@ -995,6 +1086,7 @@ impl RespServerSession {
         break;
       }
     }
+    op_count
   }
 
   /// libs/server/Resp/RespServerSession.cs:EnterAndGetResponseObject
@@ -1428,25 +1520,40 @@ impl RespServerSession {
     }
     if cmd == RespCommand::Info {
       // libs/server/Metrics/Info/InfoCommand.cs:NetworkINFO（wmetric 段分发：
-      // 段解析 + 各信息域填充经 SessionInfoSource 数据源承接）
+      // 段解析 + 各信息域填充经 SessionInfoSource 数据源承接）。
+      // 纯显式 KEYSPACE 段请求需全库扫描计数（C# PopulateKeyspaceInfo →
+      // GetKeyspaceStats 专用扫描会话；DEFAULT/ALL 段集合不含 KEYSPACE，
+      // 普通 INFO 不受影响）——存储域扫描须跨 await，与 DBSIZE 同构降级
+      // 慢路径（garnet_api dispatch_slow Info 臂挂 SlowWait 闭环）。混合段
+      // 名（如 INFO server keyspace）不降级，keyspace 段按 wmetric 缺省
+      // 形态呈现，避免丢段
       let args = self.get_arg_slices();
-      let text = {
-        let provider = super::info_provider::SessionInfoSource::new(self);
-        let mut info = GarnetInfoMetrics::new();
-        let mut out = Vec::new();
-        InfoCommand::network_info(
-          &args,
-          self.active_db_id,
-          &provider,
-          &mut info,
-          // C# monitor.resetEventFlags[STATS] 置位；服务器级监视器未装配为 no-op
-          &mut |_| {},
-          &mut out,
-        );
-        out
-      };
-      self.output.extend_from_slice(&text);
-      return true;
+      let keyspace_only = !args.is_empty()
+        && args
+          .iter()
+          .all(|a| InfoMetricsType::from_name(a) == Some(InfoMetricsType::Keyspace));
+      if keyspace_only {
+        // 放行到函数尾兜底分派（C# ProcessOtherCommands 末端
+        // ProcessAdminCommands 形态），由存储执行域承接
+      } else {
+        let text = {
+          let provider = super::info_provider::SessionInfoSource::new(self);
+          let mut info = GarnetInfoMetrics::new();
+          let mut out = Vec::new();
+          InfoCommand::network_info(
+            &args,
+            self.active_db_id,
+            &provider,
+            &mut info,
+            // C# monitor.resetEventFlags[STATS] 置位；服务器级监视器未装配为 no-op
+            &mut |_| {},
+            &mut out,
+          );
+          out
+        };
+        self.output.extend_from_slice(&text);
+        return true;
+      }
     }
     // 自定义命令族（C# ProcessOtherCommands 的 RespCommand.CustomTxn /
     // CustomRawStringCmd / CustomProcedure → NetworkCustomTxn /
@@ -1461,6 +1568,22 @@ impl RespServerSession {
     let args = self.get_arg_slices();
     self.dispatch_via_garnet_api(cmd, &args);
     true
+  }
+
+  /// INFO 纯显式 KEYSPACE 段请求的降级判定（rust compio 异步存储域特有
+  /// 降级点，无 C# 对标函数——C# GetKeyspaceStats 网络线程同步执行；rust
+  /// 存储域扫描须跨 await，与 [`Self::network_dbsize`] 同构降级 Ok(false)
+  /// 挂 SlowWait 异步闭环）
+  ///
+  /// 唯一到达路径：[`Self::process_other_commands`] 放行的纯显式 KEYSPACE
+  /// 段请求（DEFAULT/ALL 段集合不含 KEYSPACE，其余 INFO 请求在会话侧
+  /// 同步闭环）
+  pub(crate) fn try_info_keyspace_slow_path(
+    &mut self,
+    _parse_state: &[&[u8]],
+    _output: &mut Vec<u8>,
+  ) -> wresp::Result<bool> {
+    Ok(false)
   }
 
   /// 本地缓冲写出 → 并回会话输出（CLIENT/CLUSTER/ROLE 族 take/log/restore
@@ -2140,7 +2263,8 @@ impl RespServerSession {
       self.set_client_name(Some(name));
     }
 
-    // 应答 map（RESP2 退化为双倍数组）；字段序对齐 C#：server/version/
+    // 应答 map 按升级后的协议版本写头（C# BasicCommands.cs:1829 WriteMapLength：
+    // RESP3 %8、RESP2 双倍数组）；字段序对齐 C#：server/version/
     // garnet_version/proto/id/mode/role + modules 空数组；proto/id 直读会话状态；
     // mode/role 集群形态（C# EnableCluster && IsReplica 分支）
     let (mode, role) = match &self.cluster_session {
@@ -2154,7 +2278,7 @@ impl RespServerSession {
         },
       ),
     };
-    write_map_len_resp2(output, 8);
+    write_map_len(output, 8, self.resp_protocol_version);
     output.write_resp_bulk_string(b"server");
     output.write_resp_bulk_string(b"redis");
     output.write_resp_bulk_string(b"version");
@@ -2858,6 +2982,8 @@ mod tests {
     let mut out = Vec::new();
     assert!(s.process_hello_command_state(Some(3), b"", b"", None, &mut out));
     let text = String::from_utf8(out).unwrap();
+    // 升级到 RESP3 后 map 头写 %8（C# BasicCommands.cs:1829 WriteMapLength）
+    assert!(text.starts_with("%8\r\n"), "RESP3 map 头 expected: {text}");
     assert!(
       text.contains("$5\r\nproto\r\n:3\r\n"),
       "resp=3 expected: {text}"
@@ -2874,6 +3000,74 @@ mod tests {
       info,
       "id=7 addr=127.0.0.1:6380 laddr= age=0 flags=N db=0 resp=3 lib-name=redis-py lib-ver=5.0.1"
     );
+  }
+
+  #[test]
+  fn hello_resp2_keeps_doubled_array_header() {
+    // RESP2 会话 map 头退化为双倍长度数组（C# WriteMapLength else 分支）
+    let mut s = session(9);
+    let mut out = Vec::new();
+    assert!(s.process_hello_command_state(None, b"", b"", None, &mut out));
+    let text = String::from_utf8(out).unwrap();
+    assert!(text.starts_with("*16\r\n"), "RESP2 数组头 expected: {text}");
+  }
+
+  #[test]
+  fn database_id_validates_against_session_max_databases() {
+    // MaxDatabases 直读会话装配字段（C# storeWrapper.serverOptions.MaxDatabases）
+    let mut s = RespServerSession::new(
+      40,
+      RespServerSessionOptions {
+        allow_multi_db: true,
+        max_databases: 4,
+        ..RespServerSessionOptions::default()
+      },
+    );
+
+    // 非整数（C# TryGetInt 失败）
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"abc"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR value is not an integer or out of range.\r\n"
+    );
+
+    // dbId >= MaxDatabases 与负数 → DB index is out of range.
+    for dbid in ["4", "5", "-1"] {
+      let mut out = Vec::new();
+      assert!(
+        !s.try_parse_database_id(&[dbid.as_bytes()], &mut out)
+          .unwrap()
+      );
+      assert_eq!(
+        String::from_utf8(out).unwrap(),
+        "-ERR DB index is out of range.\r\n"
+      );
+    }
+
+    // 上界内放行（无输出）
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"3"], &mut out).unwrap());
+    assert!(out.is_empty());
+  }
+
+  #[test]
+  fn database_id_rejects_non_zero_in_cluster_mode() {
+    // C# EnableCluster 时 dbId > 0 拦（RESP_ERR_DB_ID_CLUSTER_MODE）；0 放行
+    let stub = Arc::new(StubClusterSession::new());
+    let mut s = session(41);
+    s.attach_cluster_session(stub);
+
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"1"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR specifying non-zero DBID is not allowed in cluster mode\r\n"
+    );
+
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"0"], &mut out).unwrap());
+    assert!(out.is_empty());
   }
 
   #[test]

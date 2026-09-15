@@ -4,7 +4,7 @@
 //! 而 C# 大量错误常量自带 `ERR`/`WRONGTYPE` 等完整前缀（经 RespWriteUtils.
 //! TryWriteError 以 `-<msg>\r\n` 原样写出），故此处提供不加工前缀的原样写出。
 
-use crate::{RespWriter, sanitize_error_str};
+use crate::{Resp3, RespWriter, sanitize_error_str};
 
 /// libs/server/Resp/CmdStrings.cs:RESP_OK
 pub const RESP_OK: &[u8] = b"+OK\r\n";
@@ -185,6 +185,11 @@ pub const GENERIC_ERR_DUPLICATE_FILTER: &str = "ERR Filter '{0}' defined multipl
 pub const GENERIC_PUBSUB_COMMAND_NOT_ALLOWED: &str = "ERR Can't execute '{0}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT are allowed in this context";
 /// libs/server/Resp/CmdStrings.cs:GenericErrShouldBeGreaterThanZero
 pub const GENERIC_ERR_SHOULD_BE_GREATER_THAN_ZERO: &str = "ERR {0} should be greater than 0";
+/// libs/server/Resp/CmdStrings.cs:GenericErrNotAFloat（SortedSet WEIGHTS 固定替换 {0}="weight"）
+pub const GENERIC_ERR_NOT_A_FLOAT_WEIGHT: &str = "ERR weight value is not a valid float";
+/// libs/server/Resp/CmdStrings.cs:GenericParamShouldBeGreaterThanZero
+pub const GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO: &str =
+  "ERR Parameter `{0}` should be greater than 0";
 /// libs/server/Resp/CmdStrings.cs:GenericErrUnknownOptionConfigSet
 pub const GENERIC_ERR_UNKNOWN_OPTION_CONFIG_SET: &str =
   "ERR Unknown option or number of arguments for CONFIG SET - '{0}'";
@@ -264,6 +269,17 @@ pub fn write_map_len_resp2(output: &mut Vec<u8>, len: usize) {
   RespWriter::new_ref(output).write_map_length(len);
 }
 
+/// 运行时按会话协议版本写 map 头（对标 RespServerSessionOutput.cs:WriteMapLength：
+/// RESP3 写 `%<len>\r\n`，RESP2 退化为双倍长度数组 `*<2len>\r\n`）
+#[inline]
+pub fn write_map_len(output: &mut Vec<u8>, len: usize, resp_protocol_version: u8) {
+  if resp_protocol_version >= 3 {
+    RespWriter::<&mut Vec<u8>, Resp3>::new_ref_p(output).write_map_length(len);
+  } else {
+    write_map_len_resp2(output, len);
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -307,6 +323,18 @@ mod tests {
     let mut out = Vec::new();
     write_map_len_resp2(&mut out, 2);
     assert_eq!(out, b"*4\r\n");
+  }
+
+  #[test]
+  fn map_len_dispatches_by_protocol_version() {
+    // RespServerSessionOutput.cs:WriteMapLength：RESP3 写 %，RESP2 双倍数组
+    let mut out = Vec::new();
+    write_map_len(&mut out, 3, 3);
+    assert_eq!(out, b"%3\r\n");
+
+    let mut out = Vec::new();
+    write_map_len(&mut out, 3, 2);
+    assert_eq!(out, b"*6\r\n");
   }
 
   #[test]

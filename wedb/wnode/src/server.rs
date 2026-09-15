@@ -67,6 +67,10 @@ pub struct ServerBootstrap<A, C = NoopClusterProvider> {
   banner: String,
   /// 指标采样频率秒数（0 = 禁用监视器任务；C# MetricsSamplingFrequency）
   metrics_sampling_frequency: u64,
+  /// 延迟监视开关（C# serverOptions.LatencyMonitor）
+  latency_monitor: bool,
+  /// 逐命令统计开关（C# serverOptions.CommandStatsMonitor）
+  commandstats_monitor: bool,
   #[cfg(feature = "tls")]
   tls_config: Option<ServerTlsConfig>,
 }
@@ -81,6 +85,8 @@ impl<A: ServerArgs> ServerBootstrap<A, NoopClusterProvider> {
       network_send_throttle_max: 8,
       banner: "WeDB 数据库服务".into(),
       metrics_sampling_frequency: 0,
+      latency_monitor: false,
+      commandstats_monitor: false,
       #[cfg(feature = "tls")]
       tls_config: None,
     }
@@ -100,6 +106,8 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
       network_send_throttle_max: self.network_send_throttle_max,
       banner: self.banner,
       metrics_sampling_frequency: self.metrics_sampling_frequency,
+      latency_monitor: self.latency_monitor,
+      commandstats_monitor: self.commandstats_monitor,
       #[cfg(feature = "tls")]
       tls_config: self.tls_config,
     }
@@ -115,6 +123,18 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
   /// 设置指标采样频率秒数（0 = 禁用；C# MetricsSamplingFrequency）
   pub fn metrics_sampling_frequency(mut self, seconds: u64) -> Self {
     self.metrics_sampling_frequency = seconds;
+    self
+  }
+
+  /// 设置延迟监视开关（C# serverOptions.LatencyMonitor）
+  pub fn latency_monitor(mut self, enable: bool) -> Self {
+    self.latency_monitor = enable;
+    self
+  }
+
+  /// 设置逐命令统计开关（C# serverOptions.CommandStatsMonitor）
+  pub fn commandstats_monitor(mut self, enable: bool) -> Self {
+    self.commandstats_monitor = enable;
     self
   }
 
@@ -211,6 +231,8 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
     let network_buffer_size = self.network_buffer_size;
     let network_send_throttle_max = self.network_send_throttle_max;
     let metrics_sampling_frequency = self.metrics_sampling_frequency;
+    let latency_monitor = self.latency_monitor;
+    let commandstats_monitor = self.commandstats_monitor;
     #[cfg(feature = "tls")]
     let tls_config = self.tls_config;
     let assemble = assemble;
@@ -236,16 +258,19 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
         server
       };
 
-      // 5. 启动指标监视器采样循环（C# StoreWrapper 构造 monitor 于
-      //    MetricsSamplingFrequency > 0 时；StoreWrapper.Start()（宿主启动
-      //    序列）→ monitor?.Start() 拉起 MainMonitorTaskAsync 后台采样）
-      if metrics_sampling_frequency > 0
+      // 5. 启动指标监视器采样循环（C# StoreWrapper.cs:226 monitor 创建于
+      //    MetricsSamplingFrequency > 0 || CommandStatsMonitor ||
+      //    LatencyMonitor 任一开启，构造参数 :64 同源；StoreWrapper.Start()
+      //    → monitor?.Start() 拉起 MainMonitorTaskAsync 后台采样）
+      if (metrics_sampling_frequency > 0 || commandstats_monitor || latency_monitor)
         && let Some(registry) = registry
       {
         start_server_monitor(
           server.shutdown_coordinator().clone(),
           registry,
           metrics_sampling_frequency,
+          latency_monitor,
+          commandstats_monitor,
         );
       }
 
@@ -700,26 +725,41 @@ fn start_server_monitor(
   coordinator: ShutdownCoordinator,
   registry: Arc<ConsumerRegistry>,
   frequency_secs: u64,
+  latency_monitor: bool,
+  commandstats_monitor: bool,
 ) {
-  let monitor = Arc::new(GarnetServerMonitor::new(frequency_secs, true, false, false));
+  // C# GarnetServerMonitor.cs:64 构造（true, opts.LatencyMonitor,
+  // opts.CommandStatsMonitor, this）：三追踪开关决定聚合成员是否就位
+  let monitor = Arc::new(GarnetServerMonitor::new(
+    frequency_secs,
+    true,
+    latency_monitor,
+    commandstats_monitor,
+  ));
   monitor.install_global();
 
-  spawn(async move {
-    monitor
-      .main_monitor_task_async(
-        time::sleep,
-        || coordinator.is_stopped(),
-        || MonitorIterationInputs {
-          servers: vec![registry.monitor_sample()],
-          reset_all_session_latency: no_reset_session_latency,
-          reset_active_sessions: no_reset_sessions,
-          reset_active_command_stats: no_reset_command_stats,
-          reset_session_latency: no_reset_latency_event,
-        },
-      )
-      .await;
-  })
-  .detach();
+  // C# GarnetServerMonitor.cs:Start：周期采样任务仅在配置了采样频率时
+  // 拉起（监视器可仅为命令统计历史装配，无周期采样；dispose 归并不依赖
+  // 采样循环）
+  if frequency_secs > 0 {
+    let monitor = Arc::clone(&monitor);
+    spawn(async move {
+      monitor
+        .main_monitor_task_async(
+          time::sleep,
+          || coordinator.is_stopped(),
+          || MonitorIterationInputs {
+            servers: vec![registry.monitor_sample()],
+            reset_all_session_latency: no_reset_session_latency,
+            reset_active_sessions: no_reset_sessions,
+            reset_active_command_stats: no_reset_command_stats,
+            reset_session_latency: no_reset_latency_event,
+          },
+        )
+        .await;
+    })
+    .detach();
+  }
   info!("服务器指标监视器已启动: 采样频率 {frequency_secs}s");
 }
 

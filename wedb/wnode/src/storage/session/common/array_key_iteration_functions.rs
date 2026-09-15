@@ -403,6 +403,60 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
     Ok(entries)
   }
 
+  /// 当前库键空间统计：活键数与其中带 TTL 键数（INFO KEYSPACE 段数据面）
+  ///
+  /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:UnifiedStoreGetKeyspaceStats
+  ///
+  /// 活键判定与 [`Self::string_keys_snapshot`] 同口径（String 与对象信封两
+  /// 个物理域、墓碑与到期过滤、同键后写留最新），保证键计数与 DBSIZE 一致
+  ///（C# UnifiedStoreGetKeyspaceStats 文档同款要求）；带 TTL 判定对应 C#
+  /// DataHeader.HasExpiration——rust TTL 走键级旁路记录（wkv etag.rs 设计
+  /// 差异），经 has_ttl_tag 纯内存单探针读取
+  pub async fn keyspace_stats(&self) -> wkv::Result<(u64, u64)> {
+    let prefix = self.batch.session_prefix();
+    let prefix_slice = prefix.as_slice();
+    // 键 -> 存活（后写覆盖前写，同键多版本收敛为最新版）
+    let mut map: GxHashMap<Vec<u8>, bool> = GxHashMap::default();
+    self
+      .batch
+      .store
+      .hlog()
+      .scan(
+        self.batch.store.begin_address(),
+        self.batch.store.tail_address(),
+        |_addr, rec| {
+          let key = rec.key();
+          let Some(rest) = key.strip_prefix(prefix_slice) else {
+            return Ok(true);
+          };
+          let Some(user_key) = rest
+            .strip_prefix(&[TAG_STRING][..])
+            .or_else(|| rest.strip_prefix(&[TAG_ENVELOPE][..]))
+          else {
+            return Ok(true);
+          };
+          map.insert(user_key.to_vec(), !rec.is_tombstone());
+          Ok(true)
+        },
+      )
+      .await
+      .map_err(scan_err)?;
+
+    let now = now_ticks();
+    let mut key_count = 0u64;
+    let mut expire_count = 0u64;
+    for (key, alive) in &map {
+      if !*alive || matches!(self.batch.probe_ttl(key, now), TtlProbe::Due) {
+        continue;
+      }
+      key_count += 1;
+      if self.batch.has_ttl_tag(key).unwrap_or(false) {
+        expire_count += 1;
+      }
+    }
+    Ok((key_count, expire_count))
+  }
+
   /// 存活用户键名快照（仅收集键名，零值拷贝，极大节约内存与 CPU；键按字节序排序；
   /// 含 String 与对象信封两个物理域，KEYS / DBSIZE / 槽位删除共用）
   pub(crate) async fn string_keys_snapshot(&self) -> wkv::Result<Vec<Vec<u8>>> {

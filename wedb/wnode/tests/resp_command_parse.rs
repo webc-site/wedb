@@ -7,7 +7,7 @@
 
 use wnode::resp::{
   parser::resp_command::{is_allowed_in_subscription_mode, is_aof_independent},
-  resp_server_session::RespServerSession,
+  resp_server_session::{RespServerSession, RespServerSessionOptions},
 };
 use wresp::RespCommand;
 use wtxn::TxnState;
@@ -401,6 +401,30 @@ fn aof_commit_mode_marks_dependent_commands() {
   s.txn_state = TxnState::Started;
   s.handle_aof_commit_mode(RespCommand::Set);
   assert!(!s.wait_for_aof_blocking);
+}
+
+/// EnableAOF && WaitForCommit 门控（RespCommand.cs:ParseCommand 尾部）：
+/// 门关时解析不维护阻塞标记，门开后 AOF 相关命令置位
+#[test]
+fn aof_commit_mode_gate_controls_flag_maintenance() {
+  // 门关（默认 EnableAOF = false）：解析 SET 不置位
+  let mut s = RespServerSession::default();
+  let (cmd, _) = parse_one(&mut s, b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n");
+  assert_eq!(cmd, Some(RespCommand::Set));
+  assert!(!s.wait_for_aof_blocking);
+
+  // 门开（EnableAOF && WaitForCommit）：解析 SET 置位
+  let mut s = RespServerSession::new(
+    1,
+    RespServerSessionOptions {
+      enable_aof: true,
+      wait_for_commit: true,
+      ..RespServerSessionOptions::default()
+    },
+  );
+  let (cmd, _) = parse_one(&mut s, b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n");
+  assert_eq!(cmd, Some(RespCommand::Set));
+  assert!(s.wait_for_aof_blocking);
 }
 
 /// 内联畸形行被跳过后仍解析到后续命令
