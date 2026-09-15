@@ -302,7 +302,7 @@ fn connect_migrate_client(spec: &MigrateTaskSpec) -> GarnetClient {
   )
 }
 
-/// 迁移前置编排（对标 MigrationDriver.cs:BeginAsyncMigrationTaskAsync 的
+/// 迁移前置编排（编排顺序对标 MigrationDriver 的 BeginAsyncMigrationTaskAsync
 /// IMPORT / MIGRATING / 纪元转换段）：建立连接 → 远端置 IMPORTING →
 /// 本端置 MIGRATING →（SLOTS 链）纪元转换等待；任一失败点统一 recover
 async fn begin_migration_phase(
@@ -352,7 +352,7 @@ async fn begin_migration_phase(
   Ok(())
 }
 
-/// 迁移收尾编排（对标 MigrationDriver.cs:BeginAsyncMigrationTaskAsync 的
+/// 迁移收尾编排（编排顺序对标 MigrationDriver 的 BeginAsyncMigrationTaskAsync
 /// 完成哨兵 / NODE / RelinquishOwnership 段）；任一失败点统一 recover。
 /// C# 收尾段的 SuspendConfigMerge + TryMeetAsync gossip 汇聚未投影（依赖
 /// gossip 会话基建，属范围外），槽位视图一致性由 gossip 周期汇聚兜底

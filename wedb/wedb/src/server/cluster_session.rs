@@ -815,7 +815,7 @@ impl ClusterSession {
   /// [COPY] [REPLACE] [AUTH password] [AUTH2 username password]
   /// [[KEYS key ...] | [SLOTS slot ...] | [SLOTSRANGE start end ...]]
   ///
-  /// 分派（对标 MigrationDriver.cs:TryStartMigrationTaskAsync）：KEYS 变体
+  /// 分派（任务启动链对标 MigrationDriver 的 TryStartMigrationTaskAsync）：KEYS 变体
   /// 挂慢路径同步驱动（C# BlockingWait 阻塞网络线程投影）→ +OK/IOERR；
   /// SLOTS/SLOTSRANGE 变体注册任务后 spawn 后台驱动、命令立即 +OK（对标
   /// fire-and-forget 的 BeginAsyncMigrationTaskAsync）。

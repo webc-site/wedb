@@ -1204,7 +1204,7 @@ fn retarget_remote_port(cp: &ClusterProvider, port: i32) {
 
 /// SLOTS 驱动直调全链成功：帧序握手 → IMPORTING → 批次 → 哨兵 → NODE →
 /// Ok(条数)；已传键删除、槽位交权 node_2、任务移除（对标
-/// MigrateSessionSlots.cs:MigrateSlotsDriverInlineAsync 成功路径）
+/// 驱动循环成功路径与 C# MigrateSlotsDriverInlineAsync 对齐）
 #[test]
 fn slots_migration_task_full_flow_success() {
   let rt = Runtime::new().unwrap();
