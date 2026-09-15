@@ -1,10 +1,13 @@
-use std::sync::{
-  Arc, OnceLock, Weak,
-  atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering},
+use std::{
+  sync::{
+    Arc, OnceLock, Weak,
+    atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering},
+  },
+  thread,
 };
 
-use compio::runtime::spawn;
 use coarsetime::Instant;
+use compio::runtime::spawn;
 use itoa::Buffer;
 use parking_lot::RwLock;
 use waof::{AofAddress, WalLog};
@@ -15,9 +18,8 @@ use wkv::WedbStore;
 use wmetric::MetricsItem;
 use wnode::{
   ClusterProvider as WnodeClusterProvider, RoleInfo,
-  aof::garnet_append_only_file::GarnetAppendOnlyFile,
-  cluster_session::ClusterSessionFace, resp::vector::vector_manager::VectorManager,
-  session_parse_state_extensions::ManagerType,
+  aof::garnet_append_only_file::GarnetAppendOnlyFile, cluster_session::ClusterSessionFace,
+  resp::vector::vector_manager::VectorManager, session_parse_state_extensions::ManagerType,
 };
 use wresp::RespCommand;
 
@@ -392,7 +394,7 @@ impl ClusterProvider {
       if start.elapsed().as_millis() >= self.cluster_node_timeout_ms() {
         return false;
       }
-      std::thread::yield_now();
+      thread::yield_now();
     }
     true
   }
