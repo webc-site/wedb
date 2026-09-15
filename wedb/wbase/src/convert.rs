@@ -158,7 +158,9 @@ pub fn expire_at_seconds_to_ticks(unix_seconds: i64) -> i64 {
 /// libs/server/Resp/KeyAdminCommands.cs:426（rust 在 C# 之上补确定性钳制）
 #[inline]
 pub fn expire_at_milliseconds_to_ticks(unix_milliseconds: i64) -> i64 {
-  unix_timestamp_in_milliseconds_to_ticks(unix_milliseconds.clamp(0, MAX_UNIX_TIMESTAMP_MILLISECONDS))
+  unix_timestamp_in_milliseconds_to_ticks(
+    unix_milliseconds.clamp(0, MAX_UNIX_TIMESTAMP_MILLISECONDS),
+  )
 }
 
 #[cfg(test)]
@@ -181,7 +183,10 @@ mod tests {
   fn expire_after_saturates() {
     let now = 70_000_000_000_000_000;
     assert_eq!(expire_after_to_ticks(now, 10), now + 10 * TICKS_PER_SECOND);
-    assert_eq!(expire_after_ms_to_ticks(now, 10), now + 10 * TICKS_PER_MILLISECOND);
+    assert_eq!(
+      expire_after_ms_to_ticks(now, 10),
+      now + 10 * TICKS_PER_MILLISECOND
+    );
     // 时长饱和后加法继续饱和：结果钉在 i64::MAX
     assert_eq!(expire_after_to_ticks(now, i64::MAX), i64::MAX);
     assert_eq!(expire_after_ms_to_ticks(now, i64::MAX), i64::MAX);
@@ -213,7 +218,10 @@ mod tests {
       expire_at_seconds_to_ticks(MAX_UNIX_TIMESTAMP_SECONDS),
       i64::MAX - (i64::MAX - UNIX_EPOCH_TICKS) % TICKS_PER_SECOND
     );
-    assert_eq!(expire_at_seconds_to_ticks(i64::MAX), i64::MAX - (i64::MAX - UNIX_EPOCH_TICKS) % TICKS_PER_SECOND);
+    assert_eq!(
+      expire_at_seconds_to_ticks(i64::MAX),
+      i64::MAX - (i64::MAX - UNIX_EPOCH_TICKS) % TICKS_PER_SECOND
+    );
     assert_eq!(expire_at_milliseconds_to_ticks(-1), UNIX_EPOCH_TICKS);
     assert_eq!(
       expire_at_milliseconds_to_ticks(MAX_UNIX_TIMESTAMP_MILLISECONDS),

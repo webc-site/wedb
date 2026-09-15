@@ -832,11 +832,13 @@ fn expiretime_read_sync<'a, D: wdev::Device>(
 
 #[cfg(test)]
 mod tests {
-  use wbase::convert::{
-    expire_after_ms_to_ticks, expire_after_to_ticks, expire_at_milliseconds_to_ticks,
-    expire_at_seconds_to_ticks,
+  use wbase::{
+    convert::{
+      TICKS_PER_SECOND, expire_after_ms_to_ticks, expire_after_to_ticks,
+      expire_at_milliseconds_to_ticks, expire_at_seconds_to_ticks,
+    },
+    time::now_ticks,
   };
-  use wbase::time::now_ticks;
 
   use super::ExpireCmd;
 
@@ -862,7 +864,7 @@ mod tests {
   /// 非饱和路径时钟在两次调用间推进，以 1 秒容差断言同源
   #[test]
   fn expire_after_matches_replay_conversion() {
-    const DRIFT: i64 = wbase::convert::TICKS_PER_SECOND;
+    const DRIFT: i64 = TICKS_PER_SECOND;
     let now = now_ticks();
     for seconds in [0, 1, 60, 86_400] {
       let cmd_ticks = ExpireCmd::Expire.expire_at_ticks(seconds);
