@@ -1481,26 +1481,6 @@ impl RespServerSession {
     Ok(true)
   }
 
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomTxn / NetworkCustomProcedure /
-  /// NetworkCustomRawStringCmd 共同骨架
-  ///
-  /// arity 校验 → 分派 → 清空当前自定义命令槽。对象命令走
-  /// [`Self::network_custom_obj_cmd`] 存储执行域；事务/过程/原始字符串
-  /// 命令执行域未接线，按 arity 校验语义闭环后明确报错。
-  pub fn network_custom_txn(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomProcedure
-  pub fn network_custom_procedure(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:NetworkCustomRawStringCmd
-  pub fn network_custom_raw_string_cmd(&mut self) -> bool {
-    self.run_custom_command()
-  }
-
   /// libs/server/Resp/RespServerSession.cs:NetworkCustomObjCmd
   ///
   /// 自定义对象命令执行入口（arity 校验 → 注册表解析 → 存储执行域分派）。
@@ -1564,7 +1544,10 @@ impl RespServerSession {
     }
   }
 
-  /// 自定义命令共同路径（事务/过程/原始字符串族）：IsCommandArityValid → 清槽
+  /// 自定义命令共同路径（C# ProcessOtherCommands 的 NetworkCustomTxn /
+  /// NetworkCustomProcedure / NetworkCustomRawStringCmd 三 local function
+  /// 的共同骨架；分派臂 [`Self::process_other_commands`] 直接走本函数）：
+  /// IsCommandArityValid → 清槽
   fn run_custom_command(&mut self) -> bool {
     let Some((_kind, custom)) = self.current_custom_command.take() else {
       return true;
@@ -2927,7 +2910,7 @@ mod tests {
       },
     ));
     // arity 3 → 恰 2 参数 → 通过并清槽（执行域未接线，报 unknown 不静默）
-    assert!(s.network_custom_txn());
+    assert!(s.run_custom_command());
     assert!(s.current_custom_command.is_none());
     assert!(
       String::from_utf8(s.take_output())
@@ -2945,7 +2928,7 @@ mod tests {
         arity: 3,
       },
     ));
-    assert!(s.network_custom_procedure());
+    assert!(s.run_custom_command());
     assert!(s.current_custom_command.is_none());
     assert!(
       String::from_utf8(s.take_output())
