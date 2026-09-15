@@ -3,6 +3,9 @@
 use std::{io, result};
 
 use thiserror::Error;
+use wkv::RangeIndexError;
+
+use crate::aof::AofReplayError;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -16,6 +19,18 @@ pub enum Error {
   /// 存储引擎错误（wkv 透传）
   #[error(transparent)]
   Store(#[from] wkv::Error),
+
+  /// 范围索引操作错误（wkv 透传）
+  #[error(transparent)]
+  RangeIndex(#[from] RangeIndexError),
+
+  /// WAL 物理层错误（waof 透传）
+  #[error(transparent)]
+  Wal(#[from] waof::Error),
+
+  /// AOF 重放错误
+  #[error(transparent)]
+  Aof(#[from] AofReplayError),
 
   #[error("等待停机信号的通道已断开: {0}")]
   SignalChannelBroken(String),
