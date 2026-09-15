@@ -1,4 +1,5 @@
 use std::{
+  path::Path,
   sync::{
     Arc, OnceLock, Weak,
     atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU64, Ordering},
@@ -172,11 +173,25 @@ impl ClusterProvider {
     cp
   }
 
-  /// 初始化复制管理器（对标 C# ClusterProvider 构造函数初始化 ReplicationManager）
-  pub fn initialize_replication_manager(&self) {
-    if self.replication_manager.read().is_none() {
-      *self.replication_manager.write() = Some(Arc::new(ReplicationManager::new()));
-    }
+  /// 初始化复制管理器（对标 C# ClusterProvider 构造函数初始化 ReplicationManager：
+  /// 构造期即持 CheckpointDir，`Recover && fileSize > 0` 门控恢复复制历史，
+  /// 详见 ReplicationManager::with_options）
+  ///
+  /// rust 结构差异：ClusterProvider::new() 时数据目录未知，先建无持久化
+  /// 默认实例保运行期路径可达；宿主装配期（端点 accept 之前、set_aof /
+  /// wire_replication_data_plane 等挂 rm 资产的注入之前）以真实目录无条件
+  /// 重建一次。
+  pub fn initialize_replication_manager(
+    &self,
+    sublog_count: usize,
+    config_dir: Option<&Path>,
+    recover: bool,
+  ) {
+    *self.replication_manager.write() = Some(Arc::new(ReplicationManager::with_options(
+      sublog_count,
+      config_dir,
+      recover,
+    )));
   }
 
   /// 获取当前节点连接信息

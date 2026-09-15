@@ -20,8 +20,8 @@ use wedb::server::{
 fn test_full_replication_sync_pipeline() {
   Runtime::new().unwrap().block_on(async {
     // 1. 初始化主节点与从节点复制管理器
-    let primary_mgr = ReplicationManager::with_options(2, None);
-    let replica_mgr = ReplicationManager::with_options(2, None);
+    let primary_mgr = ReplicationManager::with_options(2, None, false);
+    let replica_mgr = ReplicationManager::with_options(2, None, false);
 
     // 对标 C#：初始位点为 kFirstValidAofAddress(64)
     assert_eq!(primary_mgr.get_replication_offset(0), 64);
@@ -157,7 +157,7 @@ fn test_full_replication_sync_pipeline() {
 
 #[test]
 fn test_resync_strategy_decision_matrix() {
-  let mgr = ReplicationManager::with_options(2, None);
+  let mgr = ReplicationManager::with_options(2, None, false);
 
   let mut m = CheckpointMetadata::new(2);
   m.store_version = 100;
@@ -246,7 +246,7 @@ fn test_checkpoint_store_reader_suspension_and_token_pruning() {
 
 #[test]
 fn test_recovery_status_state_machine() {
-  let mgr = ReplicationManager::with_options(1, None);
+  let mgr = ReplicationManager::with_options(1, None, false);
 
   // 初始状态
   assert_eq!(mgr.recovery_status(), RecoveryStatus::NoRecovery);

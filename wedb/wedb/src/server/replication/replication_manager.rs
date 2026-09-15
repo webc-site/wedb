@@ -1,4 +1,5 @@
 use std::{
+  fs::metadata,
   path::{Path, PathBuf},
   sync::{
     Arc,
@@ -88,30 +89,32 @@ impl Default for ReplicationManager {
 }
 
 impl ReplicationManager {
-  /// 创建新的复制管理器实例（默认配置）
+  /// 创建新的复制管理器实例（默认配置，无持久化目录）
   pub fn new() -> Self {
-    Self::with_options(1, None)
+    Self::with_options(1, None, false)
   }
 
   /// 创建指定子日志数与持久化路径的复制管理器实例
-  pub fn with_options(sublog_count: usize, config_dir: Option<&Path>) -> Self {
+  ///
+  /// libs/cluster/Server/Replication/ReplicationManager.cs:ReplicationManager（构造门控段）：
+  /// `Recover && replicationConfigDevice.GetFileSize(0) > 0` 才恢复复制历史，
+  /// 否则初始化新历史（InitializeReplicationHistory = new + FlushConfig，
+  /// 不 recover 时旧 replication.conf 被新历史覆盖）；构造尾段
+  /// SetPrimaryReplicationId。recover_or_init 读损坏回退 new + flush 与
+  /// C# RecoverReplicationHistory 的 catch 分支等价
+  pub fn with_options(sublog_count: usize, config_dir: Option<&Path>, recover: bool) -> Self {
     let sublog_count = sublog_count.max(1);
     let config_path = config_dir.map(|p| p.join("replication.conf"));
 
-    let history = if let Some(ref path) = config_path {
-      ReplicationHistory::recover_or_init(path, sublog_count)
-    } else {
-      ReplicationHistory::new(sublog_count)
-    };
-
     // 对标 C# 构造：replicationOffset 独立于 history 初始化为 kFirstValidAofAddress，
-    // 恢复场景由 RecoverCheckpointAndAOFAsync 重放后覆盖
+    // 恢复场景由 RecoverCheckpointAndAOFAsync 重放后覆盖（宿主装配尾段回填，
+    // 见 StorageSessionProvider::open_recovered_with_aof 消费方）
     let initial_offset = AofAddress::create(sublog_count as i32, FIRST_VALID_AOF_ADDRESS);
 
-    Self {
+    let slf = Self {
       replication_offset: RwLock::new(initial_offset),
       replication_checkpoint_start_offset: RwLock::new(AofAddress::create(sublog_count as i32, 0)),
-      current_replication_config: RwLock::new(history),
+      current_replication_config: RwLock::new(ReplicationHistory::new(sublog_count)),
       primary_sync_last_timestamp: AtomicI64::new(0),
       current_recovery_status: RwLock::new(RecoveryStatus::NoRecovery),
       store_current_safe_aof_address: RwLock::new(initial_offset),
@@ -126,7 +129,21 @@ impl ReplicationManager {
       last_ensure_replication_attempt_ms: AtomicI64::new(0),
       offset_waiters: Mutex::new(Vec::new()),
       waiters_count: AtomicUsize::new(0),
+    };
+
+    // C# 构造门控：Recover 且 replication.conf 非空才恢复历史，否则初始化新历史
+    let can_recover = recover
+      && slf
+        .config_path
+        .as_deref()
+        .is_some_and(|p| metadata(p).is_ok_and(|m| m.len() > 0));
+    if can_recover {
+      slf.recover_replication_history();
+    } else {
+      slf.initialize_replication_history(sublog_count);
     }
+    slf.set_primary_replication_id();
+    slf
   }
 
   /// 注入 storeWrapper 提交标记写入通道（集群装配期一次注入）
@@ -143,6 +160,9 @@ impl ReplicationManager {
   }
 
   /// libs/cluster/Server/Replication/ReplicationHistoryManager.cs:RecoverReplicationHistory
+  ///
+  /// 从 replication.conf 恢复复制历史（读损坏回退初始化新历史 + 落盘）；
+  /// 仅构造期门控（[`Self::with_options`]）与测试调用，size 门控由构造方判定
   pub fn recover_replication_history(&self) {
     if let Some(ref path) = self.config_path {
       let mut config = self.current_replication_config.write();
@@ -851,18 +871,21 @@ impl ReplicationManager {
   /// libs/cluster/Server/Replication/ReplicationManager.cs:RecoverAsync
   ///
   /// 复制域启动恢复。与 C# 的差异登记（依赖方向反转）：
+  /// - 复制历史恢复在构造期完成（[`Self::with_options`] 门控，对标 C#
+  ///   ReplicationManager 构造段 Recover && fileSize > 0），本方法不再重复。
   /// - C# PRIMARY / REPLICA+ClusterReplicaResumeWithData 分支经
-  ///   `storeWrapper` 做 checkpoint+AOF 数据面恢复并 `ReplayAOF` 推进
-  ///   replicationOffset；rust rm 不持 storeWrapper 可达面，数据面恢复由
-  ///   wnode 宿主装配期统一承接（`StorageSessionProvider::open_recovered*`，
-  ///   时序同为端点 accept 之前——对齐 C# StoreWrapper.RecoverAsync 单机
-  ///   分支的结构），本方法仅承接 rm 自有的复制域状态。
+  ///   `storeWrapper` 做 checkpoint+AOF 数据面恢复并 `ReplayAOF` 后
+  ///   `replicationOffset.SetValue(replayedUntil)` 回填位点；rust rm 不持
+  ///   storeWrapper 可达面，数据面恢复与位点回填由 wnode 宿主装配期承接
+  ///   （`StorageSessionProvider::open_recovered_with_aof` + 装配尾段
+  ///   set_current_replication_offset，时序同为端点 accept 之前——对齐
+  ///   C# StoreWrapper.RecoverAsync 单机分支的结构），本方法仅承接 rm 自有
+  ///   的检查点内存索引初始化。
   /// - `RecoverCheckpointAndAOFAsync` 的独立方法已删（原实现仅恢复
   ///   replication history，名实不符）；其 C# 职责按上述拆分归位。
   /// - REPLICA+ClusterReplicaResumeWithData 分支：该配置面未落地，副本
   ///   重启后等待与 primary 重新同步（C# 未配置该项时同语义）。
   pub async fn recover_async(&self, is_primary: bool) {
-    self.recover_replication_history();
     if is_primary && !self.initialize_checkpoint_store() {
       warn!("Failed acquiring latest memory checkpoint metadata at RecoverAsync");
     }
@@ -894,7 +917,7 @@ mod tests {
 
   #[test]
   fn test_replication_manager_full_flow() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     // 对标 C# 构造：初始位点为 kFirstValidAofAddress
     assert_eq!(mgr.get_replication_offset(0), FIRST_VALID_AOF_ADDRESS);
     mgr.set_sublog_replication_offset(0, 100);
@@ -930,7 +953,7 @@ mod tests {
 
   #[test]
   fn test_reset_replica_replay_driver_store_rebuilds() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     // 注册驱动后重置：容器应重建且可再次注册（对标 C# Dispose + new）
     assert!(mgr.initialize_replica_replay_driver(0));
     assert!(!mgr.initialize_replica_replay_driver(0));
@@ -943,7 +966,7 @@ mod tests {
   /// 架构说明）；REPLICA 跳过（等待与 primary 重新同步）
   #[test]
   fn test_recover_async_replication_domain() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     let initial = mgr.get_recovered_safe_aof_address();
 
     let mut meta = CheckpointMetadata::new(2);
@@ -966,9 +989,56 @@ mod tests {
     assert_eq!(mgr.get_recovered_safe_aof_address(), initial);
   }
 
+  /// C# 构造门控三分支（ReplicationManager.cs:159-177）：
+  /// recover=true 且 replication.conf 非空 → replid 历史跨重启保留（修复前
+  /// 生产装配无持久化目录，主端重启丢历史、副本被迫全量重同步）；
+  /// recover=false → 初始化新历史并覆盖旧文件（对标 InitializeReplicationHistory
+  /// 尾段 FlushConfig）；空目录 recover=true → 新历史落盘 replication.conf
+  #[test]
+  fn test_with_options_replication_history_gate() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let config_dir = dir.path().join("cluster");
+
+    // 第一代：推进位点 + failover 轮转 replid（触发 flush 落盘）
+    let first = ReplicationManager::with_options(2, Some(&config_dir), false);
+    first.set_sublog_replication_offset(0, 900);
+    first.try_update_for_failover();
+    let (id, id2, offset2) = (
+      first.primary_repl_id(),
+      first.primary_repl_id2(),
+      first.get_replication_offset2(),
+    );
+    assert!(!id2.is_empty());
+
+    // 分支 1：recover=true + 文件非空 → replid 历史与轮转位点跨重启保留
+    let recovered = ReplicationManager::with_options(2, Some(&config_dir), true);
+    assert_eq!(recovered.primary_repl_id(), id);
+    assert_eq!(recovered.primary_repl_id2(), id2);
+    assert_eq!(recovered.get_replication_offset2(), offset2);
+
+    // 分支 2：recover=false → 新历史覆盖旧文件（对标 C# Initialize + FlushConfig）
+    let fresh = ReplicationManager::with_options(2, Some(&config_dir), false);
+    assert_ne!(fresh.primary_repl_id(), id);
+    let reloaded = ReplicationManager::with_options(2, Some(&config_dir), true);
+    assert_eq!(
+      reloaded.primary_repl_id(),
+      fresh.primary_repl_id(),
+      "旧历史须已被新历史覆盖"
+    );
+
+    // 分支 3：空目录 + recover=true → 初始化新历史并落盘 replication.conf
+    let empty_dir = tempfile::tempdir().expect("tempdir").path().join("cluster");
+    let boot = ReplicationManager::with_options(2, Some(&empty_dir), true);
+    assert!(!boot.primary_repl_id().is_empty());
+    assert!(
+      empty_dir.join("replication.conf").exists(),
+      "初始化须落盘 replication.conf"
+    );
+  }
+
   #[test]
   fn test_determine_resync_strategy_partial_and_full() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     let mut meta = CheckpointMetadata::new(2);
     meta.store_version = 10;
     meta.store_hlog_token = 0x123;
@@ -1021,7 +1091,7 @@ mod tests {
 
   #[test]
   fn test_data_loss_check() {
-    let mgr = ReplicationManager::with_options(1, None);
+    let mgr = ReplicationManager::with_options(1, None, false);
     let begin = AofAddress::create(1, 1000);
     let ok_req = AofAddress::create(1, 1200);
     let bad_req = AofAddress::create(1, 800);
@@ -1033,7 +1103,7 @@ mod tests {
 
   #[test]
   fn test_add_checkpoint_entry_registers_into_store() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     let mut meta = CheckpointMetadata::new(2);
     meta.store_version = 7;
     let latest = mgr.checkpoint_store.read().latest_entry();
@@ -1046,7 +1116,7 @@ mod tests {
 
   #[test]
   fn test_replication_manager_dispose_and_offset_operations() {
-    let mgr = ReplicationManager::with_options(2, None);
+    let mgr = ReplicationManager::with_options(2, None, false);
     mgr.initialize_replication_history(2);
     mgr.try_update_my_primary_repl_id("node-primary-1");
     assert_eq!(mgr.primary_repl_id(), "node-primary-1");

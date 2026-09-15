@@ -23,7 +23,7 @@ use std::{
 use compio::{runtime::spawn, time::sleep};
 use parking_lot::{Mutex, RwLock};
 use wacl::{AccessControlList, GarnetAclAuthenticator};
-use waof::{WalConfig, WalLog};
+use waof::{AofAddress, WalConfig, WalLog};
 use wbase::{convert::unix_time_in_milliseconds_from_ticks, entry_type::AofEntryType};
 use wbftree::{RangeIndexStub, StorageBackendType, TreeTuning};
 use wcol::{
@@ -671,6 +671,10 @@ pub struct StorageSessionProvider<F> {
   /// 物理日志句柄（[`Self::open_with_aof`] / [`Self::open_recovered_with_aof`]
   /// 点亮；宿主据此装配集群复制数据面——副本落盘目标与主端推流数据源）
   wal: Option<Arc<WalLog<SegmentedDevice>>>,
+  /// --recover 重放后的 AOF 尾地址（仅 [`Self::open_recovered_with_aof`]
+  /// 形态点亮；对标 C# RecoverCheckpointAndAOFAsync 的 `replayedUntil`，
+  /// 宿主装配尾段据此回填复制域位点 replicationOffset.SetValue）
+  recovered_aof_tail: Option<AofAddress>,
   /// 访问控制列表（requirepass 认证源，对标 C# storeWrapper.serverOptions.AuthSettings）
   pub acl: Option<Arc<AccessControlList>>,
   /// 自定义命令注册表（C# storeWrapper.customCommandManager；模块 on_load
@@ -757,6 +761,7 @@ where
       quantization_started: AtomicUsize::new(0),
       aof: None,
       wal: None,
+      recovered_aof_tail: None,
       acl: None,
       command_manager,
       decorate,
@@ -936,9 +941,13 @@ where
     let mgr = SingleDatabaseManager::new(checkpoint_dir.clone(), db);
     let replayed = mgr.recover_aof().await?;
     log::info!("Recovered AOF: replayed {replayed} entries");
+    // 重放后的 AOF 尾地址（对标 C# ReplayAOF 返回值 replayedUntil；宿主
+    // 装配尾段据此回填 rm 复制位点——gossip 广播与 failover 判定基线）
+    let recovered_aof_tail = aof.log().tail_address();
     let mut provider = Self::from_parts(store, broker, vector_manager, checkpoint_dir, decorate)?;
     provider.aof = Some(aof);
     provider.wal = Some(wal);
+    provider.recovered_aof_tail = Some(recovered_aof_tail);
     Ok(provider)
   }
 
@@ -956,6 +965,13 @@ where
   /// 副本接收会话落盘目标与主端推流数据源共用同一日志实例）
   pub fn wal(&self) -> Option<&Arc<WalLog<SegmentedDevice>>> {
     self.wal.as_ref()
+  }
+
+  /// --recover 重放后的 AOF 尾地址（仅 [`Self::open_recovered_with_aof`]
+  /// 形态点亮；对标 C# RecoverCheckpointAndAOFAsync 尾段
+  /// `replicationOffset.SetValue(ref replayedUntil)` 的回填值来源）
+  pub fn recovered_aof_tail(&self) -> Option<AofAddress> {
+    self.recovered_aof_tail
   }
 
   /// 配置 requirepass 认证口令（对标 C# Options.Password / GetAuthenticationSettings）
