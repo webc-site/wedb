@@ -2,9 +2,11 @@
 //! （对标 libs/server/AOF/AofAddress.cs:AofAddress）。
 //!
 //! C# 为 `fixed long addresses[4]` + 长度字节；Rust 以 `[i64; MAX_SUBLOG_COUNT]`
-//! + `length` 承接，编码面收敛为两形态：裸 8B LE 字节切片（from_span，
-//! 对标 C# FromSpan，主从复制线格式）与逗号分隔文本（from_string /
+//! + `length` 承接，编码面两形态：bitcode 结构体编码（复制历史 /
+//! 检查点条目等结构体内嵌持久化）与裸 8B LE 字节切片（from_span，
+//! 对标 C# FromSpan，复制命令线格式）；另有逗号分隔文本（from_string /
 //! to_aof_string，对标 C# FromString / ToString，RESP 参数面）。
+//! 独立的带长度字节 byte[] 形态（C# Serialize/Deserialize）无消费面，不落地。
 
 use std::ops::{Index, IndexMut};
 
@@ -17,7 +19,7 @@ pub const AOF_ADDRESS_BYTES: usize = size_of::<i64>();
 pub const MAX_SUBLOG_COUNT: usize = 4;
 
 /// AOF 操作使用的固定尺寸地址集合。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, bitcode::Encode, bitcode::Decode)]
 pub struct AofAddress {
   /// 有效地址数（1..=MAX_SUBLOG_COUNT）。
   length: u8,
