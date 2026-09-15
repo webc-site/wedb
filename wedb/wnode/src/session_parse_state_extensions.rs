@@ -51,16 +51,8 @@ pub enum ManagerType {
   ServerListener,
 }
 
-/// GEO/BITFIELD 族错误文案（C# CmdStrings 同名常量；cmd_strings 域由并行
-/// 代理扩表，此处本地对齐同一字节文本，避免跨域改文件）
-const RESP_ERR_NOT_VALID_RADIUS: &str = "ERR need numeric radius";
-const RESP_ERR_RADIUS_IS_NEGATIVE: &str = "ERR radius cannot be negative";
-const RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT: &str =
-  "ERR unsupported unit provided. please use M, KM, FT, MI";
-const RESP_ERR_NOT_VALID_WIDTH: &str = "ERR need numeric width";
-const RESP_ERR_NOT_VALID_HEIGHT: &str = "ERR need numeric height";
-const RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE: &str = "ERR height or width cannot be negative";
-const RESP_ERR_COUNT_IS_NOT_POSITIVE: &str = "ERR COUNT must be > 0";
+/// BITFIELD 族错误文案（C# CmdStrings 同名常量；GEO 族文案已收归
+/// wresp::cmd_strings 单点，经 `cmd_strings::` 前缀引用）
 const RESP_ERR_TIMEOUT_IS_NEGATIVE: &str = "ERR timeout is negative";
 const RESP_ERR_TIMEOUT_IS_OUT_OF_RANGE: &str = "ERR timeout is out of range";
 
@@ -276,17 +268,17 @@ pub fn try_get_geo_search_options(
 
     // 半径
     let Some(radius) = parse_state.ext_bytes(token).and_then(strict_double) else {
-      return (None, dest_idx, err(RESP_ERR_NOT_VALID_RADIUS));
+      return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_RADIUS));
     };
     token += 1;
     if radius < 0.0 {
-      return (None, dest_idx, err(RESP_ERR_RADIUS_IS_NEGATIVE));
+      return (None, dest_idx, err(cmd_strings::RESP_ERR_RADIUS_IS_NEGATIVE));
     }
     opts.radius = radius;
     opts.search_type = GeoSearchType::ByRadius;
     match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
       Some(unit) => opts.unit = unit,
-      None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+      None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
     }
     token += 1;
   }
@@ -362,16 +354,16 @@ pub fn try_get_geo_search_options(
         }
         match parse_state.ext_bytes(token).and_then(strict_double) {
           Some(radius) => opts.radius = radius,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_RADIUS)),
+          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_RADIUS)),
         }
         token += 1;
         if opts.radius < 0.0 {
-          return (None, dest_idx, err(RESP_ERR_RADIUS_IS_NEGATIVE));
+          return (None, dest_idx, err(cmd_strings::RESP_ERR_RADIUS_IS_NEGATIVE));
         }
         opts.search_type = GeoSearchType::ByRadius;
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
         }
         token += 1;
         continue;
@@ -391,21 +383,21 @@ pub fn try_get_geo_search_options(
         }
         match parse_state.ext_bytes(token).and_then(strict_double) {
           Some(w) => opts.box_width = w,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_WIDTH)),
+          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_WIDTH)),
         }
         token += 1;
         match parse_state.ext_bytes(token).and_then(strict_double) {
           // C# boxHeight getter/setter 即 radius（BYBOX 高度复用半径字段）
           Some(h) => opts.radius = h,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_HEIGHT)),
+          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_HEIGHT)),
         }
         token += 1;
         if opts.box_width < 0.0 || opts.radius < 0.0 {
-          return (None, dest_idx, err(RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE));
+          return (None, dest_idx, err(cmd_strings::RESP_ERR_HEIGHT_OR_WIDTH_NEGATIVE));
         }
         match parse_state.ext_bytes(token).and_then(geo_distance_unit) {
           Some(unit) => opts.unit = unit,
-          None => return (None, dest_idx, err(RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
+          None => return (None, dest_idx, err(cmd_strings::RESP_ERR_NOT_VALID_GEO_DISTANCE_UNIT)),
         }
         token += 1;
         continue;
@@ -442,7 +434,7 @@ pub fn try_get_geo_search_options(
       }
       token += 1;
       if opts.count_value <= 0 {
-        return (None, dest_idx, err(RESP_ERR_COUNT_IS_NOT_POSITIVE));
+        return (None, dest_idx, err(cmd_strings::RESP_ERR_COUNT_IS_NOT_POSITIVE));
       }
       if count > token
         && parse_state
