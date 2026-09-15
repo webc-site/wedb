@@ -217,7 +217,7 @@ impl<D: Device> ClusterReplicationSession<D> {
   ///    重放链应用记录进存储后推进（applied）；rust 副本运行期尚无存储
   ///    应用链（C# syncReplay 同步应用与后台 ReplicaReplayTask 均未转写，
   ///    唯一应用点在进程恢复 RecoverLogDriver），位点暂记流式落盘位点
-  ///   （enqueued）——掉电丢 wal 未刷帧窗口内位点超前于存储态，属已知
+  ///    （enqueued）——掉电丢 wal 未刷帧窗口内位点超前于存储态，属已知
   ///    风险；背景重放任务落地后在应用完成点回推，位点切回 applied。
   fn process_primary_stream(
     &self,
