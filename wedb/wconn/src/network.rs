@@ -353,6 +353,11 @@ pub(super) async fn network_loop(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::client::GarnetClient;
+  use compio::{
+    net::TcpListener,
+    runtime::{Runtime, spawn},
+  };
 
   #[test]
   fn encode_command_frame() {
@@ -363,5 +368,63 @@ mod tests {
     let mut out_str = Vec::new();
     encode_str_command(&mut out_str, &["GET", "k1"]);
     assert_eq!(&out_str, b"*2\r\n$3\r\nGET\r\n$2\r\nk1\r\n");
+  }
+
+  /// 合包滞留回归：静默假端点读首帧后一次性合包写回两条应答，此后不再读
+  /// socket、不发任何字节。第二条命令的应答此时已在 read_buf 缓冲，泵必须
+  /// 先排空缓冲再等新数据（旧行为先阻塞 read 即永挂，此处 5s 超时兜底转失败）
+  #[test]
+  fn coalesced_reply_drain() {
+    Runtime::new().unwrap().block_on(async {
+      let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+      let addr = listener.local_addr().unwrap().to_string();
+
+      // 首帧长度由编码器算出，累计读容忍 TCP 分段
+      let mut probe = Vec::new();
+      encode_str_command(&mut probe, &["GET", "k1"]);
+      let frame_len = probe.len();
+
+      // 假端点：读首帧 → 合包写回两条应答（+OK 认领首命令，$2\r\nv2 滞留
+      // read_buf 等第二条命令）→ 永久静默（连接保持打开不关）
+      spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        let mut acc = Vec::new();
+        let mut buf = vec![0u8; 1024];
+        while acc.len() < frame_len {
+          let BufResult(res, next) = sock.read(buf).await;
+          buf = next;
+          let n = res.unwrap();
+          assert!(n > 0, "对端提前关闭");
+          acc.extend_from_slice(&buf[..n]);
+        }
+        sock
+          .write_all(b"+OK\r\n$2\r\nv2\r\n".to_vec())
+          .await
+          .0
+          .unwrap();
+        std::future::pending::<()>().await;
+      })
+      .detach();
+
+      let mut client = GarnetClient::new(addr, None, None, None, 16);
+      client.connect_async().await.unwrap();
+
+      // 首命令：一次读事件带回 r1+r2，r1 认领后 r2 滞留 read_buf
+      let r1 = client
+        .execute_for_string_result_async(&["GET", "k1"])
+        .await
+        .unwrap();
+      assert_eq!(r1, "OK");
+
+      // 第二条命令：应答已在缓冲且端点静默——泵若先阻塞 read（旧行为）即永挂
+      let r2 = timeout(
+        Duration::from_secs(5),
+        client.execute_for_string_result_async(&["GET", "k2"]),
+      )
+      .await
+      .unwrap_or_else(|_| panic!("合包滞留应答未被消费，第二条命令超时"))
+      .unwrap();
+      assert_eq!(r2, "v2");
+    });
   }
 }
