@@ -31,7 +31,7 @@ use wlua::{
 };
 use wmetric::{
   CommandStats, GarnetInfoMetrics, GarnetLatencyMetrics, GarnetLatencyMetricsSession,
-  GarnetSessionMetrics, InfoCommand, LatencyMetricsType, SlowLogContainer,
+  GarnetSessionMetrics, InfoCommand, InfoMetricsType, LatencyMetricsType, SlowLogContainer,
 };
 use wpubsub::{PubSubSession, PubSubSessionCommands, SubscribeBroker};
 use wresp::{
@@ -1483,8 +1483,20 @@ impl RespServerSession {
     }
     if cmd == RespCommand::Info {
       // libs/server/Metrics/Info/InfoCommand.cs:NetworkINFO（wmetric 段分发：
-      // 段解析 + 各信息域填充经 SessionInfoSource 数据源承接）
+      // 段解析 + 各信息域填充经 SessionInfoSource 数据源承接）。
+      // 纯显式 KEYSPACE 段请求需全库扫描计数（C# PopulateKeyspaceInfo →
+      // GetKeyspaceStats 专用扫描会话；DEFAULT/ALL 段集合不含 KEYSPACE，
+      // 普通 INFO 不受影响）——存储域扫描须跨 await，与 DBSIZE 同构降级
+      // 慢路径（exec_slow Info 分支闭环）。混合段名（如 INFO server
+      // keyspace）不降级，keyspace 段按 wmetric 缺省形态呈现，避免丢段
       let args = self.get_arg_slices();
+      if !args.is_empty()
+        && args
+          .iter()
+          .all(|a| InfoMetricsType::from_name(a) == Some(InfoMetricsType::Keyspace))
+      {
+        return false;
+      }
       let text = {
         let provider = super::info_provider::SessionInfoSource::new(self);
         let mut info = GarnetInfoMetrics::new();

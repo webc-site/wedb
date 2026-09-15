@@ -208,3 +208,92 @@ impl InfoProvider for SessionInfoSource<'_> {
       .unwrap_or(0)
   }
 }
+
+/// 慢路径 KEYSPACE 扫描数据源（C# PopulateKeyspaceInfo 遍历
+/// GetDatabasesSnapshot + 逐库 GetKeyspaceStats 的扫描承接：显式
+/// `INFO KEYSPACE` 慢路径消费，仅 KEYSPACE 段触达，其余成员为 trait
+/// 缺省形态，绝不虚报计数）
+pub(crate) struct KeyspaceScanSource {
+  /// 有键库的 (id, 活键数, 带 TTL 键数)；空库已在扫描侧按 C#
+  /// 「仅列出至少持有一个键的库」口径剔除
+  stats: Vec<(i32, u64, u64)>,
+}
+
+impl KeyspaceScanSource {
+  pub(crate) fn new(stats: Vec<(i32, u64, u64)>) -> Self {
+    Self { stats }
+  }
+}
+
+impl InfoProvider for KeyspaceScanSource {
+  fn server_facts(&self) -> ServerFacts {
+    // 仅 KEYSPACE 段消费本数据源，facts 不被任何段读取，最小值即可
+    ServerFacts {
+      version: env!("CARGO_PKG_VERSION").to_string(),
+      run_id: run_id().to_string(),
+      redis_protocol_version: super::resp_server_session::REDIS_PROTOCOL_VERSION.to_string(),
+      enable_cluster: false,
+      enable_aof: false,
+      metrics_sampling_frequency: 0,
+      latency_monitor: false,
+      command_stats_monitor: false,
+      startup_timestamp_unix_secs: startup_unix_secs(),
+      log_dir: String::new(),
+    }
+  }
+
+  /// 库快照：KEYSPACE 段仅消费库 id（DbSnapshot 其余字段属 STORE 段，
+  /// 本数据源段集合不含 STORE，不输出）
+  fn databases(&self) -> Vec<DbSnapshot> {
+    self
+      .stats
+      .iter()
+      .map(|&(id, _, _)| DbSnapshot { id, ..DbSnapshot::default() })
+      .collect()
+  }
+
+  fn max_database_id(&self) -> i32 {
+    self.stats.last().map_or(-1, |&(id, _, _)| id)
+  }
+
+  fn global_metrics(&self) -> Option<GlobalMetricsSnapshot> {
+    None
+  }
+
+  fn command_stats(&self) -> Vec<(String, u64, u64, u64)> {
+    Vec::new()
+  }
+
+  /// 扫描快照查表（C# GetKeyspaceStats 返回值投影）
+  fn keyspace_stats(&self, db_id: i32) -> (u64, u64) {
+    self
+      .stats
+      .iter()
+      .find(|&&(id, _, _)| id == db_id)
+      .map_or((0, 0), |&(_, keys, expires)| (keys, expires))
+  }
+
+  fn replication_info(&self) -> Option<Vec<MetricsItem>> {
+    None
+  }
+
+  fn gossip_stats(&self, _metrics_disabled: bool) -> Vec<MetricsItem> {
+    Vec::new()
+  }
+
+  fn buffer_pool_stats(&self) -> Vec<(String, String)> {
+    Vec::new()
+  }
+
+  fn checkpoint_info(&self) -> Option<Vec<MetricsItem>> {
+    None
+  }
+
+  fn hlog_scan_dump(&self) -> Vec<(String, String)> {
+    Vec::new()
+  }
+
+  fn safe_aof_address(&self) -> i64 {
+    0
+  }
+}

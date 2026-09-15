@@ -28,6 +28,7 @@ use wcustom::CommandType;
 use wdatabase::{GarnetDatabase, SingleDatabaseManager};
 use wdev::Device;
 use wkv::{BatchStoreSession, StoreSession};
+use wmetric::{GarnetInfoMetrics, InfoMetricsType};
 use wresp::{
   RespCommand,
   cmd_strings::{
@@ -341,6 +342,10 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
         {
           snapshot.push(custom.name.into_bytes());
         }
+        // INFO KEYSPACE 慢路径快照尾参追加库数上限（4 字节 LE；同款先例）
+        if cmd == RespCommand::Info {
+          snapshot.push(session.max_databases.to_le_bytes().to_vec());
+        }
         session.pending_slow = Some(SlowWait::for_command(api, cmd, snapshot));
       } else {
         // 执行域未挂载的装配缺口：写明错误，绝不静默吞命令
@@ -431,6 +436,50 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
             RespServerSession::write_output_for_scan(cursor as i64, &key_refs, &mut output)
           }
           Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
+        }
+      }
+      // ---- INFO KEYSPACE 慢路径闭环（C# PopulateKeyspaceInfo →
+      // GetDatabaseKeyspaceStats 的每库专用扫描会话；存储域扫描须跨
+      // await，同步段降级至此）。快照尾参 4 字节 LE 库数上限。单连接
+      // 独占 StoreSession 且挂起期间会话不消费命令：切换活跃库前缀逐库
+      // 扫描，结束后恢复——对齐 C# 专用扫描会话隔离语义。段文本经
+      // wmetric 段填充器一处定义（数据源 KeyspaceScanSource）
+      C::Info => {
+        let Some(max_db_bytes) = args.last().map(Vec::as_slice) else {
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+          return output;
+        };
+        let Ok(max_databases) = <[u8; 4]>::try_from(max_db_bytes)
+          .map(i32::from_le_bytes)
+        else {
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+          return output;
+        };
+        let (ns, db) = (self.session.namespace(), self.session.active_db());
+        let mut stats = Vec::new();
+        for id in 0..max_databases.max(0) {
+          self.session.set_active_db(id as u64);
+          let batch = self.session.enter_batch();
+          let storage = StorageSession::new_readonly(batch);
+          match storage.keyspace_stats().await {
+            // C# PopulateKeyspaceInfo：仅列出至少持有一个键的库
+            Ok((keys, expires)) if keys > 0 => stats.push((id, keys, expires)),
+            Ok(_) => {}
+            Err(_) => {
+              self.session.set_context(ns, db);
+              write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+              return output;
+            }
+          }
+        }
+        self.session.set_context(ns, db);
+        let provider = super::info_provider::KeyspaceScanSource::new(stats);
+        let text = GarnetInfoMetrics::new()
+          .get_resp_info(&[InfoMetricsType::Keyspace], db as i32, &provider);
+        if text.is_empty() {
+          output.extend_from_slice(b"$-1\r\n");
+        } else {
+          output.write_resp_bulk_string(text.as_bytes());
         }
       }
       // ---- 清库族（BasicCommands.cs:ExecuteFlushDb：选项单源重解析 +
