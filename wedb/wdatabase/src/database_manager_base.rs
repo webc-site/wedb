@@ -14,7 +14,7 @@ use std::{
 
 use waof::AofAddress;
 use wbase::time::now_ms;
-use wcpr::CheckpointType;
+use wcpr::{self, CheckpointType};
 use wdev::Device;
 use wkv::{CheckpointManager, Error, WedbStore};
 use wval::{GarnetObjectType, SessionPrefixBuf};
@@ -116,9 +116,7 @@ impl<D: Device> DatabaseManagerBase<D> {
   ) -> wkv::Result<RecoveredStore<D>> {
     let token = match recover_from_token {
       Some(t) => Some(t),
-      None => {
-        CheckpointManager::<D>::find_latest_checkpoint(&db.checkpoint_dir).map_err(Error::from)?
-      }
+      None => wcpr::find_latest_checkpoint(&db.checkpoint_dir).map_err(Error::from)?,
     };
     match token {
       Some(t) => {
@@ -352,11 +350,8 @@ impl<D: Device> DatabaseManagerBase<D> {
     &self,
     db: &GarnetDatabase<D, A>,
   ) -> wkv::Result<usize> {
-    let purged = CheckpointManager::<D>::purge_outdated(
-      &db.checkpoint_dir,
-      DEFAULT_POST_CHECKPOINT_RETAIN_COUNT,
-    )
-    .map_err(Error::from)?;
+    let purged = wcpr::purge_outdated(&db.checkpoint_dir, DEFAULT_POST_CHECKPOINT_RETAIN_COUNT)
+      .map_err(Error::from)?;
     Ok(purged.len())
   }
 

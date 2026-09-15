@@ -91,9 +91,9 @@ impl<D: Device> StoreSession<D> {
     };
     if hit {
       // 仅当数据存在时才惰性检查过期（过期物理清除后视同不存在）；
-      // has_ttl_tag 单探针门控：无 TTL 记录时完全跳过异步过期裁决（与 read_with 口径
-      // 一致，本调用链内该键的 TTL 裁决仅此一次）
-      if self.has_ttl_tag(key)? && self.check_expired(key).await? {
+      // probe_alive 单点：has_ttl_tag 快门控，无 TTL 记录时完全跳过异步过期裁决
+      //（与 read_with 口径一致，本调用链内该键的 TTL 裁决仅此一次）
+      if !self.probe_alive(key).await? {
         return Ok(false);
       }
       return Ok(true);
@@ -211,7 +211,7 @@ impl<D: Device> StoreSession<D> {
       Some(meta) => {
         let meta = meta?;
         let is_alive = meta.size > 0 || meta.collection_type == CollectionType::RangeIndex;
-        if is_alive && self.has_ttl_tag(user_key)? && self.check_expired(user_key).await? {
+        if is_alive && !self.probe_alive(user_key).await? {
           return Ok(None);
         }
         self

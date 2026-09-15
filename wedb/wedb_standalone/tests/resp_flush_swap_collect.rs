@@ -493,7 +493,7 @@ fn swapdb_survives_save_and_recover() {
 
   // 重启恢复：快照中交换后视图 1:1 重现
   rt.block_on(async {
-    let token = CheckpointManager::<SegmentedDevice>::find_latest_checkpoint(&cp_dir)
+    let token = wcpr::find_latest_checkpoint(&cp_dir)
       .unwrap()
       .expect("SAVE 后必须存在快照");
     let device = Arc::new(SegmentedDevice::single_file(&db_file).unwrap());

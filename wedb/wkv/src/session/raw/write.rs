@@ -2,12 +2,12 @@
 
 use std::result::Result as StdResult;
 
-use wbase::{backoff::Backoff, simd::fast_key_eq};
+use wbase::{addr::is_read_cache, backoff::Backoff, simd::fast_key_eq};
 use wdev::Device;
 use wrecord::{RecordHeader, record_size};
 use wval::KeyTag;
 
-use crate::{error::Result, read_cache::is_read_cache_addr, session::StoreSession};
+use crate::{error::Result, session::StoreSession};
 
 /// CAS 失败分配的会话内暂存守卫（对标 C# BlockAllocate.cs:SaveAllocationForRetry 的
 /// operationState.retryNewLogicalAddress）：下一轮尝试先按 GetAllocationForRetry 口径
@@ -109,7 +109,7 @@ impl<D: Device> StoreSession<D> {
       } else {
         let addr = hei.address();
 
-        if is_read_cache_addr(addr) {
+        if is_read_cache(addr) {
           // 2. ReadCache 槽位：只读内存缓存不可原位更新，顺链获取主日志真实地址后直接脱钩盲插；
           // 断链（0）说明条目刚滑出窗口、驱逐方 cleanse 尚未恢复槽位，此时以 prev=0 盲插
           // 会截断碰撞键的主日志链（丢键），自旋重读等待恢复
@@ -450,7 +450,7 @@ impl<D: Device> StoreSession<D> {
       // ReadCache 链头分流（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs:InternalDelete.cs：TryFindRecordForUpdate 的
       // 键匹配链遍历 + HasReadCacheSrc → CreateNewRecord 盲插墓碑）
       let mut cur = addr;
-      if is_read_cache_addr(addr) {
+      if is_read_cache(addr) {
         let matched = self
           .store
           .read_cache

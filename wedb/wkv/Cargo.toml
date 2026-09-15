@@ -84,6 +84,8 @@ features = ["alloc"]
 
 [dev-dependencies]
 gxhash.workspace = true
+wbase.workspace = true
+wcpr.workspace = true
 wedb_test = { path = "../wedb_test" }
 
 [dev-dependencies.aok]

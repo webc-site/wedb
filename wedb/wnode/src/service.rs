@@ -410,9 +410,10 @@ impl<D: Device> NodeService<D> {
       Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE)),
     );
     let mut processor = AofProcessor::new(Arc::clone(&self.aof));
-    processor.set_range_index_manager(Arc::new(RangeIndexManagerReplication::new(Arc::clone(
-      &target_session.store.range_index,
-    ))));
+    let ri_manager = Arc::new(RangeIndexManagerReplication::new(Arc::clone(
+      target_session.store.range_index(),
+    )));
+    processor.set_range_index_manager(ri_manager);
     let target = ReplayTarget {
       session: &storage,
       store: Arc::clone(&target_session.store),

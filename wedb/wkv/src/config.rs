@@ -162,6 +162,13 @@ pub struct StoreConfig {
   /// 是否启用空间复活回收池与链内原地复活（严格对标 C# Garnet --reviv 与 RevivificationSettings）
   pub enable_revivification: bool,
   /// 是否启用 ReadCache 独立只读非脏页内存日志系统（严格对标 Garnet ReadCacheEnabled）
+  ///
+  /// 接线通道（生产命令行不暴露，对标差异显式登记）：C# GarnetServerOptions
+  /// EnableReadCache 默认 false 且引擎回写窗（TryCopyToReadCache 撕裂窗口）仍处
+  /// 观察项，rust 同默认关闭；启用方 = `StoreConfig::with_read_cache` 经
+  /// `wnode::open_node_with_config` 嵌入式注入，或检查点恢复面按 StoreMeta
+  /// 自动复原（checkpoint.rs from_recovered）。驱动 ReadCache 引擎本体
+  /// （read_cache.rs）与冷读回填/promotion 链（raw/read.rs）
   pub enable_read_cache: bool,
   /// ReadCache 内存页数（必须为 2 的幂；默认 64 页，按 64KB 页面对应 4MB DRAM 预算，随 page_size 线性伸缩）
   pub read_cache_num_pages: usize,

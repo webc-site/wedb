@@ -3,15 +3,13 @@ use std::{
   sync::{Arc, atomic::Ordering},
 };
 
+use wbase::addr::{is_read_cache, to_absolute};
 use wdev::Device;
 use whlog::HybridLog;
 use windex::{HashBucket, HashBucketEntry};
 
 use super::WedbStore;
-use crate::{
-  error::{Error, Result},
-  read_cache::{absolute_address, is_read_cache_addr},
-};
+use crate::error::{Error, Result};
 
 impl<D: Device> WedbStore<D> {
   /// 获取临时 RangeIndex 目录路径（若未显式指定 range_index_dir）
@@ -40,8 +38,8 @@ impl<D: Device> WedbStore<D> {
             continue;
           }
           let addr = entry.address();
-          if is_read_cache_addr(addr) {
-            let abs_addr = absolute_address(addr);
+          if is_read_cache(addr) {
+            let abs_addr = to_absolute(addr);
             if abs_addr >= self.read_cache.head_address()
               && abs_addr < self.read_cache.tail_address()
             {
