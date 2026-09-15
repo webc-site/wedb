@@ -50,3 +50,20 @@ rust 两形态消费方实测：
 - QUIT 断连、协议违规断连、致命断流、事务跨批次（MULTI..EXEC）、阻塞/慢路径挂起、订阅推送双路等待行为不回归
 - 脚本重入（redis.call）行为不回归（lua_script_tests）
 - CLUSTER APPENDLOG 副本接收链路不回归（cluster_replication_session / replication_stream_e2e）
+
+## 验证结果
+
+- 分支：w5-consume（已合 dev 基线 2bba4c3，worktree 与分支合并后清理）
+- 实际改动：35 文件 +1012/-951
+- 会话层（resp_server_session.rs）：删拷贝形态 try_consume_messages(&[u8]) + body；try_consume_pending 改名 try_consume_messages 为唯一入口（签名 () -> Option<usize>，scratch 持久游标）；脚本重入 dispatch_resp 改「缓冲替换 + 游标归零 + 唯一入口」（对标 C# recvBufferPtr 切换 + if (!txnSkip) readHead = 0，LuaRunner.Functions.cs:ProcessCommandFromScripting 尾部）
+- trait 层（traits.rs）：MessageConsumerFace 单形态——删拷贝必选面 try_consume_messages_into(req,resp) 与桥接面 try_consume_messages(req)；try_consume_scratch_into 改名 try_consume_messages_into(resp_buf) 必选（映射 IMessageConsumer.cs:TryConsumeMessages）；take_recv_scratch/return_recv_scratch 必选化（Vec<u8> 直取，不再 Option）
+- 泵（net/handler.rs）：删 scratch_mode 双形态，握手段前置（pooled 收首批 → 建会话 → 字节迁移），稳态循环序「消费 → 镜像 → 写出 → 哨兵 → 读取」（C# Read → Process 循环序等价重排——握手段迁移字节首轮即被消费，修复重排前的首批判滞留挂点）；删回退读取/消费分支与收尾复位段；订阅推送双路等待、QUIT/违规/致命断流哨兵保持
+- ClusterReplicationSession：加 recv_buffer/read_head 字段，帧解析改从会话缓冲切片循环消费（一次吃全全部完整帧），畸形帧/APPENDLOG 拒收统一走 None 通道断连；replica_wire FrameSink::Session 直调改生产等价序
+- 测试面：泵桩归一（删 LineConsumer 拷贝桩，全用例集 scratch 桩驱动，补批内流水线/三批交错用例）；EchoConsumer×3 改 scratch 桩；consumer 层 helper（roundtrip/pump/feed 族）改三件套序，会话直调测试经 pump_feed/feed_consume 生产等价辅助
+- 语义修正 2 处（拷贝形态时代的错误基线）：
+  - multi_exec_roundtrip_without_writes 期待 *1\r\n → *1\r\n+PONG\r\n（拷贝形态 clear 丢排队 PING 字节致重放走空；scratch 持久游标下 PING 真执行，与 C# IsSkippingOperations 禁平移语义一致）
+  - cluster_slot_verify_wait 重放断言：重评消费不再重喂帧，驻留字节原位续解析（Some(0) 完整消费）
+- 回退路径语义结论：C# 单形态无回退物；rust 拷贝面生产零命中（RespSessionConsumer 恒走 scratch），删除无生产语义损失；「回退」随 scratch 面必选化消除
+- 静态检查：./clippy.sh 0 警告（禁 allow）
+- 自动化测试：./test.sh 全过（wedb 2056 项 + regress 2 项）
+- 检查脚本：bun ./js/check.js 零输出（无新增缺失/重复）；删除面无 C# 映射丢失（TryConsumeMessages 映射保留于唯一入口），无需 ignore 登记
