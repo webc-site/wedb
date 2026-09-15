@@ -255,9 +255,9 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
   }
 
   /// 重置日志：cookie 复位 + 转发权威 [`WalLog::reset`]
-  /// （在 garnet 中的相对路径:TsavoriteLog.cs:Reset 的设备面实现——
-  /// 持提交锁原子复位位点 + sync_data 串行化；原手抄四原子无锁复位，
-  /// 与在途 commit_to 并发会撕裂位点，已删）。
+  /// （libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:Reset 的
+  /// 设备面实现——持提交锁原子复位位点 + sync_data 串行化；原手抄四原子无锁
+  /// 复位，与在途 commit_to 并发会撕裂位点，已删）。
   async fn reset_async(&self) {
     self.cookie.store(NO_COOKIE, Ordering::Release);
     if let Err(err) = self.wal.reset().await {

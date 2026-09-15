@@ -232,8 +232,8 @@ impl SublogBackend for InMemorySublog {
       .sum()
   }
 
-  /// 在 garnet 中的相对路径:InMemorySublog 无设备态（对标 C# TsavoriteLog.Reset
-  /// 的内存等价：清记录 + 位点归 1，无锁无 I/O）
+  /// 内存后端无设备态（C# 无对应物）：清记录 + 位点归 1，无锁无 I/O，
+  /// 语义对标 TsavoriteLog.Reset 的内存等价
   async fn reset_async(&self) {
     self.records.lock().clear();
     self.begin.store(1, Ordering::Release);
