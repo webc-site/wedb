@@ -31,14 +31,11 @@ use wbase::{
   entry_type::AofEntryType,
 };
 use wcol::{
+  HashObject, ListObject, ObjectInput, ObjectOutput, SetObject, SortedSetObject,
   hash::hash_object::HashOperation,
   list::list_object::ListOperation,
-  object_store_utils::{
-    hash_from_blob, hash_to_blob, list_from_blob, list_to_blob, make_object_input, obj_decode,
-    set_from_blob, set_to_blob, zset_from_blob, zset_to_blob,
-  },
+  object_store_utils::{make_object_input, obj_decode},
   set::set_object::SetOperation,
-  types::object_output::ObjectOutput,
   zset::sorted_set_object::SortedSetOperation,
 };
 use wdev::Device;
@@ -1385,57 +1382,37 @@ impl AofProcessor {
     let mut out = ObjectOutput::new();
     let resp_version = session.resp_protocol_version();
 
-    // 整对象回放统一内核：信封域读现载荷（记录挂 ObjectEnvelope 物理键）→
-    // operate → 删空走双域删除自愈，非空回写信封（键缺失按空对象重建，与
-    // ObjectStoreRMW 重放会话 NeedToCreate=true 口径一致）
+    // 信封域读现载荷（记录挂 ObjectEnvelope 物理键），单通道按类型分发
     let raw = session
       .read_tag_with(key, KeyTag::ObjectEnvelope, |r| r.to_vec())
       .await
       .map_err(AofReplayError::Store)?;
-    let load = |want: u8| -> Option<Vec<u8>> {
-      raw
-        .as_deref()
-        .and_then(|r| obj_decode(r, want))
-        .map(Vec::from)
-    };
-    macro_rules! replay_object {
-      ($want:expr, $from_blob:ident, $to_blob:ident) => {{
-        let mut obj = load($want).map(|p| $from_blob(&p)).unwrap_or_default();
-        obj.operate(&obj_input, &mut out, resp_version);
-        if obj.is_empty() {
-          session
-            .delete_string(key)
-            .await
-            .map_err(AofReplayError::Store)?;
-        } else {
-          let blob = $to_blob(&obj);
-          session
-            .obj_save(key, $want, &blob)
-            .await
-            .map_err(AofReplayError::Store)?;
-        }
-      }};
-    }
     match obj_type {
       GarnetObjectType::Hash => {
-        replay_object!(GarnetObjectType::Hash as u8, hash_from_blob, hash_to_blob)
+        replay_object_channel::<HashObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
+          .await
       }
       GarnetObjectType::Set => {
-        replay_object!(GarnetObjectType::Set as u8, set_from_blob, set_to_blob)
+        replay_object_channel::<SetObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
+          .await
       }
       GarnetObjectType::List => {
-        replay_object!(GarnetObjectType::List as u8, list_from_blob, list_to_blob)
+        replay_object_channel::<ListObject, D>(session, key, raw, &obj_input, &mut out, resp_version)
+          .await
       }
       GarnetObjectType::SortedSet => {
-        replay_object!(
-          GarnetObjectType::SortedSet as u8,
-          zset_from_blob,
-          zset_to_blob
+        replay_object_channel::<SortedSetObject, D>(
+          session,
+          key,
+          raw,
+          &obj_input,
+          &mut out,
+          resp_version,
         )
+        .await
       }
-      _ => {}
+      _ => Ok(()),
     }
-    Ok(())
   }
 
   /// libs/server/AOF/AofProcessor.cs:ObjectStoreDelete
@@ -1599,12 +1576,183 @@ impl AofProcessor {
     Some((sequence_number > until_sequence_number, sequence_number))
   }
 
-  /// 条目 key 速览（事务组加锁集提取面；不在场返回 None）。
-  pub fn peek_entry_key(entry: &[u8]) -> Option<&[u8]> {
-    let offset = AofHeader::skip_header(entry)?;
-    let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
-    entry.get(offset + 4..offset + 4 + len)
+/// 条目 key 速览（事务组加锁集提取面；不在场返回 None）。
+pub fn peek_entry_key(entry: &[u8]) -> Option<&[u8]> {
+  let offset = AofHeader::skip_header(entry)?;
+  let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
+  entry.get(offset + 4..offset + 4 + len)
+}
+}
+
+/// 四对象类型重放单通道约束（本地封闭 trait，仅 Hash/Set/List/SortedSet 实现；
+/// 对标 C# AofProcessor.ObjectStoreRMW<TObjectContext> 经 Tsavorite
+/// objectContext 的泛型单通道，静态分发无 dyn）。
+trait ReplayObject: Default {
+  /// 信封内层类型标签（GarnetObjectType 判别值）
+  const TAG: u8;
+
+  /// 从信封载荷装载（损坏按空对象，对齐 from_blob 口径）
+  fn load(raw: &[u8]) -> Self;
+
+  /// 序列化为信封载荷
+  fn dump(&self) -> Vec<u8>;
+
+  /// 空对象判定（删空自愈阈值）
+  fn is_empty(&self) -> bool;
+
+  /// RESP 语义操作（委托各对象固有 operate）
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool;
+}
+
+impl ReplayObject for HashObject {
+  const TAG: u8 = GarnetObjectType::Hash as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
   }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for SetObject {
+  const TAG: u8 = GarnetObjectType::Set as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for ListObject {
+  const TAG: u8 = GarnetObjectType::List as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+impl ReplayObject for SortedSetObject {
+  const TAG: u8 = GarnetObjectType::SortedSet as u8;
+
+  #[inline]
+  fn load(raw: &[u8]) -> Self {
+    Self::deserialize_from_slice(raw).unwrap_or_default()
+  }
+
+  #[inline]
+  fn dump(&self) -> Vec<u8> {
+    self.serialize_to_vec()
+  }
+
+  #[inline]
+  fn is_empty(&self) -> bool {
+    self.is_empty()
+  }
+
+  #[inline]
+  fn apply(
+    &mut self,
+    input: &ObjectInput,
+    output: &mut ObjectOutput,
+    resp_protocol_version: u8,
+  ) -> bool {
+    self.operate(input, output, resp_protocol_version)
+  }
+}
+
+/// 整对象回放泛型单通道（libs/server/AOF/AofProcessor.cs:ObjectStoreRMW
+/// 的对象应用段）：信封域现载荷 → [`ReplayObject::load`] →
+/// [`ReplayObject::apply`] → 删空走双域删除自愈，非空回写信封（键缺失按
+/// 空对象重建，与 ObjectStoreRMW 重放会话 NeedToCreate=true 口径一致）。
+async fn replay_object_channel<T: ReplayObject, D: Device>(
+  session: &StorageSession<'_, D>,
+  key: &[u8],
+  raw: Option<Vec<u8>>,
+  obj_input: &ObjectInput,
+  out: &mut ObjectOutput,
+  resp_version: u8,
+) -> Result<(), AofReplayError> {
+  let mut obj = raw
+    .as_deref()
+    .and_then(|r| obj_decode(r, T::TAG))
+    .map(T::load)
+    .unwrap_or_default();
+  obj.apply(obj_input, out, resp_version);
+  if obj.is_empty() {
+    session.delete_string(key).await.map_err(AofReplayError::Store)?;
+  } else {
+    let blob = obj.dump();
+    session
+      .obj_save(key, T::TAG, &blob)
+      .await
+      .map_err(AofReplayError::Store)?;
+  }
+  Ok(())
 }
 
 /// 物理键 context 切换守卫（构造时解出 `(ns, db, 用户键)` 并切会话
