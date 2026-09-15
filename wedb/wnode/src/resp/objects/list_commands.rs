@@ -17,7 +17,7 @@ use wcol::{
   types::object_output::ObjectOutput,
 };
 use wresp::{
-  RespCommand, RespSliceExt, RespVecExt, check_arg_count,
+  RespCommand, RespVecExt, check_arg_count,
   cmd_strings::{self as cs, RESP_ERR_GENERIC},
 };
 use wval::GarnetObjectType;

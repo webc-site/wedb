@@ -304,14 +304,14 @@ pub async fn network_ricreate<D: Device, R>(
   let options = match parse_ricreate_options(parse_state) {
     Ok(options) => options,
     Err(message) => {
-      abort_with_error_message(output, message);
+      abort_with_error_message(output, &message);
       return Ok(true);
     }
   };
   let tuning = match options.validate() {
     Ok(tuning) => tuning,
     Err(message) => {
-      abort_with_error_message(output, message);
+      abort_with_error_message(output, &message);
       return Ok(true);
     }
   };

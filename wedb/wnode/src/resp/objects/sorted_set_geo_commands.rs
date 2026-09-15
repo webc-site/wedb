@@ -20,7 +20,7 @@ use wcol::{
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation},
 };
 use wresp::{
-  RespSliceExt, RespVecExt, check_arg_count,
+  RespVecExt, check_arg_count,
   cmd_strings::{self as cs, RESP_ERR_GENERIC},
   equals_ignore_case,
 };
