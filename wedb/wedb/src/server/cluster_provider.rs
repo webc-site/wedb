@@ -85,6 +85,10 @@ pub struct ClusterProvider {
   gossip_sample_percent: AtomicI32,
   /// Garnet 当前纪元（对标 C# ClusterProvider.GarnetCurrentEpoch，初始为 1）
   garnet_current_epoch: AtomicI64,
+  /// 副本重放最大滞后字节数（C# GarnetServerOptions.AofReplayMaxLagBytes，
+  /// 默认 -1；INFO 复制段 aof_replay_max_lag_bytes 直读源，装配期自
+  /// ClusterArgs 注入）
+  aof_replay_max_lag_bytes: AtomicI32,
   /// 活跃集群会话弱引用表（C# GarnetServerBase.activeHandlers 承接的集群
   /// 会话枚举面：会话体归连接任务独占，此处仅存弱引用，过期即会话已亡，
   /// 枚举时自清扫免注销钩子；BumpAndWaitForEpochTransition 的静止等待遍历源）
@@ -124,6 +128,7 @@ impl Default for ClusterProvider {
       gossip_delay_ms: AtomicU64::new(DEFAULT_GOSSIP_DELAY_MS),
       gossip_sample_percent: AtomicI32::new(DEFAULT_GOSSIP_SAMPLE_PERCENT),
       garnet_current_epoch: AtomicI64::new(1),
+      aof_replay_max_lag_bytes: AtomicI32::new(-1),
       cluster_sessions: RwLock::new(Vec::new()),
       self_weak: OnceLock::new(),
       store: RwLock::new(None),
@@ -537,6 +542,12 @@ impl ClusterProvider {
       aof.reset_sequence_number_generator();
     }
   }
+
+  /// 注入副本重放最大滞后字节数（C# serverOptions.AofReplayMaxLagBytes 的
+  /// 装配期注入；INFO 复制段直读）
+  pub fn set_aof_replay_max_lag_bytes(&self, value: i32) {
+    self.aof_replay_max_lag_bytes.store(value, Ordering::Relaxed);
+  }
 }
 
 impl IClusterProvider for ClusterProvider {
@@ -638,6 +649,52 @@ impl IClusterProvider for ClusterProvider {
       items.push(MetricsItem::new(
         "master_sync_last_io_seconds_ago",
         num_buf.format(rm.last_primary_sync_seconds()),
+      ));
+      // libs/cluster/Server/ClusterProvider.cs:255-259（副本侧滞后指标组）：
+      // 日志尾与复制偏移的向量/聚合差、重放滞后上限与物理子日志重放进度向量
+      let (vec_lag, acc_lag, sublog_vector, drift_vector) = match self
+        .try_aof()
+        .map(|aof| (aof.log().tail_address(), aof.read_consistency_manager()))
+      {
+        Some((tail, rcm)) => {
+          let offset = rm.get_current_replication_offset();
+          let sublog_vector = rcm.as_ref().map_or_else(
+            || "-1".to_string(),
+            |m| m.get_physical_sublog_max_sequence_vector(),
+          );
+          let drift_vector = rcm.as_ref().map_or_else(
+            || "-1".to_string(),
+            |m| m.get_physical_sublog_max_drift_sequence_vector(),
+          );
+          (
+            tail.diff(&offset).to_aof_string(),
+            tail.aggregate_diff(&offset).to_string(),
+            sublog_vector,
+            drift_vector,
+          )
+        }
+        // AOF 门控未点亮：无复制滞后面（C# 禁用 AOF 时 appendOnlyFile 同样
+        // 恒零输出）
+        None => (
+          "0".to_string(),
+          "0".to_string(),
+          "-1".to_string(),
+          "-1".to_string(),
+        ),
+      };
+      items.push(MetricsItem::new("replication_offset_vector_lag", vec_lag));
+      items.push(MetricsItem::new("replication_offset_acc_lag", acc_lag));
+      items.push(MetricsItem::new(
+        "aof_replay_max_lag_bytes",
+        self.aof_replay_max_lag_bytes.load(Ordering::Relaxed).to_string(),
+      ));
+      items.push(MetricsItem::new(
+        "physical_sublog_max_sequence_vector",
+        sublog_vector,
+      ));
+      items.push(MetricsItem::new(
+        "physical_sublog_max_drift_sequence_vector",
+        drift_vector,
       ));
     } else {
       // slave0: ip=...,port=...,state=online,offset=...,lag=...（对标 C# 逐副本条目）
