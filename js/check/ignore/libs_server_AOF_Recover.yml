@@ -1,0 +1,11 @@
+- 文件:
+    - libs/server/AOF/Recover/AofRecover.cs:
+        - MultiLogRecover
+  理由: C# 按 MultiLogEnabled（默认 false，GarnetServerOptions.cs:1243）分派多
+    物理日志恢复；rust 生产域唯一物理装配工厂 single_log_aof 恒单 WaofSublog，
+    恢复点恒 single_log_recover，与 C# 默认关闭形态一致。点亮多物理恢复的硬
+    阻断：C# MultiLogRecover 恢复上界收敛自各子日志 commit cookie
+    （RecoverLatestSequenceNumber），waof 承载下 WaofSublog cookie 仅进程内
+    可见（无 commit 元数据持久化区），恢复上界无从收敛。原孤函数
+    multi_log_recover 零生产调用已删；ShardedLog/地址向量/RecoverLogDriver
+    拓扑语义面保留，物理装配点亮待 waof commit 元数据持久化后另立任务
