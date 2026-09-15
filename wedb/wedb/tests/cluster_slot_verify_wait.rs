@@ -491,8 +491,10 @@ fn resp_session_defers_set_until_migration_advances() {
     let _ = adv.await;
     assert!(reply.is_empty(), "等待体不产出应答字节");
 
-    // 游标已回退：重新消费同一帧，门评放行 → 命令执行 +OK
-    let (consumed, out) = pump(&mut consumer, frame);
+    // 游标已回退：驻留字节原位续解析（泵下一轮直读同一缓冲），门评放行
+    // → 命令执行 +OK（持久游标模型：重放不重喂字节）
+    let mut out = Vec::new();
+    let consumed = consumer.try_consume_messages_into(&mut out);
     assert_eq!(consumed, Some(0), "重评后应完整消费");
     assert_eq!(out, b"+OK\r\n", "out={:?}", String::from_utf8_lossy(&out));
 

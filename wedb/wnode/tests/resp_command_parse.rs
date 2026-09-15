@@ -343,24 +343,28 @@ fn malformed_array_header_raises_violation() {
 /// 应答之后 → Send 整体发出 → DisposeNetworkSender 断连）
 #[test]
 fn protocol_violation_writes_error_after_prior_replies() {
-  let mut s = RespServerSession::default();
+  // None = 断连哨兵（泵发尽应答后关闭连接），违规字节驻留缓冲不会
+  // 被同会话续消费——每个违规形态独立会话验证
 
   // 合法 PING + 违规数组头同批：应答顺序 = +PONG → 协议错误
+  let mut s = RespServerSession::default();
   assert_eq!(feed(&mut s, b"*1\r\n$4\r\nPING\r\n*A\r\n"), None);
   assert_eq!(
     s.take_output(),
     b"+PONG\r\n-ERR Protocol Error: Unexpected character 'A'.\r\n"
   );
-  // 哨兵已消费复位（下批消费不受残留影响）
+  // 哨兵已消费复位
   assert!(s.parse_violation.is_none());
 
   // 违规形态多样性：负长度 / 终止符不符
+  let mut s = RespServerSession::default();
   assert_eq!(feed(&mut s, b"*1\r\n$4\r\nPING\r\n*-2\r\n"), None);
   assert_eq!(
     s.take_output(),
     b"+PONG\r\n-ERR Protocol Error: Invalid string length '-2'.\r\n"
   );
 
+  let mut s = RespServerSession::default();
   assert_eq!(feed(&mut s, b"PING\r\n*1X\r\n"), None);
   assert_eq!(
     s.take_output(),

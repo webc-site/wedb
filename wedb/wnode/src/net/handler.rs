@@ -233,10 +233,109 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
       }
     }
 
+    // 消费驱动序（C# NetworkHandler.Read → Process 循环序的等价重排）：
+    // 先消费缓冲中现有完整帧（含握手批迁移字节），再读取下一批网络字节
+    let mut net_in = 0usize;
     loop {
-      // ── 网络读取段 ──
-      // 本轮网络进字节（统计网卡读取增量）
-      let net_in;
+      // ── 消费段 ──
+      let Some(session) = self.session.as_mut() else {
+        break;
+      };
+      resp_pooled.clear();
+      // 订阅推送顺带排空（有输入的订阅会话：推送帧随本批应答写出；
+      // 空闲订阅会话的即时投递由读段双路等待承担）
+      session.drain_pubsub_into(resp_pooled.vec_mut());
+      // 协议违规哨兵（C# RespParsingException → 发尽应答后断连）
+      let mut parse_violation = false;
+      loop {
+        // 消费返回 Some(_)：含收尾 0（整段消费完毕、缓冲已复位）与流水线
+        // 余量两种形态，挂起检查必须先于跳出——慢/阻塞命令恰好是缓冲
+        // 收尾帧时消费返回 0 但 pending_slow 已设置，直接 break 令挂起
+        // 命令无人驱动，连接永久无应答（无下一批网络字节可期）；
+        // 返回 None 为协议违规：游标原样，发尽本轮应答后断连
+        if session
+          .try_consume_messages_into(resp_pooled.vec_mut())
+          .is_none()
+        {
+          parse_violation = true;
+          break;
+        }
+
+        // 阻塞/慢路径挂起：await 驱动至完成后继续消费流水线余量
+        let mut resumed = false;
+        if let Some(blocked) = session.take_blocked_wait() {
+          let (cmd, result) = blocked.resolve().await;
+          session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
+          resumed = true;
+        }
+
+        if let Some(slow) = session.take_slow_wait() {
+          let reply = slow.resolve().await;
+          if !reply.is_empty() {
+            resp_pooled.vec_mut().extend_from_slice(&reply);
+          }
+          resumed = true;
+        }
+
+        // 半包残余等更多网络字节（含收尾 0 无挂起的等下一批）
+        if !resumed {
+          break;
+        }
+      }
+
+      // 镜像累加（监视器瞬时吞吐/ops/s 源；会话 dispose 时随条目注销换轨到
+      // 历史归并，二者不双计）
+      if let Some(entry) = &self.consumer_entry {
+        entry.add_net_bytes((net_in + handshake_net_in) as u64, resp_pooled.len() as u64);
+        handshake_net_in = 0;
+        if let Some(session) = self.session.as_mut() {
+          session.mirror_session_counters(entry);
+        }
+      }
+
+      // ── 写出段（Throttle 背压 + 缓冲复用）──
+      if !resp_pooled.is_empty() {
+        if self.throttle.enter_send().await.is_err() {
+          break;
+        }
+        let payload = resp_pooled
+          .take_buffer()
+          .expect("pooled send buffer active");
+        let BufResult(write_res, mut reclaimed) = stream.write_all(payload).await;
+        reclaimed.clear();
+        resp_pooled.set_buffer(reclaimed);
+        self.throttle.exit_send();
+
+        if let Err(e) = write_res {
+          if e.kind() == io::ErrorKind::BrokenPipe
+            || e.kind() == io::ErrorKind::ConnectionReset
+            || e.kind() == io::ErrorKind::UnexpectedEof
+          {
+            break;
+          }
+          return Err(e);
+        }
+
+        if resp_pooled.capacity() > DEFAULT_BUFFER_SIZE {
+          resp_pooled = self.buffer_pool.get(DEFAULT_BUFFER_SIZE);
+        }
+      }
+
+      // 会话待释放哨兵（QUIT → toDispose）：应答已发尽，主动断连
+      //（C# Process 尾部 if (toDispose) DisposeNetworkSender(true) 语义；
+      // dispose 请求取走即复位，命中即退出泵循环走 dispose 收尾）
+      if let Some(session) = self.session.as_mut()
+        && session.take_dispose_request()
+      {
+        break;
+      }
+
+      // 协议违规：应答已发尽，断连（C# DisposeNetworkSender 语义）
+      if parse_violation {
+        break;
+      }
+
+      // ── 网络读取段（下一批；读完回到循环头消费）──
       {
         let Some(session) = self.session.as_mut() else {
           break;
@@ -343,104 +442,6 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
           Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
           Err(e) => return Err(e),
         }
-      }
-
-      // ── 消费段 ──
-      let Some(session) = self.session.as_mut() else {
-        break;
-      };
-      resp_pooled.clear();
-      // 订阅推送顺带排空（有输入的订阅会话：推送帧随本批应答写出；
-      // 空闲订阅会话的即时投递由读段双路等待承担）
-      session.drain_pubsub_into(resp_pooled.vec_mut());
-      // 协议违规哨兵（C# RespParsingException → 发尽应答后断连）
-      let mut parse_violation = false;
-      loop {
-        // 消费返回 Some(_)：含收尾 0（整段消费完毕、缓冲已复位）与流水线
-        // 余量两种形态，挂起检查必须先于跳出——慢/阻塞命令恰好是缓冲
-        // 收尾帧时消费返回 0 但 pending_slow 已设置，直接 break 令挂起
-        // 命令无人驱动，连接永久无应答（无下一批网络字节可期）；
-        // 返回 None 为协议违规：游标原样，发尽本轮应答后断连
-        if session
-          .try_consume_messages_into(resp_pooled.vec_mut())
-          .is_none()
-        {
-          parse_violation = true;
-          break;
-        }
-
-        // 阻塞/慢路径挂起：await 驱动至完成后继续消费流水线余量
-        let mut resumed = false;
-        if let Some(blocked) = session.take_blocked_wait() {
-          let (cmd, result) = blocked.resolve().await;
-          session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
-          resumed = true;
-        }
-
-        if let Some(slow) = session.take_slow_wait() {
-          let reply = slow.resolve().await;
-          if !reply.is_empty() {
-            resp_pooled.vec_mut().extend_from_slice(&reply);
-          }
-          resumed = true;
-        }
-
-        // 半包残余等更多网络字节（含收尾 0 无挂起的等下一批）
-        if !resumed {
-          break;
-        }
-      }
-
-      // 镜像累加（监视器瞬时吞吐/ops/s 源；会话 dispose 时随条目注销换轨到
-      // 历史归并，二者不双计）
-      if let Some(entry) = &self.consumer_entry {
-        entry.add_net_bytes((net_in + handshake_net_in) as u64, resp_pooled.len() as u64);
-        handshake_net_in = 0;
-        if let Some(session) = self.session.as_mut() {
-          session.mirror_session_counters(entry);
-        }
-      }
-
-      // ── 写出段（Throttle 背压 + 缓冲复用）──
-      if !resp_pooled.is_empty() {
-        if self.throttle.enter_send().await.is_err() {
-          break;
-        }
-        let payload = resp_pooled
-          .take_buffer()
-          .expect("pooled send buffer active");
-        let BufResult(write_res, mut reclaimed) = stream.write_all(payload).await;
-        reclaimed.clear();
-        resp_pooled.set_buffer(reclaimed);
-        self.throttle.exit_send();
-
-        if let Err(e) = write_res {
-          if e.kind() == io::ErrorKind::BrokenPipe
-            || e.kind() == io::ErrorKind::ConnectionReset
-            || e.kind() == io::ErrorKind::UnexpectedEof
-          {
-            break;
-          }
-          return Err(e);
-        }
-
-        if resp_pooled.capacity() > DEFAULT_BUFFER_SIZE {
-          resp_pooled = self.buffer_pool.get(DEFAULT_BUFFER_SIZE);
-        }
-      }
-
-      // 会话待释放哨兵（QUIT → toDispose）：应答已发尽，主动断连
-      //（C# Process 尾部 if (toDispose) DisposeNetworkSender(true) 语义；
-      // dispose 请求取走即复位，命中即退出泵循环走 dispose 收尾）
-      if let Some(session) = self.session.as_mut()
-        && session.take_dispose_request()
-      {
-        break;
-      }
-
-      // 协议违规：应答已发尽，断连（C# DisposeNetworkSender 语义）
-      if parse_violation {
-        break;
       }
     }
 

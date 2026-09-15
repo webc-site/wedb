@@ -3963,14 +3963,15 @@ mod tests {
     use std::sync::Arc as StdArc;
     let mut s = session(0);
     s.attach_transaction_components(StdArc::new(WtxnWatchVersionMap::new(64)));
-    // MULTI → +OK；EXEC 空事务 → 空数组
+    // MULTI → +OK；EXEC → 回放排队命令的 1 元素数组（持久游标模型下
+    // 排队 PING 字节驻留缓冲真执行，C# IsSkippingOperations 同源语义）
     assert!(pump_feed(&mut s, b"*1\r\n$5\r\nMULTI\r\n").is_some());
     assert_eq!(s.take_output(), b"+OK\r\n");
     // 排队命令（PING 在事务内跳过执行仅登记）
     assert!(pump_feed(&mut s, b"*1\r\n$4\r\nPING\r\n").is_some());
     assert_eq!(s.take_output(), b"+QUEUED\r\n");
     assert!(pump_feed(&mut s, b"*1\r\n$4\r\nEXEC\r\n").is_some());
-    assert_eq!(s.take_output(), b"*1\r\n");
+    assert_eq!(s.take_output(), b"*1\r\n+PONG\r\n");
   }
 
   #[test]

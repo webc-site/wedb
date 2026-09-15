@@ -203,6 +203,7 @@ fn cluster_replication_session_message_consumer_try_consume() {
   rec_frame.extend_from_slice(b"\r\n");
 
   session.recv_buffer.extend_from_slice(&rec_frame);
+  resp.clear();
   let remaining = session.try_consume_messages_into(&mut resp);
   assert_eq!(remaining, Some(0));
   assert!(resp.is_empty(), "记录帧不回写应答（发出即忘）");
@@ -210,13 +211,16 @@ fn cluster_replication_session_message_consumer_try_consume() {
   // 半包测试（数据未到齐）：残余驻留缓冲，游标不产出应答
   let partial_frame = &rec_frame[..15];
   session.recv_buffer.extend_from_slice(partial_frame);
+  resp.clear();
   let remaining = session.try_consume_messages_into(&mut resp);
   assert_eq!(remaining, Some(partial_frame.len()));
   assert!(resp.is_empty());
 
-  // 非法命令测试：返回 -ERR
+  // 半包驻留即断连重建（缓冲丢弃）：非法命令独立解析返回 -ERR
+  session.recv_buffer.clear();
   let invalid_cmd = b"*2\r\n$4\r\nPING\r\n$0\r\n\r\n";
   session.recv_buffer.extend_from_slice(invalid_cmd);
+  resp.clear();
   let remaining = session.try_consume_messages_into(&mut resp);
   assert_eq!(remaining, Some(0));
   assert!(resp.starts_with(b"-ERR"));
