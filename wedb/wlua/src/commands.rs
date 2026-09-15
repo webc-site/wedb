@@ -164,6 +164,8 @@ impl LuaCommands {
           _ = ctx.store_cache.try_remove(&script_key);
           return EvalshaResolution::LoadFailed;
         }
+        // runner 构建即挂脚本期 no-script 位图（C# LuaRunner.cs:242）
+        ctx.session.attach_no_script_bitmap();
         return EvalshaResolution::Resolved(script_key);
       }
 
@@ -236,6 +238,9 @@ impl LuaCommands {
       ctx.out.extend_from_slice(&load_out);
       return true;
     };
+
+    // runner 构建即挂脚本期 no-script 位图（C# LuaRunner.cs:242）
+    ctx.session.attach_no_script_bitmap();
 
     // Add script to the store dictionary IF we didn't already have it cached
     //
@@ -345,6 +350,9 @@ impl LuaCommands {
       ctx.out.extend_from_slice(&load_out);
       return true;
     };
+
+    // runner 构建即挂脚本期 no-script 位图（C# LuaRunner.cs:242）
+    ctx.session.attach_no_script_bitmap();
 
     // Add script to the global store dictionary if not already in there
     if let Some(new_handle) = created {

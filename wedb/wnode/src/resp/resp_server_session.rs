@@ -13,7 +13,7 @@ use std::{
   fmt::Display,
   iter,
   mem::{self, size_of},
-  sync::{Arc, atomic::AtomicU64},
+  sync::{Arc, OnceLock, atomic::AtomicU64},
 };
 
 use itoa::Buffer;
@@ -312,6 +312,12 @@ pub struct RespServerSession {
   pub(crate) acl_authenticator: Option<Arc<parking_lot::Mutex<GarnetAclAuthenticator>>>,
   /// ACL 认证设置（C# storeWrapper.aclSettings；ACL LOAD/SAVE 配置文件定位）
   pub(crate) acl_settings: Option<Arc<AclAuthenticationSettings>>,
+  /// 脚本期 no-script 位图起始判别值（C# AdminCommands.cs:23 noScriptStart）
+  no_script_start: i32,
+  /// 脚本期 no-script 位图（C# AdminCommands.cs:24 noScriptBitmap；None =
+  /// 未进入脚本期，等价 C# 位图 null 的放行路径。挂载后常驻——C# 不摘除，
+  /// 位图源为进程级静态，Arc 共享零重建）
+  no_script_bitmap: Option<Arc<[u64]>>,
 }
 
 impl RespServerSession {
@@ -403,6 +409,8 @@ impl RespServerSession {
       slow_log_start_ticks: 0,
       acl_authenticator: None,
       acl_settings: None,
+      no_script_start: 0,
+      no_script_bitmap: None,
     };
     // C# 构造尾部 AuthenticateUser(defaultUser)：NoAuth 档即落到默认用户
     //（GetDefaultUserHandle 兜底）；ACL 档挂载前为空操作
@@ -864,11 +872,12 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:ProcessMessages
   ///
-  /// 主循环：解析 → ACL 门（C# :653 CheckACLPermissions(cmd) &&
-  /// CheckScriptPermissions(cmd)，rust 脚本域未维护 no-script 位图，等价 C#
-  /// 位图 null 的放行路径，门仅承载 ACL）→ 订阅模式/事务/槽位门 → 分派 →
-  /// 指标；被拒命令回 NOPERM/NOAUTH（C# :688-706 else 分支）。命令未完整
-  /// 到达时双游标回退到本轮起点（C# `endReadHead = readHead = _origReadHead`）。
+  /// 主循环：解析 → ACL 门 + no-script 门（C# :653 CheckACLPermissions(cmd)
+  /// && CheckScriptPermissions(cmd)，位图由脚本期 [`Self::attach_no_script_bitmap`]
+  /// 挂载，脚本内 redis.call 重入同门）→ 订阅模式/事务/槽位门 → 分派 →
+  /// 指标；被拒命令 ACL 失败回 NOPERM/NOAUTH、no-script 失败回 NOSCRIPT
+  /// （C# :688-712）。命令未完整到达时双游标回退到本轮起点
+  ///（C# `endReadHead = readHead = _origReadHead`）。
   pub fn process_messages(&mut self) {
     // 挂起中的阻塞/慢路径命令未完成前不再消费新命令（C# 网络线程
     // BlockingWait 期间本就读不到后续命令）
@@ -896,10 +905,12 @@ impl RespServerSession {
       };
 
       if cmd != RespCommand::Invalid {
-        // C# ACL 门（RespServerSession.cs:653 CheckACLPermissions(cmd) &&
-        // CheckScriptPermissions(cmd)）：脚本 no-script 位图域未承接（等价
-        // C# 位图 null 的放行路径），门仅承载 ACL
-        if self.check_acl_permissions(cmd) {
+        // C# 门链（RespServerSession.cs:653 CheckACLPermissions(cmd) &&
+        // CheckScriptPermissions(cmd)）：ACL 失败短路不再查 no-script；
+        // no-script 失败回 NOSCRIPT（C# :710），不落 NOPERM/NOAUTH
+        let acl_permitted = self.check_acl_permissions(cmd);
+        let script_permitted = acl_permitted && self.check_script_permissions(cmd);
+        if acl_permitted && script_permitted {
           // RESP2 订阅模式仅放行 (P|S)SUBSCRIBE/(P|S)UNSUBSCRIBE/PING/QUIT/RESET
           //（libs/server/Resp/Parser/RespCommand.cs:IsAllowedInSubscriptionMode）
           if self.is_subscription_session
@@ -944,9 +955,13 @@ impl RespServerSession {
               }
             }
           }
-        } else {
+        } else if script_permitted {
           // C# :688-706 else 分支：已认证 → NOPERM；未认证 → NOAUTH
           self.write_acl_permission_error(self.acl_user_handle.is_some());
+        } else {
+          // C# :708-712 else 分支：NOSCRIPT（C# :715 另计
+          // commandStats.IncrementRejected，rust 无命令拒绝计数面）
+          self.write_error_response(cs::RESP_ERR_NOSCRIPT);
         }
 
         self.handle_slow_log(cmd);
@@ -2230,6 +2245,51 @@ impl RespServerSession {
     }
   }
 
+  /// 脚本期 no-script 位图静态源（C# LuaRunner.cs:148 NoScriptDetails，
+  /// static readonly 单次构建；进程级缓存，挂载面 Arc 共享零重建）
+  pub(crate) fn no_script_bitmap_source() -> &'static (i32, Arc<[u64]>) {
+    static SOURCE: OnceLock<(i32, Arc<[u64]>)> = OnceLock::new();
+    SOURCE.get_or_init(|| {
+      let (start, bitmap) = Self::no_script_details();
+      (start, bitmap.into())
+    })
+  }
+
+  /// 装配脚本期 no-script 位图（C# LuaRunner.cs:242：LuaRunner 构造期
+  /// `(noScriptStart, noScriptBitmap) = NoScriptDetails`；挂上后常驻——
+  /// C# 不摘除，本连接此后命令均受 [`Self::check_script_permissions`] 门检）
+  pub(crate) fn attach_no_script_bitmap(&mut self) {
+    if self.no_script_bitmap.is_none() {
+      let (start, bitmap) = Self::no_script_bitmap_source();
+      self.no_script_start = *start;
+      self.no_script_bitmap = Some(Arc::clone(bitmap));
+    }
+  }
+
+  /// libs/server/Resp/RespServerSession.cs:CheckScriptPermissions（实现体
+  /// AdminCommands.cs:95-115）
+  ///
+  /// 位图未挂载（本连接未进入过脚本期）恒放行，等价 C# noScriptBitmap ==
+  /// null 路径；挂载后按 C# 字节粒度位检查（除数 8 字节而非 64 位，
+  /// [`Self::no_script_details`] 构建端同款怪癖，两端一致故位序吻合）
+  pub(crate) fn check_script_permissions(&self, cmd: RespCommand) -> bool {
+    let Some(bitmap) = &self.no_script_bitmap else {
+      return true;
+    };
+    let ix = i32::from(cmd as u16) - self.no_script_start;
+    if ix >= 0 {
+      let word_ix = ix as usize / size_of::<u64>(); // C# sizeof(ulong) = 8
+      if let Some(&word) = bitmap.get(word_ix)
+        && word & (1_u64 << (ix as usize % size_of::<u64>())) != 0
+      {
+        // C# :108 OnACLOrNoScriptFailure：custom 命令环境态清理，rust
+        // current_custom_command 在分派段之后才置位，门期无环境态可清
+        return false;
+      }
+    }
+    true
+  }
+
   /// 构建 NoScript 命令集位图（对齐 LuaRunner InitializeNoScriptDetails 集合）
   ///
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:InitializeNoScriptDetails
@@ -2332,6 +2392,11 @@ impl ScriptingApi for RespScriptingApi<'_> {
 
   fn check_acl_permissions(&self, command: &str) -> bool {
     self.0.acl_allows_command(command)
+  }
+
+  /// 装配脚本期 no-script 位图（C# LuaRunner.cs:242 构造期挂载动作）
+  fn attach_no_script_bitmap(&mut self) {
+    self.0.attach_no_script_bitmap();
   }
 
   fn set_transaction_mode(&mut self, enabled: bool) {
