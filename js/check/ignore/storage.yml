@@ -3139,3 +3139,10 @@
     - libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs:
         - FromPinnedPointer
   理由: Rust 无 pinned 指针，可变长记录以 &[u8] 切片借用承接，无指针包装类型
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/NullDevice.cs
+  理由: rust AOF 后端定型 WaofSublog<SegmentedDevice> + InMemorySublog 双形态，无
+    TsavoriteLog 的 LogDevice 可插拔层；无盘 AOF 由 InMemorySublog 内存子日志承载，
+    SubscribeBroker 内存日志生态位由 wpubsub 纯内存队列承接，空设备无生产消费方，
+    选项 use_aof_null_device 与 CONFIG aof-null-device 槽位随 null-device-broken-chain
+    整链淘汰，wdev/src/null.rs 及其测试一并删除
