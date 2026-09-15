@@ -1763,6 +1763,54 @@ impl ClusterSessionFace for ClusterSession {
   fn purge_buffer_pool(&self, manager_type: ManagerType) {
     IClusterProvider::purge_buffer_pool(&*self.cluster_provider, manager_type);
   }
+
+  /// libs/cluster/Server/ClusterProvider.cs:ClusterPublishAsync（C# PUBLISH
+  /// 命令侧 PubSubCommands.cs:140-147 BlockingWait 的切面承接）
+  ///
+  /// cluster_manager 在场（等价 EnableCluster）时内联 block_on 驱动转发至
+  /// 闭环——C# 网络线程同步阻塞的 compio 单线程执行域等价物；无 manager
+  /// 返回 false（等价 EnableCluster == false，PUBLISH 仅本地广播）
+  fn cluster_publish(&self, cmd: RespCommand, channel: &[u8], message: &[u8]) -> bool {
+    let Some(mgr) = self.cluster_manager() else {
+      return false;
+    };
+    block_on(mgr.try_cluster_publish_async(cmd, channel, message));
+    true
+  }
+}
+
+/// C# AsyncUtils.BlockingWait 的 compio 等价物：runtime 线程上下文内联驱动
+/// 本 runtime 任务队列与 I/O driver（gossip 连接发送在完成前闭环）；纯线程
+/// 上下文退回 park 式驱动（waker 由外部线程唤醒）
+fn block_on<F: std::future::Future>(f: F) -> F::Output {
+  if let Some(rt) = compio::runtime::Runtime::try_current() {
+    return rt.block_on(f);
+  }
+
+  use std::{
+    task::{Context, Poll, Wake, Waker},
+    thread,
+  };
+
+  struct ThreadWaker(thread::Thread);
+  impl Wake for ThreadWaker {
+    fn wake(self: Arc<Self>) {
+      self.0.unpark();
+    }
+    fn wake_by_ref(self: &Arc<Self>) {
+      self.0.unpark();
+    }
+  }
+
+  let mut f = Box::pin(f);
+  let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
+  let mut cx = Context::from_waker(&waker);
+  loop {
+    match f.as_mut().poll(&mut cx) {
+      Poll::Ready(val) => return val,
+      Poll::Pending => thread::park(),
+    }
+  }
 }
 
 /// CLUSTER RESET 慢路径执行段（对标 C# `TryReset` + `FlushDB(true)` 整链）

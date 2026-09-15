@@ -197,6 +197,19 @@ pub trait PubSubSessionCommands {
   #[inline]
   fn send_and_reset(&mut self) {}
 
+  /// 当前会话是否挂接集群会话切面（C# clusterSession != null 判定；
+  /// 默认 false = 单机形态：SPUBLISH 回集群未启用，PUBLISH 仅本地广播）
+  #[inline]
+  fn has_cluster_session(&self) -> bool {
+    false
+  }
+
+  /// 集群态 PUBLISH/SPUBLISH 跨节点广播（C# PubSubCommands.cs:140-147
+  /// EnableCluster 分支：网络线程 BlockingWait clusterProvider.ClusterPublishAsync
+  /// 同步闭环；默认空 = 无集群装配，单机路径行为不变）
+  #[inline]
+  fn cluster_publish(&mut self, _is_spublish: bool, _channel: &[u8], _message: &[u8]) {}
+
   /// libs/server/Resp/PubSubCommands.cs:NetworkSUBSCRIBE
   ///
   /// `shard` 承接同方法体的 SSUBSCRIBE 分支（header 换 `ssubscribe` +
@@ -372,12 +385,16 @@ pub trait PubSubSessionCommands {
   /// libs/server/Resp/PubSubCommands.cs:NetworkPUBLISH
   ///
   /// 同步广播并优先写出重入落入本会话邮箱的消息帧，再写出通知订阅者数应答。
+  /// 集群态：C# :108-112 SPUBLISH 且集群会话缺席回集群未启用（本地广播前）；
+  /// :140-147 集群会话在场时本地广播后 BlockingWait 跨节点转发，转发闭环
+  /// 后才写应答（rust 经 [`Self::cluster_publish`] 切面同步承接）。
   fn network_publish(&mut self, wire: &mut PubSubSession, shard: bool, args: &[&[u8]]) -> bool {
     if args.len() != 2 {
       self.abort_wrong_num_args(if shard { "SPUBLISH" } else { "PUBLISH" });
       return true;
     }
-    if shard {
+    let clustered = self.has_cluster_session();
+    if shard && !clustered {
       self.abort_error_message(cs::RESP_ERR_GENERIC_CLUSTER_DISABLED);
       return true;
     }
@@ -387,6 +404,9 @@ pub trait PubSubSessionCommands {
     };
     let notified = broker.publish_now(args[0], args[1]);
     self.drain_pubsub_frames(wire);
+    if clustered {
+      self.cluster_publish(shard, args[0], args[1]);
+    }
     let out = self.output_mut();
     match notified {
       0 => out.extend_from_slice(cs::RESP_RETURN_VAL_0),

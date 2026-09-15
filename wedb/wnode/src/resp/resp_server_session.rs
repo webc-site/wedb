@@ -2601,6 +2601,24 @@ impl wpubsub::PubSubSessionCommands for RespServerSession {
   fn send_and_reset(&mut self) {
     // 托管缓冲模式下由网络消费端统一提取写出，此处保留在 output 中
   }
+
+  #[inline]
+  fn has_cluster_session(&self) -> bool {
+    self.cluster_session.is_some()
+  }
+
+  #[inline]
+  fn cluster_publish(&mut self, is_spublish: bool, channel: &[u8], message: &[u8]) {
+    let Some(cluster) = &self.cluster_session else {
+      return;
+    };
+    let cmd = if is_spublish {
+      RespCommand::Spublish
+    } else {
+      RespCommand::Publish
+    };
+    cluster.cluster_publish(cmd, channel, message);
+  }
 }
 
 impl RespServerSession {

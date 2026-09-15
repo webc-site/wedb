@@ -176,6 +176,19 @@ pub trait ClusterSessionFace: Send + Sync {
   fn purge_buffer_pool(&self, manager_type: ManagerType) {
     let _ = manager_type;
   }
+
+  /// 集群态 PUBLISH/SPUBLISH 跨节点广播（C# PubSubCommands.cs:140-147：
+  /// EnableCluster 时网络线程 BlockingWait clusterProvider.ClusterPublishAsync；
+  /// rust 会话→集群域唯一通道是本切面，C# 直连 provider 的形态由宿主实现
+  /// 内部转达 provider 承接）
+  ///
+  /// 返回 false = 集群未装配（等价 C# EnableCluster == false：SPUBLISH 由
+  /// 命令层回 CLUSTER_DISABLED，PUBLISH 仅本地广播）；true = 转发已同步闭环
+  ///（compio 单线程执行域内联驱动，C# BlockingWait 等价）
+  fn cluster_publish(&self, cmd: RespCommand, channel: &[u8], message: &[u8]) -> bool {
+    let _ = (cmd, channel, message);
+    false
+  }
 }
 
 /// 静态虚表声明，消除动态分发
@@ -197,6 +210,7 @@ pub struct ClusterSessionVtable {
   pub take_pending_slow: unsafe fn(*const ()) -> Option<SlowWait>,
   pub take_fatal_disconnect: unsafe fn(*const ()) -> Option<String>,
   pub purge_buffer_pool: unsafe fn(*const (), ManagerType),
+  pub cluster_publish: unsafe fn(*const (), RespCommand, &[u8], &[u8]) -> bool,
   pub drop: unsafe fn(*const ()),
   pub clone: unsafe fn(*const ()) -> *const (),
 }
@@ -245,6 +259,9 @@ impl ClusterSession {
         take_fatal_disconnect: |ptr| unsafe { (*(ptr as *const T)).take_fatal_disconnect() },
         purge_buffer_pool: |ptr, manager_type| unsafe {
           (*(ptr as *const T)).purge_buffer_pool(manager_type)
+        },
+        cluster_publish: |ptr, cmd, channel, message| unsafe {
+          (*(ptr as *const T)).cluster_publish(cmd, channel, message)
         },
         drop: |ptr| unsafe { drop(Arc::from_raw(ptr as *const T)) },
         clone: |ptr| unsafe {
@@ -362,6 +379,12 @@ impl ClusterSession {
   #[inline]
   pub fn purge_buffer_pool(&self, manager_type: ManagerType) {
     unsafe { (self.vtable.purge_buffer_pool)(self.ptr, manager_type) }
+  }
+
+  /// 集群态 PUBLISH/SPUBLISH 跨节点广播（转发切面实现；false = 集群未装配）
+  #[inline]
+  pub fn cluster_publish(&self, cmd: RespCommand, channel: &[u8], message: &[u8]) -> bool {
+    unsafe { (self.vtable.cluster_publish)(self.ptr, cmd, channel, message) }
   }
 }
 
