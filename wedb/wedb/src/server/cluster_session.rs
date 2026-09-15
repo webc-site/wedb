@@ -20,7 +20,7 @@ use parking_lot::{Mutex, RwLock};
 use waof::AofAddress;
 use wbase::{
   convert::{TICKS_PER_MILLISECOND, UNIX_EPOCH_TICKS},
-  hash_slot::hash_slot as cluster_slot,
+  hash_slot::{MAX_HASH_SLOT_VALUE, hash_slot as cluster_slot},
   num::{strict_i32, strict_i64},
 };
 use wkv::WedbStore;
@@ -47,7 +47,14 @@ use crate::{
     cluster_provider::{ClusterProvider, PrimaryReplicationAssets},
     failover::failover_option::FailoverOption,
     hash_slot::SlotState,
-    migration::migrate_driver::{MIGRATION_RECORD_KIND_STRING, parse_migration_payload},
+    migration::{
+      migrate_driver::{
+        MIGRATION_RECORD_KIND_STRING, parse_migration_payload, run_keys_migration_driver,
+        run_slots_migration_task, try_add_slots_migration_task,
+      },
+      migrate_session::MigrateTaskSpec,
+      transfer_option::TransferOption,
+    },
     replication::{
       checkpoint_entry::CheckpointEntry, cluster_replication_session::AppendLogOutcome,
       recovery_status::RecoveryStatus, sync_metadata::SyncMetadata,
@@ -79,6 +86,45 @@ mod err {
   pub const INVALID_SLOT: &str = "ERR Invalid or out of range slot";
   /// libs/cluster/CmdStrings.cs:RESP_ERR_MULTI_LOG_DISABLED
   pub const MULTI_LOG_DISABLED: &str = "ERR Multi-log disabled";
+  /// libs/cluster/CmdStrings.cs:RESP_ERR_CROSSSLOT（MIGRATE KEYS 形态多槽拒绝）
+  pub const CROSSSLOT: &str = "CROSSSLOT Keys in request do not hash to the same slot";
+  /// libs/cluster/CmdStrings.cs:RESP_ERR_IOERR（迁移任务注册失败）
+  pub const MIGRATE_IOERR: &str = "IOERR Migrate keys failed";
+}
+
+/// MIGRATE 解析错误（对标 libs/cluster/Session/MigrateCommand.cs:
+/// MigrateCmdParseState 可达子集；HOSTNAME_RESOLUTION_FAILED 无 DNS 解析
+/// 基建不适用、NOTMIGRATING 与 rust 驱动自动编排语义互斥不移植、
+/// MULTI_TRANSFER_OPTION 归并 Parsing、FAILEDTOADDKEY 由驱动内注册失败
+/// IOERR 承接）
+#[derive(Debug)]
+enum MigrateParseErr {
+  UnknownTarget,
+  MultiSlotRef(i32),
+  SlotNotLocal(i32),
+  CrossSlot,
+  TargetNodeNotMaster,
+  IncompleteSlotsRange,
+  SlotOutOfRange(i32),
+  Parsing,
+}
+
+impl MigrateParseErr {
+  /// 应答文案（对标 MigrateCommand.cs:HandleCommandParsingErrors）
+  fn err_text(&self, target_address: &str, target_port: i32) -> String {
+    match *self {
+      Self::UnknownTarget => err::UNKNOWN_ENDPOINT.to_string(),
+      Self::MultiSlotRef(slot) => format!("ERR Slot {slot} specified multiple times."),
+      Self::SlotNotLocal(slot) => format!("ERR slot {slot} not owned by current node."),
+      Self::CrossSlot => err::CROSSSLOT.to_string(),
+      Self::TargetNodeNotMaster => format!(
+        "ERR Cannot initiate migration, target node ({target_address}:{target_port}) is not a primary."
+      ),
+      Self::IncompleteSlotsRange => "ERR incomplete slotrange".to_string(),
+      Self::SlotOutOfRange(slot) => format!("ERR Slot {slot} out of range."),
+      Self::Parsing => "ERR Parsing error".to_string(),
+    }
+  }
 }
 
 /// 集群 RESP 会话实现
@@ -761,6 +807,267 @@ impl ClusterSession {
       out
     }));
     true
+  }
+  /// libs/cluster/Session/MigrateCommand.cs:NetworkTryMIGRATE（顶层 MIGRATE，
+  /// C# 顶层分派见 ClusterSession.cs:110）
+  ///
+  /// 形态：MIGRATE host port <KEY | ""> destination-db timeout
+  /// [COPY] [REPLACE] [AUTH password] [AUTH2 username password]
+  /// [[KEYS key ...] | [SLOTS slot ...] | [SLOTSRANGE start end ...]]
+  ///
+  /// 分派（对标 MigrationDriver.cs:TryStartMigrationTaskAsync）：KEYS 变体
+  /// 挂慢路径同步驱动（C# BlockingWait 阻塞网络线程投影）→ +OK/IOERR；
+  /// SLOTS/SLOTSRANGE 变体注册任务后 spawn 后台驱动、命令立即 +OK（对标
+  /// fire-and-forget 的 BeginAsyncMigrationTaskAsync）。
+  ///
+  /// 与 C# 的两处甄别偏差（task/ing/migrate-production-chain.md）：
+  /// 1. KEYS 形态不做 NOTMIGRATING 预置检查——rust 驱动自动编排
+  ///    MIGRATING/NODE（try_prepare_local_for_migration 要求 STABLE 起步），
+  ///    与 C#「管理员预置 + 驱动零编排」语义互斥；
+  /// 2. 地址不做 DNS 解析重试（无解析基建），集群配置精确匹配失败即
+  ///    UNKNOWNTARGET。
+  fn network_try_migrate(&self, args: &[&[u8]], output: &mut Vec<u8>) -> bool {
+    if args.len() < 5 {
+      abort_with_wrong_number_of_arguments(output, cluster_sub_name(RespCommand::Migrate));
+      return true;
+    }
+    let target_address = String::from_utf8_lossy(args[0]).into_owned();
+    let (target_port, _db_id, timeout) = match (
+      strict_i32(args[1]),
+      strict_i32(args[3]),
+      strict_i32(args[4]),
+    ) {
+      (Some(port), Some(db), Some(timeout)) => (port, db, timeout),
+      _ => {
+        output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        return true;
+      }
+    };
+
+    let mut copy_option = false;
+    let mut replace_option = false;
+    let mut username = "";
+    let mut passwd = "";
+    // 解析期产出：KEYS 形态收录键清单与键槽集合，SLOTS/SLOTSRANGE 收录槽集合
+    let mut keys: Vec<Vec<u8>> = Vec::new();
+    let mut key_slots: GxHashSet<i32> = GxHashSet::default();
+    let mut slots: GxHashSet<i32> = GxHashSet::default();
+    let mut transfer = TransferOption::None;
+    // 首个解析错误（C# pstate 口径：出错后继续收集但不覆盖首错）
+    let mut parse_err: Option<MigrateParseErr> = None;
+
+    // 单键形态（C# keySlice.Length > 0：无槽位校验直接收录）
+    if !args[2].is_empty() {
+      transfer = TransferOption::Keys;
+      keys.push(args[2].to_vec());
+    }
+
+    let Some(cm) = self.cluster_manager() else {
+      output.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
+      return true;
+    };
+    let config = cm.current_config();
+
+    let mut idx = 5;
+    while idx < args.len() {
+      let option = args[idx];
+      idx += 1;
+      if option.eq_ignore_ascii_case(b"COPY") {
+        copy_option = true;
+      } else if option.eq_ignore_ascii_case(b"REPLACE") {
+        replace_option = true;
+      } else if option.eq_ignore_ascii_case(b"AUTH") {
+        let Some(pw) = args.get(idx) else {
+          output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return true;
+        };
+        idx += 1;
+        passwd = from_utf8(pw).unwrap_or_default();
+      } else if option.eq_ignore_ascii_case(b"AUTH2") {
+        let (Some(u), Some(pw)) = (args.get(idx), args.get(idx + 1)) else {
+          output.write_resp_error(RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return true;
+        };
+        idx += 2;
+        username = from_utf8(u).unwrap_or_default();
+        passwd = from_utf8(pw).unwrap_or_default();
+      } else if option.eq_ignore_ascii_case(b"KEYS") {
+        if transfer == TransferOption::Slots && parse_err.is_none() {
+          parse_err = Some(MigrateParseErr::Parsing);
+        }
+        transfer = TransferOption::Keys;
+        while idx < args.len() {
+          let key = args[idx];
+          idx += 1;
+          let slot = cluster_slot(key) as i32;
+          // 键级校验（C# IsLocal + 单槽约束；跨槽键继续收集但保首错）
+          if !(0..MAX_HASH_SLOT_VALUE as i32).contains(&slot) {
+            parse_err.get_or_insert(MigrateParseErr::SlotOutOfRange(slot));
+            continue;
+          }
+          if !config.is_local(slot as u16, false) {
+            parse_err.get_or_insert(MigrateParseErr::SlotNotLocal(slot));
+            continue;
+          }
+          if !key_slots.is_empty() && !key_slots.contains(&slot) {
+            parse_err.get_or_insert(MigrateParseErr::CrossSlot);
+            continue;
+          }
+          key_slots.insert(slot);
+          keys.push(key.to_vec());
+        }
+      } else if option.eq_ignore_ascii_case(b"SLOTS") {
+        if transfer == TransferOption::Keys && parse_err.is_none() {
+          parse_err = Some(MigrateParseErr::Parsing);
+        }
+        transfer = TransferOption::Slots;
+        while idx < args.len() {
+          let Some(slot) = strict_i32(args[idx]) else {
+            output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+            return true;
+          };
+          idx += 1;
+          Self::collect_migrate_slot(&config, slot, &mut slots, &mut parse_err);
+        }
+      } else if option.eq_ignore_ascii_case(b"SLOTSRANGE") {
+        if transfer == TransferOption::Keys && parse_err.is_none() {
+          parse_err = Some(MigrateParseErr::Parsing);
+        }
+        transfer = TransferOption::Slots;
+        let rest = args.len() - idx;
+        if rest == 0 || (rest & 1) == 1 {
+          parse_err = Some(MigrateParseErr::IncompleteSlotsRange);
+          break;
+        }
+        while idx < args.len() {
+          let (Some(start), Some(end)) = (strict_i32(args[idx]), strict_i32(args[idx + 1])) else {
+            output.write_resp_error(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+            return true;
+          };
+          idx += 2;
+          for slot in start..=end {
+            Self::collect_migrate_slot(&config, slot, &mut slots, &mut parse_err);
+          }
+        }
+      }
+      // 未知选项忽略（C# 选项循环无 else 分支）
+    }
+
+    // 解析错误统一应答（对标 HandleCommandParsingErrors）
+    if let Some(err) = parse_err {
+      output.write_resp_error(&err.err_text(&target_address, target_port));
+      return true;
+    }
+
+    // 目标节点归属与角色校验（对标 GetWorkerNodeIdFromAddressOrHostname /
+    // GetNodeRoleFromNodeId 判定）
+    let Some(target_node_id) = config.get_worker_node_id_from_address(&target_address, target_port)
+    else {
+      output
+        .write_resp_error(&MigrateParseErr::UnknownTarget.err_text(&target_address, target_port));
+      return true;
+    };
+    if config.get_node_role_from_node_id(&target_node_id) != NodeRole::Primary {
+      output.write_resp_error(
+        &MigrateParseErr::TargetNodeNotMaster.err_text(&target_address, target_port),
+      );
+      return true;
+    }
+    let source_node_id = config.local_node_id().unwrap_or_default().to_string();
+    drop(config);
+
+    let spec = MigrateTaskSpec {
+      source_node_id,
+      target_address,
+      target_port,
+      target_node_id,
+      username: username.to_string(),
+      passwd: passwd.to_string(),
+      copy_option,
+      replace_option,
+      timeout,
+      transfer_option: transfer,
+    };
+
+    match transfer {
+      // SLOTS/SLOTSRANGE：注册任务后 fire-and-forget，命令立即 +OK
+      TransferOption::Slots => {
+        match try_add_slots_migration_task(&self.cluster_provider, spec.clone(), &slots) {
+          Ok(session) => {
+            let store = self.cluster_provider.try_store();
+            spawn(async move {
+              let Some(store) = store else {
+                log::error!("MIGRATE SLOTS 后台驱动无可用存储");
+                return;
+              };
+              if let Err(err) = run_slots_migration_task(store, spec, session).await {
+                log::error!("MIGRATE SLOTS 后台驱动失败: {err}");
+              }
+            })
+            .detach();
+            output.extend_from_slice(b"+OK\r\n");
+          }
+          Err(err) => {
+            log::error!("MIGRATE 注册迁移任务失败: {err}");
+            output.write_resp_error(err::MIGRATE_IOERR);
+          }
+        }
+        true
+      }
+      // KEYS：同步驱动挂慢路径（对标 BlockingWait 阻塞网络线程）
+      TransferOption::Keys if !keys.is_empty() => {
+        let provider = Arc::clone(&self.cluster_provider);
+        let store = self.cluster_provider.try_store();
+        *self.pending_slow.lock() = Some(SlowWait::new(async move {
+          let mut out = Vec::new();
+          let Some(store) = store else {
+            out.write_resp_error(ERR_CLUSTER_NOT_INITIALIZED);
+            return out;
+          };
+          match run_keys_migration_driver(provider, store, spec, &keys).await {
+            Ok(count) => {
+              log::info!("MIGRATE KEYS 完成: {count} 键");
+              out.write_resp_simple_string("OK");
+            }
+            Err(err) => {
+              log::error!("MIGRATE KEYS 失败: {err}");
+              out.write_resp_error(err::MIGRATE_IOERR);
+            }
+          }
+          out
+        }));
+        true
+      }
+      // 单键占位为空且无 KEYS/SLOTS（C# NONE 形态空任务空跑投影）：+OK
+      _ => {
+        output.extend_from_slice(b"+OK\r\n");
+        true
+      }
+    }
+  }
+
+  /// MIGRATE SLOTS/SLOTSRANGE 槽位收录校验（对标 MigrateCommand.cs 选项
+  /// 循环的 OutOfRange / IsLocal / MULTISLOTREF 三查，首错保留）
+  fn collect_migrate_slot(
+    config: &ClusterConfig,
+    slot: i32,
+    slots: &mut GxHashSet<i32>,
+    parse_err: &mut Option<MigrateParseErr>,
+  ) {
+    if parse_err.is_some() {
+      return;
+    }
+    if !(0..MAX_HASH_SLOT_VALUE as i32).contains(&slot) {
+      *parse_err = Some(MigrateParseErr::SlotOutOfRange(slot));
+      return;
+    }
+    if !config.is_local(slot as u16, false) {
+      *parse_err = Some(MigrateParseErr::SlotNotLocal(slot));
+      return;
+    }
+    if !slots.insert(slot) {
+      *parse_err = Some(MigrateParseErr::MultiSlotRef(slot));
+    }
   }
 }
 
@@ -1562,6 +1869,9 @@ impl ClusterSessionFace for ClusterSession {
         }));
         true
       }
+      // libs/cluster/Session/MigrateCommand.cs:NetworkTryMIGRATE（顶层 MIGRATE，
+      // C# 顶层分派见 ClusterSession.cs:110）
+      RespCommand::Migrate => self.network_try_migrate(args, output),
       // libs/cluster/Session/RespClusterMigrateCommands.cs:NetworkClusterMTasks
       RespCommand::ClusterMtasks => {
         if !args.is_empty() {
