@@ -15,7 +15,7 @@ use std::{
   ptr,
   sync::{
     Arc,
-    atomic::{AtomicI64, Ordering},
+    atomic::{AtomicBool, AtomicI64, Ordering},
   },
 };
 
@@ -32,8 +32,9 @@ use wresp::{
   RespCommand,
   cmd_strings::{
     RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_SLOW_PATH_STORAGE, RESP_ERR_SWAPDB_UNSUPPORTED,
-    RESP_ERR_WRONG_TYPE, RESP_OK, write_error_raw,
+    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS,
+    RESP_ERR_SLOW_PATH_STORAGE, RESP_ERR_SWAPDB_UNSUPPORTED, RESP_ERR_WRONG_TYPE,
+    RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS, RESP_OK, write_error_raw,
   },
   command::is_vector_set_command,
 };
@@ -249,6 +250,14 @@ pub struct StoreGarnetApi<D: Device> {
   /// 投影；自定义对象命令慢路径重放按命令名回查，宿主经
   /// [`Self::with_custom_command_manager`] 注入）
   custom_commands: Option<wcustom::SharedCustomCommandManager>,
+  /// HCOLLECT `*` 全库扫描进行标志（C# HashOps.cs:15 _hcollectTaskLock
+  /// SingleWriterMultiReaderLock 的单写位投影；true = 扫描在途，重入回
+  /// already-in-progress。粒度对齐 C# per storageSession：本执行域即
+  /// 每连接独立会话）
+  hcollect_in_progress: AtomicBool,
+  /// ZCOLLECT `*` 全库扫描进行标志（C# SortedSetOps.cs:17 _zcollectTaskLock，
+  /// 与 HCOLLECT 独立两把，C# 同）
+  zcollect_in_progress: AtomicBool,
 }
 
 impl<D: Device> StoreGarnetApi<D> {
@@ -261,6 +270,8 @@ impl<D: Device> StoreGarnetApi<D> {
       vector_session: None,
       checkpoint: None,
       custom_commands: None,
+      hcollect_in_progress: AtomicBool::new(false),
+      zcollect_in_progress: AtomicBool::new(false),
     }
   }
 
@@ -531,38 +542,62 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
           return output;
         }
         let is_hash = matches!(cmd, C::Hcollect);
+        // C# ObjectCollect 互斥（Common.cs:810 collectLock.TryWriteLock 失败
+        // 回 NOTFOUND → 网络层 default 分支回 already-in-progress）：CAS 抢占
+        // 单写位，在途即拒绝；扫描段结束释放。C# StorageSession.Dispose 的
+        // Thread.Yield 自旋等锁由 Arc 所有权天然承担（exec_slow future 持
+        // Arc 克隆，扫描完成才释放）
+        let in_progress = if is_hash {
+          &self.hcollect_in_progress
+        } else {
+          &self.zcollect_in_progress
+        };
+        if in_progress
+          .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+          .is_err()
+        {
+          write_error_raw(
+            &mut output,
+            if is_hash {
+              RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS
+            } else {
+              RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS
+            },
+          );
+          return output;
+        }
         let tag = if is_hash {
           GarnetObjectType::Hash
         } else {
           GarnetObjectType::SortedSet
         };
-        let keys = match collect_envelope_keys(&storage, tag).await {
-          Ok(keys) => keys,
-          Err(_) => {
-            write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
-            return output;
-          }
-        };
-        let mut wrong_type = false;
-        for key in &keys {
-          let res = if is_hash {
-            storage.hash_collect(key).await
-          } else {
-            storage.sorted_set_collect(key).await
+        // None = OK，Some = 错误文案（收集段全程持单写位，错误也不提前
+        // 返回外层，保证释放）
+        let scan = async {
+          let keys = match collect_envelope_keys(&storage, tag).await {
+            Ok(keys) => keys,
+            Err(_) => return Some(RESP_ERR_SLOW_PATH_STORAGE),
           };
-          match res {
-            Ok((GarnetStatus::WrongType, _)) => wrong_type = true,
-            Ok(_) => {}
-            Err(_) => {
-              write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
-              return output;
+          let mut wrong_type = false;
+          for key in &keys {
+            let res = if is_hash {
+              storage.hash_collect(key).await
+            } else {
+              storage.sorted_set_collect(key).await
+            };
+            match res {
+              Ok((GarnetStatus::WrongType, _)) => wrong_type = true,
+              Ok(_) => {}
+              Err(_) => return Some(RESP_ERR_SLOW_PATH_STORAGE),
             }
           }
+          wrong_type.then_some(RESP_ERR_WRONG_TYPE)
         }
-        if wrong_type {
-          write_error_raw(&mut output, RESP_ERR_WRONG_TYPE);
-        } else {
-          output.extend_from_slice(RESP_OK);
+        .await;
+        in_progress.store(false, Ordering::Release);
+        match scan {
+          Some(err) => write_error_raw(&mut output, err),
+          None => output.extend_from_slice(RESP_OK),
         }
       }
       // ---- 自定义对象命令族（CustomRespCommands.cs:TryCustomObjectCommand
