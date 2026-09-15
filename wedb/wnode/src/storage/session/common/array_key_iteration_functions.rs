@@ -53,8 +53,9 @@ impl<'a, D: Device, CR: wkv::ConsistentReadFunctions> StorageSession<'a, D, CR> 
   /// 后写先遇，页内首遇即最新版（C# `ConditionalScanPush` 的 seen 集等价），
   /// 墓碑 / TTL 到期 / 类型不匹配 / glob 不匹配均跳过。`type_filter` 为
   /// `Some(String)` 仅收字符串键，`Some(Object)` 收对应 `Meta` 键，
-  /// `None` 收全部用户键（对标 C# `matchType == null`，未知 TYPE 值同此
-  /// 口径——C# if 链掉出后 matchType 保持 null）；TYPE 过滤时的
+  /// `None` 收全部用户键（对标 C# `matchType == null`；未知 TYPE 值由
+  /// RESP 层提前回空，不进入本函数——C# DbScan :82-84 同口径）；TYPE
+  /// 过滤时的
   /// 单页无上限（C# `!typeObject.IsEmpty ? long.MaxValue : countValue`）
   /// 由 RESP 层调用方以 `usize::MAX` 传入。
   ///
