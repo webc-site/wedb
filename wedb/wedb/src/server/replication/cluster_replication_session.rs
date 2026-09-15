@@ -163,6 +163,12 @@ impl<D: Device> ClusterReplicationSession<D> {
           ),
         ));
       }
+      // 与主端同步建立，心跳时间戳刷新（对标 C# UpdateLastPrimarySyncTime 的
+      // 同步建立挂点：TryReplicaDiskbasedRecovery / ReceiveCheckpointHandler；
+      // C# EnsureReplication 轮询本体不刷新。checkpoint 接收面未转写，副本
+      // 当前唯一同步建立事件是本初始化帧握手——与 C# IsReplicating 置位同源；
+      // 该面落地后应在其恢复点追加刷新）
+      self.rm.update_last_primary_sync_time();
       return Ok(AppendLogOutcome::Initialized);
     }
 
@@ -208,12 +214,14 @@ impl<D: Device> ClusterReplicationSession<D> {
   /// libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplaySession.cs:ProcessPrimaryStream
   ///
   /// 主端记录流落盘与重放推进：
-  /// 1. divergent 衔接校验（C# 85-90 行：本端尾位须等于主端 currentAddress；
+  /// 1. FastAofTruncate 跳跃重对齐（C# 54-74 行：主端截断推流产生跳跃帧时
+  ///    SafeInitialize 把本地日志地址重置对齐到 currentAddress 后续流）；
+  /// 2. divergent 衔接校验（C# 85-90 行：本端尾位须等于主端 currentAddress；
   ///    C# 页对齐双分支在 WalLog 连续字节编址下收敛为单一尾位等值判定）；
-  /// 2. enqueue_raw 保真落盘（C# UnsafeEnqueueRaw noCommit:true——落盘不
+  /// 3. enqueue_raw 保真落盘（C# UnsafeEnqueueRaw noCommit:true——落盘不
   ///    即刷，由副本 commit 循环/调用方驱动）；
-  /// 3. 重放推进通知（C# 异步路径 InitializeBackgroundReplayTask）；
-  /// 4. 复制位点上报推进。位点语义登记：C# SetSublogReplicationOffset 在
+  /// 4. 重放推进通知（C# 异步路径 InitializeBackgroundReplayTask）；
+  /// 5. 复制位点上报推进。位点语义登记：C# SetSublogReplicationOffset 在
   ///    重放链应用记录进存储后推进（applied）；rust 副本运行期尚无存储
   ///    应用链（C# syncReplay 同步应用与后台 ReplicaReplayTask 均未转写，
   ///    唯一应用点在进程恢复 RecoverLogDriver），位点暂记流式落盘位点
@@ -233,6 +241,30 @@ impl<D: Device> ClusterReplicationSession<D> {
         ErrorKind::ResourceBusy,
         "Replica is recovering cannot sync AOF",
       ));
+    }
+
+    // FastAofTruncate 跳跃重对齐（对标 C# 54-74 行）：主端 checkpoint 后截断
+    // AOF 推流（UnsafeShiftBeginAddress snapToPageStart），活跃迭代器跨被截断
+    // 区段产生跳跃帧 currentAddress > previousAddress。C# 页编址下「页边界 +
+    // 短跳」可由 enqueue 自动吸收；WalLog 连续字节编址无页对齐填充，任何跳跃
+    // 均无法自动衔接 → 统一显式重对齐本地地址空间（C# 显式分支的保守超集）。
+    // 正常流 previousAddress == currentAddress（上一帧 next 衔接本帧 current）
+    // 判定恒假，零开销跳过。
+    if self.provider.fast_aof_truncate() && current_address > previous_address {
+      log::warn!(
+        "MainMemoryReplication: Skipping from {} to {current_address}",
+        self.rm.get_sublog_replication_offset(physical_sublog_idx),
+      );
+      // 对标 C# GarnetLog.SafeInitialize：本地日志地址空间重置对齐跳跃点
+      //（副本会话串行处理推流帧，单写者无并发 append，内存位点前跳即语义闭合）
+      self
+        .wal
+        .safe_initialize(current_address as u64, current_address as u64);
+      // C# 重对齐后 WaitForVectorOperationsToComplete 再推进位点；rust 向量域
+      // 无重放期在途操作面，直接推进
+      self
+        .rm
+        .set_sublog_replication_offset(physical_sublog_idx, current_address);
     }
 
     let tail = self.wal.tail_address() as i64;
