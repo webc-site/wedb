@@ -17,3 +17,8 @@
     对标：garnet/libs/cluster/Session/RespClusterSlotManagementCommands.cs、garnet/libs/cluster/Session/RespClusterMigrateCommands.cs
     问题：错路径与类型面误指被 check.js 盲区（普通 // 计入覆盖、重复检测只遍历 function_item）掩盖。
     改法：按正确 C# 路径改写并补齐标准 ///，使对应 ignore 条目被 check.js 自动淘汰。
+
+23. [P1] 集群 bin 裸启动 panic：cluster_provider.start() 在 compio runtime 外调用
+   位置：wedb/wnode/src/server.rs:214（gossip 内 spawn 直接 panic "not in a compio runtime"）
+   问题：dev 基线复现，集群 bin 当前裸启动即崩，gossip 启动链未进 runtime
+   改法：start 链入 runtime（对标 C# GarnetServer 启动序），补裸启动冒烟测试
