@@ -69,11 +69,12 @@ fn main() -> wnode::Result<()> {
       // Lua 超时管理器装配（同集群 main：C# StoreWrapper 构造段 +
       // GarnetServer.cs:Start 的 luaTimeoutManager.Start()）。
       // 标量先行拷出：会话工厂随 provider 存活，不得借用 args。
-      let (enable_lua, lua_timeout_ms, lua_txn_mode, max_databases) = (
+      let (enable_lua, lua_timeout_ms, lua_txn_mode, max_databases, enable_aof) = (
         node.enable_lua,
         node.lua_script_timeout_ms,
         node.lua_transaction_mode,
         node.max_databases,
+        node.aof,
       );
       let lua_timeout_manager = assemble_lua_timeout(enable_lua, lua_timeout_ms);
       let lua_options = wlua::LuaOptions {
@@ -89,6 +90,9 @@ fn main() -> wnode::Result<()> {
             lua_options: lua_options.clone(),
             lua_txn_mode,
             lua_timeout_manager: lua_timeout_manager.clone(),
+            // C# serverOptions.EnableAOF 投影；WaitForCommit 无 CLI 参数源，
+            // 默认 false（C# 默认同值，AOF 阻塞标记不维护）
+            enable_aof,
             ..RespServerSessionOptions::default()
           },
           api,

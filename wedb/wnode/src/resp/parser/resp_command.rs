@@ -725,8 +725,11 @@ impl RespServerSession {
     }
     self.end_read_head = ptr;
 
-    // C# EnableAOF + WaitForCommit 时按命令依赖性维护阻塞标记
-    self.handle_aof_commit_mode(cmd);
+    // C# EnableAOF + WaitForCommit 时才按命令依赖性维护阻塞标记
+    //（RespCommand.cs:ParseCommand 尾部门控）
+    if self.aof_commit_mode_gate {
+      self.handle_aof_commit_mode(cmd);
+    }
     Some(cmd)
   }
 
