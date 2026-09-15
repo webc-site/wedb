@@ -349,7 +349,9 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, >= 3, output, "LMPOP");
 
-    let Some(num_keys) = parse_state[0].try_parse_i64() else {
+    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报
+    // GenericErrShouldBeGreaterThanZero "numkeys"（ListCommands.cs:198）
+    let Some(num_keys) = strict_i32(parse_state[0]) else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
       return Ok(true);
     };
@@ -369,13 +371,15 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let mut pop_count = 1_i64;
+    let mut pop_count = 1_i32;
     if parse_state.len() == num_keys as usize + 4 {
       if !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(b"COUNT") {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      match parse_state[num_keys as usize + 3].try_parse_i64() {
+      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报
+      // GenericErrShouldBeGreaterThanZero "count"（ListCommands.cs:228）
+      match strict_i32(parse_state[num_keys as usize + 3]) {
         Some(c) if c >= 1 => pop_count = c,
         _ => {
           cs::abort_with_error_message(output, "ERR count should be greater than 0");
@@ -389,7 +393,7 @@ impl RespServerSession {
       keys,
       store,
       pop_direction,
-      pop_count as i32,
+      pop_count,
       self.resp_protocol_version,
       output,
     ) {
@@ -1068,7 +1072,8 @@ impl RespServerSession {
     // C# GenericParamShouldBeGreaterThanZero 替换 {0}="numkeys"（注意与 LMPOP 的
     // 无 Parameter 前缀版文案不同源）
     let err_numkeys = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
-    let Some(num_keys) = parse_state[1].try_parse_i64() else {
+    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 Parameter 版（ListCommands.cs:866）
+    let Some(num_keys) = strict_i32(parse_state[1]) else {
       cs::abort_with_error_message(output, &err_numkeys);
       return Ok(true);
     };
@@ -1088,13 +1093,14 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let mut pop_count = 1_i64;
+    let mut pop_count = 1_i32;
     if parse_state.len() == num_keys as usize + 5 {
       if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(b"COUNT") {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      match parse_state[num_keys as usize + 4].try_parse_i64() {
+      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 Parameter 版（ListCommands.cs:903）
+      match strict_i32(parse_state[num_keys as usize + 4]) {
         Some(c) if c >= 1 => pop_count = c,
         _ => {
           // C# GenericParamShouldBeGreaterThanZero 替换 {0}="count"
@@ -1113,7 +1119,7 @@ impl RespServerSession {
       || {
         vec![
           vec![pop_direction as u8],
-          (pop_count as i32).to_le_bytes().to_vec(),
+          pop_count.to_le_bytes().to_vec(),
         ]
       },
     ) {
@@ -1125,7 +1131,7 @@ impl RespServerSession {
       &keys,
       store,
       pop_direction,
-      pop_count as i32,
+      pop_count,
       self.resp_protocol_version,
       output,
     ) {

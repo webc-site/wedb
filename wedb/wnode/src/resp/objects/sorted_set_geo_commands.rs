@@ -9,7 +9,7 @@
 
 use std::borrow::Cow;
 
-use wbase::num::strict_f64;
+use wbase::num::{strict_f64, strict_i32};
 use wcol::{
   geo::{
     GeoAddOptions, GeoOrder, GeoOriginType, GeoSearchOptions, GeoSearchType,
@@ -283,13 +283,14 @@ fn try_get_geo_search_options(
         arg_num_error = true;
         break;
       };
-      let Some(v) = count_tok.try_parse_i64() else {
+      // C# TryGetInt（int32）：溢出即非整数（SessionParseStateExtensions.cs:478）
+      let Some(v) = strict_i32(count_tok) else {
         return Err(cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.into());
       };
       if v <= 0 {
         return Err(cs::RESP_ERR_COUNT_IS_NOT_POSITIVE.into());
       }
-      opts.count_value = v;
+      opts.count_value = i64::from(v);
       idx += 1;
       if let Some(peek) = args.get(idx)
         && equals_ignore_case(peek, b"ANY")

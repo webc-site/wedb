@@ -17,7 +17,7 @@ use wcol::{
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
 };
 use wresp::{
-  ExpirationWithOption, ExpireOption, RespCommand, RespSliceExt, RespVecExt,
+  ExpirationWithOption, ExpireOption, RespCommand, RespVecExt,
   SortedSetAggregateType as ZSetAggregate, check_arg_count,
   cmd_strings::{self as cs, RESP_ERR_GENERIC},
   format_double, try_get_expire_option,
@@ -489,7 +489,8 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, >= 3, output, "ZMPOP");
 
-    let Some(num_keys) = parse_state[0].try_parse_i64() else {
+    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 NOT_INTEGER
+    let Some(num_keys) = strict_i32(parse_state[0]) else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return Ok(true);
     };
@@ -513,7 +514,7 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let mut count = 1_i64;
+    let mut count = 1_i32;
     if parse_state.len() > num_keys as usize + 2 {
       if parse_state.len() != num_keys as usize + 4
         || !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(b"COUNT")
@@ -521,7 +522,8 @@ impl RespServerSession {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      match parse_state[num_keys as usize + 3].try_parse_i64() {
+      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 NOT_INTEGER
+      match strict_i32(parse_state[num_keys as usize + 3]) {
         Some(v) if v >= 1 => count = v,
         _ => {
           cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -772,16 +774,18 @@ impl RespServerSession {
 
     // 参数打包：arg1 = (count << 1 | includedCount) << 1 | withScores
     // C# paramCount 缺省为 1（ZRANDMEMBER key 回 1 个成员）
-    let mut param_count = 1_i64;
+    let mut param_count = 1_i32;
     let mut included_count = false;
     let mut with_scores = false;
 
     if let Some(c) = parse_state.get(1) {
-      let Some(v) = c.try_parse_i64() else {
+      // C# TryGetInt（int32）：溢出即非整数
+      let Some(v) = strict_i32(c) else {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
         return Ok(true);
       };
-      param_count = v.min(i32::MAX as i64 >> 2);
+      // 预留 2 位元数据位，count 钳至剩余有符号 30 位（C# Math.Min 同款）
+      param_count = v.min(i32::MAX >> 2);
       included_count = true;
 
       if let Some(ws) = parse_state.get(2) {
@@ -793,7 +797,7 @@ impl RespServerSession {
       }
     }
 
-    let arg1 = (((param_count << 1) | included_count as i64) << 1) | with_scores as i64;
+    let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
     // count = 0 不触达后端（对齐 C#）
     if param_count == 0 {
       output.extend_from_slice(b"*0\r\n");
@@ -804,7 +808,7 @@ impl RespServerSession {
       &mut obj,
       SortedSetOperation::Zrandmember,
       &[],
-      arg1 as i32,
+      arg1,
       fastrand::i32(..),
       self.resp_protocol_version,
     );
@@ -906,26 +910,36 @@ impl RespServerSession {
   ) -> wresp::Result<bool> {
     check_arg_count!(parse_state, >= 2, output, "ZINTERCARD");
 
-    let Some(num_keys) = parse_state[0].try_parse_i64() else {
+    // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER
+    let Some(num_keys) = strict_i32(parse_state[0]) else {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return Ok(true);
     };
+    // C# GenericErrAtLeastOneKey 替换 {0}="ZINTERCARD"
     if num_keys < 1 {
-      cs::write_error_raw(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+      output.extend_from_slice(
+        format!("-ERR at least 1 input key is needed for 'ZINTERCARD' command\r\n").as_bytes(),
+      );
       return Ok(true);
     }
 
-    let mut limit = 0_i64;
+    let mut limit = 0_i32;
     let idx = num_keys as usize + 1;
     if parse_state.len() == idx + 2 {
       if !parse_state[idx].eq_ignore_ascii_case(b"LIMIT") {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      match parse_state[idx + 1].try_parse_i64() {
+      // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER；负值报
+      // GenericErrCantBeNegative "LIMIT"
+      match strict_i32(parse_state[idx + 1]) {
         Some(v) if v >= 0 => limit = v,
-        _ => {
-          output.extend_from_slice(b"-ERR limit is negative\r\n");
+        Some(_) => {
+          output.extend_from_slice(b"-ERR LIMIT can't be negative\r\n");
+          return Ok(true);
+        }
+        None => {
+          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
           return Ok(true);
         }
       }
@@ -967,7 +981,7 @@ impl RespServerSession {
         for member in min_obj.sorted_set_dict.keys() {
           if other_objs.iter().all(|dict| dict.contains_key(member)) {
             count += 1;
-            if limit > 0 && count >= limit {
+            if limit > 0 && count >= i64::from(limit) {
               break;
             }
           }
@@ -977,7 +991,7 @@ impl RespServerSession {
     } else {
       0
     };
-    output.write_resp_int(if limit > 0 { card.min(limit) } else { card });
+    output.write_resp_int(if limit > 0 { card.min(i64::from(limit)) } else { card });
     Ok(true)
   }
 
@@ -1132,11 +1146,19 @@ impl RespServerSession {
         return Ok(true);
       }
     };
-    let Some(num_keys) = parse_state[1].try_parse_i64() else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // C# TryGetInt（int32）：非整数（含溢出）或 <=0 均报
+    // GenericParamShouldBeGreaterThanZero "numkeys"（Parameter 反引号版）
+    let err_numkeys = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
+    let Some(num_keys) = strict_i32(parse_state[1]) else {
+      cs::abort_with_error_message(output, &err_numkeys);
       return Ok(true);
     };
-    if num_keys < 1 || parse_state.len() < num_keys as usize + 3 {
+    if num_keys <= 0 {
+      cs::abort_with_error_message(output, &err_numkeys);
+      return Ok(true);
+    }
+    // C# :1650 形态检查：Count 须恰为 numkeys+3 或 numkeys+5
+    if parse_state.len() != num_keys as usize + 3 && parse_state.len() != num_keys as usize + 5 {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
       return Ok(true);
     }
@@ -1151,18 +1173,19 @@ impl RespServerSession {
       return Ok(true);
     };
 
-    let mut count = 1_i64;
-    if parse_state.len() > num_keys as usize + 3 {
-      if parse_state.len() != num_keys as usize + 5
-        || !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(b"COUNT")
-      {
+    let mut count = 1_i32;
+    if parse_state.len() == num_keys as usize + 5 {
+      if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(b"COUNT") {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
-      match parse_state[num_keys as usize + 4].try_parse_i64() {
+      // C# TryGetInt（int32）：非整数（含溢出）或 <1 均报
+      // GenericParamShouldBeGreaterThanZero "count"
+      match strict_i32(parse_state[num_keys as usize + 4]) {
         Some(v) if v >= 1 => count = v,
         _ => {
-          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+          let err_count = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "count");
+          cs::abort_with_error_message(output, &err_count);
           return Ok(true);
         }
       }
@@ -1181,7 +1204,7 @@ impl RespServerSession {
       || {
         vec![
           vec![u8::from(low_scores_first)],
-          (count as i32).to_le_bytes().to_vec(),
+          count.to_le_bytes().to_vec(),
         ]
       },
     ) {
@@ -1485,7 +1508,8 @@ fn parse_diff_args<'p>(
 ) -> Option<(Vec<&'p [u8]>, bool)> {
   check_arg_count!(parse_state, >= 2, output, name, return None);
 
-  let Some(n_keys) = parse_state[0].try_parse_i64() else {
+  // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER（SortedSetDifference :921）
+  let Some(n_keys) = strict_i32(parse_state[0]) else {
     cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;
   };
@@ -1524,7 +1548,8 @@ fn parse_combine_args<'p>(
 ) -> Option<CombineArgs<'p>> {
   check_arg_count!(parse_state, >= 2, output, name, return None);
 
-  let Some(n_keys) = parse_state[0].try_parse_i64() else {
+  // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER（SortedSetIntersect :1061 / Union :1356）
+  let Some(n_keys) = strict_i32(parse_state[0]) else {
     cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;
   };
