@@ -92,23 +92,11 @@
     问题：恢复流程继续成功，写入端新增 RMW 编码命令而重放端漏配时静默丢恢复数据；现状写入端条件 SET 族落盘前已固化为盲写 upsert，无实际缺口，风险在演化失配。
     改法：该分支改返回 Err 显式暴露恢复失败；或以编译期穷尽匹配把写入端可入 AOF 的 RMW 命令集与重放分支绑定。
 
-16. [P2] wresp 整数 WithLengthHeader 族对空数字按半包挂起
-    位置：wedb/wresp/src/read.rs:104-111（刻意差异：零数字降级失败）、:367/:399/:431（try_read_{i32,i64,u64}_with_length_header）
-    对标：garnet/libs/common/RespReadUtils.cs:TryReadInt64Safe（零数字以 value=0、bytesRead=0 返回 true，调用方判 bytesRead != numberLength）
-    问题：`$0\r\n\r\n` 形态返回 Ok(false)，上层按字节不足半包等待，输入完整则永久挂起；当前该族无生产调用点（仅 wresp 内部测试），风险在后续接线时以半包重试形态误用。
-    改法：保持刻意差异前提下补「载荷完整但 digits_read==0 → Err(NotANumber)」终态判定，或文档标注不可用于不可信输入。
-
 17. [P2] wconn network_loop 应答消费滞留
     位置：wedb/wconn/src/network.rs:230-231（外层先阻塞等新命令）、:272-273（应答段先 stream.read 再解析 read_buf）
     对标：garnet/libs/client/ClientSession/GarnetClientSession.cs:747 TryConsumeMessages（读事件内排空全部完整应答）
     问题：一次 socket read 读到多条应答、队列命令数少于应答数时剩余应答滞留 read_buf；下一条命令应答已在 read_buf 中泵仍先阻塞等新数据，TCP 合包（本机低延迟易发）可致命令永挂。
     改法：泵循环先排空 read_buf 中已有完整应答再等新数据；用逐帧应答的静默假端点构造合包形态补测试。
-
-18. [P2] QUIT 后连接不断
-    位置：wedb/wnode/src/resp/resp_server_session.rs:1035-1038/:1109-1112（QUIT 置 to_dispose 回 +OK）、:1857-1860（flush_if_pending 置 kill_requested）、:1790（try_kill 无生产调用方）；wnode/src/resp/resp_session_consumer.rs 与 wnode/src/net/handler.rs 不消费 kill_requested/to_dispose
-    对标：garnet/libs/server/Resp/RespServerSession.cs:384 Dispose（Dispose 后连接关闭）
-    问题：QUIT 命令应答回了但连接不关闭。
-    改法：泵消费段检查 kill_requested/to_dispose 哨兵，发尽应答后断连（可复用 take_fatal_disconnect 断连点）。
 
 19. [P2] 迁移槽位移交先于源端删除的孤儿键投影未声明
     位置：wedb/wedb/src/server/migration/migrate_driver.rs:361-365（SETSLOTSRANGE NODE + relinquish_ownership 先行）与 :368-373（源端删除仅推进 transferred 白名单）；模块注释 :9-14 只声明 string 裁剪与 chunk 未实现

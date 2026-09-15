@@ -113,18 +113,6 @@
     问题：提交边界与起始地址混用
     改法：引入独立 committed 字段并自 commit 记录恢复
 
-22. [P1] waof_sublog reset 绕过 commit_lock 手抄四原子
-    位置：wedb/wnode/src/aof/waof_sublog.rs:330-348
-    对标：garnet TsavoriteLog Reset（持锁原子复位）
-    问题：并发撕裂位点；权威实现在 waof/src/log.rs WalLog::reset（持锁 + sync_data）
-    改法：WalLog 暴露同步 reset 变体，waof_sublog 转发
-
-23. [P1] 第三处刷盘防重入状态机（与第 14 条同窗）
-    位置：wedb/wnode/src/aof/waof_sublog.rs:116-202
-    对标：garnet TsavoriteLog CommitTask 单点
-    问题：commit 已含防重入与 waiters（wal.commit_to），三态 CAS 重复
-    改法：转调 wal.commit_to(tail) 后删除该段
-
 24. [P1] aof_processor object_store_rmw 四对象块复制四份
     位置：wedb/wnode/src/aof/aof_processor.rs:1358-1372 起（Hash/List/Set/SortedSet 各一分支）
     对标：garnet/libs/server/AOF/AofProcessor.cs（经对象序列化器多态单通道）

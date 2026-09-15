@@ -108,12 +108,6 @@
     问题：写入端新增 RMW 编码而重放端漏配时静默丢恢复数据；现状写入端条件 SET 族已固化为盲写 upsert，无实际缺口，风险在演化失配。
     改法：改返回 Err，或以编译期穷尽匹配绑定写入端与重放端命令集。
 
-20. [P2] wresp WithLengthHeader 族对空数字按半包挂起
-    位置：wedb/wresp/src/read.rs:106-110（零数字降级失败的刻意差异）、:367/:399/:431（try_read_{i32,i64,u64}_with_length_header，当前无生产调用点）
-    对标：garnet/libs/common/RespReadUtils.cs:TryReadInt64Safe
-    问题：载荷完整但 digits_read==0 时上层按「字节不足」半包永久等待，后续接线易误用。
-    改法：补「载荷完整但 digits_read==0 → Err」终态，或文档标注不可用于不可信输入。
-
 21. [P2] ignore 面拆块与理由修正
     位置：js/check/ignore/cluster.yml:497-684（单块约 190 行共用一句笼统理由）、js/check/ignore/server.yml:39-40
     对标：garnet/libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/**（未实现）；garnet/libs/cluster/Server/Replication/ReplicationNetworkBufferSettings.cs（等价实现在 wedb/wedb/src/server/replication/network_buffer.rs:67/:147）；garnet/libs/cluster/Session/SlotVerifiedState.cs、TransferOption.cs（等价枚举 slot_verify.rs、migration_manager.rs）；garnet/libs/cluster/Session/ClusterKeyIterationFunctions.cs（count/get/del keys in slot 已实现）
