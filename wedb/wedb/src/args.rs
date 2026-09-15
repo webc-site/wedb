@@ -1,7 +1,7 @@
 //! WeDB 分布式集群命令行与服务参数配置
 
-use clap::Parser;
-use wconf::{NodeArgs, ServerArgs};
+use clap::{ArgMatches, Parser};
+use wconf::{ConfigFileArgs, NodeArgs, NodeOptionsError, ServerArgs};
 
 /// 默认集群节点心跳与故障检测超时毫秒数
 pub const DEFAULT_CLUSTER_NODE_TIMEOUT_MS: u64 = 15000;
@@ -44,6 +44,15 @@ impl ServerArgs for ClusterArgs {
   }
 }
 
+impl ConfigFileArgs for ClusterArgs {
+  fn from_layered_matches(matches: &ArgMatches) -> Result<Self, NodeOptionsError> {
+    let mut cli = <Self as clap::FromArgMatches>::from_arg_matches(matches)?;
+    // node 域三层合并（文件为基、CLI 显式覆盖）；集群扩展参数仅命令行面
+    cli.node = NodeArgs::from_layered_matches(matches)?;
+    Ok(cli)
+  }
+}
+
 impl ClusterArgs {
   /// 获取集群配置文件存储路径（未指定时默认为 <dir>/nodes.conf）
   pub fn cluster_config_path(&self) -> String {
@@ -63,6 +72,8 @@ impl ClusterArgs {
 
 #[cfg(test)]
 mod tests {
+  use std::{env::temp_dir, fs};
+
   use clap::Parser;
   use log::LevelFilter;
   use wconf::ServerArgs;
@@ -119,5 +130,37 @@ mod tests {
       let args = ClusterArgs::try_parse_from(["wedb", "--log-level", level_str]).unwrap();
       assert_eq!(args.node_args().minimum_log_level(), expected);
     }
+  }
+
+  #[test]
+  fn test_cluster_args_config_file_and_cli_extras() {
+    // 文件为基（node 域）+ CLI 显式覆盖；集群扩展参数仅命令行面
+    // （serde 忽略文件中的未知键，嵌套文本只承载 NodeArgs 字段）
+    let file = temp_dir().join("wedb-cluster-args-config.nt");
+    fs::write(
+      &file,
+      "port: 7010\nslow_log_threshold: 3000\nunknown_key: 1\n",
+    )
+    .unwrap();
+    let args = ClusterArgs::from_args_iter([
+      "wedb",
+      "--config",
+      file.to_str().unwrap(),
+      "--port",
+      "7011",
+      "--gossip-delay-secs",
+      "9",
+      "--cluster-node-timeout-ms",
+      "30000",
+    ])
+    .unwrap();
+    fs::remove_file(&file).ok();
+    // node 域：CLI 覆盖 + 文件值生效
+    assert_eq!(args.node_args().port, 7011);
+    assert_eq!(args.node_args().slow_log_threshold, 3000);
+    // 集群扩展参数取 CLI 值
+    assert_eq!(args.gossip_delay_secs, 9);
+    assert_eq!(args.cluster_node_timeout_ms, 30000);
+    assert_eq!(args.cluster_config_path(), "./data/nodes.conf");
   }
 }

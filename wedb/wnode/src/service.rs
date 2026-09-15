@@ -39,6 +39,7 @@ use wkv::{
   StoreEventSink, StoreSession, WedbStore,
 };
 use wlua::LuaTimeoutManager;
+use wmetric::SlowLogContainer;
 use wpubsub::SubscribeBroker;
 use wresp::RespCommand;
 use wtxn::WatchVersionMap;
@@ -54,6 +55,7 @@ use crate::{
   resp::{
     RespSessionConsumer,
     garnet_api::{CheckpointCtx, StoreGarnetApi},
+    metrics_commands::new_slow_log_container,
     objects::collection_item_source::CollectionItemSource,
     rangeindex::range_index_manager_replication::RangeIndexManagerReplication,
     vector::{
@@ -437,11 +439,9 @@ impl NodeService<SegmentedDevice> {
     store: SharedStore<SegmentedDevice>,
     wal: Arc<WalLog<SegmentedDevice>>,
   ) -> crate::Result<Self> {
-    let mut opts = RuntimeServerOptions::default();
-    if let Some(commit_ms) = args.aof_commit_ms {
-      opts.commit_frequency_ms = commit_ms as i32;
-    }
-    let aof = single_log_aof(wal, &opts);
+    // 投影运行时选项（Options.cs:GetServerOptions 装配段：aof_commit_ms →
+    // CommitFrequencyMs），与 provider 侧 with_runtime_server_options 同源
+    let aof = single_log_aof(wal, &args.runtime_server_options());
     Self::assemble(store, aof)
   }
 }
@@ -645,6 +645,9 @@ pub struct StorageSessionProvider<F> {
   pub watch_version_map: Arc<WatchVersionMap>,
   /// 服务器级运行时配置（CONFIG GET/SET 与 OBJECT_SCAN_COUNT_LIMIT 热更源）
   pub runtime_config: Arc<RuntimeServerConfig>,
+  /// 慢日志容器（服务器级共享，对标 C# StoreWrapper.cs:164/243
+  /// slowLogContainer；容量 = SlowLogMaxEntries）
+  pub slow_log_container: Arc<SlowLogContainer>,
   /// 检查点目录（SAVE/BGSAVE 落点，C# GetStoreCheckpointDirectory 口径：
   /// 数据目录下 Store/checkpoints）
   pub checkpoint_dir: PathBuf,
@@ -729,6 +732,10 @@ where
     // 引擎后台任务域（expired-key-deletion-scan-freq → 内置 GC 扫描循环
     // 启停/调频，libs/server/StoreWrapper.cs:ReconcilePrimaryTask））
     let runtime_config = Arc::new(RuntimeServerConfig::new(RuntimeServerOptions::default()));
+    // 慢日志容器（对标 C# StoreWrapper.cs:243 无条件构造，容量 =
+    // SlowLogMaxEntries 默认 128；main 层经 with_runtime_server_options 覆盖）
+    let slow_log_container =
+      new_slow_log_container(RuntimeServerOptions::default().slow_log_max_entries);
     // 发布订阅中枢默认装配（C# DisablePubSub = false 默认启用；页大小
     // 默认 4k = C# PubSubPageSize "4k"），main 层按 NodeArgs 经
     // with_pubsub_config 覆盖
@@ -741,6 +748,7 @@ where
       vector_manager,
       watch_version_map,
       runtime_config,
+      slow_log_container,
       checkpoint_dir,
       last_save_ms: Arc::new(AtomicI64::new(0)),
       registry,
@@ -765,6 +773,16 @@ where
     if !disabled {
       self.pubsub = Some(Arc::new(SubscribeBroker::new(page_size)));
     }
+    self
+  }
+
+  /// 覆盖运行时配置与慢日志装配（main 层按 NodeArgs 调用：
+  /// [`NodeArgs::runtime_server_options`] 投影 —— --slowlog-log-slower-than /
+  /// --slowlog-max-len / --object-scan-count-limit / --aof-commit-ms /
+  /// --max-databases 播种 RuntimeServerConfig；须在端点 accept 之前调用）
+  pub fn with_runtime_server_options(mut self, options: RuntimeServerOptions) -> Self {
+    self.slow_log_container = new_slow_log_container(options.slow_log_max_entries);
+    self.runtime_config = Arc::new(RuntimeServerConfig::new(options));
     self
   }
 
@@ -995,6 +1013,9 @@ where
     consumer.attach_transaction_components(Arc::clone(&self.watch_version_map));
     consumer.set_item_broker(self.broker.clone());
     consumer.set_runtime_config(self.runtime_config.clone());
+    // 慢日志容器接线（C# StoreWrapper.cs:243 构造 + 会话构造传入；
+    // SLOWLOG 记录/查询面共享同一实例）
+    consumer.set_slow_log_container(Arc::clone(&self.slow_log_container));
     consumer.set_custom_command_manager(Arc::clone(&self.command_manager));
     if let Some(acl) = &self.acl {
       let auth = Some(Arc::new(Mutex::new(GarnetAclAuthenticator::new(

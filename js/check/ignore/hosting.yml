@@ -51,8 +51,21 @@
         - TryExportServerOptions
         - TryImportServerOptions
         - TryParseArguments
-        - TryParseCommandLineArguments
-  理由: C# .NET Generic Host 宿主框架，Rust 侧通过 compio 独立运行时承接
+  理由: C# .NET Generic Host 宿主框架，Rust 侧通过 compio
+    独立运行时承接；TryParseCommandLineArguments 三层合并（默认值→配置文件→命令行显式项）对标实现为 wconf
+    ConfigFileArgs::from_args_iter +
+    NodeArgs::override_explicit，--config/--config-export-path 收敛 nested_text
+    单格式（GarnetConf/RedisConf 双格式与 Azure 存储导入导出不转写）；Options.cs 冷门项不转写清单：reviv 系 8
+    项（wreviv 自由记录池常开无开关）、index-resize 系（BfTree 拓扑无 Tsavorite
+    哈希索引）、max-inline-key/value-size 与 initial-io-record-size（无 hybrid log inline
+    概念）、aof-memory/page/segment-size（waof 自有分段，RuntimeServerOptions 同名项仅 CONFIG
+    GET 只读展示）、aof-physical-sublog-count/aof-replay-task-count 等多日志拓扑项（生产恒单物理日志，见
+    glm.md 条 26）、aof-size-limit
+    系（槽位已声明无自动检查点消费者）、latency-monitor（set_global_latency_metrics
+    生产零调用）、minthreads/maxthreads/miniothreads/maxiothreads（.NET 线程池专属，compio
+    一线程一核）、use-azure-storage 与 aad
+    系（红线禁用）；已转写活项：slowlog-log-slower-than、slowlog-max-len、max-databases、protected-mode、object-scan-count-limit、metrics-sampling-freq（NodeArgs::runtime_server_options
+    投影 RuntimeServerOptions 播种）
 - 文件:
     - hosting/Windows/Garnet.worker/Worker.cs:
         - StopAsync

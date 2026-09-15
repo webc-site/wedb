@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use itoa::Buffer;
 
-use crate::log_compaction_type::LogCompactionType;
+use crate::{log_compaction_type::LogCompactionType, node_options::DEFAULT_SLOW_LOG_MAX_ENTRIES};
 
 /// `RuntimeServerConfig` 消费的启动选项子集。
 ///
@@ -38,6 +38,9 @@ pub struct RuntimeServerOptions {
   pub compaction_type: LogCompactionType,
   /// GarnetServerOptions.cs:SlowLogThreshold（默认 0，微秒）。
   pub slow_log_threshold: i32,
+  /// GarnetServerOptions.cs:SlowLogMaxEntries（默认 128；StoreWrapper.cs:243
+  /// 慢日志容器构造容量）。
+  pub slow_log_max_entries: i32,
   /// GarnetServerOptions.cs:ObjectScanCountLimit（默认 1000）。
   pub object_scan_count_limit: i32,
   /// GarnetServerOptions.cs:EnableScatterGatherGet（默认 true）。
@@ -98,6 +101,7 @@ impl Default for RuntimeServerOptions {
       compaction_force_delete: false,
       compaction_type: LogCompactionType::None,
       slow_log_threshold: 0,
+      slow_log_max_entries: DEFAULT_SLOW_LOG_MAX_ENTRIES,
       object_scan_count_limit: 1000,
       enable_scatter_gather_get: true,
       aof_size_limit_enforce_frequency_secs: 5,
