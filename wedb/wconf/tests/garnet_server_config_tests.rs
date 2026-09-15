@@ -56,8 +56,14 @@ fn default_configuration_options_coverage() {
 
   // 节点通用参数默认值
   let args = NodeArgs::default();
-  assert_eq!(args.bind, DEFAULT_BIND);
-  assert_eq!(args.port, DEFAULT_PORT);
+  // 保护模式默认开，bind 未显式 → 端点回环回退
+  assert_eq!(args.bind, None);
+  assert!(args.protected_mode);
+  assert_eq!(args.endpoints(), vec![format!("{DEFAULT_BIND}:{DEFAULT_PORT}")]);
+  assert_eq!(args.slow_log_max_entries, 128);
+  assert_eq!(args.max_databases, 16);
+  assert_eq!(args.object_scan_count_limit, 1000);
+  assert_eq!(args.metrics_sampling_frequency_secs, 0);
   assert_eq!(args.dir, PathBuf::from(DEFAULT_DIR));
   assert_eq!(args.wal_dir(), PathBuf::from("./data/wal"));
   assert_eq!(args.compaction_freq_secs, DEFAULT_COMPACTION_FREQ_SECS);
