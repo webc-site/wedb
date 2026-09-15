@@ -169,8 +169,9 @@ pub async fn recover_replication(provider: &Arc<ClusterProvider>, primary: &str)
 
 #[cfg(test)]
 mod tests {
-  use super::*;
   use waof::AofAddress;
+
+  use super::*;
 
   /// span 序列化与主端 AofAddress::from_span 的往返（C# beginAddress.Span /
   /// FromSpan 契约）
