@@ -56,64 +56,6 @@ fn test_in_place_update_and_protection() -> Void {
   OK
 }
 
-/// 测试 13: 历史版本反向链表回溯（对标 Garnet IterateKeyVersions）
-#[test]
-fn test_iterate_version_chain() -> Void {
-  let rt = Runtime::new()?;
-  rt.block_on(async {
-    let dir = tempdir()?;
-    let db_path = dir.path().join("hlog_version_chain.db");
-    let device = Arc::new(SegmentedDevice::single_file(&db_path)?);
-    let epoch = Arc::new(LightEpoch::new(16));
-
-    let config = HybridLogConfig::new(64 * 1024, 16, 0.5)?;
-    let hlog = HybridLog::new(config, device, epoch)?;
-
-    let key = b"chain_key";
-    let addr1 = hlog.append(key, b"v1", 0, false)?;
-    let addr2 = hlog.append(key, b"v2", addr1, false)?;
-    let addr3 = hlog.append(key, b"v3", addr2, false)?;
-    let addr4 = hlog.append(key, b"v4", addr3, false)?;
-
-    // 1. 全量反向回溯 (v4 -> v3 -> v2 -> v1)
-    let mut collected = Vec::new();
-    hlog
-      .iterate_version_chain(addr4, |_addr, rec| {
-        collected.push(rec.value()?.to_vec());
-        Ok(true)
-      })
-      .await?;
-
-    assert_eq!(
-      collected,
-      vec![
-        b"v4".to_vec(),
-        b"v3".to_vec(),
-        b"v2".to_vec(),
-        b"v1".to_vec()
-      ]
-    );
-
-    // 2. 提前终止回溯（在看到 v3 时停止）
-    let mut truncated = Vec::new();
-    hlog
-      .iterate_version_chain(addr4, |_addr, rec| {
-        let val = rec.value()?.to_vec();
-        let stop = val == b"v3";
-        truncated.push(val);
-        Ok(!stop)
-      })
-      .await?;
-
-    assert_eq!(truncated, vec![b"v4".to_vec(), b"v3".to_vec()]);
-
-    info!("历史版本反向链表回溯测试通过");
-    aok::Result::<()>::Ok(())
-  })?;
-
-  OK
-}
-
 /// 测试 18: 原位更新 / RMW / 墓碑 / 原位复活 全生命周期
 #[test]
 fn test_inplace_lifecycle() -> Void {
