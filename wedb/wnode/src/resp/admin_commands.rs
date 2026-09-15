@@ -32,14 +32,6 @@ use crate::{
 /// GC 代数非法文案（本域两处复用）。
 const ERR_INVALID_GC_GENERATION: &str = "ERR Invalid GC generation.";
 
-/// libs/server/Servers/GarnetServerOptions.cs:MaxDatabases
-///
-/// C# 默认 16；rust 会话层未接服务器选项，按默认值校验 DBID
-const MAX_DATABASES: i64 = 16;
-
-/// 集群启用配置（单机模式默认为 false；C# 为 serverOptions.EnableCluster）
-const CLUSTER_ENABLED: bool = false;
-
 /// 自定义（扩展）命令族（C# CheckACLPermissions 的 CustomCommand 分叉判定）
 #[inline]
 fn is_custom_command(cmd: RespCommand) -> bool {
@@ -610,7 +602,10 @@ impl RespServerSession {
   }
   /// libs/server/Resp/AdminCommands.cs:TryParseDatabaseId
   ///
-  /// 校验 DBID 令牌（C# TryGetInt i32 严格口径）；失败时已写出错误应答并返回 false
+  /// 校验 DBID 令牌（C# TryGetInt i32 严格口径）；失败时已写出错误应答并返回
+  /// false。判定序对齐 C#：集群门（dbId > 0 且 EnableCluster，rust 对应
+  /// 会话已装配的 cluster_session）先于范围门（dbId >= MaxDatabases || dbId < 0，
+  /// MaxDatabases 直读会话装配字段，与 SELECT/SWAPDB 同源）
   pub fn try_parse_database_id(
     &mut self,
     parse_state: &[&[u8]],
@@ -622,13 +617,13 @@ impl RespServerSession {
     };
     let db_id = i64::from(db_id);
 
-    // 集群模式禁非零 DBID；rust 集群会话域未挂载（等效集群未启用），拦截不可达
-    if CLUSTER_ENABLED && db_id > 0 {
+    // 集群模式禁非零 DBID（C# storeWrapper.serverOptions.EnableCluster）
+    if db_id > 0 && self.cluster_session.is_some() {
       abort_with_error_message(output, cs::RESP_ERR_DB_ID_CLUSTER_MODE);
       return Ok(false);
     }
 
-    if !(0..MAX_DATABASES).contains(&db_id) {
+    if db_id < 0 || db_id >= i64::from(self.max_databases) {
       abort_with_error_message(output, cs::RESP_ERR_DB_INDEX_OUT_OF_RANGE);
       return Ok(false);
     }

@@ -2785,6 +2785,61 @@ mod tests {
   }
 
   #[test]
+  fn database_id_validates_against_session_max_databases() {
+    // MaxDatabases 直读会话装配字段（C# storeWrapper.serverOptions.MaxDatabases）
+    let mut s = RespServerSession::new(
+      40,
+      RespServerSessionOptions {
+        allow_multi_db: true,
+        max_databases: 4,
+        ..RespServerSessionOptions::default()
+      },
+    );
+
+    // 非整数（C# TryGetInt 失败）
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"abc"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR value is not an integer or out of range.\r\n"
+    );
+
+    // dbId >= MaxDatabases 与负数 → DB index is out of range.
+    for dbid in ["4", "5", "-1"] {
+      let mut out = Vec::new();
+      assert!(!s.try_parse_database_id(&[dbid.as_bytes()], &mut out).unwrap());
+      assert_eq!(
+        String::from_utf8(out).unwrap(),
+        "-ERR DB index is out of range.\r\n"
+      );
+    }
+
+    // 上界内放行（无输出）
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"3"], &mut out).unwrap());
+    assert!(out.is_empty());
+  }
+
+  #[test]
+  fn database_id_rejects_non_zero_in_cluster_mode() {
+    // C# EnableCluster 时 dbId > 0 拦（RESP_ERR_DB_ID_CLUSTER_MODE）；0 放行
+    let stub = Arc::new(StubClusterSession::new());
+    let mut s = session(41);
+    s.attach_cluster_session(stub);
+
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"1"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR specifying non-zero DBID is not allowed in cluster mode\r\n"
+    );
+
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"0"], &mut out).unwrap());
+    assert!(out.is_empty());
+  }
+
+  #[test]
   fn hello_rejects_auth_on_noauth() {
     let mut s = session(1);
     let mut out = Vec::new();
