@@ -7,10 +7,7 @@
 //! 恢复数据。事务组路径对齐 C# ProcessTransactionGroupOperations 无
 //! catch 语义——组内条目失败即传播。
 
-use std::sync::{
-  Arc,
-  atomic::{AtomicI64, Ordering},
-};
+use std::sync::Arc;
 
 use compio::runtime::Runtime;
 use wbase::entry_type::AofEntryType;
