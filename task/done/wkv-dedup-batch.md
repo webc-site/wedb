@@ -79,3 +79,25 @@
 
 ## 分批作业
 wkv（条一三五内联 + 二三四读路径/过期 + 六 RunGuard + 七注释 + 八访问器）→ wcol（六 ScanInput 合一）→ wdatabase/wnode/wedb_standalone 适配 → ignore 登记 → 全量验收。
+
+## 执行结果
+
+- 33 文件 +287/-496 行（wkv 22、wcol 7、wdatabase 2、wedb_standalone 2），提交 0936967，merge dev 后 6a7551f，主目录合并 7d81feb
+- 一：CheckpointManager 删 purge_checkpoint/purge_all/purge_outdated/list_checkpoints/find_latest_checkpoint/recover_store（零引用）/recover_latest_store（零引用）七个纯转发静态面，create_checkpoint_with_token 私有化；保留 new/create_checkpoint（token 预知逻辑）/recover/recover_latest（类型锚定恢复入口）；wkv 与 wedb_standalone cargo add --dev wcpr，wkv cargo add --dev wbase；wdatabase 生产 purge_outdated/find_latest_checkpoint 三处改 wcpr:: 直连（已依赖 wcpr，零新增）
+- 二：删 TraceBackResult，统一 ReadProbeResult（Miss 承接 TraceBack）；raw/read.rs 抽 probe_hlog_record 探针单点（无错误路径，闭包 Ok 适配 whlog API），主链/回退 immutable/memory 四份同构闭包体各一行化
+- 三：ttl.rs 抽 ttl_record_of（TTL 物理键单点），ttl_of 与 compact.rs read_ttl_expiry 同转；read_ttl_expiry 26 行手写内存探针 + 8B 大端手写解码归零，TtlCodec 单点回归
+- 四：ttl.rs 定义 probe_alive（has_ttl_tag 快门控 + check_expired 完整裁决）；range_index.rs、collection.rs 两处、modify.rs、raw/read.rs 两处共 6 调用点改写；rmw 空 if 体死条件清理；keyspace/gc 的 GC 候选双检路径不纳入（已知有 TTL，完整裁决正确）
+- 五：read_cache.rs 删三薄包装，wkv 全 crate（checkpoint/compact/range_index/store/addr/raw 三件）直用 wbase::addr 原语，lib.rs 删 is_read_cache_addr 出口，测试改 wbase::addr::is_read_cache；enable_read_cache 开关接线通道在 config.rs 字段文档显式登记（不接 NodeArgs：r1 撕裂观察项未闭环 + C# EnableReadCache 默认 false）
+- 六：RunGuard 私有化（lib.rs 出口收缩）；wcol 删 resp/input.rs 零消费 ScanInput（usize 版），garnet_object_base.rs ScanInput 改 ScanInput<'a> 零拷贝借用 + read_scan_input 提自由函数单点（钳制修为无条件，对齐 C# countInInput > limitCountInOutput 与生产内联版），hash scan_operate_shared 与 zset scan_operate 两份内联解析改调单点，连带删 ScanParams/arg 助手与六项失效导入；GcStatsSnapshot（gc_stats 消费）、compact_lazy/compact_with_filter（测试消费 + C# ICompactionFunctions 对标）保留；ListTree/CUSTOM_TYPE_ID_START 前轮已删（标注）；ObjectOutputFlags/ExpirationQueue 在用保留
+- 七：RiTreeOps 评估后拒绝降固有块——孤儿规则（BfTreeService 属 wbftree）+ 方法挪 wbftree 需反向依赖 wkv CollectionError 成环 + 换错误类型波及 CollectionResult 语义面；仅修正头注释（ri_exists 不在接口清单 + 拒绝理由记档）；wbftree TreeOps 族不存在；wcol::CollectionItemStore 未触碰
+- 八：WedbStore 加 range_index() -> &Arc<RangeIndexManager> 显式访问器，migration.rs:117 与同型穿透 service.rs、garnet_api.rs 三处改访问器（生产面字段直取清零）；字段暂保 pub + wedb_standalone 测试直取保留，design.md 条 3 门控时统一收敛
+- js/check/ignore：零新增登记（删除面均为 rust 自有包装/重复面，wcpr purge 族单点仍在；check.js 无 miss 输出）
+
+## 验证结果
+
+- bun ./js/check.js：退出 0 无输出（分支基线、merge dev 后、主目录合并态三处复验）
+- ./clippy.sh：3 任务全过，-D warnings 零警告
+- ./test.sh：wedb 2055 passed + 1 skipped，regress 2 passed（分支基线与主目录合并态双复验）
+
+状态
+- 完成
