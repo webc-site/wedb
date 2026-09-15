@@ -8,12 +8,6 @@ use wbase::time::now_nanos;
 
 use super::range_index_manager_migration::PublishMigratedIndexResult;
 
-/// 纳秒时间戳（wbase::time 粗粒度时钟，活动计时足够）
-#[inline]
-fn now_ns() -> u64 {
-  now_nanos()
-}
-
 /// 流式发送活动（对标 libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs:StreamActivity）
 ///
 /// 追踪把一份迁移索引快照文件分块灌入 AOF 的全过程：文件长度、块计数、
@@ -38,7 +32,7 @@ impl StreamActivity {
   /// libs/server/Resp/RangeIndex/RangeIndexReplicationActivities.cs:StartActivity
   pub fn start_activity(chunk_size: usize) -> Self {
     Self {
-      started_ns: now_ns(),
+      started_ns: now_nanos(),
       chunk_size,
       file_size_bytes: 0,
       chunk_count: 0,
@@ -69,7 +63,7 @@ impl StreamActivity {
   ///
   /// 成功与异常路径均须调用一次；以 info 级输出全程度量
   pub fn end_and_log(&self, key: &[u8]) {
-    let total_ticks = now_ns().saturating_sub(self.started_ns);
+    let total_ticks = now_nanos().saturating_sub(self.started_ns);
     log::info!(
       "RangeIndexReplicationStreamActivity: key={key} isError={is_error} errorStr={error} chunkSize={chunk_size} fileSizeBytes={file_size_bytes} chunkCount={chunk_count} totalBytesEnqueued={total_bytes_enqueued} totalTicks={total_ticks}",
       key = String::from_utf8_lossy(key),
@@ -104,7 +98,7 @@ impl ReassemblyActivity {
   /// ReassemblyActivity 的 StartActivity 入口
   pub fn start_activity() -> Self {
     Self {
-      started_ns: now_ns(),
+      started_ns: now_nanos(),
       chunk_count: 0,
       total_bytes_received: 0,
       publish_result: None,
@@ -126,7 +120,7 @@ impl ReassemblyActivity {
   ///
   /// `reason` 标注结束原因（Complete / PublishFailed / ChunkProcessingError 等）
   pub fn end_and_log(&self, key: &[u8], reason: &str) {
-    let total_ticks = now_ns().saturating_sub(self.started_ns);
+    let total_ticks = now_nanos().saturating_sub(self.started_ns);
     let publish_result_text = self
       .publish_result
       .as_ref()

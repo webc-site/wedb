@@ -20,10 +20,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 bitflags.workspace = true
 itoa.workspace = true
 num_enum = "0.7.6"
+serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
+sonic-rs.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 wbase = { workspace = true, features = ["num"] }
+wresources = { version = "0.1.0", path = "../wresources" }
 zmij.workspace = true
 
 [dev-dependencies]

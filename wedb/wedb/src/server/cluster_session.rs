@@ -33,7 +33,7 @@ use wresp::{
   RespCommand, RespSliceExt, RespVecExt,
   cmd_strings::{
     RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
-    abort_with_wrong_number_of_arguments, write_error_raw,
+    RESP_ERR_SLOW_PATH_STORAGE, abort_with_wrong_number_of_arguments, write_error_raw,
   },
   try_get_resp_command_info,
 };
@@ -1785,7 +1785,7 @@ async fn cluster_reset_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   {
@@ -1798,7 +1798,7 @@ async fn cluster_reset_slow(
         return out;
       }
       Err(_) => {
-        out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+        out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
         return out;
       }
       Ok(false) => {}
@@ -1808,7 +1808,7 @@ async fn cluster_reset_slow(
     // `StorageSession::delete_all_user_keys`——Meta 键走版本栅栏 + 树文件
     // 排空的完整异步删除，杜绝 try_delete_sync 对复合对象的静默降级丢失）
     if !soft && storage.delete_all_user_keys().await.is_err() {
-      out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+      out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
       return out;
     }
   }
@@ -1823,8 +1823,6 @@ async fn cluster_reset_slow(
 const ERR_CLUSTER_NOT_INITIALIZED: &str = "ERR Cluster not initialized";
 /// 恢复锁占用（C# RESP_ERR_GENERIC_CANNOT_ACQUIRE_RECOVERY_LOCK）
 const ERR_RECOVERY_LOCK: &str = "ERR Recovery in progress, could not acquire recoverLock";
-/// 慢路径存储 IO 失败
-const ERR_SLOW_PATH_STORAGE: &str = "ERR slow path storage error";
 
 /// libs/cluster/Session/ClusterCommandInfo.cs:GetClusterCommands
 const CLUSTER_HELP: [&str; 64] = [
@@ -1900,7 +1898,7 @@ pub const DEFAULT_CLUSTER_CMD_NAME: &str = "cluster";
 /// 子命令 RESP 名（错误文案回显用，对标 C# `ClusterSession.cs:119-121` 与 `RespCommandsInfo.GetRespCommandName(command).ToLowerInvariant()`）
 #[inline]
 pub fn cluster_sub_name(cmd: RespCommand) -> &'static str {
-  try_get_resp_command_info(cmd).map_or(DEFAULT_CLUSTER_CMD_NAME, |e| e.name)
+  try_get_resp_command_info(cmd).map_or(DEFAULT_CLUSTER_CMD_NAME, |e| e.name.as_str())
 }
 
 /// SessionParseStateExtensions.cs:TryGetSlotState（ASCII 大小写不敏感）
@@ -1975,7 +1973,7 @@ async fn count_keys_in_slot_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
@@ -1987,7 +1985,7 @@ async fn count_keys_in_slot_slow(
       out.extend_from_slice(buf.format(n).as_bytes());
       out.extend_from_slice(b"\r\n");
     }
-    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -2000,7 +1998,7 @@ async fn get_keys_in_slot_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
@@ -2016,7 +2014,7 @@ async fn get_keys_in_slot_slow(
         out.write_resp_bulk_string(item.as_bytes());
       }
     }
-    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -2028,14 +2026,14 @@ async fn del_keys_in_slots_slow(
 ) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
   let storage = StorageSession::new_readonly(batch);
   match storage.delete_slot_keys(&slots).await {
     Ok(_) => out.write_resp_simple_string("OK"),
-    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -2045,14 +2043,14 @@ async fn del_keys_in_slots_slow(
 async fn cluster_flush_all_slow(store: Arc<WedbStore<wdev::SegmentedDevice>>) -> Vec<u8> {
   let mut out = Vec::new();
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
   let storage = StorageSession::new_readonly(batch);
   match storage.delete_all_user_keys().await {
     Ok(_) => out.write_resp_simple_string("OK"),
-    Err(_) => out.write_resp_error(ERR_SLOW_PATH_STORAGE),
+    Err(_) => out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE),
   }
   out
 }
@@ -2092,7 +2090,7 @@ async fn cluster_migrate_slow(
   }
 
   let Ok(session) = store.new_session() else {
-    out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+    out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
     return out;
   };
   let batch = session.enter_batch();
@@ -2133,7 +2131,7 @@ async fn cluster_migrate_slow(
     if should_write {
       if let Err(err) = storage.upsert_string(record.key, record.val).await {
         log::error!("CLUSTER MIGRATE upsert_string failed: {err:?}");
-        out.write_resp_error(ERR_SLOW_PATH_STORAGE);
+        out.write_resp_error(RESP_ERR_SLOW_PATH_STORAGE);
         return out;
       }
       if record.expire_unix_ms > 0 {

@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use wbase::time::now_nanos;
+use wbase::time::now_stopwatch_ticks;
 use wconf::ServerConfigType;
 use wmetric::{
   RespLatencyCommands, RespSlowlogCommands, SlowLogContainer,
@@ -16,15 +16,6 @@ use wresp::RespCommand;
 
 use super::resp_server_session::RespServerSession;
 use crate::session_parse_state_extensions::serialize_snapshot;
-
-/// Stopwatch tick 换算率（100ns / tick）
-pub const NANOS_PER_TICK: u64 = 100;
-
-/// 获取当前 Stopwatch 刻度（100ns 域）
-#[inline]
-pub fn now_stopwatch_ticks() -> i64 {
-  (now_nanos() / NANOS_PER_TICK).min(i64::MAX as u64) as i64
-}
 
 impl RespServerSession {
   /// LATENCY / SLOWLOG 族分派（C# ProcessAdminCommands 的对应 arm；
