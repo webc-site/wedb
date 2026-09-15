@@ -1,11 +1,5 @@
 # design 待办
 
-1. [P1] 命令元数据双源：手写 ACL 目录表 vs 内嵌 JSON
-   位置：wresp/src/catalog/data.rs:1（2494 行手写表，消费方 wacl/src/acl_parser.rs、wacl/src/user.rs、wnode/src/resp/resp_commands_info.rs:15 LAST_VALID_COMMAND）
-   对标：garnet/libs/server/Resp/RespCommandsInfo.json（wnode/src/resp/resp_commands_info.rs:30 include_str 内嵌，6969 行）
-   问题：JSON 与手写表两份真值并存，命令增删需双改，漂移即 ACL 判定与 INFO 输出不一致
-   改法：JSON 移入 wresp（或新建 wresources 对齐 C# libs/resources），catalog 改 build.rs 生成或 OnceLock 解析同一份 JSON
-
 3. [P1] wnode 越层直依赖 wbftree，RangeIndex 双包装
    位置：wnode/src/aof/aof_processor.rs、wnode/src/service.rs、wnode/src/resp/rangeindex/ 8 文件（range_index_chunked_deserializer.rs、range_index_chunked_serializer.rs、range_index_manager_index.rs、range_index_manager_locking.rs、range_index_manager_migration.rs、range_index_manager_replication.rs、range_index_migration_reader.rs、resp_server_session_range_index.rs）
    问题：wnode 绕过 wkv 引擎门面直用 wbftree，层次依赖倒挂
@@ -16,11 +10,6 @@
    对标：garnet/libs/server/Resp/BasicCommands.cs:533 NetworkSETEX（input = RespCommand.SETEX，expiry 编入 valMetadata，单条 AOF）
    问题：rust 侧 SET EX 产生值条目 + 过期条目两条 AOF，高频场景写放大翻倍，偏离 C# 单条形态
    改法：值条目随行 expiration（对齐 C# SETEX valMetadata 单条），TtlWrite 事件仅服务独立 EXPIRE/PEXPIRE 命令
-
-9. [P2] 时间戳小面三点散落
-   位置：wnode/src/resp/metrics_commands.rs:26 now_stopwatch_ticks、wnode/src/resp/rangeindex/range_index_replication_activities.rs:13 now_ns、wedb/src/server/failover/failover_session.rs:9 直连 coarsetime::Instant
-   问题：三处各自手写 coarsetime 换算，易出第四处手写换算率
-   改法：wbase::time 一处定义（含 monotonic now），三点同调
 
 10. [P2] 自定义对象命令双执行器
    位置：wnode/src/resp/objects/custom_object_commands.rs:35 try_custom_object_command（同步）vs wnode/src/resp/garnet_api.rs:755 custom_object_slow（异步）
@@ -37,18 +26,6 @@
    位置：wconf/src/node_options.rs:222 from_args、:227 from_nested_text_str、:232 from_file（外部全仓零调用，from_file 内部转 from_nested_text_str）
    问题：SKILL 指定 nested_text 为配置格式，但两 main 直接 clap derive，配置文件能力未接
    改法：main 增 --config 分支接线，或明确放弃并删三个函数
-
-14. [P2] expire 换算饱和算术 5 处散落
-   位置：wnode/src/resp/key_admin_commands.rs:74-80（EX/PEXPIREAT/EXAT/PXAT 换算与 (i64::MAX - UNIX_EPOCH_TICKS) 上限钳制）、:192（SET EX 同构换算）、wnode/src/aof/aof_processor.rs:1217、:1238、:1253、:1276（重放端同构）
-   对标：garnet/libs/common/ConvertUtils.cs（TickConverter 集中换算）
-   问题：「秒 → 绝对 Ticks」与溢出钳制公式两端各自手写，公式漂移即重放与原命令不等价，正确性敏感
-   改法：wbase::convert（或 wval::ttl 与 TtlCodec 同居）增 expire_after_to_ticks(now_ticks, seconds) 与 absolute_seconds_cap()，两端同调
-
-15. [P2] 跨文件重复错误文案 5 组
-   位置：wnode/src/session_parse_state_extensions.rs:55/58/60/61 与 wnode/src/resp/objects/sorted_set_geo_commands.rs:94/95/97/100（GEO 校验文案族两份：ERR radius cannot be negative、ERR need numeric width、ERR height or width cannot be negative、ERR COUNT must be > 0）；wnode/src/resp/garnet_api.rs:79 与 wedb/src/server/cluster_session.rs:1795（ERR slow path storage error）
-   对标：garnet/libs/server/Resp/CmdStrings.cs 单点
-   问题：同一文案多处 const 定义，改一处漏一处
-   改法：GEO 族抽 wnode 域内单点模块，slow path 收归 wresp 或 wbase 常量（wext_json 已删，write-only/read-only 双份已消失）
 
 16. [P2] src 内嵌跨 crate 集成测试迁 tests
    位置：wnode/src/resp/resp_server_session.rs:2725（tests 模块约 1270 行、62 个 #[test]，use wacl/wpubsub/wtxn/waof 全家装配）；同型：wnode/src/session_parse_state_extensions.rs（15 test）、wnode/src/resp/parser/resp_command.rs（13）、wnode/src/aof/garnet_log.rs（11）、wlua/src/lib.rs（12）

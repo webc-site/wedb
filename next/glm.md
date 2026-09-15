@@ -60,17 +60,6 @@
     问题：CLI 约 15 项仍缺 reviv 系、slowlog、gossip-delay/gossip-sp/cluster-timeout、max-inline-key/value-size、index-resize、max-databases、protected-mode、aof 系尺寸等（lua 三项已补）
     改法：入口增补 --config <path>，CLI 覆盖文件值；按运维优先级补常用项，其余登记 check/ignore
 
-14. [P1] Group Commit / 级联刷盘状态机抽取公共组件
-    位置：wedb/wkv/src/store/flush.rs:29 FlushPipeline、wedb/waof/src/log.rs:39 CommitPipelineState（注：wedb/wnode/src/aof/waof_sublog.rs 的三态 CAS 已彻底清理收敛，转调 wal.commit_to / wal.commit 单轨流水线）
-    对标：garnet/libs/storage/…/TsavoriteLog.cs CommitTask/ongoingCommitRequests
-    问题：wkv FlushPipeline 与 waof CommitPipelineState 仍存在重复实现的 Leader/Follower 级联合并模式
-    改法：抽公共 GroupCommitPipeline 入 wbase，由 wkv 与 waof 统一复用
-
-15. [P1] 全 workspace 零引用 pub 项清理
-    位置：wedb/wnode/src/resp/basic_commands.rs:1049 network_quit、:1104 network_readonly 等（grep 零调用）；wedb/wnode/src/aof/replaycoordinator/aof_replay_coordinator.rs process_synchronized_operation；wedb/wlua/src/limited_allocator.rs、runner.rs、functions.rs 部分导出；wmetric add_total_write 等随第 7 条接线复活勿贸删
-    对标：garnet 对应调用点（ClusterSession.cs 单/多键归一等）
-    问题：批量死导出面残留（cluster_manager verify_key/delete_keys_in_slots 已转活可豁免）
-    改法：逐项 grep 确认零调用后删除或私有化，check.js 保持 0 缺失
 17. [P1] 集合命令 numkeys/count 解析宽度 i64 vs C# int32
     位置：wedb/wnode/src/resp/objects/sorted_set_commands.rs:491、:908、:1134（ZMPOP/ZINTERCARD/BZMPOP numkeys 用 try_parse_i64）
     对标：garnet/libs/server/Resp/Objects/SortedSetCommands.cs（全族 parseState.TryGetInt int32，溢出报 not-integer）
@@ -101,12 +90,6 @@
     问题：提交边界与起始地址混用
     改法：引入独立 committed 字段并自 commit 记录恢复
 
-24. [P1] aof_processor object_store_rmw 四对象块复制四份
-    位置：wedb/wnode/src/aof/aof_processor.rs:1358-1372 起（Hash/List/Set/SortedSet 各一分支）
-    对标：garnet/libs/server/AOF/AofProcessor.cs（经对象序列化器多态单通道）
-    问题：同构 match 四份
-    改法：抽 (obj_type, from_blob, to_blob) 泛型单循环
-
 25. [P1] 占位函数 prefetch_key_sequence_number 空实现且有生产调用
     位置：wedb/wnode/src/aof/readconsistency/virtual_sublog_replay_state.rs:187（空体）；调用点 read_consistency_manager.rs:329
     对标：garnet/libs/server/AOF/ReadConsistency/VirtualSublogReplayState.cs:119（真实缓存预热）、ReadConsistencyManager.cs:305
@@ -126,12 +109,6 @@
     改法：删死旋钮；以 RuntimeServerConfig 为运行时单一来源，其余面收敛声明
 
 
-31. [P2] iterate_version_chain 仅测试调用
-    位置：wedb/whlog/src/hlog/io.rs:509
-    对标：garnet/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs IterateHashChain（C# 服务端同样无生产调用）
-    问题：生产零调用
-    改法：移入 cfg(test) 或标注 API-parity 保留
-
 32. [P2] 对标注释风格统一
     位置：全仓 94 处「在 garnet 中的相对路径:函数名」范式
     对标：SKILL 文档注释格式条款
@@ -149,12 +126,6 @@
     对标：garnet/libs/common/ConvertUtils.cs 格式化单点
     问题：三份实现
     改法：收敛到 wresp 单点，wcol 转调
-
-35. [P2] 错误枚举收敛
-    位置：wedb/wnode/src/error.rs:8 与 wnode/src/service.rs:74 双 Error（service 版对外零引用）；wedb/wcpr/src/error.rs:62/66 ChecksumMismatch/MetaChecksumMismatch 同文件双变体；wvector 5 枚举散落无中心 error.rs
-    对标：garnet GarnetStatus 单点；SKILL rust_review「错误在 error.rs 或独立模块中定义」
-    问题：crate 内枚举分裂
-    改法：wnode 变体并入根 error.rs，wcpr 双变体合一，wvector 建中心（leaf 留本地是对的，不上收 wbase）
 
 36. [P2] hex 微工具两处
     位置：wedb/wacl/src/acl_password.rs:65 hex_val 与 wedb/wlua/src/hash_key.rs:48 from_hex
@@ -179,18 +150,6 @@
     对标：garnet/test/standalone/（测试工程引用 server 库）；SKILL 同上
     问题：命令级 e2e 全挂在 bin crate 且越层断言
     改法：命令级 e2e 迁 wnode/tests 或专用集成测试 crate，越层断言改经 wkv 公开 API，wedb_standalone 只留启动冒烟
-
-40. [P2] 删除 wedb_standalone/src/lib.rs 空壳
-    位置：wedb_standalone/src/lib.rs（1 行注释，tests 无 wedb_standalone:: 引用）
-    对标：garnet main/GarnetServer 为纯 bin 工程
-    问题：bin crate 不需要 lib 目标
-    改法：删除
-
-41. [P2] aof/mod.rs 通配转发
-    位置：wedb/wnode/src/aof/mod.rs:23 pub use waof_sublog::*
-    对标：SKILL rust_review「暴露的接口清晰优雅」
-    问题：通配导出
-    改法：逐项列名导出
 
 42. [P2] CONFIG GET 应答未接 RESP3 map 头
     位置：wedb/wnode/src/resp/config_commands.rs CONFIG GET 恒 RESP2 双倍数组（HELLO map 已接，见 resp_server_session.rs:1672）
@@ -246,29 +205,11 @@
     问题：与 waof/src/iterator.rs 同构
     改法：waof 补内存窗口同步扫描 API 后删手写段
 
-51. [P2] 序列号提取多处同构
-    位置：wedb/wnode/src/aof/aof_processor.rs:1356 前后 fallback 判定与 replaycoordinator/aof_replay_coordinator.rs:250 txn_header_sequence_number 等
-    对标：garnet ShardedHeader/AofHeader 序列号字段单点
-    问题：提取逻辑分散
-    改法：waof 头层加单一 sequence_number_of(entry, fallback)
-
-52. [P2] 存储过程参数区编解码两份
-    位置：wedb/wnode/src/aof/replaycoordinator/stored_proc_replay.rs:17-28 vs wnode/src/aof/aof_processor.rs:373；stored_proc_payload 为 skip_header 薄包装
-    对标：garnet RespInputHeader/StringInput 布局单点；waof/src/header.rs AofHeader::skip_header
-    问题：同一布局两份解析
-    改法：收敛 waof 头层单一解析
-
 53. [P2] waof 内分 wal/（物理）与 aof/（语义）两模块
     位置：wedb/waof/src/header.rs:136-646 语义 AofHeader/AofChunkHeader 转写住在物理层模块（8B RecordHeader :128 才是物理帧）
     对标：garnet/libs/server/AOF/AofHeader.cs + AofChunkHeader.cs vs TsavoriteLog 帧头分层
     问题：语义层误植物理 crate
     改法：模块内分目录，归属对齐 C# 分层（不动 crate 边界）
-
-56. [P2] AofAddress 三重编码面收敛
-    位置：wedb/waof/src/address.rs:18 bitcode derive（仅 :402 测试用）、:108/:119 serialize/deserialize（仅测试调用）
-    对标：garnet/libs/server/AOF/AofAddress.cs Serialize/Deserialize（API-parity 可登记）
-    问题：derive 死挂 + 双编码面
-    改法：删 derive；serialize/deserialize 按 API-parity 登记或删
 
 57. [P2] wkv CheckpointManager 剩余转发面
     位置：wedb/wkv/src/checkpoint.rs:476/482 purge_checkpoint 与 purge_all 双入口逐字转发 wcpr（take_cpr_snapshots/recover_cpr_snapshots 已删）
@@ -294,12 +235,6 @@
     问题：7 处内联复制
     改法：抽单一 probe_alive 助手
 
-61. [P2] 删除 wrecord/src/chunk.rs 死模块
-    位置：wedb/wrecord/src/chunk.rs（lib.rs:24 导出，全仓零消费）
-    对标：garnet NativeStorageDevice 扇区对齐路径无此物；紧凑编码不在此
-    问题：零引用模块（与 wdev::chunk 同名不同物，后者活）
-    改法：删除模块与导出
-
 62. [P2] ReadCache 薄包装与生产开关
     位置：wedb/wkv/src/read_cache.rs:37 tag_read_cache_addr 等地址位薄包装；引擎本体生产未开通
     对标：garnet/libs/server/Storage/ReadCache.cs / TryCopyToReadCache.cs
@@ -323,12 +258,6 @@
     对标：garnet RangeIndexManager 经 storeWrapper 获取
     问题：跨层直取字段
     改法：改 wkv 显式访问器
-
-68. [P2] bitcode derive 死挂清理
-    位置：wedb/wcpr/src/meta.rs:3（IndexMeta/HlogMeta）、wedb/whlog/src/flush.rs:1（PageFlushRange）（whlog/address.rs 已清）
-    对标：SKILL「数据格式别搞多格式」
-    问题：持久化走手写定长，derive 仅测试用
-    改法：删 derive 与对应测试
 
 69. [P2] wreviv/wcompact 并入 wkv
     位置：wedb/wreviv、wedb/wcompact 独立 crate（对标 Tsavorite RevivificationManager/Compact，C# 本就在 core 内）

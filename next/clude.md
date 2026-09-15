@@ -19,12 +19,6 @@
    对标：garnet/libs/server/Resp/Parser/RespCommand.cs:Enum.TryParse、Enum.GetName
    归档：task/done/resp-command-strum-dedup.md
 
-4. [P2] waof/wkv Group-Commit 双实现
-   位置：wedb/waof/src/log.rs:579-622（CommitWaiter 注册 + Leader 级联循环）、wedb/wkv/src/store/flush.rs:29（FlushPipeline，Leader 级联 :142-174）
-   对标：garnet/libs/server/AOF/GarnetAppendOnlyFile.cs（commit pipeline）、garnet/libs/server/StoreWrapper.cs:CommitAOFAsync、WaitForCommitAsync
-   问题：同一 Leader/Follower 模式（waiters 注册 / Leader 级联 / 批量唤醒）两份实现
-   改法：抽公共 GroupCommitPipeline 入 wbase，随 wkv 重构窗口一并做
-
 5. [P2] key_spec 双模型缺单一转换点
    位置：wedb/wresp/src/key_spec.rs:16（KeySpecificationFlags / BeginSearchMethod / FindKeysMethod / RespCommandKeySpecification 完整版）、wedb/wnode/src/key_spec.rs:8（SimpleRespKeySpec 族简化版，basic_commands.rs / cluster_session.rs / session_parse_state_extensions.rs 消费）
    对标：garnet/libs/server/Resp/RespCommandKeySpecification.cs（完整版）、garnet/libs/server/Resp/RespCommandInfoSimplifiedStructs.cs（简化版）
