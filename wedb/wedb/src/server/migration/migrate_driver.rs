@@ -194,20 +194,33 @@ where
   }
 }
 
+/// 判定错误是否为停等超时：超时意味着连接上残留未决响应（wconn 严格
+/// 停等，后续帧将永远排队），恢复前必须弃连重连
+#[inline]
+fn is_timeout_err(err: &Error) -> bool {
+  matches!(err, Error::Io(e) if e.kind() == ErrorKind::TimedOut)
+}
+
 /// 在 garnet 中的相对路径: libs/cluster/Server/Migration/MigrationDriver.cs:TryRecoverFromFailureAsync
 ///
 /// 迁移失败恢复：远端逐 range 置 STABLE（nodeid=None，失败仅留痕不阻断，
 /// C# 同口径）→ 本端槽位状态回退 → 会话状态置 FAIL。只回滚槽位状态，
-/// 远端已导入批次数据不回收（C# 同口径）。收尾弃连防错位：停等超时后
-/// 迟到 ACK 会污染连接（对标 C# MigrateSession.Dispose 的 _cts.Cancel 断连）
+/// 远端已导入批次数据不回收（C# 同口径）。poisoned（停等超时）时先重连
+/// 再发恢复帧（对标 C# recover → TrySetSlotRangesAsync → CheckConnectionAsync
+/// 的 ReconnectAsync 保供语义），收尾弃连防迟到 ACK 错位（对标 C#
+/// MigrateSession.Dispose 的 _cts.Cancel 断连）
 async fn try_recover_from_failure(
   client: &GarnetClient,
   session: &MigrateSession,
   ranges: &[(i32, i32)],
   dur: Duration,
   why: &str,
+  poisoned: bool,
 ) {
   log::error!("迁移失败，执行恢复: {why}");
+  if poisoned {
+    client.reconnect_async().await;
+  }
   for &(start, end) in ranges {
     match wait_remote(dur, client.set_slot_range_async("STABLE", start, end, None)).await {
       Ok(resp) if resp == "OK" => {}
@@ -363,13 +376,29 @@ pub async fn run_keys_migration_driver(
   )
   .await
   {
-    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    try_recover_from_failure(
+      &client,
+      &session,
+      &ranges,
+      dur,
+      &err.to_string(),
+      is_timeout_err(&err),
+    )
+    .await;
     return Err(err);
   }
 
   // 4. 本端置槽位 MIGRATING（失败 → recover）
   if !session.try_prepare_local_for_migration() {
-    try_recover_from_failure(&client, &session, &ranges, dur, "本端准备迁移槽位失败").await;
+    try_recover_from_failure(
+      &client,
+      &session,
+      &ranges,
+      dur,
+      "本端准备迁移槽位失败",
+      false,
+    )
+    .await;
     return Err(Error::InvalidArgument("本端准备迁移槽位失败".into()));
   }
 
@@ -416,7 +445,15 @@ pub async fn run_keys_migration_driver(
       )
       .await
       {
-        try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+        try_recover_from_failure(
+          &client,
+          &session,
+          &ranges,
+          dur,
+          &err.to_string(),
+          is_timeout_err(&err),
+        )
+        .await;
         return Err(err);
       }
       migrated_count += cur_batch.len();
@@ -439,7 +476,15 @@ pub async fn run_keys_migration_driver(
     )
     .await
     {
-      try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+      try_recover_from_failure(
+        &client,
+        &session,
+        &ranges,
+        dur,
+        &err.to_string(),
+        is_timeout_err(&err),
+      )
+      .await;
       return Err(err);
     }
     migrated_count += cur_batch.len();
@@ -451,7 +496,15 @@ pub async fn run_keys_migration_driver(
   if let Err(err) =
     send_batch_and_wait(&client, dur, spec.source_node_id, spec.replace_option, &[]).await
   {
-    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    try_recover_from_failure(
+      &client,
+      &session,
+      &ranges,
+      dur,
+      &err.to_string(),
+      is_timeout_err(&err),
+    )
+    .await;
     return Err(err);
   }
 
@@ -459,13 +512,29 @@ pub async fn run_keys_migration_driver(
   if let Err(err) =
     set_slot_ranges_checked(&client, dur, "NODE", &ranges, Some(spec.target_node_id)).await
   {
-    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    try_recover_from_failure(
+      &client,
+      &session,
+      &ranges,
+      dur,
+      &err.to_string(),
+      is_timeout_err(&err),
+    )
+    .await;
     return Err(err);
   }
   // 本端释放归属（失败 → recover，对标 BeginAsyncMigrationTaskAsync
   // RelinquishOwnership 分支）
   if !session.relinquish_ownership() {
-    try_recover_from_failure(&client, &session, &ranges, dur, "本端释放槽位所有权失败").await;
+    try_recover_from_failure(
+      &client,
+      &session,
+      &ranges,
+      dur,
+      "本端释放槽位所有权失败",
+      false,
+    )
+    .await;
     return Err(Error::InvalidArgument("本端释放槽位所有权失败".into()));
   }
 

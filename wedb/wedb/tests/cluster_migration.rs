@@ -752,3 +752,414 @@ fn cluster_migrate_recv_replace_object_semantics() {
     "非法 kind 应显式拒绝: {out:?}"
   );
 }
+
+// ---------------------------------------------------------------------------
+// 迁移停等限时与失败恢复（net.md P2 / ds.net.md 条 11）：停等超时、
+// 批次拒绝 recover、完成哨兵/NODE 失败显式报错、全链成功路径
+// ---------------------------------------------------------------------------
+
+use std::{
+  collections::VecDeque,
+  str::from_utf8,
+  time::{Duration, Instant},
+};
+
+use compio::{
+  BufResult,
+  io::{AsyncRead, AsyncWriteExt},
+  net::TcpListener,
+  runtime::spawn,
+};
+
+/// 解析缓冲中首个完整 RESP2 数组帧：返回 (帧总字节数, 全部参数切片)，
+/// 不完整返回 None
+fn try_parse_frame_args(buf: &[u8]) -> Option<(usize, Vec<&[u8]>)> {
+  if buf.first() != Some(&b'*') {
+    return None;
+  }
+  let header_end = buf.iter().position(|b| *b == b'\n')? + 1;
+  let argc: usize = from_utf8(&buf[1..header_end - 2]).ok()?.parse().ok()?;
+  let mut pos = header_end;
+  let mut args = Vec::with_capacity(argc);
+  for _ in 0..argc {
+    if buf.get(pos) != Some(&b'$') {
+      return None;
+    }
+    let len_line_end = buf[pos + 1..].iter().position(|b| *b == b'\n')? + pos + 2;
+    let len: usize = from_utf8(&buf[pos + 1..len_line_end - 2])
+      .ok()?
+      .parse()
+      .ok()?;
+    let end = len_line_end + len;
+    if end + 2 > buf.len() {
+      return None;
+    }
+    args.push(&buf[len_line_end..end]);
+    pos = end + 2;
+  }
+  Some((pos, args))
+}
+
+/// 假迁移目标端（脚本化应答，模式对标 tests/appendlog_reject_disconnect.rs
+/// 的 reject_after_handshake_node）：按连接分配脚本——第 i 个连接用第 i 段
+/// 脚本，逐帧解析 RESP2 数组按脚本弹答（+OK/-ERR），该段脚本耗尽后本连接
+/// 保持静默（模拟目标挂起）；脚本段耗尽后的新连接同样静默（模拟重连无应答）。
+/// 每帧前 3 参记入 seen 供用例断言帧序
+async fn scripted_migrate_target(
+  conn_replies: Vec<Vec<&'static [u8]>>,
+  seen: Arc<Mutex<Vec<String>>>,
+) -> String {
+  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+  let addr = listener.local_addr().unwrap().to_string();
+  let scripts = Arc::new(Mutex::new(VecDeque::from(
+    conn_replies
+      .into_iter()
+      .map(VecDeque::from)
+      .collect::<Vec<_>>(),
+  )));
+  spawn(async move {
+    while let Ok((mut stream, _)) = listener.accept().await {
+      let scripts = Arc::clone(&scripts);
+      let seen = Arc::clone(&seen);
+      spawn(async move {
+        // 每连接独立脚本：无脚本段 → 连接直读不答（重连也无应答）
+        let mut script = scripts.lock().pop_front().unwrap_or_default();
+        let mut acc: Vec<u8> = Vec::new();
+        let mut buf = vec![0u8; 65536];
+        loop {
+          let BufResult(res, next) = stream.read(buf).await;
+          buf = next;
+          let n = match res {
+            Ok(n) if n > 0 => n,
+            _ => break,
+          };
+          acc.extend_from_slice(&buf[..n]);
+          while let Some((frame_len, args)) = try_parse_frame_args(&acc) {
+            seen.lock().push(
+              args
+                .iter()
+                .take(3)
+                .map(|a| String::from_utf8_lossy(a).into_owned())
+                .collect::<Vec<_>>()
+                .join(" "),
+            );
+            acc.drain(..frame_len);
+            // 脚本耗尽 → 静默（目标挂起，驱动停等只能超时）
+            let Some(reply) = script.pop_front() else {
+              continue;
+            };
+            if stream.write_all(reply.to_vec()).await.is_err() {
+              return;
+            }
+          }
+        }
+      })
+      .detach();
+    }
+  })
+  .detach();
+  addr
+}
+
+/// 迁移驱动发送侧 spec（timeout 由用例覆写）
+fn migrate_spec(port: i32, timeout_ms: i32) -> MigrateTaskSpec<'static> {
+  MigrateTaskSpec {
+    source_node_id: "node_1",
+    target_address: "127.0.0.1",
+    target_port: port,
+    target_node_id: "node_2",
+    username: "",
+    passwd: "",
+    copy_option: false,
+    replace_option: false,
+    timeout: timeout_ms,
+  }
+}
+
+/// 解析假端监听地址的端口号
+fn port_of(addr: &str) -> i32 {
+  addr.rsplit(':').next().unwrap().parse().unwrap()
+}
+
+/// 读库内 string（驱动用例断言键权用）
+async fn read_str(store: &Arc<WedbStore<SegmentedDevice>>, key: &[u8]) -> Option<Vec<u8>> {
+  let session = store.new_session().unwrap();
+  let batch = session.enter_batch();
+  let storage = StorageSession::new_readonly(batch);
+  storage.read_string(key).await.unwrap()
+}
+
+/// 全链成功：握手 → IMPORTING×2 → 批次 +OK → 哨兵 +OK → NODE×2 →
+/// Ok(条数)；非 copy 模式已传输键删除；帧序与角色正确
+/// （两键各落一个本地槽 → 两段 range，IMPORTING/NODE 各发两次）
+#[test]
+fn migrate_driver_full_flow_success_deletes_transferred_keys() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let store = migrate_store("mt_ok.db");
+    let k1 = local_slot_key("mt_a");
+    let k2 = local_slot_key("mt_b");
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+      storage.upsert_string(k2.as_bytes(), b"v2").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本（单连接）：握手×2 + IMPORTING×2 + 批次 + 哨兵 + NODE×2 全 +OK
+    let addr = scripted_migrate_target(vec![vec![b"+OK\r\n"; 8]], Arc::clone(&seen)).await;
+
+    let count = run_keys_migration_driver(
+      two_primary_provider(),
+      Arc::clone(&store),
+      migrate_spec(port_of(&addr), 0),
+      &[k1.clone().into_bytes(), k2.clone().into_bytes()],
+    )
+    .await
+    .unwrap();
+    assert_eq!(count, 2, "两键应计数迁移");
+
+    // 非 copy：已确认传输的键从源端删除
+    assert_eq!(read_str(&store, k1.as_bytes()).await, None);
+    assert_eq!(read_str(&store, k2.as_bytes()).await, None);
+
+    // 帧序：SETINFO → SETNAME → IMPORTING×2 → MIGRATE(批) → MIGRATE(哨兵) → NODE×2
+    let frames = seen.lock();
+    assert_eq!(frames.len(), 8, "帧序应精确: {frames:?}");
+    assert!(frames[0].starts_with("CLIENT SETINFO"), "{frames:?}");
+    assert!(frames[1].starts_with("CLIENT SETNAME"), "{frames:?}");
+    assert!(frames[2].contains("IMPORTING"), "{frames:?}");
+    assert!(frames[3].contains("IMPORTING"), "{frames:?}");
+    assert!(frames[4].contains("MIGRATE"), "{frames:?}");
+    assert!(frames[5].contains("MIGRATE"), "{frames:?}");
+    assert!(frames[6].contains("NODE"), "{frames:?}");
+    assert!(frames[7].contains("NODE"), "{frames:?}");
+  });
+}
+
+/// 目标端静默：批次停等在 spec.timeout 量级报停等超时（而非永挂），
+/// recover 发出 STABLE，源端键保留
+#[test]
+fn migrate_driver_silent_target_times_out_instead_of_hanging() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let store = migrate_store("mt_silent.db");
+    let k1 = local_slot_key("mt_s");
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本：连接1 握手×2 + IMPORTING 应答后批次静默（停等超时）；连接2
+    // （recover 重连）握手×2 应答后 STABLE 静默——超时恢复须弃污染连接重连
+    let addr = scripted_migrate_target(
+      vec![vec![b"+OK\r\n"; 3], vec![b"+OK\r\n"; 2]],
+      Arc::clone(&seen),
+    )
+    .await;
+
+    let t0 = Instant::now();
+    let err = run_keys_migration_driver(
+      two_primary_provider(),
+      Arc::clone(&store),
+      migrate_spec(port_of(&addr), 300),
+      &[k1.clone().into_bytes()],
+    )
+    .await
+    .unwrap_err();
+    let elapsed = t0.elapsed();
+
+    assert!(
+      format!("{err}").contains("迁移远端停等超时"),
+      "应报停等超时: {err:?}"
+    );
+    assert!(
+      elapsed >= Duration::from_millis(280),
+      "必须真实等待 timeout 窗口: {elapsed:?}"
+    );
+    assert!(elapsed < Duration::from_secs(10), "不得长挂: {elapsed:?}");
+
+    // recover 已发 STABLE；源端键保留（未确认传输绝不删除）
+    assert!(
+      seen
+        .lock()
+        .iter()
+        .any(|f| f.contains("SETSLOTSRANGE STABLE")),
+      "超时失败必须走 recover STABLE: {:?}",
+      seen.lock()
+    );
+    assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
+  });
+}
+
+/// 批次拒绝：远端 -ERR → 显式报错 + recover STABLE + 源端键保留
+#[test]
+fn migrate_driver_batch_reject_recovers_and_keeps_keys() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let store = migrate_store("mt_reject.db");
+    let k1 = local_slot_key("mt_r");
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本：握手×2 +OK、IMPORTING +OK、批次 -ERR、recover STABLE +OK
+    let addr = scripted_migrate_target(
+      vec![vec![
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"-ERR rejected\r\n",
+        b"+OK\r\n",
+      ]],
+      Arc::clone(&seen),
+    )
+    .await;
+
+    let err = run_keys_migration_driver(
+      two_primary_provider(),
+      Arc::clone(&store),
+      migrate_spec(port_of(&addr), 0),
+      &[k1.clone().into_bytes()],
+    )
+    .await
+    .unwrap_err();
+    assert!(
+      format!("{err:?}").contains("rejected"),
+      "应透出远端拒绝: {err:?}"
+    );
+
+    assert!(
+      seen
+        .lock()
+        .iter()
+        .any(|f| f.contains("SETSLOTSRANGE STABLE")),
+      "批次拒绝必须 recover STABLE: {:?}",
+      seen.lock()
+    );
+    assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
+  });
+}
+
+/// 完成哨兵失败：批次 +OK 但哨兵 -ERR → 显式报错（不得吞没后照常交权），
+/// recover STABLE，源端键保留
+#[test]
+fn migrate_driver_sentinel_failure_fails_explicitly() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let store = migrate_store("mt_sentinel.db");
+    let k1 = local_slot_key("mt_n");
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本：握手×2 +OK、IMPORTING +OK、批次 +OK、哨兵 -ERR、STABLE +OK
+    let addr = scripted_migrate_target(
+      vec![vec![
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"-ERR sentinel rejected\r\n",
+        b"+OK\r\n",
+      ]],
+      Arc::clone(&seen),
+    )
+    .await;
+
+    let err = run_keys_migration_driver(
+      two_primary_provider(),
+      Arc::clone(&store),
+      migrate_spec(port_of(&addr), 0),
+      &[k1.clone().into_bytes()],
+    )
+    .await
+    .unwrap_err();
+    assert!(
+      format!("{err:?}").contains("sentinel rejected"),
+      "哨兵失败必须显式报错: {err:?}"
+    );
+
+    let (migrate_frames, has_stable) = {
+      let frames = seen.lock();
+      (
+        frames.iter().filter(|f| f.contains("MIGRATE")).count(),
+        frames.iter().any(|f| f.contains("SETSLOTSRANGE STABLE")),
+      )
+    };
+    assert_eq!(migrate_frames, 2, "批次与哨兵各一帧: {:?}", seen.lock());
+    assert!(has_stable, "哨兵失败必须 recover STABLE: {:?}", seen.lock());
+    assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
+  });
+}
+
+/// 远端置 NODE 失败：显式报错 + recover STABLE（对标 C#
+/// BeginAsyncMigrationTaskAsync 的 NODE 失败 recover 分支），键保留
+#[test]
+fn migrate_driver_node_assignment_failure_fails_explicitly() {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    let store = migrate_store("mt_node.db");
+    let k1 = local_slot_key("mt_o");
+    {
+      let session = store.new_session().unwrap();
+      let batch = session.enter_batch();
+      let storage = StorageSession::new_readonly(batch);
+      storage.upsert_string(k1.as_bytes(), b"v1").await.unwrap();
+    }
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // 脚本：握手×2 +OK、IMPORTING +OK、批次 +OK、哨兵 +OK、NODE -ERR、STABLE +OK
+    let addr = scripted_migrate_target(
+      vec![vec![
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"+OK\r\n",
+        b"-ERR node refused\r\n",
+        b"+OK\r\n",
+      ]],
+      Arc::clone(&seen),
+    )
+    .await;
+
+    let err = run_keys_migration_driver(
+      two_primary_provider(),
+      Arc::clone(&store),
+      migrate_spec(port_of(&addr), 0),
+      &[k1.clone().into_bytes()],
+    )
+    .await
+    .unwrap_err();
+    // set_slot_range_async 口径：-ERR 应答吞为空串，非 OK 即判败
+    // （C# TrySetSlotRangesAsync 同以 result != "OK" 判败）
+    assert!(
+      format!("{err:?}").contains("远端 SETSLOTSRANGE NODE 失败"),
+      "NODE 失败必须显式报错: {err:?}"
+    );
+
+    assert!(
+      seen
+        .lock()
+        .iter()
+        .any(|f| f.contains("SETSLOTSRANGE STABLE")),
+      "NODE 失败必须 recover STABLE: {:?}",
+      seen.lock()
+    );
+    assert_eq!(read_str(&store, k1.as_bytes()).await, Some(b"v1".to_vec()));
+  });
+}
