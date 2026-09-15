@@ -38,10 +38,7 @@ fn stats_session(acl: &Arc<AccessControlList>) -> RespServerSession {
 
 /// 单命令往返并取应答
 fn roundtrip(session: &mut RespServerSession, frame: &[u8]) -> Vec<u8> {
-  assert!(
-    session.try_consume_messages(frame).is_some(),
-    "帧应被完整消费: {frame:?}"
-  );
+  assert!(feed(session, frame).is_some(), "帧应被完整消费: {frame:?}");
   session.take_output()
 }
 
@@ -58,6 +55,12 @@ fn assert_cmdstat(info: &[u8], cmd: &str, calls: u64, rejected: u64, failed: u64
       "cmdstat_{cmd}:calls={calls},usec=0,usec_per_call=0.00,rejected_calls={rejected},failed_calls={failed}"
     ),
   );
+}
+
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
 }
 
 #[test]

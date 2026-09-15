@@ -48,6 +48,17 @@ impl SlotStorageFace for MockSlotStorage {
 }
 
 /// test/cluster/Garnet.test.cluster.migrate/ClusterMigrateTests.cs:ClusterDelKeysInSlotRemovesStringAndObjectKeys
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn cluster_del_keys_in_slot_removes_string_and_object_keys() -> Void {
   Runtime::new()?.block_on(async {
@@ -481,8 +492,8 @@ fn migrate_consumer(
 
 /// 慢命令往返：同步段消费，挂起慢路径时 block_on 驱动应答
 fn drive(rt: &Runtime, c: &mut RespSessionConsumer, frame_bytes: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(frame_bytes);
-  assert_eq!(consumed, frame_bytes.len(), "帧应被完整消费");
+  let (consumed, mut out) = pump(c, frame_bytes);
+  assert_eq!(consumed, Some(0), "帧应被完整消费");
   if let Some(slow) = c.take_slow_wait() {
     rt.block_on(async {
       out.extend_from_slice(&slow.resolve().await);

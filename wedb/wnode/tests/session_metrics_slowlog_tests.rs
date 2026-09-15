@@ -57,6 +57,12 @@ impl GarnetApiFace for SlowMockApi {
   }
 }
 
+/// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+fn feed(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+  s.recv_buffer.extend_from_slice(bytes);
+  s.try_consume_messages()
+}
+
 #[test]
 fn test_slowlog_recording_in_session() {
   let mut session = RespServerSession::new(
@@ -74,37 +80,37 @@ fn test_slowlog_recording_in_session() {
 
   // 1. 未开启阈值（默认 0 = 禁用）：慢命令不记录
   let frame_set = b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n";
-  assert!(session.try_consume_messages(frame_set).is_some());
+  assert!(feed(&mut session, frame_set).is_some());
   let _ = session.take_output();
 
   // 检查 SLOWLOG LEN = 0
   let frame_len = b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nLEN\r\n";
-  assert!(session.try_consume_messages(frame_len).is_some());
+  assert!(feed(&mut session, frame_len).is_some());
   let out = session.take_output();
   assert_eq!(out, b":0\r\n");
 
   // 2. 配置开启慢日志阈值（30000 微秒 = 30ms），SET 耗时 50ms 会被记录
   let frame_config =
     b"*4\r\n$6\r\nCONFIG\r\n$3\r\nSET\r\n$23\r\nslowlog-log-slower-than\r\n$5\r\n30000\r\n";
-  assert!(session.try_consume_messages(frame_config).is_some());
+  assert!(feed(&mut session, frame_config).is_some());
   let _ = session.take_output();
 
   // 清空可能因并行高负载下执行 CONFIG SET 自身被记录的条目
   let frame_reset = b"*2\r\n$7\r\nSLOWLOG\r\n$5\r\nRESET\r\n";
-  assert!(session.try_consume_messages(frame_reset).is_some());
+  assert!(feed(&mut session, frame_reset).is_some());
   let _ = session.take_output();
 
-  assert!(session.try_consume_messages(frame_set).is_some());
+  assert!(feed(&mut session, frame_set).is_some());
   let _ = session.take_output();
 
   // 检查 SLOWLOG LEN = 1
-  assert!(session.try_consume_messages(frame_len).is_some());
+  assert!(feed(&mut session, frame_len).is_some());
   let out = session.take_output();
   assert_eq!(out, b":1\r\n");
 
   // 检查 SLOWLOG GET 输出
   let frame_get_slowlog = b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nGET\r\n";
-  assert!(session.try_consume_messages(frame_get_slowlog).is_some());
+  assert!(feed(&mut session, frame_get_slowlog).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(text.starts_with("*1\r\n*6\r\n"), "out: {text}");
@@ -117,21 +123,21 @@ fn test_slowlog_recording_in_session() {
 
   // 3. 执行快速命令 GET（< 1ms），不应触发慢日志
   let frame_get = b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n";
-  assert!(session.try_consume_messages(frame_get).is_some());
+  assert!(feed(&mut session, frame_get).is_some());
   let _ = session.take_output();
 
   // SLOWLOG LEN 依然为 1
-  assert!(session.try_consume_messages(frame_len).is_some());
+  assert!(feed(&mut session, frame_len).is_some());
   let out = session.take_output();
   assert_eq!(out, b":1\r\n");
 
   // 4. SLOWLOG RESET
   let frame_reset = b"*2\r\n$7\r\nSLOWLOG\r\n$5\r\nRESET\r\n";
-  assert!(session.try_consume_messages(frame_reset).is_some());
+  assert!(feed(&mut session, frame_reset).is_some());
   let out = session.take_output();
   assert_eq!(out, b"+OK\r\n");
 
-  assert!(session.try_consume_messages(frame_len).is_some());
+  assert!(feed(&mut session, frame_len).is_some());
   let out = session.take_output();
   assert_eq!(out, b":0\r\n");
 }
@@ -157,10 +163,7 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
 
   // 执行写命令 SET
   let frame_set = b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n";
-  assert_eq!(
-    session.try_consume_messages(frame_set),
-    Some(frame_set.len())
-  );
+  assert_eq!(feed(&mut session, frame_set), Some(0));
   let out = session.take_output();
   assert_eq!(out, b"+OK\r\n");
 
@@ -173,10 +176,7 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
 
   // 执行读命令 GET
   let frame_get = b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n";
-  assert_eq!(
-    session.try_consume_messages(frame_get),
-    Some(frame_get.len())
-  );
+  assert_eq!(feed(&mut session, frame_get), Some(0));
   let out = session.take_output();
   assert_eq!(out, b"$3\r\nbar\r\n");
 
@@ -189,7 +189,7 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
 
   // 验证 INFO STATISTICS
   let frame_info_stats = b"*2\r\n$4\r\nINFO\r\n$10\r\nSTATISTICS\r\n";
-  assert!(session.try_consume_messages(frame_info_stats).is_some());
+  assert!(feed(&mut session, frame_info_stats).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(
@@ -203,11 +203,7 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
 
   // 验证 INFO STATS
   let frame_info_stats_short = b"*2\r\n$4\r\nINFO\r\n$5\r\nSTATS\r\n";
-  assert!(
-    session
-      .try_consume_messages(frame_info_stats_short)
-      .is_some()
-  );
+  assert!(feed(&mut session, frame_info_stats_short).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(
@@ -220,11 +216,11 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
   );
 
   // 再执行 2 次写和 1 次读
-  assert!(session.try_consume_messages(frame_set).is_some());
+  assert!(feed(&mut session, frame_set).is_some());
   let _ = session.take_output();
-  assert!(session.try_consume_messages(frame_set).is_some());
+  assert!(feed(&mut session, frame_set).is_some());
   let _ = session.take_output();
-  assert!(session.try_consume_messages(frame_get).is_some());
+  assert!(feed(&mut session, frame_get).is_some());
   let _ = session.take_output();
 
   {
@@ -233,7 +229,7 @@ fn test_session_metrics_read_write_counts_and_info_statistics() {
     assert_eq!(m.get_total_read_commands_processed(), 2);
   }
 
-  assert!(session.try_consume_messages(frame_info_stats).is_some());
+  assert!(feed(&mut session, frame_info_stats).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(
@@ -272,22 +268,16 @@ fn test_session_metrics_and_slowlog_with_real_store() {
   // 1. 设置极低阈值 1 微秒：真实存储操作必定超过 1 微秒，触发慢日志
   let frame_config =
     b"*4\r\n$6\r\nCONFIG\r\n$3\r\nSET\r\n$23\r\nslowlog-log-slower-than\r\n$1\r\n1\r\n";
-  assert!(session.try_consume_messages(frame_config).is_some());
+  assert!(feed(&mut session, frame_config).is_some());
   let _ = session.take_output();
 
   let frame_set = b"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n";
-  assert_eq!(
-    session.try_consume_messages(frame_set),
-    Some(frame_set.len())
-  );
+  assert_eq!(feed(&mut session, frame_set), Some(0));
   let out = session.take_output();
   assert_eq!(out, b"+OK\r\n");
 
   let frame_get = b"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n";
-  assert_eq!(
-    session.try_consume_messages(frame_get),
-    Some(frame_get.len())
-  );
+  assert_eq!(feed(&mut session, frame_get), Some(0));
   let out = session.take_output();
   assert_eq!(out, b"$3\r\nbar\r\n");
 
@@ -300,7 +290,7 @@ fn test_session_metrics_and_slowlog_with_real_store() {
 
   // 验证 INFO statistics
   let frame_info = b"*2\r\n$4\r\nINFO\r\n$10\r\nSTATISTICS\r\n";
-  assert!(session.try_consume_messages(frame_info).is_some());
+  assert!(feed(&mut session, frame_info).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(
@@ -314,7 +304,7 @@ fn test_session_metrics_and_slowlog_with_real_store() {
 
   // 验证慢日志已记录至少 1 条
   let frame_slowlog_len = b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nLEN\r\n";
-  assert!(session.try_consume_messages(frame_slowlog_len).is_some());
+  assert!(feed(&mut session, frame_slowlog_len).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(text.starts_with(':'), "out: {text}");
@@ -322,7 +312,7 @@ fn test_session_metrics_and_slowlog_with_real_store() {
   assert!(count >= 1, "count: {count}");
 
   let frame_slowlog_get = b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nGET\r\n";
-  assert!(session.try_consume_messages(frame_slowlog_get).is_some());
+  assert!(feed(&mut session, frame_slowlog_get).is_some());
   let out = session.take_output();
   let text = String::from_utf8_lossy(&out);
   assert!(text.contains("foo"), "out: {text}");

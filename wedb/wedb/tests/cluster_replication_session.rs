@@ -175,8 +175,10 @@ fn cluster_replication_session_message_consumer_try_consume() {
 
   // 构造 7 元素初始化帧 RESP: *7\r\n$7\r\nCLUSTER\r\n$9\r\nAPPENDLOG\r\n$9\r\nprimary_1\r\n$1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n
   let init_frame = b"*7\r\n$7\r\nCLUSTER\r\n$9\r\nAPPENDLOG\r\n$9\r\nprimary_1\r\n$1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n";
-  let (consumed, resp) = session.try_consume_messages(init_frame);
-  assert_eq!(consumed, init_frame.len());
+  let mut resp = Vec::new();
+  session.recv_buffer.extend_from_slice(init_frame);
+  let remaining = session.try_consume_messages_into(&mut resp);
+  assert_eq!(remaining, Some(0));
   assert_eq!(resp, b"+OK\r\n");
 
   // 构造 8 元素记录帧 RESP（合法帧含 8B 头）
@@ -200,19 +202,22 @@ fn cluster_replication_session_message_consumer_try_consume() {
   rec_frame.extend_from_slice(&record_frame_bytes);
   rec_frame.extend_from_slice(b"\r\n");
 
-  let (consumed, resp) = session.try_consume_messages(&rec_frame);
-  assert_eq!(consumed, rec_frame.len());
+  session.recv_buffer.extend_from_slice(&rec_frame);
+  let remaining = session.try_consume_messages_into(&mut resp);
+  assert_eq!(remaining, Some(0));
   assert!(resp.is_empty(), "记录帧不回写应答（发出即忘）");
 
-  // 半包测试（数据未到齐）：游标不推进
+  // 半包测试（数据未到齐）：残余驻留缓冲，游标不产出应答
   let partial_frame = &rec_frame[..15];
-  let (consumed, resp) = session.try_consume_messages(partial_frame);
-  assert_eq!(consumed, 0);
+  session.recv_buffer.extend_from_slice(partial_frame);
+  let remaining = session.try_consume_messages_into(&mut resp);
+  assert_eq!(remaining, Some(partial_frame.len()));
   assert!(resp.is_empty());
 
   // 非法命令测试：返回 -ERR
   let invalid_cmd = b"*2\r\n$4\r\nPING\r\n$0\r\n\r\n";
-  let (consumed, resp) = session.try_consume_messages(invalid_cmd);
-  assert_eq!(consumed, invalid_cmd.len());
+  session.recv_buffer.extend_from_slice(invalid_cmd);
+  let remaining = session.try_consume_messages_into(&mut resp);
+  assert_eq!(remaining, Some(0));
   assert!(resp.starts_with(b"-ERR"));
 }

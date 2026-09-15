@@ -109,47 +109,12 @@ impl RespSessionConsumer {
 }
 
 impl MessageConsumerFace for RespSessionConsumer {
-  fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
-    if req_buffer.is_empty() {
-      return 0;
-    }
-    match self.session.try_consume_messages(req_buffer) {
-      Some(consumed) => {
-        self.session.take_output_into(resp_buf);
-        consumed
-      }
-      // 协议违规（C# RespParsingException → catch 块）：先放行累积应答
-      //（含同批此前命令应答 + ERR Protocol Error，C# Send 顺序），
-      // 由调用方发出后断连
-      None => {
-        self.session.take_output_into(resp_buf);
-        0
-      }
-    }
-  }
-
-  /// 致命断流信号转发（切面 GarnetException clientResponse:false 投影；
-  /// 主路径为 scratch 形态 None 通道，此处为回退形态兜底）
-  fn take_fatal_disconnect(&mut self) -> bool {
-    self.session.fatal_disconnect
-  }
-
-  /// 会话待释放哨兵转发（QUIT → toDispose；泵发尽应答后断连）
-  fn take_dispose_request(&mut self) -> bool {
-    self.session.take_dispose_request()
-  }
-
-  fn take_recv_scratch(&mut self) -> Option<Vec<u8>> {
-    // 会话自有接收缓冲整体移交泵直填（mem::take 占位，归还前缓冲为空壳）
-    Some(mem::take(&mut self.session.recv_buffer))
-  }
-
-  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
-    self.session.recv_buffer = buf;
-  }
-
-  fn try_consume_scratch_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
-    match self.session.try_consume_pending() {
+  /// libs/common/Networking/IMessageConsumer.cs:TryConsumeMessages
+  ///
+  /// 消费会话自有接收缓冲中自游标起的完整帧（会话唯一入口
+  /// [`RespServerSession::try_consume_messages`]），应答直写 resp_buf
+  fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+    match self.session.try_consume_messages() {
       Some(remaining) => {
         self.session.take_output_into(resp_buf);
         Some(remaining)
@@ -162,6 +127,26 @@ impl MessageConsumerFace for RespSessionConsumer {
         None
       }
     }
+  }
+
+  /// 致命断流信号转发（切面 GarnetException clientResponse:false 投影；
+  /// 消费 None 通道同批承运，此处为泵逐批复查兜底）
+  fn take_fatal_disconnect(&mut self) -> bool {
+    self.session.fatal_disconnect
+  }
+
+  /// 会话待释放哨兵转发（QUIT → toDispose；泵发尽应答后断连）
+  fn take_dispose_request(&mut self) -> bool {
+    self.session.take_dispose_request()
+  }
+
+  fn take_recv_scratch(&mut self) -> Vec<u8> {
+    // 会话自有接收缓冲整体移交泵直填（mem::take 占位，归还前缓冲为空壳）
+    mem::take(&mut self.session.recv_buffer)
+  }
+
+  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+    self.session.recv_buffer = buf;
   }
 
   fn dispose(&mut self) {

@@ -56,6 +56,17 @@ fn encode_frame(parts: &[&[u8]]) -> Vec<u8> {
 }
 
 /// C# DropVectorSetWhileResettingStore
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn drop_vector_set_while_resetting_store() {
   let rt = Runtime::new().unwrap();
@@ -101,8 +112,8 @@ fn drop_vector_set_while_resetting_store() {
       }
       let id = i.to_le_bytes();
       let req = encode_frame(&[b"VADD", key, b"XB8", &data, &id]);
-      let (consumed, out) = consumer.try_consume_messages(&req);
-      assert_eq!(consumed, req.len());
+      let (consumed, out) = pump(&mut consumer, &req);
+      assert_eq!(consumed, Some(0));
       assert_eq!(out, b":1\r\n", "VADD #{i} 应成功: {out:?}");
     }
 
@@ -164,7 +175,7 @@ fn drop_vector_set_while_resetting_store() {
     eprintln!("[drop_vector_set_while_resetting_store] gate pauses={pauses}");
 
     // 存储与会话仍健康：命令通路正常
-    let (_, out) = consumer.try_consume_messages(&encode_frame(&[b"VCARD", key]));
+    let (_, out) = pump(&mut consumer, &encode_frame(&[b"VCARD", key]));
     assert!(!out.is_empty(), "删除后会话应仍可应答");
   });
 }

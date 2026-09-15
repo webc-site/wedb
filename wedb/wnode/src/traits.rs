@@ -34,24 +34,18 @@ pub trait ServerEnumerate: Send + Sync {
 
 /// 消息消费者面（底层网络读写切片泵消费端）
 ///
-/// 应答主形态为 [`Self::try_consume_messages_into`]（零拷贝直写泵写缓冲，
-/// 必选）；分配形态 [`Self::try_consume_messages`] 为存量兼容面（测试与
-/// 外部调用方仍依赖），默认桥接到主形态（临时 Vec 承接后转写）
+/// 消费形态唯一（C# IMessageConsumer 单方法）：缓冲与游标驻留消费者
+///（[`Self::take_recv_scratch`] 泵直填 + [`Self::try_consume_messages_into`]
+/// 持久游标消费），应答零拷贝直写泵写缓冲
 pub trait MessageConsumerFace: Send + 'static {
-  /// 零拷贝消费消息（主形态）：将应答直接追加到调用方传入的写缓冲区，
-  /// 避免中间 Vec 堆分配与二次拷贝
+  /// libs/common/Networking/IMessageConsumer.cs:TryConsumeMessages
   ///
-  /// 返回已消费字节数：`consumed == 0` 表示尚未凑齐完整帧
-  fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize;
-
-  /// 兼容形态（默认桥接）：消费接收缓冲区中的消息，应答整体落在独立 Vec 中
+  /// 消费会话自有接收缓冲中自上次游标起的完整帧，应答直写 resp_buf
+  ///（零拷贝，避免中间堆分配）
   ///
-  /// 返回 (已消费字节数, 待写回应答载荷)：`consumed == 0` 表示尚未凑齐完整帧
-  fn try_consume_messages(&mut self, req_buffer: &[u8]) -> (usize, Vec<u8>) {
-    let mut resp = Vec::new();
-    let consumed = self.try_consume_messages_into(req_buffer, &mut resp);
-    (consumed, resp)
-  }
+  /// 返回消费后残余字节数（半包长度；`0` = 整段消费完毕，会话已复位缓冲）；
+  /// `None` = 协议违规（C# RespParsingException 语义，泵发尽应答后断连）
+  fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize>;
 
   /// 取走致命断流信号（C# `GarnetException` 且 `DisposeSession = true` 的
   /// `DisposeNetworkSender` 等价：不写错误应答行，发尽本轮累积应答后断连）
@@ -70,27 +64,15 @@ pub trait MessageConsumerFace: Send + 'static {
     false
   }
 
-  /// 取走会话自有接收缓冲供泵直读（scratch 直读形态，对齐 C# RespServerSession
-  /// 的 bytesRead/readHead 私有缓冲模型：网络字节零拷贝直入会话缓冲，游标
+  /// 取走会话自有接收缓冲供泵直填（对齐 C# RespServerSession 的
+  /// bytesRead/readHead 私有缓冲模型：网络字节零拷贝直入会话缓冲，游标
   /// 跨批次持久）
   ///
-  /// 返回 None = 会话无直读面（泵回退拷贝路径，非 TCP 消费方与测试零感知）；
   /// 取走至 [`Self::return_recv_scratch`] 归还期间，泵不得触碰会话其余状态
-  fn take_recv_scratch(&mut self) -> Option<Vec<u8>> {
-    None
-  }
+  fn take_recv_scratch(&mut self) -> Vec<u8>;
 
   /// 归还接收缓冲（泵完成网络写入后调用；半包残余字节必须驻留会话）
-  fn return_recv_scratch(&mut self, _buf: Vec<u8>) {}
-
-  /// scratch 直读消费：消费会话自有接收缓冲中自上次游标起的完整帧，应答
-  /// 直写 resp_buf（C# TryConsumeMessages 的持久游标等价）
-  ///
-  /// 返回消费后残余字节数（半包长度；`0` = 整段消费完毕，会话已复位缓冲）；
-  /// `None` = 协议违规（C# RespParsingException 语义，泵断连）
-  fn try_consume_scratch_into(&mut self, _resp_buf: &mut Vec<u8>) -> Option<usize> {
-    None
-  }
+  fn return_recv_scratch(&mut self, buf: Vec<u8>);
 
   /// 会话累计命令数镜像进注册表条目（网络泵逐批调用；监视器瞬时 ops/s
   /// 数据源——C# MainMonitorTaskAsync 跨线程直读 sessionMetrics，rust

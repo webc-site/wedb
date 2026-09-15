@@ -73,8 +73,13 @@ struct Client {
 impl Client {
   /// 发一帧并同步取答应（不含阻塞命令的延迟应答）
   fn feed(&mut self, frame: &[u8]) -> Vec<u8> {
-    let (consumed, resp) = self.consumer.try_consume_messages(frame);
-    assert!(consumed > 0, "命令帧应被完整消费");
+    // 泵等价序：直填会话接收缓冲 → 唯一入口消费
+    let mut scratch = self.consumer.take_recv_scratch();
+    scratch.extend_from_slice(frame);
+    self.consumer.return_recv_scratch(scratch);
+    let mut resp = Vec::new();
+    let remaining = self.consumer.try_consume_messages_into(&mut resp);
+    assert!(remaining.is_some(), "命令帧应被完整消费");
     resp
   }
 

@@ -92,8 +92,8 @@ fn encode_frame(parts: &[&[u8]]) -> Vec<u8> {
 
 /// 单命令往返：同步段消费（必要时挂起慢路径由 block_on 承担网络泵闭环）
 fn roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, req: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(req);
-  assert_eq!(consumed, req.len(), "帧应被完整消费: {req:?}");
+  let (consumed, mut out) = pump(c, req);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {req:?}");
   if let Some(slow) = c.take_slow_wait() {
     rt.block_on(async {
       out.extend_from_slice(&slow.resolve().await);
@@ -371,6 +371,17 @@ fn build_frame(cmd: &str, mode: KeyMode, args: &[&str], key: &str) -> Vec<u8> {
 
 /// 向量集合命令对全部非向量键类型回 WRONGTYPE
 /// （VectorSetWrongTypeTests.cs:TestVectorSetCommandAsync × 12 命令 × 7 键类型）
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn vector_set_commands_wrongtype_against_non_vector_keys() {
   let rt = Runtime::new().unwrap();

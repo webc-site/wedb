@@ -122,6 +122,17 @@ fn remote_worker(node_id: &str, port: i32) -> Worker {
 /// 真 TCP 双节点冒烟（生产装配体）：副本 REPLICAOF 主端 → ensure_replication
 /// 钩子自动发起同步 → 主端 SET → 副本日志字节级追平。未装配数据面的基线
 /// 上复制流永不建立（等待处超时失败——红）
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn production_assembly_replicates_over_real_tcp() -> Void {
   Runtime::new().unwrap().block_on(async {
@@ -270,7 +281,7 @@ fn primary_arm_without_assets_reports_not_initialized() -> Void {
 
     let frame = initiate_frame();
     // 资产缺位为同步拒绝路径（不登记慢路径），错误直书输出
-    let (_, out) = consumer.try_consume_messages(&frame);
+    let (_, out) = pump(&mut consumer, &frame);
     assert!(
       out.starts_with(b"-ERR Cluster not initialized"),
       "未装配资产时 arm 必须同步回 NOT INITIALIZED: {}",
@@ -328,7 +339,7 @@ fn primary_arm_after_wiring_proceeds_past_not_initialized() -> Void {
     let mut consumer = cluster_consumer(&provider, Arc::clone(&cluster_session));
 
     let frame = initiate_frame();
-    let (_, out) = consumer.try_consume_messages(&frame);
+    let (_, out) = pump(&mut consumer, &frame);
     assert!(out.is_empty());
     let slow = consumer.take_slow_wait().expect("arm 应登记慢路径执行体");
     let out = slow.resolve().await;

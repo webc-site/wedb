@@ -51,8 +51,11 @@ fn session_provider_multi_set_exec_pipelined() -> aok::Result<()> {
     let req =
       b"*1\r\n$5\r\nMULTI\r\n*3\r\n$3\r\nSET\r\n$2\r\nk1\r\n$2\r\nv1\r\n*1\r\n$4\r\nEXEC\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
 
     // 预期输出：+OK (MULTI) +QUEUED (SET) *1\r\n+OK\r\n (EXEC 结果数组)
     let expected = b"+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n";
@@ -64,8 +67,11 @@ fn session_provider_multi_set_exec_pipelined() -> aok::Result<()> {
     // 2. 验证写入已持久生效：GET k1 -> $2\r\nv1\r\n
     resp.clear();
     let get_req = b"*2\r\n$3\r\nGET\r\n$2\r\nk1\r\n";
-    let consumed_get = consumer.try_consume_messages_into(get_req, &mut resp);
-    assert_eq!(consumed_get, get_req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(get_req);
+    consumer.return_recv_scratch(scratch);
+    let consumed_get = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed_get, Some(0));
     assert_eq!(resp, b"$2\r\nv1\r\n");
 
     Ok(())
@@ -95,8 +101,11 @@ fn session_provider_multi_incr_get_exec() -> aok::Result<()> {
     // MULTI -> SET num 10 -> INCR num -> GET num -> EXEC
     let req = b"*1\r\n$5\r\nMULTI\r\n*3\r\n$3\r\nSET\r\n$3\r\nnum\r\n$2\r\n10\r\n*2\r\n$4\r\nINCR\r\n$3\r\nnum\r\n*2\r\n$3\r\nGET\r\n$3\r\nnum\r\n*1\r\n$4\r\nEXEC\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
 
     let expected = b"+OK\r\n+QUEUED\r\n+QUEUED\r\n+QUEUED\r\n*3\r\n+OK\r\n:11\r\n$2\r\n11\r\n";
     assert_eq!(resp, expected, "多命令事务执行与复合应答数组正确");
@@ -130,34 +139,34 @@ fn session_provider_scratch_incremental_batches() -> aok::Result<()> {
     let mut resp = Vec::new();
 
     // 批次 1: MULTI
-    let mut scratch = consumer.take_recv_scratch().unwrap();
+    let mut scratch = consumer.take_recv_scratch();
     scratch.extend_from_slice(b"*1\r\n$5\r\nMULTI\r\n");
     consumer.return_recv_scratch(scratch);
-    assert!(consumer.try_consume_scratch_into(&mut resp).is_some());
+    assert!(consumer.try_consume_messages_into(&mut resp).is_some());
     assert_eq!(resp, b"+OK\r\n");
     resp.clear();
 
     // 批次 2: SET batch_key batch_val
-    let mut scratch = consumer.take_recv_scratch().unwrap();
+    let mut scratch = consumer.take_recv_scratch();
     scratch.extend_from_slice(b"*3\r\n$3\r\nSET\r\n$9\r\nbatch_key\r\n$9\r\nbatch_val\r\n");
     consumer.return_recv_scratch(scratch);
-    assert!(consumer.try_consume_scratch_into(&mut resp).is_some());
+    assert!(consumer.try_consume_messages_into(&mut resp).is_some());
     assert_eq!(resp, b"+QUEUED\r\n");
     resp.clear();
 
     // 批次 3: EXEC
-    let mut scratch = consumer.take_recv_scratch().unwrap();
+    let mut scratch = consumer.take_recv_scratch();
     scratch.extend_from_slice(b"*1\r\n$4\r\nEXEC\r\n");
     consumer.return_recv_scratch(scratch);
-    assert!(consumer.try_consume_scratch_into(&mut resp).is_some());
+    assert!(consumer.try_consume_messages_into(&mut resp).is_some());
     assert_eq!(resp, b"*1\r\n+OK\r\n");
     resp.clear();
 
     // 批次 4: 验证写结果 GET batch_key
-    let mut scratch = consumer.take_recv_scratch().unwrap();
+    let mut scratch = consumer.take_recv_scratch();
     scratch.extend_from_slice(b"*2\r\n$3\r\nGET\r\n$9\r\nbatch_key\r\n");
     consumer.return_recv_scratch(scratch);
-    assert!(consumer.try_consume_scratch_into(&mut resp).is_some());
+    assert!(consumer.try_consume_messages_into(&mut resp).is_some());
     assert_eq!(resp, b"$9\r\nbatch_val\r\n");
 
     Ok(())
@@ -187,8 +196,11 @@ fn session_provider_discard_flow() -> aok::Result<()> {
     // MULTI -> SET k_disc v_disc -> DISCARD -> GET k_disc
     let req = b"*1\r\n$5\r\nMULTI\r\n*3\r\n$3\r\nSET\r\n$6\r\nk_disc\r\n$6\r\nv_disc\r\n*1\r\n$7\r\nDISCARD\r\n*2\r\n$3\r\nGET\r\n$6\r\nk_disc\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req, &mut resp);
-    assert_eq!(consumed, req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
 
     // +OK (MULTI), +QUEUED (SET), +OK (DISCARD), $-1\r\n (GET key 不存在)
     let expected = b"+OK\r\n+QUEUED\r\n+OK\r\n$-1\r\n";
@@ -221,14 +233,20 @@ fn session_provider_watch_and_conflict_abort() -> aok::Result<()> {
     // 1. 无并发修改场景：WATCH -> MULTI -> SET -> EXEC 正常提交
     let req1 = b"*2\r\n$5\r\nWATCH\r\n$4\r\nkey1\r\n*1\r\n$5\r\nMULTI\r\n*3\r\n$3\r\nSET\r\n$4\r\nkey1\r\n$4\r\nval1\r\n*1\r\n$4\r\nEXEC\r\n";
     let mut resp = Vec::new();
-    let consumed = consumer.try_consume_messages_into(req1, &mut resp);
-    assert_eq!(consumed, req1.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(req1);
+    consumer.return_recv_scratch(scratch);
+    let consumed = consumer.try_consume_messages_into(&mut resp);
+    assert_eq!(consumed, Some(0));
     assert_eq!(resp, b"+OK\r\n+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n");
 
     // 2. 并发冲突场景：WATCH key2 -> 外部修改 key2 -> MULTI -> SET key2 -> EXEC 提交失败返回 *-1\r\n
     resp.clear();
     let watch_req = b"*2\r\n$5\r\nWATCH\r\n$4\r\nkey2\r\n";
-    assert_eq!(consumer.try_consume_messages_into(watch_req, &mut resp), watch_req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(watch_req);
+    consumer.return_recv_scratch(scratch);
+    assert_eq!(consumer.try_consume_messages_into(&mut resp), Some(0));
     assert_eq!(resp, b"+OK\r\n");
 
     // 通过共享的 watch_version_map 模拟外部并发修改
@@ -237,7 +255,10 @@ fn session_provider_watch_and_conflict_abort() -> aok::Result<()> {
 
     resp.clear();
     let txn_req = b"*1\r\n$5\r\nMULTI\r\n*3\r\n$3\r\nSET\r\n$4\r\nkey2\r\n$4\r\nval2\r\n*1\r\n$4\r\nEXEC\r\n";
-    assert_eq!(consumer.try_consume_messages_into(txn_req, &mut resp), txn_req.len());
+    let mut scratch = consumer.take_recv_scratch();
+    scratch.extend_from_slice(txn_req);
+    consumer.return_recv_scratch(scratch);
+    assert_eq!(consumer.try_consume_messages_into(&mut resp), Some(0));
     assert_eq!(
       resp,
       b"+OK\r\n+QUEUED\r\n*-1\r\n",

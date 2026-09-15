@@ -723,17 +723,20 @@ mod tests {
     // RUNTXP <id>：注册过的空事务过程 → 提交回 +OK
     //（test/standalone/Garnet.test.scripting/RespTransactionProcTests.cs:TransactionProcTest1）
     let frame = format!("*2\r\n$6\r\nRUNTXP\r\n$1\r\n{id}\r\n");
-    assert!(s.try_consume_messages(frame.as_bytes()).is_some());
+    assert!(feed_consume(&mut s, frame.as_bytes()).is_some());
     assert_eq!(s.take_output(), b"+OK\r\n");
 
     // 未注册 id → C# GetCustomTransactionProcedure 抛异常同款错误
-    assert!(
-      s.try_consume_messages(b"*2\r\n$6\r\nRUNTXP\r\n$1\r\n9\r\n")
-        .is_some()
-    );
+    assert!(feed_consume(&mut s, b"*2\r\n$6\r\nRUNTXP\r\n$1\r\n9\r\n").is_some());
     assert_eq!(
       s.take_output(),
       b"-ERR Could not get transaction procedure\r\n"
     );
+  }
+
+  /// 模拟泵直填一批字节（take → extend → return → consume 的会话侧等价）
+  fn feed_consume(s: &mut RespServerSession, bytes: &[u8]) -> Option<usize> {
+    s.recv_buffer.extend_from_slice(bytes);
+    s.try_consume_messages()
   }
 }

@@ -33,16 +33,16 @@ fn consumer() -> RespSessionConsumer {
 
 /// 单命令往返（同步快路径）
 fn roundtrip(c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
 }
 
 /// 慢命令往返：同步段消费（挂起不产输出）→ 网络泵 await 慢路径 →
 /// 应答按流水线顺序写回（此处 block_on 承担网络泵角色）
 fn slow_roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, mut out) = c.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, mut out) = pump(c, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   let Some(slow) = c.take_slow_wait() else {
     return out;
   };
@@ -66,6 +66,17 @@ fn set_keys(c: &mut RespSessionConsumer, keys: &[&str]) {
 }
 
 /// DBSIZE / KEYS 慢路径闭环
+/// 泵等价消费（直填会话接收缓冲 → 唯一入口 → 应答取出）
+/// 返回 (消费后残余, 应答)：Some(0) = 完整消费，None = 协议违规
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
+}
+
 #[test]
 fn dbsize_and_keys_via_slow_path() {
   let rt = Runtime::new().unwrap();
@@ -213,9 +224,11 @@ fn slow_path_preserves_pipeline_order() {
 
   // 同批两帧：GET a（快）+ DBSIZE（慢）——单次消费调用内快应答即时写出，
   // 慢应答由网络泵补齐
-  let (consumed, mut out) =
-    c.try_consume_messages(b"*2\r\n$3\r\nGET\r\n$1\r\na\r\n*1\r\n$6\r\nDBSIZE\r\n");
-  assert_eq!(consumed, 36);
+  let (consumed, mut out) = pump(
+    &mut c,
+    b"*2\r\n$3\r\nGET\r\n$1\r\na\r\n*1\r\n$6\r\nDBSIZE\r\n",
+  );
+  assert_eq!(consumed, Some(0));
   assert_eq!(out, b"$1\r\nv\r\n", "快命令应答即时写出");
   let slow = c.take_slow_wait().expect("DBSIZE 应挂起慢路径");
   rt.block_on(async {
@@ -297,9 +310,8 @@ fn memory_usage_live_key_fast_path() {
   );
 
   // 未过期：同步 ttl_gate 通过，整数应答（>0），无慢路径挂起
-  let (consumed, out) =
-    c.try_consume_messages(b"*3\r\n$6\r\nMEMORY\r\n$5\r\nUSAGE\r\n$2\r\nlk\r\n");
-  assert_eq!(consumed, 35);
+  let (consumed, out) = pump(&mut c, b"*3\r\n$6\r\nMEMORY\r\n$5\r\nUSAGE\r\n$2\r\nlk\r\n");
+  assert_eq!(consumed, Some(0));
   assert_eq!(out[0], b':', "活键应直接整数应答: {out:?}");
   assert!(c.take_slow_wait().is_none(), "活键不应挂起慢路径");
 }

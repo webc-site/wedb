@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{mem::take, net::SocketAddr};
 
 use compio::runtime::Runtime;
 use wedb_test::test_store_config;
@@ -70,15 +70,28 @@ fn test_garnet_server_lifecycle() -> aok::Result<()> {
   };
   use wnode::{GarnetServer, MessageConsumerFace, SessionProviderFace, WireFormat};
 
-  struct EchoConsumer;
+  struct EchoConsumer {
+    buf: Vec<u8>,
+    head: usize,
+  }
   impl MessageConsumerFace for EchoConsumer {
-    fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
-      if req_buffer.starts_with(b"PING\r\n") {
+    fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+      while self.buf[self.head..].starts_with(b"PING\r\n") {
+        self.head += 6;
         resp_buf.extend_from_slice(b"+PONG\r\n");
-        6
-      } else {
-        0
       }
+      if self.head >= self.buf.len() {
+        self.buf.clear();
+        self.head = 0;
+        return Some(0);
+      }
+      Some(self.buf.len() - self.head)
+    }
+    fn take_recv_scratch(&mut self) -> Vec<u8> {
+      take(&mut self.buf)
+    }
+    fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+      self.buf = buf;
     }
     fn dispose(&mut self) {}
   }
@@ -87,7 +100,10 @@ fn test_garnet_server_lifecycle() -> aok::Result<()> {
   impl SessionProviderFace for EchoProvider {
     type Consumer = EchoConsumer;
     fn get_session(&self, _wf: WireFormat, _id: u64) -> Option<EchoConsumer> {
-      Some(EchoConsumer)
+      Some(EchoConsumer {
+        buf: Vec::new(),
+        head: 0,
+      })
     }
   }
 
@@ -128,15 +144,28 @@ fn test_garnet_server_uds_lifecycle() -> aok::Result<()> {
   use tempfile::tempdir;
   use wnode::{GarnetServer, MessageConsumerFace, SessionProviderFace, WireFormat};
 
-  struct EchoConsumer;
+  struct EchoConsumer {
+    buf: Vec<u8>,
+    head: usize,
+  }
   impl MessageConsumerFace for EchoConsumer {
-    fn try_consume_messages_into(&mut self, req_buffer: &[u8], resp_buf: &mut Vec<u8>) -> usize {
-      if req_buffer.starts_with(b"PING\r\n") {
+    fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+      while self.buf[self.head..].starts_with(b"PING\r\n") {
+        self.head += 6;
         resp_buf.extend_from_slice(b"+PONG\r\n");
-        6
-      } else {
-        0
       }
+      if self.head >= self.buf.len() {
+        self.buf.clear();
+        self.head = 0;
+        return Some(0);
+      }
+      Some(self.buf.len() - self.head)
+    }
+    fn take_recv_scratch(&mut self) -> Vec<u8> {
+      std::mem::take(&mut self.buf)
+    }
+    fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+      self.buf = buf;
     }
     fn dispose(&mut self) {}
   }
@@ -145,7 +174,10 @@ fn test_garnet_server_uds_lifecycle() -> aok::Result<()> {
   impl SessionProviderFace for EchoProvider {
     type Consumer = EchoConsumer;
     fn get_session(&self, _wf: WireFormat, _id: u64) -> Option<EchoConsumer> {
-      Some(EchoConsumer)
+      Some(EchoConsumer {
+        buf: Vec::new(),
+        head: 0,
+      })
     }
   }
 
