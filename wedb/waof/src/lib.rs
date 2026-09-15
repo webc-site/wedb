@@ -2,6 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 mod address;
+mod args;
 mod config;
 mod disk_window;
 mod error;
@@ -13,6 +14,7 @@ mod ring_buffer;
 mod sequence_number_generator;
 
 pub use address::{AOF_ADDRESS_BYTES, AofAddress, MAX_SUBLOG_COUNT};
+pub use args::{arg_sequence_len, decode_arg_sequence, encode_arg_sequence};
 pub use config::WalConfig;
 pub use error::{Error, Result};
 pub use header::{
