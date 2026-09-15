@@ -1,0 +1,7 @@
+- 理由: C# SessionScriptCache.SetUserHandle 喂给内嵌 processor（独立
+    RespServerSession）的 ACL 门；rust 无内嵌 processor，脚本内 ACL 检查经
+    RespScriptingApi 直达外层会话 acl_user_handle（认证变更即最新），缓存侧
+    句柄复制无生产实效，随 wlua cache.rs 死字段删除（task/done/lua-pubsub-gaps.md）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - SetUserHandle

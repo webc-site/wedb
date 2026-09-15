@@ -102,8 +102,6 @@ pub struct SessionScriptCache {
   scripts: HashMap<ScriptHashKey, Vec<u8>>,
   /// 正在运行的脚本（引用计数语义：Start/Stop 配对）。
   running: HashMap<ScriptHashKey, u32>,
-  /// 关联的用户句柄（ACL 场景）。
-  user_handle: Option<u64>,
   /// 超时装配（None = 未启用；C# timeoutManager == null 形态）。
   timeout: Option<SessionTimeout>,
 }
@@ -121,11 +119,6 @@ impl Drop for SessionScriptCache {
 }
 
 impl SessionScriptCache {
-  /// libs/server/Lua/SessionScriptCache.cs:SetUserHandle
-  pub fn set_user_handle(&mut self, user_handle: Option<u64>) {
-    self.user_handle = user_handle;
-  }
-
   /// 装配超时管理器（C# 构造注入 timeoutManager；仅首次生效，重复注入
   /// 保留既有登记）。
   pub fn set_timeout_manager(&mut self, manager: Arc<LuaTimeoutManager>) {
@@ -135,11 +128,6 @@ impl SessionScriptCache {
         registration: None,
       });
     }
-  }
-
-  /// 关联的用户句柄。
-  pub fn user_handle(&self) -> Option<u64> {
-    self.user_handle
   }
 
   /// libs/server/Lua/SessionScriptCache.cs:StartRunningScript
@@ -401,8 +389,6 @@ mod tests {
     assert!(cache.is_running(&hash));
     cache.stop_running_script(&hash);
     assert!(!cache.is_running(&hash));
-    cache.set_user_handle(Some(42));
-    assert_eq!(cache.user_handle(), Some(42));
     // swap 语义：脚本保留。
     assert!(cache.try_swap_database_sessions(0, 1));
     assert_eq!(cache.len(), 1);

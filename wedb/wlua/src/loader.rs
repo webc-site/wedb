@@ -132,7 +132,7 @@ local garnetCallRef = chain_func(error_wrapper_r1, garnet_call)
 local pCallRef = pcall
 local redis = {
     status_reply = function(text)
-        return { ok = text or "" }
+        return text
     end,
 
     error_reply = function(text)

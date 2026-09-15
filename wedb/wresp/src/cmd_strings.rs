@@ -100,6 +100,8 @@ pub const RESP_WRONGPASS_INVALID_USERNAME_PASSWORD: &str =
 pub const RESP_ERR_BUSSYKEY: &str = "BUSYKEY Target key name already exists.";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_INVALID_EXPIRE_TIME
 pub const RESP_ERR_INVALID_EXPIRE_TIME: &str = "ERR invalid expire time, must be >= 0";
+/// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOSCRIPT
+pub const RESP_ERR_NOSCRIPT: &str = "ERR This Redis command is not allowed from script";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS
 pub const RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS: &str = "ERR HCOLLECT scan already in progress";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS
