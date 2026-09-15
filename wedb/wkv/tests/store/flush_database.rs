@@ -62,10 +62,7 @@ fn test_flush_database_isolation() -> Void {
     assert_eq!(db1.read(b"k1").await?, Some(b"v1".to_vec()));
     // put_ttl 落盘前 4-bit coarse 粗化（ExpirationWithOption.cs:22-23），
     // i64::MAX 读回为低 4 位清零值
-    assert_eq!(
-      db1.ttl_of(b"k1").await?,
-      Some((i64::MAX >> 4) << 4)
-    );
+    assert_eq!(db1.ttl_of(b"k1").await?, Some((i64::MAX >> 4) << 4));
 
     // 命名空间 1 的库 0 完好
     ns1.set_context(1, 0);
