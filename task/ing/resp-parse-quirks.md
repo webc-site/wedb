@@ -147,3 +147,37 @@ wnode/tests/resp_error_text_tests.rs 追加字节级断言（先例同款真服�
   未在清单，未逐 token 复核
 - RespCommand 枚举 rust 侧含 Ripromote/Rirestore（C# 有枚举，rust 分派
   面未见对应 arm）——归属 RI 域完整性问题，非解析口径
+
+## 验证结果
+
+四条全部实现并合并（分支 w5-parse-quirks，worktree 已清理）。
+
+一（P1 集合族宽度）：sorted_set_commands.rs 六处 strict_i32 收敛；list_commands.rs
+LMPOP/BLMPOP、sorted_set_geo_commands.rs GEO COUNT 最小改动同批。逐 token 对照
+追加修正三处文案：BZMPOP numkeys/count 改 Parameter 反引号版
+（SortedSetCommands.cs:1644/:1687），ZINTERCARD nKeys<1 改 AtLeastOneKey 实名版
+（:1191）、limit<0 改 "ERR LIMIT can't be negative"（:1218）。
+
+二（SCAN 两态）：未知选项静默跳过；COUNT 负/零钳 0（扫描层 max(1) 后首条匹配
+即停，与 C# Tsavorite acceptedCount >= count 语义等价）；TYPE 改
+SequenceEqual 大小写敏感双字面量，未知 TYPE 值慢路径直接回
+`*2\r\n$1\r\n0\r\n*0\r\n`（C# DbScan :82-84 提前返回同口径），
+ScanFilter 新增 type_unknown，garnet_api.rs 消费端三行承接。
+
+三（RI.CREATE 吞错）：五处 unwrap_or(0) 改 ri_option_long（C# GetLong 口径，
+前导零合法），失败两态回 ThrowNotANumber / ThrowIntegerOverflow 文案（catch
+前缀 ERR Protocol Error）。测试发现并修复空串/单符号分支（C# ReadLong
+length==0 路径）。RI.SCAN count 同文件顺带收敛 strict_i32。断连语义差异记录
+于模块文档：rust exec_slow 架构下无会话可变面，文案字节对齐而连接保持。
+
+四（RILEN 死码）：network_rilen 自由函数与 impl 方法两层删除；命令查表本就无
+"RI.LEN"（九 arm 与 C# 一致）；wedb_standalone/tests/range_index_tests.rs 的
+ri_len_basic_test 无 C# 对标一并清理（wkv 内部 API 已有独立覆盖）；无需
+check/ignore 登记。
+
+测试落地：resp_error_text_tests.rs 追加三集成测（集合族宽度文案、SCAN 两态、
+RI 协议错误 + 断连差异 + RI.LEN unknown command）+ RI 模块两单测。
+
+验收：./clippy.sh 零警告；./test.sh 全过（nextest 2058 passed + regress
+2 passed）；bun ./js/check.js 双端（主目录与 worktree）退出码 0 无新增缺失/
+重复。合并 dev 无冲突，主目录 dev 已 fast-forward 至 19a2e47。
