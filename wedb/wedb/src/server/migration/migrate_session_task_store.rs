@@ -72,7 +72,7 @@ impl MigrateSessionTaskStore {
   pub fn try_add_migrate_session(
     &self,
     cluster_provider: Arc<ClusterProvider>,
-    spec: MigrateTaskSpec<'_>,
+    spec: MigrateTaskSpec,
     slots: HashSet<i32>,
     sketch: Sketch,
   ) -> Option<Arc<MigrateSession>> {

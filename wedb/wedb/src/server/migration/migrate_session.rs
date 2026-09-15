@@ -5,22 +5,30 @@ use parking_lot::RwLock;
 
 use crate::server::{
   cluster_provider::ClusterProvider,
-  migration::{migrate_state::MigrateState, sketch::Sketch, sketch_status::SketchStatus},
+  migration::{
+    migrate_state::MigrateState, sketch::Sketch, sketch_status::SketchStatus,
+    transfer_option::TransferOption,
+  },
 };
 
 /// 迁移任务入参聚合（C# MigrateSession 构造散参收敛为单一 spec，
-/// Manager→Store→Session 三层透传共用，免 too_many_arguments）
-#[derive(Clone, Copy)]
-pub struct MigrateTaskSpec<'a> {
-  pub source_node_id: &'a str,
-  pub target_address: &'a str,
+/// Manager→Store→Session 三层透传共用，免 too_many_arguments）；
+/// 字段拥有型（对标 C# MigrateSession 只读 string 字段），可跨慢路径
+/// 与后台任务转移
+#[derive(Clone)]
+pub struct MigrateTaskSpec {
+  pub source_node_id: String,
+  pub target_address: String,
   pub target_port: i32,
-  pub target_node_id: &'a str,
-  pub username: &'a str,
-  pub passwd: &'a str,
+  pub target_node_id: String,
+  pub username: String,
+  pub passwd: String,
   pub copy_option: bool,
   pub replace_option: bool,
   pub timeout: i32,
+  /// 传输形态（libs/cluster/Session/TransferOption.cs，C# MigrateSession
+  /// transferOption 同源；命令臂按解析结果填充并消费分派）
+  pub transfer_option: TransferOption,
 }
 
 /// libs/cluster/Server/Migration/MigrateSession.cs:MigrateSession
@@ -36,7 +44,7 @@ impl MigrateSession {
   /// libs/cluster/Server/Migration/MigrateSession.cs:MigrateSession
   pub fn new(
     cluster_provider: Arc<ClusterProvider>,
-    spec: MigrateTaskSpec<'_>,
+    spec: MigrateTaskSpec,
     slots: HashSet<i32>,
     sketch: Sketch,
   ) -> Self {

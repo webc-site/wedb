@@ -12,13 +12,6 @@ use crate::server::{
   },
 };
 
-/// libs/cluster/Server/Migration/MigrationManager.cs:TransferOption
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum TransferOption {
-  Slots,
-  Keys,
-}
-
 /// libs/cluster/Server/Migration/MigrationManager.cs:MigrationManager
 pub struct MigrationManager {
   cluster_provider: Arc<ClusterProvider>,
@@ -70,7 +63,7 @@ impl MigrationManager {
   /// libs/cluster/Server/Migration/MigrationManager.cs:TryAddMigrationTask
   pub fn try_add_migration_task(
     &self,
-    spec: MigrateTaskSpec<'_>,
+    spec: MigrateTaskSpec,
     slots: HashSet<i32>,
     sketch: Sketch,
   ) -> Option<Arc<MigrateSession>> {
