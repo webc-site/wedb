@@ -12,45 +12,32 @@ use wtxn::{TransactionManager, TxnProcedure, WatchVersionMap};
 
 use crate::aof::AofReplayError;
 
-/// 提取存储过程条目载荷（C# `AofHeader.SkipHeader` 的判别形态：按头型取
-/// 完整头尺寸后切片）。
+/// 提取存储过程条目载荷（waof 头层 [`AofHeader::skip_header`] 单点：
+/// 按头型跳过完整头后切片）。
 pub fn stored_proc_payload(entry: &[u8]) -> Result<&[u8], AofReplayError> {
-  let header = AofHeader::parse(entry).ok_or("存储过程条目头损坏")?;
-  let header_size = header
-    .header_type()
-    .map_or(AofHeader::TOTAL_SIZE, |t| t.total_size());
+  let header_size = AofHeader::skip_header(entry).ok_or("存储过程条目头损坏")?;
   entry
     .get(header_size..)
     .ok_or_else(|| "存储过程条目载荷截断".to_string().into())
 }
 
 /// 存储过程输入参数序列编解码（C# `CustomProcedureInput.DeserializeFrom`
-/// 参数区的 [`crate::aof::ReplayInput`] 同款格式：`[count u32][逐参
-/// (len u32 + bytes)]`）。
+/// 参数区；布局与编解码单点在 waof `encode_arg_sequence` /
+/// `decode_arg_sequence`，与 [`crate::aof::ReplayInput`] 参数区共用）。
 pub mod stored_proc_args {
   /// 序列化参数序列到缓冲尾部（泛型支持切片序列或 Vec 序列）。
   pub fn encode<T: AsRef<[u8]>>(args: &[T], into: &mut Vec<u8>) {
-    into.reserve(4 + args.iter().map(|a| 4 + a.as_ref().len()).sum::<usize>());
-    into.extend_from_slice(&(args.len() as u32).to_le_bytes());
-    for arg in args {
-      let slice = arg.as_ref();
-      into.extend_from_slice(&(slice.len() as u32).to_le_bytes());
-      into.extend_from_slice(slice);
-    }
+    let len = waof::arg_sequence_len(args);
+    into.reserve(len);
+    let start = into.len();
+    into.resize(start + len, 0);
+    let written = waof::encode_arg_sequence(args, &mut into[start..]);
+    debug_assert_eq!(written, len);
   }
 
   /// 从载荷解码参数序列；越界 / 截断即 `None`（条目损坏）。
-  pub fn decode(mut bytes: &[u8]) -> Option<Vec<Vec<u8>>> {
-    let count = u32::from_le_bytes(*bytes.first_chunk::<4>()?) as usize;
-    bytes = &bytes[4..];
-    let mut args = Vec::with_capacity(count.min(bytes.len() / 4));
-    for _ in 0..count {
-      let len = u32::from_le_bytes(*bytes.first_chunk::<4>()?) as usize;
-      bytes = bytes.get(4..)?;
-      args.push(bytes.get(..len)?.to_vec());
-      bytes = &bytes[len..];
-    }
-    Some(args)
+  pub fn decode(bytes: &[u8]) -> Option<Vec<Vec<u8>>> {
+    waof::decode_arg_sequence(bytes)
   }
 }
 

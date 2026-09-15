@@ -277,10 +277,10 @@ impl<'a, T: AsRef<[u8]>> ReplayInputSlice<'a, T> {
 }
 
 impl ReplayInput {
-  /// 计算切片序列化字节数
+  /// 计算切片序列化字节数（32B 固定头 + 参数序列区）
   #[inline]
   pub fn encoded_len_for_slices(args: &[impl AsRef<[u8]>]) -> usize {
-    36 + args.iter().map(|a| 4 + a.as_ref().len()).sum::<usize>()
+    REPLAY_INPUT_HEADER_SIZE + waof::arg_sequence_len(args)
   }
 
   /// 序列化到缓冲切片，返回已写入切片（若缓冲不足则返回 None）
@@ -301,16 +301,9 @@ impl ReplayInput {
     buf[8..16].copy_from_slice(&input.arg1.to_le_bytes());
     buf[16..24].copy_from_slice(&input.arg2.to_le_bytes());
     buf[24..32].copy_from_slice(&input.arg3.to_le_bytes());
-    buf[32..36].copy_from_slice(&(input.args.len() as u32).to_le_bytes());
-    let mut cursor = 36;
-    for arg in input.args {
-      let slice = arg.as_ref();
-      buf[cursor..cursor + 4].copy_from_slice(&(slice.len() as u32).to_le_bytes());
-      cursor += 4;
-      buf[cursor..cursor + slice.len()].copy_from_slice(slice);
-      cursor += slice.len();
-    }
-    Some(&buf[..total_len])
+    let args_len =
+      waof::encode_arg_sequence(input.args, &mut buf[REPLAY_INPUT_HEADER_SIZE..]);
+    Some(&buf[..REPLAY_INPUT_HEADER_SIZE + args_len])
   }
 
   /// 统一零分配/低分配写入助手：优先使用 512B 栈缓冲，超大载荷自动回落堆缓冲
@@ -349,36 +342,15 @@ impl ReplayInput {
     Self::encode_to_slice(&slice_input, &mut into[start..]);
   }
 
-  /// 反序列化（C# StringInput.DeserializeFrom 的组合形态）。
+  /// 反序列化（C# StringInput.DeserializeFrom 的组合形态；参数序列区
+  /// 经 waof 单点解码）。
   pub fn deserialize(bytes: &[u8]) -> Option<Self> {
     if bytes.len() < REPLAY_INPUT_HEADER_SIZE {
       return None;
     }
     let cmd = RespCommand::try_from(u16::from_le_bytes([bytes[0], bytes[1]])).ok()?;
-    // 参数区：[count u32][逐参 (len u32 + bytes)]，起点 = 固定头 32
-    let mut cursor = REPLAY_INPUT_HEADER_SIZE;
-    if cursor + 4 > bytes.len() {
-      return None;
-    }
-    let args_count = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
-    cursor += 4;
-    let max_possible_args = (bytes.len() - cursor) / 4;
-    if args_count > max_possible_args {
-      return None;
-    }
-    let mut args = Vec::with_capacity(args_count);
-    for _ in 0..args_count {
-      if cursor + 4 > bytes.len() {
-        return None;
-      }
-      let len = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().ok()?) as usize;
-      cursor += 4;
-      if cursor + len > bytes.len() {
-        return None;
-      }
-      args.push(bytes[cursor..cursor + len].to_vec());
-      cursor += len;
-    }
+    // 参数序列区：waof 单点（count 防爆破 + 逐参边界校验）
+    let args = waof::decode_arg_sequence(&bytes[REPLAY_INPUT_HEADER_SIZE..])?;
     Some(Self {
       cmd,
       flags: bytes[2],
@@ -564,32 +536,26 @@ impl AofProcessor {
 
   /// libs/server/AOF/AofProcessor.cs:GetSynchronizedOperationParams
   ///
-  /// 提取（序列号, 参与者数）：事务头形态取头内参与者数（SingleLog 取
-  /// 条目地址为序、Sharded 取内嵌序列号），其余形态取条目地址 +
-  /// 全量回放任务数（C# BasicHeader 兜底分支）。
+  /// 提取（序列号, 参与者数）：序列号经 [`AofHeader::sequence_number_of`]
+  /// 单点（分片形态取内嵌、其余取条目地址）；参与者数事务头形态取头内
+  /// 值，其余取全量回放任务数（C# BasicHeader 兜底分支）。
   pub fn get_synchronized_operation_params(
     &self,
     entry: &[u8],
     entry_address: i64,
   ) -> Option<(i64, i16)> {
     let header = AofHeader::parse(entry)?;
-    match header.header_type()? {
+    let sequence_number = AofHeader::sequence_number_of(entry, entry_address)?;
+    let participant_count = match header.header_type()? {
       AofHeaderType::SingleLogTransactionHeader => {
-        let h = AofSingleLogTransactionHeader::parse(entry)?;
-        Some((entry_address, h.participant_count))
+        AofSingleLogTransactionHeader::parse(entry)?.participant_count
       }
       AofHeaderType::ShardedLogTransactionHeader => {
-        let h = AofShardedLogTransactionHeader::parse(entry)?;
-        Some((h.sharded.sequence_number, h.participant_count))
+        AofShardedLogTransactionHeader::parse(entry)?.participant_count
       }
-      AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => {
-        Some((entry_address, self.replay_task_count() as i16))
-      }
-      AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        let sh = AofShardedHeader::parse(entry)?;
-        Some((sh.sequence_number, self.replay_task_count() as i16))
-      }
-    }
+      _ => self.replay_task_count() as i16,
+    };
+    Some((sequence_number, participant_count))
   }
 
   /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ReplayStoredProc
@@ -1575,14 +1541,15 @@ impl AofProcessor {
   ) -> Option<(bool, i64)> {
     let header = AofHeader::parse(entry)?;
     let log = self.append_only_file.log();
+    // 序列号单点：分片形态取内嵌，其余取条目地址
+    let sequence_number = AofHeader::sequence_number_of(entry, entry_address)?;
     match header.header_type()? {
       AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => {
         let op_type = AofEntryType::try_from(header.op_type).ok()?;
         if !op_type.has_key() {
-          return Some((true, entry_address));
+          return Some((true, sequence_number));
         }
-        let chunk = header.is_chunked();
-        let routing = if chunk {
+        let routing = if header.is_chunked() {
           let (_, ch) = AofHeader::get_chunked_header_ref(entry)?;
           ch.key_hash
         } else {
@@ -1593,21 +1560,20 @@ impl AofProcessor {
         };
         Some((
           replay_task_idx == log.get_replay_task_idx(routing),
-          entry_address,
+          sequence_number,
         ))
       }
       AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        let sh = AofShardedHeader::parse(entry)?;
         let op_type = AofEntryType::try_from(header.op_type).ok()?;
         if !op_type.has_key() {
-          return Some((replay_task_idx == 0, sh.sequence_number));
+          return Some((replay_task_idx == 0, sequence_number));
         }
         let offset = AofHeader::skip_header(entry)?;
         let len = u32::from_le_bytes(*entry.get(offset..)?.first_chunk::<4>()?) as usize;
         let key = entry.get(offset + 4..offset + 4 + len)?;
         Some((
           replay_task_idx == log.get_replay_task_idx(GarnetLog::hash(key)),
-          sh.sequence_number,
+          sequence_number,
         ))
       }
       _ => None,
@@ -1627,14 +1593,9 @@ impl AofProcessor {
     if until_sequence_number == -1 {
       return Some((true, -1));
     }
-    let header = AofHeader::parse(entry)?;
-    let sequence_number = match header.header_type()? {
-      AofHeaderType::BasicHeader | AofHeaderType::BasicChunkHeader => log_address_sequence_number,
-      AofHeaderType::ShardedHeader | AofHeaderType::ShardedChunkHeader => {
-        AofShardedHeader::parse(entry)?.sequence_number
-      }
-      _ => log_address_sequence_number,
-    };
+    // 序列号单点：分片形态取内嵌（含 ShardedLogTransactionHeader，对齐
+    // C# SkipReplay 的 txnHeader.shardedHeader.sequenceNumber 分支），其余取条目地址
+    let sequence_number = AofHeader::sequence_number_of(entry, log_address_sequence_number)?;
     Some((sequence_number > until_sequence_number, sequence_number))
   }
 
