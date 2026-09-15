@@ -94,11 +94,21 @@ fn cluster_consumer(cp: &ClusterProvider) -> RespSessionConsumer {
   consumer
 }
 
-/// 单命令往返（单帧完整到达）
+/// 单命令往返（单帧完整到达；scratch 持久游标消费面）
 fn roundtrip(consumer: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
-  let (consumed, out) = consumer.try_consume_messages(frame);
-  assert_eq!(consumed, frame.len(), "帧应被完整消费: {frame:?}");
+  let (consumed, out) = pump(consumer, frame);
+  assert_eq!(consumed, Some(0), "帧应被完整消费: {frame:?}");
   out
+}
+
+/// scratch 直读消费泵（与 cluster_resp_session 同款：帧入接收缓冲 → 消费至收尾 0）
+fn pump(consumer: &mut RespSessionConsumer, frame: &[u8]) -> (Option<usize>, Vec<u8>) {
+  let mut scratch = consumer.take_recv_scratch();
+  scratch.extend_from_slice(frame);
+  consumer.return_recv_scratch(scratch);
+  let mut resp = Vec::new();
+  let remaining = consumer.try_consume_messages_into(&mut resp);
+  (remaining, resp)
 }
 
 /// 迭代步进状态机：首键初始化、跨槽 CROSSSLOT、状态漂移 TRYAGAIN、首错短路

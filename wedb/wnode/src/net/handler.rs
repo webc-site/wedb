@@ -236,11 +236,8 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
     // 消费驱动序（C# NetworkHandler.Read → Process 循环序的等价重排）：
     // 先消费缓冲中现有完整帧（含握手批迁移字节），再读取下一批网络字节
     let mut net_in = 0usize;
-    loop {
+    while let Some(session) = self.session.as_mut() {
       // ── 消费段 ──
-      let Some(session) = self.session.as_mut() else {
-        break;
-      };
       resp_pooled.clear();
       // 订阅推送顺带排空（有输入的订阅会话：推送帧随本批应答写出；
       // 空闲订阅会话的即时投递由读段双路等待承担）
