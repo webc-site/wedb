@@ -3378,8 +3378,7 @@ mod tests {
         ..RespServerSessionOptions::default()
       },
     );
-    let frame =
-      b"*3\r\n$4\r\nEVAL\r\n$35\r\nreturn redis.call('SUBSCRIBE','ch')\r\n$1\r\n0\r\n";
+    let frame = b"*3\r\n$4\r\nEVAL\r\n$35\r\nreturn redis.call('SUBSCRIBE','ch')\r\n$1\r\n0\r\n";
     assert!(s.try_consume_messages(frame).is_some());
     let out = s.take_output();
     let text = String::from_utf8_lossy(&out);
@@ -3390,7 +3389,8 @@ mod tests {
   }
 
   #[test]
-  fn no_script_bitmap_sets_discriminants() {    // 对标 C# InitializeNoScriptDetails：NoScript 标志动态构建、字节粒度位图
+  fn no_script_bitmap_sets_discriminants() {
+    // 对标 C# InitializeNoScriptDetails：NoScript 标志动态构建、字节粒度位图
     let (start, bitmap) = RespServerSession::no_script_details();
 
     let info = |cmd: RespCommand| {

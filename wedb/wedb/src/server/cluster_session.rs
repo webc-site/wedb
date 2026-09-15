@@ -5,6 +5,7 @@
 //! 集群分支数据。
 
 use std::{
+  future::Future,
   str::from_utf8,
   sync::{
     Arc,
@@ -13,7 +14,7 @@ use std::{
   time::Duration,
 };
 
-use compio::runtime::spawn;
+use compio::runtime::{Runtime, spawn};
 use gxhash::HashSet as GxHashSet;
 use itoa::Buffer;
 use parking_lot::{Mutex, RwLock};
@@ -1782,8 +1783,8 @@ impl ClusterSessionFace for ClusterSession {
 /// C# AsyncUtils.BlockingWait 的 compio 等价物：runtime 线程上下文内联驱动
 /// 本 runtime 任务队列与 I/O driver（gossip 连接发送在完成前闭环）；纯线程
 /// 上下文退回 park 式驱动（waker 由外部线程唤醒）
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-  if let Some(rt) = compio::runtime::Runtime::try_current() {
+fn block_on<F: Future>(f: F) -> F::Output {
+  if let Some(rt) = Runtime::try_current() {
     return rt.block_on(f);
   }
 

@@ -32,9 +32,9 @@ use wresp::{
   RespCommand,
   cmd_strings::{
     RESP_ERR_CHECKPOINT_ALREADY_IN_PROGRESS, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS,
-    RESP_ERR_SLOW_PATH_STORAGE, RESP_ERR_SWAPDB_UNSUPPORTED, RESP_ERR_WRONG_TYPE,
-    RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS, RESP_OK, write_error_raw,
+    RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS, RESP_ERR_SLOW_PATH_STORAGE,
+    RESP_ERR_SWAPDB_UNSUPPORTED, RESP_ERR_WRONG_TYPE, RESP_ERR_ZCOLLECT_ALREADY_IN_PROGRESS,
+    RESP_OK, write_error_raw,
   },
   command::is_vector_set_command,
 };
@@ -1232,13 +1232,17 @@ fn dispatch_slow<D: Device>(
 
 #[cfg(test)]
 mod hcollect_mutex_tests {
-  use super::*;
+  use std::path::Path;
+
+  use compio::runtime::Runtime;
   use tempfile::tempdir;
   use wdev::SegmentedDevice;
   use wkv::{StoreConfig, WedbStore};
 
+  use super::*;
+
   /// 小容量单文件存储执行域（与 tests/store_garnet_api_dispatch.rs 同款配置）
-  fn open_api(dir: &std::path::Path, name: &str) -> StoreGarnetApi<SegmentedDevice> {
+  fn open_api(dir: &Path, name: &str) -> StoreGarnetApi<SegmentedDevice> {
     let config = StoreConfig::new(1024, 64 * 1024, 16, 0.5).unwrap();
     let device = Arc::new(SegmentedDevice::single_file(dir.join(name)).unwrap());
     let store = Arc::new(WedbStore::open(config, device).unwrap());
@@ -1253,7 +1257,7 @@ mod hcollect_mutex_tests {
   fn hcollect_star_mutex_rejects_reentry() {
     let dir = tempdir().unwrap();
     let api = open_api(dir.path(), "hc.db");
-    let rt = compio::runtime::Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
 
     // 置位 HCOLLECT 在途标志：重入被拒，映射常量文案
     api.hcollect_in_progress.store(true, Ordering::SeqCst);
