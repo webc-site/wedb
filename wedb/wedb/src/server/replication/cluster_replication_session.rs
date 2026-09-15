@@ -213,7 +213,12 @@ impl<D: Device> ClusterReplicationSession<D> {
   /// 2. enqueue_raw 保真落盘（C# UnsafeEnqueueRaw noCommit:true——落盘不
   ///    即刷，由副本 commit 循环/调用方驱动）；
   /// 3. 重放推进通知（C# 异步路径 InitializeBackgroundReplayTask）；
-  /// 4. 复制位点上报推进（C# SetSublogReplicationOffset）。
+  /// 4. 复制位点上报推进。位点语义登记：C# SetSublogReplicationOffset 在
+  ///    重放链应用记录进存储后推进（applied）；rust 副本运行期尚无存储
+  ///    应用链（C# syncReplay 同步应用与后台 ReplicaReplayTask 均未转写，
+  ///    唯一应用点在进程恢复 RecoverLogDriver），位点暂记流式落盘位点
+  ///    （enqueued）——掉电丢 wal 未刷帧窗口内位点超前于存储态，属已知
+  ///    风险；背景重放任务落地后在应用完成点回推，位点切回 applied。
   fn process_primary_stream(
     &self,
     physical_sublog_idx: usize,
@@ -271,7 +276,10 @@ impl<D: Device> ClusterReplicationSession<D> {
       log::warn!("直接重放 AOF 记录失败: {err}");
     }
 
-    // 复制位点上报推进（重放位点权威面在 replay driver，此处先记流式落盘位点）
+    // 复制位点上报推进（enqueued 语义：仅承诺「记录帧已落盘」，非 C# 的
+    // applied 语义——C# 在重放链应用进存储后推进；rust 副本运行期无存储
+    // 应用链，位点暂记流式落盘位点，掉电窗口超前于存储态；背景重放任务
+    // 落地后改挂应用完成点回推）
     self
       .rm
       .set_sublog_replication_offset(physical_sublog_idx, next_address);
