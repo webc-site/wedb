@@ -13,8 +13,9 @@
 //! 迁移属未实现（对标 C# ChunkedRecordReassembler 分相重组 + 全类型序列
 //! 化），待 M 系列帧扩展立项补全。
 
-use std::{io, io::ErrorKind, sync::Arc};
+use std::{future::Future, io, io::ErrorKind, sync::Arc, time::Duration};
 
+use compio::time::timeout;
 use gxhash::HashSet;
 use wbase::{
   convert::{TICKS_PER_MILLISECOND, UNIX_EPOCH_TICKS},
@@ -30,7 +31,11 @@ use crate::{
   error::{Error, Result},
   server::{
     cluster_provider::ClusterProvider,
-    migration::{migrate_session::MigrateTaskSpec, sketch::Sketch},
+    migration::{
+      migrate_session::{MigrateSession, MigrateTaskSpec},
+      migrate_state::MigrateState,
+      sketch::Sketch,
+    },
   },
 };
 
@@ -158,16 +163,124 @@ pub async fn probe_object_keys<D: Device>(
   Ok(object_keys)
 }
 
+/// 迁移停等默认超时毫秒：spec.timeout <= 0 时兜底（redis-cli MIGRATE 默认
+/// 口径，防零值退化成立即超时）
+const DEFAULT_MIGRATE_TIMEOUT_MS: u64 = 60_000;
+
+/// 停等时长：spec.timeout (ms) 由 MIGRATE 命令第 5 参流入（C# _timeout 同源），
+/// <= 0 取默认
+#[inline]
+fn wait_dur(timeout_ms: i32) -> Duration {
+  if timeout_ms > 0 {
+    Duration::from_millis(timeout_ms as u64)
+  } else {
+    Duration::from_millis(DEFAULT_MIGRATE_TIMEOUT_MS)
+  }
+}
+
+/// 远端停等包装：对标 libs/cluster/Server/Migration/MigrationDriver.cs:TrySetSlotRangesAsync
+/// 的 `WaitAsync(_timeout, _cts.Token)` —— 任一远端响应限时，目标挂起不至
+/// 任务永挂；超时转 Err 交调用方走 recover 失败路径
+async fn wait_remote<F, T>(dur: Duration, fut: F) -> Result<T>
+where
+  F: Future<Output = Result<T>>,
+{
+  match timeout(dur, fut).await {
+    Ok(res) => res,
+    Err(_) => Err(Error::Io(io::Error::new(
+      ErrorKind::TimedOut,
+      "迁移远端停等超时",
+    ))),
+  }
+}
+
+/// 在 garnet 中的相对路径: libs/cluster/Server/Migration/MigrationDriver.cs:TryRecoverFromFailureAsync
+///
+/// 迁移失败恢复：远端逐 range 置 STABLE（nodeid=None，失败仅留痕不阻断，
+/// C# 同口径）→ 本端槽位状态回退 → 会话状态置 FAIL。只回滚槽位状态，
+/// 远端已导入批次数据不回收（C# 同口径）。收尾弃连防错位：停等超时后
+/// 迟到 ACK 会污染连接（对标 C# MigrateSession.Dispose 的 _cts.Cancel 断连）
+async fn try_recover_from_failure(
+  client: &GarnetClient,
+  session: &MigrateSession,
+  ranges: &[(i32, i32)],
+  dur: Duration,
+  why: &str,
+) {
+  log::error!("迁移失败，执行恢复: {why}");
+  for &(start, end) in ranges {
+    match wait_remote(dur, client.set_slot_range_async("STABLE", start, end, None)).await {
+      Ok(resp) if resp == "OK" => {}
+      Ok(resp) => log::error!("恢复远端槽位 STABLE 失败: {resp}"),
+      Err(err) => log::error!("恢复远端槽位 STABLE 失败: {err}"),
+    }
+  }
+  session.reset_local_slot();
+  *session.status.write() = MigrateState::Fail;
+  client.dispose();
+}
+
+/// 单批装帧发送 + 停等 ACK：对标
+/// libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs:HandleMigrateTaskResponseAsync
+/// （`WaitAsync(_timeout)` + 非 OK 判败）；空批次即完成哨兵帧 (recordCount = 0)
+async fn send_batch_and_wait(
+  client: &GarnetClient,
+  dur: Duration,
+  source_node_id: &str,
+  replace_option: bool,
+  batch: &[(Vec<u8>, Vec<u8>, i64)],
+) -> Result<()> {
+  let payload = encode_migration_payload(
+    batch
+      .iter()
+      .map(|(k, v, exp)| (k.as_slice(), v.as_slice(), *exp)),
+  );
+  match wait_remote(
+    dur,
+    client.execute_cluster_migrate_async(source_node_id, replace_option, &payload),
+  )
+  .await
+  {
+    Ok(true) => Ok(()),
+    Ok(false) => Err(Error::InvalidArgument(
+      "远端 CLUSTER MIGRATE 拒绝数据".into(),
+    )),
+    Err(err) => Err(err),
+  }
+}
+
+/// 远端槽位状态切换 + 逐 range 停等校验：对标
+/// libs/cluster/Server/Migration/MigrationDriver.cs:TrySetSlotRangesAsync
+/// （`WaitAsync(_timeout)` + 非 "OK" 判败置 FAIL）
+async fn set_slot_ranges_checked(
+  client: &GarnetClient,
+  dur: Duration,
+  state: &str,
+  ranges: &[(i32, i32)],
+  node_id: Option<&str>,
+) -> Result<()> {
+  for &(start, end) in ranges {
+    let resp = wait_remote(dur, client.set_slot_range_async(state, start, end, node_id)).await?;
+    if resp != "OK" {
+      return Err(Error::InvalidArgument(format!(
+        "远端 SETSLOTSRANGE {state} 失败: {resp}"
+      )));
+    }
+  }
+  Ok(())
+}
+
 /// 执行 CLUSTER MIGRATE 发送驱动 (M2 KEYS 路径)
 ///
-/// 严格停等架构：
+/// 严格停等架构（全部远端 await 经 [`wait_remote`] 限时，目标挂起不至永挂）：
 /// 1. 注册迁移任务
 /// 2. 远端置槽位为 IMPORTING
 /// 3. 本端置槽位为 MIGRATING
 /// 4. 逐批装帧并发送 CLUSTER MIGRATE，批次停等 ACK (+OK)
 /// 5. 发送完成哨兵空载荷帧 (recordCount = 0)
 /// 6. 远端与本端切换槽位归属为 NODE / 释放所有权
-/// 7. 异常回滚 STABLE / reset_local_slot
+/// 7. 任一失败点统一 [`try_recover_from_failure`] 回滚（远端 STABLE +
+///    本端回退 + FAIL 留痕 + 弃连）
 ///
 /// 限制（显式裁剪，禁止静默丢键）：迁移帧仅支持 string 记录 (kind=1)。
 /// 请求键清单含对象记录键（Hash/Set/ZSet/List/向量集等）时，入口预检
@@ -238,28 +351,25 @@ pub async fn run_keys_migration_driver(
   }
 
   let ranges = session.get_ranges();
+  let dur = wait_dur(spec.timeout);
 
-  // 3. 远端置槽位 IMPORTING
-  for &(start, end) in &ranges {
-    let resp = client
-      .set_slot_range_async("IMPORTING", start, end, Some(spec.source_node_id))
-      .await?;
-    if resp != "OK" {
-      session.reset_local_slot();
-      return Err(Error::InvalidArgument(
-        "远端 SETSLOTSRANGE IMPORTING 失败".into(),
-      ));
-    }
+  // 3. 远端置槽位 IMPORTING（停等限时，失败 → recover）
+  if let Err(err) = set_slot_ranges_checked(
+    &client,
+    dur,
+    "IMPORTING",
+    &ranges,
+    Some(spec.source_node_id),
+  )
+  .await
+  {
+    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    return Err(err);
   }
 
-  // 4. 本端置槽位 MIGRATING
+  // 4. 本端置槽位 MIGRATING（失败 → recover）
   if !session.try_prepare_local_for_migration() {
-    session.reset_local_slot();
-    for &(start, end) in &ranges {
-      let _ = client
-        .set_slot_range_async("STABLE", start, end, None)
-        .await;
-    }
+    try_recover_from_failure(&client, &session, &ranges, dur, "本端准备迁移槽位失败").await;
     return Err(Error::InvalidArgument("本端准备迁移槽位失败".into()));
   }
 
@@ -296,25 +406,18 @@ pub async fn run_keys_migration_driver(
       && (cur_batch.len() >= MAX_MIGRATION_BATCH_COUNT
         || cur_batch_bytes + item_bytes > MAX_MIGRATION_BATCH_BYTES)
     {
-      // 发送当前批次并停等 ACK
-      let payload = encode_migration_payload(
-        cur_batch
-          .iter()
-          .map(|(k, v, exp)| (k.as_slice(), v.as_slice(), *exp)),
-      );
-      let ok = client
-        .execute_cluster_migrate_async(spec.source_node_id, spec.replace_option, &payload)
-        .await?;
-      if !ok {
-        session.reset_local_slot();
-        for &(start, end) in &ranges {
-          let _ = client
-            .set_slot_range_async("STABLE", start, end, None)
-            .await;
-        }
-        return Err(Error::InvalidArgument(
-          "远端 CLUSTER MIGRATE 拒绝数据".into(),
-        ));
+      // 发送当前批次并限时停等 ACK（超时/拒绝均判败 → recover）
+      if let Err(err) = send_batch_and_wait(
+        &client,
+        dur,
+        spec.source_node_id,
+        spec.replace_option,
+        &cur_batch,
+      )
+      .await
+      {
+        try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+        return Err(err);
       }
       migrated_count += cur_batch.len();
       transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
@@ -327,42 +430,44 @@ pub async fn run_keys_migration_driver(
   }
 
   if !cur_batch.is_empty() {
-    let payload = encode_migration_payload(
-      cur_batch
-        .iter()
-        .map(|(k, v, exp)| (k.as_slice(), v.as_slice(), *exp)),
-    );
-    let ok = client
-      .execute_cluster_migrate_async(spec.source_node_id, spec.replace_option, &payload)
-      .await?;
-    if !ok {
-      session.reset_local_slot();
-      for &(start, end) in &ranges {
-        let _ = client
-          .set_slot_range_async("STABLE", start, end, None)
-          .await;
-      }
-      return Err(Error::InvalidArgument(
-        "远端 CLUSTER MIGRATE 拒绝数据".into(),
-      ));
+    if let Err(err) = send_batch_and_wait(
+      &client,
+      dur,
+      spec.source_node_id,
+      spec.replace_option,
+      &cur_batch,
+    )
+    .await
+    {
+      try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+      return Err(err);
     }
     migrated_count += cur_batch.len();
     transferred.extend(cur_batch.iter().map(|(k, ..)| k.clone()));
   }
 
-  // 6. 发送空载荷完成哨兵
-  let empty_payload = encode_migration_payload([]);
-  let _ = client
-    .execute_cluster_migrate_async(spec.source_node_id, spec.replace_option, &empty_payload)
-    .await;
-
-  // 7. 远端置槽位 NODE，本端释放归属
-  for &(start, end) in &ranges {
-    let _ = client
-      .set_slot_range_async("NODE", start, end, Some(spec.target_node_id))
-      .await;
+  // 6. 发送空载荷完成哨兵：应答非 OK 即判败——吞没响应会让远端导入残缺
+  //    而源端照常交权（对标 HandleMigrateTaskResponseAsync 应答校验）
+  if let Err(err) =
+    send_batch_and_wait(&client, dur, spec.source_node_id, spec.replace_option, &[]).await
+  {
+    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    return Err(err);
   }
-  let _ = session.relinquish_ownership();
+
+  // 7. 远端置槽位 NODE（失败 → recover，对标 BeginAsyncMigrationTaskAsync NODE 分支）
+  if let Err(err) =
+    set_slot_ranges_checked(&client, dur, "NODE", &ranges, Some(spec.target_node_id)).await
+  {
+    try_recover_from_failure(&client, &session, &ranges, dur, &err.to_string()).await;
+    return Err(err);
+  }
+  // 本端释放归属（失败 → recover，对标 BeginAsyncMigrationTaskAsync
+  // RelinquishOwnership 分支）
+  if !session.relinquish_ownership() {
+    try_recover_from_failure(&client, &session, &ranges, dur, "本端释放槽位所有权失败").await;
+    return Err(Error::InvalidArgument("本端释放槽位所有权失败".into()));
+  }
 
   // 8. 若非 copy 选项，仅删除「已确认传输成功」的键——未传输键（对象键/
   //    中途失败键/竞态改写键）一律保留在源端，杜绝静默丢键
