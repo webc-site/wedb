@@ -22,7 +22,7 @@ fn setup_replica_environment(
   primary_id: &str,
 ) -> (Arc<ClusterProvider>, Arc<WalLog<SegmentedDevice>>) {
   let provider = Arc::new(ClusterProvider::default());
-  provider.initialize_replication_manager();
+  provider.initialize_replication_manager(1, None, false);
 
   let cm = Arc::new(ClusterManager::new(provider.clone()));
   let mut config = ClusterConfig::new();
