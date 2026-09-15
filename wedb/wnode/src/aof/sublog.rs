@@ -89,6 +89,16 @@ impl Sublog {
   }
 
   #[inline(always)]
+  pub fn max_memory_size_bytes(&self) -> i64 {
+    SublogBackend::max_memory_size_bytes(self)
+  }
+
+  #[inline(always)]
+  pub fn committed_begin_address(&self) -> i64 {
+    SublogBackend::committed_begin_address(self)
+  }
+
+  #[inline(always)]
   pub async fn reset_async(&self) {
     SublogBackend::reset_async(self).await
   }
@@ -241,10 +251,26 @@ impl SublogBackend for Sublog {
   }
 
   #[inline(always)]
+  fn max_memory_size_bytes(&self) -> i64 {
+    match self {
+      Self::Mem(m) => m.max_memory_size_bytes(),
+      Self::Waof(w) => w.max_memory_size_bytes(),
+    }
+  }
+
+  #[inline(always)]
   fn memory_size_bytes(&self) -> i64 {
     match self {
       Self::Mem(m) => m.memory_size_bytes(),
       Self::Waof(w) => w.memory_size_bytes(),
+    }
+  }
+
+  #[inline(always)]
+  fn committed_begin_address(&self) -> i64 {
+    match self {
+      Self::Mem(m) => m.committed_begin_address(),
+      Self::Waof(w) => w.committed_begin_address(),
     }
   }
 

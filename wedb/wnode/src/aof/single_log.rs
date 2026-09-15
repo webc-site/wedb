@@ -45,9 +45,12 @@ impl SingleLog {
   }
 
   /// libs/server/AOF/SingleLog.cs:CommittedBeginAddress
+  ///
+  /// 已提交 begin 快照（底层 TsavoriteLog.CommittedBeginAddress，
+  /// TsavoriteLog.cs:120；非实时 begin）。
   #[inline]
   pub fn committed_begin_address(&self) -> AofAddress {
-    AofAddress::create(1, self.log.begin_address())
+    AofAddress::create(1, self.log.committed_begin_address())
   }
 
   /// libs/server/AOF/SingleLog.cs:FlushedUntilAddress
@@ -59,7 +62,7 @@ impl SingleLog {
   /// libs/server/AOF/SingleLog.cs:MaxMemorySizeBytes
   #[inline]
   pub fn max_memory_size_bytes(&self) -> AofAddress {
-    AofAddress::create(1, self.log.memory_size_bytes())
+    AofAddress::create(1, self.log.max_memory_size_bytes())
   }
 
   /// libs/server/AOF/SingleLog.cs:MemorySizeBytes

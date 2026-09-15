@@ -101,8 +101,17 @@ pub trait SublogBackend: Send + Sync {
   }
   /// 页大小位。
   fn log_page_size_bits(&self) -> i32;
-  /// 内存占用。
+  /// 内存容量上限（对标 C# TsavoriteLog.MaxMemorySizeBytes：
+  /// allocator.MaxMemorySizeBytes = MaxAllocatedPageCount * PageSize，
+  /// AllocatorBase.cs:1026）。
+  fn max_memory_size_bytes(&self) -> i64;
+  /// 当前内存占用（对标 C# TsavoriteLog.MemorySizeBytes：
+  /// allocator.GetLogicalAddressOfStartOfPage(AllocatedPageCount)）。
   fn memory_size_bytes(&self) -> i64;
+  /// 已提交 begin 地址（对标 C# TsavoriteLog.CommittedBeginAddress 独立字段：
+  /// commit 记录写出的 begin 快照，恢复自 commit 记录；与实时
+  /// [`Self::begin_address`] 语义分离）。
+  fn committed_begin_address(&self) -> i64;
   /// 重置日志（对标 C# TsavoriteLog.Reset 的路由面；设备后端持提交锁原子复位
   /// 位点并 sync_data 串行化，须在日志静默后调用）。
   fn reset_async(&self) -> impl Future<Output = ()> + '_;
@@ -118,6 +127,9 @@ pub struct InMemorySublog {
   records: parking_lot::Mutex<Vec<LogRecord>>,
   begin: AtomicI64,
   committed_until: AtomicI64,
+  /// 已提交 begin 快照（C# TsavoriteLog.CommittedBeginAddress：commit 时
+  /// 采样的 begin 值，恢复自 commit 记录；与实时 begin 语义分离）。
+  committed_begin: AtomicI64,
   /// 最后提交 cookie（i64::MIN 哨兵 = 无提交记录）。
   cookie: AtomicI64,
   /// 提交事件驱动通知（无锁异步唤醒等待者）
@@ -140,6 +152,7 @@ impl InMemorySublog {
       records: Mutex::new(Vec::new()),
       begin: AtomicI64::new(1),
       committed_until: AtomicI64::new(1),
+      committed_begin: AtomicI64::new(1),
       cookie: AtomicI64::new(NO_COOKIE),
       commit_event: Event::new(),
     }
@@ -191,6 +204,11 @@ impl SublogBackend for InMemorySublog {
     self
       .committed_until
       .fetch_max(until_address, Ordering::Release);
+    // commit 记录写出 begin 快照（C# TsavoriteLog.WriteCommitMetadata：
+    // info.BeginAddress = BeginAddress，TsavoriteLog.cs:2696）
+    self
+      .committed_begin
+      .store(self.begin.load(Ordering::Relaxed), Ordering::Release);
     self.cookie.store(cookie, Ordering::Release);
     self.commit_event.notify(usize::MAX);
   }
@@ -223,6 +241,12 @@ impl SublogBackend for InMemorySublog {
     22
   }
 
+  /// 内存后端无页预算（C# 内存 allocator 有 MemorySizeBudget 上限，此为
+  /// 刻意差异）：容量随用随长，max 与当前占用同值。
+  fn max_memory_size_bytes(&self) -> i64 {
+    self.memory_size_bytes()
+  }
+
   fn memory_size_bytes(&self) -> i64 {
     self
       .records
@@ -232,12 +256,18 @@ impl SublogBackend for InMemorySublog {
       .sum()
   }
 
+  fn committed_begin_address(&self) -> i64 {
+    self.committed_begin.load(Ordering::Acquire)
+  }
+
   /// 内存后端无设备态（C# 无对应物）：清记录 + 位点归 1，无锁无 I/O，
-  /// 语义对标 TsavoriteLog.Reset 的内存等价
+  /// 语义对标 TsavoriteLog.Reset 的内存等价（CommittedBeginAddress 归
+  /// FirstValidAddress，TsavoriteLog.cs:244-246）
   async fn reset_async(&self) {
     self.records.lock().clear();
     self.begin.store(1, Ordering::Release);
     self.committed_until.store(1, Ordering::Release);
+    self.committed_begin.store(1, Ordering::Release);
     self.cookie.store(NO_COOKIE, Ordering::Release);
   }
 
@@ -253,6 +283,9 @@ impl SublogBackend for InMemorySublog {
     self
       .committed_until
       .store(committed_until_address, Ordering::Release);
+    // 恢复自 commit 记录（C# TsavoriteLog.Initialize：
+    // CommittedBeginAddress = beginAddress，TsavoriteLog.cs:528/:596）
+    self.committed_begin.store(begin_address, Ordering::Release);
     if last_commit_num > 0 {
       self.cookie.store(last_commit_num, Ordering::Release);
     }
@@ -534,6 +567,8 @@ impl GarnetLog {
   }
 
   /// libs/server/AOF/GarnetLog.cs:CommittedBeginAddress
+  ///
+  /// 已提交 begin 地址（commit 记录快照，非实时 begin；TsavoriteLog.cs:120）。
   pub fn committed_begin_address(&self) -> AofAddress {
     if let Some(single) = &self.single_log {
       single.committed_begin_address()
