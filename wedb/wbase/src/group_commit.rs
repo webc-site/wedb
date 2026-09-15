@@ -191,7 +191,10 @@ pub trait GroupCommitStep {
   fn watermark(&self) -> u64;
 
   /// 执行一步物理持久化推进至 target，返回达成的新水位（不小于调用前水位）
-  fn step(&self, target: u64) -> impl Future<Output = Result<u64, Self::Error>> + Send;
+  ///
+  /// 刻意不加 Send 上界：运行时为 thread-per-core 单线程执行器，
+  /// 刷盘步进的池缓冲（如对齐写缓冲）无需跨线程迁移
+  fn step(&self, target: u64) -> impl Future<Output = Result<u64, Self::Error>>;
 }
 
 #[cfg(test)]

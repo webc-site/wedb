@@ -1,5 +1,6 @@
 pub mod support;
 
+mod concurrent_commit;
 mod enqueue_and_commit;
 mod enqueue_parts;
 mod recovery_and_corruption;
