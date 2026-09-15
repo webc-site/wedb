@@ -1,7 +1,7 @@
 use std::{
   sync::{
     Arc, OnceLock, Weak,
-    atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU64, Ordering},
   },
   thread,
 };
@@ -72,6 +72,9 @@ pub struct ClusterProvider {
   pub gossip_manager: RwLock<Option<Arc<GossipManager>>>,
   pub auth_container: RwLock<(Option<String>, Option<String>)>,
   replication_reestablishment_timeout_secs: AtomicI32,
+  /// FastAofTruncate 选项（C# GarnetServerOptions.FastAofTruncate，默认
+  /// false；副本接收面跳跃重对齐分支的开关，装配期自 RuntimeServerOptions 注入）
+  fast_aof_truncate: AtomicBool,
   /// 集群节点超时毫秒数（C# GarnetServerOptions.ClusterTimeout /
   /// RuntimeServerConfig ClusterNodeTimeout 的毫秒形态；槽位校验等待与
   /// 挂起重评的超时上限取此值，装配期自 ClusterArgs 注入）
@@ -124,6 +127,7 @@ impl Default for ClusterProvider {
       gossip_manager: RwLock::new(None),
       auth_container: RwLock::new((None, None)),
       replication_reestablishment_timeout_secs: AtomicI32::new(0),
+      fast_aof_truncate: AtomicBool::new(false),
       cluster_node_timeout_ms: AtomicU64::new(DEFAULT_CLUSTER_NODE_TIMEOUT_MS),
       gossip_delay_ms: AtomicU64::new(DEFAULT_GOSSIP_DELAY_MS),
       gossip_sample_percent: AtomicI32::new(DEFAULT_GOSSIP_SAMPLE_PERCENT),
@@ -214,6 +218,18 @@ impl ClusterProvider {
       .store(secs, Ordering::Release);
   }
 
+  /// 注入 FastAofTruncate 选项（对标 C# clusterProvider.serverOptions.
+  /// FastAofTruncate 的读取面；装配期自 RuntimeServerOptions 一次注入）
+  pub fn set_fast_aof_truncate(&self, enabled: bool) {
+    self.fast_aof_truncate.store(enabled, Ordering::Release);
+  }
+
+  /// FastAofTruncate 选项（副本接收面跳跃重对齐分支的开关）
+  #[inline]
+  pub fn fast_aof_truncate(&self) -> bool {
+    self.fast_aof_truncate.load(Ordering::Acquire)
+  }
+
   /// 注入集群节点超时毫秒数（装配期一次调用；槽位校验等待超时上限源）
   pub fn set_cluster_node_timeout_ms(&self, ms: u64) {
     self.cluster_node_timeout_ms.store(ms, Ordering::Release);
@@ -250,17 +266,22 @@ impl ClusterProvider {
   ///
   /// 入站 gossip 会话的复制健康检查（C# EnsureReplication 完整判定链；
   /// C# 在 rm 上实现并经 clusterProvider 直达各管理器，Rust 依赖方向反转后
-  /// 判定链上收至本层，rm 保留节流判定与心跳时间戳原语供本链调用）：
+  /// 判定链上收至本层，rm 保留节流判定原语供本链调用）：
   /// 1. 轮询频率 0 = 禁用；
   /// 2. 距上次尝试不足频率 → 返回（节流）；
   /// 3. 仅 REPLICA 且活跃会话来自其 primary 时动作；
   /// 4. 已有活跃复制流（IsReplicating 状态面）→ 无需动作；
   /// 5. failover 进行中抑制自动重连（防 ReadRole 锁阻塞 TakeOverAsPrimary）；
-  /// 6. 心跳时间戳推进；
-  /// 7. PreventRoleChange + 后台 RecoverReplication 重连发起（对标 C#
+  /// 6. PreventRoleChange + 后台 RecoverReplication 重连发起（对标 C#
   ///    Task.Run(TryReplicateDiskbasedSyncAsync)，异步体内向 primary 发
   ///    INITIATE_REPLICA_SYNC；失败静默，按 ClusterReplicationReestablishment
-  ///    Timeout 轮询节奏重试）
+  ///    Timeout 轮询节奏重试）。
+  ///
+  /// 心跳口径：本函数不刷新 last_primary_sync_time（对标 C#——EnsureReplication
+  /// 本体无 UpdateLastPrimarySyncTime 调用，C# 刷新点全在同步建立面
+  /// TryReplicaDiskbasedRecovery / ReceiveCheckpointHandler）；rust 挂副本
+  /// APPENDLOG 初始化帧握手成功处，见
+  /// [`crate::server::replication::cluster_replication_session`]。
   pub fn ensure_replication(self: &Arc<Self>, active_remote_node_id: Option<&str>) {
     use std::sync::atomic::Ordering;
 
@@ -278,8 +299,6 @@ impl ClusterProvider {
     if !rm.ensure_replication_due(poll_frequency) {
       return;
     }
-    // 6. 心跳时间戳推进（复制健康保活）
-    rm.update_last_primary_sync_time();
 
     // 3. 角色判定：仅 REPLICA 且活跃会话来自其 primary
     let Some(cm) = self.cluster_manager() else {
@@ -309,8 +328,8 @@ impl ClusterProvider {
       return;
     }
 
-    // 7. 重连动作面：PreventRoleChange + 后台 RecoverReplication
-    //（对标 C# EnsureReplication 第 7 步：prevent → Task.Run → finally allow）
+    // 6. 重连动作面：PreventRoleChange + 后台 RecoverReplication
+    //（对标 C# EnsureReplication 尾段：prevent → Task.Run → finally allow）
     let Some(primary) = primary_id else {
       return;
     };

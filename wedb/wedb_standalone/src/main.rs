@@ -78,6 +78,7 @@ fn main() -> wnode::Result<()> {
         lua_timeout_ms,
         lua_txn_mode,
         max_databases,
+        enable_aof,
         commandstats_monitor,
         latency_monitor,
       ) = (
@@ -85,6 +86,7 @@ fn main() -> wnode::Result<()> {
         node.lua_script_timeout_ms,
         node.lua_transaction_mode,
         node.max_databases,
+        node.aof,
         node.commandstats_monitor,
         node.latency_monitor,
       );
@@ -104,6 +106,9 @@ fn main() -> wnode::Result<()> {
             lua_options: lua_options.clone(),
             lua_txn_mode,
             lua_timeout_manager: lua_timeout_manager.clone(),
+            // C# serverOptions.EnableAOF 投影；WaitForCommit 无 CLI 参数源，
+            // 默认 false（C# 默认同值，AOF 阻塞标记不维护）
+            enable_aof,
             ..RespServerSessionOptions::default()
           },
           api,

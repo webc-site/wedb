@@ -279,7 +279,9 @@ fn ttl_purge_single_deterministic_entry() -> Void {
     let purge_input = entries[1].input.as_ref().unwrap();
     assert_eq!(purge_input.cmd, RespCommand::Delifexpim);
     assert_eq!(purge_input.flags, (64 | 128), "Deterministic|Expired");
-    assert_eq!(purge_input.arg1, 1, "expire_at_ticks 随 arg1 携带");
+    // expire_at 入口 4-bit coarse 粗化（ExpirationWithOption.cs:22-23）：
+    // 输入 1 tick 粗化为 0 后随 arg1 携带，重放端恒删不评估该值
+    assert_eq!(purge_input.arg1, 0, "expire_at_ticks 粗化后随 arg1 携带");
 
     // 副本端：全新引擎实例，统一重放链路本地执行过期清除
     let (_replica_dir, replica_store, replica_wal) = open_node("ttl_purge_replica")?;

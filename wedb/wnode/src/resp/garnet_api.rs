@@ -937,7 +937,9 @@ fn dispatch<D: Device>(
     C::Setexnx => session.network_setexnx(args, batch, output),
     C::Getset => session.network_getset(args, batch, output),
     C::Setrange => session.network_set_range(args, batch, output),
-    C::Getrange | C::Substr => session.network_get_range(args, batch, output),
+    // C# NetworkGetRange 报 cmd.ToString()：GETRANGE/SUBSTR 各实名
+    C::Getrange => session.network_get_range(args, batch, output, "GETRANGE"),
+    C::Substr => session.network_get_range(args, batch, output, "SUBSTR"),
     C::Append => session.network_append(args, batch, output),
     C::Strlen => session.network_strlen(args, batch, output),
     C::Incr => session.network_increment(IncrCmd::Incr, args, batch, output),

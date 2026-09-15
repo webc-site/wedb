@@ -538,13 +538,16 @@ impl RespServerSession {
     Ok(true)
   }
   /// libs/server/Resp/BasicCommands.cs:NetworkGetRange
+  ///
+  /// `cmd_name` 承接 C# 的 cmd.ToString()（GETRANGE/SUBSTR 各报实名）
   pub fn network_get_range<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
+    cmd_name: &str,
   ) -> wresp::Result<bool> {
-    unpack_args!(parse_state, output, "GETRANGE", [key, start_raw, end_raw]);
+    unpack_args!(parse_state, output, cmd_name, [key, start_raw, end_raw]);
     // 对标 C#：start/end 须可解析为整数（TryGetInt 口径），否则报 not-integer
     let Some(mut start) = strict_i32(start_raw).map(i64::from) else {
       abort_with_error_message(output, ERR_NOT_INTEGER);
@@ -1336,7 +1339,12 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     let mut config_server = ServerConfig;
-    config_server.network_config_get(parse_state, self.runtime_config(), output)
+    config_server.network_config_get(
+      parse_state,
+      self.runtime_config(),
+      self.resp_protocol_version,
+      output,
+    )
   }
 
   /// libs/server/Resp/AdminCommands.cs:NetworkCONFIG_SET

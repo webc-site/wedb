@@ -180,10 +180,29 @@ impl VirtualSublogReplayState {
     self.sketch[Self::get_sketch_slot(hash)].load(Ordering::Acquire)
   }
 
-  /// 草图谱预取（C# PrefetchKeySequenceNumber 的 Sse.Prefetch0；rust 侧为
-  /// 无操作提示位：语义仅为热身缓存，无正确性影响）。
-  /// 保留 _hash 形参以对标 PrefetchKeySequenceNumber 签名规范
+  /// 草图谱预取（libs/server/AOF/ReadConsistency/VirtualSublogReplayState.cs:
+  /// PrefetchKeySequenceNumber 的 Sse.Prefetch0）：读侧提前预热草图槽所在
+  /// 缓存行，使回放线程的后续写入与 store 读重叠跨核一致性缺失；
+  /// 纯性能提示，无正确性影响。stable Rust 无跨平台 prefetch intrinsic，
+  /// 以 asm! 按目标架构发射（aarch64 prfm / x86_64 prefetcht0，其余架构
+  /// 编译期收敛为空）。
   #[inline]
+  #[cfg(any(target_arch = "aarch64", target_arch = "x86_64"))]
+  pub fn prefetch_key_sequence_number(&self, hash: i64) {
+    let slot = self.sketch[Self::get_sketch_slot(hash)].as_ptr();
+    #[cfg(target_arch = "aarch64")]
+    unsafe {
+      core::arch::asm!("prfm pldl1keep, [{0}]", in(reg) slot, options(nostack, preserves_flags));
+    }
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+      core::arch::asm!("prefetcht0 ({0})", in(reg) slot, options(nostack, preserves_flags));
+    }
+  }
+
+  /// 其余架构编译期空（无预热发射面；见上注释）。
+  #[inline]
+  #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
   pub fn prefetch_key_sequence_number(&self, _hash: i64) {}
 
   /// 推进子日志最大序列号（单调；C# UpdateMaxSequenceNumber）。

@@ -37,7 +37,7 @@ use wmetric::{
 use wpubsub::{PubSubSession, PubSubSessionCommands, SubscribeBroker};
 use wresp::{
   MAX_ERROR_MSG_LEN, ReplyError, RespCommand, RespSliceExt, RespVecExt, SessionParseState,
-  cmd_strings as cs, cmd_strings::write_map_len_resp2, is_cluster_sub_command, is_data_command,
+  cmd_strings as cs, cmd_strings::write_map_len, is_cluster_sub_command, is_data_command,
   is_no_auth, is_read_only, key_spec::KeySpecificationFlags, normalize_for_acls, one_if_read,
   one_if_write, sanitize_error_str,
 };
@@ -123,6 +123,11 @@ pub struct RespServerSessionOptions {
   /// Lua 超时管理器（C# storeWrapper.luaTimeoutManager；服务装配期按
   /// 「EnableLua 且超时非无限」创建，tick 任务周期驱动；None = 无超时）
   pub lua_timeout_manager: Option<Arc<LuaTimeoutManager>>,
+  /// AOF 启用开关（C# storeWrapper.serverOptions.EnableAOF）
+  pub enable_aof: bool,
+  /// AOF 提交等待开关（C# storeWrapper.serverOptions.WaitForCommit；
+  /// 与 enable_aof 同时开启时解析器按命令依赖性维护 AOF 阻塞标记）
+  pub wait_for_commit: bool,
 }
 
 impl Default for RespServerSessionOptions {
@@ -141,6 +146,9 @@ impl Default for RespServerSessionOptions {
       lua_options: LuaOptions::default(),
       lua_txn_mode: false,
       lua_timeout_manager: None,
+      // C# GarnetServerOptions 默认：EnableAOF = false、WaitForCommit = false
+      enable_aof: false,
+      wait_for_commit: false,
     }
   }
 }
@@ -274,6 +282,10 @@ pub struct RespServerSession {
   /// EnableDebugCommand 镜像（C# storeWrapper.serverOptions.EnableDebugCommand）
   connection_protection_debug: ConnectionProtectionOption,
 
+  /// AOF 提交等待门控（C# storeWrapper.serverOptions 的 EnableAOF &&
+  /// WaitForCommit 投影；解析器按此决定是否维护 wait_for_aof_blocking）
+  pub(crate) aof_commit_mode_gate: bool,
+
   /// 集群会话切面（C# clusterSession；None = 单机形态，命令路径与
   /// C# clusterSession == null 分支一致）
   pub(crate) cluster_session: Option<ClusterSession>,
@@ -387,6 +399,7 @@ impl RespServerSession {
       flushed_bytes: 0,
       current_custom_command: None,
       connection_protection_debug: options.enable_debug_command,
+      aof_commit_mode_gate: options.enable_aof && options.wait_for_commit,
       mru_cache: Default::default(),
       session_script_cache: options.enable_lua.then(|| {
         // C# SessionScriptCache 构造注入 timeoutManager（服务装配期按
@@ -2229,7 +2242,8 @@ impl RespServerSession {
       self.set_client_name(Some(name));
     }
 
-    // 应答 map（RESP2 退化为双倍数组）；字段序对齐 C#：server/version/
+    // 应答 map 按升级后的协议版本写头（C# BasicCommands.cs:1829 WriteMapLength：
+    // RESP3 %8、RESP2 双倍数组）；字段序对齐 C#：server/version/
     // garnet_version/proto/id/mode/role + modules 空数组；proto/id 直读会话状态；
     // mode/role 集群形态（C# EnableCluster && IsReplica 分支）
     let (mode, role) = match &self.cluster_session {
@@ -2243,7 +2257,7 @@ impl RespServerSession {
         },
       ),
     };
-    write_map_len_resp2(output, 8);
+    write_map_len(output, 8, self.resp_protocol_version);
     output.write_resp_bulk_string(b"server");
     output.write_resp_bulk_string(b"redis");
     output.write_resp_bulk_string(b"version");
@@ -2848,6 +2862,8 @@ mod tests {
     let mut out = Vec::new();
     assert!(s.process_hello_command_state(Some(3), b"", b"", None, &mut out));
     let text = String::from_utf8(out).unwrap();
+    // 升级到 RESP3 后 map 头写 %8（C# BasicCommands.cs:1829 WriteMapLength）
+    assert!(text.starts_with("%8\r\n"), "RESP3 map 头 expected: {text}");
     assert!(
       text.contains("$5\r\nproto\r\n:3\r\n"),
       "resp=3 expected: {text}"
@@ -2864,6 +2880,74 @@ mod tests {
       info,
       "id=7 addr=127.0.0.1:6380 laddr= age=0 flags=N db=0 resp=3 lib-name=redis-py lib-ver=5.0.1"
     );
+  }
+
+  #[test]
+  fn hello_resp2_keeps_doubled_array_header() {
+    // RESP2 会话 map 头退化为双倍长度数组（C# WriteMapLength else 分支）
+    let mut s = session(9);
+    let mut out = Vec::new();
+    assert!(s.process_hello_command_state(None, b"", b"", None, &mut out));
+    let text = String::from_utf8(out).unwrap();
+    assert!(text.starts_with("*16\r\n"), "RESP2 数组头 expected: {text}");
+  }
+
+  #[test]
+  fn database_id_validates_against_session_max_databases() {
+    // MaxDatabases 直读会话装配字段（C# storeWrapper.serverOptions.MaxDatabases）
+    let mut s = RespServerSession::new(
+      40,
+      RespServerSessionOptions {
+        allow_multi_db: true,
+        max_databases: 4,
+        ..RespServerSessionOptions::default()
+      },
+    );
+
+    // 非整数（C# TryGetInt 失败）
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"abc"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR value is not an integer or out of range.\r\n"
+    );
+
+    // dbId >= MaxDatabases 与负数 → DB index is out of range.
+    for dbid in ["4", "5", "-1"] {
+      let mut out = Vec::new();
+      assert!(
+        !s.try_parse_database_id(&[dbid.as_bytes()], &mut out)
+          .unwrap()
+      );
+      assert_eq!(
+        String::from_utf8(out).unwrap(),
+        "-ERR DB index is out of range.\r\n"
+      );
+    }
+
+    // 上界内放行（无输出）
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"3"], &mut out).unwrap());
+    assert!(out.is_empty());
+  }
+
+  #[test]
+  fn database_id_rejects_non_zero_in_cluster_mode() {
+    // C# EnableCluster 时 dbId > 0 拦（RESP_ERR_DB_ID_CLUSTER_MODE）；0 放行
+    let stub = Arc::new(StubClusterSession::new());
+    let mut s = session(41);
+    s.attach_cluster_session(stub);
+
+    let mut out = Vec::new();
+    assert!(!s.try_parse_database_id(&[b"1"], &mut out).unwrap());
+    assert_eq!(
+      String::from_utf8(out).unwrap(),
+      "-ERR specifying non-zero DBID is not allowed in cluster mode\r\n"
+    );
+
+    let mut out = Vec::new();
+    assert!(s.try_parse_database_id(&[b"0"], &mut out).unwrap());
+    assert!(out.is_empty());
   }
 
   #[test]

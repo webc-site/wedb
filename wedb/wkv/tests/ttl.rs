@@ -369,3 +369,46 @@ fn test_expired_collection_invisible_on_meta_read() -> Void {
   })?;
   OK
 }
+
+/// 4-bit coarse 粗化等价性（ExpirationWithOption.cs:22-23）：put_ttl 落盘值
+/// 低 4 位恒零且等于 (ticks >> 4) << 4；粗化不改读取判定（ttl_of / 惰性过期
+/// / EXPIREAT 返回码均与全精度值同判，差异 < 1600ns 与 C# 同级）
+#[test]
+fn test_put_ttl_coarse_ticks_rounding() -> Void {
+  Runtime::new()?.block_on(async {
+    let (_dir, store) = open_test_store("coarse_ttl")?;
+    let session = store.new_session()?;
+
+    session.upsert(b"ck", b"v").await?;
+
+    // 全精度 ticks（低 4 位非零）写入后粗化：读回值 == (原值 >> 4) << 4
+    let expire = now_ticks() + TICKS_PER_SECOND * 60 + 0b1011;
+    session.put_ttl(b"ck", expire).await?;
+    let stored = session.ttl_of(b"ck").await?.expect("TTL 记录在场");
+    assert_eq!(stored, (expire >> 4) << 4, "落盘值必须 4-bit 粗化");
+    assert_eq!(stored & 0xF, 0, "低 4 位恒零（1600ns 分辨率）");
+
+    // 粗化不改存活判定：粗化后仍 >= now，读路径不触发清除
+    assert!(session.contains_key(b"ck").await?);
+    assert!(session.ttl_of(b"ck").await?.is_some());
+
+    // 全精度比较口径：expire_at 对既有粗化值做 GT 判定，等值（严格大于口径）拒绝
+    assert_eq!(
+      session
+        .expire_at(
+          b"ck",
+          stored,
+          TtlOpt {
+            gt: true,
+            ..TtlOpt::NONE
+          }
+        )
+        .await?,
+      0,
+      "等值重设按 GT 严格大于口径拒绝"
+    );
+
+    aok::Result::<()>::Ok(())
+  })?;
+  OK
+}
