@@ -6,12 +6,6 @@
    问题：解析层与 COMMAND 目录已注册，执行层无臂成幽灵命令；C# 全量同步三段握手（INITIATE_REPLICA_SYNC → ATTACH_SYNC → SYNC/SEND_CKPT 检查点流）rust 只有首段 + AOF 直推，非空库副本无法达成一致。
    改法：与检查点传输流一并立项补臂；短期先从 resp_commands_info_data.rs 与 COMMAND 目录摘除六项，消除幽灵注册。
 
-5. [P1] INFO commandstats/gossip/bufferpool/checkpoint 段恒空
-   位置：wedb/wnode/src/resp/info_provider.rs:57（command_stats_monitor: false 硬编码）、:94-95（command_stats 恒空）、:147/:152/:162（keyspace/gossip/buffer_pool/checkpoint 空实现）；wedb/wnode/src/resp/resp_server_session.rs:934-935（command_error_written 置位后无消费）
-   对标：garnet/libs/server/Resp/RespServerSession.cs:683-716、garnet/libs/cluster/Server/ClusterProvider.cs:272-333
-   问题：InfoProvider 接口面已布好但全部返回空，观测面空转，无 per-command 维度。
-   改法：补 CommandStats 挂会话主循环三出口计数；集群侧把 gossip/迁移/复制 manager 既有内部计数导出为 MetricsItem。
-
 7. [P2] MOVED/ASK 端点偏好硬编码 Ip，配置面半接线
    位置：wedb/wedb/src/server/cluster_session.rs:139（redirect_slot）、:825（SlotVerifyRequest.pref_type 写死 Ip）；wedb/wedb/src/server/cluster_config.rs:479-491（get_endpoint_from_slot 已有 Hostname 分支）；全仓无 preferred-endpoint 配置键
    对标：garnet/libs/cluster/Session/SlotVerification/RespClusterSlotVerify.cs、garnet/libs/server/Servers/ServerOptions.cs（ClusterPreferredEndpointType）
@@ -30,24 +24,6 @@
    问题：AofReplayMaxLagBytes > 0 的背景重放与主端背压整链缺失，默认配置不触发，属功能缺口。
    改法：接线背景重放任务 + 主端节流查询；或配置面禁用该形态并删死接口。
 
-10. [P2] FastAofTruncate 断点重对齐缺失
-    位置：wedb/wedb/src/server/replication/cluster_replication_session.rs:235-242（tail != current_address 一律 Divergent 断流）
-    对标：garnet/libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplaySession.cs:54-72
-    问题：C# 检测跳页/超长跳过时 SafeInitialize 重对齐并推进位点，rust 容错弱于 C#。
-    改法：补跳过重对齐分支，或明确依赖上层 resync 并文档化。
-
-14. [P2] handle_aof_commit_mode 缺配置门控
-    位置：wedb/wnode/src/resp/parser/resp_command.rs:729（调用点）、:939-947（函数体无条件执行）
-    对标：garnet/libs/server/Resp/Parser/RespCommand.cs:1206-1208
-    问题：每条命令无条件维护 wait_for_aof_blocking，AOF 关闭时标志仍置位，语义漂移隐患。
-    改法：调用点补 EnableAOF && WaitForCommit 等价门控。
-
-15. [P2] ensure_replication 心跳刷新点偏移
-    位置：wedb/wedb/src/server/cluster_provider.rs:229/:232（节流通过即 update_last_primary_sync_time）
-    对标：garnet/libs/cluster/Server/Replication/ReplicationManager.cs:38-40
-    问题：健康副本也刷新，LastPrimarySyncSeconds 表征不出真实失联时长。
-    改法：刷新点改到建立同步时，与 C# 对齐。
-
 16. [P2] 双消费形态长期并存
     位置：wedb/wnode/src/resp/resp_server_session.rs:753（try_consume_messages 批次拷贝）、:794（try_consume_pending scratch 持久游标）
     对标：garnet/libs/server/Resp/RespServerSession.cs:TryConsumeMessages（单一形态）
@@ -65,12 +41,6 @@
     对标：garnet/libs/cluster/Server/Replication/ReplicationManager.cs:159-166
     问题：replication.conf 持久化面未接线，主端重启即丢 replid 历史，副本被迫全量重同步；构造期无条件 recover_or_init 与 C# Recover && fileSize > 0 门控相反。
     改法：装配传入 checkpoint/config 目录接通持久化；构造期恢复按 --recover 门控。
-
-19. [P2] AOF StoreRMW 重放未知命令 warn 后吞没
-    位置：wedb/wnode/src/aof/aof_processor.rs:1291-1302（落空分支 log::warn! 后 return Ok(())）
-    对标：garnet/libs/server/AOF/AofProcessor.cs:StoreRMW
-    问题：写入端新增 RMW 编码而重放端漏配时静默丢恢复数据；现状写入端条件 SET 族已固化为盲写 upsert，无实际缺口，风险在演化失配。
-    改法：改返回 Err，或以编译期穷尽匹配绑定写入端与重放端命令集。
 
 21. [P2] ignore 面拆块与理由修正
     位置：js/check/ignore/cluster.yml:497-684（单块约 190 行共用一句笼统理由）、js/check/ignore/server.yml:39-40

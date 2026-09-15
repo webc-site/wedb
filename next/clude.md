@@ -1,13 +1,5 @@
 # clude 待办
 
-1. [P1] MIGRATE 源端驱动未接生产，M3 SLOTS 变体与 M4 checkpoint 网络导入缺失
-   位置：wedb/src/server/migration/migrate_driver.rs:177（run_keys_migration_driver 仅被 wedb/tests/cluster_migration.rs:19 调用，无生产触发链）
-   位置：wedb/wresp/src/command.rs:360-363、wedb/wnode/src/resp/parser/resp_command.rs:435-445（SNAPSHOT_DATA / SEND_CKPT_METADATA / SEND_CKPT_FILE_SEGMENT 仅注册枚举，无处理逻辑）
-   对标：garnet/libs/cluster/Session/MigrateCommand.cs、garnet/libs/cluster/Server/Migration/MigrationDriver.cs（发送驱动）
-   对标：garnet/libs/cluster/Server/Migration/MigrateSessionKeys.cs（键集迁移）、MigrateSessionSlots.cs（槽位迁移）、MigrateScanFunctions.cs、MigrateSessionCommonUtils.cs、MigrationManager.cs
-   问题：源端仅落地 internode 接收 arm（wedb/src/server/cluster_session.rs:1533 cluster_migrate_slow）；KEYS 停等驱动无生产调用方；SLOTS 变体（get_keys_in_slot → 分批停等 → delete_slot_keys 游标循环，get_keys_in_slot 在 wedb/wnode/src/storage/session/common/array_key_iteration_functions.rs:263 仅有查询形态）与 checkpoint 网络导入均缺
-   改法：打通源端 MIGRATE 命令解析到 run_keys_migration_driver 的触发链，按 M3-M4 实施；停等循环必须有超时，杜绝死锁。不做：kind 2-5（vector/RangeIndex/chunked 帧）、AUTH 透传、并行迁移任务；已点亮无需再做：CLUSTER FLUSHALL / PUBLISH / SPUBLISH
-
 2. [P2] wnode 四个巨型文件拆分
    位置：wedb/wnode/src/resp/resp_server_session.rs:1（3993 行）、wedb/wnode/src/aof/aof_processor.rs:1（1915 行）、wedb/wnode/src/resp/basic_commands.rs:1（1915 行）、wedb/wnode/src/aof/garnet_log.rs:1（1736 行）
    对标：garnet/libs/server/Resp/RespServerSession.cs（C# 用 partial class 拆分为多文件）、RespServerSessionSlotVerify.cs、RespServerSessionOutput.cs

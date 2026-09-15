@@ -22,11 +22,6 @@
    问题：同一恢复装配逻辑双份维护
    改法：wnode 提供 open_from_args(args, session_factory) 便利构造，两 main 各一行
 
-13. [P2] 配置文件入口断头
-   位置：wconf/src/node_options.rs:222 from_args、:227 from_nested_text_str、:232 from_file（外部全仓零调用，from_file 内部转 from_nested_text_str）
-   问题：SKILL 指定 nested_text 为配置格式，但两 main 直接 clap derive，配置文件能力未接
-   改法：main 增 --config 分支接线，或明确放弃并删三个函数
-
 16. [P2] src 内嵌跨 crate 集成测试迁 tests
    位置：wnode/src/resp/resp_server_session.rs:2725（tests 模块约 1270 行、62 个 #[test]，use wacl/wpubsub/wtxn/waof 全家装配）；同型：wnode/src/session_parse_state_extensions.rs（15 test）、wnode/src/resp/parser/resp_command.rs（13）、wnode/src/aof/garnet_log.rs（11）、wlua/src/lib.rs（12）
    对标：garnet/libs/server/tests/（集成测试独立程序集）

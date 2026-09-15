@@ -6,108 +6,17 @@
    问题：停机与槽位变更的 flush_config 调用点已接（cluster_provider.rs:508、cluster_manager_slot_state.rs 多处、server.rs 停机段），但写盘与启动恢复缺失，重启后 MEET/Gossip 全部重来
    改法：flush_config 落盘写 cluster_config_path；启动读盘后 from_byte_array 恢复并 init_local(recover_config=true)
 
-4. [P1] 副本重连超时默认值与注释双错
-   位置：wedb/wedb/src/main.rs:36 REPLICATION_REESTABLISHMENT_TIMEOUT_SECS = 1，注释称 C# 默认 1
-   对标：garnet/libs/host/defaults.conf:527（ClusterReplicationReestablishmentTimeout = 0 = 禁用）；garnet/libs/cluster/Server/Replication/ReplicationManager.cs:184-189（pollFrequency==0 直接 return）
-   问题：Rust 默认 1 启用自动重连，C# 默认禁用，注释声明与上游相反
-   改法：默认改 0，或更正注释声明故意差异
-
 5. [P1] wkv 无索引在线扩容通道
    位置：wedb/wdatabase/src/database_manager_base.rs:330-335 grow_index_if_needed_async 空转返回；wedb/wnode/src/task.rs:40 IndexAutoGrowTask 仅枚举无任务体；wedb/wnode/src/resp/config_commands.rs:327-331 按增长失败降级
    对标：garnet/libs/server/StoreWrapper.cs:798 IndexAutoGrowTaskAsync、garnet/libs/server/Databases/DatabaseManagerBase.cs:317 GrowIndexesIfNeededAsync
    问题：索引满后无自动扩容，CONFIG 增长请求恒报失败
    改法：补后台 IndexAutoGrow 任务消费 grow_indexes_if_needed_async；备选按 SKILL check/ignore 登记差异。关联 StoreWrapper.Reset（Pause+Reset+Resume）同未落地
 
-6. [P1] no-script 位图未接线
-   位置：wedb/wnode/src/resp/resp_server_session.rs:2305 no_script_details 仅测试调用（:3321）；:844-876 process_messages 门自认仅承载 ACL
-   对标：garnet/libs/server/Lua/LuaRunner.cs:242（脚本期挂 noScriptBitmap）+ garnet/libs/server/Resp/AdminCommands.cs:95-115 CheckScriptPermissions
-   问题：EVAL 脚本内执行 multi/subscribe 等不回 NOSCRIPT，构建器现成只差接线
-   改法：run_lua_command 进入脚本期挂位图，命令门加拦截
-
 7. [P1] 指标接线两缺
    位置：wedb/wnode/src/server.rs:116 metrics_sampling_frequency builder 与 :242 启动门已在，但 wedb/wedb/src/main.rs 与 wedb_standalone 均未调用（恒 0 监视器永不启动）；wedb/wmetric/src/command_stats.rs 表无 per-command 递增，wedb/wnode/src/resp/info_provider.rs 无 commandstats 段
    对标：garnet/libs/server/Resp/RespServerSession.cs:587-598、:683-715 CommandStatsMonitor；garnet/libs/host/Configuration/Options.cs:344-360
    问题：监视器与命令统计全链断
    改法：宿主入口透传采样频率；monitor 开启时挂 CommandStats 表并补 INFO 段
-
-8. [P1] MIGRATE 剩余两段（M3 SLOTS 变体 / M4 checkpoint 网络导入）
-   位置：M3：wedb/wedb/src/server/migration/ 仅 MigrateSession/Sketch 脚手架（migrate_session.rs:28），扫描-传输-删除游标循环缺失（原语已在 wnode/src/storage/session/common/array_key_iteration_functions.rs:214/263）；M4：SNAPSHOT_DATA/SEND_CKPT_* 仅枚举（wnode/src/resp/resp_commands_info_data.rs:375-383）会话无臂，恢复件已在 wcpr/src/manager.rs:599 recover_checkpoint_components
-   对标：garnet/libs/cluster/Session/RespClusterMigrateCommands.cs NetworkClusterMigrate、Migrate/MigrateSessionSlots.cs、Server/Replication/ReplicaOps/ ReceiveCheckpointHandler
-   问题：槽位迁移无可搬运循环，checkpoint 网络导入面未落
-   改法：先打通 execute_cluster_migrate_async 应答解析与超时（client.rs 先例），再写停等循环；M4 按 staging 目录 → SegmentedDevice::single_file → recover_checkpoint_components → WedbStore::from_components → set_store
-
-9. [P1] INFO 复制段缺 5 个副本侧指标
-   位置：wedb/wedb/src/server/cluster_provider.rs:525-599 get_replication_info
-   对标：garnet/libs/cluster/Server/ClusterProvider.cs:255-259
-   问题：缺 replication_offset_vector_lag、replication_offset_acc_lag、aof_replay_max_lag_bytes、physical_sublog_max_sequence_vector、physical_sublog_max_drift_sequence_vector（原语 AofAddress::diff/AggregateDiff 等已在）
-   改法：按 C# 逐项补齐 INFO REPLICATION 输出
-
-10. [P1] 集群态 PUBLISH/SPUBLISH 缺跨节点广播钩子
-    位置：wedb/wpubsub/src/session_commands.rs:390-398 network_publish 对 shard 直接回 CLUSTER_DISABLED
-    对标：garnet/libs/server/Resp/PubSubCommands.cs:140-147（EnableCluster 时阻塞等 ClusterPublishAsync）
-    问题：RESP 会话路径无集群回调，跨节点发布断
-    改法：network_publish 增加集群回调位，有集群会话时转发后合并应答
-
-11. [P1] Lua 装配缺口
-    位置：wedb/wlua/src/cache.rs:125 set_user_handle 认证后无生产调用；wedb/wlua/src/loader.rs:132-134 status_reply 返回 {ok=...}
-    对标：garnet/libs/server/Resp/RespServerSession.cs:311（认证变更即 SetUserHandle）；garnet/libs/server/Lua/LuaRunner.Loader.cs:136-138（status_reply 直接返回 text）
-    问题：脚本缓存用户句柄不传播；回复形态差异未声明
-    改法：认证成功/切换用户处向脚本缓存传播；status_reply 对齐或补差异注释
-
-12. [P1] 配置面加载接线
-    位置：wedb/wconf/src/node_options.rs:227-234 from_nested_text_str/from_file 无生产调用、无 --config 参数
-    对标：garnet/libs/host/Configuration/Options.cs（130+ 项全集）、:483-506 config import/export
-    问题：CLI 约 15 项仍缺 reviv 系、slowlog、gossip-delay/gossip-sp/cluster-timeout、max-inline-key/value-size、index-resize、max-databases、protected-mode、aof 系尺寸等（lua 三项已补）
-    改法：入口增补 --config <path>，CLI 覆盖文件值；按运维优先级补常用项，其余登记 check/ignore
-
-17. [P1] 集合命令 numkeys/count 解析宽度 i64 vs C# int32
-    位置：wedb/wnode/src/resp/objects/sorted_set_commands.rs:491、:908、:1134（ZMPOP/ZINTERCARD/BZMPOP numkeys 用 try_parse_i64）
-    对标：garnet/libs/server/Resp/Objects/SortedSetCommands.cs（全族 parseState.TryGetInt int32，溢出报 not-integer）
-    问题：六处（含 ZRANDMEMBER/ZINTERCARD/BLMPOP/GEO COUNT）宽度超集，溢出行为与 C# 不一致
-    改法：收敛 strict_i32（hash_commands.rs:484 HRANDFIELD、list_commands.rs 先例）
-
-18. [P1] HCOLLECT `*` 缺 already-in-progress 互斥
-    位置：wedb/wresp/src/cmd_strings.rs:89 RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS 零引用；wedb/wnode/src/resp/garnet_api.rs:531-560 全库收集臂无锁
-    对标：garnet/libs/server/Storage/Session/ObjectStore/Common.cs:812-814 _hcollectTaskLock.TryWriteLock() 失败回该文案
-    问题：并发 HCOLLECT 可重入
-    改法：补进行标志互斥，失败映射常量文案
-
-19. [P1] INFO KEYSPACE 带 TTL 键计数恒 0
-    位置：wedb/wnode/src/resp/info_provider.rs:99-100 keyspace_stats 恒 (0,0)
-    对标：garnet/libs/server/StoreWrapper.cs:790 GetKeyspaceStats → garnet/libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:382 UnifiedStoreGetKeyspaceStats
-    问题：库快照通道未接，TTL 键统计缺失（EXPDELSCAN 拦截差异已在 admin_commands.rs:556 注释声明）
-    改法：接存储域键空间扫描通道回填计数
-
-20. [P1] waof_sublog memory_size_bytes 返回容量常量
-    位置：wedb/wnode/src/aof/waof_sublog.rs:326-327 返回 wal.config().buffer_size；ShardedLog/SingleLog 同实现复制
-    对标：garnet/libs/storage/…/TsavoriteLog.cs:196 MaxMemorySizeBytes（容量）vs :201 MemorySizeBytes（当前占用）
-    问题：两语义塌缩为一
-    改法：SublogBackend 拆 max_memory_size_bytes/memory_size_bytes 两方法
-
-21. [P1] committed_begin_address 塌缩为 begin_address
-    位置：wedb/wnode/src/aof/single_log.rs:49-51、wedb/wnode/src/aof/sharded_log.rs:163-169
-    对标：garnet/libs/storage/…/TsavoriteLog.cs:120 CommittedBeginAddress（独立字段，恢复自 commit 记录）
-    问题：提交边界与起始地址混用
-    改法：引入独立 committed 字段并自 commit 记录恢复
-
-25. [P1] 占位函数 prefetch_key_sequence_number 空实现且有生产调用
-    位置：wedb/wnode/src/aof/readconsistency/virtual_sublog_replay_state.rs:187（空体）；调用点 read_consistency_manager.rs:329
-    对标：garnet/libs/server/AOF/ReadConsistency/VirtualSublogReplayState.cs:119（真实缓存预热）、ReadConsistencyManager.cs:305
-    问题：读一致性预热降级为空操作且未声明
-    改法：实现预热或注释声明降级
-
-26. [P1] sharded 多物理日志拓扑无装配点
-    位置：wedb/wnode/src/aof/recover/aof_recover.rs:71 multi_log_recover 零调用；生产 service.rs 单 WaofSublog
-    对标：garnet/libs/server/AOF/GarnetAppendOnlyFile.cs 多 sublog 拓扑 + AofProcessor.cs 装配
-    问题：ShardedLog/ReadConsistencyManager/ReplayAlignBarrier 生产不可达
-    改法：--aof 点亮时定多日志拓扑装配，或登记单日志差异并清死链
-
-27. [P1] NodeArgs.compaction_freq_secs 死旋钮与配置域收敛
-    位置：wedb/wconf/src/node_options.rs:85（全仓零消费；StoreConfig 级同名项已删，见 wkv/src/config.rs:66 注释）
-    对标：garnet/libs/host/Configuration/RuntimeServerConfig.cs 单域 + StoreWrapper 每轮重读
-    问题：GcConfig/StoreConfig/NodeArgs/RuntimeServerConfig/ServerOptions 多面声明同语义参数
-    改法：删死旋钮；以 RuntimeServerConfig 为运行时单一来源，其余面收敛声明
-
 
 32. [P2] 对标注释风格统一
     位置：全仓 94 处「在 garnet 中的相对路径:函数名」范式
@@ -150,54 +59,6 @@
     对标：garnet/test/standalone/（测试工程引用 server 库）；SKILL 同上
     问题：命令级 e2e 全挂在 bin crate 且越层断言
     改法：命令级 e2e 迁 wnode/tests 或专用集成测试 crate，越层断言改经 wkv 公开 API，wedb_standalone 只留启动冒烟
-
-42. [P2] CONFIG GET 应答未接 RESP3 map 头
-    位置：wedb/wnode/src/resp/config_commands.rs CONFIG GET 恒 RESP2 双倍数组（HELLO map 已接，见 resp_server_session.rs:1672）
-    对标：garnet/libs/server/Config/ServerConfig.cs:69 WriteMapLength
-    问题：RESP3 下形态偏差
-    改法：按协议版本写 map 头
-
-43. [P2] SCAN 参数两处口径
-    位置：wedb/wnode/src/resp/array_commands.rs:110-112 未知选项报语法错（C# if/else-if 无 else 静默跳过）、:83-84 COUNT 负/零保留默认 10（注释称 C# 扫描层钳 1，与 C# :298 原样透传口径冲突待复核）
-    对标：garnet/libs/server/Resp/ArrayCommands.cs:275-313
-    问题：未知选项行为与 C# 不一致；COUNT 口径存疑
-    改法：对齐 C# 静默跳过；核实 C# 扫描层后统一 COUNT 口径
-
-44. [P2] 错误文案：SUBSTR 报 GETRANGE、PEXPIRETIME 命令名口径
-    位置：wedb/wnode/src/resp/basic_commands.rs:577 network_get_range 对 SUBSTR 恒报 GETRANGE；wedb/wnode/src/resp/key_admin_commands.rs:479-483 PEXPIRETIME 用实名（C# quirk 恒 expiretime）
-    对标：garnet/libs/server/Resp/ArrayCommands.cs:494（cmd.ToString()）；garnet/libs/server/Resp/KeyAdminCommands.cs:537
-    问题：文案偏差
-    改法：SUBSTR 按实际命令名报错；PEXPIRETIME 对齐 quirk 或登记差异
-
-45. [P2] 集合命令错误文案批
-    位置：wedb/wnode/src/resp/objects/sorted_set_commands.rs:1556 WEIGHTS 报 "weight value is not a float"（C# 为 "ERR value is not a valid float"）；ZINTERCARD LIMIT 两态已对齐，其余（ZPOPMIN positive 文案、BLMPOP Parameter 版、GEO lon/lat 两态）逐条复核
-    对标：garnet/libs/server/Resp/CmdStrings.cs:251/268/338、SortedSetCommands.cs:1211-1219
-    问题：部分文案未逐 token 对齐
-    改法：逐条比对 CmdStrings 权威文案修正
-
-46. [P2] RI.CREATE 数值选项非数字吞错
-    位置：wedb/wnode/src/resp/rangeindex/resp_server_session_range_index.rs:105-133 五处 unwrap_or(0)
-    对标：garnet/libs/server/Resp/Parser/SessionParseState.cs:402-410 + ParseUtils.cs:64-77（RespParsingException 协议错误）
-    问题：非法数值静默取 0
-    改法：改协议错误
-
-47. [P2] network_rilen 无分派 arm
-    位置：wedb/wnode/src/resp/rangeindex/resp_server_session_range_index.rs:516（内含两层定义 :516/:584）
-    对标：garnet/libs/server/Resp/Parser/RespCommandHashLookupData.cs:228-236（RI 仅 9 命令，无 RILEN）
-    问题：C# 无此 RESP 命令（SKILL ri_len 指内部 API，非 RESP 面）
-    改法：删 RESP 面或按 check/ignore 登记超集
-
-48. [P2] key 级 TTL 缺 4-bit coarse 粗化
-    位置：wedb/wkv/src/ttl.rs put_ttl 存全精度 ticks；HFE 侧已 1:1（wresp/src/options.rs:136）
-    对标：garnet/libs/server/ExpirationWithOption.cs:22-23（ticks>>4<<4）
-    问题：与 C# 粗化口径差异未声明
-    改法：对齐或注释登记差异
-
-49. [P2] 副本回放 PEXPIREAT 丢条件未声明
-    位置：wedb/wnode/src/aof/aof_processor.rs:1243 Pexpireat 臂无差异注释（SET 条件族 :1293 已注释）
-    对标：garnet/libs/server/Storage/…/UnifiedStore/PrivateMethods.cs:108（Deterministic 标志 + 副本重评估）
-    问题：SKILL 允许的帧差异缺注释
-    改法：补注释
 
 50. [P2] waof_sublog scan 手写环形帧解析
     位置：wedb/wnode/src/aof/waof_sublog.rs:213-256（恢复链已统一 scan_async）

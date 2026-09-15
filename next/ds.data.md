@@ -10,8 +10,3 @@
    对标：garnet/libs/server/Resp/AdminCommands.cs:742-744（PANIC 真抛 GarnetException）、AdminCommands.cs:772-790（真 FlushAndEvict 回 OK head=.. tail=..）
    问题：HELP 承诺的两条子命令执行必失败；FLUSHANDEVICT 在 C# 是可观测真实语义（HeadAddress 抬至 TailAddress）。
    改法：wkv 暴露 flush_and_evict 接线 FLUSHANDEVICT，HELP 文案按真实能力裁剪；PANIC 属 rust 禁 panic 刻意偏差，留档即可。
-4. [P2] DBID 校验常量硬编码，集群分支死代码
-   位置：wedb/wnode/src/resp/admin_commands.rs:38（const MAX_DATABASES: i64 = 16）、:41（const CLUSTER_ENABLED: bool = false）、:614-636（try_parse_database_id）
-   对标：garnet/libs/server/Resp/AdminCommands.cs:TryParseDatabaseId
-   问题：CLUSTER_ENABLED 恒 false 使集群禁非零 DBID 分支永不可达；MAX_DATABASES 不读运行时选项，用户配更多库（如 32）时 SAVE/BGSAVE/LASTSAVE/COMMITAOF/EXPDELSCAN 的 DBID 被误拒。
-   改法：try_parse_database_id 改读会话已装配的 runtime_config 与集群门。

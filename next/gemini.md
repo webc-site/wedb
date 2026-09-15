@@ -12,12 +12,6 @@
    问题：三 arm 无任何处理代码，staging 写入 → 恢复组件 → WedbStore 替换在线引擎的导入闭环不通；CheckpointFileType 对齐（HLOG=1, INDEX=4）无对应枚举
    改法：补三 arm 处理与导入闭环；明确不做 kind 2-5（vector/RangeIndex/chunked 帧）、AUTH 透传、ATTACH_SYNC/BEGIN_REPLICA_RECOVER（AOF 直推架构替代）
 
-3. [P1] 迁移发送侧缺生产入口与 SLOTS 变体驱动（M3）
-   位置：wedb/wedb/src/server/migration/migrate_driver.rs:177（run_keys_migration_driver 仅被 wedb/wedb/tests/cluster_migration.rs:512 起的测试调用，无生产调用方）；wedb/wedb/src/server/migration/migration_manager.rs:18（TransferOption::Slots 无驱动实现）
-   对标：garnet/libs/cluster/Server/Migration/MigrateSessionDriver.cs:MigrateSlots
-   问题：KEYS 停等驱动已在位但无命令入口触发；SLOTS 变体未装配，构件已备（get_keys_in_slot wedb/wnode/src/storage/session/common/array_key_iteration_functions.rs:263、delete_slot_keys 同文件:214、ensure_replication wedb/wedb/src/server/cluster_provider.rs:230）
-   改法：装配 SLOTS 变体驱动（游标迭代 → 分批停等传输 → delete_slot_keys，循环前后 ensure_replication）并接命令入口
-
 4. [P2] StoreWrapper.Reset 语义未落地
    位置：wedb/wnode/tests/vector_set_cleanup_vs_reset_race.rs:11（自注「尚未落地」，现测试仅近似锤击）
    对标：garnet/libs/server/Storage/Common/StoreWrapper.cs:Reset
