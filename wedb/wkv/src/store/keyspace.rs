@@ -105,7 +105,8 @@ impl<D: Device> WedbStore<D> {
   ///
   /// C# 每库独立 Tsavorite 实例，FlushDatabase 即
   /// `db.Store.Log.ShiftBeginAddress(db.Store.Log.TailAddress)` 整段截断
-  /// （libs/server/Databases/DatabaseManagerBase.cs:FlushDatabase）；rust
+  /// （本函数承载其中的存储执行段，管理器组装段见 wdatabase
+  /// DatabaseManagerBase::flush_database）；rust
   /// 共享单日志以 `[NsVarint][DbVarint]` 前缀物理隔离各库，无法按库截断，
   /// 等价实现为域扫描收集 + 逐键完整删除（[`StoreSession::delete`]：随键
   /// TTL/ETag 旁路清理 + 集合 Meta 版本栅栏秒删 + wbftree 树文件排空释放 +

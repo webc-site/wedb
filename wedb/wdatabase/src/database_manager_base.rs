@@ -269,18 +269,19 @@ impl<D: Device> DatabaseManagerBase<D> {
     Ok(())
   }
 
-  /// 重置数据库内容（删除本库全部用户键 + 复位保存点）
+  /// 清空数据库数据（截断族：数据清空 + AOF 截断至尾）
   ///
-  /// libs/server/Databases/DatabaseManagerBase.cs:ResetDatabase
+  /// libs/server/Databases/DatabaseManagerBase.cs:FlushDatabase
   ///
-  /// C# 为 `db.Store.Reset()`（整段截断 Tsavorite 日志）、`Aof Log.Reset()`
-  /// 与 LastSave 归零；rust 共享存储模型下清库为 wkv 域扫描收集 + 逐键
-  /// 完整删除（[`wkv::WedbStore::flush_database`]：随键 TTL/ETag 清理、
-  /// 集合 Meta 版本栅栏秒删、wbftree 树文件排空释放、对象信封双域删除），
-  /// AOF 截断与保存点复位保持 C# 口径。仅供 FLUSHDB / FLUSHALL 族；
-  /// SWAPDB 搬移走 wkv `StoreSession::swap_databases` 内核（经写端口
-  /// 镜像 AOF，绝不截断），不经此路。
-  pub async fn reset_database<A: DatabaseAof<D>>(
+  /// C# 为 `db.Store.Log.ShiftBeginAddress(TailAddress)` + AOF
+  /// `TruncateUntil(TailAddress)`（位点不归零，不动 LastSaveTime）；
+  /// rust 共享存储模型下无法按库截断日志，数据清空等价为 wkv 域扫描
+  /// 收集 + 逐键完整删除（[`wkv::WedbStore::flush_database`]：随键
+  /// TTL/ETag 清理、集合 Meta 版本栅栏秒删、wbftree 树文件排空释放、
+  /// 对象信封双域删除），AOF 截断保持 C# 口径。仅供 FLUSHDB /
+  /// FLUSHALL 族；SWAPDB 搬移走 wkv `StoreSession::swap_databases`
+  /// 内核（经写端口镜像 AOF，绝不截断），不经此路。
+  pub async fn flush_database<A: DatabaseAof<D>>(
     &self,
     db: &GarnetDatabase<D, A>,
   ) -> wkv::Result<()> {
@@ -288,6 +289,26 @@ impl<D: Device> DatabaseManagerBase<D> {
     if let Some(aof) = &db.aof {
       let until = AofAddress::create(1, aof.tail_address());
       aof.truncate_until_async(&until).await;
+    }
+    Ok(())
+  }
+
+  /// 重置数据库（拆除重建族：数据清空 + AOF 位点归零 + 复位保存点）
+  ///
+  /// libs/server/Databases/DatabaseManagerBase.cs:ResetDatabase
+  ///
+  /// C# 为 `db.Store.Reset()`（TailAddress > 64 时日志地址归零、分配器
+  /// 拆除重建）、`Aof Log.Reset()`（位点归零）与 LastSave 归零；rust
+  /// 共享存储模型下数据清空与截断族同体（wkv 逐键完整删除），语义差
+  /// 由 AOF 段承载——[`DatabaseAof::reset_async`] 位点归零（对标
+  /// `Log.Reset()`），区别于 [`Self::flush_database`] 的截断至尾。
+  pub async fn reset_database<A: DatabaseAof<D>>(
+    &self,
+    db: &GarnetDatabase<D, A>,
+  ) -> wkv::Result<()> {
+    db.store.flush_database(0, db.id.max(0) as u64).await?;
+    if let Some(aof) = &db.aof {
+      aof.reset_async().await;
     }
     db.last_save_ms.store(0, Relaxed);
     db.last_save_store_tail_address.store(0, Release);
