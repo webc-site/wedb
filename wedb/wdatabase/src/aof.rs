@@ -18,6 +18,11 @@ pub trait DatabaseAof<D: Device>: Send + Sync + Sized {
   /// 异步截断至指定 AOF 地址
   fn truncate_until_async<'a>(&'a self, until: &'a AofAddress) -> impl Future<Output = ()> + 'a;
 
+  /// 重置日志（位点归零，须在日志静默后调用）
+  ///
+  /// libs/server/AOF/GarnetLog.cs:Reset
+  fn reset_async(&self) -> impl Future<Output = ()> + '_;
+
   /// 物理提交刷盘
   fn commit_flush_async(&self) -> impl Future<Output = ()> + '_;
 
@@ -60,6 +65,9 @@ impl<D: Device> DatabaseAof<D> for () {
 
   #[inline]
   async fn truncate_until_async<'a>(&'a self, _until: &'a AofAddress) {}
+
+  #[inline]
+  async fn reset_async(&self) {}
 
   #[inline]
   async fn commit_flush_async(&self) {}
