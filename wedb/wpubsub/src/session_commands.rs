@@ -518,6 +518,10 @@ mod tests {
     output: Vec<u8>,
     protocol_version: u8,
     is_subscription: bool,
+    /// 集群会话切面在场标志（has_cluster_session 返回值）
+    clustered: bool,
+    /// cluster_publish 转发记录（is_spublish, channel）
+    forwarded: Vec<(bool, Vec<u8>)>,
   }
 
   impl MockSession {
@@ -527,6 +531,8 @@ mod tests {
         output: Vec::new(),
         protocol_version: 2,
         is_subscription: false,
+        clustered: false,
+        forwarded: Vec::new(),
       }
     }
   }
@@ -546,6 +552,14 @@ mod tests {
 
     fn set_subscription_session(&mut self, is_subscription: bool) {
       self.is_subscription = is_subscription;
+    }
+
+    fn has_cluster_session(&self) -> bool {
+      self.clustered
+    }
+
+    fn cluster_publish(&mut self, is_spublish: bool, channel: &[u8], _message: &[u8]) {
+      self.forwarded.push((is_spublish, channel.to_vec()));
     }
   }
 
@@ -617,5 +631,37 @@ mod tests {
     assert!(session.network_subscribe(&mut wire, false, &[b"test"]));
     let out_str = String::from_utf8_lossy(&session.output);
     assert!(out_str.contains(ERR_SUBSCRIBE_DISABLED));
+  }
+
+  /// 集群发布钩子：集群会话在场时本地广播后触发跨节点转发并应答计数
+  ///（C# PubSubCommands.cs:140-147）；集群缺席维持单机行为——SPUBLISH 回
+  /// 集群未启用（C# :108-112），PUBLISH 仅本地广播不转发
+  #[test]
+  fn publish_cluster_hook_forwarding() {
+    let broker = Arc::new(SubscribeBroker::new(4096));
+    let mut wire = PubSubSession::new(broker);
+    let mut session = MockSession::new(103);
+
+    // 单机形态：SPUBLISH 回集群未启用，无转发
+    assert!(session.network_publish(&mut wire, true, &[b"ch", b"msg"]));
+    let out_str = String::from_utf8_lossy(&session.output);
+    assert!(
+      out_str.contains(cs::RESP_ERR_GENERIC_CLUSTER_DISABLED),
+      "SPUBLISH 单机应回集群未启用: {out_str}"
+    );
+    assert!(session.forwarded.is_empty());
+
+    // 集群形态：SPUBLISH 本地广播 + 转发 + 应答通知数（:0 无订阅者）
+    session.clustered = true;
+    session.output.clear();
+    assert!(session.network_publish(&mut wire, true, &[b"ch", b"msg"]));
+    assert_eq!(session.forwarded, vec![(true, b"ch".to_vec())]);
+    assert_eq!(String::from_utf8_lossy(&session.output), ":0\r\n");
+
+    // 集群形态 PUBLISH 同样转发（is_spublish = false）
+    session.output.clear();
+    assert!(session.network_publish(&mut wire, false, &[b"ch", b"msg"]));
+    assert_eq!(session.forwarded.last(), Some(&(false, b"ch".to_vec())));
+    assert_eq!(String::from_utf8_lossy(&session.output), ":0\r\n");
   }
 }

@@ -1229,3 +1229,74 @@ fn dispatch_slow<D: Device>(
     }
   }
 }
+
+#[cfg(test)]
+mod hcollect_mutex_tests {
+  use super::*;
+  use tempfile::tempdir;
+  use wdev::SegmentedDevice;
+  use wkv::{StoreConfig, WedbStore};
+
+  /// 小容量单文件存储执行域（与 tests/store_garnet_api_dispatch.rs 同款配置）
+  fn open_api(dir: &std::path::Path, name: &str) -> StoreGarnetApi<SegmentedDevice> {
+    let config = StoreConfig::new(1024, 64 * 1024, 16, 0.5).unwrap();
+    let device = Arc::new(SegmentedDevice::single_file(dir.join(name)).unwrap());
+    let store = Arc::new(WedbStore::open(config, device).unwrap());
+    StoreGarnetApi::new(store.new_session().unwrap())
+  }
+
+  /// C# ObjectCollect 互斥（Common.cs:810 TryWriteLock 失败 → 网络层
+  /// AdminCommands.cs:676/709 already-in-progress 文案）：单写位在途即拒绝，
+  /// HCOLLECT 与 ZCOLLECT 独立两把（C# _hcollectTaskLock/_zcollectTaskLock），
+  /// 扫描闭环后释放恢复可用
+  #[test]
+  fn hcollect_star_mutex_rejects_reentry() {
+    let dir = tempdir().unwrap();
+    let api = open_api(dir.path(), "hc.db");
+    let rt = compio::runtime::Runtime::new().unwrap();
+
+    // 置位 HCOLLECT 在途标志：重入被拒，映射常量文案
+    api.hcollect_in_progress.store(true, Ordering::SeqCst);
+    let out = rt.block_on(GarnetApiFace::exec_slow(
+      &api,
+      RespCommand::Hcollect,
+      vec![b"*".to_vec()],
+    ));
+    assert_eq!(
+      String::from_utf8_lossy(&out),
+      "-ERR HCOLLECT scan already in progress\r\n"
+    );
+
+    // ZCOLLECT 独立锁位：HCOLLECT 在途不拦 ZCOLLECT（空库扫描闭环 +OK）
+    let out = rt.block_on(GarnetApiFace::exec_slow(
+      &api,
+      RespCommand::Zcollect,
+      vec![b"*".to_vec()],
+    ));
+    assert_eq!(out, b"+OK\r\n");
+
+    // ZCOLLECT 在途：ZCOLLECT 重入同拒
+    api.zcollect_in_progress.store(true, Ordering::SeqCst);
+    let out = rt.block_on(GarnetApiFace::exec_slow(
+      &api,
+      RespCommand::Zcollect,
+      vec![b"*".to_vec()],
+    ));
+    assert_eq!(
+      String::from_utf8_lossy(&out),
+      "-ERR ZCOLLECT scan already in progress\r\n"
+    );
+
+    // 释放后恢复正常闭环（空库扫描 +OK，标志复位）
+    api.hcollect_in_progress.store(false, Ordering::SeqCst);
+    api.zcollect_in_progress.store(false, Ordering::SeqCst);
+    let out = rt.block_on(GarnetApiFace::exec_slow(
+      &api,
+      RespCommand::Hcollect,
+      vec![b"*".to_vec()],
+    ));
+    assert_eq!(out, b"+OK\r\n");
+    assert!(!api.hcollect_in_progress.load(Ordering::SeqCst));
+    assert!(!api.zcollect_in_progress.load(Ordering::SeqCst));
+  }
+}

@@ -3344,9 +3344,53 @@ mod tests {
     assert!(s.acl_allows_command("GET"));
   }
 
+  /// C# 脚本期 no-script 门：位图挂载后 NoScript 命令拦截，主循环回 NOSCRIPT
   #[test]
-  fn no_script_bitmap_sets_discriminants() {
-    // 对标 C# InitializeNoScriptDetails：NoScript 标志动态构建、字节粒度位图
+  fn no_script_gate_blocks_after_script_phase() {
+    let mut s = session(44);
+    // 未进入脚本期：位图未挂载，等价 C# noScriptBitmap == null 恒放行
+    assert!(s.check_script_permissions(RespCommand::Subscribe));
+
+    s.attach_no_script_bitmap();
+    // 挂载后：NoScript 命令拒绝，普通命令放行（AdminCommands.cs:95-115）
+    assert!(!s.check_script_permissions(RespCommand::Subscribe));
+    assert!(!s.check_script_permissions(RespCommand::Eval));
+    assert!(s.check_script_permissions(RespCommand::Get));
+
+    // 主循环：SUBSCRIBE 回 NOSCRIPT 文案（C# :710），位图常驻（C# 不摘除）
+    assert!(
+      s.try_consume_messages(b"*2\r\n$9\r\nSUBSCRIBE\r\n$1\r\nc\r\n")
+        .is_some()
+    );
+    assert_eq!(
+      String::from_utf8(s.take_output()).unwrap(),
+      "-ERR This Redis command is not allowed from script\r\n"
+    );
+  }
+
+  /// C# 脚本内 redis.call 禁令：EVAL 内 SUBSCRIBE 经重入主循环同门拦截
+  #[test]
+  fn script_internal_subscribe_rejected_with_noscript() {
+    let mut s = RespServerSession::new(
+      45,
+      RespServerSessionOptions {
+        enable_lua: true,
+        ..RespServerSessionOptions::default()
+      },
+    );
+    let frame =
+      b"*3\r\n$4\r\nEVAL\r\n$35\r\nreturn redis.call('SUBSCRIBE','ch')\r\n$1\r\n0\r\n";
+    assert!(s.try_consume_messages(frame).is_some());
+    let out = s.take_output();
+    let text = String::from_utf8_lossy(&out);
+    assert!(
+      text.contains("not allowed from script"),
+      "脚本内 SUBSCRIBE 应回 NOSCRIPT: {text}"
+    );
+  }
+
+  #[test]
+  fn no_script_bitmap_sets_discriminants() {    // 对标 C# InitializeNoScriptDetails：NoScript 标志动态构建、字节粒度位图
     let (start, bitmap) = RespServerSession::no_script_details();
 
     let info = |cmd: RespCommand| {
