@@ -537,15 +537,20 @@
         - CheckConnectionAsync
         - GetGarnetClient
         - GetLocalSession
-    - libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs
+    - libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs:
+        - CompletePending
+        - RetryAsync
+        - WriteOrSendAccumulatedRecordAsync
+        - WriteOrSendChunkedRecordAsync
+        - WriteOrSendRecordAsync
+        - WriteOrSendRecordSpanAsync
+        - WriteOrSendSegmentedRecordAsync
     - libs/cluster/Server/Migration/MigrateSessionKeyAccess.cs:
         - WaitForConfigPropagationAsync
     - libs/cluster/Server/Migration/MigrateSessionKeys.cs
     - libs/cluster/Server/Migration/MigrateSessionSlots.cs
     - libs/cluster/Server/Migration/MigrationDriver.cs:
         - BeginAsyncMigrationTaskAsync
-        - TryRecoverFromFailureAsync
-        - TrySetSlotRangesAsync
         - TryStartMigrationTaskAsync
     - libs/cluster/ClusterFactory.cs:
         - CreateCheckpointManager

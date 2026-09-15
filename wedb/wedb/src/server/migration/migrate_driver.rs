@@ -178,9 +178,10 @@ fn wait_dur(timeout_ms: i32) -> Duration {
   }
 }
 
-/// 远端停等包装：对标 libs/cluster/Server/Migration/MigrationDriver.cs:TrySetSlotRangesAsync
-/// 的 `WaitAsync(_timeout, _cts.Token)` —— 任一远端响应限时，目标挂起不至
-/// 任务永挂；超时转 Err 交调用方走 recover 失败路径
+/// 远端停等包装：C# 迁移会话对每个远端响应统一施加
+/// `Task.WaitAsync(_timeout, _cts.Token)` 限时（时长即 MIGRATE 命令的
+/// timeout 参数），本辅助承接同一机制——任一远端 await 限时，目标挂起
+/// 不至任务永挂；超时转 Err 交调用方走 recover 失败路径
 async fn wait_remote<F, T>(dur: Duration, fut: F) -> Result<T>
 where
   F: Future<Output = Result<T>>,
