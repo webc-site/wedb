@@ -223,10 +223,7 @@ fn orphan_error_reply(read_buf: &[u8]) -> Option<String> {
 /// ProcessReplies 的 `while (readHead < bytesRead)` 排空语义）：逐条解析队首
 /// 应答，完整即出队回传，以「read_buf 无完整应答或队列空」为退出条件而非
 /// 每轮必 read；未消费字节保留 read_buf 原样，等后续读事件拼接后整体重试
-fn dispatch_replies(
-  queue: &mut VecDeque<CommandItem>,
-  read_buf: &mut Vec<u8>,
-) -> Result<()> {
+fn dispatch_replies(queue: &mut VecDeque<CommandItem>, read_buf: &mut Vec<u8>) -> Result<()> {
   let mut data = read_buf.as_slice();
   let mut consumed = 0;
   while !data.is_empty() && !queue.is_empty() {
@@ -352,12 +349,15 @@ pub(super) async fn network_loop(
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use crate::client::GarnetClient;
+  use std::future::pending;
+
   use compio::{
     net::TcpListener,
     runtime::{Runtime, spawn},
   };
+
+  use super::*;
+  use crate::client::GarnetClient;
 
   #[test]
   fn encode_command_frame() {
@@ -402,7 +402,7 @@ mod tests {
           .await
           .0
           .unwrap();
-        std::future::pending::<()>().await;
+        pending::<()>().await;
       })
       .detach();
 
