@@ -905,11 +905,14 @@ impl RespServerSession {
       };
 
       if cmd != RespCommand::Invalid {
-        // C# 门链（RespServerSession.cs:653 CheckACLPermissions(cmd) &&
-        // CheckScriptPermissions(cmd)）：ACL 失败短路不再查 no-script；
-        // no-script 失败回 NOSCRIPT（C# :710），不落 NOPERM/NOAUTH
+        // C# 门链（RespServerSession.cs:651-653）：noScriptPassed 默认 true，
+        // ACL 失败短路（&&）不再查 no-script；no-script 失败回 NOSCRIPT
+        //（C# :710），不落 NOPERM/NOAUTH
         let acl_permitted = self.check_acl_permissions(cmd);
-        let script_permitted = acl_permitted && self.check_script_permissions(cmd);
+        let mut script_permitted = true;
+        if acl_permitted {
+          script_permitted = self.check_script_permissions(cmd);
+        }
         if acl_permitted && script_permitted {
           // RESP2 订阅模式仅放行 (P|S)SUBSCRIBE/(P|S)UNSUBSCRIBE/PING/QUIT/RESET
           //（libs/server/Resp/Parser/RespCommand.cs:IsAllowedInSubscriptionMode）

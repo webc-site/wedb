@@ -1765,8 +1765,9 @@ impl ClusterSessionFace for ClusterSession {
     IClusterProvider::purge_buffer_pool(&*self.cluster_provider, manager_type);
   }
 
-  /// libs/cluster/Server/ClusterProvider.cs:ClusterPublishAsync（C# PUBLISH
-  /// 命令侧 PubSubCommands.cs:140-147 BlockingWait 的切面承接）
+  /// 集群转发切面（rust 注入架构胶水面，无 C# 对应函数：C# NetworkPUBLISH
+  /// 直连 clusterProvider.ClusterPublishAsync，rust 会话→集群域依赖倒置经
+  /// 本切面中转，provider 层转发由 ClusterProvider::cluster_publish_async 承接）
   ///
   /// cluster_manager 在场（等价 EnableCluster）时内联 block_on 驱动转发至
   /// 闭环——C# 网络线程同步阻塞的 compio 单线程执行域等价物；无 manager
