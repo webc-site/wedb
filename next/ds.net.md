@@ -1,46 +1,10 @@
 # ds.net 待办
 
-1. [P1] 六个集群命令注册而无命令臂，全量同步检查点链路缺失
-   位置：wedb/wnode/src/resp/parser/resp_command.rs:392（ATTACH_SYNC）、:395（BEGIN_REPLICA_RECOVER）、:435（SEND_CKPT_FILE_SEGMENT）、:438（SEND_CKPT_METADATA）、:445（SNAPSHOT_DATA）、:447（SYNC）；消费端 wedb/wedb/src/server/cluster_session.rs:1671 兜底回 ERR，全文件无这些臂
-   对标：garnet/libs/cluster/Session/ClusterCommands.cs:127-172
-   问题：解析层与 COMMAND 目录已注册，执行层无臂成幽灵命令；C# 全量同步三段握手（INITIATE_REPLICA_SYNC → ATTACH_SYNC → SYNC/SEND_CKPT 检查点流）rust 只有首段 + AOF 直推，非空库副本无法达成一致。
-   改法：与检查点传输流一并立项补臂；短期先从 resp_commands_info_data.rs 与 COMMAND 目录摘除六项，消除幽灵注册。
-
-7. [P2] MOVED/ASK 端点偏好硬编码 Ip，配置面半接线
-   位置：wedb/wedb/src/server/cluster_session.rs:139（redirect_slot）、:825（SlotVerifyRequest.pref_type 写死 Ip）；wedb/wedb/src/server/cluster_config.rs:479-491（get_endpoint_from_slot 已有 Hostname 分支）；全仓无 preferred-endpoint 配置键
-   对标：garnet/libs/cluster/Session/SlotVerification/RespClusterSlotVerify.cs、garnet/libs/server/Servers/ServerOptions.cs（ClusterPreferredEndpointType）
-   问题：hostname 部署的集群客户端被重定向到 IP 端点，IP 不可达时重定向失效。
-   改法：preferred endpoint 类型落本地节点配置（默认 Ip），两处构造点取配置值；或声明不支持该形态并固定输出 Ip。
-
 8. [P2] 巨型文件与超长函数拆分
    位置：wedb/wedb/src/server/cluster_session.rs（2116 行，process_cluster_commands:841-1676 单函数 836 行）；cluster_config.rs 1683 行；cluster_provider.rs 1131 行；replication/replication_manager.rs 1090 行
    对标：garnet/libs/cluster/Session/RespClusterBasicCommands.cs、RespClusterSlotManagementCommands.cs、RespClusterMigrateCommands.cs、RespClusterReplicationCommands.cs、RespClusterFailoverCommands.cs
    问题：单函数混合五类命令分发，慢路径 helper 虽已独立（:1940/:1964/:1993/:2013/:2043）但主分发体仍超阈值。
    改法：process_cluster_commands 按 C# 五文件切成五个 impl 块（Rust 同类型跨文件多 impl）；cluster_provider 的 INFO 统计段与资产注入段分文件。
-
-9. [P2] 异步重放模式与 ThrottlePrimary 未接线
-   位置：wedb/wedb/src/server/replication/replica_replay_driver.rs（should_throttle_primary 仅测试引用）；ADVANCE_TIME 接收面 wedb/wedb/src/server/cluster_session.rs:570/:593（signal_time_advance）下游无消费者
-   对标：garnet/libs/cluster/Server/Replication/ReplicaOps/AOFReplay/ReplicaReplayDriver.cs:293-341
-   问题：AofReplayMaxLagBytes > 0 的背景重放与主端背压整链缺失，默认配置不触发，属功能缺口。
-   改法：接线背景重放任务 + 主端节流查询；或配置面禁用该形态并删死接口。
-
-16. [P2] 双消费形态长期并存
-    位置：wedb/wnode/src/resp/resp_server_session.rs:753（try_consume_messages 批次拷贝）、:794（try_consume_pending scratch 持久游标）
-    对标：garnet/libs/server/Resp/RespServerSession.cs:TryConsumeMessages（单一形态）
-    问题：生产泵走 scratch，拷贝形态仅服务回退与测试，双轨维护成本。
-    改法：长期收敛到 scratch 单形态，测试改走 scratch 入口。
-
-17. [P2] 主端 --recover 后复制位点不回填复制域
-    位置：wedb/wedb/src/main.rs:101（open_recovered_with_aof，重放结果仅日志）；wedb/wedb/src/server/replication/replication_manager.rs:451（store_recovered_safe_aof_address 注入口无生产调用）
-    对标：garnet/libs/cluster/Server/Replication/ReplicationManager.cs:537-563
-    问题：--recover 重启后、首批新写入推进位点前，gossip 广播位点与 failover data-loss 判定基线均为初始值。
-    改法：宿主装配完成后按 recover_aof 结果回填 rm。
-
-18. [P2] 复制历史恢复生产装配下空转，门控语义偏离 C#
-    位置：wedb/wedb/src/server/replication/replication_manager.rs:93（with_options(1, None)）、:146-157（recover_replication_history / flush_config 空转）；wedb/wedb/src/server/cluster_provider.rs:130/:137（ReplicationManager::new()）
-    对标：garnet/libs/cluster/Server/Replication/ReplicationManager.cs:159-166
-    问题：replication.conf 持久化面未接线，主端重启即丢 replid 历史，副本被迫全量重同步；构造期无条件 recover_or_init 与 C# Recover && fileSize > 0 门控相反。
-    改法：装配传入 checkpoint/config 目录接通持久化；构造期恢复按 --recover 门控。
 
 21. [P2] ignore 面拆块与理由修正
     位置：js/check/ignore/cluster.yml:497-684（单块约 190 行共用一句笼统理由）、js/check/ignore/server.yml:39-40

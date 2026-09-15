@@ -47,18 +47,6 @@
     问题：会话依赖注入调用分散，可收敛
     改法：会话依赖打包为结构体一次注入
 
-12. [P3] RespClusterIterativeSlotVerify 迭代式槽位校验
-    位置：wedb/wedb/src/server/slot_verify.rs:282（multi_key_slot_verify 仅同槽批量形态）
-    对标：garnet/libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify、garnet/libs/server/Transaction/TxnKeyManager.cs:VerifyKeyOwnership、LockKeys
-    问题：迭代形态未覆盖，已在 js/check/ignore/server.yml:696-700 登记为能力缺口
-    改法：补齐迭代式校验路径
-
-13. [P3] StoreWrapper.Reset 存储级拆除重建
-    位置：wedb/wnode/tests/vector_set_cleanup_vs_reset_race.rs:9-11（测试注释自证 rust 侧未落地）
-    对标：garnet/libs/server/StoreWrapper.cs:Reset(int dbId = 0)、StoreWrapper.cs:ResetRevivificationStats（后者已落地 wedb/wdatabase/src/single_database_manager.rs:161）
-    问题：Pause + Reset + Resume 语义未实现
-    改法：落地后补 vector_set_cleanup_vs_reset_race 的三段锤击
-
 14. [P3] 高价值测试残项：T7 N>2 并发轮次、T9 真提交周期臂
     位置：wedb/wnode/src/aof/readconsistency/replay_align_barrier.rs:358（现有 4 个单元测试，无 N>2 并发轮次）、wedb/wnode/src/service.rs:462（aof_commit_ms 接线在位，缺真提交 + 周期臂测试）
     对标：garnet/libs/server/AOF/ReadConsistency/ReplayAlignBarrier.cs（T7）、test/standalone/AofUpsertStoreCkptRecoverTestAsync（T8 参照）
