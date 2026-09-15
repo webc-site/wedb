@@ -193,6 +193,26 @@ pub struct NodeArgs {
   #[serde(default = "default_metrics_sampling_frequency_secs")]
   pub metrics_sampling_frequency_secs: u64,
 
+  /// 是否启用延迟监视（跟踪各事件类别延迟分布；对标 C# Options.cs:344
+  /// LatencyMonitor）
+  #[arg(
+    long = "latency-monitor",
+    default_value_t = false,
+    action = clap::ArgAction::Set
+  )]
+  #[serde(default)]
+  pub latency_monitor: bool,
+
+  /// 是否启用逐命令使用统计（calls / failed / rejected，经 INFO COMMANDSTATS
+  /// 输出；对标 C# Options.cs:348 CommandStatsMonitor）
+  #[arg(
+    long = "commandstats-monitor",
+    default_value_t = false,
+    action = clap::ArgAction::Set
+  )]
+  #[serde(default)]
+  pub commandstats_monitor: bool,
+
   /// 是否启用 Lua 脚本（对标 C# Options.cs:284 EnableLua，GarnetServerOptions.cs:91
   /// 默认 false）
   #[arg(long, default_value_t = false)]
@@ -290,6 +310,8 @@ impl Default for NodeArgs {
       protected_mode: default_protected_mode(),
       object_scan_count_limit: default_object_scan_count_limit(),
       metrics_sampling_frequency_secs: default_metrics_sampling_frequency_secs(),
+      latency_monitor: false,
+      commandstats_monitor: false,
       enable_lua: false,
       lua_script_timeout_ms: 0,
       lua_transaction_mode: false,
@@ -399,6 +421,8 @@ impl NodeArgs {
       protected_mode,
       object_scan_count_limit,
       metrics_sampling_frequency_secs,
+      latency_monitor,
+      commandstats_monitor,
       enable_lua,
       lua_script_timeout_ms,
       lua_transaction_mode,
