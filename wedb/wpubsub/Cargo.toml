@@ -9,7 +9,7 @@ description = "Publish-subscribe broker and message distribution for wedb"
 keywords = ["pubsub", "publish-subscribe", "broker", "messaging"]
 
 [dependencies]
-crossfire = "3.1.20"
+crossfire.workspace = true
 event-listener = "5"
 itoa.workspace = true
 log.workspace = true

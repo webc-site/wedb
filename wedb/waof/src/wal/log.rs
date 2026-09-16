@@ -22,11 +22,11 @@ use wdev::{self, Device, Error as DeviceError};
 use super::{
   config::WalConfig,
   disk_window::DiskWindow,
-  error::{Error, Result},
   header::{RECORD_HEADER_LEN, RecordHeader},
   iterator::WalScanIterator,
   ring_buffer::RingBuffer,
 };
+use crate::error::{Error, Result};
 
 /// 流水线中断错误消息（Follower 侧统一映射，避免雷同字符串散落）
 const PIPELINE_BROKEN: &str = "Commit pipeline broken";
@@ -660,6 +660,53 @@ impl<D: Device> WalLog<D> {
     let begin = self.begin_address.load(Ordering::Acquire);
     let start_addr = from.max(begin);
     WalScanIterator::new(Arc::clone(&self.inner), start_addr, to)
+  }
+
+  /// 内存窗口同步扫描（零 I/O，环形缓冲帧解析单点）
+  ///
+  /// 仅覆盖环形缓冲当前窗口 `[tail - capacity, tail)`，区间 [from, to) 内每条
+  /// 通过校验的记录回调一次 `(地址, 负载)`，回调返回 false 提前终止。
+  /// 扫描终点折叠至 safe_tail（在途帧不可见）。
+  ///
+  /// 起点已被环形回绕挤出窗口时返回 false（调用方降级 [`Self::scan`] 异步
+  /// 磁盘扫描承接恢复链路）；窗口内遇帧残迹（全零头 / 长度异常 / 越界 /
+  /// CRC 失败）平滑终止已收集前缀——缺数据优于错数据。
+  ///
+  /// C# TsavoriteLog.Scan 由统一迭代器承载内存与磁盘两态；本实现按迭代器
+  /// 内存分支的同构逻辑收敛为同步快路径 API，调用方无须各自手写帧解析
+  pub fn scan_memory_with(
+    &self,
+    from: u64,
+    to: u64,
+    mut f: impl FnMut(u64, &[u8]) -> bool,
+  ) -> bool {
+    let cap = self.ring_buffer.capacity() as u64;
+    let mem_base = self.tail_address();
+    let start = from.max(self.begin_address());
+    if start < mem_base.saturating_sub(cap) {
+      return false;
+    }
+    let scan_end = to.min(self.safe_tail_address());
+    let mut cur = start;
+    while cur + (RECORD_HEADER_LEN as u64) <= scan_end {
+      let header = self.ring_buffer.read_header(cur);
+      let entry_len = header.payload_len();
+      if header.is_zero() || entry_len > self.config().buffer_size {
+        break;
+      }
+      let next_addr = cur + (RECORD_HEADER_LEN as u64) + (entry_len as u64);
+      if next_addr > scan_end {
+        break;
+      }
+      let payload = self
+        .ring_buffer
+        .read_vec(cur + RECORD_HEADER_LEN as u64, entry_len);
+      if header.verify(&payload).is_err() || !f(cur, &payload) {
+        break;
+      }
+      cur = next_addr;
+    }
+    true
   }
 
   /// 获取日志当前有效数据总大小（tail_address - begin_address）

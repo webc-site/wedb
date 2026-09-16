@@ -39,6 +39,8 @@ members = [
 
 [workspace.dependencies]
 async-lock = "3.4.2"
+clap = { version = "4.6.6", features = ["derive"] }
+crossfire = "3.1.20"
 bf-tree = "0.5.6"
 bitcode = "0.6.9"
 bitflags = "2.13.2"

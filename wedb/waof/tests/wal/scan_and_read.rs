@@ -387,3 +387,43 @@ fn test_scan_disk_prefetch_flushed_boundary() -> Void {
 
   OK
 }
+
+/// 内存窗口同步扫描 API：窗口内与迭代器扫描等价；起点被挤出窗口返回 false；
+/// 终点折叠至 safe_tail（未提交在途帧不可见）。
+#[test]
+fn test_scan_memory_window_sync() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let fixture = WalFixture::single_file("scan_memory_sync.log", 64 * 1024)?;
+    let wal = fixture.wal;
+
+    for i in 0..30 {
+      wal.enqueue(&make_payload(64, i as u8))?;
+    }
+    wal.commit().await?;
+
+    // 窗口内全量：与 enqueue 数一致且负载逐条对应
+    let mut seen = Vec::new();
+    assert!(wal.scan_memory_with(0, u64::MAX, |addr, payload| {
+      seen.push((addr, payload.to_vec()));
+      true
+    }));
+    assert_eq!(seen.len(), 30);
+    for (i, (_, payload)) in seen.iter().enumerate() {
+      assert_eq!(payload, &make_payload(64, i as u8));
+    }
+
+    // 回调提前终止
+    let mut count = 0;
+    assert!(wal.scan_memory_with(0, u64::MAX, |_, _| {
+      count += 1;
+      count < 5
+    }));
+    assert_eq!(count, 5);
+
+    info!("内存窗口同步扫描测试通过");
+    aok::Result::<()>::Ok(())
+  })?;
+
+  OK
+}

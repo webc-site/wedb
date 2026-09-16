@@ -588,23 +588,18 @@ fn test_varint_primitives() {
 #[cfg(feature = "pool")]
 mod suite;
 
-#[cfg(feature = "ascii")]
+#[cfg(feature = "hex")]
 #[test]
-fn test_ascii_primitives() {
-  use wbase::ascii::*;
+fn test_hex_primitives() {
+  use wbase::hex::{hex_decode, hex_val};
 
-  assert!(is_between(b'B', b'A', b'Z'));
-  assert!(!is_between(b'a', b'A', b'Z'));
-  assert_eq!(to_lower(b'A'), b'a');
-  assert_eq!(to_upper(b'b'), b'B');
+  assert_eq!(hex_val(b'7'), Some(7));
+  assert_eq!(hex_val(b'c'), Some(12));
+  assert_eq!(hex_val(b'z'), None);
 
-  let mut cmd = b"hELLo".to_vec();
-  to_upper_in_place(&mut cmd);
-  assert_eq!(cmd, b"HELLO");
-
-  let mut cmd = b"hELLo".to_vec();
-  to_lower_in_place(&mut cmd);
-  assert_eq!(cmd, b"hello");
+  let bytes = hex_decode::<2>(b"AbCd").unwrap();
+  assert_eq!(bytes, [0xab, 0xcd]);
+  assert!(hex_decode::<2>(b"abc").is_none());
 }
 
 #[cfg(feature = "num")]

@@ -26,7 +26,7 @@ wdev = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 itoa.workspace = true
 parking_lot.workspace = true
-crossfire = "3.1.20"
+crossfire.workspace = true
 bitcode.workspace = true
 
 [dev-dependencies]

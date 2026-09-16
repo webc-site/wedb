@@ -10,10 +10,8 @@ use wbase::{
   pool::{AlignedBuf, BufferPool},
 };
 
-use super::{
-  error::{Error, Result},
-  header::{RECORD_HEADER_LEN, RecordHeader},
-};
+use super::header::{RECORD_HEADER_LEN, RecordHeader};
+use crate::error::{Error, Result};
 
 /// 内存环形写缓冲区
 pub struct RingBuffer {

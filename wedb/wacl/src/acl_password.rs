@@ -9,6 +9,7 @@ use std::{
 };
 
 use sha2::{Digest, Sha256};
+use wbase::hex::hex_decode;
 
 use super::{acl_exception::AclError, secrets_utility::constant_equals};
 
@@ -36,38 +37,18 @@ impl AclPassword {
   ///
   /// libs/server/ACL/ACLPassword.cs:ACLPasswordFromHash
   pub fn from_hash(hash_string: &str) -> Result<Self, AclError> {
-    let bytes = hash_string.as_bytes();
-    if bytes.len() != NUM_HASH_BYTES * 2 {
+    if hash_string.len() != NUM_HASH_BYTES * 2 {
       return Err(AclError::Password(
         "Unable to parse input password hash. The input is of wrong length.".into(),
       ));
     }
-    let mut password_hash = [0u8; NUM_HASH_BYTES];
-    // 单遍解析：每两个十六进制字符折一个字节
-    for (slot, pair) in password_hash.iter_mut().zip(bytes.as_chunks::<2>().0) {
-      let hi = hex_val(pair[0]);
-      let lo = hex_val(pair[1]);
-      match (hi, lo) {
-        (Some(hi), Some(lo)) => *slot = (hi << 4) | lo,
-        _ => {
-          return Err(AclError::Password(
-            "Unable to parse input password hash. The input is not of the correct format.".into(),
-          ));
-        }
-      }
-    }
+    // 十六进制折值单点在 wbase::hex（一处定义）
+    let password_hash = hex_decode::<NUM_HASH_BYTES>(hash_string.as_bytes()).ok_or_else(|| {
+      AclError::Password(
+        "Unable to parse input password hash. The input is not of the correct format.".into(),
+      )
+    })?;
     Ok(Self { password_hash })
-  }
-}
-
-/// 单个十六进制字符折值（大小写均可）
-#[inline]
-const fn hex_val(c: u8) -> Option<u8> {
-  match c {
-    b'0'..=b'9' => Some(c - b'0'),
-    b'a'..=b'f' => Some(c - b'a' + 10),
-    b'A'..=b'F' => Some(c - b'A' + 10),
-    _ => None,
   }
 }
 

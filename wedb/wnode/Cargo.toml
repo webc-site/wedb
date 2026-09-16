@@ -21,7 +21,7 @@ roaring = ["dep:wext_roaring"]
 bitflags.workspace = true
 compio = { workspace = true, features = ["net", "io", "signal", "runtime", "time", "bytes", "dispatcher"] }
 compio-tls = { version = "0.10.0", default-features = false, features = ["rustls", "ring"], optional = true }
-crossfire = "3.1.20"
+crossfire.workspace = true
 event-listener.workspace = true
 fastrand.workspace = true
 gxhash.workspace = true
@@ -38,7 +38,7 @@ sonic-rs.workspace = true
 thiserror.workspace = true
 wacl.workspace = true
 waof.workspace = true
-wbase = { workspace = true, features = ["ascii", "convert", "crc64", "entry_type", "future", "glob", "hash", "hash_slot", "num", "pool", "striped", "time"] }
+wbase = { workspace = true, features = ["convert", "crc64", "entry_type", "future", "glob", "hash", "hash_slot", "num", "pool", "striped", "time"] }
 wbftree.workspace = true
 wbitmap.workspace = true
 wcol = { workspace = true }
@@ -64,8 +64,6 @@ workspace = true
 
 [dev-dependencies]
 aok.workspace = true
-ctor.workspace = true
-log_init.workspace = true
 rcgen = "0.13.2"
 tempfile.workspace = true
 wvector.workspace = true

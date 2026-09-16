@@ -5,11 +5,11 @@ use wdev::{Device, Error as DeviceError};
 
 use super::{
   disk_window::DiskWindow,
-  error::Result,
   header::{RECORD_HEADER_LEN, RecordHeader},
   log::{RECOVER_CHUNK_SIZE, WalLogInner},
   record::WalRecord,
 };
+use crate::error::Result;
 
 /// WAL 记录迭代扫描器，透明支持跨内存与磁盘分段文件顺序读取
 pub struct WalScanIterator<D: Device> {

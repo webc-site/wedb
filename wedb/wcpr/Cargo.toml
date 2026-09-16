@@ -28,7 +28,7 @@ whlog = { workspace = true }
 windex = { workspace = true }
 parking_lot.workspace = true
 async-lock.workspace = true
-crossfire = "3.1.20"
+crossfire.workspace = true
 
 [dependencies.compio]
 workspace = true

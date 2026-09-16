@@ -147,46 +147,20 @@ impl<D: Device> SublogBackend for WaofSublog<D> {
     self.wal.flushed_until_address() as i64
   }
 
+  /// 内存窗口同步扫描：帧解析单点在 [`WalLog::scan_memory_with`]（零 I/O 快路径）
   fn scan(&self, begin_address: i64, end_address: i64) -> Vec<LogRecord> {
     let start = begin_address.max(0) as u64;
     let end = end_address.max(0) as u64;
-    let cap = self.wal.ring_buffer.capacity() as u64;
-    let safe_tail = self.wal.safe_tail_address();
-    let mem_base = self.wal.tail_address();
-    let scan_end = end.min(safe_tail);
-
     let mut records = Vec::new();
-    let mut cur = start.max(self.wal.begin_address());
-
-    // 环形缓冲覆盖区间直读（零 I/O 快路径）
-    if cur >= mem_base.saturating_sub(cap) {
-      while cur + (waof::RECORD_HEADER_LEN as u64) <= scan_end {
-        let hdr = self.wal.ring_buffer.read_header(cur);
-        let entry_len = hdr.payload_len();
-        if hdr.is_zero() || entry_len > self.wal.config().buffer_size {
-          break;
-        }
-        let next_addr = cur + (waof::RECORD_HEADER_LEN as u64) + (entry_len as u64);
-        if next_addr > scan_end {
-          break;
-        }
-        let payload = self
-          .wal
-          .ring_buffer
-          .read_vec(cur + waof::RECORD_HEADER_LEN as u64, entry_len);
-        if hdr.verify(&payload).is_ok() {
-          records.push(LogRecord {
-            address: cur as i64,
-            payload,
-          });
-        } else {
-          break;
-        }
-        cur = next_addr;
-      }
-    } else {
+    if !self.wal.scan_memory_with(start, end, |address, payload| {
+      records.push(LogRecord {
+        address: address as i64,
+        payload: payload.to_vec(),
+      });
+      true
+    }) {
       log::warn!(
-        "WaofSublog::scan 请求地址 {cur} 已超出环形缓冲区容量，同步接口只覆盖内存窗口，恢复链路须用 scan_async"
+        "WaofSublog::scan 请求地址 {start} 已超出环形缓冲区容量，同步接口只覆盖内存窗口，恢复链路须用 scan_async"
       );
     }
     records

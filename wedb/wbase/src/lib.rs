@@ -6,9 +6,6 @@ pub mod addr;
 #[cfg(feature = "align")]
 pub mod align;
 
-#[cfg(feature = "ascii")]
-pub mod ascii;
-
 #[cfg(feature = "backoff")]
 pub mod backoff;
 
@@ -50,6 +47,9 @@ pub mod hash;
 
 #[cfg(feature = "hash_slot")]
 pub mod hash_slot;
+
+#[cfg(feature = "hex")]
+pub mod hex;
 
 #[cfg(feature = "map")]
 pub mod map;

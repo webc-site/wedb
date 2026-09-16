@@ -18,6 +18,7 @@ use wresp::{
     RESP_ERR_NOT_VALID_FLOAT,
   },
 };
+use zmij::Buffer as ZmijBuffer;
 
 use super::hash_object::{
   HashObject, HashOperation, pick_k_random_indexes, pick_random_index, scan_operate_shared,
@@ -62,10 +63,12 @@ fn num_utils_try_parse_double(v: &[u8]) -> Option<f64> {
 }
 
 /// 最短往返双精度文本（对标 double.TryFormat 默认 G 形态；±∞/NaN 记法差异
-/// 见 ObjectOutput::format_double 说明）
+/// 见 ObjectOutput::format_double 说明）。格式化单点在 wresp::format_double，
+/// 此处直取字节视图，避免经 String 中转的堆分配
 #[inline]
 fn format_double(value: f64) -> Vec<u8> {
-  ObjectOutput::format_double(value).into_bytes()
+  let mut buf = ZmijBuffer::new();
+  wresp::format_double(value, &mut buf).as_bytes().to_vec()
 }
 
 impl HashObject {

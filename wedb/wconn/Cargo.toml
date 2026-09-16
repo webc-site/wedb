@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
-crossfire = "3.1.20"
+crossfire.workspace = true
 itoa.workspace = true
 log.workspace = true
 thiserror.workspace = true

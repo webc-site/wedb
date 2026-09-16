@@ -303,3 +303,14 @@
         - MurmurHash3x64
   理由: 零调用方死代码（恒等 MurmurHash3x128 首字投影），MurmurHash3x128 本体由
     wbase::hash::murmur_hash3_x128 精确移植，128 位键 ID 由 whasher::hash128 (gxhash) 承担
+- 文件:
+    - libs/common/AsciiUtils.cs:
+        - IsBetween
+        - ToLower
+        - ToUpper
+        - ToUpperInPlace
+        - ToLowerInPlace
+  理由: 模块级双死删除（见 task/ing/micro-sweep-2.md）：五函数全仓生产零引用
+    （唯一引用为 wbase 自有测试），C# 消费点的 rust 形态已由 std
+    make_ascii_uppercase / make_ascii_lowercase / eq_ignore_ascii_case 内联承接；
+    AsciiUtils 的 EqualsUpperCaseSpanIgnoringCase 族在 rust 侧同为 std 内联，无独立对标
