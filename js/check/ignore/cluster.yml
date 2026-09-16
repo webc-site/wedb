@@ -603,8 +603,6 @@
         - Exists
         - VerifyKeysInRange
         - WaitForSlotToStabalize
-    - libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:
-        - ResetCachedSlotVerificationResult
     - libs/cluster/Session/SlotVerification/RespClusterSlotVerify.cs:
         - GetSlotVerificationMessage
         - NetworkMultiKeySlotVerifyNoResponse
