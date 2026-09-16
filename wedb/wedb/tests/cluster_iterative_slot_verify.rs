@@ -29,6 +29,7 @@ use wnode::{
   MessageConsumerFace, RespSessionConsumer,
   resp::{garnet_api::StoreGarnetApi, resp_server_session::RespServerSessionOptions},
 };
+use wtxn::WatchVersionMap;
 
 /// 装配双主节点拓扑：node_1（本地）持 0..8192，node_2@7001 持 8192..16384；
 /// node_2 带 hostname 供端点偏好用例消费
@@ -90,7 +91,7 @@ fn cluster_consumer(cp: &ClusterProvider) -> RespSessionConsumer {
     cluster_session,
     Arc::new(StoreGarnetApi::new(store.new_session().unwrap())),
   );
-  consumer.attach_transaction_components(Arc::new(wtxn::WatchVersionMap::new(64)));
+  consumer.attach_transaction_components(Arc::new(WatchVersionMap::new(64)));
   consumer
 }
 
