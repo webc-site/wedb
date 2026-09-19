@@ -33,7 +33,7 @@ fn err_at(pos: usize) -> CompileError {
   CompileError { errpos: pos }
 }
 
-/// diskann-garnet/ExprCompiler.cs:TryCompile
+/// libs/server/Resp/Vector/ExprCompiler.cs:TryCompile
 ///
 /// 成功返回编译好的后缀程序；失败返回 [`CompileError`]（对齐 C# 返回 -1 + errpos）。
 pub fn try_compile(expr: &[u8]) -> Result<ExprProgram, CompileError> {
@@ -167,7 +167,7 @@ fn ensure_instr_capacity(instructions: &[ExprToken]) -> Result<(), CompileError>
   Ok(())
 }
 
-/// diskann-garnet/ExprCompiler.cs:ProcessOperator
+/// libs/server/Resp/Vector/ExprCompiler.cs:ProcessOperator
 fn process_operator(
   op: ExprToken,
   instructions: &mut Vec<ExprToken>,
@@ -230,7 +230,7 @@ fn process_operator(
   Ok(())
 }
 
-/// diskann-garnet/ExprCompiler.cs:IsOperatorSpecialChar
+/// libs/server/Resp/Vector/ExprCompiler.cs:IsOperatorSpecialChar
 fn is_operator_special_char(b: u8) -> bool {
   matches!(
     b,
@@ -238,12 +238,12 @@ fn is_operator_special_char(b: u8) -> bool {
   )
 }
 
-/// diskann-garnet/ExprCompiler.cs:IsSelectorChar
+/// libs/server/Resp/Vector/ExprCompiler.cs:IsSelectorChar
 fn is_selector_char(c: u8) -> bool {
   is_letter_or_digit(c) || c == b'_' || c == b'-'
 }
 
-/// diskann-garnet/ExprCompiler.cs:ParseNumber
+/// libs/server/Resp/Vector/ExprCompiler.cs:ParseNumber
 ///
 /// 接受 `[0-9.eE]` 与可选前导负号；要求全量可解析为有限 f64。
 fn parse_number(expr: &[u8], pos: &mut usize) -> Option<ExprToken> {
@@ -260,7 +260,7 @@ fn parse_number(expr: &[u8], pos: &mut usize) -> Option<ExprToken> {
   Some(ExprToken::new_num(value))
 }
 
-/// diskann-garnet/ExprCompiler.cs:ParseString
+/// libs/server/Resp/Vector/ExprCompiler.cs:ParseString
 ///
 /// 字面量以 (偏移， 长度) 指向原始过滤表达式字节（不含引号），零分配。
 /// `pos` 指向开引号。
@@ -291,7 +291,7 @@ fn parse_string(expr: &[u8], pos: &mut usize) -> Option<ExprToken> {
   None // 未闭合字符串
 }
 
-/// diskann-garnet/ExprCompiler.cs:ParseSelector
+/// libs/server/Resp/Vector/ExprCompiler.cs:ParseSelector
 ///
 /// `.fieldName` → Selector 词元（引用过滤字节，跳过前导点）。
 fn parse_selector(expr: &[u8], pos: &mut usize) -> ExprToken {
@@ -303,7 +303,7 @@ fn parse_selector(expr: &[u8], pos: &mut usize) -> ExprToken {
   ExprToken::new_selector(start as i32, (*pos - start) as i32)
 }
 
-/// diskann-garnet/ExprCompiler.cs:ParseTuple
+/// libs/server/Resp/Vector/ExprCompiler.cs:ParseTuple
 ///
 /// 元素存入元组池，词元记录 (池内起始下标, 个数)。
 fn parse_tuple(expr: &[u8], tuple_pool: &mut Vec<ExprToken>, pos: &mut usize) -> Option<ExprToken> {
@@ -349,7 +349,7 @@ fn parse_tuple(expr: &[u8], tuple_pool: &mut Vec<ExprToken>, pos: &mut usize) ->
   Some(ExprToken::new_tuple(pool_start as i32, count))
 }
 
-/// diskann-garnet/ExprCompiler.cs:ParseOperatorOrLiteral
+/// libs/server/Resp/Vector/ExprCompiler.cs:ParseOperatorOrLiteral
 ///
 /// 贪心匹配：优先最长操作符；`null` / `true` / `false` 为字面量。
 fn parse_operator_or_literal(expr: &[u8], pos: &mut usize) -> Option<ExprToken> {

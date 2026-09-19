@@ -16,7 +16,7 @@
 //! 灌树契约：promote helper 的 entries 与 `IGarnetObject::export_entries`
 //! 同构（member_ttl 编码形态），next_expiry 为灌入批最早到期水位。
 
-use std::{mem::take, sync::Arc, thread::sleep, time::Duration};
+use std::{mem::take, str::from_utf8, sync::Arc, thread::sleep, time::Duration};
 
 use compio::runtime::Runtime;
 use tempfile::tempdir;
@@ -217,19 +217,30 @@ fn tiered_hash_expire_sets_and_reads_back() {
     "HTTL 应读回穿透挂载的 TTL（物化降级保真）：{ttl_frame:?}"
   );
 
-  // HGETALL 存活全集 + HGET 原值 + HLEN 直读
-  assert_eq!(
-    auto_exec(&env, &mut s, RespCommand::Hgetall, &[b"h"]),
-    arr(&[
-      &bulk(b"f1"),
-      &bulk(b"v1"),
-      &bulk(b"f2"),
-      &bulk(b"v2"),
-      &bulk(b"f3"),
-      &bulk(b"v3")
-    ]),
-    "挂 TTL 的存活成员必须在 HGETALL 全集"
+  // HGETALL 存活全集（哈希表迭代无序，校验 3 对 6 元素全集） + HGET 原值 + HLEN 直读
+  let hgetall = auto_exec(&env, &mut s, RespCommand::Hgetall, &[b"h"]);
+  assert!(
+    hgetall.starts_with(b"*6\r\n"),
+    "HGETALL 应返回 6 元素（3 对），实际 {hgetall:?}"
   );
+  for (f, v) in [(b"f1", b"v1"), (b"f2", b"v2"), (b"f3", b"v3")] {
+    let f_bulk = bulk(f);
+    let v_bulk = bulk(v);
+    assert!(
+      hgetall
+        .windows(f_bulk.len())
+        .any(|w| w == f_bulk.as_slice()),
+      "HGETALL 应包含字段 {:?}",
+      from_utf8(f).unwrap()
+    );
+    assert!(
+      hgetall
+        .windows(v_bulk.len())
+        .any(|w| w == v_bulk.as_slice()),
+      "HGETALL 应包含值 {:?}",
+      from_utf8(v).unwrap()
+    );
+  }
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Hget, &[b"h", b"f1"]),
     bulk(b"v1")

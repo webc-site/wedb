@@ -36,14 +36,14 @@ pub(super) enum ReadProbeResult<T> {
   Found(T),
 }
 
-/// 内存直读内部结果（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类，附加磁盘候选透传）
-pub(super) enum MemRead<R> {
-  /// 内存阶段已闭环：`Some` 为命中值，`None` 为确认不存在（含墓碑，对应 `NOTFOUND`）
+/// 内存读驱动环终态（[`StoreSession::drive_mem_read`] 出口：`RETRY_LATER` 的
+/// 刷新重试在驱动环内部闭环，绝不外漏；对标 C# 会话层
+/// HandleOperationStatus.cs:HandleOperationStatus 的「Refresh the epoch and retry」单点）
+pub(super) enum MemDrive<R> {
+  /// 内存阶段闭环：`Some` 为命中值，`None` 为确认不存在（NOTFOUND）
   Done(Option<R>),
-  /// 记录位于磁盘区：携带按新版本优先降序排列的磁盘候选地址（对应 `RECORD_ON_DISK`）
+  /// 存在磁盘候选（RECORD_ON_DISK）：候选按新版本优先降序透传
   OnDisk(windex::CandidateAddresses),
-  /// 命中密封在途记录（对应 `RETRY_LATER`）：刷新纪元后整链重试
-  Retry,
 }
 
 impl<D: Device> StoreSession<D> {

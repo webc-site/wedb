@@ -5,7 +5,7 @@ use wcol::zset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wresp::{check_args::check_arg_count, cmd_strings as cs, ext::RespVecExt};
 use wval::GarnetObjectType;
 
-use super::{Rmw, ZsetLoad, run_operate, zset_load_sync};
+use super::{Rmw, ZsetLoad, parse_rank_with_score, run_operate, zset_load_sync};
 use crate::resp::{
   objects::object_store_utils::{ObjLoad, obj_length_sync},
   resp_server_session::RespServerSession,
@@ -216,19 +216,11 @@ impl RespServerSession {
     ascending: bool,
   ) -> wresp::Result<bool> {
     let cmd_name = if ascending { "ZRANK" } else { "ZREVRANK" };
-    check_arg_count!(parse_state, 2.., output, cmd_name);
 
-    // C# 仅 Count==3 时校验 WITHSCORE（大小写不敏感，非法即 syntax error）；
-    // Count>3 静默忽略多余参数（includeWithScore 保持 false）
-    let with_score = if parse_state.len() == 3 {
-      if parse_state[2].eq_ignore_ascii_case(cs::WITHSCORE) {
-        true
-      } else {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-    } else {
-      false
+    // WITHSCORE 词元推导单源（快慢共用，失败帧已写出；仅 len==3 校验，
+    // len>3 静默忽略）
+    let Some(with_score) = parse_rank_with_score(cmd_name, parse_state, output) else {
+      return Ok(true);
     };
 
     let key = parse_state[0];
@@ -253,7 +245,7 @@ impl RespServerSession {
       &mut obj,
       op,
       &parse_state[1..2],
-      if with_score { 1 } else { 0 },
+      i32::from(with_score),
       0,
       self.resp_protocol_version,
       output,

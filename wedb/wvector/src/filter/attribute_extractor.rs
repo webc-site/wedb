@@ -22,7 +22,7 @@ const BIN_TYPE_NULL: u8 = 4;
 /// 选择器区间（过滤表达式字节中的 (起始偏移， 长度)）。
 pub type SelectorRange = (i32, i32);
 
-/// diskann-garnet/AttributeExtractor.cs:ExtractFields
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ExtractFields
 ///
 /// 单趟从 JSON 对象提取多个顶级字段；选择器为过滤字节中的区间，
 /// 提取值为 JSON 字节中的区间；`results[i].is_none()` 表示未命中。
@@ -106,7 +106,7 @@ pub fn extract_fields(
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ExtractField
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ExtractField
 ///
 /// 提取单个顶级字段；未找到时返回 `ExprToken::default()`（is_none）。
 /// 本路径无程序上下文，数组按 `parse_array_token_no_pool` 降级为 Null。
@@ -159,7 +159,7 @@ pub fn extract_field(json: &[u8], field_name_utf8: &[u8]) -> ExprToken {
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseValueToken
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseValueToken
 ///
 /// 按值首字节分派解析；嵌套对象不支持（产出 None）。
 fn parse_value_token(json: &[u8], pos: &mut usize, program: &mut ExprProgram) -> Option<ExprToken> {
@@ -193,7 +193,7 @@ fn parse_value_token_no_pool(json: &[u8], pos: &mut usize) -> Option<ExprToken> 
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseStringToken
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseStringToken
 ///
 /// 产出引用 JSON 字节的 Str 词元（不含引号），记录是否存在转义。
 fn parse_string_token(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
@@ -225,7 +225,7 @@ fn parse_string_token(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
   None
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseNumberToken
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseNumberToken
 fn parse_number_token(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
   let start = *pos;
   while *pos < json.len() && is_number_char(json[*pos]) {
@@ -239,7 +239,7 @@ fn parse_number_token(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
   Some(ExprToken::new_num(value))
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseLiteralToken
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseLiteralToken
 ///
 /// 字面量后必须跟随空白、`,`、`]` 或 `}`，防止 `truex` 这类误配。
 fn parse_literal_token(
@@ -271,7 +271,7 @@ fn parse_literal_token(
   })
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseArrayToken
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseArrayToken
 ///
 /// 解析 JSON 数组为运行期 Tuple：元素写入 program 运行期元组池，
 /// 供 `IN` 求值迭代；池满时优雅降级为 Null（跳过数组）。
@@ -329,7 +329,7 @@ fn parse_array_token(json: &[u8], pos: &mut usize, program: &mut ExprProgram) ->
   ))
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ParseArrayTokenNoPool
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ParseArrayTokenNoPool
 ///
 /// 无程序上下文的独立提取 —— 仅跳过数组并产出 Null。
 fn parse_array_token_no_pool(json: &[u8], pos: &mut usize) -> Option<ExprToken> {
@@ -340,7 +340,7 @@ fn parse_array_token_no_pool(json: &[u8], pos: &mut usize) -> Option<ExprToken> 
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:SkipValue
+/// libs/server/Resp/Vector/AttributeExtractor.cs:SkipValue
 fn skip_value(json: &[u8], pos: &mut usize) -> bool {
   trim_white_space(json, pos);
   let Some(&c) = json.get(*pos) else {
@@ -357,7 +357,7 @@ fn skip_value(json: &[u8], pos: &mut usize) -> bool {
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:SkipString
+/// libs/server/Resp/Vector/AttributeExtractor.cs:SkipString
 ///
 /// `pos` 指向开引号；成功后推进到闭引号之后。
 fn skip_string(json: &[u8], pos: &mut usize) -> bool {
@@ -378,7 +378,7 @@ fn skip_string(json: &[u8], pos: &mut usize) -> bool {
   false
 }
 
-/// diskann-garnet/AttributeExtractor.cs:SkipBracketed
+/// libs/server/Resp/Vector/AttributeExtractor.cs:SkipBracketed
 ///
 /// 深度计数跳过括号块，字符串内部的括号不参与计数。
 fn skip_bracketed(json: &[u8], pos: &mut usize, opener: u8, closer: u8) -> bool {
@@ -401,7 +401,7 @@ fn skip_bracketed(json: &[u8], pos: &mut usize, opener: u8, closer: u8) -> bool 
   depth == 0
 }
 
-/// diskann-garnet/AttributeExtractor.cs:SkipLiteral
+/// libs/server/Resp/Vector/AttributeExtractor.cs:SkipLiteral
 fn skip_literal(json: &[u8], pos: &mut usize, literal: &[u8]) -> bool {
   if json.len() < *pos + literal.len() {
     return false;
@@ -413,7 +413,7 @@ fn skip_literal(json: &[u8], pos: &mut usize, literal: &[u8]) -> bool {
   true
 }
 
-/// diskann-garnet/AttributeExtractor.cs:SkipNumber
+/// libs/server/Resp/Vector/AttributeExtractor.cs:SkipNumber
 fn skip_number(json: &[u8], pos: &mut usize) -> bool {
   let start = *pos;
   while *pos < json.len() && is_number_char(json[*pos]) {
@@ -422,31 +422,31 @@ fn skip_number(json: &[u8], pos: &mut usize) -> bool {
   *pos > start
 }
 
-/// diskann-garnet/AttributeExtractor.cs:IsDigit
+/// libs/server/Resp/Vector/AttributeExtractor.cs:IsDigit
 #[inline]
 pub fn is_digit(b: u8) -> bool {
   b.is_ascii_digit()
 }
 
-/// diskann-garnet/AttributeExtractor.cs:IsLetter
+/// libs/server/Resp/Vector/AttributeExtractor.cs:IsLetter
 #[inline]
 pub fn is_letter(b: u8) -> bool {
   b.is_ascii_alphabetic()
 }
 
-/// diskann-garnet/AttributeExtractor.cs:IsLetterOrDigit
+/// libs/server/Resp/Vector/AttributeExtractor.cs:IsLetterOrDigit
 #[inline]
 pub fn is_letter_or_digit(b: u8) -> bool {
   b.is_ascii_alphanumeric()
 }
 
-/// diskann-garnet/AttributeExtractor.cs:IsWhiteSpace
+/// libs/server/Resp/Vector/AttributeExtractor.cs:IsWhiteSpace
 #[inline]
 pub fn is_white_space(b: u8) -> bool {
   matches!(b, b' ' | b'\t' | b'\n' | b'\r')
 }
 
-/// diskann-garnet/AttributeExtractor.cs:TrimWhiteSpace
+/// libs/server/Resp/Vector/AttributeExtractor.cs:TrimWhiteSpace
 #[inline]
 pub fn trim_white_space(json: &[u8], pos: &mut usize) {
   while *pos < json.len() && is_white_space(json[*pos]) {
@@ -454,7 +454,7 @@ pub fn trim_white_space(json: &[u8], pos: &mut usize) {
   }
 }
 
-/// diskann-garnet/AttributeExtractor.cs:IsNumberChar
+/// libs/server/Resp/Vector/AttributeExtractor.cs:IsNumberChar
 #[inline]
 fn is_number_char(b: u8) -> bool {
   is_digit(b) || matches!(b, b'-' | b'+' | b'.' | b'e' | b'E')
@@ -490,7 +490,7 @@ fn slice_at(buf: &[u8], start: i32, len: i32) -> &[u8] {
 //     [value_len: u16 LE]
 //     [value_bytes: N 字节]         ← UTF-8 字符串或 8 字节 f64 LE
 
-/// diskann-garnet/AttributeExtractor.cs:ConvertJsonToBinary
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ConvertJsonToBinary
 ///
 /// 顶级 JSON 对象 → 预提取二进制格式；输出过小或含不支持结构时返回 -1。
 pub fn convert_json_to_binary(json: &[u8], output: &mut [u8]) -> i32 {
@@ -690,7 +690,7 @@ pub fn convert_json_to_binary(json: &[u8], output: &mut [u8]) -> i32 {
   out_pos as i32
 }
 
-/// diskann-garnet/AttributeExtractor.cs:ExtractFieldsBinary
+/// libs/server/Resp/Vector/AttributeExtractor.cs:ExtractFieldsBinary
 ///
 /// 从预提取二进制属性数据提取字段；语义同 [`extract_fields`] 但无需解析 JSON。
 pub fn extract_fields_binary(

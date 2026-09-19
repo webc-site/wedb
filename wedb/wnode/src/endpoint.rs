@@ -8,6 +8,8 @@ use std::{
   path::PathBuf,
 };
 
+use wbase::endpoint::uds_path;
+
 use crate::error::{Error, Result};
 
 /// 服务器监听端点类型
@@ -27,7 +29,7 @@ impl ServerEndpoint {
   /// 其余按 TCP 解析为 SocketAddr（支持 `:6379` 简写补齐 `0.0.0.0`）
   pub fn parse(s: &str) -> Result<Self> {
     let trimmed = s.trim();
-    if let Some(path) = wbase::endpoint::uds_path(trimmed) {
+    if let Some(path) = uds_path(trimmed) {
       return Ok(Self::Unix(path.to_path_buf()));
     }
 

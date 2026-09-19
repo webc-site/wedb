@@ -26,6 +26,7 @@ use wnode::resp::{
   resp_server_session::{RespServerSession, RespServerSessionOptions},
 };
 use wresp::command::RespCommand;
+use wval::GarnetObjectType;
 
 type TestStore = WedbStore<SegmentedDevice>;
 
@@ -197,12 +198,7 @@ fn background_demote_preserves_key_ttl() {
     let sess = env.store.new_session().unwrap();
     env
       .rt
-      .block_on(sess.promote_collection_to_bftree(
-        b"h",
-        wval::GarnetObjectType::Hash,
-        entries,
-        i64::MAX,
-      ))
+      .block_on(sess.promote_collection_to_bftree(b"h", GarnetObjectType::Hash, entries, i64::MAX))
       .unwrap();
   }
   assert!(is_tiered(&env, b"h"), "手工升阶后键应处分层态");
