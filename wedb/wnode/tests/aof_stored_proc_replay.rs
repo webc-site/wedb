@@ -11,7 +11,7 @@ use std::{
   fs::{create_dir_all, remove_dir_all},
   path::Path,
   process::id,
-  sync::Arc,
+  sync::{Arc, atomic::Ordering},
 };
 
 use aok::{OK, Void};
@@ -159,10 +159,7 @@ fn flush_db_entry_replays_targeted_database() -> Void {
 
     // 主库 flush_database(0, 0) 换号批的镜像条目：新虚拟库号即分配器当前值
     //（库 1 已占 1，故换号取 2、水位抬到 3），旧域 (0, 0) 落 0x04 退役墓碑
-    let swapped = store
-      .vdb
-      .next_virtual_id
-      .load(std::sync::atomic::Ordering::Relaxed);
+    let swapped = store.vdb.next_virtual_id.load(Ordering::Relaxed);
     assert_eq!(swapped, 2, "预置：库 1 已占虚拟号 1，换号新号须为 2");
     enqueue_dbmeta_mirror(
       log,

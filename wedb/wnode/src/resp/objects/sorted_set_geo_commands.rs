@@ -641,15 +641,18 @@ impl RespServerSession {
         // 命中成员成对落目标集合（对标 C# GeoSearchStore 的 ZADD 收尾）；
         // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
         let mut sink = Vec::new();
-        let mut obj_out = ObjectOutput::mount(&mut sink);
-        obj.geo_search(&mut opts, &mut obj_out, self.resp_protocol_version, false);
-        if obj_out.payload_view().first() == Some(&b'-') {
+        obj.geo_search(
+          &mut opts,
+          &mut ObjectOutput::mount(&mut sink),
+          self.resp_protocol_version,
+          false,
+        );
+        if sink.first() == Some(&b'-') {
           // FROMMEMBER 圆心缺失等对象层错误透传
-          drop(obj_out);
           output.append(&mut sink);
           return Ok(true);
         }
-        let dst = SortedSetObject::from_entries(parse_pairs_payload(obj_out.payload_view()));
+        let dst = SortedSetObject::from_entries(parse_pairs_payload(&sink));
         let count = dst.sorted_set_dict.len();
         // STORE 族目标键为 SET 语义（清既有 key 级 TTL）：对标 C# GeoSearchStore
         // 先统一面 Delete dst 再 RMW ZADD（ObjectStore/SortedSetOps.cs），信封域
@@ -919,15 +922,18 @@ pub(crate) mod slow {
         // 存储变体：分值取 GeoHash 或距离，命中成员成对落目标集合；
         // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
         let mut sink = Vec::new();
-        let mut obj_out = ObjectOutput::mount(&mut sink);
-        obj.geo_search(&mut opts, &mut obj_out, resp_version, false);
-        if obj_out.payload_view().first() == Some(&b'-') {
+        obj.geo_search(
+          &mut opts,
+          &mut ObjectOutput::mount(&mut sink),
+          resp_version,
+          false,
+        );
+        if sink.first() == Some(&b'-') {
           // FROMMEMBER 圆心缺失等对象层错误透传
-          drop(obj_out);
           output.append(&mut sink);
           return Ok(());
         }
-        let dst = SortedSetObject::from_entries(parse_pairs_payload(obj_out.payload_view()));
+        let dst = SortedSetObject::from_entries(parse_pairs_payload(&sink));
         let count = dst.sorted_set_dict.len();
         // STORE 族目标键为 SET 语义（清既有 key 级 TTL）：对标 C# GeoSearchStore
         // 先统一面 Delete dst 再 RMW ZADD，信封域 upsert 默认保留须显式清退

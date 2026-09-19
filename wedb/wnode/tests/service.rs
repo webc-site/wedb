@@ -4,7 +4,7 @@
 //! SpanByte key + ReplayInput 载荷），重放端统一经 AofProcessor
 //! （NodeService::replay_into_session），不再有独立条目编码/重放器。
 
-use std::sync::Arc;
+use std::sync::{Arc, atomic::Ordering};
 
 use aok::{OK, Void};
 use compio::runtime::Runtime;
@@ -322,10 +322,7 @@ fn ttl_purge_single_deterministic_entry() -> Void {
       "副本须继承主库库级路由格"
     );
     assert_eq!(
-      replica_store
-        .vdb
-        .next_virtual_id
-        .load(std::sync::atomic::Ordering::Relaxed),
+      replica_store.vdb.next_virtual_id.load(Ordering::Relaxed),
       3,
       "副本分配水位须锁步自主库换号批的 0x05 记录"
     );

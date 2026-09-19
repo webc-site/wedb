@@ -191,9 +191,7 @@ pub(crate) fn parse_restore_args<'p>(
   parse_state: &[&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], i64, &'p [u8])> {
-  let Some([key, expiry_raw, value]) = unpack_args(parse_state, output, "RESTORE") else {
-    return None;
-  };
+  let [key, expiry_raw, value] = unpack_args(parse_state, output, "RESTORE")?;
   // C# TryGetInt（index = Count - 2，arity 锁 3 即下标 1）
   let Some(expiry) = strict_i32(expiry_raw) else {
     abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
