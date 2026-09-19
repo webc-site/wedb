@@ -281,6 +281,14 @@ where
     }));
   }
 
+  // 同键读改写原子窗口（异步域让核等待臂，对标 C# 锁冲突转 pending 重试）：
+  // 先于装载取，覆盖「异步装载 → operate → 整值写回」全程，与 run_sync_rmw
+  // 的同步臂同锁源同判据；分层树内臂是另一锁面（wbftree 树与 Meta 记录），
+  // 不在本窗口射程（见票边界），故窗口只挂对象层单源通道
+  let _window = storage.batch.rmw_window(cmd.key).await.map_err(|e| {
+    log::error!("run_async_rmw rmw_window failed: {e:?}");
+  })?;
+
   let (mut obj, existed) =
     match obj_load_typed_async(storage, cmd.key, cmd.tag, output, handlers.deserialize)
       .await
@@ -584,6 +592,15 @@ where
   RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
   ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
 {
+  // 同键读改写原子窗口：跨「装载信封对象 → operate → 整值序列化写回」全程持
+  // 本键桶排他闩（对标 C# ObjectStore/RMWMethods.cs 的 NeedInitialUpdate /
+  // InPlaceUpdater / CopyUpdater 全在记录锁内对 IGarnetObject 执行 op），杜绝
+  // 并发 HSET/SADD/ZADD 同键不同字段时后写者整值抹掉前写者字段；自旋预算内
+  // 不得闩即降级，由 run_async_rmw 的让核等待臂承接
+  let Some(_window) = store.try_rmw_window(cmd.key) else {
+    return ObjLoad::Degrade;
+  };
+
   let (mut obj, existed) =
     match obj_load_typed_sync(store, cmd.key, cmd.tag, output, handlers.deserialize) {
       ObjLoad::Degrade => return ObjLoad::Degrade,

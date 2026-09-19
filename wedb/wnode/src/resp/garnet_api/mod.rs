@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 use wbase::hash_slot::slot_of;
 use wconf::ServerConfigType;
 use wdev::Device;
-use wkv::StoreSession;
+use wkv::{SessionLocking, StoreSession};
 use wmetric::{DbSnapshot, GarnetLatencyMetricsSession, SessionMetricsHandle};
 use wresp::{
   cmd_strings::{RESP_ERR_ASYNC_REQUIRED, write_error_raw},
@@ -421,6 +421,19 @@ fn is_acl_command(cmd: RespCommand) -> bool {
 
 impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, args: &[&[u8]]) {
+    // 会话锁器模式选型点（对标 C# RespServerSession.ProcessMessages 依
+    // `txnManager.state == TxnState.Running` 在 basicApi 与 transactionalApi 间
+    // 派发）：EXEC 重放遍的本键桶排他闩已由本会话事务在 windex 同一份锁内存上
+    // 持有，读改写窗口让闩；非事务遍窗口自取闩。RAII 守卫在本分派段退出即还原
+    //（降级慢路径在段外以 Basic 重取闩，与 C# 慢路径重投同址同判据）
+    let _locking =
+      self
+        .session
+        .push_session_locking(if session.txn_state == wtxn::TxnState::Running {
+          SessionLocking::Transactional
+        } else {
+          SessionLocking::Basic
+        });
     // AUTH / ACL 族：底层存储点查须在批处理纪元保护区外执行——冷记录落盘
     // 回读经阻塞驱动，持纪元守卫等待驱逐会自锁；且认证成功后须回写会话本地
     // 句柄/命名空间，仅本同步分派段可达（慢路径仅产出应答字节，无会话态
