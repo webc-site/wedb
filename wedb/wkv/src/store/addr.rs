@@ -117,7 +117,8 @@ impl<D: Device> WedbStore<D> {
   pub fn min_revivifiable_address(&self) -> u64 {
     let read_only = self.hlog.read_only_address();
     let tail = self.hlog.tail_address();
-    let window = tail - read_only;
+    // 水位不变量 read_only <= tail，钳制只为杜绝两水位瞬时交错时减法回绕
+    let window = tail.saturating_sub(read_only);
     // f64 比例换算可能因舍入越出窗口，钳制到 [0, window] 保证下限不低于 read_only
     let frac = ((window as f64) * self.config.revivifiable_fraction) as u64;
     tail.saturating_sub(frac.min(window))

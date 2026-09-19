@@ -373,6 +373,148 @@ fn test_revivification_pause_and_fraction_gate() -> Void {
   OK
 }
 
+/// 链内原地复活的双门（对标 C# InternalUpsert.cs:125 / InternalRMW.cs:126
+/// `RevivificationManager.IsEnabled && LogicalAddress >= GetMinRevivifiableAddress()`）
+///
+/// 修复前链内复活臂只判 `config.enable_revivification` 单门，后果两条：
+/// a) `--reviv-fraction` 对链内复活零效力（只有池取受限，C# 同一谓词管两路）；
+/// b) 迁移暂停窗口（RevivPauseGuard）内新到的写仍可在链中部原地复活墓碑。
+/// 本用例对两门各写正反双断言：负断言要求地址推进 Tail（落回尾部追加），
+/// 正断言要求地址原地不变且 Tail 零推进——任一谓词掉线即红。
+#[test]
+fn test_revivification_in_chain_dual_gate() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let page_size = DEFAULT_SECTOR_SIZE;
+    // 等长值：墓碑帧容量与松弛填充前置恒成立，断言只反映双门本身
+    let v = b"chaingate_val1";
+
+    // 1. 暂停臂：pause 挡死链内复活，resume 后同臂恢复
+    {
+      let env = open_store(
+        "reviv_chain_pause.db",
+        config(1024, page_size, 16)?.with_revivification(true),
+      )?;
+      let store = env.store;
+      let session = store.new_session()?;
+
+      // 悬置「索引指向可变区墓碑」的链首（与 test_revivification 步骤 3 同法）
+      let k = b"chain_pause_key";
+      let phys = session.session_string_key(k);
+      let tomb = session.append_record(&phys, v, 0, true).await?;
+      store.index.load().insert(&phys, tomb)?;
+
+      store.reviv_pool.pause();
+      let tail_before = store.hlog.tail_address();
+      let after = session.upsert(k, v).await?;
+      assert_ne!(
+        after, tomb,
+        "暂停期间链内复活臂必须关闭，不得原地复用墓碑槽位"
+      );
+      assert!(
+        after >= tail_before,
+        "暂停期间的 upsert 须落回尾部追加（对标 C# goto CreateNewRecord）"
+      );
+      assert_eq!(session.read(k).await?, Some(v.to_vec()), "落链后值可读");
+
+      store.reviv_pool.resume();
+      assert!(store.reviv_pool.is_enabled(), "resume 后启用谓词复原");
+      // 索引已随上一步推进，重新悬置一枚墓碑作为链首
+      let phys2 = session.session_string_key(k);
+      let tomb2 = session.append_record(&phys2, v, 0, true).await?;
+      store.index.load().insert(&phys2, tomb2)?;
+      let tail_before2 = store.hlog.tail_address();
+      let after2 = session.upsert(k, v).await?;
+      assert_eq!(
+        after2, tomb2,
+        "恢复后链内复活臂必须复用墓碑槽位，地址原地不变"
+      );
+      assert_eq!(
+        store.hlog.tail_address(),
+        tail_before2,
+        "链内原地复活不推进 TailAddress"
+      );
+      assert_eq!(session.read(k).await?, Some(v.to_vec()));
+    }
+
+    // 2. 比例臂：fraction 收窄落在复活窗口外的墓碑不得原地复活
+    {
+      let env = open_store(
+        "reviv_chain_fraction.db",
+        config(1024, page_size, 16)?
+          .with_revivification(true)
+          .with_revivifiable_fraction(0.5)?,
+      )?;
+      let store = env.store;
+      let session = store.new_session()?;
+
+      let k = b"chain_frac_key";
+      let phys = session.session_string_key(k);
+      let tomb = session.append_record(&phys, v, 0, true).await?;
+      store.index.load().insert(&phys, tomb)?;
+
+      // 未推进只读线时 read_only = 0，窗口 = tail，下限 = tail/2：低位墓碑被排除
+      let pad = vec![b'P'; 256];
+      for i in 0..8 {
+        session
+          .upsert(format!("chain_frac_pad_{i}").as_bytes(), &pad)
+          .await?;
+      }
+      assert!(
+        tomb * 2 < store.hlog.tail_address(),
+        "前置条件：墓碑必须落在复活窗口之外"
+      );
+
+      let tail_before = store.hlog.tail_address();
+      let after = session.upsert(k, v).await?;
+      assert_ne!(
+        after, tomb,
+        "--reviv-fraction 必须同样约束链内复活，不得只挡池取"
+      );
+      assert!(after >= tail_before, "窗口外墓碑的 upsert 须落回尾部追加");
+    }
+
+    // 3. 比例臂对照正断言：默认 fraction = 1.0（下限退化为 read_only）时，
+    //    同样的低位墓碑仍须原地复活——证明上一步的红确由比例门产生
+    {
+      let env = open_store(
+        "reviv_chain_fraction_full.db",
+        config(1024, page_size, 16)?.with_revivification(true),
+      )?;
+      let store = env.store;
+      let session = store.new_session()?;
+
+      let k = b"chain_full_key";
+      let phys = session.session_string_key(k);
+      let tomb = session.append_record(&phys, v, 0, true).await?;
+      store.index.load().insert(&phys, tomb)?;
+
+      let pad = vec![b'P'; 256];
+      for i in 0..8 {
+        session
+          .upsert(format!("chain_full_pad_{i}").as_bytes(), &pad)
+          .await?;
+      }
+      assert!(
+        tomb * 2 < store.hlog.tail_address(),
+        "前置条件：与比例臂同位形（墓碑远离 Tail）"
+      );
+
+      let after = session.upsert(k, v).await?;
+      assert_eq!(
+        after, tomb,
+        "fraction 默认 1.0 时全可变区皆可复活，地址必须原地不变"
+      );
+      assert_eq!(session.read(k).await?, Some(v.to_vec()));
+    }
+
+    info!("对照 C# 链内原地复活双门（IsEnabled + GetMinRevivifiableAddress）验证通过");
+    aok::Result::<()>::Ok(())
+  })?;
+
+  OK
+}
+
 /// 对标 Garnet Tsavorite ReadCache 独立只读非脏页内存日志 —— 冷读回填晋升与原子脱钩
 ///
 /// 验证点：
