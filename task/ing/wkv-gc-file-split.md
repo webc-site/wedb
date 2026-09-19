@@ -52,3 +52,7 @@ C# 参考
 3. WedbStore::reconcile_gc_scan（wkv/src/store/gc.rs）→ gc::enabled_by_config 的谓词单点未分裂
    （grep enabled_by_config 定义 1 处）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh）。
+
+双花登记
+并发代理就条 11 另立同题薄票 next/db-wkv-gc-split.md（同改 wkv/src/gc.rs，五域划分与本票一致），
+两票同改一文件只取一棒：本票为正文载体，派发时以本票为准并删除该薄票，禁双花。

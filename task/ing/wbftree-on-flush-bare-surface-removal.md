@@ -53,3 +53,8 @@ C# 参考
    （带地址工件路径与 addr_flush_scan_pending 门控仍在）。
 3. cargo check 通过（禁跑 test.sh / clippy.sh）；js/check.js 对 SnapshotTreeForFlush 的
    锚点仍单点挂在 on_flush_address 上。
+
+双花登记
+并发代理的同号薄票 next/db-bftree-on-flush-single-entry.md（自称并入 next/muse.db.md 条 11）已由
+主仓 commit 0f7ce71 作「双载体薄壳」删除，载体统一为本票，故本票为该题唯一正文，无对手票待删。
+判词一致留档：双方均判 on_flush（无地址包装）与 bare_flush_path 属自造变体，C# 只有带地址签名。

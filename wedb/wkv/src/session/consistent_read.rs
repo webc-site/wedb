@@ -1,9 +1,8 @@
 //! 一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
 //!
-//! 在存储会话的基础读取操作之上包裹一致读协议钩子：
+//! - 纯只读会话：静态类型保证无写接口。
 //! - 读取前：调用 `Session.functions.PreSingleKeyConsistentRead(hash)`
 //! - 读取后：调用 `Session.functions.PostSingleKeyConsistentReadCallback()`
-//! - 严禁写入操作：对标 Tsavorite，写路径一律拦截报错。
 
 use std::thread;
 
@@ -144,12 +143,9 @@ impl<'a, D: Device, F: ConsistentReadFunctions + ?Sized> ConsistentReadContext<'
     tag: KeyTag,
     f: impl FnOnce(&[u8], usize) -> R,
   ) -> Result<StoreResult<R>> {
-    self
-      .functions
-      .pre_single_key_consistent_read(key_hash(user_key))?;
-    let result = self.session.try_read_tag_sync_with_size(user_key, tag, f);
-    self.functions.post_single_key_consistent_read_callback();
-    result
+    single_key_around(self.functions, key_hash(user_key), || {
+      self.session.try_read_tag_sync_with_size(user_key, tag, f)
+    })
   }
 
   /// 零拷贝读取指定标签物理键并披露记录物理尺寸（MEMORY USAGE 统计内核，
