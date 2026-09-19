@@ -9,12 +9,16 @@
 //!    会话延迟表 PENDING_LAT 槽出样本，并经监视器同款归并口在
 //!    `LATENCY HISTOGRAM` 无参回显里不再是空项；
 //! 2. 关延迟监视的会话不建延迟表，同一读命令应答逐字节一致（表不在位即
-//!    零取时零分配，语义等同 C# `latencyMetrics?.` 短路）。
+//!    零取时零分配，语义等同 C# `latencyMetrics?.` 短路）；
+//! 3. 批量读口（`read_string_batch_into`，GET_SG 流水线冷读）复用同一漏斗而非
+//!    另起表：整批一次异步闭环恰出一条样本（对位 C# 批量读完成口
+//!    `MGetReadArgBatch` 的 `CompletePending` 单次调用）。
 
 use std::{mem::take, sync::Arc};
 
 use compio::runtime::Runtime;
 use tempfile::tempdir;
+use wconf::{RuntimeServerConfig, ServerConfigType};
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wmetric::{GarnetLatencyMetrics, LatencyMetricsType, RespLatencyCommands};
@@ -157,5 +161,52 @@ fn pending_read_without_latency_monitor_is_unchanged() {
   assert_eq!(
     cold_exec(&api, &rt, &mut s, RespCommand::Hget, &[b"h", b"f1"]),
     b"$2\r\nv1\r\n"
+  );
+}
+
+/// 批量读口复用同一漏斗：GET_SG 流水线两冷键聚合成一次整批异步闭环，
+/// PENDING_LAT 恰出一条样本（按批不按条目；漏挂则为 0 条），应答顺序不变
+#[test]
+fn batch_read_records_one_pending_sample_per_batch() {
+  let (rt, api, store, mut s, _dir) = open_env("pending-lat-sg.db", true);
+  // 本会话独占配置表并定标 sg-get 开（共享缺省表可被其他用例改写）
+  s.runtime_config = Arc::new(RuntimeServerConfig::with_defaults());
+  assert!(
+    s.runtime_config.get_bool(ServerConfigType::SgGet),
+    "sg-get 未开启则整批读口不触达，本用例失效"
+  );
+
+  for (key, val) in [
+    (b"sg1".as_slice(), b"v1".as_slice()),
+    (b"sg2".as_slice(), b"v2".as_slice()),
+  ] {
+    sync_exec(&api, &mut s, RespCommand::Set, &[key, val]);
+    assert_eq!(take(&mut s.output), b"+OK\r\n");
+  }
+  rt.block_on(store.flush_and_evict_all()).unwrap();
+  assert_eq!(
+    pending_samples(&s),
+    0,
+    "同步写入与整库驱逐不得记 PENDING_LAT"
+  );
+
+  // 两条流水线 GET：快路径首个冷键即整批判停，降级快照携带两键
+  let pipeline = b"*2\r\n$3\r\nGET\r\n$3\r\nsg1\r\n*2\r\n$3\r\nGET\r\n$3\r\nsg2\r\n";
+  s.recv_buffer.extend_from_slice(pipeline);
+  s.bytes_read = pipeline.len();
+  s.read_head = 0;
+  s.end_read_head = 0;
+  s.output.clear();
+  s.try_consume_messages();
+  let slow = s
+    .take_slow_wait()
+    .expect("SG 冷读必须降级挂起 SlowWait：未见整批读口调用");
+  let out = rt.block_on(slow.resolve());
+  s.output.clear();
+  assert_eq!(out, b"$2\r\nv1\r\n$2\r\nv2\r\n");
+  assert_eq!(
+    pending_samples(&s),
+    1,
+    "整批读须经 with_pending_metrics 恰起停一次 PENDING_LAT（按批一条，不按条目）"
   );
 }
