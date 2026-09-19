@@ -24,3 +24,11 @@
 locks() 收敛为 wbftree 内可见（或仅诊断面），跨 crate 写路径统一走 StoreSession 异步守卫或
 wbftree 提供的命名锁方法（对标 AcquireExclusiveForDelete 形态）；七处裸消费点逐一改走
 封装口。同步读锁消费可保留薄读口但须挂同一锁协议注释。禁双轨并存。
+
+分拣补记（next/muse.db.md 条 4 同题并入本票，db 域源档已分拣清空删除；浅核 2026-09-19
+主仓 dev，bun js/check.js 实测仍报）：AcquireExclusiveForDelete 锚点双挂组——
+wedb/wbftree/src/manager/mod.rs:378 RangeIndexManager::locks（锁容器 getter，误挂
+该键）与 wedb/wkv/src/range_index/stub.rs:346 acquire_tree_write（取锁守卫，语义
+真对位）同挂。本票修法落地（locks() 收敛或改命名锁方法）时一并处理锚点：locks()
+去 AcquireExclusiveForDelete 锚改散文，真键随命名锁方法挂 wbftree 侧或留在守卫处，
+一处一锚。

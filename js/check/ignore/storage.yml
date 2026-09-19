@@ -766,8 +766,11 @@
         - CompletePendingWithOutputs
         - CompletePendingWithOutputsAsync
         - ConsistentReadContext
+        - Delete
         - ResetModified
-  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接（含批/单键一致读回调面）
+        - RMW
+        - Upsert
+  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接，只读会话无写接口，消除 C# IFunctions 残留死接口（Upsert/RMW/Delete）
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs
   理由: C# 会话接口面；rust 单实现直调（wkv session），接口跳板层消失
