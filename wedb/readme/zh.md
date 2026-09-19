@@ -345,9 +345,9 @@ wedb/
 
 ### windex —— 无锁哈希索引
 
-- `HashIndex`——64B 桶表；`find_tag` / `find_tag_by_hash`，经 `HashEntryInfo` 做 CAS 槽位更新，`acquire_keys_lock_exclusive` 串行化读改写窗口；支持 `split_chunk` 在线动态扩容。
+- `HashIndex`——64B 桶表；`find_tag` / `find_tag_by_hash`，经 `HashEntryInfo` 做 CAS 槽位更新，`try_lock_key_exclusive` 以单键独占闩串行化读改写窗口；支持 `split_chunk` 在线动态扩容。
 - `HashBucket`（`ENTRIES_PER_BUCKET`、`DATA_ENTRIES`、`OVERFLOW_INDEX`）、`HashBucketEntry`、`CandidateAddresses`（内联候选地址表，`retain` / `sort_descending`）。
-- `OverflowPool`、`MultiBucketGuard`、`BucketExclusiveGuard` / `BucketSharedGuard`、`prefetch_read_l1`。
+- `OverflowPool`、`KeyLatch`、`BucketExclusiveGuard` / `BucketSharedGuard`、`prefetch_read_l1`。
 
 ### whlog —— 混合日志分配器
 

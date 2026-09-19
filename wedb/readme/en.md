@@ -345,9 +345,9 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 ### windex — lock-free hash index
 
-- `HashIndex` — fixed-capacity table of 64B buckets; `find_tag` / `find_tag_by_hash`, CAS slot updates through `HashEntryInfo`, `acquire_keys_lock_exclusive` for read-modify-write serialization.
+- `HashIndex` — fixed-capacity table of 64B buckets; `find_tag` / `find_tag_by_hash`, CAS slot updates through `HashEntryInfo`, `try_lock_key_exclusive` single-key exclusive latch for read-modify-write serialization.
 - `HashBucket` (`ENTRIES_PER_BUCKET`, `DATA_ENTRIES`, `OVERFLOW_INDEX`), `HashBucketEntry`, `CandidateAddresses` (inline candidate list with `retain` / `sort_descending`).
-- `OverflowPool`, `MultiBucketGuard`, `BucketExclusiveGuard` / `BucketSharedGuard`, `prefetch_read_l1`.
+- `OverflowPool`, `KeyLatch`, `BucketExclusiveGuard` / `BucketSharedGuard`, `prefetch_read_l1`.
 
 ### whlog — HybridLog allocator
 
