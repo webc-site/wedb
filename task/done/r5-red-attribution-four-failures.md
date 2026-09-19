@@ -56,8 +56,9 @@ fix-obj-arg-reparse 落地（工作提交 eaa27ea，经 0bcf574 入 dev），本
   无会话副作用 → arity 错误不再计 failed_calls（实测 INFO 行 `failed_calls=0`）。此为**实现破 C#**。
 - C# 行实：libs/server/Resp/ArrayCommands.cs:398-404（`if (count > 1) return
   AbortWithWrongNumberOfArguments(nameof(RespCommand.PING));`）→
-  libs/server/Resp/Objects/ObjectStoreUtils.cs:21-27 转 :44-52 `AbortWithErrorMessage`
-  （`commandErrorWritten = true;` 在写错误帧之前）→ libs/server/Resp/RespServerSession.cs:683-691
+  libs/server/Resp/Objects/ObjectStoreUtils.cs:21-27（`AbortWithWrongNumberOfArguments` 组帧后
+  转 :47-51 `AbortWithErrorMessage`，`commandErrorWritten = true;` 写在错误帧之前）→
+  libs/server/Resp/RespServerSession.cs:683-691
   （`commandStats.IncrementCalls(cmd); if (commandErrorWritten) { IncrementFailed; commandErrorWritten = false; }`）。
   即 arity 拒绝必须先置失败标志、再由同一核算点计 failed_calls。
 - 修法（eaa27ea）：修实现、测试原样保留（`assert_cmdstat(&info, "ping", 2, 1, 1)` 未改）。
