@@ -795,12 +795,12 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     }
   }
 
-  /// diskann-garnet/DiskANNService.cs:DropIndex
+  /// libs/server/Resp/Vector/DiskANNService.cs:DropIndex
   pub fn drop_index(&self, context: u64) {
     self.indexes.pin().remove(&context);
   }
 
-  /// diskann-garnet/DiskANNService.cs:Insert
+  /// libs/server/Resp/Vector/DiskANNService.cs:Insert
   ///
   /// 起点保障 → 图插入 → 写属性 → 量化就绪判定（对标 insert C 函数）。
   pub fn insert(
@@ -849,7 +849,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     }
   }
 
-  /// diskann-garnet/DiskANNService.cs:Remove
+  /// libs/server/Resp/Vector/DiskANNService.cs:Remove
   pub fn remove(&self, context: u64, external_id: &[u8]) -> bool {
     let Some(index) = self.indexes.pin().get(&context).cloned() else {
       return false;
@@ -864,7 +864,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     index.inner.remove(&ctx, &id).is_ok()
   }
 
-  /// diskann-garnet/DiskANNService.cs:BuildQuantizationTable
+  /// libs/server/Resp/Vector/DiskANNService.cs:BuildQuantizationTable
   pub fn build_quantization_table(&self, context: u64) -> bool {
     let Some(index) = self.indexes.pin().get(&context).cloned() else {
       return false;
@@ -872,7 +872,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     index.inner.train_quantizer(&Context::new(context))
   }
 
-  /// diskann-garnet/DiskANNService.cs:BackfillQuantizedVectors
+  /// libs/server/Resp/Vector/DiskANNService.cs:BackfillQuantizedVectors
   pub fn backfill_quantized_vectors(&self, context: u64, task_index: usize, task_count: usize) {
     if let Some(index) = self.indexes.pin().get(&context).cloned() {
       index
@@ -968,7 +968,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     Ok(output.into_search_output())
   }
 
-  /// diskann-garnet/DiskANNService.cs:SearchVector
+  /// libs/server/Resp/Vector/DiskANNService.cs:SearchVector
   pub fn search_vector(
     &self,
     context: u64,
@@ -984,7 +984,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     self.run_search(context, &index, vector, params)
   }
 
-  /// diskann-garnet/DiskANNService.cs:SearchElement
+  /// libs/server/Resp/Vector/DiskANNService.cs:SearchElement
   pub fn search_element(
     &self,
     context: u64,
@@ -1003,7 +1003,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     self.run_element_search(context, &index, external_id, params)
   }
 
-  /// diskann-garnet/DiskANNService.cs:CheckInternalIdValid
+  /// libs/server/Resp/Vector/DiskANNService.cs:CheckInternalIdValid
   pub fn check_internal_id_valid(&self, context: u64, internal_id: u32) -> bool {
     self.indexes.pin().get(&context).is_some_and(|i| {
       i.inner
@@ -1011,7 +1011,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     })
   }
 
-  /// diskann-garnet/DiskANNService.cs:CheckExternalIdValid
+  /// libs/server/Resp/Vector/DiskANNService.cs:CheckExternalIdValid
   pub fn check_external_id_valid(&self, context: u64, external_id: &[u8]) -> bool {
     self.indexes.pin().get(&context).is_some_and(|i| {
       i.inner
@@ -1019,7 +1019,7 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     })
   }
 
-  /// diskann-garnet/DiskANNService.cs:SetAttribute
+  /// libs/server/Resp/Vector/DiskANNService.cs:SetAttribute
   ///
   /// 空属性等价于删除（对标 set_attribute C 函数语义）。
   pub fn set_attribute(&self, context: u64, external_id: &[u8], attribute: &[u8]) -> bool {
