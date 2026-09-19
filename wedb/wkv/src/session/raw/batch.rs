@@ -2,8 +2,8 @@
 
 use futures_util::future::join_all;
 use wdev::Device;
-use windex::{CandidateAddresses, PREFETCH_WINDOW, PrefetchProbe, prefetch_read_l1};
 use whlog::AddressSnapshot;
+use windex::{CandidateAddresses, PREFETCH_WINDOW, PrefetchProbe, prefetch_read_l1};
 use wval::{KeyTag, NamespaceDbCodec, TaggedKeyBuf};
 
 use super::{MemDrive, read::StoreResult};

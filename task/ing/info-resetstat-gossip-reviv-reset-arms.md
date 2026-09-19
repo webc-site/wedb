@@ -107,7 +107,9 @@ next/info-store-snapshot-channel.md 只管 INFO 存储域段的导出通道（Se
 ## 判词（棒：info-resetstat-arms，树 /tmp/fork/info-resetstat-arms，CARGO_TARGET_DIR=/tmp/ct-isr）
 
 结论：票面五段现状与盘点补记逐条复核为真（未落地、C# 形态无反证），按修法一~四实施完毕，
-已随 5fb1621 快进入 dev。行号按当下代码重取（票面 a7402c4/e75716e 期行号已漂移，位点同函数）：
+内容提交 51b0a9d，经三次树内 merge dev（75f0ba8 并入 cd44779、f74e7df 并入 523b234、
+5fb1621 并入 c0ef376）后由主仓 git merge --ff-only 快进至 dev（tip 5fb1621，HEAD 已含）。
+行号按当下代码重取（票面 a7402c4/e75716e 期行号已漂移，位点同函数）：
 resp_server_session.rs:1745 现 :1769；single_database_manager.rs:145 现 :166（复核时）；
 cluster_provider.rs:125/:253 现 :135/:270；consumer_registry.rs:418 现 :469；
 server.rs:817 现 :857；info_provider.rs:157 现 :173；pool.rs:106-112 现 :107-112。
@@ -115,7 +117,7 @@ gossip_stats.rs 真实现随 cluster_provider.rs 拆分为 server/cluster_provid
 
 落地（file:line 为主仓 dev 现刻）
 
-1. 修法一 池层复位原语 + 存储薄入口：wrebv 无此口，现 wedb/wreviv/src/pool.rs:373
+1. 修法一 池层复位原语 + 存储薄入口：wreviv 无此口，现 wedb/wreviv/src/pool.rs:373
    FreeRecordPool::reset_stats（四计数 store(0, Relaxed)，锚 RevivificationStats.cs:Reset），
    :396 将 clear 文档改注「只清槽不动账目，计数复位见 reset_stats」；
    wedb/wkv/src/store/stats.rs:286 WedbStore::reset_revivification_stats 转调
@@ -165,7 +167,8 @@ gossip_stats.rs 真实现随 cluster_provider.rs 拆分为 server/cluster_provid
    diff 内 grep allow( 零命中）；定向 nextest：wreviv 25/25、wconf + wnode
    （server_monitor_tests / database_manager / client_commands_tests / resp_info）22/22、
    wedb（info_resetstat_arms + gossip_manager）10/10、合并 wkv 改动后 wkv 225/225 全绿。
-   树内两次 merge dev（523b234 读改写收敛 + 5fb1621 前 wconf 注释锚批次）均复跑上述门禁。
+   树内三次 merge dev（75f0ba8 并入 cd44779 wkv 读内核收敛、f74e7df 并入 523b234 归档批次、
+   5fb1621 并入 c0ef376 wconf 注释锚批次）后两次复跑上述门禁全绿。
 
 顺带处置：cleanup_global_stats 文档里同一 GarnetServerMonitor.cs:CleanupGlobalStats 锚
 被重复粘了两遍（存量误粘），本次改写该 doc 时合并为一枚，不构成第二挂点。

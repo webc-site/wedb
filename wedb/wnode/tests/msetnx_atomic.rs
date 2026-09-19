@@ -300,9 +300,7 @@ fn msetnx_slow_meta_only_promoted_key_counts_as_existing() {
   s.output.clear();
   api.exec(&mut s, RespCommand::Msetnx, &[b"big", b"x", b"k2", b"v2"]);
   assert!(s.output.is_empty(), "MSETNX 磁盘候选应整体降级慢路径");
-  let slow = s
-    .take_slow_wait()
-    .expect("MSETNX 判定段降级应挂起慢路径");
+  let slow = s.take_slow_wait().expect("MSETNX 判定段降级应挂起慢路径");
   assert_eq!(rt.block_on(slow.resolve()), b":0\r\n");
 
   // 零写入核验：原集合身份不变、String 域无记录、其余键未写
