@@ -219,19 +219,14 @@ impl<D: Device> WedbStore<D> {
         num_chunks,
         get_record_hash_and_prev,
         |prev_addr, target_bit| {
-          let mut curr = prev_addr;
-          while curr >= head_addr {
-            if let Some((hash, next_prev)) = get_record_hash_and_prev(curr) {
-              let bit = usize::from(((hash as usize) & new_index.mask) >= old_index.size);
-              if bit == target_bit {
-                return Some(curr);
-              }
-              curr = next_prev;
-            } else {
-              break;
-            }
-          }
-          (curr > 0 && curr < head_addr).then_some(curr)
+          trace_back_for_other_chain_start(
+            prev_addr,
+            target_bit,
+            head_addr,
+            old_index.size,
+            new_index.mask,
+            get_record_hash_and_prev,
+          )
         },
       ) {
         // 迁移失败：状态回滚 UNSTARTED、不递减 num_pending_chunks，绝不无条件标记
@@ -389,4 +384,31 @@ pub async fn grow_index_blocking<D: Device>(store: Arc<WedbStore<D>>) -> Result<
       Err(Error::BlockingJoin(format!("{e}")))
     }
   }
+}
+
+/// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/SplitIndex.cs:TraceBackForOtherChainStart
+#[inline]
+fn trace_back_for_other_chain_start<F>(
+  mut curr: u64,
+  target_bit: usize,
+  head_addr: u64,
+  old_size: usize,
+  new_mask: usize,
+  mut get_record_hash_and_prev: F,
+) -> Option<u64>
+where
+  F: FnMut(u64) -> Option<(u64, u64)>,
+{
+  while curr >= head_addr {
+    if let Some((hash, next_prev)) = get_record_hash_and_prev(curr) {
+      let bit = usize::from(((hash as usize) & new_mask) >= old_size);
+      if bit == target_bit {
+        return Some(curr);
+      }
+      curr = next_prev;
+    } else {
+      break;
+    }
+  }
+  (curr > 0 && curr < head_addr).then_some(curr)
 }

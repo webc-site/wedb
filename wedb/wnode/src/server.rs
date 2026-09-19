@@ -970,8 +970,12 @@ struct TcpAcceptContext<P: SessionProviderFace> {
 
 /// 驱动单个核心的 TCP 连接接入循环
 ///
-/// 承接 C# GarnetServerTcp 的 accept 面：成功分支复位退避（对标其 :234），
-/// 失败分档见 handle_accept_error（对标其 HandleAcceptError 一/二/三档）
+/// 在 garnet 中的相对路径: libs/server/Servers/GarnetServerTcp.cs:HandleNewConnection
+///
+/// accept 成功回调本体承接：复位退避 → 在途容量门 → socket 配置 → 建 handler
+/// 并注册 → 拉起连接泵；容量门子步骤对位见
+/// [`ConsumerRegistry::try_acquire_connection`]，accept 失败分档见
+/// handle_accept_error（对标 C# HandleAcceptError 一/二/三档）
 async fn run_tcp_accept_loop<P: SessionProviderFace + 'static>(ctx: TcpAcceptContext<P>) {
   let cancel_token = CancelToken::new();
   let watcher_cancel = cancel_token.clone();

@@ -1,0 +1,20 @@
+优先级：中
+
+拒件：SWAPDB 零 AOF 入账、从库对换库完全无感知（主从映射同步唯一通道已在位并连带承接 SWAPDB 面）
+
+来源：next/my-swapdb-replica-routing-sync.md（单问题票，原分拣备注「半条不成立勿修」）。判定：不成立——票面射程（SWAPDB 从库映射继承）已被并发合入的 6dc1cb6 在同一棒内整条修掉，非仅半条；现刻 HEAD（dev 965e16d）逐条取证已过期，无任何残余成立面可重写为单问题票。
+
+半条清单与逐条裁决
+1 「swap_databases 仅本地换格 + bump_generation + persist_dbmeta_batch([DbSwap, DbMap x2])，无任何 AOF 事件」——不成立（现刻）。换格后 persist_dbmeta_batch 走同步快路径逐条 upsert（wedb/wkv/src/session/mod.rs:575-596 → wedb/wkv/src/session/raw/write/mod.rs:116-154，:148-149 编码物理键后落追加），物理写成功即 notify_write_listener → emit_event(StoreEvent::Write)（wedb/wkv/src/session/raw/mod.rs:152-157 追加成功后同步通知、:163-213 通知体、:208 Write 事件）。SWAPDB 换号批因此**恒有 AOF 入账**，形态是 StoreUpsert 条目（键载荷 + 定长记录值），不是「无新枚举即无入账」。swap.rs 本体自 init 未改（`git log --oneline -- wedb/wkv/src/session/swap.rs` 仅 31c2388 init），变的是下游标签滤除端口（条 3）。
+2 「AofEntryType 无 SwapDb 变体」——字面真、非缺陷：wedb/waof/src/aof/entry_type.rs:9-51 确无 SwapDb（该文件自 init 未改）。但 6dc1cb6 确立的口径是「一处定义：映射同步唯一通道 = DbMeta 镜像条目……无需第二套映射同步机制」（wedb/wnode/src/service.rs:174-179 注释原文）。新增 SwapDb 变体正是再造第二套通道，与刚合入的单点定义正面冲突，属票面修法方向做反。
+3 「service.rs:173 又拦截 DbMeta 镜像」——不成立（已修，票面为该修复前形态）。现刻 wedb/wnode/src/service.rs:180 放行条件为 `tag != String && tag != Acl && tag != DbMeta`，`git show 6dc1cb6 -- wedb/wnode/src/service.rs` 的增删行即把 DbMeta 从滤除名单摘除，注释原文点名「主库全部换号批/首映射/SWAPDB 记录与 GC 墓碑注销经此镜像」。
+4 「从库路由表保持旧指向，主从数据库视图对调失步」——不成立（已修）。回放链路完整在位：wedb/wnode/src/aof/aof_processor.rs:836-841 replay_op 对 `tag == KeyTag::DbMeta` 优先分流 → :888-922 replay_dbmeta 解 DbMetaRecord → wedb/wkv/src/store/keyspace.rs:188-237 apply_dbmeta_record，其 DbSwap 臂 :210-222 非根域双格 `insert_db_mapping` 直设换后指向 + `bump_generation` 促在册会话换代重解析；根域由复用内核 wedb/wkv/src/store/mod.rs:592-604 rebuild_apply_record 的 DbSwap 臂（vns == ROOT_VIRTUAL_ID 双格换指）承接；末经 keyspace.rs:236 persist_dbmeta 落副本本节点磁盘（副本重启从本节点盘装载，与 AOF 截断位点解耦）。票面「修法建议」原文「补回放臂直设两格映射（复用 insert_db_mapping，不本地取号）」逐字即此实现，只是入口为 DbMeta 分支而非新枚举臂。设计依据 doc/zh/db.md:202-203「物理日志复制与 Checkpoint 直接镜像主库的 KeyTag::DbMeta 与数据记录，从库完全继承主库的映射体系，不进行本地二次映射」与 :349「主节点秒级更新虚拟库 ID，通过物理日志复制流向从库同步 KeyTag::DbMeta 换号批次」。
+5 「failover 后换库效果反转」——不成立（无反转机制）。0x06 记录载荷携**换后绝对指向** swapped_db1/swapped_db2（wedb/wkv/src/vdb.rs:143-153；盘上布局 doc/zh/db.md:141 `-> [db1 新指向: 8B be][db2 新指向: 8B be]`），回放是绝对覆写而非取反开关，重复应用幂等（keyspace.rs:186-187 自述「同一条目重复应用幂等：映射/墓碑为同键同载荷覆写，水位只升不降」）。降为副本的原主重放同批记录即落回同一映射。
+6 「C# 在集群模式直接拒绝 SWAPDB，不存在此暴露面；rust 放宽即须补传播」——C# 事实成立、推论落空。garnet/libs/server/Resp/ArrayCommands.cs:168-171 EnableCluster 即 AbortWithErrorMessage(RESP_ERR_GENERIC_SWAPDB_CLUSTER_MODE)（文案 garnet/libs/server/Resp/CmdStrings.cs:263）；garnet/libs/server/Databases/MultiDatabaseManager.cs:674-717 TrySwapDatabases 全程零 AOF 条目（换 GarnetDatabase 容器对象）。rust 侧集群门禁按 doc/zh/db.md:72-77 改判库槽位归属（wedb/wnode/src/resp/array_commands.rs:388-397、wedb/wresp/src/cmd_strings.rs:245-251）；「放宽须补传播」的前置条件已由条 4 的镜像通道满足，故该段不独立成缺陷。
+7 「与 next/my-flush-replica-virtual-id-divergence.md 同根同修向、可同棒落地但分两 commit」——成立且已如此发生：sibling 票已落地为 6dc1cb6 并归档 task/done/my-flush-replica-virtual-id-divergence.md，其修法段点名联动本票（「同一映射继承缺口的 SWAPDB 面」），并在「同时决定 DbMeta 是否开镜像」处选择开镜像，SWAPDB 面随之闭合。本票无独立射程，属已被同棒吃进的重复载体。
+
+残余（本票不揉包、不自行另立载体，仅供主代理登记）
+SWAPDB 面缺从库继承回归臂：现刻从库映射继承的回归用例仅覆盖 FlushDb（wedb/wnode/tests/aof_replay_domain.rs:194 tail_flushdb_replay_swaps_inherited_domain），SWAPDB 虽走同一 replay_dbmeta 通道但无同名对位用例；wedb/wkv/tests/store/swap_database.rs:250/:342 只覆盖本节点 0x06 重建闭环。属测试面补强，非功能缺口。
+
+引证
+wedb/wkv/src/session/swap.rs:33-94（换格 + :72-91 DbSwap/DbMap 成对批）；wedb/wkv/src/session/mod.rs:575-627；wedb/wkv/src/session/raw/write/mod.rs:116-154；wedb/wkv/src/session/raw/mod.rs:152-157/:163-213；wedb/wnode/src/service.rs:174-188；wedb/wnode/src/aof/aof_processor.rs:836-841/:888-922；wedb/wkv/src/store/keyspace.rs:174-237；wedb/wkv/src/store/mod.rs:540-606；wedb/wkv/src/vdb.rs:143-153；wedb/waof/src/aof/entry_type.rs:9-51；doc/zh/db.md:72-77/:141/:202-203/:349；git show 6dc1cb6（HEAD 祖先，`git merge-base --is-ancestor 6dc1cb6 HEAD` 通过）；garnet/libs/server/Resp/ArrayCommands.cs:168-171、garnet/libs/server/Databases/MultiDatabaseManager.cs:674-717、garnet/libs/server/Resp/CmdStrings.cs:263。

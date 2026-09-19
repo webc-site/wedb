@@ -15,9 +15,7 @@ use wresp::{
   },
 };
 
-use super::{
-  Rmw, ZsetLoad, parse_pairs_payload, run_operate, zset_load_sync, zset_save_or_gc,
-};
+use super::{Rmw, ZsetLoad, parse_pairs_payload, run_operate, zset_load_sync, zset_save_or_gc};
 use crate::{
   resp::{
     objects::object_store_utils::{
