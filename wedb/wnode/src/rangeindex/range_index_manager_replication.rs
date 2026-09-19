@@ -27,9 +27,9 @@ use waof::AofEntryType;
 use wbase::map::{ConcurrentMap, new_concurrent_map};
 use wbftree::{
   DEFAULT_FILE_READ_BUFFER_SIZE, DEFAULT_MIGRATION_CHUNK_SIZE, Error as BfTreeError,
-  RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer,
-  RangeIndexChunkedSerializer, RangeIndexManager as Engine, RangeIndexMigrationReader,
-  RangeIndexStub, StorageBackendType, TreeTuning,
+  RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer, RangeIndexChunkedSerializer,
+  RangeIndexManager as Engine, RangeIndexMigrationReader, RangeIndexStub, StorageBackendType,
+  TreeTuning,
 };
 use wdev::Device;
 use wkv::{RangeIndexError, StoreSession};
