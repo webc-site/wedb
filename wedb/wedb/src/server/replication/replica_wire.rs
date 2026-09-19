@@ -34,10 +34,9 @@ use std::{
 use compio::{runtime::spawn, time};
 use parking_lot::Mutex;
 use wbase::{hex::hex_str_u128, pool::EventWorkQueue};
-use wconn::session::GarnetClientSession;
-use wconn::types::MAX_UNFLUSHED_SEND_BYTES;
 #[cfg(feature = "tls")]
 use wconn::tls::ClientTlsConfig;
+use wconn::{session::GarnetClientSession, types::MAX_UNFLUSHED_SEND_BYTES};
 
 use crate::server::replication::aof_sync_task::AofSyncTask;
 
@@ -291,7 +290,9 @@ impl TcpSessionWire {
             continue;
           };
           // 帧离队即减字节计量（与入队先增后 push 对偶，pending_frame 续传不重复减）
-          wire.overflow_bytes.fetch_sub(frame.resident_bytes(), Ordering::AcqRel);
+          wire
+            .overflow_bytes
+            .fetch_sub(frame.resident_bytes(), Ordering::AcqRel);
           wire.in_flight.store(true, Ordering::Release);
           frame
         };
@@ -324,7 +325,9 @@ impl TcpSessionWire {
         // 贪婪非阻塞消费
         while let Some(next) = overflow.try_pop() {
           // 帧离队即减字节计量（同上）
-          wire.overflow_bytes.fetch_sub(next.resident_bytes(), Ordering::AcqRel);
+          wire
+            .overflow_bytes
+            .fetch_sub(next.resident_bytes(), Ordering::AcqRel);
           wire.in_flight.store(true, Ordering::Release);
           if try_ship_frame(&wire.client, wire.node_id, &next).is_err() {
             // 通道饱和，暂存到 pending_frame，等待下一轮 async 重发
@@ -841,9 +844,7 @@ $1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n";
         );
       }
       assert_eq!(wire.overflow_bytes.load(Ordering::Acquire), 4096);
-      let err = wire
-        .append_log(0, 0, 0, 0, 4096, &payload)
-        .unwrap_err();
+      let err = wire.append_log(0, 0, 0, 0, 4096, &payload).unwrap_err();
       assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
       assert!(
         err.to_string().contains("byte"),
@@ -866,9 +867,7 @@ $1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n";
           ShippedState::Queued
         );
       }
-      let err = wire
-        .append_log(0, 0, 0, 0, 2, &payload)
-        .unwrap_err();
+      let err = wire.append_log(0, 0, 0, 0, 2, &payload).unwrap_err();
       assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
       assert!(
         err.to_string().contains("entry"),
