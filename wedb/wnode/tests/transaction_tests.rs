@@ -246,7 +246,7 @@ fn transaction_proc_test1() {
   struct MockResolver;
   impl TxnProcResolver<RespServerSession> for MockResolver {
     fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<TxnProcHandle> {
-      (txn_id == 7).then(|| TxnProcHandle {
+      (txn_id == 7).then_some(TxnProcHandle {
         name: "mock-proc",
         arity: 2,
       })

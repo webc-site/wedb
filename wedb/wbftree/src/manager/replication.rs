@@ -248,7 +248,7 @@ impl Iterator for FlushFiles {
 
   fn next(&mut self) -> Option<Self::Item> {
     let entries = self.entries.as_mut()?;
-    while let Some(entry) = entries.next() {
+    for entry in entries.by_ref() {
       // 单项 IO 失败与解码不出的文件名 (裸名刷盘件、工作文件、外来文件) 一律跳过
       let Ok(entry) = entry else {
         continue;

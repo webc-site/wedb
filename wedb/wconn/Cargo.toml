@@ -16,6 +16,7 @@ tls = [
   "dep:rustls-pemfile",
   "dep:webpki-roots",
   "dep:futures-util",
+  "wbase/tls",
 ]
 
 [package.metadata.docs.rs]
