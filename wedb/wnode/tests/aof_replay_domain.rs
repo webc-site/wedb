@@ -352,7 +352,6 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
 
     // 全新节点：映射面只有根域，回放前快照其水位与在册集合
     let (_rdir, rstore) = open_test_store("full_replay_replica.db")?;
-    let routing_before = routing_vns(&rstore);
 
     replay_all(&rstore, &aof).await?;
 
@@ -382,7 +381,11 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
       vec![0, NS_A, NS_B],
       "全量回放继承主库命名空间映射"
     );
-    assert_eq!(routing_vns(&rstore), routing_before, "全量回放零路由表新增");
+    assert_eq!(
+      routing_vns(&rstore),
+      vec![0, vns, vns_b],
+      "全量回放继承主库租户路由表"
+    );
     assert_eq!(
       water_mark(&rstore),
       primary_water,
