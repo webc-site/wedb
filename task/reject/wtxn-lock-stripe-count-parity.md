@@ -1,3 +1,58 @@
+裁决：不成立——主张的「现状」在当下 HEAD 已全部不存在（私有条带锁表已删、锁源已收敛到 windex 桶闩、
+虚构注释已订正、排序面与锁面同源）。本票是已落地改动的过期快照，无代码可做，删票归档。
+
+核销 2026-09-19。取证基线：主仓 /Users/z/git/db/wedb 分支 dev 现刻 HEAD，行号按符号重取。
+
+拒绝理由（逐条对票面主张）
+
+1. 「恒定 1024 条带 + StripedLatch 独立数组内存」不实：
+   wedb/wtxn/src/txn_lock_table.rs 全文 135 行无 STRIPE_COUNT、无 StripedLatch、无独立闩数组。
+   现结构持 `loader: Arc<dyn Fn() -> Arc<HashIndex> + Send + Sync>`（对标 C#
+   OverflowBucketLockTable 持 store 引用），`pin()` 每笔事务现取当前索引版本，
+   try_lock_shared/try_lock_exclusive/unlock_shared/unlock_exclusive 一律
+   `self.pin().bucket(idx)` 转发到 windex `HashBucket` 内嵌闩——与 windex 同一份锁内存。
+   文件头 1-22 行已明写该口径并点名 `wkv/src/ttl.rs` 经 `acquire_keys_lock_exclusive`
+   持桶闩为「同一把锁、同一份内存」。
+   票面引的 `:21-23 pub const STRIPE_COUNT: usize = 1 << 10`、`:26-29 Arc<StripedLatch<...>>`、
+   `:65-68 stripe_index_for_hash((hash >> 20) & (STRIPE_COUNT-1))` 三处符号在仓库里已不存在。
+
+2. 「1024」仅剩的含义与票面立论相反：txn_lock_table.rs:29-31 的
+   `const DEFAULT_TXN_BUCKETS: usize = 1024` 只服务 `TxnLockTable::new()`（:71-78，
+   无 store 的单元/测试场景自带一张默认规模 HashIndex），生产装配走 `from_loader`
+   （:86-89），粒度随索引规模与 split 扩容联动，与该默认值无关。票面「键数超过 1024 后
+   跨键假冲突率被钳在 1/1024 且永不收敛」的前提（锁内存与表规模解耦）已不成立。
+
+3. 「排序按 A 粒度、加锁按 B 粒度」不实：wtxn/src/txn_key_entry.rs:143
+   `lock_plan(index)` 取 `index.bucket_index_for_hash(entry.key_hash as u64)`，
+   wtxn/src/txn_key_entry_comparison.rs:36-37 `compare(index, ..)` 同一表达式，
+   两者共用本笔事务钉定的同一 `&HashIndex` 版本；该文件头 1-4 行即写明「排序键为 windex
+   当前索引版本下的主桶下标，与 TxnLockTable 的桶定位同源，杜绝排序按 A 粒度、加锁按 B 粒度
+   的分叉」。票面点名的 txn_key_entry_comparison.rs:32-38 已是订正后的形态。
+
+4. 「虚构的 64K 桶内存适配注释」已不在册：txn_lock_table.rs 现注释不含
+   「64K 桶」「条带内冲突由桶级并发语义承接」「内存适配」三语（全仓 grep 零命中）。
+
+5. 「wtxn/Cargo.toml 与 windex 零耦合」不实：wtxn/Cargo.toml:21 已
+   `windex = { version = "0.1.4", path = "../windex" }`，票面推荐的「分层障碍」已用直接
+   依赖消解，无需再造锁面对象 trait。
+
+6. 同题前案已判：task/reject/design-txn-locktable-anchor-remount.md（2026-09-19 核销）
+   已裁定「wtxn 转发薄壳 + windex 一处真实现」正是 C# 两份 CAS 实现收敛为一的去重形态，
+   锚点各自保留即对标完整。本票若按「主路径」再删 TxnLockTable，等于把该已核销结论推翻，
+   而现场代码已是该结论的产物。
+
+7. 唯一残留的同名符号与本票无关：`STRIPE_COUNT` 全仓仅
+   wedb/wnode/src/resp/vector/vector_manager_locking.rs:31（`pub const STRIPE_COUNT: usize = 256`，
+   向量管理器自身条带面，对标 C# VectorManager.Locking），不在事务锁面域内；
+   该域已有在途票 task/ing/vector-registry-user-key-strip-single-point.md，勿在本票揉包。
+
+顺带取证（本票拒绝时新查得、留给主代理立案的独立事实，本棒不动）：
+wtxn/Cargo.toml:19 仍为 wbase 启用 `striped` feature，而 wtxn 内 `StripedLatch` 零命中，
+该 feature 位在 wtxn 侧疑为零消费者；判死须先核 wbase `striped` feature 的门禁面与其余
+crate 用量，非本票范围。
+
+—— 以下为原票全文 ——
+
 wtxn 事务键锁表：私有条带表与索引规模解耦属第二套锁架构，且注释三处虚构 C# 出处
 
 来源：next/glm.db.md 条 2 立项（该文件本波剪空删除）。取证基线：主仓 /Users/z/git/db/wedb
