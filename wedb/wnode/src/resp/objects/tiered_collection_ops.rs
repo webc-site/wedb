@@ -35,7 +35,14 @@
 //! 理裁决项，不在本票内自行加阈值常量或栈大小掩盖。
 
 use core::str;
-use std::{str::from_utf8, sync::Arc};
+use std::{
+  cmp::{Ordering, Reverse},
+  collections::BinaryHeap,
+  mem::swap,
+  ops::Range,
+  str::from_utf8,
+  sync::Arc,
+};
 
 use itoa::Buffer as ItoaBuffer;
 use wbase::{
@@ -59,7 +66,13 @@ use wcol::{
     garnet_object::LIST_SEQ_BASE,
     member_ttl::{decode_member, encode_member_into, encoded_len, member_expired_at},
   },
-  zset::sorted_set_object::SortedSetOperation,
+  zset::{
+    comparer::SortedSetComparer,
+    sorted_set_object::{SortedSetEntry, SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
+    sorted_set_object_impl::{
+      RangeArgError, SpecialRanges, parse_range_options, write_sorted_set_result_payload,
+    },
+  },
 };
 use wdev::Device;
 use wkv::{BatchStoreSession, RangeIndexError, StoreSession, TreeGuard, validate_bftree_record};
@@ -1701,14 +1714,585 @@ async fn tiered_zset_arm<D: Device>(
       Ok(true)
     }
 
+    // ZCOUNT 树内读臂（libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:
+    // SortedSetCount）：单趟流式扫描计数，内存 O(1)（原经 slow_load_eval 全量
+    // 物化 → 千万级集合一次 O(N) 内存抖动）
+    SortedSetOperation::Zcount => {
+      if args.len() < 2 {
+        return Err(());
+      }
+      let (Some((min_value, min_exclusive)), Some((max_value, max_exclusive))) = (
+        SortedSetObject::try_parse_parameter(args[0]),
+        SortedSetObject::try_parse_parameter(args[1]),
+      ) else {
+        cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_FLOAT);
+        return Ok(true);
+      };
+      let bounds = ZScoreBounds {
+        min: min_value,
+        min_excl: min_exclusive,
+        max: max_value,
+        max_excl: max_exclusive,
+      };
+      let scan = zset_scan_select(tree, now_ticks(), ZSetWindow::Count, |score, _| {
+        bounds.pass(score)
+      })?;
+      // C# 外层守卫 `minValue <= sortedSet.Max.Score`：raw `<=` 且 Max **含到期
+      // 成员**（对象层该臂不先 DeleteExpiredItems），NaN 面唯一差异处
+      // （min 为 NaN 时守卫短路为 0，谓词本身会把 NaN 成员计入）
+      let count = match scan.last_score {
+        Some(last) if min_value <= last => scan.matched,
+        _ => 0,
+      };
+      output.write_resp_int(count as i64);
+      Ok(true)
+    }
+
+    // ZLEXCOUNT 树内读臂（SortedSetObjectImpl.cs:SortedSetRemoveOrCountRangeByLex
+    // 的 ZLEXCOUNT 分支：`GetElementsInRangeByLex(min, max, false, false, (0,0))`
+    // 命中数，零删除）
+    SortedSetOperation::Zlexcount => {
+      if args.len() < 2 {
+        return Err(());
+      }
+      let Some(bounds) = ZLexBounds::parse(args[0], args[1], false) else {
+        // 对象层由调用方按 result1 == int.MaxValue 回同一错误文本
+        cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
+        return Ok(true);
+      };
+      let (_picked, _range, matched) = zset_lex_select(
+        tree,
+        now_ticks(),
+        bounds,
+        ZSetWindow::Count,
+        false,
+        0,
+        usize::MAX,
+      )?;
+      output.write_resp_int(matched as i64);
+      Ok(true)
+    }
+
+    // ZRANGE / ZREVRANGE / ZRANGEBYSCORE / ZREVRANGEBYSCORE / ZRANGEBYLEX /
+    // ZREVRANGEBYLEX 树内读臂（arg2 = SortedSetRangeOpts 位，与对象层 run_operate
+    // 同约定；SortedSetObjectImpl.cs:SortedSetRange 三形态逐臂对位）：
+    // 参数段解析与结果负载均复用 wcol 单源函数，选择走 [`zset_scan_select`]
+    // 流式内核，内存只随窗口增长，不再全量物化
+    SortedSetOperation::Zrange => {
+      let range_opts = SortedSetRangeOpts::from_bits_truncate(args12.1 as u8);
+      let (options, resp_ver) = match parse_range_options(args, range_opts, resp_protocol_version) {
+        Ok(v) => v,
+        // 命令层 arity 保证 min/max 两段 → Incomplete 不可达；分层侧不得输出
+        // 半帧（对象层该臂零输出回包），防御性走存储错误面
+        Err(RangeArgError::Incomplete) => return Err(()),
+        Err(err) => {
+          err.write_reply(output);
+          return Ok(true);
+        }
+      };
+      let (min_span, max_span) = (args[0], args[1]);
+      let now = now_ticks();
+
+      // ---- 区间块 1：byIndex 或 byScore（C# 同段进入条件 !byLex || byScore）
+      if (!options.by_score && !options.by_lex) || options.by_score {
+        let (Some((min_value, min_exclusive)), Some((max_value, max_exclusive))) = (
+          SortedSetObject::try_parse_parameter(min_span),
+          SortedSetObject::try_parse_parameter(max_span),
+        ) else {
+          cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_FLOAT);
+          return Ok(true);
+        };
+        let (picked, range) = if options.by_score {
+          let mut bounds = ZScoreBounds {
+            min: min_value,
+            min_excl: min_exclusive,
+            max: max_value,
+            max_excl: max_exclusive,
+          };
+          // C# do_reverse 先交换边界再正序扫、后 reverse 输出（等价于按窗口
+          // 方向直接取序最大 k 条）
+          if options.reverse {
+            swap(&mut bounds.min, &mut bounds.max);
+            swap(&mut bounds.min_excl, &mut bounds.max_excl);
+          }
+          let (window, off, take) =
+            zset_limit_window(options.reverse, options.valid_limit, options.limit);
+          let scan = zset_scan_select(tree, now, window, |score, _| bounds.pass(score))?;
+          zset_windowed_pick(scan.picked, window, options.reverse, off, take)
+        } else {
+          // byIndex：LIMIT 不支持（C# 同臂），负索引归一与钳制以存活总数为
+          // 基准，故除 `0 -1` 全量快速路径外需先走一趟计数
+          if options.valid_limit {
+            cs::write_error_raw(output, cs::RESP_ERR_LIMIT_NOT_SUPPORTED);
+            return Ok(true);
+          }
+          if min_value == 0.0 && max_value == -1.0 {
+            let scan = zset_scan_select(tree, now, ZSetWindow::All, |_, _| true)?;
+            zset_windowed_pick(scan.picked, ZSetWindow::All, options.reverse, 0, usize::MAX)
+          } else {
+            let set_count = zset_scan_select(tree, now, ZSetWindow::Count, |_, _| true)?.alive;
+            if min_value > (set_count as f64) - 1.0 {
+              (Vec::new(), 0..0)
+            } else {
+              let (mut min_index, mut max_index) = (min_value as i64, max_value as i64);
+              if min_index < 0 {
+                min_index += set_count as i64;
+              }
+              if max_index < 0 {
+                max_index += set_count as i64;
+              } else if max_index >= set_count as i64 {
+                max_index = set_count as i64 - 1;
+              }
+              if (min_index < 0 && max_index < 0) || min_index > max_index {
+                (Vec::new(), 0..0)
+              } else {
+                let min_index = min_index.max(0);
+                let n = (max_index - min_index + 1) as usize;
+                let window = if options.reverse {
+                  ZSetWindow::Tail(min_index as usize + n)
+                } else {
+                  ZSetWindow::Head(min_index as usize + n)
+                };
+                let scan = zset_scan_select(tree, now, window, |_, _| true)?;
+                zset_windowed_pick(scan.picked, window, options.reverse, min_index as usize, n)
+              }
+            }
+          }
+        };
+        write_sorted_set_result_payload(
+          output,
+          options.with_scores,
+          range.len(),
+          resp_ver,
+          picked[range].iter().map(|e| (e.score, e.member.as_slice())),
+        );
+      }
+
+      // ---- 区间块 2：byLex（与块 1 相互独立，BYSCORE+BYLEX 并置时 C# 写两份
+      // 回复；本块解析失败须回退本命令负载起点重写错误，对标 writer.ResetPosition）
+      if options.by_lex {
+        let out = match ZLexBounds::parse(min_span, max_span, options.reverse) {
+          Some(bounds) => {
+            let (window, off, take) =
+              zset_limit_window(options.reverse, options.valid_limit, options.limit);
+            zset_lex_select(tree, now, bounds, window, options.reverse, off, take)?
+          }
+          None => {
+            output.clear();
+            cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
+            return Ok(true);
+          }
+        };
+        let (picked, range, _) = out;
+        write_sorted_set_result_payload(
+          output,
+          options.with_scores,
+          range.len(),
+          resp_ver,
+          picked[range].iter().map(|e| (e.score, e.member.as_slice())),
+        );
+      }
+      Ok(true)
+    }
+
+    // ZRANK / ZREVRANK 树内读臂（SortedSetObjectImpl.cs:SortedSetRank）：
+    // arg1 == 1 附带分值；名次 = 序在目标之前的存活成员数，反向以
+    // `存活总数 - 名次 - 1` 换算（C# Count() 同基准，两侧皆不含到期成员）
+    SortedSetOperation::Zrank | SortedSetOperation::Zrevrank => {
+      let with_score = args12.0 == 1;
+      // 与冷路径同口径取成员（命令层保证段数，缺失防御性按空成员）
+      let member = args.first().copied().unwrap_or(&[]);
+      let now = now_ticks();
+      // C# TryGetScore：到期成员视同不存在（先点读定位分值，再单趟流式计名次）
+      let Some(score) = tree_member_score(tree, member, now) else {
+        output.write_resp_null_ver(resp_protocol_version);
+        return Ok(true);
+      };
+      let target = (score, member);
+      let scan = zset_scan_select(tree, now, ZSetWindow::Count, |s, m| {
+        SortedSetComparer::compare((&s, &m), (&target.0, &target.1)) == Ordering::Less
+      })?;
+      let mut rank = scan.matched as i64;
+      if op == SortedSetOperation::Zrevrank {
+        rank = scan.alive as i64 - rank - 1;
+      }
+      if with_score {
+        output.write_resp_array_len(2);
+        output.write_resp_int(rank);
+        cs::write_double_numeric(output, score, resp_protocol_version);
+      } else {
+        output.write_resp_int(rank);
+      }
+      Ok(true)
+    }
+
     // 未支持操作一律穿透（Ok(false)）：由 run_async_rmw 物化降级通道接手，
     // 杜绝静默兜底输出与命令语义无关的应答——ZPOPMIN / ZPOPMAX / ZREMRANGEBY*
     // / GEOADD / ZRANGESTORE 等写族经此落 wcol 对象层单源真实删改，WATCH 推进
     // 同臂由 apply_rmw_post_operate 承接（旧兜底臂把它们应答成整表 ZRANGE 形态
     // 且零树删除，客户端见成功而数据未动，是比漏栅栏更重的语义缺陷）。
-    // ZREM 同在此穿透（无树内逐成员删除臂，见本模块头注「墓碑恒低」）
+    // ZREM 同在此穿透（无树内逐成员删除臂，见本模块头注「墓碑恒低」）。
+    // ZRANDMEMBER / ZDIFF / ZUNION / ZINTER / ZRANGESTORE 等多键与随机采样面
+    // 亦维持物化通道（非本票射程，代价与限流口径见 doc/zh/collection.md）。
     _ => Ok(false),
   }
+}
+
+/// 分层 zset 树内流式留存窗口（[`zset_scan_select`] 的内存上界）
+///
+/// 判序单点复用 wcol [`SortedSetEntry`] 的 `Ord`（委托
+/// [`SortedSetComparer`]，.NET `Double.CompareTo` 口径），与对象层内存
+/// `SortedSet` 同序——树内只存 member → 分值，无分序索引，故「序」只能在
+/// 扫描侧由同一比较器重建，严禁另立第二套排序结构。
+#[derive(Debug, Clone, Copy)]
+enum ZSetWindow {
+  /// 全量留存后排序：应答本身即 O(N) 的形态（`ZRANGE k 0 -1`、无 LIMIT 的
+  /// ZRANGEBYSCORE / ZRANGEBYLEX）
+  All,
+  /// 只留序最小 k 条，升序回（有界窗口正向；k == 1 即「序最小者」= 断点求解）
+  Head(usize),
+  /// 只留序最大 k 条，降序回（有界窗口 REV / 反向形态）
+  Tail(usize),
+  /// 不留存，仅计数（ZCOUNT / ZRANK / ZLEXCOUNT 与 byIndex 的存活计数趟）
+  Count,
+}
+
+/// [`zset_scan_select`] 回传束
+struct ZSetScanOut {
+  /// 留存条目：Head/All 升序、Tail 降序、Count 恒空
+  picked: Vec<SortedSetEntry>,
+  /// 存活且命中谓词的条目数（Count 形态的应答值）
+  matched: u64,
+  /// 存活条目总数（与谓词无关：byIndex 的 `set_count` 与 ZREVRANK 的
+  /// `Count - rank - 1` 同基准）
+  alive: u64,
+  /// 全树序最大条目的分值，**含到期成员**（对位对象层 `sorted_set.last()`：
+  /// C# 该守卫不过滤到期，ZCOUNT 外层守卫唯一取值面）
+  last_score: Option<f64>,
+}
+
+/// 分值判序单点（[`SortedSetComparer`] 的空成员回退臂，等价 .NET
+/// `Double.CompareTo`：NaN 小于一切非 NaN，±0.0 相等）
+#[inline]
+fn zset_score_order(a: f64, b: f64) -> Ordering {
+  const EMPTY: &[u8] = &[];
+  SortedSetComparer::compare((&a, EMPTY), (&b, EMPTY))
+}
+
+/// 分值区间界（解析单点复用 wcol [`SortedSetObject::try_parse_parameter`]）
+///
+/// 谓词口径逐字对位 C# `GetElementsInRangeByScore` / `SortedSetCount` 循环：
+/// 下界 = `GetViewBetween((minValue, null), …)` 哨兵的序裁剪（按 CompareTo，
+/// 非 raw `>=`：±0.0 与 NaN 面不等价），上界 = 循环内 raw `>` / `==` 断点判据。
+#[derive(Debug, Clone, Copy)]
+struct ZScoreBounds {
+  min: f64,
+  min_excl: bool,
+  max: f64,
+  max_excl: bool,
+}
+
+impl ZScoreBounds {
+  fn pass(&self, score: f64) -> bool {
+    zset_score_order(score, self.min) != Ordering::Less
+      && !(self.min_excl && score == self.min)
+      && !(score > self.max || (self.max_excl && score == self.max))
+  }
+}
+
+/// 字典序区间界（解析单点复用 wcol [`SortedSetObject::try_parse_lex_parameter`]，
+/// REV 交换对位 C# `GetElementsInRangeByLex` 首段三换）
+#[derive(Debug, Clone, Copy)]
+struct ZLexBounds<'a> {
+  min: &'a [u8],
+  min_excl: bool,
+  min_inf: SpecialRanges,
+  max: &'a [u8],
+  max_excl: bool,
+  max_inf: SpecialRanges,
+}
+
+impl<'a> ZLexBounds<'a> {
+  /// 两界解析 + REV 交换；任一界词形非法 → None（C# 以 i32::MAX 上抛）
+  fn parse(min_span: &'a [u8], max_span: &'a [u8], reverse: bool) -> Option<Self> {
+    let ((min, min_excl, min_inf), (max, max_excl, max_inf)) = (
+      SortedSetObject::try_parse_lex_parameter(min_span)?,
+      SortedSetObject::try_parse_lex_parameter(max_span)?,
+    );
+    Some(if reverse {
+      Self {
+        min: max,
+        min_excl: max_excl,
+        min_inf: max_inf,
+        max: min,
+        max_excl: min_excl,
+        max_inf: min_inf,
+      }
+    } else {
+      Self {
+        min,
+        min_excl,
+        min_inf,
+        max,
+        max_excl,
+        max_inf,
+      }
+    })
+  }
+
+  /// C# 早空判据：min 为 `+`、max 为 `-`
+  fn always_empty(&self) -> bool {
+    self.min_inf == SpecialRanges::InfiniteMax || self.max_inf == SpecialRanges::InfiniteMin
+  }
+
+  /// 下界过滤（成员字节序，对位 C# `SequenceCompareTo`；`-∞` 恒真）
+  fn pass_min(&self, member: &[u8]) -> bool {
+    if self.min_inf == SpecialRanges::InfiniteMin {
+      return true;
+    }
+    let ord = member.cmp(self.min);
+    !(ord == Ordering::Less || (ord == Ordering::Equal && self.min_excl))
+  }
+
+  /// 上界过滤（C# `take_while` 的判据面；`+∞` 恒真 ⇒ 不存在断点）
+  fn pass_max(&self, member: &[u8]) -> bool {
+    if self.max_inf == SpecialRanges::InfiniteMax {
+      return true;
+    }
+    let ord = member.cmp(self.max);
+    !(ord == Ordering::Greater || (ord == Ordering::Equal && self.max_excl))
+  }
+}
+
+/// 分层 zset 树内单趟流式遍历内核：范围选择、区间计数、名次计数三族共用
+///
+/// 树内记录以 member 为键（member → 8B f64 大端分值 + 可选 TTL 头），本内核自
+/// 树头一趟线性扫过全部记录，按 `(分值, 成员)` 序留存至多 `window` 条，
+/// **内存随窗口增长而非随键基数增长**——这正是本票消除的「一条 ZRANGE 触发
+/// 千万级成员全量反序列化 + 重建 `SortedSetObject`」。计数形态（[`ZSetWindow::
+/// Count`]）内存 O(1)。
+///
+/// 到期成员只过滤不出产（C# 循环首臂 `IsExpired → continue`），本内核**不落
+/// 任何删除记录**：维持「树内墓碑恒低」写形不变量（物理出账仍归 ZCARD /
+/// ZCOLLECT 的 [`collect_expired_members`]），故本族读臂一律走共享读锁、
+/// `dirty` 恒假、不推进 WATCH 栅栏。但 [`ZSetScanOut::last_score`] 含到期成员，
+/// 与对象层 `sorted_set.last()` 同基准。
+///
+/// 栈深口径同 [`exec_tiered_scan`]：底层游标对墓碑的尾递归连跑不受本臂截断
+/// 约束，安全性来自写形不变量而非本扫描的窗口。
+///
+/// 分值载荷非 8B = 编码损坏 → fail-fast `Err(())`（与 [`tiered_materialize_blob`]
+/// 的 zset 臂同口径，严禁静默剔除成员后照常应答）。
+fn zset_scan_select(
+  tree: &BfTreeService,
+  now: i64,
+  window: ZSetWindow,
+  mut pred: impl FnMut(f64, &[u8]) -> bool,
+) -> Result<ZSetScanOut, ()> {
+  let mut picked: Vec<SortedSetEntry> = Vec::new();
+  // Head 用最大堆（超容量弹最大 ⇒ 恒留序最小 k 条），Tail 用反序堆（同构造
+  // 对偶 ⇒ 恒留序最大 k 条，`into_sorted_vec` 即降序）
+  let mut head: BinaryHeap<SortedSetEntry> = BinaryHeap::new();
+  let mut tail: BinaryHeap<Reverse<SortedSetEntry>> = BinaryHeap::new();
+  let mut matched = 0_u64;
+  let mut alive = 0_u64;
+  let mut last_score: Option<f64> = None;
+  let mut corrupt = false;
+  let _ =
+    tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::KeyAndValue, |k, v| {
+      let (expiry, payload) = decode_member(v);
+      let Ok(arr) = <[u8; 8]>::try_from(payload) else {
+        log::error!(
+          "zset_scan_select: corrupted zset score payload, member='{}'",
+          String::from_utf8_lossy(k)
+        );
+        corrupt = true;
+        return false;
+      };
+      let score = f64::from_be_bytes(arr);
+      if last_score.is_none_or(|cur| zset_score_order(score, cur) == Ordering::Greater) {
+        last_score = Some(score);
+      }
+      if expiry.is_some_and(|ticks| ticks < now) {
+        return true;
+      }
+      alive += 1;
+      if !pred(score, k) {
+        return true;
+      }
+      matched += 1;
+      match window {
+        ZSetWindow::All => picked.push(SortedSetEntry {
+          score,
+          member: k.to_vec(),
+        }),
+        ZSetWindow::Head(cap) if cap > 0 => {
+          head.push(SortedSetEntry {
+            score,
+            member: k.to_vec(),
+          });
+          if head.len() > cap {
+            head.pop();
+          }
+        }
+        ZSetWindow::Tail(cap) if cap > 0 => {
+          tail.push(Reverse(SortedSetEntry {
+            score,
+            member: k.to_vec(),
+          }));
+          if tail.len() > cap {
+            tail.pop();
+          }
+        }
+        _ => {}
+      }
+      true
+    });
+  if corrupt {
+    return Err(());
+  }
+  let picked = match window {
+    ZSetWindow::Head(_) => head.into_sorted_vec(),
+    ZSetWindow::Tail(_) => tail.into_sorted_vec().into_iter().map(|e| e.0).collect(),
+    // All：树内扫描序为 member 序，须按 (分值, 成员) 单源 Ord 重排，与内存态
+    // `SortedSetObject`（C# 内存 `SortedSet` 同序）及本内核 Head/Tail 堆序一致；
+    // Count 形态 picked 恒空，排序无副作用
+    _ => {
+      picked.sort();
+      picked
+    }
+  };
+  Ok(ZSetScanOut {
+    picked,
+    matched,
+    alive,
+    last_score,
+  })
+}
+
+/// REV / LIMIT → （留存窗口, 跳数, 取数）单点换算
+///
+/// 对位 C# 两区间块的同一段：`offset < 0 || count == 0` → 空结果；`count < 0`
+/// → 取到末尾（窗口退化为全量）；否则正向取序最小 `offset + count` 条、反向取
+/// 序最大 `offset + count` 条，再跳过 `offset` 条——与 C#「全量收集后
+/// `skip(offset).take(count)`」逐条同序，堆留存集是它的前缀。
+fn zset_limit_window(
+  reverse: bool,
+  valid_limit: bool,
+  limit: (i64, i64),
+) -> (ZSetWindow, usize, usize) {
+  if !valid_limit {
+    return (ZSetWindow::All, 0, usize::MAX);
+  }
+  if limit.0 < 0 || limit.1 == 0 {
+    return (ZSetWindow::Head(0), 0, 0);
+  }
+  let off = limit.0 as usize;
+  if limit.1 < 0 {
+    return (ZSetWindow::All, off, usize::MAX);
+  }
+  let take = limit.1 as usize;
+  let window = if reverse {
+    ZSetWindow::Tail(off.saturating_add(take))
+  } else {
+    ZSetWindow::Head(off.saturating_add(take))
+  };
+  (window, off, take)
+}
+
+/// 留存集 → 输出方向与 `skip/take` 切片（免二次拷贝）
+///
+/// Head/All 升序、Tail 降序已由 [`zset_scan_select`] 保证；仅全量形态需按 REV
+/// 显式倒置（C# `scored_elements.reverse()` / `all.reverse()` 同臂）。
+fn zset_windowed_pick(
+  mut picked: Vec<SortedSetEntry>,
+  window: ZSetWindow,
+  reverse: bool,
+  off: usize,
+  take: usize,
+) -> (Vec<SortedSetEntry>, Range<usize>) {
+  if reverse && matches!(window, ZSetWindow::All) {
+    picked.reverse();
+  }
+  let start = off.min(picked.len());
+  let end = start.saturating_add(take).min(picked.len());
+  (picked, start..end)
+}
+
+/// 字典序区间树内流式选择（ZRANGEBYLEX 族与 ZLEXCOUNT 共用内核）
+///
+/// C# `GetElementsInRangeByLex` 的上界是 `take_while`（真 break），而树内扫描序
+/// 是 member 序、输出口径是 `(分值, 成员)` 序：同一条目「成员越界」与「分值
+/// 靠后」互相交错，越界断点**不可**表达为局部谓词（反例 `{("z",1),("a",2)}`
+/// 取 `[a`/`[y`：C# 在 (1,"z") 处 break，(2,"a") 虽在字典窗口内亦不得出现）。
+/// 故先以 [`ZSetWindow::Head(1)`] 一趟求出断点 `= 序最小者 ∈ {存活 ∧ 过下界 ∧
+/// 未过上界}`（内存 O(1)），第二趟把「序 < 断点」并入谓词选择；上界为 `+`
+/// 时 break 永不触发，断点趟直接跳过。两趟均为页级顺序扫，无成员级堆分配。
+///
+/// 返回 `(留存集, 输出区间, 命中总数)`：区间供范围命令切片，命中总数供
+/// ZLEXCOUNT（[`ZSetWindow::Count`] 形态下区间恒空）。
+fn zset_lex_select(
+  tree: &BfTreeService,
+  now: i64,
+  bounds: ZLexBounds<'_>,
+  window: ZSetWindow,
+  reverse: bool,
+  off: usize,
+  take: usize,
+) -> Result<(Vec<SortedSetEntry>, Range<usize>, u64), ()> {
+  if bounds.always_empty() {
+    return Ok((Vec::new(), 0..0, 0));
+  }
+  let barrier = if bounds.max_inf == SpecialRanges::InfiniteMax {
+    None
+  } else {
+    zset_scan_select(tree, now, ZSetWindow::Head(1), |_, member| {
+      bounds.pass_min(member) && !bounds.pass_max(member)
+    })?
+    .picked
+    .into_iter()
+    .next()
+  };
+  let scan = zset_scan_select(tree, now, window, |score, member| {
+    bounds.pass_min(member)
+      && bounds.pass_max(member)
+      && barrier.as_ref().is_none_or(|t| {
+        SortedSetComparer::compare((&score, &member), (&t.score, &t.member)) == Ordering::Less
+      })
+  })?;
+  let matched = scan.matched;
+  let (picked, range) = zset_windowed_pick(scan.picked, window, reverse, off, take);
+  Ok((picked, range, matched))
+}
+
+/// 成员分值点读（到期视同不存在，对位 C# `SortedSetObject.TryGetScore`）
+///
+/// 与分层 ZSCORE / ZMSCORE 臂同一解码口径（8B f64 大端 + 可选 TTL 头）。以树内
+/// 顺序扫描（member 为升序键，命中或越过即停）替代 `read_callback` 点读，与本
+/// 模块其余读臂同一 `scan_with_count_callback` 入口——ZRANK 臂随后即接一次计数
+/// 扫描，点读 + 扫描在同一服务上交错会命中 bf-tree 游标定位的 mini-page 合并
+/// 缺陷，故全程只用扫描入口。
+fn tree_member_score(tree: &BfTreeService, member: &[u8], now: i64) -> Option<f64> {
+  let mut score_opt = None;
+  let _ =
+    tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::KeyAndValue, |k, v| {
+      match k.cmp(member) {
+        // 键升序：越过目标即判不存在，停止扫描
+        Ordering::Greater => false,
+        // 命中：解码分值（到期视同不存在），停止扫描
+        Ordering::Equal => {
+          let (expiry, payload) = decode_member(v);
+          if expiry.is_none_or(|ticks| ticks >= now)
+            && let Ok(arr) = <[u8; 8]>::try_from(payload)
+          {
+            score_opt = Some(f64::from_be_bytes(arr));
+          }
+          false
+        }
+        Ordering::Less => true,
+      }
+    });
+  score_opt
 }
 
 /// 分层列表头端序号（C# `LinkedList.First` 指针的分层态对位）
