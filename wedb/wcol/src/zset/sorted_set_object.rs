@@ -567,8 +567,11 @@ impl SortedSetObject {
   /// DeleteExpiredItems（摊还 O(弹过量)，稳态堆顶 peek 短路 O(1)），
   /// 再直读 sorted_set_dict.len()。应答值与 C# 逐值一致（两侧已过期项均不计入）；
   /// 物理剔除经 mutated_by_ttl 写回升格闭环，杜绝已剔除成员重装载复活
-  /// （与 hash 域 mutated_by_ttl 同源范式）
-  pub fn count(&mut self) -> usize {
+  /// （与 hash 域 mutated_by_ttl 同源范式）。显式命名 purge 语义，与
+  /// trait [`IGarnetObject::count`]（raw len 只读，仅供升阶判定）同名
+  /// 双口径消歧：&mut 语境方法解析优先命中本方法，同名会让调用方
+  /// 误以为只读
+  pub fn purge_expired_len(&mut self) -> usize {
     self.delete_expired_items();
     self.sorted_set_dict.len()
   }
