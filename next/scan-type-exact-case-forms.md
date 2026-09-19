@@ -78,3 +78,5 @@ next/glm.data.md 条 3 原样转抄的六行 stub，主题与本单同一，派�
 2. 快路径与慢路径（冷键降级）两形态结论一致。
 3. array_commands.rs 既有 :708/:734/:738 断言按新口径复核后保持全绿，
    cargo check 零告警（禁写 allow）。
+
+盘点补记（qw13.invA scan-type-exact-case-forms）：dev e75716e 复核原样：array_commands.rs:66 注释仍自述支持混合大小写、:116-127 五类型仍 eq_ignore_ascii_case。极轻棒不变。

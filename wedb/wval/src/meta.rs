@@ -236,18 +236,4 @@ impl MetaValue {
   pub const fn from_bytes(bytes: [u8; META_VALUE_SIZE]) -> Result<Self> {
     Self::from_slice(&bytes)
   }
-
-  /// 将元数据记录编码写入目标切片（零堆分配）
-  #[inline]
-  pub fn write_to_slice(&self, dst: &mut [u8]) -> Result<()> {
-    if let Some(chunk) = dst.first_chunk_mut::<META_VALUE_SIZE>() {
-      *chunk = self.to_bytes();
-      Ok(())
-    } else {
-      Err(Error::BufferTooShort {
-        expected: META_VALUE_SIZE,
-        actual: dst.len(),
-      })
-    }
-  }
 }

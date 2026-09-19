@@ -76,3 +76,5 @@ SetVersion 收敛缺失，且 rust 侧连 MainStoreStreamingCheckpointStartCommi
 
 优先级
 功能缺口（副本磁盘占用单调增长 + 副本重启无本地基线，集群长期运行必现），中档偏上。
+
+盘点补记（qw13.invA replica-replay-checkpoint-end-arm）：dev e75716e 复核原样：aof_processor.rs:522 CheckpointEndCommit 臂仍只有 set_in_fuzzy_region(false) + process_fuzzy_region_operations + clear_fuzzy_region_buffer 三件事，无 store_version 比较、无本地拍检查点、无回调截断链。上游主端标记链已就位（checkpoint_version_shift_start/end 落地），本票可派性提高。
