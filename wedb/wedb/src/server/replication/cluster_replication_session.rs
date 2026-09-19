@@ -10,8 +10,7 @@
 //!
 //! Rust 以 [`ClusterReplicationSession`] 承接两层（会话内直连，无中间
 //! 转发）；网络链路复用 wnode 会话消费面（`MessageConsumerFace`，真
-//! socket 泵），内存链路由主端 [`crate::server::replication::replica_wire::CallbackWire`]
-//! 帧回调直投 [`Self::process_append_log`]。
+//! socket 泵），测试链路同走真 socket（`TcpSessionWire` 建连 GarnetServer）。
 
 use std::{
   io::{self, Error, ErrorKind},

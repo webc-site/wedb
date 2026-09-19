@@ -4,8 +4,9 @@
 //! GarnetClientSession.cs）——AofSyncTask 构造时按副本端点建立
 //! GarnetClientSession，Consume 内逐记录调 ExecuteClusterAppendLog 写入
 //! 发送缓冲，Throttle 时 CompletePending 冲刷。Rust 依赖方向反转：
-//! 会话端口以 trait 注入（TCP 形态包装 wconn 客户端会话；测试形态为
-//! 帧写入回调的内存通道），AofSyncTask 消费面只依赖同步发送端口。
+//! 会话端口以 [`AofSyncWire`] 注入，生产唯一形态为 TCP（包装 wconn 客户端
+//! 会话），与 C# 单一具体通道同形；帧写入回调的内存通道仅存于
+//! `#[cfg(test)]` 测试支撑（[`test_wire`]），不进产线二进制。
 //!
 //! C# 发送缓冲满时 Send 内部自动 Flush（同步阻塞）；Rust 的推流端口
 //! （WalLog::replication_sink）契约要求回调无阻塞，故 TCP 形态以
@@ -31,15 +32,11 @@ use std::{
 use compio::{runtime::spawn, time};
 use parking_lot::Mutex;
 use wbase::{hex::hex_str_u128, pool::EventWorkQueue};
-use wconn::session::{GarnetClientSession, encode_advance_time_frame, encode_append_log_frame};
+use wconn::session::GarnetClientSession;
 #[cfg(feature = "tls")]
 use wconn::tls::ClientTlsConfig;
-use wdev::SegmentedDevice;
-use wnode::MessageConsumerFace;
 
-use crate::server::replication::{
-  aof_sync_task::AofSyncTask, cluster_replication_session::ClusterReplicationSession,
-};
+use crate::server::replication::aof_sync_task::AofSyncTask;
 
 /// 帧发送落点状态（对标 C# ExecuteClusterAppendLog 同步写网络发送缓冲
 /// 成功返回的语义切分：rust 客户端通道饱和时帧滞留溢流队列，两者必须区分）
@@ -49,165 +46,6 @@ pub enum ShippedState {
   Shipped,
   /// 帧滞留溢流队列待发（未落通道，严禁计入已发送水位）
   Queued,
-}
-
-/// 帧写入接收端具体枚举（消除动态分发闭包）
-#[derive(Clone)]
-pub enum FrameSink {
-  /// 收集帧到列表
-  Buffer(Arc<Mutex<Vec<Vec<u8>>>>),
-  /// 恒拒绝投递（测试断连语义）
-  Reject,
-  /// 回调函数指针
-  Fn(fn(&[u8]) -> bool),
-  /// 投递到测试会话（SegmentedDevice），可选计数
-  Session {
-    session: Arc<Mutex<ClusterReplicationSession<SegmentedDevice>>>,
-    seen: Option<Arc<Mutex<usize>>>,
-  },
-  /// 模拟通道饱和：帧暂存待发表（投递成功返回 Queued，测试溢流水位语义）
-  Queue(Arc<Mutex<Vec<Vec<u8>>>>),
-}
-
-impl FrameSink {
-  /// 投递一帧；None 即拒收（通道转断连态）
-  pub fn call(&self, frame: &[u8]) -> Option<ShippedState> {
-    match self {
-      Self::Buffer(buf) => {
-        buf.lock().push(frame.to_vec());
-        Some(ShippedState::Shipped)
-      }
-      Self::Queue(buf) => {
-        buf.lock().push(frame.to_vec());
-        Some(ShippedState::Queued)
-      }
-      Self::Reject => None,
-      Self::Fn(f) => f(frame).then_some(ShippedState::Shipped),
-      Self::Session { session, seen } => {
-        // 生产等价消费序（对标网络泵：帧入会话自有接收缓冲 → 唯一入口
-        // 消费 → 致命断流哨兵复查）；应答落临时 scratch 复用缓冲，记录帧
-        // 热路径零堆分配。致命断流（APPENDLOG 拒收 / 畸形帧）视同 sink
-        // 拒收 → 内存通道转断连态，主端健康面感知（对标 C# 异常断链 →
-        // 写失败 → 剔除重同步）
-        let mut scratch = Vec::new();
-        let mut session = session.lock();
-        session.recv_buffer.extend_from_slice(frame);
-        let remaining = session.try_consume_messages_into(&mut scratch);
-        let fatal = session.take_fatal_disconnect();
-        drop(session);
-        if let Some(counter) = seen {
-          *counter.lock() += 1;
-        }
-        (remaining == Some(0) && (scratch.is_empty() || scratch == b"+OK\r\n") && !fatal)
-          .then_some(ShippedState::Shipped)
-      }
-    }
-  }
-}
-
-impl From<Arc<Mutex<Vec<Vec<u8>>>>> for FrameSink {
-  fn from(buf: Arc<Mutex<Vec<Vec<u8>>>>) -> Self {
-    Self::Buffer(buf)
-  }
-}
-
-impl From<fn(&[u8]) -> bool> for FrameSink {
-  fn from(f: fn(&[u8]) -> bool) -> Self {
-    Self::Fn(f)
-  }
-}
-
-impl From<Arc<Mutex<ClusterReplicationSession<SegmentedDevice>>>> for FrameSink {
-  fn from(session: Arc<Mutex<ClusterReplicationSession<SegmentedDevice>>>) -> Self {
-    Self::Session {
-      session,
-      seen: None,
-    }
-  }
-}
-
-impl From<ClusterReplicationSession<SegmentedDevice>> for FrameSink {
-  fn from(session: ClusterReplicationSession<SegmentedDevice>) -> Self {
-    Self::Session {
-      session: Arc::new(Mutex::new(session)),
-      seen: None,
-    }
-  }
-}
-
-/// 内存通道形态：帧写入回调直连副本会话（同进程最小可测发送通道）
-pub struct CallbackWire {
-  sink: FrameSink,
-  connected: AtomicBool,
-}
-
-impl CallbackWire {
-  /// 创建内存通道（sink 接收完整 RESP 请求帧字节）
-  pub fn new(sink: impl Into<FrameSink>) -> Self {
-    Self {
-      sink: sink.into(),
-      connected: AtomicBool::new(true),
-    }
-  }
-
-  /// 逐记录帧转发（payload 为完整 AOF 记录帧：8B 记录头 + 负载）
-  pub fn append_log(
-    &self,
-    node_id: u128,
-    physical_sublog_idx: usize,
-    previous_address: i64,
-    current_address: i64,
-    next_address: i64,
-    payload: &[u8],
-  ) -> io::Result<ShippedState> {
-    if !self.connected.load(Ordering::Acquire) {
-      return Err(Error::new(ErrorKind::NotConnected, "memory wire closed"));
-    }
-    // 协议帧参数：节点 id 仅在帧编码面渲染 hex
-    let frame = encode_append_log_frame(
-      &hex_str_u128(node_id),
-      physical_sublog_idx,
-      previous_address,
-      current_address,
-      next_address,
-      payload,
-    );
-    self.deliver(&frame)
-  }
-
-  /// 带内 CLUSTER ADVANCE_TIME 时间脉冲帧直发（对标 SendAdvanceTimePulse 内存通道投递，无饱和面恒即时）
-  pub fn advance_time(
-    &self,
-    physical_sublog_idx: usize,
-    sequence_number: i64,
-  ) -> io::Result<ShippedState> {
-    if !self.connected.load(Ordering::Acquire) {
-      return Err(Error::new(ErrorKind::NotConnected, "memory wire closed"));
-    }
-    let frame = encode_advance_time_frame(physical_sublog_idx, sequence_number);
-    self.deliver(&frame)
-  }
-
-  /// 帧投递公共路径：拒收即转断连态（对标副本会话关闭语义）
-  fn deliver(&self, frame: &[u8]) -> io::Result<ShippedState> {
-    match self.sink.call(frame) {
-      Some(state) => Ok(state),
-      None => {
-        self.connected.store(false, Ordering::Release);
-        Err(Error::new(ErrorKind::ConnectionReset, "sink rejected"))
-      }
-    }
-  }
-
-  /// 连接健康面
-  pub fn is_connected(&self) -> bool {
-    self.connected.load(Ordering::Acquire)
-  }
-
-  /// 标记断连
-  pub fn disconnect(&self) {
-    self.connected.store(false, Ordering::Release);
-  }
 }
 
 /// TCP 会话形态：wconn 客户端会话 + 溢流事件驱动泵
@@ -605,12 +443,16 @@ impl Drop for TcpSessionWire {
 }
 
 /// 主端 → 副本发送通道具体枚举（消除动态分发）
+///
+/// 生产唯一形态为 TCP（与 C# 单一 GarnetClientSession 同形）；内存回调
+/// 通道仅单元测试可见（`#[cfg(test)]`，不进产线二进制）
 #[derive(Clone)]
 pub enum AofSyncWire {
-  /// TCP 会话通道（生产）
+  /// TCP 会话通道（生产唯一形态）
   Tcp(Arc<TcpSessionWire>),
-  /// 内存回调通道（测试）
-  Callback(Arc<CallbackWire>),
+  /// 内存回调通道（仅单元测试）
+  #[cfg(test)]
+  Callback(Arc<test_wire::CallbackWire>),
 }
 
 impl AofSyncWire {
@@ -633,6 +475,7 @@ impl AofSyncWire {
         next_address,
         payload,
       ),
+      #[cfg(test)]
       Self::Callback(w) => w.append_log(
         node_id,
         physical_sublog_idx,
@@ -648,6 +491,7 @@ impl AofSyncWire {
   pub fn advance_time(&self, physical_sublog_idx: usize, sequence_number: i64) -> io::Result<()> {
     match self {
       Self::Tcp(w) => w.advance_time(physical_sublog_idx, sequence_number),
+      #[cfg(test)]
       Self::Callback(w) => w
         .advance_time(physical_sublog_idx, sequence_number)
         .map(|_| ()),
@@ -656,14 +500,17 @@ impl AofSyncWire {
 
   /// 注入溢流落通道后的水位回推端（仅 TCP 形态有溢流面，内存通道直发免注）
   pub fn set_ratchets(&self, tasks: Vec<Weak<AofSyncTask>>) {
-    if let Self::Tcp(w) = self {
-      w.set_ratchets(tasks);
+    match self {
+      Self::Tcp(w) => w.set_ratchets(tasks),
+      #[cfg(test)]
+      Self::Callback(_) => {}
     }
   }
 
   pub fn is_connected(&self) -> bool {
     match self {
       Self::Tcp(w) => w.is_connected(),
+      #[cfg(test)]
       Self::Callback(w) => w.is_connected(),
     }
   }
@@ -671,6 +518,7 @@ impl AofSyncWire {
   pub fn disconnect(&self) {
     match self {
       Self::Tcp(w) => w.disconnect(),
+      #[cfg(test)]
       Self::Callback(w) => w.disconnect(),
     }
   }
@@ -682,19 +530,151 @@ impl From<Arc<TcpSessionWire>> for AofSyncWire {
   }
 }
 
-impl From<Arc<CallbackWire>> for AofSyncWire {
-  fn from(w: Arc<CallbackWire>) -> Self {
-    Self::Callback(w)
+/// 测试专用内存通道（`#[cfg(test)]` 收口，不进产线二进制）
+///
+/// 帧写入回调直投接收端（同进程最小可测发送通道），承接单元测试的
+/// 发送端口契约覆盖：帧字节整帧断言、拒收断连、溢流 Queued 水位语义；
+/// 集成测试一律走真 socket（`TcpSessionWire` + GarnetServer）
+#[cfg(test)]
+pub mod test_wire {
+  use std::{
+    io::{self, Error, ErrorKind},
+    sync::{
+      Arc,
+      atomic::{AtomicBool, Ordering},
+    },
+  };
+
+  use parking_lot::Mutex;
+  use wbase::hex::hex_str_u128;
+  use wconn::session::{encode_advance_time_frame, encode_append_log_frame};
+
+  use super::{AofSyncWire, ShippedState};
+
+  /// 帧写入接收端具体枚举（消除动态分发闭包）
+  #[derive(Clone)]
+  pub enum FrameSink {
+    /// 收集帧到列表
+    Buffer(Arc<Mutex<Vec<Vec<u8>>>>),
+    /// 恒拒绝投递（测试断连语义）
+    Reject,
+    /// 模拟通道饱和：帧暂存待发表（投递成功返回 Queued，测试溢流水位语义）
+    Queue(Arc<Mutex<Vec<Vec<u8>>>>),
+  }
+
+  impl FrameSink {
+    /// 投递一帧；None 即拒收（通道转断连态）
+    pub fn call(&self, frame: &[u8]) -> Option<ShippedState> {
+      match self {
+        Self::Buffer(buf) => {
+          buf.lock().push(frame.to_vec());
+          Some(ShippedState::Shipped)
+        }
+        Self::Queue(buf) => {
+          buf.lock().push(frame.to_vec());
+          Some(ShippedState::Queued)
+        }
+        Self::Reject => None,
+      }
+    }
+  }
+
+  impl From<Arc<Mutex<Vec<Vec<u8>>>>> for FrameSink {
+    fn from(buf: Arc<Mutex<Vec<Vec<u8>>>>) -> Self {
+      Self::Buffer(buf)
+    }
+  }
+
+  /// 内存通道形态：帧写入回调直投接收端（同进程最小可测发送通道）
+  pub struct CallbackWire {
+    sink: FrameSink,
+    connected: AtomicBool,
+  }
+
+  impl CallbackWire {
+    /// 创建内存通道（sink 接收完整 RESP 请求帧字节）
+    pub fn new(sink: impl Into<FrameSink>) -> Self {
+      Self {
+        sink: sink.into(),
+        connected: AtomicBool::new(true),
+      }
+    }
+
+    /// 逐记录帧转发（payload 为完整 AOF 记录帧：8B 记录头 + 负载）
+    pub fn append_log(
+      &self,
+      node_id: u128,
+      physical_sublog_idx: usize,
+      previous_address: i64,
+      current_address: i64,
+      next_address: i64,
+      payload: &[u8],
+    ) -> io::Result<ShippedState> {
+      if !self.connected.load(Ordering::Acquire) {
+        return Err(Error::new(ErrorKind::NotConnected, "memory wire closed"));
+      }
+      // 协议帧参数：节点 id 仅在帧编码面渲染 hex
+      let frame = encode_append_log_frame(
+        &hex_str_u128(node_id),
+        physical_sublog_idx,
+        previous_address,
+        current_address,
+        next_address,
+        payload,
+      );
+      self.deliver(&frame)
+    }
+
+    /// 带内 CLUSTER ADVANCE_TIME 时间脉冲帧直发（无饱和面恒即时）
+    pub fn advance_time(
+      &self,
+      physical_sublog_idx: usize,
+      sequence_number: i64,
+    ) -> io::Result<ShippedState> {
+      if !self.connected.load(Ordering::Acquire) {
+        return Err(Error::new(ErrorKind::NotConnected, "memory wire closed"));
+      }
+      let frame = encode_advance_time_frame(physical_sublog_idx, sequence_number);
+      self.deliver(&frame)
+    }
+
+    /// 帧投递公共路径：拒收即转断连态（对标副本会话关闭语义）
+    fn deliver(&self, frame: &[u8]) -> io::Result<ShippedState> {
+      match self.sink.call(frame) {
+        Some(state) => Ok(state),
+        None => {
+          self.connected.store(false, Ordering::Release);
+          Err(Error::new(ErrorKind::ConnectionReset, "sink rejected"))
+        }
+      }
+    }
+
+    /// 连接健康面
+    pub fn is_connected(&self) -> bool {
+      self.connected.load(Ordering::Acquire)
+    }
+
+    /// 标记断连
+    pub fn disconnect(&self) {
+      self.connected.store(false, Ordering::Release);
+    }
+  }
+
+  impl From<Arc<CallbackWire>> for AofSyncWire {
+    fn from(w: Arc<CallbackWire>) -> Self {
+      Self::Callback(w)
+    }
   }
 }
 
 #[cfg(test)]
 mod tests {
   use parking_lot::Mutex;
-  use wconn::session::encode_append_log_init_frame;
+  use wconn::session::{encode_append_log_frame, encode_append_log_init_frame};
   use wresp::frame::parse_resp_frame;
 
   use super::*;
+  use super::test_wire::{CallbackWire, FrameSink};
 
   /// 内存通道帧收发：回调收到编码帧且断连后拒绝发送
   #[test]

@@ -5,10 +5,9 @@
 //! - 副本接收：ClusterSession.NetworkClusterAppendLog → ReplicaReplaySession.
 //!   ProcessPrimaryStream（UnsafeEnqueueRaw 保真落盘 + 异步重放通知）
 //!
-//! 两条通路：
-//! 1. 内存通道（CallbackWire 帧回调直投副本会话，逐帧消费断言）；
-//! 2. 真 socket（wnode GarnetServer 会话泵 + wconn TcpSessionWire，含 CLIENT
-//!    握手 + APPENDLOG init 握手往返）。
+//! 真 socket 单一通路（wnode GarnetServer 会话泵 + wconn TcpSessionWire，
+//! 含 CLIENT 握手 + APPENDLOG init 握手往返）；两条用例分别覆盖
+//! 「attach 前积压补扫 + 实时推流」与「断链感知」两个断言面。
 
 use std::{
   sync::{
@@ -20,7 +19,6 @@ use std::{
 
 use aok::{Result, Void};
 use compio::runtime::Runtime;
-use parking_lot::Mutex;
 use tempfile::{TempDir, tempdir};
 use waof::{AofAddress, WalConfig, WalLog, WalScanIterator};
 use wdev::{Device, SegmentedDevice};
@@ -31,7 +29,7 @@ use wedb::server::{
     aof_replication_pump::AofReplicationPump,
     aof_sync_driver::{AofSyncDriver, AofSyncDriverStore},
     cluster_replication_session::ClusterReplicationSession,
-    replica_wire::{AofSyncWire, CallbackWire, FrameSink, TcpSessionWire},
+    replica_wire::{AofSyncWire, TcpSessionWire},
   },
   worker::{LocalWorkerSpec, NodeRole},
 };
@@ -99,6 +97,34 @@ async fn assert_wal_records_identical<D: Device>(
   assert_eq!(rep, pri, "副本记录帧必须与主端逐条字节一致（保真落盘）");
 }
 
+/// 副本端会话供应器：GarnetServer 会话泵按消费面取会话
+struct SessionProvider(ClusterReplicationSession<SegmentedDevice>);
+impl SessionProviderFace for SessionProvider {
+  type Consumer = ClusterReplicationSession<SegmentedDevice>;
+  fn get_session(
+    &self,
+    // 满足 SessionProviderFace trait 签名契约；测试场景无需区分线格式与网络发送端 ID
+    _wire_format: WireFormat,
+    _network_sender_id: u64,
+  ) -> Option<ClusterReplicationSession<SegmentedDevice>> {
+    Some(self.0.clone())
+  }
+}
+
+/// 装配真 socket 副本端服务器（GarnetServer 会话泵 + 接收会话），返回监听地址
+fn replica_server(
+  session: ClusterReplicationSession<SegmentedDevice>,
+) -> aok::Result<GarnetServer<SessionProvider>> {
+  let server = GarnetServer::new(
+    &["127.0.0.1:0".to_string()],
+    65536,
+    100,
+    Arc::new(SessionProvider(session)),
+  )?;
+  server.start(None)?;
+  Ok(server)
+}
+
 /// 主端 → 副本发送面装配（驱动入库 + 通道接线 + 推流泵挂载）
 fn assemble_primary_send(
   pwal: &Arc<WalLog<SegmentedDevice>>,
@@ -123,11 +149,12 @@ fn assemble_primary_send(
   (store, driver, pump)
 }
 
-/// 内存通道闭环：主端写入 → CallbackWire 帧投递 → 副本落盘 → 重放通知推进
+/// 积压补扫 + 实时推流闭环（真 socket）：主端写入 → TcpSessionWire →
+/// 副本落盘 → 重放通知推进
 #[test]
-fn memory_wire_primary_to_replica_replay_consistency() -> Void {
+fn backlog_realtime_stream_over_real_socket() -> Void {
   Runtime::new().unwrap().block_on(async {
-    // ===== 副本装配：接收会话 + 重放钩子
+    // ===== 副本装配：真 socket 服务器挂接收会话 + 重放钩子
     let (_rdir, rwal, replay_task) = open_wal_node("replica")?;
     let provider = replica_provider(REPLICA_ID, PRIMARY_ID);
     let replica_session = ClusterReplicationSession::new(
@@ -135,6 +162,8 @@ fn memory_wire_primary_to_replica_replay_consistency() -> Void {
       Arc::clone(&rwal),
       Some(ReplicaReplayHook::OffsetWatermark(replay_task.clone())),
     );
+    let server = replica_server(replica_session.clone())?;
+    let addr = server.local_addr()?.to_string();
 
     // ===== 主端装配：attach 前积压 2 条业务记录
     let (_pdir, pwal, _pnode) = open_wal_node("primary")?;
@@ -144,12 +173,18 @@ fn memory_wire_primary_to_replica_replay_consistency() -> Void {
     let backlog_tail = pwal.tail_address();
     assert!(backlog_tail > FIRST_RECORD_ADDR);
 
-    // ===== 内存发送通道：帧回调直投副本会话
-    let frames_seen = Arc::new(Mutex::new(0usize));
-    let wire = Arc::new(CallbackWire::new(FrameSink::Session {
-      session: Arc::new(Mutex::new(replica_session.clone())),
-      seen: Some(Arc::clone(&frames_seen)),
-    }));
+    // ===== TCP 发送通道建连（含 CLIENT 握手 + APPENDLOG init 往返）
+    let wire = TcpSessionWire::connect(
+      &addr,
+      PRIMARY_ID,
+      0,
+      None,
+      None,
+      #[cfg(feature = "tls")]
+      None,
+    )
+    .await?;
+    assert!(wire.is_connected(), "建连后发送通道健康");
 
     let (_store, driver, pump) = assemble_primary_send(&pwal, wire);
 
@@ -161,26 +196,42 @@ fn memory_wire_primary_to_replica_replay_consistency() -> Void {
       (2 + 1, 0),
       "积压 2 条与 commit 帧全部补扫转发"
     );
-    assert_eq!(driver.get_previous_address(0) as u64, backlog_tail);
+    assert!(
+      wait_for(
+        || driver.get_previous_address(0) as u64 >= backlog_tail,
+        Duration::from_secs(5),
+      )
+      .await,
+      "补扫后主端已发位点必须追平积压尾"
+    );
 
-    // ===== 实时推流 1 条
+    // ===== 实时推流 1 条（唤醒循环异步拉取，等主端已发位点追平日志尾）
     pwal.enqueue(b"payload_user_1003_carol")?;
     pwal.commit().await?;
-    assert_eq!(
-      driver.get_previous_address(0) as u64,
-      pwal.tail_address(),
+    assert!(
+      wait_for(
+        || driver.get_previous_address(0) as u64 >= pwal.tail_address(),
+        Duration::from_secs(5),
+      )
+      .await,
       "实时推流后主端已发位点追平日志尾"
     );
-    // 3 补扫（2 数据 + 1 帧）+ 2 实时（1 数据 + 1 帧）全部送达
-    assert_eq!(*frames_seen.lock(), 5, "补扫与实时帧全部送达");
 
-    // ===== 副本落盘保真：位点与字节双一致
+    // ===== 副本落盘保真：3 补扫（2 数据 + 1 commit）+ 2 实时（1 数据 +
+    // 1 commit）帧全部送达 → 位点与字节双一致（5 条记录逐条比对）
+    assert!(
+      wait_for(
+        || rwal.tail_address() >= pwal.tail_address(),
+        Duration::from_secs(5),
+      )
+      .await,
+      "副本日志尾必须经真 socket 追平主端"
+    );
     assert_eq!(
       rwal.tail_address(),
       pwal.tail_address(),
       "副本日志尾必须与主端一致"
     );
-    // 5 = 3 数据 + 2 commit 元数据帧（推流面保真传输全部帧）
     assert_wal_records_identical(&pwal, &rwal, 5).await;
 
     // ===== 重放通知追平
@@ -211,25 +262,7 @@ fn tcp_wire_end_to_end_over_real_socket() -> Void {
       Some(ReplicaReplayHook::OffsetWatermark(replay_task.clone())),
     );
 
-    struct SessionProvider(ClusterReplicationSession<SegmentedDevice>);
-    impl SessionProviderFace for SessionProvider {
-      type Consumer = ClusterReplicationSession<SegmentedDevice>;
-      fn get_session(
-        &self,
-        // 满足 SessionProviderFace trait 签名契约；测试场景无需区分线格式与网络发送端 ID
-        _wire_format: WireFormat,
-        _network_sender_id: u64,
-      ) -> Option<ClusterReplicationSession<SegmentedDevice>> {
-        Some(self.0.clone())
-      }
-    }
-    let server = GarnetServer::new(
-      &["127.0.0.1:0".to_string()],
-      65536,
-      100,
-      Arc::new(SessionProvider(replica_session.clone())),
-    )?;
-    server.start(None)?;
+    let server = replica_server(replica_session.clone())?;
     let addr = server.local_addr()?.to_string();
 
     // ===== 主端：attach 前积压 1 条
