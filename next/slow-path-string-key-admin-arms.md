@@ -132,3 +132,5 @@ DUMP·RESTORE·OBJECT），每棒独立可验，单棒只动 slow.rs 与必要�
    全链路 grep 不到对客户端写出的 RESP_ERR_ASYNC_REQUIRED。
 2. 与 RESP2/RESP3 两版本、事务与 AOF 回放复用同内核的结果逐字节一致；
    cargo check 零告警（禁写 allow）。
+
+盘点补记（qw13.invA slow-path-string-key-admin-arms）：dev e75716e 复核原样：garnet_api/slow.rs:831 仍 _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED) 兜底，文件 1101 行，字符串族/键管理族慢臂未入表。客户端可见错误，优先级高不变。

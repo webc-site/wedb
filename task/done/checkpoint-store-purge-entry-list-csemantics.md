@@ -61,5 +61,25 @@ wedb/wedb/src/server/replication/checkpoint_store.rs
   按 fixloop 规程留主代理合并后统一跑。
 
 状态
-主仓存在他人已暂存的 next/ → task/ing 改名（首列 R），合并窗口未开，本票只交
-分支不合 dev；dev 侧合入与本文档 git mv 到 task/done/ 由主代理在同一窗口完成。
+已合入 dev（快进至 68cf470，代码提交 ce42276，分支 fix-checkpoint-purge-signature，
+worktree /tmp/fork/fix-checkpoint-purge-signature）。
+
+分两棒落地：前棒（cp-purge-csemantics / 72c0fc3）删掉链表 retain 与 clear 改写、
+purge 收为纯磁盘转调；本棒收残留面——签名由 (&self, Option<&Arc<CheckpointEntry>>)
+收为 (&self, &CheckpointEntry)，删除 `let Some(keep) .. else { return }` 空兜底分支
+（C# :79 的 null 兜底是扫盘取最新，rust 无该面且零调用方，按「Option 形态直接删，
+不留旧形态」处置），initialize 唯一现役调用点改传 &arc_entry（Arc 靠 deref 借用，
+零克隆），方法与结构体文档补齐票面锚点 :82/:94/:104、:38-57、:52-54、
+ReplicaDiskbasedSync.cs:336 → :340，并写明内存链表的裁剪只发生在
+delete_outdated_checkpoints。
+
+前棒对修法末条留了偏差：用例只断言 entry_count() == 0（空表恒空，证不出「链表不受
+purge 影响」），本棒按票面改为预登记一条陈旧条目（token 9，单条目不触发登记期过期
+淘汰），purge 后断言 entry_count() == 1 且 list_checkpoints() == vec![2]——链上条目
+的磁盘快照照样被回收，两轨分离由此可验。
+
+本棒门禁：CARGO_TARGET_DIR=/tmp/target-fix-cpsig cargo check --workspace
+--all-targets 在合入 dev 后的树上 exit 0、零 warning 零 error（含 --all-targets 的
+测试面编译）；cargo fmt --check -p wedb 零 diff。./test.sh 与 ./sh/clippy.sh 按
+fixloop 规程留主代理合并后统一跑。initialize 内 :79 的 entries.clear() 属初始化
+语义（C# :40/:42-45 自赋 head = tail 的对位），按主代理裁定保留。
