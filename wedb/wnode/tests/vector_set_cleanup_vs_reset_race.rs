@@ -104,11 +104,10 @@ fn drop_vector_set_while_resetting_store() {
   ));
 
   rt.block_on(async {
-    // 生产拓扑的三条常驻清理协程（对标 C# VectorManager 常驻任务；
-    // compio::spawn 须在运行时上下文内启动）
+    // 生产拓扑的两条常驻清理协程（对标 C# VectorManager 常驻任务中 rust
+    // 有生产点的两条；compio::spawn 须在运行时上下文内启动）
     let _t1 = vm.run_cleanup_task_async();
     let _t2 = vm.run_request_cleanup_task_async();
-    let _t3 = vm.run_request_drop_task_async();
 
     // 会话消费者在运行时上下文内装配（存储会话绑 TLS 运行时）
     let api =

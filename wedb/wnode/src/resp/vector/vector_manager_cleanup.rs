@@ -1,7 +1,9 @@
 //! 清理任务族（对标 libs/server/Resp/Vector/VectorManager.Cleanup.cs）
 //!
-//! C# 侧三条常驻任务（cleanup / requestCleanup / requestDrop）经无界通道
-//! 串联，配合暂停闸门（cleanupGate）与等待原语保证检查点/静默语义；
+//! C# 侧 cleanup / requestCleanup 两条常驻任务经无界通道串联，配合暂停闸门
+//!（cleanupGate）与等待原语保证检查点/静默语义；C# 第三条 requestDrop 任务的唯一
+//! 生产点是主存记录逐出触发器（GarnetRecordTriggers 的 OnEvict 臂），rust 索引
+//! 记录驻留 VectorManager 登记表、不入 wkv 值域，无逐出事件可接，故整链不落地。
 //! Rust 侧基于 compio 异步运行时协程与事件驱动原语实现，消灭阻塞自旋与 OS 线程绑定。
 
 use std::{
@@ -62,13 +64,11 @@ impl CleanupGate {
   }
 }
 
-/// 清理协程类别（对标 C# 三条常驻任务的收敛句柄）。
+/// 清理协程类别（对标 C# 常驻清理任务的收敛句柄）。
 ///
 /// 在 garnet 中的相对路径:libs/server/Resp/Vector/VectorManager.cs:Dispose
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CleanupTaskKind {
-  /// 请求丢弃协程（RunRequestDropTaskAsync）
-  RequestDrop,
   /// 请求清理协程（RunRequestCleanupTaskAsync）
   RequestCleanup,
   /// 主清理协程（RunCleanupTaskAsync）
@@ -76,12 +76,14 @@ pub enum CleanupTaskKind {
 }
 
 impl CleanupTaskKind {
-  /// 通道数组下标（对齐 C# Dispose 关闭顺序：requestDrop → requestCleanup → cleanup）。
+  /// 协程类别数（计数数组定长，与 [`Self::index`] 取值域一致）。
+  pub const COUNT: usize = 2;
+
+  /// 通道数组下标（对齐 C# Dispose 关闭顺序：requestCleanup → cleanup）。
   fn index(self) -> usize {
     match self {
-      CleanupTaskKind::RequestDrop => 0,
-      CleanupTaskKind::RequestCleanup => 1,
-      CleanupTaskKind::Cleanup => 2,
+      CleanupTaskKind::RequestCleanup => 0,
+      CleanupTaskKind::Cleanup => 1,
     }
   }
 }
@@ -90,17 +92,17 @@ impl CleanupTaskKind {
 ///
 /// compio 的 `JoinHandle` 一旦 drop 即 `task.cancel`（见 compio-executor
 /// join_handle.rs Drop 实现），会让清理协程被静默取消——这正是原实现「生产零拉起
-/// 后通道无消费者」的根因。故拉起得到的三个句柄必须收进本结构长期托管，
+/// 后通道无消费者」的根因。故拉起得到的协程句柄必须收进本结构长期托管，
 /// 仅在 Dispose 收敛（协程自然退出）后释放。
 ///
 /// 在 garnet 中的相对路径:libs/server/Resp/Vector/VectorManager.cs:Dispose
 #[derive(Default)]
 pub struct CleanupRuntime {
   /// 每类协程当前在跑标志（0/1）。下标由 [`CleanupTaskKind::index`] 决定。
-  running: [AtomicUsize; 3],
+  running: [AtomicUsize; CleanupTaskKind::COUNT],
   /// 协程结束通知，供 [`Self::wait_stopped`] 同步收敛等待。
   event: Event,
-  /// 生产拉起托管的三个协程句柄（compio JoinHandle，须存活至协程退出）。
+  /// 生产链路托管的协程句柄（compio JoinHandle，须存活至协程退出）。
   handles: Mutex<Vec<JoinHandle<()>>>,
   /// 生产链路是否已拉起清理协程，保证 [`VectorManager::ensure_cleanup_tasks_started`] 幂等。
   started: AtomicBool,
@@ -110,7 +112,7 @@ impl CleanupRuntime {
   /// 创建运行时。
   pub fn new() -> Self {
     Self {
-      running: [const { AtomicUsize::new(0) }; 3],
+      running: [const { AtomicUsize::new(0) }; CleanupTaskKind::COUNT],
       event: Event::new(),
       handles: Mutex::new(Vec::new()),
       started: AtomicBool::new(false),
@@ -135,9 +137,7 @@ impl CleanupRuntime {
 
   /// 是否全部静默。
   pub fn is_quiescent(&self) -> bool {
-    !self.is_running(CleanupTaskKind::RequestDrop)
-      && !self.is_running(CleanupTaskKind::RequestCleanup)
-      && !self.is_running(CleanupTaskKind::Cleanup)
+    !self.is_running(CleanupTaskKind::RequestCleanup) && !self.is_running(CleanupTaskKind::Cleanup)
   }
 
   /// 同步等待指定类别协程退出（通道已关闭后调用），带超时。
@@ -210,12 +210,13 @@ impl<S: StoreCallbacks> VectorManager<S> {
     log::error!("During Vector Set cleanup for context {context}: {error}");
   }
 
-  /// 生产链路拉起：确保三条清理常驻协程已在当前 compio 运行时启动并托管。
+  /// 生产链路拉起：确保两条清理常驻协程已在当前 compio 运行时启动并托管。
   ///
   /// 对标 C# `VectorManager` 构造器（VectorManager.cs:213-215）——C# 在构造器
-  /// 内直接 spawn 三任务；Rust 构造发生在 compio 运行时之外，故沿用量化协程
+  /// 内直接 spawn 三条任务；rust 只承接有生产点的两条（见模块头说明）。
+  /// Rust 构造发生在 compio 运行时之外，故沿用量化协程
   /// 的「首会话 get_session 惰性拉起」范式，在首个存储会话建立时启动。
-  /// 以 `started` 标志保证幂等，三个 `JoinHandle` 收进 [`CleanupRuntime::handles`]
+  /// 以 `started` 标志保证幂等，协程句柄收进 [`CleanupRuntime::handles`]
   /// 托管（drop 会 cancel 协程），协程自然退出后由 [`Self::dispose_cleanup`] 释放。
   ///
   /// 在 garnet 中的相对路径:libs/server/Resp/Vector/VectorManager.cs:VectorManager
@@ -226,10 +227,9 @@ impl<S: StoreCallbacks> VectorManager<S> {
     let mut handles = self.cleanup_runtime.handles.lock();
     handles.push(self.run_cleanup_task_async());
     handles.push(self.run_request_cleanup_task_async());
-    handles.push(self.run_request_drop_task_async());
   }
 
-  /// 停机收敛：按 requestDrop → requestCleanup → cleanup 顺序关闭通道并等待
+  /// 停机收敛：按 requestCleanup → cleanup 顺序关闭通道并等待
   /// 对应协程消费退出，杜绝清理任务在关闭后丢失。
   ///
   /// 对标 C# `VectorManager.Dispose`（VectorManager.cs:468-497）逐通道
@@ -241,15 +241,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
   pub fn dispose_cleanup(&self) -> bool {
     let timeout = InstantDuration::from_millis(30_000);
     let mut converged = true;
-
-    self.request_drop_task_channel.close();
-    if !self
-      .cleanup_runtime
-      .wait_stopped(CleanupTaskKind::RequestDrop, timeout)
-    {
-      converged = false;
-      log::warn!("Vector cleanup coroutine RequestDrop did not converge before timeout");
-    }
 
     self.request_cleanup_task_channel.close();
     if !self
@@ -326,31 +317,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
     })
   }
 
-  /// 请求丢弃协程循环体。
-  pub async fn run_request_drop_task_loop(self: Arc<Self>) {
-    self.cleanup_runtime.start(CleanupTaskKind::RequestDrop);
-    let channel = &self.request_drop_task_channel;
-    while channel.wait_to_read().await {
-      if channel.try_pop().is_none() {
-        continue;
-      }
-      // 每趟服务整个积压（信号本身无载荷，多余信号直接排空）
-      channel.drain().len();
-      self.process_request_drop_once();
-    }
-    self.cleanup_runtime.stop(CleanupTaskKind::RequestDrop);
-  }
-
-  /// libs/server/Resp/Vector/VectorManager.Cleanup.cs:RunRequestDropTaskAsync
-  ///
-  /// 启动请求丢弃任务轻量协程（基于 compio::runtime::spawn）。
-  pub fn run_request_drop_task_async(self: &Arc<Self>) -> JoinHandle<()> {
-    let manager = Arc::clone(self);
-    spawn(async move {
-      manager.run_request_drop_task_loop().await;
-    })
-  }
-
   /// libs/server/Resp/Vector/VectorManager.Cleanup.cs:PauseCleanupAsync
   ///
   /// 暂停清理（检查点前调用），闸门置位。
@@ -363,21 +329,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 恢复清理；调用方必须保证每次 PauseCleanupAsync 后最终配对调用。
   pub fn resume_cleanup(&self) {
     self.cleanup_gate.set_paused(false);
-  }
-
-  /// libs/server/Resp/Vector/VectorManager.Cleanup.cs:DropRequested
-  ///
-  /// 该键是否已登记内存索引丢弃请求；`rk` 为登记表复合键（丢弃通道
-  /// 载荷与锁协议同为复合键域）。
-  pub fn drop_requested(&self, rk: &[u8]) -> bool {
-    self.requested_drops.contains(rk)
-  }
-
-  /// libs/server/Resp/Vector/VectorManager.Cleanup.cs:WaitForDiskANNIndexDrop
-  ///
-  /// 同步等待指定键的丢弃完成（复合键域）；禁止持有任何向量集合锁调用。
-  pub fn wait_for_disk_ann_index_drop(&self, rk: &[u8]) {
-    self.requested_drops.wait_for_completion(rk);
   }
 
   /// libs/server/Resp/Vector/VectorManager.Cleanup.cs:WaitForQuiescence
@@ -451,26 +402,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
         if !self.cleanup_task_channel.push(context) {
           log::warn!("Could not request cleanup of Vector Set context: {context}");
         }
-      }
-    }
-  }
-
-  /// 索引服务侧丢弃执行。
-  fn perform_drop(&self, context: u64) {
-    self.service.drop_index(context);
-  }
-
-  /// 请求丢弃的单步处理（worker 循环体等价，供确定性测试）。
-  /// 逐键独占锁内 DropIndex，锁释放后完成标记（对齐 C# 锁序与 TryComplete 时机）。
-  pub fn process_request_drop_once(&self) {
-    let pending = self.requested_drops.snapshot();
-    // 载荷即登记表复合键，锁轴同域
-    for (rk, context) in pending {
-      let _guard = self.vector_set_locks.acquire_exclusive(&rk);
-      self.perform_drop(context);
-      drop(_guard);
-      if !self.requested_drops.try_complete(&rk) {
-        log::error!("Drop for raced with some other cleanup, this should never happen");
       }
     }
   }

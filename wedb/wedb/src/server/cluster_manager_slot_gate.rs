@@ -137,11 +137,6 @@ impl SlotWaitMemo {
     self.exhausted.load(Ordering::Acquire)
   }
 
-  /// 等待是否已超时（测试与诊断面）
-  pub fn is_exhausted(&self) -> bool {
-    self.exhausted()
-  }
-
   /// 取异步存在性裁决缓存
   fn exists_decided(&self, idx: usize) -> Option<bool> {
     *self.exists.lock().get(idx)?

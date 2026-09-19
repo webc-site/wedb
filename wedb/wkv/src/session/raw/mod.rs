@@ -141,11 +141,10 @@ impl<D: Device> StoreSession<D> {
         } else if self.store.hlog.is_mutable(free_addr) {
           // 若临时写入失败且槽位仍在可变区，归还至复活池防槽位丢失
           // （门槛重取最新下限：写入失败多半因水位已推进，旧下限会误留不可复活槽位）
-          self.store.reviv_pool.put(
-            free_addr,
-            slot_size,
-            self.store.min_revivifiable_address(),
-          );
+          self
+            .store
+            .reviv_pool
+            .put(free_addr, slot_size, self.store.min_revivifiable_address());
         }
       }
     }

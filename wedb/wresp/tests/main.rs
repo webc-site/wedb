@@ -1,9 +1,7 @@
 use wresp::read::{
-  MAX_ARGUMENT_LENGTH_BYTES, try_read_ptr_with_length_header,
-  try_read_ptr_with_signed_length_header, try_read_signed_length_header,
+  MAX_ARGUMENT_LENGTH_BYTES, try_read_ptr_with_signed_length_header, try_read_signed_length_header,
   try_read_span_with_length_header, try_read_unsigned_array_length,
-  try_read_unsigned_length_header, try_skip_byte_array_with_length_header,
-  try_slice_with_length_header,
+  try_read_unsigned_length_header, try_slice_with_length_header,
 };
 
 #[test]
@@ -24,13 +22,6 @@ fn test_length_encoding() {
   let mut ptr = b"*3\r\n".as_slice();
   assert!(try_read_unsigned_array_length(&mut length, &mut ptr).unwrap());
   assert_eq!(length, 3);
-}
-
-#[test]
-fn test_skip_byte_array() {
-  let mut ptr = b"$5\r\nhello\r\n".as_slice();
-  assert!(try_skip_byte_array_with_length_header(&mut ptr).unwrap());
-  assert!(ptr.is_empty());
 }
 
 #[test]
@@ -57,7 +48,7 @@ fn test_int32_boundary_length_headers() {
 /// 头部照常消费（与 C# 吞头后短路返回 false 的次序一致）
 #[test]
 fn test_max_argument_length_bound() {
-  // 512MB + 1：slice/skip/ptr 三类消费端一致拒绝
+  // 512MB + 1：slice/span/ptr 三类消费端一致拒绝
   let oversized = format!("${}\r\n", MAX_ARGUMENT_LENGTH_BYTES + 1);
   let head: &[u8] = oversized.as_bytes();
   let mut ptr = head;
@@ -66,20 +57,12 @@ fn test_max_argument_length_bound() {
   assert_eq!(ptr, &head[head.len()..], "超界时头部已消费、仅返 false");
 
   let mut ptr = head;
-  assert!(!try_skip_byte_array_with_length_header(&mut ptr).unwrap());
-
-  let mut ptr = head;
   let mut span: &[u8] = &[];
   assert!(!try_read_span_with_length_header(&mut span, &mut ptr).unwrap());
 
   let mut ptr = head;
   let mut opt: Option<&[u8]> = None;
   assert!(!try_read_ptr_with_signed_length_header(&mut opt, &mut ptr).unwrap());
-
-  let mut ptr = head;
-  let mut len = 0;
-  let mut result: &[u8] = &[];
-  assert!(!try_read_ptr_with_length_header(&mut result, &mut len, &mut ptr).unwrap());
 
   // NULL（$-1）不受上界影响：signed 形态照常放行
   let mut ptr = b"$-1\r\n".as_slice();
@@ -92,5 +75,6 @@ fn test_max_argument_length_bound() {
   // 仍按 false 处理）
   let boundary = format!("${}\r\n", MAX_ARGUMENT_LENGTH_BYTES);
   let mut ptr: &[u8] = boundary.as_bytes();
-  assert!(!try_skip_byte_array_with_length_header(&mut ptr).unwrap());
+  let mut result: &[u8] = &[];
+  assert!(!try_slice_with_length_header(&mut result, &mut ptr).unwrap());
 }

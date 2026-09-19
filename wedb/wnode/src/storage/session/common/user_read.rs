@@ -88,6 +88,18 @@ impl<R> UserRead<R> {
   }
 }
 
+/// 用户数据双域异步读结果（[`UserRead`] 的异步闭环子集：磁盘候选已在
+/// 异步读内核内闭环，无 `Deferred` 降级态）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UserReadAsync<R> {
+  /// String 域命中（值内容任意）
+  Hit(R),
+  /// 键缺失（两域皆缺或已过期）
+  Missing,
+  /// 集合对象键（信封 / 升阶 Meta 域命中，C# ValueIsObject → WRONGTYPE）
+  WrongType,
+}
+
 /// 物理标签域单域读结果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TagRead<R> {

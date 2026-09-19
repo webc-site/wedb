@@ -70,18 +70,6 @@ impl CommandStats {
     }
   }
 
-  /// libs/server/Metrics/CommandStats.cs:GetEntry
-  ///
-  /// 读取指定命令的统计条目；越界返回默认值（对齐 C# `return default`）。
-  #[inline]
-  pub fn get_entry(&self, cmd: RespCommand) -> CommandStatsEntry {
-    self
-      .entries
-      .get(cmd as u16 as usize)
-      .copied()
-      .unwrap_or_default()
-  }
-
   /// libs/server/Metrics/CommandStats.cs:Add
   ///
   /// 聚合：将另一实例并入本实例。
@@ -125,13 +113,13 @@ mod tests {
     stats.increment_failed(RespCommand::Get);
     stats.increment_rejected(RespCommand::Set);
 
-    let get = stats.get_entry(RespCommand::Get);
+    let get = stats.entries[RespCommand::Get as u16 as usize];
     assert_eq!((get.calls, get.failed_calls, get.rejected_calls), (2, 1, 0));
-    let set = stats.get_entry(RespCommand::Set);
+    let set = stats.entries[RespCommand::Set as u16 as usize];
     assert_eq!((set.calls, set.failed_calls, set.rejected_calls), (0, 0, 1));
     // 未触碰的命令为默认条目。
     assert_eq!(
-      stats.get_entry(RespCommand::Ping),
+      stats.entries[RespCommand::Ping as u16 as usize],
       super::CommandStatsEntry::default()
     );
   }
@@ -146,10 +134,10 @@ mod tests {
     b.increment_failed(RespCommand::Decr);
 
     a.add(&b);
-    assert_eq!(a.get_entry(RespCommand::Incr).calls, 3);
-    assert_eq!(a.get_entry(RespCommand::Decr).failed_calls, 1);
+    assert_eq!(a.entries[RespCommand::Incr as u16 as usize].calls, 3);
+    assert_eq!(a.entries[RespCommand::Decr as u16 as usize].failed_calls, 1);
 
     a.reset();
-    assert_eq!(a.get_entry(RespCommand::Incr).calls, 0);
+    assert_eq!(a.entries[RespCommand::Incr as u16 as usize].calls, 0);
   }
 }

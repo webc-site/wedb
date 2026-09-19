@@ -57,6 +57,62 @@ fn try_parse_double(raw: &[u8]) -> Option<f64> {
   strict_f64(raw, true)
 }
 
+/// NetworkIncrement 的参数推导单源（快慢路径共用；解析失败时已写出错误应答
+/// 并返回 None，返回 `(key, delta)`，DECR 族增量已取负）
+///
+/// C# NetworkIncrement 下界 arity 门（Count<1 / Count<2），多余实参被忽略：
+/// RMWMethods InPlace/Initial 的 INCR/DECR 臂固定增量 ±1，从不读 arg1
+pub(crate) fn parse_incr_args<'p>(
+  cmd: IncrCmd,
+  parse_state: &'p [&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], i64)> {
+  if cmd.has_by() {
+    let Some(([key, by_raw], _)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
+      return None;
+    };
+    let Some(by) = strict_i64(by_raw) else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    Some((key, cmd.sign().saturating_mul(by)))
+  } else {
+    let Some(([key], rest)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
+      return None;
+    };
+    // C# Count>1 时对第二参仅做整数校验（非整数 → not-integer），值弃用
+    if rest.first().is_some_and(|raw| strict_i64(raw).is_none()) {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    }
+    Some((key, cmd.sign()))
+  }
+}
+
+/// NetworkIncrementByFloat 的参数推导单源（快慢路径共用；解析失败时已写出
+/// 错误应答并返回 None，返回 `(key, 有限增量)`）
+///
+/// C# NetworkIncrementByFloat 无 arity 门：第二参缺失或非浮点均回
+/// not-valid-float，多余实参忽略；0 参在 C# 为 GetArgSliceByRef(0) 越界 UB，
+/// rust 以 arity 下界门兜底属有意修复（在册偏差）
+pub(crate) fn parse_incr_by_float_args<'p>(
+  parse_state: &'p [&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], f64)> {
+  let Some(([key], rest)) = unpack_args_rest(parse_state, output, "INCRBYFLOAT") else {
+    return None;
+  };
+  let Some(incr_by) = rest.first().and_then(|raw| try_parse_double(raw)) else {
+    abort_with_error_message(output, cs::RESP_ERR_NOT_VALID_FLOAT);
+    return None;
+  };
+  if incr_by.is_infinite() {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_NAN_INFINITY_INCR);
+    return None;
+  }
+  Some((key, incr_by))
+}
+
 impl RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:NetworkIncrement
   ///
@@ -69,27 +125,8 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // C# NetworkIncrement 下界 arity 门（Count<1 / Count<2），多余实参被忽略：
-    // RMWMethods InPlace/Initial 的 INCR/DECR 臂固定增量 ±1，从不读 arg1
-    let (key, delta) = if cmd.has_by() {
-      let Some(([key, by_raw], _)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
-        return Ok(true);
-      };
-      let Some(by) = strict_i64(by_raw) else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      (key, cmd.sign().saturating_mul(by))
-    } else {
-      let Some(([key], rest)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
-        return Ok(true);
-      };
-      // C# Count>1 时对第二参仅做整数校验（非整数 → not-integer），值弃用
-      if rest.first().is_some_and(|raw| strict_i64(raw).is_none()) {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      }
-      (key, cmd.sign())
+    let Some((key, delta)) = parse_incr_args(cmd, parse_state, output) else {
+      return Ok(true);
     };
 
     // 解析在读取闭包内完成：免整值堆分配（旧值口径对位 C# IsValidNumber →
@@ -137,20 +174,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // C# NetworkIncrementByFloat 无 arity 门：第二参缺失或非浮点均回
-    // not-valid-float，多余实参忽略；0 参在 C# 为 GetArgSliceByRef(0) 越界 UB，
-    // rust 以 arity 下界门兜底属有意修复（在册偏差）
-    let Some(([key], rest)) = unpack_args_rest(parse_state, output, "INCRBYFLOAT") else {
+    let Some((key, incr_by)) = parse_incr_by_float_args(parse_state, output) else {
       return Ok(true);
     };
-    let Some(incr_by) = rest.first().and_then(|raw| try_parse_double(raw)) else {
-      abort_with_error_message(output, cs::RESP_ERR_NOT_VALID_FLOAT);
-      return Ok(true);
-    };
-    if incr_by.is_infinite() {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_NAN_INFINITY_INCR);
-      return Ok(true);
-    }
 
     // 解析在读取闭包内完成：免整值堆分配（C# IsValidDouble 失败 → not-valid-float）
     let val = match read_user_sync(store, key, try_parse_double) {

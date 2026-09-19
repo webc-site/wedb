@@ -78,3 +78,6 @@ pub mod store_type;
 
 #[cfg(feature = "varint")]
 pub mod varint;
+
+#[cfg(feature = "tls")]
+pub mod tls;

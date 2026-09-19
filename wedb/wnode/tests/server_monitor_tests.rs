@@ -170,7 +170,12 @@ fn session_dispose_merges_into_monitor_history() -> aok::Result<()> {
 fn session_latency_metrics_aggregation_and_resp_commands() -> aok::Result<()> {
   let rt = Runtime::new()?;
   rt.block_on(async {
-    let monitor = Arc::new(GarnetServerMonitor::new(1, true, true, false));
+    // 构造期注入形态（C# storeWrapper.monitor 构造下传）：进程级单例就位后，
+    // 会话构造自动从 global 取 monitor_iterations 与全局延迟表；首装者生效，
+    // 晚到测试经 global 复用同一句柄，采样轮驱动与 session 同源
+    let local = Arc::new(GarnetServerMonitor::new(1, true, true, false));
+    local.install_global();
+    let monitor = GarnetServerMonitor::global().expect("进程级监视器就位");
     let registry = Arc::new(ConsumerRegistry::new());
     let entry = registry.register(100, "127.0.0.1:50001".into(), "127.0.0.1:6379".into());
 
@@ -181,7 +186,6 @@ fn session_latency_metrics_aggregation_and_resp_commands() -> aok::Result<()> {
         ..RespServerSessionOptions::default()
       },
     );
-    session.attach_monitor(&monitor);
     entry.attach_latency_metrics(session.latency_metrics.clone());
 
     // 1. 执行命令并消费，产生延迟与吞吐样本
