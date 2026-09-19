@@ -19,3 +19,5 @@ waof aof/header.rs 735 行汇集 5 种协议头（基础头、分片头、单日
 Transaction/Header 形态）、大值分块头（AofChunkHeader）拆三个子文件，
 header/mod.rs 统一 pub use，对外路径零变化；编解码逻辑保持手写位运算不动
 （bitcode 化不适用：线格式须对标 C# AofHeader 位布局语义）。纯搬运。
+
+主代理补录（14:13，agy.db 晚波条 10 反证）：C# garnet/libs/server/AOF/AofHeader.cs 为 335 行单文件汇集全部 7 种头型，且存在跨型 IsChunked/SkipHeader/GetChunkedHeaderRef 契约要求同处。若你甄别认定拆分仍成立，请在落地记录里显式回应该反证（为何 rust 侧拆分不违背 1:1 契约）；若认定不成立，按规程转 task/reject 结案。
