@@ -374,12 +374,6 @@ impl RangeIndexManager {
     }
   }
 
-  /// 内部键哈希分段读写条带锁引用
-  #[inline]
-  pub(crate) fn locks(&self) -> &StripedRwLock<(), NUM_LOCK_STRIPES> {
-    &self.locks
-  }
-
   /// 获取指定键哈希的排他写锁（1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:AcquireExclusiveForDelete）
   #[inline]
   pub fn acquire_exclusive_for_delete(
