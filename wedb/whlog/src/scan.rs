@@ -42,7 +42,7 @@ fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
     true
   } else {
     let ptr = unsafe { bytes.as_ptr().add(offset) };
-    if ptr as usize % 8 == 0 {
+    if (ptr as usize).is_multiple_of(8) {
       let w0 = unsafe { (&*(ptr as *const AtomicU64)).load(Ordering::Acquire) };
       let w1 = unsafe { (&*(ptr.add(8) as *const AtomicU64)).load(Ordering::Acquire) };
       (w0 | w1) == 0
