@@ -73,12 +73,13 @@ impl StorageEncoding {
 /// - `[0..8)`: `key_id: u64` (集合全局唯一自增 ID)
 /// - `[8..9)`: `collection_type: GarnetObjectType` (集合逻辑数据结构类型)
 /// - `[9..16)`: `reserved: [u8; 7]` (显式填充并预留扩展标志位，其中 reserved 首字节为 StorageEncoding)
-/// - `[16..24)`: `size: u64` (元素计数，保证 HLEN/SCARD/ZCARD 恒为 O(1))
+/// - `[16..24)`: `size: u64` (元素计数，水位内保证 HLEN/SCARD/ZCARD O(1))
 /// - `[24..32)`: `next_expiry: i64` (树内成员最早到期 .NET Ticks，字段级 TTL
-///   计数抵扣水位；`i64::MAX` = 无成员挂 TTL——`now < next_expiry` 时树内
-///   不存在已到期成员，计数直读 `size` 恒精确零树访问；水位命中即交由
-///   分层写臂/收集执行体的到期收集内核校正，见 doc/zh/collection.md
-///   大键 O(1) 计数规约第 3 条)
+///   计数抵扣水位；`i64::MAX` = 无成员挂 TTL——`now <= next_expiry` 时树内
+///   不存在已到期成员（成员 `ticks < now` 严格判过期，水位刻度当刻未到期），
+///   计数直读 `size` 恒精确零树访问；水位越过即交由分层写臂/收集执行体的
+///   到期收集内核物理出账（每到期纪元至多一次），见 doc/zh/collection.md
+///   大键 O(1) 计数规约第 3 条分层态补则)
 #[repr(C, align(8))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MetaValue {
@@ -128,14 +129,6 @@ impl MetaValue {
   #[inline(always)]
   pub const fn dec_size(&mut self, count: u64) {
     self.size = self.size.saturating_sub(count);
-  }
-
-  /// 水位推进：取更早到期刻度（const fn，树内写臂挂 TTL 时单点调用）
-  #[inline(always)]
-  pub const fn note_expiry(&mut self, ticks: i64) {
-    if ticks < self.next_expiry {
-      self.next_expiry = ticks;
-    }
   }
 
   /// 判定元数据记录是否有效存活（对标 Tsavorite ReadMethods.cs Reader：RangeIndex 恒活 + size > 0）

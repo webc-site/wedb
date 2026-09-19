@@ -72,8 +72,9 @@ stateDiagram-v2
 无论集合规模多大（含千万至上亿级），全部计数命令（`HLEN`、`SCARD`、`ZCARD`、`LLEN` 与 `RI.COUNT`）均严格保证 O(1) 时间复杂度：
 
 1. 内存态直读：直读 `IGarnetObject` 结构体维护的原子/标量计数字段，无需遍历内部哈希表或跳表。
-2. 分页分层态直读：直读 `KeyTag::Meta` 元记录中的 `MetaValue.size` 或 BfTree 头部的总条目数标量，严禁扫描任何底层数据页。
+2. 分页分层态直读：直读 `KeyTag::Meta` 元记录中的 `MetaValue.size` 或 BfTree 头部的总条目数标量；水位内（`now <= next_expiry`，见第 3 条分层态补则）严禁扫描任何底层数据页。
 3. 字段级失效惰性剔除：携带字段级 TTL 的集合，计数前先走堆序惰性剔除（摊还 O(弹过量)，稳态堆顶 peek 短路），再直读条目数标量，保证 `HLEN` 在惰性过滤场景下依然保持 O(1) 摊还精度（wcol `HashObject::purge_expired_len` / `SortedSetObject::purge_expired_len` 单点；trait `IGarnetObject::count` 为 raw len 只读口径，仅升阶判定使用，两口径不得混用）。
+   分层态补则（已裁决）：内存堆无处安放（成员到期刻度内联树记录、`MetaValue` 32B 定长），以 `next_expiry` 水位承接同一角色——水位内 O(1) 直读 `size` 恒精确；水位越过即首个计数命令物理出账一次（`expire_sweep_or_rebuild`：锁内单趟扫描 + 有到期才整值重灌，树内零墓碑，见 `tiered_collection_ops` 模块头），随后水位前移回归 O(1)，每到期纪元至多一扫。不采到期辅助索引（索引侧清理必生树内墓碑 + 全写臂双写放大）与单批限截断（有界删树同样须落墓碑或整树重灌）。C# 同面亦非恒 O(1)：`HashObject/SortedSetObject.Count` 存在可过期字段时遍历 `expirationTimes` 字典（O(T) 内存只读），本补则与同 spirit——非常态零成本，出账按纪元摊还。
 
 `RI.COUNT` 口径补充（`RI.COUNT` 是本仓自定义扩展，别名 `RI.LEN`，C# 无对应处理器）：
 
