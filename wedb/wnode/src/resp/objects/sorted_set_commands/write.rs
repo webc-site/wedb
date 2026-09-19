@@ -875,6 +875,12 @@ pub(crate) fn parse_combine_args<'p>(
 /// 多键装载（信封解码；缺失按空集合；WrongType 写错误行）
 ///
 /// 返回 `Ok(None)` 表示磁盘候选须降级异步重放；`Err(())` 为错误行已写出
+///
+/// 聚合面成员级 TTL：装载即堆序 purge 过期成员（对位 C# 各聚合命令经
+/// SortedSetObject.Dictionary getter / TryGetScore / CopyDiff / InPlaceDiff
+/// 的存活视图口径，libs/server/Objects/SortedSet/SortedSetObject.cs:237）；
+/// 装载产物为本请求私有副本，就地 purge 与 C# 非破坏过滤行为等价，
+/// 且与 count() 复用同一谓词源 delete_expired_items，勿另建第二套口径
 fn load_many(
   store: &wkv::BatchStoreSession<impl wdev::Device>,
   keys: &[&[u8]],
@@ -886,7 +892,10 @@ fn load_many(
       ZsetLoad::Degrade => return Ok(None),
       ZsetLoad::WrongType => return Err(()),
       ZsetLoad::Missing => objs.push(SortedSetObject::new()),
-      ZsetLoad::Present(o) => objs.push(o),
+      ZsetLoad::Present(mut o) => {
+        o.delete_expired_items();
+        objs.push(o);
+      }
     }
   }
   Ok(Some(objs))
@@ -935,7 +944,8 @@ pub(crate) fn combine_sets(
     let (min_idx, min_obj) = objs
       .iter()
       .enumerate()
-      // 选最小集合仅决定遍历顺序（基数直读 raw len，剔除交由成员级 TTL 面）
+      // 选最小集合仅决定遍历顺序（基数直读 raw len；过期成员已由
+      // load_many 装载口堆序 purge 剔净，遍历即存活视图）
       .min_by_key(|(_, o)| o.sorted_set_dict.len())
       .unwrap();
 
