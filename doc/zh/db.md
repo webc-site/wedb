@@ -62,7 +62,7 @@ SELECT（wedb/wnode/src/resp/array_commands.rs）：
 调用 parse_db_index 解析数字。
 直接更新会话标量 session.active_db。
 
-FLUSHDB（wedb/wkv/src/vdb.rs、wedb/wnode/src/resp/garnet_api.rs）：
+FLUSHDB（wedb/wkv/src/vdb/flush.rs、wedb/wkv/src/vdb/routing.rs、wedb/wnode/src/resp/garnet_api.rs）：
 秒级虚拟 ID 换号。
 单次 O(1) 原子替换当前库 virtual_db_id 槽位单元格。
 新库瞬时清空。
@@ -85,7 +85,7 @@ KEYS / SCAN / DBSIZE（wedb/wnode/src/storage/session/common/array_key_iteration
 调用 strip_session_prefix 剥离前缀。
 高效过滤当前 (ns, db) 键。
 
-FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb.rs）：
+FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb/flush.rs）：
 多租户秒级清库。
 单次 O(1) 原子替换当前租户 virtual_ns_id。
 当前租户下所有逻辑库瞬间全部失效。
@@ -95,7 +95,8 @@ FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb.rs）：
 
 ### 1.4 虚拟空间与虚拟库映射与延时回收机制
 
-代码路径：wedb/wkv/src/vdb.rs、wedb/wkv/src/gc.rs
+代码路径：wedb/wkv/src/vdb/（目录模块：routing.rs 路由表、meta_record.rs DbMeta 记录编解码、
+gc.rs 死亡号账本、manager.rs 管理器、flush.rs 清库换号）、wedb/wkv/src/gc.rs
 
 架构原理：
 双层虚拟化解耦：

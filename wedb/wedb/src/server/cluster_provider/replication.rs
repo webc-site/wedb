@@ -311,9 +311,7 @@ impl ClusterProvider {
         return;
       };
       if !rm.begin_recovery(RecoveryStatus::InitializeRecover, false) {
-        log::error!(
-          "Replication manager starting could not acquire recovery lock for {primary}"
-        );
+        log::error!("Replication manager starting could not acquire recovery lock for {primary}");
         return;
       }
       spawn(async move {
