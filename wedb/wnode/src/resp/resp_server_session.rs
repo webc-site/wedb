@@ -2904,7 +2904,7 @@ impl wtxn::TxnSession for RespServerSession {
 
   #[inline]
   fn write_queued(&mut self) {
-    self.output.extend_from_slice(b"+QUEUED\r\n");
+    self.output.extend_from_slice(cs::RESP_QUEUED);
   }
 
   #[inline]

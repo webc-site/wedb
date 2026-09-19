@@ -33,7 +33,8 @@ use super::{
   vector_manager_context_metadata::ContextMetadata,
   vector_manager_index::{INDEX_SIZE, Index},
   vector_manager_locking::{
-    RegistryDomain, VectorSetKeyLocks, VectorSetLocks, registry_key, split_registry_key,
+    RegistryDomain, VectorSetKeyLocks, VectorSetLocks, registry_key, registry_user_key,
+    split_registry_key,
   },
   vector_manager_quantization::{QuantizationChannel, QuantizationState, QuantizationStep},
   vector_manager_replication::VectorAofSink,
@@ -561,9 +562,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
       .key_index_registry
       .pin()
       .iter()
-      .filter(|(rk, _)| {
-        split_registry_key(rk.as_slice()).is_some_and(|(domain, _)| reclaim.matches(domain))
-      })
+      .filter(|(rk, _)| reclaim.matches(split_registry_key(rk.as_slice()).0))
       .map(|(rk, _)| rk.as_slice().to_vec())
       .collect();
     for rk in &victims {
@@ -573,15 +572,13 @@ impl<S: StoreCallbacks> VectorManager<S> {
 
   /// 登记表域内用户键枚举单点（DBSIZE/KEYS/SCAN 慢路径投影）。
   ///
-  /// `f` 收剥域后的用户键切片；域判定按复合键字节前缀比对——OPPV 变长
-  /// 首字节查表定长，不同域的 [NsVarint][DbVarint] 段互不为字节前缀，
-  /// starts_with 即精确域命中（与 [`registry_key`] 布局同源，零二次解码）。
+  /// `f` 收剥域后的用户键切片（[`registry_user_key`] 单点）；域判定按复合键字节
+  /// 前缀比对——OPPV 变长首字节查表定长，不同域的 [NsVarint][DbVarint] 段互不为
+  /// 字节前缀，starts_with 即精确域命中（与 [`registry_key`] 布局同源，零二次解码）。
   pub fn for_each_domain_user_key(&self, prefix: &[u8], mut f: impl FnMut(&[u8])) {
     self.key_index_registry.pin().iter().for_each(|(rk, _)| {
-      if rk.starts_with(prefix)
-        && let Some((_, user_key)) = split_registry_key(rk.as_slice())
-      {
-        f(user_key);
+      if rk.starts_with(prefix) {
+        f(registry_user_key(rk.as_slice()));
       }
     });
   }

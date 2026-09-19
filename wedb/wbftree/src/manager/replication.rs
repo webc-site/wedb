@@ -72,8 +72,8 @@ impl RangeIndexManager {
   /// 删除指定 128 位 key_id 的全部带地址刷盘快照文件 (旧世代清理，见 lifecycle::create_bftree)
   ///
   /// 前缀寻址恢复 (存根无逻辑地址) 无法区分世代，同名键重建时旧世代刷盘工件
-  /// 必须清理，杜绝惰性恢复把新世代工作文件覆盖回旧世代快照 (裸名工件由调用方
-  /// O(1) 直删，本方法只扫描带地址命名)
+  /// 必须清理，杜绝惰性恢复把新世代工作文件覆盖回旧世代快照 (刷盘件只有带地址
+  /// 一种命名，故本方法的全目录扫描即覆盖全部待清工件)
   pub(super) fn remove_addr_flush_files(&self, key_id: u128) {
     let Ok(files) = self.flush_files() else {
       return;

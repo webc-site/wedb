@@ -2741,8 +2741,8 @@ fn vector_set_discovery_for_slots() -> aok::Void {
     let found = vm.get_vector_set_keys_for_slots(&slots);
     assert_eq!(found.len(), 1, "应恰好发现 1 个向量集键");
     // 发现面返回登记表复合键（`registry_key` 单点：源端会话域 + 用户键），
-    // 迁移帧口径由驱动侧 split_registry_key 单点剥离
-    let (domain, user_key) = split_registry_key(&found[0].0).expect("发现面键应为复合键");
+    // 迁移帧口径由驱动侧 registry_user_key 单点剥域
+    let (domain, user_key) = split_registry_key(&found[0].0);
     assert_eq!(
       (domain.vns, domain.vdb),
       (0, 0),
@@ -2784,7 +2784,7 @@ fn vector_set_discovery_for_slots() -> aok::Void {
       assert_eq!(collected.len(), 1, "应只收录向量集键");
       // KEYS 收集面与 SLOTS 枚举面同为登记表复合键口径（collect_vector_set_keys
       // 会话域复合收集），断言剥域后比对用户键
-      let (domain, user_key) = split_registry_key(&collected[0].0).expect("收集面键应为复合键");
+      let (domain, user_key) = split_registry_key(&collected[0].0);
       assert_eq!((domain.vns, domain.vdb), (0, 0), "收集面键域应为会话默认域");
       assert_eq!(user_key, key.as_slice(), "剥域后应为用户键名");
       assert_eq!(collected[0].1, index_value);

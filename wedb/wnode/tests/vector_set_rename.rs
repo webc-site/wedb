@@ -172,7 +172,7 @@ fn assert_registry_exactly(vm: &VectorManager, expect_key: &[u8]) {
   let slot_keys = [i32::from(slot_of(0, 0))];
   let keys = vm.get_vector_set_keys_for_slots(&slot_keys.iter().copied().collect());
   assert_eq!(keys.len(), 1, "登记表应恰有一项：{keys:?}");
-  let (domain, user_key) = split_registry_key(&keys[0].0).expect("登记键应为复合键（可剥域）");
+  let (domain, user_key) = split_registry_key(&keys[0].0);
   assert_eq!(
     (domain.vns, domain.vdb),
     (0, 0),

@@ -397,15 +397,13 @@ fn scan_parse_quirks_match_csharp() {
       "z 键命中 expected: {reply:?}"
     );
 
-    // TYPE Zset（混合大小写）支持大小写不敏感匹配 → 同样命中 z 键
+    // TYPE Zset（混合大小写）：C# DbScan 按 SequenceEqual 双形态精确比对
+    // （CmdStrings.ZSET/zset），混合大小写不命中 → 未知类型臂，非空库也空回
     send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"Zset"])
       .await
       .expect("scan");
     let reply = read_reply(&mut s).await;
-    assert!(
-      window_contains(&reply, b"$1\r\nz\r\n"),
-      "Zset 混合大小写命中 expected: {reply:?}"
-    );
+    assert_eq!(reply, empty, "Zset 混合大小写应走未知臂空回: {reply:?}");
 
     // 未知类型（如 unknown）在非空库仍空回
     send_cmd(&mut s, &[b"SCAN", b"0", b"TYPE", b"unknown"])

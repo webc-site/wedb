@@ -25,6 +25,9 @@ pub const RESP_RETURN_VAL_1: &[u8] = b":1\r\n";
 pub const RESP_RETURN_VAL_N1: &[u8] = b":-1\r\n";
 /// libs/server/Resp/CmdStrings.cs:RESP_RETURN_VAL_N2
 pub const RESP_RETURN_VAL_N2: &[u8] = b":-2\r\n";
+/// MULTI 入队应答帧（libs/server/Resp/CmdStrings.cs:RESP_QUEUED，C# 消费点
+/// TxnRespCommands.cs:199 的 `TryWriteDirect(CmdStrings.RESP_QUEUED)`）
+pub const RESP_QUEUED: &[u8] = b"+QUEUED\r\n";
 
 // pub/sub 会话帧头单点：C# 侧这些字节由数组头/批量串/push 头三个写入原语逐段产出
 // （`libs/server/Resp/PubSubCommands.cs` 各 Network* 分支与 Publish / PatternPublish），
@@ -188,6 +191,13 @@ pub const RESP_ERR_BUSSYKEY: &str = "BUSYKEY Target key name already exists.";
 pub const RESP_ERR_INVALID_EXPIRE_TIME: &str = "ERR invalid expire time, must be >= 0";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NOSCRIPT
 pub const RESP_ERR_NOSCRIPT: &str = "ERR This Redis command is not allowed from script";
+/// EVALSHA 摘要未命中脚本缓存的应答（libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_SCRIPT，
+/// 与上一条 RESP_ERR_NOSCRIPT 是 C# 里的两条不同常量：本条 `NOSCRIPT` 前缀、
+/// 走 TryWriteError 原样成帧，故以整帧 `&[u8]` 形态承接，供 write_error_bytes 直写）
+pub const RESP_ERR_NO_SCRIPT: &[u8] = b"NOSCRIPT No matching script. Please use EVAL.";
+/// SCRIPT FLUSH 非法选项文案（libs/server/Resp/CmdStrings.cs:RESP_ERR_SCRIPT_FLUSH_OPTIONS，
+/// 同 TryWriteError 原样成帧的 `&[u8]` 形态）
+pub const RESP_ERR_SCRIPT_FLUSH_OPTIONS: &[u8] = b"ERR SCRIPT FLUSH only support SYNC|ASYNC option";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_LUA_DISABLED
 pub const RESP_ERR_LUA_DISABLED: &str = "ERR This instance has Lua scripting support disabled";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_HCOLLECT_ALREADY_IN_PROGRESS
@@ -375,6 +385,51 @@ pub const CERT_PASSWORD: &[u8] = b"cert-password";
 pub const CLUSTER_USERNAME: &[u8] = b"cluster-username";
 /// libs/server/Resp/CmdStrings.cs:ClusterPassword
 pub const CLUSTER_PASSWORD: &[u8] = b"cluster-password";
+
+// ---- 命令解析期输入 token 单点（对标 libs/server/Resp/CmdStrings.cs 的
+// `public static ReadOnlySpan<byte> COUNT => "COUNT"u8;` 一族）----
+//
+// C# 的 CmdStrings 同时是「输出帧」与「输入 token」两半边的单点；本表此前只承接
+// 输出半边，COUNT / WITHSCORES / LIMIT 等在 wcol、wnode 两个 crate 的解析臂逐处
+// 裸内联（同一 token 复写 30 余处，同步段与慢段各写一遍），拼写漂移无人拦。
+// 归位于此而非各文件私有 const 的理由与 CONFIG 键名族（MAIN_LOG_MEMORY 等）相同：
+// 这些 token 跨命令族共享，私有 const 只能被同 crate 反向取用。
+//
+// 大小写口径：C# 另有 count / type 这类小写双常量，是给 EqualsUpperCaseSpanIgnoringCase
+// 之外的窄口径比较用的；rust 解析臂统一走 `eq_ignore_ascii_case`，故每个 token 只收
+// 一份大写形态。唯一例外是 [`COUNT_LOWER`]：LPOS 选项解析按 C#
+// ListObjectImpl.cs 的 `SequenceEqual(COUNT) || SequenceEqual(count)` 双写形态转写，
+// 比较语义要求保留精确大小写两臂。
+
+/// SCAN 族 MATCH pattern 选项（libs/server/Resp/CmdStrings.cs:MATCH）
+pub const MATCH: &[u8] = b"MATCH";
+/// SCAN 族 / LPOS / LMPOP 族 / GEOSEARCH / ZRANGEBYSCORE 的 COUNT 选项
+/// （libs/server/Resp/CmdStrings.cs:COUNT）
+pub const COUNT: &[u8] = b"COUNT";
+/// COUNT 的小写形态，仅与 [`COUNT`] 配成窄口径双写比较（LPOS 选项解析对位
+/// C# `SequenceEqual(COUNT) || SequenceEqual(count)`，见
+/// /Users/z/git/db/wedb/wedb/wcol/src/list/list_object_impl.rs）
+/// （libs/server/Resp/CmdStrings.cs:count）
+pub const COUNT_LOWER: &[u8] = b"count";
+/// HSCAN / SSCAN / ZSCAN 的 NOVALUES 选项（libs/server/Resp/CmdStrings.cs:NOVALUES）
+pub const NOVALUES: &[u8] = b"NOVALUES";
+/// SCAN 族的类型过滤选项与 CLIENT LIST/KILL 的 TYPE 过滤选项
+/// （libs/server/Resp/CmdStrings.cs:TYPE）
+pub const TYPE: &[u8] = b"TYPE";
+/// GETEX 的 PERSIST 选项（libs/server/Resp/CmdStrings.cs:PERSIST）
+pub const PERSIST: &[u8] = b"PERSIST";
+/// ZDIFF / ZINTERCARD / SINTERCARD 与 BYSCORE/BYLEX 范围命令的分页 LIMIT 选项
+/// （libs/server/Resp/CmdStrings.cs:LIMIT）
+pub const LIMIT: &[u8] = b"LIMIT";
+/// ZUNION / ZUNIONSTORE / ZINTER 族权重表选项（libs/server/Resp/CmdStrings.cs:WEIGHTS）
+pub const WEIGHTS: &[u8] = b"WEIGHTS";
+/// ZRANK / ZREVRANK 的 WITHSCORE 选项（libs/server/Resp/CmdStrings.cs:WITHSCORE）
+pub const WITHSCORE: &[u8] = b"WITHSCORE";
+/// 有序集合（ZRANGE / ZDIFF / ZRANDMEMBER 族）与向量集 VSIM / VLINKS 的
+/// WITHSCORES 选项（libs/server/Resp/CmdStrings.cs:WITHSCORES）
+pub const WITHSCORES: &[u8] = b"WITHSCORES";
+/// HRANDFIELD 的 WITHVALUES 选项（libs/server/Resp/CmdStrings.cs:WITHVALUES）
+pub const WITHVALUES: &[u8] = b"WITHVALUES";
 
 /// 反射参数/命令名截断上限（防恶意超长子命令/选项名攻击）
 pub const MAX_PARAM_NAME_LEN: usize = 128;

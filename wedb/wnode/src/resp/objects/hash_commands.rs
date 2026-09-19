@@ -484,7 +484,7 @@ impl RespServerSession {
       included_count = true;
 
       // Read WITHVALUES
-      if parse_state.len() == 3 && !parse_state[2].eq_ignore_ascii_case(b"WITHVALUES") {
+      if parse_state.len() == 3 && !parse_state[2].eq_ignore_ascii_case(cs::WITHVALUES) {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
