@@ -358,6 +358,25 @@ impl FreeRecordPool {
     }
   }
 
+  /// 复位统计账目：四计数归零，不动任何分桶槽位
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs:Reset
+  ///
+  /// INFO RESETSTAT 的 reviv 臂终点（C# 链
+  /// libs/server/Metrics/GarnetServerMonitor.cs:211 →
+  /// libs/server/StoreWrapper.cs:646 →
+  /// libs/server/Databases/SingleDatabaseManager.cs:301 →
+  /// libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs:91）。
+  /// 与 [`Self::clear`] 职责分立：clear 只清槽（账目原样保留，供清池后继续
+  /// 观察累计），reset_stats 只清账（可复活槽位原样保留，不因复位丢命中能力）。
+  #[inline]
+  pub fn reset_stats(&self) {
+    self.put_count.store(0, Ordering::Relaxed);
+    self.take_count.store(0, Ordering::Relaxed);
+    self.hit_count.store(0, Ordering::Relaxed);
+    self.drop_count.store(0, Ordering::Relaxed);
+  }
+
   /// 根据记录尺寸查找首个匹配分桶的索引（利用单调性二分查找，O(log N)）
   ///
   /// 对标 C# `FreeRecordPool.GetBinIndex`；除 put / take 内部使用外，
@@ -374,7 +393,7 @@ impl FreeRecordPool {
     self.bins.iter().all(|b| b.is_empty())
   }
 
-  /// 清空所有分桶
+  /// 清空所有分桶（只清槽不动账目，计数复位见 [`Self::reset_stats`]）
   #[inline]
   pub fn clear(&self) {
     for bin in &self.bins {

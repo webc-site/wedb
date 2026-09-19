@@ -275,6 +275,17 @@ impl<D: Device> WedbStore<D> {
     out.push('\n');
     out
   }
+
+  /// 复位复活化统计账目（复活池四计数归零，可复活槽位与池启用态不动）
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs:ResetRevivificationStats
+  ///
+  /// C# 该口在清零全局 `revivificationStats` 前先合并全部活跃会话的复活统计；
+  /// rust 复活统计唯一记账源即 [`wreviv::FreeRecordPool`] 的四个全局原子计数
+  /// （会话侧无第二份账），故合并步骤无对应物，直下 `reset_stats` 即等价。
+  pub fn reset_revivification_stats(&self) {
+    self.reviv_pool.reset_stats();
+  }
 }
 
 /// 均条目数两位小数（C# `{count / (double)table:0.00}`；表空为 0.00）

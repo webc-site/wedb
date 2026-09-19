@@ -155,6 +155,12 @@ pub trait SessionProviderFace: Send + Sync {
     None
   }
 
+  /// 复位存储复活化统计（INFO RESETSTAT 的 reviv 臂宿主入口，对标 C#
+  /// libs/server/StoreWrapper.cs:ResetRevivificationStats 的
+  /// `databaseManager.ResetRevivificationStats()` 直下；
+  /// 默认空操作 = 该宿主无复活账目可复位（裸会话提供者/测试宿主）
+  fn reset_revivification_stats(&self) {}
+
   /// AOF 门面（C# storeWrapper.appendOnlyFile；None = AOF 未点亮）。
   ///
   /// 宿主关停链唯一取用面：stop() 在 join 前经

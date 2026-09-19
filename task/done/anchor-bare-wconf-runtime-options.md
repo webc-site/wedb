@@ -129,3 +129,79 @@
    重复定义组数不变（基线 13）、ignore 语料零回写（若有非本票回写一律 git checkout -- 还原）。
 3. cargo fmt 只施本票两文件。
 4. 禁跑主仓 test.sh / sh/clippy.sh。
+
+## 判词（落地时刻）
+
+状态：已合入 dev（FF 于 523b234 → c0ef376，payload 两提交 3ab00fb 与合并提交 c0ef376）。
+
+落笔面：45 处注释行改写（git diff 45+/45-，非注释行零改动，rg -v 过滤证实），
+函数体、签名、宏、字符串字面量零触碰。
+
+登记增数（js/check.js 映射册同口径 rustScan 实测，dev 基线 523b234 对合入后树）：
+
+- 全路径键（登记面）：条目 3902 → 3938，净增 36 枚；登记文件数 531 → 531（目标两 .cs 文件本已在册，
+  本票只增条目不增文件）。
+- 裸名键（不登记面）：条目 360 → 322，净减 38 枚；裸名键文件数 166 → 165（一个裸名键清空后消失）。
+- 入册明细 36 枚：runtime_server_options.rs 35 枚（34 枚挂 libs/server/Servers/GarnetServerOptions.cs、
+  LogDir 1 枚挂声明处 libs/server/Servers/ServerOptions.cs）+ node_options.rs 行 38
+  libs/server/Servers/ServerOptions.cs:DEFAULT_RESP_VERSION 1 枚。
+- 改形不增数 1 枚：runtime 行 91 的数字行主锚 GarnetServerOptions.cs:405 →
+  libs/server/Servers/GarnetServerOptions.cs:OnDemandCheckpoint（该键已由
+  wedb/wedb/src/server/cluster_provider/flags.rs 的 on_demand_checkpoint 前导 doc 持锚，
+  字段 doc 不入 dupDefFind 采集面，故既不新增条目亦不新增重复组）。
+
+未入册残枚及理由（8 处 / 6 键，全在 node_options.rs，均已改散文去冒号形）：
+
+1. 行 30、32 的 Format.defaultBindLoopBack、Format.defaultBindAny（声明 garnet/libs/common/Format.cs:39、:36）：
+   rust 侧只有 DEFAULT_BIND、DEFAULT_BIND_ANY 两常量就地承接，无同名函数口，且
+   js/check/ignore/common.yml 的 libs/common/Format.cs 块已逐名登这两枚（块理由第三类
+   「BCL 数值与格式化工具 Format.*」），挂全路径锚即触发 ignoreLoadAndPrune 自动淘汰既经甄别登记，
+   属越权改登不属改锚。
+2. 行 904、1684 的 Options.GetServerOptions（声明 garnet/libs/host/Configuration/Options.cs:771）：
+   C# 该口是整副 GarnetServerOptions 装配面（设备工厂、TLS、认证、检查点等段），rust 按
+   NodeArgs::runtime_server_options 等分段投影承接，无 1:1 具名实口，
+   js/check/ignore/hosting.yml 已登该键（理由自陈已转写活项经 NodeArgs 投影播种），挂锚即误淘汰。
+3. 行 412 的 RespServerSession.Send、行 477 与 1537 的 Format.TryParseAddressList、
+   行 1821 的 ServerOptions.ValidatedPageSizeBits：三键已分别由
+   wedb/wnode/src/resp/resp_server_session.rs:2216、本文件 :791（函数 endpoints）、
+   wedb/wconf/src/size.rs:39（函数 validated_page_size_bits）持全路径锚在册，
+   本四处只是读点与参数佐证，按「一处一锚、子处散文」不双挂。
+
+数字行形态 123 枚判留（理由见上「1b 行号形态判词」段）。
+
+门禁九项实测：
+
+1. cargo check --workspace --all-targets（树内 wedb 层，CARGO_TARGET_DIR=/tmp/ct-awc 私有）：exit 0，
+   warning 与 error 计数皆 0（首轮 1m19s，回合 dev 后复跑 53.99s 仍 0）。
+2. rustfmt --edition 2024 --check 本票两文件：零 diff；fmt 未施他文件。
+3. bun js/check.js 树内前跑（126bca0 原态）exit 0，stdout 仅「# 重复定义」13 组、无「# 实现缺失」段，
+   stderr 为 B 层 58 处、C# 语料降级 194/1425、兜底补回 388 名。
+4. 改锚后同树复跑：exit 0，stdout 与 stderr 均与前跑逐字节相同（diff 空）——
+   即零新增缺失、零新增重复组、零 B 层与降级读数漂移。
+5. ignore 与 miss 语料：两次跑后 git status -- js/check/ 全空，零回写零剪枝
+   （事前已用 prune-check 脚本对 43 枚目标键与全 83 份 ignore yml 求交，命中 3 枚即上述
+   defaultBindAny、defaultBindLoopBack、GetServerOptions，正因此三枚判散文不入册，
+   合入不触动任何既有登记）。
+6. 主仓 test.sh 与 sh/clippy.sh 未跑（禁项），归主代理门禁窗。
+7. 回合 dev：树内 git merge dev 生成 c0ef376（零冲突，dev 侧 10 提交未触 wedb/wconf/src），
+   回合后复跑 check.js，stdout 多出一组 InternalRead.cs:CopyFromImmutable（13 → 14 组），
+   系 dev 侧 db-raw-read-variant-collapse（wkv 读内核收敛）引入，与本票 payload 无关，
+   本票未触 wkv 任一文件。
+8. 主仓合并：git merge --ff-only anchor-wconf 成功（523b234 → c0ef376），
+   git diff --name-only dev anchor-wconf 恰为两枚 payload 文件，他人暂存与他域脏文件零卷入。
+9. next/cs-corpus.inv1.md 零触碰（主仓该文件的未提交改动系他棒在途，本票未 add、未 restore）。
+
+后续线索（不属本票射程，留派单参考）：
+
+- node_options.rs 行 271、1394 引「GarnetServer.cs:508 CreateAOF」，实测
+  garnet/libs/server/GarnetServer.cs 不存在，真身是 garnet/libs/host/GarnetServer.cs；
+  数字行形态不过 A 层符号断言，故门禁对此类假路径零反应，属 inv1 第一节末段与 1.1 所述
+  结构性死角族，建议由 check.js 口径票补「数字行锚路径存在性」断言后统一收。
+- wconf 尚余 3 枚裸锚在射程外文件（含 size.rs:228 的 ServerOptions.cs:ValidatedPageSizeBits），
+  留 §3.3 批 9 长尾批。
+- runtime 行 83 的 AofReplayDriftCheckFreq 注释「默认 0」取自 CLI 通道
+  （garnet/libs/host/Configuration/Options.cs:237 无 Default 即 0），
+  而本票所挂字段初值为 1（garnet/libs/server/Servers/GarnetServerOptions.cs:139），
+  本票只改形态不改语义断言，留默认值专项复核票。
+- inv1 §3.4 票 2 预计「映射册增 40+ 条」，实测净增 36，差额 8 枚经逐枚取证为映射不成立
+  （3 键 ignore 已在册且理由成立）或他处已持锚（3 键在册），不属可入册面。

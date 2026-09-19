@@ -244,7 +244,9 @@ impl<D: Device> DatabaseManagerBase<D> {
   ///    [`wcpr::publish_checkpoint_aof_address`] 把 covered 补写进检查点元数据
   ///    （对标 C# GarnetCheckpointManager.GetCookie 将 CurrentSafeAofAddress
   ///    序列化进检查点 cookie），随后 AddNewCheckpointEntry（集群 && AOF）登记
-  ///    检查点条目并安全截断；单机形态 TruncateUntil + Commit（物理截断 + 刷盘，
+  ///    检查点条目并安全截断——异步截断口经 SlowFuture 擦除壳承载、内核处
+  ///    await 收口（见下方截断层形态二分）；单机形态 TruncateUntil + Commit
+  ///    （物理截断 + 刷盘，
   ///    与数据记录同一物理 AOF 域——域统一后截断位点对单一日志成立）；
   /// 6. 记录保存点（update_last_save）；
   /// 7. 快照保留回收（单机形态）：拍新删旧至 [`CHECKPOINT_RETAIN_GENERATIONS`]
@@ -273,7 +275,16 @@ impl<D: Device> DatabaseManagerBase<D> {
 
     let mut covered = AofAddress::create(1, 0);
     if let Some(aof) = &db.aof {
-      covered = AofAddress::create(1, aof.tail_address());
+      // covered 取源按形态二分（对标 C# :509 EnableCluster 二分）：集群句柄
+      // 在位 → 复制域经 on_checkpoint_initiated 给出覆盖位点（PRIMARY 取当前
+      // 复制位点并更新提交安全地址，REPLICA 取检查点开始标记位点）；否则直取
+      // AOF 尾地址（C# else 分支 TailAddress + SetCurrentSafeAofAddress，
+      // 安全地址由本方法末尾 update_last_save 承接）
+      if let Some(cluster) = self.cluster.get() {
+        cluster.on_checkpoint_initiated(&mut covered);
+      } else {
+        covered = AofAddress::create(1, aof.tail_address());
+      }
       if (0..covered.length() as usize).any(|i| covered.get(i).is_some_and(|a| a > 0)) {
         // C# DatabaseManagerBase.cs:515 文案为 "files deleted after next commit"
         //（逻辑截断 + 提交面删段组合）；rust 提交面不删段，截断走唯一物理回收
@@ -298,7 +309,7 @@ impl<D: Device> DatabaseManagerBase<D> {
       cluster.checkpoint_version_shift_end(new_version);
     }
 
-    if let Some(aof) = &db.aof {
+    if db.aof.is_some() {
       // AOF 边界随检查点元数据持久化：取快照发起时的 covered（快照窗口内
       // 的并发写入使当前尾地址大于覆盖边界，C# CurrentSafeAofAddress 同为
       // 发起时 TailAddress）；快照已提交，补写失败即向上传播不静默
@@ -308,6 +319,21 @@ impl<D: Device> DatabaseManagerBase<D> {
         covered.get(0).unwrap_or_default() as u64,
       )
       .await?;
+    }
+
+    // 截断层按形态二分（对标 C# :536 的 EnableCluster && EnableAOF 与
+    // else 分支层级：C# 该段与 AppendOnlyFile 判空正交，rust 集群形态恒启
+    // AOF——复制域依赖 AOF 流，句柄在位即 C# 该合取式为真）：
+    // 集群句柄在位 → 复制域登记 CheckpointEntry 历史并经 SafeTruncateAOF
+    // 截断（full 恒 true 对齐 rust 统一检查点模型，与副本 attach 按需链
+    // take_on_demand_checkpoint 同口径）；否则 TruncateUntil + Commit
+    //（C# else 分支，AppendOnlyFile 判空等价）。物理回收真身仍只有
+    // truncate_until 一处（safe_truncate_aof 内部亦走它），不造第二套
+    if let Some(cluster) = self.cluster.get() {
+      if let Some(slow) = cluster.add_new_checkpoint_entry(true, covered, token, token) {
+        slow.await;
+      }
+    } else if let Some(aof) = &db.aof {
       aof.truncate_until_async(&covered).await;
       aof.commit_flush_async().await;
     }

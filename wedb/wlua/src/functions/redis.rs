@@ -398,7 +398,7 @@ impl LuaRunnerFunctions {
     true
   }
 
-  /// SET 快路径（在 garnet 中的相对路径:libs/server/Lua/LuaRunner.Functions.cs:ProcessCommandFromScripting SET 分支）。
+  /// SET 快路径（C# 对位 LuaRunner.Functions.ProcessCommandFromScripting 的 SET 分支；见 process_command_from_scripting 总入口）。
   ///
   /// key/value 形参判定顺序 1:1 对标 C#：string → known_string_to_slice；
   /// number → try_number_to_string_at 就地转串（失败回 OUT_OF_MEMORY，同 C# OutOfMemory 档）；
@@ -475,7 +475,7 @@ impl LuaRunnerFunctions {
     Some(1)
   }
 
-  /// GET 快路径（在 garnet 中的相对路径:libs/server/Lua/LuaRunner.Functions.cs:ProcessCommandFromScripting GET 分支）。
+  /// GET 快路径（C# 对位 LuaRunner.Functions.ProcessCommandFromScripting 的 GET 分支；见 process_command_from_scripting 总入口）。
   ///
   /// key 形参判定顺序同 SET：string → number（就地转串，失败 OUT_OF_MEMORY）→ 其它 ERR_BAD_ARG。
   fn try_fast_path_get(state: &mut LuaState, host: &mut HostShared, arg_count: i32) -> Option<i32> {

@@ -38,6 +38,10 @@ const INFLIGHT_CLOSED: u64 = 1 << 63;
 /// 三态的核心价值：把「记录不可判读」与「记录可读但未命中」严格分离——
 /// 前者绝不可折叠成链终止产出确定性 NOTFOUND（活键误报不存在的根因），
 /// 必须回链头重探
+///
+/// 与主日志读链判据的对位换算单点在 `session/raw/read.rs:map_rc_visit`：
+/// C# FindInReadCache 与 InternalRead 共用同一 OperationStatus（判据同源不
+/// 重复定义），本枚举只与走查出口枚举在此一处换算，勿在别处散落 match
 #[derive(Debug)]
 pub enum RcVisit<R> {
   /// 记录可读且闭包命中（键比对成功）

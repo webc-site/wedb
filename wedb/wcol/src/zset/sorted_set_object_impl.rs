@@ -315,7 +315,7 @@ impl SortedSetObject {
       self.sorted_set.len(),
       "SortedSet object is not in sync."
     );
-    output.result1 = self.count() as i64;
+    output.result1 = self.purge_expired_len() as i64;
   }
 
   /// ZSCORE：单成员分值
@@ -573,7 +573,7 @@ impl SortedSetObject {
         );
       } else {
         // byIndex
-        let set_count = self.count();
+        let set_count = self.purge_expired_len();
         let mut min_index = min_value as i64;
         let mut max_index = max_value as i64;
         if options.valid_limit {
@@ -823,7 +823,7 @@ impl SortedSetObject {
     let with_scores = (arg1 & 1) == 1;
     let included_count = ((arg1 >> 1) & 1) == 1;
     let seed = arg2 as u32;
-    let sorted_set_count = self.count() as i64;
+    let sorted_set_count = self.purge_expired_len() as i64;
 
     if count > 0 && count > sorted_set_count {
       count = sorted_set_count;
@@ -955,7 +955,7 @@ impl SortedSetObject {
     }
 
     if !ascending {
-      rank = self.count() as i64 - rank - 1;
+      rank = self.purge_expired_len() as i64 - rank - 1;
     }
 
     if with_score {

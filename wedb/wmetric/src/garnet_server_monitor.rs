@@ -84,7 +84,14 @@ pub struct ServerSample {
 
 /// 单轮迭代的外部输入（会话/服务器域复位回调集合；拥有型——采样循环与
 /// 活会话任务并发，借用型回调无法跨 await 持有）
-pub struct MonitorIterationInputs<F1 = fn(), F2 = fn(), F3 = fn(), F4 = fn(LatencyMetricsType)> {
+pub struct MonitorIterationInputs<
+  F1 = fn(),
+  F2 = fn(),
+  F3 = fn(),
+  F4 = fn(LatencyMetricsType),
+  F5 = fn(),
+  F6 = fn(),
+> {
   /// 全部服务器的采样快照。
   pub servers: Vec<ServerSample>,
   /// 复位全部活跃会话的延迟指标。
@@ -95,6 +102,11 @@ pub struct MonitorIterationInputs<F1 = fn(), F2 = fn(), F3 = fn(), F4 = fn(Laten
   pub reset_active_command_stats: F3,
   /// 复位指定类别的活跃会话延迟指标。
   pub reset_session_latency: F4,
+  /// 复位集群 gossip 统计（STATS 复位路径；C# `storeWrapper.clusterProvider?`
+  /// 为 null 的单机形态由装配侧注入空操作，对位 trait 默认实现）。
+  pub reset_gossip_stats: F5,
+  /// 复位存储复活化统计（STATS 复位路径）。
+  pub reset_revivification_stats: F6,
 }
 
 impl GarnetServerMonitor {
@@ -315,17 +327,19 @@ impl GarnetServerMonitor {
   /// libs/server/Metrics/GarnetServerMonitor.cs:CleanupGlobalStats
   ///
   /// INFO RESET 触发的清理：STATS 标志复位瞬时吞吐、连接计数、全局/历史
-  /// 会话指标（活跃部分经 `reset_active_sessions` 回调下沉到服务器域）；
-  /// libs/server/Metrics/GarnetServerMonitor.cs:CleanupGlobalStats
-  ///
-  /// INFO RESET 触发的清理：STATS 标志复位瞬时吞吐、连接计数、全局/历史
-  /// 会话指标（活跃部分经 `reset_active_sessions` 回调下沉到服务器域）；
-  /// COMMANDSTATS 标志复位全局/历史命令统计（经 `reset_active_command_stats`）。
+  /// 会话指标（活跃部分经 `reset_active_sessions` 回调下沉到服务器域），
+  /// 再按 C# 顺序下发 gossip 与复活化统计两臂复位（经
+  /// `reset_gossip_stats` / `reset_revivification_stats` 回调，对位 C# 体内的
+  /// `storeWrapper.clusterProvider?.ResetGossipStats()` 与
+  /// `storeWrapper.ResetRevivificationStats()`）；COMMANDSTATS 标志复位
+  /// 全局/历史命令统计（经 `reset_active_command_stats`）。
   fn cleanup_global_stats(
     state: &mut MonitorState,
     flags: &[AtomicBool],
     mut reset_active_sessions: impl FnMut(),
     mut reset_active_command_stats: impl FnMut(),
+    mut reset_gossip_stats: impl FnMut(),
+    mut reset_revivification_stats: impl FnMut(),
   ) {
     if flags[InfoMetricsType::Stats as usize].load(Ordering::Relaxed) {
       log::info!("Resetting latency metrics for commands");
@@ -348,6 +362,10 @@ impl GarnetServerMonitor {
       }
 
       reset_active_sessions();
+      // gossip 与复活化统计两臂（C# CleanupGlobalStats 内 :209/:211 同位、
+      // 同顺序）：本 crate 不持集群/存储句柄，复位经装配侧回调下沉
+      reset_gossip_stats();
+      reset_revivification_stats();
       flags[InfoMetricsType::Stats as usize].store(false, Ordering::Relaxed);
     }
 
@@ -406,12 +424,16 @@ impl GarnetServerMonitor {
   }
 
   /// 对应 MainMonitorTaskAsync 的单轮迭代体（C# 主循环内除 Task.Delay 外的全部步骤）。
-  fn monitor_iteration<F1, F2, F3, F4>(&self, inputs: &mut MonitorIterationInputs<F1, F2, F3, F4>)
-  where
+  fn monitor_iteration<F1, F2, F3, F4, F5, F6>(
+    &self,
+    inputs: &mut MonitorIterationInputs<F1, F2, F3, F4, F5, F6>,
+  ) where
     F1: FnMut(),
     F2: FnMut(),
     F3: FnMut(),
     F4: FnMut(LatencyMetricsType),
+    F5: FnMut(),
+    F6: FnMut(),
   {
     let mut state = self.state.lock();
 
@@ -443,6 +465,8 @@ impl GarnetServerMonitor {
       &self.reset_event_flags,
       &mut inputs.reset_active_sessions,
       &mut inputs.reset_active_command_stats,
+      &mut inputs.reset_gossip_stats,
+      &mut inputs.reset_revivification_stats,
     );
     Self::cleanup_global_latency_metrics(
       &mut state,
@@ -457,11 +481,11 @@ impl GarnetServerMonitor {
   /// `cancelled` 为取消探测（对齐 CancellationToken），取消即退出
   ///（对齐 C# 取消终止 + done.Set()）。输入每轮经 `resolve` 重新取用
   ///（对齐 C# 直查活跃会话）。
-  pub async fn main_monitor_task_async<S, Fut, F1, F2, F3, F4>(
+  pub async fn main_monitor_task_async<S, Fut, F1, F2, F3, F4, F5, F6>(
     &self,
     mut sleep: S,
     cancelled: impl Fn() -> bool,
-    mut resolve: impl FnMut() -> MonitorIterationInputs<F1, F2, F3, F4>,
+    mut resolve: impl FnMut() -> MonitorIterationInputs<F1, F2, F3, F4, F5, F6>,
   ) where
     S: FnMut(Duration) -> Fut,
     Fut: Future<Output = ()>,
@@ -469,6 +493,8 @@ impl GarnetServerMonitor {
     F2: FnMut(),
     F3: FnMut(),
     F4: FnMut(LatencyMetricsType),
+    F5: FnMut(),
+    F6: FnMut(),
   {
     while !cancelled() {
       sleep(self.monitor_sampling_frequency).await;

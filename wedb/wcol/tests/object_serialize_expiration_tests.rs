@@ -88,7 +88,7 @@ fn serialize_does_not_mutate_sorted_set_with_expired_members() {
 
   // 已过期成员在反序列化读取时剔除，存活成员与其 TTL 保真（C# roundTripped.Count() == 1）
   let mut deserialized = SortedSetObject::deserialize(&mut Cursor::new(&buf)).unwrap();
-  assert_eq!(deserialized.count(), 1);
+  assert_eq!(deserialized.purge_expired_len(), 1);
   assert!(
     deserialized
       .sorted_set_dict
@@ -125,7 +125,7 @@ fn count_purges_expired_and_reads_len() {
   }
 
   // 精度与 C# Count() 逐值一致（已过期不计入），且堆序剔除物理落地
-  assert_eq!(hash.count(), 3);
+  assert_eq!(hash.purge_expired_len(), 3);
   assert_eq!(hash.hash.len(), 3, "count 堆序剔除须物理移除已过期字段");
   assert!(hash.mutated_by_ttl(), "剔除须经写回升格标志闭环");
 }
@@ -142,7 +142,7 @@ fn count_peek_shortcircuits_on_future_ttl() {
     hash.set_expiration(&field, now + LIVE_SPAN, ExpireOption::NONE);
   }
 
-  assert_eq!(hash.count(), 65536);
+  assert_eq!(hash.purge_expired_len(), 65536);
   assert_eq!(hash.hash.len(), 65536, "未到期不得物理剔除");
   assert!(!hash.mutated_by_ttl(), "短路不得置写回升格标志");
 }

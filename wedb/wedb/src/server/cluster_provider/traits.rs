@@ -564,4 +564,40 @@ impl WnodeClusterProvider for ClusterProvider {
       rm.checkpoint_version_shift_end(new_version);
     }
   }
+
+  /// libs/cluster/Server/ClusterProvider.cs:OnCheckpointInitiated
+  ///
+  /// 检查点内核取 covered 源经本句柄下达：直转发同一 self 的
+  /// [`CheckpointCallbackFace`] 实现（单机制，不建第二套取源/安全地址更新路径）
+  fn on_checkpoint_initiated(&self, covered: &mut AofAddress) {
+    <Self as CheckpointCallbackFace>::on_checkpoint_initiated(self, covered);
+  }
+
+  /// libs/cluster/Server/ClusterProvider.cs:AddNewCheckpointEntry
+  ///
+  /// 检查点完成段的登记 + 安全截断经 [`SlowFuture`] 擦除壳承载：self_arc 取
+  /// owned Arc 脱离 &self 借用，内部 await 同一 self 的
+  /// [`CheckpointCallbackFace::add_new_checkpoint_entry`]（复用其 CheckpointEntry
+  /// 登记与 safe_truncate_aof 路径，不改其内部）；弱自引用缺位（provider 未
+  /// 装配）返 None，调用方不截断
+  fn add_new_checkpoint_entry(
+    &self,
+    full: bool,
+    covered: AofAddress,
+    store_checkpoint_token: u128,
+    object_store_checkpoint_token: u128,
+  ) -> Option<SlowFuture> {
+    let cp = self.self_arc()?;
+    Some(SlowFuture::new(async move {
+      <ClusterProvider as CheckpointCallbackFace>::add_new_checkpoint_entry(
+        cp.as_ref(),
+        full,
+        covered,
+        store_checkpoint_token,
+        object_store_checkpoint_token,
+      )
+      .await;
+      Vec::new()
+    }))
+  }
 }

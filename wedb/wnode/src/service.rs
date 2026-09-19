@@ -1440,8 +1440,7 @@ where
   /// 注入 Vector Set 预览开关（装配链尾段单次定值；开关投影进向量管理器
   /// `is_enabled`，命令面与量化/清理后台链均以此门控）。
   ///
-  /// libs/server/Resp/Vector/VectorManager.cs:VectorManager
-  ///（构造器 `IsEnabled = serverOptions.EnableVectorSetPreview` 注入位）
+  ///（C# 对位 VectorManager.cs 构造器的 `IsEnabled = serverOptions.EnableVectorSetPreview` 注入位）
   pub fn with_vector_set_preview(self, enabled: bool) -> Self {
     self
       .vector_manager
@@ -1707,6 +1706,13 @@ where
   /// 活跃消费者注册表（网络泵建连/注册、释放/注销的入口）
   fn consumer_registry(&self) -> Option<Arc<ConsumerRegistry>> {
     Some(Arc::clone(&self.registry))
+  }
+
+  /// 复位存储复活化统计（trait 默认口的存储宿主实现，对位 C#
+  /// storeWrapper.ResetRevivificationStats 的 databaseManager 直下；
+  /// INFO RESETSTAT 的 reviv 臂装配侧唯一落点）
+  fn reset_revivification_stats(&self) {
+    self.database_manager.reset_revivification_stats();
   }
 
   /// AOF 门面（inherent `aof()` 转发；EnableAOF 门控——未点亮为 None）

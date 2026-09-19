@@ -2,7 +2,7 @@
 //! （自 wnode/src/aof/garnet_log.rs 内嵌测试迁出；对标
 //! libs/server/AOF/GarnetLog.cs 的消费面行为）。
 
-use std::{sync::Arc, thread, time::Duration};
+use std::{ops::Deref, sync::Arc, thread, time::Duration};
 
 use compio::runtime::Runtime;
 use waof::{
@@ -16,13 +16,25 @@ use wnode::aof::{
   waof_sublog::WaofSublog,
 };
 
-fn log_with(sublogs: usize, replay_tasks: i32) -> GarnetLog {
+struct TestLog {
+  _dirs: Vec<tempfile::TempDir>,
+  log: GarnetLog,
+}
+
+impl Deref for TestLog {
+  type Target = GarnetLog;
+  fn deref(&self) -> &Self::Target {
+    &self.log
+  }
+}
+
+fn log_with(sublogs: usize, replay_tasks: i32) -> TestLog {
   log_with_buffer(sublogs, replay_tasks, 64 * 1024 * 1024)
 }
 
 /// 大缓冲变体：分块并发测试的写入总量（多线程 × 多轮 × 1MB 分块记录）
 /// 中途无 commit 释放环形窗口，窗口须覆盖总预留量
-fn log_with_buffer(sublogs: usize, replay_tasks: i32, buffer_size: usize) -> GarnetLog {
+fn log_with_buffer(sublogs: usize, replay_tasks: i32, buffer_size: usize) -> TestLog {
   let options = RuntimeServerOptions {
     aof_physical_sublog_count: sublogs as i32,
     aof_replay_task_count: replay_tasks,
@@ -34,7 +46,8 @@ fn log_with_buffer(sublogs: usize, replay_tasks: i32, buffer_size: usize) -> Gar
   };
   let (_dirs, backends) = wnode_test::test_sublogs_with_config("glog", sublogs.max(1), config);
   let seq_num_gen = (sublogs > 1).then(|| Arc::new(SequenceNumberGenerator::new(0)));
-  GarnetLog::new(&options, backends, seq_num_gen).expect("构造 GarnetLog")
+  let log = GarnetLog::new(&options, backends, seq_num_gen).expect("构造 GarnetLog");
+  TestLog { _dirs, log }
 }
 
 #[test]
