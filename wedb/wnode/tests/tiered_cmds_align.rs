@@ -21,6 +21,7 @@ use std::{
 use compio::runtime::Runtime;
 use itoa::Buffer as ItoaBuffer;
 use tempfile::tempdir;
+use wcol::types::member_ttl::{decode_member, encode_member};
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
 use wnode::resp::{
@@ -28,6 +29,7 @@ use wnode::resp::{
   resp_server_session::{RespServerSession, RespServerSessionOptions},
 };
 use wresp::command::RespCommand;
+use wval::GarnetObjectType;
 
 fn open_env(
   tag: &str,
@@ -494,10 +496,7 @@ fn test_tiered_zset_range_rank_parity() {
   let fill = wcol::TIERED_PROMOTE_THRESHOLD + 10;
   let encode = |member: &[u8], score: f64, expired: bool| {
     let expiry = if expired { Some(0_i64) } else { None };
-    (
-      member.to_vec(),
-      wcol::types::member_ttl::encode_member(&score.to_be_bytes(), expiry),
-    )
+    (member.to_vec(), encode_member(&score.to_be_bytes(), expiry))
   };
   // 兴趣成员分值表 → 入树条目（`expired_member` 命中的成员预烘即时到期刻度）
   let build = |expired_member: Option<&[u8]>| {
@@ -516,13 +515,13 @@ fn test_tiered_zset_range_rank_parity() {
     // 挂到期成员的批必须把水位带进元记录，否则计数快路径被假水位骗过）
     let next_expiry = ents
       .iter()
-      .filter_map(|(_, record)| wcol::types::member_ttl::decode_member(record).0)
+      .filter_map(|(_, record)| decode_member(record).0)
       .min()
       .unwrap_or(i64::MAX);
     let sess = store.new_session().unwrap();
     rt.block_on(sess.promote_collection_to_bftree(
       key,
-      wval::GarnetObjectType::SortedSet,
+      GarnetObjectType::SortedSet,
       ents,
       next_expiry,
       // 一次性首升阶（键尚无旧树）：replace=false 保留 IndexExists 去重门

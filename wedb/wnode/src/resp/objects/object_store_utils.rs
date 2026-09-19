@@ -503,6 +503,88 @@ pub fn obj_load_sync_degrades<D: Device>(
   )
 }
 
+/// Meta 原始字节探针闭包（承接四处同形闭包：长度门 + from_slice）
+#[inline]
+fn meta_probe(raw: &[u8]) -> Option<MetaValue> {
+  if raw.len() >= wval::META_VALUE_SIZE {
+    MetaValue::from_slice(raw).ok()
+  } else {
+    None
+  }
+}
+
+/// Meta 分层判定结果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MetaGate {
+  /// Meta 不存在或非存活
+  Absent,
+  /// 命中且存活但类型相符需走降级（分层态慢路径）
+  Degrade,
+  /// 水位快路径直读短路返回 size
+  SizeShortCircuit(usize),
+  /// 类型不符
+  WrongType,
+}
+
+/// Meta 分层态与类型闸统一判定核
+#[inline]
+fn meta_gate(meta: Option<MetaValue>, tag: u8, want_size: bool) -> MetaGate {
+  let Some(meta) = meta else {
+    return MetaGate::Absent;
+  };
+  if !meta.is_live() {
+    return MetaGate::Absent;
+  }
+  if meta.collection_type as u8 != tag {
+    return MetaGate::WrongType;
+  }
+  if want_size && now_ticks() <= meta.next_expiry {
+    return MetaGate::SizeShortCircuit(meta.size as usize);
+  }
+  MetaGate::Degrade
+}
+
+/// 写入 WRONGTYPE 错误帧（全模块单点）
+#[inline]
+fn write_wrong_type(output: &mut Vec<u8>) {
+  write_error_raw(output, RESP_ERR_WRONG_TYPE);
+}
+
+/// 同步 String 域反探判定
+#[inline]
+fn check_string_domain_sync<T, D: Device>(
+  store: &BatchStoreSession<'_, D>,
+  key: &[u8],
+  output: &mut Vec<u8>,
+) -> ObjLoad<T> {
+  match store.try_read_tag_sync(key, KeyTag::String, |raw| raw.first().copied()) {
+    Ok(StoreResult::Success(_)) => {
+      write_wrong_type(output);
+      ObjLoad::WrongType
+    }
+    Ok(StoreResult::NotFound) => ObjLoad::Missing,
+    Ok(StoreResult::RecordOnDisk) | Err(_) => ObjLoad::Degrade,
+  }
+}
+
+/// 异步 String 域反探判定
+#[inline]
+async fn check_string_domain_async<T, D: Device>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  output: &mut Vec<u8>,
+) -> wkv::Result<ObjLoad<T>> {
+  let str_hit = storage
+    .read_tag_with(key, KeyTag::String, |raw| raw.first().copied())
+    .await?;
+  if str_hit.is_some() {
+    write_wrong_type(output);
+    Ok(ObjLoad::WrongType)
+  } else {
+    Ok(ObjLoad::Missing)
+  }
+}
+
 /// 自定义对象同步装载（支持 u8 扩展标签）
 pub fn obj_load_custom_sync<T, D: Device>(
   store: &BatchStoreSession<'_, D>,
@@ -512,24 +594,16 @@ pub fn obj_load_custom_sync<T, D: Device>(
   deserialize: impl FnOnce(&[u8]) -> Option<T>,
 ) -> ObjLoad<T> {
   // 1. 优先探测 Meta 分层态
-  match store.try_read_tag_sync(key, KeyTag::Meta, |raw| {
-    if raw.len() >= wval::META_VALUE_SIZE {
-      MetaValue::from_slice(raw).ok()
-    } else {
-      None
-    }
-  }) {
-    Ok(StoreResult::Success(Some(meta))) => {
-      let is_alive = meta.is_live();
-      if is_alive {
-        if meta.collection_type as u8 == tag {
-          return ObjLoad::Degrade;
-        } else {
-          write_error_raw(output, RESP_ERR_WRONG_TYPE);
-          return ObjLoad::WrongType;
-        }
+  match store.try_read_tag_sync(key, KeyTag::Meta, meta_probe) {
+    Ok(StoreResult::Success(meta_opt)) => match meta_gate(meta_opt, tag, false) {
+      MetaGate::Degrade => return ObjLoad::Degrade,
+      MetaGate::WrongType => {
+        write_wrong_type(output);
+        return ObjLoad::WrongType;
       }
-    }
+      MetaGate::Absent => {}
+      MetaGate::SizeShortCircuit(_) => unreachable!(),
+    },
     Ok(StoreResult::RecordOnDisk) => return ObjLoad::Degrade,
     _ => {}
   }
@@ -543,22 +617,13 @@ pub fn obj_load_custom_sync<T, D: Device>(
   }) {
     Ok(StoreResult::Success(Ok(obj))) => ObjLoad::Present(obj),
     Ok(StoreResult::Success(Err(EnvDecodeErr::WrongType))) => {
-      write_error_raw(output, RESP_ERR_WRONG_TYPE);
+      write_wrong_type(output);
       ObjLoad::WrongType
     }
     Ok(StoreResult::Success(Err(EnvDecodeErr::Corrupt))) => {
       corrupt_payload_reject(output, key, tag)
     }
-    Ok(StoreResult::NotFound) => {
-      match store.try_read_tag_sync(key, KeyTag::String, |raw| raw.first().copied()) {
-        Ok(StoreResult::Success(_)) => {
-          write_error_raw(output, RESP_ERR_WRONG_TYPE);
-          ObjLoad::WrongType
-        }
-        Ok(StoreResult::NotFound) => ObjLoad::Missing,
-        Ok(StoreResult::RecordOnDisk) | Err(_) => ObjLoad::Degrade,
-      }
-    }
+    Ok(StoreResult::NotFound) => check_string_domain_sync(store, key, output),
     Ok(StoreResult::RecordOnDisk) | Err(_) => ObjLoad::Degrade,
   }
 }
@@ -588,24 +653,16 @@ pub async fn obj_load_custom_async<T, D: Device>(
   deserialize: impl Fn(&[u8]) -> Option<T>,
 ) -> wkv::Result<ObjLoad<T>> {
   // 1. 优先探测 Meta 分层态
-  let meta_hit = storage
-    .read_tag_with(key, KeyTag::Meta, |raw| {
-      if raw.len() >= wval::META_VALUE_SIZE {
-        MetaValue::from_slice(raw).ok()
-      } else {
-        None
-      }
-    })
-    .await?;
-  if let Some(Some(meta)) = meta_hit {
-    let is_alive = meta.is_live();
-    if is_alive {
-      if meta.collection_type as u8 == tag {
-        return Ok(ObjLoad::Degrade);
-      } else {
-        write_error_raw(output, RESP_ERR_WRONG_TYPE);
+  let meta_hit = storage.read_tag_with(key, KeyTag::Meta, meta_probe).await?;
+  if let Some(meta_opt) = meta_hit {
+    match meta_gate(meta_opt, tag, false) {
+      MetaGate::Degrade => return Ok(ObjLoad::Degrade),
+      MetaGate::WrongType => {
+        write_wrong_type(output);
         return Ok(ObjLoad::WrongType);
       }
+      MetaGate::Absent => {}
+      MetaGate::SizeShortCircuit(_) => unreachable!(),
     }
   }
 
@@ -622,21 +679,11 @@ pub async fn obj_load_custom_async<T, D: Device>(
   match read {
     Some(Ok(obj)) => Ok(ObjLoad::Present(obj)),
     Some(Err(EnvDecodeErr::WrongType)) => {
-      write_error_raw(output, RESP_ERR_WRONG_TYPE);
+      write_wrong_type(output);
       Ok(ObjLoad::WrongType)
     }
     Some(Err(EnvDecodeErr::Corrupt)) => Ok(corrupt_payload_reject(output, key, tag)),
-    None => {
-      let str_hit = storage
-        .read_tag_with(key, KeyTag::String, |raw| raw.first().copied())
-        .await?;
-      if str_hit.is_some() {
-        write_error_raw(output, RESP_ERR_WRONG_TYPE);
-        Ok(ObjLoad::WrongType)
-      } else {
-        Ok(ObjLoad::Missing)
-      }
-    }
+    None => check_string_domain_async(storage, key, output).await,
   }
 }
 
@@ -649,31 +696,16 @@ pub fn obj_length_sync<D: Device>(
   output: &mut Vec<u8>,
 ) -> ObjLoad<usize> {
   // 1. 优先探测 Meta 分层态 (O(1) 直读 MetaValue.size)
-  match store.try_read_tag_sync(key, KeyTag::Meta, |raw| {
-    if raw.len() >= wval::META_VALUE_SIZE {
-      MetaValue::from_slice(raw).ok()
-    } else {
-      None
-    }
-  }) {
-    Ok(StoreResult::Success(Some(meta))) => {
-      let is_alive = meta.is_live();
-      if is_alive {
-        if meta.collection_type == tag {
-          // 字段级 TTL 计数抵扣：水位快路径（now <= next_expiry，树内无到期
-          // 成员——`ticks < now` 严格判过期，水位刻度当刻未到期，`<=` 收口
-          // off-by-one）O(1) 直读；水位越过才降级异步慢路径校正（分层计数臂经
-          // 到期重灌内核物理出账后回读），collection.md 计数规约第 3 条分层态补则
-          if now_ticks() <= meta.next_expiry {
-            return ObjLoad::Present(meta.size as usize);
-          }
-          return ObjLoad::Degrade;
-        } else {
-          write_error_raw(output, RESP_ERR_WRONG_TYPE);
-          return ObjLoad::WrongType;
-        }
+  match store.try_read_tag_sync(key, KeyTag::Meta, meta_probe) {
+    Ok(StoreResult::Success(meta_opt)) => match meta_gate(meta_opt, tag as u8, true) {
+      MetaGate::SizeShortCircuit(size) => return ObjLoad::Present(size),
+      MetaGate::Degrade => return ObjLoad::Degrade,
+      MetaGate::WrongType => {
+        write_wrong_type(output);
+        return ObjLoad::WrongType;
       }
-    }
+      MetaGate::Absent => {}
+    },
     Ok(StoreResult::RecordOnDisk) => return ObjLoad::Degrade,
     _ => {}
   }
@@ -687,19 +719,10 @@ pub fn obj_length_sync<D: Device>(
   }) {
     Ok(StoreResult::Success(Ok(cnt))) => ObjLoad::Present(cnt),
     Ok(StoreResult::Success(Err(()))) => {
-      write_error_raw(output, RESP_ERR_WRONG_TYPE);
+      write_wrong_type(output);
       ObjLoad::WrongType
     }
-    Ok(StoreResult::NotFound) => {
-      match store.try_read_tag_sync(key, KeyTag::String, |raw| raw.first().copied()) {
-        Ok(StoreResult::Success(_)) => {
-          write_error_raw(output, RESP_ERR_WRONG_TYPE);
-          ObjLoad::WrongType
-        }
-        Ok(StoreResult::NotFound) => ObjLoad::Missing,
-        Ok(StoreResult::RecordOnDisk) | Err(_) => ObjLoad::Degrade,
-      }
-    }
+    Ok(StoreResult::NotFound) => check_string_domain_sync(store, key, output),
     Ok(StoreResult::RecordOnDisk) | Err(_) => ObjLoad::Degrade,
   }
 }
@@ -713,28 +736,16 @@ pub async fn obj_length_async<D: Device>(
   output: &mut Vec<u8>,
 ) -> wkv::Result<ObjLoad<usize>> {
   // 1. 优先探测 Meta 分层态 (O(1) 直读 MetaValue.size)
-  let meta_hit = storage
-    .read_tag_with(key, KeyTag::Meta, |raw| {
-      if raw.len() >= wval::META_VALUE_SIZE {
-        MetaValue::from_slice(raw).ok()
-      } else {
-        None
-      }
-    })
-    .await?;
-  if let Some(Some(meta)) = meta_hit {
-    let is_alive = meta.is_live();
-    if is_alive {
-      if meta.collection_type == tag {
-        // 字段级 TTL 计数抵扣同 obj_length_sync（`<=` 水位快路径直读 / 越过降级）
-        if now_ticks() <= meta.next_expiry {
-          return Ok(ObjLoad::Present(meta.size as usize));
-        }
-        return Ok(ObjLoad::Degrade);
-      } else {
-        write_error_raw(output, RESP_ERR_WRONG_TYPE);
+  let meta_hit = storage.read_tag_with(key, KeyTag::Meta, meta_probe).await?;
+  if let Some(meta_opt) = meta_hit {
+    match meta_gate(meta_opt, tag as u8, true) {
+      MetaGate::SizeShortCircuit(size) => return Ok(ObjLoad::Present(size)),
+      MetaGate::Degrade => return Ok(ObjLoad::Degrade),
+      MetaGate::WrongType => {
+        write_wrong_type(output);
         return Ok(ObjLoad::WrongType);
       }
+      MetaGate::Absent => {}
     }
   }
 
@@ -751,20 +762,10 @@ pub async fn obj_length_async<D: Device>(
   match read {
     Some(Ok(cnt)) => Ok(ObjLoad::Present(cnt)),
     Some(Err(())) => {
-      write_error_raw(output, RESP_ERR_WRONG_TYPE);
+      write_wrong_type(output);
       Ok(ObjLoad::WrongType)
     }
-    None => {
-      let str_hit = storage
-        .read_tag_with(key, KeyTag::String, |raw| raw.first().copied())
-        .await?;
-      if str_hit.is_some() {
-        write_error_raw(output, RESP_ERR_WRONG_TYPE);
-        Ok(ObjLoad::WrongType)
-      } else {
-        Ok(ObjLoad::Missing)
-      }
-    }
+    None => check_string_domain_async(storage, key, output).await,
   }
 }
 
