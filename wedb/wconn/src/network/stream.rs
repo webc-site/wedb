@@ -27,6 +27,7 @@ use compio::{
 use compio_tls::TlsStream;
 #[cfg(feature = "tls")]
 use futures_util::{AsyncRead as TlsAsyncRead, AsyncWrite as TlsAsyncWrite, lock::BiLock};
+use wbase::endpoint::uds_path;
 
 use crate::Result;
 #[cfg(feature = "tls")]
@@ -52,7 +53,7 @@ impl OutStream {
   ///（C# 出站建 socket 的 `EndPoint is not UnixDomainSocketEndPoint` 门同语义）；
   /// 非 unix 平台无 Unix 域套接字臂，命中该形态端点即明确报错不回退 TCP
   pub(crate) async fn connect(endpoint: &str) -> Result<Self> {
-    match wbase::endpoint::uds_path(endpoint) {
+    match uds_path(endpoint) {
       #[cfg(unix)]
       Some(path) => Ok(Self::Unix(UnixStream::connect(path).await?)),
       #[cfg(not(unix))]

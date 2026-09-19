@@ -248,10 +248,13 @@ pub(crate) fn earliest_expiry(entries: &[(Vec<u8>, Vec<u8>)]) -> i64 {
 /// [`expire_sweep_or_rebuild`] 一次性出账——无成员级确认态标量（member 级
 /// 状态无法无损汇入单一标量，刻意不设），两态计数等价由「读臂过滤 + 计数臂
 /// 校正 + 周期收集兜底」三层闭环保证。
+/// 到期全扫产物：`(存活条目全集, 到期被剔除计数)`
+type SweptLiveEntries = (Vec<(Vec<u8>, Vec<u8>)>, u64);
+
 fn sweep_expired_members(
   ctx: &mut TieredCtx<'_>,
   tree: &BfTreeService,
-) -> Option<(Vec<(Vec<u8>, Vec<u8>)>, u64)> {
+) -> Option<SweptLiveEntries> {
   let now = now_ticks();
   if now < ctx.meta.next_expiry {
     return None;

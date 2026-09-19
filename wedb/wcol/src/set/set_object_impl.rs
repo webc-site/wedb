@@ -45,7 +45,7 @@ impl SetObject {
     let mut written = 0_i64;
 
     for item in &self.set {
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(item);
+      RespWriter::new_ref(output.payload).write_bulk_string(item);
       written += 1;
     }
 
@@ -58,7 +58,7 @@ impl SetObject {
   pub(crate) fn set_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let member = args[0];
     let is_member = self.set.contains(member);
-    RespWriter::new_ref(&mut output.payload).write_int64(i64::from(is_member));
+    RespWriter::new_ref(output.payload).write_int64(i64::from(is_member));
     output.result1 = 1;
   }
 
@@ -66,10 +66,10 @@ impl SetObject {
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetMultiIsMember
   pub(crate) fn set_multi_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &member in args {
-      RespWriter::new_ref(&mut output.payload).write_int64(i64::from(self.set.contains(member)));
+      RespWriter::new_ref(output.payload).write_int64(i64::from(self.set.contains(member)));
     }
 
     output.result1 = args.len() as i64;
@@ -135,7 +135,7 @@ impl SetObject {
         };
         self.set.remove(&item);
         self.update_size(&item, false);
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&item);
+        RespWriter::new_ref(output.payload).write_bulk_string(&item);
         count_done += 1;
       }
 
@@ -150,7 +150,7 @@ impl SetObject {
         let item = self.set.iter().nth(index).cloned().unwrap();
         self.set.remove(&item);
         self.update_size(&item, false);
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&item);
+        RespWriter::new_ref(output.payload).write_bulk_string(&item);
       } else {
         // If set empty return nil
         write_null(output, resp_protocol_version);
@@ -191,7 +191,7 @@ impl SetObject {
         let Some(element) = self.set.iter().nth(index).cloned() else {
           continue;
         };
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&element);
+        RespWriter::new_ref(output.payload).write_bulk_string(&element);
         count_done += 1;
       }
       count_done += i64::from(count) - count_parameter as i64;
@@ -200,7 +200,7 @@ impl SetObject {
       if !self.set.is_empty() {
         let index = pick_random_index(self.set.len(), seed);
         if let Some(item) = self.set.iter().nth(index).cloned() {
-          RespWriter::new_ref(&mut output.payload).write_bulk_string(&item);
+          RespWriter::new_ref(output.payload).write_bulk_string(&item);
         }
       } else {
         // If set is empty, return nil
@@ -215,13 +215,13 @@ impl SetObject {
 
       if !self.set.is_empty() {
         // Write the size of the array reply
-        RespWriter::new_ref(&mut output.payload).write_array_length(count_parameter);
+        RespWriter::new_ref(output.payload).write_array_length(count_parameter);
 
         for index in indexes {
           let Some(element) = self.set.iter().nth(index).cloned() else {
             continue;
           };
-          RespWriter::new_ref(&mut output.payload).write_bulk_string(&element);
+          RespWriter::new_ref(output.payload).write_bulk_string(&element);
           count_done += 1;
         }
       } else {
