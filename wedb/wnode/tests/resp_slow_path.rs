@@ -5,6 +5,7 @@
 //! 网络泵角色），对标 garnet/test/standalone/Garnet.test 的 SCAN/KEYS/
 //! DBSIZE 用例族（RespTests / RespTestsBytes）
 use std::{
+  iter::once,
   str::from_utf8,
   sync::{Arc, atomic::Ordering},
   thread::sleep,
@@ -50,7 +51,7 @@ fn consumer_with_api() -> (RespSessionConsumer, GarnetApi) {
 /// 组 RESP 请求数组帧（cmd + args）
 fn frame_of(cmd: &[u8], args: &[&[u8]]) -> Vec<u8> {
   let mut frame = format!("*{}\r\n", args.len() + 1).into_bytes();
-  for token in std::iter::once(cmd).chain(args.iter().copied()) {
+  for token in once(cmd).chain(args.iter().copied()) {
     frame.extend_from_slice(format!("${}\r\n", token.len()).as_bytes());
     frame.extend_from_slice(token);
     frame.extend_from_slice(b"\r\n");

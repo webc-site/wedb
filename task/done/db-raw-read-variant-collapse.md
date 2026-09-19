@@ -52,3 +52,10 @@ try_read_mem_fallback 预期从 130 行缩至约 40 行；read.rs 整体减约�
 
 cargo check -p wkv 通过（worktree 内）；全部调用点语义不变，仅上述两处已漂移的
 瞬态边角口径按 C# 归一（fallback 整链走查、Miss(0) 置 0），无新增 pub 面。
+
+落位：已完成（merge cd44779，代码提交 f5230fc）。三单点 find_in_read_cache /
+trace_back_for_key_match / drive_mem_read(+MemDrive) 与探测两连 read_probe /
+reprobe_first_addr 全部落地；try_read_mem 收为驱动环私有；fallback RC 段改接
+整链走查、Miss(0) 链尽置 0 两处按 C# 归一；batch 内层重试环改接驱动。
+window.rs with_record 锚点让位，FindInReadCache 全路径锚点一处定义。
+cargo check -p wkv 与 --workspace 通过；check.js 无新增重复定义组。
