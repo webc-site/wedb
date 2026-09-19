@@ -12,7 +12,7 @@ use compio::time::sleep;
 use parking_lot::Mutex;
 use wacl::{AccessControlList, AclPassword, GarnetAclAuthenticator, User, UserHandle};
 use wconf::{DEFAULT_MAX_DATABASES, DEFAULT_RESP_VERSION, NodeArgs};
-use wcustom::{CommandType, CustomObjectFns};
+use wcustom::{CommandType, CustomObjectFns, KeyScope};
 use wdev::SegmentedDevice;
 use wlua::{LuaOptions, LuaTimeoutManager};
 use wmetric::{LatencyMetricsType, SessionMetricsHandle};
@@ -637,6 +637,7 @@ fn custom_command_arity_gate() {
     CustomCommandRef {
       name: "MYTXN",
       command_type: CommandType::Read,
+      key_scope: KeyScope::Single,
       arity: 3,
       object_tag: CustomObjectType::Roaring.as_u8(),
       fns: stub_fns(),
@@ -656,6 +657,7 @@ fn custom_command_arity_gate() {
     CustomCommandRef {
       name: "MYPROC",
       command_type: CommandType::Read,
+      key_scope: KeyScope::Single,
       arity: 3,
       object_tag: CustomObjectType::Roaring.as_u8(),
       fns: stub_fns(),

@@ -27,13 +27,11 @@ use wbase::{
   hash_slot::slot_of,
   time::{now_ms, now_nanos, now_stopwatch_ticks},
 };
-use wcol::{
-  itembroker::collection_item_observer::CollectionItemResult, object_payload::obj_decode_custom,
-};
+use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::{DEFAULT_RESP_VERSION, NodeArgs, RuntimeServerConfig, ServerConfigType};
-use wcustom::{CommandType, CustomObjectFns};
+use wcustom::{CommandType, CustomObjectFns, KeyScope};
 use wdev::Device;
-use wkv::{StoreResult, WedbStore};
+use wkv::WedbStore;
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, LuaTimeoutManager, ScriptingApi, SessionScriptCache,
   StoreScriptCache,
@@ -64,7 +62,6 @@ use wtxn::{
   TransactionManager, TxnCommandKeys, TxnKeySpec, TxnLockTable, TxnQueuedCommandInfo, TxnState,
   WatchVersionMap,
 };
-use wval::KeyTag;
 
 use super::{
   BlockedWait, ItemBroker,
@@ -218,6 +215,8 @@ pub struct CustomCommandRef {
   pub name: &'static str,
   /// 命令类型（Read / ReadModifyWrite）
   pub command_type: CommandType,
+  /// 键作用域（单键 / 多键读；静态清单形态位，执行面按此分派）
+  pub key_scope: KeyScope,
   /// arity（0 = 不校验；负值 = 至少 -arity-1 个参数）
   pub arity: i32,
   /// 对象信封类型标签（wval::CustomObjectType 分配单点，经 wcustom
@@ -232,6 +231,7 @@ impl fmt::Debug for CustomCommandRef {
     f.debug_struct("CustomCommandRef")
       .field("name", &self.name)
       .field("command_type", &self.command_type)
+      .field("key_scope", &self.key_scope)
       .field("arity", &self.arity)
       .field("object_tag", &self.object_tag)
       .finish_non_exhaustive()
@@ -1960,7 +1960,9 @@ impl RespServerSession {
       self.command_error_written = true;
       return Ok(true);
     }
-    let Some((&key, args)) = parse_state.split_first() else {
+    // 键与命令入参由静态清单键作用域拆定（单键与多键读同一分派面，会话
+    // 执行臂不再按命令名比串特判）；拆不出键 = 参数域不足，按 arity 同款口径报错
+    let Some(args) = custom.key_scope.split(parse_state) else {
       cs::abort_with_wrong_number_of_arguments(output, custom.name);
       self.command_error_written = true;
       return Ok(true);
@@ -1968,31 +1970,6 @@ impl RespServerSession {
 
     // 自定义对象执行体的 nil 帧随会话协议（版本在调用点裁决，执行体不自存状态）
     let resp_version = self.resp_protocol_version;
-    if custom.name.eq_ignore_ascii_case("JSON.MGET") {
-      let (keys, path_slice) = parse_state.split_at(parse_state.len() - 1);
-      let path = path_slice[0];
-      output.write_resp_array_len(keys.len());
-      for &k in keys {
-        let res = store.try_read_tag_sync(k, KeyTag::ObjectEnvelope, |raw| {
-          if let Some(payload) = obj_decode_custom(raw, custom.object_tag) {
-            let mut sub_out = Vec::new();
-            (custom.fns.reader)(payload, &[path], &mut sub_out, resp_version);
-            Some(sub_out)
-          } else {
-            None
-          }
-        });
-        match res {
-          Ok(StoreResult::Success(Some(sub_out))) => {
-            output.extend_from_slice(&sub_out);
-          }
-          _ => {
-            output.write_resp_null_ver(self.resp_protocol_version);
-          }
-        }
-      }
-      return Ok(true);
-    }
 
     // 信封类型标签 + 执行面均为编译期静态取用（解析期已入槽，零锁零克隆）
     #[cfg(any(feature = "roaring", feature = "json"))]
@@ -2004,10 +1981,9 @@ impl RespServerSession {
         store,
         CustomObjectCall {
           cmd_type: custom.command_type,
+          args,
           tag: custom.object_tag,
           fns: &custom.fns,
-          key,
-          args,
           resp_version,
         },
         output,
@@ -2024,7 +2000,7 @@ impl RespServerSession {
     // 绝不静默
     #[cfg(not(any(feature = "roaring", feature = "json")))]
     let done = {
-      let _ = (custom, key, args, store);
+      let _ = (custom, args, store);
       log::error!("自定义对象命令执行域未配置，被拒绝");
       cs::write_error_raw(output, cs::RESP_ERR_GENERIC_UNK_CMD);
       self.command_error_written = true;

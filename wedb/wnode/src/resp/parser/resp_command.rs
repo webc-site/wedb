@@ -38,8 +38,9 @@ use crate::resp::{
 /// 扩展命令编译期静态清单匹配（脱离会话借用的纯函数，零锁零分配）：
 /// 内建表未命中时以命令名直查扩展对象静态清单
 ///（[`crate::resp::custom_objects`] 单点组装），命中产出全量命令引用
-///（静态清单规范名 + 命令类型 + arity + 执行体 + 信封标签，标签自命中
-/// 清单项单点取值）；未命中 / 未配置扩展特性（空清单）维持 None（与
+///（静态清单规范名 + 命令类型 + 键作用域 + arity + 执行体 + 信封标签，
+/// 标签自命中清单项、作用域自命令元数据单点取值）；未命中 / 未配置扩展
+/// 特性（空清单）维持 None（与
 /// C# 注册表无该项时的行为一致）。
 fn try_parse_custom_command(
   command: &[u8],
@@ -48,6 +49,7 @@ fn try_parse_custom_command(
   Some(super::super::resp_server_session::CustomCommandRef {
     name: meta.name,
     command_type: meta.command_type,
+    key_scope: meta.key_scope,
     arity: meta.arity,
     object_tag: entry.tag.as_u8(),
     fns: meta.fns,
