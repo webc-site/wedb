@@ -2584,17 +2584,19 @@ impl RespServerSession {
     // 不属于任何客户端命令的应答插进出网流（协议流错插的最后一道闸）；此处
     // 写明并就地取消，与 [`Self::dispose`] 同一取消口径
     if let Some(blocked) = self.take_blocked_wait() {
-      log::error!("lua script window leaked a blocked wait, cancelled");
+      log::error!("脚本窗口退出时残留阻塞挂起体，已就地取消");
       blocked.abort();
     }
     if self.take_slow_wait().is_some() {
-      log::error!("lua script window leaked a slow wait, cancelled");
+      log::error!("脚本窗口退出时残留慢路径挂起体，已就地取消");
     }
     // 会话窗口挂回：外层游标与接收缓冲复位，水位让渡哨兵复位为派发前的
     // false（EVAL 能被派发即说明前序命令未触水位）
     self.recv_buffer = outer_recv;
     (self.read_head, self.end_read_head, self.bytes_read) = outer_cursors;
     self.output_watermark_yield = false;
+    // 窗口缓冲整段弃用（C# 内嵌 processor 的 ScratchBufferNetworkSender 随窗口
+    // 丢弃同款）：dispatch_resp 收尾已把窗口应答尽数冲入脚本应答，此处无可残留
     self.output = outer_output;
     // 脚本窗口关闭：外层连接命令恢复 no-script 门豁免（对齐 C# 外层会话
     // 位图恒 null）
