@@ -28,11 +28,17 @@
 //! TTL 残余源，两层收口后树内删除记录恒零）。
 //!
 //! 成员级 TTL 的惰性出账面（计数校正臂 HLEN / ZCARD、输出面校正臂 HGETALL /
-//! HKEYS / HVALS、显式 HCOLLECT / ZCOLLECT 与周期对象收集任务）不穿透物化
-//!（HLEN 的 O(1) 计数规约要求树内就地闭环，见 doc/zh/collection.md 大键
-//! O(1) 计数规约第 3 条），而走本模块的到期重灌内核 [`expire_sweep_or_rebuild`]：
-//! 水位命中时锁内单趟扫描收集存活全集，放守卫后整值重灌（drain + bulk_load，
-//! 与裁决 B 同一重建原语），树内同样零墓碑；水位未命中零树访问、直读恒精确。
+//! HKEYS / HVALS、显式 HCOLLECT / ZCOLLECT 与周期对象收集任务）不穿透物化，
+//! 而走本模块的到期重灌内核 [`expire_sweep_or_rebuild`]：水位命中时锁内单趟
+//! 扫描收集存活全集，放守卫后整值重灌（drain + bulk_load，与裁决 B 同一重建
+//! 原语），树内同样零墓碑；水位未命中（`now <= next_expiry`，含水位刻度
+//! 当刻）零树访问、直读恒精确。计数复杂度契约（已裁决口径，见
+//! doc/zh/collection.md 大键 O(1) 计数规约第 3 条分层态补则）：稳态水位内
+//! HLEN/ZCARD O(1) 直读 `MetaValue.size`；水位越过即首个计数命令 O(N) 物理
+//! 出账一次（扫 + 有到期才重灌），水位前移后回归 O(1)——到期辅助索引会被
+//! 索引侧墓碑与双写放大击穿「树内零墓碑」写形，单批限截断则必须有界删树，
+//! 均不采；C# 同面亦非 O(1)（HashObject/SortedSetObject.Count 遍历
+//! expirationTimes 字典，O(T) 内存只读）。
 
 use core::str;
 use std::{str::from_utf8, sync::Arc};
@@ -239,10 +245,16 @@ pub(crate) fn earliest_expiry(entries: &[(Vec<u8>, Vec<u8>)]) -> i64 {
 /// 分层树字段级到期单趟扫描内核（唯一，计数校正臂 / 输出面校正臂 / 显式
 /// HCOLLECT·ZCOLLECT / 周期对象收集任务共用，杜绝第二套收集逻辑）
 ///
-/// 水位快路径：`now < meta.next_expiry` 时树内不存在已到期成员，零树访问
-/// 直回 `None`（`Ok(false)` 等价口径）。水位命中才全扫一遍：收集**存活全集**
-///（树内原始记录形态，含未到期 TTL 头——既是输出面数据源，也是整值重灌的
-/// 灌入批）并计数到期成员，重算最早到期水位写回 `ctx.meta.next_expiry`。
+/// 水位快路径：`now <= meta.next_expiry` 时树内不存在已到期成员（成员刻度
+/// `ticks < now` 严格判过期，水位刻度 `== now` 的成员要到下一刻度才到期），
+/// 零树访问直回 `None`（`Ok(false)` 等价口径）。水位越过才全扫一遍：收集
+/// **存活全集**（树内原始记录形态，含未到期 TTL 头——既是输出面数据源，
+/// 也是整值重灌的灌入批）并计数到期成员，重算最早到期水位写回
+/// `ctx.meta.next_expiry`。判定收在 `<=` 而非 `<`，是计数 O(1) 契约的
+/// off-by-one 收口：若在 `now == next_expiry`（无一到期）也开扫，水位原值
+/// 不动，该刻度窗口内每条计数命令都重复 O(N) 全扫——收口后「扫 ⇒ 必有
+/// 成员实际到期」成为不变量，每到期纪元至多一扫（契约口径见
+/// doc/zh/collection.md 大键 O(1) 计数规约第 3 条分层态补则）。
 ///
 /// 记账口径：树内「已到期未删除」成员由 `size` 承载、由调用方经
 /// [`expire_sweep_or_rebuild`] 一次性出账——无成员级确认态标量（member 级
@@ -256,7 +268,9 @@ fn sweep_expired_members(
   tree: &BfTreeService,
 ) -> Option<SweptLiveEntries> {
   let now = now_ticks();
-  if now < ctx.meta.next_expiry {
+  // `<=`：水位刻度成员此刻尚未到期（`ticks < now` 严格），零树访问直回；
+  // 越过水位才必有到期可出账（off-by-one 收口，见上文水注文）
+  if now <= ctx.meta.next_expiry {
     return None;
   }
   let mut live: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
@@ -280,13 +294,15 @@ fn sweep_expired_members(
   Some((live, expired))
 }
 
-/// 到期重灌执行结果：水位命中后守卫与存活全集的去向
+/// 到期重灌执行结果：水位越过（`now > next_expiry`，必有成员已到期）后守卫
+/// 与存活全集的去向
 enum SweepOutcome<'a> {
-  /// 水位未命中：零树访问，树守卫原样奉还（调用方走流式快路径直读）
+  /// 水位未越过：零树访问，树守卫原样奉还（调用方走流式快路径直读）
   Below(TreeGuard<'a>),
-  /// 水位命中：单趟全扫已完成，存活全集经 `drain_live` 闭包单次遍历交出
+  /// 水位越过：单趟全扫已完成，存活全集经 `drain_live` 闭包单次遍历交出
   ///（输出面收集单点，免二次扫树）；`expired > 0` 时已整值重灌出账（守卫已
-  /// 释、计数已扣、置脏），`expired == 0` 时仅水位前移回写（树内容零变更）
+  /// 释、计数已扣、置脏），`expired == 0` 时仅水位前移回写（树内容零变更，
+  /// 仅水位落后者：HPERSIST 后残低的旧水位一次扫正）
   Swept { expired: u64 },
 }
 
@@ -299,12 +315,13 @@ enum SweepOutcome<'a> {
 /// 输出面臂在此收集应答数据——重灌会 move 走全集且旧树随之销毁，闭包是输出
 /// 面读取存活数据的唯一窗口），零克隆零二次扫树。
 ///
-/// 出账代价（读放大与锁窗口，与旧「批量树内删除」形对比）：水位命中那次由
-/// O(1) 变 O(N)——锁内单趟全扫收集存活集，放锁后 O(N_live) 重灌写；水位未
-/// 命中恒零树访问。旧形锁内扫 O(N) + 批量删 O(E)（E = 到期数），新形重灌
+/// 出账代价（读放大与锁窗口，与旧「批量树内删除」形对比）：水位越过那次计数
+/// 由 O(1) 变 O(N)——锁内单趟全扫收集存活集，放锁后 O(N_live) 重灌写；水位
+/// 未越过恒零树访问。旧形锁内扫 O(N) + 批量删 O(E)（E = 到期数），新形重灌
 /// 恒 O(N_live)——出账批接近全集（如整树同时到期）时两形同阶，零星到期时
 /// 新形贵出存活集写放大，这是换取「树内墓碑恒零 ⇒ 扫描栈深度自变量消失」
-/// 的既定裁决代价（见模块头注）。
+/// 的既定裁决代价（见模块头注）；`<=` 判定收口后该 O(N) 每到期纪元至多
+/// 一次，契约口径见 doc/zh/collection.md 大键 O(1) 计数规约第 3 条分层态补则。
 ///
 /// 删空自愈（严格删空生命周期）：存活全集为空 → `keep_ttl=false` 随键清 TTL
 /// 整键回收（对齐 [`wkv handle_bftree_drain_and_delete`] 删键臂）；非空重灌
@@ -662,8 +679,9 @@ async fn tiered_hash_arm<D: Device>(
     }
 
     HashOperation::Hlen => {
-      // 计数校正（见 expire_sweep_or_rebuild）：水位命中即整值重灌出账到期
-      // 成员（树内零墓碑），直读恒精确（collection.md 大键 O(1) 计数规约第 3 条）
+      // 计数校正（见 expire_sweep_or_rebuild）：水位越过即物理出账到期成员
+      //（树内零墓碑，有到期才重灌），O(N) 每到期纪元至多一次，其余时刻直读
+      // `size` 恒精确 O(1)（collection.md 大键 O(1) 计数规约第 3 条分层态补则）
       let _ = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |_| {}).await?;
       output.write_resp_int(ctx.meta.size as i64);
       Ok(true)
@@ -1388,8 +1406,9 @@ async fn tiered_zset_arm<D: Device>(
     }
 
     SortedSetOperation::Zcard => {
-      // 计数校正（同分层 Hlen 臂，见 expire_sweep_or_rebuild）：水位命中即
-      // 整值重灌出账（树内零墓碑），直读恒精确
+      // 计数校正（同分层 Hlen 臂，见 expire_sweep_or_rebuild）：水位越过即
+      // 物理出账（树内零墓碑，有到期才重灌），O(N) 每到期纪元至多一次，其余
+      // 时刻直读 `size` 恒精确 O(1)
       let _ = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |_| {}).await?;
       output.write_resp_int(ctx.meta.size as i64);
       Ok(true)
