@@ -103,3 +103,71 @@ next/info-store-snapshot-channel.md 只管 INFO 存储域段的导出通道（Se
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
 
 盘点补记（qw13.invA info-resetstat-gossip-reviv-reset-arms）：dev e75716e 复核原样：reset_gossip_stats 仍只有 wnode/src/cluster_provider.rs:271 trait 转发与 wedb/src/server/cluster_provider.rs 真实现，零生产调用；single_database_manager.rs:166-167 reset_revivification_stats 仍是空体 + 「wkv 无复活化统计面」注释（与 wkv/src/store 持 reviv_pool 的事实相反，reviv 旋钮现已接 wconf/service 装配链，注释失真加剧）；wreviv/src 无 reset_stats。三面接线修法不变。
+
+## 判词（棒：info-resetstat-arms，树 /tmp/fork/info-resetstat-arms，CARGO_TARGET_DIR=/tmp/ct-isr）
+
+结论：票面五段现状与盘点补记逐条复核为真（未落地、C# 形态无反证），按修法一~四实施完毕，
+已随 5fb1621 快进入 dev。行号按当下代码重取（票面 a7402c4/e75716e 期行号已漂移，位点同函数）：
+resp_server_session.rs:1745 现 :1769；single_database_manager.rs:145 现 :166（复核时）；
+cluster_provider.rs:125/:253 现 :135/:270；consumer_registry.rs:418 现 :469；
+server.rs:817 现 :857；info_provider.rs:157 现 :173；pool.rs:106-112 现 :107-112。
+gossip_stats.rs 真实现随 cluster_provider.rs 拆分为 server/cluster_provider/traits.rs，现 :513。
+
+落地（file:line 为主仓 dev 现刻）
+
+1. 修法一 池层复位原语 + 存储薄入口：wrebv 无此口，现 wedb/wreviv/src/pool.rs:373
+   FreeRecordPool::reset_stats（四计数 store(0, Relaxed)，锚 RevivificationStats.cs:Reset），
+   :396 将 clear 文档改注「只清槽不动账目，计数复位见 reset_stats」；
+   wedb/wkv/src/store/stats.rs:286 WedbStore::reset_revivification_stats 转调
+   :287 reviv_pool.reset_stats()，并注明 C#「先并活跃会话账」在 rust 无对应物
+   （复活账唯一源即池四计数）。
+2. 修法二 真下发：wedb/wnode/src/database/single_database_manager.rs:170-171 函数体
+   改为 self.db.store.reset_revivification_stats()，删除「wkv 无复活化统计面（wkv index
+   内部化），空操作」失真注释，保留 C# 锚 SingleDatabaseManager.cs:ResetRevivificationStats；
+   trait 声明 :101（i_database_manager.rs）与转发 :481 零改动。
+3. 修法三 监视器两臂 + 装配补挂：
+   wedb/wmetric/src/garnet_server_monitor.rs:87-110 MonitorIterationInputs 增 F5/F6 两泛型参
+   （默认 fn()）与字段 :107 reset_gossip_stats / :109 reset_revivification_stats；
+   :336 cleanup_global_stats 增两形参，STATS 分支在 reset_active_sessions() 之后、
+   清标志之前按 C# :209/:211 同序调用 :367 / :368；:427 monitor_iteration 与
+   :484 main_monitor_task_async 泛型面同步扩至 F5/F6。本 crate 不持集群/存储句柄，零反向依赖。
+   wedb/wnode/src/servers/consumer_registry.rs:472 monitor_iteration_inputs 增两形参
+   （:474/:475）并落入结构体（:525/:526）——全仓 MonitorIterationInputs 字面量唯一构造点
+   （grep 仅命中此处），未起第二套挂点、未写兼容层。
+   wedb/wnode/src/traits.rs:162 SessionProviderFace::reset_revivification_stats 默认空操作
+   （对位 StoreWrapper.cs:ResetRevivificationStats），:1715-1716（service.rs）
+   StorageSessionProvider 下发 database_manager；
+   wedb/wnode/src/server.rs:869 start_server_monitor 增 cluster_provider: C 与
+   session_provider: Arc<P> 两入参，采样任务每轮重建两臂闭包各持一份句柄克隆：
+   :909 gossip.reset_gossip_stats()、:910 reviv.reset_revivification_stats()；
+   调用点 :262-270 补两实参（cluster_provider.clone() 与 :258 先行取走的
+   Arc::clone(&session_provider)），未引入全局单例。
+4. 修法四：wedb/wnode/src/cluster_provider.rs:135（trait 默认空实现）与 :270（Arc 转发）
+   零改动，接线后即单机形态（C# clusterProvider 为 null）的下臂落点。
+
+验收四条逐条取证
+
+1. gossip 计数回落 0 且非复位轮不受影响：新增 wedb/wedb/tests/info_resetstat_arms.rs:75
+   test_resetstat_arms_zero_gossip_stats（真 wedb::ClusterProvider + 真 GarnetServerMonitor +
+   真 ConsumerRegistry，经 INFO 取数面 get_gossip_stats 断言 meet_requests_recv /
+   gossip_bytes_send 在 RESETSTAT 轮为 "0"，前后共五轮对照）；
+   wedb/wnode/tests/server_monitor_tests.rs:307 断两臂触达次数与时机（0 → 1 → 1）；
+   wedb/wnode/tests/database_manager.rs:263 断 reviv 账目真落库（四计数归零 + 不清槽 +
+   trait 面同效）。STOREREVIV 段导出仍未落地（本单射程外，票内边界已载）。
+2. 生产调用点：reset_gossip_stats 现 server.rs:909（监视器 STATS 分支另于
+   garnet_server_monitor.rs:367 调回调）；reset_revivification_stats 现 server.rs:910 →
+   service.rs:1716 → single_database_manager.rs:171 → store/stats.rs:287 → pool.rs:373。
+3. clear 与 reset_stats 职责分立：新增 wedb/wreviv/tests/main.rs:69
+   reset_stats_zeroes_counters_and_clear_keeps_them（clear 后账目原样、reset_stats 后槽位
+   仍可复活）；既有 smoke_pool_lifecycle_and_slack_allocation 的 stats/clear 断言零改动，
+   wreviv 全套 25/25 通过。
+4. 门禁：树内 cargo check --workspace --all-targets exit=0 且零告警（未新增 allow，
+   diff 内 grep allow( 零命中）；定向 nextest：wreviv 25/25、wconf + wnode
+   （server_monitor_tests / database_manager / client_commands_tests / resp_info）22/22、
+   wedb（info_resetstat_arms + gossip_manager）10/10、合并 wkv 改动后 wkv 225/225 全绿。
+   树内两次 merge dev（523b234 读改写收敛 + 5fb1621 前 wconf 注释锚批次）均复跑上述门禁。
+
+顺带处置：cleanup_global_stats 文档里同一 GarnetServerMonitor.cs:CleanupGlobalStats 锚
+被重复粘了两遍（存量误粘），本次改写该 doc 时合并为一枚，不构成第二挂点。
+未做：不动 STOREREVIV 导出、不动 js/check 语料（ResetRevivificationStats 现仍列
+server.yml:877 与 storage.yml:748/:799 忽略册，待主代理门禁回写）。

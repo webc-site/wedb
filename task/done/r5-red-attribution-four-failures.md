@@ -43,8 +43,9 @@ fix-obj-arg-reparse 落地（工作提交 eaa27ea，经 0bcf574 入 dev），本
   （异名且 GET(newKey) 命中 → `result = 0; abortTransaction = true; return OK`）；回包面
   libs/server/Resp/KeyAdminCommands.cs:255-277（:268-270 注释「1 if key was renamed / 0 if newkey
   already exists」+ `TryWriteInt32(result)`）。
-- 修法（eaa27ea）：断言随 C# 行实改——同名自改段改判 `:1`，另补真·NX 段（先 seed_ri 造
-  idx_existing，`RENAMENX idx2 idx_existing` 判 `:0`），两态各钉一次，未削强度。
+- 修法（eaa27ea）：断言随 C# 行实改——range_index_wrongtype_gate.rs:146-150 同名自改段改判 `:1`，
+  :152-157 另补真·NX 段（先 seed_ri 造 idx_existing，`RENAMENX idx2 idx_existing` 判 `:0`），
+  两态各钉一次，未削强度。
 - 本棒复核：rust 侧同键早退臂与 C# :241-250 逐条件对齐（nx→`:1`、非 nx→`+OK`），成立。
 
 ### 枚2 wnode::resp_commandstats_session commandstats_calls_failed_rejected_end_to_end —— 实现破 C#，修实现留测试
@@ -77,9 +78,9 @@ fix-obj-arg-reparse 落地（工作提交 eaa27ea，经 0bcf574 入 dev），本
   respProtocolVersion == 2) TryWriteDirect(CmdStrings.SUSCRIBE_PONG) else RESP_PONG`）+
   libs/server/Resp/CmdStrings.cs:190（`SUSCRIBE_PONG => "*2\r\n$4\r\npong\r\n$0\r\n\r\n"`）+
   C# 自身用例 test/standalone/Garnet.test/RespPubSubTests.cs:285-287（订阅态 PING 逐字节断该整帧）。
-- 修法（eaa27ea）：断言随 C# 行实改，resp_pubsub.rs:261-263 期望帧改 `*2\r\n$4\r\npong\r\n$0\r\n\r\n`
-  并登记 RespPubSubTests.cs:285 行实；其余白名单/拦截段（RESET、SUNSUBSCRIBE、SUBSCRIBE、QUIT、
-  GET/SET/PUBLISH 拦截、RESP3 不拦）保持原断言，未放宽。
+- 修法（eaa27ea）：断言随 C# 行实改，resp_pubsub.rs:264 期望帧改 `*2\r\n$4\r\npong\r\n$0\r\n\r\n`
+  （:261 登记 RespPubSubTests.cs:285 行实；同型断言另 :317 一并迁移）；其余白名单/拦截段（RESET、
+  SUNSUBSCRIBE、SUBSCRIBE、QUIT、GET/SET/PUBLISH 拦截、RESP3 不拦）保持原断言，未放宽。
 - 本棒复核：行为与 C# 逐字节一致，判「契约迁移」成立，非实现破口。
 
 ### 枚4 wnode::tiered_field_ttl tiered_hash_expire_sets_and_reads_back —— 断言过强，改断言
@@ -96,4 +97,22 @@ fix-obj-arg-reparse 落地（工作提交 eaa27ea，经 0bcf574 入 dev），本
   (field, value) 包含校验（与 C# OrderBy-SequenceEqual 同强度：数量、无重、成员全）。
 - 枚级取证：f24966c 的前一态复跑旧严格断言绿、f24966c 后红（数字见文末），墓碑/重灌之外无其它源。
 
-### 门禁与复绿数字（私有 target /tmp/ct-r5，树 /tmp/fork/r5-red）
+### 门禁与复绿数字（私有 target /tmp/ct-r5，树 /tmp/fork/r5-red；基线树 /tmp/base-r5 + /tmp/ct-r5-base）
+
+- 红态取证（19664cd，即票面 4b59438 后继）：四套件 23 例 = 19 passed / 4 failed，四枚逐一对上票面，
+  失败落点 range_index_wrongtype_gate.rs:147（实 `:1` 期 `:0`）、resp_commandstats_session.rs:56
+  （实 failed_calls=0 期 1）、resp_pubsub.rs:264（实 `*2\r\n$4\r\npong\r\n$0\r\n\r\n` 期 `+PONG`）、
+  tiered_field_ttl.rs:221（实 f1,f3,f2 期 f1,f2,f3），全为秒级 assert，无抖动/环境红迹象。
+- 基线取证（22548fc detached 复跑）：同 23 例 23 passed / 0 failed，坐实「R4 基线四枚绿」。
+- 枚级 sha 钉死（枚4）：/tmp/base-r5 上 `tiered_hash_expire_sets_and_reads_back` 单例复跑
+  f24966c^（=b0a9a7b）1 passed → f24966c 1 failed，失败帧与 19664cd 逐字节同（f1,f3,f2 序），
+  故枚4 归因 f24966c 而非同套件其余源；票面嫌疑 bfbd1e0、c629653 判否。
+- 复绿（合并窗前）：树 FF 至 21d12cc（dev 现尖）四套件 23/23 全绿，四枚在列。
+- wnode 全域 nextest：523b234 上 1095 run / 1095 passed / 1 skipped（EXIT=0）；21d12cc（dev 现尖）上
+  1097 run / 1097 passed / 1 skipped（EXIT=0），全域零红。
+- cargo check --workspace --all-targets：523b234 上 Finished in 50.44s，0 error / 0 warning（EXIT=0）。
+- 禁件：未跑主仓 test.sh、未跑 clippy.sh。
+- 锚点语料：本棒零代码/注释载荷，未触锚点，故未跑 bun js/check.js 前后对跑；并核实并发窗内
+  `git diff 08df69f..dev -- js/check` 为空——四枚复绿未写任何 ignore/allow。
+- 载荷归属：四枚复绿代码与测试改动全部在并发棒 fix-obj-arg-reparse 的 eaa27ea（经 0bcf574 入 dev）；
+  本棒零新增代码提交，载荷为上文逐枚终裁判词（含并发棒未登记的 C# 行实补齐与枚级 sha 取证）。
