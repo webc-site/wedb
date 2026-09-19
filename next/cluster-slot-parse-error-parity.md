@@ -77,3 +77,10 @@ C# 对位
 - 不做向下兼容：旧错误串与旧判定序直接删，不写「兼容旧文案」分支。
 - 与在途票无交叠：task/ing/cluster-provider-version-map-dead-slot.md（provider 死槽）、
   task/ing/qcode10-parse-db-index-i32-parity.md（db index 解析）均不触碰槽位文案。
+
+分拣补记（next/agy.net.md 条 3 同题，源档已分拣清空删除；浅核 2026-09-19 主仓 dev）：本票判定序与
+文案三偏离之外还有第四处同函数偏离——try_parse_slots 的 range 臂用 args.as_chunks::<2>().0 迭代
+（slot_mgmt.rs:222），奇数尾参落在 as_chunks.1 被静默丢弃不报错；C# 同位（ClusterCommands.cs:57-81）
+while 循环内 currTokenIdx++ 两次取数，奇数尾时第二个 TryGetInt 越界返回 false → RESP_ERR_INVALID_SLOT
+报错。落地时在本票目标形态内一并补 range 臂偶数校验（奇数即 Err(SlotParseError::NotInteger)），正好
+满足本票验收中「ADDSLOTSRANGE 奇数元」断言的前置。

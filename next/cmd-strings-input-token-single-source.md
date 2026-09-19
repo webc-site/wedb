@@ -70,3 +70,16 @@ task/ing/set-exist-options-single-source.md 管 SET 族 ExistOptions 解析器�
 （RESP_QUEUED 裸写于 resp_server_session.rs:2829、RESP_ERR_NO_SCRIPT 裸内联于
 wlua/src/commands.rs:207、ERR_SCRIPT_FLUSH_OPTION 以 crate 私有 const 绕开 wlua/src/strings.rs
 单点表）与本单同属 cmd_strings 承接完整性，落地时一并按同一常量表收口。
+
+分拣补记（next/agy.design.md 条 4 + next/muse.design.md 条 13 同题）：错误文案 const 自立增量——
+六处文件级 const 复测在场且 cmd_strings 无同名承接：
+wnode/src/resp/acl_commands.rs:34 RESP_ERR_ACL_FOREIGN_NAMESPACE、:37 RESP_ERR_ACL_GENPASS_BITS_RANGE、
+wnode/src/resp/txn_resp_commands.rs:70 RESP_ERR_TRANSACTION_FAILED、
+wnode/src/resp/array_commands.rs:36 RESP_ERR_LENGTH_AND_INDEXES（C# CmdStrings.cs:308 有原条）、
+wnode/src/resp/objects/object_store_utils.rs:205 RESP_ERR_CORRUPT_PAYLOAD、
+wnode/src/resp/objects/sorted_set_commands/mod.rs:29 RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM
+（pub(crate) 已被 read.rs/write.rs/slow.rs 三文件跨文件引用，自立单点实态成立）；
+另 wnode/src/resp/garnet_api/slow.rs:61 RESP_ERR_CHECKPOINT_UNWIRED 为自造文案（C# 无对条），
+按「迁入单点或注明本文件独有用」同口径处置。
+
+盘点补记（qw13.invA cmd-strings-input-token-single-source）：dev e75716e 复核原样：wresp/src/cmd_strings.rs 仍只有输出帧常量、零输入 token 常量组；裸位点在场：wcol/src/types/scan_input.rs:61、wcol/src/list/list_object_impl.rs:511（b"COUNT"|b"count" 双写形态）、wnode/src/resp/rangeindex/resp_server_session_range_index.rs:495。机械收口定位不变。

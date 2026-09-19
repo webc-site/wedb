@@ -6,6 +6,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
+use wbase::align::DEFAULT_SECTOR_SIZE;
 use wcompact::{CompactionType, Error, LogCompactor};
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
@@ -21,7 +22,11 @@ fn multi_segment_physical_truncation() -> Void {
     let base_path = dir.path().join("seg_db");
     let segment_size = 8192u64;
     let page_size = 4096usize;
-    let device = Arc::new(SegmentedDevice::segmented(&base_path, segment_size)?);
+    let device = Arc::new(SegmentedDevice::new(
+      &base_path,
+      Some(segment_size),
+      DEFAULT_SECTOR_SIZE,
+    )?);
 
     let config = StoreConfig::new(1024, page_size, 16, 0.5)?;
     let store = Arc::new(WedbStore::open(config, Arc::clone(&device))?);

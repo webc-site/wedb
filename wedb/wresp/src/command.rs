@@ -26,6 +26,11 @@ pub enum RespCommand {
   Decr = 6,
   Decrby = 7,
   Del = 8,
+  /// TTL 过期物理清除的内部 RMW 条目（对标 C# 统一存储 RMW 分派里的 DELIFEXPIM，
+  /// 见「libs/server/Storage/Functions/UnifiedStore/RMWMethods.cs」的 ExpireAndStop 臂），
+  /// 只由 AOF 记录与重放链路投递（wnode service 的 TTL 清除、aof_processor 的重放判定）。
+  /// 对外协议不接线是与 C# 一致的正确设计（C# 侧 RESP 解析与会话层同样无该命令的分派臂），
+  /// 勿补 parser 条目、勿当僵尸命令删除
   Delifexpim = 9,
   Delifgreater = 10,
   Expire = 11,

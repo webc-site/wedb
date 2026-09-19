@@ -312,16 +312,11 @@ impl SegmentedDevice {
     self.direct_io.load(Ordering::Relaxed)
   }
 
-  /// 创建单文件无界存储设备（默认 4096 扇区大小）
+  /// 创建单文件无界存储设备（默认 4096 扇区大小；分段形态经 [`SegmentedDevice::new`]
+  /// 传 `Some(段尺寸)` 构造，不再有第二套别名入口）
   #[inline]
   pub fn single_file(base_path: impl Into<PathBuf>) -> Result<Self> {
     Self::new(base_path, None, DEFAULT_SECTOR_SIZE)
-  }
-
-  /// 创建分段存储设备（默认 4096 扇区大小）
-  #[inline]
-  pub fn segmented(base_path: impl Into<PathBuf>, segment_size: u64) -> Result<Self> {
-    Self::new(base_path, Some(segment_size), DEFAULT_SECTOR_SIZE)
   }
 
   /// 获取父目录路径（base_path 无父目录分量时以当前工作目录 "." 兜底）
