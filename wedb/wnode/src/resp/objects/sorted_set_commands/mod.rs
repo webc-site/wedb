@@ -47,15 +47,16 @@ pub(crate) type Rmw = ObjLoad<RespRmwDone>;
 /// 经对象层 operate 通道执行操作，返回结构化输出
 ///（协议版本按会话协商版本透传，C# respProtocolVersion）
 #[inline]
-pub(crate) fn run_operate(
+pub(crate) fn run_operate<'o>(
   obj: &mut SortedSetObject,
   op: SortedSetOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -104,12 +105,12 @@ pub(crate) fn zset_save_or_gc(
 /// - 仅回填 result1 的操作（ZREM/ZREMRANGEBYLEX）以移除计数为准。
 pub(crate) fn should_write_back(
   op: SortedSetOperation,
-  out: &ObjectOutput,
+  out: &ObjectOutput<'_>,
   obj: &SortedSetObject,
   existed: bool,
 ) -> bool {
   if (is_read_only(op) && !obj.mutated_by_ttl())
-    || out.payload.first() == Some(&b'-')
+    || out.payload_view().first() == Some(&b'-')
     || (!existed && obj.sorted_set_dict.is_empty())
   {
     return false;
@@ -118,7 +119,7 @@ pub(crate) fn should_write_back(
     SortedSetOperation::Zrem | SortedSetOperation::Zremrangebylex => {
       out.result1 > 0 && out.result1 != i32::MAX as i64
     }
-    _ => !out.payload.is_empty(),
+    _ => out.written(),
   }
 }
 
@@ -171,7 +172,7 @@ impl RespServerSession {
         SortedSetObject::new,
         |o: &SortedSetObject| o.sorted_set_dict.is_empty(),
         |o: &SortedSetObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )

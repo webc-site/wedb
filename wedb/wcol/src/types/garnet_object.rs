@@ -36,7 +36,7 @@ pub trait IGarnetObject: Send + Sync + Debug {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool;
 
@@ -86,7 +86,7 @@ impl IGarnetObject for HashObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     self.operate(
@@ -158,7 +158,7 @@ impl IGarnetObject for SetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     self.operate(
@@ -219,7 +219,7 @@ impl IGarnetObject for ListObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     self.operate(
@@ -284,7 +284,7 @@ impl IGarnetObject for SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     self.operate(

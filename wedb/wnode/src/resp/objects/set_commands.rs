@@ -36,15 +36,16 @@ type Rmw = ObjLoad<RespRmwDone>;
 
 /// 经对象层 operate 通道执行操作，返回结构化输出
 ///（协议版本按会话协商版本透传，C# respProtocolVersion）
-fn run_operate(
+fn run_operate<'o>(
   obj: &mut SetObject,
   op: SetOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -88,8 +89,8 @@ pub(crate) fn set_save_or_gc(
 /// - 错误回复（WRONGTYPE 标志或 `-` 行）无状态变更，不落库（防幻键）；
 /// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
 /// - 仅回填 result1 的删除类操作（SREM）以移除计数为准。
-fn should_write_back(op: SetOperation, out: &ObjectOutput, obj: &SetObject, existed: bool) -> bool {
-  if is_read_only(op) || out.payload.first() == Some(&b'-') || (!existed && obj.set.is_empty()) {
+fn should_write_back(op: SetOperation, out: &ObjectOutput<'_>, obj: &SetObject, existed: bool) -> bool {
+  if is_read_only(op) || out.payload_view().first() == Some(&b'-') || (!existed && obj.set.is_empty()) {
     return false;
   }
   match op {
@@ -162,7 +163,7 @@ impl RespServerSession {
         SetObject::new,
         |o: &SetObject| o.set.is_empty(),
         |o: &SetObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
@@ -279,15 +280,15 @@ impl RespServerSession {
       // C# NOTFOUND → WriteEmptySet（版本分派：RESP2 *0 / RESP3 ~0）
       SetLoad::Missing => cs::write_set_len(output, 0, self.resp_protocol_version),
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Smembers,
           &[],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -310,15 +311,15 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       SetLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Sismember,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -346,15 +347,15 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Smismember,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -408,23 +409,28 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let mut obj_out = run_operate(
           &mut obj,
           SetOperation::Spop,
           &[],
           count_parameter,
           0,
           self.resp_protocol_version,
+          output,
         );
         match set_save_or_gc(store, key, &obj) {
           Ok(true) => {}
-          Ok(false) => return Ok(false),
+          // Degrade/存储错误：回退挂载点，慢路径整体重放或错误帧独占应答
+          Ok(false) => {
+            obj_out.reset();
+            return Ok(false);
+          }
           Err(_) => {
+            obj_out.reset();
             output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -476,15 +482,15 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Srandmember,
           &[],
           count_parameter,
           seed,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -912,7 +918,7 @@ pub(crate) mod slow {
         SetObject::new,
         |o: &SetObject| o.set.is_empty(),
         |o: &SetObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, 0, 0, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, 0, 0, resp_version, output),
         should_write_back,
       ),
     )
@@ -1031,9 +1037,7 @@ pub(crate) mod slow {
           SetObject::from_blob,
           |output: &mut Vec<u8>| cs::write_set_len(output, 0, resp_version),
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Smembers, &[], 0, 0, resp_version).payload,
-            );
+            run_operate(obj, SetOperation::Smembers, &[], 0, 0, resp_version, output);
           },
         )
         .await;
@@ -1047,9 +1051,7 @@ pub(crate) mod slow {
           SetObject::from_blob,
           |output: &mut Vec<u8>| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Sismember, args, 0, 0, resp_version).payload,
-            );
+            run_operate(obj, SetOperation::Sismember, args, 0, 0, resp_version, output);
           },
         )
         .await;
@@ -1068,9 +1070,7 @@ pub(crate) mod slow {
             }
           },
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Smismember, args, 0, 0, resp_version).payload,
-            );
+            run_operate(obj, SetOperation::Smismember, args, 0, 0, resp_version, output);
           },
         )
         .await;
@@ -1105,16 +1105,14 @@ pub(crate) mod slow {
             }
           },
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(
-                obj,
-                SetOperation::Srandmember,
-                &[],
-                count_parameter,
-                fastrand::i32(..),
-                resp_version,
-              )
-              .payload,
+            run_operate(
+              obj,
+              SetOperation::Srandmember,
+              &[],
+              count_parameter,
+              fastrand::i32(..),
+              resp_version,
+              output,
             );
           },
         )
@@ -1240,16 +1238,20 @@ pub(crate) mod slow {
     else {
       return Ok(());
     };
-    let obj_out = run_operate(
+    let mut obj_out = run_operate(
       &mut obj,
       SetOperation::Spop,
       &[],
       count_parameter,
       0,
       resp_version,
+      output,
     );
-    save_or_gc(storage, key, &obj).await?;
-    output.extend_from_slice(&obj_out.payload);
+    // 写回失败回退挂载点再落错（慢路径统一应答前清场）
+    if save_or_gc(storage, key, &obj).await.is_err() {
+      obj_out.reset();
+      return Err(());
+    }
     Ok(())
   }
 

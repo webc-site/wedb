@@ -35,7 +35,7 @@ impl SortedSetObject {
   /// GEOADD：以 GeoHash 整数为分值批量登记成员
   ///
   /// libs/server/Objects/SortedSetGeo/SortedSetGeoObjectImpl.cs:GeoAdd
-  pub(crate) fn geo_add(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput) {
+  pub(crate) fn geo_add(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     // 缺省：新增并更新既有成员
@@ -117,7 +117,7 @@ impl SortedSetObject {
   pub(crate) fn geo_hash(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
@@ -139,7 +139,7 @@ impl SortedSetObject {
   pub(crate) fn geo_distance(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let member1 = args[0];
@@ -173,7 +173,7 @@ impl SortedSetObject {
   pub(crate) fn geo_position(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
@@ -201,7 +201,7 @@ impl SortedSetObject {
   pub fn geo_search(
     &mut self,
     opts: &mut GeoSearchOptions,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     read_only: bool,
   ) {
