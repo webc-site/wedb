@@ -121,10 +121,10 @@ fn ri_key_read_gate_folds_wrongtype_and_whitelist_passes() {
   assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx"]), b"+none\r\n");
 }
 
-/// 方向 1 附：RENAME / RENAMENX 专项——门语义只要求「不以 WRONGTYPE 拒绝」
+/// 方向 1 附：RENAME /// 方向 2：RENAME 专项——RI 键是白名单方向，不被 WRONGTYPE 拦截
 ///
-/// 迁移本体未落地（`wnode/src/resp/key_admin_commands/keys.rs` 探到 Meta 域
-/// 命中即降级，慢路径分派表无 Rename 臂），本用例钉住门方向并记录当前落点。
+/// 迁移本体已落地（慢路径 `rename_range_index` 支持 RangeIndex 树迁移与改名）：
+/// 原键 idx 迁移到新键 idx2，原键清退不可达，新键完整继承 rangeindex 记录与树内字段。
 #[test]
 fn ri_key_rename_not_wrongtyped() {
   let rt = Runtime::new().unwrap();
@@ -132,21 +132,37 @@ fn ri_key_rename_not_wrongtyped() {
 
   seed_ri(&rt, &mut c, "idx");
 
-  for args in [
-    vec!["RENAME", "idx", "idx2"],
-    vec!["RENAMENX", "idx", "idx2"],
-  ] {
-    let out = cmd(&rt, &mut c, &args);
-    assert!(
-      !is_wrongtype(&out),
-      "{args:?} 是白名单方向，不得被门禁拒绝: {}",
-      text(&out)
-    );
-  }
-  // 键未被门禁清退：RI 记录与树内字段仍在
-  assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx"]), b"+rangeindex\r\n");
+  let out = cmd(&rt, &mut c, &["RENAME", "idx", "idx2"]);
+  assert_eq!(out, b"+OK\r\n", "RENAME 应成功迁移 RangeIndex 键");
+  // 原键已迁移清退：TYPE 为 none
+  assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx"]), b"+none\r\n");
+  // 新键继承 RI 记录与树内字段
+  assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx2"]), b"+rangeindex\r\n");
   assert_eq!(
-    cmd(&rt, &mut c, &["RI.GET", "idx", "field1"]),
+    cmd(&rt, &mut c, &["RI.GET", "idx2", "field1"]),
+    b"$6\r\nvalue1\r\n"
+  );
+
+  // RENAMENX：同名自改返回 1（对标 C# UnifiedStoreOps.cs:248）
+  assert_eq!(
+    cmd(&rt, &mut c, &["RENAMENX", "idx2", "idx2"]),
+    b":1\r\n",
+    "同名自改时 RENAMENX 应返回 1"
+  );
+  seed_ri(&rt, &mut c, "idx_existing");
+  assert_eq!(
+    cmd(&rt, &mut c, &["RENAMENX", "idx2", "idx_existing"]),
+    b":0\r\n",
+    "目标键已存在时 RENAMENX 应返回 0"
+  );
+  assert_eq!(
+    cmd(&rt, &mut c, &["RENAMENX", "idx2", "idx3"]),
+    b":1\r\n",
+    "目标键不存在时 RENAMENX 应返回 1"
+  );
+  assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx3"]), b"+rangeindex\r\n");
+  assert_eq!(
+    cmd(&rt, &mut c, &["RI.GET", "idx3", "field1"]),
     b"$6\r\nvalue1\r\n"
   );
 }

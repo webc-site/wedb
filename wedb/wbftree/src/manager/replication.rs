@@ -1,4 +1,4 @@
-//! 刷盘快照文件名解析、日志截断回收、检查点快照树文件复制枚举与检查点全量恢复
+//! 刷盘快照文件共享枚举与文件名解析、日志截断回收、检查点快照树文件复制枚举与检查点全量恢复
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:OnTruncateImpl / RecoverAllTreesFromCheckpoint 与 libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/RangeIndexSnapshotReader.cs)
 
 use std::{
@@ -18,12 +18,10 @@ impl RangeIndexManager {
   /// 解析刷盘快照文件名 `{hash_prefix}.{logical_address_b32}.flush.bftree`
   ///
   /// 严格校验：前缀 26 位 Base32、地址段恰好 13 位 Base32，安全解码出 128 位 key_id 与地址。
-  /// C# 私有原语 libs/server/Resp/RangeIndex/RangeIndexManager.cs:EnumerateFlushFiles
-  /// (目录枚举 + 文件名解析产出 (path, name, addr)) 在 rust 不设独立函数，由本方法
-  /// 与消费方 ([`Self::on_truncate`] / [`Self::remove_addr_flush_files`]) 的
-  /// read_dir 循环内联承接
+  /// 枚举器私有解码步：仅由 [`Self::flush_files`] 的循环调用 (C# 锚点见该法文档)，
+  /// 消费方一律经枚举器取件，不再各自内联 read_dir + 解析样板
   #[inline]
-  pub(super) fn parse_flush_file_name(file_name: &str) -> Option<(u128, u64)> {
+  fn parse_flush_file_name(file_name: &str) -> Option<(u128, u64)> {
     let rest = file_name.strip_suffix(".flush.bftree")?;
     let (prefix, addr_str) = rest.rsplit_once('.')?;
     let key_id = decode_u128(prefix)?;
@@ -31,23 +29,40 @@ impl RangeIndexManager {
     Some((key_id, addr))
   }
 
+  /// 枚举 ri_log_root 下全部带地址刷盘快照件，产出 `(path, key_id, addr)`
+  /// ——1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:EnumerateFlushFiles
+  /// (C# 的私有共享迭代器：一处枚举、多路分发，消费方为截断清理与复制期文件枚举)
+  ///
+  /// 目录有效性预检、read_dir、`file_name().to_str()` 容错与
+  /// [`Self::parse_flush_file_name`] 严格解码全在此一处承担，外来文件 (裸名刷盘件、
+  /// `.data.bftree` 工作文件、`.recovering` 残留、子目录) 一律跳过：
+  /// - 目录不存在按空集处理 (与 C# 预检同口径，不作 IO 失败)；目录存在但不可读上抛；
+  /// - 单个目录项读取失败仅跳过该项 (对齐 C# 消费方整轮 catch 的容错枚举)；
+  /// - 惰性逐项产出 (C# `IEnumerable` 同形)，消费方可在遍历途中删件。
+  ///
+  /// rust 侧三处消费方：[`Self::on_truncate`] (按地址阈值回收)、
+  /// [`Self::remove_addr_flush_files`] (按 key_id 删全世代)、
+  /// [`Self::get_or_open_tree`] (惰性恢复取最大地址件)。
+  /// C# 复制期枚举的 flush 地址窗分支在 rust 无恢复面消费者、不实现 (理由见
+  /// js/check/ignore/libs/server/Resp/RangeIndex/RangeIndexManager.yml 与本 crate
+  /// lib.rs 的「flush / truncate 与复制文件面接线现状」)，故本枚举器不覆盖该分支。
+  pub(super) fn flush_files(&self) -> Result<FlushFiles> {
+    let entries = if self.ri_log_root.exists() {
+      Some(fs::read_dir(&self.ri_log_root)?)
+    } else {
+      None
+    };
+    Ok(FlushFiles { entries })
+  }
+
   /// 日志截断清理：删除逻辑地址小于 new_begin_address 的历史刷盘快照文件 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:OnTruncateImpl)
   ///
   /// C# 局部函数 libs/server/Resp/RangeIndex/RangeIndexManager.cs:TryDelete (容错
   /// 单文件删除，失败仅告警不中断) 在此内联为循环内 `fs::remove_file` 忽略错误
   pub fn on_truncate(&self, new_begin_address: u64) -> Result<()> {
-    if !self.ri_log_root.exists() {
-      return Ok(());
-    }
-
-    for entry in fs::read_dir(&self.ri_log_root)? {
-      let entry = entry?;
-      let file_name = entry.file_name();
-      if let Some(name_str) = file_name.to_str()
-        && let Some((_, addr)) = Self::parse_flush_file_name(name_str)
-        && addr < new_begin_address
-      {
-        let _ = fs::remove_file(entry.path());
+    for (path, _, addr) in self.flush_files()? {
+      if addr < new_begin_address {
+        let _ = fs::remove_file(path);
       }
     }
 
@@ -57,19 +72,15 @@ impl RangeIndexManager {
   /// 删除指定 128 位 key_id 的全部带地址刷盘快照文件 (旧世代清理，见 lifecycle::create_bftree)
   ///
   /// 前缀寻址恢复 (存根无逻辑地址) 无法区分世代，同名键重建时旧世代刷盘工件
-  /// 必须清理，杜绝惰性恢复把新世代工作文件覆盖回旧世代快照 (裸名工件由调用方
-  /// O(1) 直删，本方法只扫描带地址命名)
+  /// 必须清理，杜绝惰性恢复把新世代工作文件覆盖回旧世代快照 (刷盘件只有带地址
+  /// 一种命名，故本方法的全目录扫描即覆盖全部待清工件)
   pub(super) fn remove_addr_flush_files(&self, key_id: u128) {
-    let Ok(entries) = fs::read_dir(&self.ri_log_root) else {
+    let Ok(files) = self.flush_files() else {
       return;
     };
-    for entry in entries.flatten() {
-      let name = entry.file_name();
-      if let Some(name_str) = name.to_str()
-        && let Some((file_key_id, _)) = Self::parse_flush_file_name(name_str)
-        && file_key_id == key_id
-      {
-        let _ = fs::remove_file(entry.path());
+    for (path, file_key_id, _) in files {
+      if file_key_id == key_id {
+        let _ = fs::remove_file(path);
       }
     }
   }
@@ -221,5 +232,35 @@ impl RangeIndexManager {
     }
 
     Ok(staged_count)
+  }
+}
+
+/// [`RangeIndexManager::flush_files`] 的产物：ri_log_root 下带地址刷盘件的惰性迭代器
+/// (1:1 对标 C# 同一原语返回的 `IEnumerable` 惰性序列，路径与解码按项即时产出)
+pub(super) struct FlushFiles {
+  /// 目录枚举句柄；None = 目录不存在，恒产出空集 (C# 目录有效性预检的 yield break)
+  entries: Option<fs::ReadDir>,
+}
+
+impl Iterator for FlushFiles {
+  /// `(path, key_id, addr)`：刷盘件全路径 + 文件名严格解码出的 128 位键 ID 与逻辑地址
+  type Item = (PathBuf, u128, u64);
+
+  fn next(&mut self) -> Option<Self::Item> {
+    let entries = self.entries.as_mut()?;
+    for entry in entries.by_ref() {
+      // 单项 IO 失败与解码不出的文件名 (裸名刷盘件、工作文件、外来文件) 一律跳过
+      let Ok(entry) = entry else {
+        continue;
+      };
+      let name = entry.file_name();
+      if let Some((key_id, addr)) = name
+        .to_str()
+        .and_then(RangeIndexManager::parse_flush_file_name)
+      {
+        return Some((entry.path(), key_id, addr));
+      }
+    }
+    None
   }
 }

@@ -153,11 +153,6 @@ impl AofSyncDriver {
       .unwrap_or(0)
   }
 
-  /// 获取指定子日志的同步任务句柄
-  pub fn get_task(&self, physical_sublog_idx: usize) -> Option<Arc<AofSyncTask>> {
-    self.tasks.get(physical_sublog_idx).cloned()
-  }
-
   /// 获取指定子日志的同步任务借用（零拷贝快路径）
   #[inline]
   pub fn task_ref(&self, physical_sublog_idx: usize) -> Option<&AofSyncTask> {
@@ -625,7 +620,7 @@ mod tests {
     let driver0 = AofSyncDriver::new(0x10CA1, 0x13, 2, &zero_start, None);
     assert_eq!(driver0.get_start_address(0), 0);
 
-    let task0 = driver.get_task(0).unwrap();
+    let task0 = driver.task_ref(0).unwrap();
     task0.consume(b"abc", 500, 600).unwrap();
     assert_eq!(driver.get_previous_address(0), 600);
     assert_eq!(driver.previous_address().get(0), Some(600));

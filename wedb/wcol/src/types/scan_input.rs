@@ -4,7 +4,7 @@
 
 use wbase::num::{strict_i32, strict_i64};
 use wresp::cmd_strings::{
-  RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
+  COUNT, MATCH, NOVALUES, RESP_ERR_GENERIC_INVALIDCURSOR, RESP_ERR_GENERIC_SYNTAX_ERROR,
   RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER,
 };
 
@@ -52,13 +52,13 @@ pub fn read_scan_input<'a>(
     let param = args[curr_token_idx];
     curr_token_idx += 1;
 
-    if param.eq_ignore_ascii_case(b"MATCH") {
+    if param.eq_ignore_ascii_case(MATCH) {
       if curr_token_idx >= token_count {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
       }
       result.pattern = args[curr_token_idx];
       curr_token_idx += 1;
-    } else if param.eq_ignore_ascii_case(b"COUNT") {
+    } else if param.eq_ignore_ascii_case(COUNT) {
       if curr_token_idx >= token_count {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
       }
@@ -70,7 +70,7 @@ pub fn read_scan_input<'a>(
         }
         None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes()),
       }
-    } else if param.eq_ignore_ascii_case(b"NOVALUES") {
+    } else if param.eq_ignore_ascii_case(NOVALUES) {
       result.is_no_value = true;
     }
     // C# 三支链无 else：未识别词元已在上文整词消费并自增下标，直接跳过继续

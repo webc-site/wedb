@@ -30,10 +30,13 @@ const fn ensure_len(slice: &[u8], need: usize) -> Result<()> {
   Ok(())
 }
 
+/// 元布局偏移常量默认私有（布局纪律：字段经 [`MetaValue`] 关联方法读取，偏移不外露），
+/// 仅尺寸契约常量 [`META_VALUE_SIZE`] 对外
+///
 /// collection_type 字段在 32B 元数据大端布局中的字节偏移
 const TYPE_OFFSET: usize = 8;
 /// size 字段在 32B 元数据大端布局中的字节偏移
-pub const SIZE_OFFSET: usize = 16;
+const SIZE_OFFSET: usize = 16;
 /// next_expiry 最早到期刻度在 32B 元数据大端布局中的字节偏移
 const NEXT_EXPIRY_OFFSET: usize = 24;
 /// 单个 u64 的字节长度
@@ -92,16 +95,27 @@ pub struct MetaValue {
 }
 
 impl MetaValue {
-  /// 构造新的集合元数据记录（const fn，编码字节预置 FlattenedTree——唯一合法编码）
+  /// 构造带到期时间的水位元数据记录（const fn）
   #[inline(always)]
-  pub const fn new(key_id: u64, collection_type: GarnetObjectType, size: u64) -> Self {
+  pub const fn new_with_expiry(
+    key_id: u64,
+    collection_type: GarnetObjectType,
+    size: u64,
+    next_expiry: i64,
+  ) -> Self {
     Self {
       key_id,
       collection_type,
       reserved: [StorageEncoding::FlattenedTree as u8, 0, 0, 0, 0, 0, 0],
       size,
-      next_expiry: i64::MAX,
+      next_expiry,
     }
+  }
+
+  /// 构造新的集合元数据记录（const fn，编码字节预置 FlattenedTree——唯一合法编码）
+  #[inline(always)]
+  pub const fn new(key_id: u64, collection_type: GarnetObjectType, size: u64) -> Self {
+    Self::new_with_expiry(key_id, collection_type, size, i64::MAX)
   }
 
   /// 增加元素计数（饱和加，不溢出，const fn）

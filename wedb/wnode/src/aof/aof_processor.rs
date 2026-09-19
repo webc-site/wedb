@@ -21,7 +21,7 @@ use parking_lot::RwLock;
 use waof::{AofEntryType, AofHeader};
 use wbase::{convert::expire_at_milliseconds_to_ticks, hash_slot::slot_of};
 use wdev::Device;
-use wkv::WedbStore;
+use wkv::{DbMetaRecord, WedbStore};
 use wresp::command::RespCommand;
 use wval::{KeyTag, NO_ETAG, NamespaceDbCodec};
 
@@ -571,14 +571,14 @@ impl AofProcessor {
       }
       AofEntryType::FlushDb => {
         // libs/server/AOF/AofProcessor.cs:ProcessAofRecordInternal（case FlushDb →
-        // ProcessSynchronizedOperation(LeaderBarrierType.FLUSH_DB) 栅栏内
-        // StoreWrapper.FlushDatabase(unsafeTruncateLog, dbId)）：仅清条目域
-        // 指定库，其它库数据不受影响；栅栏与序列号推进同 FlushAll 支。
+        // ProcessSynchronizedOperation(LeaderBarrierType.FLUSH_DB) 栅栏）：
+        // 仅清条目域指定库，其它库数据不受影响；栅栏与序列号推进同 FlushAll 支。
         // 域载荷 (vns, 换号前旧 vdb) 取条目本身（与数据条目物理键前缀同域），
         // 绝不取重放会话当前上下文——多租户共享单 AOF 下会话语域随上一条数据
         // 条目漂移，误读必错域清库（C# 对应 databaseId 1 字节，rust u64 全宽
-        // 无截断）。回放走物理域退役放射 flush_virtual_database：条目载荷已是
-        // 物理号，灌逻辑域入参的 flush_database 即从库本地二次映射
+        // 无截断）。换号映射与旧域判死已由先行的 DbMeta 镜像条目应用
+        //（主库 commit_swap 落盘先于本条目入队，副本绝不在回放面本地取号
+        // 换格——本地二次映射即主从分叉），条目臂只余栅栏对齐与登记表回收
         let (vns, old_vdb) = parse_flush_domain(entry)?;
         // 登记表域回收联动（载荷 (vns, 换号前旧 vdb) 即死亡域）
         if let Some(vm) = self.append_only_file.vector_manager() {
@@ -591,14 +591,19 @@ impl AofProcessor {
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
             &target.store,
-            move |store| async move { store.flush_virtual_database(vns, old_vdb).await },
+            move |store| async move {
+              store.retire_dead_domain(vns, old_vdb);
+              Ok(())
+            },
           )
           .await?;
       }
       AofEntryType::FlushNs => {
         // rust 多租户扩展（C# 无此形态）：整命名空间虚拟换号清库，域值取
         // 条目载荷 (旧 vns, 0)，防多租户错域清库。与 FlushDb 同族局部清空，
-        // 复用其栅栏类别接同一跨回放任务同步（不另造 C# 没有的新类别）
+        // 复用其栅栏类别接同一跨回放任务同步（不另造 C# 没有的新类别）；
+        // 换号由先行 DbMeta 镜像条目承接（零本地换号取号），条目臂对齐栅栏、
+        // 回收登记表并兜底本地判死旧空间
         let (old_vns, _) = parse_flush_domain(entry)?;
         // 登记表域回收联动（载荷 vns 即换号前旧命名空间域）
         if let Some(vm) = self.append_only_file.vector_manager() {
@@ -611,7 +616,10 @@ impl AofProcessor {
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
             &target.store,
-            move |store| async move { store.flush_virtual_namespace(old_vns).await },
+            move |store| async move {
+              store.retire_dead_namespace(old_vns);
+              Ok(())
+            },
           )
           .await?;
       }
@@ -831,6 +839,12 @@ impl AofProcessor {
     let guard = KeyContextGuard::enter(target.session, &key)?;
     let key: &[u8] = guard.user_key;
     let tag = guard.tag;
+    // DbMeta 镜像条目（0x0E）：映射体系应用单点，不落用户数据域——条目 key 为
+    // 根域记录键载荷、val 为定长记录值，交 wkv 应用（doc/zh/db.md「从库完全
+    // 继承主库的映射体系，不进行本地二次映射」；C# 单租户 databaseId 无此面）
+    if tag == KeyTag::DbMeta {
+      return Self::replay_dbmeta(target, op_type, key, &payload).await;
+    }
     match op_type {
       AofEntryType::StoreUpsert => {
         let (value, _) = Self::split_value_input(&payload).ok_or("StoreUpsert 负载损坏")?;
@@ -874,6 +888,42 @@ impl AofProcessor {
           .map_err(|e| AofReplayError::from(format!("RangeIndexStreamChunk replay failed: {e}")))
       }
       _ => Err(format!("Unknown AOF header operation type {op_type:?}").into()),
+    }
+  }
+
+  /// DbMeta 镜像条目回放应用（主从映射体系同步的唯一通道）
+  ///
+  /// 主库全部 DbMeta 落盘经存储事件镜像为 StoreUpsert / StoreDelete 条目
+  ///（service.rs:on_aof_store_event 放行 KeyTag::DbMeta）：upsert 复原完整
+  /// 记录交 [`WedbStore::apply_dbmeta_record`]（映射装载 + 水位抬升 + 判死
+  /// 联动回收 + 本节点落盘）；墓碑删除只需键自足信息，交
+  /// [`WedbStore::apply_dbmeta_tombstone`] 注销。条目先于同事务的 FlushDb /
+  /// FlushNs 广播条目入队（落盘先于条目入队），回放按序到达即映射已就位。
+  /// 回放全程 pause_aof_listeners，应用落盘不再镜像，无自激放大
+  async fn replay_dbmeta<D: Device>(
+    target: &ReplayTarget<'_, '_, D>,
+    op_type: AofEntryType,
+    key: &[u8],
+    payload: &[u8],
+  ) -> Result<(), AofReplayError> {
+    match op_type {
+      AofEntryType::StoreUpsert => {
+        let (value, _) = Self::split_value_input(payload).ok_or("StoreUpsert 负载损坏")?;
+        let rec = DbMetaRecord::decode(key, value)
+          .ok_or("DbMeta 镜像条目记录损坏（布局错位或未知子类型）")?;
+        target
+          .store
+          .apply_dbmeta_record(rec)
+          .await
+          .map_err(AofReplayError::Store)
+      }
+      AofEntryType::StoreDelete => target
+        .store
+        .apply_dbmeta_tombstone(key)
+        .await
+        .map_err(AofReplayError::Store),
+      // 写侧镜像端口只产这两种形态，其余条目类型携 DbMeta 键即损坏流
+      _ => Err(format!("DbMeta 条目非法操作类型 {op_type:?}").into()),
     }
   }
 

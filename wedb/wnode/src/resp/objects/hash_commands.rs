@@ -5,24 +5,18 @@
 //! 通道（与 C# GarnetObjectBase.Operate 分层一致），存取经与 storage 会话域
 //! 共享的 `[类型标签][载荷]` 信封（见 [`super::object_store_utils`]）。
 
-use wbase::num::{strict_i32, strict_i64};
 use wcol::{
   ObjectOutput,
   hash::hash_object::{HashObject, HashOperation},
 };
-use wresp::{
-  check_args::check_arg_count,
-  cmd_strings as cs,
-  ext::RespVecExt,
-  options::{ExpirationWithOption, ExpireOption, try_get_expire_option},
-};
+use wresp::{check_args::check_arg_count, cmd_strings as cs, ext::RespVecExt};
 use wval::GarnetObjectType;
 
 use crate::resp::{
   objects::object_store_utils::{
     ElementHeaderKind, GarnetObjectPayload, ObjLoad, RespRmwDone, SyncRmwCmd, SyncRmwHandlers,
-    compute_expiration_ticks, obj_length_sync, obj_load_typed_sync, parse_elements_header,
-    run_sync_rmw,
+    obj_length_sync, obj_load_typed_sync, parse_elements_only_args, parse_expire_elements_args,
+    parse_random_member_args, run_sync_rmw, write_random_member_missing,
   },
   resp_server_session::RespServerSession,
 };
@@ -31,15 +25,16 @@ use crate::resp::{
 /// `UpdateRespProtocolVersion` 下发，命令层经 `resp_protocol_version` 透传）
 ///
 /// 经对象层 operate 通道执行操作，返回结构化输出
-fn run_operate(
+fn run_operate<'o>(
   obj: &mut HashObject,
   op: HashOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -79,7 +74,7 @@ fn should_write_back(
   existed: bool,
 ) -> bool {
   if (is_read_only(op) && !obj.mutated_by_ttl())
-    || out.payload.first() == Some(&b'-')
+    || out.payload_view().first() == Some(&b'-')
     || (!existed && obj.hash.is_empty())
   {
     return false;
@@ -106,15 +101,6 @@ fn is_read_only(op: HashOperation) -> bool {
       | HashOperation::Httl
       | HashOperation::Hscan
   )
-}
-
-/// HEXPIRE 命令参数面。
-#[derive(Debug, Clone)]
-struct HashExpireArgs<'a> {
-  key: &'a [u8],
-  expiration: i64,
-  expire_option: ExpireOption,
-  fields: &'a [&'a [u8]],
 }
 
 impl RespServerSession {
@@ -148,7 +134,7 @@ impl RespServerSession {
         HashObject::new,
         |o: &HashObject| o.is_empty(),
         |o: &HashObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
@@ -274,15 +260,15 @@ impl RespServerSession {
       // C# NOTFOUND → RESP_EMPTYLIST
       HashLoad::Missing => output.extend_from_slice(cs::RESP_EMPTYLIST),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hgetall,
           &[],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -307,15 +293,15 @@ impl RespServerSession {
         write_null_array(output, parse_state.len() - 1, self.resp_protocol_version);
       }
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hmget,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -398,15 +384,17 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let result1 = run_operate(
           &mut obj,
           HashOperation::Hexists,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
-        );
-        output.write_resp_int(obj_out.result1);
+          output,
+        )
+        .result1;
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -436,8 +424,7 @@ impl RespServerSession {
       // C# NOTFOUND → 空数组
       HashLoad::Missing => output.extend_from_slice(cs::RESP_EMPTYLIST),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(&mut obj, op, &[], 0, 0, self.resp_protocol_version);
-        output.extend_from_slice(&obj_out.payload);
+        run_operate(&mut obj, op, &[], 0, 0, self.resp_protocol_version, output);
       }
     }
     Ok(true)
@@ -466,47 +453,20 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 1..=3, output, "HRANDFIELD");
-
+    // 参数推导单源（快慢共用，失败帧已写出；count 上限钳至有符号 30 位，
+    // arg1 打包 (count << 1 | includedCount) << 1 | withValues）
+    let Some(args) = parse_random_member_args("HRANDFIELD", parse_state, cs::WITHVALUES, output)
+    else {
+      return Ok(true);
+    };
     let key = parse_state[0];
-
-    let mut param_count = 1_i64;
-    let mut with_values = false;
-    let mut included_count = false;
-
-    if parse_state.len() >= 2 {
-      // C# parseState.TryGetInt：32 位整型（越界即 VALUE_IS_NOT_INTEGER）
-      let Some(v) = strict_i32(parse_state[1]) else {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      param_count = i64::from(v);
-      included_count = true;
-
-      // Read WITHVALUES
-      if parse_state.len() == 3 && !parse_state[2].eq_ignore_ascii_case(b"WITHVALUES") {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      with_values = parse_state.len() == 3;
-    }
-
-    // arg1 打包 (count << 1 | includedCount) << 1 | withValues，count 上限
-    // 受有符号 30 位约束（对齐 C# Math.Min(paramCount, int.MaxValue >> 2)）
-    param_count = param_count.min(i32::MAX as i64 >> 2);
-    let count_with_metadata =
-      (((param_count << 1) | i64::from(included_count)) << 1) | i64::from(with_values);
 
     // Create a random seed（C# Random.Shared.Next()；负数由对象层按无符号取模吸收）
     let seed = fastrand::i32(..);
 
-    // This prevents going to the backend if HRANDFIELD is called with a count of 0
-    if param_count == 0 {
-      if included_count {
-        output.extend_from_slice(cs::RESP_EMPTYLIST);
-      } else {
-        output.write_resp_null_ver(self.resp_protocol_version);
-      }
+    // count 为 0 不触达后端（对齐 C#；应答与缺失态同形单源）
+    if args.param_count == 0 {
+      write_random_member_missing(output, args.included_count, self.resp_protocol_version);
       return Ok(true);
     }
 
@@ -514,22 +474,18 @@ impl RespServerSession {
       HashLoad::Degrade => return Ok(false),
       HashLoad::WrongType => {}
       HashLoad::Missing => {
-        if included_count {
-          output.extend_from_slice(cs::RESP_EMPTYLIST);
-        } else {
-          output.write_resp_null_ver(self.resp_protocol_version);
-        }
+        write_random_member_missing(output, args.included_count, self.resp_protocol_version);
       }
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hrandfield,
           &[],
-          count_with_metadata as i32,
+          args.arg1,
           seed,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -552,15 +508,17 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let result1 = run_operate(
           &mut obj,
           HashOperation::Hstrlen,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
-        );
-        output.write_resp_int(obj_out.result1);
+          output,
+        )
+        .result1;
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -591,43 +549,6 @@ impl RespServerSession {
     Ok(true)
   }
 
-  fn parse_hash_expire_args<'a>(
-    cmd_name: &'static str,
-    parse_state: &'a [&'a [u8]],
-    output: &mut Vec<u8>,
-  ) -> Option<HashExpireArgs<'a>> {
-    check_arg_count!(parse_state, 5.., output, cmd_name, return None);
-
-    let key = parse_state[0];
-
-    let Some(expiration) = strict_i64(parse_state[1]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-      return None;
-    };
-    if expiration < 0 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_INVALID_EXPIRE_TIME);
-      return None;
-    }
-
-    let mut curr_idx = 2;
-    let mut expire_option = ExpireOption::NONE;
-    if let Some(opt) = try_get_expire_option(parse_state[curr_idx]) {
-      expire_option = opt;
-      curr_idx += 1;
-    }
-
-    // FIELDS numfields 头校验（公共体，见 parse_elements_header）
-    let (fields_start, _) =
-      parse_elements_header(parse_state, curr_idx, ElementHeaderKind::Fields, output)?;
-
-    Some(HashExpireArgs {
-      key,
-      expiration,
-      expire_option,
-      fields: &parse_state[fields_start..],
-    })
-  }
-
   /// HEXPIRE / HPEXPIRE / HEXPIREAT / HPEXPIREAT key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]
   ///
   /// libs/server/Resp/Objects/HashCommands.cs:HashExpire
@@ -640,19 +561,24 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    let Some(args) = Self::parse_hash_expire_args(cmd_name, parse_state, output) else {
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some(args) = parse_expire_elements_args(
+      cmd_name,
+      parse_state,
+      ElementHeaderKind::Fields,
+      is_milliseconds,
+      is_timestamp,
+      output,
+    ) else {
       return Ok(true);
     };
-
-    let expiration_ticks = compute_expiration_ticks(args.expiration, is_milliseconds, is_timestamp);
-    let e = ExpirationWithOption::new(expiration_ticks, args.expire_option);
 
     match self.hash_rmw(
       store,
       args.key,
       HashOperation::Hexpire,
-      args.fields,
-      ((e.word() >> 32) as i32, e.word() as i32),
+      args.elements,
+      args.args12,
       output,
     ) {
       Rmw::Degrade => return Ok(false),
@@ -681,11 +607,9 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 4.., output, cmd_name);
-
-    let key = parse_state[0];
-    let Some((fields_start, _num_fields)) =
-      parse_elements_header(parse_state, 1, ElementHeaderKind::Fields, output)
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, fields)) =
+      parse_elements_only_args(cmd_name, parse_state, ElementHeaderKind::Fields, output)
     else {
       return Ok(true);
     };
@@ -694,7 +618,7 @@ impl RespServerSession {
       store,
       key,
       HashOperation::Httl,
-      &parse_state[fields_start..],
+      fields,
       (i32::from(is_milliseconds), i32::from(is_timestamp)),
       output,
     ) {
@@ -719,23 +643,14 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 4.., output, "HPERSIST");
-
-    let key = parse_state[0];
-    let Some((fields_start, _num_fields)) =
-      parse_elements_header(parse_state, 1, ElementHeaderKind::Fields, output)
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, fields)) =
+      parse_elements_only_args("HPERSIST", parse_state, ElementHeaderKind::Fields, output)
     else {
       return Ok(true);
     };
 
-    match self.hash_rmw(
-      store,
-      key,
-      HashOperation::Hpersist,
-      &parse_state[fields_start..],
-      (0, 0),
-      output,
-    ) {
+    match self.hash_rmw(store, key, HashOperation::Hpersist, fields, (0, 0), output) {
       Rmw::Degrade => return Ok(false),
       Rmw::WrongType => {}
       // C# NOTFOUND：对象层以空对象执行，逐字段 -2 数组（payload 经骨架透写）
@@ -764,15 +679,9 @@ pub(super) fn write_null_array(output: &mut Vec<u8>, len: usize, resp_version: u
 /// 信封整值入账对标 C# WriteLogUpsert）。`Err(())` 为存储 IO 失败，由
 /// exec_slow 统一应答 RESP_ERR_SLOW_PATH_STORAGE
 pub(crate) mod slow {
-  use wbase::{num, num::strict_i64};
   use wcol::hash::hash_object::HashObject;
   use wdev::Device;
-  use wresp::{
-    cmd_strings as cs,
-    command::RespCommand,
-    ext::RespVecExt,
-    options::{ExpirationWithOption, ExpireOption, try_get_expire_option},
-  };
+  use wresp::{cmd_strings as cs, command::RespCommand, ext::RespVecExt};
   use wval::GarnetObjectType;
 
   use super::{HashOperation, Rmw, run_operate, should_write_back, write_null_array};
@@ -780,8 +689,9 @@ pub(crate) mod slow {
     resp::objects::{
       object_store_utils::{
         ElementHeaderKind, GarnetObjectPayload, SyncRmwCmd, SyncRmwHandlers,
-        compute_expiration_ticks, parse_elements_header, run_async_rmw, slow_load_eval,
-        try_tiered_arm, write_rmw_reply,
+        parse_elements_only_args, parse_expire_elements_args, parse_random_member_args,
+        run_async_rmw, slow_load_eval, try_tiered_arm, write_random_member_missing,
+        write_rmw_reply,
       },
       tiered_collection_ops::{TieredCollectionArgs, exec_tiered_hash},
     },
@@ -815,52 +725,11 @@ pub(crate) mod slow {
         HashObject::new,
         |o: &HashObject| o.is_empty(),
         |o: &HashObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
     .await
-  }
-
-  /// HEXPIRE 族慢路径解析元组：(key, fields 切片, (expiration_hi, expiration_lo))
-  type ExpireArgs<'a> = (&'a [u8], &'a [&'a [u8]], (i32, i32));
-
-  /// HEXPIRE 族慢路径参数重推导（快路径已校验，此处防御性重解析同
-  /// exec_slow Expdelscan 臂口径）：(expiration 词元, FIELDS 起始切片,
-  /// expiration word)
-  fn parse_expire_args<'a>(
-    refs: &'a [&'a [u8]],
-    is_milliseconds: bool,
-    is_timestamp: bool,
-  ) -> Option<ExpireArgs<'a>> {
-    let key = refs.first().copied()?;
-    let expiration = strict_i64(refs.get(1).copied()?)?;
-    if expiration < 0 {
-      return None;
-    }
-    let mut curr_idx = 2;
-    let mut expire_option = ExpireOption::NONE;
-    if let Some(opt) = refs.get(curr_idx).copied().and_then(try_get_expire_option) {
-      expire_option = opt;
-      curr_idx += 1;
-    }
-    let (fields_start, _) =
-      parse_elements_header(refs, curr_idx, ElementHeaderKind::Fields, &mut Vec::new())?;
-    let ticks = compute_expiration_ticks(expiration, is_milliseconds, is_timestamp);
-    let e = ExpirationWithOption::new(ticks, expire_option);
-    Some((
-      key,
-      &refs[fields_start..],
-      ((e.word() >> 32) as i32, e.word() as i32),
-    ))
-  }
-
-  /// HTTL / HPERSIST 族慢路径参数重推导：(key, fields 切片)
-  fn parse_fields_args<'a>(refs: &'a [&'a [u8]]) -> Option<(&'a [u8], &'a [&'a [u8]])> {
-    let key = refs.first().copied()?;
-    let (fields_start, _) =
-      parse_elements_header(refs, 1, ElementHeaderKind::Fields, &mut Vec::new())?;
-    Some((key, &refs[fields_start..]))
   }
 
   /// HSCAN 以外的哈希命令统一慢路径分派（HSCAN 走 shared 慢路径扫描）
@@ -929,16 +798,23 @@ pub(crate) mod slow {
         RespCommand::Hexpireat => (false, true),
         _ => (true, true),
       };
-      let Some((key, fields, args12)) = parse_expire_args(refs, is_ms, is_ts) else {
-        write_error_async_required(output);
+      // 参数推导单源（快慢共用，失败帧已写出）
+      let Some(args) = parse_expire_elements_args(
+        cmd.into(),
+        refs,
+        ElementHeaderKind::Fields,
+        is_ms,
+        is_ts,
+        output,
+      ) else {
         return Ok(());
       };
       hash_rmw_cold(
         storage,
-        key,
+        args.key,
         HashOperation::Hexpire,
-        fields,
-        args12,
+        args.elements,
+        args.args12,
         resp_version,
         output,
       )
@@ -965,8 +841,10 @@ pub(crate) mod slow {
         RespCommand::Hpexpiretime => (1, 1),
         _ => (0, 0),
       };
-      let Some((key, fields)) = parse_fields_args(refs) else {
-        write_error_async_required(output);
+      // 参数推导单源（快慢共用，失败帧已写出）
+      let Some((key, fields)) =
+        parse_elements_only_args(cmd.into(), refs, ElementHeaderKind::Fields, output)
+      else {
         return Ok(());
       };
       hash_rmw_cold(storage, key, op, fields, args12, resp_version, output).await?;
@@ -1027,11 +905,9 @@ pub(crate) mod slow {
           ReplyOnMissing::NullArray => write_null_array(output, refs.len() - 1, resp_version),
         },
         async move |obj: &mut super::HashObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(obj, op, args, arg1, arg2, resp_version);
+          let result1 = run_operate(obj, op, args, arg1, arg2, resp_version, output).result1;
           if matches!(op, HashOperation::Hexists | HashOperation::Hstrlen) {
-            output.write_resp_int(obj_out.result1);
-          } else {
-            output.extend_from_slice(&obj_out.payload);
+            output.write_resp_int(result1);
           }
         },
       )
@@ -1040,35 +916,17 @@ pub(crate) mod slow {
 
     // HRANDFIELD：count/WITHVALUES 打包 + seed 对位同步段
     if cmd == RespCommand::Hrandfield {
-      // 参数重推导（count 上限钳至有符号 30 位，打包
-      // (count << 1 | includedCount) << 1 | withValues）
-      let (param_count, included_count, with_values) = match refs.len() {
-        1 => (1_i64, false, false),
-        2..=3 => {
-          let Some(v) = refs.get(1).and_then(|c| num::strict_i32(c)) else {
-            write_error_async_required(output);
-            return Ok(());
-          };
-          (
-            i64::from(v).min(i32::MAX as i64 >> 2),
-            true,
-            refs.len() == 3,
-          )
-        }
-        _ => {
-          write_error_async_required(output);
-          return Ok(());
-        }
+      // 参数推导单源（快慢共用，失败帧已写出；第三词元大小写门与快侧同口径）
+      let Some(rand_args) = parse_random_member_args("HRANDFIELD", refs, cs::WITHVALUES, output)
+      else {
+        return Ok(());
       };
-      if param_count == 0 {
-        if included_count {
-          output.extend_from_slice(cs::RESP_EMPTYLIST);
-        } else {
-          output.write_resp_null_ver(resp_version);
-        }
+      // count 为 0 不触达后端（应答与缺失态同形单源）
+      if rand_args.param_count == 0 {
+        write_random_member_missing(output, rand_args.included_count, resp_version);
         return Ok(());
       }
-      let arg1 = (((param_count << 1) | i64::from(included_count)) << 1) | i64::from(with_values);
+      let arg1 = rand_args.arg1;
       return slow_load_eval(
         storage,
         key,
@@ -1076,28 +934,25 @@ pub(crate) mod slow {
         output,
         HashObject::from_blob,
         |output: &mut Vec<u8>| {
-          if included_count {
-            output.extend_from_slice(cs::RESP_EMPTYLIST);
-          } else {
-            output.write_resp_null_ver(resp_version);
-          }
+          write_random_member_missing(output, rand_args.included_count, resp_version);
         },
         async move |obj: &mut super::HashObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          run_operate(
             obj,
             HashOperation::Hrandfield,
             &[],
-            arg1 as i32,
+            arg1,
             fastrand::i32(..),
             resp_version,
+            output,
           );
-          output.extend_from_slice(&obj_out.payload);
         },
       )
       .await;
     }
 
-    write_error_async_required(output);
+    // 兜底臂：不应抵达慢路径的未接线命令形态（快路径参数校验已拦截）
+    cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
     Ok(())
   }
 
@@ -1107,10 +962,5 @@ pub(crate) mod slow {
     Zero,
     EmptyList,
     NullArray,
-  }
-
-  /// 防御臂：不应抵达慢路径的命令形态（快路径参数校验已拦截）
-  fn write_error_async_required(output: &mut Vec<u8>) {
-    cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
   }
 }

@@ -10,7 +10,7 @@ use crate::{
   error::Result,
   gc::{ExpiredKeySet, ScanBudget, collect_expired},
   ttl::is_expired,
-  vdb::DbMetaRecord,
+  vdb::{DbMetaRecord, GcDeadEntry, ROOT_VIRTUAL_ID},
 };
 
 /// 换号旧域/旧空间的回收截止 ticks：`now_ticks + db_gc_reclaim_delay_secs` 秒
@@ -27,15 +27,14 @@ fn reclaim_expired_at(now_ticks: i64, delay_secs: u64) -> i64 {
 
 /// 一次换号事务的 DbMeta 落盘载荷形态（[`WedbStore::commit_swap`] 的唯一入参）
 ///
-/// 三形态穷尽 FLUSHDB/FLUSHNS 两放射的四处换号收尾，原子批安全顺序
+/// 两形态穷尽 FLUSHDB/FLUSHNS 主库放射的换号收尾，原子批安全顺序
 /// `[新映射?, 旧域退役墓碑?, 0x05 分配水位?]`（doc/zh/db.md「即时原子提交」段）
 /// 与「水位只在真正取号时抬升」两条不变式因此只有一份：
 /// - `Swapped`：既有格换指（已取新号）——新映射 + 旧域墓碑 + 抬升后的水位；
-/// - `FirstMap`：库/空间首映射、无旧域可退——新映射 + 水位，无墓碑；
-/// - `RetireOnly`：回放射本节点无在册格可换（条目已应用过或该域无逻辑入口）
-///   ——**只补退役墓碑**，映射与水位绝不动（零写放大，且副本回放绝不扰动主从
-///   共用的分配水位）。墓碑在此形态仍必落：新副本首回放时内存账本与磁盘都可
-///   能无该项，同键同载荷覆写幂等。
+/// - `FirstMap`：库/空间首映射、无旧域可退——新映射 + 水位，无墓碑。
+///
+/// 副本不本地换号：换号批次（含墓碑与水位）经 KeyTag::DbMeta 镜像条目同步，
+/// 回放应用走 [`WedbStore::apply_dbmeta_record`] 单点
 enum SwapRecords {
   Swapped {
     map: DbMetaRecord,
@@ -43,9 +42,6 @@ enum SwapRecords {
   },
   FirstMap {
     map: DbMetaRecord,
-  },
-  RetireOnly {
-    dead: DbMetaRecord,
   },
 }
 
@@ -133,7 +129,7 @@ impl<D: Device> WedbStore<D> {
   /// 空树，索引数据静默清零。
   pub async fn flush_database(self: &Arc<Self>, ns: u64, db_id: u64) -> Result<(u64, u64)> {
     // 冷装载优先：租户既有映射先点查磁盘装载（映射权威在磁盘 DbMeta，
-    // 主库冷租户清库与从库 FlushDb 回放共用此解析，绝不盲分配换号）
+    // 主库冷租户清库绝不盲分配换号）
     let (vns, _) = self.resolve_context(ns, db_id).await?;
 
     // 换号事务全程：锁内 CAS 换号 → 原子批 persist → 树回收投递
@@ -175,60 +171,90 @@ impl<D: Device> WedbStore<D> {
     Ok((vns, old_vdb_opt.unwrap_or(new_vdb)))
   }
 
-  /// FLUSHDB 回放射：按条目**物理域** `(vns, old_vdb)` 退役整域
+  /// DbMeta 镜像记录回放应用单点（doc/zh/db.md「从库完全继承主库的映射体系，
+  /// 不进行本地二次映射」的 AOF 复制流承接面）
   ///
-  /// FlushDb 条目的载荷是主库换号事务的返回值 `(vns, 换号前旧 vdb)`，与数据
-  /// 条目物理键前缀同域；而 [`Self::flush_database`] 的入参口径是**逻辑域**
-  /// （先经 [`Self::resolve_context`] 点查磁盘装载映射，映射权威在磁盘）。把
-  /// 载荷当逻辑域灌入即从库本地二次映射：换出的是「logic_db == 旧 vdb」的
-  /// 无辜格、真域原地不动（旧键照读）、并把 `vns` 当 logic_ns 物化出幽灵库与
-  /// 伪 DbMap。本入口即 doc/zh/db.md「从库完全继承主库的映射体系」的 FLUSH
-  /// 面：vns 路由表内指向 old_vdb 的库格换号 + 旧域判死投递本地 GC，
-  /// 与主库同一步取号保持水位同步。
+  /// 主库全部 DbMeta 落盘（换号批 / 首映射 / SWAPDB 成对记录）经存储事件镜像
+  /// 为 StoreUpsert 条目；回放侧解码出 [`DbMetaRecord`] 后经本入口应用：内存
+  /// 装载复用重建内核 [`Self::rebuild_apply_record`]（根域 immortal 全量、非根域
+  /// 0 常驻点查回建，与启动重建同一口径），分配水位单调抬升越过记录号（杜绝
+  /// 本地取号与主库未来取号撞号），判死变体联动旧域树回收投递，最后经
+  /// [`Self::persist_dbmeta`] 落盘本节点磁盘（幂等覆写；回放全程
+  /// `pause_aof_listeners` 抑制再镜像，杜绝自激放大）——副本重启后映射从本节点
+  /// 磁盘装载，与 AOF 截断位点解耦。
   ///
-  /// 编排与主库放射共用两处单点：取样 [`Self::swap_stamp`]、落盘
-  /// [`Self::commit_swap`]（安全顺序与水位口径只此一份），仅换号原语取
-  /// [`VirtualDbManager::flush_db_virtual`]（物理域入参、零逻辑解析、绝不建
-  /// 空快照）；不点查磁盘、不新增映射。墓碑必随回放落盘（新副本首回放与内存
-  /// 账本可能皆无该项），同键同载荷覆写幂等。
-  pub async fn flush_virtual_database(self: &Arc<Self>, vns: u64, old_vdb: u64) -> Result<()> {
-    // 换号事务全程持元数据串行锁，编排同 [`Self::flush_database`]
+  /// 同一条目重复应用幂等：映射/墓碑为同键同载荷覆写，水位只升不降，树回收
+  /// 旁表取走后为空（主库恢复重放自己 AOF 尾段即此形态）。
+  pub async fn apply_dbmeta_record(self: &Arc<Self>, rec: DbMetaRecord) -> Result<()> {
     let _dbmeta_guard = self.lock_dbmeta().await;
-    let (expired_at, tail_addr) = self.swap_stamp();
-    let swapped = self
-      .vdb
-      .flush_db_virtual(vns, old_vdb, expired_at, tail_addr);
+    let vid = self.rebuild_apply_record(rec);
+    if vid > 0 {
+      self.vdb.bump_watermark(vid + 1);
+    }
+    // 映射变体补齐非根域在册格的覆盖换指：重建内核从空装载可跳过非根域，
+    // 但副本该租户活跃时内存格已在册，主库换号新指必须覆盖（单格幂等 set，
+    // 装载原语与重建/点查装载同源），否则换代重解析后仍解析到旧域。
+    // 应用即换代：在册会话纪元缓存重解析（换号 / SWAPDB 换指后旧指向失效；
+    // 首映射虽无旧会话，多一次原子加无碍）；墓碑与水位不换代
+    match rec {
+      DbMetaRecord::NsMap { logic_ns, vns } => {
+        self.vdb.insert_ns_mapping(logic_ns, vns);
+        self.vdb.bump_generation();
+      }
+      DbMetaRecord::DbMap { vns, logic_db, vdb } => {
+        if vns != ROOT_VIRTUAL_ID {
+          self.vdb.insert_db_mapping(vns, logic_db, vdb);
+        }
+        self.vdb.bump_generation();
+      }
+      DbMetaRecord::DbSwap {
+        vns,
+        logic_db1,
+        logic_db2,
+        swapped_db1,
+        swapped_db2,
+      } => {
+        if vns != ROOT_VIRTUAL_ID {
+          self.vdb.insert_db_mapping(vns, logic_db1, swapped_db1);
+          self.vdb.insert_db_mapping(vns, logic_db2, swapped_db2);
+        }
+        self.vdb.bump_generation();
+      }
+      _ => {}
+    }
+    // 判死变体联动：旧物理域的换号回收旁表键集摘除后投待释放队列（与主库
+    // flush 放射同一编排，时序「先持久化换号后回收树」）
+    match rec {
+      DbMetaRecord::GcDeadDb { vns, old_vdb, .. } => {
+        self.reclaim_bftree_keys(self.take_bftree_domain(vns, old_vdb));
+      }
+      DbMetaRecord::GcDeadNs { old_vns, .. } => {
+        self.reclaim_bftree_keys(self.take_bftree_domains_of_vns(old_vns));
+      }
+      _ => {}
+    }
+    self.new_session()?.persist_dbmeta(&rec).await
+  }
 
-    self
-      .commit_swap(match swapped {
-        Some((logic_db, new_vdb)) => SwapRecords::Swapped {
-          map: DbMetaRecord::DbMap {
-            vns,
-            logic_db,
-            vdb: new_vdb,
-          },
-          dead: DbMetaRecord::GcDeadDb {
-            expired_at,
-            vns,
-            old_vdb,
-            tail_address: tail_addr,
-          },
-        },
-        // 无活在册格即未取号：只补墓碑，映射与水位绝不动
-        None => SwapRecords::RetireOnly {
-          dead: DbMetaRecord::GcDeadDb {
-            expired_at,
-            vns,
-            old_vdb,
-            tail_address: tail_addr,
-          },
-        },
-      })
-      .await?;
-
-    // 换号联动树回收：旧物理域的换号回收旁表键集摘除后投待释放队列
-    self.reclaim_bftree_keys(self.take_bftree_domain(vns, old_vdb));
-    Ok(())
+  /// DbMeta 墓碑注销镜像回放单点（GC 退役完成的 StoreDelete 条目应用面）
+  ///
+  /// 主库内置 GC 物理回收完成后注销磁盘墓碑（`delete_dbmeta` → tombstone 事件
+  /// → 镜像条目）；副本跟随注销：内存死亡账本离册 + 命名空间级退役连带释放废弃
+  /// 租户路由快照 + 本节点磁盘墓碑删除（幂等）。与 [`crate::gc`] 的到期注销
+  /// 共用本单点——副本 GC 默认禁用（对标 C# ExpiredKeyDeletionScanFrequencySecs
+  /// = -1），磁盘墓碑生命周期完全跟随主库镜像，否则账本随历史换号无限膨胀
+  pub async fn apply_dbmeta_tombstone(self: &Arc<Self>, key_payload: &[u8]) -> Result<()> {
+    let Some((vid, ns_kind)) = DbMetaRecord::dead_tombstone_of(key_payload) else {
+      // 非墓碑载荷的 DbMeta 删除（当前布局不存在）静默跳过，与重建面
+      // rebuild_vdb_visit 的墓碑臂同口径
+      return Ok(());
+    };
+    self.vdb.gc_dead.remove(&vid);
+    if ns_kind {
+      // 彻底释放废弃租户路由快照表，内存归零
+      self.vdb.db_routing.pin().remove(&vid);
+    }
+    self.new_session()?.delete_dbmeta(key_payload).await
   }
 
   /// 清空指定命名空间下的全部数据库用户域数据，返回 `(domain_vns, 0)`
@@ -243,8 +269,8 @@ impl<D: Device> WedbStore<D> {
   /// `range_index.clear_all`（误伤他命名空间在用 RI 树，同 [`Self::flush_database`]
   /// 文档说明）。
   pub async fn flush_namespace(self: &Arc<Self>, ns: u64) -> Result<(u64, u64)> {
-    // 冷装载优先：命名空间既有映射先点查磁盘装载（主库冷租户清空间与
-    // 从库 FlushNs 回放共用此解析，绝不盲分配换号）
+    // 冷装载优先：命名空间既有映射先点查磁盘装载（主库冷租户清空间
+    // 绝不盲分配换号）
     self.resolve_ns_mapping(ns).await?;
 
     // 换号事务全程持元数据串行锁，编排与批语义同 [`Self::flush_database`]
@@ -281,48 +307,7 @@ impl<D: Device> WedbStore<D> {
     Ok((old_vns_opt.unwrap_or(new_vns), 0))
   }
 
-  /// FLUSHNS 回放射：按条目**物理域**退役整空间（载荷 = 换号前旧 vns）
-  ///
-  /// 与 [`Self::flush_namespace`] 相对：本入口不取逻辑 `ns` 入参、不做
-  /// [`Self::resolve_ns_mapping`] 冷装载点查——条目载荷已是物理号，再按逻辑域
-  /// 解析即在从库物化出 `logic_ns == 旧 vns` 的幽灵租户并落伪 NsMap。换号走
-  /// [`VirtualDbManager::flush_ns_virtual`]（逆表取回逻辑命名空间后与主库**同一**
-  /// flush_ns 事务体、同一步取号），旧空间的换号回收旁表键集按域摘除后投待
-  /// 释放队列；取样与落盘同 [`Self::flush_virtual_database`] 走两处单点。
-  pub async fn flush_virtual_namespace(self: &Arc<Self>, old_vns: u64) -> Result<()> {
-    // 换号事务全程持元数据串行锁，编排与批语义同 [`Self::flush_namespace`]
-    let _dbmeta_guard = self.lock_dbmeta().await;
-    let (expired_at, tail_addr) = self.swap_stamp();
-    let retired = self.vdb.flush_ns_virtual(old_vns, expired_at, tail_addr);
-
-    self
-      .commit_swap(match retired {
-        Some((logic_ns, new_vns)) => SwapRecords::Swapped {
-          map: DbMetaRecord::NsMap {
-            logic_ns,
-            vns: new_vns,
-          },
-          dead: DbMetaRecord::GcDeadNs {
-            expired_at,
-            old_vns,
-            tail_address: tail_addr,
-          },
-        },
-        None => SwapRecords::RetireOnly {
-          dead: DbMetaRecord::GcDeadNs {
-            expired_at,
-            old_vns,
-            tail_address: tail_addr,
-          },
-        },
-      })
-      .await?;
-
-    self.reclaim_bftree_keys(self.take_bftree_domains_of_vns(old_vns));
-    Ok(())
-  }
-
-  /// 换号事务取样单点（须在 [`Self::lock_dbmeta`] 串行锁内调用，四处换号同源）
+  /// 换号事务取样单点（须在 [`Self::lock_dbmeta`] 串行锁内调用，主库两放射同源）
   ///
   /// 返回 `(旧域回收期限 expired_at, 取样的日志尾地址 tail_address)`：两者必须
   /// 同刻同锁内取——墓碑记录的尾地址据此判定「该域死亡前已入盘的记录段」，
@@ -337,13 +322,69 @@ impl<D: Device> WedbStore<D> {
     )
   }
 
+  /// 退役指定物理库域（AOF FlushDb 回放屏障与兜底判死）
+  ///
+  /// 若在册路由表中尚有逻辑库格指向该旧域（条目未被先行 DbMeta 换指），
+  /// 原子单格换指使逻辑入口不可达旧域；随后判死旧域并联动树回收
+  pub fn retire_dead_domain(&self, vns: u64, old_vdb: u64) {
+    if let Some(routing) = self.vdb.db_routing.pin().get(&vns) {
+      let candidate = routing
+        .table
+        .snapshot()
+        .into_iter()
+        .find(|&(_, vdb)| vdb == old_vdb);
+      if let Some((logic_db, _)) = candidate {
+        let new_vdb = self.vdb.alloc_next_virtual_id();
+        routing.table.swap_out(logic_db, new_vdb);
+        self.vdb.bump_generation();
+      }
+    }
+    if !self.vdb.is_dead_domain(vns, old_vdb) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vdb,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: Some(vns),
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domain(vns, old_vdb));
+  }
+
+  /// 退役指定物理命名空间（AOF FlushNs 回放屏障与兜底判死）
+  ///
+  /// 若当前命名空间映射尚指向该旧空间（未被先行 DbMeta 换指），
+  /// 换指新空间；随后判死旧空间并联动树回收
+  pub fn retire_dead_namespace(&self, old_vns: u64) {
+    if let Some(logic_ns) = self.vdb.logic_ns_of(old_vns)
+      && self.vdb.vns_of_ns(logic_ns) == Some(old_vns)
+    {
+      let new_vns = self.vdb.alloc_next_virtual_id();
+      self.vdb.insert_ns_mapping(logic_ns, new_vns);
+      self.vdb.bump_generation();
+    }
+    if !self.vdb.is_dead_ns(old_vns) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vns,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: None,
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domains_of_vns(old_vns));
+  }
+
   /// DbMeta 换号事务落盘单点（主库放射与回放射四类换号共用）：把一次换号的
   /// [`SwapRecords`] 经专用会话原子批落盘（固定根域前缀 + `KeyTag::DbMeta`）
   async fn commit_swap(self: &Arc<Self>, records: SwapRecords) -> Result<()> {
     let items: [Option<DbMetaRecord>; 3] = match records {
       SwapRecords::Swapped { map, dead } => [Some(map), Some(dead), Some(self.next_id_rec())],
       SwapRecords::FirstMap { map } => [Some(map), None, Some(self.next_id_rec())],
-      SwapRecords::RetireOnly { dead } => [None, Some(dead), None],
     };
     self.new_session()?.persist_dbmeta_batch(&items).await
   }

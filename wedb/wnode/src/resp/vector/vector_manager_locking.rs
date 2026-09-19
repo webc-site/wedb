@@ -67,17 +67,39 @@ pub fn registry_key(prefix: &[u8], key: &[u8]) -> TaggedKeyBuf {
   }
 }
 
-/// 登记表复合键剥离单点（[`registry_key`] 的对偶读端）。
+/// 登记表复合键解码原语（仅本模块的两个公开剥域单点消费）。
 ///
 /// 自定界论证：OPPV varint 首字节查表即定长（`varint_len_from_byte` 零回溯），
-/// [NsVarint][DbVarint] 段自闭合，剩余字节即用户键。失败（截断/非法编码）
-/// 返回 None，调用方按无域条目丢弃。
+/// [NsVarint][DbVarint] 段自闭合，剩余字节即用户键。不作对外可选返回——
+/// 调用侧一旦拿到 `Option` 就会各写一套兜底臂，兜底方向还容易反成泄漏面
+///（把带域前缀的整键当用户键外发）。
 #[inline]
-pub fn split_registry_key(composite: &[u8]) -> Option<(RegistryDomain, &[u8])> {
+fn decode_registry_key(composite: &[u8]) -> Option<(RegistryDomain, &[u8])> {
   let (vns, ns_len) = NamespaceDbCodec::decode_varint(composite).ok()?;
   let rest = &composite[ns_len..];
   let (vdb, db_len) = NamespaceDbCodec::decode_varint(rest).ok()?;
   Some((RegistryDomain { vns, vdb }, &rest[db_len..]))
+}
+
+/// 登记表复合键拆解单点（[`registry_key`] 的对偶读端，域 + 用户键一次取全）。
+///
+/// 登记表键必由 [`registry_key`] 构造（全仓唯一拼装入口），解码失败即本模块
+/// 不变量被破坏的不可达态：显式失败，不静默降级、不返回带域前缀的整键。
+#[inline]
+pub fn split_registry_key(composite: &[u8]) -> (RegistryDomain, &[u8]) {
+  match decode_registry_key(composite) {
+    Some(parts) => parts,
+    None => unreachable!("登记表复合键必由 registry_key 构造，解码失败即不变量破坏"),
+  }
+}
+
+/// 登记表复合键 → 用户键剥域单点（[`registry_key`] 的对偶读端的帧面投影）。
+///
+/// 帧面（diskless 快照、迁移传输）恒发剥域用户键（C# 每库一实例天然无域前缀，
+/// rust 单例以复合键隔离，出帧即剥）。不可达态口径同 [`split_registry_key`]。
+#[inline]
+pub fn registry_user_key(composite: &[u8]) -> &[u8] {
+  split_registry_key(composite).1
 }
 
 /// 登记条目域 → 会话前缀缓冲（[`split_registry_key`] 消费端重构用）。
@@ -321,17 +343,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
         return ReadIndexOutcome::Hit(index, shared);
       }
       drop(shared);
-
-      // 需重建，但上一次丢弃请求尚未处理时先自旋等待
-      // （同一逻辑集合存在两个活跃索引会严重破坏插入）
-      if self.drop_requested(key) {
-        if non_blocking {
-          // 让出线程而非自旋
-          return ReadIndexOutcome::WouldBlock;
-        }
-        self.wait_for_disk_ann_index_drop(key);
-        continue;
-      }
 
       // 阶段 2：竞争独占（C# 经 TryPromoteSharedLock 原子升级；
       // parking_lot 无升级原语，以释放后竞争 + 独占下复核对齐）。

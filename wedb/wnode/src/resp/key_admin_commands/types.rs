@@ -24,7 +24,7 @@ const ERR_DUMP_VERSION_CHECKSUM: &str = "ERR DUMP payload version or checksum ar
 const ERR_DUMP_LENGTH_INVALID: &str = "ERR DUMP payload length format is invalid";
 
 /// RDB 格式版本（libs/server/Resp/KeyAdminCommands.cs:RDB_VERSION）
-const RDB_VERSION: u16 = 11;
+pub(crate) const RDB_VERSION: u16 = 11;
 
 impl RespServerSession {
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRESTORE
@@ -45,57 +45,7 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some([key, expiry_raw, value]) = unpack_args(parse_state, output, "RESTORE") else {
-      return Ok(true);
-    };
-
-    // C# TryGetInt（index = Count - 2，arity 锁 3 即下标 1）
-    let Some(expiry) = strict_i32(expiry_raw) else {
-      // C# 沿用 RESP_ERR_TIMEOUT_NOT_VALID_FLOAT（文案保留历史包袱）
-      abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
-      return Ok(true);
-    };
-    let expiry = i64::from(expiry);
-
-    // RESTORE 仅实现字符串类型（类型字节 0x00）
-    if value.first() != Some(&0x00) {
-      write_error_raw(output, "ERR RESTORE currently only supports string types");
-      return Ok(true);
-    }
-
-    // C# 对空载荷直接 valueSpan[0] 越界（进程崩溃断连）；rust 无 panic 约束下
-    // 按"载荷不足"同族错误降级，不复刻崩溃
-    if value.len() < 10 {
-      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
-      return Ok(true);
-    }
-
-    // footer = 2 字节 rdb 版本 + 8 字节 crc64
-    let footer = &value[value.len() - 10..];
-    let rdb_version = u16::from_le_bytes([footer[0], footer[1]]);
-    if rdb_version > RDB_VERSION {
-      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
-      return Ok(true);
-    }
-
-    // crc 覆盖除末 8 字节外的全部载荷
-    let calculated_crc = rdb_crc64_hash(&value[..value.len() - 8]);
-    if calculated_crc != footer[2..] {
-      write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
-      return Ok(true);
-    }
-
-    let Some((length, payload_start)) = try_read_length(&value[1..]) else {
-      write_error_raw(output, ERR_DUMP_LENGTH_INVALID);
-      return Ok(true);
-    };
-    let start = payload_start + 1;
-    let Some(val) = start
-      .checked_add(length as usize)
-      .and_then(|end| value.get(start..end))
-    else {
-      // C# 此处 Slice 越界抛异常断连；rust 按长度格式非法同族错误降级
-      write_error_raw(output, ERR_DUMP_LENGTH_INVALID);
+    let Some((key, expiry, val)) = parse_restore_args(parse_state, output) else {
       return Ok(true);
     };
 
@@ -227,4 +177,55 @@ impl RespServerSession {
     output.write_resp_int(exists_count);
     Ok(true)
   }
+}
+
+/// NetworkRESTORE 的参数与载荷推导单源（快慢路径共用；解析失败时已写出错误
+/// 应答并返回 None，返回 `(key, expiry 秒, 载荷内值切片)`）
+///
+/// 校验序列对标 C# KeyAdminCommands.cs:NetworkRESTORE：ttl 整数（沿用
+/// RESP_ERR_TIMEOUT_NOT_VALID_FLOAT 历史文案）→ 类型字节 0x00 → footer
+/// （2 字节 rdb 版本 + 8 字节 crc64）→ 长度前缀。C# 对空载荷直接 valueSpan[0]
+/// 越界（进程崩溃断连）、Slice 越界抛异常断连；rust 无 panic 约束下按同族
+/// 错误降级应答，不复刻崩溃
+pub(crate) fn parse_restore_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], i64, &'p [u8])> {
+  let [key, expiry_raw, value] = unpack_args(parse_state, output, "RESTORE")?;
+  // C# TryGetInt（index = Count - 2，arity 锁 3 即下标 1）
+  let Some(expiry) = strict_i32(expiry_raw) else {
+    abort_with_error_message(output, cs::RESP_ERR_TIMEOUT_NOT_VALID_FLOAT);
+    return None;
+  };
+  // RESTORE 仅实现字符串类型（类型字节 0x00）
+  if value.first() != Some(&0x00) {
+    write_error_raw(output, "ERR RESTORE currently only supports string types");
+    return None;
+  }
+  if value.len() < 10 {
+    write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
+    return None;
+  }
+  // footer = 2 字节 rdb 版本 + 8 字节 crc64
+  let footer = &value[value.len() - 10..];
+  let rdb_version = u16::from_le_bytes([footer[0], footer[1]]);
+  if rdb_version > RDB_VERSION {
+    write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
+    return None;
+  }
+  // crc 覆盖除末 8 字节外的全部载荷
+  let calculated_crc = rdb_crc64_hash(&value[..value.len() - 8]);
+  if calculated_crc != footer[2..] {
+    write_error_raw(output, ERR_DUMP_VERSION_CHECKSUM);
+    return None;
+  }
+  let Some((length, payload_start)) = try_read_length(&value[1..]) else {
+    write_error_raw(output, ERR_DUMP_LENGTH_INVALID);
+    return None;
+  };
+  let start = payload_start + 1;
+  let val = start
+    .checked_add(length as usize)
+    .and_then(|end| value.get(start..end))?;
+  Some((key, i64::from(expiry), val))
 }

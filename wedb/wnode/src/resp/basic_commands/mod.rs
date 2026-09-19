@@ -8,6 +8,7 @@ use wresp::resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter};
 mod get;
 mod incr;
 mod set;
+pub mod slow;
 mod ttl;
 
 use std::{mem, sync::Arc};
@@ -498,7 +499,7 @@ impl RespServerSession {
 
         if param.eq_ignore_ascii_case(b"AUTH") {
           if count - token_idx < 2 {
-            set::write_syntax_error_option(output, "HELLO", "AUTH");
+            cs::abort_with_syntax_error_option(output, "HELLO", "AUTH");
             return Ok(true);
           }
           auth_username = parse_state[token_idx];
@@ -506,7 +507,7 @@ impl RespServerSession {
           token_idx += 2;
         } else if param.eq_ignore_ascii_case(b"SETNAME") {
           if count - token_idx < 1 {
-            set::write_syntax_error_option(output, "HELLO", "SETNAME");
+            cs::abort_with_syntax_error_option(output, "HELLO", "SETNAME");
             return Ok(true);
           }
           let Some(name) = try_get_client_name_bytes(parse_state[token_idx]) else {
@@ -516,7 +517,7 @@ impl RespServerSession {
           token_idx += 1;
           tmp_client_name = Some(name);
         } else {
-          set::write_syntax_error_option(output, "HELLO", param.as_str_safe());
+          cs::abort_with_syntax_error_option(output, "HELLO", param.as_str_safe());
           return Ok(true);
         }
       }

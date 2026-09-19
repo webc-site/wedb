@@ -217,8 +217,15 @@ async fn replay_object_channel<T: ReplayObject, D: Device>(
     .await
     .map_err(AofReplayError::Store)?;
   let mut obj = loaded.transpose()?.flatten().unwrap_or_default();
-  let mut out = ObjectOutput::new();
-  obj.apply(sub_id, args, arg1, arg2, &mut out, resp_version);
+  // 回放仅取对象副作用（应答负载弃用），挂本地 sink 不触会话输出
+  obj.apply(
+    sub_id,
+    args,
+    arg1,
+    arg2,
+    &mut ObjectOutput::mount(&mut Vec::new()),
+    resp_version,
+  );
   if obj.is_empty() {
     session
       .delete_string(key)

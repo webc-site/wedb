@@ -1216,25 +1216,6 @@ impl GarnetInfoMetrics {
   ) -> Option<Vec<MetricsItem>> {
     self.get_metric_internal(section, db_id, provider)
   }
-
-  /// libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetInfoMetrics
-  ///
-  /// 迭代产出非空段（对齐 C# yield return）。
-  pub fn get_info_metrics(
-    &mut self,
-    sections: &[InfoMetricsType],
-    db_id: i32,
-    provider: &impl InfoProvider,
-  ) -> Vec<(InfoMetricsType, Vec<MetricsItem>)> {
-    sections
-      .iter()
-      .filter_map(|&section| {
-        self
-          .get_metric_internal(section, db_id, provider)
-          .map(|items| (section, items))
-      })
-      .collect()
-  }
 }
 
 /// 页大小（对齐 Environment.SystemPageSize 的用途）。

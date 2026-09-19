@@ -186,7 +186,7 @@ impl GarnetLatencyMetrics {
       .count();
 
     if non_empty_count == 0 {
-      output.extend_from_slice(b"*0\r\n");
+      output.write_resp_array_len(0);
       return;
     }
 

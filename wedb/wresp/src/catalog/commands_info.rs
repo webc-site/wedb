@@ -806,7 +806,7 @@ mod tests {
       try_get_resp_commands_info, try_get_resp_commands_info_count, try_initialize,
     },
     command::{FIRST_DATA_COMMAND, LAST_VALID_COMMAND, RespCommand},
-    resp_memory_writer::{Resp3, RespMemoryWriter},
+    resp_memory_writer::{Resp2, Resp3, RespWriter},
   };
 
   /// 表初始化 + 基本检索（COMMAND 表快照的入口断言）
@@ -899,7 +899,7 @@ mod tests {
   #[test]
   fn command_info_resp3_snapshot_get() {
     let get = try_get_resp_command_info_by_cmd(RespCommand::Get, false).unwrap();
-    let mut w = RespMemoryWriter::<Resp3>::new_p();
+    let mut w = RespWriter::<Vec<u8>, Resp3>::new();
     get.to_resp_format(&mut w);
     let expected = concat!(
       "*10\r\n$3\r\nGET\r\n:2\r\n~2\r\n+fast\r\n+readonly\r\n:1\r\n:1\r\n:1\r\n",
@@ -914,7 +914,7 @@ mod tests {
   #[test]
   fn command_info_resp3_snapshot_bitfield() {
     let bf = try_get_resp_command_info_by_cmd(RespCommand::Bitfield, false).unwrap();
-    let mut w = RespMemoryWriter::<Resp3>::new_p();
+    let mut w = RespWriter::<Vec<u8>, Resp3>::new();
     bf.to_resp_format(&mut w);
     let expected = concat!(
       "*10\r\n$8\r\nBITFIELD\r\n:-2\r\n~2\r\n+denyoom\r\n+write\r\n:1\r\n:1\r\n:1\r\n",
@@ -930,7 +930,7 @@ mod tests {
   #[test]
   fn command_info_resp2_snapshot_setbit() {
     let setbit = try_get_resp_command_info_by_cmd(RespCommand::Setbit, false).unwrap();
-    let mut w = RespMemoryWriter::new();
+    let mut w = RespWriter::<Vec<u8>, Resp2>::new();
     setbit.to_resp_format(&mut w);
     let expected = concat!(
       "*10\r\n$6\r\nSETBIT\r\n:4\r\n*2\r\n+denyoom\r\n+write\r\n:1\r\n:1\r\n:1\r\n",

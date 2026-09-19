@@ -181,12 +181,12 @@ impl ListObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     let Some(op) = ListOperation::try_from(sub_id).ok() else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
@@ -210,7 +210,7 @@ impl ListObject {
       | ListOperation::Lmove
       | ListOperation::Brpop
       | ListOperation::Blpop => {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }

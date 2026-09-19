@@ -62,7 +62,7 @@ SELECT（wedb/wnode/src/resp/array_commands.rs）：
 调用 parse_db_index 解析数字。
 直接更新会话标量 session.active_db。
 
-FLUSHDB（wedb/wkv/src/vdb.rs、wedb/wnode/src/resp/garnet_api.rs）：
+FLUSHDB（wedb/wkv/src/vdb/flush.rs、wedb/wkv/src/vdb/routing.rs、wedb/wnode/src/resp/garnet_api.rs）：
 秒级虚拟 ID 换号。
 单次 O(1) 原子替换当前库 virtual_db_id 槽位单元格。
 新库瞬时清空。
@@ -85,7 +85,7 @@ KEYS / SCAN / DBSIZE（wedb/wnode/src/storage/session/common/array_key_iteration
 调用 strip_session_prefix 剥离前缀。
 高效过滤当前 (ns, db) 键。
 
-FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb.rs）：
+FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb/flush.rs）：
 多租户秒级清库。
 单次 O(1) 原子替换当前租户 virtual_ns_id。
 当前租户下所有逻辑库瞬间全部失效。
@@ -95,7 +95,8 @@ FLUSHALL（wedb/wnode/src/resp/garnet_api.rs、wedb/wkv/src/vdb.rs）：
 
 ### 1.4 虚拟空间与虚拟库映射与延时回收机制
 
-代码路径：wedb/wkv/src/vdb.rs、wedb/wkv/src/gc.rs
+代码路径：wedb/wkv/src/vdb/（目录模块：routing.rs 路由表、meta_record.rs DbMeta 记录编解码、
+gc.rs 死亡号账本、manager.rs 管理器、flush.rs 清库换号）、wedb/wkv/src/gc.rs
 
 架构原理：
 双层虚拟化解耦：
@@ -277,7 +278,7 @@ ACL 用户规则以物理键形式保存在底层存储：
 ACL SETUSER <ns>#<user> ...：直接写底层存储 KeyTag::Acl 记录。
 ACL DELUSER <ns>#<user>：直接向底层存储写入墓碑删除。
 ACL GETUSER <ns>#<user>：点查底层存储并反序列化输出。
-ACL LIST / ACL USERS：两遍流式扫描当前 Namespace 的 KeyTag::Acl 记录——首遍仅计数（LIST 另附逐条可解码性校验）定出应答数组长度，次遍重扫同一扫描内核、逐条解码后就地直写会话应答缓冲；扫描期间任意时刻内存只驻留单条规则，不整包装载规则正文（应答正文本身按会话既有的命令边界水位让渡实写）。
+ACL LIST / ACL USERS：单遍流式扫描当前 Namespace 的 KeyTag::Acl 记录并就地收成小快照——扫描所见的用户名（USERS）或逐条解码后渲染的规则正文（LIST）先入快照，再由同一快照写出应答数组长度与元素，数组头与元素数同源强一致：扫描起讫区间取调用时刻的日志尾，起扫后本命名空间的并发 SETUSER/DELUSER 无从令符头与条数背离（ACL 用户量级小，快照只是整份应答的提前驻留，应答正文本就全量缓冲于会话输出缓冲，与零大字典设计不冲突）。不可解码的记录在写数组头之前失败关闭，只回一条错误帧、不留半截数组框。
 ACL SAVE / ACL LOAD：由于数据即时持久化，直接返回 +OK。
 
 ### 3.5 零号命名空间超管权限门禁

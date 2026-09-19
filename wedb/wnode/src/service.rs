@@ -170,7 +170,14 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
       }
       // ACL 用户规则旁路标签（0x0D）：与 String 域同为整值写/墓碑删，
       // 经 StoreUpsert/StoreDelete 条目镜像（从库 AOF 回放据此重建用户表）
-      if tag != Some(KeyTag::String) && tag != Some(KeyTag::Acl) {
+      //
+      // DbMeta 系统元数据（0x0E）：映射体系镜像通道（doc/zh/db.md「物理日志
+      // 复制与 Checkpoint 直接镜像主库的 KeyTag::DbMeta 与数据记录；从库完全
+      // 继承主库的映射体系，不进行本地二次映射」）——主库全部换号批/首映射/
+      // SWAPDB 记录与 GC 墓碑注销经此镜像，从库回放面交
+      // WedbStore::apply_dbmeta_record / apply_dbmeta_tombstone 应用，换号虚号
+      // 主从同源；条目即完整记录（键载荷 + 定长值），无需第二套映射同步机制
+      if tag != Some(KeyTag::String) && tag != Some(KeyTag::Acl) && tag != Some(KeyTag::DbMeta) {
         return Ok(());
       }
       let op = if tombstone {
@@ -245,6 +252,10 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
         &EMPTY_REPLAY_INPUT_BYTES,
       )?;
     }
+    // RI.SET/RI.DEL 的 AOF 记录单点：C# 经 functionsState 显式调用
+    // libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexSet
+    // 与 libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexDel
+    // 两对口，rust 由本 StoreEvent 通道一处承接
     StoreEvent::RangeIndexWrite {
       ns,
       db,
@@ -1263,7 +1274,20 @@ where
     ));
     let mgr = Arc::new(SingleDatabaseManager::new(checkpoint_dir.clone(), db));
     mgr.attach_vector_manager(Arc::clone(&vector_manager));
-    let replayed = mgr.recover_aof().await?;
+    // AOF 设备面恢复（C# RecoverAOFAsync → Log.RecoverAsync 磁盘段位点扫描）
+    aof.recover_async().await;
+    // 检查点覆盖位点对齐（C# ReplicationManager.cs:548 RecoverCheckpointAndAOFAsync
+    // 同位调用 InitializeIf）：恢复出的检查点对应不可用 AOF 地址（AOF 段过度
+    // 截断或丢失致尾位点落后于检查点覆盖地址）时，把 AOF 位点推至安全地址，
+    // 重放与复制位点基线保持一致；正常场景尾位点不落后即 no-op
+    if let Some((_, meta)) = wcpr::latest_checkpoint_meta(&checkpoint_dir)
+      && let Some(covered) = meta.checkpoint_aof_address
+    {
+      let safe = AofAddress::create(aof.log().size() as i32, covered as i64);
+      aof.log().initialize_if(&safe);
+    }
+    // 全量重放（版本基线过滤）
+    let replayed = mgr.replay_aof(u64::MAX).await?;
     log::info!("Recovered AOF: replayed {replayed} entries");
     // 重放后的 AOF 尾地址（对标 C# ReplayAOF 返回值 replayedUntil；宿主
     // 装配尾段据此回填 rm 复制位点——gossip 广播与 failover 判定基线）
@@ -1564,11 +1588,12 @@ where
         self.vector_manager.start_quantization_tasks(1);
       }
 
-      // 向量清理三常驻协程随首个 worker runtime 惰性拉起一次并托管（对标 C#
-      // VectorManager 构造器启动 RunCleanupTaskAsync/RunRequestCleanupTaskAsync/
-      // RunRequestDropTaskAsync；Rust 构造在 compio runtime 外，故与量化协程同处
-      // 首会话拉起，spawn 与本调用同 runtime。JoinHandle 收进 CleanupRuntime 托管，
-      // 停机时由 dispose_vector_cleanup 收敛释放）。
+      // 向量清理两常驻协程随首个 worker runtime 惰性拉起一次并托管（对标 C#
+      // VectorManager 构造器启动 RunCleanupTaskAsync/RunRequestCleanupTaskAsync；
+      // 第三条 RunRequestDropTaskAsync 的唯一生产点是主存记录逐出触发器，rust 无该
+      // 触发面不落地，见 vector_manager_cleanup 模块头；Rust 构造在 compio runtime 外，
+      // 故与量化协程同处首会话拉起，spawn 与本调用同 runtime。JoinHandle 收进
+      // CleanupRuntime 托管，停机时由 dispose_vector_cleanup 收敛释放）。
       self.vector_manager.ensure_cleanup_tasks_started();
     }
 
@@ -1710,7 +1735,7 @@ where
 
   /// 向量清理协程停机收敛（对标 C# `VectorManager.Dispose`）：转发
   /// [`VectorManager::dispose_cleanup`]，由宿主 `stop()` 在停 coordinator 前
-  /// 于主线程驱动，确保 worker 运行时仍在排空三条清理通道。
+  /// 于主线程驱动，确保 worker 运行时仍在排空清理通道。
   fn dispose_vector_cleanup(&self) -> bool {
     self.vector_manager.dispose_cleanup()
   }

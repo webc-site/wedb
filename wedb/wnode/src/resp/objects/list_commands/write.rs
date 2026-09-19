@@ -8,7 +8,7 @@ use wresp::{
   ext::RespVecExt,
 };
 
-use super::{ListLoad, Rmw, list_load_sync, list_save_or_gc, run_operate};
+use super::{ListLoad, Rmw, list_load_sync, list_save_or_gc, parse_i32_pair_args, run_operate};
 use crate::{
   resp::{objects::object_store_utils::RespRmwDone, resp_server_session::RespServerSession},
   session_parse_state_extensions::operation_direction_from_token as parse_direction,
@@ -71,17 +71,20 @@ impl RespServerSession {
         ListLoad::WrongType => {}
         ListLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         ListLoad::Present(mut obj) => {
-          let obj_out = run_operate(
+          // LPUSH 族仅回填 result1（无负载段），整数应答在写回成功后落帧
+          let result1 = run_operate(
             &mut obj,
             op,
             &parse_state[1..],
             0,
             0,
             self.resp_protocol_version,
-          );
+            output,
+          )
+          .result1;
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => {
-              output.write_resp_int(obj_out.result1);
+              output.write_resp_int(result1);
               self.notify_collection_update(key);
             }
             Ok(false) => return Ok(false),
@@ -158,13 +161,11 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 3, output, "LTRIM");
-    let key = parse_state[0];
-    // C#：start/end 非整数报错
-    let (Some(start), Some(stop)) = (strict_i32(parse_state[1]), strict_i32(parse_state[2])) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // start/stop 参数推导单源（快慢共用，失败帧已写出）
+    let Some((start, stop)) = parse_i32_pair_args("LTRIM", parse_state, output) else {
       return Ok(true);
     };
+    let key = parse_state[0];
 
     match list_load_sync(store, key, output) {
       ListLoad::Degrade => return Ok(false),
@@ -179,6 +180,7 @@ impl RespServerSession {
           start,
           stop,
           self.resp_protocol_version,
+          output,
         );
         match list_save_or_gc(store, key, &obj) {
           Ok(true) => output.extend_from_slice(cs::RESP_OK),
@@ -208,26 +210,32 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       ListLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let mut obj_out = run_operate(
           &mut obj,
           ListOperation::Linsert,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        if obj_out.result1 > 0 {
+        let result1 = obj_out.result1;
+        if result1 > 0 {
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => self.notify_collection_update(key),
-            Ok(false) => return Ok(false),
+            Ok(false) => {
+              obj_out.reset();
+              return Ok(false);
+            }
             Err(_) => {
+              obj_out.reset();
               output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
         }
         // C# 仅回填 result1（pivot 缺失 → -1），整数回复由 RESP 层写出
-        output.write_resp_int(obj_out.result1);
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -255,26 +263,32 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       ListLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let mut obj_out = run_operate(
           &mut obj,
           ListOperation::Lrem,
           &[parse_state[2]],
           count,
           0,
           self.resp_protocol_version,
+          output,
         );
-        if obj_out.result1 > 0 {
+        let result1 = obj_out.result1;
+        if result1 > 0 {
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => {}
-            Ok(false) => return Ok(false),
+            Ok(false) => {
+              obj_out.reset();
+              return Ok(false);
+            }
             Err(_) => {
+              obj_out.reset();
               output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
         }
         // C# 仅回填 result1，整数回复由 RESP 层写出
-        output.write_resp_int(obj_out.result1);
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -480,25 +494,30 @@ impl RespServerSession {
         cs::write_error_raw(output, cs::RESP_ERR_GENERIC_NOSUCHKEY);
       }
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let mut obj_out = run_operate(
           &mut obj,
           ListOperation::Lset,
           &[parse_state[1], parse_state[2]],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        if obj_out.payload.first() == Some(&b'+') {
+        if obj_out.payload_view().first() == Some(&b'+') {
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => {}
-            Ok(false) => return Ok(false),
+            Ok(false) => {
+              obj_out.reset();
+              return Ok(false);
+            }
             Err(_) => {
+              obj_out.reset();
               output.write_resp_error(RESP_ERR_GENERIC);
               return Ok(true);
             }
           }
         }
-        output.extend_from_slice(&obj_out.payload);
+        // +OK / 对象层错误负载均已直写会话输出尾段
       }
     }
     Ok(true)

@@ -45,6 +45,7 @@ async fn make_dual_state(
       (b"f1".to_vec(), b"v1".to_vec()),
       (b"f2".to_vec(), b"v2".to_vec()),
     ],
+    i64::MAX,
   )
   .await?;
   let env_k = s.session_tag_key(KeyTag::ObjectEnvelope, key);

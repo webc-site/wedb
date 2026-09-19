@@ -1,20 +1,19 @@
 //! 范围索引 AOF 复制面集成测试（自 src 内嵌测试迁出）
 //!
 //! 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs：
-//! RI.SET / RI.DEL 的 StoreRMW 入队形状、迁移流分块灌入 AOF（首尾标志）、
-//! 分块边界校验与空 AOF / 缺文件失败路径、流块标志位面与哨兵/后端映射。
+//! 迁移流分块灌入 AOF（首尾标志）、空 AOF / 缺文件失败路径、
+//! 流块标志位面与后端映射。
 
 use std::{fs, sync::Arc};
 
 use tempfile::TempDir;
 use waof::{AofEntryType, AofHeader, WalRecord};
-use wbftree::{MIN_CHUNK_SIZE, RangeIndexManager, StorageBackendType};
-use wcol::RespInputFlags;
+use wbftree::{RangeIndexManager, StorageBackendType};
 use wconf::RuntimeServerOptions;
 use wnode::{
   AofWriteContext, GarnetAppendOnlyFile, GarnetLog, ReplayInput,
   rangeindex::range_index_manager_replication::{
-    RangeIndexManagerReplication, RangeIndexStreamArgs, STREAMED_PUBLISH_LOG_ARG,
+    RangeIndexManagerReplication, RangeIndexStreamArgs,
   },
 };
 use wresp::command::RespCommand;
@@ -24,11 +23,6 @@ const HEADER_SIZE: usize = AofHeader::TOTAL_SIZE;
 /// C# StreamedPublishLogArg 位面：IsLast = 1，IsFirst = 2（对齐 src 常量）
 const STREAM_CHUNK_IS_FIRST_FLAG: i64 = 2;
 const STREAM_CHUNK_IS_LAST_FLAG: i64 = 1;
-
-/// C# RespInputFlags.Deterministic（src deterministic_flags 的同构表达）
-fn deterministic_flags() -> u8 {
-  RespInputFlags::DETERMINISTIC.bits()
-}
 
 /// 流块 arg1 首尾标志打包（src pack_stream_chunk_flags 的同构表达）
 fn pack_stream_chunk_flags(is_first: bool, is_last: bool) -> i64 {
@@ -76,104 +70,8 @@ fn parse_input(record: &WalRecord, key_len: usize) -> ReplayInput {
   ReplayInput::deserialize(&record.payload[input_start..]).expect("ReplayInput roundtrip")
 }
 
-/// 解析记录的 SpanByte key 段
-fn parse_key(record: &WalRecord) -> &[u8] {
-  let len = u32::from_le_bytes(
-    record.payload[HEADER_SIZE..HEADER_SIZE + 4]
-      .try_into()
-      .unwrap(),
-  ) as usize;
-  &record.payload[HEADER_SIZE + 4..HEADER_SIZE + 4 + len]
-}
-
 fn parse_header(record: &WalRecord) -> AofHeader {
   AofHeader::parse(&record.payload).expect("header decodable")
-}
-
-/// 分块边界：< 47 拒绝，47 恰好接受（C# MinChunkSize）
-#[test]
-fn chunk_size_boundary_rejects_below_trailer_size() {
-  let dir = TempDir::new().unwrap();
-  let replication = replication_in(&dir);
-  assert!(
-    replication
-      .set_aof_stream_chunk_size(MIN_CHUNK_SIZE - 1)
-      .is_err()
-  );
-  assert!(
-    replication
-      .set_aof_stream_chunk_size(MIN_CHUNK_SIZE)
-      .is_ok()
-  );
-  assert_eq!(replication.aof_stream_chunk_size(), MIN_CHUNK_SIZE);
-  assert!(replication.set_aof_stream_chunk_size(0).is_err());
-  assert!(replication.set_aof_stream_chunk_size(256 * 1024).is_ok());
-  assert_eq!(replication.aof_stream_chunk_size(), 256 * 1024);
-}
-
-/// RI.SET / RI.DEL 入队：StoreRMW 头 + key 领衔负载 + 确定性标志；NULL AOF /
-/// 存储过程模式跳过；地址单调推进
-#[test]
-fn replicate_set_del_enqueue_shapes() {
-  let aof = memory_aof();
-  let dir = TempDir::new().unwrap();
-  let replication = replication_in(&dir);
-
-  // NULL AOF / 存储过程模式：跳过入队（返回 0）
-  let ctx = AofWriteContext {
-    version: 7,
-    session_id: 3,
-  };
-  let none_ctx = AofWriteContext {
-    version: 1,
-    session_id: 1,
-  };
-  assert_eq!(
-    replication
-      .replicate_range_index_set(b"k", b"f", b"v", None, none_ctx, false)
-      .unwrap(),
-    0
-  );
-  assert_eq!(
-    replication
-      .replicate_range_index_set(b"k", b"f", b"v", Some(&aof), none_ctx, true)
-      .unwrap(),
-    0
-  );
-  assert_eq!(
-    replication
-      .replicate_range_index_del(b"k", b"f", None, none_ctx, false)
-      .unwrap(),
-    0
-  );
-
-  let a1 = replication
-    .replicate_range_index_set(b"k", b"field-1", b"value-1", Some(&aof), ctx, false)
-    .unwrap();
-  let a2 = replication
-    .replicate_range_index_del(b"k", b"field-2", Some(&aof), ctx, false)
-    .unwrap();
-  assert!(a1 >= 0 && a2 > a1, "addresses must advance monotonically");
-
-  // 回读：两条目均 StoreRMW 头 + key 领衔负载 + 确定性标志
-  let records = scan_records(aof.log());
-  assert_eq!(records.len(), 2);
-  for record in &records {
-    let header = parse_header(record);
-    assert_eq!(header.op_type, AofEntryType::StoreRMW as u8);
-    assert_eq!(header.store_version, 7);
-    assert_eq!(header.session_id, 3);
-    assert_eq!(parse_key(record), b"k");
-    let input = parse_input(record, 1);
-    assert_eq!(input.flags, deterministic_flags());
-    assert!(input.cmd == RespCommand::Riset || input.cmd == RespCommand::Ridel);
-  }
-  let first = parse_input(&records[0], 1);
-  assert_eq!(first.cmd, RespCommand::Riset);
-  assert_eq!(first.args, vec![b"field-1".to_vec(), b"value-1".to_vec()]);
-  let second = parse_input(&records[1], 1);
-  assert_eq!(second.cmd, RespCommand::Ridel);
-  assert_eq!(second.args, vec![b"field-2".to_vec()]);
 }
 
 /// 单块流：首块与末块标志同时置位，块载荷为完整框
@@ -337,11 +235,9 @@ fn stream_chunk_flags_pack_roundtrip() {
   }
 }
 
-/// 迁移发布哨兵与后端字节映射对齐 C#
-///（long.MinValue 哨兵；0=Disk，1=Memory）
+/// 后端字节映射对齐 C#（0=Disk，1=Memory）
 #[test]
-fn sentinel_and_backend_mapping_match_csharp() {
-  assert_eq!(STREAMED_PUBLISH_LOG_ARG, i64::MIN);
+fn backend_mapping_match_csharp() {
   assert_eq!(StorageBackendType::from_u8(0), StorageBackendType::Disk);
   assert_eq!(StorageBackendType::from_u8(1), StorageBackendType::Memory);
   assert_eq!(StorageBackendType::Disk.to_u8(), 0);

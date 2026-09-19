@@ -13,6 +13,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use wbase::num::{strict_f32, strict_i32};
 use wresp::{
+  cmd_strings as cs,
   resp_memory_writer::{Resp2, Resp3, RespProtocol as _, RespWriter},
   wrong_num_args,
 };
@@ -749,7 +750,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
     while cur_ix < args.len() {
       let opt = args[cur_ix];
-      if eq_ignore_case(opt, b"WITHSCORES") {
+      if eq_ignore_case(opt, cs::WITHSCORES) {
         if with_scores {
           return err_dup!("WITHSCORES");
         }
@@ -761,7 +762,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         }
         with_attribs = true;
         cur_ix += 1;
-      } else if eq_ignore_case(opt, b"COUNT") {
+      } else if eq_ignore_case(opt, cs::COUNT) {
         if count.is_some() {
           return err_dup!("COUNT");
         }
@@ -1107,7 +1108,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
     if args.len() != 2 && args.len() != 3 {
       return VectorReply::err(wrong_num_args!("VLINKS").as_bytes());
     }
-    if args.len() == 3 && !eq_ignore_case(args[2], b"WITHSCORES") {
+    if args.len() == 3 && !eq_ignore_case(args[2], cs::WITHSCORES) {
       return VectorReply::err(ERR_VLINKS_UNEXPECTED_OPTION);
     }
     let Some(index) = self.read_index(prefix, args[0]) else {

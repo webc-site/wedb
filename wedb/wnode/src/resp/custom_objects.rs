@@ -67,6 +67,8 @@ pub(crate) fn is_custom_object_command(name: &str) -> bool {
 
 #[cfg(all(test, any(feature = "roaring", feature = "json")))]
 mod tests {
+  use wcustom::{CommandType, KeyScope};
+
   use super::{
     CUSTOM_OBJECT_ENTRIES, custom_object_type_name, is_custom_object_command,
     match_custom_object_command,
@@ -115,6 +117,37 @@ mod tests {
         "标签 → TYPE 注册名反查与清单项漂移"
       );
     }
+  }
+
+  /// 各启用扩展 crate 的命令名合集（清单自校验遍历用）
+  fn enabled_command_names() -> Vec<&'static str> {
+    let mut names = Vec::new();
+    #[cfg(feature = "roaring")]
+    names.extend(wext_roaring::COMMAND_INFOS.iter().map(|info| info.name));
+    #[cfg(feature = "json")]
+    names.extend(wext_json::COMMAND_INFOS.iter().map(|info| info.name));
+    names
+  }
+
+  /// 多键读形态只与只读命令并置：执行面的多键臂不再按 CommandType 分派
+  /// （[`wcustom::KeyScope::MultiRead`] 语义即只读），清单若登记
+  /// 「多键 + 读改写」由本自校验拦截；同时钉住当前多键读命令面只有
+  /// JSON.MGET 一条（新增第二条时本断言显式提醒复核分派面）
+  #[test]
+  fn multi_read_scope_commands_are_read_only() {
+    let mut multi_read = 0;
+    for name in enabled_command_names() {
+      let (_, meta) = match_custom_object_command(name.as_bytes()).expect("清单未登记扩展命令名");
+      if let KeyScope::MultiRead { .. } = meta.key_scope {
+        assert_eq!(
+          meta.command_type,
+          CommandType::Read,
+          "多键读命令 {name} 未登记只读"
+        );
+        multi_read += 1;
+      }
+    }
+    assert_eq!(multi_read, 1, "多键读扩展命令面漂移");
   }
 
   #[cfg(feature = "roaring")]

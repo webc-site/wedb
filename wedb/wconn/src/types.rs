@@ -14,6 +14,23 @@ use crate::{Error, Result, network::encode_command};
 /// 形参 max_outstanding_tasks 承担，不读此常量抬容量）
 pub(crate) const CHANNEL_CAP: usize = 1024;
 
+/// 客户端发送侧未刷出字节硬顶（发送链字节维度的唯一上限单源，写泵拼批分片
+/// 与复制溢流队列共用此常量，杜绝两处魔数）
+///
+/// 对标 C# 每连接 NetworkWriter 环形发送缓冲的字节顶 = 页数 × 每页尺寸：
+/// `libs/client/NetworkWriter.cs:55` BufferSize = 4 页，页尺寸即构造形参
+/// sendPageSize。通用客户端 `libs/client/GarnetClient.cs:149` sendPageSize =
+/// 1 << 21（4 × 2MB = 8MB）；复制域按用途显式配尺寸
+///（`libs/cluster/Server/Replication/ReplicationNetworkBufferSettings.cs`：
+/// AOF 同步客户端 :41 `2 << AofPageSizeBits()`、副本同步会话 :26 `1 << 20`、
+/// InitiateReplicaSync :33 `1 << 17`）。C# 由页满时 TryAllocate 的 RETRY_LATER
+/// 把未刷出字节钉死在 4 页内，rust 以本常量承接同等字节顶。
+///
+/// rust 默认 wal 页 16MiB（waof `DEFAULT_BUFFER_SIZE` = 1 << 24），页尺寸取
+/// C# AOF 同式 `2 << 页位` = 2 << 24 = 32MiB，页数 4，合计 128MiB。AOF 尺寸
+/// 旋钮读侧接线落地后，本式可改接真实页位；未落地前按缺省页尺寸取常量。
+pub const MAX_UNFLUSHED_SEND_BYTES: usize = 4 * (2 << 24);
+
 /// 命令应答回传端口：按期望应答类型区分（标量 / 字符串数组），与网络泵的
 /// 应答解析器一一对应；None 为发出即忘（协议约定无应答的命令）
 pub(crate) enum ReplyTx {

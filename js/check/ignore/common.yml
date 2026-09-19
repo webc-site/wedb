@@ -1,8 +1,11 @@
 - 文件:
     - libs/common/RespReadUtils.cs:
+        - GetSerializedRecordSpan
         - TryReadBoolWithLengthHeader
         - TryReadDoubleWithLengthHeader
         - TryReadInt32
+        - TryReadPtrWithLengthHeader
+        - TrySkipByteArrayWithLengthHeader
         - TryReadInt64
         - TryReadInt64Safe
         - TryReadInt64WithLengthHeader
@@ -20,7 +23,11 @@
     rust 侧为 wbase/src/num.rs:94 strict_i64（该函数 :89 注释即「对照
     RespReadUtils.TryReadInt64Safe allowLeadingZeros: false 语义」）与 num.rs:124
     strict_i32 单点承接，不再复刻 ref ptr / out bytesRead 形态； TryReadInt64 一族在 rust 亦走同一
-    strict 通道，命令层无逐类型读取函数"
+    strict 通道，命令层无逐类型读取函数。TrySkipByteArrayWithLengthHeader 在 C# 亦仅
+    RespReadUtilsTests.cs:419,425,431 测试引用（生产零调用），rust 对标口已删；
+    TryReadPtrWithLengthHeader 的 C# 生产消费点为 ObjectStore/Common.cs:223,242
+    （副本回读 SCAN 输出的 RESP 帧重解析），rust 副本回读走结构化通道不经文本帧
+    重解析，该形态无承接位，rust 对标口已删"
 - 文件:
     - libs/common/Networking/BatchHeader.cs
     - libs/common/Networking/BufferSizeUtils.cs
@@ -331,8 +338,9 @@
 - 文件:
     - libs/common/NumUtils.cs:
         - CountCharsInDouble
+        - CountDigits
         - GetNextOffset
-  理由: 零调用方死代码，Rust 侧通过 ryu/dtoa / u64::trailing_zeros 原生支持，清理仅测试工具
+  理由: 零调用方死代码，Rust 侧通过 itoa / zmij / u64::trailing_zeros 原生支持，清理仅测试工具
 - 文件:
     - libs/common/BitVector.cs:
         - GetOffsets

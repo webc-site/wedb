@@ -14,7 +14,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use tempfile::tempdir;
 use wcol::{
-  object_payload::{obj_decode, obj_encode},
+  object_payload::{obj_decode, obj_encode_into},
   zset::sorted_set_object::SortedSetObject,
 };
 use wcpr::CheckpointType;
@@ -53,7 +53,8 @@ fn write_read() -> Void {
     let session = store.new_session()?;
 
     let obj = SortedSetObject::new();
-    let bytes = obj_encode(ZSET_TAG, &obj.serialize_to_vec());
+    let mut bytes = Vec::new();
+    obj_encode_into(ZSET_TAG, &obj.serialize_to_vec(), &mut bytes);
 
     session.upsert(KEY_NUM, &bytes).await?;
 
@@ -83,7 +84,8 @@ fn write_checkpoint_read() -> Void {
     {
       let (_device, store) = open_store(&db_path)?;
       let session = store.new_session()?;
-      let bytes = obj_encode(ZSET_TAG, &obj.serialize_to_vec());
+      let mut bytes = Vec::new();
+      obj_encode_into(ZSET_TAG, &obj.serialize_to_vec(), &mut bytes);
       session.upsert(KEY_NUM, &bytes).await?;
       store
         .create_checkpoint(&cp_dir, CheckpointType::FoldOver)
@@ -123,7 +125,8 @@ fn write_checkpoint_copy_update() -> Void {
     {
       let (_device, store) = open_store(&db_path)?;
       let session = store.new_session()?;
-      let bytes = obj_encode(ZSET_TAG, &obj.serialize_to_vec());
+      let mut bytes = Vec::new();
+      obj_encode_into(ZSET_TAG, &obj.serialize_to_vec(), &mut bytes);
       session.upsert(KEY_NUM, &bytes).await?;
       store
         .create_checkpoint(&cp_dir, CheckpointType::FoldOver)
@@ -131,7 +134,8 @@ fn write_checkpoint_copy_update() -> Void {
 
       // RMW update
       obj.add(b"\x10", 20.0);
-      let updated_bytes = obj_encode(ZSET_TAG, &obj.serialize_to_vec());
+      let mut updated_bytes = Vec::new();
+      obj_encode_into(ZSET_TAG, &obj.serialize_to_vec(), &mut updated_bytes);
       session.upsert(KEY_NUM, &updated_bytes).await?;
       store
         .create_checkpoint(&cp_dir, CheckpointType::FoldOver)

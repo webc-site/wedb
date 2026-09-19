@@ -75,7 +75,7 @@ fn write_channel_array<S>(
   pattern: Option<&[u8]>,
 ) {
   if subscriptions.is_empty() {
-    output.extend_from_slice(b"*0\r\n");
+    output.write_resp_array_len(0);
     return;
   }
   // 归属判定 + 用户模式过滤：裸名生命周期显式随入参通道，闭包无法表达该高阶约束
@@ -558,9 +558,9 @@ impl<S: PubSubSink> SubscribeBroker<S> {
 
   /// 后台消费循环退出回报（宿主消费任务体退出循环后调用）
   ///
-  /// C# StartAsync 的 `finally { done.Set(); }`：清在跑标志并唤醒收口等待方
-  ///
-  /// libs/server/PubSub/SubscribeBroker.cs:StartAsync
+  /// C# StartAsync 的 `finally { done.Set(); }` 半边：清在跑标志并唤醒收口
+  /// 等待方；StartAsync 循环本体的锚点在宿主侧 spawn_pubsub_consume_task，
+  /// 此处为子步骤不重复登记
   pub fn consumer_finish(&self) {
     self.consumer_live.store(false, Release);
     self.consumer_done.notify(usize::MAX);

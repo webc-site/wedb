@@ -30,7 +30,7 @@ impl ExprStack {
     self.buffer.len()
   }
 
-  /// diskann-garnet/ExprRunner.cs:TryPush
+  /// libs/server/Resp/Vector/ExprRunner.cs:TryPush
   #[inline]
   pub fn try_push(&mut self, t: ExprToken) -> bool {
     if self.buffer.len() >= self.buffer.capacity() {
@@ -40,13 +40,13 @@ impl ExprStack {
     true
   }
 
-  /// diskann-garnet/ExprRunner.cs:Pop
+  /// libs/server/Resp/Vector/ExprRunner.cs:Pop
   #[inline]
   pub fn pop(&mut self) -> ExprToken {
     self.buffer.pop().unwrap_or_default()
   }
 
-  /// diskann-garnet/ExprRunner.cs:Peek
+  /// libs/server/Resp/Vector/ExprRunner.cs:Peek
   #[inline]
   pub fn peek(&self) -> ExprToken {
     self.buffer.last().copied().unwrap_or_default()
@@ -58,7 +58,7 @@ impl ExprStack {
   }
 }
 
-/// diskann-garnet/ExprRunner.cs:Run
+/// libs/server/Resp/Vector/ExprRunner.cs:Run
 ///
 /// 使用预提取字段值执行编译后的程序；选择器按字节区间匹配
 /// `selector_ranges` 从 `extracted_fields` 取值。
@@ -106,7 +106,7 @@ pub fn run(
   return_value
 }
 
-/// diskann-garnet/ExprRunner.cs:ExecuteInstruction
+/// libs/server/Resp/Vector/ExprRunner.cs:ExecuteInstruction
 ///
 /// 单条指令执行：值词元入栈，操作符弹栈计算后回推。
 fn execute_instruction(
@@ -193,7 +193,7 @@ fn execute_instruction(
 
 // ======================== 类型转换辅助 ========================
 
-/// diskann-garnet/ExprRunner.cs:GetStrSpan
+/// libs/server/Resp/Vector/ExprRunner.cs:GetStrSpan
 ///
 /// 解析 Str 词元的 UTF-8 字节区间。
 /// 编译器产出的词元（is_filter_origin）引用 filter_bytes；
@@ -207,7 +207,7 @@ fn get_str_span<'a>(t: &ExprToken, filter_bytes: &'a [u8], json: &'a [u8]) -> &'
   slice_at(buf, start, len)
 }
 
-/// diskann-garnet/ExprRunner.cs:ToNum
+/// libs/server/Resp/Vector/ExprRunner.cs:ToNum
 fn to_num(t: ExprToken, filter_bytes: &[u8], json: &[u8]) -> f64 {
   if t.is_none() {
     return 0.0;
@@ -225,7 +225,7 @@ fn to_num(t: ExprToken, filter_bytes: &[u8], json: &[u8]) -> f64 {
   }
 }
 
-/// diskann-garnet/ExprRunner.cs:ToBool
+/// libs/server/Resp/Vector/ExprRunner.cs:ToBool
 fn to_bool(t: ExprToken) -> f64 {
   if t.is_none() {
     return 0.0;
@@ -238,7 +238,7 @@ fn to_bool(t: ExprToken) -> f64 {
   }
 }
 
-/// diskann-garnet/ExprRunner.cs:AreEqual
+/// libs/server/Resp/Vector/ExprRunner.cs:AreEqual
 fn are_equal(a: ExprToken, b: ExprToken, filter_bytes: &[u8], json: &[u8]) -> bool {
   if a.is_none() || b.is_none() {
     return a.is_none() && b.is_none();
@@ -265,7 +265,7 @@ fn are_equal(a: ExprToken, b: ExprToken, filter_bytes: &[u8], json: &[u8]) -> bo
   to_num(a, filter_bytes, json) == to_num(b, filter_bytes, json)
 }
 
-/// diskann-garnet/ExprRunner.cs:EvalIn
+/// libs/server/Resp/Vector/ExprRunner.cs:EvalIn
 fn eval_in(
   a: ExprToken,
   b: ExprToken,
@@ -321,7 +321,7 @@ fn index_of(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 // ======================== 转义感知比较 ========================
 
-/// diskann-garnet/ExprRunner.cs:UnescapedEquals
+/// libs/server/Resp/Vector/ExprRunner.cs:UnescapedEquals
 ///
 /// 比较两个 UTF-8 字节区间，按需在线反转义 JSON 转义序列，不分配内存。
 fn unescaped_equals(a: &[u8], a_escaped: bool, b: &[u8], b_escaped: bool) -> bool {
@@ -352,7 +352,7 @@ fn unescaped_equals(a: &[u8], a_escaped: bool, b: &[u8], b_escaped: bool) -> boo
   ai == a.len() && bi == b.len()
 }
 
-/// diskann-garnet/ExprRunner.cs:UnescapeByte
+/// libs/server/Resp/Vector/ExprRunner.cs:UnescapeByte
 fn unescape_byte(b: u8) -> u8 {
   match b {
     b'n' => b'\n',

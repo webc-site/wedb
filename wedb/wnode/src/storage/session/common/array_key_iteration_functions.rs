@@ -245,30 +245,6 @@ impl<'a, D: Device> StorageSession<'a, D> {
     Ok(found)
   }
 
-  /// 全库记录迭代（回调拿到 (用户键, 值)，返回 false 提前终止）
-  ///
-  /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:IterateStore
-  pub async fn iterate_store(
-    &self,
-    mut on_record: impl FnMut(&[u8], &[u8]) -> bool,
-  ) -> wkv::Result<usize> {
-    let records = self.string_snapshot().await?;
-    let ctx = self.consistent_read_context();
-    let mut n = 0usize;
-    for (key, value) in &records {
-      let cont = if let Some(ctx) = ctx.as_ref() {
-        ctx.with_consistent_read(key, || on_record(key, value))?
-      } else {
-        on_record(key, value)
-      };
-      n += 1;
-      if !cont {
-        break;
-      }
-    }
-    Ok(n)
-  }
-
   /// 删除命中给定集群槽位的所有键，返回删除数
   ///
   /// libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:DeleteSlotKeys
@@ -414,60 +390,6 @@ impl<'a, D: Device> StorageSession<'a, D> {
       return Ok(deleted);
     }
     Ok(false)
-  }
-
-  /// 当前会话用户键空间快照（hlog 区间扫描 + 会话前缀过滤 + 同键留最新；
-  /// 含 String 与对象信封两个物理域，Meta 打平键不入）
-  ///
-  /// 键 -> 值（None = 已删除墓碑；信封记录值为信封载荷）。BfTree 扫描（scan_range_callback）只覆盖
-  /// 范围索引记录，普通写仅入 hlog 与哈希索引，故全量迭代必须走 hlog 扫描；
-  /// 逻辑地址升序遍历天然后写覆盖前写。整库物化为快照，生产大库 SCAN 应改
-  /// 分页增量（对标 C# cursor 语义），此处以正确性优先。
-  pub(crate) async fn collect_records(&self) -> wkv::Result<GxHashMap<Vec<u8>, Option<Vec<u8>>>> {
-    let prefix = self.batch.session_prefix();
-    let prefix_slice = prefix.as_slice();
-    let mut map = GxHashMap::default();
-    self
-      .batch
-      .store
-      .hlog()
-      .scan(
-        self.batch.store.begin_address(),
-        self.batch.store.tail_address(),
-        |_addr, rec| {
-          let key = rec.key();
-          let Some(user_key) = live_value_key(key, prefix_slice) else {
-            return Ok(true);
-          };
-          if rec.is_tombstone() {
-            map.insert(user_key.to_vec(), None);
-          } else {
-            map.insert(user_key.to_vec(), Some(rec.value().to_vec()));
-          }
-          Ok(true)
-        },
-      )
-      .await
-      .map_err(scan_err)?;
-    Ok(map)
-  }
-
-  /// 存活用户键值快照（按键字节序排序，零键克隆）
-  pub(crate) async fn string_snapshot(&self) -> wkv::Result<Vec<(Vec<u8>, Vec<u8>)>> {
-    let mut map = self.collect_records().await?;
-    let now = now_ticks();
-    let mut entries: Vec<(Vec<u8>, Vec<u8>)> = map
-      .drain()
-      .filter_map(|(k, v)| {
-        if !matches!(self.batch.probe_ttl(&k, now), TtlGate::Due) {
-          v.map(|val| (k, val))
-        } else {
-          None
-        }
-      })
-      .collect();
-    entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-    Ok(entries)
   }
 
   /// 存活用户键名快照（仅收集键名，零值拷贝，极大节约内存与 CPU；键按字节序排序；

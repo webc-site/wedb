@@ -20,7 +20,11 @@ use wresp::ext::RespVecExt;
 use wtxn::{TxnKeyEntryComparison, WatchVersionMap};
 use wval::{GarnetObjectType, KeyTag};
 
-use crate::{resp::vector::vector_manager::VectorManager, types::GarnetStatus};
+use crate::{
+  resp::vector::vector_manager::VectorManager,
+  storage::session::common::{UserReadAsync, ttl_sync::meta_collection_type_of},
+  types::GarnetStatus,
+};
 
 /// 存储会话：wserver 执行存储操作的内部层
 pub struct StorageSession<'a, D: Device> {
@@ -255,6 +259,88 @@ impl<'a, D: Device> StorageSession<'a, D> {
     self.read_string_with(key, |v| v.to_vec()).await
   }
 
+  /// 带 TTL 裁决的用户数据双域异步读（磁盘候选在 [`Self::read_tag_with`] 内
+  /// 惰性清除闭环，无 Deferred 态）
+  ///
+  /// 域次序与判型对齐同步单点
+  /// [`crate::storage::session::common::read_adjudicated_user_sync`]：String 域
+  /// 命中即用户数据；未命中探 ObjectEnvelope 域（对象键 →
+  /// [`UserRead::WrongType`]）；再未命中探 Meta 域（升阶 / RI 键同判对象键口径，
+  /// C# Reader 单记录统一 ValueIsObject）。字符串 / 键管理 / Bitmap 族慢路径
+  /// 分派臂共用本面，不另起第二套异步双域判型
+  pub async fn read_user_async<R>(
+    &self,
+    key: &[u8],
+    f: impl Fn(&[u8]) -> R,
+  ) -> wkv::Result<UserReadAsync<R>> {
+    if let Some(v) = self.read_tag_with(key, KeyTag::String, &f).await? {
+      return Ok(UserReadAsync::Hit(v));
+    }
+    if self
+      .read_tag_with(key, KeyTag::ObjectEnvelope, |_| ())
+      .await?
+      .is_some()
+    {
+      return Ok(UserReadAsync::WrongType);
+    }
+    Ok(
+      match self
+        .read_tag_with(key, KeyTag::Meta, meta_collection_type_of)
+        .await?
+      {
+        Some(Some(_)) => UserReadAsync::WrongType,
+        _ => UserReadAsync::Missing,
+      },
+    )
+  }
+
+  /// 三域存活异步裁决（返回存活键所在物理域；None = 键不存在或已过期）
+  ///
+  /// [`crate::storage::session::common::probe_alive_domain`] 的异步对偶：
+  /// 同步探针的 `Deferred`（磁盘候选 / TTL 记录待裁决）在异步读内闭环——
+  /// 过期键经 [`Self::read_tag_with`] 惰性清除后视同不存在。SET 条件写、
+  /// RENAME / RESTORE / EXPIRE 族慢路径臂共用本面
+  pub async fn probe_alive_domain_async(&self, key: &[u8]) -> wkv::Result<Option<KeyTag>> {
+    if self
+      .read_tag_with(key, KeyTag::String, |_| ())
+      .await?
+      .is_some()
+    {
+      return Ok(Some(KeyTag::String));
+    }
+    if self
+      .read_tag_with(key, KeyTag::ObjectEnvelope, |_| ())
+      .await?
+      .is_some()
+    {
+      return Ok(Some(KeyTag::ObjectEnvelope));
+    }
+    Ok(
+      self
+        .read_tag_with(key, KeyTag::Meta, meta_collection_type_of)
+        .await?
+        .flatten()
+        .map(|_| KeyTag::Meta),
+    )
+  }
+
+  /// 字符串写入口的 RangeIndex 键门（异步对偶，`resp::basic_commands` 的
+  /// `ri_write_gate` 同判据：存活 Meta 元记录 `collection_type == RangeIndex`
+  /// 即拦截）
+  ///
+  /// 返回 true = 存活 RI 记录，字符串写一律拒（WRONGTYPE 由调用方出帧）；
+  /// 判据源 [`meta_collection_type_of`] 单点，不另起第二套
+  pub async fn ri_write_gate_async(&self, key: &[u8]) -> wkv::Result<bool> {
+    Ok(
+      self
+        .read_tag_with(key, KeyTag::Meta, |raw| {
+          meta_collection_type_of(raw) == Some(GarnetObjectType::RangeIndex)
+        })
+        .await?
+        .unwrap_or(false),
+    )
+  }
+
   /// 探测键是否存在（对标 C# GarnetApiUnifiedCommands.cs:EXISTS）
   pub async fn exists(&self, key: &[u8]) -> wkv::Result<GarnetStatus> {
     if let Ok(Some(alive)) = super::common::ttl_sync::probe_alive(&self.batch, key) {
@@ -289,7 +375,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ///（pre_batch/post_batch 协议，读后校验不过整批重试，对标 C#
   /// ConsistentReadContext.ReadWithPrefetch）；否则直读底层批量口。
   /// 逐键命中/未命中经 [`Self::record_read_outcome`] 共享句柄入账（对位 C#
-  /// 批量 GET 循环内空条件累加 `sessionMetrics?.incr_total_found/notfound`）
+  /// 批量 GET 循环内空条件累加 `sessionMetrics?.incr_total_found/notfound`）。
+  /// 整批异步闭环复用 [`Self::with_pending_metrics`] 单点漏斗起停 PENDING_LAT
+  ///（对位 C# MainStore/AdvancedOps.cs 的 GET_CompletePending 两个重载在
+  /// `CompletePendingWithOutputs` 前后成对起停表）：C# 批量收割是一次
+  /// CompletePending 调用，rust 批量口同样单次 await，故样本按批一条、pending
+  /// 计数按批一条，条目命中计数仍只由 record_read_outcome 单点入账不重复
   pub async fn read_string_batch_into(
     &self,
     keys: &[&[u8]],
@@ -303,8 +394,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
       }
     };
     match self.consistent_read_context() {
-      Some(ctx) => ctx.read_batch_with(keys, &mut emit).await,
-      None => self.batch.read_batch_with(keys, &mut emit).await,
+      Some(ctx) => {
+        self
+          .with_pending_metrics(|| ctx.read_batch_with(keys, &mut emit))
+          .await
+      }
+      None => {
+        self
+          .with_pending_metrics(|| self.batch.read_batch_with(keys, &mut emit))
+          .await
+      }
     }
   }
 

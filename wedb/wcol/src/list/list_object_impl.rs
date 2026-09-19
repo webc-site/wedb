@@ -8,8 +8,8 @@
 use wbase::num::strict_i32;
 use wresp::{
   cmd_strings::{
-    RESP_ERR_GENERIC_INDEX_OUT_RANGE, RESP_ERR_GENERIC_NOSUCHKEY, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK,
+    COUNT, COUNT_LOWER, RESP_ERR_GENERIC_INDEX_OUT_RANGE, RESP_ERR_GENERIC_NOSUCHKEY,
+    RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK,
   },
   resp_memory_writer::RespWriter,
 };
@@ -21,7 +21,7 @@ impl ListObject {
   /// LREM：按计数方向移除元素
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListRemove
-  pub(crate) fn list_remove(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput) {
+  pub(crate) fn list_remove(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput<'_>) {
     let count = arg1;
 
     //indicates partial execution
@@ -81,7 +81,7 @@ impl ListObject {
   /// LINSERT：在首个 pivot 前后插入
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListInsert
-  pub(crate) fn list_insert(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn list_insert(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     //indicates partial execution
     output.result1 = i32::MIN as i64;
 
@@ -112,7 +112,7 @@ impl ListObject {
   /// LINDEX：按下标取元素
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListIndex
-  pub(crate) fn list_index(&mut self, _args: &[&[u8]], arg1: i32, output: &mut ObjectOutput) {
+  pub(crate) fn list_index(&mut self, _args: &[&[u8]], arg1: i32, output: &mut ObjectOutput<'_>) {
     let index = arg1;
 
     output.result1 = -1;
@@ -125,7 +125,7 @@ impl ListObject {
     };
 
     if let Some(item) = self.list.get(index as usize) {
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(item);
+      RespWriter::new_ref(output.payload).write_bulk_string(item);
       output.result1 = 1;
     }
     // C# ElementAtOrDefault 越界回 null 项（item == default），此处以无负载表达
@@ -139,14 +139,14 @@ impl ListObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let start = arg1;
     let stop = arg2;
 
     if self.list.is_empty() {
       // write empty list
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       return;
     }
 
@@ -165,15 +165,15 @@ impl ListObject {
     }
 
     if start > stop {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       return;
     }
 
     let count = (stop - start + 1) as usize;
-    RespWriter::new_ref(&mut output.payload).write_array_length(count);
+    RespWriter::new_ref(output.payload).write_array_length(count);
 
     for item in self.list.iter().skip(start as usize).take(count) {
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(item);
+      RespWriter::new_ref(output.payload).write_bulk_string(item);
     }
 
     output.result1 = count as i64;
@@ -187,7 +187,7 @@ impl ListObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let start = arg1;
     let end = arg2;
@@ -236,7 +236,7 @@ impl ListObject {
   /// LLEN：长度
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListLength
-  pub(crate) fn list_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn list_length(&mut self, output: &mut ObjectOutput<'_>) {
     output.result1 = self.list.len() as i64;
   }
 
@@ -246,7 +246,7 @@ impl ListObject {
   pub(crate) fn list_push(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     f_add_at_head: bool,
   ) {
     for &arg in args {
@@ -270,7 +270,7 @@ impl ListObject {
     &mut self,
     _args: &[&[u8]],
     arg1: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     f_del_at_head: bool,
   ) {
@@ -285,9 +285,9 @@ impl ListObject {
       count = 0;
     } else if count <= 0 {
       // LPOP/RPOP with an explicit count of 0 replies with an empty array.
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
     } else if count > 1 {
-      RespWriter::new_ref(&mut output.payload).write_array_length(count as usize);
+      RespWriter::new_ref(output.payload).write_array_length(count as usize);
     }
 
     let mut removed = 0_i64;
@@ -301,7 +301,7 @@ impl ListObject {
 
       if let Some(value) = value {
         self.update_size(&value, false);
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&value);
+        RespWriter::new_ref(output.payload).write_bulk_string(&value);
       }
 
       count -= 1;
@@ -315,16 +315,15 @@ impl ListObject {
   /// LSET：按下标覆写
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListSet
-  pub(crate) fn list_set(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn list_set(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     if self.list.is_empty() {
-      RespWriter::new_ref(&mut output.payload)
-        .write_error_bytes(RESP_ERR_GENERIC_NOSUCHKEY.as_bytes());
+      RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_GENERIC_NOSUCHKEY.as_bytes());
       return;
     }
 
     // index
     let Some(index) = strict_i32(args[0]) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     };
@@ -337,7 +336,7 @@ impl ListObject {
     };
 
     if index > len - 1 || index < 0 {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_INDEX_OUT_RANGE.as_bytes());
       return;
     }
@@ -361,7 +360,7 @@ impl ListObject {
   pub(crate) fn list_position(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let element = args[0];
@@ -370,12 +369,12 @@ impl ListObject {
     let mut params = ListPositionParams::default();
 
     if let Err(error) = read_list_position_input(args, &mut params) {
-      RespWriter::new_ref(&mut output.payload).write_error_bytes(error);
+      RespWriter::new_ref(output.payload).write_error_bytes(error);
       return;
     }
 
     if params.count < 0 || params.maxlen < 0 || params.rank == 0 {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     }
@@ -442,14 +441,14 @@ impl ListObject {
         // C# RespMemoryWriter.WriteNull 按会话协商版本写 null
         write_null(output, resp_protocol_version);
       } else {
-        RespWriter::new_ref(&mut output.payload).write_int64(found[0]);
+        RespWriter::new_ref(output.payload).write_int64(found[0]);
       }
     } else if found.is_empty() {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
     } else {
-      RespWriter::new_ref(&mut output.payload).write_array_length(found_len);
+      RespWriter::new_ref(output.payload).write_array_length(found_len);
       for index in found {
-        RespWriter::new_ref(&mut output.payload).write_int64(index);
+        RespWriter::new_ref(output.payload).write_int64(index);
       }
     }
 
@@ -508,7 +507,7 @@ fn read_list_position_input(
 
     if sb_param == b"RANK" || sb_param == b"rank" {
       params.rank = parse_i32_arg(&mut curr_token_idx)?;
-    } else if sb_param == b"COUNT" || sb_param == b"count" {
+    } else if sb_param == COUNT || sb_param == COUNT_LOWER {
       params.count = parse_i32_arg(&mut curr_token_idx)?;
       params.is_default_count = false;
     } else if sb_param == b"MAXLEN" || sb_param == b"maxlen" {

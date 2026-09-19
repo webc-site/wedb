@@ -1,25 +1,22 @@
-//! 分层态字段级 TTL 端到端回归（review-0918 分层缺口 2）
-//!
-//! 缺陷：分层树记录原本不带字段过期位——升阶导出只给 (field, value) 裸值，
-//! HEXPIRE 族对分层键穿透物化后经 apply_rmw_post_operate 重灌把 expiration
-//! 整片丢弃（客户端见 HEXPIRE 成功而 TTL 消失）；两态 HLEN/ZCARD 计数也不
-//! 等价（信封态按 C# Count 扣已过期成员，分层态直读裸 size）。
+//! 分层态字段级 TTL 端到端回归（review-0918 分层缺口 2；本票收口残余墓碑源）
 //!
 //! 机制：树记录经 `wcol::types::member_ttl` 编码可选 8B 过期刻度（升阶导出
 //! `export_entries` 与物化还原 `tiered_materialize_blob` 同步承载）；HEXPIRE/
-//! HTTL/HPERSIST 与 ZEXPIRE/ZTTL/ZPERSIST 族树内原地写（不再穿透物化）；
-//! `MetaValue.next_expiry` 最早到期水位 + `collect_expired_members` 唯一收集
-//! 内核（计数臂校正 / 显式 HCOLLECT·ZCOLLECT / `*` 全库周期收集共用）物理
-//! 出账到期成员并回写 meta.size，两态计数 O(1) 等价。
+//! HTTL/HPERSIST 与 ZEXPIRE/ZTTL/ZPERSIST 族**穿透物化降级**（对象层单源求值
+//! → `apply_rmw_post_operate` 整值写回，迟滞死区内就地懒降阶、TTL 随信封
+//! expiration 结构保真），树内不再有逐成员删除记录；`MetaValue.next_expiry`
+//! 最早到期水位 + 到期重灌内核 `expire_sweep_or_rebuild`（计数臂校正 / 显式
+//! HCOLLECT·ZCOLLECT / `*` 全库周期收集共用）单趟扫描 + 整值重灌出账到期
+//! 成员并回写 meta.size——树内零墓碑，扫描栈深度自变量彻底消失。
 //!
 //! 对标 C#：libs/server/Objects/Hash/HashObject.cs:Count/IsExpired/
 //! DeleteExpiredItems、SortedSetObject.cs 序列化 ExpirationBitMask、
 //! libs/server/StoreWrapper.cs:ObjectCollectTaskAsync 周期收集。
 //!
 //! 灌树契约：promote helper 的 entries 与 `IGarnetObject::export_entries`
-//! 同构（member_ttl 编码形态）。
+//! 同构（member_ttl 编码形态），next_expiry 为灌入批最早到期水位。
 
-use std::{mem::take, sync::Arc, thread::sleep, time::Duration};
+use std::{mem::take, str::from_utf8, sync::Arc, thread::sleep, time::Duration};
 
 use compio::runtime::Runtime;
 use tempfile::tempdir;
@@ -91,12 +88,19 @@ fn auto_exec(env: &Env, s: &mut RespServerSession, cmd: RespCommand, args: &[&[u
   out
 }
 
-/// 手工升阶（entries 与 `IGarnetObject::export_entries` 同构：编码形态）
-fn promote(env: &Env, key: &[u8], obj_type: GarnetObjectType, entries: Vec<(Vec<u8>, Vec<u8>)>) {
+/// 手工升阶（entries 与 `IGarnetObject::export_entries` 同构：编码形态；
+/// next_expiry 为灌入批最早到期水位，`i64::MAX` = 无成员挂 TTL）
+fn promote(
+  env: &Env,
+  key: &[u8],
+  obj_type: GarnetObjectType,
+  entries: Vec<(Vec<u8>, Vec<u8>)>,
+  next_expiry: i64,
+) {
   let sess = env.store.new_session().unwrap();
   env
     .rt
-    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries))
+    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, next_expiry))
     .unwrap();
   assert!(
     env
@@ -158,6 +162,7 @@ fn promote_hash3(env: &Env, key: &[u8]) {
       (b"f2".to_vec(), encode_member(b"v2", None)),
       (b"f3".to_vec(), encode_member(b"v3", None)),
     ],
+    i64::MAX,
   );
 }
 
@@ -171,18 +176,20 @@ fn promote_zset2(env: &Env, key: &[u8]) {
       (b"m1".to_vec(), encode_member(&1.0f64.to_be_bytes(), None)),
       (b"m2".to_vec(), encode_member(&2.0f64.to_be_bytes(), None)),
     ],
+    i64::MAX,
   );
 }
 
-/// 分层 HEXPIRE 原地写：字段挂 TTL → HTTL 读回、HGETALL/HLEN 存活全集口径、
-/// HPERSIST 清 TTL；树内写不得降阶键（原实现穿透物化会把键打回信封态并丢 TTL）
+/// 分层键 HEXPIRE 穿透物化降级：字段挂 TTL 后迟滞死区内就地懒降阶信封态，
+/// TTL 随信封 expiration 结构保真读回（HTTL/HGETALL/HGET/HLEN 全走两态同口径）；
+/// HPERSIST 清 TTL。旧「树内原地写」臂已随残余墓碑源收口删除
 #[test]
 fn tiered_hash_expire_sets_and_reads_back() {
   let env = env("tiered-ttl-hash-expire.db");
   promote_hash3(&env, b"h");
   let mut s = session_with(&env);
 
-  // HEXPIRE h 600 FIELDS 1 f1 → *1\r\n:1（ExpireUpdated）
+  // HEXPIRE h 600 FIELDS 1 f1 → *1\r\n:1（ExpireUpdated，对象层单源求值）
   assert_eq!(
     auto_exec(
       &env,
@@ -191,9 +198,11 @@ fn tiered_hash_expire_sets_and_reads_back() {
       &[b"h", b"600", b"FIELDS", b"1", b"f1"]
     ),
     arr(&[&int(1)]),
-    "分层 HEXPIRE 应树内原地写并回 ExpireUpdated"
+    "分层 HEXPIRE 穿透物化应回 ExpireUpdated"
   );
-  assert!(is_tiered(&env, b"h"), "HEXPIRE 树内原地写不得降阶键");
+  // 三字段迟滞死区内：穿透物化的写回就地懒降阶（物化求值不丢 TTL 是前置缺陷
+  // 已修：tiered_materialize_blob 还原 expiration → 信封写回保真）
+  assert!(!is_tiered(&env, b"h"), "迟滞死区内穿透写回应就地懒降阶");
 
   // HTTL h FIELDS 1 f1 → 正值（≤600）
   let ttl_frame = auto_exec(
@@ -205,22 +214,33 @@ fn tiered_hash_expire_sets_and_reads_back() {
   let ttl = last_int(&ttl_frame).expect("HTTL 应答整数项");
   assert!(
     (1..=600).contains(&ttl),
-    "HTTL 应读回分层挂载的 TTL：{ttl_frame:?}"
+    "HTTL 应读回穿透挂载的 TTL（物化降级保真）：{ttl_frame:?}"
   );
 
-  // HGETALL 存活全集 + HGET 原值 + HLEN 直读
-  assert_eq!(
-    auto_exec(&env, &mut s, RespCommand::Hgetall, &[b"h"]),
-    arr(&[
-      &bulk(b"f1"),
-      &bulk(b"v1"),
-      &bulk(b"f2"),
-      &bulk(b"v2"),
-      &bulk(b"f3"),
-      &bulk(b"v3")
-    ]),
-    "挂 TTL 的存活成员必须在 HGETALL 全集"
+  // HGETALL 存活全集（哈希表迭代无序，校验 3 对 6 元素全集） + HGET 原值 + HLEN 直读
+  let hgetall = auto_exec(&env, &mut s, RespCommand::Hgetall, &[b"h"]);
+  assert!(
+    hgetall.starts_with(b"*6\r\n"),
+    "HGETALL 应返回 6 元素（3 对），实际 {hgetall:?}"
   );
+  for (f, v) in [(b"f1", b"v1"), (b"f2", b"v2"), (b"f3", b"v3")] {
+    let f_bulk = bulk(f);
+    let v_bulk = bulk(v);
+    assert!(
+      hgetall
+        .windows(f_bulk.len())
+        .any(|w| w == f_bulk.as_slice()),
+      "HGETALL 应包含字段 {:?}",
+      from_utf8(f).unwrap()
+    );
+    assert!(
+      hgetall
+        .windows(v_bulk.len())
+        .any(|w| w == v_bulk.as_slice()),
+      "HGETALL 应包含值 {:?}",
+      from_utf8(v).unwrap()
+    );
+  }
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Hget, &[b"h", b"f1"]),
     bulk(b"v1")
@@ -313,40 +333,54 @@ fn tiered_expire_count_accounting_matches_envelope() {
   );
 }
 
-/// 分层到期后 HGET 惰性过滤、HCOLLECT 显式单键收集物理出账（树内执行体）
+/// 分层态到期成员：HGET 惰性过滤（纯读不出账）→ HLEN 计数臂触发到期重灌内核
+/// 单趟扫描 + 整值重灌出账（树内零墓碑）；键级 TTL 在重灌迁移中逐 tick 保全
 #[test]
 fn tiered_expired_member_hidden_and_collected() {
   let env = env("tiered-ttl-collect.db");
-  promote_hash3(&env, b"h");
-  let mut s = session_with(&env);
-
-  // f1 挂 1 秒 TTL，越过到期窗口
-  assert_eq!(
-    auto_exec(
-      &env,
-      &mut s,
-      RespCommand::Hexpire,
-      &[b"h", b"1", b"FIELDS", b"1", b"f1"]
-    ),
-    arr(&[&int(1)])
+  // 手工灌「已到期未出账」态：f1 挂过去刻度、水位随灌入批落盘（复刻自然到期
+  // 后、收集前的树态——成员级 TTL 面已穿透物化，客户端命令不再产生此态）
+  let stale = now_ticks() - 1;
+  promote(
+    &env,
+    b"h",
+    GarnetObjectType::Hash,
+    vec![
+      (b"f1".to_vec(), encode_member(b"v1", Some(stale))),
+      (b"f2".to_vec(), encode_member(b"v2", None)),
+      (b"f3".to_vec(), encode_member(b"v3", None)),
+    ],
+    stale,
   );
-  sleep(Duration::from_millis(1200));
+  let mut s = session_with(&env);
+  assert_eq!(
+    auto_exec(&env, &mut s, RespCommand::Expire, &[b"h", b"3600"]),
+    b":1\r\n"
+  );
+  let sess = env.store.new_session().unwrap();
+  let key_ttl = env.rt.block_on(sess.ttl_of(b"h")).unwrap();
 
-  // 到期窗口内 HGET 惰性过滤（视同不存在）
+  // 到期成员 HGET 惰性过滤（视同不存在，纯读臂不出账）
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Hget, &[b"h", b"f1"]),
     b"$-1\r\n",
     "到期字段 HGET 应视同不存在"
   );
-
-  // HCOLLECT 显式单键 → 树内收集执行体物理出账（+OK）
-  assert_eq!(
-    auto_exec(&env, &mut s, RespCommand::Hcollect, &[b"h"]),
-    b"+OK\r\n",
-    "显式 HCOLLECT 应走分层收集执行体闭环"
+  assert!(
+    is_tiered(&env, b"h"),
+    "纯读臂不得触发出账（读路径零写放大）"
   );
 
-  // 收集后 HTTL → -2（物理消失，非惰性过滤态）；HLEN 校正为 2
+  // HLEN 计数臂水位命中 → 到期重灌内核：单趟扫描 + drain + bulk_load 重建
+  // （树内零墓碑），size 校正为 2，键保持分层态（重灌不评估降阶）
+  assert_eq!(
+    auto_exec(&env, &mut s, RespCommand::Hlen, &[b"h"]),
+    int(2),
+    "计数臂应触发到期重灌出账并回写 size"
+  );
+  assert!(is_tiered(&env, b"h"), "整值重灌后键应保持分层态");
+
+  // 出账后 HTTL → -2（物理消失，非惰性过滤态）；HGETALL 存活全集只剩 f2/f3
   assert_eq!(
     auto_exec(
       &env,
@@ -355,41 +389,41 @@ fn tiered_expired_member_hidden_and_collected() {
       &[b"h", b"FIELDS", b"1", b"f1"]
     ),
     arr(&[&int(-2)]),
-    "收集后到期字段应物理消失（HTTL -2）"
+    "出账后到期字段应物理消失（HTTL -2）"
   );
-  assert_eq!(
-    auto_exec(&env, &mut s, RespCommand::Hlen, &[b"h"]),
-    int(2),
-    "收集执行体应回写 meta.size 抵扣"
-  );
-
-  // HGETALL 存活全集只剩 f2/f3
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Hgetall, &[b"h"]),
     arr(&[&bulk(b"f2"), &bulk(b"v2"), &bulk(b"f3"), &bulk(b"v3")]),
   );
+  // 重灌是键存活的迁移臂（keep_ttl=true）：键级 TTL 逐 tick 原样保留
+  let sess = env.store.new_session().unwrap();
+  assert_eq!(
+    env.rt.block_on(sess.ttl_of(b"h")).unwrap(),
+    key_ttl,
+    "到期重灌不得触碰键级 TTL 旁路"
+  );
 }
 
-/// `HCOLLECT *` 全库收集纳入分层键（周期对象收集任务同执行体）：
-/// 分层树内到期成员物理消失
+/// `HCOLLECT *` 全库收集纳入分层键（周期对象收集任务同执行体）：分层树内
+/// 到期成员经到期重灌物理出账
 #[test]
 fn collect_all_covers_tiered_keys() {
   let env = env("tiered-ttl-collect-all.db");
-  promote_hash3(&env, b"h");
+  let stale = now_ticks() - 1;
+  promote(
+    &env,
+    b"h",
+    GarnetObjectType::Hash,
+    vec![
+      (b"f1".to_vec(), encode_member(b"v1", Some(stale))),
+      (b"f2".to_vec(), encode_member(b"v2", Some(stale))),
+      (b"f3".to_vec(), encode_member(b"v3", None)),
+    ],
+    stale,
+  );
   let mut s = session_with(&env);
 
-  assert_eq!(
-    auto_exec(
-      &env,
-      &mut s,
-      RespCommand::Hexpire,
-      &[b"h", b"1", b"FIELDS", b"2", b"f1", b"f2"]
-    ),
-    arr(&[&int(1), &int(1)])
-  );
-  sleep(Duration::from_millis(1200));
-
-  // `*` 全库收集（hlog 扫 Meta 域分层键清单 → 树内执行体）
+  // `*` 全库收集（hlog 扫 Meta 域分层键清单 → 到期重灌执行体）
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Hcollect, &[b"*"]),
     b"+OK\r\n",
@@ -513,19 +547,33 @@ fn promote_demote_roundtrip_preserves_field_ttl() {
   );
 
   // 再升阶：信封对象载 TTL 经 IGarnetObject::export_entries 导出（信封过期
-  // 结构 → 树记录刻度，验收「导出承载过期位」本体）
+  // 结构 → 树记录刻度，验收「导出承载过期位」本体）；水位随灌入批同帧落盘
   let mut obj = SortedSetObject::new();
   obj.sorted_set_dict.insert(b"m2".to_vec(), 9.0);
-  obj.insert_expiration(b"m2".to_vec(), now_ticks() + 600 * TICKS_PER_SECOND);
+  let member_expiry = now_ticks() + 600 * TICKS_PER_SECOND;
+  obj.insert_expiration(b"m2".to_vec(), member_expiry);
+  let entries = obj.export_entries();
   let sess = env.store.new_session().unwrap();
   env
     .rt
     .block_on(sess.promote_collection_to_bftree(
       b"z",
       GarnetObjectType::SortedSet,
-      obj.export_entries(),
+      entries,
+      member_expiry,
     ))
     .unwrap();
+  // 水位必须随重灌前移（假水位 MAX 会骗过计数校正与周期收集，已到期成员
+  // 永不出账）：升阶元记录的 next_expiry 与灌入批最早刻度逐 tick 相等
+  let (meta, _) = env
+    .rt
+    .block_on(sess.load_collection_stub(b"z"))
+    .unwrap()
+    .expect("再升阶后键应处分层态");
+  assert_eq!(
+    meta.next_expiry, member_expiry,
+    "重灌/升阶水位必须随灌入批落盘（member_expiry 刻度）"
+  );
   let ttl_frame = auto_exec(
     &env,
     &mut s,

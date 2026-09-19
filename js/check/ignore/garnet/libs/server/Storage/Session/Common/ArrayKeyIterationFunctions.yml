@@ -13,3 +13,16 @@
     裁决，键迭代循环无独立内部记录谓词；原 wnode 侧同名 pub 谓词
     （array_key_iteration_functions.rs:is_internal_record）与 live_value_key 同语义
     双实现、每次调用重取会话前缀，全仓生产零调用，已随死代码清理删除，不留第二入口
+
+# C# IterateStore（IterateLookup 推送式游标迭代原语）的 rust 键枚举不由此
+# snapshot 形态承接（fix-dead-batch-two）：原 wnode 侧 iterate_store 是
+# string_snapshot 全量物化 O(N) 堆 + 回调，零生产消费；C# 的三个消费位
+#（ClusterSession.CountKeysInSlot/GetKeysInSlot 与 MigrateOperation.Scan）在
+# rust 均有分域单点——槽内计数 count_keys_in_slot、批量限量取键
+# get_keys_in_slot（迁移分批扫描出口）、地址游标迭代 scan_cursor
+#（IterateLookup 的形态对位）——第三套手写全量快照迭代已删
+- 文件:
+    - libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:
+        - IterateStore
+  理由: rust 键枚举分域单点（count_keys_in_slot/get_keys_in_slot/scan_cursor）
+    已覆盖 C# IterateStore 全部消费位，snapshot 全量物化形态零生产消费，删除

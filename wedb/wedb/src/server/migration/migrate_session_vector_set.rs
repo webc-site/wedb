@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use wnode::resp::vector::{
   vector_manager::{INDEX_SIZE_BYTES, VectorManager},
-  vector_manager_locking::split_registry_key,
+  vector_manager_locking::registry_user_key,
 };
 
 use crate::{
@@ -73,7 +73,7 @@ pub async fn migrate_vector_set_keys_async(
   session.sketch.clear();
   session.sketch.set_status(SketchStatus::Initializing);
   for (rk, _) in vector_set_keys {
-    let key = split_registry_key(rk).map_or(rk.as_slice(), |(_, k)| k);
+    let key = registry_user_key(rk);
     session.sketch.hash_and_store(key);
   }
 

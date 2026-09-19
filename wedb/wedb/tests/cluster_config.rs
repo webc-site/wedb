@@ -255,7 +255,7 @@ fn cluster_config_merge_slot_map_accumulates_updated_across_slots_test() {
 }
 
 #[test]
-fn cluster_config_get_replicas_and_endpoints_test() {
+fn cluster_config_get_replicas_test() {
   let mut primary = ClusterConfig::new();
   primary.initialize_local_worker(LocalWorkerSpec {
     node_id: PRIMARY_ID,
@@ -313,11 +313,6 @@ fn cluster_config_get_replicas_and_endpoints_test() {
   assert!(replica_ids.contains(&0x0DE1_0000_0000_0000_0000_0000_0000_0002));
   assert!(replica_ids.contains(&0x0DE1_0000_0000_0000_0000_0000_0000_0004));
 
-  let endpoints = merged.get_replica_endpoints(PRIMARY_ID);
-  assert_eq!(endpoints.len(), 2);
-  assert!(endpoints.contains(&("127.0.0.1".to_string(), 7001)));
-  assert!(endpoints.contains(&("127.0.0.2".to_string(), 7002)));
-
   let lines = merged.get_replicas(PRIMARY_ID, None);
   assert_eq!(lines.len(), 2);
   // 渲染面：节点 id 与主 id 均为 32 字符小写 hex
@@ -337,7 +332,6 @@ fn cluster_config_get_replicas_and_endpoints_test() {
 
   // Non-existent master has 0 replicas
   assert!(merged.get_replicas(0x999, None).is_empty());
-  assert!(merged.get_replica_endpoints(0x999).is_empty());
 }
 
 #[test]

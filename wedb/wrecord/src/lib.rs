@@ -25,8 +25,11 @@ pub use codec::{
 };
 pub use error::{Error, Result};
 pub use header::{
-  HEADER_READ_CACHE_BIT, HEADER_SIZE, IN_NEW_VERSION_BIT, MAX_FILLER_BYTES, MODIFIED_BIT,
-  PAD_KEY_LEN, RECORD_ALIGNMENT, RecordHeader, SEALED_BIT, TOMBSTONE_BIT,
+  HEADER_SIZE, RECORD_ALIGNMENT, RecordHeader,
+  bits::{
+    HEADER_READ_CACHE_BIT, IN_NEW_VERSION_BIT, MAX_FILLER_BYTES, MODIFIED_BIT, PAD_KEY_LEN,
+    SEALED_BIT, TOMBSTONE_BIT,
+  },
 };
 pub use record_mut::RecordMut;
 pub use record_ref::RecordRef;

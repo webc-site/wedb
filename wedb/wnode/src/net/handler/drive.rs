@@ -2,7 +2,6 @@
 //!
 //! 在 garnet 中的相对路径:
 //! - `libs/common/Networking/NetworkHandler.cs:Start`
-//! - `libs/server/Servers/GarnetServerTcp.cs:HandleNewConnection`
 
 use std::{io, sync::Arc};
 
@@ -31,7 +30,6 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
   ///
   /// 在 garnet 中的相对路径:
   /// - `libs/common/Networking/NetworkHandler.cs:Start`
-  /// - `libs/server/Servers/GarnetServerTcp.cs:HandleNewConnection`
   pub async fn process_stream<P: SessionProviderFace<Consumer = C>>(
     &mut self,
     mut stream: ConnectionStream,
@@ -185,9 +183,7 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
 
           if let Some(slow) = session.take_slow_wait() {
             let reply = slow.resolve().await;
-            if !reply.is_empty() {
-              resp_pooled.vec_mut().extend_from_slice(&reply);
-            }
+            session.resolve_slow_wait_into(&reply, resp_pooled.vec_mut());
             resumed = true;
           }
 

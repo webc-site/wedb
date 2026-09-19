@@ -6,7 +6,7 @@
 //! 1. divergent 拒收：连接被断（EOF），而非回 -ERR 错误行保连；
 //! 2. 畸形帧（`*-1` 前导）：协议错误行写出后断连（Err 透传，不按半包等待）；
 //! 3. 主端 fire-and-forget 推流滞留 -ERR 应答 → 连接判失效断连（重同步链路入口）；
-//! 4. 内存通道（CallbackWire）拒收同样转断连态。
+//! 4. 真副本 divergent 拒收静默断链 → 主端发送通道健康面转断连（重同步入口）。
 
 use std::{net::SocketAddr, str::from_utf8, sync::Arc, time::Duration};
 
@@ -176,30 +176,45 @@ fn malformed_negative_array_frame_disconnects() -> Void {
   Ok(())
 }
 
-/// 内存链路拒收断连：副本会话 divergent 拒收置致命 → 帧投递判失败 →
-/// CallbackWire 转断连态（对标 C# 异常断链 → 主端剔除重同步）
+/// 真副本拒收断连（主端通道健康面感知）：init 握手成功后 divergent 记录帧
+/// → 副本会话静默断链（EOF，clientResponse:false）→ TcpSessionWire 健康面
+/// 转断连（对标 C# 异常断链 → 主端剔除重同步）
 #[test]
-fn memory_wire_divergent_appendlog_disconnects() -> Void {
-  use parking_lot::Mutex;
-  use wedb::server::replication::replica_wire::{CallbackWire, FrameSink};
-
+fn primary_wire_divergent_appendlog_disconnects() -> Void {
   let (_dir, session) = replica_session()?;
-  let wire = CallbackWire::new(FrameSink::Session {
-    session: Arc::new(Mutex::new(session)),
-    seen: None,
-  });
+  let server = GarnetServer::new(
+    &["127.0.0.1:0".to_string()],
+    65536,
+    100,
+    Arc::new(SessionProvider(session)),
+  )?;
+  server.start(None)?;
+  let addr = server.local_addr()?.to_string();
 
-  // init 帧：+OK 应答，通道保持健康
-  assert!(wire.append_log(PRIMARY_ID, 0, -1, -1, -1, b"").is_ok());
-  assert!(wire.is_connected());
+  Runtime::new().unwrap().block_on(async {
+    let wire = TcpSessionWire::connect(
+      &addr,
+      PRIMARY_ID,
+      0,
+      None,
+      None,
+      #[cfg(feature = "tls")]
+      None,
+    )
+    .await?;
+    // init 帧握手成功（connect 内已确认 +OK），通道保持健康
+    assert!(wire.is_connected());
 
-  // divergent 记录帧：会话拒收置致命 → sink 投递判失败 → 通道断连
-  assert!(
-    wire
-      .append_log(PRIMARY_ID, 0, 64, 9000, 9064, b"xyz")
-      .is_err()
-  );
-  assert!(!wire.is_connected(), "拒收后内存通道必须转断连态");
+    // divergent 记录帧（current 位点与副本尾不符）：fire-and-forget 发送，
+    // 副本拒收静默断链 → 主端通道健康面转断连
+    wire.append_log(PRIMARY_ID, 0, 64, 9000, 9064, b"xyz")?;
+    assert!(
+      wait_for(|| !wire.is_connected(), Duration::from_secs(5)).await,
+      "副本拒收断链后主端通道必须转断连态"
+    );
+    aok::Result::<()>::Ok(())
+  })?;
+  server.dispose();
   Ok(())
 }
 

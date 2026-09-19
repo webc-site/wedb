@@ -63,8 +63,10 @@ pub(crate) struct ScanFilter {
 ///
 /// 校验口径 1:1 对标 C# NetworkSCAN：cursor 非法/负值、选项缺参、COUNT
 /// 非整数均返回完整 RESP 错误行；未知选项静默跳过（C# if/else-if 链无
-/// else 分支）；TYPE 匹配使用 eq_ignore_ascii_case 支持混合大小写，
-/// 未知 TYPE 值由慢路径直接回空结果（C# DbScan 提前返回同口径）。
+/// else 分支）；TYPE 取值按 C# DbScan 双形态精确比对（全大写/全小写各一，
+/// ArrayKeyIterationFunctions.cs:57-76），混合大小写及其它未知值归未知类型，
+/// 由慢路径直接回空结果（C# DbScan 提前返回同口径）。选项名本身（MATCH/COUNT/
+/// TYPE）大小写不敏感（C# EqualsUpperCaseSpanIgnoringCase 同口径）。
 /// [`RespServerSession::network_scan`] 的共享解析单源（快路径校验段与
 /// 慢路径执行段同一入口，单次实现）
 pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static str> {
@@ -89,14 +91,14 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
     let param = args[token_idx];
     token_idx += 1;
 
-    if param.eq_ignore_ascii_case(b"MATCH") {
+    if param.eq_ignore_ascii_case(cs::MATCH) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
       filter.pattern = args[token_idx].to_vec();
       filter.all_keys = filter.pattern.as_slice() == b"*";
       token_idx += 1;
-    } else if param.eq_ignore_ascii_case(b"COUNT") {
+    } else if param.eq_ignore_ascii_case(cs::COUNT) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
@@ -107,24 +109,26 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
         None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER),
       }
       token_idx += 1;
-    } else if param.eq_ignore_ascii_case(b"TYPE") {
+    } else if param.eq_ignore_ascii_case(cs::TYPE) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
       filter.type_given = true;
       let type_arg = args[token_idx];
-      filter.type_filter = if type_arg.eq_ignore_ascii_case(b"zset") {
+      // C# DbScan 双形态精确比对（SequenceEqual 全大写/全小写各一），混合大小写
+      // 及其它值走未知臂回空。string 的 C# 常量名 stringt 但值为 "string"。
+      filter.type_filter = if type_arg == b"zset" || type_arg == b"ZSET" {
         Some(ScanTypeFilter::Object(GarnetObjectType::SortedSet))
-      } else if type_arg.eq_ignore_ascii_case(b"list") {
+      } else if type_arg == b"list" || type_arg == b"LIST" {
         Some(ScanTypeFilter::Object(GarnetObjectType::List))
-      } else if type_arg.eq_ignore_ascii_case(b"set") {
+      } else if type_arg == b"set" || type_arg == b"SET" {
         Some(ScanTypeFilter::Object(GarnetObjectType::Set))
-      } else if type_arg.eq_ignore_ascii_case(b"hash") {
+      } else if type_arg == b"hash" || type_arg == b"HASH" {
         Some(ScanTypeFilter::Object(GarnetObjectType::Hash))
-      } else if type_arg.eq_ignore_ascii_case(b"string") {
+      } else if type_arg == b"string" || type_arg == b"STRING" {
         Some(ScanTypeFilter::String)
       } else {
-        // 未知类型（包括 stream 等）：C# DbScan 对非空未知 typeObject 回空列表 + 游标 0
+        // 未知类型（含混合大小写、stream 等）：C# DbScan 对非空未知 typeObject 回空列表 + 游标 0
         filter.type_unknown = true;
         None
       };
@@ -699,16 +703,16 @@ mod tests {
   }
 
   #[test]
-  fn test_parse_scan_filter_type_case_insensitive() {
-    // 混合大小写 TYPE 验证
-    let res = parse_scan_filter(&[b"0", b"type", b"zSet"]).unwrap();
+  fn test_parse_scan_filter_type_exact_forms() {
+    // C# DbScan 双形态精确比对：仅全大写或全小写命中，选项名本身大小写不敏感
+    let res = parse_scan_filter(&[b"0", b"type", b"zset"]).unwrap();
     assert_eq!(
       res.type_filter,
       Some(ScanTypeFilter::Object(GarnetObjectType::SortedSet))
     );
     assert!(!res.type_unknown);
 
-    let res = parse_scan_filter(&[b"0", b"TYPE", b"LiSt"]).unwrap();
+    let res = parse_scan_filter(&[b"0", b"TYPE", b"LIST"]).unwrap();
     assert_eq!(
       res.type_filter,
       Some(ScanTypeFilter::Object(GarnetObjectType::List))
@@ -720,16 +724,29 @@ mod tests {
       Some(ScanTypeFilter::Object(GarnetObjectType::Set))
     );
 
-    let res = parse_scan_filter(&[b"0", b"type", b"HaSh"]).unwrap();
+    let res = parse_scan_filter(&[b"0", b"type", b"hash"]).unwrap();
     assert_eq!(
       res.type_filter,
       Some(ScanTypeFilter::Object(GarnetObjectType::Hash))
     );
 
-    let res = parse_scan_filter(&[b"0", b"type", b"StRiNg"]).unwrap();
+    let res = parse_scan_filter(&[b"0", b"type", b"STRING"]).unwrap();
     assert_eq!(res.type_filter, Some(ScanTypeFilter::String));
 
-    // 未知类型（如 stream、other 等）
+    // 混合大小写不匹配 C# 双常量（SequenceEqual 全大写/全小写）→ 未知类型回空
+    let res = parse_scan_filter(&[b"0", b"type", b"zSet"]).unwrap();
+    assert_eq!(res.type_filter, None);
+    assert!(res.type_unknown);
+
+    let res = parse_scan_filter(&[b"0", b"type", b"HaSh"]).unwrap();
+    assert_eq!(res.type_filter, None);
+    assert!(res.type_unknown);
+
+    let res = parse_scan_filter(&[b"0", b"type", b"StRiNg"]).unwrap();
+    assert_eq!(res.type_filter, None);
+    assert!(res.type_unknown);
+
+    // 其它未知类型（如 stream 两形态）
     let res = parse_scan_filter(&[b"0", b"type", b"stream"]).unwrap();
     assert_eq!(res.type_filter, None);
     assert!(res.type_unknown);

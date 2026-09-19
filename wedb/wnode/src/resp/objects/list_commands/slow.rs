@@ -14,7 +14,7 @@ use wcol::{
 use wresp::{cmd_strings as cs, command::RespCommand, ext::RespVecExt};
 use wval::GarnetObjectType;
 
-use super::{Rmw, run_operate, should_write_back};
+use super::{Rmw, parse_i32_pair_args, parse_lmpop_args, run_operate, should_write_back};
 use crate::{
   resp::objects::{
     object_store_utils::{
@@ -54,7 +54,7 @@ async fn list_rmw_cold(
       ListObject::new,
       |o: &ListObject| o.list.is_empty(),
       |o: &ListObject| o.to_blob(),
-      |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+      |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
       should_write_back,
     ),
   )
@@ -176,12 +176,9 @@ pub(crate) async fn list(
             return Ok(true);
           }
         },
-        RespCommand::Lrange => match parse_i32_pair(refs) {
+        RespCommand::Lrange => match parse_i32_pair_args("LRANGE", refs, output) {
           Some((start, stop)) => (start, stop),
-          None => {
-            cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-            return Ok(true);
-          }
+          None => return Ok(true),
         },
         _ => (0, 0),
       };
@@ -239,9 +236,10 @@ pub(crate) async fn list(
       }
       None => Ok(()),
       Some(Some(mut obj)) => {
-        let obj_out = run_operate(&mut obj, op, args, 0, 0, resp_version);
+        // LPUSH 族仅回填 result1（无负载段），写回失败由外层统一落错
+        let result1 = run_operate(&mut obj, op, args, 0, 0, resp_version, output).result1;
         save_or_gc(storage, key, &obj).await?;
-        output.write_resp_int(obj_out.result1);
+        output.write_resp_int(result1);
         notify(key);
         Ok(())
       }
@@ -272,8 +270,8 @@ pub(crate) async fn list(
   // LLEN 由 exec_slow O(1) 计数直读臂承接
   match cmd {
     RespCommand::Ltrim => {
-      let Some((start, stop)) = parse_i32_pair(refs) else {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+      // start/stop 参数推导单源（快慢共用，失败帧已写出）
+      let Some((start, stop)) = parse_i32_pair_args("LTRIM", refs, output) else {
         return Ok(());
       };
       load_eval(
@@ -290,6 +288,7 @@ pub(crate) async fn list(
             start,
             stop,
             resp_version,
+            output,
           );
           match save_or_gc(storage, key, &obj).await {
             Ok(()) => output.extend_from_slice(cs::RESP_OK),
@@ -300,8 +299,8 @@ pub(crate) async fn list(
       .await
     }
     RespCommand::Lrange => {
-      let Some((start, stop)) = parse_i32_pair(refs) else {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+      // start/stop 参数推导单源（快慢共用，失败帧已写出）
+      let Some((start, stop)) = parse_i32_pair_args("LRANGE", refs, output) else {
         return Ok(());
       };
       load_eval(
@@ -310,16 +309,14 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_EMPTYLIST),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          output.extend_from_slice(
-            &run_operate(
-              &mut obj,
-              ListOperation::Lrange,
-              &[],
-              start,
-              stop,
-              resp_version,
-            )
-            .payload,
+          run_operate(
+            &mut obj,
+            ListOperation::Lrange,
+            &[],
+            start,
+            stop,
+            resp_version,
+            output,
           );
         },
       )
@@ -336,11 +333,19 @@ pub(crate) async fn list(
         output,
         |output| output.write_resp_null_ver(resp_version),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Lindex, &[], index, 0, resp_version);
-          if obj_out.result1 == -1 {
+          // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Lindex,
+            &[],
+            index,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
+          if result1 == -1 {
             output.write_resp_null_ver(resp_version);
-          } else {
-            output.extend_from_slice(&obj_out.payload);
           }
         },
       )
@@ -353,17 +358,25 @@ pub(crate) async fn list(
         output,
         // C# NOTFOUND：参数含 COUNT → 空数组，否则 null
         |output| {
-          if refs[2..].iter().any(|t| t.eq_ignore_ascii_case(b"COUNT")) {
+          if refs[2..].iter().any(|t| t.eq_ignore_ascii_case(cs::COUNT)) {
             output.extend_from_slice(cs::RESP_EMPTYLIST);
           } else {
             output.write_resp_null_ver(resp_version);
           }
         },
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Lpos, args, 0, 0, resp_version);
-          if obj_out.result1 != -1 {
-            output.extend_from_slice(&obj_out.payload);
-          } else {
+          // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Lpos,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
+          if result1 == -1 {
             output.write_resp_null_ver(resp_version);
           }
         },
@@ -377,15 +390,24 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Linsert, args, 0, 0, resp_version);
-          if obj_out.result1 > 0 {
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Linsert,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
+          if result1 > 0 {
             if save_or_gc(storage, key, &obj).await.is_err() {
               output.write_resp_error(cs::RESP_ERR_GENERIC);
               return;
             }
             notify(key);
           }
-          output.write_resp_int(obj_out.result1);
+          output.write_resp_int(result1);
         },
       )
       .await
@@ -402,19 +424,21 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          let result1 = run_operate(
             &mut obj,
             ListOperation::Lrem,
             &[element],
             count,
             0,
             resp_version,
-          );
-          if obj_out.result1 > 0 && save_or_gc(storage, key, &obj).await.is_err() {
+            output,
+          )
+          .result1;
+          if result1 > 0 && save_or_gc(storage, key, &obj).await.is_err() {
             output.write_resp_error(cs::RESP_ERR_GENERIC);
             return;
           }
-          output.write_resp_int(obj_out.result1);
+          output.write_resp_int(result1);
         },
       )
       .await
@@ -431,22 +455,23 @@ pub(crate) async fn list(
         // C# NOTFOUND → ERR no such key
         |output| cs::write_error_raw(output, cs::RESP_ERR_GENERIC_NOSUCHKEY),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          let mut obj_out = run_operate(
             &mut obj,
             ListOperation::Lset,
             &[idx_val, element],
             0,
             0,
             resp_version,
+            output,
           );
-          if obj_out.payload.first() == Some(&b'+')
+          if obj_out.payload_view().first() == Some(&b'+')
             && let Err(()) = save_or_gc(storage, key, &obj).await
           {
-            output.clear();
+            // 回退挂载点改写错误帧（+OK 负载不得与错误帧拼帧）
+            obj_out.reset();
             output.write_resp_error(cs::RESP_ERR_GENERIC);
-            return;
           }
-          output.extend_from_slice(&obj_out.payload);
+          // +OK / 对象层错误负载均已直写会话输出尾段
         },
       )
       .await
@@ -488,10 +513,11 @@ pub(crate) async fn list(
       .await
     }
     RespCommand::Lmpop | RespCommand::Blmpop => {
+      // 参数推导单源（快慢共用，失败帧已写出；BLMPOP 的 timeout 词元由
+      // 快路径先行校验，冷键降级时不再复检）
       let Some((keys, pop_direction, pop_count)) =
-        parse_mpop_common(refs, cmd == RespCommand::Blmpop)
+        parse_lmpop_args(refs, cmd == RespCommand::Blmpop, output)
       else {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
         return Ok(());
       };
       let handled =
@@ -537,15 +563,6 @@ pub(crate) async fn list(
       cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
       Ok(())
     }
-  }
-}
-
-/// 双 i32 参数重推导（LTRIM/LRANGE 的 start/stop）
-fn parse_i32_pair(refs: &[&[u8]]) -> Option<(i32, i32)> {
-  if let [_, raw_start, raw_stop, ..] = refs {
-    Some((strict_i32(raw_start)?, strict_i32(raw_stop)?))
-  } else {
-    None
   }
 }
 
@@ -655,41 +672,6 @@ async fn move_core_cold(
     output.write_resp_bulk_string(elem);
   }
   Ok(())
-}
-
-/// LMPOP/BLMPOP 参数重推导（快路径已校验，防御性重解析）
-///
-/// LMPOP: numkeys key [key ...] LEFT|RIGHT [COUNT count]
-/// BLMPOP: timeout numkeys key [key ...] LEFT|RIGHT [COUNT count]
-fn parse_mpop_common<'a>(
-  refs: &'a [&'a [u8]],
-  is_blocking: bool,
-) -> Option<(&'a [&'a [u8]], OperationDirection, i32)> {
-  let base = usize::from(is_blocking);
-  let num_keys = refs.get(base).and_then(|v| strict_i32(v))?;
-  if num_keys < 1 {
-    return None;
-  }
-  // n = direction 词元下标（keys 段右开边界）
-  let n = base + num_keys as usize + 1;
-  // 定长形态：direction 必带；COUNT 形态恰多 2 参
-  if refs.len() != n + 1 && refs.len() != n + 3 {
-    return None;
-  }
-  let keys = &refs[base + 1..n];
-  let direction = parse_direction(refs.get(n).copied()?)?;
-  let mut count = 1_i32;
-  if refs.len() == n + 3 {
-    if !refs[n + 1].eq_ignore_ascii_case(b"COUNT") {
-      return None;
-    }
-    let c = strict_i32(refs[n + 2])?;
-    if c < 1 {
-      return None;
-    }
-    count = c;
-  }
-  Some((keys, direction, count))
 }
 
 /// 逐键弹出第一个非空列表的慢路径对位（对标同步段 pop_first_nonempty）
