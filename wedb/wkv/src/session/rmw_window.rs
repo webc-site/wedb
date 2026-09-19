@@ -14,8 +14,11 @@
 //! rust 侧锁源同为 windex `HashBucket` 内嵌闩，本键 `user_key` 在当前 `HashIndex`
 //! 版本下的主桶（`fast_hash & size_mask`）三处共取：本窗口、`wtxn` 事务键锁
 //!（`wtxn/src/txn_lock_table.rs` 转发 `HashBucket`，键哈希同为 `fast_hash`）、
-//! `wkv` TTL 读改写窗口（`wkv/src/ttl.rs` 经 `HashIndex::lock_key_exclusive`
+//! `wkv` TTL 读改写窗口（`wkv/src/ttl.rs` 经 `HashIndex::try_lock_key_exclusive`
 //! 持桶闩），故三者互斥即同键全序串行，全仓无第二把同址锁、亦无条带折算。
+//! 本窗口取闩即该入口的同两步组合（`bucket_index_for_key` 定位主桶 +
+//! `HashBucket::try_lock_exclusive` 单次尝试），只是闩的持有证明要跨 `&self`
+//! 借用期交回命令层，故以窗口自身承载放闩，不自建第二张锁表、不另立锁语义。
 //! 取闩/放闩形态与 `wtxn::TxnKeyEntries::acquire_plan`/`release_held` 同款：
 //! 钉定 `Arc<HashIndex>` 版本 + 纯数据桶下标，跨 split 扩容不串锁，不新建守卫类型。
 //!
@@ -49,9 +52,11 @@ use windex::HashIndex;
 use super::{BatchStoreSession, StoreSession};
 use crate::error::{Error, Result};
 
-/// 同步快路径取闩自旋预算（与 `windex::HashIndex::lock_key_exclusive` 的
-/// `1024 × spin_loop` 同口径：持闩期只有读—算—写三段纯内存操作，微秒级即放闩；
-/// 预算耗尽仍不得闩即按 C# `RETRY_LATER` 交调用方降级，同步域绝不无限自旋）
+/// 同步快路径取闩重试预算（索引层单键闩入口 `HashIndex::try_lock_key_exclusive`
+/// 为一次尝试、无自旋驱动、无超时判定，取闩失败的重试由本调用方承接——对标 C#
+/// ephemeral 取闩失败回 `RETRY_LATER`）：持闩期只有读—算—写三段纯内存操作，
+/// 微秒级即放闩，故 1024 轮单次尝试足够；预算耗尽仍不得闩即交调用方降级，
+/// 同步域绝不无限自旋
 const RMW_LATCH_SPIN_ATTEMPTS: usize = 1024;
 
 /// 异步域让核重试预算（对标 C# 锁冲突转 pending 重试的外层循环）：预算耗尽即回
