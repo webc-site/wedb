@@ -26,7 +26,8 @@ fn state_of(args: &[&[u8]]) -> (SessionParseState, Vec<u8>) {
     buf.extend_from_slice(arg);
   }
   let mut state = SessionParseState::new();
-  state.initialize_with_args(&slices);
+  state.initialize(slices.len());
+  state.root_buffer[..slices.len()].copy_from_slice(&slices);
   (state, buf)
 }
 

@@ -52,14 +52,6 @@ impl SessionParseState {
   }
 
   #[inline]
-  pub fn initialize_with_args(&mut self, args: &[ArgSlice]) {
-    self.initialize(args.len());
-    for (i, &arg) in args.iter().enumerate() {
-      self.root_buffer[i] = arg;
-    }
-  }
-
-  #[inline]
   pub fn slice(&self, idx_offset: usize) -> Self {
     let new_count = self.count.saturating_sub(idx_offset);
     let start = self.offset + idx_offset;
@@ -197,7 +189,9 @@ mod tests {
       buf.extend_from_slice(arg);
     }
     let mut state = SessionParseState::new();
-    state.initialize_with_args(&slices);
+    // initialize_with_args 已随零消费口删除：字段 pub 直填（一处初始化形态）
+    state.initialize(slices.len());
+    state.root_buffer[..slices.len()].copy_from_slice(&slices);
     (state, buf)
   }
 

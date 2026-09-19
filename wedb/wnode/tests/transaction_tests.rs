@@ -25,7 +25,8 @@ fn session_with_args(args: &[&[u8]]) -> (RespServerSession, Vec<u8>) {
     slices.push(ArgSlice::new(session.recv_buffer.len(), arg.len()));
     session.recv_buffer.extend_from_slice(arg);
   }
-  session.parse_state.initialize_with_args(&slices);
+  session.parse_state.initialize(slices.len());
+  session.parse_state.root_buffer[..slices.len()].copy_from_slice(&slices);
   let buffer = session.recv_buffer.clone();
   (session, buffer)
 }

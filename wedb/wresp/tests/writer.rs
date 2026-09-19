@@ -5,7 +5,7 @@ use wresp::{
 
 #[test]
 fn test_protocol_aware_lengths() {
-  let mut w = RespMemoryWriter::new();
+  let mut w = RespWriter::<Vec<u8>, Resp2>::new();
   w.write_map_length(2);
   assert_eq!(w.out, b"*4\r\n");
   w.out.clear();
@@ -27,7 +27,7 @@ fn test_protocol_aware_lengths() {
   w.write_empty_map();
   assert_eq!(w.out, b"*0\r\n");
 
-  let mut w = RespMemoryWriter::<Resp3>::new_p();
+  let mut w = RespMemoryWriter::<Resp3>::new();
   w.write_map_length(2);
   assert_eq!(w.out, b"%2\r\n");
   w.out.clear();
@@ -52,7 +52,7 @@ fn test_protocol_aware_lengths() {
 
 #[test]
 fn test_strings_and_ints() {
-  let mut w = RespMemoryWriter::new();
+  let mut w = RespWriter::<Vec<u8>, Resp2>::new();
   w.write_bulk_string(b"abc");
   assert_eq!(w.out, b"$3\r\nabc\r\n");
   w.out.clear();
@@ -117,7 +117,7 @@ fn test_double_numeric_and_bulk() {
   w2.write_double_numeric(f64::NEG_INFINITY);
   assert_eq!(w2.out, b"$4\r\n-inf\r\n");
 
-  let mut w3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut w3 = RespMemoryWriter::<Resp3>::new();
   w3.write_double_numeric(1.25);
   assert_eq!(w3.out, b",1.25\r\n");
   w3.out.clear();
@@ -158,7 +158,7 @@ fn test_bool_and_verbatim_and_error() {
   w2.write_error_bytes(b"ERR raw byte error");
   assert_eq!(w2.out, b"-ERR raw byte error\r\n");
 
-  let mut w3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut w3 = RespMemoryWriter::<Resp3>::new();
   w3.write_bool(true);
   assert_eq!(w3.out, b"#t\r\n");
   w3.out.clear();
@@ -234,7 +234,7 @@ fn test_bignum_and_bulk_error_frames() {
   w2.write_bulk_error(b"ERR custom");
   assert_eq!(w2.out, b"$20\r\n12345678901234567890\r\n-ERR custom\r\n");
 
-  let mut w3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut w3 = RespMemoryWriter::<Resp3>::new();
   w3.write_bignum(b"12345678901234567890");
   w3.write_bulk_error(b"ERR custom");
   assert_eq!(w3.out, b"(12345678901234567890\r\n!10\r\nERR custom\r\n");
@@ -245,7 +245,7 @@ fn test_bignum_and_bulk_error_frames() {
 #[test]
 fn test_map_and_set_aggregate_frames() {
   let kvs = [("k1", "v1"), ("k2", "v2")];
-  let mut map3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut map3 = RespMemoryWriter::<Resp3>::new();
   map3.write_map_length(kvs.len());
   for (k, v) in kvs {
     map3.write_bulk_string(k.as_bytes());
@@ -257,7 +257,7 @@ fn test_map_and_set_aggregate_frames() {
   );
 
   let items = ["s1", "s2"];
-  let mut set3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut set3 = RespMemoryWriter::<Resp3>::new();
   set3.write_set_length(items.len());
   for item in items {
     set3.write_bulk_string(item.as_bytes());
@@ -271,7 +271,7 @@ fn test_map_and_set_aggregate_frames() {
 /// RESP3 bulk error 为长度前缀帧，正文原样保留（不构成第二帧）。
 #[test]
 fn test_error_frame_single_point_sanitization() {
-  let mut w = RespMemoryWriter::new();
+  let mut w = RespWriter::<Vec<u8>, Resp2>::new();
 
   // 字节入参口（wcol / wlua 错误回显即由此入参）：CRLF 切断，注入字节不成帧
   w.write_error_bytes(b"boom\r\n:4242\r\n");
@@ -308,7 +308,7 @@ fn test_error_frame_single_point_sanitization() {
   assert!(w.out.ends_with(b"\r\n"));
   assert_eq!(w.out.iter().filter(|&&b| b == b'\n').count(), 1);
 
-  let mut w3 = RespMemoryWriter::<Resp3>::new_p();
+  let mut w3 = RespMemoryWriter::<Resp3>::new();
   w3.write_bulk_error(b"bulk\r\n:7\r\n");
   // 长度前缀帧：正文 10 字节原样写出后按帧尾补 CRLF，客户端按 len 取正文，
   // 正文内 CRLF 不会被读成第二帧

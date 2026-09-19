@@ -41,21 +41,6 @@ impl GarnetLog {
     }
   }
 
-  /// 异步多子日志背压等待
-  #[inline]
-  pub async fn backpressure_wait_vector_async(&self, mut physical_sublog_access_vector: u64) {
-    let Some(backpressure) = &self.backpressure else {
-      return;
-    };
-    while physical_sublog_access_vector > 0 {
-      let sublog_idx = physical_sublog_access_vector.trailing_zeros() as usize;
-      backpressure
-        .wait_async(sublog_idx, self.get_tail_address(sublog_idx))
-        .await;
-      physical_sublog_access_vector &= physical_sublog_access_vector - 1;
-    }
-  }
-
   /// libs/server/AOF/GarnetLog.cs:IsChunkable
   ///
   /// key+value+input 总规模超过最小部分分配尺寸即需分块。
@@ -244,18 +229,6 @@ impl GarnetLog {
       self.commit();
     }
     Ok(address)
-  }
-
-  /// libs/server/AOF/GarnetLog.cs:ChunkBufferSize
-  ///
-  /// 分块重组缓冲尺寸：全量长度之和 + 头开销。
-  pub fn chunk_buffer_size(
-    key_len: usize,
-    value_len: usize,
-    input_len: usize,
-    chunk_count: usize,
-  ) -> usize {
-    key_len + value_len + input_len + chunk_count * AofChunkHeader::TOTAL_SIZE
   }
 
   /// libs/server/AOF/GarnetLog.cs:EnqueueStoredProc

@@ -85,8 +85,8 @@ fn test_full_replication_sync_pipeline() {
     assert_eq!(primary_mgr.aof_sync_driver_store.count(), 1);
 
     // 5. 模拟主节点 AOF 日志流水线向 AofSyncTask 推送增量
-    let task0 = sync_driver.get_task(0).expect("task 0 exists");
-    let task1 = sync_driver.get_task(1).expect("task 1 exists");
+    let task0 = sync_driver.task_ref(0).expect("task 0 exists");
+    let task1 = sync_driver.task_ref(1).expect("task 1 exists");
 
     let aof_payload0 = b"*3\r\n$3\r\nSET\r\n$4\r\nuser\r\n$5\r\nalice\r\n";
     let aof_payload1 = b"*3\r\n$3\r\nSET\r\n$4\r\norder\r\n$3\r\n101\r\n";

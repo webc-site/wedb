@@ -330,7 +330,9 @@ fn client_info_carries_real_state() {
   let mut s = session(7);
   s.remote_endpoint = "127.0.0.1:6380".to_string();
   s.set_client_name(Some("loader"));
-  s.set_client_lib_info(Some("redis-py"), Some("5.0.1"));
+  // CLIENT SETINFO 落库（字段 pub 直赋，同生产 network_clientsetinfo 形态）
+  s.client_lib_name = Some("redis-py".to_string());
+  s.client_lib_version = Some("5.0.1".to_string());
 
   let mut out = Vec::new();
   assert!(s.process_hello_command_state::<SegmentedDevice>(
@@ -532,7 +534,6 @@ fn latency_metrics_optional_path() {
   let s = session(5);
   assert!(s.get_latency_metrics().is_none());
   s.reset_latency_metrics(LatencyMetricsType::NetRsLat);
-  s.reset_all_latency_metrics();
 
   let enabled = RespServerSession::new(
     6,
@@ -546,7 +547,9 @@ fn latency_metrics_optional_path() {
   assert_eq!(metrics.get(LatencyMetricsType::NetRsLat), 100);
   metrics.stop(LatencyMetricsType::NetRsLat, 150);
   assert_eq!(metrics.get(LatencyMetricsType::NetRsLat), 0);
-  enabled.reset_all_latency_metrics();
+  // 全事件复位（C# ResetAllLatencyMetrics 的 rust 载体：直接对句柄调
+  // reset_all，与会话域无第二出口）
+  metrics.reset_all();
   assert_eq!(metrics.get(LatencyMetricsType::NetRsLat), 0);
 }
 

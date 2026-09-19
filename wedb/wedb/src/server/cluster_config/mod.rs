@@ -443,17 +443,6 @@ impl ClusterConfig {
 }
 
 impl ClusterConfig {
-  /// libs/cluster/Server/ClusterConfig.cs:GetReplicaEndpoints
-  pub fn get_replica_endpoints(&self, nodeid: u128) -> Vec<(String, i32)> {
-    let mut replica_endpoints = Vec::new();
-    for worker in self.workers.iter().skip(1) {
-      if worker.replica_of_node_id == Some(nodeid) {
-        replica_endpoints.push((worker.address.to_string(), worker.port));
-      }
-    }
-    replica_endpoints
-  }
-
   /// libs/cluster/Server/ClusterConfig.cs:GetWorkerNodeIdFromAddressOrHostname
   pub fn get_worker_node_id_from_address_or_hostname(
     &self,

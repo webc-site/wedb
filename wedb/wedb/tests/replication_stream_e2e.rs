@@ -225,7 +225,7 @@ fn test_replication_full_chain_stream() {
     // 8. 节流机制测试：信号化拉取下报备由 pump_backlog 自动履行
     //（throttle_replica 以 publish_delta=1 门限即时发布），此处验证
     // 高水位报备的幂等语义——已发布水位不得重复报备
-    let task = sync_driver.get_task(0).unwrap();
+    let task = sync_driver.task_ref(0).unwrap();
     let wm = task.throttle(10);
     assert_eq!(wm, None, "已报备水位不得重复发布");
 

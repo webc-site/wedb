@@ -369,11 +369,6 @@ impl ReadSessionState {
     drop(guard);
     true
   }
-
-  /// 会话上下文快照（测试/诊断）。
-  pub fn replica_context_snapshot(&self) -> ReplicaReadSessionContext {
-    self.replica_read_context.clone()
-  }
 }
 
 impl wkv::ConsistentReadFunctions for ReadSessionState {
