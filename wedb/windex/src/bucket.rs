@@ -3,6 +3,7 @@ use std::{
   mem::forget,
   result::Result,
   sync::atomic::{AtomicU64, Ordering},
+  thread::yield_now,
 };
 
 use wbase::backoff::Backoff;
@@ -34,11 +35,10 @@ impl HashBucket {
   pub const DATA_ENTRIES: usize = DATA_ENTRIES;
   /// 溢出槽位索引关联常量（再导出自由常量，下游 wcpr 等包以此命名空间引用）
   pub const OVERFLOW_INDEX: usize = OVERFLOW_INDEX;
-  /// 自旋锁获取的最大自旋次数（C# Constants.kMaxLockSpins = 10；放大至 128 以
-  /// 配合 wbase Backoff 三阶退避（spin→yield→sleep），降低高争用下的误失败率）
-  pub const MAX_LOCK_SPINS: usize = 128;
-  /// 独占锁等待活跃读者完全退出的最大自旋次数
-  pub const MAX_READER_DRAIN_SPINS: usize = 1024;
+  /// 自旋锁获取的最大自旋次数（对标 C# Constants.kMaxLockSpins = 10）
+  pub const MAX_LOCK_SPINS: usize = 10;
+  /// 独占锁等待活跃读者完全退出的最大自旋次数（对标 C# Constants.kMaxReaderLockDrainSpins = kMaxLockSpins * 10 = 100）
+  pub const MAX_READER_DRAIN_SPINS: usize = 100;
 
   /// 共享锁占用的比特位数（15 位）
   pub const SHARED_LATCH_BITS: u32 = 15;
@@ -68,11 +68,7 @@ impl HashBucket {
   /// 尝试获取共享锁（Shared Latch）
   ///
   /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:TryAcquireSharedLatch
-  ///
-  /// 自旋等待统一走 wbase Backoff 三阶退避（spin→yield→sleep，对标 C# SpinWait 语义；
-  /// 预算 128 轮内仅触达 spin/yield 两阶）
   pub fn try_lock_shared(&self) -> bool {
-    let mut backoff = Backoff::new();
     for _ in 0..Self::MAX_LOCK_SPINS {
       let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
       if (curr & Self::EXCLUSIVE_LATCH_MASK) == 0
@@ -86,7 +82,7 @@ impl HashBucket {
           return true;
         }
       }
-      backoff.snooze();
+      yield_now();
     }
     false
   }
@@ -111,7 +107,6 @@ impl HashBucket {
   /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:TryAcquireExclusiveLatch
   ///（含读者排空与超时 CAS 回退两段，语义逐段对齐）
   pub fn try_lock_exclusive(&self) -> bool {
-    let mut backoff = Backoff::new();
     let mut acquired_bit = false;
     for _ in 0..Self::MAX_LOCK_SPINS {
       let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
@@ -125,25 +120,34 @@ impl HashBucket {
           break;
         }
       }
-      backoff.snooze();
+      yield_now();
     }
 
     if !acquired_bit {
       return false;
     }
 
-    // 等待活跃读者完全排空
-    let mut drain_backoff = Backoff::new();
+    // 等待活跃读者完全排空（对标 C# HashBucket.cs:100-105）
     for _ in 0..Self::MAX_READER_DRAIN_SPINS {
       let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
       if (curr & Self::SHARED_LATCH_MASK) == 0 {
         return true;
       }
-      drain_backoff.snooze();
+      yield_now();
     }
 
-    // 排空超时，回退独占标记
-    self.entries[OVERFLOW_INDEX].fetch_and(!Self::EXCLUSIVE_LATCH_MASK, Ordering::Release);
+    // 排空超时，回退独占标记（对标 C# HashBucket.cs:108-114 CAS 回退循环）
+    loop {
+      let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
+      let new_val = curr & !Self::EXCLUSIVE_LATCH_MASK;
+      if self.entries[OVERFLOW_INDEX]
+        .compare_exchange_weak(curr, new_val, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+      {
+        break;
+      }
+      yield_now();
+    }
     false
   }
 
@@ -154,7 +158,6 @@ impl HashBucket {
   /// 2. 自旋等待其余活跃读者排空（最多 MAX_READER_DRAIN_SPINS 次）
   /// 3. 若排空超时，原子回退独占标记并补回共享读者计数，返回 false
   pub fn try_promote_latch(&self) -> bool {
-    let mut backoff = Backoff::new();
     let mut acquired_bit = false;
     for _ in 0..Self::MAX_LOCK_SPINS {
       let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
@@ -171,7 +174,7 @@ impl HashBucket {
           break;
         }
       }
-      backoff.snooze();
+      yield_now();
     }
 
     if !acquired_bit {
@@ -179,32 +182,25 @@ impl HashBucket {
     }
 
     // 等待其余活跃读者排空
-    let mut drain_backoff = Backoff::new();
     for _ in 0..Self::MAX_READER_DRAIN_SPINS {
       let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
       if (curr & Self::SHARED_LATCH_MASK) == 0 {
         return true;
       }
-      drain_backoff.snooze();
+      yield_now();
     }
 
-    // 排空超时，回退：清除独占标记位，并补回共享读者计数
-    let mut rollback_backoff = Backoff::new();
-    let mut curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
+    // 排空超时，回退：清除独占标记位，并补回共享读者计数（对标 C# HashBucket.cs:149-156）
     loop {
+      let curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
       let new_val = (curr & !Self::EXCLUSIVE_LATCH_MASK) + Self::SHARED_LATCH_INC;
-      match self.entries[OVERFLOW_INDEX].compare_exchange_weak(
-        curr,
-        new_val,
-        Ordering::AcqRel,
-        Ordering::Acquire,
-      ) {
-        Ok(_) => break,
-        Err(actual) => {
-          curr = actual;
-          rollback_backoff.snooze();
-        }
+      if self.entries[OVERFLOW_INDEX]
+        .compare_exchange_weak(curr, new_val, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+      {
+        break;
       }
+      yield_now();
     }
     false
   }
@@ -212,9 +208,8 @@ impl HashBucket {
   /// 将独占锁（X-Latch）原子降级为共享锁（S-Latch）
   ///
   /// 原子清除独占标记并增加一个共享读者计数，保证没有任何并发写者能在这期间插入。
-  /// CAS 竞争回退走 wbase Backoff 三阶退避（C# 同名回退循环为 Thread.Yield）
+  /// CAS 竞争回退对标 C# HashBucket.DowngradeLatch（Thread.Yield）
   pub fn downgrade_latch(&self) {
-    let mut backoff = Backoff::new();
     let mut curr = self.entries[OVERFLOW_INDEX].load(Ordering::Acquire);
     loop {
       debug_assert!(
@@ -231,7 +226,7 @@ impl HashBucket {
         Ok(_) => break,
         Err(actual) => curr = actual,
       }
-      backoff.snooze();
+      yield_now();
     }
   }
 

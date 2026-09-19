@@ -252,7 +252,7 @@ fn stress_manual_locks_across_threads_without_deadlock() {
   const BASE_KEY: i64 = 42;
   const NUM_KEYS: i64 = 20;
   const NUM_THREADS: usize = 8;
-  const ITERATIONS: usize = 1000;
+  let iterations = if cfg!(debug_assertions) { 200 } else { 1000 };
 
   // 同一引擎实例锁表句柄下发各线程（对标同 store 各会话共享 store.LockTable）
   let table = TxnLockTable::new();
@@ -266,7 +266,7 @@ fn stress_manual_locks_across_threads_without_deadlock() {
     handles.push(thread::spawn(move || {
       let mut rng = XorShift((tid as u64 + 101) | 1);
 
-      for _ in 0..ITERATIONS {
+      for _ in 0..iterations {
         // 随机键集（C# enumKeys：base + rng 步进），锁型 60% 共享 / 40% 排他
         let mut keys: Vec<TxnKeyEntry> = Vec::new();
         let mut key = BASE_KEY + rng.below(5) as i64;

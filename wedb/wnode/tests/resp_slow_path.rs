@@ -482,12 +482,14 @@ fn info_keyspace_multi_db_read_only() {
 ///
 /// 全部用例为解析失败面（不触达存储），快侧经会话直答、慢侧经 exec_slow
 /// 直答（降级快照 / 事务 / AOF 非命令入口同径）
+type SlowParseCase<'a> = (RespCommand, &'a [u8], &'a [&'a [u8]]);
+
 #[test]
 fn object_slow_parse_frames_match_fast() {
   let rt = Runtime::new().unwrap();
   let (mut c, api) = consumer_with_api();
 
-  let cases: &[(RespCommand, &[u8], &[&[u8]])] = &[
+  let cases: &[SlowParseCase<'_>] = &[
     (
       RespCommand::Sintercard,
       b"SINTERCARD",
