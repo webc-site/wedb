@@ -30,3 +30,24 @@ wdev segmented_device.rs 1437 行巨石：段映射、句柄池、DirectIO 扇�
 校验）拆子模块，mod.rs 保留 SegmentedDevice 定义与 Device trait impl 统一对外；
 pub API 路径不变。纯搬运，禁止夹带行为改动（对齐校验单点 validate_aligned_io 已在
 chunk.rs，保持复用不动）。
+
+结案注记（合并 sha a954680，载体分支 wdev-seg-split 32ebaee）
+按票面职责块拆为目录模块 segmented_device/：mod.rs 373 行（结构 + DeviceParams
+构造注入面 + Device trait 转发门面 + Drop）、handle.rs 274（段名路径与 Thread-Per-Core
+句柄表、DirectIO 探测定型、reset）、io.rs 299（get_segment_and_offset 与
+within_single_segment 寻址、read_impl 与 write_impl 快慢路径）、sync.rs 216（sync
+sync_data sync_internal 与 debug 契约守护）、truncate.rs 183（get_file_size、
+remove_segment、handle_capacity、Windows 延迟删除、truncate_until_segment_impl）、
+recover.rs 209（段名编解码、SegmentEntries 流式扫描、recover 与内联测试）。
+构造三口 new/with_params/with_pool 与 DeviceParams 同留门面件（旋钮唯一注入口与结构
+同处，句柄件不持构造），余按票面。原 1432 行单文件降为最大 373 行，无 shim、无旧码。
+
+中性取证：改动前后 .rs 行多重集比对，消失行仅 21 条（11 条签名加 pub(super) 或改
+_impl 名、10 条导入拆件）；新增 119 行全部为件内导入、件首说明与两行门面转发，
+零逻辑行。C# 锚点多重集逐条相同（10 条，形态计数不变）。bun js/check.js 前后输出
+逐字节相同、ignore 语料零回写。私有 target /tmp/ct-wdev-split 实测
+cargo check --tests -p wdev -p waof -p whlog -p wkv -p wnode -p wedb 退出 0，
+bench 与 regress 两个独立 workspace cargo check 退出 0（均经 wdev::SegmentedDevice
+公开路径，零引用点改动），wdev nextest 61/61、wdev+waof 139/139 复跑五次全绿，
+另以 --target x86_64-unknown-linux-gnu 与 x86_64-pc-windows-msvc 分别 check 通过，
+覆盖 O_DIRECT 探测与 Windows 延迟删除两处 cfg 专属块。
