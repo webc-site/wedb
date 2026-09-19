@@ -132,5 +132,10 @@
   该树不存在，drive.rs 无在途他树改动。
 
 落位
-- 提交 4fcd4c0（docs(net): 三枚 C# 锚点复挂收口，5 文件 +13/−9）→ 合并 dev 5c30f0b
-  零冲突 → 分支 checkjs-dup-anchor 待主仓 FF；FF 结果见回报。
+- 提交 4fcd4c0（docs(net): 三枚 C# 锚点复挂收口，5 文件 +13/−9）→ 归档票 a2b1c02
+  → 两次回合最新 dev（5c30f0b、fbd2859 零码冲突）→ 主仓 dev 纯 FF 合入
+  965e16d（dev 由 fbd2859 → 965e16d，无额外 merge commit），test.sh / clippy 留主代理门禁统一复验。
+- 合入后 dev 现态复核（grep 按符号名）：三锚各单点 ——
+  server.rs:973 run_tcp_accept_loop 持 HandleNewConnection、tls/config.rs:93 server_config 持
+  GetSslServerAuthenticationOptions、service.rs:612 spawn_pubsub_consume_task 持 StartAsync
+  （本票落地与 tls-pem-loader 棒同波合入，行号相对上文实测各漂移 1～4 行，判据不变）。
