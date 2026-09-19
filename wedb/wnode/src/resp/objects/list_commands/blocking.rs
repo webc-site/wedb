@@ -1,6 +1,5 @@
 //! 列表阻塞弹出与多键弹出命令实现（BLPOP, BRPOP, BLMOVE, BRPOPLPUSH, LMPOP, BLMPOP）
 
-use wbase::num::strict_i32;
 use wcol::{
   itembroker::collection_item_observer::CollectionItemResult, list::list_object::OperationDirection,
 };
@@ -14,7 +13,7 @@ use wresp::{
 use wval::GarnetObjectType;
 use zmij::Buffer;
 
-use super::{ListLoad, list_load_sync, list_save_or_gc};
+use super::{ListLoad, list_load_sync, list_save_or_gc, parse_lmpop_args};
 use crate::{
   resp::{
     objects::object_store_utils::obj_load_sync_degrades, resp_server_session::RespServerSession,
@@ -42,46 +41,11 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 3.., output, "LMPOP");
-
-    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报
-    // GenericErrShouldBeGreaterThanZero "numkeys"（ListCommands.cs:198）
-    let Some(num_keys) = strict_i32(parse_state[0]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((keys, pop_direction, pop_count)) = parse_lmpop_args(parse_state, false, output)
+    else {
       return Ok(true);
     };
-    if num_keys < 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
-      return Ok(true);
-    }
-    if parse_state.len() != num_keys as usize + 2 && parse_state.len() != num_keys as usize + 4 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    }
-
-    let keys = &parse_state[1..=num_keys as usize];
-
-    let Some(pop_direction) = parse_direction(parse_state[num_keys as usize + 1]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    };
-
-    let mut pop_count = 1_i32;
-    if parse_state.len() == num_keys as usize + 4 {
-      if !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(cs::COUNT) {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报
-      // GenericErrShouldBeGreaterThanZero "count"（ListCommands.cs:228）
-      match strict_i32(parse_state[num_keys as usize + 3]) {
-        Some(c) if c >= 1 => pop_count = c,
-        _ => {
-          cs::abort_with_error_message(output, "ERR count should be greater than 0");
-          return Ok(true);
-        }
-      }
-    }
 
     // 逐键弹出第一个非空列表（LMPOP/BLMPOP 立即可取路径公共体复用）
     if let Some(done) = pop_first_nonempty(keys, store, pop_direction, pop_count, output) {
@@ -307,47 +271,10 @@ impl RespServerSession {
       }
     };
 
-    // C# GenericParamShouldBeGreaterThanZero 替换 {0}="numkeys"（注意与 LMPOP 的
-    // 无 Parameter 前缀版文案不同源）
-    let err_numkeys = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
-    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 Parameter 版（ListCommands.cs:866）
-    let Some(num_keys) = strict_i32(parse_state[1]) else {
-      cs::abort_with_error_message(output, &err_numkeys);
+    // 参数推导单源（快慢共用，失败帧已写出；timeout 词元已由上方先行校验）
+    let Some((keys, pop_direction, pop_count)) = parse_lmpop_args(parse_state, true, output) else {
       return Ok(true);
     };
-    if num_keys < 1 {
-      cs::abort_with_error_message(output, &err_numkeys);
-      return Ok(true);
-    }
-    if parse_state.len() != num_keys as usize + 3 && parse_state.len() != num_keys as usize + 5 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    }
-
-    let keys = &parse_state[2..=num_keys as usize + 1];
-
-    let Some(pop_direction) = parse_direction(parse_state[num_keys as usize + 2]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    };
-
-    let mut pop_count = 1_i32;
-    if parse_state.len() == num_keys as usize + 5 {
-      if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(cs::COUNT) {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 Parameter 版（ListCommands.cs:903）
-      match strict_i32(parse_state[num_keys as usize + 4]) {
-        Some(c) if c >= 1 => pop_count = c,
-        _ => {
-          // C# GenericParamShouldBeGreaterThanZero 替换 {0}="count"
-          let err_count = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "count");
-          cs::abort_with_error_message(output, &err_count);
-          return Ok(true);
-        }
-      }
-    }
 
     // 经纪挂起路径（方向 + count 编码进 cmd_args）；park 前预探同 BLPOP
     if any_sync_degrade(store, keys) {

@@ -60,7 +60,7 @@ pub fn native_format(quant: VectorQuantType) -> VectorValueType {
   }
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:PrepareVectorData
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:PrepareVectorData
 ///
 /// 按量化器原生格式把 `value_type` 编码的输入规约为目标格式字节。
 pub fn prepare_vector_data(
@@ -110,7 +110,7 @@ fn convert_f32_for_alignment(data: &[u8]) -> PreparedVectorData {
   }
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertI8ToF32
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertI8ToF32
 /// i8 → f32 扩展。
 fn convert_i8_to_f32(data: &[u8]) -> PreparedVectorData {
   let mut bytes = Vec::with_capacity(data.len() * 4);
@@ -124,7 +124,7 @@ fn convert_i8_to_f32(data: &[u8]) -> PreparedVectorData {
   }
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertU8ToF32
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertU8ToF32
 /// u8 → f32 扩展。
 fn convert_u8_to_f32(data: &[u8]) -> PreparedVectorData {
   let mut bytes = Vec::with_capacity(data.len() * 4);
@@ -138,7 +138,7 @@ fn convert_u8_to_f32(data: &[u8]) -> PreparedVectorData {
   }
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertF32ToU8
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertF32ToU8
 /// f32 → u8 截断；负数或 > 255 时报精度损失。
 fn convert_f32_to_u8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   let chunks = data.as_chunks::<4>().0;
@@ -156,7 +156,7 @@ fn convert_f32_to_u8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   })
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertI8ToU8
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertI8ToU8
 /// i8 → u8 截断；负数时报精度损失。
 fn convert_i8_to_u8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   if data.iter().any(|b| (*b as i8) < 0) {
@@ -168,7 +168,7 @@ fn convert_i8_to_u8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   })
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertF32ToI8
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertF32ToI8
 /// f32 → i8 截断；超出 [-128, 127] 时报精度损失。
 fn convert_f32_to_i8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   let chunks = data.as_chunks::<4>().0;
@@ -186,7 +186,7 @@ fn convert_f32_to_i8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   })
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertU8ToI8
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertU8ToI8
 /// u8 → i8 截断；> 127 时报精度损失。
 fn convert_u8_to_i8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   if data.iter().any(|b| *b > 127) {
@@ -198,7 +198,7 @@ fn convert_u8_to_i8(data: &[u8]) -> Result<PreparedVectorData, PrepareError> {
   })
 }
 
-/// diskann-garnet/VectorManager.ElementData.cs:ConvertF32ForAlignment
+/// libs/server/Resp/Vector/VectorManager.ElementData.cs:ConvertF32ForAlignment
 ///（f32 字节切片直读，仅测试断言使用）
 #[cfg(test)]
 fn f32_values(data: &[u8]) -> Vec<f32> {
