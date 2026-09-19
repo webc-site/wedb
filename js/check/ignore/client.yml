@@ -1,0 +1,174 @@
+- 文件:
+    - playground/GarnetClientStress/Program.cs
+    - playground/GarnetClientStress/ProgressBar.cs:
+        - ProgressBar
+        - Report
+        - ResetTimer
+        - TimerHandler
+        - UpdateText
+    - playground/GarnetClientStress/StressTestUtil.cs
+    - playground/GarnetClientStress/TaskScaling.cs
+  理由: C# 原型实验与演练脚本，非生产运行时代码
+- 文件:
+    - playground/GarnetClientStress/SimpleStressTests.cs
+  理由: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
+- 文件:
+    - libs/client/ClientSession/AsyncGarnetClientSession.cs:
+        - ExecuteForArrayAsyncBatch
+    - libs/client/ClientSession/GarnetClientSession.cs:
+        - Connect
+        - ConnectSendSocket
+        - ConnectSendSocketAsync
+        - DisposeMessageConsumer
+        - ExecuteForArray
+        - ReconnectAsync
+        - ResetOffset
+        - TryConnectSocket
+        - TryConnectSocketAsync
+        - TryCreateMessageConsumer
+    - libs/client/ClientSession/GarnetClientSessionIncremental.cs:
+        - EnsureTcsIsEnqueued
+        - GetAvailableNetworkBufferSpan
+        - InitializeIterationBuffer
+        - SendAndResetIterationBuffer
+        - TrackIterationProgress
+        - TryWriteChunkedRecordSpan
+    - libs/client/ClientSession/GarnetClientSessionMigrationExtensions.cs:
+        - CompleteMigrate
+        - SetSlotRange
+    - libs/client/ClientSession/GarnetClientSessionReplicationExtensions.cs:
+        - ExecuteClusterSendCheckpointFileSegment
+        - ExecuteClusterSendCheckpointMetadata
+    - libs/client/ClientTcpNetworkSender.cs:
+        - SeaaBuffer_Completed
+        - SendCallback
+    - libs/client/GarnetClient.cs:
+        - AwaitPreviousTaskAsync
+        - CheckLength
+        - Connect
+        - ConnectSendSocket
+        - ConnectSendSocketAsync
+        - ConsumeTcsOffset
+        - DisposeMessageConsumer
+        - DisposeOffset
+        - GetTimestamp
+        - InputGateAsync
+        - InternalExecuteAsync
+        - InternalExecuteNoResponse
+        - PipelineLength
+        - ThrowException
+        - TryConnectSocket
+        - TryConnectSocketAsync
+        - TryCreateMessageConsumer
+    - libs/client/GarnetClientAPI/GarnetClientBasicRespCommands.cs:
+        - KeyDelete
+        - Ping
+        - Quit
+        - StringGet
+        - StringGetAsMemory
+        - StringGetAsMemoryAsync
+        - StringSet
+    - libs/client/GarnetClientAPI/GarnetClientListCommands.cs:
+        - ListLeftPush
+        - ListRightPush
+    - libs/client/GarnetClientAPI/GarnetClientExecuteAPI.cs:
+        - ExecuteForLongResult
+        - ExecuteForLongResultAsync
+        - ExecuteForLongResultWithCancellationAsync
+        - ExecuteForMemoryResult
+        - ExecuteForMemoryResultArray
+        - ExecuteForMemoryResultArrayAsync
+        - ExecuteForMemoryResultArrayWithCancellationAsync
+        - ExecuteForMemoryResultAsync
+        - ExecuteForStringArrayResult
+        - ExecuteForStringArrayResultWithCancellationAsync
+        - ExecuteForStringResult
+        - ExecuteForStringResultWithCancellationAsync
+        - TokenRegistrationLongCallback
+        - TokenRegistrationMemoryResultArrayCallback
+        - TokenRegistrationMemoryResultCallback
+        - TokenRegistrationStringArrayCallback
+        - TokenRegistrationStringCallback
+    - libs/client/GarnetClientAPI/SortedSetPairCollection.cs
+    - libs/client/GarnetClientProcessReplies.cs:
+        - CopyErrorToSpan
+        - ProcessReplyAsMemoryByteArray
+        - ProcessReplyAsNumber
+    - libs/client/LightEpoch.cs:
+        - GetRef
+        - ReserveEntry
+        - ReserveEntryForThread
+        - ReserveEntryWait
+        - SelectInstance
+        - TryAcquireEntry
+    - libs/client/NetworkWriter.cs:
+        - AggressiveFlushShiftReadOnlyBump
+        - AggressiveShiftReadOnlyRunner
+        - AsyncFlushPageCallback
+        - DoAggressiveShiftReadOnly
+        - EpochProtectAggressiveShiftReadOnlyRunner
+        - GetNextTaskId
+        - GetOffsetInPage
+        - NeedToWait
+        - ToShift
+    - libs/client/TcsWrapper.cs
+    - libs/client/Utility.cs:
+        - IsBlittable
+        - Murmur3
+        - NumBitsPreviousPowerOf2
+        - SlowWithCancellationAsync
+        - WithCancellationAsync
+  理由: C# 客户端 SDK (GarnetClient/SERedis) 绑定；通用 RESP 客户端由 wconn 传输层原生实现，
+    集群控制面客户端（SETSLOTRANGE/MIGRATE/RESERVE VECTOR_SET_CONTEXTS/检查点上传
+    SNAPSHOT_DATA/ATTACH_SYNC/SYNC/INITIATE_REPLICA_SYNC/BEGIN_REPLICA_RECOVER）由
+    wedb/src/client.rs 认领（包装 wconn 传输层，逐函数映射见该文件文档注释）
+- 文件:
+    - libs/client/ClientSession/AsyncPool.cs
+  理由: C# .NET 专属异步对象池，Rust 侧通过 tokio/deadpool/原生异步池实现
+- 文件:
+    - libs/client/CompletionEvent.cs:
+        - Dispose
+        - Initialize
+        - IsDefault
+        - Set
+        - Wait
+        - WaitAsync
+  理由: C# .NET 专属并发原语 (SemaphoreSlim)，Rust 侧使用 tokio/原生并发原语
+- 文件:
+    - samples/GarnetClientSample/GarnetClientSamples.cs
+    - samples/GarnetClientSample/Program.cs
+    - samples/GarnetClientSample/SERedisSamples.cs
+  理由: C# 样例工程与示例客户端代码，非核心服务端实现
+- 文件:
+    - test/standalone/Garnet.test.acl/Resp/GarnetAuthenticatorTests.cs:
+        - InvalidatingAuthorizationAsync
+  理由: Rust 会话认证态由 user_handle 承载，自定义认证器动态失效通道未接线，C# Mock 认证器中途失效语义不适用
+# task/ing/gate-anchor-drift-reclean.md 条 二逐族甄别（client 侧 LightEpoch 副本的 waiter 让出组合）。
+# 取证：garnet/libs/client/LightEpoch.cs:314 SuspendResume 只由 waiterCount > 0 分支驱动（:306
+# ProtectAndDrain 尾部），而条目预留等待面（ReserveEntryWait / TryAcquireEntry / SelectInstance /
+# GetRef）在本文件上方块已登记不实现；rust wepoch 槽位获取为 CAS 抢占 + Backoff::snooze 自旋
+# （wedb/wepoch/src/epoch.rs resume 慢路径），既无等待者计数也无阻塞等待队列，让出窗口无触发方；
+# Suspend / Resume / TrySuspend / ProtectAndDrain 本体均在 wepoch 挂有本文件路径的文档注释锚点
+- 文件:
+    - libs/client/LightEpoch.cs:
+        - SuspendResume
+  理由: C# 纪元「挂起再恢复」的等待者让出组合无 rust 对位——wepoch 取槽为 CAS 自旋退避，
+    无 waiterCount 与阻塞等待队列，组合无触发场景；同口径见 storage.yml 的 core/Epochs 块
+
+- 文件:
+    - libs/client/GarnetClientMetrics.cs
+  理由: >-
+    C# 该 partial class 的六个成员（CopyLatencyHistogram、ResetLatencyHistogram、
+    GetPercentiles、GetLatencyMetrics、GetOutstandingRequestsMetrics、
+    DumpLatencyHistToConsole）唯一的取数来源是 GarnetClient 构造形参 recordLatency，
+    而全仓传 true 的调用点只落在基准与演练树：benchmark/Resp.benchmark 的
+    --client-hist 面（Options.cs ClientHistogram → RespOnlineBench.cs、TxnPerfBench.cs、
+    ClusterBench/ClientRequestProvider.Offline.cs、ClientRequestProvider.Online.cs、
+    ClientRequestProvider.WorkerPool.cs）、playground/GarnetClientStress、
+    test/standalone/Garnet.test/GarnetClientTests.cs SimpleMetricsTest；三处均已登记
+    不移植（benchmark.yml 的「C# BenchmarkDotNet/RESP 专属基准测试，Rust 侧采用
+    criterion/独立压测」块、本文件顶部 playground 块、test.yml 的 GarnetClientTests.cs
+    块）。rust 侧本仓压测树不消费 wconn 客户端，wconn 客户端为集群控制面专用
+    （认领点 wedb/src/client.rs），生产唯一构造点把 record_latency 写死 false，
+    整条取时—结算—查询链恒无读者，故不实现本文件；原对位实现 wconn/src/metrics.rs
+    及其 sent_at 取时链随零读者判定删除，不为已登记不实现的基准面另造宿主

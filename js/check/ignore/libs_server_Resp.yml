@@ -1,0 +1,8 @@
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - GetDatabaseSessionsSnapshot
+  理由: 刻意不移植：c# 多 database session 映射（databaseSessions.Map 快照）在 rust 已定型为
+    单会话 + active_db_id 切库模型（aof_processor.rs switch_active_database_context，
+    db 切换语义由 wkv 物理键 Ns/Db 前缀承接，见 851292e3 数据隔离说明），
+    AOF 回放（replaycoordinator）按 db id 上下文回放，无需会话数组快照；
+    lua 脚本缓存与库上下文解耦，SWAPDB 换库链无会话侧钩子（task/ing/swapdb-dedup.md）

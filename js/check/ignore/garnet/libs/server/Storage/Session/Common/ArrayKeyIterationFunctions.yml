@@ -1,0 +1,15 @@
+# C# IsInternalRecord（ArrayKeyIterationFunctions.cs:486，private static，实现即
+# logRecord.HasNamespace）在三处键迭代循环内联消费：:292 DbSize/键统计侧、:354 与
+# :398（ClusterKeyIterationFunctions 两 Reader）。rust 未沿用该谓词：同三处循环位点
+# （scan_cursor / count_keys_in_slot / get_keys_in_slot 走 live_key_at，
+# string_keys_snapshot 走 live_value_key）统一由
+# wval ns_codec.rs:694 extract_live_user_key 按 KeyTag::is_user_visible 单点过滤
+# 非用户面物理键（Ttl 旁路记录等），语义用例落 wval/tests/ns_codec.rs
+# ::test_session_prefix_and_live_user_key_filtering
+- 文件:
+    - libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:
+        - IsInternalRecord
+  理由: rust 以 extract_live_user_key 可见性判定单点替代，物理键是否入用户面在一处
+    裁决，键迭代循环无独立内部记录谓词；原 wnode 侧同名 pub 谓词
+    （array_key_iteration_functions.rs:is_internal_record）与 live_value_key 同语义
+    双实现、每次调用重取会话前缀，全仓生产零调用，已随死代码清理删除，不留第二入口

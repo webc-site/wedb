@@ -1,0 +1,9 @@
+# 随 TaskManager 注册表一并移除判定（fixloop task-manager-single-lifecycle-track）。
+# 放置类别位枚举是 RegisterAndRun/CancelAsync(category) 的查询键，rust 无注册表即
+# 无消费者；「Primary 类任务仅主角色运行」由 primary_tasks 副本角色位直接门检承接。
+# 判定依据同 TaskManager.yml。
+- 文件:
+    - libs/server/TaskManager/TaskPlacementCategory.cs
+  理由: >-
+    注册表专属类型域，随 TaskManager 判定不移植一并移除；类别门控语义由
+    primary_tasks 角色位承接，见 task/done/task-manager-single-lifecycle-track.md。

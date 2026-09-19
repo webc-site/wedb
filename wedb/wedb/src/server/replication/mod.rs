@@ -1,0 +1,32 @@
+pub mod aof_replication_pump;
+pub mod aof_sync_driver;
+pub mod aof_sync_task;
+pub mod assembly;
+pub mod checkpoint_entry;
+pub mod checkpoint_store;
+pub mod cluster_replication_session;
+pub mod diskless_replication;
+pub mod driver_registry;
+pub mod receive_checkpoint_handler;
+pub mod recovery_status;
+pub mod replica_diskbased_sync;
+pub mod replica_diskless_sync;
+pub mod replica_replay_driver;
+pub mod replica_replay_driver_store;
+pub mod replica_replay_task;
+pub mod replica_sync_session;
+pub mod replica_wire;
+pub mod replicate_sync_options;
+pub mod replication_history;
+pub mod replication_manager;
+pub mod snapshot_transmission;
+pub mod store_commit;
+pub mod sync_metadata;
+
+pub use aof_sync_driver::{AofSyncDriver, AofSyncDriverStore, ReplicaRoleInfo};
+pub use assembly::wire_replication_data_plane;
+pub use cluster_replication_session::ReplicaReplayHook;
+pub use replica_wire::AofSyncWire;
+pub use store_commit::StoreCommitFn;
+
+pub use crate::server::cluster::CheckpointCallbackFace;

@@ -1,0 +1,11 @@
+# wcol-object-store-parallel-abstraction（fixloop）：rust 迁移/AOF 传送的对象值即
+# wkv 信封原始字节（ObjectEnvelope 记录不透明搬运，见 wedb/src/server/migration/
+# migrate_driver/live_value.rs 直读 read_tag_with 与 waof 分块记录通道），C# 为
+# >2GB 对象不落单 byte[] 而做的流式环分块序列化（SerializeObjectValue 经
+# ChunkedObjectSerializer 环形缓冲）在 rust 无对位需求面；曾挂靠已删的
+# GarnetObjectSerializer::serialize_object_value 假映射，随死层一并移除。
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SerializeObjectValue
+  理由: 对象值迁移以信封原始字节直传（waof 分块记录承载切分），无逐对象流式
+    分块序列化消费面，不移植。

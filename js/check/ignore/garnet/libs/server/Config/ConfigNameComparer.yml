@@ -1,0 +1,10 @@
+# CONFIG 按名查询比较器不移植（fixloop wconf-device-config-dead-module）。
+# C# 以 ConfigNameComparer.Instance 作 CONFIG GET 按名字典的 byte[] 比较器
+# （RuntimeServerConfig.cs:221）；rust 按名解析走 RuntimeServerConfig::try_get_type
+# 的 NAME_LOOKUP 线性 eq_ignore_ascii_case 扫描单点承接，无哈希字典即无比较器
+# 消费面。原 rust 对位件 wconf/config_name_comparer.rs 全仓零消费，已删除。
+- 文件:
+    - libs/server/Config/ConfigNameComparer.cs
+  理由: >-
+    比较器仅服务 C# 按名字典哈希查询；rust 形态已换为 try_get_type 线性扫描
+    单点，无需独立比较器类型。

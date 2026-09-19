@@ -1,0 +1,10 @@
+- 文件:
+    - libs/server/SessionParseStateExtensions.cs:
+        - TryGetExpirationOptionWithToken
+        - ExtractCommandKeys
+        - ExtractCommandKeysAndFlags
+        - TryAppendKeysFromSpec
+        - TryAppendKeysAndFlagsFromSpec
+  理由: TryGetExpirationOptionWithToken 经 wresp options 的 token 形态单点承接；
+    键规格提取收敛为参数切片形态单点（wnode key_spec extract_keys_from_slice，
+    COMMAND GETKEYS 族走该通道），解析态重复形态按一处定义删除

@@ -1,0 +1,62 @@
+- 文件:
+    - playground/SampleModule/SampleModule.cs
+  理由: C# 原型实验与演练脚本，非生产运行时代码
+- 文件:
+    - modules/NoOpModule/DummyObject.cs
+    - modules/NoOpModule/NoOpCommandRMW.cs
+    - modules/NoOpModule/NoOpCommandRead.cs
+    - modules/NoOpModule/NoOpModule.cs
+    - modules/NoOpModule/NoOpProc.cs
+    - modules/RoaringBitmap/Containers/ArrayContainer.cs:
+        - ArrayContainer
+        - DeserializeBody
+        - EnsureCapacity
+        - GetAt
+        - Last
+        - NextSetBit
+        - NextUnsetBit
+        - Remove
+        - SerializeBody
+        - ToBitmap
+    - modules/RoaringBitmap/Containers/BitmapContainer.cs:
+        - BitmapContainer
+        - DeserializeBody
+        - Last
+        - NextSetBit
+        - NextUnsetBit
+        - Remove
+        - SerializeBody
+        - SetUnchecked
+        - ToArrayContainer
+    - modules/RoaringBitmap/Containers/IContainer.cs:
+        - Last
+        - NextSetBit
+        - NextUnsetBit
+        - Remove
+        - SerializeBody
+    - modules/RoaringBitmap/RoaringBitmap.cs:
+        - EnsureChunkCapacity
+        - GetChunkKind
+        - GetEnumerator
+        - InsertChunk
+        - RemoveChunk
+        - RoaringBitmap
+    - modules/RoaringBitmap/RoaringBitmapCommands.cs:
+        - NeedInitialUpdate
+    - modules/RoaringBitmap/RoaringBitmapObject.cs:
+        - CloneObject
+        - RoaringBitmapObject
+  理由: C# .NET 专属运行时特性或内部辅助实现，Rust 侧已采用等价架构原生实现
+- 文件:
+    - modules/RoaringBitmap/RoaringBitmapModule.cs
+  理由: 移除动态模块注册管理层，扩展采用编译期静态特性与命令注册
+- 文件:
+    - test/standalone/Garnet.test.vectorset/VectorSetCleanupWorkChannelTests.cs:
+        - CompleteAndWaitForConsumerTaskDrainsBeforeReturning
+        - CompletedChannelRejectsPublishesAndReleasesWaiters
+        - PublishedItemIsReadable
+    - test/standalone/Garnet.test.vectorset/VectorSetCleanupWorkSetTests.cs:
+        - AddedWorkIsPendingUntilCompleted
+        - EntriesCanBeEnumerated
+        - WaitForCompletionBlocksUntilTheEntryIsCompleted
+  理由: 清理通道等价物为 wbase EventWorkQueue 单处实现，发布/完成/等待语义由 wbase 队列单测覆盖，向量域专测不单独落地

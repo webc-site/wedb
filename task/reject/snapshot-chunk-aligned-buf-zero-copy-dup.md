@@ -1,0 +1,7 @@
+重复：task/ing/snapshot-chunk-pooled-borrow.md（关键符号 to_vec/池化缓冲借用/快照段流 trait 命中）
+优先级：中
+
+快照段流 trait 返回 Vec 强制逐块 to_vec / 零初始化新分配，C# 池化缓冲借用直发
+  snapshot_transmission.rs:279 SnapshotDataSource::read_next_chunk 固定返回 Result<Vec<u8>, String>，两个实现各自引入逐块堆开销：HlogSegmentSource（:304-312）经 device.read_range 取得池化 AlignedBuf 后紧跟 buf[..].to_vec()，池化收益被整块拷贝抵消（每块一次 alloc + 一次 copy，:58 SNAPSHOT_CHUNK_SIZE = 1<<17 即 128KB）；CheckpointFileSource（:360-366）read_exact_at(vec![0u8; want]) 每块零初始化新分配，读侧整体覆写下 memset 纯浪费。消费面 send_file_chunks（:201-202）仅以 &chunk 借用传 send_snapshot_data 后即弃，无所有权需求，Vec 形态纯为 trait 签名所迫。C# 对位整链池化零逐块分配：FileTransmitSource.TransmitAsync 逐块 ReadNextChunkAsync 得 SectorAlignedMemory（FileDataSource.ReadIntoAsync :126 bufferPool.Get 池取），:45 GetSlice(bytesRead) 借用切片直发，:53 finally Buffer.Return() 归还——且 hlog 段与检查点文件段两类源共用同一池化 FileDataSource（构造接 IDevice 泛化），rust 拆两个 Source 实现且均非池化直发。修法：trait 返回类型改 AlignedBuf（wdev BufferPool 复用），发送侧借用 &buf[..]，块循环尾 drop 归还，对齐 C# GetSlice + Return 池化闭环；文件源同用池化缓冲免零初始化。
+  rust：wedb/wedb/src/server/replication/snapshot_transmission.rs:279（trait 签名）、:304-312（HlogSegmentSource to_vec）、:360-366（CheckpointFileSource vec![0u8; want]）、:201-202（消费面仅借用）、:58（块大小）
+  c#：garnet/libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/FileTransmitSource.cs:32 TransmitAsync（:38 取块、:45 GetSlice 借用直发、:53 finally Return）；garnet/libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/FileDataSource.cs:108 ReadIntoAsync（:126 bufferPool.Get）

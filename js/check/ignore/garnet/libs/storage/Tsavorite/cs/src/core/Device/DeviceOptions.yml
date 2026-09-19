@@ -1,0 +1,10 @@
+# 特定设备后端调优参数域不移植（fixloop wconf-device-config-dead-module）。
+# NativeDeviceOptions（libaio/io_uring 环数/深度/SQPOLL）与 LocalMemoryDeviceOptions
+# （段尺寸/环容量）均为 DeviceType 分派下特定后端的调优参数，经
+# Devices.CreateLogDevice 注入对应设备；rust 固定 wdev SegmentedDevice 单设备
+# （compio 一线程一 cpu），无后端切换即无注入面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/DeviceOptions.cs
+  理由: >-
+    四态设备分派的专属调优参数，rust 单设备后端无消费面；原 rust 对位件
+    wconf/device_config.rs（DeviceOptions/DeviceConfigError）已随死码删除。

@@ -1,0 +1,7 @@
+重复：task/ing/acl-setuser-live-connection-propagation.md（关键符号 refresh_target/authenticate_user_via_store/acl_permits 命中）
+优先级：高
+
+ACL SETUSER 权限变更对目标用户的其他活跃连接不生效：C# 共享 UserHandle CAS 换新即时生效，rust 连接本地持有模型下仅自改面显式刷新，撤权延迟无限期直至重连
+  具体问题：rust 认证成功由 authenticate_user_via_store 从存储记录 from_rule_bytes 直构独立 User 实例、连接本地持有 Arc<UserHandle>，此后每条命令鉴权（acl_permits）只读本地句柄位图，永不回读存储；ACL SETUSER 由管理员连接执行时 apply_set_user 仅 read→write 落存储，process_acl_commands 的 refresh_target 仅当「SETUSER 目标恰为发起连接自己已认证用户」时重读刷新发起者本地句柄——目标用户的其他活跃连接持旧权限快照继续按旧位图放行，-@all、off、改密等撤权操作对该用户所有在途会话延迟无限期（直到连接断开重认证），与 C#/Redis 的「权限变更对活跃连接即时生效」语义断裂。这是「零全局内存」自定义优化与即时生效的冲突点，代码注释只自知自改半边（「句柄不共享，故显式刷新」），未声明跨连接不生效的取舍。修法不必回退零全局内存：引擎级 O(1) ACL 代数标量（AtomicU64，每次 KeyTag::Acl 记录写 bump），会话鉴权快路径比对本地缓存代数，不等才重读一次存储换新句柄，内存仍与注册用户总量脱钩
+  rust：wedb/wnode/src/resp/acl_commands.rs:641-653 process_acl_commands refresh_target 判定（仅自改）、:696-709 自改刷新臂、:252-311 apply_set_user（read→write 仅落存储）、:573-607 authenticate_user_via_store（from_rule_bytes 每连接独立实例）；鉴权面 wedb/wnode/src/resp/resp_server_session.rs:2541-2550 acl_permits（只读 acl_user_handle 本地位图）、:902-905 set_user_handle
+  C#：garnet/libs/server/Resp/ACLCommands.cs:139-240 NetworkAclSetUser（GetAccessControlList().GetUserHandle(username) 取全局共享句柄，do-while TrySetUser(newUser, currentUser) CAS 换新，字典内共享句柄对所有已认证会话下次命令即见新权限）；规范源 .agents/skills/transpile/SKILL.md「ACL 数据库持久化与零全局内存……权限句柄连接本地持有」条 + doc/zh/db.md §3.3（零全局内存声明未覆盖权限变更向活跃会话的传播面）

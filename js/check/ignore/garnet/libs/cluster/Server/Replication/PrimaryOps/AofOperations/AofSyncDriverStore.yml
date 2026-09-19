@@ -1,0 +1,24 @@
+# AOF truncate 单口径收敛（task/ing/aof-truncate-single-source.md 方案 B）：
+# C# AofSyncDriverStore 内嵌 LogShiftTailCallback 类及其 SafeTailPageShiftCallback
+# 方法（:19-58）为 fast_aof_truncate 快形态的写入侧尾平移回调——每子日志构造一个
+# 回调，经 GarnetLog.SetLogShiftTailCallback 挂到日志上，令写入跨页时提前把已发
+# 位点之下的旧尾挪出，配合 SafeTruncateAof 的快分支即时回收。rust 单口径下删除整条
+# 回调链（对应 safe_tail_page_shift_callback / safe_truncate_sublog 一并移除），截断
+# 统一走 safe_truncate_aof → GarnetLog::truncate_until_async 物理真身，副本保护交由
+# min_aof_address_from_active_sync_tasks 下界钳制，无需写入热路径回调
+#
+# AssertDoesNotExist（AofSyncDriverStore.cs:659-673）为 C# DEBUG 期探针，rust 侧对位
+# 消费点已由 attach_replica_wire 的「先摘旧驱动再注册」置换语义承接，见下方理由
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriverStore.cs:
+        - SafeTailPageShiftCallback
+        - AssertDoesNotExist
+  理由: 方案 B 删除 fast_aof_truncate 尾平移回调链——截断收敛为 safe_truncate_aof
+    → truncate_until_async 物理真身，副本安全由已发位点下界钳制，写入侧尾平移回调
+    无存活空间。AssertDoesNotExist 带 Conditional(DEBUG) 特性、release 编译期即消除
+    调用点，唯一消费位 DiskbasedReplication/ReplicaSyncSession.cs:299（AcquireCheckpointEntryAsync
+    注册前）在 rust 对位函数 attach_replica_wire（wedb/wedb/src/server/replication/
+    replica_sync_session.rs）已改为 try_remove 摘除旧驱动后再 try_add_replication_driver
+    注册（断链重连置换语义，见该函数文档注释），断言前置条件恒不成立、接线即恒真，
+    无独立诊断价值；同节点重复注册的实质风险由 try_add_replication_driver 的
+    truncated 越线拒绝分支（aof_sync_driver.rs 同名函数体首段）在 release 面同样兜住

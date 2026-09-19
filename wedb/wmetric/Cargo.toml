@@ -1,0 +1,26 @@
+[package]
+name = "wmetric"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wmetric"
+description = "Metrics, statistics, and slowlog container for wedb"
+keywords = ["metrics", "telemetry", "slowlog", "latency", "statistics"]
+
+[lints]
+workspace = true
+
+[dependencies]
+hdrhistogram = "7"
+itoa.workspace = true
+log.workspace = true
+num_enum = "0.7.6"
+parking_lot = { workspace = true, features = ["arc_lock"] }
+wbase = { workspace = true, features = ["convert", "num", "time"] }
+wresp.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

@@ -1,0 +1,17 @@
+# C# ReplicaSyncSessionTaskStore 为定长数组 + SingleWriterMultiReaderLock 的主端
+# 副本同步会话仓（GetSessions/TryGetSession/TryAddReplicaSyncSession/手动
+# GrowSessionArray/ShrinkSessionArray）。rust 侧由 driver_registry.rs 的 DriverRegistry
+# （papaya::HashMap + GxBuildHasher 无锁并发容器，注释明言「C# AofSyncDriverStore 的
+# 权威映射在 aof_sync_driver.rs，本泛型容器无 C# 同名对应物」）统一承接登记/点查/
+# 枚举/扩缩容：TryGetSession -> registry.get，TryAddReplicaSyncSession ->
+# registry 插入，GetSessions -> registry.snapshot/for_each，Grow/ShrinkSessionArray ->
+# map 动态伸缩天然消除，无需移植
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:
+        - GetSessions
+        - GrowSessionArray
+        - ShrinkSessionArray
+        - TryAddReplicaSyncSession
+        - TryGetSession
+  理由: 数组式会话仓经重构由 DriverRegistry（papaya 无锁 map）取代，登记/点查/
+    枚举由 registry 原子接口承接，手动扩缩容随 map 动态增长消除

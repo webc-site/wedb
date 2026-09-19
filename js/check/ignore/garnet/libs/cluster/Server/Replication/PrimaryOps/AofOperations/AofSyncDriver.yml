@@ -1,0 +1,27 @@
+# C# AofSyncDriver.DisposeClient（:138）仅遍历子任务 dispose 其 garnetClient（网络
+# 客户端对象），与 Dispose（任务级）分离以便复用任务骨架只换连接。rust 侧连接由
+# AofSyncWire 归 AofSyncTask 所有（attach_wire 挂载），客户端即 wire 本体，生命周期
+# 随 task.dispose 一并释放，不存在可独立处置的 client 对象，故无对应实现
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriver.cs:
+        - DisposeClient
+  理由: 经重构移除——rust 连接（AofSyncWire）为 AofSyncTask 所有并随任务
+    dispose 一并释放，无独立 client 对象需要单独处置
+# task/ing/gate-anchor-drift-reclean.md 条 二逐族甄别（AofSyncDriver 建连与攒批发送面）。
+# 取证：AofSyncDriver.cs:181 ConnectClientsAsync 逐子任务 garnetClient.ConnectAsync 批量建连，
+# rust 侧驱动只接受已建成的通道句柄——diskless 链在
+# wedb/src/server/replication/diskless_replication/replica_sync_session.rs begin_aof_sync 内
+# TcpSessionWire::connect 后 attach_wire，diskbased 链在
+# wedb/src/server/replication/replica_sync_session.rs initiate_replica_sync 同位建连，
+# 驱动无 client 集合可批量连接；AofSyncDriver.cs:209 SendAndResetIterationBufferAsync 委托
+# aofSyncTasks[0].garnetClient 的迭代缓冲发送重置，rust 快照流迭代缓冲收敛为扇出迭代器共享攒批
+# （见 diskless_replication/replica_sync_session.rs 模块自述与
+# diskless_replication/replication_snapshot_iterator.rs fan_out_send 停等广播），AOF 推流侧为
+# APPENDLOG 帧直写，无逐驱动的具名攒批发送面
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriver.cs:
+        - ConnectClientsAsync
+        - SendAndResetIterationBufferAsync
+  理由: 建连与攒批发送在 rust 归装配方与扇出迭代器（连接先于驱动入册、
+    攒批按批共享），驱动侧无该两面，无对应实现
+

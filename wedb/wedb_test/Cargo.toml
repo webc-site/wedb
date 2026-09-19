@@ -1,0 +1,22 @@
+[package]
+name = "wedb_test"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb_test"
+description = "Wedb cluster-assembly test support on top of wtest_base: NodeAssembly / start_node / cluster_decorate"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies]
+aok.workspace = true
+tempfile.workspace = true
+waof.workspace = true
+wdev.workspace = true
+wedb.workspace = true
+wnode.workspace = true
+wtest_base.workspace = true
+
+[lints]
+workspace = true

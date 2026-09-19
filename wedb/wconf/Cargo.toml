@@ -1,0 +1,26 @@
+[package]
+name = "wconf"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wconf"
+description = "Configuration options and runtime server configuration for wedb"
+keywords = ["config", "settings", "runtime-configuration", "garnet", "database"]
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags.workspace = true
+clap.workspace = true
+itoa.workspace = true
+log.workspace = true
+nested-text = "0.1.0"
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

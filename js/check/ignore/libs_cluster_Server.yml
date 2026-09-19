@@ -1,0 +1,39 @@
+- 文件:
+    - libs/cluster/Server/ClusterConfig.cs:
+        - GetHostNameFromNodeId
+        - GetLocalNodeReplicaIds
+        - GetRemoteNodeIds
+        - GetSlotCountForState
+    - libs/cluster/Server/ClusterManager.cs:
+        - UnsafeSetConfig
+  理由: 纯辅助查询与测试配置函数，Rust 侧通过结构体直接字段访问或现有方法实现
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncDriver.cs:
+        - InitializeIterationBuffer
+    - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicaSyncSession.cs:
+        - ContinueFlushTaskAsync
+        - InitializeIterationBuffer
+        - SendAndResetIterationBuffer
+        - SetFlushTask
+        - WaitForFlushAsync
+    - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicationSnapshotIterator.cs:
+        - IsProgressing
+    - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicationSyncManager.cs:
+        - IsActive
+        - WaitForFlushAsync
+        - WaitOrDieAsync
+  理由: diskless 快照流网络栈与多会话编排件的有意不复刻面（落地证据
+    task/done/diskless-loop-wiring.md、task/done/diskless-ri-vector-snapshot.md、
+    task/done/plan-diskless-orphans.md）：C# 推流走 GarnetClient 迭代缓冲攒批
+    （InitializeIterationBuffer 缓冲初始化）+ flushTask 串行化（SetFlushTask/
+    ContinueFlushTaskAsync/WaitForFlushAsync 错误传播与等待）+ 完成信号量
+    （WaitForSyncCompletionAsync）+ 多副本会话表 lockstep 扇出（ReplicationSyncManager
+    IsActive 槽位活跃判定、AddReplicaSyncSession 会话登记入 ReplicaSyncSessionTaskStore、快照迭代
+    IsProgressing/WaitOrDieAsync 进度看门狗）； rust
+    单会话停等直发整合承接（replica_diskless_sync.rs stream_store_snapshot_to_replica 装批
+    flush_batch! 后 send_sync_payload 每帧 REQ/ACK 停等、send_chunked_record
+    超大记录分块，超时由单帧 30s timeout 承接； 驱动构造入册对标 AddAofSyncTask +
+    TryAddReplicationDriver，见 try_begin_diskless_sync_async 步骤 4），无客户端迭代缓冲、无
+    flushTask 队列、 无多会话表与整体进度看门狗（会话 store 占位壳已删 944f029a，豁免另立
+    ReplicaSyncSessionTaskStore.yml）；IssuesFlushAllAsync 的副本清库帧不复刻，
+    全量同步副本端重置由恢复面 try_replica_diskless_recovery 的 WAL safe_initialize 地址空间重置承接

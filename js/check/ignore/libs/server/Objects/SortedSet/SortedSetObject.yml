@@ -1,0 +1,9 @@
+# zset 差集双助手清理：C# CopyDiff/InPlaceDiff 仅被存储侧 SortedSetOps（ZDIFF
+# 组合）调用；rust ZDIFF/ZDIFFSTORE 在 wnode sorted_set_commands/mod.rs 以单遍历
+# first − rest 过滤独立实现（slow.rs STORE 慢路径同源），SortedSetObject 上的
+# 静态差集映射零接线，按转写红线删除
+- 文件:
+    - libs/server/Objects/SortedSet/SortedSetObject.cs:
+        - InPlaceDiff
+  理由: 全仓生产 + 测试双域零调用死代码已删除；差集语义由 wnode
+    sorted_set_commands（diff_sets 单遍历 + STORE 慢路径）单点承接

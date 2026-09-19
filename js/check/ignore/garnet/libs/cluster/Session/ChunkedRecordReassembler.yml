@@ -1,0 +1,14 @@
+# C# ChunkedRecordReassembler 的 inline/overflow 双槽位状态机（Phase 路由 + 各组件游标
+# 方法）不转写：rust 重组器采单段 `Vec<u8>` 流累加模型——chunk 载荷顺序拼接成完整
+# 单条记录编码 `[u8 kind][body]`，随后统一交既有单记录解码路径处理，无组件级落位、
+# 无预分配溢出缓冲、无跨块长度前缀拼装需求。原 rust 侧照搬出的同名 pub 口全仓零消费
+# （且 fill_inline/fill_overflow、after_inline/after_key 两对函数体逐字相同），
+# 随死代码清理删除，不保留空壳（task/ing/chunk-reassembler-dead-arms.md）
+- 文件:
+    - libs/cluster/Session/ChunkedRecordReassembler.cs:
+        - AfterInline
+        - AfterKey
+        - EnsureInlineCapacity
+        - ObjectValueSequence
+  理由: rust 采单一 stream 累加模型，双槽位游标口无对应语义——容量保障由 Vec
+    自管、溢出组件不再单独落位、对象值即流本体、阶段转换由末块标志承接

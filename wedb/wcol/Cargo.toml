@@ -1,0 +1,39 @@
+[package]
+name = "wcol"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wcol"
+description = "Collection objects (list/set/hash/zset/geo) and BfTree range-index operator layer for wedb"
+keywords = ["collections", "list", "set", "hash", "zset"]
+categories = ["data-structures", "database-implementations"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+wbase = { workspace = true, features = ["convert", "future", "glob", "map", "num", "time"] }
+wval.workspace = true
+wresp.workspace = true
+parking_lot.workspace = true
+bitflags.workspace = true
+zmij.workspace = true
+itoa.workspace = true
+num_enum = "0.7.6"
+crossfire.workspace = true
+compio = { workspace = true, features = ["time"] }
+event-listener.workspace = true
+bitcode.workspace = true
+fastrand.workspace = true
+gxhash.workspace = true
+
+[dev-dependencies]
+aok.workspace = true

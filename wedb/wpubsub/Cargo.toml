@@ -1,0 +1,25 @@
+[package]
+name = "wpubsub"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wpubsub"
+description = "Publish-subscribe broker and message distribution for wedb"
+keywords = ["pubsub", "publish-subscribe", "broker", "messaging"]
+
+[dependencies]
+crossfire.workspace = true
+event-listener = "5"
+itoa.workspace = true
+parking_lot.workspace = true
+wbase = { workspace = true, features = ["glob", "map", "pool"] }
+wresp.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

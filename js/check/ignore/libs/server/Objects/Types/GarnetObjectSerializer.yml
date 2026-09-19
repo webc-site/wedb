@@ -1,0 +1,18 @@
+# wcol-object-store-parallel-abstraction（fixloop）：ObjectStore / GarnetObject 枚举 /
+# GarnetObjectSerializer 平行死层整删。rust 对象存真值通道单源收口 wkv 信封记录
+# （wcol/src/object_payload.rs：GarnetObjectPayload::from_blob/to_blob + obj_encode/
+# obj_decode，`[1B 标签][4B 计数][bitcode 载荷]`），Deserialize/DeserializeInternal/
+# Serialize 锚点已由该单点承载；本序列化器残余方法仅服务只写不读的对象缓存
+# （回放端反序列化因信封多 4B 计数头恒失败、insert 静默跳过），全仓零真实
+# 消费面，随层删除。
+# 另 SKILL 删除动态注册管理层：C# CustomDeserialize 依赖 CustomCommandManager 运行时
+# 注册表，rust 自定义对象以 obj_decode_custom 编译期标签域分派承接，不移植。
+- 文件:
+    - libs/server/Objects/Types/GarnetObjectSerializer.cs:
+        - CustomDeserialize
+        - SerializeInternal
+  理由: 对象存序列化唯一读写通道在 rust 收口 wkv 信封（object_payload.rs 单点，
+    对标段 DeserializeInternal/Serialize 锚点仍映射）；CustomDeserialize 依赖的
+    CustomCommandManager 动态注册层按转写红线整层移除，自定义对象解码由
+    obj_decode_custom 静态分派承接；SerializeInternal 为其分发包装，随死层删除，
+    不为已无消费面的对象缓存保留映射。

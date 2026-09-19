@@ -1,0 +1,9 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# DatabaseManagerBase.StartSizeTrackers 是各管理器共用的追踪器启动聚合基类方法，遍历
+# 各库调 CacheSizeTracker.Start；rust 无 LogSizeTracker 对位（详见 SizeTracker/CacheSizeTracker.yml），
+# 追踪器判定不移植后本入口无对应实现。
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，基类的追踪器启动聚合入口 StartSizeTrackers 随之移除。

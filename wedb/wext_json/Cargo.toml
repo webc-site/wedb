@@ -1,0 +1,22 @@
+[package]
+name = "wext_json"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+regex = "1.13.1"
+sonic-rs.workspace = true
+thiserror.workspace = true
+wcustom.workspace = true
+wresp.workspace = true
+wval.workspace = true
+zmij.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true

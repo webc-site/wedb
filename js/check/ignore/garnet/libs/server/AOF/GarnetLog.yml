@@ -1,0 +1,31 @@
+# AOF truncate 单口径收敛（task/ing/aof-truncate-single-source.md 方案 B）：
+# fast_aof_truncate 快形态的整条「安全尾翻页平移回调链」在 rust 无存活空间。
+# C# 侧 GarnetLog.SetLogShiftTailCallback 注册写入热路径的尾平移回调
+# （AofSyncDriverStore.LogShiftTailCallback / SafeTailPageShiftCallback），借
+# UnsafeGetReadOnlyAddressAbove 取只读安全边界，绕开检查点即时物理截断。
+# rust 单口径下截断恒为物理、且仅在检查点 / 副本重挂两处发生
+# （GarnetLog::truncate_until_async → unsafe_shift_begin_address →
+# WaofSublog::truncate_until_async → WalLog::truncate 即时删段），副本安全交由
+# AofSyncDriverStore::safe_truncate_aof 的 min_aof_address_from_active_sync_tasks
+# 已发位点下界钳制——无需写入侧回调，亦无需只读边界查询原语。
+- 文件:
+    - libs/server/AOF/GarnetLog.cs:
+        - SetLogShiftTailCallback
+        - UnsafeGetReadOnlyAddressAbove
+  理由: 方案 B 删除 fast_aof_truncate 尾平移回调链——截断单点收敛为物理回收
+    （truncate_until_async），副本安全由 safe_truncate_aof 已发位点下界钳制；
+    SetLogShiftTailCallback 注册口与仅供该回调取界的
+    UnsafeGetReadOnlyAddressAbove 只读边界查询随之移除，全仓零生产消费
+# AOF 入队闸门单点化（task/ing/aof-enqueue-backpressure-single-gate.md）：
+# C# EnqueueObjectChunked 服务于对象存储「值流式序列化、长度未知」的独立
+# 写路径（ObjectStore/PrivateMethods.cs），rust 的 wcol/wbftree 信封值在入队
+# 前已序列化为定长切片，大记录统一走 GarnetLog::enqueue 由 is_chunkable
+# 自动分块，无该第二入口；BackpressureWaitKeyHash 的唯一生产读者即该入口
+# （键闸门只由顶层 enqueue 的 BackpressureWaitKey 命中一次），两者一并移除。
+- 文件:
+    - libs/server/AOF/GarnetLog.cs:
+        - EnqueueObjectChunked
+        - BackpressureWaitKeyHash
+  理由: rust 无对象存储独立流式写路径（信封值入队前已定长），大记录经统一
+    enqueue 口自动分块；键背压闸门单点在 BackpressureWaitKey，
+    BackpressureWaitKeyHash 随之无消费

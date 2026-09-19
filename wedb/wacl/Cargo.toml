@@ -1,0 +1,37 @@
+[package]
+name = "wacl"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wacl"
+description = "Access Control List and authentication with SHA-256 password hashing"
+keywords = [ "acl", "authentication", "authorization", "security" ]
+categories = [ "authentication" ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dependencies]
+arc-swap.workspace = true
+bitcode.workspace = true
+gxhash.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+wbase = { workspace = true, features = ["map", "hex", "set"] }
+wresp.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+tempfile.workspace = true
+
+
+[lints]
+workspace = true

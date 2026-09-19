@@ -1,0 +1,11 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# IDatabaseManager.StartSizeTrackers 用于在恢复后启动 CacheSizeTracker 的 Tsavorite
+# LogSizeTracker 裁剪循环；rust 无 LogSizeTracker 对位（内存压力由 wcol 分层迟滞承接，
+# 详见 SizeTracker/CacheSizeTracker.yml），曾按形状转写的 start_size_trackers 仅剩翻转
+# 停止标志、无真实预算与读数消费者，且全仓零调用方，随追踪器一并删除。
+- 文件:
+    - libs/server/Databases/IDatabaseManager.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植（无 Tsavorite LogSizeTracker 对位），trait 的
+    StartSizeTrackers 随之移除，不留虚设实现。
