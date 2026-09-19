@@ -1,5 +1,6 @@
 - 文件:
     - libs/common/RespReadUtils.cs:
+        - GetSerializedRecordSpan
         - TryReadBoolWithLengthHeader
         - TryReadDoubleWithLengthHeader
         - TryReadInt32
@@ -331,8 +332,9 @@
 - 文件:
     - libs/common/NumUtils.cs:
         - CountCharsInDouble
+        - CountDigits
         - GetNextOffset
-  理由: 零调用方死代码，Rust 侧通过 ryu/dtoa / u64::trailing_zeros 原生支持，清理仅测试工具
+  理由: 零调用方死代码，Rust 侧通过 itoa / zmij / u64::trailing_zeros 原生支持，清理仅测试工具
 - 文件:
     - libs/common/BitVector.cs:
         - GetOffsets
