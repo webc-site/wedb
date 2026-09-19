@@ -70,7 +70,8 @@ pub enum RangeArgError {
 impl RangeArgError {
   /// 错误应答负载单写点：写出与 C# 同款错误行并回 `result1` 标记
   ///
-  /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetRange 选项段
+  /// 对位 C# SortedSetObjectImpl.cs 的 SortedSetRange 选项段（锚点归
+  /// [`sorted_set_range`]，此处为其错误应答段）
   pub fn write_reply(self, payload: &mut Vec<u8>) -> i64 {
     match self {
       Self::Incomplete => RANGE_ERROR,
@@ -94,7 +95,8 @@ impl RangeArgError {
 /// 负载读回（C# 同段口径）。参数段非法 → [`RangeArgError`]，调用方经
 /// [`RangeArgError::write_reply`] 落同款应答。
 ///
-/// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetRange 选项段
+/// 对位 C# SortedSetObjectImpl.cs 的 SortedSetRange 选项段（锚点归
+/// [`sorted_set_range`]，本函数为该选项段的单源实现，与分层树内臂共用）
 pub fn parse_range_options(
   args: &[&[u8]],
   range_opts: SortedSetRangeOpts,
@@ -160,7 +162,8 @@ pub fn parse_range_options(
 /// 范围/集合结果统一 RESP 输出负载单点（对象层 [`SortedSetObject::write_sorted_set_result`]
 /// 与 wnode 分层树内臂共用，RESP3 成对嵌套 / RESP2 扁平）
 ///
-/// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:WriteSortedSetResult
+/// 对位 C# SortedSetObjectImpl.cs 的 WriteSortedSetResult（锚点归
+/// [`SortedSetObject::write_sorted_set_result`]，本函数为其负载单源）
 pub fn write_sorted_set_result_payload<B: AsRef<[u8]>>(
   payload: &mut Vec<u8>,
   with_scores: bool,
