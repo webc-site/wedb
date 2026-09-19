@@ -54,7 +54,8 @@ impl ServerTlsConfig {
 
   /// 从 DER 格式证书链与私钥构造（供测试或自签名证书直接内存装配）
   ///
-  /// 在 garnet 中的相对路径: libs/server/TLS/GarnetTlsOptions.cs:GetSslServerAuthenticationOptions
+  /// 只承载 C# 侧的证书装载面（把内存 DER 字节入装为证书/私钥），
+  /// 认证选项装配单点在其 [`server_config`]，本入口不另挂锚点。
   ///
   /// 参数语义同 [`Self::from_pem_files`]，`issuer_ca` 为内存 DER 形态的签发者 CA
   #[cfg(feature = "tls")]

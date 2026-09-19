@@ -346,7 +346,8 @@ impl ConsumerRegistry {
 
   /// accept 成功后的在途计量与容量门
   ///
-  /// 在 garnet 中的相对路径: libs/server/Servers/GarnetServerTcp.cs:HandleNewConnection
+  /// C# HandleNewConnection 的容量门子步骤（其本体承接方见 server.rs 的
+  /// accept 循环），非独立 C# 函数，故不另挂锚点。
   ///
   /// C# 语义：accept 成功即刻 `Interlocked.Increment(ref activeHandlerCount)`，
   /// `networkConnectionLimit == -1 || currentActiveHandlerCount <= networkConnectionLimit`
