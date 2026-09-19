@@ -445,6 +445,7 @@ fn test_promote_bftree_registers_via_session_port() -> Void {
       b"coll",
       GarnetObjectType::Hash,
       vec![(b"field1".to_vec(), b"value1".to_vec())],
+      i64::MAX,
     )
     .await?;
     let coll_path = store.range_index().data_file_path_for_key(b"coll");
@@ -476,6 +477,7 @@ fn test_promote_bftree_registers_via_session_port() -> Void {
       b"coll",
       GarnetObjectType::Hash,
       vec![(b"field2".to_vec(), b"value2".to_vec())],
+      i64::MAX,
     )
     .await?;
     assert!(coll_path.exists(), "重建升阶树数据文件须在盘");

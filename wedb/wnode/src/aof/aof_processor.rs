@@ -591,7 +591,10 @@ impl AofProcessor {
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
             &target.store,
-            |_store| async { Ok(()) },
+            move |store| async move {
+              store.retire_dead_domain(vns, old_vdb);
+              Ok(())
+            },
           )
           .await?;
       }
@@ -599,8 +602,8 @@ impl AofProcessor {
         // rust 多租户扩展（C# 无此形态）：整命名空间虚拟换号清库，域值取
         // 条目载荷 (旧 vns, 0)，防多租户错域清库。与 FlushDb 同族局部清空，
         // 复用其栅栏类别接同一跨回放任务同步（不另造 C# 没有的新类别）；
-        // 换号与判死同 FlushDb 由先行 DbMeta 镜像条目承接，条目臂只余栅栏
-        // 对齐与登记表回收
+        // 换号由先行 DbMeta 镜像条目承接（零本地换号取号），条目臂对齐栅栏、
+        // 回收登记表并兜底本地判死旧空间
         let (old_vns, _) = parse_flush_domain(entry)?;
         // 登记表域回收联动（载荷 vns 即换号前旧命名空间域）
         if let Some(vm) = self.append_only_file.vector_manager() {
@@ -613,7 +616,10 @@ impl AofProcessor {
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
             &target.store,
-            |_store| async { Ok(()) },
+            move |store| async move {
+              store.retire_dead_namespace(old_vns);
+              Ok(())
+            },
           )
           .await?;
       }

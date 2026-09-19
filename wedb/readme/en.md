@@ -341,9 +341,9 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 ### windex — lock-free hash index and direct virtual memory
 
-- `HashIndex` — `new(num_buckets)` fixed bucket table; `find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`, `lookup_candidates(_by_hash)`, `insert_to_bucket`, `find_or_create_tag_by_hash_with_min_addr`, `update_address`, `delete`, `bucket_index_for_key` / `bucket_index_for_hash`, `try_lock_shared` / `unlock_shared`, `try_lock_exclusive` / `unlock_exclusive` / `downgrade`, `lock_shared_guard` / `lock_exclusive_guard`, `prefetch_batch_probes`, `hash_key`, `clear`.
+- `HashIndex` — `new(num_buckets)` fixed bucket table; `find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`, `lookup_candidates(_by_hash)`, `insert_to_bucket`, `find_or_create_tag_by_hash_with_min_addr`, `update_address`, `delete`, `bucket_index_for_key` / `bucket_index_for_hash`, `try_lock_shared` / `unlock_shared`, `try_lock_exclusive` / `unlock_exclusive` / `downgrade`, `lock_shared_guard` / `try_lock_key_exclusive`, `prefetch_batch_probes`, `hash_key`, `clear`.
 - `HashBuckets`, `PrefetchProbe`, `HashBucket` (`ENTRIES_PER_BUCKET`, `DATA_ENTRIES`, `OVERFLOW_INDEX`), `HashBucketEntry`, `HashEntryInfo`, `CandidateAddresses` (inline candidate list with `push` / `retain` / `iter` / `as_slice`).
-- `OverflowPool`, `MultiBucketGuard`, `BucketExclusiveGuard` / `BucketSharedGuard`, `prefetch_read_l1`, `PREFETCH_WINDOW`.
+- `OverflowPool`, `KeyLatch`, `BucketExclusiveGuard` / `BucketSharedGuard`, `prefetch_read_l1`, `PREFETCH_WINDOW`.
 - Online growth: `split_chunk`, `split_single_bucket`, `chunk_count`, `chunk_offset_for_hash`, `CHUNK_SIZE` / `CHUNK_BITS`, `SPLIT_UNSTARTED` / `SPLIT_IN_PROGRESS` / `SPLIT_COMPLETED`.
 - `ram` submodule — `DirectVirtualMemory`, `DirectVmBlock`, `system_page_size()` (mirroring `core/Native/DirectVirtualMemory.cs`) and `NativeMemoryTracker` (mirroring `core/Native/NativeMemoryTracker.cs`); it backs the production hash-index bucket array through `HashBuckets`, while sector-aligned buffer pools stay in `wbase::pool`.
 

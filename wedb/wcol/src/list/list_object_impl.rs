@@ -21,7 +21,7 @@ impl ListObject {
   /// LREM：按计数方向移除元素
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListRemove
-  pub(crate) fn list_remove(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput) {
+  pub(crate) fn list_remove(&mut self, args: &[&[u8]], arg1: i32, output: &mut ObjectOutput<'_>) {
     let count = arg1;
 
     //indicates partial execution
@@ -81,7 +81,7 @@ impl ListObject {
   /// LINSERT：在首个 pivot 前后插入
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListInsert
-  pub(crate) fn list_insert(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn list_insert(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     //indicates partial execution
     output.result1 = i32::MIN as i64;
 
@@ -112,7 +112,7 @@ impl ListObject {
   /// LINDEX：按下标取元素
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListIndex
-  pub(crate) fn list_index(&mut self, _args: &[&[u8]], arg1: i32, output: &mut ObjectOutput) {
+  pub(crate) fn list_index(&mut self, _args: &[&[u8]], arg1: i32, output: &mut ObjectOutput<'_>) {
     let index = arg1;
 
     output.result1 = -1;
@@ -139,7 +139,7 @@ impl ListObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let start = arg1;
     let stop = arg2;
@@ -187,7 +187,7 @@ impl ListObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let start = arg1;
     let end = arg2;
@@ -236,7 +236,7 @@ impl ListObject {
   /// LLEN：长度
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListLength
-  pub(crate) fn list_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn list_length(&mut self, output: &mut ObjectOutput<'_>) {
     output.result1 = self.list.len() as i64;
   }
 
@@ -246,7 +246,7 @@ impl ListObject {
   pub(crate) fn list_push(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     f_add_at_head: bool,
   ) {
     for &arg in args {
@@ -270,7 +270,7 @@ impl ListObject {
     &mut self,
     _args: &[&[u8]],
     arg1: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     f_del_at_head: bool,
   ) {
@@ -315,7 +315,7 @@ impl ListObject {
   /// LSET：按下标覆写
   ///
   /// libs/server/Objects/List/ListObjectImpl.cs:ListSet
-  pub(crate) fn list_set(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn list_set(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     if self.list.is_empty() {
       RespWriter::new_ref(&mut output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_NOSUCHKEY.as_bytes());
@@ -361,7 +361,7 @@ impl ListObject {
   pub(crate) fn list_position(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let element = args[0];

@@ -51,7 +51,7 @@ const COLLECT_BATCH_KEYS: usize = 100;
 /// 两域分流由单键执行体自持，收集清单无须先分态：[`collect_hash_key`] /
 /// [`collect_sorted_set_key`] 的 `ObjLoad::Degrade` 臂转树内收集执行体
 /// [`exec_tiered_collect`]（到期成员物理出账 + meta 计数回写，同一
-/// collect_expired_members 内核）。互斥单写位由调用方持有与释放（周期任务
+/// 到期重灌内核）。互斥单写位由调用方持有与释放（周期任务
 /// 沿同款 CAS 单写位语义）。
 ///
 /// 批间不冻结写入：每批尾地址取该批起点时刻的 tail，收集自身写回的新版本记
@@ -167,12 +167,13 @@ pub(crate) async fn collect_hash_key<D: Device>(
     ObjLoad::Missing => return Ok(GarnetStatus::NotFound),
     ObjLoad::Present(o) => o,
   };
+  // 收集操作仅取副作用（负载弃用），挂本地 sink 不触会话输出
   obj.operate(
     HashOperation::Hcollect as u8,
     &[] as &[&[u8]],
     0,
     0,
-    &mut ObjectOutput::new(),
+    &mut ObjectOutput::mount(&mut Vec::new()),
     COLLECT_RESP_VERSION,
   );
   // 零变更门控——刻意差异（C# 无对应物，不得称等价）：C# HashObject.Operate
@@ -244,12 +245,13 @@ pub(crate) async fn collect_sorted_set_key<D: Device>(
     ObjLoad::Missing => return Ok(GarnetStatus::NotFound),
     ObjLoad::Present(o) => o,
   };
+  // 收集操作仅取副作用（负载弃用），挂本地 sink 不触会话输出
   obj.operate(
     SortedSetOperation::Zcollect as u8,
     &[] as &[&[u8]],
     0,
     0,
-    &mut ObjectOutput::new(),
+    &mut ObjectOutput::mount(&mut Vec::new()),
     COLLECT_RESP_VERSION,
   );
   // 零变更门控（含 [`collect_hash_key`] 处登记的「C# 无零变更门控」刻意差异，

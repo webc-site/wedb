@@ -26,8 +26,8 @@ use wval::{GarnetObjectType, KeyTag};
 use super::{
   object_store_utils::{obj_load_typed_async, obj_load_typed_sync, obj_save_or_gc_raw},
   tiered_collection_ops::{
-    TieredCollectionArgs, TieredCtx, exec_tiered_hash, exec_tiered_list, exec_tiered_set,
-    exec_tiered_zset, tiered_materialize_blob,
+    TieredCollectionArgs, TieredCtx, earliest_expiry, exec_tiered_hash, exec_tiered_list,
+    exec_tiered_set, exec_tiered_zset, tiered_materialize_blob,
   },
 };
 use crate::storage::session::storage_session::StorageSession;
@@ -145,8 +145,8 @@ where
   Def: FnOnce() -> Obj,
   IsEmpty: Fn(&Obj) -> bool,
   Ser: FnOnce(&Obj) -> Vec<u8>,
-  RunOp: FnOnce(&mut Obj, Op, &[&[u8]]) -> ObjectOutput,
-  ShouldWrite: FnOnce(Op, &ObjectOutput, &Obj, bool) -> bool,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
 {
   // 1. 优先检查是否处于 BfTree 分页分层态
   if let Some((mut meta, mut stub)) = storage
@@ -253,11 +253,13 @@ where
       return Err(());
     };
     let existed = true;
-    let obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args);
+    // operate 直写会话输出尾段；写回失败回退挂载点再落错（慢路径统一应答
+    // 前清场，杜绝残留负载与错误帧拼帧）
+    let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
     let result1 = obj_out.result1;
 
     if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
-      apply_rmw_post_operate(
+      if apply_rmw_post_operate(
         storage,
         cmd.key,
         cmd.tag,
@@ -266,13 +268,17 @@ where
         handlers.serialize,
         handlers.is_empty,
       )
-      .await?;
+      .await
+      .is_err()
+      {
+        obj_out.reset();
+        return Err(());
+      }
     }
-    output.extend_from_slice(&obj_out.payload);
 
     return Ok(ObjLoad::Present(RespRmwDone {
       result1,
-      payload_written: !obj_out.payload.is_empty(),
+      payload_written: obj_out.written(),
     }));
   }
 
@@ -301,11 +307,12 @@ where
       ObjLoad::Present(o) => (o, true),
     };
 
-  let obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args);
+  // operate 直写会话输出尾段；写回失败回退挂载点再落错（同上清场口径）
+  let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
   let result1 = obj_out.result1;
 
   if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
-    apply_rmw_post_operate(
+    if apply_rmw_post_operate(
       storage,
       cmd.key,
       cmd.tag,
@@ -314,13 +321,17 @@ where
       handlers.serialize,
       handlers.is_empty,
     )
-    .await?;
+    .await
+    .is_err()
+    {
+      obj_out.reset();
+      return Err(());
+    }
   }
-  output.extend_from_slice(&obj_out.payload);
 
   Ok(ObjLoad::Present(RespRmwDone {
     result1,
-    payload_written: !obj_out.payload.is_empty(),
+    payload_written: obj_out.written(),
   }))
 }
 
@@ -384,9 +395,12 @@ where
         .map_err(|_| ())?;
     }
     let entries = obj.export_entries();
+    // 水位随灌入批同帧落盘（export_entries 写时过滤已到期成员，剩余挂 TTL
+    // 刻度经 earliest_expiry 单点提取），杜绝重灌后假水位 MAX 骗过计数校正
+    let next_expiry = earliest_expiry(&entries);
     if let Err(e) = storage
       .batch
-      .promote_collection_to_bftree(key, tag, entries)
+      .promote_collection_to_bftree(key, tag, entries, next_expiry)
       .await
     {
       log::error!("apply_rmw_post_operate promote err: {e:?}");
@@ -531,8 +545,8 @@ where
   Def: FnOnce() -> Obj,
   IsEmpty: Fn(&Obj) -> bool,
   Ser: FnOnce(&Obj) -> Vec<u8>,
-  RunOp: FnOnce(&mut Obj, Op, &[&[u8]]) -> ObjectOutput,
-  ShouldWrite: FnOnce(Op, &ObjectOutput, &Obj, bool) -> bool,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
 {
   #[inline]
   pub fn new(
@@ -577,8 +591,8 @@ where
   Def: FnOnce() -> Obj,
   IsEmpty: Fn(&Obj) -> bool,
   Ser: FnOnce(&Obj) -> Vec<u8>,
-  RunOp: FnOnce(&mut Obj, Op, &[&[u8]]) -> ObjectOutput,
-  ShouldWrite: FnOnce(Op, &ObjectOutput, &Obj, bool) -> bool,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
 {
   // 同键读改写原子窗口：跨「装载信封对象 → operate → 整值序列化写回」全程持
   // 本键桶排他闩（对标 C# ObjectStore/RMWMethods.cs 的 NeedInitialUpdate /
@@ -597,12 +611,15 @@ where
       ObjLoad::Present(o) => (o, true),
     };
 
-  let obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args);
+  // operate 直写会话输出尾段；升阶/写回失败先回退挂载点再返回 Degrade
+  //（慢路径整体重放，残留负载会与重放应答拼帧）
+  let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
   let result1 = obj_out.result1;
 
   if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
     let empty = (handlers.is_empty)(&obj);
     if !empty && obj.should_promote() {
+      obj_out.reset();
       return ObjLoad::Degrade;
     }
     // 写回走无入账内核（payload 先行编码一次，删空臂传空载荷）：增量条目
@@ -633,13 +650,15 @@ where
           log::error!("对象 RMW AOF 入队失败: {e}");
         }
       }
-      Ok(false) | Err(_) => return ObjLoad::Degrade,
+      Ok(false) | Err(_) => {
+        obj_out.reset();
+        return ObjLoad::Degrade;
+      }
     }
   }
-  output.extend_from_slice(&obj_out.payload);
 
   ObjLoad::Present(RespRmwDone {
     result1,
-    payload_written: !obj_out.payload.is_empty(),
+    payload_written: obj_out.written(),
   })
 }

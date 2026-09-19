@@ -1,5 +1,4 @@
 use std::{
-  hint::spin_loop,
   result,
   sync::atomic::{AtomicU64, Ordering, fence},
 };
@@ -8,7 +7,7 @@ use whasher::fast_hash;
 
 use crate::{
   Result,
-  bucket::{BucketExclusiveGuard, BucketSharedGuard, HashBucket},
+  bucket::{BucketSharedGuard, HashBucket, KeyLatch},
   buckets::HashBuckets,
   chain::{ChainStep, ChainWalker, SlotScan},
   entry::HashBucketEntry,
@@ -585,23 +584,22 @@ impl HashIndex {
     self.bucket_for_key(key).lock_shared_guard()
   }
 
-  /// 获取键对应主桶的独占锁 RAII 守卫
+  /// 按键取本键主桶独占闩的 RAII 守卫（索引层唯一键级排他锁入口）
+  ///
+  /// 严格对标 C# Tsavorite 的单键 ephemeral 独占闩形态
+  /// （`Implementation/InternalRMW.cs` 与 `Implementation/Upsert.cs` 首段调
+  /// `Implementation/Helpers.cs` 的 `FindOrCreateTagAndTryEphemeralXLock`，后者转
+  /// `Implementation/Locking/TransientLocking.cs` 的 `TryEphemeralXLock`）：
+  /// 本函数只做「`bucket_index_for_key` 定位主桶 + [`HashBucket::try_lock_exclusive`] 取闩」
+  /// 两步组合，取不到即返回 [`None`]（桶原语自身的自旋预算另计，对标 C# 同名
+  /// `HashBucket.TryAcquireExclusiveLatch`），由调用方按 C# `RETRY_LATER` 口径处置。
+  ///
+  /// 索引层于此零自旋驱动、零逆序回滚、零超时判定——多键两阶段锁的批量取闩编排
+  /// 归服务端事务层（本仓 `wtxn::TxnKeyEntry::lock_all_keys`），C# 索引层同样只有单桶闩。
+  /// 守卫离开作用域时自动放闩（[`KeyLatch`]）。
   #[inline]
-  pub fn lock_exclusive_guard(&self, key: &[u8]) -> Option<BucketExclusiveGuard<'_>> {
+  pub fn try_lock_key_exclusive(&self, key: &[u8]) -> Option<KeyLatch<'_>> {
     self.bucket_for_key(key).lock_exclusive_guard()
-  }
-
-  /// 获取键对应主桶的独占锁 RAII 守卫（带自旋退避）
-  #[inline]
-  pub fn lock_key_exclusive(&self, key: &[u8]) -> Result<BucketExclusiveGuard<'_>> {
-    let bucket = self.bucket_for_key(key);
-    for _ in 0..1024 {
-      if let Some(guard) = bucket.lock_exclusive_guard() {
-        return Ok(guard);
-      }
-      spin_loop();
-    }
-    bucket.lock_exclusive_guard().ok_or(Error::LockTimeout)
   }
 
   /// 单批两级硬件预取内核：产出 [`PrefetchProbe`] 探针数组（严格对照

@@ -32,15 +32,16 @@ pub(crate) type Rmw = ObjLoad<RespRmwDone>;
 
 /// 经对象层 operate 通道执行操作，返回结构化输出
 ///（协议版本按会话协商版本透传，C# respProtocolVersion）
-pub(crate) fn run_operate(
+pub(crate) fn run_operate<'o>(
   obj: &mut ListObject,
   op: ListOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -86,17 +87,20 @@ pub(crate) fn list_save_or_gc(
 /// - 仅回填 result1 的操作以变更计数为准；LSET 以 +OK 负载为准。
 pub(crate) fn should_write_back(
   op: ListOperation,
-  out: &ObjectOutput,
+  out: &ObjectOutput<'_>,
   obj: &ListObject,
   existed: bool,
 ) -> bool {
-  if is_read_only(op) || out.payload.first() == Some(&b'-') || (!existed && obj.list.is_empty()) {
+  if is_read_only(op)
+    || out.payload_view().first() == Some(&b'-')
+    || (!existed && obj.list.is_empty())
+  {
     return false;
   }
   match op {
     ListOperation::Lrem => out.result1 > 0,
     ListOperation::Linsert => out.result1 > 0,
-    ListOperation::Lset => out.payload.first() == Some(&b'+'),
+    ListOperation::Lset => out.payload_view().first() == Some(&b'+'),
     _ => true,
   }
 }
@@ -140,7 +144,7 @@ impl RespServerSession {
         ListObject::new,
         |o: &ListObject| o.list.is_empty(),
         |o: &ListObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )

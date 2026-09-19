@@ -14,7 +14,7 @@ pub mod split;
 mod table;
 
 pub use bucket::{
-  BucketExclusiveGuard, BucketSharedGuard, DATA_ENTRIES, ENTRIES_PER_BUCKET, HashBucket,
+  BucketExclusiveGuard, BucketSharedGuard, DATA_ENTRIES, ENTRIES_PER_BUCKET, HashBucket, KeyLatch,
   OVERFLOW_INDEX,
 };
 pub use buckets::HashBuckets;

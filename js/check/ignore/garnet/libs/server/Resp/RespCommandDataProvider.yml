@@ -1,0 +1,8 @@
+# C# TryExportRespCommandsData（按名排序导出缩进 JSON 到 path / IStreamProvider）
+# 服务于 C# 命令元数据落盘分发链。rust 命令目录为编译期内嵌 JSON 单向导入
+#（wresp catalog 经 DefaultRespCommandsDataProvider::try_import_resp_commands_data
+# 单点装载），无运行期落盘导出需求，导出口零生产消费已删——形状差异，非缺实现。
+- 文件:
+    - libs/server/Resp/RespCommandDataProvider.cs:
+        - TryExportRespCommandsData
+  理由: rust 命令元数据编译期内嵌导入，无落盘导出链路，导出口删除

@@ -408,7 +408,7 @@ impl SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     let Some(op) = SortedSetOperation::try_from(sub_id).ok() else {

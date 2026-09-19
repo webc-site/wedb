@@ -67,7 +67,7 @@ impl HashObject {
   pub(crate) fn hash_get(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let key = get_byte_span_from_input(args, 0);
@@ -85,7 +85,7 @@ impl HashObject {
   pub(crate) fn hash_multiple_get(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
@@ -103,7 +103,7 @@ impl HashObject {
   /// HGETALL：全量字段值对（RESP2 扁平数组 / RESP3 map）
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashGetAll
-  pub(crate) fn hash_get_all(&mut self, output: &mut ObjectOutput, resp_protocol_version: u8) {
+  pub(crate) fn hash_get_all(&mut self, output: &mut ObjectOutput<'_>, resp_protocol_version: u8) {
     write_map_length(output, self.count(), resp_protocol_version);
 
     let is_expirable = self.has_expirable_items();
@@ -121,7 +121,7 @@ impl HashObject {
   /// HDEL：批量删除字段
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashDelete
-  pub(crate) fn hash_delete(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_delete(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let mut removed = 0_i64;
 
     for &key in args {
@@ -136,14 +136,14 @@ impl HashObject {
   /// HLEN：字段计数
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashLength
-  pub(crate) fn hash_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn hash_length(&mut self, output: &mut ObjectOutput<'_>) {
     output.result1 = self.count() as i64;
   }
 
   /// HSTRLEN：字段值长度
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashStrLength
-  pub(crate) fn hash_str_length(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_str_length(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let key = get_byte_span_from_input(args, 0);
     output.result1 = match self.try_get_value(key) {
       Some(hash_value) => hash_value.len() as i64,
@@ -154,7 +154,7 @@ impl HashObject {
   /// HEXISTS：字段存在性
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashExists
-  pub(crate) fn hash_exists(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_exists(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let field = get_byte_span_from_input(args, 0);
     output.result1 = i64::from(self.contains_key(field));
   }
@@ -167,7 +167,7 @@ impl HashObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     // HRANDFIELD key [count [WITHVALUES]]
@@ -245,7 +245,7 @@ impl HashObject {
   /// HSET / HMSET / HSETNX：批量设置字段
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashSet
-  pub(crate) fn hash_set(&mut self, sub_id: u8, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_set(&mut self, sub_id: u8, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let mut set = 0_i64;
@@ -298,7 +298,7 @@ impl HashObject {
   /// HCOLLECT：占位收集操作（清除过期后确认存活）
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashCollect
-  pub fn hash_collect(&mut self, output: &mut ObjectOutput) {
+  pub fn hash_collect(&mut self, output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
     output.result1 = 1;
   }
@@ -310,7 +310,7 @@ impl HashObject {
     &mut self,
     sub_id: u8,
     _args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let count = self.count();
     let Ok(op) = HashOperation::try_from(sub_id) else {
@@ -343,7 +343,7 @@ impl HashObject {
   /// HINCRBY：整型增量（值存原始文本，读回再解析）
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashIncrement
-  pub(crate) fn hash_increment(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_increment(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     // This value is used to indicate partial command execution
     output.result1 = i32::MIN as i64;
 
@@ -385,7 +385,7 @@ impl HashObject {
   /// HINCRBYFLOAT：浮点增量（值存最短往返文本）
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashIncrementFloat
-  pub(crate) fn hash_increment_float(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_increment_float(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     // This value is used to indicate partial command execution
     output.result1 = i32::MIN as i64;
 
@@ -444,7 +444,7 @@ impl HashObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -472,7 +472,7 @@ impl HashObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -506,7 +506,7 @@ impl HashObject {
   /// HPERSIST：批量清除成员过期
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashPersist
-  pub(crate) fn hash_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn hash_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let num_fields = args.len();
@@ -536,7 +536,7 @@ impl HashObject {
   }
 
   /// HSCAN 的对象层入口，转发至 [`scan_operate_shared`]。
-  pub(crate) fn scan_operate(&mut self, args: &[&[u8]], limit: i32, output: &mut ObjectOutput) {
+  pub(crate) fn scan_operate(&mut self, args: &[&[u8]], limit: i32, output: &mut ObjectOutput<'_>) {
     scan_operate_shared(
       args,
       limit,
