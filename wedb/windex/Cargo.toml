@@ -17,7 +17,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-gxhash.workspace = true
 libc = "0.2.189"
 log = "0.4.34"
 thiserror = { workspace = true }

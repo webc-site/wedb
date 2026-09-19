@@ -16,7 +16,7 @@ use wbase::{
 };
 use wresp::{
   cmd_strings::{
-    LIMIT, RESP_ERR_GENERIC_SCORE_NAN, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    self, LIMIT, RESP_ERR_GENERIC_SCORE_NAN, RESP_ERR_GENERIC_SYNTAX_ERROR,
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_GT_LT_NX_NOT_COMPATIBLE,
     RESP_ERR_INCR_SUPPORTS_ONLY_SINGLE_PAIR, RESP_ERR_LIMIT_NOT_SUPPORTED,
     RESP_ERR_MIN_MAX_NOT_VALID_FLOAT, RESP_ERR_MIN_MAX_NOT_VALID_STRING, RESP_ERR_NOT_VALID_FLOAT,
@@ -47,13 +47,148 @@ pub(crate) const RANGE_ERROR: i64 = -1;
 ///
 /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:ZRangeOptions
 #[derive(Debug, Clone, Copy, Default)]
-struct ZRangeOptions {
-  by_score: bool,
-  by_lex: bool,
-  reverse: bool,
+pub struct ZRangeOptions {
+  pub by_score: bool,
+  pub by_lex: bool,
+  pub reverse: bool,
+  pub with_scores: bool,
+  pub valid_limit: bool,
+  pub limit: (i64, i64),
+}
+
+/// [`parse_range_options`] 的参数段出错标记（对象层与分层树内臂共用应答单源）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RangeArgError {
+  /// `ZRANGE key <min>` 条目不足：C# 两区间块均要求 count >= 2，不足时零输出
+  Incomplete,
+  /// LIMIT 缺 offset/count 两 token
+  Syntax,
+  /// LIMIT 两 token 非整数
+  NotInteger,
+}
+
+impl RangeArgError {
+  /// 错误应答负载单写点：写出与 C# 同款错误行并回 `result1` 标记
+  ///
+  /// 对位 C# SortedSetObjectImpl.cs 的 SortedSetRange 选项段（锚点归
+  /// [`sorted_set_range`]，此处为其错误应答段）
+  pub fn write_reply(self, payload: &mut Vec<u8>) -> i64 {
+    match self {
+      Self::Incomplete => RANGE_ERROR,
+      Self::Syntax => {
+        RespWriter::new_ref(payload).write_error_bytes(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
+        RANGE_ERROR
+      }
+      Self::NotInteger => {
+        RespWriter::new_ref(payload)
+          .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
+        RANGE_ERROR
+      }
+    }
+  }
+}
+
+/// ZRANGE 族参数段解析单点（对象层 [`sorted_set_range`] 求值与 wnode 分层树内
+/// 臂共用，杜绝第二套 token 翻译）
+///
+/// 返回 `(选项束, 生效协议版本)`：STORE 形态强制带分值且 RESP3 回退 RESP2 成对
+/// 负载读回（C# 同段口径）。参数段非法 → [`RangeArgError`]，调用方经
+/// [`RangeArgError::write_reply`] 落同款应答。
+///
+/// 对位 C# SortedSetObjectImpl.cs 的 SortedSetRange 选项段（锚点归
+/// [`sorted_set_range`]，本函数为该选项段的单源实现，与分层树内臂共用）
+pub fn parse_range_options(
+  args: &[&[u8]],
+  range_opts: SortedSetRangeOpts,
+  resp_protocol_version: u8,
+) -> Result<(ZRangeOptions, u8), RangeArgError> {
+  let count = args.len();
+  // C# 两个区间块均要求 count >= 2，不足时零输出（命令层保证 ≥2）
+  if count < 2 {
+    return Err(RangeArgError::Incomplete);
+  }
+
+  // ZRANGESTORE 需要成对负载读回，协议固定为 RESP2
+  let mut resp_protocol_version = resp_protocol_version;
+  let mut options = ZRangeOptions {
+    by_score: range_opts.contains(SortedSetRangeOpts::BY_SCORE),
+    by_lex: range_opts.contains(SortedSetRangeOpts::BY_LEX),
+    reverse: range_opts.contains(SortedSetRangeOpts::REVERSE),
+    with_scores: range_opts.contains(SortedSetRangeOpts::WITH_SCORES)
+      || range_opts.contains(SortedSetRangeOpts::STORE),
+    ..Default::default()
+  };
+
+  if resp_protocol_version >= 3 && range_opts.contains(SortedSetRangeOpts::STORE) {
+    resp_protocol_version = 2;
+  }
+
+  let mut curr_idx = 2;
+  if count > 2 {
+    while curr_idx < count {
+      let token = args[curr_idx];
+      curr_idx += 1;
+
+      if equals_ignore_case(token, b"BYSCORE") {
+        options.by_score = true;
+      } else if equals_ignore_case(token, b"BYLEX") {
+        options.by_lex = true;
+      } else if equals_ignore_case(token, b"REV") {
+        options.reverse = true;
+      } else if equals_ignore_case(token, LIMIT) {
+        // LIMIT 后须有 offset count 两个 token
+        if args.len() - curr_idx < 2 {
+          return Err(RangeArgError::Syntax);
+        }
+
+        let (Some(offset), Some(count_limit)) = (
+          strict_i32(args[curr_idx]).map(|v| v as i64),
+          strict_i32(args[curr_idx + 1]).map(|v| v as i64),
+        ) else {
+          return Err(RangeArgError::NotInteger);
+        };
+        curr_idx += 2;
+
+        options.limit = (offset, count_limit);
+        options.valid_limit = true;
+      } else if equals_ignore_case(token, WITHSCORES) {
+        options.with_scores = true;
+      }
+    }
+  }
+  Ok((options, resp_protocol_version))
+}
+
+/// 范围/集合结果统一 RESP 输出负载单点（对象层 [`SortedSetObject::write_sorted_set_result`]
+/// 与 wnode 分层树内臂共用，RESP3 成对嵌套 / RESP2 扁平）
+///
+/// 对位 C# SortedSetObjectImpl.cs 的 WriteSortedSetResult（锚点归
+/// [`SortedSetObject::write_sorted_set_result`]，本函数为其负载单源）
+pub fn write_sorted_set_result_payload<B: AsRef<[u8]>>(
+  payload: &mut Vec<u8>,
   with_scores: bool,
-  valid_limit: bool,
-  limit: (i64, i64),
+  count: usize,
+  resp_protocol_version: u8,
+  iterator: impl Iterator<Item = (f64, B)>,
+) {
+  if with_scores && resp_protocol_version >= 3 {
+    RespWriter::new_ref(payload).write_array_length(count);
+
+    for (score, element) in iterator {
+      RespWriter::new_ref(payload).write_array_length(2);
+      RespWriter::new_ref(payload).write_bulk_string(element.as_ref());
+      cmd_strings::write_double_numeric(payload, score, resp_protocol_version);
+    }
+  } else {
+    RespWriter::new_ref(payload).write_array_length(if with_scores { count * 2 } else { count });
+
+    for (score, element) in iterator {
+      RespWriter::new_ref(payload).write_bulk_string(element.as_ref());
+      if with_scores {
+        RespWriter::new_ref(payload).write_double_bulk_string(score);
+      }
+    }
+  }
 }
 
 /// 双向迭代静态分发枚举（消除堆分配）
@@ -473,71 +608,18 @@ impl SortedSetObject {
     let range_opts = SortedSetRangeOpts::from_bits_truncate(arg2 as u8);
     let count = args.len();
 
-    // C# 两个区间块均要求 count >= 2，不足时无任何输出（命令层保证 ≥2）
-    if count < 2 {
-      return;
-    }
-
-    let mut curr_idx = 0;
-
-    let min_span = args[curr_idx];
-    curr_idx += 1;
-    let max_span = args[curr_idx];
-    curr_idx += 1;
-
-    // ZRANGESTORE 需要成对负载读回，协议固定为 RESP2
-    let mut resp_protocol_version = resp_protocol_version;
-    let mut options = ZRangeOptions {
-      by_score: range_opts.contains(SortedSetRangeOpts::BY_SCORE),
-      by_lex: range_opts.contains(SortedSetRangeOpts::BY_LEX),
-      reverse: range_opts.contains(SortedSetRangeOpts::REVERSE),
-      with_scores: range_opts.contains(SortedSetRangeOpts::WITH_SCORES)
-        || range_opts.contains(SortedSetRangeOpts::STORE),
-      ..Default::default()
-    };
-
-    if resp_protocol_version >= 3 && range_opts.contains(SortedSetRangeOpts::STORE) {
-      resp_protocol_version = 2;
-    }
-
-    if count > 2 {
-      while curr_idx < count {
-        let token = args[curr_idx];
-        curr_idx += 1;
-
-        if equals_ignore_case(token, b"BYSCORE") {
-          options.by_score = true;
-        } else if equals_ignore_case(token, b"BYLEX") {
-          options.by_lex = true;
-        } else if equals_ignore_case(token, b"REV") {
-          options.reverse = true;
-        } else if equals_ignore_case(token, LIMIT) {
-          // LIMIT 后须有 offset count 两个 token
-          if args.len() - curr_idx < 2 {
-            RespWriter::new_ref(output.payload)
-              .write_error_bytes(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
-            output.result1 = RANGE_ERROR;
-            return;
-          }
-
-          let (Some(offset), Some(count_limit)) = (
-            strict_i32(args[curr_idx]).map(|v| v as i64),
-            strict_i32(args[curr_idx + 1]).map(|v| v as i64),
-          ) else {
-            RespWriter::new_ref(output.payload)
-              .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
-            output.result1 = RANGE_ERROR;
-            return;
-          };
-          curr_idx += 2;
-
-          options.limit = (offset, count_limit);
-          options.valid_limit = true;
-        } else if equals_ignore_case(token, WITHSCORES) {
-          options.with_scores = true;
+    // 参数段解析单点（与分层树内臂共用，见 [`parse_range_options`]）
+    let (options, resp_protocol_version) =
+      match parse_range_options(args, range_opts, resp_protocol_version) {
+        Ok(v) => v,
+        // C# 两个区间块均要求 count >= 2，不足时无任何输出（命令层保证 ≥2）
+        Err(RangeArgError::Incomplete) => return,
+        Err(e) => {
+          output.result1 = e.write_reply(output.payload);
+          return;
         }
-      }
-    }
+      };
+    let (min_span, max_span) = (args[0], args[1]);
 
     if count >= 2 && ((!options.by_score && !options.by_lex) || options.by_score) {
       let Some((min_value, min_exclusive)) = Self::try_parse_parameter(min_span) else {
@@ -673,28 +755,13 @@ impl SortedSetObject {
     iterator: impl Iterator<Item = (f64, B)>,
     output: &mut ObjectOutput<'_>,
   ) {
-    if with_scores && resp_protocol_version >= 3 {
-      RespWriter::new_ref(output.payload).write_array_length(count);
-
-      for (score, element) in iterator {
-        RespWriter::new_ref(output.payload).write_array_length(2);
-        RespWriter::new_ref(output.payload).write_bulk_string(element.as_ref());
-        write_double_numeric(output, score, resp_protocol_version);
-      }
-    } else {
-      RespWriter::new_ref(output.payload).write_array_length(if with_scores {
-        count * 2
-      } else {
-        count
-      });
-
-      for (score, element) in iterator {
-        RespWriter::new_ref(output.payload).write_bulk_string(element.as_ref());
-        if with_scores {
-          RespWriter::new_ref(output.payload).write_double_bulk_string(score);
-        }
-      }
-    }
+    write_sorted_set_result_payload(
+      output.payload,
+      with_scores,
+      count,
+      resp_protocol_version,
+      iterator,
+    );
   }
 
   /// ZREMRANGEBYRANK：按排名区间移除
@@ -1176,8 +1243,8 @@ impl SortedSetObject {
       Some((mut min_value_chars, mut min_value_exclusive, mut min_value_infinity)),
       Some((mut max_value_chars, mut max_value_exclusive, mut max_value_infinity)),
     ) = (
-      self.try_parse_lex_parameter(min_param),
-      self.try_parse_lex_parameter(max_param),
+      Self::try_parse_lex_parameter(min_param),
+      Self::try_parse_lex_parameter(max_param),
     )
     else {
       return (Vec::new(), i32::MAX);
@@ -1333,7 +1400,7 @@ impl SortedSetObject {
   /// 解析分值区间参数：`(5` → 独占；支持 ±inf
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:TryParseParameter
-  pub(crate) fn try_parse_parameter(val: &[u8]) -> Option<(f64, bool)> {
+  pub fn try_parse_parameter(val: &[u8]) -> Option<(f64, bool)> {
     let mut val = val;
     let mut exclusive = false;
 
@@ -1355,10 +1422,7 @@ impl SortedSetObject {
   /// 解析字典序区间参数：`[a` 闭 / `(a` 开 / `-` 无穷小 / `+` 无穷大
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:TryParseLexParameter
-  pub(crate) fn try_parse_lex_parameter<'p>(
-    &self,
-    val: &'p [u8],
-  ) -> Option<(&'p [u8], bool, SpecialRanges)> {
+  pub fn try_parse_lex_parameter<'p>(val: &'p [u8]) -> Option<(&'p [u8], bool, SpecialRanges)> {
     let mut limit_chars: &[u8] = &[];
     let mut limit_exclusive = false;
     let mut infinity = SpecialRanges::None;

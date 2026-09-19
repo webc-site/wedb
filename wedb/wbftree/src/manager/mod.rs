@@ -374,9 +374,9 @@ impl RangeIndexManager {
     }
   }
 
-  /// 获取键哈希分段读写条带锁引用 (供迁移发布等外部路径持锁复用)
+  /// 内部键哈希分段读写条带锁引用
   #[inline]
-  pub fn locks(&self) -> &StripedRwLock<(), NUM_LOCK_STRIPES> {
+  pub(crate) fn locks(&self) -> &StripedRwLock<(), NUM_LOCK_STRIPES> {
     &self.locks
   }
 
@@ -387,6 +387,12 @@ impl RangeIndexManager {
     key_hash: u64,
   ) -> parking_lot::RwLockWriteGuard<'_, ()> {
     self.locks.write(key_hash)
+  }
+
+  /// 获取指定键哈希的共享读锁（1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:ReadRangeIndexLock）
+  #[inline]
+  pub fn read_range_index_lock(&self, key_hash: u64) -> parking_lot::RwLockReadGuard<'_, ()> {
+    self.locks.read(key_hash)
   }
 
   /// 计算键的 128 位唯一 ID (零堆分配，用于内存字典极速索引，1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:KeyId)

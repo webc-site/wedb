@@ -511,7 +511,7 @@ fn test_publish_tree_from_snapshot_locked() -> Result<()> {
   // 全新 manager (模拟接收端)：replace=false 首次发布成功，数据完整回读
   let recv = RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap();
   {
-    let _lock = recv.locks().write(key_hash);
+    let _lock = recv.acquire_exclusive_for_delete(key_hash);
     let published = recv.publish_tree_from_snapshot_locked(key, &temp1, false)?;
     assert_eq!(
       published.read(b"k1"),
@@ -826,7 +826,7 @@ fn test_release_detached_defers_on_stripe_contention() -> Result<()> {
 
   let detached = manager.detach_tree(key, true).unwrap();
   // 模拟收割线程已持该条带写锁的上下文（detach 已完成，锁在此重新取得）
-  let _stripe_lock = manager.locks().write(fast_hash(key));
+  let _stripe_lock = manager.acquire_exclusive_for_delete(fast_hash(key));
   manager.release_detached(detached);
   assert!(
     tree.is_disposed() && data_path.exists(),

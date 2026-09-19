@@ -159,6 +159,22 @@ async fn store_dest_cold(
   Ok(count)
 }
 
+/// ZRANGE 族命令 → arg2 选项位（对象层 `run_operate` 与分层树内臂共用同一约定，
+/// 一处定义；libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetRangeOpts）
+fn range_opts_of(cmd: RespCommand) -> SortedSetRangeOpts {
+  match cmd {
+    RespCommand::Zrevrange => SortedSetRangeOpts::REVERSE,
+    RespCommand::Zrangebylex => SortedSetRangeOpts::BY_LEX,
+    RespCommand::Zrevrangebylex => SortedSetRangeOpts::BY_LEX.union(SortedSetRangeOpts::REVERSE),
+    RespCommand::Zrangebyscore => SortedSetRangeOpts::BY_SCORE,
+    RespCommand::Zrevrangebyscore => {
+      SortedSetRangeOpts::BY_SCORE.union(SortedSetRangeOpts::REVERSE)
+    }
+    // ZRANGE 本体与其余命令：无选项位
+    _ => SortedSetRangeOpts::NONE,
+  }
+}
+
 /// 有序集合命令统一慢路径分派（ZSCAN 走 shared 慢路径扫描）
 pub(crate) async fn sorted_set(
   storage: &StorageSession<'_, impl wdev::Device>,
@@ -172,16 +188,40 @@ pub(crate) async fn sorted_set(
   let args = refs.get(1..).unwrap_or(&[]);
 
   // 分层快速通道（骨架单点收口 try_tiered_arm：探测/WRONGTYPE 门/穿透）
-  // ZRANGE 族不经 tiered 原生臂：范围型语义走下方装载型物化通道（wcol
-  // 对象层单源，BYSCORE/BYLEX/REV/WITHSCORES/LIMIT 全选项一致）
+  // ZRANGE 族 / ZLEXCOUNT / ZRANK 族经 arg12 通道下同原生臂：范围与排名语义在
+  // 树内流式求值（wcol 参数解析与结果负载单源复用），不再走装载型物化通道
   // ZREM 不入表：删除重命令与 ZPOPMIN / ZREMRANGE* 同径走对象层通道（物化求值
   // + 整值重灌），杜绝向分层树逐成员落删除墓碑（见 tiered_collection_ops 头注）
+  // ZCOUNT 不入表：已在下方 rmw_spec 内，run_async_rmw 的树内臂优先接手同一函数
   let op_opt = match cmd {
-    RespCommand::Zadd => Some(SortedSetOperation::Zadd),
-    RespCommand::Zscore => Some(SortedSetOperation::Zscore),
-    RespCommand::Zmscore => Some(SortedSetOperation::Zmscore),
-    RespCommand::Zcard => Some(SortedSetOperation::Zcard),
-    RespCommand::Zincrby => Some(SortedSetOperation::Zincrby),
+    RespCommand::Zadd => Some((SortedSetOperation::Zadd, (0, 0))),
+    RespCommand::Zscore => Some((SortedSetOperation::Zscore, (0, 0))),
+    RespCommand::Zmscore => Some((SortedSetOperation::Zmscore, (0, 0))),
+    RespCommand::Zcard => Some((SortedSetOperation::Zcard, (0, 0))),
+    RespCommand::Zincrby => Some((SortedSetOperation::Zincrby, (0, 0))),
+    RespCommand::Zrange
+    | RespCommand::Zrevrange
+    | RespCommand::Zrangebylex
+    | RespCommand::Zrevrangebylex
+    | RespCommand::Zrangebyscore
+    | RespCommand::Zrevrangebyscore => Some((
+      SortedSetOperation::Zrange,
+      (0, range_opts_of(cmd).bits() as i32),
+    )),
+    RespCommand::Zlexcount => Some((SortedSetOperation::Zlexcount, (0, 0))),
+    // ZRANK / ZREVRANK 的 WITHSCORE 位经族内单源推导（与下方内存臂同一函数，
+    // 失败帧已写出即短路，杜绝第二套词元判定）
+    RespCommand::Zrank | RespCommand::Zrevrank => {
+      let op = if matches!(cmd, RespCommand::Zrank) {
+        SortedSetOperation::Zrank
+      } else {
+        SortedSetOperation::Zrevrank
+      };
+      let Some(with_score) = parse_rank_with_score(cmd.into(), refs, output) else {
+        return Ok(());
+      };
+      Some((op, (i32::from(with_score), 0)))
+    }
     _ => None,
   };
   if try_tiered_arm(
@@ -190,12 +230,12 @@ pub(crate) async fn sorted_set(
     GarnetObjectType::SortedSet,
     op_opt,
     output,
-    async move |ctx, op, output| {
+    async move |ctx, (op, args12), output| {
       let handled = exec_tiered_zset(
         &storage.batch,
         key,
         ctx,
-        TieredCollectionArgs::new(op, (0, 0), args, resp_version),
+        TieredCollectionArgs::new(op, args12, args, resp_version),
         output,
       )
       .await?;
@@ -340,16 +380,8 @@ pub(crate) async fn sorted_set(
     | RespCommand::Zrevrangebylex
     | RespCommand::Zrangebyscore
     | RespCommand::Zrevrangebyscore => {
-      let opts = match cmd {
-        RespCommand::Zrange => SortedSetRangeOpts::NONE,
-        RespCommand::Zrevrange => SortedSetRangeOpts::REVERSE,
-        RespCommand::Zrangebylex => SortedSetRangeOpts::BY_LEX,
-        RespCommand::Zrevrangebylex => {
-          SortedSetRangeOpts::BY_LEX.union(SortedSetRangeOpts::REVERSE)
-        }
-        RespCommand::Zrangebyscore => SortedSetRangeOpts::BY_SCORE,
-        _ => SortedSetRangeOpts::BY_SCORE.union(SortedSetRangeOpts::REVERSE),
-      };
+      // 选项位换算单点见 range_opts_of（与上方分层原生臂同一处）
+      let opts = range_opts_of(cmd);
       slow_load_eval(
         storage,
         key,

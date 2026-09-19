@@ -13,7 +13,7 @@ categories = ["network-programming", "database-implementations"]
 default = []
 tls = [
   "dep:compio-tls",
-  "dep:rustls-pemfile",
+
   "dep:webpki-roots",
   "dep:futures-util",
   "wbase/tls",
@@ -31,7 +31,6 @@ event-listener.workspace = true
 futures-util = { workspace = true, features = ["bilock", "io", "unstable"], optional = true }
 itoa.workspace = true
 log.workspace = true
-rustls-pemfile = { version = "2.2.0", optional = true }
 thiserror.workspace = true
 wbase = { workspace = true, features = ["endpoint", "pool"] }
 webpki-roots = { version = "0.26", optional = true }

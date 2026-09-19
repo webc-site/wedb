@@ -336,7 +336,7 @@ impl<D: Device> StoreSession<D> {
       // 屏障异步等待：外层 VersionShift 屏障跨 await 持有，写者挂起让出 reactor
       // （同步忙自旋会在持有窗口霸占 compio worker 造成检查点 I/O 永不收割的死锁）
       wait_tree_checkpoint(&self.store.range_index, key).await?;
-      let read_lock = self.store.range_index.locks().read(key_hash);
+      let read_lock = self.store.range_index.read_range_index_lock(key_hash);
       if let Some(tree) = self.store.range_index.get_tree(key) {
         if current_stub.is_flushed() {
           drop(read_lock);
