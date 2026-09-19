@@ -27,7 +27,7 @@ fn test_lock_write_exclusion_under_contention() -> Result<()> {
     let counter = Arc::clone(&counter);
     handles.push(thread::spawn(move || {
       for _ in 0..ITERS {
-        let _w = manager.locks().write(7);
+        let _w = manager.acquire_exclusive_for_delete(7);
         // 非原子的 load→store 序列：若互斥失效将丢失更新导致终值偏小
         let v = counter.load(Ordering::Relaxed);
         counter.store(v + 1, Ordering::Relaxed);
@@ -46,14 +46,13 @@ fn test_lock_write_exclusion_under_contention() -> Result<()> {
 fn test_lock_read_shared_and_cross_stripe_independent() -> Result<()> {
   let env = ManagerEnvGuard::new("locks_rw");
   let manager = RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap();
-  let locks = manager.locks();
   {
-    let _r1 = locks.read(12345);
-    let _r2 = locks.read(12345);
+    let _r1 = manager.read_range_index_lock(12345);
+    let _r2 = manager.read_range_index_lock(12345);
   }
   {
-    let _w1 = locks.write(0);
-    let _w2 = locks.write(u64::MAX);
+    let _w1 = manager.acquire_exclusive_for_delete(0);
+    let _w2 = manager.acquire_exclusive_for_delete(u64::MAX);
   }
   OK
 }
