@@ -97,17 +97,16 @@ impl RespServerSession {
       ListLoad::Missing => output.write_resp_null_ver(self.resp_protocol_version),
       ListLoad::Present(mut obj) => {
         // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
-        let result1 =
-          run_operate(
-            &mut obj,
-            ListOperation::Lindex,
-            &[],
-            index,
-            0,
-            self.resp_protocol_version,
-            output,
-          )
-          .result1;
+        let result1 = run_operate(
+          &mut obj,
+          ListOperation::Lindex,
+          &[],
+          index,
+          0,
+          self.resp_protocol_version,
+          output,
+        )
+        .result1;
         if result1 == -1 {
           output.write_resp_null_ver(self.resp_protocol_version);
         }
@@ -145,17 +144,16 @@ impl RespServerSession {
       }
       ListLoad::Present(mut obj) => {
         // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
-        let result1 =
-          run_operate(
-            &mut obj,
-            ListOperation::Lpos,
-            &parse_state[1..],
-            0,
-            0,
-            self.resp_protocol_version,
-            output,
-          )
-          .result1;
+        let result1 = run_operate(
+          &mut obj,
+          ListOperation::Lpos,
+          &parse_state[1..],
+          0,
+          0,
+          self.resp_protocol_version,
+          output,
+        )
+        .result1;
         if result1 == -1 {
           output.write_resp_null_ver(self.resp_protocol_version);
         }

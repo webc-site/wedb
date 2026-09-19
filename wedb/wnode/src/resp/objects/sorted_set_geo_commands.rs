@@ -818,7 +818,8 @@ pub(crate) mod slow {
       );
       // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）；
       // 写回失败回退挂载点再落错（慢路径统一应答前清场）
-      if obj_out.payload_view().first() != Some(&b'-') && (existed || !obj.sorted_set_dict.is_empty())
+      if obj_out.payload_view().first() != Some(&b'-')
+        && (existed || !obj.sorted_set_dict.is_empty())
       {
         if geo_save_back(storage, key, &obj, was_tiered).await.is_err() {
           obj_out.reset();
@@ -854,7 +855,14 @@ pub(crate) mod slow {
           return Ok(());
         }
       };
-      obj.operate(op as u8, args, 0, 0, &mut ObjectOutput::mount(output), resp_version);
+      obj.operate(
+        op as u8,
+        args,
+        0,
+        0,
+        &mut ObjectOutput::mount(output),
+        resp_version,
+      );
       return Ok(());
     }
 
@@ -901,7 +909,12 @@ pub(crate) mod slow {
 
     match store_dest {
       None => {
-        obj.geo_search(&mut opts, &mut ObjectOutput::mount(output), resp_version, true);
+        obj.geo_search(
+          &mut opts,
+          &mut ObjectOutput::mount(output),
+          resp_version,
+          true,
+        );
       }
       Some(dest) => {
         // 存储变体：分值取 GeoHash 或距离，命中成员成对落目标集合；

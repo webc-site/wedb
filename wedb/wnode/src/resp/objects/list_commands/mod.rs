@@ -91,7 +91,9 @@ pub(crate) fn should_write_back(
   obj: &ListObject,
   existed: bool,
 ) -> bool {
-  if is_read_only(op) || out.payload_view().first() == Some(&b'-') || (!existed && obj.list.is_empty())
+  if is_read_only(op)
+    || out.payload_view().first() == Some(&b'-')
+    || (!existed && obj.list.is_empty())
   {
     return false;
   }

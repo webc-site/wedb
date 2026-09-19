@@ -89,8 +89,16 @@ pub(crate) fn set_save_or_gc(
 /// - 错误回复（WRONGTYPE 标志或 `-` 行）无状态变更，不落库（防幻键）；
 /// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
 /// - 仅回填 result1 的删除类操作（SREM）以移除计数为准。
-fn should_write_back(op: SetOperation, out: &ObjectOutput<'_>, obj: &SetObject, existed: bool) -> bool {
-  if is_read_only(op) || out.payload_view().first() == Some(&b'-') || (!existed && obj.set.is_empty()) {
+fn should_write_back(
+  op: SetOperation,
+  out: &ObjectOutput<'_>,
+  obj: &SetObject,
+  existed: bool,
+) -> bool {
+  if is_read_only(op)
+    || out.payload_view().first() == Some(&b'-')
+    || (!existed && obj.set.is_empty())
+  {
     return false;
   }
   match op {
@@ -1051,7 +1059,15 @@ pub(crate) mod slow {
           SetObject::from_blob,
           |output: &mut Vec<u8>| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            run_operate(obj, SetOperation::Sismember, args, 0, 0, resp_version, output);
+            run_operate(
+              obj,
+              SetOperation::Sismember,
+              args,
+              0,
+              0,
+              resp_version,
+              output,
+            );
           },
         )
         .await;
@@ -1070,7 +1086,15 @@ pub(crate) mod slow {
             }
           },
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            run_operate(obj, SetOperation::Smismember, args, 0, 0, resp_version, output);
+            run_operate(
+              obj,
+              SetOperation::Smismember,
+              args,
+              0,
+              0,
+              resp_version,
+              output,
+            );
           },
         )
         .await;

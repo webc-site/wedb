@@ -72,9 +72,16 @@ impl RespServerSession {
         ListLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         ListLoad::Present(mut obj) => {
           // LPUSH 族仅回填 result1（无负载段），整数应答在写回成功后落帧
-          let result1 =
-            run_operate(&mut obj, op, &parse_state[1..], 0, 0, self.resp_protocol_version, output)
-              .result1;
+          let result1 = run_operate(
+            &mut obj,
+            op,
+            &parse_state[1..],
+            0,
+            0,
+            self.resp_protocol_version,
+            output,
+          )
+          .result1;
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => {
               output.write_resp_int(result1);

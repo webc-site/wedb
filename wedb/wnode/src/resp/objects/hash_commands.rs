@@ -399,17 +399,16 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let result1 =
-          run_operate(
-            &mut obj,
-            HashOperation::Hexists,
-            &parse_state[1..],
-            0,
-            0,
-            self.resp_protocol_version,
-            output,
-          )
-          .result1;
+        let result1 = run_operate(
+          &mut obj,
+          HashOperation::Hexists,
+          &parse_state[1..],
+          0,
+          0,
+          self.resp_protocol_version,
+          output,
+        )
+        .result1;
         output.write_resp_int(result1);
       }
     }
@@ -555,17 +554,16 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let result1 =
-          run_operate(
-            &mut obj,
-            HashOperation::Hstrlen,
-            &parse_state[1..],
-            0,
-            0,
-            self.resp_protocol_version,
-            output,
-          )
-          .result1;
+        let result1 = run_operate(
+          &mut obj,
+          HashOperation::Hstrlen,
+          &parse_state[1..],
+          0,
+          0,
+          self.resp_protocol_version,
+          output,
+        )
+        .result1;
         output.write_resp_int(result1);
       }
     }

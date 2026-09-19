@@ -337,9 +337,16 @@ pub(crate) async fn list(
         |output| output.write_resp_null_ver(resp_version),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
           // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
-          let result1 =
-            run_operate(&mut obj, ListOperation::Lindex, &[], index, 0, resp_version, output)
-              .result1;
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Lindex,
+            &[],
+            index,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 == -1 {
             output.write_resp_null_ver(resp_version);
           }
@@ -362,8 +369,16 @@ pub(crate) async fn list(
         },
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
           // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
-          let result1 = run_operate(&mut obj, ListOperation::Lpos, args, 0, 0, resp_version, output)
-            .result1;
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Lpos,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 == -1 {
             output.write_resp_null_ver(resp_version);
           }
@@ -378,8 +393,16 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let result1 = run_operate(&mut obj, ListOperation::Linsert, args, 0, 0, resp_version, output)
-            .result1;
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Linsert,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 > 0 {
             if save_or_gc(storage, key, &obj).await.is_err() {
               output.write_resp_error(cs::RESP_ERR_GENERIC);
@@ -404,9 +427,16 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let result1 =
-            run_operate(&mut obj, ListOperation::Lrem, &[element], count, 0, resp_version, output)
-              .result1;
+          let result1 = run_operate(
+            &mut obj,
+            ListOperation::Lrem,
+            &[element],
+            count,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 > 0 && save_or_gc(storage, key, &obj).await.is_err() {
             output.write_resp_error(cs::RESP_ERR_GENERIC);
             return;

@@ -193,14 +193,18 @@ TsavoriteLog/TsavoriteLog.cs）现随块挂忽略，且 rust 侧 waof 无任何�
   改 = rust 承接口在位且注释已点名该 C# 符号，但形态不登记（裸文件名 / `路径.cs:行号` / 反引号 /
   纯叙述），补规范锚后条目自动淘汰；
   留 = 确属死码、平台绑定、或「无独立具名对位口」的形态不承接。
-- 本组取数结论：130 条中，有同路径锚 0、有裸文件名锚 0、他路径同名锚 5（经核 5 条均为
-  同名不同 C# 文件的巧合，不构成改锚依据）、含 `.cs` 的叙述行 10（逐条读原文后仅 2 条构成改锚依据，
-  其余 8 条为「同名他文件」或「他文件语境顺带提及」）、零痕迹 112。
-  即按现刻证据，本节改判为「改」的仅 2 条，其余为「留」，无一条可「删」。
+- 本组取数结论（六类互斥，按「同路径锚 → 裸文件名锚 → 他路径同名锚 → 含 `.cs` 的叙述行 →
+  仅裸词命中 → 零痕迹」优先序归档，合计恰 130）：0 / 0 / 5 / 5 / 8 / 112。
+  他路径同名锚 5 条经核均为「同名不同 C# 文件」的巧合（NumUtils:WriteInt32 vs
+  RespServerSessionOutput:WriteInt32、NumUtils:TryReadDouble vs ParseUtils:TryReadDouble、
+  LogRecord:GetInfo vs ClusterManager:GetInfo、LogRecord:ToString vs RecordInfo/LightEpoch:ToString、
+  LogRecord:TrySetExpiration vs MainStore/RMWMethods:TrySetExpiration），不构成改锚依据；
+  叙述行 5 条中仅 2 条（client.yml:96、server.yml:232）构成改锚依据，余 3 条为「同名他文件」或
+  「他文件语境顺带提及」。即按现刻证据判「改」仅 2 条、判「删」0 条、判「留」128 条。
   这与来源棒抽查所得「TryInPlaceUpdateNumber 属已实现却挂忽略」的单条直觉不同：该名
-  （`server.yml:284`）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:182`、
+  （`server.yml:284`，叙述行类）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:182`、
   `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现，而是「非有限旗标」语义叙述，
-  仍判留；真正「已实现却挂忽略」的是下表的 SessionParseState.cs:Slice 与
+  仍判留；真正「已实现却挂忽略」的是下文的 SessionParseState.cs:Slice 与
   GarnetClientProcessReplies.cs:ProcessReplyAsNumber 两条。
 
 ### 2.2 已完成块一：common.yml（14 条，全留）
@@ -309,7 +313,7 @@ js/check/ignore/storage.yml:1945 | TsavoriteLog.cs:SetHeader | 留 | 同上，�
 js/check/ignore/storage.yml:1960 | TsavoriteLog.cs:ValidateAllocatedLength | 留 | 零痕迹
 js/check/ignore/storage.yml:1961 | TsavoriteLog.cs:VerifyChecksum | 留（待复核定性） | 同 GetChecksum，校验面在 rust 无口，需一次定性
 
-其余零散（9 条）——留 7 / 改 2：
+其余零散（7 条）——全留：
 
 js/check/ignore/storage.yml:325 | …/Allocator/ObjectAllocatorImpl.cs:CreateSnapshotObjectReader | 留 | 对象日志物理层不存在（同块整面理由）
 js/check/ignore/storage.yml:869 | …/ClientSession/TransactionalConsistentReadContext.cs:IsModified | 留 | 只读会话无脏标记面；与同块 Upsert/RMW/Delete 同口径（本块尚缺 RMW/Refresh 两名的登记，见第一节乙族）
@@ -318,12 +322,18 @@ js/check/ignore/storage.yml:1634 | …/Index/Tsavorite/Implementation/FindRecord
 js/check/ignore/storage.yml:1636 | FindRecord.cs:TryFindRecordInMainLogForPendingOperation | 留 | 同上
 js/check/ignore/storage.yml:1849 | …/Index/Tsavorite/TsavoriteBase.cs:UpdateSlot | 留 | windex 表侧槽更新为私有内联（table.rs classify_slot 族），无具名口
 js/check/ignore/storage.yml:2583 | …/Index/Common/PendingState.cs:CopyFrom | 留 | 理由「零调用方 + 字节切片原生」成立
-js/check/ignore/storage.yml:— | （本块无第 8 条改判，改判两条在 common/client 交界，下列） | — | —
+
+小计：storage.yml 74 条 → 留 74（其中 2 条标注「待复核定性」）、改 0、删 0。
+本块「改」为 0 的原因：改判只看 rust 侧是否存在未登记的实口，而 storage 暗条目 74 名经取证
+仅 2 条有他路径同名锚（:231 GetInfo、:265 TrySetExpiration）、8 条有叙述行，逐条读原文后
+均判为「同名他文件」或「他文件语境顺带提及」，无一构成改锚依据。
+
+### 2.3bis 顺带判尽：client.yml（2 条，留 1 / 改 1）
+
+题面把 client.yml 归入「剩余块」，因其与 2.3 同批取数，本单一并判尽，剩余数已相应扣除：
 
 js/check/ignore/client.yml:95 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsMemoryByteArray | 留 | 客户端 SDK 应答分型，rust 传输层无该分型口
 js/check/ignore/client.yml:96 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsNumber | 改 | `wedb/wconn/src/parser.rs:70` doc 已点名该 C# 口却写成「…（libs/client/GarnetClientProcessReplies.cs:86）」行号形态，CS_REF_REGEX 不认 → 改规范锚后条目自动淘汰
-
-注：client.yml 两条按题面属「剩余块」，因与上表同批取数一并判尽，剩余数已相应扣除。
 
 ### 2.4 剩余块（未逐条判，标注剩余数与分块建议）
 

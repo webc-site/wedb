@@ -418,7 +418,15 @@ pub(crate) async fn sorted_set(
           }
         },
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          run_operate(obj, SortedSetOperation::Zmscore, args, 0, 0, resp_version, output);
+          run_operate(
+            obj,
+            SortedSetOperation::Zmscore,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          );
         },
       )
       .await
@@ -433,9 +441,16 @@ pub(crate) async fn sorted_set(
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
           // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
-          let result1 =
-            run_operate(obj, SortedSetOperation::Zlexcount, args, 0, 0, resp_version, output)
-              .result1;
+          let result1 = run_operate(
+            obj,
+            SortedSetOperation::Zlexcount,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 == i32::MAX as i64 {
             cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
           } else if result1 != i32::MIN as i64 {
