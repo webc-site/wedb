@@ -94,7 +94,7 @@ fn aof_record_stream_pumps_to_replica_drivers() {
     let final_tail = wal.tail_address();
 
     // 7. 位点闭环断言：副本已发位点追平主侧尾
-    let task = driver.get_task(0).unwrap();
+    let task = driver.task_ref(0).unwrap();
     assert_eq!(
       task.previous_address() as u64,
       final_tail,
@@ -171,7 +171,7 @@ fn disconnected_replica_backlog_terminates() {
       None,
     ));
     assert!(store.try_add_replication_driver(driver.clone(), false));
-    driver.get_task(0).unwrap().set_connected(false);
+    driver.task_ref(0).unwrap().set_connected(false);
 
     let pump = AofReplicationPump::new(Arc::clone(&store));
     let (forwarded, skipped) = pump.sync_backlog(&wal).await.unwrap();
@@ -315,7 +315,7 @@ fn throttle_loop_publishes_idle_watermark() {
     assert!(store.try_add_replication_driver(driver.clone(), false));
     assert!(bp.any_stalled(), "副本 attach 后水位收紧应停滞");
 
-    let task = driver.get_task(0).unwrap();
+    let task = driver.task_ref(0).unwrap();
     task.consume(b"bulk", 64, 9_000).unwrap();
     assert!(
       store.throttle_replica(REPLICA_ID),

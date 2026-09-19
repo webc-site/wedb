@@ -232,7 +232,9 @@ impl AofBackpressure {
     }
   }
 
-  /// 获取指定子日志当前已发布的水位线
+  /// 读取指定子日志当前已发布的水位线（测试观测面：节流路径等价性与
+  /// 最小水位收紧语义的回归测试直读发布值；C# shippedWatermark 为私有
+  /// 数组无 getter，rust 以 pub 观测口承接测试断言）
   #[inline]
   pub fn get_shipped_watermark(&self, sublog_idx: usize) -> i64 {
     self.shipped_watermark[sublog_idx].load(Ordering::Acquire)

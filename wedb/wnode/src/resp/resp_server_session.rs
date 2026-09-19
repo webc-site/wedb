@@ -886,24 +886,8 @@ impl RespServerSession {
     api.exec(self, cmd, args);
   }
 
-  /// 挂接监视器（对齐 C# `new GarnetLatencyMetricsSession(storeWrapper.monitor)`）
-  pub fn attach_monitor(&mut self, monitor: &Arc<wmetric::GarnetServerMonitor>) {
-    let latency = Arc::new(GarnetLatencyMetricsSession::new(
-      Arc::clone(&monitor.monitor_iterations),
-      GarnetLatencyMetricsSession::DEFAULT_LATENCY_TYPES,
-    ));
-    // 晚装配换表须同步重挂已挂载的执行域（pending 计时与 NET_RS_LAT 必须
-    // 落同一对象，见
-    // [`crate::resp::garnet_api::GarnetApiFace::attach_latency_metrics`]）
-    if let Some(api) = &self.garnet_api {
-      api.attach_latency_metrics(Arc::clone(&latency));
-    }
-    self.latency_metrics = Some(latency);
-    self.global_latency_metrics = monitor.global_latency_metrics();
-  }
-
-  /// 装配期注入会话指标共享句柄（本会话 `session_metrics` 字段的唯一写入点，
-  /// 与 `attach_monitor` 同为晚装配注入口；对标 C# RespServerSession.cs:264
+  /// 装配期注入会话指标共享句柄（本会话 `session_metrics` 字段的唯一写入点；
+  /// 对标 C# RespServerSession.cs:264
   /// 构造期单点建 sessionMetrics 的判定在本仓搬到装配侧：句柄由 `service.rs`
   /// 按采样频率门控唯一创建，经
   /// [`RespSessionConsumer::attach_session_metrics`](crate::resp::resp_session_consumer::RespSessionConsumer::attach_session_metrics)
@@ -922,13 +906,6 @@ impl RespServerSession {
   pub fn reset_latency_metrics(&self, latency_event: LatencyMetricsType) {
     if let Some(metrics) = &self.latency_metrics {
       metrics.reset(latency_event);
-    }
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:ResetAllLatencyMetrics
-  pub fn reset_all_latency_metrics(&self) {
-    if let Some(metrics) = &self.latency_metrics {
-      metrics.reset_all();
     }
   }
 
@@ -2370,12 +2347,6 @@ impl RespServerSession {
   /// CLIENT SETNAME 落库（C# clientName 字段赋值；命令域校验后调用）
   pub fn set_client_name(&mut self, name: Option<&str>) {
     self.client_name = name.map(str::to_string);
-  }
-
-  /// CLIENT SETINFO 落库（C# clientLibName / clientLibVersion 字段赋值）
-  pub fn set_client_lib_info(&mut self, lib_name: Option<&str>, lib_version: Option<&str>) {
-    self.client_lib_name = lib_name.map(str::to_string);
-    self.client_lib_version = lib_version.map(str::to_string);
   }
 
   /// libs/server/Resp/BasicCommands.cs:WriteClientInfo
