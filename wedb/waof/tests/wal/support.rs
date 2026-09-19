@@ -3,7 +3,10 @@ use std::{path::Path, sync::Arc};
 use aok::Result;
 use tempfile::{TempDir, tempdir};
 use waof::{WalConfig, WalLog, WalRecord};
-use wbase::pool::{AlignedBuf, BufferPool};
+use wbase::{
+  align::DEFAULT_SECTOR_SIZE,
+  pool::{AlignedBuf, BufferPool},
+};
 use wdev::SegmentedDevice;
 
 /// 测试夹具：封装临时目录与 WalLog 实例
@@ -27,7 +30,11 @@ impl WalFixture {
   pub fn segmented(file_name: &str, seg_size: u64, buf_size: usize) -> Result<Self> {
     let dir = tempdir()?;
     let db_path = dir.path().join(file_name);
-    let device = Arc::new(SegmentedDevice::segmented(&db_path, seg_size)?);
+    let device = Arc::new(SegmentedDevice::new(
+      &db_path,
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?);
     let config = WalConfig::new(buf_size);
     let wal = Arc::new(WalLog::new(device, config)?);
     Ok(Self { dir, wal })
@@ -42,7 +49,11 @@ pub async fn reopen_segmented(
   buf_size: usize,
 ) -> Result<WalLog<SegmentedDevice>> {
   let db_path = dir.join(file_name);
-  let device = Arc::new(SegmentedDevice::segmented(&db_path, seg_size)?);
+  let device = Arc::new(SegmentedDevice::new(
+    &db_path,
+    Some(seg_size),
+    DEFAULT_SECTOR_SIZE,
+  )?);
   let config = WalConfig::new(buf_size);
   let wal = WalLog::open(device, config).await?;
   Ok(wal)

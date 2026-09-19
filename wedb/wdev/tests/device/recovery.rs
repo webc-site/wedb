@@ -17,7 +17,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wbase::{base32::encode_u64, pool::AlignedBuf};
+use wbase::{align::DEFAULT_SECTOR_SIZE, base32::encode_u64, pool::AlignedBuf};
 use wdev::{Device, Error, SegmentedDevice};
 
 use crate::support::make_pattern_data;
@@ -35,7 +35,7 @@ fn recovery_matching_segment_size_succeeds() -> Void {
 
     // 第一次打开：连续写入段 0..3
     {
-      let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+      let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
       for seg_id in 0..3u32 {
         let buf = if seg_id == 2 {
           AlignedBuf::from_slice(&pattern[..], 4096)?
@@ -50,7 +50,7 @@ fn recovery_matching_segment_size_succeeds() -> Void {
 
     // 同段尺寸重开并恢复：start/end 段号还原，数据完好
     {
-      let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+      let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
       device.recover()?;
       assert_eq!(
         device.start_segment(),
@@ -90,14 +90,14 @@ fn recovery_larger_existing_segment_detects_mismatch() -> Void {
 
     // 以 256KiB 段尺寸写满段 0，使段文件超过新配置的 64KiB
     {
-      let device = SegmentedDevice::segmented(&db_path, big_seg)?;
+      let device = SegmentedDevice::new(&db_path, Some(big_seg), DEFAULT_SECTOR_SIZE)?;
       let buf = AlignedBuf::from_slice(&[0x5Au8; 256 * 1024], 4096)?;
       let (res, _) = device.write_aligned(0, buf).await;
       assert_eq!(res?, 256 * 1024);
     }
 
     // 以 64KiB 段尺寸重开：恢复校验必须拒绝
-    let device = SegmentedDevice::segmented(&db_path, small_seg)?;
+    let device = SegmentedDevice::new(&db_path, Some(small_seg), DEFAULT_SECTOR_SIZE)?;
     let recovered = device.recover();
     assert!(
       matches!(
@@ -131,14 +131,14 @@ fn recovery_smaller_existing_segment_succeeds() -> Void {
 
     // 以 64KiB 段尺寸写入 4KB
     {
-      let device = SegmentedDevice::segmented(&db_path, small_seg)?;
+      let device = SegmentedDevice::new(&db_path, Some(small_seg), DEFAULT_SECTOR_SIZE)?;
       let buf = AlignedBuf::from_slice(&[0x3Cu8; 4096], 4096)?;
       let (res, _) = device.write_aligned(0, buf).await;
       assert_eq!(res?, 4096);
     }
 
     // 以 256KiB 段尺寸重开：小文件放行且 end_segment 恢复
-    let device = SegmentedDevice::segmented(&db_path, big_seg)?;
+    let device = SegmentedDevice::new(&db_path, Some(big_seg), DEFAULT_SECTOR_SIZE)?;
     assert!(
       device.recover().is_ok(),
       "较小段文件应被放行 (SmallerExistingSegment)"
@@ -164,14 +164,14 @@ fn recover_files_restores_segment_range_after_gap() -> Void {
 
     // 写入段 0..3 后，模拟历史截断：重启前物理删除段 0、1
     {
-      let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+      let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
       for seg_id in 0..3u32 {
         let buf = AlignedBuf::from_slice(&[0xA5u8; 4096], 4096)?;
         let (res, _) = device.write_aligned((seg_id as u64) * seg_size, buf).await;
         assert_eq!(res?, 4096);
       }
     }
-    let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+    let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
     remove_file(device.segment_path(0))?;
     remove_file(device.segment_path(1))?;
 
@@ -225,7 +225,7 @@ fn segment_names_fixed_width_base32_sort_numerically() -> Void {
 
     // 写入段 0..=12（各段独立模式），并放置符号前缀杂散文件 `.+7`
     {
-      let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+      let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
       for seg_id in 0..=12u32 {
         let pattern = ((seg_id * 13 + 5) & 0xFF) as u8;
         let buf = AlignedBuf::from_slice(&vec![pattern; 4096], 4096)?;
@@ -259,7 +259,7 @@ fn segment_names_fixed_width_base32_sort_numerically() -> Void {
       "定长 Base32 段名按字典序排序必须与段号数值序完全一致"
     );
 
-    let device = SegmentedDevice::segmented(&db_path, seg_size)?;
+    let device = SegmentedDevice::new(&db_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
     // 模拟历史截断：物理删除段 0..=9（保留 10、11、12）
     for seg_id in 0..=9u32 {
       remove_file(device.segment_path(seg_id))?;
