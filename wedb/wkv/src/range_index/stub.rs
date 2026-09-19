@@ -123,11 +123,19 @@ impl<D: Device> StoreSession<D> {
   /// 排序后集中命中相邻页，杜绝逐条 insert 的 N 次借用与页缓存抖动 (65536+ 条目
   /// 升阶与分层重灌路径同源，重灌经 obj_writeback_tiered → apply_rmw_post_operate
   /// 汇入本函数)。meta.size 由内核返回的去重条数一次性回写 (单次元数据落盘)。
+  ///
+  /// `next_expiry` 为灌入批的最早成员到期刻度（调用方单点算好传入：升阶/重灌臂
+  /// 经 wnode [`earliest_expiry`](wnode::resp::objects::tiered_collection_ops) /
+  /// 分层到期重灌臂经扫描期已重算的水位；`i64::MAX` = 无成员挂 TTL）。重灌是
+  /// 换树不换内容，水位若在重建时归 MAX，成员级 TTL 计数校正（HLEN/ZCARD 的
+  /// `now < next_expiry` 快路径）与周期收集任务会被「无 TTL」假水位骗过，已
+  /// 到期成员永不出账、计数虚高——故水位必须随灌入批在同一元记录落盘内前移。
   pub async fn promote_collection_to_bftree(
     &self,
     key: &[u8],
     obj_type: GarnetObjectType,
     entries: Vec<(Vec<u8>, Vec<u8>)>,
+    next_expiry: i64,
   ) -> Result<()> {
     // 升阶建树调参：min_record_size 取引擎硬下限 2 (集合条目常短于 RI.CREATE
     // 的 64B 引擎记录下限，详见 TreeTuning::DEFAULT_RI_COLLECTION 注释)
@@ -182,7 +190,7 @@ impl<D: Device> StoreSession<D> {
     let stub = RangeIndexStub::from_tuning(tree.native_ptr(), &tuning, StorageBackendType::Disk);
     let meta_k = self.session_meta_key(key);
     let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-    let meta = MetaValue::new(key_id, obj_type, count);
+    let meta = MetaValue::new_with_expiry(key_id, obj_type, count, next_expiry);
     let env_k = self.session_tag_key(KeyTag::ObjectEnvelope, key);
 
     // 数据通道事件先行于 meta 落盘：sink 同步读取快照文件分块灌入 AOF，副本据

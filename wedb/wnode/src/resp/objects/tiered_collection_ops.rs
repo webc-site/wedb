@@ -4,15 +4,17 @@
 //! 自动就地升阶转换为基于 wbftree 的独立页级持久化树，基于 B+ 树页级冷热置换
 //! 实现千万级海量存储，彻底消除全量反序列化读放大。
 //!
-//! 写形不变量「树内墓碑恒低」：本模块**没有**按成员往树里逐条落删除记录的命令臂。
-//! 删除重的写命令（HDEL / SREM / SPOP / ZREM / LPOP / RPOP）与 ZPOPMIN、
-//! ZREMRANGE* 等族内其余未支持操作同径，一律穿透至 `rmw_helpers::run_async_rmw`
-//! 的物化降级通道 → wcol 对象层单源求值 → `apply_rmw_post_operate` 整值写回
-//! （删空即整键消亡，否则 `promote_collection_to_bftree` 的 `bulk_load` 重建，
-//! 零墓碑）。该形与 C# 一致：C# 集合对象整值常驻对象域、删即就地改内存对象、
-//! 删空即整键消亡（garnet/libs/server/Storage/Functions/ObjectStore/
-//! RMWMethods.cs:188-215 `PostCopyUpdater` → `value.Operate` → `HasRemoveKey`），
-//! 既无按成员分记录的树、也就无墓碑连跑。
+//! 写形不变量「树内零墓碑」：本模块**没有**任何按成员往树里落删除记录的写臂
+//! （旧 `tree_del` / `tree_del_batch` 漏斗已随成员级 TTL 面收口删净）。删除重的
+//! 写命令（HDEL / SREM / SPOP / ZREM / LPOP / RPOP）与成员级 TTL 面
+//! （HEXPIRE / HTTL / HPERSIST / ZEXPIRE / ZTTL / ZPERSIST 族）一律穿透至
+//! `rmw_helpers::run_async_rmw` 的物化降级通道 → wcol 对象层单源求值 →
+//! `apply_rmw_post_operate` 整值写回（删空即整键消亡，否则
+//! `promote_collection_to_bftree` 的 `bulk_load` 重建，零墓碑）。该形与 C#
+//! 一致：C# 集合对象整值常驻对象域、删即就地改内存对象、删空即整键消亡
+//!（garnet/libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:188-215
+//! `PostCopyUpdater` → `value.Operate` → `HasRemoveKey`），既无按成员分记录的
+//! 树、也就无墓碑连跑。
 //!
 //! 本不变量是硬要求而非优化：底层 bf-tree 的 `ScanIter::next` 对墓碑记录是
 //! **尾递归自调**（rustc 无 TCO），跳过一条墓碑压一帧（实测 ≈680B/帧），且墓碑
@@ -20,39 +22,30 @@
 //! 单次 `next()` 内跳完，COUNT / 上界键 / 早停回调一概截不断，8MiB 默认栈的安全
 //! 边 ≈ 连续墓碑 8000 条。故任何一次扫描面调用（分层 HSCAN/SSCAN/ZSCAN 的
 //! [`exec_tiered_scan`]、push 双臂用的 [`list_head_seq`]、后台降阶物化轮
-//! [`tiered_materialize_blob`]）的栈深度都只由「树内最长墓碑连跑」决定，与本臂
-//! count 无关（实测与机理全档：task/reject/tiered-zset-demote-stack.md，判据与
-//! 落地次序：task/ing/tiered-zset-demote-bf-tree-recursion-stack-overflow.md）。
-//! 原第三处客户端同险面「`tiered_list_arm` 的 LPOP/RPOP 有界取臂」已随本不变量
-//! 一并消失（弹出臂删除，见 [`tiered_list_arm`] 末穿透注释）。
-//! 残余墓碑来源仅剩成员级 TTL 物理出账一处（批量出账 [`collect_expired_members`]
-//! 与逐成员出账 `member_expire_arm` / `member_ttl_probe` / `member_persist_arm`，
-//! 后者由 HEXPIRE / HTTL / HPERSIST 族按成员下压）：该族是分层态自有形态（C# 侧
-//! 成员级到期是常驻内存的 expiration 字典、出账零 I/O），无对应重灌写形可依，
-//! 且批量出账的宿主是 HLEN / ZCARD 的 O(1) 计数直读臂——实测该面**仍可**留长连
-//! 跑并在默认栈下溢出（复现与处置选项见 [`collect_expired_members`] 文档），是否
-//! 连它一并收敛到重灌面（代价：计数臂在到期水位命中那次由 O(1) 变 O(N)）属主代
-//! 理裁决项，不在本票内自行加阈值常量或栈大小掩盖。
+//! [`tiered_materialize_blob`]）的栈深度都不由树内墓碑决定——树内根本没有墓碑
+//!（机理锚点：wbftree `ScanIter::next` 墓碑尾递归自调与紧上界键不截断遍历的
+//! 实测档案，见 `list_head_seq` 文注；裁决 B 收口命令级删除、本票收口成员级
+//! TTL 残余源，两层收口后树内删除记录恒零）。
+//!
+//! 成员级 TTL 的惰性出账面（计数校正臂 HLEN / ZCARD、输出面校正臂 HGETALL /
+//! HKEYS / HVALS、显式 HCOLLECT / ZCOLLECT 与周期对象收集任务）不穿透物化
+//!（HLEN 的 O(1) 计数规约要求树内就地闭环，见 doc/zh/collection.md 大键
+//! O(1) 计数规约第 3 条），而走本模块的到期重灌内核 [`expire_sweep_or_rebuild`]：
+//! 水位命中时锁内单趟扫描收集存活全集，放守卫后整值重灌（drain + bulk_load，
+//! 与裁决 B 同一重建原语），树内同样零墓碑；水位未命中零树访问、直读恒精确。
 
 use core::str;
 use std::{str::from_utf8, sync::Arc};
 
 use itoa::Buffer as ItoaBuffer;
 use wbase::{
-  convert::{
-    milliseconds_from_diff_ticks, seconds_from_diff_ticks, unix_time_in_milliseconds_from_ticks,
-    unix_time_in_seconds_from_ticks,
-  },
   num::{strict_f64, strict_i32, strict_i64},
   time::now_ticks,
 };
-use wbftree::{
-  BfTreeDeleteResult, BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexStub,
-  ScanReturnField,
-};
+use wbftree::{BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexStub, ScanReturnField};
 use wcol::{
   SET_MEMBER_DUMMY_VALUE,
-  hash::hash_object::{HashExpireResult, HashOperation},
+  hash::hash_object::HashOperation,
   list::list_object::ListOperation,
   set::set_object::SetOperation,
   types::{
@@ -66,7 +59,6 @@ use wkv::{BatchStoreSession, RangeIndexError, StoreSession, TreeGuard, validate_
 use wresp::{
   cmd_strings as cs,
   ext::RespVecExt,
-  options::{ExpirationWithOption, ExpireOption},
   resp_memory_writer::format_double,
 };
 use wval::{GarnetObjectType, MetaValue};
@@ -74,10 +66,11 @@ use zmij::Buffer as ZmijBuffer;
 
 /// 分层态操作上下文（元记录 + 树存根的可变借用束 + 变更脏标记）
 ///
-/// `dirty` 由本模块树内写漏斗 [`tree_put`] / [`tree_del`] 在实际写入成功时置位，
-/// 批量漏斗 [`tree_put_batch`] 的置脏交由调用臂按命令语义判定（覆盖写与重复
-/// 成员在「新增计数」上分叉，见其文档），是分层写臂 WATCH 版本栅栏推进的唯一
-/// 判据（一处定义，见 [`finish_tiered_arm`]）
+/// `dirty` 由本模块树内写漏斗 [`tree_put`] 在实际写入成功时置位、批量漏斗
+/// [`tree_put_batch`] 的置脏交由调用臂按命令语义判定（覆盖写与重复成员在
+/// 「新增计数」上分叉，见其文档）、到期重灌内核 [`expire_sweep_or_rebuild`]
+/// 在实际出账时置位，是分层写臂 WATCH 版本栅栏推进的唯一判据（一处定义，
+/// 见 [`finish_tiered_arm`]）
 pub(crate) struct TieredCtx<'a> {
   pub meta: &'a mut MetaValue,
   pub stub: &'a mut RangeIndexStub,
@@ -186,14 +179,6 @@ fn tree_put_rejected(output: &mut Vec<u8>) {
   );
 }
 
-/// 分层树内删除漏斗（置脏的唯一入口之二）：仅实际删除成功才标脏
-#[inline]
-fn tree_del(ctx: &mut TieredCtx<'_>, tree: &BfTreeService, member: &[u8]) -> BfTreeDeleteResult {
-  let res = tree.delete(member);
-  ctx.dirty |= res == BfTreeDeleteResult::Success;
-  res
-}
-
 /// 分层树内批量写入漏斗：编码整批经排序批量 upsert 内核一次下刷
 /// （栈上排序集中命中叶页，消除逐条 N 次引擎借用），返回真实新增键数——
 /// 到期旧记录在树即不计新增，与逐条前探 `tree_member_state` 等价的
@@ -224,21 +209,6 @@ fn tree_put_batch(
   tree.upsert(&recs)
 }
 
-/// 分层树内批量删除漏斗（置脏）：单次排序批量删除内核（前查 + 删，单次引擎
-/// 借用），返回真实删除数——「删成功才计数」的结果驱动判据（同批重复键去重
-/// 只删一次不重复计数，到期旧记录在树亦被删亦计，与逐条前探口径一致）
-///
-/// **唯一消费方是成员级 TTL 物理出账**（[`collect_expired_members`]）：命令级
-/// 删除（HDEL/SREM/SPOP/ZREM/LPOP/RPOP）已无树内逐成员删除臂，一律走整值重灌
-/// （见本模块头注「墓碑恒低」）。本漏斗留下的墓碑即全模块残余项，其规模上限
-/// 与出账批的键序连跑长度同阶，权衡与实测边界见 collect_expired_members 文档
-#[inline]
-fn tree_del_batch(ctx: &mut TieredCtx<'_>, tree: &BfTreeService, members: &[&[u8]]) -> u64 {
-  let deleted = tree.bulk_delete(members);
-  ctx.dirty |= deleted > 0;
-  deleted
-}
-
 /// 树内成员点查状态：`None` = 记录不在树；`Some((到期刻度, 已到期))` = 在树
 #[inline]
 fn tree_member_state(tree: &BfTreeService, member: &[u8], now: i64) -> Option<(Option<i64>, bool)> {
@@ -255,198 +225,134 @@ fn tree_member_state(tree: &BfTreeService, member: &[u8], now: i64) -> Option<(O
   state
 }
 
-/// 读成员记录解码载荷（堆拷贝；HEXPIRE/HPERSIST 原值保持重写所需）
-fn tree_payload(tree: &BfTreeService, member: &[u8]) -> Option<Vec<u8>> {
-  let mut out = None;
-  tree.read_callback(member, |res, raw| {
-    if res == BfTreeReadResult::Found {
-      out = Some(decode_member(raw).1.to_vec());
-      true
-    } else {
-      false
-    }
-  });
-  out
+/// 升阶 / 重灌条目集的最早成员到期水位单点（条目为树内记录形态，经
+/// [`wcol::types::member_ttl`] 单点 codec 解码；无挂 TTL 成员回 `i64::MAX`）。
+/// 唯一调用方是 [`promote_collection_to_bftree`](wkv) 的水位入参（重灌换树
+/// 不换内容，水位必须随灌入批在同一元记录落盘内前移，杜绝「重灌后假水位
+/// MAX 骗过计数校正与周期收集」的正确性缺口）
+pub(crate) fn earliest_expiry(entries: &[(Vec<u8>, Vec<u8>)]) -> i64 {
+  entries
+    .iter()
+    .filter_map(|(_, record)| decode_member(record).0)
+    .min()
+    .unwrap_or(i64::MAX)
 }
 
-/// HEXPIRE/ZEXPIRE 族共享内核（hash·zset 两臂同型循环体一处定义）：
-/// 到期成员视同不存在并物理出账（-2，C# hash_expire 入口先
-/// DeleteExpiredItems）、NX/XX/GT/LT 闸门拒 0（libs/server/Objects/Hash/
-/// HashObject.cs:SetExpiration）、过去时刻物理出账回 2、原值保持挂新刻度
-/// 推进水位回 1。返回 (结果码, 是否发生树/meta 变更)
-fn member_expire_arm(
-  ctx: &mut TieredCtx<'_>,
-  tree: &BfTreeService,
-  member: &[u8],
-  ticks: i64,
-  option: ExpireOption,
-  now: i64,
-) -> (i32, bool) {
-  match tree_member_state(tree, member, now) {
-    Some((_, true)) => {
-      // 结果驱动出账：删除成功才扣减（写锁内成员确认在树，恒成功；防御口径
-      // 仍取真实结果，杜绝计数虚减固化）
-      if tree_del(ctx, tree, member) == BfTreeDeleteResult::Success {
-        ctx.meta.dec_size(1);
-      }
-      (HashExpireResult::KeyNotFound as i32, true)
-    }
-    Some((current, false)) => {
-      let denied = match current {
-        Some(cur) => {
-          option.contains(ExpireOption::NX)
-            || (option.contains(ExpireOption::GT) && ticks <= cur)
-            || (option.contains(ExpireOption::LT) && ticks >= cur)
-        }
-        None => option.contains(ExpireOption::XX) || option.contains(ExpireOption::GT),
-      };
-      if denied {
-        (HashExpireResult::ExpireConditionNotMet as i32, false)
-      } else if ticks <= now {
-        // 过去时刻物理出账：结果驱动扣减（同到期臂口径）
-        if tree_del(ctx, tree, member) == BfTreeDeleteResult::Success {
-          ctx.meta.dec_size(1);
-        }
-        (HashExpireResult::KeyAlreadyExpired as i32, true)
-      } else {
-        // 重写须有原值：读不到（记录已消失的异常态）即放弃重写回 KeyNotFound
-        // 口径，禁 unwrap_or_default 以空载荷复活幽灵成员（size 不补记）
-        let Some(payload) = tree_payload(tree, member) else {
-          return (HashExpireResult::KeyNotFound as i32, false);
-        };
-        let _ = tree_put(ctx, tree, member, &payload, Some(ticks));
-        ctx.meta.note_expiry(ticks);
-        (HashExpireResult::ExpireUpdated as i32, true)
-      }
-    }
-    None => (HashExpireResult::KeyNotFound as i32, false),
-  }
-}
-
-/// HTTL/ZTTL 族共享内核：-2 不存在/已到期（到期物理出账）、-1 无 TTL、
-/// 正值为原始到期刻度（单位换算由调用方处理）。返回 (刻度, 是否出账)
-fn member_ttl_probe(
-  ctx: &mut TieredCtx<'_>,
-  tree: &BfTreeService,
-  member: &[u8],
-  now: i64,
-) -> (i64, bool) {
-  match tree_member_state(tree, member, now) {
-    Some((expiry, false)) => (expiry.unwrap_or(-1), false),
-    Some((Some(_), true)) => {
-      // 结果驱动出账：删除成功才扣减
-      if tree_del(ctx, tree, member) == BfTreeDeleteResult::Success {
-        ctx.meta.dec_size(1);
-      }
-      (-2, true)
-    }
-    _ => (-2, false),
-  }
-}
-
-/// HTTL/ZTTL 族到期刻度 → 应答单位换算单点（秒/毫秒 × 相对/绝对时间戳，
-/// 对标 C# HashTimeToLive 的四分支 Utf8 换算）
-fn expiry_tick_to_reply(ticks: i64, is_milliseconds: bool, is_timestamp: bool, now: i64) -> i64 {
-  if is_timestamp {
-    if is_milliseconds {
-      unix_time_in_milliseconds_from_ticks(ticks)
-    } else {
-      unix_time_in_seconds_from_ticks(ticks)
-    }
-  } else if is_milliseconds {
-    milliseconds_from_diff_ticks(ticks, now)
-  } else {
-    seconds_from_diff_ticks(ticks, now)
-  }
-}
-
-/// HPERSIST/ZPERSIST 族共享内核：-2 不存在/已到期（到期物理出账）、
-/// -1 无 TTL、1 已移除（重写裸载荷形态）。返回 (结果码, 是否变更)
-fn member_persist_arm(
-  ctx: &mut TieredCtx<'_>,
-  tree: &BfTreeService,
-  member: &[u8],
-  now: i64,
-) -> (i32, bool) {
-  match tree_member_state(tree, member, now) {
-    Some((Some(_), false)) => {
-      // 重写须有原值：读不到（记录已消失的异常态）即放弃重写回 KeyNotFound
-      // 口径，禁 unwrap_or_default 以空载荷复活幽灵成员（零计数零变更）
-      let Some(payload) = tree_payload(tree, member) else {
-        return (HashExpireResult::KeyNotFound as i32, false);
-      };
-      let _ = tree_put(ctx, tree, member, &payload, None);
-      (HashExpireResult::ExpireUpdated as i32, true)
-    }
-    Some((Some(_), true)) => {
-      // 结果驱动出账：删除成功才扣减
-      if tree_del(ctx, tree, member) == BfTreeDeleteResult::Success {
-        ctx.meta.dec_size(1);
-      }
-      (HashExpireResult::KeyNotFound as i32, true)
-    }
-    _ => (HashExpireResult::KeyNotFound as i32, false),
-  }
-}
-
-/// 分层树字段级到期收集唯一内核（计数校正臂 / 周期对象收集任务 / 显式
-/// HCOLLECT·ZCOLLECT 分层臂共用，杜绝第二套收集逻辑）
+/// 分层树字段级到期单趟扫描内核（唯一，计数校正臂 / 输出面校正臂 / 显式
+/// HCOLLECT·ZCOLLECT / 周期对象收集任务共用，杜绝第二套收集逻辑）
 ///
 /// 水位快路径：`now < meta.next_expiry` 时树内不存在已到期成员，零树访问
-/// 零写闭环（`Ok(false)`）。水位命中才全扫一遍：确认并物理删除全部已到期
-/// 成员（对齐 C# 对象层读路径 `DeleteExpiredItems`：libs/server/Objects/Hash/
-/// HashObjectImpl.cs 各操作入口先清后算），重算最早到期水位并按删除数扣减
-/// `meta.size`（O(1) 计数抵扣的单点落账），meta 回写与 WATCH 推进由调用方
-/// 统一收尾。返回是否有树/meta 变更。
+/// 直回 `None`（`Ok(false)` 等价口径）。水位命中才全扫一遍：收集**存活全集**
+///（树内原始记录形态，含未到期 TTL 头——既是输出面数据源，也是整值重灌的
+/// 灌入批）并计数到期成员，重算最早到期水位写回 `ctx.meta.next_expiry`。
 ///
-/// 记账口径：树内「已到期未删除」成员由 `size` 承载、经本内核一次性出账——
-/// 无成员级确认态标量（member 级状态无法无损汇入单一标量，刻意不设），两态
-/// 计数等价由「读臂过滤 + 计数臂校正 + 周期收集兜底」三层闭环保证。
-///
-/// 残余项（唯一仍留树墓碑的写形）：本内核经 [`tree_del_batch`] 逐成员落墓碑，
-/// 故出账批在键序上的连跑长度即后续扫描面的栈深度上界（≈680B/帧，8MiB 默认栈
-/// 实测安全边 ≈8000 条，见 task/reject/tiered-zset-demote-stack.md 一.表）。
-/// 同型的逐成员出账（`member_expire_arm` 等，HEXPIRE / ZEXPIRE 族）实测确可触发
-/// 溢出：66000 成员分层 zset 上 `ZEXPIREAT key 100 MEMBERS 56000 m0..m55999`
-/// （过去时刻 → 逐成员物理出账）后一条 `ZSCAN key 0 COUNT 10` 在默认 8MiB 主线程
-/// 栈 SIGABRT「has overflowed its stack」，本票改动前后同形（属既有残余，非本票
-/// 引入），而命令级删除同形态（ZREM 前缀 56000）改动后已不炸。
-/// 不并入整值重灌面的理由：消费方含 HLEN / ZCARD 等 O(1) 计数直读臂与周期收集
-/// 任务（doc/zh/collection.md 大键 O(1) 计数规约第 3 条），重灌要求整对象物化
-/// 与建树，令「水位已过期」后的首次计数从 O(1) 变 O(N)；且成员级 TTL 是分层态
-/// 自有形态（C# HashObject 的 expiration 字典常驻内存、出账零 I/O），无对应
-/// C# 写形可依。可选收敛形（待主代理裁决，本票未自行落）：本内核既已为出账付过
-/// 一次整树扫描，出账后随同一次 bulk_load 重建（既有 `promote_collection_to_bftree`
-/// 面，渐近同阶 O(N)）即可令残余项归零；逐成员臂则须整族改走重灌，代价另计。
-/// 本票不加阈值常量掩盖
-pub(crate) fn collect_expired_members(ctx: &mut TieredCtx<'_>, tree: &BfTreeService) -> bool {
+/// 记账口径：树内「已到期未删除」成员由 `size` 承载、由调用方经
+/// [`expire_sweep_or_rebuild`] 一次性出账——无成员级确认态标量（member 级
+/// 状态无法无损汇入单一标量，刻意不设），两态计数等价由「读臂过滤 + 计数臂
+/// 校正 + 周期收集兜底」三层闭环保证。
+fn sweep_expired_members(
+  ctx: &mut TieredCtx<'_>,
+  tree: &BfTreeService,
+) -> Option<(Vec<(Vec<u8>, Vec<u8>)>, u64)> {
   let now = now_ticks();
   if now < ctx.meta.next_expiry {
-    return false;
+    return None;
   }
-  let mut expired_keys: Vec<Vec<u8>> = Vec::new();
+  let mut live: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+  let mut expired = 0u64;
   let mut next_expiry = i64::MAX;
   let _ =
     tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::KeyAndValue, |k, v| {
       match decode_member(v).0 {
-        Some(ticks) if ticks < now => expired_keys.push(k.to_vec()),
-        Some(ticks) => next_expiry = next_expiry.min(ticks),
-        None => {}
+        // 到期成员不入存活集（对齐 C# 对象层读路径 DeleteExpiredItems 的
+        // 「先清后算」口径，出账经重灌完成，树内零墓碑）
+        Some(ticks) if ticks < now => expired += 1,
+        Some(ticks) => {
+          next_expiry = next_expiry.min(ticks);
+          live.push((k.to_vec(), v.to_vec()));
+        }
+        None => live.push((k.to_vec(), v.to_vec())),
       }
       true
     });
-  // 结果驱动出账：批量删除内核前查 + 删，按真实删除数扣减（写锁内扫描确认集
-  // 与真实删除恒等，防御口径仍取真实值；置脏经 tree_del_batch 漏斗单点）
-  let removed = {
-    let keys: Vec<&[u8]> = expired_keys.iter().map(|k| k.as_slice()).collect();
-    tree_del_batch(ctx, tree, &keys)
-  };
-  let moved = ctx.meta.next_expiry != next_expiry;
   ctx.meta.next_expiry = next_expiry;
-  if removed > 0 {
-    ctx.meta.dec_size(removed);
+  Some((live, expired))
+}
+
+/// 到期重灌执行结果：水位命中后守卫与存活全集的去向
+enum SweepOutcome<'a> {
+  /// 水位未命中：零树访问，树守卫原样奉还（调用方走流式快路径直读）
+  Below(TreeGuard<'a>),
+  /// 水位命中：单趟全扫已完成，存活全集经 `drain_live` 闭包单次遍历交出
+  ///（输出面收集单点，免二次扫树）；`expired > 0` 时已整值重灌出账（守卫已
+  /// 释、计数已扣、置脏），`expired == 0` 时仅水位前移回写（树内容零变更）
+  Swept { expired: u64 },
+}
+
+/// 分层到期出账统一执行体（树内零墓碑的出账形态，替代旧的逐成员树内删除）：
+/// 单趟扫描 → `drain_live` 交出存活全集 → 有到期即**整值重灌**（放守卫 →
+/// drain 旧树 → bulk_load 重建），与命令级删除（HDEL/ZREM 等）走的
+/// `apply_rmw_post_operate` 同一重建原语。
+///
+/// `drain_live` 在重灌前对存活全集恰好一次只读遍历（计数臂传 `|_| {}` 即弃，
+/// 输出面臂在此收集应答数据——重灌会 move 走全集且旧树随之销毁，闭包是输出
+/// 面读取存活数据的唯一窗口），零克隆零二次扫树。
+///
+/// 出账代价（读放大与锁窗口，与旧「批量树内删除」形对比）：水位命中那次由
+/// O(1) 变 O(N)——锁内单趟全扫收集存活集，放锁后 O(N_live) 重灌写；水位未
+/// 命中恒零树访问。旧形锁内扫 O(N) + 批量删 O(E)（E = 到期数），新形重灌
+/// 恒 O(N_live)——出账批接近全集（如整树同时到期）时两形同阶，零星到期时
+/// 新形贵出存活集写放大，这是换取「树内墓碑恒零 ⇒ 扫描栈深度自变量消失」
+/// 的既定裁决代价（见模块头注）。
+///
+/// 删空自愈（严格删空生命周期）：存活全集为空 → `keep_ttl=false` 随键清 TTL
+/// 整键回收（对齐 [`wkv handle_bftree_drain_and_delete`] 删键臂）；非空重灌
+/// 键全程存活，`keep_ttl=true` 只墓碑元记录不碰 TTL 旁路。`drop` 顺序固定：
+/// 重灌前必先放树守卫（写臂持条带独占写锁，drain 侧自取同键条带写锁，守卫
+/// 未放即互锁）。重灌后 `ctx.meta` / `ctx.stub` 为旧树副本（promote 已落新
+/// 元记录），调用方不得再 `save_bftree_meta_stub` 覆写，仅可应答内存态 size
+///（`dec_size` 后与 promote 落盘的 bulk_load 去重计数一致）
+async fn expire_sweep_or_rebuild<'s, D: Device>(
+  session: &'s BatchStoreSession<'_, D>,
+  key: &[u8],
+  ctx: &mut TieredCtx<'_>,
+  tree_guard: TreeGuard<'s>,
+  drain_live: impl FnOnce(&[(Vec<u8>, Vec<u8>)]),
+) -> Result<SweepOutcome<'s>, ()> {
+  let Some((live, expired)) = sweep_expired_members(ctx, tree_guard.tree()) else {
+    return Ok(SweepOutcome::Below(tree_guard));
+  };
+  let tag = ctx.meta.collection_type;
+  if expired > 0 {
+    drain_live(&live);
+    ctx.meta.dec_size(expired);
+    ctx.dirty = true;
+    drop(tree_guard);
+    if live.is_empty() {
+      // 删空臂键消亡：keep_ttl=false 随键清 TTL，杜绝幽灵空元记录与孤儿 TTL
+      session
+        .handle_bftree_drain_and_delete(key, false)
+        .await
+        .map_err(|_| ())?;
+    } else {
+      // 整值重灌：键存活 keep_ttl=true，水位用扫描期已重算的 ctx.meta.next_expiry
+      session
+        .handle_bftree_drain_and_delete(key, true)
+        .await
+        .map_err(|_| ())?;
+      session
+        .promote_collection_to_bftree(key, tag, live, ctx.meta.next_expiry)
+        .await
+        .map_err(|_| ())?;
+    }
+    return Ok(SweepOutcome::Swept { expired });
   }
-  removed > 0 || moved
+  // 零到期水位前移：仅元记录回写（守卫持有窗口内完成，互斥覆盖装载→回写）
+  session
+    .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
+    .await
+    .map_err(|_| ())?;
+  Ok(SweepOutcome::Swept { expired: 0 })
 }
 
 /// 分层写臂 WATCH 版本栅栏统一收尾（一处定义，覆盖四个命令臂的全部返回出口）：
@@ -464,11 +370,11 @@ pub(crate) fn collect_expired_members(ctx: &mut TieredCtx<'_>, tree: &BfTreeServ
 /// 零推进的三类出口与 C# 同口径：
 /// - 读臂与被拒臂（HSETNX 命中已存在 / ZADD NX·GT·LT 不落 / SRANDMEMBER 空表）
 ///   未走写漏斗，dirty 恒假——对齐 C# 纯读走 Read 面不 IncrementVersion；
-/// - `Ok(false)` 穿透臂按构造不触碰树（本模块置脏入口只有 [`tree_put`] /
-///   [`tree_del`] / [`tree_del_batch`] 与批量 upsert 臂的显式判定，均在闭环
-///   应答前），删除重命令（HDEL/SREM/SPOP/ZREM/LPOP/RPOP）全经此穿透，其推进由
-///   run_async_rmw 物化降级臂经 apply_rmw_post_operate 单点承接，两条路径互斥
-///   无双计；
+/// - `Ok(false)` 穿透臂按构造不触碰树（本模块置脏入口只有 [`tree_put`] 与
+///   批量 upsert 臂的显式判定，均在闭环应答前），删除重命令（HDEL/SREM/SPOP/
+///   ZREM/LPOP/RPOP）与成员级 TTL 面（HEXPIRE/HTTL/HPERSIST/ZEXPIRE/ZTTL/
+///   ZPERSIST 族）全经此穿透，其推进由 run_async_rmw 物化降级臂经
+///   apply_rmw_post_operate 单点承接，两条路径互斥无双计；
 /// - 页级存根治愈（RIPROMOTE / RIRESTORE 只改瞬态树句柄与 Flushed / Recovered
 ///   位，零逻辑内容变更）刻意不推进——C# 原位臂同判据（MainStore/RMWMethods.cs
 ///   :949 RIPROMOTE、:954 RIRESTORE 均返回 IPUResult.NotUpdated，而 :427 推进
@@ -490,38 +396,6 @@ fn finish_tiered_arm<D: Device>(
     session.bump_watch_version(key);
   }
   handled
-}
-
-/// 分层树删减后统一收尾（严格删空生命周期单点）：条目计数减至 0 → 先释放
-/// 树守卫再 drain 整键回收（含随键 TTL 清理，杜绝幽灵空元记录与孤儿 TTL）；
-/// 否则元记录 + 存根回写
-///
-/// `drop` 顺序在函数体内固定：删空臂必须先放树守卫再 drain（写臂持条带独占
-/// 写锁，drain 侧 lifecycle 的 delete_index 自取同键条带写锁，守卫未放即互锁）。
-/// 命令级删除族已无本 helper 的消费方（HDEL/SREM/SPOP/ZREM/LPOP/RPOP 全走整值
-/// 重灌面，见本模块头注「墓碑恒低」），现仅成员级 TTL 物理出账的收集臂
-/// （[`exec_tiered_collect`]）经此收口，不得手抄 if/else 双收尾；非删空分支的
-/// meta 回写在守卫仍持有时执行，互斥窗口完整覆盖「装载 → 树写 → 计数 → 回写」
-async fn drain_or_save<D: Device>(
-  session: &BatchStoreSession<'_, D>,
-  key: &[u8],
-  ctx: &mut TieredCtx<'_>,
-  tree_guard: TreeGuard<'_>,
-) -> Result<(), ()> {
-  if ctx.meta.size == 0 {
-    drop(tree_guard);
-    // 删空臂键消亡：keep_ttl=false 随键清 TTL，杜绝幽灵空元记录与孤儿 TTL
-    session
-      .handle_bftree_drain_and_delete(key, false)
-      .await
-      .map_err(|_| ())?;
-  } else {
-    session
-      .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-      .await
-      .map_err(|_| ())?;
-  }
-  Ok(())
 }
 
 /// 分层臂树守卫获取单点：写臂取条带独占写锁并锁内刷新元记录副本，读臂
@@ -564,9 +438,10 @@ async fn tiered_guard<'s, D: Device>(
   Ok(Some(guard))
 }
 
-/// 哈希族写面判定（一处定义）：多步写臂与含 collect_expired_members 校正面
-/// 的读命令（Hlen/Hgetall/Hkeys/Hvals 到期成员物理出账）均取独占写锁；
-/// 纯读臂（Hget/Hmget/Hexists/Hstrlen）与穿透臂（HDEL / HRANDFIELD 等）维持共享读锁
+/// 哈希族写面判定（一处定义）：多步写臂与含 [`expire_sweep_or_rebuild`] 校正面
+/// 的读命令（Hlen/Hgetall/Hkeys/Hvals 到期成员出账重灌）均取独占写锁；
+/// 纯读臂（Hget/Hmget/Hexists/Hstrlen）与穿透臂（HDEL / HEXPIRE / HTTL /
+/// HPERSIST / HRANDFIELD 等，经物化降级整值重灌）维持共享读锁
 fn hash_needs_write(op: HashOperation) -> bool {
   matches!(
     op,
@@ -575,9 +450,6 @@ fn hash_needs_write(op: HashOperation) -> bool {
       | HashOperation::Hsetnx
       | HashOperation::Hincrby
       | HashOperation::Hincrbyfloat
-      | HashOperation::Hexpire
-      | HashOperation::Httl
-      | HashOperation::Hpersist
       | HashOperation::Hlen
       | HashOperation::Hgetall
       | HashOperation::Hkeys
@@ -586,28 +458,26 @@ fn hash_needs_write(op: HashOperation) -> bool {
 }
 
 /// 集合族写面判定（一处定义）：SADD 写臂取独占写锁；SREM / SPOP 与 SRANDMEMBER、
-/// 纯读 / 穿透臂一律共享读锁（删除重族无树内臂，见本模块头注「墓碑恒低」）
+/// 纯读 / 穿透臂一律共享读锁（删除重族无树内臂，见本模块头注「树内零墓碑」）
 fn set_needs_write(op: SetOperation) -> bool {
   matches!(op, SetOperation::Sadd)
 }
 
-/// 有序集合族写面判定（一处定义）：Zcard 含 collect_expired_members 校正面
-/// 亦写；纯读（Zscore/Zmscore）、ZREM 与其余穿透臂维持共享读锁
+/// 有序集合族写面判定（一处定义）：Zcard 含 [`expire_sweep_or_rebuild`] 校正面
+/// 亦写；纯读（Zscore/Zmscore）、ZREM、ZEXPIRE / ZTTL / ZPERSIST 与其余穿透臂
+/// 维持共享读锁（经物化降级整值重灌）
 fn zset_needs_write(op: SortedSetOperation) -> bool {
   matches!(
     op,
     SortedSetOperation::Zadd
       | SortedSetOperation::Zincrby
-      | SortedSetOperation::Zexpire
-      | SortedSetOperation::Zttl
-      | SortedSetOperation::Zpersist
       | SortedSetOperation::Zcard
   )
 }
 
 /// 列表族写面判定（一处定义）：四 push 写臂取独占写锁（LPUSH 序号分配依赖锁内
 /// 刷新后的 meta.size，免装载快照错位）；LPOP / RPOP 无树内臂，与纯读、其余
-/// 穿透臂一律共享读锁（见本模块头注「墓碑恒低」）
+/// 穿透臂一律共享读锁（见本模块头注「树内零墓碑」）
 fn list_needs_write(op: ListOperation) -> bool {
   matches!(
     op,
@@ -637,7 +507,9 @@ async fn tiered_hash_arm<D: Device>(
 ) -> Result<bool, ()> {
   let TieredCollectionArgs {
     op,
-    args12,
+    // arg1/arg2 压缩字已无树内消费臂（HEXPIRE 族穿透物化降级，压缩字由
+    // run_async_rmw 的 run_op 闭包捕获透传对象层），显式弃绑防未用告警
+    args12: _,
     args,
     resp_protocol_version,
   } = call;
@@ -791,14 +663,9 @@ async fn tiered_hash_arm<D: Device>(
     }
 
     HashOperation::Hlen => {
-      // 计数校正（见 collect_expired_members）：水位命中即物理出账到期成员，
-      // 直读恒精确（collection.md 大键 O(1) 计数规约第 3 条）
-      if collect_expired_members(ctx, tree) {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
+      // 计数校正（见 expire_sweep_or_rebuild）：水位命中即整值重灌出账到期
+      // 成员（树内零墓碑），直读恒精确（collection.md 大键 O(1) 计数规约第 3 条）
+      let _ = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |_| {}).await?;
       output.write_resp_int(ctx.meta.size as i64);
       Ok(true)
     }
@@ -820,66 +687,90 @@ async fn tiered_hash_arm<D: Device>(
     }
 
     HashOperation::Hgetall => {
-      // 输出面先校正（存活全集就位后再写数组头，保证 RESP 头与项数一致），
-      // 校正后树内已无到期成员（同刻 now 全扫出账），流式直出
-      if collect_expired_members(ctx, tree) {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      // 帧头与实体同源：先流式扫树收集到 scratch 并计数，再按实际字段对数写
-      // 协议感知 map 头（对标 HashObjectImpl.cs:HashGetAll WriteMapLength(Count())），
-      // RESP3 写 `%<对数>`、RESP2 退化为 `*<2×对数>` 数组，杜绝 meta.size 漂移错位
+      // 帧头与实体同源：按实际字段对数写协议感知 map 头（对标
+      // HashObjectImpl.cs:HashGetAll WriteMapLength(Count())），RESP3 写
+      // `%<对数>`、RESP2 退化为 `*<2×对数>` 数组，杜绝 meta.size 漂移错位
       let mut scratch: Vec<u8> = Vec::new();
       let mut pairs = 0usize;
-      let _ =
-        tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::KeyAndValue, |k, v| {
-          scratch.write_resp_bulk_string(k);
-          scratch.write_resp_bulk_string(decode_member(v).1);
+      let outcome = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |live| {
+        // 水位命中：存活全集在重灌前经闭包交出（到期成员已被扫描剔除），零二次扫树
+        for (field, record) in live {
+          scratch.write_resp_bulk_string(field);
+          scratch.write_resp_bulk_string(decode_member(record).1);
           pairs += 1;
-          true
-        });
+        }
+      })
+      .await?;
+      if let SweepOutcome::Below(guard) = outcome {
+        // 水位未命中：守卫原样奉还，树内无到期成员，流式直出
+        let _ = guard.tree().scan_with_count_callback(
+          &[0u8],
+          usize::MAX,
+          ScanReturnField::KeyAndValue,
+          |k, v| {
+            scratch.write_resp_bulk_string(k);
+            scratch.write_resp_bulk_string(decode_member(v).1);
+            pairs += 1;
+            true
+          },
+        );
+      }
       cs::write_map_len(output, pairs, resp_protocol_version);
       output.extend_from_slice(&scratch);
       Ok(true)
     }
 
     HashOperation::Hkeys => {
-      if collect_expired_members(ctx, tree) {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
       // 帧头与实际条目同源（消除 meta.size 漂移错位）：数组语义（HKEYS RESP3 仍数组）
       let mut scratch: Vec<u8> = Vec::new();
       let mut n = 0usize;
-      let _ = tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::Key, |k, _| {
-        scratch.write_resp_bulk_string(k);
-        n += 1;
-        true
-      });
+      let outcome = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |live| {
+        for (field, _) in live {
+          scratch.write_resp_bulk_string(field);
+          n += 1;
+        }
+      })
+      .await?;
+      if let SweepOutcome::Below(guard) = outcome {
+        let _ = guard.tree().scan_with_count_callback(
+          &[0u8],
+          usize::MAX,
+          ScanReturnField::Key,
+          |k, _| {
+            scratch.write_resp_bulk_string(k);
+            n += 1;
+            true
+          },
+        );
+      }
       output.write_resp_array_len(n);
       output.extend_from_slice(&scratch);
       Ok(true)
     }
 
     HashOperation::Hvals => {
-      if collect_expired_members(ctx, tree) {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
       // 帧头与实际条目同源（消除 meta.size 漂移错位）：数组语义（HVALS RESP3 仍数组）
       let mut scratch: Vec<u8> = Vec::new();
       let mut n = 0usize;
-      let _ = tree.scan_with_count_callback(&[0u8], usize::MAX, ScanReturnField::Value, |_, v| {
-        scratch.write_resp_bulk_string(decode_member(v).1);
-        n += 1;
-        true
-      });
+      let outcome = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |live| {
+        for (_, record) in live {
+          scratch.write_resp_bulk_string(decode_member(record).1);
+          n += 1;
+        }
+      })
+      .await?;
+      if let SweepOutcome::Below(guard) = outcome {
+        let _ = guard.tree().scan_with_count_callback(
+          &[0u8],
+          usize::MAX,
+          ScanReturnField::Value,
+          |_, v| {
+            scratch.write_resp_bulk_string(decode_member(v).1);
+            n += 1;
+            true
+          },
+        );
+      }
       output.write_resp_array_len(n);
       output.extend_from_slice(&scratch);
       Ok(true)
@@ -1025,83 +916,12 @@ async fn tiered_hash_arm<D: Device>(
       Ok(true)
     }
 
-    // HEXPIRE / HPEXPIRE / HEXPIREAT / HPEXPIREAT 树内原地臂（arg1/arg2 为
-    // ExpirationWithOption 压缩字，libs/server/Objects/Hash/HashObjectImpl.cs:
-    // HashExpire + HashObject.cs:SetExpiration 闸门口径）
-    HashOperation::Hexpire => {
-      let e = ExpirationWithOption::from_word_head_tail(args12.0, args12.1);
-      let ticks = e.expiration_time_in_ticks();
-      let option = e.expire_option();
-      let now = now_ticks();
-      let mut changed = false;
-      output.write_resp_array_len(args.len());
-      for &field in args {
-        let (result, arm_changed) = member_expire_arm(ctx, tree, field, ticks, option, now);
-        changed |= arm_changed;
-        output.write_resp_int(i64::from(result));
-      }
-      if changed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
-    // HTTL / HPTTL / HEXPIRETIME / HPEXPIRETIME 树内原地臂
-    //（libs/server/Objects/Hash/HashObjectImpl.cs:HashTimeToLive：-2 不存在 /
-    // 已过期（先 DeleteExpiredItems 物理出账）、-1 无过期，正值为请求单位换算）
-    HashOperation::Httl => {
-      let (is_milliseconds, is_timestamp) = (args12.0 == 1, args12.1 == 1);
-      let now = now_ticks();
-      let mut removed = false;
-      output.write_resp_array_len(args.len());
-      for &field in args {
-        let (raw, expired) = member_ttl_probe(ctx, tree, field, now);
-        removed |= expired;
-        let result = if raw >= 0 {
-          expiry_tick_to_reply(raw, is_milliseconds, is_timestamp, now)
-        } else {
-          raw
-        };
-        output.write_resp_int(result);
-      }
-      if removed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
-    // HPERSIST 树内原地臂（libs/server/Objects/Hash/HashObjectImpl.cs:
-    // HashPersist → HashObject.cs:Persist：-2 不存在/已过期（物理出账）、
-    // -1 无过期、1 已移除）
-    HashOperation::Hpersist => {
-      let now = now_ticks();
-      let mut changed = false;
-      output.write_resp_array_len(args.len());
-      for &field in args {
-        let (result, arm_changed) = member_persist_arm(ctx, tree, field, now);
-        changed |= arm_changed;
-        output.write_resp_int(i64::from(result));
-      }
-      if changed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
     // 未支持操作一律穿透（Ok(false)）：由 run_async_rmw 物化降级通道接手，
     // 杜绝静默兜底输出与命令语义无关的应答——HCOLLECT / HRANDFIELD 族经此
     // 落 wcol 对象层单源求值，WATCH 推进同臂由 apply_rmw_post_operate 承接。
-    // HDEL 亦在此穿透（无树内逐成员删除臂）：删除重的命令一律走「物化 →
-    // 对象层单源求值 → 整值重灌（bulk_load 重建）」，见本模块头注「墓碑恒低」
+    // HDEL 与成员级 TTL 面（HEXPIRE / HTTL / HPERSIST 族，原树内逐成员出账臂
+    // 已删）亦在此穿透：删除与到期出账一律走「物化 → 对象层单源求值 →
+    // 整值重灌（bulk_load 重建）」，树内零墓碑，见本模块头注
     _ => Ok(false),
   }
 }
@@ -1297,7 +1117,7 @@ async fn tiered_set_arm<D: Device>(
 
     // 未支持操作一律穿透（Ok(false)）：由 run_async_rmw 物化降级通道接手，
     // 杜绝静默兜底输出与命令语义无关的应答。删除重的 SREM / SPOP 同在此穿透
-    // （无树内逐成员删除臂），见本模块头注「墓碑恒低」
+    // （无树内逐成员删除臂），见本模块头注「树内零墓碑」
     SetOperation::Srem
     | SetOperation::Spop
     | SetOperation::Sscan
@@ -1333,7 +1153,9 @@ async fn tiered_zset_arm<D: Device>(
 ) -> Result<bool, ()> {
   let TieredCollectionArgs {
     op,
-    args12,
+    // arg1/arg2 压缩字已无树内消费臂（ZEXPIRE 族穿透物化降级，压缩字由
+    // run_async_rmw 的 run_op 闭包捕获透传对象层），显式弃绑防未用告警
+    args12: _,
     args,
     resp_protocol_version,
   } = call;
@@ -1567,13 +1389,9 @@ async fn tiered_zset_arm<D: Device>(
     }
 
     SortedSetOperation::Zcard => {
-      // 计数校正（同分层 Hlen 臂，见 collect_expired_members）
-      if collect_expired_members(ctx, tree) {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
+      // 计数校正（同分层 Hlen 臂，见 expire_sweep_or_rebuild）：水位命中即
+      // 整值重灌出账（树内零墓碑），直读恒精确
+      let _ = expire_sweep_or_rebuild(session, key, ctx, tree_guard, |_| {}).await?;
       output.write_resp_int(ctx.meta.size as i64);
       Ok(true)
     }
@@ -1632,81 +1450,13 @@ async fn tiered_zset_arm<D: Device>(
       Ok(true)
     }
 
-    // ZEXPIRE / ZEXPIREAT / ZPEXPIRE / ZPEXPIREAT 树内原地臂（arg1/arg2 为
-    // ExpirationWithOption 压缩字，libs/server/Objects/SortedSet/
-    // SortedSetObjectImpl.cs:SortedSetExpire + SortedSetObject.cs:SetExpiration
-    // 闸门口径，与 hash Hexpire 臂同型）
-    SortedSetOperation::Zexpire => {
-      let e = ExpirationWithOption::from_word_head_tail(args12.0, args12.1);
-      let ticks = e.expiration_time_in_ticks();
-      let option = e.expire_option();
-      let now = now_ticks();
-      let mut changed = false;
-      output.write_resp_array_len(args.len());
-      for &member in args {
-        let (result, arm_changed) = member_expire_arm(ctx, tree, member, ticks, option, now);
-        changed |= arm_changed;
-        output.write_resp_int(i64::from(result));
-      }
-      if changed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
-    // ZTTL / ZPTTL / ZEXPIRETIME / ZPEXPIRETIME 树内原地臂（同 Httl 口径）
-    SortedSetOperation::Zttl => {
-      let (is_milliseconds, is_timestamp) = (args12.0 == 1, args12.1 == 1);
-      let now = now_ticks();
-      let mut removed = false;
-      output.write_resp_array_len(args.len());
-      for &member in args {
-        let (raw, expired) = member_ttl_probe(ctx, tree, member, now);
-        removed |= expired;
-        let result = if raw >= 0 {
-          expiry_tick_to_reply(raw, is_milliseconds, is_timestamp, now)
-        } else {
-          raw
-        };
-        output.write_resp_int(result);
-      }
-      if removed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
-    // ZPERSIST 树内原地臂（同 Hpersist 口径）
-    SortedSetOperation::Zpersist => {
-      let now = now_ticks();
-      let mut changed = false;
-      output.write_resp_array_len(args.len());
-      for &member in args {
-        let (result, arm_changed) = member_persist_arm(ctx, tree, member, now);
-        changed |= arm_changed;
-        output.write_resp_int(i64::from(result));
-      }
-      if changed {
-        session
-          .save_bftree_meta_stub(key, ctx.meta, ctx.stub)
-          .await
-          .map_err(|_| ())?;
-      }
-      Ok(true)
-    }
-
     // 未支持操作一律穿透（Ok(false)）：由 run_async_rmw 物化降级通道接手，
     // 杜绝静默兜底输出与命令语义无关的应答——ZPOPMIN / ZPOPMAX / ZREMRANGEBY*
     // / GEOADD / ZRANGESTORE 等写族经此落 wcol 对象层单源真实删改，WATCH 推进
     // 同臂由 apply_rmw_post_operate 承接（旧兜底臂把它们应答成整表 ZRANGE 形态
     // 且零树删除，客户端见成功而数据未动，是比漏栅栏更重的语义缺陷）。
-    // ZREM 同在此穿透（无树内逐成员删除臂，见本模块头注「墓碑恒低」）
+    // ZREM 与成员级 TTL 面（ZEXPIRE / ZTTL / ZPERSIST 族，原树内逐成员出账臂
+    // 已删）同在此穿透：删除与到期出账一律走整值重灌，树内零墓碑（见模块头注）
     _ => Ok(false),
   }
 }
@@ -1720,7 +1470,7 @@ async fn tiered_zset_arm<D: Device>(
 /// 墓碑，那一段必须在**单次 `next()` 内**逐条跳完（实测每跳一条压一帧 ≈680B，
 /// 早停回调与 count 都来不及生效），页读次数与栈深度皆随连跑长度增长
 /// （实测分档与机理：task/reject/tiered-zset-demote-stack.md 二.表 S1..S4 与一.表）。
-/// 故本臂的栈安全性完全依赖「树内墓碑恒低」这一写形不变量，而该不变量由删除不
+/// 故本臂的栈安全性完全依赖「树内零墓碑」这一写形不变量，而该不变量由删除不
 /// 逐成员落树、统一走整值重灌面保证（见 `rmw_helpers::apply_rmw_post_operate`）。
 ///
 /// 序号编码单点在 wcol：`ListObject::export_entries`
@@ -1940,7 +1690,7 @@ async fn tiered_list_arm<D: Device>(
 
     // 未支持操作一律穿透（Ok(false)）：由 run_async_rmw 物化降级通道接手，
     // 杜绝静默兜底输出与命令语义无关的应答。LPOP / RPOP 同在此穿透（弹出臂已
-    // 摘除，树内无逐成员删除，见本模块头注「墓碑恒低」）
+    // 摘除，树内无逐成员删除，见本模块头注「树内零墓碑」）
     _ => Ok(false),
   }
 }
@@ -2060,7 +1810,7 @@ pub(crate) async fn tiered_materialize_blob<D: Device>(
 }
 
 /// 分层键字段级到期收集执行体（显式 HCOLLECT / ZCOLLECT 单键、`*` 全库周期
-/// 对象收集任务与计数慢路径校正共用；树内删除漏斗 [`collect_expired_members`]
+/// 对象收集任务与计数慢路径校正共用；到期重灌内核 [`expire_sweep_or_rebuild`]
 /// 唯一内核）
 ///
 /// `Ok(Some(size))` 分层键已处理并返回校正后存活计数（含零到期零写）；
@@ -2077,14 +1827,18 @@ pub(crate) async fn exec_tiered_collect<D: Device>(
     return Ok(None);
   }
   let mut ctx = TieredCtx::new(&mut meta, &mut stub);
-  // 收集执行体是写臂（到期成员物理出账）：独占写锁 + 锁内刷新元记录，
+  // 收集执行体是写臂（到期成员出账重灌）：独占写锁 + 锁内刷新元记录，
   // 键已被并发排空回收则按「键非分层态」穿透
   let Some(tree_guard) = tiered_guard(session, key, &mut ctx, true).await? else {
     return Ok(None);
   };
-  let changed = collect_expired_members(&mut ctx, tree_guard.tree());
+  let old_expiry = ctx.meta.next_expiry;
+  // 守卫在 Below 出口原样奉还后即释放；Swept 出口重灌/回写已在内完成
+  let changed = match expire_sweep_or_rebuild(session, key, &mut ctx, tree_guard, |_| {}).await? {
+    SweepOutcome::Below(_) => false,
+    SweepOutcome::Swept { expired } => expired > 0 || ctx.meta.next_expiry != old_expiry,
+  };
   if changed {
-    drain_or_save(session, key, &mut ctx, tree_guard).await?;
     // 到期成员物理出账即客户端可见变更，推进 WATCH 版本栅栏（对标 C#
     // HashCollect 走 RMW 写钩子 IncrementVersion；零到期零写不推进）
     session.bump_watch_version(key);
@@ -2106,7 +1860,7 @@ pub(crate) async fn exec_tiered_collect<D: Device>(
 /// 实现，故本臂自树头起遍历，**遍历**条数与单帧深度都不受 COUNT 约束——底层游标
 /// 对墓碑的尾递归自调必须在单次 `next()` 内跳完游标后的整段连跑（≈680B/条），
 /// 回调早停与 count 均来不及生效（实测 task/reject/tiered-zset-demote-stack.md
-/// 二.表 S4）。本臂的安全性来自「树内墓碑恒低」的写形不变量，不来自本函数的截断
+/// 二.表 S4）。本臂的安全性来自「树内零墓碑」的写形不变量，不来自本函数的截断
 ///
 /// `Ok(true)` 已闭环应答；`Ok(false)` 键非分层态（调用方维持既有路径）；
 /// `Err(())` 存储 IO 失败

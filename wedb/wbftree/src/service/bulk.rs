@@ -100,46 +100,6 @@ impl BfTreeService {
       .unwrap_or(Err(BfTreeInsertResult::InvalidArguments))
   }
 
-  /// 排序批量删除：整批一次引擎借用，按键升序逐条前查后删，返回真实删除键数
-  ///
-  /// 与 [`upsert`](Self::upsert) 成对的删除面内核（同三条折叠准则：单次借用 +
-  /// 栈上排序集中命中相邻页 + 单次真实计数）。引擎 `delete` 不回报命中态
-  /// (`BfTreeDeleteResult` 无 NotFound 变体)，前查存在性是 O(1) 计数规约的必要
-  /// 成本，与 upsert 的新增前查同口径；同批重复键去重只删一次，重复键不重复
-  /// 计数。空批次返回 0 且零借用。
-  ///
-  /// 引擎删除无失败变体（借用成功即恒 Success），树实例不在注册表时计 0。
-  pub fn bulk_delete<K: AsRef<[u8]>>(&self, keys: &[K]) -> u64 {
-    if keys.is_empty() {
-      return 0;
-    }
-    // 排序对象是输入下标：零搬运，同键相邻去重（重复键只删首个即可）
-    let mut order: SmallVec<[usize; ORDER_INLINE]> = SmallVec::with_capacity(keys.len());
-    order.extend(0..keys.len());
-    order.sort_unstable_by(|&a, &b| keys[a].as_ref().cmp(keys[b].as_ref()));
-
-    self
-      .with_tree(|tree| {
-        with_read_buffer(self.max_record_size(), |buf| {
-          let mut iter = order.iter().copied().peekable();
-          let mut deleted = 0u64;
-          while let Some(idx) = iter.next() {
-            let key = keys[idx].as_ref();
-            // 同批重复键去重：下一键相同即本键已（将）被删，跳过
-            if iter.peek().is_some_and(|&next| keys[next].as_ref() == key) {
-              continue;
-            }
-            if matches!(tree.read(key, buf), LeafReadResult::Found(_)) {
-              tree.delete(key);
-              deleted += 1;
-            }
-          }
-          deleted
-        })
-      })
-      .unwrap_or(0)
-  }
-
   /// 已排序批次的下刷循环：同键相邻且按输入序排列，仅每组末位落刷；
   /// `probe_buf` 为 `Some` 时逐条前查存在性并计真实新增键数，否则计落刷条数
   fn flush_sorted<K: AsRef<[u8]>, V: AsRef<[u8]>>(
