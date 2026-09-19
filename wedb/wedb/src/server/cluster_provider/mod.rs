@@ -1,37 +1,32 @@
+mod checkpoint;
 mod traits;
 
 use std::{
-  fs::{create_dir_all, metadata, read},
-  ops::ControlFlow,
+  fs::metadata,
   path::{Path, PathBuf},
   sync::{
     Arc, OnceLock, Weak,
     atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU8, AtomicU64, Ordering},
   },
-  thread,
   time::Duration,
 };
 
-use coarsetime::Instant;
 use compio::runtime::spawn;
 use parking_lot::RwLock;
-use waof::{AofAddress, WalLog};
+use waof::WalLog;
 use wbase::{
-  future::yield_now,
   hex::hex_str_u128,
   map::{ConcurrentMap, new_concurrent_map},
 };
 use wconf::{RuntimeServerConfig, node_options::DEFAULT_ON_DEMAND_CHECKPOINT};
 #[cfg(feature = "tls")]
 use wconn::tls::ClientTlsConfig;
-use wcpr::CheckpointMeta;
 use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::{
   ClusterProvider as WnodeClusterProvider, ClusterProviderHandle, PrimaryTasks,
-  aof::garnet_append_only_file::GarnetAppendOnlyFile, cluster_session::ClusterSessionFace,
-  database::SingleDatabaseManager, resp::vector::vector_manager::VectorManager,
-  service::StoreSwapSlot,
+  aof::garnet_append_only_file::GarnetAppendOnlyFile, database::SingleDatabaseManager,
+  resp::vector::vector_manager::VectorManager, service::StoreSwapSlot,
 };
 use wpubsub::subscribe_broker::SubscribeBroker;
 
@@ -39,10 +34,10 @@ use crate::{
   args::{DEFAULT_CLUSTER_NODE_TIMEOUT_MS, DEFAULT_GOSSIP_DELAY_MS, DEFAULT_GOSSIP_SAMPLE_PERCENT},
   error,
   server::{
-    cluster::{CheckpointCallbackFace, ClusterPreferredEndpointType, IClusterProvider},
+    cluster::{ClusterPreferredEndpointType, IClusterProvider},
     cluster_config::ClusterConfig,
     cluster_manager::{ClusterManager, read_device},
-    cluster_session::{ClusterSession, ERR_CLUSTER_NOT_INITIALIZED},
+    cluster_session::ClusterSession,
     connection_info::ConnectionInfo,
     failover::failover_manager::FailoverManager,
     gossip::gossip_manager::GossipManager,
@@ -50,9 +45,8 @@ use crate::{
     replication::{
       aof_replication_pump::AofReplicationPump, assembly::try_replicate_sync_async,
       cluster_replication_session::ClusterReplicationSession,
-      receive_checkpoint_handler::CheckpointImportCtx, replica_sync_session::ReplicaSyncSession,
-      replicate_sync_options::ReplicateSyncOptions, replication_manager::ReplicationManager,
-      store_commit::StoreCommitFn,
+      replica_sync_session::ReplicaSyncSession, replicate_sync_options::ReplicateSyncOptions,
+      replication_manager::ReplicationManager, store_commit::StoreCommitFn,
     },
     worker::NodeRole,
   },
@@ -702,87 +696,6 @@ impl ClusterProvider {
     self.auth_container.read().1.clone()
   }
 
-  /// 获取 Garnet 当前纪元（对标 C# GarnetCurrentEpoch）
-  #[inline]
-  pub fn current_epoch(&self) -> i64 {
-    self.garnet_current_epoch.load(Ordering::Acquire)
-  }
-
-  /// libs/cluster/Server/ClusterProvider.cs:BumpCurrentEpoch
-  ///
-  /// 推进 Garnet 集群纪元
-  #[inline]
-  pub fn bump_current_epoch(&self) -> i64 {
-    self.garnet_current_epoch.fetch_add(1, Ordering::AcqRel) + 1
-  }
-
-  /// libs/cluster/Server/ClusterProvider.cs:BumpAndWaitForEpochTransitionAsync
-  ///
-  /// 推进集群纪元并自旋等待全部活跃集群会话批内纪元快照追平（C# 遍历
-  /// storeWrapper.Servers → ActiveClusterSessions 逐会话重试至
-  /// LocalCurrentEpoch 追平，快照 0 = 批外空闲放行；rust 每轮以
-  /// yield_now 让步执行器，对标 C# await Task.Yield()）。以
-  /// cluster_node_timeout() 为上限，超时返 false；None（0 = 无限）不设限，
-  /// 与 C# 无限自旋一致（调用方同款忽略返值放行，false 仅表达静止未达成）
-  pub async fn bump_and_wait_for_epoch_transition_async(&self) -> bool {
-    let current_epoch = self.bump_current_epoch();
-    let start = Instant::now();
-    let limit = self.cluster_node_timeout();
-    while !self.all_sessions_caught_up(current_epoch) {
-      if limit.is_some_and(|d| start.elapsed() >= d.into()) {
-        return false;
-      }
-      yield_now().await;
-    }
-    true
-  }
-
-  /// 纪元推进全会话静止的命令批内同步形态（C# 命令侧
-  /// `AsyncUtils.BlockingWait(BumpAndWaitForEpochTransitionAsync())` 的
-  /// 语义：网络线程阻塞等待，见 RespClusterSlotManagementCommands.cs:493）
-  ///
-  /// compio 单线程每核下，发起会话所在线程的其余会话必处批外（快照 0），
-  /// 阻塞自旋仅等他核会话收尾，无死锁；上限与追平判定同异步形态
-  pub fn bump_and_wait_for_epoch_transition(&self) -> bool {
-    let current_epoch = self.bump_current_epoch();
-    let start = Instant::now();
-    let limit = self.cluster_node_timeout();
-    while !self.all_sessions_caught_up(current_epoch) {
-      if limit.is_some_and(|d| start.elapsed() >= d.into()) {
-        return false;
-      }
-      thread::yield_now();
-    }
-    true
-  }
-
-  /// 全部活跃集群会话纪元是否追平（ClusterProvider.cs:377
-  /// ActiveClusterSessions 枚举的等价面；papaya 无锁快照枚举对标 C#
-  /// ConcurrentDictionary 轻量迭代，静止等待不排阻会话注册注销；枚举时
-  /// 顺带清扫过期弱引用）
-  fn all_sessions_caught_up(&self, current_epoch: i64) -> bool {
-    let pin = self.cluster_sessions.pin();
-    pin
-      .iter()
-      .try_for_each(|(key, weak)| match weak.upgrade() {
-        Some(s) => {
-          let entry_epoch = s.local_current_epoch();
-          // C# 判定取反：entryEpoch != 0 && entryEpoch < currentEpoch 才重试
-          if entry_epoch == 0 || entry_epoch >= current_epoch {
-            ControlFlow::Continue(())
-          } else {
-            ControlFlow::Break(())
-          }
-        }
-        // 会话已亡：当场自清扫死弱引用，免注销钩子
-        None => {
-          pin.remove(key);
-          ControlFlow::Continue(())
-        }
-      })
-      .is_continue()
-  }
-
   /// 播种当前在线引擎（集群装配期一次调用；对标 C# 构造期经 storeWrapper
   /// 建立的存储可达面。写入本层引擎槽——宿主槽注入后与之同源，全链一份引擎
   /// 状态，无第二份拷贝）
@@ -1050,103 +963,5 @@ impl ClusterProvider {
   /// 注入重启恢复开关（服务器总装期自 NodeArgs.recover 一次注入）
   pub fn set_recover(&self, enabled: bool) {
     self.recover.store(enabled, Ordering::Release);
-  }
-
-  /// 按需拍摄快照并注册检查点条目（对标 C# StoreWrapper.TakeOnDemandCheckpointAsync）
-  pub async fn take_on_demand_checkpoint(&self) -> Result<bool, String> {
-    let Some(dm) = self.try_database_manager() else {
-      return Ok(false);
-    };
-    let taken = dm
-      .take_checkpoint(false)
-      .await
-      .map_err(|e| format!("On-demand checkpoint failed: {e}"))?;
-    if !taken {
-      return Ok(false);
-    }
-    if let Some(checkpoint_dir) = self.try_checkpoint_dir()
-      && let Ok(Some(token)) = wcpr::find_latest_checkpoint(&checkpoint_dir)
-      && let Ok(meta_bytes) = read(checkpoint_dir.join(wcpr::meta_filename(token)))
-      && let Ok(meta) = CheckpointMeta::decode(&meta_bytes)
-    {
-      let sublogs = self
-        .replication_manager()
-        .map(|rm| rm.sublog_count())
-        .unwrap_or(1);
-      let covered_u64 = meta.checkpoint_aof_address.unwrap_or(0);
-      let covered_addr = AofAddress::create(sublogs as i32, covered_u64 as i64);
-      self
-        .add_new_checkpoint_entry(true, covered_addr, token, token)
-        .await;
-    }
-    Ok(true)
-  }
-
-  /// 在线引擎置换（副本检查点导入闭环收口）：单次写本层引擎槽——宿主已采纳
-  /// 同槽时新引擎即对后续新会话装配生效，无需第二处更新（对标 C# 全体调用方
-  /// 经 StoreWrapper.cs:41 单计算属性自动转发恢复后的引擎；存量会话随批纪元
-  /// 自然收敛）
-  pub fn swap_online_store(&self, store: Arc<WedbStore<SegmentedDevice>>) {
-    self.store_slot.read().swap(store);
-  }
-
-  /// 检查点导入落盘依赖束（三 arm 接收面现取现用；目录缺失时惰性创建）
-  pub fn checkpoint_import_ctx(&self) -> Result<CheckpointImportCtx, String> {
-    use crate::server::replication::receive_checkpoint_handler::CheckpointImportCtx;
-    let dir = self
-      .try_checkpoint_dir()
-      .ok_or_else(|| ERR_CLUSTER_NOT_INITIALIZED.to_string())?;
-    create_dir_all(&dir).map_err(|e| format!("IOERR create checkpoint dir: {e}"))?;
-    let device = self
-      .try_store()
-      .ok_or_else(|| ERR_CLUSTER_NOT_INITIALIZED.to_string())?
-      .device
-      .clone();
-    Ok(CheckpointImportCtx {
-      store_device: device,
-      checkpoint_dir: dir,
-    })
-  }
-
-  /// 执行序列号生成器复位（故障转移触发时调用；对标 C#
-  /// ReplicaFailoverSession.cs:154 经 storeWrapper.appendOnlyFile 直达
-  /// GarnetAppendOnlyFile.ResetSequenceNumberGenerator，AOF 门面未装配
-  /// 时空转——单物理日志模式 C# 侧同样短路）
-  pub fn reset_sequence_number_generator(&self) {
-    if let Some(aof) = self.try_aof() {
-      aof.reset_sequence_number_generator();
-    }
-  }
-
-  /// 注入副本重放最大滞后字节数（C# serverOptions.AofReplayMaxLagBytes 的
-  /// 装配期注入；INFO 复制段直读）
-  pub fn set_aof_replay_max_lag_bytes(&self, value: i32) {
-    self
-      .aof_replay_max_lag_bytes
-      .store(value, Ordering::Relaxed);
-  }
-
-  /// 副本重放最大滞后字节数（C# runtimeConfig.GetInt(AOF_REPLAY_MAX_LAG_
-  /// BYTES) 读取面：-1 = 异步重放不节流，0 = 同步重放（每帧锁步），>0 =
-  /// 异步重放滞后超限阻塞推流；副本会话 ThrottlePrimary 门限源）
-  #[inline]
-  pub fn aof_replay_max_lag_bytes(&self) -> i32 {
-    self.aof_replay_max_lag_bytes.load(Ordering::Acquire)
-  }
-
-  /// libs/cluster/Server/ClusterProvider.cs:Dispose
-  pub fn dispose(&self) {
-    if let Some(mgr) = self.cluster_manager() {
-      mgr.dispose();
-    }
-    if let Some(rm) = self.replication_manager() {
-      rm.dispose();
-    }
-    if let Some(fm) = self.failover_manager() {
-      fm.dispose();
-    }
-    if let Some(mm) = self.migration_manager() {
-      mm.dispose();
-    }
   }
 }
