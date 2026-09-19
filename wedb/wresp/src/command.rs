@@ -542,7 +542,7 @@ pub const fn is_legal_on_vector_set(cmd: RespCommand) -> bool {
 ///   （BasicCommands.cs:405-415、ArrayCommands.cs:54-64），rust 由 set_vector_guard 预清退，
 ///   登记即销毁向量集、落 String 记录，非值域拒绝。
 /// - NX/存在性：MSETNX 登记表命中即键存在回 :0 零写入（ArrayCommands.cs:76-90）、
-///   RESTORE 命中即 BUSYKEY（KeyAdminCommands.cs:NetworkRESTORE），均非 WRONGTYPE。
+///   RESTORE 命中即 BUSYKEY（C# KeyAdminCommands 的 NetworkRESTORE 逻辑），均非 WRONGTYPE。
 /// - 记录存活/元数据读侧：EXISTS/TTL/EXPIRE 族/MEMORY USAGE/OBJECT 族/DUMP/MGET 对存活
 ///   向量记录按普通存活记录工作（UnifiedStore/ReadMethods.cs:31-47 reader switch），
 ///   由第四态探针承接（task/ing/vector-key-ttl-fourth-domain.md），本门不重复挂。
