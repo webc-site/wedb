@@ -67,3 +67,47 @@ wedb/wbftree/src/manager/replication.rs，当下 diff 仅一行文档注释改�
 口径差异留档：对方薄票把 replication.rs:106 与 recover_all_trees_from_dir（:147/:166）的快照目录扫描
 一并计入「四度扫描」；本票按当下代码判其属另一枚举域（.bftree 检查点快照目录 vs ri_log_root 刷盘日志
 目录，文件名与解析器均不同），只收 ri_log_root 三处（:43、:63、lifecycle.rs:177），禁为凑数合并两套迭代。
+
+落地（2026-09-19，代码提交 aae76c0，回合 dev 合并提交 1ddf655；行号按符号定位）
+判词：核销。步骤 0 对当时 dev HEAD 逐条 grep 复核，票面「现状 1/2/3、C# 参考、验收 1 的 3 命中基数」
+全部成立（replication.rs:26/:38/:43/:62/:63 与 lifecycle.rs:177 原位命中，parse_flush_file_name 全仓
+仅三处消费），开工。
+
+1. 单点枚举器 wbftree/src/manager/replication.rs:49 `pub(super) fn flush_files(&self) ->
+   Result<FlushFiles>`，产出 (PathBuf, u128, u64)：ri_log_root 存在性预检（缺失按空集，即 C#
+   的 yield break 口径）、read_dir、file_name().to_str() 容错、parse_flush_file_name 严格解码、
+   外来文件跳过全在枚举器一处。产物迭代器 FlushFiles（:240）持 Option<fs::ReadDir> 惰性逐项产出，
+   故取迭代器而非 Vec：消费方在遍历途中删件（on_truncate / remove_addr_flush_files），且 Vec
+   形态会把全目录前置收集塞回 lifecycle 的门控扫描，推翻本票修法 3 要保留的「只跟踪胜出件」。
+2. 三处消费方转调：replication.rs:63 on_truncate（addr < 阈值删）、:78 remove_addr_flush_files
+   （按 key_id 删全世代）、lifecycle.rs:179 get_or_open_tree 惰性恢复（取最大 addr 胜出、
+   胜出件单次 copy）；addr_flush_scan_pending 门控与证伪封存、裸名优先分支逐字保留，未新增
+   亦未复活任何裸名枚举。
+3. parse_flush_file_name 由 pub(super) 降为私有 `fn`（replication.rs:24），只被枚举器
+   （:259）引用；文档订正：EnumerateFlushFiles 锚点由 parse 文档迁到 flush_files 文档
+   （:33）单点挂载，「在 rust 不设独立函数」论述改指新枚举器。
+4. 口径变化一条（票面验收 2 的三条行为之外）：on_truncate 的「单个目录项 readdir 失败」由
+   上抛 Err 改为跳过该项，与另两处既有 flatten 容错口径及 C# 消费方整轮 catch 一致；
+   目录级 read_dir 失败仍上抛（remove_addr_flush_files 与 lifecycle 保持原静默容错）。
+5. 链序偏离：本票「边界」段主张先落 wbftree-on-flush-bare-surface-removal，主代理派单定为
+   enumerator 先（链序 enumerator → bare-surface → chunk-serializer-split），本棒按派单执行；
+   两票在 lifecycle 的位点不冲突（本票只改 else-if 地址扫描支，裸名支由后票整支删除）。
+
+验收实测（dev 1ddf655 现刻 grep）
+- 验收 1：`fn flush_files` 全 wbftree/src 命中 1（replication.rs:49）；
+  `fs::read_dir(&self.ri_log_root)` 由 3 降为 1（仅剩 replication.rs:51，flush_files 体内）。
+- 验收 2：三处消费点转调 flush_files（replication.rs:63/:78、lifecycle.rs:179），
+  cargo nextest run -p wbftree 135/135 通过（含 test_manager_truncate_reclaims_flush_files、
+  test_flush_file_name_strict_parsing、test_create_purges_old_generation_flush_artifacts、
+  test_get_or_open_tree_preserves_persisted_data、test_recovered_stub_ignores_stale_flush_files、
+  test_replication_enumeration_skips_foreign_files）；cargo nextest run -p wnode
+  --test range_index_tests 35/35 通过。
+- 验收 3：parse_flush_file_name 命中仅定义 :24 + 文档链 :37 + 枚举器 :259。
+- 验收 4：cargo check -p wbftree --all-targets 零警告，另 check -p wkv -p wnode 通过。
+- 未动位点（票面 cite 更正与双花口径）：replication.rs:117/:177 检查点快照域、
+  mod.rs:251 `.recovering` 残留清理、mod.rs:343/352 clear_all 全量删——非刷盘件解析枚举，不并。
+- 门禁中性佐证：按 js/check/rustScan.js 的 CS_REF_REGEX 复刻比对，replication.rs 与
+  lifecycle.rs 的 `File.cs:Fn` 锚点集合改动前后逐枚相同（EnumerateFlushFiles 仍单枚），
+  check.js 映射登记无增无减。
+- 本棒门禁：CARGO_TARGET_DIR=/tmp/ct-wbftree-enum 私有 target，只跑 cargo check 与
+  小步 nextest；未跑 ./test.sh、./sh/clippy.sh（交主代理合并后统一跑）；rustfmt --check 干净。

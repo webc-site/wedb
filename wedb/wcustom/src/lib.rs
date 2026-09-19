@@ -4,7 +4,9 @@
 //! 静态承接形态：
 //! - 自定义对象命令执行体（`CustomObjectFns`、`CommandType`）
 //! - 扩展对象静态描述单点（`CustomObjectEntry`：信封标签 + TYPE 注册名 +
-//!   按名命令解析入口，C# CustomCommandManager 集中分配面的编译期承接）
+//!   按名命令解析入口，C# CustomCommandManager 集中分配面的编译期承接；
+//!   `CustomCommandMeta` 另携 `KeyScope` 键作用域，多键读命令的分型知识
+//!   入静态清单，执行面不再按命令名比串）
 //! - 自定义存储过程与事务基底（`CustomTransactionProcedure`, `CustomTxnProc`）
 //! - 事务过程静态派发（`txn_proc` / `txn_proc_slot`，AOF 回放与 RUNTXP
 //!   按槽位 id 单次比较直达）
@@ -25,5 +27,5 @@ pub use custom_object_fns::{
 pub use custom_transaction_procedure::{
   CustomTransactionProcedure, CustomTxnProc, DefaultTxnProc, NoOpTxnProc,
 };
-pub use object_desc::{CustomCommandMeta, CustomObjectEntry};
+pub use object_desc::{CustomArgs, CustomCommandMeta, CustomObjectEntry, KeyScope};
 pub use txn_proc::{REGISTERED_SLOTS, txn_proc, txn_proc_meta, txn_proc_slot};

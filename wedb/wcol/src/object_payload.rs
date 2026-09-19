@@ -5,6 +5,16 @@
 //! LogRecord.DataHeader.ValueIsObject 位），值为 `[1B GarnetObjectType 标签]
 //! [4B count LE][bitcode 载荷]`——内层标签区分子类型，4B 小端整数直读计数，
 //! 用户字符串值内容任意、互不干扰。
+//!
+//! 内层标签是单一 u8 线域：标准段（[`GarnetObjectType`]）与扩展段
+//! （`wval::CustomObjectType`，自 `wval::CUSTOM_OBJECT_TYPE_BASE` 起）在同字节
+//! 上连续分配，对标 C# `(GarnetObjectType)(CustomObjectTypeMinId + id)` 的单
+//! 枚举域（libs/server/Custom/CustomCommandManager.cs:406）。故本模块只保留
+//! 一对收 u8 线标签的编解码口（`obj_encode_custom` / `obj_decode_custom`），
+//! 标准段另给 `GarnetObjectType` 类型化薄口转发——不再为扩展段立第二个 typed
+//! 入口，同一线域上的同义双口即重复机制。标签的类型安全在其产出与消费侧由
+//! `wval::CustomObjectType` 枚举保证（会话 parse→exec 全程持枚举，仅跨本模块
+//! 边界收窄为 u8）。
 
 use wval::GarnetObjectType;
 
