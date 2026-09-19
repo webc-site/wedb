@@ -164,39 +164,11 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let count = parse_state.len();
-    check_arg_count!(count == 1 || count == 3 || count == 4, output, "BITCOUNT");
-    let key = parse_state[0];
-
-    // 缺省 start=0 / end=-1（全量）
-    let mut start = 0i64;
-    let mut end = -1i64;
-    let mut use_bit_index = false;
-    if count > 1 {
-      let (Some(s), Some(e)) = (
-        parse_state[1].try_parse_i64(),
-        parse_state[2].try_parse_i64(),
-      ) else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      start = s;
-      end = e;
-      if count > 3 {
-        let flag = parse_state[3];
-        if flag.eq_ignore_ascii_case(b"BIT") {
-          use_bit_index = true;
-        } else if flag.eq_ignore_ascii_case(b"BYTE") {
-          use_bit_index = false;
-        } else {
-          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-          return Ok(true);
-        }
-      }
-    }
+    let Some((key, start, end, offset_type)) = parse_bit_count_args(parse_state, output) else {
+      return Ok(true);
+    };
 
     // 闭包内直接统计区间：跳过全值拷贝，零分配
-    let offset_type = if use_bit_index { 0x1 } else { 0x0 };
     let total = match read_user_sync(store, key, |val| {
       bit_count_driver(start, end, offset_type, val, val.len() as i64)
     }) {
@@ -227,51 +199,18 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 2..=5, output, "BITPOS");
-    let count = parse_state.len();
-    let key = parse_state[0];
-
-    // bit 参数须为单字符 '0'/'1'
-    let bit_slice = parse_state[1];
-    if bit_slice.len() != 1 || (bit_slice[0] != b'0' && bit_slice[0] != b'1') {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER);
+    let Some(BitPosArgs {
+      key,
+      search_for,
+      start_offset,
+      end_offset,
+      offset_type,
+      has_start_offset,
+      has_end_offset,
+    }) = parse_bit_pos_args(parse_state, output)
+    else {
       return Ok(true);
-    }
-    let search_for = bit_slice[0] - b'0';
-
-    // 依次为 start、end、[BIT|BYTE]（缺省 start=0 / end=-1 / BYTE）
-    let mut start_offset = 0i64;
-    let mut end_offset = -1i64;
-    let mut offset_type = 0x0u8;
-    let mut has_start_offset = false;
-    let mut has_end_offset = false;
-    if count > 2 {
-      let Some(start) = parse_state[2].try_parse_i64() else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      start_offset = start;
-      has_start_offset = true;
-
-      if count > 3 {
-        let Some(end) = parse_state[3].try_parse_i64() else {
-          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-          return Ok(true);
-        };
-        end_offset = end;
-        has_end_offset = true;
-
-        if count > 4 {
-          let flag = parse_state[4];
-          if flag.eq_ignore_ascii_case(b"BIT") {
-            offset_type = 0x1;
-          } else if !flag.eq_ignore_ascii_case(b"BYTE") {
-            abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-            return Ok(true);
-          }
-        }
-      }
-    }
+    };
 
     // 区间越界直接 -1
     if try_validate_bit_pos_offsets(
@@ -440,114 +379,15 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 1.., output, "BITFIELD");
+    let Some((key, secondary_command_args, has_write_sub_commands)) =
+      parse_bitfield_args(parse_state, output)
+    else {
+      return Ok(true);
+    };
 
-    // BITFIELD key [GET encoding offset] [SET encoding offset value]
-    //            [INCRBY encoding offset increment] [OVERFLOW WRAP|SAT|FAIL]
-    let key = parse_state[0];
-
-    // 对标 C#：OVERFLOW 类型统一后置应用——最终解析出的策略附加到全部子命令
-    // （含 OVERFLOW 之前入列者，BitmapCommands.cs:HandleFirstSubCommand 与
-    // StringBitFieldAction 循环均以 SetArgument 追加 overflowTypeSlice）
-    let mut is_overflow_type_set = false;
-    let mut overflow_type = BitFieldOverflow::Wrap;
-    let mut secondary_command_args: Vec<BitFieldCmdArgs> = Vec::new();
-    let mut has_write_sub_commands = false;
-
-    let mut curr_token_idx = 1usize;
-    while curr_token_idx < parse_state.len() {
-      let command = parse_state[curr_token_idx];
-      curr_token_idx += 1;
-
-      // OVERFLOW：校验并记录（覆盖既有策略，末值全局生效）
-      if command.eq_ignore_ascii_case(b"OVERFLOW") {
-        let Some(next) = parse_state.get(curr_token_idx) else {
-          abort_with_error_message(output, RESP_ERR_INVALID_OVERFLOW_TYPE);
-          return Ok(true);
-        };
-        let Some(parsed) = parse_bitfield_overflow_slice(next) else {
-          abort_with_error_message(output, RESP_ERR_INVALID_OVERFLOW_TYPE);
-          return Ok(true);
-        };
-        curr_token_idx += 1;
-        overflow_type = parsed;
-        is_overflow_type_set = true;
-        continue;
-      }
-
-      // encoding（u<位宽> / i<位宽>）
-      let Some(encoding_slice) = parse_state.get(curr_token_idx).copied() else {
-        abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
-        return Ok(true);
-      };
-      if parse_bitfield_encoding(encoding_slice).is_none() {
-        abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
-        return Ok(true);
-      }
-      curr_token_idx += 1;
-
-      // offset（`#<n>` 倍乘或裸位偏移）
-      let Some(offset_raw) = parse_state.get(curr_token_idx).copied() else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      let Some((type_info, offset)) = parse_bitfield_type_offset(encoding_slice, offset_raw) else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      curr_token_idx += 1;
-
-      // GET 子命令取 encoding + offset
-      if command.eq_ignore_ascii_case(b"GET") {
-        secondary_command_args.push(BitFieldCmdArgs::new(
-          BitFieldSecondaryCommand::Get,
-          type_info,
-          offset,
-          0,
-          BitFieldOverflow::Wrap as u8,
-        ));
-        continue;
-      }
-
-      // SET / INCRBY 再取 value/increment
-      let op = if command.eq_ignore_ascii_case(b"SET") {
-        BitFieldSecondaryCommand::Set
-      } else if command.eq_ignore_ascii_case(b"INCRBY") {
-        BitFieldSecondaryCommand::IncrBy
-      } else {
-        let err = format!(
-          "ERR Bitfield command {} not supported",
-          command.as_str_safe()
-        );
-        abort_with_error_message(output, &err);
-        return Ok(true);
-      };
-      has_write_sub_commands = true;
-
-      let Some(value_slice) = parse_state.get(curr_token_idx).copied() else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      let Some(value) = value_slice.try_parse_i64() else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      curr_token_idx += 1;
-
-      secondary_command_args.push(BitFieldCmdArgs::new(
-        op,
-        type_info,
-        offset,
-        value,
-        BitFieldOverflow::Wrap as u8,
-      ));
-    }
-
-    // OVERFLOW 末值后置全局生效（含 OVERFLOW 之前入列的子命令）
-    if is_overflow_type_set {
-      for args in &mut secondary_command_args {
-        args.overflow_type = overflow_type as u8;
-      }
+    if secondary_command_args.is_empty() {
+      output.write_resp_array_len(0);
+      return Ok(true);
     }
 
     if secondary_command_args.is_empty() {
@@ -574,52 +414,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 1.., output, "BITFIELD_RO");
-
-    let key = parse_state[0];
-    let mut secondary_command_args: Vec<BitFieldCmdArgs> = Vec::new();
-
-    let mut curr_token_idx = 1usize;
-    while curr_token_idx < parse_state.len() {
-      let command = parse_state[curr_token_idx];
-      curr_token_idx += 1;
-
-      // 只读变体仅支持 GET
-      if !command.eq_ignore_ascii_case(b"GET") {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-
-      // encoding
-      let Some(encoding_slice) = parse_state.get(curr_token_idx).copied() else {
-        abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
-        return Ok(true);
-      };
-      if parse_bitfield_encoding(encoding_slice).is_none() {
-        abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
-        return Ok(true);
-      }
-      curr_token_idx += 1;
-
-      // offset
-      let Some(offset_raw) = parse_state.get(curr_token_idx).copied() else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      let Some((type_info, offset)) = parse_bitfield_type_offset(encoding_slice, offset_raw) else {
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      curr_token_idx += 1;
-
-      secondary_command_args.push(BitFieldCmdArgs::new(
-        BitFieldSecondaryCommand::Get,
-        type_info,
-        offset,
-        0,
-        BitFieldOverflow::Wrap as u8,
-      ));
-    }
+    let Some((key, secondary_command_args)) = parse_bitfield_ro_args(parse_state, output) else {
+      return Ok(true);
+    };
 
     if secondary_command_args.is_empty() {
       output.write_resp_array_len(0);
@@ -758,4 +555,317 @@ impl RespServerSession {
     }
     Ok(false)
   }
+}
+
+/// NetworkStringBitCount 的区间推导单源（快慢路径共用；解析失败时已写出错误
+/// 应答并返回 None，返回 `(key, start, end, offset_type)`；缺省 0/-1/BYTE）
+pub(crate) fn parse_bit_count_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], i64, i64, u8)> {
+  let count = parse_state.len();
+  check_arg_count!(
+    count == 1 || count == 3 || count == 4,
+    output,
+    "BITCOUNT",
+    return None
+  );
+  let key = parse_state[0];
+
+  // 缺省 start=0 / end=-1（全量）
+  let mut start = 0i64;
+  let mut end = -1i64;
+  let mut use_bit_index = false;
+  if count > 1 {
+    let (Some(s), Some(e)) = (
+      parse_state[1].try_parse_i64(),
+      parse_state[2].try_parse_i64(),
+    ) else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    start = s;
+    end = e;
+    if count > 3 {
+      let flag = parse_state[3];
+      if flag.eq_ignore_ascii_case(b"BIT") {
+        use_bit_index = true;
+      } else if !flag.eq_ignore_ascii_case(b"BYTE") {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+        return None;
+      }
+    }
+  }
+  Some((key, start, end, if use_bit_index { 0x1 } else { 0x0 }))
+}
+
+/// NetworkStringBitPosition 的推导产物（快慢路径共用）
+pub(crate) struct BitPosArgs<'p> {
+  pub(crate) key: &'p [u8],
+  /// 查找位（0/1）
+  pub(crate) search_for: u8,
+  pub(crate) start_offset: i64,
+  pub(crate) end_offset: i64,
+  /// 0x0 BYTE / 0x1 BIT
+  pub(crate) offset_type: u8,
+  pub(crate) has_start_offset: bool,
+  pub(crate) has_end_offset: bool,
+}
+
+/// NetworkStringBitPosition 的推导单源（快慢路径共用；解析失败时已写出错误
+/// 应答并返回 None；bit 参数须单字符 '0'/'1'，缺省 start=0 / end=-1 / BYTE）
+pub(crate) fn parse_bit_pos_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<BitPosArgs<'p>> {
+  check_arg_count!(parse_state, 2..=5, output, "BITPOS", return None);
+  let count = parse_state.len();
+  let key = parse_state[0];
+
+  // bit 参数须为单字符 '0'/'1'
+  let bit_slice = parse_state[1];
+  if bit_slice.len() != 1 || (bit_slice[0] != b'0' && bit_slice[0] != b'1') {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER);
+    return None;
+  }
+  let search_for = bit_slice[0] - b'0';
+
+  // 依次为 start、end、[BIT|BYTE]（缺省 start=0 / end=-1 / BYTE）
+  let mut start_offset = 0i64;
+  let mut end_offset = -1i64;
+  let mut offset_type = 0x0u8;
+  let mut has_start_offset = false;
+  let mut has_end_offset = false;
+  if count > 2 {
+    let Some(start) = parse_state[2].try_parse_i64() else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    start_offset = start;
+    has_start_offset = true;
+
+    if count > 3 {
+      let Some(end) = parse_state[3].try_parse_i64() else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        return None;
+      };
+      end_offset = end;
+      has_end_offset = true;
+
+      if count > 4 {
+        let flag = parse_state[4];
+        if flag.eq_ignore_ascii_case(b"BIT") {
+          offset_type = 0x1;
+        } else if !flag.eq_ignore_ascii_case(b"BYTE") {
+          abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return None;
+        }
+      }
+    }
+  }
+  Some(BitPosArgs {
+    key,
+    search_for,
+    start_offset,
+    end_offset,
+    offset_type,
+    has_start_offset,
+    has_end_offset,
+  })
+}
+
+/// NetworkStringSetBit / NetworkStringGetBit 的推导单源（快慢路径共用；
+/// 返回 `(key, offset, bit)`，bit 仅 SETBIT 语义有效）
+pub(crate) fn parse_bit_args<'p>(
+  cmd_name: &str,
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+  with_bit: bool,
+) -> Option<(&'p [u8], i64, u8)> {
+  if with_bit {
+    check_arg_count!(parse_state, 3, output, cmd_name, return None);
+  } else {
+    check_arg_count!(parse_state, 2, output, cmd_name, return None);
+  }
+  let key = parse_state[0];
+  let Some(offset) = parse_bit_offset(parse_state[1]) else {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+    return None;
+  };
+  let mut bit = 0u8;
+  if with_bit {
+    // C#：bit 参数须为单字符 '0'/'1'
+    if !matches!(parse_state[2], b"0" | b"1") {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BIT_IS_NOT_INTEGER);
+      return None;
+    }
+    bit = parse_state[2][0] - b'0';
+  }
+  Some((key, offset, bit))
+}
+
+/// StringBitField 的子命令序列推导单源（快慢路径共用；OVERFLOW 末值后置全局
+/// 生效，写子命令存在时返回 has_write=true）
+pub(crate) fn parse_bitfield_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], Vec<BitFieldCmdArgs>, bool)> {
+  check_arg_count!(parse_state, 1.., output, "BITFIELD", return None);
+  let key = parse_state[0];
+
+  let mut is_overflow_type_set = false;
+  let mut overflow_type = BitFieldOverflow::Wrap;
+  let mut secondary_command_args: Vec<BitFieldCmdArgs> = Vec::new();
+  let mut has_write_sub_commands = false;
+
+  let mut curr_token_idx = 1usize;
+  while curr_token_idx < parse_state.len() {
+    let command = parse_state[curr_token_idx];
+    curr_token_idx += 1;
+
+    // OVERFLOW：校验并记录（覆盖既有策略，末值全局生效）
+    if command.eq_ignore_ascii_case(b"OVERFLOW") {
+      let Some(next) = parse_state.get(curr_token_idx) else {
+        abort_with_error_message(output, RESP_ERR_INVALID_OVERFLOW_TYPE);
+        return None;
+      };
+      let Some(parsed) = parse_bitfield_overflow_slice(next) else {
+        abort_with_error_message(output, RESP_ERR_INVALID_OVERFLOW_TYPE);
+        return None;
+      };
+      curr_token_idx += 1;
+      overflow_type = parsed;
+      is_overflow_type_set = true;
+      continue;
+    }
+
+    // encoding（u<位宽> / i<位宽>）
+    let Some(encoding_slice) = parse_state.get(curr_token_idx).copied() else {
+      abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
+      return None;
+    };
+    if parse_bitfield_encoding(encoding_slice).is_none() {
+      abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
+      return None;
+    }
+    curr_token_idx += 1;
+
+    // offset（`#<n>` 倍乘或裸位偏移）
+    let Some(offset_raw) = parse_state.get(curr_token_idx).copied() else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+      return None;
+    };
+    let Some((type_info, offset)) = parse_bitfield_type_offset(encoding_slice, offset_raw) else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+      return None;
+    };
+    curr_token_idx += 1;
+
+    // GET 子命令取 encoding + offset
+    if command.eq_ignore_ascii_case(b"GET") {
+      secondary_command_args.push(BitFieldCmdArgs::new(
+        BitFieldSecondaryCommand::Get,
+        type_info,
+        offset,
+        0,
+        BitFieldOverflow::Wrap as u8,
+      ));
+      continue;
+    }
+
+    // SET / INCRBY 再取 value/increment
+    let op = if command.eq_ignore_ascii_case(b"SET") {
+      BitFieldSecondaryCommand::Set
+    } else if command.eq_ignore_ascii_case(b"INCRBY") {
+      BitFieldSecondaryCommand::IncrBy
+    } else {
+      let err = format!(
+        "ERR Bitfield command {} not supported",
+        command.as_str_safe()
+      );
+      abort_with_error_message(output, &err);
+      return None;
+    };
+    has_write_sub_commands = true;
+
+    let Some(value_slice) = parse_state.get(curr_token_idx).copied() else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    let Some(value) = value_slice.try_parse_i64() else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    curr_token_idx += 1;
+
+    secondary_command_args.push(BitFieldCmdArgs::new(
+      op,
+      type_info,
+      offset,
+      value,
+      BitFieldOverflow::Wrap as u8,
+    ));
+  }
+
+  // OVERFLOW 末值后置全局生效（含 OVERFLOW 之前入列的子命令）
+  if is_overflow_type_set {
+    for args in &mut secondary_command_args {
+      args.overflow_type = overflow_type as u8;
+    }
+  }
+  Some((key, secondary_command_args, has_write_sub_commands))
+}
+
+/// StringBitFieldReadOnly 的子命令序列推导单源（快慢路径共用；只读变体仅
+/// 支持 GET）
+pub(crate) fn parse_bitfield_ro_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], Vec<BitFieldCmdArgs>)> {
+  check_arg_count!(parse_state, 1.., output, "BITFIELD_RO", return None);
+  let key = parse_state[0];
+  let mut secondary_command_args: Vec<BitFieldCmdArgs> = Vec::new();
+
+  let mut curr_token_idx = 1usize;
+  while curr_token_idx < parse_state.len() {
+    let command = parse_state[curr_token_idx];
+    curr_token_idx += 1;
+
+    // 只读变体仅支持 GET
+    if !command.eq_ignore_ascii_case(b"GET") {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return None;
+    }
+
+    // encoding
+    let Some(encoding_slice) = parse_state.get(curr_token_idx).copied() else {
+      abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
+      return None;
+    };
+    if parse_bitfield_encoding(encoding_slice).is_none() {
+      abort_with_error_message(output, RESP_ERR_INVALID_BITFIELD_TYPE);
+      return None;
+    }
+    curr_token_idx += 1;
+
+    // offset
+    let Some(offset_raw) = parse_state.get(curr_token_idx).copied() else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+      return None;
+    };
+    let Some((type_info, offset)) = parse_bitfield_type_offset(encoding_slice, offset_raw) else {
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_BITOFFSET_IS_NOT_INTEGER);
+      return None;
+    };
+    curr_token_idx += 1;
+
+    secondary_command_args.push(BitFieldCmdArgs::new(
+      BitFieldSecondaryCommand::Get,
+      type_info,
+      offset,
+      0,
+      BitFieldOverflow::Wrap as u8,
+    ));
+  }
+  Some((key, secondary_command_args))
 }

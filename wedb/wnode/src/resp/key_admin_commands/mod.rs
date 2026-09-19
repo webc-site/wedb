@@ -8,6 +8,7 @@
 //! RANDOMKEY 两侧一致无（C# 全仓无此命令），不实现。
 
 mod keys;
+pub mod slow;
 mod types;
 
 pub use self::keys::{ExpireCmd, ExpireTimeCmd, TtlCmd};

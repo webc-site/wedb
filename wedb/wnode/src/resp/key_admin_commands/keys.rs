@@ -172,64 +172,14 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 2..=4, output, command.as_str());
-    let count = parse_state.len();
-
-    let key = parse_state[0];
-    let Some(expiration) = strict_i64(parse_state[1]) else {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    let Some(args) = parse_expire_args(command, parse_state, output) else {
       return Ok(true);
     };
-    if expiration < 0 {
-      // C# 文案（与 Redis 的 "must be positive" 不同，逐字节保留）
-      abort_with_error_message(output, cs::RESP_ERR_INVALID_EXPIRE_TIME);
-      return Ok(true);
-    }
-
-    // NX/XX/GT/LT 选项与两参组合（XXGT/XXLT），位运算解析并校验兼容规则
-    let mut opt = TtlOpt::NONE;
-    if count > 2 {
-      let Some(first_opt) = try_get_expire_option(parse_state[2]) else {
-        abort_with_unsupported_option(output, parse_state[2].as_str_safe());
-        return Ok(true);
-      };
-      let mut combined = first_opt;
-      if count > 3 {
-        let Some(second_opt) = try_get_expire_option(parse_state[3]) else {
-          abort_with_unsupported_option(output, parse_state[3].as_str_safe());
-          return Ok(true);
-        };
-        let merged = first_opt | second_opt;
-        let compatible = merged == ExpireOption::XXGT || merged == ExpireOption::XXLT;
-        if first_opt == second_opt || !compatible {
-          abort_with_error_message(
-            output,
-            "ERR NX and XX, GT or LT options at the same time are not compatible",
-          );
-          return Ok(true);
-        }
-        combined = merged;
-      }
-      opt = TtlOpt {
-        nx: combined.contains(ExpireOption::NX),
-        xx: combined.contains(ExpireOption::XX),
-        gt: combined.contains(ExpireOption::GT),
-        lt: combined.contains(ExpireOption::LT),
-      };
-    }
-
-    // 换算绝对过期 .NET Ticks（对标 KeyAdminCommands.cs:421-427 换算 switch，
-    // rust TTL 记录即 ticks 口径，wkv/GC 同域解释）
-    let expire_at_ticks = command.expire_at_ticks(expiration);
-
-    // 键级过期同步入口的粗化单点（对标 C# NetworkEXPIRE:430 打包侧
-    // `new ExpirationWithOption(ticks, option)` 的粗化半段，
-    // ExpirationWithOption.cs:22-23）：C# 粗化是 ExpireOption 借用低 4 位的
-    // 产物、只覆盖 EXPIRE 族，条件判定（GT/LT）与落盘同域；存储内核
-    // put_ttl_sync 裸写不判。判据边界：SET/GETEX/RENAME 族对应 C#
-    // MainStore/RMWMethods.cs TrySetExpiration/EvaluateExpire* 的裸 ticks
-    // 路径，明确禁止一并粗化（异步/外部入口的对应粗化在 wkv `expire_at` 头部）
-    let expire_at_ticks = coarse_expire_ticks(expire_at_ticks);
+    let ExpireArgs {
+      key,
+      expire_at_ticks,
+      opt,
+    } = args;
 
     match expire_apply_sync(store, key, expire_at_ticks, opt) {
       Ok(Some(applied)) => {
@@ -363,6 +313,88 @@ const fn command_name_of_ttl(command: TtlCmd) -> &'static str {
     TtlCmd::Ttl => "TTL",
     TtlCmd::Pttl => "PTTL",
   }
+}
+
+/// NetworkEXPIRE 的参数推导单源（快慢路径共用；解析失败时已写出错误应答并
+/// 返回 None）
+pub(crate) struct ExpireArgs<'p> {
+  pub(crate) key: &'p [u8],
+  /// 已粗化的绝对过期 .NET Ticks（快路径打包侧粗化口径）
+  pub(crate) expire_at_ticks: i64,
+  pub(crate) opt: TtlOpt,
+}
+
+/// NetworkEXPIRE 族推导（个数 → 整数 → 非负 → NX/XX/GT/LT 选项组合 →
+/// 换算绝对 ticks → 命令边界粗化），快慢两侧同一入口，杜绝第二套推导
+pub(crate) fn parse_expire_args<'p>(
+  command: ExpireCmd,
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<ExpireArgs<'p>> {
+  check_arg_count!(parse_state, 2..=4, output, command.as_str(), return None);
+  let count = parse_state.len();
+
+  let key = parse_state[0];
+  let Some(expiration) = strict_i64(parse_state[1]) else {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    return None;
+  };
+  if expiration < 0 {
+    // C# 文案（与 Redis 的 "must be positive" 不同，逐字节保留）
+    abort_with_error_message(output, cs::RESP_ERR_INVALID_EXPIRE_TIME);
+    return None;
+  }
+
+  // NX/XX/GT/LT 选项与两参组合（XXGT/XXLT），位运算解析并校验兼容规则
+  let mut opt = TtlOpt::NONE;
+  if count > 2 {
+    let Some(first_opt) = try_get_expire_option(parse_state[2]) else {
+      abort_with_unsupported_option(output, parse_state[2].as_str_safe());
+      return None;
+    };
+    let mut combined = first_opt;
+    if count > 3 {
+      let Some(second_opt) = try_get_expire_option(parse_state[3]) else {
+        abort_with_unsupported_option(output, parse_state[3].as_str_safe());
+        return None;
+      };
+      let merged = first_opt | second_opt;
+      let compatible = merged == ExpireOption::XXGT || merged == ExpireOption::XXLT;
+      if first_opt == second_opt || !compatible {
+        abort_with_error_message(
+          output,
+          "ERR NX and XX, GT or LT options at the same time are not compatible",
+        );
+        return None;
+      }
+      combined = merged;
+    }
+    opt = TtlOpt {
+      nx: combined.contains(ExpireOption::NX),
+      xx: combined.contains(ExpireOption::XX),
+      gt: combined.contains(ExpireOption::GT),
+      lt: combined.contains(ExpireOption::LT),
+    };
+  }
+
+  // 换算绝对过期 .NET Ticks（对标 KeyAdminCommands.cs:421-427 换算 switch，
+  // rust TTL 记录即 ticks 口径，wkv/GC 同域解释）
+  let expire_at_ticks = command.expire_at_ticks(expiration);
+
+  // 键级过期同步入口的粗化单点（对标 C# NetworkEXPIRE:430 打包侧
+  // `new ExpirationWithOption(ticks, option)` 的粗化半段，
+  // ExpirationWithOption.cs:22-23）：C# 粗化是 ExpireOption 借用低 4 位的
+  // 产物、只覆盖 EXPIRE 族，条件判定（GT/LT）与落盘同域；存储内核
+  // put_ttl_sync 裸写不判。判据边界：SET/GETEX/RENAME 族对应 C#
+  // MainStore/RMWMethods.cs TrySetExpiration/EvaluateExpire* 的裸 ticks
+  // 路径，明确禁止一并粗化（异步/外部入口的对应粗化在 wkv `expire_at` 头部，
+  // 16 对齐幂等恒等）
+  let expire_at_ticks = coarse_expire_ticks(expire_at_ticks);
+  Some(ExpireArgs {
+    key,
+    expire_at_ticks,
+    opt,
+  })
 }
 
 /// RENAME/RENAMENX 共同内核（对标 libs/server/Storage/Session/UnifiedStore/
