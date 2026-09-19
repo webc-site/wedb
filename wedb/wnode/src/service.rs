@@ -92,6 +92,11 @@ pub struct NodeService<D: Device> {
   /// 本引擎实例锁表句柄（对标 C# 重放会话经所属 store 取 `LockTable`：
   /// `SessionFunctionsWrapper.cs:30`；AOF 存储过程重放与在线事务同面互斥）
   lock_table: TxnLockTable,
+  /// 范围索引 AOF 复制面单例（C# `StoreWrapper.rangeIndexManager` 一体三面
+  /// ——命令面/升阶分块/流重组——在 rust 拆为引擎 + 复制面两件，引擎归
+  /// [`SharedStore::range_index`]，本字段是在线复制面唯一实例；与
+  /// `AofSinkContext.ri` 共持同一 Arc，宿主停机链经提供者转交此句柄收口）
+  ri: Arc<RangeIndexManagerReplication>,
 }
 
 /// 原始底层条目入队（失败上抛拒绝该命令：主存写入已生效，AOF 缺条目即
@@ -388,12 +393,15 @@ impl<D: Device> NodeService<D> {
     D: 'static,
   {
     // 各端口版本源快照（原子指针捕获消除循环引用与多余开销；对标 C# storeWrapper.store.CurrentVersion）
+    // 复制面单例先造后共享：AofSinkContext 与本服务同持一个 Arc（C#
+    // StoreWrapper.rangeIndexManager 单实例对位，杜绝第二实例分叉重组状态）
+    let ri = Arc::new(RangeIndexManagerReplication::new(Arc::clone(
+      store.range_index(),
+    )));
     let ctx = Arc::new(AofSinkContext {
       aof: Arc::clone(&aof),
       ver_atomic: Arc::clone(store.current_version_atomic()),
-      ri: Arc::new(RangeIndexManagerReplication::new(Arc::clone(
-        store.range_index(),
-      ))),
+      ri: Arc::clone(&ri),
     });
     let event_sink = StoreEventSink::new(ctx, on_aof_store_event);
     if !store.set_event_sink(event_sink) {
@@ -411,6 +419,7 @@ impl<D: Device> NodeService<D> {
       session,
       aof,
       lock_table,
+      ri,
     })
   }
 
@@ -431,6 +440,13 @@ impl<D: Device> NodeService<D> {
   #[inline]
   pub fn aof(&self) -> &Arc<GarnetAppendOnlyFile> {
     &self.aof
+  }
+
+  /// 范围索引 AOF 复制面单例句柄（升阶分块在线实例；宿主装配链经此转交
+  /// 提供者，停机链单点收口）
+  #[inline]
+  pub fn ri(&self) -> &Arc<RangeIndexManagerReplication> {
+    &self.ri
   }
 
   /// 创建范围索引并预写 WAL（apply 成功后由 range_create_listener 同栈入队 WAL）
@@ -945,6 +961,12 @@ pub struct StorageSessionProvider<F> {
   /// `!opts.DisablePubSub → new SubscribeBroker(...)`；None = --disable-pubsub
   /// 关闭形态，命令面按同款禁用文案回错）
   pub pubsub: Option<Arc<SubscribeBroker>>,
+  /// 范围索引 AOF 复制面单例（对标 C# `StoreWrapper.rangeIndexManager`：
+  /// 随 NodeService AOF 装配单点创建，与事件汇共持同一实例；None = AOF 未
+  /// 点亮——C# 该管理器不依赖 EnableAOF，引擎树释放由 [`Self::dispose_range_index`]
+  /// 的引擎臂无条件承接）。宿主停机链取用面，仅 [`Self::dispose_range_index`]
+  /// 消费，故不设独立取口
+  ri: Option<Arc<RangeIndexManagerReplication>>,
   /// 发布订阅后台消费任务已拉起标志（C# broker.Initialize 首次订阅拉起
   /// StartAsync 后台消费循环的对译；随首个会话建立惰性启动，幂等）
   pubsub_consume_started: AtomicBool,
@@ -1092,6 +1114,7 @@ where
       registry,
       pubsub,
       pubsub_consume_started: AtomicBool::new(false),
+      ri: None,
       gc_scan_started: AtomicBool::new(false),
       primary_tasks,
       aof_size_limit: None,
@@ -1156,6 +1179,9 @@ where
     // 写监听端口注册 + 服务级会话（对标 C# EnableAOF 构造段）
     let node = NodeService::with_node_args(&args, Arc::clone(&provider.store), Arc::clone(&wal))
       .map_err(|e| io::Error::other(e.to_string()))?;
+    // 范围索引复制面单例转交（C# StoreWrapper.rangeIndexManager 对位：
+    // 与事件汇同实例，停机链单点收口）
+    provider.ri = Some(Arc::clone(node.ri()));
     // 向量域 AOF 直推装配：生产端注入端口（VADD/VREM/VSETATTR 合成写）+
     // 重放端承接面（AofProcessor 向量分支重放重建索引）
     let aof = Arc::clone(node.aof());
@@ -1254,6 +1280,8 @@ where
     // 写监听端口注册 + 服务级会话（挂到恢复出的存储句柄）
     let node = NodeService::with_node_args(&args, Arc::clone(&store), Arc::clone(&wal))
       .map_err(|e| io::Error::other(e.to_string()))?;
+    // 范围索引复制面单例转交（绑定恢复出的存储句柄，与事件汇同实例）
+    let recovered_ri = Arc::clone(node.ri());
     // 向量域先于 AOF 重放装配（重放的 VADD/VREM/VSETATTR 条目经 AOF 门面的
     // 向量承接面重建索引；vm 的存储回调绑恢复出的存储句柄，元素数据随
     // 重放落盘）
@@ -1300,6 +1328,7 @@ where
       .attach_primary_tasks(Arc::clone(&provider.primary_tasks));
     provider.aof = Some(aof);
     provider.wal = Some(wal);
+    provider.ri = Some(recovered_ri);
     provider.recovered_aof_tail = Some(recovered_aof_tail);
     if let Some(ms) = aof_commit_ms {
       let opts = RuntimeServerOptions {
@@ -1751,6 +1780,20 @@ where
   /// `--disable-pubsub` 形态（None）直返 true
   fn dispose_pubsub(&self) -> bool {
     self.pubsub.as_ref().is_none_or(|b| b.dispose())
+  }
+
+  /// 范围索引停机收口（在 garnet 中的相对路径:libs/server/StoreWrapper.cs:Dispose
+  /// 的 `rangeIndexManager?.Dispose()`：DisposeIncompleteStreamReassembly +
+  /// 逐树 `Tree?.Dispose()` + `liveIndexes.Clear()`）。rust 拆两臂：
+  /// 复制面臂清未完成流重组（AOF 装配在场才收），引擎臂释放当前在线引擎
+  /// 全部在线树（幂等——wbftree manager 逐树 `take` 语义，与
+  /// `WedbStore::drop` 的 dispose 兜底及 manager Drop 并存安全）；
+  /// `store()` 现取在线引擎，副本检查点导入置换后仍收口新引擎
+  fn dispose_range_index(&self) {
+    if let Some(ri) = &self.ri {
+      ri.dispose();
+    }
+    self.store().range_index().dispose();
   }
 }
 
