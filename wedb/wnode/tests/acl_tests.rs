@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread};
 
+use compio::runtime::Runtime;
 use parking_lot::Mutex;
 use wacl::{
   AccessControlList, AclParser, GarnetAclAuthenticator, GarnetAclWithPasswordAuthenticator,
@@ -649,7 +650,7 @@ fn acl_cat_via_session_dispatch_for_default_user() {
   );
 }
 
-/// 两遍流式扫描框径探针：解析 RESP2 bulk-string 数组框，返回（声明数组长度,
+/// 快照框径探针：解析 RESP2 bulk-string 数组框，返回（声明数组长度,
 /// 元素正文清单）；框体与声明脱拍即断言失败（元素数不符 / 框头残缺即 panic）
 fn parse_bulk_array(frame: &[u8]) -> (usize, Vec<Vec<u8>>) {
   /// 读取一行至 CRLF，返回行正文与下一行起点
@@ -683,7 +684,7 @@ fn parse_bulk_array(frame: &[u8]) -> (usize, Vec<Vec<u8>>) {
   (declared, items)
 }
 
-/// ACL LIST / ACL USERS 两遍扫描流式直出（对标 ACLCommands.cs:NetworkAclList /
+/// ACL LIST / ACL USERS 单遍快照整框直出（对标 ACLCommands.cs:NetworkAclList /
 /// NetworkAclUsers）：声明的数组长度与实际写出元素数一致（多位数符合成路径），
 /// default 兜底仍居首，多用户正文逐条直出
 #[test]
@@ -695,7 +696,7 @@ fn acl_list_and_users_stream_consistent_frames() {
   let storage = TestAclStore::open("acl-list-streaming");
   let store = storage.acl();
 
-  // 两位数组长度：合符与逐条写出两遍之间不容纳占位偏差
+  // 两位数组长度：符头与正文同取自一份快照，二者之间不容纳占位偏差
   let users: Vec<String> = (0..12).map(|i| format!("user-{i}")).collect();
   for user in &users {
     let mut out = Vec::new();
@@ -775,4 +776,75 @@ fn acl_list_undecodable_record_fails_before_opening_frame() {
   assert_eq!(declared, 2, "got {}", String::from_utf8_lossy(&out));
   assert_eq!(items[0], b"default");
   assert_eq!(items[1], b"broken");
+}
+
+/// 并发增删下快照口径回归：LIST / USERS 的数组符头与实际写出元素数恒一致
+///
+/// 旧实现「首遍计数定符头、次遍重扫写正文」把背离窗口摊成**两次全日志扫描**
+/// （日志越大窗口越宽），其间本命名空间的 SETUSER/DELUSER 即令客户端按符头取数
+/// 少读或多读；新实现单遍扫描收快照、符头与正文同源，窗口归零。
+#[test]
+fn acl_list_and_users_snapshot_frame_consistent_under_concurrent_mutation() {
+  let (_dir, store): (_, Arc<WedbStore<SegmentedDevice>>) =
+    open_test_store("acl-list-snapshot-race").unwrap();
+  let acl = Arc::new(AccessControlList::new("").unwrap());
+  let auth = GarnetAclWithPasswordAuthenticator::new(Arc::clone(&acl));
+  let ctx = ctx_for(&auth, None);
+  let session = RespServerSession::default();
+  let reader_session = store.new_session().unwrap();
+  let reader = AclStore::new(&reader_session);
+
+  // 写侧：另一会话线程不断增删同批命名用户，令读侧两半之间始终处于可背离态
+  let writer_store = Arc::clone(&store);
+  let writer = thread::spawn(move || {
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async move {
+      let writer_session = writer_store.new_session().unwrap();
+      let store = AclStore::new(&writer_session);
+      for round in 0..240u32 {
+        let name = format!("racer-{}", round % 6);
+        let user = User::new(name.clone());
+        let _ = store.write(0, name.as_bytes(), &user.to_bytes());
+        let _ = store.delete(0, name.as_bytes());
+      }
+    });
+  });
+
+  // 读侧：每一框都须自洽（符头 == 元素数，且逐元素框体完整），任一次脱拍即断言
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    for _ in 0..160 {
+      let mut out = Vec::new();
+      session
+        .network_acl_list(&ctx, &reader, &[], &mut out)
+        .unwrap();
+      let (declared, items) = parse_bulk_array(&out);
+      assert_eq!(
+        declared,
+        items.len(),
+        "LIST 符头与元素数背离（按符头取数即截断/残留）: {}",
+        String::from_utf8_lossy(&out)
+      );
+      assert!(
+        items[0].starts_with(b"user default "),
+        "default 兜底位次回归: {}",
+        String::from_utf8_lossy(&out)
+      );
+
+      let mut out = Vec::new();
+      session
+        .network_acl_users(&ctx, &reader, &[], &mut out)
+        .unwrap();
+      let (declared, items) = parse_bulk_array(&out);
+      assert_eq!(
+        declared,
+        items.len(),
+        "USERS 符头与元素数背离（按符头取数即截断/残留）: {}",
+        String::from_utf8_lossy(&out)
+      );
+      assert_eq!(items[0], b"default", "default 兜底位次回归");
+    }
+  });
+
+  writer.join().unwrap();
 }
