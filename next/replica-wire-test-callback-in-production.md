@@ -72,3 +72,5 @@ C# 对位
 - cluster_replication_session.rs:13 的模块注释自述「内存链路由 CallbackWire 承接」，
   随迁改写，勿留失真指引。
 - 不做向下兼容：旧枚举臂直接删，不保留 `#[allow(dead_code)]` 或过渡别名（本仓禁写 allow）。
+
+盘点补记（qw13.invA replica-wire-test-callback-in-production）：dev e75716e 复核，增量：aof_sync_task.rs 侧使用面已收进 #[cfg(test)] mod tests（:426 起，:434 use CallbackWire/FrameSink），但定义仍在生产模块视图：replica_wire.rs:56 pub enum FrameSink、:139 pub struct CallbackWire、:613 Callback 臂与逐方法 match 原样，无 cfg 门、未搬出。修法收敛为「定义面搬出或加 cfg 门」单步。

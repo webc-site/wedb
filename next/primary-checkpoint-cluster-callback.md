@@ -77,3 +77,5 @@ publish_checkpoint_aof_address 调用与集群分支的位点口径对齐（副�
 优先级
 功能缺口且带线上破坏性（集群主库每次打点即删慢副本在用的段），高档，仅次于
 task/ing/flush-safe-read-only-bound.md。
+
+盘点补记（qw13.invA primary-checkpoint-cluster-callback）：dev e75716e 复核，增量：内核已新增集群形态版本标记链（database_manager_base.rs take_database_checkpoint_async 内 cluster.checkpoint_version_shift_start/end 写 CheckpointStartCommit/EndCommit，实现在 cluster_provider.rs:1682/:1695）与单机形态 purge 让位二分（wcpr::purge_outdated 仅 cluster 缺位时执行）；但判据核心仍未接线：on_checkpoint_initiated 生产调用仍零（唯 cluster_provider.rs:1251 实现 + wedb/tests 三处），add_new_checkpoint_entry 生产入口仍只 cluster_provider.rs:1085（副本 attach 链），拍后截断层 aof.truncate_until_async(&covered) + commit_flush_async 仍无条件执行（database_manager_base.rs:311 附近），未按集群走 safe_truncate_aof（全副本最小已发位点，cluster_provider.rs:1208）。修法建议更新为：截断层按 self.cluster.get() 二分，集群臂改走 add_new_checkpoint_entry 或 safe_truncate_aof。

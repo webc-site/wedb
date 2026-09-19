@@ -1724,8 +1724,6 @@
         - IsLockedShared
         - SortKeyHashes
         - TryPromoteLock
-        - UnlockExclusive
-        - UnlockShared
   理由: C# 溢出桶锁表（键哈希排序/锁升级降级/桶定位）；rust wtxn TxnLockTable 锁升降级与排序比较器单点承接；windex 提供
     is_locked 键级桶锁查询作为底层调试与并发测试断言接口。GetLockState 为该查询的三元聚合形态
     （IsFound/NumLockedShared/IsLockedExclusive），全仓消费点仅测试侧（test/OverflowBucketLockTableTests.cs、

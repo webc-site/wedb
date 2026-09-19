@@ -63,3 +63,5 @@ C# 对位
 - 禁以「删掉注释」代替「写准注释」：三处结论本身是有价值的现状声明。
 - 若为第 2 条新增 `File.cs:Symbol` 形式锚点，符号名必须是 C# 真实存在的（js/check.js
   对虚构符号名硬失败），不确定时宁可不挂符号位。
+
+盘点补记（qw13.invA replication-comment-anchor-drift）：dev e75716e 复核四处俱在：snapshot_transmission.rs:5 TsavoriteSnapshotReader.cs（garnet 实名 TsavoriteCheckpointReader.cs）、:8 与 replica_sync_session.rs:124、replica_diskbased_sync.rs:65 引 task/ing/m4-checkpoint-import.md（task/ing 已清空，死引用坐实）。纯注释棒不变。

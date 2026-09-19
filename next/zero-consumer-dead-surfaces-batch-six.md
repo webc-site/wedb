@@ -40,3 +40,11 @@ struct/enum 字段位，得定义点索引；生产视图引用数 <= 定义数�
 next/、task/ing 在册符号后，新出即本批 24 口 + 同轮第 4、5、6、7 各条。已知盲区：跨 crate 同名
 （如 try_get_expire_option 与 wresp::options::try_get_expire_option）会被同名活函数掩盖，故本批
 全部改按「限定路径 + 逐文件实读」复核过（rg -n "\b名\b" 排除定义文件后看是否 tests/ 独占）。
+
+分拣补记（next/muse.design.md 条 14 同题增量）：信封编解码 obj_encode 家族已实测为单链薄转调
+形态——真源仅 obj_encode_custom_into 与 obj_decode_custom 两口，obj_encode_into/obj_decode/
+obj_encode 分别是其类型糖转调；obj_encode_custom 在产（消费点 wnode/src/resp/objects/
+custom_object_commands.rs），非零消费；本批在册的零消费死口仍只有 obj_encode。落地删 obj_encode
+时可选顺带收敛顶层入口面（六口并为 encode_into/decode 两口），非必做。
+
+盘点补记（qw13.invA zero-consumer-dead-surfaces-batch-six）：dev e75716e 复核抽查仍在场：range_index_manager_replication.rs:115 STREAMED_PUBLISH_LOG_ARG、:187 set_aof_stream_chunk_size、:227 replicate_range_index_del、aof_backpressure.rs:229 set_counter_log/:237 get_shipped_watermark 均零生产消费（set_counter_log 唯一消费在同文件 #[test] 内）。24 面逐条裁定仍待做，票面三处联动裁定不变。
