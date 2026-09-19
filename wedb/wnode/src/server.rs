@@ -230,6 +230,10 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
 
       // 活跃消费者注册表（监视器采样源；构造服务器前取用）
       let registry = session_provider.consumer_registry();
+      // 监视器复活化统计复位臂的宿主句柄（C# CleanupGlobalStats 直读
+      // storeWrapper 的 rust 承接：会话提供者为 storeWrapper 对位面；
+      // session_provider 随后移入 GarnetServer，故此处先行取一份共享句柄）
+      let monitor_provider = Arc::clone(&session_provider);
 
       // 3. 基于配置与端点构造 GarnetServer（端点解析失败即中止启动，
       //    对标 C# Options.cs:795-797 配置期拒启时序）
@@ -262,6 +266,8 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
         start_server_monitor(
           server.shutdown_coordinator().clone(),
           registry,
+          cluster_provider.clone(),
+          monitor_provider,
           metrics_sampling_frequency,
           latency_monitor,
           commandstats_monitor,
@@ -853,14 +859,25 @@ fn tls_config_from_node(node: &NodeArgs) -> crate::Result<Option<ServerTlsConfig
 /// libs/server/Metrics/GarnetServerMonitor.cs:Start（宿主启动序列
 /// StoreWrapper.Start() → monitor?.Start()，频率 > 0 才拉起后台采样任务）。
 /// 监视器随宿主进程级安装（dispose 归并直取），停机协调器充当
-/// C# CancellationToken——stop 即取消采样循环
-fn start_server_monitor(
+/// C# CancellationToken——stop 即取消采样循环。
+///
+/// INFO RESETSTAT 的六件事由本装配点凑齐：会话/连接/命令统计/延迟四臂的
+/// 回调在 [`ConsumerRegistry::monitor_iteration_inputs`] 内构造，gossip 与
+/// 复活化两臂的句柄（C# `storeWrapper.clusterProvider` 与 `storeWrapper`
+/// 本身）在此注入——单机形态的集群句柄即 NoopClusterProvider，其
+/// `reset_gossip_stats` 默认空操作正是 C# clusterProvider 为 null 的对位
+fn start_server_monitor<C, P>(
   coordinator: ShutdownCoordinator,
   registry: Arc<ConsumerRegistry>,
+  cluster_provider: C,
+  session_provider: Arc<P>,
   frequency_secs: u64,
   latency_monitor: bool,
   commandstats_monitor: bool,
-) {
+) where
+  C: ClusterProvider + Clone + 'static,
+  P: SessionProviderFace + 'static,
+{
   // C# GarnetServerMonitor.cs:64 构造（true, opts.LatencyMonitor,
   // opts.CommandStatsMonitor, this）：三追踪开关决定聚合成员是否就位
   let monitor = Arc::new(GarnetServerMonitor::new(
@@ -876,12 +893,23 @@ fn start_server_monitor(
   // 采样循环）
   if frequency_secs > 0 {
     let monitor = Arc::clone(&monitor);
+    let gossip_handle = cluster_provider;
+    let reviv_handle = session_provider;
     spawn(async move {
       monitor
         .main_monitor_task_async(
           time::sleep,
           || coordinator.is_stopped(),
-          || registry.monitor_iteration_inputs(),
+          || {
+            // 每轮重建两臂闭包（输入拥有型：闭包各持一份句柄克隆，
+            // 与 C# 每轮直查 storeWrapper.clusterProvider 同构）
+            let gossip = gossip_handle.clone();
+            let reviv = Arc::clone(&reviv_handle);
+            registry.monitor_iteration_inputs(
+              move || gossip.reset_gossip_stats(),
+              move || reviv.reset_revivification_stats(),
+            )
+          },
         )
         .await;
     })

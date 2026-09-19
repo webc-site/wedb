@@ -11,7 +11,7 @@ use wresp::{
 };
 use wval::GarnetObjectType;
 
-use super::{Rmw, ZsetLoad, zset_load_sync, zset_save_or_gc};
+use super::{Rmw, ZsetLoad, parse_zmpop_args, zset_load_sync, zset_save_or_gc};
 use crate::{
   resp::{
     objects::object_store_utils::obj_load_sync_degrades, resp_server_session::RespServerSession,
@@ -68,11 +68,11 @@ fn zset_pop_first_nonempty(
       ZsetLoad::Missing => continue,
       ZsetLoad::Present(o) => o,
     };
-    if obj.count() == 0 {
+    if obj.purge_expired_len() == 0 {
       continue;
     }
 
-    let max_k = (pop_count.max(0) as usize).min(obj.count());
+    let max_k = (pop_count.max(0) as usize).min(obj.purge_expired_len());
     let mut popped = Vec::with_capacity(max_k);
     for _ in 0..max_k {
       if let Some(pair) = obj.pop_min_or_max(!low_scores_first) {
@@ -149,53 +149,12 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 3.., output, "ZMPOP");
-
-    // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 NOT_INTEGER
-    let Some(num_keys) = strict_i32(parse_state[0]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((keys, low_scores_first, count)) = parse_zmpop_args(parse_state, false, output) else {
       return Ok(true);
     };
-    // C# 校验序：numkeys < 1 → NOT_INTEGER；参数不足以容纳 numkeys+MIN/MAX → SYNTAX_ERROR
-    if num_keys < 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-      return Ok(true);
-    }
-    if parse_state.len() < num_keys as usize + 2 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    }
-
-    let order_arg = parse_state[num_keys as usize + 1];
-    let low_scores_first = if order_arg.eq_ignore_ascii_case(b"MIN") {
-      true
-    } else if order_arg.eq_ignore_ascii_case(b"MAX") {
-      false
-    } else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    };
-
-    let mut count = 1_i32;
-    if parse_state.len() > num_keys as usize + 2 {
-      if parse_state.len() != num_keys as usize + 4
-        || !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(cs::COUNT)
-      {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      // C# TryGetInt（int32）：非整数（含溢出）与 <1 同报 NOT_INTEGER
-      match strict_i32(parse_state[num_keys as usize + 3]) {
-        Some(v) if v >= 1 => count = v,
-        _ => {
-          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-          return Ok(true);
-        }
-      }
-    }
 
     // 逐键尝试弹出第一个非空集合
-    let keys = &parse_state[1..=num_keys as usize];
     if let Some(handled) = zset_pop_first_nonempty(
       keys,
       store,
@@ -310,64 +269,19 @@ impl RespServerSession {
         return Ok(true);
       }
     };
-    // C# TryGetInt（int32）：非整数（含溢出）或 <=0 均报
-    // GenericParamShouldBeGreaterThanZero "numkeys"（Parameter 反引号版）
-    let err_numkeys = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
-    let Some(num_keys) = strict_i32(parse_state[1]) else {
-      cs::abort_with_error_message(output, &err_numkeys);
+    // 参数推导单源（快慢共用，失败帧已写出；timeout 词元已由上方先行校验）
+    let Some((keys, low_scores_first, count)) = parse_zmpop_args(parse_state, true, output) else {
       return Ok(true);
     };
-    if num_keys <= 0 {
-      cs::abort_with_error_message(output, &err_numkeys);
-      return Ok(true);
-    }
-    // C# :1650 形态检查：Count 须恰为 numkeys+3 或 numkeys+5
-    if parse_state.len() != num_keys as usize + 3 && parse_state.len() != num_keys as usize + 5 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    }
-
-    let order_arg = parse_state[num_keys as usize + 2];
-    let low_scores_first = if order_arg.eq_ignore_ascii_case(b"MIN") {
-      true
-    } else if order_arg.eq_ignore_ascii_case(b"MAX") {
-      false
-    } else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    };
-
-    let mut count = 1_i32;
-    if parse_state.len() == num_keys as usize + 5 {
-      if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(cs::COUNT) {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      // C# TryGetInt（int32）：非整数（含溢出）或 <1 均报
-      // GenericParamShouldBeGreaterThanZero "count"
-      match strict_i32(parse_state[num_keys as usize + 4]) {
-        Some(v) if v >= 1 => count = v,
-        _ => {
-          let err_count = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "count");
-          cs::abort_with_error_message(output, &err_count);
-          return Ok(true);
-        }
-      }
-    }
 
     // 经纪挂起路径（MIN/MAX 布尔 + count 编码进 cmd_args）；park 前预探同 BZPOPMIN
-    if any_sync_degrade(store, &parse_state[2..=num_keys as usize + 1]) {
+    if any_sync_degrade(store, keys) {
       return Ok(false);
     }
     if self.park_broker_wait(
       RespCommand::Bzmpop,
       timeout,
-      || {
-        parse_state[2..=num_keys as usize + 1]
-          .iter()
-          .map(|k| k.to_vec())
-          .collect()
-      },
+      || keys.iter().map(|k| k.to_vec()).collect(),
       || {
         vec![
           vec![u8::from(low_scores_first)],
@@ -379,7 +293,6 @@ impl RespServerSession {
     }
 
     // ---- 立即可取路径（经纪未注入的独立会话域）----
-    let keys = &parse_state[2..=num_keys as usize + 1];
     if let Some(handled) = zset_pop_first_nonempty(
       keys,
       store,

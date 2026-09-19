@@ -60,6 +60,70 @@ fn smoke_pool_lifecycle_and_slack_allocation() -> Void {
   OK
 }
 
+/// 计数复位与清槽职责分立：`reset_stats` 归零四计数而不动槽位，
+/// `clear` 清槽而账目原样保留
+///
+/// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs:Reset
+/// 的账目复位语义（INFO RESETSTAT 的 reviv 臂终点，不经清池）
+#[test]
+fn reset_stats_zeroes_counters_and_clear_keeps_them() -> Void {
+  info!("> reset_stats_zeroes_counters_and_clear_keeps_them");
+
+  let pool = FreeRecordPool::new(true);
+  assert!(pool.put(0x1000, 64, 0x1000));
+  assert!(pool.put(0x2000, 120, 0x1000));
+  assert_eq!(pool.take(64, 0x1000), Some((0x1000, 64)));
+  let stats = pool.stats();
+  assert_eq!(
+    (stats.put_count, stats.take_count, stats.hit_count),
+    (2, 1, 1)
+  );
+
+  // clear 只清槽：账目原样保留（INFO RESETSTAT 绝不误用本口当复位）
+  pool.clear();
+  let after_clear = pool.stats();
+  assert_eq!(
+    (
+      after_clear.put_count,
+      after_clear.take_count,
+      after_clear.hit_count,
+      after_clear.drop_count
+    ),
+    (2, 1, 1, 0),
+    "clear 只清槽不动账目"
+  );
+  assert!(pool.is_empty());
+
+  // reset_stats 只清账：可复活槽位原样保留，复位后继续记账
+  assert!(pool.put(0x3000, 64, 0x1000));
+  pool.reset_stats();
+  let after_reset = pool.stats();
+  assert_eq!(
+    (
+      after_reset.put_count,
+      after_reset.take_count,
+      after_reset.hit_count,
+      after_reset.drop_count
+    ),
+    (0, 0, 0, 0),
+    "reset_stats 应归零四计数"
+  );
+  assert_eq!(
+    pool.bins.iter().map(|b| b.len()).sum::<usize>(),
+    1,
+    "reset_stats 不得清槽"
+  );
+  assert_eq!(pool.take(64, 0x1000), Some((0x3000, 64)));
+  let after_reuse = pool.stats();
+  assert_eq!(
+    (after_reuse.take_count, after_reuse.hit_count),
+    (1, 1),
+    "复位后新流量继续从零点记账"
+  );
+
+  OK
+}
+
 /// 端到端冒烟测试：FreeRecordBin 单桶直接操作与存取
 #[test]
 fn smoke_bin_direct_operations() -> Void {

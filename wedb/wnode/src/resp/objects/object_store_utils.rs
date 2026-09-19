@@ -24,7 +24,7 @@ use wbase::{
     expire_after_ms_to_ticks, expire_after_to_ticks, expire_at_milliseconds_to_ticks,
     expire_at_seconds_to_ticks,
   },
-  num::strict_i32,
+  num::{strict_i32, strict_i64},
   time::now_ticks,
 };
 pub(crate) use wcol::object_payload::{GarnetObjectPayload, ObjLoad, count_of_blob};
@@ -36,8 +36,13 @@ use wcol::{
 };
 use wdev::Device;
 use wkv::{BatchStoreSession, StoreResult};
-use wresp::cmd_strings::{
-  self as cs, RESP_ERR_WRONG_TYPE, abort_with_wrong_number_of_arguments, write_error_raw,
+use wresp::{
+  check_args::check_arg_count,
+  cmd_strings::{
+    self as cs, RESP_ERR_WRONG_TYPE, abort_with_wrong_number_of_arguments, write_error_raw,
+  },
+  ext::RespVecExt,
+  options::{ExpirationWithOption, ExpireOption, try_get_expire_option},
 };
 use wval::{GarnetObjectType, KeyTag, MetaValue};
 
@@ -165,6 +170,254 @@ pub fn compute_expiration_ticks(expiration: i64, is_milliseconds: bool, is_times
   } else {
     expire_after_to_ticks(now_ticks(), expiration)
   }
+}
+
+// ============ 对象族参数推导单源（快慢路径共用） ============
+// 对标 basic_commands 的 parse_*_args 单源范式：推导体为无 IO 纯解析 +
+// 失败帧直写 output，快慢两侧各接各的 IO 原语与出帧通道，同输入应答逐字节
+// 一致；慢分派不再对快路径已校验参数做第二份推导（SINTERCARD 半开区间
+// 漂移即双写不同步的实证），RESP_ERR_ASYNC_REQUIRED 仅保留在真正未接线
+// 的命令兜底臂。
+
+/// HEXPIRE / ZEXPIRE 族参数推导结果
+#[derive(Debug)]
+pub struct ExpireElementsArgs<'a> {
+  /// 目标键
+  pub key: &'a [u8],
+  /// FIELDS/MEMBERS 头之后的元素切片
+  pub elements: &'a [&'a [u8]],
+  /// ExpirationWithOption word 高低 32 位对（ticks 换算与打包单源）
+  pub args12: (i32, i32),
+}
+
+/// HEXPIRE / ZEXPIRE 族参数推导单源（快慢路径共用；解析失败时已写出错误
+/// 应答并返回 None），按 `kind` 参数化 FIELDS/MEMBERS 使两族共用一份
+///
+/// 判定序对标 C#（HashCommands.cs 的 HashExpire 与 SortedSetCommands.cs 的
+/// SortedSetExpire 同构）：arity ≥ 5 → expiration i64（TryGetLong 口径）→
+/// 负时刻拒 → NX|XX|GT|LT 词元 → 元素头（见 [`parse_elements_header`]）→
+/// ticks 换算与 word 打包
+pub fn parse_expire_elements_args<'a>(
+  cmd_name: &'static str,
+  parse_state: &'a [&'a [u8]],
+  kind: ElementHeaderKind,
+  is_milliseconds: bool,
+  is_timestamp: bool,
+  output: &mut Vec<u8>,
+) -> Option<ExpireElementsArgs<'a>> {
+  check_arg_count!(parse_state, 5.., output, cmd_name, return None);
+
+  let key = parse_state[0];
+  let Some(expiration) = strict_i64(parse_state[1]) else {
+    cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    return None;
+  };
+  if expiration < 0 {
+    cs::abort_with_error_message(output, cs::RESP_ERR_INVALID_EXPIRE_TIME);
+    return None;
+  }
+
+  let mut curr_idx = 2;
+  let mut expire_option = ExpireOption::NONE;
+  if let Some(opt) = try_get_expire_option(parse_state[curr_idx]) {
+    expire_option = opt;
+    curr_idx += 1;
+  }
+
+  let (elements_start, _) = parse_elements_header(parse_state, curr_idx, kind, output)?;
+
+  let e = ExpirationWithOption::new(
+    compute_expiration_ticks(expiration, is_milliseconds, is_timestamp),
+    expire_option,
+  );
+  Some(ExpireElementsArgs {
+    key,
+    elements: &parse_state[elements_start..],
+    args12: ((e.word() >> 32) as i32, e.word() as i32),
+  })
+}
+
+/// HTTL / HPERSIST / ZTTL / ZPERSIST 族参数推导单源（快慢路径共用；解析
+/// 失败时已写出错误应答并返回 None）：arity ≥ 4 → key → 元素头（`kind`
+/// 参数化 FIELDS/MEMBERS），返回 (key, 元素切片)
+///
+/// 判定序对标 C#（HashCommands.cs 的 HashTimeToLive/HashPersist 与
+/// SortedSetCommands.cs 的 SortedSetTimeToLive/SortedSetPersist 同构）
+pub fn parse_elements_only_args<'a>(
+  cmd_name: &'static str,
+  parse_state: &'a [&'a [u8]],
+  kind: ElementHeaderKind,
+  output: &mut Vec<u8>,
+) -> Option<(&'a [u8], &'a [&'a [u8]])> {
+  check_arg_count!(parse_state, 4.., output, cmd_name, return None);
+  let (elements_start, _) = parse_elements_header(parse_state, 1, kind, output)?;
+  Some((parse_state[0], &parse_state[elements_start..]))
+}
+
+/// 随机成员族（HRANDFIELD / ZRANDMEMBER）count 打包结果
+#[derive(Debug)]
+pub struct RandomMemberArgs {
+  /// 打包 (count << 1 | included_count) << 1 | with_flag（对位 C# ObjectInput.arg1）
+  pub arg1: i32,
+  /// 钳至有符号 30 位后的 count
+  pub param_count: i32,
+  /// 是否显式给了 count（缺省 1）
+  pub included_count: bool,
+}
+
+/// 随机成员族参数推导单源（快慢路径共用；解析失败时已写出错误应答并返回
+/// None），`with_token` 参数化 WITHVALUES/WITHSCORES 大小写门
+///
+/// 判定序对标 C#（HashCommands.cs 的 HashRandomField 与 SortedSetCommands.cs
+/// 的 SortedSetRandomMember 同构）：arity 1..=3 → count i32（TryGetInt 口径，
+/// 负数合法表示从尾部取）→ 第三词元大小写门（仅 len==3 校验，语法错误帧）
+/// → count 钳至有符号 30 位（预留 2 位元数据位，C# Math.Min 同款）
+pub fn parse_random_member_args(
+  cmd_name: &'static str,
+  parse_state: &[&[u8]],
+  with_token: &[u8],
+  output: &mut Vec<u8>,
+) -> Option<RandomMemberArgs> {
+  check_arg_count!(parse_state, 1..=3, output, cmd_name, return None);
+
+  let (param_count, included_count, with_flag) = match parse_state.get(1) {
+    None => (1_i32, false, false),
+    Some(raw) => {
+      // C# TryGetInt（int32）：越界即 VALUE_IS_NOT_INTEGER
+      let Some(v) = strict_i32(raw) else {
+        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        return None;
+      };
+      // 第三词元大小写门（仅 len==3 校验，COUNT>3 不经此臂）
+      let with_flag = match parse_state.get(2) {
+        Some(token) if token.eq_ignore_ascii_case(with_token) => true,
+        Some(_) => {
+          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+          return None;
+        }
+        None => false,
+      };
+      (v, true, with_flag)
+    }
+  };
+
+  // 预留 2 位元数据位，count 钳至剩余有符号 30 位（C# Math.Min 同款）
+  let param_count = param_count.min(i32::MAX >> 2);
+  Some(RandomMemberArgs {
+    arg1: ((param_count << 1) | i32::from(included_count)) << 1 | i32::from(with_flag),
+    param_count,
+    included_count,
+  })
+}
+
+/// 随机成员族缺失态 / count=0 短路应答单源（C# NOTFOUND 臂与「count 为 0
+/// 不触达后端」短路的同形应答：带 count → 空数组，否则 null 版本分派）
+pub fn write_random_member_missing(output: &mut Vec<u8>, included_count: bool, resp_version: u8) {
+  if included_count {
+    // 空数组头经版本感知写帧单点（*0 双版本同形，对位 C# WriteDirect
+    // RESP_EMPTYLIST）
+    output.write_resp_array_len(0);
+  } else {
+    output.write_resp_null_ver(resp_version);
+  }
+}
+
+/// 交集基数族（SINTERCARD / ZINTERCARD）命令形态
+///
+/// 两族判定序同构、错误帧不同源（C# 两份独立实现），帧选择随形态分发：
+/// set 族 numkeys < 1 与键段短参同报 numkeys 帧；zset 族分别报
+/// at-least-one-key 帧与 syntax error 帧
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntersectCardKind {
+  Set,
+  SortedSet,
+}
+
+impl IntersectCardKind {
+  /// 命令名（arity 帧内嵌）
+  pub const fn cmd_name(self) -> &'static str {
+    match self {
+      Self::Set => "SINTERCARD",
+      Self::SortedSet => "ZINTERCARD",
+    }
+  }
+
+  /// numkeys < 1 帧
+  const fn err_numkeys(self) -> &'static str {
+    match self {
+      Self::Set => cs::RESP_ERR_GENERIC_NUMKEYS,
+      Self::SortedSet => cs::RESP_ERR_ZINTERCARD_AT_LEAST_ONE_KEY,
+    }
+  }
+
+  /// 键段短参帧（实参数不足以容纳 numkeys 个键）
+  const fn err_short_keys(self) -> &'static str {
+    match self {
+      Self::Set => cs::RESP_ERR_GENERIC_NUMKEYS,
+      Self::SortedSet => cs::RESP_ERR_GENERIC_SYNTAX_ERROR,
+    }
+  }
+}
+
+/// 交集基数族参数推导结果
+#[derive(Debug)]
+pub struct IntersectCardArgs<'a> {
+  /// 参与交集的键切片
+  pub keys: &'a [&'a [u8]],
+  /// LIMIT 上限（None = 未给；0 与 None 同效，仅正值参与钳制）
+  pub limit: Option<i32>,
+}
+
+/// SINTERCARD / ZINTERCARD 参数推导单源（快慢路径共用；解析失败时已写出
+/// 错误应答并返回 None）
+///
+/// 判定序对标 C#（SetCommands.cs 的 SetIntersectLength 与
+/// SortedSetCommands.cs 的 SortedSetIntersectLength 同构）：arity ≥ 2 →
+/// numkeys i32（TryGetInt 口径，超值域视为非整数）→ numkeys ≥ 1 → 键段
+/// 足量 → LIMIT 形态恰多 2 参（token 大小写门）→ limit i32 → 负值拒
+pub fn parse_intersect_card_args<'a>(
+  kind: IntersectCardKind,
+  parse_state: &'a [&'a [u8]],
+  output: &mut Vec<u8>,
+) -> Option<IntersectCardArgs<'a>> {
+  check_arg_count!(parse_state, 2.., output, kind.cmd_name(), return None);
+
+  // C# TryGetInt（int32）：超 i32 值域（含负溢出）视为非整数
+  let Some(num_keys) = strict_i32(parse_state[0]) else {
+    cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    return None;
+  };
+  if num_keys < 1 {
+    cs::abort_with_error_message(output, kind.err_numkeys());
+    return None;
+  }
+  if parse_state.len() < num_keys as usize + 1 {
+    cs::abort_with_error_message(output, kind.err_short_keys());
+    return None;
+  }
+
+  let idx = num_keys as usize + 1;
+  let mut limit = None;
+  if parse_state.len() > idx {
+    if !parse_state[idx].eq_ignore_ascii_case(cs::LIMIT) || parse_state.len() != idx + 2 {
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return None;
+    }
+    let Some(v) = strict_i32(parse_state[idx + 1]) else {
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      return None;
+    };
+    if v < 0 {
+      cs::abort_with_error_message(output, cs::RESP_ERR_LIMIT_CANT_BE_NEGATIVE);
+      return None;
+    }
+    limit = Some(v);
+  }
+
+  Some(IntersectCardArgs {
+    keys: &parse_state[1..=num_keys as usize],
+    limit,
+  })
 }
 
 impl RespServerSession {

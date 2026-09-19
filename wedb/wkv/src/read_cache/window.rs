@@ -31,7 +31,10 @@ impl ReadCache {
     self.closed_until_address.load(Acquire)
   }
 
-  /// 零拷贝直读 ReadCache 记录并三态披露续链前驱（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:FindInReadCache 与 AllocatorBase 无锁指针直读）
+  /// 零拷贝直读单条 ReadCache 记录并三态披露续链前驱（对标 FindInReadCache 每跳的
+  /// 单条判读：LogRecord.GetInfo + readcache.CreateLogRecord + KeysEqual，兼
+  /// AllocatorBase 无锁指针直读；整链走查单点在
+  /// `session/raw/read.rs:StoreSession::find_in_read_cache`）
   ///
   /// 闭包仅在可读且未作废的记录上执行；返回值三态口径见 [`RcVisit`]——
   /// closed 作废记录不比对键、携 prev 续链（对标 C#「非 Invalid 才比对、

@@ -51,7 +51,9 @@ pub trait IGarnetObject: Send + Sync + Debug {
   /// 估算堆内存占用
   fn heap_memory_size(&self) -> i64;
 
-  /// 对象元素总数
+  /// 对象元素总数（raw len 只读口径，无副作用；升阶/降阶判定输入。
+  /// 含成员级 TTL 的类型对外计数用具体类型 `purge_expired_len`
+  /// （堆序剔除过期后直读），与本口径一分二，禁止混用）
   fn count(&self) -> usize;
 
   /// 导出所有元素为键值对（用于就地升阶转存至底层 BfTree 引擎）
@@ -316,7 +318,8 @@ impl IGarnetObject for SortedSetObject {
   #[inline]
   fn count(&self) -> usize {
     // 升阶判定（should_promote/should_demote）输入，取未剔过期 raw len 保持 O(1)
-    // 且不副作用；对外计数口径以具体类型 SortedSetObject::count（堆序 purge）为准
+    // 且不副作用；对外计数口径以具体类型 SortedSetObject::purge_expired_len
+    // （堆序 purge）为准
     self.sorted_set_dict.len()
   }
 

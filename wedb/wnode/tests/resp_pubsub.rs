@@ -258,10 +258,10 @@ fn pub_sub_mode_resp2_whitelist_commands() {
   assert_eq!(s.resp_protocol_version, 2);
   s.is_subscription_session = true;
 
-  // 1. PING: 允许，正常响应 +PONG
+  // 1. PING: 允许，响应订阅模式 PONG（对标 C# RespPubSubTests.cs:285 "*2\r\n$4\r\npong\r\n$0\r\n\r\n"）
   let consumed = feed(&mut s, b"*1\r\n$4\r\nPING\r\n");
   assert_eq!(consumed, Some(0));
-  assert_eq!(output(&mut s), "+PONG\r\n");
+  assert_eq!(output(&mut s), "*2\r\n$4\r\npong\r\n$0\r\n\r\n");
 
   // 2. RESET: 允许，不报错
   let consumed = feed(&mut s, b"*1\r\n$5\r\nRESET\r\n");
@@ -311,10 +311,10 @@ fn pub_sub_mode_resp2_whitelist_commands() {
     "-ERR Can't execute 'PUBLISH': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT are allowed in this context\r\n"
   );
 
-  // 9. 保持连接验证：后续允许命令仍正常执行
+  // 9. 保持连接验证：后续允许命令仍正常执行（RESP2 订阅模式仍回订阅 PONG）
   let consumed = feed(&mut s, b"*1\r\n$4\r\nPING\r\n");
   assert_eq!(consumed, Some(0));
-  assert_eq!(output(&mut s), "+PONG\r\n");
+  assert_eq!(output(&mut s), "*2\r\n$4\r\npong\r\n$0\r\n\r\n");
 
   // 9. RESP3 模式验证：RESP3 不拦截非白名单命令
   s.resp_protocol_version = 3;

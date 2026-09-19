@@ -163,8 +163,12 @@ impl<D: Device> SingleDatabaseManager<D> {
   /// 重置复活化统计
   ///
   /// libs/server/Databases/SingleDatabaseManager.cs:ResetRevivificationStats
+  ///
+  /// 单库形态唯一存储句柄直下（C# `Store.ResetRevivificationStats()` 同构）：
+  /// 复活账目在 wkv 侧由 `WedbStore::reviv_pool`（wreviv FreeRecordPool 四计数）
+  /// 单一承载，本口即 INFO RESETSTAT 的 reviv 臂落点
   pub fn reset_revivification_stats(&self) {
-    // wkv 无复活化统计面（wkv index 内部化），空操作
+    self.db.store.reset_revivification_stats();
   }
 
   /// 单库 AOF 提交请求入队
