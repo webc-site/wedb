@@ -70,7 +70,7 @@ use wbase::{
   time::now_ticks,
 };
 use wdev::Device;
-use windex::HashIndex;
+use windex::{Error as IndexError, HashIndex};
 use wval::{I64_VAL_LEN, I64Codec, KeyTag, NamespaceDbCodec, TaggedKeyBuf};
 
 use crate::{
@@ -453,7 +453,12 @@ impl<D: Device> StoreSession<D> {
     // 的对应粗化在 wnode `network_expire` 命令边界（`coarse_expire_ticks` 同一单点）
     let expire_at_ticks = coarse_expire_ticks(expire_at_ticks);
     let index = self.store.index.load();
-    let _key_lock = index.lock_key_exclusive(user_key)?;
+    // 本键独占桶闩守卫整个读改写窗口（对标 C# 单键 ephemeral X-lock：一次尝试取闩，
+    // 取不到即返回，索引层不自旋不回滚）；取闩失败的 C# RETRY_LATER 语义由本调用方
+    // 承接——上浮为锁忙错误交客户端重试，不在索引层造超时
+    let Some(_key_lock) = index.try_lock_key_exclusive(user_key) else {
+      return Err(IndexError::LockTimeout.into());
+    };
     // 遍历 1/2：裸数据存活判定（无 TTL 探测，本键 TTL 裁决统一收敛到遍历 2）
     if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(-2);
@@ -501,7 +506,11 @@ impl<D: Device> StoreSession<D> {
   /// （EXPIRE 已返回 1 但键无 TTL 的用户可见异常）；锁内记录遍历由 3 压至 2
   pub async fn persist(&self, user_key: &[u8]) -> Result<i32> {
     let index = self.store.index.load();
-    let _key_lock = index.lock_key_exclusive(user_key)?;
+    // 与 [`Self::expire_at`] 同款单键独占桶闩：一次尝试取闩，失败的 C# RETRY_LATER
+    // 语义由本调用方承接为锁忙错误（索引层无自旋、无回滚、无超时）
+    let Some(_key_lock) = index.try_lock_key_exclusive(user_key) else {
+      return Err(IndexError::LockTimeout.into());
+    };
     if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(0);
     }

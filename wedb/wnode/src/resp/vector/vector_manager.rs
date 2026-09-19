@@ -20,7 +20,7 @@ use std::{
 use parking_lot::{Mutex, RwLock};
 use wbase::{
   map::{ConcurrentMap, new_concurrent_map},
-  pool::{EventWorkQueue, EventWorkSet},
+  pool::EventWorkQueue,
 };
 use wvector::{
   Callbacks, DiskANNService, DiskAnnInsertResult, LengthPrefixedIter, SearchHit, SearchParams,
@@ -204,8 +204,6 @@ pub struct VectorManager<S: StoreCallbacks = WedbVectorStoreCallbacks<wdev::Segm
   pub recovered_indexes: ConcurrentMap<u64, u8>,
   /// 恢复期发现的元数据记录。
   pub recovered_metadata: ConcurrentMap<i32, ContextMetadata>,
-  /// 已请求丢弃的内存索引（键 → context）。
-  pub requested_drops: EventWorkSet<Vec<u8>, u64>,
   /// VADD/VREM 键 → 索引记录登记表（存储会话桥接承接）。
   pub(crate) key_index_registry: ConcurrentMap<Vec<u8>, [u8; INDEX_SIZE_BYTES]>,
   /// 向量集合键锁注册表。
@@ -214,8 +212,6 @@ pub struct VectorManager<S: StoreCallbacks = WedbVectorStoreCallbacks<wdev::Segm
   pub cleanup_task_channel: EventWorkQueue<u64>,
   /// 请求清理通道（context 载荷）。
   pub request_cleanup_task_channel: EventWorkQueue<u64>,
-  /// 请求丢弃通道（无载荷信号）。
-  pub request_drop_task_channel: EventWorkQueue<()>,
   /// 量化工作通道。
   pub quantization_channel: QuantizationChannel,
   /// 量化分片数。
@@ -264,12 +260,10 @@ impl<S: StoreCallbacks> VectorManager<S> {
       metadata_store: new_concurrent_map(),
       recovered_indexes: new_concurrent_map(),
       recovered_metadata: new_concurrent_map(),
-      requested_drops: EventWorkSet::new(),
       key_index_registry: new_concurrent_map(),
       vector_set_locks: VectorSetLocks::default(),
       cleanup_task_channel: EventWorkQueue::new(),
       request_cleanup_task_channel: EventWorkQueue::new(),
-      request_drop_task_channel: EventWorkQueue::new(),
       quantization_channel: QuantizationChannel::new(),
       quantization_task_count,
       quantization_requests_processed: AtomicUsize::new(0),
@@ -656,39 +650,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
     self.put_stored_index(rk_new, &index_value);
     self.delete_vector_set_of(rk_old);
     true
-  }
-
-  /// libs/server/Resp/Vector/VectorManager.cs:RequestDropInMemoryIndex
-  ///
-  /// 记录被逐出至磁盘时请求丢弃内存索引；需防止重建与丢弃竞态。
-  /// 丢弃通道载荷为登记表复合键（与锁协议同域）。
-  pub fn request_drop_in_memory_index(&self, prefix: &[u8], key: &[u8], value: &[u8]) {
-    if value.len() != INDEX_SIZE_BYTES {
-      log::warn!("Ignored Vector Set drop index due to size mismatch");
-      return;
-    }
-
-    let Some(index) = Index::from_bytes(value) else {
-      return;
-    };
-
-    // SuppressCleanup 通常表明重命名进行中，存在另一索引指针持有者
-    if index.flags.contains(VectorSetFlags::SUPPRESS_CLEANUP) {
-      return;
-    }
-
-    // 索引可能已从磁盘恢复但从未初始化 —— 无需丢弃
-    if index.index_ptr != 0 {
-      let rk = registry_key(prefix, key);
-      if !self
-        .requested_drops
-        .try_add(rk.as_slice().to_vec(), index.context)
-      {
-        log::error!("Drop triggered multiple times for same index");
-        return;
-      }
-      let _ = self.request_drop_task_channel.push(());
-    }
   }
 
   /// libs/server/Resp/Vector/VectorManager.cs:DropInMemoryIndex

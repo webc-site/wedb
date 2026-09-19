@@ -21,7 +21,7 @@ use parking_lot::RwLock;
 use waof::{AofEntryType, AofHeader};
 use wbase::{convert::expire_at_milliseconds_to_ticks, hash_slot::slot_of};
 use wdev::Device;
-use wkv::WedbStore;
+use wkv::{DbMetaRecord, WedbStore};
 use wresp::command::RespCommand;
 use wval::{KeyTag, NO_ETAG, NamespaceDbCodec};
 
@@ -902,8 +902,8 @@ impl AofProcessor {
   ) -> Result<(), AofReplayError> {
     match op_type {
       AofEntryType::StoreUpsert => {
-        let (value, _) = Self::split_value_input(&payload).ok_or("StoreUpsert 负载损坏")?;
-        let rec = wkv::DbMetaRecord::decode(key, value)
+        let (value, _) = Self::split_value_input(payload).ok_or("StoreUpsert 负载损坏")?;
+        let rec = DbMetaRecord::decode(key, value)
           .ok_or("DbMeta 镜像条目记录损坏（布局错位或未知子类型）")?;
         target
           .store

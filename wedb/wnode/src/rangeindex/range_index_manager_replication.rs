@@ -27,9 +27,9 @@ use waof::AofEntryType;
 use wbase::map::{ConcurrentMap, new_concurrent_map};
 use wbftree::{
   DEFAULT_FILE_READ_BUFFER_SIZE, DEFAULT_MIGRATION_CHUNK_SIZE, Error as BfTreeError,
-  MIN_CHUNK_SIZE, RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer,
-  RangeIndexChunkedSerializer, RangeIndexManager as Engine, RangeIndexMigrationReader,
-  RangeIndexStub, StorageBackendType, TreeTuning,
+  RANGE_INDEX_STUB_SIZE, RangeIndexChunkedDeserializer, RangeIndexChunkedSerializer,
+  RangeIndexManager as Engine, RangeIndexMigrationReader, RangeIndexStub, StorageBackendType,
+  TreeTuning,
 };
 use wdev::Device;
 use wkv::{RangeIndexError, StoreSession};
@@ -108,12 +108,6 @@ pub struct RangeIndexChunkArgs<'a> {
   pub is_last: bool,
 }
 
-/// 放入迁移发布 RMW StringInput.arg1 的哨兵：AOF 流是迁移键的唯一 AOF
-/// 事实源，主存储 RMW 跳过自动记 AOF。仅迁移发布路径使用
-///
-/// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:StreamedPublishLogArg
-pub const STREAMED_PUBLISH_LOG_ARG: i64 = i64::MIN;
-
 /// 流块 arg1 首块标志位
 const STREAM_CHUNK_IS_FIRST_FLAG: i64 = 2;
 /// 流块 arg1 末块标志位
@@ -158,7 +152,8 @@ impl StreamReassemblyState {
 pub struct RangeIndexManagerReplication {
   /// 引擎管理器（派生迁移临时文件路径 / 发布用键条带锁）
   engine: Arc<Engine>,
-  /// 迁移流 AOF 分块大小（测试可调小以演练多块路径）
+  /// 迁移流 AOF 分块大小（恒为默认 256KB；rust AOF 记录为显式入队，
+  /// 无 C# RMW 自动记日志需哨兵抑制的调小演练场景）
   aof_stream_chunk_size: AtomicUsize,
   /// 进行中逐键流重组状态（键字节 → 状态）
   reassembly: ConcurrentMap<Vec<u8>, Arc<StreamReassemblyState>>,
@@ -178,69 +173,6 @@ impl RangeIndexManagerReplication {
   #[inline]
   pub fn aof_stream_chunk_size(&self) -> usize {
     self.aof_stream_chunk_size.load(Ordering::Acquire)
-  }
-
-  /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:SetAofStreamChunkSize
-  ///
-  /// 设置迁移流 AOF 分块大小；小于最小分块（尾部框尺寸）即拒绝——
-  /// 分块装不下尾部框会导致流永远无法完成（C# 抛 ArgumentOutOfRangeException）
-  pub fn set_aof_stream_chunk_size(&self, chunk_size: usize) -> ReplicationResult {
-    if chunk_size < MIN_CHUNK_SIZE {
-      return Err(ReplicationError::Msg(format!(
-        "Range index AOF stream chunk size must be at least {MIN_CHUNK_SIZE} bytes, got {chunk_size}"
-      )));
-    }
-    self
-      .aof_stream_chunk_size
-      .store(chunk_size, Ordering::Release);
-    Ok(())
-  }
-
-  /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexSet
-  ///
-  /// 以 RI.SET RMW 形状直写入队 AOF（无合成 RMW 通道；stored_proc_mode 下
-  /// 跳过——存储过程整体记日志）。C# RespInputFlags.Deterministic 以
-  /// ReplayInput.flags 位承接
-  pub fn replicate_range_index_set(
-    &self,
-    key: &[u8],
-    field: &[u8],
-    value: &[u8],
-    append_only_file: Option<&GarnetAppendOnlyFile>,
-    ctx: AofWriteContext,
-    stored_proc_mode: bool,
-  ) -> waof::Result<i64> {
-    let Some(aof) = append_only_file else {
-      return Ok(0);
-    };
-    if stored_proc_mode {
-      return Ok(0);
-    }
-    let args = [field, value];
-    let input = ReplayInputSlice::new_deterministic(RespCommand::Riset, &args);
-    aof.enqueue_rmw_slices(AofEntryType::StoreRMW, ctx, key, &input)
-  }
-
-  /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexDel
-  ///
-  /// 以 RI.DEL RMW 形状直写入队 AOF（语义同 [`Self::replicate_range_index_set`]）
-  pub fn replicate_range_index_del(
-    &self,
-    key: &[u8],
-    field: &[u8],
-    append_only_file: Option<&GarnetAppendOnlyFile>,
-    ctx: AofWriteContext,
-    stored_proc_mode: bool,
-  ) -> waof::Result<i64> {
-    let Some(aof) = append_only_file else {
-      return Ok(0);
-    };
-    if stored_proc_mode {
-      return Ok(0);
-    }
-    let args = [field];
-    let input = ReplayInputSlice::new_deterministic(RespCommand::Ridel, &args);
-    aof.enqueue_rmw_slices(AofEntryType::StoreRMW, ctx, key, &input)
   }
 
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:HandleRangeIndexCreateReplay

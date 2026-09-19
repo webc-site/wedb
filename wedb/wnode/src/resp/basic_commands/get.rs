@@ -146,7 +146,7 @@ impl RespServerSession {
   /// 若折后 end < start 则整体判空。样例：len = 10、GETRANGE k -2 10 →
   /// 回空串；而 C# 375 行起 start >= 0 分支 end == len 不折叠（钳为 len），
   /// 两分支行为刻意不同。回归锚点见 wnode/tests/resp_tests.rs get_slice_test。
-  fn normalize_range(start: i64, end: i64, len: i64) -> (i64, i64) {
+  pub(crate) fn normalize_range(start: i64, end: i64, len: i64) -> (i64, i64) {
     // C# 372 行：len == 0 无有效区间，提前返回并避免 start < 0 分支对 0 取模
     if len == 0 {
       return (0, 0);
@@ -271,70 +271,8 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // 对标 C# 选项次序：PERSIST 直通；其余选项先校验第 3 参为正整数
-    // （缺失/非整数/非正值均报 value is out of range），再按选项名换算；
-    // 未识别选项报 ERR Unsupported option。换算对标 BasicCommands.cs:119-150：
-    // EX/PX 相对时长，EXAT/PXAT 绝对 Unix 时间戳；折算结果不在未来时 C#
-    // tsExpiry.Ticks <= 0 → expiry=0（BasicCommands.cs:175），存储层 GETEX
-    // 分支 arg1==0 且非 PERSIST 时 NotUpdated，既有 TTL 保留不动
-    check_arg_count!(parse_state, 1..=3, output, "GETEX");
-    let (key, expiry) = match parse_state {
-      [key] => (*key, GetexExpiry::None),
-      [key, option] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
-      [key, option, _] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
-      [key, option, expire_arg] => {
-        let Some(expire_time) = expire_arg.try_parse_i64() else {
-          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
-          return Ok(true);
-        };
-        if expire_time <= 0 {
-          abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
-          return Ok(true);
-        }
-        let now = now_ticks();
-        let res = if option.eq_ignore_ascii_case(b"EX") {
-          compute_relative_expiry(now, expire_time, MAX_TIMESPAN_SECONDS, TICKS_PER_SECOND)
-        } else if option.eq_ignore_ascii_case(b"PX") {
-          compute_relative_expiry(
-            now,
-            expire_time,
-            MAX_TIMESPAN_MILLISECONDS,
-            TICKS_PER_MILLISECOND,
-          )
-        } else if option.eq_ignore_ascii_case(b"EXAT") {
-          compute_absolute_expiry(expire_time, MAX_UNIX_TIME_SECONDS, TICKS_PER_SECOND)
-        } else if option.eq_ignore_ascii_case(b"PXAT") {
-          compute_absolute_expiry(
-            expire_time,
-            MAX_UNIX_TIME_MILLISECONDS,
-            TICKS_PER_MILLISECOND,
-          )
-        } else {
-          abort_with_unsupported_option(output, option.as_str_safe());
-          return Ok(true);
-        };
-        let target_ticks = match res {
-          Ok(ticks) => ticks,
-          Err(err) => {
-            abort_with_error_message(output, err);
-            return Ok(true);
-          }
-        };
-        // 对标 BasicCommands.cs:175 的 `tsExpiry.Ticks > 0` 三态：折算结果
-        // 不在未来即 expiry=0，既有 TTL 保留（RMWMethods.cs GETEX NotUpdated）
-        let exp = if target_ticks > now {
-          GetexExpiry::At(target_ticks)
-        } else {
-          GetexExpiry::None
-        };
-        (*key, exp)
-      }
-      [_, _] => {
-        // 两参且非 PERSIST：缺少过期时长参数
-        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
-        return Ok(true);
-      }
-      _ => unreachable!(),
+    let Some((key, expiry)) = parse_getex_args(parse_state, output) else {
+      return Ok(true);
     };
 
     let start_len = output.len();
@@ -388,4 +326,79 @@ impl RespServerSession {
     }
     Ok(true)
   }
+}
+
+/// NetworkGETEX 的参数推导单源（快慢路径共用；解析失败时已写出错误应答并
+/// 返回 None，返回 `(key, 过期应用形态)`）
+///
+/// 对标 C# 选项次序：PERSIST 直通；其余选项先校验第 3 参为正整数
+/// （缺失/非整数/非正值均报 value is out of range），再按选项名换算；
+/// 未识别选项报 ERR Unsupported option。换算对标 BasicCommands.cs:119-150：
+/// EX/PX 相对时长，EXAT/PXAT 绝对 Unix 时间戳；折算结果不在未来时 C#
+/// tsExpiry.Ticks <= 0 → expiry=0（BasicCommands.cs:175），存储层 GETEX
+/// 分支 arg1==0 且非 PERSIST 时 NotUpdated，既有 TTL 保留不动
+pub(crate) fn parse_getex_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], GetexExpiry)> {
+  check_arg_count!(parse_state, 1..=3, output, "GETEX", return None);
+  let (key, expiry) = match parse_state {
+    [key] => (*key, GetexExpiry::None),
+    [key, option] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
+    [key, option, _] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
+    [key, option, expire_arg] => {
+      let Some(expire_time) = expire_arg.try_parse_i64() else {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
+        return None;
+      };
+      if expire_time <= 0 {
+        abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
+        return None;
+      }
+      let now = now_ticks();
+      let res = if option.eq_ignore_ascii_case(b"EX") {
+        compute_relative_expiry(now, expire_time, MAX_TIMESPAN_SECONDS, TICKS_PER_SECOND)
+      } else if option.eq_ignore_ascii_case(b"PX") {
+        compute_relative_expiry(
+          now,
+          expire_time,
+          MAX_TIMESPAN_MILLISECONDS,
+          TICKS_PER_MILLISECOND,
+        )
+      } else if option.eq_ignore_ascii_case(b"EXAT") {
+        compute_absolute_expiry(expire_time, MAX_UNIX_TIME_SECONDS, TICKS_PER_SECOND)
+      } else if option.eq_ignore_ascii_case(b"PXAT") {
+        compute_absolute_expiry(
+          expire_time,
+          MAX_UNIX_TIME_MILLISECONDS,
+          TICKS_PER_MILLISECOND,
+        )
+      } else {
+        abort_with_unsupported_option(output, option.as_str_safe());
+        return None;
+      };
+      let target_ticks = match res {
+        Ok(ticks) => ticks,
+        Err(err) => {
+          abort_with_error_message(output, err);
+          return None;
+        }
+      };
+      // 对标 BasicCommands.cs:175 的 `tsExpiry.Ticks > 0` 三态：折算结果
+      // 不在未来即 expiry=0，既有 TTL 保留（RMWMethods.cs GETEX NotUpdated）
+      let exp = if target_ticks > now {
+        GetexExpiry::At(target_ticks)
+      } else {
+        GetexExpiry::None
+      };
+      (*key, exp)
+    }
+    [_, _] => {
+      // 两参且非 PERSIST：缺少过期时长参数
+      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);
+      return None;
+    }
+    _ => unreachable!(),
+  };
+  Some((key, expiry))
 }

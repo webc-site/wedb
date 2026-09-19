@@ -70,15 +70,6 @@ pub fn obj_encode_custom_into(tag: u8, payload: &[u8], buf: &mut Vec<u8>) {
   buf.extend_from_slice(payload);
 }
 
-/// 对象值信封编码：[类型标签][bitcode 载荷]（信封记录挂 KeyTag::ObjectEnvelope 物理键）
-///
-/// C# 侧对象存值由 Tsavorite 经对象序列化器落盘（GarnetObjectSerializer.cs）；
-/// Rust 单库 wkv 模型下以值内信封承载，此处为信封编解码单点
-#[inline]
-pub fn obj_encode(tag: GarnetObjectType, payload: &[u8]) -> Vec<u8> {
-  obj_encode_custom(tag as u8, payload)
-}
-
 /// 自定义对象值信封编码（支持任意 u8 扩展标签）
 #[inline]
 pub fn obj_encode_custom(tag: u8, payload: &[u8]) -> Vec<u8> {

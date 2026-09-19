@@ -160,11 +160,11 @@ fn test_backpressure_gate_wiring() {
   assert_eq!(bp.get_shipped_watermark(0), 0, "副本 attach 后水位收紧");
 
   // 推送进展：两个子日志各自 consume 到 9500
-  d1.get_task(0)
+  d1.task_ref(0)
     .unwrap()
     .consume(b"payload", 64, 9_500)
     .unwrap();
-  d1.get_task(1)
+  d1.task_ref(1)
     .unwrap()
     .consume(b"payload", 64, 9_500)
     .unwrap();

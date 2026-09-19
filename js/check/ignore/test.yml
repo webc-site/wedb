@@ -2247,3 +2247,8 @@
   理由: 已移植：RESP 基础/管理/配置/ETag/INFO/对象命令/SCAN/命令统计由
     wnode/tests/resp_tests.rs、resp_admin.rs、resp_runtime_config.rs、runtime_options_entry.rs、garnet_etag.rs、resp_info.rs、resp_objects_dispatch.rs、resp_command_stats.rs、resp_commandstats_session.rs
     覆盖
+- 文件:
+    - test/standalone/Garnet.test.vectorset/VectorSetRecallSmokeTests.cs:
+        - Jitter
+  理由: C# 向量烟雾测试生成高斯随机聚类测试集的私有静态扰动函数；wedb 测试采用确定性向量点，未引入高斯扰动生成器
+

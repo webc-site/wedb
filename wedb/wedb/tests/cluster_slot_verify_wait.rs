@@ -291,7 +291,10 @@ fn transmitting_write_waits_then_proceeds() {
     let req = key_request(key, false);
     cm.wait_key_gate(req, Arc::clone(&memo)).await;
     let _ = adv.await;
-    assert!(!memo.is_exhausted(), "迁移推进后不应超时");
+    assert!(
+      !memo.exhausted.load(Ordering::Acquire),
+      "迁移推进后不应超时"
+    );
 
     // 重评（带记忆）：可访问 + 键存在 → OK
     match cm.evaluate_key_gate(&key_request(key, false), Some(&memo)) {
@@ -324,7 +327,7 @@ fn transmit_wait_times_out_to_ask() {
     let started = Instant::now();
     cm.wait_key_gate(req, Arc::clone(&memo)).await;
     assert!(started.elapsed() < Duration::from_secs(5), "等待须有界返回");
-    assert!(memo.is_exhausted(), "超时旗标应置位");
+    assert!(memo.exhausted.load(Ordering::Acquire), "超时旗标应置位");
 
     // 超时重评：等待点全部压制 → TRANSMITTING 拦写按不可访问 → ASK
     assert_ask(cm.evaluate_key_gate(&key_request(key, false), Some(&memo)));
@@ -371,7 +374,10 @@ fn deleting_read_waits_until_key_removed() {
     let req = key_request(key, true);
     cm.wait_key_gate(req, memo.clone()).await;
     let _ = adv.await;
-    assert!(!memo.is_exhausted(), "删除完成后不应超时");
+    assert!(
+      !memo.exhausted.load(Ordering::Acquire),
+      "删除完成后不应超时"
+    );
 
     // 重评：sketch 未管辖（probe 未命中）+ 键不存在 → ASK（C# Exists false）
     assert_ask(cm.evaluate_key_gate(&key_request(key, true), Some(&memo)));
@@ -416,7 +422,10 @@ fn wait_for_stable_slot_waits_until_stable() {
     let req = key_request(key, false);
     cm.wait_key_gate(req, memo.clone()).await;
     let _ = adv.await;
-    assert!(!memo.is_exhausted(), "槽位稳定后不应超时");
+    assert!(
+      !memo.exhausted.load(Ordering::Acquire),
+      "槽位稳定后不应超时"
+    );
 
     // 稳定后放行（向量集写命令继续走本地执行）
     let mut req = key_request(key, false);
