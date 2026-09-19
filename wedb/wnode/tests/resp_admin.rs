@@ -162,6 +162,30 @@ mod admin_collect {
     resp
   }
 
+  /// test/standalone/Garnet.test/RespAdminCommandsTests.cs:ConfigWrongNumberOfArguments
+  #[test]
+  fn config_wrong_number_of_arguments() {
+    with_session(|c| {
+      let resp = feed(c, &["CONFIG"]);
+      assert_eq!(
+        resp,
+        b"-ERR wrong number of arguments for 'CONFIG' command\r\n"
+      );
+    });
+  }
+
+  /// test/standalone/Garnet.test/RespAdminCommandsTests.cs:ConfigGetWrongNumberOfArguments
+  #[test]
+  fn config_get_wrong_number_of_arguments() {
+    with_session(|c| {
+      let resp = feed(c, &["CONFIG", "GET"]);
+      assert_eq!(
+        resp,
+        b"-ERR wrong number of arguments for 'CONFIG|GET' command\r\n"
+      );
+    });
+  }
+
   #[test]
   fn hcollect_keeps_live_fields_and_reports_ok() {
     with_session(|c| {

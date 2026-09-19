@@ -197,8 +197,7 @@ impl LuaCommands {
       EvalshaResolution::LoadFailed => return true,
       EvalshaResolution::NotFound => {
         let resp = RespOut::session(ctx.out, 2);
-        RespWriter::new_ref(resp.buf)
-          .write_error_bytes(RESP_ERR_NO_SCRIPT);
+        RespWriter::new_ref(resp.buf).write_error_bytes(RESP_ERR_NO_SCRIPT);
         return true;
       }
     };

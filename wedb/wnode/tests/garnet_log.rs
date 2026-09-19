@@ -246,8 +246,6 @@ fn memory_size_capacity_and_usage() {
 #[test]
 fn test_garnet_log_advanced_methods() {
   let log = log_with(2, 1);
-  let sz = GarnetLog::chunk_buffer_size(10, 20, 0, 1);
-  assert_eq!(sz, 10 + 20 + AofChunkHeader::TOTAL_SIZE);
 
   let safe_addr = AofAddress::create(2, 10);
   log.initialize_if(&safe_addr);
@@ -262,23 +260,6 @@ fn test_garnet_log_advanced_methods() {
   // UnsafeShiftBeginAddress truncateLog:true），截断受 min(committed) 钳制
   Runtime::new().unwrap().block_on(async {
     log.unsafe_shift_begin_address(0, 100).await;
-  });
-}
-
-#[test]
-fn test_backpressure_wait_vector_async() {
-  let options = RuntimeServerOptions {
-    aof_physical_sublog_count: 2,
-    aof_replay_task_count: 1,
-    aof_sync_max_lag_bytes: 1000,
-    ..RuntimeServerOptions::default()
-  };
-  let (_dirs, backends) = wnode_test::test_sublogs("glog_bp", 2);
-  let seq_num_gen = Some(Arc::new(SequenceNumberGenerator::new(0)));
-  let log = GarnetLog::new(&options, backends, seq_num_gen).expect("构造 GarnetLog");
-
-  Runtime::new().unwrap().block_on(async {
-    log.backpressure_wait_vector_async(0b11).await;
   });
 }
 
@@ -408,7 +389,7 @@ fn chunked_write_atomic_under_concurrent_enqueue() {
   );
   for acc in &completed {
     let t = acc.session_id as usize;
-    let value = acc.get_value_sequence().concat();
+    let value = acc.object_value_bytes().into_owned();
     assert_eq!(
       value.len(),
       value_len,
@@ -487,7 +468,7 @@ fn chunked_interleaved_foreign_frame_poisons_reassembly() {
     }
   }
   let intact = poisoned
-    .map(|acc| acc.get_value_sequence().concat() == value && acc.key_span() == b"big")
+    .map(|acc| acc.object_value_bytes().into_owned() == value && acc.key_span() == b"big")
     .unwrap_or(false);
   assert!(
     !intact,

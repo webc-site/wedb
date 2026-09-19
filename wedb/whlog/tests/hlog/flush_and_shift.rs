@@ -175,7 +175,7 @@ fn test_shift_begin_after_shift_read_only_to_tail_preserves_invariants() -> Void
       hlog.safe_head_address()
     );
     assert!(
-      hlog.addresses.validate_invariants(),
+      hlog.addresses.snapshot().validate(),
       "地址状态机单调不变式校验失败: {:?}",
       hlog.addresses.snapshot()
     );
@@ -223,7 +223,7 @@ fn test_shift_read_only_address_with_wait() -> Void {
     assert!(hlog.read_only_address() >= target_ro2);
     assert!(hlog.flushed_until_address() >= target_ro2);
     assert!(hlog.is_read_only(addr1));
-    assert!(hlog.addresses.validate_invariants());
+    assert!(hlog.addresses.snapshot().validate());
 
     info!("shift_read_only_address_with_wait 测试通过");
     aok::Result::<()>::Ok(())

@@ -525,7 +525,9 @@
   理由: C# P/Invoke 辅助函数（lua_pushcclosure 0 上值包装），Rust 侧由 LuaState::push_cfunction
     直接封装
 - 文件:
-    - libs/server/TLS/CertificateUtils.cs
+    - libs/server/TLS/CertificateUtils.cs:
+        - GetMachineCertificateBySubjectName
+        - IsPemFile
     - libs/server/TLS/GarnetTlsOptions.cs:
         - UpdateCertFile
         - ValidateCertificateName
@@ -999,3 +1001,23 @@
         - AnyGreater
         - MinExchange
   理由: 逐位比较面在 rust 收敛为 any_lesser 单原语加调用点就地谓词， MinExchange 在 C# 侧亦零消费，两位点均无独立具名对位
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - BeginReplayOp
+  理由: C# BeginReplayOp 为 unsafe 缓冲区切分与等待向量异步操作完成的内部私有辅助方法；wedb 在
+    AofProcessor::replay_op 中异步解包内联完成，无需裸指针切分辅助
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Callbacks.cs:
+        - AdvanceTo
+        - GetInput
+        - GetKey
+        - GetOutput
+        - MakeVectorElementKey
+        - SetOutput
+        - SlowPath
+  理由: C# VectorReadBatch 为适配 Tsavorite IReadArgBatch 接口的 unsafe 迭代器结构体；wedb 由
+    StoreCallbacks::read_multi 与 TaggedKeyBuf 单点承接，无需 C# 迭代器游标方法
+- 文件:
+    - libs/server/Resp/HyperLogLog/HyperLogLog.cs:
+        - DenseCountNonZero
+  理由: Garnet C# 源码遗留的私有死方法（在 Garnet 仓内无任何调用点）
