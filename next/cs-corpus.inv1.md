@@ -30,8 +30,9 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
   194 个 hasError 文件中 `AST+兜底名集 − 仅 AST 名集` = 388 名 / 43 个文件有增量
   （本单实测，与 `js/check/README.md` 第 1 节所记 194/388 逐字一致）。按现刻 HEAD 三分：
   同路径全路径锚在位 167、ignore 覆盖 161（其中函数级条目 130，即第二节对象）、
-  既无锚又无 ignore 的「门禁盲名」32。32 名即「10 份 31 名」的现刻等价像。
-- 门禁为何不报这 32 名（新增发现，值得单列后续工具票）：`js/check.js:423-427` 的
+  既无锚又无 ignore 的「门禁盲名」31（首算得 32，复核时 `SessionParseState.cs:SetArgument`
+  实已登记在 `server.yml:230`，属本单脚本取数误差，已改正）。31 名即「10 份 31 名」的现刻等价像。
+- 门禁为何不报这 31 名（新增发现，值得单列后续工具票）：`js/check.js:423-427` 的
   `isDocumented` 除 `doc_file_fn_map`（按归一路径为 key）外，还兜一层 `doc_set`
   ——`js/check/rustScan.js:47-50` 把每条注释的全部词元灌进 `doc_set`，于是任一 .rs 注释里
   出现过同名裸词（哪怕只是「C# TryGetDouble 默认 canBeInfinite: true」这类叙述）就算已文档化，
@@ -57,9 +58,9 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 - VectorSetRecallSmokeTests.cs:Jitter → `js/check/ignore/test.yml:2252`
 - RespReadUtils.cs:GetSerializedRecordSpan → `js/check/ignore/common.yml:3`
 
-### 1.3 现刻 32 名逐条判（实现在位缺锚 15 · 无具名对位口 17 · 完全无实现 0）
+### 1.3 现刻 31 名逐条判（实现在位缺锚 15 · 无具名对位口 16 · 完全无实现 0）
 
-关键结论：本批 32 名按现刻 HEAD 逐条核到 C# 签名与 rust 消费点，无一属「rust 侧完全无实现」，
+关键结论：本批 31 名按现刻 HEAD 逐条核到 C# 签名与 rust 消费点，无一属「rust 侧完全无实现」，
 全部落在两族——实现在位但注释锚点形态不登记（该改注释）与「无独立具名对位口、语义在消费点就地
 承接」（该补 ignore 登记，不该派实现票）。原票「下一步该按 miss 派实现票」的预设不成立，
 按现刻读数应改为「派注释整改票 + 登记补全票」，实现票只 2 张（1.4 票 6、票 7）。
