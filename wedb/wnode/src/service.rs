@@ -177,10 +177,7 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
       // SWAPDB 记录与 GC 墓碑注销经此镜像，从库回放面交
       // WedbStore::apply_dbmeta_record / apply_dbmeta_tombstone 应用，换号虚号
       // 主从同源；条目即完整记录（键载荷 + 定长值），无需第二套映射同步机制
-      if tag != Some(KeyTag::String)
-        && tag != Some(KeyTag::Acl)
-        && tag != Some(KeyTag::DbMeta)
-      {
+      if tag != Some(KeyTag::String) && tag != Some(KeyTag::Acl) && tag != Some(KeyTag::DbMeta) {
         return Ok(());
       }
       let op = if tombstone {
