@@ -111,3 +111,86 @@ in-place 写臂与 wtxn 锁表的窗口收敛另有两票
 但不得改其判据；ing/reviv-knobs-zero-production-wiring.md:38 把 with_revivifiable_fraction 子项挂给
 zero-consumer-dead-surfaces-batch-six，该文件现已不在 task/ 下（路径引用失效），落地时先核实再决定
 是否双写，禁止凭该行断言「已被别人接走」。
+
+核销（二棒收口，2026-09-19）
+落地载体：dev 1905e8a（棒 1 + 棒 2 全部载荷）与 dev b003b3b（跨包夹具连带与 rustfmt）。
+
+一 覆盖度（对照本票修法清单）
+- 棒 1 链内复活双门：已落。下限推导收成 store 单点 `WedbStore::min_revivifiable_address()`
+  （wkv/src/store/addr.rs，对标 Helpers.cs:106 `GetMinRevivifiableAddress`），raw/mod.rs 池取
+  与 inplace.rs:225 链内臂一律直调；inplace.rs 原 `config.enable_revivification` 直判已删，
+  改判 `reviv_pool.is_enabled() && cur >= 下限`，两道门并列的形态已消除。whlog/wrecord 零新增
+  谓词、whlog 侧未复抄公式（一棒未触 whlog）。
+  为让 `is_enabled()` 真正等价 C# `IsEnabled`，未启用位折进池挂起计数初值
+  （wreviv/src/pool.rs `SUSPEND_DISABLED = -1`，`FreeRecordPool::new` 收启用位）——此即 C#
+  RevivificationManager.cs:24 初值与 :40-43 提前 return 的形态；不改此处则链内臂换判
+  `is_enabled()` 后会出现「--reviv 关时反而放开原地复活」的语义倒挂，属必要前置而非扩面。
+- 棒 2 冷读晋升不可变区臂：已落。`promote_immutable_to_read_cache` 改 `promote_immutable_read_hit`，
+  目的地由配置单点裁决（RC 与 MainLog 二者择一，禁两臂并行），对标 InternalRead.cs:CopyFromImmutable
+  的 CopyTo 分派；尾臂取 ConditionalCopyToTail(wantIO:false) 形态（直连 hlog.append，需发 I/O 即
+  放弃本次），追加值出页读锁后落笔，杜绝读页读锁内嵌套尾页写锁。
+  「命中即尝试晋升 → CAS 挂载 → 败帧入池」两步收成 `cas_mount_copied_frame` 单点
+  （write/copy_to_tail.rs），磁盘回填臂、不可变区臂、copy_record_to_tail 内核三处共用，全库无第二份
+  追加+挂链样板（本票未新增第三处）。
+- 棒 3 撤 record_elision 门 + 残留 a（入池门槛口径）/ 残留 b（满桶回链）：本票未动，按票面
+  「随 ing/reviv-knobs-zero-production-wiring.md 与 RMW 原子票落」执行；各入池点仍传
+  read_only_address（inplace.rs:488、compact.rs:171 等），`cas_mount_copied_frame` 的败帧回收亦
+  沿用该口径，与残留 a 同批改，不拆一半。
+- 真源唯一性：wconf/wnode 零改动，复活语义真源仍 StoreConfig 一处 + 池暂停计数一处。
+
+二 门禁实测
+- `CARGO_TARGET_DIR=/tmp/target-fix-reviv-crtt cargo check --tests -p wreviv -p wkv -p wedb`：
+  退出 0、零告警；`cargo check --workspace --all-targets` 亦干净（`FreeRecordPool::new` 签名变更的
+  全仓消费点经 grep 取证仅 wkv store/mod.rs 与 wreviv 自身测试，无他 crate 构造）。
+- nextest：wreviv + wkv 246/246 绿；并入 wedb 后 558/558 绿（合入前回合 dev 三次前进，每次都重跑）。
+- `./js/check.js`：退出 0，输出仅存量提示段（B 层词法 129 处、重复定义族），无新增缺失项。
+- 严禁清单遵守：未跑 ./test.sh、./sh/clippy.sh。
+
+三 断言非恒真的变异校验（票面验收判据第四条）
+逐项破坏生产门，确认对应用例转红且红在该门上：删链内 `cur >= min_revivifiable_address` 门 →
+比例臂红；链内臂回退为 `config.enable_revivification` 单门 → 暂停臂红；不可变区臂回退为
+read_cache-only（修复前形态）→ 不可变区臂红而磁盘臂仍绿；磁盘臂恒走 copy-to-tail → 磁盘臂关态
+断言红。四轮验后生产件 `git checkout` 复位、取证不留痕。
+
+四 二棒补的改动
+1. 441fe54（一棒未提交的 tests/store/reviv.rs 现场，属票面射程，予以提交）：磁盘臂改
+   on/off 两态对照并弃用测试旁路口 `set_copy_reads_to_tail`、改由 store 级
+   `with_copy_reads_to_tail` 真源驱动；新增不可变区臂用例（Tail 推进 + 索引改指新地址 +
+   二次读命中可变区且不重复晋升 / 关时零推进）。与票面棒 2 验收逐条对齐，无扩面。
+2. dbe4752（修一棒 18733bd 已提交用例的一处错误前提）：`test_revivification_in_chain_dual_gate`
+   暂停臂正断言恒红。实测取证 `cands=[112,160]`：pause 阶段落回尾部追加已把键 k 的链首槽位
+   改写为 Active 记录，其后 append_record + index.insert 悬置的墓碑只是桶内第二候选，探针自
+   链首即命中等长 Active → 走「原位更新」臂返回 112，到不了复活臂。若顺手把断言改成
+   `after2 == 112` 则测的是更新臂、反成假绿，故 resume 正断言改用独立桶位干净键（链首恒为
+   墓碑，与本票 275-360 既有夹具及比例臂同法），并给暂停臂/比例臂各补一条
+   `min_revivifiable_address` 前置自查，坐实挡路的是被测那道门。
+3. 314cf78（修本票生产改动打红的跨包连带）：`wedb/tests/cluster_migration.rs` 四条断言
+   `reviv_pool.is_enabled()` 的用例转红（slots_migration_reviv_pause_guard_raii /
+   slots_migration_pauses_and_resumes_reviv_pool / slots_migration_task_full_flow_success /
+   slots_migration_task_batch_reject_recovers）。归因：改前挂起计数无条件以 0 起算，
+   `is_enabled()` 根本不看启用位，四条用例遂以 `test_store_config()`
+   （enable_revivification 默认 false，config.rs:359）建店并断言「初始即启用」为真。
+   取证明知非 R4 门禁红七枚之列（那批属 aof 回放系/garnet_log/ttl_purge）。
+   处置：按 C# 口径 `IsEnabled` 在 --reviv 关时恒假，暂停/恢复只在启用态才有区分度，
+   故为断言暂停臂的四条补 `migrate_store_reviv` 入口，建店本体收成 `open_migrate_store`
+   单点、reviv 位由调用方裁决；其余 17 处 `migrate_store` 调用点维持关态不动。
+   生产语义零回退：改前 take 路径外层已判 `config.enable_revivification`，reviv 关时 take
+   从不触达，与改后一致（票面「默认装配行为零变化」成立；差异只在直接探
+   `is_enabled()` 的测试可见面）。
+4. 96638dc：`cargo fmt` 归一本票四件（一棒三提交未过 rustfmt），纯换行重排、token 序列一致。
+
+五 文档落位与本票刻意未改处
+- hosting.yml:58-60 未改。票面第 100 行要求本票落地后把「脱钩无条件化随 RMW 原子票同批落地」
+  改为已落地，但该句主语是棒 3 的脱钩无条件化，棒 3 随 ing/reviv-knobs-zero-production-wiring.md
+  与 RMW 原子票落、本票未落（见上「一 覆盖度」棒 3 段）。此时改写即为假账，故原句保持，
+  待棒 3 落地那一棒一并核销。
+- js/check/ignore/storage.yml 未改（本票禁改清单内）。取证：本票新增锚点
+  `Helpers.cs:GetMinRevivifiableAddress` 已把该 C# 符号登记为已映射，实跑 check.js 会自动摘除
+  storage.yml:1643 的同名 ignore 条目，但同一次运行连带改写了 :1724 附近
+  `UnlockExclusive`/`UnlockShared` 两枚他域条目（陈旧基线上的溢出桶锁表漂移，非本票射程），
+  故已整份 `git checkout` 回退。请主代理在全新 dev 基线上重跑 check.js，把 GetMinRevivifiableAddress
+  那条 ignore 摘除归位。
+- 相邻票事实更正：`with_revivifiable_fraction` 在本票落地后已是双侧生效谓词（链内原地复活与
+  池取同一门，raw/mod.rs 与 inplace.rs 两臂直调 store 单点），不再只是池取口径；
+  zero-consumer-dead-surfaces-batch-six.md 现已回到 task/ing/，其 with_revivifiable_fraction
+  子项与本票无交叉，本票未撤任何投影面，故不双写、不代改他票正文。
