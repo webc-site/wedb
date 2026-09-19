@@ -9,13 +9,17 @@
 
 use std::sync::Arc;
 
+use compio::runtime::Runtime;
 use parking_lot::Mutex;
 use wacl::{AccessControlList, AclParser, GarnetAclAuthenticator};
+use wcol::itembroker::{
+  collection_item_broker::CollectionItemBroker, item_broker_face::SharedItemBroker,
+};
 use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::resp::{
-  acl_store::AclStore,
-  garnet_api::StoreGarnetApi,
+  acl_store::AclStore, garnet_api::StoreGarnetApi,
+  objects::collection_item_source::CollectionItemSource,
   resp_server_session::{RespServerSession, RespServerSessionOptions},
 };
 use wnode_test::drain_output;
@@ -659,5 +663,146 @@ fn test_eval_lua_subscribe_noscript_blocked() {
     out.windows(23).any(|w| w == b"not allowed from script"),
     "got {}",
     String::from_utf8_lossy(&out)
+  );
+}
+
+/// 同批多命令帧（流水线形态一次接收）
+fn batch_frames(batches: &[Vec<Vec<u8>>]) -> Vec<u8> {
+  let mut buf = Vec::new();
+  for parts in batches {
+    let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
+    buf.extend_from_slice(&resp(&refs));
+  }
+  buf
+}
+
+/// 脚本内命令落冷键慢路径：挂起体必须在重入内闭环并产真实应答，脚本窗口
+/// 退出后会话无残留挂起（残留即被网络泵 resolve 成不属于任何命令的孤儿帧）
+#[test]
+fn eval_redis_call_cold_key_slow_path_handoff() {
+  let (_dir, store) = open_test_store("lua-cold-call.db").expect("open test store");
+  let rt = Runtime::new().expect("compio runtime");
+  let mut s = lua_session(&store);
+
+  assert_eq!(
+    cmd(
+      &mut s,
+      vec![b"SET".to_vec(), b"lua:ck".to_vec(), b"cold".to_vec()]
+    ),
+    b"+OK\r\n"
+  );
+  // 刷并驱逐主日志：键转磁盘冷读，GET 快路径必降级挂起
+  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+
+  let out = rt.block_on(async {
+    cmd(
+      &mut s,
+      eval_parts("return redis.call('GET', KEYS[1])", &[b"lua:ck"], &[]),
+    )
+  });
+  assert_eq!(out, b"$4\r\ncold\r\n", "冷键降级应答须在重入内闭环");
+  assert!(
+    s.take_slow_wait().is_none() && s.take_blocked_wait().is_none(),
+    "脚本窗口退出后不得残留挂起体"
+  );
+
+  // 同脚本连发多条 redis.call：降级（冷键 GET）与非降级（SET/热键 GET）混合，
+  // 逐条应答各自正确
+  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+  let out = rt.block_on(async {
+    cmd(
+      &mut s,
+      eval_parts(
+        "local a = redis.call('GET', KEYS[1]) redis.call('SET', KEYS[2], 'hot') \
+         return a .. '/' .. redis.call('GET', KEYS[2])",
+        &[b"lua:ck", b"lua:hk"],
+        &[],
+      ),
+    )
+  });
+  assert_eq!(out, b"$8\r\ncold/hot\r\n");
+}
+
+/// 同批 EVAL 夹在普通命令之间：前序命令应答不被脚本应答转换器误读、后续命令
+/// 不随接收窗覆写丢失，整批应答逐条对齐且零孤儿帧
+#[test]
+fn eval_pipelined_batch_reply_alignment() {
+  let (_dir, store) = open_test_store("lua-pipe-align.db").expect("open test store");
+  let rt = Runtime::new().expect("compio runtime");
+  let mut s = lua_session(&store);
+
+  assert_eq!(
+    cmd(
+      &mut s,
+      vec![b"SET".to_vec(), b"lua:ck".to_vec(), b"cold".to_vec()]
+    ),
+    b"+OK\r\n"
+  );
+  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+
+  let batch = batch_frames(&[
+    vec![b"PING".to_vec()],
+    eval_parts(
+      "return redis.call('GET', KEYS[1])",
+      &[b"lua:ck"],
+      &[],
+    ),
+    vec![b"PING".to_vec()],
+    vec![b"SET".to_vec(), b"lua:after".to_vec(), b"1".to_vec()],
+  ]);
+  let out = rt.block_on(async {
+    feed(&mut s, &batch).expect("协议违规");
+    drain_output(&mut s)
+  });
+  assert_eq!(
+    out,
+    b"+PONG\r\n$4\r\ncold\r\n+PONG\r\n+OK\r\n",
+    "同批评答须逐条对齐，EVAL 帧之后的命令不得丢失"
+  );
+  assert!(
+    s.take_slow_wait().is_none() && s.take_blocked_wait().is_none(),
+    "本批收尾不得留挂起体给出网泵"
+  );
+}
+
+/// 脚本内阻塞命令的挂起承接（C# 网络线程内联等待的等价物）：经纪注入下
+/// BLPOP 在重入内闭环取到真实元素，而非空应答落 UnexpectedError
+#[test]
+fn eval_script_blpop_blocked_wait_handoff() {
+  let (_dir, store) = open_test_store("lua-blpop-handoff.db").expect("open test store");
+  let rt = Runtime::new().expect("compio runtime");
+  let broker = Arc::new(SharedItemBroker::new(Arc::new(CollectionItemBroker::new(
+    CollectionItemSource::new(store.new_session().unwrap()),
+  ))));
+  let mut s = lua_session(&store);
+  s.set_item_broker(broker);
+
+  assert_eq!(
+    cmd(
+      &mut s,
+      vec![b"RPUSH".to_vec(), b"bq".to_vec(), b"v1".to_vec()]
+    ),
+    b":1\r\n"
+  );
+
+  let out = rt.block_on(async {
+    cmd(
+      &mut s,
+      eval_parts(
+        "local r = redis.call('BLPOP', KEYS[1], 10) return r[1] .. ':' .. r[2]",
+        &[b"bq"],
+        &[],
+      ),
+    )
+  });
+  assert_eq!(out, b"$5\r\nbq:v1\r\n", "阻塞命令须在重入内取到元素");
+  assert!(
+    s.take_blocked_wait().is_none() && s.take_slow_wait().is_none(),
+    "脚本窗口退出后不得残留挂起体"
+  );
+  // 元素已被弹出：后续同批命令应答照常对齐
+  assert_eq!(
+    cmd(&mut s, vec![b"LLEN".to_vec(), b"bq".to_vec()]),
+    b":0\r\n"
   );
 }
