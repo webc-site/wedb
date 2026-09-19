@@ -45,7 +45,7 @@ fn txn_set_test() {
   // QUEUED SET mykey1 val1
   let (mut sess_k1, _b1) = session_with_args(&[b"mykey1", b"abcdefg1"]);
   let set_info = TxnQueuedCommandInfo {
-    name: "set".into(),
+    name: "set",
     arity: 3,
     allowed_in_txn: true,
     is_sub_command: false,
@@ -86,7 +86,7 @@ fn txn_execute_test() {
 
   let (mut s1, _b1) = session_with_args(&[b"mykey1", b"abcdefg1"]);
   let set_info = TxnQueuedCommandInfo {
-    name: "set".into(),
+    name: "set",
     arity: 3,
     allowed_in_txn: true,
     is_sub_command: false,
@@ -114,7 +114,7 @@ fn txn_get_test() {
   session.output.clear();
 
   let get_info = TxnQueuedCommandInfo {
-    name: "get".into(),
+    name: "get",
     arity: 2,
     allowed_in_txn: true,
     is_sub_command: false,
@@ -148,7 +148,7 @@ fn txn_get_set_test() {
   session.output.clear();
 
   let get_info = TxnQueuedCommandInfo {
-    name: "get".into(),
+    name: "get",
     arity: 2,
     allowed_in_txn: true,
     is_sub_command: false,
@@ -162,7 +162,7 @@ fn txn_get_set_test() {
   assert_eq!(s1.output, b"+QUEUED\r\n");
 
   let set_info = TxnQueuedCommandInfo {
-    name: "set".into(),
+    name: "set",
     arity: 3,
     allowed_in_txn: true,
     is_sub_command: false,
@@ -247,7 +247,7 @@ fn transaction_proc_test1() {
   impl TxnProcResolver<RespServerSession> for MockResolver {
     fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<TxnProcHandle> {
       (txn_id == 7).then(|| TxnProcHandle {
-        name: "mock-proc".into(),
+        name: "mock-proc",
         arity: 2,
       })
     }
