@@ -87,7 +87,15 @@ fn partial_stream_is_pending_then_cleaned_up() {
 
     // 仅喂第一块：重组状态正在进行中
     let res = replication
-      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, chunks[0].1, chunks[0].2)
+      .process_stream_chunk::<SegmentedDevice>(
+        None,
+        key,
+        0,
+        &chunks[0].0,
+        chunks[0].1,
+        chunks[0].2,
+        false,
+      )
       .await;
     assert!(res.is_ok());
     assert_eq!(replication.pending_stream_reassembly_count(), 1);
@@ -131,7 +139,7 @@ fn retry_first_chunk_resets_stale_partial_reassembly() {
 
     // 尝试 1：仅喂第一块后中断
     let res = replication
-      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false)
+      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false, false)
       .await;
     assert!(res.is_ok());
     assert_eq!(replication.pending_stream_reassembly_count(), 1);
@@ -139,7 +147,7 @@ fn retry_first_chunk_resets_stale_partial_reassembly() {
     // 尝试 2 (重试)：首块 (is_first=true) 必须重置同键的陈旧状态
     for (i, chunk) in chunks.iter().take(chunks.len() - 1).enumerate() {
       let res = replication
-        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunk.0, i == 0, false)
+        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunk.0, i == 0, false, false)
         .await;
       assert!(res.is_ok());
     }
@@ -173,7 +181,7 @@ fn malformed_chunk_is_dropped() {
     // 前 4 字节为 0 的损坏块（键长度非法 <= 0）
     let malformed = [0u8; 16];
     let res = replication
-      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &malformed, true, false)
+      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &malformed, true, false, false)
       .await;
     assert!(res.is_err());
     assert_eq!(replication.pending_stream_reassembly_count(), 0);
@@ -207,7 +215,7 @@ fn final_flag_on_incomplete_stream_drops_reassembly() {
 
     // 喂入首块但置 is_last=true
     let res = replication
-      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, true)
+      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, true, false)
       .await;
     assert!(res.is_err());
     assert_eq!(replication.pending_stream_reassembly_count(), 0);
@@ -241,7 +249,7 @@ fn publish_failure_on_complete_stream_throws() {
     // 喂入除末块外的所有分块
     for chunk in chunks.iter().take(chunks.len() - 1) {
       let res = replication
-        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunk.0, chunk.1, chunk.2)
+        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunk.0, chunk.1, chunk.2, false)
         .await;
       assert!(res.is_ok());
     }
@@ -251,7 +259,7 @@ fn publish_failure_on_complete_stream_throws() {
     // 喂入末块但无 session（发布失败）
     let last = chunks.last().unwrap();
     let res = replication
-      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &last.0, last.1, last.2)
+      .process_stream_chunk::<SegmentedDevice>(None, key, 0, &last.0, last.1, last.2, false)
       .await;
     assert!(res.is_err());
     assert_eq!(replication.pending_stream_reassembly_count(), 0);
@@ -285,7 +293,7 @@ fn timeout_and_manager_drop_cleans_incomplete_streams() {
 
       // 喂入第一块
       replication
-        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false)
+        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false, false)
         .await
         .unwrap();
       assert_eq!(replication.pending_stream_reassembly_count(), 1);
@@ -345,7 +353,7 @@ fn aof_processor_drop_cleans_range_index_reassembly() {
       processor.set_range_index_manager(Arc::clone(&replication));
 
       replication
-        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false)
+        .process_stream_chunk::<SegmentedDevice>(None, key, 0, &chunks[0].0, true, false, false)
         .await
         .unwrap();
       assert_eq!(replication.pending_stream_reassembly_count(), 1);

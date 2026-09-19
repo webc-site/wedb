@@ -97,6 +97,9 @@ pub struct RangeIndexStreamArgs<'a> {
   /// 携带，副本重组完成时据此重建 MetaValue（用户 RI 迁移为 RangeIndex，集合
   /// 就地升阶回放为原集合类型）
   pub obj_type: u8,
+  /// 发布形态：分层重灌换旧树为真（副本对既有索引以 replace 换入重放，
+  /// 首升阶与用户 RI 迁移流为 false，同键已存在即拒发布）；随流块 arg1 标志携载
+  pub replace: bool,
 }
 
 /// 流块入队入参结构体（收敛 enqueue_range_index_stream_chunk 入参）
@@ -106,25 +109,33 @@ pub struct RangeIndexChunkArgs<'a> {
   pub chunk: &'a [u8],
   pub is_first: bool,
   pub is_last: bool,
+  /// 发布形态位（同 [`RangeIndexStreamArgs::replace`]，每块携载与 obj_type 同形）
+  pub replace: bool,
 }
 
 /// 流块 arg1 首块标志位
 const STREAM_CHUNK_IS_FIRST_FLAG: i64 = 2;
 /// 流块 arg1 末块标志位
 const STREAM_CHUNK_IS_LAST_FLAG: i64 = 1;
+/// 流块 arg1 replace 发布形态标志位（分层重灌流不换旧树即发布失败，C# 迁移流
+/// 通道的同题 TODO 在本仓 AOF 流通道以该位承接）
+const STREAM_CHUNK_REPLACE_FLAG: i64 = 4;
 
-/// 打包流块首尾标志进 arg1
+/// 打包流块首尾与 replace 标志进 arg1
 #[inline]
-pub(crate) const fn pack_stream_chunk_flags(is_first: bool, is_last: bool) -> i64 {
-  ((is_last as i64) * STREAM_CHUNK_IS_LAST_FLAG) | ((is_first as i64) * STREAM_CHUNK_IS_FIRST_FLAG)
+pub(crate) const fn pack_stream_chunk_flags(is_first: bool, is_last: bool, replace: bool) -> i64 {
+  ((is_last as i64) * STREAM_CHUNK_IS_LAST_FLAG)
+    | ((is_first as i64) * STREAM_CHUNK_IS_FIRST_FLAG)
+    | ((replace as i64) * STREAM_CHUNK_REPLACE_FLAG)
 }
 
-/// 解包流块 arg1 为 (is_first, is_last)
+/// 解包流块 arg1 为 (is_first, is_last, replace)
 #[inline]
-pub(crate) const fn unpack_stream_chunk_flags(arg1: i64) -> (bool, bool) {
+pub(crate) const fn unpack_stream_chunk_flags(arg1: i64) -> (bool, bool, bool) {
   (
     arg1 & STREAM_CHUNK_IS_FIRST_FLAG != 0,
     arg1 & STREAM_CHUNK_IS_LAST_FLAG != 0,
+    arg1 & STREAM_CHUNK_REPLACE_FLAG != 0,
   )
 }
 
@@ -314,6 +325,7 @@ impl RangeIndexManagerReplication {
           chunk: &dest[..written],
           is_first,
           is_last: reader.is_complete(),
+          replace: args.replace,
         },
       )?;
       stream_activity.on_chunk_enqueued(written);
@@ -324,7 +336,7 @@ impl RangeIndexManagerReplication {
 
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:EnqueueRangeIndexStreamChunk
   ///
-  /// 入队单个 RangeIndexStreamChunk 块（首尾标志打包进 ReplayInput.arg1）
+  /// 入队单个 RangeIndexStreamChunk 块（首尾与 replace 标志打包进 ReplayInput.arg1）
   pub fn enqueue_range_index_stream_chunk(
     &self,
     append_only_file: &GarnetAppendOnlyFile,
@@ -334,14 +346,18 @@ impl RangeIndexManagerReplication {
     let payload = [args.chunk];
     let input = ReplayInputSlice::new_deterministic(RespCommand::None, &payload)
       .with_obj_type(args.obj_type)
-      .with_args_num(pack_stream_chunk_flags(args.is_first, args.is_last), 0, 0);
+      .with_args_num(
+        pack_stream_chunk_flags(args.is_first, args.is_last, args.replace),
+        0,
+        0,
+      );
     append_only_file.enqueue_rmw_slices(AofEntryType::RangeIndexStreamChunk, ctx, args.key, &input)
   }
 
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:HandleRangeIndexStreamReplay
   ///
-  /// AOF 回放（副本复制 / 崩溃恢复）单个流块：从 arg1 解出首尾标志后
-  /// 交 [`Self::process_stream_chunk`]
+  /// AOF 回放（副本复制 / 崩溃恢复）单个流块：从 arg1 解出首尾与 replace
+  /// 标志后交 [`Self::process_stream_chunk`]
   pub async fn handle_range_index_stream_replay<D: Device>(
     &self,
     session: &StoreSession<D>,
@@ -353,9 +369,17 @@ impl RangeIndexManagerReplication {
         "Corrupt RangeIndexStreamChunk AOF entry: chunk argument missing".to_string(),
       ));
     };
-    let (is_first, is_last) = unpack_stream_chunk_flags(input.arg1);
+    let (is_first, is_last, replace) = unpack_stream_chunk_flags(input.arg1);
     self
-      .process_stream_chunk(Some(session), key, input.obj_type, chunk, is_first, is_last)
+      .process_stream_chunk(
+        Some(session),
+        key,
+        input.obj_type,
+        chunk,
+        is_first,
+        is_last,
+        replace,
+      )
       .await
   }
 
@@ -370,8 +394,9 @@ impl RangeIndexManagerReplication {
   /// libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ProcessStreamChunk
   ///
   /// 流重组核心步：首块重置同键陈旧状态 → 喂块给逐键反序列化器 → 流完成
-  /// 时发布重组成的 BfTree。失败路径（喂块被拒 / 发布失败 / 末块后仍未
-  /// 完成）一律清理重组状态后上抛
+  /// 时发布重组成的 BfTree。`replace` 随流块 arg1 标志携载：分层重灌流必须
+  /// 换入重放（旧树仍活着，固定 replace=false 会被 AlreadyExists 拒放）。
+  /// 失败路径（喂块被拒 / 发布失败 / 末块后仍未完成）一律清理重组状态后上抛
   pub async fn process_stream_chunk<D: Device>(
     &self,
     session: Option<&StoreSession<D>>,
@@ -380,6 +405,7 @@ impl RangeIndexManagerReplication {
     chunk: &[u8],
     is_first: bool,
     is_last: bool,
+    replace: bool,
   ) -> ReplicationResult {
     // 新流首块取代同键未完成的重组（连接串行发送同键流块，无并发窗口）
     if is_first {
@@ -432,8 +458,8 @@ impl RangeIndexManagerReplication {
             .to_string(),
         ));
       };
-      // TODO(RangeIndex): 随流携带 replaceOption（C# 同 TODO：迁移流未编码
-      // REPLACE 语义，固定 replace=false）
+      // replace 形态位随 AOF 流块 arg1 携载（上层重灌流 = true；C# 同位
+      // TODO 仅指 wconn 盘less 迁移流通道，该通道维持固定 false 不动）
       // 首块携带的发布判别类型：0（旧迁移流未编码）归一为 RangeIndex，
       // 集合升阶流为原集合类型（Hash/Set/List/SortedSet）
       let obj_type = match GarnetObjectType::from_u8(state.obj_type.load(Ordering::Relaxed)) {
@@ -445,7 +471,7 @@ impl RangeIndexManagerReplication {
         key,
         &stub_bytes,
         &temp_path,
-        false,
+        replace,
         obj_type,
       )
       .await;

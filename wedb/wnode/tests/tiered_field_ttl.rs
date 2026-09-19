@@ -100,7 +100,7 @@ fn promote(
   let sess = env.store.new_session().unwrap();
   env
     .rt
-    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, next_expiry))
+    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, next_expiry, false))
     .unwrap();
   assert!(
     env
@@ -561,6 +561,7 @@ fn promote_demote_roundtrip_preserves_field_ttl() {
       GarnetObjectType::SortedSet,
       entries,
       member_expiry,
+      false,
     ))
     .unwrap();
   // 水位必须随重灌前移（假水位 MAX 会骗过计数校正与周期收集，已到期成员

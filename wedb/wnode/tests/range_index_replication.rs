@@ -20,20 +20,25 @@ use wresp::command::RespCommand;
 
 const HEADER_SIZE: usize = AofHeader::TOTAL_SIZE;
 
-/// C# StreamedPublishLogArg 位面：IsLast = 1，IsFirst = 2（对齐 src 常量）
+/// C# StreamedPublishLogArg 位面：IsLast = 1，IsFirst = 2（对齐 src 常量；
+/// Replace = 4 为本仓 AOF 流通道扩展，重灌流换入语义随块携载）
 const STREAM_CHUNK_IS_FIRST_FLAG: i64 = 2;
 const STREAM_CHUNK_IS_LAST_FLAG: i64 = 1;
+const STREAM_CHUNK_REPLACE_FLAG: i64 = 4;
 
-/// 流块 arg1 首尾标志打包（src pack_stream_chunk_flags 的同构表达）
-fn pack_stream_chunk_flags(is_first: bool, is_last: bool) -> i64 {
-  ((is_last as i64) * STREAM_CHUNK_IS_LAST_FLAG) | ((is_first as i64) * STREAM_CHUNK_IS_FIRST_FLAG)
+/// 流块 arg1 首尾与 replace 标志打包（src pack_stream_chunk_flags 的同构表达）
+fn pack_stream_chunk_flags(is_first: bool, is_last: bool, replace: bool) -> i64 {
+  ((is_last as i64) * STREAM_CHUNK_IS_LAST_FLAG)
+    | ((is_first as i64) * STREAM_CHUNK_IS_FIRST_FLAG)
+    | ((replace as i64) * STREAM_CHUNK_REPLACE_FLAG)
 }
 
-/// 流块 arg1 首尾标志解包（src unpack_stream_chunk_flags 的同构表达）
-fn unpack_stream_chunk_flags(arg1: i64) -> (bool, bool) {
+/// 流块 arg1 首尾与 replace 标志解包（src unpack_stream_chunk_flags 的同构表达）
+fn unpack_stream_chunk_flags(arg1: i64) -> (bool, bool, bool) {
   (
     arg1 & STREAM_CHUNK_IS_FIRST_FLAG != 0,
     arg1 & STREAM_CHUNK_IS_LAST_FLAG != 0,
+    arg1 & STREAM_CHUNK_REPLACE_FLAG != 0,
   )
 }
 
@@ -92,6 +97,7 @@ fn single_chunk_stream_enqueues_with_first_and_last_flags() {
       RangeIndexStreamArgs {
         key: b"key",
         obj_type: 0,
+        replace: false,
         stub: &[9u8; 35],
         file_path: &file_path,
         ctx,
@@ -138,6 +144,7 @@ fn multi_chunk_stream_marks_only_outer_flags() {
       RangeIndexStreamArgs {
         key: b"k",
         obj_type: 0,
+        replace: false,
         stub: &[7u8; 35],
         file_path: &file_path,
         ctx,
@@ -179,6 +186,7 @@ fn null_aof_stream_is_warning_noop() {
         RangeIndexStreamArgs {
           key: b"k",
           obj_type: 0,
+          replace: false,
           stub: &[0u8; 35],
           file_path: &file_path,
           ctx: AofWriteContext {
@@ -203,6 +211,7 @@ fn missing_file_fails_stream() {
     RangeIndexStreamArgs {
       key: b"k",
       obj_type: 0,
+      replace: false,
       stub: &[0u8; 35],
       file_path: &dir.path().join("absent.bftree"),
       ctx: AofWriteContext {
@@ -216,22 +225,33 @@ fn missing_file_fails_stream() {
   assert!(result.is_err());
 }
 
-/// 流块 arg1 位面 round-trip：IsLast = 1，IsFirst = 2，可叠加（C# 位面）
+/// 流块 arg1 位面 round-trip：IsLast = 1，IsFirst = 2，Replace = 4，可叠加
 #[test]
 fn stream_chunk_flags_pack_roundtrip() {
-  assert_eq!(pack_stream_chunk_flags(false, false), 0);
+  assert_eq!(pack_stream_chunk_flags(false, false, false), 0);
   assert_eq!(
-    pack_stream_chunk_flags(true, false),
+    pack_stream_chunk_flags(true, false, false),
     STREAM_CHUNK_IS_FIRST_FLAG
   );
   assert_eq!(
-    pack_stream_chunk_flags(false, true),
+    pack_stream_chunk_flags(false, true, false),
     STREAM_CHUNK_IS_LAST_FLAG
   );
-  assert_eq!(pack_stream_chunk_flags(true, true), 3);
-  for (first, last) in [(false, false), (true, false), (false, true), (true, true)] {
-    let (f, l) = unpack_stream_chunk_flags(pack_stream_chunk_flags(first, last));
-    assert_eq!((f, l), (first, last));
+  assert_eq!(pack_stream_chunk_flags(true, true, false), 3);
+  assert_eq!(
+    pack_stream_chunk_flags(true, true, true),
+    3 | STREAM_CHUNK_REPLACE_FLAG
+  );
+  for (first, last, replace) in [
+    (false, false, false),
+    (true, false, false),
+    (false, true, false),
+    (true, true, false),
+    (true, true, true),
+    (false, false, true),
+  ] {
+    let (f, l, r) = unpack_stream_chunk_flags(pack_stream_chunk_flags(first, last, replace));
+    assert_eq!((f, l, r), (first, last, replace));
   }
 }
 

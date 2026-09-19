@@ -43,28 +43,35 @@ impl RangeIndexManager {
     }
   }
 
-  /// 仅构建 BfTreeService 实例，不操作 live_indexes 字典
+  /// 仅构建 BfTreeService 实例，不操作 live_indexes 字典。
+  ///
+  /// `data_path` 为 `Some` 即以 Std 磁盘后端在该显式路径打开工作文件（正式数据路径经
+  /// [`Self::data_file_path`] 派生，升阶 scratch 树经 [`Self::derive_temp_migration_path`]
+  /// 落在 migration-tmp）；为 `None` 即纯内存后端 (cache_only，零磁盘工件)。路径由
+  /// 调用方给出，本构造口不内嵌命名规则——正式建树与升阶 scratch 建树共用唯一构造口。
   fn instantiate_tree(
     &self,
-    hash_prefix: &str,
+    data_path: Option<&Path>,
     storage_backend: StorageBackendType,
     mut tuning: TreeTuning,
   ) -> Result<Arc<BfTreeService>> {
     Self::resolve_tuning(&mut tuning);
     let mut config = Config::default();
 
-    let (file_path_str, backend_type) = if storage_backend == StorageBackendType::Memory {
-      config.cache_only(true);
-      (None, StorageBackendType::Memory)
-    } else {
-      // 显式配置 Std 磁盘后端与数据文件路径 (bf_tree Config::file_path 不联动后端)
-      let data_path = self.data_file_path(hash_prefix);
-      config.storage_backend(StorageBackend::Std);
-      config.file_path(&data_path);
-      (
-        Some(data_path.to_string_lossy().into_owned()),
-        StorageBackendType::Disk,
-      )
+    let (file_path_str, backend_type) = match (data_path, storage_backend) {
+      (Some(data_path), StorageBackendType::Disk) => {
+        // 显式配置 Std 磁盘后端与数据文件路径 (bf_tree Config::file_path 不联动后端)
+        config.storage_backend(StorageBackend::Std);
+        config.file_path(data_path);
+        (
+          Some(data_path.to_string_lossy().into_owned()),
+          StorageBackendType::Disk,
+        )
+      }
+      _ => {
+        config.cache_only(true);
+        (None, StorageBackendType::Memory)
+      }
     };
 
     if tuning.cache_size > 0 {
@@ -117,11 +124,65 @@ impl RangeIndexManager {
     let _ = fs::remove_file(self.data_file_path(&hash_prefix));
     self.remove_addr_flush_files(key_id);
 
-    let tree = self.instantiate_tree(&hash_prefix, storage_backend, tuning)?;
+    let tree = self.instantiate_tree(
+      (storage_backend == StorageBackendType::Disk)
+        .then_some(self.data_file_path(&hash_prefix))
+        .as_deref(),
+      storage_backend,
+      tuning,
+    )?;
     let entry = Arc::new(TreeEntry::new(Some(Arc::clone(&tree)), key_hash, key_id));
 
     pin.insert(key_id, entry);
     Ok(tree)
+  }
+
+  /// 集合就地升阶 / 分层重灌共用建树内核：构造未注册 scratch 树、排序批量装载、
+  /// CPR 快照至独立临时文件，随后销毁并删除 scratch 工作文件，
+  /// 返回 (快照文件路径, 去重后落刷条数)。
+  ///
+  /// 产物快照交 [`Self::publish_tree_from_snapshot_locked`] 原子换入正式数据路径
+  /// （首升阶 replace=false、分层重灌 replace=true）。建树全程不触注册表与目标键
+  /// 数据文件：旧树在换入前完好可读，杜绝旧「先摘旧树再原位重建」形态下
+  /// drain 成功、重建失败的键蒸发窗口（对标 C# 对象记录重写单日志记录原子、
+  /// 无销毁重建窗——ObjectStore/VarLenInputMethods.cs:GetRMWModifiedFieldInfo）。
+  /// scratch 工作文件与快照均落 migration-tmp（启动期 remove_dir_all 清扫，
+  /// 见本文件发布时序注），中途失败残件无泄漏类，仅在成功换入前多一次
+  /// 快照文件的顺序写。装载被拒以 [`Error::LoadRejected`] 携原始状态码上抛，
+  /// 由宿主分流 RESP 错误文案。
+  ///
+  /// 在 garnet 中的相对路径: 无逐函数对位（C# 集合恒驻对象域无就地升阶；
+  /// 本内核与 publish_tree_from_snapshot_locked 组合承接本仓分层建树 + 换入，
+  /// 换入通道与副本迁移流同源，见 doc/zh/collection.md 与
+  /// libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:PublishMigratedIndex）
+  pub fn build_collection_tree_snapshot(
+    &self,
+    entries: &[(Vec<u8>, Vec<u8>)],
+    tuning: &TreeTuning,
+  ) -> Result<(PathBuf, u64)> {
+    let mut tuning = *tuning;
+    Self::resolve_tuning(&mut tuning);
+    let work_path = self.derive_temp_migration_path();
+    let snap_path = self.derive_temp_migration_path();
+    let tree = self.instantiate_tree(Some(&work_path), StorageBackendType::Disk, tuning)?;
+    // 装载与快照任一失败即作废 scratch：bulk_load 前置校验保证失败发生于任何
+    // 写入之前（口径同旧原位建树路径），cpr_snapshot 失败快照文件由引擎侧自理，
+    // 两态统一在下方释放 scratch 并删除其工作文件
+    let built = tree
+      .bulk_load(entries)
+      .map_err(Error::LoadRejected)
+      .and_then(|count| {
+        tree.cpr_snapshot(&snap_path)?;
+        Ok(count)
+      });
+    tree.dispose();
+    // dispose 后方删（Windows 句柄次序，同 settle_detached_release）；工作文件
+    // 已被引擎创建即两态同径 unlink，残件由 migration-tmp 启动清扫兜底，
+    // 删除失败仅告警不污染装载结果
+    if let Err(e) = fs::remove_file(&work_path) {
+      log::warn!("升阶 scratch 工作文件删除失败，待启动清扫回收: {e}");
+    }
+    built.map(|count| (snap_path, count))
   }
 
   /// 获取或按需打开在线 BfTreeService (双重检查锁与条带锁保证并发安全性与恢复正确性)
@@ -213,7 +274,11 @@ impl RangeIndexManager {
         &data_path, true, backend,
       )?)
     } else {
-      self.instantiate_tree(&hash_prefix, backend, TreeTuning::from(stub))?
+      self.instantiate_tree(
+        (backend == StorageBackendType::Disk).then_some(data_path.as_path()),
+        backend,
+        TreeTuning::from(stub),
+      )?
     };
 
     // 原地激活现有条目（如 pre_stage 或恢复阶段注册的 pending entry），或者注册全新条目
@@ -468,8 +533,9 @@ impl RangeIndexManager {
   /// Garnet PublishMigratedIndex 的文件换入/树恢复/注册表部分)
   ///
   /// ⚠️ 调用方须已持该键的条带互斥写锁 (对标 C# *UnderLock 契约)——发布全流程
-  /// (存在性判定 → 旧树排空 → 文件换入 → 恢复 → 注册) 必须对同键并发发布原子，
-  /// 锁由调用方持有并覆盖其后续的存根元数据落盘。
+  /// (存在性判定 → 快照源校验 → 旧树排空 → 旧世代刷盘件清理 → 文件换入 →
+  /// 恢复 → 注册) 必须对同键并发发布原子，锁由调用方持有并覆盖其后续的
+  /// 存根元数据落盘。
   ///
   /// 时序说明：
   /// - Unix 上 `rename` 原子替换既有数据文件，换入窗口内无「文件缺失」间隙；
@@ -496,19 +562,27 @@ impl RangeIndexManager {
     if exists && !replace {
       return Err(Error::IndexExists);
     }
-    if exists {
-      // 旧树锁内摘除 + 延迟释放 (remove_and_take_tree 契约：调用方持条带写锁)
-      if let Some(old) = self.remove_and_take_tree(key_id) {
-        self.dispose_bf_tree_deferred(old);
-      }
-    }
-
+    // 快照存在性不变量前置于摘旧树之前：缺失属调用方序违，先判死再动旧态，
+    // 杜绝「旧树已摘、快照缺失上抛」的自伤窗
     if !snapshot_path.exists() {
       use core::fmt::Write;
       let mut msg = String::with_capacity(32 + snapshot_path.as_os_str().len());
       let _ = write!(msg, "迁移快照文件不存在: {}", snapshot_path.display());
       return Err(Error::Recovery(msg));
     }
+    if exists {
+      // 旧树锁内摘除 + 延迟释放 (remove_and_take_tree 契约：调用方持条带写锁)
+      if let Some(old) = self.remove_and_take_tree(key_id) {
+        self.dispose_bf_tree_deferred(old);
+      }
+    }
+    // 换入即新世代确立：清该键全部旧世代带地址刷盘件（create_bftree_internal
+    // 防重门旁同款工件回收的发布侧对位）。惰性恢复以最大地址刷盘件覆盖数据
+    // 文件，前代残件不清则新树遭淘汰/重启后被旧世代快照回灌——先建后拆换来的
+    // 换入原子性会被盘上残件击穿；键消亡臂 (delete_index) 不删刷盘件、仅靠
+    // on_truncate 按地址滞后回收，故本裁决点为换代路径的唯一收口
+    self.remove_addr_flush_files(key_id);
+
     let parent = data_path.parent();
     if let Some(parent) = parent {
       fs::create_dir_all(parent)?;

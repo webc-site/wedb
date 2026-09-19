@@ -124,7 +124,7 @@ fn promote(env: &Env, key: &[u8], obj_type: GarnetObjectType, entries: Vec<(Vec<
   let sess = env.store.new_session().unwrap();
   env
     .rt
-    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, i64::MAX))
+    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, i64::MAX, false))
     .unwrap();
   assert!(
     env

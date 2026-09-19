@@ -430,7 +430,7 @@ fn test_ri_delete_unregisters_flush_reclaim_entry() -> Void {
 /// promote_collection_to_bftree 登记后，异库 FLUSHDB 不得回收他域键（数据文件与
 /// 在线树原样保留——域取错即旁表按域取走失配，此处双向变红），本域换号才联动
 /// 摘除并延迟销毁；同名再升阶可成功（登记缺失则升阶树残留 live_indexes，
-/// create_bftree 撞 IndexExists 拦截）
+/// publish 换入撞 IndexExists 拦截）
 #[test]
 fn test_promote_bftree_registers_via_session_port() -> Void {
   let rt = Runtime::new()?;
@@ -446,6 +446,7 @@ fn test_promote_bftree_registers_via_session_port() -> Void {
       GarnetObjectType::Hash,
       vec![(b"field1".to_vec(), b"value1".to_vec())],
       i64::MAX,
+      false,
     )
     .await?;
     let coll_path = store.range_index().data_file_path_for_key(b"coll");
@@ -478,6 +479,7 @@ fn test_promote_bftree_registers_via_session_port() -> Void {
       GarnetObjectType::Hash,
       vec![(b"field2".to_vec(), b"value2".to_vec())],
       i64::MAX,
+      false,
     )
     .await?;
     assert!(coll_path.exists(), "重建升阶树数据文件须在盘");

@@ -76,11 +76,14 @@ pub enum StoreEvent<'a> {
     db: u64,
     key: &'a [u8],
   },
-  /// 集合就地升阶的树数据通道事件：promote 在建树同一次阻塞卸载内、键条带写锁
-  /// 下把整棵 BfTree CPR 快照至迁移临时文件，携物化键真值（ns/db）、原集合判别
+  /// 集合就地升阶 / 分层重灌的树数据通道事件：promote 先经 wbftree 建树内核把
+  /// 整棵 scratch 树 CPR 快照至迁移临时文件，携物化键真值（ns/db）、原集合判别
   /// 类型（obj_type，副本据此重建 MetaValue 而非硬编码 RangeIndex）与发布存根，
   /// 交由复制面经既有 RangeIndexStreamChunk 通道分块灌入 AOF（复用 RI 迁移流
   /// 通道，杜绝两套通道），副本重组末块后按 obj_type 发布为树态元记录。
+  /// `replace` 标记发布形态：首升阶 false（副本已存在同名索引属发散，拒发布）；
+  /// 分层重灌 true（先建后拆不换旧树，副本必须以换入形态重放，否则旧树在位的
+  /// 回放会被 IndexExists 拦截）。
   RangeIndexStream {
     ns: u64,
     db: u64,
@@ -88,6 +91,7 @@ pub enum StoreEvent<'a> {
     obj_type: u8,
     stub: [u8; RANGE_INDEX_STUB_SIZE],
     file_path: &'a Path,
+    replace: bool,
   },
   TtlPurge {
     ns: u64,

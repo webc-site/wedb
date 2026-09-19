@@ -327,8 +327,8 @@ where
 
 /// RMW 对象操作后收尾（分层感知统一状态机）：
 /// - 空对象 → 删空自愈（分层树 drain 随键清 TTL，keep_ttl=false / 信封域删键）；
-/// - 超升阶阈值或物化重灌 → 树重建灌入（键仍存活，drain 只墓碑元记录不碰 TTL
-///   旁路，keep_ttl=true）；
+/// - 超升阶阈值或物化重灌 → 先建后拆换入重灌（promote 内建快照原子替换
+///   旧树，键全程可读；TTL 旁路不动）；
 /// - 分层态改动后跌回迟滞死区之下 → 懒降阶（信封写回 + 树清退，同样
 ///   keep_ttl=true）；
 /// - 其余 → 信封写回
@@ -375,22 +375,18 @@ where
       storage.delete_string(key).await.map_err(|_| ())?;
     }
   } else if obj.should_promote() || (tiered && !obj.should_demote()) {
-    if tiered {
-      // 重灌前清退旧树：键全程存活，keep_ttl=true 只墓碑元记录、不碰 TTL
-      // 旁路（对标 C# 记录重写前移 HasExpiration，零 TTL 事件）
-      storage
-        .batch
-        .handle_bftree_drain_and_delete(key, true)
-        .await
-        .map_err(|_| ())?;
-    }
     let entries = obj.export_entries();
     // 水位随灌入批同帧落盘（export_entries 写时过滤已到期成员，剩余挂 TTL
     // 刻度经 earliest_expiry 单点提取），杜绝重灌后假水位 MAX 骗过计数校正
     let next_expiry = earliest_expiry(&entries);
+    // 升阶 / 重灌统一先建后拆：promote 内内核建树快照后原子换入（tiered=true
+    // 即 replace 换树，旧树全程可读，发布失败只删残快照、旧状态原样保留），
+    // 不再有 drain-destroy 蒸发窗口；键存活不动 TTL 旁路（对标 C#
+    // ObjectStore/VarLenInputMethods.cs:42 GetRMWModifiedFieldInfo 记录重写
+    // 前移 HasExpiration，零 TTL 事件）
     if let Err(e) = storage
       .batch
-      .promote_collection_to_bftree(key, tag, entries, next_expiry)
+      .promote_collection_to_bftree(key, tag, entries, next_expiry, tiered)
       .await
     {
       log::error!("apply_rmw_post_operate promote err: {e:?}");
