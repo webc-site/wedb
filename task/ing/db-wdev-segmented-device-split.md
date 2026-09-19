@@ -1,6 +1,12 @@
 优先级：中
 来源：next/agy.db.md 条 8 与 next/muse.db.md 条 13 两轮同题合并。取证基线：主仓 dev 当下代码。
 
+订正注记（认领时复核 HEAD=f708718）：本票 :17-19 与旋钮票的「先拆后删、九口待删」顺序
+建议已成旧指针——运行期可变九口与 segmented 构造别名均已删净，旋钮唯一注入口是
+DeviceParams（载体 task/done/wdev-segmented-device-mutator-knobs.md，be2fca2 落地），
+本票只做文件拆分、不改任何语义；该轮删码使 segmented_device.rs 由 1437 行降为 1432 行，
+巨石判定不变（同 crate 其余五件合计 810 行）。
+
 问题
 wdev segmented_device.rs 1437 行巨石：段映射、句柄池、DirectIO 扇区探测、跨段拆分
 读写、刷盘同步、物理截断删除、目录恢复扫描与 Device trait 实现同文件，远超同 crate
