@@ -12,3 +12,15 @@ C# 对标（同为内部条目、无 RESP 外部接线）：
 - 消费面全在存储层：garnet/libs/server/Storage/Session/UnifiedStore/UnifiedStoreOps.cs:120、garnet/libs/server/API/GarnetApiUnifiedCommands.cs:77、garnet/libs/server/Storage/Session/Common/ArrayKeyIterationFunctions.cs:221，RespServerSession 无分派
 
 修法建议：仅在 wedb/wresp/src/command.rs:29 `Delifexpim` 变体处补一行文档注释「TTL 过期物理清除内部 RMW 条目（对标 C# RMWMethods DELIFEXPIM），仅 AOF/重放链路使用，对外协议不接线，勿补 parser 条目」。禁补对外接线（违反 transpile SKILL 1:1 对标：C# 无 RESP 分派）。
+
+落地（2026-09-19，docs-data-comment-batch 棒）
+裁决：成立，按票面修法落地。wresp/src/command.rs 的 Delifexpim 变体处补五行文档注释，写明
+「TTL 过期物理清除的内部 RMW 条目、只由 AOF 记录与重放链路投递、对外协议不接线系与 C# 一致的
+正确设计（C# 侧 RESP 解析与会话层同样无分派臂）、勿补 parser 条目亦勿当僵尸命令删除」。
+未新增任何对外接线：command_table.rs、parser、raw.rs、slow.rs 零改动，守住 1:1 对标。
+取证复核（现刻 HEAD）：wresp 全 crate 内 Delifexpim 仅枚举定义一处出现；消费面在
+wnode/src/service.rs（TTL 物理清除投递）、aof/aof_processor.rs（重放判定）、
+tests/service.rs（AOF 流单条 StoreRMW 断言），与票面一致。
+门禁：CARGO_TARGET_DIR=/tmp/target-docs-dcb，cargo check -p wresp -p wval -p wnode 零错误零警告。
+新增注释刻意不含 `.cs:函数名` 形态，逐文件锚点集合与改前逐条相同（check.js 映射面中性）。
+提交：4b7d39a；回合主仓 dev 为 fast-forward 至 9c06e3b。
