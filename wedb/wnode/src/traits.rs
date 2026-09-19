@@ -203,8 +203,8 @@ pub trait SessionProviderFace: Send + Sync {
     true
   }
 
-  /// 范围索引停机收口（在 garnet 中的相对路径:libs/server/StoreWrapper.cs:Dispose
-  /// 的 `rangeIndexManager?.Dispose()`，时序在 Provider.Dispose 段——Phase 2
+  /// 范围索引停机收口（对应 StoreWrapper.Dispose
+  /// 中的 `rangeIndexManager?.Dispose()`，时序在 Provider.Dispose 段——Phase 2
   /// 连接排空之后、`databaseManager.Dispose()` 引擎兜底析构之前）。实现需
   /// 清理复制面未完成流重组并释放在线引擎全部在线树。默认空操作 = 该宿主
   /// 无范围索引引擎（测试/裸会话提供者）。

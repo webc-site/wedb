@@ -46,8 +46,9 @@ use std::{
   },
 };
 
+use wbase::future::yield_now;
 use wdev::Device;
-use windex::HashIndex;
+use windex::{Error as WindexError, HashIndex};
 
 use super::{BatchStoreSession, StoreSession};
 use crate::error::{Error, Result};
@@ -214,7 +215,7 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
   /// 事务手上，直接回让闩窗口
   #[inline]
   pub fn try_rmw_window<'s, 'k>(&'s self, user_key: &'k [u8]) -> Option<RmwWindow<'s, 'k, D>> {
-    let session: &'s StoreSession<D> = &**self;
+    let session: &'s StoreSession<D> = self;
     let held = if session.session_locking().is_transactional() {
       None
     } else {
@@ -250,11 +251,11 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
       if let Some(window) = self.try_rmw_window(user_key) {
         return Ok(window);
       }
-      wbase::future::yield_now().await;
+      yield_now().await;
     }
     match self.try_rmw_window(user_key) {
       Some(window) => Ok(window),
-      None => Err(Error::Index(windex::Error::LockTimeout)),
+      None => Err(Error::Index(WindexError::LockTimeout)),
     }
   }
 }

@@ -24,6 +24,7 @@
 //!   事务态让闩、持窗期内绝不被串读」。
 
 use std::{
+  str::from_utf8,
   sync::{Arc, mpsc},
   thread,
 };
@@ -96,7 +97,7 @@ fn roundtrip(rt: &Runtime, c: &mut RespSessionConsumer, args: &[&[u8]]) -> Vec<u
 /// `:N\r\n` 整数回执解析（非整数回执回 None，供「已回执更新」计数）
 fn reply_int(resp: &[u8]) -> Option<i64> {
   let body = resp.strip_prefix(b":")?.strip_suffix(b"\r\n")?;
-  std::str::from_utf8(body).ok()?.parse().ok()
+  from_utf8(body).ok()?.parse().ok()
 }
 
 /// `$N\r\n<payload>\r\n` 批量回执解析
@@ -107,7 +108,7 @@ fn reply_bulk(resp: &[u8]) -> Option<Vec<u8>> {
     .windows(2)
     .position(|w| w == b"\r\n")
     .filter(|&i| i + 2 <= rest.len())?;
-  let len: usize = std::str::from_utf8(&rest[..end]).ok()?.parse().ok()?;
+  let len: usize = from_utf8(&rest[..end]).ok()?.parse().ok()?;
   let payload = rest.get(end + 2..)?.get(..len)?;
   Some(payload.to_vec())
 }
@@ -453,7 +454,7 @@ fn two_session_windows_never_cross_read_or_lose_update() {
     let old = batch_value(&batch, &key_a);
     held_tx.send(()).expect("A 宣告持窗未写回");
     refused_rx.recv().expect("B 已确认交叠被拒");
-    let next = (std::str::from_utf8(&old).unwrap().parse::<i64>().unwrap() + 1).to_string();
+    let next = (from_utf8(&old).unwrap().parse::<i64>().unwrap() + 1).to_string();
     window_write(&window, next.as_bytes());
     drop(window);
     let _ = done_tx.send(());
@@ -478,7 +479,7 @@ fn two_session_windows_never_cross_read_or_lose_update() {
       b"1".to_vec(),
       "B 必须读到 A 已回执的新值（丢更新即读回 0）"
     );
-    let next = (std::str::from_utf8(&old).unwrap().parse::<i64>().unwrap() + 1).to_string();
+    let next = (from_utf8(&old).unwrap().parse::<i64>().unwrap() + 1).to_string();
     window_write(&window, next.as_bytes());
     drop(window);
     batch_value(&batch, &key_b)

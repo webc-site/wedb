@@ -62,9 +62,7 @@ fn smoke_pool_lifecycle_and_slack_allocation() -> Void {
 
 /// 计数复位与清槽职责分立：`reset_stats` 归零四计数而不动槽位，
 /// `clear` 清槽而账目原样保留
-///
-/// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs:Reset
-/// 的账目复位语义（INFO RESETSTAT 的 reviv 臂终点，不经清池）
+/// 验证 RevivificationStats.Reset 的账目复位语义（INFO RESETSTAT 的 reviv 臂终点，不经清池）
 #[test]
 fn reset_stats_zeroes_counters_and_clear_keeps_them() -> Void {
   info!("> reset_stats_zeroes_counters_and_clear_keeps_them");

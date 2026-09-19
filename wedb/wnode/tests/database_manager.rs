@@ -257,8 +257,7 @@ fn test_recovery_purges_unrecovered_checkpoints() -> aok::Result<()> {
 /// INFO RESETSTAT 的 reviv 臂真下发：单库管理器经唯一存储句柄把复位打到
 /// 复活池账目上（票内原状是空函数体加「wkv 无复活化统计面」失真注释；
 /// 本用例即反证——账目由 `wkv::WedbStore::reviv_pool` 单一承载，复位可达）
-///
-/// 对位 libs/server/Databases/SingleDatabaseManager.cs:ResetRevivificationStats
+/// 验证 SingleDatabaseManager::reset_revivification_stats 复位池账目语义
 #[test]
 fn reset_revivification_stats_zeroes_pool_counters() -> aok::Result<()> {
   let (dir, store) = open_test_store("reset_reviv_stats")?;

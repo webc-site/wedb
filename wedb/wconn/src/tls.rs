@@ -90,8 +90,7 @@ impl ClientTlsConfig {
 
   /// 在既有 TCP 流上完成 TLS 握手
   ///
-  /// 在 garnet 中的相对路径: libs/client/GarnetClient.cs:ConnectAsync
-  ///（SslStream AuthenticateAsClientAsync 的 rustls 等价物）
+  /// 对应 C# GarnetClient.ConnectAsync 中的 SslStream AuthenticateAsClientAsync 的 rustls 等价物
   ///
   /// SNI 目标：构造期 target_host 优先，空则取 endpoint 的 host 段
   ///（剥 IPv6 方括号；IP 字面量经 ServerName::IpAddress 承载）

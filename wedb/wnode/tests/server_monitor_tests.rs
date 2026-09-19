@@ -295,8 +295,7 @@ fn session_latency_metrics_aggregation_and_resp_commands() -> aok::Result<()> {
 
 /// INFO RESETSTAT 的 gossip 与复活化两臂接线判定：STATS 标志轮各下达一次，
 /// 未置标志的轮次与标志清位后的轮次均不受采样影响
-///
-/// C# 对位 libs/server/Metrics/GarnetServerMonitor.cs:CleanupGlobalStats 的
+/// 对应 GarnetServerMonitor::cleanup_global_stats 的
 /// STATS 分支体内 `storeWrapper.clusterProvider?.ResetGossipStats()` 与
 /// `storeWrapper.ResetRevivificationStats()` 两条复位臂。本用例观测装配口
 ///（[`ConsumerRegistry::monitor_iteration_inputs`]）注入的两臂回调触达次数与

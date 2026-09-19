@@ -114,8 +114,7 @@ impl<'a, 'b, D: Device> ReplayTarget<'a, 'b, D> {
 /// 运行时线程本地驱动，重放钩子仅由背景重放线程同线程 await，与复制装配只加
 /// `'static` 不加 `Send` 的既有约定同源；闭包对象只需 `Send + Sync`（宿主仅捕获
 /// `Arc` 句柄），方可存入跨线程移动的 [`AofProcessor`]。
-pub type ReplicaCheckpointHook =
-  dyn Fn() -> LocalBoxFuture<'static, wkv::Result<()>> + Send + Sync;
+pub type ReplicaCheckpointHook = dyn Fn() -> LocalBoxFuture<'static, wkv::Result<()>> + Send + Sync;
 
 /// libs/server/AOF/AofProcessor.cs:AofProcessor
 ///

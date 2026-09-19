@@ -545,8 +545,7 @@ fn session_level_acl_gating_end_to_end() {
   );
 }
 
-/// 跨连接改权即时生效（对标 C# libs/server/Resp/ACLCommands.cs:NetworkAclSetUser
-/// 对全局共享 UserHandle 的 CAS 换新语义）：受害连接认证命名用户后，管理连接的
+/// 跨连接改权即时生效（验证 NetworkAclSetUser 对全局共享 UserHandle 的 CAS 换新语义）：受害连接认证命名用户后，管理连接的
 /// SETUSER 撤权 / 改密 / DELUSER 均在受害连接的下一条命令收敛
 #[test]
 fn acl_setuser_propagates_to_live_connections() {

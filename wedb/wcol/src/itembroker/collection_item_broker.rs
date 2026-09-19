@@ -245,12 +245,25 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     self.session_id_to_observer.pin().get(&session_id).cloned()
   }
 
-  /// 登记观察者并启动等待（阻塞命令入口前半：登记映射 → 启动主循环 →
+  /// 完整异步等待获取集合条目（对标 C# 单一异步入口）
+  ///
+  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync
+  pub async fn get_collection_item_async(
+    self: &Arc<Self>,
+    command: RespCommand,
+    keys: Vec<Vec<u8>>,
+    session_id: usize,
+    cmd_args: Vec<Vec<u8>>,
+  ) -> CollectionItemResult {
+    let observer = self.start_wait(command, keys, session_id, cmd_args);
+    observer.wait_result().await;
+    self.finish_wait(&observer)
+  }
+
+  /// 登记观察者并启动等待（GetCollectionItemAsync 的前半：登记映射 → 启动主循环 →
   /// NewObserver 事件入队），等待由调用方驱动；计时等待由会话层以 select
   /// 竞速 [`CollectionItemObserver::wait_result`] 实现
   /// （compio 挂起语义见 BlockedWait，C# 由网络线程 BlockingWait 承担）
-  ///
-  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync
   pub fn start_wait(
     self: &Arc<Self>,
     command: RespCommand,
@@ -267,10 +280,8 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     observer
   }
 
-  /// 等待结束收尾（阻塞命令入口后半）：摘除会话映射，
+  /// 等待结束收尾（GetCollectionItemAsync 的后半）：摘除会话映射，
   /// 仍在等待则置空结果（超时/销毁路径），返回最终结果
-  ///
-  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync
   pub fn finish_wait(&self, observer: &Arc<CollectionItemObserver>) -> CollectionItemResult {
     self
       .session_id_to_observer

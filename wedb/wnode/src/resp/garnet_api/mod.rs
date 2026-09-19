@@ -11,6 +11,8 @@
 //! [`RespServerSession::set_garnet_api`] 注入，会话主循环在槽位门放行后
 //! 经 [`GarnetApiFace::exec`] 进入存储执行域。
 
+use wtxn::TxnState;
+
 use crate::{aof::GarnetAppendOnlyFile, database::GarnetDatabase, resp::acl_store::AclStore};
 mod objects;
 mod raw;
@@ -426,14 +428,13 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
     // 派发）：EXEC 重放遍的本键桶排他闩已由本会话事务在 windex 同一份锁内存上
     // 持有，读改写窗口让闩；非事务遍窗口自取闩。RAII 守卫在本分派段退出即还原
     //（降级慢路径在段外以 Basic 重取闩，与 C# 慢路径重投同址同判据）
-    let _locking =
-      self
-        .session
-        .push_session_locking(if session.txn_state == wtxn::TxnState::Running {
-          SessionLocking::Transactional
-        } else {
-          SessionLocking::Basic
-        });
+    let _locking = self
+      .session
+      .push_session_locking(if session.txn_state == TxnState::Running {
+        SessionLocking::Transactional
+      } else {
+        SessionLocking::Basic
+      });
     // AUTH / ACL 族：底层存储点查须在批处理纪元保护区外执行——冷记录落盘
     // 回读经阻塞驱动，持纪元守卫等待驱逐会自锁；且认证成功后须回写会话本地
     // 句柄/命名空间，仅本同步分派段可达（慢路径仅产出应答字节，无会话态

@@ -66,8 +66,7 @@ impl GarnetClientSession {
 
   /// 网络缓冲池注入（读泵接收缓冲的取还单点）
   ///
-  /// 对标 C# `libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession`
-  /// 的 `networkPool` 形参：AofSyncTask 与副本同步会话传
+  /// 对应 C# GarnetClientSession 构造函数的 `networkPool` 形参：AofSyncTask 与副本同步会话传
   /// `ReplicationManager.GetNetworkPool`、迁移会话传
   /// `MigrationManager.GetNetworkPool`（同一池跨连接复用）；
   /// None = 建连时本会话自建（C# `?? CreateBufferPool` 同型回退）

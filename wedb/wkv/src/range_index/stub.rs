@@ -337,9 +337,8 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 获取在线 BfTree 实例及其条带独占写锁（多步写臂互斥面）
-  ///
-  /// 在 garnet 中的相对路径: libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:AcquireExclusiveForDelete
-  /// （RAII 独占守卫形态的对位；语义差异：C# 独占锁仅承载生命周期操作——DEL/
+  /// 对应 C# RangeIndexManager.AcquireExclusiveForDelete 独占守卫形态；
+  /// 语义差异：C# 独占锁仅承载生命周期操作——DEL/
   /// 淘汰/检查点快照/惰性恢复，RI 数据写每命令单树操作走共享锁即可；rust 分层
   /// 集合写臂是「探测 → 树写 → 计数 → meta 回写」多步序列，共享锁下两臂可交错
   /// 互踩（删除结果丢弃、meta 覆写丢更新），故数据写面升格独占，对位 C# 对象域
