@@ -32,7 +32,7 @@ itoa.workspace = true
 log.workspace = true
 rustls-pemfile = { version = "2.2.0", optional = true }
 thiserror.workspace = true
-wbase = { workspace = true, features = ["pool"] }
+wbase = { workspace = true, features = ["endpoint", "pool"] }
 webpki-roots = { version = "0.26", optional = true }
 wresp.workspace = true
 zmij.workspace = true
@@ -41,6 +41,7 @@ zmij.workspace = true
 aok.workspace = true
 ctor.workspace = true
 log_init.workspace = true
+tempfile.workspace = true
 
 
 [lints]
