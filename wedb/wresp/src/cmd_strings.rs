@@ -469,6 +469,20 @@ pub fn abort_with_unsupported_option(output: &mut Vec<u8>, option: &str) {
   output.extend_from_slice(b"\r\n");
 }
 
+/// 以 `GenericSyntaxErrorOption`（CmdStrings.cs:334
+/// `"ERR Syntax error in {0} option '{1}'"`）回填命令名与选项名并写出
+/// 错误应答（零堆分配直接写入，参数名过 MAX_PARAM_NAME_LEN 清洗帽）
+#[inline]
+pub fn abort_with_syntax_error_option(output: &mut Vec<u8>, cmd_name: &str, option: &str) {
+  let clean_cmd = sanitize_error_str(cmd_name, MAX_PARAM_NAME_LEN);
+  let clean_opt = sanitize_error_str(option, MAX_PARAM_NAME_LEN);
+  output.extend_from_slice(b"-ERR Syntax error in ");
+  output.extend_from_slice(clean_cmd.as_bytes());
+  output.extend_from_slice(b" option '");
+  output.extend_from_slice(clean_opt.as_bytes());
+  output.extend_from_slice(b"'\r\n");
+}
+
 /// 写出未知子命令错误应答：`-ERR unknown subcommand '<sub_command>'. Try <cmd_name> HELP\r\n`（零堆分配）
 #[inline]
 pub fn abort_with_unknown_subcommand(output: &mut Vec<u8>, sub_command: &str, cmd_name: &str) {

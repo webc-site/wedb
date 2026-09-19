@@ -388,7 +388,7 @@ pub(crate) async fn sorted_set(
         GarnetObjectType::SortedSet,
         output,
         SortedSetObject::from_blob,
-        |output| output.extend_from_slice(b"*0\r\n"),
+        |output| output.write_resp_array_len(0),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
           run_operate(
             obj,
@@ -512,7 +512,7 @@ pub(crate) async fn sorted_set(
         }
       }
       if param_count == 0 {
-        output.extend_from_slice(b"*0\r\n");
+        output.write_resp_array_len(0);
         return Ok(());
       }
       let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
@@ -524,7 +524,7 @@ pub(crate) async fn sorted_set(
         SortedSetObject::from_blob,
         |output: &mut Vec<u8>| {
           if refs.len() > 1 {
-            output.extend_from_slice(b"*0\r\n");
+            output.write_resp_array_len(0);
           } else {
             output.write_resp_null_ver(resp_version);
           }

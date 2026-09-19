@@ -616,11 +616,11 @@ impl RespServerSession {
         // 源缺失：读变体空数组；存储变体删除目标键后回 :0（C# EXPIRE(destination, 0)）
         match &store_dest {
           Some(dest) => match zset_save_or_gc(store, dest, &SortedSetObject::new()) {
-            Ok(true) => output.extend_from_slice(b":0\r\n"),
+            Ok(true) => output.write_resp_int(0),
             Ok(false) => return Ok(false),
             Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
           },
-          None => output.extend_from_slice(b"*0\r\n"),
+          None => output.write_resp_array_len(0),
         }
         return Ok(true);
       }
@@ -898,9 +898,9 @@ pub(crate) mod slow {
             .await
             .map(|_| ())
             .map_err(|_| ())?;
-          output.extend_from_slice(b":0\r\n");
+          output.write_resp_int(0);
         } else {
-          output.extend_from_slice(b"*0\r\n");
+          output.write_resp_array_len(0);
         }
         return Ok(());
       }
