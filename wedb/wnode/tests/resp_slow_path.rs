@@ -16,25 +16,66 @@ use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::{
   MessageConsumerFace, RespSessionConsumer,
-  resp::{garnet_api::StoreGarnetApi, resp_server_session::RespServerSessionOptions},
+  resp::{
+    garnet_api::{GarnetApi, StoreGarnetApi},
+    resp_server_session::RespServerSessionOptions,
+    slow_path::SlowWait,
+  },
 };
 use wnode_test::err_frame;
-use wresp::cmd_strings::RESP_ERR_GENERIC_SYNTAX_ERROR;
+use wresp::{cmd_strings::RESP_ERR_GENERIC_SYNTAX_ERROR, command::RespCommand};
 use wtest_base::test_store_config;
 
 /// 装配带真存储执行域的会话消费者（每测试独立临时目录，GC 关闭）
 fn consumer() -> RespSessionConsumer {
+  consumer_with_api().0
+}
+
+/// [`consumer`] 的双句柄形态：同时保留慢路径分派句柄（直答 exec_slow，
+/// 与降级快照投递面同径；事务 / AOF 的非命令入口同此抵达）
+fn consumer_with_api() -> (RespSessionConsumer, GarnetApi) {
   let dir = tempfile::tempdir().unwrap().keep();
   let device = Arc::new(SegmentedDevice::single_file(dir.join("slow.db")).unwrap());
   // 小预算测试配置（对标 C# 16MB 基线），GC 关闭保持历史语义
   let config = test_store_config();
   let store = Arc::new(WedbStore::open(config, device).unwrap());
   let session = store.new_session().unwrap();
-  RespSessionConsumer::new(
-    1,
-    RespServerSessionOptions::default(),
-    Arc::new(StoreGarnetApi::new(session)),
+  let api: GarnetApi = Arc::new(StoreGarnetApi::new(session));
+  (
+    RespSessionConsumer::new(1, RespServerSessionOptions::default(), api.clone()),
+    api,
   )
+}
+
+/// 组 RESP 请求数组帧（cmd + args）
+fn frame_of(cmd: &[u8], args: &[&[u8]]) -> Vec<u8> {
+  let mut frame = format!("*{}\r\n", args.len() + 1).into_bytes();
+  for token in std::iter::once(cmd).chain(args.iter().copied()) {
+    frame.extend_from_slice(format!("${}\r\n", token.len()).as_bytes());
+    frame.extend_from_slice(token);
+    frame.extend_from_slice(b"\r\n");
+  }
+  frame
+}
+
+/// 慢路径直答（不经会话快路径，resp_version 显式指定）
+fn slow_reply(
+  rt: &Runtime,
+  api: &GarnetApi,
+  cmd: RespCommand,
+  args: &[&[u8]],
+  resp_version: u8,
+) -> Vec<u8> {
+  rt.block_on(async {
+    SlowWait::for_command(
+      api,
+      cmd,
+      args.iter().map(|a| a.to_vec()).collect(),
+      resp_version,
+    )
+    .resolve()
+    .await
+  })
 }
 
 /// 单命令往返（同步快路径）
@@ -432,4 +473,317 @@ fn info_keyspace_multi_db_read_only() {
     .block_on(async { store.keyspace_stats(0).await })
     .unwrap();
   assert_eq!(rows, [(0, 2, 1), (1, 2, 0)], "虚库不得被盲分配");
+}
+
+/// 对象族慢分派参数校验帧与快路径逐字节一致（参数推导单源内核；修复点：
+/// 慢侧不再把解析失败折叠为 ASYNC_REQUIRED 哨兵、SINTERCARD 负 LIMIT 不再
+/// 放行、HRANDFIELD 第三词元恢复 WITHVALUES 大小写门）
+///
+/// 全部用例为解析失败面（不触达存储），快侧经会话直答、慢侧经 exec_slow
+/// 直答（降级快照 / 事务 / AOF 非命令入口同径）
+#[test]
+fn object_slow_parse_frames_match_fast() {
+  let rt = Runtime::new().unwrap();
+  let (mut c, api) = consumer_with_api();
+
+  let cases: &[(RespCommand, &[u8], &[&[u8]])] = &[
+    (
+      RespCommand::Sintercard,
+      b"SINTERCARD",
+      &[b"-3000000000", b"k1"],
+    ),
+    (
+      RespCommand::Sintercard,
+      b"SINTERCARD",
+      &[b"2", b"k1", b"k2", b"LIMIT", b"-3000000000"],
+    ),
+    (
+      RespCommand::Sintercard,
+      b"SINTERCARD",
+      &[b"2", b"k1", b"k2", b"LIMIT", b"-1"],
+    ),
+    (RespCommand::Sintercard, b"SINTERCARD", &[b"0", b"k1"]),
+    (RespCommand::Zintercard, b"ZINTERCARD", &[b"0", b"k1"]),
+    (
+      RespCommand::Zintercard,
+      b"ZINTERCARD",
+      &[b"2", b"k1", b"k2", b"LIMIT", b"-1"],
+    ),
+    (
+      RespCommand::Hexpire,
+      b"HEXPIRE",
+      &[b"hk", b"-1", b"FIELDS", b"1", b"f"],
+    ),
+    (
+      RespCommand::Hexpire,
+      b"HEXPIRE",
+      &[b"hk", b"abc", b"FIELDS", b"1", b"f"],
+    ),
+    (
+      RespCommand::Zexpire,
+      b"ZEXPIRE",
+      &[b"zk", b"abc", b"MEMBERS", b"1", b"m"],
+    ),
+    (RespCommand::Httl, b"HTTL", &[b"hk", b"XFIELDS", b"1", b"f"]),
+    (
+      RespCommand::Zrandmember,
+      b"ZRANDMEMBER",
+      &[b"zk", b"1", b"BAD"],
+    ),
+    (
+      RespCommand::Hrandfield,
+      b"HRANDFIELD",
+      &[b"hk", b"1", b"BAD"],
+    ),
+    (RespCommand::Zrank, b"ZRANK", &[b"zk", b"m", b"BAD"]),
+    (RespCommand::Lmpop, b"LMPOP", &[b"1", b"lk", b"UP"]),
+    (
+      RespCommand::Lmpop,
+      b"LMPOP",
+      &[b"1", b"lk", b"LEFT", b"COUNT", b"0"],
+    ),
+    (
+      RespCommand::Zmpop,
+      b"ZMPOP",
+      &[b"1", b"zk", b"MIN", b"COUNT", b"0"],
+    ),
+    (RespCommand::Ltrim, b"LTRIM", &[b"lk", b"a", b"1"]),
+    (RespCommand::Lrange, b"LRANGE", &[b"lk", b"0", b"b"]),
+    (RespCommand::Spop, b"SPOP", &[b"sk", b"-1"]),
+  ];
+
+  for (cmd, name, args) in cases {
+    let fast = roundtrip(&mut c, &frame_of(name, args));
+    let slow = slow_reply(&rt, &api, *cmd, args, wconf::DEFAULT_RESP_VERSION);
+    assert_eq!(
+      slow, fast,
+      "{name:?} 慢侧校验帧与快侧不一致（参数推导应单源）"
+    );
+  }
+
+  // 门禁判据：SINTERCARD 慢侧负溢出应答与快侧逐字节一致，
+  // 不再出现 "-ERR command requires asynchronous completion"
+  let not_integer: &[u8] = b"-ERR value is not an integer or out of range.\r\n";
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Sintercard,
+      &[b"-3000000000", b"k1"],
+      2
+    ),
+    not_integer
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Sintercard,
+      &[b"2", b"k1", b"k2", b"LIMIT", b"-3000000000"],
+      2
+    ),
+    not_integer
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Sintercard,
+      &[b"2", b"k1", b"k2", b"LIMIT", b"-1"],
+      2
+    ),
+    b"-ERR LIMIT can't be negative\r\n"
+  );
+}
+
+/// 同输入快慢同字节（HEXPIRE/ZEXPIRE/ZRANDMEMBER/LMPOP/HRANDFIELD 热键
+/// 直答对慢路径直答；nil 帧走 write_resp_null_ver 单点，RESP2/RESP3 双版本）
+#[test]
+fn object_slow_happy_path_matches_fast() {
+  let rt = Runtime::new().unwrap();
+  let (mut c, api) = consumer_with_api();
+  let ver = wconf::DEFAULT_RESP_VERSION;
+
+  // 热键置数（快路径写）
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"HSET", &[b"hk", b"f1", b"v1"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"HSET", &[b"hk2", b"f1", b"v1"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZADD", &[b"zk", b"1.5", b"m1"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZADD", &[b"zk2", b"1", b"m1"])),
+    b":1\r\n"
+  );
+
+  // HEXPIRE 热键直答 vs 慢答（同字段各执一键，应答 *1 + :1）
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &frame_of(b"HEXPIRE", &[b"hk", b"100", b"FIELDS", b"1", b"f1"])
+    ),
+    b"*1\r\n:1\r\n"
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Hexpire,
+      &[b"hk2", b"100", b"FIELDS", b"1", b"f1"],
+      ver
+    ),
+    b"*1\r\n:1\r\n"
+  );
+
+  // ZEXPIRE 热键直答 vs 慢答
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &frame_of(b"ZEXPIRE", &[b"zk", b"100", b"MEMBERS", b"1", b"m1"])
+    ),
+    b"*1\r\n:1\r\n"
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Zexpire,
+      &[b"zk2", b"100", b"MEMBERS", b"1", b"m1"],
+      ver
+    ),
+    b"*1\r\n:1\r\n"
+  );
+
+  // ZRANDMEMBER 单成员集合（随机种子无歧义）：无 count / 带 count 双形态
+  let member_frame: &[u8] = b"$2\r\nm1\r\n";
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZRANDMEMBER", &[b"zk"])),
+    member_frame
+  );
+  // 慢侧再答需要独立键（快侧已答不改状态，只读可同键复答）
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Zrandmember, &[b"zk"], ver),
+    member_frame
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZRANDMEMBER", &[b"zk", b"1"])),
+    b"*1\r\n$2\r\nm1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Zrandmember, &[b"zk", b"1"], ver),
+    b"*1\r\n$2\r\nm1\r\n"
+  );
+
+  // LMPOP 弹出直答 vs 慢答（同键重灌同元素，应答逐字节一致）
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"RPUSH", &[b"lk", b"e1"])),
+    b":1\r\n"
+  );
+  let lmpop_frame: &[u8] = b"*2\r\n$2\r\nlk\r\n*1\r\n$2\r\ne1\r\n";
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"LMPOP", &[b"1", b"lk", b"LEFT"])),
+    lmpop_frame
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"RPUSH", &[b"lk", b"e1"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Lmpop, &[b"1", b"lk", b"LEFT"], ver),
+    lmpop_frame
+  );
+
+  // 缺失态应答双版本：nil 帧走 write_resp_null_ver 单点（RESP2 `$-1` /
+  // RESP3 `_`），null 数组 RESP2 `*-1` / RESP3 `_`
+  // ZRANDMEMBER 缺键：无 count → nil；带 count → *0（两版本同形）
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZRANDMEMBER", &[b"nokey-z"])),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Zrandmember, &[b"nokey-z"], 2),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Zrandmember, &[b"nokey-z"], 3),
+    b"_\r\n"
+  );
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"ZRANDMEMBER", &[b"nokey-z", b"1"])),
+    b"*0\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Zrandmember, &[b"nokey-z", b"1"], 3),
+    b"*0\r\n"
+  );
+
+  // HRANDFIELD 缺键：无 count → nil；带 count → *0
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"HRANDFIELD", &[b"nokey-h"])),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Hrandfield, &[b"nokey-h"], 2),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Hrandfield, &[b"nokey-h"], 3),
+    b"_\r\n"
+  );
+  assert_eq!(
+    slow_reply(&rt, &api, RespCommand::Hrandfield, &[b"nokey-h", b"1"], 3),
+    b"*0\r\n"
+  );
+
+  // LMPOP 缺键：null 数组（RESP2 `*-1` / RESP3 `_`）
+  assert_eq!(
+    roundtrip(&mut c, &frame_of(b"LMPOP", &[b"1", b"nokey-l", b"LEFT"])),
+    b"*-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Lmpop,
+      &[b"1", b"nokey-l", b"LEFT"],
+      2
+    ),
+    b"*-1\r\n"
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Lmpop,
+      &[b"1", b"nokey-l", b"LEFT"],
+      3
+    ),
+    b"_\r\n"
+  );
+
+  // HEXPIRE 缺键：逐字段 -2 数组（两版本同形）
+  let notfound: &[u8] = b"*1\r\n:-2\r\n";
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &frame_of(b"HEXPIRE", &[b"nokey-hx", b"100", b"FIELDS", b"1", b"f"])
+    ),
+    notfound
+  );
+  assert_eq!(
+    slow_reply(
+      &rt,
+      &api,
+      RespCommand::Hexpire,
+      &[b"nokey-hx", b"100", b"FIELDS", b"1", b"f"],
+      3
+    ),
+    notfound
+  );
 }

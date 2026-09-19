@@ -24,6 +24,7 @@ use wcol::{
   ObjectOutput,
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation},
 };
+use wresp::{check_args::check_arg_count, cmd_strings as cs};
 use wval::GarnetObjectType;
 
 pub use self::write::RemoveRangeKind;
@@ -255,4 +256,99 @@ pub(crate) fn parse_pairs_payload(payload: &[u8]) -> Vec<(Vec<u8>, f64)> {
 fn find_crlf(payload: &[u8], from: usize) -> Option<usize> {
   let slice = payload.get(from..)?;
   memmem::find(slice, b"\r\n").map(|pos| from + pos)
+}
+
+// ============ 族内参数推导单源（快慢路径共用） ============
+// 推导体为无 IO 纯解析 + 失败帧直写 output（同输入快慢应答逐字节一致），
+// 慢分派不再对快路径已校验参数做第二份推导。
+
+/// ZRANK / ZREVRANK 的 WITHSCORE 词元推导单源（快慢路径共用；解析失败时
+/// 已写出错误应答并返回 None），返回是否带 WITHSCORE
+///
+/// 判定序对标 C# SortedSetCommands.cs 的 SortedSetRank：arity ≥ 2 →
+/// 仅 len==3 校验 WITHSCORE（大小写不敏感，非法即 syntax error），len>3
+/// 静默忽略多余参数（includeWithScore 保持 false）
+pub(crate) fn parse_rank_with_score(
+  cmd_name: &'static str,
+  parse_state: &[&[u8]],
+  output: &mut Vec<u8>,
+) -> Option<bool> {
+  check_arg_count!(parse_state, 2.., output, cmd_name, return None);
+  if parse_state.len() == 3 && !parse_state[2].eq_ignore_ascii_case(cs::WITHSCORE) {
+    cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+    return None;
+  }
+  Some(parse_state.len() == 3)
+}
+
+/// ZMPOP / BZMPOP 参数推导单源（快慢路径共用；解析失败时已写出错误应答并
+/// 返回 None），返回 (键切片, 低分优先, count)
+///
+/// ZMPOP: numkeys key \[key ...\] MIN|MAX \[COUNT count\]
+/// BZMPOP: timeout numkeys key \[key ...\] MIN|MAX \[COUNT count\]
+///（timeout 词元不在本内核射程，由调用方先行解析与校验）
+///
+/// 判定序对标 C# SortedSetCommands.cs（SortedSetMPop 与 SortedSetBlockingMPop）：
+/// numkeys 非整数（含溢出）与 <1 同报 → 定长形态 MIN|MAX 必带、COUNT 形态恰多
+/// 2 参 → MIN/MAX 大小写门 → COUNT 词元大小写门 → count 非整数与 <1 同报。
+/// 错误帧两命令不同源：ZMPOP 报 NOT_INTEGER，BZMPOP 报 `Parameter` 反引号版
+pub(crate) fn parse_zmpop_args<'a>(
+  parse_state: &'a [&'a [u8]],
+  is_blocking: bool,
+  output: &mut Vec<u8>,
+) -> Option<(&'a [&'a [u8]], bool, i32)> {
+  let base = usize::from(is_blocking);
+  let cmd_name = if is_blocking { "BZMPOP" } else { "ZMPOP" };
+  check_arg_count!(parse_state, base + 3.., output, cmd_name, return None);
+
+  let num_keys = match strict_i32(parse_state[base]) {
+    Some(v) if v >= 1 => v,
+    _ => {
+      if is_blocking {
+        let frame = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "numkeys");
+        cs::abort_with_error_message(output, &frame);
+      } else {
+        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+      }
+      return None;
+    }
+  };
+
+  // n = MIN|MAX 词元下标（keys 段右开边界）；定长形态 order 必带，COUNT 形态恰多 2 参
+  let n = base + 1 + num_keys as usize;
+  if parse_state.len() != n + 1 && parse_state.len() != n + 3 {
+    cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+    return None;
+  }
+
+  let keys = &parse_state[base + 1..n];
+  let low_scores_first = match parse_state.get(n) {
+    Some(order) if order.eq_ignore_ascii_case(b"MIN") => true,
+    Some(order) if order.eq_ignore_ascii_case(b"MAX") => false,
+    _ => {
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return None;
+    }
+  };
+
+  let mut count = 1_i32;
+  if parse_state.len() == n + 3 {
+    if !parse_state[n + 1].eq_ignore_ascii_case(cs::COUNT) {
+      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
+      return None;
+    }
+    count = match strict_i32(parse_state[n + 2]) {
+      Some(v) if v >= 1 => v,
+      _ => {
+        if is_blocking {
+          let frame = cs::GENERIC_PARAM_SHOULD_BE_GREATER_THAN_ZERO.replace("{0}", "count");
+          cs::abort_with_error_message(output, &frame);
+        } else {
+          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        }
+        return None;
+      }
+    };
+  }
+  Some((keys, low_scores_first, count))
 }

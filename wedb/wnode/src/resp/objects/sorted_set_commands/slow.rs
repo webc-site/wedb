@@ -6,29 +6,27 @@
 //! 独立会话域，异步臂对位立即可取路径。`Err(())` 为存储 IO 失败，由
 //! exec_slow 统一应答 RESP_ERR_SLOW_PATH_STORAGE
 
-use wbase::num::{strict_i32, strict_i64};
+use wbase::num::strict_i32;
 use wcol::{
   ObjLoad as WcolObjLoad,
   zset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts},
 };
-use wresp::{
-  cmd_strings as cs,
-  command::RespCommand,
-  ext::RespVecExt,
-  options::{ExpirationWithOption, ExpireOption, try_get_expire_option},
-};
+use wresp::{cmd_strings as cs, command::RespCommand, ext::RespVecExt};
 use wval::GarnetObjectType;
 
 use super::{
   CombineKind, Rmw, combine_sets, diff_sets, parse_combine_args, parse_diff_args,
-  parse_pairs_payload, run_operate, should_write_back, write_popped_pairs, write_zset_entries,
+  parse_pairs_payload, parse_rank_with_score, parse_zmpop_args, run_operate, should_write_back,
+  write_popped_pairs, write_zset_entries,
 };
 use crate::{
   resp::objects::{
     object_store_utils::{
-      ElementHeaderKind, GarnetObjectPayload, SyncRmwCmd, SyncRmwHandlers,
-      compute_expiration_ticks, obj_load_typed_async, obj_writeback_tiered, parse_elements_header,
-      retire_tiered_dest, run_async_rmw, slow_load_eval, try_tiered_arm, write_rmw_reply,
+      ElementHeaderKind, GarnetObjectPayload, IntersectCardKind, SyncRmwCmd, SyncRmwHandlers,
+      obj_load_typed_async, obj_writeback_tiered, parse_elements_only_args,
+      parse_expire_elements_args, parse_intersect_card_args, parse_random_member_args,
+      retire_tiered_dest, run_async_rmw, slow_load_eval, try_tiered_arm,
+      write_random_member_missing, write_rmw_reply,
     },
     tiered_collection_ops::{TieredCollectionArgs, exec_tiered_zset, tiered_materialize_blob},
   },
@@ -161,45 +159,6 @@ async fn store_dest_cold(
   Ok(count)
 }
 
-/// ZEXPIRE 族慢路径解析元组：(key, members 切片, (expiration_hi, expiration_lo))
-type ExpireArgs<'a> = (&'a [u8], &'a [&'a [u8]], (i32, i32));
-
-/// ZEXPIRE 族慢路径参数重推导：(key, members 切片, expiration word)
-fn parse_expire_args<'a>(
-  refs: &'a [&'a [u8]],
-  is_milliseconds: bool,
-  is_timestamp: bool,
-) -> Option<ExpireArgs<'a>> {
-  let key = refs.first().copied()?;
-  let expiration = strict_i64(refs.get(1).copied()?)?;
-  if expiration < 0 {
-    return None;
-  }
-  let mut curr_idx = 2;
-  let mut expire_option = ExpireOption::NONE;
-  if let Some(opt) = refs.get(curr_idx).copied().and_then(try_get_expire_option) {
-    expire_option = opt;
-    curr_idx += 1;
-  }
-  let (members_start, _) =
-    parse_elements_header(refs, curr_idx, ElementHeaderKind::Members, &mut Vec::new())?;
-  let ticks = compute_expiration_ticks(expiration, is_milliseconds, is_timestamp);
-  let e = ExpirationWithOption::new(ticks, expire_option);
-  Some((
-    key,
-    &refs[members_start..],
-    ((e.word() >> 32) as i32, e.word() as i32),
-  ))
-}
-
-/// ZTTL / ZPERSIST 族慢路径参数重推导：(key, members 切片)
-fn parse_members_args<'a>(refs: &'a [&'a [u8]]) -> Option<(&'a [u8], &'a [&'a [u8]])> {
-  let key = refs.first().copied()?;
-  let (members_start, _) =
-    parse_elements_header(refs, 1, ElementHeaderKind::Members, &mut Vec::new())?;
-  Some((key, &refs[members_start..]))
-}
-
 /// 有序集合命令统一慢路径分派（ZSCAN 走 shared 慢路径扫描）
 pub(crate) async fn sorted_set(
   storage: &StorageSession<'_, impl wdev::Device>,
@@ -263,16 +222,23 @@ pub(crate) async fn sorted_set(
       RespCommand::Zexpireat => (false, true),
       _ => (true, true),
     };
-    let Some((key, members, args12)) = parse_expire_args(refs, is_ms, is_ts) else {
-      cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some(args) = parse_expire_elements_args(
+      cmd.into(),
+      refs,
+      ElementHeaderKind::Members,
+      is_ms,
+      is_ts,
+      output,
+    ) else {
       return Ok(());
     };
     zset_rmw_cold(
       storage,
-      key,
+      args.key,
       SortedSetOperation::Zexpire,
-      members,
-      args12,
+      args.elements,
+      args.args12,
       resp_version,
       output,
     )
@@ -299,8 +265,10 @@ pub(crate) async fn sorted_set(
       RespCommand::Zpexpiretime => (1, 1),
       _ => (0, 0),
     };
-    let Some((key, members)) = parse_members_args(refs) else {
-      cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, members)) =
+      parse_elements_only_args(cmd.into(), refs, ElementHeaderKind::Members, output)
+    else {
       return Ok(());
     };
     zset_rmw_cold(storage, key, op, members, args12, resp_version, output).await?;
@@ -452,16 +420,9 @@ pub(crate) async fn sorted_set(
       } else {
         SortedSetOperation::Zrevrank
       };
-      // 对齐快路径：C# 仅 Count==3 校验 WITHSCORE，Count>3 静默忽略
-      let with_score = if refs.len() == 3 {
-        if refs[2].eq_ignore_ascii_case(cs::WITHSCORE) {
-          1_i32
-        } else {
-          cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-          return Ok(());
-        }
-      } else {
-        0
+      // WITHSCORE 词元推导单源（快慢共用，失败帧已写出）
+      let Some(with_score) = parse_rank_with_score(cmd.into(), refs, output) else {
+        return Ok(());
       };
       let member = refs.get(1).copied().unwrap_or(&[]);
       slow_load_eval(
@@ -472,49 +433,33 @@ pub(crate) async fn sorted_set(
         SortedSetObject::from_blob,
         |output| output.write_resp_null_ver(resp_version),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(obj, op, &[member], with_score, 0, resp_version);
+          let obj_out = run_operate(obj, op, &[member], i32::from(with_score), 0, resp_version);
           output.extend_from_slice(&obj_out.payload);
         },
       )
       .await
     }
     RespCommand::Zrandmember => {
-      // 参数打包：arg1 = (count << 1 | includedCount) << 1 | withScores
-      let mut param_count = 1_i32;
-      let mut included_count = false;
-      let mut with_scores = false;
-      if let Some(c) = refs.get(1) {
-        let Some(v) = strict_i32(c) else {
-          cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-          return Ok(());
-        };
-        param_count = v.min(i32::MAX >> 2);
-        included_count = true;
-        if let Some(ws) = refs.get(2) {
-          if !ws.eq_ignore_ascii_case(cs::WITHSCORES) {
-            cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-            return Ok(());
-          }
-          with_scores = true;
-        }
-      }
-      if param_count == 0 {
-        output.extend_from_slice(b"*0\r\n");
+      // 参数推导单源（快慢共用，失败帧已写出；arg1 打包
+      // (count << 1 | includedCount) << 1 | withScores）
+      let Some(args) = parse_random_member_args("ZRANDMEMBER", refs, cs::WITHSCORES, output) else {
+        return Ok(());
+      };
+      // count 为 0 不触达后端（应答与缺失态同形单源）
+      if args.param_count == 0 {
+        write_random_member_missing(output, args.included_count, resp_version);
         return Ok(());
       }
-      let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
+      let arg1 = args.arg1;
+      let included_count = args.included_count;
       slow_load_eval(
         storage,
         key,
         GarnetObjectType::SortedSet,
         output,
         SortedSetObject::from_blob,
-        |output: &mut Vec<u8>| {
-          if refs.len() > 1 {
-            output.extend_from_slice(b"*0\r\n");
-          } else {
-            output.write_resp_null_ver(resp_version);
-          }
+        move |output: &mut Vec<u8>| {
+          write_random_member_missing(output, included_count, resp_version);
         },
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
           let obj_out = run_operate(
@@ -608,11 +553,12 @@ pub(crate) async fn sorted_set(
       Ok(())
     }
     RespCommand::Zintercard => {
-      let Some((keys, limit)) = parse_zintercard_args(refs) else {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+      // 参数推导单源（快慢共用，失败帧已写出）
+      let Some(args) = parse_intersect_card_args(IntersectCardKind::SortedSet, refs, output) else {
         return Ok(());
       };
-      let Some(mut objs) = load_many_cold(storage, &keys, output).await? else {
+      let limit = args.limit.filter(|&v| v > 0);
+      let Some(mut objs) = load_many_cold(storage, args.keys, output).await? else {
         return Ok(());
       };
       // 基数取最小集合遍历查集（对位同步段，命中 limit 提前跳出）
@@ -637,7 +583,9 @@ pub(crate) async fn sorted_set(
           for member in min_obj.sorted_set_dict.keys() {
             if others.iter().all(|dict| dict.contains_key(member)) {
               count += 1;
-              if limit > 0 && count >= i64::from(limit) {
+              if let Some(v) = limit
+                && count >= i64::from(v)
+              {
                 break;
               }
             }
@@ -647,29 +595,22 @@ pub(crate) async fn sorted_set(
       } else {
         0
       };
-      output.write_resp_int(if limit > 0 {
-        card.min(i64::from(limit))
-      } else {
-        card
+      output.write_resp_int(match limit {
+        Some(v) => card.min(i64::from(v)),
+        None => card,
       });
       Ok(())
     }
     RespCommand::Zmpop | RespCommand::Bzmpop => {
+      // 参数推导单源（快慢共用，失败帧已写出）
       let Some((keys, low_scores_first, count)) =
-        parse_zmpop_common(refs, cmd == RespCommand::Bzmpop)
+        parse_zmpop_args(refs, cmd == RespCommand::Bzmpop, output)
       else {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
         return Ok(());
       };
-      let handled = zset_pop_first_nonempty_cold(
-        storage,
-        &keys,
-        low_scores_first,
-        count,
-        output,
-        resp_version,
-      )
-      .await?;
+      let handled =
+        zset_pop_first_nonempty_cold(storage, keys, low_scores_first, count, output, resp_version)
+          .await?;
       if !handled {
         // 同步段 ZMPOP/BZMPOP NOTFOUND → WriteNull（会话版本分派，RESP3 为 `_\r\n`）
         output.write_resp_null_ver(resp_version);
@@ -787,70 +728,6 @@ async fn zset_save_or_gc_local(
   key: &[u8],
 ) -> Result<(), ()> {
   obj_writeback_tiered(storage, key, GarnetObjectType::SortedSet, obj).await
-}
-
-/// ZINTERCARD 参数重推导：(键切片, LIMIT)
-fn parse_zintercard_args<'a>(refs: &'a [&'a [u8]]) -> Option<(Vec<&'a [u8]>, i32)> {
-  let num_keys = strict_i32(refs.first().copied()?)?;
-  if num_keys < 1 {
-    return None;
-  }
-  let idx = num_keys as usize + 1;
-  let mut limit = 0_i32;
-  if refs.len() == idx + 2 {
-    if !refs[idx].eq_ignore_ascii_case(cs::LIMIT) {
-      return None;
-    }
-    let v = strict_i32(refs[idx + 1])?;
-    if v < 0 {
-      return None;
-    }
-    limit = v;
-  } else if refs.len() != idx {
-    return None;
-  }
-  Some((refs[1..=num_keys as usize].to_vec(), limit))
-}
-
-/// ZMPOP/BZMPOP 参数重推导：(键切片, 低分优先, count)
-///
-/// ZMPOP: numkeys key [key ...] MIN|MAX [COUNT count]
-/// BZMPOP: timeout numkeys key [key ...] MIN|MAX [COUNT count]
-fn parse_zmpop_common<'a>(
-  refs: &'a [&'a [u8]],
-  is_blocking: bool,
-) -> Option<(Vec<&'a [u8]>, bool, i32)> {
-  let base = usize::from(is_blocking);
-  let num_keys = strict_i32(refs.get(base).copied()?)?;
-  if num_keys < 1 {
-    return None;
-  }
-  let order_idx = base + 1 + num_keys as usize;
-  // 定长形态：order 必带；COUNT 形态恰多 2 参
-  if refs.len() != order_idx + 1 && refs.len() != order_idx + 3 {
-    return None;
-  }
-  let keys = refs[base + 1..order_idx].to_vec();
-  let order = refs.get(order_idx).copied()?;
-  let low_scores_first = if order.eq_ignore_ascii_case(b"MIN") {
-    true
-  } else if order.eq_ignore_ascii_case(b"MAX") {
-    false
-  } else {
-    return None;
-  };
-  let mut count = 1_i32;
-  if refs.len() == order_idx + 3 {
-    if !refs[order_idx + 1].eq_ignore_ascii_case(cs::COUNT) {
-      return None;
-    }
-    let c = strict_i32(refs[order_idx + 2])?;
-    if c < 1 {
-      return None;
-    }
-    count = c;
-  }
-  Some((keys, low_scores_first, count))
 }
 
 /// 逐键弹出第一个非空有序集合的慢路径对位

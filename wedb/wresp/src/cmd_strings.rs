@@ -273,6 +273,14 @@ macro_rules! wrong_num_args {
 pub const RESP_ERR_WRONG_NUMBER_OF_ARGUMENTS: &str = "ERR wrong number of arguments for command";
 /// LMPOP/SMPOP/BZMPOP 等命令的 numkeys 校验文案（跨 list/set/sortedset 三域复用）
 pub const RESP_ERR_GENERIC_NUMKEYS: &str = "ERR numkeys should be greater than 0";
+/// LMPOP COUNT 校验文案（GenericErrShouldBeGreaterThanZero 固定替换 {0}="count"）
+pub const RESP_ERR_COUNT_GREATER_THAN_ZERO: &str = "ERR count should be greater than 0";
+/// SINTERCARD/ZINTERCARD 的 LIMIT 负值校验文案
+///（GenericErrCantBeNegative 固定替换 {0}="LIMIT"）
+pub const RESP_ERR_LIMIT_CANT_BE_NEGATIVE: &str = "ERR LIMIT can't be negative";
+/// ZINTERCARD numkeys < 1 校验文案（GenericErrAtLeastOneKey 固定替换 {0}="ZINTERCARD"）
+pub const RESP_ERR_ZINTERCARD_AT_LEAST_ONE_KEY: &str =
+  "ERR at least 1 input key is needed for 'ZINTERCARD' command";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_TRANSACTION_PROCEDURE
 pub const RESP_ERR_NO_TRANSACTION_PROCEDURE: &str = "ERR Could not get transaction procedure";
 /// （rust 自有文案；C# CmdStrings 无对应异步要求错误常量）

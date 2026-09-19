@@ -3,23 +3,22 @@
 //! 对标 libs/server/Resp/Objects/SortedSetCommands.cs 写命令与集合运算段）
 
 use gxhash::HashMap;
-use wbase::num::{strict_f64, strict_i32, strict_i64};
+use wbase::num::{strict_f64, strict_i32};
 use wcol::zset::sorted_set_object::{SortedSetObject, SortedSetOperation, SortedSetRangeOpts};
 use wresp::{
   check_args::check_arg_count,
   cmd_strings::{self as cs, RESP_ERR_GENERIC},
   ext::RespVecExt,
-  options::{
-    ExpirationWithOption, ExpireOption, SortedSetAggregateType as ZSetAggregate,
-    try_get_expire_option,
-  },
+  options::SortedSetAggregateType as ZSetAggregate,
 };
 
 use super::{Rmw, ZsetLoad, parse_pairs_payload, run_operate, zset_load_sync, zset_save_or_gc};
 use crate::{
   resp::{
     objects::object_store_utils::{
-      ElementHeaderKind, RespRmwDone, compute_expiration_ticks, parse_elements_header,
+      ElementHeaderKind, IntersectCardKind, RespRmwDone, parse_elements_only_args,
+      parse_expire_elements_args, parse_intersect_card_args, parse_random_member_args,
+      write_random_member_missing,
     },
     resp_server_session::RespServerSession,
   },
@@ -362,46 +361,15 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 2.., output, "ZINTERCARD");
-
-    // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER
-    let Some(num_keys) = strict_i32(parse_state[0]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // 参数推导单源（快慢共用，失败帧已写出；zset 族帧见 IntersectCardKind）
+    let Some(args) = parse_intersect_card_args(IntersectCardKind::SortedSet, parse_state, output)
+    else {
       return Ok(true);
     };
-    // C# GenericErrAtLeastOneKey 替换 {0}="ZINTERCARD"
-    if num_keys < 1 {
-      output.extend_from_slice(b"-ERR at least 1 input key is needed for 'ZINTERCARD' command\r\n");
-      return Ok(true);
-    }
+    // LIMIT 仅正值参与钳制（0 与未给同效）
+    let limit_v = args.limit.filter(|&v| v > 0);
 
-    let mut limit = 0_i32;
-    let idx = num_keys as usize + 1;
-    if parse_state.len() == idx + 2 {
-      if !parse_state[idx].eq_ignore_ascii_case(cs::LIMIT) {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER；负值报
-      // GenericErrCantBeNegative "LIMIT"
-      match strict_i32(parse_state[idx + 1]) {
-        Some(v) if v >= 0 => limit = v,
-        Some(_) => {
-          output.extend_from_slice(b"-ERR LIMIT can't be negative\r\n");
-          return Ok(true);
-        }
-        None => {
-          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-          return Ok(true);
-        }
-      }
-    } else if parse_state.len() != idx {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-      return Ok(true);
-    }
-
-    let keys = &parse_state[1..=num_keys as usize];
-    let mut objs = match load_many(store, keys, output) {
+    let mut objs = match load_many(store, args.keys, output) {
       Ok(Some(objs)) => objs,
       Ok(None) => return Ok(false),
       Err(()) => return Ok(true),
@@ -430,7 +398,9 @@ impl RespServerSession {
         for member in min_obj.sorted_set_dict.keys() {
           if other_objs.iter().all(|dict| dict.contains_key(member)) {
             count += 1;
-            if limit > 0 && count >= i64::from(limit) {
+            if let Some(v) = limit_v
+              && count >= i64::from(v)
+            {
               break;
             }
           }
@@ -440,10 +410,9 @@ impl RespServerSession {
     } else {
       0
     };
-    output.write_resp_int(if limit > 0 {
-      card.min(i64::from(limit))
-    } else {
-      card
+    output.write_resp_int(match limit_v {
+      Some(v) => card.min(i64::from(v)),
+      None => card,
     });
     Ok(true)
   }
@@ -519,60 +488,37 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 1..=3, output, "ZRANDMEMBER");
+    // 参数推导单源（快慢共用，失败帧已写出；count 钳至有符号 30 位，
+    // arg1 打包 (count << 1 | includedCount) << 1 | withScores；判定序对齐
+    // C# 先解析后触达后端）
+    let Some(args) = parse_random_member_args("ZRANDMEMBER", parse_state, cs::WITHSCORES, output)
+    else {
+      return Ok(true);
+    };
 
     let key = parse_state[0];
+
+    // count 为 0 不触达后端（对齐 C#；应答与缺失态同形单源）
+    if args.param_count == 0 {
+      write_random_member_missing(output, args.included_count, self.resp_protocol_version);
+      return Ok(true);
+    }
+
     let mut obj = match zset_load_sync(store, key, output) {
       ZsetLoad::Degrade => return Ok(false),
       ZsetLoad::WrongType => return Ok(true),
       ZsetLoad::Missing => {
-        if parse_state.len() > 1 {
-          output.extend_from_slice(b"*0\r\n");
-        } else {
-          output.write_resp_null_ver(self.resp_protocol_version);
-        }
+        write_random_member_missing(output, args.included_count, self.resp_protocol_version);
         return Ok(true);
       }
       ZsetLoad::Present(o) => o,
     };
 
-    // 参数打包：arg1 = (count << 1 | includedCount) << 1 | withScores
-    // C# paramCount 缺省为 1（ZRANDMEMBER key 回 1 个成员）
-    let mut param_count = 1_i32;
-    let mut included_count = false;
-    let mut with_scores = false;
-
-    if let Some(c) = parse_state.get(1) {
-      // C# TryGetInt（int32）：溢出即非整数
-      let Some(v) = strict_i32(c) else {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      // 预留 2 位元数据位，count 钳至剩余有符号 30 位（C# Math.Min 同款）
-      param_count = v.min(i32::MAX >> 2);
-      included_count = true;
-
-      if let Some(ws) = parse_state.get(2) {
-        if !ws.eq_ignore_ascii_case(cs::WITHSCORES) {
-          cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-          return Ok(true);
-        }
-        with_scores = true;
-      }
-    }
-
-    let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
-    // count = 0 不触达后端（对齐 C#）
-    if param_count == 0 {
-      output.extend_from_slice(b"*0\r\n");
-      return Ok(true);
-    }
-
     let obj_out = run_operate(
       &mut obj,
       SortedSetOperation::Zrandmember,
       &[],
-      arg1,
+      args.arg1,
       fastrand::i32(..),
       self.resp_protocol_version,
     );
@@ -592,42 +538,24 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 5.., output, cmd_name);
-
-    let key = parse_state[0];
-    let Some(expiration_base) = strict_i64(parse_state[1]) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // 参数推导单源（快慢共用，失败帧已写出；ticks 换算与 word 打包收口内核）
+    let Some(args) = parse_expire_elements_args(
+      cmd_name,
+      parse_state,
+      ElementHeaderKind::Members,
+      is_milliseconds,
+      is_timestamp,
+      output,
+    ) else {
       return Ok(true);
     };
-    if expiration_base < 0 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_INVALID_EXPIRE_TIME);
-      return Ok(true);
-    }
-
-    let mut curr_idx = 2;
-    let mut expire_option = ExpireOption::NONE;
-    if let Some(opt) = try_get_expire_option(parse_state[curr_idx]) {
-      expire_option = opt;
-      curr_idx = 3;
-    }
-
-    let Some((members_start, _num_members)) =
-      parse_elements_header(parse_state, curr_idx, ElementHeaderKind::Members, output)
-    else {
-      return Ok(true);
-    };
-
-    // .NET Ticks 目标时刻（saturating，与 hash 域 compute_expiration_ticks 同口径）
-    let expiration_ticks = compute_expiration_ticks(expiration_base, is_milliseconds, is_timestamp);
-
-    let e = ExpirationWithOption::new(expiration_ticks, expire_option);
 
     match self.zset_rmw(
       store,
-      key,
+      args.key,
       SortedSetOperation::Zexpire,
-      &parse_state[members_start..],
-      ((e.word() >> 32) as i32, e.word() as i32),
+      args.elements,
+      args.args12,
       output,
     ) {
       Rmw::Degrade => Ok(false),
@@ -647,11 +575,9 @@ impl RespServerSession {
     is_milliseconds: bool,
     is_timestamp: bool,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 4.., output, cmd_name);
-
-    let key = parse_state[0];
-    let Some((members_start, _num_members)) =
-      parse_elements_header(parse_state, 1, ElementHeaderKind::Members, output)
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, members)) =
+      parse_elements_only_args(cmd_name, parse_state, ElementHeaderKind::Members, output)
     else {
       return Ok(true);
     };
@@ -660,7 +586,7 @@ impl RespServerSession {
       store,
       key,
       SortedSetOperation::Zttl,
-      &parse_state[members_start..],
+      members,
       (i32::from(is_milliseconds), i32::from(is_timestamp)),
       output,
     ) {
@@ -678,11 +604,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 4.., output, "ZPERSIST");
-
-    let key = parse_state[0];
-    let Some((members_start, _num_members)) =
-      parse_elements_header(parse_state, 1, ElementHeaderKind::Members, output)
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, members)) =
+      parse_elements_only_args("ZPERSIST", parse_state, ElementHeaderKind::Members, output)
     else {
       return Ok(true);
     };
@@ -691,7 +615,7 @@ impl RespServerSession {
       store,
       key,
       SortedSetOperation::Zpersist,
-      &parse_state[members_start..],
+      members,
       (0, 0),
       output,
     ) {
