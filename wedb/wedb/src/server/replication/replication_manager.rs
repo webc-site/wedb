@@ -1,5 +1,5 @@
 use std::{
-  fs::{metadata, read},
+  fs::metadata,
   path::{Path, PathBuf},
   sync::{
     Arc,
@@ -19,7 +19,7 @@ use wbase::{
   pool::{DEFAULT_BUFFER_SIZE, DEFAULT_MAX_POOL_SIZE, LimitedFixedBufferPool},
   time,
 };
-use wcpr::{CheckpointMeta, find_latest_checkpoint, meta_filename};
+use wcpr::latest_checkpoint_meta;
 use wnode::{aof::GarnetLog, database::checkpoint_version};
 
 use crate::server::replication::{
@@ -1133,7 +1133,7 @@ impl ReplicationManager {
       .checkpoint_dir
       .read()
       .as_deref()
-      .and_then(latest_checkpoint_meta)
+      .and_then(|d| latest_checkpoint_meta(d))
       .map(|(token, meta)| {
         let mut metadata = CheckpointMetadata::new(self.sublog_count);
         metadata.store_version = checkpoint_version(token);
@@ -1258,23 +1258,11 @@ impl Drop for ReplicationManager {
   }
 }
 
-/// 扫盘读最新有效快照元数据（C# CheckpointStore.cs:GetLatestCheckpointEntryFromDisk
-/// 的 wcpr 磁盘模型对位）；目录无快照或读取/解码失败返回 None
-fn latest_checkpoint_meta(dir: &Path) -> Option<(u128, CheckpointMeta)> {
-  find_latest_checkpoint(dir)
-    .ok()
-    .flatten()
-    .and_then(|token| {
-      let bytes = read(dir.join(meta_filename(token))).ok()?;
-      let meta = CheckpointMeta::decode(&bytes).ok()?;
-      Some((token, meta))
-    })
-}
-
 /// libs/cluster/Server/Replication/CheckpointStore.cs:GetLatestCheckpointFromDiskInfo
 ///
-/// 扫盘读最新有效快照元数据并格式化（wcpr 磁盘模型承接 C# Tsavorite 扫盘）；
-/// 目录无快照、读取或解码失败统一回退 "(empty)"（对标 C# catch 分支）
+/// 扫盘读最新有效快照元数据并格式化（wcpr 磁盘模型承接 C# Tsavorite 扫盘，
+/// 单点在 [`wcpr::latest_checkpoint_meta`]）；目录无快照、读取或解码失败统一
+/// 回退 "(empty)"（对标 C# catch 分支）
 fn latest_checkpoint_meta_info(dir: &Path) -> String {
   latest_checkpoint_meta(dir)
     .map(|(token, meta)| {
