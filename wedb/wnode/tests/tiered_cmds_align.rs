@@ -512,9 +512,21 @@ fn test_tiered_zset_range_rank_parity() {
     ents
   };
   let promote = |key: &[u8], ents: Vec<(Vec<u8>, Vec<u8>)>| {
+    // 水位与灌入批同源（对位生产侧 earliest_expiry 单点：无挂 TTL 成员回 MAX，
+    // 挂到期成员的批必须把水位带进元记录，否则计数快路径被假水位骗过）
+    let next_expiry = ents
+      .iter()
+      .filter_map(|(_, record)| wcol::types::member_ttl::decode_member(record).0)
+      .min()
+      .unwrap_or(i64::MAX);
     let sess = store.new_session().unwrap();
-    rt.block_on(sess.promote_collection_to_bftree(key, wval::GarnetObjectType::SortedSet, ents))
-      .unwrap();
+    rt.block_on(sess.promote_collection_to_bftree(
+      key,
+      wval::GarnetObjectType::SortedSet,
+      ents,
+      next_expiry,
+    ))
+    .unwrap();
   };
   promote(KT, build(None));
   // ---- 兴趣成员灌入内存态键 zs（不过升阶门槛 → 对象层单源，对照基准）

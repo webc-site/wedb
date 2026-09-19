@@ -1183,9 +1183,10 @@ async fn tiered_zset_arm<D: Device>(
 ) -> Result<bool, ()> {
   let TieredCollectionArgs {
     op,
-    // arg1/arg2 压缩字已无树内消费臂（ZEXPIRE 族穿透物化降级，压缩字由
-    // run_async_rmw 的 run_op 闭包捕获透传对象层），显式弃绑防未用告警
-    args12: _,
+    // arg1 为 ZRANK / ZREVRANK 的 WITHSCORE 位、arg2 为 ZRANGE 族选项位（见下方
+    // 范围与排名臂）；成员级 TTL 面（ZEXPIRE 族）已穿透物化降级，其压缩字仍由
+    // run_async_rmw 的 run_op 闭包捕获透传对象层，本臂不再消费
+    args12,
     args,
     resp_protocol_version,
   } = call;
