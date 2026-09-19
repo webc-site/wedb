@@ -143,9 +143,15 @@ fn ri_key_rename_not_wrongtyped() {
     b"$6\r\nvalue1\r\n"
   );
 
-  // RENAMENX：新键已存在返回 0，新键不存在成功迁移
+  // RENAMENX：同名自改返回 1（对标 C# UnifiedStoreOps.cs:248）
   assert_eq!(
     cmd(&rt, &mut c, &["RENAMENX", "idx2", "idx2"]),
+    b":1\r\n",
+    "同名自改时 RENAMENX 应返回 1"
+  );
+  seed_ri(&rt, &mut c, "idx_existing");
+  assert_eq!(
+    cmd(&rt, &mut c, &["RENAMENX", "idx2", "idx_existing"]),
     b":0\r\n",
     "目标键已存在时 RENAMENX 应返回 0"
   );
