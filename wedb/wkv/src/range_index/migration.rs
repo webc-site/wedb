@@ -46,7 +46,7 @@ impl<D: Device> StoreSession<D> {
     let pub_src = temp_path.to_path_buf();
     let tree = range_index_blocking(move || {
       let key_hash = fast_hash(&pub_key);
-      let _xlock = mgr.locks().write(key_hash);
+      let _xlock = mgr.acquire_exclusive_for_delete(key_hash);
       mgr.publish_tree_from_snapshot_locked(&pub_key, &pub_src, replace)
     })
     .await?
@@ -81,7 +81,7 @@ impl<D: Device> StoreSession<D> {
     let chk_hash = fast_hash(key);
     let chk_key_id = RangeIndexManager::key_id_of(key);
     let entry_alive = range_index_blocking(move || {
-      let _xlock = mgr2.locks().write(chk_hash);
+      let _xlock = mgr2.acquire_exclusive_for_delete(chk_hash);
       mgr2.live_indexes().pin().get(&chk_key_id).is_some()
     })
     .await?;
@@ -170,7 +170,7 @@ impl<D: Device> StoreSession<D> {
           return Err(e.into());
         }
         let old_hash = fast_hash(&old_key_owned);
-        let _xlock = mgr.locks().write(old_hash);
+        let _xlock = mgr.acquire_exclusive_for_delete(old_hash);
         mgr.snapshot_tree_to_path_locked(&old_key_owned, &old_tree, &new_path)?;
 
         let backend = StorageBackendType::from_u8(restore_stub.storage_backend);

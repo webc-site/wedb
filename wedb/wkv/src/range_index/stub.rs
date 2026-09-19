@@ -173,7 +173,7 @@ impl<D: Device> StoreSession<D> {
       // 快照文件由 sink 分块灌入 AOF 后即回收，副本据此数据回放重建树域。
       let snap_path = mgr.derive_temp_migration_path();
       {
-        let _xlock = mgr.locks().write(fast_hash(&create_key));
+        let _xlock = mgr.acquire_exclusive_for_delete(fast_hash(&create_key));
         if let Err(e) = mgr.snapshot_tree_to_path_locked(&create_key, &tree, &snap_path) {
           let _ = mgr.delete_index(&create_key);
           let _ = remove_file(&snap_path);
@@ -359,7 +359,10 @@ impl<D: Device> StoreSession<D> {
     let mut current_stub = *stub;
     loop {
       wait_tree_checkpoint(&self.store.range_index, key).await?;
-      let write_lock = self.store.range_index.locks().write(key_hash);
+      let write_lock = self
+        .store
+        .range_index
+        .acquire_exclusive_for_delete(key_hash);
       if let Some(tree) = self.store.range_index.get_tree(key) {
         if current_stub.is_flushed() {
           drop(write_lock);

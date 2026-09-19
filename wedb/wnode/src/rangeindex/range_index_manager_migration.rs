@@ -121,7 +121,7 @@ impl RangeIndexManagerMigration {
     let key_hash = whasher::fast_hash(key);
     let key_id = RangeIndexManager::key_id_of(key);
     // 以下全为同步段（快照 / 拷贝 / 开文件均不 await），条带锁不跨 .await
-    let _xlock = engine.locks().write(key_hash);
+    let _xlock = engine.acquire_exclusive_for_delete(key_hash);
     match engine.get_tree(key) {
       Some(tree) => {
         // 树在线：per-tree 快照防重入 claim 下 CPR 快照直出迁移目标
