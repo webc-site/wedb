@@ -292,11 +292,11 @@ pub struct StoreGarnetApi<D: Device> {
   pub(crate) session_metrics: Option<Arc<SessionMetricsHandle>>,
   /// 会话侧延迟表（对标 C# RespServerSession 构造 storageSession 时下传的
   /// `LatencyMetrics` 类引用：rust 执行域先于会话构造，故由
-  /// [`RespServerSession::set_garnet_api`] 装配期回挂同一对象，慢路径存储
-  /// 会话经 [`Self::latency_metrics`] 读此口承接 PENDING_LAT 计时。可回挂
-  /// 换表因 [`RespServerSession::attach_monitor`] 的晚装配形态而须与
-  /// 会话当前表同址，故以互斥槽承接（仅慢路径每命令读一次，非热路径）；
-  /// 未回挂 = 无延迟监视/非会话宿主，与 C# null 同形）
+  /// [`RespServerSession::set_garnet_api`] 装配期回挂会话构造时建好的同一
+  /// 对象（构造单点 = C# `new GarnetLatencyMetricsSession(storeWrapper
+  /// .monitor)` 的 rust 对位），慢路径存储会话经 [`Self::latency_metrics`]
+  /// 读此口承接 PENDING_LAT 计时。以互斥槽承接（仅慢路径每命令读一次，
+  /// 非热路径）；未回挂 = 无延迟监视/非会话宿主，与 C# null 同形）
   latency_metrics: Mutex<Option<Arc<GarnetLatencyMetricsSession>>>,
 }
 
@@ -547,8 +547,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   }
 
   /// 装配期回挂会话延迟表（[`RespServerSession::set_garnet_api`] 挂入会话时
-  /// 调用；[`RespServerSession::attach_monitor`] 晚装配换表时同口重挂，
-  /// 执行域持有的永远与会话是同一对象）
+  /// 调用，执行域持有的永远与会话是同一对象）
   #[inline]
   fn attach_latency_metrics(&self, metrics: Arc<GarnetLatencyMetricsSession>) {
     *self.latency_metrics.lock() = Some(metrics);

@@ -371,8 +371,8 @@ impl Default for RespWriter<Vec<u8>, Resp2> {
   }
 }
 
-impl RespWriter<Vec<u8>, Resp2> {
-  /// 创建新的 Resp2 内存写出器
+impl<P: RespProtocol> RespWriter<Vec<u8>, P> {
+  /// 创建新的内存写出器（协议形态由类型参数指定，别名缺省 Resp2）
   #[inline]
   pub fn new() -> Self {
     Self {
@@ -381,22 +381,11 @@ impl RespWriter<Vec<u8>, Resp2> {
     }
   }
 
-  /// 创建指定初始容量的 Resp2 内存写出器
+  /// 创建指定初始容量的内存写出器
   #[inline]
   pub fn with_capacity(capacity: usize) -> Self {
     Self {
       out: Vec::with_capacity(capacity),
-      _phantom: PhantomData,
-    }
-  }
-}
-
-impl<P: RespProtocol> RespWriter<Vec<u8>, P> {
-  /// 创建指定协议标记的内存写出器
-  #[inline]
-  pub fn new_p() -> Self {
-    Self {
-      out: Vec::with_capacity(256),
       _phantom: PhantomData,
     }
   }

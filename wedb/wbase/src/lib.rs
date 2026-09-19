@@ -24,6 +24,9 @@ pub mod crc;
 #[cfg(feature = "crc64")]
 pub mod crc64;
 
+#[cfg(feature = "endpoint")]
+pub mod endpoint;
+
 #[cfg(feature = "error")]
 pub mod error;
 
@@ -75,3 +78,6 @@ pub mod store_type;
 
 #[cfg(feature = "varint")]
 pub mod varint;
+
+#[cfg(feature = "tls")]
+pub mod tls;

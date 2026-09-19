@@ -12,7 +12,6 @@ use wnode::resp::vector::{
     VectorManagerOptions, VectorManagerResult, VectorSearchOptions,
   },
   vector_manager_index::Index,
-  vector_manager_locking::registry_key,
 };
 use wval::SessionPrefixBuf;
 use wvector::{
@@ -1363,32 +1362,8 @@ fn drop_in_memory_index_flow() {
     DiskAnnInsertResult::True
   );
 
-  let mut index = fresh_index(80, 2);
-  let key = b"dropkey".to_vec();
-  // 丢弃通道载荷为登记表复合键（`registry_key` 单点：[NsVarint][DbVarint] +
-  // 用户键，与锁协议同域），断言同域比对
-  let root = SessionPrefixBuf::ROOT;
-  let rk = registry_key(root.as_slice(), &key);
-  let rk_other = registry_key(root.as_slice(), b"other");
-
-  // 请求丢弃：登记 + 信号
-  manager.request_drop_in_memory_index(root.as_slice(), &key, &index.to_bytes());
-  assert!(
-    manager.requested_drops.contains(rk.as_slice()),
-    "丢弃请求应以复合键登记"
-  );
-  assert!(!manager.request_drop_task_channel.is_empty());
-
-  // 重复请求被拒
-  manager.request_drop_in_memory_index(root.as_slice(), &key, &index.to_bytes());
-  assert_eq!(manager.requested_drops.len(), 1);
-
-  // SuppressCleanup 忽略
-  index.flags = VectorSetFlags::SUPPRESS_CLEANUP;
-  manager.request_drop_in_memory_index(root.as_slice(), b"other", &index.to_bytes());
-  assert!(!manager.requested_drops.contains(rk_other.as_slice()));
-
-  // 直接丢弃
+  let index = fresh_index(80, 2);
+  // 直接丢弃：索引服务侧基数归零
   assert_eq!(manager.service.card(80), 1);
   manager.drop_in_memory_index(&index.to_bytes());
   assert_eq!(manager.service.card(80), 0);

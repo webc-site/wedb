@@ -22,15 +22,13 @@ pub enum ServerEndpoint {
 impl ServerEndpoint {
   /// 从字符串解析端点定义
   ///
-  /// - `unix:/path/to.sock` 或以 `/` 或 `./` 开头或以 `.sock` 结尾：识别为 Unix 域套接字
-  /// - 其他：解析为 TCP SocketAddr（支持 `:6379` 简写补齐 `0.0.0.0`）
+  /// Unix 域套接字与 TCP 的形态判定按 [`wbase::endpoint::uds_path`]
+  ///（`unix:` 前缀、`/` 或 `./` 前缀、`.sock` 后缀，与出站客户端共读同一条规则），
+  /// 其余按 TCP 解析为 SocketAddr（支持 `:6379` 简写补齐 `0.0.0.0`）
   pub fn parse(s: &str) -> Result<Self> {
     let trimmed = s.trim();
-    if let Some(rest) = trimmed.strip_prefix("unix:") {
-      return Ok(Self::Unix(PathBuf::from(rest)));
-    }
-    if trimmed.starts_with('/') || trimmed.starts_with("./") || trimmed.ends_with(".sock") {
-      return Ok(Self::Unix(PathBuf::from(trimmed)));
+    if let Some(path) = wbase::endpoint::uds_path(trimmed) {
+      return Ok(Self::Unix(path.to_path_buf()));
     }
 
     // 处理 `:port` 缺省 IP 前缀

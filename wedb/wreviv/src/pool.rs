@@ -111,33 +111,47 @@ pub struct FreeRecordPool {
   pub hit_count: AtomicU64,
   /// 丢弃或失效槽位计数
   pub drop_count: AtomicU64,
-  /// 复活暂停挂起计数（0 = 启用；负数 = 暂停；正数 = 暂停后已超额恢复）
+  /// 复活暂停挂起计数（0 = 启用；负数 = 未启用或暂停；正数 = 暂停后已超额恢复）
+  ///
+  /// 单字段承载「是否启用 + 是否暂停」两义，与 C# 同形：`revivSuspendCount` 初值 -1
+  /// （未启用恒假），仅当 EnableRevivification 时置 0（RevivificationManager.cs:24/:43），
+  /// 暂停再递减；故 [`Self::is_enabled`] 即 C# `RevivificationManager.IsEnabled`，
+  /// 上层复活臂（链内原地复活、池取）只判此一谓词，不再并列配置开关。
   ///
   /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:revivSuspendCount
   reviv_suspend_count: AtomicI64,
 }
 
+/// 未启用态挂起计数（对标 C# `revivSuspendCount = -1`：负数使 [`FreeRecordPool::is_enabled`] 恒假）
+const SUSPEND_DISABLED: i64 = -1;
+
 impl FreeRecordPool {
-  /// 创建使用默认分桶尺寸与默认容量的复活池（生产唯一构造入口，wkv store 层使用）
+  /// 创建默认分桶阶梯的复活池（生产唯一构造入口，wkv store 层使用）
   ///
   /// 等价 C# `RevivificationSettings.PowerOf2Bins` 预设：以 2 的幂次分桶 + 每桶
   /// DefaultRecordsPerBin = 256 + 全桶最优适配。常量 `DEFAULT_BIN_SIZES` /
-  /// `DEFAULT_BIN_CAPACITY` 的合法性已由编译期断言与
-  /// [`Self::with_bin_sizes_and_scan_limit`] 的校验规则保证，此处 expect 绝不触发。
-  pub fn new() -> Self {
-    match Self::with_bin_sizes_and_scan_limit(
+  /// `DEFAULT_BIN_CAPACITY` 的合法性已由编译期断言与 [`Self::build`] 的校验规则
+  /// 保证，此处 Err 分支绝不触发。
+  ///
+  /// `enable_revivification` 对标 C# `RevivificationSettings.EnableRevivification`
+  /// （`--reviv`，RevivificationManager.cs:38-43）：为假时挂起计数停在
+  /// [`SUSPEND_DISABLED`]，[`Self::is_enabled`] 恒假，链内原地复活与池取一并关闭
+  /// （上层不再并列第二道开关）。
+  pub fn new(enable_revivification: bool) -> Self {
+    match Self::build(
       &DEFAULT_BIN_SIZES,
       DEFAULT_BIN_CAPACITY,
       BEST_FIT_SCAN_ALL,
+      enable_revivification,
     ) {
-      Ok(s) => s,
+      Ok(pool) => pool,
       // SAFETY: 编译期断言保证 DEFAULT_BIN_SIZES 严格递增且不超 MAX_INLINE_SIZE，
       // DEFAULT_BIN_CAPACITY = 256 > 0，Err 分支不可达
       Err(_) => unsafe { unreachable_unchecked() },
     }
   }
 
-  /// 创建使用自定义分桶尺寸阶梯、容量与最优适配扫描上限的复活池
+  /// 创建使用自定义分桶尺寸阶梯、容量与最优适配扫描上限的复活池（启用态）
   ///
   /// 对标 C# 唯一构造入口 `FreeRecordPool(store, RevivificationSettings)` 的完整配置面
   /// （`FreeRecordBins` / `BestFitScanLimit`）；wedb 生产固定 PowerOf2Bins 预设（[`Self::new`]），
@@ -146,6 +160,16 @@ impl FreeRecordPool {
     bin_sizes: &[u32],
     bin_capacity: usize,
     best_fit_scan_limit: usize,
+  ) -> Result<Self> {
+    Self::build(bin_sizes, bin_capacity, best_fit_scan_limit, true)
+  }
+
+  /// 分桶装配与校验本体（两个构造入口的单点）
+  fn build(
+    bin_sizes: &[u32],
+    bin_capacity: usize,
+    best_fit_scan_limit: usize,
+    enable_revivification: bool,
   ) -> Result<Self> {
     if bin_sizes.is_empty() {
       return Err(Error::EmptyBinSizes);
@@ -173,7 +197,11 @@ impl FreeRecordPool {
       take_count: AtomicU64::new(0),
       hit_count: AtomicU64::new(0),
       drop_count: AtomicU64::new(0),
-      reviv_suspend_count: AtomicI64::new(0),
+      reviv_suspend_count: AtomicI64::new(if enable_revivification {
+        0
+      } else {
+        SUSPEND_DISABLED
+      }),
     })
   }
 
@@ -190,7 +218,11 @@ impl FreeRecordPool {
     self.reviv_suspend_count.fetch_sub(1, Ordering::AcqRel);
   }
 
-  /// 恢复活发：挂起计数递增，归零后 [`Self::is_enabled`] 重新为 true
+  /// 恢复复活：挂起计数递增，归零后 [`Self::is_enabled`] 重新为 true
+  ///
+  /// 必须与 [`Self::pause`] 严格配对（C# 同此约定，其唯一调用点是迁移驱动的
+  /// Pause/Resume 一对；wedb 侧由 `RevivPauseGuard` 的 RAII 绑定保证）：
+  /// 未启用态计数为 [`SUSPEND_DISABLED`]，孤调本方法会把它推到 0 而凭空开启复活。
   ///
   /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:ResumeRevivification
   #[inline]
@@ -198,7 +230,10 @@ impl FreeRecordPool {
     self.reviv_suspend_count.fetch_add(1, Ordering::AcqRel);
   }
 
-  /// 复活是否处于启用状态（挂起计数为 0）
+  /// 复活是否处于启用状态（挂起计数为 0：既开启 `--reviv` 又未处于暂停窗口）
+  ///
+  /// 单谓词等价 C# `RevivificationManager.IsEnabled`，是上层所有复活臂（链内原地复活、
+  /// 池取）的唯一门；功能未启用与迁移暂停在此合一，调用方勿再并列 `enable_revivification`。
   ///
   /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:IsEnabled
   #[inline]
@@ -345,11 +380,5 @@ impl FreeRecordPool {
     for bin in &self.bins {
       bin.clear();
     }
-  }
-}
-
-impl Default for FreeRecordPool {
-  fn default() -> Self {
-    Self::new()
   }
 }

@@ -19,7 +19,7 @@ ignored = ["rustls-pki-types", "serde"]
 
 [features]
 default = ["roaring", "json"]
-tls = ["dep:compio-tls", "dep:rustls-pki-types", "dep:rustls-pemfile"]
+tls = ["dep:compio-tls", "dep:rustls-pki-types", "dep:rustls-pemfile", "wbase/tls"]
 roaring = ["dep:wext_roaring"]
 json = ["dep:wext_json"]
 
@@ -42,7 +42,7 @@ sonic-rs.workspace = true
 thiserror.workspace = true
 wacl.workspace = true
 waof.workspace = true
-wbase = { workspace = true, features = ["addr", "align", "backoff", "convert", "crc64", "future", "glob", "hash", "hash_slot", "map", "num", "pool", "store_type", "striped", "time"] }
+wbase = { workspace = true, features = ["addr", "align", "backoff", "convert", "crc64", "endpoint", "future", "glob", "hash", "hash_slot", "map", "num", "pool", "store_type", "striped", "time"] }
 wbitmap.workspace = true
 wcol = { workspace = true }
 wconf.workspace = true
