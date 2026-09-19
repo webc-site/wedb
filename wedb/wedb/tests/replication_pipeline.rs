@@ -350,7 +350,10 @@ fn test_cannot_stream_aof_across_attach_recovery_window() {
 
   // 恢复点回报（replica_diskbased/diskless_sync 收尾段）：放行 AOF 流但锁仍持
   mgr.end_recovery(RecoveryStatus::CheckpointRecoveredAtReplica, false);
-  assert_eq!(mgr.recovery_status(), RecoveryStatus::CheckpointRecoveredAtReplica);
+  assert_eq!(
+    mgr.recovery_status(),
+    RecoveryStatus::CheckpointRecoveredAtReplica
+  );
   assert!(mgr.is_recovering(), "恢复点后锁仍持");
   assert!(!mgr.cannot_stream_aof(), "恢复点后必须放行 AOF 流");
 
