@@ -75,6 +75,17 @@ pub fn try_get_sorted_set_add_option(v: &[u8]) -> Option<SortedSetAddOption> {
 
 bitflags! {
   /// 过期条件选项（NX/XX/GT/LT；对标 Garnet.server:ExpireOption）
+  ///
+  /// 键级与字段级 TTL 的选项组合口径（rust 与 C# 两边一致，重构勿改）：
+  /// - 键级 TTL（EXPIRE/PEXPIRE/EXPIREAT/PEXPIREAT）可给两个选项，但只放行 XX+GT、XX+LT
+  ///   两种兼容对（即下文的 XXGT/XXLT 复合常量），其余组合回 not compatible，
+  ///   对应 C# KeyAdminCommands 的 NetworkEXPIRE 两参合并分支；
+  /// - 字段级 TTL（HEXPIRE 族、ZEXPIRE 族）只解析单个选项词元，不支持复合，
+  ///   对应 C# HashCommands 的 HashExpire 与 SortedSetCommands 的 SortedSetExpire
+  ///   （两边都是「试读一个选项、读不到就当没有」的形态）。
+  ///
+  /// 禁止把键级的双选口子放开到字段级（那将与 C# 分叉），也禁止反过来收掉键级复合。
+  /// 判据现状：键级见 wnode 的 network_expire，字段级见 parse_hash_expire_args 与 sorted_set_expire。
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
   pub struct ExpireOption: u8 {
     /// 无条件
@@ -92,9 +103,9 @@ bitflags! {
     /// 仅当新过期早于当前时设置
     const LT = 1 << 3;
     const Lt = 1 << 3;
-    /// 既有且更大
+    /// 既有且更大（XX+GT：键级 TTL 双选项唯一两种合法组合之一，字段级不使用复合常量）
     const XXGT = Self::XX.bits() | Self::GT.bits();
-    /// 既有且更小
+    /// 既有且更小（XX+LT：键级 TTL 双选项唯一两种合法组合之一，字段级不使用复合常量）
     const XXLT = Self::XX.bits() | Self::LT.bits();
   }
 }
