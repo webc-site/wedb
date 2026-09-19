@@ -6,7 +6,8 @@ task/reject 规程收口，且拒绝票不在共享主仓跑 check.js 以免回�
 一句话结论：now_stopwatch_ticks 早已不接在实时墙上钟上，现锚在 std::time::Instant 单调基
 （wbase/src/time.rs:47-52 进程锚点 STOPWATCH_ANCHOR、:62-65 由 elapsed() 换算 100ns 刻度并
 返回 u64），票面「问题」段的实现描述与当前代码不符，票面「修法」三条全部在位，且已配
-域纪律回归测试（wbase/tests/main.rs:145-158），本票属旧快照生成的僵尸票。
+域纪律回归测试（wbase/tests/main.rs:141-159，断言函数名
+test_stopwatch_ticks_anchored_on_monotonic_clock），本票属旧快照生成的僵尸票。
 
 逐条裁决（票面主张 → 当前代码事实）
 1. 主张「now_stopwatch_ticks 实现为 now_nanos() / NANOS_PER_TICK」：不成立。
