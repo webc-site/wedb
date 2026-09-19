@@ -145,7 +145,7 @@ impl<'a, D: Device, F: ConsistentReadFunctions + ?Sized> ConsistentReadContext<'
   ) -> Result<StoreResult<R>> {
     single_key_around(self.functions, key_hash(user_key), || {
       self.session.try_read_tag_sync_with_size(user_key, tag, f)
-    })
+    })?
   }
 
   /// 零拷贝读取指定标签物理键并披露记录物理尺寸（MEMORY USAGE 统计内核，

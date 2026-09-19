@@ -1,12 +1,12 @@
-优先级：低（全库最大单文件 1437 行，多职责混聚）
+优先级：低（全库最大单文件 1432 行，多职责混聚）
 来源：next/agy.db.md 条 8。核销 2026-09-19，取证基线 = 主仓 dev 当下 HEAD。
 
 结论一句话
 wdev/src/segmented_device.rs 一个文件同时承担路径与句柄池、跨段寻址与对齐、读写主体、
-同步刷盘、截断删除、目录恢复扫描、Device trait 实现与 debug 探针面共 1437 行；
+同步刷盘、截断删除、目录恢复扫描、Device trait 实现与 debug 探针面共 1432 行；
 按域拆子模块、结构与 trait 实现留门面，纯搬移零语义改动。
 
-现状（主仓 HEAD 实测，wdev/src/segmented_device.rs 共 1437 行）
+现状（主仓 HEAD 实测，wdev/src/segmented_device.rs 共 1432 行）
 1. 结构与参数：:60 pub struct SegmentedDevice、:181 pub struct DeviceParams、
    :148 impl Iterator for SegmentEntries。
 2. 路径与句柄域：:329 parent_dir、:337 segment_path、:356 segment_entries、
@@ -51,9 +51,11 @@ C# 参考
 3. diff 只呈现搬移与 use 调整（无逻辑行改写）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh）。
 
-双花登记
-并发代理就条 8 另立同题薄票 next/db-wdev-segmented-device-split.md（自称已与 next/muse.db.md 条 13
-两轮同题合并），与本票同改 wdev/src/segmented_device.rs，两票只取一棒：本票为正文载体，
-派发时以本票为准并删除该薄票，禁双花。
-排棒次序：task/done/wdev-segmented-device-mutator-knobs.md（已归档，主仓 commit 7292fc1）先前已搬动
-同文件，本票内行号须按当下 HEAD 重新定位后再拆，勿照抄本票行号。
+双花登记（本票让位，禁派发）
+并发代理就条 8 另立的同题票已由主代理收为正文载体：task/ing/db-wdev-segmented-device-split.md
+（来源同为 next/agy.db.md 条 8，并并入 next/muse.db.md 条 13；该票 :HEAD=f708718 复核注记已说明
+九旋钮先删后拆的顺序成旧指针、本轮只拆不改语义）。对应 worktree /tmp/fork/wdev-seg-split（分支
+wdev-seg-split）已开、diff 尚空。两票同改 wdev/src/segmented_device.rs，只取一棒：
+取对方那棒，本票不再派发，仅留档供核对分域口径。
+本票原引 1437 行已按当下 HEAD 校正为 1432 行（task/done/wdev-segmented-device-mutator-knobs.md，
+主仓 be2fca2 落地后净降 5 行），拆件时行号一律重新 grep 定位，勿照抄本票行号。

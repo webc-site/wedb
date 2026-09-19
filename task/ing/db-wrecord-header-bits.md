@@ -22,3 +22,5 @@ FillerWords / KeyLen / ValLen 掩码组）全部内联单文件，位运算常�
 （掩码、位移、编译期断言、pack_rdh_word 类纯位运算）提取为 header/bits.rs 子模块，
 header.rs 留 RecordHeader 结构与字段访问器。后续新增位段一律进 bits.rs 掩码区 +
 header.rs 访问器，禁在视图文件散落裸位运算。纯搬运。
+
+主代理补录（14:13，agy.db 晚波条 21 反证）：C# RecordInfo.cs(364)+RecordDataHeader.cs(672) 两文件在 rust 已统一为 RecordHeader 一处定义（header.rs:145 附近），「再拆=倒退一处定义收益」为该拒件论据；但两文件形态又支持拆分。裁决口径：只要拆后全仓仍只有一套位段定义（不复制 RecordHeader），纯文件级职责拆分可接受；若发现拆分会迫使定义复制或双套编解码，判拒结案。
