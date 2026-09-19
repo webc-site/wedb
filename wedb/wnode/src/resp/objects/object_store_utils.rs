@@ -660,10 +660,11 @@ pub fn obj_length_sync<D: Device>(
       let is_alive = meta.is_live();
       if is_alive {
         if meta.collection_type == tag {
-          // 字段级 TTL 计数抵扣：水位快路径（now < next_expiry，树内无到期
-          // 成员）O(1) 直读；水位命中降级异步慢路径校正（分层计数臂经
-          // 到期重灌内核物理出账后回读），collection.md 计数规约第 3 条
-          if now_ticks() < meta.next_expiry {
+          // 字段级 TTL 计数抵扣：水位快路径（now <= next_expiry，树内无到期
+          // 成员——`ticks < now` 严格判过期，水位刻度当刻未到期，`<=` 收口
+          // off-by-one）O(1) 直读；水位越过才降级异步慢路径校正（分层计数臂经
+          // 到期重灌内核物理出账后回读），collection.md 计数规约第 3 条分层态补则
+          if now_ticks() <= meta.next_expiry {
             return ObjLoad::Present(meta.size as usize);
           }
           return ObjLoad::Degrade;
@@ -725,8 +726,8 @@ pub async fn obj_length_async<D: Device>(
     let is_alive = meta.is_live();
     if is_alive {
       if meta.collection_type == tag {
-        // 字段级 TTL 计数抵扣同 obj_length_sync（水位快路径直读 / 命中降级）
-        if now_ticks() < meta.next_expiry {
+        // 字段级 TTL 计数抵扣同 obj_length_sync（`<=` 水位快路径直读 / 越过降级）
+        if now_ticks() <= meta.next_expiry {
           return Ok(ObjLoad::Present(meta.size as usize));
         }
         return Ok(ObjLoad::Degrade);

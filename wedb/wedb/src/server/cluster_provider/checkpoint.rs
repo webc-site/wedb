@@ -3,23 +3,20 @@
 //! （epoch 属副本读写一致性栅栏，与检查点/置换同生命周期，故并件）
 
 use std::{
-  fs::{create_dir_all, read},
+  fs::create_dir_all,
   ops::ControlFlow,
   sync::{Arc, atomic::Ordering},
   thread,
 };
 
 use coarsetime::Instant;
-use waof::AofAddress;
 use wbase::future::yield_now;
-use wcpr::CheckpointMeta;
 use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::cluster_session::ClusterSessionFace;
 
 use crate::server::{
-  cluster::CheckpointCallbackFace, cluster_provider::ClusterProvider,
-  cluster_session::ERR_CLUSTER_NOT_INITIALIZED,
+  cluster_provider::ClusterProvider, cluster_session::ERR_CLUSTER_NOT_INITIALIZED,
   replication::receive_checkpoint_handler::CheckpointImportCtx,
 };
 
@@ -105,7 +102,12 @@ impl ClusterProvider {
       .is_continue()
   }
 
-  /// 按需拍摄快照并注册检查点条目（对标 C# StoreWrapper.TakeOnDemandCheckpointAsync）
+  /// 按需拍摄快照（对标 C# StoreWrapper.TakeOnDemandCheckpointAsync）
+  ///
+  /// 检查点条目登记与截断唯一点在检查点内核
+  /// （`wnode::database::DatabaseManagerBase::take_database_checkpoint_async`
+  /// 的集群分支，对标 C# AddNewCheckpointEntry 仅在 InitiateCheckpointAsync
+  /// 内调用一处），本入口不重复登记
   pub async fn take_on_demand_checkpoint(&self) -> Result<bool, String> {
     let Some(dm) = self.try_database_manager() else {
       return Ok(false);
@@ -114,25 +116,7 @@ impl ClusterProvider {
       .take_checkpoint(false)
       .await
       .map_err(|e| format!("On-demand checkpoint failed: {e}"))?;
-    if !taken {
-      return Ok(false);
-    }
-    if let Some(checkpoint_dir) = self.try_checkpoint_dir()
-      && let Ok(Some(token)) = wcpr::find_latest_checkpoint(&checkpoint_dir)
-      && let Ok(meta_bytes) = read(checkpoint_dir.join(wcpr::meta_filename(token)))
-      && let Ok(meta) = CheckpointMeta::decode(&meta_bytes)
-    {
-      let sublogs = self
-        .replication_manager()
-        .map(|rm| rm.sublog_count())
-        .unwrap_or(1);
-      let covered_u64 = meta.checkpoint_aof_address.unwrap_or(0);
-      let covered_addr = AofAddress::create(sublogs as i32, covered_u64 as i64);
-      self
-        .add_new_checkpoint_entry(true, covered_addr, token, token)
-        .await;
-    }
-    Ok(true)
+    Ok(taken)
   }
 
   /// 在线引擎置换（副本检查点导入闭环收口）：单次写本层引擎槽——宿主已采纳

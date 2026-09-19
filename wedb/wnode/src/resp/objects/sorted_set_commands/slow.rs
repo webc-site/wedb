@@ -586,7 +586,7 @@ pub(crate) async fn sorted_set(
       let card = if objs.is_empty() {
         0
       } else if objs.len() == 1 {
-        objs[0].count() as i64
+        objs[0].purge_expired_len() as i64
       } else if let Some((min_idx, min_obj)) = objs
         .iter()
         .enumerate()
@@ -769,10 +769,10 @@ async fn zset_pop_first_nonempty_cold(
     let Some(Some(mut obj)) = load_typed(storage, key, output).await? else {
       continue;
     };
-    if obj.count() == 0 {
+    if obj.purge_expired_len() == 0 {
       continue;
     }
-    let max_k = (pop_count.max(0) as usize).min(obj.count());
+    let max_k = (pop_count.max(0) as usize).min(obj.purge_expired_len());
     let mut popped = Vec::with_capacity(max_k);
     for _ in 0..max_k {
       if let Some(pair) = obj.pop_min_or_max(!low_scores_first) {

@@ -132,3 +132,119 @@ storage_session.rs:348/:354 的无 expected 前值取证，以及文首更正的
 
 ---
 主代理补录（windex 2pl 收口棒 bfbd1e0 落地后，15:20）：本票若引用 `HashIndex::acquire_keys_lock_exclusive` / `lock_key_exclusive`（含 1024 轮 spin_loop+LockTimeout 中间态）一律失效——该族已连根删除，唯一锁源现为 `HashIndex::try_lock_key_exclusive`（windex/src/table.rs:601，同一把桶闩、无自旋、无超时，KeyLatch 见 lib.rs:17）。在途代码勿再造第二入口；wkv/src/ttl.rs 两处已改持新口。
+
+---
+
+## 判词（三棒收口，分支 fix-rmw-atomic-window，基线 dev 0bcf574）
+
+### 一、棒次覆盖度
+
+一棒（未提交现场，由 d8b5c3d 保全）：定下收口形态——`RmwWindow` 承载本键桶闩的持有证明、
+会话锁器模式位 `SessionLocking`/`SessionLockingGuard`、慢路径起手。其价值在架构选型，
+未及门禁，未接完臂。
+
+二棒（9b199e2，9 files +514/−61；merge 8402d50/b2f873a）：wkv 侧收口完成——
+`wkv/src/session/rmw_window.rs` 窗口取闩/让闩/Drop 放闩三态定型；`session/mod.rs`、
+`wkv/src/lib.rs` 导出；**盲写公开口按修法三删除**（会话侧 `try_rmw_sync`/`upsert_rmw` 不再是
+`StoreSession`/`BatchStoreSession` 的方法）；写回内核迁到窗口上
+（`session/raw/write/rmw.rs:19 impl<'a,'k,D> RmwWindow<'a,'k,D>` → `:43 try_rmw_sync`、`:81 upsert_rmw`）；
+五处 String 臂与 HLL/事务过程视图/garnet_api 接线；`wnode/tests/rmw_key_concurrency.rs` 起四例 warm 用例。
+停在验收1 的冷路径用例与门禁前（150 回合上限）。
+
+三棒（2121497 +42/−18、968aab1 +475/−7；merge c95a82e/e522614/0b868f2 推基至 0bcf574）：
+慢路径六臂接窗（`wnode/src/resp/basic_commands/slow.rs:337/:379/:419/:454/:706/:856` 取窗，
+写回一律 `storage.rmw_string(&window, ..)` 于 `:364/:401/:443/:486/:732/:904`），
+BITFIELD 无窗即显式 `RESP_ERR_GENERIC` 不作无窗盲写；补八例冷化扇出与窗口层确定性用例；
+锁源注释随 `try_lock_key_exclusive` 单点订正（见第四节）；门禁全复跑。
+
+### 二、验收逐条判
+
+1. **满足**。`wedb/wnode/tests/rmw_key_concurrency.rs` 十二例：warm 四例
+   （`:124 concurrent_incr_loses_no_update`、`:155 concurrent_append_loses_no_segment`、
+   `:206 concurrent_hset_loses_no_field`、`:242 concurrent_pfadd_matches_serial_reference`）+
+   窗口层三例（`:369 same_key_window_is_exclusive_and_neighbour_key_unaffected`、
+   `:399 transactional_window_yields_latch_and_guard_restores`、
+   `:432 two_session_windows_never_cross_read_or_lose_update`，零容量通道握手定序）+
+   冷路径五例（`:498` SETRANGE、`:552` APPEND、`:604` SETBIT、`:652` BITFIELD、
+   `:700` INCR：断已回执自增值两两互异且终值 = 回执数）。
+   **「改动前必失败」以摘闩反证取证**：将 `rmw_window.rs:218` 的取闩分支强制为空手窗口后
+   `cargo nextest run -p wnode --test rmw_key_concurrency` → **12 run / 0 passed / 12 failed**，
+   断言原文含「同键并发 INCR 丢更新：终值 506 ≠ 已回执自增数 1000」「并发 HSET 同键不同字段被整值写回抹除：
+   HLEN 376 ≠ 已回执字段数 1000」「并发 PFADD 丢成员：1000 个已回执元素的基数 430 ≠ 串行参照 1009」
+   「已回执自增值出现重复（[1, 1, 1, 1]）：同键冷读改写窗口被串读」。反证补丁已回退，未入库。
+2. **满足（判据实质为「读不在锁内」，非字面 grep 两行相邻）**。命令层已无「无锁读 + 无窗写」两步形态：
+   `basic_commands/incr.rs:129` 取窗 → `:134 read_user_sync` → `:160 window.try_rmw_sync`；
+   `set.rs:228→:231→:240/:251`（SETRANGE）、`set.rs:581→:584→:591/:600`（APPEND）、
+   `bitmap_commands.rs:77→:80→:109`（SETBIT）、`:459→:465→:522`（BITFIELD 写臂）、
+   `hyper_log_log_commands.rs:379/:499` 取窗 → `:86/:220/:230/:346` 带窗写回、
+   信封域 `objects/rmw_helpers.rs:288`（异步）/`:600`（同步）持窗覆盖整值写回、
+   事务过程视图 `storage/session/txn_proc_view.rs:120→:121→:138`。
+   类型层已无第二条路：`try_rmw_sync`/`upsert_rmw` 只在 `impl RmwWindow` 上存在
+   （`wkv/src/session/raw/write/rmw.rs:43/:81`），会话侧同名盲写口 grep 零命中。
+   仍存 `read_user_sync` 的臂为只读命令（GET/BITCOUNT/GETBIT，`get.rs`、`bitmap_commands.rs:135/:177/:233/:325`）
+   与 SET 条件族盲写（`set.rs:511 network_set_conditional`），按修法四属纯写回族，不在本单射程。
+3. **满足**。单键 INCR 快路径新增开销 = 一次本键桶闩取放（`rmw_window.rs:216 try_rmw_window`：
+   `index.load_full()` + `bucket_index_for_key` + `HashBucket::try_lock_exclusive`，取不到即
+   `Ok(false)` 走既有降级通道转异步，绝不自旋等闩）；全仓载荷 grep `Mutex<|RwLock<|LazyLock|OnceLock|static 锁表|striped`
+   **零命中**，无新锁表、无跨线程全局锁、无条带折算；载荷新增原子量仅会话位
+   `SessionLockingState(AtomicBool)`（`rmw_window.rs:155`，对标 C# 编译期 api 视图选型，非跨线程锁）。
+4. **满足**。`cargo check --workspace --all-targets` exit 0、warning 计数 0；载荷四文件
+   `#![allow`/`#[allow` grep 零命中。
+
+### 三、修法四条对照与一处偏离（明记）
+
+- **修法一（字面 `rmw_user_key_atomic(user_key, updater)` 闭包入口）未采，取等价更强的类型强制**。
+  理由三条：①闭包入口要求 wkv 承接七族的 RESP 语义（not-integer/WRONGTYPE 文案、HLL sketch 合并、
+  BITFIELD 溢出规则），依赖方向倒置；②wedb 同键的字符串/TTL/信封记录各自成键成桶，
+  「锁内回溯读旧值」的 C# 单表前提在 rust 侧本就不成立，把读塞进 wkv 反而再造一套双域判定；
+  ③票根判据是「读写之间不得交错」+「不留盲写第二条路」——现形形态把二者都做成了**编译期**约束：
+  写回入口挂在窗口上，无窗即不可写；窗口即闩的持有证明（`held: Option<(Arc<HashIndex>, usize)>`，
+  `rmw_window.rs:101`，Drop 于 `:123` 放闩）。命令层仍只交「算好的绝对值」，这是本仓记录格式
+  （hlog 绝对值记录 + TTL 清退门）的既有形态，非本票缺陷面。
+- **修法二 已全接**：五处 String 臂 + 慢路径六臂 + 信封 `run_sync_rmw` 两臂（见第二节 1/2 位点）。
+- **修法三 已做**（盲写公开口删除，写回内核降级为 `impl RmwWindow` 内部面）。
+- **修法四 已守**：本键桶 ephemeral 独占闩、无条带分组；MSET 折叠与 prefix hoisting 批路径未改动
+  （载荷未触 `try_upsert_sync`/`upsert_string` 族，见第二节 2 末）。
+
+### 四、锁源单点核（主代理 15:20 补录必改项）
+
+旧族 `acquire_keys_lock_exclusive` / `lock_key_exclusive` 全仓 grep **零命中**（含注释）。
+唯一锁源 `HashIndex::try_lock_key_exclusive`（`windex/src/table.rs:601`，实现即
+`bucket_for_key(..).lock_exclusive_guard()`）+ `KeyLatch`（`windex/src/bucket.rs:568` = `BucketExclusiveGuard` 别名）。
+三棒前遗留两处**散文旧口引用**，已在 968aab1 订正：`wkv/src/session/rmw_window.rs:14-23`（模块头改列
+新口，并说明本窗口取闩即该入口的两步组合 `bucket_index_for_key` + `HashBucket::try_lock_exclusive`，
+因闩的持有证明须跨 `&self` 借用期交回命令层，故不自建守卫、不另立锁语义，形态与 `wtxn::TxnKeyEntries::acquire_plan` 同款）、
+`:55-60`（`RMW_LATCH_SPIN_ATTEMPTS` 注释改按「索引层一次尝试、无自旋、无超时，重试预算由调用方承接」口径）。
+新口现消费面：`wkv/src/ttl.rs`、`wtxn/src/txn_lock_table.rs`、本窗口、`windex` 自测——同址同闩，无第四把锁。
+
+### 五、门禁数字（树内私有 target `/tmp/ct-rmw3`，最终树 = 0b868f2）
+
+- `cargo check --workspace --all-targets`：exit 0，warning 0，error 0（曾带一枚 inherited
+  `wacl` 未用依赖 `arc-swap` manifest 告警，dev 已在他支清掉，本树复跑为零）。
+- `cargo nextest run -p wkv -p wnode --no-fail-fast`：**1332 run / 1332 passed（1 leaky）/ 1 skipped / 0 failed**，exit 0。
+- 本票用例单跑：12/12 passed；摘闩反证：12/12 failed。
+- `rustfmt --check`（`wedb/rustfmt.toml`，仅施本票 14 枚载荷文件）：全 OK，无待归整。
+- `bun js/check.js` 前后逐字节对跑（基线 = HEAD^2 = 0bcf574）：exit 0 双绿，各 4701 字节，
+  差异仅两枚**行号漂移**（`storage_session.rs:600→608 vector_registry_delete_hook`、
+  `garnet_api/mod.rs:564→577 StoreGarnetApi::store_snapshots`，因载荷在这两文件插行），
+  映射零新增、零丢失、零重复定义；`js/check/ignore/` 回写零（跑后 `git status --porcelain js/` 空）。
+- 未跑主仓 `./test.sh` / `./sh/clippy.sh`（按票面禁令）。
+
+### 六、红归属与移交登记
+
+- 本支曾在旧基带四红（`range_index_wrongtype_gate::ri_key_rename_not_wrongtyped`、
+  `resp_commandstats_session::commandstats_calls_failed_rejected_end_to_end`、
+  `resp_pubsub::pub_sub_mode_resp2_whitelist_commands`、
+  `tiered_field_ttl::tiered_hash_expire_sets_and_reads_back`）：checkout 当前 dev 复跑同四枚 **23/23 绿**，
+  归因为其时基线未含 `fix-obj-arg-reparse`（96cd9a2）收口，非本支载荷所致；
+  0b868f2 合入该收口（其票已归档 `task/done/r5-red-attribution-four-failures.md`）后清零。
+- 另两枚（`aof_stored_proc_replay::flush_db_entry_replays_targeted_database`、
+  `service::ttl_purge_single_deterministic_entry`）判红判在基 a4761f1，同样随推基消失。
+- **移交他票**：`user_key` 桶与记录（hlog 物理键）桶两基并存期，窗口持闩期内层 ephemeral 取闩必失败
+  并回 `RETRY_LATER` 的退避面（`rmw_window.rs:31-38` 已明记），与纯写回族（SET/DEL/MSET 折叠）
+  对本窗口的交错面另票承接；分层树内写臂仍归 `task/ing/tiered-write-arm-concurrency.md`。
+- 结论：**本票收口成立，验收四条全绿，判 done**。
+
+载荷与门禁 sha：d8b5c3d（一棒现场保全）、9b199e2（wkv 窗口收口）、8402d50/b2f873a（推基 a2231a5）、
+2121497（慢路径六臂接窗）、c95a82e（推基 a4761f1）、968aab1（十二例回归 + 锁源注释订正）、
+e522614/0b868f2（推基 c5e3f8f / 0bcf574）。

@@ -75,3 +75,22 @@ tree_put_batch 去锚改散文引用；SetObjectImpl.cs:Set 经查全仓仅 tree
 实现锚」，或去锚后在 js/check/ignore 配套 ignore 说明，作第八组。
 
 分拣并入（net 域锚点 6 组，源自 next/net-anchor-dup-collapse.md，2026-09-19）：GarnetClientSession 构造四挂、ConnectAsync 双挂、GarnetClient 构造双挂、NetworkIterativeSlotVerify 双挂、StartAsync 双挂、HandleNewConnection 双挂——去副保主只改注释；与 task/ing/net-checkjs-dup-anchor-trio.md 在途票同族，落地前先确认该票是否已收口，避免双改。
+
+落地补记（2026-09-19，fix-anchor-remount，合并 commit cdf426b，只改注释 7 文件 17+/13-）：
+组 1 已核销（net-checkjs-dup-anchor-trio 条二收口，tls/config.rs:93 单锚；出站面
+wconn/src/tls.rs GetSslClientAuthenticationOptions 未动）；组 2 delete_vector_set 主锚
+保留，network_del / vector_registry_delete_hook / with_vector_manager 三处去锚改散文；
+组 3 两处皆非构造，ensure_cleanup_tasks_started / with_vector_set_preview 去锚改散文；
+组 4 read_batch_with 主锚保留，prefetch_batch_probes 去锚改「协作段见 read_batch_with」；
+组 5 wmetric 两统计真实现保留，project_db_snapshot / project_aof_snapshot 去锚；
+组 6 wkv store_snapshot 保留，garnet_api 编排（:111）/转发（:563）两处去锚；
+组 7 总入口 process_command_from_scripting 保留，SET/GET 两快道去锚；
+组 8 已核销（tree_put_batch 现树为散文引用不匹配 CS_REF_REGEX，HashSet 真锚单挂
+wcol hash_object_impl.rs:247）。验证：worktree 同环境 check.js 前后 diff 28 行均为
+射程 6 组重复段删除、零新增（重复段不新增、缺失段不新增）；cargo check worktree 与
+主仓合并后均通过（worktree 首次 cold check 曾报 9 个 E0599，系 fork 首建与并发推进
+竞态假象，stash 基线与改动态复跑均通过，错误文件与本票 7 文件零交集）。
+余量：重复定义段尚存 7 组均非本票射程——net 域 4 组（GarnetClientSession 构造、
+ConnectAsync、GarnetClient 构造、NetworkIterativeSlotVerify，与已收口
+net-checkjs-dup-anchor-trio 同族，票尾分拣并入清单注明避免双改，跳过）及
+CopyFromImmutable / GetCollectionItemAsync / AcquireExclusiveForDelete 三组（他域，未动）。

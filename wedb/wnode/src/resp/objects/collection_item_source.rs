@@ -237,7 +237,7 @@ impl<D: Device> CollectionItemSource<D> {
       ObjLoad::Present(o) => o,
     };
 
-    let curr_count = obj.count();
+    let curr_count = obj.purge_expired_len();
     if curr_count == 0 {
       return TryGetOutcome::with_count(0);
     }

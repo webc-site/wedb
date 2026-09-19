@@ -796,7 +796,6 @@
     - libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs:
         - DisposeClientSession
         - NewSession
-        - ResetRevivificationStats
   理由: C# 活跃会话表（Dictionary<object,SessionInfo>）；rust 会话生命周期由 wkv session
     纪元参与者与宿主侧会话表承接，引擎内不设独立会话注册表
 - 文件:

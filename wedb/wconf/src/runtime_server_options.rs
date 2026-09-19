@@ -9,86 +9,86 @@ use crate::{log_compaction_type::LogCompactionType, node_options::DEFAULT_SLOW_L
 #[derive(Debug, Clone)]
 pub struct RuntimeServerOptions {
   // —— Init 播种字段 ——
-  /// GarnetServerOptions.cs:ClusterTimeout（默认 60，秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ClusterTimeout（默认 60，秒）。
   pub cluster_timeout: i32,
-  /// GarnetServerOptions.cs:ReplicaSyncDelayMs（默认 5，毫秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ReplicaSyncDelayMs（默认 5，毫秒）。
   pub replica_sync_delay_ms: i32,
-  /// GarnetServerOptions.cs:AofReplayMaxLagBytes（默认 -1）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofReplayMaxLagBytes（默认 -1）。
   pub aof_replay_max_lag_bytes: i32,
-  /// GarnetServerOptions.cs:AofTailWitnessFreqMs（默认 100，毫秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofTailWitnessFreqMs（默认 100，毫秒）。
   pub aof_tail_witness_freq_ms: i32,
-  /// GarnetServerOptions.cs:AofSyncMaxLagBytes（默认 -1）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofSyncMaxLagBytes（默认 -1）。
   pub aof_sync_max_lag_bytes: i64,
-  /// GarnetServerOptions.cs:ReplicaDisklessSyncDelay（默认 5，秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ReplicaDisklessSyncDelay（默认 5，秒）。
   pub replica_diskless_sync_delay: i32,
-  /// GarnetServerOptions.cs:ReplicaAttachTimeout（C# 为 TimeSpan，此处以秒表达；
+  /// libs/server/Servers/GarnetServerOptions.cs:ReplicaAttachTimeout（C# 为 TimeSpan，此处以秒表达；
   /// CLI/CONFIG 面的秒数语义：<= 0 视为无限超时）。
   pub replica_attach_timeout_secs: i64,
-  /// GarnetServerOptions.cs:ClusterReplicationReestablishmentTimeout（默认 0，秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ClusterReplicationReestablishmentTimeout（默认 0，秒）。
   pub cluster_replication_reestablishment_timeout: i32,
-  /// GarnetServerOptions.cs:CompactionMaxSegments（默认 32）。
+  /// libs/server/Servers/GarnetServerOptions.cs:CompactionMaxSegments（默认 32）。
   pub compaction_max_segments: i32,
-  /// GarnetServerOptions.cs:CompactionType（默认 None）。
+  /// libs/server/Servers/GarnetServerOptions.cs:CompactionType（默认 None）。
   /// C# 的 CompactionForceDelete 不移植：wedb 紧缩/移位经设备截断无条件物理
   /// 回收历史段，forceDelete 次序无对位需求（见 server_config_type 说明）。
   pub compaction_type: LogCompactionType,
-  /// GarnetServerOptions.cs:SlowLogThreshold（默认 0，微秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:SlowLogThreshold（默认 0，微秒）。
   pub slow_log_threshold: i32,
-  /// GarnetServerOptions.cs:SlowLogMaxEntries（默认 128；StoreWrapper.cs:243
+  /// libs/server/Servers/GarnetServerOptions.cs:SlowLogMaxEntries（默认 128；StoreWrapper.cs:243
   /// 慢日志容器构造容量）。
   pub slow_log_max_entries: i32,
-  /// GarnetServerOptions.cs:ObjectScanCountLimit（默认 1000）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ObjectScanCountLimit（默认 1000）。
   pub object_scan_count_limit: i32,
-  /// GarnetServerOptions.cs:EnableScatterGatherGet（默认 true）。
+  /// libs/server/Servers/GarnetServerOptions.cs:EnableScatterGatherGet（默认 true）。
   pub enable_scatter_gather_get: bool,
-  /// GarnetServerOptions.cs:AofSizeLimitEnforceFrequencySecs（默认 5，秒）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofSizeLimitEnforceFrequencySecs（默认 5，秒）。
   pub aof_size_limit_enforce_frequency_secs: i32,
-  /// GarnetServerOptions.cs:CommitFrequencyMs（默认 0：逐操作自动提交）。
+  /// libs/server/Servers/GarnetServerOptions.cs:CommitFrequencyMs（默认 0：逐操作自动提交）。
   pub commit_frequency_ms: i32,
-  /// GarnetServerOptions.cs:ExpiredObjectCollectionFrequencySecs（默认 0：禁用）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ExpiredObjectCollectionFrequencySecs（默认 0：禁用）。
   pub expired_object_collection_frequency_secs: i32,
-  /// GarnetServerOptions.cs:ExpiredKeyDeletionScanFrequencySecs（默认 -1：禁用）。
+  /// libs/server/Servers/GarnetServerOptions.cs:ExpiredKeyDeletionScanFrequencySecs（默认 -1：禁用）。
   pub expired_key_deletion_scan_frequency_secs: i32,
 
   // —— 只读回落格式化字段（CONFIG GET 经选项直读，无运行时槽位）——
-  /// GarnetServerOptions.cs:EnableAOF（默认 false）。
+  /// libs/server/Servers/GarnetServerOptions.cs:EnableAOF（默认 false）。
   pub enable_aof: bool,
-  /// GarnetServerOptions.cs:MaxDatabases（默认 16）。
+  /// libs/server/Servers/GarnetServerOptions.cs:MaxDatabases（默认 16）。
   pub max_databases: i32,
-  /// GarnetServerOptions.cs:CheckpointBaseDirectory（派生属性）。
+  /// libs/server/Servers/GarnetServerOptions.cs:CheckpointBaseDirectory（派生属性）。
   pub checkpoint_base_directory: String,
-  /// GarnetServerOptions.cs:LogDir（可空）。
+  /// libs/server/Servers/ServerOptions.cs:LogDir（可空）。
   pub log_dir: Option<String>,
-  /// GarnetServerOptions.cs:UnixSocketPath（可空）。
+  /// libs/server/Servers/GarnetServerOptions.cs:UnixSocketPath（可空）。
   pub unix_socket_path: Option<String>,
-  /// GarnetServerOptions.cs:EnableCluster（默认 false）。
+  /// libs/server/Servers/GarnetServerOptions.cs:EnableCluster（默认 false）。
   pub enable_cluster: bool,
-  /// GarnetServerOptions.cs:AofMemorySize（默认 "128m"）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofMemorySize（默认 "128m"）。
   pub aof_memory_size: Option<String>,
-  /// GarnetServerOptions.cs:AofPageSize（默认 "32m"）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofPageSize（默认 "32m"）。
   pub aof_page_size: Option<String>,
-  /// GarnetServerOptions.cs:AofSegmentSize（默认 "1g"）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofSegmentSize（默认 "1g"）。
   pub aof_segment_size: Option<String>,
-  /// GarnetServerOptions.cs:AofPhysicalSublogCount（默认 1）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofPhysicalSublogCount（默认 1）。
   pub aof_physical_sublog_count: i32,
-  /// GarnetServerOptions.cs:AofReplayTaskCount（默认 1）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofReplayTaskCount（默认 1）。
   pub aof_replay_task_count: i32,
-  /// GarnetServerOptions.cs:WaitForCommit（默认 false；参数源
+  /// libs/server/Servers/GarnetServerOptions.cs:WaitForCommit（默认 false；参数源
   /// `--aof-commit-wait`，NodeArgs::aof_commit_wait 投影）。
   pub wait_for_commit: bool,
-  /// GarnetServerOptions.cs:AofSizeLimit（默认 ""）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofSizeLimit（默认 ""）。
   pub aof_size_limit: Option<String>,
-  /// GarnetServerOptions.cs:AofReplayDriftThreshold（默认 -1）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofReplayDriftThreshold（默认 -1）。
   pub replay_drift_threshold: i64,
-  /// GarnetServerOptions.cs:AofReplayDriftCheckFreq（默认 0）。
+  /// libs/server/Servers/GarnetServerOptions.cs:AofReplayDriftCheckFreq（默认 0）。
   pub replay_drift_check_freq: i64,
-  /// GarnetServerOptions.cs:ReplicaSyncTimeout（默认 5s）：副本一致读等待
+  /// libs/server/Servers/GarnetServerOptions.cs:ReplicaSyncTimeout（默认 5s）：副本一致读等待
   /// 回放推进与回放对齐栅栏的阻塞上界，超时上抛中止（ReadSessionState 读
   /// 超时来源；纯启动选项，C# RuntimeServerConfig 亦不暴露 CONFIG 面）
   pub replica_sync_timeout_secs: u64,
-  /// GarnetServerOptions.cs:FastAofTruncate（默认 false）。
+  /// libs/server/Servers/GarnetServerOptions.cs:FastAofTruncate（默认 false）。
   pub fast_aof_truncate: bool,
-  /// GarnetServerOptions.cs:405 OnDemandCheckpoint（默认 true）。按需检查点开关，
+  /// libs/server/Servers/GarnetServerOptions.cs:OnDemandCheckpoint（默认 true）。按需检查点开关，
   /// 装配期注进 ClusterProvider 后由其唯一消费面读取（C# 同为
   /// serverOptions.OnDemandCheckpoint 直读：
   /// ReplicaSyncSession.cs:190、:280），C# RuntimeServerConfig 未设该 CONFIG 名额，

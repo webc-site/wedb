@@ -68,11 +68,11 @@ fn zset_pop_first_nonempty(
       ZsetLoad::Missing => continue,
       ZsetLoad::Present(o) => o,
     };
-    if obj.count() == 0 {
+    if obj.purge_expired_len() == 0 {
       continue;
     }
 
-    let max_k = (pop_count.max(0) as usize).min(obj.count());
+    let max_k = (pop_count.max(0) as usize).min(obj.purge_expired_len());
     let mut popped = Vec::with_capacity(max_k);
     for _ in 0..max_k {
       if let Some(pair) = obj.pop_min_or_max(!low_scores_first) {

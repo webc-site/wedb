@@ -9,7 +9,7 @@ use std::{
   future::ready,
   sync::{
     Arc,
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicU32, AtomicUsize, Ordering},
   },
 };
 
@@ -50,7 +50,41 @@ async fn run_iterations(
       move || done_cancel.load(Ordering::Relaxed) >= rounds,
       || {
         done.fetch_add(1, Ordering::Relaxed);
-        registry.monitor_iteration_inputs()
+        // gossip 与复活化两臂的独立观测见
+        // `run_iterations_with_arm_counters`（复位语义用例）
+        registry.monitor_iteration_inputs(|| {}, || {})
+      },
+    )
+    .await;
+}
+
+/// 驱动 N 轮采样并按宿主形态注入 gossip / 复活化两臂计数闭包
+///（宿主 `start_server_monitor` 每轮重建两臂闭包、各持一份句柄克隆的同构承接）
+async fn run_iterations_with_arm_counters(
+  monitor: &GarnetServerMonitor,
+  registry: &Arc<ConsumerRegistry>,
+  rounds: u32,
+  gossip_resets: &Arc<AtomicUsize>,
+  reviv_resets: &Arc<AtomicUsize>,
+) {
+  let done = Arc::new(AtomicU32::new(0));
+  let done_cancel = Arc::clone(&done);
+  monitor
+    .main_monitor_task_async(
+      |_duration| ready(()),
+      move || done_cancel.load(Ordering::Relaxed) >= rounds,
+      || {
+        done.fetch_add(1, Ordering::Relaxed);
+        let gossip = Arc::clone(gossip_resets);
+        let reviv = Arc::clone(reviv_resets);
+        registry.monitor_iteration_inputs(
+          move || {
+            gossip.fetch_add(1, Ordering::Relaxed);
+          },
+          move || {
+            reviv.fetch_add(1, Ordering::Relaxed);
+          },
+        )
       },
     )
     .await;
@@ -255,6 +289,62 @@ fn session_latency_metrics_aggregation_and_resp_commands() -> aok::Result<()> {
     assert!(feed(&mut session, b"*2\r\n$7\r\nLATENCY\r\n$4\r\nHELP\r\n").is_some());
     let out_help = drain_output(&mut session);
     assert!(out_help.starts_with(b"*9\r\n"));
+  });
+  Ok(())
+}
+
+/// INFO RESETSTAT 的 gossip 与复活化两臂接线判定：STATS 标志轮各下达一次，
+/// 未置标志的轮次与标志清位后的轮次均不受采样影响
+/// 对应 GarnetServerMonitor::cleanup_global_stats 的
+/// STATS 分支体内 `storeWrapper.clusterProvider?.ResetGossipStats()` 与
+/// `storeWrapper.ResetRevivificationStats()` 两条复位臂。本用例观测装配口
+///（[`ConsumerRegistry::monitor_iteration_inputs`]）注入的两臂回调触达次数与
+/// 触达时机；两臂的真实终点计数分别见 wedb/tests/gossip_manager.rs 的
+/// `test_resetstat_arms_zero_gossip_stats` 与 wnode/tests/database_manager.rs
+/// 的 `reset_revivification_stats_zeroes_pool_counters`
+#[test]
+fn resetstat_stats_branch_fires_gossip_and_reviv_arms() -> aok::Result<()> {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let monitor = Arc::new(GarnetServerMonitor::new(1, true, false, false));
+    let registry = Arc::new(ConsumerRegistry::new());
+    registry.register(1, "127.0.0.1:50000".into(), "127.0.0.1:6379".into());
+    let gossip_resets = Arc::new(AtomicUsize::new(0));
+    let reviv_resets = Arc::new(AtomicUsize::new(0));
+
+    // 无复位标志的常规采样轮：两臂静默（C# 两臂同处 STATS 门内）
+    run_iterations_with_arm_counters(&monitor, &registry, 2, &gossip_resets, &reviv_resets).await;
+    assert_eq!(
+      (
+        gossip_resets.load(Ordering::Relaxed),
+        reviv_resets.load(Ordering::Relaxed)
+      ),
+      (0, 0),
+      "未 RESETSTAT 时两臂不得随采样轮下发"
+    );
+
+    // INFO RESETSTAT：置 STATS 标志的一轮同时触达两臂（各一次）
+    monitor.set_info_reset_flag(InfoMetricsType::Stats);
+    run_iterations_with_arm_counters(&monitor, &registry, 1, &gossip_resets, &reviv_resets).await;
+    assert_eq!(
+      (
+        gossip_resets.load(Ordering::Relaxed),
+        reviv_resets.load(Ordering::Relaxed)
+      ),
+      (1, 1),
+      "RESETSTAT 轮应各下达一次两臂复位"
+    );
+
+    // 标志清位后的下一轮：一次性消费，不重复下发
+    run_iterations_with_arm_counters(&monitor, &registry, 2, &gossip_resets, &reviv_resets).await;
+    assert_eq!(
+      (
+        gossip_resets.load(Ordering::Relaxed),
+        reviv_resets.load(Ordering::Relaxed)
+      ),
+      (1, 1),
+      "复位标志清位后两臂不应再被触达"
+    );
   });
   Ok(())
 }

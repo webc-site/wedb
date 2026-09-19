@@ -204,35 +204,29 @@ impl<D: Device> StoreGarnetApi<D> {
       C::Msetnx => {
         // 尾参为快路径续跑模式标记（exec 降级快照追加）：b"1" = NX 判定
         // 已整体通过、前缀键已持久写入，直接续写回 :1；b"0" = 判定段降级，
-        // 先双域异步裁决存活——任一存活整体不写回 :0（C# EXISTS 非
+        // 先三域异步裁决存活——任一存活整体不写回 :0（C# EXISTS 非
         // NOTFOUND 即存在），全不存活才写入
         let resume = matches!(args.last().map(Vec::as_slice), Some(b"1"));
         // 剥离尾参后的键值对序列（快路径已校验 arity 非空且偶数）
         let pairs = &refs[..refs.len() - 1];
         if !resume {
           for key in pairs.iter().step_by(2) {
-            // String 域优先、未命中探对象信封域（对标 C# unified 域
-            // EXISTS）；TTL 过期键经异步读惰性清除后视同缺失。逐键 await
-            // 窗口内的并发写入与 C# 锁序差异属顺序未定义，非语义破坏
-            let alive = match storage.read_tag_with(key, KeyTag::String, |_| ()).await {
-              Ok(hit) => hit.is_some(),
+            // 存活判定转调 StorageSession::exists 三域单点（String /
+            // ObjectEnvelope / Meta）：升阶键只余 Meta 元记录一个身份，漏探
+            // 会误判不存在后写出双域键（对标 C# unified 域 EXISTS）；TTL
+            // 过期键经异步读惰性清除后视同缺失。逐键 await 窗口内的并发
+            // 写入与 C# 锁序差异属顺序未定义，非语义破坏
+            match storage.exists(key).await {
+              // 任一键存活：整体零写入回 :0（C# MSET_Conditional error 短路）
+              Ok(GarnetStatus::Ok) => {
+                output.write_resp_int(0);
+                return output;
+              }
+              Ok(_) => {}
               Err(_) => {
                 write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
                 return output;
               }
-            } || match storage
-              .read_tag_with(key, KeyTag::ObjectEnvelope, |_| ())
-              .await
-            {
-              Ok(hit) => hit.is_some(),
-              Err(_) => {
-                write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
-                return output;
-              }
-            };
-            if alive {
-              output.write_resp_int(0);
-              return output;
             }
           }
         }

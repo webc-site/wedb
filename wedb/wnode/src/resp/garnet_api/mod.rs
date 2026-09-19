@@ -11,6 +11,8 @@
 //! [`RespServerSession::set_garnet_api`] 注入，会话主循环在槽位门放行后
 //! 经 [`GarnetApiFace::exec`] 进入存储执行域。
 
+use wtxn::TxnState;
+
 use crate::{aof::GarnetAppendOnlyFile, database::GarnetDatabase, resp::acl_store::AclStore};
 mod objects;
 mod raw;
@@ -26,7 +28,7 @@ use parking_lot::Mutex;
 use wbase::hash_slot::slot_of;
 use wconf::ServerConfigType;
 use wdev::Device;
-use wkv::StoreSession;
+use wkv::{SessionLocking, StoreSession};
 use wmetric::{DbSnapshot, GarnetLatencyMetricsSession, SessionMetricsHandle};
 use wresp::{
   cmd_strings::{RESP_ERR_ASYNC_REQUIRED, write_error_raw},
@@ -105,10 +107,31 @@ pub trait GarnetApiFace: Send + Sync {
     true
   }
 
+  /// 引擎级 ACL 变更代数（跨连接改权收敛的唯一判据源，推进口见
+  /// [`crate::resp::acl_store::AclStore::write`]）
+  ///
+  /// 默认 None = 嵌入式 / 测试桩形态无存储执行域，无 ACL 真源可收敛：
+  /// 会话侧据此不登记挂载态，鉴权预门零成本旁路
+  fn acl_generation(&self) -> Option<u64> {
+    None
+  }
+
+  /// 按 `(ns, 用户名)` 点查 ACL 用户规则字节（挂载代数陈旧时的句柄重建口）
+  ///
+  /// 调用约束同 [`crate::resp::acl_store::AclStore::read`]：须在批处理纪元
+  /// 保护区外（冷记录降级阻塞回读，持守卫等待驱逐会自锁）。外层 None = 本
+  /// 执行域无 ACL 存储真源面，与 [`Self::acl_generation`] 成对，非存储形态
+  /// 下会话不登记挂载态故不可达
+  fn acl_user_record(&self, ns: u64, username: &[u8]) -> Option<wkv::Result<Option<Vec<u8>>>> {
+    let _ = (ns, username);
+    None
+  }
+
   /// 全部库的存储域快照（STORE / PERSISTENCE 段与 MEMORY store_* 项的
   /// 数据面）
   ///
-  /// 在 garnet 中的相对路径:libs/server/StoreWrapper.cs:GetDatabasesSnapshot
+  ///（C# 对位 StoreWrapper.GetDatabasesSnapshot 的编排面，引擎真实现锚在
+  /// wkv `WedbStore::store_snapshot`）
   ///
   /// 默认空集：嵌入式 / 测试桩形态无存储执行域注入，与 C#
   /// GetDatabasesSnapshot 无库时返回空数组同构（wmetric 段填充器对空
@@ -178,7 +201,8 @@ fn aof_sum(addr: &waof::AofAddress) -> i64 {
 
 /// AOF 持久化快照投影（waof 六地址真源直读）
 ///
-/// 在 garnet 中的相对路径:libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetDatabasePersistenceStats
+///（C# 对位 GarnetInfoMetrics.GetDatabasePersistenceStats 的地址字段装配段，
+/// 统计真实现锚在 wmetric get_database_persistence_stats）
 fn project_aof_snapshot(aof: &GarnetAppendOnlyFile) -> wmetric::AofSnapshot {
   let log = aof.log();
   wmetric::AofSnapshot {
@@ -192,7 +216,8 @@ fn project_aof_snapshot(aof: &GarnetAppendOnlyFile) -> wmetric::AofSnapshot {
 
 /// 单库存储域快照投影（wmetric [`DbSnapshot`] 的全仓唯一组装点）
 ///
-/// 在 garnet 中的相对路径:libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetDatabaseStoreStats
+///（C# 对位 GarnetInfoMetrics.GetDatabaseStoreStats 的单库字段装配段，
+/// 统计真实现锚在 wmetric get_database_store_stats）
 ///
 /// wkv 单物理存储（单 WedbStore 多库前缀隔离），存储域统计按 db 0 形态
 /// 呈现（与 HLOGSCAN 段同口径）；whlog 常驻整页分配模型下已分配页 ==
@@ -328,7 +353,7 @@ impl<D: Device> StoreGarnetApi<D> {
   /// 关联向量集合管理器（构造期包装为命令处理层，单次 Arc 持有）
   ///
   /// 同处装配删除缺席收口钩子（对标 C# MainStore RemoveKey →
-  /// VectorManager.RequestDeletion，GarnetRecordTriggers.cs:OnDispose Deleted 臂）：
+  /// VectorManager.RequestDeletion，GarnetRecordTriggers.OnDispose 的 Deleted 臂）：
   /// wkv 用户键双域删除判未命中后经本钩子摘除登记项，DEL/UNLINK 快慢两臂
   /// 与 GETDEL/重放等一切删除口共用同一存储删除单点，计数与登记清退不再
   /// 口径分裂；OnceLock 保首，同引擎重复注入幂等忽略
@@ -398,6 +423,18 @@ fn is_acl_command(cmd: RespCommand) -> bool {
 
 impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, args: &[&[u8]]) {
+    // 会话锁器模式选型点（对标 C# RespServerSession.ProcessMessages 依
+    // `txnManager.state == TxnState.Running` 在 basicApi 与 transactionalApi 间
+    // 派发）：EXEC 重放遍的本键桶排他闩已由本会话事务在 windex 同一份锁内存上
+    // 持有，读改写窗口让闩；非事务遍窗口自取闩。RAII 守卫在本分派段退出即还原
+    //（降级慢路径在段外以 Basic 重取闩，与 C# 慢路径重投同址同判据）
+    let _locking = self
+      .session
+      .push_session_locking(if session.txn_state == TxnState::Running {
+        SessionLocking::Transactional
+      } else {
+        SessionLocking::Basic
+      });
     // AUTH / ACL 族：底层存储点查须在批处理纪元保护区外执行——冷记录落盘
     // 回读经阻塞驱动，持纪元守卫等待驱逐会自锁；且认证成功后须回写会话本地
     // 句柄/命名空间，仅本同步分派段可达（慢路径仅产出应答字节，无会话态
@@ -533,6 +570,17 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
     self.session.set_context(ns, db)
   }
 
+  /// 引擎级 ACL 变更代数（`Arc<WedbStore>` 单标量，同引擎各连接共视同一源）
+  #[inline]
+  fn acl_generation(&self) -> Option<u64> {
+    Some(self.session.store().acl_generation())
+  }
+
+  /// ACL 用户规则点查（与会话执行域同一存储会话，ACL 恒驻 db 0 故不经上下文）
+  fn acl_user_record(&self, ns: u64, username: &[u8]) -> Option<wkv::Result<Option<Vec<u8>>>> {
+    Some(AclStore::new(&self.session).read(ns, username))
+  }
+
   /// 装配期回挂会话延迟表（[`RespServerSession::set_garnet_api`] 挂入会话时
   /// 调用，执行域持有的永远与会话是同一对象）
   #[inline]
@@ -560,7 +608,8 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   /// 库快照逐库投影（经检查点通道的数据库管理面枚举；通道未注入的
   /// 嵌入式形态回空集）
   ///
-  /// 在 garnet 中的相对路径:libs/server/StoreWrapper.cs:GetDatabasesSnapshot
+  ///（C# 对位 StoreWrapper.GetDatabasesSnapshot 的转发面，引擎真实现锚在
+  /// wkv `WedbStore::store_snapshot`）
   fn store_snapshots(&self) -> Vec<DbSnapshot> {
     self.checkpoint.as_ref().map_or_else(Vec::new, |ctx| {
       ctx

@@ -97,3 +97,44 @@ UserHandle::new :630、apply_set_user :252-311、refresh_target :683-697 与现�
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
 
 盘点补记（qw13.invA acl-setuser-live-connection-propagation）：dev e75716e 复核原样：acl_commands.rs:303 apply_set_user 仍点查→复制改写→回写 AclStore，无会话通知面；:753 set_user_handle 仍无条件直挂；resp_server_session.rs acl_user_handle（:266/:923/:953）仍本地快照判定，无版本比较/存储回读。与 zero-consumer-surfaces-batch-two 的 try_set_user CAS 环仍同病灶，宜并一棒。
+
+落地判词（qw13 fixloop 二棒续棒 · 覆盖度 + 二棒改动 + 门禁）
+
+一棒覆盖度（通读脏区 10 文件，逐项对照票面判据）
+- 修法一 达成：wkv/src/store/mod.rs 引擎级单标量 acl_generation（Acquire 读、Release fetch_add、唯一 mutator
+  bump_acl_generation）；wnode/src/resp/acl_store.rs write 与确有删除的 delete 经私有 bump 转口。一棒更指出本票
+  「write/delete 为唯一出口」不完备——AOF 与复制回放的 KeyTag::Acl 条目臂绕过 AclStore 直写，故 aof/
+  aof_processor.rs 两臂亦 bump 同一标量，改权全出口一处收敛。
+- 修法二 达成：resp_server_session.rs AclMount{generation,from_store} 随 set_user_handle 快照挂载代数；鉴权预门
+  admin_commands.rs check_acl_permissions 每命令比较代数，相等走 acl_permits 位图快路径（零存储读、零新增堆
+  分配，代数相等即在 clone 之前早退），落后按 (ns, 用户名) 点查重建；记录删 / 不可解析按未认证撤销挂载
+  （会话句柄与认证器镜像同撤）并 log 留痕；存储读失败维持现挂载交下一命令重判；引导期 default
+  （from_store=false）点查无记录不误撤。位点自票面字面「acl_permits 入口」上移到其调用方预门——acl_permits
+  为 &self 且 Lua 窗内亦调，点查须批处理纪元外、下沉即自锁；二棒认可此为唯一判据的正确落点，脚本面经外层
+  命令预门刷新后的同一收敛句柄判定，无第二套。
+- 修法三 达成：自改臂保留，acl_commands.rs 重读记录后调 adopt_acl_user，与跨连接臂共用同一出口、同一判据，
+  注释改为同连接快路径捷径。
+- 修法四 未采用（按票）。
+
+二棒改动（方向以票面为准，尽量保全一棒劳动）
+- 合并前基线先行单跑暴露两处测试数据 bug（生产逻辑一棒全对）：acl_tests.rs 重认证 newpw 帧长度 $6→$5
+  （一棒误抄管理连接的 >newpw 六字节），错帧致 RESP 解析停摆、无应答（正是临终 DBG 所查的空输出）；
+  lua_script_tests.rs redis.acl_check_cmd 断言 +N/+Y 改 $1 bulk 帧（Lua 串返回是 bulk，对齐同文件
+  test_eval_acl_check_cmd_arms 既有断言）。
+- 撞并发第二套判据：并入的 dev 已由 zero-consumer-surfaces-batch-two 删除 wacl UserHandle::try_set_user、句柄
+  改构造即定格的只读快照（换代即重读存储后整体替换 Arc<UserHandle>）。一棒 adopt_acl_user 依赖就地 CAS，
+  合并后编译即断。二棒按现 dev 语义重放：adopt_acl_user 改整体替换（会话句柄与认证器镜像同换新 Arc、
+  挂载代数对齐调用方点查前采值，杜绝缓存到更新代数而漏并发改权），不复活 CAS、无第二套；自改臂同步。
+- store/mod.rs 两处冲突按现 dev 语义重放：dbmeta_lock 保 dev 的 DbmetaLock 重构、本票 acl_generation 字段 /
+  读方法 / bump / init 追加，未造第二套代数。
+
+门禁（树内私有 CARGO_TARGET_DIR=/tmp/ct-acl2，未跑主仓 test.sh 与 sh/clippy.sh）
+- cargo check --workspace --all-targets：三次回合 dev 后各复跑，0 warning、0 error、无 allow。
+- cargo nextest run -p wacl -p wnode -p wkv --no-fail-fast：1358 passed / 1 skipped / 0 failed；本票 4 新例
+  先行单跑全绿。
+- bun js/check.js：exit 0；本票新例锚点归入既有 ACLCommands.cs:NetworkAclSetUser；唯一回写 storage.yml 的
+  ResetRevivificationStats 属他票，git checkout 还原，本票零 ignore 净改动。
+- rustfmt 仅施本票 5 个偏离文件（换行 / 参数折行，语义不动）。
+- 分支 vs 并入的 dev 18b0789 净差仅 10 文件、539 增 / 44 删。
+
+落地：代码加三度 dev 重放加 fmt 尖 dfc81be；归档票 commit 见分支 git log。

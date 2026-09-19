@@ -21,6 +21,7 @@ use itoa::Buffer;
 use wbase::{future::blocking_wait, num::strict_i64};
 use wcol::zset::sorted_set_object::SortedSetOperation;
 use wdev::Device;
+use wkv::SessionLocking;
 use wresp::resp_memory_writer::format_double;
 use wtxn::TxnProcApi;
 use zmij::Buffer as FloatBuf;
@@ -37,12 +38,23 @@ use crate::{
 pub struct TxnProcView<'s, 'a, D: Device> {
   /// 底层存储会话
   storage: &'s StorageSession<'a, D>,
+  /// 事务锁器模式段（离开视图即还原）：对标 C# 事务过程一律经事务 api 视图 →
+  /// `TransactionalSessionLocker`（锚点单点登记在
+  /// `wkv/src/session/rmw_window.rs` 模块头，此处不复挂），本键桶排他闩已由
+  /// 本笔事务在 windex 同一份锁内存上持有，读改写窗口让闩不自旋等自己
+  _locking: wkv::SessionLockingGuard<'s, D>,
 }
 
 impl<'s, 'a, D: Device> TxnProcView<'s, 'a, D> {
-  /// 包裹存储会话（在线宿主与 AOF 回放宿主共用本类型）
+  /// 包裹存储会话（在线宿主与 AOF 回放宿主共用本类型；两宿主的过程体都在
+  /// `TransactionManager` 真实桶闩内跑，故构造点即事务锁器选型点）
   pub fn new(storage: &'s StorageSession<'a, D>) -> Self {
-    Self { storage }
+    Self {
+      storage,
+      _locking: storage
+        .batch
+        .push_session_locking(SessionLocking::Transactional),
+    }
   }
 
   /// 有序集单成员操作内核（ZADD score member / ZREM member 单对形态，
@@ -103,6 +115,9 @@ impl<D: Device> TxnProcApi for TxnProcView<'_, '_, D> {
   /// 非整数旧值 / 溢出折叠为 None 不落写。本视图按同步域自读自写组臂，
   /// 主存 Increment 的落点锚点在 StorageSession 的 increment 原语上）
   fn increment(&mut self, key: &[u8], delta: i64) -> Option<i64> {
+    // 读改写原子窗口先于装载取（本视图恒处事务桶闩内 → 让闩形态，零取闩开销），
+    // 与 RESP 快路径同型：窗口覆盖读旧值—算新值—写回全程
+    let window = self.storage.batch.try_rmw_window(key)?;
     let next = match read_user_sync(&self.storage.batch, key, strict_i64) {
       Ok(UserRead::Hit(cur)) => cur?.checked_add(delta)?,
       Ok(UserRead::Missing) => delta,
@@ -117,7 +132,12 @@ impl<D: Device> TxnProcApi for TxnProcView<'_, '_, D> {
       Err(_) => return None,
     };
     let mut buf = Buffer::new();
-    blocking_wait(self.storage.rmw_string(key, buf.format(next).as_bytes())).ok()?;
+    blocking_wait(
+      self
+        .storage
+        .rmw_string(&window, buf.format(next).as_bytes()),
+    )
+    .ok()?;
     Some(next)
   }
 
