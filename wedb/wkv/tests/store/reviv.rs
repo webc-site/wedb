@@ -513,6 +513,12 @@ fn test_revivification_in_chain_dual_gate() -> Void {
       store.index.load().insert(&phys, tomb)?;
 
       store.reviv_pool.pause();
+      // 前置自查：墓碑必须已通过比例门（cur >= 下限），本次落回尾部才只可能由
+      // 暂停门产生，负断言不因另一道门同向挡路而变得空洞
+      assert!(
+        tomb >= store.min_revivifiable_address(),
+        "前置条件：墓碑须落在复活窗口内，令暂停臂成为唯一变量"
+      );
       let tail_before = store.hlog.tail_address();
       let after = session.upsert(k, v).await?;
       assert_ne!(
@@ -527,14 +533,22 @@ fn test_revivification_in_chain_dual_gate() -> Void {
 
       store.reviv_pool.resume();
       assert!(store.reviv_pool.is_enabled(), "resume 后启用谓词复原");
-      // 索引已随上一步推进，重新悬置一枚墓碑作为链首
-      let phys2 = session.session_string_key(k);
-      let tomb2 = session.append_record(&phys2, v, 0, true).await?;
-      store.index.load().insert(&phys2, tomb2)?;
+      // 正断言另起一键：键 k 的链首槽位已随暂停臂落回尾部改写为 Active 记录，
+      // 对 Active 头等长命中会先被「原位更新」臂服务（同样零 Tail 推进、同样地址
+      // 不变），根本走不到复活臂——沿用 k 断言会测出一个与复活门无关的假绿。
+      // 换用独立桶位的干净键，链首恒为墓碑，本步红/绿只可能来自复活双门
+      let kr = b"chain_resume_key";
+      let phys_r = session.session_string_key(kr);
+      let tomb_r = session.append_record(&phys_r, v, 0, true).await?;
+      store.index.load().insert(&phys_r, tomb_r)?;
+      assert!(
+        tomb_r >= store.min_revivifiable_address(),
+        "前置条件：恢复用墓碑须落在复活窗口内，令启用门成为唯一变量"
+      );
       let tail_before2 = store.hlog.tail_address();
-      let after2 = session.upsert(k, v).await?;
+      let after2 = session.upsert(kr, v).await?;
       assert_eq!(
-        after2, tomb2,
+        after2, tomb_r,
         "恢复后链内复活臂必须复用墓碑槽位，地址原地不变"
       );
       assert_eq!(
@@ -542,7 +556,7 @@ fn test_revivification_in_chain_dual_gate() -> Void {
         tail_before2,
         "链内原地复活不推进 TailAddress"
       );
-      assert_eq!(session.read(k).await?, Some(v.to_vec()));
+      assert_eq!(session.read(kr).await?, Some(v.to_vec()));
     }
 
     // 2. 比例臂：fraction 收窄落在复活窗口外的墓碑不得原地复活
