@@ -293,6 +293,7 @@ fn diskless_sync_anchor_prevents_double_apply() {
       Arc::clone(&aof),
       Arc::clone(&replica.store),
       None,
+      None,
     ))));
     provider_r.set_replica_replication_session(Some(Arc::new(ClusterReplicationSession::new(
       Arc::clone(&provider_r),

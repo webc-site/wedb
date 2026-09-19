@@ -17,6 +17,7 @@ use std::{
   },
 };
 
+use futures_util::future::LocalBoxFuture;
 use parking_lot::RwLock;
 use waof::{AofEntryType, AofHeader};
 use wbase::{convert::expire_at_milliseconds_to_ticks, hash_slot::slot_of};
@@ -106,6 +107,16 @@ impl<'a, 'b, D: Device> ReplayTarget<'a, 'b, D> {
   }
 }
 
+/// 副本本地检查点钩子：类型擦除的无参异步动作，产出 [`wkv::Result`]。
+///
+/// 对标 C# 检查点结束臂 `storeWrapper.TakeCheckpointAsync`（AofProcessor.cs:302-317）
+/// 下达面的 rust 注入形态。future 用 [`LocalBoxFuture`]（非 `Send`）：本仓 compio
+/// 运行时线程本地驱动，重放钩子仅由背景重放线程同线程 await，与复制装配只加
+/// `'static` 不加 `Send` 的既有约定同源；闭包对象只需 `Send + Sync`（宿主仅捕获
+/// `Arc` 句柄），方可存入跨线程移动的 [`AofProcessor`]。
+pub type ReplicaCheckpointHook =
+  dyn Fn() -> LocalBoxFuture<'static, wkv::Result<()>> + Send + Sync;
+
 /// libs/server/AOF/AofProcessor.cs:AofProcessor
 ///
 /// AOF 重放处理器。
@@ -122,6 +133,14 @@ pub struct AofProcessor {
   /// 存储过程重放执行面（C# 经 replayContext.respServerSession 承接；
   /// rust 回放驱动经注册面装配，未注入为 None）。
   stored_proc_replayer: RwLock<Option<Arc<StoredProcRegistryReplayer>>>,
+  /// 副本本地检查点钩子（C# 检查点结束臂 storeWrapper.TakeCheckpointAsync
+  /// 下达面；AofProcessor 不持库管理器句柄、且非 [`Device`] 泛型，故宿主
+  /// 装配期以类型擦除闭包注入。未注入为 None：恢复/单机重放臂据此维持
+  /// 无本地打点的原语义，仅副本稳态重放链注入）。
+  ///
+  /// libs/server/AOF/AofProcessor.cs:ProcessAofRecordInternal（case
+  /// CheckpointEndCommit 臂的 storeWrapper.TakeCheckpointAsync 触发）
+  checkpoint_hook: RwLock<Option<Arc<ReplicaCheckpointHook>>>,
 }
 
 impl AofProcessor {
@@ -144,6 +163,7 @@ impl AofProcessor {
       active_db_id: AtomicI64::new(0),
       range_index: None,
       stored_proc_replayer: RwLock::new(None),
+      checkpoint_hook: RwLock::new(None),
     }
   }
 
@@ -166,6 +186,18 @@ impl AofProcessor {
   /// 范围索引重放面句柄。
   pub fn range_index_manager(&self) -> Option<&Arc<RangeIndexManagerReplication>> {
     self.range_index.as_ref()
+  }
+
+  /// 注入副本本地检查点钩子（宿主装配期调用；C# 由 storeWrapper 反查
+  /// TakeCheckpointAsync 下达，rust 以类型擦除闭包承接）。仅副本稳态重放链
+  /// 注入，恢复/单机驱动面不注入 → 检查点结束臂以钩子在场为门维持原语义。
+  pub fn set_checkpoint_hook(&self, hook: Arc<ReplicaCheckpointHook>) {
+    *self.checkpoint_hook.write() = Some(hook);
+  }
+
+  /// 副本本地检查点钩子快照。
+  pub fn checkpoint_hook(&self) -> Option<Arc<ReplicaCheckpointHook>> {
+    self.checkpoint_hook.read().clone()
   }
 
   /// 回放协调器句柄。
@@ -335,24 +367,24 @@ impl AofProcessor {
     self.append_only_file.virtual_sublog_count() / self.append_only_file.log().size().max(1)
   }
 
-  /// FLUSH 族回放栅栏编排（C# ProcessAofRecordInternal 的 FlushAll / FlushDb
-  /// 两支 GetSynchronizedOperationParams + ProcessSynchronizedOperation 合流；
-  /// rust FlushNs 支共用）：按条目头取
-  /// (序列号, 参与者数) 交协调器异步栅栏入口，Leader 独占段内 await 清空动作，
-  /// 全员对齐 → 独占执行 → 清栏放行 → 虚拟子日志最大序列号推进一体化承接，
-  /// 非多回放形态由入口内部直执行 + 推进。
-  async fn flush_under_barrier<D, F, Fut, R>(
+  /// 同步操作回放栅栏编排（C# ProcessAofRecordInternal 各
+  /// GetSynchronizedOperationParams + ProcessSynchronizedOperation 支的合流入口：
+  /// FLUSH 族清空、副本检查点结束臂本地打点共用同一栅栏机制，不留第二套）：
+  /// 按条目头取 (序列号, 参与者数) 交协调器异步栅栏入口，Leader 独占段内 await
+  /// 传入动作，全员对齐 → 独占执行 → 清栏放行 → 虚拟子日志最大序列号推进一体化
+  /// 承接，非多回放形态由入口内部直执行 + 推进（对标 C# `!usingShardedLog`
+  /// 的 BlockingWait 直调）。动作闭包自带其上下文（FLUSH 闭包克隆 store、
+  /// 检查点闭包克隆钩子），本编排不持任何域句柄。
+  async fn synchronized_under_barrier<F, Fut, R>(
     &self,
     virtual_sublog_idx: usize,
     entry: &[u8],
     log_address_sequence_number: i64,
     barrier_type: LeaderBarrierType,
-    store: &Arc<WedbStore<D>>,
-    flush: F,
+    op: F,
   ) -> Result<(), AofReplayError>
   where
-    D: Device,
-    F: FnOnce(Arc<WedbStore<D>>) -> Fut,
+    F: FnOnce() -> Fut,
     Fut: Future<Output = wkv::Result<R>>,
   {
     let (sequence_number, participant_count) = record_gate::get_synchronized_operation_params(
@@ -360,8 +392,7 @@ impl AofProcessor {
       entry,
       log_address_sequence_number,
     )
-    .ok_or("FLUSH 条目缺少同步操作参数")?;
-    let store = Arc::clone(store);
+    .ok_or("同步操作条目缺少栅栏参数")?;
     self
       .coordinator
       .process_synchronized_operation_async(
@@ -369,7 +400,7 @@ impl AofProcessor {
         sequence_number,
         participant_count,
         barrier_type as i32,
-        Some(move || async move { flush(store).await.map_err(AofReplayError::Store) }),
+        Some(move || async move { op().await.map_err(AofReplayError::Store) }),
       )
       .await
       .map(|_| ())
@@ -532,6 +563,31 @@ impl AofProcessor {
               .coordinator
               .context(virtual_sublog_idx)
               .set_in_fuzzy_region(false);
+            // 副本遇主端更新版本检查点结束标记：拍本地一次检查点，序次在
+            // 重放模糊区缓冲条目之前（C# AofProcessor.cs:301-319 检查点在
+            // ProcessFuzzyRegionOperations 之前）——非多回放形态
+            // !usingShardedLog 直接 BlockingWait(TakeCheckpointAsync)，
+            // 多回放形态 ProcessSynchronizedOperation(CHECKPOINT) 让 Leader
+            // 独占拍；两形态由 synchronized_under_barrier 内 process_synchronized
+            // _operation_async 单一入口按 multi_log_enabled 分派。
+            // 判定复用 record_gate::is_new_version_record 单点（header.store_version
+            // > 当前版本，与 C# :302 逐字对齐；钩子未注入 = 恢复/单机重放臂，
+            // 维持原语义，不新增打点面），副本截断点由内核经
+            // on_checkpoint_initiated / add_new_checkpoint_entry 既有单机制承接
+            if as_replica
+              && record_gate::is_new_version_record(&header, target.store.current_version())
+              && let Some(hook) = self.checkpoint_hook()
+            {
+              self
+                .synchronized_under_barrier(
+                  virtual_sublog_idx,
+                  entry,
+                  log_address_sequence_number,
+                  LeaderBarrierType::Checkpoint,
+                  move || async move { hook().await },
+                )
+                .await?;
+            }
             // 模糊区结束后统一重放缓冲的 (v+1) 条目
             self
               .process_fuzzy_region_operations(virtual_sublog_idx, target)
@@ -558,14 +614,14 @@ impl AofProcessor {
         if let Some(vm) = self.append_only_file.vector_manager() {
           vm.reclaim_registry_domain(RegistryReclaim::All);
         }
+        let store = Arc::clone(&target.store);
         self
-          .flush_under_barrier(
+          .synchronized_under_barrier(
             virtual_sublog_idx,
             entry,
             log_address_sequence_number,
             LeaderBarrierType::FlushDbAll,
-            &target.store,
-            |store| async move { store.flush_all_databases().await },
+            move || async move { store.flush_all_databases().await },
           )
           .await?;
       }
@@ -584,14 +640,14 @@ impl AofProcessor {
         if let Some(vm) = self.append_only_file.vector_manager() {
           vm.reclaim_registry_domain(RegistryReclaim::Database { vns, vdb: old_vdb });
         }
+        let store = Arc::clone(&target.store);
         self
-          .flush_under_barrier(
+          .synchronized_under_barrier(
             virtual_sublog_idx,
             entry,
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
-            &target.store,
-            move |store| async move {
+            move || async move {
               store.retire_dead_domain(vns, old_vdb);
               Ok(())
             },
@@ -609,14 +665,14 @@ impl AofProcessor {
         if let Some(vm) = self.append_only_file.vector_manager() {
           vm.reclaim_registry_domain(RegistryReclaim::Namespace { vns: old_vns });
         }
+        let store = Arc::clone(&target.store);
         self
-          .flush_under_barrier(
+          .synchronized_under_barrier(
             virtual_sublog_idx,
             entry,
             log_address_sequence_number,
             LeaderBarrierType::FlushDb,
-            &target.store,
-            move |store| async move {
+            move || async move {
               store.retire_dead_namespace(old_vns);
               Ok(())
             },

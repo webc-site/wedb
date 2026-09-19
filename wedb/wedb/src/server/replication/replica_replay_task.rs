@@ -38,7 +38,10 @@ use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::{
   AofProcessor, AofReplayError,
-  aof::{aof_processor::ReplayTarget, garnet_append_only_file::GarnetAppendOnlyFile},
+  aof::{
+    aof_processor::{ReplayTarget, ReplicaCheckpointHook},
+    garnet_append_only_file::GarnetAppendOnlyFile,
+  },
   rangeindex::range_index_manager_replication::RangeIndexManagerReplication,
   storage::session::storage_session::StorageSession,
 };
@@ -93,17 +96,24 @@ impl fmt::Debug for ReplayAssets {
 }
 
 impl ReplayAssets {
-  /// 构建重放资产（AofProcessor 挂范围索引重放面，对标
-  /// replay_into_session 装配形态）
+  /// 构建重放资产（AofProcessor 挂范围索引重放面与副本本地检查点钩子，
+  /// 对标 replay_into_session 装配形态）。钩子 None = 无本地打点面的退化装配
+  /// （测试 / 无库管理器场景），检查点结束臂据此维持仅退出模糊区 + 重放缓冲
+  /// 条目的原语义；生产装配必注入（对标 C# AofProcessor.cs:302-319 触发
+  /// storeWrapper.TakeCheckpointAsync）。
   pub fn new(
     aof: Arc<GarnetAppendOnlyFile>,
     store: Arc<WedbStore<SegmentedDevice>>,
     runtime_config: Option<Arc<RuntimeServerConfig>>,
+    checkpoint_hook: Option<Arc<ReplicaCheckpointHook>>,
   ) -> Self {
     let mut processor = AofProcessor::new(Arc::clone(&aof));
     processor.set_range_index_manager(Arc::new(RangeIndexManagerReplication::new(Arc::clone(
       store.range_index(),
     ))));
+    if let Some(hook) = checkpoint_hook {
+      processor.set_checkpoint_hook(hook);
+    }
     Self {
       aof,
       store,
