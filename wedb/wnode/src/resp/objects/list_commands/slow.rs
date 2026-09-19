@@ -473,7 +473,6 @@ pub(crate) async fn list(
             // 回退挂载点改写错误帧（+OK 负载不得与错误帧拼帧）
             obj_out.reset();
             output.write_resp_error(cs::RESP_ERR_GENERIC);
-            return;
           }
           // +OK / 对象层错误负载均已直写会话输出尾段
         },

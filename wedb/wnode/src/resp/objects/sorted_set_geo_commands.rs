@@ -820,11 +820,10 @@ pub(crate) mod slow {
       // 写回失败回退挂载点再落错（慢路径统一应答前清场）
       if obj_out.payload_view().first() != Some(&b'-')
         && (existed || !obj.sorted_set_dict.is_empty())
+        && geo_save_back(storage, key, &obj, was_tiered).await.is_err()
       {
-        if geo_save_back(storage, key, &obj, was_tiered).await.is_err() {
-          obj_out.reset();
-          return Err(());
-        }
+        obj_out.reset();
+        return Err(());
       }
       return Ok(());
     }

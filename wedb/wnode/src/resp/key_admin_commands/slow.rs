@@ -5,10 +5,13 @@
 //! （wkv `expire_at` / `pttl_ms` / `expiretime_ms` / `persist` 与三域探针）
 //! 重放整条命令，应答与快路径逐字节一致；参数推导转调快侧同一纯函数。
 
+use itoa::Buffer;
+use wbase::{convert::expire_after_to_ticks, crc64::hash, time::now_ticks};
 use wresp::{
   cmd_strings::{self as cs, write_error_raw, write_raw},
   command::RespCommand,
   ext::RespVecExt,
+  length::try_write_length,
 };
 use wval::KeyTag;
 
@@ -452,22 +455,20 @@ pub(crate) async fn key_admin_slow(
         .read_user_async(key, |value| {
           let mut frame = Vec::with_capacity(value.len() + 16);
           let mut encoded_len = [0u8; 5];
-          let Some(bytes_written) =
-            wresp::length::try_write_length(value.len() as u32, &mut encoded_len)
-          else {
+          let Some(bytes_written) = try_write_length(value.len() as u32, &mut encoded_len) else {
             return Err(());
           };
           let encoded_len = &encoded_len[..bytes_written];
           let payload_len = 1 + encoded_len.len() + value.len() + 2 + 8;
           frame.push(b'$');
-          let mut buf = itoa::Buffer::new();
+          let mut buf = Buffer::new();
           frame.extend_from_slice(buf.format(payload_len).as_bytes());
           frame.extend_from_slice(b"\r\n");
           frame.push(0x00);
           frame.extend_from_slice(encoded_len);
           frame.extend_from_slice(value);
           frame.extend_from_slice(&RDB_VERSION.to_le_bytes());
-          let crc = wbase::crc64::hash(&frame[(frame.len() - (payload_len - 8))..]);
+          let crc = hash(&frame[(frame.len() - (payload_len - 8))..]);
           frame.extend_from_slice(&crc);
           frame.extend_from_slice(b"\r\n");
           Ok(frame)
@@ -512,8 +513,7 @@ pub(crate) async fn key_admin_slow(
       if expiry > 0 {
         // C#：UtcNow.Ticks + FromSeconds(expiry).Ticks；口径为秒（非 Redis
         // 的毫秒，见快路径头部差异说明）
-        let expire_at_ticks =
-          wbase::convert::expire_after_to_ticks(wbase::time::now_ticks(), expiry);
+        let expire_at_ticks = expire_after_to_ticks(now_ticks(), expiry);
         storage
           .batch
           .put_ttl(key, expire_at_ticks)

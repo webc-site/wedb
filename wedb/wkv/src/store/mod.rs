@@ -709,6 +709,7 @@ mod tests {
       atomic::{AtomicUsize, Ordering},
     },
     task::{Context, Poll, Wake, Waker},
+    time::Duration,
   };
 
   use compio::{
@@ -840,7 +841,7 @@ mod tests {
               overlap.fetch_add(1, Ordering::Relaxed);
             }
             // 临界区内跨 await：同步锁在此形态下会把整核 park 死
-            sleep(std::time::Duration::from_millis(1)).await;
+            sleep(Duration::from_millis(1)).await;
             yield_now().await;
             held.fetch_sub(1, Ordering::AcqRel);
             done.fetch_add(1, Ordering::Relaxed);

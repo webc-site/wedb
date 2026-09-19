@@ -72,7 +72,7 @@ impl HashObject {
   ) {
     let key = get_byte_span_from_input(args, 0);
     match self.try_get_value(key) {
-      Some(hash_value) => RespWriter::new_ref(&mut output.payload).write_bulk_string(hash_value),
+      Some(hash_value) => RespWriter::new_ref(output.payload).write_bulk_string(hash_value),
       None => write_null(output, resp_protocol_version),
     }
 
@@ -88,11 +88,11 @@ impl HashObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &key in args {
       match self.try_get_value(key) {
-        Some(hash_value) => RespWriter::new_ref(&mut output.payload).write_bulk_string(hash_value),
+        Some(hash_value) => RespWriter::new_ref(output.payload).write_bulk_string(hash_value),
         None => write_null(output, resp_protocol_version),
       }
     }
@@ -113,8 +113,8 @@ impl HashObject {
         continue;
       }
 
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(key);
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(value);
+      RespWriter::new_ref(output.payload).write_bulk_string(key);
+      RespWriter::new_ref(output.payload).write_bulk_string(value);
     }
   }
 
@@ -183,7 +183,7 @@ impl HashObject {
 
       if count == 0 {
         // This can happen because of expiration but RMW operation haven't applied yet
-        RespWriter::new_ref(&mut output.payload).write_empty_array();
+        RespWriter::new_ref(output.payload).write_empty_array();
         output.result1 = 0;
         return;
       }
@@ -197,7 +197,7 @@ impl HashObject {
       let indexes = pick_k_random_indexes(count, index_count, seed, count_parameter > 0);
 
       // Write the size of the array reply
-      RespWriter::new_ref(&mut output.payload).write_array_length(
+      RespWriter::new_ref(output.payload).write_array_length(
         if with_values && resp_protocol_version == 2 {
           index_count * 2
         } else {
@@ -211,13 +211,13 @@ impl HashObject {
         };
 
         if resp_protocol_version >= 3 && with_values {
-          RespWriter::new_ref(&mut output.payload).write_array_length(2);
+          RespWriter::new_ref(output.payload).write_array_length(2);
         }
 
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&key);
+        RespWriter::new_ref(output.payload).write_bulk_string(&key);
 
         if with_values {
-          RespWriter::new_ref(&mut output.payload).write_bulk_string(&value);
+          RespWriter::new_ref(output.payload).write_bulk_string(&value);
         }
 
         count_done += 1;
@@ -234,7 +234,7 @@ impl HashObject {
 
       let index = pick_random_index(count, seed);
       if let Some((key, _)) = self.element_at(index) {
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&key);
+        RespWriter::new_ref(output.payload).write_bulk_string(&key);
       }
       count_done = 1;
     }
@@ -317,7 +317,7 @@ impl HashObject {
       return;
     };
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(count);
+    RespWriter::new_ref(output.payload).write_array_length(count);
 
     let is_expirable = self.has_expirable_items();
 
@@ -329,9 +329,9 @@ impl HashObject {
       }
 
       if op == HashOperation::Hkeys {
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(key);
+        RespWriter::new_ref(output.payload).write_bulk_string(key);
       } else {
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(value);
+        RespWriter::new_ref(output.payload).write_bulk_string(value);
       }
 
       written += 1;
@@ -351,7 +351,7 @@ impl HashObject {
     let incr_slice = args[1];
 
     let Some(incr) = num_utils_try_parse_long(incr_slice) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     };
@@ -362,11 +362,11 @@ impl HashObject {
       // 新字段：直接存增量原文
       None => {
         self.add(key, incr_slice.to_vec());
-        RespWriter::new_ref(&mut output.payload).write_integer_from_bytes(incr_slice);
+        RespWriter::new_ref(output.payload).write_integer_from_bytes(incr_slice);
       }
       Some(hash_value) => {
         let Some(result) = num_utils_try_parse_long(&hash_value) else {
-          RespWriter::new_ref(&mut output.payload)
+          RespWriter::new_ref(output.payload)
             .write_error_bytes(RESP_ERR_HASH_VALUE_IS_NOT_INTEGER.as_bytes());
           return;
         };
@@ -375,7 +375,7 @@ impl HashObject {
         let formatted_value = format_i64(result);
         self.replace_value(key, &hash_value, &formatted_value);
 
-        RespWriter::new_ref(&mut output.payload).write_integer_from_bytes(&formatted_value);
+        RespWriter::new_ref(output.payload).write_integer_from_bytes(&formatted_value);
       }
     }
 
@@ -393,13 +393,12 @@ impl HashObject {
     let incr_slice = args[1];
 
     let Some(incr) = num_utils_try_parse_double(incr_slice) else {
-      RespWriter::new_ref(&mut output.payload)
-        .write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
+      RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
       return;
     };
 
     if incr.is_infinite() {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_NAN_INFINITY.as_bytes());
       return;
     }
@@ -410,17 +409,17 @@ impl HashObject {
       // 新字段：直接存增量原文
       None => {
         self.add(key, incr_slice.to_vec());
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(incr_slice);
+        RespWriter::new_ref(output.payload).write_bulk_string(incr_slice);
       }
       Some(hash_value) => {
         let Some(result) = try_parse_with_infinity(&hash_value) else {
-          RespWriter::new_ref(&mut output.payload)
+          RespWriter::new_ref(output.payload)
             .write_error_bytes(RESP_ERR_HASH_VALUE_IS_NOT_FLOAT.as_bytes());
           return;
         };
 
         if result.is_infinite() {
-          RespWriter::new_ref(&mut output.payload)
+          RespWriter::new_ref(output.payload)
             .write_error_bytes(RESP_ERR_GENERIC_NAN_INFINITY_INCR.as_bytes());
           return;
         }
@@ -429,7 +428,7 @@ impl HashObject {
         let formatted_value = format_double(result);
         self.replace_value(key, &hash_value, &formatted_value);
 
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&formatted_value);
+        RespWriter::new_ref(output.payload).write_bulk_string(&formatted_value);
       }
     }
 
@@ -450,7 +449,7 @@ impl HashObject {
 
     let expiration_with_option = ExpirationWithOption::from_word_head_tail(arg1, arg2);
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &field in args {
       let result = self.set_expiration(
@@ -458,7 +457,7 @@ impl HashObject {
         expiration_with_option.expiration_time_in_ticks(),
         expiration_with_option.expire_option(),
       );
-      RespWriter::new_ref(&mut output.payload).write_int64(i64::from(result as i32));
+      RespWriter::new_ref(output.payload).write_int64(i64::from(result as i32));
     }
 
     output.result1 = args.len() as i64;
@@ -480,7 +479,7 @@ impl HashObject {
     let is_timestamp = arg2 == 1;
     let num_fields = args.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(num_fields);
+    RespWriter::new_ref(output.payload).write_array_length(num_fields);
 
     for &field in args {
       let mut result = self.get_expiration(field);
@@ -497,7 +496,7 @@ impl HashObject {
         }
       }
 
-      RespWriter::new_ref(&mut output.payload).write_int64(result);
+      RespWriter::new_ref(output.payload).write_int64(result);
     }
 
     output.result1 = num_fields as i64;
@@ -511,11 +510,11 @@ impl HashObject {
 
     let num_fields = args.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(num_fields);
+    RespWriter::new_ref(output.payload).write_array_length(num_fields);
 
     for &field in args {
       let result = self.persist(field);
-      RespWriter::new_ref(&mut output.payload).write_int64(i64::from(result));
+      RespWriter::new_ref(output.payload).write_int64(i64::from(result));
     }
 
     output.result1 = num_fields as i64;

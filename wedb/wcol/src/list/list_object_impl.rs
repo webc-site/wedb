@@ -125,7 +125,7 @@ impl ListObject {
     };
 
     if let Some(item) = self.list.get(index as usize) {
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(item);
+      RespWriter::new_ref(output.payload).write_bulk_string(item);
       output.result1 = 1;
     }
     // C# ElementAtOrDefault 越界回 null 项（item == default），此处以无负载表达
@@ -146,7 +146,7 @@ impl ListObject {
 
     if self.list.is_empty() {
       // write empty list
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       return;
     }
 
@@ -165,15 +165,15 @@ impl ListObject {
     }
 
     if start > stop {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       return;
     }
 
     let count = (stop - start + 1) as usize;
-    RespWriter::new_ref(&mut output.payload).write_array_length(count);
+    RespWriter::new_ref(output.payload).write_array_length(count);
 
     for item in self.list.iter().skip(start as usize).take(count) {
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(item);
+      RespWriter::new_ref(output.payload).write_bulk_string(item);
     }
 
     output.result1 = count as i64;
@@ -285,9 +285,9 @@ impl ListObject {
       count = 0;
     } else if count <= 0 {
       // LPOP/RPOP with an explicit count of 0 replies with an empty array.
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
     } else if count > 1 {
-      RespWriter::new_ref(&mut output.payload).write_array_length(count as usize);
+      RespWriter::new_ref(output.payload).write_array_length(count as usize);
     }
 
     let mut removed = 0_i64;
@@ -301,7 +301,7 @@ impl ListObject {
 
       if let Some(value) = value {
         self.update_size(&value, false);
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(&value);
+        RespWriter::new_ref(output.payload).write_bulk_string(&value);
       }
 
       count -= 1;
@@ -317,14 +317,13 @@ impl ListObject {
   /// libs/server/Objects/List/ListObjectImpl.cs:ListSet
   pub(crate) fn list_set(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     if self.list.is_empty() {
-      RespWriter::new_ref(&mut output.payload)
-        .write_error_bytes(RESP_ERR_GENERIC_NOSUCHKEY.as_bytes());
+      RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_GENERIC_NOSUCHKEY.as_bytes());
       return;
     }
 
     // index
     let Some(index) = strict_i32(args[0]) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     };
@@ -337,7 +336,7 @@ impl ListObject {
     };
 
     if index > len - 1 || index < 0 {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_INDEX_OUT_RANGE.as_bytes());
       return;
     }
@@ -370,12 +369,12 @@ impl ListObject {
     let mut params = ListPositionParams::default();
 
     if let Err(error) = read_list_position_input(args, &mut params) {
-      RespWriter::new_ref(&mut output.payload).write_error_bytes(error);
+      RespWriter::new_ref(output.payload).write_error_bytes(error);
       return;
     }
 
     if params.count < 0 || params.maxlen < 0 || params.rank == 0 {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     }
@@ -442,14 +441,14 @@ impl ListObject {
         // C# RespMemoryWriter.WriteNull 按会话协商版本写 null
         write_null(output, resp_protocol_version);
       } else {
-        RespWriter::new_ref(&mut output.payload).write_int64(found[0]);
+        RespWriter::new_ref(output.payload).write_int64(found[0]);
       }
     } else if found.is_empty() {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
     } else {
-      RespWriter::new_ref(&mut output.payload).write_array_length(found_len);
+      RespWriter::new_ref(output.payload).write_array_length(found_len);
       for index in found {
-        RespWriter::new_ref(&mut output.payload).write_int64(index);
+        RespWriter::new_ref(output.payload).write_int64(index);
       }
     }
 
