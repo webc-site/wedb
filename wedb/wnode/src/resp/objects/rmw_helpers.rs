@@ -26,8 +26,8 @@ use wval::{GarnetObjectType, KeyTag};
 use super::{
   object_store_utils::{obj_load_typed_async, obj_load_typed_sync, obj_save_or_gc_raw},
   tiered_collection_ops::{
-    TieredCollectionArgs, TieredCtx, exec_tiered_hash, exec_tiered_list, exec_tiered_set,
-    exec_tiered_zset, tiered_materialize_blob,
+    TieredCollectionArgs, TieredCtx, earliest_expiry, exec_tiered_hash, exec_tiered_list,
+    exec_tiered_set, exec_tiered_zset, tiered_materialize_blob,
   },
 };
 use crate::storage::session::storage_session::StorageSession;
@@ -387,9 +387,12 @@ where
         .map_err(|_| ())?;
     }
     let entries = obj.export_entries();
+    // 水位随灌入批同帧落盘（export_entries 写时过滤已到期成员，剩余挂 TTL
+    // 刻度经 earliest_expiry 单点提取），杜绝重灌后假水位 MAX 骗过计数校正
+    let next_expiry = earliest_expiry(&entries);
     if let Err(e) = storage
       .batch
-      .promote_collection_to_bftree(key, tag, entries)
+      .promote_collection_to_bftree(key, tag, entries, next_expiry)
       .await
     {
       log::error!("apply_rmw_post_operate promote err: {e:?}");

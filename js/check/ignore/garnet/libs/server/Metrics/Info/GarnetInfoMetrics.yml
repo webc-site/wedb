@@ -1,0 +1,10 @@
+# C# GetInfoMetrics（yield return 批量段迭代器）的消费面是 server.Metrics
+# 程序化 API（C# 生产代码零调用，仅 Garnet.test 断言用）。rust 生产 INFO 走
+# get_resp_info 文本单轨（逐段 get_resp_info_single → populate + 拼 RESP），
+# 与 C# GetRespInfo 主轨同构；结构化单段出口 get_metric（对标 C# GetMetric，
+# 供测试断言）保留，批量段组合形态零消费已删。
+- 文件:
+    - libs/server/Metrics/Info/GarnetInfoMetrics.cs:
+        - GetInfoMetrics
+  理由: rust INFO 生产路径走 get_resp_info 文本单轨，结构化段出口单点收敛
+    在 get_metric（C# 同为测试消费面），批量段迭代器零生产消费，删除

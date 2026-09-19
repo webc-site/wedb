@@ -1274,7 +1274,20 @@ where
     ));
     let mgr = Arc::new(SingleDatabaseManager::new(checkpoint_dir.clone(), db));
     mgr.attach_vector_manager(Arc::clone(&vector_manager));
-    let replayed = mgr.recover_aof().await?;
+    // AOF 设备面恢复（C# RecoverAOFAsync → Log.RecoverAsync 磁盘段位点扫描）
+    aof.recover_async().await;
+    // 检查点覆盖位点对齐（C# ReplicationManager.cs:548 RecoverCheckpointAndAOFAsync
+    // 同位调用 InitializeIf）：恢复出的检查点对应不可用 AOF 地址（AOF 段过度
+    // 截断或丢失致尾位点落后于检查点覆盖地址）时，把 AOF 位点推至安全地址，
+    // 重放与复制位点基线保持一致；正常场景尾位点不落后即 no-op
+    if let Some((_, meta)) = wcpr::latest_checkpoint_meta(&checkpoint_dir)
+      && let Some(covered) = meta.checkpoint_aof_address
+    {
+      let safe = AofAddress::create(aof.log().size() as i32, covered as i64);
+      aof.log().initialize_if(&safe);
+    }
+    // 全量重放（版本基线过滤）
+    let replayed = mgr.replay_aof(u64::MAX).await?;
     log::info!("Recovered AOF: replayed {replayed} entries");
     // 重放后的 AOF 尾地址（对标 C# ReplayAOF 返回值 replayedUntil；宿主
     // 装配尾段据此回填 rm 复制位点——gossip 广播与 failover 判定基线）

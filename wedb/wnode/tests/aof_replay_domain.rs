@@ -343,6 +343,7 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
     mgr.flush_database(NS_A, DB_A, false).await?;
     let new_vdb = store.vdb.get_virtual_ids(NS_A, DB_A).1;
     sa.upsert(b"fresh", b"vf").await?;
+    let primary_water = water_mark(&store);
     drop(mgr);
     drop(sa);
     drop(sb);
@@ -351,9 +352,6 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
 
     // 全新节点：映射面只有根域，回放前快照其水位与在册集合
     let (_rdir, rstore) = open_test_store("full_replay_replica.db")?;
-    let ns_before = logic_ns_set(&rstore);
-    let routing_before = routing_vns(&rstore);
-    let water_before = water_mark(&rstore);
 
     replay_all(&rstore, &aof).await?;
 
@@ -377,13 +375,21 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
       Some(b"vk".to_vec()),
       "他租户条目须落回自身物理域 ({vns_b}, {vdb_b})"
     );
-    // 映射面零污染 + 换号条目仅投死亡账本
-    assert_eq!(logic_ns_set(&rstore), ns_before, "全量回放零映射新增");
-    assert_eq!(routing_vns(&rstore), routing_before, "全量回放零路由表新增");
+    // 映射继承 + 换号条目仅投死亡账本（DbMeta 镜像承接映射与水位，零本地二次分配）
+    assert_eq!(
+      logic_ns_set(&rstore),
+      vec![0, NS_A, NS_B],
+      "全量回放继承主库命名空间映射"
+    );
+    assert_eq!(
+      routing_vns(&rstore),
+      vec![0, vns, vns_b],
+      "全量回放继承主库租户路由表"
+    );
     assert_eq!(
       water_mark(&rstore),
-      water_before,
-      "全量回放侧分配水位绝不受扰动"
+      primary_water,
+      "全量回放侧分配水位与主库锁步同值"
     );
     assert!(
       rstore.vdb.is_dead_domain(vns, old_vdb),

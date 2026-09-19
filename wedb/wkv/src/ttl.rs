@@ -28,7 +28,7 @@
 //!
 //! C# 侧对象字段级过期另有后台周期收集（`libs/server/StoreWrapper.cs:ObjectCollectTaskAsync`
 //! 周期驱动 `storageSession.HashCollect` 等）；rust 的收集宿主在 wnode
-//! （`object_collect_all` / 分层收集执行体共用 `collect_expired_members` 唯一内核），
+//! （`object_collect_all` / 分层到期重灌执行体共用唯一内核），
 //! 调度面同样不在本引擎（wkv 只提供 Meta 元记录随帧回写通道）：信封域以上述第 2 套
 //! 载体承载（读路径惰性淘汰 + HCOLLECT/ZCOLLECT 闭环清理），分层态树记录由
 //! `wcol::types::member_ttl` 编码 8B 过期刻度，计数臂校正 / 显式与周期收集物理出账

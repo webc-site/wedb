@@ -1,5 +1,5 @@
 use std::{
-  fs::{read_dir, remove_dir_all, remove_file},
+  fs::{read, read_dir, remove_dir_all, remove_file},
   future::Future,
   path::Path,
   sync::{
@@ -432,6 +432,16 @@ pub fn list_checkpoints(checkpoint_dir: impl AsRef<Path>) -> Result<Vec<u128>> {
 pub fn find_latest_checkpoint(checkpoint_dir: impl AsRef<Path>) -> Result<Option<u128>> {
   let tokens = list_checkpoints(checkpoint_dir)?;
   Ok(tokens.last().copied())
+}
+
+/// 扫盘读最新有效快照元数据（C# CheckpointStore.cs:GetLatestCheckpointEntryFromDisk
+/// 的 wcpr 磁盘模型对位）；目录无快照或读取/解码失败返回 None
+pub fn latest_checkpoint_meta(checkpoint_dir: impl AsRef<Path>) -> Option<(u128, CheckpointMeta)> {
+  let dir = checkpoint_dir.as_ref();
+  let token = find_latest_checkpoint(dir).ok().flatten()?;
+  let bytes = read(dir.join(meta_filename(token))).ok()?;
+  let meta = CheckpointMeta::decode(&bytes).ok()?;
+  Some((token, meta))
 }
 
 /// 清理指定 Token 的快照物理文件（包含 meta 与 ckpt 文件及临时文件，彻底回收 token 子目录）
