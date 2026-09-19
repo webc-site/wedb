@@ -18,7 +18,8 @@ use wcol::itembroker::{
 use wdev::SegmentedDevice;
 use wkv::WedbStore;
 use wnode::resp::{
-  acl_store::AclStore, garnet_api::StoreGarnetApi,
+  acl_store::AclStore,
+  garnet_api::StoreGarnetApi,
   objects::collection_item_source::CollectionItemSource,
   resp_server_session::{RespServerSession, RespServerSessionOptions},
 };
@@ -692,7 +693,8 @@ fn eval_redis_call_cold_key_slow_path_handoff() {
     b"+OK\r\n"
   );
   // 刷并驱逐主日志：键转磁盘冷读，GET 快路径必降级挂起
-  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+  rt.block_on(store.flush_and_evict_all())
+    .expect("flush and evict");
 
   let out = rt.block_on(async {
     cmd(
@@ -708,7 +710,8 @@ fn eval_redis_call_cold_key_slow_path_handoff() {
 
   // 同脚本连发多条 redis.call：降级（冷键 GET）与非降级（SET/热键 GET）混合，
   // 逐条应答各自正确
-  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+  rt.block_on(store.flush_and_evict_all())
+    .expect("flush and evict");
   let out = rt.block_on(async {
     cmd(
       &mut s,
@@ -738,15 +741,12 @@ fn eval_pipelined_batch_reply_alignment() {
     ),
     b"+OK\r\n"
   );
-  rt.block_on(store.flush_and_evict_all()).expect("flush and evict");
+  rt.block_on(store.flush_and_evict_all())
+    .expect("flush and evict");
 
   let batch = batch_frames(&[
     vec![b"PING".to_vec()],
-    eval_parts(
-      "return redis.call('GET', KEYS[1])",
-      &[b"lua:ck"],
-      &[],
-    ),
+    eval_parts("return redis.call('GET', KEYS[1])", &[b"lua:ck"], &[]),
     vec![b"PING".to_vec()],
     vec![b"SET".to_vec(), b"lua:after".to_vec(), b"1".to_vec()],
   ]);
@@ -755,8 +755,7 @@ fn eval_pipelined_batch_reply_alignment() {
     drain_output(&mut s)
   });
   assert_eq!(
-    out,
-    b"+PONG\r\n$4\r\ncold\r\n+PONG\r\n+OK\r\n",
+    out, b"+PONG\r\n$4\r\ncold\r\n+PONG\r\n+OK\r\n",
     "同批评答须逐条对齐，EVAL 帧之后的命令不得丢失"
   );
   assert!(
