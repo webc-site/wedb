@@ -164,4 +164,106 @@ SessionParseState.cs:39）的「回写参数槽」在 rust 无等价物且将来
 
 ## 第三节 裸文件名锚点按 crate 分批
 
-（待补）
+### 3.1 现刻三形态读数（HEAD fbd2859，本单自算脚本口径 = CS_REF_REGEX + csPathNormalize）
+
+- 裸文件名锚点（归一后路径不含 "/"，形如 `TsavoriteLog.cs:TryEnqueueCommitRecord`）：全注释口径
+  465 处 = src 323 + tests 142；只算 doc 注释（`///`、`//!`，即前序 muse 棒原口径）= src 225 +
+  tests 123 = 348。移交基线「225 处 src / 347 含 tests」在本单 doc 口径下逐字复现（差 1 为后续
+  波次新增），故本批射程锁定 src doc 面 225 处。
+- 这一族的实际危害（muse.design:170-176 判例复述并核实）：`csPathNormalize`
+  （`js/check/rustScan.js:36`）只剥 `garnet/` 前缀、不做 basename 回查，语料侧 key 是 `libs/...`
+  全相对路径，故 `doc_file_fn_map` 里登记为空 → 映射不入册；`symbolCheck.js` 第 148 行
+  `if (!cs_path.includes("/")) { stat.bare_skip++; continue; }` 直接跳过不判 → 也不报失真。
+  叠加第一节末段的 doc_set 词元兜底，这类锚点既掩盖 miss 又不自报违规，是最静的一族。
+- 「路径.cs:行号」形态（CS_REF_REGEX 要求冒号后首字符为 `[A-Za-z_]`，数字开头即不匹配）：
+  src 667 处 + tests 170 处 = 837 处（按注释行内出现次数计）。注意其中多数是带行号的佐证性
+  叙述（如 `garnet/libs/server/AOF/AofProcessor.cs:451-482`），不属映射锚，不该机械改写。
+- 截断路径锚点（有 "/" 但 garnet 下无此文件）：src 95 + tests 11 = 106，其中 wvector 一个 crate
+  占 71，形态齐一为 `diskann-garnet/<X>.cs:<Sym>`（前缀缺 `libs/server/Resp/Vector/`），
+  是 `bun js/check/symbolCheck.js` 现报 B 层 129 处的主力；属一批可机械修的机制族，与本批同派。
+
+### 3.2 按 crate 统计（裸文件名 / 行号形态 / 截断，src 与 tests 分列）
+
+crate         裸src 裸test  行号src 行号test  截断src 截断test  涉文件
+wnode          104    93     221     98       2      5       141
+wkv             60    19      46     13       4      1        41
+wconf           47     0     135      4       0      0         8
+wedb            34    12     161     36      11      1        70
+waof            16    15       1      0       0      1        13
+whlog            2     1      19      3       2      2         9
+wresp           11     0      11      1       0      0         7
+wtxn             5     1      10      3       0      0         5
+wcol             6     0       8      4       0      0         7
+wcpr             3     0       9      4       3      1         7
+wbase            1     0      10      0       0      0         4
+wconn            4     0       5      0       0      0         6
+wbftree          6     0       1      0       0      0         5
+wcompact         0     0       7      1       0      0         5
+wcustom          2     0       5      0       1      0         3
+wval             2     0       3      0       0      0         2
+wreviv           2     1       2      0       0      0         3
+wext_roaring     4     0       1      0       0      0         1
+wlua             2     0       2      0       0      0         4
+wedb_standalone  1     0       3      0       0      0         1
+wdev             4     0       0      0       0      0         3
+wmetric          3     0       1      0       0      0         3
+windex           0     0       1      3       0      0         2
+whyperlog        0     0       2      0       0      0         2
+wpubsub          0     0       2      0       0      0         2
+wext_json        1     0       1      0       1      0         2
+wrecord          1     0       0      0       0      0         1
+wbitmap          1     0       0      0       0      0         1
+wvector          1     0       0      0      71      0         1
+其余（wacl/wepoch/wtxn_test/hash 等）0 处
+合计            323   142     667    170      95     11
+
+- 高度集中在文件域：src 侧裸锚 top 文件 = `wconf/src/runtime_server_options.rs` 35、
+  `wkv/src/session/raw/write/inplace.rs` 21、`wnode/tests` 之外的 `wnode/src/resp/garnet_api/slow.rs` 17、
+  `wnode/src/resp/objects/tiered_collection_ops.rs` 15、`wconf/src/node_options.rs` 9、
+  `wnode/src/resp/resp_server_session.rs` 5；行号形态 top = `wconf/src/node_options.rs` 123、
+  `wedb/src/server/…`（migration/cluster 域）约 60、`wnode/src/resp/…` 约 90。
+- 判据先于派单（防把 837 处行号引用机械改掉）：一处注释该不该改，看两条——
+  (1) 它是否位于某 rust 函数/结构的直接前导 doc（rustScan.js:68 rsDocExtract 收集面）；
+  (2) 该 rust 口是否已对位某 C# 函数而门禁册内无映射。两真才改锚；纯行号佐证、
+  块内引用、tests 里的叙述一律留。
+
+### 3.3 分批派单（每批 ≤40 处，同 crate 同文件域聚堆）
+
+批 1（wconf 裸锚域，35 处）: `wedb/wconf/src/runtime_server_options.rs` 一文件独占 35 枚 doc 裸锚，
+一棒可尽；`wconf/src/node_options.rs` 的 9 枚裸锚并入同批上界 44 → 建议拆为批 1a（35）+ 批 1b（9 + 行号酌改）。
+批 2（wkv 原始写域，21 处）: `wedb/wkv/src/session/raw/write/inplace.rs`；与第一节甲族无重叠，
+但 `wkv/src/session/raw/read.rs`（裸 4 / 行号 8）留批 3，防与在途票 `db-raw-read-variant-collapse` 撞面。
+批 3（wkv 读侧 + wcpr + wreviv + wbase 零头，约 24 处）。
+批 4（wnode resp/garnet_api 域，约 26 处）: slow.rs 17 + raw.rs 6 + mod.rs 零头。
+批 5（wnode resp/objects 与 rangeindex 域，约 25 处）: tiered_collection_ops.rs 15 +
+resp_server_session_range_index.rs（行号 10）+ objects 零头。
+批 6（wnode src 其余，≈40 处）: resp_server_session.rs 5+28、server.rs 1+28、service.rs 3+21 等，
+按「函数前导 doc」判据酌量取，预计实改约 30。
+批 7（wnode tests 域，约 38 处）: garnet_etag.rs 裸 17、resp_objects_dispatch.rs 9、
+resp_vector_set_wrong_type.rs 9、resp3_null_parity.rs 4 —— tests 面按判据多为「测试叙述」，
+建议本批只补映射缺失、不追覆盖率。
+批 8（wedb 与 wcustom 的 wvector 前缀族，71 处）: `diskann-garnet/` → `libs/server/Resp/Vector/`
+机械加前缀，一次成型；因超出 40 上界，按 service.rs / filter/runner.rs / filter/expression.rs 三档拆
+（约 30/25/16）。此批落地直接压低 symbolCheck B 层 129 读数，是本节收益最高的一批。
+批 9（waof 与 wconn/wcustom/wmetric/wdev/wcol/wtxn 长尾，约 36 处）。
+
+### 3.4 第三节立即派单建议 Top 3
+
+票 1 slug: anchor-bare-diskann-prefix
+射程文件: wedb/wvector/src/service.rs、wedb/wvector/src/filter/runner.rs、
+wedb/wvector/src/filter/expression.rs
+判据: 71 处同形态前缀缺段（`diskann-garnet/` 未剥、非 `libs/` 起）+ symbolCheck B 层 129 的主力；
+形态齐一、可机械补 `libs/server/Resp/Vector/` 前缀，且属 A 层硬断言族，改完即被门禁采信。
+工作量: 一次批量改注释 + 复跑 `bun js/check/symbolCheck.js` 核减读数。
+
+票 2 slug: anchor-bare-wconf-runtime-options
+射程文件: wedb/wconf/src/runtime_server_options.rs、wedb/wconf/src/node_options.rs
+判据: 单 crate 独占 src 裸锚 44/323（其中 doc 面 35 枚集中在一文件），是「已实现未入册」最厚的一坨；
+wconf 无在途票撞面。工作量: 纯注释 44 处，改后 check.js 映射册增 40+ 条。
+
+票 3 slug: anchor-bare-wkv-write-and-wnode-garnet-api
+射程文件: wedb/wkv/src/session/raw/write/inplace.rs、wedb/wnode/src/resp/garnet_api/slow.rs、
+wedb/wnode/src/resp/objects/tiered_collection_ops.rs
+判据: 三文件合计裸锚 53 枚，全在存储/命令派发主链，注释在位、锚点形态不登记；与在途
+`db-raw-read-variant-collapse`（read.rs 侧）划界为「只动 write 与 garnet_api/objects」。
+工作量: 纯注释 53 处，分两棒派（wkv 一棒、wnode 一棒）。
