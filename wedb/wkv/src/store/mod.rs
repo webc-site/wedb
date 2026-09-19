@@ -527,7 +527,9 @@ impl<D: Device> WedbStore<D> {
   }
 
   /// 重建分派：应用一条 [`DbMetaRecord`] 到内存映射/死亡账本，返回须折叠进
-  /// 分配水位的虚拟号
+  /// 分配水位的虚拟号（重建装载与 DbMeta 镜像回放应用
+  /// [`crate::store::WedbStore::apply_dbmeta_record`] 共用本内核，映射装载
+  /// 口径只此一份）
   ///
   /// 映射变体折叠值侧新号（vns / vdb），墓碑变体折叠键侧死亡旧号
   /// （old_vns / old_vdb）——两者皆曾分配，水位必须越过。根域快照 immortal
@@ -535,7 +537,7 @@ impl<D: Device> WedbStore<D> {
   /// [`Self::resolve_context`] 点查回建）；映射写入口复用
   /// [`VirtualDbManager::insert_db_mapping`] 的槽位单元格单格覆盖写单点（点查
   /// 装载与重建装载共位）。
-  fn rebuild_apply_record(&self, record: DbMetaRecord) -> u64 {
+  pub(crate) fn rebuild_apply_record(&self, record: DbMetaRecord) -> u64 {
     match record {
       DbMetaRecord::NsMap { logic_ns, vns } => {
         // 命名空间标量映射装载（16 字节级极小基线，判活反向索引同步维护）

@@ -188,8 +188,9 @@ pub struct RangeIndexManager {
   pub(crate) checkpoint_in_progress: AtomicBool,
   /// 带地址刷盘文件存在疑似标记 (生成计数，惰性恢复的目录扫描门控)
   ///
-  /// `get_or_open_tree` 选最新带地址刷盘文件需 O(目录条目数) 扫描；未接线
-  /// on_flush 的常态部署下该类文件恒不存在，逐次全目录扫描纯属浪费。生成计数
+  /// `get_or_open_tree` 选最新带地址刷盘文件需 O(目录条目数) 扫描；宿主刷盘链
+  /// (on_flush_address / 预分阶段) 未落过任何刷盘件的常态部署下该类文件恒不存在，
+  /// 逐次全目录扫描纯属浪费。生成计数
   /// 单调递增 ([`Self::notice_addr_flush_files`] 每次自增)，`settled_gen` 落后于
   /// `gen` 即表示存在未扫描的新文件。初值 gen=1 > settled=0 (保守开启，首例恢复
   /// 做一次扫描证伪)，证伪后关闭扫描通道恢复 O(1) stat 路径。
@@ -434,6 +435,9 @@ impl RangeIndexManager {
 
   /// 刷盘快照文件标准路径 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:LogFlushPath，
   /// {ri_log_root}/{hash_prefix}.{logical_address_b32}.flush.bftree)
+  ///
+  /// 刷盘快照的**唯一**命名形态：地址段必带，C# 侧无任何无地址形态 (见
+  /// [`Self::on_flush_address`] 与 lifecycle::get_or_open_tree 的刷盘快照选择契约)
   pub fn log_flush_path(&self, hash_prefix: &str, logical_address: u64) -> PathBuf {
     let b32 = encode_u64(logical_address);
     let mut s =
@@ -443,17 +447,6 @@ impl RangeIndexManager {
     s.push_str(&b32);
     s.push_str(FLUSH_FILE_SUFFIX);
     self.ri_log_root.join(s)
-  }
-
-  /// 裸名刷盘快照文件路径 ({ri_log_root}/{hash_prefix}.flush.bftree)
-  ///
-  /// 裸名与带地址命名对同一 hash_prefix 互斥 (见 lifecycle::get_or_open_tree 的
-  /// 刷盘快照选择契约)，由 on_flush 体系产生，每次 fs::copy 截断覆盖
-  pub fn bare_flush_path(&self, hash_prefix: &str) -> PathBuf {
-    let mut flush_name = String::with_capacity(hash_prefix.len() + FLUSH_FILE_SUFFIX.len());
-    flush_name.push_str(hash_prefix);
-    flush_name.push_str(FLUSH_FILE_SUFFIX);
-    self.ri_log_root.join(flush_name)
   }
 
   /// 获取在线索引字典引用 (用于检查点遍历与恢复注册)

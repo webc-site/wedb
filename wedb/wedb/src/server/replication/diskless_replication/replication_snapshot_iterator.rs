@@ -36,7 +36,7 @@ use wnode::{
   resp::vector::{
     vector_manager::{INDEX_SIZE_BYTES, VectorManager},
     vector_manager_index::Index,
-    vector_manager_locking::split_registry_key,
+    vector_manager_locking::registry_user_key,
   },
 };
 
@@ -237,7 +237,7 @@ impl SnapshotIteratorManager {
         let snapshots: Vec<VectorSetSnapshot> = vector_sets
           .iter()
           .map(|(rk, src_index)| VectorSetSnapshot {
-            key: split_registry_key(rk).map_or(rk.clone(), |(_, user_key)| user_key.to_vec()),
+            key: registry_user_key(rk).to_vec(),
             src_index: *src_index,
             elements: vm
               .export_migration_elements(src_index)

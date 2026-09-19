@@ -5,9 +5,7 @@ use wcol::zset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wresp::{check_args::check_arg_count, cmd_strings as cs, ext::RespVecExt};
 use wval::GarnetObjectType;
 
-use super::{
-  RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM, Rmw, ZsetLoad, run_operate, zset_load_sync,
-};
+use super::{Rmw, ZsetLoad, run_operate, zset_load_sync};
 use crate::resp::{
   objects::object_store_utils::{ObjLoad, obj_length_sync},
   resp_server_session::RespServerSession,
@@ -197,7 +195,7 @@ impl RespServerSession {
     // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
     // （C# SortedSetRemoveOrCountRangeByLex 仅回填 result1，RESP 层负责写整数）
     if obj_out.result1 == i32::MAX as i64 {
-      output.extend_from_slice(RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM);
+      cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
     } else if obj_out.result1 != i32::MIN as i64 {
       output.write_resp_int(obj_out.result1);
     }
@@ -220,7 +218,7 @@ impl RespServerSession {
     // C# 仅 Count==3 时校验 WITHSCORE（大小写不敏感，非法即 syntax error）；
     // Count>3 静默忽略多余参数（includeWithScore 保持 false）
     let with_score = if parse_state.len() == 3 {
-      if parse_state[2].eq_ignore_ascii_case(b"WITHSCORE") {
+      if parse_state[2].eq_ignore_ascii_case(cs::WITHSCORE) {
         true
       } else {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);

@@ -2,14 +2,14 @@
 //!
 //! 深度对标 Garnet C#:
 //! - Primary: AofSyncTask + AofSyncDriver + AofReplicationPump (信号唤醒增量拉取)
-//! - Wire: encode_append_log_init_frame (-1/-1/-1) + encode_append_log_frame
+//! - Wire: TcpSessionWire (真 socket：CLIENT 握手 + APPENDLOG init 帧往返
+//!   + encode_append_log_frame 逐记录推流)
 //! - Replica: ClusterReplicationSession (NetworkClusterAppendLog + ProcessPrimaryStream)
 
 use std::{sync::Arc, time::Duration};
 
 use compio::runtime::Runtime;
 use waof::{AofAddress, WalConfig, WalLog};
-use wconn::session::encode_append_log_init_frame;
 use wdev::SegmentedDevice;
 use wedb::server::{
   cluster_config::ClusterConfig,
@@ -17,12 +17,12 @@ use wedb::server::{
   cluster_provider::ClusterProvider,
   replication::{
     aof_replication_pump::AofReplicationPump, aof_sync_driver::AofSyncDriver,
-    cluster_replication_session::ClusterReplicationSession, replica_wire::CallbackWire,
+    cluster_replication_session::ClusterReplicationSession, replica_wire::TcpSessionWire,
     replication_manager::ReplicationManager,
   },
   worker::{LocalWorkerSpec, NodeRole, Worker},
 };
-use wnode::MessageConsumerFace;
+use wnode::{GarnetServer, SessionProviderFace, WireFormat};
 use wtest_base::wait_for;
 
 fn create_wal(dir: &tempfile::TempDir, name: &str) -> Arc<WalLog<SegmentedDevice>> {
@@ -80,20 +80,60 @@ fn test_replication_full_chain_stream() {
     let primary_mgr = ReplicationManager::with_options(1, None, false);
     let (replica_provider, replica_mgr) = setup_replica_provider(replica_id, primary_id);
 
-    // 1. 初始化 Replica 接收端会话
-    let mut replica_session =
+    // 1. 初始化 Replica 接收端会话并挂真 socket 服务器（wnode 会话泵）
+    let replica_session =
       ClusterReplicationSession::new(replica_provider.clone(), replica_wal.clone(), None);
 
-    // 2. 发送握手帧 (-1/-1/-1)，对标 C# ExecuteClusterAppendLogInit
-    let init_frame = encode_append_log_init_frame(&format!("{primary_id:032x}"), 0, -1, -1, -1);
-    let mut resp = Vec::new();
-    replica_session.recv_buffer.extend_from_slice(&init_frame);
-    let remaining = replica_session.try_consume_messages_into(&mut resp);
-    assert_eq!(remaining, Some(0));
-    assert_eq!(resp, b"+OK\r\n", "握手应答必须为 +OK");
+    struct SessionProvider(ClusterReplicationSession<SegmentedDevice>);
+    impl SessionProviderFace for SessionProvider {
+      type Consumer = ClusterReplicationSession<SegmentedDevice>;
+      fn get_session(
+        &self,
+        // 满足 SessionProviderFace trait 签名契约；测试场景无需区分线格式与网络发送端 ID
+        _wire_format: WireFormat,
+        _network_sender_id: u64,
+      ) -> Option<ClusterReplicationSession<SegmentedDevice>> {
+        Some(self.0.clone())
+      }
+    }
+    let server = GarnetServer::new(
+      &["127.0.0.1:0".to_string()],
+      65536,
+      100,
+      Arc::new(SessionProvider(replica_session.clone())),
+    )
+    .expect("构造副本服务器");
+    server.start(None).expect("副本服务器监听");
+    let addr = server.local_addr().expect("监听地址").to_string();
+
+    // 2. TCP 发送通道建连（含 CLIENT 握手 + APPENDLOG init 帧 -1/-1/-1 往返，
+    //    connect 返回即 init 应答 +OK 已确认，对标 C# ExecuteClusterAppendLogInit）
+    let wire = TcpSessionWire::connect(
+      &addr,
+      primary_id,
+      0,
+      None,
+      None,
+      #[cfg(feature = "tls")]
+      None,
+    )
+    .await
+    .expect("建连副本发送通道");
+    assert!(wire.is_connected(), "建连后发送通道健康");
+    // init 帧经真 socket 投递，副本端异步登记活跃复制流与重放驱动
     assert!(
-      replica_mgr.has_active_replication_stream(),
-      "握手成功后副本标记活跃复制流"
+      wait_for(
+        || {
+          replica_mgr.has_active_replication_stream()
+            && replica_mgr
+              .replica_replay_driver_store
+              .get_replay_driver(0)
+              .is_some()
+        },
+        Duration::from_secs(5),
+      )
+      .await,
+      "握手成功后副本标记活跃复制流并注册重放驱动"
     );
 
     let replica_replay_driver = replica_mgr
@@ -101,8 +141,7 @@ fn test_replication_full_chain_stream() {
       .get_replay_driver(0)
       .expect("重放驱动必须已注册");
 
-    // 3. 构建 Primary 端同步驱动，接线 CallbackWire 直通 Replica 会话
-    let wire = Arc::new(CallbackWire::new(replica_session.clone()));
+    // 3. 构建 Primary 端同步驱动，接线 TCP 通道直通 Replica 会话
 
     let primary_driver_store = primary_mgr.aof_sync_driver_store.clone();
     let sync_driver = Arc::new(AofSyncDriver::new(

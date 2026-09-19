@@ -101,3 +101,5 @@ next/info-store-snapshot-channel.md 只管 INFO 存储域段的导出通道（Se
 2. 全仓 grep reset_gossip_stats / reset_revivification_stats 各至少一处生产调用点。
 3. wreviv 的 clear 与 reset_stats 职责不混（现有 wreviv/tests/main.rs 的 stats 断言保持通过）。
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
+
+盘点补记（qw13.invA info-resetstat-gossip-reviv-reset-arms）：dev e75716e 复核原样：reset_gossip_stats 仍只有 wnode/src/cluster_provider.rs:271 trait 转发与 wedb/src/server/cluster_provider.rs 真实现，零生产调用；single_database_manager.rs:166-167 reset_revivification_stats 仍是空体 + 「wkv 无复活化统计面」注释（与 wkv/src/store 持 reviv_pool 的事实相反，reviv 旋钮现已接 wconf/service 装配链，注释失真加剧）；wreviv/src 无 reset_stats。三面接线修法不变。

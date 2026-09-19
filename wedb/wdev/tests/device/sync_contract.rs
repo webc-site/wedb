@@ -27,7 +27,7 @@ const SEG_SIZE: u64 = 64 * 1024;
 fn global_sync_covers_foreign_thread_writes() -> Void {
   let dir = tempdir()?;
   let path = dir.path().join("global_sync.log");
-  let device = Arc::new(SegmentedDevice::segmented(&path, SEG_SIZE)?);
+  let device = Arc::new(SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?);
   let _wd = Watchdog::start(60);
 
   // 线程 A：写段 0 首块与段 1 首块（跨段覆盖守护窗口内两个段），写完即退出
@@ -60,7 +60,7 @@ fn global_sync_covers_foreign_thread_writes() -> Void {
       dev_b.sync().await?;
 
       // 全新设备实例（全新句柄）读回：字节已在文件上
-      let fresh = SegmentedDevice::segmented(&path, SEG_SIZE)?;
+      let fresh = SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?;
       for seg in 0u32..2 {
         let expected: Vec<u8> = (0..SECTOR).map(|j| (j ^ seg as usize) as u8).collect();
         let check = AlignedBuf::new(SECTOR, 4096)?;
@@ -91,7 +91,7 @@ fn global_sync_covers_foreign_thread_writes() -> Void {
 fn global_sync_data_covers_foreign_thread_writes() -> Void {
   let dir = tempdir()?;
   let path = dir.path().join("global_sync_data.log");
-  let device = Arc::new(SegmentedDevice::segmented(&path, SEG_SIZE)?);
+  let device = Arc::new(SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?);
   let _wd = Watchdog::start(60);
 
   let dev_a = Arc::clone(&device);
@@ -129,7 +129,7 @@ fn global_sync_data_covers_foreign_thread_writes() -> Void {
 fn sync_contract_remove_and_truncate_immunity() -> Void {
   let dir = tempdir()?;
   let path = dir.path().join("immunity.log");
-  let device = Arc::new(SegmentedDevice::segmented(&path, SEG_SIZE)?);
+  let device = Arc::new(SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?);
   let _wd = Watchdog::start(60);
 
   let rt = Runtime::new()?;
@@ -172,7 +172,7 @@ fn sync_contract_remove_and_truncate_immunity() -> Void {
 fn multi_segment_concurrent_sync() -> Void {
   let dir = tempdir()?;
   let path = dir.path().join("multi_seg_concurrent_sync.log");
-  let device = Arc::new(SegmentedDevice::segmented(&path, SEG_SIZE)?);
+  let device = Arc::new(SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?);
   let _wd = Watchdog::start(60);
 
   let rt = Runtime::new()?;
@@ -236,7 +236,7 @@ fn multi_segment_concurrent_sync() -> Void {
 fn sync_does_not_ghost_create_hole_segments() -> Void {
   let dir = tempdir()?;
   let path = dir.path().join("hole_sync.log");
-  let device = Arc::new(SegmentedDevice::segmented(&path, SEG_SIZE)?);
+  let device = Arc::new(SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?);
   let _wd = Watchdog::start(60);
 
   let rt = Runtime::new()?;
@@ -262,7 +262,7 @@ fn sync_does_not_ghost_create_hole_segments() -> Void {
     );
 
     // 已写入段数据落盘完好（全新设备实例复验，排除页缓存直读）
-    let fresh = SegmentedDevice::segmented(&path, SEG_SIZE)?;
+    let fresh = SegmentedDevice::new(&path, Some(SEG_SIZE), SECTOR)?;
     for seg in [0u32, 2] {
       let expected = vec![(seg * 37 + 3) as u8; SECTOR];
       let check = AlignedBuf::new(SECTOR, 4096)?;

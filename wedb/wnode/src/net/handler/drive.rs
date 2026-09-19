@@ -185,9 +185,7 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
 
           if let Some(slow) = session.take_slow_wait() {
             let reply = slow.resolve().await;
-            if !reply.is_empty() {
-              resp_pooled.vec_mut().extend_from_slice(&reply);
-            }
+            session.resolve_slow_wait_into(&reply, resp_pooled.vec_mut());
             resumed = true;
           }
 

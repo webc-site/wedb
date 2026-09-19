@@ -18,6 +18,7 @@ use wnode::{
     resp_server_session::RespServerSessionOptions,
     vector::{
       vector_manager::{VectorManager, VectorManagerOptions},
+      vector_manager_locking::{registry_key, registry_user_key},
       vector_store_callbacks::WedbVectorStoreCallbacks,
     },
   },
@@ -119,7 +120,7 @@ fn create_vectorset(rt: &Runtime, consumer: &mut RespSessionConsumer, key: &[u8]
 /// 登记表条目为复合键 `[NsVarint][DbVarint] + 用户键`（registry_key 单点），
 /// 而 KEYS/SCAN 投影契约恒为剥域用户键（C# 每库一实例 VectorManager
 /// libs/server/Resp/Vector/VectorManager.cs:177 `dbId` 首参，天然无域前缀；
-/// rust 单例经 for_each_domain_user_key → split_registry_key 单点剥域，
+/// rust 单例经 for_each_domain_user_key → [`registry_user_key`] 单点剥域，
 /// doc/zh/db.md §1.1 前缀刚性隔离的读端收口）。
 ///
 /// 此处刻意不用裸子串比对：复合键以用户键为后缀，登记表域若泄漏进命令面，
@@ -570,4 +571,40 @@ fn vector_set_flushdb_registry_reclaim() {
     b"+vectorset\r\n",
     "他库向量键在 FLUSHDB 后应原样存活"
   );
+}
+
+/// 剥域单点确定性用例：[`registry_key`] 构造的复合键，[`registry_user_key`]
+/// 还原结果逐字节等于用户键（零域/大域、空键、栈内与堆外两径）。
+///
+/// 比对取整切片相等而非「以用户键结尾」：复合键本就以用户键为后缀，包含式
+/// 断言在「兜底返回带域前缀整键」时恒真，起不到门禁作用。
+#[test]
+fn registry_user_key_strips_to_exact_user_key() {
+  let long_key = vec![b'v'; wval::STACK_KEY_CAP + 7];
+  let cases: [&[u8]; 4] = [&[], b"k", b"my_vectorset", long_key.as_slice()];
+  for (ns, db) in [(0u64, 0u64), (7, 3), (1 << 40, 1 << 33)] {
+    let prefix = SessionPrefixBuf::new(ns, db);
+    for key in cases {
+      let rk = registry_key(prefix.as_slice(), key);
+      assert!(
+        rk.len() > key.len(),
+        "复合键必带域前缀段（域 {ns}/{db} 键 {key:?}），否则本用例恒真"
+      );
+      assert_eq!(
+        registry_user_key(rk.as_slice()),
+        key,
+        "域 {ns}/{db} 键 {key:?} 剥域应逐字节还原用户键"
+      );
+    }
+  }
+}
+
+/// 畸形输入显式失败：剥域单点绝不把带域前缀的整键当用户键发出去。
+///
+/// 断言形态取 `should_panic`——catch/unwind 兜住后放过等于没有兜底方向。
+#[test]
+#[should_panic(expected = "不变量破坏")]
+fn registry_user_key_fails_loud_on_malformed_composite() {
+  // 首段 varint 只有延续位、无后继字节：registry_key 不可能产出该形态
+  registry_user_key(&[0x80]);
 }

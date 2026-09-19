@@ -127,3 +127,5 @@ C# 对位（每命令一份推导，pending 在同函数内由存储层吸收重
    第二张票。
 6. 优先级：重复逻辑（同一参数推导与同一值域谓词两到三份实现，已发生一处跨副本未同步的真实漂移）。
    排在死代码票之后、纯打磨之前开工；本票不做任何纯搬运拆分。
+
+盘点补记（qw13.invA object-slow-dispatch-arg-reparse-single-source）：dev e75716e 复核原样：慢侧重推导注释群仍在（objects/hash_commands.rs:828/:858、sorted_set_commands/slow.rs:162/:190）；SINTERCARD 慢侧半开区间漂移仍在：set_commands.rs parse_sintercard_args 的 limit 过滤为 v <= i32::MAX（允许负 limit），与 SPOP 臂 (0..=i32::MAX)（set_commands.rs:381 附近）口径不一致。与 object-scan 收口票同文件域宜并棒。

@@ -66,3 +66,5 @@ MIGRATE 发布对位件为 garnet/libs/server/Resp/RangeIndex/RangeIndexManager.
 - cargo check --workspace --all-targets 绿；中文注释、禁 #[allow]。
 
 优先级：P1（数据丢失级，但窗口窄于 RMW 票且需分层态触发；排在墓碑票之后）。
+
+盘点补记（qw13.invB tiered-reflush-atomic-swap）：dev e75716e 复核，增量：姊妹票 tiered-drain-envelope-tombstone 已落地（stub.rs 排空单点已带信封域幂等墓碑、promote 尾 let _ = 已改 ? 上抛、collection.rs 头注已订正为「非原子三步 + 墓碑兜底」），本票前置已清；重灌臂仍先拆后建（rmw_helpers.rs :374 handle_bftree_drain_and_delete(key, true) 后 :381 promote_collection_to_bftree），publish_tree_from_snapshot_locked(replace=true) 生产消费仍只 wkv/src/range_index/migration.rs:50 一处。注意头注已声明「真实写序为非原子三步、窗口由墓碑兜底收敛」的设计口径，重派前先裁定换序主张是否仍优于墓碑兜底形态（崩溃窗口内 drain 成功 promote 失败仍丢树，换序可消）。

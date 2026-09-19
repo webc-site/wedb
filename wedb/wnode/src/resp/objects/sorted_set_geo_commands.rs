@@ -320,7 +320,7 @@ fn try_get_geo_search_options(
       continue;
     }
 
-    if equals_ignore_case(token, b"COUNT") {
+    if equals_ignore_case(token, cs::COUNT) {
       let Some(count_tok) = args.get(idx) else {
         arg_num_error = true;
         break;

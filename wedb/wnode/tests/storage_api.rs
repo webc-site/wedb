@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use compio::runtime::Runtime;
 use waof::{AofEntryType, AofHeader, WalConfig, WalLog};
-use wbase::{convert::TICKS_PER_MILLISECOND, hash_slot::slot_of};
+use wbase::{align::DEFAULT_SECTOR_SIZE, convert::TICKS_PER_MILLISECOND, hash_slot::slot_of};
 use wcol::hash::hash_object::HashObject;
 use wconf::RuntimeServerOptions;
 use wdev::SegmentedDevice;
@@ -157,9 +157,10 @@ fn test_single_database_manager() -> aok::Void {
   rt.block_on(async {
     let (dir, store) = open_test_store("single.db")?;
     // 段式设备：checkpoint 截断需物理删段（单文件设备无段可删，截断后退化为位点平移）
-    let aof_device = Arc::new(SegmentedDevice::segmented(
+    let aof_device = Arc::new(SegmentedDevice::new(
       dir.path().join("aof.db"),
-      64 * 1024,
+      Some(64 * 1024),
+      DEFAULT_SECTOR_SIZE,
     )?);
     let wal = Arc::new(WalLog::new(aof_device, WalConfig::default())?);
     let aof = single_log_aof(wal, &RuntimeServerOptions::default()).expect("装配 single_log_aof");
