@@ -34,8 +34,6 @@ pub struct ServerTlsConfig {
 impl ServerTlsConfig {
   /// 从 PEM 格式的证书与私钥文件加载配置（纯 Rust，零 C/OpenSSL 依赖）
   ///
-  /// 在 garnet 中的相对路径: libs/server/TLS/GarnetTlsOptions.cs:GetSslServerAuthenticationOptions
-  ///
   /// `client_cert_required` 对标 ClientCertificateRequired；`issuer_path` 对标
   /// IssuerCertificatePath（客户端证书校验根，None = 宽松模式见 [`client_verifier`]）
   #[cfg(feature = "tls")]

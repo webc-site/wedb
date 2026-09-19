@@ -747,7 +747,7 @@ impl RespServerSession {
 
 /// nil 元素数组应答（HMGET 键缺失时的逐字段占位）
 ///
-/// 元素帧随会话协议（C# RespServerSessionOutput.cs:WriteNull 逐元素）
+/// 元素帧随会话协议（调用 write_resp_null_ver 逐元素）
 pub(super) fn write_null_array(output: &mut Vec<u8>, len: usize, resp_version: u8) {
   output.reserve(len * 5 + 16);
   output.write_resp_array_len(len);

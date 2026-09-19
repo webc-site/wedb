@@ -50,9 +50,8 @@ impl GarnetClient {
 
   /// 出站 TLS 配置注入（None = 明文）
   ///
-  /// 对标 C# 构造重载 `GarnetTlsOptions? tlsOptions` 第 2 形参位
-  ///（libs/client/GarnetClient.cs:GarnetClient）；rust 以注入器承载，
-  /// 建连期 [`Self::connect_async`] 单点消费
+  /// 对标 C# 构造重载 `GarnetTlsOptions? tlsOptions` 第 2 形参位；
+  /// rust 以注入器承载，建连期 [`Self::connect_async`] 单点消费
   #[cfg(feature = "tls")]
   pub fn set_tls(&mut self, tls: Option<Arc<ClientTlsConfig>>) {
     self.tls = tls;

@@ -332,8 +332,7 @@ impl ClusterManager {
 
   /// 迭代式槽位校验的单键验证步内核（事务 Prepare 同步上下文专用）
   ///
-  /// RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify →
-  /// ClusterSlotVerify.cs:SingleKeySlotVerify → CanOperateOnKey
+  /// libs/server/Resp/Cluster/RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify
   ///
   /// C# 在网络线程内联 `Thread.Yield` 自旋等待迁移推进（C# 网络线程与
   /// 迁移驱动不同线程亲和，让出即有效）；compio 一线程一 CPU 下同步自旋

@@ -841,7 +841,7 @@ fn combine_store<'a, D: wdev::Device>(
 
 /// 结果集合的 RESP 输出（集合头版本分派：RESP2 *N / RESP3 ~N）
 ///
-/// 对标 RespServerSessionOutput.cs:WriteSetLength（SINTER/SUNION/SDIFF 共用写出）
+/// 写出 set 成员列表（内部调用 cs::write_set_len 单点）
 fn write_set_members(result: &SetObject, output: &mut Vec<u8>, resp_version: u8) {
   let members = result.to_members();
   cs::write_set_len(output, members.len(), resp_version);
@@ -1399,8 +1399,7 @@ mod write_set_members_tests {
 
   use super::write_set_members;
 
-  /// SINTER/SUNION/SDIFF 结果集合头版本分派
-  ///（C# RespServerSessionOutput.cs:WriteSetLength：RESP2 *N / RESP3 ~N）
+  /// SINTER/SUNION/SDIFF 结果集合头版本分派测试（RESP2 *N / RESP3 ~N）
   #[test]
   fn set_head_resp2_array_resp3_set() {
     let mut obj = SetObject::new();

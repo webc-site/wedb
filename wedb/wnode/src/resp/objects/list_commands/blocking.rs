@@ -442,8 +442,7 @@ pub(crate) fn pop_first_nonempty(
 /// - 类型不符 → WRONGTYPE；
 /// - 未取到 → BLPOP/BRPOP 空数组，其余空值（均按会话 RESP 版本分派：
 ///   RESP3 为 `_\r\n`，RESP2 为 `*-1`/`$-1`，对位 C# WriteNullArray /
-///   WriteNull 的版本感知形态，RespServerSessionOutput.cs:WriteNull/
-///   WriteNullArray）；
+///   WriteNull 的版本感知形态）；
 /// - 取到 → 按命令族帧型展开。
 pub(crate) fn write_collection_item_result(
   cmd: RespCommand,
