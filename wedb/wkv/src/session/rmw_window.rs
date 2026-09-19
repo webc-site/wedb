@@ -58,18 +58,15 @@ const RMW_LATCH_SPIN_ATTEMPTS: usize = 1024;
 /// [`windex::Error::LockTimeout`]，杜绝同线程持闩者不再让核时的无界自旋
 const RMW_LATCH_YIELD_BUDGET: usize = 1024;
 
-/// 会话锁器模式（对标 C# 两套 `ISessionLocker` 实现的按调用面选型）
-///
-/// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs:ISessionLocker
+/// 会话锁器模式（对标 C# 两套 `ISessionLocker` 实现的按调用面选型，
+/// 见 `libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs`
+/// 的 `BasicSessionLocker` 与 `TransactionalSessionLocker` 两实现；映射锚点
+/// 已在仓内其他位点登记，此处不复挂以免重复定义）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionLocking {
   /// 非事务会话：读改写窗口自取本键桶排他闩
-  ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs:BasicSessionLocker
   Basic,
   /// 事务会话：本键桶排他闩已由本会话事务持有，窗口让闩（绝不自旋等自己）
-  ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs:TransactionalSessionLocker
   Transactional,
 }
 
@@ -124,9 +121,8 @@ impl<D: Device> Drop for RmwWindow<'_, '_, D> {
 }
 
 /// 会话锁器模式 RAII 还原守卫（对标 C# api 视图按调用段进出选型：事务重放遍与
-/// 事务过程视图进入时置 `Transactional`，离开即还原，杜绝位残留）
-///
-/// 在 garnet 中的相对路径:libs/server/Resp/RespServerSession.cs:ProcessMessages
+/// 事务过程视图进入时置 `Transactional`，离开即还原，杜绝位残留；分派选型位点
+/// 的映射锚点登记在 `wnode/src/resp/resp_server_session.rs`，此处不复挂）
 pub struct SessionLockingGuard<'a, D: Device> {
   session: &'a StoreSession<D>,
   prev: SessionLocking,
