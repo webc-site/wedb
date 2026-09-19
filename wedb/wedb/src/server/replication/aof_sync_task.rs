@@ -431,7 +431,7 @@ mod tests {
   use wnode::GarnetLog;
 
   use super::*;
-  use crate::server::replication::replica_wire::{CallbackWire, FrameSink};
+  use crate::server::replication::replica_wire::test_wire::{CallbackWire, FrameSink};
 
   /// 内存单物理子日志 AOF 门面（脉冲源构造）
   fn pulse_aof() -> Arc<GarnetAppendOnlyFile> {

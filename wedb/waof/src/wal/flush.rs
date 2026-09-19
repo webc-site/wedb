@@ -135,6 +135,10 @@ impl<D: Device> WalLog<D> {
 
 /// WAL 提交步进器：批次目标取安全尾地址（在途写入下界），水位取已提交位点，
 /// 物理持久化复用环形缓冲刷盘 + fdatasync 单点实现
+///
+/// 与 wkv `FlushStep` 共用同一内核 `wbase::GroupCommitPipeline`（leader 级联循环、
+/// 退避与批次编排都在内核里），本 Step 仅注入批次目标与水位语义；二者同构不同参，
+/// 属 Step 注入形态而非重复实现，严禁合并或拆出第三套流水线。
 struct WalCommitStep<'a, D: Device> {
   wal: &'a WalLog<D>,
 }

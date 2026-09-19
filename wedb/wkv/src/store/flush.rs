@@ -177,6 +177,10 @@ impl<D: Device> WedbStore<D> {
 /// 纪元排空，故无论宿主是自带封印的检查点链（wcpr create.rs）还是 FLUSHLOG 链
 /// （[WedbStore::flush_and_evict_all]），落盘的字节恒已定稿，`flushed_until` 恒不越过
 /// 安全只读线（对标 C# 仅由 OnPagesMarkedReadOnly 纪元动作驱动刷盘的单一形态）
+///
+/// 与 waof `WalCommitStep` 共用同一内核 `wbase::GroupCommitPipeline`（leader 级联
+/// 循环、退避与批次编排都在内核里），本 Step 仅注入批次目标与水位语义；二者同构
+/// 不同参，属 Step 注入形态而非重复实现，严禁合并或拆出第三套流水线。
 struct FlushStep<'a, D: Device> {
   store: &'a WedbStore<D>,
 }

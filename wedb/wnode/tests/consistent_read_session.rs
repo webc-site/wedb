@@ -123,12 +123,6 @@ fn test_storage_session_consistent_read_pipeline() -> aok::Void {
     assert_eq!(total, 3);
     assert_eq!(count, 3);
 
-    // 6. 测试 ConsistentReadContext 禁写语义（对标 Tsavorite 严格防御）
-    let ctx = ss.consistent_read_context().unwrap();
-    assert!(ctx.upsert_forbidden().is_err());
-    assert!(ctx.delete_forbidden().is_err());
-    assert!(ctx.rmw_forbidden().is_err());
-
     Ok(())
   })
 }

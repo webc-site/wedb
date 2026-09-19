@@ -54,23 +54,9 @@ fn test_meta_value_roundtrip_and_serialization() -> Void {
   let from_slice = MetaValue::from_slice(&bytes)?;
   assert_eq!(from_slice, original);
 
-  // 原位切片写入
-  let mut dst = [0u8; 32];
-  original.write_to_slice(&mut dst)?;
-  assert_eq!(dst, bytes);
-
   // 防御性拦截：缓冲区不足
   assert!(matches!(
     MetaValue::from_slice(&bytes[..31]),
-    Err(Error::BufferTooShort {
-      expected: 32,
-      actual: 31
-    })
-  ));
-
-  let mut short_dst = [0u8; 31];
-  assert!(matches!(
-    original.write_to_slice(&mut short_dst),
     Err(Error::BufferTooShort {
       expected: 32,
       actual: 31

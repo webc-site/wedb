@@ -68,3 +68,5 @@
 验收
 - 上述符号 grep 归零或转为「配置进→行为出」的活链；js/check 无新增虚构锚点；
   相关 crate 测试改走生产出口，无因删除产生的 warning。
+
+盘点补记（qw13.invA zero-consumer-surfaces-batch-two）：dev e75716e 复核，八项死面全在场：wacl/src/user_handle.rs:39 try_set_user 零生产消费、wmetric/src/info/garnet_info_metrics.rs:1223 get_info_metrics、wresp/src/catalog/data_provider.rs:65 try_export_resp_commands_data、wnode/src/aof/garnet_log/commit.rs:92 initialize_if、wnode/src/resp/basic_commands/mod.rs:89 network_ping 均原样；wnode/src/resp/acl_commands.rs:753 仍无条件 set_user_handle（与 acl-setuser 票同一 CAS 环，禁按「全删」口径合入旧 zero-consumer-b2 分支提交）。分域拆两票的建议仍有效。

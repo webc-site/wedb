@@ -18,7 +18,7 @@
 
 use core::str;
 
-use wcustom::{CommandType, CustomObjectFns};
+use wcustom::{CommandType, CustomObjectFns, KeyScope};
 use wresp::{
   cmd_strings::{RESP_ERR_COMMAND_READ_ONLY, RESP_ERR_COMMAND_WRITE_ONLY, write_error_raw},
   ext::RespVecExt,
@@ -133,6 +133,9 @@ impl RoaringCommand {
     Self::match_command(name).map(|cmd| wcustom::CustomCommandMeta {
       name: cmd.name(),
       command_type: cmd.command_type(),
+      // 位图命令全单键（对标 RoaringBitmapModule.cs 四条 RegisterCommand 的
+      // 单键形态），多键读只与 JSON.MGET 并置
+      key_scope: KeyScope::Single,
       arity: cmd.arity(),
       fns: cmd.fns(),
     })

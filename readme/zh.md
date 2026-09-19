@@ -24,7 +24,6 @@ graph TD
         wacl["wacl: 权限控制系统"]
         wlua["wlua: Lua 脚本沙箱引擎"]
         wcol["wcol: 复合集合类型 (List/Hash/Set/ZSet)"]
-        windex["windex: 向量索引 / 范围索引"]
     end
 
     subgraph ClusterSystem ["分布式集群系统 (wedb)"]
@@ -44,7 +43,7 @@ graph TD
         wcompact["wcompact: 混合日志紧缩与回收"]
         wcpr["wcpr: 一致性前缀检查点恢复 CPR"]
         wepoch["wepoch: 垃圾回收与保护历元 LightEpoch"]
-        wram["wram: 内存分配器与内存水位追踪"]
+        windex["windex: 无锁哈希索引 / 直接虚拟内存与原生内存追踪"]
         whasher["whasher: 高性能哈希计算"]
         wval["wval: 紧凑值类型与载荷定义"]
         wbase["wbase: 基础通用工具"]
@@ -64,10 +63,12 @@ graph TD
     wedb --> waof
 
     wkv --> whlog
+    wkv --> windex
     wkv --> wbftree
     wkv --> wcompact
     wkv --> wcpr
 
+    windex --> wbase
     whlog --> wdev
     whlog --> wepoch
     waof --> wdev
@@ -84,12 +85,12 @@ graph TD
 | `libs/server/Resp` | [`wresp`](https://github.com/webc-site/wedb/tree/main/wedb/wresp) | 二进制安全 RESP 协议解析器、命令枚举与参数提取 |
 | `libs/server/ACL` | [`wacl`](https://github.com/webc-site/wedb/tree/main/wedb/wacl) | 用户身份验证、命令类别白名单与键权限过滤 |
 | `libs/server/Lua` | [`wlua`](https://github.com/webc-site/wedb/tree/main/wedb/wlua) | 嵌入式 Lua 沙箱运行器与脚本缓存 |
-| `libs/server/Objects` | [`wcol`](https://github.com/webc-site/wedb/tree/main/wedb/wcol), [`windex`](https://github.com/webc-site/wedb/tree/main/wedb/windex) | 复杂数据结构（Hash/Set/ZSet/List）、范围索引与向量相似度检索 |
-| `Tsavorite.core` | [`wkv`](https://github.com/webc-site/wedb/tree/main/wedb/wkv), [`whlog`](https://github.com/webc-site/wedb/tree/main/wedb/whlog), [`wcpr`](https://github.com/webc-site/wedb/tree/main/wedb/wcpr) | 混合并发哈希与日志存储核心、增量检查点与崩溃恢复 |
+| `libs/server/Objects` | [`wcol`](https://github.com/webc-site/wedb/tree/main/wedb/wcol) | 复杂数据结构（Hash/Set/ZSet/List/Geo）与 BfTree 范围索引算子层 |
+| `Tsavorite.core` | [`wkv`](https://github.com/webc-site/wedb/tree/main/wedb/wkv), [`whlog`](https://github.com/webc-site/wedb/tree/main/wedb/whlog), [`windex`](https://github.com/webc-site/wedb/tree/main/wedb/windex), [`wcpr`](https://github.com/webc-site/wedb/tree/main/wedb/wcpr) | 混合并发哈希与日志存储核心、无锁哈希索引与直接虚拟内存 / 原生内存追踪（`windex::ram`）、增量检查点与崩溃恢复 |
 | `bftree-garnet` | [`wbftree`](https://github.com/webc-site/wedb/tree/main/wedb/wbftree) | 高性能并发无锁 B+ 树索引结构 |
 | `Tsavorite.devices` | [`wdev`](https://github.com/webc-site/wedb/tree/main/wedb/wdev), [`waof`](https://github.com/webc-site/wedb/tree/main/wedb/waof) | 存储设备适配器（段文件、直接 I/O）、预写日志追加流 |
-| `libs/common` | [`wbase`](https://github.com/webc-site/wedb/tree/main/wedb/wbase), [`wram`](https://github.com/webc-site/wedb/tree/main/wedb/wram), [`whasher`](https://github.com/webc-site/wedb/tree/main/wedb/whasher), [`wval`](https://github.com/webc-site/wedb/tree/main/wedb/wval) | 基础内存追踪、哈希算法、二进制紧凑值布局与基元工具 |
-| `modules/*` | [`ext_json`](https://github.com/webc-site/wedb/tree/main/wedb/ext_json), [`ext_roaring`](https://github.com/webc-site/wedb/tree/main/wedb/ext_roaring), [`ext_noop`](https://github.com/webc-site/wedb/tree/main/wedb/ext_noop) | 可拔插模块扩展：RedisJSON 语法支持、RoaringBitmap 位图计算与示例插件 |
+| `libs/common` | [`wbase`](https://github.com/webc-site/wedb/tree/main/wedb/wbase), [`whasher`](https://github.com/webc-site/wedb/tree/main/wedb/whasher), [`wval`](https://github.com/webc-site/wedb/tree/main/wedb/wval) | 基础通用工具与缓冲池（分级扇区对齐 `wbase::pool::BufferPool`、固定块网络池 `wbase::pool::LimitedFixedBufferPool`）、哈希算法、二进制紧凑值布局与基元工具 |
+| `modules/*` | [`wext_json`](https://github.com/webc-site/wedb/tree/main/wedb/wext_json), [`wext_roaring`](https://github.com/webc-site/wedb/tree/main/wedb/wext_roaring) | 编译期静态特性扩展（`wnode` 的 `default = ["roaring", "json"]` 分别引入两个 crate）：RedisJSON 语法支持与 RoaringBitmap 位图计算；C# 侧 `NoOpModule` 系示例插件，按静态特性裁定不转写 |
 
 ---
 
@@ -103,7 +104,7 @@ graph TD
 
 ### 2. 底座职责极致纯化（`wnode` 与 `waof`）
 - **`wnode` 纯粹网络与宿主底座**：
-  不包含任何存储、AOF 或集群业务逻辑，专注底层通信：TCP/UDS 监听、16 分片无争用网络缓冲池（`LimitedFixedBufferPool`）、慢流控闸门、生命周期管理与 `MessageConsumerFace` / `SessionProviderFace` 纯虚会话契约。
+  不包含任何存储、AOF 或集群业务逻辑，专注底层通信：TCP/UDS 监听、慢流控闸门、生命周期管理与 `MessageConsumerFace` / `SessionProviderFace` 纯虚会话契约。网络缓冲区不自建池，而是经 `wbase` 的 `pool` 特性借用 `LimitedFixedBufferPool`：本体归属 `wbase::pool`，固定 64KB 块、池内常驻上限 1024，由 `crossfire` 有界 MPMC 环无锁借还，并非分片结构。
 - **`waof` WAL 与 AOF 协议引擎**：
   独立承载预写日志追加与复制协议基元：
   - **`AofAddress`**：40 字节紧凑全序复制/日志位点，支持栈上零分配序列化。
@@ -132,6 +133,8 @@ graph TD
 ---
 
 ## 快速开始与验证
+
+分章文档：[性能评测](https://github.com/webc-site/wedb/tree/main/readme/zh/bench.md)。
 
 ### 编译与检查
 

@@ -8,7 +8,6 @@ use std::{
 };
 
 use aok::{OK, Void};
-use gxhash::HashSet;
 use log::info;
 use windex::{BucketExclusiveGuard, BucketSharedGuard, HashBucket, HashIndex};
 
@@ -359,54 +358,48 @@ fn test_latch_promotion_and_atomic_downgrade_concurrency() -> Void {
   OK
 }
 
-/// 验证 MultiBucketGuard 2PL 有序加锁、同桶去重、并发互斥与防死锁
-/// 对标 Tsavorite `TxnKeyEntry.LockAllKeys`
+/// 验证 lock_key_exclusive 单键独占桶锁并发互斥与自动释放
 #[test]
-fn test_multi_bucket_deadlock_prevention_ordering() -> Void {
-  info!("验证 MultiBucketGuard 两阶段锁防死锁与并发互斥");
+fn test_lock_key_exclusive_concurrency() -> Void {
+  info!("验证 lock_key_exclusive 单键独占桶锁并发互斥");
 
   let index = Arc::new(HashIndex::new(64)?);
+  let key = b"exclusive_test_key";
 
-  let key1 = b"key_alpha";
-  let key2 = b"key_beta";
-  let key3 = b"key_gamma";
-
-  // 基础加锁与同桶去重
+  // 基础加锁与互斥
   {
-    let guard = index.acquire_keys_lock_exclusive(&[key1, key2, key3, key1])?;
-    assert!(!guard.is_empty());
-    assert!(!index.try_lock_shared(key1));
-    assert!(!index.try_lock_exclusive(key1));
+    let guard = index.lock_key_exclusive(key)?;
+    assert!(!index.try_lock_shared(key));
+    assert!(!index.try_lock_exclusive(key));
+    drop(guard);
   }
 
   // Drop 之后自动释放
-  assert!(index.try_lock_shared(key1));
-  index.unlock_shared(key1);
+  assert!(index.try_lock_shared(key));
+  index.unlock_shared(key);
 
-  // 高并发交叉加锁防死锁验证
+  // 高并发多线程竞争同一键的排他锁
+  let counter = Arc::new(AtomicU64::new(0));
   let mut handles = Vec::new();
-  for thread_id in 0..8 {
-    let idx = index.clone();
+  for _ in 0..8 {
+    let idx = Arc::clone(&index);
+    let cnt = Arc::clone(&counter);
     handles.push(thread::spawn(move || {
       for _ in 0..100 {
-        let keys: &[&[u8]] = if thread_id % 2 == 0 {
-          &[b"common_1", b"common_2", b"common_3", b"common_4"]
-        } else {
-          &[b"common_4", b"common_3", b"common_2", b"common_1"]
-        };
-        let guard = idx.acquire_keys_lock_exclusive(keys).expect("加锁成功");
-        assert!(!guard.is_empty());
+        let guard = idx.lock_key_exclusive(key).expect("加锁成功");
+        cnt.fetch_add(1, Ordering::Relaxed);
         spin_loop();
+        drop(guard);
       }
     }));
   }
 
   for h in handles {
-    h.join().expect("并发线程无死锁完成");
+    h.join().expect("并发线程完成");
   }
 
-  assert!(!index.is_locked(b"common_1"));
-  assert!(!index.is_locked(b"common_4"));
+  assert_eq!(counter.load(Ordering::Relaxed), 800);
+  assert!(!index.is_locked(key));
 
   OK
 }
@@ -448,8 +441,6 @@ fn test_threaded_lock_stress_full_contention() -> Void {
   }
 
   assert!(!shared_bucket.is_latched());
-  assert_eq!(shared_bucket.num_latched_shared(), 0);
-  assert!(!shared_bucket.is_latched_exclusive());
 
   OK
 }
@@ -492,122 +483,6 @@ fn test_bucket_index_mask_distribution() -> Void {
   assert_eq!(tiny.find_tag(b"only_bucket_key"), Some(7));
   assert_eq!(tiny.bucket_index_for_key(b"any_key"), 0);
   assert!(tiny.delete(b"only_bucket_key", 7));
-
-  OK
-}
-
-/// 验证大键集（> 16 触发堆缓冲路径）2PL 加锁：去重计数、守卫堆溢出登记与持有互斥
-/// 覆盖生产事务路径（wedb_net EXEC / wedb_server MULTI 可提交任意键数）
-#[test]
-fn test_multi_key_locking_large_key_set_heap_and_guard_overflow() -> Void {
-  info!("验证 >16 键堆缓冲路径与 MultiBucketGuard 堆溢出登记");
-
-  let index = Arc::new(HashIndex::new(1024)?);
-
-  // 40 个键（> 16），去重后期望独立桶数
-  let keys: Vec<Vec<u8>> = (0..40).map(|i| make_key("heap_key", i)).collect();
-  let key_refs: Vec<&[u8]> = keys.iter().map(|k| k.as_slice()).collect();
-  let expected: HashSet<usize> = keys.iter().map(|k| index.bucket_index_for_key(k)).collect();
-
-  {
-    let guard = index.acquire_keys_lock_exclusive(&key_refs)?;
-    assert_eq!(
-      guard.len(),
-      expected.len(),
-      "去重后持锁桶数必须等于独立桶数"
-    );
-
-    // 持锁期间每个桶均不可再获取独占/共享锁（含守卫堆溢出部分）
-    for k in &keys {
-      assert!(!index.try_lock_exclusive(k), "持锁期间独占重入必须失败");
-      assert!(!index.try_lock_shared(k), "持锁期间共享加锁必须失败");
-    }
-  }
-
-  // Drop 后全部释放（含堆溢出登记的桶）
-  for k in &keys {
-    assert!(index.try_lock_shared(k), "释放后必须可重新加锁");
-    index.unlock_shared(k);
-  }
-
-  // 高并发交叉乱序提交（40 键偶奇线程正反序交错），堆路径下验证全序加锁防死锁
-  let shared_keys = Arc::new(keys);
-  let mut handles = Vec::new();
-  for thread_id in 0..8 {
-    let idx = Arc::clone(&index);
-    let thread_keys = Arc::clone(&shared_keys);
-    handles.push(thread::spawn(move || -> aok::Result<()> {
-      let refs: Vec<&[u8]> = thread_keys.iter().map(|k| k.as_slice()).collect();
-      for round in 0..50 {
-        // 偶奇线程交替正/反序提交，验证全序加锁与提交顺序无关
-        let ordered: Vec<&[u8]> = if (thread_id + round) % 2 == 0 {
-          refs.iter().rev().copied().collect()
-        } else {
-          refs.clone()
-        };
-        let guard = idx.acquire_keys_lock_exclusive(&ordered)?;
-        assert!(!guard.is_empty());
-        spin_loop();
-      }
-      OK
-    }));
-  }
-
-  for h in handles {
-    h.join().expect("大键集并发线程无死锁完成")?;
-  }
-
-  for k in shared_keys.iter() {
-    assert!(!index.is_locked(k));
-  }
-
-  OK
-}
-
-/// 验证跨越栈/堆边界（16 键）与读写混合的变长键集并发加锁压力
-/// 对标 Tsavorite `ThreadedLockStressTest` 变体：键集大小 8..40 来回穿越堆切换阈值
-#[test]
-fn test_multi_key_locking_boundary_stress() -> Void {
-  info!("验证跨越栈/堆边界的变长读写混合键集并发加锁压力");
-
-  let index = Arc::new(HashIndex::new(256)?);
-  let pool: Arc<Vec<Vec<u8>>> = Arc::new((0..48).map(|i| make_key("stress", i)).collect());
-
-  let mut handles = Vec::new();
-  for t in 0..8u64 {
-    let idx = Arc::clone(&index);
-    let pool = Arc::clone(&pool);
-    handles.push(thread::spawn(move || -> aok::Result<()> {
-      let pool_ref: Vec<&[u8]> = pool.iter().map(|k| k.as_slice()).collect();
-      for round in 0..60u64 {
-        // 变长键集 8..40：来回穿越 16 键栈/堆切换阈值；步长 5 保证跨线程高度重叠
-        let n = 8 + ((t * 7 + round * 3) % 33) as usize;
-        let sel: Vec<&[u8]> = (0..n)
-          .map(|j| pool_ref[(t as usize + j * 5) % pool_ref.len()])
-          .collect();
-
-        // 1. 纯排他路径（键乱序提交）
-        let guard = idx.acquire_keys_lock_exclusive(&sel)?;
-        assert!(!guard.is_empty());
-        drop(guard);
-
-        // 2. 同键集反序提交（验证全序排序对提交顺序不敏感、同桶去重保最高锁级）
-        let reversed: Vec<&[u8]> = sel.iter().rev().copied().collect();
-        let guard = idx.acquire_keys_lock_exclusive(&reversed)?;
-        assert!(!guard.is_empty());
-        spin_loop();
-      }
-      OK
-    }));
-  }
-
-  for h in handles {
-    h.join().expect("边界压力线程无死锁完成")?;
-  }
-
-  for k in pool.iter() {
-    assert!(!index.is_locked(k), "压力结束后所有桶锁必须完全释放");
-  }
 
   OK
 }

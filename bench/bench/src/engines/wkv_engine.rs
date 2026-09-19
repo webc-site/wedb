@@ -20,6 +20,8 @@ use crate::{
 };
 
 const SEGMENT_SIZE: u64 = 64 * 1024 * 1024;
+/// 扇区大小取设备缺省口径（bench 工程不引 wbase，本地常量对齐 wdev 的 4096 缺省值）
+const SECTOR_SIZE: usize = 4096;
 
 thread_local! {
   static COMPIO_RT: RefCell<Option<Runtime>> = const { RefCell::new(None) };
@@ -42,7 +44,8 @@ pub struct WkvEngine {
 impl WkvEngine {
   pub fn open(path: &Path, cache_size: usize, elements: usize) -> Result<Self> {
     let device = Arc::new(
-      SegmentedDevice::segmented(path, SEGMENT_SIZE).map_err(|e| Error::Engine(e.to_string()))?,
+      SegmentedDevice::new(path, Some(SEGMENT_SIZE), SECTOR_SIZE)
+        .map_err(|e| Error::Engine(e.to_string()))?,
     );
     let config =
       StoreConfig::from_memory_budget_with_keys(cache_size as u64, Some(elements as u64));
