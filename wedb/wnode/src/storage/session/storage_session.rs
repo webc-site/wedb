@@ -289,7 +289,12 @@ impl<'a, D: Device> StorageSession<'a, D> {
   ///（pre_batch/post_batch 协议，读后校验不过整批重试，对标 C#
   /// ConsistentReadContext.ReadWithPrefetch）；否则直读底层批量口。
   /// 逐键命中/未命中经 [`Self::record_read_outcome`] 共享句柄入账（对位 C#
-  /// 批量 GET 循环内空条件累加 `sessionMetrics?.incr_total_found/notfound`）
+  /// 批量 GET 循环内空条件累加 `sessionMetrics?.incr_total_found/notfound`）。
+  /// 整批异步闭环复用 [`Self::with_pending_metrics`] 单点漏斗起停 PENDING_LAT
+  ///（对位 C# MainStore/AdvancedOps.cs 的 GET_CompletePending 两个重载在
+  /// `CompletePendingWithOutputs` 前后成对起停表）：C# 批量收割是一次
+  /// CompletePending 调用，rust 批量口同样单次 await，故样本按批一条、pending
+  /// 计数按批一条，条目命中计数仍只由 record_read_outcome 单点入账不重复
   pub async fn read_string_batch_into(
     &self,
     keys: &[&[u8]],
@@ -303,8 +308,16 @@ impl<'a, D: Device> StorageSession<'a, D> {
       }
     };
     match self.consistent_read_context() {
-      Some(ctx) => ctx.read_batch_with(keys, &mut emit).await,
-      None => self.batch.read_batch_with(keys, &mut emit).await,
+      Some(ctx) => {
+        self
+          .with_pending_metrics(|| ctx.read_batch_with(keys, &mut emit))
+          .await
+      }
+      None => {
+        self
+          .with_pending_metrics(|| self.batch.read_batch_with(keys, &mut emit))
+          .await
+      }
     }
   }
 
