@@ -26,3 +26,9 @@ typed 口或在入口 from_repr 校验失败即报错。
 一处定义，严禁散落裸 const u8）。
 边界：task/ing/custom-object-dispatch-single-list.md 管 slow.rs 与 acl 闭包两轨及扩展内双表，
 本条是它未覆盖的会话执行臂特判与标签型别擦除两处。
+
+分拣补记（muse.my 条 7 同题；浅核 2026-09-19 主仓 dev）：标签 u8 擦除半边同本票（parser
+入槽 as_u8、obj_decode_custom 裸 u8 比对、SessionParseState.object_tag 均在场）。增量一点：
+wnode/src/resp/custom_objects.rs:33-42 custom_object_type_name 对 CUSTOM_OBJECT_ENTRIES
+逐项线性比 tag（const fn，清单现仅 roaring/json 两三项，成本可忽略）——本票落强类型改造时
+可顺带以 match 消线性扫，勿另立票。

@@ -57,3 +57,13 @@ C# 参考
    lifecycle 惰性恢复三处的删除/胜出行为逐条不变（按 addr 阈值删、按 key_id 删、取最大 addr 胜出）。
 3. parse_flush_file_name 不再被枚举器之外的调用方引用。
 4. cargo check 通过（禁跑 test.sh / clippy.sh，由主代理合并后统一跑）。
+
+双花登记
+并发代理的同号薄票 next/db-bftree-flush-dir-scan-single.md（自称并入 next/muse.db.md 条 12）已由
+主仓 commit 0f7ce71 作「双载体薄壳」删除，载体统一为本票，本票为该题唯一正文。
+在途冲突（重要）：worktree /tmp/fork/wbftree-flush-enum（分支 wbftree-flush-enum）已开工同文件
+wedb/wbftree/src/manager/replication.rs，当下 diff 仅一行文档注释改写、尚无实现——本票须并入该棒续做，
+禁另派第二棒（两棒同改 replication.rs 必冲突）。
+口径差异留档：对方薄票把 replication.rs:106 与 recover_all_trees_from_dir（:147/:166）的快照目录扫描
+一并计入「四度扫描」；本票按当下代码判其属另一枚举域（.bftree 检查点快照目录 vs ri_log_root 刷盘日志
+目录，文件名与解析器均不同），只收 ri_log_root 三处（:43、:63、lifecycle.rs:177），禁为凑数合并两套迭代。

@@ -47,3 +47,9 @@ C# 参考
 2. wkv 对外方法面（StoreSession 的 pub 成员名集合）逐符号不变，wcol/wbftree/wnode 调用点零改动。
 3. 树锁两函数仍在唯一载体内且只有一份实现（与 range-index-locks-acquire-api 票的收口结果一致）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh）。
+
+双花登记
+并发代理就条 6 另立同题薄票 next/db-range-index-stub-split.md（同改 wkv/src/range_index/stub.rs，
+五域划分与本票一致），两票同改一文件只取一棒：本票为正文载体，派发时以本票为准并删除该薄票，禁双花。
+排棒次序：本票依赖 task/ing/range-index-locks-acquire-api.md（同为 stub.rs 树锁两函数的收口）先落，
+否则拆件会把该锁口复制进两个新文件。

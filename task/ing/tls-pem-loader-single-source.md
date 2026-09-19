@@ -29,10 +29,11 @@
 - 全仓 grep `fn load_certs` 与 `fn load_private_key` 各自仅命中 1 处定义（限定符号 wbase::tls::load_certs / wbase::tls::load_private_key），wnode/wconn 侧只余 use 与调用
 - 全仓 grep `static SIGNATURE_ALGS` 仅命中 1 处（含 wbase 内的最终命名）
 - cargo check --workspace --all-features 与 cargo check --workspace（关 tls）双态零错误零警告，禁 #[allow]
-- 既有 TLS 用例不降级：cargo nextest run --all-features -p wnode --test tls_test --no-fail-fast 的 cert/key 载入相关臂通过（mTLS 必选臂本身另见 task/ing 之外的载体 next/tls-mtls-client-cert-required-not-enforced.md，本票不得顺手改其判定）；wconn 出站 TLS 单测（tls.rs:224 server_name_fallback 等）保持绿
+- 既有 TLS 用例不降级：cargo nextest run --all-features -p wnode --test tls_test --no-fail-fast 的 cert/key 载入相关臂通过；wconn 出站 TLS 单测（tls.rs:224 server_name_fallback 等）保持绿
+- mTLS 必选臂不得降级：该议题已由并发会话裁定为不成立并归档 /Users/z/git/db/wedb/task/reject/tls-mtls-client-cert-required-not-enforced.md（现文核实「必选客户端证书」端到端强制在位、与 C# 三臂对齐）。本票下沉 PEM 装载只动证书/私钥读盘面，`client_auth_mandatory` 与 verify_now 的裁决逻辑一律不动，改前改后该臂行为必须逐字一致
 - js/check.js 的重复定义段不因本改动新增条目（在 worktree 内跑，禁在主仓跑以免回写 ignore 语料）
 
 互斥与边界
 - 本票文件域：wbase/src/tls.rs（新）、wbase/Cargo.toml（cargo add 生成）、wnode/src/tls/config.rs、wconn/src/tls.rs；与 wtxn/wkv/wnode/src/resp/objects 的 rmw 路径零交叠
-- 经查 /tmp/fork 现仅 dev-2026-09-19（garnet C# 快照，非本仓 worktree），`git worktree list` 仅主仓 [dev]、`git branch --list` 仅 dev/main —— 无任何在途修复分支可作互斥依据，故本票按「无在途同域票」开工，勿以僵尸声称让路
+- 在途实测更正（2026-09-19 现刻，本条作废原「无任何在途修复分支可作互斥依据」的说法）：`git worktree list` 实得 11 个 fork（docs-data-comment-batch、docs-readme-crate-map、fix-custom-obj-multikey、fix-lua-pending-handoff、fix-pending-lat-mget、fix-reviv-crtt-gate、fix-rmw-atomic-window、fix-vector-registry-two、split-cluster-provider、windex-2pl-removal，另 /tmp/fork/dev-2026-09-19 为 garnet C# 快照）。逐个 `git diff --name-only dev...<br>` 比对：无 fork 触及 wnode/src/tls/config.rs、wconn/src/tls.rs、wbase/Cargo.toml，本票可即时开工；但与 task/ing/net-checkjs-dup-anchor-trio.md 条二同撞 wnode/src/tls/config.rs（from_der 与 server_config 的文档块），两票必须串行——先本票下沉 PEM 装载、后本域锚点收口票，勿并行
 - 不做向下兼容：两份旧实现直接删，不留薄壳转发

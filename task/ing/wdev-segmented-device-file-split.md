@@ -50,3 +50,10 @@ C# 参考
    wkv/whlog/waof 调用点零改动。
 3. diff 只呈现搬移与 use 调整（无逻辑行改写）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh）。
+
+双花登记
+并发代理就条 8 另立同题薄票 next/db-wdev-segmented-device-split.md（自称已与 next/muse.db.md 条 13
+两轮同题合并），与本票同改 wdev/src/segmented_device.rs，两票只取一棒：本票为正文载体，
+派发时以本票为准并删除该薄票，禁双花。
+排棒次序：task/done/wdev-segmented-device-mutator-knobs.md（已归档，主仓 commit 7292fc1）先前已搬动
+同文件，本票内行号须按当下 HEAD 重新定位后再拆，勿照抄本票行号。
