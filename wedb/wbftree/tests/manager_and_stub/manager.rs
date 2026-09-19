@@ -40,9 +40,14 @@ fn test_range_index_manager_lifecycle_and_checkpoint() -> Result<()> {
     StorageBackendType::Disk,
   );
 
-  // 3. 刷盘
-  manager.on_flush(key, &mut stub)?;
+  // 3. 刷盘 (唯一入口 on_flush_address：逻辑地址必带，工件为带地址命名)
+  manager.on_flush_address(key, &mut stub, 0x1000)?;
   assert!(stub.is_flushed());
+  assert!(
+    manager
+      .log_flush_path(&RangeIndexManager::base32_prefix_of(key), 0x1000)
+      .exists()
+  );
 
   // 4. 执行全局检查点快照
   let checkpoint_token = 12345u128;
@@ -209,9 +214,9 @@ fn test_checkpoint_barrier_and_wait() -> Result<()> {
   OK
 }
 
-/// 冷树 (无在线实例) 刷盘：直接复制工作文件 data.bftree 为刷盘快照
+/// 冷树 (无在线实例) 刷盘：直接复制工作文件 data.bftree 为带地址刷盘快照
 #[test]
-fn test_on_flush_cold_tree_copies_data_file() -> Result<()> {
+fn test_on_flush_address_cold_tree_copies_data_file() -> Result<()> {
   let env = ManagerEnvGuard::new("cold");
   let manager = Arc::new(RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap());
   let key = b"cold_flush_key";
@@ -231,19 +236,19 @@ fn test_on_flush_cold_tree_copies_data_file() -> Result<()> {
     4096,
     StorageBackendType::Disk,
   );
-  manager.on_flush(key, &mut stub)?;
+  manager.on_flush_address(key, &mut stub, 0x900)?;
 
   let hash_prefix = RangeIndexManager::base32_prefix_of(key);
-  let flush_path = env.ri_root.join(format!("{}.flush.bftree", hash_prefix));
+  let flush_path = manager.log_flush_path(&hash_prefix, 0x900);
   assert!(stub.is_flushed());
   assert!(flush_path.exists());
 
   OK
 }
 
-/// 冷树工作文件缺失时刷盘必须保持未刷盘状态
+/// 冷树工作文件缺失时刷盘必须保持未刷盘状态，且不得留下带地址刷盘工件
 #[test]
-fn test_on_flush_missing_data_file_keeps_stub_unflushed() -> Result<()> {
+fn test_on_flush_address_missing_data_file_keeps_stub_unflushed() -> Result<()> {
   let env = ManagerEnvGuard::new("cold_miss");
   let manager = Arc::new(RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap());
   let key = b"cold_missing_key";
@@ -262,11 +267,11 @@ fn test_on_flush_missing_data_file_keeps_stub_unflushed() -> Result<()> {
     4096,
     StorageBackendType::Disk,
   );
-  manager.on_flush(key, &mut stub)?;
+  manager.on_flush_address(key, &mut stub, 0xA00)?;
 
   assert!(!stub.is_flushed());
   let hash_prefix = RangeIndexManager::base32_prefix_of(key);
-  let flush_path = env.ri_root.join(format!("{}.flush.bftree", hash_prefix));
+  let flush_path = manager.log_flush_path(&hash_prefix, 0xA00);
   assert!(!flush_path.exists());
 
   OK
@@ -671,7 +676,7 @@ fn test_manager_rejects_empty_root() -> Result<()> {
 }
 
 /// 同名键重建必须清理旧世代刷盘工件：前缀寻址恢复 (存根无逻辑地址) 无法区分
-/// 世代，delete 后残留的裸名/带地址刷盘快照若不清理，会在新世代淘汰后的惰性
+/// 世代，delete 后残留的带地址刷盘快照若不清理，会在新世代淘汰后的惰性
 /// 恢复中把新世代工作文件覆盖回旧世代快照
 #[test]
 fn test_create_purges_old_generation_flush_artifacts() -> Result<()> {
@@ -680,10 +685,9 @@ fn test_create_purges_old_generation_flush_artifacts() -> Result<()> {
   let key = b"purge_flush_key";
   let hash_prefix = RangeIndexManager::base32_prefix_of(key);
 
-  // 旧世代：写入、淘汰 (delete_index 语义上保留刷盘快照) 后留下裸名与带地址工件
+  // 旧世代：写入、淘汰 (delete_index 语义上保留刷盘快照) 后留下带地址工件
   let tree = manager.create_bftree(key, StorageBackendType::Disk, TUNE)?;
   assert_eq!(tree.insert(b"old_k", b"old_v"), BfTreeInsertResult::Success);
-  tree.cpr_snapshot(manager.bare_flush_path(&hash_prefix))?;
   tree.cpr_snapshot(manager.log_flush_path(&hash_prefix, 0x100))?;
   assert!(manager.delete_index(key)?);
 
@@ -692,10 +696,6 @@ fn test_create_purges_old_generation_flush_artifacts() -> Result<()> {
   assert_eq!(
     tree2.insert(b"new_k", b"new_v"),
     BfTreeInsertResult::Success
-  );
-  assert!(
-    !manager.bare_flush_path(&hash_prefix).exists(),
-    "重建必须清理旧世代裸名刷盘快照"
   );
   assert!(
     !manager.log_flush_path(&hash_prefix, 0x100).exists(),
