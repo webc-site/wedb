@@ -14,62 +14,170 @@ use crate::support::{HashIndexTestOps, config, open_store};
 /// 对标 Garnet Tsavorite TryCopyToTail / CopyReadsToTail ——
 /// 落盘冷数据读取后自动晋升至 Tail 活跃区
 ///
-/// 验证开启 copy_reads_to_tail 后，首次读取从磁盘回填并自动晋升至 Tail，
-/// 后续对该键的再次读取直接命中内存直读（`try_read_sync` 成功），避免二次磁盘 I/O。
+/// 验证 store 级 `copy_reads_to_tail`（对标 C# `kvSettings.ReadCopyOptions =
+/// new(AllImmutable, MainLog)`，GarnetServerOptions.cs:899-900）开启后，首次读取从磁盘
+/// 回填并自动晋升至 Tail，后续对该键的再次读取直接命中内存直读（`try_read_sync` 成功），
+/// 避免二次磁盘 I/O；关闭时读取结果一致但 Tail 零推进（两条方向都断言，防回归）。
 #[test]
-fn test_copy_reads_to_tail() -> Void {
+fn test_copy_reads_to_tail_from_disk() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let page_size = DEFAULT_SECTOR_SIZE;
-    let env = open_store("copy_to_tail.db", config(1024, page_size, 16)?)?;
-    let store = env.store;
-    let session = store.new_session()?;
-
     let cold_k = b"cold_key_for_copy_to_tail";
     let cold_v = b"cold_payload_initial_disk_data";
 
-    let addr_init = session.upsert(cold_k, cold_v).await?;
-    assert!(addr_init < page_size as u64);
+    for (enable, name) in [(true, "crtt_disk_on.db"), (false, "crtt_disk_off.db")] {
+      let env = open_store(
+        name,
+        config(1024, page_size, 16)?.with_copy_reads_to_tail(enable),
+      )?;
+      let store = env.store;
+      let session = store.new_session()?;
 
-    // 填充跨越第 0 页
-    let pad = vec![b'P'; 3000];
-    session.upsert(b"pad_k1", &pad).await?;
-    let addr_pad = session.upsert(b"pad_k2", &pad).await?;
-    assert!(addr_pad >= page_size as u64);
+      let addr_init = session.upsert(cold_k, cold_v).await?;
+      assert!(addr_init < page_size as u64);
 
-    // 刷盘并驱逐第 0 页至磁盘
-    store.flush_all().await?;
-    store.shift_read_only_address(page_size as u64);
-    store.shift_head_address(page_size as u64);
+      // 填充跨越第 0 页
+      let pad = vec![b'P'; 3000];
+      session.upsert(b"pad_k1", &pad).await?;
+      let addr_pad = session.upsert(b"pad_k2", &pad).await?;
+      assert!(addr_pad >= page_size as u64);
 
-    assert!(store.hlog.is_on_disk(addr_init));
-    assert!(!store.hlog.is_in_memory(addr_init));
+      // 刷盘并驱逐第 0 页至磁盘（shift_head 内部先把只读线推到同值，故只调一次）
+      store.flush_all().await?;
+      store.shift_head_address(page_size as u64);
 
-    // 未开启 copy_reads_to_tail 时：读取成功但不会拷贝回 Tail
-    session.set_copy_reads_to_tail(false);
-    let val1 = session.read(cold_k).await?;
-    assert_eq!(val1, Some(cold_v.to_vec()));
-    // 再次内存探测依然无法命中内存（必须回退到磁盘）
-    assert_eq!(
-      session.try_read_sync(cold_k, |_| ())?,
-      StoreResult::RecordOnDisk
-    );
+      assert!(store.hlog.is_on_disk(addr_init));
+      assert!(!store.hlog.is_in_memory(addr_init));
 
-    // 开启 copy_reads_to_tail 时：首次从磁盘读完后自动晋升回 Tail
-    session.set_copy_reads_to_tail(true);
-    let val2 = session.read(cold_k).await?;
-    assert_eq!(val2, Some(cold_v.to_vec()));
+      let tail_before = store.hlog.tail_address();
+      let val = session.read(cold_k).await?;
+      assert_eq!(val, Some(cold_v.to_vec()), "两态下冷读结果必须一致");
 
-    // 关键断言：此时该记录已被原子晋升到 Tail 内存中！
-    // 再次读取时，纯同步内存探针直接精准命中，返回 StoreResult::Success(val)，完全绕过磁盘！
-    let mem_hit = session.try_read_sync(cold_k, |v| v.to_vec())?;
-    assert_eq!(
-      mem_hit,
-      StoreResult::Success(cold_v.to_vec()),
-      "晋升后必须 100% 命中 DRAM 同步内存直读"
-    );
+      if enable {
+        // 关键断言：此时该记录已被原子晋升到 Tail 内存中！
+        assert!(
+          store.hlog.tail_address() > tail_before,
+          "开启时磁盘冷读必须追加晋升回 Tail"
+        );
+        // 再次读取时，纯同步内存探针直接精准命中，返回 StoreResult::Success(val)，完全绕过磁盘！
+        let mem_hit = session.try_read_sync(cold_k, |v| v.to_vec())?;
+        assert_eq!(
+          mem_hit,
+          StoreResult::Success(cold_v.to_vec()),
+          "晋升后必须 100% 命中 DRAM 同步内存直读"
+        );
+      } else {
+        assert_eq!(
+          store.hlog.tail_address(),
+          tail_before,
+          "关闭时冷读零写放大，Tail 绝不得推进"
+        );
+        // 依然无法命中内存（必须回退到磁盘）
+        assert_eq!(
+          session.try_read_sync(cold_k, |_| ())?,
+          StoreResult::RecordOnDisk,
+          "关闭时二次读仍须回退磁盘候选"
+        );
+      }
+    }
 
     info!("对照 C# Garnet TryCopyToTail 冷读自动晋升至 Tail 活跃区验证通过");
+    aok::Result::<()>::Ok(())
+  })?;
+
+  OK
+}
+
+/// copy_reads_to_tail 的「内存不可变区命中」臂（对标 C# InternalRead.cs:CopyFromImmutable
+/// 在 `CopyTo == MainLog` 下走 ConditionalCopyToTail(wantIO:false)）
+///
+/// 修复前该臂全缺：`--copy-reads-to-tail` 开、read-cache 关（Garnet 主用法）时，
+/// 命中内存不可变区 [head, safe_read_only) 的记录不回 Tail，只有磁盘冷读那一段对齐。
+/// 本用例断言：开时不可变区命中即同步晋升 Tail（Tail 推进 + 索引改指新地址 +
+/// 二次读命中可变区且不再重复晋升）；关时 Tail 零推进。
+#[test]
+fn test_copy_reads_to_tail_from_immutable_region() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let page_size = DEFAULT_SECTOR_SIZE;
+    let cold_k = b"immutable_key_for_copy_to_tail";
+    let cold_v = b"immutable_payload_disk_data";
+
+    for (enable, name) in [
+      (true, "crtt_immutable_on.db"),
+      (false, "crtt_immutable_off.db"),
+    ] {
+      let env = open_store(
+        name,
+        config(1024, page_size, 16)?.with_copy_reads_to_tail(enable),
+      )?;
+      let store = env.store;
+      let session = store.new_session()?;
+
+      let addr_init = session.upsert(cold_k, cold_v).await?;
+      // 填充跨越第 0 页，令 addr_init 落入 Tail 之前的冷内存段
+      let pad = vec![b'P'; 3000];
+      session.upsert(b"pad_i1", &pad).await?;
+      let addr_pad = session.upsert(b"pad_i2", &pad).await?;
+      assert!(addr_pad >= page_size as u64);
+
+      // 只刷盘、不驱逐：刷盘内核「先封后刷」把 read_only / safe_read_only 一并
+      // 封印至刷盘上界，head 不动，故 addr_init 恰好落在内存不可变区内
+      store.flush_all().await?;
+      assert!(
+        store.hlog.is_in_memory(addr_init),
+        "前置条件：记录必须仍驻留内存（未驱逐）"
+      );
+      assert!(
+        addr_init >= store.hlog.head_address()
+          && addr_init < store.hlog.safe_read_only_address(),
+        "前置条件：记录必须落在不可变区 [head, safe_read_only)"
+      );
+
+      let tail_before = store.hlog.tail_address();
+      assert_eq!(session.read(cold_k).await?, Some(cold_v.to_vec()));
+
+      if enable {
+        let tail_after = store.hlog.tail_address();
+        assert!(
+          tail_after > tail_before,
+          "不可变区命中必须同步晋升回 Tail（对标 wantIO:false 最佳努力）"
+        );
+        // 索引必须改指新地址（新帧位于可变区 [tail_before, tail_after) 内）
+        let phys = session.session_string_key(cold_k);
+        let mounted = store.index.load().lookup_vec(&phys);
+        assert_eq!(
+          mounted.len(),
+          1,
+          "晋升挂载后该键在索引中唯指新地址"
+        );
+        let new_addr = mounted[0];
+        assert!(
+          new_addr >= tail_before && new_addr < tail_after && new_addr != addr_init,
+          "索引新地址 {new_addr:#x} 必须落在本次晋升推进出的 Tail 区间内，而非原不可变槽位"
+        );
+        // 二次读命中可变区：不得再触发晋升（目的地只服务不可变区）
+        assert_eq!(
+          session.try_read_sync(cold_k, |v| v.to_vec())?,
+          StoreResult::Success(cold_v.to_vec()),
+          "晋升后必须 100% 命中 DRAM 同步内存直读"
+        );
+        assert_eq!(
+          store.hlog.tail_address(),
+          tail_after,
+          "可变区命中不得重复晋升（写放大必须收敛）"
+        );
+      } else {
+        assert_eq!(
+          store.hlog.tail_address(),
+          tail_before,
+          "关闭时不可变区命中零写放大，Tail 绝不得推进"
+        );
+      }
+    }
+
+    info!("对照 C# CopyFromImmutable 不可变区命中同步晋升 Tail 验证通过");
     aok::Result::<()>::Ok(())
   })?;
 
