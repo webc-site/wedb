@@ -42,3 +42,19 @@ garnet/libs/server/Metrics/Info/GarnetInfoMetrics.cs 两统计函数。
 五组各保留一处真实现挂载（上文括号内判定），其余挂载点把「路径.cs:符号」改为散文式
 说明（去冒号或改自然语言），一处一锚；落地后跑 ./js/check.js 确认重复组消除。
 禁为去锚点删除任何语义说明文字。
+
+分拣补记（next/agy.net.md 条 15 与 next/muse.net.md 条 7 同题并入本票组 1，net 域源档已分拣清空
+删除；浅核 2026-09-19 主仓 dev）：GetSslServerAuthenticationOptions 双挂组在 net 与 design 两轮
+重复上报，唯一载体以本票组 1 为准，net 域分拣不再另立（曾建的壳已剪）。增量约束：出站面
+wedb/wconn/src/tls.rs ClientTlsConfig::new 对 GetSslClientAuthenticationOptions 现为单挂，
+本票组 1 落地时勿动出站侧。
+
+分拣补记（next/muse.db.md 条 3 与条 5 同题并入本票，db 域源档已分拣清空删除；浅核
+2026-09-19 主仓 dev，bun js/check.js 实测）：条 3 即本票组 4（ContextReadWithPrefetch
+双挂），保留方向以本票为准（read_batch_with 保留、prefetch_batch_probes 去锚，
+muse 原建议方向相反已修正）。条 5 增量两组：其一 GetDatabasesSnapshot 三挂
+（check.js 现仍报）——wedb/wkv/src/store/stats.rs:110 store_snapshot 为引擎真实现
+保留，wedb/wnode/src/resp/garnet_api/mod.rs:116 store_snapshots 与 :565
+StoreGarnetApi::store_snapshots 两处编排/转发去锚改散文（对标 C# 侧
+StoreWrapper.cs:567 GetDatabasesSnapshot 单实现、InfoMetrics 为消费方不挂此键），
+并入本票作第六组；其二即本票组 5（InfoMetrics 两键），同票处理不再重复。
