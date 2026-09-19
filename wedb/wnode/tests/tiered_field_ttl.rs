@@ -98,7 +98,8 @@ fn promote(
   next_expiry: i64,
 ) {
   let sess = env.store.new_session().unwrap();
-  env.rt
+  env
+    .rt
     .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, next_expiry))
     .unwrap();
   assert!(
@@ -542,7 +543,8 @@ fn promote_demote_roundtrip_preserves_field_ttl() {
   obj.insert_expiration(b"m2".to_vec(), member_expiry);
   let entries = obj.export_entries();
   let sess = env.store.new_session().unwrap();
-  env.rt
+  env
+    .rt
     .block_on(sess.promote_collection_to_bftree(
       b"z",
       GarnetObjectType::SortedSet,

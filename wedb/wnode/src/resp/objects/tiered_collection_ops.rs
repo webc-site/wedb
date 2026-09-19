@@ -42,7 +42,9 @@ use wbase::{
   num::{strict_f64, strict_i32, strict_i64},
   time::now_ticks,
 };
-use wbftree::{BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexStub, ScanReturnField};
+use wbftree::{
+  BfTreeInsertResult, BfTreeReadResult, BfTreeService, RangeIndexStub, ScanReturnField,
+};
 use wcol::{
   SET_MEMBER_DUMMY_VALUE,
   hash::hash_object::HashOperation,
@@ -56,11 +58,7 @@ use wcol::{
 };
 use wdev::Device;
 use wkv::{BatchStoreSession, RangeIndexError, StoreSession, TreeGuard, validate_bftree_record};
-use wresp::{
-  cmd_strings as cs,
-  ext::RespVecExt,
-  resp_memory_writer::format_double,
-};
+use wresp::{cmd_strings as cs, ext::RespVecExt, resp_memory_writer::format_double};
 use wval::{GarnetObjectType, MetaValue};
 use zmij::Buffer as ZmijBuffer;
 
@@ -469,9 +467,7 @@ fn set_needs_write(op: SetOperation) -> bool {
 fn zset_needs_write(op: SortedSetOperation) -> bool {
   matches!(
     op,
-    SortedSetOperation::Zadd
-      | SortedSetOperation::Zincrby
-      | SortedSetOperation::Zcard
+    SortedSetOperation::Zadd | SortedSetOperation::Zincrby | SortedSetOperation::Zcard
   )
 }
 

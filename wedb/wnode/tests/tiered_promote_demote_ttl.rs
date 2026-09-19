@@ -195,7 +195,8 @@ fn background_demote_preserves_key_ttl() {
     .collect();
   {
     let sess = env.store.new_session().unwrap();
-    env.rt
+    env
+      .rt
       .block_on(sess.promote_collection_to_bftree(
         b"h",
         wval::GarnetObjectType::Hash,
