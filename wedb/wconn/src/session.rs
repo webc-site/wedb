@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use compio::{net::TcpStream, runtime::spawn};
+use compio::runtime::spawn;
 use crossfire::{TrySendError, mpsc, oneshot};
 use wbase::pool::LimitedFixedBufferPool;
 use wresp::{ext::RespVecExt, resp_memory_writer::write_bulk_string_to};
@@ -82,16 +82,14 @@ impl GarnetClientSession {
 
   /// libs/client/ClientSession/GarnetClientSession.cs:ConnectAsync
   pub async fn connect_async(&mut self) -> Result<()> {
-    let sock = TcpStream::connect(&self.end_point).await?;
-    sock.set_nodelay(true).ok();
+    // 端点形态分派建连：TCP 臂设 nodelay、Unix 域套接字臂不设（判定单源
+    // `wbase::endpoint::uds_path`，与客户端同一条规则）
+    let stream = OutStream::connect(&self.end_point).await?;
     // TLS 配置在位即在 TCP 之上完成握手包裹；无配置保持明文字节流
     #[cfg(feature = "tls")]
-    let stream = match &self.tls {
-      Some(tls) => OutStream::Tls(Box::new(tls.connect(sock, &self.end_point).await?)),
-      None => OutStream::Tcp(sock),
-    };
-    #[cfg(not(feature = "tls"))]
-    let stream = OutStream::Tcp(sock);
+    let stream = stream
+      .with_tls(self.tls.as_deref(), &self.end_point)
+      .await?;
     // 会话层无在途准入形参（C# GarnetClientSession 同样无 maxOutstandingTasks）：
     // 命令通道与泵内在途队列均按 CHANNEL_CAP 单源定容
     let (tx, rx) = mpsc::bounded_async(CHANNEL_CAP);

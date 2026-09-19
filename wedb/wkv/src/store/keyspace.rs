@@ -10,7 +10,7 @@ use crate::{
   error::Result,
   gc::{ExpiredKeySet, ScanBudget, collect_expired},
   ttl::is_expired,
-  vdb::{DbMetaRecord, ROOT_VIRTUAL_ID},
+  vdb::{DbMetaRecord, GcDeadEntry, ROOT_VIRTUAL_ID},
 };
 
 /// 换号旧域/旧空间的回收截止 ticks：`now_ticks + db_gc_reclaim_delay_secs` 秒
@@ -320,6 +320,44 @@ impl<D: Device> WedbStore<D> {
       reclaim_expired_at(now, self.config.gc.db_gc_reclaim_delay_secs),
       tail_address,
     )
+  }
+
+  /// 退役指定物理库域（AOF FlushDb 回放屏障与兜底判死）
+  ///
+  /// 仅当旧域尚未判死时登记本地 GC 死亡账本并联动树回收，
+  /// 映射面（租户表/路由表/分配水位）全程零改动，不进行本地二次映射
+  pub fn retire_dead_domain(&self, vns: u64, old_vdb: u64) {
+    if !self.vdb.is_dead_domain(vns, old_vdb) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vdb,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: Some(vns),
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domain(vns, old_vdb));
+  }
+
+  /// 退役指定物理命名空间（AOF FlushNs 回放屏障与兜底判死）
+  ///
+  /// 仅当旧空间尚未判死时登记本地 GC 死亡账本并联动树回收，
+  /// 映射面（租户表/路由表/分配水位）全程零改动，不进行本地二次映射
+  pub fn retire_dead_namespace(&self, old_vns: u64) {
+    if !self.vdb.is_dead_ns(old_vns) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vns,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: None,
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domains_of_vns(old_vns));
   }
 
   /// DbMeta 换号事务落盘单点（主库放射与回放射四类换号共用）：把一次换号的

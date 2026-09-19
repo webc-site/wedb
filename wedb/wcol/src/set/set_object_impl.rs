@@ -22,7 +22,7 @@ impl SetObject {
   /// SADD：批量添加成员
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetAdd
-  pub(crate) fn set_add(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn set_add(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let mut added = 0_i64;
 
     for &member in args {
@@ -39,7 +39,7 @@ impl SetObject {
   /// SMEMBERS：全量成员
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetMembers
-  pub(crate) fn set_members(&mut self, output: &mut ObjectOutput, resp_protocol_version: u8) {
+  pub(crate) fn set_members(&mut self, output: &mut ObjectOutput<'_>, resp_protocol_version: u8) {
     write_set_length(output, self.set.len(), resp_protocol_version);
 
     let mut written = 0_i64;
@@ -55,7 +55,7 @@ impl SetObject {
   /// SISMEMBER：单成员存在性
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetIsMember
-  pub(crate) fn set_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn set_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let member = args[0];
     let is_member = self.set.contains(member);
     RespWriter::new_ref(&mut output.payload).write_int64(i64::from(is_member));
@@ -65,7 +65,7 @@ impl SetObject {
   /// SMISMEMBER：多成员存在性
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetMultiIsMember
-  pub(crate) fn set_multi_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn set_multi_is_member(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
 
     for &member in args {
@@ -78,7 +78,7 @@ impl SetObject {
   /// SREM：批量移除成员
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetRemove
-  pub(crate) fn set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let mut removed = 0_i64;
 
     for &member in args {
@@ -94,7 +94,7 @@ impl SetObject {
   /// SCARD：基数
   ///
   /// libs/server/Objects/Set/SetObjectImpl.cs:SetLength
-  pub(crate) fn set_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn set_length(&mut self, output: &mut ObjectOutput<'_>) {
     output.result1 = self.set.len() as i64;
   }
 
@@ -108,7 +108,7 @@ impl SetObject {
     &mut self,
     _args: &[&[u8]],
     arg1: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     // SPOP key [count]
@@ -169,7 +169,7 @@ impl SetObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let count = arg1;

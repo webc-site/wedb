@@ -58,3 +58,21 @@ C# 参考
 - 协议字节零改动；RESP2/RESP3 分派单点（output.rs 适配口）不动。
 
 盘点补记（qw13.invA object-output-payload-direct-write）：dev e75716e 复核原样：wcol/src/resp/output.rs:29-31 ObjectOutput 仍自带 pub payload: Vec<u8> 中转向量，grep 该文件 mount/base/reset 零命中。打磨档定位不变。
+
+完成记录（fix-obj-output-write，合并 cae3e39）
+- 裁决：成立。dev 8416358 复核 output.rs 仍自带 Vec 中转、20 构造点原样，
+  未被并发修掉。
+- 实现：ObjectOutput<'a> { payload: &'a mut Vec<u8>, base, result1,
+  output_flags }，mount/payload_view/written/reset 四口一处定义（对标
+  ObjectOutput.cs:FromPinnedPointer / writer.ResetPosition），删 Vec 中转与
+  Clone/Default，无旧形态双轨。
+- wcol operate 族（trait+hash/set/list/zset/geo）签名 &mut ObjectOutput<'_>，
+  body 零改动；唯一语义点 ZRANGE BYLEX 冲突臂 clear→reset。
+- wnode：rmw 骨架 RunOp bound 改 for<'o> FnOnce(..., &'o mut Vec<u8>) ->
+  ObjectOutput<'o>，sync/async 两臂 extend_from_slice 删除，
+  payload_written 改 written()，写回失败/升阶 Degrade 先 reset 再返回；
+  直评站点挂 mount(output)；ZRANGESTORE/GEOSEARCHSTORE 解析臂挂本地
+  sink（错误臂 append 透传一次）；丢弃站点（HCOLLECT/ZCOLLECT/周期收集/
+  AOF 回放）挂本地 sink。协议字节零改动，RESP2/RESP3 分派单点不动。
+- 验证：cargo check --workspace --tests 0 error 0 warning（worktree 与
+  主仓合并后各一次；主代理 test.sh/clippy 另行）。

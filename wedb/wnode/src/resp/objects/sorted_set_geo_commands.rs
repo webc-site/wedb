@@ -486,7 +486,7 @@ impl RespServerSession {
       ZsetLoad::Present(o) => (o, true),
     };
 
-    let mut obj_out = ObjectOutput::new();
+    let mut obj_out = ObjectOutput::mount(output);
     obj.operate(
       SortedSetOperation::Geoadd as u8,
       &parse_state[member_start..],
@@ -496,18 +496,23 @@ impl RespServerSession {
       self.resp_protocol_version,
     );
 
-    // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）
-    if obj_out.payload.first() != Some(&b'-') && (existed || !obj.sorted_set_dict.is_empty()) {
+    // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）；
+    // 写回失败回退挂载点（Degrade 整体重放 / 错误帧独占应答）
+    if obj_out.payload_view().first() != Some(&b'-') && (existed || !obj.sorted_set_dict.is_empty())
+    {
       match zset_save_or_gc(store, key, &obj) {
         Ok(true) => {}
-        Ok(false) => return Ok(false),
+        Ok(false) => {
+          obj_out.reset();
+          return Ok(false);
+        }
         Err(_) => {
+          obj_out.reset();
           output.write_resp_error(RESP_ERR_GENERIC);
           return Ok(true);
         }
       }
     }
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -560,16 +565,14 @@ impl RespServerSession {
       ZsetLoad::Present(o) => o,
     };
 
-    let mut obj_out = ObjectOutput::new();
     obj.operate(
       op as u8,
       &parse_state[1..],
       0,
       0,
-      &mut obj_out,
+      &mut ObjectOutput::mount(output),
       self.resp_protocol_version,
     );
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -613,11 +616,11 @@ impl RespServerSession {
         // 源缺失：读变体空数组；存储变体删除目标键后回 :0（C# EXPIRE(destination, 0)）
         match &store_dest {
           Some(dest) => match zset_save_or_gc(store, dest, &SortedSetObject::new()) {
-            Ok(true) => output.extend_from_slice(b":0\r\n"),
+            Ok(true) => output.write_resp_int(0),
             Ok(false) => return Ok(false),
             Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
           },
-          None => output.extend_from_slice(b"*0\r\n"),
+          None => output.write_resp_array_len(0),
         }
         return Ok(true);
       }
@@ -626,21 +629,27 @@ impl RespServerSession {
 
     match store_dest {
       None => {
-        let mut obj_out = ObjectOutput::new();
-        obj.geo_search(&mut opts, &mut obj_out, self.resp_protocol_version, true);
-        output.extend_from_slice(&obj_out.payload);
+        obj.geo_search(
+          &mut opts,
+          &mut ObjectOutput::mount(output),
+          self.resp_protocol_version,
+          true,
+        );
       }
       Some(dest) => {
         // 存储变体（解析层已强制 withHash 或 withDist）：分值取 GeoHash 或距离，
-        // 命中成员成对落目标集合（对标 C# GeoSearchStore 的 ZADD 收尾）
-        let mut obj_out = ObjectOutput::new();
+        // 命中成员成对落目标集合（对标 C# GeoSearchStore 的 ZADD 收尾）；
+        // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
+        let mut sink = Vec::new();
+        let mut obj_out = ObjectOutput::mount(&mut sink);
         obj.geo_search(&mut opts, &mut obj_out, self.resp_protocol_version, false);
-        if obj_out.payload.first() == Some(&b'-') {
+        if obj_out.payload_view().first() == Some(&b'-') {
           // FROMMEMBER 圆心缺失等对象层错误透传
-          output.extend_from_slice(&obj_out.payload);
+          drop(obj_out);
+          output.append(&mut sink);
           return Ok(true);
         }
-        let dst = SortedSetObject::from_entries(parse_pairs_payload(&obj_out.payload));
+        let dst = SortedSetObject::from_entries(parse_pairs_payload(obj_out.payload_view()));
         let count = dst.sorted_set_dict.len();
         // STORE 族目标键为 SET 语义（清既有 key 级 TTL）：对标 C# GeoSearchStore
         // 先统一面 Delete dst 再 RMW ZADD（ObjectStore/SortedSetOps.cs），信封域
@@ -798,7 +807,7 @@ pub(crate) mod slow {
         Some((o, tiered)) => (o, true, tiered),
         None => (SortedSetObject::new(), false, false),
       };
-      let mut obj_out = ObjectOutput::new();
+      let mut obj_out = ObjectOutput::mount(output);
       obj.operate(
         SortedSetOperation::Geoadd as u8,
         members,
@@ -807,11 +816,16 @@ pub(crate) mod slow {
         &mut obj_out,
         resp_version,
       );
-      // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）
-      if obj_out.payload.first() != Some(&b'-') && (existed || !obj.sorted_set_dict.is_empty()) {
-        geo_save_back(storage, key, &obj, was_tiered).await?;
+      // 回写：错误回复不落库；缺失键上仍空则不创建（三元组全被拒等场景）；
+      // 写回失败回退挂载点再落错（慢路径统一应答前清场）
+      if obj_out.payload_view().first() != Some(&b'-')
+        && (existed || !obj.sorted_set_dict.is_empty())
+      {
+        if geo_save_back(storage, key, &obj, was_tiered).await.is_err() {
+          obj_out.reset();
+          return Err(());
+        }
       }
-      output.extend_from_slice(&obj_out.payload);
       return Ok(());
     }
 
@@ -841,9 +855,14 @@ pub(crate) mod slow {
           return Ok(());
         }
       };
-      let mut obj_out = ObjectOutput::new();
-      obj.operate(op as u8, args, 0, 0, &mut obj_out, resp_version);
-      output.extend_from_slice(&obj_out.payload);
+      obj.operate(
+        op as u8,
+        args,
+        0,
+        0,
+        &mut ObjectOutput::mount(output),
+        resp_version,
+      );
       return Ok(());
     }
 
@@ -879,9 +898,9 @@ pub(crate) mod slow {
             .await
             .map(|_| ())
             .map_err(|_| ())?;
-          output.extend_from_slice(b":0\r\n");
+          output.write_resp_int(0);
         } else {
-          output.extend_from_slice(b"*0\r\n");
+          output.write_resp_array_len(0);
         }
         return Ok(());
       }
@@ -890,20 +909,26 @@ pub(crate) mod slow {
 
     match store_dest {
       None => {
-        let mut obj_out = ObjectOutput::new();
-        obj.geo_search(&mut opts, &mut obj_out, resp_version, true);
-        output.extend_from_slice(&obj_out.payload);
+        obj.geo_search(
+          &mut opts,
+          &mut ObjectOutput::mount(output),
+          resp_version,
+          true,
+        );
       }
       Some(dest) => {
-        // 存储变体：分值取 GeoHash 或距离，命中成员成对落目标集合
-        let mut obj_out = ObjectOutput::new();
+        // 存储变体：分值取 GeoHash 或距离，命中成员成对落目标集合；
+        // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
+        let mut sink = Vec::new();
+        let mut obj_out = ObjectOutput::mount(&mut sink);
         obj.geo_search(&mut opts, &mut obj_out, resp_version, false);
-        if obj_out.payload.first() == Some(&b'-') {
+        if obj_out.payload_view().first() == Some(&b'-') {
           // FROMMEMBER 圆心缺失等对象层错误透传
-          output.extend_from_slice(&obj_out.payload);
+          drop(obj_out);
+          output.append(&mut sink);
           return Ok(());
         }
-        let dst = SortedSetObject::from_entries(parse_pairs_payload(&obj_out.payload));
+        let dst = SortedSetObject::from_entries(parse_pairs_payload(obj_out.payload_view()));
         let count = dst.sorted_set_dict.len();
         // STORE 族目标键为 SET 语义（清既有 key 级 TTL）：对标 C# GeoSearchStore
         // 先统一面 Delete dst 再 RMW ZADD，信封域 upsert 默认保留须显式清退

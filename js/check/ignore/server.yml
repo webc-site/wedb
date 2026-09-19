@@ -228,6 +228,7 @@
         - GetFloat
         - GetSerializedLength
         - InitializeWithArguments
+        - SetArgument
         - SetArguments
         - Slice
     - libs/server/Resp/RespCommandArgument.cs:
@@ -250,8 +251,6 @@
     - libs/server/Resp/SessionLogger.cs:
         - BeginScope
         - Log
-    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkSet.cs:
-        - GetEnumerator
     - libs/server/Storage/Functions/FunctionsState.cs:
         - CopyDefaultResp
         - CopyRespNumber
@@ -787,11 +786,17 @@
   理由: C# System.Threading.Channels 包装层：rust 侧以 wbase/src/pool/event_queue.rs:111
     close + :85 drain 组合承接 C# :45 CompleteAndWaitForConsumerTask（关闭后阻塞至消费完成再排空）
     与 :64 DrainPending 扩展（事件驱动、无 Task 句柄），EventWorkQueue 结构体注释即对标
-    VectorSetCleanupWorkChannel.cs。同名已实现者不入 ignore：
-    VectorSetCleanupWorkSet.cs:51 WaitForCompletion ↔
-    wbase/src/pool/work_set.rs:64 wait_for_completion（映射注释已登记于该 fn 上方，rust 侧调用点
-    wnode/src/resp/vector/vector_manager_cleanup.rs:261 对译 C#
-    VectorManager.Cleanup.cs:387 WaitForDiskANNIndexDrop）
+    VectorSetCleanupWorkChannel.cs。同目录姊妹类 VectorSetCleanupWorkSet（按键未完成工作集合）
+    此前由 wbase pool 的 EventWorkSet 承接、全仓唯一消费者是内存索引丢弃请求集合，该链已随
+    rust 无主存记录逐出触发面整删，WorkSet 侧改按整文件 ignore 登记（见下条）
+- 理由: |-
+    C# VectorSetCleanupWorkSet 全仓唯一消费者是 VectorManager 的 requestedDrops（内存索引
+    丢弃请求集合）。该集合的生产点是主存记录逐出触发器（GarnetRecordTriggers 的 OnEvict 臂，
+    见本文件 GarnetRecordTriggers.cs 条目），rust 索引记录驻留 VectorManager 登记表、不入
+    wkv 值域，无逐出事件可投递，请求丢弃链（RESP 侧入口 + 常驻协程 + 锁侧等待口 + wbase pool
+    专属载体）已整删，无待映射面。
+  文件:
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkSet.cs
 - 文件:
     - libs/server/Resp/AdminCommands.cs:
         - NetworkModuleLoad
@@ -941,6 +946,9 @@
 - 文件:
     - libs/server/Resp/Vector/VectorManager.Cleanup.cs:
         - CheckpointCompleted
+        - RunRequestDropTaskAsync
+        - DropRequested
+        - WaitForDiskANNIndexDrop
         - VectorSetPotentiallyDeleted
     - libs/server/Resp/Vector/VectorManager.Locking.cs:
         - NeedsRecreate
@@ -960,7 +968,12 @@
     ReadForDeleteVectorIndex 全仓 rust 零引用；VectorManager.Filter.cs:266
     EvaluateCandidateFilter 为传给 C ABI 的候选过滤回调（未接线面），rust 后过滤统一走
     wnode/src/resp/vector/vector_manager_filter.rs:21 apply_post_filter；
-    VectorManager.ContextMetadata.cs:789 GetContextState 仅测试检视用，rust 无对应物
+    VectorManager.ContextMetadata.cs:789 GetContextState 仅测试检视用，rust 无对应物。
+    丢弃请求族同理未接线：C# VectorManager.Cleanup.cs:135 RunRequestDropTaskAsync 及其
+    锁侧等待口 :380 DropRequested / :387 WaitForDiskANNIndexDrop 的唯一生产点是主存记录
+    逐出触发器（GarnetRecordTriggers OnEvict 臂），rust 索引记录驻留 VectorManager 登记表、
+    不入 wkv 值域，无逐出事件可投递，请求丢弃链（入口 + 常驻协程 + 等待口 + wbase pool
+    work_set 载体）已整链删除
 - 文件:
     - libs/server/Resp/MGetReadArgBatch.cs:
         - GetInput

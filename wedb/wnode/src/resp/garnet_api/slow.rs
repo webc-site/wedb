@@ -32,8 +32,12 @@ use crate::{
   database::IDatabaseManager,
   resp::{
     RespServerSession, array_commands as array_cmds,
-    basic_commands::parse_flush_options,
+    basic_commands::{
+      parse_flush_options,
+      slow::{bitmap_slow, string_slow},
+    },
     info_provider::InfoSlowScanSource,
+    key_admin_commands::slow::key_admin_slow,
     objects::{
       hash_commands, list_commands,
       object_store_utils::{ObjLoad, envelope_heap_estimate, obj_length_async},
@@ -114,6 +118,86 @@ impl<D: Device> StoreGarnetApi<D> {
     let mut output = Vec::new();
 
     match cmd {
+      // ---- 字符串族 / OBJECT 慢路径承接（BasicCommands.cs 各命令同步函数
+      // 体内 CompletePending 就地闭环的 rust 慢路径对偶：快路径环形页翻转 /
+      // RI 门 / 存在性探针降级至此，解析与快路径同一单源，应答形态逐字节
+      // 一致）
+      C::Set
+      | C::Setex
+      | C::Psetex
+      | C::Setnx
+      | C::Setexnx
+      | C::Getset
+      | C::Setrange
+      | C::Append
+      | C::Incr
+      | C::Decr
+      | C::Incrby
+      | C::Decrby
+      | C::Incrbyfloat
+      | C::Getex
+      | C::Getrange
+      | C::Substr
+      | C::Strlen
+      | C::ObjectEncoding
+      | C::ObjectFreq
+      | C::ObjectIdletime
+      | C::ObjectRefcount => {
+        let vector = self.vector_session.as_ref().map(|v| v.manager.as_ref());
+        if string_slow(&storage, cmd, &refs, vector, &mut output)
+          .await
+          .is_err()
+        {
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+        }
+      }
+      // ---- 位图族慢路径承接（BitmapCommands.cs 同型：读改写回异步闭环，
+      // BITFIELD 子命令序列解析单源，BITOP 逐源折叠）
+      C::Setbit
+      | C::Getbit
+      | C::Bitcount
+      | C::Bitpos
+      | C::BitopAnd
+      | C::BitopOr
+      | C::BitopXor
+      | C::BitopNot
+      | C::BitopDiff
+      | C::Bitfield
+      | C::BitfieldRo => {
+        let vector = self.vector_session.as_ref().map(|v| v.manager.as_ref());
+        if bitmap_slow(&storage, cmd, &refs, vector, &mut output)
+          .await
+          .is_err()
+        {
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+        }
+      }
+      // ---- 键管理族慢路径承接（KeyAdminCommands.cs：TTL / 存在性 / 迁移
+      // 裁决降级至此，wkv 异步判定表与三域探针闭环；RENAME 的 RangeIndex /
+      // 升阶键整树快照迁移经 wkv rename_range_index 单点）
+      C::Exists
+      | C::Expire
+      | C::Pexpire
+      | C::Expireat
+      | C::Pexpireat
+      | C::Persist
+      | C::Ttl
+      | C::Pttl
+      | C::Expiretime
+      | C::Pexpiretime
+      | C::Getdel
+      | C::Rename
+      | C::Renamenx
+      | C::Dump
+      | C::Restore => {
+        let vector = self.vector_session.as_ref().map(|v| v.manager.as_ref());
+        if key_admin_slow(&storage, cmd, &refs, vector, &mut output)
+          .await
+          .is_err()
+        {
+          write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
+        }
+      }
       // ---- MSETNX 慢路径承接（C# MSET_Conditional 事务锁内全同步闭环，
       // 无此形态；rust 快路径写入段环形页翻转 / 判定段磁盘候选降级至此
       // 续跑，杜绝半提交误答——应答与最终存储状态恒一致）
@@ -819,7 +903,10 @@ impl<D: Device> StoreGarnetApi<D> {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
         }
       }
-      // 未接入慢路径分派表的命令：写明错误，绝不静默
+      // 未接入慢路径分派表的命令兜底：本臂出现的 RESP_ERR_ASYNC_REQUIRED
+      // 即分派表漏接线的缺陷信号（内部哨兵文案，C# 零命中——同步存储上下文
+      // 里 CompletePending 系列就地闭环，客户端任何路径不该看到）。
+      // 字符串 / 键管理 / Bitmap 族已全部接臂，常规命令落此即回归
       _ => write_error_raw(&mut output, RESP_ERR_ASYNC_REQUIRED),
     }
     output
@@ -839,12 +926,15 @@ impl<D: Device> StoreGarnetApi<D> {
     {
       match self.session.store.flush_and_evict_all().await {
         Ok(()) => {
-          let mut buf = Buffer::new();
-          output.extend_from_slice(b"+OK head=");
-          output.extend_from_slice(buf.format(self.session.store.head_address()).as_bytes());
-          output.extend_from_slice(b" tail=");
-          output.extend_from_slice(buf.format(self.session.store.tail_address()).as_bytes());
-          output.extend_from_slice(b"\r\n");
+          // 自定义调试应答（rust 扩展子命令，C# 无对位）；帧头由 simple
+          // string 单点成帧，载荷经 itoa 零重复格式化
+          let mut h = Buffer::new();
+          let mut t = Buffer::new();
+          output.write_resp_simple_string(&format!(
+            "OK head={} tail={}",
+            h.format(self.session.store.head_address()),
+            t.format(self.session.store.tail_address())
+          ));
         }
         Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
       }

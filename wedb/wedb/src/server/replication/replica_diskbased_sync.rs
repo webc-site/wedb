@@ -58,7 +58,9 @@ pub struct ReplicaRecoverRequest {
 /// TryReplicaDiskbasedRecovery
 ///
 /// 副本检查点导入闭环：
-/// 1. 恢复门控校验（调用方 CLUSTER REPLICATE 已 begin_recovery(ClusterReplicate)）；
+/// 1. 恢复门控：此刻 curr 已是 ClusterReplicate（attach 链全程持锁——命令 /
+///    重连臂由 try_add_replica_async 握、启动臂由 start_replication_attach
+///    前置握 InitializeRecover），本步无独立校验动作；
 /// 2. recover_store_from_token：从接收文件集（wcpr 恢复 = 组件级重构 +
 ///    宿主装配）恢复出全新 [`WedbStore`]，经置换钩子接管在线引擎；
 ///    false 时跳过（C# 同款分支：同历史复用本地检查点恢复态，rust 副本
@@ -70,7 +72,9 @@ pub struct ReplicaRecoverRequest {
 /// 5. 复制位点 / 检查点历史 / 主复制 ID 收敛（C# replicationOffset 赋值 +
 ///    PurgeAllCheckpointsExceptEntry + InitializeCheckpointStore +
 ///    TryUpdateMyPrimaryReplId）；
-/// 6. EndRecovery(CheckpointRecoveredAtReplica)（C# finally）。
+/// 6. EndRecovery(CheckpointRecoveredAtReplica)（C# finally：此刻 curr 为
+///    ClusterReplicate / InitializeRecover，矩阵合法；放行 AOF 流但锁仍持到
+///    attach 收尾 finish_replica_sync 才释放）。
 ///
 /// 返回授予副本的复制位点（主端据此挂 AOF 推流驱动；C# 应答
 /// replicationOffset 的同载荷）。
@@ -172,7 +176,8 @@ pub async fn try_replica_diskbased_recovery(
 
   // 接收状态置换（C# finally recvCheckpointHandler?.Dispose 同位）
   rm.reset_recv_checkpoint_handler();
-  // 恢复完成放行 AOF 流（C# finally EndRecovery(CheckpointRecoveredAtReplica)）
+  // 恢复完成放行 AOF 流（C# finally EndRecovery(CheckpointRecoveredAtReplica)；
+  // cannot_stream_aof 自此为假，但锁仍持到 attach 收尾）
   rm.end_recovery(RecoveryStatus::CheckpointRecoveredAtReplica, false);
   log::info!(
     "ReplicaRecover: ReplicaReplicationOffset = {recovered_offset}",

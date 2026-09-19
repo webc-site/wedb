@@ -186,10 +186,17 @@ impl<D: Device> StoreSession<D> {
     // 新键纳入换号回收旁表（旧键由调用方常规删除经 handle_bftree_drain_and_delete 注销）
     self.register_bftree_key(new_key);
 
-    // 写入新键元数据记录（Meta + 新存根，定长纯栈编码）
+    // 写入新键元数据记录（Meta + 新存根，定长纯栈编码）。集合类型与成员
+    // TTL 水位透传旧元记录（RangeIndex 与升阶集合键同构迁移，副本侧
+    // TYPE/HLEN 等命令与源侧一致）
     let new_meta_k = self.session_meta_key(new_key);
     let key_id = self.store.next_key_id.fetch_add(1, Ordering::Relaxed);
-    let meta = MetaValue::new(key_id, GarnetObjectType::RangeIndex, old_meta.size);
+    let meta = MetaValue::new_with_expiry(
+      key_id,
+      old_meta.collection_type,
+      old_meta.size,
+      old_meta.next_expiry,
+    );
     let val = encode_meta_stub_record(&meta, &stub);
     self.upsert_raw(&new_meta_k, &val).await?;
     Ok(())

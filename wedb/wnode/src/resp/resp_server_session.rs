@@ -51,9 +51,10 @@ use wresp::{
     RespCommandFlags, is_no_auth, normalize_for_acls, try_get_resp_commands_info,
     try_get_simple_resp_command_info,
   },
+  cluster_cmd_strings as cluster_cs,
   cmd_strings::{self as cs, write_map_len},
   command::{RespCommand, is_cluster_sub_command, one_if_read, one_if_write},
-  ext::{MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, sanitize_error_str},
+  ext::{RespSliceExt, RespVecExt},
   key_spec::KeySpecificationFlags,
   metrics::InfoMetricsType,
   read::{ReplyError, parse_bulk_reply, parse_simple_reply},
@@ -1355,8 +1356,8 @@ impl RespServerSession {
     match cmd {
       RespCommand::Ping => {
         if self.parse_state.count == 0 {
-          // C# NetworkPING：+PONG
-          self.output.extend_from_slice(b"+PONG\r\n");
+          // C# NetworkPING：+PONG（TryWriteDirect(RESP_PONG) 定长帧单点）
+          cs::write_raw(&mut self.output, cs::RESP_PONG);
         } else if self.parse_state.count == 1 {
           // C# NetworkArrayPING: bulk string message
           let msg = self.parse_state.arg_in(&self.recv_buffer, 0);
@@ -1606,13 +1607,8 @@ impl RespServerSession {
       return true;
     }
     if cmd == RespCommand::ClientId {
-      // C# TryWriteInt64(Id)
-      self.output.push(b':');
-      let mut buffer = Buffer::new();
-      self
-        .output
-        .extend_from_slice(buffer.format(self.id).as_bytes());
-      self.output.extend_from_slice(b"\r\n");
+      // C# TryWriteInt64(Id)，走 wresp 整数帧单点
+      self.output.write_resp_int(self.id);
       return true;
     }
     if cmd == RespCommand::Echo {
@@ -1637,7 +1633,7 @@ impl RespServerSession {
       let s_str = b1.format(secs);
       let mut b2 = Buffer::new();
       let us_str = b2.format(usecs);
-      self.output.extend_from_slice(b"*2\r\n");
+      self.output.write_resp_array_len(2);
       self.output.write_resp_bulk_string(s_str.as_bytes());
       self.output.write_resp_bulk_string(us_str.as_bytes());
       return true;
@@ -2291,11 +2287,11 @@ impl RespServerSession {
   }
 
   /// 写错误应答并置 commandErrorWritten（对标 C# AbortWithErrorMessage）
+  ///
+  /// 帧由 `wresp::cmd_strings::write_error_raw` 单点成帧（内含 CRLF 切断与
+  /// 长度帽清洗）；本会话只承担 `command_error_written` 副作用。
   pub fn abort_error_message(&mut self, message: &str) {
-    let clean = sanitize_error_str(message, MAX_ERROR_MSG_LEN);
-    self.output.extend_from_slice(b"-");
-    self.output.extend_from_slice(clean.as_bytes());
-    self.output.extend_from_slice(b"\r\n");
+    cs::write_error_raw(&mut self.output, message);
     self.command_error_written = true;
   }
 
@@ -2461,7 +2457,7 @@ impl RespServerSession {
     output.write_resp_bulk_string(b"role");
     output.write_resp_bulk_string(role.as_bytes());
     output.write_resp_bulk_string(b"modules");
-    output.extend_from_slice(b"*0\r\n");
+    output.write_resp_array_len(0);
     true
   }
 }
@@ -2900,21 +2896,18 @@ impl wtxn::TxnSession for RespServerSession {
 
   #[inline]
   fn write_proc_param_error(&mut self, tx_id: u8, expected: i32, actual: usize) {
+    // C# CmdStrings.RESP_ERR_INVALID_NUM_PROC_PARAMS + string.Format 后
+    // AbortWithErrorMessage；帧由 write_error_raw 单点成帧（含清洗）
     let mut b0 = Buffer::new();
     let mut b1 = Buffer::new();
     let mut b2 = Buffer::new();
-    let s0 = b0.format(tx_id);
-    let s1 = b1.format(expected);
-    let s2 = b2.format(actual);
-    self
-      .output
-      .extend_from_slice(b"-ERR Invalid number of parameters to stored proc ");
-    self.output.extend_from_slice(s0.as_bytes());
-    self.output.extend_from_slice(b", expected ");
-    self.output.extend_from_slice(s1.as_bytes());
-    self.output.extend_from_slice(b", actual ");
-    self.output.extend_from_slice(s2.as_bytes());
-    self.output.extend_from_slice(b"\r\n");
+    let msg = format!(
+      "ERR Invalid number of parameters to stored proc {}, expected {}, actual {}",
+      b0.format(tx_id),
+      b1.format(expected),
+      b2.format(actual)
+    );
+    cs::write_error_raw(&mut self.output, &msg);
     self.command_error_written = true;
   }
 
@@ -2958,11 +2951,9 @@ impl wtxn::TxnSession for RespServerSession {
       SlotVerifyGate::Wait => {
         // 事务域无挂起重评形态（EXEC 已回退游标重放排队命令）：丢弃切面
         // 等待体，按 C# VerifyKeysInRange 迁移中混合态应 TRYAGAIN，客户端
-        // 重试 EXEC
+        // 重试 EXEC（文案走集群域单点常量，帧由错误帧单点成帧）
         let _ = cluster.take_pending_slow();
-        self
-          .output
-          .extend_from_slice(b"-TRYAGAIN Multiple keys request during rehashing of slot\r\n");
+        cs::write_error_raw(&mut self.output, cluster_cs::RESP_ERR_TRYAGAIN);
         false
       }
     }

@@ -7,7 +7,7 @@ use wkv::StoreResult;
 use wresp::{
   check_args::unpack_args,
   cmd_strings::{self as cs, RESP_ERR_GENERIC, RESP_ERR_WRONG_TYPE, abort_with_error_message},
-  ext::{RespVecExt, sanitize_error_str},
+  ext::RespVecExt,
   options::{ExistOptions, ExpirationOption, try_get_exist_options, try_get_expiration_option},
 };
 use wval::KeyTag;
@@ -40,19 +40,19 @@ pub enum SetCmd {
 impl SetCmd {
   /// 是否 KEEPTTL 族（须保留既有 TTL）
   #[inline]
-  const fn is_keep_ttl(self) -> bool {
+  pub(crate) const fn is_keep_ttl(self) -> bool {
     matches!(self, Self::SetKeepTtl | Self::SetKeepTtlXx)
   }
 
   /// 是否 XX 族（仅键存在时设置）
   #[inline]
-  const fn is_xx(self) -> bool {
+  pub(crate) const fn is_xx(self) -> bool {
     matches!(self, Self::SetExXx | Self::SetKeepTtlXx)
   }
 
   /// 是否 NX 族（仅键不存在时设置）
   #[inline]
-  const fn is_nx(self) -> bool {
+  pub(crate) const fn is_nx(self) -> bool {
     matches!(self, Self::SetExNx)
   }
 }
@@ -65,7 +65,7 @@ pub struct SetOptions<'a> {
   pub expiry: i64,
   /// PX 口径（expiry 单位为毫秒而非秒）
   pub exp_high_precision: bool,
-  cmd: SetCmd,
+  pub(crate) cmd: SetCmd,
   pub get_value: bool,
 }
 
@@ -157,20 +157,6 @@ pub(crate) fn apply_set_with_expiry<'a, D: wdev::Device>(
   Ok(true)
 }
 
-/// libs/server/Resp/CmdStrings.cs:GenericSyntaxErrorOption
-///
-/// `ERR Syntax error in {0} option '{1}'`（零堆分配直接写入，净化防换行注入）
-#[inline]
-pub(super) fn write_syntax_error_option(output: &mut Vec<u8>, cmd: &str, option: &str) {
-  let clean_cmd = sanitize_error_str(cmd, cs::MAX_PARAM_NAME_LEN);
-  let clean_option = sanitize_error_str(option, cs::MAX_PARAM_NAME_LEN);
-  output.extend_from_slice(b"-ERR Syntax error in ");
-  output.extend_from_slice(clean_cmd.as_bytes());
-  output.extend_from_slice(b" option '");
-  output.extend_from_slice(clean_option.as_bytes());
-  output.extend_from_slice(b"'\r\n");
-}
-
 impl RespServerSession {
   /// libs/server/Resp/BasicCommands.cs:NetworkSET
   pub fn network_set<'a, D: wdev::Device>(
@@ -233,25 +219,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some([key, offset_raw, val]) = unpack_args(parse_state, output, "SETRANGE") else {
+    let Some((key, offset, val)) = parse_setrange_args(parse_state, output) else {
       return Ok(true);
     };
-    // 对标 C#：偏移须为可解析整数（TryGetInt 口径），负值越界报错，
-    // offset + value 不得越过 512MB 负载上限（u64 口径，杜绝 usize 溢出 panic）
-    let Some(offset) = strict_i32(offset_raw) else {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-      return Ok(true);
-    };
-    let offset: i64 = i64::from(offset);
-    if offset < 0 {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_OFFSETOUTOFRANGE);
-      return Ok(true);
-    }
-    if offset as u64 + val.len() as u64 > MAX_BITMAP_PAYLOAD_BYTES as u64 {
-      abort_with_error_message(output, cs::RESP_ERR_STRING_EXCEEDS_MAX_SIZE);
-      return Ok(true);
-    }
-    let offset = offset as usize;
 
     match read_user_sync(store, key, |v| {
       let mut existing = v.to_vec();
@@ -317,19 +287,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let Some([key, expiry_raw, val]) = unpack_args(parse_state, output, cmd_name) else {
+    let Some((key, expiry, val)) = parse_setex_args(cmd_name, parse_state, output) else {
       return Ok(true);
     };
-
-    // 对标 C#：过期须为整数（TryGetInt 口径）且 > 0
-    let Some(expiry) = strict_i32(expiry_raw) else {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-      return Ok(true);
-    };
-    if expiry <= 0 {
-      abort_with_error_message(output, cs::RESP_ERR_GENERIC_INVALIDEXP_IN_SET);
-      return Ok(true);
-    }
 
     // RI 键门：SETEX/PSETEX 同为盲写 + 独立写 TTL，无前置读
     match ri_write_gate(store, key, output) {
@@ -346,7 +306,7 @@ impl RespServerSession {
         return Ok(true);
       }
     }
-    let expire_at_ticks = expiry_ticks_from_now(i64::from(expiry), high_precision);
+    let expire_at_ticks = expiry_ticks_from_now(expiry, high_precision);
     match put_ttl_sync(store, key, expire_at_ticks) {
       Ok(true) => output.write_resp_simple_string("OK"),
       Ok(false) => return Ok(false),
@@ -637,6 +597,57 @@ impl RespServerSession {
     }
     Ok(true)
   }
+}
+
+/// NetworkSETEX / NetworkPSETEX 的参数推导单源（快慢路径共用；解析失败时
+/// 已写出错误应答并返回 None，返回 `(key, expiry 秒或毫秒正数, val)`）
+///
+/// 对标 C#：过期须为整数（TryGetInt 口径）且 > 0
+pub(crate) fn parse_setex_args<'p>(
+  cmd_name: &str,
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], i64, &'p [u8])> {
+  let Some([key, expiry_raw, val]) = unpack_args(parse_state, output, cmd_name) else {
+    return None;
+  };
+  let Some(expiry) = strict_i32(expiry_raw) else {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    return None;
+  };
+  if expiry <= 0 {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_INVALIDEXP_IN_SET);
+    return None;
+  }
+  Some((key, i64::from(expiry), val))
+}
+
+/// NetworkSetRange 的参数推导单源（快慢路径共用；解析失败时已写出错误应答
+/// 并返回 None，返回 `(key, offset, val)`，offset 已换算 usize 非负值域）
+///
+/// 对标 C#：偏移须为可解析整数（TryGetInt 口径），负值越界报错，
+/// offset + value 不得越过 512MB 负载上限（u64 口径，杜绝 usize 溢出 panic）
+pub(crate) fn parse_setrange_args<'p>(
+  parse_state: &[&'p [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'p [u8], usize, &'p [u8])> {
+  let Some([key, offset_raw, val]) = unpack_args(parse_state, output, "SETRANGE") else {
+    return None;
+  };
+  let Some(offset) = strict_i32(offset_raw) else {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    return None;
+  };
+  let offset: i64 = i64::from(offset);
+  if offset < 0 {
+    abort_with_error_message(output, cs::RESP_ERR_GENERIC_OFFSETOUTOFRANGE);
+    return None;
+  }
+  if offset as u64 + val.len() as u64 > MAX_BITMAP_PAYLOAD_BYTES as u64 {
+    abort_with_error_message(output, cs::RESP_ERR_STRING_EXCEEDS_MAX_SIZE);
+    return None;
+  }
+  Some((key, offset as usize, val))
 }
 
 /// NetworkSETEXNX 的选项解析前半段
