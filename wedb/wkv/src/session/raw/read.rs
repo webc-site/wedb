@@ -455,12 +455,12 @@ impl<D: Device> StoreSession<D> {
 
         match probed {
           Some(ReadProbeResult::Found(val)) => {
-            // 不可变区命中：对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable 预提升挂入 ReadCache，
-            // 后续读取直接命中纯 DRAM 缓存，免重复回溯主日志；
+            // 不可变区命中：对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable
+            // 读后晋升（目的地由配置裁决：ReadCache 或尾部，二者择一）；
             // 提升门槛维持 safe_read_only 快照（严格对标 C# CopyFromImmutable 仅作用于
             // 不可变区，模糊区瞬态窗口内不提升，保守方向无损正确性）
             if curr_addr < safe_ro_addr {
-              self.promote_immutable_to_read_cache(curr_addr, key);
+              self.promote_immutable_read_hit(curr_addr, key);
             }
             return Ok(MemRead::Done(Some(val)));
           }
@@ -597,11 +597,11 @@ impl<D: Device> StoreSession<D> {
         if let Some(probe) = probe {
           match probe {
             ReadProbeResult::Found(val) => {
-              // 不可变区命中：同样预提升挂入 ReadCache（与主路径 safe_read_only 快照
-              // 口径一致：严格对标 C# CopyFromImmutable 仅作用于不可变区，模糊区
+              // 不可变区命中：同主路径读后晋升（与主路径 safe_read_only 快照口径
+              // 一致：严格对标 C# CopyFromImmutable 仅作用于不可变区，模糊区
               // 瞬态窗口内不提升，保守方向，无损正确性）
               if cur_addr < bounds.safe_ro_addr {
-                self.promote_immutable_to_read_cache(cur_addr, key);
+                self.promote_immutable_read_hit(cur_addr, key);
               }
               return Ok(MemRead::Done(Some(val)));
             }
@@ -628,31 +628,58 @@ impl<D: Device> StoreSession<D> {
     }
   }
 
-  /// 不可变区命中预提升：将内存驻留的只读记录挂入 ReadCache（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable）
+  /// 不可变区命中的读后晋升（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable
+  /// 的单目的地分派，两臂绝不并行动作）
   ///
-  /// - ReadCache 为非脏 DRAM 日志，追加零持久化成本、零写放大；
-  /// - 与磁盘读回填路径天然去重：提升后索引地址已 CAS 指向 RC，后续读取直接命中 RC，不再触达磁盘回填；
-  /// - append 失败（未启用/单记录超页容量/CAS 冲突）静默降级，不影响正确性，后续读取仍走主日志路径；
-  /// - 仅不可变区命中时调用：可变区记录本就是热数据，避免无谓的重复缓存占用。
+  /// - ReadCache 启用 → 挂入非脏 DRAM 环形缓存：append 内部完成索引 CAS 挂载
+  ///   （对标 TryCopyToReadCache 的 hei.TryCAS），失败静默降级、环形覆盖自然回收；
+  /// - ReadCache 关而 `copy_reads_to_tail` 开 → 同步最佳努力尾部晋升（对标
+  ///   ConditionalCopyToTail(wantIO:false)——该臂只是「省一次未来 I/O」的优化，
+  ///   追加需发 I/O（环形缓冲翻页待驱逐）即放弃，留给下一次读）；挂载与败帧
+  ///   回收走 [`Self::cas_mount_copied_frame`] 单点，与磁盘回填臂同一内核；
+  /// - 两位皆关 → 零动作（对标 C# `CopyTo == None`）。
+  ///
+  /// 目的地次序与磁盘回填臂严格一致（read_cache 优先于 tail）：C# `--copy-reads-to-tail`
+  /// 把 `ReadCopyOptions.CopyTo` 定为 MainLog（GarnetServerOptions.cs:899-900），
+  /// rust 以两个独立布尔承载同一语义，次序差异只在两者同开的非 C# 形态下可见。
+  ///
+  /// 仅不可变区命中时调用：可变区记录本就是热数据，避免无谓的重复缓存占用；
+  /// append 失败（未启用/单记录超页容量/CAS 冲突）一律静默降级，不影响正确性。
   #[cold]
-  fn promote_immutable_to_read_cache(&self, addr: u64, key: &[u8]) {
-    if !self.store.read_cache.is_enabled {
+  fn promote_immutable_read_hit(&self, addr: u64, key: &[u8]) {
+    let to_read_cache = self.store.read_cache.is_enabled;
+    if !to_read_cache && !self.copy_reads_to_tail() {
       return;
     }
     // 独立第二次单遍记录访问：不可变区在纪元保护下无锁纯指针直读，无页锁嵌套；
     // 若期间已被驱逐出内存则返回 None，静默放弃本次提升
-    // （append 内部完成索引 CAS 挂载，对标 TryCopyToReadCache 的 hei.TryCAS）
+    let mut tail_val: Option<Vec<u8>> = None;
     let _ = unsafe {
       self.store.hlog.with_immutable_record(addr, |rec| {
         if !rec.is_tombstone() && rec.matches_key(key) {
-          self
-            .store
-            .read_cache
-            .append(key, rec.value(), addr, &self.store.index.load());
+          if to_read_cache {
+            self
+              .store
+              .read_cache
+              .append(key, rec.value(), addr, &self.store.index.load());
+          } else {
+            // 尾部追加须取尾页写锁，绝不可嵌套在本记录的页读锁内：值出锁后落笔
+            tail_val = Some(rec.value().to_vec());
+          }
         }
         Ok(())
       })
     };
+    let Some(val) = tail_val else {
+      return;
+    };
+    // wantIO:false 内核：直连 hlog.append，PageNotReady（需驱逐刷盘）即放弃本次
+    // 晋升；旁路写监听——帧内容为已存在的旧值，属物理布局优化而非用户写效果，
+    // 镜像入 AOF 会在并发写下造成恢复回退（与磁盘回填臂 append_record_compacted
+    // 同口径，见其注释）
+    if let Ok(new_addr) = self.store.hlog.append(key, &val, addr, false) {
+      self.cas_mount_copied_frame(key, addr, new_addr, record_size(key.len(), val.len()) as u32);
+    }
   }
 
   /// 异步磁盘回退路径（仅当内存阶段确认存在磁盘候选地址时调用）
@@ -710,7 +737,7 @@ impl<D: Device> StoreSession<D> {
         // 严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs:TryCopyToReadCache 与 TryCopyToTail：
         // 1. 若启用了 ReadCache，优先将冷数据挂入纯 DRAM 只读非脏页内存日志（零持久化开销、零写放大）；
         // 2. 否则若开启 copy_reads_to_tail，则回退到追加 Tail 内存活跃区晋升。
-        // （匹配记录非链头时索引更新自然失配为 no-op，RC 挂链由环形覆盖自然回收）
+        // （目的地二者择一，与内存不可变区命中臂 promote_immutable_read_hit 同一分派口径）
         // 晋升帧走紧缩搬迁同款旁路写监听（append_record_compacted）：帧内容为已存在的
         // 旧值，属物理布局优化而非用户写效果，镜像入 AOF 会在并发写下造成恢复回退
         // （旧值帧晚于并发新值帧入队，重放序错乱，见 append_record_compacted 注释）
@@ -727,16 +754,12 @@ impl<D: Device> StoreSession<D> {
             .append_record_compacted(key, val_slice, cur, false)
             .await
         {
-          let _guard = self.enter_gated();
-          if !self.store.index.load().update_address(key, cur, new_addr)
-            && self.store.config.enable_revivification
-          {
-            let rec_size = record_size(key.len(), val_slice.len()) as u32;
-            self
-              .store
-              .reviv_pool
-              .put(new_addr, rec_size, self.store.hlog.read_only_address());
-          }
+          self.cas_mount_copied_frame(
+            key,
+            cur,
+            new_addr,
+            record_size(key.len(), val_slice.len()) as u32,
+          );
         }
 
         return Ok(Some(result));
