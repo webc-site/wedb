@@ -130,7 +130,9 @@ C# 参考
   write_index_checkpoint}` 面逐字未变；wkv/wcompact/manager::create/manager::recover
   调用点零改动（--all-targets 含全部集成测试编译通过为证）。
 - 判据 3：无新增 `pub`、无 pub mod 泄漏壳（`mod index_ckpt` 仍私有，子件 `mod batch/codec/read`
-  亦私有，跨子件项一律 pub(crate)）；无 shim、无再导出中转件，旧文件 `git rm`。
+  亦私有，跨子件项一律 pub(crate)）；无 shim 件、无转发包装函数，mod.rs 只多一行
+  `pub use crate::index_ckpt::read::read_index_checkpoint_truncated;` 以原样维持 lib.rs
+  既有 `pub use index_ckpt::{…}` 路径；旧文件 `git rm`。
 
 ### 落位
 
