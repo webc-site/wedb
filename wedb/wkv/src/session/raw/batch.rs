@@ -3,6 +3,7 @@
 use futures_util::future::join_all;
 use wdev::Device;
 use windex::{CandidateAddresses, PREFETCH_WINDOW, PrefetchProbe, prefetch_read_l1};
+use whlog::AddressSnapshot;
 use wval::{KeyTag, NamespaceDbCodec, TaggedKeyBuf};
 
 use super::{MemDrive, read::StoreResult};
@@ -250,7 +251,8 @@ impl<D: Device> StoreSession<D> {
         }
       },
       |addr| {
-        if addr >= head_addr && addr < tail_addr {
+        // 内存驻留判定接 whlog 判定核单点（快照边界消费，杜绝手写区间比较散落）
+        if AddressSnapshot::region_in_memory(addr, head_addr, tail_addr) {
           // SAFETY: addr ∈ [head, tail) 必然驻留内存，且调用方持纪元守卫保证页不被回收
           prefetch_read_l1(unsafe { self.store.hlog.get_physical_address(addr) });
         }
