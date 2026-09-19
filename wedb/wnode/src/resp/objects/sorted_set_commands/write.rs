@@ -16,8 +16,7 @@ use wresp::{
 };
 
 use super::{
-  RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM, Rmw, ZsetLoad, parse_pairs_payload, run_operate,
-  zset_load_sync, zset_save_or_gc,
+  Rmw, ZsetLoad, parse_pairs_payload, run_operate, zset_load_sync, zset_save_or_gc,
 };
 use crate::{
   resp::{
@@ -173,7 +172,7 @@ impl RespServerSession {
         if range_kind == RemoveRangeKind::Lex && !payload_written {
           if result1 == i32::MAX as i64 {
             output.truncate(payload_start);
-            output.extend_from_slice(RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM);
+            cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
           } else if output.len() == payload_start && result1 != i32::MIN as i64 {
             output.write_resp_int(result1);
           }
@@ -381,7 +380,7 @@ impl RespServerSession {
     let mut limit = 0_i32;
     let idx = num_keys as usize + 1;
     if parse_state.len() == idx + 2 {
-      if !parse_state[idx].eq_ignore_ascii_case(b"LIMIT") {
+      if !parse_state[idx].eq_ignore_ascii_case(cs::LIMIT) {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }
@@ -556,7 +555,7 @@ impl RespServerSession {
       included_count = true;
 
       if let Some(ws) = parse_state.get(2) {
-        if !ws.eq_ignore_ascii_case(b"WITHSCORES") {
+        if !ws.eq_ignore_ascii_case(cs::WITHSCORES) {
           cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
           return Ok(true);
         }
@@ -775,7 +774,7 @@ pub(crate) fn parse_diff_args<'p>(
   let mut with_scores = false;
   if remaining > n {
     let last = parse_state[remaining];
-    if !last.eq_ignore_ascii_case(b"WITHSCORES") {
+    if !last.eq_ignore_ascii_case(cs::WITHSCORES) {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
       return None;
     }
@@ -817,7 +816,7 @@ pub(crate) fn parse_combine_args<'p>(
   let mut idx = n_keys as usize + 1;
   while idx < parse_state.len() {
     let token = parse_state[idx];
-    if token.eq_ignore_ascii_case(b"WEIGHTS") {
+    if token.eq_ignore_ascii_case(cs::WEIGHTS) {
       idx += 1;
       // C# 两段式：先判数量够不够（:1097/:1289/:1388/:1512），再逐值判浮点
       if idx + keys.len() > parse_state.len() {
@@ -855,7 +854,7 @@ pub(crate) fn parse_combine_args<'p>(
       };
       aggregate = agg;
       idx += 1;
-    } else if token.eq_ignore_ascii_case(b"WITHSCORES") {
+    } else if token.eq_ignore_ascii_case(cs::WITHSCORES) {
       with_scores = true;
       idx += 1;
     } else {

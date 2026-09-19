@@ -20,9 +20,8 @@ use wresp::{
 use wval::GarnetObjectType;
 
 use super::{
-  CombineKind, RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM, Rmw, combine_sets, diff_sets,
-  parse_combine_args, parse_diff_args, parse_pairs_payload, run_operate, should_write_back,
-  write_popped_pairs, write_zset_entries,
+  CombineKind, Rmw, combine_sets, diff_sets, parse_combine_args, parse_diff_args,
+  parse_pairs_payload, run_operate, should_write_back, write_popped_pairs, write_zset_entries,
 };
 use crate::{
   resp::objects::{
@@ -344,7 +343,7 @@ pub(crate) async fn sorted_set(
         SortedSetOperation::Zrem => write_rmw_reply(done, output),
         SortedSetOperation::Zremrangebylex if !done.payload_written => {
           if done.result1 == i32::MAX as i64 {
-            output.extend_from_slice(RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM);
+            cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
           } else if done.result1 != i32::MIN as i64 {
             output.write_resp_int(done.result1);
           }
@@ -433,7 +432,7 @@ pub(crate) async fn sorted_set(
           let result1 =
             run_operate(obj, SortedSetOperation::Zlexcount, args, 0, 0, resp_version).result1;
           if result1 == i32::MAX as i64 {
-            output.extend_from_slice(RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM);
+            cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
           } else if result1 != i32::MIN as i64 {
             output.write_resp_int(result1);
           }
@@ -449,7 +448,7 @@ pub(crate) async fn sorted_set(
       };
       // 对齐快路径：C# 仅 Count==3 校验 WITHSCORE，Count>3 静默忽略
       let with_score = if refs.len() == 3 {
-        if refs[2].eq_ignore_ascii_case(b"WITHSCORE") {
+        if refs[2].eq_ignore_ascii_case(cs::WITHSCORE) {
           1_i32
         } else {
           cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
@@ -486,7 +485,7 @@ pub(crate) async fn sorted_set(
         param_count = v.min(i32::MAX >> 2);
         included_count = true;
         if let Some(ws) = refs.get(2) {
-          if !ws.eq_ignore_ascii_case(b"WITHSCORES") {
+          if !ws.eq_ignore_ascii_case(cs::WITHSCORES) {
             cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
             return Ok(());
           }
@@ -793,7 +792,7 @@ fn parse_zintercard_args<'a>(refs: &'a [&'a [u8]]) -> Option<(Vec<&'a [u8]>, i32
   let idx = num_keys as usize + 1;
   let mut limit = 0_i32;
   if refs.len() == idx + 2 {
-    if !refs[idx].eq_ignore_ascii_case(b"LIMIT") {
+    if !refs[idx].eq_ignore_ascii_case(cs::LIMIT) {
       return None;
     }
     let v = strict_i32(refs[idx + 1])?;
@@ -836,7 +835,7 @@ fn parse_zmpop_common<'a>(
   };
   let mut count = 1_i32;
   if refs.len() == order_idx + 3 {
-    if !refs[order_idx + 1].eq_ignore_ascii_case(b"COUNT") {
+    if !refs[order_idx + 1].eq_ignore_ascii_case(cs::COUNT) {
       return None;
     }
     let c = strict_i32(refs[order_idx + 2])?;
