@@ -25,15 +25,16 @@ use crate::resp::{
 /// `UpdateRespProtocolVersion` 下发，命令层经 `resp_protocol_version` 透传）
 ///
 /// 经对象层 operate 通道执行操作，返回结构化输出
-fn run_operate(
+fn run_operate<'o>(
   obj: &mut HashObject,
   op: HashOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -73,7 +74,7 @@ fn should_write_back(
   existed: bool,
 ) -> bool {
   if (is_read_only(op) && !obj.mutated_by_ttl())
-    || out.payload.first() == Some(&b'-')
+    || out.payload_view().first() == Some(&b'-')
     || (!existed && obj.hash.is_empty())
   {
     return false;
@@ -133,7 +134,7 @@ impl RespServerSession {
         HashObject::new,
         |o: &HashObject| o.is_empty(),
         |o: &HashObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
@@ -259,15 +260,15 @@ impl RespServerSession {
       // C# NOTFOUND → RESP_EMPTYLIST
       HashLoad::Missing => output.extend_from_slice(cs::RESP_EMPTYLIST),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hgetall,
           &[],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -292,15 +293,15 @@ impl RespServerSession {
         write_null_array(output, parse_state.len() - 1, self.resp_protocol_version);
       }
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hmget,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -383,15 +384,17 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let result1 = run_operate(
           &mut obj,
           HashOperation::Hexists,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
-        );
-        output.write_resp_int(obj_out.result1);
+          output,
+        )
+        .result1;
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -421,8 +424,7 @@ impl RespServerSession {
       // C# NOTFOUND → 空数组
       HashLoad::Missing => output.extend_from_slice(cs::RESP_EMPTYLIST),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(&mut obj, op, &[], 0, 0, self.resp_protocol_version);
-        output.extend_from_slice(&obj_out.payload);
+        run_operate(&mut obj, op, &[], 0, 0, self.resp_protocol_version, output);
       }
     }
     Ok(true)
@@ -475,15 +477,15 @@ impl RespServerSession {
         write_random_member_missing(output, args.included_count, self.resp_protocol_version);
       }
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           HashOperation::Hrandfield,
           &[],
           args.arg1,
           seed,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -506,15 +508,17 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       HashLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       HashLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let result1 = run_operate(
           &mut obj,
           HashOperation::Hstrlen,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
-        );
-        output.write_resp_int(obj_out.result1);
+          output,
+        )
+        .result1;
+        output.write_resp_int(result1);
       }
     }
     Ok(true)
@@ -721,7 +725,7 @@ pub(crate) mod slow {
         HashObject::new,
         |o: &HashObject| o.is_empty(),
         |o: &HashObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
@@ -901,11 +905,9 @@ pub(crate) mod slow {
           ReplyOnMissing::NullArray => write_null_array(output, refs.len() - 1, resp_version),
         },
         async move |obj: &mut super::HashObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(obj, op, args, arg1, arg2, resp_version);
+          let result1 = run_operate(obj, op, args, arg1, arg2, resp_version, output).result1;
           if matches!(op, HashOperation::Hexists | HashOperation::Hstrlen) {
-            output.write_resp_int(obj_out.result1);
-          } else {
-            output.extend_from_slice(&obj_out.payload);
+            output.write_resp_int(result1);
           }
         },
       )
@@ -935,15 +937,15 @@ pub(crate) mod slow {
           write_random_member_missing(output, rand_args.included_count, resp_version);
         },
         async move |obj: &mut super::HashObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          run_operate(
             obj,
             HashOperation::Hrandfield,
             &[],
             arg1,
             fastrand::i32(..),
             resp_version,
+            output,
           );
-          output.extend_from_slice(&obj_out.payload);
         },
       )
       .await;

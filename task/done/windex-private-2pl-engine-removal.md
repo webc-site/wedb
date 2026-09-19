@@ -80,3 +80,87 @@ windex/src/table.rs 与 wkv/src/ttl.rs，禁止两棒各改一次：派发时只
 在途核位（2026-09-19 22:05 复核）：worktree /tmp/fork/windex-2pl-removal（分支 windex-2pl-removal）已开、
 diff 尚空，说明本题已被认领，本票即该棒的正文依据；对手薄票 next/db-hashindex-2pl-single-orchestration.md
 当下仍在 next/，派发/合并时删之，禁第二棒。
+
+收口合并棒判词（2026-09-19 23:30 +0800，载荷落 dev bfbd1e0）
+
+一、步骤 0 复核：部分落地、残差真实，按未落地并残差收口，不判重复。
+1. 引擎删除本体确已在 dev：wip 快照 0b318df 一次带走 windex/src/guard.rs −87 与
+   table.rs −155，五符号在 dev 的 .rs 面零命中；该快照同时卷入 acl-ns-compact 的认领
+   mv、wval/src/meta.rs 与 wkv/session/consistent_read.rs 他域改动，属钩子扫走的
+   无归属落地，不是本票正文的产出。
+2. 收敛形态未落地：dev 停在中间态 HashIndex::lock_key_exclusive（索引层 1024 轮外层
+   spin_loop 后报 Error::LockTimeout），与本票修法 2「无自旋、无回滚」、修法 3
+   「勿在索引层造超时」直接相反（HashBucket::try_lock_exclusive 自身已含 128 轮自旋
+   与 1024 轮读者排空，外层再叠一轮是第二套自旋驱动），wkv/src/ttl.rs 持的即该超时态入口。
+3. 文档面未落地：wedb/README.md、wedb/readme/{en,zh}.md、wedb/windex/README.md、
+   wedb/windex/readme/{en,zh}.md 仍叙述 MultiBucketGuard 与 acquire_keys_lock_exclusive。
+4. 对手薄票 next/db-hashindex-2pl-single-orchestration.md 已随 0b318df 消失
+   （现刻 git ls-tree dev next/ 零命中），双花解除，本棒无需再删。
+5. 归档位是被卷入的：R task/ing→task/done 记在 03c21af「style: cargo fmt 收敛」，
+   系 pre-commit 钩子 git add -u 扫走他棒暂存的 mv，非判词归档，故本段补正文终裁。
+
+二、载荷与合并注记
+1. 死树 /tmp/fork/windex-2pl-removal 的 5 枚载荷提交（e1285bb 删引擎、f2977b8 用例改写、
+   15ed80c ttl 单键闩、7b5404c wtxn 注释、dd9d9fe README 收口）经新树 /tmp/fork/windex-2pl-2
+   一次 merge 并入（合并提交 994c6c3，测试补强 5b098e0）。死树暂存区三型幽灵
+   （根 README.md 软链展开、js/check/ignore/{common,server}.yml、批量 D next/*.md）一概未取。
+2. dev 侧回合三次（317fb1e、844417d、a2231a5 及其后代）后以 bfbd1e0 纯 FF 落主仓 dev，
+   未产生回滚；bfbd1e0 现仍为 8416358 的祖先。
+
+三、冲突处置记录（逐文件手工，非 --theirs 一把梭）
+1. windex/src/table.rs（自动合并出双套闩入口，最险处）：dev 侧 lock_key_exclusive 自旋
+   驱动与分支侧 try_lock_key_exclusive 同区并存，且 dev 的返回类型 BucketExclusiveGuard
+   已被分支侧换名导入，直接编译不过。处置＝删 dev 的自旋驱动，索引层键级排他入口回归一个。
+2. wkv/src/ttl.rs 两处：取分支形态（let Some(..) else 早返 + 调用方承接
+   IndexError::LockTimeout 为 C# RETRY_LATER），保住 dev 侧同函数已落地的
+   coarse_expire_ticks 头部粗化前置（该段 dev 独有，未被覆盖）。
+3. wtxn/src/txn_lock_table.rs 文件头同源锁叙述：改指 try_lock_key_exclusive；
+   四个 OverflowBucketLockTable.cs 锚点函数（:106/:114/:122/:130）原样保留，
+   本棒对 wtxn 的全部改动＝1 行注释。
+4. windex/tests/index/latch_concurrency.rs：取分支单键闩用例（dev 侧对该文件的改动只有
+   删一个未用 use gxhash::HashSet，无语义差）。
+5. wedb/README.md、wedb/readme/{en,zh}.md：保 dev 已校正的 crate 地图正文（短版地图是老
+   基线残象，不回收），只把 HashIndex 行的 lock_exclusive_guard 改指 try_lock_key_exclusive、
+   导出行的 MultiBucketGuard 换成 KeyLatch。
+
+四、验收判据逐条实测（现刻 dev = 8416358 复核）
+1. 成立：Grep 工具（非 shell glob）对五符号 + 五常量（INLINE_LOCK_ENTRIES /
+   SPIN_RETRY_THRESHOLD / SPIN_LIMIT_MAX_EXP / SPIN_LIMIT_JITTER_MASK / YIELD_RETRY_BUDGET）
+   在 wedb/ 全仓（含 tests 与 md）零命中，dev 的 interim 名 lock_key_exclusive 亦归零。
+2. 成立：windex/src/table.rs:601 唯一入口，wkv/src/ttl.rs:459（expire_at）与
+   :511（persist）各出现且仅出现一次，守卫 _key_lock 活到函数尾，覆盖其后
+   contains_key_ignore_ttl / ttl_of / purge_expired / put_ttl 全程。
+3. 成立：windex/src/lib.rs 导出面含 KeyLatch（BucketExclusiveGuard 的按键寻址别名，
+   同字同 Drop，无第二份守卫代码），无任何多键批量取闩类型；判据原文
+   「面收敛为 HashIndex + HashBucket + KeyLatch」按字面读会削掉 wtxn 与 entry_info
+   共用的 BucketSharedGuard/BucketExclusiveGuard，按本意（不含多键锁类型）执行。
+4. 成立：见下门禁数字；C# 锚点集合逐项无损（见第五段）。
+
+五、门禁数字（私有 CARGO_TARGET_DIR=/tmp/ct-widx2，未跑主仓 ./test.sh 与 ./clippy.sh）
+1. cargo check --workspace --all-targets：exit 0，零 error 零 warning（终树 bfbd1e0 复跑一次）。
+2. cargo nextest run -p windex -p wtxn -p wkv：294 passed / 0 failed / 0 skipped，exit 0
+   （终树复跑 10.0s）。首轮跑出的 1 枚 180s TIMEOUT
+   （wtxn::txn_lock_stress stress_manual_locks_across_threads_without_deadlock）归因并发
+   负载饥饿：本棒对 wtxn 的全部改动是 1 行注释（git diff --stat 965e16d..HEAD -- wedb/wtxn），
+   该用例隔离跑 48s 通过、全量复跑 18s 通过，非代码红。
+3. cargo fmt：--all 扫到的三处非本票在途未格式化文件（wedb/tests/cluster_slot_verify_wait.rs、
+   wnode/src/rangeindex/range_index_manager_replication.rs、wresp/tests/main.rs）已还原，
+   未混入本棒；本票文件 cargo fmt --check 干净。
+4. bun js/check.js 前后对跑（基线树 = detached 965e16d + 同套软链，本树 = 合并后）：
+   两跑 exit 0，stdout 44 行逐字节仅一处差异——重复定义段
+   Tsavorite.cs:ContextReadWithPrefetch 下 wedb/windex/src/table.rs 的行号 621→619
+   （table.rs 净减 2 行所致，条目本身不变），stderr（B 层 129 提示与 194/1425 语料降级数）
+   逐字节相同；ignore 语料零回写零删除（跑后 git status 只余本票载荷文件）。
+   锚点条目集合另按 CS_REF_REGEX 复刻全库比对：965e16d 与 5b098e0 各 4282 个不同锚点、
+   4654 次出现，多重集逐条相同（判据 4 的 OverflowBucketLockTable.cs 与 TxnKeyEntry.cs
+   符号覆盖不减少，windex 四 passthrough 闩锚点原样在册）。
+
+六、移交登记（他票射程，本棒未代改）
+1. string-rmw-key-bucket-lock 与 rmw-atomic-read-modify-write-window 两票票面仍写
+   「复用 acquire_keys_lock_exclusive 作为唯一锁源」，该入口现已不存在，本票边界条款 1
+   生效：两票一律改持 HashIndex::try_lock_key_exclusive（同一把 windex 桶闩，锁源仍唯一）。
+2. windex-table-file-split 票的「待先删项：table.rs 这 128 行」段已被本票清空，
+   其拆分射程按现表长度重取。
+3. 测试面补强另记一棒候选：wkv 键级 TTL 读改写窗口取闩失败现走 Error::Index(LockTimeout)
+   上浮，wnode 命令面对该变体的重试映射（是否落 -BOUSEY/RETRY_LATER 类回包）本票射程外，
+   未实测。

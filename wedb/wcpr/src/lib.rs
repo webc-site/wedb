@@ -52,8 +52,9 @@ pub use manager::{
   create_checkpoint, create_checkpoint_with_token, next_token_above, publish_checkpoint_aof_address,
 };
 // ===================== list 族 =====================
-// list_checkpoints 升序 Token 列表；find_latest_checkpoint 最新值
-pub use manager::{find_latest_checkpoint, list_checkpoints};
+// list_checkpoints 升序 Token 列表；find_latest_checkpoint 最新值；
+// latest_checkpoint_meta 附带解码最新快照元数据（恢复侧读 AOF 边界用）
+pub use manager::{find_latest_checkpoint, latest_checkpoint_meta, list_checkpoints};
 // ===================== purge 族 =====================
 // purge_checkpoint 清理单 Token 文件集；purge_all 全量含残留清扫
 // （对标 C# CheckpointManager Purge/PurgeAll）；purge_outdated 保留最新 keep 个

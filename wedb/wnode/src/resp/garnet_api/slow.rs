@@ -926,12 +926,15 @@ impl<D: Device> StoreGarnetApi<D> {
     {
       match self.session.store.flush_and_evict_all().await {
         Ok(()) => {
-          let mut buf = Buffer::new();
-          output.extend_from_slice(b"+OK head=");
-          output.extend_from_slice(buf.format(self.session.store.head_address()).as_bytes());
-          output.extend_from_slice(b" tail=");
-          output.extend_from_slice(buf.format(self.session.store.tail_address()).as_bytes());
-          output.extend_from_slice(b"\r\n");
+          // 自定义调试应答（rust 扩展子命令，C# 无对位）；帧头由 simple
+          // string 单点成帧，载荷经 itoa 零重复格式化
+          let mut h = Buffer::new();
+          let mut t = Buffer::new();
+          output.write_resp_simple_string(&format!(
+            "OK head={} tail={}",
+            h.format(self.session.store.head_address()),
+            t.format(self.session.store.tail_address())
+          ));
         }
         Err(_) => write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE),
       }

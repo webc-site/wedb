@@ -7,7 +7,7 @@ use wkv::StoreResult;
 use wresp::{
   check_args::unpack_args,
   cmd_strings::{self as cs, RESP_ERR_GENERIC, RESP_ERR_WRONG_TYPE, abort_with_error_message},
-  ext::{RespVecExt, sanitize_error_str},
+  ext::RespVecExt,
   options::{ExistOptions, ExpirationOption, try_get_exist_options, try_get_expiration_option},
 };
 use wval::KeyTag;
@@ -155,20 +155,6 @@ pub(crate) fn apply_set_with_expiry<'a, D: wdev::Device>(
     return apply_ttl(expire_at_ticks);
   }
   Ok(true)
-}
-
-/// libs/server/Resp/CmdStrings.cs:GenericSyntaxErrorOption
-///
-/// `ERR Syntax error in {0} option '{1}'`（零堆分配直接写入，净化防换行注入）
-#[inline]
-pub(super) fn write_syntax_error_option(output: &mut Vec<u8>, cmd: &str, option: &str) {
-  let clean_cmd = sanitize_error_str(cmd, cs::MAX_PARAM_NAME_LEN);
-  let clean_option = sanitize_error_str(option, cs::MAX_PARAM_NAME_LEN);
-  output.extend_from_slice(b"-ERR Syntax error in ");
-  output.extend_from_slice(clean_cmd.as_bytes());
-  output.extend_from_slice(b" option '");
-  output.extend_from_slice(clean_option.as_bytes());
-  output.extend_from_slice(b"'\r\n");
 }
 
 impl RespServerSession {
@@ -622,9 +608,7 @@ pub(crate) fn parse_setex_args<'p>(
   parse_state: &[&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], i64, &'p [u8])> {
-  let Some([key, expiry_raw, val]) = unpack_args(parse_state, output, cmd_name) else {
-    return None;
-  };
+  let [key, expiry_raw, val] = unpack_args(parse_state, output, cmd_name)?;
   let Some(expiry) = strict_i32(expiry_raw) else {
     abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;
@@ -645,9 +629,7 @@ pub(crate) fn parse_setrange_args<'p>(
   parse_state: &[&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], usize, &'p [u8])> {
-  let Some([key, offset_raw, val]) = unpack_args(parse_state, output, "SETRANGE") else {
-    return None;
-  };
+  let [key, offset_raw, val] = unpack_args(parse_state, output, "SETRANGE")?;
   let Some(offset) = strict_i32(offset_raw) else {
     abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;

@@ -68,18 +68,14 @@ pub(crate) fn parse_incr_args<'p>(
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], i64)> {
   if cmd.has_by() {
-    let Some(([key, by_raw], _)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
-      return None;
-    };
+    let ([key, by_raw], _) = unpack_args_rest(parse_state, output, cmd.as_str())?;
     let Some(by) = strict_i64(by_raw) else {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return None;
     };
     Some((key, cmd.sign().saturating_mul(by)))
   } else {
-    let Some(([key], rest)) = unpack_args_rest(parse_state, output, cmd.as_str()) else {
-      return None;
-    };
+    let ([key], rest) = unpack_args_rest(parse_state, output, cmd.as_str())?;
     // C# Count>1 时对第二参仅做整数校验（非整数 → not-integer），值弃用
     if rest.first().is_some_and(|raw| strict_i64(raw).is_none()) {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
@@ -99,9 +95,7 @@ pub(crate) fn parse_incr_by_float_args<'p>(
   parse_state: &'p [&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], f64)> {
-  let Some(([key], rest)) = unpack_args_rest(parse_state, output, "INCRBYFLOAT") else {
-    return None;
-  };
+  let ([key], rest) = unpack_args_rest(parse_state, output, "INCRBYFLOAT")?;
   let Some(incr_by) = rest.first().and_then(|raw| try_parse_double(raw)) else {
     abort_with_error_message(output, cs::RESP_ERR_NOT_VALID_FLOAT);
     return None;

@@ -314,7 +314,9 @@ pub fn parse_random_member_args(
 /// 不触达后端」短路的同形应答：带 count → 空数组，否则 null 版本分派）
 pub fn write_random_member_missing(output: &mut Vec<u8>, included_count: bool, resp_version: u8) {
   if included_count {
-    output.extend_from_slice(cs::RESP_EMPTYLIST);
+    // 空数组头经版本感知写帧单点（*0 双版本同形，对位 C# WriteDirect
+    // RESP_EMPTYLIST）
+    output.write_resp_array_len(0);
   } else {
     output.write_resp_null_ver(resp_version);
   }
@@ -660,7 +662,7 @@ pub fn obj_length_sync<D: Device>(
         if meta.collection_type == tag {
           // 字段级 TTL 计数抵扣：水位快路径（now < next_expiry，树内无到期
           // 成员）O(1) 直读；水位命中降级异步慢路径校正（分层计数臂经
-          // collect_expired_members 物理出账后回读），collection.md 计数规约第 3 条
+          // 到期重灌内核物理出账后回读），collection.md 计数规约第 3 条
           if now_ticks() < meta.next_expiry {
             return ObjLoad::Present(meta.size as usize);
           }

@@ -341,9 +341,9 @@ wedb/
 
 ### windex —— 无锁哈希索引与直接虚拟内存
 
-- `HashIndex`——`new(num_buckets)` 定长桶表；`find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`、`lookup_candidates(_by_hash)`、`insert_to_bucket`、`find_or_create_tag_by_hash_with_min_addr`、`update_address`、`delete`、`bucket_index_for_key` / `bucket_index_for_hash`、`try_lock_shared` / `unlock_shared`、`try_lock_exclusive` / `unlock_exclusive` / `downgrade`、`lock_shared_guard` / `lock_exclusive_guard`、`prefetch_batch_probes`、`hash_key`、`clear`。
+- `HashIndex`——`new(num_buckets)` 定长桶表；`find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`、`lookup_candidates(_by_hash)`、`insert_to_bucket`、`find_or_create_tag_by_hash_with_min_addr`、`update_address`、`delete`、`bucket_index_for_key` / `bucket_index_for_hash`、`try_lock_shared` / `unlock_shared`、`try_lock_exclusive` / `unlock_exclusive` / `downgrade`、`lock_shared_guard` / `try_lock_key_exclusive`、`prefetch_batch_probes`、`hash_key`、`clear`。
 - `HashBuckets`、`PrefetchProbe`、`HashBucket`（`ENTRIES_PER_BUCKET`、`DATA_ENTRIES`、`OVERFLOW_INDEX`）、`HashBucketEntry`、`HashEntryInfo`、`CandidateAddresses`（内联候选地址表，`push` / `retain` / `iter` / `as_slice`）。
-- `OverflowPool`、`MultiBucketGuard`、`BucketExclusiveGuard` / `BucketSharedGuard`、`prefetch_read_l1`、`PREFETCH_WINDOW`。
+- `OverflowPool`、`KeyLatch`、`BucketExclusiveGuard` / `BucketSharedGuard`、`prefetch_read_l1`、`PREFETCH_WINDOW`。
 - 在线扩容：`split_chunk`、`split_single_bucket`、`chunk_count`、`chunk_offset_for_hash`、`CHUNK_SIZE` / `CHUNK_BITS`、`SPLIT_UNSTARTED` / `SPLIT_IN_PROGRESS` / `SPLIT_COMPLETED`。
 - `ram` 子模块——`DirectVirtualMemory`、`DirectVmBlock`、`system_page_size()`（对标 `core/Native/DirectVirtualMemory.cs`）与 `NativeMemoryTracker`（对标 `core/Native/NativeMemoryTracker.cs`）；经 `HashBuckets` 撑起生产哈希索引桶数组，扇区对齐缓冲池本体仍在 `wbase::pool`。
 

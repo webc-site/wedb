@@ -14,7 +14,7 @@
 //! 持一个 store 侧注入的索引装载闭包（对标 `OverflowBucketLockTable` 持 `store` 引用），
 //! 每笔事务开始现取当前 `HashIndex` 版本（粒度随索引规模/扩容联动），键锁登记与释放
 //! 一律走 windex `HashBucket` 的内嵌共享/独占闩——与 wkv TTL 读改写窗口
-//!（`wkv/src/ttl.rs` 经 `lock_key_exclusive` 持桶闩）同一把锁、同一份内存。
+//!（`wkv/src/ttl.rs` 经 `try_lock_key_exclusive` 持桶闩）同一把锁、同一份内存。
 //!
 //! 加锁协议与 C# 同为**无守卫闩**：键哈希 `hash & size_mask` 定位桶，取闩返回成败、
 //! 放闩按桶下标显式调用，故持锁集合是一串纯数据桶下标

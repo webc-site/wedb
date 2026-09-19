@@ -203,6 +203,9 @@ pub fn try_replica_diskless_recovery(
 
   // 更新主复制 ID
   rm.try_update_my_primary_repl_id(&primary_sync_meta.current_primary_repl_id);
+  // 恢复完成放行 AOF 流（C# finally EndRecovery(CheckpointRecoveredAtReplica)；
+  // curr 为 ClusterReplicate / InitializeRecover（attach 链全程持锁），矩阵
+  // 合法；cannot_stream_aof 自此为假，锁仍持到 attach 收尾）
   rm.end_recovery(RecoveryStatus::CheckpointRecoveredAtReplica, false);
 
   log::info!(
