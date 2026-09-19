@@ -202,8 +202,10 @@ TsavoriteLog/TsavoriteLog.cs）现随块挂忽略，且 rust 侧 waof 无任何�
   叙述行 5 条中仅 2 条（client.yml:96、server.yml:232）构成改锚依据，余 3 条为「同名他文件」或
   「他文件语境顺带提及」。即按现刻证据判「改」仅 2 条、判「删」0 条、判「留」128 条。
   这与来源棒抽查所得「TryInPlaceUpdateNumber 属已实现却挂忽略」的单条直觉不同：该名
-  （`server.yml:284`，叙述行类）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:182`、
-  `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现，而是「非有限旗标」语义叙述，
+  （`server.yml:284`，叙述行类）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:208`、
+  `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现——两处都在 INCRBYFLOAT 的
+  「结果溢出→非有限旗标」语义面，rust 该路径走 `try_rmw_sync` 交给存储层，无 C# 的
+  「数值就地原地更新」函数口（同文件 `PrivateMethods.cs:TryCopyUpdateNumber` 亦同判），
   仍判留；真正「已实现却挂忽略」的是下文的 SessionParseState.cs:Slice 与
   GarnetClientProcessReplies.cs:ProcessReplyAsNumber 两条。
 
@@ -215,7 +217,7 @@ js/check/ignore/common.yml:7 | libs/common/RespReadUtils.cs:TryReadPtrWithLength
 js/check/ignore/common.yml:8 | libs/common/RespReadUtils.cs:TrySkipByteArrayWithLengthHeader | 留 | 理由记 C# 仅 RespReadUtilsTests.cs:419,425,431 测试引用，生产零调用
 js/check/ignore/common.yml:13 | libs/common/RespReadUtils.cs:TryReadStringResponseWithLengthHeader | 留 | 理由点名唯一生产引用 LuaRunner.cs:1302，rust 由 wlua resp_convert 承接
 （同块提醒：同文件 `RespReadUtils.cs:TryReadInfinity` 未在此块内，rust 承接口
-`wedb/wbase/src/num.rs:210 infinity_sign` 在位却无锚 → 第一节乙/甲族已列，须与本块同棒复核以免两块口径分叉）
+`wedb/wbase/src/num.rs:210 infinity_sign` 在位却无锚 → 第一节甲族 15 已列，须与本块同棒复核以免两块口径分叉）
 
 js/check/ignore/common.yml:323 | libs/common/NumUtils.cs:WriteInt32 | 留 | rust 现刻唯一 WriteInt32 锚是 `RespServerSessionOutput.cs:WriteInt32`（wnode/src/resp/resp_server_session_output.rs:93），非 NumUtils 同名口，理由「itoa/to_le_bytes 原生」成立
 js/check/ignore/common.yml:328 | libs/common/NumUtils.cs:WriteDouble | 留 | rust 侧仅测试与 incr.rs 的裸词叙述（wnode/tests/resp_tests.rs:354），无独立写浮点口，理由「ryu/dtoa 原生」成立
