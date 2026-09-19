@@ -31,7 +31,7 @@ use std::{
   sync::{Arc, atomic::Ordering},
 };
 
-use aok::{OK, Void};
+use aok::{Error, OK, Void};
 use compio::runtime::Runtime;
 use tempfile::TempDir;
 use waof::{AofEntryType, AofHeader, WalConfig, WalLog};
@@ -59,6 +59,7 @@ use wnode::{
 };
 use wtest_base::{open_test_store, test_store_config};
 use wval::SessionPrefixBuf;
+use wvector::Callbacks;
 
 /// 被测租户 A 的逻辑域（非零 vns、非零 vdb 形态）
 const NS_A: u64 = 1003;
@@ -159,7 +160,7 @@ async fn replay_all(
   let processor = AofProcessor::new(Arc::clone(aof));
   let replayed = AofRecover::single_log_recover(&processor, aof, 0, 0, -1, &target)
     .await
-    .map_err(|e| aok::Error::msg(e.to_string()))?;
+    .map_err(|e| Error::msg(e.to_string()))?;
   Ok(replayed)
 }
 
@@ -532,7 +533,7 @@ fn vector_manager(store: &Arc<WedbStore<SegmentedDevice>>) -> Arc<VectorManager>
       is_enabled: true,
       ..Default::default()
     },
-    wvector::Callbacks::new(Arc::new(WedbVectorStoreCallbacks::new(session))),
+    Callbacks::new(Arc::new(WedbVectorStoreCallbacks::new(session))),
   ))
 }
 

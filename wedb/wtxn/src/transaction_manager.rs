@@ -673,17 +673,16 @@ impl TransactionManager {
       // 主段：锁内执行
       proc.main(self, api, output);
 
-      // AOF 记录过程条目 + 提交（C# Log 后随 Commit，均无 try/catch）：
-      // 入队或提交失败对齐 C# 异常传播的 bool 投影——log_proc 失败短路
-      // 跳过 commit（C# 异常跳过后续语句），ran=false；收尾段照跑
-      //（finally 语义）。回放期整体跳过：C# 靠回放宿主 appendOnlyFile
-      // 缺席短路，托管宿主可能仍持日志句柄，显式以 is_replaying 短路，
-      // 网络效果同 C#（回放不重复落盘）
-      if is_replaying {
+      // AOF 记录过程条目 + 提交（对标 C# Log 后随 Commit）：
+      // 回放期仅跳过 AOF 落盘（对标 C# appendOnlyFile 缺席短路），
+      // Commit 必须执行以释放锁并复位事务（对标 C# TransactionManager.cs:341 Commit()）；
+      // 入队或提交失败对齐 C# 异常传播的 bool 投影——log_proc 失败短路跳过 commit
+      let logged = if is_replaying {
         true
       } else {
-        self.log_proc(proc, proc_input).is_ok() && self.commit(false).is_ok()
-      }
+        self.log_proc(proc, proc_input).is_ok()
+      };
+      logged && self.commit(false).is_ok()
     };
 
     // 早退出口：Reset 在前、收尾段在后（C# 同款顺序——Reset(running) 先于
