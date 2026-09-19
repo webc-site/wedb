@@ -760,6 +760,20 @@ impl RespServerSession {
     self.account_output((resp_buf.len() - start_len) as u64);
   }
 
+  /// 慢路径完成后的应答写出（C# 慢命令在网络线程同步执行段的应答产出点）：
+  /// 与 [`Self::resolve_blocked_wait_into`] 同一收尾形态——先冲出会话已累积
+  /// 应答，再把挂起体产出的应答字节按流水线顺序并入目标写缓冲，绕过
+  /// `output` 的这段同样经 [`Self::account_output`] 单点入账
+  ///
+  /// 网络泵与脚本重入两处承接点共用此一枚并入口，杜绝「挂起应答如何落
+  /// 缓冲」的第二份实现
+  pub fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
+    self.take_output_into(resp_buf);
+    let start_len = resp_buf.len();
+    resp_buf.extend_from_slice(reply);
+    self.account_output((resp_buf.len() - start_len) as u64);
+  }
+
   /// 挂接集群会话切面（C# 构造函数 `cp?.CreateClusterSession(...)` 的依赖
   /// 倒置形态：集群域实现由宿主构造后注入，单机形态保持 None）
   pub fn attach_cluster_session(&mut self, cluster_session: ClusterSession) {
