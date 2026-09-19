@@ -112,7 +112,7 @@ impl SortedSetObject {
   pub(crate) fn get_options(
     &self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     curr_token_idx: &mut usize,
   ) -> Option<SortedSetAddOption> {
     let mut options = SortedSetAddOption::NONE;
@@ -145,13 +145,13 @@ impl SortedSetObject {
     }
 
     if !options_error.is_empty() {
-      RespWriter::new_ref(&mut output.payload).write_error_bytes(options_error);
+      RespWriter::new_ref(output.payload).write_error_bytes(options_error);
       return None;
     }
 
     // 剩余 token 须为正数对（偶数个）
     if *curr_token_idx == args.len() || !(args.len() - *curr_token_idx).is_multiple_of(2) {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
       return None;
     }
@@ -165,7 +165,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_add(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     self.delete_expired_items();
@@ -190,8 +190,7 @@ impl SortedSetObject {
           options = opts;
           continue; // 选项解析完重试当前 token
         }
-        RespWriter::new_ref(&mut output.payload)
-          .write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
+        RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
         return;
       };
 
@@ -233,7 +232,7 @@ impl SortedSetObject {
             incr_result = score;
 
             if score.is_nan() {
-              RespWriter::new_ref(&mut output.payload)
+              RespWriter::new_ref(output.payload)
                 .write_error_bytes(RESP_ERR_GENERIC_SCORE_NAN.as_bytes());
               return;
             }
@@ -279,14 +278,14 @@ impl SortedSetObject {
     if options.contains(SortedSetAddOption::INCR) {
       write_double_numeric(output, incr_result, resp_protocol_version);
     } else {
-      RespWriter::new_ref(&mut output.payload).write_int64(added_or_changed);
+      RespWriter::new_ref(output.payload).write_int64(added_or_changed);
     }
   }
 
   /// ZREM：批量移除成员
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetRemove
-  pub(crate) fn sorted_set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let mut removed = 0_i64;
@@ -309,7 +308,7 @@ impl SortedSetObject {
   /// ZCARD：成员计数
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetLength
-  pub(crate) fn sorted_set_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_length(&mut self, output: &mut ObjectOutput<'_>) {
     // Check both objects
     debug_assert_eq!(
       self.sorted_set_dict.len(),
@@ -325,7 +324,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_score(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let member = args[0];
@@ -343,12 +342,12 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_scores(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let count = args.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(count);
+    RespWriter::new_ref(output.payload).write_array_length(count);
 
     for &member in args {
       match self.try_get_score(member) {
@@ -363,7 +362,7 @@ impl SortedSetObject {
   /// ZCOUNT：分值区间成员计数
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetCount
-  pub(crate) fn sorted_set_count(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_count(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let min_param = args[0];
     let max_param = args[1];
 
@@ -371,7 +370,7 @@ impl SortedSetObject {
       Self::try_parse_parameter(min_param),
       Self::try_parse_parameter(max_param),
     ) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_FLOAT.as_bytes());
       return;
     };
@@ -398,7 +397,7 @@ impl SortedSetObject {
       }
     }
 
-    RespWriter::new_ref(&mut output.payload).write_int64(count);
+    RespWriter::new_ref(output.payload).write_int64(count);
   }
 
   /// ZINCRBY：分值增量
@@ -408,7 +407,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     self.delete_expired_items();
@@ -421,8 +420,7 @@ impl SortedSetObject {
     };
 
     let Some(incr_value) = try_parse_with_infinity(args[0]) else {
-      RespWriter::new_ref(&mut output.payload)
-        .write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
+      RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_NOT_VALID_FLOAT.as_bytes());
       return;
     };
 
@@ -432,7 +430,7 @@ impl SortedSetObject {
       Some(score) => {
         let result = score + incr_value;
         if result.is_nan() {
-          RespWriter::new_ref(&mut output.payload)
+          RespWriter::new_ref(output.payload)
             .write_error_bytes(RESP_ERR_GENERIC_SCORE_NAN.as_bytes());
           return;
         }
@@ -469,7 +467,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let range_opts = SortedSetRangeOpts::from_bits_truncate(arg2 as u8);
@@ -516,7 +514,7 @@ impl SortedSetObject {
         } else if equals_ignore_case(token, LIMIT) {
           // LIMIT 后须有 offset count 两个 token
           if args.len() - curr_idx < 2 {
-            RespWriter::new_ref(&mut output.payload)
+            RespWriter::new_ref(output.payload)
               .write_error_bytes(RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes());
             output.result1 = RANGE_ERROR;
             return;
@@ -526,7 +524,7 @@ impl SortedSetObject {
             strict_i32(args[curr_idx]).map(|v| v as i64),
             strict_i32(args[curr_idx + 1]).map(|v| v as i64),
           ) else {
-            RespWriter::new_ref(&mut output.payload)
+            RespWriter::new_ref(output.payload)
               .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
             output.result1 = RANGE_ERROR;
             return;
@@ -543,13 +541,13 @@ impl SortedSetObject {
 
     if count >= 2 && ((!options.by_score && !options.by_lex) || options.by_score) {
       let Some((min_value, min_exclusive)) = Self::try_parse_parameter(min_span) else {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_FLOAT.as_bytes());
         output.result1 = RANGE_ERROR;
         return;
       };
       let Some((max_value, max_exclusive)) = Self::try_parse_parameter(max_span) else {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_FLOAT.as_bytes());
         output.result1 = RANGE_ERROR;
         return;
@@ -579,13 +577,13 @@ impl SortedSetObject {
         let mut min_index = min_value as i64;
         let mut max_index = max_value as i64;
         if options.valid_limit {
-          RespWriter::new_ref(&mut output.payload)
+          RespWriter::new_ref(output.payload)
             .write_error_bytes(RESP_ERR_LIMIT_NOT_SUPPORTED.as_bytes());
           output.result1 = RANGE_ERROR;
           return;
         } else if min_value > (set_count as f64) - 1.0 {
           // 空结果
-          RespWriter::new_ref(&mut output.payload).write_empty_array();
+          RespWriter::new_ref(output.payload).write_empty_array();
           return;
         } else {
           // 负索引从尾部偏移
@@ -600,7 +598,7 @@ impl SortedSetObject {
 
           // 双双越界或 min > max：空结果
           if (min_index < 0 && max_index < 0) || min_index > max_index {
-            RespWriter::new_ref(&mut output.payload).write_empty_array();
+            RespWriter::new_ref(output.payload).write_empty_array();
             return;
           }
 
@@ -647,8 +645,8 @@ impl SortedSetObject {
         // BYSCORE 与 BYLEX 相互独立："ZRANGE k 1 3 BYSCORE BYLEX" 时上方已写过
         // 数组回复，须回退到本命令负载起点再写错误（两份回复会令 RESP 流失步；
         // 对标 writer.ResetPosition）
-        output.payload.clear();
-        RespWriter::new_ref(&mut output.payload)
+        output.reset();
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_STRING.as_bytes());
         output.result1 = RANGE_ERROR;
       } else {
@@ -673,27 +671,27 @@ impl SortedSetObject {
     count: usize,
     resp_protocol_version: u8,
     iterator: impl Iterator<Item = (f64, B)>,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     if with_scores && resp_protocol_version >= 3 {
-      RespWriter::new_ref(&mut output.payload).write_array_length(count);
+      RespWriter::new_ref(output.payload).write_array_length(count);
 
       for (score, element) in iterator {
-        RespWriter::new_ref(&mut output.payload).write_array_length(2);
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(element.as_ref());
+        RespWriter::new_ref(output.payload).write_array_length(2);
+        RespWriter::new_ref(output.payload).write_bulk_string(element.as_ref());
         write_double_numeric(output, score, resp_protocol_version);
       }
     } else {
-      RespWriter::new_ref(&mut output.payload).write_array_length(if with_scores {
+      RespWriter::new_ref(output.payload).write_array_length(if with_scores {
         count * 2
       } else {
         count
       });
 
       for (score, element) in iterator {
-        RespWriter::new_ref(&mut output.payload).write_bulk_string(element.as_ref());
+        RespWriter::new_ref(output.payload).write_bulk_string(element.as_ref());
         if with_scores {
-          RespWriter::new_ref(&mut output.payload).write_double_bulk_string(score);
+          RespWriter::new_ref(output.payload).write_double_bulk_string(score);
         }
       }
     }
@@ -705,7 +703,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_range_by_rank(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -713,7 +711,7 @@ impl SortedSetObject {
       strict_i32(args[0]).map(|v| v as i64),
       strict_i32(args[1]).map(|v| v as i64),
     ) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER.as_bytes());
       return;
     };
@@ -735,7 +733,7 @@ impl SortedSetObject {
 
     // start 非负，故 start > stop 覆盖 stop 仍为负的情形
     if start > stop || start >= count {
-      RespWriter::new_ref(&mut output.payload).write_int64(0);
+      RespWriter::new_ref(output.payload).write_int64(0);
       return;
     }
 
@@ -760,7 +758,7 @@ impl SortedSetObject {
       self.try_remove_expiration(&item.member);
     }
 
-    RespWriter::new_ref(&mut output.payload).write_int64(element_count as i64);
+    RespWriter::new_ref(output.payload).write_int64(element_count as i64);
   }
 
   /// ZREMRANGEBYSCORE：按分值区间移除
@@ -769,7 +767,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_range_by_score(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -780,7 +778,7 @@ impl SortedSetObject {
       Self::try_parse_parameter(min_param),
       Self::try_parse_parameter(max_param),
     ) else {
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_FLOAT.as_bytes());
       return;
     };
@@ -807,7 +805,7 @@ impl SortedSetObject {
       }
     }
 
-    RespWriter::new_ref(&mut output.payload).write_int64(removed);
+    RespWriter::new_ref(output.payload).write_int64(removed);
   }
 
   /// ZRANDMEMBER：随机成员（arg1 打包 count/withScores/includedCount，arg2 为种子）
@@ -818,7 +816,7 @@ impl SortedSetObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let mut count = (arg1 >> 2) as i64;
@@ -839,7 +837,7 @@ impl SortedSetObject {
     })
     .abs();
     if array_length > 1 || (array_length == 1 && included_count) {
-      RespWriter::new_ref(&mut output.payload).write_array_length(array_length as usize);
+      RespWriter::new_ref(output.payload).write_array_length(array_length as usize);
     }
     let index_count = count.unsigned_abs() as usize;
 
@@ -869,10 +867,10 @@ impl SortedSetObject {
       };
 
       if with_scores && resp_protocol_version >= 3 {
-        RespWriter::new_ref(&mut output.payload).write_array_length(2);
+        RespWriter::new_ref(output.payload).write_array_length(2);
       }
 
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(&element);
+      RespWriter::new_ref(output.payload).write_bulk_string(&element);
 
       if with_scores {
         write_double_numeric(output, score, resp_protocol_version);
@@ -888,7 +886,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_or_count_range_by_lex(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     op: SortedSetOperation,
   ) {
     // 以 i32::MIN 标记部分执行（resp 层据此中止）
@@ -932,7 +930,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg1: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     ascending: bool,
   ) {
@@ -961,11 +959,11 @@ impl SortedSetObject {
     }
 
     if with_score {
-      RespWriter::new_ref(&mut output.payload).write_array_length(2);
-      RespWriter::new_ref(&mut output.payload).write_int64(rank);
+      RespWriter::new_ref(output.payload).write_array_length(2);
+      RespWriter::new_ref(output.payload).write_int64(rank);
       write_double_numeric(output, score, resp_protocol_version);
     } else {
-      RespWriter::new_ref(&mut output.payload).write_int64(rank);
+      RespWriter::new_ref(output.payload).write_int64(rank);
     }
   }
 
@@ -998,7 +996,7 @@ impl SortedSetObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     op: SortedSetOperation,
   ) {
@@ -1024,16 +1022,16 @@ impl SortedSetObject {
     };
 
     if count == 0 {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       output.result1 = 0;
       return;
     }
 
     if with_header {
       if resp_protocol_version >= 3 {
-        RespWriter::new_ref(&mut output.payload).write_array_length(count as usize);
+        RespWriter::new_ref(output.payload).write_array_length(count as usize);
       } else {
-        RespWriter::new_ref(&mut output.payload).write_array_length((count * 2) as usize);
+        RespWriter::new_ref(output.payload).write_array_length((count * 2) as usize);
       }
     }
 
@@ -1044,10 +1042,10 @@ impl SortedSetObject {
       };
 
       if !with_header || resp_protocol_version >= 3 {
-        RespWriter::new_ref(&mut output.payload).write_array_length(2);
+        RespWriter::new_ref(output.payload).write_array_length(2);
       }
 
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(&member);
+      RespWriter::new_ref(output.payload).write_bulk_string(&member);
       write_double_numeric(output, score, resp_protocol_version);
 
       count_done += 1;
@@ -1060,16 +1058,16 @@ impl SortedSetObject {
   /// ZPERSIST：批量清除成员过期
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetPersist
-  pub(crate) fn sorted_set_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let num_fields = args.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(num_fields);
+    RespWriter::new_ref(output.payload).write_array_length(num_fields);
 
     for &arg in args {
       let result = self.persist(arg);
-      RespWriter::new_ref(&mut output.payload).write_int64(result as i64);
+      RespWriter::new_ref(output.payload).write_int64(result as i64);
     }
 
     output.result1 = num_fields as i64;
@@ -1083,13 +1081,13 @@ impl SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let is_milliseconds = arg1 == 1;
     let is_timestamp = arg2 == 1;
     let num_fields = args.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(num_fields);
+    RespWriter::new_ref(output.payload).write_array_length(num_fields);
 
     let now = now_ticks();
     for &member in args {
@@ -1114,7 +1112,7 @@ impl SortedSetObject {
         };
       }
 
-      RespWriter::new_ref(&mut output.payload).write_int64(result);
+      RespWriter::new_ref(output.payload).write_int64(result);
     }
 
     output.result1 = num_fields as i64;
@@ -1128,13 +1126,13 @@ impl SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
     let expiration_with_option = ExpirationWithOption::from_word_head_tail(arg1, arg2);
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &arg in args {
       let result = self.set_expiration(
@@ -1142,7 +1140,7 @@ impl SortedSetObject {
         expiration_with_option.expiration_time_in_ticks(),
         expiration_with_option.expire_option(),
       );
-      RespWriter::new_ref(&mut output.payload).write_int64(result as i64);
+      RespWriter::new_ref(output.payload).write_int64(result as i64);
     }
 
     output.result1 = args.len() as i64;
@@ -1151,7 +1149,7 @@ impl SortedSetObject {
   /// ZCOLLECT：占位收集操作（清除过期后确认存活）
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetCollect
-  pub fn sorted_set_collect(&mut self, output: &mut ObjectOutput) {
+  pub fn sorted_set_collect(&mut self, output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     output.result1 = 1;
@@ -1396,13 +1394,13 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     limit_count_in_output: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let params = match read_scan_input(args, limit_count_in_output) {
       Ok(params) => params,
       Err(msg) => {
-        RespWriter::new_ref(&mut output.payload).write_error_bytes(msg);
+        RespWriter::new_ref(output.payload).write_error_bytes(msg);
         return;
       }
     };
@@ -1415,16 +1413,16 @@ impl SortedSetObject {
     );
     let items_len = items.len();
 
-    RespWriter::new_ref(&mut output.payload).write_array_length(2);
-    RespWriter::new_ref(&mut output.payload).write_int64_as_bulk_string(cursor_output);
+    RespWriter::new_ref(output.payload).write_array_length(2);
+    RespWriter::new_ref(output.payload).write_int64_as_bulk_string(cursor_output);
 
     if items.is_empty() {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
     } else {
-      RespWriter::new_ref(&mut output.payload).write_array_length(items.len());
+      RespWriter::new_ref(output.payload).write_array_length(items.len());
       for item in items {
         match item {
-          Some(bytes) => RespWriter::new_ref(&mut output.payload).write_bulk_string(&bytes),
+          Some(bytes) => RespWriter::new_ref(output.payload).write_bulk_string(&bytes),
           // 对标 C#:Utf8Formatter 失败的 null 项回写
           None => write_null(output, resp_protocol_version),
         }

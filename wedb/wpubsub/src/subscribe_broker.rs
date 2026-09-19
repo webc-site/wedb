@@ -75,7 +75,7 @@ fn write_channel_array<S>(
   pattern: Option<&[u8]>,
 ) {
   if subscriptions.is_empty() {
-    output.extend_from_slice(b"*0\r\n");
+    output.write_resp_array_len(0);
     return;
   }
   // 归属判定 + 用户模式过滤：裸名生命周期显式随入参通道，闭包无法表达该高阶约束

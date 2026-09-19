@@ -185,12 +185,12 @@ impl SetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
     let Some(op) = SetOperation::try_from(sub_id).ok() else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
@@ -217,7 +217,7 @@ impl SetObject {
       | SetOperation::Sdiffstore
       | SetOperation::Sinter
       | SetOperation::Sinterstore => {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }
@@ -290,7 +290,7 @@ impl SetObject {
 
 impl SetObject {
   /// SSCAN 的对象层入口，转发至 [`scan_operate_shared`]。
-  pub(crate) fn scan_operate(&mut self, args: &[&[u8]], limit: i32, output: &mut ObjectOutput) {
+  pub(crate) fn scan_operate(&mut self, args: &[&[u8]], limit: i32, output: &mut ObjectOutput<'_>) {
     scan_operate_shared(args, limit, output, |cursor, count, pattern, _| {
       self.scan(cursor, count, pattern)
     });

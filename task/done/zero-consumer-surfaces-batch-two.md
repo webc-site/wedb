@@ -70,3 +70,43 @@
   相关 crate 测试改走生产出口，无因删除产生的 warning。
 
 盘点补记（qw13.invA zero-consumer-surfaces-batch-two）：dev e75716e 复核，八项死面全在场：wacl/src/user_handle.rs:39 try_set_user 零生产消费、wmetric/src/info/garnet_info_metrics.rs:1223 get_info_metrics、wresp/src/catalog/data_provider.rs:65 try_export_resp_commands_data、wnode/src/aof/garnet_log/commit.rs:92 initialize_if、wnode/src/resp/basic_commands/mod.rs:89 network_ping 均原样；wnode/src/resp/acl_commands.rs:753 仍无条件 set_user_handle（与 acl-setuser 票同一 CAS 环，禁按「全删」口径合入旧 zero-consumer-b2 分支提交）。分域拆两票的建议仍有效。
+
+## 落地补记（fix-dead-batch-two）
+
+第八项按票面不派工：begin_flush / FlushGuard 归 vector-registry-nsdb-isolation.md
+的 FLUSH 域回收联动一并落地，本单仅登记交叉引用，未改动
+wedb/wnode/src/resp/vector/vector_manager_context_metadata.rs。
+
+处置摘要：
+- 一（删内联，臂转调）：resp_server_session.rs PING/ASKING/ECHO 三臂改转调
+  basic_commands 的 network_ping/network_asking/network_echo；零参 PING 行为修正
+  为承接 C# NetworkPING 完整语义（订阅会话 RESP2 回 SUSCRIBE_PONG——原内联副本
+  丢失该分支，属双轨弱侧）。
+- 二（接线）：service.rs open_recovered_with_config_and_aof 恢复链拆开
+  recover_aof，按 C# ReplicationManager.RecoverCheckpointAndAOFAsync 同位在
+  recover_async 后、replay 前调 initialize_if（checkpoint_aof_address 超前 AOF 尾
+  才推进，正常场景 no-op）；latest_checkpoint_meta 下沉 wcpr 公共单点，rm 侧私有
+  副本删除。
+- 三（删 + ignore）：iterate_store 零生产消费，C# 三个消费位在 rust 均有分域单点
+  （count_keys_in_slot / get_keys_in_slot / scan_cursor）；连锁死链
+  string_snapshot / collect_records 一并删除；ignore 登记 IterateStore。
+- 四（删 + ignore）：票面「改 CAS 重试环」经取证否决——rust 无多连接共享句柄域
+  （存储单点 + 会话本地句柄 + 命令串行处理），acl_commands.rs 自改刷新臂重读存储
+  后整体替换句柄，无「读-改-写」窗口可保护；跨连接撤权传播归
+  acl-setuser-live-connection-propagation.md 的引擎代数方案（不经 CAS 原语）。
+  try_set_user 删除，UserHandle 简化为构造即定格只读快照（ArcSwap 虚设写能力
+  一并移除）；ignore 登记 TrySetUser。
+- 五（删 + ignore）：get_info_metrics 零消费；生产 INFO 走 get_resp_info 文本
+  单轨（与 C# GetRespInfo 主轨同构），结构化单段出口 get_metric 保留（C# 同为
+  测试消费面）；ignore 登记 GetInfoMetrics。
+- 六（删 + ignore）：try_export_resp_commands_data 零生产消费，rust 命令目录
+  编译期内嵌 JSON 单向导入，无落盘导出链路；ignore 登记 TryExportRespCommandsData。
+- 七（删）：set_spawner 零消费（构造即注入默认 CompioTaskSpawner，无运行期换注
+  场景），spawner 字段由 Mutex<Option<Arc>> 简化为构造期定格 Arc，
+  start_main_loop 的无启动器回退分支随之删除；get_collection_item_async 与
+  get_collection_item_async_inner 零生产消费（生产等待走 start_wait +
+  BlockedWait 网络泵驱动形态），删除并把测试改走 start_wait / wait_result /
+  finish_wait 生产出口三段式；start_wait / finish_wait 注释补
+  GetCollectionItemAsync 锚点承接 C# 映射。
+- 票面第六项子项 expiration_option_from_token 在取证时已不存在（前批已清），
+  本单无动作。

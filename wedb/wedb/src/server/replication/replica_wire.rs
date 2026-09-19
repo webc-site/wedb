@@ -10,8 +10,10 @@
 //!
 //! C# 发送缓冲满时 Send 内部自动 Flush（同步阻塞）；Rust 的推流端口
 //! （WalLog::replication_sink）契约要求回调无阻塞，故 TCP 形态以
-//! 「饱和 → 溢流队列 + 常驻泵搬运」承接同等背压语义：溢流上限
-//! MAX_OVERFLOW_ENTRIES 硬封顶，超限即断连（通道健康面感知，
+//! 「饱和 → 溢流队列 + 常驻泵搬运」承接同等背压语义：溢流按条数
+//! （MAX_OVERFLOW_ENTRIES）+ 驻留字节（byte_cap，产线取 wconn
+//! MAX_UNFLUSHED_SEND_BYTES，对标 C# NetworkWriter 4 页环形缓冲字节顶）
+//! 双维硬封顶，任一触顶即断连（通道健康面感知，
 //! 对齐 C# 断链 → 写失败 → 剔除重同步的治理路径）。
 //!
 //! 已发送水位语义（对标 C# previousAddress 只在帧离开用户态后推进）：
@@ -24,7 +26,7 @@ use std::{
   io::{self, Error, ErrorKind},
   sync::{
     Arc, Weak,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
   },
   time::Duration,
 };
@@ -32,9 +34,9 @@ use std::{
 use compio::{runtime::spawn, time};
 use parking_lot::Mutex;
 use wbase::{hex::hex_str_u128, pool::EventWorkQueue};
-use wconn::session::GarnetClientSession;
 #[cfg(feature = "tls")]
 use wconn::tls::ClientTlsConfig;
+use wconn::{session::GarnetClientSession, types::MAX_UNFLUSHED_SEND_BYTES};
 
 use crate::server::replication::aof_sync_task::AofSyncTask;
 
@@ -59,6 +61,14 @@ pub struct TcpSessionWire {
   client: GarnetClientSession,
   node_id: u128,
   overflow: Arc<EventWorkQueue<WireFrame>>,
+  /// 溢流队列累计驻留字节（入队先增后 push、泵 pop 减，与 overflow 同推/弹点位）：
+  /// 与 [`TcpSessionWire::MAX_OVERFLOW_ENTRIES`] 条数封顶并列的第二维闸，
+  /// 慢副本 + 大记录场景把每连接未刷出内存钉在字节预算内（对标 C# 4 页环形缓冲）
+  overflow_bytes: AtomicUsize,
+  /// 溢流驻留字节封顶（产线 connect 恒取 [`MAX_UNFLUSHED_SEND_BYTES`]，
+  /// 唯一数值源；单测可构造小值以廉价输入触达字节判据，与写泵
+  /// flush_threshold_bytes 分片阈值同形承接 C# 「页数 4 × 发送页尺寸」字节顶）
+  byte_cap: usize,
   /// 在途帧标志：泵手上持有已出队、未入客户端通道的帧（直发禁入，保序）
   in_flight: Arc<AtomicBool>,
   pump_alive: Arc<AtomicBool>,
@@ -76,6 +86,18 @@ enum WireFrame {
     physical_sublog_idx: usize,
     sequence_number: i64,
   },
+}
+
+impl WireFrame {
+  /// 溢流驻留字节计量：APPENDLOG 帧主导内存开销即整帧 AOF 记录载荷，
+  /// ADVANCE_TIME 为恒定小帧（计 1 字节，纯脉冲洪流仍由条数封顶承接）。
+  /// RESP 数组头等固定开销与帧数成正比、已被条数封顶约束，不重复计入字节闸
+  fn resident_bytes(&self) -> usize {
+    match self {
+      Self::AppendLog(entry) => entry.payload.len(),
+      Self::AdvanceTime { .. } => 1,
+    }
+  }
 }
 
 /// 副本同步帧级/RPC 应答超时（映射 garnet/libs/server/Servers/
@@ -163,7 +185,8 @@ fn try_ship_frame(
 }
 
 impl TcpSessionWire {
-  /// 最大允许溢流队列长度，防止对端假死导致内存无界膨胀
+  /// 溢流队列条数封顶（与字节封顶 [`TcpSessionWire::byte_cap`] 并列，
+  /// 二者任一触顶即断连），防止对端假死导致内存无界膨胀
   pub const MAX_OVERFLOW_ENTRIES: usize = 10_000;
 
   /// 建立副本连接并发送 AOF 复制流初始化帧（等 +OK）
@@ -228,6 +251,8 @@ impl TcpSessionWire {
       client,
       node_id,
       overflow: Arc::clone(&overflow),
+      overflow_bytes: AtomicUsize::new(0),
+      byte_cap: MAX_UNFLUSHED_SEND_BYTES,
       in_flight: Arc::new(AtomicBool::new(false)),
       pump_alive: Arc::new(AtomicBool::new(true)),
       ratchets: Mutex::new(Vec::new()),
@@ -264,6 +289,10 @@ impl TcpSessionWire {
           let Some(frame) = overflow.try_pop() else {
             continue;
           };
+          // 帧离队即减字节计量（与入队先增后 push 对偶，pending_frame 续传不重复减）
+          wire
+            .overflow_bytes
+            .fetch_sub(frame.resident_bytes(), Ordering::AcqRel);
           wire.in_flight.store(true, Ordering::Release);
           frame
         };
@@ -295,6 +324,10 @@ impl TcpSessionWire {
 
         // 贪婪非阻塞消费
         while let Some(next) = overflow.try_pop() {
+          // 帧离队即减字节计量（同上）
+          wire
+            .overflow_bytes
+            .fetch_sub(next.resident_bytes(), Ordering::AcqRel);
           wire.in_flight.store(true, Ordering::Release);
           if try_ship_frame(&wire.client, wire.node_id, &next).is_err() {
             // 通道饱和，暂存到 pending_frame，等待下一轮 async 重发
@@ -313,7 +346,9 @@ impl TcpSessionWire {
   /// 直发客户端通道或入溢流队列（公共饱和判定、溢流排队与超限断连保护）
   ///
   /// 若溢流队列为空且无在途帧则尝试直发客户端通道（零多余分配）；若已有积压
-  /// 或通道饱和，则延迟构造帧入溢流队列保序；超限即断连并报 BrokenPipe
+  /// 或通道饱和，则延迟构造帧入溢流队列保序；溢流按条数（[`Self::MAX_OVERFLOW_ENTRIES`]）
+  /// 与驻留字节（[`Self::byte_cap`]）双判据封顶，任一触顶即断连并报 BrokenPipe
+  /// （对标 C# NetworkWriter 页满 TryAllocate 返回 RETRY_LATER 的字节硬顶）
   #[inline]
   fn send_or_enqueue(
     &self,
@@ -328,7 +363,23 @@ impl TcpSessionWire {
       return Ok(ShippedState::Shipped);
     }
 
-    if self.overflow.len() >= Self::MAX_OVERFLOW_ENTRIES || !self.overflow.push(make_frame()) {
+    // 先建帧计量，条数/字节双判据任一触顶即断连（错误文案区分两判据便于定位慢副本）
+    let frame = make_frame();
+    let resident = frame.resident_bytes();
+    let over_entries = self.overflow.len() >= Self::MAX_OVERFLOW_ENTRIES;
+    let over_bytes = self.overflow_bytes.load(Ordering::Acquire) >= self.byte_cap;
+    if over_entries || over_bytes {
+      self.disconnect();
+      let limit = if over_entries { "entry" } else { "byte" };
+      return Err(Error::new(
+        ErrorKind::BrokenPipe,
+        format!("Replication send buffer overflow exceeded {limit} limit"),
+      ));
+    }
+    // 先增计量再入队：泵出队减账必不见负（usize 下溢会令字节闸永久触顶）
+    self.overflow_bytes.fetch_add(resident, Ordering::AcqRel);
+    if !self.overflow.push(frame) {
+      self.overflow_bytes.fetch_sub(resident, Ordering::AcqRel);
       self.disconnect();
       return Err(Error::new(
         ErrorKind::BrokenPipe,
@@ -669,7 +720,7 @@ pub mod test_wire {
 
 #[cfg(test)]
 mod tests {
-  use parking_lot::Mutex;
+  use compio::{net::TcpListener, runtime::Runtime};
   use wconn::session::{encode_append_log_frame, encode_append_log_init_frame};
   use wresp::frame::parse_resp_frame;
 
@@ -739,6 +790,8 @@ $1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n";
       client,
       node_id: 0x0000_DE11,
       overflow: Arc::new(EventWorkQueue::new()),
+      overflow_bytes: AtomicUsize::new(0),
+      byte_cap: MAX_UNFLUSHED_SEND_BYTES,
       in_flight: Arc::new(AtomicBool::new(false)),
       pump_alive: Arc::new(AtomicBool::new(true)),
       ratchets: Mutex::new(Vec::new()),
@@ -747,5 +800,80 @@ $1\r\n0\r\n$2\r\n-1\r\n$2\r\n-1\r\n$2\r\n-1\r\n";
     let res = wire.advance_time(0, 1);
     assert!(res.is_err());
     assert_eq!(res.unwrap_err().kind(), io::ErrorKind::NotConnected);
+  }
+
+  /// 构造会话通道在位的 TcpSessionWire：连到静默 loopback 端点（无凭证
+  /// 握手零往返即成），常驻泵不启动、在途帧置位封死直发臂——溢流只积不排，
+  /// 以确定性形态触达条数/字节双封顶
+  async fn wire_pumpless_connected(byte_cap: usize) -> TcpSessionWire {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    // 收下连接即静默（不读不写），套接字随任务滞留至测试收场
+    spawn(async move {
+      let mut held = Vec::new();
+      while let Ok((sock, _)) = listener.accept().await {
+        held.push(sock);
+      }
+    })
+    .detach();
+    let mut client = GarnetClientSession::new(addr, None, None, None);
+    client.connect_async().await.unwrap();
+    TcpSessionWire {
+      client,
+      node_id: 0x0000_DE11,
+      overflow: Arc::new(EventWorkQueue::new()),
+      overflow_bytes: AtomicUsize::new(0),
+      byte_cap,
+      in_flight: Arc::new(AtomicBool::new(true)),
+      pump_alive: Arc::new(AtomicBool::new(true)),
+      ratchets: Mutex::new(Vec::new()),
+    }
+  }
+
+  /// 字节维封顶：驻留字节触顶先于条数触顶断连（对标 C# NetworkWriter
+  /// 4 页环形缓冲字节硬顶），错误文案区分字节判据，超界帧不入溢流队列
+  #[test]
+  fn tcp_wire_overflow_byte_cap_disconnects() {
+    Runtime::new().unwrap().block_on(async {
+      let wire = wire_pumpless_connected(4096).await;
+      let payload = vec![7u8; 2048];
+      for _ in 0..2 {
+        assert_eq!(
+          wire.append_log(0, 0, 0, 0, 2048, &payload).unwrap(),
+          ShippedState::Queued
+        );
+      }
+      assert_eq!(wire.overflow_bytes.load(Ordering::Acquire), 4096);
+      let err = wire.append_log(0, 0, 0, 0, 4096, &payload).unwrap_err();
+      assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
+      assert!(
+        err.to_string().contains("byte"),
+        "字节判据文案应可区分: {err}"
+      );
+      assert!(!wire.is_connected(), "字节触顶必须转断连");
+      assert_eq!(wire.overflow.len(), 2, "超界帧不得入溢流队列");
+    });
+  }
+
+  /// 条数维封顶：字节远未触顶时条数触顶断连，错误文案区分条数判据
+  #[test]
+  fn tcp_wire_overflow_entry_cap_disconnects() {
+    Runtime::new().unwrap().block_on(async {
+      let wire = wire_pumpless_connected(usize::MAX).await;
+      let payload = vec![7u8; 16];
+      for _ in 0..TcpSessionWire::MAX_OVERFLOW_ENTRIES {
+        assert_eq!(
+          wire.append_log(0, 0, 0, 0, 1, &payload).unwrap(),
+          ShippedState::Queued
+        );
+      }
+      let err = wire.append_log(0, 0, 0, 0, 2, &payload).unwrap_err();
+      assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
+      assert!(
+        err.to_string().contains("entry"),
+        "条数判据文案应可区分: {err}"
+      );
+      assert!(!wire.is_connected(), "条数触顶必须转断连");
+    });
   }
 }

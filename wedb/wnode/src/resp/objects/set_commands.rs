@@ -6,6 +6,7 @@
 //! 族为多键聚合，对标 libs/server/Storage/Session/ObjectStore/SetOps.cs
 //! 的装载-折叠语义在命令层就地求值。存取经与 storage 会话域共享的
 //! `[类型标签][载荷]` 信封（见 [`super::object_store_utils`]）。
+use wbase::num::strict_i32;
 use wcol::{
   ObjectOutput,
   set::{
@@ -23,8 +24,9 @@ use wval::GarnetObjectType;
 use crate::{
   resp::{
     objects::object_store_utils::{
-      GarnetObjectPayload, ObjLoad, RespRmwDone, SyncRmwCmd, SyncRmwHandlers, obj_length_sync,
-      obj_load_typed_sync, obj_save_or_gc, run_sync_rmw,
+      GarnetObjectPayload, IntersectCardKind, ObjLoad, RespRmwDone, SyncRmwCmd, SyncRmwHandlers,
+      obj_length_sync, obj_load_typed_sync, obj_save_or_gc, parse_intersect_card_args,
+      run_sync_rmw,
     },
     resp_server_session::RespServerSession,
   },
@@ -34,17 +36,42 @@ use crate::{
 pub(crate) type SetLoad = ObjLoad<SetObject>;
 type Rmw = ObjLoad<RespRmwDone>;
 
+/// SPOP key \[count\] 参数推导单源（快慢路径共用；解析失败时已写出错误应答
+/// 并返回 None），返回 (key, count；缺省 NO_COUNT)
+///
+/// 判定序对标 C# SetCommands.cs 的 SetPop：arity 1..=2 → count 非整数
+/// （含溢出）或负数同报 NOT_INTEGER
+pub(crate) fn parse_set_pop_args<'a>(
+  parse_state: &'a [&'a [u8]],
+  output: &mut Vec<u8>,
+) -> Option<(&'a [u8], i32)> {
+  check_arg_count!(parse_state, 1..=2, output, "SPOP", return None);
+  let count = match parse_state.get(1) {
+    None => NO_COUNT,
+    // C#：非整数（含溢出）或负数 → VALUE_IS_NOT_INTEGER
+    Some(raw) => match strict_i32(raw) {
+      Some(c) if c >= 0 => c,
+      _ => {
+        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+        return None;
+      }
+    },
+  };
+  Some((parse_state[0], count))
+}
+
 /// 经对象层 operate 通道执行操作，返回结构化输出
 ///（协议版本按会话协商版本透传，C# respProtocolVersion）
-fn run_operate(
+fn run_operate<'o>(
   obj: &mut SetObject,
   op: SetOperation,
   args: &[&[u8]],
   arg1: i32,
   arg2: i32,
   resp_version: u8,
-) -> ObjectOutput {
-  let mut obj_out = ObjectOutput::new();
+  output: &'o mut Vec<u8>,
+) -> ObjectOutput<'o> {
+  let mut obj_out = ObjectOutput::mount(output);
   obj.operate(op as u8, args, arg1, arg2, &mut obj_out, resp_version);
   obj_out
 }
@@ -88,8 +115,16 @@ pub(crate) fn set_save_or_gc(
 /// - 错误回复（WRONGTYPE 标志或 `-` 行）无状态变更，不落库（防幻键）；
 /// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
 /// - 仅回填 result1 的删除类操作（SREM）以移除计数为准。
-fn should_write_back(op: SetOperation, out: &ObjectOutput, obj: &SetObject, existed: bool) -> bool {
-  if is_read_only(op) || out.payload.first() == Some(&b'-') || (!existed && obj.set.is_empty()) {
+fn should_write_back(
+  op: SetOperation,
+  out: &ObjectOutput<'_>,
+  obj: &SetObject,
+  existed: bool,
+) -> bool {
+  if is_read_only(op)
+    || out.payload_view().first() == Some(&b'-')
+    || (!existed && obj.set.is_empty())
+  {
     return false;
   }
   match op {
@@ -162,7 +197,7 @@ impl RespServerSession {
         SetObject::new,
         |o: &SetObject| o.set.is_empty(),
         |o: &SetObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
         should_write_back,
       ),
     )
@@ -279,15 +314,15 @@ impl RespServerSession {
       // C# NOTFOUND → WriteEmptySet（版本分派：RESP2 *0 / RESP3 ~0）
       SetLoad::Missing => cs::write_set_len(output, 0, self.resp_protocol_version),
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Smembers,
           &[],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -310,15 +345,15 @@ impl RespServerSession {
       // C# NOTFOUND → :0
       SetLoad::Missing => output.extend_from_slice(cs::RESP_RETURN_VAL_0),
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Sismember,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -346,15 +381,15 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Smismember,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -371,23 +406,9 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    let (key, count_parameter) = match parse_state {
-      [key] => (*key, NO_COUNT),
-      [key, arg] => {
-        let count = match arg.try_parse_i64() {
-          // C#：非整数或负数 → VALUE_IS_NOT_INTEGER
-          Some(c) if (0..=i64::from(i32::MAX)).contains(&c) => c as i32,
-          _ => {
-            cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-            return Ok(true);
-          }
-        };
-        (*key, count)
-      }
-      _ => {
-        cs::abort_with_wrong_number_of_arguments(output, "SPOP");
-        return Ok(true);
-      }
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, count_parameter)) = parse_set_pop_args(parse_state, output) else {
+      return Ok(true);
     };
 
     // C# countParameter == 0 → 空集合（WriteEmptySet 版本分派，不触达后端）
@@ -408,23 +429,28 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        let mut obj_out = run_operate(
           &mut obj,
           SetOperation::Spop,
           &[],
           count_parameter,
           0,
           self.resp_protocol_version,
+          output,
         );
         match set_save_or_gc(store, key, &obj) {
           Ok(true) => {}
-          Ok(false) => return Ok(false),
+          // Degrade/存储错误：回退挂载点，慢路径整体重放或错误帧独占应答
+          Ok(false) => {
+            obj_out.reset();
+            return Ok(false);
+          }
           Err(_) => {
+            obj_out.reset();
             output.write_resp_error(RESP_ERR_GENERIC);
             return Ok(true);
           }
         }
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -476,15 +502,15 @@ impl RespServerSession {
         }
       }
       SetLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           SetOperation::Srandmember,
           &[],
           count_parameter,
           seed,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -615,61 +641,20 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    // Need at least numkeys + 1 key
-    check_arg_count!(parse_state, 2.., output, "SINTERCARD");
-
-    // C# TryGetInt 走 TryReadInt32Safe：超 i32 值域（含负溢出）视为非整数
-    let Some(num_keys) = parse_state[0]
-      .try_parse_i64()
-      .filter(|&n| i32::try_from(n).is_ok())
-    else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // 参数推导单源（快慢共用，失败帧已写出；set 族帧见 IntersectCardKind）
+    let Some(args) = parse_intersect_card_args(IntersectCardKind::Set, parse_state, output) else {
       return Ok(true);
     };
-    if num_keys < 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
-      return Ok(true);
-    }
-    if parse_state.len() < num_keys as usize + 1 {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_NUMKEYS);
-      return Ok(true);
-    }
 
-    // Optional LIMIT argument
-    let mut limit: Option<i64> = None;
-    if parse_state.len() > num_keys as usize + 1 {
-      if !parse_state[num_keys as usize + 1].eq_ignore_ascii_case(cs::LIMIT)
-        || parse_state.len() != num_keys as usize + 3
-      {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-      let Some(limit_val) = parse_state[num_keys as usize + 2]
-        .try_parse_i64()
-        .filter(|&v| i32::try_from(v).is_ok())
-      else {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
-        return Ok(true);
-      };
-      if limit_val < 0 {
-        cs::abort_with_error_message(output, "ERR LIMIT can't be negative");
-        return Ok(true);
-      }
-      limit = Some(limit_val);
-    }
-
-    let keys = &parse_state[1..=num_keys as usize];
-    let objs = match load_many(store, keys, output) {
+    let objs = match load_many(store, args.keys, output) {
       Ok(Some(objs)) => objs,
       Ok(None) => return Ok(false),
       Err(()) => return Ok(true),
     };
 
     let mut card = intersect_sets(&objs).set.len() as i64;
-    if let Some(limit) = limit
-      && limit > 0
-    {
-      card = card.min(limit);
+    if let Some(limit) = args.limit.filter(|&v| v > 0) {
+      card = card.min(i64::from(limit));
     }
     output.write_resp_int(card);
     Ok(true)
@@ -873,14 +858,15 @@ pub(crate) mod slow {
   use wval::GarnetObjectType;
 
   use super::{
-    Rmw, diff_sets, intersect_sets, run_operate, should_write_back, union_sets, write_set_members,
+    Rmw, diff_sets, intersect_sets, parse_set_pop_args, run_operate, should_write_back, union_sets,
+    write_set_members,
   };
   use crate::{
     resp::objects::{
       object_store_utils::{
-        GarnetObjectPayload, SyncRmwCmd, SyncRmwHandlers, obj_load_typed_async,
-        obj_writeback_tiered, retire_tiered_dest, run_async_rmw, slow_load_eval, try_tiered_arm,
-        write_rmw_reply,
+        GarnetObjectPayload, IntersectCardKind, SyncRmwCmd, SyncRmwHandlers, obj_load_typed_async,
+        obj_writeback_tiered, parse_intersect_card_args, retire_tiered_dest, run_async_rmw,
+        slow_load_eval, try_tiered_arm, write_rmw_reply,
       },
       tiered_collection_ops::{exec_tiered_set, tiered_materialize_blob},
     },
@@ -912,7 +898,7 @@ pub(crate) mod slow {
         SetObject::new,
         |o: &SetObject| o.set.is_empty(),
         |o: &SetObject| o.to_blob(),
-        |obj, op, args| run_operate(obj, op, args, 0, 0, resp_version),
+        |obj, op, args, output| run_operate(obj, op, args, 0, 0, resp_version, output),
         should_write_back,
       ),
     )
@@ -1031,9 +1017,7 @@ pub(crate) mod slow {
           SetObject::from_blob,
           |output: &mut Vec<u8>| cs::write_set_len(output, 0, resp_version),
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Smembers, &[], 0, 0, resp_version).payload,
-            );
+            run_operate(obj, SetOperation::Smembers, &[], 0, 0, resp_version, output);
           },
         )
         .await;
@@ -1047,8 +1031,14 @@ pub(crate) mod slow {
           SetObject::from_blob,
           |output: &mut Vec<u8>| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Sismember, args, 0, 0, resp_version).payload,
+            run_operate(
+              obj,
+              SetOperation::Sismember,
+              args,
+              0,
+              0,
+              resp_version,
+              output,
             );
           },
         )
@@ -1068,8 +1058,14 @@ pub(crate) mod slow {
             }
           },
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(obj, SetOperation::Smismember, args, 0, 0, resp_version).payload,
+            run_operate(
+              obj,
+              SetOperation::Smismember,
+              args,
+              0,
+              0,
+              resp_version,
+              output,
             );
           },
         )
@@ -1105,16 +1101,14 @@ pub(crate) mod slow {
             }
           },
           async move |obj: &mut SetObject, output: &mut Vec<u8>| {
-            output.extend_from_slice(
-              &run_operate(
-                obj,
-                SetOperation::Srandmember,
-                &[],
-                count_parameter,
-                fastrand::i32(..),
-                resp_version,
-              )
-              .payload,
+            run_operate(
+              obj,
+              SetOperation::Srandmember,
+              &[],
+              count_parameter,
+              fastrand::i32(..),
+              resp_version,
+              output,
             );
           },
         )
@@ -1151,18 +1145,16 @@ pub(crate) mod slow {
         return combine_store_cold(storage, key, &result, output).await;
       }
       RespCommand::Sintercard => {
-        let Some((keys, limit)) = parse_sintercard_args(refs) else {
-          cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
+        // 参数推导单源（快慢共用，失败帧已写出；负 LIMIT 与快侧同帧拒）
+        let Some(args) = parse_intersect_card_args(IntersectCardKind::Set, refs, output) else {
           return Ok(());
         };
-        let Some(objs) = load_many_async(storage, keys, output).await? else {
+        let Some(objs) = load_many_async(storage, args.keys, output).await? else {
           return Ok(());
         };
         let mut card = intersect_sets(&objs).set.len() as i64;
-        if let Some(limit) = limit
-          && limit > 0
-        {
-          card = card.min(limit);
+        if let Some(limit) = args.limit.filter(|&v| v > 0) {
+          card = card.min(i64::from(limit));
         }
         output.write_resp_int(card);
         return Ok(());
@@ -1174,32 +1166,6 @@ pub(crate) mod slow {
     Ok(())
   }
 
-  /// SINTERCARD 参数重推导：(键切片, LIMIT)
-  ///
-  /// 与同步段同口径：numkeys/LIMIT 限 i32 上界（C# TryReadInt32Safe），
-  /// 非法形态一律 `None` → 慢路径防御臂回 ASYNC_REQUIRED
-  fn parse_sintercard_args<'a>(refs: &'a [&'a [u8]]) -> Option<(&'a [&'a [u8]], Option<i64>)> {
-    let num_keys = refs
-      .first()
-      .and_then(|v| v.try_parse_i64())
-      .filter(|&n| (1..=i64::from(i32::MAX)).contains(&n))?;
-    if refs.len() < num_keys as usize + 1 {
-      return None;
-    }
-    let mut limit = None;
-    if refs.len() > num_keys as usize + 1 {
-      if !refs[num_keys as usize + 1].eq_ignore_ascii_case(cs::LIMIT)
-        || refs.len() != num_keys as usize + 3
-      {
-        return None;
-      }
-      limit = refs[num_keys as usize + 2]
-        .try_parse_i64()
-        .filter(|&v| v <= i64::from(i32::MAX));
-    }
-    Some((&refs[1..=num_keys as usize], limit))
-  }
-
   /// SPOP 慢路径对位（Present 臂 operate 后异步删空/写回）
   async fn spop_cold(
     storage: &StorageSession<'_, impl Device>,
@@ -1207,21 +1173,9 @@ pub(crate) mod slow {
     resp_version: u8,
     output: &mut Vec<u8>,
   ) -> Result<(), ()> {
-    let key = refs.first().copied().unwrap_or(&[]);
-    let count_parameter = match refs.len() {
-      1 => NO_COUNT,
-      2 => match refs[1].try_parse_i64() {
-        Some(c) if (0..=i64::from(i32::MAX)).contains(&c) => c as i32,
-        // 快路径已拦截非法 count，防御臂写明错误不静默
-        _ => {
-          cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-          return Ok(());
-        }
-      },
-      _ => {
-        cs::write_error_raw(output, cs::RESP_ERR_ASYNC_REQUIRED);
-        return Ok(());
-      }
+    // 参数推导单源（快慢共用，失败帧已写出）
+    let Some((key, count_parameter)) = parse_set_pop_args(refs, output) else {
+      return Ok(());
     };
     if count_parameter == 0 {
       cs::write_set_len(output, 0, resp_version);
@@ -1240,16 +1194,20 @@ pub(crate) mod slow {
     else {
       return Ok(());
     };
-    let obj_out = run_operate(
+    let mut obj_out = run_operate(
       &mut obj,
       SetOperation::Spop,
       &[],
       count_parameter,
       0,
       resp_version,
+      output,
     );
-    save_or_gc(storage, key, &obj).await?;
-    output.extend_from_slice(&obj_out.payload);
+    // 写回失败回退挂载点再落错（慢路径统一应答前清场）
+    if save_or_gc(storage, key, &obj).await.is_err() {
+      obj_out.reset();
+      return Err(());
+    }
     Ok(())
   }
 

@@ -274,16 +274,21 @@ fn finish_replica_sync(
     cm.try_reset_replica();
   }
 
-  // finally 臂（C# finally：EndRecovery 释放/降级恢复锁）。rust 的
-  // try_add_replica_async 尾段已自行 EndRecovery(NoRecovery) 释放非升级锁
-  // （见 cluster_manager_worker_state.rs:try_add_replica_async），此刻无锁
-  // 可释，重复转换会被 end_recovery 状态矩阵判非法；故仅升级臂把
-  // TryAddReplica 升上去的写锁降回 ReadRole，由外层驱动点统一
-  // AllowRoleChange 收尾
-  if opts.upgrade_lock
-    && let Some(rm) = provider.replication_manager()
-  {
-    rm.end_recovery(RecoveryStatus::ReadRole, true);
+  // finally 臂（C# ReplicaDiskbasedSync.cs:197-208 / ReplicaDisklessSync.cs:
+  // 185-194 的 finally 对偶）：锁由 try_add_replica_async（或启动臂的
+  // InitializeRecover 前置）握到本收尾，此处一次做全——upgrade_lock 臂降回
+  // ReadRole（外层驱动点统一 AllowRoleChange 收尾），其余臂释放到 NoRecovery。
+  // 不变式：走到本收尾的调用必持锁（三个驱动点——重连臂 / REPLICAOF /
+  // CLUSTER REPLICATE 经 try_add_replica_async 握 ClusterReplicate、启动臂
+  // 经 start_replication_attach 前置握 InitializeRecover），故释放无需再按
+  // 入口分支；若新增驱动点，必须在进入 attach 前先握锁，否则此处释放会落
+  // 在 NoRecovery 起点被状态矩阵判非法
+  if let Some(rm) = provider.replication_manager() {
+    if opts.upgrade_lock {
+      rm.end_recovery(RecoveryStatus::ReadRole, true);
+    } else {
+      rm.end_recovery(RecoveryStatus::NoRecovery, false);
+    }
   }
   result
 }

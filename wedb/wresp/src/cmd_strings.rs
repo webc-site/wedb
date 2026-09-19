@@ -273,6 +273,14 @@ macro_rules! wrong_num_args {
 pub const RESP_ERR_WRONG_NUMBER_OF_ARGUMENTS: &str = "ERR wrong number of arguments for command";
 /// LMPOP/SMPOP/BZMPOP 等命令的 numkeys 校验文案（跨 list/set/sortedset 三域复用）
 pub const RESP_ERR_GENERIC_NUMKEYS: &str = "ERR numkeys should be greater than 0";
+/// LMPOP COUNT 校验文案（GenericErrShouldBeGreaterThanZero 固定替换 {0}="count"）
+pub const RESP_ERR_COUNT_GREATER_THAN_ZERO: &str = "ERR count should be greater than 0";
+/// SINTERCARD/ZINTERCARD 的 LIMIT 负值校验文案
+///（GenericErrCantBeNegative 固定替换 {0}="LIMIT"）
+pub const RESP_ERR_LIMIT_CANT_BE_NEGATIVE: &str = "ERR LIMIT can't be negative";
+/// ZINTERCARD numkeys < 1 校验文案（GenericErrAtLeastOneKey 固定替换 {0}="ZINTERCARD"）
+pub const RESP_ERR_ZINTERCARD_AT_LEAST_ONE_KEY: &str =
+  "ERR at least 1 input key is needed for 'ZINTERCARD' command";
 /// libs/server/Resp/CmdStrings.cs:RESP_ERR_NO_TRANSACTION_PROCEDURE
 pub const RESP_ERR_NO_TRANSACTION_PROCEDURE: &str = "ERR Could not get transaction procedure";
 /// （rust 自有文案；C# CmdStrings 无对应异步要求错误常量）
@@ -467,6 +475,20 @@ pub fn abort_with_unsupported_option(output: &mut Vec<u8>, option: &str) {
   output.extend_from_slice(b"-ERR Unsupported option ");
   output.extend_from_slice(clean_opt.as_bytes());
   output.extend_from_slice(b"\r\n");
+}
+
+/// 以 `GenericSyntaxErrorOption`（CmdStrings.cs:334
+/// `"ERR Syntax error in {0} option '{1}'"`）回填命令名与选项名并写出
+/// 错误应答（零堆分配直接写入，参数名过 MAX_PARAM_NAME_LEN 清洗帽）
+#[inline]
+pub fn abort_with_syntax_error_option(output: &mut Vec<u8>, cmd_name: &str, option: &str) {
+  let clean_cmd = sanitize_error_str(cmd_name, MAX_PARAM_NAME_LEN);
+  let clean_opt = sanitize_error_str(option, MAX_PARAM_NAME_LEN);
+  output.extend_from_slice(b"-ERR Syntax error in ");
+  output.extend_from_slice(clean_cmd.as_bytes());
+  output.extend_from_slice(b" option '");
+  output.extend_from_slice(clean_opt.as_bytes());
+  output.extend_from_slice(b"'\r\n");
 }
 
 /// 写出未知子命令错误应答：`-ERR unknown subcommand '<sub_command>'. Try <cmd_name> HELP\r\n`（零堆分配）

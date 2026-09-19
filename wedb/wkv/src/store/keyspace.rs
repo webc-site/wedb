@@ -10,7 +10,7 @@ use crate::{
   error::Result,
   gc::{ExpiredKeySet, ScanBudget, collect_expired},
   ttl::is_expired,
-  vdb::{DbMetaRecord, ROOT_VIRTUAL_ID},
+  vdb::{DbMetaRecord, GcDeadEntry, ROOT_VIRTUAL_ID},
 };
 
 /// 换号旧域/旧空间的回收截止 ticks：`now_ticks + db_gc_reclaim_delay_secs` 秒
@@ -320,6 +320,63 @@ impl<D: Device> WedbStore<D> {
       reclaim_expired_at(now, self.config.gc.db_gc_reclaim_delay_secs),
       tail_address,
     )
+  }
+
+  /// 退役指定物理库域（AOF FlushDb 回放屏障与兜底判死）
+  ///
+  /// 若在册路由表中尚有逻辑库格指向该旧域（条目未被先行 DbMeta 换指），
+  /// 原子单格换指使逻辑入口不可达旧域；随后判死旧域并联动树回收
+  pub fn retire_dead_domain(&self, vns: u64, old_vdb: u64) {
+    if let Some(routing) = self.vdb.db_routing.pin().get(&vns) {
+      let candidate = routing
+        .table
+        .snapshot()
+        .into_iter()
+        .find(|&(_, vdb)| vdb == old_vdb);
+      if let Some((logic_db, _)) = candidate {
+        let new_vdb = self.vdb.alloc_next_virtual_id();
+        routing.table.swap_out(logic_db, new_vdb);
+        self.vdb.bump_generation();
+      }
+    }
+    if !self.vdb.is_dead_domain(vns, old_vdb) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vdb,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: Some(vns),
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domain(vns, old_vdb));
+  }
+
+  /// 退役指定物理命名空间（AOF FlushNs 回放屏障与兜底判死）
+  ///
+  /// 若当前命名空间映射尚指向该旧空间（未被先行 DbMeta 换指），
+  /// 换指新空间；随后判死旧空间并联动树回收
+  pub fn retire_dead_namespace(&self, old_vns: u64) {
+    if let Some(logic_ns) = self.vdb.logic_ns_of(old_vns)
+      && self.vdb.vns_of_ns(logic_ns) == Some(old_vns)
+    {
+      let new_vns = self.vdb.alloc_next_virtual_id();
+      self.vdb.insert_ns_mapping(logic_ns, new_vns);
+      self.vdb.bump_generation();
+    }
+    if !self.vdb.is_dead_ns(old_vns) {
+      let (expired_at, tail_address) = self.swap_stamp();
+      self.vdb.gc_dead.insert(
+        old_vns,
+        GcDeadEntry {
+          expired_at,
+          tail_address,
+          vns: None,
+        },
+      );
+    }
+    self.reclaim_bftree_keys(self.take_bftree_domains_of_vns(old_vns));
   }
 
   /// DbMeta 换号事务落盘单点（主库放射与回放射四类换号共用）：把一次换号的

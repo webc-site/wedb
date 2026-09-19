@@ -17,8 +17,8 @@ use crate::{
     cluster_provider::ClusterProvider,
     connection_info::ConnectionInfo,
     replication::{
-      assembly::try_replicate_sync_async, replicate_sync_options::ReplicateSyncOptions,
-      replication_manager::ReplicationManager,
+      assembly::try_replicate_sync_async, recovery_status::RecoveryStatus,
+      replicate_sync_options::ReplicateSyncOptions, replication_manager::ReplicationManager,
     },
     worker::NodeRole,
   },
@@ -300,6 +300,20 @@ impl ClusterProvider {
       let Some(provider) = self.self_arc() else {
         return;
       };
+      // 握锁前置（对标 C# ReplicationManager 构造期 :147「启动即 REPLICA 且
+      // Recover 则 BeginRecovery(InitializeRecover)」：TryAddReplica:false 的
+      // 启动臂不经 try_add_replica_async 取锁，锁从这里握到 attach 收尾
+      // finish_replica_sync 释放——恢复点转 CheckpointRecoveredAtReplica 与
+      // 传送窗口 cannot_stream_aof 防线都以此为前提。C# 构造期取锁失败直接
+      // throw 终止启动，rust 以非 panic 承接：记 error 放弃本轮 attach，
+      // 由运维介入（启动期别者持锁即状态机已异常）
+      let Some(rm) = provider.replication_manager() else {
+        return;
+      };
+      if !rm.begin_recovery(RecoveryStatus::InitializeRecover, false) {
+        log::error!("Replication manager starting could not acquire recovery lock for {primary}");
+        return;
+      }
       spawn(async move {
         if let Err(e) = try_replicate_sync_async(&provider, opts).await {
           log::error!("An error occurred at ReplicationManager.Start: {e}");

@@ -358,48 +358,132 @@ fn test_latch_promotion_and_atomic_downgrade_concurrency() -> Void {
   OK
 }
 
-/// 验证 lock_key_exclusive 单键独占桶锁并发互斥与自动释放
+/// 验证单键独占闩守卫的取闩互斥、RAII 放闩与异桶零干扰
+/// 对标 Tsavorite 单键 ephemeral 独占闩（`Implementation/InternalRMW.cs` 首段调
+/// `FindOrCreateTagAndTryEphemeralXLock`，其转 `Locking/TransientLocking.cs` 的
+/// `TryEphemeralXLock`：一次尝试、取不到即返回状态，无批量编排、无逆序回滚、无索引层超时）
 #[test]
-fn test_lock_key_exclusive_concurrency() -> Void {
-  info!("验证 lock_key_exclusive 单键独占桶锁并发互斥");
+fn test_key_latch_exclusive_take_and_raii_release() -> Void {
+  info!("验证单键独占闩取闩互斥、Drop 放闩与异桶零干扰");
 
-  let index = Arc::new(HashIndex::new(64)?);
-  let key = b"exclusive_test_key";
+  let index = HashIndex::new(64)?;
+  let key = b"latch_key_alpha";
+  let neighbor = b"latch_key_beta";
 
-  // 基础加锁与互斥
+  // 同键不可重入：持闩期间任何再次取闩（守卫入口与裸桶闩入口同一把锁）必须失败
   {
-    let guard = index.lock_key_exclusive(key)?;
-    assert!(!index.try_lock_shared(key));
-    assert!(!index.try_lock_exclusive(key));
-    drop(guard);
+    let latch = index.try_lock_key_exclusive(key).expect("首次取闩成功");
+    let bucket = index.bucket(index.bucket_index_for_key(key));
+    assert!(
+      bucket.is_latched_exclusive(),
+      "取闩后本键主桶必须处于独占态"
+    );
+
+    assert!(
+      index.try_lock_key_exclusive(key).is_none(),
+      "持闩期间同键再取闩必须一次失败返回 None"
+    );
+    assert!(!index.try_lock_shared(key), "持闩期间共享取闩必须失败");
+    assert!(!index.try_lock_exclusive(key), "持闩期间裸独占取闩必须失败");
+
+    // 不同桶的键各自独立：索引层锁面只剩这一把按键定位的桶闩，无任何跨键编排
+    // （夹具两键必须落在不同主桶，否则本段形同虚设——直接断言前提而非静默跳过）
+    assert_ne!(
+      index.bucket_index_for_key(neighbor),
+      index.bucket_index_for_key(key),
+      "夹具键 {neighbor:?} 与 {key:?} 落在同一主桶，异桶独立性段未覆盖"
+    );
+    {
+      let other = index
+        .try_lock_key_exclusive(neighbor)
+        .expect("异桶取闩不受影响");
+      assert!(
+        index
+          .bucket(index.bucket_index_for_key(neighbor))
+          .is_latched_exclusive(),
+        "异桶闩必须独立持有"
+      );
+      assert!(
+        index
+          .bucket(index.bucket_index_for_key(key))
+          .is_latched_exclusive(),
+        "释放异桶前本键闩不受影响"
+      );
+      drop(other);
+      assert!(!index.is_locked(neighbor), "异桶闩 Drop 后必须放闩");
+    }
+
+    drop(latch);
   }
 
-  // Drop 之后自动释放
-  assert!(index.try_lock_shared(key));
-  index.unlock_shared(key);
+  // RAII Drop 放闩后即可重取，且无锁残留（放闩只由守卫 Drop 承担，无手动解锁面）
+  assert!(!index.is_locked(key), "Drop 后本键必须完全放闩");
+  {
+    let retaken = index.try_lock_key_exclusive(key);
+    assert!(retaken.is_some(), "放闩后必须可重新取闩");
+    assert!(
+      index.try_lock_key_exclusive(key).is_none(),
+      "重取的闩持有期间同键仍不可重入"
+    );
+    drop(retaken);
+  }
+  assert!(!index.is_locked(key), "二次 Drop 后本键仍零锁残留");
 
-  // 高并发多线程竞争同一键的排他锁
+  OK
+}
+
+/// 验证多线程同键独占闩竞争的互斥性与零残留（无自旋驱动，失败方自行让步重试）
+/// 对标 Tsavorite `ThreadedLockStressTest` 的单键形态
+#[test]
+fn test_key_latch_concurrent_exclusion() -> Void {
+  info!("验证多线程同键独占闩互斥与结束后零残留");
+
+  let index = Arc::new(HashIndex::new(64)?);
+  let key = b"latch_key_contended";
+  // 同一键的 64 桶索引下取不同键：竞争同一把闩的线程数
+  let thread_count = 8usize;
+  let iterations = 200u64;
   let counter = Arc::new(AtomicU64::new(0));
+  let barrier = Arc::new(Barrier::new(thread_count));
+
   let mut handles = Vec::new();
-  for _ in 0..8 {
+  for _ in 0..thread_count {
     let idx = Arc::clone(&index);
     let cnt = Arc::clone(&counter);
+    let bar = Arc::clone(&barrier);
     handles.push(thread::spawn(move || {
-      for _ in 0..100 {
-        let guard = idx.lock_key_exclusive(key).expect("加锁成功");
-        cnt.fetch_add(1, Ordering::Relaxed);
+      bar.wait();
+      for _ in 0..iterations {
+        // 取闩失败按 C# RETRY_LATER 口径由调用方让步重试（索引层不自旋不回滚）；
+        // 重试不消耗本轮预算，故总临界区次数恒为 thread_count * iterations，
+        // 一旦闩失效丢更新即显式变红
+        let mut guard = idx.try_lock_key_exclusive(key);
+        let mut yields = 0u32;
+        while guard.is_none() {
+          yields += 1;
+          assert!(yields <= 1_000_000, "同键独占闩长期不可得，放闩链有漏");
+          yield_now();
+          guard = idx.try_lock_key_exclusive(key);
+        }
+        let _latch = guard.expect("取闩成功");
+        // 临界区：非原子化的读-改-写序列，若闩失效必然丢更新
+        let curr = cnt.load(Ordering::Relaxed);
         spin_loop();
-        drop(guard);
+        cnt.store(curr + 1, Ordering::Relaxed);
       }
     }));
   }
 
   for h in handles {
-    h.join().expect("并发线程完成");
+    h.join().expect("同键竞争线程无死锁完成");
   }
 
-  assert_eq!(counter.load(Ordering::Relaxed), 800);
-  assert!(!index.is_locked(key));
+  assert_eq!(
+    counter.load(Ordering::Relaxed),
+    (thread_count as u64) * iterations,
+    "单键独占闩的临界区必须零丢更新"
+  );
+  assert!(!index.is_locked(key), "压力结束后本键闩必须完全释放");
 
   OK
 }
@@ -441,12 +525,14 @@ fn test_threaded_lock_stress_full_contention() -> Void {
   }
 
   assert!(!shared_bucket.is_latched());
+  assert_eq!(shared_bucket.num_latched_shared(), 0);
+  assert!(!shared_bucket.is_latched_exclusive());
 
   OK
 }
 
 /// 验证桶寻址掩码分布正确性：任意容量（含最小 1 桶）下桶下标恒在界内、
-/// 掩码环绕寻址与键/哈希两路一致性——多键加锁 get_unchecked 裸寻址的分布前提
+/// 掩码环绕寻址与键/哈希两路一致性——单键取闩 `get_unchecked` 裸寻址的分布前提
 #[test]
 fn test_bucket_index_mask_distribution() -> Void {
   info!("验证桶寻址掩码分布正确性与容量边界");

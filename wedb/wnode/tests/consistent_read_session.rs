@@ -3,7 +3,7 @@
 //! 验证 StorageSession 与 wkv::ConsistentReadContext 的 1:1 对标与闭环：
 //! - 单键读取：read_string_with / read_string 经连接级 wkv 会话附着态触发 pre/post 协议
 //! - 批量读取：read_batch_with 经过 consistent_read_context 触发 pre_batch/post_batch 协议与重试
-//! - 键空间扫描与遍历：db_scan / db_keys / iterate_store 逐键触发一致读协议
+//! - 键空间扫描与遍历：db_scan / db_keys / scan_cursor 逐键触发一致读协议
 //! - 附着态派生：is_consistent_read_session / consistent_read_context 自会话附着派生
 
 use std::{sync::Arc, time::Duration};
@@ -106,17 +106,6 @@ fn test_storage_session_consistent_read_pipeline() -> aok::Void {
     let (next_cursor, scanned_keys) = ss.scan_cursor(b"key*", false, 0, 10, None).await?;
     assert_eq!(next_cursor, 0);
     assert_eq!(scanned_keys.len(), 3);
-
-    // 5. 测试 iterate_store
-    let mut count = 0;
-    let total = ss
-      .iterate_store(|_k, _v| {
-        count += 1;
-        true
-      })
-      .await?;
-    assert_eq!(total, 3);
-    assert_eq!(count, 3);
 
     Ok(())
   })

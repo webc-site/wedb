@@ -4,8 +4,8 @@
 //! 改权一律在独占可变的构造 / 复制体上一次性落定（[`AclParser`] 规则累加、
 //! [`User::from_user`] 复制后改写），装配完成后以 `Arc<User>` 只读共享。
 //! 因此本类型自身不持任何并发原语——热路径 `can_access_command` 即纯位图读，
-//! 无原子换代、无引用计数往返；唯一的换代点在 [`super::UserHandle`] 的
-//! `ArcSwap<User>`（连接本地句柄自改刷新，唯一真实写者）。
+//! 无原子换代、无引用计数往返；唯一的换代点在 [`super::UserHandle`] 整体
+//! 替换（重读存储构造新句柄，旧句柄随旧连接语义消亡）。
 
 use std::{iter::once, sync::Arc};
 
@@ -749,10 +749,10 @@ mod tests {
     assert_eq!(snapshot.copy_password_hashes().len(), 1);
   }
 
-  /// 连接本地值语义回归：改权只在独占可变的副本上发生，换代唯一出口是
-  /// [`UserHandle`] 的 ArcSwap；已在多处只读共享的 `Arc<User>` 永不因他处改权
-  /// 而漂移（C# 全局共享 User 形态下，`&self` CAS 换代会让所有持有者同时看到
-  /// 新权限——本断言即证伪该形态在本仓复现）
+  /// 连接本地值语义回归：改权只在独占可变的副本上发生，换代 = 重读存储后
+  /// 整体替换句柄（[`UserHandle`] 构造即定格）；已在多处只读共享的
+  /// `Arc<User>` 永不因他处改权而漂移（C# 全局共享 User 形态下，`&self` CAS
+  /// 换代会让所有持有者同时看到新权限——本断言即证伪该形态在本仓复现）
   #[test]
   fn shared_user_snapshot_does_not_drift() {
     let base = Arc::new(User::new("bob".into()));
@@ -760,13 +760,13 @@ mod tests {
     let reader = Arc::clone(&base);
     assert!(!reader.can_access_command(RespCommand::Set));
 
-    // 写侧：复制 → 独占改权 → 经句柄整体换代
+    // 写侧：复制 → 独占改权 → 新句柄（生产形态：ACL SETUSER 后重读存储
+    // 构造新句柄替换，旧句柄随旧连接语义消亡）
     let mut updated = User::from_user(&base);
     updated.add_command(RespCommand::Set).unwrap();
-    let handle = UserHandle::new(Arc::clone(&base));
-    assert!(handle.try_set_user(Arc::new(updated), &base));
+    let handle = UserHandle::new(Arc::new(updated));
 
-    // 原共享体不受影响，新权限只经句柄可见
+    // 原共享体不受影响，新权限只经新句柄可见
     assert!(!base.can_access_command(RespCommand::Set));
     assert!(!reader.can_access_command(RespCommand::Set));
     assert!(handle.user().can_access_command(RespCommand::Set));

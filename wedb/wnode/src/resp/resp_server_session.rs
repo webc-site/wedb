@@ -51,9 +51,10 @@ use wresp::{
     RespCommandFlags, is_no_auth, normalize_for_acls, try_get_resp_commands_info,
     try_get_simple_resp_command_info,
   },
+  cluster_cmd_strings as cluster_cs,
   cmd_strings::{self as cs, write_map_len},
   command::{RespCommand, is_cluster_sub_command, one_if_read, one_if_write},
-  ext::{MAX_ERROR_MSG_LEN, RespSliceExt, RespVecExt, sanitize_error_str},
+  ext::{RespSliceExt, RespVecExt},
   key_spec::KeySpecificationFlags,
   metrics::InfoMetricsType,
   read::{ReplyError, parse_bulk_reply, parse_simple_reply},
@@ -1011,29 +1012,27 @@ impl RespServerSession {
       return;
     }
     if let Some(new_user) = adopted {
-      self.adopt_acl_user(new_user);
+      self.adopt_acl_user(new_user, Some(current));
     }
   }
 
-  /// 以新规则就地 CAS 换写挂载句柄（对标 C# `while (!userHandle.TrySetUser
-  /// (newUser, currentUser))` 换新环：句柄 Arc 不变，认证器镜像同见新权限），
-  /// 成则把挂载代数对齐引擎当前值
+  /// 以新规则整体替换挂载句柄（dev 语义：`UserHandle` 为构造即定格的只读快照、
+  /// 无共享 CAS 域，换代即重读存储后整体替换 `Arc<UserHandle>`，见
+  /// wacl/src/user_handle.rs 类型文档）。会话句柄与认证器镜像同换新 Arc（两处
+  /// 恒同一），挂载代数对齐传入值、from_store 置真（句柄取自存储真源记录）
   ///
-  /// CAS 落空即句柄已被同连接其它挂载臂换写（消费串行下不可达），维持陈旧
-  /// 代数交下一命令预门重判，不另立判据
-  pub(crate) fn adopt_acl_user(&mut self, new_user: Arc<User>) {
-    let Some(handle) = &self.acl_user_handle else {
-      return;
-    };
-    let expected = handle.user();
-    if !handle.try_set_user(new_user, &expected) {
-      return;
+  /// `generation` 由调用方在点查记录【之前】采得（Acquire 与 bump 的 Release
+  /// 配对，保证随后的点查必见该代数下已落盘的记录），杜绝缓存到更新的代数而漏
+  /// 掉并发改权；消费串行下无并发写者，整体替换即原子，无需 CAS
+  pub(crate) fn adopt_acl_user(&mut self, new_user: Arc<User>, generation: Option<u64>) {
+    let handle = Arc::new(UserHandle::new(new_user));
+    if let Some(acl) = &self.acl_authenticator {
+      acl.lock().user_handle = Some(Arc::clone(&handle));
     }
-    let generation = self
-      .garnet_api
-      .as_ref()
-      .and_then(|api| api.acl_generation());
-    self.acl_mount = self.acl_mount.map(|mount| AclMount { generation, ..mount });
+    self.user_handle = Some(handle.user().name.clone());
+    self.acl_user_handle = Some(handle);
+    self.acl_mount =
+      self.acl_authenticator.as_ref().map(|_| AclMount { generation, from_store: true });
   }
 
   /// 撤销 ACL 挂载：会话句柄与认证器镜像同撤（两处挂载恒为同一 Arc），
@@ -1309,6 +1308,7 @@ impl RespServerSession {
       };
 
       if cmd != RespCommand::Invalid {
+        let orig_output_len = self.output.len();
         // 冷上下文挂起面按命令窗口即抛：只允许本命令的应答组装点消费
         self.cold_ctx = None;
         // C# 门链（RespServerSession.cs:651-653）：noScriptPassed 默认 true，
@@ -1371,7 +1371,7 @@ impl RespServerSession {
           if let Some(stats) = &self.command_stats {
             let mut stats = stats.lock();
             stats.increment_calls(cmd);
-            if self.command_error_written {
+            if self.command_error_written || self.output[orig_output_len..].starts_with(b"-") {
               stats.increment_failed(cmd);
               self.command_error_written = false;
             }
@@ -1492,30 +1492,26 @@ impl RespServerSession {
   ///
   /// fast 命令族分派（WARNING: 仅 @fast 命令，慢命令走 OtherCommands）。
   /// 命令实现位于 resp 命令文件（并行域），经 [`GarnetApi`] 注入面
-  /// 接入；PING/QUIT/事务族在会话侧闭环。
+  /// 接入；PING/ASKING/QUIT/事务族在会话侧闭环（分派臂只转调，单一实现
+  /// 在 basic_commands）。
   pub fn process_basic_commands(&mut self, cmd: RespCommand) -> bool {
     match cmd {
       RespCommand::Ping => {
-        if self.parse_state.count == 0 {
-          // C# NetworkPING：+PONG
-          self.output.extend_from_slice(b"+PONG\r\n");
-        } else if self.parse_state.count == 1 {
-          // C# NetworkArrayPING: bulk string message
-          let msg = self.parse_state.arg_in(&self.recv_buffer, 0);
-          self.output.write_resp_bulk_string(msg);
-        } else {
-          self.abort_wrong_num_args("PING");
-        }
-        true
+        // C# RespServerSession.cs:855：PING→NetworkPING/NetworkArrayPING
+        //（帧字面量单点在 basic_commands 方法体的 cs 常量）
+        let args_buf = self.collect_args();
+        let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
+        let mut output = mem::take(&mut self.output);
+        let r = self.network_ping(&args, &mut output);
+        self.output = output;
+        matches!(r, Ok(true))
       }
       RespCommand::Asking => {
-        if self.parse_state.count != 0 {
-          self.abort_wrong_num_args("ASKING");
-          return true;
-        }
-        self.session_asking = 2;
-        self.output.extend_from_slice(cs::RESP_OK);
-        true
+        // C# RespServerSession.cs:856：ASKING→NetworkASKING
+        let mut output = mem::take(&mut self.output);
+        let r = self.network_asking(&mut output);
+        self.output = output;
+        matches!(r, Ok(true))
       }
       RespCommand::Quit => {
         self.to_dispose = true;
@@ -1748,23 +1744,18 @@ impl RespServerSession {
       return true;
     }
     if cmd == RespCommand::ClientId {
-      // C# TryWriteInt64(Id)
-      self.output.push(b':');
-      let mut buffer = Buffer::new();
-      self
-        .output
-        .extend_from_slice(buffer.format(self.id).as_bytes());
-      self.output.extend_from_slice(b"\r\n");
+      // C# TryWriteInt64(Id)，走 wresp 整数帧单点
+      self.output.write_resp_int(self.id);
       return true;
     }
     if cmd == RespCommand::Echo {
-      if self.parse_state.count != 1 {
-        self.abort_wrong_num_args("ECHO");
-        return true;
-      }
-      let msg = self.parse_state.arg_in(&self.recv_buffer, 0);
-      self.output.write_resp_bulk_string(msg);
-      return true;
+      // C# RespServerSession.cs:1089：ECHO→NetworkECHO
+      let args_buf = self.collect_args();
+      let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
+      let mut output = mem::take(&mut self.output);
+      let r = self.network_echo(&args, &mut output);
+      self.output = output;
+      return matches!(r, Ok(true));
     }
     if cmd == RespCommand::Time {
       // 在 garnet 中的相对路径:libs/server/Resp/BasicCommands.cs:NetworkTIME
@@ -1779,7 +1770,7 @@ impl RespServerSession {
       let s_str = b1.format(secs);
       let mut b2 = Buffer::new();
       let us_str = b2.format(usecs);
-      self.output.extend_from_slice(b"*2\r\n");
+      self.output.write_resp_array_len(2);
       self.output.write_resp_bulk_string(s_str.as_bytes());
       self.output.write_resp_bulk_string(us_str.as_bytes());
       return true;
@@ -2433,11 +2424,11 @@ impl RespServerSession {
   }
 
   /// 写错误应答并置 commandErrorWritten（对标 C# AbortWithErrorMessage）
+  ///
+  /// 帧由 `wresp::cmd_strings::write_error_raw` 单点成帧（内含 CRLF 切断与
+  /// 长度帽清洗）；本会话只承担 `command_error_written` 副作用。
   pub fn abort_error_message(&mut self, message: &str) {
-    let clean = sanitize_error_str(message, MAX_ERROR_MSG_LEN);
-    self.output.extend_from_slice(b"-");
-    self.output.extend_from_slice(clean.as_bytes());
-    self.output.extend_from_slice(b"\r\n");
+    cs::write_error_raw(&mut self.output, message);
     self.command_error_written = true;
   }
 
@@ -2603,7 +2594,7 @@ impl RespServerSession {
     output.write_resp_bulk_string(b"role");
     output.write_resp_bulk_string(role.as_bytes());
     output.write_resp_bulk_string(b"modules");
-    output.extend_from_slice(b"*0\r\n");
+    output.write_resp_array_len(0);
     true
   }
 }
@@ -3046,21 +3037,18 @@ impl wtxn::TxnSession for RespServerSession {
 
   #[inline]
   fn write_proc_param_error(&mut self, tx_id: u8, expected: i32, actual: usize) {
+    // C# CmdStrings.RESP_ERR_INVALID_NUM_PROC_PARAMS + string.Format 后
+    // AbortWithErrorMessage；帧由 write_error_raw 单点成帧（含清洗）
     let mut b0 = Buffer::new();
     let mut b1 = Buffer::new();
     let mut b2 = Buffer::new();
-    let s0 = b0.format(tx_id);
-    let s1 = b1.format(expected);
-    let s2 = b2.format(actual);
-    self
-      .output
-      .extend_from_slice(b"-ERR Invalid number of parameters to stored proc ");
-    self.output.extend_from_slice(s0.as_bytes());
-    self.output.extend_from_slice(b", expected ");
-    self.output.extend_from_slice(s1.as_bytes());
-    self.output.extend_from_slice(b", actual ");
-    self.output.extend_from_slice(s2.as_bytes());
-    self.output.extend_from_slice(b"\r\n");
+    let msg = format!(
+      "ERR Invalid number of parameters to stored proc {}, expected {}, actual {}",
+      b0.format(tx_id),
+      b1.format(expected),
+      b2.format(actual)
+    );
+    cs::write_error_raw(&mut self.output, &msg);
     self.command_error_written = true;
   }
 
@@ -3104,11 +3092,9 @@ impl wtxn::TxnSession for RespServerSession {
       SlotVerifyGate::Wait => {
         // 事务域无挂起重评形态（EXEC 已回退游标重放排队命令）：丢弃切面
         // 等待体，按 C# VerifyKeysInRange 迁移中混合态应 TRYAGAIN，客户端
-        // 重试 EXEC
+        // 重试 EXEC（文案走集群域单点常量，帧由错误帧单点成帧）
         let _ = cluster.take_pending_slow();
-        self
-          .output
-          .extend_from_slice(b"-TRYAGAIN Multiple keys request during rehashing of slot\r\n");
+        cs::write_error_raw(&mut self.output, cluster_cs::RESP_ERR_TRYAGAIN);
         false
       }
     }

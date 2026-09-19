@@ -301,13 +301,13 @@ impl RespServerSession {
       None => match Self::in_memory_default_user(ctx, target_ns)
         .filter(|handle| handle.user().name == clean_username)
       {
-        Some(handle) => Arc::new(User::from_user(&handle.user())),
+        Some(handle) => Arc::new(User::from_user(handle.user())),
         None => Arc::new(User::new(clean_username.to_string())),
       },
     };
 
     // 改权在独占可变的副本上逐条落定，全部应用完才整体写穿存储（存储为唯一
-    // 真源；在途连接由写口推进的引擎代数引回本记录，就地 CAS 换写挂载句柄，
+    // 真源；在途连接由写口推进的引擎代数引回本记录、重读整体替换挂载句柄，
     // 见 RespServerSession::refresh_acl_mount_if_stale）
     let mut new_user = User::from_user(&current_user);
 
@@ -554,7 +554,7 @@ impl RespServerSession {
       // 存储无记录：引导态 default 用户回落内存单例（非用户大字典）
       None => Self::in_memory_default_user(ctx, target_ns)
         .filter(|handle| handle.user().name == clean_user)
-        .map(|handle| Arc::new(User::from_user(&handle.user()))),
+        .map(|handle| Arc::new(User::from_user(handle.user()))),
       Some(bytes) => match User::from_rule_bytes(clean_user, &bytes) {
         Ok(user) => Some(user),
         Err(e) => {
@@ -675,8 +675,8 @@ impl RespServerSession {
     let args_buf = self.collect_args();
     let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
     let mut output = mem::take(&mut self.output);
-    // SETUSER 自改目标预判：目标即会话当前已认证用户时，命令后就地把新记录
-    // 换写进挂载句柄（同连接快路径捷径；跨连接由引擎代数在下一命令预门收敛）
+    // SETUSER 自改目标预判：目标即会话当前已认证用户时，命令后重读记录整体
+    // 替换挂载句柄（同连接快路径捷径；跨连接由引擎代数在下一命令预门收敛）
     let refresh_target: Option<(String, u64)> = if cmd == RespCommand::AclSetuser {
       args.first().and_then(|raw| {
         let raw = raw.as_str_safe();
@@ -721,12 +721,15 @@ impl RespServerSession {
     drop(auth_guard);
     // 自改即时生效：跨连接改权经引擎代数在下一命令预门收敛（见
     // RespServerSession::refresh_acl_mount_if_stale），本臂只是同连接的快路径
-    // 捷径——同一条记录读与就地 CAS 换新，无第二套失效判据
-    if let Some((name, ns)) = refresh_target
-      && let Ok(Some(bytes)) = store.read(ns, name.as_bytes())
-      && let Ok(user) = User::from_rule_bytes(&name, &bytes)
-    {
-      self.adopt_acl_user(user);
+    // 捷径——记录读【前】采代数、读后整体替换句柄，与预门臂共用同一 adopt
+    // 出口、同一失效判据，无第二套口径
+    if let Some((name, ns)) = refresh_target {
+      let generation = self.garnet_api.as_ref().and_then(|api| api.acl_generation());
+      if let Ok(Some(bytes)) = store.read(ns, name.as_bytes())
+        && let Ok(user) = User::from_rule_bytes(&name, &bytes)
+      {
+        self.adopt_acl_user(user, generation);
+      }
     }
     Some(handled.unwrap_or(true))
   }

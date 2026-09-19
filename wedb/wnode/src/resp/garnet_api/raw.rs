@@ -9,6 +9,7 @@ use wresp::{
     RESP_ERR_BUSSYKEY, RESP_ERR_GENERIC_UNK_CMD, RESP_ERR_WRONG_TYPE, write_error_raw,
   },
   command::{RespCommand, is_data_command, is_vector_gate_exempt, vector_gate_scan_all_keys},
+  ext::RespVecExt,
 };
 
 use crate::resp::{
@@ -73,7 +74,7 @@ pub(crate) fn set_vector_guard(
     // SETNX：登记命中即存在（C# NX 对既有键失败），回 :0 不写入
     C::Setnx => {
       if vm.read_stored_index(prefix, key).is_some() {
-        output.extend_from_slice(b":0\r\n");
+        output.write_resp_int(0);
         return Ok(true);
       }
     }
@@ -124,7 +125,7 @@ fn vector_registry_gate(
       .chunks(2)
       .any(|pair| vm.read_stored_index(prefix, pair[0]).is_some())
     {
-      output.extend_from_slice(b":0\r\n");
+      output.write_resp_int(0);
       return true;
     }
     return false;

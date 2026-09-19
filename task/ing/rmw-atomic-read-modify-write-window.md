@@ -129,3 +129,6 @@ storage_session.rs:348/:354 的无 expected 前值取证，以及文首更正的
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
 
 盘点补记（qw13.invB rmw-atomic-read-modify-write-window）：dev e75716e 复核原样：全仓 rmw_user_key_atomic 零命中，acquire_keys_lock_exclusive 生产消费仍只 wkv/src/ttl.rs:456/:504（EXPIRE/PERSIST），wnode/src/resp/basic_commands/incr.rs:97 read_user_sync → :123 try_rmw_sync 两步形态原样（:156/:193 浮点同型），wnode/tests 无并发同键读改写用例。收口单定位不变，与 string-rmw-key-bucket-lock、wtxn-lock-stripe-count-parity 的并棒建议不变（注意 wtxn 条带票已按「store 注入真实索引联动」落地，并棒时勿再按旧票面改 wtxn）。
+
+---
+主代理补录（windex 2pl 收口棒 bfbd1e0 落地后，15:20）：本票若引用 `HashIndex::acquire_keys_lock_exclusive` / `lock_key_exclusive`（含 1024 轮 spin_loop+LockTimeout 中间态）一律失效——该族已连根删除，唯一锁源现为 `HashIndex::try_lock_key_exclusive`（windex/src/table.rs:601，同一把桶闩、无自旋、无超时，KeyLatch 见 lib.rs:17）。在途代码勿再造第二入口；wkv/src/ttl.rs 两处已改持新口。

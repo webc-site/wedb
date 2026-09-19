@@ -220,13 +220,14 @@ impl RespServerSession {
         HashLoad::Present(o) => o,
       };
 
-      // HCOLLECT 无 RESP 输出面（C# 特殊通道无应答负载）
+      // HCOLLECT 无 RESP 输出面（C# 特殊通道无应答负载）：仅取副作用，
+      // 挂本地 sink 不触会话输出
       obj.operate(
         HashOperation::Hcollect as u8,
         &[] as &[&[u8]],
         0,
         0,
-        &mut ObjectOutput::new(),
+        &mut ObjectOutput::mount(&mut Vec::new()),
         self.resp_protocol_version,
       );
       // HCOLLECT 清出全部过期字段后可能为空：空对象整键回收
@@ -280,13 +281,14 @@ impl RespServerSession {
         ZsetLoad::Present(o) => o,
       };
 
-      // ZCOLLECT 无 RESP 输出面（C# 特殊通道无应答负载）
+      // ZCOLLECT 无 RESP 输出面（C# 特殊通道无应答负载）：仅取副作用，
+      // 挂本地 sink 不触会话输出
       obj.operate(
         SortedSetOperation::Zcollect as u8,
         &[] as &[&[u8]],
         0,
         0,
-        &mut ObjectOutput::new(),
+        &mut ObjectOutput::mount(&mut Vec::new()),
         self.resp_protocol_version,
       );
       if zset_save_or_gc(store, key, &obj).unwrap_or(false) {
@@ -490,7 +492,7 @@ impl RespServerSession {
       output.write_resp_array_len(3);
       output.write_resp_bulk_string(b"master");
       output.write_resp_int(0);
-      output.extend_from_slice(b"*0\r\n");
+      output.write_resp_array_len(0);
       return Ok(true);
     };
 

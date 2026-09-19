@@ -5,7 +5,7 @@ use wcol::zset::sorted_set_object::{SortedSetOperation, SortedSetRangeOpts};
 use wresp::{check_args::check_arg_count, cmd_strings as cs, ext::RespVecExt};
 use wval::GarnetObjectType;
 
-use super::{Rmw, ZsetLoad, run_operate, zset_load_sync};
+use super::{Rmw, ZsetLoad, parse_rank_with_score, run_operate, zset_load_sync};
 use crate::resp::{
   objects::object_store_utils::{ObjLoad, obj_length_sync},
   resp_server_session::RespServerSession,
@@ -29,21 +29,21 @@ impl RespServerSession {
       ZsetLoad::Degrade => return Ok(false),
       ZsetLoad::WrongType => return Ok(true),
       ZsetLoad::Missing => {
-        output.extend_from_slice(b"*0\r\n");
+        output.write_resp_array_len(0);
         return Ok(true);
       }
       ZsetLoad::Present(o) => o,
     };
 
-    let obj_out = run_operate(
+    run_operate(
       &mut obj,
       SortedSetOperation::Zrange,
       &parse_state[1..],
       0,
       range_opts.bits() as i32,
       self.resp_protocol_version,
+      output,
     );
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -125,15 +125,15 @@ impl RespServerSession {
       ZsetLoad::Present(o) => o,
     };
 
-    let obj_out = run_operate(
+    run_operate(
       &mut obj,
       SortedSetOperation::Zmscore,
       &parse_state[1..],
       0,
       0,
       self.resp_protocol_version,
+      output,
     );
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -184,20 +184,23 @@ impl RespServerSession {
       ZsetLoad::Present(o) => o,
     };
 
-    let obj_out = run_operate(
+    // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
+    // （C# SortedSetRemoveOrCountRangeByLex 仅回填 result1，RESP 层负责写整数；
+    // 对象层不写负载段，整数应答在挂载点之后落帧）
+    let result1 = run_operate(
       &mut obj,
       SortedSetOperation::Zlexcount,
       &parse_state[1..],
       0,
       0,
       self.resp_protocol_version,
-    );
-    // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
-    // （C# SortedSetRemoveOrCountRangeByLex 仅回填 result1，RESP 层负责写整数）
-    if obj_out.result1 == i32::MAX as i64 {
+      output,
+    )
+    .result1;
+    if result1 == i32::MAX as i64 {
       cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
-    } else if obj_out.result1 != i32::MIN as i64 {
-      output.write_resp_int(obj_out.result1);
+    } else if result1 != i32::MIN as i64 {
+      output.write_resp_int(result1);
     }
     Ok(true)
   }
@@ -213,19 +216,11 @@ impl RespServerSession {
     ascending: bool,
   ) -> wresp::Result<bool> {
     let cmd_name = if ascending { "ZRANK" } else { "ZREVRANK" };
-    check_arg_count!(parse_state, 2.., output, cmd_name);
 
-    // C# 仅 Count==3 时校验 WITHSCORE（大小写不敏感，非法即 syntax error）；
-    // Count>3 静默忽略多余参数（includeWithScore 保持 false）
-    let with_score = if parse_state.len() == 3 {
-      if parse_state[2].eq_ignore_ascii_case(cs::WITHSCORE) {
-        true
-      } else {
-        cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
-        return Ok(true);
-      }
-    } else {
-      false
+    // WITHSCORE 词元推导单源（快慢共用，失败帧已写出；仅 len==3 校验，
+    // len>3 静默忽略）
+    let Some(with_score) = parse_rank_with_score(cmd_name, parse_state, output) else {
+      return Ok(true);
     };
 
     let key = parse_state[0];
@@ -246,15 +241,15 @@ impl RespServerSession {
       ZsetLoad::Present(o) => o,
     };
 
-    let obj_out = run_operate(
+    run_operate(
       &mut obj,
       op,
       &parse_state[1..2],
-      if with_score { 1 } else { 0 },
+      i32::from(with_score),
       0,
       self.resp_protocol_version,
+      output,
     );
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 }

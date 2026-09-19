@@ -133,7 +133,7 @@ impl ExprToken {
     self.flags & RUNTIME_TUPLE_FLAG != 0
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewNum
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewNum
   #[inline]
   pub fn new_num(value: f64) -> Self {
     Self {
@@ -143,7 +143,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewStr
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewStr
   ///
   /// 引用 JSON 缓冲区原始 UTF-8 字节的零分配字符串词元（不含引号）。
   #[inline]
@@ -157,7 +157,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewFilterStr
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewFilterStr
   ///
   /// 引用过滤表达式缓冲区的字符串字面量；runner 据此按 filter 字节解析。
   #[inline]
@@ -175,7 +175,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewSelector
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewSelector
   ///
   /// 引用过滤表达式字节中字段名（如 `.year > 2000` 的 `year`）的选择器词元。
   #[inline]
@@ -188,7 +188,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewOp
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewOp
   #[inline]
   pub fn new_op(op_code: OpCode) -> Self {
     Self {
@@ -198,7 +198,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewNull
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewNull
   #[inline]
   pub fn new_null() -> Self {
     Self {
@@ -207,7 +207,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewTuple
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewTuple
   ///
   /// 索引编译期元组池（`[1, "x", 3]` 字面量）。
   #[inline]
@@ -220,7 +220,7 @@ impl ExprToken {
     }
   }
 
-  /// diskann-garnet/VectorFilterExpression.cs:NewRuntimeTuple
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:NewRuntimeTuple
   ///
   /// 索引运行期元组池（JSON 数组提取）。
   #[inline]
@@ -257,13 +257,13 @@ const OP_TABLE: [(u8, u8); 18] = [
   (7, 0), // CParen
 ];
 
-/// diskann-garnet/VectorFilterExpression.cs:GetPrecedence
+/// libs/server/Resp/Vector/VectorFilterExpression.cs:GetPrecedence
 #[inline]
 pub fn get_precedence(code: OpCode) -> u8 {
   OP_TABLE[code as usize].0
 }
 
-/// diskann-garnet/VectorFilterExpression.cs:GetArity
+/// libs/server/Resp/Vector/VectorFilterExpression.cs:GetArity
 #[inline]
 pub fn get_arity(code: OpCode) -> u8 {
   OP_TABLE[code as usize].1
@@ -286,7 +286,7 @@ pub struct ExprProgram {
 }
 
 impl ExprProgram {
-  /// diskann-garnet/VectorFilterExpression.cs:ResetRuntimePool
+  /// libs/server/Resp/Vector/VectorFilterExpression.cs:ResetRuntimePool
   #[inline]
   pub fn reset_runtime_pool(&mut self) {
     self.runtime_pool_len = 0;

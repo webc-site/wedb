@@ -599,3 +599,44 @@ fn test_crc64_primitives() {
   let h = hash(b"123456789");
   assert_eq!(h.len(), 8);
 }
+
+/// 端点形态判定单源规则（入站监听解析与出站建连共读此一条）
+#[cfg(feature = "endpoint")]
+#[test]
+fn test_endpoint_uds_path_rule() {
+  use std::path::Path;
+
+  use wbase::endpoint::uds_path;
+
+  // 显式前缀形态：剥 `unix:` 取其后的路径
+  assert_eq!(
+    uds_path("unix:/var/run/wedb.sock"),
+    Some(Path::new("/var/run/wedb.sock"))
+  );
+  assert_eq!(uds_path("unix:"), Some(Path::new("")));
+  // 裸路径三形态：绝对路径、相对路径、`.sock` 后缀
+  assert_eq!(
+    uds_path("/tmp/wedb.sock"),
+    Some(Path::new("/tmp/wedb.sock"))
+  );
+  assert_eq!(uds_path("/tmp/wedb"), Some(Path::new("/tmp/wedb")));
+  assert_eq!(
+    uds_path("./run/wedb.sock"),
+    Some(Path::new("./run/wedb.sock"))
+  );
+  assert_eq!(
+    uds_path("we/call/wedb.sock"),
+    Some(Path::new("we/call/wedb.sock"))
+  );
+  // 前后空白归一
+  assert_eq!(
+    uds_path("  unix:/tmp/a.sock  "),
+    Some(Path::new("/tmp/a.sock"))
+  );
+  // TCP 形态一律 None（含 `:port` 简写与裸主机串）
+  assert_eq!(uds_path("127.0.0.1:6379"), None);
+  assert_eq!(uds_path("[::1]:6379"), None);
+  assert_eq!(uds_path(":6379"), None);
+  assert_eq!(uds_path("localhost"), None);
+  assert_eq!(uds_path(""), None);
+}

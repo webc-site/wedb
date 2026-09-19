@@ -557,6 +557,16 @@ impl Drop for BucketExclusiveGuard<'_> {
   }
 }
 
+/// 单键独占闩守卫：按键寻址视角下的独占桶闩（类型即 `BucketExclusiveGuard` 别名）
+///
+/// `HashIndex::try_lock_key_exclusive` 的返回形态，对标 C# Tsavorite 的单键
+/// ephemeral 独占闩（`Implementation/Locking/TransientLocking.cs` 里的
+/// `TryEphemeralXLock`）：
+/// 一次尝试取闩、失败即返回 `None`、离开作用域放闩，无自旋驱动无回滚。
+/// 本别名不引入第二份锁实现——底层与桶本体守卫同字、同 Drop，仅命名点区分
+/// 「按键定位的读写窗口」与「按桶/槽位定位的临时探针」两种调用侧语义。
+pub type KeyLatch<'a> = BucketExclusiveGuard<'a>;
+
 impl fmt::Debug for HashBucket {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("HashBucket")

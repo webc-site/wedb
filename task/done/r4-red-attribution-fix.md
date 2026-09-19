@@ -24,3 +24,10 @@ scan_parse_quirks_match_csharp 已由主代理定性为 scan-type 语义修正�
 行实：FlushDb/FlushNs 在 C# Replica 回放下是否入本地死亡账本、广播事务头线格式、
 ttl_purge 取号）；若行为破坏 C# 语义，则修复实现并保留测试。只留一套机制。
 门禁：私有 target 跑 wnode 全域 nextest + workspace check，回报主代理全量复绿数字。
+
+---
+主代理代办收口（棒撞 150 顶，回报残句「Agent execution completed」）：
+- 载荷 b96aeab（四测试文件断言随 6dc1cb6 DbMeta 镜像契约迁移，+332/−59）→ 三回合 dev 后由主代理 FF 入 dev。
+- 代办前置门禁（分支树私有 target /tmp/ct-r4）：wnode 全量 nextest 1092 例中本票 7 红所属五套件全绿；回合 dev dd9d15f 后五套件复跑 35/35 绿。
+- 全量暴露 4 枚 dev 新红（range_index_wrongtype_gate/ri_key_rename_not_wrongtyped、resp_commandstats_session/commandstats_calls_failed_rejected_end_to_end、resp_pubsub/pub_sub_mode_resp2_whitelist_commands、tiered_field_ttl/tiered_hash_expire_sets_and_reads_back）——已在 dev 基线 detached 树复现同红，与本棒载荷无关，另立归因票 next/r5-red-attribution-four-failures.md。
+- 归因结论沿用票面：7 红根因 6dc1cb6 契约迁移成立，按 C# 行实更新断言路线（修法分支一）。
