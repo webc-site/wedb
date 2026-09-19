@@ -28,6 +28,17 @@ const RDB_VERSION: u16 = 11;
 
 impl RespServerSession {
   /// libs/server/Resp/KeyAdminCommands.cs:NetworkRESTORE
+  ///
+  /// 与 Redis 规范的已知差异（维持对标 Garnet，勿按 Redis 规范改）：
+  /// - ttl 按秒解释：Redis 规范该参数是毫秒（缺省为相对空闲毫秒数，带 ABSTTL 时为绝对
+  ///   Unix 毫秒时间戳），Garnet 与 C# 一样按秒换算，客户端若按 Redis 语义传 5000 表示
+  ///   「5 秒」，这里会被解释成 5000 秒（TTL 放大 1000 倍）；
+  /// - 只收三参 key、ttl、value：Redis 规范的 ABSTTL/IDLETIME/FREQ 修饰符与 REPLACE
+  ///   均不支持，C# 同样在参数数不为 3 时直接回参数数错误，覆盖已存在键只能回 BUSYKEY、
+  ///   无替换通路。
+  ///
+  /// 两点都是继承自 Garnet 的真实分叉而非 rust 回归，本实现 1:1 对标 Garnet，
+  /// 禁自行改单位或扩参数面（transpile SKILL 的 1:1 对标原则）
   pub fn network_restore<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -112,7 +123,8 @@ impl RespServerSession {
     }
     if expiry > 0 {
       // C#：DateTimeOffset.UtcNow.Ticks + TimeSpan.FromSeconds(expiry).Ticks；
-      // 换算单点与 EXPIRE 同源（expire_after_to_ticks）
+      // 换算单点与 EXPIRE 同源（expire_after_to_ticks）。口径为秒，非 Redis 的毫秒，
+      // 详见本函数头部与 Redis 规范的差异说明
       let expire_at_ticks = expire_after_to_ticks(now_ticks(), expiry);
       match put_ttl_sync(store, key, expire_at_ticks) {
         Ok(true) => {}
