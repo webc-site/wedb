@@ -11,10 +11,11 @@ use crate::server::replication::checkpoint_entry::{CheckpointEntry, CheckpointFi
 
 /// 保留指定 token 集（hlog/index），清理检查点目录内其余陈旧 token
 ///
-/// C# CheckpointStore.cs:PurgeAllCheckpointsExceptEntry 物理清理段对位
-/// （:94 DeleteLogCheckpoint / :104 DeleteIndexCheckpoint）；wcpr 统一检查点
-/// 模型下单 token 一套文件，`purge_checkpoint` 为 best-effort 删除，失败
-/// warn 不阻断（与副本导入侧既有容错口径一致）
+/// C# CheckpointStore.cs:PurgeAllCheckpointsExceptEntry 的物理清理段对位
+/// （:82 单点转调 PurgeAllCheckpointsExceptTokens，其内 :94 DeleteLogCheckpoint
+/// / :104 DeleteIndexCheckpoint 逐 token 删除）；wcpr 统一检查点模型下单 token
+/// 一套文件，`purge_checkpoint` 为 best-effort 删除，失败 warn 不阻断（与副本
+/// 导入侧既有容错口径一致）
 pub(crate) fn purge_checkpoint_files_except(dir: &Path, keep_hlog: u128, keep_index: u128) {
   if let Ok(tokens) = list_checkpoints(dir) {
     for token in tokens {
@@ -43,6 +44,12 @@ pub(crate) fn purge_checkpoint_files_except(dir: &Path, keep_hlog: u128, keep_in
 /// 复制元数据遵循 `cookie 属复制域不落地` 原则（`wcpr/src/meta.rs:229`），
 /// 由 `replication.conf` 单独持久化；磁盘扫描与最新条目构造由
 /// replication_manager 的 `initialize_checkpoint_store` 承接。
+///
+/// 内存链表与磁盘清理是两条独立轨（对标 C#）：链表由调用方自行组装——
+/// `Initialize`（CheckpointStore.cs:38-57）自身先 :40 赋 head = tail 取最新
+/// 磁盘条目，:55-56 才调 purge；副本侧 ReplicaDiskbasedSync.cs:336 purge 之后
+/// 紧跟 :340 重扫盘重建。purge 内既无 retain 也无 clear，链表的裁剪只发生在
+/// `delete_outdated_checkpoints`（C# DeleteOutdatedCheckpoints 对位）。
 #[derive(Debug)]
 pub struct CheckpointStore {
   entries: Vec<Arc<CheckpointEntry>>,
@@ -74,7 +81,9 @@ impl CheckpointStore {
 
   /// libs/cluster/Server/Replication/CheckpointStore.cs:Initialize
   ///
-  /// 初始化检查点仓库，载入磁盘最新检查点
+  /// 初始化检查点仓库，载入磁盘最新检查点：先重建内存链表（C# :40 自赋
+  /// head = tail = GetLatestCheckpointEntryFromDisk，:42-45 storeVersion == -1
+  /// 时置空），再清磁盘孤儿（C# :55-56），两段分立、次序不可颠倒
   pub fn initialize(&mut self, latest_disk_entry: Option<CheckpointEntry>) {
     self.entries.clear();
     if let Some(entry) = latest_disk_entry
@@ -83,7 +92,7 @@ impl CheckpointStore {
       let arc_entry = Arc::new(entry);
       self.entries.push(arc_entry.clone());
       if self.safely_remove_outdated {
-        self.purge_all_checkpoints_except_entry(Some(&arc_entry));
+        self.purge_all_checkpoints_except_entry(&arc_entry);
       }
     }
   }
@@ -104,15 +113,14 @@ impl CheckpointStore {
 
   /// libs/cluster/Server/Replication/CheckpointStore.cs:PurgeAllCheckpointsExceptEntry
   ///
-  /// 淘汰检查点目录内除指定条目 token 外的孤儿快照：纯磁盘清理，不动内存
-  /// 链表（C# 实现仅遍历 GetLog/GetIndexCheckpointTokens 逐 token 删除，
-  /// head/tail 不碰，内存由 Initialize 先行赋值；entry == null 时直接 return
-  /// 亦不清内存）。仅由构造/Initialize 期调用，此刻必无在途读者（C# :47-53
-  /// 论证），不做读者检查；目录未注入时无从清理（纯内存形态）
-  pub fn purge_all_checkpoints_except_entry(&self, keep_entry: Option<&Arc<CheckpointEntry>>) {
-    let Some(keep) = keep_entry else {
-      return;
-    };
+  /// 淘汰检查点目录内除 keep 条目 token 外的孤儿快照：C# 函数体只有 :82 一次
+  /// PurgeAllCheckpointsExceptTokens 转调，其内 :94/:104 逐 token 物理删除，
+  /// 全程不写 head/tail（内存链表的裁剪只发生在 delete_outdated_checkpoints）。
+  /// C# 形参的 null 兜底（:79 扫盘取最新）rust 无该面且零调用方，故形参收为
+  /// 非空 `&CheckpointEntry`，不留 Option 旧形态。仅由构造/Initialize 期调用，
+  /// 此刻必无在途读者（C# :52-54 论证），不做读者检查；目录未注入时无从清理
+  /// （纯内存形态）
+  pub fn purge_all_checkpoints_except_entry(&self, keep: &CheckpointEntry) {
     if let Some(dir) = &self.checkpoint_dir {
       purge_checkpoint_files_except(
         dir,
@@ -360,8 +368,10 @@ mod tests {
     );
   }
 
-  /// purge_all_checkpoints_except_entry 物理清理段：保留 keep entry token，
-  /// 其余孤儿 token 连文件一并回收（C# :94/:104 对位；Initialize 期无读者）
+  /// purge_all_checkpoints_except_entry 物理清理段：保留 keep 条目 token，
+  /// 其余孤儿 token 连文件一并回收（C# :94/:104 对位；Initialize 期无读者）。
+  /// 内存链表与磁盘清理两轨分离：链上预登记的陈旧条目既不被出链，其磁盘快照
+  /// 也照样被回收
   #[test]
   fn test_purge_all_except_entry_cleans_orphan_files() {
     use std::fs::{create_dir_all, write};
@@ -379,23 +389,29 @@ mod tests {
     let mut store = CheckpointStore::new(true);
     store.set_checkpoint_dir(ckpt_dir.clone());
 
+    let entry = |version: i64, token: u128| {
+      let mut m = CheckpointMetadata::new(1);
+      m.store_version = version;
+      m.store_hlog_token = token;
+      m.store_index_token = token;
+      CheckpointEntry::new(m)
+    };
+
     seed(1);
     seed(2);
     seed(9);
-    let mut m = CheckpointMetadata::new(1);
-    m.store_version = 2;
-    m.store_hlog_token = 2;
-    m.store_index_token = 2;
-    let keep = Arc::new(CheckpointEntry::new(m));
+    // 预登记一条陈旧条目（单条目不触发登记期过期淘汰）
+    store.add_checkpoint_entry(entry(9, 9), true);
+    // keep 条目由调用方持有，purge 只看它的 token，与是否入链无关
+    let keep = entry(2, 2);
 
-    store.purge_all_checkpoints_except_entry(Some(&keep));
+    store.purge_all_checkpoints_except_entry(&keep);
 
-    // 对标 C#：purge 纯磁盘清理不动内存链表（空表保持空，keep 由调用方自行入链）
-    assert_eq!(store.entry_count(), 0);
+    assert_eq!(store.entry_count(), 1, "purge 不改内存链表");
     assert_eq!(
       list_checkpoints(&ckpt_dir).expect("list"),
       vec![2],
-      "除 keep entry 的 token 外孤儿快照应全部回收"
+      "除 keep 条目的 token 外孤儿快照应全部回收（含链上条目的 t9）"
     );
   }
 }

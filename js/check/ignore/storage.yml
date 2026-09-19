@@ -766,8 +766,11 @@
         - CompletePendingWithOutputs
         - CompletePendingWithOutputsAsync
         - ConsistentReadContext
+        - Delete
         - ResetModified
-  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接（含批/单键一致读回调面）
+        - RMW
+        - Upsert
+  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接，只读会话无写接口，消除 C# IFunctions 残留死接口（Upsert/RMW/Delete）
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs
   理由: C# 会话接口面；rust 单实现直调（wkv session），接口跳板层消失
@@ -1725,8 +1728,6 @@
         - IsLockedShared
         - SortKeyHashes
         - TryPromoteLock
-        - UnlockExclusive
-        - UnlockShared
   理由: C# 溢出桶锁表（键哈希排序/锁升级降级/桶定位）；rust wtxn TxnLockTable 锁升降级与排序比较器单点承接；windex 提供
     is_locked 键级桶锁查询作为底层调试与并发测试断言接口。GetLockState 为该查询的三元聚合形态
     （IsFound/NumLockedShared/IsLockedExclusive），全仓消费点仅测试侧（test/OverflowBucketLockTableTests.cs、

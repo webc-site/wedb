@@ -85,3 +85,5 @@ unified 域 EXISTS」互相矛盾）。
 2. /Users/z/git/db/wedb/wedb/wnode/tests/msetnx_atomic.rs 既有半提交断言全绿；
    慢路径两形态（resume 标记 `b"1"` / `b"0"`）行为与 C# 一致。
 3. cargo check 零告警（禁写 allow），不新增第二套存活探针。
+
+盘点补记（qw13.invA+invB msetnx-slow-path-meta-domain-probe）：dev e75716e 复核原样：slow.rs C::Msetnx 臂仍只 read_tag_with(KeyTag::String) + read_tag_with(KeyTag::ObjectEnvelope) 两探，臂内 KeyTag::Meta/storage.exists 零命中。票面修法（改调 storage_session.rs 的 StorageSession::exists 三域单点）仍为首选。

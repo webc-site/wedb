@@ -27,3 +27,5 @@ garnet/libs/server/Resp/Parser/RespCommand.cs:ParseRespCommandBuffer、:FuzzPars
 消费者 garnet/benchmark/BDN.benchmark/Operations/CommandParsingBenchmark.cs:100、:109、:118（仅 benchmark 一处）
 边界：批五类二登记的是 #if DEBUG / [Conditional("DEBUG")] 两类门（whyperlog regs、wlua debug_check），
 本条是 internal→pub 与 benchmark-only 两类不同门，符号不重叠。
+
+盘点补记（qw13.invA testhook-and-bypass-parser-cfg-gate）：dev e75716e 复核，增量缩窄：旁路解析器两口已转生产链（resp_command.rs parse_resp_command_buffer/fuzz_parse 经 with_bypass_buffer 单点承接，resp_server_session.rs:2784 与 wlua/functions/redis.rs:332 脚本域成帧解析在用，票面「两口加门」项失效）；残留仅 wepoch/src/epoch.rs:738-774 test_hook 五口（另 active_instance_count/reset_all_instances）仍裸 pub 无 cfg/可见性门，全仓 src 非测试消费零。修法收敛为 TestHook 族单独加门或删。

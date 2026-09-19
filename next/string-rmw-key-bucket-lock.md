@@ -89,3 +89,5 @@ HSET 不同字段断言字段不丢），当前 wedb/wnode/tests 无并发同键
 
 优先级
 功能缺口（正确性：并发丢更新），高档；实施上排在锁源收敛（wtxn 那条）之后或与之一批。
+
+盘点补记（qw13.invB string-rmw-key-bucket-lock）：dev e75716e 复核：桶锁唯一消费者仍只 ttl.rs:456/:504，无新原子入口；wtxn 条带锁表已重构为 store 注入 HashIndex loader（txn_lock_table.rs，粒度随索引扩容联动），「禁与 wtxn 条带表并联」的旧前提已变化，本票增量（user_read.rs 读侧无锁取证、bucket.rs 桶闩对位）仍须转录进收口单，与 rmw-atomic 并一棒的结论不变。
