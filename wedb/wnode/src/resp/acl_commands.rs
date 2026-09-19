@@ -306,8 +306,9 @@ impl RespServerSession {
       },
     };
 
-    // 改权在独占可变的副本上逐条落定，全部应用完才整体写穿存储（连接本地
-    // 值语义，无 C# 共享句柄的就地 CAS）
+    // 改权在独占可变的副本上逐条落定，全部应用完才整体写穿存储（存储为唯一
+    // 真源；在途连接由写口推进的引擎代数引回本记录、重读整体替换挂载句柄，
+    // 见 RespServerSession::refresh_acl_mount_if_stale）
     let mut new_user = User::from_user(&current_user);
 
     // 记录操作前自定义命令集，只校验"新增"名（存储既有名不重复校验，
@@ -674,9 +675,8 @@ impl RespServerSession {
     let args_buf = self.collect_args();
     let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
     let mut output = mem::take(&mut self.output);
-    // SETUSER 自改目标预判：目标即会话当前已认证用户时，命令后须重读存储
-    // 刷新连接本地句柄（对标 C# 共享 UserHandle 的 CAS 换新即时生效语义；
-    // 连接本地持有模型下句柄不共享，故显式刷新）
+    // SETUSER 自改目标预判：目标即会话当前已认证用户时，命令后重读记录整体
+    // 替换挂载句柄（同连接快路径捷径；跨连接由引擎代数在下一命令预门收敛）
     let refresh_target: Option<(String, u64)> = if cmd == RespCommand::AclSetuser {
       args.first().and_then(|raw| {
         let raw = raw.as_str_safe();
@@ -719,19 +719,20 @@ impl RespServerSession {
     // ctx 持认证器 guard 解引用（最后一次使用已结束）；释放 guard 方可变更
     // 会话句柄
     drop(auth_guard);
-    // 自改即时生效：重读存储换新连接本地句柄（存储无记录即视为删除，回落
-    // 未认证态由后续命令门控自然拒绝）
-    if let Some((name, ns)) = refresh_target
-      && let Ok(Some(bytes)) = store.read(ns, name.as_bytes())
-      && let Ok(user) = User::from_rule_bytes(&name, &bytes)
-    {
-      let handle = Arc::new(UserHandle::new(user));
-      if let Some(acl) = &self.acl_authenticator {
-        let mut acl = acl.lock();
-        acl.user_handle = Some(Arc::clone(&handle));
-        acl.namespace = ns;
+    // 自改即时生效：跨连接改权经引擎代数在下一命令预门收敛（见
+    // RespServerSession::refresh_acl_mount_if_stale），本臂只是同连接的快路径
+    // 捷径——记录读【前】采代数、读后整体替换句柄，与预门臂共用同一 adopt
+    // 出口、同一失效判据，无第二套口径
+    if let Some((name, ns)) = refresh_target {
+      let generation = self
+        .garnet_api
+        .as_ref()
+        .and_then(|api| api.acl_generation());
+      if let Ok(Some(bytes)) = store.read(ns, name.as_bytes())
+        && let Ok(user) = User::from_rule_bytes(&name, &bytes)
+      {
+        self.adopt_acl_user(user, generation);
       }
-      self.set_user_handle(handle);
     }
     Some(handled.unwrap_or(true))
   }

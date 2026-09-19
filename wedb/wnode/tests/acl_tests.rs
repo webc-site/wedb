@@ -23,6 +23,7 @@ use wnode::resp::{
 use wnode_test::drain_output;
 use wresp::{cmd_strings, command::RespCommand};
 use wtest_base::open_test_store;
+use wval::{KeyTag, NamespaceDbCodec};
 
 /// 存储会话 + ACL 存储访问句柄（临时目录随结构体存活，Drop 清理）
 struct TestAclStore {
@@ -542,6 +543,186 @@ fn session_level_acl_gating_end_to_end() {
     drain_output(&mut session),
     b"-NOPERM this user has no permissions to run the command\r\n"
   );
+}
+
+/// 跨连接改权即时生效（对标 C# libs/server/Resp/ACLCommands.cs:NetworkAclSetUser
+/// 对全局共享 UserHandle 的 CAS 换新语义）：受害连接认证命名用户后，管理连接的
+/// SETUSER 撤权 / 改密 / DELUSER 均在受害连接的下一条命令收敛
+#[test]
+fn acl_setuser_propagates_to_live_connections() {
+  let (_dir, store) = open_test_store("acl-live-prop.db").unwrap();
+  let acl = Arc::new(AccessControlList::new("").unwrap());
+  // 两条独立连接：各自持会话级认证器，命名用户句柄连接本地持有（无共享）
+  let mut admin = acl_session(&acl, &store);
+  let mut victim = acl_session(&acl, &store);
+
+  // 管理连接建 u：on + 口令 + 读类
+  assert!(
+    feed(
+      &mut admin,
+      b"*6\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$1\r\nu\r\n$2\r\non\r\n$3\r\n>pw\r\n$6\r\n+@read\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut admin), b"+OK\r\n");
+
+  // 受害连接认证 u 并读键（键不存在 → $-1，即已过 ACL 门）
+  assert!(feed(&mut victim, b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$2\r\npw\r\n").is_some());
+  assert_eq!(drain_output(&mut victim), b"+OK\r\n");
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(drain_output(&mut victim), b"$-1\r\n");
+
+  // 跨连接撤权：SETUSER u -@all 推进一代 ACL 代数
+  let generation = store.acl_generation();
+  assert!(
+    feed(
+      &mut admin,
+      b"*4\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$1\r\nu\r\n$5\r\n-@all\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut admin), b"+OK\r\n");
+  assert_eq!(
+    store.acl_generation(),
+    generation + 1,
+    "SETUSER 写口须推进代数"
+  );
+
+  // 受害连接不重连、不重认证，下一条命令即 NOPERM
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(
+    drain_output(&mut victim),
+    b"-NOPERM this user has no permissions to run the command\r\n"
+  );
+
+  // 改密同例：resetpass >newpw +@read —— 记录仍在故挂载存活，新权限即生效
+  assert!(
+    feed(
+      &mut admin,
+      b"*6\r\n$3\r\nACL\r\n$7\r\nSETUSER\r\n$1\r\nu\r\n$9\r\nresetpass\r\n$6\r\n>newpw\r\n$6\r\n+@read\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut admin), b"+OK\r\n");
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(drain_output(&mut victim), b"$-1\r\n");
+
+  // 旧口令即刻失效、新口令可用（同一记录真源）
+  assert!(feed(&mut victim, b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$2\r\npw\r\n").is_some());
+  assert_eq!(
+    drain_output(&mut victim),
+    format!(
+      "-{}\r\n",
+      cmd_strings::RESP_WRONGPASS_INVALID_USERNAME_PASSWORD
+    )
+    .as_bytes()
+  );
+  assert!(
+    feed(
+      &mut victim,
+      b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$5\r\nnewpw\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut victim), b"+OK\r\n");
+
+  // DELUSER：删除即推进代数，受害连接按未认证处理（句柄与认证器镜像同撤）
+  let generation = store.acl_generation();
+  assert!(
+    feed(
+      &mut admin,
+      b"*3\r\n$3\r\nACL\r\n$7\r\nDELUSER\r\n$1\r\nu\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut admin), b":1\r\n");
+  assert_eq!(
+    store.acl_generation(),
+    generation + 1,
+    "DELUSER 删口须推进代数"
+  );
+
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(
+    drain_output(&mut victim),
+    b"-NOAUTH Authentication required.\r\n"
+  );
+  assert!(victim.user_handle.is_none(), "记录已删按未认证处理");
+  assert!(victim.acl_user_handle.is_none(), "已撤挂载");
+}
+
+/// 代数相等快路径零存储读（失效判据唯一为代数，非记录内容）：绕过写口直改
+/// ACL 记录（不推进代数）→ 决策必不变；经写口同改一次（推进代数）→ 决策即翻
+#[test]
+fn acl_generation_gate_skips_store_read_on_equal_generation() {
+  let (_dir, store) = open_test_store("acl-gen-fastpath.db").unwrap();
+  let acl = Arc::new(AccessControlList::new("").unwrap());
+  let writer_session = store.new_session().unwrap();
+  let acl_store = AclStore::new(&writer_session);
+  let denied = AclParser::parse_acl_rule("user fast on >pw +@all -get").unwrap();
+  let allowed = AclParser::parse_acl_rule("user fast on >pw +@all").unwrap();
+  acl_store.write(0, b"fast", &denied.to_bytes()).unwrap();
+
+  let mut victim = acl_session(&acl, &store);
+  assert!(
+    feed(
+      &mut victim,
+      b"*3\r\n$4\r\nAUTH\r\n$4\r\nfast\r\n$2\r\npw\r\n"
+    )
+    .is_some()
+  );
+  assert_eq!(drain_output(&mut victim), b"+OK\r\n");
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(
+    drain_output(&mut victim),
+    b"-NOPERM this user has no permissions to run the command\r\n"
+  );
+
+  // 直写物理键（不经 AclStore::write 出口，代数不动）：快路径不得回源存储
+  let generation = store.acl_generation();
+  let phys = NamespaceDbCodec::encode_tagged_key(0, 0, KeyTag::Acl, b"fast");
+  let raw_bytes = allowed.to_bytes();
+  let rt = Runtime::new().unwrap();
+  rt.block_on(writer_session.upsert_raw(&phys, &raw_bytes))
+    .unwrap();
+  assert_eq!(store.acl_generation(), generation, "直写不得推进代数");
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(
+    drain_output(&mut victim),
+    b"-NOPERM this user has no permissions to run the command\r\n",
+    "代数相等即零存储读，记录已改也不得回源"
+  );
+
+  // 同内容经写口落一遍 → 推进代数 → 下一命令收敛
+  let out = AclStore::new(&store.new_session().unwrap())
+    .write(0, b"fast", &raw_bytes)
+    .is_ok();
+  assert!(out, "写口落定");
+  assert_eq!(store.acl_generation(), generation + 1);
+  assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
+  assert_eq!(drain_output(&mut victim), b"$-1\r\n");
+}
+
+/// 引导期 default 挂载（内存单例，存储恒无同名记录）在无关 SETUSER 推进代数后
+/// 必不误撤（否则任一改权即把全部在途免密连接打成 NOAUTH）
+#[test]
+fn acl_bootstrap_default_survives_unrelated_setuser() {
+  let (_dir, store) = open_test_store("acl-bootstrap-keep.db").unwrap();
+  let acl = Arc::new(AccessControlList::new("").unwrap());
+  let mut session = acl_session(&acl, &store);
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
+  assert_eq!(drain_output(&mut session), b"+PONG\r\n");
+
+  let writer_session = store.new_session().unwrap();
+  let user = AclParser::parse_acl_rule("user other on >pw +@read").unwrap();
+  AclStore::new(&writer_session)
+    .write(0, b"other", &user.to_bytes())
+    .unwrap();
+  assert!(store.acl_generation() > 0, "写口须推进代数");
+
+  assert!(feed(&mut session, b"*1\r\n$4\r\nPING\r\n").is_some());
+  assert_eq!(drain_output(&mut session), b"+PONG\r\n");
+  assert_eq!(session.user_handle.as_deref(), Some("default"));
 }
 
 /// 未挂载认证器（免认证形态）的会话门控恒放行（对标 C# GetDefaultUserHandle

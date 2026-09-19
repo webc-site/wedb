@@ -332,6 +332,9 @@ pub(crate) async fn string_slow(
       let Some((key, offset, val)) = parse_setrange_args(parse_state, output) else {
         return Ok(());
       };
+      // 冷读旧值前先取本键读改写原子窗口（持本键桶排他闩贯穿读—算—写回全程，
+      // 对标 C# InternalRMW 的 ephemeral 独占闩；窗口化写回见 rmw_string）
+      let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
       let new_val = match storage
         .read_user_async(key, |v| {
           let mut existing = v.to_vec();
@@ -357,7 +360,10 @@ pub(crate) async fn string_slow(
         }
       };
       let len = new_val.len() as i64;
-      storage.rmw_string(key, &new_val).await.map_err(|_| ())?;
+      storage
+        .rmw_string(&window, &new_val)
+        .await
+        .map_err(|_| ())?;
       output.write_resp_int(len);
       Ok(())
     }
@@ -369,6 +375,8 @@ pub(crate) async fn string_slow(
           return Ok(());
         }
       };
+      // 同 SETRANGE：追加读改写全程持本键桶排他闩
+      let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
       let new_val = match storage
         .read_user_async(key, |v| {
           let mut buf = Vec::with_capacity(v.len() + val.len());
@@ -389,7 +397,10 @@ pub(crate) async fn string_slow(
         UserReadAsync::Missing => val.to_vec(),
       };
       let len = new_val.len() as i64;
-      storage.rmw_string(key, &new_val).await.map_err(|_| ())?;
+      storage
+        .rmw_string(&window, &new_val)
+        .await
+        .map_err(|_| ())?;
       output.write_resp_int(len);
       Ok(())
     }
@@ -403,8 +414,9 @@ pub(crate) async fn string_slow(
       let Some((key, delta)) = parse_incr_args(incr_cmd, parse_state, output) else {
         return Ok(());
       };
-      // 旧值口径对位 C# IsValidNumber → NumUtils.TryReadInt64（拒前导零，
-      // 与参数路径 strict_i64 同源单一实现）
+      // 读—算—写回全程持本键桶排他闩；旧值口径对位 C# IsValidNumber →
+      // NumUtils.TryReadInt64（拒前导零，与参数路径 strict_i64 同源单一实现）
+      let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
       let val = match storage
         .read_user_async(key, strict_i64)
         .await
@@ -428,7 +440,7 @@ pub(crate) async fn string_slow(
       };
       let mut buf = ItoaBuffer::new();
       storage
-        .rmw_string(key, buf.format(next).as_bytes())
+        .rmw_string(&window, buf.format(next).as_bytes())
         .await
         .map_err(|_| ())?;
       output.write_resp_int(next);
@@ -439,6 +451,7 @@ pub(crate) async fn string_slow(
         return Ok(());
       };
       // C# parseState.TryGetDouble 默认 canBeInfinite: true（INF 白名单 + NaN 拒）
+      let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
       let val = match storage
         .read_user_async(key, |raw| strict_f64(raw, true))
         .await
@@ -470,7 +483,7 @@ pub(crate) async fn string_slow(
       let mut buf = ZmijBuffer::new();
       let formatted = format_double(next, &mut buf);
       storage
-        .rmw_string(key, formatted.as_bytes())
+        .rmw_string(&window, formatted.as_bytes())
         .await
         .map_err(|_| ())?;
       output.write_resp_bulk_string(formatted.as_bytes());
@@ -689,6 +702,8 @@ pub(crate) async fn bitmap_slow(
       let byte_idx = (offset / 8) as usize;
       let bit_idx = 7 - (offset % 8) as u32;
       if with_bit {
+        // SETBIT 写臂：冷读与写回全程持本键桶排他闩（GETBIT 纯读不取窗）
+        let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
         let mut val = match storage
           .read_user_async(key, |v| {
             let mut vec = Vec::with_capacity(v.len().max(byte_idx + 1));
@@ -714,7 +729,7 @@ pub(crate) async fn bitmap_slow(
         } else {
           val[byte_idx] &= !(1 << bit_idx);
         }
-        storage.rmw_string(key, &val).await.map_err(|_| ())?;
+        storage.rmw_string(&window, &val).await.map_err(|_| ())?;
         output.write_resp_int(i64::from(old_bit));
       } else {
         let bit = match storage
@@ -834,6 +849,14 @@ pub(crate) async fn bitmap_slow(
         return Ok(());
       }
       let resp_version = storage.resp_protocol_version();
+      // BITFIELD 的位域写子命令走读改写：先持本键桶排他闩贯穿「冷读快照—逐子命令
+      // 算新值—写回」全程（与同步臂 string_bit_field_action 同窗）；BITFIELD_RO
+      // 纯读不取窗
+      let window = if cmd == C::Bitfield {
+        Some(storage.batch.rmw_window(key).await.map_err(|_| ())?)
+      } else {
+        None
+      };
       let mut value: Option<Vec<u8>> = match storage
         .read_user_async(key, |v| v.to_vec())
         .await
@@ -877,7 +900,12 @@ pub(crate) async fn bitmap_slow(
       }
       // RMW 语义写回（保留既有 key 级 TTL，有写子命令时统一一次）
       if let Some(buf) = dirty.then_some(value).flatten() {
-        storage.rmw_string(key, &buf).await.map_err(|_| ())?;
+        match window {
+          Some(window) => storage.rmw_string(&window, &buf).await.map_err(|_| ())?,
+          // dirty 只在写子命令下置位，写子命令只属 BITFIELD 臂，缺窗即接线缺陷，
+          // 宁回错误帧也不走无窗盲写
+          None => output.write_resp_error(RESP_ERR_GENERIC),
+        }
       }
       Ok(())
     }

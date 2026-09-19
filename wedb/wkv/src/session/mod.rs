@@ -18,6 +18,7 @@ mod collection;
 pub mod consistent_read;
 mod keys;
 mod raw;
+mod rmw_window;
 mod swap;
 
 use std::{
@@ -33,6 +34,8 @@ pub use consistent_read::{ConsistentReadContext, ConsistentReadFunctions};
 use parking_lot::Mutex;
 pub(crate) use raw::CopyToTailOutcome;
 pub use raw::read::{RecordRead, StoreResult};
+pub(crate) use rmw_window::SessionLockingState;
+pub use rmw_window::{RmwWindow, SessionLocking, SessionLockingGuard};
 use wdev::Device;
 use wepoch::{EpochGuard, Participant};
 use wval::{KeyTag, SessionPrefixBuf};
@@ -191,7 +194,8 @@ impl<D: Device> WedbStore<D> {
 /// 许可形态是装配期固化上下文的只读持有者（wnode 向量磁盘回调
 /// `WedbVectorStoreCallbacks`，见其类型注释），执行期仅允许 `session_prefix`
 /// 幂等换代刷新。`copy_reads_to_tail` / `record_elision` 为读面配置位、
-/// `strict_ctx` / `bound_vns` 为装配与析构面状态，不在本纪律的六字段之列。
+/// `strict_ctx` / `bound_vns` 为装配与析构面状态、`session_locking` 为本执行域
+/// 命令分派单点写锁器模式位（读写皆在本域，无跨域并发），皆不在本纪律的六字段之列。
 pub struct StoreSession<D: Device> {
   pub store: Arc<WedbStore<D>>,
   pub participant: Participant,
@@ -209,6 +213,13 @@ pub struct StoreSession<D: Device> {
   strict_ctx: AtomicBool,
   /// 当前绑定租户路由快照的 vns（引用归零空闲析构协议；0 = 根域免计数）
   bound_vns: AtomicU64,
+  /// 会话锁器模式位（Basic = 自取桶闩 / Transactional = 让闩于事务）：对标 C#
+  /// 会话按 api 视图类型编译期选定 `BasicSessionLocker` /
+  /// `TransactionalSessionLocker`（见 `session/rmw_window.rs` 模块头），rust 以本位
+  /// 承载同一判据，读写单点收口在 `session/rmw_window.rs` 的
+  /// [`StoreSession::session_locking`] / [`StoreSession::set_session_locking`] /
+  /// [`StoreSession::push_session_locking`]，执行期由命令分派单点与事务过程视图各自置位
+  session_locking: SessionLockingState,
   /// 副本一致读会话附着态（对标 C# StorageSession.readSessionState 挂各
   /// SessionFunctions 的形态：libs/server/Storage/Session/StorageSession.cs:104-132；
   /// None = 无一致读协议，读路径零开销直通）。装配期一次性附着，其后只读
@@ -235,6 +246,7 @@ impl<D: Device> StoreSession<D> {
       last_generation: AtomicU64::new(0),
       strict_ctx: AtomicBool::new(false),
       bound_vns: AtomicU64::new(0),
+      session_locking: SessionLockingState::new(),
       read_session_state: None,
     };
     session.set_context(0, 0);
@@ -756,18 +768,6 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
   #[inline(always)]
   pub fn try_delete_tag_sync(&self, key: &[u8], tag: KeyTag) -> Result<StdResult<bool, u64>> {
     self.session.try_delete_tag_sync_unprotected(key, tag)
-  }
-
-  /// 纯同步快速路径 RMW 写回当前会话普通字符串键（零 enter() 原子开销）
-  ///
-  /// 语义与 [`StoreSession::try_rmw_sync`] 完全一致：未过期键保留既有 key 级
-  /// TTL 记录（INCR/APPEND/SETRANGE 等读改写回写面，对标 C#
-  /// GetRMWModifiedFieldInfo），已过期键清退残留 TTL 后重建无 TTL；
-  /// `Ok(Err(page_id))` 环形页翻转 / `Ok(Err(u64::MAX))` TTL 记录磁盘候选或
-  /// 清退降级时，调用方降级 `StoreSession::upsert_rmw().await`
-  #[inline(always)]
-  pub fn try_rmw_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<u64, u64>> {
-    self.session.try_rmw_sync_unprotected(key, val)
   }
 
   /// 同步读当前会话普通字符串键快路径（TTL 快门控 + 内存直读，零 enter() 原子开销）

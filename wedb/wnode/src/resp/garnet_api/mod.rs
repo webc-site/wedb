@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 use wbase::hash_slot::slot_of;
 use wconf::ServerConfigType;
 use wdev::Device;
-use wkv::StoreSession;
+use wkv::{SessionLocking, StoreSession};
 use wmetric::{DbSnapshot, GarnetLatencyMetricsSession, SessionMetricsHandle};
 use wresp::{
   cmd_strings::{RESP_ERR_ASYNC_REQUIRED, write_error_raw},
@@ -103,6 +103,26 @@ pub trait GarnetApiFace: Send + Sync {
   fn set_context(&self, ns: u64, db: u64) -> bool {
     let _ = (ns, db);
     true
+  }
+
+  /// 引擎级 ACL 变更代数（跨连接改权收敛的唯一判据源，推进口见
+  /// [`crate::resp::acl_store::AclStore::write`]）
+  ///
+  /// 默认 None = 嵌入式 / 测试桩形态无存储执行域，无 ACL 真源可收敛：
+  /// 会话侧据此不登记挂载态，鉴权预门零成本旁路
+  fn acl_generation(&self) -> Option<u64> {
+    None
+  }
+
+  /// 按 `(ns, 用户名)` 点查 ACL 用户规则字节（挂载代数陈旧时的句柄重建口）
+  ///
+  /// 调用约束同 [`crate::resp::acl_store::AclStore::read`]：须在批处理纪元
+  /// 保护区外（冷记录降级阻塞回读，持守卫等待驱逐会自锁）。外层 None = 本
+  /// 执行域无 ACL 存储真源面，与 [`Self::acl_generation`] 成对，非存储形态
+  /// 下会话不登记挂载态故不可达
+  fn acl_user_record(&self, ns: u64, username: &[u8]) -> Option<wkv::Result<Option<Vec<u8>>>> {
+    let _ = (ns, username);
+    None
   }
 
   /// 全部库的存储域快照（STORE / PERSISTENCE 段与 MEMORY store_* 项的
@@ -401,6 +421,19 @@ fn is_acl_command(cmd: RespCommand) -> bool {
 
 impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, args: &[&[u8]]) {
+    // 会话锁器模式选型点（对标 C# RespServerSession.ProcessMessages 依
+    // `txnManager.state == TxnState.Running` 在 basicApi 与 transactionalApi 间
+    // 派发）：EXEC 重放遍的本键桶排他闩已由本会话事务在 windex 同一份锁内存上
+    // 持有，读改写窗口让闩；非事务遍窗口自取闩。RAII 守卫在本分派段退出即还原
+    //（降级慢路径在段外以 Basic 重取闩，与 C# 慢路径重投同址同判据）
+    let _locking =
+      self
+        .session
+        .push_session_locking(if session.txn_state == wtxn::TxnState::Running {
+          SessionLocking::Transactional
+        } else {
+          SessionLocking::Basic
+        });
     // AUTH / ACL 族：底层存储点查须在批处理纪元保护区外执行——冷记录落盘
     // 回读经阻塞驱动，持纪元守卫等待驱逐会自锁；且认证成功后须回写会话本地
     // 句柄/命名空间，仅本同步分派段可达（慢路径仅产出应答字节，无会话态
@@ -534,6 +567,17 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   #[inline]
   fn set_context(&self, ns: u64, db: u64) -> bool {
     self.session.set_context(ns, db)
+  }
+
+  /// 引擎级 ACL 变更代数（`Arc<WedbStore>` 单标量，同引擎各连接共视同一源）
+  #[inline]
+  fn acl_generation(&self) -> Option<u64> {
+    Some(self.session.store().acl_generation())
+  }
+
+  /// ACL 用户规则点查（与会话执行域同一存储会话，ACL 恒驻 db 0 故不经上下文）
+  fn acl_user_record(&self, ns: u64, username: &[u8]) -> Option<wkv::Result<Option<Vec<u8>>>> {
+    Some(AclStore::new(&self.session).read(ns, username))
   }
 
   /// 装配期回挂会话延迟表（[`RespServerSession::set_garnet_api`] 挂入会话时

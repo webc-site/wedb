@@ -748,7 +748,7 @@ fn auth_default_user_fallback() {
   let acl = Arc::new(AccessControlList::new("").unwrap());
   s.attach_acl(Some(Arc::new(Mutex::new(GarnetAclAuthenticator::new(acl)))));
   let handle = Arc::new(UserHandle::new(Arc::new(User::new("admin".into()))));
-  s.set_user_handle(handle);
+  s.set_user_handle(handle, false);
   assert_eq!(s.user_handle.as_deref(), Some("admin"));
   assert!(!s.acl_permits(RespCommand::Get));
 
@@ -791,7 +791,7 @@ fn acl_limited_user_filters_commands() {
   let AclAuthOutcome::Success(handle, _) = outcome else {
     panic!("limited 认证必须成功");
   };
-  s.set_user_handle(handle);
+  s.set_user_handle(handle, true);
 
   assert!(s.check_acl_permissions(RespCommand::Get));
   assert!(!s.check_acl_permissions(RespCommand::Set), "位图外命令拒绝");
