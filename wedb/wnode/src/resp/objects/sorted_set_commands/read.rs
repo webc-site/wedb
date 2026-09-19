@@ -29,7 +29,7 @@ impl RespServerSession {
       ZsetLoad::Degrade => return Ok(false),
       ZsetLoad::WrongType => return Ok(true),
       ZsetLoad::Missing => {
-        output.extend_from_slice(b"*0\r\n");
+        output.write_resp_array_len(0);
         return Ok(true);
       }
       ZsetLoad::Present(o) => o,

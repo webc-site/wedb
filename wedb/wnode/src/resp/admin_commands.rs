@@ -487,7 +487,7 @@ impl RespServerSession {
       output.write_resp_array_len(3);
       output.write_resp_bulk_string(b"master");
       output.write_resp_int(0);
-      output.extend_from_slice(b"*0\r\n");
+      output.write_resp_array_len(0);
       return Ok(true);
     };
 
