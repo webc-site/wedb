@@ -167,7 +167,9 @@ fn range_opts_of(cmd: RespCommand) -> SortedSetRangeOpts {
     RespCommand::Zrangebylex => SortedSetRangeOpts::BY_LEX,
     RespCommand::Zrevrangebylex => SortedSetRangeOpts::BY_LEX.union(SortedSetRangeOpts::REVERSE),
     RespCommand::Zrangebyscore => SortedSetRangeOpts::BY_SCORE,
-    RespCommand::Zrevrangebyscore => SortedSetRangeOpts::BY_SCORE.union(SortedSetRangeOpts::REVERSE),
+    RespCommand::Zrevrangebyscore => {
+      SortedSetRangeOpts::BY_SCORE.union(SortedSetRangeOpts::REVERSE)
+    }
     // ZRANGE 本体与其余命令：无选项位
     _ => SortedSetRangeOpts::NONE,
   }
