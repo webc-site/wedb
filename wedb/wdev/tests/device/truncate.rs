@@ -13,7 +13,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wbase::pool::AlignedBuf;
+use wbase::{align::DEFAULT_SECTOR_SIZE, pool::AlignedBuf};
 use wdev::{Device, Error, SegmentedDevice};
 
 /// 对标 C# `StorageDeviceBase.TruncateUntilSegment`：截断后小于目标段的文件必须
@@ -26,7 +26,11 @@ fn truncate_until_segment_removes_prior_segments() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("trunc_seg.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("trunc_seg.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 向段 0..5 各写入一个扇区，内容按段号区分
     for seg_id in 0..5u32 {
@@ -92,7 +96,11 @@ fn truncate_until_address_deletes_all_prior_segments() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("trunc_addr.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("trunc_addr.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 向段 0..5 各写入一个扇区
     for seg_id in 0..5u32 {
@@ -135,7 +143,11 @@ fn remove_segment_removes_persisted_data() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("remove_seg.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("remove_seg.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 写入段 1，确认文件已生成
     let buf = AlignedBuf::from_slice(&[0x7Cu8; 4096], 4096)?;
@@ -162,7 +174,11 @@ fn get_file_size_reflects_writes() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("file_size.log"), 1 << 20)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("file_size.log"),
+      Some(1 << 20),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     assert_eq!(device.get_file_size(0)?, 0, "未写入时段 0 尺寸应为 0");
 
@@ -189,7 +205,11 @@ fn reset_closes_segments_and_device_remains_usable() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("reset.log"), 1 << 20)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("reset.log"),
+      Some(1 << 20),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     let buf = AlignedBuf::from_slice(&[0xEEu8; 4096], 4096)?;
     let (res, _) = device.write_aligned(0, buf).await;
@@ -220,7 +240,11 @@ fn successive_truncations_defend_against_ghost_segments() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("rapid_trunc.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("rapid_trunc.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 初始化写入段 0..=10，各段独立模式
     for seg_id in 0..=10u32 {
@@ -314,7 +338,11 @@ fn truncate_clears_dirty_bits_of_truncated_segments() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("trunc_bits.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("trunc_bits.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     for seg_id in 0..3u32 {
       let buf = AlignedBuf::from_slice(&[(seg_id * 29 + 5) as u8; 4096], 4096)?;
