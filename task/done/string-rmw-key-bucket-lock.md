@@ -94,3 +94,54 @@ HSET 不同字段断言字段不丢），当前 wedb/wnode/tests 无并发同键
 
 ---
 主代理补录（windex 2pl 收口棒 bfbd1e0 落地后，15:20）：本票若引用 `HashIndex::acquire_keys_lock_exclusive` / `lock_key_exclusive`（含 1024 轮 spin_loop+LockTimeout 中间态）一律失效——该族已连根删除，唯一锁源现为 `HashIndex::try_lock_key_exclusive`（windex/src/table.rs:601，同一把桶闩、无自旋、无超时，KeyLatch 见 lib.rs:17）。在途代码勿再造第二入口；wkv/src/ttl.rs 两处已改持新口。
+
+---
+
+## 判词（三棒，与收口单 rmw-atomic-read-modify-write-window 同批落地，分支 fix-rmw-atomic-window）
+
+本票不单独改内核（票面与收口单均要求「择一实施、勿两处各改一次 RMW 内核」）：实施全部落在
+收口单那份载荷里，本票按编排约定核「三项独占增量是否随择单丢失」并转录判词，判 **done**。
+载荷 sha 与逐条验收证据见 `task/done/rmw-atomic-read-modify-write-window.md` 判词节；本处只登记本票独有项。
+
+### 一、本票三项独占增量逐项核实（不随择单丢失）
+
+1. **读侧取证仍成立、已被收口消灭**：`wnode/src/storage/session/common/user_read.rs:174 read_user_sync`
+   （带前缀臂 `:188`）→ `wkv/src/session/mod.rs:285 with_session_consistent_read` 一致性读臂
+   对键不加桶锁，原样。收口不改读臂本身，改的是**调用序**：命令臂先取窗再读
+   （`resp/basic_commands/incr.rs:129→:134`、`set.rs:228→:231`/`:581→:584`、
+   `bitmap/bitmap_commands.rs:77→:80`/`:459→:465`、`hyperloglog/hyper_log_log_commands.rs:379/:499`、
+   `objects/rmw_helpers.rs:600`、`storage/session/txn_proc_view.rs:120→:121`），
+   读落进闩内即本票所指缺口闭合；纯只读臂（GET/BITCOUNT/GETBIT）与 SET 条件族盲写
+   （`set.rs:511 network_set_conditional`）不在射程。
+2. **桶闩对位证据在位且为唯一底层**：`windex/src/bucket.rs:113 try_lock_exclusive`、
+   `:241 unlock_exclusive`、`:254 is_latched_exclusive`、守卫 `:486 lock_exclusive_guard` →
+   `:568 pub type KeyLatch<'a> = BucketExclusiveGuard<'a>`（别名不引入第二份锁实现，底层同字同 Drop），
+   对位 C# `HashBucket.TryAcquireExclusiveLatch/Release/Promote` 与
+   `ISessionLocker.cs:BasicSessionLocker.TryLockEphemeralExclusive`。
+3. **禁令守住（不新建私有锁表、不与 wtxn 条带表并联）**：载荷 grep
+   `Mutex<|RwLock<|LazyLock|OnceLock|striped` 零命中，无第四把锁；三消费面同址同闩已现刻核对——
+   `wkv/src/session/rmw_window.rs:224/:230`、`wtxn/src/txn_lock_table.rs:117`、
+   `wkv/src/ttl.rs:459/:511` 全部落到 `HashBucket::try_lock_exclusive`（`ttl.rs` 经
+   `HashIndex::try_lock_key_exclusive`，`windex/src/table.rs:601`），
+   `wtxn` 自述同锁同内存（`txn_lock_table.rs:17`）。窗口与 `wtxn::TxnKeyEntries::acquire_plan` 同款
+   形态：钉 `Arc<HashIndex>` 版本 + 纯桶下标（`rmw_window.rs:101`），跨 split 扩容不串锁。
+
+### 二、本票「验证」段判
+
+要求「多任务并发 INCR 断言终值 = 次数、并发 APPEND 断言尾段全在、并发 HSET 不同字段断言字段不丢」：
+`wnode/tests/rmw_key_concurrency.rs` 十二例覆盖并超出的做了冷化扇出五例，
+摘闩反证 12/12 红（含「并发 HSET 同键不同字段被整值写回抹除：HLEN 376 ≠ 已回执字段数 1000」
+「同键并发 INCR 丢更新：终值 506 ≠ 已回执自增数 1000」），收口前失败判据成立；
+正式跑 12/12 绿、`-p wkv -p wnode` 全量 1332/1332 绿。
+
+### 三、锁源单点（主代理 15:20 补录必改项）
+
+本票文体引用 `acquire_keys_lock_exclusive` 的三处（现 ticket 正文 :21-22、:49-53 段）为立项期实况描述，
+随该族在 `bfbd1e0` 连根删除而失效；全仓代码 grep 旧口零命中，
+载荷从未引用旧口，散文旧口两处已在 968aab1 订正（见收口单判词第四节）。
+
+### 四、门禁数字（同收口单，此处不复述全量）
+
+`cargo check --workspace --all-targets` exit 0 / warning 0；`cargo nextest run -p wkv -p wnode`
+1332 passed（1 leaky）/ 1 skipped / 0 failed；rustfmt 本票 14 枚载荷文件全 OK；
+`bun js/check.js` 前后各 4701 字节、exit 0 双绿、零 ignore 回写、仅两枚行号漂移无映射增减。
