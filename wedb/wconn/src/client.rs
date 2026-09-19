@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use compio::{net::TcpStream, runtime::spawn, time::sleep};
+use compio::{runtime::spawn, time::sleep};
 use crossfire::{mpsc, oneshot};
 use wbase::pool::LimitedFixedBufferPool;
 
@@ -131,17 +131,15 @@ impl GarnetClient {
 
   /// libs/client/GarnetClient.cs:ConnectAsync
   pub async fn connect_async(&mut self) -> Result<()> {
-    let sock = TcpStream::connect(&self.end_point).await?;
-    sock.set_nodelay(true).ok();
+    // 端点形态分派建连：TCP 臂设 nodelay、Unix 域套接字臂不设（判定单源
+    // `wbase::endpoint::uds_path`，与入站监听端点共读同一条规则）
+    let stream = OutStream::connect(&self.end_point).await?;
     // TLS 配置在位即在 TCP 之上完成握手包裹（对标 C# ConnectAsync 里
     // SslStream.AuthenticateAsClientAsync 分支）；无配置保持明文字节流
     #[cfg(feature = "tls")]
-    let stream = match &self.tls {
-      Some(tls) => OutStream::Tls(Box::new(tls.connect(sock, &self.end_point).await?)),
-      None => OutStream::Tcp(sock),
-    };
-    #[cfg(not(feature = "tls"))]
-    let stream = OutStream::Tcp(sock);
+    let stream = stream
+      .with_tls(self.tls.as_deref(), &self.end_point)
+      .await?;
     // 在途准入闸：命令通道容量即闸值（无 .max 抬升，形参原值生效；在途满
     // 即调用方 send 挂起退避，对标 C# InputGateAsync）；闸值随网络循环
     // 透传泵内定容，单点定义无第二容量口径

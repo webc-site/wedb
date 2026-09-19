@@ -160,7 +160,188 @@ SessionParseState.cs:39）的「回写参数槽」在 rust 无等价物且将来
 
 ## 第二节 ignore 暗条目逐条判
 
-（待补）
+### 2.1 现刻基线与口径
+
+- `bun js/check.js`（HEAD fbd2859）：exit 0；stdout 仅「# 重复定义」段 15 组，无「# 实现缺失」段；
+  stderr 语料降级汇报 194/1425、兜底补回 388 名、B 层锚点提示 129 处、零名录 1 例（SpanByteKey.cs）。
+  跑前后对 `js/check/ignore` 全 80 份 yml 逐文件 shasum 比对：零改动零回写（pre/post 校验集在
+  /tmp/inv1_ignore_{pre,post}.sha），本单未留任何语料脏。
+- 暗条目口径按来源棒给的复算配方执行（`task/done/garnet-scan-cs-corpus-parse-gate.md:119-121`）：
+  hasError 文件的「AST+兜底名集 − 仅 AST 名集」（388 名）与 `js/check/ignore` 函数级条目名求交，
+  现刻得 130 条（分块：storage 74、server 32、common 14、playground 7、client 2、
+  libs/server/Resp/Bitmap/BitmapManagerBitCount 1；130 条 = 130 个互异 path::name，无重复行）。
+- 与档案读数 109 的差 21 条未能归一到单因，本单已排除一条常见猜测：
+  `git diff 4c8184d..HEAD -- js/check/ignore` 新增的 46 个函数名与暗集交集为 0，
+  即差值不是「后续波次新登记的条目」，只能是语料侧兜底面/AST 断裂位置随转写波次漂移所致
+  （README 的 109 是该棒当时一次性的读数，无常驻产物可回溯）。逐条判读以现刻 130 为准。
+- 判据三条（与 check.js 的自动淘汰语义严格对齐）：
+  删 = rust 侧已对该 `路径.cs:符号` 挂规范全路径锚（此时 ignoreLoadAndPrune 本就会自动删除该条目，
+  故「已实挂却仍留登记」的条目现刻实测为 0 条）；
+  改 = rust 承接口在位且注释已点名该 C# 符号，但形态不登记（裸文件名 / `路径.cs:行号` / 反引号 /
+  纯叙述），补规范锚后条目自动淘汰；
+  留 = 确属死码、平台绑定、或「无独立具名对位口」的形态不承接。
+- 本组取数结论：130 条中，有同路径锚 0、有裸文件名锚 0、他路径同名锚 5（经核 5 条均为
+  同名不同 C# 文件的巧合，不构成改锚依据）、含 `.cs` 的叙述行 10（逐条读原文后仅 2 条构成改锚依据，
+  其余 8 条为「同名他文件」或「他文件语境顺带提及」）、零痕迹 112。
+  即按现刻证据，本节改判为「改」的仅 2 条，其余为「留」，无一条可「删」。
+  这与来源棒抽查所得「TryInPlaceUpdateNumber 属已实现却挂忽略」的单条直觉不同：该名
+  （`server.yml:284`）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:182`、
+  `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现，而是「非有限旗标」语义叙述，
+  仍判留；真正「已实现却挂忽略」的是下表的 SessionParseState.cs:Slice 与
+  GarnetClientProcessReplies.cs:ProcessReplyAsNumber 两条。
+
+### 2.2 已完成块一：common.yml（14 条，全留）
+
+js/check/ignore/common.yml:3 | libs/common/RespReadUtils.cs:GetSerializedRecordSpan | 留 | 理由逐条给出消费点对位（wbase/src/num.rs:94/:124 strict 通道），C# 口为 ref ptr/out bytesRead 形态无承接位
+js/check/ignore/common.yml:5 | libs/common/RespReadUtils.cs:TryReadDoubleWithLengthHeader | 留 | 理由记「全仓零生产调用」，rust 侧 MurmurHash/strict 通道零痕迹，与 wbase/src/num.rs 现刻形态一致
+js/check/ignore/common.yml:7 | libs/common/RespReadUtils.cs:TryReadPtrWithLengthHeader | 留 | 理由点名唯一 C# 消费点 ObjectStore/Common.cs:223,242 属副本回读文本帧重解析，rust 走结构化通道
+js/check/ignore/common.yml:8 | libs/common/RespReadUtils.cs:TrySkipByteArrayWithLengthHeader | 留 | 理由记 C# 仅 RespReadUtilsTests.cs:419,425,431 测试引用，生产零调用
+js/check/ignore/common.yml:13 | libs/common/RespReadUtils.cs:TryReadStringResponseWithLengthHeader | 留 | 理由点名唯一生产引用 LuaRunner.cs:1302，rust 由 wlua resp_convert 承接
+（同块提醒：同文件 `RespReadUtils.cs:TryReadInfinity` 未在此块内，rust 承接口
+`wedb/wbase/src/num.rs:210 infinity_sign` 在位却无锚 → 第一节乙/甲族已列，须与本块同棒复核以免两块口径分叉）
+
+js/check/ignore/common.yml:323 | libs/common/NumUtils.cs:WriteInt32 | 留 | rust 现刻唯一 WriteInt32 锚是 `RespServerSessionOutput.cs:WriteInt32`（wnode/src/resp/resp_server_session_output.rs:93），非 NumUtils 同名口，理由「itoa/to_le_bytes 原生」成立
+js/check/ignore/common.yml:328 | libs/common/NumUtils.cs:WriteDouble | 留 | rust 侧仅测试与 incr.rs 的裸词叙述（wnode/tests/resp_tests.rs:354），无独立写浮点口，理由「ryu/dtoa 原生」成立
+js/check/ignore/common.yml:332 | libs/common/NumUtils.cs:ReadInt64 | 留 | 零痕迹；rust 走 i64::from_le_bytes / strict_i64 单点（wbase/src/num.rs:94）
+js/check/ignore/common.yml:336 | libs/common/NumUtils.cs:TryReadDouble | 留 | 他路径锚为 `ParseUtils.cs:TryReadDouble`（wbase/src/num.rs:78），与本条同词不同 C# 口，不构成改判
+js/check/ignore/common.yml:340 | libs/common/NumUtils.cs:CountCharsInDouble | 留 | 零痕迹，C# 侧零调用（同块理由）
+js/check/ignore/common.yml:341 | libs/common/NumUtils.cs:CountDigits | 留 | 零痕迹；rust 由 u64::trailing_zeros/ilog2 就地算
+js/check/ignore/common.yml:342 | libs/common/NumUtils.cs:GetNextOffset | 留 | 零痕迹，C# 序列化偏移辅助无 rust 对位
+js/check/ignore/common.yml:363 | libs/common/HashUtils.cs:MurmurHash3x64 | 留 | `wedb/wbase/src/hash.rs` 全文件仅 murmur_hash2_x64_a 一口，理由「C# 生产仅用 MurmurHash2x64A」经核成立
+js/check/ignore/common.yml:364 | libs/common/HashUtils.cs:MurmurHash3x64A | 留 | 同上，无第二哈希口
+
+小计：14 条 → 留 14、改 0、删 0。
+
+### 2.3 已完成块二：storage.yml（74 条，留 72 / 改 2 / 删 0）
+
+LogRecord.cs 块（41 条，storage.yml:220-269）——判定全留；块级提醒见末行：
+
+js/check/ignore/storage.yml:220 | …/Allocator/LogRecord.cs:AsReadOnlySpan | 留 | wrecord 全 crate 零 LogRecord.cs 锚，且无 as_read_only_span 口
+js/check/ignore/storage.yml:221 | LogRecord.cs:CalculateHeapMemorySize | 留 | rust 无对象堆尺寸核算面（对象走 wcol 信封）
+js/check/ignore/storage.yml:222 | LogRecord.cs:CanGrowPinnedValue | 留 | 零痕迹；原地增长语义在 wrecord record_mut.rs:193 write_val_with_slack 内联，无判定型副口
+js/check/ignore/storage.yml:223 | LogRecord.cs:ClearHeapFields | 留 | 零痕迹
+js/check/ignore/storage.yml:224 | LogRecord.cs:ClearOptionals | 留 | 零痕迹
+js/check/ignore/storage.yml:225 | LogRecord.cs:ClearValueIfHeap | 留 | 零痕迹
+js/check/ignore/storage.yml:226 | LogRecord.cs:CreateRemappedOverPinnedTransientMemory | 留 | 瞬态内存重映射属 .NET MemoryAllocator 面，rust 无对应机制
+js/check/ignore/storage.yml:227 | LogRecord.cs:GetAllocatedSize | 留 | 零痕迹
+js/check/ignore/storage.yml:231 | LogRecord.cs:GetInfo | 留 | 他路径锚属 `ClusterManager.cs:GetInfo`（wedb/src/server/cluster_manager.rs:464），同名不同口
+js/check/ignore/storage.yml:232 | LogRecord.cs:GetInfoRef | 留 | 零痕迹
+js/check/ignore/storage.yml:233 | LogRecord.cs:GetInlineKey | 留 | 零痕迹（rust 键内联读在 wrecord record_mut.rs:153 key()，理由未点名，留但不宜据此改锚）
+js/check/ignore/storage.yml:235 | LogRecord.cs:GetObjectLogRecordStartPositionAndLengths | 留 | 对象日志物理层在 rust 不存在（同块 ObjectAllocatorImpl 理由）
+js/check/ignore/storage.yml:236 | LogRecord.cs:GetOptionalFieldsSpan | 留 | 零痕迹
+js/check/ignore/storage.yml:237 | LogRecord.cs:GetOptionalStartAddress | 留 | 零痕迹
+js/check/ignore/storage.yml:239 | LogRecord.cs:GetSerializedSize | 留 | 零痕迹；序列化长度由 wrecord header.rs 位域就地算
+js/check/ignore/storage.yml:240 | LogRecord.cs:GetValueHeapMemorySize | 留 | 同 221
+js/check/ignore/storage.yml:242 | LogRecord.cs:InitializeHeadersForNewRecord | 留 | 零痕迹（rust 构头在 wrecord/src/header.rs，无同名具口）
+js/check/ignore/storage.yml:244 | LogRecord.cs:OnDeserializationError | 留 | 零痕迹，.NET 反序列化回调面
+js/check/ignore/storage.yml:245 | LogRecord.cs:OnObjectReadComplete | 留 | 零痕迹
+js/check/ignore/storage.yml:246 | LogRecord.cs:PopulateRecordSizeInfoForIPU | 留 | 零痕迹；IPU 在 rust 为 update_value_with_slack（record_mut.rs:261），非同名口
+js/check/ignore/storage.yml:247 | LogRecord.cs:PrepareForRevivification | 留 | rust 复活面为 record_mut.rs:267 revivify_with_slack，语义并入，无独立准备口
+js/check/ignore/storage.yml:248 | LogRecord.cs:RemapOverPinnedTransientMemory | 留 | 同 226
+js/check/ignore/storage.yml:249 | LogRecord.cs:RemoveETag | 留 | wrecord 无 etag 函数面（ETag 位在 header.rs 位域），理由与现刻一致
+js/check/ignore/storage.yml:250 | LogRecord.cs:RemoveExpiration | 留 | 叙述行 ttl.rs:27 指的是 `RMWMethods.cs` 的 GETEX 分支，非本 C# 口
+js/check/ignore/storage.yml:251 | LogRecord.cs:RepointObjectLogPosition | 留 | 零痕迹
+js/check/ignore/storage.yml:252 | LogRecord.cs:SetDataHeader | 留 | 零痕迹
+js/check/ignore/storage.yml:253 | LogRecord.cs:SetDeserializedValueObject | 留 | 零痕迹
+js/check/ignore/storage.yml:255 | LogRecord.cs:SetObjectLogRecordStartPositionAndLength | 留 | 零痕迹
+js/check/ignore/storage.yml:256 | LogRecord.cs:SetRecoveredObjectLogRecordStartPosition | 留 | 零痕迹
+js/check/ignore/storage.yml:257 | LogRecord.cs:SetReuseObjectIdForSize | 留 | 零痕迹
+js/check/ignore/storage.yml:259 | LogRecord.cs:ToString | 留 | 他路径锚属 `RecordInfo.cs:ToString`（wrecord/src/header.rs:590）与 `LightEpoch.cs:Entry.ToString`（wepoch/src/epoch.rs:817），均非同口
+js/check/ignore/storage.yml:260 | LogRecord.cs:TryCopyFrom | 留 | 零痕迹（裸词只在无关注释出现）
+js/check/ignore/storage.yml:261 | LogRecord.cs:TryReinitializeValueLength | 留 | 零痕迹
+js/check/ignore/storage.yml:262 | LogRecord.cs:TrySetContentLengths | 留 | 零痕迹
+js/check/ignore/storage.yml:263 | LogRecord.cs:TrySetContentLengthsAndPrepareOptionals | 留 | 零痕迹
+js/check/ignore/storage.yml:264 | LogRecord.cs:TrySetETag | 留 | 同 249
+js/check/ignore/storage.yml:265 | LogRecord.cs:TrySetExpiration | 留 | 他路径锚属 `MainStore/RMWMethods.cs:TrySetExpiration`（wkv/src/ttl.rs:273），C# 两处同名不同层
+js/check/ignore/storage.yml:266 | LogRecord.cs:TrySetPinnedValueLength | 留 | 零痕迹（注意：同名近亲 `TrySetPinnedValueSpan` 未登记、rust 承接口在位 → 第一节甲族 11，须与本块同棒复核）
+js/check/ignore/storage.yml:267 | LogRecord.cs:TrySetValueObject | 留 | 零痕迹
+js/check/ignore/storage.yml:268 | LogRecord.cs:TrySetValueObjectAndPrepareOptionals | 留 | 叙述行 wkv/src/session/raw/write/mod.rs:57 指的是 `ObjectStore/RMWMethods.cs` 路径下的同名口
+js/check/ignore/storage.yml:269 | LogRecord.cs:TrySetValueSpanAndPrepareOptionals | 留 | 零痕迹
+块级提醒：本块理由自称「rust 对标单点在 wrecord record_mut.rs + header.rs」，而 wrecord 现刻对该 C# 文件
+零锚点（该 crate 已锚的是 RecordInfo.cs / RecordDataHeader.cs 两族），理由的「单点」是机制面而非具名口——
+属「理由表述过头」，不改判但应在下次触碰时改为「按位域/松弛写合并承接，无逐口对位」。
+
+Utility.cs 块（13 条，storage.yml:2115-2131）——全留：
+
+js/check/ignore/storage.yml:2115 | …/core/Utilities/Utility.cs:GetCallbackErrorMessage | 留 | .NET 异常反射取串，rust 走错误类型，零痕迹
+js/check/ignore/storage.yml:2116 | Utility.cs:GetCallbackExceptionDetail | 留 | 同上
+js/check/ignore/storage.yml:2117 | Utility.cs:GetCallerInfo | 留 | 本条为 GetCurrentMethodName：运行时栈取方法名，rust 无等价且不需要，零痕迹
+js/check/ignore/storage.yml:2118 | Utility.cs:GetCurrentMilliseconds | 留 | rust 用 Instant/SystemTime 就地取
+js/check/ignore/storage.yml:2119 | Utility.cs:GetHashString | 留 | 零痕迹（wbase/src/hash.rs 仅 murmur_hash2_x64_a）
+js/check/ignore/storage.yml:2120 | Utility.cs:Is32Bit | 留 | 平台位数探测，rust 由目标三元组决定
+js/check/ignore/storage.yml:2122 | Utility.cs:Murmur3 | 留 | 核到 wbase/src/hash.rs 全文件只 murmur_hash2_x64_a 一口，与 common.yml:363/364 同口径
+js/check/ignore/storage.yml:2126 | Utility.cs:Rotr64 | 留 | 零痕迹（rust 用 rotate_right 内联于哈希实现）
+js/check/ignore/storage.yml:2127 | Utility.cs:SlowWithCancellationAsync | 留 | 取消等待辅助，rust 走 select!/CancellationToken，零痕迹
+js/check/ignore/storage.yml:2128 | Utility.cs:ThrowTsavoriteException | 留 | 零痕迹
+js/check/ignore/storage.yml:2129 | Utility.cs:WithCancellationAsync | 留 | 同 2127
+js/check/ignore/storage.yml:2130 | Utility.cs:XorBytes | 留 | 零痕迹
+js/check/ignore/storage.yml:2131 | Utility.cs:strerror | 留 | libc 错误串，平台绑定
+
+LightEpoch.cs 块（5 条）——全留：
+
+js/check/ignore/storage.yml:1084 | …/core/Epochs/LightEpoch.cs:UserWordRef | 留 | `grep -i user_word wedb/wepoch/` 零命中，理由「rust 用原生原子/通道」经核成立
+js/check/ignore/storage.yml:3714 | LightEpoch.cs:AllocateUserWord | 留 | 同上（本条即第一节 1.2 所记转入 ignore 的四名之一）
+js/check/ignore/storage.yml:3715 | LightEpoch.cs:GetMinUserWord | 留 | 同上
+js/check/ignore/storage.yml:3716 | LightEpoch.cs:ReleaseUserWord | 留 | 同上
+js/check/ignore/storage.yml:3717 | LightEpoch.cs:ThisThreadUserWord | 留 | 同上
+
+TsavoriteLog 族（8 条）——留 8（其中 2 条建议复核定性）：
+
+js/check/ignore/storage.yml:1894 | …/TsavoriteLog/TsavoriteLog.Chunked.cs:AllocateBlockPartial | 留 | rust 分块由 waof aof header::AofChunkHeader 承接，无逐块分配口
+js/check/ignore/storage.yml:1895 | TsavoriteLog.Chunked.cs:AllocateBlockPartialForTest | 留 | C# 测试专用分配钩子
+js/check/ignore/storage.yml:1901 | TsavoriteLog.Chunked.cs:MaterializeInput | 留 | 零痕迹
+js/check/ignore/storage.yml:1926 | …/TsavoriteLog/TsavoriteLog.cs:GetChecksum | 留（待复核定性） | `grep 'fn .*checksum' wedb/waof/` 零命中；若 AOF 帧需校验和则属真缺而非不承接
+js/check/ignore/storage.yml:1944 | TsavoriteLog.cs:SetCommitRecordHeader | 留 | rust 提交记录头由 waof/aof/header/basic.rs:139 set_header_type 近亲承接，非同口，宜在理由中改点名该口
+js/check/ignore/storage.yml:1945 | TsavoriteLog.cs:SetHeader | 留 | 同上，且本块另有 12 个 TsavoriteLog 名已挂规范锚（Enqueue/CommitAsync/…），说明块未整体过期
+js/check/ignore/storage.yml:1960 | TsavoriteLog.cs:ValidateAllocatedLength | 留 | 零痕迹
+js/check/ignore/storage.yml:1961 | TsavoriteLog.cs:VerifyChecksum | 留（待复核定性） | 同 GetChecksum，校验面在 rust 无口，需一次定性
+
+其余零散（9 条）——留 7 / 改 2：
+
+js/check/ignore/storage.yml:325 | …/Allocator/ObjectAllocatorImpl.cs:CreateSnapshotObjectReader | 留 | 对象日志物理层不存在（同块整面理由）
+js/check/ignore/storage.yml:869 | …/ClientSession/TransactionalConsistentReadContext.cs:IsModified | 留 | 只读会话无脏标记面；与同块 Upsert/RMW/Delete 同口径（本块尚缺 RMW/Refresh 两名的登记，见第一节乙族）
+js/check/ignore/storage.yml:873 | TransactionalConsistentReadContext.cs:ResetModified | 留 | 同上
+js/check/ignore/storage.yml:1634 | …/Index/Tsavorite/Implementation/FindRecord.cs:TryFindRecordForPendingOperation | 留 | rust pending 面由 wkv raw 会话单点探针承接，理由点名 raw/mod.rs
+js/check/ignore/storage.yml:1636 | FindRecord.cs:TryFindRecordInMainLogForPendingOperation | 留 | 同上
+js/check/ignore/storage.yml:1849 | …/Index/Tsavorite/TsavoriteBase.cs:UpdateSlot | 留 | windex 表侧槽更新为私有内联（table.rs classify_slot 族），无具名口
+js/check/ignore/storage.yml:2583 | …/Index/Common/PendingState.cs:CopyFrom | 留 | 理由「零调用方 + 字节切片原生」成立
+js/check/ignore/storage.yml:— | （本块无第 8 条改判，改判两条在 common/client 交界，下列） | — | —
+
+js/check/ignore/client.yml:95 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsMemoryByteArray | 留 | 客户端 SDK 应答分型，rust 传输层无该分型口
+js/check/ignore/client.yml:96 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsNumber | 改 | `wedb/wconn/src/parser.rs:70` doc 已点名该 C# 口却写成「…（libs/client/GarnetClientProcessReplies.cs:86）」行号形态，CS_REF_REGEX 不认 → 改规范锚后条目自动淘汰
+
+注：client.yml 两条按题面属「剩余块」，因与上表同批取数一并判尽，剩余数已相应扣除。
+
+### 2.4 剩余块（未逐条判，标注剩余数与分块建议）
+
+- server.yml：32 条待判（该文件 51 KB / 函数级条目最多，是暗集里唯一还没逐条过的主块）。
+  建议按 C# 文件域切两批：Resp/RespServerSession + Parser/SessionParseState 域 16 条
+  （含 server.yml:232 `SessionParseState.cs:Slice`——本单已单独核到 rust 有
+  `wresp/src/session_parse_state.rs:55 pub fn slice` 实口，判「改」，可直接进首批）、
+  Storage/ + TLS/ + AOF/ 域 16 条。
+- playground.yml：7 条（playground/Bitmap/BitCount.cs 一族演练脚本，理由「非生产运行时代码」独立成立，
+  预计全留；唯一提醒：同文件 `__simd_popcX128` 未登记，见第一节乙族末条）。
+- libs/server/Resp/Bitmap/BitmapManagerBitCount.yml：1 条（`__simd_popcX128`，留，SIMD ISA 档位）。
+- 合计剩余 40 条（原 42，扣除本单已顺手判尽的 client 2 条）。
+
+### 2.5 第二节立即派单建议 Top 3
+
+票 1 slug: ignore-dark-entry-slice-and-reply-number
+射程文件: wedb/wresp/src/session_parse_state.rs、wedb/wconn/src/parser.rs、
+js/check/ignore/server.yml（:232）、js/check/ignore/client.yml（:96）
+判据: 130 条暗集中现刻仅有两条可判「改」且证据已核到实口（rust `slice()` 与 parser.rs 数值应答链），
+一次改注释即触发自动淘汰，是「暗条目复活即假绿」警告下唯一确定能收的两条。工作量: 2 处注释 + 复跑 check.js 验回写。
+
+票 2 slug: ignore-server-block-dark-review
+射程文件: js/check/ignore/server.yml
+判据: 剩余 32 条集中在该文件（Resp/Parser/Storage/TLS/AOF 五域），本单未判；须逐条给
+「删/留/改」并按 2.1 的三条判据留证据。工作量: 只读判读 + 少量 yml 改动，禁动代码。
+
+票 3 slug: ignore-logrecord-block-reason-truthing
+射程文件: js/check/ignore/storage.yml（:220-269 块、:1926/:1961 两条）
+判据: LogRecord 41 条判「留」但块理由把 rust 侧说成「对标单点」，而 wrecord 对该 C# 文件零锚；
+另有 GetChecksum/VerifyChecksum 两名「留」得勉强（rust 无校验和口，可能是真缺）。
+本票只做两件事：块理由改为准确表述 + 对两名做「真缺/不承接」定性，若定真缺则另开实现票。
 
 ## 第三节 裸文件名锚点按 crate 分批
 
