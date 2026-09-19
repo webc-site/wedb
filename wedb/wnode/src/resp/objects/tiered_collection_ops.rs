@@ -201,10 +201,9 @@ fn tree_del(ctx: &mut TieredCtx<'_>, tree: &BfTreeService, member: &[u8]) -> BfT
 ///
 /// 置脏归调用方判定（本漏斗不置脏）：新增计数与「树内容是否实际变更」在
 /// 覆盖写族上天然分叉，只有命令语义能定夺——
-/// - HSET/HMSET 覆盖既有字段：计数为 0 但值字节被替换，C#
-///   libs/server/Objects/Hash/HashObjectImpl.cs:HashSet 变更分支同样重写记录
-///   → 写成功即置脏；
-/// - SADD 重复成员：C# libs/server/Objects/Set/SetObjectImpl.cs:Set 对已存
+/// - HSET 新增/覆写字段：对标 C# HashObjectImpl.cs 的 HashSet 变更分支
+///   同样重写记录 → 写成功即置脏；
+/// - SADD 重复成员：C# SetObjectImpl.cs 的 Set 对已存
 ///   成员零字典写（计数与写入天然同步），树内容逐位不变 → 计数为 0 即不置脏
 ///
 /// 调用方须先经 [`tiered_precheck`] 全量预校验（任一成员越契约即整体失败、

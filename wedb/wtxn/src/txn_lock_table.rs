@@ -103,7 +103,7 @@ impl TxnLockTable {
 
   /// 尝试取桶共享闩；竞争即返回 false
   ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:TryAcquireSharedLatch
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs:TryLockShared
   #[inline]
   pub fn try_lock_shared(&self, bucket: usize) -> bool {
     self.pin().bucket(bucket).try_lock_shared()
@@ -111,7 +111,7 @@ impl TxnLockTable {
 
   /// 尝试取桶独占闩（读者未排空即回退并返回 false）
   ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:TryAcquireExclusiveLatch
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs:TryLockExclusive
   #[inline]
   pub fn try_lock_exclusive(&self, bucket: usize) -> bool {
     self.pin().bucket(bucket).try_lock_exclusive()
@@ -119,7 +119,7 @@ impl TxnLockTable {
 
   /// 放桶共享闩
   ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:ReleaseSharedLatch
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs:UnlockShared
   #[inline]
   pub fn unlock_shared(&self, bucket: usize) {
     self.pin().bucket(bucket).unlock_shared();
@@ -127,7 +127,7 @@ impl TxnLockTable {
 
   /// 放桶独占闩
   ///
-  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:ReleaseExclusiveLatch
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs:UnlockExclusive
   #[inline]
   pub fn unlock_exclusive(&self, bucket: usize) {
     self.pin().bucket(bucket).unlock_exclusive();
