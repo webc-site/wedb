@@ -270,7 +270,11 @@ impl<D: Device> WedbStore<D> {
   ) -> Result<Self> {
     let (range_index, temp_range_index_dir) =
       Self::init_range_index(&config, Some(Arc::clone(&epoch)))?;
-    let reviv_pool = Arc::new(FreeRecordPool::new());
+    // 复活池：启用位由 StoreConfig.enable_revivification 单点注入（对标 C#
+    // RevivificationManager 构造期按 EnableRevivification 决定 revivSuspendCount
+    // 初值），此后 `reviv_pool.is_enabled()` 即 C# `IsEnabled`，同时承载
+    // 「未启用」与「迁移暂停」两义；分桶容量与统计恒在，不开启亦零成本。
+    let reviv_pool = Arc::new(FreeRecordPool::new(config.enable_revivification));
     let read_cache = Arc::new(
       ReadCache::new(
         config.page_size,

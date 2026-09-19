@@ -148,7 +148,7 @@ fn first_fit_allocation_sequence() -> Void {
 fn min_address_put_boundary() -> Void {
   info!("> min_address_put_boundary [对标 C# SimpleMinAddressAddTest]");
 
-  let pool = FreeRecordPool::new();
+  let pool = FreeRecordPool::new(true);
   let min_addr = 0x2000u64;
 
   // 低于 min_address，拒绝存入并计入丢弃
@@ -170,7 +170,7 @@ fn min_address_put_boundary() -> Void {
 fn min_address_take_invalidation() -> Void {
   info!("> min_address_take_invalidation [对标 C# SimpleMinAddressTakeTest]");
 
-  let pool = FreeRecordPool::new();
+  let pool = FreeRecordPool::new(true);
 
   // 1. 存入有效记录
   assert!(pool.put(0x2000, 64, 0x1000));
@@ -194,7 +194,7 @@ fn min_address_take_invalidation() -> Void {
 fn bin_selection_partition_point() -> Void {
   info!("> bin_selection_partition_point [对标 C# BinSelectionTest]");
 
-  let pool = FreeRecordPool::new();
+  let pool = FreeRecordPool::new(true);
   assert_eq!(pool.bins.len(), 13);
 
   // 极小尺寸边界（16B 起步，对齐 wrecord HEADER_SIZE 与 C# MinRecordSize）

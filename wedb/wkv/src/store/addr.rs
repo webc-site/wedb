@@ -104,6 +104,25 @@ impl<D: Device> WedbStore<D> {
     self.hlog.begin_address()
   }
 
+  /// 复活下限逻辑地址单点推导：`tail - (tail - read_only) × revivifiable_fraction`
+  ///
+  /// 可变区中最靠后的指定比例窗口才允许原地复活墓碑 / 复用空闲槽位，防止复活写紧贴
+  /// 只读区边界被并发只读线推进追尾。链内原地复活与池取两臂、以及各处槽位归还门槛
+  /// 一律直调本方法，绝不在下游重写公式（对标 C# `GetMinRevivifiableAddress` 单点：
+  /// InternalUpsert.cs:125、InternalRMW.cs:126、BlockAllocate.cs:57、
+  /// FreeRecordPool.cs:520/:535 全部经 Helpers.cs 这一处）。
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:GetMinRevivifiableAddress
+  #[inline]
+  pub fn min_revivifiable_address(&self) -> u64 {
+    let read_only = self.hlog.read_only_address();
+    let tail = self.hlog.tail_address();
+    let window = tail - read_only;
+    // f64 比例换算可能因舍入越出窗口，钳制到 [0, window] 保证下限不低于 read_only
+    let frac = ((window as f64) * self.config.revivifiable_fraction) as u64;
+    tail.saturating_sub(frac.min(window))
+  }
+
   /// 推进 ReadOnlyAddress（进入该地址之前的记录将变为只读，后续更新触发 CopyUpdate）
   ///
   /// 复活池联动：随只读线推进显式调度 `purge_below`（对标 C# RevivificationManager 随

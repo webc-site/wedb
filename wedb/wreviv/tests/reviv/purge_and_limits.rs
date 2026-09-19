@@ -232,7 +232,7 @@ fn best_fit_scan_limit_clamping() -> Void {
 fn boundary_parameter_defense() -> Void {
   info!("> boundary_parameter_defense [边界条件防御审查]");
 
-  let pool = FreeRecordPool::new();
+  let pool = FreeRecordPool::new(true);
 
   // 1. address = 0 无效地址防御
   assert!(!pool.put(0, 64, 0));
