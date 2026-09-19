@@ -112,7 +112,7 @@ impl SortedSetObject {
   pub(crate) fn get_options(
     &self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     curr_token_idx: &mut usize,
   ) -> Option<SortedSetAddOption> {
     let mut options = SortedSetAddOption::NONE;
@@ -165,7 +165,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_add(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     self.delete_expired_items();
@@ -286,7 +286,7 @@ impl SortedSetObject {
   /// ZREM：批量移除成员
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetRemove
-  pub(crate) fn sorted_set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_remove(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let mut removed = 0_i64;
@@ -309,7 +309,7 @@ impl SortedSetObject {
   /// ZCARD：成员计数
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetLength
-  pub(crate) fn sorted_set_length(&mut self, output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_length(&mut self, output: &mut ObjectOutput<'_>) {
     // Check both objects
     debug_assert_eq!(
       self.sorted_set_dict.len(),
@@ -325,7 +325,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_score(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let member = args[0];
@@ -343,7 +343,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_scores(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let count = args.len();
@@ -363,7 +363,7 @@ impl SortedSetObject {
   /// ZCOUNT：分值区间成员计数
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetCount
-  pub(crate) fn sorted_set_count(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_count(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     let min_param = args[0];
     let max_param = args[1];
 
@@ -408,7 +408,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     self.delete_expired_items();
@@ -469,7 +469,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let range_opts = SortedSetRangeOpts::from_bits_truncate(arg2 as u8);
@@ -647,7 +647,7 @@ impl SortedSetObject {
         // BYSCORE 与 BYLEX 相互独立："ZRANGE k 1 3 BYSCORE BYLEX" 时上方已写过
         // 数组回复，须回退到本命令负载起点再写错误（两份回复会令 RESP 流失步；
         // 对标 writer.ResetPosition）
-        output.payload.clear();
+        output.reset();
         RespWriter::new_ref(&mut output.payload)
           .write_error_bytes(RESP_ERR_MIN_MAX_NOT_VALID_STRING.as_bytes());
         output.result1 = RANGE_ERROR;
@@ -673,7 +673,7 @@ impl SortedSetObject {
     count: usize,
     resp_protocol_version: u8,
     iterator: impl Iterator<Item = (f64, B)>,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     if with_scores && resp_protocol_version >= 3 {
       RespWriter::new_ref(&mut output.payload).write_array_length(count);
@@ -705,7 +705,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_range_by_rank(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -769,7 +769,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_range_by_score(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -818,7 +818,7 @@ impl SortedSetObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let mut count = (arg1 >> 2) as i64;
@@ -888,7 +888,7 @@ impl SortedSetObject {
   pub(crate) fn sorted_set_remove_or_count_range_by_lex(
     &mut self,
     args: &[&[u8]],
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     op: SortedSetOperation,
   ) {
     // 以 i32::MIN 标记部分执行（resp 层据此中止）
@@ -932,7 +932,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     arg1: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     ascending: bool,
   ) {
@@ -998,7 +998,7 @@ impl SortedSetObject {
     _args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
     op: SortedSetOperation,
   ) {
@@ -1060,7 +1060,7 @@ impl SortedSetObject {
   /// ZPERSIST：批量清除成员过期
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetPersist
-  pub(crate) fn sorted_set_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput) {
+  pub(crate) fn sorted_set_persist(&mut self, args: &[&[u8]], output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     let num_fields = args.len();
@@ -1083,7 +1083,7 @@ impl SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     let is_milliseconds = arg1 == 1;
     let is_timestamp = arg2 == 1;
@@ -1128,7 +1128,7 @@ impl SortedSetObject {
     args: &[&[u8]],
     arg1: i32,
     arg2: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
   ) {
     self.delete_expired_items();
 
@@ -1151,7 +1151,7 @@ impl SortedSetObject {
   /// ZCOLLECT：占位收集操作（清除过期后确认存活）
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:SortedSetCollect
-  pub fn sorted_set_collect(&mut self, output: &mut ObjectOutput) {
+  pub fn sorted_set_collect(&mut self, output: &mut ObjectOutput<'_>) {
     self.delete_expired_items();
 
     output.result1 = 1;
@@ -1396,7 +1396,7 @@ impl SortedSetObject {
     &mut self,
     args: &[&[u8]],
     limit_count_in_output: i32,
-    output: &mut ObjectOutput,
+    output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
     let params = match read_scan_input(args, limit_count_in_output) {

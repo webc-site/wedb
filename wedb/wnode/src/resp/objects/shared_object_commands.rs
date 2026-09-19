@@ -94,7 +94,7 @@ impl RespServerSession {
     object_type: GarnetObjectType,
     scan_count_limit: i32,
     output: &mut Vec<u8>,
-    operate: impl FnOnce(u8, &[&[u8]], i32, &mut ObjectOutput),
+    operate: impl FnOnce(u8, &[&[u8]], i32, &mut ObjectOutput<'_>),
   ) -> bool {
     match scan_validate(object_type, parse_state) {
       ScanOutcome::WrongNumArgs { cmd_name } => {
@@ -104,9 +104,9 @@ impl RespServerSession {
         self.abort_with_error_message(cs::RESP_ERR_GENERIC_INVALIDCURSOR.as_bytes(), output)
       }
       ScanOutcome::Ready { sub_id, args } => {
-        let mut obj_out = ObjectOutput::new();
+        // 扫描负载直写会话输出尾段（构造 → 消费区间无旁路写入）
+        let mut obj_out = ObjectOutput::mount(output);
         operate(sub_id, args, scan_count_limit, &mut obj_out);
-        output.extend_from_slice(&obj_out.payload);
         true
       }
     }
@@ -275,7 +275,7 @@ impl RespServerSession {
     parse_state: &[&[u8]],
     object_type: GarnetObjectType,
     load: impl FnOnce(&wkv::BatchStoreSession<'_, D>, &[u8], &mut Vec<u8>) -> ObjLoad<T>,
-    operate: impl FnOnce(&mut T, u8, &[&[u8]], i32, &mut ObjectOutput),
+    operate: impl FnOnce(&mut T, u8, &[&[u8]], i32, &mut ObjectOutput<'_>),
     store: &wkv::BatchStoreSession<'_, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
@@ -454,16 +454,14 @@ pub(crate) mod slow {
             return Ok(());
           }
           wcol::ObjLoad::Present(mut obj) => {
-            let mut obj_out = ObjectOutput::new();
             obj.operate(
               sub_id,
               args,
               0,
               scan_count_limit,
-              &mut obj_out,
+              &mut ObjectOutput::mount(output),
               resp_version,
             );
-            output.extend_from_slice(&obj_out.payload);
             return Ok(());
           }
         }

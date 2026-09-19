@@ -54,7 +54,7 @@ async fn list_rmw_cold(
       ListObject::new,
       |o: &ListObject| o.list.is_empty(),
       |o: &ListObject| o.to_blob(),
-      |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+      |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
       should_write_back,
     ),
   )
@@ -239,9 +239,10 @@ pub(crate) async fn list(
       }
       None => Ok(()),
       Some(Some(mut obj)) => {
-        let obj_out = run_operate(&mut obj, op, args, 0, 0, resp_version);
+        // LPUSH 族仅回填 result1（无负载段），写回失败由外层统一落错
+        let result1 = run_operate(&mut obj, op, args, 0, 0, resp_version, output).result1;
         save_or_gc(storage, key, &obj).await?;
-        output.write_resp_int(obj_out.result1);
+        output.write_resp_int(result1);
         notify(key);
         Ok(())
       }
@@ -290,6 +291,7 @@ pub(crate) async fn list(
             start,
             stop,
             resp_version,
+            output,
           );
           match save_or_gc(storage, key, &obj).await {
             Ok(()) => output.extend_from_slice(cs::RESP_OK),
@@ -310,16 +312,14 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_EMPTYLIST),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          output.extend_from_slice(
-            &run_operate(
-              &mut obj,
-              ListOperation::Lrange,
-              &[],
-              start,
-              stop,
-              resp_version,
-            )
-            .payload,
+          run_operate(
+            &mut obj,
+            ListOperation::Lrange,
+            &[],
+            start,
+            stop,
+            resp_version,
+            output,
           );
         },
       )
@@ -336,11 +336,12 @@ pub(crate) async fn list(
         output,
         |output| output.write_resp_null_ver(resp_version),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Lindex, &[], index, 0, resp_version);
-          if obj_out.result1 == -1 {
+          // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+          let result1 =
+            run_operate(&mut obj, ListOperation::Lindex, &[], index, 0, resp_version, output)
+              .result1;
+          if result1 == -1 {
             output.write_resp_null_ver(resp_version);
-          } else {
-            output.extend_from_slice(&obj_out.payload);
           }
         },
       )
@@ -360,10 +361,10 @@ pub(crate) async fn list(
           }
         },
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Lpos, args, 0, 0, resp_version);
-          if obj_out.result1 != -1 {
-            output.extend_from_slice(&obj_out.payload);
-          } else {
+          // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+          let result1 = run_operate(&mut obj, ListOperation::Lpos, args, 0, 0, resp_version, output)
+            .result1;
+          if result1 == -1 {
             output.write_resp_null_ver(resp_version);
           }
         },
@@ -377,15 +378,16 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(&mut obj, ListOperation::Linsert, args, 0, 0, resp_version);
-          if obj_out.result1 > 0 {
+          let result1 = run_operate(&mut obj, ListOperation::Linsert, args, 0, 0, resp_version, output)
+            .result1;
+          if result1 > 0 {
             if save_or_gc(storage, key, &obj).await.is_err() {
               output.write_resp_error(cs::RESP_ERR_GENERIC);
               return;
             }
             notify(key);
           }
-          output.write_resp_int(obj_out.result1);
+          output.write_resp_int(result1);
         },
       )
       .await
@@ -402,19 +404,14 @@ pub(crate) async fn list(
         output,
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
-            &mut obj,
-            ListOperation::Lrem,
-            &[element],
-            count,
-            0,
-            resp_version,
-          );
-          if obj_out.result1 > 0 && save_or_gc(storage, key, &obj).await.is_err() {
+          let result1 =
+            run_operate(&mut obj, ListOperation::Lrem, &[element], count, 0, resp_version, output)
+              .result1;
+          if result1 > 0 && save_or_gc(storage, key, &obj).await.is_err() {
             output.write_resp_error(cs::RESP_ERR_GENERIC);
             return;
           }
-          output.write_resp_int(obj_out.result1);
+          output.write_resp_int(result1);
         },
       )
       .await
@@ -431,22 +428,24 @@ pub(crate) async fn list(
         // C# NOTFOUND → ERR no such key
         |output| cs::write_error_raw(output, cs::RESP_ERR_GENERIC_NOSUCHKEY),
         async move |mut obj: ListObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          let mut obj_out = run_operate(
             &mut obj,
             ListOperation::Lset,
             &[idx_val, element],
             0,
             0,
             resp_version,
+            output,
           );
-          if obj_out.payload.first() == Some(&b'+')
+          if obj_out.payload_view().first() == Some(&b'+')
             && let Err(()) = save_or_gc(storage, key, &obj).await
           {
-            output.clear();
+            // 回退挂载点改写错误帧（+OK 负载不得与错误帧拼帧）
+            obj_out.reset();
             output.write_resp_error(cs::RESP_ERR_GENERIC);
             return;
           }
-          output.extend_from_slice(&obj_out.payload);
+          // +OK / 对象层错误负载均已直写会话输出尾段
         },
       )
       .await

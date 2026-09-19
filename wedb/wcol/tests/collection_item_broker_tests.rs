@@ -192,10 +192,11 @@ fn list_item_helpers() {
   );
   assert_eq!(moved, Some(b"b".to_vec()));
   // 断言走 operate 面（LINDEX → list_index 单点实现）
-  let mut output = ObjectOutput::new();
+  let mut sink = Vec::new();
+  let mut output = ObjectOutput::mount(&mut sink);
   assert!(dst.operate(ListOperation::Lindex as u8, &[], 0, 0, &mut output, 2));
   assert_eq!(output.result1, 1);
-  assert_eq!(output.payload, b"$1\r\nb\r\n");
+  assert_eq!(output.payload_view(), b"$1\r\nb\r\n");
 }
 
 /// 确定性单线程驱动主循环：验证 阻塞等待 → 挂队 → 集合更新 → 指派 → 解除 全链路
