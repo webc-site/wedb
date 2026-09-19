@@ -145,3 +145,66 @@ HSET 不同字段断言字段不丢），当前 wedb/wnode/tests 无并发同键
 `cargo check --workspace --all-targets` exit 0 / warning 0；`cargo nextest run -p wkv -p wnode`
 1332 passed（1 leaky）/ 1 skipped / 0 failed；rustfmt 本票 14 枚载荷文件全 OK；
 `bun js/check.js` 前后各 4701 字节、exit 0 双绿、零 ignore 回写、仅两枚行号漂移无映射增减。
+
+---
+
+## 主代理委派收口判词（收口子代理现刻复核，dev 尖 862c256；证据全取 HEAD，未读工作区）
+
+本票不独立改内核，故复核对象是「三项独占增量在 dev 现尖是否仍成立」+「锁源单点补录项是否已落」，
+逐条现刻取证如下。
+
+### 一、落地 sha 链
+
+9b199e2（wkv 窗口收口）→ 2121497（慢路径六臂接窗）→ 968aab1（回归 + 锁源注释订正）→ 0b868f2 →
+**merge 2495601**（`Merge branch 'dev' into fix-rmw-atomic-window`，再回合 dev 至 18b0789），
+该 merge 相对 dev 父净贡献 14 files +1226/−105。
+两点簿记实况（详见收口单同段，此处只登记结论）：其一，2495601 不在 dev 第一亲链上，
+经 `97b097f` 侧链汇入主链；其二，两票已在 `7999624` 完成 `task/ing → task/done` 的 `git mv`，
+本代理现刻 `task/ing/` 零副本，故本棒无 mv 动作，仅追加本段。
+
+### 二、三项独占增量现刻核（全在位）
+
+1. **读侧取证**：`wnode/src/storage/session/common/user_read.rs:174 read_user_sync`
+   （带前缀臂 `:188`）→ `wkv/src/session/mod.rs:285 with_session_consistent_read`
+   一致性读臂仍不对键取桶锁，原样未动；本票所指缺口靠**调用序**消灭——命令臂一律先取窗再读
+   （`incr.rs:129→134`、`set.rs:228→231`/`:581→584`、`bitmap_commands.rs:77→80`/`:459→465`、
+   `hyper_log_log_commands.rs:379/:499`、`rmw_helpers.rs:600`、`txn_proc_view.rs:120→121`）。
+   全仓写回面已无「无锁读 + 无窗写」两步式：`try_rmw_sync`/`upsert_rmw` 仅存
+   `wkv/src/session/raw/write/rmw.rs:19 impl RmwWindow` 的 `:43`/`:81` 两枚定义，16 处调用点接收者全为 `window.`。
+2. **桶闩对位为唯一底层**：`windex/src/bucket.rs:109 try_lock_exclusive`、`:236 unlock_exclusive`、
+   `:249 is_latched_exclusive`、`:481 lock_exclusive_guard` → `:563 pub type KeyLatch<'a> =
+   BucketExclusiveGuard<'a>`（别名，不引入第二份锁实现）；
+   对位 C# `HashBucket.TryAcquireExclusiveLatch/Release` 与
+   `ISessionLocker.cs:BasicSessionLocker.TryLockEphemeralExclusive` 的注释锚仍在
+   `rmw_window.rs:1-11` 模块头。
+3. **禁令守住**：载荷 `rmw_window.rs`/`raw/write/rmw.rs`/`slow.rs`/回归测试 grep
+   `Mutex<|RwLock<|LazyLock|OnceLock|striped` **零命中**，无私有锁表、无与 `wtxn` 条带表并联；
+   三面同址同闩现刻复点：`rmw_window.rs:217/:249`（自取）+ `wkv/src/ttl.rs:459/:511` +
+   `wtxn/src/txn_lock_table.rs:116-117`（`self.pin().bucket(b).try_lock_exclusive()` 转发），
+   窗口与 `TxnKeyEntries::acquire_plan` 同款形态（钉 `Arc<HashIndex>` + 纯桶下标 `rmw_window.rs:102`）。
+
+### 三、锁源单点（15:20 补录必改项）现刻核
+
+旧族 `acquire_keys_lock_exclusive` / 裸 `lock_key_exclusive` 全仓 grep（含 README、含注释）**0 命中**；
+票面正文 `:21-22`、`:49-53` 的旧口引用属立项期实况，保留不改（散文历史态），
+唯一现行入口 `windex/src/table.rs:601 HashIndex::try_lock_key_exclusive` 在位、
+`windex/readme` 与 `windex/README` 已按「单次尝试、无自旋、无超时，重试预算由调用方承接」口径书写。
+本窗口不自建守卫、以 `Drop`（`rmw_window.rs:120-128`）承载放闩，与补录要求不冲突。
+
+### 四、票面「验证」段现刻核
+
+要求 INCR 终值 = 次数、APPEND 尾段全在、HSET 字段不丢：`wnode/tests/rmw_key_concurrency.rs`
+（HEAD 741 行 / 12 枚 `#[test]`）warm 四例 `:125/:156/:207/:243` 即为该三问加 PFADD 参照，
+另有窗口层三例 `:370/:400/:433` 与冷化扇出五例 `:499/:553/:605/:653/:701`；
+摘闩反证 12/12 红为三棒现场取证，本代理未复跑（不碰工作区、不改码）。
+
+### 五、遗留项
+
+- `windex/src/bucket.rs` 五枚锚点相对本票判词各下移 5 行（判词 113/241/254/486/568 → 现刻
+  109/236/249/481/563），属后续 dev 棒插行，机制未变；本段数字为准。
+- 本票消费面所依赖的 windex 签名在 `8fb4123`、`862c256` 两棒锁 API 重构后逐枚核到未改；
+  workspace check / nextest 未在现刻复跑，归主代理门禁。
+- 与 `wtxn-lock-stripe-count-parity` 共用的「windex 桶闩是唯一锁源」结论现刻仍成立；
+  两基并存期（`user_key` 桶 vs 记录物理键桶）交错面按收口单第六节移交，本票不另立项。
+
+结论：**三项独占增量与锁源单点补录全数在位，无缺口**；本票维持 **done**。
