@@ -343,7 +343,7 @@ mod tests {
       value: Some("key".to_string()),
       key_spec_index: 0,
     };
-    let mut w = RespWriter::<Vec<u8>, Resp3>::new_p();
+    let mut w = RespWriter::<Vec<u8>, Resp3>::new();
     arg.to_resp_format(&mut w);
     let text = String::from_utf8(w.into_inner()).unwrap();
     // C# Key 参数 RESP 面只出 name/type/key_spec_index 三键（RESP3 %3）

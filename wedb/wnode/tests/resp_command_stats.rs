@@ -160,7 +160,7 @@ fn command_stats_calls_tracking_test() {
 fn command_stats_failed_calls_test() {
   let mut stats = CommandStats::new();
   stats.increment_failed(RespCommand::Setrange);
-  let entry = stats.get_entry(RespCommand::Setrange);
+  let entry = stats.entries[RespCommand::Setrange as u16 as usize];
   assert!(entry.failed_calls >= 1);
 }
 
@@ -213,7 +213,7 @@ fn command_stats_success_rate_test() {
   for _ in 0..5 {
     stats.increment_calls(RespCommand::Set);
   }
-  let entry = stats.get_entry(RespCommand::Set);
+  let entry = stats.entries[RespCommand::Set as u16 as usize];
   let success_rate = if entry.calls > 0 {
     (entry.calls - entry.failed_calls - entry.rejected_calls) as f64 / entry.calls as f64
   } else {

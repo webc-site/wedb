@@ -467,12 +467,27 @@ fn test_cluster_migrate_payload_codec_roundtrip() -> Void {
 // 已确认传输键、接收端 REPLACE 双域存在性语义
 // ---------------------------------------------------------------------------
 
-/// 打开迁移测试专用存储（每用例独立目录，GC 关闭）
+/// 打开迁移测试专用存储（每用例独立目录，GC 关闭，reviv 关闭）
 fn migrate_store(tag: &str) -> Arc<WedbStore<SegmentedDevice>> {
+  open_migrate_store(tag, false)
+}
+
+/// 打开复活启用态的迁移测试存储
+///
+/// 断言 `reviv_pool.is_enabled()` 暂停/恢复语义的用例须以本夹具建店：该谓词已与 C#
+/// `RevivificationManager.IsEnabled` 同形（RevivificationManager.cs:18 判 revivSuspendCount
+/// == 0，:24 初值 -1，:40-43 未开启 EnableRevivification 时提前 return 使计数恒 -1），
+/// 故 `--reviv` 关时恒假，暂停与恢复无从区分，断言会退化成一边倒的空断言
+fn migrate_store_reviv(tag: &str) -> Arc<WedbStore<SegmentedDevice>> {
+  open_migrate_store(tag, true)
+}
+
+/// 迁移测试店铺建店本体（reviv 位由调用方裁决，两条入口共用，杜绝装配口径分叉）
+fn open_migrate_store(tag: &str, reviv_enabled: bool) -> Arc<WedbStore<SegmentedDevice>> {
   let dir = tempfile::tempdir().unwrap().keep();
   let device = Arc::new(SegmentedDevice::single_file(dir.join(tag)).unwrap());
   // 小预算测试配置（对标 C# 16MB 基线），GC 关闭保持历史语义
-  let config = test_store_config();
+  let config = test_store_config().with_revivification(reviv_enabled);
   Arc::new(WedbStore::open(config, device).unwrap())
 }
 
@@ -1652,7 +1667,7 @@ fn slots_migration_task_full_flow_success() {
   let rt = Runtime::new().unwrap();
   rt.block_on(async {
     let cp = two_primary_provider();
-    let store = migrate_store("st_ok.db");
+    let store = migrate_store_reviv("st_ok.db");
     let slot = SLOT0;
     let k1 = key_in_slot("st_a", slot);
     let k2 = key_in_slot("st_b", slot);
@@ -1868,7 +1883,7 @@ fn slots_migration_task_batch_reject_recovers() {
   let rt = Runtime::new().unwrap();
   rt.block_on(async {
     let cp = two_primary_provider();
-    let store = migrate_store("st_reject.db");
+    let store = migrate_store_reviv("st_reject.db");
     let slot = SLOT0;
     let k1 = key_in_slot("st_r", slot);
     {
@@ -1933,7 +1948,7 @@ fn slots_migration_task_batch_reject_recovers() {
 /// 验证复活暂停守卫 RAII 语义与退出恢复机制
 #[test]
 fn slots_migration_reviv_pause_guard_raii() {
-  let store = migrate_store("st_reviv_guard.db");
+  let store = migrate_store_reviv("st_reviv_guard.db");
   assert!(store.reviv_pool.is_enabled(), "初始状态复活池应启用");
 
   {
@@ -1959,7 +1974,7 @@ fn slots_migration_pauses_and_resumes_reviv_pool() {
     // 收尾两次 gossip 汇聚对单连接假目标必然静默，缩小时限让汇聚快速
     // 超时弃连（best-effort 不判败），不拖测试
     cp.set_cluster_node_timeout_ms(100);
-    let store = migrate_store("st_reviv_active.db");
+    let store = migrate_store_reviv("st_reviv_active.db");
     let slot = SLOT0;
     let k1 = key_in_slot("reviv_key_", slot);
     {

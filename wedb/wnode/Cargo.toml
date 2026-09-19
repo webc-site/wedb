@@ -19,7 +19,7 @@ ignored = ["rustls-pki-types", "serde"]
 
 [features]
 default = ["roaring", "json"]
-tls = ["dep:compio-tls", "dep:rustls-pki-types", "dep:rustls-pemfile"]
+tls = ["dep:compio-tls", "dep:rustls-pki-types", "dep:rustls-pemfile", "wbase/tls"]
 roaring = ["dep:wext_roaring"]
 json = ["dep:wext_json"]
 

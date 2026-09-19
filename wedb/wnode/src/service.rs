@@ -252,6 +252,10 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
         &EMPTY_REPLAY_INPUT_BYTES,
       )?;
     }
+    // RI.SET/RI.DEL 的 AOF 记录单点：C# 经 functionsState 显式调用
+    // libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexSet
+    // 与 libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexDel
+    // 两对口，rust 由本 StoreEvent 通道一处承接
     StoreEvent::RangeIndexWrite {
       ns,
       db,
@@ -1571,11 +1575,12 @@ where
         self.vector_manager.start_quantization_tasks(1);
       }
 
-      // 向量清理三常驻协程随首个 worker runtime 惰性拉起一次并托管（对标 C#
-      // VectorManager 构造器启动 RunCleanupTaskAsync/RunRequestCleanupTaskAsync/
-      // RunRequestDropTaskAsync；Rust 构造在 compio runtime 外，故与量化协程同处
-      // 首会话拉起，spawn 与本调用同 runtime。JoinHandle 收进 CleanupRuntime 托管，
-      // 停机时由 dispose_vector_cleanup 收敛释放）。
+      // 向量清理两常驻协程随首个 worker runtime 惰性拉起一次并托管（对标 C#
+      // VectorManager 构造器启动 RunCleanupTaskAsync/RunRequestCleanupTaskAsync；
+      // 第三条 RunRequestDropTaskAsync 的唯一生产点是主存记录逐出触发器，rust 无该
+      // 触发面不落地，见 vector_manager_cleanup 模块头；Rust 构造在 compio runtime 外，
+      // 故与量化协程同处首会话拉起，spawn 与本调用同 runtime。JoinHandle 收进
+      // CleanupRuntime 托管，停机时由 dispose_vector_cleanup 收敛释放）。
       self.vector_manager.ensure_cleanup_tasks_started();
     }
 
@@ -1717,7 +1722,7 @@ where
 
   /// 向量清理协程停机收敛（对标 C# `VectorManager.Dispose`）：转发
   /// [`VectorManager::dispose_cleanup`]，由宿主 `stop()` 在停 coordinator 前
-  /// 于主线程驱动，确保 worker 运行时仍在排空三条清理通道。
+  /// 于主线程驱动，确保 worker 运行时仍在排空清理通道。
   fn dispose_vector_cleanup(&self) -> bool {
     self.vector_manager.dispose_cleanup()
   }

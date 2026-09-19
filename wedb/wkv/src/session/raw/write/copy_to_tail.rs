@@ -56,7 +56,11 @@ impl<D: Device> StoreSession<D> {
     frame: u32,
   ) -> bool {
     let _guard = self.enter_gated();
-    let cas_ok = self.store.index.load().update_address(key, old_addr, new_addr);
+    let cas_ok = self
+      .store
+      .index
+      .load()
+      .update_address(key, old_addr, new_addr);
     if !cas_ok && self.store.config.enable_revivification {
       // 败帧回收（CAS 已落败，新帧不可达；对齐 GetAllocationForRetry 的
       // OnDispose(InitialWriterCASFailed) 口径，杜绝「既不置失效也不回收」泄漏）

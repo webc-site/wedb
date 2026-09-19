@@ -644,7 +644,7 @@ mod tests {
 
     // GET 文档 RESP 快照（RESP3 map 面）
     let get = try_get_resp_command_docs("get", false, false).unwrap();
-    let mut w = RespMemoryWriter::<Resp3>::new_p();
+    let mut w = RespMemoryWriter::<Resp3>::new();
     get.to_resp_format(&mut w);
     let text = String::from_utf8(w.into_inner()).unwrap();
     assert!(text.starts_with("$3\r\nGET\r\n"), "{text}");
@@ -655,7 +655,7 @@ mod tests {
     // 子命令文档以 map 收纳（RESP3）
     let config = try_get_resp_command_docs("CONFIG", false, false).unwrap();
     assert!(!config.sub_commands.is_empty());
-    let mut w = RespMemoryWriter::<Resp3>::new_p();
+    let mut w = RespMemoryWriter::<Resp3>::new();
     config.to_resp_format(&mut w);
     let text = String::from_utf8(w.into_inner()).unwrap();
     assert!(text.contains("$11\r\nsubcommands\r\n%"), "{text}");

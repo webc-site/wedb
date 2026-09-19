@@ -130,8 +130,7 @@ fn test_copy_reads_to_tail_from_immutable_region() -> Void {
         "前置条件：记录必须仍驻留内存（未驱逐）"
       );
       assert!(
-        addr_init >= store.hlog.head_address()
-          && addr_init < store.hlog.safe_read_only_address(),
+        addr_init >= store.hlog.head_address() && addr_init < store.hlog.safe_read_only_address(),
         "前置条件：记录必须落在不可变区 [head, safe_read_only)"
       );
 
@@ -147,11 +146,7 @@ fn test_copy_reads_to_tail_from_immutable_region() -> Void {
         // 索引必须改指新地址（新帧位于可变区 [tail_before, tail_after) 内）
         let phys = session.session_string_key(cold_k);
         let mounted = store.index.load().lookup_vec(&phys);
-        assert_eq!(
-          mounted.len(),
-          1,
-          "晋升挂载后该键在索引中唯指新地址"
-        );
+        assert_eq!(mounted.len(), 1, "晋升挂载后该键在索引中唯指新地址");
         let new_addr = mounted[0];
         assert!(
           new_addr >= tail_before && new_addr < tail_after && new_addr != addr_init,

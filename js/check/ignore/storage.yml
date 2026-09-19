@@ -767,10 +767,11 @@
         - CompletePendingWithOutputsAsync
         - ConsistentReadContext
         - Delete
-        - ResetModified
         - RMW
+        - ResetModified
         - Upsert
-  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接，只读会话无写接口，消除 C# IFunctions 残留死接口（Upsert/RMW/Delete）
+  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接，只读会话无写接口，消除 C#
+    IFunctions 残留死接口（Upsert/RMW/Delete）
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs
   理由: C# 会话接口面；rust 单实现直调（wkv session），接口跳板层消失
@@ -1647,7 +1648,6 @@
     - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:
         - CASRecordIntoChain
         - CanElide
-        - GetMinRevivifiableAddress
         - IsEntryVersionNew
         - IsFrozen
         - IsRecordVersionNew
@@ -3709,3 +3709,11 @@
     wepoch/tests；CancellationTests 取消语义按 rust future drop 即取消（无挂起回调面）豁免；
     SharedDirectoryTests 双实例共享日志目录属 C# 部署形态，rust 按 db 隔离目录设计 （SegmentedDevice
     单库单文件生命周期）不适用
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs:
+        - AllocateUserWord
+        - GetMinUserWord
+        - ReleaseUserWord
+        - ThisThreadUserWord
+  理由: C# LightEpoch 在 Entry 缓存行预留 48 字节 UserWord 供 TsavoriteLog 跨线程无锁跟踪
+    inflight；wedb 采用 Rust 原生原子/通道管理并发，未引入 Entry 缓存行杂质字段

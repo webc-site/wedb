@@ -29,3 +29,13 @@
   理由: rust 无对象存储独立流式写路径（信封值入队前已定长），大记录经统一
     enqueue 口自动分块；键背压闸门单点在 BackpressureWaitKey，
     BackpressureWaitKeyHash 随之无消费
+
+# 分块重组缓冲预分配算式不复刻（fix-dead-batch-six）：C# ChunkBufferSize 在
+# EnqueueChunkedObject（GarnetLog.cs:928,952）为对象堆值分块入队预分配整段
+# 重组缓冲；rust 侧对象值以信封定长切片经统一 enqueue 口入队，副本重组由
+# AofChunkedAccumulator 的 Vec 块列表动态增长承接（aof_chunked_record_reader.rs），
+# 无「先算总长再预分配」形态，wresp/wnode 全仓零生产消费，已删。
+- 文件:
+    - libs/server/AOF/GarnetLog.cs:
+        - ChunkBufferSize
+  理由: rust 分块重组为 Vec 块列表动态增长，无预分配整段缓冲算式的承接位

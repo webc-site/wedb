@@ -4,7 +4,6 @@
 //! 客户端方向；pem 解析同样经 rustls-pemfile，不引入第二套解析器。
 
 use std::{
-  fs::File,
   io,
   path::Path,
   sync::{Arc, LazyLock},
@@ -17,9 +16,10 @@ use compio_tls::{
     self as rustls_ns, ClientConfig, RootCertStore,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
     crypto::{self, WebPkiSupportedAlgorithms, ring},
-    pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime},
+    pki_types::{CertificateDer, ServerName, UnixTime},
   },
 };
+use wbase::tls::{load_certs, load_private_key};
 
 /// 集群出站 TLS 配置装配器
 ///
@@ -182,40 +182,6 @@ impl ServerCertVerifier for NoVerify {
   fn supported_verify_schemes(&self) -> Vec<rustls_ns::SignatureScheme> {
     SIGNATURE_ALGS.supported_schemes()
   }
-}
-
-/// 加载 PEM 证书链（rustls-pemfile 单一解析栈）
-///
-/// 与 wnode/src/tls/config.rs:load_certs 同源实现（crate 平级不互依）
-fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
-  let file = File::open(path)?;
-  let mut reader = io::BufReader::new(file);
-  let certs = rustls_pemfile::certs(&mut reader)
-    .collect::<Result<Vec<_>, _>>()
-    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
-  if certs.is_empty() {
-    return Err(io::Error::new(
-      io::ErrorKind::NotFound,
-      format!("未在证书文件 {} 中找到有效证书", path.display()),
-    ));
-  }
-  Ok(certs)
-}
-
-/// 加载 PEM 私钥（rustls-pemfile 单一解析栈）
-///
-/// 与 wnode/src/tls/config.rs:load_private_key 同源实现（crate 平级不互依）
-fn load_private_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
-  let file = File::open(path)?;
-  let mut reader = io::BufReader::new(file);
-  rustls_pemfile::private_key(&mut reader)
-    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?
-    .ok_or_else(|| {
-      io::Error::new(
-        io::ErrorKind::NotFound,
-        format!("未在私钥文件 {} 中找到有效私钥", path.display()),
-      )
-    })
 }
 
 #[cfg(test)]

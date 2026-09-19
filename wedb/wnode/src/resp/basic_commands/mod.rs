@@ -8,6 +8,7 @@ use wresp::resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter};
 mod get;
 mod incr;
 mod set;
+pub mod slow;
 mod ttl;
 
 use std::{mem, sync::Arc};
