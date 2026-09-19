@@ -28,7 +28,6 @@ mod event_queue;
 mod inbox;
 pub mod limited;
 mod tls;
-mod work_set;
 
 use std::{
   alloc::{Layout, dealloc},
@@ -54,7 +53,6 @@ pub use limited::{
 };
 use parking_lot::Mutex;
 pub(crate) use tls::TLS_POOLS;
-pub use work_set::EventWorkSet;
 
 use crate::{
   align::{CachePadded64, MIN_SECTOR_SIZE, is_valid_sector_size},

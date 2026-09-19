@@ -30,10 +30,13 @@ const fn ensure_len(slice: &[u8], need: usize) -> Result<()> {
   Ok(())
 }
 
+/// 元布局偏移常量默认私有（布局纪律：字段经 [`MetaValue`] 关联方法读取，偏移不外露），
+/// 仅尺寸契约常量 [`META_VALUE_SIZE`] 对外
+///
 /// collection_type 字段在 32B 元数据大端布局中的字节偏移
 const TYPE_OFFSET: usize = 8;
 /// size 字段在 32B 元数据大端布局中的字节偏移
-pub const SIZE_OFFSET: usize = 16;
+const SIZE_OFFSET: usize = 16;
 /// next_expiry 最早到期刻度在 32B 元数据大端布局中的字节偏移
 const NEXT_EXPIRY_OFFSET: usize = 24;
 /// 单个 u64 的字节长度
