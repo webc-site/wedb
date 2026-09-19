@@ -228,6 +228,7 @@
         - GetFloat
         - GetSerializedLength
         - InitializeWithArguments
+        - SetArgument
         - SetArguments
         - Slice
     - libs/server/Resp/RespCommandArgument.cs:

@@ -64,5 +64,9 @@ SIZE_OFFSET 内部消费实测在现刻 HEAD 的 :197/:198/:240（票面 :186/:2
   语料 ignore 无变动（worktree `git status` 除本体改动外全净）。
 
 落位
-- 提交 `3d6b88a`（fix，仅 wedb/wval/src/meta.rs：+4/-1）→ `git merge dev` 两回合
-  （`c15bce0`、`34b2a22`）→ 主仓 dev 纯 FF。
+- 提交 `3d6b88a`（fix，仅 wedb/wval/src/meta.rs：+4/-1）、`9e2339e`（docs 归档本票）→
+  `git merge dev` 三回合（`c15bce0`、`34b2a22`、`01ec187`，dev 侧增量皆 docs/异域，
+  meta.rs 在窗内零改动、无双花）→ 主仓 dev 纯 FF 至 `01ec187`。
+- 合入后复验：`git grep` 取 dev 现 tip 的 meta.rs，`const SIZE_OFFSET`（私有）+
+  `pub const META_VALUE_SIZE` 在册；合并态再跑 `cargo check --workspace --all-targets`
+  exit 0 / 零警告、`cargo nextest run -p wval` 17/17、`cargo fmt --check` exit 0。
