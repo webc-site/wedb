@@ -95,3 +95,5 @@ UserHandle::new :630、apply_set_user :252-311、refresh_target :683-697 与现�
 2. 快路径无新增堆分配、无每命令存储读（探针或断言：代数相等路径零 read 调用）。
 3. acl_permits 与 Lua 脚本面 acl_allows_command 同口径生效。
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
+
+盘点补记（qw13.invA acl-setuser-live-connection-propagation）：dev e75716e 复核原样：acl_commands.rs:303 apply_set_user 仍点查→复制改写→回写 AclStore，无会话通知面；:753 set_user_handle 仍无条件直挂；resp_server_session.rs acl_user_handle（:266/:923/:953）仍本地快照判定，无版本比较/存储回读。与 zero-consumer-surfaces-batch-two 的 try_set_user CAS 环仍同病灶，宜并一棒。

@@ -35,7 +35,7 @@ use aok::{Error, OK, Void};
 use compio::runtime::Runtime;
 use tempfile::TempDir;
 use waof::{AofEntryType, AofHeader, WalConfig, WalLog};
-use wbase::hash_slot::slot_of;
+use wbase::{align::DEFAULT_SECTOR_SIZE, hash_slot::slot_of};
 use wconf::RuntimeServerOptions;
 use wcpr::CheckpointType;
 use wdev::SegmentedDevice;
@@ -88,9 +88,10 @@ fn open_node(tag: &str) -> aok::Result<Node> {
   let device = Arc::new(SegmentedDevice::single_file(
     dir.path().join(format!("{tag}.db")),
   )?);
-  let wal_device = Arc::new(SegmentedDevice::segmented(
+  let wal_device = Arc::new(SegmentedDevice::new(
     dir.path().join(format!("{tag}.wal")),
-    64 * 1024,
+    Some(64 * 1024),
+    DEFAULT_SECTOR_SIZE,
   )?);
   let cp_dir = dir.path().join("ckpt");
   create_dir_all(&cp_dir)?;

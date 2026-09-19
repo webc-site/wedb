@@ -56,3 +56,5 @@ C# 参考
   payload_view / reset（geo_add 存储错误臂整体丢弃重写 → reset + 经路写），
   禁止裸 output 并用。
 - 协议字节零改动；RESP2/RESP3 分派单点（output.rs 适配口）不动。
+
+盘点补记（qw13.invA object-output-payload-direct-write）：dev e75716e 复核原样：wcol/src/resp/output.rs:29-31 ObjectOutput 仍自带 pub payload: Vec<u8> 中转向量，grep 该文件 mount/base/reset 零命中。打磨档定位不变。

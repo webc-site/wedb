@@ -326,8 +326,8 @@ fn test_open_node_gc_config() -> aok::Result<()> {
   rt.block_on(async {
     let dir = tempfile::tempdir()?;
     let db_path = dir.path().join(TEST_GC_CONFIG_DB);
-    // 小预算测试配置注入（生产缺省 open_node 走 StoreConfig::auto，大机
-    // 上规划出 GB 级索引）。默认装配 GC 禁用（对标 C#
+    // 小预算测试配置注入（生产缺省经 open_from_args 走 store_config() 的
+    // StoreConfig::auto，大机上规划出 GB 级索引）。默认装配 GC 禁用（对标 C#
     // ExpiredKeyDeletionScanFrequencySecs = -1）：槽位即唯一启停真值源，
     // 装配不越权开后台任务
     let (store, _broker, _vector_manager) = open_node_with_config(test_store_config(), &db_path)?;
