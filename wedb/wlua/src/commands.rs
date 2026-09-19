@@ -9,7 +9,10 @@ use std::sync::Arc;
 
 use wbase::{map::ConcurrentMap, num::strict_i64, time::now_ms};
 use wresp::{
-  cmd_strings::{GENERIC_ERR_WRONG_NUM_ARGS, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK},
+  cmd_strings::{
+    GENERIC_ERR_WRONG_NUM_ARGS, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_NO_SCRIPT,
+    RESP_ERR_SCRIPT_FLUSH_OPTIONS, RESP_OK,
+  },
   resp_memory_writer::RespWriter,
 };
 use wtxn::txn_lock_table::TxnLockTable;
@@ -21,9 +24,6 @@ use crate::{
   options::LuaOptions,
   runner::RespOut,
 };
-
-/// SCRIPT FLUSH 选项非法文案（本域两处复用）。
-const ERR_SCRIPT_FLUSH_OPTION: &[u8] = b"ERR SCRIPT FLUSH only support SYNC|ASYNC option";
 
 /// 全局脚本缓存（对标 storeWrapper.storeScriptCache 的
 /// ConcurrentDictionary<ScriptHashKey, LuaScriptHandle>）。
@@ -198,7 +198,7 @@ impl LuaCommands {
       EvalshaResolution::NotFound => {
         let resp = RespOut::session(ctx.out, 2);
         RespWriter::new_ref(resp.buf)
-          .write_error_bytes(b"NOSCRIPT No matching script. Please use EVAL.");
+          .write_error_bytes(RESP_ERR_NO_SCRIPT);
         return true;
       }
     };
@@ -278,12 +278,12 @@ impl LuaCommands {
   /// SCRIPT|FLUSH：可选 ASYNC/SYNC 参数校验后清空全局缓存。
   pub fn network_script_flush<S: ScriptingApi>(ctx: &mut LuaSessionContext<'_, S>) -> bool {
     if ctx.args.len() > 1 {
-      return Self::abort_with_error_message(ctx, ERR_SCRIPT_FLUSH_OPTION);
+      return Self::abort_with_error_message(ctx, RESP_ERR_SCRIPT_FLUSH_OPTIONS);
     } else if ctx.args.len() == 1 {
       // We ignore this, but should validate it
       let arg = ctx.args[0].to_ascii_uppercase();
       if arg != b"ASYNC" && arg != b"SYNC" {
-        return Self::abort_with_error_message(ctx, ERR_SCRIPT_FLUSH_OPTION);
+        return Self::abort_with_error_message(ctx, RESP_ERR_SCRIPT_FLUSH_OPTIONS);
       }
     }
 

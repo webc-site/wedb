@@ -8,8 +8,8 @@
 use wbase::num::strict_i32;
 use wresp::{
   cmd_strings::{
-    RESP_ERR_GENERIC_INDEX_OUT_RANGE, RESP_ERR_GENERIC_NOSUCHKEY, RESP_ERR_GENERIC_SYNTAX_ERROR,
-    RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK,
+    COUNT, COUNT_LOWER, RESP_ERR_GENERIC_INDEX_OUT_RANGE, RESP_ERR_GENERIC_NOSUCHKEY,
+    RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_OK,
   },
   resp_memory_writer::RespWriter,
 };
@@ -508,7 +508,7 @@ fn read_list_position_input(
 
     if sb_param == b"RANK" || sb_param == b"rank" {
       params.rank = parse_i32_arg(&mut curr_token_idx)?;
-    } else if sb_param == b"COUNT" || sb_param == b"count" {
+    } else if sb_param == COUNT || sb_param == COUNT_LOWER {
       params.count = parse_i32_arg(&mut curr_token_idx)?;
       params.is_default_count = false;
     } else if sb_param == b"MAXLEN" || sb_param == b"maxlen" {

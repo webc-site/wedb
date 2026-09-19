@@ -70,3 +70,13 @@ C# 参考
 3. windex 对外导出不含任何多键锁类型（windex/src/lib.rs 面收敛为 HashIndex + HashBucket + KeyLatch）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh，由主代理合并后统一跑）；
    js/check.js 对 OverflowBucketLockTable.cs 与 TxnKeyEntry.cs 的符号覆盖不减少。
+
+双花登记（本票认领前必读）
+并发分拣代理就 next/agy.db.md 条 2 另立了同题票 next/db-hashindex-2pl-single-orchestration.md
+（若已被消费则看它在 task/ing/ 或 task/done/ 的同名件，或已随 dev 在途）。两票同指
+windex/src/table.rs 与 wkv/src/ttl.rs，禁止两棒各改一次：派发时只取一棒，
+取本票则按上述「删引擎 + 单键闩」实施，取那票则须补上其对 RMW 两票的锁源交接说明。
+分拣补记（agy.db 条 2 增量，2026-09-19）：修法方向确认——向下单点化收敛双套 2PL 编排，禁止 wkv 依赖 wtxn。
+在途核位（2026-09-19 22:05 复核）：worktree /tmp/fork/windex-2pl-removal（分支 windex-2pl-removal）已开、
+diff 尚空，说明本题已被认领，本票即该棒的正文依据；对手薄票 next/db-hashindex-2pl-single-orchestration.md
+当下仍在 next/，派发/合并时删之，禁第二棒。

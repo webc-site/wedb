@@ -8,6 +8,7 @@ use waof::{
   Error, RECORD_HEADER_LEN, RingBuffer, WalConfig, WalFrameHeader, WalLog, WalRecord,
   WalScanIterator,
 };
+use wbase::align::DEFAULT_SECTOR_SIZE;
 use wdev::SegmentedDevice;
 
 async fn collect_iter<D: wdev::Device>(
@@ -171,7 +172,11 @@ fn test_wal_end_to_end_smoke() -> Void {
 
     // 1. 初始化并写入 30 条记录（跨越 2 个段）
     {
-      let device = Arc::new(SegmentedDevice::segmented(&db_path, seg_size)?);
+      let device = Arc::new(SegmentedDevice::new(
+        &db_path,
+        Some(seg_size),
+        DEFAULT_SECTOR_SIZE,
+      )?);
       let wal = WalLog::new(device, config)?;
 
       for i in 0..30 {
@@ -200,7 +205,11 @@ fn test_wal_end_to_end_smoke() -> Void {
 
     // 2. 模拟系统崩溃与重启：重新通过 WalLog::open 恢复
     {
-      let device = Arc::new(SegmentedDevice::segmented(&db_path, seg_size)?);
+      let device = Arc::new(SegmentedDevice::new(
+        &db_path,
+        Some(seg_size),
+        DEFAULT_SECTOR_SIZE,
+      )?);
       let wal = WalLog::open(device, config).await?;
 
       assert_eq!(wal.tail_address(), committed_tail);

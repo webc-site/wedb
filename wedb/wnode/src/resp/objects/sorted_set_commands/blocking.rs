@@ -179,7 +179,7 @@ impl RespServerSession {
     let mut count = 1_i32;
     if parse_state.len() > num_keys as usize + 2 {
       if parse_state.len() != num_keys as usize + 4
-        || !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(b"COUNT")
+        || !parse_state[num_keys as usize + 2].eq_ignore_ascii_case(cs::COUNT)
       {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
@@ -339,7 +339,7 @@ impl RespServerSession {
 
     let mut count = 1_i32;
     if parse_state.len() == num_keys as usize + 5 {
-      if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(b"COUNT") {
+      if !parse_state[num_keys as usize + 3].eq_ignore_ascii_case(cs::COUNT) {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
       }

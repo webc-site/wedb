@@ -2,9 +2,8 @@
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
 use std::{
-  ffi::OsString,
   fs::{self, File},
-  path::Path,
+  path::{Path, PathBuf},
   sync::Arc,
 };
 
@@ -113,10 +112,9 @@ impl RangeIndexManager {
     // create(true)+truncate(false) 打开基文件，残留的旧内容 (崩溃残留 / 上轮
     // 删除未竟) 会被全新索引静默继承，以幻影数据暴露给新索引；同理，前缀寻址
     // 恢复 (存根无逻辑地址，与 C# 按记录地址 PreStage 不同) 无法区分世代，
-    // 删除后残留的旧世代刷盘快照会被惰性恢复误选为新世代的恢复来源——两类
-    // 工件一并 unlink，保证新树从干净的数据文件与恢复源起步。
+    // 删除后残留的旧世代刷盘快照会被惰性恢复误选为新世代的恢复来源——数据文件
+    // 与带地址刷盘件两类工件一并 unlink，保证新树从干净的数据文件与恢复源起步。
     let _ = fs::remove_file(self.data_file_path(&hash_prefix));
-    let _ = fs::remove_file(self.bare_flush_path(&hash_prefix));
     self.remove_addr_flush_files(key_id);
 
     let tree = self.instantiate_tree(&hash_prefix, storage_backend, tuning)?;
@@ -146,55 +144,45 @@ impl RangeIndexManager {
     let hash_prefix = Self::base32_prefix_of(key);
     let backend = StorageBackendType::from_u8(stub.storage_backend);
     let data_path = self.data_file_path(&hash_prefix);
-    let flush_path = self.bare_flush_path(&hash_prefix);
 
     // 磁盘后端才存在可恢复的磁盘工件；内存后端的刷盘文件与工作文件均无意义
     //
-    // 刷盘快照选择契约 (裸名与带地址两种命名对同一 hash_prefix 互斥，绝不混用)：
-    // - 裸名 `{prefix}.flush.bftree` 由 [`on_flush`](super::flush) 体系产生，
-    //   每次 fs::copy 截断覆盖，裸名存在即最新完整版本，直接采用；
+    // 刷盘快照选择契约：刷盘快照只有带地址一种命名
     // - 带地址 `{prefix}.{addr:016x}.flush.bftree` 由
-    //   [`on_flush_address`](super::flush) 体系产生，地址单调递增，
+    //   [`on_flush_address`](super::flush) 体系产生 (1:1 对标 C#
+    //   SnapshotTreeForFlush 的必填 logicalAddress)，地址单调递增，
     //   取最大地址即最新版本 (旧文件由 on_truncate 按地址回收)。
-    // 裸名优先于地址扫描并非版本偏好：裸名文件的存在本身即证明该树走 on_flush
-    // 体系 (on_flush_address 体系下裸名文件绝不存在)，两者不同时出现，故不存在
-    // 「裸名压过更新地址版本」的恢复错误。
+    // 恢复期一律经 flush_files 枚举器取最大地址件，无「裸名快照优先」的旁路分支。
     //
     // IsRecovered 存根绕过刷盘快照 (1:1 对齐 C#：recovered 存根仅经 RestoreTree
     // 打开 data.bftree——检查点恢复已把权威快照预置其中，刷盘文件仅供 IsFlushed
     // 存根经 PreStage 按地址消费)：检查点快照必然新于其之前产生的任何刷盘文件，
     // 若仍让刷盘文件覆盖，恢复会回退到检查点之前的旧世代状态。
-    if backend == StorageBackendType::Disk && !stub.is_recovered() {
-      if flush_path.exists() {
-        // 拷贝失败必须传播：静默吞掉会回退到陈旧/部分写入的 data.bftree，
-        // 恢复出错误树版本 (1:1 对标 C# File.Copy 异常传播语义)
-        fs::copy(&flush_path, &data_path)?;
-      } else if self.addr_flush_scan_pending() {
-        // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
-        // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
-        let scan_token = self.addr_flush_scan_token();
-        let mut found_flush = false;
-        if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
-          // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
-          let mut latest: Option<(u64, OsString)> = None;
-          for entry in entries.flatten() {
-            let name = entry.file_name();
-            if let Some(name_str) = name.to_str()
-              && let Some((file_key_id, addr)) = Self::parse_flush_file_name(name_str)
-              && file_key_id == key_id
-              && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr)
-            {
-              latest = Some((addr, name));
-            }
-          }
-          if let Some((_, name)) = latest {
-            fs::copy(self.ri_log_root.join(name), &data_path)?;
-            found_flush = true;
+    if backend == StorageBackendType::Disk && !stub.is_recovered() && self.addr_flush_scan_pending()
+    {
+      // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
+      // 后续恢复直达 data.bftree 的 O(1) stat 路径 (时间复杂度优化，见字段文档)
+      let scan_token = self.addr_flush_scan_token();
+      let mut found_flush = false;
+      // 目录枚举与文件名解码收敛到共享枚举器 flush_files (一处枚举、多路分发)；
+      // 只跟踪胜出件、拷贝仅一次：路径由枚举器按刷盘件惰性产出，
+      // 外来目录项 (工作文件 / 非带地址命名的残件) 不参与路径拼接。
+      // 拷贝失败必须传播：静默吞掉会回退到陈旧/部分写入的 data.bftree，
+      // 恢复出错误树版本 (1:1 对标 C# File.Copy 异常传播语义)
+      if let Ok(files) = self.flush_files() {
+        let mut latest: Option<(u64, PathBuf)> = None;
+        for (path, file_key_id, addr) in files {
+          if file_key_id == key_id && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr) {
+            latest = Some((addr, path));
           }
         }
-        if !found_flush {
-          self.settle_addr_flush_scan(scan_token);
+        if let Some((_, path)) = latest {
+          fs::copy(path, &data_path)?;
+          found_flush = true;
         }
+      }
+      if !found_flush {
+        self.settle_addr_flush_scan(scan_token);
       }
     }
 

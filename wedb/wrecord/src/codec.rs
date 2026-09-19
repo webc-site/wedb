@@ -7,7 +7,10 @@ use log::trace;
 
 use crate::{
   error::{Error, Result},
-  header::{HEADER_SIZE, KEY_LEN_BITS, RecordHeader, align_record_size},
+  header::{
+    HEADER_SIZE, RecordHeader,
+    bits::{KEY_LEN_BITS, align_record_size},
+  },
 };
 
 /// 计算指定键长和值长下记录的对齐逻辑字节数（头 + 键 + 值，向上对齐到

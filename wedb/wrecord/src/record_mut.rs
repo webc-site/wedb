@@ -9,8 +9,8 @@ use wbase::simd::fast_key_eq;
 use crate::{
   error::{Error, Result},
   header::{
-    HEADER_SIZE, MAX_FILLER_BYTES, MODIFIED_BIT, RecordHeader, SEALED_BIT, TOMBSTONE_BIT,
-    align_record_size,
+    HEADER_SIZE, RecordHeader,
+    bits::{MAX_FILLER_BYTES, MODIFIED_BIT, SEALED_BIT, TOMBSTONE_BIT, align_record_size},
   },
   record_ref::RecordRef,
 };

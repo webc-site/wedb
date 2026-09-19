@@ -1,5 +1,15 @@
 来源：next/agy.net.md（review-net 待办 20 条，分拣于 2026-09-19 晚间波，主仓 dev 现刻代码取证）
-本档案登记本文件判定不成立的 8 条，逐条附拒绝理由与代码/C# 证据。其余 12 条为「并入既有载体」6 条、「已落地/事实不再成立」3 条、「成立待做」3 组（见 task/ing/）。
+本档案登记本文件判定不成立的 7 条（条 1、2、8、17、18、19、20），逐条附拒绝理由与代码/C# 证据。源档 20 条总账：拒绝 7 条 + 并入既有载体 3 条（条 3 → next/cluster-slot-parse-error-parity.md、条 5 → task/ing/cluster-provider-file-split.md、条 7 → mTLS 议题）+ 成立待做立项 5 条（条 4、6、14、15、16，收成 task/ing/ 三票）+ 锚点复挂 4 条（条 10、11、12、13，见下复核追加）+ 已落地 1 条（条 9）= 20。源档 next/agy.net.md 在我剪行之前已被并发会话随 c0fdd3f「清理 db/net 待办票归档」删除，我未再 rm、未重建。
+
+## 复核追加（2026-09-19 现刻 HEAD 43fd56c，条 10/11/12/13 判词更正）
+
+立票当时我按 bun 复刻 js/check.js dupDefFind 的只读扫描判条 10/11/12 为「已单点/已落地」，该结论是并发波次瞬时撤锚造成的假象：现刻重扫，net 域重复组由 3 增至 7、全仓 15 组，四条全部在场，判词一律更正为「成立待做·并入锚点收口载体」，本档案不再为其背书：
+- 条 10 RespClusterIterativeSlotVerify.cs:NetworkIterativeSlotVerify：/Users/z/git/db/wedb/wedb/wedb/src/server/cluster_session/slot_verify.rs:52 与 /Users/z/git/db/wedb/wedb/wedb/src/server/cluster_manager_slot_gate.rs:351 双挂（正解：前者为 C# ClusterSession 方法本体承接方，后者是 ClusterSlotVerify.cs:SingleKeySlotVerify 的门评内核扩展，且 /Users/z/git/db/wedb/wedb/wedb/src/server/slot_verify.rs:91 已单挂该真对位，撤锚方不得反向抢挂）
+- 条 11 GarnetClientSession.cs:GarnetClientSession（C# 构造 garnet/libs/client/ClientSession/GarnetClientSession.cs:114）：四处复挂 /Users/z/git/db/wedb/wedb/wconn/src/session.rs:40、:74，/Users/z/git/db/wedb/wedb/wconn/src/client.rs:114，/Users/z/git/db/wedb/wedb/wconn/src/network/pump.rs:50（正解：仅 session.rs:40 new 为构造本体，池注入器与 `?? CreateBufferPool` 回退解析皆为子步骤）
+- 条 12 GarnetClient.cs:ConnectAsync（C# garnet/libs/client/GarnetClient.cs:262）：/Users/z/git/db/wedb/wedb/wconn/src/client.rs:133 与 /Users/z/git/db/wedb/wedb/wconn/src/tls.rs:98 双挂（后者仅是 AuthenticateAsClientAsync 等价的握手子步骤）
+- 条 13 GarnetClient.cs:GarnetClient（C# garnet/libs/client/GarnetClient.cs:143）：wconn/src/client.rs:65（new，本体）与 :104（set_tls 文档 :101）双挂——票面所指 facade /Users/z/git/db/wedb/wedb/wedb/src/client.rs 现刻该锚命中数仍为 0，故「facade 注入器抢锚」这一具体指控不成立，但同符号复挂在 wconn 本件内为真，条 13 由「全条拒绝」降为「路径指错、缺陷成立」
+- 载体：本域三条（原条 14/15/16）已成票 /Users/z/git/db/wedb/task/ing/net-checkjs-dup-anchor-trio.md，上述四组按同型同域原则并其收口（该票复核追加段已记）；并发会话另立 /Users/z/git/db/wedb/next/net-anchor-dup-collapse.md 覆盖同 6 组、/Users/z/git/db/wedb/next/design-anchor-remount-batch.md 组 1 覆盖 TLS 锚点组，主代理须二选一，勿双跑同文件。
+- 双档提示（主代理簿记）：并发会话把本档案的多数判词另拆成了逐条单文件档案 /Users/z/git/db/wedb/task/reject/net-checkpoint-recv-blocking-wait.md（条 1）、net-gossip-initialize-retry.md（条 2）、net-wait-for-replicas-spin.md（条 8）、net-can-access-key-anchor-dup.md（条 17）、net-consumer-registry-install-path.md（条 18）、net-migrate-keys-chunk-error-cleanup.md（条 19）、net-failover-race-abort-generic-audit.md（条 20）、net-diskless-fanout-laggard-eject.md（条 9），判词与本档案一致（同源于同一批取证），保留任一套即可，不必两套并存。
 
 ## 条 1 execute_checkpoint_recv 阻塞网络 reactor 线程（主张改用 SlowWait、移除 blocking_wait）
 
@@ -28,7 +38,7 @@
 拒绝理由：票面所指锚点不存在，判据被 check.js 重复定义扫描否证。
 - 事实：/Users/z/git/db/wedb/wedb/wedb/src/client.rs 内 `.cs:` 锚点全为 GarnetClientExtensions / GarnetClientClusterCommands / Migrate / Replication 族（:165、:179、:219、:237、:254、:268、:296、:310、:342、:378、:426、:441、:482、:520），无一处 libs/client/GarnetClient.cs:GarnetClient；wconn 侧 set_tls 的说明文字也已写成「（GarnetClient 构造器）」不含 `.cs:` 锚点（/Users/z/git/db/wedb/wedb/wconn/src/client.rs:98-106）。
 - 复核手段：按 js/check.js:304-335 dupDefFind 同规则（CS_REF_REGEX + 仅函数级文档注释）对全仓扫描，libs/client/GarnetClient.cs:GarnetClient 未进重复定义组（wconn/src/client.rs:19 为 struct 文档、:44 为字段文档、error.rs:60 为枚举变体文档，均不在 fn_doc_li 口径内）。
-- 结论：无缺陷可修，票面路径与判据双双不成立。
+- 结论（立票当时）：无缺陷可修，票面路径与判据双双不成立。**该结论已被上方「复核追加」段更正**：facade 路径指错一点不变，但现刻 HEAD 上 `libs/client/GarnetClient.cs:GarnetClient` 确在 wconn/src/client.rs 内两处函数文档复挂（:53/:65 与 :101/:104），缺陷成立、转锚点收口载体，本条不再算整条拒绝。
 
 ## 条 17 can_access_key 转发层与本体同名并存、共用同一锚点（主张转发侧撤锚）
 

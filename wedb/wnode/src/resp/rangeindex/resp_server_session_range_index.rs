@@ -492,7 +492,7 @@ pub async fn network_riscan<D: Device, R>(
   check_arg_count!(parse_state, 4.., output, "RI.SCAN");
   let (key, start) = (parse_state[0], parse_state[1]);
 
-  if !parse_state[2].eq_ignore_ascii_case(b"COUNT") {
+  if !parse_state[2].eq_ignore_ascii_case(cs::COUNT) {
     abort_with_error_message(output, "ERR syntax error, expected COUNT");
     return Ok(true);
   }

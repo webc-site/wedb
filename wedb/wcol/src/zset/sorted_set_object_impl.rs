@@ -16,11 +16,11 @@ use wbase::{
 };
 use wresp::{
   cmd_strings::{
-    RESP_ERR_GENERIC_SCORE_NAN, RESP_ERR_GENERIC_SYNTAX_ERROR,
+    LIMIT, RESP_ERR_GENERIC_SCORE_NAN, RESP_ERR_GENERIC_SYNTAX_ERROR,
     RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, RESP_ERR_GT_LT_NX_NOT_COMPATIBLE,
     RESP_ERR_INCR_SUPPORTS_ONLY_SINGLE_PAIR, RESP_ERR_LIMIT_NOT_SUPPORTED,
     RESP_ERR_MIN_MAX_NOT_VALID_FLOAT, RESP_ERR_MIN_MAX_NOT_VALID_STRING, RESP_ERR_NOT_VALID_FLOAT,
-    RESP_ERR_XX_NX_NOT_COMPATIBLE,
+    RESP_ERR_XX_NX_NOT_COMPATIBLE, WITHSCORES,
   },
   options::{
     ExpirationWithOption, SortedSetAddOption, equals_ignore_case, try_get_sorted_set_add_option,
@@ -513,7 +513,7 @@ impl SortedSetObject {
           options.by_lex = true;
         } else if equals_ignore_case(token, b"REV") {
           options.reverse = true;
-        } else if equals_ignore_case(token, b"LIMIT") {
+        } else if equals_ignore_case(token, LIMIT) {
           // LIMIT 后须有 offset count 两个 token
           if args.len() - curr_idx < 2 {
             RespWriter::new_ref(&mut output.payload)
@@ -535,7 +535,7 @@ impl SortedSetObject {
 
           options.limit = (offset, count_limit);
           options.valid_limit = true;
-        } else if equals_ignore_case(token, b"WITHSCORES") {
+        } else if equals_ignore_case(token, WITHSCORES) {
           options.with_scores = true;
         }
       }

@@ -10,7 +10,7 @@ use aok::{OK, Void};
 use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
-use wbase::pool::AlignedBuf;
+use wbase::{align::DEFAULT_SECTOR_SIZE, pool::AlignedBuf};
 use wdev::{Device, Error, SegmentedDevice};
 
 use crate::support::make_pattern_data;
@@ -24,7 +24,11 @@ fn massive_cross_segment_round_trip() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("massive.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("massive.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 1. 一次性写入 320KB（段 0..5），模式 (i * 41 + 19) & 0xFF
     let size_320k = 5 * seg_size as usize;
@@ -79,7 +83,11 @@ fn integer_overflow_defense_on_offset_and_segment_number() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("overflow.log"), 64 * 1024)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("overflow.log"),
+      Some(64 * 1024),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // Case A: offset + len 导致 u64 溢出（u64::MAX - 4095 + 8192 回绕）
     let bad_offset = u64::MAX - 4095;
@@ -120,7 +128,11 @@ fn truncate_until_address_u64_max_is_clamped_safely() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("clamp.log"), 64 * 1024)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("clamp.log"),
+      Some(64 * 1024),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     device.truncate_until_address(u64::MAX).await?;
     assert_eq!(
