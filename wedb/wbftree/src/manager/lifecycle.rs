@@ -2,9 +2,8 @@
 //! (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:CreateBfTree、RestoreTree、RegisterIndex、DisposeTreeUnderLock、PublishMigratedIndex)
 
 use std::{
-  ffi::OsString,
   fs::{self, File},
-  path::Path,
+  path::{Path, PathBuf},
   sync::Arc,
 };
 
@@ -174,21 +173,19 @@ impl RangeIndexManager {
         // 后续恢复走 O(1) stat 直达 data.bftree (时间复杂度优化，见字段文档)
         let scan_token = self.addr_flush_scan_token();
         let mut found_flush = false;
-        if let Ok(entries) = fs::read_dir(&self.ri_log_root) {
-          // 只跟踪胜出文件名：赢家路径 join 一次，N 条目录项从 N 次 PathBuf 拼接降为 1 次
-          let mut latest: Option<(u64, OsString)> = None;
-          for entry in entries.flatten() {
-            let name = entry.file_name();
-            if let Some(name_str) = name.to_str()
-              && let Some((file_key_id, addr)) = Self::parse_flush_file_name(name_str)
-              && file_key_id == key_id
-              && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr)
+        // 目录枚举与文件名解码收敛到共享枚举器 flush_files (一处枚举、多路分发)；
+        // 只跟踪胜出件、拷贝仅一次：路径由枚举器按刷盘件惰性产出，
+        // 外来目录项 (工作文件 / 裸名件) 不参与路径拼接
+        if let Ok(files) = self.flush_files() {
+          let mut latest: Option<(u64, PathBuf)> = None;
+          for (path, file_key_id, addr) in files {
+            if file_key_id == key_id && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr)
             {
-              latest = Some((addr, name));
+              latest = Some((addr, path));
             }
           }
-          if let Some((_, name)) = latest {
-            fs::copy(self.ri_log_root.join(name), &data_path)?;
+          if let Some((_, path)) = latest {
+            fs::copy(path, &data_path)?;
             found_flush = true;
           }
         }

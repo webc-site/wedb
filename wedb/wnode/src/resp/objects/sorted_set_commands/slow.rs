@@ -113,6 +113,9 @@ async fn load_typed(
 }
 
 /// 多键异步装载（缺失按空集合；`Ok(None)` = WRONGTYPE 错误行已写出）
+///
+/// 聚合面成员级 TTL：装载即堆序 purge 过期成员，对位同步段 [`load_many`]
+/// 与 C# Dictionary getter / TryGetScore / CopyDiff / InPlaceDiff 存活视图口径
 async fn load_many_cold(
   storage: &StorageSession<'_, impl wdev::Device>,
   keys: &[&[u8]],
@@ -123,7 +126,10 @@ async fn load_many_cold(
     match load_typed(storage, key, output).await? {
       None => return Ok(None),
       Some(None) => objs.push(SortedSetObject::new()),
-      Some(Some(o)) => objs.push(o),
+      Some(Some(mut o)) => {
+        o.delete_expired_items();
+        objs.push(o);
+      }
     }
   }
   Ok(Some(objs))

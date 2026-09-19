@@ -224,12 +224,25 @@
     - libs/server/Resp/Parser/RespCommandSimdPatterns.cs
     - libs/server/Resp/Parser/SessionParseState.cs:
         - EnsureCapacity
+        - GetDouble
+        - GetFloat
+        - GetSerializedLength
+        - InitializeWithArguments
+        - SetArguments
         - Slice
     - libs/server/Resp/RespCommandArgument.cs:
         - Write
     - libs/server/Resp/RespCommandKeySpecification.cs:
         - Write
     - libs/server/Resp/RespServerSession.cs:
+        - CreateConsistentReadApi
+        - CreateDatabaseSession
+        - DebugSend
+        - GetObjectOutput
+        - GetUnifiedOutput
+        - SwitchActiveDatabaseSession
+        - TryGetOrSetDatabaseSession
+        - TrySwapDatabaseSessions
         - Write
     - libs/server/Resp/RespServerSessionOutput.cs:
         - TryWriteBulkString
