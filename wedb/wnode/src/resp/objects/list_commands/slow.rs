@@ -353,7 +353,7 @@ pub(crate) async fn list(
         output,
         // C# NOTFOUND：参数含 COUNT → 空数组，否则 null
         |output| {
-          if refs[2..].iter().any(|t| t.eq_ignore_ascii_case(b"COUNT")) {
+          if refs[2..].iter().any(|t| t.eq_ignore_ascii_case(cs::COUNT)) {
             output.extend_from_slice(cs::RESP_EMPTYLIST);
           } else {
             output.write_resp_null_ver(resp_version);
@@ -680,7 +680,7 @@ fn parse_mpop_common<'a>(
   let direction = parse_direction(refs.get(n).copied()?)?;
   let mut count = 1_i32;
   if refs.len() == n + 3 {
-    if !refs[n + 1].eq_ignore_ascii_case(b"COUNT") {
+    if !refs[n + 1].eq_ignore_ascii_case(cs::COUNT) {
       return None;
     }
     let c = strict_i32(refs[n + 2])?;

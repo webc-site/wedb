@@ -29,8 +29,8 @@ use crate::{
   session_parse_state_extensions::{ClientType, try_get_client_name_bytes, try_get_client_type},
 };
 
-/// CLIENT LIST / CLIENT KILL 的类型过滤字面量（C# CmdStrings: TYPE / ID）
-const FILTER_TYPE: &[u8] = b"TYPE";
+/// CLIENT LIST / KILL 的 ID 过滤字面量（C# CmdStrings: ID；TYPE 走
+/// [`cs::TYPE`] 单点，与 SCAN 族 TYPE 过滤共用一份字面量）
 const FILTER_ID: &[u8] = b"ID";
 
 /// SKIPME 取值字面量（C# CmdStrings: YES / NO）
@@ -57,7 +57,7 @@ impl RespServerSession {
     } else if args.len() < 2 {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
       return Ok(true);
-    } else if args[0].eq_ignore_ascii_case(FILTER_TYPE) {
+    } else if args[0].eq_ignore_ascii_case(cs::TYPE) {
       if args.len() != 2 {
         abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
         return Ok(true);
@@ -207,7 +207,7 @@ impl RespServerSession {
           return None;
         }
         filters.id = Some(id);
-      } else if filter.eq_ignore_ascii_case(FILTER_TYPE) {
+      } else if filter.eq_ignore_ascii_case(cs::TYPE) {
         if filters.client_type.is_some() {
           abort_with_error_message(
             output,

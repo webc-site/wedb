@@ -134,7 +134,7 @@ impl RespServerSession {
         // C# NOTFOUND：参数中含 COUNT → 空数组，否则 null（eq_ignore_ascii_case 本身大小写不敏感）
         let count = parse_state[2..]
           .iter()
-          .any(|t| t.eq_ignore_ascii_case(b"COUNT"));
+          .any(|t| t.eq_ignore_ascii_case(cs::COUNT));
         if count {
           output.extend_from_slice(cs::RESP_EMPTYLIST);
         } else {

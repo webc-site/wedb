@@ -89,14 +89,14 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
     let param = args[token_idx];
     token_idx += 1;
 
-    if param.eq_ignore_ascii_case(b"MATCH") {
+    if param.eq_ignore_ascii_case(cs::MATCH) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
       filter.pattern = args[token_idx].to_vec();
       filter.all_keys = filter.pattern.as_slice() == b"*";
       token_idx += 1;
-    } else if param.eq_ignore_ascii_case(b"COUNT") {
+    } else if param.eq_ignore_ascii_case(cs::COUNT) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }
@@ -107,7 +107,7 @@ pub(crate) fn parse_scan_filter(args: &[&[u8]]) -> Result<ScanFilter, &'static s
         None => return Err(RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER),
       }
       token_idx += 1;
-    } else if param.eq_ignore_ascii_case(b"TYPE") {
+    } else if param.eq_ignore_ascii_case(cs::TYPE) {
       if token_idx >= args.len() {
         return Err(RESP_ERR_GENERIC_SYNTAX_ERROR);
       }

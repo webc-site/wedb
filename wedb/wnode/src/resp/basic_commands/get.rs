@@ -280,8 +280,8 @@ impl RespServerSession {
     check_arg_count!(parse_state, 1..=3, output, "GETEX");
     let (key, expiry) = match parse_state {
       [key] => (*key, GetexExpiry::None),
-      [key, option] if option.eq_ignore_ascii_case(b"PERSIST") => (*key, GetexExpiry::Persist),
-      [key, option, _] if option.eq_ignore_ascii_case(b"PERSIST") => (*key, GetexExpiry::Persist),
+      [key, option] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
+      [key, option, _] if option.eq_ignore_ascii_case(cs::PERSIST) => (*key, GetexExpiry::Persist),
       [key, option, expire_arg] => {
         let Some(expire_time) = expire_arg.try_parse_i64() else {
           abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE);

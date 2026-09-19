@@ -638,7 +638,7 @@ impl RespServerSession {
     // Optional LIMIT argument
     let mut limit: Option<i64> = None;
     if parse_state.len() > num_keys as usize + 1 {
-      if !parse_state[num_keys as usize + 1].eq_ignore_ascii_case(b"LIMIT")
+      if !parse_state[num_keys as usize + 1].eq_ignore_ascii_case(cs::LIMIT)
         || parse_state.len() != num_keys as usize + 3
       {
         cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
@@ -1188,7 +1188,7 @@ pub(crate) mod slow {
     }
     let mut limit = None;
     if refs.len() > num_keys as usize + 1 {
-      if !refs[num_keys as usize + 1].eq_ignore_ascii_case(b"LIMIT")
+      if !refs[num_keys as usize + 1].eq_ignore_ascii_case(cs::LIMIT)
         || refs.len() != num_keys as usize + 3
       {
         return None;
