@@ -344,17 +344,6 @@ impl<S: StoreCallbacks> VectorManager<S> {
       }
       drop(shared);
 
-      // 需重建，但上一次丢弃请求尚未处理时先自旋等待
-      // （同一逻辑集合存在两个活跃索引会严重破坏插入）
-      if self.drop_requested(key) {
-        if non_blocking {
-          // 让出线程而非自旋
-          return ReadIndexOutcome::WouldBlock;
-        }
-        self.wait_for_disk_ann_index_drop(key);
-        continue;
-      }
-
       // 阶段 2：竞争独占（C# 经 TryPromoteSharedLock 原子升级；
       // parking_lot 无升级原语，以释放后竞争 + 独占下复核对齐）。
       // 守卫存活至本轮迭代结束（重建写回全程持锁）。
