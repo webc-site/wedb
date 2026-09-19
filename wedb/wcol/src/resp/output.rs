@@ -1,6 +1,8 @@
 //! 集合 RESP 结构化输出（对标 libs/server/Objects/Types/ObjectOutput.cs）
 //!
-//! C# ObjectOutput 是纯数据 struct（SpanByteAndMemory/result1/OutputFlags），
+//! C# ObjectOutput 的输出缓冲由会话侧经 SpanByteAndMemory / FromPinnedPointer
+//! 直接挂载进对象应答结构，无中转向量；rust 对位为 [`ObjectOutput::mount`]
+//! 挂载会话输出尾段，对象命令的 RESP 字节单步直写（消除中转缓冲二次拷贝）。
 //! RESP 写出由调用点就地构造 [`wresp::resp_memory_writer::RespWriter`] 承接
 //! （对齐 GarnetObjectBase.cs:Scan 的就地构造写法），本类型不镜像写出原语。
 
@@ -22,24 +24,52 @@ bitflags! {
   }
 }
 
-/// 对象操作的结构化输出：计数字段 + RESP 负载
+/// 对象操作的结构化输出：计数字段 + 挂载输出尾段
 ///
-/// libs/server/Objects/Types/ObjectOutput.cs:ObjectOutput
-#[derive(Debug, Clone, Default)]
-pub struct ObjectOutput {
-  /// 操作产出的 RESP 字节（对应 C# SpanByteAndMemory）
-  pub payload: Vec<u8>,
+/// libs/server/Objects/Types/ObjectOutput.cs:ObjectOutput（输出缓冲挂载
+/// 形态对位 `ObjectOutput.cs:FromPinnedPointer`；C# SpanByteAndMemory 的
+/// 指针/长度二元组在 rust 侧收敛为 `&'a mut Vec<u8>` + 挂载起点偏移）
+#[derive(Debug)]
+pub struct ObjectOutput<'a> {
+  /// 挂载的输出缓冲尾段（对应 C# SpanByteAndMemory 挂载的会话缓冲）
+  pub payload: &'a mut Vec<u8>,
+  /// 挂载起点偏移（payload 有效段为 base..，前段属调用方既有应答）
+  base: usize,
   /// 操作结果计数（如成功添加的元素个数）
   pub result1: i64,
   /// 输出标志
   pub output_flags: ObjectOutputFlags,
 }
 
-impl ObjectOutput {
-  /// 空输出
+impl<'a> ObjectOutput<'a> {
+  /// 挂载输出缓冲尾段（对标 ObjectOutput.cs:FromPinnedPointer）
   #[inline]
-  pub fn new() -> Self {
-    Self::default()
+  pub fn mount(payload: &'a mut Vec<u8>) -> Self {
+    Self {
+      base: payload.len(),
+      payload,
+      result1: 0,
+      output_flags: ObjectOutputFlags::NONE,
+    }
+  }
+
+  /// 本次操作产出的有效负载视图（挂载起点之后）
+  #[inline]
+  pub fn payload_view(&self) -> &[u8] {
+    &self.payload[self.base..]
+  }
+
+  /// 负载是否已写出（payload_written 判定单点）
+  #[inline]
+  pub fn written(&self) -> bool {
+    self.payload.len() > self.base
+  }
+
+  /// 回退到挂载起点（对标 C# writer.ResetPosition）：丢弃本次已写负载，
+  /// 调用方即可整体改写应答（错误覆盖 / 降级重放前清场）
+  #[inline]
+  pub fn reset(&mut self) {
+    self.payload.truncate(self.base);
   }
 }
 

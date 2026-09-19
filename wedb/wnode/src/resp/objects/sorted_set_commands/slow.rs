@@ -63,7 +63,7 @@ pub(crate) async fn zset_rmw_cold(
       SortedSetObject::new,
       |o: &SortedSetObject| o.sorted_set_dict.is_empty(),
       |o: &SortedSetObject| o.to_blob(),
-      |obj, op, args| run_operate(obj, op, args, arg1, arg2, resp_version),
+      |obj, op, args, output| run_operate(obj, op, args, arg1, arg2, resp_version, output),
       should_write_back,
     ),
   )
@@ -388,17 +388,17 @@ pub(crate) async fn sorted_set(
         GarnetObjectType::SortedSet,
         output,
         SortedSetObject::from_blob,
-        |output| output.extend_from_slice(b"*0\r\n"),
+        |output| output.write_resp_array_len(0),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          run_operate(
             obj,
             SortedSetOperation::Zrange,
             args,
             0,
             opts.bits() as i32,
             resp_version,
+            output,
           );
-          output.extend_from_slice(&obj_out.payload);
         },
       )
       .await
@@ -418,8 +418,14 @@ pub(crate) async fn sorted_set(
           }
         },
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          output.extend_from_slice(
-            &run_operate(obj, SortedSetOperation::Zmscore, args, 0, 0, resp_version).payload,
+          run_operate(
+            obj,
+            SortedSetOperation::Zmscore,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
           );
         },
       )
@@ -435,8 +441,16 @@ pub(crate) async fn sorted_set(
         |output| output.extend_from_slice(cs::RESP_RETURN_VAL_0),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
           // 解析失败标记（int.MaxValue）→ 错误回复；否则以 result1 作整数回复
-          let result1 =
-            run_operate(obj, SortedSetOperation::Zlexcount, args, 0, 0, resp_version).result1;
+          let result1 = run_operate(
+            obj,
+            SortedSetOperation::Zlexcount,
+            args,
+            0,
+            0,
+            resp_version,
+            output,
+          )
+          .result1;
           if result1 == i32::MAX as i64 {
             cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING);
           } else if result1 != i32::MIN as i64 {
@@ -472,8 +486,7 @@ pub(crate) async fn sorted_set(
         SortedSetObject::from_blob,
         |output| output.write_resp_null_ver(resp_version),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(obj, op, &[member], with_score, 0, resp_version);
-          output.extend_from_slice(&obj_out.payload);
+          run_operate(obj, op, &[member], with_score, 0, resp_version, output);
         },
       )
       .await
@@ -499,7 +512,7 @@ pub(crate) async fn sorted_set(
         }
       }
       if param_count == 0 {
-        output.extend_from_slice(b"*0\r\n");
+        output.write_resp_array_len(0);
         return Ok(());
       }
       let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
@@ -511,21 +524,21 @@ pub(crate) async fn sorted_set(
         SortedSetObject::from_blob,
         |output: &mut Vec<u8>| {
           if refs.len() > 1 {
-            output.extend_from_slice(b"*0\r\n");
+            output.write_resp_array_len(0);
           } else {
             output.write_resp_null_ver(resp_version);
           }
         },
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          let obj_out = run_operate(
+          run_operate(
             obj,
             SortedSetOperation::Zrandmember,
             &[],
             arg1,
             fastrand::i32(..),
             resp_version,
+            output,
           );
-          output.extend_from_slice(&obj_out.payload);
         },
       )
       .await
@@ -760,20 +773,24 @@ async fn zrangestore_cold(
     Some(Some(o)) => o,
     None => return Ok(()),
   };
-  let obj_out = run_operate(
+  // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
+  let mut sink = Vec::new();
+  let result1 = run_operate(
     &mut src_obj,
     SortedSetOperation::Zrange,
     range_args,
     0,
     SortedSetRangeOpts::STORE.bits() as i32,
     resp_version,
-  );
+    &mut sink,
+  )
+  .result1;
   // result1 = -1 表示范围参数被拒（错误已写入负载）
-  if obj_out.result1 == -1 {
-    output.extend_from_slice(&obj_out.payload);
+  if result1 == -1 {
+    output.append(&mut sink);
     return Ok(());
   }
-  let dst = SortedSetObject::from_entries(parse_pairs_payload(&obj_out.payload));
+  let dst = SortedSetObject::from_entries(parse_pairs_payload(&sink));
   let count = store_dest_cold(storage, dst_key, &dst).await?;
   output.write_resp_int(count as i64);
   notify(dst_key);

@@ -63,7 +63,7 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 关键结论：本批 31 名按现刻 HEAD 逐条核到 C# 签名与 rust 消费点，无一属「rust 侧完全无实现」，
 全部落在两族——实现在位但注释锚点形态不登记（该改注释）与「无独立具名对位口、语义在消费点就地
 承接」（该补 ignore 登记，不该派实现票）。原票「下一步该按 miss 派实现票」的预设不成立，
-按现刻读数应改为「派注释整改票 + 登记补全票」，实现票只 2 张（1.4 票 6、票 7）。
+按现刻读数应改为「派注释整改票 + 登记补全票」；本批零实现票（唯一可疑的两名见丙族说明，属第二节范围）。
 
 甲族（实现在位、缺规范锚 → 改注释；格式须 `全路径.cs:符号`，一处一符号）：
 
@@ -91,10 +91,13 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 
 乙族（无独立具名对位口，语义在消费点就地承接 → 该补 ignore 条目，不派实现票；括号为可并入的既有块）：
 
-- SessionParseState.cs:SetArgument / DeserializeFrom / TryGetLong / TryGetDouble / TryGetFloat /
-  GetString / TryGetBool（7）— rust 侧无 parseState 级读口，整数/浮点走 `wbase/src/num.rs` strict 通道、
+- SessionParseState.cs:DeserializeFrom / TryGetLong / TryGetDouble / TryGetFloat /
+  GetString / TryGetBool（6）— rust 侧无 parseState 级读口，整数/浮点走 `wbase/src/num.rs` strict 通道、
   布尔走 `wedb/src/server/cluster_session/replication.rs:751` 就地 T/F 判形（可并入 `js/check/ignore/server.yml:225`
-  或 `:993` 既有 SessionParseState.cs 块）
+  或 `:993` 既有 SessionParseState.cs 块；该块 :230 已登 SetArgument/SetArguments、
+  :227 EnsureCapacity、:228-229 GetDouble/GetFloat、:231 GetSerializedLength、
+  :232 Slice —— 其中 Slice 一名经核 rust 已有 1:1 实口 `wedb/wresp/src/session_parse_state.rs:55`，
+  属「已实现却挂忽略」，判改不判留，详见第二节 2.4）
 - PrivateMethods.cs:IsValidNumber — 就地闭包承接，证据 `wedb/wnode/src/resp/basic_commands/incr.rs:132`、
   `slow.rs:403`（并入 `server.yml:273` 既有 PrivateMethods.cs 块）
 - NumUtils.cs:TryReadInt64 — 与已登记的 strict_i64 同源，证据 `wedb/wnode/src/resp/basic_commands/incr.rs:133`
@@ -114,9 +117,11 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
   `js/check/ignore/libs/server/Resp/Bitmap/BitmapManagerBitCount.yml`，playground 侧未记 → 补 `playground.yml:2`
   既有 BitCount.cs 块（此为「注释声称已登记、实际未登记」的失真例，须收）
 
-丙族（真缺，派实现票）：见 1.4 票 6、票 7（各 1 名，均非 byte* 族）。
+丙族（真缺，须派实现票）：本批 31 名内 0 名。全盘点唯一两处「留着登记可能是藏真缺」的不在 31 名内，
+而在第二节 `storage.yml:1926 / :1961`（TsavoriteLog.cs:GetChecksum / VerifyChecksum，
+rust 侧 waof 无任何校验和函数口），故 1.4 票 6 指向该处而非本批。
 
-### 1.4 第一节派单建议 Top 5
+### 1.4 第一节立即派单建议 Top 5（另附 2 条条件票，不先行派发）
 
 票 1 slug: cs-anchor-vector-callbacks-unmanaged
 射程文件: wedb/wnode/src/resp/vector/vector_store_callbacks.rs、wedb/wvector/src/store.rs
@@ -124,9 +129,11 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 wvector 侧同名重复挂载，避免触「重复定义」。工作量: 纯注释 6 处，无函数体改动。
 
 票 2 slug: cs-anchor-parse-state-arg-readers
-射程文件: wedb/wresp/src/session_parse_state.rs、js/check/ignore/server.yml（:225 或 :993 块）
-判据: SessionParseState.cs 8 名一棒判尽——GetArgSliceByRef 补锚、余 7 名补 ignore 条目并写理由，
-消除「byte* 形参族暴露的缺口」里最大的一坨。工作量: 1 处注释 + 1 处 yml 条目，需逐条写理由。
+射程文件: wedb/wresp/src/session_parse_state.rs、js/check/ignore/server.yml（:225 与 :993 块、:232 条）
+判据: SessionParseState.cs 8 名一棒判尽——GetArgSliceByRef 补规范锚（甲族 7）、
+DeserializeFrom/TryGetLong/TryGetDouble/TryGetFloat/GetString/TryGetBool 6 名补 ignore 条目并写理由（乙族）、
+Slice 一条反向处理（server.yml:232 已登记但 rust 有 1:1 实口 `session_parse_state.rs:55`，
+撤登记 + 补锚，见 2.5 票 1，两票同棒做以免自相矛盾）。工作量: 2 处注释 + 6 条 yml 条目。
 
 票 3 slug: cs-anchor-tsavorite-tag-slot-and-pinned-span
 射程文件: wedb/windex/src/table.rs、wedb/windex/src/chain.rs、wedb/wrecord/src/record_mut.rs、
@@ -136,28 +143,33 @@ wedb/wrecord/src/header.rs、js/check/ignore/storage.yml（:2114 / :861 块）
 
 票 4 slug: cs-ignore-backfill-gate-blind-spots
 射程文件: js/check/ignore/server.yml、common.yml、storage.yml、playground.yml
-判据: 乙族余 10 名补登记（含 playground/Bitmap/BitCount.cs:__simd_popcX128 这条「注释自称已登记、
-实际未登记」的假账），把 32 名清零成「要么有锚要么有登记」。工作量: 10 条条目 + 理由，无代码。
+判据: 乙族除票 2/票 3 已覆盖外的余 6 名补登记（IsValidNumber、TryReadInt64、InputHeader.DeserializeFrom、
+SimdFastParse、SetActiveReadGeometry，以及 playground/Bitmap/BitCount.cs:__simd_popcX128 这条
+「注释自称已登记、实际未登记」的假账），把 31 名清零成「要么有锚要么有登记」。
+其中 RespCommand.cs 当前无 ignore 块需新立。工作量: 6 条条目 + 理由，无代码。
 
 票 5 slug: checkjs-miss-token-coverage-hole
 射程文件: js/check.js（isDocumented）、js/check/rustScan.js（doc_set）、js/check_selftest.js
-判据: 本节 1.1 末段——doc_set 词元全集使 32 名结构性不进 miss，属门禁漏报，须先立判据再改口径
+判据: 本节 1.1 末段——doc_set 词元全集使这 31 名结构性不进 miss，属门禁漏报，须先立判据再改口径
 （建议 miss 判定只认 path 精确映射，token 面降为提示）；工具票，不与实现票混派。
 工作量: 判定口径一处改 + 断言。
 
-（另：真缺实现票仅 2 张，见票 6/票 7——原票预设「31 名皆实现缺口」经逐名取证后不成立。）
+（另：原票预设「31 名皆实现缺口」经逐名取证后不成立——本批零实现票，全盘点唯一
+「留着登记可能藏真缺」的一族不在 31 名内，见票 6。）
 
-票 6 slug: my-parse-state-arg-writeback-slot
-射程文件: wedb/wresp/src/session_parse_state.rs、wedb/wnode/src/resp/parser/*
-判据: 若逐条复核认定 C# `SetArgument(int, PinnedSpanByte)`（garnet/libs/server/Resp/Parser/
-SessionParseState.cs:39）的「回写参数槽」在 rust 无等价物且将来 AOF 重写参数需用它，则补实现；
-现刻判「无消费面」，属可选实现票，优先级最低。
+票 6 slug: my-tsavorite-log-checksum-finalize
+射程文件: js/check/ignore/storage.yml（:1926 / :1961，同属 :1907 `…/core/TsavoriteLog/TsavoriteLog.cs` 块）、wedb/waof/src/*
+判据: C# `TsavoriteLog.cs:GetChecksum / VerifyChecksum`（garnet/libs/storage/Tsavorite/cs/src/core/
+TsavoriteLog/TsavoriteLog.cs）现随块挂忽略，且 rust 侧 waof 无任何校验和函数口
+（`grep 'fn .*checksum' wedb/waof/` 零命中），本单判「留（待复核定性）」；先定性「AOF/复制帧是否需要
+校验和」——不需要则在块理由里补一句校验和专项依据，需要则另开实现票补 waof 侧校验口。
+与 2.5 票 3 同域，两票合一派，不双立。
+工作量: 一次定性 + 1 条理由（或 1 个函数 + 测试）。
 
-票 7 slug: my-session-parse-state-deserialize-from
-射程文件: wedb/wresp/src/session_parse_state.rs、wedb/wnode/src/aof/replay_input.rs
-判据: C# `SessionParseState.DeserializeFrom(byte*)` 有 serialize_to 对位
-（`wresp/src/session_parse_state.rs:159`）而 deserialize 侧仅由 replay_input.rs:235 组合形态承接，
-若回放需重建 parseState 则补对称实现。工作量: 单函数 + 1 测试。
+票 7（可选备注，不单开实现票）: C# `SessionParseState.DeserializeFrom(byte*)` 有 serialize_to 对位
+（`wresp/src/session_parse_state.rs:159`）而 deserialize 侧仅由 `wedb/wnode/src/aof/replay_input.rs:235`
+组合形态承接；本单判「乙族·补登记」（票 2 射程）。仅当将来回放需原地重建 parseState 时，在票 2
+落地同一棒内补对称实现，不另立票。
 
 ## 第二节 ignore 暗条目逐条判
 
@@ -181,14 +193,20 @@ SessionParseState.cs:39）的「回写参数槽」在 rust 无等价物且将来
   改 = rust 承接口在位且注释已点名该 C# 符号，但形态不登记（裸文件名 / `路径.cs:行号` / 反引号 /
   纯叙述），补规范锚后条目自动淘汰；
   留 = 确属死码、平台绑定、或「无独立具名对位口」的形态不承接。
-- 本组取数结论：130 条中，有同路径锚 0、有裸文件名锚 0、他路径同名锚 5（经核 5 条均为
-  同名不同 C# 文件的巧合，不构成改锚依据）、含 `.cs` 的叙述行 10（逐条读原文后仅 2 条构成改锚依据，
-  其余 8 条为「同名他文件」或「他文件语境顺带提及」）、零痕迹 112。
-  即按现刻证据，本节改判为「改」的仅 2 条，其余为「留」，无一条可「删」。
+- 本组取数结论（六类互斥，按「同路径锚 → 裸文件名锚 → 他路径同名锚 → 含 `.cs` 的叙述行 →
+  仅裸词命中 → 零痕迹」优先序归档，合计恰 130）：0 / 0 / 5 / 5 / 8 / 112。
+  他路径同名锚 5 条经核均为「同名不同 C# 文件」的巧合（NumUtils:WriteInt32 vs
+  RespServerSessionOutput:WriteInt32、NumUtils:TryReadDouble vs ParseUtils:TryReadDouble、
+  LogRecord:GetInfo vs ClusterManager:GetInfo、LogRecord:ToString vs RecordInfo/LightEpoch:ToString、
+  LogRecord:TrySetExpiration vs MainStore/RMWMethods:TrySetExpiration），不构成改锚依据；
+  叙述行 5 条中仅 2 条（client.yml:96、server.yml:232）构成改锚依据，余 3 条为「同名他文件」或
+  「他文件语境顺带提及」。即按现刻证据判「改」仅 2 条、判「删」0 条、判「留」128 条。
   这与来源棒抽查所得「TryInPlaceUpdateNumber 属已实现却挂忽略」的单条直觉不同：该名
-  （`server.yml:284`）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:182`、
-  `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现，而是「非有限旗标」语义叙述，
-  仍判留；真正「已实现却挂忽略」的是下表的 SessionParseState.cs:Slice 与
+  （`server.yml:284`，叙述行类）在 rust 侧的两处提及（`wnode/src/resp/basic_commands/incr.rs:208`、
+  `wnode/tests/resp_tests.rs:428`）经核均非 C# 该口的对位实现——两处都在 INCRBYFLOAT 的
+  「结果溢出→非有限旗标」语义面，rust 该路径走 `try_rmw_sync` 交给存储层，无 C# 的
+  「数值就地原地更新」函数口（同文件 `PrivateMethods.cs:TryCopyUpdateNumber` 亦同判），
+  仍判留；真正「已实现却挂忽略」的是下文的 SessionParseState.cs:Slice 与
   GarnetClientProcessReplies.cs:ProcessReplyAsNumber 两条。
 
 ### 2.2 已完成块一：common.yml（14 条，全留）
@@ -199,7 +217,7 @@ js/check/ignore/common.yml:7 | libs/common/RespReadUtils.cs:TryReadPtrWithLength
 js/check/ignore/common.yml:8 | libs/common/RespReadUtils.cs:TrySkipByteArrayWithLengthHeader | 留 | 理由记 C# 仅 RespReadUtilsTests.cs:419,425,431 测试引用，生产零调用
 js/check/ignore/common.yml:13 | libs/common/RespReadUtils.cs:TryReadStringResponseWithLengthHeader | 留 | 理由点名唯一生产引用 LuaRunner.cs:1302，rust 由 wlua resp_convert 承接
 （同块提醒：同文件 `RespReadUtils.cs:TryReadInfinity` 未在此块内，rust 承接口
-`wedb/wbase/src/num.rs:210 infinity_sign` 在位却无锚 → 第一节乙/甲族已列，须与本块同棒复核以免两块口径分叉）
+`wedb/wbase/src/num.rs:210 infinity_sign` 在位却无锚 → 第一节甲族 15 已列，须与本块同棒复核以免两块口径分叉）
 
 js/check/ignore/common.yml:323 | libs/common/NumUtils.cs:WriteInt32 | 留 | rust 现刻唯一 WriteInt32 锚是 `RespServerSessionOutput.cs:WriteInt32`（wnode/src/resp/resp_server_session_output.rs:93），非 NumUtils 同名口，理由「itoa/to_le_bytes 原生」成立
 js/check/ignore/common.yml:328 | libs/common/NumUtils.cs:WriteDouble | 留 | rust 侧仅测试与 incr.rs 的裸词叙述（wnode/tests/resp_tests.rs:354），无独立写浮点口，理由「ryu/dtoa 原生」成立
@@ -297,7 +315,7 @@ js/check/ignore/storage.yml:1945 | TsavoriteLog.cs:SetHeader | 留 | 同上，�
 js/check/ignore/storage.yml:1960 | TsavoriteLog.cs:ValidateAllocatedLength | 留 | 零痕迹
 js/check/ignore/storage.yml:1961 | TsavoriteLog.cs:VerifyChecksum | 留（待复核定性） | 同 GetChecksum，校验面在 rust 无口，需一次定性
 
-其余零散（9 条）——留 7 / 改 2：
+其余零散（7 条）——全留：
 
 js/check/ignore/storage.yml:325 | …/Allocator/ObjectAllocatorImpl.cs:CreateSnapshotObjectReader | 留 | 对象日志物理层不存在（同块整面理由）
 js/check/ignore/storage.yml:869 | …/ClientSession/TransactionalConsistentReadContext.cs:IsModified | 留 | 只读会话无脏标记面；与同块 Upsert/RMW/Delete 同口径（本块尚缺 RMW/Refresh 两名的登记，见第一节乙族）
@@ -306,12 +324,18 @@ js/check/ignore/storage.yml:1634 | …/Index/Tsavorite/Implementation/FindRecord
 js/check/ignore/storage.yml:1636 | FindRecord.cs:TryFindRecordInMainLogForPendingOperation | 留 | 同上
 js/check/ignore/storage.yml:1849 | …/Index/Tsavorite/TsavoriteBase.cs:UpdateSlot | 留 | windex 表侧槽更新为私有内联（table.rs classify_slot 族），无具名口
 js/check/ignore/storage.yml:2583 | …/Index/Common/PendingState.cs:CopyFrom | 留 | 理由「零调用方 + 字节切片原生」成立
-js/check/ignore/storage.yml:— | （本块无第 8 条改判，改判两条在 common/client 交界，下列） | — | —
+
+小计：storage.yml 74 条 → 留 74（其中 2 条标注「待复核定性」）、改 0、删 0。
+本块「改」为 0 的原因：改判只看 rust 侧是否存在未登记的实口，而 storage 暗条目 74 名经取证
+仅 2 条有他路径同名锚（:231 GetInfo、:265 TrySetExpiration）、8 条有叙述行，逐条读原文后
+均判为「同名他文件」或「他文件语境顺带提及」，无一构成改锚依据。
+
+### 2.3bis 顺带判尽：client.yml（2 条，留 1 / 改 1）
+
+题面把 client.yml 归入「剩余块」，因其与 2.3 同批取数，本单一并判尽，剩余数已相应扣除：
 
 js/check/ignore/client.yml:95 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsMemoryByteArray | 留 | 客户端 SDK 应答分型，rust 传输层无该分型口
 js/check/ignore/client.yml:96 | libs/client/GarnetClientProcessReplies.cs:ProcessReplyAsNumber | 改 | `wedb/wconn/src/parser.rs:70` doc 已点名该 C# 口却写成「…（libs/client/GarnetClientProcessReplies.cs:86）」行号形态，CS_REF_REGEX 不认 → 改规范锚后条目自动淘汰
-
-注：client.yml 两条按题面属「剩余块」，因与上表同批取数一并判尽，剩余数已相应扣除。
 
 ### 2.4 剩余块（未逐条判，标注剩余数与分块建议）
 

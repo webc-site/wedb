@@ -210,23 +210,27 @@ impl RespServerSession {
       ZsetLoad::Present(o) => o,
     };
 
-    let obj_out = run_operate(
+    // 解析消费非回显：负载挂本地 sink（错误臂冷路径透传一次）
+    let mut sink = Vec::new();
+    let result1 = run_operate(
       &mut src_obj,
       SortedSetOperation::Zrange,
       &parse_state[2..],
       0,
       SortedSetRangeOpts::STORE.bits() as i32,
       self.resp_protocol_version,
-    );
+      &mut sink,
+    )
+    .result1;
 
     // result1 = -1 表示范围参数被拒（错误已写入负载）
-    if obj_out.result1 == -1 {
-      output.extend_from_slice(&obj_out.payload);
+    if result1 == -1 {
+      output.append(&mut sink);
       return Ok(true);
     }
 
     // 成对负载 → 目标集合（from_entries：双索引 + 内存记账，ProcessRespArrayOutputAsPairs 语义）
-    let dst = SortedSetObject::from_entries(parse_pairs_payload(&obj_out.payload));
+    let dst = SortedSetObject::from_entries(parse_pairs_payload(&sink));
 
     // STORE 族目标键为 SET 语义（清既有 key 级 TTL）：对标 C# SortedSetRangeStore
     // 先统一面 Delete dst 再 RMW ZADD（ObjectStore/SortedSetOps.cs），信封域
@@ -369,9 +373,12 @@ impl RespServerSession {
       cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
       return Ok(true);
     };
-    // C# GenericErrAtLeastOneKey 替换 {0}="ZINTERCARD"
+    // C# GenericErrAtLeastOneKey 替换 {0}="ZINTERCARD"，单点成帧
     if num_keys < 1 {
-      output.extend_from_slice(b"-ERR at least 1 input key is needed for 'ZINTERCARD' command\r\n");
+      cs::abort_with_error_message(
+        output,
+        "ERR at least 1 input key is needed for 'ZINTERCARD' command",
+      );
       return Ok(true);
     }
 
@@ -384,10 +391,11 @@ impl RespServerSession {
       }
       // C# TryGetInt（int32）：非整数（含溢出）报 NOT_INTEGER；负值报
       // GenericErrCantBeNegative "LIMIT"
+      // C# GenericErrCantBeNegative "LIMIT"，单点成帧
       match strict_i32(parse_state[idx + 1]) {
         Some(v) if v >= 0 => limit = v,
         Some(_) => {
-          output.extend_from_slice(b"-ERR LIMIT can't be negative\r\n");
+          cs::abort_with_error_message(output, "ERR LIMIT can't be negative");
           return Ok(true);
         }
         None => {
@@ -527,7 +535,7 @@ impl RespServerSession {
       ZsetLoad::WrongType => return Ok(true),
       ZsetLoad::Missing => {
         if parse_state.len() > 1 {
-          output.extend_from_slice(b"*0\r\n");
+          output.write_resp_array_len(0);
         } else {
           output.write_resp_null_ver(self.resp_protocol_version);
         }
@@ -564,19 +572,19 @@ impl RespServerSession {
     let arg1 = (((param_count << 1) | i32::from(included_count)) << 1) | i32::from(with_scores);
     // count = 0 不触达后端（对齐 C#）
     if param_count == 0 {
-      output.extend_from_slice(b"*0\r\n");
+      output.write_resp_array_len(0);
       return Ok(true);
     }
 
-    let obj_out = run_operate(
+    run_operate(
       &mut obj,
       SortedSetOperation::Zrandmember,
       &[],
       arg1,
       fastrand::i32(..),
       self.resp_protocol_version,
+      output,
     );
-    output.extend_from_slice(&obj_out.payload);
     Ok(true)
   }
 
@@ -1000,7 +1008,7 @@ pub(crate) fn write_zset_entries(
 ) {
   let Some(obj) = obj else {
     // C# 空结果 → TryWriteEmptyArray（不分版本的 *0）
-    output.extend_from_slice(b"*0\r\n");
+    output.write_resp_array_len(0);
     return;
   };
 

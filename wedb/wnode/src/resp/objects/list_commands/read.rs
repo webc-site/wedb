@@ -60,15 +60,15 @@ impl RespServerSession {
       // C# NOTFOUND → RESP_EMPTYLIST
       ListLoad::Missing => output.extend_from_slice(cs::RESP_EMPTYLIST),
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        run_operate(
           &mut obj,
           ListOperation::Lrange,
           &[],
           start,
           stop,
           self.resp_protocol_version,
+          output,
         );
-        output.extend_from_slice(&obj_out.payload);
       }
     }
     Ok(true)
@@ -96,18 +96,19 @@ impl RespServerSession {
       // C# NOTFOUND → null
       ListLoad::Missing => output.write_resp_null_ver(self.resp_protocol_version),
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+        let result1 = run_operate(
           &mut obj,
           ListOperation::Lindex,
           &[],
           index,
           0,
           self.resp_protocol_version,
-        );
-        if obj_out.result1 == -1 {
+          output,
+        )
+        .result1;
+        if result1 == -1 {
           output.write_resp_null_ver(self.resp_protocol_version);
-        } else {
-          output.extend_from_slice(&obj_out.payload);
         }
       }
     }
@@ -142,18 +143,18 @@ impl RespServerSession {
         }
       }
       ListLoad::Present(mut obj) => {
-        let obj_out = run_operate(
+        // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
+        let result1 = run_operate(
           &mut obj,
           ListOperation::Lpos,
           &parse_state[1..],
           0,
           0,
           self.resp_protocol_version,
-        );
-        // result1 == -1 时对象层未写负载（C# ProcessOutput + WriteNull）
-        if obj_out.result1 != -1 {
-          output.extend_from_slice(&obj_out.payload);
-        } else {
+          output,
+        )
+        .result1;
+        if result1 == -1 {
           output.write_resp_null_ver(self.resp_protocol_version);
         }
       }

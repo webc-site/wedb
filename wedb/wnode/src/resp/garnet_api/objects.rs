@@ -167,12 +167,13 @@ pub(crate) async fn collect_hash_key<D: Device>(
     ObjLoad::Missing => return Ok(GarnetStatus::NotFound),
     ObjLoad::Present(o) => o,
   };
+  // 收集操作仅取副作用（负载弃用），挂本地 sink 不触会话输出
   obj.operate(
     HashOperation::Hcollect as u8,
     &[] as &[&[u8]],
     0,
     0,
-    &mut ObjectOutput::new(),
+    &mut ObjectOutput::mount(&mut Vec::new()),
     COLLECT_RESP_VERSION,
   );
   // 零变更门控——刻意差异（C# 无对应物，不得称等价）：C# HashObject.Operate
@@ -244,12 +245,13 @@ pub(crate) async fn collect_sorted_set_key<D: Device>(
     ObjLoad::Missing => return Ok(GarnetStatus::NotFound),
     ObjLoad::Present(o) => o,
   };
+  // 收集操作仅取副作用（负载弃用），挂本地 sink 不触会话输出
   obj.operate(
     SortedSetOperation::Zcollect as u8,
     &[] as &[&[u8]],
     0,
     0,
-    &mut ObjectOutput::new(),
+    &mut ObjectOutput::mount(&mut Vec::new()),
     COLLECT_RESP_VERSION,
   );
   // 零变更门控（含 [`collect_hash_key`] 处登记的「C# 无零变更门控」刻意差异，
