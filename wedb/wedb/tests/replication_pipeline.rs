@@ -330,3 +330,33 @@ fn test_recovery_status_state_machine() {
   mgr.end_recovery(RecoveryStatus::NoRecovery, false);
   assert_eq!(mgr.recovery_status(), RecoveryStatus::NoRecovery);
 }
+
+/// attach 恢复窗口的 AOF 防线三态（C# ReplicationManager.cs:49
+/// CannotStreamAOF => IsRecovering && status != CheckpointRecoveredAtReplica
+/// 的时序对偶）：持锁传送/置换段拒流、恢复点回报后放行、收尾释放后常态
+#[test]
+fn test_cannot_stream_aof_across_attach_recovery_window() {
+  let mgr = ReplicationManager::with_options(1, None, false);
+
+  // attach 握锁（try_add_replica_async / 启动臂前置同形态）：
+  // 传送与引擎置换窗口拒收 AOF 帧
+  assert!(mgr.begin_recovery(RecoveryStatus::ClusterReplicate, false));
+  assert!(mgr.is_recovering());
+  assert!(mgr.cannot_stream_aof(), "传送/置换窗口必须拒收 AOF 帧");
+
+  // 并发互斥：窗口内第二次 begin（二次 REPLICAOF / CLUSTER FAILOVER 同形）
+  // 必须被拒（C# 由恢复锁返回 CannotAcquireRecoveryLock）
+  assert!(!mgr.begin_recovery(RecoveryStatus::ClusterReplicate, false));
+
+  // 恢复点回报（replica_diskbased/diskless_sync 收尾段）：放行 AOF 流但锁仍持
+  mgr.end_recovery(RecoveryStatus::CheckpointRecoveredAtReplica, false);
+  assert_eq!(mgr.recovery_status(), RecoveryStatus::CheckpointRecoveredAtReplica);
+  assert!(mgr.is_recovering(), "恢复点后锁仍持");
+  assert!(!mgr.cannot_stream_aof(), "恢复点后必须放行 AOF 流");
+
+  // attach 收尾（finish_replica_sync）：释放到 NoRecovery
+  mgr.end_recovery(RecoveryStatus::NoRecovery, false);
+  assert_eq!(mgr.recovery_status(), RecoveryStatus::NoRecovery);
+  assert!(!mgr.is_recovering());
+  assert!(!mgr.cannot_stream_aof());
+}
