@@ -138,4 +138,5 @@
 - 合入后 dev 现态复核（grep 按符号名）：三锚各单点 ——
   server.rs:973 run_tcp_accept_loop 持 HandleNewConnection、tls/config.rs:93 server_config 持
   GetSslServerAuthenticationOptions、service.rs:612 spawn_pubsub_consume_task 持 StartAsync
-  （本票落地与 tls-pem-loader 棒同波合入，行号相对上文实测各漂移 1～4 行，判据不变）。
+  （行号相对上文实测各漂移 1～4 行，来源是回合 fbd2859 的 dead-batch-six 批六改动同两文件，
+  锚点归属与判据不变）。
