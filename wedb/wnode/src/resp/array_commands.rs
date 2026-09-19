@@ -299,9 +299,9 @@ impl RespServerSession {
     let prefix = store.session_prefix();
     let prefix_slice = prefix.as_slice();
 
-    // 检查是否有任何键已存在（双域：对象键同计存在，C# NX 语义）。降级
-    //（Ok(None)：磁盘候选 / TTL 待裁决）发生时尚未写入任何键，整体移交
-    // 慢路径完整裁决，安全重放
+    // 检查是否有任何键已存在（三域存活探针：对象信封与升阶键 Meta 元记录
+    // 同计存在，C# NX 语义）。降级（Ok(None)：磁盘候选 / TTL 待裁决）发生
+    // 时尚未写入任何键，整体移交慢路径完整裁决，安全重放
     self.msetnx_resume = false;
     for chunk in parse_state.as_chunks::<2>().0 {
       match probe_alive_with_prefix(store, prefix_slice, chunk[0]) {
