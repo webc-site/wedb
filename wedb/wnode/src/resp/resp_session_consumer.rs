@@ -224,6 +224,12 @@ impl MessageConsumerFace for RespSessionConsumer {
     self.session.take_slow_wait()
   }
 
+  /// 慢路径应答并入（锚点 1:1 挂在 trait 契约面
+  /// [`traits::MessageConsumerFace::resolve_slow_wait_into`]，本转调位不复挂）
+  fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
+    self.session.resolve_slow_wait_into(reply, resp_buf);
+  }
+
   fn pubsub_mailbox(&self) -> Option<Arc<PubSubMailbox>> {
     // 仅订阅态接线（空闲推送只对活跃订阅者有意义；非订阅会话读等待
     // 保持纯读阻塞，零额外唤醒开销）

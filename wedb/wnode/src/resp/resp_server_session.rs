@@ -24,16 +24,15 @@ use parking_lot::Mutex;
 use smallvec::SmallVec;
 use wacl::{GarnetAclAuthenticator, UserHandle, acl_password_check};
 use wbase::{
+  future::blocking_wait,
   hash_slot::slot_of,
   time::{now_ms, now_nanos, now_stopwatch_ticks},
 };
-use wcol::{
-  itembroker::collection_item_observer::CollectionItemResult, object_payload::obj_decode_custom,
-};
+use wcol::itembroker::collection_item_observer::CollectionItemResult;
 use wconf::{DEFAULT_RESP_VERSION, NodeArgs, RuntimeServerConfig, ServerConfigType};
-use wcustom::{CommandType, CustomObjectFns};
+use wcustom::{CommandType, CustomObjectFns, KeyScope};
 use wdev::Device;
-use wkv::{StoreResult, WedbStore};
+use wkv::WedbStore;
 use wlua::{
   LuaCommands, LuaOptions, LuaSessionContext, LuaTimeoutManager, ScriptingApi, SessionScriptCache,
   StoreScriptCache,
@@ -60,11 +59,11 @@ use wresp::{
   read::{ReplyError, parse_bulk_reply, parse_simple_reply},
   session_parse_state::{MAX_ARGUMENT_LENGTH_BYTES, SessionParseState},
 };
+use wval::CustomObjectType;
 use wtxn::{
   TransactionManager, TxnCommandKeys, TxnKeySpec, TxnLockTable, TxnQueuedCommandInfo, TxnState,
   WatchVersionMap,
 };
-use wval::KeyTag;
 
 use super::{
   BlockedWait, ItemBroker,
@@ -218,11 +217,14 @@ pub struct CustomCommandRef {
   pub name: &'static str,
   /// 命令类型（Read / ReadModifyWrite）
   pub command_type: CommandType,
+  /// 键作用域（单键 / 多键读；静态清单形态位，执行面按此分派）
+  pub key_scope: KeyScope,
   /// arity（0 = 不校验；负值 = 至少 -arity-1 个参数）
   pub arity: i32,
   /// 对象信封类型标签（wval::CustomObjectType 分配单点，经 wcustom
-  /// CustomObjectEntry 静态描述清单流转）
-  pub object_tag: u8,
+  /// CustomObjectEntry 静态描述清单流转；parse→exec 全程保持枚举，
+  /// 仅在信封编解码边界收窄为 u8 线域）
+  pub object_tag: CustomObjectType,
   /// 静态执行体（编译期函数指针集）
   pub fns: CustomObjectFns,
 }
@@ -232,6 +234,7 @@ impl fmt::Debug for CustomCommandRef {
     f.debug_struct("CustomCommandRef")
       .field("name", &self.name)
       .field("command_type", &self.command_type)
+      .field("key_scope", &self.key_scope)
       .field("arity", &self.arity)
       .field("object_tag", &self.object_tag)
       .finish_non_exhaustive()
@@ -757,6 +760,20 @@ impl RespServerSession {
       resp_version,
       resp_buf,
     );
+    self.account_output((resp_buf.len() - start_len) as u64);
+  }
+
+  /// 慢路径完成后的应答写出（C# 慢命令在网络线程同步执行段的应答产出点）：
+  /// 与 [`Self::resolve_blocked_wait_into`] 同一收尾形态——先冲出会话已累积
+  /// 应答，再把挂起体产出的应答字节按流水线顺序并入目标写缓冲，绕过
+  /// `output` 的这段同样经 [`Self::account_output`] 单点入账
+  ///
+  /// 网络泵与脚本重入两处承接点共用此一枚并入口，杜绝「挂起应答如何落
+  /// 缓冲」的第二份实现
+  pub fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
+    self.take_output_into(resp_buf);
+    let start_len = resp_buf.len();
+    resp_buf.extend_from_slice(reply);
     self.account_output((resp_buf.len() - start_len) as u64);
   }
 
@@ -1960,7 +1977,9 @@ impl RespServerSession {
       self.command_error_written = true;
       return Ok(true);
     }
-    let Some((&key, args)) = parse_state.split_first() else {
+    // 键与命令入参由静态清单键作用域拆定（单键与多键读同一分派面，会话
+    // 执行臂不再按命令名比串特判）；拆不出键 = 参数域不足，按 arity 同款口径报错
+    let Some(args) = custom.key_scope.split(parse_state) else {
       cs::abort_with_wrong_number_of_arguments(output, custom.name);
       self.command_error_written = true;
       return Ok(true);
@@ -1968,31 +1987,6 @@ impl RespServerSession {
 
     // 自定义对象执行体的 nil 帧随会话协议（版本在调用点裁决，执行体不自存状态）
     let resp_version = self.resp_protocol_version;
-    if custom.name.eq_ignore_ascii_case("JSON.MGET") {
-      let (keys, path_slice) = parse_state.split_at(parse_state.len() - 1);
-      let path = path_slice[0];
-      output.write_resp_array_len(keys.len());
-      for &k in keys {
-        let res = store.try_read_tag_sync(k, KeyTag::ObjectEnvelope, |raw| {
-          if let Some(payload) = obj_decode_custom(raw, custom.object_tag) {
-            let mut sub_out = Vec::new();
-            (custom.fns.reader)(payload, &[path], &mut sub_out, resp_version);
-            Some(sub_out)
-          } else {
-            None
-          }
-        });
-        match res {
-          Ok(StoreResult::Success(Some(sub_out))) => {
-            output.extend_from_slice(&sub_out);
-          }
-          _ => {
-            output.write_resp_null_ver(self.resp_protocol_version);
-          }
-        }
-      }
-      return Ok(true);
-    }
 
     // 信封类型标签 + 执行面均为编译期静态取用（解析期已入槽，零锁零克隆）
     #[cfg(any(feature = "roaring", feature = "json"))]
@@ -2004,10 +1998,9 @@ impl RespServerSession {
         store,
         CustomObjectCall {
           cmd_type: custom.command_type,
+          args,
           tag: custom.object_tag,
           fns: &custom.fns,
-          key,
-          args,
           resp_version,
         },
         output,
@@ -2024,7 +2017,7 @@ impl RespServerSession {
     // 绝不静默
     #[cfg(not(any(feature = "roaring", feature = "json")))]
     let done = {
-      let _ = (custom, key, args, store);
+      let _ = (custom, args, store);
       log::error!("自定义对象命令执行域未配置，被拒绝");
       cs::write_error_raw(output, cs::RESP_ERR_GENERIC_UNK_CMD);
       self.command_error_written = true;
@@ -2530,6 +2523,14 @@ impl RespServerSession {
     // `respServerSession.storageSession.unifiedTransactionalContext` 同源：
     // 脚本键锁面与会话事务锁面同表）
     let lock_table = self.lock_table.clone();
+    // 脚本窗口隔离（C# 内嵌 processor 自带独立接收缓冲与应答暂存发送器的
+    // 等价物）：redis.call 的合成 RESP 请求覆写会话接收窗，故外层批的接收
+    // 游标与已产出应答先换出、窗口关闭原样挂回——否则同批 EVAL 之后尚未
+    // 消费的命令随覆写凭空消失，前序命令的应答更会被 Lua 应答转换器误读出
+    // 成本条 redis.call 的应答
+    let outer_output = mem::take(&mut self.output);
+    let outer_recv = mem::take(&mut self.recv_buffer);
+    let outer_cursors = (self.read_head, self.end_read_head, self.bytes_read);
     let mut script_out = Vec::new();
     {
       let mut api = RespScriptingApi(&mut *self);
@@ -2555,6 +2556,26 @@ impl RespServerSession {
         _ => true,
       };
     }
+    // 收尾不变式：脚本窗口退出时挂起态必为 None——每次重入的
+    // [`RespScriptingApi::dispatch_resp`] 已就地承接两态并把应答并入脚本应答。
+    // 残留挂起体若不摘除，网络泵会把它当成本连接的挂起命令 resolve，产出一帧
+    // 不属于任何客户端命令的应答插进出网流（协议流错插的最后一道闸）；此处
+    // 写明并就地取消，与 [`Self::dispose`] 同一取消口径
+    if let Some(blocked) = self.take_blocked_wait() {
+      log::error!("脚本窗口退出时残留阻塞挂起体，已就地取消");
+      blocked.abort();
+    }
+    if self.take_slow_wait().is_some() {
+      log::error!("脚本窗口退出时残留慢路径挂起体，已就地取消");
+    }
+    // 会话窗口挂回：外层游标与接收缓冲复位，水位让渡哨兵复位为派发前的
+    // false（EVAL 能被派发即说明前序命令未触水位）
+    self.recv_buffer = outer_recv;
+    (self.read_head, self.end_read_head, self.bytes_read) = outer_cursors;
+    self.output_watermark_yield = false;
+    // 窗口缓冲整段弃用（C# 内嵌 processor 的 ScratchBufferNetworkSender 随窗口
+    // 丢弃同款）：dispatch_resp 收尾已把窗口应答尽数冲入脚本应答，此处无可残留
+    self.output = outer_output;
     // 脚本窗口关闭：外层连接命令恢复 no-script 门豁免（对齐 C# 外层会话
     // 位图恒 null）
     self.no_script_bitmap = None;
@@ -2704,10 +2725,11 @@ impl RespServerSession {
 
 /// 会话的 [`ScriptingApi`] 适配器（redis.call 落地面）
 ///
-/// C# ProcessCommandFromScripting 把参数格式化为 RESP 请求后重入
-/// TryConsumeMessages；rust 侧经同一解析/分派路径，响应字节追加写入
-/// 调用方传入的 `&mut Vec<u8>`。会话脚本缓存已由
-/// [`RespServerSession::run_lua_command`] 暂时摘除，重入路径与脚本期借用互斥。
+/// C# ProcessCommandFromScripting 把参数格式化为 RESP 请求后重入内嵌
+/// processor 的 TryConsumeMessages；rust 无内嵌 processor，经同一解析/分派
+/// 路径重入共享会话，响应字节追加写入调用方传入的 `&mut Vec<u8>`。外层批的
+/// 接收窗与输出缓冲由 [`RespServerSession::run_lua_command`] 在脚本窗口换出、
+/// 会话脚本缓存同时摘除，故重入路径与脚本期借用互斥且外层字节不被覆写污染。
 struct RespScriptingApi<'a>(&'a mut RespServerSession);
 
 impl RespScriptingApi<'_> {
@@ -2730,22 +2752,51 @@ impl ScriptingApi for RespScriptingApi<'_> {
   fn dispatch_resp(&mut self, request: &[u8], response: &mut Vec<u8>) {
     // 对标 C# LuaRunner.Functions.cs:ProcessCommandFromScripting 尾部
     // `respServerSession.TryConsumeMessages(request.ptr, request.length)`：
-    // 脚本格式化缓冲切为接收内容重入消费装配（C# recvBufferPtr = reqBuffer
-    // + 入口 `if (!txnSkip) readHead = 0` 的游标归零）；外层批 EVAL 帧之后
-    // 的剩余字节随缓冲替换失效，与 C# 指针切换行为一致
+    // 脚本格式化缓冲切为接收内容重入消费装配（C# 的 recvBufferPtr 切到
+    // reqBuffer + 入口 `if (!txnSkip) readHead = 0` 的游标归零）。C# 切的是
+    // 内嵌 processor 的接收窗，外层批字节不受扰动；rust 重入共享会话，外层
+    // 接收窗与已产出应答由 [`RespServerSession::run_lua_command`] 在脚本窗口
+    // 换出、收尾挂回，此处只覆写窗口内的会话接收窗
     let session = &mut *self.0;
     session.recv_buffer.clear();
     session.recv_buffer.extend_from_slice(request);
     session.read_head = 0;
     session.end_read_head = 0;
-    // 水位让渡续消费（对标 C# 重入 TryConsumeMessages 的 SendAndReset
-    // 满刷后续写）：让渡发生时游标驻留接收缓冲，续消费至合成请求耗尽；
-    // 无让渡的返回即整段消费完毕或半包不足，二者对合成请求等价收尾
+    // 消费序与网络泵同构（drive.rs 泵循环的脚本重入投影）：消费 → 水位让渡
+    // 冲出应答后续消费 → 挂起态就地驱动闭环。
+    //
+    // 挂起承接是 C# 重入语义的必需项：C# 侧脚本内命令的磁盘 pending 与阻塞
+    // 等待都在 TryConsumeMessages 的调用栈上同步收割，应答齐了才返回，故 C#
+    // 不存在「重入返回而命令仍挂起」的形态；rust 侧两态以会话挂起体承载，
+    // 本函数返回前必须取走并驱动——留 pending 回会话即令本条 redis.call 拿
+    // 空应答（resp_convert 落 UnexpectedError）且后续每条 redis.call 被消费
+    // 入口门连锁挡回，残留挂起体更会被网络泵当作本连接的挂起 resolve，把一帧
+    // 不属于任何客户端命令的应答插进 EVAL 之后的出网流
     loop {
       if session.try_consume_messages().is_none() {
         break;
       }
-      if !session.take_output_watermark_yield() {
+      // 批内输出水位让渡：应答先并入 response 再续消费——会话输出缓冲在下一
+      // 批入口即被清空，不冲出即丢整段已产出应答（大应答脚本命令曾据此凭空
+      // 截断）
+      if session.take_output_watermark_yield() {
+        session.take_output_into(response);
+        continue;
+      }
+      let mut resumed = false;
+      // 阻塞挂起承接：应答经泵同款并入口直写 response，不碰会话出网缓冲
+      if let Some(blocked) = session.take_blocked_wait() {
+        let (cmd, result) = blocking_wait(blocked.resolve());
+        session.resolve_blocked_wait_into(cmd, result, response);
+        resumed = true;
+      }
+      // 慢路径挂起承接（冷键降级 / 槽位门等待）
+      if let Some(slow) = session.take_slow_wait() {
+        let reply = blocking_wait(slow.resolve());
+        session.resolve_slow_wait_into(&reply, response);
+        resumed = true;
+      }
+      if !resumed {
         break;
       }
     }
