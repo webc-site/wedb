@@ -447,7 +447,15 @@ pub(crate) async fn sorted_set(
         SortedSetObject::from_blob,
         |output| output.write_resp_null_ver(resp_version),
         async move |obj: &mut SortedSetObject, output: &mut Vec<u8>| {
-          run_operate(obj, op, &[member], i32::from(with_score), 0, resp_version, output);
+          run_operate(
+            obj,
+            op,
+            &[member],
+            i32::from(with_score),
+            0,
+            resp_version,
+            output,
+          );
         },
       )
       .await
