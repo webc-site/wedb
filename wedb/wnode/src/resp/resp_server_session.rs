@@ -59,11 +59,11 @@ use wresp::{
   read::{ReplyError, parse_bulk_reply, parse_simple_reply},
   session_parse_state::{MAX_ARGUMENT_LENGTH_BYTES, SessionParseState},
 };
-use wval::CustomObjectType;
 use wtxn::{
   TransactionManager, TxnCommandKeys, TxnKeySpec, TxnLockTable, TxnQueuedCommandInfo, TxnState,
   WatchVersionMap,
 };
+use wval::CustomObjectType;
 
 use super::{
   BlockedWait, ItemBroker,

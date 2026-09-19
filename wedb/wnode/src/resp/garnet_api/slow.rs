@@ -531,8 +531,7 @@ impl<D: Device> StoreGarnetApi<D> {
           write_error_raw(&mut output, RESP_ERR_GENERIC_UNK_CMD);
           return output;
         };
-        if let Err(()) =
-          custom_object_slow(&storage, entry.tag, &meta, cmd_refs, &mut output).await
+        if let Err(()) = custom_object_slow(&storage, entry.tag, &meta, cmd_refs, &mut output).await
         {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
         }
