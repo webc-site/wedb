@@ -483,6 +483,7 @@
         - lua_rawseti
         - lua_setglobal
         - lua_sethook
+        - lua_settop
         - lua_toboolean
         - lua_tolstring
         - lua_version

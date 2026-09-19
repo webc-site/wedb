@@ -190,6 +190,7 @@
         - TryWriteInt64
         - TryWriteInt64AsBulkString
         - TryWriteInt64AsSimpleString
+        - TryWriteIntegerFromBytes
         - TryWriteMapLength
         - TryWriteNaN
         - TryWriteNaN_Numeric

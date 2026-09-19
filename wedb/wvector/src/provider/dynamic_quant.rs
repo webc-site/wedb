@@ -2,7 +2,7 @@
 //!
 //! 实现全精度与量化向量透明自适应双轨运行，包含训练、回填、访问器及重排后处理。
 
-use std::{future, mem, mem::size_of, ptr::copy_nonoverlapping, sync::atomic::Ordering};
+use std::{future, mem, mem::size_of, sync::atomic::Ordering};
 
 use bytemuck::cast_slice;
 use diskann::{
@@ -687,6 +687,7 @@ impl<'a, 'b, T: ToDistanceComputer, S: StoreCallbacks>
     }
 
     if !accessor.filtered_ids.is_empty() {
+      let mut fallback_buf = Vec::<T>::new();
       provider.callbacks.read_multi_lpiid(
         &accessor.context.term(Term::Vector),
         &accessor.filtered_ids,
@@ -695,13 +696,16 @@ impl<'a, 'b, T: ToDistanceComputer, S: StoreCallbacks>
           let dist = match bytemuck::try_cast_slice::<u8, T>(v) {
             Ok(s) => f.evaluate_similarity(query, s),
             Err(_) => {
-              let count = v.len() / size_of::<T>();
-              let mut buf = Vec::<T>::with_capacity(count);
-              unsafe {
-                copy_nonoverlapping(v.as_ptr(), buf.as_mut_ptr().cast::<u8>(), v.len());
-                buf.set_len(count);
-              }
-              f.evaluate_similarity(query, &buf)
+              let count = if size_of::<T>() > 0 {
+                v.len() / size_of::<T>()
+              } else {
+                0
+              };
+              let valid_bytes = count * size_of::<T>();
+              fallback_buf.resize(count, bytemuck::Zeroable::zeroed());
+              let dest_bytes = bytemuck::cast_slice_mut::<T, u8>(&mut fallback_buf[..count]);
+              dest_bytes.copy_from_slice(&v[..valid_bytes]);
+              f.evaluate_similarity(query, &fallback_buf[..count])
             }
           };
           reranked.push(Neighbor::new(

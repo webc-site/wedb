@@ -14,7 +14,6 @@ use std::{
   borrow::Borrow,
   mem,
   ops::Deref,
-  ptr,
   sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -290,12 +289,14 @@ impl<S: StoreCallbacks> Callbacks<S> {
       result = match bytemuck::try_cast_slice::<u8, D>(data) {
         Ok(s) => Some(s.to_vec()),
         Err(_) => {
-          let count = data.len() / mem::size_of::<D>();
-          let mut vec = Vec::<D>::with_capacity(count);
-          unsafe {
-            ptr::copy_nonoverlapping(data.as_ptr(), vec.as_mut_ptr() as *mut u8, data.len());
-            vec.set_len(count);
-          }
+          let count = if mem::size_of::<D>() > 0 {
+            data.len() / mem::size_of::<D>()
+          } else {
+            0
+          };
+          let valid_bytes = count * mem::size_of::<D>();
+          let mut vec = vec![bytemuck::Zeroable::zeroed(); count];
+          bytemuck::cast_slice_mut::<D, u8>(&mut vec).copy_from_slice(&data[..valid_bytes]);
           Some(vec)
         }
       };
