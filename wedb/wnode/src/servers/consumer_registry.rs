@@ -462,18 +462,29 @@ impl ConsumerRegistry {
 
   /// 装配单轮采样输入（C# MainMonitorTaskAsync 直查 servers[] 与
   /// ActiveConsumers 的 rust 承接：本注册表即唯一服务器，复位回调经
-  /// [`ConsumerRegistry::active_consumers`] 回访条目共享句柄/镜像）
+  /// [`ConsumerRegistry::active_consumers`] 回访条目共享句柄/镜像；
+  /// gossip 与复活化统计两臂的句柄不在本注册表域内，由宿主装配点
+  ///（`server.rs` 的 `start_server_monitor`）以回调注入，全仓唯一构造位）
   ///
-  /// 复位语义对齐 C#：STATS 复位回清连接计数 + 逐会话指标；COMMANDSTATS
-  /// 复位回清逐会话命令统计句柄；延迟复位（全量/单类）回清逐会话延迟句柄。
-  pub fn monitor_iteration_inputs(
+  /// 复位语义对齐 C#：STATS 复位回清连接计数 + 逐会话指标 + gossip 计数 +
+  /// 复活化统计；COMMANDSTATS 复位回清逐会话命令统计句柄；延迟复位
+  ///（全量/单类）回清逐会话延迟句柄。
+  pub fn monitor_iteration_inputs<G, R>(
     self: &Arc<Self>,
+    reset_gossip_stats: G,
+    reset_revivification_stats: R,
   ) -> MonitorIterationInputs<
     impl FnMut(),
     impl FnMut(),
     impl FnMut(),
     impl FnMut(LatencyMetricsType),
-  > {
+    G,
+    R,
+  >
+  where
+    G: FnMut(),
+    R: FnMut(),
+  {
     let conn_reset = Arc::clone(self);
     let cmdstats_reset = Arc::clone(self);
     let latency_all_reset = Arc::clone(self);
@@ -508,6 +519,11 @@ impl ConsumerRegistry {
           }
         }
       },
+      // C# CleanupGlobalStats 体内的 clusterProvider?.ResetGossipStats() 与
+      // storeWrapper.ResetRevivificationStats() 两臂：句柄由宿主装配点持有，
+      // 本处原样承接（单机形态注入空操作闭包，对位 trait 默认实现）
+      reset_gossip_stats,
+      reset_revivification_stats,
     }
   }
 
