@@ -78,3 +78,13 @@ SetVersion 收敛缺失，且 rust 侧连 MainStoreStreamingCheckpointStartCommi
 功能缺口（副本磁盘占用单调增长 + 副本重启无本地基线，集群长期运行必现），中档偏上。
 
 盘点补记（qw13.invA replica-replay-checkpoint-end-arm）：dev e75716e 复核原样：aof_processor.rs:522 CheckpointEndCommit 臂仍只有 set_in_fuzzy_region(false) + process_fuzzy_region_operations + clear_fuzzy_region_buffer 三件事，无 store_version 比较、无本地拍检查点、无回调截断链。上游主端标记链已就位（checkpoint_version_shift_start/end 落地），本票可派性提高。
+
+落地方案（fork repl-replay-end-arm，dev 基线 858a1ec：primary-checkpoint-cluster-callback 已并入，先主已就）
+
+前提已达成：dev 内核 take_database_checkpoint_async 已按形态二分（database_manager_base.rs:283-284 covered 经 on_checkpoint_initiated；:332-333 截断层经 add_new_checkpoint_entry），副本角色经 on_checkpoint_initiated 取检查点起始位点、经 safe_truncate_aof 走 truncate_until_async，且 checkpoint_version_shift_start/end 在副本角色 is_replica 直接轮空（cluster_provider/traits.rs:547/560）——副本经本链拍检查点不会回写标记、covered 与截断均由既有单机制承接。本票只补触发臂，绝不改该回调面。
+
+臂本体（wnode/src/aof/aof_processor.rs，process_aof_record_internal）：CheckpointEndCommit 的 else 分支（曾处模糊区）内、process_fuzzy_region_operations 之前，补 as_replica && record_gate::is_new_version_record(&header, target.store.current_version())（复用既有单点判定 helper，语义即 header.store_version > current，与 C# :302 全等）判定，命中则经栅栏拍一次本地检查点。栅栏复用唯一入口：把 store 形的 flush_under_barrier 泛化为上下文无关的 synchronized_under_barrier（op: FnOnce()->Fut, Fut::Output=wkv::Result<R>，store 由各 FLUSH 臂闭包自带克隆），FLUSH 族三臂与检查点臂共用同一栅栏机制，不留第二套；单物理日志形态 process_synchronized_operation_async 入口直执行（对标 C# !usingShardedLog 的 BlockingWait），多日志形态经既有 LeaderBarrierType::Checkpoint 栅栏由 Leader 独占拍（对标 C# ProcessSynchronizedOperation 支），序次与 C# 一致。
+
+钩子注入（AofProcessor 不持 DB 管理器句柄、且非 D 泛型）：AofProcessor 增 checkpoint_hook: RwLock<Option<Arc<ReplicaCheckpointHook>>> + set_checkpoint_hook/getter，类型别名 ReplicaCheckpointHook = dyn Fn()->LocalBoxFuture<'static,wkv::Result<()>> + Send + Sync（compio 线程本地驱动，future 免 Send，与仓内 replicate_sync_async 只加 'static 的既有约定同源；闭包对象仅持 Arc<ClusterProvider> 故 Send+Sync）。宿主在装配期注入：ReplayAssets::new 增 checkpoint_hook 形参，转发 processor.set_checkpoint_hook；assembly.rs 用 cluster.try_database_manager() 现取现用包 dm.take_checkpoint(false)（缺库回 Ok(())，与 take_on_demand_checkpoint 的 None 臂同形）。恢复驱动面的 AofProcessor 不注入钩子（臂以 hook 在场为门，缺钩即维持原状），本票只接稳态副本重放臂，恢复臂接线属他票。
+
+范围收敛：不改 primary-checkpoint-cluster-callback 已落的回调面与内核；不接 resync-strategy-store-version 的 SetVersion 收敛与 MainStoreStreamingCheckpointStartCommit 流式臂；不改范围索引关栈析构面。测试构造（tests/replica_background_replay.rs、tests/diskless_sync_anchor_window.rs 各一处 ReplayAssets::new）补 None 形参。验证 cargo check -p wnode -p wedb。
