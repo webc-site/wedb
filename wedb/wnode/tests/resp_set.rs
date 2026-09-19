@@ -620,3 +620,37 @@ fn sscan_cursor_pagination_covers_all_members() {
     assert_eq!(seen, all);
   });
 }
+
+/// SPOP count 值域帧（参数推导单源：非整数与负数同报 NOT_INTEGER、arity 门；
+/// 慢侧同帧断言见 resp_slow_path.rs 的 object_slow_parse_frames_match_fast）
+#[test]
+fn spop_count_frames() {
+  with_batch(|s, batch| {
+    let mut out = Vec::new();
+    s.set_add(a![b"spk", b"a"], batch, &mut out).unwrap();
+
+    // count 负数 → 非整数帧（C# TryGetInt || count < 0 同报）
+    out.clear();
+    s.set_pop(a![b"spk", b"-1"], batch, &mut out).unwrap();
+    assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
+
+    // count 超 i32 上界 → 同帧
+    out.clear();
+    s.set_pop(a![b"spk", b"3000000000"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
+
+    // arity > 2 → wrong number of arguments
+    out.clear();
+    s.set_pop(a![b"spk", b"1", b"x"], batch, &mut out).unwrap();
+    assert_eq!(
+      out,
+      b"-ERR wrong number of arguments for 'SPOP' command\r\n"
+    );
+
+    // count 为 0 → 空集合（不触达后端）
+    out.clear();
+    s.set_pop(a![b"spk", b"0"], batch, &mut out).unwrap();
+    assert_eq!(out, b"*0\r\n");
+  });
+}

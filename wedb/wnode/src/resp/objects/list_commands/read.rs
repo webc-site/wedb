@@ -5,7 +5,7 @@ use wcol::list::list_object::ListOperation;
 use wresp::{check_args::check_arg_count, cmd_strings as cs, ext::RespVecExt};
 use wval::GarnetObjectType;
 
-use super::{ListLoad, list_load_sync, run_operate};
+use super::{ListLoad, list_load_sync, parse_i32_pair_args, run_operate};
 use crate::resp::{
   objects::object_store_utils::{ObjLoad, obj_length_sync},
   resp_server_session::RespServerSession,
@@ -47,12 +47,11 @@ impl RespServerSession {
     store: &wkv::BatchStoreSession<'a, D>,
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 3, output, "LRANGE");
-    let key = parse_state[0];
-    let (Some(start), Some(stop)) = (strict_i32(parse_state[1]), strict_i32(parse_state[2])) else {
-      cs::abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
+    // start/stop 参数推导单源（快慢共用，失败帧已写出）
+    let Some((start, stop)) = parse_i32_pair_args("LRANGE", parse_state, output) else {
       return Ok(true);
     };
+    let key = parse_state[0];
 
     match list_load_sync(store, key, output) {
       ListLoad::Degrade => return Ok(false),
