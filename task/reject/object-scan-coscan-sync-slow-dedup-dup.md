@@ -1,7 +1,0 @@
-重复：task/ing/object-scan-coscan-kernel-single-source.md（关键符号 object_scan/coscan/All 臂 命中）
-优先级：中
-
-object_scan/coscan 同步段与慢路径整段镜像复抄，慢段校验已漂移缺 All 臂，注释自称「单源同口径」失真
-  C# ObjectScan 是单一 session 方法，慢路径（CompletePending 后）重入同一函数，校验逻辑全仓一份。rust 侧 shared_object_commands.rs 把它拆成同步段（&mut self）与慢路径（自由函数 + StorageSession）两份，其中纯逻辑校验四段（cmd_name match、参数计数门、光标非负校验、sub_id match）逐字双抄：同步段 object_scan :32（cmd_name :41-47、计数 :49-51、光标 :54-56、sub_id :60-68）与慢段 slow::object_scan :360（:369-374、:376-378、:381-383、:386-391）；慢段模块头 :335 注释自称「校验与 operate 切片与同步段 object_scan 单源同口径」——「单源同口径」只是声明，实现是复抄，且慢段 cmd_name match :369-374 已漂移缺 GarnetObjectType::All 臂（同步段 :41-47 有 All => "COSCAN"），当前经 coscan 转调不触达，任何直传 All 的新调用会回 "NONE" 错误文案。coscan 三域判定链（String 域命中 WRONGTYPE → 信封域值首字节内层标签 → Meta 域 collection_type 三型门 → 三域皆缺回 [0, 空数组]）同样双写：network_coscan :146-225 与 slow::coscan :459-505，慢段注释 :458 自称「对位同步段 network_coscan」。全仓同步/慢双域的既有惯例是「内核单源 + 双域薄壳」（set_commands.rs:853 自述「装载/折叠核与同步段单源复用」、object_store_utils.rs:1070 同形态），本文件是逆例。校验四段无 IO 无域差异，可抽共享内核返回校验结果枚举（cmd 名 / sub_id / 校验失败类别），双域各接自己的错误输出通道（self.abort_with_* / cs::abort_with_*）；三域判定骨架可抽返回域分类枚举的纯决策函数，同步/异步探测原语作参数注入。
-  rust：wedb/wnode/src/resp/objects/shared_object_commands.rs:32（同步段 object_scan 校验 :41-68）、:360（慢段 object_scan 校验 :369-391，cmd_name 缺 All 臂漂移）、:146-225（network_coscan 三域判定）、:459-505（slow::coscan 三域判定）、:335/:458（「单源同口径」注释）；对照惯例 wedb/wnode/src/resp/objects/set_commands.rs:853
-  c#：garnet/libs/server/Resp/Objects/SharedObjectCommands.cs:18 ObjectScan<TGarnetApi>（cmdName switch :24-32、光标校验 :38-41、子命令 switch :60-73，单一函数同时服务同步与重放路径）

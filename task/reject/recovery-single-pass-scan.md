@@ -1,9 +1,0 @@
-reject: 工单描述的现状在 dev 上已不成立，其目标形态（恢复期单一顺序扫描内核）已完整落地，无剩余工作。
-
-工单称 wedb/wkv/src/store/cpr_host.rs 存在 recover_range_indexes 对全哈希桶逐条游走并经 hlog.read_record 逐键随机读（原 :141-:225 行号区间），又称 mod.rs 的 rebuild_vdb_async 另起一趟全日志扫描并在恢复链内被独立调用，合计三套扫描。经全树核对，recover_range_indexes 符号在 wedb 中零命中，恢复链内已无任何 read_record 点读（wkv/src 内 read_record 仅剩前台读路径 session/raw/mod.rs 与 compact 转调，均在恢复链之外），工单引用的 cpr_host.rs:83/:100 现为 reclaim_dead_domain_bftrees 对账调用，rebuild_vdb_async 仅余无检查点冷启动形态（wkv/src/store/mod.rs open_shared）与集成测试两处调用。
-
-现状实现与工单 C# 参考逐点对应。wcpr/src/manager/recover.rs 的 run_recovery_kernel（:320）沿 [begin, tail) 单趟有序扫描，同趟完成模糊区重插（find_or_create_tag_by_hash_with_min_addr + try_cas，对标 C# libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:770 RecoverHybridLogAsync 单趟扫描内 RecoverFromPage 索引重插）与逐记录主机回调 RecoveryVisitor::on_record（对标 libs/server/Storage/Functions/GarnetRecordTriggers.cs:148 OnRecoverySnapshotRead 的融合回调形态，已开文件核实该符号确在 :148）。宿主侧 wkv/src/store/cpr_host.rs 的 run_recovery_pass（:150）是恢复期唯一一次扫描驱动点，由 CprRecover::from_recovered 契约恰好调用一次（:437-446），同趟经 RecoveryPassVisitor（:263）完成 DbMeta 映射重建与 RI 桩候选收集：DbMeta 走与冷启动重建共用的单条工序 rebuild_vdb_visit 与收尾 finish_vdb_rebuild（wkv/src/store/mod.rs :440-:510，单机制无第二口径）；RI 桩结算（cpr_host.rs :190-254）为恢复出的哈希索引纯内存枚举与扫描期收集结果取交集，仅对确被索引引用的存根执行 mark_recovered 自愈回写与 register_pending，对标 C# RangeIndexManager.Index.cs:383 MarkRecoveredFromCheckpoint 与 GarnetRecordTriggers.cs:148 内的 RebuildFromSnapshotIfPending，设备读全程一次顺序遍，无逐键点读残留。工单「一次 parse 遍历同时完成重插索引、RI 存根 mark_recovered/自愈回写、DbMeta 归集」的方向即此实现本身；自愈回写放扫描后结算期而非回调内，是内核文档明示的契约（回调只收集不改写日志，recover.rs :297-:299），且判活必须以「被索引引用」为据（复活池可令索引指向更低地址记录，cpr_host.rs :147-149 注释），并非第二套机制。
-
-测试覆盖亦已就位：wcpr/tests/cpr/fuzzy_replay.rs 验证内核单趟重插，wkv/tests/checkpoint/index_checkpoint.rs:383 验证恢复自动触发 run_recovery_pass 并自愈 RangeIndex 存根，wkv/tests/store/vdb_rebuild_gate.rs 验证重建收尾代数推进。
-
-结论：工单为对旧代码状态的过期描述（其引用的 next/qcode.db.md 条 19 母文件亦已不存在），所提三套扫描问题均已消除，拒绝，不产生代码改动。

@@ -1,7 +1,0 @@
-重复：task/ing/readme-crate-map-drift.md（关键符号 根 README crate 拓扑/wram 专章过时 命中）
-优先级：低
-
-wedb/README.md（workspace 根 README）wram 专章、wkv re-export 清单、crate 计数、float feature 系统性过时
-  wedb/README.md:9 称 "fifteen focused Rust crates"（中文 :416「十五个职责单一的 crate」），实际 workspace members 36 个；:336-340 英文专章 "### wram — direct virtual memory" 描述 DirectVirtualMemory/DirectVmBlock/NativeMemoryTracker API（中文 :743 对应），:285/:692 目录树仍列 wram/ 条目，:220/:243/:247 与 :627/:650/:654 mermaid 仍画 wram 节点及 windex-->wram、wram-->wbase 依赖边——wram 目录不存在，其内容已迁 wedb/windex/src/ram/（windex/Cargo.toml 无 wram 依赖，"windex --> wram" 边为虚构）；:342 wbase feature 清单列 `float`（order-preserving f64 bits），wbase/Cargo.toml 24 个 feature 无 float、src 无 float.rs（已删模块）；:330 声称 wkv "Re-Exports from member crates" 27 项，经逐项核对 21 项不在 wkv/src/lib.rs：LogCompactor 现在 wedb/wcompact/src/compactor/mod.rs、CheckpointType 在 wedb/wcpr/src/meta.rs、ScanRecord/StorageBackend/StorageBackendType/TreeTuning 在 wedb/wbftree/src/types.rs、TtlProbe 全仓 grep 无定义。整份 API Reference 章节按已重组的 crate 边界整体失效。修法：按当前 36 成员与 crate 实际公开面重写，wram 章并入 windex，re-export 清单逐项重核或删除。
-  rust：wedb/README.md:9,:220,:243,:247,:285,:330,:336-340,:342,:416,:627,:650,:654,:692,:743；实际归属 wedb/windex/src/ram/direct_vm.rs、wedb/windex/src/ram/tracker.rs、wedb/wcompact/src/compactor/mod.rs、wedb/wcpr/src/meta.rs、wedb/wbftree/src/types.rs、wedb/wkv/src/lib.rs:15-38
-  c#：garnet/libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs、同目录 NativeMemoryTracker.cs（README wram 专章自述 mirroring 的对象，rust 实现已迁 windex/src/ram/）
