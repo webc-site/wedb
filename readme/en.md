@@ -16,7 +16,7 @@ graph TD
     end
 
     subgraph HostBase ["Host Foundation & Traits"]
-        wnode["wnode: TCP/UDS Listeners / Shutdown / Sharded Buffer Pool / Session Interface"]
+        wnode["wnode: TCP/UDS Listeners / Shutdown / Session Interface"]
     end
 
     subgraph StandaloneEngine ["Standalone Engine (wedb_standalone)"]
@@ -24,7 +24,6 @@ graph TD
         wacl["wacl: Access Control List"]
         wlua["wlua: Embedded Lua Sandbox"]
         wcol["wcol: Complex Collections (List/Hash/Set/ZSet)"]
-        windex["windex: Vector Index & Range Index"]
     end
 
     subgraph ClusterSystem ["Distributed Cluster System (wedb)"]
@@ -44,7 +43,7 @@ graph TD
         wcompact["wcompact: HybridLog Compaction & Space Reclamation"]
         wcpr["wcpr: Consistent Prefix Recovery (CPR) Checkpoint"]
         wepoch["wepoch: Garbage Collection & LightEpoch Protection"]
-        wram["wram: Allocators & Memory Footprint Tracking"]
+        windex["windex: Lock-Free Hash Index / Direct Virtual Memory & Native Memory Tracking"]
         whasher["whasher: High Performance Hashing"]
         wval["wval: Compact Value Types & Payload Layout"]
         wbase["wbase: Fundamental Utilities"]
@@ -64,10 +63,12 @@ graph TD
     wedb --> waof
 
     wkv --> whlog
+    wkv --> windex
     wkv --> wbftree
     wkv --> wcompact
     wkv --> wcpr
 
+    windex --> wbase
     whlog --> wdev
     whlog --> wepoch
     waof --> wdev
@@ -77,19 +78,19 @@ graph TD
 
 | Garnet Project (C#) | WeDB Crate (Rust) | Responsibility & Scope |
 |:---|:---|:---|
-| `Garnet.host` / `libs/networking` | [`wnode`](https://github.com/webc-site/wedb/tree/main/wedb/wnode) | Host foundation: TCP / Unix Domain Socket listeners, 16-way sharded buffer pool, nested text configuration, graceful shutdown coordination, session consumer interfaces (**zero storage, zero AOF, zero cluster code**). |
+| `Garnet.host` / `libs/networking` | [`wnode`](https://github.com/webc-site/wedb/tree/main/wedb/wnode) | Host foundation: TCP / Unix Domain Socket listeners, nested text configuration, graceful shutdown coordination, session consumer interfaces (**zero storage, zero AOF, zero cluster code**). |
 | `Garnet.server` | [`wedb_standalone`](https://github.com/webc-site/wedb/tree/main/wedb/wedb_standalone) | Standalone Redis-compatible server: session pipeline, MULTI/EXEC transactions, databases, PubSub, TTL eviction (**100% pure standalone, zero cluster code**). |
 | `Garnet.cluster` | [`wedb`](https://github.com/webc-site/wedb/tree/main/wedb/wedb) | Distributed cluster protocols & state machines: Gossip health checks, Failover election, live Migration, replication streams, cluster traits (**zero dependency on `wedb_standalone`**). |
 | `Garnet.client` | [`wconn`](https://github.com/webc-site/wedb/tree/main/wedb/wconn) | High-performance asynchronous client network layer: connection pool, handshakes, request multiplexing. |
 | `libs/server/Resp` | [`wresp`](https://github.com/webc-site/wedb/tree/main/wedb/wresp) | Binary-safe Redis Serialization Protocol (RESP2/RESP3) parser and command extractor. |
 | `libs/server/ACL` | [`wacl`](https://github.com/webc-site/wedb/tree/main/wedb/wacl) | User authentication, command categorization white-listing, and key-pattern permissions. |
 | `libs/server/Lua` | [`wlua`](https://github.com/webc-site/wedb/tree/main/wedb/wlua) | Embedded Lua script sandbox runner and compiled bytecode cache. |
-| `libs/server/Objects` | [`wcol`](https://github.com/webc-site/wedb/tree/main/wedb/wcol), [`windex`](https://github.com/webc-site/wedb/tree/main/wedb/windex) | Complex data collections (Hash/Set/ZSet/List), range indexing, and vector similarity search. |
-| `Tsavorite.core` | [`wkv`](https://github.com/webc-site/wedb/tree/main/wedb/wkv), [`whlog`](https://github.com/webc-site/wedb/tree/main/wedb/whlog), [`wcpr`](https://github.com/webc-site/wedb/tree/main/wedb/wcpr) | Concurrent hash table, hybrid log allocator, incremental checkpointing and crash recovery. |
+| `libs/server/Objects` | [`wcol`](https://github.com/webc-site/wedb/tree/main/wedb/wcol) | Complex data collections (Hash/Set/ZSet/List/Geo) and the BfTree range-index operator layer. |
+| `Tsavorite.core` | [`wkv`](https://github.com/webc-site/wedb/tree/main/wedb/wkv), [`whlog`](https://github.com/webc-site/wedb/tree/main/wedb/whlog), [`windex`](https://github.com/webc-site/wedb/tree/main/wedb/windex), [`wcpr`](https://github.com/webc-site/wedb/tree/main/wedb/wcpr) | Concurrent hash table, hybrid log allocator, lock-free hash index with direct virtual memory / native memory tracking (`windex::ram`), incremental checkpointing and crash recovery. |
 | `bftree-garnet` | [`wbftree`](https://github.com/webc-site/wedb/tree/main/wedb/wbftree) | Concurrent latch-free B+tree index. |
 | `Tsavorite.devices` | [`wdev`](https://github.com/webc-site/wedb/tree/main/wedb/wdev), [`waof`](https://github.com/webc-site/wedb/tree/main/wedb/waof) | Abstract storage device (segmented files, direct I/O), write-ahead append log streams and protocol. |
-| `libs/common` | [`wbase`](https://github.com/webc-site/wedb/tree/main/wedb/wbase), [`wram`](https://github.com/webc-site/wedb/tree/main/wedb/wram), [`whasher`](https://github.com/webc-site/wedb/tree/main/wedb/whasher), [`wval`](https://github.com/webc-site/wedb/tree/main/wedb/wval) | Memory trackers, fast hashing algorithms, compact value models, and primitive utilities. |
-| `modules/*` | [`ext_json`](https://github.com/webc-site/wedb/tree/main/wedb/ext_json), [`ext_roaring`](https://github.com/webc-site/wedb/tree/main/wedb/ext_roaring), [`ext_noop`](https://github.com/webc-site/wedb/tree/main/wedb/ext_noop) | Pluggable module extensions: RedisJSON syntax support, RoaringBitmap computation, and reference plugins. |
+| `libs/common` | [`wbase`](https://github.com/webc-site/wedb/tree/main/wedb/wbase), [`whasher`](https://github.com/webc-site/wedb/tree/main/wedb/whasher), [`wval`](https://github.com/webc-site/wedb/tree/main/wedb/wval) | Fundamental utilities and buffer pools (tiered sector-aligned `wbase::pool::BufferPool`, fixed-size network `wbase::pool::LimitedFixedBufferPool`), fast hashing algorithms, compact value models, and primitive utilities. |
+| `modules/*` | [`wext_json`](https://github.com/webc-site/wedb/tree/main/wedb/wext_json), [`wext_roaring`](https://github.com/webc-site/wedb/tree/main/wedb/wext_roaring) | Compile-time static feature extensions (`wnode`'s `default = ["roaring", "json"]` pulls the two crates in): RedisJSON syntax support and RoaringBitmap computation. The C# `NoOpModule` is a sample plugin and, per the static-feature ruling, is not transpiled. |
 
 ---
 
@@ -103,7 +104,7 @@ graph TD
 
 ### 2. Base Purity & Specialized Engines (`wnode` & `waof`)
 - **`wnode` Pure Network & Host Base**:
-  Contains no storage, AOF, or cluster business logic. Focuses exclusively on low-level networking: TCP/UDS listeners, 16-way sharded lock-free buffer pool (`LimitedFixedBufferPool`), backpressure throttling, lifecycle management, and pure virtual session traits (`MessageConsumerFace`, `SessionProviderFace`).
+  Contains no storage, AOF, or cluster business logic. Focuses exclusively on low-level networking: TCP/UDS listeners, backpressure throttling, lifecycle management, and pure virtual session traits (`MessageConsumerFace`, `SessionProviderFace`). Network buffers are not pooled here: `wnode` borrows `LimitedFixedBufferPool` through `wbase`'s `pool` feature. That pool owns the buffers in `wbase::pool` with a fixed 64 KiB block size, a 1024-entry resident ceiling, and lock-free borrow/return over a bounded `crossfire` MPMC ring; it is not a sharded structure.
 - **`waof` WAL & AOF Protocol Engine**:
   Independently handles write-ahead logging and replication stream primitives:
   - **`AofAddress`**: 40-byte compact strictly ordered log offset supporting stack allocation and zero-copy serialization.
@@ -132,6 +133,8 @@ Engineered strictly according to modern Rust performance guidelines:
 ---
 
 ## Quick Start & Verification
+
+Chapter docs: [benchmark report](https://github.com/webc-site/wedb/tree/main/readme/en/bench.md).
 
 ### Build & Lint
 

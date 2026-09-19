@@ -132,7 +132,16 @@ pub const LAST_RESERVED_BUILTIN_TYPE: u8 = 0x3F;
 /// （libs/server/Custom/CustomCommandManager.cs:29）。
 pub const CUSTOM_OBJECT_TYPE_BASE: u8 = LAST_RESERVED_BUILTIN_TYPE + 1;
 
-/// Garnet 全局统一对象与集合类型枚举 (1:1 对标 C# libs/server/Objects/Types/GarnetObjectType.cs)
+/// Garnet 全局统一对象与集合类型枚举
+///
+/// 对标 C# libs/server/Objects/Types/GarnetObjectType.cs（该枚举只有 Null=0、SortedSet=1、
+/// List=2、Hash=3、Set=4、All=0xfb 六个成员），其上叠加本仓扩展 RangeIndex=5：
+/// 该成员系 transpile SKILL「类型枚举」条款明文规定的自定义项，不是对 C# 的复刻，
+/// 因此本枚举与 C# 并非逐成员 1:1——去 C# 枚举里找 RangeIndex 会一无所获。
+/// C# 侧 RangeIndex 不是对象类型成员而是独立存储形态（RangeIndexManager 的 RangeIndexRecordType），
+/// 其 TYPE 回显由统一存储读侧对该记录类型的特判给出（ReadMethods.cs 的 HandleType，
+/// 回显 CmdStrings.rangeindext），与 rust 的 rangeindex 回显口径一致，无行为分叉；
+/// SCAN TYPE 过滤值仍只认 C# 同源的 zset/list/set/hash/string 五值，不含 rangeindex。
 ///
 /// 权威强类型定义：Null=0, SortedSet=1, List=2, Hash=3, Set=4, RangeIndex=5, All=0xfb。
 /// 全链路信封编解码、存储元记录类型判断与 WRONGTYPE 报错统一使用该枚举。
