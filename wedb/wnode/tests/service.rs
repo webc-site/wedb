@@ -15,6 +15,7 @@ use wdev::SegmentedDevice;
 use wkv::{StoreConfig, TtlOpt, WedbStore};
 use wnode::{aof::replay_input::ReplayInput, service::NodeService};
 use wresp::command::RespCommand;
+use wval::{KeyTag, NamespaceDbCodec};
 
 const TUNE: TreeTuning = TreeTuning {
   cache_size: 65536,
@@ -251,9 +252,13 @@ fn ri_aof_replay_converges_replica() -> Void {
 /// Expired|Deterministic 标志的单条确定性条目语义）：
 ///
 /// 1. 主端 TTL purge 端口在场时，purge 链的两条物理墓碑（TTL 记录 + 数据）
-///    被会话级抑制，AOF 流中恰好一条 DELIFEXPIM StoreRMW 条目；
+///    被会话级抑制，**用户域面**流中恰好一条 DELIFEXPIM StoreRMW 条目；
 /// 2. 副本端（全新实例）经统一重放链路消费该条目（AofProcessor 分支
-///    Deterministic|Expired 确定性执行统一 DEL），与主端等效且幂等。
+///    Deterministic|Expired 确定性执行统一 DEL），与主端等效且幂等；
+/// 3. 映射面独立分面判读（doc/zh/db.md「主从物理镜像与异步屏障」：物理日志
+///    直接镜像主库的 `KeyTag::DbMeta` 与数据记录，从库完全继承、不做本地二次
+///    映射）：`set_context(7, 3)` 的换号批即 NsMap/DbMap/NextId 三条 DbMeta
+///    条目随流镜像，副本回放后逐值等于主库映射、本地取号器零触发。
 #[test]
 fn ttl_purge_single_deterministic_entry() -> Void {
   let rt = Runtime::new()?;
@@ -269,17 +274,29 @@ fn ttl_purge_single_deterministic_entry() -> Void {
     assert_eq!(session.read(b"glitch").await?, None, "过期键必须已物理清除");
     wal.commit().await?;
 
-    // AOF 流恰好两条：SET 物理镜像（StoreUpsert，物理键含 ns/db 前缀）+
-    // 单条 DELIFEXPIM StoreRMW（Deterministic|Expired，arg1 携带到期时间戳）；
-    // purge 链的两条物理墓碑（TTL 记录 + 数据）绝不出现在流内
-    let entries = scan_entries(&service);
-    assert_eq!(entries.len(), 2, "purge 链墓碑镜像必须为零");
-    assert_eq!(entries[0].op, AofEntryType::StoreUpsert);
-    let glitch_physical = session.session_string_key(b"glitch");
-    assert_eq!(entries[0].key, glitch_physical.to_vec());
+    // 分面：`KeyTag::DbMeta` 映射镜像条目 vs 用户域数据条目（同一物理日志、
+    // 两套键前缀，判据互不遮蔽）
+    let (dbmeta, domain): (Vec<EntryView>, Vec<EntryView>) = scan_entries(&service)
+      .into_iter()
+      .partition(|e| NamespaceDbCodec::decode_tag(&e.key) == Some(KeyTag::DbMeta));
 
-    assert_eq!(entries[1].op, AofEntryType::StoreRMW);
-    let purge_input = entries[1].input.as_ref().unwrap();
+    // 映射面：一次换号批 = NsMap + DbMap + NextId 三条，全为 StoreUpsert
+    assert_eq!(dbmeta.len(), 3, "映射面须恰好一条 set_context 换号批");
+    assert!(
+      dbmeta.iter().all(|e| e.op == AofEntryType::StoreUpsert),
+      "换号批镜像条目须为 Upsert"
+    );
+
+    // 用户域面：SET 物理镜像（StoreUpsert，物理键含 ns/db 前缀）+
+    // 单条 DELIFEXPIM StoreRMW（Deterministic|Expired，arg1 携带到期时间戳）；
+    // purge 链的两条物理墓碑（TTL 记录 + 数据）绝不出现在任何面内
+    assert_eq!(domain.len(), 2, "purge 链墓碑镜像必须为零");
+    assert_eq!(domain[0].op, AofEntryType::StoreUpsert);
+    let glitch_physical = session.session_string_key(b"glitch");
+    assert_eq!(domain[0].key, glitch_physical.to_vec());
+
+    assert_eq!(domain[1].op, AofEntryType::StoreRMW);
+    let purge_input = domain[1].input.as_ref().unwrap();
     assert_eq!(purge_input.cmd, RespCommand::Delifexpim);
     assert_eq!(purge_input.flags, (64 | 128), "Deterministic|Expired");
     // expire_at 入口 4-bit coarse 粗化（ExpirationWithOption.cs:22-23）：
@@ -290,7 +307,28 @@ fn ttl_purge_single_deterministic_entry() -> Void {
     let (_replica_dir, replica_store, replica_wal) = open_node("ttl_purge_replica")?;
     let replica = NodeService::with_wal(Arc::clone(&replica_store), Arc::clone(&replica_wal))?;
     let replayed = service.replay_into_session(replica.session()).await?;
-    assert_eq!(replayed, 2);
+    assert_eq!(replayed, 5, "映射面 3 条 + 用户域面 2 条须全数重放");
+
+    // 映射继承判读（须在下方 set_context 探针之前：探针自身会按引擎口径物化）：
+    // 副本 (7,3) → (1,2) 逐值等于主库，水位锁步至 3，零本地二次取号
+    assert_eq!(
+      replica_store.vdb.vns_of_ns(7),
+      Some(1),
+      "副本须继承主库命名空间映射，不得另起新号"
+    );
+    assert_eq!(
+      replica_store.vdb.route_vdb_of(1, 3),
+      Some(2),
+      "副本须继承主库库级路由格"
+    );
+    assert_eq!(
+      replica_store
+        .vdb
+        .next_virtual_id
+        .load(std::sync::atomic::Ordering::Relaxed),
+      3,
+      "副本分配水位须锁步自主库换号批的 0x05 记录"
+    );
 
     // 副本以 (ns=7, db=3) 上下文断言键已被确定性清除（幂等）
     let replica_session = replica.session();
