@@ -678,7 +678,12 @@ impl<D: Device> StoreSession<D> {
     // 镜像入 AOF 会在并发写下造成恢复回退（与磁盘回填臂 append_record_compacted
     // 同口径，见其注释）
     if let Ok(new_addr) = self.store.hlog.append(key, &val, addr, false) {
-      self.cas_mount_copied_frame(key, addr, new_addr, record_size(key.len(), val.len()) as u32);
+      self.cas_mount_copied_frame(
+        key,
+        addr,
+        new_addr,
+        record_size(key.len(), val.len()) as u32,
+      );
     }
   }
 
