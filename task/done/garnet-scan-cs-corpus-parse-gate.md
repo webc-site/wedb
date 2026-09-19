@@ -69,3 +69,58 @@ C# 参考
 task/ing/cs-anchor-dup-single-mount.md 管重复定义信息节的锚点噪声，不动语料广度；既有的
 corpus_invalid 纪律只管 js/check/ignore 下 YAML 语料自身的解析失效，本单补的是 C# 源语料失效这一
 维。
+
+落地（fix-cs-corpus-parse-gate，dev 侧核实后实施）
+
+裁决：成立，已实现。票面主张逐条重测复现，读数一致——全仓 1425 个 .cs、
+rootNode.hasError 194 个、ERROR 节点 7506 处；PrivateMethods.cs 断裂前只提出
+1 个名字（TryInPlaceUpdateNumber 在 :396 与 :473 两个重载全丢）、
+SessionParseState.cs 的 EnsureCapacity（:183）全丢；check.js 判定只遍历
+fn_map/test_map 的既有键名，故这 194 个文件的未转写方法结构性不可能进 miss。
+合并前基线跑 bun js/check.js 是 exit 0、实现缺失段为空，门禁全绿，即漏报实证。
+
+三处对票面的修正：
+
+1 修法第 2 条的首选分支（升语法版本）不可行，已按数据排除：
+   @2h2d/tree-sitter-wasms 只发布过 0.1.0 与 0.2.1，现装即最新 0.2.1，无版可升。
+   另测「剥离预处理指令」这条更优路径：把全部 # 指令行原地替换为等长空白后只
+   修复 7/194，且反丢 6 个方法名，故弃。词法兜底是唯一可行机制。
+2 票面把炸点归给 unsafe 指针一族。按首枚 ERROR 节点文本统计，指针构造与
+   #if NET9_0_OR_GREATER 条件块约各半（99 对 55，另 39 无法归类），但条件块
+   多只是断裂的显示位置而非成因（见上一条剥离实验）。不承诺枚举构造清单，
+   README 只登记「语法覆盖不到」这一事实与兜底机制。
+3 修法第 3 条「把解析失效文件数 > 0 并入 corpus_invalid 并硬失败」不采纳，
+   已改为大声而非致命，理由写进 js/check.js 注释：YAML 语料失效是本仓自己写坏、
+   可修且修前判定必错，该硬失败；C# AST 断裂是固有能力边界且已由兜底补偿、
+   判据可信。若并入，则 194 > 0 恒成立，missSync 与符号断言被永久跳过，
+   SKILL.md:97「直到 check.js 没有缺失的输出」这条验收口径反而彻底失效——
+   那是把门禁打砖。现每次运行在 stderr 报出降级文件数、补回名数、按 ERROR
+   节点数排序的 top 5，并单独点名兜底后仍零名录的文件（唯一一例
+   SpanByteKey.cs 经核为「只有属性与构造函数」，确实无方法，非漏报）。
+
+实现：js/check/garnetScan.js 加 csDeclFallback，仅对 hasError 文件补
+method_declaration 名录、按 is_test_file 落桶、不做额外语义推断；实测补回
+388 个方法名（首轮 438，自查发现兜底绕过了 TEST_LIFECYCLE_FN_SET 整族排除，
+把 Setup/TearDown 灌成 3 份假缺失，已收口并补断言）。完好文件不跑兜底，
+在 1231 个 AST 完好文件上假阳性实测为 0；同形噪声两族（主构造函数
+class Foo(int x)、元组字段 private static readonly (int A,int B)[] T=…）
+由「返回类型必填 + 修饰符/类型关键字不占名位」剔除。
+js/check_selftest.js 第 6 节 11 项断言（26 → 27 项），js/check/README.md
+第 1 节补语法能力边界段。合入后 check.js exit 0、stderr 降级汇报在位、
+B 层锚点提示 129 处与基线逐字节一致、js/check/ignore 语料零回写零删除。
+
+遗留复核（修法第 4 条，本单不做，交语料甄别波）：修复使
+登记在失活文件上的 109 条 ignore 条目首次真正参与判定（票面点名的
+PrivateMethods.cs:TryInPlaceUpdateNumber 即在列，README 已就此警告）。
+抽查发现至少一条可疑：incr.rs:182 与 resp_tests.rs:428 已有
+TryInPlaceUpdateNumber 的在位实现与测试叙述，但该名仍记在 server.yml 的
+忽略侧、且现有注释是「路径.cs:行号」或空格分隔的叙述形态，CS_REF_REGEX
+不认，故未登记成映射——属「已实现却挂忽略」族，须逐条判
+「已转写应改注释 / 该删 / 该继续忽略」。重跑清单：
+bun 脚本取 hasError 文件的「仅 AST 名集」与「AST+兜底名集」之差，
+与 js/check/ignore 下的条目名求交。
+
+另有 10 份新 miss（31 名）为本次修复暴露的真实缺口，抽查项几乎全带
+byte* 形参（DebugSend、DenseCountNonZero、GetSerializedRecordSpan、
+BeginReplayOp、TraceBackForOtherChainStart 等），正是语法看不见的那一族，
+下一步该按 miss 派实现票而不是再动工具链。
