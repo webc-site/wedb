@@ -301,7 +301,7 @@ impl RespServerSession {
       None => match Self::in_memory_default_user(ctx, target_ns)
         .filter(|handle| handle.user().name == clean_username)
       {
-        Some(handle) => Arc::new(User::from_user(&handle.user())),
+        Some(handle) => Arc::new(User::from_user(handle.user())),
         None => Arc::new(User::new(clean_username.to_string())),
       },
     };
@@ -553,7 +553,7 @@ impl RespServerSession {
       // 存储无记录：引导态 default 用户回落内存单例（非用户大字典）
       None => Self::in_memory_default_user(ctx, target_ns)
         .filter(|handle| handle.user().name == clean_user)
-        .map(|handle| Arc::new(User::from_user(&handle.user()))),
+        .map(|handle| Arc::new(User::from_user(handle.user()))),
       Some(bytes) => match User::from_rule_bytes(clean_user, &bytes) {
         Ok(user) => Some(user),
         Err(e) => {

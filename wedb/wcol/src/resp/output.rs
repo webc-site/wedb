@@ -99,9 +99,9 @@ pub(crate) fn write_null_array(output: &mut ObjectOutput, resp_protocol_version:
 #[inline]
 pub(crate) fn write_map_length(output: &mut ObjectOutput, len: usize, resp_protocol_version: u8) {
   if resp_protocol_version >= 3 {
-    RespWriter::<&mut Vec<u8>, Resp3>::new_ref_p(&mut output.payload).write_map_length(len);
+    RespWriter::<&mut Vec<u8>, Resp3>::new_ref_p(output.payload).write_map_length(len);
   } else {
-    RespWriter::new_ref(&mut output.payload).write_map_length(len);
+    RespWriter::new_ref(output.payload).write_map_length(len);
   }
 }
 
@@ -109,9 +109,9 @@ pub(crate) fn write_map_length(output: &mut ObjectOutput, len: usize, resp_proto
 #[inline]
 pub(crate) fn write_set_length(output: &mut ObjectOutput, len: usize, resp_protocol_version: u8) {
   if resp_protocol_version >= 3 {
-    RespWriter::<&mut Vec<u8>, Resp3>::new_ref_p(&mut output.payload).write_set_length(len);
+    RespWriter::<&mut Vec<u8>, Resp3>::new_ref_p(output.payload).write_set_length(len);
   } else {
-    RespWriter::new_ref(&mut output.payload).write_set_length(len);
+    RespWriter::new_ref(output.payload).write_set_length(len);
   }
 }
 
@@ -127,5 +127,5 @@ pub(crate) fn write_double_numeric(
   value: f64,
   resp_protocol_version: u8,
 ) {
-  cmd_strings::write_double_numeric(&mut output.payload, value, resp_protocol_version);
+  cmd_strings::write_double_numeric(output.payload, value, resp_protocol_version);
 }

@@ -1133,7 +1133,7 @@ impl ReplicationManager {
       .checkpoint_dir
       .read()
       .as_deref()
-      .and_then(|d| latest_checkpoint_meta(d))
+      .and_then(latest_checkpoint_meta)
       .map(|(token, meta)| {
         let mut metadata = CheckpointMetadata::new(self.sublog_count);
         metadata.store_version = checkpoint_version(token);
