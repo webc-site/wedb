@@ -61,7 +61,7 @@ C# 参考
 优先级
 打磨（拓扑与体量，不改行为）；死代码与去重票之后开工。
 
-结案注记（判成立；载体分支 vdb-split：代码 9b654a3 + 文档指针随迁 2237568，主仓 dev 纯 FF FFSHA）
+结案注记（判成立；载体分支 vdb-split：代码 9b654a3 + 文档指针随迁 2237568，主仓 dev 纯 FF 42652b2）
 
 步骤 0 交叠自检（实测）
 - reviv 二棒：/tmp/fork/fix-reviv-crtt-gate 的 status --short 与 diff --name-only 皆空，
