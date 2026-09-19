@@ -247,6 +247,7 @@ impl ClusterProvider {
 
   /// 注入逻辑数据库管理器（装配期注入，对标 C# StoreWrapper.databaseManager）
   pub fn set_database_manager(&self, dm: Arc<SingleDatabaseManager<SegmentedDevice>>) {
+    dm.attach_flush_gate(self.provider_handle());
     *self.database_manager.write() = Some(dm);
   }
 

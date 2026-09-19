@@ -603,7 +603,8 @@ impl HashIndex {
   }
 
   /// 单批两级硬件预取内核：产出 [`PrefetchProbe`] 探针数组（严格对照
-  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:ContextReadWithPrefetch）
+  /// C# Tsavorite.ContextReadWithPrefetch；本函数是其内部预取探针协作段，
+  /// 公共 API 对位见 wkv `read_batch_with` 的锚点文档）
   ///
   /// 对标 C# 单批内的两趟预取（窗口 [`PREFETCH_WINDOW`] = C# `PrefetchSize`）：
   /// 1. 第一级：逐键单次算定哈希并预取主桶 cacheline（C# `Sse.Prefetch0(tableAligned +

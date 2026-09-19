@@ -41,8 +41,8 @@ const RECV_IDLE_PROBE: Duration = Duration::from_millis(250);
 
 /// 读泵接收缓冲池解析单点（客户端与会话共用，无第二处口径）
 ///
-/// 对标 C# `libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession`
-/// 的 `networkPool ?? networkBufferSettings.CreateBufferPool(...)`：调用方注入
+/// 对应 C# GarnetClientSession 构造里的
+/// `networkPool ?? networkBufferSettings.CreateBufferPool(...)`：调用方注入
 /// 优先（复制/迁移链注入 `ReplicationManager` / `MigrationManager` 持有的池，
 /// 与 C# 同源同池），未注入即本客户端自建一份，块规格为 [`READ_CHUNK`]。
 /// 两态都走 [`LimitedFixedBufferPool`] 这一个池实现（全仓唯一缓冲取还机制，

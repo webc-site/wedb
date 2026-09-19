@@ -95,6 +95,7 @@ workspace = true
 
 [dev-dependencies]
 wacl.workspace = true
+wmetric.workspace = true
 wvector.workspace = true
 
 [dev-dependencies.wcustom]

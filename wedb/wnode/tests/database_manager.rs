@@ -253,3 +253,61 @@ fn test_recovery_purges_unrecovered_checkpoints() -> aok::Result<()> {
   });
   aok::OK
 }
+
+/// INFO RESETSTAT 的 reviv 臂真下发：单库管理器经唯一存储句柄把复位打到
+/// 复活池账目上（票内原状是空函数体加「wkv 无复活化统计面」失真注释；
+/// 本用例即反证——账目由 `wkv::WedbStore::reviv_pool` 单一承载，复位可达）
+/// 验证 SingleDatabaseManager::reset_revivification_stats 复位池账目语义
+#[test]
+fn reset_revivification_stats_zeroes_pool_counters() -> aok::Result<()> {
+  let (dir, store) = open_test_store("reset_reviv_stats")?;
+  let db = Arc::new(GarnetDatabase::new(
+    0,
+    Arc::clone(&store),
+    Arc::clone(&store.device),
+    dir.path().join("0"),
+    None,
+  ));
+  let single = SingleDatabaseManager::new(dir.path().to_path_buf(), Arc::clone(&db));
+
+  // 夹具先记账：一次成功投入 + 一次尺寸非法丢弃（drop_count 也属账目）
+  assert!(store.reviv_pool.put(0x1000, 64, 0x1000));
+  assert!(
+    !store.reviv_pool.put(0x2000, 0, 0x1000),
+    "尺寸 0 应被池丢弃并计入 drop"
+  );
+  let before = store.reviv_pool.stats();
+  assert_eq!(
+    (before.put_count, before.drop_count),
+    (2, 1),
+    "夹具应先有可复位的账目"
+  );
+
+  // inherent 口：即监视器 reviv 臂经 SessionProviderFace 的下发路径
+  SingleDatabaseManager::reset_revivification_stats(&single);
+  let after = store.reviv_pool.stats();
+  assert_eq!(
+    (
+      after.put_count,
+      after.take_count,
+      after.hit_count,
+      after.drop_count
+    ),
+    (0, 0, 0, 0),
+    "复位须直落复活池四计数"
+  );
+  assert!(
+    !store.reviv_pool.is_empty(),
+    "复位只清账，不得清掉可复活槽位"
+  );
+
+  // IDatabaseManager trait 转发口同效（复位后新流量从零点继续记账）
+  assert!(store.reviv_pool.put(0x3000, 64, 0x1000));
+  IDatabaseManager::reset_revivification_stats(&single);
+  assert_eq!(
+    store.reviv_pool.stats().put_count,
+    0,
+    "trait 面应与 inherent 面同样下达"
+  );
+  aok::OK
+}

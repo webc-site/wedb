@@ -7,11 +7,13 @@
 //! 与存储终态恒一致，杜绝半提交误答。
 
 use std::{
+  mem::take,
   sync::Arc,
   time::{SystemTime, UNIX_EPOCH},
 };
 
 use compio::runtime::Runtime;
+use itoa::Buffer as ItoaBuffer;
 use tempfile::tempdir;
 use wdev::SegmentedDevice;
 use wkv::{StoreConfig, WedbStore};
@@ -38,6 +40,39 @@ fn session_with(api: &GarnetApi) -> RespServerSession {
   let mut s = RespServerSession::new(1, RespServerSessionOptions::default());
   s.set_garnet_api(api.clone());
   s
+}
+
+/// 升阶建键执行域（collection_adaptive_tiering.rs 同款大容量配置）
+fn open_api_big(path: &str) -> (GarnetApi, tempfile::TempDir) {
+  let dir = tempdir().unwrap();
+  let config = StoreConfig::new(2048, 1024 * 1024, 16, 0.5).unwrap();
+  let device = Arc::new(SegmentedDevice::single_file(dir.path().join(path)).unwrap());
+  let store = Arc::new(WedbStore::open(config, device).unwrap());
+  (
+    Arc::new(StoreGarnetApi::new(store.new_session().unwrap())),
+    dir,
+  )
+}
+
+/// 快路径应答优先，挂起慢路径则阻塞闭环取应答（collection_adaptive_tiering.rs 同款）
+fn auto_exec(
+  api: &GarnetApi,
+  rt: &Runtime,
+  s: &mut RespServerSession,
+  cmd: RespCommand,
+  args: &[&[u8]],
+) -> Vec<u8> {
+  s.output.clear();
+  api.exec(s, cmd, args);
+  if !s.output.is_empty() {
+    return take(&mut s.output);
+  }
+  let slow = s
+    .take_slow_wait()
+    .unwrap_or_else(|| panic!("命令 {cmd} 无输出且未挂起慢路径"));
+  let out = rt.block_on(slow.resolve());
+  s.output.clear();
+  out
 }
 
 #[test]
@@ -204,4 +239,85 @@ fn msetnx_slow_resume_completes_partial_write() {
   s.output.clear();
   api.exec(&mut s, RespCommand::Get, &[b"k1"]);
   assert_eq!(s.output, b"$2\r\nv1\r\n");
+}
+
+/// 升阶冷键存活判定回归：大集合键升阶只 upsert Meta 元记录 + delete 信封
+///（object_store_utils.rs:promote_collection_to_bftree），Meta 域是该键在
+/// 存储里的唯一身份。FLUSHANDEVICT 使元记录成磁盘候选后，快路径 NX 判定
+/// 整体降级慢路径，三域裁决（String / ObjectEnvelope / Meta，对标 C#
+/// unified 域 EXISTS 非 NOTFOUND 即存在）必须判存活 → :0 零写入。修复前
+/// 慢路径只探两域漏 Meta，误判不存在 → :1 写出双域键：String 域遮蔽原
+/// 集合、wbftree 树文件成无主孤儿
+#[test]
+fn msetnx_slow_meta_only_promoted_key_counts_as_existing() {
+  let rt = Runtime::new().unwrap();
+  let (api, _dir) = open_api_big("msetnx-meta-only.db");
+  let mut s = session_with(&api);
+
+  // 建大集合键跨升阶门限（collection_adaptive_tiering.rs 同款建键）
+  let total = wcol::TIERED_PROMOTE_THRESHOLD + 10;
+  assert_eq!(
+    auto_exec(
+      &api,
+      &rt,
+      &mut s,
+      RespCommand::Hset,
+      &[b"big", b"f1", b"v1", b"f2", b"v2"]
+    ),
+    b":2\r\n"
+  );
+  let mut buf = ItoaBuffer::new();
+  for chunk_start in (3..=total).step_by(1000) {
+    let chunk_end = (chunk_start + 999).min(total);
+    let mut args: Vec<Vec<u8>> = Vec::with_capacity((chunk_end - chunk_start + 1) * 2 + 1);
+    args.push(b"big".to_vec());
+    for i in chunk_start..=chunk_end {
+      args.push(format!("f{i}").into_bytes());
+      args.push(buf.format(i).as_bytes().to_vec());
+    }
+    let arg_slices: Vec<&[u8]> = args.iter().map(|v| v.as_slice()).collect();
+    auto_exec(&api, &rt, &mut s, RespCommand::Hset, &arg_slices);
+  }
+
+  // 升阶确认：O(1) 计数照答
+  let expect_len = format!(":{total}\r\n");
+  assert_eq!(
+    auto_exec(&api, &rt, &mut s, RespCommand::Hlen, &[b"big"]),
+    expect_len.as_bytes()
+  );
+
+  // FLUSHANDEVICT：全部页刷盘驱逐，Meta 元记录成磁盘候选（快路径探针
+  // Ok(None) 的降级源）
+  let out = rt.block_on(Arc::clone(&api).exec_slow(
+    RespCommand::Debug,
+    vec![b"FLUSHANDEVICT".to_vec()],
+    wconf::DEFAULT_RESP_VERSION,
+  ));
+  assert!(out.starts_with(b"+OK head="));
+
+  // MSETNX：快路径 NX 判定遇磁盘候选整体降级慢路径，三域裁决判存活
+  // → :0 零写入（修复前两域皆空 → 误判不存在 → :1 并写出 String 域）
+  s.output.clear();
+  api.exec(&mut s, RespCommand::Msetnx, &[b"big", b"x", b"k2", b"v2"]);
+  assert!(s.output.is_empty(), "MSETNX 磁盘候选应整体降级慢路径");
+  let slow = s.take_slow_wait().expect("MSETNX 判定段降级应挂起慢路径");
+  assert_eq!(rt.block_on(slow.resolve()), b":0\r\n");
+
+  // 零写入核验：原集合身份不变、String 域无记录、其余键未写
+  assert_eq!(
+    auto_exec(&api, &rt, &mut s, RespCommand::Hlen, &[b"big"]),
+    expect_len.as_bytes()
+  );
+  assert_eq!(
+    auto_exec(&api, &rt, &mut s, RespCommand::Exists, &[b"big"]),
+    b":1\r\n"
+  );
+  assert_eq!(
+    auto_exec(&api, &rt, &mut s, RespCommand::Get, &[b"big"]),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    auto_exec(&api, &rt, &mut s, RespCommand::Get, &[b"k2"]),
+    b"$-1\r\n"
+  );
 }

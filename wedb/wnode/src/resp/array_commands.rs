@@ -161,7 +161,7 @@ impl RespServerSession {
   /// C# 无 arity 校验（0 参即空循环回 :0），1:1 保留。向量集清退下沉至 wkv
   /// 用户键删除单点（双域判未命中后经 [`crate::storage::session::storage_session::vector_registry_delete_hook`]
   /// 摘除登记表项，对标 C# MainStore RemoveKey 回调 → VectorManager.RequestDeletion，
-  /// GarnetRecordTriggers.cs:OnDispose Deleted 臂），本层不再另配第二套清退判据。
+  /// GarnetRecordTriggers.OnDispose 的 Deleted 臂），本层不再另配第二套清退判据。
   pub fn network_del<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],
@@ -299,9 +299,9 @@ impl RespServerSession {
     let prefix = store.session_prefix();
     let prefix_slice = prefix.as_slice();
 
-    // 检查是否有任何键已存在（双域：对象键同计存在，C# NX 语义）。降级
-    //（Ok(None)：磁盘候选 / TTL 待裁决）发生时尚未写入任何键，整体移交
-    // 慢路径完整裁决，安全重放
+    // 检查是否有任何键已存在（三域存活探针：对象信封与升阶键 Meta 元记录
+    // 同计存在，C# NX 语义）。降级（Ok(None)：磁盘候选 / TTL 待裁决）发生
+    // 时尚未写入任何键，整体移交慢路径完整裁决，安全重放
     self.msetnx_resume = false;
     for chunk in parse_state.as_chunks::<2>().0 {
       match probe_alive_with_prefix(store, prefix_slice, chunk[0]) {

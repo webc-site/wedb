@@ -38,3 +38,21 @@ rust 现状（主仓 HEAD 实测）
 
 验证
 worktree 内 cargo check -p wnode -p wedb（只 check，不跑 test.sh / clippy.sh）。
+
+落地补记（2026-09-20，实施于 fix-primary-ckpt-callback，合并 8ca622b）
+- 复核：票载行号在合并 dev（a4761f1）后全部成立，方案与 dev 无拓扑冲突。
+- 实施中发现一处「两套机制」冲突并修正：第 3 条把 add_new_checkpoint_entry 挂上
+  内核集群分支后，wedb take_on_demand_checkpoint（checkpoint.rs 拍后读 meta 再
+  登记块）与内核走同一 take_checkpoint，生产一次按需检查点将双登记（重复
+  CheckpointEntry + 重复 safe_truncate）。C# 登记唯一点仅 InitiateCheckpointAsync
+  一处（StoreWrapper.TakeOnDemandCheckpointAsync 不重复登记），故删该 wedb 侧
+  登记块，take_on_demand_checkpoint 收敛为纯内核转发；内核登记层级移出 aof 判空
+  （对齐 C# EnableCluster && EnableAOF 段与 AppendOnlyFile 判空正交的层级，
+  集群形态恒启 AOF，句柄在位即该合取式为真）。
+- 测试对齐：on_demand_checkpoint_takes_and_registers_entry 补 attach_flush_gate
+  （对齐 boot.rs 生产装配链形态位）；checkpoint_wiring 与 cluster_provider 两处
+  回调直测改 UFCS 定点 CheckpointCallbackFace，杜绝 wnode 同名新口的解析漂移。
+- cargo check -p wnode -p wedb 与 --tests 均通过零警告。
+- 环境观察：全局 ~/.cargo/config.toml 的 target-dir=/tmp/_rs 为全部 worktree
+  共享，并发代理会制造陈旧指纹假错（曾见 bulk_delete/SortedSetObject E0599
+  抖动，隔离 CARGO_TARGET_DIR 后消失），主代理排查测试异常时可留意。

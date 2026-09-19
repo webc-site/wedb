@@ -155,6 +155,12 @@ pub trait SessionProviderFace: Send + Sync {
     None
   }
 
+  /// 复位存储复活化统计（INFO RESETSTAT 的 reviv 臂宿主入口，对标 C#
+  /// libs/server/StoreWrapper.cs:ResetRevivificationStats 的
+  /// `databaseManager.ResetRevivificationStats()` 直下；
+  /// 默认空操作 = 该宿主无复活账目可复位（裸会话提供者/测试宿主）
+  fn reset_revivification_stats(&self) {}
+
   /// AOF 门面（C# storeWrapper.appendOnlyFile；None = AOF 未点亮）。
   ///
   /// 宿主关停链唯一取用面：stop() 在 join 前经
@@ -196,4 +202,11 @@ pub trait SessionProviderFace: Send + Sync {
   fn dispose_pubsub(&self) -> bool {
     true
   }
+
+  /// 范围索引停机收口（对应 StoreWrapper.Dispose
+  /// 中的 `rangeIndexManager?.Dispose()`，时序在 Provider.Dispose 段——Phase 2
+  /// 连接排空之后、`databaseManager.Dispose()` 引擎兜底析构之前）。实现需
+  /// 清理复制面未完成流重组并释放在线引擎全部在线树。默认空操作 = 该宿主
+  /// 无范围索引引擎（测试/裸会话提供者）。
+  fn dispose_range_index(&self) {}
 }

@@ -89,6 +89,9 @@ impl RespServerSession {
   /// (!IsAuthenticated || !CanAccessCommand) && !IsNoAuth → 拒绝。无 ACL 认证器
   /// （NoAuth / Password 档）等价 default 用户 +@all → 恒放行。
   pub fn check_acl_permissions(&mut self, cmd: RespCommand) -> bool {
+    // 跨连接改权收敛预门（唯一失效判据：引擎 ACL 代数；每命令一次，位点在
+    // 纪元守卫外，代相等即零存储读直过）
+    self.refresh_acl_mount_if_stale();
     // 自定义（扩展）命令按名鉴权（C# 分叉，内建命令热路保持无分支）
     if is_custom_command(cmd) {
       return self.check_acl_permissions_for_custom_command(cmd);

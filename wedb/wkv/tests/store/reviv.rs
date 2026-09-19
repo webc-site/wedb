@@ -89,8 +89,8 @@ fn test_copy_reads_to_tail_from_disk() -> Void {
   OK
 }
 
-/// copy_reads_to_tail 的「内存不可变区命中」臂（对标 C# InternalRead.cs:CopyFromImmutable
-/// 在 `CopyTo == MainLog` 下走 ConditionalCopyToTail(wantIO:false)）
+/// copy_reads_to_tail 的「内存不可变区命中」臂（验证 CopyFromImmutable
+/// 在 `CopyTo == MainLog` 下走 ConditionalCopyToTail(wantIO:false) 的语义）
 ///
 /// 修复前该臂全缺：`--copy-reads-to-tail` 开、read-cache 关（Garnet 主用法）时，
 /// 命中内存不可变区 [head, safe_read_only) 的记录不回 Tail，只有磁盘冷读那一段对齐。

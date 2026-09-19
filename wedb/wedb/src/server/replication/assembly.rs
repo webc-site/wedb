@@ -28,6 +28,7 @@ use compio::runtime::spawn;
 use waof::WalLog;
 use wbase::hex::hex_str_u128;
 use wdev::SegmentedDevice;
+use wnode::aof::aof_processor::ReplicaCheckpointHook;
 
 use super::{
   aof_replication_pump::AofReplicationPump, checkpoint_entry::CheckpointEntry,
@@ -61,11 +62,30 @@ pub fn wire_replication_data_plane(
   // 副本重放应用资产注入（对标 C# rm 构造期 aofProcessor + storeWrapper
   // 反查装配）：aof + store 双在场才建（对标 C# EnableAOF 门控）；缺席为
   // 退化装配，副本位点保持会话落盘面 enqueued 形态。runtime_config 随资产
-  // 注入（对标 C# storeWrapper.runtimeConfig 可达面：重放空转周期每轮现取）
+  // 注入（对标 C# storeWrapper.runtimeConfig 可达面：重放空转周期每轮现取）；
+  // 检查点钩子经数据库管理器下达 take_checkpoint（对标 C# storeWrapper
+  // .TakeCheckpointAsync 反查可达面，rust 依赖方向反转，装配期以类型擦除闭包
+  // 注入 AofProcessor 的检查点结束臂），管理器现取现用（attach 期注入、
+  // 缺位维持原语义）
   match (cluster.try_aof(), cluster.try_store()) {
-    (Some(aof), Some(store)) => rm.set_replay_assets(Some(Arc::new(
-      replica_replay_task::ReplayAssets::new(aof, store, cluster.try_runtime_config()),
-    ))),
+    (Some(aof), Some(store)) => {
+      let cp = Arc::clone(cluster);
+      let hook: Arc<ReplicaCheckpointHook> = Arc::new(move || {
+        let cp = Arc::clone(&cp);
+        Box::pin(async move {
+          match cp.try_database_manager() {
+            Some(dm) => dm.take_checkpoint(false).await.map(|_| ()),
+            None => Ok(()),
+          }
+        })
+      });
+      rm.set_replay_assets(Some(Arc::new(replica_replay_task::ReplayAssets::new(
+        aof,
+        store,
+        cluster.try_runtime_config(),
+        Some(hook),
+      ))));
+    }
     _ => rm.set_replay_assets(None),
   };
   // 副本接收面：CLUSTER APPENDLOG → 保真落盘 + 背景重放应用位点回推

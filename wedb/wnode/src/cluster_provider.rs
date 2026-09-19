@@ -165,6 +165,33 @@ pub trait ClusterProvider: Send + Sync + 'static {
   /// [`Self::checkpoint_version_shift_start`]
   #[inline]
   fn checkpoint_version_shift_end(&self, _new_version: i64) {}
+
+  /// 检查点发起回调：由复制域给出检查点覆盖的 AOF 地址（对标 C# ClusterProvider.OnCheckpointInitiated）
+  ///
+  /// 集群形态 PRIMARY 取当前复制位点、REPLICA 取检查点开始标记位点，并同步
+  /// 更新提交安全地址（UpdateCommitSafeAofAddress）；检查点内核
+  /// （`database::database_manager_base` 的 take_database_checkpoint_async）
+  /// 按 cluster 句柄在位时下达。单机 / Noop 形态无复制域，内核自持直取 AOF
+  /// 尾地址分支（C# else 分支），默认空实现不触达
+  #[inline]
+  fn on_checkpoint_initiated(&self, _covered: &mut AofAddress) {}
+
+  /// 检查点完成后登记条目并安全截断（对标 C# ClusterProvider.AddNewCheckpointEntry）
+  ///
+  /// 登记 CheckpointEntry 历史（供副本 attach 新主时清理旧检查点）并经
+  /// SafeTruncateAOF 截断；异步截断口经既有 [`SlowFuture`] 擦除壳承载
+  /// （与 [`Self::flushall_broadcast`] 同形），调用方须 await 收口。单机 /
+  /// Noop 形态返回 None，内核自持 TruncateUntil + Commit 分支（C# else 分支）
+  #[inline]
+  fn add_new_checkpoint_entry(
+    &self,
+    _full: bool,
+    _covered: AofAddress,
+    _store_checkpoint_token: u128,
+    _object_store_checkpoint_token: u128,
+  ) -> Option<SlowFuture> {
+    None
+  }
 }
 
 /// 空操作集群提供者（单机模式零开销桩实现，直接继承 trait 默认实现）
@@ -289,6 +316,27 @@ impl<T: ClusterProvider + ?Sized> ClusterProvider for Arc<T> {
   #[inline]
   fn checkpoint_version_shift_end(&self, new_version: i64) {
     (**self).checkpoint_version_shift_end(new_version);
+  }
+
+  #[inline]
+  fn on_checkpoint_initiated(&self, covered: &mut AofAddress) {
+    (**self).on_checkpoint_initiated(covered);
+  }
+
+  #[inline]
+  fn add_new_checkpoint_entry(
+    &self,
+    full: bool,
+    covered: AofAddress,
+    store_checkpoint_token: u128,
+    object_store_checkpoint_token: u128,
+  ) -> Option<SlowFuture> {
+    (**self).add_new_checkpoint_entry(
+      full,
+      covered,
+      store_checkpoint_token,
+      object_store_checkpoint_token,
+    )
   }
 }
 

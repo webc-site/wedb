@@ -62,6 +62,7 @@ impl GarnetClient {
   /// C# 的 `recordLatency` 客户端延迟直方图形参不落地：其开关与全部读者只在
   /// C# 基准树（Resp.benchmark `--client-hist`），本仓已整体登记不移植，理由见
   /// js/check/ignore/client.yml 的 GarnetClientMetrics.cs 条目
+  /// libs/client/GarnetClient.cs:GarnetClient
   pub fn new(
     endpoint: String,
     auth_username: Option<String>,
@@ -97,9 +98,8 @@ impl GarnetClient {
 
   /// 出站 TLS 配置注入（None = 明文）
   ///
-  /// 对标 C# 构造重载 `GarnetTlsOptions? tlsOptions` 第 2 形参位
-  ///（libs/client/GarnetClient.cs:GarnetClient）；rust 以注入器承载，
-  /// 集群出站连接透传点的同一单源配置
+  /// 对应 C# GarnetClient 构造重载 `GarnetTlsOptions? tlsOptions` 第 2 形参位；
+  /// rust 以注入器承载，集群出站连接透传点的同一单源配置
   #[cfg(feature = "tls")]
   pub fn set_tls(&mut self, tls: Option<Arc<ClientTlsConfig>>) {
     self.tls = tls;
@@ -107,10 +107,9 @@ impl GarnetClient {
 
   /// 网络缓冲池注入（读泵接收缓冲的取还单点）
   ///
-  /// 对标 C# `libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession`
-  /// 的 `networkPool` 形参（复制/迁移链传 `ReplicationManager.GetNetworkPool` /
-  /// `MigrationManager.GetNetworkPool`，见 AofSyncTask.cs、MigrateSession.cs）；
-  /// None = 建连时本客户端自建（C# `?? CreateBufferPool` 同型回退）
+  /// 对应 C# GarnetClientSession 的 `networkPool` 形参（复制/迁移链传
+  /// `ReplicationManager.GetNetworkPool` / `MigrationManager.GetNetworkPool`，
+  /// 见 AofSyncTask.cs、MigrateSession.cs）；None = 建连时本客户端自建
   pub fn set_network_pool(&mut self, pool: Option<Arc<LimitedFixedBufferPool>>) {
     self.network_pool = pool;
   }

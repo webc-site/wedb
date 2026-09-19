@@ -32,6 +32,29 @@ enum RcWalk<R> {
   Retry,
 }
 
+/// [`RcVisit`] → [`RcWalk`] 判据映射单点（raw 读侧唯一换算口）：C# 读缓存探测
+/// 无第二套枚举——FindInReadCache 只回 bool，命中/续链/回链头重探直接汇入
+/// InternalRead 的 OperationStatus 同源分类；rust 侧 [`RcVisit`]（RC 记录访问
+/// 三态，read_cache 层产出）与 [`RcWalk`]（整链走查出口）域不同须分立，换算
+/// 仅此一处，并与 [`ReadProbeResult`]（主日志记录探针四态，InternalRead.cs:105-131
+/// 单遍分类）按判据对位：
+/// - `Found` ↔ `ReadProbeResult::Found` ↔ SUCCESS（命中）
+/// - `Next(prev)` ↔ `ReadProbeResult::Miss(prev)` ↔ 沿 PreviousAddress 续链
+/// - `Gone` ↔ `ReadProbeResult::Retry` ↔ RETRY_LATER（回链头重探，绝不降级 NOTFOUND）
+///
+/// 返回 `Some` 为走查终态（调用方直接上抛）；`None` 为续链，前驱地址已写入 `curr`
+#[inline]
+fn map_rc_visit<R>(visit: RcVisit<R>, curr: &mut u64) -> Option<RcWalk<R>> {
+  match visit {
+    RcVisit::Found(val) => Some(RcWalk::Found(val)),
+    RcVisit::Next(prev) => {
+      *curr = prev;
+      None
+    }
+    RcVisit::Gone => Some(RcWalk::Retry),
+  }
+}
+
 /// 内存反向回溯结果（[`StoreSession::trace_back_for_key_match`] 出口）
 enum MemBack<R> {
   /// 键命中：safe_ro 快照下的读后晋升判定已内含
@@ -406,7 +429,7 @@ impl<D: Device> StoreSession<D> {
       {
         return RcWalk::Retry;
       }
-      *curr = match self
+      let visit = self
         .store
         .read_cache
         .with_record(*curr, |rec_key, rec_val| {
@@ -419,11 +442,11 @@ impl<D: Device> StoreSession<D> {
           } else {
             None
           }
-        }) {
-        RcVisit::Found(val) => return RcWalk::Found(val),
-        RcVisit::Next(prev) => prev,
-        RcVisit::Gone => return RcWalk::Retry,
-      };
+        });
+      // RcVisit → RcWalk 判据换算只走 map_rc_visit 单点：终态上抛，续链则前驱已就位
+      if let Some(walk) = map_rc_visit(visit, curr) {
+        return walk;
+      }
       if *curr == 0 {
         break;
       }

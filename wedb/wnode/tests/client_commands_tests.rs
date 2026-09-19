@@ -67,7 +67,9 @@ async fn run_sampling_rounds(
       move || done_cancel.load(Ordering::Relaxed) >= rounds,
       || {
         done.fetch_add(1, Ordering::Relaxed);
-        registry.monitor_iteration_inputs()
+        // gossip 与复活化两臂本用例不观测（宿主装配点由
+        // server_monitor_tests 的复位臂用例覆盖），此处注入空操作
+        registry.monitor_iteration_inputs(|| {}, || {})
       },
     )
     .await;

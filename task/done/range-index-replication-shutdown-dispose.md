@@ -68,3 +68,7 @@ next/bftree-release-detached-guard-recheck.md 管树释放的纪元守卫，不�
 优先级：P2（嵌入式/复用进程的资源滞留与虚设面，非数据正确性；改动局限停机链，宜与订阅 broker 票同批做）。
 
 盘点补记（qw13.invB range-index-replication-shutdown-dispose）：dev e75716e 复核原样：range_index_manager_replication.rs:587 pub fn dispose 仍零生产调用；wnode/src/server.rs 停机链只有 cluster_provider.dispose()（:284）、registry.dispose_active_handlers（:707）、dispose_vector_cleanup（:737）、bp.dispose（:747），无范围索引步。方向 A/B 二择一的修法不变。
+
+## 落地判定（fix-ri-dispose，dev cdf426b 基线取证）
+
+走方向 A，收口步落位修正一处：C# GarnetServer.InternalDispose 全序为 Phase 1 停监听 → Phase 2 排空处理器 → Phase 3 Provider.Dispose（storeWrapper.Dispose 内 rangeIndexManager?.Dispose() 为第 7 条语句，clusterProvider→itemBroker→monitor→luaTimeoutManager→ctsCommit.Cancel→taskManager 之后、databaseManager 之前）。即 C# 收口发生在连接排空之后；票面「stop() 内 join 之前调用」与 C# 时序相反（join 前在途命令仍可触达在建树），故落位改为 stop() 内 join 之后、buffer_pool.purge 之前。其余：单机尾部集群收口未搬入 stop()（bootstrap 持集群提供者而 GarnetServer 不持，搬移即改泛型装配拓扑，超本票射程），改以注释标明步骤号与次序互换依据（worker join 后集群治理面已停摆，二者无交叉触达）。句柄链：NodeService::assemble 复制面单例先造后共享（与 AofSinkContext 同一 Arc）→ NodeService::ri() → provider.ri（open_with_config_and_aof / open_recovered_with_config_and_aof 两处转交，仿既有 provider.aof 装配）→ SessionProviderFace::dispose_range_index（默认空操作）→ GarnetServer::stop 调用；dispose 实现为复制面臂（清未完成流重组）+ 引擎臂（store() 现取在线引擎 dispose，覆盖无 AOF 形态与置换后新引擎），wbftree manager 逐树 take 幂等，与 WedbStore::drop 兜底并存安全。验收：新增 wnode/tests/range_index_shutdown_tests.rs（在线树 → stop() → live_index_count==0 → 显式重入不 panic）；cargo check --workspace --all-targets 绿。

@@ -22,7 +22,7 @@ use gxhash::HashMap as GxHashMap;
 use itoa::Buffer;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
-use wacl::{GarnetAclAuthenticator, UserHandle, acl_password_check};
+use wacl::{GarnetAclAuthenticator, User, UserHandle, acl_password_check};
 use wbase::{
   future::blocking_wait,
   hash_slot::slot_of,
@@ -242,6 +242,21 @@ impl fmt::Debug for CustomCommandRef {
   }
 }
 
+/// 会话 ACL 挂载态（连接本地，随句柄生死；对标 C# 会话直持共享 UserHandle
+/// 时「句柄即最新」的隐含前提——本仓句柄不共享，改权经引擎代数向在途会话广播）
+///
+/// 唯一失效判据即 RespServerSession::refresh_acl_mount_if_stale 的代数比较，
+/// 无第二处判据。
+#[derive(Clone, Copy)]
+struct AclMount {
+  /// 挂载时刻的引擎 ACL 变更代数；None = 挂载早于存储执行域注入（装配期
+  /// attach_acl 先于 set_garnet_api），首次鉴权预门补采
+  generation: Option<u64>,
+  /// 句柄是否取自 ACL 存储真源记录：false = 引导期内存单例（requirepass /
+  /// nopass 的 default，存储恒无同名记录），陈旧时点查无记录亦维持挂载
+  from_store: bool,
+}
+
 /// libs/server/Resp/RespServerSession.cs:RespServerSession
 ///
 /// RESP 服务器会话
@@ -268,6 +283,8 @@ pub struct RespServerSession {
   pub user_handle: Option<String>,
   /// 当前生效用户句柄（C# _userHandle；ACL 档认证成功挂载，None = 未认证）
   pub acl_user_handle: Option<Arc<UserHandle>>,
+  /// ACL 挂载态（跨连接改权收敛的会话侧快照；None = 无 ACL 挂载面）
+  acl_mount: Option<AclMount>,
   /// 认证器是否支持认证（C# _authenticator.CanAuthenticate；免认证形态为 false）
   pub authenticator_can_authenticate: bool,
 
@@ -472,6 +489,7 @@ impl RespServerSession {
       client_lib_version: None,
       user_handle: None,
       acl_user_handle: None,
+      acl_mount: None,
       authenticator_can_authenticate: false,
       session_asking: 0,
       read_only_session: false,
@@ -636,6 +654,7 @@ impl RespServerSession {
     // 未认证，非 NoAuth 命令按 C# NOAUTH 拒绝
     self.user_handle = None;
     self.acl_user_handle = None;
+    self.acl_mount = None;
     self.authenticate_user("default".as_bytes(), &[]);
   }
 
@@ -912,10 +931,133 @@ impl RespServerSession {
 
   /// libs/server/Resp/RespServerSession.cs:SetUserHandle
   ///
-  /// 挂载用户句柄：同步刷新会话用户名（CLIENT LIST / SLOWLOG 展示面）
-  pub fn set_user_handle(&mut self, user_handle: Arc<wacl::UserHandle>) {
+  /// 挂载用户句柄的唯一出口：同步刷新会话用户名（CLIENT LIST / SLOWLOG 展示面）
+  /// 并快照挂载时刻的引擎 ACL 代数（`from_store` 标记句柄是否取自存储真源记录，
+  /// 见 [`AclMount`]）
+  pub fn set_user_handle(&mut self, user_handle: Arc<wacl::UserHandle>, from_store: bool) {
     self.user_handle = Some(user_handle.user().name.clone());
     self.acl_user_handle = Some(user_handle);
+    // 免认证形态（NoAuth / requirepass 直连）无 ACL 判定面可收敛，不登记挂载态
+    self.acl_mount = self.acl_authenticator.as_ref().map(|_| AclMount {
+      generation: self
+        .garnet_api
+        .as_ref()
+        .and_then(|api| api.acl_generation()),
+      from_store,
+    });
+  }
+
+  /// 跨连接改权收敛预门（会话侧唯一失效判据：挂载代数与引擎 ACL 代数比较）
+  ///
+  /// C# 的 ACL SETUSER/DELUSER 对全局共享 UserHandle 就地 CAS 换新（libs/server/
+  /// Resp/ACLCommands.cs:NetworkAclSetUser），在途会话下一条命令自然读到新权限；
+  /// 本仓句柄连接本地持有（零全局内存口径），故改权经 AclStore 写删出口推进
+  /// 引擎代数向在途会话广播：代数落后即按会话已绑 `(ns, 用户名)` 点查存储真源
+  /// 重建句柄，相等即句柄最新（零存储读，与 C# 共享句柄的免判等成本同阶）
+  ///
+  /// 位点唯一为鉴权预门 [`RespServerSession::check_acl_permissions`] 入口——每
+  /// 命令一次且在批处理纪元保护区外（ACL 点查的冷记录降级为阻塞回读，持守卫
+  /// 等待驱逐会自锁，故不可下沉到 `acl_permits`）；Lua `redis.call` 面经外层
+  /// 脚本命令预门刷新后的同一句柄判定，与直令面同口径、无第二套判据
+  pub(crate) fn refresh_acl_mount_if_stale(&mut self) {
+    let Some(mount) = self.acl_mount else {
+      return;
+    };
+    let Some(api) = &self.garnet_api else {
+      return;
+    };
+    let Some(current) = api.acl_generation() else {
+      return;
+    };
+    if mount.generation == Some(current) {
+      return;
+    }
+    let Some(username) = self
+      .acl_user_handle
+      .as_ref()
+      .map(|handle| handle.user().name.clone())
+    else {
+      return;
+    };
+    // 记录已删 / 读失败 / 不可解析三态合一：撤销挂载按未认证处理
+    let mut adopted = None;
+    let mut revoke = false;
+    match api.acl_user_record(self.namespace, username.as_bytes()) {
+      Some(Ok(Some(record))) => match User::from_rule_bytes(&username, &record) {
+        Ok(new_user) => adopted = Some(new_user),
+        Err(err) => {
+          log::warn!(
+            "ACL 命名空间 {} 用户 {username} 规则解析失败，按未认证处理: {err}",
+            self.namespace
+          );
+          revoke = true;
+        }
+      },
+      // 引导期内存单例（requirepass / nopass 的 default）存储恒无同名记录，
+      // 维持挂载；命名用户句柄本就取自记录，无记录即用户已删
+      Some(Ok(None)) if mount.from_store => {
+        log::warn!(
+          "ACL 命名空间 {} 用户 {username} 记录已删，按未认证处理",
+          self.namespace
+        );
+        revoke = true;
+      }
+      Some(Ok(None)) => {
+        self.acl_mount = Some(AclMount {
+          generation: Some(current),
+          ..mount
+        });
+        return;
+      }
+      // 存储访问失败：保持现挂载与陈旧代数，下一命令重判（不误撤健康会话）
+      Some(Err(err)) => {
+        log::warn!(
+          "ACL 命名空间 {} 用户 {username} 规则点查失败，本命令沿用现权限并待重判: {err}",
+          self.namespace
+        );
+        return;
+      }
+      None => return,
+    }
+    if revoke {
+      self.revoke_acl_mount();
+      return;
+    }
+    if let Some(new_user) = adopted {
+      self.adopt_acl_user(new_user, Some(current));
+    }
+  }
+
+  /// 以新规则整体替换挂载句柄（dev 语义：`UserHandle` 为构造即定格的只读快照、
+  /// 无共享 CAS 域，换代即重读存储后整体替换 `Arc<UserHandle>`，见
+  /// wacl/src/user_handle.rs 类型文档）。会话句柄与认证器镜像同换新 Arc（两处
+  /// 恒同一），挂载代数对齐传入值、from_store 置真（句柄取自存储真源记录）
+  ///
+  /// `generation` 由调用方在点查记录【之前】采得（Acquire 与 bump 的 Release
+  /// 配对，保证随后的点查必见该代数下已落盘的记录），杜绝缓存到更新的代数而漏
+  /// 掉并发改权；消费串行下无并发写者，整体替换即原子，无需 CAS
+  pub(crate) fn adopt_acl_user(&mut self, new_user: Arc<User>, generation: Option<u64>) {
+    let handle = Arc::new(UserHandle::new(new_user));
+    if let Some(acl) = &self.acl_authenticator {
+      acl.lock().user_handle = Some(Arc::clone(&handle));
+    }
+    self.user_handle = Some(handle.user().name.clone());
+    self.acl_user_handle = Some(handle);
+    self.acl_mount = self.acl_authenticator.as_ref().map(|_| AclMount {
+      generation,
+      from_store: true,
+    });
+  }
+
+  /// 撤销 ACL 挂载：会话句柄与认证器镜像同撤（两处挂载恒为同一 Arc），
+  /// 下一命令按未认证落 NOAUTH
+  fn revoke_acl_mount(&mut self) {
+    self.acl_user_handle = None;
+    self.acl_mount = None;
+    self.user_handle = None;
+    if let Some(acl) = &self.acl_authenticator {
+      acl.lock().user_handle = None;
+    }
   }
 
   /// libs/server/Resp/RespServerSession.cs:UpdateRespProtocolVersion
@@ -940,20 +1082,32 @@ impl RespServerSession {
     let Some(acl) = &self.acl_authenticator else {
       return false;
     };
-    // 认证器可变态内 &mut（记录用户句柄）；会话消费串行，锁无竞争
-    let mut acl = acl.lock();
-    let success = acl.authenticate(username, password, acl_password_check);
-    if success && let Some(user_handle) = acl.get_user_handle() {
-      self.user_handle = Some(user_handle.user().name.clone());
-      self.acl_user_handle = Some(Arc::clone(user_handle));
-      let target_ns = acl.get_namespace();
-      self.namespace = target_ns;
-      if let Some(api) = &self.garnet_api
-        && !api.set_context(target_ns, self.active_db_id)
-      {
-        // 冷租户/冷库：映射未装载，登记挂起面由应答组装点异步点查装载
-        self.cold_ctx = Some((target_ns, self.active_db_id));
-      }
+    // 认证器可变态内 &mut（记录用户句柄）；会话消费串行，锁无竞争。句柄取出
+    // 即释放 guard——挂载出口 set_user_handle 需整个会话的可变借用
+    let (success, user_handle, target_ns) = {
+      let mut acl = acl.lock();
+      let success = acl.authenticate(username, password, acl_password_check);
+      (
+        success,
+        if success {
+          acl.get_user_handle().cloned()
+        } else {
+          None
+        },
+        acl.get_namespace(),
+      )
+    };
+    let Some(user_handle) = user_handle else {
+      return success;
+    };
+    // 认证器面句柄取自引导期内存单例（default / requirepass），非存储记录
+    self.set_user_handle(user_handle, false);
+    self.namespace = target_ns;
+    if let Some(api) = &self.garnet_api
+      && !api.set_context(target_ns, self.active_db_id)
+    {
+      // 冷租户/冷库：映射未装载，登记挂起面由应答组装点异步点查装载
+      self.cold_ctx = Some((target_ns, self.active_db_id));
     }
     success
   }
@@ -1848,7 +2002,7 @@ impl RespServerSession {
       acl.user_handle = Some(Arc::clone(&user_handle));
       acl.namespace = target_ns;
     }
-    self.set_user_handle(user_handle);
+    self.set_user_handle(user_handle, true);
     self.namespace = target_ns;
     if let Some(api) = &self.garnet_api
       && !api.set_context(target_ns, self.active_db_id)
@@ -2550,6 +2704,10 @@ impl RespServerSession {
 
   /// ACL 门位图段（C# AdminCommands.cs:CheckACLPermissions 主体；&self 纯判定，
   /// 主循环与 Lua redis.call 路径同用——LuaRunner.Functions.cs:2993）
+  ///
+  /// 恒为挂载句柄的位图判定，不内嵌失效判定（改权收敛见
+  /// `Self::refresh_acl_mount_if_stale`，其位点在预门而非此处：点查存储须
+  /// 在批处理纪元保护区外，而本判定 Lua 脚本窗口内亦调用）
   ///
   /// 无 ACL 认证器（免认证形态）：C# default 用户 +@all → 恒放行。
   /// ACL 档：(!IsAuthenticated || !CanAccessCommand) && !IsNoAuth → 拒绝

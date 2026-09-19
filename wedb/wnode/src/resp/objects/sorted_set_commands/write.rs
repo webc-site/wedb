@@ -306,7 +306,7 @@ impl RespServerSession {
       Err(()) => return Ok(true),
     };
     let mut result = diff_sets(&objs);
-    let count = result.count();
+    let count = result.purge_expired_len();
     // STORE 族目标键为 SET 语义（清既有 key 级 TTL，对标 C#
     // SortedSetDifferenceStore 的 SET 收尾），信封域 upsert 默认保留须显式清退
     match del_ttl_sync(store, dst) {
@@ -384,7 +384,7 @@ impl RespServerSession {
     let card = if objs.is_empty() {
       0
     } else if objs.len() == 1 {
-      objs[0].count() as i64
+      objs[0].purge_expired_len() as i64
     } else if let Some((min_idx, min_obj)) = objs
       .iter()
       .enumerate()
@@ -654,7 +654,7 @@ fn sorted_set_combine_store<'s, D: wdev::Device>(
     Err(()) => return Ok(true),
   };
   let mut result = combine_sets(&objs, &args.weights, args.aggregate, kind);
-  let count = result.count();
+  let count = result.purge_expired_len();
   // STORE 族目标键为 SET 语义（清既有 key 级 TTL，对标 C# ZINTERSTORE/
   // ZUNIONSTORE 的 SET 收尾），信封域 upsert 默认保留须显式清退
   match del_ttl_sync(store, dst) {

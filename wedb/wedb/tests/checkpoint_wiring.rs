@@ -45,9 +45,13 @@ fn primary_checkpoint_flow_wires_cluster_callbacks() {
   let rm = provider.replication_manager().unwrap();
   rm.set_current_replication_offset(AofAddress::create(1, rm_offset));
 
-  // 2. 检查点发起：获取覆盖地址
+  // 2. 检查点发起：获取覆盖地址（本用例直测 CheckpointCallbackFace 面，
+  // UFCS 显式定点，免与 wnode::ClusterProvider 同名转发口混淆）
   let mut covered_addr = AofAddress::create(1, 0);
-  provider.on_checkpoint_initiated(&mut covered_addr);
+  <ClusterProvider as CheckpointCallbackFace>::on_checkpoint_initiated(
+    &provider,
+    &mut covered_addr,
+  );
   assert_eq!(covered_addr.get(0), Some(rm_offset));
 
   // 3. 版本切换
@@ -69,9 +73,15 @@ fn primary_checkpoint_flow_wires_cluster_callbacks() {
 
   // 5. 登记检查点（AddNewCheckpointEntry → SafeTruncateAOF：现收敛为
   // async 单口径，须 await 方可推进 truncated_until 记账，见步骤 7 断言）
-  Runtime::new()
-    .unwrap()
-    .block_on(provider.add_new_checkpoint_entry(true, covered_addr, 1001, 1001));
+  Runtime::new().unwrap().block_on(
+    <ClusterProvider as CheckpointCallbackFace>::add_new_checkpoint_entry(
+      &provider,
+      true,
+      covered_addr,
+      1001,
+      1001,
+    ),
+  );
 
   // 6. 断言：检查点条目已登记
   let entry = rm
@@ -142,6 +152,10 @@ fn on_demand_checkpoint_takes_and_registers_entry() -> aok::Void {
 
     let provider = ClusterProvider::new();
     provider.set_checkpoint_dir(cp_dir);
+    // 对齐生产装配链（boot.rs attach_flush_gate）：集群句柄在位即检查点内核
+    // 的形态位，条目登记唯一点在内核集群分支（对标 C# AddNewCheckpointEntry
+    // 仅在 InitiateCheckpointAsync 一处）
+    dm.attach_flush_gate(provider.clone());
     provider.set_database_manager(dm);
 
     // 初始状态下检查点仓库为空

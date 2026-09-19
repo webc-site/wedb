@@ -169,6 +169,7 @@ fn setup_replica_with(max_lag_bytes: i32, replay_task_count: i32) -> ReplicaFixt
     Arc::clone(&aof),
     Arc::clone(&store),
     None,
+    None,
   ))));
   provider.set_aof_replay_max_lag_bytes(max_lag_bytes);
 
