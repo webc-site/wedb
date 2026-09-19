@@ -9,26 +9,17 @@ use super::RangeIndexManager;
 use crate::{error::Result, service::BfTreeService, stub::RangeIndexStub};
 
 impl RangeIndexManager {
-  /// 刷盘事件触发快照与存根标记 (使用防重入快照锁)
-  pub fn on_flush(&self, key: &[u8], stub: &mut RangeIndexStub) -> Result<()> {
-    self.on_flush_internal(key, stub, None)
-  }
-
-  /// 带有逻辑地址的刷盘事件触发快照与存根标记
+  /// 刷盘事件触发快照与存根标记，**唯一**刷盘入口 (使用防重入快照锁)
+  ///
+  /// 1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotTreeForFlush 的签名
+  /// `(key, valueSpan, logicalAddress)`——逻辑地址是必填参数，刷盘快照文件名恒为
+  /// `{hash_prefix}.{addr:016x}.flush.bftree` (见 [`Self::log_flush_path`])，
+  /// C# 无「无地址裸名刷盘件」形态，故本入口不提供 Option 分流
   pub fn on_flush_address(
     &self,
     key: &[u8],
     stub: &mut RangeIndexStub,
     logical_address: u64,
-  ) -> Result<()> {
-    self.on_flush_internal(key, stub, Some(logical_address))
-  }
-
-  fn on_flush_internal(
-    &self,
-    key: &[u8],
-    stub: &mut RangeIndexStub,
-    logical_address: Option<u64>,
   ) -> Result<()> {
     // 过期源存根 no-op (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:SnapshotTreeForFlush)：所有权已转移至尾部新记录时，
     // 既不快照过期视图也不置位 IsFlushed，避免把陈旧数据误标为已刷盘
@@ -38,10 +29,7 @@ impl RangeIndexManager {
 
     let key_id = Self::key_id_of(key);
     let hash_prefix = Self::base32_prefix_of(key);
-    let flush_path = match logical_address {
-      Some(addr) => self.log_flush_path(&hash_prefix, addr),
-      None => self.bare_flush_path(&hash_prefix),
-    };
+    let flush_path = self.log_flush_path(&hash_prefix, logical_address);
 
     let mut try_snapshot = |entry: &super::TreeEntry, tree: &BfTreeService| -> Result<()> {
       entry.snapshot_under_claim(tree, &flush_path)?;
@@ -78,9 +66,7 @@ impl RangeIndexManager {
     // 带地址刷盘文件已完整落盘，重开惰性恢复的地址扫描通道。notice 必须后置于文件
     // 创建 (见 addr_flush_gen 字段文档)：若 notice 先行，扫描可在 notice 之后、建文件之前
     // 完成「gen 不变」证伪封存通道，随后诞生的文件被永久跳过，恢复回退到陈旧工作文件
-    if logical_address.is_some() {
-      self.notice_addr_flush_files();
-    }
+    self.notice_addr_flush_files();
     Ok(())
   }
 }
