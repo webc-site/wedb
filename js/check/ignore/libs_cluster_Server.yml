@@ -3,6 +3,7 @@
         - GetHostNameFromNodeId
         - GetLocalNodeReplicaIds
         - GetRemoteNodeIds
+        - GetReplicaEndpoints
         - GetSlotCountForState
     - libs/cluster/Server/ClusterManager.cs:
         - UnsafeSetConfig

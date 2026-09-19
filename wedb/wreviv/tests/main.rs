@@ -17,7 +17,7 @@ use wreviv::{
 fn smoke_pool_lifecycle_and_slack_allocation() -> Void {
   info!("> smoke_pool_lifecycle_and_slack_allocation");
 
-  let pool = FreeRecordPool::new();
+  let pool = FreeRecordPool::new(true);
   assert!(pool.is_empty());
   assert_eq!(pool.bins.len(), DEFAULT_BIN_SIZES.len());
   assert_eq!(pool.bins.iter().map(|b| b.len()).sum::<usize>(), 0);

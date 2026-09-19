@@ -59,3 +59,6 @@ wdev-seg-split）已开、diff 尚空。两票同改 wdev/src/segmented_device.r
 取对方那棒，本票不再派发，仅留档供核对分域口径。
 本票原引 1437 行已按当下 HEAD 校正为 1432 行（task/done/wdev-segmented-device-mutator-knobs.md，
 主仓 be2fca2 落地后净降 5 行），拆件时行号一律重新 grep 定位，勿照抄本票行号。
+
+## 主代理核销
+同题载体 db-wdev-segmented-device-split 已落地 dev a954680（六件目录模块、最大件 373 行），本票验收判据（单件≤500、无重复实现、pub 面 21→21 逐符号不变、调用点零改动、check 绿、check.js 逐字节中性）全数被其满足，薄壳并载体归档，转 task/done/。

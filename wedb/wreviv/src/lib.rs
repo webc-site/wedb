@@ -20,13 +20,16 @@
 //! - **CheckEmptyWorker 后台线程省略**：C# 依赖后台线程周期扫描复位 `isEmpty` 标志；本实现以原子
 //!   `active_count` 计数直接驱动空桶快速路径，无需任何后台任务。
 //! - **oversize 分桶省略**：16 位内联尺寸上限 65535B，超限记录的腾挪属 wedb_hlog 层职责。
-//! - **RevivificationManager 门面部分收敛**：`Pause/Resume/IsEnabled` 暂停生命周期已并入
-//!   [`FreeRecordPool`]（[`FreeRecordPool::pause`] / [`FreeRecordPool::resume`] /
-//!   [`FreeRecordPool::is_enabled`]，take 入口门控）；`RevivifiableFraction` 比例门控属配置面，
+//! - **RevivificationManager 门面部分收敛**：`revivSuspendCount` 单字段（含
+//!   `EnableRevivification` 未启用时的 -1 初值）与 `Pause/Resume/IsEnabled` 一并并入
+//!   [`FreeRecordPool`]（[`FreeRecordPool::new`] 的启用位 + [`FreeRecordPool::pause`] /
+//!   [`FreeRecordPool::resume`] / [`FreeRecordPool::is_enabled`]，take 入口门控）；
+//!   上层链内复活臂与脱钩臂均以 [`FreeRecordPool::is_enabled`] 为唯一启用谓词，
+//!   与 C# `RevivificationManager.IsEnabled` 同形；`RevivifiableFraction` 比例门控属配置面，
 //!   由 wkv StoreConfig.revivifiable_fraction 持有、上层按
 //!   `tail - (tail - read_only) × fraction` 推导 min_address 后以参数传入（对标
 //!   `RevivificationManager.GetMinRevivifiableAddress`，推导需要 tail/read_only 等日志水位，
-//!   池自身不持有）；链内复活由 wedb_hlog 的 `try_revivify_in_chain` 承担。
+//!   池自身不持有）；链内复活的内核由 wedb_hlog 的 `try_revivify_in_chain` 承担。
 //! - **单字节填充精度**：C# 以 `Constants.kRecordAlignment`(8B) 对齐记录尺寸后分桶；本实现配合
 //!   wrecord 的 FillerWords/FillerRem 单字节精度松弛填充，分桶检索不对齐、按字节粒度匹配。
 //!

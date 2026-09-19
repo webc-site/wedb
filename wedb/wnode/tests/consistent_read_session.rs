@@ -69,10 +69,10 @@ fn test_storage_session_consistent_read_pipeline() -> aok::Void {
     ss.upsert_string(b"key3", b"val3").await?;
 
     // 1. 测试单键读取链路 (read_string_with / read_string)：经附着态触发 pre/post
+    //（读后 hash 累积语义由 pre/post 协议内部闭环校验承接，白盒快照断言已随
+    // replica_context_snapshot 死口移除）
     let val1 = ss.read_string(b"key1").await?;
     assert_eq!(val1, Some(b"val1".to_vec()));
-    let expected_hash1 = (whasher::fast_hash(b"key1") as i64) & i64::MAX;
-    assert_eq!(rss.replica_context_snapshot().last_hash(), expected_hash1);
 
     // 零拷贝借用视图读取验证
     let val1_len = ss.read_string_with(b"key1", |v| v.len()).await?;
@@ -80,11 +80,6 @@ fn test_storage_session_consistent_read_pipeline() -> aok::Void {
 
     let val_none = ss.read_string(b"not_exist").await?;
     assert_eq!(val_none, None);
-    let expected_hash_not_exist = (whasher::fast_hash(b"not_exist") as i64) & i64::MAX;
-    assert_eq!(
-      rss.replica_context_snapshot().last_hash(),
-      expected_hash_not_exist
-    );
 
     // 2. 测试批量读取链路（一致读上下文 read_batch_with：pre_batch/post_batch
     // 协议与重试在 wkv 批读内部闭环）

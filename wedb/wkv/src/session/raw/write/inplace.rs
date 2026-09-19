@@ -218,8 +218,12 @@ impl<D: Device> StoreSession<D> {
                   break; // 长度变更或不可修改，跳出走尾部追加
                 }
                 Ok(Some(MemoryRecordProbe::Tombstone { prev, size })) => {
-                  // 链内原地复活：若是墓碑记录，尝试就地复活复用该槽位（严格双检 expected_key）
-                  if self.store.config.enable_revivification
+                  // 链内原地复活：墓碑记录命中即尝试就地复用该槽位（严格双检 expected_key）
+                  // 双门与 C# 逐字对齐（InternalUpsert.cs:125 `RevivificationManager.IsEnabled
+                  // && LogicalAddress >= GetMinRevivifiableAddress()`）：唯一启用谓词 +
+                  // 复活窗口下限，缺一即落回尾部追加；下限公式经 store 单点推导，此处不重写
+                  if self.store.reviv_pool.is_enabled()
+                    && cur >= self.store.min_revivifiable_address()
                     && self.store.hlog.try_revivify_in_chain(cur, key, val)?
                   {
                     self.notify_write_listener(key, val, false)?;

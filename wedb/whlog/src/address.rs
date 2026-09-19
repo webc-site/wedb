@@ -177,12 +177,6 @@ impl AddressManager {
     }
   }
 
-  /// 校验当前地址状态机是否满足单调递增不变式
-  #[inline]
-  pub fn validate_invariants(&self) -> bool {
-    self.snapshot().validate()
-  }
-
   /// 捕获当前所有地址状态的快照
   pub fn snapshot(&self) -> AddressSnapshot {
     AddressSnapshot {

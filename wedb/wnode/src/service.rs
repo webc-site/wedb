@@ -252,6 +252,10 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
         &EMPTY_REPLAY_INPUT_BYTES,
       )?;
     }
+    // RI.SET/RI.DEL 的 AOF 记录单点：C# 经 functionsState 显式调用
+    // libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexSet
+    // 与 libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:ReplicateRangeIndexDel
+    // 两对口，rust 由本 StoreEvent 通道一处承接
     StoreEvent::RangeIndexWrite {
       ns,
       db,
