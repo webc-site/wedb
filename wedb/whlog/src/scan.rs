@@ -1,9 +1,6 @@
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use wbase::{
-  backoff::{Backoff, YIELD_LIMIT},
-  pool::AlignedBuf,
-};
+use wbase::{backoff::Backoff, pool::AlignedBuf};
 use wdev::Device;
 use wrecord::{HEADER_SIZE, RecordHeader, RecordRef};
 
@@ -27,23 +24,31 @@ pub struct ScanItem<'a> {
 /// 在途零头自旋重试预算（对标 C# TsavoriteLogScanIterator.cs:781-790 的
 /// `Thread.SpinWait(100)` 后复查 SafeTailAddress 语义）：
 /// append 协议「先 CAS 预占 tail 后编码」使预留槽位在编码完成前短暂呈全零，
-/// 该预算覆盖常规编码窗口（百纳秒级）。退避阶段机复用 wbase::backoff 单一真源
-/// （32 轮纯自旋后逐轮让核），预算钳制在睡眠阶段边界（[YIELD_LIMIT]）——
-/// 在途编码等待是纯 CPU 事件（生产者只欠调度），线程睡眠既会阻塞 compio
-/// reactor，又会把恢复清洗零区的跳页兜底拖入毫秒级长尾，故绝不进入第三阶段；
+/// 该预算覆盖常规编码窗口与高负载下线程调度抖动窗口。退避阶段机复用 wbase::backoff 单一真源
+/// （纯自旋后逐轮让核，wait_busy 忙等绝不睡眠阻塞 reactor），
 /// 自旋耗尽仍为零才按恢复清洗零区/页尾空洞跳页兜底，保证有穷终止。
-const ZERO_HEADER_SPIN_BUDGET: u32 = YIELD_LIMIT;
+const ZERO_HEADER_SPIN_BUDGET: u32 = 32768;
 
 /// 判定页内 offset 处 16 字节记录头是否全零（在途预留槽位 / 恢复清洗零区的物理形态）
 ///
-/// 采用 [RecordHeader::is_zero_slice] 双 64 位整数直接融合成单条比较，
-/// 在自旋重试热循环中彻底消除切片越界与结构体构造开销。
+/// 对齐字采用 Acquire 原子载入，与生产者 release fence 形成内存屏障配对，
+/// 杜绝编译器寄存器缓存与乱序读，在自旋重试热循环中提供最高效实时的内存可见性。
 #[inline(always)]
 fn is_zero_header(bytes: &[u8], offset: usize) -> bool {
-  if offset >= bytes.len() {
+  if offset
+    .checked_add(HEADER_SIZE)
+    .is_none_or(|end| end > bytes.len())
+  {
     true
   } else {
-    RecordHeader::is_zero_slice(&bytes[offset..])
+    let ptr = unsafe { bytes.as_ptr().add(offset) };
+    if ptr as usize % 8 == 0 {
+      let w0 = unsafe { (&*(ptr as *const AtomicU64)).load(Ordering::Acquire) };
+      let w1 = unsafe { (&*(ptr.add(8) as *const AtomicU64)).load(Ordering::Acquire) };
+      (w0 | w1) == 0
+    } else {
+      RecordHeader::is_zero_slice(&bytes[offset..])
+    }
   }
 }
 
@@ -277,10 +282,6 @@ impl<'a, D: Device> ScanIterator<'a, D> {
               }
               if !is_zero_header(&bytes, offset) {
                 // 记录已在在途窗口内完成编码：丢弃本轮解析结果，回到循环头原址重试解析
-                //（tail/effective_end 为调用起点快照，循环体内不重载——编码完成的记录
-                // 必已落在快照窗口内，重载与否不影响本址记录的可见性；头 16 字节
-                // 由编码路径以 Release fence 最后发布，parse 原子字读见新头即键值
-                // 数据必已可见，重试解析不存在半截记录）
                 continue;
               }
             }
@@ -288,9 +289,6 @@ impl<'a, D: Device> ScanIterator<'a, D> {
 
           // 换页填充 / 恢复清洗零区 / 页尾残片处理（持久形态：revisit 命中 / 磁盘页 /
           // 自旋耗尽，复核标记就此清退）：
-          // - PAD 头（复活槽位中段亦可能出现，见 revivify_record_at）按 16 + val_len
-          //   精确越过填充区，避免误跳同页后续记录；
-          // - 零区与子头残片仅出现于页尾或恢复清洗区，直达下一页开头。
           self.pad_seen = None;
           let pad_step = bytes
             .get(offset..)
