@@ -74,3 +74,5 @@ C# 参考（按类型四分，公共底座独立）
 - ./js/check.js 缺失与重复锚点组数不增（锚点随函数搬家不重复挂）。
 - 仅 `cargo check --workspace --all-targets`（私有 target 目录）零 error 零 warning；
   test.sh 与 clippy 由中央整合轮执行。
+
+盘点补记（qw13.invA tiered-collection-ops-file-split）：dev e75716e 复核：文件 2237 行（票载 2167 后继续上涨），wnode/src/resp/objects/ 仍无 tiered_* 子模块目录承接，四执行体分界仍在单文件。政策提示维持：与本仓 resp-server-session-file-split 拒判不同型（确有执行体分界），可派纯搬运。

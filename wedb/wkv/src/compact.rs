@@ -190,6 +190,8 @@ impl<D: Device> wcompact::CompactionFunctions<WedbStore<D>> for WedbCompactionFu
   /// - DbMeta 换号元数据：豁免不判死——记录经专属墓碑退出（GC 回收后
   ///   delete_dbmeta 物理注销、rebuild 删除臂承接），紧缩谓词若判死将在根库
   ///   退役窗口把 (0, *)/(*, 0) 活域记录连同全部换号映射整批误删（数据丢失洞）；
+  /// - ACL 用户规则：豁免不判死——物理前缀为逻辑 ns 直编码 + 恒驻 vdb 0，
+  ///   根本不属虚号换号域，死亡账本比对必误伤（详见 is_deleted 内注释）；
   /// - TTL 旁路记录：自身到期直接判死；未到期经单缓冲轮换标签字节依次探查
   ///   String/ObjectEnvelope/Meta 三种宿主形态（首探 String 命中即短路，覆盖
   ///   绝大多数场景），三者均不存在 = 已删主键遗留的孤儿 TTL 记录，判死丢弃；
@@ -199,8 +201,14 @@ impl<D: Device> wcompact::CompactionFunctions<WedbStore<D>> for WedbCompactionFu
       return false;
     };
     // 换号元数据固定驻留根域前缀 (0,0)，其生死由自身 0x03/0x04 墓碑与 GC 注销
-    // 决定，绝不进业务死域判定（判定误伤即全量映射丢失）
-    if tag == KeyTag::DbMeta {
+    // 决定，绝不进业务死域判定（判定误伤即全量映射丢失）。
+    // ACL 用户规则同理豁免：两域键位语义不同——DbMeta 虽驻 (0,0) 但其生死
+    // 自治，而 AclStore 以调用方逻辑 ns 直编码物理前缀、恒驻 vdb 0（不经
+    // vdb 虚号映射，逻辑号永不换号退役），死亡账本里的退役虚号与之不同域：
+    // 根库 FLUSHDB 退役 vdb 0 的窗口（gc_dead 键 0 库级角色）将经第一比对臂
+    // 直击全部 ACL 记录，逻辑 ns 与某退役 vns 撞号（虚号自 1 自增、逻辑 ns
+    // 任意 u64）亦经第二臂误杀整租户用户，且无任何日志告警面
+    if matches!(tag, KeyTag::DbMeta | KeyTag::Acl) {
       return false;
     }
     if session

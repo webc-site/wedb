@@ -92,16 +92,27 @@ pub struct MetaValue {
 }
 
 impl MetaValue {
-  /// 构造新的集合元数据记录（const fn，编码字节预置 FlattenedTree——唯一合法编码）
+  /// 构造带到期时间的水位元数据记录（const fn）
   #[inline(always)]
-  pub const fn new(key_id: u64, collection_type: GarnetObjectType, size: u64) -> Self {
+  pub const fn new_with_expiry(
+    key_id: u64,
+    collection_type: GarnetObjectType,
+    size: u64,
+    next_expiry: i64,
+  ) -> Self {
     Self {
       key_id,
       collection_type,
       reserved: [StorageEncoding::FlattenedTree as u8, 0, 0, 0, 0, 0, 0],
       size,
-      next_expiry: i64::MAX,
+      next_expiry,
     }
+  }
+
+  /// 构造新的集合元数据记录（const fn，编码字节预置 FlattenedTree——唯一合法编码）
+  #[inline(always)]
+  pub const fn new(key_id: u64, collection_type: GarnetObjectType, size: u64) -> Self {
+    Self::new_with_expiry(key_id, collection_type, size, i64::MAX)
   }
 
   /// 增加元素计数（饱和加，不溢出，const fn）
@@ -235,19 +246,5 @@ impl MetaValue {
   #[inline(always)]
   pub const fn from_bytes(bytes: [u8; META_VALUE_SIZE]) -> Result<Self> {
     Self::from_slice(&bytes)
-  }
-
-  /// 将元数据记录编码写入目标切片（零堆分配）
-  #[inline]
-  pub fn write_to_slice(&self, dst: &mut [u8]) -> Result<()> {
-    if let Some(chunk) = dst.first_chunk_mut::<META_VALUE_SIZE>() {
-      *chunk = self.to_bytes();
-      Ok(())
-    } else {
-      Err(Error::BufferTooShort {
-        expected: META_VALUE_SIZE,
-        actual: dst.len(),
-      })
-    }
   }
 }

@@ -134,3 +134,5 @@ task/ing/replication-history-flush-torn-write.md 同批处理。
   task/ing/wait-for-commit-chain.md，本单不改推流注册与位点推进，只改恢复窗口。
 - diskless 全量同步的 flush 语义另有一单：task/ing/diskless-full-sync-flush-all.md，
   勿把两单的时序改动混进同一提交。
+
+盘点补记（qw13.invA replica-attach-recovery-lock-window）：dev e75716e 复核原样：cluster_manager_worker_state.rs:126 try_add_replica_async 尾段 :181 仍 rm.end_recovery(RecoveryStatus::NoRecovery, false)，attach 成功路径仍提前释放恢复锁，:478 is_recovering 在传送/置换窗口恒假的结论不变。高优先级维持。

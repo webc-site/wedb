@@ -19,6 +19,7 @@ use compio::runtime::Runtime;
 use tempfile::{TempDir, tempdir};
 use waof::{AofAddress, AofEntryType, AofHeader, WalConfig, WalLog};
 use wbase::{
+  align::DEFAULT_SECTOR_SIZE,
   convert::TICKS_PER_SECOND,
   time::{now_ms, now_ticks},
 };
@@ -50,9 +51,10 @@ fn open_node(name: &str, ring: usize) -> aok::Result<NodeEnv> {
     dir.path().join(format!("{name}.db")),
   )?);
   // 段式 AOF 设备：物理截断 / 跨段扫描均走真实段文件
-  let wal_device = Arc::new(SegmentedDevice::segmented(
+  let wal_device = Arc::new(SegmentedDevice::new(
     dir.path().join(format!("{name}.wal")),
-    64 * 1024,
+    Some(64 * 1024),
+    DEFAULT_SECTOR_SIZE,
   )?);
   let mut config = StoreConfig::new(2048, 64 * 1024, 16, 0.5)?;
   config.range_index_dir = Some(dir.path().to_path_buf());

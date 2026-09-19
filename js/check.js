@@ -300,6 +300,40 @@ const corpusFailLines = (diag) => {
 const corpusDeletedLines = (diag) =>
   diag.deleted_li.map(({ path, why }) => "# 已自动淘汰 ignore: " + path + "（" + why + "）");
 
+// C# 源语料降级汇报：与上面的 YAML 侧 corpus_invalid 分开，因为二者处置手段不同。
+// YAML 解析失败是本仓自己写坏的数据、可修且修前判定必错，故并入 corpus_invalid 硬失败；
+// C# AST 断裂是已装语法包（@2h2d/tree-sitter-wasms 0.2.1，已是该包最新版）的固有
+// 能力边界，且已由 garnetScan 的词法兜底补回名录——判据本身是可信的。若也并入
+// corpus_invalid，则 194 > 0 恒成立，missSync 与符号断言被永久跳过，
+// SKILL.md:97「直到 check.js 没有缺失的输出」这条验收口径反而彻底失效。
+// 因此这里大声报（每次运行、stderr、非零判定可见），但不硬失败。
+const csDegradedLines = (cs_health) => {
+  const degraded_li = cs_health?.degraded_li ?? [];
+  if (degraded_li.length === 0) return [];
+
+  const recovered = degraded_li.reduce((total, item) => total + item.total_count - item.ast_count, 0),
+    silent_li = degraded_li.filter((item) => item.total_count === 0),
+    line_li = [
+      "# C# 语料降级：" + degraded_li.length + "/" + cs_health.cs_file_count +
+        " 个 .cs 的 tree-sitter AST 断裂（unsafe 指针、部分 #if 块等语法不覆盖），" +
+        "已用词法兜底补回 " + recovered + " 个方法名"
+    ];
+
+  for (const item of [...degraded_li].sort((a, b) => b.error_nodes - a.error_nodes).slice(0, 5)) {
+    line_li.push("  - " + item.path + "：ERROR " + item.error_nodes +
+      " 处，AST 提出 " + item.ast_count + " → 兜底后 " + item.total_count + " 个");
+  }
+
+  if (silent_li.length > 0) {
+    line_li.push("  兜底后仍零名录（该文件对本门禁不可见，需人工核对是否真无方法）：");
+    for (const item of silent_li) line_li.push("    ! " + item.path);
+  }
+
+  line_li.push("  语法不覆盖的构造详见 js/check/README.md 第 1 节；这些文件的方法名录由" +
+    "词法兜底给出，只用于补齐缺失判定，不参与 test/非 test 之外的语义推断。");
+  return line_li;
+};
+
 
 const dupDefFind = (fn_doc_li) => {
   const cs_ref_map = new Map();
@@ -393,7 +427,7 @@ const pathTreeFormat = (path_li) => {
 };
 
 const check = async () => {
-  const [fn_map, test_map] = await garnetScan(GARNET_DIR),
+  const [fn_map, test_map, cs_health] = await garnetScan(GARNET_DIR),
     [doc_set, doc_file_fn_map, fn_doc_li] = await rustScan(ROOT_DIR),
     [file_ignore_map, global_ignore_set, corpus_diag] = await ignoreLoadAndPrune(doc_file_fn_map, fn_map, test_map),
     isIgnored = (rel_path, name) => {
@@ -490,6 +524,11 @@ const check = async () => {
     console.error("\x1b[33m" + line + "\x1b[0m");
   }
 
+  // C# 源语料降级：每次运行都大声报，避免读 check.js 输出的代理把它当无损完备性证明
+  for (const line of csDegradedLines(cs_health)) {
+    console.error("\x1b[33m" + line + "\x1b[0m");
+  }
+
   if (corpus_invalid || symbol_fail) {
     if (corpus_invalid) {
       console.error("\x1b[31m" + fail_line_li.join("\n") + "\x1b[0m");
@@ -500,7 +539,7 @@ const check = async () => {
 };
 
 export default check;
-export { ignoreLoadAndPrune, corpusFailLines };
+export { ignoreLoadAndPrune, corpusFailLines, csDegradedLines };
 
 if (import.meta.main) {
   await check();
