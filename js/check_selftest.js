@@ -8,9 +8,11 @@ import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import yaml from "yaml";
-import { ignoreLoadAndPrune, corpusFailLines } from "./check.js";
+import { ignoreLoadAndPrune, corpusFailLines, csDegradedLines } from "./check.js";
+import garnetScan, { csDeclFallback } from "./check/garnetScan.js";
 
 const IGNORE_DIR = resolve(import.meta.dirname, "check/ignore"),
+  GARNET_DIR = resolve(import.meta.dirname, "../garnet"),
   FIXTURE_DIR = join(tmpdir(), "wedb-check-selftest-" + process.pid);
 
 let fail_count = 0,
@@ -173,6 +175,76 @@ const run = async () => {
   expect("真实语料无解析失败", parse_fail === 0, parse_fail + " 份");
   expect("真实语料无形状异常", bad_shape === 0, bad_shape + " 份");
   expect("真实语料缺理由命中为 0（据此可判为错误）", no_reason === 0, no_reason + " 条");
+
+  console.log("# 6 C# 源语料降级兜底（garnetScan csDeclFallback）");
+  // 炸点原形：unsafe 指针后缀递增赋值把该处往后的 AST 打成 ERROR 碎片
+  const BREAKING = "        public static void WriteTo(ref SpanByte src, ref SpanByteAndMemory dst)\n" +
+    "        {\n            var tmp = dst.SpanByte.Memory.ToPointer();\n" +
+    "            *tmp++ = (byte)'$';\n            *tmp++ = (byte)'\\r';\n        }\n" +
+    "        static bool TryInPlaceUpdateNumber(ref LogRecord logRecord, long input) => true;\n" +
+    "        static bool TryCopyUpdateNumber(ref LogRecord logRecord, double input) => true;\n",
+    // 与真声明同形的两族假阳性：主构造函数、修饰符起头的元组字段声明
+    LOOKALIKE = "    public class ReplicaSyncSession(StoreWrapper storeWrapper)\n    {\n" +
+    "        private static readonly (int Precedence, int Arity)[] Table = System.Array.Empty<(int, int)>();\n" +
+    "        internal unsafe LuaStateWrapper(LuaMemoryManagementMode memMode) { }\n" +
+    "        public void RealMethod(int x) { }\n    }\n";
+
+  const breaking_set = csDeclFallback(BREAKING),
+    lookalike_set = csDeclFallback(LOOKALIKE);
+
+  expect(
+    "AST 断裂点之后的方法声明被补回",
+    breaking_set.has("TryInPlaceUpdateNumber") && breaking_set.has("TryCopyUpdateNumber"),
+    [...breaking_set].join(",")
+  );
+  expect(
+    "主构造函数 / 元组字段声明 / 无返回类型的构造函数都不误登",
+    !lookalike_set.has("ReplicaSyncSession") && !lookalike_set.has("readonly") &&
+      !lookalike_set.has("LuaStateWrapper"),
+    [...lookalike_set].join(",")
+  );
+  expect("同形噪声不影响真声明提取", lookalike_set.has("RealMethod"));
+
+  const [fn_map_after, , cs_health] = await garnetScan(GARNET_DIR),
+    degraded_map = new Map(cs_health.degraded_li.map((d) => [d.path, d]));
+
+  expect(
+    "真实语料确有 AST 断裂文件（兜底据此触发，非死代码）",
+    cs_health.degraded_li.length > 0,
+    cs_health.degraded_li.length + " 个"
+  );
+  expect(
+    "PrivateMethods.cs 不再只提出断裂前 1 个名字",
+    (degraded_map.get("libs/server/Storage/Functions/MainStore/PrivateMethods.cs")?.total_count ?? 0) >
+      1,
+    JSON.stringify(degraded_map.get("libs/server/Storage/Functions/MainStore/PrivateMethods.cs"))
+  );
+  expect(
+    "整文件零名录的 VectorManager.Callbacks.cs 重新进入语料",
+    (fn_map_after["libs/server/Resp/Vector/VectorManager.Callbacks.cs"] ?? []).length > 0,
+    JSON.stringify((fn_map_after["libs/server/Resp/Vector/VectorManager.Callbacks.cs"] ?? []).slice(0, 4))
+  );
+  expect(
+    "兜底只在 AST 断裂文件上生效：完好文件的名单与 tree-sitter 一致",
+    cs_health.degraded_li.every((d) => d.ast_count <= d.total_count) &&
+      cs_health.degraded_li.length < cs_health.cs_file_count,
+    "degraded=" + cs_health.degraded_li.length + "/" + cs_health.cs_file_count
+  );
+
+  const report_li = csDegradedLines(cs_health);
+  expect(
+    "降级汇报大声且可定位：含文件数、补回名数与 top 文件路径",
+    report_li[0].includes("C# 语料降级") && report_li.join("\n").includes("个方法名") &&
+      report_li.some((l) => l.includes("PrivateMethods.cs") || l.includes("LogRecord.cs")),
+    report_li.slice(0, 2).join(" | ")
+  );
+  expect(
+    "零名录降级文件被单独点名（不可见性不静默）",
+    report_li.some((l) => l.trim().startsWith("!")) ||
+      !cs_health.degraded_li.some((d) => d.total_count === 0),
+    report_li.filter((l) => l.includes("!")).join(" | ")
+  );
+  expect("完好语料时降级汇报为空（无噪声）", csDegradedLines({ cs_file_count: 1, degraded_li: [] }).length === 0);
 };
 
 await run().catch(async (err) => {
