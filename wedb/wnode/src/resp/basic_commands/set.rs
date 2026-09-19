@@ -253,6 +253,11 @@ impl RespServerSession {
     }
     let offset = offset as usize;
 
+    // 读改写原子窗口：跨「读旧值—拼接改段—写回」全程持本键桶排他闩，杜绝同键
+    // 并发丢更新（对标 C# BasicSessionLocker 的 ephemeral 闩跨 InternalRMW 全程）
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     match read_user_sync(store, key, |v| {
       let mut existing = v.to_vec();
       let required_len = offset + val.len();
@@ -262,7 +267,7 @@ impl RespServerSession {
       existing[offset..offset + val.len()].copy_from_slice(val);
       existing
     }) {
-      Ok(UserRead::Hit(existing)) => match store.try_rmw_sync(key, &existing) {
+      Ok(UserRead::Hit(existing)) => match window.try_rmw_sync(&existing) {
         Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
         Ok(Err(_)) => return Ok(false),
         Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -273,7 +278,7 @@ impl RespServerSession {
       Ok(UserRead::Missing) => {
         let mut new_val = vec![0u8; offset + val.len()];
         new_val[offset..].copy_from_slice(val);
-        match store.try_rmw_sync(key, &new_val) {
+        match window.try_rmw_sync(&new_val) {
           Ok(Ok(_)) => output.write_resp_int(new_val.len() as i64),
           Ok(Err(_)) => return Ok(false),
           Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -611,6 +616,11 @@ impl RespServerSession {
       return Ok(true);
     };
 
+    // 读改写原子窗口：跨「读旧值—尾部追加—写回」全程持本键桶排他闩（同
+    // [`Self::network_set_range`]，对标 C# ephemeral 闩跨 InternalRMW 全程）
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     match read_user_sync(store, key, |v| {
       let mut buf = Vec::with_capacity(v.len() + val.len());
       buf.extend_from_slice(v);
@@ -618,7 +628,7 @@ impl RespServerSession {
     }) {
       Ok(UserRead::Hit(mut existing)) => {
         existing.extend_from_slice(val);
-        match store.try_rmw_sync(key, &existing) {
+        match window.try_rmw_sync(&existing) {
           Ok(Ok(_)) => output.write_resp_int(existing.len() as i64),
           Ok(Err(_)) => return Ok(false),
           Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -627,7 +637,7 @@ impl RespServerSession {
       Ok(UserRead::WrongType) => {
         output.write_resp_error(RESP_ERR_WRONG_TYPE);
       }
-      Ok(UserRead::Missing) => match store.try_rmw_sync(key, val) {
+      Ok(UserRead::Missing) => match window.try_rmw_sync(val) {
         Ok(Ok(_)) => output.write_resp_int(val.len() as i64),
         Ok(Err(_)) => return Ok(false),
         Err(_) => output.write_resp_error(RESP_ERR_GENERIC),

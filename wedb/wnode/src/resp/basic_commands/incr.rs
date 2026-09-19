@@ -92,6 +92,12 @@ impl RespServerSession {
       (key, cmd.sign())
     };
 
+    // 读改写原子窗口：跨「读旧值—算新值—写回」全程持本键桶排他闩，杜绝同键
+    // 并发丢更新（对标 C# BasicSessionLocker 的 ephemeral 闩跨 InternalRMW 全程）；
+    // 同步域取闩失败即回降级通道，绝不自旋等闩
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     // 解析在读取闭包内完成：免整值堆分配（旧值口径对位 C# IsValidNumber →
     // NumUtils.TryReadInt64，拒前导零；与参数路径 strict_i64 同源单一实现）
     let val = match read_user_sync(store, key, strict_i64) {
@@ -120,7 +126,7 @@ impl RespServerSession {
     };
 
     let mut buf = Buffer::new();
-    match store.try_rmw_sync(key, buf.format(next).as_bytes()) {
+    match window.try_rmw_sync(buf.format(next).as_bytes()) {
       Ok(Ok(_)) => output.write_resp_int(next),
       Ok(Err(_)) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -152,6 +158,10 @@ impl RespServerSession {
       return Ok(true);
     }
 
+    // 读改写原子窗口：同 [`Self::network_increment`]，跨读算写全程持本键桶排他闩
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     // 解析在读取闭包内完成：免整值堆分配（C# IsValidDouble 失败 → not-valid-float）
     let val = match read_user_sync(store, key, try_parse_double) {
       Ok(UserRead::Hit(Some(v))) => v,
@@ -190,7 +200,7 @@ impl RespServerSession {
     // 对标 NumUtils.WriteDouble：无指数记法的十进制表示（经 zmij 栈缓冲零堆分配格式化，整数结果无小数点）
     let mut buf = ZmijBuffer::new();
     let formatted = format_double(next, &mut buf);
-    match store.try_rmw_sync(key, formatted.as_bytes()) {
+    match window.try_rmw_sync(formatted.as_bytes()) {
       Ok(Ok(_)) => output.write_resp_bulk_string(formatted.as_bytes()),
       Ok(Err(_)) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),

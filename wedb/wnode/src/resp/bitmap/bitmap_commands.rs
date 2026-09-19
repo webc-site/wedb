@@ -72,6 +72,11 @@ impl RespServerSession {
     let byte_idx = (offset / 8) as usize;
     let bit_idx = 7 - (offset % 8) as u32;
 
+    // 读改写原子窗口：跨「读位图—置位—写回」全程持本键桶排他闩，杜绝同键并发
+    // 丢更新（对标 C# BasicSessionLocker 的 ephemeral 闩跨 InternalRMW 全程）
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     let mut val = match read_user_sync(store, key, |v| {
       let mut vec = Vec::with_capacity(v.len().max(byte_idx + 1));
       vec.extend_from_slice(v);
@@ -101,7 +106,7 @@ impl RespServerSession {
       val[byte_idx] &= !(1 << bit_idx);
     }
 
-    match store.try_rmw_sync(key, &val) {
+    match window.try_rmw_sync(&val) {
       Ok(Ok(_)) => output.write_resp_int(old_bit as i64),
       Ok(Err(_)) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -651,6 +656,12 @@ impl RespServerSession {
       return Ok(true);
     }
 
+    // 读改写原子窗口：跨「读位图快照—逐子命令算新值—写回」全程持本键桶排他闩
+    //（BITFIELD 多子命令更须整段原子，杜绝同键并发丢更新；对标 C# ephemeral 闩
+    // 跨 InternalRMW 全程）
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     // 初始值快照（C# 首子命令经事务 API 读；缺失键记 None）。双域判型
     // 先于数组长度写出：对象键（C# Read/RMW ValueIsObject → WrongType）
     // 整条命令只回错误帧
@@ -711,7 +722,7 @@ impl RespServerSession {
 
     if let Some(buf) = dirty.then_some(value).flatten() {
       // RMW 语义写回（保留既有 key 级 TTL，对标 C# GetRMWModifiedFieldInfo）
-      match store.try_rmw_sync(key, &buf) {
+      match window.try_rmw_sync(&buf) {
         Ok(Ok(_)) => {}
         // 回写降级
         Ok(Err(_)) => return Ok(false),
