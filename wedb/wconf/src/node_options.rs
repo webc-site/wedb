@@ -27,15 +27,15 @@ pub const DEFAULT_HLOG_PAGE_SIZE: usize = 16 * 1024 * 1024;
 
 /// 默认监听端口
 pub const DEFAULT_PORT: u16 = 6379;
-/// 默认监听地址（保护模式回环回退；对标 Format.cs:defaultBindLoopBack）
+/// 默认监听地址（保护模式回环回退；对标 C# Format.defaultBindLoopBack）
 pub const DEFAULT_BIND: &str = "127.0.0.1";
-/// 非保护模式监听地址（对标 Format.cs:defaultBindAny；C# 为 IPv4/IPv6 双栈
+/// 非保护模式监听地址（对标 C# Format.defaultBindAny；C# 为 IPv4/IPv6 双栈
 /// any，Rust 收敛 IPv4 any）
 pub const DEFAULT_BIND_ANY: &str = "0.0.0.0";
 /// 默认工作目录
 pub const DEFAULT_DIR: &str = "./data";
 
-/// 默认 RESP 协议版本（对标 ServerOptions.cs:DEFAULT_RESP_VERSION）
+/// 默认 RESP 协议版本（对标 libs/server/Servers/ServerOptions.cs:DEFAULT_RESP_VERSION）
 pub const DEFAULT_RESP_VERSION: u8 = 2;
 
 /// 慢日志记录阈值微秒（0 = 禁用；对标 C# Options.cs:351 SlowLogThreshold）
@@ -409,7 +409,7 @@ pub struct NodeArgs {
   /// AOF 提交等待档（对标 C# Options.cs:253 WaitForCommit，选项
   /// `--aof-commit-wait`，默认 false）：置位后会话解析期按命令依赖性维护
   /// `wait_for_aof_blocking`，应答出网前阻塞等待 AOF 提交落盘
-  ///（RespServerSession.cs:Send 读点；代价为逐命令延迟大幅上升）
+  ///（C# RespServerSession.Send 读点；代价为逐命令延迟大幅上升）
   #[arg(long = "aof-commit-wait", default_value_t = false)]
   #[serde(default)]
   pub aof_commit_wait: bool,
@@ -474,7 +474,7 @@ pub struct NodeArgs {
   pub max_databases: i32,
 
   /// 保护模式：bind 未显式指定时回退回环监听（true）或监听全部接口（false；
-  /// 对标 C# Options.cs:602 ProtectedMode，默认 yes，Format.cs:TryParseAddressList）
+  /// 对标 C# Options.cs:602 ProtectedMode，默认 yes，C# Format.TryParseAddressList）
   #[arg(
     long = "protected-mode",
     default_value_t = DEFAULT_PROTECTED_MODE,
@@ -901,7 +901,7 @@ impl NodeArgs {
     Ok(())
   }
 
-  /// 投影运行时服务选项（对标 Options.cs:GetServerOptions 的服务选项装配段；
+  /// 投影运行时服务选项（对标 C# Options.GetServerOptions 的服务选项装配段；
   /// RuntimeServerOptions 为 RuntimeServerConfig 播种的运行时单一真源）
   pub fn runtime_server_options(&self) -> RuntimeServerOptions {
     let mut opts = RuntimeServerOptions::default();
@@ -1534,7 +1534,7 @@ dir: /tmp/wedb_data
 
   #[test]
   fn test_protected_mode_bind_fallback() {
-    // C# Format.cs:TryParseAddressList：保护模式 + 空 bind → 回环；
+    // C# Format.TryParseAddressList：保护模式 + 空 bind → 回环；
     // 非保护 + 空 bind → 全接口
     let args = NodeArgs::try_parse_from(["wedb", "--protected-mode", "false"]).unwrap();
     assert_eq!(args.endpoints(), vec!["0.0.0.0:6379"]);
@@ -1681,7 +1681,7 @@ dir: /tmp/wedb_data
 
   #[test]
   fn test_runtime_server_options_projection() {
-    // 对标 Options.cs:GetServerOptions 选项装配段
+    // 对标 C# Options.GetServerOptions 选项装配段
     let args = NodeArgs {
       aof_commit_ms: Some(20),
       aof_commit_wait: true,
@@ -1818,7 +1818,7 @@ dir: /tmp/wedb_data
     };
     assert!(bad.validated().is_err());
     // 下限校验核在场：256 页容量须被点名拒（证伪「小页静默接受」，对标 C#
-    // ServerOptions.cs:ValidatedPageSizeBits 的 MIN_PAGE_SIZE_BYTES 判定）
+    // C# ServerOptions.ValidatedPageSizeBits 的 MIN_PAGE_SIZE_BYTES 判定）
     let bad = HlogOptions {
       page_size: Some(256),
       ..HlogOptions::default()

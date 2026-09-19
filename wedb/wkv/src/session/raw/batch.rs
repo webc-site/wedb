@@ -2,10 +2,11 @@
 
 use futures_util::future::join_all;
 use wdev::Device;
+use whlog::AddressSnapshot;
 use windex::{CandidateAddresses, PREFETCH_WINDOW, PrefetchProbe, prefetch_read_l1};
 use wval::{KeyTag, NamespaceDbCodec, TaggedKeyBuf};
 
-use super::{MemRead, read::StoreResult};
+use super::{MemDrive, read::StoreResult};
 use crate::{
   error::{Error, Result},
   session::StoreSession,
@@ -119,35 +120,18 @@ impl<D: Device> StoreSession<D> {
             on_item(item_idx, Some(v));
           }
         });
-        // RETRY_LATER：刷新纪元后整链重试（守卫存活期内，密封在途记录终将解封）
-        let mut first = probe.first_addr;
-        let mut disk_cands = None;
-        let mut mem_missing = false;
-        loop {
-          match self.try_read_mem(key, probe.hash, first, &mut item_f)? {
-            MemRead::Done(Some(())) => break,
-            MemRead::Done(None) => {
-              mem_missing = true;
-              break;
-            }
-            MemRead::OnDisk(cands) => {
-              disk_cands = Some(cands);
-              break;
-            }
-            MemRead::Retry => {
-              self.participant.refresh();
-              first = self.store.index.load().find_tag_by_hash(probe.hash);
+        // RETRY_LATER 刷新重试收敛于 drive_mem_read 驱动环单点（守卫存活期内，
+        // 密封在途记录终将解封），与同步/异步读中转层共用同一环
+        match self.drive_mem_read(key, probe.hash, probe.first_addr, &mut item_f)? {
+          MemDrive::Done(Some(())) => {}
+          MemDrive::Done(None) => {
+            if disk_mixed {
+              buffered.push((item_idx, None));
+            } else {
+              on_item(item_idx, None);
             }
           }
-        }
-        if let Some(cands) = disk_cands {
-          pending.push((item_idx, cands));
-        } else if mem_missing {
-          if disk_mixed {
-            buffered.push((item_idx, None));
-          } else {
-            on_item(item_idx, None);
-          }
+          MemDrive::OnDisk(cands) => pending.push((item_idx, cands)),
         }
         if let Some(v) = buffered_val {
           buffered.push((item_idx, Some(v)));
@@ -267,7 +251,8 @@ impl<D: Device> StoreSession<D> {
         }
       },
       |addr| {
-        if addr >= head_addr && addr < tail_addr {
+        // 内存驻留判定接 whlog 判定核单点（快照边界消费，杜绝手写区间比较散落）
+        if AddressSnapshot::region_in_memory(addr, head_addr, tail_addr) {
           // SAFETY: addr ∈ [head, tail) 必然驻留内存，且调用方持纪元守卫保证页不被回收
           prefetch_read_l1(unsafe { self.store.hlog.get_physical_address(addr) });
         }

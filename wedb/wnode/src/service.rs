@@ -1709,6 +1709,13 @@ where
     Some(Arc::clone(&self.registry))
   }
 
+  /// 复位存储复活化统计（trait 默认口的存储宿主实现，对位 C#
+  /// storeWrapper.ResetRevivificationStats 的 databaseManager 直下；
+  /// INFO RESETSTAT 的 reviv 臂装配侧唯一落点）
+  fn reset_revivification_stats(&self) {
+    self.database_manager.reset_revivification_stats();
+  }
+
   /// AOF 门面（inherent `aof()` 转发；EnableAOF 门控——未点亮为 None）
   fn aof(&self) -> Option<&Arc<GarnetAppendOnlyFile>> {
     self.aof.as_ref()

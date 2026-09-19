@@ -6,8 +6,66 @@ use windex::{CandidateAddresses, HashBucketEntry};
 use wrecord::record_size;
 use wval::KeyTag;
 
-use super::{MemRead, ReadProbeResult};
+use super::{MemDrive, ReadProbeResult};
 use crate::{error::Result, read_cache::RcVisit, session::StoreSession, ttl::TtlGate};
+
+/// 内存直读内部结果（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类，附加磁盘候选透传）
+///
+/// 仅内核自用：`RETRY_LATER` 的刷新重试由 [`StoreSession::drive_mem_read`] 驱动环
+/// 内部闭环，环外只见 [`MemDrive`] 终态
+enum MemRead<R> {
+  /// 内存阶段已闭环：`Some` 为命中值，`None` 为确认不存在（含墓碑，对应 `NOTFOUND`）
+  Done(Option<R>),
+  /// 记录位于磁盘区：携带按新版本优先降序排列的磁盘候选地址（对应 `RECORD_ON_DISK`）
+  OnDisk(CandidateAddresses),
+  /// 命中密封在途记录（对应 `RETRY_LATER`）：驱动环刷新纪元后整链重试
+  Retry,
+}
+
+/// ReadCache 整链走查结果（[`StoreSession::find_in_read_cache`] 出口）
+enum RcWalk<R> {
+  /// 键匹配的未作废 RC 记录命中，已消费读闭包
+  Found(R),
+  /// 链走尽至首个主日志地址（或链尽 0），`curr` 已就位
+  ChainEnd,
+  /// 驱逐窗口/滑窗竞态不可判读：刷新纪元后回链头重探（对应 `RETRY_LATER`）
+  Retry,
+}
+
+/// [`RcVisit`] → [`RcWalk`] 判据映射单点（raw 读侧唯一换算口）：C# 读缓存探测
+/// 无第二套枚举——FindInReadCache 只回 bool，命中/续链/回链头重探直接汇入
+/// InternalRead 的 OperationStatus 同源分类；rust 侧 [`RcVisit`]（RC 记录访问
+/// 三态，read_cache 层产出）与 [`RcWalk`]（整链走查出口）域不同须分立，换算
+/// 仅此一处，并与 [`ReadProbeResult`]（主日志记录探针四态，InternalRead.cs:105-131
+/// 单遍分类）按判据对位：
+/// - `Found` ↔ `ReadProbeResult::Found` ↔ SUCCESS（命中）
+/// - `Next(prev)` ↔ `ReadProbeResult::Miss(prev)` ↔ 沿 PreviousAddress 续链
+/// - `Gone` ↔ `ReadProbeResult::Retry` ↔ RETRY_LATER（回链头重探，绝不降级 NOTFOUND）
+///
+/// 返回 `Some` 为走查终态（调用方直接上抛）；`None` 为续链，前驱地址已写入 `curr`
+#[inline]
+fn map_rc_visit<R>(visit: RcVisit<R>, curr: &mut u64) -> Option<RcWalk<R>> {
+  match visit {
+    RcVisit::Found(val) => Some(RcWalk::Found(val)),
+    RcVisit::Next(prev) => {
+      *curr = prev;
+      None
+    }
+    RcVisit::Gone => Some(RcWalk::Retry),
+  }
+}
+
+/// 内存反向回溯结果（[`StoreSession::trace_back_for_key_match`] 出口）
+enum MemBack<R> {
+  /// 键命中：safe_ro 快照下的读后晋升判定已内含
+  Found(R),
+  /// 最新匹配记录为墓碑（NOTFOUND）
+  Tombstone,
+  /// 命中密封在途记录（RETRY_LATER）
+  Retry,
+  /// 链尽（`curr` 置 0）/ 降至 head 之下的主日志地址 / 页换出竞态（`curr` 保留原址）
+  Stopped,
+}
 
 /// 同步内存直读权威状态枚举（严格对标 C# OperationStatus：
 /// garnet/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationStatus.cs）
@@ -157,23 +215,53 @@ impl<D: Device> StoreSession<D> {
     reader: impl RecordRead<R>,
   ) -> Result<StoreResult<R>> {
     let mut f = Some(reader);
-    let mut first_addr = first_addr;
+    Ok(match self.drive_mem_read(key, hash, first_addr, &mut f)? {
+      MemDrive::Done(res) => res.map_or(StoreResult::NotFound, StoreResult::Success),
+      MemDrive::OnDisk(_) => StoreResult::RecordOnDisk,
+    })
+  }
+
+  /// 内存读驱动环单点：`RETRY_LATER` 的刷新重试在环内闭环，绝不外漏（对标 C#
+  /// 会话层 HandleOperationStatus.cs:HandleOperationStatus 的「Refresh the epoch and
+  /// retry」单点）；哈希恒为调用方单源算定值，重试仅重探首地址（严格对标 C#
+  /// `InternalRead(TKey key, long keyHash)` 一经 `OperationStackContext(keyHash)`
+  /// 算定全程经 `hei.hash` 复用，本环绝不重算）。三个消费面共用本环：同步三态
+  /// 入口 [`Self::with_addr_reader`]、异步读 [`Self::read_raw_with_reader`]、
+  /// 批量读内层（batch.rs），杜绝平行重试环
+  #[inline]
+  pub(super) fn drive_mem_read<R>(
+    &self,
+    key: &[u8],
+    hash: u64,
+    mut first_addr: Option<u64>,
+    f: &mut Option<impl RecordRead<R>>,
+  ) -> Result<MemDrive<R>> {
     loop {
-      match self.try_read_mem(key, hash, first_addr, &mut f)? {
-        MemRead::Done(res) => {
-          return Ok(res.map_or(StoreResult::NotFound, StoreResult::Success));
-        }
-        MemRead::OnDisk(_) => return Ok(StoreResult::RecordOnDisk),
+      match self.try_read_mem(key, hash, first_addr, f)? {
+        MemRead::Done(res) => return Ok(MemDrive::Done(res)),
+        MemRead::OnDisk(cands) => return Ok(MemDrive::OnDisk(cands)),
         MemRead::Retry => {
           // C# RETRY_LATER（InternalRead.cs:105-106）：刷新纪元（ProtectAndDrain 语义，
-          // 推进密封在途记录的写者完成 CAS 解封）后整链重试——对齐 C# 会话层
-          // HandleOperationStatus 的「Refresh the epoch and retry」协议；
-          // 哈希恒为调用方单源算定值，重试仅重探针
+          // 推进密封在途记录的写者完成 CAS 解封）后整链重试
           self.participant.refresh();
-          first_addr = self.store.index.load().find_tag_by_hash(hash);
+          first_addr = self.reprobe_first_addr(hash);
         }
       }
     }
+  }
+
+  /// 读入口探测两连单点：单次哈希 + 首地址探针（对标 C# InternalRead 入口
+  /// `OperationStackContext(keyHash)` 一次算定后 FindTag 装载）
+  #[inline]
+  fn read_probe(&self, key: &[u8]) -> (u64, Option<u64>) {
+    let hash = whasher::fast_hash(key);
+    (hash, self.reprobe_first_addr(hash))
+  }
+
+  /// 哈希定地址的首地址重探针（驱动环整链重试与扩容 split_buckets 后重读共用）
+  #[inline]
+  fn reprobe_first_addr(&self, hash: u64) -> Option<u64> {
+    self.store.index.load().find_tag_by_hash(hash)
   }
 
   /// 底层物理同步内存直读快路径（Raw）
@@ -184,8 +272,7 @@ impl<D: Device> StoreSession<D> {
     f: impl FnOnce(&[u8]) -> R,
   ) -> Result<StoreResult<R>> {
     let _guard = self.enter_gated();
-    let hash = whasher::fast_hash(key);
-    let first_addr = self.store.index.load().find_tag_by_hash(hash);
+    let (hash, first_addr) = self.read_probe(key);
     self.try_read_raw_in_memory_with_addr(key, hash, first_addr, f)
   }
 
@@ -214,8 +301,7 @@ impl<D: Device> StoreSession<D> {
     f: impl FnOnce(&[u8]) -> R,
   ) -> Result<StoreResult<R>> {
     let rec_k = Self::session_tag_key_with_prefix(prefix, tag, user_key);
-    let hash = whasher::fast_hash(&rec_k);
-    let first_addr = self.store.index.load().find_tag_by_hash(hash);
+    let (hash, first_addr) = self.read_probe(&rec_k);
     self.try_read_raw_in_memory_with_addr(&rec_k, hash, first_addr, f)
   }
 
@@ -229,8 +315,7 @@ impl<D: Device> StoreSession<D> {
     f: impl FnOnce(&[u8], usize) -> R,
   ) -> Result<StoreResult<R>> {
     let rec_k = self.session_tag_key(tag, user_key);
-    let hash = whasher::fast_hash(&rec_k);
-    let first_addr = self.store.index.load().find_tag_by_hash(hash);
+    let (hash, first_addr) = self.read_probe(&rec_k);
     self.with_addr_reader(&rec_k, hash, first_addr, with_record_size(f))
   }
 
@@ -317,23 +402,139 @@ impl<D: Device> StoreSession<D> {
     self.try_read_sync_unprotected(user_key, f)
   }
 
+  /// ReadCache 整链走查单点（严格对标
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:FindInReadCache
+  /// 「非 Invalid 才比对键、无条件沿 PreviousAddress 继续」；读侧 `alwaysFindLatestLA:false`
+  /// 命中即返，即读语义）
+  ///
+  /// 驱逐等待协议（对标 ReadCacheNeedToWaitForEviction）：地址滑出 RC 环形窗口
+  /// （abs < head）时短自旋等待驱逐方 cleanse 完成并发布 ClosedUntilAddress，再按
+  /// UpdateRecordSourceToCurrentHashEntry 语义回链头重探，返回 [`RcWalk::Retry`]——
+  /// 否则本次读会被误判为 NOTFOUND（瞬态一致性缺口）；closed 作废记录携 prev 跳过
+  /// 续链（并发写 CAS 脱钩与本走查交错时，读者沿链取到脱钩前旧值——读线性化在写
+  /// CAS 之前，合法）；滑窗竞态不可判读回链头重探，绝不允许折叠成链终止产出假
+  /// NOTFOUND。退出时 `curr` 指向首个主日志地址（可能为链尽 0）。
+  #[inline]
+  fn find_in_read_cache<R>(
+    &self,
+    key: &[u8],
+    curr: &mut u64,
+    f: &mut Option<impl RecordRead<R>>,
+  ) -> RcWalk<R> {
+    while is_read_cache(*curr) {
+      if self
+        .store
+        .read_cache
+        .need_to_wait_for_eviction(*curr, || self.participant.refresh())
+      {
+        return RcWalk::Retry;
+      }
+      let visit = self
+        .store
+        .read_cache
+        .with_record(*curr, |rec_key, rec_val| {
+          if fast_key_eq(rec_key, key) {
+            // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
+            let func = unsafe { f.take().unwrap_unchecked() };
+            // ReadCache 记录由 append 以 record_size 对齐编码且无松弛填充，
+            // 物理占用即 record_size（与主日志 [RecordHeader::physical_size] 同口径）
+            Some(func.read_record(rec_val, record_size(rec_key.len(), rec_val.len())))
+          } else {
+            None
+          }
+        });
+      // RcVisit → RcWalk 判据换算只走 map_rc_visit 单点：终态上抛，续链则前驱已就位
+      if let Some(walk) = map_rc_visit(visit, curr) {
+        return walk;
+      }
+      if *curr == 0 {
+        break;
+      }
+    }
+    RcWalk::ChainEnd
+  }
+
+  /// 内存反向链表回溯单点（严格对照
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TraceBackForKeyMatch
+  /// 与 InternalRead.cs:CopyFromImmutable）：每跳按 IsValidTracebackRecord 口径消费
+  /// is_valid/is_closed——密封在途记录参与键比对，命中后按 IsClosedOrTombstoned
+  /// （InternalRead.cs:118-131）降级 [`MemBack::Retry`]；read_only 之前的记录走纯
+  /// 指针直读（CreateLogRecord + GetPhysicalAddress 口径），真可变区保留页读锁探针。
+  ///
+  /// Found 内含 safe_ro 快照提升判定（对标 CopyFromImmutable 仅作用于不可变区
+  /// [HeadAddress, SafeReadOnlyAddress)，模糊区瞬态窗口内不提升，保守方向无损
+  /// 正确性），promote 调用点由 2 收敛为本单点。Miss(0) 链尽统一置 `curr` 为 0
+  /// （[`MemBack::Stopped`]），杜绝末条内存记录地址被当作伪磁盘候选透传（链尽即
+  /// C# NOTFOUND 口径）。退出 `curr`：链尽 0 / 降至 head 之下的主日志地址（磁盘
+  /// 区候选）/ 页换出竞态保留原址。
+  #[inline]
+  fn trace_back_for_key_match<R>(
+    &self,
+    key: &[u8],
+    curr: &mut u64,
+    head_addr: u64,
+    ro_addr: u64,
+    safe_ro_addr: u64,
+    f: &mut Option<impl RecordRead<R>>,
+  ) -> Result<MemBack<R>> {
+    while *curr >= head_addr {
+      // 探针以单点函数直接内联传入两分支（不用 &mut 提取：间接层会阻断
+      // with_*_record 与闭包的一体化内联，热点工况实测退化 ~12%）
+      let probed = if *curr < ro_addr {
+        // SAFETY: 调用方纪元保护 + *curr ∈ [head_addr, ro_addr) 均为进入前快照，
+        // 双门槛契约见 with_immutable_record 文档；该分区驻留由快照门槛保证，
+        // 直接产出探针结果（包装 Some 与页锁分支的 Option 口径对齐）
+        Some(unsafe {
+          self
+            .store
+            .hlog
+            .with_immutable_record(*curr, |rec| Ok(probe_hlog_record(rec, key, f)))?
+        })
+      } else {
+        self
+          .store
+          .hlog
+          .with_memory_record(*curr, |rec| Ok(probe_hlog_record(rec, key, f)))?
+      };
+      match probed {
+        Some(ReadProbeResult::Found(val)) => {
+          if *curr < safe_ro_addr {
+            self.promote_immutable_read_hit(*curr, key);
+          }
+          return Ok(MemBack::Found(val));
+        }
+        Some(ReadProbeResult::Tombstone) => return Ok(MemBack::Tombstone),
+        Some(ReadProbeResult::Retry) => return Ok(MemBack::Retry),
+        Some(ReadProbeResult::Miss(next)) => {
+          *curr = next;
+          if next == 0 {
+            return Ok(MemBack::Stopped);
+          }
+        }
+        // 页换出竞态（head 推进瞬态）：curr 保留原址，交调用方候选扫描/磁盘口径处理
+        None => return Ok(MemBack::Stopped),
+      }
+    }
+    Ok(MemBack::Stopped)
+  }
+
   /// 内存直读核心路径（调用方须处于纪元保护下，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类）
   ///
   /// - **首项快速探针（FindTag）**：绝大多数情况下（99.9%）哈希索引首个槽位即命中，
   ///   直接进行单次内存记录解析并零拷贝执行闭包 `f` 返回。
-  /// - **反向链表回溯（TraceBackForKeyMatch）**：遇到 15 位 Tag 碰撞时，沿着记录的
-  ///   `prev_address` 反向链表回溯检查前驱版本；每跳按 C# FindRecord.cs:101-103
-  ///   IsValidTracebackRecord 口径消费 is_valid/is_closed——密封在途记录参与键比对，
-  ///   命中后按 IsClosedOrTombstoned（InternalRead.cs:118-131）降级 RETRY_LATER，
-  ///   由调用方刷新纪元后整链重试；
+  /// - **ReadCache 整链走查 / 反向链表回溯**：分别经 [`Self::find_in_read_cache`]
+  ///   （对标 FindInReadCache）与 [`Self::trace_back_for_key_match`]（对标
+  ///   TraceBackForKeyMatch）两单点执行，与多候选扫描路径共用，杜绝逐字复制；
   ///   若未命中则回退到完整候选扫描路径保证 100% 正确性。
+  /// - `RETRY_LATER` 以 [`MemRead::Retry`] 上抛，由 [`Self::drive_mem_read`] 驱动环
+  ///   刷新纪元后整链重试（对标 C# HandleOperationStatus 单点），本内核不自旋。
   /// - 磁盘候选地址单遍收集后经 `MemRead::OnDisk` 原样透传，冷读回退路径零重复索引遍历。
   ///
   /// `hash` 为调用方对 `key` 单次算定的键哈希（对标 C# `InternalRead(TKey key, long keyHash)`
   /// 的 keyHash：一经 `OperationStackContext(keyHash)` 算定，SplitBuckets 与
   /// FindTagAndTryEphemeralSLock 全程经 `hei.hash` 复用，本内核不再重算）。
   #[inline]
-  pub(super) fn try_read_mem<R>(
+  fn try_read_mem<R>(
     &self,
     key: &[u8],
     hash: u64,
@@ -343,7 +544,7 @@ impl<D: Device> StoreSession<D> {
     let mut curr_addr = first_addr;
     if self.store.is_growing() {
       self.store.split_buckets(hash)?;
-      curr_addr = self.store.index.load().find_tag_by_hash(hash);
+      curr_addr = self.reprobe_first_addr(hash);
     }
     let Some(mut curr_addr) = curr_addr else {
       // 哈希表中连对应 Tag 都完全不存在，100% 确认无此键，极速返回
@@ -386,92 +587,30 @@ impl<D: Device> StoreSession<D> {
     // 模糊区瞬态窗口内不提升（保守方向正确性无损）
     let safe_ro_addr = self.store.safe_read_only_address();
 
-    // 1. ReadCache 内存直读快路径（严格对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:DRAM 纳秒级纯内存直读）
-    while is_read_cache(curr_addr) {
-      // 读侧驱逐等待协议（严格对标 ReadCache.cs:ReadCacheNeedToWaitForEviction）：
-      // 地址滑出 RC 环形窗口（abs < head）时短自旋等待驱逐方 cleanse 完成并发布
-      // ClosedUntilAddress，再按 UpdateRecordSourceToCurrentHashEntry 语义回链头重探
-      // （RestartChain）——否则本次读会被误判为 NOTFOUND（瞬态一致性缺口）
-      if self
-        .store
-        .read_cache
-        .need_to_wait_for_eviction(curr_addr, || self.participant.refresh())
-      {
-        return Ok(MemRead::Retry);
-      }
-      // 三态走查（严格对标 FindInReadCache「非 Invalid 才比对键、无条件沿
-      // PreviousAddress 继续」）：closed 作废记录携 prev 跳过续链（并发写 CAS
-      // 脱钩与本走查交错时，读者沿链取到脱钩前旧值——读线性化在写 CAS 之前，
-      // 合法）；滑窗竞态（need_to_wait 通过后 head 仍可推进）不可判读回链头重探，
-      // 绝不允许折叠成链终止产出假 NOTFOUND
-      curr_addr = match self
-        .store
-        .read_cache
-        .with_record(curr_addr, |rec_key, rec_val| {
-          if fast_key_eq(rec_key, key) {
-            // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-            let func = unsafe { f.take().unwrap_unchecked() };
-            // ReadCache 记录由 append 以 record_size 对齐编码且无松弛填充，
-            // 物理占用即 record_size（与主日志 [RecordHeader::physical_size] 同口径）
-            Some(func.read_record(rec_val, record_size(rec_key.len(), rec_val.len())))
-          } else {
-            None
-          }
-        }) {
-        RcVisit::Found(val) => return Ok(MemRead::Done(Some(val))),
-        RcVisit::Next(prev) => prev,
-        RcVisit::Gone => return Ok(MemRead::Retry),
-      };
-      if curr_addr == 0 {
-        break;
-      }
+    // 1. ReadCache 内存直读快路径：整链走查单点（对标 FindInReadCache，
+    //    与多候选扫描共用同一内核）
+    match self.find_in_read_cache(key, &mut curr_addr, f) {
+      RcWalk::Found(val) => return Ok(MemRead::Done(Some(val))),
+      RcWalk::Retry => return Ok(MemRead::Retry),
+      RcWalk::ChainEnd => {}
     }
 
-    // 2. 内存常态快路径（99%+ 场景）：处于 HLog 内存驻留区，单次快照三分区判定后直读与回溯
+    // 2. 内存常态快路径（99%+ 场景）：处于 HLog 内存驻留区，反向链表回溯单点
+    //    （对标 TraceBackForKeyMatch + CopyFromImmutable，与多候选扫描共用）；
+    //    Stopped 时 curr 已按链尽 0 / 磁盘区地址 / 竞态原址三口径就位，续步 3/4 处理
     if !is_read_cache(curr_addr) && curr_addr >= head_addr {
-      // 严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TraceBackForKeyMatch 实现反向链表回溯：
-      // 每跳 IsValidTracebackRecord 口径消费 is_closed（密封在途记录参与键比对，
-      // 命中降级 RETRY_LATER）；read_only 之前的记录走纯指针直读（CreateLogRecord +
-      // GetPhysicalAddress 口径），真可变区保留页锁探针
-      while curr_addr >= head_addr {
-        // 探针以单点函数直接内联传入两分支（不用 &mut 提取：间接层会阻断
-        // with_*_record 与闭包的一体化内联，热点工况实测退化 ~12%）
-        let probed = if curr_addr < ro_addr {
-          // SAFETY: 调用方纪元保护 + curr_addr ∈ [head_addr, ro_addr) 均为进入前
-          // 快照，双门槛契约见 with_immutable_record 文档；该分区驻留由快照门槛保证，
-          // 直接产出探针结果（包装 Some 与页锁分支的 Option 口径对齐）
-          Some(unsafe {
-            self
-              .store
-              .hlog
-              .with_immutable_record(curr_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
-          })
-        } else {
-          self
-            .store
-            .hlog
-            .with_memory_record(curr_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
-        };
-
-        match probed {
-          Some(ReadProbeResult::Found(val)) => {
-            // 不可变区命中：对齐 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:CopyFromImmutable
-            // 读后晋升（目的地由配置裁决：ReadCache 或尾部，二者择一）；
-            // 提升门槛维持 safe_read_only 快照（严格对标 C# CopyFromImmutable 仅作用于
-            // 不可变区，模糊区瞬态窗口内不提升，保守方向无损正确性）
-            if curr_addr < safe_ro_addr {
-              self.promote_immutable_read_hit(curr_addr, key);
-            }
-            return Ok(MemRead::Done(Some(val)));
-          }
-          Some(ReadProbeResult::Tombstone) => return Ok(MemRead::Done(None)),
-          Some(ReadProbeResult::Retry) => return Ok(MemRead::Retry),
-          Some(ReadProbeResult::Miss(next_addr)) if next_addr != 0 => {
-            curr_addr = next_addr;
-            continue;
-          }
-          _ => break,
-        }
+      match self.trace_back_for_key_match(
+        key,
+        &mut curr_addr,
+        head_addr,
+        ro_addr,
+        safe_ro_addr,
+        f,
+      )? {
+        MemBack::Found(val) => return Ok(MemRead::Done(Some(val))),
+        MemBack::Tombstone => return Ok(MemRead::Done(None)),
+        MemBack::Retry => return Ok(MemRead::Retry),
+        MemBack::Stopped => {}
       }
     }
 
@@ -525,95 +664,38 @@ impl<D: Device> StoreSession<D> {
     }
     addrs.sort_descending();
 
-    // 免锁直读门槛快照：与 try_read_mem_once 主路径口径一致（read_only 覆盖模糊区）
+    // 免锁直读门槛快照：与主路径 trace_back 单点口径一致（read_only 覆盖模糊区）
     let ro_addr = self.store.hlog.read_only_address();
     let mut disk_cands = CandidateAddresses::new();
 
     for &addr in addrs.iter() {
       let mut cur_addr = addr;
-      if is_read_cache(cur_addr) {
-        // 读侧驱逐等待协议（严格对标 ReadCache.cs:ReadCacheNeedToWaitForEviction，
-        // 与主路径 try_read_mem 口径一致）：滑出窗口时自旋等待清洗完成后回链头重探，
-        // 杜绝驱逐窗口内候选被静默丢弃
-        if self
-          .store
-          .read_cache
-          .need_to_wait_for_eviction(cur_addr, || self.participant.refresh())
-        {
-          return Ok(MemRead::Retry);
-        }
-        let matched = self
-          .store
-          .read_cache
-          .with_record(cur_addr, |rec_key, rec_val| {
-            if fast_key_eq(rec_key, key) {
-              // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
-              let func = unsafe { f.take().unwrap_unchecked() };
-              // 同主路径 ReadCache 口径：append 以 record_size 对齐编码，无松弛填充
-              Some(func.read_record(rec_val, record_size(rec_key.len(), rec_val.len())))
-            } else {
-              None
-            }
-          });
-        cur_addr = match matched {
-          RcVisit::Found(val) => return Ok(MemRead::Done(Some(val))),
-          // 未命中/作废记录：携 prev 续链（与主路径三态口径一致）
-          RcVisit::Next(prev) => prev,
-          // 滑窗竞态：回链头重探，杜绝候选整链被静默丢弃
-          RcVisit::Gone => return Ok(MemRead::Retry),
-        };
-        if is_read_cache(cur_addr) {
-          // 剥剩余 RC 前缀，途中滑出窗口同口径回链头重探
-          match self.store.read_cache.skip_read_cache(cur_addr) {
-            Some(main) => cur_addr = main,
-            None => return Ok(MemRead::Retry),
-          }
-        }
-        if cur_addr == 0 {
-          continue;
-        }
+      // RC 段：与主路径同一整链走查单点（对标 FindInReadCache）——沿 PreviousAddress
+      // 逐条判读直至首个主日志地址，杜绝旧版「只访首条 RC 即 skip 剥链」对同 Tag
+      // 深链记录的漏配与 skip 竞态 Retry 分支
+      match self.find_in_read_cache(key, &mut cur_addr, f) {
+        RcWalk::Found(val) => return Ok(MemRead::Done(Some(val))),
+        RcWalk::Retry => return Ok(MemRead::Retry),
+        RcWalk::ChainEnd => {}
       }
-
-      if cur_addr < bounds.begin_addr {
+      if cur_addr == 0 || cur_addr < bounds.begin_addr {
         continue;
       }
 
-      while cur_addr >= bounds.head_addr {
-        let probe = if cur_addr < ro_addr {
-          // SAFETY: 调用方纪元保护 + cur_addr ∈ [head_addr, ro_addr)，走无锁纯指针直读
-          Some(unsafe {
-            self
-              .store
-              .hlog
-              .with_immutable_record(cur_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
-          })
-        } else {
-          self
-            .store
-            .hlog
-            .with_memory_record(cur_addr, |rec| Ok(probe_hlog_record(rec, key, f)))?
-        };
-
-        if let Some(probe) = probe {
-          match probe {
-            ReadProbeResult::Found(val) => {
-              // 不可变区命中：同主路径读后晋升（与主路径 safe_read_only 快照口径
-              // 一致：严格对标 C# CopyFromImmutable 仅作用于不可变区，模糊区
-              // 瞬态窗口内不提升，保守方向，无损正确性）
-              if cur_addr < bounds.safe_ro_addr {
-                self.promote_immutable_read_hit(cur_addr, key);
-              }
-              return Ok(MemRead::Done(Some(val)));
-            }
-            ReadProbeResult::Tombstone => return Ok(MemRead::Done(None)),
-            ReadProbeResult::Retry => return Ok(MemRead::Retry),
-            ReadProbeResult::Miss(prev) => {
-              cur_addr = prev;
-            }
-          }
-        } else {
-          break;
-        }
+      // 主日志段：与主路径同一反向回溯单点（对标 TraceBackForKeyMatch +
+      // CopyFromImmutable），Found 提升判定/safe_ro 快照口径两处合一
+      match self.trace_back_for_key_match(
+        key,
+        &mut cur_addr,
+        bounds.head_addr,
+        ro_addr,
+        bounds.safe_ro_addr,
+        f,
+      )? {
+        MemBack::Found(val) => return Ok(MemRead::Done(Some(val))),
+        MemBack::Tombstone => return Ok(MemRead::Done(None)),
+        MemBack::Retry => return Ok(MemRead::Retry),
+        MemBack::Stopped => {}
       }
 
       if cur_addr != 0 && cur_addr >= bounds.begin_addr {
@@ -774,9 +856,10 @@ impl<D: Device> StoreSession<D> {
     Ok(None)
   }
 
-  /// 读中转层（[`RecordRead`] 面）：内存直读驱动循环 + 磁盘冷读回退
+  /// 读中转层（[`RecordRead`] 面）：内存直读驱动环 + 磁盘冷读回退
   ///
-  /// 公开入口与尺寸统计入口（`with_record_size` 注入）共用本驱动，杜绝平行读链
+  /// 公开入口与尺寸统计入口（`with_record_size` 注入）共用本中转，杜绝平行读链；
+  /// `RETRY_LATER` 刷新重试收敛于 [`Self::drive_mem_read`] 单点
   async fn read_raw_with_reader<R>(
     &self,
     key: &[u8],
@@ -785,21 +868,13 @@ impl<D: Device> StoreSession<D> {
     let mut f = Some(reader);
     let cands = {
       let _guard = self.enter_gated();
-      let hash = whasher::fast_hash(key);
-      let mut first_addr = self.store.index.load().find_tag_by_hash(hash);
-      loop {
-        match self.try_read_mem(key, hash, first_addr, &mut f)? {
-          MemRead::Done(res) => return Ok(res),
-          MemRead::OnDisk(cands) => break cands,
-          // RETRY_LATER：刷新纪元后整链重试（守卫存活期内，密封在途记录终将解封）
-          MemRead::Retry => {
-            self.participant.refresh();
-            first_addr = self.store.index.load().find_tag_by_hash(hash);
-          }
-        }
+      let (hash, first_addr) = self.read_probe(key);
+      match self.drive_mem_read(key, hash, first_addr, &mut f)? {
+        MemDrive::Done(res) => return Ok(res),
+        MemDrive::OnDisk(cands) => cands,
       }
     };
-    // SAFETY: try_read_mem 返回 OnDisk 时闭包 f 未被消费，必为 Some
+    // SAFETY: drive_mem_read 返回 OnDisk 时闭包 f 未被消费，必为 Some
     let func = unsafe { f.take().unwrap_unchecked() };
     self.read_from_disk(key, cands, func).await
   }

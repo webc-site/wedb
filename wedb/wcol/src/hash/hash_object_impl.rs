@@ -104,7 +104,7 @@ impl HashObject {
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashGetAll
   pub(crate) fn hash_get_all(&mut self, output: &mut ObjectOutput<'_>, resp_protocol_version: u8) {
-    write_map_length(output, self.count(), resp_protocol_version);
+    write_map_length(output, self.purge_expired_len(), resp_protocol_version);
 
     let is_expirable = self.has_expirable_items();
 
@@ -137,7 +137,7 @@ impl HashObject {
   ///
   /// libs/server/Objects/Hash/HashObjectImpl.cs:HashLength
   pub(crate) fn hash_length(&mut self, output: &mut ObjectOutput<'_>) {
-    output.result1 = self.count() as i64;
+    output.result1 = self.purge_expired_len() as i64;
   }
 
   /// HSTRLEN：字段值长度
@@ -179,7 +179,7 @@ impl HashObject {
     let mut count_done = 0_i64;
 
     if included_count {
-      let count = self.count();
+      let count = self.purge_expired_len();
 
       if count == 0 {
         // This can happen because of expiration but RMW operation haven't applied yet
@@ -224,7 +224,7 @@ impl HashObject {
       }
     } else {
       // No count parameter is present, we just return a random field
-      let count = self.count();
+      let count = self.purge_expired_len();
       if count == 0 {
         // This can happen because of expiration but RMW operation haven't applied yet
         write_null(output, resp_protocol_version);
@@ -312,7 +312,7 @@ impl HashObject {
     _args: &[&[u8]],
     output: &mut ObjectOutput<'_>,
   ) {
-    let count = self.count();
+    let count = self.purge_expired_len();
     let Ok(op) = HashOperation::try_from(sub_id) else {
       return;
     };
