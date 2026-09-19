@@ -1,6 +1,7 @@
 #!/usr/bin/env -S bun
 // js/check.js 语料读取路径的自检：非法 YAML 必须被报出、非空语料不得被无声删除、
-// 缺省回落必须可见。fixture 全部落在临时目录，不触碰 js/check/ignore/ 真实语料。
+// 缺省回落必须可见；C# 源语料的 AST 断裂兜底与降级汇报同样取证。
+// fixture 落在临时目录；C# 侧只读 garnet/ 真实语料，不写不删。
 //
 // 用法：bun ./js/check_selftest.js
 
@@ -9,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import yaml from "yaml";
 import { ignoreLoadAndPrune, corpusFailLines, csDegradedLines } from "./check.js";
-import garnetScan, { csDeclFallback } from "./check/garnetScan.js";
+import garnetScan, { csDeclFallback, TEST_LIFECYCLE_FN_SET } from "./check/garnetScan.js";
 
 const IGNORE_DIR = resolve(import.meta.dirname, "check/ignore"),
   GARNET_DIR = resolve(import.meta.dirname, "../garnet"),
@@ -205,8 +206,18 @@ const run = async () => {
   );
   expect("同形噪声不影响真声明提取", lookalike_set.has("RealMethod"));
 
-  const [fn_map_after, , cs_health] = await garnetScan(GARNET_DIR),
+  const [fn_map_after, test_map_after, cs_health] = await garnetScan(GARNET_DIR),
     degraded_map = new Map(cs_health.degraded_li.map((d) => [d.path, d]));
+
+  // 兜底把断裂点之后的声明灌回语料时，必须沿用既有的测试生命周期整族排除，
+  // 否则 SetUp/TearDown 这类必然不转写的名字会凭空变成缺失（首轮实测漏进 3 份）
+  expect(
+    "兜底不绕过测试生命周期排除口径",
+    !Object.values(test_map_after).some((li) => li.some((n) => TEST_LIFECYCLE_FN_SET.has(n))),
+    JSON.stringify(
+      Object.entries(test_map_after).filter(([, li]) => li.some((n) => TEST_LIFECYCLE_FN_SET.has(n)))
+    )
+  );
 
   expect(
     "真实语料确有 AST 断裂文件（兜底据此触发，非死代码）",

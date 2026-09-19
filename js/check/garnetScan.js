@@ -128,6 +128,9 @@ const csExtract = (code, parser, file_path = "") => {
   if (degraded) {
     const bucket_set = is_test_file ? test_set : fn_set;
     for (const fn_name of csDeclFallback(code)) {
+      // 测试生命周期方法按既有口径整族排除，否则 SetUp/TearDown 这类必然的
+      // 「不转写」条目会被兜底灌成语料、凭空报成缺失（首轮实测漏进 3 个文件）
+      if (is_test_file && TEST_LIFECYCLE_FN_SET.has(fn_name)) continue;
       if (!fn_set.has(fn_name) && !test_set.has(fn_name)) bucket_set.add(fn_name);
     }
   }
@@ -190,7 +193,7 @@ const garnetScan = async (garnet_dir = resolve(import.meta.dirname, "../../garne
 };
 
 export default garnetScan;
-export { csDeclFallback };
+export { csDeclFallback, TEST_LIFECYCLE_FN_SET };
 
 if (import.meta.main) {
   const t0 = performance.now(),
