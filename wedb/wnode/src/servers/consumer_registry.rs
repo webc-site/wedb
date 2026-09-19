@@ -491,6 +491,9 @@ impl ConsumerRegistry {
           entry.reset_command_stats();
         }
       },
+      // 全事件复位（C# GarnetServerMonitor.cs:344 遍历会话调
+      // libs/server/Resp/RespServerSession.cs:ResetAllLatencyMetrics 的
+      // rust 载体：registry 持会话延迟句柄直调，不经会话方法二转）
       reset_all_session_latency: move || {
         for entry in latency_all_reset.active_consumers() {
           if let Some(latency) = entry.latency_metrics_snapshot() {

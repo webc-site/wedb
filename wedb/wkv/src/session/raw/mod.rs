@@ -113,23 +113,15 @@ impl<D: Device> StoreSession<D> {
     prev_addr: u64,
     is_tombstone: bool,
   ) -> Result<StdResult<(u64, u32), u64>> {
-    if self.store.config.enable_revivification {
+    // 复活唯一启用门（对标 C# BlockAllocate.cs:57 的 `RevivificationManager.IsEnabled`）：
+    // 未启用（--reviv 关）与暂停窗口（检查点封印 / 迁移搬迁）合一，下游不再并列配置开关
+    if self.store.reviv_pool.is_enabled() {
       let rec_size = record_size(key.len(), val.len());
-      // 复活下限 = tail - (tail - read_only) × revivifiable_fraction，限制复活仅发生在
-      // 可变区最靠后的指定比例窗口内，防止复活写紧贴只读区边界被只读线推进追尾
-      // （暂停门控由 reviv_pool.take 入口的 is_enabled 承担）
-      //
-      // 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:GetMinRevivifiableAddress
-      let read_only = self.store.hlog.read_only_address();
-      let tail = self.store.hlog.tail_address();
-      let window = tail - read_only;
-      // f64 比例换算可能因舍入越出窗口，钳制到 [0, window] 保证下限不低于 read_only
-      let frac = ((window as f64) * self.store.config.revivifiable_fraction) as u64;
-      let min_reviv_addr = tail.saturating_sub(frac.min(window));
-
       // 优先从 FreeRecordPool 提取最适配的空闲槽位并就地复活写入
-      if let Some((free_addr, slot_size)) =
-        self.store.reviv_pool.take(rec_size as u32, min_reviv_addr)
+      if let Some((free_addr, slot_size)) = self
+        .store
+        .reviv_pool
+        .take(rec_size as u32, self.store.min_revivifiable_address())
       {
         if self
           .store
@@ -148,10 +140,11 @@ impl<D: Device> StoreSession<D> {
           return Ok(Ok((free_addr, slot_size)));
         } else if self.store.hlog.is_mutable(free_addr) {
           // 若临时写入失败且槽位仍在可变区，归还至复活池防槽位丢失
+          // （门槛重取最新下限：写入失败多半因水位已推进，旧下限会误留不可复活槽位）
           self
             .store
             .reviv_pool
-            .put(free_addr, slot_size, min_reviv_addr);
+            .put(free_addr, slot_size, self.store.min_revivifiable_address());
         }
       }
     }

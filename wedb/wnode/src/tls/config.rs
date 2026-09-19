@@ -4,8 +4,7 @@
 
 #[cfg(feature = "tls")]
 use std::{
-  fs::File,
-  io::{self, BufReader},
+  io,
   path::Path,
   sync::{Arc, LazyLock},
 };
@@ -23,6 +22,8 @@ use compio_tls::rustls::{
 };
 #[cfg(feature = "tls")]
 use compio_tls::{TlsAcceptor, rustls};
+#[cfg(feature = "tls")]
+use wbase::tls::{load_certs, load_private_key};
 
 /// TLS 服务端配置装配器
 #[derive(Clone)]
@@ -221,34 +222,4 @@ impl ClientCertVerifier for AnyClientCert {
   fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
     SIGNATURE_ALGS.supported_schemes()
   }
-}
-
-#[cfg(feature = "tls")]
-fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
-  let file = File::open(path)?;
-  let mut reader = BufReader::new(file);
-  let certs = rustls_pemfile::certs(&mut reader)
-    .collect::<Result<Vec<_>, _>>()
-    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
-  if certs.is_empty() {
-    return Err(io::Error::new(
-      io::ErrorKind::NotFound,
-      format!("未在证书文件 {} 中找到有效证书", path.display()),
-    ));
-  }
-  Ok(certs)
-}
-
-#[cfg(feature = "tls")]
-fn load_private_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
-  let file = File::open(path)?;
-  let mut reader = BufReader::new(file);
-  rustls_pemfile::private_key(&mut reader)
-    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?
-    .ok_or_else(|| {
-      io::Error::new(
-        io::ErrorKind::NotFound,
-        format!("未在私钥文件 {} 中找到有效私钥", path.display()),
-      )
-    })
 }

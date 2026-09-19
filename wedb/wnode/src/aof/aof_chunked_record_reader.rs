@@ -128,13 +128,10 @@ impl ChunkedAccumulator {
     &self.input
   }
 
-  /// 流式对象值块序列（C# GetValueSequence；rust 以块列表承接
-  /// ReadOnlySequence，反序列化方逐块流式读取）。
-  pub fn get_value_sequence(&self) -> &[Vec<u8>] {
-    &self.value_chunks
-  }
-
-  /// 对象值切片/Cow 视图（单块或非流式零拷贝借用，多块流式按需物化拼接）。
+  /// 对象值切片/Cow 视图（单块或非流式零拷贝借用，多块流式按需物化拼接，
+  /// 替代 C# ReadOnlySequence 逐块读取）。
+  ///
+  /// 在 garnet 中的相对路径:libs/server/AOF/AofChunkedRecordReader.cs:GetValueSequence
   pub fn object_value_bytes(&self) -> Cow<'_, [u8]> {
     if self.value_chunks.is_empty() {
       Cow::Borrowed(&self.value)
@@ -471,7 +468,7 @@ mod tests {
     let acc = completed.expect("全部块后应完成重组");
     assert_eq!(acc.op_type, AofEntryType::ObjectStoreUpsert);
     assert_eq!(acc.key_span(), b"big");
-    let value: Vec<u8> = acc.get_value_sequence().concat();
+    let value: Vec<u8> = acc.object_value_bytes().into_owned();
     assert_eq!(value.len(), BIG_VALUE_LEN);
     assert_eq!(acc.session_id, 9);
     assert_eq!(acc.store_version, 3);

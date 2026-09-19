@@ -3,7 +3,9 @@
 //! 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs:TryCopyToTail
 //! （rust 对位：磁盘/只读区记录的 CopyUpdater 慢路径单源内核，
 //! `session/raw/write/inplace.rs` 的删除慢路径与 `range_index/stub.rs` 的
-//! RIPROMOTE/RIRESTORE 治愈路径在此转调，杜绝两份手写骨架与收尾口径分叉）
+//! RIPROMOTE/RIRESTORE 治愈路径在此转调，杜绝两份手写骨架与收尾口径分叉；
+//! 挂载收尾 [`StoreSession::cas_mount_copied_frame`] 另为 `raw/read.rs` 的两条
+//! 冷读晋升臂（磁盘回填、内存不可变区命中）共用，全库仅此一处分派）
 
 use wbase::simd::fast_key_eq;
 use wdev::Device;
@@ -31,6 +33,45 @@ pub(crate) enum CopyToTailOutcome<T> {
 }
 
 impl<D: Device> StoreSession<D> {
+  /// 尾部晋升帧的索引挂载与败帧回收（copy-to-tail 收尾单点，对标 C#
+  /// TryCopyToTail 的 `hei.TryCAS` + 败帧 `OnDispose` 回收两步）
+  ///
+  /// 三个晋升来源共用本单点，杜绝「追加 + 挂链 + 败帧回收」样板复抄：
+  /// - [`Self::copy_record_to_tail`] 内核（删除慢路径 / RIPROMOTE 治愈）；
+  /// - 磁盘冷读回填（`raw/read.rs::read_from_disk`）；
+  /// - 内存不可变区命中同步晋升（`raw/read.rs::promote_immutable_read_hit`）。
+  ///
+  /// `old_addr` 为挂载前索引应指的源地址（候选槽位原始地址，RC 虚拟地址亦可），
+  /// 失配即并发写已推进索引，本次晋升作废；命中记录非链头时 CAS 自然失配为
+  /// no-op（对标 C# 同一 TryCAS 判据）。败帧仅在复活池开启时回收，关闭时帧已
+  /// 脱链不可达、交由截断回收，与快路径 RetryAlloc::discard 的补偿口径一致。
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs:TryCopyToTail
+  #[cold]
+  pub(crate) fn cas_mount_copied_frame(
+    &self,
+    key: &[u8],
+    old_addr: u64,
+    new_addr: u64,
+    frame: u32,
+  ) -> bool {
+    let _guard = self.enter_gated();
+    let cas_ok = self
+      .store
+      .index
+      .load()
+      .update_address(key, old_addr, new_addr);
+    if !cas_ok && self.store.config.enable_revivification {
+      // 败帧回收（CAS 已落败，新帧不可达；对齐 GetAllocationForRetry 的
+      // OnDispose(InitialWriterCASFailed) 口径，杜绝「既不置失效也不回收」泄漏）
+      self
+        .store
+        .reviv_pool
+        .put(new_addr, frame, self.store.hlog.read_only_address());
+    }
+    cas_ok
+  }
+
   /// 冷数据 copy-to-tail 慢路径内核
   ///
   /// 骨架（严格对标 C# TryCopyToTail 所在异步冷数据执行链路）：begin_address →
@@ -45,6 +86,8 @@ impl<D: Device> StoreSession<D> {
   ///
   /// 收尾统一（C# 同一内核绝不留未挂载的存活帧：SetNewRecordInvalid +
   /// OnDispose + SaveAllocationForRetry 三步在 rust 的单点承接）：
+  /// - CAS 挂载与败帧回收两步已收成 [`Self::cas_mount_copied_frame`] 单点，与读路径
+  ///   两条冷读晋升臂（磁盘回填、内存不可变区命中）同享一份口径；
   /// - CAS 败帧：复活池开启时必回复活池（对标 SaveAllocationForRetry /
   ///   OnDispose(InitialWriterCASFailed) 的 FreeRecordPool 回收口径），杜绝
   ///   「既不置失效也不回收」的槽位泄漏；复活池关闭时帧已脱链不可达，交由
@@ -129,19 +172,12 @@ impl<D: Device> StoreSession<D> {
               .append_record_compacted(key, &payload, main_head, is_tombstone)
               .await?
           };
-          let cas_ok = {
-            let _guard = self.enter_gated();
-            self.store.index.load().update_address(key, cand, new_addr)
-          };
-          if !cas_ok && self.store.config.enable_revivification {
-            // 败帧回收（CAS 已落败，新帧不可达；对齐快路径 RetryAlloc::discard
-            // 的补偿口径，杜绝治愈路径此前「落败即遗弃」的槽位泄漏）
-            let rec_size = record_size(key.len(), payload.len()) as u32;
-            self
-              .store
-              .reviv_pool
-              .put(new_addr, rec_size, self.store.hlog.read_only_address());
-          }
+          let cas_ok = self.cas_mount_copied_frame(
+            key,
+            cand,
+            new_addr,
+            record_size(key.len(), payload.len()) as u32,
+          );
           return Ok(CopyToTailOutcome::Appended {
             src_addr,
             cas_ok,
