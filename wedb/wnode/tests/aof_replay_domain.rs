@@ -7,8 +7,9 @@
 //!    同号——旧域键不可读、清后新号写入可见、他租户完好；
 //! 2. `full_replay_nonzero_domain_lands_in_entry_domain`——非零 vns/vdb 形态的
 //!    全量回放：每条条目严格落回自身物理前缀（物理镜像承诺），映射体系与旧域
-//!    判死一律由主库 `KeyTag::DbMeta` 镜像条目承接（全新副本回放后映射面逐值
-//!    等于主库末态，本地取号器零触发），FlushDb 条目本身只作屏障；
+//!    判死一律由主库 `KeyTag::DbMeta` 镜像条目承接（全新副本回放后租户表 / 库路
+//!    由表 / 分配水位逐值等于主库末态，本地取号器零触发），FlushDb 条目本身只
+//!    作屏障；
 //! 3. `tail_flushns_replay_retires_inherited_namespace`——FlushNs(旧 vns) 条目
 //!    经 `active_vns` 逆表反查逻辑命名空间后，按主库同一事务体整空间换号；
 //! 4. `replay_face_slot_matches_online_face_slot`——回放面向量登记槽位与在线面
@@ -317,9 +318,9 @@ fn tail_flushdb_replay_swaps_inherited_domain() -> Void {
 ///
 /// 全新节点全量回放形态（doc/zh/db.md「主从物理镜像与异步屏障」）：映射体系与
 /// 旧域判死一律由主库 `KeyTag::DbMeta` 镜像条目承接——从库完全继承主库映射、
-/// 不进行本地二次映射，故回放后映射面**逐值等于主库末态**（水位、在册租户、
-/// 路由表键集合三项全等即本地取号器零触发的证明）。数据条目侧仍是物理镜像承
-/// 诺：每条落回自身物理前缀；FlushDb 条目本身只作屏障，不额外搬运映射。
+/// 不进行本地二次映射，故回放后租户表 / 库路由表 / 分配水位逐值等于主库末态
+/// （即本地取号器零触发）。数据条目侧仍是物理镜像承诺：每条落回自身物理前缀；
+/// FlushDb 条目本身只作屏障，不额外搬运映射。
 #[test]
 fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
   let rt = Runtime::new()?;
@@ -345,21 +346,14 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
     mgr.flush_database(NS_A, DB_A, false).await?;
     let new_vdb = store.vdb.get_virtual_ids(NS_A, DB_A).1;
     sa.upsert(b"fresh", b"vf").await?;
-
-    // 主库末态映射面（副本继承判据的基准：DbMeta 镜像条目是映射体系的唯一载体）
-    let primary_face = (
-      logic_ns_set(&store),
-      routing_vns(&store),
-      water_mark(&store),
-    );
-
+    let primary_water = water_mark(&store);
     drop(mgr);
     drop(sa);
     drop(sb);
     drop(service);
     drop(store);
 
-    // 全新节点：映射面只有根域，回放前无任何主库信息
+    // 全新节点：映射面只有根域（无任何主库信息可继承，一切在册值须来自镜像条目）
     let (_rdir, rstore) = open_test_store("full_replay_replica.db")?;
 
     replay_all(&rstore, &aof).await?;
@@ -384,19 +378,25 @@ fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
       Some(b"vk".to_vec()),
       "他租户条目须落回自身物理域 ({vns_b}, {vdb_b})"
     );
-    // 映射面继承：逐值等于主库末态（副本零本地二次取号——水位不等即主从 divergence）
+    // 映射继承 + 换号条目仅投死亡账本（DbMeta 镜像承接映射与水位，零本地二次分配）
     assert_eq!(
-      (
-        logic_ns_set(&rstore),
-        routing_vns(&rstore),
-        water_mark(&rstore)
-      ),
-      primary_face,
-      "全新副本回放后映射面须逐值等于主库末态（映射体系唯一载体是主库 DbMeta 镜像条目）"
+      logic_ns_set(&rstore),
+      vec![0, NS_A, NS_B],
+      "全量回放继承主库命名空间映射"
+    );
+    assert_eq!(
+      routing_vns(&rstore),
+      vec![0, vns, vns_b],
+      "全量回放继承主库租户路由表"
+    );
+    assert_eq!(
+      water_mark(&rstore),
+      primary_water,
+      "全量回放侧分配水位与主库锁步同值"
     );
     assert!(
       rstore.vdb.is_dead_domain(vns, old_vdb),
-      "旧域须由主库 GcDeadDb 镜像条目投递本地 GC 死亡账本（FlushDb 条目自身只作屏障）"
+      "FlushDb 条目须把旧域投递本地 GC 死亡账本"
     );
     OK
   })
