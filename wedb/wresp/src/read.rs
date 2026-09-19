@@ -184,29 +184,6 @@ pub fn try_read_verbatim_string_length(length: &mut i32, ptr: &mut &[u8]) -> Res
   try_read_signed_length_header(length, ptr, b'=')
 }
 
-/// garnet/libs/common/RespReadUtils.cs:TrySkipByteArrayWithLengthHeader
-#[inline]
-pub fn try_skip_byte_array_with_length_header(ptr: &mut &[u8]) -> Result<bool> {
-  let mut length = 0;
-  if !try_read_unsigned_length_header(&mut length, ptr, b'$')?
-    || exceeds_max_argument_length(length)?
-  {
-    return Ok(false);
-  }
-
-  let skip_len = length as usize + 2;
-  if ptr.len() < skip_len {
-    return Ok(false);
-  }
-
-  if &ptr[length as usize..skip_len] != b"\r\n" {
-    return Err(Error::UnexpectedToken(ptr[length as usize]));
-  }
-
-  *ptr = &ptr[skip_len..];
-  Ok(true)
-}
-
 /// garnet/libs/common/RespReadUtils.cs:TrySliceWithLengthHeader
 #[inline]
 pub fn try_slice_with_length_header<'a>(result: &mut &'a [u8], ptr: &mut &'a [u8]) -> Result<bool> {
@@ -461,34 +438,6 @@ pub fn try_read_string_array_with_length_header(
     }
     result.push(item);
   }
-
-  Ok(true)
-}
-
-/// garnet/libs/common/RespReadUtils.cs:TryReadPtrWithLengthHeader
-#[inline]
-pub fn try_read_ptr_with_length_header<'a>(
-  result: &mut &'a [u8],
-  len: &mut i32,
-  ptr: &mut &'a [u8],
-) -> Result<bool> {
-  *result = &[];
-
-  if !try_read_unsigned_length_header(len, ptr, b'$')? || exceeds_max_argument_length(*len)? {
-    return Ok(false);
-  }
-
-  let skip_len = *len as usize + 2;
-  if ptr.len() < skip_len {
-    return Ok(false);
-  }
-
-  if &ptr[*len as usize..skip_len] != b"\r\n" {
-    return Err(Error::UnexpectedToken(ptr[*len as usize]));
-  }
-
-  *result = &ptr[0..*len as usize];
-  *ptr = &ptr[skip_len..];
 
   Ok(true)
 }
