@@ -45,8 +45,8 @@ fn construction_rejects_non_multiple_of_segment_size() -> Void {
       "非法容量 {bad} 实际报 {err:?}"
     );
   }
-  // 构造失败不得留下任何段文件/目录产物（旧的运行期 set_capacity 可在设备已建、
-  // 目录已存之后补设容量，校验退化为事后声明）
+  // 构造失败不得留下任何段文件/目录产物：容量口径校验前置于目录创建，
+  // 杜绝"设备已建、目录已存之后才拒"的事后声明形态
   assert_eq!(read_dir(dir.path())?.count(), 0, "非法容量构造必须零产物");
 
   // 合法容量经构造注入即生效

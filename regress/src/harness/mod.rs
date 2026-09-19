@@ -18,6 +18,8 @@ use wkv::{StoreConfig, StoreResult, StoreSession, WedbStore};
 /// 与 bench/ 标准对齐的默认配置参数（对齐 bench/bench/src/types.rs BenchmarkConfig::default）
 pub const DEFAULT_CACHE_SIZE: usize = 128 * 1024 * 1024; // 128MB 缓存
 pub const DEFAULT_SEGMENT_SIZE: u64 = 64 * 1024 * 1024; // 64MB 单段文件
+/// 扇区大小取设备缺省口径（regress 工程不引 wbase，本地常量对齐 wdev 的 4096 缺省值）
+pub const DEFAULT_SECTOR_SIZE: usize = 4096;
 pub const DEFAULT_KEY_SIZE: usize = 24; // 24 字节 Key
 pub const DEFAULT_VALUE_SIZE: usize = 150; // 150 字节 Value
 pub const DEFAULT_BULK_ELEMENTS: usize = 6_000_000; // 600万项 (~1.04GB 原始数据)
@@ -91,7 +93,11 @@ impl WkvHarness {
   pub fn new(cache_size: usize, max_keys: usize) -> aok::Result<Self> {
     let temp_dir = TempDir::new()?;
     let path = temp_dir.path().join("wkv_data");
-    let device = Arc::new(SegmentedDevice::segmented(&path, DEFAULT_SEGMENT_SIZE)?);
+    let device = Arc::new(SegmentedDevice::new(
+      &path,
+      Some(DEFAULT_SEGMENT_SIZE),
+      DEFAULT_SECTOR_SIZE,
+    )?);
     let config =
       StoreConfig::from_memory_budget_with_keys(cache_size as u64, Some(max_keys as u64));
     let store = Arc::new(WedbStore::open(config, device)?);
