@@ -57,7 +57,7 @@ use crate::storage::session::storage_session::StorageSession;
 /// 与上界键均无关（实测：task/reject/tiered-zset-demote-stack.md 一.帧表、二.表
 /// S2/S4）。深度不变量因此只能由写形给出：分层集合的删除不逐成员落树墓碑，
 /// 一律经整值重灌面重建（`rmw_helpers::apply_rmw_post_operate` →
-/// `promote_collection_to_bftree` → `bulk_load`），使树内墓碑恒低。
+/// `promote_collection_to_bftree` → `bulk_load`），使树内零墓碑。
 const DEMOTE_MAX_KEYS_PER_ROUND: usize = 16;
 
 /// 一轮降阶评估统计（观测面：候选数与降阶数可观测，零命中静默）

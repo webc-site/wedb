@@ -186,61 +186,31 @@ fn background_demote_preserves_key_ttl() {
   let env = env("ttl-bg-demote.db");
   let mut s = session_with(&env);
 
-  // 66000 字段小值哈希：条目维越门槛升阶（同 tiered_background_demote 口径）
-  let fields: Vec<Vec<u8>> = (0..66000_usize)
-    .map(|i| format!("f{i}").into_bytes())
+  // 「分层态但双维齐低」构造：客户端写路径（删除命令与成员级 TTL 面）自残余
+  // 墓碑源收口起一律穿透物化，双维齐低那次写回本身就地懒降阶，后台轮无从
+  // 触发；故直接经 wkv promote 灌 22000 字段（建树不做降阶评估，同
+  // tiered_watch_fence 手工升阶先例），键自然处于「分层态且已齐低」。
+  let entries: Vec<(Vec<u8>, Vec<u8>)> = (0..22000_usize)
+    .map(|i| (format!("f{i}").into_bytes(), b"v".to_vec()))
     .collect();
-  for chunk in fields.chunks(1000) {
-    let mut args: Vec<&[u8]> = vec![b"h"];
-    for f in chunk {
-      args.push(f.as_slice());
-      args.push(b"v");
-    }
-    auto_exec(&env, &mut s, RespCommand::Hset, &args);
+  {
+    let sess = env.store.new_session().unwrap();
+    env.rt
+      .block_on(sess.promote_collection_to_bftree(
+        b"h",
+        wval::GarnetObjectType::Hash,
+        entries,
+        i64::MAX,
+      ))
+      .unwrap();
   }
-  assert!(is_tiered(&env, b"h"), "66000 字段应越门槛升阶");
+  assert!(is_tiered(&env, b"h"), "手工升阶后键应处分层态");
 
   assert_eq!(
     auto_exec(&env, &mut s, RespCommand::Expire, &[b"h", b"3600"]),
     b":1\r\n"
   );
   let before = ttl_ticks(&env, b"h").expect("EXPIRE 后旁路 TTL 记录必在");
-
-  // 削至 22000 ≤ 32768 双维齐低，且**必须仍留在分层态**才能把降阶交给后台轮。
-  // 前台删除命令（HDEL/ZREM/SREM/LPOP…）自本票起一律走「物化 + 整值写回」面，
-  // 双维齐低那次写回本身就地懒降阶，后台轮便无从触发；仍能产出「分层态但已齐低」
-  // 的只剩成员级 TTL 物理出账臂（树内逐成员出账、不评估降阶）。故本用例的削量手
-  // 段换成 HEXPIREAT 过去时刻，键级 TTL 在该窗口内同样不得脱落。
-  //
-  // 出账集按**树键序**交错挑取（i % 2 == 0 || i % 6 == 3，44000 出账 / 22000 存活，
-  // 最长连跑 3），不是随手取前缀：底层扫描对墓碑连跑按深度递归（≈680B/帧），前缀
-  // 连跑形仍会爆默认 8MiB 栈——那正是本票记为残余、待主代理裁决的成员级 TTL 面
-  // （见 tiered_collection_ops::collect_expired_members 文档）。
-  let mut keyed: Vec<&[u8]> = fields.iter().map(Vec::as_slice).collect();
-  keyed.sort_unstable();
-  let expiring: Vec<&[u8]> = keyed
-    .iter()
-    .copied()
-    .enumerate()
-    .filter(|(i, _)| i % 2 == 0 || i % 6 == 3)
-    .map(|(_, f)| f)
-    .collect();
-  assert_eq!(expiring.len(), 44000, "交错出账集规模");
-  for chunk in expiring.chunks(11000) {
-    let mut args: Vec<&[u8]> = vec![b"h", b"100", b"FIELDS", b"11000"];
-    args.extend(chunk.iter().copied());
-    auto_exec(&env, &mut s, RespCommand::Hexpireat, &args);
-  }
-  assert!(is_tiered(&env, b"h"), "成员级出账臂不评估降阶：键仍分层");
-  assert_eq!(
-    auto_exec(&env, &mut s, RespCommand::Hlen, &[b"h"]),
-    b":22000\r\n"
-  );
-  assert_eq!(
-    ttl_ticks(&env, b"h"),
-    Some(before),
-    "成员级 TTL 出账臂不触碰键级 TTL"
-  );
 
   let stats = env.rt.block_on(tiered_demote_round(&env.store));
   assert_eq!(stats.demoted, 1, "双维齐低冷分层键应被后台轮降阶");

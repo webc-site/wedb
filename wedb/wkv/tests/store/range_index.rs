@@ -662,7 +662,7 @@ fn test_ri_bulk_load_matches_per_field_insert() -> Void {
     // 门禁的 range_index_count / range_index_get 不适用 (否则 WRONGTYPE)；容器回读的端到端
     // 口径由 wnode/tests/tiered_cmds_align.rs 的 HGETALL/ZCARD 族承接。
     session
-      .promote_collection_to_bftree(b"ri_promoted", GarnetObjectType::Hash, entries.clone())
+      .promote_collection_to_bftree(b"ri_promoted", GarnetObjectType::Hash, entries.clone(), i64::MAX)
       .await?;
     let (promoted_meta, promoted_stub) = session
       .load_collection_stub(b"ri_promoted")

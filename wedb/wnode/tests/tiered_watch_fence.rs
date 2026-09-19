@@ -1,7 +1,7 @@
 //! 分层态（wbftree）集合写路径 WATCH 版本栅栏回归测试
 //!
 //! 缺陷：集合键升阶为 wbftree 分页分层态后，HSET/HDEL/SADD/SREM/ZADD/ZREM/
-//! LPUSH/RPUSH 走引擎侧分层臂树内直写（树写漏斗 `tree_put` / `tree_del` +
+//! LPUSH/RPUSH 走引擎侧分层臂树内直写（树写漏斗 `tree_put` +
 //! `save_bftree_meta_stub`），仅经 wkv 物理键原语落盘，绕过用户键写入口的
 //! WATCH 版本推进 → WATCH 分层键的 MULTI/EXEC 在并发写后仍判有效，脏提交。
 //!
@@ -124,7 +124,7 @@ fn promote(env: &Env, key: &[u8], obj_type: GarnetObjectType, entries: Vec<(Vec<
   let sess = env.store.new_session().unwrap();
   env
     .rt
-    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries))
+    .block_on(sess.promote_collection_to_bftree(key, obj_type, entries, i64::MAX))
     .unwrap();
   assert!(
     env
