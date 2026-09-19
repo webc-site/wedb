@@ -1,15 +1,13 @@
 use std::{
-  hint::spin_loop,
   result,
   sync::atomic::{AtomicU64, Ordering, fence},
-  thread::yield_now,
 };
 
 use whasher::fast_hash;
 
 use crate::{
   Result,
-  bucket::{BucketExclusiveGuard, BucketSharedGuard, HashBucket},
+  bucket::{BucketSharedGuard, HashBucket, KeyLatch},
   buckets::HashBuckets,
   chain::{ChainStep, ChainWalker, SlotScan},
   entry::HashBucketEntry,
@@ -19,7 +17,6 @@ use crate::{
 pub use crate::{
   candidate::CandidateAddresses,
   entry_info::HashEntryInfo,
-  guard::MultiBucketGuard,
   prefetch::{PREFETCH_WINDOW, prefetch_read_l1},
 };
 
@@ -65,17 +62,6 @@ pub struct HashIndex {
 }
 
 impl HashIndex {
-  /// 栈上内联加锁条目数上限
-  pub const INLINE_LOCK_ENTRIES: usize = 16;
-  /// 自旋让步阈值（超过后让出 CPU 时间片）
-  pub const SPIN_RETRY_THRESHOLD: usize = 32;
-  /// 指数退避自旋幂次上限
-  pub const SPIN_LIMIT_MAX_EXP: usize = 5;
-  /// 自旋抖动掩码
-  pub const SPIN_LIMIT_JITTER_MASK: usize = 0x7;
-  /// yield 让核重试预算（自旋后让出 CPU 时间片，达到预算后报超时）
-  pub const YIELD_RETRY_BUDGET: usize = 16384;
-
   /// 创建指定容量的哈希索引表
   ///
   /// 要求 `num_buckets` 必须是 2 的幂且大于 0。
@@ -598,9 +584,21 @@ impl HashIndex {
     self.bucket_for_key(key).lock_shared_guard()
   }
 
-  /// 获取键对应主桶的独占锁 RAII 守卫
+  /// 按键取本键主桶独占闩的 RAII 守卫（索引层唯一键级排他锁入口）
+  ///
+  /// 严格对标 C# Tsavorite 的单键 ephemeral 独占闩形态
+  /// （`Implementation/InternalRMW.cs` 与 `Implementation/Upsert.cs` 首段调
+  /// `Implementation/Helpers.cs` 的 `FindOrCreateTagAndTryEphemeralXLock`，后者转
+  /// `Implementation/Locking/TransientLocking.cs` 的 `TryEphemeralXLock`）：
+  /// 本函数只做「`bucket_index_for_key` 定位主桶 + [`HashBucket::try_lock_exclusive`] 取闩」
+  /// 两步组合，取不到即返回 [`None`]（桶原语自身的自旋预算另计，对标 C# 同名
+  /// `HashBucket.TryAcquireExclusiveLatch`），由调用方按 C# `RETRY_LATER` 口径处置。
+  ///
+  /// 索引层于此零自旋驱动、零逆序回滚、零超时判定——多键两阶段锁的批量取闩编排
+  /// 归服务端事务层（本仓 `wtxn::TxnKeyEntry::lock_all_keys`），C# 索引层同样只有单桶闩。
+  /// 守卫离开作用域时自动放闩（[`KeyLatch`]）。
   #[inline]
-  pub fn lock_exclusive_guard(&self, key: &[u8]) -> Option<BucketExclusiveGuard<'_>> {
+  pub fn try_lock_key_exclusive(&self, key: &[u8]) -> Option<KeyLatch<'_>> {
     self.bucket_for_key(key).lock_exclusive_guard()
   }
 
@@ -647,134 +645,5 @@ impl HashIndex {
     }
 
     Ok(probes)
-  }
-
-  /// 原地切片去重，单次单向遍历，将唯一元素排在前部并返回有效长度（零堆分配，稳定版标准 Rust）
-  #[inline]
-  fn in_place_dedup_by<T: Copy, F>(slice: &mut [T], mut same_bucket: F) -> usize
-  where
-    F: FnMut(&T, &T) -> bool,
-  {
-    if slice.len() <= 1 {
-      return slice.len();
-    }
-    let mut write_idx = 1;
-    for read_idx in 1..slice.len() {
-      if !same_bucket(&slice[write_idx - 1], &slice[read_idx]) {
-        if write_idx != read_idx {
-          slice[write_idx] = slice[read_idx];
-        }
-        write_idx += 1;
-      }
-    }
-    write_idx
-  }
-
-  /// 统一多键加锁驱动：桶寻址 -> 全序排序去重 -> 两阶段加锁
-  ///
-  /// 1. 桶下标恒由 `hash & mask` 截断产出（构造不变量 `mask == buckets.len() - 1`），
-  ///    为 [`Self::acquire_unique_locked_entries`] 的 get_unchecked 提供安全前提；
-  /// 2. 按桶下标升序排序形成全局加锁全序（杜绝死锁），同桶排他锁优先并去重
-  ///    （读写混合时保留最高锁级；纯排他路径该 tie-break 为恒等，语义不变）；
-  /// 3. 条目数 <= 16 走栈上内联零分配，超出走堆缓冲。
-  fn acquire_bucket_locks<I>(&self, items: I) -> Result<MultiBucketGuard<'_>>
-  where
-    I: ExactSizeIterator<Item = (usize, bool)>,
-  {
-    let count = items.len();
-    if count == 0 {
-      return Ok(MultiBucketGuard::new(self));
-    }
-
-    let mut stack_entries = [(0usize, false); Self::INLINE_LOCK_ENTRIES];
-    let mut heap_entries;
-    let entries: &mut [(usize, bool)] = if count <= Self::INLINE_LOCK_ENTRIES {
-      for (slot, e) in stack_entries[..count].iter_mut().zip(items) {
-        *slot = e;
-      }
-      &mut stack_entries[..count]
-    } else {
-      heap_entries = items.collect::<Vec<_>>();
-      &mut heap_entries
-    };
-
-    // 桶下标升序全序（防死锁）；同桶排他优先（true 排前），相邻去重保留首个
-    // 即保留最高锁级（slice 无 dedup_by——该方法为 Vec 专属，栈/堆统一切片
-    // 借用故自行实现）
-    entries.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
-    let deduped_len = Self::in_place_dedup_by(entries, |a, b| a.0 == b.0);
-
-    self.acquire_unique_locked_entries(&entries[..deduped_len])
-  }
-
-  /// 基于两阶段锁（2PL）获取多个键的独占锁（严格对标 Garnet OverflowBucketLockTable）
-  #[inline]
-  pub fn acquire_keys_lock_exclusive(&self, keys: &[&[u8]]) -> Result<MultiBucketGuard<'_>> {
-    self.acquire_bucket_locks(keys.iter().map(|k| (self.bucket_index_for_key(k), true)))
-  }
-
-  /// 统一核心加锁驱动引擎（零堆分配回滚、指数退避防活锁）
-  ///
-  /// 重试预算：短自旋（32 次）→ yield 让核（[`Self::YIELD_RETRY_BUDGET`]），达到预算后报 [`Error::LockTimeout`]
-  fn acquire_unique_locked_entries(
-    &self,
-    unique_entries: &[(usize, bool)],
-  ) -> Result<MultiBucketGuard<'_>> {
-    let mut retry_count = 0usize;
-
-    loop {
-      let mut locked_count = 0usize;
-
-      // 阶段一：顺次尝试加锁
-      for &(b_idx, is_exclusive) in unique_entries {
-        // SAFETY: 本函数私有，unique_entries 恒由 acquire_bucket_locks 产出，
-        // b_idx 源自 bucket_index_for_key/hash（hash & mask 截断，恒小于
-        // buckets.len()），无越界风险，免去检查开销
-        let bucket = unsafe { self.buckets.get_unchecked(b_idx) };
-        let ok = if is_exclusive {
-          bucket.try_lock_exclusive()
-        } else {
-          bucket.try_lock_shared()
-        };
-
-        if ok {
-          locked_count += 1;
-        } else {
-          break;
-        }
-      }
-
-      // 阶段二：校验是否全量加锁成功
-      if locked_count == unique_entries.len() {
-        return Ok(MultiBucketGuard::from_slice(self, unique_entries));
-      }
-
-      // 阶段三：部分加锁失败，在栈上就地逆序回滚解锁（零堆分配开销！）
-      for &(b_idx, is_exclusive) in unique_entries[..locked_count].iter().rev() {
-        // SAFETY: 同阶段一，b_idx 恒为 hash & mask 截断后的合法桶下标
-        let bucket = unsafe { self.buckets.get_unchecked(b_idx) };
-        if is_exclusive {
-          bucket.unlock_exclusive();
-        } else {
-          bucket.unlock_shared();
-        }
-      }
-
-      retry_count += 1;
-      if retry_count >= Self::YIELD_RETRY_BUDGET {
-        return Err(Error::LockTimeout);
-      }
-
-      // 指数退避与自旋抖动（Jitter）：彻底消除对称竞争活锁
-      if retry_count < Self::SPIN_RETRY_THRESHOLD {
-        let spin_limit = (1usize << retry_count.min(Self::SPIN_LIMIT_MAX_EXP))
-          | (retry_count & Self::SPIN_LIMIT_JITTER_MASK);
-        for _ in 0..spin_limit {
-          spin_loop();
-        }
-      } else {
-        yield_now();
-      }
-    }
   }
 }
