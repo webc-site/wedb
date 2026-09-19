@@ -531,8 +531,7 @@ impl<D: Device> StoreGarnetApi<D> {
           write_error_raw(&mut output, RESP_ERR_GENERIC_UNK_CMD);
           return output;
         };
-        if let Err(()) =
-          custom_object_slow(&storage, entry.tag, &meta, cmd_refs, &mut output).await
+        if let Err(()) = custom_object_slow(&storage, entry.tag, &meta, cmd_refs, &mut output).await
         {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
         }
@@ -890,11 +889,10 @@ impl<D: Device> StoreGarnetApi<D> {
     // + SafeFlushAOF 广播条目），对标 C# BasicCommands.cs:ExecuteFlushDb →
     // StoreWrapper.cs:FlushDatabase / StoreWrapper.cs:FlushAllDatabases →
     // SingleDatabaseManager.cs:FlushDatabase（内嵌 SafeFlushAOF(FlushDb)）。
-    // 直调 store 换号只写 KeyTag::DbMeta 映射记录，而 AOF 写端口按标签只镜像
-    // String / Acl（与信封墓碑）域（service.rs:on_aof_store_event），故该路径
-    // 在日志里连条目都不留：副本侧无换号可回放，主从读写域自本次清库起分叉。
-    // 管理面未装配时显式回错，绝不静默退回 store 直调
-    // （宁可拒绝命令，不可制造主从发散）
+    // 直调 store 换号虽会经 DbMeta 镜像条目同步映射（service.rs:on_aof_store_event
+    // 放行 KeyTag::DbMeta），但绕过 SafeFlushAOF 即丢 FlushDb 广播条目：副本侧
+    // 换号栅栏对齐与向量登记表域回收双双缺失。管理面未装配时显式回错，绝不
+    // 静默退回 store 直调（宁可拒绝命令，不可制造主从发散）
     let Some(manager) = self.checkpoint.as_ref().map(|ctx| &ctx.database_manager) else {
       write_error_raw(&mut output, RESP_ERR_CHECKPOINT_UNWIRED);
       return output;

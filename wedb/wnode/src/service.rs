@@ -170,7 +170,17 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
       }
       // ACL 用户规则旁路标签（0x0D）：与 String 域同为整值写/墓碑删，
       // 经 StoreUpsert/StoreDelete 条目镜像（从库 AOF 回放据此重建用户表）
-      if tag != Some(KeyTag::String) && tag != Some(KeyTag::Acl) {
+      //
+      // DbMeta 系统元数据（0x0E）：映射体系镜像通道（doc/zh/db.md「物理日志
+      // 复制与 Checkpoint 直接镜像主库的 KeyTag::DbMeta 与数据记录；从库完全
+      // 继承主库的映射体系，不进行本地二次映射」）——主库全部换号批/首映射/
+      // SWAPDB 记录与 GC 墓碑注销经此镜像，从库回放面交
+      // WedbStore::apply_dbmeta_record / apply_dbmeta_tombstone 应用，换号虚号
+      // 主从同源；条目即完整记录（键载荷 + 定长值），无需第二套映射同步机制
+      if tag != Some(KeyTag::String)
+        && tag != Some(KeyTag::Acl)
+        && tag != Some(KeyTag::DbMeta)
+      {
         return Ok(());
       }
       let op = if tombstone {

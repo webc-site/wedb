@@ -290,7 +290,9 @@ impl<D: Device> SingleDatabaseManager<D> {
   /// wkv O(1) 虚拟换号清库后原子补写 FlushDb 广播条目（仅主库入队），载荷
   /// (vns, 旧 vdb) 与数据条目物理键前缀同域。rust 共享单 AOF 不物理截断
   /// （换号模型旧数据由延时 GC 回收，截断将抹除其他库未检查点历史；C# 集群
-  /// safeTruncateAof == false 分支同形）
+  /// safeTruncateAof == false 分支同形）。换号映射批次（新 DbMap + 旧域墓碑 +
+  /// 分配水位）经 commit_swap 落盘时镜像为 DbMeta 条目先行入队，副本回放按
+  /// 主库号直设映射格，绝无本地二次取号（doc/zh/db.md 主从映射继承）
   pub async fn flush_database(
     &self,
     ns: u64,
