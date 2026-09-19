@@ -1168,6 +1168,7 @@ impl RespServerSession {
       };
 
       if cmd != RespCommand::Invalid {
+        let orig_output_len = self.output.len();
         // 冷上下文挂起面按命令窗口即抛：只允许本命令的应答组装点消费
         self.cold_ctx = None;
         // C# 门链（RespServerSession.cs:651-653）：noScriptPassed 默认 true，
@@ -1230,7 +1231,7 @@ impl RespServerSession {
           if let Some(stats) = &self.command_stats {
             let mut stats = stats.lock();
             stats.increment_calls(cmd);
-            if self.command_error_written {
+            if self.command_error_written || self.output[orig_output_len..].starts_with(b"-") {
               stats.increment_failed(cmd);
               self.command_error_written = false;
             }

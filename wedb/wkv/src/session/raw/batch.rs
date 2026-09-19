@@ -5,7 +5,7 @@ use wdev::Device;
 use windex::{CandidateAddresses, PREFETCH_WINDOW, PrefetchProbe, prefetch_read_l1};
 use wval::{KeyTag, NamespaceDbCodec, TaggedKeyBuf};
 
-use super::{MemRead, read::StoreResult};
+use super::{MemDrive, read::StoreResult};
 use crate::{
   error::{Error, Result},
   session::StoreSession,
@@ -119,35 +119,18 @@ impl<D: Device> StoreSession<D> {
             on_item(item_idx, Some(v));
           }
         });
-        // RETRY_LATER：刷新纪元后整链重试（守卫存活期内，密封在途记录终将解封）
-        let mut first = probe.first_addr;
-        let mut disk_cands = None;
-        let mut mem_missing = false;
-        loop {
-          match self.try_read_mem(key, probe.hash, first, &mut item_f)? {
-            MemRead::Done(Some(())) => break,
-            MemRead::Done(None) => {
-              mem_missing = true;
-              break;
-            }
-            MemRead::OnDisk(cands) => {
-              disk_cands = Some(cands);
-              break;
-            }
-            MemRead::Retry => {
-              self.participant.refresh();
-              first = self.store.index.load().find_tag_by_hash(probe.hash);
+        // RETRY_LATER 刷新重试收敛于 drive_mem_read 驱动环单点（守卫存活期内，
+        // 密封在途记录终将解封），与同步/异步读中转层共用同一环
+        match self.drive_mem_read(key, probe.hash, probe.first_addr, &mut item_f)? {
+          MemDrive::Done(Some(())) => {}
+          MemDrive::Done(None) => {
+            if disk_mixed {
+              buffered.push((item_idx, None));
+            } else {
+              on_item(item_idx, None);
             }
           }
-        }
-        if let Some(cands) = disk_cands {
-          pending.push((item_idx, cands));
-        } else if mem_missing {
-          if disk_mixed {
-            buffered.push((item_idx, None));
-          } else {
-            on_item(item_idx, None);
-          }
+          MemDrive::OnDisk(cands) => pending.push((item_idx, cands)),
         }
         if let Some(v) = buffered_val {
           buffered.push((item_idx, Some(v)));
