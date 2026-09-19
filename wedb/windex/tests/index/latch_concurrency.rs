@@ -387,7 +387,13 @@ fn test_key_latch_exclusive_take_and_raii_release() -> Void {
     assert!(!index.try_lock_exclusive(key), "持闩期间裸独占取闩必须失败");
 
     // 不同桶的键各自独立：索引层锁面只剩这一把按键定位的桶闩，无任何跨键编排
-    if index.bucket_index_for_key(neighbor) != index.bucket_index_for_key(key) {
+    // （夹具两键必须落在不同主桶，否则本段形同虚设——直接断言前提而非静默跳过）
+    assert_ne!(
+      index.bucket_index_for_key(neighbor),
+      index.bucket_index_for_key(key),
+      "夹具键 {neighbor:?} 与 {key:?} 落在同一主桶，异桶独立性段未覆盖"
+    );
+    {
       let other = index
         .try_lock_key_exclusive(neighbor)
         .expect("异桶取闩不受影响");
@@ -448,11 +454,18 @@ fn test_key_latch_concurrent_exclusion() -> Void {
     handles.push(thread::spawn(move || {
       bar.wait();
       for _ in 0..iterations {
-        // 取闩失败按 C# RETRY_LATER 口径由调用方让步重试（索引层不自旋不回滚）
-        let Some(_latch) = idx.try_lock_key_exclusive(key) else {
+        // 取闩失败按 C# RETRY_LATER 口径由调用方让步重试（索引层不自旋不回滚）；
+        // 重试不消耗本轮预算，故总临界区次数恒为 thread_count * iterations，
+        // 一旦闩失效丢更新即显式变红
+        let mut guard = idx.try_lock_key_exclusive(key);
+        let mut yields = 0u32;
+        while guard.is_none() {
+          yields += 1;
+          assert!(yields <= 1_000_000, "同键独占闩长期不可得，放闩链有漏");
           yield_now();
-          continue;
-        };
+          guard = idx.try_lock_key_exclusive(key);
+        }
+        let _latch = guard.expect("取闩成功");
         // 临界区：非原子化的读-改-写序列，若闩失效必然丢更新
         let curr = cnt.load(Ordering::Relaxed);
         spin_loop();
