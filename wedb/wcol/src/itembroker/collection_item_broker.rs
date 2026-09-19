@@ -205,8 +205,8 @@ pub struct CollectionItemBroker<S, Spawner = CompioTaskSpawner> {
   /// dispose 完成通知接收端
   done_rx: Mutex<Option<OneshotAsyncRx<()>>>,
 
-  /// 主循环启动器（宿主运行时注入；C# 内建 Task.Run）
-  spawner: Mutex<Option<Arc<Spawner>>>,
+  /// 主循环启动器（构造期定格；C# 内建 Task.Run 的宿主注入形态）
+  spawner: Arc<Spawner>,
 }
 
 impl<S: CollectionItemStore + 'static> CollectionItemBroker<S, CompioTaskSpawner> {
@@ -234,13 +234,8 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
       cts_cancelled: AtomicBool::new(false),
       done_tx: Mutex::new(Some(done_tx)),
       done_rx: Mutex::new(Some(done_rx)),
-      spawner: Mutex::new(Some(Arc::new(spawner))),
+      spawner: Arc::new(spawner),
     }
-  }
-
-  /// 注入主循环启动器（须在首个阻塞命令前完成）
-  pub fn set_spawner(&self, spawner: Arc<Spawner>) {
-    *self.spawner.lock() = Some(spawner);
   }
 
   /// 尝试获取会话对应的观察者
@@ -250,27 +245,12 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     self.session_id_to_observer.pin().get(&session_id).cloned()
   }
 
-  /// 异步等待集合对象出件（阻塞命令入口）
-  ///
-  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync(command, keys, session, timeout, cmdArgs)
-  ///
-  /// 刻意差异：`timeout_seconds` 仅作 API 对齐保留；计时等待由会话层以
-  /// select 竞速 [`CollectionItemObserver::wait_result`] 实现
-  pub async fn get_collection_item_async(
-    self: &Arc<Self>,
-    command: RespCommand,
-    keys: Vec<Vec<u8>>,
-    session_id: usize,
-    _timeout_seconds: f64,
-    cmd_args: Vec<Vec<u8>>,
-  ) -> CollectionItemResult {
-    let observer = Arc::new(CollectionItemObserver::new(session_id, command, cmd_args));
-    self.get_collection_item_async_inner(observer, keys).await
-  }
-
-  /// 登记观察者并启动等待（GetCollectionItemAsync 前半拆解：登记映射 →
-  /// 启动主循环 → NewObserver 事件入队），等待由调用方驱动
+  /// 登记观察者并启动等待（阻塞命令入口前半：登记映射 → 启动主循环 →
+  /// NewObserver 事件入队），等待由调用方驱动；计时等待由会话层以 select
+  /// 竞速 [`CollectionItemObserver::wait_result`] 实现
   /// （compio 挂起语义见 BlockedWait，C# 由网络线程 BlockingWait 承担）
+  ///
+  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync
   pub fn start_wait(
     self: &Arc<Self>,
     command: RespCommand,
@@ -287,8 +267,10 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     observer
   }
 
-  /// 等待结束收尾（GetCollectionItemAsync 后半拆解）：摘除会话映射，
+  /// 等待结束收尾（阻塞命令入口后半）：摘除会话映射，
   /// 仍在等待则置空结果（超时/销毁路径），返回最终结果
+  ///
+  /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:GetCollectionItemAsync
   pub fn finish_wait(&self, observer: &Arc<CollectionItemObserver>) -> CollectionItemResult {
     self
       .session_id_to_observer
@@ -303,24 +285,8 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     observer.result()
   }
 
-  /// 内部公共路径（对应 GetCollectionItemAsync(observer, keys, timeout) 实现）：
-  /// 登记观察者 → 启动主循环 → 入队 NewObserver → 等待 → 收尾
-  async fn get_collection_item_async_inner(
-    self: &Arc<Self>,
-    observer: Arc<CollectionItemObserver>,
-    keys: Vec<Vec<u8>>,
-  ) -> CollectionItemResult {
-    self.register_observer(observer.clone(), keys);
-    self.start_main_loop();
-
-    // 等待结果就绪或会话销毁
-    observer.wait_result().await;
-
-    self.finish_wait(&observer)
-  }
-
   /// 登记观察者：会话映射写入 + NewObserver 事件入队
-  ///（start_wait 与 get_collection_item_async_inner 的共同前半）
+  ///（start_wait 的公共前半）
   fn register_observer(&self, observer: Arc<CollectionItemObserver>, keys: Vec<Vec<u8>>) {
     self
       .session_id_to_observer
@@ -332,7 +298,7 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
     ));
   }
 
-  /// 主循环启动（CAS 保证仅启动一次）；启动器经 [`Self::set_spawner`] 注入
+  /// 主循环启动（CAS 保证仅启动一次）；启动器构造期定格
   ///
   /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:StartMainLoop
   pub fn start_main_loop(self: &Arc<Self>) {
@@ -347,23 +313,12 @@ impl<S: CollectionItemStore + 'static, Spawner: TaskSpawner + 'static>
         )
         .is_ok()
     {
-      let spawner = self.spawner.lock().clone();
-      match spawner {
-        Some(spawner) => {
-          let broker = Arc::downgrade(self);
-          spawner.spawn(async move {
-            if let Some(broker) = broker.upgrade() {
-              broker.start_async().await;
-            }
-          });
+      let broker = Arc::downgrade(self);
+      self.spawner.spawn(async move {
+        if let Some(broker) = broker.upgrade() {
+          broker.start_async().await;
         }
-        None => {
-          // 无启动器：回退状态，待注入后由后续调用再次启动
-          self
-            .main_loop_task_status
-            .store(MAIN_LOOP_NOT_STARTED, Ordering::SeqCst);
-        }
-      }
+      });
     }
   }
 

@@ -1350,30 +1350,25 @@ impl RespServerSession {
   ///
   /// fast 命令族分派（WARNING: 仅 @fast 命令，慢命令走 OtherCommands）。
   /// 命令实现位于 resp 命令文件（并行域），经 [`GarnetApi`] 注入面
-  /// 接入；PING/QUIT/事务族在会话侧闭环。
+  /// 接入；PING/ASKING/QUIT/事务族在会话侧闭环（分派臂只转调，单一实现
+  /// 在 basic_commands）。
   pub fn process_basic_commands(&mut self, cmd: RespCommand) -> bool {
     match cmd {
       RespCommand::Ping => {
-        if self.parse_state.count == 0 {
-          // C# NetworkPING：+PONG
-          self.output.extend_from_slice(b"+PONG\r\n");
-        } else if self.parse_state.count == 1 {
-          // C# NetworkArrayPING: bulk string message
-          let msg = self.parse_state.arg_in(&self.recv_buffer, 0);
-          self.output.write_resp_bulk_string(msg);
-        } else {
-          self.abort_wrong_num_args("PING");
-        }
-        true
+        // C# RespServerSession.cs:855：PING→NetworkPING/NetworkArrayPING
+        let args_buf = self.collect_args();
+        let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
+        let mut output = mem::take(&mut self.output);
+        let r = self.network_ping(&args, &mut output);
+        self.output = output;
+        matches!(r, Ok(true))
       }
       RespCommand::Asking => {
-        if self.parse_state.count != 0 {
-          self.abort_wrong_num_args("ASKING");
-          return true;
-        }
-        self.session_asking = 2;
-        self.output.extend_from_slice(cs::RESP_OK);
-        true
+        // C# RespServerSession.cs:856：ASKING→NetworkASKING
+        let mut output = mem::take(&mut self.output);
+        let r = self.network_asking(&mut output);
+        self.output = output;
+        matches!(r, Ok(true))
       }
       RespCommand::Quit => {
         self.to_dispose = true;
@@ -1616,13 +1611,13 @@ impl RespServerSession {
       return true;
     }
     if cmd == RespCommand::Echo {
-      if self.parse_state.count != 1 {
-        self.abort_wrong_num_args("ECHO");
-        return true;
-      }
-      let msg = self.parse_state.arg_in(&self.recv_buffer, 0);
-      self.output.write_resp_bulk_string(msg);
-      return true;
+      // C# RespServerSession.cs:1089：ECHO→NetworkECHO
+      let args_buf = self.collect_args();
+      let args: Vec<&[u8]> = args_buf.iter().map(Vec::as_slice).collect();
+      let mut output = mem::take(&mut self.output);
+      let r = self.network_echo(&args, &mut output);
+      self.output = output;
+      return matches!(r, Ok(true));
     }
     if cmd == RespCommand::Time {
       // 在 garnet 中的相对路径:libs/server/Resp/BasicCommands.cs:NetworkTIME
