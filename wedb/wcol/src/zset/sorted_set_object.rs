@@ -413,7 +413,7 @@ impl SortedSetObject {
   ) -> bool {
     let Some(op) = SortedSetOperation::try_from(sub_id).ok() else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
-      RespWriter::new_ref(&mut output.payload)
+      RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       return true;
     };
@@ -466,7 +466,7 @@ impl SortedSetObject {
       // GEOSEARCH 由命令层经 geo_search(opts) 直入（携带 GeoSearchOptions 束）；
       // ZDIFF/ZUNION/ZINTER 属存储 API 域聚合（C# 同样不经 operate 分派）
       SortedSetOperation::Geosearch | SortedSetOperation::Zdiff => {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
       }
     }

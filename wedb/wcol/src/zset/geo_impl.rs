@@ -108,7 +108,7 @@ impl SortedSetObject {
     } else {
       elements_changed
     };
-    RespWriter::new_ref(&mut output.payload).write_int64(result);
+    RespWriter::new_ref(output.payload).write_int64(result);
   }
 
   /// GEOHASH：成员的 base-32 GeoHash 文本
@@ -120,13 +120,13 @@ impl SortedSetObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &member in args {
       match self.sorted_set_dict.get(member).copied() {
         Some(value52_int) => {
           let geo_hash = GeoHash::get_geo_hash_code(value52_int as i64);
-          RespWriter::new_ref(&mut output.payload).write_bulk_string(&geo_hash);
+          RespWriter::new_ref(output.payload).write_bulk_string(&geo_hash);
         }
         None => write_null(output, resp_protocol_version),
       }
@@ -160,7 +160,7 @@ impl SortedSetObject {
         let second = GeoHash::get_coordinates_from_long(score_member2 as i64);
 
         let distance = GeoHash::distance(first.0, first.1, second.0, second.1);
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_double_bulk_string(GeoHash::convert_meters_to_units(distance, units));
       }
       _ => write_null(output, resp_protocol_version),
@@ -176,14 +176,14 @@ impl SortedSetObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) {
-    RespWriter::new_ref(&mut output.payload).write_array_length(args.len());
+    RespWriter::new_ref(output.payload).write_array_length(args.len());
 
     for &member in args {
       match self.sorted_set_dict.get(member).copied() {
         Some(score_member) => {
           let (lat, lon) = GeoHash::get_coordinates_from_long(score_member as i64);
 
-          RespWriter::new_ref(&mut output.payload).write_array_length(2);
+          RespWriter::new_ref(output.payload).write_array_length(2);
           write_double_numeric(output, lon, resp_protocol_version);
           write_double_numeric(output, lat, resp_protocol_version);
         }
@@ -208,7 +208,7 @@ impl SortedSetObject {
     // FROMMEMBER：圆心取成员坐标
     if opts.origin == GeoOriginType::FromMember {
       let Some(center_point_score) = self.sorted_set_dict.get(&opts.from_member).copied() else {
-        RespWriter::new_ref(&mut output.payload).write_error_bytes(RESP_ERR_ZSET_MEMBER.as_bytes());
+        RespWriter::new_ref(output.payload).write_error_bytes(RESP_ERR_ZSET_MEMBER.as_bytes());
         return;
       };
 
@@ -270,7 +270,7 @@ impl SortedSetObject {
     }
 
     if response_data.is_empty() {
-      RespWriter::new_ref(&mut output.payload).write_empty_array();
+      RespWriter::new_ref(output.payload).write_empty_array();
       return;
     }
 
@@ -298,33 +298,33 @@ impl SortedSetObject {
 
     if opts.count_value > 0 && (opts.count_value as usize) < response_data.len() {
       response_data.truncate(opts.count_value as usize);
-      RespWriter::new_ref(&mut output.payload).write_array_length(opts.count_value as usize);
+      RespWriter::new_ref(output.payload).write_array_length(opts.count_value as usize);
     } else {
-      RespWriter::new_ref(&mut output.payload).write_array_length(response_data.len());
+      RespWriter::new_ref(output.payload).write_array_length(response_data.len());
     }
 
     for item in &response_data {
       if inner_array_length > 1 {
-        RespWriter::new_ref(&mut output.payload).write_array_length(inner_array_length);
+        RespWriter::new_ref(output.payload).write_array_length(inner_array_length);
       }
 
-      RespWriter::new_ref(&mut output.payload).write_bulk_string(&item.member);
+      RespWriter::new_ref(output.payload).write_bulk_string(&item.member);
 
       if opts.with_dist {
-        RespWriter::new_ref(&mut output.payload)
+        RespWriter::new_ref(output.payload)
           .write_double_bulk_string(GeoHash::convert_meters_to_units(item.distance, opts.unit));
       }
 
       if opts.with_hash {
         if read_only {
-          RespWriter::new_ref(&mut output.payload).write_int64(item.geo_hash);
+          RespWriter::new_ref(output.payload).write_int64(item.geo_hash);
         } else {
-          RespWriter::new_ref(&mut output.payload).write_array_item(item.geo_hash);
+          RespWriter::new_ref(output.payload).write_array_item(item.geo_hash);
         }
       }
 
       if opts.with_coord {
-        RespWriter::new_ref(&mut output.payload).write_array_length(2);
+        RespWriter::new_ref(output.payload).write_array_length(2);
         write_double_numeric(output, item.coordinates.1, resp_protocol_version);
         write_double_numeric(output, item.coordinates.0, resp_protocol_version);
       }

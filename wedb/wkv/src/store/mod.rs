@@ -10,11 +10,10 @@ use std::{
 
 use arc_swap::ArcSwap;
 use compio::runtime::Runtime;
+use event_listener::Event;
 use itoa::Buffer;
 use parking_lot::{Mutex, RwLock};
-use wbase::{
-  align::DEFAULT_SECTOR_SIZE, future::yield_now, group_commit::GroupCommitPipeline, time::now_ms,
-};
+use wbase::{align::DEFAULT_SECTOR_SIZE, group_commit::GroupCommitPipeline, time::now_ms};
 use wbftree::{DetachedTree, RangeIndexManager};
 use wdev::Device;
 use wepoch::LightEpoch;
@@ -157,24 +156,100 @@ pub struct WedbStore<D: Device> {
   /// 承载，不新增条目类型；与旁表同形态的冷路径互斥容器，杜绝第二套
   /// 释放编排）
   pub(crate) bftree_release: Mutex<Vec<DetachedTree>>,
-  /// 换号元数据串行锁认领位（true = 有换号事务在编排；garnet 无对应，wedb
-  /// 自研换号元数据串行锁——C# 每库独立 Tsavorite 实例天然无换号撕裂竞态）
-  ///
-  /// 刻意不用 parking_lot/std 同步锁：compio 线程核绑运行时下同步锁跨 await
-  /// 持有会挂死整核（同核两换号任务即成死锁）且守卫 !Send 无法编译；以
-  /// AtomicBool 认领位加协作让渡自旋承载（先例即 barrier_enter 的 PREPARE_GROW
-  /// 自旋挂起协议），获取与释放见 [`Self::lock_dbmeta`]
-  pub(crate) dbmeta_lock: AtomicBool,
+  /// 换号元数据串行锁（garnet 无对应，wedb 自研换号元数据串行锁——C# 每库
+  /// 独立 Tsavorite 实例天然无换号撕裂竞态）；认领位与等待队列的形态、以及
+  /// 「本锁是『锁用 parking_lot』规范的跨 await 例外」的依据，见 [`DbmetaLock`]
+  /// 类型文档；获取与释放见 [`Self::lock_dbmeta`]
+  pub(crate) dbmeta_lock: DbmetaLock,
   /// 在线哈希索引扩容状态机运行时容器 (对标 Garnet IndexResizeTask)
   pub resize: Arc<resize::IndexResizeState>,
 }
 
-/// 换号元数据串行锁守卫（Drop 以 Release store 释放认领，`?` 早退不遗留）
-pub(crate) struct DbmetaGuard<'a>(&'a AtomicBool);
+/// 换号元数据串行锁本体：`AtomicBool` 认领位 + `event_listener::Event` 等待队列
+///
+/// 无争用时一次 Acquire CAS 即得（与改造前的快路径同形，不多付任何代价）；
+/// 争用时等待方注册监听后 `.await` **真挂起**，临界区落盘期间零轮询、零 CPU、
+/// 不占调度槽，释放方 Drop 精准移交队首（event_listener 队列 FIFO 公平，先注册
+/// 先醒）。
+///
+/// 为什么不用 parking_lot——「锁用 parking_lot」规范的跨 await 例外依据，
+/// 防后人按规范误改回同步锁：
+///
+/// `.agents/skills/rust_review/SKILL.md`「同步锁用 parking_lot」与
+/// `.agents/skills/transpile/SKILL.md`「锁用 parking_lot」两条规范的适用前提
+/// 是**临界区不跨 await**。本锁不满足该前提：全部持有者的临界区内都要 await
+/// DbMeta 原子批落盘（[`crate::session::StoreSession::persist_dbmeta_batch`]，
+/// 含设备 IO），换成同步锁即：
+///
+/// 1. 死锁：本仓是 Thread-per-Core 运行时（`wnode/src/server.rs` 每 worker
+///    线程一个 `Runtime::new()`、会话任务永不跨核迁移）。同核两个换号任务并到
+///    一处时，后到者 `lock()` 会 park 整个 OS 线程，而持锁者的落盘续算只能由
+///    该线程驱动——锁永不释放，且该核上全部无关任务一并挂死；
+/// 2. `parking_lot::MutexGuard` 为 `!Send`：守卫跨 await 持有会把 `Send` 从整条
+///    会话 future 上抹掉。compio 的 `Runtime::spawn` 不要求 `Send`（一核一运行
+///    时，任务本就可 `!Send`），故本条不是硬编译墙，只是把未来任何 Send 边界
+///    （跨线程派发、`spawn_blocking` 桥接）一并封死——第 1 条才是本锁的决定性
+///    依据。
+///
+/// C# 侧的两种形态都不可直译（本结构取第三条）：
+///
+/// - `MultiDatabaseManager.cs:TrySwapDatabases` 的串行化靠
+///   `databasesContentLock`（`SingleWriterMultiReaderLock`），其获取口
+///   `TryGetDatabasesContentWriteLock` 是「`TryWriteLock` 失败即 `Thread.Yield()`
+///   重试」——.NET 线程把时间片交回调度器，故不是热自旋，但也不是队列挂起；
+///   rust 直译即 `yield_now` 自旋，钉核运行时下等待任务仍逐轮占住该核调度槽，
+///   正是本锁改造掉的形态；
+/// - `DatabaseManagerBase.cs:FlushDatabase` 本体是同步无锁段（日志截断 + AOF
+///   截断），等待全压在调用方的同步 yield 重试上——C# 一线程一会话，等待方
+///   占住的是自己的线程，不牵连同他人；rust 一核多任务，「等而不占」只能是
+///   任务态挂起，同步锁 park 线程即第 1 条死锁，自旋即逐轮占调度槽。
+///
+/// 故本结构以事件等待队列承载：语义上补齐 C# 「等待方不烧 CPU」的效果，且比
+/// C# 的 yield 重试更强——等待任务在临界区整段零唤醒、零 CPU、不占调度槽。
+#[derive(Default)]
+pub(crate) struct DbmetaLock {
+  /// 认领位（true = 有换号事务在编排）
+  busy: AtomicBool,
+  /// 争用等待队列：释放方 notify(1) 逐个移交
+  gate: Event,
+}
+
+impl DbmetaLock {
+  /// 串行获取：快路径一次 CAS 抢占；争用路径「先注册监听、再复核认领位」后
+  /// 挂起——注册先于复核是丢失唤醒的唯一防线（注册前前任已 store+notify 的
+  /// 窗口由复核那次 CAS 承接），顺序颠倒即可能永久睡过一次移交
+  async fn acquire(&self) -> DbmetaGuard<'_> {
+    loop {
+      if self
+        .busy
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_ok()
+      {
+        return DbmetaGuard(self);
+      }
+      let listener = self.gate.listen();
+      if self
+        .busy
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_ok()
+      {
+        return DbmetaGuard(self);
+      }
+      listener.await;
+    }
+  }
+}
+
+/// 换号元数据串行锁守卫（Drop 清认领位并唤醒队首等待者，`?` 早退不遗留）
+pub(crate) struct DbmetaGuard<'a>(&'a DbmetaLock);
 
 impl Drop for DbmetaGuard<'_> {
   fn drop(&mut self) {
-    self.0.store(false, Ordering::Release);
+    // Release store 先于 notify：event_listener 的 notify 自身先打 SeqCst full
+    // fence（src/notify.rs 的 fence → full_fence）再摘队列，故被唤醒者随后那次
+    // Acquire CAS 必能看到本次释放，不会与仍持锁的旧代撞车
+    self.0.busy.store(false, Ordering::Release);
+    self.0.gate.notify(1);
   }
 }
 
@@ -187,23 +262,18 @@ impl<D: Device> WedbStore<D> {
     &self.range_index
   }
 
-  /// 获取换号元数据串行锁（garnet 无对应，wedb 自研换号元数据串行锁；
-  /// 认领位语义见 [`WedbStore::dbmeta_lock`] 字段注释）
+  /// 获取换号元数据串行锁（garnet 无对应，wedb 自研换号元数据串行锁；形态与
+  /// 「为何不用 parking_lot」见 [`DbmetaLock`] 类型文档）
   ///
-  /// Acquire 认领抢占，竞争时以 [`wbase::future::yield_now`] 协作让渡自旋——
-  /// 同核另一换号任务必在让渡间隙前进，绝不 park 线程；临界区仅含换号 CAS
-  /// 与 DbMeta 原子批落盘（[`crate::session::StoreSession::persist_dbmeta_batch`]），
-  /// 全部持有者（flush_database / flush_namespace / swap_databases）互不嵌套、
-  /// 临界区内不再获取本锁，无死锁。锁只在管理命令面，用户数据热路径不触锁
+  /// 无争用一次 CAS 即得，争用在等待队列上真挂起（零自旋、零 CPU）；临界区仅
+  /// 含换号 CAS 与 DbMeta 原子批落盘
+  /// （[`crate::session::StoreSession::persist_dbmeta_batch`]），全部持有者
+  /// （flush_database / flush_namespace / swap_databases / apply_dbmeta_record）
+  /// 互不嵌套、临界区内不再获取本锁，无死锁。锁只在管理命令面，用户数据热路径
+  /// 不触锁
+  #[inline]
   pub(crate) async fn lock_dbmeta(&self) -> DbmetaGuard<'_> {
-    while self
-      .dbmeta_lock
-      .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-      .is_err()
-    {
-      yield_now().await;
-    }
-    DbmetaGuard(&self.dbmeta_lock)
+    self.dbmeta_lock.acquire().await
   }
 
   /// 生成初始集合唯一 ID（高 48 位毫秒时间戳 + 低 16 位随机数）
@@ -316,7 +386,7 @@ impl<D: Device> WedbStore<D> {
       vdb_load_session: SessionSlot::new(),
       bftree_domains: reclaim::BftreeDomains::default(),
       bftree_release: Mutex::new(Vec::new()),
-      dbmeta_lock: AtomicBool::new(false),
+      dbmeta_lock: DbmetaLock::default(),
       resize: Arc::new(resize::IndexResizeState::new()),
     })
   }
@@ -621,5 +691,175 @@ impl<D: Device> Drop for WedbStore<D> {
     if let Some(tmp_dir) = &self.temp_range_index_dir {
       let _ = fs::remove_dir_all(tmp_dir);
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  //! 换号元数据串行锁的等待形态自证：快路径一次 CAS、争用真挂起（零唤醒零
+  //! CPU）、释放精准移交一位（task/ing/my-dbmeta-lock-yield-spin 的「争用下不
+  //! 烧 CPU」行为面验收）。负控实测：把 `DbmetaLock::acquire` 改回
+  //! compare_exchange + yield_now 自旋形态，则「等待者挂在事件队列上」（实测
+  //! 队列零登记）与「挂起不得自唤醒」（实测每轮让渡自唤一次）两枚断言即转红
+
+  use std::{
+    pin::pin,
+    sync::{
+      Arc,
+      atomic::{AtomicUsize, Ordering},
+    },
+    task::{Context, Poll, Wake, Waker},
+    time::Duration,
+  };
+
+  use compio::{
+    runtime::{Runtime, spawn},
+    time::sleep,
+  };
+  use wbase::future::yield_now;
+
+  use super::DbmetaLock;
+
+  /// 唤醒计数 waker：运行时只在任务被唤醒后才 poll 它，故等待期的 wake 次数
+  /// 就是该任务占用的调度次数（不引 libc 取线程 CPU 时间，wake 数是更直接的
+  /// 观测量——烧 CPU 的形态正是「自唤醒把自己反复灌进就绪队列」）
+  #[derive(Default)]
+  struct WakeCounter(AtomicUsize);
+
+  impl WakeCounter {
+    fn get(&self) -> usize {
+      self.0.load(Ordering::Relaxed)
+    }
+  }
+
+  impl Wake for WakeCounter {
+    fn wake(self: Arc<Self>) {
+      self.0.fetch_add(1, Ordering::Relaxed);
+    }
+    fn wake_by_ref(self: &Arc<Self>) {
+      self.0.fetch_add(1, Ordering::Relaxed);
+    }
+  }
+
+  #[test]
+  fn uncontended_acquire_needs_one_poll_and_no_wake() {
+    let lock = DbmetaLock::default();
+    let wakes = Arc::new(WakeCounter::default());
+    let waker = Waker::from(Arc::clone(&wakes));
+    let mut cx = Context::from_waker(&waker);
+
+    let mut acquire = pin!(lock.acquire());
+    let Poll::Ready(guard) = acquire.as_mut().poll(&mut cx) else {
+      panic!("无争用快路径应一次 poll 即取到锁");
+    };
+    assert!(lock.busy.load(Ordering::Acquire), "取锁后认领位应置位");
+    assert_eq!(0, lock.gate.total_listeners(), "快路径不入等待队列");
+    assert_eq!(0, wakes.get(), "快路径不应产生任何唤醒");
+
+    drop(guard);
+    assert!(!lock.busy.load(Ordering::Acquire), "守卫释放应清认领位");
+    assert_eq!(0, wakes.get(), "无等待者时释放不多发通知");
+  }
+
+  /// 争用下等待者真挂起的行为面自证（本票核心诉求）
+  ///
+  /// 改造前形态：`while compare_exchange 失败 { yield_now().await }`——
+  /// `wbase::future::YieldNow` 的首次 poll 必 `cx.waker().wake_by_ref()` 再返回
+  /// Pending，故持锁临界区（DbMeta 原子批落盘，含 IO）每推进一刻，等待任务就
+  /// 被自唤醒并重新 poll 一次，wake 计数随时长线性增长（钉核下还在持续占用
+  /// 该核调度槽）。改造后：等待者挂进事件队列，临界区整段零唤醒，释放时恰醒一次。
+  #[test]
+  fn contended_waiter_sleeps_until_handoff() {
+    let lock = DbmetaLock::default();
+    let wakes = Arc::new(WakeCounter::default());
+    let waker = Waker::from(Arc::clone(&wakes));
+    let mut cx = Context::from_waker(&waker);
+
+    // 持有者：快路径取锁后进入临界区（生产形态为 await persist_dbmeta_batch）
+    let mut acquire = pin!(lock.acquire());
+    let Poll::Ready(holder) = acquire.as_mut().poll(&mut cx) else {
+      panic!("无争用快路径应一次 poll 即取到锁");
+    };
+
+    // 等待者：首次 poll 走完「CAS 失败 → 注册监听 → 复核 CAS 失败 → 挂起」
+    let mut waiter = pin!(lock.acquire());
+    assert!(
+      matches!(waiter.as_mut().poll(&mut cx), Poll::Pending),
+      "锁被占用时等待者应挂起而非就绪"
+    );
+    assert_eq!(1, lock.gate.total_listeners(), "等待者应挂在事件队列上");
+    assert_eq!(0, wakes.get(), "挂起不得自唤醒（自旋形态此处即开始烧 CPU）");
+
+    // 临界区期间的重复观测：未被唤醒即不会被调度，等待任务零 CPU
+    assert_eq!(0, wakes.get(), "持锁期内等待者零唤醒");
+    assert_eq!(1, lock.gate.total_listeners(), "等待者应稳定挂在队列上");
+
+    // 释放：清认领位 + 精准移交一位
+    drop(holder);
+    assert!(!lock.busy.load(Ordering::Acquire));
+    assert_eq!(1, wakes.get(), "释放应恰好唤醒一位等待者");
+
+    let mut waiter2 = pin!(lock.acquire());
+    let Poll::Ready(second) = waiter.as_mut().poll(&mut cx) else {
+      panic!("移交后等待者应取到锁");
+    };
+    assert!(lock.busy.load(Ordering::Acquire), "交接后认领位仍置位");
+    // 队列已把移交出的名额用掉：新来者在锁未释放前挂进队列
+    assert!(matches!(waiter2.as_mut().poll(&mut cx), Poll::Pending));
+    assert_eq!(1, lock.gate.total_listeners());
+    assert_eq!(1, wakes.get(), "第三任务挂起不产生额外唤醒");
+    drop(second);
+    assert_eq!(2, wakes.get(), "再一次移交恰醒一位");
+    assert!(matches!(waiter2.as_mut().poll(&mut cx), Poll::Ready(_)));
+  }
+
+  /// 真运行时下的跨 await 串行性自证：八任务各四轮，临界区内必 await 一次
+  /// （对位落盘让渡），断言任一时刻至多一位持有者且全部轮次推进完成（不丢
+  /// 唤醒、不死锁）
+  #[test]
+  fn contended_tasks_serialize_across_await() {
+    const TASKS: usize = 8;
+    const ROUNDS: usize = 4;
+
+    let rt = Runtime::new().expect("compio 运行时构造失败");
+    rt.block_on(async {
+      let lock = Arc::new(DbmetaLock::default());
+      let held = Arc::new(AtomicUsize::new(0));
+      let overlap = Arc::new(AtomicUsize::new(0));
+      let done = Arc::new(AtomicUsize::new(0));
+
+      let mut handles = Vec::with_capacity(TASKS);
+      for _ in 0..TASKS {
+        let lock = Arc::clone(&lock);
+        let held = Arc::clone(&held);
+        let overlap = Arc::clone(&overlap);
+        let done = Arc::clone(&done);
+        handles.push(spawn(async move {
+          for _ in 0..ROUNDS {
+            let _guard = lock.acquire().await;
+            if held.fetch_add(1, Ordering::AcqRel) != 0 {
+              overlap.fetch_add(1, Ordering::Relaxed);
+            }
+            // 临界区内跨 await：同步锁在此形态下会把整核 park 死
+            sleep(Duration::from_millis(1)).await;
+            yield_now().await;
+            held.fetch_sub(1, Ordering::AcqRel);
+            done.fetch_add(1, Ordering::Relaxed);
+          }
+        }));
+      }
+      for h in handles {
+        h.await.expect("换号任务不应被取消");
+      }
+
+      assert_eq!(0, overlap.load(Ordering::Relaxed), "临界区不得重叠");
+      assert_eq!(
+        TASKS * ROUNDS,
+        done.load(Ordering::Relaxed),
+        "全部轮次应推进完成"
+      );
+      assert_eq!(0, held.load(Ordering::Relaxed));
+      assert!(!lock.busy.load(Ordering::Acquire), "末轮释放后应无残留认领");
+    });
   }
 }

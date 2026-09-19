@@ -1,7 +1,13 @@
 # cs-corpus 遗留票源盘点（inv1）
 
-基线：分支 dev，盘点时 HEAD = fbd285951530bdbf301e7454e9afbcddf3e8d981（盘点为只读，未改任何代码；所有
-grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/修改文件。
+基线：分支 dev。初盘快照 HEAD = fbd285951530bdbf301e7454e9afbcddf3e8d981；终稿复核快照
+HEAD = 0abd241a8fe5eb22e153d24b9ff717c1bfb3d112（盘点期间并发推进 90 个 commit）。
+两个快照下 `garnet/` C# 语料零改动（`git diff fbd2859..HEAD -- garnet` 空），故第三节的
+锚点形态统计与第二节的暗条目取数在 0abd241 复跑一致；变化集中在 rust 树（121 文件，行号有漂移）
+与 `js/check/ignore/server.yml`（并发棒新增 `SessionParseState.cs:SetArgument` 等）。
+本文件所有行号按 0abd241 复核后给出，标注「初盘」处为 fbd2859 读数。
+盘点为只读：未改任何代码、未做 git 写操作、跑门禁前后对 ignore 语料做 shasum 比对（见 2.1），
+除本文件外无新增/修改文件。
 
 三批对象与移交来源：
 
@@ -11,7 +17,8 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 3. 225 处裸文件名锚点按 crate 分批——来源 check.js B 层锚点口径（`js/check/symbolCheck.js`），
    前序判例 muse.design：CS_REF_REGEX 不认「路径.cs:行号」形态裸文件名锚点。
 
-状态：盘点进行中（分节追加）。
+状态：三节判读完成（第一节全量 31 名逐条、第二节 131 条中 90 条逐条 + 41 条分块待判、
+第三节全量形态统计 + 分批方案），可直接派单。
 
 ## 第一节 10 份新 miss（31 名，byte* 形参族）
 
@@ -28,13 +35,19 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
   二者并集 19 名，逐名核销见 1.2。
 - 结构性替代口径（本节主口径，可复算）：以工具自身口径重取「仅词法兜底才可见」的名集 =
   194 个 hasError 文件中 `AST+兜底名集 − 仅 AST 名集` = 388 名 / 43 个文件有增量
-  （本单实测，与 `js/check/README.md` 第 1 节所记 194/388 逐字一致）。按现刻 HEAD 三分：
-  同路径全路径锚在位 167、ignore 覆盖 161（其中函数级条目 130，即第二节对象）、
-  既无锚又无 ignore 的「门禁盲名」31（首算得 32，复核时 `SessionParseState.cs:SetArgument`
-  实已登记在 `server.yml:230`，属本单脚本取数误差，已改正）。31 名即「10 份 31 名」的现刻等价像。
+  （本单实测，与 `js/check/README.md` 第 1 节所记 194/388 逐字一致；语料在两快照间零改动故不变）。
+  按 0abd241 三分：同路径全路径锚在位 167、ignore 覆盖 170、
+  既无锚又无 ignore 的「门禁盲名」31（初盘 fbd2859 为 32，差的一名即
+  `SessionParseState.cs:SetArgument`——盘点期间并发棒把它补登进 `server.yml:231`，
+  0abd241 复跑后盲名集与本节逐条名单逐字相同）。31 名即「10 份 31 名」的现刻等价像。
+- 方法自校验（防本单口径比门禁宽/窄）：门禁的锚点采集面是全部 `line_comment`/`block_comment`
+  节点（`js/check/rustScan.js:73-89`，含普通 `//`，不限 doc 注释），与本单扫描面一致；
+  167 名同路径锚中仅 1 名（`AofProcessor.cs:HandleRangeIndexStreamChunk`，
+  `wedb/wnode/src/aof/aof_processor.rs:875`）的锚点只存在于非 doc 注释里——形态合法、
+  在门禁侧正常入册，无需整改，列出只为证明本单与门禁同口径。
 - 门禁为何不报这 31 名（新增发现，值得单列后续工具票）：`js/check.js:423-427` 的
   `isDocumented` 除 `doc_file_fn_map`（按归一路径为 key）外，还兜一层 `doc_set`
-  ——`js/check/rustScan.js:47-50` 把每条注释的全部词元灌进 `doc_set`，于是任一 .rs 注释里
+  ——`js/check/rustScan.js:53-65` 把每条注释的全部词元灌进 `doc_set`，于是任一 .rs 注释里
   出现过同名裸词（哪怕只是「C# TryGetDouble 默认 canBeInfinite: true」这类叙述）就算已文档化，
   永久不进 miss。这条是 miss 判定的结构性死角，与本单第二节「ignore 假路径零反应」同族。
 
@@ -77,41 +90,52 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 6. 同文件:ReadSizeUnknown — 落点 `vector_store_callbacks.rs:145`（read；`wvector/src/store.rs:140` 同族重复风险）
 7. SessionParseState.cs:GetArgSliceByRef — 落点 `wedb/wresp/src/session_parse_state.rs:71`（get_arg_slice_by_ref
    已是实名实口，:76 doc 为反引号形态不登记）
-8. RespReadResponseUtils.cs:TryReadIntWithLengthHeader — 落点 `wedb/wconn/src/parser.rs:74`（:67 doc 已点名该 C# 口）
-9. TsavoriteBase.cs:FindTagOrFreeInternal — 落点 `wedb/windex/src/table.rs:313`（classify_slot；:300/:321 叙述在位）
-10. TsavoriteBase.cs:FindOtherSlotForThisTagMaybeTentativeInternal — 落点 `wedb/windex/src/table.rs:264`
-    段（find_or_create_tag_by_hash_with_min_addr 一系）
+8. RespReadResponseUtils.cs:TryReadIntWithLengthHeader — 落点 `wedb/wconn/src/parser.rs:74`（:66-70 doc
+   已点名该 C# 口；注意落点是 `#[cfg(test)]` 臂，其 doc 自述「C# 读者仅数值应答链
+   ProcessReplyAsNumber，本仓未转写该链」，补锚时须原样保留该自述，勿改成生产口口径）
+9. TsavoriteBase.cs:FindTagOrFreeInternal — 落点 `wedb/windex/src/table.rs:312`（classify_slot；:299/:320
+   与 `chain.rs:20` 叙述在位，形态为「C# TsavoriteBase.FindTagOrFreeInternal」无 `.cs` 路径）
+10. TsavoriteBase.cs:FindOtherSlotForThisTagMaybeTentativeInternal — 落点 `wedb/windex/src/table.rs:263`
+    段（两阶段查重内核，`find_or_create_tag_by_hash_with_min_addr` :380 一系）
 11. LogRecord.cs:TrySetPinnedValueSpan — 落点 `wedb/wrecord/src/record_mut.rs:193`（write_val_with_slack；
     :183 doc 与 `header.rs:347` 容量口径皆叙述形态）
-12. RangeIndexOps.cs:RangeIndexScan — 落点 `wedb/wnode/src/resp/rangeindex/resp_server_session_range_index.rs:507`
-13. RangeIndexOps.cs:RangeIndexRange — 落点 同文件 `:555`
-14. RespServerSession.cs:NetworkCustomRawStringCmd — 落点 `wedb/wnode/src/resp/resp_server_session.rs:2012`
+12. RangeIndexOps.cs:RangeIndexScan — 落点 `wedb/wkv/src/range_index/ops.rs:333`
+    （`range_index_scan_stream`，doc 现刻零 C# 指涉；RESP 侧叙述在
+    `wnode/src/resp/rangeindex/resp_server_session_range_index.rs:507`，属网络层不入册，
+    同文件 :479 已挂 `RespServerSessionRangeIndex.cs:NetworkRISCAN`，两锚不同口不冲突）
+13. RangeIndexOps.cs:RangeIndexRange — 落点 同文件 `ops.rs:363`（`range_index_range_stream`；
+    同上，RESP 侧 :538/:555 各挂一形），本 crate 已有 7 条 `RangeIndexOps.cs:*` 规范锚
+    （ops.rs:25/124/229/264/405/415/424），补这两条即与该块齐平
+14. RespServerSession.cs:NetworkCustomRawStringCmd — 落点 `wedb/wnode/src/resp/resp_server_session.rs:2003`
     （run_custom_command 为 C# 三 local function 共骨架，只挂一锚）
 15. RespReadUtils.cs:TryReadInfinity — 落点 `wedb/wbase/src/num.rs:210`（infinity_sign；:206 doc 已点名白名单口径）
 
 乙族（无独立具名对位口，语义在消费点就地承接 → 该补 ignore 条目，不派实现票；括号为可并入的既有块）：
 
 - SessionParseState.cs:DeserializeFrom / TryGetLong / TryGetDouble / TryGetFloat /
-  GetString / TryGetBool（6）— rust 侧无 parseState 级读口，整数/浮点走 `wbase/src/num.rs` strict 通道、
-  布尔走 `wedb/src/server/cluster_session/replication.rs:751` 就地 T/F 判形（可并入 `js/check/ignore/server.yml:225`
-  或 `:993` 既有 SessionParseState.cs 块；该块 :230 已登 SetArgument/SetArguments、
-  :227 EnsureCapacity、:228-229 GetDouble/GetFloat、:231 GetSerializedLength、
-  :232 Slice —— 其中 Slice 一名经核 rust 已有 1:1 实口 `wedb/wresp/src/session_parse_state.rs:55`，
-  属「已实现却挂忽略」，判改不判留，详见第二节 2.4）
+  GetString / TryGetBool（6）— rust 侧无 parseState 级读口，整数/浮点走 `wbase/src/num.rs` strict 通道
+  （`strict_i64` :118 / `strict_f64` :79）、布尔走
+  `wedb/wedb/src/server/cluster_session/replication.rs:753` 就地 T/F 判形（可并入
+  `js/check/ignore/server.yml:225` 或 `:994` 既有 SessionParseState.cs 块；:225 块现刻已登
+  EnsureCapacity :226、GetDouble :227、GetFloat :228、GetSerializedLength :229、
+  InitializeWithArguments :230、SetArgument :231、SetArguments :232、Slice :233 —— 其中 Slice
+  一名经核 rust 已有 1:1 实口 `wedb/wresp/src/session_parse_state.rs:55 pub fn slice`
+  （对应 C# `SessionParseState.cs:219 Slice(int)`），属「已实现却挂忽略」，判改不判留，见 2.4）
 - PrivateMethods.cs:IsValidNumber — 就地闭包承接，证据 `wedb/wnode/src/resp/basic_commands/incr.rs:132`、
-  `slow.rs:403`（并入 `server.yml:273` 既有 PrivateMethods.cs 块）
+  `slow.rs:403`（并入 `server.yml:274` 既有 MainStore/PrivateMethods.cs 块）
 - NumUtils.cs:TryReadInt64 — 与已登记的 strict_i64 同源，证据 `wedb/wnode/src/resp/basic_commands/incr.rs:133`
   （并入 `common.yml:322` NumUtils.cs 块）
 - InputHeader.cs:DeserializeFrom — 组合形态承接，证据 `wedb/wnode/src/aof/replay_input.rs:235`
   （并入 `server.yml:34` InputHeader.cs 块）
 - RespCommand.cs:SimdFastParse — rust 无同名解析口，MRU 双槽晋升语义在
-  `wedb/wnode/src/resp/parser/resp_command.rs:147`（该文件当前无 ignore 块，需新立）
+  `wedb/wnode/src/resp/parser/resp_command.rs:146`（该文件当前无 ignore 块，需新立）
 - core/Utilities/Utility.cs:IsPowerOfTwo / GetLogBase2（2）— rust 走 std `is_power_of_two` / `ilog2`，
-  证据 `wedb/wbase/src/align.rs:6`、`wedb/wdev/src/chunk.rs:62`（并入 `storage.yml:2114` Utility.cs 块）
+  证据 `wedb/wbase/src/align.rs:7`、`wedb/wdev/src/chunk.rs:62`（并入 `storage.yml:2114` Utility.cs 块）
 - core/ClientSession/TransactionalConsistentReadContext.cs:RMW / Refresh（2）— 只读会话无写接口，
   与同文件已登记的 Upsert/Delete 同口径（并入 `storage.yml:861` 既有块，Refresh 另可锚 `wepoch`）
 - VectorManager.Callbacks.cs:SetActiveReadGeometry — 冷读尺寸预算改由 wkv 冷读侧承接，
-  证据 `wedb/wnode/src/resp/vector/vector_store_callbacks.rs:9`（并入 `server.yml:1022` 既有块）
+  证据 `wedb/wnode/src/resp/vector/vector_store_callbacks.rs:5-12` 模块头自述（并入
+  `server.yml:1023` 既有 VectorManager.Callbacks.cs 块 :1024-1030）
 - playground/Bitmap/BitCount.cs:__simd_popcX128 — ISA 降级臂不转写，证据 `wedb/wbitmap/src/bit_count.rs:8-11`
   已自述「js/check/ignore 登记 __simd_popcX128」，但该条目只记在
   `js/check/ignore/libs/server/Resp/Bitmap/BitmapManagerBitCount.yml`，playground 侧未记 → 补 `playground.yml:2`
@@ -119,7 +143,7 @@ grep/判定均按该现刻 HEAD 的树内容）。产出本文件外无新增/�
 
 丙族（真缺，须派实现票）：本批 31 名内 0 名。全盘点唯一两处「留着登记可能是藏真缺」的不在 31 名内，
 而在第二节 `storage.yml:1926 / :1961`（TsavoriteLog.cs:GetChecksum / VerifyChecksum，
-rust 侧 waof 无任何校验和函数口），故 1.4 票 6 指向该处而非本批。
+rust 侧 waof 无任何校验和函数口），故 1.4 的附条件票 A 指向该处而非本批。
 
 ### 1.4 第一节立即派单建议 Top 5（另附 2 条条件票，不先行派发）
 

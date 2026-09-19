@@ -33,18 +33,24 @@ rust 事实核对（已逐行验证，行号按符号定位；文件正被并发
    （network_loop 内部传 MAX_UNFLUSHED_SEND_BYTES，session/client 调用 network_loop 不变），
    拼批循环内 out_buf 达阈值即 write_all 刷出、清空后继续收批（复用 in_flight 满时的刷出+清空+回接同款写法），
    使单次在途缓冲有界；收尾 write_all 不变。
-3. 溢流侧条数 + 字节双判据：TcpSessionWire 增 overflow_bytes: AtomicUsize（push 增、泵 pop 减，
-   与 overflow 同推/弹点位）；WireFrame 增 resident_bytes()（AppendLog 取 payload 长度，
-   AdvanceTime 取恒定小帧；RESP 数组头等固定开销由条数封顶承接）。send_or_enqueue 先建帧计量，
-   超限判定改为「条数达 MAX_OVERFLOW_ENTRIES 或 overflow_bytes 达 MAX_UNFLUSHED_SEND_BYTES」，
-   两判据共用同一条 disconnect + BrokenPipe 路径，错误文案区分字节/条数便于定位慢副本。
+3. 溢流侧条数 + 字节双判据：TcpSessionWire 增 overflow_bytes: AtomicUsize（入队先增
+   后 push、泵 pop 减，防 usize 下溢令闸假性触顶）与 byte_cap: usize 字段
+   （产线 connect 恒取 MAX_UNFLUSHED_SEND_BYTES，唯一数值源；单测构造小值廉价触达
+   字节判据，与写泵分片阈值注入同形，非新增配置项）；WireFrame 增 resident_bytes()
+   （AppendLog 取 payload 长度，AdvanceTime 取恒定小帧；RESP 数组头等固定开销由条数
+   封顶承接）。send_or_enqueue 先建帧计量，超限判定改为「条数达 MAX_OVERFLOW_ENTRIES
+   或 overflow_bytes 达 byte_cap」，两判据共用同一条 disconnect + BrokenPipe 路径，
+   错误文案区分字节/条数便于定位慢副本。
    泵的两处 try_pop（单帧弹取、贪婪消费）弹帧后 fetch_sub 对应字节；pending_frame 续传不重复计量。
 4. 订正自述注释：replica_wire.rs 顶部模块注释、MAX_OVERFLOW_ENTRIES 文档、send_or_enqueue 文档，
    改写为「条数 + 字节双封顶」。
 
 测试
-- replica_wire.rs 单测：仿 tcp_wire_not_connected 构造 TcpSessionWire（pump_alive 关，直发失败入溢流），
-  连续 append_log 大 payload 帧，断言在字节阈值处先于条数断连并返回 BrokenPipe。
+- replica_wire.rs 单测：连静默 loopback 端点使会话通道在位，不启常驻泵、在途帧置位
+  封死直发臂（溢流只积不排、确定性触顶），注入小 byte_cap 连续 append_log 大 payload
+  帧，断言驻留字节计量逐帧累加、字节触顶先于条数断连并返回 BrokenPipe（文案含 byte）；
+  另以 byte_cap 放开、小 payload 帧灌满 10000 条断言条数判据照常生效（文案含 entry）。
+  （原案「pump_alive 关直发失败入溢流」不成立，见 task/reject/repl-send-bytecap-testsketch.md）
 - pump.rs 单测：以真 loopback 调 write_pump，注入小阈值，喂若干 fire-and-forget 帧超阈值，
   对端读尽全部字节，断言分片刷出不丢帧、不乱序、连接健康（TCP 合包不可观测单次 write 边界，
   故以「全量到达」回归分片代码路径）。

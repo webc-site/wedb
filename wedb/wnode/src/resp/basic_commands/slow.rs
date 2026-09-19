@@ -6,6 +6,7 @@
 //! 产出与快路径逐字节一致的应答。参数推导一律转调快侧同一纯函数，
 //! 不在本模块重写第二套推导。
 
+use itoa::Buffer as ItoaBuffer;
 use wbase::num::{strict_f64, strict_i32, strict_i64};
 use wbitmap::{
   BitFieldSecondaryCommand, BitOpAccumulator, BitmapOperation, bit_count_driver, bit_field_execute,
@@ -15,8 +16,10 @@ use wresp::{
   cmd_strings::{self as cs, RESP_ERR_GENERIC, RESP_ERR_WRONG_TYPE, abort_with_error_message},
   command::RespCommand,
   ext::RespVecExt,
+  resp_memory_writer::format_double,
 };
 use wval::{GarnetObjectType, KeyTag};
+use zmij::Buffer as ZmijBuffer;
 
 use super::{
   ObjectSubCmd,
@@ -435,7 +438,7 @@ pub(crate) async fn string_slow(
         abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
         return Ok(());
       };
-      let mut buf = itoa::Buffer::new();
+      let mut buf = ItoaBuffer::new();
       storage
         .rmw_string(&window, buf.format(next).as_bytes())
         .await
@@ -477,8 +480,8 @@ pub(crate) async fn string_slow(
         return Ok(());
       }
       // 对标 NumUtils.WriteDouble：无指数记法十进制表示，整数结果无小数点
-      let mut buf = zmij::Buffer::new();
-      let formatted = wresp::resp_memory_writer::format_double(next, &mut buf);
+      let mut buf = ZmijBuffer::new();
+      let formatted = format_double(next, &mut buf);
       storage
         .rmw_string(&window, formatted.as_bytes())
         .await

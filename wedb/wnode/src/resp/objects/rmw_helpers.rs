@@ -258,8 +258,8 @@ where
     let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
     let result1 = obj_out.result1;
 
-    if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
-      if apply_rmw_post_operate(
+    if (handlers.should_write)(cmd.op, &obj_out, &obj, existed)
+      && apply_rmw_post_operate(
         storage,
         cmd.key,
         cmd.tag,
@@ -270,10 +270,9 @@ where
       )
       .await
       .is_err()
-      {
-        obj_out.reset();
-        return Err(());
-      }
+    {
+      obj_out.reset();
+      return Err(());
     }
 
     return Ok(ObjLoad::Present(RespRmwDone {
@@ -311,8 +310,8 @@ where
   let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
   let result1 = obj_out.result1;
 
-  if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
-    if apply_rmw_post_operate(
+  if (handlers.should_write)(cmd.op, &obj_out, &obj, existed)
+    && apply_rmw_post_operate(
       storage,
       cmd.key,
       cmd.tag,
@@ -323,10 +322,9 @@ where
     )
     .await
     .is_err()
-    {
-      obj_out.reset();
-      return Err(());
-    }
+  {
+    obj_out.reset();
+    return Err(());
   }
 
   Ok(ObjLoad::Present(RespRmwDone {

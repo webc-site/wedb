@@ -1,8 +1,10 @@
 //! FLUSH 族 AOF 条目生产 → 回放闭环集成测试（主从换号复制链路）
 //!
 //! 覆盖：enqueue_safe_flush_aof 域载荷 [ns: u64 LE][db: u64 LE] 经回放对称
-//! 解析（u64 全宽无 u8 截断）、FlushDb/FlushNs 条目从库回放按**物理域**退役
-//! （条目落回自身前缀、载荷旧域判死、他域完好、清后新写可见、映射面零改动）、主库门控（is_primary = false 不入队）、
+//! 解析（u64 全宽无 u8 截断）、FlushDb/FlushNs 条目从库回放**只作屏障**（doc/zh/
+//! db.md「主库换号（FlushDb/FlushNs 条目）即屏障」），映射继承与旧域判死一律由
+//! 先行的 KeyTag::DbMeta 镜像条目承接（他域完好、清后新写可见、副本映射面逐值
+//! 等于主库镜像值＝零本地二次取号）、主库门控（is_primary = false 不入队）、
 //! FlushAll 广播全清、RESP 主路径经清库唯一漏斗真生产广播条目端到端闭环。
 //!
 //! 对标 C#：SingleDatabaseManager.cs:SafeFlushAOF（清库执行段原子补写广播
@@ -15,6 +17,7 @@ use aok::{OK, Void};
 use compio::{net::TcpStream, runtime::Runtime};
 use waof::{AofEntryType, AofHeader, AofHeaderType};
 use wconf::RuntimeServerOptions;
+use wkv::DbMetaRecord;
 use wnode::{
   aof::{
     aof_processor::{AofProcessor, ReplayTarget, parse_flush_domain},
@@ -72,6 +75,37 @@ fn enqueue_upsert_at(
   })?)
 }
 
+/// 主库换号事务的 DbMeta 镜像条目入队（生产形态复刻，副本映射体系的唯一同步
+/// 通道）
+///
+/// 主库 `WedbStore::commit_swap` 原子批按安全顺序 `[新映射, 旧域退役墓碑?,
+/// 0x05 分配水位]` 落盘（doc/zh/db.md「即时原子提交」段），每条 `KeyTag::DbMeta`
+/// 记录经 `service.rs:on_aof_store_event` 放行的写端口镜像为一条 StoreUpsert
+/// 条目：键 = 根域前缀 (0, 0) + DbMeta 标签 + 记录键载荷、值 = 定长记录值
+///（布局单点 `wkv::DbMetaRecord`，本函数据其 `key()/value()` 组条目，不手写
+/// 字节）。落盘先于同事务的 FlushDb / FlushNs 广播条目入队，故回放按序到达即
+/// 映射已就位。
+///
+/// 对标 C# 无对位（单租户、每库独立 store，无虚拟域映射可镜像）；本仓对位口径
+/// 见 doc/zh/db.md「主从物理镜像与异步屏障」：「物理日志复制与 Checkpoint 直接
+/// 镜像主库的 KeyTag::DbMeta 与数据记录。从库完全继承主库的映射体系，不进行
+/// 本地二次映射」
+fn enqueue_dbmeta_mirror(log: &GarnetLog, records: &[DbMetaRecord]) -> aok::Result<()> {
+  for rec in records {
+    let key = NamespaceDbCodec::encode_tagged_key(0, 0, KeyTag::DbMeta, rec.key().as_slice());
+    log.enqueue(&RecordShape {
+      op_type: AofEntryType::StoreUpsert,
+      version: 1,
+      session_id: 1,
+      key: key.as_slice(),
+      value: rec.value().as_slice(),
+      input: &[],
+      database_id: 0,
+    })?;
+  }
+  Ok(())
+}
+
 /// 从库空库全量回放（提交位点 0 起）
 async fn replica_replay(
   rstore: &Arc<wkv::WedbStore<wdev::SegmentedDevice>>,
@@ -112,12 +146,14 @@ fn mapping_face(store: &Arc<wkv::WedbStore<wdev::SegmentedDevice>>) -> MappingFa
 }
 
 /// 域载荷 u64 全宽对称闭环：FlushDb(vns=0x0102_0304_0506_0708, 换号前旧 vdb=42)
-/// 若经 C# databaseId 1 字节形态必截断为 0x08；回放臂按**物理域**退役条目载荷
-/// 域，退役墓碑因此记在全宽 vns 上（`GcDeadEntry::vns`），截断形态只能落成 8。
+/// 若经 C# databaseId 1 字节形态必截断为 0x08；换号批镜像条目（0x04 库级退役
+/// 墓碑）把该旧域按**全宽 vns** 记进副本死亡账本（`GcDeadEntry::vns`），截断
+/// 形态只能落成 8；FlushDb 条目自身只作屏障（doc/zh/db.md「主库换号
+///（FlushDb/FlushNs 条目）即屏障」）。
 ///
 /// 探针一律经物理域直设（回放面唯一口径，见 `KeyContextGuard` 文档）：条目键
-/// 前缀即入账会话当时的虚拟号，从库绝不本地二次映射——在无继承映射的全新副本
-/// 上拿逻辑入口 `set_context` 判读只会盲分配新号，读到的从来不是条目域。
+/// 前缀即主库换号前的虚拟号，从库绝不本地二次映射——映射与判死全部来自镜像
+/// 条目，故副本映射面逐值等于镜像值、本地分配器零触发。
 #[test]
 fn test_flush_entry_payload_u64_domain() -> Void {
   let rt = Runtime::new()?;
@@ -129,11 +165,32 @@ fn test_flush_entry_payload_u64_domain() -> Void {
 
     enqueue_upsert_at(log, vns, 42, b"hit", b"v")?;
     enqueue_upsert_at(log, 8, 43, b"decoy", b"v")?;
+    // 主库换号批镜像：逻辑租户 5 → vns 全宽值，逻辑库 0 换指新号 44，旧域
+    // (vns, 42) 判死，水位抬到 45
+    enqueue_dbmeta_mirror(
+      log,
+      &[
+        DbMetaRecord::NsMap { logic_ns: 5, vns },
+        DbMetaRecord::DbMap {
+          vns,
+          logic_db: 0,
+          vdb: 44,
+        },
+        DbMetaRecord::GcDeadDb {
+          expired_at: 1,
+          vns,
+          old_vdb: 42,
+          tail_address: 0,
+        },
+        DbMetaRecord::NextId {
+          next_virtual_id: 45,
+        },
+      ],
+    )?;
     let _ = log.enqueue_safe_flush_aof(AofEntryType::FlushDb, true, vns, 42)?;
     log.commit();
 
     let (_rdir, rstore) = open_test_store("flush-payload-replica.db")?;
-    let face_before = mapping_face(&rstore);
     replica_replay(&rstore, &aof).await?;
 
     // 条目逐部落回自身物理前缀，他域条目不被错域退役波及
@@ -150,21 +207,44 @@ fn test_flush_entry_payload_u64_domain() -> Void {
       .vdb
       .gc_dead
       .get(&42)
-      .expect("FlushDb 条目须落旧域退役墓碑");
+      .expect("换号批 0x04 墓碑镜像条目须落旧域退役墓碑");
     assert_eq!(
       dead.vns,
       Some(vns),
-      "墓碑所属虚拟命名空间须等于条目载荷全宽值（截断即落 8）"
+      "墓碑所属虚拟命名空间须等于换号批载荷全宽值（截断即落 8）"
     );
     assert!(
       rstore.vdb.is_dead_domain(vns, 42),
       "载荷域 (全宽 vns, 42) 须判死"
     );
-    // 回放侧零二次映射：条目物理号绝不物化为逻辑号
+    // 回放侧零二次映射：映射面逐值等于主库镜像值，条目物理号绝不物化为逻辑号
+    // （水位取 `fetch_max` 单调抬升：镜像 NsMap/DbMap 落域即把水位推到 `号+1`，
+    // 其后 0x05 记录只前进不回退——本测试刻意用全宽 u64 虚拟号（远超真实取号
+    // 序列），故水位由该号抬升主导；u8 截断形态只会得到 routing_vns=[0,8] 与
+    // 水位 45，两面同时失配）
     assert_eq!(
       mapping_face(&rstore),
-      face_before,
-      "回放侧映射面（租户表 / 路由表 / 分配水位）须零改动"
+      MappingFace {
+        logic_ns: vec![0, 5],
+        routing_vns: vec![0, vns],
+        water_mark: vns + 1,
+      },
+      "副本映射面须逐值等于主库镜像值（继承映射体系，本地取号器零触发）"
+    );
+    // 继承后的逻辑入口解析到主库新号，旧域键经逻辑入口不可达
+    assert!(
+      probe.set_context(5, 0),
+      "镜像映射在册：逻辑域 (5, 0) 可物化"
+    );
+    assert_eq!(
+      rstore.vdb.route_vdb_of(vns, 0),
+      Some(44),
+      "逻辑库 0 须换指主库镜像的新虚拟号"
+    );
+    assert_eq!(
+      probe.read(b"hit").await?,
+      None,
+      "换号后旧域 (全宽 vns, 42) 键经逻辑入口不可达"
     );
     OK
   })
@@ -238,13 +318,13 @@ fn test_flush_domain_under_transaction_header() -> Void {
 }
 
 /// 主从换号条目回放闭环（物理域口径）：主库域 (vns=3, vdb=7) 两条数据条目 →
-/// FlushDb(3, 7) 条目 → 清后新号域 (3, 8) 写入条目。副本侧每条条目严格落回
-/// 自身物理前缀（物理镜像承诺）、载荷旧域 (3, 7) 判死、他租户域 (5, 1) 完好，
-/// 且映射面全程零改动（从库继承主库映射体系，绝不本地二次映射）。
+/// 换号批 DbMeta 镜像条目 → FlushDb(3, 7) 屏障条目 → 清后新号域 (3, 8) 写入
+/// 条目。副本侧每条条目严格落回自身物理前缀（物理镜像承诺）、载荷旧域 (3, 7)
+/// 经镜像墓碑判死、他租户域 (5, 1) 完好，且映射面逐值等于主库镜像值（从库继承
+/// 主库映射体系，绝无本地二次取号）。
 ///
-/// 「旧域经逻辑入口不可达 + 副本换号与主库锁步同号」须真映射继承形态方能判读
-///（无继承映射的副本上逻辑入口只会盲分配新号），见
-/// `aof_replay_domain.rs::tail_flushdb_replay_swaps_inherited_domain`。
+/// 「旧域经逻辑入口不可达 + 副本换号与主库锁步同号」正由镜像继承形态判读——
+/// 副本逻辑入口 (2, 0) 解析到主库换入的新号 8，与主库同号。
 #[test]
 fn test_flush_db_replica_replays_entry_domains_without_local_remap() -> Void {
   let rt = Runtime::new()?;
@@ -257,7 +337,30 @@ fn test_flush_db_replica_replays_entry_domains_without_local_remap() -> Void {
     enqueue_upsert_at(log, 3, 7, b"k1", b"v1")?;
     enqueue_upsert_at(log, 3, 7, b"k2", b"v2")?;
     enqueue_upsert_at(log, 5, 1, b"keep", b"vk")?;
-    // FLUSHDB 清库执行段：主库换号后原子补写 FlushDb(3, 7)
+    // 主库 FLUSHDB 换号批镜像：逻辑租户 2 → vns 3、逻辑库 0 换指新号 8、
+    // 旧域 (3, 7) 判死、水位抬到 9（commit_swap 落盘先于本事务的 FlushDb 条目）
+    enqueue_dbmeta_mirror(
+      log,
+      &[
+        DbMetaRecord::NsMap {
+          logic_ns: 2,
+          vns: 3,
+        },
+        DbMetaRecord::DbMap {
+          vns: 3,
+          logic_db: 0,
+          vdb: 8,
+        },
+        DbMetaRecord::GcDeadDb {
+          expired_at: 1,
+          vns: 3,
+          old_vdb: 7,
+          tail_address: 0,
+        },
+        DbMetaRecord::NextId { next_virtual_id: 9 },
+      ],
+    )?;
+    // FLUSHDB 清库执行段：主库换号后原子补写 FlushDb(3, 7)（回放射仅屏障）
     let _ = log.enqueue_safe_flush_aof(AofEntryType::FlushDb, false, 3, 7)?;
     // 清后主库按新虚拟号 (3, 8) 写入
     enqueue_upsert_at(log, 3, 8, b"fresh", b"vf")?;
@@ -265,7 +368,6 @@ fn test_flush_db_replica_replays_entry_domains_without_local_remap() -> Void {
 
     // ── 从库回放段 ──
     let (_rdir, rstore) = open_test_store("flush-follow-replica.db")?;
-    let face_before = mapping_face(&rstore);
     replica_replay(&rstore, &aof).await?;
 
     // 条目落回自身物理域，载荷旧域判死，他租户完好
@@ -278,7 +380,7 @@ fn test_flush_db_replica_replays_entry_domains_without_local_remap() -> Void {
     );
     assert!(
       rstore.vdb.is_dead_domain(3, 7),
-      "FlushDb 条目须把载荷旧域 (3, 7) 投进本地 GC 死亡账本"
+      "换号批墓碑镜像条目须把载荷旧域 (3, 7) 投进本地 GC 死亡账本"
     );
     assert!(!rstore.vdb.is_dead_domain(3, 8), "清后新域 (3, 8) 不得判死");
     probe.set_virtual_context(5, 1);
@@ -288,19 +390,50 @@ fn test_flush_db_replica_replays_entry_domains_without_local_remap() -> Void {
       "他租户域不受 FlushDb 波及"
     );
     assert!(!rstore.vdb.is_dead_domain(5, 1), "他租户域不得判死");
-    // 回放侧零二次映射：条目物理号绝不物化为逻辑库/租户
+    // 回放侧零二次映射：映射面逐值等于主库镜像条目值，条目物理号绝不物化为
+    // 本地新号（他租户物理域 vns 5 未在册即证镜像之外的号不落逻辑面）
     assert_eq!(
       mapping_face(&rstore),
-      face_before,
-      "无继承映射的副本回放侧映射面须零改动"
+      MappingFace {
+        logic_ns: vec![0, 2],
+        routing_vns: vec![0, 3],
+        water_mark: 9,
+      },
+      "副本映射面须逐值等于主库镜像值（继承映射体系，本地取号器零触发）"
+    );
+    assert_eq!(
+      rstore.vdb.route_vdb_of(3, 0),
+      Some(8),
+      "副本路由格须直指主库换入的新号（锁步同号）"
+    );
+    // 继承映射后旧域经逻辑入口不可达、清后新号可读
+    assert!(
+      probe.set_context(2, 0),
+      "镜像映射在册：逻辑域 (2, 0) 可物化"
+    );
+    assert_eq!(
+      probe.read(b"k1").await?,
+      None,
+      "换号后旧域键经逻辑入口不可达"
+    );
+    assert_eq!(
+      probe.read(b"k2").await?,
+      None,
+      "换号后旧域键经逻辑入口不可达"
+    );
+    assert_eq!(
+      probe.read(b"fresh").await?,
+      Some(b"vf".to_vec()),
+      "清后新号域写入经逻辑入口可读"
     );
     OK
   })
 }
 
-/// FlushNs 回放闭环（物理域口径）：ns 5 域两库数据条目 → FlushNs(旧 vns=5)
-/// 条目 → 载荷空间判死（其内条目域再无在册逻辑入口），他空间 (3, 1) 条目与
-/// 存续态完好，副本映射面零改动
+/// FlushNs 回放闭环（物理域口径）：ns 5 域两库数据条目 → 整空间换号批 DbMeta
+/// 镜像条目（0x01 新空间映射 + 0x03 旧空间退役墓碑 + 0x05 水位）→ FlushNs(旧
+/// vns=5) 屏障条目 → 载荷空间判死（其内条目域再无在册逻辑入口），他空间 (3, 1)
+/// 条目与存续态完好，副本映射面逐值等于镜像值（本地取号器零触发）
 #[test]
 fn test_flush_ns_replica_replay() -> Void {
   let rt = Runtime::new()?;
@@ -312,12 +445,28 @@ fn test_flush_ns_replica_replay() -> Void {
     enqueue_upsert_at(log, 5, 1, b"n1", b"v1")?;
     enqueue_upsert_at(log, 5, 2, b"n2", b"v2")?;
     enqueue_upsert_at(log, 3, 1, b"safe", b"vs")?;
-    // 非 0 租户 FLUSHALL 清库执行段：整 ns 换号后补写 FlushNs(旧 vns=5)
+    // 主库 flush_namespace(逻辑 ns 9) 换号批镜像：旧空间 vns 5 判死、逻辑 ns 9
+    // 换指新空间 vns 6、水位抬到 7
+    enqueue_dbmeta_mirror(
+      log,
+      &[
+        DbMetaRecord::NsMap {
+          logic_ns: 9,
+          vns: 6,
+        },
+        DbMetaRecord::GcDeadNs {
+          expired_at: 1,
+          old_vns: 5,
+          tail_address: 0,
+        },
+        DbMetaRecord::NextId { next_virtual_id: 7 },
+      ],
+    )?;
+    // 非 0 租户 FLUSHALL 清库执行段：整 ns 换号后补写 FlushNs(旧 vns=5)（屏障）
     let _ = log.enqueue_safe_flush_aof(AofEntryType::FlushNs, false, 5, 0)?;
     log.commit();
 
     let (_rdir, rstore) = open_test_store("flush-ns-replica.db")?;
-    let face_before = mapping_face(&rstore);
     replica_replay(&rstore, &aof).await?;
 
     let probe = rstore.new_session()?;
@@ -333,7 +482,10 @@ fn test_flush_ns_replica_replay() -> Void {
       Some(b"v2".to_vec()),
       "n2 须落回其条目物理域 (5, 2)"
     );
-    assert!(rstore.vdb.is_dead_ns(5), "FlushNs 条目须把旧空间判死");
+    assert!(
+      rstore.vdb.is_dead_ns(5),
+      "0x03 空间退役墓碑镜像条目须把旧空间判死"
+    );
     assert!(
       rstore.vdb.is_dead_domain(5, 1) && rstore.vdb.is_dead_domain(5, 2),
       "退役空间内的条目域整体判死"
@@ -348,10 +500,21 @@ fn test_flush_ns_replica_replay() -> Void {
       !rstore.vdb.is_dead_domain(3, 1) && !rstore.vdb.is_dead_ns(3),
       "他空间不得判死（退役墓碑只记载荷旧 vns）"
     );
+    // 回放侧零二次映射：映射面逐值等于镜像换号批值（条目物理号 vns 3/5 不
+    // 物化为逻辑租户）
     assert_eq!(
       mapping_face(&rstore),
-      face_before,
-      "FlushNs 回放侧映射面须零改动（条目物理号不得物化为逻辑租户）"
+      MappingFace {
+        logic_ns: vec![0, 9],
+        routing_vns: vec![0],
+        water_mark: 7,
+      },
+      "FlushNs 回放侧映射面须逐值等于主库镜像值（本地取号器零触发）"
+    );
+    assert_eq!(
+      rstore.vdb.vns_of_ns(9),
+      Some(6),
+      "换号后逻辑空间须直指主库新空间号（锁步同号）"
     );
     OK
   })

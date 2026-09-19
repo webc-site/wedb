@@ -618,9 +618,7 @@ pub(crate) fn parse_setex_args<'p>(
   parse_state: &[&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], i64, &'p [u8])> {
-  let Some([key, expiry_raw, val]) = unpack_args(parse_state, output, cmd_name) else {
-    return None;
-  };
+  let [key, expiry_raw, val] = unpack_args(parse_state, output, cmd_name)?;
   let Some(expiry) = strict_i32(expiry_raw) else {
     abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;
@@ -641,9 +639,7 @@ pub(crate) fn parse_setrange_args<'p>(
   parse_state: &[&'p [u8]],
   output: &mut Vec<u8>,
 ) -> Option<(&'p [u8], usize, &'p [u8])> {
-  let Some([key, offset_raw, val]) = unpack_args(parse_state, output, "SETRANGE") else {
-    return None;
-  };
+  let [key, offset_raw, val] = unpack_args(parse_state, output, "SETRANGE")?;
   let Some(offset) = strict_i32(offset_raw) else {
     abort_with_error_message(output, cs::RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER);
     return None;

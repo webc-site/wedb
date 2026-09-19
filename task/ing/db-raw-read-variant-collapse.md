@@ -1,24 +1,8 @@
 优先级：中
 来源：next/db-raw-read-variant-collapse.md 认领细化。取证基线：主仓 dev 当下代码。
 
-甄别结论
-
-票面「收敛为单点 read_core + 统一读上下文结构体（前缀 buf、KeyTag、with_size 标志、
-unprotected 标志）」的修法拒绝：变体面不是机械组合爆炸，逐维度 grep 实测调用点数
-try_read_sync 36、read_tag_with 53、read_raw 41、read_raw_with 20、
-try_read_tag_sync_with_size 7、try_read_tag_in_memory_unprotected_with_prefix 5、
-try_read_tag_sync_unprotected 5、try_read_raw_in_memory 5、
-try_read_tag_sync_unprotected_with_prefix 2、try_read_raw_in_memory_with_addr 2（外部）、
-try_read_tag_in_memory_unprotected 2（外部）、try_read_tag_in_memory_with_size 1，
-每一维度都有活调用方，且 with_prefix 维度是 transpile SKILL「循环前缀外提」硬性要求，
-with_size 维度是 MEMORY USAGE 单内核要求（杜绝平行统计链），unprotected 维度是纪元
-开销规避要求。C# 侧 ClientSession/Read 便捷包装本就分层
-（garnet/libs/server/Sessions/ 与 libs/server/Storage/Functions/MainStore/ReadMethods.cs），
-把包装压成带运行时标志的 read_core 反而把 C# 没有的复杂度引进来，并破坏单态化内联
-（read.rs:437 注释实测退化约 12%）。公开包装面一律保留。
-
-票面「17 个 pub 方法」数字不实：本文件 pub 读方法 16 个（with_addr_reader、
-try_read_mem、try_read_mem_fallback、read_from_disk、promote 为私有或 pub(super)）。
+甄别记录：上游票面「单点 read_core 收敛」修法与「17 改 16」纠偏均已判否，
+全文移 task/reject/db-raw-read-variant-collapse.md。
 
 采纳的真问题（内核层确有三套重复机制）
 
