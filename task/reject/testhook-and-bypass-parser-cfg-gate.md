@@ -141,7 +141,7 @@ test_hook 五口（另 active_instance_count/reset_all_instances）仍裸 pub �
 交叉与后续
 1. 票内「盘点补记」对旁路解析器两口的缩窄结论正确（本档主张三/主张二第 3 点即其证据），但它对 TestHook 五口
    「仍裸 pub 无 cfg/可见性门」的残留判定与现刻代码不符——epoch.rs:734 的门自 root 提交即在
-   （`git log --oneline -- wedb/wepoch/src/epoch.rs` 全史仅 31c2388 init，仓库为 98 提交、root 即全量入库，
+   （`git log --oneline -- wedb/wepoch/src/epoch.rs` 全史仅 31c2388 init，root 即全量入库，
    无从判「后补」，只认现刻代码即成立）。
 2. 边界自述复核：批五/批六（zero-consumer-dead-surfaces-batch-five/six，后者在 task/ing/ 在途）与本票符号集
    test_hook_* / parse_resp_command_buffer / fuzz_parse_command_buffer / active_instance_count /

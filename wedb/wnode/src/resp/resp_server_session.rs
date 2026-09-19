@@ -1598,7 +1598,7 @@ impl RespServerSession {
       key_specs,
     });
     Some(TxnQueuedCommandInfo {
-      name: name.to_string(),
+      name,
       arity: i32::from(info.arity),
       allowed_in_txn: info.allowed_in_txn,
       is_sub_command: info.is_sub_command,
