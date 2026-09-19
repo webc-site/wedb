@@ -582,7 +582,11 @@ fn acl_setuser_propagates_to_live_connections() {
     .is_some()
   );
   assert_eq!(drain_output(&mut admin), b"+OK\r\n");
-  assert_eq!(store.acl_generation(), generation + 1, "SETUSER 写口须推进代数");
+  assert_eq!(
+    store.acl_generation(),
+    generation + 1,
+    "SETUSER 写口须推进代数"
+  );
 
   // 受害连接不重连、不重认证，下一条命令即 NOPERM
   assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
@@ -607,21 +611,42 @@ fn acl_setuser_propagates_to_live_connections() {
   assert!(feed(&mut victim, b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$2\r\npw\r\n").is_some());
   assert_eq!(
     drain_output(&mut victim),
-    format!("-{}\r\n", cmd_strings::RESP_WRONGPASS_INVALID_USERNAME_PASSWORD).as_bytes()
+    format!(
+      "-{}\r\n",
+      cmd_strings::RESP_WRONGPASS_INVALID_USERNAME_PASSWORD
+    )
+    .as_bytes()
   );
-  assert!(feed(&mut victim, b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$5\r\nnewpw\r\n").is_some());
+  assert!(
+    feed(
+      &mut victim,
+      b"*3\r\n$4\r\nAUTH\r\n$1\r\nu\r\n$5\r\nnewpw\r\n"
+    )
+    .is_some()
+  );
   assert_eq!(drain_output(&mut victim), b"+OK\r\n");
 
   // DELUSER：删除即推进代数，受害连接按未认证处理（句柄与认证器镜像同撤）
   let generation = store.acl_generation();
   assert!(
-    feed(&mut admin, b"*3\r\n$3\r\nACL\r\n$7\r\nDELUSER\r\n$1\r\nu\r\n").is_some()
+    feed(
+      &mut admin,
+      b"*3\r\n$3\r\nACL\r\n$7\r\nDELUSER\r\n$1\r\nu\r\n"
+    )
+    .is_some()
   );
   assert_eq!(drain_output(&mut admin), b":1\r\n");
-  assert_eq!(store.acl_generation(), generation + 1, "DELUSER 删口须推进代数");
+  assert_eq!(
+    store.acl_generation(),
+    generation + 1,
+    "DELUSER 删口须推进代数"
+  );
 
   assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
-  assert_eq!(drain_output(&mut victim), b"-NOAUTH Authentication required.\r\n");
+  assert_eq!(
+    drain_output(&mut victim),
+    b"-NOAUTH Authentication required.\r\n"
+  );
   assert!(victim.user_handle.is_none(), "记录已删按未认证处理");
   assert!(victim.acl_user_handle.is_none(), "已撤挂载");
 }
@@ -639,7 +664,13 @@ fn acl_generation_gate_skips_store_read_on_equal_generation() {
   acl_store.write(0, b"fast", &denied.to_bytes()).unwrap();
 
   let mut victim = acl_session(&acl, &store);
-  assert!(feed(&mut victim, b"*3\r\n$4\r\nAUTH\r\n$4\r\nfast\r\n$2\r\npw\r\n").is_some());
+  assert!(
+    feed(
+      &mut victim,
+      b"*3\r\n$4\r\nAUTH\r\n$4\r\nfast\r\n$2\r\npw\r\n"
+    )
+    .is_some()
+  );
   assert_eq!(drain_output(&mut victim), b"+OK\r\n");
   assert!(feed(&mut victim, b"*2\r\n$3\r\nGET\r\n$1\r\nk\r\n").is_some());
   assert_eq!(

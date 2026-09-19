@@ -437,7 +437,10 @@ fn test_eval_acl_live_propagation() {
 
   let mut victim = acl_session(&store, &acl, "live", "pw");
   assert_eq!(
-    cmd(&mut victim, vec![b"SET".to_vec(), b"foo".to_vec(), b"bar".to_vec()]),
+    cmd(
+      &mut victim,
+      vec![b"SET".to_vec(), b"foo".to_vec(), b"bar".to_vec()]
+    ),
     b"+OK\r\n"
   );
 

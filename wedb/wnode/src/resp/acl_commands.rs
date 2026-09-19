@@ -724,7 +724,10 @@ impl RespServerSession {
     // 捷径——记录读【前】采代数、读后整体替换句柄，与预门臂共用同一 adopt
     // 出口、同一失效判据，无第二套口径
     if let Some((name, ns)) = refresh_target {
-      let generation = self.garnet_api.as_ref().and_then(|api| api.acl_generation());
+      let generation = self
+        .garnet_api
+        .as_ref()
+        .and_then(|api| api.acl_generation());
       if let Ok(Some(bytes)) = store.read(ns, name.as_bytes())
         && let Ok(user) = User::from_rule_bytes(&name, &bytes)
       {

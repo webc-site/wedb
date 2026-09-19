@@ -986,23 +986,35 @@ impl RespServerSession {
       Some(Ok(Some(record))) => match User::from_rule_bytes(&username, &record) {
         Ok(new_user) => adopted = Some(new_user),
         Err(err) => {
-          log::warn!("ACL 命名空间 {} 用户 {username} 规则解析失败，按未认证处理: {err}", self.namespace);
+          log::warn!(
+            "ACL 命名空间 {} 用户 {username} 规则解析失败，按未认证处理: {err}",
+            self.namespace
+          );
           revoke = true;
         }
       },
       // 引导期内存单例（requirepass / nopass 的 default）存储恒无同名记录，
       // 维持挂载；命名用户句柄本就取自记录，无记录即用户已删
       Some(Ok(None)) if mount.from_store => {
-        log::warn!("ACL 命名空间 {} 用户 {username} 记录已删，按未认证处理", self.namespace);
+        log::warn!(
+          "ACL 命名空间 {} 用户 {username} 记录已删，按未认证处理",
+          self.namespace
+        );
         revoke = true;
       }
       Some(Ok(None)) => {
-        self.acl_mount = Some(AclMount { generation: Some(current), ..mount });
+        self.acl_mount = Some(AclMount {
+          generation: Some(current),
+          ..mount
+        });
         return;
       }
       // 存储访问失败：保持现挂载与陈旧代数，下一命令重判（不误撤健康会话）
       Some(Err(err)) => {
-        log::warn!("ACL 命名空间 {} 用户 {username} 规则点查失败，本命令沿用现权限并待重判: {err}", self.namespace);
+        log::warn!(
+          "ACL 命名空间 {} 用户 {username} 规则点查失败，本命令沿用现权限并待重判: {err}",
+          self.namespace
+        );
         return;
       }
       None => return,
@@ -1031,8 +1043,10 @@ impl RespServerSession {
     }
     self.user_handle = Some(handle.user().name.clone());
     self.acl_user_handle = Some(handle);
-    self.acl_mount =
-      self.acl_authenticator.as_ref().map(|_| AclMount { generation, from_store: true });
+    self.acl_mount = self.acl_authenticator.as_ref().map(|_| AclMount {
+      generation,
+      from_store: true,
+    });
   }
 
   /// 撤销 ACL 挂载：会话句柄与认证器镜像同撤（两处挂载恒为同一 Arc），

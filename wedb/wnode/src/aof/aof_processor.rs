@@ -939,7 +939,10 @@ impl AofProcessor {
   ) -> Result<(), AofReplayError> {
     // 条件写形态（EX/NX 等经 StoreRMW 路径回放）；upsert 直写
     if tag == KeyTag::Acl {
-      session.upsert_tag(key, KeyTag::Acl, value).await.map_err(AofReplayError::Store)?;
+      session
+        .upsert_tag(key, KeyTag::Acl, value)
+        .await
+        .map_err(AofReplayError::Store)?;
       // 回放/复制链路改的是同一份 ACL 真源：代数一并推进，本节点在途会话
       // 下一次鉴权即收敛（与 resp::acl_store::AclStore::write 同判据）
       session.batch.store().bump_acl_generation();
