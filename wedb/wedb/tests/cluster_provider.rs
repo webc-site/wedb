@@ -39,7 +39,7 @@ fn primary_recovering_takes_current_replication_offset() {
   assert!(rm.is_recovering());
 
   let mut covered = AofAddress::create(1, 0);
-  provider.on_checkpoint_initiated(&mut covered);
+  <ClusterProvider as CheckpointCallbackFace>::on_checkpoint_initiated(&provider, &mut covered);
   assert_eq!(
     covered.get(0),
     current.get(0),
@@ -64,7 +64,7 @@ fn replica_by_config_takes_checkpoint_start_offset() {
   rm.set_replication_checkpoint_start_offset(start);
 
   let mut covered = AofAddress::create(1, 0);
-  provider.on_checkpoint_initiated(&mut covered);
+  <ClusterProvider as CheckpointCallbackFace>::on_checkpoint_initiated(&provider, &mut covered);
   assert_eq!(
     covered.get(0),
     start.get(0),
