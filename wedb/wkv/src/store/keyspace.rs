@@ -324,9 +324,21 @@ impl<D: Device> WedbStore<D> {
 
   /// 退役指定物理库域（AOF FlushDb 回放屏障与兜底判死）
   ///
-  /// 仅当旧域尚未判死时登记本地 GC 死亡账本并联动树回收，
-  /// 映射面（租户表/路由表/分配水位）全程零改动，不进行本地二次映射
+  /// 若在册路由表中尚有逻辑库格指向该旧域（条目未被先行 DbMeta 换指），
+  /// 原子单格换指使逻辑入口不可达旧域；随后判死旧域并联动树回收
   pub fn retire_dead_domain(&self, vns: u64, old_vdb: u64) {
+    if let Some(routing) = self.vdb.db_routing.pin().get(&vns) {
+      let candidate = routing
+        .table
+        .snapshot()
+        .into_iter()
+        .find(|&(_, vdb)| vdb == old_vdb);
+      if let Some((logic_db, _)) = candidate {
+        let new_vdb = self.vdb.alloc_next_virtual_id();
+        routing.table.swap_out(logic_db, new_vdb);
+        self.vdb.bump_generation();
+      }
+    }
     if !self.vdb.is_dead_domain(vns, old_vdb) {
       let (expired_at, tail_address) = self.swap_stamp();
       self.vdb.gc_dead.insert(
@@ -343,9 +355,16 @@ impl<D: Device> WedbStore<D> {
 
   /// 退役指定物理命名空间（AOF FlushNs 回放屏障与兜底判死）
   ///
-  /// 仅当旧空间尚未判死时登记本地 GC 死亡账本并联动树回收，
-  /// 映射面（租户表/路由表/分配水位）全程零改动，不进行本地二次映射
+  /// 若当前命名空间映射尚指向该旧空间（未被先行 DbMeta 换指），
+  /// 换指新空间；随后判死旧空间并联动树回收
   pub fn retire_dead_namespace(&self, old_vns: u64) {
+    if let Some(logic_ns) = self.vdb.logic_ns_of(old_vns)
+      && self.vdb.vns_of_ns(logic_ns) == Some(old_vns)
+    {
+      let new_vns = self.vdb.alloc_next_virtual_id();
+      self.vdb.insert_ns_mapping(logic_ns, new_vns);
+      self.vdb.bump_generation();
+    }
     if !self.vdb.is_dead_ns(old_vns) {
       let (expired_at, tail_address) = self.swap_stamp();
       self.vdb.gc_dead.insert(
