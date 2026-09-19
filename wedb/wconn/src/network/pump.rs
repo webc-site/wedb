@@ -28,7 +28,7 @@ use super::{
 };
 use crate::{
   Error, Result,
-  types::{CommandItem, PumpProgress, ReplyTx},
+  types::{CommandItem, MAX_UNFLUSHED_SEND_BYTES, PumpProgress, ReplyTx},
 };
 
 /// 读泵接收缓冲的池借出下界（实际块规格为池的缓冲尺寸，对标 C#
@@ -93,6 +93,7 @@ pub(crate) async fn network_loop(
       reader_alive_w,
       writer_done_w,
       progress_w,
+      MAX_UNFLUSHED_SEND_BYTES,
     )
     .await
     {
@@ -123,6 +124,11 @@ pub(crate) async fn network_loop(
 /// 超时窗兼作读泵存活轮询：读泵退出（断链/协议错）后写泵在此粒度内收场并
 /// 丢弃 rx，`is_connected` 随之翻假。命令通道断连（调用方全部退场）时置
 /// 计划内标志并 shutdown 写半，驱动读泵 EOF 收场，fd 两半全 drop 关闭连接。
+///
+/// `flush_threshold_bytes` 为单次在途拼批的字节分片阈值：攒批过程中 out_buf 达
+/// 阈值即先刷出、清空后继续收批，使慢副本 + 大记录场景下写泵持有的在途缓冲有界
+///（对标 C# 页满即刷出，NetworkWriter 未刷出字节钉在页环形缓冲内）。生产入口恒取
+/// [`MAX_UNFLUSHED_SEND_BYTES`]，单测可注入小值以廉价输入触发分片路径。
 async fn write_pump(
   mut stream: WriteHalf,
   rx: AsyncRx<mpsc::Array<CommandItem>>,
@@ -130,6 +136,7 @@ async fn write_pump(
   reader_alive: Arc<AtomicBool>,
   writer_done: Arc<AtomicBool>,
   progress: Option<Arc<PumpProgress>>,
+  flush_threshold_bytes: usize,
 ) -> Result<()> {
   // 写出缓冲跨批复用，避免每轮分配清零
   let mut out_buf = Vec::new();
@@ -148,13 +155,7 @@ async fn write_pump(
             match in_flight_tx.try_send(cur) {
               Ok(()) => {}
               Err(TrySendError::Full(cur)) => {
-                let BufResult(res, mut buf) = stream.write_all(out_buf).await;
-                if let Err(e) = res {
-                  let _ = stream.shutdown().await;
-                  return Err(e.into());
-                }
-                buf.clear();
-                out_buf = buf;
+                out_buf = flush_write_buf(&mut stream, out_buf, &progress).await?;
                 if in_flight_tx.send(cur).await.is_err() {
                   // 读泵已退出：在途与未写出项的 oneshot 随通道销毁回传断连；
                   // shutdown 写半兜底唤醒读泵收场
@@ -171,19 +172,15 @@ async fn write_pump(
               p.record_enqueued();
             }
           }
+          // 字节维度分片：拼批攒够阈值即先刷一段，使慢副本 + 大记录场景下写泵持有
+          // 的在途缓冲有界（对标 C# NetworkWriter 页满即刷出、未刷出字节钉在页内）
+          if out_buf.len() >= flush_threshold_bytes {
+            out_buf = flush_write_buf(&mut stream, out_buf, &progress).await?;
+          }
           pending = rx.try_recv().ok();
         }
-        let BufResult(write_res, mut buf) = stream.write_all(out_buf).await;
-        if let Err(e) = write_res {
-          // 写出失败（断链/本地异常）：shutdown 兜底驱动读泵收场
-          let _ = stream.shutdown().await;
-          return Err(e.into());
-        }
-        if let Some(p) = &progress {
-          p.record_sent(buf.len());
-        }
-        buf.clear();
-        out_buf = buf;
+        // 余量刷出：本轮批次收尾，不足阈值的残留一并写出
+        out_buf = flush_write_buf(&mut stream, out_buf, &progress).await?;
       }
       // 调用方全部退场：shutdown 写半驱动读泵 EOF 收场（对端已断时失败可忽略）
       Ok(Err(_)) => {
@@ -196,6 +193,25 @@ async fn write_pump(
       Err(_) => {}
     }
   }
+}
+
+/// 写泵刷出缓冲单点：write_all 落 socket → 记进度 → 清空回接复用（写泵三处
+/// 刷出点共用，杜绝重复）；失败即 shutdown 兜底驱动读泵收场并上抛
+async fn flush_write_buf(
+  stream: &mut WriteHalf,
+  out_buf: Vec<u8>,
+  progress: &Option<Arc<PumpProgress>>,
+) -> Result<Vec<u8>> {
+  let BufResult(res, mut buf) = stream.write_all(out_buf).await;
+  if let Err(e) = res {
+    let _ = stream.shutdown().await;
+    return Err(e.into());
+  }
+  if let Some(p) = progress {
+    p.record_sent(buf.len());
+  }
+  buf.clear();
+  Ok(buf)
 }
 
 /// 读泵：驱动 ProcessReplies 的读循环
@@ -339,6 +355,7 @@ enum Wake {
 #[cfg(test)]
 mod tests {
   use compio::{
+    io::AsyncRead,
     net::{TcpListener, TcpStream},
     runtime::Runtime,
     time::sleep,
@@ -408,6 +425,59 @@ mod tests {
       assert_eq!(pool.allocated_count(), 1, "空闲稳态不得再分配新块");
       // 唯一接收块经 set_buffer + Drop 归池，可供后续连接复用
       assert_eq!(pool.free_count(), 1, "接收缓冲必须归池复用");
+    });
+  }
+
+  /// 写泵字节分片回归：注入远小于帧长的阈值，令拼批循环每帧即触发一次中途刷出，
+  /// 验证分片后对端读到的总字节恰等于各帧编码长度之和（不丢帧、不少字节、不乱序）
+  #[test]
+  fn write_pump_byte_fragmentation_preserves_stream() {
+    Runtime::new().unwrap().block_on(async {
+      let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+      let addr = listener.local_addr().unwrap();
+
+      let accept = spawn(async move { listener.accept().await.unwrap().0 });
+      let client = TcpStream::connect(addr).await.unwrap();
+      let (_read_half, write_half) = OutStream::Tcp(client).split();
+      let mut peer = accept.await.unwrap();
+
+      let (tx, rx) = mpsc::bounded_async::<CommandItem>(8);
+      // 在途队列仅需存活（全为 fire-and-forget 帧不入队）；接收端持有防过早断连
+      let (in_flight_tx, _in_flight_rx) = mpsc::bounded_async::<CommandItem>(8);
+      let reader_alive = Arc::new(AtomicBool::new(true));
+      let writer_done = Arc::new(AtomicBool::new(false));
+
+      // 三帧各 > 64B 阈值：每帧累积即触发一次分片刷出
+      let mut expected = 0usize;
+      for tag in [1u8, 2, 3] {
+        let item = CommandItem::new_bytes(&[&[tag; 128][..]], ReplyTx::None);
+        expected += item.frame.len();
+        tx.send(item).await.unwrap();
+      }
+      drop(tx); // 调用方全部退场 → 写泵收场（shutdown 写半驱动对端 EOF）
+
+      spawn(write_pump(
+        write_half,
+        rx,
+        in_flight_tx,
+        reader_alive,
+        writer_done,
+        None,
+        64,
+      ))
+      .detach();
+
+      let mut acc = Vec::new();
+      let mut buf = vec![0u8; 4096];
+      loop {
+        let BufResult(res, next) = peer.read(buf).await;
+        buf = next;
+        match res.unwrap() {
+          0 => break,
+          n => acc.extend_from_slice(&buf[..n]),
+        }
+      }
+      assert_eq!(acc.len(), expected, "分片刷出不得丢帧或丢字节");
     });
   }
 }
