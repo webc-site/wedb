@@ -97,8 +97,12 @@ js/check/{garnetScan,rustScan}.js 与 check.js 导出的 ignoreLoadAndPrune，�
   这正是主仓 js/check/ignore/{server,storage,test}.yml 长期呈钩子脏的直接来源
   （.husky/pre-commit.js 每次提交跑 fixrs → 连带跑 check.js）。此类无语义 diff 一旦被
   `git add -u` 扫进无关提交，登记与取证书即无声流失——历史上已发生数轮
-  （gate-anchor-drift-reclean §三事故条）。建议主代理把合并窗口前的
-  `git checkout -- js/check/ignore/` 定为固定动作。
+  （gate-anchor-drift-reclean §三事故条）。本棒取证期间该通道已再次落地：并发提交
+  24f4049「wip: 合并前主仓快照(dead-batch-six)」把这份回写挂上 dev，实测改动
+  39+/4-、`#` 取证书零流失，损失面仅两条已被文档锚点覆盖的陈旧条目
+  （storage.yml 的 GetMinRevivifiableAddress 被裁、ConsistentReadContext 块内
+  ResetModified 重排），不新增缺失。风险在该通道本身而非这一次。建议主代理把
+  合并窗口前的 `git checkout -- js/check/ignore/` 定为固定动作。
 - 射程文件本次核实为无需改动：replica_diskless_sync.rs:217 与 cluster_session/replication.rs:531
   两枚精确锚在位未漂移；replica_diskbased_sync.rs 挂的是 ReplicaDiskbasedSync.cs 一族
   （:26、:57），与 PrimarySync.cs 无涉。
