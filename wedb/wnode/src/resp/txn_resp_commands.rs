@@ -456,10 +456,7 @@ pub(crate) struct SessionTxnProcResolver;
 impl TxnProcResolver<RespServerSession> for SessionTxnProcResolver {
   fn get_custom_transaction_procedure(&self, txn_id: u8) -> Option<TxnProcHandle> {
     let (name, arity) = wcustom::txn_proc_meta(txn_id)?;
-    Some(TxnProcHandle {
-      name,
-      arity,
-    })
+    Some(TxnProcHandle { name, arity })
   }
 
   fn try_transaction_proc(
