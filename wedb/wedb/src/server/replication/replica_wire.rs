@@ -673,8 +673,10 @@ mod tests {
   use wconn::session::{encode_append_log_frame, encode_append_log_init_frame};
   use wresp::frame::parse_resp_frame;
 
-  use super::*;
-  use super::test_wire::{CallbackWire, FrameSink};
+  use super::{
+    test_wire::{CallbackWire, FrameSink},
+    *,
+  };
 
   /// 内存通道帧收发：回调收到编码帧且断连后拒绝发送
   #[test]

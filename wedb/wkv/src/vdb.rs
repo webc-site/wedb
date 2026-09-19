@@ -338,12 +338,22 @@ impl DbMetaRecord {
   /// GC 墓碑回收注销：从墓碑键载荷提取被回收的死亡虚拟号（GC 变体载荷末 8
   /// 字节恰为其 vid）；非 GC 载荷或长度不符为 None，不判死
   pub fn dead_vid_of(payload: &[u8]) -> Option<u64> {
+    Some(Self::dead_tombstone_of(payload)?.0)
+  }
+
+  /// 墓碑注销键判别（DbMeta 镜像 StoreDelete 条目应用面）：返回
+  /// `(死亡虚拟号, 是否命名空间级)`，非墓碑键 None
+  ///
+  /// 注销只需要键自足信息（值侧 tail_address 已随判死登记入账），角色由键
+  /// 子类型甄别——命名空间级注销须连带释放废弃租户路由快照
+  /// （[`VirtualDbManager`] 与 [`crate::gc`] 注销编排共用本判别）
+  pub fn dead_tombstone_of(payload: &[u8]) -> Option<(u64, bool)> {
     match payload.first().copied()? {
       Self::SUBTYPE_GC_DEAD_NS if payload.len() == Self::KEY_GC_DEAD_NS_LEN => {
-        get_be64(payload, payload.len() - Self::VALUE_LEN)
+        Some((get_be64(payload, payload.len() - Self::VALUE_LEN)?, true))
       }
       Self::SUBTYPE_GC_DEAD_DB if payload.len() == Self::KEY_GC_DEAD_DB_LEN => {
-        get_be64(payload, payload.len() - Self::VALUE_LEN)
+        Some((get_be64(payload, payload.len() - Self::VALUE_LEN)?, false))
       }
       _ => None,
     }
@@ -716,6 +726,16 @@ impl VirtualDbManager {
     self.next_virtual_id.fetch_add(1, Relaxed)
   }
 
+  /// 单调抬升分配水位（DbMeta 镜像应用面：主库已用的号在本节点绝不再分配）
+  ///
+  /// 从库应用镜像映射/墓碑记录时折叠值侧新号与键侧死亡旧号（与重建收尾
+  /// [`WedbStore::finish_vdb_rebuild`] 的 `fetch_max(max_vid + 1)` 同口径），
+  /// 保证后续本地取号不与主库未来取号撞号
+  #[inline]
+  pub fn bump_watermark(&self, min_next: u64) {
+    self.next_virtual_id.fetch_max(min_next, Relaxed);
+  }
+
   /// 枚举本节点全部活跃逻辑库 `(namespace, db)`（集群库级分片面的唯一
   /// 库枚举取用：CLUSTER COUNTKEYSINSLOT / GETKEYSINSLOT 按库定槽聚合、
   /// 扩缩容整库搬迁枚举本节点持有库，均经此单点，不新增 db 元数据结构）
@@ -1030,55 +1050,6 @@ impl VirtualDbManager {
     (new_vdb, old_vdb_opt)
   }
 
-  /// FLUSHDB 物理域退役原语（AOF 回放臂，[`Self::flush_db`] 的物理域对偶）
-  ///
-  /// FlushDb 条目载荷是 `(vns, 换号前旧 vdb)`（主库换号事务的返回值，与数据
-  /// 条目物理键前缀同域）。从库完全继承主库映射体系、绝不本地二次映射，故本
-  /// 原语在 vns 在册路由快照内定位**指向 old_vdb 的那个逻辑库格**并单格换号，
-  /// 与 [`Self::flush_db`] 同一步 [`Self::alloc_next_virtual_id`] 取号——主从
-  /// 分配水位因此保持同步，条目后继写入的新物理前缀在本节点解析到同一格。
-  ///
-  /// 返回 `Some((logic_db, new_vdb))` = 已换号；`None` = 快照未装载或无库格
-  /// 指向 old_vdb（条目已应用过 / 该域在本节点无逻辑入口），两种形态皆已保证
-  /// old_vdb 判死（[`Self::is_dead_domain`] 在册即原样保留其回收期限，绝不
-  /// 把到期推后），旧域空间必交本地延时 GC。全程只读 ns_map，绝不新增映射、
-  /// 绝不建空快照（`routing_for` 的缺席建表形态不取用）。
-  pub fn flush_db_virtual(
-    &self,
-    vns: u64,
-    old_vdb: u64,
-    expired_at: i64,
-    tail_address: u64,
-  ) -> Option<(u64, u64)> {
-    let swapped = self.db_routing.pin().get(&vns).and_then(|routing| {
-      routing
-        .table
-        .snapshot()
-        .into_iter()
-        .find(|&(_, vdb)| vdb == old_vdb)
-        .map(|(logic_db, _)| {
-          let new_vdb = self.alloc_next_virtual_id();
-          routing.table.swap_out(logic_db, new_vdb);
-          (logic_db, new_vdb)
-        })
-    });
-    if !self.is_dead_domain(vns, old_vdb) {
-      self.gc_dead.insert(
-        old_vdb,
-        GcDeadEntry {
-          expired_at,
-          tail_address,
-          vns: Some(vns),
-        },
-      );
-    }
-    // 换代仅在确有库格换指时推进（无换指即无解析结果漂移，缓存无须刷新）
-    if swapped.is_some() {
-      self.bump_generation();
-    }
-    swapped
-  }
-
   /// FLUSHALL：清空命名空间下所有库，返回 (new_vns, old_vns_opt)
   pub fn flush_ns(&self, logic_ns: u64, expired_at: i64, tail_address: u64) -> (u64, Option<u64>) {
     let new_vns = self.alloc_next_virtual_id();
@@ -1110,41 +1081,6 @@ impl VirtualDbManager {
 
     self.bump_generation();
     (new_vns, old_vns_opt)
-  }
-
-  /// FLUSHNS 物理域退役原语（AOF 回放臂，[`Self::flush_ns`] 的物理域对偶）
-  ///
-  /// FlushNs 条目载荷是换号前旧 `vns`：经 [`Self::logic_ns_of`] 逆表取回该空间
-  /// 所属逻辑命名空间后，走与主库**同一** [`Self::flush_ns`] 换号事务体（同步
-  /// 取号、主从水位一致、`active_vns` 逆表与权威标记随换号一并维护）。
-  ///
-  /// 逆表未在册，或该逻辑命名空间当前已另指新号（条目在本节点已应用过）即
-  /// 返回 `None`，此时补登命名空间级墓碑（[`Self::is_dead_ns`] 在册即不重复
-  /// 登记、不把到期推后），保证载荷旧空间必交本地延时 GC。绝不新增映射。
-  pub fn flush_ns_virtual(
-    &self,
-    old_vns: u64,
-    expired_at: i64,
-    tail_address: u64,
-  ) -> Option<(u64, u64)> {
-    let retired = self
-      .logic_ns_of(old_vns)
-      .filter(|&logic_ns| self.vns_of_ns(logic_ns) == Some(old_vns))
-      .map(|logic_ns| {
-        let (new_vns, _) = self.flush_ns(logic_ns, expired_at, tail_address);
-        (logic_ns, new_vns)
-      });
-    if retired.is_none() && !self.is_dead_ns(old_vns) {
-      self.gc_dead.insert(
-        old_vns,
-        GcDeadEntry {
-          expired_at,
-          tail_address,
-          vns: None,
-        },
-      );
-    }
-    retired
   }
 
   /// 零锁无等待极速判断物理域 (vns, vdb) 是否已过期死亡（供 Compaction

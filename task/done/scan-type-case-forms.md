@@ -46,3 +46,7 @@ rust 现状缺口
 
 范围边界：仅改 parse_scan_filter 比较式与文档注释、对应单测；不动 null 帧、不动慢路径体、
 不改 OBJECT TYPE 回显侧（envelope_object_type_name 小写名，本就对标 Redis 输出）。
+
+## 主代理补录（裁决与落地）
+- 与 cmd-strings-input-token-single-source 的边界裁决：parse_scan_filter 中「SCAN TYPE 取值比对」段（type_arg 值面）归本票，按 C# ArrayKeyIterationFunctions.cs DbScan 的 SequenceEqual 双形态精确比对；wresp cmd_strings 的「输入命令 token/选项名」单源面（param 面 MATCH/COUNT/TYPE 选项名）归 cmd-strings 票。两改动在 array_commands.rs 行位相邻但语义不同段，后合入方负责解冲突。
+- 落地：分支提交 eca5c21（32+/15−，五对双形态 + 测试改名），主代理代办 merge 入 dev（零冲突），test.sh/clippy 随 R4 门禁统一复验。

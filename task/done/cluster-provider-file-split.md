@@ -89,3 +89,33 @@ C# 参考
 - ./js/check.js 无新增缺失/虚构锚点。
 - cargo check --workspace --all-targets（私有 target 目录）零 error 零 warning；无新增 allow。
   test.sh/clippy 由中央整合轮执行。
+
+落地（fixloop 单棒 split-cluster-provider，2026-09-19）
+按票面「修法」六件完成，纯搬家零语义改动；目录取票面 cluster_provider/（非 server/cluster/，
+后者是 C# libs/server/Cluster/ 的契约层，混放会与之相踩）。
+- wedb/wedb/src/server/cluster_provider/mod.rs 277 行：PrimaryReplicationAssets、struct
+  ClusterProvider 字段块、impl Default、角色与句柄（is_primary/is_replica/new/self_arc/
+  provider_handle）、子管理器五取口（cluster/replication/failover/migration/gossip 同域不拆散）
+- assets.rs 257 行：装配期注入槽族（set_commit_channel、store/primary_tasks 族/vector_manager/
+  pubsub/aof/runtime_config/tls/wal/副本接收会话/主端推流/检查点目录/置换槽/数据库管理器）与
+  cluster_username、cluster_password 读取面
+- flags.rs 182 行：运行期旋钮 get/set 九对 + 布尔标志四对（on_demand_checkpoint/allow_data_loss/
+  replica_diskless_sync/recover）
+- replication.rs 317 行：initialize_replication_manager、initialize_cluster_config、
+  get_connection_info、ensure_replication 七步链、start_replication_attach
+- checkpoint.rs 205 行：epoch 三件套 + all_sessions_caught_up、take_on_demand_checkpoint、
+  swap_online_store、checkpoint_import_ctx、reset_sequence_number_generator、
+  aof_replay_max_lag_bytes 对、dispose
+- traits.rs 567 行：impl IClusterProvider、impl CheckpointCallbackFace、impl WnodeClusterProvider
+- 主 impl 920 行单块已消，最大单块为 traits.rs 的 WnodeClusterProvider（409 行）
+- 外部引用零改动：目录化后 crate::server::cluster_provider:: 路径不变，全仓 diff 仅七件文件；
+  无 re-export 壳、无 pub mod 泄漏、无 pub(crate) 提级（子模块天然可见父模块私有字段）、无新增 allow
+- 搬家完整性：原文件 66 行起非空行逐枚比对，零缺失零重复，新增行仅为各件头注释与四对
+  impl ClusterProvider 包裹；pub 成员 77 -> 77（票面 78 系旧 HEAD 口径，拆前实测即 77）
+- 锚点门禁：按 js/check/rustScan.js 的 CS_REF_REGEX 复刻比对，File.cs:Fn 锚点 29 枚改动前后
+  逐枚相同；./js/check.js 改动前后输出逐字节相同（重复定义清单不含本件）
+- 本棒门禁：CARGO_TARGET_DIR=/tmp/target-split-cp 私有 target，cargo check --workspace
+  --all-targets 与 -p wedb --lib --features tls 均零 error 零 warning；rustfmt --check 干净；
+  未跑 ./test.sh、./sh/clippy.sh（交主代理合并后统一跑）
+- 合入：merge commit 31b45af（--no-ff 入 dev），分件提交 80a6583、c02c861、34d1597、0a1c477、
+  01dd285、44fc088
