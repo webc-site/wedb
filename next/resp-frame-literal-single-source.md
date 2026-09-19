@@ -95,3 +95,5 @@ resp3-command-layer-frame-parity（现仍在 next/ 分拣中）管 set/zset 命�
 与 `,num` 分值），本单只管版本无关基础帧型；task/ing/cmd-strings-input-token-single-source.md 管输
 出/输入常量表的承接完整性，与本单的写出原语是两个维度；acl-getuser-resp3-frame-parity 与
 object-output-payload-direct-write（均在 next/ 分拣中）各管其写出版本分派与直写负载面。
+
+盘点补记（qw13.invB resp-frame-literal-single-source）：dev e75716e 复核，缩窄：票面样本位已清零（hyper_log_log_commands.rs 手写整型帧、cluster_session/basic.rs 的 $0\r\n\r\n 均已改走单口，wmetric/wlua 生产面 b"-ERR 裸拼亦零命中）；残余裸拼：resp_server_session.rs:1613-1620 CLIENTID 臂仍手写 push(b\x27:\x27)+format+\r\n（可用 write_resp_int 单口），wlua/functions/cjson.rs:304 属 cjson 编码器内部不算 RESP 帧面。重派前先按「残余是否仍达一棒」复核，可能已缩成 CLIENTID 单点微修。

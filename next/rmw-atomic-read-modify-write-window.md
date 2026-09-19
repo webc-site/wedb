@@ -127,3 +127,5 @@ storage_session.rs:348/:354 的无 expected 前值取证，以及文首更正的
 2. 全仓 grep 无「命令层 read_user_sync 后紧跟 try_rmw_sync」的两步形态残留。
 3. 单键 INCR 快路径新增开销仅一次桶锁获取，与 C# 同量级；不新增跨线程全局锁。
 4. cargo check --workspace --all-targets 零告警，禁写 allow。
+
+盘点补记（qw13.invB rmw-atomic-read-modify-write-window）：dev e75716e 复核原样：全仓 rmw_user_key_atomic 零命中，acquire_keys_lock_exclusive 生产消费仍只 wkv/src/ttl.rs:456/:504（EXPIRE/PERSIST），wnode/src/resp/basic_commands/incr.rs:97 read_user_sync → :123 try_rmw_sync 两步形态原样（:156/:193 浮点同型），wnode/tests 无并发同键读改写用例。收口单定位不变，与 string-rmw-key-bucket-lock、wtxn-lock-stripe-count-parity 的并棒建议不变（注意 wtxn 条带票已按「store 注入真实索引联动」落地，并棒时勿再按旧票面改 wtxn）。

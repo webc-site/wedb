@@ -98,3 +98,5 @@ rust 事实（三层都只数条）
   该前置在 task/ing/aof-size-knobs-read-side-wiring.md（其现状为三尺寸旋钮读侧零消费）。
   本单不以它为阻塞前提：该票未落地前按当下缺省页尺寸取常量，落地后把同一表达式接上即可。
 - 副本侧接收与重放链的内存治理不在本单射程。
+
+盘点补记（qw13.invA replication-send-path-byte-cap）：dev e75716e 复核三层仍纯条数：wedb/src/server/replication/replica_wire.rs:329 MAX_OVERFLOW_ENTRIES=10_000、:493 唯一超限判据 self.overflow.len()；wconn/src/types.rs:15 CHANNEL_CAP=1024；wconn/src/network/pump.rs 拼批循环无字节分片；全仓无 byte_cap/max_unflushed 面。原票可派性结论不变。

@@ -66,3 +66,5 @@ next/bftree-release-detached-guard-recheck.md 管树释放的纪元守卫，不�
 - cargo check --workspace --all-targets 绿；中文注释、禁 #[allow]。
 
 优先级：P2（嵌入式/复用进程的资源滞留与虚设面，非数据正确性；改动局限停机链，宜与订阅 broker 票同批做）。
+
+盘点补记（qw13.invB range-index-replication-shutdown-dispose）：dev e75716e 复核原样：range_index_manager_replication.rs:587 pub fn dispose 仍零生产调用；wnode/src/server.rs 停机链只有 cluster_provider.dispose()（:284）、registry.dispose_active_handlers（:707）、dispose_vector_cleanup（:737）、bp.dispose（:747），无范围索引步。方向 A/B 二择一的修法不变。
