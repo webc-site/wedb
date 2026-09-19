@@ -20,3 +20,11 @@ wconn 侧注释自认「与 wnode/src/tls/config.rs:load_certs 同源实现（cr
 两函数下沉一处共享定义：放 wbase（tls feature 门控）或独立薄口，wnode/tls/config.rs 与
 wconn/tls.rs 改薄包装调用；错误文案随函数一处定义。C# 锚点注释保留在下沉后的单点
 （garnet/libs/server/TLS/GarnetTlsOptions.cs:载入段），两包装处不再各自挂锚。
+
+分拣补记（next/agy.net.md 条 4 与 next/muse.net.md 条 8 同题并入本票，net 域源档已分拣清空删除；
+浅核 2026-09-19 主仓 dev）：本题在 net 与 design 两轮审查重复上报，唯一载体以本票为准。增量取证：
+消费点为 wnode 侧 from_pem_files（tls/config.rs:46-47）与 ca_roots（:145）、wconn 侧
+ClientTlsConfig::new（tls.rs:71-72）与 root_store（:114）；下沉 wbase 时类型面直接引
+rustls-pki-types（CertificateDer/PrivateKeyDer 与 compio_tls::rustls::pki_types 同源，
+wnode/Cargo.toml:11-12 注释先例），依赖一律 cargo add 禁手改 Cargo.toml；验收补 grep 判据——
+全仓 load_private_key 实现体仅 wbase 一处，bun js/check.js 无新增缺失，两侧 tls 既有测试全绿。
