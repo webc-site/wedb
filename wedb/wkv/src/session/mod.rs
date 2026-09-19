@@ -34,7 +34,8 @@ pub use consistent_read::{ConsistentReadContext, ConsistentReadFunctions};
 use parking_lot::Mutex;
 pub(crate) use raw::CopyToTailOutcome;
 pub use raw::read::{RecordRead, StoreResult};
-pub use rmw_window::{RmwWindow, SessionLocking};
+pub(crate) use rmw_window::SessionLockingState;
+pub use rmw_window::{RmwWindow, SessionLocking, SessionLockingGuard};
 use wdev::Device;
 use wepoch::{EpochGuard, Participant};
 use wval::{KeyTag, SessionPrefixBuf};
@@ -212,12 +213,13 @@ pub struct StoreSession<D: Device> {
   strict_ctx: AtomicBool,
   /// 当前绑定租户路由快照的 vns（引用归零空闲析构协议；0 = 根域免计数）
   bound_vns: AtomicU64,
-  /// 会话锁器模式位（false = Basic 自取桶闩 / true = Transactional 让闩于事务）：
-  /// 对标 C# 会话按 api 视图类型编译期选定 `BasicSessionLocker` /
+  /// 会话锁器模式位（Basic = 自取桶闩 / Transactional = 让闩于事务）：对标 C#
+  /// 会话按 api 视图类型编译期选定 `BasicSessionLocker` /
   /// `TransactionalSessionLocker`（见 `session/rmw_window.rs` 模块头），rust 以本位
-  /// 承载同一判据，读写单点为 [`Self::session_locking`] /
-  /// [`Self::set_session_locking`]，执行期由命令分派单点与事务过程视图各自置位
-  session_locking: AtomicBool,
+  /// 承载同一判据，读写单点收口在 `session/rmw_window.rs` 的
+  /// [`StoreSession::session_locking`] / [`StoreSession::set_session_locking`] /
+  /// [`StoreSession::push_session_locking`]，执行期由命令分派单点与事务过程视图各自置位
+  session_locking: SessionLockingState,
   /// 副本一致读会话附着态（对标 C# StorageSession.readSessionState 挂各
   /// SessionFunctions 的形态：libs/server/Storage/Session/StorageSession.cs:104-132；
   /// None = 无一致读协议，读路径零开销直通）。装配期一次性附着，其后只读
@@ -244,7 +246,7 @@ impl<D: Device> StoreSession<D> {
       last_generation: AtomicU64::new(0),
       strict_ctx: AtomicBool::new(false),
       bound_vns: AtomicU64::new(0),
-      session_locking: AtomicBool::new(false),
+      session_locking: SessionLockingState::new(),
       read_session_state: None,
     };
     session.set_context(0, 0);

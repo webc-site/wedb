@@ -8,18 +8,21 @@
 //! 事务会话经 `TransactionalSessionLocker` 只断言不取闩——事务已在同一份锁内存上
 //! 持该键桶的排他闩（`libs/server/Transaction/TxnKeyEntry.cs` 与
 //! `Implementation/Locking/OverflowBucketLockTable.cs` 共用 `store.LockTable`，
-//! 桶下标同为 `keyHash & size_mask`）。
+//! 桶下标同为 `keyHash & size_mask`）。C# 的 `InternalUpsert.cs:67` 同一取闩口
+//! 亦覆盖纯写回，故锁内读—算—写是该引擎的唯一形态，命令层从不裸读旧值再盲写。
 //!
 //! rust 侧锁源同为 windex `HashBucket` 内嵌闩，本键 `user_key` 在当前 `HashIndex`
 //! 版本下的主桶（`fast_hash & size_mask`）三处共取：本窗口、`wtxn` 事务键锁
-//!（`wtxn/src/txn_lock_table.rs` 转发 `HashBucket`）、`wkv` TTL 读改写窗口
-//!（`wkv/src/ttl.rs` 的 `acquire_keys_lock_exclusive`），故三者互斥即同键全序串行，
-//! 全仓无第二把同址锁、亦无条带折算。
+//!（`wtxn/src/txn_lock_table.rs` 转发 `HashBucket`，键哈希同为 `fast_hash`）、
+//! `wkv` TTL 读改写窗口（`wkv/src/ttl.rs` 经 `HashIndex::lock_key_exclusive`
+//! 持桶闩），故三者互斥即同键全序串行，全仓无第二把同址锁、亦无条带折算。
+//! 取闩/放闩形态与 `wtxn::TxnKeyEntries::acquire_plan`/`release_held` 同款：
+//! 钉定 `Arc<HashIndex>` 版本 + 纯数据桶下标，跨 split 扩容不串锁，不新建守卫类型。
 //!
 //! 会话该走哪种锁器：C# 由 api 视图类型在编译期定（`libs/server/Resp/
 //! RespServerSession.cs:ProcessMessages` 依 `txnManager.state == TxnState.Running`
 //! 在 `basicApi` 与 `transactionalApi` 间派发），rust 不对命令层做双份单态化，
-//! 改由同一判据在命令分派单点写 [`StoreSession::set_session_locking`]，
+//! 改由同一判据在命令分派单点写 [`StoreSession::push_session_locking`]，
 //! 窗口据此决定「自取闩」或「让闩于事务」。
 //!
 //! 与引擎侧回溯保护闩的关系：`session/raw/write/inplace.rs` 的 ephemeral 闩按
@@ -28,14 +31,32 @@
 //! 各自成键故各落一桶），两桶偶合时窗口持闩期内层取闩必失败并按 RETRY_LATER
 //! 退避重试——该面在 HEAD 已随 `wtxn` 事务键锁与 `wkv/src/ttl.rs` 的 EXPIRE
 //! 窗口同形存在（持 user_key 桶闩期内读写记录桶），属两基并存的既有结构，
-//! 不在本窗口内做二次折算。
+//! 不在本窗口内做二次折算；同理，纯写回族（SET/DEL/MSET 折叠）仍只持记录桶
+//! ephemeral 闩，其与本窗口的交错面即该两基结构，另票承接。
 
-use std::sync::Arc;
+use std::{
+  fmt,
+  hint::spin_loop,
+  sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+  },
+};
 
 use wdev::Device;
 use windex::HashIndex;
 
-use super::StoreSession;
+use super::{BatchStoreSession, StoreSession};
+use crate::error::{Error, Result};
+
+/// 同步快路径取闩自旋预算（与 `windex::HashIndex::lock_key_exclusive` 的
+/// `1024 × spin_loop` 同口径：持闩期只有读—算—写三段纯内存操作，微秒级即放闩；
+/// 预算耗尽仍不得闩即按 C# `RETRY_LATER` 交调用方降级，同步域绝不无限自旋）
+const RMW_LATCH_SPIN_ATTEMPTS: usize = 1024;
+
+/// 异步域让核重试预算（对标 C# 锁冲突转 pending 重试的外层循环）：预算耗尽即回
+/// [`windex::Error::LockTimeout`]，杜绝同线程持闩者不再让核时的无界自旋
+const RMW_LATCH_YIELD_BUDGET: usize = 1024;
 
 /// 会话锁器模式（对标 C# 两套 `ISessionLocker` 实现的按调用面选型）
 ///
@@ -65,6 +86,10 @@ impl SessionLocking {
 /// 值写回入口（[`Self::try_rmw_sync`] / [`Self::upsert_rmw`]）挂在本类型上，
 /// 无窗口即取不到写回面，杜绝「读—写两步式盲写」的第二条路径；
 /// `held` 为 `None` 即事务锁模式（本会话事务已持该桶闩，窗口零操作）。
+/// 本类型只由 [`BatchStoreSession::try_rmw_window`] /
+/// [`BatchStoreSession::rmw_window`] 构造，故持窗口必然处于批处理纪元保护下
+/// （其值写回内核走零 `enter()` 的同步段，纪约与
+/// `StoreSession::try_upsert_raw_sync_unprotected` 同）。
 pub struct RmwWindow<'a, 'k, D: Device> {
   /// 归属会话（值写回内核的宿主）
   session: &'a StoreSession<D>,
@@ -89,7 +114,7 @@ impl<'a, 'k, D: Device> RmwWindow<'a, 'k, D> {
   }
 }
 
-impl<'a, 'k, D: Device> Drop for RmwWindow<'a, 'k, D> {
+impl<D: Device> Drop for RmwWindow<'_, '_, D> {
   #[inline]
   fn drop(&mut self) {
     if let Some((index, bucket)) = &self.held {
@@ -98,62 +123,137 @@ impl<'a, 'k, D: Device> Drop for RmwWindow<'a, 'k, D> {
   }
 }
 
-impl<D: Device> StoreSession<D> {
-  /// 当前会话锁器模式
+/// 会话锁器模式 RAII 还原守卫（对标 C# api 视图按调用段进出选型：事务重放遍与
+/// 事务过程视图进入时置 `Transactional`，离开即还原，杜绝位残留）
+///
+/// 在 garnet 中的相对路径:libs/server/Resp/RespServerSession.cs:ProcessMessages
+pub struct SessionLockingGuard<'a, D: Device> {
+  session: &'a StoreSession<D>,
+  prev: SessionLocking,
+}
+
+impl<D: Device> fmt::Debug for SessionLockingGuard<'_, D> {
+  #[inline]
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("SessionLockingGuard")
+      .field("prev", &self.prev)
+      .finish_non_exhaustive()
+  }
+}
+
+impl<D: Device> Drop for SessionLockingGuard<'_, D> {
+  #[inline]
+  fn drop(&mut self) {
+    self.session.set_session_locking(self.prev);
+  }
+}
+
+/// 会话锁器模式位（`StoreSession::session_locking` 字段的读写单点，
+/// 判据与取用面在 [`crate::session::rmw_window`] 模块头）
+#[derive(Debug)]
+pub(crate) struct SessionLockingState(AtomicBool);
+
+impl SessionLockingState {
   #[inline(always)]
-  pub fn session_locking(&self) -> SessionLocking {
-    if self.session_locking.load(std::sync::atomic::Ordering::Relaxed) {
+  pub(crate) const fn new() -> Self {
+    Self(AtomicBool::new(false))
+  }
+
+  #[inline(always)]
+  fn get(&self) -> SessionLocking {
+    if self.0.load(Ordering::Relaxed) {
       SessionLocking::Transactional
     } else {
       SessionLocking::Basic
     }
   }
 
-  /// 置位会话锁器模式并回旧值（分派单点选型与 RAII 还原共用；C# 由 api 视图类型
-  /// 承载，rust 为会话态一位，见模块头口径说明）
   #[inline(always)]
-  pub fn set_session_locking(&self, locking: SessionLocking) -> SessionLocking {
-    let prev = self
-      .session_locking
-      .swap(locking.is_transactional(), std::sync::atomic::Ordering::Relaxed);
+  fn swap(&self, locking: SessionLocking) -> SessionLocking {
+    let prev = self.0.swap(locking.is_transactional(), Ordering::Relaxed);
     if prev {
       SessionLocking::Transactional
     } else {
       SessionLocking::Basic
     }
   }
+}
 
+impl<D: Device> StoreSession<D> {
+  /// 当前会话锁器模式
+  #[inline(always)]
+  pub fn session_locking(&self) -> SessionLocking {
+    self.session_locking.get()
+  }
+
+  /// 置位会话锁器模式并回旧值（分派单点选型与 RAII 还原共用；C# 由 api 视图类型
+  /// 承载，rust 为会话态一位，见模块头口径说明）
+  #[inline(always)]
+  pub fn set_session_locking(&self, locking: SessionLocking) -> SessionLocking {
+    self.session_locking.swap(locking)
+  }
+
+  /// 置位会话锁器模式并在离开作用域时还原旧值（命令分派单点与事务过程视图用）
+  #[inline(always)]
+  pub fn push_session_locking(&self, locking: SessionLocking) -> SessionLockingGuard<'_, D> {
+    let prev = self.set_session_locking(locking);
+    SessionLockingGuard {
+      session: self,
+      prev,
+    }
+  }
+}
+
+impl<'a, D: Device> BatchStoreSession<'a, D> {
   /// 取本键读改写原子窗口——非阻塞臂（同步快路径专用）
   ///
-  /// 返回 `None` = 本键桶排他闩被占（同键并发 RMW / 他事务持锁），调用方按既有
-  /// 降级通道转异步闭环（对标 C# ephemeral 取闩失败回 `RETRY_LATER`），
-  /// 同步域绝不自旋等闩；事务锁模式下本键桶闩已在本会话事务手上，直接回让闩窗口
+  /// 返回 `None` = 自旋预算内未取到本键桶排他闩（同键并发 RMW / 他事务持锁 /
+  /// EXPIRE 窗口占闩），调用方按既有降级通道转异步闭环（对标 C# ephemeral 取闩
+  /// 失败回 `RETRY_LATER`），同步域绝不无限自旋；事务锁模式下本键桶闩已在本会话
+  /// 事务手上，直接回让闩窗口
   #[inline]
-  pub fn try_rmw_window<'k>(&self, user_key: &'k [u8]) -> Option<RmwWindow<'_, 'k, D>> {
-    let held = if self.session_locking().is_transactional() {
+  pub fn try_rmw_window<'s, 'k>(&'s self, user_key: &'k [u8]) -> Option<RmwWindow<'s, 'k, D>> {
+    let session: &'s StoreSession<D> = &**self;
+    let held = if session.session_locking().is_transactional() {
       None
     } else {
-      let index = self.store.index.load_full();
+      let index = session.store.index.load_full();
       let bucket = index.bucket_index_for_key(user_key);
-      if !index.bucket(bucket).try_lock_exclusive() {
+      let bucket_ref = index.bucket(bucket);
+      let mut taken = bucket_ref.try_lock_exclusive();
+      for _ in 0..RMW_LATCH_SPIN_ATTEMPTS {
+        if taken {
+          break;
+        }
+        spin_loop();
+        taken = bucket_ref.try_lock_exclusive();
+      }
+      if !taken {
         return None;
       }
       Some((index, bucket))
     };
     Some(RmwWindow {
-      session: self,
+      session,
       user_key,
       held,
     })
   }
 
   /// 取本键读改写原子窗口——让核等待臂（异步域专用，对标 C# 锁冲突转 pending 重试）
-  pub async fn rmw_window<'k>(&self, user_key: &'k [u8]) -> RmwWindow<'_, 'k, D> {
-    loop {
+  ///
+  /// 每轮失败让核一次（持闩者在同核让出后即放闩，异核自旋即成），预算耗尽回
+  /// [`windex::Error::LockTimeout`] 交调用方按存储错误应答，绝不留无界等待
+  pub async fn rmw_window<'s, 'k>(&'s self, user_key: &'k [u8]) -> Result<RmwWindow<'s, 'k, D>> {
+    for _ in 0..RMW_LATCH_YIELD_BUDGET {
       if let Some(window) = self.try_rmw_window(user_key) {
-        return window;
+        return Ok(window);
       }
       wbase::future::yield_now().await;
+    }
+    match self.try_rmw_window(user_key) {
+      Some(window) => Ok(window),
+      None => Err(Error::Index(windex::Error::LockTimeout)),
     }
   }
 }

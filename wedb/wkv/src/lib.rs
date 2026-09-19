@@ -28,7 +28,7 @@ pub use range_index::{
 pub use read_cache::{RcVisit, ReadCache};
 pub use session::{
   BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, DeleteMissHook, RecordRead,
-  RmwWindow, SessionLocking, StoreResult, StoreSession, WatchHook,
+  RmwWindow, SessionLocking, SessionLockingGuard, StoreResult, StoreSession, WatchHook,
 };
 pub use store::{
   DefaultWedbStore, HybridLogScanMetrics, KEY_ID_ASSIGN_MARGIN, ObjectRmwNotification, StoreEvent,

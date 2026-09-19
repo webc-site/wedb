@@ -12,8 +12,8 @@ use wcol::object_payload::obj_encode_into;
 use wconf::DEFAULT_RESP_VERSION;
 use wdev::Device;
 use wkv::{
-  BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, DeleteMissHook, StoreResult,
-  TtlOpt, WatchHook,
+  BatchStoreSession, ConsistentReadContext, ConsistentReadFunctions, DeleteMissHook, RmwWindow,
+  StoreResult, TtlOpt, WatchHook,
 };
 use wmetric::{GarnetLatencyMetricsSession, LatencyMetricsType, SessionMetricsHandle};
 use wresp::ext::RespVecExt;
@@ -385,14 +385,22 @@ impl<'a, D: Device> StorageSession<'a, D> {
   /// UnifiedStore/VarLenInputMethods 的 HasExpiration 保留语义与
   /// UnifiedStore/RMWMethods.cs CopyUpdater 的 CheckExpiry → ExpireAndResume
   /// （过期转 InitialUpdater 重建，初始记录无 Expiration）
-  pub async fn rmw_string(&self, key: &[u8], val: &[u8]) -> wkv::Result<()> {
-    match self.batch.try_rmw_sync(key, val)? {
+  ///
+  /// 写回目标键由 [`RmwWindow`] 承载：调用方须在装载旧值之前取窗（同步域
+  /// `BatchStoreSession::try_rmw_window`、异步域 `rmw_window`），本入口只在窗口
+  /// 内落笔，故「无锁读旧值 → 盲写绝对值」的两步式在类型面上不可表达
+  pub async fn rmw_string<'k, 'w>(
+    &self,
+    window: &RmwWindow<'w, 'k, D>,
+    val: &[u8],
+  ) -> wkv::Result<()> {
+    match window.try_rmw_sync(val)? {
       Ok(_) => {}
       // 降级 wkv 异步闭环（等价于退出批处理纪元后重写；upsert_rmw 内含
       // 过期残留完整裁决，先 purge 后重建）
       Err(_) => {
         self
-          .with_pending_metrics(|| self.batch.upsert_rmw(key, val))
+          .with_pending_metrics(|| window.upsert_rmw(val))
           .await
           .map(|_| ())?;
       }

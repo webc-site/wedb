@@ -80,14 +80,10 @@ fn hll_truncate<'a>(hll: &HyperLogLog, blob: &'a [u8]) -> &'a [u8] {
 /// 将 HLL 载荷截断至实际编码长度并回写（同步快路径）
 ///
 /// RMW 语义写回（保留既有 key 级 TTL，PFADD/PFMERGE 共用；对标 C#
-/// GetRMWModifiedFieldInfo 的 HasExpiration 保留）
-fn store_hll<'s>(
-  hll: &HyperLogLog,
-  store: &wkv::BatchStoreSession<'s, impl wdev::Device>,
-  key: &[u8],
-  blob: &[u8],
-) {
-  if let Err(err) = store.try_rmw_sync(key, hll_truncate(hll, blob)) {
+/// GetRMWModifiedFieldInfo 的 HasExpiration 保留）；写回一律落在调用方于装载
+/// 旧值前取到的 [`RmwWindow`] 内，同键并发读改写由本键桶排他闩串行
+fn store_hll<D: wdev::Device>(hll: &HyperLogLog, window: &wkv::RmwWindow<'_, '_, D>, blob: &[u8]) {
+  if let Err(err) = window.try_rmw_sync(hll_truncate(hll, blob)) {
     log::error!("HLL try_rmw_sync failed: {err:?}");
   }
 }
@@ -211,13 +207,17 @@ pub(crate) async fn slow_hll_add(
     return Ok(());
   }
 
+  // 读改写原子窗口（异步域让核等待臂）先于冷区装载取，覆盖「异步装载—并入
+  // 元素—写回」全程（对标 C# HyperLogLogAdd 的 RMW 单次桶闩内闭环）
+  let window = storage.batch.rmw_window(key).await.map_err(|_| ())?;
+
   let updated = match load_hll_cold(&hll, storage, key).await? {
     HllCold::Missing => {
       let blob = hll_init_payload(&hll, elements);
       // RMW 新建（InitialUpdater：新记录无 Expiration）；装载已探对象信封域
       // 拦截对象键，无需 SET 语义清退
       storage
-        .rmw_string(key, hll_truncate(&hll, &blob))
+        .rmw_string(&window, hll_truncate(&hll, &blob))
         .await
         .map_err(|_| ())?;
       true
@@ -227,7 +227,7 @@ pub(crate) async fn slow_hll_add(
         // RMW 写回保留既有 key 级 TTL（对标 RMWMethods.cs:CopyUpdater 的
         // PFADD 分支 TryCopyOptionals 保留 Expiration；SET 语义会误清）
         storage
-          .rmw_string(key, hll_truncate(&hll, &blob))
+          .rmw_string(&window, hll_truncate(&hll, &blob))
           .await
           .map_err(|_| ())?;
         true
@@ -316,6 +316,10 @@ pub(crate) async fn slow_hll_merge(
     return Ok(());
   }
 
+  // 读改写原子窗口（异步域让核等待臂）先于冷区装载取，覆盖「异步装载—择大
+  // 并入—写回目标」全程；源键只读不取窗，同命令恒只持一把窗
+  let window = storage.batch.rmw_window(dest).await.map_err(|_| ())?;
+
   let mut dst = match load_hll_cold(&hll, storage, dest).await? {
     HllCold::Present(raw) => raw,
     HllCold::Missing => hll_sparse_seed(&hll),
@@ -339,7 +343,7 @@ pub(crate) async fn slow_hll_merge(
   // RMW 写回保留 dest 既有 key 级 TTL（对标 RMWMethods.cs:CopyUpdater 的
   // PFMERGE 分支 TryCopyOptionals 保留 Expiration；SET 语义会误清）
   storage
-    .rmw_string(dest, hll_truncate(&hll, &dst))
+    .rmw_string(&window, hll_truncate(&hll, &dst))
     .await
     .map_err(|_| ())?;
   output.extend_from_slice(RESP_OK);
@@ -369,6 +373,12 @@ impl RespServerSession {
     let elements = &parse_state[1..];
     let hll = HyperLogLog::new();
 
+    // 读改写原子窗口先于装载取，覆盖「装载旧载荷—并入元素—写回」全程（对标
+    // C# HyperLogLogAdd 单次 storageApi.RMW 的桶闩内闭环）；取不到闩即降级，
+    // 降级前不残留输出
+    let Some(window) = store.try_rmw_window(key) else {
+      return Ok(false);
+    };
     let existing = match load_hll(&hll, store, key) {
       Ok(HllLoad::Present(raw)) => Some(raw),
       Ok(HllLoad::Missing) => None,
@@ -385,12 +395,12 @@ impl RespServerSession {
       None => {
         let blob = hll_init_payload(&hll, elements);
         updated = true;
-        store_hll(&hll, store, key, &blob);
+        store_hll(&hll, &window, &blob);
       }
       Some(raw) => {
         if let Some(blob) = hll_add_payload(&hll, raw, elements) {
           updated = true;
-          store_hll(&hll, store, key, &blob);
+          store_hll(&hll, &window, &blob);
         }
       }
     }
@@ -483,6 +493,12 @@ impl RespServerSession {
     let sources = &parse_state[1..];
     let hll = HyperLogLog::new();
 
+    // 读改写原子窗口先于目标装载取，覆盖「择大并入全源—写回目标」全程；源键
+    // 只读不取窗，同命令恒只持一把窗，无嵌套取闩面（对标 C# HyperLogLogMerge
+    // 逐源 GET 后单次 dest SET 的桶闩内闭环）；取不到闩即整体降级，无半成品写面
+    let Some(window) = store.try_rmw_window(dest) else {
+      return Ok(false);
+    };
     // 目标载荷（缺失按稀疏初始化）；+OK 在裁决后统一写出，dest 或任一
     // src 磁盘候选即整体降级，无半成品写面
     let mut dst = match load_hll(&hll, store, dest) {
@@ -508,7 +524,7 @@ impl RespServerSession {
       dst = hll_merge_payload(&hll, dst, &src);
     }
 
-    store_hll(&hll, store, dest, &dst);
+    store_hll(&hll, &window, &dst);
     output.extend_from_slice(RESP_OK);
     Ok(true)
   }
