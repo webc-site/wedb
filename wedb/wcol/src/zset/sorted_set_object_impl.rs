@@ -1422,7 +1422,7 @@ impl SortedSetObject {
   /// 解析字典序区间参数：`[a` 闭 / `(a` 开 / `-` 无穷小 / `+` 无穷大
   ///
   /// libs/server/Objects/SortedSet/SortedSetObjectImpl.cs:TryParseLexParameter
-  pub fn try_parse_lex_parameter<'p>(val: &'p [u8]) -> Option<(&'p [u8], bool, SpecialRanges)> {
+  pub fn try_parse_lex_parameter(val: &[u8]) -> Option<(&[u8], bool, SpecialRanges)> {
     let mut limit_chars: &[u8] = &[];
     let mut limit_exclusive = false;
     let mut infinity = SpecialRanges::None;

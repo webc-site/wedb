@@ -1678,7 +1678,7 @@ async fn tiered_zset_arm<D: Device>(
       };
       let target = (score, member);
       let scan = zset_scan_select(tree, now, ZSetWindow::Count, |s, m| {
-        SortedSetComparer::compare((&s, &m), (&target.0, &target.1)) == Ordering::Less
+        SortedSetComparer::compare((&s, m), (&target.0, target.1)) == Ordering::Less
       })?;
       let mut rank = scan.matched as i64;
       if op == SortedSetOperation::Zrevrank {
@@ -2026,7 +2026,7 @@ fn zset_lex_select(
     bounds.pass_min(member)
       && bounds.pass_max(member)
       && barrier.as_ref().is_none_or(|t| {
-        SortedSetComparer::compare((&score, &member), (&t.score, &t.member)) == Ordering::Less
+        SortedSetComparer::compare((&score, member), (&t.score, &t.member)) == Ordering::Less
       })
   })?;
   let matched = scan.matched;
