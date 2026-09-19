@@ -161,7 +161,7 @@ impl RespServerSession {
   /// C# 无 arity 校验（0 参即空循环回 :0），1:1 保留。向量集清退下沉至 wkv
   /// 用户键删除单点（双域判未命中后经 [`crate::storage::session::storage_session::vector_registry_delete_hook`]
   /// 摘除登记表项，对标 C# MainStore RemoveKey 回调 → VectorManager.RequestDeletion，
-  /// GarnetRecordTriggers.cs:OnDispose Deleted 臂），本层不再另配第二套清退判据。
+  /// GarnetRecordTriggers.OnDispose 的 Deleted 臂），本层不再另配第二套清退判据。
   pub fn network_del<'a, D: wdev::Device>(
     &mut self,
     parse_state: &[&[u8]],

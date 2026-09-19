@@ -219,7 +219,7 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 以 `started` 标志保证幂等，协程句柄收进 [`CleanupRuntime::handles`]
   /// 托管（drop 会 cancel 协程），协程自然退出后由 [`Self::dispose_cleanup`] 释放。
   ///
-  /// 在 garnet 中的相对路径:libs/server/Resp/Vector/VectorManager.cs:VectorManager
+  ///（C# 对位 VectorManager.cs 构造器内的清理任务装配段，本函数非构造本身）
   pub fn ensure_cleanup_tasks_started(self: &Arc<Self>) {
     if self.cleanup_runtime.started.swap(true, Ordering::AcqRel) {
       return;
