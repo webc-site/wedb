@@ -120,9 +120,12 @@ impl ReplicaSyncSession {
   /// 返回授予副本的同步起始位点（syncFromAofAddress 应答载荷）。
   ///
   /// skipLocalMainStoreCheckpoint 形态（本地无检查点 / PartialResync）：跳过
-  /// 快照下发，从协商位点起 AOF 直推——rust 副本引擎不随 attach 重构，
-  /// 检查点仅在 FullResync 导入链上换引擎（task/ing/m4-checkpoint-import.md
-  /// 条 3/6 登记差异）
+  /// 快照下发，从协商位点起 AOF 直推——rust 副本引擎不随 attach 重构，在线
+  /// 引擎实例全程不换，换引擎只发生在 FullResync 的检查点导入链上（对位
+  /// C# recoverFromRemote = !skipLocalMainStoreCheckpoint 一路透传给
+  /// TryReplicaDiskbasedRecovery 的 recoverStoreFromToken）；判据原委见
+  /// [`ReplicationManager::disk_resync_strategy`] 文档，该函数即 C#
+  /// ValidateMetadata 的 rust 对位、锚点已在其上登记
   pub async fn initiate_replica_sync(
     &self,
     provider: &Arc<ClusterProvider>,

@@ -604,7 +604,7 @@ pub fn version_map_watch_hook(map: Arc<WatchVersionMap>) -> wkv::WatchHook {
 }
 
 /// 构造向量集登记表缺席删除观测钩子（对标 C# MainStore RemoveKey 回调 →
-/// VectorManager.RequestDeletion，GarnetRecordTriggers.cs:OnDispose Deleted 臂）
+/// VectorManager.RequestDeletion，GarnetRecordTriggers.OnDispose 的 Deleted 臂）
 pub fn vector_registry_delete_hook(vm: Arc<VectorManager>) -> wkv::DeleteMissHook {
   fn on_delete_miss(vm: &VectorManager, prefix: &[u8], key: &[u8]) -> bool {
     vm.delete_vector_set(prefix, key)

@@ -108,7 +108,8 @@ pub trait GarnetApiFace: Send + Sync {
   /// 全部库的存储域快照（STORE / PERSISTENCE 段与 MEMORY store_* 项的
   /// 数据面）
   ///
-  /// 在 garnet 中的相对路径:libs/server/StoreWrapper.cs:GetDatabasesSnapshot
+  ///（C# 对位 StoreWrapper.GetDatabasesSnapshot 的编排面，引擎真实现锚在
+  /// wkv `WedbStore::store_snapshot`）
   ///
   /// 默认空集：嵌入式 / 测试桩形态无存储执行域注入，与 C#
   /// GetDatabasesSnapshot 无库时返回空数组同构（wmetric 段填充器对空
@@ -178,7 +179,8 @@ fn aof_sum(addr: &waof::AofAddress) -> i64 {
 
 /// AOF 持久化快照投影（waof 六地址真源直读）
 ///
-/// 在 garnet 中的相对路径:libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetDatabasePersistenceStats
+///（C# 对位 GarnetInfoMetrics.GetDatabasePersistenceStats 的地址字段装配段，
+/// 统计真实现锚在 wmetric get_database_persistence_stats）
 fn project_aof_snapshot(aof: &GarnetAppendOnlyFile) -> wmetric::AofSnapshot {
   let log = aof.log();
   wmetric::AofSnapshot {
@@ -192,7 +194,8 @@ fn project_aof_snapshot(aof: &GarnetAppendOnlyFile) -> wmetric::AofSnapshot {
 
 /// 单库存储域快照投影（wmetric [`DbSnapshot`] 的全仓唯一组装点）
 ///
-/// 在 garnet 中的相对路径:libs/server/Metrics/Info/GarnetInfoMetrics.cs:GetDatabaseStoreStats
+///（C# 对位 GarnetInfoMetrics.GetDatabaseStoreStats 的单库字段装配段，
+/// 统计真实现锚在 wmetric get_database_store_stats）
 ///
 /// wkv 单物理存储（单 WedbStore 多库前缀隔离），存储域统计按 db 0 形态
 /// 呈现（与 HLOGSCAN 段同口径）；whlog 常驻整页分配模型下已分配页 ==
@@ -328,7 +331,7 @@ impl<D: Device> StoreGarnetApi<D> {
   /// 关联向量集合管理器（构造期包装为命令处理层，单次 Arc 持有）
   ///
   /// 同处装配删除缺席收口钩子（对标 C# MainStore RemoveKey →
-  /// VectorManager.RequestDeletion，GarnetRecordTriggers.cs:OnDispose Deleted 臂）：
+  /// VectorManager.RequestDeletion，GarnetRecordTriggers.OnDispose 的 Deleted 臂）：
   /// wkv 用户键双域删除判未命中后经本钩子摘除登记项，DEL/UNLINK 快慢两臂
   /// 与 GETDEL/重放等一切删除口共用同一存储删除单点，计数与登记清退不再
   /// 口径分裂；OnceLock 保首，同引擎重复注入幂等忽略
@@ -573,7 +576,8 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
   /// 库快照逐库投影（经检查点通道的数据库管理面枚举；通道未注入的
   /// 嵌入式形态回空集）
   ///
-  /// 在 garnet 中的相对路径:libs/server/StoreWrapper.cs:GetDatabasesSnapshot
+  ///（C# 对位 StoreWrapper.GetDatabasesSnapshot 的转发面，引擎真实现锚在
+  /// wkv `WedbStore::store_snapshot`）
   fn store_snapshots(&self) -> Vec<DbSnapshot> {
     self.checkpoint.as_ref().map_or_else(Vec::new, |ctx| {
       ctx

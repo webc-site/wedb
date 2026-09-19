@@ -2,10 +2,15 @@
 //!
 //! 对标 libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/：
 //! - `SnapshotTransmissionDriver.cs`：按 reader → transmit source 序编排；
-//! - `TsavoriteSnapshotReader.cs`：文件源/元数据源编目（rust 统一检查点
-//!   模型映射：STORE_HLOG 段流 + STORE_INDEX 段流 + STORE_SNAPSHOT 元数据
-//!   单消息；STORE_SNAPSHOT 文件段与 STORE_INDEX 元数据无对应物，见
-//!   task/ing/m4-checkpoint-import.md 条 7）；
+//! - `TsavoriteCheckpointReader.cs`：文件源/元数据源编目。C# 侧该文件名与类名
+//!   不同名——类实名 TsavoriteSnapshotReader（构造期编目全部数据源，出源面
+//!   GetTransmitSources，逐块读落在 FileDataSource.cs 的 ReadNextChunkAsync），
+//!   按类名反查文件名会落空，锚点登记在类名侧：
+//!   libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/TsavoriteCheckpointReader.cs:TsavoriteSnapshotReader
+//!   （rust 统一检查点模型映射：STORE_HLOG 段流 + STORE_INDEX 段流 +
+//!   STORE_SNAPSHOT 元数据单消息；wcpr 检查点产物只有 hlog/index/meta 三类，
+//!   C# 的 STORE_SNAPSHOT 文件段与 STORE_INDEX 元数据在 rust 无对位段，故本
+//!   路径不下发这两类——该口径在本模块头自述，不挂在途文档）；
 //! - `RangeIndexSnapshotReader.cs` / `RangeIndexFileDataSource.cs` /
 //!   `RangeIndexFileTransmitSource.cs`：RangeIndex 检查点快照树文件逐个
 //!   三段发送（头帧 startAddress=-1 元数据 → 段帧 → 空载荷收尾；rust 元
@@ -97,8 +102,9 @@ pub async fn send_store_checkpoint(
   let meta = CheckpointMeta::decode(&meta_bytes)
     .map_err(|e| format!("local checkpoint meta decode failed: {e}"))?;
 
-  // 段流块缓冲池出口（对标 C# TsavoriteSnapshotReader 构造期建一次、注入全部
-  // 数据源的 bufferPool 字段）：设备源在设备层内部即用它，文件源沿本句柄共用
+  // 段流块缓冲池出口（对标 C# 类实名 TsavoriteSnapshotReader 的构造期建一次、
+  // 注入全部数据源的 bufferPool 字段；该类文件名见模块头第一条，与类名不同名）：
+  // 设备源在设备层内部即用它，文件源沿本句柄共用
   let pool = sources.device.pool();
 
   // 1. STORE_HLOG 段流：[扇区对齐下界(begin), 设备文件幅面]——与 C#
