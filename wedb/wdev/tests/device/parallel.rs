@@ -14,7 +14,7 @@ use aok::{OK, Void};
 use compio::runtime::{Runtime, spawn};
 use log::info;
 use tempfile::tempdir;
-use wbase::pool::AlignedBuf;
+use wbase::{align::DEFAULT_SECTOR_SIZE, pool::AlignedBuf};
 use wdev::{Device, Error, SegmentedDevice};
 
 use crate::support::make_pattern_data;
@@ -27,9 +27,10 @@ fn idevice_parallel_32_concurrent_writes() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("p32w.log"),
-      1 << 20,
+      Some(1 << 20),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     const N: usize = 32;
@@ -80,9 +81,10 @@ fn idevice_parallel_64_concurrent_reads() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("p64r.log"),
-      1 << 20,
+      Some(1 << 20),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     const N: usize = 64;
@@ -131,9 +133,10 @@ fn idevice_parallel_mixed_reads_and_writes() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("mixed_rw.log"),
-      seg_size,
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     assert_eq!(device.start_segment(), 0);
@@ -215,9 +218,10 @@ fn idevice_parallel_bursty_traffic() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("bursty.log"),
-      1 << 20,
+      Some(1 << 20),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     const BURSTS: usize = 10;
@@ -261,9 +265,10 @@ fn idevice_parallel_stress_burst_100_writes() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("stress100.log"),
-      seg_size,
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     const N: usize = 100;
@@ -322,9 +327,10 @@ fn concurrent_cold_open_race_without_zombie_revival() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = Arc::new(SegmentedDevice::segmented(
+    let device = Arc::new(SegmentedDevice::new(
       dir.path().join("cold_race.log"),
-      seg_size,
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
     )?);
 
     const TASKS: usize = 32;
@@ -445,9 +451,10 @@ fn high_concurrency_many_threads_no_hang() -> Void {
 
   let dir = tempdir()?;
   let seg_size: u64 = 64 * 1024;
-  let device = Arc::new(SegmentedDevice::segmented(
+  let device = Arc::new(SegmentedDevice::new(
     dir.path().join("mt.log"),
-    seg_size,
+    Some(seg_size),
+    DEFAULT_SECTOR_SIZE,
   )?);
 
   // 各 OS 线程独立 Runtime：向本线程独占的段写入并即时回读校验

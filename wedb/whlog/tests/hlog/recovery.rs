@@ -399,9 +399,10 @@ fn test_recover_multisegment_span_and_window_guard() -> Void {
       assert!(bad_snapshot.validate(), "快照本身须合法以触达窗口守卫");
       let result = HybridLog::recover(
         config.clone(),
-        Arc::new(SegmentedDevice::segmented(
+        Arc::new(SegmentedDevice::new(
           &db_path,
-          2 * SECTOR_ALIGNMENT as u64,
+          Some(2 * SECTOR_ALIGNMENT as u64),
+          SECTOR_ALIGNMENT,
         )?),
         Arc::clone(&epoch),
         bad_snapshot,
@@ -423,9 +424,10 @@ fn test_recover_multisegment_span_and_window_guard() -> Void {
     );
     let hlog = HybridLog::recover(
       config,
-      Arc::new(SegmentedDevice::segmented(
+      Arc::new(SegmentedDevice::new(
         &db_path,
-        2 * SECTOR_ALIGNMENT as u64,
+        Some(2 * SECTOR_ALIGNMENT as u64),
+        SECTOR_ALIGNMENT,
       )?),
       epoch,
       snapshot,

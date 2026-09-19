@@ -25,7 +25,11 @@ fn sync_persists_data_and_handles_reopen_after_reset() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("sync.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("sync.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 跨段 0、1 各写入一个扇区
     let pattern0 = make_pattern_data(4096, 5, 1);
@@ -76,7 +80,11 @@ fn idevice_permission_denied_at_first_write_callback_gets_error() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("perm_denied.log"), 64 * 1024)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("perm_denied.log"),
+      Some(64 * 1024),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 收紧父目录权限前先完成设备构造（构造期建目录需要可写）
     let buf = AlignedBuf::from_slice(&[0xABu8; 4096], 4096)?;
@@ -117,7 +125,11 @@ fn sync_data_persists_data_and_handles_reopen_after_reset() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("sync_data.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("sync_data.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     let pattern = make_pattern_data(4096, 13, 7);
     let buf = AlignedBuf::from_slice(&pattern, 4096)?;
@@ -153,7 +165,7 @@ fn read_only_device_blocks_writes_while_allowing_reads() -> Void {
     let pattern = make_pattern_data(4096, 19, 2);
     // 1. 先用可写设备写入基准数据
     {
-      let device = SegmentedDevice::segmented(&log_path, seg_size)?;
+      let device = SegmentedDevice::new(&log_path, Some(seg_size), DEFAULT_SECTOR_SIZE)?;
       let buf = AlignedBuf::from_slice(&pattern, 4096)?;
       let (res, _) = device.write_aligned(0, buf).await;
       assert_eq!(res?, 4096);
@@ -297,7 +309,11 @@ fn device_trait_static_dispatch() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("dyn_dev.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("dyn_dev.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     run_device_ops(&device, seg_size).await?;
 
@@ -317,7 +333,11 @@ fn new_segment_creation_fsyncs_parent_dir() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("dirsync.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("dirsync.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 写入段 0：物理新建段文件（并刷父目录项）
     let pattern = make_pattern_data(4096, 3, 9);
@@ -346,7 +366,11 @@ fn new_segment_creation_fsyncs_parent_dir() -> Void {
 
     // 集成验证：目录项已持久 —— 全新设备实例 recover 可见段 0/1 连续区间
     drop(device);
-    let recovered = SegmentedDevice::segmented(dir.path().join("dirsync.log"), seg_size)?;
+    let recovered = SegmentedDevice::new(
+      dir.path().join("dirsync.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
     recovered.recover()?;
     assert_eq!(recovered.start_segment(), 0);
     assert_eq!(recovered.end_segment(), Some(1));
