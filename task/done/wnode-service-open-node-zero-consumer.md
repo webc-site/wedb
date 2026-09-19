@@ -82,3 +82,51 @@ C# 对位
 - tests/ 内的同名本地 helper 与本口无关，勿改勿并（它们是各测试自备的建库夹具）。
 - 若整合轮复核后判定该口须作对外文档 API 保留：全仓 md/yml 除 next/ 与 task/ 之外
   `grep -rn open_node` 实测 0 引用，保留结论需给出新证据，否则按删口落地，不留中间态。
+
+落地记录（fixloop rm-wnode-open-node 棒，认领后按符号名重取行号复核；dev 合入 523ecd2，代码提交 bf7e133）
+- 裁决：票面主体的死口已在 dev 落地（非本棒删除，本棒无码可删）；票面「验收」第 3 条
+  的陈旧措辞注释未随当轮删口清扫，是本棒唯一载荷，且实测为三处而非票面所列两处。
+- 删口已在位的证据（现刻 dev 复核，不采信档案在否）：
+  - `git grep -n "pub fn open_node(" -- "*.rs"` 全仓零命中；`git grep -n "fn open_node"`
+    命中仅 wedb/wnode/src/service.rs:784 `pub fn open_node_with_config` 与 8 个 tests/ 夹具
+    （recover_test/node_test 所在 wnode/tests 与 wedb/tests 各文件自备 `fn open_node(tag)`）。
+  - `git grep -cw open_node`（词界）在 wedb/*/src/ 下零命中；dev 上词界命中文件集恰为
+    tests/ 夹具 8 份，即票面「验收」第 2 条已达成。
+  - 归属考：本票目标形态点名的 StorageSessionProvider::open（票面 :966-968）同样不存在，
+    二者系同一棒一并删除——见 boot-assembly-projection-single-source.md 落地记录
+    「service.rs 零调用薄壳 open_node / StorageSessionProvider::open / open_recovered」
+    （该档案的 task/done 副本已被「清理已完成与拒绝任务」提交摘除，现仅存于历史快照
+    `git show 31c2388:task/done/boot-assembly-projection-single-source.md`；本棒仍以代码事实裁决）。
+  - 现状装配面：service.rs 唯余 open_with_config（:994）、open_with_config_and_aof（:1130）、
+    open_from_args（:1300 → store_config_from_node :738 → store_config :664 = StoreConfig::auto）、
+    open_from_args_with_config（:1309），生产入口 boot.rs:70 与 wedb_standalone/src/main.rs:83
+    均走 open_from_args，缺省配置装配的自由函数声明数已为 0，比票面目标（留一处 provider::open）
+    更收敛，故不补任何替代口。
+- 无需登记的清洁度：js/check/ignore 全量 yml、check/、doc/、*.md/*.toml/*.js（除 next/ 与 task/）
+  grep `open_node` 实测 0 引用，无 ignore 条目与文档锚点需连删；票面所指 service.rs:752 的
+  「对标 C# GarnetServer InitializeServer」现为散文措辞（现位 :781，无 `.cs` 后缀，
+  CS_REF_REGEX 不登记），C# 真锚点在 wedb/wnode/src/server.rs:430-431
+  （`libs/host/GarnetServer.cs:Start` / `:InitializeServer`，票面 :474-476 已漂移），未受影响。
+  C# 对位逐条实存：garnet/libs/host/GarnetServer.cs:81/:139/:149/:160/:170/:527。
+- 连带项核实（票面「坑与边界」）：DefaultNodeHandles（现 :651）仍作 open_node_with_config
+  （:784-:787）返回类型、node_components（现 :752）与 store_config（现 :664，消费者 :739 与
+  cfg(test) :1754-:1814）均在位有消费，无泛型界或类型别名连带需要处理。
+- 本棒载荷（纯注释 3 文件 4 行，`git diff -U0 -- wedb | grep -vE "^[+-]\s*//"` 零命中即非注释行
+  数为 0）：
+  - wedb/wnode/tests/recover_test.rs:481
+  - wedb/wnode/tests/node_test.rs:329（原两行折句一并顺句）
+  - wedb/wedb/tests/cluster_resp_session.rs:1634（票面漏计的同形第三处，一并校正，不留悬指）
+  三处「生产缺省 open_node 走 StoreConfig::auto」改指「生产缺省经 open_from_args 走
+  store_config() 的 StoreConfig::auto」，与上述代码事实一一对应；不涉任何 `路径.cs:符号` 锚点。
+- 验收实测：`cargo check --workspace --all-targets`（CARGO_TARGET_DIR=/tmp/target-rm-open-node，
+  分支基与并入 dev 后各跑一次）exit 0，日志零 error 零 warning；未跑 test.sh / ./sh/clippy.sh /
+  check.js（按分工留中央整合轮，且拒绝/核销路径不在共享主仓跑 check.js 以免回写他人在途语料）。
+- 票面过期项（供后续分拣勿据此复开）：取证基线 sha 90201c15 已不在 refs（历史被压缩为 31c2388
+  init 快照）；票面 service.rs 行号整体漂移（:749/:758→:784、:966→无、:1179/:1216 已随
+  StorageSessionProvider 收口重排）；票面引用的四个 sibling 票（boot-assembly-projection-*、
+  session-metrics-option-dead-track、reviv-knobs-zero-production-wiring、
+  primary-checkpoint-cluster-callback）与两个批次票（zero-consumer-surfaces-batch-two、
+  zero-consumer-dead-surfaces-batch-five）现均不在 task/ing 在册，射程已结或档案被清空。
+- 主仓簿记：本棒 `git mv next/ → task/ing/` 的认领暂存被并发提交 347e1ca（「票移入 task/ing」
+  批次）卷入入库（回滚无益，按队列规程只知会 owner），本棒收档时该票已在 task/ing/ 原位且
+  内容与认领时一致，现 mv task/done/ 归档。
