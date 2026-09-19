@@ -220,9 +220,11 @@ fn main_loop_wakes_waiting_observer() -> aok::Result<()> {
     })
     .detach();
 
-    let result = broker
-      .get_collection_item_async(RespCommand::Blpop, vec![b"k".to_vec()], 6, 0.0, vec![])
-      .await;
+    // 生产出口三段式：start_wait 登记挂队 → wait_result 等待 → finish_wait 收尾
+    // （会话 BlockedWait 同构形态）
+    let observer = broker.start_wait(RespCommand::Blpop, vec![b"k".to_vec()], 6, vec![]);
+    observer.wait_result().await;
+    let result = broker.finish_wait(&observer);
     assert_eq!(result.item.as_deref(), Some(b"late-item".as_slice()));
     assert!(broker.try_get_observer(6).is_none());
     Ok(())
