@@ -285,7 +285,12 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
 
       // 7. 阻塞监听系统停机信号并执行优雅关机
       let run_res = server.wait_for_shutdown(&banner).await;
-      // 8. 停机清理与集群配置持久化刷盘
+      // 8. 停机清理与集群配置持久化刷盘（C# StoreWrapper.Dispose 第 1 步
+      //    clusterProvider?.Dispose() 的宿主承接段；bootstrap 持有集群
+      //    提供者而 GarnetServer 不持，故留驻 wait_for_shutdown 之后的
+      //    尾部执行——范围索引收口（第 7 步）已在其前的 server.stop()
+      //    内落地，rust 相对 C# 集群/范围索引次序有意互换：集群治理面
+      //    已随 worker join 停摆，二者无交叉触达，注释即步骤映射凭证）
       if cluster_provider.is_cluster_enabled() {
         cluster_provider.dispose();
         cluster_provider.flush_config();
@@ -727,8 +732,9 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
   ///
   /// coordinator.stop 停监听（Phase 1）→ AOF 背压闸门放行（滞留追加方出口，
   /// 置位幂等）→ pubsub 中枢收口（等消费循环退出并清订阅表）→ join worker
-  /// 线程（各线程运行时内已完成活跃连接排空，Phase 2）→ 释放缓冲池；join
-  /// 返回即排空结束，上层的集群 dispose 与配置刷盘（Phase 3）在其后执行
+  /// 线程（各线程运行时内已完成活跃连接排空，Phase 2）→ 范围索引收口 →
+  /// 释放缓冲池；join 返回即排空结束，上层的集群 dispose 与配置刷盘
+  /// （Phase 3）在其后执行
   ///
   /// 闸门放行必须先于 join：rust join 无超时上界，同步 wait_slow 阻塞的是
   /// worker 线程本体（poll 内阻塞，连接任务强杀不可打断）；C# 靠 WaitSlow
@@ -765,6 +771,15 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
     for handle in handles.drain(..) {
       let _ = handle.join();
     }
+    // 范围索引停机收口（C# StoreWrapper.Dispose 的
+    // rangeIndexManager?.Dispose()，Provider.Dispose 段第七步：时序在
+    // clusterProvider/itemBroker/taskManager 之后、databaseManager 之前——
+    // 对位即 Phase 2 连接排空（join）之后、引擎 store 兜底析构之前）。
+    // 显式步落地后，嵌入式/复用进程形态 stop() 返回即释放全部在线树与
+    // native 页缓存，不再依赖各 Arc 引用恰好归零；引擎侧幂等，与
+    // WedbStore::drop 兜底并存安全。早于 join 则在途命令仍可触达在建树，
+    // 故不可前移；未装配引擎经 trait 默认跳过
+    self.session_provider.dispose_range_index();
     self.buffer_pool.purge();
   }
 
