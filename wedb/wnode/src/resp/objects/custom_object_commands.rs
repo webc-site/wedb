@@ -33,7 +33,7 @@ use wresp::{
   cmd_strings::{RESP_ERR_ASYNC_REQUIRED, RESP_ERR_GENERIC, RESP_ERR_WRONG_TYPE, write_error_raw},
   ext::RespVecExt,
 };
-use wval::KeyTag;
+use wval::{CustomObjectType, KeyTag};
 
 use super::object_store_utils::{
   ObjLoad, obj_load_custom_async, obj_load_custom_sync, obj_save_custom_notified,
@@ -86,9 +86,18 @@ enum ReadProbe {
 #[derive(Clone, Copy)]
 struct CustomObjCtx<'a> {
   /// 信封内层类型标签（wval::CustomObjectType 分配单点）
-  tag: u8,
+  tag: CustomObjectType,
   fns: &'a CustomObjectFns,
   resp_version: RespVersion,
+}
+
+impl CustomObjCtx<'_> {
+  /// 信封线域标签：仅在此一处把枚举收窄为 u8（`wcol::object_payload` 的
+  /// 信封编解码收标准段/扩展段共用的 u8 线域，见其模块注释）
+  #[inline]
+  fn wire_tag(self) -> u8 {
+    self.tag.as_u8()
+  }
 }
 
 /// 自定义对象只读命令分派求值原语（直接借用底层存储切片，零堆分配）
@@ -155,8 +164,8 @@ pub(crate) struct CustomObjectCall<'a> {
   pub cmd_type: CommandType,
   /// 键与命令入参（会话侧按静态清单键作用域 [`CustomArgs`] 拆定的形态）
   pub args: CustomArgs<'a>,
-  /// 信封内层类型标签
-  pub tag: u8,
+  /// 信封内层类型标签（parse→exec 全程保持枚举，仅跨信封编解码时收窄）
+  pub tag: CustomObjectType,
   /// 静态执行体
   pub fns: &'a CustomObjectFns,
   /// 会话 RESP 协议版本
@@ -197,7 +206,7 @@ fn probe_custom_read_sync<D: Device>(
 ) -> ReadProbe {
   // 读侧降级约定：RecordOnDisk 磁盘候选 / TTL 待裁决；NotFound 域内键缺失
   let envelope = store.try_read_tag_sync(key, KeyTag::ObjectEnvelope, |raw| {
-    match obj_decode_custom(raw, ctx.tag) {
+    match obj_decode_custom(raw, ctx.wire_tag()) {
       None => Err(()), // 信封标签不符 -> WrongType
       Some(payload) => {
         // 零拷贝直喂 fns.reader
@@ -278,7 +287,7 @@ fn try_custom_object_rmw_sync<D: Device>(
   args: &[&[u8]],
   output: &mut Vec<u8>,
 ) -> CustomObjOutcome {
-  let loaded = obj_load_custom_sync(store, key, ctx.tag, output, |p| Some(p.to_vec()));
+  let loaded = obj_load_custom_sync(store, key, ctx.wire_tag(), output, |p| Some(p.to_vec()));
   let step = dispatch_custom_object_rmw(ctx.fns, loaded, args, output, ctx.resp_version);
   match step {
     CustomObjStep::Done => CustomObjOutcome::Done,
@@ -292,7 +301,7 @@ fn try_custom_object_rmw_sync<D: Device>(
       }
     },
     CustomObjStep::Mutate(CustomObjMutation::Save(payload)) => {
-      match obj_save_custom_notified(store, key, ctx.tag, &payload) {
+      match obj_save_custom_notified(store, key, ctx.wire_tag(), &payload) {
         Ok(true) => CustomObjOutcome::Done,
         Ok(false) => CustomObjOutcome::Degrade,
         Err(_) => {
@@ -310,7 +319,7 @@ fn try_custom_object_rmw_sync<D: Device>(
 /// RESP_ERR_SLOW_PATH_STORAGE
 pub(crate) async fn custom_object_slow<D: Device>(
   storage: &StorageSession<'_, D>,
-  tag: u8,
+  tag: CustomObjectType,
   meta: &CustomCommandMeta,
   cmd_refs: &[&[u8]],
   output: &mut Vec<u8>,
@@ -352,7 +361,7 @@ async fn probe_custom_read_async<D: Device>(
     let output_cell = RefCell::new(&mut *out);
     storage
       .read_tag_with(key, KeyTag::ObjectEnvelope, |raw| {
-        match obj_decode_custom(raw, ctx.tag) {
+        match obj_decode_custom(raw, ctx.wire_tag()) {
           None => Err(()),
           Some(payload) => {
             let mut out_ref = output_cell.borrow_mut();
@@ -430,7 +439,7 @@ async fn custom_object_rmw_async<D: Device>(
   args: &[&[u8]],
   output: &mut Vec<u8>,
 ) -> Result<(), ()> {
-  let loaded = obj_load_custom_async(storage, key, ctx.tag, output, |p| Some(p.to_vec()))
+  let loaded = obj_load_custom_async(storage, key, ctx.wire_tag(), output, |p| Some(p.to_vec()))
     .await
     .map_err(|_| ())?;
   let step = dispatch_custom_object_rmw(ctx.fns, loaded, args, output, ctx.resp_version);
@@ -440,13 +449,13 @@ async fn custom_object_rmw_async<D: Device>(
       storage.delete_string(key).await.map(|_| ()).map_err(|_| ())
     }
     CustomObjStep::Mutate(CustomObjMutation::Save(payload)) => {
-      match obj_save_custom_notified(&storage.batch, key, ctx.tag, &payload) {
+      match obj_save_custom_notified(&storage.batch, key, ctx.wire_tag(), &payload) {
         Ok(true) => Ok(()),
         Ok(false) => storage
           .upsert_tag(
             key,
             KeyTag::ObjectEnvelope,
-            &obj_encode_custom(ctx.tag, &payload),
+            &obj_encode_custom(ctx.wire_tag(), &payload),
           )
           .await
           .map_err(|_| ()),

@@ -532,7 +532,7 @@ impl<D: Device> StoreGarnetApi<D> {
           return output;
         };
         if let Err(()) =
-          custom_object_slow(&storage, entry.tag.as_u8(), &meta, cmd_refs, &mut output).await
+          custom_object_slow(&storage, entry.tag, &meta, cmd_refs, &mut output).await
         {
           write_error_raw(&mut output, RESP_ERR_SLOW_PATH_STORAGE);
         }

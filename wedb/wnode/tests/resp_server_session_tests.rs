@@ -639,7 +639,7 @@ fn custom_command_arity_gate() {
       command_type: CommandType::Read,
       key_scope: KeyScope::Single,
       arity: 3,
-      object_tag: CustomObjectType::Roaring.as_u8(),
+      object_tag: CustomObjectType::Roaring,
       fns: stub_fns(),
     },
   ));
@@ -659,7 +659,7 @@ fn custom_command_arity_gate() {
       command_type: CommandType::Read,
       key_scope: KeyScope::Single,
       arity: 3,
-      object_tag: CustomObjectType::Roaring.as_u8(),
+      object_tag: CustomObjectType::Roaring,
       fns: stub_fns(),
     },
   ));

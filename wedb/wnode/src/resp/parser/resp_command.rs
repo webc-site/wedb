@@ -51,7 +51,7 @@ fn try_parse_custom_command(
     command_type: meta.command_type,
     key_scope: meta.key_scope,
     arity: meta.arity,
-    object_tag: entry.tag.as_u8(),
+    object_tag: entry.tag,
     fns: meta.fns,
   })
 }

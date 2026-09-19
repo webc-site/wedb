@@ -58,6 +58,7 @@ use wresp::{
   read::{ReplyError, parse_bulk_reply, parse_simple_reply},
   session_parse_state::{MAX_ARGUMENT_LENGTH_BYTES, SessionParseState},
 };
+use wval::CustomObjectType;
 use wtxn::{
   TransactionManager, TxnCommandKeys, TxnKeySpec, TxnLockTable, TxnQueuedCommandInfo, TxnState,
   WatchVersionMap,
@@ -220,8 +221,9 @@ pub struct CustomCommandRef {
   /// arity（0 = 不校验；负值 = 至少 -arity-1 个参数）
   pub arity: i32,
   /// 对象信封类型标签（wval::CustomObjectType 分配单点，经 wcustom
-  /// CustomObjectEntry 静态描述清单流转）
-  pub object_tag: u8,
+  /// CustomObjectEntry 静态描述清单流转；parse→exec 全程保持枚举，
+  /// 仅在信封编解码边界收窄为 u8 线域）
+  pub object_tag: CustomObjectType,
   /// 静态执行体（编译期函数指针集）
   pub fns: CustomObjectFns,
 }
