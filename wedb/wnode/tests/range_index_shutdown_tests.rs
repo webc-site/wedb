@@ -12,8 +12,7 @@ use std::sync::Arc;
 
 use tempfile::tempdir;
 use wbftree::{StorageBackendType, TreeTuning};
-use wnode::SessionProviderFace;
-use wnode::service::StorageSessionProvider;
+use wnode::{SessionProviderFace, service::StorageSessionProvider};
 use wnode_test::{session_factory, start_server};
 use wtest_base::test_store_config;
 
@@ -38,7 +37,11 @@ fn stop_disposes_live_range_index_trees() {
   // 构造在线树（引擎直建并持句柄；测试期间 store 不析构）
   let engine = Arc::clone(provider.store().range_index());
   engine
-    .create_bftree(b"ri_shutdown", StorageBackendType::Memory, TreeTuning::default())
+    .create_bftree(
+      b"ri_shutdown",
+      StorageBackendType::Memory,
+      TreeTuning::default(),
+    )
     .expect("create online tree");
   assert_eq!(engine.live_index_count(), 1, "预置：在线树已注册");
 
