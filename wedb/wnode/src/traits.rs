@@ -113,6 +113,10 @@ pub trait MessageConsumerFace: Send + 'static {
     None
   }
 
+  /// 慢路径完成后的应答写出：先冲出会话已累积应答，再把应答字节按流水线顺序
+  /// 追加到调用方传入的写缓冲区。无慢路径命令的消费者恒空操作
+  fn resolve_slow_wait_into(&mut self, _reply: &[u8], _resp_buf: &mut Vec<u8>) {}
+
   /// 订阅推送邮箱句柄（订阅态会话返回 Some；网络泵读等待段的双路
   /// 等待源——读挂起期间邮箱到达事件唤醒连接任务直写推送帧，
   /// C# 由广播线程直写订阅会话网络发送器的等价承接）。默认 None

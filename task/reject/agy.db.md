@@ -204,3 +204,17 @@ rust：wedb/wtxn/src/watch_version_map.rs fn WatchVersionMap::increment_version
    与「杜绝多套机制」取向冲突。
 3. 抖动收益无取证：批量推进要先把多键哈希排序去重（又一套桶序），与 spec 的 1:1 对标取向相悖；
    若确有 MSET 提交放大问题，正解是在 MSET 慢路径复用既有单点推进而非新造 API 面。
+
+并发同题票交叉登记（2026-09-19 22:08 复核，非裁决，仅防撞）
+本档所拒各条，并发分拣波另立了同题票并仍存活，主代理派发前须与本档判词对表，禁默认「已立项即成立」：
+条 4 → next/db-raw-read-variant-collapse.md（本档只拒其读路径变体收敛半条；其堆分配半条已转
+task/ing/wtxn-queued-command-name-static-str.md）。
+条 5 → next/db-raw-session-write-tiny-files.md（并 next/muse.db.md 条 19）。
+条 10 → task/ing/db-aof-header-split.md（22:09 复核已由主代理收为载体）。
+条 16 → next/db-read-cache-probe-unify.md（并 next/muse.db.md 条 14）。
+条 17 → task/ing/db-compact-entry-single-chain.md（并 next/muse.db.md 条 16；其注记已自认 agy 原引证有误）。
+条 21 → task/ing/db-wrecord-header-bits.md（已由主代理收为载体，同面 muse.db 条 8 判「不拆定义、纪律保持」，
+与本档判词方向一致，故该票若派发只可行使注释/纪律面，禁真拆 RecordHeader 定义）。
+条 12、条 15、条 22 未见对手票。
+核对判据提醒：条 15 引证的 rust 符号与 C# ScanMethods.cs 在当下主仓均零命中（grep 事实，防 zsh glob
+假阴性已用目录级 grep 复核）；条 12 的 AddressSnapshot::region_* 委托在 whlog/src/address.rs:48-88 已成立。

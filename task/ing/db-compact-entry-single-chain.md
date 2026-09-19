@@ -24,3 +24,5 @@ wcompact 裸 compact 方法族收紧：compact（无过滤版）删除或改 pub
 WedbStore 门面注入业务判死后调用，直连仅限 wcompact 测试」；wcompact 内 tests
 直调点同步改。收口后生产唯一链 = GcManager::try_compact -> WedbStore::compact ->
 LogCompactor。与 next/db-wkv-gc-split.md（gc.rs 拆分引用同链）无文件冲突可并行。
+
+主代理补录（14:13，agy.db 晚波条 17 反证）：称生产已走 WedbStore::compact → compact_with_filter(&WedbCompactionFunctions)（store/gc.rs:604 附近），裸 compact 对位 C# TsavoriteKV.Compact 默认形态、其余消费者为 compact_lazy/测试，「诉求实为纯注释级」。请甄别时按符号核实现刻 HEAD：若主从链已单点，判「已落地→注释补强或删票取证」，勿为改口而改口。

@@ -1,4 +1,4 @@
-use wcustom::{CommandType, CustomObjectFns};
+use wcustom::{CommandType, CustomObjectFns, KeyScope};
 use wval::CustomObjectType;
 
 use super::JsonCommands;
@@ -225,6 +225,7 @@ impl JsonCommand {
     Self::match_command(name).map(|cmd| wcustom::CustomCommandMeta {
       name: cmd.name(),
       command_type: cmd.command_type(),
+      key_scope: cmd.key_scope(),
       arity: cmd.arity(),
       fns: cmd.fns(),
     })
@@ -312,13 +313,25 @@ impl JsonCommand {
     }
   }
 
+  /// 键作用域（多键读的分型知识入静态清单；JSON.MGET 之外全为单键。
+  /// C# 无对位：`modules/GarnetJSON` 只注册 JSON.SET / JSON.GET，
+  /// 多键读为 rust 侧 RedisJSON 兼容扩展面）
+  pub const fn key_scope(self) -> KeyScope {
+    match self {
+      Self::MGet => KeyScope::MultiRead { tail: 1 },
+      _ => KeyScope::Single,
+    }
+  }
+
   pub const fn fns(self) -> CustomObjectFns {
     match self {
       Self::Set => JsonCommands::JSON_SET,
       Self::Get => JsonCommands::JSON_GET,
       Self::Del | Self::Forget => JsonCommands::JSON_DEL,
       Self::Type => JsonCommands::JSON_TYPE,
-      Self::MGet => JsonCommands::JSON_GET, // handled via specialized multi-key dispatch or GET
+      // 单值读法与 JSON.GET 同一执行体：多键循环由 [`JsonCommand::key_scope`]
+      // 的静态形态位驱动，逐键各喂一次 reader（执行期不再按命令名特判）
+      Self::MGet => JsonCommands::JSON_GET,
       Self::NumIncrBy => JsonCommands::JSON_NUMINCRBY,
       Self::NumMultBy => JsonCommands::JSON_NUMMULTBY,
       Self::Toggle => JsonCommands::JSON_TOGGLE,
