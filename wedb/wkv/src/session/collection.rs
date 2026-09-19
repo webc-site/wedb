@@ -5,9 +5,10 @@
 //! 「分页分层态」唯一物理域是 KeyTag::Meta（MetaValue + BftreeStub 存根 + 独立
 //! 树文件），RangeIndex（RI.CREATE 显式索引）与升阶后的通用对象（Hash/Set/List/
 //! ZSet）共用该域——升阶臂见 wkv range_index/stub.rs promote_collection_to_bftree，
-//! 真实写序为非原子三步：先发数据流块、再落元记录、后删信封（信封删除失败
-//! 上抛），窗口内双态残留由排空回收单点 handle_bftree_drain_and_delete 的信封域
-//! 幂等墓碑兜底收敛；降阶臂反向（先写回信封、再清退树与元记录）；「内存态」的
+//! 先建快照后原子换入：首升阶（replace=false）落元记录、删信封为非原子三步，
+//! 窗口内双态残留由排空回收单点 handle_bftree_drain_and_delete 的信封域
+//! 幂等墓碑兜底收敛；分层重灌（replace=true）经 publish_tree_from_snapshot_locked
+//! 同一内核换树，旧树全程可读、无销毁蒸发窗口；降阶臂反向（先写回信封、再清退树与元记录）；「内存态」的
 //! 通用对象只驻信封
 //! KeyTag::ObjectEnvelope（含 ObjectStoreRMW 增量条目），该态绝无独立 Meta 记录，
 //! 删除收敛至信封墓碑。
@@ -204,7 +205,7 @@ impl<D: Device> StoreSession<D> {
   ///   清退）：记录随键消亡，HasExpiration 亦随之消失（RMWMethods.cs:111
   ///   CheckExpiry → ExpireAndStop 与 DeleteMethods 删除臂连尾随字段一并清除），
   ///   同步 del_ttl 清旁路记录，杜绝孤儿 TTL；
-  /// - true = 升阶/降阶迁移臂：键全程存活，仅元记录/信封换域。C# 对象记录重写
+  /// - true = 降阶迁移臂：键全程存活，仅元记录/信封换域。C# 对象记录重写
   ///   （GetRMWModifiedFieldInfo，VarLenInputMethods.cs:42）把 HasExpiration 从
   ///   源记录原样前移到修改后记录，重写事件不脱落过期、也零发 TTL 事件；本仓
   ///   TTL 为独立旁路记录（KeyTag::Ttl，随用户键而非换域记录），故前移语义 =

@@ -45,7 +45,7 @@ impl<D: Device> StoreSession<D> {
   /// 树态键排空回收单点：双物理域原子墓碑（信封域 + 元记录）+ BfTree 树实例注销 +
   /// 换号旁表回收 + RangeIndexDrop AOF 入账；随键 TTL 由 `keep_ttl` 分流（口径详见
   /// `drain_and_delete_collection_meta` 文档：删键臂 false 清 TTL
-  /// 杜绝孤儿，升阶/降阶迁移臂 true 只墓碑元记录、不碰 TTL 旁路，对标 C#
+  /// 杜绝孤儿，降阶迁移臂 true 只墓碑元记录、不碰 TTL 旁路，对标 C#
   /// 对象记录重写原样前移 HasExpiration、零发 TTL 事件）。
   ///
   /// 删键臂（keep_ttl=false）连带对信封域写幂等墓碑，两域回收一处收口：
@@ -59,8 +59,9 @@ impl<D: Device> StoreSession<D> {
   /// ExpireAndStop 与 DeleteMethods 删除臂）；本仓分层态键消亡必须两域齐清，
   /// 落实 SKILL.md「严格删空生命周期与原子墓碑，杜绝幽灵空元记录」。墓碑先于
   /// 元记录落笔：命令窗口内回落域先死、路由域后死，杜绝中途幽灵读。迁移臂
-  /// （keep_ttl=true）绝不触碰信封域：键全程存活，重灌臂随后 promote 内删
-  /// 信封、降阶臂随后 obj_save 写回新信封，墓碑即自相残杀。纯 RangeIndex 键
+  /// （keep_ttl=true）绝不触碰信封域：键全程存活，降阶臂随后 obj_save 写回新
+  /// 信封，墓碑即自相残杀；分层重灌臂经 promote 直接换树、不再经本函数（先建
+  /// 后拆，见 promote_collection_to_bftree）。纯 RangeIndex 键
   /// 无信封记录，delete_raw 哈希探针落空零写零入账（幂等），与 DEL 复合臂
   /// [`crate::session::StoreSession::delete`] 的双域墓碑共用 delete_raw 同一
   /// 原语，不新增第二条信封删除路径。
@@ -116,13 +117,29 @@ impl<D: Device> StoreSession<D> {
     Ok(Some((meta, stub)))
   }
 
-  /// 将小中规模集合就地原子升阶为 BfTree 分页分层态
+  /// 将集合就地升阶为 BfTree 分页分层态（首升阶与分层重灌共用同一建树+换入内核）
   ///
-  /// 灌入走 wbftree 排序批量装载内核 [`bulk_load`](wbftree::BfTreeService::bulk_load)：
-  /// 建树与整批装载合并在一次阻塞线程卸载内完成，全批次单次引擎借用、条目栈上
-  /// 排序后集中命中相邻页，杜绝逐条 insert 的 N 次借用与页缓存抖动 (65536+ 条目
-  /// 升阶与分层重灌路径同源，重灌经 obj_writeback_tiered → apply_rmw_post_operate
-  /// 汇入本函数)。meta.size 由内核返回的去重条数一次性回写 (单次元数据落盘)。
+  /// 先建后拆单内核 [`build_collection_tree_snapshot`](wbftree::RangeIndexManager)：
+  /// 建树与整批装载合并在一次阻塞线程卸载内完成（全批次单次引擎借用、条目栈上
+  /// 排序后集中命中相邻页，杜绝逐条 insert 的 N 次借用与页缓存抖动），产物为
+  /// migration-tmp 下的 CPR 快照文件；随后在键条带写锁内经
+  /// [`publish_tree_from_snapshot_locked`](wbftree::RangeIndexManager) rename 原子
+  /// 换入正式数据路径。`replace` 分流两态：首升阶 false（无旧树，IndexExists
+  /// 防重门在换入锁内裁决）；分层重灌 true（旧树锁内摘除并延迟释放，换入窗口
+  /// 无文件缺失间隙，杜绝旧「先 drain 销毁再原位重建」形态下 drain 成功、
+  /// promote 失败的键蒸发窗口）。meta.size 由装载内核返回的去重条数一次性回写
+  /// (单次元数据落盘)。65536+ 条目升阶与分层重灌路径同源，重灌经
+  /// obj_writeback_tiered → apply_rmw_post_operate 汇入本函数。
+  ///
+  /// 写序不变量：建树 → 先发 RangeIndexStream 数据流 → 原子换入 → 落元记录 →
+  /// 删信封。数据流先行于换入与 meta：入队失败即弃快照残件上抛，此刻新树未换入、
+  /// 旧态（旧树 / 旧 meta / 信封 / 键级 TTL）分毫未动，回滚即原态；副本据流块以
+  /// 同 replace 标志重放发布（重灌流不再前导 RangeIndexDrop，旧树由 replace 换入
+  /// 承接）。换入后至元记录落盘前崩溃仅余「新树 + 旧 meta」滞后态——键仍可读
+  /// （读臂惰性恢复按数据文件收敛、计数校正兜底 size 滞后），崩溃窗口自「数据
+  /// 丢失」收敛为「新旧快照之一」，对齐 C# 对象记录重写单日志记录原子、
+  /// HasExpiration 前移零 TTL 事件的口径（ObjectStore/VarLenInputMethods.cs:
+  /// GetRMWModifiedFieldInfo）。
   ///
   /// `next_expiry` 为灌入批的最早成员到期刻度（调用方单点算好传入：升阶/重灌臂
   /// 经 wnode [`earliest_expiry`](wnode::resp::objects::tiered_collection_ops) /
@@ -136,55 +153,93 @@ impl<D: Device> StoreSession<D> {
     obj_type: GarnetObjectType,
     entries: Vec<(Vec<u8>, Vec<u8>)>,
     next_expiry: i64,
+    replace: bool,
   ) -> Result<()> {
     // 升阶建树调参：min_record_size 取引擎硬下限 2 (集合条目常短于 RI.CREATE
     // 的 64B 引擎记录下限，详见 TreeTuning::DEFAULT_RI_COLLECTION 注释)
     let mut tuning = TreeTuning::DEFAULT_RI_COLLECTION;
     RangeIndexManager::resolve_tuning(&mut tuning);
 
+    // 建树 + 装载 + CPR 快照：scratch 树全程不入注册表、不触目标键数据文件，
+    // 旧树（重灌态）原态可读
     let mgr = Arc::clone(&self.store.range_index);
-    let create_key = key.to_vec();
-    let create_tuning = tuning;
+    let build_key = key.to_vec();
     let entry_count = entries.len();
-    let (tree, count, snapshot_path) = range_index_blocking(move || {
-      let tree = mgr.create_bftree(&create_key, StorageBackendType::Disk, create_tuning)?;
-      let count = tree.bulk_load(&entries).map_err(|res| {
-        // 装载失败整树作废：内核前置校验保证失败发生在任何写入之前，回滚口径
-        // 与旧逐条路径一致 (delete_index 幂等，树未落元记录故无旁表残留)
-        let _ = mgr.delete_index(&create_key);
-        match res {
-          BfTreeInsertResult::InvalidKV => {
-            log::error!(
-              "promote_collection_to_bftree 装载被拒 (键值违反长度契约): key={create_key:?}, entries={entry_count}"
-            );
-            CollectionError::KeyTooLong
+    let (snapshot_path, count) = range_index_blocking(move || {
+      mgr
+        .build_collection_tree_snapshot(&entries, &tuning)
+        .map_err(|e| -> Error {
+          match e {
+            // 装载被拒整树作废：内核前置校验保证失败发生在任何写入之前，scratch
+            // 工作文件已由建树内核就地回收，注册表与旧态零触碰
+            wbftree::Error::LoadRejected(BfTreeInsertResult::InvalidKV) => {
+              log::error!(
+                "promote_collection_to_bftree 装载被拒 (键值违反长度契约): key={build_key:?}, entries={entry_count}"
+              );
+              CollectionError::KeyTooLong.into()
+            }
+            wbftree::Error::LoadRejected(res) => {
+              log::error!(
+                "promote_collection_to_bftree 装载失败 (引擎参数非法): key={build_key:?}, entries={entry_count}, res={res:?}"
+              );
+              CollectionError::InvalidArgument("invalid arguments for tree insert").into()
+            }
+            e => e.into(),
           }
-          _ => {
-            log::error!(
-              "promote_collection_to_bftree 装载失败 (引擎参数非法): key={create_key:?}, entries={entry_count}"
-            );
-            CollectionError::InvalidArgument("invalid arguments for tree insert")
-          }
-        }
-      })?;
-      // 数据通道快照：与建树 / 装载同处一次阻塞卸载内，在键条带写锁下把整树
-      // CPR 快照至迁移临时文件（快照窗口阻塞同键写入；此刻 meta 尚未落盘，
-      // RI.SET 经元记录存在性门禁不会并发命中本键，快照即升阶后的完整树态）。
-      // 快照文件由 sink 分块灌入 AOF 后即回收，副本据此数据回放重建树域。
-      let snap_path = mgr.derive_temp_migration_path();
-      {
-        let _xlock = mgr.acquire_exclusive_for_delete(fast_hash(&create_key));
-        if let Err(e) = mgr.snapshot_tree_to_path_locked(&create_key, &tree, &snap_path) {
-          let _ = mgr.delete_index(&create_key);
-          let _ = remove_file(&snap_path);
-          return Err(CollectionError::from(e));
-        }
-      }
-      Ok((tree, count, snap_path))
+        })
     })
     .await??;
 
-    // 升阶树同样纳入换号回收旁表（FLUSHDB 后同名集合再升阶不被 IndexExists 拦截）
+    // 数据通道发布存根：树句柄取 0 的瞬态形态——消费侧（副本回放 / 迁移接收）
+    // 一律 rebind_stub 以在线树句柄重绑，流的事实源是调参与后端字段（同迁移流口径）
+    let stream_stub = RangeIndexStub::from_tuning(0, &tuning, StorageBackendType::Disk);
+
+    // 数据通道事件先行于换入与 meta 落盘：sink 同步读取快照文件分块灌入 AOF，
+    // 副本据流块重建为树态。先发流后写 meta，杜绝「副本见 meta 却缺数据」的空树
+    // 幻影（源侧 RI.SET 经元记录门禁与本流串行，无需额外加锁）。入队失败即删快照
+    // 残件上抛——此刻新树未换入、旧态分毫未动，回滚即原态；emit 静默缺条目为禁区，
+    // 本地有树而副本无数据是发散。
+    let (ns, db) = self.virtual_domain();
+    if let Err(e) = self.store.emit_event(StoreEvent::RangeIndexStream {
+      ns,
+      db,
+      key,
+      obj_type: obj_type.as_u8(),
+      stub: stream_stub.encode(),
+      file_path: &snapshot_path,
+      replace,
+    }) {
+      if snapshot_path.exists()
+        && let Err(re) = remove_file(&snapshot_path)
+      {
+        log::warn!("升阶快照残件删除失败，migration-tmp 启动清扫兜底: {re}");
+      }
+      return Err(e);
+    }
+
+    // 原子换入：条带写锁内裁决 IndexExists（首升阶防重门）→ 摘旧树延迟释放
+    // （重灌态）→ rename 快照顶替数据文件 + 目录 fsync 双屏障 → 恢复注册。
+    let mgr = Arc::clone(&self.store.range_index);
+    let pub_key = key.to_vec();
+    let pub_snap = snapshot_path.clone();
+    let published = range_index_blocking(move || {
+      let _xlock = mgr.acquire_exclusive_for_delete(fast_hash(&pub_key));
+      mgr.publish_tree_from_snapshot_locked(&pub_key, &pub_snap, replace)
+    })
+    .await?;
+    let tree = published.map_err(|e| {
+      // 换入失败旧树必在位（快照源校验前置于摘除之前，见发布内核），删快照残件
+      // 后上抛令升阶命令失败，禁静默；残件另有 migration-tmp 启动清扫兜底
+      if snapshot_path.exists()
+        && let Err(re) = remove_file(&snapshot_path)
+      {
+        log::warn!("升阶快照残件删除失败，migration-tmp 启动清扫兜底: {re}");
+      }
+      e
+    })?;
+
+    // 升阶树纳入换号回收旁表（FLUSHDB 后同名集合再升阶不被 IndexExists 拦截；
+    // 重灌臂因不再前导 drain 而全程在册，set 插入幂等）
     self.register_bftree_key(key);
 
     let stub = RangeIndexStub::from_tuning(tree.native_ptr(), &tuning, StorageBackendType::Disk);
@@ -193,34 +248,15 @@ impl<D: Device> StoreSession<D> {
     let meta = MetaValue::new_with_expiry(key_id, obj_type, count, next_expiry);
     let env_k = self.session_tag_key(KeyTag::ObjectEnvelope, key);
 
-    // 数据通道事件先行于 meta 落盘：sink 同步读取快照文件分块灌入 AOF，副本据
-    // 流块重建为树态。先发流后写 meta，杜绝「副本见 meta 却缺数据」的空树幻影
-    // （源侧 RI.SET 经元记录门禁与本流串行，无需额外加锁）。入队失败即回滚在
-    // 线树与换号登记，保信封原态（meta 尚未落盘）并上抛令升阶命令失败——emit
-    // 静默缺条目为禁区，本地有树而副本无数据是发散。
-    let (ns, db) = self.virtual_domain();
-    let emit_res = self.store.emit_event(StoreEvent::RangeIndexStream {
-      ns,
-      db,
-      key,
-      obj_type: obj_type.as_u8(),
-      stub: stub.encode(),
-      file_path: &snapshot_path,
-    });
-    let _ = remove_file(&snapshot_path);
-    if let Err(e) = emit_res {
-      let _ = self.store.range_index.delete_index(key);
-      self.unregister_bftree_key(key);
-      return Err(e);
-    }
-
     let val = encode_meta_stub_record(&meta, &stub);
+    // 换入后元记录落盘硬错上抛，禁静默：此刻仅余「新树 + 旧 meta」滞后态，键仍
+    // 可读（惰性恢复按数据文件收敛），错误面必须可见
     self.upsert_raw(&meta_k, &val).await?;
 
-    // 信封删除 IO 硬错上抛令升阶命令失败，禁 `let _ =` 静默 Ok：静默吞错正
-    // 是「信封旧快照 + Meta 存根 + 树」双态残留的最廉价入口（与上方 emit 失败
-    // 回滚在线树、换号登记的既有回滚臂同口径——错误面必须可见）；此刻 meta
-    // 已落盘无法回滚，残留由排空回收单点的信封幂等墓碑兜底收敛
+    // 信封删除 IO 硬错上抛令升阶命令失败，禁 `let _ =` 静默 Ok：静默吞错正是
+    // 「信封旧快照 + Meta 存根 + 树」双态残留的最廉价入口（错误面必须可见）；
+    // 此刻 meta 已落盘无法回滚，残留由排空回收单点的信封幂等墓碑兜底收敛。
+    // 重灌态信封本就不存在，delete_raw 探针落空零写零入账（幂等）
     self.delete_raw(&env_k).await?;
     // 信封墓碑入账由 delete_raw 的写监听端口恰一次完成（sink 的 Write 臂
     // 放行 ObjectEnvelope 墓碑为 StoreDelete 条目），回放侧按域范围仅删信封，

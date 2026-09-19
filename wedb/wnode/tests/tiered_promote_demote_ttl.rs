@@ -3,7 +3,8 @@
 //! 缺陷口径：tiered 重灌臂 / 懒降阶臂 / 后台降阶臂经「handle_bftree_drain_and_delete
 //! 与 promote_collection_to_bftree / obj_save」组合迁移，drain 内无条件 del_ttl
 //! 曾使一次升/降阶即静默抹掉 EXPIRE 设置的键级过期，且清除经
-//! TtlWrite(expire_at=None) 镜像成 Persist 条目扩散到从库与 AOF 回放面。
+//! TtlWrite(expire_at=None) 镜像成 Persist 条目扩散到从库与 AOF 回放面
+//!（重灌臂后改先建后拆换入，同样零 TTL 事件面，判据不变）。
 //!
 //! 修复判据（keep_ttl 分流，对标 C# 对象记录重写从不脱落过期字段——
 //! ObjectStore/VarLenInputMethods.cs:42 GetRMWModifiedFieldInfo 把 HasExpiration
@@ -198,7 +199,13 @@ fn background_demote_preserves_key_ttl() {
     let sess = env.store.new_session().unwrap();
     env
       .rt
-      .block_on(sess.promote_collection_to_bftree(b"h", GarnetObjectType::Hash, entries, i64::MAX))
+      .block_on(sess.promote_collection_to_bftree(
+        b"h",
+        GarnetObjectType::Hash,
+        entries,
+        i64::MAX,
+        false,
+      ))
       .unwrap();
   }
   assert!(is_tiered(&env, b"h"), "手工升阶后键应处分层态");

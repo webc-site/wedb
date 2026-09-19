@@ -199,3 +199,62 @@ fn promote_aof_data_channel_replay_converges_replica() -> Void {
     OK
   })
 }
+
+/// 分层重灌流（replace=true）端到端回放：首升阶后 HDEL 少量字段触发同名二次
+/// 升阶（先建后拆换入，流不再前导 RangeIndexDrop），副本对既有树必须以
+/// replace 形态换入重放——若 replace 位未打通，副本回放撞 live_indexes 在册
+/// 旧树被拒（AlreadyExists 静默跳过），旧树残留 f1 幽灵、HGETALL 与主端发散
+#[test]
+fn tiered_reflush_stream_replays_with_replace_over_existing_tree() -> Void {
+  let rt = Runtime::new()?;
+  rt.block_on(async {
+    let total = wcol::TIERED_PROMOTE_THRESHOLD + 10;
+
+    let primary = open_node("reflush_primary")?;
+    let papi = api_of(&primary.store)?;
+    let mut ps = session_with(&papi);
+    fill_hash(&papi, &rt, &mut ps, b"h", total);
+
+    // 分层态 HDEL 单成员：跌不回死区 → 走 apply_rmw_post_operate 重灌臂
+    // （promote replace=true），键全程存活
+    assert_eq!(
+      auto_exec(&papi, &rt, &mut ps, RespCommand::Hdel, &[b"h", b"f1"]),
+      b":1\r\n",
+      "HDEL 应答为删除计数 1"
+    );
+    assert_eq!(
+      auto_exec(&papi, &rt, &mut ps, RespCommand::Hget, &[b"h", b"f1"]),
+      b"$-1\r\n",
+      "主端 f1 应已删除"
+    );
+    primary.wal.commit().await?;
+
+    let replica = open_node("reflush_replica")?;
+    let replayed = primary
+      .service
+      .replay_into_session(replica.service.session())
+      .await?;
+    assert!(replayed > 0, "副本应消费到升阶 + 重灌数据通道条目");
+
+    // 重放判据（replace 打通的唯一红绿面）：副本树内容必须随重灌流换入收敛，
+    // f1 不得以幽灵复活；仅断言元记录计数会被 meta 域 StoreUpsert 回放掩盖，
+    // 数据面逐字节比对才鉴别「流撞旧树被拒、meta 却已收敛」的发散
+    let rapi = api_of(&replica.store)?;
+    let mut rs = session_with(&rapi);
+    assert_eq!(
+      auto_exec(&rapi, &rt, &mut rs, RespCommand::Hget, &[b"h", b"f1"]),
+      b"$-1\r\n",
+      "副本重灌流必须以 replace 换入旧树，f1 残留即回放被 AlreadyExists 拒"
+    );
+    let hlen = auto_exec(&rapi, &rt, &mut rs, RespCommand::Hlen, &[b"h"]);
+    assert_eq!(
+      hlen,
+      format!(":{}\r\n", total - 1).into_bytes(),
+      "HLEN 须与主端一致"
+    );
+    let ph = auto_exec(&papi, &rt, &mut ps, RespCommand::Hgetall, &[b"h"]);
+    let rh = auto_exec(&rapi, &rt, &mut rs, RespCommand::Hgetall, &[b"h"]);
+    assert_eq!(ph, rh, "重灌后 HGETALL 全量条目须与主端逐字节一致");
+    OK
+  })
+}

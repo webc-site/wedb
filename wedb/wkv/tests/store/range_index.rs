@@ -667,6 +667,7 @@ fn test_ri_bulk_load_matches_per_field_insert() -> Void {
         GarnetObjectType::Hash,
         entries.clone(),
         i64::MAX,
+        false,
       )
       .await?;
     let (promoted_meta, promoted_stub) = session

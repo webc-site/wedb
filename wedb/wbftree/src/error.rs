@@ -2,6 +2,8 @@ use std::{io, result};
 
 use thiserror::Error;
 
+use crate::types::BfTreeInsertResult;
+
 /// 重复创建索引的错误文案单点（C# 在
 /// libs/server/Storage/Session/MainStore/RangeIndexOps.cs 就地书写一条，
 /// rust 收敛到本常量，wkv RangeIndexError::AlreadyExists 转调，不复制字面量）
@@ -49,6 +51,11 @@ pub enum Error {
   /// 数据损坏
   #[error("数据损坏: {0}")]
   Corrupted(String),
+
+  /// 批量装载被引擎拒绝（键值违反长度契约 / 引擎参数非法），携原始状态码
+  /// 供宿主分流 RESP 错误文案（见 [`crate::RangeIndexManager::build_collection_tree_snapshot`]）
+  #[error("批量装载被拒: {0:?}")]
+  LoadRejected(BfTreeInsertResult),
 }
 
 /// 模块全局 Result 别名

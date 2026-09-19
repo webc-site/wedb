@@ -10,7 +10,7 @@
 //! （HEXPIRE / HTTL / HPERSIST / ZEXPIRE / ZTTL / ZPERSIST 族）一律穿透至
 //! `rmw_helpers::run_async_rmw` 的物化降级通道 → wcol 对象层单源求值 →
 //! `apply_rmw_post_operate` 整值写回（删空即整键消亡，否则
-//! `promote_collection_to_bftree` 的 `bulk_load` 重建，零墓碑）。该形与 C#
+//! `promote_collection_to_bftree` 先建快照后原子换入重灌，零墓碑）。该形与 C#
 //! 一致：C# 集合对象整值常驻对象域、删即就地改内存对象、删空即整键消亡
 //!（garnet/libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:188-215
 //! `PostCopyUpdater` → `value.Operate` → `HasRemoveKey`），既无按成员分记录的
@@ -30,8 +30,8 @@
 //! 成员级 TTL 的惰性出账面（计数校正臂 HLEN / ZCARD、输出面校正臂 HGETALL /
 //! HKEYS / HVALS、显式 HCOLLECT / ZCOLLECT 与周期对象收集任务）不穿透物化，
 //! 而走本模块的到期重灌内核 [`expire_sweep_or_rebuild`]：水位命中时锁内单趟
-//! 扫描收集存活全集，放守卫后整值重灌（drain + bulk_load，与裁决 B 同一重建
-//! 原语），树内同样零墓碑；水位未命中（`now <= next_expiry`，含水位刻度
+//! 扫描收集存活全集，放守卫后整值重灌（先建快照后原子换入，与裁决 B 同一
+//! 换入原语），树内同样零墓碑；水位未命中（`now <= next_expiry`，含水位刻度
 //! 当刻）零树访问、直读恒精确。计数复杂度契约（已裁决口径，见
 //! doc/zh/collection.md 大键 O(1) 计数规约第 3 条分层态补则）：稳态水位内
 //! HLEN/ZCARD O(1) 直读 `MetaValue.size`；水位越过即首个计数命令 O(N) 物理
@@ -321,8 +321,8 @@ enum SweepOutcome<'a> {
 
 /// 分层到期出账统一执行体（树内零墓碑的出账形态，替代旧的逐成员树内删除）：
 /// 单趟扫描 → `drain_live` 交出存活全集 → 有到期即**整值重灌**（放守卫 →
-/// drain 旧树 → bulk_load 重建），与命令级删除（HDEL/ZREM 等）走的
-/// `apply_rmw_post_operate` 同一重建原语。
+/// promote 先建后拆：内核建树快照后经 publish 原子换入，旧树全程可读），
+/// 与命令级删除（HDEL/ZREM 等）走的 `apply_rmw_post_operate` 同一换入原语。
 ///
 /// `drain_live` 在重灌前对存活全集恰好一次只读遍历（计数臂传 `|_| {}` 即弃，
 /// 输出面臂在此收集应答数据——重灌会 move 走全集且旧树随之销毁，闭包是输出
@@ -338,9 +338,9 @@ enum SweepOutcome<'a> {
 ///
 /// 删空自愈（严格删空生命周期）：存活全集为空 → `keep_ttl=false` 随键清 TTL
 /// 整键回收（对齐 [`wkv handle_bftree_drain_and_delete`] 删键臂）；非空重灌
-/// 键全程存活，`keep_ttl=true` 只墓碑元记录不碰 TTL 旁路。`drop` 顺序固定：
-/// 重灌前必先放树守卫（写臂持条带独占写锁，drain 侧自取同键条带写锁，守卫
-/// 未放即互锁）。重灌后 `ctx.meta` / `ctx.stub` 为旧树副本（promote 已落新
+/// 键全程存活，换入臂不碰 TTL 旁路。`drop` 顺序固定：重灌前必先放树守卫
+///（写臂持条带独占写锁，promote 换入侧自取同键条带写锁，守卫未放即互锁）。
+/// 重灌后 `ctx.meta` / `ctx.stub` 为旧树副本（promote 已落新
 /// 元记录），调用方不得再 `save_bftree_meta_stub` 覆写，仅可应答内存态 size
 ///（`dec_size` 后与 promote 落盘的 bulk_load 去重计数一致）
 async fn expire_sweep_or_rebuild<'s, D: Device>(
@@ -366,13 +366,11 @@ async fn expire_sweep_or_rebuild<'s, D: Device>(
         .await
         .map_err(|_| ())?;
     } else {
-      // 整值重灌：键存活 keep_ttl=true，水位用扫描期已重算的 ctx.meta.next_expiry
+      // 整值重灌：先建后拆原子换入（promote replace=true 旧树全程可读，
+      // 发布失败旧状态原样保留），键存活不碰 TTL 旁路，水位用扫描期已
+      // 重算的 ctx.meta.next_expiry
       session
-        .handle_bftree_drain_and_delete(key, true)
-        .await
-        .map_err(|_| ())?;
-      session
-        .promote_collection_to_bftree(key, tag, live, ctx.meta.next_expiry)
+        .promote_collection_to_bftree(key, tag, live, ctx.meta.next_expiry, true)
         .await
         .map_err(|_| ())?;
     }

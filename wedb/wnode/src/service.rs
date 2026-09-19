@@ -325,13 +325,15 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
       obj_type,
       stub,
       file_path,
+      replace,
     } => {
-      // 集合就地升阶的树数据通道：复用 RI 迁移流，把快照文件分块灌入
+      // 集合就地升阶 / 分层重灌的树数据通道：复用 RI 迁移流，把快照文件分块灌入
       // RangeIndexStreamChunk。条目键取 Meta 域物化键（回放真值=物理键，
       // KeyContextGuard 据此直设事件携带的虚拟域 (vns, vdb) 并以用户键重组发
       // 布），与其余 RI 臂同走物理键编码器 `physical_key(.., Meta, ..)` 单一
       // 口径。发布判别类型 obj_type 随首块 ReplayInput 携带，副本据此重建
-      // MetaValue。
+      // MetaValue；replace 形态位随流块 arg1 标志携载，副本据此对既有树换入
+      // 重放（分层重灌不换旧树即发布失败）。
       let meta_key = physical_key(ns, db, KeyTag::Meta, key);
       ctx
         .ri
@@ -343,6 +345,7 @@ fn on_aof_store_event(ctx: &AofSinkContext, event: StoreEvent<'_>) -> wkv::Resul
             file_path,
             ctx: AofWriteContext::from_version(ver),
             chunk_size: ctx.ri.aof_stream_chunk_size(),
+            replace,
           },
           Some(&ctx.aof),
         )
