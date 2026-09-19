@@ -525,6 +525,8 @@ fn test_tiered_zset_range_rank_parity() {
       wval::GarnetObjectType::SortedSet,
       ents,
       next_expiry,
+      // 一次性首升阶（键尚无旧树）：replace=false 保留 IndexExists 去重门
+      false,
     ))
     .unwrap();
   };
