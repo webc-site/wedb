@@ -3,8 +3,9 @@
 //! ACL 用户规则以底层存储为唯一真实数据源（无全局用户字典，ACL 无内存用户
 //! 表，LIST/USERS 扫存储、GETUSER/AUTH 点查存储）：
 //! `SETUSER` 读改写落盘、`DELUSER` 墓碑删除、`GETUSER` 点查反序列化、
-//! `LIST`/`USERS` 两遍流式扫描当前命名空间的 `KeyTag::Acl` 记录（首遍计数定
-//! 数组长度，次遍逐条直写会话应答缓冲，单条规则即解即弃）。会话域经
+//! `LIST`/`USERS` 单遍扫描当前命名空间的 `KeyTag::Acl` 记录并就地收成小快照
+//! （扫描可见即本轮快照，数组头与元素数同源、无从背离；ACL 用户量级小，快照仅
+//! 是整份应答的提前驻留——会话 output 本就全量缓冲整框）。会话域经
 //! [`AclCtx`] 显式注入 ACL 认证器 / 自定义命令注册查询面，
 //! 存储访问经 [`AclStore`] 显式注入（对标 C# 会话内 `_authenticator` +
 //! `storeWrapper` 的同一取数）。
@@ -91,11 +92,11 @@ impl RespServerSession {
       .map(|a| a.get_access_control_list().get_default_user_handle())
   }
 
-  /// 处理 ACL LIST 子命令（两遍流式扫描当前命名空间的 Acl 记录，逐条直出）
+  /// 处理 ACL LIST 子命令（单遍流式扫描当前命名空间的 Acl 记录成快照后整框直出）
   ///
-  /// libs/server/Resp/ACLCommands.cs:NetworkAclList —— C# 侧即「先取
-  /// `_userHandles.Count` 定数组长度、再逐条枚举 DescribeUser 写出」的非原子
-  /// 窗口（:66-73），rust 以同一扫描内核扫两遍承接
+  /// libs/server/Resp/ACLCommands.cs:NetworkAclList —— C# 侧 `GetUserHandles()`
+  /// 取一次句柄表再写 Count、遍历同一句柄表（:66-73），rust 以「单遍扫描收集快
+  /// 照 → 写数组头 → 由同一快照写正文」承接同一形态：数组头与元素数同源强一致
   pub fn network_acl_list<D: Device>(
     &self,
     ctx: &AclCtx,
@@ -109,10 +110,10 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // 第一遍扫描：只计数并前置校验可解码性（顺带探 default 兜底位）。数组长度
+    // 单遍扫描：解码即渲染，正文就地收成快照（顺带探 default 兜底位）。数组长度
     // 必须先于正文写出，应答一旦起头就回退不了，故不可解码的记录在本遍失败关闭。
-    // 存储值为 bitcode 二进制编码，逐条 decode 后即弃，任何时刻只驻留单条规则
-    let mut user_count: usize = 0;
+    // 存储值为 bitcode 二进制编码，逐条 decode 后即弃，快照只驻留已渲染正文串
+    let mut described: Vec<String> = Vec::new();
     let mut has_default = false;
     let mut decode_failed = false;
     if store
@@ -121,7 +122,7 @@ impl RespServerSession {
           has_default = true;
         }
         match User::from_bytes(rule) {
-          Ok(_) => user_count += 1,
+          Ok(user) => described.push(user.describe_user()),
           Err(e) => {
             log::debug!("ACL record decode failure: {e}");
             decode_failed = true;
@@ -143,38 +144,24 @@ impl RespServerSession {
     } else {
       Self::in_memory_default_user(ctx, ctx.caller_namespace)
     };
-    output.write_resp_array_len(user_count + usize::from(in_memory_default.is_some()));
+    output.write_resp_array_len(described.len() + usize::from(in_memory_default.is_some()));
     if let Some(handle) = &in_memory_default {
       output.write_resp_bulk_string(handle.user().describe_user().as_bytes());
     }
 
-    // 第二遍扫描：复用同一扫描内核重扫存储，逐条 decode 后就地 describe_user
-    // 直写会话应答缓冲（无额外分页机制与正文缓冲层）。两遍之间本命名空间被并发
-    // 增删改写时，实际写出条数可偏离合符——与 C# 侧同一非原子窗口口径一致；
-    // 本遍出错或遇并发写入的不可解码记录已无从回退为错误应答，就地停写并记日志
-    if store
-      .for_each_user_blocking(ctx.caller_namespace, |_name, rule| {
-        match User::from_bytes(rule) {
-          Ok(user) => output.write_resp_bulk_string(user.describe_user().as_bytes()),
-          Err(e) => {
-            log::debug!("ACL record changed during LIST streaming: {e}");
-            return false;
-          }
-        }
-        true
-      })
-      .is_err()
-    {
-      log::debug!("ACL LIST second-pass scan failure");
+    // 正文取自上面的同一快照：条数与符头恒等，扫描之后不再触存储，并发的
+    // SETUSER/DELUSER 也无从使二者背离（快照前可见即在内、后可见亦不补出）
+    for line in &described {
+      output.write_resp_bulk_string(line.as_bytes());
     }
     Ok(true)
   }
 
-  /// 处理 ACL USERS 子命令（两遍流式扫描当前命名空间的用户名，逐条直出）
+  /// 处理 ACL USERS 子命令（单遍流式扫描当前命名空间的用户名成快照后整框直出）
   ///
-  /// libs/server/Resp/ACLCommands.cs:NetworkAclUsers —— C# 侧同样先取
-  /// `_userHandles.Count` 定数组长度、再逐条枚举写出（:95-101），非原子窗口
-  /// 口径与 [`Self::network_acl_list`] 一致
+  /// libs/server/Resp/ACLCommands.cs:NetworkAclUsers —— C# 侧同样取一次
+  /// `GetUserHandles()` 写 Count、遍历同一句柄表（:95-101），口径与
+  /// [`Self::network_acl_list`] 一致
   pub fn network_acl_users<D: Device>(
     &self,
     ctx: &AclCtx,
@@ -187,16 +174,16 @@ impl RespServerSession {
       return Ok(true);
     }
 
-    // 第一遍扫描：只计数（顺带探 default 兜底位），用户名取自存储键、不触碰
-    // 规则正文，故本遍零正文驻留
-    let mut user_count: usize = 0;
+    // 单遍扫描：用户名收成快照（顺带探 default 兜底位），用户名取自存储键、
+    // 不触碰规则正文，故本遍只驻留名字
+    let mut names: Vec<Vec<u8>> = Vec::new();
     let mut has_default = false;
     if store
       .for_each_user_blocking(ctx.caller_namespace, |name, _rule| {
         if name == DEFAULT_USER_NAME.as_bytes() {
           has_default = true;
         }
-        user_count += 1;
+        names.push(name.to_vec());
         true
       })
       .is_err()
@@ -210,19 +197,13 @@ impl RespServerSession {
     } else {
       Self::in_memory_default_user(ctx, ctx.caller_namespace)
     };
-    output.write_resp_array_len(user_count + usize::from(in_memory_default.is_some()));
+    output.write_resp_array_len(names.len() + usize::from(in_memory_default.is_some()));
     if let Some(handle) = &in_memory_default {
       output.write_resp_bulk_string(handle.user().name.as_bytes());
     }
-    // 第二遍扫描：重扫存储逐条直写用户名（非原子窗口口径同 network_acl_list）
-    if store
-      .for_each_user_blocking(ctx.caller_namespace, |name, _rule| {
-        output.write_resp_bulk_string(name);
-        true
-      })
-      .is_err()
-    {
-      log::debug!("ACL USERS second-pass scan failure");
+    // 正文取自同一快照，数组头与元素数恒等（口径同 network_acl_list）
+    for name in &names {
+      output.write_resp_bulk_string(name);
     }
     Ok(true)
   }

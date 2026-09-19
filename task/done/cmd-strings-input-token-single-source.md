@@ -83,3 +83,72 @@ wnode/src/resp/objects/sorted_set_commands/mod.rs:29 RESP_ERR_MIN_OR_MAX_NOT_VAL
 按「迁入单点或注明本文件独有用」同口径处置。
 
 盘点补记（qw13.invA cmd-strings-input-token-single-source）：dev e75716e 复核原样：wresp/src/cmd_strings.rs 仍只有输出帧常量、零输入 token 常量组；裸位点在场：wcol/src/types/scan_input.rs:61、wcol/src/list/list_object_impl.rs:511（b"COUNT"|b"count" 双写形态）、wnode/src/resp/rangeindex/resp_server_session_range_index.rs:495。机械收口定位不变。
+
+## 落地判词（开发棒 cmd-strings-token，基线 dev 1e3f06f → 合入前再取 dev a954680）
+
+判词：成立，已落地。开工前对现刻 HEAD 逐条 Grep 工具复核（非 shell glob，防 cmd_strings.rs:362 那类
+假阴性先例），票面主张全部在场，仅行号漂移；位点计数按重测。
+
+主张复核（HEAD 实测行号 → 现刻行号）
+- 输入 token 常量组缺席：成立。cmd_strings.rs 原表 623 行全为输出面，输入侧仅 NOGET（:93）与
+  CONFIG 键名族（:365-377，票面「INFO 段字段名 :359-371」实为这族），不成组。
+- COUNT 14 处 / WITHSCORES 7 处 / LIMIT 5 处 / WITHSCORE 2 处 / PERSIST 2 处 / TYPE 2 处 /
+  WEIGHTS 1 处 / WITHVALUES 1 处 / MATCH、NOVALUES 同型散在：逐条命中，实际生产位点 28 处
+  （票面 34 为含测试行的粗计；tests 与 #[cfg(test)] 段一律不动）。漂移样本：
+  vectors.rs:775/:787/:1133 → :752/:764/:1110；sorted_set_commands/write.rs:543/:762/:842 →
+  :559/:778/:858；slow.rs:498 → :489；list_commands/slow.rs:374/:688 → :356/:683；
+  blocking.rs:175/:328 → :182/:342；range_index.rs:494 → :495。
+- 后果段（同步段与慢段各写一遍、无改字面入口）：成立，WITHSCORES 的 write.rs:559 与 slow.rs:489
+  即同 token 双写实例。
+- C# 参考：CmdStrings.cs 实测 MATCH:98、COUNT:99、count:100、NOVALUES:102、TYPE:103、WITHSCORE:116、
+  WITHSCORES:117、WITHVALUES:118、PERSIST:123、LIMIT:154、WEIGHTS:157 一处定义全仓共用。
+
+落地形态
+- wresp/src/cmd_strings.rs 增设「命令解析期输入 token 单点」组（MATCH/COUNT/COUNT_LOWER/NOVALUES/
+  TYPE/PERSIST/LIMIT/WEIGHTS/WITHSCORE/WITHSCORES/WITHVALUES），每条带 `libs/server/Resp/CmdStrings.cs:<名>`
+  全路径锚点，类型 `&[u8]` 与既有帧常量一致。
+- 28 处生产位点全部改引常量；client_commands.rs 私有 FILTER_TYPE 删除（两处用法改 cs::TYPE）；
+  比较语义与大小写策略逐处不变（`eq_ignore_ascii_case` / `equals_ignore_case` / `==` 原样保留）。
+- 与票面 C# 参考「只收一个常量」的偏差：wcol/src/list/list_object_impl.rs:511 的 LPOS 选项解析按
+  C# ListObjectImpl.cs:487 `SequenceEqual(COUNT) || SequenceEqual(count)` 精确双形态转写（该函数
+  文档注释 :485-486 自述「混合形态报语法错误」），改 ignore-case 会放宽词法、违 修法4「不改比较语义」，
+  故该处保留双臂并另收 COUNT_LOWER 一份，其余 token 均只收大写一份。
+- 单站点 token 未收口（判为射程外）：RANK/rank、MAXLEN/maxlen（仅 list_object_impl.rs 同函数各 1 处）、
+  BYSCORE/BYLEX/REV（仅 sorted_set_object_impl.rs 各 1 处）、EX/PX/EXAT/PXAT（仅 get.rs）——
+  无跨点复写，不构成本单「重复机制」。
+
+分拣并入条 3/4 裁决（按行粒度，实测真重复仅一处）
+- 已收口：wnode/src/resp/objects/sorted_set_commands/mod.rs:29 的
+  RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM（整帧 &[u8]）与 wresp 侧
+  cmd_strings.rs:143 RESP_ERR_MIN_MAX_NOT_VALID_STRING（同文案 &str）为全表唯一同形复写；
+  删旧定义不留 shim，read.rs:200、write.rs:176、slow.rs:347/:436 四处改
+  `cs::write_error_raw(output, cs::RESP_ERR_MIN_MAX_NOT_VALID_STRING)`，成帧字节逐位不变
+  （write_error_raw 即 `-"<msg>"\r\n`，见 cmd_strings.rs 自检 write_error_raw_frames_message）。
+- 不动（cmd_strings 零同名/零同文案，搬入即凭空造单点、非消重）：wnode/src/resp/acl_commands.rs:34
+  RESP_ERR_ACL_FOREIGN_NAMESPACE、:37 RESP_ERR_ACL_GENPASS_BITS_RANGE、
+  wnode/src/resp/txn_resp_commands.rs:70 RESP_ERR_TRANSACTION_FAILED、
+  wnode/src/resp/array_commands.rs:36 RESP_ERR_LENGTH_AND_INDEXES（已带 C# 锚点、单点自洽）、
+  wnode/src/resp/objects/object_store_utils.rs:205 RESP_ERR_CORRUPT_PAYLOAD、
+  wnode/src/resp/garnet_api/slow.rs:61 RESP_ERR_CHECKPOINT_UNWIRED。
+
+边界段输出半边三缺口（同表收口，均已落地）
+- RESP_QUEUED：C# CmdStrings.cs:193 有原条、rust 全仓无常量，唯一生产位点
+  wnode/src/resp/resp_server_session.rs:2856 裸写 b"+QUEUED\r\n" → 增设 RESP_QUEUED 并引用
+  （wtxn_test/src/lib.rs:108 同形态但属测试门面且不依赖 wresp，不动）。
+- RESP_ERR_NO_SCRIPT：C# CmdStrings.cs:293，与 cmd_strings.rs:190 的 RESP_ERR_NOSCRIPT（C# :207
+  另一条）非同值，故分立新常量；wlua/src/commands.rs:201 裸内联改引。
+- ERR_SCRIPT_FLUSH_OPTION：C# CmdStrings.cs:306 RESP_ERR_SCRIPT_FLUSH_OPTIONS；wlua/src/commands.rs:26
+  crate 私有 const 删除、两处用法改引 wresp 单点（未落 wlua/src/strings.rs，该表专承
+  LuaRunner.Strings.cs 常量族）。
+
+门禁与验收
+- `cargo check --tests -p wresp -p wnode -p wcol -p wlua` exit 0（私有 target /tmp/ct-cmdstrings）。
+  注：首轮合入前 dev 一度因 0b318df「wip 合并前主仓快照」致 wkv/src/session/consistent_read.rs:146
+  类型不匹配挡住 wnode 编译，后续棒已自行修复，与本单无关。
+- 验收 grep（`b"(COUNT|WITHSCORES|LIMIT|WEIGHTS|WITHVALUES|WITHSCORE|MATCH|NOVALUES|PERSIST|TYPE)"` 限 */src）：
+  余 16 命中全为 cmd_strings.rs 的 10 条新定义本体 + 6 处测试行，生产位点零命中。
+- `bun js/check.js`（树内跑）：改动前后「重复定义」键集合逐字节相同（15 条，均为存量），
+  「虚构锚点」A 层零命中，ignore 语料零回写；「实现缺失」段差量全部来自回合进来的 dev 他人提交。
+- 与 task/done/scan-type-case-forms.md 的边界：本单只动 parse_scan_filter 的 param 面（选项名），
+  其 type_arg 取值面（C# DbScan 双形态精确比对）归该票，两处改动在 array_commands.rs 行位相邻、
+  回合后并存无冲突。

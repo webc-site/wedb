@@ -116,9 +116,12 @@ impl<'a, D: Device> AclStore<'a, D> {
   /// 流式扫描指定命名空间的全部存活 ACL 记录
   ///
   /// 逐条回调 `(用户名, 规则字节)`，回调返回 `false` 提前终止。不全量装载：
-  /// 调用方在回调内直写应答缓冲。同键多版本经索引链首地址校验去重（仅最新
-  /// 版本可入），墓碑与链尾旧版本一律跳过——与
-  /// `array_key_iteration_functions::scan_cursor` 同口径。
+  /// 调用方在回调内自取所需。扫描区间为调用时刻的 `[begin, tail)`，起扫后追加
+  /// 的记录落在区间外，故本遍所见即该时刻起的一份可见集快照。同键多版本经索引
+  /// 链首地址校验去重（仅最新版本可入），墓碑与链尾旧版本一律跳过——与
+  /// `array_key_iteration_functions::scan_cursor` 同口径。扫描期内被并发更新的
+  /// 键，其区间内旧版本因链首已不指向本条而落选，等价于 C# 侧
+  /// `ConcurrentDictionary` 的弱一致枚举窗口。
   pub async fn for_each_user<F>(&self, ns: u64, mut on_user: F) -> wkv::Result<()>
   where
     F: FnMut(&[u8], &[u8]) -> bool,
@@ -152,8 +155,9 @@ impl<'a, D: Device> AclStore<'a, D> {
   }
 
   /// [`Self::for_each_user`] 的同步分派段形态（ACL LIST/USERS 在命令分派
-  /// 段闭环，不经慢路径通道）：应答需先写数组长度，故按「首遍计数、次遍
-  /// 逐条直写应答缓冲」两遍调用本内核，不设第二套扫描通道
+  /// 段闭环，不经慢路径通道）：应答需先写数组长度，故调用方以本内核**单遍**
+  /// 收成小快照（用户名 / 已渲染正文），再由同一快照写符头与正文，不设第二套
+  /// 扫描通道、也不重扫两遍
   pub fn for_each_user_blocking<F>(&self, ns: u64, on_user: F) -> wkv::Result<()>
   where
     F: FnMut(&[u8], &[u8]) -> bool,

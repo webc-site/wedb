@@ -26,9 +26,6 @@ use wcol::{
 };
 use wval::GarnetObjectType;
 
-pub(crate) const RESP_ERR_MIN_OR_MAX_NOT_VALID_STRING_RANGE_ITEM: &[u8] =
-  b"-ERR min or max not valid string range item\r\n";
-
 pub use self::write::RemoveRangeKind;
 pub(crate) use self::{
   blocking::write_popped_pairs,
