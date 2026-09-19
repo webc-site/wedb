@@ -248,3 +248,82 @@ BITFIELD 无窗即显式 `RESP_ERR_GENERIC` 不作无窗盲写；补八例冷化
 载荷与门禁 sha：d8b5c3d（一棒现场保全）、9b199e2（wkv 窗口收口）、8402d50/b2f873a（推基 a2231a5）、
 2121497（慢路径六臂接窗）、c95a82e（推基 a4761f1）、968aab1（十二例回归 + 锁源注释订正）、
 e522614/0b868f2（推基 c5e3f8f / 0bcf574）。
+
+---
+
+## 主代理委派收口判词（收口子代理现刻复核，dev 尖 862c256，全部证据取 `git show HEAD:` / `git grep HEAD`，未读工作区）
+
+### 一、落地 sha 链与簿记实况
+
+9b199e2（09-19 23:22 wkv 窗口收口）→ 2121497（23:48 慢路径六臂接窗）→ 968aab1（00:12 回归 +
+锁源注释订正）→ 0b868f2（推基）→ **2495601**（00:48 `Merge branch 'dev' into fix-rmw-atomic-window`，
+再回合 dev 至 18b0789）。2495601 相对其 dev 父的净贡献实测 **14 files +1226/−105**
+（`rmw_window.rs` 新件 260 行、`rmw_key_concurrency.rs` 新件 740 行），逐件在本现刻 HEAD 核到（第二节）。
+
+- **勘正委派前提一**：2495601 **不在 dev 第一亲链上**（其 commit message 自称「ff 合入主仓」未成立），
+  沿 `b8e9f38`（acl-setuser-propagation 回合）→ `97b097f`（01:14 tiered-zset-range 回合 dev）
+  侧链汇入主链，载荷随他支推基扩散。判定不受影响：载荷在 HEAD 完整在位、无第二形态残留。
+- **勘正委派前提二**：两票已由 **7999624**（09-20 00:38 三棒归档棒）`git mv` 至 `task/done/`，
+  本代理现刻 `task/ing/` 零副本，故本棒**无 mv 可做**，唯一改动是追加本段与姊妹票同段。
+
+### 二、票面机制逐条现刻核（HEAD 862c256）
+
+1. **慢路径六臂接本键原子窗口——在位，行号与判词逐字吻合**。
+   `wnode/src/resp/basic_commands/slow.rs` 取窗 `:337`（SETRANGE）`:379`（APPEND）`:419`（INCR）
+   `:454`（INCRBYFLOAT）`:706`（SETBIT）`:855-856`（BITFIELD，仅 `cmd == C::Bitfield` 分支取窗），
+   写回 `:364/:401/:443/:486/:732/:904` 一律 `storage.rmw_string(&window, ..)`；
+   BITFIELD 无窗即 `:896`/`:907` `output.write_resp_error(RESP_ERR_GENERIC)`，**不作无窗盲写**。
+2. **写回统一带窗 `rmw_string`——在位且为唯一入口**。`storage/session/storage_session.rs:478`
+   `pub async fn rmw_string<'k,'w>(&self, window: &RmwWindow<'w,'k,D>, val:&[u8])`，
+   体内 `:483 window.try_rmw_sync` → 降级 `:489 window.upsert_rmw`。
+   全仓 `fn try_rmw_sync|fn upsert_rmw` **仅两枚定义**，皆在 `wkv/src/session/raw/write/rmw.rs:19`
+   的 `impl<'a,'k,D> RmwWindow` 上（`:43`/`:81`），会话侧同名盲写口 grep 零命中——**修法三成立**。
+   16 枚调用点（含测试 `rmw_key_concurrency.rs:316`）接收者清一色 `window.`。
+3. **快路径五臂 + 信封 + 事务视图全接**：`incr.rs:129→134→160`、`incr.rs:182→186→223`、
+   `set.rs:228→231→240/251`、`set.rs:581→584→591/600`、`bitmap_commands.rs:77→80→109`、
+   `:459→465→522`、`hyper_log_log_commands.rs:86/212/321/379/499`、
+   `objects/rmw_helpers.rs:571 run_sync_rmw → :600 try_rmw_window`（取不到即 `ObjLoad::Degrade`）、
+   异步臂 `:288 rmw_window`、`storage/session/txn_proc_view.rs:120→121→138`。
+   仍在 `read_user_sync` 而无窗者只余只读臂（`bitmap_commands.rs:135/177/233/325`）与
+   SET 条件族盲写（`set.rs:511`，`apply_set_with_expiry` 纯写回族），按修法四不在射程——与判词一致。
+4. **同键 ephemeral 桶闩——在位**：`wkv/src/session/rmw_window.rs:96 struct RmwWindow` /
+   `:102 held: Option<(Arc<HashIndex>, usize)>`（钉索引版本 + 纯桶下标，跨 split 不串锁）/
+   `:120-128 Drop` 按同版本 `unlock_exclusive` / `:217 try_rmw_window` 非阻塞臂 /
+   `:249 rmw_window` 让核等待臂（预算耗尽回 `LockTimeout`，无无界等待）。
+5. **会话锁器——在位**：`:72 enum SessionLocking`（`:82 is_transactional`）、
+   `:132 SessionLockingGuard` + `:146-148 Drop` RAII 还原、`:156 SessionLockingState(AtomicBool)`、
+   `:187 session_locking` / `:194 set_session_locking` / `:200 push_session_locking`；
+   `:219` 事务态即回让闩窗口（不自旋等自己）；`:31 lib.rs` 与 `:38 session/mod.rs` 导出三型。
+6. **并发回归八例——在位（合计十二例）**：`wnode/tests/rmw_key_concurrency.rs` HEAD 计 741 行、
+   `#[test]` 12 枚 = 票面八例（窗口层 `:370` 同键第二窗 `is_none` + 异主桶键 `is_some` + 放闩恢复、
+   `:400` 事务态让闩与守卫还原、`:433` 持窗未写回绝不被交叠；冷化扇出 `:499` SETRANGE、
+   `:553` APPEND、`:605` SETBIT、`:653` BITFIELD、`:701` INCR 回执自增值互异）+ 原 warm 四例
+   （`:125/:156/:207/:243`，即票面验收1 的 INCR/APPEND/HSET/PFADD 四问）。
+7. **锁源单点（主代理 15:20 补录必改项）——已核**：`acquire_keys_lock_exclusive` 与裸
+   `lock_key_exclusive` 全仓（含 README 与注释）**0 命中**；唯一入口 `windex/src/table.rs:601
+   try_lock_key_exclusive` 在位；三面共闩现刻核对——本窗 `rmw_window.rs:223-225`
+   （`bucket_index_for_key` table.rs:540 + `HashBucket::try_lock_exclusive` bucket.rs:109 两步组合）、
+   `wkv/src/ttl.rs:459/:511`、`wtxn/src/txn_lock_table.rs:116-117`（转发同一 `HashBucket`）；
+   `KeyLatch` 仍为 `bucket.rs:563` 的 `BucketExclusiveGuard` 别名，无第二份锁实现。
+8. **禁令与告警面守住**：载荷四件（`rmw_window.rs`/`raw/write/rmw.rs`/`slow.rs`/回归测试）
+   grep `Mutex<|RwLock<|LazyLock|OnceLock|striped` **零命中**，无第四把锁、无条带折算；
+   `#![allow`/`#[allow` 于 `rmw_window.rs`、`rmw.rs` 零命中（验收4 的 `allow` 禁令在位）。
+
+### 三、遗留项（本代理不补码，如实登记）
+
+- **判词行文不精确（非机制缺口）**：三棒判词第二节 3 称 `try_rmw_window` 「取不到即 `Ok(false)`…
+  绝不自旋等闩」，HEAD 实况为 `rmw_window.rs:226-233` 在 `RMW_LATCH_SPIN_ATTEMPTS = 1024`（`:61`）
+  预算内做**单次尝试的有界自旋**后方回 `None` 降级。模块头 `:55-60` 的口径（索引层一次尝试、
+  无自旋驱动、无超时，重试预算由调用方承接）与代码自洽，故判为判词措辞偏差，随本段订正，不改码。
+- **锚点漂移**：后续 dev 棒使 `windex/src/bucket.rs` 五枚锚点各下移 5 行
+  （113→109、241→236、254→249、486→481、568→563）、`SessionLockingState` 155→156；
+  `table.rs:601` 与 slow.rs/命令臂全部锚点未漂移。判词未订版，以本段现刻数字为准。
+- **门禁未在 dev 现尖复跑**：`1332/1332`、`cargo check` 零告警记于树 0b868f2；
+  其后 dev 有 `8fb4123`、`862c256` 两棒锁 API 重构，经核本票消费面签名
+  （`bucket`/`bucket_index_for_key`/`try_lock_exclusive`/`unlock_exclusive`/`KeyLatch`）
+  在位未改，判无回归风险，但 workspace check + nextest 归主代理门禁复跑，本代理未代跑。
+- **移交他票不变**：`user_key` 桶与记录（hlog 物理键）桶两基并存期的 `RETRY_LATER` 退避面、
+  纯写回族（SET/DEL/MSET 折叠）与本窗口的交错面、分层树内写臂（`tiered-write-arm-concurrency`）。
+
+结论：**落地完备，票面机制六项全数在位、零缺口**（唯二偏差为判词措辞与行号漂移，均已上文登记）；
+本票维持 **done**。
