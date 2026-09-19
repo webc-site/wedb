@@ -63,8 +63,10 @@ pub struct ReplicaRecoverRequest {
 ///    前置握 InitializeRecover），本步无独立校验动作；
 /// 2. recover_store_from_token：从接收文件集（wcpr 恢复 = 组件级重构 +
 ///    宿主装配）恢复出全新 [`WedbStore`]，经置换钩子接管在线引擎；
-///    false 时跳过（C# 同款分支：同历史复用本地检查点恢复态，rust 副本
-///    引擎不随 attach 重构，见 task/ing/m4-checkpoint-import.md 条 6）；
+///    false 时跳过（C# 同款分支：同历史复用本地检查点恢复态；rust 副本引擎
+///    不随 attach 重构——引擎只走到本分支时置换一次，其余时刻不换，该布尔的
+///    来源与判据见 [`ReplicationManager::disk_resync_strategy`] 文档，本处
+///    自述即为口径，不另挂在途文档）；
 /// 3. replayAOFMap > 0 拒绝：rust 主端恒发 0——C# ComputeAofSyncReplayAddress
 ///    的「副本回放本地 AOF 衔接旧检查点」形态依赖副本运行期存储应用链
 ///    （未转写的架构边界），全量同步由「导入 + 授予位点直推」承接；
