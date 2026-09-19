@@ -34,6 +34,8 @@ pub use store::{
   DefaultWedbStore, HybridLogScanMetrics, KEY_ID_ASSIGN_MARGIN, ObjectRmwNotification, StoreEvent,
   StoreEventSink, WedbStore,
 };
+/// DbMeta 系统记录单点编解码布局（AOF 镜像条目的记录复原口径，wnode 回放面用）
+pub use vdb::DbMetaRecord;
 pub use ttl::{TtlCarrier, TtlGate, TtlOpt, is_expired, is_expired_or_now};
 /// 批量读预取窗口：单点定义在 windex 索引层，此处仅原样透出路径供引擎上层分块对齐
 /// （对标 C# `ContextReadWithPrefetch` 的 `PrefetchSize = 12`）
