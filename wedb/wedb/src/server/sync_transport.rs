@@ -21,7 +21,7 @@ use wnode::{
   resp::vector::{
     vector_manager::{INDEX_SIZE_BYTES, VectorManager},
     vector_manager_index::Index,
-    vector_manager_locking::split_registry_key,
+    vector_manager_locking::registry_user_key,
   },
 };
 
@@ -192,7 +192,7 @@ pub async fn transmit_vector_set_frames(
     if is_cancelled() {
       return Err(Error::OperationCancelled);
     }
-    let key = split_registry_key(rk).map_or(rk.as_slice(), |(_, user_key)| user_key);
+    let key = registry_user_key(rk);
 
     let Some(dst_index) = vm.remap_index_for_migration(src_index, &namespace_map) else {
       log::error!(

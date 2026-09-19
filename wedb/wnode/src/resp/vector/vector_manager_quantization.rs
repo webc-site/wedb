@@ -112,10 +112,8 @@ impl<S: StoreCallbacks> VectorManager<S> {
   /// 成功后为每个分片调度 BackfillQuantizedVectors。
   /// 返回 true 表示请求已处理（或终态）；false 表示锁竞争需让步重试。
   pub fn try_process_quantization_request(&self, state: &QuantizationState) -> bool {
-    // 复合键剥离单点取 (域, 用户键)；非法条目（截断/回收竞态残留）静默终态
-    let Some((domain, user_key)) = split_registry_key(&state.key) else {
-      return true;
-    };
+    // 拆解单点取 (域, 用户键)：入通道时即由 registry_key 构造，非法键不可达
+    let (domain, user_key) = split_registry_key(&state.key);
     let prefix = domain_prefix(domain);
     // 非阻塞锁读（竞争时报告 false 交由调用方让步重试）
     let (index, _lock) = match self.read_vector_index_core(prefix.as_slice(), user_key, true) {
