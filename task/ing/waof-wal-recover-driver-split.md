@@ -46,3 +46,11 @@ C# 参考
 3. 恢复门面四件（WalLog::safe_initialize、recovered_cookie、recovered_committed_begin、
    recover_truncation）签名与语义不变，waof/wkv/wnode 调用点零改动。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh）。
+
+双花登记
+并发代理就条 9 另立同题薄票 next/db-wal-recover-split.md（同样已核正 C# 无 TsavoriteLogRecovery.cs、
+恢复体在 TsavoriteLog.cs 内），与本票同改 waof/src/wal/log.rs，两票只取一棒：本票为正文载体，
+派发时以本票为准并删除该薄票，禁双花。
+口径差异留档：对方薄票把 WalLog::recover 主体定为 log.rs:190-:372，本票按当下 HEAD 实测为
+:190-:318，其后 :328/:356/:374/:397 已是私有阶段件、:426 frame_sync、:479 verify_candidate、
+:505 read_recover_payload，拆件须按此分界而非按行区间硬切。

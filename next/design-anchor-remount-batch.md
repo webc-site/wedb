@@ -58,3 +58,20 @@ muse 原建议方向相反已修正）。条 5 增量两组：其一 GetDatabase
 StoreGarnetApi::store_snapshots 两处编排/转发去锚改散文（对标 C# 侧
 StoreWrapper.cs:567 GetDatabasesSnapshot 单实现、InfoMetrics 为消费方不挂此键），
 并入本票作第六组；其二即本票组 5（InfoMetrics 两键），同票处理不再重复。
+
+分拣补记（muse.my 条 23 同题；浅核 2026-09-19 主仓 dev）：wlua/src/functions/redis.rs:401
+try_fast_path_set 与 :478 try_fast_path_get 的文档注释各挂
+LuaRunner.Functions.cs:ProcessCommandFromScripting（SET/GET 分支），与 :584
+process_command_from_scripting 总入口三挂同符号（CS_REF_REGEX 捕获到符号名即计，分支
+后缀不区分），check.js 判重同源；处置同本票口径——两快道去锚点改散文「见
+process_command_from_scripting 总入口对应分支」，锚点只留总入口，作第七组。
+
+分拣补记（muse.my 条 24 增量；浅核 2026-09-19 主仓 dev）：本票组 3（VectorManager
+构造双挂）即该条前半；后半 HashSet 对未列——wedb/wnode/src/resp/objects/
+tiered_collection_ops.rs:197-213 tree_put_batch 文档注释复挂 HashObjectImpl.cs:HashSet
+与 SetObjectImpl.cs:Set。HashSet 真实现锚点在 wedb/wcol/src/hash/hash_object_impl.rs:247，
+tree_put_batch 去锚改散文引用；SetObjectImpl.cs:Set 经查全仓仅 tree_put_batch 此一处
+挂载，去锚会使该 C# 符号失锚进 miss 报表，处置二选一：保留该处并注明「判据引用非
+实现锚」，或去锚后在 js/check/ignore 配套 ignore 说明，作第八组。
+
+分拣并入（net 域锚点 6 组，源自 next/net-anchor-dup-collapse.md，2026-09-19）：GarnetClientSession 构造四挂、ConnectAsync 双挂、GarnetClient 构造双挂、NetworkIterativeSlotVerify 双挂、StartAsync 双挂、HandleNewConnection 双挂——去副保主只改注释；与 task/ing/net-checkjs-dup-anchor-trio.md 在途票同族，落地前先确认该票是否已收口，避免双改。

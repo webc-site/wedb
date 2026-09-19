@@ -2,6 +2,8 @@
 
 一句话：wconn 的 GarnetClient 与 GarnetClientSession 都把 TcpStream::connect 写死，出站无 Unix 域套接字臂；C# 两个客户端类都按 EndPoint 类型分派 TCP/UDS，属未转写缺口。
 
+复核追加（2026-09-19 HEAD be2fca2）：并发会话另立同题票 /Users/z/git/db/wedb/next/net-client-uds-stream.md（其取证亦含 C# GarnetClient.cs:345 的 `EndPoint is not UnixDomainSocketEndPoint` NoDelay 门与 wconn/src/tls.rs:98 ClientTlsConfig::connect 的 TcpStream 硬绑，与本票同向）。同一批文件两份票，主代理须二选一收编、勿双跑；本票多出的两点是端点形态判定单源化（`wbase::endpoint` 单规则，wnode::ServerEndpoint::parse 改薄封装，禁 wconn 内第二套前缀/后缀判定）与跨票文件互斥边界——若收编 next 票，这两点须并入其修法。
+
 来源：next/agy.net.md 条 6。
 
 现状（主仓 dev 现刻按符号取证）
@@ -33,5 +35,5 @@
 
 互斥与边界
 - 本票文件域：wconn/src/client.rs、wconn/src/session.rs、wconn/src/network/stream.rs、wnode/src/endpoint.rs、wbase/src/（新 endpoint 模块）+ wbase/src/lib.rs 的 mod 与 feature 登记；不碰 wtxn/wkv/wnode/src/resp/objects 的 rmw 路径，亦不碰 wnode/src/tls/config.rs 与 wconn/src/tls.rs（那是 task/ing/tls-pem-loader-single-source.md 的域）
-- 经查 /tmp/fork 仅 dev-2026-09-19（garnet C# 快照）、`git worktree list` 仅主仓 [dev]、`git branch --list` 仅 dev/main：无任何在途修复分支，「勿与在跑 rmw 票冲突」属僵尸声称，照常开工，仅需避开上面点名的同域文件
+- 在途实测更正（2026-09-19 现刻，本条作废原「无任何在途修复分支、属僵尸声称」的说法）：`git worktree list` 实得 11 个 fork（docs-data-comment-batch、docs-readme-crate-map、fix-custom-obj-multikey、fix-lua-pending-handoff、fix-pending-lat-mget、fix-reviv-crtt-gate、fix-rmw-atomic-window、fix-vector-registry-two、split-cluster-provider、windex-2pl-removal，另 /tmp/fork/dev-2026-09-19 为 garnet C# 快照）。逐个 `git diff --name-only dev...<br>` 比对：无 fork 触及本票文件域（wconn/src/client.rs、wconn/src/session.rs、wconn/src/network/stream.rs、wnode/src/endpoint.rs、wbase/src/ 新模块）——注意 fix-lua-pending-handoff 动的是 wnode 侧 net/handler/drive.rs 与 resp_*，与本票的 wconn 出站面不同 crate，不交叠；fix-rmw-atomic-window 在 wtxn/wkv/wnode/src/resp/objects 的 rmw 路径上跑，本票零接触
 - 不做向下兼容与不做优化：不引入 UDS 自动重连、不做 DNS 多地址轮询之外的额外策略（C# ConnectSendSocketAsync 的 DNS 枚举臂若现缺，另计功能项，不在本票偷偷扩面）

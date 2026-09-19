@@ -42,3 +42,9 @@ service/ 侧的集合命令操作，本票只管三个分块/迁移状态机件�
    （grep wkv/src wnode/src 内 use wbftree::…Chunked… 的行不变）。
 3. 单文件行数 ≤300；无新增 pub(crate) 泄漏（除 mod.rs 汇聚点必要项）。
 4. cargo check 通过（禁在共享 target 跑 test.sh / clippy.sh，由主代理合并后统一跑）。
+
+双花登记
+并发代理就条 7 另立同题薄票 next/db-bftree-chunk-split.md，并声明已并入 next/muse.db.md 条 10
+（manager/service 边界纪律）。该增量落在 wbftree/src/manager 侧，与本票的 chunk.rs 拆件不同文件，
+拆件棒不吞并；本票为 wbftree/src/chunk.rs 的正文载体，派发时以本票为准并删除该薄票，禁双花。
+分拣补记（muse.db 条 10 增量，2026-09-19）：拆分时 manager/service 边界纪律一并落位（managers 与 serializers 分件归属）。

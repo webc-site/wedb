@@ -453,7 +453,7 @@ impl<D: Device> StoreSession<D> {
     // 的对应粗化在 wnode `network_expire` 命令边界（`coarse_expire_ticks` 同一单点）
     let expire_at_ticks = coarse_expire_ticks(expire_at_ticks);
     let index = self.store.index.load();
-    let _key_lock = index.acquire_keys_lock_exclusive(&[user_key])?;
+    let _key_lock = index.lock_key_exclusive(user_key)?;
     // 遍历 1/2：裸数据存活判定（无 TTL 探测，本键 TTL 裁决统一收敛到遍历 2）
     if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(-2);
@@ -501,7 +501,7 @@ impl<D: Device> StoreSession<D> {
   /// （EXPIRE 已返回 1 但键无 TTL 的用户可见异常）；锁内记录遍历由 3 压至 2
   pub async fn persist(&self, user_key: &[u8]) -> Result<i32> {
     let index = self.store.index.load();
-    let _key_lock = index.acquire_keys_lock_exclusive(&[user_key])?;
+    let _key_lock = index.lock_key_exclusive(user_key)?;
     if !self.contains_key_ignore_ttl(user_key).await? {
       return Ok(0);
     }

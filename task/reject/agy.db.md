@@ -50,6 +50,34 @@ task/ing/wtxn-queued-command-name-static-str.md）
 
 ----------------------------------------------------------------------
 
+条 10 waof aof header.rs 5 种协议头汇集 735 行
+原文观点：AofHeaderType、AofHeader、AofShardedHeader、AofSingleLogTransactionHeader、
+AofShardedLogTransactionHeader、AofChunkHeader 全部在单一文件中手写解析和打包，行数过大。
+rust：wedb/waof/src/aof/header.rs 全文件
+对应 C#：libs/server/AOF/AofHeader.cs
+动作：按基础头、分片与事务头、分块大值头拆分子模块或精简宏编解码，保持对外一致导出。
+
+拒绝理由
+1. 单文件承载整个 AOF 语义头族正是 C# 原貌：libs/server/AOF/AofHeader.cs 一个文件里就依次声明
+   :35 enum AofHeaderType、:53 struct AofShardedLogTransactionHeader、
+   :84 struct AofSingleLogTransactionHeader、:112 struct AofShardedHeader、:133 struct AofHeader，
+   且连分块变体 AofBasicChunkHeader（:292）、AofShardedChunkHeader（:317）也在同档；
+   rust 的 :28/:72/:283/:330/:390/:451 六个类型顺序与之同构，锚点逐型挂在
+   AofHeader.cs 与 AofChunkHeader.cs 上（header.rs:1-2、:23、:279、:326、:386、:446）。
+   按票意拆分等于把 C# 一个文件拆成 rust 三个，拓扑对标度下降。
+2. 这几型之间存在真实的跨型判定，拆开后要反向依赖：AofHeader::IsChunked（header.rs:156）、
+   SkipHeader（:208）、GetChunkedHeaderRef（:244）依赖 chunked 变体与非 chunked 变体
+   「低两位相同、仅高位区分」的同一布局契约（C# 同文件 :43 注释即在陈述该约定）；
+   分分子模块会把这唯一契约推到跨模块可见面。
+3. 行数口径含水分：header.rs 735 行里 :500 起为内联 cfg(test)（约 235 行），代码部分约 500 行，
+   对标 C# 侧 AofHeader.cs 335 行 + AofChunkHeader.cs 的合计规模属同量级；
+   内联单测另是全库惯例（201 个 src 文件带 cfg(test)），不构成缺陷。
+4. 动作的后半句「精简宏编解码」与本仓取向冲突：spec 要求编码优先 bitcode、别搞多格式，
+   而记录头/AOF 头是定长字节布局的位打包件（对标 C# unsafe struct 直布），
+   引入宏 DSL 属加架构；若确有手写解析要收敛，应逐型改 bitcode 而非新造宏层，本票未给出该判据。
+
+----------------------------------------------------------------------
+
 条 12 whlog AddressManager 读路径缺乏寄存器级原子快照
 原文观点：is_mutable / is_read_only / is_in_memory 等判定方法均执行多次 AtomicU64::load(Acquire)，
 且 snapshot() 无锁顺序读 7 个字段，并发下可能读出跨字段不一致状态。
