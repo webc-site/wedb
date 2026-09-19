@@ -74,6 +74,11 @@ impl<'a, D: Device> AclStore<'a, D> {
   }
 
   /// 同步落盘用户规则字节（内存写优先；环形页翻转降级阻塞式异步闭环）
+  ///
+  /// 写生效即经 [`Self::bump_acl_generation`] 向引擎推进 ACL 代数——本方法
+  /// 与 [`Self::delete`] 连同 AOF/复制回放的 `KeyTag::Acl` 条目臂是 ACL 记录
+  /// 改权的全量出口，在途会话据此在下一次鉴权前收敛（对标 C# 共享句柄 CAS
+  /// 换新的即时生效语义）
   pub fn write(&self, ns: u64, username: &[u8], value: &[u8]) -> wkv::Result<()> {
     let prefix = Self::prefix(ns);
     let batch = self.session.enter_batch();
@@ -85,16 +90,19 @@ impl<'a, D: Device> AclStore<'a, D> {
     );
     drop(batch);
     match res? {
-      Ok(_) => Ok(()),
+      Ok(_) => {}
       Err(_) => {
         let phys = Self::physical_key(ns, username);
         blocking_wait(self.session.upsert_raw(&phys, value))?;
-        Ok(())
       }
     }
+    self.bump_acl_generation();
+    Ok(())
   }
 
   /// 同步墓碑删除用户规则（返回是否确有删除；环形页翻转降级阻塞式异步闭环）
+  ///
+  /// 确有删除才推进代数（无记录可删即无改权事实）
   pub fn delete(&self, ns: u64, username: &[u8]) -> wkv::Result<bool> {
     let prefix = Self::prefix(ns);
     let batch = self.session.enter_batch();
@@ -104,13 +112,23 @@ impl<'a, D: Device> AclStore<'a, D> {
       KeyTag::Acl,
     );
     drop(batch);
-    match res? {
-      Ok(deleted) => Ok(deleted),
+    let deleted = match res? {
+      Ok(deleted) => deleted,
       Err(_) => {
         let phys = Self::physical_key(ns, username);
-        blocking_wait(self.session.delete_raw(&phys))
+        blocking_wait(self.session.delete_raw(&phys))?
       }
+    };
+    if deleted {
+      self.bump_acl_generation();
     }
+    Ok(deleted)
+  }
+
+  /// ACL 记录变更生效后的引擎代数推进（本文件唯一 bump 口；失败路径经 `?`
+  /// 早退，绝不为未落定的改权广播失效）
+  fn bump_acl_generation(&self) {
+    self.session.store().bump_acl_generation();
   }
 
   /// 流式扫描指定命名空间的全部存活 ACL 记录

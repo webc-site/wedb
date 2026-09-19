@@ -165,6 +165,16 @@ pub struct WedbStore<D: Device> {
   /// AtomicBool 认领位加协作让渡自旋承载（先例即 barrier_enter 的 PREPARE_GROW
   /// 自旋挂起协议），获取与释放见 [`Self::lock_dbmeta`]
   pub(crate) dbmeta_lock: AtomicBool,
+  /// ACL 旁路标签（`KeyTag::Acl`）记录变更代数（引擎级单标量，与注册用户总量
+  /// 脱钩；garnet 无对应——C# 用户句柄驻全局字典、改权即就地 CAS 共享句柄，
+  /// 本仓句柄连接本地持有，改权只能经代数向在途会话广播）
+  ///
+  /// 唯一推进口 [`Self::bump_acl_generation`]，ACL 记录写删的四个出口
+  /// （`wnode::resp::acl_store::AclStore` 的 write/delete、AOF 与复制回放的
+  /// `KeyTag::Acl` 条目臂）共用；消费口见
+  /// `wnode::resp::resp_server_session::RespServerSession::refresh_acl_mount_if_stale`
+  /// （会话挂载时快照、鉴权预门比较，与 vdb 换号代数的会话前缀重解析同形态）
+  acl_generation: AtomicU64,
   /// 在线哈希索引扩容状态机运行时容器 (对标 Garnet IndexResizeTask)
   pub resize: Arc<resize::IndexResizeState>,
 }
@@ -204,6 +214,20 @@ impl<D: Device> WedbStore<D> {
       yield_now().await;
     }
     DbmetaGuard(&self.dbmeta_lock)
+  }
+
+  /// 当前 ACL 变更代数（会话侧缓存代数的比较源；Acquire 与
+  /// [`Self::bump_acl_generation`] 的 Release 配对，令「见到新代数」的会话
+  /// 必能见到推进代数前已落盘的 ACL 记录，杜绝以旧记录重建后把新代数钉死）
+  #[inline]
+  pub fn acl_generation(&self) -> u64 {
+    self.acl_generation.load(Ordering::Acquire)
+  }
+
+  /// 推进 ACL 变更代数（ACL 记录写删的唯一 mutator，须在记录写入生效后调用）
+  #[inline]
+  pub fn bump_acl_generation(&self) {
+    self.acl_generation.fetch_add(1, Ordering::Release);
   }
 
   /// 生成初始集合唯一 ID（高 48 位毫秒时间戳 + 低 16 位随机数）
@@ -317,6 +341,7 @@ impl<D: Device> WedbStore<D> {
       bftree_domains: reclaim::BftreeDomains::default(),
       bftree_release: Mutex::new(Vec::new()),
       dbmeta_lock: AtomicBool::new(false),
+      acl_generation: AtomicU64::new(0),
       resize: Arc::new(resize::IndexResizeState::new()),
     })
   }

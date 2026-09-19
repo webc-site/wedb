@@ -422,6 +422,75 @@ fn test_eval_acl_permissions() {
   assert_eq!(out, b"$3\r\nbar\r\n");
 }
 
+/// 脚本面与直令面同口径收敛（无第二套失效判据）：ACL 真源写口推进代数后，
+/// 已认证连接的 EVAL 预门即重解析挂载句柄，脚本内 redis.call /
+/// redis.acl_check_cmd 复用同一收敛后句柄，双向翻转即时生效
+#[test]
+fn test_eval_acl_live_propagation() {
+  let (_dir, store) = open_test_store("lua-acl-live.db").expect("open test store");
+  let acl = Arc::new(AccessControlList::new("").unwrap());
+  let writer_session = store.new_session().unwrap();
+  let acl_store = AclStore::new(&writer_session);
+  let denied = AclParser::parse_acl_rule("user live on >pw +@all -get").unwrap();
+  let allowed = AclParser::parse_acl_rule("user live on >pw +@all").unwrap();
+  acl_store.write(0, b"live", &denied.to_bytes()).unwrap();
+
+  let mut victim = acl_session(&store, &acl, "live", "pw");
+  assert_eq!(
+    cmd(&mut victim, vec![b"SET".to_vec(), b"foo".to_vec(), b"bar".to_vec()]),
+    b"+OK\r\n"
+  );
+
+  // 基线：脚本内 GET 被拒
+  let out = cmd(
+    &mut victim,
+    eval_parts("return redis.call('GET', 'foo')", &[], &[]),
+  );
+  assert!(
+    out.windows(6).any(|w| w == b"NOPERM"),
+    "got {}",
+    String::from_utf8_lossy(&out)
+  );
+  let out = cmd(
+    &mut victim,
+    eval_parts(
+      "if redis.acl_check_cmd('GET') then return 'Y' end return 'N'",
+      &[],
+      &[],
+    ),
+  );
+  assert_eq!(out, b"$1\r\nN\r\n");
+
+  // 真源改权（同 SETUSER 写口）：不重连不重认证，下一条 EVAL 即放行
+  acl_store.write(0, b"live", &allowed.to_bytes()).unwrap();
+  let out = cmd(
+    &mut victim,
+    eval_parts("return redis.call('GET', 'foo')", &[], &[]),
+  );
+  assert_eq!(out, b"$3\r\nbar\r\n");
+  let out = cmd(
+    &mut victim,
+    eval_parts(
+      "if redis.acl_check_cmd('GET') then return 'Y' end return 'N'",
+      &[],
+      &[],
+    ),
+  );
+  assert_eq!(out, b"$1\r\nY\r\n");
+
+  // 反向（撤权）同即：脚本面回落拒绝
+  acl_store.write(0, b"live", &denied.to_bytes()).unwrap();
+  let out = cmd(
+    &mut victim,
+    eval_parts("return redis.call('GET', 'foo')", &[], &[]),
+  );
+  assert!(
+    out.windows(6).any(|w| w == b"NOPERM"),
+    "撤权后脚本面仍放行: {}",
+    String::from_utf8_lossy(&out)
+  );
+}
+
 /// redis.acl_check_cmd 有效性判定与权限检查收口会话侧单点后的三臂对照
 /// （对标 LuaRunner.Functions.cs:AclCheckCommand :2803-3064）：
 /// - 清单外命令（HSET）可用（旧硬清单口径直接报无效）
