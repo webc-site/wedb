@@ -478,7 +478,7 @@ fn aof_replay_etag_equivalence_replica_form() {
   rt.block_on(async {
     let aof = Arc::clone(provider.aof().expect("aof enabled"));
     let replica_path = dir.path().join("node").join("etag_replica_target.db");
-    // 小预算测试配置注入（生产缺省 open_node 走 StoreConfig::auto）
+    // 小预算测试配置注入（生产缺省经 open_from_args 走 store_config() 的 StoreConfig::auto）
     let (store, _broker, _vm) =
       open_node_with_config(test_store_config(), replica_path).expect("open replica store");
     let target_session = store.new_session().expect("replica session");

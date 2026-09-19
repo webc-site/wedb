@@ -1631,7 +1631,7 @@ fn cluster_slotstate_projection() {
 #[test]
 fn cluster_reserve_contexts() {
   let dir = tempfile::tempdir().unwrap();
-  // 小预算测试配置注入（生产缺省 open_node 走 StoreConfig::auto）
+  // 小预算测试配置注入（生产缺省经 open_from_args 走 store_config() 的 StoreConfig::auto）
   let (_store, _broker, vector_manager) =
     open_node_with_config(test_store_config(), dir.path().join("reserve.db")).unwrap();
   let cp = two_primary_provider();

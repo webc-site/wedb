@@ -14,6 +14,7 @@ use compio::runtime::Runtime;
 use log::info;
 use tempfile::tempdir;
 use wbase::{
+  align::DEFAULT_SECTOR_SIZE,
   base32::encode_u64,
   pool::{AlignedBuf, BufferPool},
 };
@@ -101,7 +102,11 @@ fn idevice_round_trip_basic_read_write() -> Void {
   let rt = Runtime::new()?;
   rt.block_on(async {
     let dir = tempdir()?;
-    let device = SegmentedDevice::segmented(dir.path().join("basic_rw.log"), 64 * 1024)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("basic_rw.log"),
+      Some(64 * 1024),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     let size = 64 * 1024;
     let pattern = make_pattern_data(size, 7, 0);
@@ -129,7 +134,11 @@ fn idevice_round_trip_across_segment_boundary() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("cross_seg.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("cross_seg.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 写入 16KB：段 0 尾部 4KB (61440..65536) + 段 1 头部 12KB (0..12288)，模式 (i * 11) & 0xFF
     let size = 16 * 1024;
@@ -176,8 +185,11 @@ fn idevice_round_trip_various_segment_sizes() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     for seg_size in [1u64 << 20, 4u64 << 20] {
-      let device =
-        SegmentedDevice::segmented(dir.path().join(format!("seg_{seg_size}.log")), seg_size)?;
+      let device = SegmentedDevice::new(
+        dir.path().join(format!("seg_{seg_size}.log")),
+        Some(seg_size),
+        DEFAULT_SECTOR_SIZE,
+      )?;
 
       // 从段尾 -8KB 起写入 16KB，跨越段 0 -> 段 1，模式 (i * 7) & 0xFF
       let size = 16 * 1024;
@@ -262,7 +274,11 @@ fn read_range_cross_sector_unaligned_slices() -> Void {
   rt.block_on(async {
     let dir = tempdir()?;
     let seg_size: u64 = 64 * 1024;
-    let device = SegmentedDevice::segmented(dir.path().join("read_range.log"), seg_size)?;
+    let device = SegmentedDevice::new(
+      dir.path().join("read_range.log"),
+      Some(seg_size),
+      DEFAULT_SECTOR_SIZE,
+    )?;
 
     // 写入 128KB 跨段 0 与段 1 的基准数据
     let total = 128 * 1024;

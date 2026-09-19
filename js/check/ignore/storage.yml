@@ -766,8 +766,11 @@
         - CompletePendingWithOutputs
         - CompletePendingWithOutputsAsync
         - ConsistentReadContext
+        - Delete
         - ResetModified
-  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接（含批/单键一致读回调面）
+        - RMW
+        - Upsert
+  理由: C# 一致读上下文；rust wkv/src/session/consistent_read.rs 单点承接，只读会话无写接口，消除 C# IFunctions 残留死接口（Upsert/RMW/Delete）
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs
   理由: C# 会话接口面；rust 单实现直调（wkv session），接口跳板层消失
@@ -944,10 +947,11 @@
     分层），无独立异步池类型
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/Device/Devices.cs
-  理由: C# 设备工厂（CreateIndex/CreateLogDevice 分发）；rust 设备构造单点 wdev
-    SegmentedDevice::open（段目录/段尺寸参数化），保留
-    set_capacity、set_delete_on_close、set_preallocate、set_read_only、segmented、is_delete_on_close、is_preallocate
-    作为存储设备通用构造器，无工厂分发
+  理由: C# 设备工厂（CreateIndex/CreateLogDevice 按 DeviceType 四态分发）；rust 固定
+    SegmentedDevice 单设备形态，构造单点在 wdev（new/with_params/with_pool 加 DeviceParams
+    旋钮族），CreateLogDevice 的
+    segmentSize/preallocateFile/deleteOnClose/capacity/readOnly 形参即构造期注入口，与 C#
+    一致无运行期 mutator、无工厂分发
 - 文件:
     - libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:
         - Throttle
