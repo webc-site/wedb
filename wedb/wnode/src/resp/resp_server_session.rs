@@ -24,6 +24,7 @@ use parking_lot::Mutex;
 use smallvec::SmallVec;
 use wacl::{GarnetAclAuthenticator, UserHandle, acl_password_check};
 use wbase::{
+  future::blocking_wait,
   hash_slot::slot_of,
   time::{now_ms, now_nanos, now_stopwatch_ticks},
 };
@@ -2544,6 +2545,14 @@ impl RespServerSession {
     // `respServerSession.storageSession.unifiedTransactionalContext` 同源：
     // 脚本键锁面与会话事务锁面同表）
     let lock_table = self.lock_table.clone();
+    // 脚本窗口隔离（C# 内嵌 processor 自带独立接收缓冲与应答暂存发送器的
+    // 等价物）：redis.call 的合成 RESP 请求覆写会话接收窗，故外层批的接收
+    // 游标与已产出应答先换出、窗口关闭原样挂回——否则同批 EVAL 之后尚未
+    // 消费的命令随覆写凭空消失，前序命令的应答更会被 Lua 应答转换器误读出
+    // 成本条 redis.call 的应答
+    let outer_output = mem::take(&mut self.output);
+    let outer_recv = mem::take(&mut self.recv_buffer);
+    let outer_cursors = (self.read_head, self.end_read_head, self.bytes_read);
     let mut script_out = Vec::new();
     {
       let mut api = RespScriptingApi(&mut *self);
@@ -2569,6 +2578,24 @@ impl RespServerSession {
         _ => true,
       };
     }
+    // 收尾不变式：脚本窗口退出时挂起态必为 None——每次重入的
+    // [`RespScriptingApi::dispatch_resp`] 已就地承接两态并把应答并入脚本应答。
+    // 残留挂起体若不摘除，网络泵会把它当成本连接的挂起命令 resolve，产出一帧
+    // 不属于任何客户端命令的应答插进出网流（协议流错插的最后一道闸）；此处
+    // 写明并就地取消，与 [`Self::dispose`] 同一取消口径
+    if let Some(blocked) = self.take_blocked_wait() {
+      log::error!("lua script window leaked a blocked wait, cancelled");
+      blocked.abort();
+    }
+    if self.take_slow_wait().is_some() {
+      log::error!("lua script window leaked a slow wait, cancelled");
+    }
+    // 会话窗口挂回：外层游标与接收缓冲复位，水位让渡哨兵复位为派发前的
+    // false（EVAL 能被派发即说明前序命令未触水位）
+    self.recv_buffer = outer_recv;
+    (self.read_head, self.end_read_head, self.bytes_read) = outer_cursors;
+    self.output_watermark_yield = false;
+    self.output = outer_output;
     // 脚本窗口关闭：外层连接命令恢复 no-script 门豁免（对齐 C# 外层会话
     // 位图恒 null）
     self.no_script_bitmap = None;
@@ -2718,10 +2745,11 @@ impl RespServerSession {
 
 /// 会话的 [`ScriptingApi`] 适配器（redis.call 落地面）
 ///
-/// C# ProcessCommandFromScripting 把参数格式化为 RESP 请求后重入
-/// TryConsumeMessages；rust 侧经同一解析/分派路径，响应字节追加写入
-/// 调用方传入的 `&mut Vec<u8>`。会话脚本缓存已由
-/// [`RespServerSession::run_lua_command`] 暂时摘除，重入路径与脚本期借用互斥。
+/// C# ProcessCommandFromScripting 把参数格式化为 RESP 请求后重入内嵌
+/// processor 的 TryConsumeMessages；rust 无内嵌 processor，经同一解析/分派
+/// 路径重入共享会话，响应字节追加写入调用方传入的 `&mut Vec<u8>`。外层批的
+/// 接收窗与输出缓冲由 [`RespServerSession::run_lua_command`] 在脚本窗口换出、
+/// 会话脚本缓存同时摘除，故重入路径与脚本期借用互斥且外层字节不被覆写污染。
 struct RespScriptingApi<'a>(&'a mut RespServerSession);
 
 impl RespScriptingApi<'_> {
@@ -2744,22 +2772,51 @@ impl ScriptingApi for RespScriptingApi<'_> {
   fn dispatch_resp(&mut self, request: &[u8], response: &mut Vec<u8>) {
     // 对标 C# LuaRunner.Functions.cs:ProcessCommandFromScripting 尾部
     // `respServerSession.TryConsumeMessages(request.ptr, request.length)`：
-    // 脚本格式化缓冲切为接收内容重入消费装配（C# recvBufferPtr = reqBuffer
-    // + 入口 `if (!txnSkip) readHead = 0` 的游标归零）；外层批 EVAL 帧之后
-    // 的剩余字节随缓冲替换失效，与 C# 指针切换行为一致
+    // 脚本格式化缓冲切为接收内容重入消费装配（C# 的 recvBufferPtr 切到
+    // reqBuffer + 入口 `if (!txnSkip) readHead = 0` 的游标归零）。C# 切的是
+    // 内嵌 processor 的接收窗，外层批字节不受扰动；rust 重入共享会话，外层
+    // 接收窗与已产出应答由 [`RespServerSession::run_lua_command`] 在脚本窗口
+    // 换出、收尾挂回，此处只覆写窗口内的会话接收窗
     let session = &mut *self.0;
     session.recv_buffer.clear();
     session.recv_buffer.extend_from_slice(request);
     session.read_head = 0;
     session.end_read_head = 0;
-    // 水位让渡续消费（对标 C# 重入 TryConsumeMessages 的 SendAndReset
-    // 满刷后续写）：让渡发生时游标驻留接收缓冲，续消费至合成请求耗尽；
-    // 无让渡的返回即整段消费完毕或半包不足，二者对合成请求等价收尾
+    // 消费序与网络泵同构（drive.rs 泵循环的脚本重入投影）：消费 → 水位让渡
+    // 冲出应答后续消费 → 挂起态就地驱动闭环。
+    //
+    // 挂起承接是 C# 重入语义的必需项：C# 侧脚本内命令的磁盘 pending 与阻塞
+    // 等待都在 TryConsumeMessages 的调用栈上同步收割，应答齐了才返回，故 C#
+    // 不存在「重入返回而命令仍挂起」的形态；rust 侧两态以会话挂起体承载，
+    // 本函数返回前必须取走并驱动——留 pending 回会话即令本条 redis.call 拿
+    // 空应答（resp_convert 落 UnexpectedError）且后续每条 redis.call 被消费
+    // 入口门连锁挡回，残留挂起体更会被网络泵当作本连接的挂起 resolve，把一帧
+    // 不属于任何客户端命令的应答插进 EVAL 之后的出网流
     loop {
       if session.try_consume_messages().is_none() {
         break;
       }
-      if !session.take_output_watermark_yield() {
+      // 批内输出水位让渡：应答先并入 response 再续消费——会话输出缓冲在下一
+      // 批入口即被清空，不冲出即丢整段已产出应答（大应答脚本命令曾据此凭空
+      // 截断）
+      if session.take_output_watermark_yield() {
+        session.take_output_into(response);
+        continue;
+      }
+      let mut resumed = false;
+      // 阻塞挂起承接：应答经泵同款并入口直写 response，不碰会话出网缓冲
+      if let Some(blocked) = session.take_blocked_wait() {
+        let (cmd, result) = blocking_wait(blocked.resolve());
+        session.resolve_blocked_wait_into(cmd, result, response);
+        resumed = true;
+      }
+      // 慢路径挂起承接（冷键降级 / 槽位门等待）
+      if let Some(slow) = session.take_slow_wait() {
+        let reply = blocking_wait(slow.resolve());
+        session.resolve_slow_wait_into(&reply, response);
+        resumed = true;
+      }
+      if !resumed {
         break;
       }
     }
