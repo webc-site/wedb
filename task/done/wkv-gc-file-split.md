@@ -56,3 +56,46 @@ C# 参考
 双花登记
 并发代理就条 11 另立同题薄票 next/db-wkv-gc-split.md（同改 wkv/src/gc.rs，五域划分与本票一致），
 两票同改一文件只取一棒：本票为正文载体，派发时以本票为准并删除该薄票，禁双花。
+
+结案注记（载体分支 wkv-gc-split，代码提交 82a859f）
+甄别复核：执行基线 dev=d5c6efa。现刻 gc.rs 实测 834 行（票称 841，后段被并发合入
+微缩 7 行，域锚整体漂移 ≤7，五域与统计结构、内联测试位置逐一对号，判定不变）；
+双花薄票 next/db-wkv-gc-split.md 已不在册（现 next/ 无 gc 题票），无需删除动作。
+wkv/src/lib.rs 的 `mod gc;` 行随目录化自动收敛，零改动；session/** 零接触；
+store/gc.rs、store/keyspace.rs、store/mod.rs、store/reclaim.rs 四个相邻件零 diff。
+
+落地：按域拆为 gc/ 目录模块——gc/mod.rs 401 行（门面总述文档、结构三件
+GcStats/GcStatsSnapshot/GcManager、new/spawn/drive/stats/run_once/tick 调度环、
+启停谓词单点 enabled_by_config 与 scan_interval_ms、句柄门面 GcHandle/RunGuard、
+随被测件保留的内联谓词单测）+ 子件四枚：vdb.rs 59（sweep_vdb 墓碑注销与空闲
+路由析构）、ttl_sweep.rs 200（sweep_expired 两段扫描 + collect_expired/ScanBudget/
+ExpiredKeySet 共享内核随 TTL 域走）、compact.rs 151（refresh_compact_boost 迟滞
+熔断 + try_compact 紧缩推进）、reclaim.rs 101（reclaim_physical 回收内核 +
+reclaim_when_scan_idle 兜底 + spawn_bftree_reclaimer 常驻排空与其 RELEASE_* 常量）。
+子件命名按修法 1 逃逸条款取动词形态（sweep_ttl 形态），与 store/{gc,reclaim}.rs、
+顶层 compact.rs 均不重名；旧 gc.rs git rm，无 shim。
+
+搬家中性取证：全件非空行多重集比对，消失 6 行 = 4 条方法签名加 pub(super)
+（sweep_vdb/sweep_expired/try_compact/reclaim_physical，件间家族可见，先例
+wdev 拆分同款）+ 2 条 crate 导入拆件；新增 70 行全部为四枚件首 //! 说明、
+4 条 mod 声明注释行、件内导入、4 枚 impl 包装与 2 行门面转发
+（pub use reclaim::spawn_bftree_reclaimer、pub(crate) use ttl_sweep::
+{ExpiredKeySet, ScanBudget, collect_expired}，crate::gc::* 既有引用路径
+store/mod.rs 与 keyspace.rs 零改动保持），零逻辑行改动。C# 锚点
+（[A-Za-z]+\.cs:[A-Za-z_]+ 形态）多重集 3 枚逐条不变、逐枚随代码块走位；
+bun js/check.js 拆分前后输出逐字节相同（exit 0），ignore 语料零回写。
+
+验收对照：判据 2——五方法各自定义点恰 1 处（grep 实测），调度次序
+drive → tick → sweep_expired → reclaim_physical →（sweep_vdb → try_compact）
+与统计计数行（compactions/last_compact_dropped/compact_boosting 的 fetch/store）
+逐字节同旧；判据 3——enabled_by_config 定义 1 处（mod.rs:104，pub(crate) 原级
+未动），store/gc.rs 的 gc::enabled_by_config 引用零改动；判据 1——子件四枚
+59/101/151/200 全 ≤250 ✓，门面 401 行超 ≤300 目标：修法 1 保留清单在 834 行
+基数下自身即 ~360 行（头述 51 + 环 130 + 句柄 58 + 结构 58 + 谓词 26 + 内联测
+试 37），两条款互斥，按「结构与驱动循环留门面件 + 零语义」优先执行，行数偏差
+如实注记（同先例 wdev 拆分门面 373 行获认尺度）。阈值/档位投影链/熔断语义零
+改动（判据 4 附带纪律）。
+
+门禁实测：私有 target /tmp/ct-gcsplit，cargo check --workspace --all-targets
+0 error 0 warning（并入 d5c6efa 后复验）；cargo nextest run -p wkv 222/222 全绿
+（含 gc 集成套件与 gc_scan_predicate_disabled_states 单测）；cargo fmt 已施。
