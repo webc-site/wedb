@@ -21,7 +21,7 @@ use wresp::{
 use wval::GarnetObjectType;
 
 use crate::{
-  hash::hash_object::scan_operate_shared,
+  types::scan_operate_shared,
   object_payload::{COUNT_BLOB_HEADER, GarnetObjectPayload},
   types::{ObjectOutput, ObjectOutputFlags},
 };

@@ -8,7 +8,7 @@ use wresp::resp_memory_writer::RespWriter;
 
 use super::set_object::SetObject;
 use crate::{
-  hash::hash_object::{pick_k_random_indexes, pick_random_index},
+  types::{pick_k_random_indexes, pick_random_index},
   resp::output::{write_null, write_set_length},
   types::ObjectOutput,
 };

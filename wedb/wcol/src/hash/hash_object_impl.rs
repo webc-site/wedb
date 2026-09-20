@@ -24,10 +24,8 @@ use wresp::{
 };
 use zmij::Buffer as ZmijBuffer;
 
-use super::hash_object::{
-  EXPIRY_FLOOR, HashObject, HashOperation, pick_k_random_indexes, pick_random_index,
-  scan_operate_shared,
-};
+use super::hash_object::{EXPIRY_FLOOR, HashObject, HashOperation};
+use crate::types::{pick_k_random_indexes, pick_random_index, scan_operate_shared};
 use crate::{
   resp::output::{write_map_length, write_null},
   types::ObjectOutput,

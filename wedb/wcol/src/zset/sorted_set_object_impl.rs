@@ -31,7 +31,7 @@ use super::sorted_set_object::{
   EXPIRY_FLOOR, SortedSetEntry, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
 };
 use crate::{
-  hash::hash_object::pick_k_random_indexes,
+  types::pick_k_random_indexes,
   resp::output::{write_double_numeric, write_null},
   types::{ObjectOutput, read_scan_input},
 };
