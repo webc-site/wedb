@@ -16,7 +16,7 @@ bitflags.workspace = true
 clap.workspace = true
 itoa.workspace = true
 log.workspace = true
-nested-text = "0.1.0"
+nested-text.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 

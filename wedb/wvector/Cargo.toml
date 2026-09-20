@@ -21,6 +21,7 @@ diskann-vector = "0.59.0"
 enum_dispatch = "0.3.13"
 
 parking_lot.workspace = true
+# 强制依赖：diskann 底层特征训练强耦合 rand 0.9.x API，与本仓 fastrand 惯例不同
 rand = "0.9.5"
 thiserror.workspace = true
 wbase = { workspace = true, features = ["map"] }
