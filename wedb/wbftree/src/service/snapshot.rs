@@ -1,10 +1,6 @@
 //! CPR 快照与恢复 (1:1 对标 Garnet BfTreeService 的 cpr_snapshot / recover 系列)
 
-use std::{
-  fs,
-  path::Path,
-  sync::Arc,
-};
+use std::{fs, path::Path, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use bf_tree::BfTree;
@@ -47,7 +43,9 @@ impl BfTreeService {
   pub fn cpr_snapshot(&self, snapshot_path: impl AsRef<Path>) -> Result<()> {
     let tree = self.tree_arc()?;
     if !self.enable_snapshots {
-      return Err(Error::Snapshot("底层引擎异常 (快照未启用或内部状态异常)".into()));
+      return Err(Error::Snapshot(
+        "底层引擎异常 (快照未启用或内部状态异常)".into(),
+      ));
     }
     let p = snapshot_path.as_ref();
     if let Some(parent) = p.parent()
@@ -80,7 +78,7 @@ impl BfTreeService {
         p,
       ));
     }
-    
+
     // 移除 catch_unwind 封装，改为严格返回 Result 处理
     match BfTree::new_from_cpr_snapshot(p, enable_snapshots, None, None, None) {
       Ok(tree) => {

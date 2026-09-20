@@ -59,8 +59,15 @@ pub struct LuaState {
 }
 
 impl Drop for LuaState {
+  /// libs/server/Lua/LuaStateWrapper.cs:Dispose
+  /// libs/server/Lua/LuaRunner.cs:Dispose
+  ///
+  /// C# 委托链 LuaRunner.Dispose => state.Dispose() => lua_close 在 rust
+  /// 合一为单点：持有方（LuaRunner/独立 LuaState）析构即 `lua_close`
+  /// 一次性回收 VM 与全部注册表引用。
+  ///
+  /// 必须先关 VM（VM 销毁期间的分配走 allocator 槽）再弃槽本体。
   fn drop(&mut self) {
-    // 必须先关 VM（VM 销毁期间的分配走 allocator 槽）再弃槽本体。
     if self.owned {
       // SAFETY：l 由 new/with_allocator 创建且仅此一处关闭（owned 唯一）。
       unsafe { sys::lua_close(self.l) };
@@ -628,6 +635,11 @@ impl LuaState {
 
 /// 中断回调：safepoint 触发，超截止即抛超时错误（可被 pcall 捕获）。
 /// 满足 Luau 中断回调 C 签名规范，保留 _gc 参数
+///
+/// libs/server/Lua/LuaRunner.Functions.cs:RequestTimeout 的承接：C# 静态
+/// 调试钩子入口（count hook 到限触发）+ 实例 `RequestTimeout(luaStatePtr)`
+/// PCall 抛错的合并体；luau 以 VM safepoint 中断回调直达同一效果（截止槽
+/// 过限即 `lua_error` 抛 TIMEOUT_ERROR），免去 PCall 包装函数。
 ///
 /// # Safety（回调契约）
 /// - userdata 指向随 Arc 保活的截止槽（install_interrupt 注入）。
