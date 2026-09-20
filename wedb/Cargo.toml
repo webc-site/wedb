@@ -78,6 +78,10 @@ aok = "0.1.18"
 ctor = "1.0.13"
 log_init = "0.1.39"
 tempfile = "3.27.0"
+fearless_simd = "0.7.0"
+nested-text = "0.1.0"
+num_enum = "0.7.6"
+compio-tls = "0.10.0"
 
 [workspace.dependencies.wbase]
 version = "0.1.9"

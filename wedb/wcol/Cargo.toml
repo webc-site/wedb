@@ -27,7 +27,7 @@ parking_lot.workspace = true
 bitflags.workspace = true
 zmij.workspace = true
 itoa.workspace = true
-num_enum = "0.7.6"
+num_enum.workspace = true
 crossfire.workspace = true
 compio = { workspace = true, features = ["time"] }
 event-listener.workspace = true

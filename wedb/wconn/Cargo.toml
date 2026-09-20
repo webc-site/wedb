@@ -25,7 +25,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
-compio-tls = { version = "0.10.0", default-features = false, features = ["rustls", "ring"], optional = true }
+compio-tls = { workspace = true, default-features = false, features = ["rustls", "ring"], optional = true }
 crossfire.workspace = true
 event-listener.workspace = true
 futures-util = { workspace = true, features = ["bilock", "io", "unstable"], optional = true }
@@ -34,7 +34,7 @@ log.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 wbase = { workspace = true, features = ["endpoint", "pool"] }
-webpki-roots = { version = "0.26", optional = true }
+webpki-roots = { version = "1", optional = true }
 wresp.workspace = true
 zmij.workspace = true
 
