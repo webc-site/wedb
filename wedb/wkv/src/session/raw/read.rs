@@ -6,65 +6,21 @@ use windex::{CandidateAddresses, HashBucketEntry};
 use wrecord::record_size;
 use wval::KeyTag;
 
-use super::{MemDrive, ReadProbeResult};
+use super::MemDrive;
+use std::ops::ControlFlow;
 use crate::{error::Result, read_cache::RcVisit, session::StoreSession, ttl::TtlGate};
 
-/// 内存直读内部结果（严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类，附加磁盘候选透传）
+/// 内存扫描中间动作（统一替代原有的 RcWalk/MemBack/ReadProbeResult/MemRead）
 ///
-/// 仅内核自用：`RETRY_LATER` 的刷新重试由 [`StoreSession::drive_mem_read`] 驱动环
-/// 内部闭环，环外只见 [`MemDrive`] 终态
-enum MemRead<R> {
-  /// 内存阶段已闭环：`Some` 为命中值，`None` 为确认不存在（含墓碑，对应 `NOTFOUND`）
+/// 精简状态机：合并了所有内存段（ReadCache、Immutable、Mutable）内探针与回溯的
+/// 动作语义，消除过多胶水转换代码。
+enum MemAction<R> {
+  /// 匹配成功并提取值（对应 SUCCESS / Found）
   Done(Option<R>),
-  /// 记录位于磁盘区：携带按新版本优先降序排列的磁盘候选地址（对应 `RECORD_ON_DISK`）
-  OnDisk(CandidateAddresses),
-  /// 命中密封在途记录（对应 `RETRY_LATER`）：驱动环刷新纪元后整链重试
+  /// 需要刷新纪元并重试（对应 RETRY_LATER）
   Retry,
-}
-
-/// ReadCache 整链走查结果（[`StoreSession::find_in_read_cache`] 出口）
-enum RcWalk<R> {
-  /// 键匹配的未作废 RC 记录命中，已消费读闭包
-  Found(R),
-  /// 链走尽至首个主日志地址（或链尽 0），`curr` 已就位
-  ChainEnd,
-  /// 驱逐窗口/滑窗竞态不可判读：刷新纪元后回链头重探（对应 `RETRY_LATER`）
-  Retry,
-}
-
-/// [`RcVisit`] → [`RcWalk`] 判据映射单点（raw 读侧唯一换算口）：C# 读缓存探测
-/// 无第二套枚举——FindInReadCache 只回 bool，命中/续链/回链头重探直接汇入
-/// InternalRead 的 OperationStatus 同源分类；rust 侧 [`RcVisit`]（RC 记录访问
-/// 三态，read_cache 层产出）与 [`RcWalk`]（整链走查出口）域不同须分立，换算
-/// 仅此一处，并与 [`ReadProbeResult`]（主日志记录探针四态，InternalRead.cs:105-131
-/// 单遍分类）按判据对位：
-/// - `Found` ↔ `ReadProbeResult::Found` ↔ SUCCESS（命中）
-/// - `Next(prev)` ↔ `ReadProbeResult::Miss(prev)` ↔ 沿 PreviousAddress 续链
-/// - `Gone` ↔ `ReadProbeResult::Retry` ↔ RETRY_LATER（回链头重探，绝不降级 NOTFOUND）
-///
-/// 返回 `Some` 为走查终态（调用方直接上抛）；`None` 为续链，前驱地址已写入 `curr`
-#[inline]
-fn map_rc_visit<R>(visit: RcVisit<R>, curr: &mut u64) -> Option<RcWalk<R>> {
-  match visit {
-    RcVisit::Found(val) => Some(RcWalk::Found(val)),
-    RcVisit::Next(prev) => {
-      *curr = prev;
-      None
-    }
-    RcVisit::Gone => Some(RcWalk::Retry),
-  }
-}
-
-/// 内存反向回溯结果（[`StoreSession::trace_back_for_key_match`] 出口）
-enum MemBack<R> {
-  /// 键命中：safe_ro 快照下的读后晋升判定已内含
-  Found(R),
-  /// 最新匹配记录为墓碑（NOTFOUND）
-  Tombstone,
-  /// 命中密封在途记录（RETRY_LATER）
-  Retry,
-  /// 链尽（`curr` 置 0）/ 降至 head 之下的主日志地址 / 页换出竞态（`curr` 保留原址）
-  Stopped,
+  /// 续链下一地址，或 0 表示终止（对应 Miss(prev) / Stopped）
+  Next(u64),
 }
 
 /// 同步内存直读权威状态枚举（严格对标 C# OperationStatus：
@@ -133,20 +89,20 @@ fn probe_hlog_record<R, F: RecordRead<R>>(
   rec: wrecord::RecordRef<'_>,
   key: &[u8],
   f: &mut Option<F>,
-) -> ReadProbeResult<R> {
+) -> MemAction<R> {
   if rec.matches_key(key) {
     if rec.is_closed() {
-      ReadProbeResult::Retry
+      MemAction::Retry
     } else if rec.is_tombstone() {
-      ReadProbeResult::Tombstone
+      MemAction::Done(None)
     } else {
       // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
       let func = unsafe { f.take().unwrap_unchecked() };
-      ReadProbeResult::Found(func.read_record(rec.value(), rec.physical_size()))
+      MemAction::Done(Some(func.read_record(rec.value(), rec.physical_size())))
     }
   } else {
     // 发生 15 位 Tag 碰撞，沿反向链表回溯前驱版本（prev_address）
-    ReadProbeResult::Miss(rec.prev_address())
+    MemAction::Next(rec.prev_address())
   }
 }
 
@@ -237,16 +193,13 @@ impl<D: Device> StoreSession<D> {
     f: &mut Option<impl RecordRead<R>>,
   ) -> Result<MemDrive<R>> {
     loop {
-      match self.try_read_mem(key, hash, first_addr, f)? {
-        MemRead::Done(res) => return Ok(MemDrive::Done(res)),
-        MemRead::OnDisk(cands) => return Ok(MemDrive::OnDisk(cands)),
-        MemRead::Retry => {
-          // C# RETRY_LATER（InternalRead.cs:105-106）：刷新纪元（ProtectAndDrain 语义，
-          // 推进密封在途记录的写者完成 CAS 解封）后整链重试
-          self.participant.refresh();
-          first_addr = self.reprobe_first_addr(hash);
-        }
+      if let ControlFlow::Break(res) = self.try_read_mem(key, hash, first_addr, f)? {
+        return Ok(res);
       }
+      // C# RETRY_LATER（InternalRead.cs:105-106）：刷新纪元（ProtectAndDrain 语义，
+      // 推进密封在途记录的写者完成 CAS 解封）后整链重试
+      self.participant.refresh();
+      first_addr = self.reprobe_first_addr(hash);
     }
   }
 
@@ -421,14 +374,14 @@ impl<D: Device> StoreSession<D> {
     key: &[u8],
     curr: &mut u64,
     f: &mut Option<impl RecordRead<R>>,
-  ) -> RcWalk<R> {
+  ) -> MemAction<R> {
     while is_read_cache(*curr) {
       if self
         .store
         .read_cache
         .need_to_wait_for_eviction(*curr, || self.participant.refresh())
       {
-        return RcWalk::Retry;
+        return MemAction::Retry;
       }
       let visit = self
         .store
@@ -444,15 +397,16 @@ impl<D: Device> StoreSession<D> {
             None
           }
         });
-      // RcVisit → RcWalk 判据换算只走 map_rc_visit 单点：终态上抛，续链则前驱已就位
-      if let Some(walk) = map_rc_visit(visit, curr) {
-        return walk;
+      match visit {
+        RcVisit::Found(val) => return MemAction::Done(Some(val)),
+        RcVisit::Next(prev) => *curr = prev,
+        RcVisit::Gone => return MemAction::Retry,
       }
       if *curr == 0 {
         break;
       }
     }
-    RcWalk::ChainEnd
+    MemAction::Next(*curr)
   }
 
   /// 内存反向链表回溯单点（严格对照
@@ -477,7 +431,7 @@ impl<D: Device> StoreSession<D> {
     ro_addr: u64,
     safe_ro_addr: u64,
     f: &mut Option<impl RecordRead<R>>,
-  ) -> Result<MemBack<R>> {
+  ) -> Result<MemAction<R>> {
     while *curr >= head_addr {
       // 探针以单点函数直接内联传入两分支（不用 &mut 提取：间接层会阻断
       // with_*_record 与闭包的一体化内联，热点工况实测退化 ~12%）
@@ -498,25 +452,25 @@ impl<D: Device> StoreSession<D> {
           .with_memory_record(*curr, |rec| Ok(probe_hlog_record(rec, key, f)))?
       };
       match probed {
-        Some(ReadProbeResult::Found(val)) => {
+        Some(MemAction::Done(Some(val))) => {
           if *curr < safe_ro_addr {
             self.promote_immutable_read_hit(*curr, key);
           }
-          return Ok(MemBack::Found(val));
+          return Ok(MemAction::Done(Some(val)));
         }
-        Some(ReadProbeResult::Tombstone) => return Ok(MemBack::Tombstone),
-        Some(ReadProbeResult::Retry) => return Ok(MemBack::Retry),
-        Some(ReadProbeResult::Miss(next)) => {
+        Some(MemAction::Done(None)) => return Ok(MemAction::Done(None)),
+        Some(MemAction::Retry) => return Ok(MemAction::Retry),
+        Some(MemAction::Next(next)) => {
           *curr = next;
           if next == 0 {
-            return Ok(MemBack::Stopped);
+            return Ok(MemAction::Next(0));
           }
         }
         // 页换出竞态（head 推进瞬态）：curr 保留原址，交调用方候选扫描/磁盘口径处理
-        None => return Ok(MemBack::Stopped),
+        None => return Ok(MemAction::Next(*curr)),
       }
     }
-    Ok(MemBack::Stopped)
+    Ok(MemAction::Next(*curr))
   }
 
   /// 内存直读核心路径（调用方须处于纪元保护下，严格对照 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:InternalRead 单遍分类）
@@ -541,7 +495,7 @@ impl<D: Device> StoreSession<D> {
     hash: u64,
     first_addr: Option<u64>,
     f: &mut Option<impl RecordRead<R>>,
-  ) -> Result<MemRead<R>> {
+  ) -> Result<ControlFlow<MemDrive<R>, ()>> {
     let mut curr_addr = first_addr;
     if self.store.is_growing() {
       self.store.split_buckets(hash)?;
@@ -549,7 +503,7 @@ impl<D: Device> StoreSession<D> {
     }
     let Some(mut curr_addr) = curr_addr else {
       // 哈希表中连对应 Tag 都完全不存在，100% 确认无此键，极速返回
-      return Ok(MemRead::Done(None));
+      return Ok(ControlFlow::Break(MemDrive::Done(None)));
     };
 
     let index = self.store.index.load();
@@ -561,7 +515,7 @@ impl<D: Device> StoreSession<D> {
     let _s_latch = if self.ephemeral_lock_enabled() {
       let bucket = index.bucket(index.bucket_index_for_hash(hash));
       let Some(latch) = bucket.lock_shared_guard() else {
-        return Ok(MemRead::Retry);
+        return Ok(ControlFlow::Continue(()));
       };
       // SetToCurrent：定位 Tag 与加锁之间槽位可能已被并发 CAS/脱钩改写，
       // 链首槽位不再持有原地址时按同一 hash 重读当前条目（C# hei.hash 单源口径）
@@ -591,9 +545,9 @@ impl<D: Device> StoreSession<D> {
     // 1. ReadCache 内存直读快路径：整链走查单点（对标 FindInReadCache，
     //    与多候选扫描共用同一内核）
     match self.find_in_read_cache(key, &mut curr_addr, f) {
-      RcWalk::Found(val) => return Ok(MemRead::Done(Some(val))),
-      RcWalk::Retry => return Ok(MemRead::Retry),
-      RcWalk::ChainEnd => {}
+      MemAction::Done(res) => return Ok(ControlFlow::Break(MemDrive::Done(res))),
+      MemAction::Retry => return Ok(ControlFlow::Continue(())),
+      MemAction::Next(_) => {}
     }
 
     // 2. 内存常态快路径（99%+ 场景）：处于 HLog 内存驻留区，反向链表回溯单点
@@ -608,19 +562,18 @@ impl<D: Device> StoreSession<D> {
         safe_ro_addr,
         f,
       )? {
-        MemBack::Found(val) => return Ok(MemRead::Done(Some(val))),
-        MemBack::Tombstone => return Ok(MemRead::Done(None)),
-        MemBack::Retry => return Ok(MemRead::Retry),
-        MemBack::Stopped => {}
+        MemAction::Done(res) => return Ok(ControlFlow::Break(MemDrive::Done(res))),
+        MemAction::Retry => return Ok(ControlFlow::Continue(())),
+        MemAction::Next(_) => {}
       }
     }
 
     // 3. 链条已在内存区终结（curr_addr == 0 或已低于 begin_addr 截断边界）：
     //    严格对标 Tsavorite InternalRead.cs:142-157：
     //    若链条未伸入有效磁盘区（curr_addr < begin_addr），确认该键在整个存储中不存在，
-    //    直接返回 MemRead::Done(None)，彻底消除无效的多候选扫描与二次哈希遍历！
+    //    直接返回 MemDrive::Done(None)，彻底消除无效的多候选扫描与二次哈希遍历！
     if curr_addr == 0 || (!is_read_cache(curr_addr) && curr_addr < begin_addr) {
-      return Ok(MemRead::Done(None));
+      return Ok(ControlFlow::Break(MemDrive::Done(None)));
     }
 
     // 4. 首项未命中、处于磁盘区或发生跨槽位 Tag 碰撞，回退到多候选扫描与落盘判定路径；
@@ -651,7 +604,7 @@ impl<D: Device> StoreSession<D> {
     hash: u64,
     f: &mut Option<impl RecordRead<R>>,
     bounds: ReadMemBounds,
-  ) -> Result<MemRead<R>> {
+  ) -> Result<ControlFlow<MemDrive<R>, ()>> {
     let mut addrs = self.store.index.load().lookup_candidates_by_hash(hash);
     if addrs.is_empty() {
       // 无槽位候选（并发清退等瞬态）且内存链已伸入磁盘区：直读链出地址兜底；
@@ -659,9 +612,9 @@ impl<D: Device> StoreSession<D> {
       if bounds.chain_disk_addr != 0 && bounds.chain_disk_addr >= bounds.begin_addr {
         let mut disk = CandidateAddresses::new();
         disk.push(bounds.chain_disk_addr);
-        return Ok(MemRead::OnDisk(disk));
+        return Ok(ControlFlow::Break(MemDrive::OnDisk(disk)));
       }
-      return Ok(MemRead::Done(None));
+      return Ok(ControlFlow::Break(MemDrive::Done(None)));
     }
     addrs.sort_descending();
 
@@ -675,9 +628,9 @@ impl<D: Device> StoreSession<D> {
       // 逐条判读直至首个主日志地址，杜绝旧版「只访首条 RC 即 skip 剥链」对同 Tag
       // 深链记录的漏配与 skip 竞态 Retry 分支
       match self.find_in_read_cache(key, &mut cur_addr, f) {
-        RcWalk::Found(val) => return Ok(MemRead::Done(Some(val))),
-        RcWalk::Retry => return Ok(MemRead::Retry),
-        RcWalk::ChainEnd => {}
+        MemAction::Done(res) => return Ok(ControlFlow::Break(MemDrive::Done(res))),
+        MemAction::Retry => return Ok(ControlFlow::Continue(())),
+        MemAction::Next(_) => {}
       }
       if cur_addr == 0 || cur_addr < bounds.begin_addr {
         continue;
@@ -693,10 +646,9 @@ impl<D: Device> StoreSession<D> {
         bounds.safe_ro_addr,
         f,
       )? {
-        MemBack::Found(val) => return Ok(MemRead::Done(Some(val))),
-        MemBack::Tombstone => return Ok(MemRead::Done(None)),
-        MemBack::Retry => return Ok(MemRead::Retry),
-        MemBack::Stopped => {}
+        MemAction::Done(res) => return Ok(ControlFlow::Break(MemDrive::Done(res))),
+        MemAction::Retry => return Ok(ControlFlow::Continue(())),
+        MemAction::Next(_) => {}
       }
 
       if cur_addr != 0 && cur_addr >= bounds.begin_addr {
@@ -705,9 +657,9 @@ impl<D: Device> StoreSession<D> {
     }
 
     if disk_cands.is_empty() {
-      Ok(MemRead::Done(None))
+      Ok(ControlFlow::Break(MemDrive::Done(None)))
     } else {
-      Ok(MemRead::OnDisk(disk_cands))
+      Ok(ControlFlow::Break(MemDrive::OnDisk(disk_cands)))
     }
   }
 
