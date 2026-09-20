@@ -22,9 +22,7 @@ use wmetric::{
 };
 use wresp::{command::RespCommand, metrics::MetricsItem};
 
-use super::{
-  resp_commands_info_data::resp_command_to_cs_name, resp_server_session::RespServerSession,
-};
+use super::resp_server_session::RespServerSession;
 use crate::servers::consumer_registry::ConsumerRegistry;
 
 /// 进程启动时刻（Unix 秒；C# StoreWrapper.ProcessStartTime 的进程生命周期代理）
@@ -160,7 +158,7 @@ impl InfoProvider for SessionInfoSource<'_> {
       .filter(|(_, e)| e.calls > 0 || e.rejected_calls > 0)
       .filter_map(|(idx, e)| {
         let cmd = RespCommand::try_from(idx as u16).ok()?;
-        let name = resp_command_to_cs_name(cmd).to_lowercase();
+        let name = cmd.to_cs_name().to_lowercase();
         (name != "unknown").then_some((name, e.calls, e.rejected_calls, e.failed_calls))
       })
       .collect()

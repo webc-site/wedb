@@ -659,6 +659,20 @@ impl RespCommand {
   }
 }
 
+impl RespCommand {
+  /// libs/server/Resp/Parser/RespCommand.cs:Enum.TryParse(ignoreCase)
+  #[inline]
+  pub fn from_cs_name(name: &str) -> Option<Self> {
+    std::str::FromStr::from_str(name).ok()
+  }
+
+  /// C# ToString() 效果
+  #[inline]
+  pub fn to_cs_name(self) -> &'static str {
+    self.into()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::str::FromStr;
