@@ -22,7 +22,7 @@ use std::{
   str,
   sync::{
     Arc,
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicBool, Ordering},
   },
 };
 
@@ -200,26 +200,6 @@ pub struct RangeIndexManager {
   pub(crate) migrating: ConcurrentMap<u128, ()>,
   /// 全局检查点进行中标记
   pub(crate) checkpoint_in_progress: AtomicBool,
-  /// 带地址刷盘文件存在疑似标记 (生成计数，惰性恢复的目录扫描门控)
-  ///
-  /// `get_or_open_tree` 选最新带地址刷盘文件需 O(目录条目数) 扫描；宿主刷盘链
-  /// (on_flush_address / 预分阶段) 未落过任何刷盘件的常态部署下该类文件恒不存在，
-  /// 逐次全目录扫描纯属浪费。生成计数
-  /// 单调递增 ([`Self::notice_addr_flush_files`] 每次自增)，`settled_gen` 落后于
-  /// `gen` 即表示存在未扫描的新文件。初值 gen=1 > settled=0 (保守开启，首例恢复
-  /// 做一次扫描证伪)，证伪后关闭扫描通道恢复 O(1) stat 路径。
-  ///
-  /// 竞态闭环：notice 必须后置于刷盘文件**完整落盘之后**调用 (on_flush_address /
-  /// 预分阶段均如此)。扫描以「开始到结束 gen 不变」为证伪前提——若 notice 先于
-  /// 建文件，扫描可在 notice 之后、文件诞生之前完成目录枚举并证伪封存通道
-  /// (gen 未变)，随后落盘的文件被永久跳过；notice 后置则任何「枚举时未见文件」
-  /// 的证伪必然先于 notice 完成，notice 的 gen 自增随即重开通道，下次扫描必见
-  /// 新文件。工作文件仅含引擎环形缓冲已写回的部分页，快照才是恢复点权威版本
-  /// (见 [`super::replication`] 预置覆盖论证)，跳过已落盘的刷盘文件意味着从
-  /// 陈旧工作文件恢复丢失已刷数据，此窗口必须闭合。
-  pub(crate) addr_flush_gen: AtomicU64,
-  /// 已证伪封存的扫描代号 (仅由 [`Self::settle_addr_flush_scan`] 在 gen 不变时推进)
-  pub(crate) addr_flush_settled_gen: AtomicU64,
   /// 键哈希分段读写条带锁 (wbase::striped::StripedRwLock，默认槽位 128 字节缓存行对齐消除伪共享)
   pub(crate) locks: StripedRwLock<(), NUM_LOCK_STRIPES>,
   /// 条带锁竞争退让的待释放批次：纪元收割线程不确定本线程条带锁态 (延迟动作可在
@@ -280,8 +260,6 @@ impl RangeIndexManager {
       live_indexes: new_concurrent_map(),
       migrating: new_concurrent_map(),
       checkpoint_in_progress: AtomicBool::new(false),
-      addr_flush_gen: AtomicU64::new(1),
-      addr_flush_settled_gen: AtomicU64::new(0),
       locks: StripedRwLock::new(),
       release_retries: Mutex::new(Vec::new()),
       store_epoch,
@@ -299,38 +277,6 @@ impl RangeIndexManager {
   #[inline]
   pub fn migration_temp_dir(&self) -> &Path {
     &self.migration_temp_dir
-  }
-
-  /// 是否需要扫描带地址刷盘文件 (惰性恢复的 O(1) 门控探针)
-  #[inline]
-  pub(crate) fn addr_flush_scan_pending(&self) -> bool {
-    self.addr_flush_gen.load(Ordering::Acquire)
-      != self.addr_flush_settled_gen.load(Ordering::Acquire)
-  }
-
-  /// 读取扫描起始代号 (证伪前提：本次扫描全程生成号不变)
-  #[inline]
-  pub(crate) fn addr_flush_scan_token(&self) -> u64 {
-    self.addr_flush_gen.load(Ordering::Acquire)
-  }
-
-  /// 全量扫描未发现任何带地址刷盘文件且扫描期间无新文件产生 (`token` 未变)，
-  /// 关闭扫描通道；代号已变则放弃证伪，保持扫描通道开启等待下轮复扫
-  #[inline]
-  pub(crate) fn settle_addr_flush_scan(&self, token: u64) {
-    if self.addr_flush_gen.load(Ordering::Acquire) == token {
-      self.addr_flush_settled_gen.store(token, Ordering::Release);
-    }
-  }
-
-  /// 带地址刷盘文件已完整落盘 (on_flush_address / 预分阶段)，生成号自增重新开启恢复扫描通道
-  ///
-  /// 调用方必须在文件创建/换入**之后**调用：扫描侧凭生成号不变证伪，notice 后置
-  /// 保证「证伪完成 → notice 重开」严格有序，任何证伪后落盘的文件必被下轮扫描
-  /// 捕获 (先 notice 后建文件的反序窗口内文件会被永久跳过，见字段文档竞态闭环)
-  #[inline]
-  pub(crate) fn notice_addr_flush_files(&self) {
-    self.addr_flush_gen.fetch_add(1, Ordering::AcqRel);
   }
 
   /// 生成临时迁移文件路径 ({ri_log_root}/migration-tmp/{random_id}.bftree) (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Migration.cs:DeriveTempMigrationPath)
@@ -483,8 +429,10 @@ impl RangeIndexManager {
   /// 刷盘快照文件标准路径 (1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.cs:LogFlushPath，
   /// {ri_log_root}/{hash_prefix}.{logical_address_b32}.flush.bftree)
   ///
-  /// 刷盘快照的**唯一**命名形态：地址段必带，C# 侧无任何无地址形态 (见
-  /// [`Self::on_flush_address`] 与 lifecycle::get_or_open_tree 的刷盘快照选择契约)
+  /// 刷盘快照的**唯一**命名形态：地址段必带，C# 侧无任何无地址形态。刷盘件只由
+  /// [`Self::pre_stage_and_register_pending`] 按存根源记录的精确地址单件消费
+  /// (对位 C#「uses the exact source address」)，绝不被目录扫描择优；其余按目录
+  /// 枚举的路径只有截断回收与换代清理两处 (见 [`super::replication`] 的 flush_files)
   pub fn log_flush_path(&self, hash_prefix: &str, logical_address: u64) -> PathBuf {
     let b32 = encode_u64(logical_address);
     let mut s =
