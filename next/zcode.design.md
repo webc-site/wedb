@@ -38,20 +38,6 @@ libs/server/Resp/Vector/RespServerSessionVectors.cs: NetworkVGETATTR
 建议动作：
 使 network_vgetattr 统一通过 VectorManager 的对应方法获取属性，并收敛相似度搜索内部的重复组装逻辑。
 
-6. 双轨机制：wconn 客户端架构 GarnetClient 与 GarnetClientSession 并行同构
-具体问题：
-1) GarnetClient 与 GarnetClientSession 均各自维护独立网络流 OutStream、独立连接握手通道、独立有界命令队列与网络循环泵。
-2) 在 C# 原作中，GarnetClient 直接组合包装持有 GarnetClientSession（protected GarnetClientSession session），所有网络 I/O、协议握手与命令分发均统一由 GarnetClientSession 承载，GarnetClient 仅提供超时看门狗及高层会话门面。
-3) 当前 Rust 实现两套结构各自平铺一套运行时泵，代码冗余且维护双倍连接逻辑。
-rust 文件与函数：
-wedb/wconn/src/client.rs: GarnetClient (:20)
-wedb/wconn/src/session.rs: GarnetClientSession (:22)
-c# 对应文件与函数：
-libs/client/GarnetClient.cs: GarnetClient
-libs/client/ClientSession/GarnetClientSession.cs: GarnetClientSession
-建议动作：
-重构 GarnetClient 组合持有 GarnetClientSession，网络底层与命令往返逻辑单源收敛于 session.rs。
-
 7. 双轨机制：向量公开接口硬编码 resp3 导致外部方法退化为测试孤岛
 具体问题：
 1) resp_server_session_vectors.rs 中 network_vadd, network_vsim, network_vismember, network_vsetattr 将 resp3 固定传 false，并将逻辑委托给其伴生 network_*_impl(..., resp3)。
