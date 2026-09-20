@@ -487,7 +487,11 @@ fn test_pre_stage_copy_failure_propagates() -> Result<()> {
   fs::create_dir_all(manager.data_file_path(&hash_prefix))?;
 
   assert!(manager.pre_stage_and_register_pending(key, 0x10).is_err());
-  assert_eq!(manager.live_index_count(), 0, "拷贝失败不得注册 pending 条目");
+  assert_eq!(
+    manager.live_index_count(),
+    0,
+    "拷贝失败不得注册 pending 条目"
+  );
 
   OK
 }

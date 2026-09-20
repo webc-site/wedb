@@ -235,7 +235,11 @@ impl RangeIndexManager {
     if backend == StorageBackendType::Disk && !data_path.exists() {
       use core::fmt::Write;
       let mut msg = String::with_capacity(48 + data_path.as_os_str().len());
-      let _ = write!(msg, "预置不变量被破坏，data.bftree 缺失: {}", data_path.display());
+      let _ = write!(
+        msg,
+        "预置不变量被破坏，data.bftree 缺失: {}",
+        data_path.display()
+      );
       return Err(Error::Recovery(msg));
     }
 

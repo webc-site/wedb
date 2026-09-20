@@ -1,5 +1,7 @@
 //! libs/server/Resp/Parser/RespCommand.cs:RespCommand
 
+use std::str::FromStr;
+
 #[repr(u16)]
 #[derive(
   Debug,
@@ -662,7 +664,7 @@ impl RespCommand {
   /// libs/server/Resp/Parser/RespCommand.cs:Enum.TryParse(ignoreCase)
   #[inline]
   pub fn from_cs_name(name: &str) -> Option<Self> {
-    std::str::FromStr::from_str(name).ok()
+    FromStr::from_str(name).ok()
   }
 
   /// C# ToString() 效果
