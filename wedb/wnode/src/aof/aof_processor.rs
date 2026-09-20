@@ -200,7 +200,9 @@ impl AofProcessor {
     self.active_db_id.load(Ordering::Acquire)
   }
 
-  /// 拓扑预处理（C# IPreprocessKey.PrepareKey 三实现的折叠）：
+  /// libs/server/AOF/AofProcessor.cs:PrepareKey
+  ///
+  /// 拓扑预处理（C# IPreprocessKey.PrepareKey 三实现 :28/:44/:66 的折叠）：
   /// 解出 key / 哈希 / 负载并按拓扑推进一致性 key 时间戳（零堆分配与零 Arc 克隆）。
   pub fn prepare_key<'a>(
     &self,
