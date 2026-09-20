@@ -1,0 +1,14 @@
+- 理由: C# SessionScriptCache.SetUserHandle 喂给内嵌 processor（独立
+    RespServerSession）的 ACL 门；rust 无内嵌 processor，脚本内 ACL 检查经
+    RespScriptingApi 直达外层会话 acl_user_handle（认证变更即最新），缓存侧
+    句柄复制无生产实效，随 wlua cache.rs 死字段删除（task/done/lua-pubsub-gaps.md）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - SetUserHandle
+- 理由: C# TrySwapDatabaseSessions 为 databaseSessions 数组架构换库链的缓存保活挂点
+    （MultiDatabaseManager.TrySwapDatabases → RespServerSession → 脚本缓存）；
+    rust 单日志多库为虚库 ID 原子换号（wkv StoreSession::swap_databases），
+    脚本缓存与库上下文解耦，换库无需缓存侧钩子，恒 true 空壳删除（task/ing/swapdb-dedup.md）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - TrySwapDatabaseSessions

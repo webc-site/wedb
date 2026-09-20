@@ -1,0 +1,16 @@
+[package]
+name = "wcustom"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wcustom"
+description = "Custom commands and extensions registry for wedb"
+keywords = ["custom-commands", "modules", "extensibility", "transactions", "procedures"]
+
+[dependencies]
+wbase.workspace = true
+wval.workspace = true
+
+[lints]
+workspace = true

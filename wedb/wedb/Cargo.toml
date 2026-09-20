@@ -1,0 +1,120 @@
+[package]
+name = "wedb"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb"
+description = "Cluster wiring layer: client/server sessions, cluster factory, and node assembly"
+keywords = [ "cluster", "distributed", "session", "node" ]
+categories = [ "concurrency", "network-programming" ]
+
+[features]
+default = [ ]
+tls = [ "wnode/tls", "wconn/tls" ]
+
+[dependencies]
+async-lock = { workspace = true }
+futures-util.workspace = true
+
+hipstr = "0.8.0"
+libc.workspace = true
+wbftree.workspace = true
+whasher.workspace = true
+wpubsub.workspace = true
+
+[dependencies.clap]
+workspace = true
+
+[dependencies.crossfire]
+workspace = true
+
+[dependencies.event-listener]
+workspace = true
+
+[dependencies.wconf]
+workspace = true
+
+[dependencies.wcpr]
+workspace = true
+
+[dependencies.wval]
+workspace = true
+
+[dependencies.bitcode]
+workspace = true
+
+[dependencies.coarsetime]
+workspace = true
+
+[dependencies.fastrand]
+workspace = true
+
+[dependencies.itoa]
+workspace = true
+
+[dependencies.log]
+workspace = true
+
+[dependencies.parking_lot]
+workspace = true
+
+[dependencies.waof]
+workspace = true
+
+[dependencies.wbase]
+workspace = true
+features = ["convert", "future", "hash_slot", "hex", "map", "num", "pool", "set", "time"]
+
+[dependencies.wconn]
+workspace = true
+
+[dependencies.wdev]
+workspace = true
+
+[dependencies.wkv]
+workspace = true
+
+[dependencies.wnode]
+workspace = true
+
+[dependencies.wresp]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+features = ["fs", "runtime", "time"]
+
+[dependencies.strum]
+workspace = true
+features = [ "derive" ]
+
+[dependencies.thiserror]
+workspace = true
+
+[dev-dependencies]
+wacl.workspace = true
+wmetric.workspace = true
+wtxn.workspace = true
+wvector.workspace = true
+
+[dev-dependencies.wcustom]
+workspace = true
+
+[dev-dependencies.aok]
+workspace = true
+
+[dev-dependencies.tempfile]
+workspace = true
+
+[dev-dependencies.wedb_test]
+workspace = true
+
+[dev-dependencies.wtest_base]
+workspace = true
+
+[dev-dependencies.wnode_test]
+workspace = true
+
+[lints]
+workspace = true

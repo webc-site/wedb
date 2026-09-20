@@ -1,0 +1,11 @@
+# lua 事务模式虚设链删除（task/done/lua-txn-mode-drop-placeholder.md）：
+# C# RespServerSession.SetTransactionMode（libs/server/Resp/RespServerSession.cs:620）
+# 全仓唯一调用面是 LuaRunner.RunInTransaction（:1345/:1359 开关脚本事务窗口）；
+# 该模式在 wedb 不转写（事务上下文内核不存在），rust 侧曾转写的同名置
+# TxnState::Running 钩子是其虚设半链（MULTI/EXEC 语义不经此口，走
+# wtxn::TransactionManager 单点），随链删除。
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - SetTransactionMode
+  理由: 唯一调用面 RunInTransaction 不转写，rust 同名虚设钩子已删；
+    会话事务态只由 wtxn 事务域单点维护。

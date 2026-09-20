@@ -1,0 +1,852 @@
+//! 对象 RMW 执行域：同步/异步泛型骨架、分层感知收尾状态机、慢路径调度壳
+//!
+//! 对标 garnet/libs/server/Storage/Functions/ObjectStore/RMWMethods.cs（对象 RMW
+//! 引擎钩子：NeedInitialUpdate / InitialUpdater / InPlaceUpdater / CopyUpdater 在
+//! 记录锁内对 IGarnetObject 执行 op）与各 Resp 命令 Network* 方法内重复的
+//! storageSession.RMW 调用形态——rust 侧以泛型骨架一次合流两形态，命令文件只交
+//! 装载/序列化/operate 回调。自 object_store_utils.rs 纯移动迁出（该文件保留
+//! 信封头解析辅助与装载保存面）。
+
+use std::marker::PhantomData;
+
+use wbase::time::now_ticks;
+use wcol::{
+  HashObject, ObjectOutput, SortedSetObject,
+  object_payload::{GarnetObjectPayload, ObjLoad},
+  types::garnet_object::IGarnetObject,
+};
+use wdev::Device;
+use wkv::{BatchStoreSession, SwapInWindowGuard};
+use wresp::{
+  cmd_strings::{RESP_ERR_WRONG_TYPE, write_error_raw},
+  ext::RespVecExt,
+};
+use wval::{GarnetObjectType, KeyTag};
+
+use super::{
+  object_store_utils::{
+    envelope_overflow, obj_load_typed_async, obj_load_typed_sync, obj_save_or_gc_raw,
+    obj_save_recheck_async, obj_save_recheck_sync,
+  },
+  tiered_collection_ops::{
+    TieredCollectionArgs, TieredCtx, earliest_expiry, exec_tiered_by_op_code,
+    tiered_materialize_blob, tiered_materialize_blob_sealed,
+  },
+};
+use crate::storage::session::storage_session::StorageSession;
+
+/// 对象读改写命令的 RESP 回执（四类对象共用）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RespRmwDone {
+  /// 执行数值结果（如新增/删除元素数）
+  pub result1: i64,
+  /// 协议响应负载是否已写出；若为 false 则 result1 由外层直接写出为整数响应
+  pub payload_written: bool,
+}
+
+/// 异步对象 RMW 执行骨架的统一应答收尾：负载未写出时补整数（result1）
+///
+/// 与各命令同步入口 `Rmw::Present` 臂 `if !payload_written` 的整数补写
+/// 同口径；`+OK` 形态（HMSET）等特殊应答由调用方在返回后覆盖
+#[inline]
+pub(crate) fn write_rmw_reply(done: RespRmwDone, output: &mut Vec<u8>) {
+  if !done.payload_written {
+    output.write_resp_int(done.result1);
+  }
+}
+
+/// 分层四族慢路径调度壳单点收口：探测 → WRONGTYPE 门 → 树内原生臂 → 穿透
+///
+/// 骨架顺序与各族壳体现行严格一致：`load_collection_stub` 探测分层态（非分层
+/// 键返回 `Ok(false)` 落冷路径）→ `collection_type` 不符写 WRONGTYPE 即闭环
+/// （返回 `Ok(true)`，调用方直接返回）→ `op_opt` 为本族树内未覆盖命令
+/// （翻译表留在壳体）同样 `Ok(false)` 穿透：落下方对象层通道
+///（run_async_rmw 物化降级闭环），杜绝静默兜底输出与命令语义无关的应答。
+/// `exec` 闭包承载族内 [`TieredCtx`] 臂调用与族特有收尾（List/ZSet 写命令
+/// notify、List arg 通道），其 `Ok(true)` 即已闭环应答。`Err(())` 存储 IO 失败
+pub(crate) async fn try_tiered_arm<Op, D: Device, Exec>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  op_opt: Option<Op>,
+  output: &mut Vec<u8>,
+  exec: Exec,
+) -> Result<bool, ()>
+where
+  Exec: AsyncFnOnce(&mut TieredCtx<'_>, Op, &mut Vec<u8>) -> Result<bool, ()>,
+{
+  // 优先检查 BfTree 分页分层态
+  let Some((mut meta, mut stub)) = storage
+    .batch
+    .load_collection_stub(key)
+    .await
+    .map_err(|_| ())?
+  else {
+    return Ok(false);
+  };
+  if meta.collection_type != tag {
+    write_error_raw(output, RESP_ERR_WRONG_TYPE);
+    return Ok(true);
+  }
+  let Some(op) = op_opt else {
+    // 未支持操作穿透：落下方对象层通道（run_async_rmw 物化降级闭环）
+    return Ok(false);
+  };
+  exec(&mut TieredCtx::new(&mut meta, &mut stub), op, output).await
+}
+
+/// STORE 族目标键清退收尾：目标键若原为分层态，信封写回 / 删空回收已接管
+/// 数据面，清退残留树（SINTERSTORE / ZINTERSTORE 族统一漏斗）
+pub(crate) async fn retire_tiered_dest<D: Device>(
+  storage: &StorageSession<'_, D>,
+  dst: &[u8],
+) -> Result<(), ()> {
+  if storage
+    .batch
+    .load_collection_stub(dst)
+    .await
+    .map_err(|_| ())?
+    .is_some()
+  {
+    // STORE 族目标清退属删旧键接管语义（新数据面已由信封写回/删空回收接管），
+    // keep_ttl=false 维持既有随旧态清 TTL 的口径不变
+    storage
+      .batch
+      .handle_bftree_drain_and_delete(dst, false)
+      .await
+      .map_err(|_| ())?;
+  }
+  Ok(())
+}
+
+/// 通用异步对象 RMW 执行骨架：异步装载 → operate → 变更异步回写 → 负载输出
+///
+/// [`run_sync_rmw`] 的慢路径对位（exec_slow 冷键闭环）：磁盘候选经
+/// StorageSession 异步读闭环后仅余 Missing/Present/WrongType 三态；升阶键经
+/// 分层原生臂就地执行，未支持操作物化降级走对象层单源；写回调用的写端口
+/// 为异步段对象写回唯一漏斗（StorageSession::obj_save，信封整值入账对标
+/// C# WriteLogUpsert；空对象整键回收），不重复发同步段的增量条目。
+/// `Err(())` 为存储 IO 失败，调用方统一应答 RESP_ERR_SLOW_PATH_STORAGE
+pub(crate) async fn run_async_rmw<
+  Obj: IGarnetObject,
+  Op: Copy + Into<u8>,
+  D: Device,
+  Deser,
+  Def,
+  IsEmpty,
+  Ser,
+  RunOp,
+  ShouldWrite,
+>(
+  storage: &StorageSession<'_, D>,
+  cmd: SyncRmwCmd<'_, Op>,
+  output: &mut Vec<u8>,
+  handlers: SyncRmwHandlers<Obj, Op, Deser, Def, IsEmpty, Ser, RunOp, ShouldWrite>,
+) -> Result<ObjLoad<RespRmwDone>, ()>
+where
+  Deser: Fn(&[u8]) -> Option<Obj>,
+  Def: FnOnce() -> Obj,
+  IsEmpty: Fn(&Obj) -> bool,
+  Ser: FnOnce(&Obj) -> Vec<u8>,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
+{
+  // 1. 优先检查是否处于 BfTree 分页分层态
+  if let Some((mut meta, mut stub)) = storage
+    .batch
+    .load_collection_stub(cmd.key)
+    .await
+    .map_err(|_| ())?
+  {
+    if meta.collection_type != cmd.tag {
+      write_error_raw(output, RESP_ERR_WRONG_TYPE);
+      return Ok(ObjLoad::WrongType);
+    }
+    // 分层态原生臂支持的操作就地执行（四族「操作码转换 → exec_tiered_* 装配」
+    // 分派共享单点 exec_tiered_by_op_code，与重放端 tiered_replay_arm 同核，
+    // 禁第二形态 match 漂移）；未支持操作 / 操作码越覆盖面（Ok(None)）穿透
+    //（Ok(false)）走物化降级通道，杜绝静默兜底输出与命令语义无关的应答。
+    // 会话协议版本透传至分层输出段，帧型与内存态 100% 一致（见
+    // tiered_collection_ops 的 map/set/null/双精度写出）
+    let resp_protocol_version = storage.resp_version;
+    let handled = exec_tiered_by_op_code(
+      &storage.batch,
+      cmd.key,
+      cmd.tag,
+      &mut TieredCtx::new(&mut meta, &mut stub),
+      TieredCollectionArgs::new(
+        cmd.op.into(),
+        (cmd.arg1, cmd.arg2),
+        cmd.args,
+        resp_protocol_version,
+      ),
+      output,
+    )
+    .await
+    .map(|routed| routed.unwrap_or(false));
+    match handled {
+      Ok(true) => {
+        return Ok(ObjLoad::Present(RespRmwDone {
+          result1: 0,
+          payload_written: true,
+        }));
+      }
+      Err(()) => return Err(()),
+      // 未支持操作（Ok(false)）：物化降级（穿透至下方对象层单源通道）
+      Ok(false) => {}
+    }
+
+    // 物化降级（自迁移封窗）：封窗单点 [`tiered_materialize_blob_sealed`] 登记
+    // 安全换入窗（同键并发稳态写臂自此被四探测门 MigrationBusy 拒）后全扫物化，
+    // 守卫持跨「对象层 run_operate 求值 → apply_rmw_post_operate 换入/清退」
+    // 全程——语义对标 C# 对象层单源（对象求值与写回在记录锁内完成），杜绝窗内
+    // 并发树内稳态写已 ACK 落旧树、随 replace=true 换入被整树顶替的静默丢失形
+    // 与镜像 AOF 乱序（窗内无写提交，镜像序仍 = 树内提交序）。
+    // Ok(None) = 树内臂到期出账后整键删空自愈（如 HSET 折叠臂全到期批的
+    // 出账前置），键已消亡：出窗（守卫随 None 释放）落下方通用对象层通道按
+    // Missing 新建承接（对标 C# DeleteExpiredItems 清空后 Add 的净字典计数），
+    // 不再按存储错误降级。版本栅栏口径：出账删空的推进已由 finish_tiered_arm
+    // 按置脏恰一次完成，下方新建写回臂（obj_save / promote）对应「重建」这一
+    // 第二次真实变更各自推进，无同一变更的双计
+    'materialize: {
+      let Some((blob, _swap_in_window)) =
+        tiered_materialize_blob_sealed(&storage.batch, cmd.key, cmd.tag).await?
+      else {
+        break 'materialize;
+      };
+      // 物化载荷解码 fail-fast：畸形即落错中止本命令，严禁回退空对象后写回销毁原键
+      let Some(mut obj) = (handlers.deserialize)(&blob) else {
+        log::error!(
+          "run_async_rmw: corrupted materialized payload, key='{}' tag={:#04x}",
+          String::from_utf8_lossy(cmd.key),
+          cmd.tag as u8
+        );
+        return Err(());
+      };
+      let existed = true;
+      // operate 直写会话输出尾段；写回失败回退挂载点再落错（慢路径统一应答
+      // 前清场，杜绝残留负载与错误帧拼帧）
+      let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
+      let result1 = obj_out.result1;
+
+      if (handlers.should_write)(cmd.op, &obj_out, &obj, existed)
+        && apply_rmw_post_operate(
+          storage,
+          cmd.key,
+          cmd.tag,
+          &obj,
+          true,
+          handlers.serialize,
+          handlers.is_empty,
+        )
+        .await
+        .is_err()
+      {
+        obj_out.reset();
+        return Err(());
+      }
+
+      // 封窗守卫随 return 释放：换入/清退已完成，窗内写臂自此重新放行
+      return Ok(ObjLoad::Present(RespRmwDone {
+        result1,
+        payload_written: obj_out.written(),
+      }));
+    }
+  }
+
+  // 同键读改写原子窗口（异步域让核等待臂，对标 C# 锁冲突转 pending 重试）：
+  // 先于装载取，覆盖「异步装载 → operate → 整值写回」全程，与 run_sync_rmw
+  // 的同步臂同锁源同判据；分层树内臂是另一锁面（wbftree 树与 Meta 记录），
+  // 不在本窗口射程（见票边界），故窗口只挂对象层单源通道。对面 DEL/SET 不取本窗
+  // （物理记录键与用户键两把不同基，取之即双锁序死锁面），交叠裁决由写回前
+  // [`obj_save_recheck_async`] 终态复验承接
+  let _window = storage.batch.rmw_window(cmd.key).await.map_err(|e| {
+    log::error!("run_async_rmw rmw_window failed: {e:?}");
+  })?;
+
+  let (mut obj, existed) =
+    match obj_load_typed_async(storage, cmd.key, cmd.tag, output, handlers.deserialize)
+      .await
+      .map_err(|e| {
+        log::error!("run_async_rmw obj_load_typed_async err: {e:?}");
+      })? {
+      // 异步读闭环后不存在降级态；防御性按存储错误应答（同 exec_slow
+      // DEBUG 臂"防御内部错序"口径）
+      ObjLoad::Degrade => {
+        log::error!("run_async_rmw got ObjLoad::Degrade!");
+        return Err(());
+      }
+      ObjLoad::WrongType => return Ok(ObjLoad::WrongType),
+      ObjLoad::Missing => ((handlers.default_obj)(), false),
+      ObjLoad::Present(o) => (o, true),
+    };
+
+  // operate 直写会话输出尾段；写回失败回退挂载点再落错（同上清场口径）
+  let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
+  let result1 = obj_out.result1;
+
+  if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
+    // 落笔前终态复验（键复活 / 双域并存封堵，见 [`obj_save_recheck_async`] 头注）：
+    // 本窗口只挡 RMW 方，对面 DEL 与 SET 取物理记录键桶闩，与本窗口的用户键桶是
+    // 两个不同基，窗口期内可自由墓碑信封 / 清退信封并写字符串；本臂「异步装载 →
+    // operate → 写回」之间还跨读内核让核点，交叠面比同步臂更宽，装载时的旧视图
+    // 绝不允许未经复验即落笔。复验不通过（含探针磁盘候选与存储错误）一律弃写：
+    // 本臂已是终态重放面，无更深降级通道，与写回失败同按存储忙信号交回客户端
+    // 重试（[`obj_writeback_tiered`] 未封窗臂 fail-closed 同口径，不新增错误形态）
+    let loaded = existed.then_some(KeyTag::ObjectEnvelope);
+    let unchanged = obj_save_recheck_async(storage, cmd.key, loaded)
+      .await
+      .map_err(|e| {
+        log::error!("run_async_rmw obj_save_recheck_async err: {e:?}");
+      })?;
+    if !unchanged {
+      obj_out.reset();
+      return Err(());
+    }
+    if apply_rmw_post_operate(
+      storage,
+      cmd.key,
+      cmd.tag,
+      &obj,
+      false,
+      handlers.serialize,
+      handlers.is_empty,
+    )
+    .await
+    .is_err()
+    {
+      obj_out.reset();
+      return Err(());
+    }
+  }
+
+  Ok(ObjLoad::Present(RespRmwDone {
+    result1,
+    payload_written: obj_out.written(),
+  }))
+}
+
+/// 集合升阶 / 重灌为 BfTree 分页树（单点复用收口）
+#[inline]
+async fn promote_to_bftree<D: Device, O: IGarnetObject>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  obj: &O,
+  tiered: bool,
+) -> Result<(), ()> {
+  let entries = obj.export_entries();
+  // 水位随灌入批同帧落盘（export_entries 写时过滤已到期成员，剩余挂 TTL
+  // 刻度经 earliest_expiry 单点提取），杜绝重灌后假水位 MAX 骗过计数校正
+  let next_expiry = earliest_expiry(&entries);
+  // 升阶 / 重灌统一先建后拆：promote 内内核建树快照后原子换入（tiered=true
+  // 即 replace 换树，旧树全程可读，发布失败只删残快照、旧状态原样保留），
+  // 不再有 drain-destroy 蒸发窗口；键存活不动 TTL 旁路（对标 C#
+  // ObjectStore/VarLenInputMethods.cs:42 GetRMWModifiedFieldInfo 记录重写
+  // 前移 HasExpiration，零 TTL 事件）
+  if let Err(e) = storage
+    .batch
+    .promote_collection_to_bftree(key, tag, entries, next_expiry, tiered)
+    .await
+  {
+    log::error!("apply_rmw_post_operate promote err: {e:?}");
+    return Err(());
+  }
+  // 升阶 / 重灌迁移臂：promote_collection_to_bftree 仅 upsert_raw 元记录 +
+  // delete_raw 信封（wkv range_index/stub.rs），同样不经用户键写入口 →
+  // 显式恰一次推进。对标 C# ObjectStore/RMWMethods.cs:79 PostInitialUpdater
+  // 与 :200 PostCopyUpdater（对象复制落盘即 IncrementVersion）：C# 无分层
+  // 引擎、集合恒驻对象域，等价状态变更一律经该两钩子推进
+  storage.bump_watch_version(key);
+  Ok(())
+}
+
+/// RMW 对象操作后收尾（分层感知统一状态机）：
+/// - 空对象 → 删空自愈（分层树 drain 随键清 TTL，keep_ttl=false / 信封域删键）；
+/// - 超升阶阈值或物化重灌 → 先建后拆换入重灌（promote 内建快照原子替换
+///   旧树，键全程可读；TTL 旁路不动）；
+/// - 分层态改动后跌回迟滞死区之下 → 懒降阶（信封写回 + 树清退，同样
+///   keep_ttl=true）；
+/// - 其余 → 信封写回
+///
+/// 键级 TTL 分流判据（对标 C# 对象记录重写从不脱落 HasExpiration——
+/// ObjectStore/VarLenInputMethods.cs:42 GetRMWModifiedFieldInfo 把过期字段
+/// 从源记录前移到修改后记录，且零发 TTL 事件；删除臂则记录与过期同亡）：
+/// 键在本次收尾后仍存活（升阶/降阶迁移臂）即保留 TTL 旁路记录，键消亡
+///（删空自愈臂）才随键清除；杜绝一次迁移静默抹掉 EXPIRE 并把清除经
+/// TtlWrite(expire_at=None) 镜像成 Persist 扩散到从库与 AOF 回放面
+///
+/// WATCH 版本栅栏分工（一命令一推进）：删空 drain 臂与 promote 重灌臂仅经
+/// wkv 物理键原语（delete_raw / upsert_raw），故本层显式推进一次；
+/// 信封写回臂与 delete_string 臂已由 wkv 用户键写入口收口，本层绝不重复推进；
+/// 分层态原生树内写臂的推进在 tiered_collection_ops::finish_tiered_arm 单点
+/// 完成（本函数不参与该臂，两条路径互斥无双计）
+pub(crate) async fn apply_rmw_post_operate<D, O>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  obj: &O,
+  tiered: bool,
+  serialize: impl FnOnce(&O) -> Vec<u8>,
+  is_empty: impl FnOnce(&O) -> bool,
+) -> Result<(), ()>
+where
+  D: Device,
+  O: IGarnetObject,
+{
+  if is_empty(obj) {
+    if tiered {
+      storage
+        .batch
+        .handle_bftree_drain_and_delete(key, false)
+        .await
+        .map_err(|_| ())?;
+      // 删空迁移臂（键消亡，keep_ttl=false 随键清 TTL 杜绝孤儿）：drain 仅
+      // delete_raw + del_ttl + 索引注销（wkv range_index/stub.rs），零用户键
+      // 写入口 → 此处显式恰一次推进。
+      // 对标 C# ObjectStore/RMWMethods.cs:125 InPlaceUpdaterWorker 的
+      // output.HasRemoveKey 删空臂与 DeleteMethods.cs:21/:30 删除臂
+      storage.bump_watch_version(key);
+    } else {
+      storage.delete_string(key).await.map_err(|_| ())?;
+    }
+  } else if obj.should_promote() || (tiered && !obj.should_demote()) {
+    // 升阶或物化换树分支：直接使用 export_entries，无需且严禁提前全量序列化 payload
+    promote_to_bftree(storage, key, tag, obj, tiered).await?;
+  } else {
+    // 普通内存信封写回分支：此时才调用 serialize(obj) 并判定 envelope_overflow
+    let payload = serialize(obj);
+    if envelope_overflow(&storage.batch, key, &payload) {
+      promote_to_bftree(storage, key, tag, obj, tiered).await?;
+    } else {
+      storage.obj_save(key, tag, &payload).await.map_err(|e| {
+        log::error!("apply_rmw_post_operate obj_save err: {e:?}");
+      })?;
+      if tiered {
+        // 懒降阶臂：键换域存活（信封已写回），keep_ttl=true 树清退不碰 TTL 旁路
+        storage
+          .batch
+          .handle_bftree_drain_and_delete(key, true)
+          .await
+          .map_err(|_| ())?;
+        // WATCH 栅栏不在此重复推进：上方 obj_save 已经 wkv 用户键写入口
+        // （try_upsert_tag_sync_unprotected_with_prefix / upsert_tag）恰一次推进，
+        // 树清退仅回收残留物理页，不再另计一次（一命令一推进）
+      }
+    }
+  }
+  Ok(())
+}
+
+/// 慢路径写回收尾（分层感知，装载型命令统一漏斗）
+///
+/// 空对象 → 删空自愈（分层树 drain 随键清 TTL / 信封域删键）；
+/// 超升阶阈值 → 重灌树；分层态改动后跌回迟滞死区之下 → 信封写回 + 树清退
+///（懒降阶）；升阶/降阶迁移臂键存活不清 TTL（分流口径见
+/// apply_rmw_post_operate 头注）；其余 → 信封写回（对标 C# WriteLogUpsert 单漏斗；
+/// StorageSession::obj_save 自带入账）。`Err(())` 存储 IO 失败
+///
+/// 第六写回路径封堵（未封窗臂 fail-closed）：`sealed=false` 调用方持「Meta
+/// 缺席时刻」装载的信封快照（obj_load_custom_async 先验 Meta、缺席才落信封），
+/// 写回前 re-probe 探得分层态 =「信封装载 → 写回」间隙有并发升阶落 meta——
+/// 信封视图相对树恒陈旧（缺升阶命令自身字段与间隙内稳态树写），以陈旧内容
+/// 承接分层写回（promote replace=true 整树顶替 / 懒降阶清树 / 删空排空）不可
+/// 线性化：可复活已 ACK 删除、丢弃已 ACK 写入，封窗也救不回内容陈旧。故该
+/// 分支按存储忙拒绝交客户端重试，分层写回唯一合法入口是持
+/// [`SwapInWindowGuard`](wkv::SwapInWindowGuard) 守卫的封窗臂（sealed=true，
+/// 共用同一封窗原语，禁各调用方散补第二套判定）
+pub(crate) async fn obj_writeback_tiered<D, O>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  obj: &O,
+  sealed: bool,
+) -> Result<(), ()>
+where
+  D: Device,
+  O: IGarnetObject + GarnetObjectPayload,
+{
+  if sealed {
+    // sealed = 调用方持自迁移封窗守卫（物化自树）：键必为树态，且门禁装载会被
+    // 自身 claim 拒绝（MigrationBusy），故跳过装载直接按分层收尾
+    return apply_rmw_post_operate(
+      storage,
+      key,
+      tag,
+      obj,
+      true,
+      |o| o.to_blob(),
+      IGarnetObject::is_empty,
+    )
+    .await;
+  }
+  // 未封窗臂门禁装载探测：并发迁移窗内按存储忙失败（禁穿透）；探得分层态即
+  // fail-closed（见头注第六写回路径封堵，禁以信封陈旧视图承接分层写回）
+  if storage
+    .batch
+    .load_collection_stub(key)
+    .await
+    .map_err(|_| ())?
+    .is_some()
+  {
+    return Err(());
+  }
+  apply_rmw_post_operate(
+    storage,
+    key,
+    tag,
+    obj,
+    false,
+    |o| o.to_blob(),
+    IGarnetObject::is_empty,
+  )
+  .await
+}
+
+/// 信封态计数慢路径矫正（HLEN/ZCARD 物化臂的信封承接，与同步物化矫正臂
+/// hash_length_purged / sorted_set_length_purged 同口径）：异步装载信封对象 →
+/// purge_expired_len 堆序惰性剔除（collection.md §6.3 唯一剔除内核）→ 剔除
+/// 实际发生（mutated_by_ttl，含装载即剔除的信封陈旧过期）升格写回一次矫正；
+/// 全成员到期剔空落 [`apply_rmw_post_operate`] 空对象臂即删空自愈
+///
+/// 仅哈希/有序集合信封携带到期水位域（计数探针只对这两类降级到本臂）；
+/// `Ok(Some(len))` 已矫正并返回存活计数，`Ok(None)` 键缺失/类型不符（错误
+/// 帧已由装载探针写出），`Err(())` 存储 IO 失败
+pub(crate) async fn envelope_length_correct<D: Device>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  output: &mut Vec<u8>,
+) -> Result<Option<usize>, ()> {
+  match tag {
+    GarnetObjectType::Hash => {
+      envelope_length_correct_by(storage, key, tag, output, HashObject::from_blob, |obj| {
+        let len = obj.purge_expired_len();
+        (len, obj.mutated_by_ttl())
+      })
+      .await
+    }
+    GarnetObjectType::SortedSet => {
+      envelope_length_correct_by(
+        storage,
+        key,
+        tag,
+        output,
+        SortedSetObject::from_blob,
+        |obj| {
+          let len = obj.purge_expired_len();
+          (len, obj.mutated_by_ttl())
+        },
+      )
+      .await
+    }
+    // 无水位域类型不降级到本臂
+    _ => Ok(None),
+  }
+}
+
+/// [`envelope_length_correct`] 泛型核：`purge` 返回 (矫正后计数, 是否实际剔除)
+async fn envelope_length_correct_by<O, D>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  output: &mut Vec<u8>,
+  deserialize: impl Fn(&[u8]) -> Option<O>,
+  purge: impl FnOnce(&mut O) -> (usize, bool),
+) -> Result<Option<usize>, ()>
+where
+  O: IGarnetObject + GarnetObjectPayload,
+  D: Device,
+{
+  let mut obj = match obj_load_typed_async(storage, key, tag, output, deserialize).await {
+    Ok(ObjLoad::Present(obj)) => obj,
+    // 异步域闭环后无降级态；Missing/类型不符（不可达：计数探针已判型）
+    // 一律维持调用方既有应答
+    Ok(ObjLoad::Missing | ObjLoad::WrongType | ObjLoad::Degrade) => return Ok(None),
+    Err(_) => return Err(()),
+  };
+  let (len, mutated) = purge(&mut obj);
+  if mutated || IGarnetObject::is_empty(&obj) {
+    obj_writeback_tiered(storage, key, tag, &obj, false).await?;
+  }
+  Ok(Some(len))
+}
+
+/// 装载型命令慢路径公共体：异步装载 → Missing 短路应答 / Present 求值
+///
+/// 对位同步段 `load_sync + run_operate` 形态命令（HGETALL/LRANGE/ZRANGE
+/// 等）的 `HashLoad::Missing` 短路分支：`on_missing` 写同步入口同款应答，
+/// `eval` 承载 operate 求值与应答整形。`Err(())` 为存储 IO 失败
+pub(crate) async fn slow_load_eval<T, D: Device>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  output: &mut Vec<u8>,
+  deserialize: impl Fn(&[u8]) -> Option<T>,
+  on_missing: impl FnOnce(&mut Vec<u8>),
+  eval: impl AsyncFnOnce(&mut T, &mut Vec<u8>),
+) -> Result<(), ()> {
+  match obj_load_typed_async(storage, key, tag, output, &deserialize)
+    .await
+    .map_err(|_| ())?
+  {
+    // 异步域 Degrade 唯一来源为分层 Meta 命中：物化回内存信封再求值
+    //（C# 对象层语义恒定，无规模上限；树内扫描原语落地前以物化通道闭环）。
+    // 只读物化不封窗（eval 零写回，无换入丢失面），走门禁装载 + 纯物化核；
+    // 写回面（换入/清退）必须走 tiered_materialize_blob_sealed 封窗变体
+    ObjLoad::Degrade => {
+      let Some((meta, stub)) = storage
+        .batch
+        .load_collection_stub(key)
+        .await
+        .map_err(|_| ())?
+      else {
+        return Err(());
+      };
+      match tiered_materialize_blob(&storage.batch, key, tag, &meta, &stub).await? {
+        Some(blob) => {
+          // 物化载荷解码 fail-fast：畸形即落错中止，不回退空对象
+          let Some(mut obj) = deserialize(&blob) else {
+            log::error!(
+              "slow_load_eval: corrupted materialized payload, key='{}' tag={:?}",
+              String::from_utf8_lossy(key),
+              tag
+            );
+            return Err(());
+          };
+          eval(&mut obj, output).await;
+          Ok(())
+        }
+        None => Err(()),
+      }
+    }
+    ObjLoad::WrongType => Ok(()),
+    ObjLoad::Missing => {
+      on_missing(output);
+      Ok(())
+    }
+    ObjLoad::Present(mut obj) => {
+      eval(&mut obj, output).await;
+      Ok(())
+    }
+  }
+}
+
+/// 写回面封窗装载核出参三态（四族慢路径装载站点共享判定码）
+pub(crate) enum SealedLoad<O> {
+  /// WRONGTYPE 错误行已写出
+  WrongType,
+  /// 键缺失（未写任何输出，调用方定短路应答）
+  Missing,
+  /// 已装载（守卫 = 分层物化封窗，须持至写回收尾；信封域装载为 `None`）
+  Present(O, Option<SwapInWindowGuard>),
+}
+
+/// 写回面单键封窗装载核（物化降级臂装配一处定义、调用点转引）：门禁分派
+/// [`obj_load_typed_async`]，Degrade 臂转引 [`tiered_materialize_blob_sealed`]
+/// 登记自迁移安全换入窗后全扫物化 + 解码 fail-fast + 统一错误日志；其余臂
+/// 原样回传，WrongType/Missing/Present 臂的差异映射留在调用方
+///
+/// 读侧只读物化对应物为 [`slow_load_eval`]（不封窗，eval 零写回）；本核供
+/// 「装载 → 求值 → 写回」全程持窗的写回面装载站点（四族 slow.rs）。`Err(())`
+/// 为存储 IO 失败或物化载荷畸形（fail-fast 落错，调用方不写回）
+pub(crate) async fn load_typed_sealed<O: GarnetObjectPayload, D: Device>(
+  storage: &StorageSession<'_, D>,
+  key: &[u8],
+  tag: GarnetObjectType,
+  output: &mut Vec<u8>,
+) -> Result<SealedLoad<O>, ()> {
+  match obj_load_typed_async(storage, key, tag, output, O::from_blob)
+    .await
+    .map_err(|_| ())?
+  {
+    // 异步域 Degrade 唯一来源为分层 Meta 命中：物化回内存对象（封窗变体：
+    // 自迁移安全换入窗自物化扫描起登记，杜绝窗内并发树内稳态写随 replace=true
+    // 换入被整树顶替的已 ACK 丢失形），守卫交调用方持跨求值与写回收尾
+    ObjLoad::Degrade => {
+      let Some((blob, window)) = tiered_materialize_blob_sealed(&storage.batch, key, tag).await?
+      else {
+        return Err(());
+      };
+      // 物化载荷解码 fail-fast：畸形落错中止，不回退空对象销毁原键
+      match O::from_blob(&blob) {
+        Some(obj) => Ok(SealedLoad::Present(obj, Some(window))),
+        None => {
+          log::error!(
+            "load_typed_sealed: corrupted materialized payload, key='{}' tag={:?}",
+            String::from_utf8_lossy(key),
+            tag
+          );
+          Err(())
+        }
+      }
+    }
+    ObjLoad::WrongType => Ok(SealedLoad::WrongType),
+    ObjLoad::Missing => Ok(SealedLoad::Missing),
+    ObjLoad::Present(o) => Ok(SealedLoad::Present(o, None)),
+  }
+}
+
+/// 同步对象 RMW 命令输入参数
+pub struct SyncRmwCmd<'a, Op> {
+  pub key: &'a [u8],
+  pub tag: GarnetObjectType,
+  pub op: Op,
+  pub args: &'a [&'a [u8]],
+  pub arg1: i32,
+  pub arg2: i32,
+}
+
+/// 同步对象 RMW 处理策略集合
+pub struct SyncRmwHandlers<Obj, Op, Deser, Def, IsEmpty, Ser, RunOp, ShouldWrite> {
+  pub deserialize: Deser,
+  pub default_obj: Def,
+  pub is_empty: IsEmpty,
+  pub serialize: Ser,
+  pub run_op: RunOp,
+  pub should_write: ShouldWrite,
+  pub phantom: PhantomData<fn() -> (Obj, Op)>,
+}
+
+impl<Obj, Op, Deser, Def, IsEmpty, Ser, RunOp, ShouldWrite>
+  SyncRmwHandlers<Obj, Op, Deser, Def, IsEmpty, Ser, RunOp, ShouldWrite>
+where
+  Deser: FnOnce(&[u8]) -> Option<Obj>,
+  Def: FnOnce() -> Obj,
+  IsEmpty: Fn(&Obj) -> bool,
+  Ser: FnOnce(&Obj) -> Vec<u8>,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
+{
+  #[inline]
+  pub fn new(
+    deserialize: Deser,
+    default_obj: Def,
+    is_empty: IsEmpty,
+    serialize: Ser,
+    run_op: RunOp,
+    should_write: ShouldWrite,
+  ) -> Self {
+    Self {
+      deserialize,
+      default_obj,
+      is_empty,
+      serialize,
+      run_op,
+      should_write,
+      phantom: PhantomData,
+    }
+  }
+}
+
+/// 通用同步对象 RMW 执行骨架：装载 → operate → 变更回写（带增量 WAL 广播）→ 负载输出
+pub fn run_sync_rmw<
+  Obj: IGarnetObject,
+  Op: Copy + Into<u8>,
+  D: Device,
+  Deser,
+  Def,
+  IsEmpty,
+  Ser,
+  RunOp,
+  ShouldWrite,
+>(
+  store: &BatchStoreSession<'_, D>,
+  cmd: SyncRmwCmd<'_, Op>,
+  output: &mut Vec<u8>,
+  handlers: SyncRmwHandlers<Obj, Op, Deser, Def, IsEmpty, Ser, RunOp, ShouldWrite>,
+) -> ObjLoad<RespRmwDone>
+where
+  Deser: FnOnce(&[u8]) -> Option<Obj>,
+  Def: FnOnce() -> Obj,
+  IsEmpty: Fn(&Obj) -> bool,
+  Ser: FnOnce(&Obj) -> Vec<u8>,
+  RunOp: for<'o> FnOnce(&mut Obj, Op, &[&[u8]], &'o mut Vec<u8>) -> ObjectOutput<'o>,
+  ShouldWrite: FnOnce(Op, &ObjectOutput<'_>, &Obj, bool) -> bool,
+{
+  // 同键读改写原子窗口：跨「装载信封对象 → operate → 整值序列化写回」全程持
+  // 本键桶排他闩（对标 C# ObjectStore/RMWMethods.cs 的 NeedInitialUpdate /
+  // InPlaceUpdater / CopyUpdater 全在记录锁内对 IGarnetObject 执行 op），杜绝
+  // 并发 HSET/SADD/ZADD 同键不同字段时后写者整值抹掉前写者字段；自旋预算内
+  // 不得闩即降级，由 run_async_rmw 的让核等待臂承接
+  let Some(_window) = store.try_rmw_window(cmd.key) else {
+    return ObjLoad::Degrade;
+  };
+
+  let (mut obj, existed) =
+    match obj_load_typed_sync(store, cmd.key, cmd.tag, output, handlers.deserialize) {
+      ObjLoad::Degrade => return ObjLoad::Degrade,
+      ObjLoad::WrongType => return ObjLoad::WrongType,
+      ObjLoad::Missing => ((handlers.default_obj)(), false),
+      ObjLoad::Present(o) => (o, true),
+    };
+
+  // operate 直写会话输出尾段；升阶/写回失败先回退挂载点再返回 Degrade
+  //（慢路径整体重放，残留负载会与重放应答拼帧）
+  let mut obj_out = (handlers.run_op)(&mut obj, cmd.op, cmd.args, output);
+  let result1 = obj_out.result1;
+
+  if (handlers.should_write)(cmd.op, &obj_out, &obj, existed) {
+    // 落笔前终态复验（键复活 / 双域并存封堵，判据与票号背景见
+    // [`obj_save_recheck_sync`] 头注）：本窗口只挡 RMW 方，对面 DEL/SET 走物理记录键
+    // 桶闩（与本窗口的用户键桶两个不同基），窗口期内可自由墓碑信封、清退信封并写
+    // 字符串，装载时的旧视图绝不允许未经复验即落笔。不复通过（含探针磁盘候选与
+    // 存储错误，本臂无法裁决）一律弃写，与写回失败同款借既有降级信号整体转异步
+    // 重放（重放按当前态重新装载求值，应答与新状态自洽，绝不复活已 ACK 删除的旧值）
+    let loaded = existed.then_some(KeyTag::ObjectEnvelope);
+    if !obj_save_recheck_sync(store, cmd.key, loaded).unwrap_or(false) {
+      obj_out.reset();
+      return ObjLoad::Degrade;
+    }
+    let empty = (handlers.is_empty)(&obj);
+    if !empty && obj.should_promote() {
+      obj_out.reset();
+      return ObjLoad::Degrade;
+    }
+    // 写回走无入账内核（payload 先行编码一次，删空臂传空载荷）：增量条目
+    // ObjectStoreRMW 由下方显式通知单独承接（对标 C# WriteLogRMW），与信封
+    // 整值写通知（obj_save_notified 收口）互斥，杜绝双份入账
+    let payload = if empty {
+      Vec::new()
+    } else {
+      (handlers.serialize)(&obj)
+    };
+    // 信封超页前置判（升阶容量门，见 envelope_overflow）：与上方 should_promote
+    // 门同款 Degrade——交异步漏斗 apply_rmw_post_operate 走既有升阶臂，杜绝
+    // 同步臂先撞 RecordTooLarge 的无效往返
+    if !empty && envelope_overflow(store, cmd.key, &payload) {
+      obj_out.reset();
+      return ObjLoad::Degrade;
+    }
+    match obj_save_or_gc_raw(store, cmd.key, cmd.tag, &payload, empty) {
+      Ok(true) => {
+        // 事件时间戳：真 .NET Ticks（与 wkv::ObjectRmwNotification 契约同域，
+        // 对标 Garnet 对象 RMW 输入的时间戳）；key 为信封物理键
+        //（KeyTag::ObjectEnvelope），与存储记录域一致
+        let raw_key = store.session_tag_key(KeyTag::ObjectEnvelope, cmd.key);
+        let notif = wkv::ObjectRmwNotification {
+          key: &raw_key,
+          obj_type: cmd.tag,
+          op_code: cmd.op.into(),
+          timestamp_ticks: now_ticks(),
+          arg1: cmd.arg1,
+          arg2: cmd.arg2,
+          args: cmd.args,
+        };
+        // AOF 入队失败降级为重放面可收敛的告警（对象已入内存域）
+        if let Err(e) = store.notify_object_rmw(&notif) {
+          log::error!("对象 RMW AOF 入队失败: {e}");
+        }
+      }
+      Ok(false) | Err(_) => {
+        obj_out.reset();
+        return ObjLoad::Degrade;
+      }
+    }
+  }
+
+  ObjLoad::Present(RespRmwDone {
+    result1,
+    payload_written: obj_out.written(),
+  })
+}

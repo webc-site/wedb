@@ -1,0 +1,108 @@
+- 文件:
+    - libs/host/Configuration/CompactObjectJsonConverter.cs:
+        - Write
+    - libs/host/Configuration/ConfigProviders.cs:
+        - GetConfigProvider
+        - TryDeserializeOptions
+        - TryExportOptions
+        - TryImportOptions
+        - TrySerializeOptions
+    - libs/host/Configuration/GarnetCustomTransformers.cs:
+        - Transform
+        - TransformBack
+    - libs/host/Configuration/Options.cs:
+        - GetAuthenticationSettings
+        - GetDeviceType
+        - GetFastAofTruncate
+        - GetServerOptions
+        - IsValid
+    - libs/host/Configuration/OptionsValidators.cs:
+        - GetDefault
+        - IsValid
+        - TryInitialValidation
+    - libs/host/Configuration/PopulateObjectJsonConverter.cs:
+        - Write
+    - libs/host/Configuration/Redis/RedisConfigSerializer.cs
+    - libs/host/Configuration/TypeConverters.cs:
+        - CanConvertFrom
+        - CanConvertTo
+        - ConvertFrom
+        - ConvertTo
+    - libs/host/GarnetServer.cs:
+        - CreateAOF
+        - CreateDatabase
+        - CreateStore
+        - DeleteDirectory
+        - GetVersion
+        - LoadModules
+        - ValidateCustomCommandACLs
+    - libs/host/MemoryLogger.cs:
+        - AddMemory
+        - BeginScope
+        - CreateLogger
+        - FlushLogger
+    - libs/host/ServerSettingsManager.cs:
+        - ConsolidateFlagArguments
+        - GetArgumentNameToValue
+        - TryExportServerOptions
+        - TryImportServerOptions
+        - TryParseArguments
+  理由: C# .NET Generic Host 宿主框架，Rust 侧通过 compio
+    独立运行时承接；TryParseCommandLineArguments 三层合并（默认值→配置文件→命令行显式项）对标实现为 wconf
+    ConfigFileArgs::from_args_iter +
+    NodeArgs::override_explicit，--config/--config-export-path 收敛 nested_text
+    单格式（GarnetConf/RedisConf 双格式与 Azure 存储导入导出不转写）；Options.cs 冷门项不转写清单：reviv 分桶细化 4 项（reviv-bin-record-sizes/counts、search-next-higher-bins、
+    best-fit-scan-limit、in-chain-only；wreviv 复活池已由 wconf 投影 reviv/reviv-fraction/copy-reads-to-tail 三旋钮，脱钩无
+    条件化随 RMW 原子票同批落地，见 reviv-knobs 票）、index-resize 系（BfTree 拓扑无 Tsavorite
+    哈希索引）、max-inline-key/value-size 与 initial-io-record-size（无 hybrid log inline
+    概念）、aof-memory/page/segment-size（waof 自有分段，RuntimeServerOptions 同名项仅 CONFIG
+    GET 只读展示）、aof-physical-sublog-count/aof-replay-task-count 等多日志拓扑项（生产恒单物理日志，见
+    glm.md 条 26）、aof-size-limit
+    系（槽位已声明无自动检查点消费者）、latency-monitor（set_global_latency_metrics
+    生产零调用）、minthreads/maxthreads/miniothreads/maxiothreads（.NET 线程池专属，compio
+    一线程一核）、use-azure-storage 与 aad
+    系（红线禁用）、checkpoint-throttle-delay（C# 该旋钮只节流 AsyncFlushPagesForSnapshot 的逐页
+    WriteAsync 循环，FlushCompletionTracker 以容量 1 信号量做每页等完成再发下一页的串行闸，再叠
+    Thread.Sleep，载体 GarnetServerOptions.CheckpointThrottleFlushDelayMs 默认 0 经 GarnetServer
+    注入 kvSettings.ThrottleCheckpointFlushDelayMs，再到 CheckpointSettings 与 SnapshotCheckpointSMTask
+    的 AllocatorBase 节流臂；rust 快照刷盘为 whlog PendingFlushList 贪心合并相邻区间后的单次连续
+    flush_range_aligned 写（hlog/io.rs flush_sealed_page_range），不存在逐页 WriteAsync 节流点可插，
+    Task.Run 隔离臂在 compio 一线程一核下亦无独立刷盘线程可退，合并大写连同先封再刷屏障即既定节奏形态，
+    旋钮五级链（配置槽位、投影、注入、页间睡眠分段、索引快照同参）整链不转写；若未来刷盘改分段下发，
+    须与节奏旋钮一次同改，禁止另立第二套节流面）；GarnetServerOptions.cs 侧同题登记该旋钮载体字段
+    CheckpointThrottleFlushDelayMs（默认 0）与其 GetSettings 装配臂不转写，随本清单收口；已转写活项：slowlog-log-slower-than、slowlog-max-len、max-databases、protected-mode、object-scan-count-limit、metrics-sampling-freq（NodeArgs::runtime_server_options
+    投影 RuntimeServerOptions 播种）
+- 文件:
+    - hosting/Windows/Garnet.worker/Program.cs
+    - hosting/Windows/Garnet.worker/Worker.cs
+  理由: Windows Service 宿主实现（Garnet.worker 用 .NET Generic Host + AddWindowsService + BackgroundService 平台绑定），Rust 侧采用独立跨平台守护进程启动，不转写
+- 文件:
+    - main/GarnetServer/Extensions/DeleteIfMatch.cs
+    - main/GarnetServer/Extensions/GetTwoKeysNoTxn.cs
+    - main/GarnetServer/Extensions/MGetIfPM.cs
+    - main/GarnetServer/Extensions/MSetPx.cs
+    - main/GarnetServer/Extensions/MyDictGet.cs
+    - main/GarnetServer/Extensions/MyDictObject.cs
+    - main/GarnetServer/Extensions/MyDictSet.cs
+    - main/GarnetServer/Extensions/ReadWriteTxn.cs
+    - main/GarnetServer/Extensions/SampleDeleteTxn.cs
+    - main/GarnetServer/Extensions/SampleUpdateTxn.cs
+    - main/GarnetServer/Extensions/SetIfPM.cs
+    - main/GarnetServer/Extensions/SetStringAndList.cs
+    - main/GarnetServer/Extensions/SetWPIfPGT.cs
+    - main/GarnetServer/Extensions/Sum.cs
+    - main/GarnetServer/Program.cs
+  理由: main/GarnetServer/Extensions 下为 C# 自定义命令与自定义对象/事务演示（CustomRawStringFunctions、
+    CustomObjectFunctions、CustomTransactionProcedure 等模块加载样例，如 DELIFMATCH/MYDICT/SETIFPM），
+    按 transpile 规范删除动态注册管理层、扩展命令改编译期静态特性与静态枚举分发，不转写这些模块加载演示；
+    main/GarnetServer/Program.cs 为 .NET 控制台入口（Host.CreateApplicationBuilder 平台绑定）
+
+# lua 事务模式选项删除（task/done/lua-txn-mode-drop-placeholder.md）：
+# C# Options.cs:288 LuaTransactionMode（默认 false）与 :923 投影随模式整链
+# 不转写——依赖的事务上下文内核在 wedb 不存在，脚本面只保 C# 默认非事务形态；
+# rust 侧 --lua-transaction-mode CLI/配置字段已删，传入即未知选项解析失败。
+- 文件:
+    - libs/host/Configuration/Options.cs:
+        - LuaTransactionMode
+  理由: 属性（门禁词法面不可见），登记为不转写凭证；配套
+    GarnetServerOptions.cs:96 同链不转写。

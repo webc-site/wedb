@@ -1,0 +1,33 @@
+[package]
+name = "windex"
+version = "0.1.5"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/windex"
+description = "Lock-free fixed-capacity hash index with overflow bucket pool"
+keywords = ["hash-index", "lock-free", "hash-table", "storage-engine", "concurrency"]
+categories = ["database-implementations", "data-structures", "concurrency", "algorithms", "memory-management"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+libc = "0.2.189"
+log = "0.4.34"
+thiserror = { workspace = true }
+wbase = { features = ["addr", "backoff", "error", "striped", "thread"], workspace = true }
+whasher.workspace = true
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+parking_lot.workspace = true
+
+[lints]
+workspace = true

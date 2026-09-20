@@ -1,0 +1,81 @@
+[package]
+name = "wnode"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode"
+description = "Core server node runtime, network transport, and request handling for wedb"
+keywords = ["server", "network", "resp", "runtime", "async"]
+
+# rustls-pki-types：消费点只在 `#[cfg(feature = "tls")]` 门内的 src/tls/config.rs
+# （经 compio_tls::rustls::pki_types 再导出取 CertificateDer），默认构建不可见 → 豁免
+# serde：只在 src/resp/resp_command_docs.rs 的 `#[derive(Deserialize)]`（经
+# `sonic_rs::Deserialize` 再导出）与 `#[serde(rename)]` 辅助属性中使用，derive 展开体
+# 引用 `serde` extern crate 名（删该声明即 E0463 can't find crate for `serde`），
+# machete 的正则看不见此形态 → 豁免，勿再判死
+[package.metadata.cargo-machete]
+ignored = ["rustls-pki-types", "serde"]
+
+[features]
+default = ["roaring", "json"]
+tls = ["dep:compio-tls", "dep:rustls-pki-types", "wbase/tls"]
+roaring = ["dep:wext_roaring"]
+json = ["dep:wext_json"]
+
+[dependencies]
+compio = { workspace = true, features = ["net", "io", "signal", "runtime", "time", "bytes", "dispatcher"] }
+compio-tls = { version = "0.10.0", default-features = false, features = ["rustls", "ring"], optional = true }
+crossfire.workspace = true
+event-listener.workspace = true
+fastrand.workspace = true
+itoa.workspace = true
+jiff = "0.2.37"
+log = { workspace = true, features = ["std"] }
+memchr = "2.8.3"
+parking_lot = { workspace = true, features = ["arc_lock"] }
+rustls-pki-types = { version = "1.15.1", optional = true }
+serde = { workspace = true, features = ["derive"] }
+smallvec = "1.16.1"
+sonic-rs.workspace = true
+thiserror.workspace = true
+wacl.workspace = true
+waof.workspace = true
+wbase = { workspace = true, features = ["addr", "align", "backoff", "convert", "crc64", "endpoint", "future", "glob", "hash", "hash_slot", "map", "num", "pool", "simd", "store_type", "striped", "time"] }
+wbitmap.workspace = true
+wcol = { workspace = true }
+wconf.workspace = true
+wcustom.workspace = true
+wdev.workspace = true
+wext_roaring = { workspace = true, optional = true }
+whyperlog.workspace = true
+wkv.workspace = true
+wlua.workspace = true
+wmetric.workspace = true
+wpubsub.workspace = true
+wresp.workspace = true
+wtxn.workspace = true
+wval.workspace = true
+wvector.workspace = true
+zmij.workspace = true
+wbftree.workspace = true
+futures-util = { workspace = true, features = ["bilock", "io", "std", "unstable"] }
+wext_json = { workspace = true, optional = true }
+coarsetime.workspace = true
+wcpr.workspace = true
+socket2 = "0.6.5"
+
+whasher.workspace = true
+windex.workspace = true
+enum_dispatch = "0.3.13"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+rcgen = "0.13.2"
+tempfile.workspace = true
+wtest_base.workspace = true
+wnode_test.workspace = true
+wtxn_test.workspace = true

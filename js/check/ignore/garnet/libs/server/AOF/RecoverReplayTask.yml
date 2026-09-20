@@ -1,0 +1,9 @@
+# AOF 恢复回放任务：C# RecoverReplayTaskAsync 的 Worker 主循环（双闸栏会合、
+# 取消轮询、错误槽落账）在 rust 由 recover_log_driver.rs 的驱动循环内联承接
+#（并发 spawn replay_page + JoinSet 收集错误），独立包装函数全仓零调用，删除
+- 文件:
+    - libs/server/AOF/Recover/RecoverReplayTask.cs:
+        - RecoverReplayTaskAsync
+  理由: 循环骨架上移 RecoverLogDriver 单点（recover_log_driver.rs:172 直调
+    replay_page），无独立 Worker 包装的调用面；ReplayPage 仍由 recover_replay_task.rs
+    承接

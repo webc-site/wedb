@@ -1,0 +1,6 @@
+- 理由: C# UpdateCertFile 由 ServerConfig CONFIG SET 证书热更新路径调用；
+    rust TLS 面由 tls 域（garnet_tls_options 等）并行承接，rust 侧空占位壳
+    update_cert_file（签名亦不符）按禁占位函数红线删除
+  文件:
+    - libs/server/TLS/IGarnetTlsOptions.cs:
+        - UpdateCertFile

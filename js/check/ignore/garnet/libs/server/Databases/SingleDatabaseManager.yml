@@ -1,0 +1,9 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# SingleDatabaseManager.StartSizeTrackers 调 db.size_tracker.Start，启动主日志/读缓存
+# 内存预算裁剪；rust 无对位件（详见 SizeTracker/CacheSizeTracker.yml），曾转写的
+# start_size_trackers 仅剩 size_tracker.restart() 翻转标志、全仓零调用方，随追踪器删除。
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，其启动入口 StartSizeTrackers 随之移除。

@@ -1,0 +1,21 @@
+# task/ing/data-check-ledger-hygiene.md 问题 二.1：GeoHash 局部函数族。
+# 取证：C# 五枚均为父方法体内的局部函数——GeoHash.cs:70 Quantize（在
+# GeoToLongValue 内）、:117 Dequantize（在 GetCoordinatesFromLong 内）、:168 Spread
+# （在 MortonEncode 内）、:207 Squash（在 MortonDecode 内）、:262 DegreesToRadians
+# （在 Distance 内）。门禁的 C# 名录把局部函数与实例方法同权登记，故五枚各成一项缺失。
+# rust 侧五枚皆已实现且父方法已持全路径锚（geo_hash.rs:31/:61/:85/:103/:136 分别挂
+# GeoToLongValue / GetCoordinatesFromLong / MortonEncode / MortonDecode / Distance），
+# 子函数头注按本仓「父方法持锚、局部函数归并」口径写实名不双挂
+# （见 geo_hash.rs:50-52、:77-79 的自述）；同口径判例 task/reject/muse.data.r3.md
+- 文件:
+    - libs/server/Objects/SortedSetGeo/GeoHash.cs:
+        - Quantize
+        - Dequantize
+        - Spread
+        - Squash
+        - DegreesToRadians
+  理由: >-
+    C# 父方法体内的局部函数，映射按本仓口径归并到父方法单点持锚
+    （geo_hash.rs 五处父锚已在册），rust 的 quantize/dequantize/spread/squash/
+    degrees_to_radians 是同文件私有辅助口，再各挂一枚子锚即同根语义双挂，
+    故登记忽略而非补锚

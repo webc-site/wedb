@@ -1,0 +1,5 @@
+- 文件:
+    - test/standalone/Garnet.test.extensions/ScratchBufferAllocatorTests.cs
+  理由: 被测实现 ScratchBufferAllocator 已随假网络层删除（归并去向见
+    libs/server/ArgSlice/ScratchBufferAllocator.yml）；请求拼装字节序列语义由
+    wlua 与 wnode 的 RESP 集成测试承接

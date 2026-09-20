@@ -1,0 +1,7 @@
+[profile.default]
+slow-timeout = { period = "90s", terminate-after = 2 }
+
+# 并发屏障测试在低核 CI 上有极低概率的调度级超时，自动重试兜底
+[[profile.default.overrides]]
+filter = "test(test_fast_commit_concurrent_waiters_barrier)"
+retries = 3

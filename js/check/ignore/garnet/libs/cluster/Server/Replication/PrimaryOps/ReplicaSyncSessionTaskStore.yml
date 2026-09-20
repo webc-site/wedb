@@ -1,0 +1,20 @@
+# C# ReplicaSyncSessionTaskStore 为主端副本同步会话仓（定长数组 +
+# SingleWriterMultiReaderLock，手动 GrowSessionArray/ShrinkSessionArray）。
+# rust 侧磁盘链在册去重已由
+# wedb/wedb/src/server/replication/replica_sync_task_store.rs 承接
+# （papaya + gxhash 并发 set）：TryAddReplicaSyncSession -> try_add（入口
+# 去重登记）、TryRemove -> try_remove（终局/取消摘除）、Dispose/Clear ->
+# clear（rm.dispose 全摘）；IsFirst/GetSessions/GetNumSessions 仅 diskless
+# 批量扇出消费，由 ReplicationSyncManager 内嵌册子（SyncManagerInner +
+# is_leader）承接。会话在册与驱动登记（DriverRegistry）是两个语义域，
+# 后者不承载 in-flight 同步任务去重
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:
+        - GetSessions
+        - GrowSessionArray
+        - ShrinkSessionArray
+        - TryGetSession
+  理由: GetSessions/GetNumSessions 仅 diskless 批量扇出消费，rust 由
+    ReplicationSyncManager 册子承接；TryGetSession 的 rust 后台体在登记的
+    同一闭包内直跑会话（SlowWait 慢路径），无跨任务取回位点；
+    Grow/ShrinkSessionArray 随 papaya 动态伸缩天然消除

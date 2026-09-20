@@ -1,0 +1,36 @@
+# Garnet 认证器接口在 rust 无独立落点，整文件不转写。
+#
+# C# 以 IGarnetAuthenticator 抽象认证器（IsAuthenticated / CanAuthenticate /
+# HasACLSupport / Authenticate 四面），经 GarnetACLAuthenticator 基类与各档
+# 子类多态分派（garnet/libs/server/Resp/RespServerSession.cs 的
+# authenticator.CanAuthenticate / Authenticate 调用点）。
+#
+# rust 会话真实机制单档内联承接，同一语义不经 trait 表达：
+# - CanAuthenticate：会话字段 `authenticator_can_authenticate` 由挂载与否直接
+#   推导（wedb/wnode/src/resp/resp_server_session.rs:attach_acl 的
+#   `authenticator.is_some()`），消费于 authenticate_user 门（:1075/:2029），
+#   ACL 档恒 true 与 C# GarnetACLAuthenticator.CanAuthenticate = true 等价；
+# - Authenticate：直接调 `GarnetAclAuthenticator::authenticate` +
+#   注入的 `acl_password_check`（resp_server_session.rs:authenticate_user），
+#   模板方法闭包注入已承接 ACL + 口令组合职责；
+# - IsAuthenticated：`GarnetAclAuthenticator::is_authenticated` inherent +
+#   会话 user_handle 承接，无多态需求；
+# - HasACLSupport：C# 侧本就仅测试域消费，rust 无对应测试面，删除不算偏离。
+# 据此随接口一并删除 rust 侧死面（wacl/src/auth/i_garnet_authenticator.rs、
+# wacl/src/auth/garnet_acl_with_password_authenticator.rs 及其唯一测试引用
+# wnode/tests/acl_tests.rs），trait 与子档类型全仓零生产消费。
+
+- 文件:
+    - libs/server/Auth/IGarnetAuthenticator.cs:
+        - IGarnetAuthenticator
+        - IsAuthenticated
+        - CanAuthenticate
+        - HasACLSupport
+        - Authenticate
+  理由: >-
+    认证器接口无落点：rust 会话单档内联承接（CanAuthenticate 由挂载态字段
+    authenticator_can_authenticate 推导，Authenticate 直调
+    GarnetAclAuthenticator::authenticate + acl_password_check，
+    IsAuthenticated 走 inherent is_authenticated，HasACLSupport 在 C# 本就
+    仅测试消费），trait 多态表达与子档 GarnetAclWithPasswordAuthenticator
+    全仓零生产消费，随本条一并删除

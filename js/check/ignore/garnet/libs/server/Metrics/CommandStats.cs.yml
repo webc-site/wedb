@@ -1,0 +1,8 @@
+# 逐命令统计读口不复刻（fix-dead-batch-six）：C# GetEntry 全仓零调用（含
+# garnet test 亦不引用，RespCommandStatsTests 经 INFO COMMANDSTATS 输出断言）；
+# rust 侧统计读直接经 pub entries 数组下标访问（CommandStatsEntry 为 Copy），
+# 越界防御由 RespCommand 判别值域保证，get_entry 薄包装口零生产消费已删。
+- 文件:
+    - libs/server/Metrics/CommandStats.cs:
+        - GetEntry
+  理由: C# 死口（全仓零引用），rust 读口收敛为 pub entries 直读

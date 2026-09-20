@@ -1,0 +1,19 @@
+# waof 提交准入策略面整面删除（fixloop next/waof-admit-commit-decorative-chain）
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/LogCommitPolicy.cs:
+        - Default
+        - MaxParallel
+        - RateLimit
+        - OnAttached
+        - AdmitCommit
+        - OnCommitCreated
+        - OnCommitFinished
+  理由: C# LogCommitPolicy 提交准入整面在 rust 删除。rust 组提交流水线（wbase::group_commit
+    Leader/Follower 协商，见 wal/flush.rs:commit_to）已结构性承接 C# 准入想表达的推迟语义：
+    C# CommitInternal 拒绝即 return false（0 I/O），CommitAsync 拒绝分支仅 await 既有
+    CommitTask 链至已提交水位覆盖自取 tail 下界——批次合并由在途提交承接；rust 流水线
+    Follower 挂起等待在途 Leader 批次覆盖下界正是该等待本身，流水线空闲则升级 Leader
+    即时提交，独立布尔无增量决策效果。原 AdaptiveCommitPolicy 拒绝后照常提交，属
+    虚设实现，随本档删除；C# 三内置策略 Default/MaxParallel/RateLimit 中 Default 即
+    commitRequired 直通（rust 由 commit 的 target<=committed 短路对标），MaxParallel/RateLimit
+    的 shouldRetry 重试闭环依赖 C# 独立 flush 线程，rust 无对应架构也无生产消费路径

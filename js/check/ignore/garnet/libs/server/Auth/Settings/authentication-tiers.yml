@@ -1,0 +1,67 @@
+# 认证档位分派族（Auth/Settings）在 rust 无落点，整族不转写。
+#
+# C# 由 serverOptions.AuthSettings 在会话构造期投影出认证器
+# （garnet/libs/server/Resp/RespServerSession.cs 的
+# `authenticator ?? storeWrapper.serverOptions.AuthSettings?.CreateAuthenticator(storeWrapper)
+#  ?? new GarnetNoAuthAuthenticator()`），档位由 NoAuth / Password / Acl /
+# AclWithPassword / AclWithAad / Aad 六个设置类分派。
+#
+# rust 侧认证源只有一档：`StorageSessionProvider::with_requirepass`
+# （wedb/wnode/src/service.rs）在装配期把 requirepass 落成带口令的 default 用户
+# 并裹成 `AccessControlList`，会话侧只挂 `GarnetAclAuthenticator`
+# （wedb/wnode/src/resp/resp_server_session.rs:attach_acl），未装配即免认证。
+# 免认证与固定口令两档的语义由该单档路径等价承接（原
+# `GarnetNoAuthAuthenticator` / `GarnetPasswordAuthenticator` 两档类型与
+# `GarnetAuthenticator` 静态分派枚举因全仓零生产消费已删除）。
+# 据此删除本族的 rust 死面（wacl/src/auth/settings 五文件），并逐符号登记：
+#
+# - IAuthenticationSettings 接口与其 CreateAuthenticator 工厂
+# - 各档设置类的 CreateAuthenticator / CreateAuthenticatorInternal
+# - Aad 两档（微软平台绑定，按 transpile 规范不实现）
+
+- 文件:
+    - libs/server/Auth/Settings/AuthenticationSettings.cs:
+        - CreateAuthenticator
+  理由: >-
+    档位工厂接口无落点：rust 认证器由 wnode 装配期直接构造
+    （service.rs:session_dependencies 按 acl 字段 map 出 GarnetAclAuthenticator），
+    不经设置对象投影；GarnetAuthenticationMode 枚举同样无落点（免认证=不装认证器）
+- 文件:
+    - libs/server/Auth/Settings/NoAuthSettings.cs:
+        - CreateAuthenticator
+  理由: >-
+    免认证档即「会话未挂认证器」形态（resp_server_session.rs 的
+    acl_authenticator: Option 之 None 分支 + authenticator_can_authenticate=false），
+    不设独立设置类
+- 文件:
+    - libs/server/Auth/Settings/PasswordAuthenticationSettings.cs:
+        - CreateAuthenticator
+  理由: >-
+    固定口令档在 rust 已收敛进 ACL 单档：requirepass 于
+    service.rs:with_requirepass 落成带口令的 default 用户，
+    不设第二套口令认证路径（ACL 持久化亦为 transpile 规范既定的唯一认证存储）
+- 文件:
+    - libs/server/Auth/Settings/AclAuthenticationSettings.cs:
+        - CreateAuthenticator
+        - CreateAuthenticatorInternal
+  理由: >-
+    ACL 档认证器直接在 service.rs:session_dependencies 构造
+    （GarnetAclAuthenticator::new），ACL 规则以底层存储 KeyTag::Acl 为唯一真源、
+    废弃配置文件，故无「设置类定位 ACL 文件 → 建认证器」的链路；
+    rust 的 ACL 认证器句柄经会话 attach_acl 注入，无 CreateAuthenticator 工厂。
+    注：本类原在 rust 留有同名空壳（default_password 字段全仓零读取），已随本条删除
+- 文件:
+    - libs/server/Auth/Settings/AclAuthenticationPasswordSettings.cs:
+        - CreateAuthenticatorInternal
+  理由: >-
+    ACL + 口令档在 rust 由 GarnetAclAuthenticator + 注入的口令校验函数承接
+    （wacl/src/auth/garnet_acl_authenticator.rs:acl_password_check，
+    对标 C# GarnetAclWithPasswordAuthenticator.AuthenticateInternal），
+    无需档位设置类
+- 文件:
+    - libs/server/Auth/Settings/AadAuthenticationSettings.cs
+    - libs/server/Auth/Settings/AclAuthenticationAadSettings.cs
+  理由: >-
+    微软 Azure Active Directory 平台绑定的认证档，按 transpile 规范不实现
+    （与 js/check/ignore/server.yml 中 GarnetAadAuthenticator.cs /
+    IssuerSigningTokenProvider.cs 同族）

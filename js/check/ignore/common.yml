@@ -1,0 +1,540 @@
+- 文件:
+    - libs/common/RespReadUtils.cs:
+        - GetSerializedRecordSpan
+        - TryReadBoolWithLengthHeader
+        - TryReadDoubleWithLengthHeader
+        - TryReadInt32
+        - TryReadInt64
+        - TryReadInt64Safe
+        - TryReadInt64WithLengthHeader
+        - TryReadPtrWithLengthHeader
+        - TryReadSign
+        - TryReadStringResponseWithLengthHeader
+        - TryReadUInt64WithLengthHeader
+        - TrySkipByteArrayWithLengthHeader
+  理由: "WithLengthHeader 族与裸读函数在 rust 侧改由值域严格解析纯函数承接（消费点逐条 对位，非「无消费面」）：C#
+    RespReadUtils.cs 的 TryReadInt64/TryReadUInt64WithLengthHeader 仅
+    test/standalone/Garnet.test/Resp/RespReadUtilsTests.cs:173,199,218,243
+    引用（生产零调用）；TryReadBoolWithLengthHeader 仅同测试文件 :286 引用；
+    TryReadSign、TryReadDoubleWithLengthHeader 全仓（C# 与 rust）零引用；
+    TryReadStringResponseWithLengthHeader 唯一生产引用在 LuaRunner.cs:1302（redis.call
+    应答解析），rust 由 wlua resp_convert 承接；TryReadInt32 生产引用为 ParseUtils.cs:31 与
+    ObjectStore/Common.cs:447，TryReadInt64Safe 生产引用为 ParseUtils.cs:91,108——两者在
+    rust 侧为 wbase/src/num.rs:94 strict_i64（该函数 :89 注释即「对照
+    RespReadUtils.TryReadInt64Safe allowLeadingZeros: false 语义」）与 num.rs:124
+    strict_i32 单点承接，不再复刻 ref ptr / out bytesRead 形态； TryReadInt64 一族在 rust 亦走同一
+    strict 通道，命令层无逐类型读取函数。TrySkipByteArrayWithLengthHeader 在 C# 亦仅
+    RespReadUtilsTests.cs:419,425,431 测试引用（生产零调用），rust 对标口已删；
+    TryReadPtrWithLengthHeader 的 C# 生产消费点为 ObjectStore/Common.cs:223,242 （副本回读
+    SCAN 输出的 RESP 帧重解析），rust 副本回读走结构化通道不经文本帧 重解析，该形态无承接位，rust 对标口已删"
+- 文件:
+    - libs/common/Networking/BatchHeader.cs
+    - libs/common/Networking/BufferSizeUtils.cs
+    - libs/common/Networking/GarnetSaeaBuffer.cs
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - GetResponseObject
+        - GetResponseObjectTail
+        - ReturnBuffer
+        - ReturnResponseObject
+        - SeaaBuffer_Completed
+        - SendCallback
+        - SendResponse
+        - ThrowDisposed
+    - libs/common/Networking/INetworkSender.cs:
+        - GetResponseObject
+        - GetResponseObjectTail
+        - ReturnResponseObject
+        - SendCallback
+    - libs/common/Networking/LightConcurrentStack.cs
+    - libs/common/Networking/NetworkHandler.cs:
+        - AuthenticateAsClientAsync
+        - AuthenticateAsServerAsync
+        - DisposeImpl
+        - DisposeNetworkSender
+        - DoubleNetworkReceiveBuffer
+        - DoubleTransportReceiveBuffer
+        - EndTransformNetworkToTransport
+        - GetResponseObject
+        - GetResponseObjectTail
+        - LogSecurityInfo
+        - OnNetworkReceiveWithTLSAsync
+        - OnNetworkReceiveWithoutTLS
+        - ReturnResponseObject
+        - SendCallback
+        - ShiftNetworkReceiveBuffer
+        - ShiftTransportReceiveBuffer
+        - ShrinkNetworkReceiveBuffer
+        - SslReaderAsync
+        - SslReaderLoopAsync
+        - Throttle
+        - ThrowInvalidOperationException
+        - TryProcessRequest
+        - UpdateNetworkBuffers
+    - libs/common/Networking/NetworkHandlerStream.cs
+    - libs/common/Networking/NetworkSenderBase.cs:
+        - GetResponseObject
+        - GetResponseObjectTail
+        - ReturnResponseObject
+        - SendCallback
+        - SendResponse
+    - libs/common/Networking/TaskToApm.cs
+    - libs/common/Networking/TcpNetworkHandlerBase.cs:
+        - AllocateNetworkReceiveBuffer
+        - DisposeResources
+        - HandleReceiveFailure
+        - HandleReceiveWithTLSAsync
+        - RecvEventArgCompletedWithTLS
+        - RecvEventArgCompletedWithoutTLS
+  理由: C# SocketAsyncEventArgs 网络 I/O 缓冲区管理面整域收尾：SAEA 缓冲包装壳 GarnetSaeaBuffer、其池栈
+    LightConcurrentStack（泛型约束 IDisposable 的 SAEA 借还栈）、 .NET Stream 适配器
+    NetworkHandlerStream（NetworkHandler 私有嵌套类，Read/Write/Flush/ Seek/SetLength 全
+    override 族）、Task-to-APM 桥 TaskToApm（IAsyncResult/AsyncCallback 形态）均为 .NET
+    SAEA/APM 平台件，rust compio 原生异步栈一线程一 CPU 直驱无对位—— 缓冲复用由 wbase/src/pool
+    单点承担，出站写口由 wconn/src/network 族承接；全仓 grep 四类符号零命中
+- 文件:
+    - libs/common/ClientBase.cs:
+        - CompletePendingRequests
+        - Connect
+        - GetInternalBufferHead
+        - GetInternalBufferTail
+    - libs/common/CoarseTimeProvider.cs
+    - libs/common/Collections/ElasticCircularBuffer.cs:
+        - Dequeue
+        - GetEnumerator
+        - IsEmpty
+        - IsFull
+        - Iterate
+        - PeekFirst
+        - PeekLast
+    - libs/common/Collections/ReadOptimizedConcurrentSet.cs:
+        - Iterate
+        - TryAddAndGet
+    - libs/common/EnumExtensions.cs
+    - libs/common/EnumUtils.cs
+    - libs/common/ExceptionUtils.cs
+    - libs/common/FailoverOption.cs
+    - libs/common/FileUtils.cs
+    - libs/common/Format.cs:
+        - GigaBytes
+        - IsNullOrEmpty
+        - IsNullOrWhiteSpace
+        - KiloBytes
+        - MegaBytes
+        - MemoryBytes
+        - TryConnect
+        - TryConnectAsync
+        - TryCreateEndpoint
+        - TryCreateEndpointAsync
+        - TryValidateAddress
+        - defaultBindAny
+        - defaultBindLoopBack
+    - libs/common/GarnetException.cs
+    - libs/common/GarnetKeyComparer.cs:
+        - GetHashCode64
+        - StaticEquals
+        - StaticGetHashCode64
+    - libs/common/Generator.cs:
+        - DefaultHexId
+    - libs/common/HashUtils.cs:
+        - Rotl64
+    - libs/common/LightClient.cs
+    - libs/common/LightClientRequest.cs
+    - libs/common/Logging/FileLoggerProvider.cs:
+        - AddFile
+        - BeginScope
+        - CreateLogger
+    - libs/common/Numerics/IBinaryOperator.cs
+    - libs/common/Parsing/RespParsingException.cs:
+        - Throw
+        - ThrowInvalidLength
+        - ThrowNotANumber
+    - libs/common/RandomUtils.cs:
+        - PickKRandomDistinctIndexesWithShuffle
+        - PickKRandomIndexesIteratively
+    - libs/common/ReaderWriterLock.cs:
+        - ReadLock
+        - ReadUnlock
+        - ReaderLock
+        - WaitForGrant
+        - WriteLock
+        - WriteUnlock
+    - libs/common/ReadOnlySequenceBuilder.cs
+    - libs/common/ReadOnlySequenceStream.cs:
+        - ReadByte
+        - Seek
+        - Write
+    - libs/common/RespMemoryWriter.cs:
+        - AsReadOnlySpan
+        - DecreaseArrayLength
+        - GetPosition
+        - Realloc
+        - ReallocateOutput
+        - ResetPosition
+        - TryWriteBulkString
+        - TryWriteDirect
+        - TryWriteFalse
+        - WriteNewLine
+        - WriteTrue
+    - libs/common/RespWriteUtils.cs:
+        - GetBulkStringLength
+        - GetIntegerAsBulkStringLength
+        - TryWriteArrayItem
+        - TryWriteArrayLength
+        - TryWriteAsciiBulkString
+        - TryWriteAsciiDirect
+        - TryWriteBulkString
+        - TryWriteBulkStringLength
+        - TryWriteDirect
+        - TryWriteEmptyArray
+        - TryWriteEmptyMap
+        - TryWriteEmptySet
+        - TryWriteFalse
+        - TryWriteInfinity
+        - TryWriteInfinity_Numeric
+        - TryWriteInt32
+        - TryWriteInt32AsBulkString
+        - TryWriteInt64
+        - TryWriteInt64AsBulkString
+        - TryWriteInt64AsSimpleString
+        - TryWriteIntegerFromBytes
+        - TryWriteMapLength
+        - TryWriteNaN
+        - TryWriteNaN_Numeric
+        - TryWriteNewLine
+        - TryWriteNull
+        - TryWriteNullArray
+        - TryWriteOne
+        - TryWritePaddedBulkStringLength
+        - TryWritePushLength
+        - TryWriteSetLength
+        - TryWriteSimpleString
+        - TryWriteTrue
+        - TryWriteUtf8BulkString
+        - TryWriteVerbatimString
+        - TryWriteVerbatimStringHeader
+        - TryWriteZero
+        - WriteBytes
+        - WriteNewline
+    - libs/common/SimpleObjectPool.cs:
+        - Checkout
+        - ThrowDisposed
+    - libs/common/SimpleStack.cs:
+        - ExtendStackBuffer
+    - libs/common/StreamProvider.cs
+    - libs/common/Testing/ExceptionInjectionHelper.cs:
+        - DisableException
+        - EnableException
+        - EnabledScope
+        - ResetAndWait
+        - ResetAndWaitAsync
+        - TriggerCondition
+        - TriggerException
+        - WaitOnClear
+        - WaitOnClearAsync
+    - libs/common/Testing/GarnetTestLoggingEventType.cs:
+        - LogTesting
+  理由: C# .NET 专属运行时特性与内部辅助面，按四类分述（rust 侧等价架构原生实现，逐类已核同名零命中）：
+    一、SocketAsyncEventArgs / SslStream / MemoryPool / ArrayPool / GCHandle
+    网络与托管缓冲面（Networking/* 全部、Memory/* 全部、ClientBase、LightClient*、
+    ElasticCircularBuffer 枚举器与 IsEmpty/IsFull、ReadOnlySequence* 、
+    RespMemoryWriter 的 AsReadOnlySpan/DecreaseArrayLength/GetPosition/Realloc/
+    ReallocateOutput/ResetPosition/TryWriteBulkString/TryWriteDirect/TryWriteFalse/
+    WriteNewLine/WriteTrue 与 RespWriteUtils 全族 Try*（返回 bool 的「缓冲不足即重试」 形态，rust
+    侧写器改为自动扩容 Vec<u8>，无失败分支），rust 以 compio + 自有 wbase/pool 承接；fn
+    as_read_only_span / decrease_array_length / realloc / reallocate_output /
+    reset_position / try_write_bulk_string / try_write_direct / write_new_line
+    全仓零同名命中；二、C# 锁与同步原语（Synchronization/* 全部、
+    ReaderLock、LightConcurrentStack.TryPop、TaskToApm），rust 以 parking_lot
+    与原子量承接；三、BCL 数值与格式化工具（Format.*、NumUtils.*、BitVector.*、
+    HashUtils.MurmurHash3*、EnumExtensions/EnumUtils/GarnetKeyComparer、
+    RandomUtils 抽样族），rust 以 std/itoa/ryu/w/hashers 与 gxhash 承接；四、 测试故障注入与
+    ILogger 基建（Testing/ExceptionInjectionHelper.*、
+    FileLoggerProvider.*、GarnetTestLoggingEventType.LogTesting、 SessionLogger
+    同类面），rust 侧不设 C# 式异常注入开关。本块不含已实现项： RespMemoryWriter.cs 的 11 个
+    Write*（AsciiDirect/DoubleBulkString/DoubleNumeric/
+    EmptyMap/Int64/IntegerFromBytes/One/PushLength/Utf8BulkString/VerbatimString/Zero）
+    已在 wresp/src/resp_memory_writer.rs:453,501,537,565,640,650,656,674,730,744（
+    write_verbatim_string 另见 :209,:298 与 wresp/src/output.rs:148）实现；
+    NetworkBufferSettings.cs:GetInclusive/CreateBufferPool 曾于
+    wbase/src/pool/limited.rs 复刻，经复核为复制/迁移流全局单池下的零消费死规格， 已随规格整面删除并转入 ignore 登记（见
+    garnet/libs/common/NetworkBufferSettings.yml）； 以上 11 条（RespMemoryWriter
+    Write* 族）仍处已实现待补 /// C#路径:函数名 映射注释状态（见 next/ignore-honesty-mapping.md）
+- 文件:
+    - libs/common/Memory/LimitedFixedBufferPool.cs:
+        - GetLevel
+        - Position
+    - libs/common/Memory/PooledArrayMemoryPool.cs:
+        - OnPooledBufferDisposed
+        - Rent
+        - ThrowArgumentOutOfRange
+        - ThrowObjectDisposed
+    - libs/common/Memory/PoolEntry.cs:
+        - Reuse
+  理由: C# CLR 托管内存池与 Span 固定机制，Rust 侧通过原生所有权与切片零拷贝管理
+- 文件:
+    - libs/common/Synchronization/ActiveWorkerMonitor.cs:
+        - TryEnter
+        - TryOpen
+    - libs/common/Synchronization/CooperativeDisposeGuard.cs
+    - libs/common/Synchronization/DoubleTurnstileBarrier.cs:
+        - ProcessTimeSpan
+    - libs/common/Synchronization/LeaderBarrier.cs:
+        - TrySignalOrWait
+    - libs/common/Synchronization/ReadOptimizedLock.cs:
+        - AcquireAllExclusiveLock
+        - AcquireExclusiveLock
+        - AcquireSharedLock
+        - CalculateIndex
+        - CreateAllExclusive
+        - CreateExclusive
+        - CreateShared
+        - GetProcessorHint
+        - ReleaseLock
+        - TryAcquireExclusiveLock
+        - TryAcquireSharedLock
+        - TryPromoteSharedLock
+    - libs/common/Synchronization/SingleWriterMultiReaderLock.cs:
+        - DowngradeWriteLock
+        - ReadLock
+        - ReadUnlock
+        - TryCloseLock
+        - TryReadLock
+        - TryUpgradeReadLock
+        - TryWriteLock
+        - WriteLock
+        - WriteUnlock
+  理由: C# 同步与锁原语族，逐件说明 rust 承接点（非笼统「parking_lot」）： DoubleTurnstileBarrier 非空白，已在
+    wnode/src/aof/recover/double_turnstile_barrier.rs 以 Event+原子相位计数器 bespoke
+    复刻（struct/new 与两个异步变体 SignalWorkReadyWaitAsync /
+    SignalWorkCompletedWaitAsync 均已 /// 映射；两个内部例程 SignalWorkReadyInternal/
+    SignalWorkCompletedInternal 归并至 wait_phase 的「递增到 participant_count 即翻转代际并唤醒」
+    单点，已映射；两个阻塞变体见本文件末尾块），此处忽略 ProcessTimeSpan——它是 .NET SemaphoreSlim 的
+    timeout/cancellation 形参适配器，rust 栅栏取消超时面（对外无 timeout 参），无对应实现；
+    LeaderBarrier.TrySignalOrWait 同理由 bespoke 之外的 .NET Barrier 语义承接，rust 无同名实现。
+    ReadOptimizedLock（每核分片自旋读写锁）、SingleWriterMultiReaderLock（单写多读原子标志锁）、
+    ActiveWorkerMonitor（TryEnter/TryOpen
+    活跃工作计数）、CooperativeDisposeGuard（协作式释放守卫） 在 rust 全仓零同名类型/函数（已核
+    struct/trait/fn 定义零命中），由 wtxn/wbftree 侧 parking_lot 读写锁、原子量与 RAII Drop
+    语义就地承接，不做逐同名映射。
+- 文件:
+    - libs/common/NumUtils.cs:
+        - WriteInt32
+        - WriteInt64
+  理由: C# 字节数组整数序列化，Rust 侧通过 itoa/to_le_bytes 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - WriteDouble
+  理由: C# 字节数组浮点序列化，Rust 侧通过 ryu/dtoa 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - ReadInt64
+  理由: C# 字节数组整数反序列化，Rust 侧通过 i64::from_le_bytes 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - TryReadInt64
+  理由: C# ASCII 64 位有符号整数解析（:216，整段消费），rust 严格解析单点 wbase/src/num.rs 的 strict_i64
+    同源承接（可选 +/-、拒前导零、i64::MIN 精确可达、 溢出与尾随垃圾拒绝）；存储层旧值校验消费面由读取闭包就地对位
+    （wnode/src/resp/basic_commands/incr.rs:132 自述对位 IsValidNumber 调用）， 不设第二套
+    ASCII 整数解析口
+- 文件:
+    - libs/common/NumUtils.cs:
+        - TryReadDouble
+  理由: C# 字节数组浮点反序列化，Rust 侧通过 fast_float/parse 原生支持
+- 文件:
+    - libs/common/NumUtils.cs:
+        - CountCharsInDouble
+        - CountDigits
+        - GetNextOffset
+  理由: 零调用方死代码，Rust 侧通过 itoa / zmij / u64::trailing_zeros 原生支持，清理仅测试工具
+- 文件:
+    - libs/common/BitVector.cs:
+        - GetOffsets
+  理由: C# 位偏移内部计算私有函数，Rust 侧使用位运算符 >> 3 和 & 7 原生计算
+- 文件:
+    - libs/common/BitVector.cs:
+        - IsSet
+  理由: C# 位向量测试方法，Rust 侧通过位掩码原生判定
+- 文件:
+    - libs/common/BitVector.cs:
+        - PopCount
+  理由: C# 位计数方法，Rust 标准库 u64::count_ones 原生支持
+- 文件:
+    - libs/common/BitVector.cs:
+        - CopyFrom
+  理由: C# Span 内存拷贝辅助，Rust 侧采用字节切片/位操作原生实现，零调用方
+- 文件:
+    - libs/common/HashUtils.cs:
+        - MurmurHash3x128
+        - MurmurHash3x64
+        - MurmurHash3x64A
+        - fmix64
+  理由: C# 生产仅用 MurmurHash2x64A，MurmurHash3 与 fmix64 全仓零生产调用（whyperlog/wbase 由
+    murmur_hash2_x64_a 承接，键 ID 由 whasher 承担）
+- 文件:
+    - libs/common/AsciiUtils.cs:
+        - IsBetween
+        - ToLower
+        - ToLowerInPlace
+        - ToUpper
+        - ToUpperInPlace
+  理由: 不实现 C# 自有 ASCII 工具类，rust 侧全部消费点用 std 原生方法就地承接（已核 C# 消费点与 rust
+    对位）：AsciiUtils.cs:57 ToLowerInPlace ← 生产引用 LuaCommands.cs:67/196，rust 为
+    wlua/src/commands.rs:170 digest.make_ascii_lowercase()；AsciiUtils.cs:49
+    ToUpperInPlace ← 生产引用
+    ServerConfig.cs:17、LuaCommands.cs:229、BasicCommands.cs:694、
+    RespServerSession.cs:1308、ClientCommands.cs:42/269/337，rust 为
+    wnode/src/resp/resp_server_session.rs:2155
+    recv_buffer[..].make_ascii_uppercase() 与各参数面
+    to_ascii_uppercase（wresp/src/options.rs:48-63/106/196、
+    wresp/src/argument.rs:58）；:33 ToLower / :39 ToUpper 单字节形为上述调用内联表达； :28
+    IsBetween 字节区间谓词在 rust 以 match 分支直接判定，无独立函数
+- 文件:
+    - libs/common/Synchronization/DoubleTurnstileBarrier.cs:
+        - SignalWorkCompletedWait
+        - SignalWorkReadyWait
+  理由: C# 阻塞变体仅服务恢复 leader 与页内并行回放两条会合链，rust 无该两面且回放全走 compio 异步变体，thread-per-core
+    模型下阻塞 Thread.Wait 形态无对位；形参超时面同 ProcessTimeSpan 口径
+- 文件:
+    - libs/common/AsciiUtils.cs
+    - libs/common/BitVector.cs
+    - libs/common/ClientBase.cs
+    - libs/common/Collections/ElasticCircularBuffer.cs
+    - libs/common/Collections/ReadOptimizedConcurrentSet.cs
+    - libs/common/ConvertUtils.cs:
+        - MillisecondsFromDiffUtcNowTicks
+        - SecondsFromDiffUtcNowTicks
+    - libs/common/Crc64.cs:
+        - Crc64Bitwise
+    - libs/common/FixedSpanByteKey.cs
+    - libs/common/Format.cs:
+        - GetHostName
+        - GigaBytes
+        - IsNullOrEmpty
+        - IsNullOrWhiteSpace
+        - KiloBytes
+        - MegaBytes
+        - MemoryBytes
+        - TryConnect
+        - TryConnectAsync
+        - TryCreateEndpoint
+        - TryCreateEndpointAsync
+        - TryValidateAddress
+        - defaultBindAny
+        - defaultBindLoopBack
+    - libs/common/GarnetKeyComparer.cs
+    - libs/common/Generator.cs
+    - libs/common/HashSlotUtils.cs:
+        - Hash
+    - libs/common/Logging/FileLoggerProvider.cs
+    - libs/common/Memory/LimitedFixedBufferPool.cs:
+        - Dispose
+        - Get
+        - GetLevel
+        - Position
+        - Purge
+        - Return
+        - Validate
+    - libs/common/Memory/PoolEntry.cs
+    - libs/common/Memory/PooledArrayMemoryPool.cs
+    - libs/common/MemoryResult.cs
+    - libs/common/NetworkBufferSettings.cs
+    - libs/common/ReadOnlySequenceStream.cs
+    - libs/common/ReaderWriterLock.cs
+    - libs/common/RespMemoryWriter.cs:
+        - AsReadOnlySpan
+        - DecreaseArrayLength
+        - Dispose
+        - GetPosition
+        - Realloc
+        - ReallocateOutput
+        - ResetPosition
+        - TryWriteFalse
+        - WriteArrayItem
+        - WriteArrayLength
+        - WriteAsciiBulkString
+        - WriteBulkString
+        - WriteDirect
+        - WriteDoubleNumeric
+        - WriteEmptyArray
+        - WriteError
+        - WriteInt32
+        - WriteInt64
+        - WriteInt64AsBulkString
+        - WriteNewLine
+        - WriteOne
+        - WriteSimpleString
+        - WriteTrue
+        - WriteZero
+    - libs/common/RespReadUtils.cs:
+        - GetSerializedRecordSpan
+        - TryReadBoolWithLengthHeader
+        - TryReadDoubleWithLengthHeader
+        - TryReadErrorAsString
+        - TryReadInt32
+        - TryReadInt64
+        - TryReadInt64Safe
+        - TryReadInt64WithLengthHeader
+        - TryReadPtrWithLengthHeader
+        - TryReadSign
+        - TryReadStringResponseWithLengthHeader
+        - TryReadUInt64WithLengthHeader
+        - TrySkipByteArrayWithLengthHeader
+    - libs/common/RespWriteUtils.cs:
+        - GetBulkStringLength
+        - GetIntegerAsBulkStringLength
+        - TryWriteArrayItem
+        - TryWriteArrayLength
+        - TryWriteAsciiBulkString
+        - TryWriteAsciiDirect
+        - TryWriteBulkString
+        - TryWriteBulkStringLength
+        - TryWriteDirect
+        - TryWriteEmptyArray
+        - TryWriteEmptyMap
+        - TryWriteEmptySet
+        - TryWriteFalse
+        - TryWriteInfinity
+        - TryWriteInfinity_Numeric
+        - TryWriteInt32
+        - TryWriteInt32AsBulkString
+        - TryWriteInt64
+        - TryWriteInt64AsBulkString
+        - TryWriteInt64AsSimpleString
+        - TryWriteIntegerFromBytes
+        - TryWriteMapLength
+        - TryWriteNaN
+        - TryWriteNaN_Numeric
+        - TryWriteNewLine
+        - TryWriteNull
+        - TryWriteNullArray
+        - TryWriteOne
+        - TryWritePaddedBulkStringLength
+        - TryWritePushLength
+        - TryWriteResp3Null
+        - TryWriteSetLength
+        - TryWriteSimpleString
+        - TryWriteTrue
+        - TryWriteUtf8BulkString
+        - TryWriteVerbatimString
+        - TryWriteVerbatimStringHeader
+        - TryWriteZero
+        - WriteBytes
+        - WriteNewline
+    - libs/common/SequenceNumberGenerator.cs:
+        - ToString
+    - libs/common/SimpleObjectPool.cs
+    - libs/common/SimpleStack.cs
+    - libs/common/Synchronization/ActiveWorkerMonitor.cs
+    - libs/common/Synchronization/CountingEventSlim.cs
+    - libs/common/Synchronization/LeaderBarrier.cs
+    - libs/common/Synchronization/ReadOptimizedLock.cs
+    - libs/common/Synchronization/SingleWriterMultiReaderLock.cs
+    - libs/common/Testing/ExceptionInjectionHelper.cs
+    - libs/common/Testing/GarnetTestLoggingEventType.cs
+    - libs/common/VectorElementKey.cs
+  理由: .NET 宿主基础设施整面：RespMemoryWriter/RespReadUtils/RespWriteUtils 的 RESP 编解码由
+    wresp 单源承接（resp_memory_writer.rs/read.rs，见
+    task/done/resp-writer-single-source.md）；内存池/环形缓冲/同步原语
+    （LimitedFixedBufferPool/ReaderWriterLock/SingleWriterMultiReaderLock 等） 由
+    wbase pool 与 parking_lot/原生原子承接；FileLoggerProvider/Testing 注入 面由 log crate
+    与测试夹具承接；ClientBase 为 .NET 客户端基座（同 client.yml 客户端库不实现口径）

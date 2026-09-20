@@ -1,0 +1,12 @@
+# 三段式事务过程与提升守卫死代码清理（task/ing/wtxn-drop-dead-txn-proc-chain.md）：
+# 1. PromoteToTransaction: C# 用于 SET 族 WRONGTYPE 覆写原子化，rust 不靠提升守卫，
+#    由 wkv session raw write 同窗读改写清退承接，生产全仓零调用。
+# 2. RunTransactionProc / RunTransactionProcInternal / Log: 动态注册层按 SKILL 删除致链不可达；
+#    三段式事务过程机器全仓生产零调用，彻底清理死链。
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - Log
+        - PromoteToTransaction
+        - RunTransactionProc
+        - RunTransactionProcInternal
+  理由: 动态注册层按 SKILL 删除致链不可达；WRONGTYPE 原子化由 wkv 同窗清退单点承接。

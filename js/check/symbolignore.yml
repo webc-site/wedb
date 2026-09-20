@@ -1,0 +1,12 @@
+# 符号存在性断言（js/check/symbolCheck.js）的叙述性假阳性豁免
+# qcode.design 条 9 普查判定剔除的两条叙述性提及，非映射锚点。
+# 条目：锚点（归一后 path.cs:符号）+ 理由
+- 锚点: libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs:DRAM
+  理由: >-
+    叙述性提及（wkv/src/session/raw/read.rs:366 把 DRAM 当读缓存层级名描述），
+    非「C# 成员对位」锚点；条 9 普查已判定为假阳性保留原注释
+- 锚点: libs/server/Resp/Parser/RespCommand.cs:OBJECT_
+  理由: >-
+    叙述性前缀提及（wnode/src/resp/basic_commands/mod.rs:55 描述 OBJECT 族
+    命令前缀形态），非完整符号锚点；条 9 普查已判定为假阳性保留原注释
+

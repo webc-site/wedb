@@ -1,0 +1,8 @@
+# AOF 死代码清理：副本同步重放地址决策与数据丢失检查在 rust 收敛 ReplicationManager
+# 单点（negotiate_resync 协商体 + disk_resync_strategy / diskless_resync_strategy
+# 两条策略臂、data_loss_check，生产消费于两条链各自的 replica_sync_session.rs）
+- 文件:
+    - libs/server/AOF/GarnetAppendOnlyFile.cs:
+        - ComputeAofSubloSyncReplayAddress
+  理由: 内层逐子日志判定随宿主 ComputeAofSyncReplayAddress 一并移除（rust 侧全仓
+    零生产调用，重放决策真身收敛 ReplicationManager::negotiate_resync）

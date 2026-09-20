@@ -1,0 +1,62 @@
+[package]
+name = "wedb_standalone"
+version = "0.1.2"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wedb_standalone"
+description = "Standalone server foundation: RESP protocol, AOF logic layer, and node service orchestration"
+keywords = [ "server", "database", "resp", "redis", "aof" ]
+categories = [ "database-implementations", "network-programming" ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dependencies]
+clap.workspace = true
+
+[dependencies.wconf]
+workspace = true
+
+[dependencies.wnode]
+workspace = true
+
+
+[dev-dependencies]
+itoa.workspace = true
+parking_lot = { workspace = true, features = ["arc_lock"] }
+wacl.workspace = true
+waof.workspace = true
+wbase = { workspace = true, features = ["convert", "num", "hash_slot", "hash", "crc64", "glob", "time"] }
+wcol.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wmetric.workspace = true
+wpubsub.workspace = true
+wresp.workspace = true
+wtxn.workspace = true
+wval.workspace = true
+wvector.workspace = true
+
+[dev-dependencies.wbitmap]
+workspace = true
+
+[dev-dependencies.wbftree]
+workspace = true
+
+[dev-dependencies.wcpr]
+workspace = true
+
+[dev-dependencies.compio]
+workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "wedb-standalone"
+path = "src/main.rs"

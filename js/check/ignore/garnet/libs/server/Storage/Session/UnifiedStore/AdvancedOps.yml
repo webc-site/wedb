@@ -1,0 +1,11 @@
+# 统一存死代理清理：C# AdvancedOps.Read_UnifiedStore / RMW_UnifiedStore 是
+# "字符串域未命中再扫对象域"的会话层联合视图；rust 侧 RESP 各命令族经
+# garnet_api 直连 StorageSession 双域原语（read_string / read_tag_with /
+# object_store_utils 分层执行），不存在整值序列化联合读的独立会话入口
+- 文件:
+    - libs/server/Storage/Session/UnifiedStore/AdvancedOps.cs:
+        - Read_UnifiedStore
+        - RMW_UnifiedStore
+  理由: 全仓生产 + 测试双域零调用死代码已删除；联合视图语义由 EXISTS
+    （unified_store_ops.rs，cluster_manager_slot_gate 消费）与各命令族双域
+    直读承接，EXISTS 之外的联合包装层无接线必要

@@ -1,0 +1,24 @@
+[package]
+name = "wtest_base"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wtest_base"
+description = "Low-level test assembly: small-budget store config, temp-dir store open, RESP frame client, fake endpoints, log init"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies]
+aok.workspace = true
+compio = { workspace = true, features = ["net", "io", "runtime"] }
+ctor.workspace = true
+log.workspace = true
+log_init.workspace = true
+tempfile.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wresp.workspace = true
+
+[lints]
+workspace = true

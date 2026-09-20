@@ -1,0 +1,107 @@
+# task/ing/networking-and-migration-ignore-backfill.md 条 8（libs/common/Networking 方法族残留）
+# 单一对照表：C# 四类发送器/处理器（GarnetTcpNetworkSender / INetworkSender /
+# NetworkSenderBase / NetworkHandler / TcpNetworkHandlerBase）的池出入场、关闭时序、
+# 监听接受与节流口，rust 侧对位面实存且唯一——入站传输抽象
+# wedb/wnode/src/net/stream.rs（统一 TCP/UDS/TLS 流）、读写泵
+# wedb/wnode/src/net/handler/drive.rs、出站 wedb/wconn/src/network/
+# （stream.rs / pump.rs / replies.rs）。以下按语义族分述，各族理由各自写实。
+- 文件:
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - Enter
+        - EnterAndGetResponseObject
+        - Exit
+        - ExitAndReturnResponseObject
+        - GetResponseObjectHead
+    - libs/common/Networking/INetworkSender.cs:
+        - Enter
+        - EnterAndGetResponseObject
+        - Exit
+        - ExitAndReturnResponseObject
+        - GetResponseObjectHead
+    - libs/common/Networking/NetworkSenderBase.cs:
+        - Enter
+        - EnterAndGetResponseObject
+        - Exit
+        - ExitAndReturnResponseObject
+        - GetResponseObjectHead
+    - libs/common/Networking/NetworkHandler.cs:
+        - EnterAndGetResponseObject
+        - Exit
+        - ExitAndReturnResponseObject
+        - GetResponseObjectHead
+  理由: >-
+    SAEA 对象池与响应对象池的出入场协议（Enter/Exit 借还 SocketAsyncEventArgs 与
+    响应缓冲头指针）：rust 无池化出入场协议，一线程一 CPU 的 compio pump 模型下
+    会话独占写缓冲、所有权随会话移动并由 Drop 归还，无借还动词可挂对位体。
+    本仓既有的缓冲复用面已由 wbase/src/pool 与 wresp/src/resp_memory_writer 单点
+    承担，其映射在册，与本族池协议不同根
+- 文件:
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - Dispose
+        - DisposeNetworkSender
+        - TryClose
+    - libs/common/Networking/INetworkSender.cs:
+        - DisposeNetworkSender
+        - TryClose
+    - libs/common/Networking/NetworkSenderBase.cs:
+        - Dispose
+        - DisposeNetworkSender
+        - TryClose
+    - libs/common/Networking/TcpNetworkHandlerBase.cs:
+        - TryClose
+  理由: >-
+    显式关闭时序（TryClose 先置 closing 标志再关 SAEA 与 socket、
+    DisposeNetworkSender 由 handler 反向处置其 sender）：rust 发送器与流句柄为
+    所有权值，离开作用域即析构关 fd（wedb/wnode/src/net/stream.rs 的流与
+    wedb/wconn/src/network/stream.rs 的出站句柄皆然），断连时序由 pump 结束分支
+    单点收敛（wedb/wnode/src/net/handler/drive.rs），无二次关闭幂等口与
+    「handler 处置 sender」的互相引用面
+- 文件:
+    - libs/common/Networking/TcpNetworkHandlerBase.cs:
+        - Start
+        - StartAsync
+    - libs/common/Networking/NetworkHandler.cs:
+        - StartAsync
+        - Process
+  理由: >-
+    监听接受与请求处理循环（Start/StartAsync 注册 accept 与首个 receive 的 SAEA、
+    Process 从接收缓冲取命令并回写）：rust 侧 accept 与读写循环由
+    wedb/wnode/src/net/handler/drive.rs 的会话泵与 wedb/wnode/src/net/stream.rs
+    的流建立承担，命令处理在 resp_server_session 侧，均为已在册的其它映射，
+    本族 C# 口是宿主时序壳，无独立方法体
+- 文件:
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - IsLocalConnection
+    - libs/common/Networking/INetworkSender.cs:
+        - IsLocalConnection
+    - libs/common/Networking/NetworkSenderBase.cs:
+        - IsLocalConnection
+    - libs/common/Networking/TcpNetworkHandlerBase.cs:
+        - IsLocalConnection
+  理由: >-
+    「连接是否本机」判定在 rust 已有唯一会话级承接口
+    wedb/wnode/src/resp/resp_server_session/attach.rs:249 is_local_connection
+    （auth.rs:221 的保护级别判定即调该口），C# 把同一判定沿
+    sender/handler 继承链铺开四层是接口形状所需，rust 不再按层复刻
+- 文件:
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - Send
+  理由: >-
+    出站写口在 rust 单点为 wconn/src/network 族（stream.rs 建连与写、pump.rs
+    溢流搬运、replies.rs 应答组装），且 C# Send 是 NetworkSenderBase 的
+    abstract 同步写口（内部仍是 SAEA 异步提交），rust 侧以 async 写 +
+    AutoFlushableBufStream 承接，无同名同步 Send 形态
+- 文件:
+    - libs/common/Networking/GarnetTcpNetworkSender.cs:
+        - Throttle
+    - libs/common/Networking/INetworkSender.cs:
+        - Throttle
+    - libs/common/Networking/NetworkSenderBase.cs:
+        - Throttle
+    - libs/common/Networking/NetworkHandler.cs:
+        - Throttle
+  理由: >-
+    慢客户端节流已单点：全仓生产定义仅 wedb/wbase/src/throttle.rs:22
+    NetworkSenderThrottle（其 :3 头注自述对标 GarnetTcpNetworkSender.Throttle），
+    该口在 C# 沿 sender/handler 各层转发同一节流器，rust 由会话直持节流器，
+    无逐层转发口（其余 Throttle 同名词为 C# 他件，与本族无关）

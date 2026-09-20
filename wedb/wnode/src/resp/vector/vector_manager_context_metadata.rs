@@ -1,0 +1,442 @@
+//! 上下文元数据（对标 libs/server/Resp/Vector/VectorManager.ContextMetadata.cs）
+//!
+//! [`ContextMetadata`] 记录进程级上下文分配状态（在用/清理中/迁移中三张 64 位
+//! 位图 + 每上下文的 hash slot 表），持久化到存储的同时在内存保持副本以供快速访问。
+//! [`super::vector_manager::VectorManager`] 的本 partial 承接分配/迁移保留/
+//! FLUSH 屏蔽/命名空间编解码等管理面方法。
+
+use std::collections::BTreeSet;
+
+use super::vector_manager::{CONTEXT_METADATA_SIZE, CONTEXT_STEP, VectorManager};
+
+/// 上下文分配元数据（160 字节磁盘格式：4×u64 位图 + 64×u16 槽位）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ContextMetadata {
+  /// 修改版本号（每次变更递增，用于落盘去重）。
+  pub version: u64,
+  /// 在用位图。
+  in_use: u64,
+  /// 清理中位图。
+  cleaning_up: u64,
+  /// 迁移中位图。
+  migrating: u64,
+  /// 各位的 hash slot 分配表。
+  slots: [u16; 64],
+}
+
+impl Default for ContextMetadata {
+  fn default() -> Self {
+    Self {
+      version: 0,
+      in_use: 0,
+      cleaning_up: 0,
+      migrating: 0,
+      slots: [0; 64],
+    }
+  }
+}
+
+/// 非法 hash slot（迁移保留时尚未确定目标）。
+pub const UNKNOWN_HASH_SLOT: u16 = u16::MAX;
+
+impl ContextMetadata {
+  /// 是否完全为空（恢复期可剪枝）。
+  pub fn is_empty(&self) -> bool {
+    self.in_use == 0 && self.migrating == 0 && self.cleaning_up == 0
+  }
+
+  /// 位运算辅助：上下文 → 位下标 + 掩码。
+  #[inline]
+  fn bit(context: u16) -> (u32, u64) {
+    let ctx = u64::from(context);
+    debug_assert!(ctx % CONTEXT_STEP == 0, "只允许整块上下文，不允许子位");
+    debug_assert!((ctx / CONTEXT_STEP) < 64, "上下文超出预期范围");
+    let bit_ix = u32::try_from(ctx / CONTEXT_STEP).unwrap_or(0);
+    (bit_ix, 1u64 << bit_ix)
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:IsInUse
+  #[inline]
+  pub fn is_in_use(&self, allow_zero: bool, context: u16) -> bool {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    self.in_use & mask != 0
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:IsMigrating
+  #[inline]
+  pub fn is_migrating(&self, allow_zero: bool, context: u16) -> bool {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    self.migrating & mask != 0
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:IsCleaningUp
+  #[inline]
+  pub fn is_cleaning_up(&self, allow_zero: bool, context: u16) -> bool {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    self.cleaning_up & mask == mask
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:GetNamespacesForHashSlots
+  ///
+  /// 返回在用、未清理且命中目标 hash slot 集合的上下文块全集。
+  pub fn get_namespaces_for_hash_slots(&self, hash_slots: &BTreeSet<i32>) -> Option<Vec<u16>> {
+    let mut ret = None;
+    let mut remaining = self.in_use;
+    while remaining != 0 {
+      let in_use_ix = remaining.trailing_zeros();
+      let in_use_mask = 1u64 << in_use_ix;
+      remaining &= !in_use_mask;
+
+      if self.cleaning_up & in_use_mask != 0 {
+        // 清理中的上下文无需迁移
+        continue;
+      }
+
+      let hash_slot = self.slots[in_use_ix as usize];
+      if !hash_slots.contains(&(i32::from(hash_slot))) {
+        // 在用但不是迁移目标
+        continue;
+      }
+
+      let ret = ret.get_or_insert_with(Vec::new);
+      let ns_start = (CONTEXT_STEP * u64::from(in_use_ix)) as u16;
+      for i in 0..CONTEXT_STEP {
+        ret.push(ns_start + i as u16);
+      }
+    }
+    ret
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:NextNotInUse
+  ///
+  /// 返回下一个未占用上下文；全部占用时返回 None。
+  /// `allow_zero == false` 时整体上下文 0 保留（仅首块元数据适用）。
+  pub fn next_not_in_use(&self, allow_zero: bool) -> Option<u16> {
+    let mut ignoring_unusable = self.in_use;
+    if !allow_zero {
+      ignoring_unusable |= 1;
+    }
+
+    let free = !ignoring_unusable;
+    if free == 0 {
+      return None;
+    }
+    let bit = free.trailing_zeros();
+    if bit >= 64 {
+      return None;
+    }
+    Some((u64::from(bit) * CONTEXT_STEP) as u16)
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:TryReserveForMigration
+  ///
+  /// 保留 count 个上下文供迁移使用（标记在用 + 迁移中，slot 暂记非法值）。
+  pub fn try_reserve_for_migration(&mut self, allow_zero: bool, count: usize) -> Option<Vec<u16>> {
+    let mut available_mask = self.in_use;
+    if !allow_zero {
+      available_mask |= 1;
+    }
+    let available = (available_mask).count_ones() as usize;
+    let free_count = 64 - available;
+    if free_count < count {
+      return None;
+    }
+
+    let mut reserved = Vec::with_capacity(count);
+    for _ in 0..count {
+      let ctx = self.next_not_in_use(allow_zero)?;
+      self.mark_in_use(allow_zero, ctx, UNKNOWN_HASH_SLOT);
+      self.mark_migrating(allow_zero, ctx);
+      reserved.push(ctx);
+    }
+    Some(reserved)
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:MarkInUse
+  pub fn mark_in_use(&mut self, allow_zero: bool, context: u16, hash_slot: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (bit_ix, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask == 0, "即将标记的上下文已在使用");
+    self.in_use |= mask;
+    self.slots[bit_ix as usize] = hash_slot;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:MarkMigrating
+  pub fn mark_migrating(&mut self, allow_zero: bool, context: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask != 0, "迁移标记要求上下文已在使用");
+    debug_assert!(self.migrating & mask == 0, "上下文已处于迁移中");
+    self.migrating |= mask;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:MarkMigrationComplete
+  pub fn mark_migration_complete(&mut self, allow_zero: bool, context: u16, hash_slot: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (bit_ix, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask != 0, "应已在使用");
+    debug_assert!(self.migrating & mask != 0, "应为迁移目标");
+    self.migrating &= !mask;
+    self.slots[bit_ix as usize] = hash_slot;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:MarkCleaningUp
+  pub fn mark_cleaning_up(&mut self, allow_zero: bool, context: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask != 0, "清理标记要求上下文已在使用");
+    debug_assert!(self.cleaning_up & mask == 0, "上下文已处于清理中");
+    self.cleaning_up |= mask;
+    // 若正在迁移则一并终止；slot 保留备用
+    self.migrating &= !mask;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:ClearIsCleaningUp
+  pub fn clear_is_cleaning_up(&mut self, allow_zero: bool, context: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (_, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask != 0, "被清理的上下文应在使用中");
+    debug_assert!(self.cleaning_up & mask != 0, "未标记清理的上下文不能清除");
+    self.cleaning_up &= !mask;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:FinishedCleaningUp
+  pub fn finished_cleaning_up(&mut self, allow_zero: bool, context: u16) {
+    debug_assert!(
+      allow_zero || context != 0,
+      "Zero context not permitted here"
+    );
+    let (bit_ix, mask) = Self::bit(context);
+    debug_assert!(self.in_use & mask != 0, "清理完成的上下文应在使用中");
+    debug_assert!(self.cleaning_up & mask != 0, "清理完成的上下文应已标记");
+    self.cleaning_up &= !mask;
+    self.in_use &= !mask;
+    self.slots[bit_ix as usize] = 0;
+    self.version += 1;
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:GetNeedCleanup
+  pub fn get_need_cleanup(&self) -> Option<Vec<u16>> {
+    if self.cleaning_up == 0 {
+      return None;
+    }
+    Some(bits_to_contexts(self.cleaning_up))
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:GetMigrating
+  pub fn get_migrating(&self) -> Option<Vec<u16>> {
+    if self.migrating == 0 {
+      return None;
+    }
+    Some(bits_to_contexts(self.migrating))
+  }
+
+  /// 序列化为 160 字节磁盘格式（4×u64 + 64×u16，小端）。
+  pub fn to_bytes(&self) -> [u8; CONTEXT_METADATA_SIZE] {
+    let mut out = [0u8; CONTEXT_METADATA_SIZE];
+    out[0..8].copy_from_slice(&self.version.to_le_bytes());
+    out[8..16].copy_from_slice(&self.in_use.to_le_bytes());
+    out[16..24].copy_from_slice(&self.cleaning_up.to_le_bytes());
+    out[24..32].copy_from_slice(&self.migrating.to_le_bytes());
+    for (i, slot) in self.slots.iter().enumerate() {
+      out[32 + i * 2..32 + i * 2 + 2].copy_from_slice(&slot.to_le_bytes());
+    }
+    out
+  }
+
+  /// 从磁盘字节反序列化。
+  pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+    if bytes.len() != CONTEXT_METADATA_SIZE {
+      return None;
+    }
+    let rd_u64 = |off: usize| u64::from_le_bytes(bytes[off..off + 8].try_into().unwrap());
+    let mut slots = [0u16; 64];
+    for (i, slot) in slots.iter_mut().enumerate() {
+      *slot = u16::from_le_bytes(bytes[32 + i * 2..32 + i * 2 + 2].try_into().unwrap());
+    }
+    Some(Self {
+      version: rd_u64(0),
+      in_use: rd_u64(8),
+      cleaning_up: rd_u64(16),
+      migrating: rd_u64(24),
+      slots,
+    })
+  }
+}
+
+/// 位图 → 上下文块起始值列表。
+fn bits_to_contexts(bits: u64) -> Vec<u16> {
+  let mut ret = Vec::new();
+  let mut remaining = bits;
+  while remaining != 0 {
+    let ix = remaining.trailing_zeros();
+    ret.push((u64::from(ix) * CONTEXT_STEP) as u16);
+    remaining &= !(1u64 << ix);
+  }
+  ret
+}
+
+use wvector::store::StoreCallbacks;
+
+impl<S: StoreCallbacks> VectorManager<S> {
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:DecomposeContext
+  ///
+  /// 将存储外的上下文拆为 (元数据数组下标， 元数据内上下文值)。
+  pub fn decompose_context(context: u64) -> (usize, u16) {
+    (
+      (context / (64 * CONTEXT_STEP)) as usize,
+      (context % (64 * CONTEXT_STEP)) as u16,
+    )
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:OffsetForContextMetadata
+  ///
+  /// 给定元数据数组下标，返回其承载的首个上下文。
+  pub fn offset_for_context_metadata(context_metadata_index: usize) -> u64 {
+    (context_metadata_index as u64) * 64 * CONTEXT_STEP
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:NextVectorSetContext
+  ///
+  /// 分配全局唯一的新上下文（必要时扩容元数据数组）。
+  pub fn next_vector_set_context(&self, hash_slot: u16) -> Option<u64> {
+    let mut metas = self.context_metadatas.lock();
+    let mut start_from = 0usize;
+
+    loop {
+      for i in start_from..metas.len() {
+        let allow_zero = i != 0;
+        if let Some(next_free) = metas[i].next_not_in_use(allow_zero) {
+          metas[i].mark_in_use(allow_zero, next_free, hash_slot);
+          let context = Self::offset_for_context_metadata(i) + u64::from(next_free);
+          self.dirty_context_metadatas.lock().insert(i);
+          self.persist_context_metadata(&metas);
+          return Some(context);
+        }
+      }
+
+      // 超过 uint.MaxValue 上下文上限（约 830 万 Vector Set）视为错误
+      let limit_of_new_allocation =
+        Self::offset_for_context_metadata(metas.len()) + 64 * CONTEXT_STEP;
+      if limit_of_new_allocation > u64::from(u32::MAX) {
+        return None;
+      }
+
+      // 全部已满：扩容一个 ContextMetadata
+      metas.push(ContextMetadata::default());
+      start_from = metas.len() - 1;
+      self.dirty_context_metadatas.lock().insert(start_from);
+    }
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:ReserveContextsForMigration
+  ///
+  /// 为迁移保留 count 个上下文（尚未"可见"，但已不可他用）。
+  pub fn reserve_contexts_for_migration(&self, count: usize) -> Option<Vec<u64>> {
+    debug_assert!(
+      count > 0 && count <= 64,
+      "单个 ContextMetadata 至多承载 64 个上下文"
+    );
+
+    let mut metas = self.context_metadatas.lock();
+    let mut start_from = 0usize;
+
+    loop {
+      for i in start_from..metas.len() {
+        let allow_zero = i != 0;
+        if let Some(sub_contexts) = metas[i].try_reserve_for_migration(allow_zero, count) {
+          let offset = Self::offset_for_context_metadata(i);
+          self.dirty_context_metadatas.lock().insert(i);
+          self.persist_context_metadata(&metas);
+          return Some(
+            sub_contexts
+              .iter()
+              .map(|c| offset + u64::from(*c))
+              .collect(),
+          );
+        }
+      }
+
+      let limit_of_new_allocation =
+        Self::offset_for_context_metadata(metas.len()) + 64 * CONTEXT_STEP;
+      if limit_of_new_allocation > u64::from(u32::MAX) {
+        return None;
+      }
+
+      metas.push(ContextMetadata::default());
+      start_from = metas.len() - 1;
+      self.dirty_context_metadatas.lock().insert(start_from);
+    }
+  }
+
+  /// libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:UpdateContextMetadata
+  ///
+  /// 将脏元数据刷入持久化承接层（wkv 集成前为域内记录表）。
+  pub fn update_context_metadata(&self) {
+    let metas = self.context_metadatas.lock();
+    self.persist_context_metadata(&metas);
+  }
+
+  /// 脏元数据落盘承接（逐条写持久化表并清空脏集；同步写透
+  /// KeyTag::VectorRegistry 旁路记录——C# 元数据记录驻主存随检查点持久
+  /// 的 rust 等价承接）。
+  fn persist_context_metadata(&self, metas: &[ContextMetadata]) {
+    let mut dirty = self.dirty_context_metadatas.lock();
+    let store = self.metadata_store.pin();
+    for &i in dirty.iter() {
+      if let Some(meta) = metas.get(i) {
+        let bytes = meta.to_bytes();
+        store.insert(i as i32, bytes);
+        self.persist_registry_metadata(i as i32, &bytes);
+      }
+    }
+    dirty.clear();
+  }
+
+  /// 汇总所有元数据块中命中给定 hash slot 的命名空间（迁移用，委托各 ContextMetadata 扫描）。
+  pub fn get_namespaces_for_hash_slots(&self, hash_slots: &BTreeSet<i32>) -> BTreeSet<u64> {
+    let mut ret = BTreeSet::new();
+    let metas = self.context_metadatas.lock();
+    for (i, meta) in metas.iter().enumerate() {
+      let offset = Self::offset_for_context_metadata(i);
+      if let Some(sub) = meta.get_namespaces_for_hash_slots(hash_slots) {
+        for item in sub {
+          ret.insert(offset + u64::from(item));
+        }
+      }
+    }
+    ret
+  }
+}

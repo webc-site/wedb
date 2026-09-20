@@ -1,0 +1,59 @@
+//! 多实例合并与融合逻辑（对标 HyperLogLog.cs 合并分支）。
+
+use crate::{HllDtype, HyperLogLog, SPARSE_MAX_BYTES_PER_INSERT};
+
+impl HyperLogLog {
+  /// 原位合并：目标稠密可直接并入；目标稀疏须确认空间充足
+  ///
+  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:TryMerge
+  pub fn try_merge(&self, src: &[u8], dst: &mut [u8], dst_len: usize) -> bool {
+    let dtype_dst = Self::get_type(dst);
+    if dtype_dst == HllDtype::Dense as u8 {
+      self.merge(src, dst);
+      self.set_card(dst, i64::MIN);
+      return true;
+    }
+
+    // 目标稀疏
+    let dtype_src = Self::get_type(src);
+    if dtype_src == HllDtype::Sparse as u8 {
+      let src_non_zero_bytes = self.sparse_count_non_zero(src) * SPARSE_MAX_BYTES_PER_INSERT;
+
+      if self.sparse_current_size_in_bytes(dst) + src_non_zero_bytes < dst_len {
+        self.merge(src, dst);
+        self.set_card(dst, i64::MIN);
+        return true;
+      }
+
+      return false;
+    }
+
+    // 稠密→稀疏恒失败
+    false
+  }
+
+  /// 合并分派（按两侧编码选择路径）
+  ///
+  /// libs/server/Resp/HyperLogLog/HyperLogLog.cs:Merge
+  pub fn merge(&self, src: &[u8], dst: &mut [u8]) -> bool {
+    let dtype_src = Self::get_type(src);
+    let dtype_dst = Self::get_type(dst);
+
+    match (dtype_src, dtype_dst) {
+      (s, d) if d == HllDtype::Dense as u8 => {
+        if s == HllDtype::Sparse as u8 {
+          self.sparse_to_dense(src, dst)
+        } else {
+          self.dense_to_dense(src, dst)
+        }
+      }
+      (s, d) if s == HllDtype::Sparse as u8 && d == HllDtype::Sparse as u8 => {
+        self.sparse_to_sparse(src, dst)
+      }
+      _ => {
+        debug_assert!(false, "Merge exception");
+        false
+      }
+    }
+  }
+}

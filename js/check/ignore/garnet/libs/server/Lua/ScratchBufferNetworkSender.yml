@@ -1,0 +1,7 @@
+# Lua 假网络层清理：C# ScratchBufferNetworkSender : INetworkSender 是 Socket 流
+# 形状约束下的 Dummy 占位（TryConsumeMessages 需要 INetworkSender 实参所致）
+- 文件:
+    - libs/server/Lua/ScratchBufferNetworkSender.cs
+  理由: rust 侧 ScriptingApi::dispatch_resp 为自有 trait 方法，无 INetworkSender
+    形状约束，应答直收 &mut Vec<u8>；响应字节由真实会话 output 单点产出，
+    假发送器连同 MaxSizeSettings 档位一并删除，消除双份应答拼装

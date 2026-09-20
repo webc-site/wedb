@@ -1,0 +1,21 @@
+# C# AccessControlList 的文件配置环（Import/Load/Save）与用户大字典读写面
+# （AddUserHandle/ClearUsers/GetUserHandle 族）在 rust 侧整体废弃。transpile 规范
+# 「ACL 数据库持久化与零全局内存」：彻底废弃文件配置，用户规则以 KeyTag::Acl
+# (0x0D) 存入底层存储，认证/管理经 wedb/wnode/src/resp/acl_store.rs 按需点查，
+# 全局无用户大字典，内存与用户总量彻底脱钩
+- 文件:
+    - libs/server/ACL/AccessControlList.cs:
+        - Import
+        - AddUserHandle
+        - ClearUsers
+        - Load
+        - Save
+        - GetUserHandle
+        - GetUserHandles
+        - DeleteUserHandle
+  理由: 按转写规范废弃 ACL 文件配置与内存用户大字典；用户装载/写入改由
+    KeyTag::Acl 存储记录承接（acl_store.rs 读写删扫，即写即持久），文件解析
+    （Load/Save）与字典增删查面（GetUserHandle 族句柄直取/删除）整体移除，
+    认证侧句柄获取由 ACL 基座内存单例承接
+    （wacl/src/auth/garnet_acl_authenticator.rs，已锚
+    GarnetACLAuthenticator.cs:GetUserHandle）

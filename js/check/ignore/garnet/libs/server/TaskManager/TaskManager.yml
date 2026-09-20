@@ -1,0 +1,14 @@
+# 注册表托管面判定不移植（fixloop task-manager-single-lifecycle-track 双轨归一）。
+# C# 单一 TaskManager 成立前提是 .NET 全局线程池可跨线程 RegisterAndRun/CancelAsync；
+# rust compio 一线程一运行时，任务控制点（首会话惰性拉起/CONFIG SET/角色切换/停机 join）
+# 均在任意 worker 或集群线程，线程局部注册表（Rc + 线程局部 CancelToken）无法覆盖，
+# 强行接线需新造跨线程取消机制，超出 C# 复杂度（违反「不引入额外机制」）。
+# 后台任务启停/取消/观测唯一轨由 wnode::primary_tasks 角色位 + 频率槽位每轮重读 +
+# 弱引用自退出承接；ExpiredKeyDeletion/Compaction 由 wkv GC 域 stop_gc/start_gc/
+# reconcile_gc_scan 承接；停机收敛随 runtime 析构（server.rs stop join 注释）。
+# 详见 task/done/task-manager-single-lifecycle-track.md。
+- 文件:
+    - libs/server/TaskManager/TaskManager.cs
+  理由: >-
+    注册表托管面判定不移植：compio 一线程一运行时拓扑下跨线程注册/取消前提不成立，
+    生命周期唯一轨由 primary_tasks 域 + wkv GC 域承接（双轨归一，删除未接线死轨）。

@@ -1,0 +1,17 @@
+[package]
+name = "wtxn_test"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/webc-site/wedb.git"
+homepage = "https://github.com/webc-site/wedb/tree/main/wtxn_test"
+description = "wtxn test support: mock transaction session for cross-crate unit tests"
+keywords = ["transactions", "test", "testing", "mock"]
+categories = ["development-tools::testing"]
+
+[dependencies]
+itoa.workspace = true
+wtxn.workspace = true
+
+[lints]
+workspace = true
