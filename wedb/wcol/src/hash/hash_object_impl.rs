@@ -256,8 +256,8 @@ impl HashObject {
       let value = chunk[1];
 
       if matches!(
-        HashOperation::try_from(hash_op),
-        Ok(HashOperation::Hset) | Ok(HashOperation::Hmset)
+        HashOperation::from_repr(hash_op),
+        Some(HashOperation::Hset) | Some(HashOperation::Hmset)
       ) {
         match self.hash.get_mut(key) {
           None => {
@@ -305,7 +305,7 @@ impl HashObject {
     output: &mut ObjectOutput<'_>,
   ) {
     let count = self.purge_expired_len();
-    let Ok(op) = HashOperation::try_from(sub_id) else {
+    let Some(op) = HashOperation::from_repr(sub_id) else {
       return;
     };
 

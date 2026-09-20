@@ -28,30 +28,6 @@ libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:MarkRecoveredFromCheckpoi
 C# 在 HybridLog 恢复遍历中，直接在恢复缓冲区页加载期就地触发 OnRecoverySnapshotRead，通过 Unsafe.As 就地修改记录字节切片（stub.TreeHandle = nint.Zero; stub.IsRecovered = true;），既不产生中间堆分配集合，也不遍历哈希索引，更绝不会在恢复期对 HybridLog 调用 Append 强推尾部记录。
 建议优化：在 run_recovery_kernel 扫描或页面加载时就地完成桩内存字节更新（针对内存驻留页）或仅将 pending 状态注册到 RangeIndexManager 内存映射（由后续访问触发惰性恢复，对标 C# 的惰性恢复），移除 Step 3 的全索引哈希扫描和 hlog.append 降级追加。
 
-问题 2：wbftree RestoreTree 冗余全目录文件扫描与人造代数状态机
-
-具体问题：
-在 wedb/wbftree/src/manager/lifecycle.rs:restore_tree 中，当访问冷存根需要恢复树时，如果 addr_flush_scan_pending() 为真，会调用 self.flush_files()。该方法通过 fs::read_dir 遍历扫描整个 ri_log_root 磁盘目录下的所有文件并解码文件名，以找到地址最大的刷盘文件（addr 最大）并将其复制为 data.bftree。
-为了避免每次冷读都进行 O(N 文件) 的目录阻塞扫描，Rust 侧引入了一套复杂的人造代数追踪机制：
-addr_flush_gen: AtomicU64、addr_flush_settled_gen: AtomicU64、addr_flush_scan_pending()、addr_flush_scan_token()、settle_addr_flush_scan()、notice_addr_flush_files()。
-
-rust 侧文件与函数：
-wedb/wbftree/src/manager/lifecycle.rs:BfTreeManager::restore_tree（约 :238-264）
-wedb/wbftree/src/manager/flush.rs:BfTreeManager::flush_files（约 :15-55）
-wedb/wbftree/src/manager/mod.rs:BfTreeManager::addr_flush_scan_pending / notice_addr_flush_files / settle_addr_flush_scan
-
-c# 对位文件与函数：
-libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree（约 :310-325）
-libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:RecreateIndex（约 :184-192）
-
-对照分析与建议动作：
-在 Garnet C# 的设计中，RestoreTree 极度纯粹精简：它只检查工作文件 File.Exists(workingPath)（其中 workingPath = LogDataPath(hashPrefix)），不存在则断言或报错。
-因为所有进入冷态待恢复的树文件，均由明确的生命周期钩子预置就位（Pre-staged）：
-1. 刷盘提升或访问前由 PreStageAndRegisterPending 或 PostCopyToTail 预置；
-2. 检查点恢复由 OnRecoverySnapshotRead 预置。
-C# 的 RestoreTree 内部绝不执行全目录扫描，也完全不需要 addr_flush_gen、addr_flush_settled_gen 等复杂的人造代数机制。
-建议优化：清理 restore_tree 中的目录回退扫描逻辑，将树文件的预置（pre-stage）严格收口在刷盘和恢复生命周期中，移除 addr_flush_gen 及其配套的一整套扫描判定状态机与 flush_files 目录枚举。
-
 问题 5：check.js 存储域锚点撞名冲突甄别与注释清理（InPlaceUpdater 与 TraceBackForKeyMatch）
 
 具体问题：

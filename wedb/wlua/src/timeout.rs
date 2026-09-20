@@ -40,7 +40,8 @@ pub struct TimeoutRegistration {
 }
 
 impl TimeoutRegistration {
-  /// C# Registration.SetCookie（run 开始形态）：登记截止 = now + timeout。
+  /// libs/server/Lua/LuaTimeoutManager.cs:SetCookie（run 开始形态）：
+  /// 登记截止 = now + timeout。
   pub fn arm(&self, now_monotonic_millis: i64, timeout_millis: i64) {
     self.deadline.store(
       now_monotonic_millis + timeout_millis.max(1),
@@ -128,7 +129,7 @@ impl LuaTimeoutManager {
     self.tick_millis
   }
 
-  /// C# RegisterForTimeout：登记返回句柄。
+  /// libs/server/Lua/LuaTimeoutManager.cs:RegisterForTimeout：登记返回句柄。
   ///
   /// 会话缓存首个脚本装载成功时调用（C# TryLoad 尾部登记——非每会话，
   /// 只为会跑脚本的会话付出登记成本）。
@@ -146,7 +147,7 @@ impl LuaTimeoutManager {
     registration
   }
 
-  /// C# RemoveRegistration（Registration.Dispose 落点）：注销登记。
+  /// libs/server/Lua/LuaTimeoutManager.cs:RemoveRegistration：注销登记。
   ///
   /// 会话缓存销毁时调用；未登记时为空操作。
   pub fn remove(&self, registration: &TimeoutRegistration) {

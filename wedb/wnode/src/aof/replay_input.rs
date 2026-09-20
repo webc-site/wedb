@@ -72,7 +72,7 @@ impl<'a> ReplayInputRef<'a> {
     if bytes.len() < REPLAY_INPUT_HEADER_SIZE {
       return None;
     }
-    let cmd = RespCommand::try_from(u16::from_le_bytes([bytes[0], bytes[1]])).ok()?;
+    let cmd = RespCommand::from_repr(u16::from_le_bytes([bytes[0], bytes[1]]))?;
     // 参数序列区：waof 单点零拷贝解码
     let args = decode_arg_slices(&bytes[REPLAY_INPUT_HEADER_SIZE..])?;
     Some(Self {

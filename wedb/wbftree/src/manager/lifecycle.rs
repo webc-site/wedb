@@ -108,6 +108,7 @@ impl RangeIndexManager {
       config,
       backend_type,
       file_path_str,
+      true,
     )?))
   }
 

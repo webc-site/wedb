@@ -13,6 +13,11 @@ use wbase::hex::hex_encode_20;
 pub const SHA1_HEX_LEN: usize = 40;
 
 /// 脚本摘要键：20 字节 SHA1 的 40 字符小写十六进制串（定长缓冲，零分配）。
+///
+/// 桶散布承接：libs/server/Lua/ScriptHashKey.cs:GetHashCode（取首 4 字节）
+/// 由 `#[derive(Hash)]` 单点派生（gxhash Hasher 全缓冲混洗），无独立散布
+/// 函数面；等值判定 `PartialEq` 同为派生（C# Equals 的 40 字节向量比对，
+/// 摘要键下等价）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ScriptHashKey {
   /// 摘要缓冲（小写十六进制 ASCII，恒 40 字节有效）。
