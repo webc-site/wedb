@@ -304,7 +304,9 @@ fn test_pre_stage_missing_source_and_restore_error() -> Result<()> {
   OK
 }
 
-/// 刷盘快照文件名严格解析：带符号等非法地址段的外来文件绝不被选中为恢复来源，也绝不被 on_truncate 误删
+/// 刷盘快照文件名严格解析与单件预置：带符号等非法地址段的外来文件绝不会成为
+/// 恢复来源 (预置只按存根源记录的精确地址取那一个文件，不做目录择优扫描)，
+/// 也绝不被 on_truncate 误删
 #[test]
 fn test_flush_file_name_strict_parsing() -> Result<()> {
   let env = ManagerEnvGuard::new("fname");
@@ -329,8 +331,10 @@ fn test_flush_file_name_strict_parsing() -> Result<()> {
     .join(format!("{}.{}.flush.bftree", hash_prefix, "z".repeat(13)));
   fs::write(&hostile2, b"bad2")?;
 
-  // 注销在线树后惰性恢复：必须仅选中合法刷盘文件并成功从其快照恢复
+  // 注销在线树并清走工作文件：只剩非法命名的残件时冷读必须显式报错
+  // (1:1 对标 C# RestoreTree 的 File.Exists(workingPath) 预置不变量，绝不回退到其他刷盘件)
   assert!(manager.dispose_tree_under_lock(key, false).unwrap());
+  fs::remove_file(manager.data_file_path(&hash_prefix))?;
   let stub = RangeIndexStub::new(
     0,
     16 * 1024 * 1024,
@@ -340,6 +344,10 @@ fn test_flush_file_name_strict_parsing() -> Result<()> {
     4096,
     StorageBackendType::Disk,
   );
+  assert!(manager.get_or_open_tree(key, &stub).is_err());
+
+  // 按精确源地址预置合法刷盘件后惰性恢复：从该件完整回读
+  manager.pre_stage_and_register_pending(key, 0x10)?;
   let restored = manager.get_or_open_tree(key, &stub)?;
   assert_eq!(
     restored.read(b"k1"),
@@ -465,29 +473,25 @@ fn test_checkpoint_skips_entries_registered_after_barrier() -> Result<()> {
   OK
 }
 
-/// get_or_open_tree 恢复拷贝失败必须传播错误，绝不静默回退到陈旧/损坏的 data.bftree
+/// 预置拷贝失败必须传播错误，绝不静默留下陈旧/半写的 data.bftree 供恢复
+/// (1:1 对标 C# PreStageAndRegisterPending 的 File.Copy 异常传播)
 #[test]
-fn test_get_or_open_tree_copy_failure_propagates() -> Result<()> {
+fn test_pre_stage_copy_failure_propagates() -> Result<()> {
   let env = ManagerEnvGuard::new("copyfail");
   let manager = RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap();
   let key = b"copy_fail_key";
 
   let hash_prefix = RangeIndexManager::base32_prefix_of(key);
-  // 仅放置刷盘快照，并把 data.bftree 位置占用为目录，迫使恢复拷贝必然失败
+  // 仅放置刷盘快照，并把 data.bftree 位置占用为目录，迫使预置拷贝必然失败
   fs::write(manager.log_flush_path(&hash_prefix, 0x10), b"snapshot")?;
   fs::create_dir_all(manager.data_file_path(&hash_prefix))?;
 
-  let stub = RangeIndexStub::new(
+  assert!(manager.pre_stage_and_register_pending(key, 0x10).is_err());
+  assert_eq!(
+    manager.live_index_count(),
     0,
-    16 * 1024 * 1024,
-    4,
-    1024,
-    32,
-    4096,
-    StorageBackendType::Disk,
+    "拷贝失败不得注册 pending 条目"
   );
-  assert!(manager.get_or_open_tree(key, &stub).is_err());
-  assert_eq!(manager.live_index_count(), 0);
 
   OK
 }
@@ -617,11 +621,10 @@ fn test_pre_stage_preserves_existing_entry() -> Result<()> {
   OK
 }
 
-/// IsRecovered 存根必须绕过刷盘快照，从检查点预置的 data.bftree 恢复：
-/// 检查点之前的旧世代带地址刷盘快照绝不能覆盖检查点状态
-/// (1:1 对齐 C#：recovered 存根仅经 RestoreTree 打开 data.bftree)
+/// 冷读只打开检查点预置的 data.bftree：检查点之前的旧世代带地址刷盘快照绝不
+/// 参与恢复 (1:1 对标 C# RestoreTree 仅 File.Exists(workingPath) + RecoverFromCprSnapshot)
 #[test]
-fn test_recovered_stub_ignores_stale_flush_files() -> Result<()> {
+fn test_cold_restore_never_consumes_stale_flush_files() -> Result<()> {
   let env = ManagerEnvGuard::new("recov_stub");
   let manager = RangeIndexManager::new(&env.ri_root.path, &env.cpr_root.path).unwrap();
   let key = b"recovered_stub_key";
@@ -658,7 +661,7 @@ fn test_recovered_stub_ignores_stale_flush_files() -> Result<()> {
   assert_eq!(
     recovered.read(b"k1"),
     (BfTreeReadResult::Found, Some(b"new_v".to_vec())),
-    "recovered 存根必须取检查点状态，而非更早的刷盘快照"
+    "冷读必须取检查点预置的 data.bftree，而非更早的刷盘快照"
   );
 
   OK

@@ -8,7 +8,8 @@
 //! 1. 白名单放行：RI 键上 TYPE / EXISTS / DEL 正常，读数据命令回 WRONGTYPE
 //! 2. RENAME 专项：RI 键不因门禁被拒（迁移本体未落地，见该文档 §五.1）
 //! 3. 拦截方向一（普通写打 RI 键）：字符串写入口一律 WRONGTYPE
-//!    （`wnode/src/resp/basic_commands/set.rs:ri_write_gate`）
+//!    （`wnode/src/resp/basic_commands/set.rs:ri_write_gate`，MSET 批量入口
+//!    折叠前预检共用同一单点门，整命令拒绝零半提交）
 //! 4. 拦截方向二（RI 命令打非 RI 键）：字符串键 / 集合信封键一律 WRONGTYPE
 //!    （建索引入口三态与存根装载入口，`wkv/src/range_index` 的 ops 与 stub）
 //! 5. 缺失键：三域皆缺才是索引缺失，答 not found / no such range index
@@ -195,6 +196,25 @@ fn string_write_on_range_index_key_is_wrongtype() {
   }
 
   // 门拦住写面：索引类型与树内字段完好
+  assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx"]), b"+rangeindex\r\n");
+  assert_eq!(
+    cmd(&rt, &mut c, &["RI.GET", "idx", "field1"]),
+    b"$6\r\nvalue1\r\n"
+  );
+
+  // MSET 批量入口：折叠前预检同一单点门，任一键为 RI 整命令拒 WRONGTYPE，
+  // 且零键半提交（同命令普通键也不落库）；MSETNX 的 NX 存活判定视 Meta
+  // 元记录为存在，天然回 :0 不覆写（写门不重复叠加）
+  assert!(
+    is_wrongtype(&cmd(&rt, &mut c, &["MSET", "idx", "v"])),
+    "MSET 打 RI 键应回 WRONGTYPE"
+  );
+  assert!(
+    is_wrongtype(&cmd(&rt, &mut c, &["MSET", "m1", "v1", "idx", "v2"])),
+    "MSET 混列 RI 键应整命令拒 WRONGTYPE"
+  );
+  assert_eq!(cmd(&rt, &mut c, &["GET", "m1"]), b"$-1\r\n");
+  assert_eq!(cmd(&rt, &mut c, &["MSETNX", "idx", "v"]), b":0\r\n");
   assert_eq!(cmd(&rt, &mut c, &["TYPE", "idx"]), b"+rangeindex\r\n");
   assert_eq!(
     cmd(&rt, &mut c, &["RI.GET", "idx", "field1"]),

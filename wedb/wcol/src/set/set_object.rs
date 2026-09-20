@@ -29,9 +29,7 @@ use crate::{
 /// 集合操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/Set/SetObject.cs:SetOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum SetOperation {
   Sadd = 0,
@@ -188,7 +186,7 @@ impl SetObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
-    let Some(op) = SetOperation::try_from(sub_id).ok() else {
+    let Some(op) = SetOperation::from_repr(sub_id) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
       RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
@@ -321,5 +319,12 @@ impl GarnetObjectPayload for SetObject {
   #[inline]
   fn is_empty(&self) -> bool {
     self.set.is_empty()
+  }
+}
+
+impl From<SetOperation> for u8 {
+  #[inline]
+  fn from(op: SetOperation) -> Self {
+    op as u8
   }
 }

@@ -43,7 +43,6 @@ use crate::{
     garnet_api::GarnetApi,
     info_provider::SessionInfoSource,
     parser::resp_command::{MruCommandCache, is_allowed_in_subscription_mode},
-    resp_commands_info_data::resp_command_to_cs_name,
     slow_path::SlowWait,
   },
   servers::consumer_registry::write_client_info_fields,
@@ -585,7 +584,7 @@ impl RespServerSession {
           {
             // 对标 libs/server/Resp/RespServerSession.cs:659（string.Format(
             // CmdStrings.GenericPubSubCommandNotAllowed, cmd.ToString())）
-            let name = resp_command_to_cs_name(cmd);
+            let name = cmd.to_cs_name();
             self.write_error_response(&cs::GENERIC_PUBSUB_COMMAND_NOT_ALLOWED.replace("{0}", name));
           } else if self.txn_state != TxnState::None {
             // C# 事务门：Running 直通（事务 API 与单机同一执行路径）；

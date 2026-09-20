@@ -15,7 +15,7 @@ workspace = true
 hdrhistogram = "7"
 itoa.workspace = true
 log.workspace = true
-num_enum = "0.7.6"
+num_enum.workspace = true
 parking_lot = { workspace = true, features = ["arc_lock"] }
 wbase = { workspace = true, features = ["convert", "num", "time"] }
 wresp.workspace = true

@@ -20,7 +20,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 bitflags.workspace = true
 
 itoa.workspace = true
-num_enum = "0.7.6"
 serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
 sonic-rs.workspace = true

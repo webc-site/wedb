@@ -103,8 +103,13 @@ pub struct SessionScriptCache {
 }
 
 impl Drop for SessionScriptCache {
-  /// C# SessionScriptCache.Dispose → Clear：注销超时登记
-  /// （timeoutRegistration?.Dispose()），杜绝会话销毁后 tick 空扫。
+  /// libs/server/Lua/SessionScriptCache.cs:Dispose
+  ///
+  /// C# Dispose = Clear() + scratchBufferNetworkSender.Dispose() +
+  /// processor.Dispose()；rust 会话缓存无内嵌 RespServerSession 与
+  /// ScratchBuffer 发送器（脚本 redis.call 经 ScriptingApi 直达宿主会话），
+  /// 注销超时登记（Clear 的 timeoutRegistration?.Dispose() 落点）是唯一
+  /// 需显式收尾的面，其余字段随结构体 Drop 自然释放。
   fn drop(&mut self) {
     if let Some(t) = self.timeout.take()
       && let Some(registration) = &t.registration

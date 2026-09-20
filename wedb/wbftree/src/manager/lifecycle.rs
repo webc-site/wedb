@@ -108,6 +108,7 @@ impl RangeIndexManager {
       config,
       backend_type,
       file_path_str,
+      true,
     )?))
   }
 
@@ -128,10 +129,10 @@ impl RangeIndexManager {
     // 清理旧世代磁盘工件：注册表无条目时数据文件与刷盘快照必无在线引擎引用
     // (条带锁内裁决，pending 条目已在上方 IndexExists 拦截)。引擎以
     // create(true)+truncate(false) 打开基文件，残留的旧内容 (崩溃残留 / 上轮
-    // 删除未竟) 会被全新索引静默继承，以幻影数据暴露给新索引；同理，前缀寻址
-    // 恢复 (存根无逻辑地址，与 C# 按记录地址 PreStage 不同) 无法区分世代，
-    // 删除后残留的旧世代刷盘快照会被惰性恢复误选为新世代的恢复来源——数据文件
-    // 与带地址刷盘件两类工件一并 unlink，保证新树从干净的数据文件与恢复源起步。
+    // 删除未竟) 会被全新索引静默继承，以幻影数据暴露给新索引；同理，旧世代带地址
+    // 刷盘快照仍可能被旧世代的迟到预置引用命中 (并发 promote 携带的旧源地址)，
+    // 不清即把新世代数据文件覆盖回旧快照——数据文件与带地址刷盘件两类工件一并
+    // unlink，保证新树从干净的数据文件与恢复源起步。
     let _ = fs::remove_file(self.data_file_path(&hash_prefix));
     self.remove_addr_flush_files(key_id);
 
@@ -224,53 +225,21 @@ impl RangeIndexManager {
 
     // 磁盘后端才存在可恢复的磁盘工件；内存后端的刷盘文件与工作文件均无意义
     //
-    // 刷盘快照选择契约：刷盘快照只有带地址一种命名
-    // - 带地址 `{prefix}.{addr:016x}.flush.bftree` 由
-    //   [`on_flush_address`](super::flush) 体系产生 (1:1 对标 C#
-    //   SnapshotTreeForFlush 的必填 logicalAddress)，地址单调递增，
-    //   取最大地址即最新版本 (旧文件由 on_truncate 按地址回收)。
-    // 恢复期一律经 flush_files 枚举器取最大地址件，无「裸名快照优先」的旁路分支。
-    //
-    // IsRecovered 存根绕过刷盘快照 (1:1 对齐 C#：recovered 存根仅经 RestoreTree
-    // 打开 data.bftree——检查点恢复已把权威快照预置其中，刷盘文件仅供 IsFlushed
-    // 存根经 PreStage 按地址消费)：检查点快照必然新于其之前产生的任何刷盘文件，
-    // 若仍让刷盘文件覆盖，恢复会回退到检查点之前的旧世代状态。
-    if backend == StorageBackendType::Disk && !stub.is_recovered() && self.addr_flush_scan_pending()
-    {
-      // O(目录条目数) 扫描被门控：常态 (无带地址刷盘文件) 下首例恢复证伪后，
-      // 后续恢复直达 data.bftree 的 O(1) stat 路径 (时间复杂度优化，见字段文档)
-      let scan_token = self.addr_flush_scan_token();
-      let mut found_flush = false;
-      // 目录枚举与文件名解码收敛到共享枚举器 flush_files (一处枚举、多路分发)；
-      // 只跟踪胜出件、拷贝仅一次：路径由枚举器按刷盘件惰性产出，
-      // 外来目录项 (工作文件 / 非带地址命名的残件) 不参与路径拼接。
-      // 拷贝失败必须传播：静默吞掉会回退到陈旧/部分写入的 data.bftree，
-      // 恢复出错误树版本 (1:1 对标 C# File.Copy 异常传播语义)
-      if let Ok(files) = self.flush_files() {
-        let mut latest: Option<(u64, PathBuf)> = None;
-        for (path, file_key_id, addr) in files {
-          if file_key_id == key_id && latest.as_ref().is_none_or(|(max_addr, _)| addr > *max_addr) {
-            latest = Some((addr, path));
-          }
-        }
-        if let Some((_, path)) = latest {
-          fs::copy(path, &data_path)?;
-          found_flush = true;
-        }
-      }
-      if !found_flush {
-        self.settle_addr_flush_scan(scan_token);
-      }
-    }
-
-    // 1:1 对标 libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:RestoreTree：pre-stage 不变量保证 TreeHandle=0 的存根必有已预置的
-    // data.bftree；缺失说明不变量被破坏（pre-stage 失败或文件被外部删除）。
-    // 返回错误显式暴露数据丢失，绝不静默创建空树掩盖问题 (recovered 存根同样
-    // 受此约束——检查点预置失败绝不能退化为静默空树)。
+    // 预置 (pre-stage) 不变量 (1:1 对标 C# RestoreTree 只 `File.Exists(workingPath)`，
+    // 绝无目录扫描)：进入冷态待恢复的存根，其 data.bftree 必由生命周期钩子预置就位——
+    // 刷盘态存根读路径先 RIPROMOTE 提升，PostCopyUpdater 冷态以源记录地址转调
+    // [`Self::pre_stage_and_register_pending`] 精确复制那一个刷盘件 (对位 C#
+    // 「uses the exact source address」，刷盘件的权威版本由存根源地址唯一确定，
+    // 不是目录里地址最大的那个)；日志复制入尾走 PostCopyToTail 冷态同一入口；
+    // 启动检查点恢复由 recover_all_trees_from_dir 批量预置。
     if backend == StorageBackendType::Disk && !data_path.exists() {
       use core::fmt::Write;
       let mut msg = String::with_capacity(48 + data_path.as_os_str().len());
-      let _ = write!(msg, "数据文件缺失且无可用刷盘快照: {}", data_path.display());
+      let _ = write!(
+        msg,
+        "预置不变量被破坏，data.bftree 缺失: {}",
+        data_path.display()
+      );
       return Err(Error::Recovery(msg));
     }
 
@@ -355,10 +324,6 @@ impl RangeIndexManager {
     }
     let data_path = self.data_file_path(&hash_prefix);
     fs::copy(&snapshot_path, &data_path)?;
-    // 预置完成后重开带地址刷盘文件扫描通道。notice 后置于文件落盘 (见
-    // manager 模块 addr_flush_gen 字段文档的竞态闭环)：先 notice 后拷贝会让
-    // 扫描在 notice 之后、拷贝完成之前证伪封存通道，随后就绪的文件被永久跳过
-    self.notice_addr_flush_files();
 
     let entry = Arc::new(TreeEntry::new(None, key_hash, key_id));
     if self.live_indexes.pin().try_insert(key_id, entry).is_err() {
@@ -587,10 +552,10 @@ impl RangeIndexManager {
       }
     }
     // 换入即新世代确立：清该键全部旧世代带地址刷盘件（create_bftree_internal
-    // 防重门旁同款工件回收的发布侧对位）。惰性恢复以最大地址刷盘件覆盖数据
-    // 文件，前代残件不清则新树遭淘汰/重启后被旧世代快照回灌——先建后拆换来的
-    // 换入原子性会被盘上残件击穿；键消亡臂 (delete_index) 不删刷盘件、仅靠
-    // on_truncate 按地址滞后回收，故本裁决点为换代路径的唯一收口
+    // 防重门旁同款工件回收的发布侧对位）。前代残件仍可能被前代存根记录的迟到
+    // 预置引用命中 (promote 携带的旧源地址)，不清则换入进来的新树被旧世代快照
+    // 回灌——先建后拆换来的换入原子性会被盘上残件击穿；键消亡臂 (delete_index)
+    // 不删刷盘件、仅靠 on_truncate 按地址滞后回收，故本裁决点为换代路径的即时收口
     self.remove_addr_flush_files(key_id);
 
     let parent = data_path.parent();

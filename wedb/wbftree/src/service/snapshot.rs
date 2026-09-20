@@ -1,11 +1,6 @@
 //! CPR 快照与恢复 (1:1 对标 Garnet BfTreeService 的 cpr_snapshot / recover 系列)
 
-use std::{
-  fs,
-  panic::{self, AssertUnwindSafe},
-  path::Path,
-  sync::Arc,
-};
+use std::{fs, path::Path, sync::Arc};
 
 use arc_swap::ArcSwapOption;
 use bf_tree::BfTree;
@@ -47,14 +42,19 @@ impl BfTreeService {
   /// unwind 构建（dev/test）下生效，且 panic 点位于任何写入之前，无部分写入副作用。
   pub fn cpr_snapshot(&self, snapshot_path: impl AsRef<Path>) -> Result<()> {
     let tree = self.tree_arc()?;
+    if !self.enable_snapshots {
+      return Err(Error::Snapshot(
+        "底层引擎异常 (快照未启用或内部状态异常)".into(),
+      ));
+    }
     let p = snapshot_path.as_ref();
     if let Some(parent) = p.parent()
       && !parent.as_os_str().is_empty()
     {
       fs::create_dir_all(parent)?;
     }
-    panic::catch_unwind(AssertUnwindSafe(|| tree.cpr_snapshot(p)))
-      .map_err(|_| Error::Snapshot("底层引擎异常 (快照未启用或内部状态异常)".into()))
+    tree.cpr_snapshot(p);
+    Ok(())
   }
 
   /// 从 CPR 快照文件恢复创建全新的 BfTreeService (1:1 对标 libs/native/bftree-garnet/BfTreeService.cs:RecoverFromCprSnapshot)
@@ -78,11 +78,10 @@ impl BfTreeService {
         p,
       ));
     }
-    let use_snapshot = enable_snapshots;
-    match panic::catch_unwind(AssertUnwindSafe(|| {
-      BfTree::new_from_cpr_snapshot(p, use_snapshot, None, None, None)
-    })) {
-      Ok(Ok(tree)) => {
+
+    // 移除 catch_unwind 封装，改为严格返回 Result 处理
+    match BfTree::new_from_cpr_snapshot(p, enable_snapshots, None, None, None) {
+      Ok(tree) => {
         let max_record_size = tree
           .config()
           .get_cb_max_record_size()
@@ -92,10 +91,10 @@ impl BfTreeService {
           storage_backend,
           file_path: Some(p.to_string_lossy().into_owned()),
           max_record_size,
+          enable_snapshots,
         })
       }
-      Ok(Err(e)) => Err(Error::Recovery(config_error_to_string(e))),
-      Err(_) => Err(format_recovery_err("快照文件损坏或格式非法: ", p)),
+      Err(e) => Err(Error::Recovery(config_error_to_string(e))),
     }
   }
 }
@@ -129,6 +128,7 @@ mod tests {
       config,
       StorageBackendType::Disk,
       Some(work.to_string_lossy().into_owned()),
+      false, // use_snapshot
     )
     .unwrap();
     assert_eq!(tree.insert(b"k", b"val"), BfTreeInsertResult::Success);

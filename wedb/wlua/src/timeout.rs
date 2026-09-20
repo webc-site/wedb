@@ -40,7 +40,8 @@ pub struct TimeoutRegistration {
 }
 
 impl TimeoutRegistration {
-  /// C# Registration.SetCookie（run 开始形态）：登记截止 = now + timeout。
+  /// libs/server/Lua/LuaTimeoutManager.cs:SetCookie（run 开始形态）：
+  /// 登记截止 = now + timeout。
   pub fn arm(&self, now_monotonic_millis: i64, timeout_millis: i64) {
     self.deadline.store(
       now_monotonic_millis + timeout_millis.max(1),
@@ -128,7 +129,7 @@ impl LuaTimeoutManager {
     self.tick_millis
   }
 
-  /// C# RegisterForTimeout：登记返回句柄。
+  /// libs/server/Lua/LuaTimeoutManager.cs:RegisterForTimeout：登记返回句柄。
   ///
   /// 会话缓存首个脚本装载成功时调用（C# TryLoad 尾部登记——非每会话，
   /// 只为会跑脚本的会话付出登记成本）。
@@ -146,7 +147,13 @@ impl LuaTimeoutManager {
     registration
   }
 
-  /// C# RemoveRegistration（Registration.Dispose 落点）：注销登记。
+  /// libs/server/Lua/LuaTimeoutManager.cs:RemoveRegistration：注销登记。
+  ///
+  /// libs/server/Lua/LuaTimeoutManager.cs:Dispose 的合并承接：
+  /// Registration.Dispose 在 C# 即纯转发 `owner.RemoveRegistration(this)`；
+  /// 管理器级 Dispose（停专属定时线程）在 rust 无取消句柄面——tick 循环
+  /// 为进程级 detached 任务随运行时退出（wnode service.rs
+  /// spawn_lua_timeout_tick），会话级注销单点即本方法。
   ///
   /// 会话缓存销毁时调用；未登记时为空操作。
   pub fn remove(&self, registration: &TimeoutRegistration) {
@@ -159,11 +166,15 @@ impl LuaTimeoutManager {
     self.registrations.pin().len()
   }
 
-  /// C# TickTimeouts + AdvanceTimeout + RequestTimeout(cookie) 三合一。
+  /// libs/server/Lua/LuaTimeoutManager.cs:TickTimeouts
+  /// libs/server/Lua/LuaTimeoutManager.cs:AdvanceTimeout
+  /// libs/server/Lua/SessionScriptCache.cs:RequestTimeout
   ///
   /// 单次遍历活跃登记：到期 run 以 CAS 把截止压到 now 激活立即中断
-  /// （VM 下个 safepoint 抛超时错误）。CAS 失配即 run 已换代（结束清 0
-  /// 或新 run 覆盖），放弃——C# cookie 校验的原子化等价。
+  /// （VM 下个 safepoint 抛超时错误，见 state.rs interrupt_trampoline）。
+  /// CAS 失配即 run 已换代（结束清 0 或新 run 覆盖），放弃——C#
+  /// AdvanceTimeout 计数到限 + SessionScriptCache.RequestTimeout 的 cookie
+  /// 比对合并进单次 CAS（槽值即 cookie）。
   pub fn tick(&self) {
     let now = now_ms() as i64;
     for registration in self.registrations.pin().values() {

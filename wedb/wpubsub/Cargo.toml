@@ -10,7 +10,7 @@ keywords = ["pubsub", "publish-subscribe", "broker", "messaging"]
 
 [dependencies]
 crossfire.workspace = true
-event-listener = "5"
+event-listener.workspace = true
 itoa.workspace = true
 parking_lot.workspace = true
 wbase = { workspace = true, features = ["glob", "map", "pool"] }

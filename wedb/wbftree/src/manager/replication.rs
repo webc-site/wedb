@@ -43,9 +43,10 @@ impl RangeIndexManager {
   /// - 单个目录项读取失败仅跳过该项 (对齐 C# 消费方整轮 catch 的容错枚举)；
   /// - 惰性逐项产出 (C# `IEnumerable` 同形)，消费方可在遍历途中删件。
   ///
-  /// rust 侧三处消费方：[`Self::on_truncate`] (按地址阈值回收)、
-  /// [`Self::remove_addr_flush_files`] (按 key_id 删全世代)、
-  /// [`Self::get_or_open_tree`] (惰性恢复取最大地址件)。
+  /// rust 侧两处消费方：[`Self::on_truncate`] (按地址阈值回收)、
+  /// [`Self::remove_addr_flush_files`] (按 key_id 删全世代)。惰性恢复不做目录
+  /// 枚举择优——刷盘件由 [`Self::pre_stage_and_register_pending`] 按存根源记录
+  /// 地址单件预置 (1:1 对标 C# RestoreTree 只 File.Exists(workingPath))。
   /// C# 复制期枚举的 flush 地址窗分支在 rust 无恢复面消费者、不实现 (理由见
   /// js/check/ignore/libs/server/Resp/RangeIndex/RangeIndexManager.yml 与本 crate
   /// lib.rs 的「flush / truncate 与复制文件面接线现状」)，故本枚举器不覆盖该分支。
@@ -72,11 +73,13 @@ impl RangeIndexManager {
     Ok(())
   }
 
-  /// 删除指定 128 位 key_id 的全部带地址刷盘快照文件 (旧世代清理，见 lifecycle::create_bftree)
+  /// 删除指定 128 位 key_id 的全部带地址刷盘快照文件 (旧世代工件清理，见
+  /// lifecycle::create_bftree_internal 与 publish_tree_from_snapshot_locked)
   ///
-  /// 前缀寻址恢复 (存根无逻辑地址) 无法区分世代，同名键重建时旧世代刷盘工件
-  /// 必须清理，杜绝惰性恢复把新世代工作文件覆盖回旧世代快照 (刷盘件只有带地址
-  /// 一种命名，故本方法的全目录扫描即覆盖全部待清工件)
+  /// 换代后旧件对新世代已无恢复价值 (预置一律按存根源记录的精确地址单件取用)，
+  /// 但盘上仍可能被旧世代的迟到引用命中 (并发 promote 携带的旧源地址)，旧件不清
+  /// 即把新世代数据文件覆盖回旧世代快照；on_truncate 仅按日志地址滞后回收，
+  /// 换代点即唯一即时收口 (刷盘件只有带地址一种命名，故全目录枚举即覆盖全部待清工件)
   pub(super) fn remove_addr_flush_files(&self, key_id: u128) {
     let Ok(files) = self.flush_files() else {
       return;

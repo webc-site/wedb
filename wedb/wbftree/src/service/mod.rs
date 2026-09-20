@@ -80,6 +80,7 @@ pub struct BfTreeService {
   pub(crate) storage_backend: StorageBackendType,
   pub(crate) file_path: Option<String>,
   pub(crate) max_record_size: usize,
+  pub(crate) enable_snapshots: bool,
 }
 
 impl BfTreeService {
@@ -88,6 +89,7 @@ impl BfTreeService {
     config: impl Into<bf_tree::Config>,
     storage_backend: StorageBackendType,
     file_path: Option<String>,
+    enable_snapshots: bool,
   ) -> Result<Self> {
     if storage_backend == StorageBackendType::Disk && file_path.is_none() {
       return Err(Error::InvalidArgument(
@@ -108,6 +110,7 @@ impl BfTreeService {
       storage_backend,
       file_path,
       max_record_size,
+      enable_snapshots,
     })
   }
 
@@ -199,7 +202,7 @@ mod tests {
   fn mem_service() -> BfTreeService {
     let mut config = Config::default();
     config.cache_only(true);
-    BfTreeService::new_with_backend(config, StorageBackendType::Memory, None).unwrap()
+    BfTreeService::new_with_backend(config, StorageBackendType::Memory, None, false).unwrap()
   }
 
   /// 空值插入快速拒绝：绝不透传引擎 (底层叶子插入 debug_assert 非空值，

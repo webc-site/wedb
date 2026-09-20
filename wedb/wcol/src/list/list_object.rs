@@ -28,9 +28,7 @@ use crate::{
 /// 列表操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/List/ListObject.cs:ListOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum ListOperation {
   Lpop = 0,
@@ -53,9 +51,7 @@ pub enum ListOperation {
   Lpos = 17,
 }
 
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum OperationDirection {
   Left = 0,
@@ -184,7 +180,7 @@ impl ListObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
-    let Some(op) = ListOperation::try_from(sub_id).ok() else {
+    let Some(op) = ListOperation::from_repr(sub_id) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
       RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
@@ -264,5 +260,18 @@ impl GarnetObjectPayload for ListObject {
   #[inline]
   fn is_empty(&self) -> bool {
     self.list.is_empty()
+  }
+}
+
+impl From<ListOperation> for u8 {
+  #[inline]
+  fn from(op: ListOperation) -> Self {
+    op as u8
+  }
+}
+impl From<OperationDirection> for u8 {
+  #[inline]
+  fn from(op: OperationDirection) -> Self {
+    op as u8
   }
 }
