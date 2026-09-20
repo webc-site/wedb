@@ -14,10 +14,7 @@ use wresp::{
 use wtxn::{TransactionManager, TxnCommandKeys, TxnKeySpec, TxnQueuedCommandInfo, TxnState};
 
 use super::core::{RespServerSession, collect_arg_views};
-use crate::{
-  cluster_session::{ClusterSlotVerificationInput, SlotVerifyGate},
-  resp::resp_commands_info_data::resp_command_to_cs_name,
-};
+use crate::cluster_session::{ClusterSlotVerificationInput, SlotVerifyGate};
 
 impl RespServerSession {
   /// libs/server/Resp/RespServerSession.cs:EnterAndGetResponseObject
@@ -128,7 +125,7 @@ impl RespServerSession {
   /// 键窗口按解析态参数即时解析，对齐 C# LockKeys 的 parseState 取数形态）
   fn txn_queued_command_info(&self, cmd: RespCommand) -> Option<TxnQueuedCommandInfo> {
     let info = try_get_simple_resp_command_info(normalize_for_acls(cmd))?;
-    let name = resp_command_to_cs_name(cmd);
+    let name = cmd.to_cs_name();
     let args = collect_arg_views(&self.parse_state, &self.recv_buffer);
     let key_specs: Vec<TxnKeySpec> = info
       .key_specs

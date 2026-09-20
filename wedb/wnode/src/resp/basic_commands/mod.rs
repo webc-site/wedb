@@ -327,7 +327,7 @@ impl RespServerSession {
   ) -> Option<CommandKeysContext<'b>> {
     check_arg_count!(parse_state, 1.., output, cmd_name_for_err, return None);
     let cmd_name = parse_state[0].as_str_safe();
-    let cmd = super::resp_commands_info_data::resp_command_from_cs_name(cmd_name);
+    let cmd = wresp::command::RespCommand::from_cs_name(cmd_name);
     let mut simple_info = cmd.and_then(try_get_simple_resp_command_info);
 
     if let Some(info) = simple_info
@@ -341,7 +341,7 @@ impl RespServerSession {
       // 同样缺席的（如 CONFIG GET）两侧同报 no-key-args，无分叉。差分测试
       // command_getkeys_parent_sub_lookup（wnode/tests/resp_tests.rs）钉住两面。
       let sub_name = format!("{}_{}", cmd_name, parse_state[1].as_str_safe());
-      if let Some(sub_cmd) = super::resp_commands_info_data::resp_command_from_cs_name(&sub_name)
+      if let Some(sub_cmd) = wresp::command::RespCommand::from_cs_name(&sub_name)
         && let Some(sub_info) = try_get_simple_resp_command_info(sub_cmd)
       {
         simple_info = Some(sub_info);

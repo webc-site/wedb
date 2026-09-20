@@ -34,9 +34,7 @@ use super::{
   command_table::{lookup_primary, lookup_subcommand},
   fast_patterns::{FAST_PATTERN_GROUPS, FAST_PATTERN_TABLE, mask_for, pattern_matches},
 };
-use crate::resp::{
-  custom_objects::match_custom_object_command, resp_commands_info_data::resp_command_to_cs_name,
-};
+use crate::resp::custom_objects::match_custom_object_command;
 
 /// libs/server/Resp/Parser/RespCommand.cs:TryParseCustomCommand
 ///
@@ -598,7 +596,7 @@ impl RespServerSession {
     // 多数父命令要求至少一个子命令（BITOP 为语法错误文案；父命令名取
     // C# 枚举成员的大写形式，单源 resp_command_to_cs_name 零分配）
     if *count == 0 {
-      let parent = resp_command_to_cs_name(parent_cmd);
+      let parent = parent_cmd.to_cs_name();
       *specific_error = Some(if parent_cmd == RespCommand::Bitop {
         cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes().to_vec()
       } else {
@@ -621,7 +619,7 @@ impl RespServerSession {
     // 其余为无提示版 —— 逐字节对齐 C# CmdStrings，净化防换行注入）
     let sub_text = String::from_utf8_lossy(sub_command);
     let clean_sub = sanitize_error_str(&sub_text, cs::MAX_PARAM_NAME_LEN);
-    let parent = resp_command_to_cs_name(parent_cmd);
+    let parent = parent_cmd.to_cs_name();
     let clean_parent = sanitize_error_str(parent, cs::MAX_PARAM_NAME_LEN);
     *specific_error = Some(if parent_cmd == RespCommand::Bitop {
       cs::RESP_ERR_GENERIC_SYNTAX_ERROR.as_bytes().to_vec()
