@@ -147,12 +147,10 @@ fn assert_dense_and_bounded(label: &str, max: u8, occupied: impl Fn(u8) -> bool)
 
 #[test]
 fn object_sub_op_values_are_stable() {
-  assert_values_stable(HASH_OPS_GOLDEN, |v| HashOperation::try_from(v).ok());
-  assert_values_stable(SORTED_SET_OPS_GOLDEN, |v| {
-    SortedSetOperation::try_from(v).ok()
-  });
-  assert_values_stable(LIST_OPS_GOLDEN, |v| ListOperation::try_from(v).ok());
-  assert_values_stable(SET_OPS_GOLDEN, |v| SetOperation::try_from(v).ok());
+  assert_values_stable(HASH_OPS_GOLDEN, |v| HashOperation::from_repr(v));
+  assert_values_stable(SORTED_SET_OPS_GOLDEN, |v| SortedSetOperation::from_repr(v));
+  assert_values_stable(LIST_OPS_GOLDEN, |v| ListOperation::from_repr(v));
+  assert_values_stable(SET_OPS_GOLDEN, |v| SetOperation::from_repr(v));
 
   assert_eq!(HASH_OPS_GOLDEN.len(), 20, "HashOperation 黄金计数漂移");
   assert_eq!(
@@ -166,10 +164,14 @@ fn object_sub_op_values_are_stable() {
 
 #[test]
 fn object_sub_op_bands_are_dense_and_bounded() {
-  assert_dense_and_bounded("HashOperation", 19, |v| HashOperation::try_from(v).is_ok());
-  assert_dense_and_bounded("SortedSetOperation", 27, |v| {
-    SortedSetOperation::try_from(v).is_ok()
+  assert_dense_and_bounded("HashOperation", 19, |v| {
+    HashOperation::from_repr(v).is_some()
   });
-  assert_dense_and_bounded("ListOperation", 17, |v| ListOperation::try_from(v).is_ok());
-  assert_dense_and_bounded("SetOperation", 15, |v| SetOperation::try_from(v).is_ok());
+  assert_dense_and_bounded("SortedSetOperation", 27, |v| {
+    SortedSetOperation::from_repr(v).is_some()
+  });
+  assert_dense_and_bounded("ListOperation", 17, |v| {
+    ListOperation::from_repr(v).is_some()
+  });
+  assert_dense_and_bounded("SetOperation", 15, |v| SetOperation::from_repr(v).is_some());
 }
