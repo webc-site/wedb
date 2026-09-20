@@ -249,6 +249,10 @@ fn try_decode_double(input: &[u8], offset: usize, endianness: Endianness) -> Opt
 /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructPack
 ///
 /// 格式串 + 值序列 → 二进制串；非法格式 / 值缺失 / 串过短返回 None。
+///
+/// libs/server/Lua/LuaRunner.Functions.Struct.cs:TryEncodeBytes 的承接：
+/// C# 局部函数（c/s 定长与原串字节编码 + 长度校验）合并为本函数
+/// `b'c' | b's'` 分支（字节串原样参与，无 UTF-8 重编码）。
 pub(crate) fn struct_pack(format: &[u8], values: &[StructValue]) -> Option<Vec<u8>> {
   let mut header = default_options();
   let mut out = Vec::new();
@@ -313,6 +317,12 @@ pub(crate) fn struct_pack(format: &[u8], values: &[StructValue]) -> Option<Vec<u
 /// libs/server/Lua/LuaRunner.Functions.Struct.cs:StructUnpack
 ///
 /// 二进制串按格式解包：返回值序列与消费位置（`data` 过短 / 格式非法返回 None）。
+///
+/// libs/server/Lua/LuaRunner.Functions.Struct.cs:TryDecodeCharacter
+/// （`c0`：尺寸取自上一个已解码数值）与
+/// libs/server/Lua/LuaRunner.Functions.Struct.cs:TryDecodeString
+/// （`s`：NUL 终结串，消费量含 NUL、推入值不含 NUL）的承接：C# 两局部
+/// 函数合并为本函数 `b'c'` 零尺寸分支与 `b's'` 分支。
 pub(crate) fn struct_unpack(format: &[u8], data: &[u8]) -> Option<StructUnpackOut> {
   let mut header = default_options();
   let mut pos = 0usize;

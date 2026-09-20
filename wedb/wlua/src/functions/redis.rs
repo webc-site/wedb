@@ -29,6 +29,11 @@ impl LuaRunnerFunctions {
   ///
   /// 无会话的 redis.call（基准/测试路径）：吞参返回 nil。
   /// 满足 LuaCFunction 统一函数指针签名 (LuaState, HostShared) -> i32 规范，保留 _host 参数
+  ///
+  /// libs/server/Lua/LuaRunner.Functions.cs:GarnetCallNoSession 的承接：
+  /// C# 静态蹦床（try NoSessionResponse catch FailOnException）与 rust
+  /// 无会话分派合一——无 FFI 蹦床层，no-session 分派单点在
+  /// [`Self::garnet_call`]（`host.session.is_none()` 分支转调本函数）。
   pub fn no_session_response(state: &mut LuaState, _host: &mut HostShared) -> i32 {
     state.clear_stack();
     state.push_nil();
@@ -337,10 +342,11 @@ impl LuaRunnerFunctions {
 
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.Functions.cs:PrepareAndCheckRespRequest
   ///
-  /// 以 Lua 栈参数拼装 RESP 请求并校验参数类型；string 参数编码承接 C# 局部
-  /// 函数 PrepareString（在 garnet 中的相对路径:libs/server/Lua/
-  /// LuaRunner.Functions.cs:PrepareString）；拼装单点收敛至
-  /// wresp::resp_memory_writer::RespWriter（恒 RESP2：请求面无 RESP3 形态）。
+  /// 以 Lua 栈参数拼装 RESP 请求并校验参数类型；C# 局部函数
+  /// PrepareString（string → UTF-8 字节 span，缓冲不足重建 ArgSlice）的
+  /// 承接为本函数 `string` 分支——rust Lua 串本就 UTF-8 字节，零重编码
+  /// 直写 `RespWriter`（拼装单点收敛至 wresp::resp_memory_writer，恒
+  /// RESP2：请求面无 RESP3 形态）。
   ///
   /// 成帧单点同时承接 redis.call 回落（actual = provided，C#
   /// ProcessCommandFromScripting :3264-3298）与 redis.acl_check_cmd 的 arity
