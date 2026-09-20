@@ -42,7 +42,11 @@ pub trait ILuaAllocator {
   /// `ptr` 须为此分配器此前产出且仍有效的块。
   unsafe fn resize_allocation(&mut self, ptr: *mut u8, new_size: usize) -> Option<*mut u8>;
 
-  /// lua_Alloc 的释放语义（`nsize == 0`）。
+  /// libs/server/Lua/ILuaAllocator.cs:Free
+  ///
+  /// lua_Alloc 的释放语义（`nsize == 0`）；C# `Free(ref start, sizeBytes)`
+  /// 是独立接口方法，Luau C API 无独立 free 入口，释放随 `lua_Alloc` 的
+  /// `nsize == 0` 分支承接。
   ///
   /// # Safety
   /// `ptr` 须为此分配器此前产出且未释放的块。

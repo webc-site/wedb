@@ -29,9 +29,7 @@ use crate::{
 /// 集合操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/Set/SetObject.cs:SetOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum SetOperation {
   Sadd = 0,
@@ -326,6 +324,7 @@ impl GarnetObjectPayload for SetObject {
 
 impl From<SetOperation> for u8 {
   #[inline]
-  fn from(op: SetOperation) -> Self { op as u8 }
+  fn from(op: SetOperation) -> Self {
+    op as u8
+  }
 }
-

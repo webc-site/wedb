@@ -790,6 +790,7 @@ mod tests {
 
 impl From<RespCommand> for u16 {
   #[inline]
-  fn from(op: RespCommand) -> Self { op as u16 }
+  fn from(op: RespCommand) -> Self {
+    op as u16
+  }
 }
-

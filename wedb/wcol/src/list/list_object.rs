@@ -28,9 +28,7 @@ use crate::{
 /// 列表操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/List/ListObject.cs:ListOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum ListOperation {
   Lpop = 0,
@@ -53,9 +51,7 @@ pub enum ListOperation {
   Lpos = 17,
 }
 
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum OperationDirection {
   Left = 0,
@@ -269,10 +265,13 @@ impl GarnetObjectPayload for ListObject {
 
 impl From<ListOperation> for u8 {
   #[inline]
-  fn from(op: ListOperation) -> Self { op as u8 }
+  fn from(op: ListOperation) -> Self {
+    op as u8
+  }
 }
 impl From<OperationDirection> for u8 {
   #[inline]
-  fn from(op: OperationDirection) -> Self { op as u8 }
+  fn from(op: OperationDirection) -> Self {
+    op as u8
+  }
 }
-

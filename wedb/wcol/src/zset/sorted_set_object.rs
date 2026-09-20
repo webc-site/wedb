@@ -41,9 +41,7 @@ pub(crate) const EXPIRY_FLOOR: i64 = CONTAINER_BASE * 2;
 /// 有序集合操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum SortedSetOperation {
   Zadd = 0,
@@ -791,6 +789,7 @@ impl GarnetObjectPayload for SortedSetObject {
 
 impl From<SortedSetOperation> for u8 {
   #[inline]
-  fn from(op: SortedSetOperation) -> Self { op as u8 }
+  fn from(op: SortedSetOperation) -> Self {
+    op as u8
+  }
 }
-

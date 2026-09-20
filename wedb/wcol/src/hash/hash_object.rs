@@ -36,9 +36,7 @@ pub(crate) const EXPIRY_FLOOR: i64 = CONTAINER_BASE;
 /// 哈希操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
 ///
 /// libs/server/Objects/Hash/HashObject.cs:HashOperation
-#[derive(
-  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
 #[repr(u8)]
 pub enum HashOperation {
   Hcollect = 0,
@@ -758,6 +756,7 @@ mod tests {
 
 impl From<HashOperation> for u8 {
   #[inline]
-  fn from(op: HashOperation) -> Self { op as u8 }
+  fn from(op: HashOperation) -> Self {
+    op as u8
+  }
 }
-
