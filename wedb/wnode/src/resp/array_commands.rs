@@ -912,7 +912,11 @@ pub(crate) mod slow {
     // RI 键门折叠前预检（异步对偶 [`StorageSession::ri_write_gate_async`]，
     // 与快路径同判据）：任一键为存活 RangeIndex 整命令拒 WRONGTYPE，零键落库
     for chunk in refs.as_chunks::<2>().0 {
-      if storage.ri_write_gate_async(chunk[0]).await.map_err(|_| ())? {
+      if storage
+        .ri_write_gate_async(chunk[0])
+        .await
+        .map_err(|_| ())?
+      {
         output.write_resp_error(RESP_ERR_WRONG_TYPE);
         return Ok(());
       }
