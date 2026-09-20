@@ -17,7 +17,11 @@ use wresp::{
 use wval::{GarnetObjectType, KeyTag};
 
 use crate::{
-  resp::{resp_server_session::RespServerSession, vector::vector_manager::VectorManager},
+  resp::{
+    basic_commands::{RiWriteGate, ri_write_gate},
+    resp_server_session::RespServerSession,
+    vector::vector_manager::VectorManager,
+  },
   storage::session::{
     common::{
       TagRead, UserRead,
@@ -278,6 +282,18 @@ impl RespServerSession {
       output,
       "MSET"
     );
+
+    // RI 键门折叠前预检（复用 ri_write_gate 单点，判据不
+    // 另起第二套）：任一键为存活 RangeIndex 整命令拒 WRONGTYPE——预检先于任
+    // 何写入，零键落库无半提交；Deferred（元记录有磁盘候选）沿用既有出口
+    // 整体降级慢路径，由执行臂异步对偶门复裁决
+    for chunk in parse_state.as_chunks::<2>().0 {
+      match ri_write_gate(store, chunk[0], output) {
+        RiWriteGate::Pass => {}
+        RiWriteGate::Blocked => return Ok(true),
+        RiWriteGate::Deferred => return Ok(false),
+      }
+    }
 
     // 批量接口单次折叠（transpile SKILL 工程准则；rust 工程优化无 c# 对应，
     // 折叠先例对标 C# MainStoreOps.cs:MSET_Conditional 全键锁内批量 SET）：
@@ -820,6 +836,7 @@ mod tests {
 /// RESP_ERR_SLOW_PATH_STORAGE
 pub(crate) mod slow {
   use wresp::{
+    cmd_strings::RESP_ERR_WRONG_TYPE,
     ext::RespVecExt,
     resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter},
   };
@@ -892,6 +909,14 @@ pub(crate) mod slow {
     refs: &[&[u8]],
     output: &mut Vec<u8>,
   ) -> Result<(), ()> {
+    // RI 键门折叠前预检（异步对偶 [`StorageSession::ri_write_gate_async`]，
+    // 与快路径同判据）：任一键为存活 RangeIndex 整命令拒 WRONGTYPE，零键落库
+    for chunk in refs.as_chunks::<2>().0 {
+      if storage.ri_write_gate_async(chunk[0]).await.map_err(|_| ())? {
+        output.write_resp_error(RESP_ERR_WRONG_TYPE);
+        return Ok(());
+      }
+    }
     let pairs = refs.as_chunks::<2>().0.iter().map(|c| (c[0], c[1]));
     match storage.batch.try_upsert_batch_sync(pairs) {
       Ok(Ok(())) => {}
