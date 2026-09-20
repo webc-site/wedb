@@ -29,7 +29,7 @@ use crate::{
 ///
 /// libs/server/Objects/List/ListObject.cs:ListOperation
 #[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
+  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
 )]
 #[repr(u8)]
 pub enum ListOperation {
@@ -54,7 +54,7 @@ pub enum ListOperation {
 }
 
 #[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
+  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
 )]
 #[repr(u8)]
 pub enum OperationDirection {
@@ -184,7 +184,7 @@ impl ListObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
-    let Some(op) = ListOperation::try_from(sub_id).ok() else {
+    let Some(op) = ListOperation::from_repr(sub_id) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
       RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
@@ -266,3 +266,13 @@ impl GarnetObjectPayload for ListObject {
     self.list.is_empty()
   }
 }
+
+impl From<ListOperation> for u8 {
+  #[inline]
+  fn from(op: ListOperation) -> Self { op as u8 }
+}
+impl From<OperationDirection> for u8 {
+  #[inline]
+  fn from(op: OperationDirection) -> Self { op as u8 }
+}
+

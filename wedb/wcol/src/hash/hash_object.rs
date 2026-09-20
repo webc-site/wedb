@@ -37,7 +37,7 @@ pub(crate) const EXPIRY_FLOOR: i64 = CONTAINER_BASE;
 ///
 /// libs/server/Objects/Hash/HashObject.cs:HashOperation
 #[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
+  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
 )]
 #[repr(u8)]
 pub enum HashOperation {
@@ -258,7 +258,7 @@ impl HashObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
-    let Some(op) = HashOperation::try_from(sub_id).ok() else {
+    let Some(op) = HashOperation::from_repr(sub_id) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
       RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
@@ -755,3 +755,9 @@ mod tests {
     assert!(pick_k_random_indexes(10, 0, 7, true).is_empty());
   }
 }
+
+impl From<HashOperation> for u8 {
+  #[inline]
+  fn from(op: HashOperation) -> Self { op as u8 }
+}
+

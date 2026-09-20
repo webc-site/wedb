@@ -94,8 +94,8 @@ pub(crate) async fn exec_tiered_by_op_code<D: Device>(
   } = call;
   macro_rules! by_op {
     ($ty:ty, $exec:ident) => {
-      match <$ty as TryFrom<u8>>::try_from(op_code) {
-        Ok(op) => $exec(
+      match <$ty>::from_repr(op_code) {
+        Some(op) => $exec(
           session,
           key,
           ctx,
@@ -104,7 +104,7 @@ pub(crate) async fn exec_tiered_by_op_code<D: Device>(
         )
         .await
         .map(Some),
-        Err(_) => Ok(None),
+        None => Ok(None),
       }
     };
   }

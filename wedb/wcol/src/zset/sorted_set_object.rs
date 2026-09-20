@@ -42,7 +42,7 @@ pub(crate) const EXPIRY_FLOOR: i64 = CONTAINER_BASE * 2;
 ///
 /// libs/server/Objects/SortedSet/SortedSetObject.cs:SortedSetOperation
 #[derive(
-  Debug, Clone, Copy, PartialEq, Eq, num_enum::TryFromPrimitive, num_enum::IntoPrimitive,
+  Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr,
 )]
 #[repr(u8)]
 pub enum SortedSetOperation {
@@ -423,7 +423,7 @@ impl SortedSetObject {
     output: &mut ObjectOutput<'_>,
     resp_protocol_version: u8,
   ) -> bool {
-    let Some(op) = SortedSetOperation::try_from(sub_id).ok() else {
+    let Some(op) = SortedSetOperation::from_repr(sub_id) else {
       // C#: switch default 抛 GarnetException("Unsupported operation ...")
       RespWriter::new_ref(output.payload)
         .write_error_bytes(RESP_ERR_UNSUPPORTED_OPERATION.as_bytes());
@@ -788,3 +788,9 @@ impl GarnetObjectPayload for SortedSetObject {
     self.sorted_set_dict.is_empty()
   }
 }
+
+impl From<SortedSetOperation> for u8 {
+  #[inline]
+  fn from(op: SortedSetOperation) -> Self { op as u8 }
+}
+
