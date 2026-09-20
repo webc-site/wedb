@@ -48,6 +48,11 @@ pub fn callback_context() -> *mut c_void {
 
 /// 宿主函数蹦床：取上值中的域函数指针与窗口上下文执行，panic 兜底为 Lua 错误。
 ///
+/// libs/server/Lua/LuaRunner.Functions.cs:FailOnException 的承接：C# 侧
+/// 异常穿越回 Lua 会损坏运行时，故 `Environment.FailFast` 进程自爆；rust
+/// `catch_unwind` 收敛后栈已安全展开（无 C++ 式跨 FFI 展开未定义行为），
+/// 记日志并转 Lua 错误即可，无需进程自爆。
+///
 /// # Safety（lua_CFunction 契约）
 /// - 经 [`super::LuaState::register_host_fn`] 以 `lua_pushcclosurek` 注册，
 ///   上值 1 为域函数指针（lightuserdata 形态）。
