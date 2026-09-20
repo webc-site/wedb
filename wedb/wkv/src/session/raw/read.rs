@@ -1,5 +1,7 @@
 //! 物理键单点读取路径（对标 C# Garnet ClientSession 的 Read 快慢路径）
 
+use std::ops::ControlFlow;
+
 use wbase::{addr::is_read_cache, simd::fast_key_eq, time::now_ticks};
 use wdev::Device;
 use windex::{CandidateAddresses, HashBucketEntry};
@@ -7,7 +9,6 @@ use wrecord::record_size;
 use wval::KeyTag;
 
 use super::MemDrive;
-use std::ops::ControlFlow;
 use crate::{error::Result, read_cache::RcVisit, session::StoreSession, ttl::TtlGate};
 
 /// 内存扫描中间动作（统一替代原有的 RcWalk/MemBack/ReadProbeResult/MemRead）

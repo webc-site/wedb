@@ -102,6 +102,11 @@ impl LuaRunner {
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:RunForSession
   ///
   /// 以会话参数（numkeys 开头）执行已编译函数，响应写入 `out`。
+  ///
+  /// libs/server/Lua/LuaRunner.cs:ResetTimeout（run 前清残留 sethook）的
+  /// 等价承接：截止槽在 run 开始 arm / 结束 disarm（覆写语义，见
+  /// commands.rs try_execute_script），旧钩子无残留可清，rust 无独立
+  /// 清钩子面。
   pub fn run_for_session<S: ScriptingApi>(
     &mut self,
     args: &[Vec<u8>],
@@ -122,9 +127,6 @@ impl LuaRunner {
     // （C# RespResponseAdapter 读未被脚本触碰的外层会话版本）
     let entry_protocol_version = session.resp_protocol_version();
     session.update_resp_protocol_version(2);
-
-    // C# ResetTimeout 的清残留语义由调用方 arm/disarm 承接（commands.rs
-    // try_execute_script：arm 覆盖写截止、结束 disarm 清 0），此处不再触碰。
 
     // preamble：装配 KEYS/ARGV（C# 经 RunPreambleForSession C 函数），
     // 随后执行已编译函数 —— redis.call 回调经窗口上下文访问会话面
@@ -277,8 +279,12 @@ impl LuaRunner {
     self.state.pop(1);
   }
 
-  /// 换挂会话共享截止槽（超时管理器登记形态；C# RequestTimeout 的
-  /// sethook 落点由 luau VM safepoint 中断回调承接）。
+  /// libs/server/Lua/LuaRunner.cs:RequestTimeout
+  ///
+  /// C# 即 `state.TrySetHook(&RequestTimeout, LuaHookMask.Count, 1)` 一行
+  /// sethook；rust 等价物是换挂会话共享截止槽（超时管理器登记形态），
+  /// 到期激活由 luau VM safepoint 中断回调承接（state.rs
+  /// interrupt_trampoline）。
   ///
   /// run 开始前由会话缓存调用（arm_timeout）：槽值写入与到期激活见
   /// timeout.rs（tick 线程 CAS）与本 state 层中断回调。
