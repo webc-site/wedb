@@ -26,7 +26,7 @@ wbftree 提供块级有序存储引擎 Bf-Tree 的 Rust 服务层与 RangeIndex 
 - thread-per-core 契约：全同步 API、无运行时依赖；点读 / 写路径零条带锁（引擎内部叶子闩锁保并发），跨线程共享 `Arc<BfTreeService>`；仅生命周期变更（创建 / 惰性恢复 / 注销 / 删除）取 `RangeIndexLocks` 条带写锁；在线引用为 papaya 无锁字典，读侧 pin 快照与写侧互不阻塞；删除树延迟到 `Arc` 引用归零
 - 快照写屏障：「屏障计数 + 在途写者计数」双 AtomicUsize，SeqCst store-buffering（Dekker）配对；屏障计数式、可嵌套，写者阻塞至最外层守卫丢弃，按自旋 → yield → 微睡阶梯短暂退避，树对写静稳、快照无撕裂；排空超 30s 以 `Error::Timeout` 显式上抛；持守卫窗口内严禁 await / 同线程 I/O 事件
 - 键语义：键全程 `&[u8]` 二进制安全零拷贝；128 位键 ID 由 gxhash128 派生（专用种子域，摘要域与用户数据域隔离），文件名前缀即该 ID 的 26 字符 Base32（Base32hex 小写）编码
-- 惰性恢复：get_or_open_tree 先把最新刷盘快照（命名仅带地址一种形态，取最大地址；逻辑地址是 C# `SnapshotTreeForFlush` 的必填参数）复制为数据文件，数据文件带 CPR 魔数（`BF-TREE-V0-BEGIN`）则走快照恢复，否则按存根重建 / 重开树；on_flush_address 冷树复制数据文件并置 flushed 位
+- 惰性恢复：冷态存根只打开 data.bftree，恢复侧绝不做目录枚举择优；文件预置收口在刷盘与恢复生命周期钩子（pre_stage_and_register_pending 按存根源记录的逻辑地址精确复制那一个带地址刷盘件，1:1 对标 C# RestoreTree 的 File.Exists(workingPath)），get_or_open_tree 见数据文件带 CPR 魔数（`BF-TREE-V0-BEGIN`）即走快照恢复，否则按已有工作文件重开；on_flush_address 冷树复制数据文件并置 flushed 位
 - 叶页尺寸推导：`max_record_size` ≤2KB 时取 4096，否则按 2.5 倍封顶 32768 后向上取 2 的幂
 
 ## 测试覆盖

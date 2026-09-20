@@ -63,11 +63,6 @@ impl RangeIndexManager {
         stub.set_flushed(true);
       }
     }
-
-    // 带地址刷盘文件已完整落盘，重开惰性恢复的地址扫描通道。notice 必须后置于文件
-    // 创建 (见 addr_flush_gen 字段文档)：若 notice 先行，扫描可在 notice 之后、建文件之前
-    // 完成「gen 不变」证伪封存通道，随后诞生的文件被永久跳过，恢复回退到陈旧工作文件
-    self.notice_addr_flush_files();
     Ok(())
   }
 }
