@@ -8,8 +8,7 @@
   PartialEq,
   Eq,
   Hash,
-  num_enum::TryFromPrimitive,
-  num_enum::IntoPrimitive,
+  strum::FromRepr,
   strum::EnumString,
   strum::Display,
   strum::IntoStaticStr,
@@ -685,7 +684,7 @@ mod tests {
   #[test]
   fn vector_write_gate_applicability_is_exhaustive() {
     for raw in 0u16..=(LAST_VALID_COMMAND as u16) {
-      let Ok(cmd) = RespCommand::try_from(raw) else {
+      let Some(cmd) = RespCommand::from_repr(raw) else {
         continue;
       };
       // 白名单（V*/DEL/TYPE/RENAME…）与豁免集不得交叠：同一命令既放行登记判据又走覆写
@@ -800,5 +799,12 @@ mod tests {
     assert!(is_read_only(RespCommand::Ricount));
     assert!(is_data_command(RespCommand::Ricount));
     assert!(!is_write_only(RespCommand::Ricount));
+  }
+}
+
+impl From<RespCommand> for u16 {
+  #[inline]
+  fn from(op: RespCommand) -> Self {
+    op as u16
   }
 }

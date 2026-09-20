@@ -157,8 +157,10 @@ impl InfoProvider for SessionInfoSource<'_> {
       .enumerate()
       .filter(|(_, e)| e.calls > 0 || e.rejected_calls > 0)
       .filter_map(|(idx, e)| {
-        let cmd = RespCommand::try_from(idx as u16).ok()?;
+
+        let cmd = RespCommand::from_repr(idx as u16)?;
         let name = cmd.to_cs_name().to_lowercase();
+
         (name != "unknown").then_some((name, e.calls, e.rejected_calls, e.failed_calls))
       })
       .collect()
