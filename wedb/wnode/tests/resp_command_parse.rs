@@ -607,7 +607,7 @@ fn aof_commit_mode_marks_dependent_commands() {
   assert!(!s.wait_for_aof_blocking);
   // 有待发数据（dcurr > head）不重置：SET 置位保持到 PING 之后
   s.handle_aof_commit_mode(RespCommand::Set);
-  s.write_direct_large(b"+OK\r\n");
+  s.output.extend_from_slice(b"+OK\r\n");
   s.handle_aof_commit_mode(RespCommand::Ping);
   assert!(s.wait_for_aof_blocking);
   // 缓冲清空 → 重置

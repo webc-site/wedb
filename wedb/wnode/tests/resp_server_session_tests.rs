@@ -302,7 +302,7 @@ fn dispatch_routes_via_garnet_api_injection() {
   struct EchoApi;
   impl GarnetApiFace for EchoApi {
     fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, _args: &[&[u8]]) {
-      session.write_direct_large(b"+OK\r\n");
+      session.output.extend_from_slice(b"+OK\r\n");
       assert_eq!(cmd, RespCommand::Get);
     }
 
@@ -590,7 +590,7 @@ fn output_pipeline_and_metrics() {
   let mut s = RespServerSession::new(10, RespServerSessionOptions::default());
   // 会话指标句柄经唯一注入口装配（生产由 service.rs 采样门控创建后同口注入）
   s.attach_session_metrics(Some(Arc::new(SessionMetricsHandle::default())));
-  s.write_direct_large(b"*2\r\n$3\r\nfoo\r\n");
+  s.output.extend_from_slice(b"*2\r\n$3\r\nfoo\r\n");
   assert_eq!(s.pending_output_len(), 13);
   let mut out = Vec::new();
   s.take_output_into(&mut out);
