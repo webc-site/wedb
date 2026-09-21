@@ -1,53 +1,118 @@
-# 紧缩物理删段对检查点恢复窗钳制(P0:熔断紧缩可毁最近检查点)
+# 紧缩物理删段对检查点恢复窗钳制（核实属实，接受，选路径 A）
 
-来源:next/zcode-r11-gc.md 问题 1(已随本票认领从 next 移除)。
+## 裁决与双侧证据
 
-## 问题(P0,恢复破洞)
+票面 P0 属实，机制链全部核实。
 
-rust 检查点非自含:wcpr 只落索引快照+meta(hlog 地址视图),数据页依赖
-flush_all 后驻留主设备;恢复由 run_recovery_pass 扫 [begin, tail) 重放。
-而紧缩/移位推进 begin 后经 truncate_begin_until 无条件物理删段
-(wdev 分段设备 remove_file),截断链无任何检查点感知钳制。
+rust 侧：
 
-时序:拍检查点 T_c → 换号风暴使 gc_dead 积压 > 1024 → 熔断旁路
-(gc/compact.rs try_compact L89 旁路,until=safe_ro 全速紧缩,默认配置经
-spawn_bftree_reclaimer 200ms 自动可达)→ 段删除覆盖 T_c 检查点重放窗 →
-崩溃 → recover_latest 选中 T_c → 扫已删段报 SegmentNotFound(拒启)或
-容错续跑但 DbMeta 映射丢失→冷装载盲分配→旧数据整体不可达。
-purge_unrecovered_checkpoints 删光更早检查点,无回退余地。
+- whlog/src/hlog/shift.rs:139 shift_begin_address 无条件
+  device.truncate_begin_until（:184-192）物理删段，链上零检查点感知
+- wkv/src/gc/compact.rs:89 熔断旁路 None 短路；:110 熔断档 n=max，
+  until 推进到 safe_ro 全速紧缩
+- 默认可达链：wkv/src/gc/reclaim.rs:26 RELEASE_POLL_MS=200、:36
+  open_shared 冷启动挂载；wkv/src/config.rs:82 高水位 1024；
+  gc.enabled 默认 false（config.rs:168）时 reclaim_when_scan_idle
+  （reclaim.rs:117-122）反而兜底驱动回收内核
+- 恢复窗 = 检查点 meta 地址视图：wcpr/src/manager/recover.rs:121-123
+  begin/tail 取自 meta.hlog_meta，:334 scan_iter(begin, tail)；
+  扫已删段报 SegmentNotFound（wdev/src/segmented_device/handle.rs:322）
+- FLUSHALL 同穿此面：wkv/src/store/keyspace.rs:409-411
+  flush_all_databases → shift_begin_address(tail)
 
-C# 对位:DoCompactionAsync 同款物理删段,但双闸:CompactionTask 仅在
-CompactionFrequencySecs>0 且 CompactionType!=None 注册(默认零紧缩),
-且 StoreWrapper.cs:702-705 明文警示 "Compaction will delete files, make sure
-checkpoint/recovery is not being used";另有检查点完成臂补跑紧缩耦合。
-rust 熔断旁路为自引入机制,默认可达且无警示。
+票面两处小误（不改结论）：
 
-## 修法(二选一,证据入回报)
+- purge_unrecovered_checkpoints 在 wnode/src/database/database_manager_base.rs:214
+  （按身份清：恢复成功后删其余全部），另有 wcpr/src/manager/mod.rs:552
+  purge_outdated（按数留 CHECKPOINT_RETAIN_GENERATIONS=2，
+  database_manager_base.rs:47）；「删光更早检查点」仅对恢复后成立。
+  但更早代的重放窗是最新窗的低地址子集，段删后同样不可恢复，结论不变
+- C# DoCompactionAsync 物理删段还受 CompactionForceDelete 第三闸
+  （truncateLog 形参），比票面「双闸」更保守
 
-1. 路径 A(推荐,C# 「拍检查点才真正删文件」语义落地):
-   shift_begin_address/truncate 链对「最近已发布检查点的 hlog_meta.begin/tail
-   重放窗」钳制——越窗段延后到下一检查点发布后回收。
-   检查点发布点(wcpr create 完成)记录基线;truncate 侧读基线钳制。
-2. 路径 B:熔断旁路与常规紧缩统一受「距上一检查点发布」闸门。
+c# 侧（「拍检查点才真正删文件」的实现点与契约原文）：
 
-FLUSHALL 的 flush_all_databases→shift_begin_address(tail) 同穿此面,一并处理
-(C# unsafeTruncateLog 语义共享契约,但 rust 检查点保留策略须与 destructive
-截断联动)。
+- libs/storage/Tsavorite/cs/src/core/Index/Recovery/Checkpoint.cs:54-59
+  CleanupLogCheckpoint：检查点状态机 REST 阶段
+  （Index/Checkpointing/HybridLogCheckpointSMTask.cs:66-67）发布后
+  Log.ShiftBeginAddress(info.beginAddress, truncateLog: true)——
+  只删已发布检查点重放窗之下的段，即 C# 唯一常规物理删段点
+- libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs:133-134
+  契约原文：truncateLog=false 时 "log will be truncated after the next
+  checkpoint"；:143-147 Truncate 文档明示「要数据安全就拍检查点」
+- 默认闸：libs/server/Servers/GarnetServerOptions.cs:211/:225/:231
+  （FrequencySecs=0、Type=None、ForceDelete=false）；
+  libs/server/StoreWrapper.cs:967-969 注册条件；:702-705 ForceDelete
+  警示原文 "Compaction will delete files, make sure checkpoint/recovery
+  is not being used"
 
-## 纪律
+为什么必须路径 A 而非照抄 C# 默认零紧缩：rust 内置换号物理回收是
+doc/zh/db.md 明文承诺（死亡账本摘除依赖 begin 推进，不受
+compaction_type 关停），无 C# 「默认不删」可搭。C# 靠默认不删成立的
+恢复安全，rust 必须靠显式检查点窗钳制成立。路径 B（给熔断旁路加
+「距上一检查点」闸门）只堵熔断一臂，常规档 Shift/Lookup 紧缩与
+FLUSHALL 移位照样越窗删段，需三处闸且仍漏发布点补收——不取。
 
-- 与 bftree-release-gate(安全纪元门控)、gc-compact-store-flight-gate(在途
-  单飞闸)正交:本票只加检查点窗钳制,不动飞行闸与队列门控。
-- r9-soak 发现1(单文件装配下 truncate 空操作)与本票同根不同面:
-  单文件下本票钳制自然空转无害;分段化物理回收另票,本票不做。
+## 方案：检查点发布基线 + 移位链物理删段钳制（单一机制）
+
+whlog 新增「物理删段地板」delete_floor（AtomicU64，初值 0 =
+未发布检查点全禁删）。语义分离：逻辑 begin 照常全量推进（Shift 丢弃、
+gc_dead 账本摘除、FLUSH 语义不变），物理删段目标 =
+min(new_begin, delete_floor)。
+
+改动点：
+
+1. whlog/src/address.rs：Addresses 增 delete_floor 原子位与
+   getter / fetch_max setter；不进 AddressSnapshot（恢复期按
+   恢复检查点重设，见 4）
+2. whlog/src/hlog/shift.rs：shift_begin_address 尾段由
+   Device::truncate_begin_until 内核调用改为显式三步——
+   begin fetch_max(new_begin) → wait_safe_read_only_drained(new_begin)
+   （纪元屏障照旧，排空在途磁盘读者）→
+   device.truncate_until_address(new_begin.min(delete_floor()))。
+   同文件新增 pub release_history_until(target)：抬地板 + 屏障 +
+   truncate_until_address，发布点补收延后段的唯一入口
+3. wcpr/src/manager/create.rs：create_checkpoint_inner 在 meta 发布
+   （sync_checkpoint_dir 成功）后调
+   store.hlog().release_history_until(meta.hlog_meta.begin_address)
+   （对标 C# CleanupLogCheckpoint；失败仅 warn：发布已完成，延后段
+   下一轮紧缩按新地板补收，正确性不受影响）
+4. wkv/src/store/cpr_host.rs：CprRecover::from_recovered 装配时
+   raise_delete_floor(recovered.meta.hlog_meta.begin_address)
+   （启动恢复与副本在线导入 recover_from_token 同路覆盖；只抬地板
+   不补删，对标 C# OnRecovery 后待下一发布点收）
+
+不扩面：
+
+- wkv/src/store/addr.rs:190 truncate()（C# LogAccessor.Truncate 显式
+  破坏性逃生口，调用点 wnode/src/resp/garnet_api/slow.rs:1062
+  unsafe_truncate_log 默认关）不加钳制——C# 同为文档警示的显式
+  破坏操作，1:1 保留
+- waof 截断链（AOF 独立设备与恢复语义）不动
+- 熔断判定、在途单飞闸、队列门控原样（与 bftree-release-gate、
+  gc-compact-store-flight-gate 正交）
+
+安全性核对：
+
+- 磁盘卫生：延后段由生产检查点链（SAVE/BGSAVE/AOF 体积超限）发布点
+  补收，与 C# "Take a checkpoint in order to actually delete" 同
+- 单文件设备 truncate_until_address 恒空转（wdev/src/device.rs:296），
+  钳制自然空转无害
+- 设备截断幂等（wdev/src/segmented_device/truncate.rs:146-148
+  fetch_max 快路径、:175 NotFound 容忍），补收重入安全
+- 发布点屏障快路径：发布前检查点流程已等 safe_ro >= tail >=
+  cp.begin，不变式 begin <= safe_head 保证谓词已真，零挂起
+
+## 测试
+
+1. 改写 wkv/tests/compact/basic.rs multi_segment_physical_truncation
+   （:16-89）：现断言「无检查点紧缩即删段」正是票面 P0 行为，改为
+   紧缩后段保留（钳制生效）→ 拍检查点（地板抬升并补收）→ 段删除
+2. 新增定向测试（复用 wkv/tests/checkpoint/recovery.rs 夹具形态）：
+   拍检查点 → 紧缩/移位越窗 → 断言重放窗 [meta.begin, meta.tail)
+   段在盘 → recover_latest 恢复成功
 
 ## 验收
 
-1. cargo check -p wdev -p whlog -p wkv -p wcpr -p wnode -p wedb 零 error 零 warning。
-2. 定向测试:拍检查点 → 制造积压触发熔断紧缩 → 断言重放窗内段未被删 →
-   kill -9 → recover_latest 恢复成功且 DbMeta 映射完整(复用 wkv/tests
-   checkpoint 夹具;无夹具不硬造,回报说明)。
-
-## 门禁
-
-只跑 cargo check(-p 收窄)与定向测试。严禁 ./test.sh 与 ./sh/clippy.sh。
+cargo check -p wdev -p whlog -p wkv -p wcpr -p wnode -p wedb
+零 error 零 warning；定向测试通过。严禁 ./test.sh 与 ./sh/clippy.sh。
