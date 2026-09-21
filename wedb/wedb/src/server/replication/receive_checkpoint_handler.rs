@@ -42,7 +42,6 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use wbase::pool::AlignedBuf;
 use wbftree::RangeIndexManager;
 use wdev::{Device, SegmentedDevice};
 
@@ -159,14 +158,24 @@ impl FileDataSink {
         // 对齐切分保证，末块零填充至扇区边界（尾随零页由恢复期
         // [tail, page_end) 清零语义吸收）
         let sector = device.sector_size();
+        if (start_address & (sector as u64 - 1)) != 0 {
+          return Err(format!(
+            "start_address {start_address} is not aligned to device sector size {sector}"
+          ));
+        }
         let padded_len = data.len().next_multiple_of(sector).max(sector);
-        let mut padded = vec![0u8; padded_len];
-        padded[..data.len()].copy_from_slice(data);
-        let buf = AlignedBuf::from_slice(&padded, sector)
+        let mut buf = device
+          .pool()
+          .get(padded_len)
           .map_err(|e| format!("IOERR alloc aligned buffer: {e}"))?;
-        let buf_res = device.write_aligned(start_address, buf).await;
+        buf
+          .set_len(padded_len)
+          .map_err(|e| format!("IOERR set aligned buffer length: {e}"))?;
+        let slice = buf.as_mut_slice();
+        slice[..data.len()].copy_from_slice(data);
+        slice[data.len()..].fill(0);
+        let (buf_res, _buf) = device.write_aligned(start_address, buf).await;
         buf_res
-          .0
           .map_err(|e| format!("IOERR device write at {start_address}: {e}"))?;
         Ok(())
       }
@@ -389,7 +398,9 @@ impl ReceiveCheckpointHandler {
       }
       sink
     };
-    let res = sink.write_chunk(start_address as u64, data).await;
+    let start_address = u64::try_from(start_address)
+      .map_err(|_| format!("start_address must be non-negative: {start_address}"))?;
+    let res = sink.write_chunk(start_address, data).await;
     let mut guard = self.active_sink.lock();
     match res {
       Ok(()) => {
