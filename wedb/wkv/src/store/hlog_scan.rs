@@ -24,109 +24,135 @@
 use std::sync::Arc;
 
 use itoa::Buffer;
-use wbase::map::{GxBuildHasher, HashMap};
 use wdev::Device;
 
 use super::WedbStore;
 use crate::error::Result;
 
+/// 扫描统计区域枚举（对标 Garnet Log.ReadOnlyAddress 二分边界）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum ScanRegion {
+  /// 不可变只读冷区（C# `"Immutable"`：地址 < ReadOnlyAddress）
+  Immutable = 0,
+  /// 可变热区（C# `"Mutable"`：地址 ≥ ReadOnlyAddress）
+  Mutable = 1,
+}
+
+impl ScanRegion {
+  /// 所有区域常量迭代列表，保持地址序（Immutable < Mutable）
+  pub const ALL: [Self; 2] = [Self::Immutable, Self::Mutable];
+
+  /// 转为 C# 对齐的区域名称字符串
+  #[inline]
+  pub const fn as_str(self) -> &'static str {
+    match self {
+      Self::Immutable => "Immutable",
+      Self::Mutable => "Mutable",
+    }
+  }
+}
+
+/// 扫描统计状态枚举（按 wedb 状态机收敛为 3 态）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum ScanState {
+  /// 活动版本（C# `"Live"`）
+  Live = 0,
+  /// 被取代版本（C# `"RCUdUnsealed"`）
+  RCUdUnsealed = 1,
+  /// 墓碑（C# `"Tombstoned"`）
+  Tombstoned = 2,
+}
+
+impl ScanState {
+  /// 所有状态常量迭代列表
+  pub const ALL: [Self; 3] = [Self::Live, Self::RCUdUnsealed, Self::Tombstoned];
+
+  /// 转为 C# 对齐的状态名称字符串
+  #[inline]
+  pub const fn as_str(self) -> &'static str {
+    match self {
+      Self::Live => "Live",
+      Self::RCUdUnsealed => "RCUdUnsealed",
+      Self::Tombstoned => "Tombstoned",
+    }
+  }
+}
+
+/// 单项条目聚合（记录条数与物理字节数）
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MetricEntry {
+  pub count: i64,
+  pub size: i64,
+}
+
 /// 混合日志扫描的区域/状态分布统计
 ///（对标 libs/server/Metrics/HybridLogScanMetrics.cs:HybridLogScanMetrics）。
 ///
-/// C# 用 `Dictionary<string, Dictionary<string, (long count, long size)>>`；
-/// 输出转储要求稳定的区域顺序，故区域层以 `Vec` 保序 + 哈希索引，
-/// 状态层同构（每区域状态数有限，线性查找开销可忽略）。
-///
-/// 状态桶以字符串承接（与 C# 输出串同形），桶集合由存储域扫描侧
-/// （wkv `hlog_scan_metrics`）按 wrecord/wkv 实际状态机收敛：rust 无
-/// 持久 RCUdSealed 形态（SEALED 位是复活槽位瞬态标记）与记录头 Invalid
-/// 位（脱钩只清索引槽），二者收敛进 `RCUdUnsealed`，不存在恒 0 假桶；
-/// 本容器保持 C# 同构的开放键值形态，不做桶集合编码。
-#[derive(Default, Debug, Clone)]
+/// 相比 C# 动态嵌套 Dictionary 与动态查找，本结构采用固定 2×3 矩阵
+/// （ScanRegion × ScanState），完全消除堆分配与哈希查表，统计累加为纯寄存器/栈上 O(1) 索引操作。
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HybridLogScanMetrics {
-  /// 区域 → (状态 → (条数, 字节数))；区域按首次插入顺序排列。
-  scan_metrics: Vec<RegionMetrics>,
-}
-
-/// 单区域统计：状态聚合 + 哈希索引（状态名 → 下标）。
-#[derive(Default, Debug, Clone)]
-struct RegionMetrics {
-  region: String,
-  states: Vec<(String, (i64, i64))>,
-  index: HashMap<String, usize>,
+  metrics: [[MetricEntry; 3]; 2],
 }
 
 impl HybridLogScanMetrics {
   /// libs/server/Metrics/HybridLogScanMetrics.cs:AddScanMetric
   ///
   /// 记录一次扫描命中：区域 `region` 下状态 `state` 的条数加一、字节数累加。
-  pub fn add_scan_metric(&mut self, region: &str, state: &str, size: i64) {
-    let region_idx = match self.scan_metrics.iter().position(|r| r.region == region) {
-      Some(idx) => idx,
-      None => {
-        self.scan_metrics.push(RegionMetrics {
-          region: region.into(),
-          states: Vec::new(),
-          index: HashMap::with_hasher(GxBuildHasher::default()),
-        });
-        self.scan_metrics.len() - 1
-      }
-    };
-    let region_metrics = &mut self.scan_metrics[region_idx];
-    match region_metrics.index.get(state).copied() {
-      Some(state_idx) => {
-        let entry = &mut region_metrics.states[state_idx].1;
-        entry.0 += 1;
-        entry.1 += size;
-      }
-      None => {
-        region_metrics
-          .index
-          .insert(state.into(), region_metrics.states.len());
-        region_metrics.states.push((state.into(), (1, size)));
-      }
-    }
+  /// 纯数组下标直接累加，零堆分配、零哈希查表。
+  #[inline]
+  pub fn add_scan_metric(&mut self, region: ScanRegion, state: ScanState, size: i64) {
+    let entry = &mut self.metrics[region as usize][state as usize];
+    entry.count += 1;
+    entry.size += size;
+  }
+
+  /// 获取指定区域与状态的统计指标
+  #[inline]
+  pub fn get(&self, region: ScanRegion, state: ScanState) -> MetricEntry {
+    self.metrics[region as usize][state as usize]
   }
 
   /// libs/server/Metrics/HybridLogScanMetrics.cs:DumpScanMetricsInfo
   ///
   /// 转储为 INFO 多行文本；空统计返回空串（对齐 C# 仅输出起始换行前的空内容）。
   pub fn dump_scan_metrics_info(&self) -> String {
-    if self.scan_metrics.is_empty() {
+    let has_any = self
+      .metrics
+      .iter()
+      .any(|region| region.iter().any(|e| e.count > 0));
+    if !has_any {
       return String::new();
     }
     let mut out = String::with_capacity(128);
     out.push('\n');
     let mut num_buf = Buffer::new();
-    for region in &self.scan_metrics {
+    for (r_idx, region) in ScanRegion::ALL.iter().enumerate() {
+      let region_has_records = self.metrics[r_idx].iter().any(|e| e.count > 0);
+      if !region_has_records {
+        continue;
+      }
       out.push_str("# Region: ");
-      out.push_str(&region.region);
+      out.push_str(region.as_str());
       out.push('\n');
-      for (state, (count, size)) in &region.states {
-        out.push_str("  State: ");
-        out.push_str(state);
-        out.push_str(", Count: ");
-        out.push_str(num_buf.format(*count));
-        out.push_str(", Size: ");
-        out.push_str(num_buf.format(*size));
-        out.push('\n');
+      for (s_idx, state) in ScanState::ALL.iter().enumerate() {
+        let entry = &self.metrics[r_idx][s_idx];
+        if entry.count > 0 {
+          out.push_str("  State: ");
+          out.push_str(state.as_str());
+          out.push_str(", Count: ");
+          out.push_str(num_buf.format(entry.count));
+          out.push_str(", Size: ");
+          out.push_str(num_buf.format(entry.size));
+          out.push('\n');
+        }
       }
     }
     out
   }
 }
-
-/// 可写热区输出串（C# `"Mutable"`：地址 ≥ ReadOnlyAddress）
-const REGION_MUTABLE: &str = "Mutable";
-/// 只读冷区输出串（C# `"Immutable"`：地址 < ReadOnlyAddress）
-const REGION_IMMUTABLE: &str = "Immutable";
-/// 活动版本输出串（C# `"Live"`）
-const STATE_LIVE: &str = "Live";
-/// 被取代版本输出串（C# `"RCUdUnsealed"`；收敛承接 RCUdSealed 与
-/// ElidedFromHashIndex，论证见模块文档）
-const STATE_RCU_D_UNSEALED: &str = "RCUdUnsealed";
-/// 墓碑输出串（C# `"Tombstoned"`）
-const STATE_TOMBSTONED: &str = "Tombstoned";
 
 /// 单条记录的扫描裁决：已入桶或待锁外回溯二分
 enum ScanVerdict {
@@ -137,7 +163,7 @@ enum ScanVerdict {
   Pending {
     key: Vec<u8>,
     addr: u64,
-    region: &'static str,
+    region: ScanRegion,
     size: i64,
   },
 }
@@ -178,17 +204,17 @@ impl<D: Device> WedbStore<D> {
         // 字节口径 = 物理条宽（含对齐/松弛填充，对齐 C# NextAddress-CurrentAddress）
         let size = item.bytes.len() as i64;
         let region = if item.addr >= read_only {
-          REGION_MUTABLE
+          ScanRegion::Mutable
         } else {
-          REGION_IMMUTABLE
+          ScanRegion::Immutable
         };
         // 判定顺序对齐 C#：sealed → tombstone → 索引回溯
         let rec = item.rec;
         if rec.is_sealed() {
-          metrics.add_scan_metric(region, STATE_RCU_D_UNSEALED, size);
+          metrics.add_scan_metric(region, ScanState::RCUdUnsealed, size);
           Ok(ScanVerdict::Classified)
         } else if rec.is_tombstone() {
-          metrics.add_scan_metric(region, STATE_TOMBSTONED, size);
+          metrics.add_scan_metric(region, ScanState::Tombstoned, size);
           Ok(ScanVerdict::Classified)
         } else {
           // 键切片借用自页缓冲，仅窗口内可用：只读索引表原子判定（find_tag
@@ -204,11 +230,11 @@ impl<D: Device> WedbStore<D> {
             .map(|first| self.read_cache.skip_read_cache(first).unwrap_or(0))
           {
             Some(curr) if curr == item.addr => {
-              metrics.add_scan_metric(region, STATE_LIVE, size);
+              metrics.add_scan_metric(region, ScanState::Live, size);
               Ok(ScanVerdict::Classified)
             }
             None => {
-              metrics.add_scan_metric(region, STATE_RCU_D_UNSEALED, size);
+              metrics.add_scan_metric(region, ScanState::RCUdUnsealed, size);
               Ok(ScanVerdict::Classified)
             }
             Some(_) => Ok(ScanVerdict::Pending {
@@ -232,9 +258,9 @@ impl<D: Device> WedbStore<D> {
         continue;
       };
       let state = if self.is_latest_hlog_version(&key, addr, head) {
-        STATE_LIVE
+        ScanState::Live
       } else {
-        STATE_RCU_D_UNSEALED
+        ScanState::RCUdUnsealed
       };
       metrics.add_scan_metric(region, state, size);
     }
@@ -291,23 +317,23 @@ impl<D: Device> WedbStore<D> {
 
 #[cfg(test)]
 mod tests {
-  use super::HybridLogScanMetrics;
+  use super::{HybridLogScanMetrics, ScanRegion, ScanState};
 
   #[test]
   fn aggregate_and_dump() {
     let mut m = HybridLogScanMetrics::default();
-    m.add_scan_metric("Mutable", "Inline", 64);
-    m.add_scan_metric("Mutable", "Inline", 32);
-    m.add_scan_metric("Mutable", "OverflowBucket", 128);
-    m.add_scan_metric("ReadCache", "Inline", 16);
+    m.add_scan_metric(ScanRegion::Mutable, ScanState::Live, 64);
+    m.add_scan_metric(ScanRegion::Mutable, ScanState::Live, 32);
+    m.add_scan_metric(ScanRegion::Mutable, ScanState::RCUdUnsealed, 128);
+    m.add_scan_metric(ScanRegion::Immutable, ScanState::Live, 16);
 
     let dump = m.dump_scan_metrics_info();
+    assert!(dump.contains("# Region: Immutable\n"));
+    assert!(dump.contains("  State: Live, Count: 1, Size: 16\n"));
     assert!(dump.contains("# Region: Mutable\n"));
-    assert!(dump.contains("  State: Inline, Count: 2, Size: 96\n"));
-    assert!(dump.contains("  State: OverflowBucket, Count: 1, Size: 128\n"));
-    assert!(dump.contains("# Region: ReadCache\n"));
-    // 区域保持首次插入顺序。
-    assert!(dump.find("Mutable").unwrap() < dump.find("ReadCache").unwrap());
+    assert!(dump.contains("  State: Live, Count: 2, Size: 96\n"));
+    assert!(dump.contains("  State: RCUdUnsealed, Count: 1, Size: 128\n"));
+    assert!(dump.find("Immutable").unwrap() < dump.find("Mutable").unwrap());
 
     // 空状态转储为空串（dump_scan_metrics_info 的提前返回分支）。
     assert_eq!(HybridLogScanMetrics::default().dump_scan_metrics_info(), "");

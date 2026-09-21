@@ -37,8 +37,8 @@ pub use session::{
 /// 全量活跃域枚举条目（跨域扫描原语的产出形态，wedb 复制/迁移扇出面用）
 pub use store::vdb_load::ActiveDomain;
 pub use store::{
-  DefaultWedbStore, HybridLogScanMetrics, KEY_ID_ASSIGN_MARGIN, ObjectRmwNotification, StoreEvent,
-  StoreEventSink, TieredCollectionNotification, WedbStore,
+  DefaultWedbStore, HybridLogScanMetrics, MetricEntry, ScanRegion, ScanState, KEY_ID_ASSIGN_MARGIN,
+  ObjectRmwNotification, StoreEvent, StoreEventSink, TieredCollectionNotification, WedbStore,
 };
 pub use ttl::{TtlCarrier, TtlGate, TtlOpt, is_expired, is_expired_or_now};
 /// DbMeta 系统记录单点编解码布局（AOF 镜像条目的记录复原口径，wnode 回放面用）

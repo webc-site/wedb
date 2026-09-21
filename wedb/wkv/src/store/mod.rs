@@ -43,7 +43,7 @@ pub mod stats;
 pub mod vdb_load;
 
 pub use event::*;
-pub use hlog_scan::HybridLogScanMetrics;
+pub use hlog_scan::{HybridLogScanMetrics, MetricEntry, ScanRegion, ScanState};
 pub use resize::*;
 
 /// key_id 分配安全余量（恢复时在持久化水位之上预留的分配额度）
