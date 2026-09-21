@@ -46,9 +46,11 @@ pool = [
 map = ["dep:papaya", "dep:gxhash"]
 set = ["dep:papaya", "dep:gxhash"]
 store_type = []
-tls = ["dep:rustls-pemfile", "dep:rustls-pki-types"]
+tls = ["dep:rustls-pemfile", "dep:rustls-pki-types", "dep:compio-tls", "dep:futures-util", "dep:compio-buf", "dep:compio"]
 
 [dependencies]
+futures-util = { workspace = true, optional = true }
+compio-tls = { workspace = true, optional = true }
 coarsetime = { workspace = true, optional = true }
 compio = { workspace = true, features = ["runtime"], optional = true }
 compio-buf = { workspace = true, optional = true }
