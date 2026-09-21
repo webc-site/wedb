@@ -135,7 +135,7 @@ fn commitaof_idempotent_when_auto_commit_on() {
 
     let aof = provider.aof().expect("aof enabled");
     // auto_commit 开：提交任务经 enqueue 同步派发，等待落定即覆盖当前尾
-    aof.log().wait_for_commit_all_async(0).await;
+    aof.log().wait_for_commit_all_async(0).await.unwrap();
     let tail = aof.tail_address();
     let committed = aof
       .log()

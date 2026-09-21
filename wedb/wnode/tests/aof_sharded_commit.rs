@@ -161,8 +161,10 @@ fn sharded_commit_awaits_all_sublogs_concurrently() {
 }
 
 /// 等待面语义与失败传播：一个子日志设备只读（刷盘必失败）时，
-/// `commit_async` 与 `wait_for_commit_all_async` 仍全体返回，
-/// 兄弟子日志全部落盘（WhenAll 聚合，非首个错误即取消其余）
+/// `commit_async` 仍全体返回、兄弟子日志全部落盘（WhenAll 聚合，非首个
+/// 错误即取消其余）；`wait_for_commit_all_async` 同样不挂死不阻断兄弟，
+/// 且失败沿等待上浮（C# WhenAll 聚合后抛 CommitFailureException，
+/// TsavoriteLog.cs:1866-1879 await 重抛）
 #[test]
 fn sharded_commit_aggregates_sublog_failure_without_cancelling_siblings() {
   let (_dirs, backends): (Vec<TempDir>, Vec<_>) = (0..SUBLOGS)
@@ -179,8 +181,9 @@ fn sharded_commit_aggregates_sublog_failure_without_cancelling_siblings() {
     "只读设备子日志不应前移提交水位"
   );
 
-  // 等待面：失败子日志的等待内部告警后返回，既不挂死也不阻断其余子日志
-  rt.block_on(log.wait_for_commit_all_async(0));
+  // 等待面：全体跑完聚合首个 Err 上浮（不取消兄弟），既不挂死也不阻断
+  let wait_res = rt.block_on(log.wait_for_commit_all_async(0));
+  assert!(wait_res.is_err(), "失败子日志的等待应聚合上浮 Err");
   for (i, target) in targets.iter().enumerate() {
     let sublog = log.get_sub_log(i);
     if i == FAILING {

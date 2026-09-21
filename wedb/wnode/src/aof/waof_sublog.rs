@@ -415,11 +415,13 @@ impl<D: Device> WaofSublog<D> {
     );
   }
 
-  pub async fn wait_for_commit_async(&self, until_address: i64) {
+  /// 异步等待提交落盘至 `until_address`（C# TsavoriteLog.cs:WaitForCommitAsync
+  /// :1866-1879 的等待面：CommitTask 故障即沿 await 重抛 CommitFailureException
+  /// ——TsavoriteLog.cs:2786-2788 cannedException + TrySetException。失败上浮，
+  /// 不吞错：吞错即 wait 档客户端拿到 +OK 而写未落盘，已确认写丢失）
+  pub async fn wait_for_commit_async(&self, until_address: i64) -> waof::Result<()> {
     let target = until_address.max(0) as u64;
-    if let Err(err) = self.wal.wait_for_commit(target).await {
-      log::error!("WaofSublog 等待提交落盘失败: {err:?}");
-    }
+    self.wal.wait_for_commit(target).await.map(|_| ())
   }
 }
 
