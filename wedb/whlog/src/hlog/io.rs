@@ -135,6 +135,8 @@ impl<D: Device> HybridLog<D> {
   /// `VerifyRecordFromDiskCallback` 以 `prevLengthToRead` 重发同一记录的口径）。
   ///
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncReadBlittableRecordToMemory
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:ReadAsync
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs:ReadAsync
   pub async fn read_disk_record(&self, addr: u64) -> Result<RecordOutput> {
     if !self.disk_readable(addr) {
       return Err(Error::PageNotReady(self.config.page_id(addr)));
@@ -230,6 +232,10 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 页范围刷盘内核：封 → 排空 → 写 → 记账，读侧上界单点自保
+  ///
+  /// C# 分配器页写抽象的统一落点：
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:WriteAsync
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs:WriteAsync
   ///
   /// 通过 [crate::flush::PendingFlushList] 贪心合并相邻待刷盘区间为单次连续写；
   /// 成功后经 `complete_flush_range` 保证 `flushed_until` 永远表示绝对连续、无空洞的

@@ -2,22 +2,14 @@
 //!
 //! 提供基于 `futures_util::lock::BiLock` 包装的读写操作核心逻辑，避免 `wnode` 和 `wconn` 重复实现。
 
-use std::{
-  future::poll_fn,
-  io,
-  mem::MaybeUninit,
-  slice::from_raw_parts_mut,
-  task::Poll,
-};
+use std::{future::poll_fn, io, mem::MaybeUninit, slice::from_raw_parts_mut, task::Poll};
 
-use compio::buf::{BufResult, IoBuf, IoBufMut};
-use compio::net::TcpStream;
-use compio_tls::TlsStream;
-use futures_util::{
-  AsyncRead as TlsAsyncRead,
-  AsyncWrite as TlsAsyncWrite,
-  lock::BiLock,
+use compio::{
+  buf::{BufResult, IoBuf, IoBufMut},
+  net::TcpStream,
 };
+use compio_tls::TlsStream;
+use futures_util::{AsyncRead as TlsAsyncRead, AsyncWrite as TlsAsyncWrite, lock::BiLock};
 
 /// 追加读目标：缓冲空闲段，首次触及整段零初始化
 #[inline]
@@ -49,7 +41,7 @@ pub async fn tls_append_read<B: IoBufMut>(
     let mut stream = guard.as_pin_mut();
     let mut b = buf.take().expect("TLS 读缓冲存活至读完成");
     let target = append_target(&mut b, &mut primed);
-    
+
     match stream.as_mut().poll_read(cx, target) {
       Poll::Pending => {
         buf = Some(b);
@@ -88,7 +80,7 @@ pub async fn tls_write_flush<B: IoBuf>(
     let mut stream = guard.as_pin_mut();
     let b = buf.take().expect("TLS 写缓冲存活至写出完成");
     let total = b.as_init().len();
-    
+
     let res = loop {
       if written < total {
         let step = stream.as_mut().poll_write(cx, &b.as_init()[written..]);

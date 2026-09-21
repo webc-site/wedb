@@ -5,9 +5,8 @@
 //! - `libs/server/Servers/ServerTcpNetworkHandler.cs`
 
 use std::io;
+
 #[cfg(feature = "tls")]
-
-
 #[cfg(unix)]
 use compio::net::UnixStream;
 use compio::{
@@ -174,4 +173,3 @@ impl ConnectionStream {
     stream_io!(self => |s| s.write_all(buf).await, tls |h| tls_write_flush(&h.write, buf).await)
   }
 }
-

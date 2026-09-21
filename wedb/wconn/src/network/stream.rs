@@ -11,11 +11,9 @@
 //!（含 Pending）即释锁，读挂起期间写句柄照样推进，与 TCP 全双工同一拓扑。
 
 use std::io;
-#[cfg(feature = "tls")]
-
 
 #[cfg(feature = "tls")]
-
+#[cfg(feature = "tls")]
 #[cfg(unix)]
 use compio::net::UnixStream;
 use compio::{
@@ -27,9 +25,9 @@ use compio::{
 use compio_tls::TlsStream;
 #[cfg(feature = "tls")]
 use futures_util::lock::BiLock;
+use wbase::endpoint::uds_path;
 #[cfg(feature = "tls")]
 use wbase::tls::stream::{tls_append_read as tls_read, tls_shutdown, tls_write_flush};
-use wbase::endpoint::uds_path;
 
 use crate::Result;
 #[cfg(feature = "tls")]
@@ -189,4 +187,3 @@ impl WriteHalf {
     }
   }
 }
-

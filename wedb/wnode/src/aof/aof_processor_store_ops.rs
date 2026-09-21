@@ -301,6 +301,7 @@ pub async fn store_rmw<D: Device>(
 }
 
 /// libs/server/AOF/AofProcessor.cs:StoreDelete
+/// libs/server/AOF/AofProcessor.cs:UnifiedStoreDelete
 ///
 /// 逐域删除、域内收敛（对位 C# `StoreDelete(preparedParameters, stringContext)`
 /// 与 `ObjectStoreDelete(preparedParameters, objectContext)`——两存储域各删自域，
@@ -309,6 +310,8 @@ pub async fn store_rmw<D: Device>(
 /// 文件 + 换号旁表回收，直调主端同一排空内核
 /// [`wkv::StoreSession::handle_bftree_drain_and_delete`] 的迁移臂（keep_ttl =
 /// true 形），绝不连带销毁信封域与随键 TTL。
+/// C# UnifiedStoreDelete（统一存上下文覆载）在 wkv 单一存储面下与主存
+/// delete 同形，统一存重放臂直调本口
 ///
 /// 各物理域的消亡均由主端各自的镜像条目承接（元记录删除必经
 /// handle_bftree_drain_and_delete 单点入账 RangeIndexDrop，信封域另由
