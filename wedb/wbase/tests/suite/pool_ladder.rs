@@ -19,6 +19,8 @@ const LINEAR_TOP_SECTORS: usize = 16;
 const LINEAR_STRIDE: usize = 4;
 
 /// 全扇区数域穷举：class 单调、容量充分且最小、浪费有界、往返恒等
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:LadderIsMonotonicAndBounded
 #[test]
 fn ladder_is_monotonic_and_bounded() -> Void {
   info!("穷举 1..=MAX_POOLED_SECTORS 验证阶梯映射单调、充分、最小且几何区浪费 <= 1.5x");

@@ -28,8 +28,10 @@ impl ReplicaSyncSessionTaskStore {
     }
   }
 
-  /// 去重登记在册副本（C# TryAddReplicaSyncSession 磁盘链重载：同
-  /// replicaNodeId 已在册即拒绝并记日志；insert 返回 false 即已存在）
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:TryAddReplicaSyncSession
+  ///
+  /// 去重登记在册副本（C# 磁盘链重载：同 replicaNodeId 已在册即拒绝并记
+  /// 日志；insert 返回 false 即已存在）
   pub fn try_add(&self, replica_node_id: u128) -> bool {
     let fresh = self.sessions.pin().insert(replica_node_id);
     if !fresh {
@@ -38,15 +40,20 @@ impl ReplicaSyncSessionTaskStore {
     fresh
   }
 
-  /// 摘除登记（C# TryRemove；C# 会话 Dispose 的驱动清理在 rust 由会话体
-  /// 自有退场路径承接，仓侧仅去登记）
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:TryRemove
+  ///
+  /// 摘除登记（C# 会话 Dispose 的驱动清理在 rust 由会话体自有退场路径
+  /// 承接，仓侧仅去登记）
   pub fn try_remove(&self, replica_node_id: u128) -> bool {
     self.sessions.pin().remove(&replica_node_id)
   }
 
-  /// 清空在册（C# Dispose 的 `_disposed = true` + Array.Clear 半边，挂
-  /// [`super::replication_manager::ReplicationManager::dispose`]；rust 会话
-  /// 无持有资源，仅清登记）
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:Dispose
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:Clear
+  ///
+  /// 清空在册（C# Dispose 的 `_disposed = true` + Array.Clear 与 Clear 的
+  /// 合流面，挂 [`super::replication_manager::ReplicationManager::dispose`]；
+  /// rust 会话无持有资源，仅清登记）
   pub fn clear(&self) {
     self.sessions.pin().clear();
   }

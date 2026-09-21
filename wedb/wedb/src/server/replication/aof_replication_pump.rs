@@ -204,7 +204,14 @@ impl Drop for PumpGuard<'_> {
   }
 }
 
-/// 推流拉取主体（自由函数：信号唤醒循环与同步补扫共用，无 self 依赖）
+/// libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncTask.cs:RunAofSyncTaskAsync
+///
+/// 推流拉取主体（自由函数：信号唤醒循环与同步补扫共用，无 self 依赖）。
+/// C# RunAofSyncTaskAsync 为每子日志常驻任务的主体：建连（ConnectAsync）→
+/// init 帧（ExecuteClusterAppendLogInit）→ BulkConsumeAllAsync 扫描推流；
+/// rust 拓扑重排为事件驱动——建连与 init 帧段由 `TcpSessionWire::connect`
+/// 承接（见其文档），本函数承接扫描推流主体（按副本位点扫至日志尾，
+/// 逐记录 [`super::aof_sync_task::AofSyncTask::consume`] 转发），无常驻任务。
 ///
 /// 各副本从推流游标（accepted_address，含溢流在途帧）扫至
 /// [`WalLog::safe_tail_address`]，逐记录转发；断连或位错即驱动退场出册并

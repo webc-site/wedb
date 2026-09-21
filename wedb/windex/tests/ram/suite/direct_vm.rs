@@ -11,6 +11,8 @@ use windex::ram::{DirectVirtualMemory, DirectVmBlock, NativeMemoryTracker, syste
 static TRACKER_LOCK: Mutex<()> = Mutex::new(());
 
 /// 直接虚拟内存分配：demand-zero 全零、对齐、可读写、可清零、可释放
+///
+/// libs/storage/Tsavorite/cs/test/NativeAllocatorTests.cs:DirectVmAllocateIsZeroedAlignedWritable
 #[test]
 fn direct_vm_allocate_is_zeroed_aligned_writable() -> Void {
   let _guard = TRACKER_LOCK.lock();

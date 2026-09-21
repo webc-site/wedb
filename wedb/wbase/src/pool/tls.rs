@@ -73,12 +73,14 @@ impl TlsPoolEntry {
   }
 
   /// 弹出单个 class 的一个缓冲用于溢出到 Depot (对标 C# SpillOneLocal)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:SpillOneLocal
   #[inline]
   pub(crate) fn spill_one_local(&mut self, cls: usize) -> Option<CachedBuf> {
     self.pop_local(cls)
   }
 
   /// 查找持有字节数超过公平份额 share 最多的受害者 class (对标 C# WorstOverShare)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:WorstOverShare
   pub(crate) fn worst_over_share(&self, share: usize, first_large_class: usize) -> Option<usize> {
     let mut worst = 0usize;
     let mut victim = None;
@@ -100,6 +102,7 @@ impl TlsPoolEntry {
   /// 若无法腾挪（例如当前 class 占用已达公平份额，或无足够超额受害者可逐出导致
   /// 循环终止时 local_bytes + bytes 仍超过 cap），返回 (false, victims)；
   /// 调用方须确保逐出的受害者仍溢出至 Depot，且新缓冲不得推入本地栈。
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:TryMakeRoom
   pub(crate) fn try_make_room(
     &mut self,
     cls: usize,
@@ -219,6 +222,7 @@ impl TlsPoolManager {
   }
 
   /// 获取或创建线程本地 shard (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:GetOrCreateShard 与 CreateShardSlow)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:CreateShardSlow
   pub(crate) fn get_or_create<'a>(&'a mut self, pool: &Arc<BufferPool>) -> &'a mut TlsPoolEntry {
     // fast 命中探测用不可变借用即时终结：stable NLL 下「可变借用 + 早返回 + 'a
     // 标注」会把借用拉长到整个函数，与慢路径的 take/insert 冲突 (E0499)；

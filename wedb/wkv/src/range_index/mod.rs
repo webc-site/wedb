@@ -216,6 +216,11 @@ impl Deref for TreeReadGuard<'_> {
 /// 「探测 → 树写 → 计数 → meta 回写」多步序列，独占串行对位 C# 对象域同键写经
 /// Tsavorite 记录锁串行（TsavoriteKV.cs RMW InPlaceUpdater 前置记录 X 锁），
 /// 承载面见 `acquire_tree_write`）
+///
+/// libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:Dispose 的承接：
+/// C# ReadRangeIndexLock/ExclusiveRangeIndexLock 两 ref struct 的 Dispose
+/// （ReleaseLock(token)）即 rust 守卫 Drop（内嵌 parking_lot 读写守卫析构
+/// 释放），无显式释放函数面。
 pub struct TreeWriteGuard<'a> {
   tree: Arc<BfTreeService>,
   _guard: RwLockWriteGuard<'a, ()>,

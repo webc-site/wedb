@@ -39,8 +39,10 @@ pub enum LeaderBarrierType {
 }
 
 /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:BarrierKey
+/// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:GetHashCode
 ///
-/// 栅栏键：会话段 + 序列号段。
+/// 栅栏键：会话段 + 序列号段。C# GetHashCode（HashCode.Combine 双字段）
+/// 由派生 `Hash` 承接——两字段全量组合哈希，语义等价。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BarrierKey {
   /// 会话 id（或 LeaderBarrierType 取值）。

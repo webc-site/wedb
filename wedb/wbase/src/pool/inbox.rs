@@ -51,6 +51,7 @@ impl CrossThreadInbox {
   }
 
   /// 跨线程归还：通过 CAS 推入单向栈，若已密封则返回 false (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:TryPushCrossThread)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:TryPush
   pub(crate) fn try_push(&self, cls: usize, node: *mut FreeNode) -> bool {
     let head_ptr = &self.heads[cls].0;
     let mut head = head_ptr.load(Acquire);

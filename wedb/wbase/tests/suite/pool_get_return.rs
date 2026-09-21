@@ -12,6 +12,8 @@ use wbase::{
 };
 
 /// 跨尺寸请求：指针对齐、容量覆盖、首尾字节可写
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:GetCapacityCoversRequestAcrossSizes
 #[test]
 fn get_capacity_covers_request_across_sizes() -> Void {
   info!("对标 GetCapacityCoversRequestAcrossSizes：512 扇区池跨尺寸租借并触达首尾字节");
@@ -37,6 +39,8 @@ fn get_capacity_covers_request_across_sizes() -> Void {
 }
 
 /// 默认 Get 返回全零缓冲区，同线程归还后复用同一块内存并重新清零
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:GetReturnsZeroedBufferAndReuses
 #[test]
 fn get_returns_zeroed_buffer_and_reuses() -> Void {
   info!("对标 GetReturnsZeroedBufferAndReuses：默认 Get 全零、归还后同指针复用且重新清零");
@@ -69,6 +73,8 @@ fn get_returns_zeroed_buffer_and_reuses() -> Void {
 }
 
 /// 免清零归还后，默认 Get 必须惰性清零脏缓冲区
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:OptOutClearThenDefaultGetIsZeroed
 #[test]
 fn opt_out_clear_then_default_get_is_zeroed() -> Void {
   info!(

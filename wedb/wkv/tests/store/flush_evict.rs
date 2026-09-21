@@ -25,6 +25,8 @@ use crate::support::{config, open_store, pad};
 /// 3. shift_head_address 将第 0 页驱逐到磁盘区（is_on_disk == true && !is_in_memory）。
 /// 4. session.read 对被驱逐的冷数据执行异步磁盘读取，验证数据一致性。
 /// 5. 对磁盘上的冷数据发起更新，验证成功触发从磁盘到内存的 CopyUpdate 回流追加。
+///
+/// libs/storage/Tsavorite/cs/test/BasicTests.cs:TestShiftHeadAddress
 #[test]
 fn test_flush_and_cold_read_evicted_pages() -> Void {
   let rt = Runtime::new()?;

@@ -9,12 +9,15 @@ impl<D: Device> StoreSession<D> {
   /// 沿 Tag 链回溯定位内存可变区中「键匹配、未密封、未墓碑」的记录地址
   /// （原位写族唯一回溯内核，等长改写与原位增长两臂共用，杜绝两套链走查）
   ///
-  /// 严格对照 C# libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TraceBackForKeyMatch
-  /// （原位改写检查对标 InPlaceUpdater 对 IsClosed 在途记录的拒改写；
-  /// 非重复说明：本函数专精于可变区 [read_only_addr, tail) 的热路径原位命中判据，零分配零拷贝；
-  /// 与诊断面 WedbStore::is_latest_hlog_version [head, tail) 全域版本判定各司其职）：
-  /// 首项为 ReadCache 虚拟地址、命中密封/墓碑、滑出可变区 `[read_only_addr, tail)`
-  /// 或记录不可解一律回 `Ok(None)`，调用方降级 RMW 完整路径。
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs:TryFindRecordForUpdate
+  /// （更新路径的记录定位单点：C# 以 `minAddress = ReadOnlyAddress` 走
+  /// TraceBackForKeyMatch 回溯并按 IsClosed 回 RETRY_LATER；rust 侧读路径回溯
+  /// 单点在 [`super::read::StoreSession::trace_back_for_key_match`]，两者分属
+  /// 读/写两臂不共用。本函数专精于可变区 `[read_only_addr, tail)` 的热路径
+  /// 原位命中判据，零分配零拷贝；与诊断面 WedbStore::is_latest_hlog_version
+  /// `[head, tail)` 全域版本判定各司其职）：首项为 ReadCache 虚拟地址、命中
+  /// 密封（对应 RETRY_LATER 降级）/墓碑、滑出可变区或记录不可解一律回
+  /// `Ok(None)`，调用方降级 RMW 完整路径。
   fn trace_live_mutable_addr(&self, key: &[u8]) -> Result<Option<u64>> {
     let hash = whasher::fast_hash(key);
     if self.store.is_growing() {
@@ -134,6 +137,14 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 底层物理读-改-写（RMW Raw，严格对照 C# Tsavorite InternalRMW 状态转移机）
+  ///
+  /// C# 上下文层 RMW 入口族在本 rust 单点的折叠映射（多态上下文已被统一会话
+  /// 消除，一臂承接全部变体）：
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:RMW
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs:RMW
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:RMW
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs:RMW
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs:RMW
   ///
   /// 1. 若记录在内存可变区且尺寸匹配，优先就地读改写；
   /// 2. 若不可原位（只读区/磁盘区/未命中/尺寸变动）：

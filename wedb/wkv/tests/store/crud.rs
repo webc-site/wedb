@@ -20,6 +20,14 @@ use crate::support::{config, open_store, pad};
 /// 5. 复活已删除的 Key 并验证新值。
 /// 6. 批量 100 条记录的 Upsert -> Delete -> NotFound -> Re-upsert 流水线。
 /// 7. 索引有效条目数（EntryCount）在全生命周期内的一致性。
+///
+/// libs/storage/Tsavorite/cs/test/BasicTests.cs:NativeInMemWriteRead
+/// libs/storage/Tsavorite/cs/test/BasicTests.cs:NativeInMemWriteReadDelete
+/// libs/storage/Tsavorite/cs/test/BasicTests.cs:NativeInMemWriteReadDelete2
+/// libs/storage/Tsavorite/cs/test/test.session.context/UnsafeContextTests.cs:NativeInMemWriteRead
+/// libs/storage/Tsavorite/cs/test/test.session.context/UnsafeContextTests.cs:NativeInMemWriteReadDelete
+/// libs/storage/Tsavorite/cs/test/test.session.context/UnsafeContextTests.cs:NativeInMemWriteReadDelete2
+/// （rust 会话单轨统一承接 BasicContext 与 UnsafeContext 两种 C# 会话形态）
 #[test]
 fn test_basic_upsert_read_delete() -> Void {
   let rt = Runtime::new()?;
@@ -126,6 +134,9 @@ fn test_basic_upsert_read_delete() -> Void {
 ///    后续更新必须触发 CopyUpdate（RCU 追加写入新版本），分配新逻辑地址（addr > old_addr）。
 /// 3. 新版本记录的前驱地址（prev_address）必须精准指向旧版本逻辑地址。
 /// 4. 内存可变区内长度变化更新（如变长）：不可原位覆写，同样触发 CopyUpdate。
+///
+/// libs/storage/Tsavorite/cs/test/NeedCopyUpdateTests.cs:TryAddTest
+/// libs/storage/Tsavorite/cs/test/NeedCopyUpdateTests.cs:CopyUpdateFromHeadReadOnlyPageTest
 #[test]
 fn test_in_place_update_vs_copy_update() -> Void {
   let rt = Runtime::new()?;

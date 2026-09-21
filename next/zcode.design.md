@@ -5,24 +5,6 @@
 排查未使用的死代码、多套重复机制、散落魔法常量、数据链条脱节、模块依赖与拓扑设计。
 审查意见严格对齐 C# 原作设计与工程质量要求。
 
-1. 架构拓扑：底层存储引擎 wkv 反向依赖上层配置库 wconf
-具体问题：
-1) 存储引擎底层 crate wedb/wkv 依赖了上层服务配置 crate wedb/wconf（Cargo.toml 中 wconf.workspace = true）。
-2) 实际消费仅有两处：在 config.rs 与 compact.rs 中引入 wconf::LogCompactionType，在 vdb_load.rs 中读取常量 wconf::MAX_DATABASES_MAX。
-3) 事实上，底层压缩抽象 crate wedb/wcompact 自身已定义了 CompactionType 枚举，而库号上限 MAX_DATABASES_MAX 属于存储引擎运行时参数或常量，应当属于存储层内部或由调用方通过参数注入。
-4) C# 对应层级中，Tsavorite 纯存储库完全不感知 Garnet 的上层配置系统，由调用方通过参数注入。该反向依赖破坏了存储引擎的纯净叶子层拓扑。
-rust 文件与函数：
-wedb/wkv/Cargo.toml (:32)
-wedb/wkv/src/config.rs: config (:5)
-wedb/wkv/src/gc/compact.rs: compact (:10)
-wedb/wkv/src/store/vdb_load.rs: load (:198)
-c# 对应文件与函数：
-libs/storage/Tsavorite/cs/src/core/Compaction/CompactionOptions.cs: CompactionType
-libs/storage/Tsavorite/cs/src/core/Engine/TsavoriteKV.cs: TsavoriteKV 构造
-建议动作：
-改由 wcompact::CompactionType 承载压缩类型，MAX_DATABASES_MAX 移入存储层内部定义或构造器注入，移除 wkv 对 wconf 的依赖。
-
-
 5. 数据链条：VectorManager 属性提取链条脱节与内联重复
 具体问题：
 1) VectorManager 定义了 fetch_single_vector_element_attributes 与 fetch_vector_element_attributes，但全仓生产代码零调用。

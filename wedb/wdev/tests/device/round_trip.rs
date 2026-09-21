@@ -224,6 +224,7 @@ fn idevice_round_trip_various_segment_sizes() -> Void {
 
 /// 对标 libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Initialize_SegmentSizeMinusOne_UnboundedSingleSegment 与
 /// `IDevice_Initialize_OmitSegmentIdFromFilename_BareFileName`：
+/// libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:IDevice_Initialize_OmitSegmentIdFromFilename_BareFileName
 /// Rust 单文件模式等价二者并集——所有 I/O 路由到段 0，物理文件为裸名（无 `.0` 段号后缀），
 /// 任何正段尺寸下本应跨段的高偏移写入完整落入单一增长文件。
 #[test]

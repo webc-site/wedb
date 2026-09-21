@@ -111,8 +111,7 @@ impl ReplicaSyncSession {
     true
   }
 
-  /// libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/
-  /// ReplicaSyncSession.cs:SendCheckpointAsync
+  /// libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/ReplicaSyncSession.cs:SendCheckpointAsync
   ///
   /// INITIATE_REPLICA_SYNC 主端处理全链：协商策略 → FullResync 检查点下发
   /// （SNAPSHOT_DATA 段流 + BEGIN_REPLICA_RECOVER 往返）→ DataLossCheck →

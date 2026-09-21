@@ -485,6 +485,8 @@ impl BufferPool {
   /// 若当前缓冲区容量满足要求，则就地复用并同步有效需求长度为调用方原始请求字节数
   /// (对标 C# 复用分支的 `page.required_bytes = size`，不做扇区取整)；否则自动归还
   /// 旧缓冲区并租借新缓冲区。非池化缓冲区无需求长度元数据，仅参与容量判定。
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:EnsureSize
   pub fn ensure_size(self: &Arc<Self>, buf: &mut AlignedBuf, size: usize) -> Result<()> {
     if buf.capacity() < size {
       *buf = self.get(size)?;
@@ -495,6 +497,10 @@ impl BufferPool {
   }
 
   /// 以显式归还清零策略获取缓冲区 (对标 C# `Get(int, bool)` 与 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:GetOriginReturn 与 AllocateUncached)
+  ///
+  /// 超界直配与收割拼接的统一落点：
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:AllocateUncached
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:SpliceIntoLocal
   pub fn get_with_policy(
     self: &Arc<Self>,
     required_bytes: usize,
@@ -586,6 +592,8 @@ impl BufferPool {
   }
 
   /// 缓存命中复用：命中节点按清零策略惰性清理后重建为池化缓冲区 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:PrepareForRent 与 RecordReuse)
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:RecordReuse
   fn reuse_cached(
     self: &Arc<Self>,
     node: CachedBuf,
@@ -614,6 +622,8 @@ impl BufferPool {
   }
 
   /// 新分配签发：预留预算后由系统分配并纳入池归属 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:AllocateForBucket 与 RecordAlloc)
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:RecordAlloc
   fn issue_new(
     self: &Arc<Self>,
     cls: usize,
@@ -654,6 +664,9 @@ impl BufferPool {
   }
 
   /// 归还缓冲区 (由 [`AlignedBuf::drop`] 的 RAII 路径调用，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ReturnOriginReturn)
+  ///
+  /// C# 主文件归还入口同落点：
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:Return
   pub(crate) fn return_buf(&self, ptr: NonNull<u8>, cap: usize, align: usize, meta: BufMeta) {
     let BufMeta {
       cls,
@@ -712,6 +725,10 @@ impl BufferPool {
   }
 
   /// 溢出转移：推入全局条带仓库供跨线程工作窃取复用；仓库已满则永久丢弃并释放许可 (对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:ReleasePermit 与 DepotPush)
+  ///
+  /// 仓库满载的缓冲丢弃同落点：
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:DepotPush
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:DropBuffer
   fn spill_to_depot(&self, cls: usize, node: CachedBuf, tid: u64) {
     let cap = node.cap;
     if !self.depot.push(cls, node, tid) {
@@ -802,6 +819,8 @@ impl BufferPool {
 }
 
 impl Drop for BufferPool {
+  /// 池析构经 [`Self::free`] 全量排空（RAII 承担 C# Dispose）
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:Dispose
   fn drop(&mut self) {
     self.free();
   }

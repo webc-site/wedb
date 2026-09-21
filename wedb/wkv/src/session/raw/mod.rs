@@ -93,6 +93,11 @@ impl<D: Device> StoreSession<D> {
   ///   （复活池槽位为整帧尺寸，尾部追加为对齐逻辑尺寸，对标 C# AllocatedSize 含
   ///   FillerWords 口径，供 SaveAllocationForRetry 复用/弃置时精确注册）
   /// - Ok(Err(page_id)): 环形缓冲区翻转（PageNotReady），需调用者执行异步落盘与驱逐
+  ///
+  /// 池取臂对标
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:TryTakeFreeRecord
+  /// （启用门校验 + `min_revivifiable_address` 资格窗 + 取槽就地复活写入三段
+  /// 协议一致；槽位物理覆写由 whlog `revivify_record_at` 承接）
   pub(super) fn try_allocate_or_append_record_sync(
     &self,
     key: &[u8],
@@ -274,6 +279,9 @@ impl<D: Device> StoreSession<D> {
   /// 底层检查指定物理键是否存在且未被墓碑删除（Contains Key Raw）
   /// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs:InternalContainsKeyInMemory 与完整读路径：
   /// 基于 zero-copy 闭包读取，0 堆分配，严格沿 prev_address 反向链回溯处理 Tag 碰撞
+  ///
+  /// 上下文层包装入口同挂此处（rust 一臂承接）：
+  /// libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:ContainsKeyInMemory
   #[inline]
   pub async fn contains_key_raw(&self, key: &[u8]) -> Result<bool> {
     Ok(self.read_raw_with(key, |_| ()).await?.is_some())
@@ -282,6 +290,17 @@ impl<D: Device> StoreSession<D> {
   /// 在当前会话纪元保护下按逻辑地址直接读取记录（对标 Tsavorite ReadAtAddress）
   /// 磁盘区记录走免纪元纯设备路径，内存驻留区持短守卫保护
   /// 冷读分派唯一单点：磁盘区免纪元、内存驻留持短守卫，调用方勿自持纪元
+  ///
+  /// C# 上下文层 ReadAtAddress 入口族在本 rust 单点的折叠映射（多态上下文已被
+  /// 统一会话消除，按地址读只有此一臂；内部实现 InternalReadAtAddress 已单挂
+  /// [`StoreSession::read_raw_with`]）：
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs:ReadAtAddress
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs:ReadAtAddress
   pub async fn read_record(&self, addr: u64) -> Result<whlog::RecordOutput> {
     if self.store.hlog.is_on_disk(addr) {
       self

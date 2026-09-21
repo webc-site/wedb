@@ -31,6 +31,10 @@ fn pad_str(s: &str, width: usize) -> String {
 /// 4. 实例化全新引擎执行 `WedbStore::recover`；
 /// 5. 1:1 回读全部 1000 条记录并严格比对数值，验证删除与未写入键返回 None；
 /// 6. 验证恢复后能够成功创建新的 Session 并无缝继续追加写入。
+///
+/// libs/storage/Tsavorite/cs/test/test.recovery/SimpleRecoveryTest.cs:LocalDeviceSimpleRecoveryTest
+/// （C# 以 CheckpointType 参数化 Snapshot/FoldOver 两形态；本测试为 FoldOver 形态，
+/// Snapshot 形态见 test_simple_recovery_snapshot）
 #[test]
 fn test_simple_recovery_foldover() -> Void {
   let rt = Runtime::new()?;
@@ -230,6 +234,8 @@ fn test_simple_recovery_snapshot() -> Void {
 /// 4. 触发 Checkpoint；
 /// 5. 崩溃恢复后，断言 `recovered_store.begin_address() == cut_address`；
 /// 6. 验证早于该边界的记录被识别为已截断（读空），而该边界及之后的记录完全有效可读。
+///
+/// libs/storage/Tsavorite/cs/test/test.recovery/SimpleRecoveryTest.cs:ShouldRecoverBeginAddress
 #[test]
 fn test_should_recover_begin_address() -> Void {
   let rt = Runtime::new()?;
@@ -308,6 +314,8 @@ fn test_should_recover_begin_address() -> Void {
 /// 2. 此时所有读请求必须透明落到底层 Device 的磁盘 I/O 上；
 /// 3. 验证从磁盘读取依然 100% 正确；
 /// 4. 在驱逐后继续追加新记录，验证从纯磁盘态到新内存页的过渡无缝衔接。
+///
+/// libs/storage/Tsavorite/cs/test/test.recovery/SimpleRecoveryTest.cs:SimpleReadAndUpdateInfoTest
 #[test]
 fn test_read_and_update_info() -> Void {
   let rt = Runtime::new()?;
@@ -395,6 +403,8 @@ fn test_read_and_update_info() -> Void {
 /// 1. 模拟长周期持续写入业务流，每写入 200 条记录自动触发一次 Full Checkpoint，生成系列版本；
 /// 2. 依次遍历每个历史 Checkpoint Token，独立恢复并验证快照点的数据完整性；
 /// 3. 验证版本隔离性：第 K 个快照仅包含截至第 K 个快照前的数据，不包含后续写入的数据。
+///
+/// libs/storage/Tsavorite/cs/test/test.recovery/RecoveryTests.cs:RecoveryTestFullCheckpoint
 #[test]
 fn test_full_checkpoint_periodic() -> Void {
   let rt = Runtime::new()?;

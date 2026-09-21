@@ -188,6 +188,10 @@ fn test_commit_frame_skip_next_round_backfills_frame() -> Void {
 
 /// 不变量 4：崩溃恢复侧缺帧回退上一有效帧并收敛——跳帧批虽已落盘不计入已提交，
 /// 回放结果与已刷盘数据一致、无幻影提交；补写帧后再恢复即收敛至全量
+///
+/// libs/storage/Tsavorite/cs/test/test.hlog/LogFastCommitTests.cs:FastCommitRecoverToMissingCommitNumThrows
+/// （C# 请求提交号缺失时恢复必须抛错、绝不误取最近更早提交的数据；rust 跳帧
+/// 降级协议下同 invariant 以收敛形态承接——恢复严格回退到上一有效提交帧）
 #[test]
 fn test_commit_frame_skip_recovery_falls_back_to_previous_frame() -> Void {
   let rt = Runtime::new()?;

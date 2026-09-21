@@ -14,6 +14,8 @@ use super::support::{HashIndexTestOps, make_address, make_key, make_keys};
 
 /// 验证高并发 RCU CAS 内存原子替换与读者无锁一致性
 /// 对标 Tsavorite `BasicLockTests.FunctionsLockTest`
+///
+/// libs/storage/Tsavorite/cs/test/BasicLockTests.cs:FunctionsLockTest
 #[test]
 fn test_concurrent_rcu_atomic_update() -> Void {
   info!("高并发 RCU CAS 内存原子替换与读者无锁一致性验证");

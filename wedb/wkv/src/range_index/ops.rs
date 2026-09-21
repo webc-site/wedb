@@ -24,6 +24,11 @@ const fn nz_or(v: usize, d: usize) -> usize {
 impl<D: Device> StoreSession<D> {
   /// 创建新的 RangeIndex 索引 (1:1 对标 libs/server/Storage/Session/MainStore/RangeIndexOps.cs:RangeIndexCreate)
   ///
+  /// libs/server/Resp/RangeIndex/RangeIndexManager.Index.cs:CreateIndex 的承接：
+  /// C# 把 TreeHandle + BfTree 调优参数 + 清零标志位固化进值体存根（35B），
+  /// rust 对位为下方第 4 步 `RangeIndexStub::from_tuning(tree.native_ptr(), ..)`
+  /// 构建存根并经 save_bftree_meta_stub 单点落盘。
+  ///
   /// 键位按物理域三态裁决：String 域命中 / 集合信封域命中 / 存活非 RI 元记录
   /// 一律 `WrongType`（C# 该处由存储层记录类型判别回 WrongType，"index already
   /// exists" 只属于已存活的 RI 元记录），存活 RI 元记录才是 `AlreadyExists`

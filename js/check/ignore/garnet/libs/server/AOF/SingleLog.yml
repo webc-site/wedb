@@ -1,0 +1,10 @@
+# C# SingleLog.Dispose 转调 logSettings.LogDevice.Dispose() 与 log.Dispose()。
+# rust 侧 SingleLog 仅持 Arc<AofSublog>，析构链 AofSublog → WalLog →
+# SegmentedDevice 随所有权逐级释放（wdev segmented_device/mod.rs Drop 关闭
+# 段句柄），无显式 dispose 方法
+- 文件:
+    - libs/server/AOF/SingleLog.cs:
+        - Dispose
+  理由: >-
+    显式资源释放口，rust 由所有权 Drop RAII 承接（Arc 引用清零即
+    WalLog/设备逐级析构关闭），无显式 dispose 方法与调用面

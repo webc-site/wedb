@@ -19,6 +19,8 @@ use wbase::{
 };
 
 /// 预算上限约束可缓存字节数，池关闭后配额严格归零
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:BudgetBoundsReusableBytesAndReturnsToZero
 #[test]
 fn budget_bounds_reusable_bytes_and_returns_to_zero() -> Void {
   info!("对标 BudgetBoundsReusableBytesAndReturnsToZero：64KB 小预算下预留不越界，Free 后归零");
@@ -51,6 +53,8 @@ fn budget_bounds_reusable_bytes_and_returns_to_zero() -> Void {
 }
 
 /// 大额预算耗尽不得挤占小额预算：双层预算强隔离
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:SmallBudgetIsolatedFromLargeExhaustion
 #[test]
 fn small_budget_isolated_from_large_exhaustion() -> Void {
   info!("对标 SmallBudgetIsolatedFromLargeExhaustion：灌满大缓冲后小缓冲仍从独立配额缓存");
@@ -104,6 +108,8 @@ fn small_budget_isolated_from_large_exhaustion() -> Void {
 }
 
 /// 超出可池化上限的请求走 bypass 直配：不入池、不占预算
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:OversizeRequestBypassesCacheAndHoldsNoBudget
 #[test]
 fn oversize_request_bypasses_cache_and_holds_no_budget() -> Void {
   info!("对标 OversizeRequestBypassesCacheAndHoldsNoBudget：超界请求精确容量、零缓存、零许可");
@@ -173,6 +179,8 @@ fn unaligned_oversize_bypass_rounds_exactly_to_sector() -> Void {
 }
 
 /// 池关闭后 Get 走 bypass 直配、归还即释放且不入缓存
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:DisabledPoolServesUncachedBuffersAndHoldsNoBudget
 #[test]
 fn closed_pool_serves_uncached_buffers_and_holds_no_budget() -> Void {
   info!("对标 DisabledPoolServesUncachedBuffersAndHoldsNoBudget：以 free() 关闭态等价验证直配语义");
@@ -209,6 +217,8 @@ fn closed_pool_serves_uncached_buffers_and_holds_no_budget() -> Void {
 }
 
 /// 池 Free 幂等：重复关闭不得 panic 或破坏状态
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:FreeIsIdempotent
 #[test]
 fn free_is_idempotent() -> Void {
   info!("对标 FreeIsIdempotent：二次 Free 必须无副作用");
@@ -257,6 +267,8 @@ fn return_of_in_flight_buffer_after_free_is_safe() -> Void {
 }
 
 /// 从其他线程归还缓存缓冲：Rust 以 TLS RAII 在线程退出时确定性回收许可
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:FreeReleasesBuffersCachedOnOtherThreads
 #[test]
 fn free_releases_buffers_cached_on_other_threads() -> Void {
   info!("对标 FreeReleasesBuffersCachedOnOtherThreads：其他线程 TLS 缓存在其退出时确定性释放");

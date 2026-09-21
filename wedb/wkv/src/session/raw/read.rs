@@ -95,6 +95,7 @@ fn probe_hlog_record<R, F: RecordRead<R>>(
     if rec.is_closed() {
       MemAction::Retry
     } else if rec.is_tombstone() {
+      eprintln!("DEBUG: probe_hlog_record Tombstone");
       MemAction::Done(None)
     } else {
       // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
@@ -103,6 +104,7 @@ fn probe_hlog_record<R, F: RecordRead<R>>(
     }
   } else {
     // 发生 15 位 Tag 碰撞，沿反向链表回溯前驱版本（prev_address）
+    eprintln!("DEBUG: probe_hlog_record Miss(prev={})", rec.prev_address());
     MemAction::Next(rec.prev_address())
   }
 }
@@ -185,6 +187,10 @@ impl<D: Device> StoreSession<D> {
   /// 算定全程经 `hei.hash` 复用，本环绝不重算）。三个消费面共用本环：同步三态
   /// 入口 [`Self::with_addr_reader`]、异步读 [`Self::read_raw_with_reader`]、
   /// 批量读内层（batch.rs），杜绝平行重试环
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:HandleOperationStatus
+  /// （rust 无按 op 状态回传的中间态：RETRY_LATER 的「刷纪元重试」在环内消化，
+  /// 其余终态直接返回，HandleOperationStatus 的状态分派面随之折叠进各操作臂）
   #[inline]
   pub(super) fn drive_mem_read<R>(
     &self,
@@ -574,6 +580,10 @@ impl<D: Device> StoreSession<D> {
     //    若链条未伸入有效磁盘区（curr_addr < begin_addr），确认该键在整个存储中不存在，
     //    直接返回 MemDrive::Done(None)，彻底消除无效的多候选扫描与二次哈希遍历！
     if curr_addr == 0 || (!is_read_cache(curr_addr) && curr_addr < begin_addr) {
+      eprintln!(
+        "DEBUG: try_read_mem step 3 returning Done(None) key={:?}, curr_addr={}",
+        key, curr_addr
+      );
       return Ok(ControlFlow::Break(MemDrive::Done(None)));
     }
 
@@ -613,8 +623,10 @@ impl<D: Device> StoreSession<D> {
       if bounds.chain_disk_addr != 0 && bounds.chain_disk_addr >= bounds.begin_addr {
         let mut disk = CandidateAddresses::new();
         disk.push(bounds.chain_disk_addr);
+        eprintln!("DEBUG: try_read_mem_fallback empty addrs OnDisk");
         return Ok(ControlFlow::Break(MemDrive::OnDisk(disk)));
       }
+      eprintln!("DEBUG: try_read_mem_fallback empty addrs Done(None)");
       return Ok(ControlFlow::Break(MemDrive::Done(None)));
     }
     addrs.sort_descending();
@@ -658,8 +670,13 @@ impl<D: Device> StoreSession<D> {
     }
 
     if disk_cands.is_empty() {
+      eprintln!("DEBUG: try_read_mem_fallback disk_cands empty Done(None)");
       Ok(ControlFlow::Break(MemDrive::Done(None)))
     } else {
+      eprintln!(
+        "DEBUG: try_read_mem_fallback returning OnDisk {:?}",
+        disk_cands
+      );
       Ok(ControlFlow::Break(MemDrive::OnDisk(disk_cands)))
     }
   }
@@ -733,6 +750,10 @@ impl<D: Device> StoreSession<D> {
   ///   （严格对照 libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:AsyncGetFromDiskCallback "skips colliding keys by
   ///   following the .PreviousAddress chain"；链地址在磁盘区内严格单调下降，
   ///   直至链尽 0 或低于截断线 begin_address）。
+  ///
+  /// 冷读命中即 OnDiskRead 记录触发器落点（rust 侧收敛为读晋升/统计联动，无
+  /// 宿主回调面；触发器契约见
+  /// libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs:OnDiskRead）
   #[cold]
   pub(super) async fn read_from_disk<R>(
     &self,
@@ -763,12 +784,18 @@ impl<D: Device> StoreSession<D> {
         };
         if !fast_key_eq(rec.key(), key) {
           // Tag 碰撞：提取前驱版本地址，磁盘链回溯
+          eprintln!(
+            "DEBUG: read_from_disk collision prev={}",
+            rec.prev_address()
+          );
           cur = rec.prev_address();
           continue;
         }
         if rec.is_tombstone() {
+          eprintln!("DEBUG: read_from_disk Tombstone");
           return Ok(None);
         }
+        eprintln!("DEBUG: read_from_disk Found");
         let val_slice = rec.value();
         // SAFETY: 闭包 f 仅在初次命中时消费一次，且此时必然为 Some
         let func = unsafe { f.take().unwrap_unchecked() };
@@ -919,6 +946,7 @@ impl<D: Device> StoreSession<D> {
   /// 底层无包装物理读取（原始 Key-Value 读取）
   #[inline]
   pub async fn read_raw(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    eprintln!("DEBUG: ENTERING read_raw for key {:?}", key);
     self.read_raw_with(key, |v| v.to_vec()).await
   }
 

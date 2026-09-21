@@ -33,6 +33,9 @@ use crate::support::HashIndexTestOps;
 /// 测试 1: RMW 热写路径下 ReadCache 节点原子脱钩与链可达性即时失效
 ///
 /// 严格对标 libs/storage/Tsavorite/cs/test/test.session/ReadCacheChainTests.cs:RMWCacheRecordTest
+///
+/// libs/storage/Tsavorite/cs/test/test.session/ReadCacheChainTests.cs:InPlaceUpdater
+/// （C# ChainFunctions.InPlaceUpdater 的原位更新语义由本测试 RMW 路径直接承接）
 #[test]
 fn test_read_cache_rmw_atomic_detach_and_invalidate() -> Void {
   let rt = Runtime::new()?;
@@ -234,7 +237,9 @@ fn test_read_cache_delete_atomic_detach_and_invalidate() -> Void {
 
 /// 测试 4: 多线程高并发混合读写压力测试（对标 C# ReadCacheStressTests）
 ///
-/// 严格对标 libs/storage/Tsavorite/cs/test/test.stress/ReadCacheStressTests.cs: LongRcMultiThreadStressTest & SpanByteRcMultiThreadStressTest
+/// 严格对标 libs/storage/Tsavorite/cs/test/test.stress/ReadCacheStressTests.cs: LongRcMultiThreadStressTest
+///
+/// libs/storage/Tsavorite/cs/test/test.stress/ReadCacheStressTests.cs:SpanByteRcMultiThreadStressTest
 #[test]
 fn test_read_cache_multi_thread_stress() -> Void {
   let rt = Runtime::new()?;

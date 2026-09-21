@@ -138,9 +138,10 @@ impl RangeIndexManager {
 
   /// 从指定目标目录全量恢复所有 BfTree 索引至 ri_log_root 并注册 pending 条目 (支持多候选路径容错)
   ///
-  /// 与 C# RecoverAllTreesFromCheckpoint / SetRecoveredCheckpointToken /
-  /// RebuildFromSnapshotIfPending 语义对齐（SetRecoveredCheckpointToken 的可变
-  /// 暂存令牌由显式 token 传参替代，无需管理器可变状态）：
+  /// 与 C# RecoverAllTreesFromCheckpoint / RebuildFromSnapshotIfPending 语义对齐；
+  /// libs/server/Resp/RangeIndex/RangeIndexManager.cs:SetRecoveredCheckpointToken
+  /// 的承接：C# 恢复期可变暂存令牌（供 RebuildFromSnapshotIfPending 判定快照
+  /// 目录）由本函数显式 `checkpoint_token` 传参替代，无需管理器可变状态：
   /// 仅做文件预置 (fs::copy 覆盖 data.bftree) + 注册 tree=None 的 pending 条目，
   /// 引擎实例一律由首次访问的 get_or_open_tree 惰性恢复——急切 open 会为每棵树
   /// 分配完整环形缓冲区，RI 键规模大时启动内存与耗时不可控 (C# 同样不在此处开树)。

@@ -145,8 +145,12 @@ impl ReplicationSyncManager {
     Ok(session)
   }
 
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:GetNumSessions
+  ///
   /// 批量开窗并快照本批会话（C# MainStreamingSnapshotDriverAsync 的
-  /// TryWriteLock + NumSessions/Sessions 取数；开窗后新 attach 入册拒绝）
+  /// TryWriteLock + NumSessions/Sessions 取数：GetNumSessions 唯一生产
+  /// 消费点即 ReplicationSyncManager.cs:185 开窗取数，rust 以会话快照
+  /// 的 len 承接同读数；开窗后新 attach 入册拒绝）
   fn begin_sync_batch(&self) -> Result<Vec<Arc<DisklessSyncSession>>, String> {
     let mut inner = self.inner.lock();
     if inner.sync_in_progress {

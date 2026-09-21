@@ -39,3 +39,16 @@
     - libs/server/AOF/GarnetLog.cs:
         - ChunkBufferSize
   理由: rust 分块重组为 Vec 块列表动态增长，无预分配整段缓冲算式的承接位
+
+# C# Dispose 为显式资源释放口（转调 singleLog.Dispose() / shardedLog.Dispose()，
+# 关闭 TsavoriteLog 与日志设备）。rust 侧整链 RAII：GarnetLog 持
+# SingleLog/ShardedLog → AofSublog（waof_sublog.rs）→ WalLog → SegmentedDevice，
+# 各层随所有权析构逐级释放（wdev segmented_device/mod.rs Drop 关闭段句柄），
+# 无显式 dispose 方法与调用面
+- 文件:
+    - libs/server/AOF/GarnetLog.cs:
+        - Dispose
+  理由: >-
+    显式资源释放口，rust 由所有权 Drop RAII 承接（GarnetLog→SingleLog/
+    ShardedLog→AofSublog→WalLog→SegmentedDevice 逐级析构关闭设备），
+    无显式 dispose 方法与调用面

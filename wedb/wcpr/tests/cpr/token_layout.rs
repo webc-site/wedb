@@ -155,6 +155,10 @@ fn token_floor_defends_against_directory_regression() -> Void {
 
 /// purge_all 全量清扫：meta/ckpt/tmp 与孤儿 token 子目录一并回收，
 /// 清空后 recover_latest 报 NoValidCheckpoint
+///
+/// libs/storage/Tsavorite/cs/test/test.recovery/CheckpointManagerTests.cs:CheckpointManagerPurgeCheck
+/// （C# 走 DeviceLogCommitCheckpointManager.PurgeAll 并断言目录清空；rust 由
+/// wcpr purge_all 承接同一清扫契约，本地与 Azure 双形态收敛为单实现）
 #[test]
 fn purge_all_sweeps_all_residue() -> Void {
   let rt = Runtime::new()?;

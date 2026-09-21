@@ -14,6 +14,8 @@ use wbase::{
 };
 
 /// 跨线程归还必须路由回属主线程并在其复用同一底层内存
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:CrossThreadReturnRoutesBackToOriginAndReuses
 #[test]
 fn cross_thread_return_routes_back_to_origin_and_reuses() -> Void {
   info!("对标 CrossThreadReturnRoutesBackToOriginAndReuses：异线程 Return 后属主 Get 复用同指针");
@@ -39,6 +41,8 @@ fn cross_thread_return_routes_back_to_origin_and_reuses() -> Void {
 }
 
 /// 跨线程脏归还由属主惰性清零；反向极性下急切清零结果保持全零
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:CrossThreadDirtyReturnIsLazyClearedOnOwnerReuse
 #[test]
 fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
   info!("对标 CrossThreadDirtyReturnIsLazyClearedOnOwnerReuse：脏归还惰性清零与反极性验证");
@@ -83,6 +87,8 @@ fn cross_thread_dirty_return_is_lazy_cleared_on_owner_reuse() -> Void {
 }
 
 /// 大容量缓冲跨线程归还经全局条带仓库共享，第三个非属主线程可复用
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:LargeClassCrossThreadReturnSharesViaDepot
 #[test]
 fn large_class_cross_thread_return_shares_via_depot() -> Void {
   info!("对标 LargeClassCrossThreadReturnSharesViaDepot：1MB 大缓冲经 Depot 跨线程共享");
@@ -127,6 +133,8 @@ fn large_class_cross_thread_return_shares_via_depot() -> Void {
 }
 
 /// 大容量缓冲属主同线程归还亦直接进入全局条带仓库共享
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:LargeClassOwnerReturnSharesViaDepot
 #[test]
 fn large_class_owner_return_shares_via_depot() -> Void {
   info!("对标 LargeClassOwnerReturnSharesViaDepot：属主归还的大缓冲不经本地栈，异源线程可命中");

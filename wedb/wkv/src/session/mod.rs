@@ -301,6 +301,16 @@ impl<D: Device> StoreSession<D> {
   /// 的 PREPARE_GROW 全事务屏障（AcquireTransactionVersion 的函数级映射唯一见
   /// barrier_enter）。一切会话操作入口必须经此获取纪元保护，严禁绕过屏障直用
   /// [`Participant::enter`]。
+  ///
+  /// C# 上下文层 Refresh 入口族（重新获取纪元保护）在本 rust 单点的折叠映射
+  /// （rust 侧纪元保护为 RAII 守卫，逐操作进入即逐操作刷新，无独立 Refresh 调用面）：
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs:Refresh
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs:Refresh
   #[inline]
   pub(crate) fn enter_gated(&self) -> EpochGuard<'_> {
     self.store.barrier_enter(&self.participant)
@@ -525,6 +535,10 @@ impl<D: Device> StoreSession<D> {
   }
 
   /// 进入批处理纪元保护上下文（严格对标 libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs:BeginUnsafe）
+  ///
+  /// 接口的两个实现类同挂此处（rust 以守卫 RAII 一臂承接，EndUnsafe 即守卫 Drop）：
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs:BeginUnsafe
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs:BeginUnsafe
   #[inline]
   pub fn enter_batch(&self) -> BatchStoreSession<'_, D> {
     let guard = self.enter_gated();
@@ -721,6 +735,12 @@ impl<'a, D: Device> BatchStoreSession<'a, D> {
   /// 对标 C# Tsavorite 长 I/O 临界区的 epoch.UnsafeSuspendThread / ResumeThread
   /// 协议（libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs 的 OnPagesClosed），
   /// 与会话内前台驱逐窗口的挂起同一内核 wepoch 的 EpochSuspendGuard，全仓只此一处分发。
+  ///
+  /// C# 上下文层 UnsafeSuspendThread 入口族在本 rust 单点的折叠映射：
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:UnsafeSuspendThread
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs:UnsafeSuspendThread
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs:UnsafeSuspendThread
+  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:UnsafeSuspendThread
   ///
   /// 用途：批会话存活期内需要驱动「自带纪元排空屏障」的存储级动作（副本重放
   /// 检查点臂即其一）时，必须先解除自钉再动手——屏障谓词按全局最旧保护纪元

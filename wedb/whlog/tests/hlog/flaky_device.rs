@@ -72,8 +72,8 @@ async fn setup_cold_log(
 /// 设备页读失败必须向扫描调用方显式报错；设备恢复后同一迭代器可复用、
 /// 有前进且有穷终止，全新扫描逐条内容一致
 ///
-/// libs/storage/Tsavorite/cs/test/test.hlog/FlakyDeviceTests.cs:
-/// ScanTerminatesWhenPageReadThrowsSynchronously（C# 另断言失败不逃逸进无关线程的
+/// libs/storage/Tsavorite/cs/test/test.hlog/FlakyDeviceTests.cs:ScanTerminatesWhenPageReadThrowsSynchronously
+/// （C# 另断言失败不逃逸进无关线程的
 /// epoch drain pass——Rust 读不经纪元延迟执行，无该通道，无需对应断言）
 #[test]
 fn scan_surfaces_error_and_resumes_when_device_read_fails() -> Void {
@@ -120,8 +120,8 @@ fn scan_surfaces_error_and_resumes_when_device_read_fails() -> Void {
 /// 页读失败时扫描交付流必须严格有序、唯一、自洽；注入必须生效、失败恰好可见一次、
 /// 记录零丢失
 ///
-/// libs/storage/Tsavorite/cs/test/test.hlog/FlakyDeviceTests.cs:
-/// ScanDoesNotReturnStaleDataWhenReadAheadPageFails（C# 依赖双页预取的 read-ahead
+/// libs/storage/Tsavorite/cs/test/test.hlog/FlakyDeviceTests.cs:ScanDoesNotReturnStaleDataWhenReadAheadPageFails
+/// （C# 依赖双页预取的 read-ahead
 /// frame 失败后回填陈旧字节的窗口；Rust 单页预取无 read-ahead，序数注入改为命中
 /// 第 k 次页读——失败页在下一次调用重试成功，语义收敛为交付流有序唯一 + 失败
 /// 显式暴露 + 零静默丢失）

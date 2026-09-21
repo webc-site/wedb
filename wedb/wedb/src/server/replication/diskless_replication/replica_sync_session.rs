@@ -120,7 +120,10 @@ impl DisklessSyncSession {
     self.replica_meta.origin_node_id
   }
 
-  /// 是否本批 leader（C# GetSessionStore.IsFirst）
+  /// libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs:IsFirst
+  ///
+  /// 是否本批 leader（diskless 会话册子内嵌于 ReplicationSyncManager，首
+  /// 入册者即 leader，判定位随会话构造固化）
   pub fn is_leader(&self) -> bool {
     self.is_leader
   }

@@ -63,6 +63,9 @@ fn merge_plan(table: &TxnLockTable, mut keys: Vec<TxnKeyEntry>) -> Vec<(usize, b
 
 /// C# ManualLockCollidingHashCodes：同桶碰撞哈希排序归并为单把最强锁型，
 /// 持闩期间同桶互斥，解锁后锁计数归零、可重新获取
+///
+/// libs/storage/Tsavorite/cs/test/OverflowBucketLockTableTests.cs:ThreeKeyTest
+/// （三个碰撞键共享同桶：共享闩逐把叠加、排他被拒、全释放后排他可取）
 #[test]
 fn colliding_hash_codes_merge_into_single_bucket_lock() {
   const BUCKET_INDEX: i64 = 42;
@@ -181,6 +184,9 @@ fn distinct_buckets_hold_one_lock_each() {
 
 /// C# MultiSharedLockTest：同键 63 把共享闩逐把叠加与递减，共享恒共存、
 /// 排他在全部释放前恒被拒
+///
+/// libs/storage/Tsavorite/cs/test/OverflowBucketLockTableTests.cs:SingleKeyTest
+/// （单键共享闩叠加、共享持有期间排他被拒、释放后排他可取的锁计数账目）
 #[test]
 fn multi_shared_locks_stack_and_release() {
   const MAX_LOCKS: usize = 63;
@@ -247,6 +253,9 @@ impl BucketLedger {
 /// C# StressManualLocks：8 线程 × 1000 轮随机键集排序加锁压力——
 /// 持锁窗口内断言桶排他互斥/共享计数不越界，内部锁计数与归并计划严格相等，
 /// 收尾全表计数归零、无死锁
+///
+/// libs/storage/Tsavorite/cs/test/OverflowBucketLockTableTests.cs:ThreadedLockStressTestMultiThreadsFullContention
+/// （多线程满竞争加解锁压力，收尾锁计数严格归零）
 #[test]
 fn stress_manual_locks_across_threads_without_deadlock() {
   const BASE_KEY: i64 = 42;

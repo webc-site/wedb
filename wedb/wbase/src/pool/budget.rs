@@ -23,6 +23,7 @@ impl Budget {
   }
 
   /// 尝试预留指定字节配额，若预算耗尽返回 false (对标 C# `BudgetState.TryReserve`)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:TryReserve
   #[inline]
   pub(crate) fn try_reserve(&self, bytes: i64) -> bool {
     let mut cur = self.used.load(Acquire);
@@ -39,6 +40,7 @@ impl Budget {
   }
 
   /// 返还先前预留的字节配额 (对标 C# `BudgetState.Release`)
+  /// libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:Release
   #[inline]
   pub(crate) fn release(&self, bytes: i64) {
     self.used.fetch_sub(bytes, Release);

@@ -409,6 +409,11 @@ impl wcompact::CompactionFunctions<WedbStore<SegmentedDevice>> for OddTailFilter
   }
 }
 
+/// 对标 libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:SpanByteLogCompactionCustomFunctionsTest1 (Lookup 模式)
+///
+/// 自定义删除判定回调：OddTailFilter::is_deleted 1:1 承接 C# EvenCompactionFunctions.IsDeleted
+///
+/// libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogCompactionTests.cs:IsDeleted
 #[test]
 fn spanbyte_compaction_custom_filter_test1_lookup() -> Void {
   let rt = Runtime::new()?;

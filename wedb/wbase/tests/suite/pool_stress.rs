@@ -56,6 +56,8 @@ fn concurrent_get_return_stress_mixed_sizes() -> Void {
 }
 
 /// 归还洪峰进行中执行 free()：竞态结束后所有预算许可严格归零
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:ConcurrentFreeDuringActiveTrafficIsSafe
 #[test]
 fn concurrent_free_during_active_traffic_is_safe() -> Void {
   info!("对标 ConcurrentFreeDuringActiveTrafficIsSafe：free() 与跨线程归还竞态不得滞留配额");
@@ -132,6 +134,8 @@ fn concurrent_free_during_active_traffic_is_safe() -> Void {
 }
 
 /// 跨线程生产/消费完成后执行 free()，配额必须干净归零
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:FreeAfterCrossThreadReturnsIsCleanAndBudgetZero
 #[test]
 fn free_after_cross_thread_returns_is_clean_and_budget_zero() -> Void {
   info!("对标 FreeAfterCrossThreadReturnsIsCleanAndBudgetZero：并发高压释放后配额归零");
@@ -198,6 +202,8 @@ fn free_after_cross_thread_returns_is_clean_and_budget_zero() -> Void {
 }
 
 /// 不同扇区大小的多个池交错借还互不污染
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:MultiplePoolsDifferentSectorSizesNoCorruption
 #[test]
 fn multiple_pools_different_sector_sizes_no_corruption() -> Void {
   info!("对标 MultiplePoolsDifferentSectorSizesNoCorruption：512/4096 双池交错 1000 轮");
@@ -231,6 +237,8 @@ fn multiple_pools_different_sector_sizes_no_corruption() -> Void {
 }
 
 /// 顺序创建销毁的池必须与陈旧 TLS 缓存条目严格隔离
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:RecycledSlotIsIsolatedFromStalePoolShard
 #[test]
 fn recycled_pool_is_isolated_from_stale_tls_shard() -> Void {
   info!("对标 RecycledSlotIsIsolatedFromStalePoolShard：新池不得命中旧池 512 对齐的陈旧缓冲");
@@ -267,6 +275,8 @@ fn recycled_pool_is_isolated_from_stale_tls_shard() -> Void {
 }
 
 /// 工作线程退出时 TLS RAII 确定性回收缓存并将许可归还池
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:DeadThreadFinalizerReclaimsPermits
 #[test]
 fn dead_thread_exit_reclaims_permits() -> Void {
   info!("对标 DeadThreadFinalizerReclaimsPermits：Rust 无 GC，TLS RAII 在线程退出时确定性回池");
@@ -301,6 +311,8 @@ fn dead_thread_exit_reclaims_permits() -> Void {
 }
 
 /// 单线程连续创建销毁大量短生命周期池，配额必须逐池完全释放
+///
+/// libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolTests.cs:ManyShortLivedPoolsDoNotAccumulatePerThreadState
 #[test]
 fn many_short_lived_pools_do_not_accumulate_per_thread_state() -> Void {
   info!("对标 ManyShortLivedPoolsDoNotAccumulatePerThreadState：100 个顺序池的配额完全回卷");
