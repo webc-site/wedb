@@ -5,21 +5,6 @@
 
 按优先级排列的问题清单:
 
-3. ACL LIST 与 USERS 在同步分派层通过 blocking_wait 同步全扫物理日志阻塞 compio 事件循环
-
-具体问题:
-wedb 为了实现零全局内存与持久化存储，将 ACL 用户规则编码为 KeyTag::Acl 存入存储引擎的混合日志（HLOG）。但 network_acl_list 与 network_acl_users 在 StoreGarnetApi::exec 的同步命令分派主路径中直接调用了 for_each_user_blocking。
-for_each_user_blocking 内部调用 blocking_wait(self.for_each_user(ns, on_user))，而 for_each_user 执行的是 store.hlog().scan(begin, end, ...)。当混合日志增长到数 GB 且包含大量磁盘只读段时，该扫描会发起逐页异步文件 I/O。在 compio 的每核单线程（thread-per-core）反应堆架构下，主事件循环线程调用 blocking_wait 会直接阻塞整个线程的事件循环，导致该 CPU 核心上承载的所有其他并发连接和网络吞吐全部被卡死停滞。
-由于 ACL LIST 和 ACL USERS 属于纯只读命令，并不修改当前会话的权限认证上下文，将其放在同步分派层强行同步等待扫描物理全日志是严重的设计缺陷。
-rust 相对路径:
-wedb/wnode/src/resp/acl_store.rs 的 for_each_user_blocking 函数与 for_each_user 函数
-wedb/wnode/src/resp/acl_commands.rs 的 network_acl_list 与 network_acl_users 函数
-wedb/wnode/src/resp/garnet_api/mod.rs 的 StoreGarnetApi::exec
-c# 相对路径:
-garnet/libs/server/Resp/ACLCommands.cs 的 NetworkAclList 与 NetworkAclUsers 方法
-建议:
-将 ACL LIST 与 ACL USERS 移至异步慢路径执行（如 garnet_api/slow.rs 或 acl_commands/slow.rs），直接在异步上下文中调用 await for_each_user，杜绝在 compio 事件循环线程上调用 blocking_wait 全扫磁盘日志。
-
 4. read_user_async 缺失 with_prefix 变体导致异步多键批命令前缀重复重读并强制堆分配
 
 具体问题:
