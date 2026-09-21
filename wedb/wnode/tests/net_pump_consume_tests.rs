@@ -26,6 +26,7 @@ use compio::{
   runtime::Runtime,
 };
 use parking_lot::Mutex;
+use waof::Error;
 use wnode::{
   GarnetServer, MessageConsumerFace, SessionProviderFace, WireFormat,
   resp::{
@@ -609,7 +610,7 @@ impl SessionProviderFace for AofWaitProvider {
       waits.fetch_add(1, Ordering::SeqCst);
       if fail_wait {
         // 设备面提交失败注错（形态对标 waof WalLog 刷盘失败的错误域）
-        return Err(waof::Error::InvalidRecordHeader);
+        return Err(Error::InvalidRecordHeader);
       }
       Ok(true)
     }

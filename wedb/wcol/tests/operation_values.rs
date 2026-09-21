@@ -147,10 +147,10 @@ fn assert_dense_and_bounded(label: &str, max: u8, occupied: impl Fn(u8) -> bool)
 
 #[test]
 fn object_sub_op_values_are_stable() {
-  assert_values_stable(HASH_OPS_GOLDEN, |v| HashOperation::from_repr(v));
-  assert_values_stable(SORTED_SET_OPS_GOLDEN, |v| SortedSetOperation::from_repr(v));
-  assert_values_stable(LIST_OPS_GOLDEN, |v| ListOperation::from_repr(v));
-  assert_values_stable(SET_OPS_GOLDEN, |v| SetOperation::from_repr(v));
+  assert_values_stable(HASH_OPS_GOLDEN, HashOperation::from_repr);
+  assert_values_stable(SORTED_SET_OPS_GOLDEN, SortedSetOperation::from_repr);
+  assert_values_stable(LIST_OPS_GOLDEN, ListOperation::from_repr);
+  assert_values_stable(SET_OPS_GOLDEN, SetOperation::from_repr);
 
   assert_eq!(HASH_OPS_GOLDEN.len(), 20, "HashOperation 黄金计数漂移");
   assert_eq!(

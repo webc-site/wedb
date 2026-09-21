@@ -354,6 +354,8 @@ impl RoaringBitmapCommands {
   /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:RSetBit
   ///
   /// 命令主执行体（C# RSetBit.Updater 钩子）
+  ///
+  /// modules/RoaringBitmap/RoaringBitmapCommands.cs:Updater
   fn set_bit_updater(
     payload: &mut Vec<u8>,
     args: &[&[u8]],
@@ -390,6 +392,8 @@ impl RoaringBitmapCommands {
   /// 在 garnet 中的相对路径:modules/RoaringBitmap/RoaringBitmapCommands.cs:RGetBit
   ///
   /// 命令主执行体（C# RGetBit.Reader 钩子）
+  ///
+  /// modules/RoaringBitmap/RoaringBitmapCommands.cs:Reader
   fn get_bit_reader(
     payload: &[u8],
     args: &[&[u8]],
@@ -410,6 +414,8 @@ impl RoaringBitmapCommands {
   }
 
   /// 缺键分支（C# RGetBit.NotFound）：校验 offset 后应答缺席位 0（读不建键）
+  ///
+  /// modules/RoaringBitmap/RoaringBitmapCommands.cs:NotFound
   fn get_bit_not_found(args: &[&[u8]], output: &mut Vec<u8>, _resp_version: u8) {
     let offset_arg = args.first().copied().unwrap_or(b"");
     if Self::try_parse_uint32(offset_arg).is_none() {
@@ -446,6 +452,8 @@ impl RoaringBitmapCommands {
   // ---- R.BITPOS ----
 
   /// R.BITPOS 参数解析（C# RBitPos.TryParseArgs）：bit 与可选 from
+  ///
+  /// modules/RoaringBitmap/RoaringBitmapCommands.cs:TryParseArgs
   fn bit_pos_parse_args(args: &[&[u8]], output: &mut Vec<u8>) -> Option<(bool, u32)> {
     let bit_arg = args.first().copied().unwrap_or(b"");
     let bit = Self::try_parse_bit(bit_arg).or_else(|| {

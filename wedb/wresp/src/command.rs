@@ -674,6 +674,13 @@ impl RespCommand {
   }
 }
 
+impl From<RespCommand> for u16 {
+  #[inline]
+  fn from(op: RespCommand) -> Self {
+    op as u16
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::str::FromStr;
@@ -801,12 +808,5 @@ mod tests {
     assert!(is_read_only(RespCommand::Ricount));
     assert!(is_data_command(RespCommand::Ricount));
     assert!(!is_write_only(RespCommand::Ricount));
-  }
-}
-
-impl From<RespCommand> for u16 {
-  #[inline]
-  fn from(op: RespCommand) -> Self {
-    op as u16
   }
 }

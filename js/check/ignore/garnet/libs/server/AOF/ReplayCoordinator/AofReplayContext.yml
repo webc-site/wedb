@@ -1,0 +1,14 @@
+# C# AofReplayContext.Dispose（:57）：遍历 databaseSessions 释放各库
+# StorageSession 的 string/object 基础上下文会话，再释放 respServerSession
+# 与 output.MemoryOwner——即释放回放期借用的会话执行体。rust 侧
+# aof_replay_context.rs 的 AofReplayContext 为纯缓冲结构（模糊区缓冲、
+# 事务组、活动事务表、分块重组读取器），不持任何会话/内存所有者：重放
+# 会话由恢复驱动与复制装配层所有权承接（ReplayTarget 为借用视图），
+# 进程退出或驱动 Drop 即释放，无显式 dispose 面
+- 文件:
+    - libs/server/AOF/ReplayCoordinator/AofReplayContext.cs:
+        - Dispose
+  理由: >-
+    C# Dispose 释放回放借用的 RespServerSession 与各库存储会话上下文；
+    rust AofReplayContext 纯缓冲结构不持会话（重放会话由驱动层所有权
+    承接），无显式 dispose 方法与调用面

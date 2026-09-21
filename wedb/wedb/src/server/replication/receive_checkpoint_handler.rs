@@ -175,8 +175,7 @@ impl FileDataSink {
         slice[..data.len()].copy_from_slice(data);
         slice[data.len()..].fill(0);
         let (buf_res, _buf) = device.write_aligned(start_address, buf).await;
-        buf_res
-          .map_err(|e| format!("IOERR device write at {start_address}: {e}"))?;
+        buf_res.map_err(|e| format!("IOERR device write at {start_address}: {e}"))?;
         Ok(())
       }
       SinkTarget::File(file) => file

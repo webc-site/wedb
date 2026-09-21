@@ -375,7 +375,7 @@ fn convert_import(import: RespCommandDocsImport, parent_is_sub: bool) -> Option<
   let command = if import.command.is_empty() {
     RespCommand::None
   } else {
-    wresp::command::RespCommand::from_cs_name(&import.command)?
+    RespCommand::from_cs_name(&import.command)?
   };
   let group = match &import.group {
     Some(g) => RespCommandGroup::from_member_name(g)?,

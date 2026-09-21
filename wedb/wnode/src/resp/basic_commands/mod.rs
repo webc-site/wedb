@@ -4,7 +4,10 @@
 //! [`ttl`] TTL 与时间戳换算；本文件保留服务端通用/管理命令（PING/ASKING/
 //! ECHO/HELLO/COMMAND/CONFIG/FLUSHDB/FLUSHALL/MEMORY/OBJECT/ASYNC）。
 
-use wresp::resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter};
+use wresp::{
+  command::RespCommand,
+  resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter},
+};
 mod get;
 mod incr;
 mod set;
@@ -327,7 +330,7 @@ impl RespServerSession {
   ) -> Option<CommandKeysContext<'b>> {
     check_arg_count!(parse_state, 1.., output, cmd_name_for_err, return None);
     let cmd_name = parse_state[0].as_str_safe();
-    let cmd = wresp::command::RespCommand::from_cs_name(cmd_name);
+    let cmd = RespCommand::from_cs_name(cmd_name);
     let mut simple_info = cmd.and_then(try_get_simple_resp_command_info);
 
     if let Some(info) = simple_info
@@ -341,7 +344,7 @@ impl RespServerSession {
       // 同样缺席的（如 CONFIG GET）两侧同报 no-key-args，无分叉。差分测试
       // command_getkeys_parent_sub_lookup（wnode/tests/resp_tests.rs）钉住两面。
       let sub_name = format!("{}_{}", cmd_name, parse_state[1].as_str_safe());
-      if let Some(sub_cmd) = wresp::command::RespCommand::from_cs_name(&sub_name)
+      if let Some(sub_cmd) = RespCommand::from_cs_name(&sub_name)
         && let Some(sub_info) = try_get_simple_resp_command_info(sub_cmd)
       {
         simple_info = Some(sub_info);

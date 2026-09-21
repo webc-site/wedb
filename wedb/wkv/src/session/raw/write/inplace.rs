@@ -331,6 +331,10 @@ impl<D: Device> StoreSession<D> {
   /// - 仅当追加墓碑遭遇环形缓冲区翻转（PageNotReady）时返回 Ok(Err(page_id))，交由外层异步驱逐；
   /// - 冷数据需磁盘确认时返回 Ok(Err(u64::MAX))，调用方降级全异步路径。
   ///
+  /// 记录消解（脱钩 + 槽位回收/清退）协议对标
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:HandleRecordElision
+  /// （上下两分支即其 IsEnabled 开关两臂，槽位去向单点承接）。
+  ///
   /// # 设计边界（对标 RecordInfo.TrySeal 的刻意裁剪）
   /// Record Elision 路径未移植 C# `InfoRef.TrySeal(invalidate: true)` 的记录头密封协议
   /// （裁决见 wreviv::FreeRecord 并发模型注释）：脱钩后槽位立即入池，可能在其他核心

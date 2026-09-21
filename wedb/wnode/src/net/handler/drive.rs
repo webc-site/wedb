@@ -225,7 +225,10 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
           if session.wait_for_aof_blocking()
             && let Err(e) = session_provider.wait_for_commit_async().await
           {
-            error!("连接 {sender_id}({}) AOF 提交落盘等待失败，断连: {e}", self.remote_endpoint);
+            error!(
+              "连接 {sender_id}({}) AOF 提交落盘等待失败，断连: {e}",
+              self.remote_endpoint
+            );
             break 'drive;
           }
           // 镜像按发出字节口径累计（含违规批终局应答；发出即计）
@@ -357,7 +360,10 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
                   if session.wait_for_aof_blocking()
                     && let Err(e) = session_provider.wait_for_commit_async().await
                   {
-                    error!("连接 {sender_id}({}) 推送帧 AOF 提交落盘等待失败，断连: {e}", self.remote_endpoint);
+                    error!(
+                      "连接 {sender_id}({}) 推送帧 AOF 提交落盘等待失败，断连: {e}",
+                      self.remote_endpoint
+                    );
                     break ReadEnd::Cancelled;
                   }
                   if self.throttle.enter_send().await.is_err() {

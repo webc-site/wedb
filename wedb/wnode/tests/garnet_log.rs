@@ -302,7 +302,10 @@ fn test_wait_for_commit_async() {
       log_bg.commit();
     });
 
-    log_clone.wait_for_commit_async(physical, tail).await.unwrap();
+    log_clone
+      .wait_for_commit_async(physical, tail)
+      .await
+      .unwrap();
     assert!(log_clone.get_sub_log(physical).committed_until_address() >= tail);
     bg_handle.join().unwrap();
 

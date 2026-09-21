@@ -46,6 +46,8 @@ async fn process_chunk(
 }
 
 /// 构造固定尺寸的测试 Stub 字节
+///
+/// test/standalone/Garnet.test/RangeIndexStreamReplayTests.cs:MakeStub
 fn make_stub() -> [u8; RANGE_INDEX_STUB_SIZE] {
   let mut stub = [0u8; RANGE_INDEX_STUB_SIZE];
   for (i, byte) in stub.iter_mut().enumerate() {
@@ -55,6 +57,8 @@ fn make_stub() -> [u8; RANGE_INDEX_STUB_SIZE] {
 }
 
 /// 生成确定性伪随机测试数据
+///
+/// test/standalone/Garnet.test/RangeIndexStreamReplayTests.cs:RandomBytes
 fn random_bytes(n: usize) -> Vec<u8> {
   let mut b = vec![0u8; n];
   for (i, x) in b.iter_mut().enumerate() {
@@ -64,6 +68,8 @@ fn random_bytes(n: usize) -> Vec<u8> {
 }
 
 /// 按照生产 RangeIndexMigrationReader 将完整流分块为 (chunk, is_first, is_last) 元组序列
+///
+/// test/standalone/Garnet.test/RangeIndexStreamReplayTests.cs:BuildStreamChunks
 fn build_stream_chunks(
   key: &[u8],
   stub: &[u8],
