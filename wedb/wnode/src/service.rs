@@ -1819,20 +1819,21 @@ where
 
   /// libs/server/StoreWrapper.cs:WaitForCommitAsync
   ///
-  /// WAIT-FOR-COMMIT 档的存储侧等待口：`!EnableAOF` 直返 false（C# 同款
+  /// WAIT-FOR-COMMIT 档的存储侧等待口：`!EnableAOF` 直返 Ok(false)（C# 同款
   /// 门），否则经 `IDatabaseManager::wait_for_commit_to_aof_async` 下达
   /// 全部活跃库 AOF 提交落盘（C# `databaseManager.WaitForCommitToAofAsync`
-  /// 的接口面调用）
-  fn wait_for_commit_async(&self) -> impl Future<Output = bool> {
+  /// 的接口面调用）。提交失败 Err 上浮（C# 异常沿 await 穿透至
+  /// RespServerSession.Send 的 BlockingWait 抛出点）
+  fn wait_for_commit_async(&self) -> impl Future<Output = waof::Result<bool>> {
     let aof_enabled = self.aof.is_some();
     let database_manager = self.database_manager.as_ref();
     async move {
       if !aof_enabled {
-        return false;
+        return Ok(false);
       }
       IDatabaseManager::wait_for_commit_to_aof_async(database_manager)
         .await
-        .is_ok()
+        .map(|_| true)
     }
   }
 

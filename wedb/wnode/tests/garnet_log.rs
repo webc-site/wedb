@@ -302,11 +302,11 @@ fn test_wait_for_commit_async() {
       log_bg.commit();
     });
 
-    log_clone.wait_for_commit_async(physical, tail).await;
+    log_clone.wait_for_commit_async(physical, tail).await.unwrap();
     assert!(log_clone.get_sub_log(physical).committed_until_address() >= tail);
     bg_handle.join().unwrap();
 
-    log_clone.wait_for_commit_all_async(0).await;
+    log_clone.wait_for_commit_all_async(0).await.unwrap();
   });
 }
 /// 闭包收集扫描（等价旧 scan_single Vec 面，测试专用）

@@ -552,10 +552,14 @@ impl GarnetApiFace for OkApi {
 
 /// WAIT-FOR-COMMIT 档出网等待观测宿主：`wait_for_commit_async` 记次数与
 /// 时间线（真实面对标 `StorageSessionProvider::wait_for_commit_async` 下达
-/// AOF 提交落盘等待，见 wnode/src/service.rs）
+/// AOF 提交落盘等待，见 wnode/src/service.rs）；`fail_wait` 置位即恒 Err，
+/// 注入设备面提交失败
 struct AofWaitProvider {
   /// 会话门控源（enable_aof && wait_for_commit 同置）
   gate: bool,
+  /// 提交失败注入（true = 等待恒 Err，对标 C# CommitFailureException 沿
+  /// BlockingWait 抛出）
+  fail_wait: bool,
   waits: Arc<AtomicUsize>,
   timeline: Arc<Mutex<Vec<&'static str>>>,
 }
@@ -564,8 +568,17 @@ impl AofWaitProvider {
   fn new(gate: bool) -> Self {
     Self {
       gate,
+      fail_wait: false,
       waits: Arc::new(AtomicUsize::new(0)),
       timeline: Arc::new(Mutex::new(Vec::new())),
+    }
+  }
+
+  /// 提交失败注入形态（等待恒 Err）
+  fn new_failing(gate: bool) -> Self {
+    Self {
+      fail_wait: true,
+      ..Self::new(gate)
     }
   }
 }
@@ -585,15 +598,20 @@ impl SessionProviderFace for AofWaitProvider {
     ))
   }
 
-  fn wait_for_commit_async(&self) -> impl Future<Output = bool> {
+  fn wait_for_commit_async(&self) -> impl Future<Output = waof::Result<bool>> {
     let waits = Arc::clone(&self.waits);
     let timeline = Arc::clone(&self.timeline);
+    let fail_wait = self.fail_wait;
     async move {
       // 记录点即出网前置位：本行必在 socket 写之前执行，客户端收齐应答
       // 的时间线记录必在其后（跨线程同一时间线定序）
       timeline.lock().push("wait");
       waits.fetch_add(1, Ordering::SeqCst);
-      true
+      if fail_wait {
+        // 设备面提交失败注错（形态对标 waof WalLog 刷盘失败的错误域）
+        return Err(waof::Error::InvalidRecordHeader);
+      }
+      Ok(true)
     }
   }
 }
@@ -666,6 +684,40 @@ fn pump_without_aof_commit_wait_never_waits() {
     "门关（EnableAOF/WaitForCommit 未同时成立）时解析不维护标记，泵不等"
   );
   assert_eq!(provider.timeline.lock().clone(), vec!["recv"]);
+}
+
+/// 提交失败注入（设备故障 → 等待 Err；对标 C# RespServerSession.cs:1453
+/// `Send` 内 `BlockingWait` 抛 CommitFailureException 后应答不发出，
+/// :566 `catch (Exception)` Dispose 断连）：应答零字节不出网，连接收场
+#[test]
+fn pump_aof_commit_wait_failure_drops_connection_without_reply() {
+  let provider = Arc::new(AofWaitProvider::new_failing(true));
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  Runtime::new().unwrap().block_on(async {
+    let mut stream = TcpStream::connect(addr.parse::<SocketAddr>().unwrap())
+      .await
+      .unwrap();
+    stream.write_all(GET_FRAME.to_vec()).await.unwrap();
+    // 服务端等待失败断连：客户端一侧以 EOF/重置收场，且全程零应答字节
+    let mut acc: Vec<u8> = Vec::new();
+    loop {
+      let BufResult(res, buf) = stream.read(vec![0u8; 4096]).await;
+      match res {
+        Ok(0) | Err(_) => break,
+        Ok(n) => acc.extend_from_slice(&buf[..n]),
+      }
+      assert!(
+        acc.is_empty(),
+        "提交失败后应答不得出网（C# Dispose 断连语义），实际收到 {acc:?}"
+      );
+    }
+  });
+  server.stop();
+  assert_eq!(
+    provider.waits.load(Ordering::SeqCst),
+    1,
+    "失败注入下等待仍下达一次"
+  );
 }
 
 /// 同批 latch（C# `waitForAofBlocking = waitForAofBlocking || !cmd.IsAofIndependent()`，

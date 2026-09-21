@@ -313,12 +313,13 @@ impl<D: Device> SingleDatabaseManager<D> {
     self.base.take_database_checkpoint_async(&self.db).await
   }
 
-  /// 等待单库 AOF 提交完成（事件驱动无锁等待）
+  /// 等待单库 AOF 提交完成（事件驱动无锁等待）。提交失败上浮（C#
+  /// SingleDatabaseManager.cs:240-243 WaitForCommitToAofAsync 无捕获穿透）
   ///
   /// libs/server/Databases/SingleDatabaseManager.cs:WaitForCommitToAofAsync
-  pub async fn wait_for_commit_to_aof_async(&self) -> wkv::Result<bool> {
+  pub async fn wait_for_commit_to_aof_async(&self) -> waof::Result<bool> {
     if let Some(aof) = &self.db.aof {
-      aof.log().wait_for_commit_all_async(0).await;
+      aof.log().wait_for_commit_all_async(0).await?;
     }
     Ok(true)
   }
@@ -531,7 +532,7 @@ impl<D: Device> IDatabaseManager<D> for SingleDatabaseManager<D> {
     self.base.commit_aof(&self.db).await
   }
 
-  async fn wait_for_commit_to_aof_async(&self) -> wkv::Result<bool> {
+  async fn wait_for_commit_to_aof_async(&self) -> waof::Result<bool> {
     SingleDatabaseManager::wait_for_commit_to_aof_async(self).await
   }
 

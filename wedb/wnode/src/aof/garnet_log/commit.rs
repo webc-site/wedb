@@ -146,7 +146,9 @@ impl GarnetLog {
   }
 
   /// 异步等待指定物理子日志提交落盘（0 表示等待当前尾地址；自旋退避 + 无锁事件挂起）。
-  pub async fn wait_for_commit_async(&self, sublog_idx: usize, address: i64) {
+  /// 提交失败沿等待上浮（C# GarnetLog.cs:WaitForCommitAsync await 即重抛，
+  /// TsavoriteLog.cs:1866-1879）
+  pub async fn wait_for_commit_async(&self, sublog_idx: usize, address: i64) -> waof::Result<()> {
     let target = if address == 0 {
       self.get_tail_address(sublog_idx)
     } else {
@@ -154,34 +156,36 @@ impl GarnetLog {
     };
     let sublog = self.get_sub_log(sublog_idx);
     if sublog.committed_until_address() >= target {
-      return;
+      return Ok(());
     }
     // 短暂自旋退避，兼顾多核高频瞬时提交场景（零任务切换开销）
     for _ in 0..16 {
       if sublog.committed_until_address() >= target {
-        return;
+        return Ok(());
       }
       spin_loop();
     }
     // 设备面无锁事件驱动挂起等待
-    sublog.wait_for_commit_async(target).await;
+    sublog.wait_for_commit_async(target).await
   }
 
   /// libs/server/AOF/GarnetLog.cs:WaitForCommitAsync
   ///
   /// 异步等待全部物理子日志提交落盘（0 表示等待当前尾地址；分片拓扑并发等待，
-  /// 对标 C#:550-555 建 Task[] + Task.WhenAll）。
-  pub async fn wait_for_commit_all_async(&self, until_address: i64) {
+  /// 对标 C#:550-555 建 Task[] + Task.WhenAll）。提交失败上浮（join_all 跑完
+  /// 聚合取首个 Err，C# WhenAll 同款：不取消兄弟、聚合后抛第一个异常）
+  pub async fn wait_for_commit_all_async(&self, until_address: i64) -> waof::Result<()> {
     if self.using_single_physical_log {
-      self.wait_for_commit_async(0, until_address).await;
+      self.wait_for_commit_async(0, until_address).await
     } else {
       // 并发等待即并发驱动各子日志刷盘（WaofSublog::wait_for_commit_async 走
       // WalLog::wait_for_commit → commit_to，等待者本身是刷盘驱动），
       // 串行 await 会把 N 次刷盘串成求和
-      join_all(
+      let results = join_all(
         (0..self.physical_sublog_count).map(|i| self.wait_for_commit_async(i, until_address)),
       )
       .await;
+      results.into_iter().collect()
     }
   }
 

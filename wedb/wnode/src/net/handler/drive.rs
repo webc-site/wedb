@@ -218,10 +218,15 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
           // 读点：rust 会话不持网络发送器，出网单点即本泵写出段，故读点随
           // 写出段逐轮就地取标记——水位让渡的多轮形态下每轮实写前重读，
           // 与 C# 每次 Send 直读字段同口径；compio 挂起不占线程，为 C#
-          // 网络线程 BlockingWait 的异步等价。等待结果如 C# 一律弃用——
-          // 跳过（无 AOF / 库读锁未取到）与成功两态都照常发出应答）
-          if session.wait_for_aof_blocking() {
-            session_provider.wait_for_commit_async().await;
+          // 网络线程 BlockingWait 的异步等价。提交失败即断连——C#
+          // BlockingWait 抛 CommitFailureException 后应答不发出，
+          // RespServerSession.cs:566 catch (Exception) Dispose 断连；
+          // 返回值（false = 无 AOF 跳过）如 C# 弃用，成功照常发出应答）
+          if session.wait_for_aof_blocking()
+            && let Err(e) = session_provider.wait_for_commit_async().await
+          {
+            error!("连接 {sender_id}({}) AOF 提交落盘等待失败，断连: {e}", self.remote_endpoint);
+            break 'drive;
           }
           // 镜像按发出字节口径累计（含违规批终局应答；发出即计）
           written += resp_pooled.len();
@@ -347,9 +352,13 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
                     continue; // 唤醒竞态：邮箱已被他方排空
                   }
                   // 推送帧与命令应答同一出网规则（C# Publish 经会话 Send
-                  // 写出，waitForAofBlocking 置位即先等 AOF 提交落盘）
-                  if session.wait_for_aof_blocking() {
-                    session_provider.wait_for_commit_async().await;
+                  // 写出，waitForAofBlocking 置位即先等 AOF 提交落盘）；
+                  // 提交失败同命令臂：帧不发出，断连收尾
+                  if session.wait_for_aof_blocking()
+                    && let Err(e) = session_provider.wait_for_commit_async().await
+                  {
+                    error!("连接 {sender_id}({}) 推送帧 AOF 提交落盘等待失败，断连: {e}", self.remote_endpoint);
+                    break ReadEnd::Cancelled;
                   }
                   if self.throttle.enter_send().await.is_err() {
                     break ReadEnd::Cancelled;

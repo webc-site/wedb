@@ -80,10 +80,12 @@ pub trait IDatabaseManager<D: Device>: Send + Sync {
   /// libs/server/Databases/IDatabaseManager.cs:CommitToAofAsync
   fn commit_to_aof_async(&self) -> impl Future<Output = wkv::Result<()>>;
 
-  /// 等待 AOF 提交完成（事件驱动无锁等待）
+  /// 等待 AOF 提交完成（事件驱动无锁等待）。提交失败沿等待上浮为
+  /// waof 域错误（C# 异常类型穿透同构：TsavoriteLog CommitFailureException
+  /// 沿 WaitForCommitToAofAsync 直达 RespServerSession.Send，无中间捕获）
   ///
   /// libs/server/Databases/IDatabaseManager.cs:WaitForCommitToAofAsync
-  fn wait_for_commit_to_aof_async(&self) -> impl Future<Output = wkv::Result<bool>>;
+  fn wait_for_commit_to_aof_async(&self) -> impl Future<Output = waof::Result<bool>>;
 
   /// 恢复 AOF（重放至当前尾），返回重放条数
   ///

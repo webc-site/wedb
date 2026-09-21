@@ -173,16 +173,18 @@ pub trait SessionProviderFace: Send + Sync {
   }
 
   /// 等待 AOF 提交落盘（在 garnet 中的相对路径:libs/server/StoreWrapper.cs:
-  /// WaitForCommitAsync：`!EnableAOF` 直返 false，否则下达
+  /// WaitForCommitAsync：`!EnableAOF` 直返 Ok(false)，否则下达
   /// `databaseManager.WaitForCommitToAofAsync`）。网络泵写出段在
   /// [`MessageConsumerFace::wait_for_aof_blocking`] 置位时前置调用，
   /// 即 C# `Send` 内 `AsyncUtils.BlockingWait` 的 compio 挂起等价
-  ///（挂起不占线程）。默认 false = 无 AOF 形态宿主
+  ///（挂起不占线程）。提交失败 Err 上浮——C# BlockingWait 抛
+  /// CommitFailureException 后应答不发出、连接 dispose，等待结果本身
+  /// 的返回值（false = 跳过）才弃用。默认 Ok(false) = 无 AOF 形态宿主
   ///
   /// 不设 `Send` 上界：AOF 刷盘链（`waof::WalLog` 提交步进）在 compio
   /// thread-per-core 下刻意不可跨线程迁移，连接任务同核原地驱动
-  fn wait_for_commit_async(&self) -> impl Future<Output = bool> {
-    async { false }
+  fn wait_for_commit_async(&self) -> impl Future<Output = waof::Result<bool>> {
+    async { Ok(false) }
   }
 
   /// 向量清理协程停机收敛（对标 C# `VectorManager.Dispose` 逐通道
