@@ -6,7 +6,6 @@
 
 use std::io;
 
-#[cfg(feature = "tls")]
 #[cfg(unix)]
 use compio::net::UnixStream;
 use compio::{
