@@ -113,6 +113,10 @@ impl<D: Device> WedbStore<D> {
   /// FreeRecordPool.cs:520/:535 全部经 Helpers.cs 这一处）。
   ///
   /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs:GetMinRevivifiableAddress
+  ///
+  /// 两参底层式（C# RevivificationManager.GetMinRevivifiableAddress(tail, readOnly)）
+  /// 同挂此处：本单点即由 tail/read_only 两水位推导，rust 不再分两层。
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:GetMinRevivifiableAddress
   #[inline]
   pub fn min_revivifiable_address(&self) -> u64 {
     let read_only = self.hlog.read_only_address();
@@ -157,6 +161,9 @@ impl<D: Device> WedbStore<D> {
   /// 面回滚。
   ///
   /// libs/server/Storage/Functions/GarnetRecordTriggers.cs:OnTruncate
+  ///
+  /// core 触发器契约同挂此处（宿主回调与 core 接口在 rust 折叠为同一挂点）：
+  /// libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs:OnTruncate
   #[inline]
   fn after_truncate(&self, addr: u64) {
     if self.config.enable_revivification {

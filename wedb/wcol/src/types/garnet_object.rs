@@ -46,6 +46,7 @@ pub trait IGarnetObject: Send + Sync + Debug {
   fn scan(&self, start: i64, count: i64, pattern: &[u8]) -> (Vec<Vec<u8>>, i64);
 
   /// 序列化为字节向量
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs:DoSerialize
   fn serialize_to_vec(&self) -> Vec<u8>;
 
   /// 估算堆内存占用

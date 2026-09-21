@@ -79,6 +79,10 @@ impl<D: Device> StoreSession<D> {
   ///
   /// `tag` 即本次读取实际触碰的记录域（String 用户数据 / ObjectEnvelope 对象
   /// 信封 / Meta 分层元记录），AOF 条目按同一标签入账，故两侧必然同键。
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs:GetKeyHash
+  /// （C# 取用户键哈希作一致读序列号；wedb 一致读序列号取记录物理键哈希，
+  /// 域含 ns/db 前缀，语义见 doc/zh/db.md 多库隔离）
   #[inline]
   pub fn consistent_read_hash(&self, tag: KeyTag, user_key: &[u8]) -> i64 {
     let prefix = self.session_prefix();

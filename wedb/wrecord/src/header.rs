@@ -397,6 +397,7 @@ impl RecordHeader {
   ///
   /// 对标 C# RecordDataHeader.GetRecordLength：`alignedSum + (FillerWords << 3)`，
   /// 全部由 RDH 原子字推导。
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:GetRecordLength
   #[inline(always)]
   pub const fn physical_size(&self) -> usize {
     self.record_size().saturating_add(self.filler_bytes())

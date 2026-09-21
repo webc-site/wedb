@@ -114,9 +114,8 @@
         - Dispose
     - libs/storage/Tsavorite/cs/test/test.hlog/LogTests.cs:
         - Get
-    - libs/storage/Tsavorite/cs/test/test.hlog/EnqueueTests.cs:
+    - libs/storage/Tsavorite/cs/test/EnqueueTests.cs:
         - Get
-    - libs/storage/Tsavorite/cs/test/test.hlog/../../../test/EnqueueTests.cs: []
     - libs/storage/Tsavorite/cs/test/TryEnqueueBasicTests.cs:
         - Get
     - libs/storage/Tsavorite/cs/test/EnqueueAndWaitForCommit.cs:

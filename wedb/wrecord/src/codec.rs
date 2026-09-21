@@ -140,6 +140,9 @@ pub unsafe fn publish_extent_header(ptr: *mut u8, rec_size: usize) {
 /// 返回写入的字节总数（即记录对齐逻辑大小）。
 /// 若目标切片容量不足，返回 `Error::BufferTooShort`。
 /// 若键长超出 24 位上限、值长超出 `u32` 上限，或地址超出 48 位，返回相应错误。
+///
+/// C# RDH 发布完整记录布局（长度/内联位/填充）的编码落点：
+/// libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs:Initialize
 pub fn encode_to_slice(
   dst: &mut [u8],
   prev_addr: u64,
