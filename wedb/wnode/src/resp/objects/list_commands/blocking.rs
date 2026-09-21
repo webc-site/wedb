@@ -93,7 +93,7 @@ impl RespServerSession {
     if any_sync_degrade(store, &parse_state[..parse_state.len() - 1]) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       command,
       timeout,
       || {
@@ -186,7 +186,7 @@ impl RespServerSession {
     if any_sync_degrade(store, &[src_key, dst_key]) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       RespCommand::Blmove,
       timeout,
       || vec![src_key.to_vec()],
@@ -224,7 +224,7 @@ impl RespServerSession {
     if any_sync_degrade(store, &[parse_state[0], parse_state[1]]) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       RespCommand::Blmove,
       timeout,
       || vec![parse_state[0].to_vec()],
@@ -280,7 +280,7 @@ impl RespServerSession {
     if any_sync_degrade(store, keys) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       RespCommand::Blmpop,
       timeout,
       || keys.iter().map(|k| k.to_vec()).collect(),

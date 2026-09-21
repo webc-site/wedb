@@ -405,7 +405,8 @@ impl<D: Device> StoreGarnetApi<D> {
   #[inline]
   pub(crate) fn notify_collection_update(&self, key: &[u8]) {
     if let Some(broker) = &self.collection_notify {
-      broker(key);
+      let folded_key = self.session.session_tag_key(wval::KeyTag::ObjectEnvelope, key);
+      broker(folded_key.as_slice());
     }
   }
 }

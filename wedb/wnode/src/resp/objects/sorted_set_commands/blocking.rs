@@ -204,7 +204,7 @@ impl RespServerSession {
     if any_sync_degrade(store, &parse_state[..parse_state.len() - 1]) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       command,
       timeout,
       || {
@@ -278,7 +278,7 @@ impl RespServerSession {
     if any_sync_degrade(store, keys) {
       return Ok(false);
     }
-    if self.park_broker_wait(
+    if self.park_broker_wait(&**store, 
       RespCommand::Bzmpop,
       timeout,
       || keys.iter().map(|k| k.to_vec()).collect(),

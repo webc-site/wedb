@@ -75,7 +75,7 @@ impl RespServerSession {
       Rmw::WrongType | Rmw::Missing => Ok(true),
       // 写成功 → 唤醒该键的阻塞观察者（C# SortedSetAdd 后 HandleCollectionUpdate）
       Rmw::Present(_) => {
-        self.notify_collection_update(key);
+        self.notify_collection_update(&**store, &**store, key);
         Ok(true)
       }
     }
@@ -247,7 +247,7 @@ impl RespServerSession {
     match zset_save_or_gc(store, dst_key, &dst) {
       Ok(true) => {
         output.write_resp_int(dst.sorted_set_dict.len() as i64);
-        self.notify_collection_update(dst_key);
+        self.notify_collection_update(&**store, &**store, dst_key);
       }
       Ok(false) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -322,7 +322,7 @@ impl RespServerSession {
     match zset_save_or_gc(store, dst, &result) {
       Ok(true) => {
         output.write_resp_int(count as i64);
-        self.notify_collection_update(dst);
+        self.notify_collection_update(&**store, &**store, dst);
       }
       Ok(false) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -433,7 +433,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 目标键写成功后唤醒其阻塞观察者（C# SortedSetIntersectStore 同径）
-    let notify_dst = |dst: &[u8]| self.notify_collection_update(dst);
+    let notify_dst = |dst: &[u8]| self.notify_collection_update(&**store, &**store, dst);
     sorted_set_combine_store(
       parse_state,
       store,
@@ -481,7 +481,7 @@ impl RespServerSession {
     output: &mut Vec<u8>,
   ) -> wresp::Result<bool> {
     // 目标键写成功后唤醒其阻塞观察者（C# SortedSetUnionStore 同径）
-    let notify_dst = |dst: &[u8]| self.notify_collection_update(dst);
+    let notify_dst = |dst: &[u8]| self.notify_collection_update(&**store, &**store, dst);
     sorted_set_combine_store(parse_state, store, output, CombineKind::Union, &notify_dst)
   }
 

@@ -21,9 +21,10 @@ impl RespServerSession {
   /// 集合更新唤醒（C# StorageSession ListOps/SortedSetOps 写成功后
   /// `itemBroker?.HandleCollectionUpdate(key)`——阻塞观察者经经纪主循环
   /// 试取指派；无经纪或键无观察者均为无害空操作）
-  pub(crate) fn notify_collection_update(&self, key: &[u8]) {
+  pub(crate) fn notify_collection_update<D: wdev::Device>(&self, store: &wkv::StoreSession<D>, key: &[u8]) {
     if let Some(broker) = &self.item_broker {
-      broker.handle_collection_update(key);
+      let folded_key = store.session_tag_key(wval::KeyTag::ObjectEnvelope, key);
+      broker.handle_collection_update(folded_key.as_slice());
     }
   }
 
@@ -68,8 +69,9 @@ impl RespServerSession {
   }
 
   /// 经纪注入时挂起阻塞命令（登记观察者 + pending_block，由网络泵驱动；懒求值入参）
-  pub(crate) fn park_broker_wait(
+  pub(crate) fn park_broker_wait<D: wdev::Device>(
     &mut self,
+    store: &wkv::StoreSession<D>,
     command: RespCommand,
     timeout: f64,
     keys: impl FnOnce() -> Vec<Vec<u8>>,
@@ -78,7 +80,12 @@ impl RespServerSession {
     let Some(broker) = &self.item_broker else {
       return false;
     };
-    let observer = broker.start_wait(command, keys(), self.id as usize, cmd_args());
+    let raw_keys = keys();
+    let folded_keys = raw_keys
+      .iter()
+      .map(|k| store.session_tag_key(wval::KeyTag::ObjectEnvelope, k).to_vec())
+      .collect();
+    let observer = broker.start_wait(command, folded_keys, self.id as usize, cmd_args());
     self.pending_block = Some(BlockedWait::new(
       Arc::clone(broker),
       observer,

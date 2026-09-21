@@ -85,7 +85,7 @@ impl RespServerSession {
           match list_save_or_gc(store, key, &obj) {
             Ok(true) => {
               output.write_resp_int(result1);
-              self.notify_collection_update(key);
+              self.notify_collection_update(&**store, &**store, key);
             }
             Ok(false) => return Ok(false),
             Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
@@ -106,7 +106,7 @@ impl RespServerSession {
         if !payload_written {
           output.write_resp_int(result1);
         }
-        self.notify_collection_update(key);
+        self.notify_collection_update(&**store, &**store, key);
       }
     }
     Ok(true)
@@ -222,7 +222,7 @@ impl RespServerSession {
         let result1 = obj_out.result1;
         if result1 > 0 {
           match list_save_or_gc(store, key, &obj) {
-            Ok(true) => self.notify_collection_update(key),
+            Ok(true) => self.notify_collection_update(&**store, &**store, key),
             Ok(false) => {
               obj_out.reset();
               return Ok(false);
@@ -419,7 +419,7 @@ impl RespServerSession {
       }
 
       match list_save_or_gc(store, src_key, &src) {
-        Ok(true) => self.notify_collection_update(src_key),
+        Ok(true) => self.notify_collection_update(&**store, &**store, src_key),
         Ok(false) => return Ok(false),
         Err(_) => {
           output.write_resp_error(RESP_ERR_GENERIC);
@@ -455,7 +455,7 @@ impl RespServerSession {
       }
     }
     match list_save_or_gc(store, dst_key, &dst_loaded) {
-      Ok(true) => self.notify_collection_update(dst_key),
+      Ok(true) => self.notify_collection_update(&**store, &**store, dst_key),
       Ok(false) => return Ok(false),
       Err(_) => {
         output.write_resp_error(RESP_ERR_GENERIC);

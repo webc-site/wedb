@@ -290,14 +290,31 @@ impl<D: Device> CollectionItemStore for CollectionItemSource<D> {
     cmd_args: &[Vec<u8>],
     fail_on_src_type_mismatch: bool,
   ) -> TryGetOutcome {
-    match command {
+    let Ok((vns, vdb, tag, raw_key)) = wval::NamespaceDbCodec::decode_tagged_key(key) else {
+      return TryGetOutcome::none();
+    };
+    if tag != wval::KeyTag::ObjectEnvelope {
+      return TryGetOutcome::none();
+    }
+    // 纪律：经纪专属装配单持有者，主循环串行调用，切虚拟域安全
+    self.session.set_virtual_context(vns, vdb);
+
+    let mut outcome = match command {
       RespCommand::Blpop | RespCommand::Brpop | RespCommand::Blmove | RespCommand::Blmpop => {
-        self.list_outcome(key, command, cmd_args, fail_on_src_type_mismatch)
+        self.list_outcome(raw_key, command, cmd_args, fail_on_src_type_mismatch)
       }
       RespCommand::Bzpopmin | RespCommand::Bzpopmax | RespCommand::Bzmpop => {
-        self.zset_outcome(key, command, cmd_args, fail_on_src_type_mismatch)
+        self.zset_outcome(raw_key, command, cmd_args, fail_on_src_type_mismatch)
       }
       _ => TryGetOutcome::none(),
+    };
+
+    // BLMOVE 的 notify_key 需在同一虚拟域下重折叠为隔离键再唤醒
+    if command == RespCommand::Blmove {
+      if let Some(dst_key) = outcome.notify_key.take() {
+        outcome.notify_key = Some(self.session.session_tag_key(wval::KeyTag::ObjectEnvelope, &dst_key).to_vec());
+      }
     }
+    outcome
   }
 }
