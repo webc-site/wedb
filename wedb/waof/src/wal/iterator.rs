@@ -51,6 +51,11 @@ impl<D: Device> WalScanIterator<D> {
   }
 
   /// 异步顺序获取下一条 WAL 记录
+  ///
+  /// C# 顺序读 API 的统一落点（ReadAsync 支持以 nextAddress 续读，GetNext 为
+  /// 扫描迭代器拉取原语，rust 单遍历引擎一处承担）：
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:ReadAsync
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs:GetNext
   pub async fn next(&mut self) -> Result<Option<WalRecord>> {
     if self.cur_address >= self.end_address {
       return Ok(None);

@@ -183,6 +183,7 @@ impl<D: Device> WalLog<D> {
   }
 
   /// 打开或恢复已有 WAL 日志实例，自动扫描磁盘段文件恢复有效位点
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:Initialize
   pub async fn open(device: Arc<D>, config: WalConfig) -> Result<Self> {
     let log = Self::new(device, config)?;
     log.recover().await?;
@@ -214,6 +215,8 @@ impl<D: Device> WalLog<D> {
   /// 推进起始有效地址，并调用底层设备物理截断清理旧段文件
   ///
   /// 持有提交锁与 commit 互斥：防止物理删段与在途刷盘并发，段文件被删除后又被幽灵重建
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:TruncateUntil
   pub async fn truncate(&self, until_address: u64) -> Result<()> {
     let guard = self.commit_lock.lock().await;
     let committed = self.committed_until_address.load(Ordering::Acquire);

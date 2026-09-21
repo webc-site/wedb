@@ -70,6 +70,8 @@ impl<D: Device> WalLog<D> {
   /// 在本调用内完成提交，返回即代表 target 已持久）。
   /// 无新增数据时直接返回当前水位（对标 C# CommitInternal 无元数据变更且无新
   /// 条目即返回 false，CommitAsync 的下界等待立即退出）
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:Commit
   pub async fn commit(&self) -> Result<u64> {
     let target = self.safe_tail_address();
     let committed = self.committed_until_address.load(Ordering::Acquire);
@@ -88,6 +90,12 @@ impl<D: Device> WalLog<D> {
   }
 
   /// 提交并持久化至指定逻辑地址（严格对标 Garnet Group Commit 流水线合并模式）
+  ///
+  /// C# 日志消费/提交管理接口的统一落点（Leader 级联批量消费环形缓冲条目落盘，
+  /// 提交元数据帧随批尾写入即 commit 点推进）：
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs:Consume
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.Chunked.cs:Consume
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogCommitManager.cs:Commit
   pub async fn commit_to(&self, target: u64) -> Result<u64> {
     // 1. 快速短路（0 I/O）：目标水位已被硬件 sync 持久化覆盖
     let committed = self.committed_until_address.load(Ordering::Acquire);
@@ -123,6 +131,10 @@ impl<D: Device> WalLog<D> {
   }
 
   /// 高速提交栅栏（Fast Commit Barrier）：等待指定逻辑地址提交落盘（0 表示等待当前尾地址）
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:WaitForCommit
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:EnqueueAndWaitForCommitAsync
+  ///（C# 入队+等待组合 API；rust 调用方经 pipeline enqueue + 本方法两步组合，等待语义单点在此）
   pub async fn wait_for_commit(&self, target_addr: u64) -> Result<u64> {
     let target = if target_addr == 0 {
       self.tail_address.load(Ordering::Acquire)

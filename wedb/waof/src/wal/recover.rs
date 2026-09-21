@@ -25,6 +25,8 @@ impl<D: Device> WalLog<D> {
   ///   绝不静默清空位点伪装成空日志；
   /// - 对照差异：C# 的恢复位点取自检查点元数据（恢复后重放至 CommittedUntil），
   ///   本实现无检查点依赖，通过 CRC 记录链扫描自同步定位尾部，属刻意架构差异
+  ///
+  /// libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:RecoverAsync
   pub async fn recover(&self) -> Result<u64> {
     let guard = self.commit_lock.lock().await;
 
