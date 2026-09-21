@@ -8,9 +8,8 @@ use wresp::resp_memory_writer::RespWriter;
 
 use super::set_object::SetObject;
 use crate::{
-  hash::hash_object::{pick_k_random_indexes, pick_random_index},
   resp::output::{write_null, write_set_length},
-  types::ObjectOutput,
+  types::{ObjectOutput, pick_k_random_indexes, pick_random_index},
 };
 
 /// SPOP 无 count 形态标记（C# input.Arg1 缺省值）

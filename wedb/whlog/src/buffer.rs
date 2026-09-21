@@ -151,6 +151,7 @@ impl CircularPageBuffer {
   ///
   /// 不递增标定代数：调用方（接管初始化）不回退 tail，在途预留依旧连续有效，
   /// 误递增会使等待线程误判预留作废而在已发布 tail 之下遗留永久零洞。
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:ClearPage
   pub fn clear_page_from_offset(&self, page_id: u64, offset: usize) {
     let slot = self.page_idx(page_id);
     unsafe {

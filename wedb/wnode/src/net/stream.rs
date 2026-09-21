@@ -5,9 +5,8 @@
 //! - `libs/server/Servers/ServerTcpNetworkHandler.cs`
 
 use std::io;
-#[cfg(feature = "tls")]
-use std::{future::poll_fn, mem::MaybeUninit, slice::from_raw_parts_mut, task::Poll};
 
+#[cfg(feature = "tls")]
 #[cfg(unix)]
 use compio::net::UnixStream;
 use compio::{
@@ -19,7 +18,9 @@ use compio::{
 #[cfg(feature = "tls")]
 use compio_tls::TlsStream;
 #[cfg(feature = "tls")]
-use futures_util::{AsyncRead as TlsAsyncRead, AsyncWrite as TlsAsyncWrite, lock::BiLock};
+use futures_util::lock::BiLock;
+#[cfg(feature = "tls")]
+use wbase::tls::stream::{tls_append_read, tls_flush, tls_shutdown, tls_write_flush};
 
 /// 客户端网络流载体类型
 ///
@@ -171,161 +172,4 @@ impl ConnectionStream {
   pub async fn write_all_shared<B: IoBuf>(&self, buf: B) -> BufResult<(), B> {
     stream_io!(self => |s| s.write_all(buf).await, tls |h| tls_write_flush(&h.write, buf).await)
   }
-}
-
-/// TLS 追加读内核：读目标为缓冲空闲段，读到位按追加推进总长
-///
-/// 函数级映射声明归 [`ConnectionStream::read`]，本内核是其 TLS 臂的实现体；
-/// 读目标口径对应 C# 的 libs/common/Networking/NetworkHandler.cs:368
-/// `sslStream.ReadAsync(transportReceiveBuffer, transportBytesRead,
-/// capacity - transportBytesRead)` —— 读目标即半包残余之后的空闲段，
-/// transportBytesRead 随读到的字节数追加
-///
-/// 不经 compio-tls 的 `AsyncRead::read`：其 read_futures 以 [`IoBufMut::ensure_init`]
-/// 取读目标，而该默认实现按「as_uninit 返回整段缓冲」的前缀口径切
-/// `slice[buf_len()..]` 做零初始化 —— 追加式缓冲的 as_uninit 已是空闲段本身，
-/// 残余字节数超过空闲段一半时切片直接越界 panic，未越界时也把空闲段头部
-/// 未初始化字节当已初始化交出。本内核自持追加口径，与泵循环读约定一致
-#[cfg(feature = "tls")]
-async fn tls_append_read<B: IoBufMut>(
-  handle: &BiLock<TlsStream<TcpStream>>,
-  buf: B,
-) -> BufResult<usize, B> {
-  let mut buf = Some(buf);
-  // 空闲段是否已置备（一次读 op 内缓冲不重排，整段零初始化只需做一次）
-  let mut primed = false;
-
-  poll_fn(move |cx| {
-    // 另一侧正在推进同一连接：释手，对端 poll 收尾时唤醒本侧
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    let mut stream = guard.as_pin_mut();
-    let mut b = buf.take().expect("TLS 读缓冲存活至读完成");
-    let target = append_target(&mut b, &mut primed);
-    match stream.as_mut().poll_read(cx, target) {
-      // 读挂起：随本轮 poll 结束释锁，在途读状态驻留流内部而非本 future
-      Poll::Pending => {
-        buf = Some(b);
-        Poll::Pending
-      }
-      Poll::Ready(Ok(len)) => {
-        // SAFETY: 驱动已写入空闲段前 len 字节，总长推进 len 后区间全为初始化字节
-        unsafe { b.advance_to(len) };
-        Poll::Ready(BufResult(Ok(len), b))
-      }
-      // 对端未经 close_notify 直接断开时 rustls 以 UnexpectedEof 表达 EOF
-      //（compio-tls 同口径归零，泵循环据此断连）
-      Poll::Ready(Err(e)) if e.kind() == io::ErrorKind::UnexpectedEof => {
-        Poll::Ready(BufResult(Ok(0), b))
-      }
-      Poll::Ready(Err(e)) => Poll::Ready(BufResult(Err(e), b)),
-    }
-  })
-  .await
-}
-
-/// 追加读目标：缓冲 as_uninit 空闲段，首次触及整段零初始化
-///
-/// `poll_read` 只接受 `&mut [u8]`（引用不得指向未初始化字节），故先把空闲段
-/// 置零；rustls 读出即拷进该切片、不保留跨 poll 引用，逐 poll 重取同一段安全
-#[cfg(feature = "tls")]
-fn append_target<'a, B: IoBufMut>(buf: &'a mut B, primed: &mut bool) -> &'a mut [u8] {
-  let spare = buf.as_uninit();
-  if !*primed {
-    spare.fill(MaybeUninit::new(0));
-    *primed = true;
-  }
-  // SAFETY: 空闲段已整段零初始化（MaybeUninit<u8> 与 u8 布局一致、无初始化
-  // 不变量），指针与长度均取自 as_uninit 本身，借用期由 &mut buf 约束
-  unsafe { from_raw_parts_mut(spare.as_mut_ptr().cast::<u8>(), spare.len()) }
-}
-
-/// TLS 写出内核：写尽 payload 后 flush 收尾
-///
-/// 函数级映射声明归 [`ConnectionStream::write_all`]，本内核是其 TLS 臂的实现体；
-/// 写出形态对应 C# 的 libs/common/Networking/NetworkHandler.cs:612-633
-/// `sslStream.Write` + `sslStream.Flush` 两个 SendResponse 重载 —— TLS 会话下网络
-/// 发送器即本处理器自身，命令应答与订阅推送共用这一条写出路径
-///
-/// payload 所有权驻留本 future；rustls 写出为逐次拷进连接发送缓冲、不保留调用方
-/// 切片引用，Pending 后带同一偏移重入即可
-#[cfg(feature = "tls")]
-async fn tls_write_flush<B: IoBuf>(
-  handle: &BiLock<TlsStream<TcpStream>>,
-  buf: B,
-) -> BufResult<(), B> {
-  let mut buf = Some(buf);
-  // 已写出的 payload 字节数
-  let mut written = 0usize;
-
-  let res = poll_fn(|cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    let mut stream = guard.as_pin_mut();
-    let b = buf.take().expect("TLS 写缓冲存活至写出完成");
-    let total = b.as_init().len();
-    let res = loop {
-      if written < total {
-        // payload 借用止于本条语句，写出结果落定后即可交还缓冲所有权
-        let step = stream.as_mut().poll_write(cx, &b.as_init()[written..]);
-        match step {
-          Poll::Ready(Ok(0)) => break Err(io::Error::from(io::ErrorKind::WriteZero)),
-          Poll::Ready(Ok(n)) => written += n,
-          Poll::Ready(Err(e)) => break Err(e),
-          Poll::Pending => {
-            buf = Some(b);
-            return Poll::Pending;
-          }
-        }
-      } else {
-        match stream.as_mut().poll_flush(cx) {
-          Poll::Ready(res) => break res,
-          Poll::Pending => {
-            buf = Some(b);
-            return Poll::Pending;
-          }
-        }
-      }
-    };
-    buf = Some(b);
-    Poll::Ready(res)
-  })
-  .await;
-
-  BufResult(res, buf.expect("TLS 写缓冲存活至写出完成"))
-}
-
-/// TLS 刷盘（写侧句柄独占连接的 flush 调用）
-///
-/// 函数级映射声明归 [`ConnectionStream::flush`]（C# 侧为 INetworkSender 的
-/// SendAndReset 面），本内核是其 TLS 臂的实现体
-#[cfg(feature = "tls")]
-async fn tls_flush(handle: &BiLock<TlsStream<TcpStream>>) -> io::Result<()> {
-  poll_fn(|cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    guard.as_pin_mut().poll_flush(cx)
-  })
-  .await
-}
-
-/// TLS 关闭通知内核（写侧句柄独占连接的 close 调用）
-///
-/// 函数级映射声明归 [`ConnectionStream::shutdown`]，本内核是其 TLS 臂的实现体。
-/// 落到 futures 侧的 `poll_close`，与 compio-tls 的 `AsyncWrite::shutdown`
-/// （即 `futures_util::AsyncWriteExt::close`）同一条实现：rustls 先
-/// `send_close_notify` 入队，随队列写出并 flush 底层，最后关底层写半（FIN）；
-/// 锁粒度与本文件其余内核同形 —— 逐轮 poll 取锁、挂起即释锁
-#[cfg(feature = "tls")]
-async fn tls_shutdown(handle: &BiLock<TlsStream<TcpStream>>) -> io::Result<()> {
-  poll_fn(|cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    guard.as_pin_mut().poll_close(cx)
-  })
-  .await
 }

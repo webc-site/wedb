@@ -154,3 +154,49 @@ mod tests {
     );
   }
 }
+
+use wresp::resp_memory_writer::RespWriter;
+
+use crate::resp::output::ObjectOutput;
+
+/// Scan 输入解析 + 输出回写：HSCAN/SSCAN 共用（对应 C# GarnetObjectBase 的
+/// 基类角色，抽象 Scan 以闭包注入；sortedset 因分值可空项走独立实现）
+///
+/// libs/server/Objects/Types/GarnetObjectBase.cs:Scan
+pub fn scan_operate_shared(
+  args: &[&[u8]],
+  limit_count_in_output: i32,
+  output: &mut ObjectOutput<'_>,
+  do_scan: impl FnOnce(i64, i64, &[u8], bool) -> (Vec<Vec<u8>>, i64),
+) {
+  // 参数解析走 GarnetObjectBase::ReadScanInput 单点（错误直接写 RESP 错误）
+  let params = match read_scan_input(args, limit_count_in_output) {
+    Ok(params) => params,
+    Err(msg) => {
+      RespWriter::new_ref(output.payload).write_error_bytes(msg);
+      return;
+    }
+  };
+
+  let (items, cursor_output) = do_scan(
+    params.cursor,
+    params.count,
+    params.pattern,
+    params.is_no_value,
+  );
+  let items_len = items.len();
+
+  RespWriter::new_ref(output.payload).write_array_length(2);
+  RespWriter::new_ref(output.payload).write_int64_as_bulk_string(cursor_output);
+
+  if items.is_empty() {
+    RespWriter::new_ref(output.payload).write_empty_array();
+  } else {
+    RespWriter::new_ref(output.payload).write_array_length(items.len());
+    for item in items {
+      RespWriter::new_ref(output.payload).write_bulk_string(&item);
+    }
+  }
+
+  output.result1 = items_len as i64;
+}

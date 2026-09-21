@@ -10,11 +10,10 @@
 
 use std::io::{self, Read, Write};
 
-use fastrand::Rng;
 use wbase::{
   glob::glob_match,
   heap::{CONTAINER_BASE, SLOT, round_up_ptr},
-  map::{GxBuildHasher, HashMap, HashSet},
+  map::HashMap,
   time::now_ticks,
 };
 use wresp::{
@@ -25,9 +24,7 @@ use wval::GarnetObjectType;
 
 use crate::{
   object_payload::{GarnetObjectPayload, NO_EXPIRY_WATERMARK, WATERMARKED_BLOB_HEADER},
-  types::{
-    ObjectOutput, ObjectOutputFlags, expiry_ledger::ExpiryLedger, scan_input::read_scan_input,
-  },
+  types::{ObjectOutput, ObjectOutputFlags, expiry_ledger::ExpiryLedger},
 };
 
 /// 主容器常驻基线：过期账本记账的透支断言底线（hash 单容器）
@@ -587,104 +584,6 @@ fn account_entry(heap: &mut i64, key: &[u8], value: &[u8], add: bool) {
   }
 }
 
-/// 从 n 个元素中随机取 k 个下标（HRANDFIELD/SRANDMEMBER/ZRANDMEMBER 共用）
-///
-/// libs/common/RandomUtils.cs:PickKRandomIndexes
-///
-/// 刻意差异（对照 C#）：.NET `Random(seed)` 的洗牌/迭代抽取序列与 fastrand 不同，
-/// 仅保语义等价。分支结构 1:1 对齐：
-/// - `distinct=false` 或 `k/n < K_OVER_N_THRESHOLD` 走迭代抽取（distinct 用
-///   拒绝采样，O(k) 空间，C# PickKRandomIndexesIteratively）；
-/// - 否则全量洗牌取前 k（C# PickKRandomDistinctIndexesWithShuffle）。
-///
-/// 空集直接返回空（C# `Random.Next(0)` 抛 ArgumentOutOfRangeException，
-/// 按无结果处理）
-pub(crate) fn pick_k_random_indexes(n: usize, k: usize, seed: i32, distinct: bool) -> Vec<usize> {
-  /// k/n 低于该阈值走迭代抽取（C# RandomUtils.KOverNThreshold）
-  const K_OVER_N_THRESHOLD: f64 = 0.1;
-
-  let mut rng = Rng::with_seed(u64::from(seed as u32));
-  if n == 0 || k == 0 {
-    return Vec::new();
-  }
-
-  if !distinct || (k as f64) / (n as f64) < K_OVER_N_THRESHOLD {
-    let mut indexes = Vec::with_capacity(k);
-    if !distinct {
-      indexes.extend((0..k).map(|_| rng.usize(..n)));
-    } else {
-      // 拒绝采样：k <= n 保证可终止
-      let mut picked = HashSet::with_capacity_and_hasher(k, GxBuildHasher::default());
-      while indexes.len() < k {
-        let idx = rng.usize(..n);
-        if picked.insert(idx) {
-          indexes.push(idx);
-        }
-      }
-    }
-    indexes
-  } else {
-    // 部分洗牌取前 k（k == n 时即全量洗牌）
-    let mut perm: Vec<usize> = (0..n).collect();
-    for i in 0..k.min(n) {
-      let j = rng.usize(i..perm.len());
-      perm.swap(i, j);
-    }
-    perm.truncate(k);
-    perm
-  }
-}
-
-/// 单下标随机取（HRANDFIELD/SRANDMEMBER 无 count 形态）
-///
-/// libs/common/RandomUtils.cs:PickRandomIndex（.NET rand 为非负随机数，% 取模）
-#[inline]
-pub(crate) fn pick_random_index(n: usize, rand: i32) -> usize {
-  (rand as u32 as usize) % n
-}
-
-/// Scan 输入解析 + 输出回写：HSCAN/SSCAN 共用（对应 C# GarnetObjectBase 的
-/// 基类角色，抽象 Scan 以闭包注入；sortedset 因分值可空项走独立实现）
-///
-/// libs/server/Objects/Types/GarnetObjectBase.cs:Scan
-pub(crate) fn scan_operate_shared(
-  args: &[&[u8]],
-  limit_count_in_output: i32,
-  output: &mut ObjectOutput<'_>,
-  do_scan: impl FnOnce(i64, i64, &[u8], bool) -> (Vec<Vec<u8>>, i64),
-) {
-  // 参数解析走 GarnetObjectBase::ReadScanInput 单点（错误直接写 RESP 错误）
-  let params = match read_scan_input(args, limit_count_in_output) {
-    Ok(params) => params,
-    Err(msg) => {
-      RespWriter::new_ref(output.payload).write_error_bytes(msg);
-      return;
-    }
-  };
-
-  let (items, cursor_output) = do_scan(
-    params.cursor,
-    params.count,
-    params.pattern,
-    params.is_no_value,
-  );
-  let items_len = items.len();
-
-  RespWriter::new_ref(output.payload).write_array_length(2);
-  RespWriter::new_ref(output.payload).write_int64_as_bulk_string(cursor_output);
-
-  if items.is_empty() {
-    RespWriter::new_ref(output.payload).write_empty_array();
-  } else {
-    RespWriter::new_ref(output.payload).write_array_length(items.len());
-    for item in items {
-      RespWriter::new_ref(output.payload).write_bulk_string(&item);
-    }
-  }
-
-  output.result1 = items_len as i64;
-}
-
 impl GarnetObjectPayload for HashObject {
   const OBJECT_TAG: GarnetObjectType = GarnetObjectType::Hash;
 
@@ -709,48 +608,6 @@ impl GarnetObjectPayload for HashObject {
   #[inline]
   fn is_empty(&self) -> bool {
     self.hash.is_empty()
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::pick_k_random_indexes;
-
-  /// k/n 阈值分派（C# RandomUtils.KOverNThreshold）：小比例走迭代/拒绝采样，
-  /// 达阈值才建全量洗牌。返回向量的容量即分配规模的结构侧证——旧 zset 内联
-  /// 洗牌在千级基数抽 3 个时也先分配 n×8 字节置换，共用单源只按 k 预留
-  #[test]
-  fn pick_k_random_indexes_dispatches_by_ratio() {
-    let mut small = pick_k_random_indexes(1000, 3, 7, true);
-    assert_eq!(
-      (small.len(), small.capacity()),
-      (3, 3),
-      "k/n 低于阈值应只按 k 预留，不按集合规模分配"
-    );
-    assert!(small.iter().all(|&index| index < 1000));
-    small.sort();
-    small.dedup();
-    assert_eq!(small.len(), 3, "不放回采样互异");
-
-    let mut large = pick_k_random_indexes(1000, 500, 7, true);
-    assert_eq!(large.len(), 500);
-    assert!(
-      large.capacity() >= 1000,
-      "k/n 达阈值才建全量置换（C# new int[n]）"
-    );
-    assert!(large.iter().all(|&index| index < 1000));
-    large.sort();
-    large.dedup();
-    assert_eq!(large.len(), 500, "不放回采样互异");
-
-    // 放回臂：长度恒为 k，可重复
-    let repeated = pick_k_random_indexes(4, 10, 7, false);
-    assert_eq!((repeated.len(), repeated.capacity()), (10, 10));
-    assert!(repeated.iter().all(|&index| index < 4));
-
-    // 空集与零取样：无结果（C# Random.Next(0) 抛异常，按无结果处理）
-    assert!(pick_k_random_indexes(0, 3, 7, true).is_empty());
-    assert!(pick_k_random_indexes(10, 0, 7, true).is_empty());
   }
 }
 

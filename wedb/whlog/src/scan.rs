@@ -398,6 +398,10 @@ impl<D: Device> HybridLog<D> {
   /// - 跨页自动跳过 Pad 记录、极小子头残片与全零填充直达下一页开头；
   /// - 若用户闭包 `f` 返回 `Ok(false)`，立即提前终止扫描。
   ///
+  /// C# 分配器扫描入口的统一落点：
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs:Scan
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs:Scan
+  ///
   /// # 警告：最终一致尽力语义（非强一致快照）
   ///
   /// **终点为裸 tail、在途记录按 extent 头跳记录越过（同页后续记录恒被扫出）：与热追加

@@ -558,7 +558,7 @@ fn find_crlf(data: &[u8]) -> Option<usize> {
   data.windows(2).position(|w| w == b"\r\n")
 }
 
-/// LuaWrappedError 栈视图形态（宿主回调侧入口）。
+/// libs/server/Lua/LuaRunner.cs:LuaWrappedError（宿主回调侧入口）。
 pub fn lua_wrapped_error_view(
   state: &mut LuaState,
   non_error_returns: usize,
@@ -574,7 +574,7 @@ pub fn lua_wrapped_error_view(
   (non_error_returns + 1) as i32
 }
 
-/// 对应 ProcessRespResponse 的栈视图底层实现
+/// libs/server/Lua/LuaRunner.cs:ProcessRespResponse
 pub fn process_resp_response_view(
   state: &mut LuaState,
   resp_protocol_version: u8,
@@ -591,7 +591,7 @@ pub fn process_resp_response_view(
   ret
 }
 
-/// 对应 ProcessSingleRespTerm 的栈视图底层实现
+/// libs/server/Lua/LuaRunner.cs:ProcessSingleRespTerm
 pub fn process_single_resp_term_view(
   state: &mut LuaState,
   resp_protocol_version: u8,

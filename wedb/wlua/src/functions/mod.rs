@@ -127,6 +127,11 @@ impl LuaRunnerFunctions {
 
   /// Lua 侧 struct.pack 回调，转发至 `struct_codec::struct_pack`。
   /// 满足 LuaCFunction 统一函数指针签名 (LuaState, HostShared) -> i32 规范，保留 _host 参数
+  ///
+  /// libs/server/Lua/LuaRunner.Functions.cs:StructPack 的承接：C# UnmanagedCallersOnly
+  /// 静态蹦床与 CallbackContext 栈面装配合一为本入口（rust 宿主函数经
+  /// register_host_fn 直注册，无 FFI 蹦床层）；编解码体在
+  /// functions_struct.rs（Struct.cs 实现）。
   pub fn struct_pack(state: &mut LuaState, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args == 0 || state.type_name(1) != Some("string") {
@@ -165,6 +170,9 @@ impl LuaRunnerFunctions {
 
   /// Lua 侧 struct.unpack 回调，转发至 `struct_codec::struct_unpack`。
   /// 满足 LuaCFunction 统一函数指针签名 (LuaState, HostShared) -> i32 规范，保留 _host 参数
+  ///
+  /// libs/server/Lua/LuaRunner.Functions.cs:StructUnpack 的承接：静态蹦床
+  /// 与栈面装配合一（同 struct_pack 注）。
   pub fn struct_unpack(state: &mut LuaState, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args < 2
@@ -226,6 +234,9 @@ impl LuaRunnerFunctions {
 
   /// Lua 侧 struct.size 回调，转发至 `struct_codec::struct_size`。
   /// 满足 LuaCFunction 统一函数指针签名 (LuaState, HostShared) -> i32 规范，保留 _host 参数
+  ///
+  /// libs/server/Lua/LuaRunner.Functions.cs:StructSize 的承接：静态蹦床
+  /// 与栈面装配合一（同 struct_pack 注）。
   pub fn struct_size(state: &mut LuaState, _host: &mut HostShared) -> i32 {
     let num_lua_args = state.get_top() as i32;
     if num_lua_args == 0 || state.type_name(1) != Some("string") {

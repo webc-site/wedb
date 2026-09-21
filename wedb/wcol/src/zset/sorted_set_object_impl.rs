@@ -31,9 +31,8 @@ use super::sorted_set_object::{
   EXPIRY_FLOOR, SortedSetEntry, SortedSetObject, SortedSetOperation, SortedSetRangeOpts,
 };
 use crate::{
-  hash::hash_object::pick_k_random_indexes,
   resp::output::{write_double_numeric, write_null},
-  types::{ObjectOutput, read_scan_input},
+  types::{ObjectOutput, pick_k_random_indexes, read_scan_input},
 };
 
 /// [`sorted_set_range`] 出错标记：range 回复不可能为负，ZRANGESTORE 借此区分

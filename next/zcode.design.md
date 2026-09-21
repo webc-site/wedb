@@ -52,19 +52,6 @@ libs/server/Resp/Vector/RespServerSessionVectors.cs: NetworkVADD, NetworkVSIM, N
 建议动作：
 将 network_v* 与 network_v*_impl 合并为统一接收 resp3 的单源方法，消除双接口冗余。
 
-8. 死代码/散落常量：wresp 错误模板常量与对象存储手写字面量脱节
-具体问题：
-1) wresp/src/cmd_strings.rs 定义了 GENERIC_ERR_MANDATORY_MISSING 与 GENERIC_ERR_MUST_MATCH_NO_OF_ARGS 模板常量，全仓零引用。
-2) 而 wnode/src/resp/objects/object_store_utils.rs:95-116 又手写了 4 处硬编码字符串字面量（包含 FIELDS, MEMBERS, numFields, numMembers 的具体组合）。
-3) 模板常量未被使用，业务侧手写具体错误，造成常量散落。
-rust 文件与函数：
-wedb/wresp/src/cmd_strings.rs: GENERIC_ERR_MANDATORY_MISSING (:321), GENERIC_ERR_MUST_MATCH_NO_OF_ARGS (:325)
-wedb/wnode/src/resp/objects/object_store_utils.rs: mandatory_missing_err (:95), must_match_args_err (:111)
-c# 对应文件与函数：
-libs/server/Resp/CmdStrings.cs: GenericErrMandatoryMissing, GenericErrMustMatchNoOfArgs
-建议动作：
-清理 cmd_strings.rs 中未引用的死模板，或在 object_store_utils.rs 中引用标准常量进行单源管理。
-
 9. 死代码：VectorManager 清理控制机制全仓生产代码零调用
 具体问题：
 1) VectorManager 清理模块实现了 pause_cleanup_async, resume_cleanup, queue_cleanups。
@@ -79,29 +66,3 @@ libs/cluster/Server/Replication/ReplicaOps/ReplicaDiskbasedSync.cs: RunSync (:14
 建议动作：
 在副本快照接收逻辑与检查点恢复链路中补全接入调用，使清理保护机制在生产中真正生效。
 
-10. 死代码清理：跨 crate 零引用辅助函数与未接入校验
-具体问题：
-以下函数在生产链路中零引用，部分仅在单元测试中调用或仅有声明：
-1) wedb/wnode/src/primary_tasks.rs: commit_task_running (:147)。AOF 周期提交运行状态判定函数，全仓零调用。
-2) wedb/wtxn/src/transaction_manager.rs: add_transaction_store_types (:325)。与单数版 add_transaction_store_type 重复，全仓零调用。
-3) wedb/wbitmap/src/bitfield/parse.rs: is_large_enough_for_type (:134)。C# 原版仅在 Debug.Assert 中使用，Rust 侧导出但零调用。
-4) wedb/wbase/src/pool/limited.rs: as_slice (:42), as_mut_slice (:48)。PooledRefBuffer 已实现 Deref/DerefMut，这两个独立方法全仓零调用。
-5) wedb/wnode/src/resp/resp_server_session/pump.rs: write_direct_large (:197)。仅在测试中用于注入字节，生产代码零调用。
-6) wedb/wconf/src/runtime_server_config.rs: ensure_valid_kind (:1039), ensure_supported_enum (:1065)。注释称在建表处 debug_assert 调用，实则未接入，仅在测试中被调。
-7) wedb/wedb/src/server/cluster_manager.rs: get_range (:507)。槽位合并格式化输出函数，全仓生产零调用。
-rust 文件与函数：
-wedb/wnode/src/primary_tasks.rs: commit_task_running (:147)
-wedb/wtxn/src/transaction_manager.rs: add_transaction_store_types (:325)
-wedb/wbitmap/src/bitfield/parse.rs: is_large_enough_for_type (:134)
-wedb/wbase/src/pool/limited.rs: as_slice (:42), as_mut_slice (:48)
-wedb/wnode/src/resp/resp_server_session/pump.rs: write_direct_large (:197)
-wedb/wconf/src/runtime_server_config.rs: ensure_valid_kind (:1039), ensure_supported_enum (:1065)
-wedb/wedb/src/server/cluster_manager.rs: get_range (:507)
-c# 对应文件与函数：
-libs/server/Transaction/TransactionManager.cs: AddTransactionStoreTypes
-libs/server/Resp/Bitmap/BitmapManagerBitfield.cs: IsLargeEnoughForType
-libs/server/Resp/RespServerSession.cs: WriteDirectLarge
-libs/server/Config/RuntimeServerConfig.cs: EnsureSupportedEnum
-libs/cluster/Server/ClusterManager.cs: GetRange
-建议动作：
-清理冗余死函数，缺失的配置静态校验接入初始化断言。

@@ -11,11 +11,9 @@
 //!（含 Pending）即释锁，读挂起期间写句柄照样推进，与 TCP 全双工同一拓扑。
 
 use std::io;
-#[cfg(feature = "tls")]
-use std::{future::poll_fn, mem::MaybeUninit, slice::from_raw_parts_mut, task::Poll};
 
 #[cfg(feature = "tls")]
-use compio::buf::{IoBufMut, SetLen};
+#[cfg(feature = "tls")]
 #[cfg(unix)]
 use compio::net::UnixStream;
 use compio::{
@@ -26,8 +24,10 @@ use compio::{
 #[cfg(feature = "tls")]
 use compio_tls::TlsStream;
 #[cfg(feature = "tls")]
-use futures_util::{AsyncRead as TlsAsyncRead, AsyncWrite as TlsAsyncWrite, lock::BiLock};
+use futures_util::lock::BiLock;
 use wbase::endpoint::uds_path;
+#[cfg(feature = "tls")]
+use wbase::tls::stream::{tls_append_read as tls_read, tls_shutdown, tls_write_flush};
 
 use crate::Result;
 #[cfg(feature = "tls")]
@@ -186,116 +186,4 @@ impl WriteHalf {
       Self::Tls(h) => tls_shutdown(h).await,
     }
   }
-}
-
-/// TLS 读内核：poll_lock 独占连接后按追加口径读
-///
-/// 缓冲所有权驻留本 future；Pending 交还重入。读目标为缓冲空闲段，
-/// 首次触及整段零初始化（rustls 的 poll_read 只接受已初始化切片）
-#[cfg(feature = "tls")]
-async fn tls_read(
-  handle: &BiLock<TlsStream<TcpStream>>,
-  chunk: Vec<u8>,
-) -> BufResult<usize, Vec<u8>> {
-  let mut buf = Some(chunk);
-  // 空闲段是否已置备（一次读 op 内缓冲不重排，整段零初始化只需做一次）
-  let mut primed = false;
-  poll_fn(move |cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    let mut stream = guard.as_pin_mut();
-    let mut b = buf.take().expect("TLS 读缓冲存活至读完成");
-    let target = append_target(&mut b, &mut primed);
-    match stream.as_mut().poll_read(cx, target) {
-      Poll::Pending => {
-        buf = Some(b);
-        Poll::Pending
-      }
-      Poll::Ready(Ok(len)) => {
-        // SAFETY: rustls 已写入空闲段前 len 字节，总长推进 len 后全为初始化字节
-        unsafe { b.advance_to(len) };
-        Poll::Ready(BufResult(Ok(len), b))
-      }
-      // 对端未经 close_notify 直接断开：rustls 以 UnexpectedEof 表达 EOF
-      Poll::Ready(Err(e)) if e.kind() == io::ErrorKind::UnexpectedEof => {
-        Poll::Ready(BufResult(Ok(0), b))
-      }
-      Poll::Ready(Err(e)) => Poll::Ready(BufResult(Err(e), b)),
-    }
-  })
-  .await
-}
-
-/// 追加读目标：缓冲空闲段，首次触及整段零初始化
-#[cfg(feature = "tls")]
-fn append_target<'a>(buf: &'a mut Vec<u8>, primed: &mut bool) -> &'a mut [u8] {
-  let spare = buf.as_uninit();
-  if !*primed {
-    spare.fill(MaybeUninit::new(0));
-    *primed = true;
-  }
-  // SAFETY: 空闲段已整段零初始化，指针与长度均取自 as_uninit 本身
-  unsafe { from_raw_parts_mut(spare.as_mut_ptr().cast::<u8>(), spare.len()) }
-}
-
-/// TLS 写内核：写尽 payload 后 flush 收尾
-///
-/// payload 所有权驻留本 future；rustls 写出为逐次拷进连接发送缓冲、
-/// 不保留调用方切片引用，Pending 后带同一偏移重入即可
-#[cfg(feature = "tls")]
-async fn tls_write_flush(
-  handle: &BiLock<TlsStream<TcpStream>>,
-  buf: Vec<u8>,
-) -> BufResult<(), Vec<u8>> {
-  let mut buf = Some(buf);
-  // 已写出的 payload 字节数
-  let mut written = 0usize;
-  let res = poll_fn(|cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    let mut stream = guard.as_pin_mut();
-    let b = buf.take().expect("TLS 写缓冲存活至写出完成");
-    let total = b.len();
-    let res = loop {
-      if written < total {
-        // payload 借用止于本条语句，写出结果落定后即交还缓冲所有权
-        let step = stream.as_mut().poll_write(cx, &b[written..]);
-        match step {
-          Poll::Ready(Ok(0)) => break Err(io::Error::from(io::ErrorKind::WriteZero)),
-          Poll::Ready(Ok(n)) => written += n,
-          Poll::Ready(Err(e)) => break Err(e),
-          Poll::Pending => {
-            buf = Some(b);
-            return Poll::Pending;
-          }
-        }
-      } else {
-        match stream.as_mut().poll_flush(cx) {
-          Poll::Ready(res) => break res,
-          Poll::Pending => {
-            buf = Some(b);
-            return Poll::Pending;
-          }
-        }
-      }
-    };
-    buf = Some(b);
-    Poll::Ready(res)
-  })
-  .await;
-  BufResult(res, buf.expect("TLS 写缓冲存活至写出完成"))
-}
-
-/// TLS 关闭：写侧句柄独占连接的 close_notify 发送
-#[cfg(feature = "tls")]
-async fn tls_shutdown(handle: &BiLock<TlsStream<TcpStream>>) -> io::Result<()> {
-  poll_fn(|cx| {
-    let Poll::Ready(mut guard) = handle.poll_lock(cx) else {
-      return Poll::Pending;
-    };
-    guard.as_pin_mut().poll_close(cx)
-  })
-  .await
 }

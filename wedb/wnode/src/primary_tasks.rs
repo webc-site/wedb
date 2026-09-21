@@ -142,12 +142,6 @@ impl PrimaryTasks {
     self.object_collect_started.load(Ordering::Acquire)
   }
 
-  /// 周期提交任务是否在跑
-  #[inline]
-  pub fn commit_task_running(&self) -> bool {
-    self.commit_started.load(Ordering::Acquire)
-  }
-
   /// 绑定/刷新 AOF 提交任务执行域
   pub fn bind_commit_env(
     &self,

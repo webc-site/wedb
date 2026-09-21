@@ -37,18 +37,6 @@ pub struct PooledRefBuffer<'a> {
 }
 
 impl<'a> PooledRefBuffer<'a> {
-  /// 获取底层切片引用
-  #[inline]
-  pub fn as_slice(&self) -> &[u8] {
-    self.buffer.as_deref().unwrap_or(&[])
-  }
-
-  /// 获取底层可变切片引用
-  #[inline]
-  pub fn as_mut_slice(&mut self) -> &mut [u8] {
-    self.buffer.as_deref_mut().unwrap_or(&mut [])
-  }
-
   /// 获取底层 Vec 引用
   #[inline]
   pub fn vec_ref(&self) -> &Vec<u8> {
@@ -113,7 +101,7 @@ impl<'a> Drop for PooledRefBuffer<'a> {
 impl<'a> fmt::Debug for PooledRefBuffer<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("PooledRefBuffer")
-      .field("len", &self.as_slice().len())
+      .field("len", &self.buffer.as_ref().map_or(0, Vec::len))
       .field(
         "capacity",
         &self.buffer.as_ref().map(|v| v.capacity()).unwrap_or(0),
@@ -265,7 +253,7 @@ mod tests {
       assert_eq!(pool.allocated_count(), 1);
       assert_eq!(pool.borrowed_count(), 1);
       b1.extend_from_slice(b"hello world");
-      assert_eq!(b1.as_slice(), b"hello world");
+      assert_eq!(&b1[..], b"hello world");
     }
 
     // Drop 后自动归还
@@ -374,7 +362,7 @@ mod tests {
         for _ in 0..1000 {
           let mut b = p.get_ref(1024);
           b.extend_from_slice(b"concurrent test");
-          assert_eq!(b.as_slice(), b"concurrent test");
+          assert_eq!(&b[..], b"concurrent test");
         }
       }));
     }

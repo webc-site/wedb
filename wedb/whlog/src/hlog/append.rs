@@ -14,6 +14,7 @@ impl<D: Device> HybridLog<D> {
   /// 旧页必须同时满足已落盘（flushed_until）、已驱逐（head）且纪元排空（safe_head，
   /// 保证所有 epoch 保护下的读者已退出）。C# 通过 flushEvent 挂起等待，此处
   /// 在线程每核模型下改为返回 [Error::PageNotReady] 交由调用方异步刷盘后重试。
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:NeedToWaitForClose
   pub(super) fn ensure_page_ready(&self, page_id: u64) -> Result<()> {
     if page_id >= self.config.num_pages as u64 {
       let old_page = page_id - self.config.num_pages as u64;
@@ -71,6 +72,9 @@ impl<D: Device> HybridLog<D> {
   /// 完整头——并发扫描器解出 Pad 即按 `physical_size` 精确越过本槽，同页后续记录恒被
   /// 扫出（对标 C# 新记录先写扫描可见的关闭态头 + `SkipOnScan` 跳记录不跳页）。
   /// 残留全零窗口仅为 CAS 成功到该单条 store 之间，由扫描器有界自旋覆盖。
+  ///
+  /// 跨页慢路径编排（Pad 封印 + 新页标定 + tail CAS 发布）对应：
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:HandlePageOverflow
   pub fn append(&self, key: &[u8], val: &[u8], prev_addr: u64, is_tombstone: bool) -> Result<u64> {
     let p = RecParams {
       prev_addr,

@@ -287,6 +287,7 @@ impl<D: Device> HybridLog<D> {
   }
 
   /// 创建新的 HybridLog 实例
+  /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:Initialize
   #[inline]
   pub fn new(config: HybridLogConfig, device: Arc<D>, epoch: Arc<LightEpoch>) -> Result<Self> {
     Self::verify_compatible_sector_size(&config, &*device)?;

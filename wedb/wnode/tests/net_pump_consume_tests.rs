@@ -537,7 +537,7 @@ struct OkApi;
 impl GarnetApiFace for OkApi {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, _args: &[&[u8]]) {
     assert_eq!(cmd, RespCommand::Get);
-    session.write_direct_large(b"+OK\r\n");
+    session.output.extend_from_slice(b"+OK\r\n");
   }
 
   fn exec_slow(

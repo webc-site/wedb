@@ -127,14 +127,6 @@ impl BitFieldCmdArgs {
   }
 }
 
-/// 检查位图是否足够容纳位域操作
-///
-/// libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:IsLargeEnoughForType
-#[inline]
-pub fn is_large_enough_for_type(args: &BitFieldCmdArgs, vlen: i32) -> bool {
-  length_from_type(args) <= vlen
-}
-
 /// 位域所需字节数（offset 为原始位偏移）
 ///
 /// libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:LengthFromType

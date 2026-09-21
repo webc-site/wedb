@@ -200,7 +200,9 @@ impl AofProcessor {
     self.active_db_id.load(Ordering::Acquire)
   }
 
-  /// 拓扑预处理（C# IPreprocessKey.PrepareKey 三实现的折叠）：
+  /// libs/server/AOF/AofProcessor.cs:PrepareKey
+  ///
+  /// 拓扑预处理（C# IPreprocessKey.PrepareKey 三实现 :28/:44/:66 的折叠）：
   /// 解出 key / 哈希 / 负载并按拓扑推进一致性 key 时间戳（零堆分配与零 Arc 克隆）。
   pub fn prepare_key<'a>(
     &self,
@@ -638,8 +640,13 @@ impl AofProcessor {
   }
 
   /// libs/server/AOF/AofProcessor.cs:ProcessFuzzyRegionOperations
+  /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ProcessFuzzyRegionOperations
   ///
-  /// 模糊区操作统一重放（C# ProcessFuzzyRegionOperations 的处理器侧）。
+  /// 模糊区操作统一重放：rust 将 C# 处理器侧重放循环（AofProcessor.cs）与
+  /// 协调器侧取缓冲 + 逐条分派（AofReplayCoordinator.cs，GetReplayContext +
+  /// foreach fuzzyRegionOps → ReplayOpDispatch）折叠为同一体——缓冲所有面
+  /// 即 [`AofReplayCoordinator::take_fuzzy_region_operations`]，分派复用
+  /// [`Self::replay_op_dispatch`] / [`replay_chunk`](super::aof_processor_chunk_replay::replay_chunk)。
   pub async fn process_fuzzy_region_operations<D: Device>(
     &self,
     sublog_idx: usize,
@@ -663,8 +670,12 @@ impl AofProcessor {
   }
 
   /// libs/server/AOF/AofProcessor.cs:ProcessFuzzyRegionTransactionGroup
+  /// libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:ProcessFuzzyRegionTransactionGroup
   ///
-  /// 模糊区事务组重放（C# ProcessFuzzyRegionTransactionGroup）。
+  /// 模糊区事务组重放：rust 将处理器侧重放体（AofProcessor.cs）与协调器侧
+  /// FIFO 出队 + ProcessTransactionGroup 转调（AofReplayCoordinator.cs）折叠
+  /// 为同一体——出队即 [`AofReplayCoordinator::dequeue_txn_group`]，重放交
+  /// [`Self::process_transaction_group`]。
   pub async fn process_fuzzy_region_transaction_group<D: Device>(
     &self,
     sublog_idx: usize,

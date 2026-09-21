@@ -130,9 +130,10 @@ impl<D: Device> StoreSession<D> {
   ///   追加走 append_record_compacted，原位直调 hlog 无监听通知)；
   /// - 幂等：句柄已绑定当前树且 Recovered 位已清时零写。
   ///
-  /// 清 Recovered 位的意义 (对标 C# RecreateIndex 注释)：使后续淘汰重开选择反映
-  /// 激活后写入的刷盘快照而非过期的检查点快照——未清位时 get_or_open_tree 的恢复
-  /// 源选择会永久绕过刷盘文件 (见 wbftree lifecycle 的 IsRecovered 分流)。
+  /// 清 Recovered 位的意义 (对标 C# RecreateIndex 注释)：存根已脱离「检查点恢复态」，
+  /// 后续淘汰周期按激活后的树写刷盘快照 (反映恢复后的写)，不再被当作恢复期未激活
+  /// 的桩 (判据见本文件 mark_recovered_patch 与 wbftree::RangeIndexStub::recreate_index)。
+  /// 冷读侧只打开预置就位的 data.bftree，恢复源选择不含 recovered 分流。
   ///
   /// 对标差异：C# 存根句柄是热路径直接调用的原生指针，重启后由 OnDiskRead 清零
   /// (InvalidateStub)；本实现路由一律走注册表、句柄仅作标识，故以「句柄 ≠ 当前树

@@ -21,9 +21,8 @@ use wresp::{
 use wval::GarnetObjectType;
 
 use crate::{
-  hash::hash_object::scan_operate_shared,
   object_payload::{COUNT_BLOB_HEADER, GarnetObjectPayload},
-  types::{ObjectOutput, ObjectOutputFlags},
+  types::{ObjectOutput, ObjectOutputFlags, scan_operate_shared},
 };
 
 /// 集合操作（AOF 持久化值，C# 侧为显式追加语义，不得改序/复用既有值）
