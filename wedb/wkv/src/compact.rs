@@ -273,6 +273,10 @@ impl<D: Device> WedbStore<D> {
   /// 执行混合日志在线紧缩（对标 C# Tsavorite `TsavoriteKV.Compact`；生产入口
   /// 显式注入 wedb 业务过滤，对标 libs/server/Databases/DatabaseManagerBase.cs:449
   /// 注入 GarnetRecordTriggers 的形态）
+  ///
+  /// 会话层紧缩入口同挂此处：
+  /// libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs:Compact
+  /// （C# ClientSession.Compact 转调 tsavorite.Compact，rust 由宿主直接持 store 调用）
   #[inline]
   pub async fn compact(
     self: &Arc<Self>,

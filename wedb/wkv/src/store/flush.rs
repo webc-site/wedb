@@ -75,6 +75,11 @@ impl<D: Device> WedbStore<D> {
   }
 
   /// 将内存中所有驻留脏页异步刷盘并同步设备（严格对标 Garnet Group Commit 流水线）
+  ///
+  /// 在 garnet 中的相对路径:libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs:Flush
+  /// （C# Flush(wait) = ShiftReadOnlyAddress(tail, wait) 封印并等传播；rust 侧
+  /// 「等持久化」语义由 GroupCommit 管线以 synced_until 水位承接，封印面
+  /// 收敛在 [`Self::flush_and_evict_all`] 与检查点链）
   pub async fn flush_all(&self) -> Result<()> {
     let target = self.tail_address();
 
