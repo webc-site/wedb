@@ -1,0 +1,148 @@
+# Allocator 域缺失符号甄别（fixloop tsavorite-core-miss）。
+# 判定原则：whlog HybridLog 单分配器承担 C# AllocatorBase+SpanByteAllocatorImpl+
+# TsavoriteLogAllocatorImpl 三层；对象分配器域（ObjectAllocatorImpl/ObjectIdMap/
+# ObjectSerialization）被 wcol 信封内联 + wbftree 页树架构性消除；异步 IO 完成上下文
+# 体系（AsyncIOContext/CountdownWrapper/AtomicOwner/BlittableFrame 等）被 compio
+# 调用方驱动 await 模型消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:
+        - Reset
+        - Dispose
+  理由: >-
+    Reset 原地重置地址状态仅测试用，rust 侧经 HybridLog::new/recover 全新构造承担
+    （AddressManager 无原地重置面）；Dispose 释放页池与 epoch，rust RAII
+    （CircularPageBuffer/AlignedBuf 随实例 Drop）承担，无显式 Dispose 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/AsyncIOContext.cs:
+        - Reset
+        - Create
+        - Set
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/CountdownWrapper.cs:
+        - Decrement
+    - libs/storage/Tsavorite/cs/src/core/Allocator/AtomicOwner.cs:
+        - Release
+  理由: >-
+    C# 异步 IO 完成上下文池（per-pending-IO 上下文 Reset/Create/Set 池化、
+    CountdownWrapper 完成计数门、AtomicOwner 完成队列 owner 令牌）；rust compio
+    线程每核调用方驱动 await，读路径 whlog read_record/read_disk_record 直接返回
+    RecordOutput，无完成队列/完成事件/池化上下文，整体系消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs:
+        - Allocate
+        - Clear
+        - GetPhysicalAddress
+        - Dispose
+  理由: >-
+    C# 扫描器磁盘页帧数组（ScanIteratorBase 多帧并行装载）；rust whlog ScanIterator
+    以单页预取缓存 disk_page_cache（take/回填生命周期，whlog/src/scan.rs）同语义
+    取代，Allocate/Clear/GetPhysicalAddress/Dispose 随缓存借还消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ConditionallyHoistedKey.cs:
+        - SequenceEqual
+        - Dispose
+  理由: >-
+    C# 异步读挂起期间 key 的悬垂安全拷贝（inline/heap 双态，Dispose 归还）；rust
+    await 模型下 key 生命周期贯穿整个读调用（wkv session read 栈上借用），无挂起
+    悬垂窗口，无 hoist 机制。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/DiskLogRecord.cs:
+        - Dispose
+  理由: >-
+    C# 异步读完成后的磁盘记录包装句柄（AsyncIOContext.diskLogRecord，Dispose 触发
+    OnDisposeDiskRecord trigger）；rust 冷读直接产出 RecordOutput::Disk（whlog
+    output.rs，RAII 归还池化缓冲），无包装句柄层。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ErrorList.cs:
+        - Add
+  理由: >-
+    C# TsavoriteLog 提交错误滞留列表（锁内 Add/GetEarliestError）；rust waof 提交
+    错误经 wbase::group_commit::run_leader 即时广播 Broken 哨兵给全部 Follower 并
+    同步返回 Leader 错误，无滞留列表。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/HeapObjectBase.cs:
+        - Clone
+        - DoSerialize
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs:
+        - Clone
+  理由: >-
+    DoSerialize 挂锚于 wcol GarnetObject::serialize_to_vec 单点
+    （wcol/src/types/garnet_object.rs）；Clone 为 C# RMW 全对象拷入新记录值槽，
+    rust 集合对象经 wcol OBJECT_DELTA 增量日志与信封就地更新（wval/wcol 增量
+    写路径），无全对象克隆面；Dispose 为 C# GC 终结辅助，rust RAII。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs:
+        - Expiration
+        - Dispose
+  理由: >-
+    Expiration 为 C# 记录尾内嵌可选字段读取；rust TTL 不占记录帧——独立 TTL 键
+    机制（wkv/src/ttl.rs TaggedKey 前缀键 + TtlCarrier 判定，对标 C# Garnet
+    MEMORY 层 TTL 设计），记录帧无过期字段；Dispose 为 C# 记录视图槽位恢复，
+    rust RecordRef 纯借用切片无生命周期管理面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs:
+        - Set
+        - RecoverAsync
+  理由: >-
+    Set 为 C# 值拷贝写槽（Set(index, ref T)）；rust OverflowPool::get 返回
+    &HashBucket 借用引用，桶内容经 entries 原子 CAS 直写（windex chain/insert），
+    无值拷贝面。RecoverAsync 为 C# 从 checkpoint 页恢复桶池；rust windex 索引
+    不持久化，重启经日志重放全量重建，无桶池快照恢复面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs:
+        - Clear
+        - Initialize
+        - ClearPage
+        - Dispose
+        - RemoveSegment
+        - WriteAsync
+        - OnPagesMarkedReadOnly
+        - ReadAsync
+        - Scan
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectIdMap.cs:
+        - Allocate
+        - Free
+        - Set
+        - Clear
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs:
+        - GetPhysicalAddress
+        - GetNext
+        - Dispose
+  理由: >-
+    C# 对象分配器域（Garnet 对象以 ObjectIdMap 间接定位存独立对象日志，页管理/
+    刷盘/扫描/对象特化迭代器齐全）；rust 架构性消除——集合对象以 KeyTag::
+    ObjectEnvelope 信封整包内联 whlog 主日志，超限透明升阶 wbftree 页级持久化
+    （RIPROMOTE 保序），无对象日志、无 ObjectId 间接层、无对象特化分配器；页
+    管理/刷盘/扫描统一由 whlog HybridLog 单分配器承担（FlushRecordsInRange 页链
+    走查内核已挂 whlog/src/walk.rs）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/PageHeader.cs:
+        - Initialize
+  理由: >-
+    C# 页头结构（prevAddress/flushedUntilAddress 等）驻页首字节；rust 页元数据
+    并入 whlog AddressManager 三区状态机与 CircularPageBuffer 槽位标定
+    （page_ids 原子页号），页内字节全量用于记录，无页头结构。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs:
+        - Dispose
+        - Reset
+  理由: >-
+    rust whlog ScanIterator 迭代器借用生命周期绑定扫描调用（RAII），重启扫描经
+    ScanIterator::new 重新构造，无 Reset/Dispose 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs:
+        - Dispose
+  理由: >-
+    分配器 Dispose（页池/epoch 释放）；rust HybridLog/waof RingBuffer RAII
+    随实例 Drop 承担，无显式 Dispose 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueFIFO.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueLIFO.cs:
+        - Dispose
+  理由: >-
+    C# 后台 drains 线程的工作队列（对象序列化后台消费）；rust compio 线程每核
+    调用方驱动内联执行，无后台工作线程与队列。

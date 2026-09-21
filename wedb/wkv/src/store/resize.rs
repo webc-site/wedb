@@ -267,6 +267,10 @@ impl<D: Device> WedbStore<D> {
   /// libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs:GlobalBeforeEnteringState
   /// libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs:GlobalAfterEnteringState
   ///
+  /// 状态机步进函数同挂此处（REST → PREPARE_GROW → IN_PROGRESS_GROW → REST 四次
+  /// 相位 CAS 即 NextState 转移的展开）：
+  /// libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSM.cs:NextState
+  ///
   /// 状态机转换流：
   /// 1. `REST -> PREPARE_GROW`：CAS 抢占扩容独占权，并通过纪元屏障等待旧版本活跃事务排空
   ///    （会话入口 [`crate::session::StoreSession::enter_gated`] 在本相位挂起新事务，
