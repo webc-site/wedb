@@ -253,7 +253,7 @@ mod tests {
       assert_eq!(pool.allocated_count(), 1);
       assert_eq!(pool.borrowed_count(), 1);
       b1.extend_from_slice(b"hello world");
-      assert_eq!(b1.as_slice(), b"hello world");
+      assert_eq!(&b1[..], b"hello world");
     }
 
     // Drop 后自动归还
@@ -362,7 +362,7 @@ mod tests {
         for _ in 0..1000 {
           let mut b = p.get_ref(1024);
           b.extend_from_slice(b"concurrent test");
-          assert_eq!(b.as_slice(), b"concurrent test");
+          assert_eq!(&b[..], b"concurrent test");
         }
       }));
     }
