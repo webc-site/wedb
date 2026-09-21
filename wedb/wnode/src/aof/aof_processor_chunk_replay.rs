@@ -87,11 +87,21 @@ pub async fn replay_op_dispatch_chunk<D: Device>(
 }
 
 /// libs/server/AOF/AofProcessor.ChunkReplay.cs:ReplayOp
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:StoreUpsert
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:StoreRMW
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:StoreDelete
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:ObjectStoreUpsert
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:ObjectStoreRMW
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:ObjectStoreDelete
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:UnifiedStoreStringUpsert
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:UnifiedStoreRMW
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:UnifiedStoreObjectUpsert
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:UnifiedStoreDelete
 ///
-/// 依累积器操作类型应用数据操作（对标 C# StoreUpsert / StoreRMW / StoreDelete /
-/// ObjectStoreUpsert / ObjectStoreRMW / ObjectStoreDelete /
-/// UnifiedStoreStringUpsert / UnifiedStoreRMW / UnifiedStoreObjectUpsert /
-/// UnifiedStoreDelete 零拷贝直接分派，无临时 payload 物化与多余堆分配）。
+/// 依累积器操作类型应用数据操作：C# 十枚 `static void Xxx(ChunkedAccumulator …)`
+/// 分派臂（ReplayOp switch）各自约 20 行的 span 切取 + 上下文调用，rust 折叠为
+/// match 臂直调共享 helper（aof_processor_store_ops / aof_processor_object_replay），
+/// 组件切片由累积器视图（key/value/input span）零拷贝直供，无临时 payload 物化。
 pub async fn replay_chunk<D: Device>(
   processor: &AofProcessor,
   acc: &ChunkedAccumulator,

@@ -25,10 +25,9 @@ use wresp::{
 use zmij::Buffer as ZmijBuffer;
 
 use super::hash_object::{EXPIRY_FLOOR, HashObject, HashOperation};
-use crate::types::{pick_k_random_indexes, pick_random_index, scan_operate_shared};
 use crate::{
   resp::output::{write_map_length, write_null},
-  types::ObjectOutput,
+  types::{ObjectOutput, pick_k_random_indexes, pick_random_index, scan_operate_shared},
 };
 
 /// 取第 i 个参数字节切片（对齐 C# GetByteSpanFromInput 的固定入参形态）

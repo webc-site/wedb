@@ -24,9 +24,7 @@ use wval::GarnetObjectType;
 
 use crate::{
   object_payload::{GarnetObjectPayload, NO_EXPIRY_WATERMARK, WATERMARKED_BLOB_HEADER},
-  types::{
-    ObjectOutput, ObjectOutputFlags, expiry_ledger::ExpiryLedger, 
-  },
+  types::{ObjectOutput, ObjectOutputFlags, expiry_ledger::ExpiryLedger},
 };
 
 /// 主容器常驻基线：过期账本记账的透支断言底线（hash 单容器）
@@ -586,9 +584,6 @@ fn account_entry(heap: &mut i64, key: &[u8], value: &[u8], add: bool) {
   }
 }
 
-
-
-
 impl GarnetObjectPayload for HashObject {
   const OBJECT_TAG: GarnetObjectType = GarnetObjectType::Hash;
 
@@ -615,7 +610,6 @@ impl GarnetObjectPayload for HashObject {
     self.hash.is_empty()
   }
 }
-
 
 impl From<HashOperation> for u8 {
   #[inline]

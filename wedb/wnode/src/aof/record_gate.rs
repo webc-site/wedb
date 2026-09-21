@@ -58,8 +58,11 @@ pub fn should_skip_record(
 }
 
 /// libs/server/AOF/AofProcessor.ChunkReplay.cs:ShouldSkipRecord
+/// libs/server/AOF/AofProcessor.ChunkReplay.cs:BufferNewVersionRecord
 ///
-/// 分块形态的 ShouldSkipRecord（C# ChunkReplay 分片同名；模糊区新代入缓冲）。
+/// 分块形态的 ShouldSkipRecord（C# ChunkReplay 分片同名）；模糊区新代入缓冲
+/// 即 C# 局部函数 BufferNewVersionRecord（storeVersion 越当前代即入模糊区
+/// 缓冲返回 true）。
 #[inline]
 pub fn should_skip_record_chunk(
   coordinator: &AofReplayCoordinator,

@@ -54,9 +54,13 @@ pub async fn replay_dbmeta<D: Device>(
 }
 
 /// libs/server/AOF/AofProcessor.cs:StoreUpsert
+/// libs/server/AOF/AofProcessor.cs:UnifiedStoreStringUpsert
 ///
 /// 条目物理键标签决定值域：ACL 旁路标签（0x0D）走标签直写（String 域
-/// SET 语义会清 TTL/信封，误伤旁路记录）；其余仍为字符串域 upsert
+/// SET 语义会清 TTL/信封，误伤旁路记录）；其余仍为字符串域 upsert。
+/// C# UnifiedStoreStringUpsert（统一存上下文 String 覆载）在 wkv 单一存储面
+/// 下与主存 upsert 同形，统一存重放臂（replay_op / replay_chunk 的
+/// UnifiedStoreStringUpsert 支）以 `KeyTag::String` 直调本口
 pub async fn store_upsert<D: Device>(
   session: &StorageSession<'_, D>,
   tag: KeyTag,
@@ -81,12 +85,15 @@ pub async fn store_upsert<D: Device>(
 }
 
 /// libs/server/AOF/AofProcessor.cs:StoreRMW
+/// libs/server/AOF/AofProcessor.cs:UnifiedStoreRMW
 ///
 /// RMW 命令重放：RI 族交范围索引重放面实际执行（C#
 /// RangeIndexManager.HandleRangeIndex*Replay）；DELIFEXPIM 为 TTL 物理清除
 /// 确定性单条目（C# ExpireAndResume + Expired|Deterministic 标志的回放面）；
 /// 键管理族只保留写侧真实产出的 Pexpireat / Persist 两形态，其余命令形态
 /// 写侧不可产，按 C# MainStore/RMWMethods default 尾部口径显式失败。
+/// C# UnifiedStoreRMW（统一存上下文覆载）在 wkv 单一存储面下与主存 RMW
+/// 同形，统一存重放臂直调本口
 pub async fn store_rmw<D: Device>(
   processor: &AofProcessor,
   session: &StorageSession<'_, D>,

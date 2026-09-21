@@ -155,8 +155,9 @@ mod tests {
   }
 }
 
-use crate::resp::output::ObjectOutput;
 use wresp::resp_memory_writer::RespWriter;
+
+use crate::resp::output::ObjectOutput;
 
 /// Scan 输入解析 + 输出回写：HSCAN/SSCAN 共用（对应 C# GarnetObjectBase 的
 /// 基类角色，抽象 Scan 以闭包注入；sortedset 因分值可空项走独立实现）

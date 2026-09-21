@@ -1,7 +1,8 @@
 //! 随机工具（对标 libs/common/RandomUtils.cs）
 
-use fastrand::Rng;
 use std::collections::HashSet;
+
+use fastrand::Rng;
 use wbase::map::GxBuildHasher;
 
 /// 从 n 个元素中随机取 k 个下标（HRANDFIELD/SRANDMEMBER/ZRANDMEMBER 共用）
