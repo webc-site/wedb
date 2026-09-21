@@ -320,12 +320,6 @@ impl TransactionManager {
     self.add_txn_key(key);
   }
 
-  /// 事务触达存储面登记（libs/server/Transaction/TransactionManager.cs:AddTransactionStoreTypes）
-  #[inline]
-  pub fn add_transaction_store_types(&mut self, types: TransactionStoreTypes) {
-    self.store_types |= types;
-  }
-
   /// 按存储类别并入事务存储面
   ///
   /// libs/server/Transaction/TransactionManager.cs:AddTransactionStoreType

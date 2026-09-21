@@ -190,11 +190,4 @@ impl RespServerSession {
   pub fn take_output_watermark_yield(&mut self) -> bool {
     take(&mut self.output_watermark_yield)
   }
-
-  /// libs/server/Resp/RespServerSession.cs:WriteDirectLarge
-  ///
-  /// 大块直写输出缓冲（rust 托管缓冲天然可扩容，等价一次追加）
-  pub fn write_direct_large(&mut self, src: &[u8]) {
-    self.output.extend_from_slice(src);
-  }
 }
