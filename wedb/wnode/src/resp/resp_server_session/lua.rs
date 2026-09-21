@@ -159,8 +159,7 @@ impl RespServerSession {
     table.get(&(cmd as u16)).copied().unwrap_or(cmd as u16)
   }
 
-  /// libs/server/Resp/RespServerSession.cs:CheckScriptPermissions（实现体
-  /// AdminCommands.cs:95-115）
+  /// libs/server/Resp/AdminCommands.cs:CheckScriptPermissions
   ///
   /// 位图未挂载（本连接未进入过脚本期）恒放行，等价 C# noScriptBitmap ==
   /// null 路径；挂载后按 C# 字节粒度位检查（除数 8 字节而非 64 位，

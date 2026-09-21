@@ -43,6 +43,8 @@ fn is_custom_command(cmd: RespCommand) -> bool {
 }
 
 impl RespServerSession {
+  /// libs/server/Resp/AdminCommands.cs:ProcessAdminCommands
+  ///
   /// C# ProcessOtherCommands / ProcessAdminCommands 的 admin 会话级 arm 集
   ///（实现为本文件各 network_* 处理器）
   ///

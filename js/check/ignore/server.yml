@@ -1031,6 +1031,12 @@
         - CanRunModule
   理由: 不实现 C# 模块动态加载，移除 MODULE LOADCS、REGISTERCS 等相关命令与权限门
 - 文件:
+    - libs/server/Resp/AdminCommands.cs:
+        - CommitAofAsync
+  理由: |-
+    C# CommitAofAsync（AdminCommands.cs:215）为 NetworkCOMMITAOF 内部异步提交辅助函数，
+    rust 统一经 route_slow_command 转挂慢路径 garnet_api.commit_aof 闭环，无需独立辅助函数。
+- 文件:
     - libs/server/Databases/DatabaseManagerBase.cs:
         - CreateFunctionsState
     - libs/server/Databases/IDatabaseManager.cs:
