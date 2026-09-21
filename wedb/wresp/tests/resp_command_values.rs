@@ -181,7 +181,7 @@ fn in_band(value: u16, band: (u16, u16)) -> bool {
 
 /// 判别值反查（洞位返回 `None`）。
 fn command_at(value: u16) -> Option<RespCommand> {
-  RespCommand::try_from(value).ok()
+  RespCommand::from_repr(value)
 }
 
 /// 写块逐值锁定 + 首尾锚与哨兵：改号、插队、删成员都必在此红。
