@@ -1,3 +1,15 @@
+审核结论：通过（P1 真案。六项判定全过：非根域量化链全域错位坐实——worker 自持会话恒根域（Node 形态覆写工厂 service.rs:1257-1263 同源），建表回填链未落域而回调面统一取 TLS 会话前缀，训练取样恒 miss 按 Failed 终态消费零报错，危害链闭环成立；落域复用既有 set_virtual_context 单点（mod.rs:607）+version_domain_of 换算，不引入新机制，冷路径零开销；deviations 查重无覆盖（§128 在册面为屏障序，与域问题正交）；现锁族全为根域用例漏检属实。方向裁决：单点落域收口）
+
+复审席亲验补强（逐行复跑全链，结论维持 P1）：
+1 翻案排查做尽不翻案：worker 绑会话→工厂（service.rs:837-845 与 Node 覆写点 :1257-1263 皆 store.new_session 裸根域）→read_vector_index_core（登记读 stored_index_of 纯内存复合键，域无关）→recreate_index_locked（:497-518）→create_index→train_quantizer/backfill（wvector/src/service.rs:1200-1220 直下 provider）全链 grep 无 set_virtual_context/set_active/bind 族落域点；记录面唯一域源即 TLS 会话前缀（callbacks :577/:595/:662/:681/:728）。
+2 锁测缺口补充定性：quant_train_barrier/quant_enable_barrier_race 系 wvector 层测试，callbacks 为 FaultStore 无会话域面，该层补不了本缺口；非根域闭环锁测必须落在 wnode 层。
+3 传导约束：version_domain_of 需 store 句柄而 VectorManager 不持 store，经既有工厂闭包捕获的 store 传导（守卫或工厂侧扩展均可），严禁为取换算新开全局可变洞。
+
+整理执行方案（审核席订正版，复审席确认）：
+1 try_process_quantization_request 绑定自持会话后、读索引前，按 split_registry_key 解出 (vns, vdb) 经既有落域单点落域（逻辑域经 vdb.version_domain_of 换算直设臂，形态对齐 tiered_demote.rs:151-156 单键落域窗）；该单点天然覆盖重建/建表/回填全链，recreate_index_locked（实在 :497-518，其调用点 :413 已在守卫内）勿在内部二次落域免双点
+2 锁测补非根域闭环（wnode 层）：非根域 VADD（尾参定槽）→ 训练 → 回填 → VEMB RAW 命中断言，根域既有锁测全绿不回退；wvector 层现有锁族无会话域面，勿在该层加假域测
+3 票面订正：C# ActiveThreadSession 实在 VectorManager.Callbacks.cs:254 非 VectorManager.cs；更强契约证据为 VectorManager.Quantization.cs:84-88 worker 显式 TrySwitchActiveDatabaseSession 切 self.dbId；建表锚订正 :168、回填锚订正 :188-193；票首 wvedb 路径系笔误
+
 量化 worker 自持会话未落条目域：非根域向量集（SELECT 非 0 库/命名空间）量化链建表回填全域错位静默失能，训练取样恒 miss 按 Failed 终态消费
 
 问题分析：
