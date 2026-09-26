@@ -536,12 +536,13 @@ fn pump_multi_batch_interleave() {
 // ---- WAIT-FOR-COMMIT 持久性档出网前置等待（C# RespServerSession.cs:Send 内
 // `if (waitForAofBlocking)` → storeWrapper.WaitForCommitAsync 读点）----
 
-/// GET 应答桩（命令执行域注入点；真实宿主为存储执行域）
+/// GET/SET 应答桩（命令执行域注入点；真实宿主为存储执行域）
 struct OkApi;
 
 impl GarnetApiFace for OkApi {
   fn exec(&self, session: &mut RespServerSession, cmd: RespCommand, _args: &[&[u8]]) {
-    assert_eq!(cmd, RespCommand::Get);
+    // GET/SET 均回 +OK（脚本窗内 redis.call('SET') 重入同落此注入点）
+    assert!(matches!(cmd, RespCommand::Get | RespCommand::Set));
     session.output.extend_from_slice(b"+OK\r\n");
   }
 
@@ -562,6 +563,9 @@ impl GarnetApiFace for OkApi {
 struct AofWaitProvider {
   /// 会话门控源（enable_aof && wait_for_commit 同置）
   gate: bool,
+  /// 脚本窗宿主形态（enable_lua：EVAL 走真实 run_lua_command 窗口；
+  /// false = 无 Lua 部署形态，session_script_cache 恒 None）
+  enable_lua: bool,
   /// 提交失败注入（true = 等待恒 Err，对标 C# CommitFailureException 沿
   /// BlockingWait 抛出）
   fail_wait: bool,
@@ -573,9 +577,18 @@ impl AofWaitProvider {
   fn new(gate: bool) -> Self {
     Self {
       gate,
+      enable_lua: false,
       fail_wait: false,
       waits: Arc::new(AtomicUsize::new(0)),
       timeline: Arc::new(Mutex::new(Vec::new())),
+    }
+  }
+
+  /// 脚本窗形态宿主（enable_lua 真会话：EVAL 窗经真实 mem::take 换出承接）
+  fn new_with_lua(gate: bool) -> Self {
+    Self {
+      enable_lua: true,
+      ..Self::new(gate)
     }
   }
 
@@ -597,6 +610,7 @@ impl SessionProviderFace for AofWaitProvider {
       RespServerSessionOptions {
         enable_aof: self.gate,
         wait_for_commit: self.gate,
+        enable_lua: self.enable_lua,
         ..RespServerSessionOptions::default()
       },
       Arc::new(OkApi),
@@ -747,6 +761,132 @@ fn pump_aof_wait_latches_within_batch() {
     "整批一次出网等待（latch 覆盖同批后续 AOF 无关命令），其后净批复位不另等"
   );
   assert_eq!(provider.timeline.lock().clone(), vec!["wait", "recv"]);
+}
+
+// ---- 脚本窗换出 output 免维护外层 commit-wait 标记（C# 内嵌 processor
+// 隔离面，SessionScriptCache.cs:60-64：redis.call 重入独立内嵌会话，外层
+// waitForAofBlocking 脚本期不可触）----
+//
+// 缺陷形态：rust 无内嵌 processor，脚本窗以 mem::take 换出会话 output
+//（lua.rs:252/:123），窗内 redis.call 重入解析的 handle_aof_commit_mode
+// 复位臂恒见空壳缓冲即误复位外层标记，窗口关闭只还缓冲不还标记，出网臂
+// 漏等提交落盘。修复形态：handle_aof_commit_mode 入口按 no_script_bitmap
+// （两窗挂/摘单义「窗内」位）整体早退，外层标记只由外层批解析维护。
+
+/// SET 帧（AOF 相关，外层批置位源）
+const SET_FRAME: &[u8] = b"*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n";
+
+/// EVAL 帧组装（numkeys 0）
+fn eval_frame(script: &[u8]) -> Vec<u8> {
+  let mut buf = format!("*3\r\n$4\r\nEVAL\r\n${}\r\n", script.len()).into_bytes();
+  buf.extend_from_slice(script);
+  buf.extend_from_slice(b"\r\n$1\r\n0\r\n");
+  buf
+}
+
+/// 案 a：「SET + EVAL(return redis.call('PING'))」同批流水线——窗内最后解析
+/// 的 PING 属 AOF 独立集，旧形复位臂见换出空壳清掉外层标记致漏等（waits==0）；
+/// 修复后窗内双向免维护，标记保持 EVAL 解析期置位，出网前照常等一次
+#[test]
+fn pump_script_window_readonly_call_keeps_outer_commit_wait() {
+  let provider = Arc::new(AofWaitProvider::new_with_lua(true));
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  let batch = [
+    SET_FRAME.to_vec(),
+    eval_frame(b"return redis.call('PING')"),
+  ]
+  .concat();
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[&batch],
+    b"+OK\r\n$4\r\nPONG\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert!(
+    provider.waits.load(Ordering::SeqCst) >= 1,
+    "窗内只读 redis.call 不得复位外层标记：SET 应答出网前须至少等一次提交落盘"
+  );
+  assert_eq!(
+    provider.timeline.lock().first().copied(),
+    Some("wait"),
+    "时间线等待严格先于应答出网（C# Send 前置闸对齐）"
+  );
+}
+
+/// 案 b：「SET + EVAL(纯写脚本)」回归——窗内写命令旧形自愈、新形免维护，
+/// 出网等待均须下达（判据不回退）
+#[test]
+fn pump_script_window_write_call_still_waits() {
+  let provider = Arc::new(AofWaitProvider::new_with_lua(true));
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  let batch = [
+    SET_FRAME.to_vec(),
+    eval_frame(b"redis.call('SET','sk','sv') return 1"),
+  ]
+  .concat();
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[&batch],
+    b"+OK\r\n:1\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert!(
+    provider.waits.load(Ordering::SeqCst) >= 1,
+    "纯写脚本批出网等待不回退"
+  );
+}
+
+/// 案 c：enable_lua=false + commit-wait 档普通批「SET + PING」——窗外标记维护
+/// 不因窗内免维护门失控（锁死判据不得回退为 session_script_cache 两义形：
+/// 无 Lua 部署下该字段恒 None，若按「摘除态=窗内」门控将令全档免维护失效）
+#[test]
+fn pump_commit_wait_latches_with_lua_disabled() {
+  let provider = Arc::new(AofWaitProvider::new(true));
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  let batch = [SET_FRAME.to_vec(), PING_FRAME.to_vec()].concat();
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[&batch],
+    b"+OK\r\n+PONG\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert!(
+    provider.waits.load(Ordering::SeqCst) >= 1,
+    "enable_lua=false 档外层批维护照常：SET 置位出网前须等待"
+  );
+  assert_eq!(
+    provider.timeline.lock().clone(),
+    vec!["wait", "recv"],
+    "等待严格先于应答出网"
+  );
+}
+
+/// 案 d：无 AOF 档（门关）默认路径全绿——脚本窗照常执行、出网零等待
+#[test]
+fn pump_script_window_without_aof_gate_never_waits() {
+  let provider = Arc::new(AofWaitProvider::new_with_lua(false));
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  let batch = [
+    SET_FRAME.to_vec(),
+    eval_frame(b"return redis.call('PING')"),
+  ]
+  .concat();
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[&batch],
+    b"+OK\r\n$4\r\nPONG\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert_eq!(
+    provider.waits.load(Ordering::SeqCst),
+    0,
+    "门关时解析不维护标记、泵不等（默认路径行为不变）"
+  );
+  assert_eq!(provider.timeline.lock().clone(), vec!["recv"]);
 }
 
 // ---- 慢路径终止取消竞速（C# RespServerSession.cs:Dispose 的
