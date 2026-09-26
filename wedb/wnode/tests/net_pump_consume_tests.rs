@@ -980,3 +980,262 @@ fn pump_shutdown_drains_pending_slow_wait() {
     "连接必须完成注销排空"
   );
 }
+
+// ---- 停泊-续跑轮 AOF 出网闸（armed 闩）回归 ----
+//
+// 缺陷形态（drive.rs 出网臂漏等）：停泊轮把此前 AOF 相关命令的应答经
+// resolve_*_wait_into → take_output_into 冲入本泵 resp_pooled 并清空会话
+// output，随后内层重入消费解析流水线后续 PING 等 AOF 无关命令，
+// handle_aof_commit_mode 见 pending_output_len()==0 复位 wait_for_aof_blocking，
+// 出网臂读会话字段读到 false 即跳过 wait_for_commit_async，resp_pooled 中
+// 已积存的 AOF 相关应答未经 fsync 直发客户端。C# 侧应答滞留 networkSender
+// 池化响应缓冲、dcurr==head 复位判据含未出网字节故 Send 恒受闸，不存在此窗口。
+// 修复形态：drive_loop 每处冲应答出口以「出会话时点标记」为准就地闩位
+// （armed 布尔），出网条件为 armed || 会话字段，成功等待即随轮首 let 复位。
+//
+// 桩形态：本桩以真实 RespServerSession 的 output/pending_slow/wait_for_aof_blocking
+// 三态与 take_output_into 冲出/ handle_aof_commit_mode 复位 语义一一对标，
+// 协议以 `GET\r\n`/`PING\r\n` 文本帧驱动（与 ScratchLineConsumer /
+// SlowPendingConsumer 桩同一形态惯例，规避真 RESP 帧构造噪声）。
+
+/// 停泊-续跑消费者桩（对标真实 RespSessionConsumer 的 park → resolve →
+/// 重入解析流水线后续命令的窗口）：
+/// - `GET\r\n`：AOF 相关命令，按 handle_aof_commit_mode 语义置位 wait_for_aof，
+///   随后挂 SlowWait 停泊（应答由 resolve_slow_wait_into 直写泵缓冲、绕开会话
+///   output，与真实 pump.rs:164-176 同一收尾形态）
+/// - `PING\r\n`：AOF 无关命令，按 handle_aof_commit_mode 语义判 output 空即
+///   复位 wait_for_aof（对标 resp_command.rs:480-489）；应答写入会话 output
+/// - 每轮 try_consume 收尾 take_output_into 冲入泵缓冲（对标
+///   resp_session_consumer.rs:158-172）
+struct ParkResumeAofConsumer {
+  buf: Vec<u8>,
+  head: usize,
+  slow: Option<SlowWait>,
+  /// 会话级应答缓冲（真实 RespServerSession::output 的镜像，与泵缓冲解耦）
+  output: Vec<u8>,
+  /// 会话出网标记（真实 RespServerSession::wait_for_aof_blocking 的镜像）
+  wait_for_aof: bool,
+}
+
+impl ParkResumeAofConsumer {
+  /// 复刻 resp_command.rs:480-489 handle_aof_commit_mode 语义：output 空即
+  /// 复位；后按 !is_aof_independent(cmd) 或置位
+  #[inline]
+  fn handle_aof_commit_mode(&mut self, is_aof_independent: bool) {
+    if self.output.is_empty() {
+      self.wait_for_aof = false;
+    }
+    self.wait_for_aof |= !is_aof_independent;
+  }
+
+  /// 复刻 pump.rs:206 take_output_into 语义：会话 output 非空即冲入 out 并清空
+  #[inline]
+  fn take_output_into(&mut self, out: &mut Vec<u8>) {
+    if self.output.is_empty() {
+      return;
+    }
+    out.extend_from_slice(&self.output);
+    self.output.clear();
+  }
+}
+
+impl MessageConsumerFace for ParkResumeAofConsumer {
+  fn take_recv_scratch(&mut self) -> Vec<u8> {
+    take(&mut self.buf)
+  }
+
+  fn return_recv_scratch(&mut self, buf: Vec<u8>) {
+    self.buf = buf;
+  }
+
+  fn try_consume_messages_into(&mut self, resp_buf: &mut Vec<u8>) -> Option<usize> {
+    loop {
+      let rest = &self.buf[self.head..];
+      if rest.starts_with(b"GET\r\n") {
+        // AOF 相关（is_aof_independent=false）→ 按 handle_aof_commit_mode 置位
+        self.handle_aof_commit_mode(false);
+        self.head += 5;
+        // 挂 SlowWait 停泊，应答由 resolve_slow_wait_into 直写泵缓冲：与真实
+        // park_broker_wait / park_cold_context_load 同一「停泊即中断消费、
+        // 应答不写会话 output」的形态（对标 core.rs:1125-1140 停车中断）
+        self.slow = Some(SlowWait::new(async { b"+OK\r\n".to_vec() }));
+        break;
+      } else if rest.starts_with(b"PING\r\n") {
+        // AOF 无关：复位判据 output 空——停泊续跑轮 output 已被
+        // resolve_slow_wait_into 的 take_output_into 清空，此路径必复位
+        // wait_for_aof（正是本缺陷触发点）
+        self.handle_aof_commit_mode(true);
+        self.output.extend_from_slice(b"+PONG\r\n");
+        self.head += 6;
+      } else if b"GET\r\n".starts_with(rest) || b"PING\r\n".starts_with(rest) {
+        break; // 半包待续
+      } else {
+        return None;
+      }
+    }
+    // 轮尾 take_output_into（对标 resp_session_consumer.rs:158-172）
+    self.take_output_into(resp_buf);
+    if self.head >= self.buf.len() {
+      self.buf.clear();
+      self.head = 0;
+      return Some(0);
+    }
+    Some(self.buf.len() - self.head)
+  }
+
+  fn take_slow_wait(&mut self) -> Option<SlowWait> {
+    take(&mut self.slow)
+  }
+
+  /// 对标 pump.rs:164-176：先冲出会话 output 至泵缓冲（清空），再把挂起体
+  /// 应答字节按流水线顺序直写泵缓冲。停泊-续跑窗内此调用即「应答出会话时点」，
+  /// 本函数的调用点（drive.rs 冲出口⑥）就是 armed 闩触发点
+  fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
+    self.take_output_into(resp_buf);
+    resp_buf.extend_from_slice(reply);
+  }
+
+  fn wait_for_aof_blocking(&self) -> bool {
+    self.wait_for_aof
+  }
+
+  fn dispose(&mut self) {}
+}
+
+/// 停泊-续跑 armed 闩测试宿主：与 AofWaitProvider 同一 waits/fail_wait/timeline
+/// 观测形态，get_session 返回带 park/resolve 的桩消费者（对标 AofWaitProvider
+/// 三态设计，仅消费形态从真实 RespSessionConsumer 换为 ParkResumeAofConsumer）
+struct ParkResumeAofProvider {
+  /// 提交失败注入（true = 等待恒 Err，与 AofWaitProvider::new_failing 同形态）
+  fail_wait: bool,
+  waits: Arc<AtomicUsize>,
+  timeline: Arc<Mutex<Vec<&'static str>>>,
+}
+
+impl ParkResumeAofProvider {
+  fn new() -> Self {
+    Self {
+      fail_wait: false,
+      waits: Arc::new(AtomicUsize::new(0)),
+      timeline: Arc::new(Mutex::new(Vec::new())),
+    }
+  }
+
+  fn new_failing() -> Self {
+    Self {
+      fail_wait: true,
+      ..Self::new()
+    }
+  }
+}
+
+impl SessionProviderFace for ParkResumeAofProvider {
+  type Consumer = ParkResumeAofConsumer;
+
+  fn get_session(&self, _wf: WireFormat, _id: u64) -> Option<ParkResumeAofConsumer> {
+    Some(ParkResumeAofConsumer {
+      buf: Vec::new(),
+      head: 0,
+      slow: None,
+      output: Vec::new(),
+      wait_for_aof: false,
+    })
+  }
+
+  fn wait_for_commit_async(&self) -> impl Future<Output = waof::Result<bool>> {
+    let waits = Arc::clone(&self.waits);
+    let timeline = Arc::clone(&self.timeline);
+    let fail_wait = self.fail_wait;
+    async move {
+      timeline.lock().push("wait");
+      waits.fetch_add(1, Ordering::SeqCst);
+      if fail_wait {
+        return Err(Error::InvalidRecordHeader);
+      }
+      Ok(true)
+    }
+  }
+}
+
+/// 停泊 + 流水线后续 PING 案：慢臂挂起把 AOF 相关应答直写 resp_pooled 并清空
+/// 会话 output，续跑重入解析后续 PING 复位 wait_for_aof_blocking；出网臂若只读
+/// 会话字段即漏等（缺陷形），armed 闩按出会话时点捕获即正确下达一次等待
+#[test]
+fn pump_armed_latch_waits_after_park_resume_pipeline_ping() {
+  let provider = Arc::new(ParkResumeAofProvider::new());
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  // 停泊命令 + 同批后续 PING：应答字节顺序 +OK\r\n+PONG\r\n（GET 停泊应答 +
+  // 续跑轮 PING 应答）
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[b"GET\r\nPING\r\n"],
+    b"+OK\r\n+PONG\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert_eq!(
+    provider.waits.load(Ordering::SeqCst),
+    1,
+    "停泊应答出会话时点标记置位即闩位 armed，续跑轮 PING 复位不掩盖漏等"
+  );
+  assert_eq!(
+    provider.timeline.lock().clone(),
+    vec!["wait", "recv"],
+    "等待严格先于应答出网（C# Send 前置闸对齐）"
+  );
+}
+
+/// 同形态 fail_wait 案：armed 闩命中出网闸后，等待 Err → 应答零字节出网即断连
+///（对标 pump_aof_commit_wait_failure_drops_connection_without_reply：C#
+/// RespServerSession.cs:1453 内 BlockingWait 抛 CommitFailureException 后
+/// :566 catch (Exception) Dispose 断连；本形态证明停泊-续跑轮不再破防）
+#[test]
+fn pump_armed_latch_failure_drops_connection_without_reply() {
+  let provider = Arc::new(ParkResumeAofProvider::new_failing());
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  Runtime::new().unwrap().block_on(async {
+    let mut stream = TcpStream::connect(addr.parse::<SocketAddr>().unwrap())
+      .await
+      .unwrap();
+    stream.write_all(b"GET\r\nPING\r\n".to_vec()).await.unwrap();
+    let mut acc: Vec<u8> = Vec::new();
+    loop {
+      let BufResult(res, buf) = stream.read(vec![0u8; 4096]).await;
+      match res {
+        Ok(0) | Err(_) => break,
+        Ok(n) => acc.extend_from_slice(&buf[..n]),
+      }
+      assert!(
+        acc.is_empty(),
+        "armed 闩命中等待失败后应答不得出网（+OK/+PONG 零字节），实际收到 {acc:?}"
+      );
+    }
+  });
+  server.stop();
+  assert_eq!(
+    provider.waits.load(Ordering::SeqCst),
+    1,
+    "失败注入下等待仍下达一次（armed 命中出网闸）"
+  );
+}
+
+/// 纯 PING 单轮回归：无停泊、无 AOF 相关命令，会话字段恒 false，armed 亦不置位
+/// → 出网零等待（回归既有行为，防误伤 AOF 无关单轮形态）
+#[test]
+fn pump_armed_latch_pure_ping_never_waits() {
+  let provider = Arc::new(ParkResumeAofProvider::new());
+  let (server, addr) = spawn_server(Arc::clone(&provider));
+  Runtime::new().unwrap().block_on(drive_logged(
+    &addr,
+    &[b"PING\r\n"],
+    b"+PONG\r\n",
+    &provider.timeline,
+  ));
+  server.stop();
+  assert_eq!(
+    provider.waits.load(Ordering::SeqCst),
+    0,
+    "纯 AOF 无关命令单轮不触发出网闸（解析期复位无字节可护）"
+  );
+  assert_eq!(provider.timeline.lock().clone(), vec!["recv"]);
+}
