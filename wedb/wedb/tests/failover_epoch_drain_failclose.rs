@@ -38,7 +38,7 @@ use compio::{
   buf::BufResult,
   io::AsyncRead,
   net::{TcpListener, TcpStream},
-  runtime::Runtime,
+  runtime::{Runtime, spawn},
 };
 use wdev::SegmentedDevice;
 use wedb::server::{
@@ -350,9 +350,9 @@ impl PauseFakePrimary {
   async fn bind(mode: DropMode) -> Self {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    compio::runtime::spawn(async move {
+    spawn(async move {
       while let Ok((stream, _)) = listener.accept().await {
-        compio::runtime::spawn(async move { serve(stream, mode).await }).detach();
+        spawn(async move { serve(stream, mode).await }).detach();
       }
     })
     .detach();

@@ -29,7 +29,7 @@ use waof::{AofEntryType, AofHeader, is_commit_frame};
 use wconf::RuntimeServerOptions;
 use wnode::{
   aof::{
-    aof_processor::{AofProcessor, ReplayTarget},
+    aof_processor::{AofProcessor, AofReplayError, ReplayTarget},
     garnet_append_only_file::GarnetAppendOnlyFile,
     garnet_log::{GarnetLog, RecordShape},
     recover::aof_recover::AofRecover,
@@ -112,7 +112,7 @@ async fn rebuilt_with_stamped_version(
 async fn recover_case(
   aof: &Arc<GarnetAppendOnlyFile>,
   db_name: &str,
-) -> aok::Result<Result<u64, wnode::aof::aof_processor::AofReplayError>> {
+) -> aok::Result<Result<u64, AofReplayError>> {
   let (_dir, store) = open_test_store(db_name)?;
   let session = store.new_session()?;
   let storage = StorageSession::new(session.enter_batch());

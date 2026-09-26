@@ -4,6 +4,7 @@
 
 use core::fmt;
 use std::{
+  future::Future,
   net::SocketAddr,
   sync::{
     Arc,
@@ -23,6 +24,60 @@ use compio::{
 };
 use waof::AofAddress;
 use wresp::resp_memory_writer::write_bulk_string_to;
+
+/// 假端点装配单点：绑定随机端口 + accept 循环（每连接派生独立任务，随测试
+/// runtime 退出自动终止）。连接服务体由 `per_connection` 逐连接构造
+///（Arc 状态在闭包内 clone，产出 owned future 挂 runtime；compio 单线程
+/// runtime 靶端 future 无 Send 约束）
+async fn bind_fake_node<G, F>(per_connection: G) -> SocketAddr
+where
+  G: Fn(TcpStream) -> F + 'static,
+  F: Future<Output = ()> + 'static,
+{
+  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+  let addr = listener.local_addr().unwrap();
+  spawn(async move {
+    while let Ok((stream, _)) = listener.accept().await {
+      spawn(per_connection(stream)).detach();
+    }
+  })
+  .detach();
+  addr
+}
+
+/// 连接级帧泵单点：读-积累-逐帧交付（解析走 [`parse_frame_slices`] 单一面），
+/// 每帧载荷交 `on_frame` 应答（返回 false = 写出失败，立即收口）；对端断开
+/// 即返回。四类靶端（Silent/Gossip/Failover/StopWrites）的同一读泵收口于此
+async fn serve_frames(
+  mut stream: TcpStream,
+  mut on_frame: impl AsyncFnMut(&mut TcpStream, &[&[u8]]) -> bool,
+) {
+  let mut acc: Vec<u8> = Vec::new();
+  let mut buf = vec![0u8; 8192];
+  loop {
+    let BufResult(res, next) = stream.read(buf).await;
+    buf = next;
+    let n = match res {
+      Ok(n) if n > 0 => n,
+      _ => {
+        log::debug!("[serve_frames] read end: {res:?}");
+        return;
+      }
+    };
+    log::debug!("[serve_frames] recv {n} bytes");
+    acc.extend_from_slice(&buf[..n]);
+    let mut consumed = 0;
+    while let Some((frame_len, payloads)) = parse_frame_slices(&acc[consumed..]) {
+      consumed += frame_len;
+      if !on_frame(&mut stream, &payloads).await {
+        return;
+      }
+    }
+    if consumed > 0 {
+      acc.drain(..consumed);
+    }
+  }
+}
 
 /// 默认轮询等待超时（5 秒）
 pub const DEFAULT_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -156,20 +211,18 @@ pub struct SilentNode {
 impl SilentNode {
   /// 绑定随机端口并启动 accept 循环（随测试 runtime 退出自动终止）
   pub async fn bind(ready_replies: usize) -> Self {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
     let silent_frames = Arc::new(AtomicUsize::new(0));
     let peer_closed = Arc::new(AtomicBool::new(false));
-    {
-      let (frames, closed) = (Arc::clone(&silent_frames), Arc::clone(&peer_closed));
-      spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-          let (frames, closed) = (Arc::clone(&frames), Arc::clone(&closed));
-          spawn(async move { serve(stream, ready_replies, frames, closed).await }).detach();
-        }
-      })
-      .detach();
-    }
+    let (frames, closed) = (Arc::clone(&silent_frames), Arc::clone(&peer_closed));
+    let addr = bind_fake_node(move |stream| {
+      silent_serve(
+        stream,
+        ready_replies,
+        Arc::clone(&frames),
+        Arc::clone(&closed),
+      )
+    })
+    .await;
     Self {
       addr,
       silent_frames,
@@ -193,47 +246,26 @@ impl SilentNode {
   }
 }
 
-/// 单连接服务循环：逐帧解析 RESP2 数组命令，前 `ready_replies` 帧回 `+OK`，
+/// 单连接服务循环（走 [`serve_frames`] 帧泵）：前 `ready_replies` 帧回 `+OK`，
 /// 其余静默吞掉并计数（连接保持，直至对端断开，断开置标记）
-async fn serve(
-  mut stream: TcpStream,
+async fn silent_serve(
+  stream: TcpStream,
   ready_replies: usize,
   silent_frames: Arc<AtomicUsize>,
   peer_closed: Arc<AtomicBool>,
 ) {
-  let mut acc: Vec<u8> = Vec::new();
   let mut replies_left = ready_replies;
-  let mut buf = vec![0u8; 4096];
-  loop {
-    let BufResult(res, next) = stream.read(buf).await;
-    buf = next;
-    let n = match res {
-      Ok(n) if n > 0 => n,
-      _ => {
-        log::debug!("[serve] read end: {res:?}");
-        peer_closed.store(true, Ordering::Release);
-        break;
-      }
-    };
-    log::debug!("[serve] recv {n} bytes");
-    acc.extend_from_slice(&buf[..n]);
-    let mut consumed = 0;
-    while let Some(frame_len) = try_parse_frame(&acc[consumed..]) {
-      log::debug!("[serve] parsed frame {frame_len}");
-      consumed += frame_len;
-      if replies_left > 0 {
-        replies_left -= 1;
-        if stream.write_all(b"+OK\r\n").await.is_err() {
-          return;
-        }
-      } else {
-        silent_frames.fetch_add(1, Ordering::Release);
-      }
+  serve_frames(stream, async |stream, _payloads| {
+    if replies_left > 0 {
+      replies_left -= 1;
+      stream.write_all(b"+OK\r\n").await.is_ok()
+    } else {
+      silent_frames.fetch_add(1, Ordering::Release);
+      true
     }
-    if consumed > 0 {
-      acc.drain(..consumed);
-    }
-  }
+  })
+  .await;
+  peer_closed.store(true, Ordering::Release);
 }
 
 #[inline]
@@ -328,15 +360,7 @@ pub struct GossipNode {
 impl GossipNode {
   /// 绑定随机端口；reply 为 gossip 请求的 bulk string 应答载荷
   pub async fn bind(reply: Arc<Vec<u8>>) -> Self {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    spawn(async move {
-      while let Ok((stream, _)) = listener.accept().await {
-        let reply = Arc::clone(&reply);
-        spawn(async move { gossip_serve(stream, reply).await }).detach();
-      }
-    })
-    .detach();
+    let addr = bind_fake_node(move |stream| gossip_serve(stream, Arc::clone(&reply))).await;
     Self { addr }
   }
 
@@ -346,38 +370,18 @@ impl GossipNode {
   }
 }
 
-/// gossip 服务循环：CLUSTER GOSSIP 帧回预置 bulk 载荷，其余帧回 `+OK`
-async fn gossip_serve(mut stream: TcpStream, reply: Arc<Vec<u8>>) {
-  let mut acc: Vec<u8> = Vec::new();
-  let mut buf = vec![0u8; 8192];
-  loop {
-    let BufResult(res, next) = stream.read(buf).await;
-    buf = next;
-    let n = match res {
-      Ok(n) if n > 0 => n,
-      _ => {
-        log::debug!("[gossip_serve] read end: {res:?}");
-        break;
-      }
-    };
-    acc.extend_from_slice(&buf[..n]);
-    let mut consumed = 0;
-    while let Some((frame_len, payloads)) = parse_frame_slices(&acc[consumed..]) {
-      consumed += frame_len;
-      let is_gossip = payloads.len() >= 2 && payloads[0] == b"CLUSTER" && payloads[1] == b"GOSSIP";
-      let err = if is_gossip {
-        stream.write_all(bulk_reply(&reply)).await.is_err()
-      } else {
-        stream.write_all(b"+OK\r\n").await.is_err()
-      };
-      if err {
-        return;
-      }
+/// gossip 服务循环（走 [`serve_frames`] 帧泵）：CLUSTER GOSSIP 帧回预置 bulk
+/// 载荷，其余帧回 `+OK`
+async fn gossip_serve(stream: TcpStream, reply: Arc<Vec<u8>>) {
+  serve_frames(stream, async |stream, payloads| {
+    let is_gossip = payloads.len() >= 2 && payloads[0] == b"CLUSTER" && payloads[1] == b"GOSSIP";
+    if is_gossip {
+      stream.write_all(bulk_reply(&reply)).await.is_ok()
+    } else {
+      stream.write_all(b"+OK\r\n").await.is_ok()
     }
-    if consumed > 0 {
-      acc.drain(..consumed);
-    }
-  }
+  })
+  .await;
 }
 
 /// failover 靶端：握手后对 `CLUSTER FAILREPLICATIONOFFSET <带 1B 长度前缀
@@ -409,20 +413,18 @@ impl FailoverNode {
     reply_delay: Duration,
     takeover_reply: &'static [u8],
   ) -> Self {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
     let takeover = Arc::new(AtomicBool::new(false));
     let loop_takeover = Arc::clone(&takeover);
-    spawn(async move {
-      while let Ok((stream, _)) = listener.accept().await {
-        let (offset_reply, takeover) = (Arc::clone(&offset_reply), Arc::clone(&loop_takeover));
-        spawn(async move {
-          failover_serve(stream, offset_reply, reply_delay, takeover, takeover_reply).await
-        })
-        .detach();
-      }
+    let addr = bind_fake_node(move |stream| {
+      failover_serve(
+        stream,
+        Arc::clone(&offset_reply),
+        reply_delay,
+        Arc::clone(&loop_takeover),
+        takeover_reply,
+      )
     })
-    .detach();
+    .await;
     Self { addr, takeover }
   }
 
@@ -437,70 +439,49 @@ impl FailoverNode {
   }
 }
 
-/// failover 服务循环：FAILREPLICATIONOFFSET 经 reply_delay 延迟回 bulk 位点、
-/// FAILOVER 记接管标记并回 takeover_reply（+OK 或 -ERR），其余帧回 `+OK`
-///（一请求一应答节奏）
+/// failover 服务循环（走 [`serve_frames`] 帧泵）：FAILREPLICATIONOFFSET 经
+/// reply_delay 延迟回 bulk 位点、FAILOVER 记接管标记并回 takeover_reply
+///（+OK 或 -ERR），其余帧回 `+OK`（一请求一应答节奏）
 async fn failover_serve(
-  mut stream: TcpStream,
+  stream: TcpStream,
   offset_reply: Arc<String>,
   reply_delay: Duration,
   takeover: Arc<AtomicBool>,
   takeover_reply: &'static [u8],
 ) {
-  let mut acc: Vec<u8> = Vec::new();
-  let mut buf = vec![0u8; 8192];
-  loop {
-    let BufResult(res, next) = stream.read(buf).await;
-    buf = next;
-    let n = match res {
-      Ok(n) if n > 0 => n,
-      _ => {
-        log::debug!("[failover_serve] read end: {res:?}");
-        break;
-      }
+  serve_frames(stream, async |stream, payloads| {
+    let is_cmd = |name: &str| {
+      payloads.len() >= 2 && payloads[0] == b"CLUSTER" && payloads[1] == name.as_bytes()
     };
-    acc.extend_from_slice(&buf[..n]);
-    let mut consumed = 0;
-    while let Some((frame_len, payloads)) = parse_frame_slices(&acc[consumed..]) {
-      consumed += frame_len;
-      let is_cmd = |name: &str| {
-        payloads.len() >= 2 && payloads[0] == b"CLUSTER" && payloads[1] == name.as_bytes()
-      };
-      let err = if is_cmd("FAILREPLICATIONOFFSET") {
-        // 请求载荷线形锁：真实主端发带 1 字节长度前缀二进制
-        // （waof AofAddress::to_aof_binary，对标 C# GarnetClientExtensions.cs:61
-        // ToByteArray），解码失败即回错误帧——靶端不校验形则发收交点被掩蔽
-        let payload_ok = payloads
-          .get(2)
-          .is_some_and(|p| AofAddress::from_aof_binary(p).is_some());
-        if !payload_ok {
-          stream
-            .write_all(b"-ERR invalid failreplicationoffset payload\r\n")
-            .await
-            .is_err()
-        } else {
-          if reply_delay > Duration::ZERO {
-            sleep(reply_delay).await;
-          }
-          stream
-            .write_all(bulk_reply(offset_reply.as_bytes()))
-            .await
-            .is_err()
-        }
-      } else if is_cmd("FAILOVER") {
-        takeover.store(true, Ordering::Release);
-        stream.write_all(takeover_reply).await.is_err()
+    if is_cmd("FAILREPLICATIONOFFSET") {
+      // 请求载荷线形锁：真实主端发带 1 字节长度前缀二进制
+      // （waof AofAddress::to_aof_binary，对标 C# GarnetClientExtensions.cs:61
+      // ToByteArray），解码失败即回错误帧——靶端不校验形则发收交点被掩蔽
+      let payload_ok = payloads
+        .get(2)
+        .is_some_and(|p| AofAddress::from_aof_binary(p).is_some());
+      if !payload_ok {
+        stream
+          .write_all(b"-ERR invalid failreplicationoffset payload\r\n")
+          .await
+          .is_ok()
       } else {
-        stream.write_all(b"+OK\r\n").await.is_err()
-      };
-      if err {
-        return;
+        if reply_delay > Duration::ZERO {
+          sleep(reply_delay).await;
+        }
+        stream
+          .write_all(bulk_reply(offset_reply.as_bytes()))
+          .await
+          .is_ok()
       }
+    } else if is_cmd("FAILOVER") {
+      takeover.store(true, Ordering::Release);
+      stream.write_all(takeover_reply).await.is_ok()
+    } else {
+      stream.write_all(b"+OK\r\n").await.is_ok()
     }
-    if consumed > 0 {
-      acc.drain(..consumed);
-    }
-  }
+  })
+  .await;
 }
 
 /// 停写靶端：握手后对 `CLUSTER FAILSTOPWRITES <node_id>` 回预置 bulk string
@@ -515,17 +496,12 @@ pub struct StopWritesNode {
 impl StopWritesNode {
   /// 绑定随机端口并启动 accept 循环；offset_reply 为停写确认应答的 bulk 载荷
   pub async fn bind(offset_reply: Arc<String>) -> Self {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
     let reset = Arc::new(AtomicBool::new(false));
     let loop_reset = Arc::clone(&reset);
-    spawn(async move {
-      while let Ok((stream, _)) = listener.accept().await {
-        let (offset_reply, reset) = (Arc::clone(&offset_reply), Arc::clone(&loop_reset));
-        spawn(async move { stop_writes_serve(stream, offset_reply, reset).await }).detach();
-      }
+    let addr = bind_fake_node(move |stream| {
+      stop_writes_serve(stream, Arc::clone(&offset_reply), Arc::clone(&loop_reset))
     })
-    .detach();
+    .await;
     Self { addr, reset }
   }
 
@@ -540,48 +516,23 @@ impl StopWritesNode {
   }
 }
 
-/// 停写服务循环：非空载荷 FAILSTOPWRITES 回 bulk 位点应答、空载荷（复位）
-/// 记标记回 `+OK`，其余帧回 `+OK`（一请求一应答节奏）
-async fn stop_writes_serve(
-  mut stream: TcpStream,
-  offset_reply: Arc<String>,
-  reset: Arc<AtomicBool>,
-) {
-  let mut acc: Vec<u8> = Vec::new();
-  let mut buf = vec![0u8; 8192];
-  loop {
-    let BufResult(res, next) = stream.read(buf).await;
-    buf = next;
-    let n = match res {
-      Ok(n) if n > 0 => n,
-      _ => {
-        log::debug!("[stop_writes_serve] read end: {res:?}");
-        break;
-      }
-    };
-    acc.extend_from_slice(&buf[..n]);
-    let mut consumed = 0;
-    while let Some((frame_len, payloads)) = parse_frame_slices(&acc[consumed..]) {
-      consumed += frame_len;
-      let is_stop_writes =
-        payloads.len() >= 3 && payloads[0] == b"CLUSTER" && payloads[1] == b"FAILSTOPWRITES";
-      let err = if is_stop_writes && payloads[2].is_empty() {
-        reset.store(true, Ordering::Release);
-        stream.write_all(b"+OK\r\n").await.is_err()
-      } else if is_stop_writes {
-        stream
-          .write_all(bulk_reply(offset_reply.as_bytes()))
-          .await
-          .is_err()
-      } else {
-        stream.write_all(b"+OK\r\n").await.is_err()
-      };
-      if err {
-        return;
-      }
+/// 停写服务循环（走 [`serve_frames`] 帧泵）：非空载荷 FAILSTOPWRITES 回 bulk
+/// 位点应答、空载荷（复位）记标记回 `+OK`，其余帧回 `+OK`（一请求一应答节奏）
+async fn stop_writes_serve(stream: TcpStream, offset_reply: Arc<String>, reset: Arc<AtomicBool>) {
+  serve_frames(stream, async |stream, payloads| {
+    let is_stop_writes =
+      payloads.len() >= 3 && payloads[0] == b"CLUSTER" && payloads[1] == b"FAILSTOPWRITES";
+    if is_stop_writes && payloads[2].is_empty() {
+      reset.store(true, Ordering::Release);
+      stream.write_all(b"+OK\r\n").await.is_ok()
+    } else if is_stop_writes {
+      stream
+        .write_all(bulk_reply(offset_reply.as_bytes()))
+        .await
+        .is_ok()
+    } else {
+      stream.write_all(b"+OK\r\n").await.is_ok()
     }
-    if consumed > 0 {
-      acc.drain(..consumed);
-    }
-  }
+  })
+  .await;
 }
