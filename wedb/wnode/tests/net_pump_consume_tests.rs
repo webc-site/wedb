@@ -791,11 +791,7 @@ fn eval_frame(script: &[u8]) -> Vec<u8> {
 fn pump_script_window_readonly_call_keeps_outer_commit_wait() {
   let provider = Arc::new(AofWaitProvider::new_with_lua(true));
   let (server, addr) = spawn_server(Arc::clone(&provider));
-  let batch = [
-    SET_FRAME.to_vec(),
-    eval_frame(b"return redis.call('PING')"),
-  ]
-  .concat();
+  let batch = [SET_FRAME.to_vec(), eval_frame(b"return redis.call('PING')")].concat();
   Runtime::new().unwrap().block_on(drive_logged(
     &addr,
     &[&batch],
@@ -869,11 +865,7 @@ fn pump_commit_wait_latches_with_lua_disabled() {
 fn pump_script_window_without_aof_gate_never_waits() {
   let provider = Arc::new(AofWaitProvider::new_with_lua(false));
   let (server, addr) = spawn_server(Arc::clone(&provider));
-  let batch = [
-    SET_FRAME.to_vec(),
-    eval_frame(b"return redis.call('PING')"),
-  ]
-  .concat();
+  let batch = [SET_FRAME.to_vec(), eval_frame(b"return redis.call('PING')")].concat();
   Runtime::new().unwrap().block_on(drive_logged(
     &addr,
     &[&batch],

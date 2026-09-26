@@ -16,6 +16,8 @@ pub const REPLICATION_HISTORY_VERSION: u32 = 1;
 
 /// AofAddress 与 toml-spanner 桥接模块
 mod aof_address_toml {
+  use toml_spanner::Array;
+
   use super::*;
 
   pub fn to_toml<'a>(addr: &'a AofAddress, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
@@ -23,7 +25,7 @@ mod aof_address_toml {
     if len <= 1 {
       Ok(Item::from(addr.get(0).unwrap_or(0)))
     } else {
-      let mut array = toml_spanner::Array::new();
+      let mut array = Array::new();
       for i in 0..len {
         array.push(Item::from(addr.get(i).unwrap_or(0)), arena);
       }
