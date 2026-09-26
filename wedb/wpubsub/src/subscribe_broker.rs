@@ -360,12 +360,6 @@ impl<S: PubSubSink> SubscribeBroker<S> {
     }
   }
 
-  /// 回调枚举全部有分片订阅者的通道（零堆分配）
-  #[inline]
-  pub fn for_each_shard_channel<F: FnMut(&[u8])>(&self, f: F) {
-    channel_sub_for_each(&self.shard_subscriptions, f);
-  }
-
   /// 直接向输出缓冲写入 RESP 通道数组（单次遍历快照收集，零拷贝借用一致成帧）
   ///
   /// `caller_prefix` 承载会话 ns 隔离前缀过滤与裸通道名还原（见 [`write_channel_array`]）

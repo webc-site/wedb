@@ -68,12 +68,6 @@ impl GarnetLatencyMetricsSession {
     (self.last_iteration % 2) as usize
   }
 
-  /// 上一版本槽（已退役、待归并或已归并）。
-  #[inline]
-  pub fn prior_version(&self) -> usize {
-    1 - self.version()
-  }
-
   /// 版本翻转检测：以绝对迭代差按迭代周期结算，并把退役槽并入全局出口。
   ///
   /// `diff == 0` 同周期未跨越；`diff == 1` 恰跨一周期，结算退役槽；
@@ -250,7 +244,6 @@ mod tests {
     let mut session = session(&env);
 
     assert_eq!(session.version(), 0);
-    assert_eq!(session.prior_version(), 1);
 
     // 1. start + stop
     session.start(LatencyMetricsType::NetRsLat, 100);

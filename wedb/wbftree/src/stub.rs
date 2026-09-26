@@ -354,24 +354,6 @@ impl RangeIndexStub {
       None => None,
     }
   }
-
-  /// 快速探针：从切片零拷贝检查是否从快照文件恢复（const fn）
-  #[inline]
-  pub const fn read_is_recovered(bytes: &[u8]) -> Option<bool> {
-    match Self::read_flags(bytes) {
-      Some(f) => Some((f & RECOVERED_BIT_MASK) != 0),
-      None => None,
-    }
-  }
-
-  /// 快速探针：从切片零拷贝检查所有权是否已转移到新记录（const fn）
-  #[inline]
-  pub const fn read_is_transferred(bytes: &[u8]) -> Option<bool> {
-    match Self::read_flags(bytes) {
-      Some(f) => Some((f & TRANSFERRED_BIT_MASK) != 0),
-      None => None,
-    }
-  }
 }
 
 #[cfg(test)]
@@ -416,8 +398,6 @@ mod tests {
       Some(0x1234_5678_90ab_cdef)
     );
     assert_eq!(RangeIndexStub::read_is_flushed(&bytes), Some(true));
-    assert_eq!(RangeIndexStub::read_is_recovered(&bytes), Some(true));
-    assert_eq!(RangeIndexStub::read_is_transferred(&bytes), Some(false));
     assert_eq!(
       RangeIndexStub::read_storage_backend(&bytes),
       Some(StorageBackendType::Memory.to_u8())
