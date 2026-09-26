@@ -179,7 +179,7 @@ impl LimitedFixedBufferPool {
   /// NetworkBufferSettings.CreateBufferPool 依网络规格推导层级数的场景）
   ///
   /// 在 garnet 中的相对路径:libs/common/NetworkBufferSettings.cs:NetworkBufferSettings.CreateBufferPool
-  pub fn with_levels(
+  fn with_levels(
     min_allocation_size: usize,
     max_entries_per_level: usize,
     num_levels: usize,

@@ -114,11 +114,11 @@ pub const fn unix_time_in_milliseconds_from_ticks(ticks: i64) -> i64 {
 
 /// 可表示绝对过期 .NET Ticks 的最大 Unix 秒
 /// （(i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND，编译期常量）
-pub const MAX_UNIX_TIMESTAMP_SECONDS: i64 = (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND;
+const MAX_UNIX_TIMESTAMP_SECONDS: i64 = (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND;
 
 /// 可表示绝对过期 .NET Ticks 的最大 Unix 毫秒
 /// （(i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND，编译期常量）
-pub const MAX_UNIX_TIMESTAMP_MILLISECONDS: i64 =
+const MAX_UNIX_TIMESTAMP_MILLISECONDS: i64 =
   (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND;
 
 /// 相对秒 → 时长 ticks（饱和乘法：乘法溢出饱和至 i64::MAX，杜绝 debug 构建

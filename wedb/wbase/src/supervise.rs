@@ -56,7 +56,7 @@ impl PanicPayload {
   }
 
   /// 载荷引用转可读文本（&str / String 直取，其余退回固定描述）
-  pub fn text_of(payload: &(dyn Any + Send)) -> String {
+  fn text_of(payload: &(dyn Any + Send)) -> String {
     if let Some(s) = payload.downcast_ref::<&str>() {
       (*s).into()
     } else if let Some(s) = payload.downcast_ref::<String>() {

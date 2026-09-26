@@ -81,7 +81,7 @@ impl KeySpecificationFlags {
   }
 
   /// 解析单个 wire 描述（忽略大小写与下划线，直接对齐 ALL_FLAGS 编译期表）
-  pub fn from_wire_name_single(name: &str) -> Option<Self> {
+  fn from_wire_name_single(name: &str) -> Option<Self> {
     let s = name.trim();
     if s.is_empty() {
       return None;
