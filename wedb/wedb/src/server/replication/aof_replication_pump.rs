@@ -268,8 +268,8 @@ async fn pump_backlog<D: Device>(
   let mut total_forwarded = 0u64;
   let mut total_skipped = 0u64;
 
-  for offset in 0..drivers.len() {
-    let driver = &drivers[(start + offset) % drivers.len()];
+  // 轮转公平扫描：drivers[start..] 段后接 drivers[..start] 段，免逐元素取模
+  for driver in drivers[start..].iter().chain(&drivers[..start]) {
     let Some(task) = driver.task_ref(0) else {
       continue;
     };

@@ -534,7 +534,7 @@ fn test_meet_from_replica_propagates_across_three_nodes() -> Void {
       .expect("cluster manager 在场")
       .current_config
       .write()
-      .workers[LOCAL_WORKER_ID as usize]
+      .workers[LOCAL_WORKER_ID]
       .port = port as i32;
     (server, port)
   }

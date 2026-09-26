@@ -375,7 +375,7 @@ async fn test_final_window_live_record_not_fake_notfound() -> Void {
     step += 1;
     // 限速推进：触发链头越界节奏低于读窗轮次上界，撤压后复检即断越界，预算内
     // 落真实走尽/命中出口（逐窗满速推进即对抗档，判据 5 上抛兜底面）
-    if step % 4 == 0 {
+    if step.is_multiple_of(4) {
       session.upsert(&churn, &churn_val(2 + step)).await?;
     }
     store.flush_and_evict_all().await?;
