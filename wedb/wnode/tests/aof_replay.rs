@@ -853,8 +853,8 @@ async fn test_obj_rmw_hash_delete_arm_replay_loop() -> aok::Void {
     part.hash.get(b"f3".as_slice()).map(|v| v.as_slice()),
     Some(b"v3".as_slice())
   );
-  assert!(part.hash.get(b"f1".as_slice()).is_none());
-  assert!(part.hash.get(b"f2".as_slice()).is_none());
+  assert!(!part.hash.contains_key(b"f1".as_slice()));
+  assert!(!part.hash.contains_key(b"f2".as_slice()));
 
   // 删后同键续改：重建信封只含 h4
   let re = storage2
@@ -869,7 +869,7 @@ async fn test_obj_rmw_hash_delete_arm_replay_loop() -> aok::Void {
     re.hash.get(b"h4".as_slice()).map(|v| v.as_slice()),
     Some(b"v4".as_slice())
   );
-  assert!(re.hash.get(b"h3".as_slice()).is_none());
+  assert!(!re.hash.contains_key(b"h3".as_slice()));
   OK
 }
 
