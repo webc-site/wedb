@@ -177,8 +177,7 @@ fn test_background_task_size_parsing() {
 #[test]
 fn test_node_args_lua_cli_flags() {
   let args =
-    NodeArgs::try_parse_from(["wedb", "--enable-lua", "--lua-script-timeout-ms", "5000"])
-      .unwrap();
+    NodeArgs::try_parse_from(["wedb", "--enable-lua", "--lua-script-timeout-ms", "5000"]).unwrap();
   assert!(args.enable_lua);
   assert_eq!(args.lua_script_timeout_ms, 5000);
   // lua 事务模式选项已整链删除（task/done/lua-txn-mode-drop-placeholder.md），
@@ -496,8 +495,7 @@ fn test_protected_mode_bind_fallback() {
   assert_eq!(args.endpoints().unwrap(), vec!["0.0.0.0:6379", "[::]:6379"]);
 
   let args =
-    NodeArgs::try_parse_from(["wedb", "--protected-mode", "false", "--bind", "10.0.0.8"])
-      .unwrap();
+    NodeArgs::try_parse_from(["wedb", "--protected-mode", "false", "--bind", "10.0.0.8"]).unwrap();
   assert_eq!(args.endpoints().unwrap(), vec!["10.0.0.8:6379"]);
 
   let args = NodeArgs::try_parse_from(["wedb"]).unwrap();

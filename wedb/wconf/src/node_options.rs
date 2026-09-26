@@ -17,6 +17,7 @@ use std::{
 
 use clap::{ArgMatches, Parser, error::ErrorKind};
 use log::LevelFilter;
+use toml_spanner::Arena;
 use wbase::{
   cfg,
   cfg::{LogCompactionType, MAX_DATABASES_MAX, MAX_DATABASES_MIN},
@@ -1552,7 +1553,7 @@ impl NodeArgs {
 
   /// 从 TOML 字符串解析配置（唯一的配置文件格式）
   pub fn from_toml_str(s: &str) -> Result<Self, NodeOptionsError> {
-    let arena = toml_spanner::Arena::new();
+    let arena = Arena::new();
     let mut doc = toml_spanner::parse(s, &arena)?;
     Ok(doc.to()?)
   }

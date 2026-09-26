@@ -118,8 +118,7 @@ const MAX_UNIX_TIMESTAMP_SECONDS: i64 = (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PE
 
 /// 可表示绝对过期 .NET Ticks 的最大 Unix 毫秒
 /// （(i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND，编译期常量）
-const MAX_UNIX_TIMESTAMP_MILLISECONDS: i64 =
-  (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND;
+const MAX_UNIX_TIMESTAMP_MILLISECONDS: i64 = (i64::MAX - UNIX_EPOCH_TICKS) / TICKS_PER_MILLISECOND;
 
 /// 相对秒 → 时长 ticks（饱和乘法：乘法溢出饱和至 i64::MAX，杜绝 debug 构建
 /// 溢出 panic，C# unchecked 环绕对应的确定性降级）
