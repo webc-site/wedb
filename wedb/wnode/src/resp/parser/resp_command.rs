@@ -477,7 +477,20 @@ impl RespServerSession {
   /// libs/server/Resp/Parser/RespCommand.cs:HandleAofCommitMode
   ///
   /// 无未发送数据时重置阻塞标记；命令 AOF 相关则保持/置位
+  ///
+  /// 脚本窗（`no_script_bitmap` 挂载期，lua.rs 两窗挂/摘单义位）内重入解析
+  /// 双向免维护（复位臂与置位臂整体跳过）：C# 侧 redis.call 重入的是内嵌独立
+  /// processor 自带的 waitForAofBlocking（SessionScriptCache.cs:60-64 独立
+  /// RespServerSession），外层会话标记脚本期不可触；rust 无内嵌 processor，
+  /// 窗口以 mem::take 换出会话 output（lua.rs:252/:123），复位臂判据
+  /// pending_output_len 恒见空壳即误复位外层标记、漏等提交落盘。外层标记只由
+  /// 外层批解析维护：EVAL 非 AOF 独立集，进窗前解析已置位，脚本内写入的持久性
+  /// 由该位覆盖，与 C# 内嵌 processor 标记随窗口丢弃同构（不引入第二份状态）；
+  /// txn Started 早退臂随本并短接——脚本窗内无事务态演化
   pub fn handle_aof_commit_mode(&mut self, cmd: RespCommand) {
+    if self.no_script_bitmap.is_some() {
+      return;
+    }
     if self.pending_output_len() == 0 {
       self.wait_for_aof_blocking = false;
     }
