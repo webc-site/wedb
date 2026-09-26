@@ -203,9 +203,20 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
       let mut parse_violation = false;
       loop {
         resp_pooled.clear();
+        // 出网 armed 闩（与 resp_pooled 同步复位；停泊-续跑轮 AOF 出网闸补全）：
+        // 会话不持网络发送器，应答经 take_output_into 出会话冲入本泵 resp_pooled
+        // 后，内层循环重入解析流水线后续命令时 session.output 恒为空，
+        // handle_aof_commit_mode 见 PING 等 AOF 无关命令即复位 wait_for_aof_blocking，
+        // 出网臂读会话字段将漏等已积存的 AOF 相关应答——故每处冲应答出口以「出会话
+        // 时点标记」为准就地闩位（判据：resp_pooled 非空且会话标记），出网臂据此等待；
+        // 单点辅助见 [`arm_aof_latch`]，不新建第二套等待调用（wait_for_commit_async
+        // 仍单点）；armed 随本轮 let 绑定复位，无需显式清零
+        let mut armed = false;
         // 订阅推送顺带排空（有输入的订阅会话：推送帧随本轮应答写出；
         // 空闲订阅会话的即时投递由读段双路等待承担）
         session.drain_pubsub_into(resp_pooled.vec_mut());
+        // 冲出口①（drain_pubsub_into 把推送帧随轮头冲入 resp_pooled）
+        arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
         // 本轮让渡哨兵（置位 = 本轮应答实写后立即续消费）
         let mut watermarked = false;
         loop {
@@ -221,6 +232,8 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
             parse_violation = true;
             break;
           }
+          // 冲出口②（Some 路径，轮尾 take_output_into 已冲出本轮应答）
+          arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
 
           // 批内输出水位让渡：接收缓冲尚有完整帧，本轮应答实写后立即续消费
           if session.take_output_watermark_yield() {
@@ -264,6 +277,8 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
             // 产应答型（命令游标已推进）：会话输出缓冲按流水线顺序冲出后
             // 续消费流水线余量
             session.flush_output_into(resp_pooled.vec_mut());
+            // 冲出口③（flush_output_into 已把停车命令应答冲入 resp_pooled）
+            arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
             resumed = true;
           }
 
@@ -281,6 +296,8 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
             if terminated {
               break 'drive;
             }
+            // 冲出口④（脚本续跑应答已并入 resp_pooled）
+            arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
             resumed = true;
           }
 
@@ -313,6 +330,9 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
               }
               RaceEnd::Resolved((cmd, result)) => {
                 session.resolve_blocked_wait_into(cmd, result, resp_pooled.vec_mut());
+                // 冲出口⑤（阻塞挂起应答先冲出会话缓冲内累积应答再直写本命令
+                // 应答，出会话时点标记尚未被后续解析复位）
+                arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
                 resumed = true;
               }
             }
@@ -344,6 +364,9 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
               RaceEnd::Disposed => break 'drive,
               RaceEnd::Resolved(reply) => {
                 session.resolve_slow_wait_into(&reply, resp_pooled.vec_mut());
+                // 冲出口⑥（慢路径挂起应答先冲出会话缓冲内累积应答再并入本
+                // 应答，同阻塞臂：出会话时点标记未复位即闩位）
+                arm_aof_latch(&mut armed, resp_pooled.vec_ref(), session);
                 resumed = true;
               }
             }
@@ -365,10 +388,16 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
           // 网络线程 BlockingWait 的异步等价。提交失败即断连——C#
           // BlockingWait 抛 CommitFailureException 后应答不发出，
           // RespServerSession.cs:566 catch (Exception) Dispose 断连；
-          // 返回值（false = 无 AOF 跳过）如 C# 弃用，成功照常发出应答）
+          // 返回值（false = 无 AOF 跳过）如 C# 弃用，成功照常发出应答。
+          // 停泊续跑轮须以出会话时点标记为准：应答字节经 take_output_into 出
+          // 会话后，内层重入解析后续 AOF 无关命令会把会话字段复位，故叠加
+          // armed 闩（六处冲出口按出会话时点标记置位，见 [`arm_aof_latch`]），
+          // 令停泊前已积存的 AOF 相关应答出网前必等提交落盘，与 C# Send 内
+          // dcurr==head 判据（含未出网字节）同口径收口；armed 随轮首 let 复位，
+          // 本轮兑现后无需显式清零（下一轮重新判定）。
           // 在途提交等待同样挂取消钩（C# TryClose 直关套接字使一切 outstanding
           // requests 失败的对位）：取消即弃应答写回走 break 收场尾巴
-          if session.wait_for_aof_blocking() {
+          if armed || session.wait_for_aof_blocking() {
             match killable(session_provider.wait_for_commit_async(), &kill_token).await {
               Err(Cancelled) => break 'drive,
               Ok(Err(e)) => {
@@ -639,6 +668,21 @@ async fn killable<F: Future>(fut: F, token: &Option<CancelToken>) -> Result<F::O
   match token {
     Some(token) => fut.with_cancel(token.clone()).fail_fast().await,
     None => Ok(fut.await),
+  }
+}
+
+/// 出网 armed 闩单点（drive_loop 六处冲应答出口共用）
+///
+/// 应答字节经 take_output_into 出会话冲入 resp_pooled 后，内层循环重入消费
+/// 解析流水线后续 AOF 无关命令（PING/ECHO 族）会把会话 wait_for_aof_blocking
+/// 复位（复位判据 pending_output_len()==0，C# dcurr==head 含未出网字节故不存
+/// 在此窗口）。本闩在每处冲出口以「出会话时点」读会话标记：resp_pooled 非空
+/// 且标记为真即置 armed，出网臂按 armed || 会话字段等待，杜绝停泊-续跑轮漏等
+/// 提交落盘。仅读标记、不新建第二套等待调用（wait_for_commit_async 仍出网臂单点）。
+#[inline]
+fn arm_aof_latch<C: MessageConsumerFace>(armed: &mut bool, resp_buf: &[u8], session: &C) {
+  if !resp_buf.is_empty() && session.wait_for_aof_blocking() {
+    *armed = true;
   }
 }
 
