@@ -45,7 +45,7 @@ pub const fn hex_encode_32(src: &[u8; 32]) -> [u8; 64] {
 }
 
 /// 切片小写十六进制编码到目标切片（零堆分配）
-pub fn hex_encode_into(src: &[u8], dst: &mut [u8]) {
+fn hex_encode_into(src: &[u8], dst: &mut [u8]) {
   assert!(dst.len() >= src.len() * 2, "destination buffer too small");
   for (chunk, &b) in dst.as_chunks_mut::<2>().0.iter_mut().zip(src.iter()) {
     chunk[0] = HEX_CHARS_LOWER[(b >> 4) as usize];

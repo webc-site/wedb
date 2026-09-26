@@ -16,7 +16,7 @@ pub fn try_parse<T: FromStr>(source: &[u8], value: &mut T) -> bool {
 }
 
 /// 严格浮点解析所需的标量能力（f32/f64 标准库签名完全吻合，仅做静态分派约束）
-pub trait StrictFloat: FromStr + Copy {
+trait StrictFloat: FromStr + Copy {
   const INFINITY: Self;
   const NEG_INFINITY: Self;
   fn is_nan(self) -> bool;
@@ -61,7 +61,7 @@ impl StrictFloat for f64 {
 /// 注意：对于计算得出 NaN 的情况（如 ZADD INCR 时 0 加上 +inf 与 -inf），两侧一致报 SCORE_NAN 错，
 /// 文案逐字节相同（`RESP_ERR_GENERIC_SCORE_NAN` 同串，见 doc/zh/deviations.md §2）。
 #[inline]
-pub fn strict_parse_float<T: StrictFloat>(raw: &[u8], can_be_infinite: bool) -> Option<T> {
+fn strict_parse_float<T: StrictFloat>(raw: &[u8], can_be_infinite: bool) -> Option<T> {
   if let Ok(s) = from_utf8(raw)
     && let Ok(v) = s.parse::<T>()
     && !v.is_nan()
@@ -183,17 +183,6 @@ pub fn parse_db_index(raw: &[u8]) -> Result<i32, DbIndexError> {
     Some(_) => Err(DbIndexError::OutOfRange),
     None => Err(DbIndexError::NotInteger),
   }
-}
-
-/// [`try_parse`] 的 f64 特化版（对应 C# NumUtils 的 `out double` 重载，采用
-/// Utf8Parser 整体消费语义：inf/infinity/nan 词形不属于数值文法，一律拒绝；
-/// 纯数值溢出的 ±inf 保留）
-#[inline]
-pub fn try_parse_f64(source: &[u8], value: &mut f64) -> bool {
-  strict_f64(source, false).is_some_and(|v| {
-    *value = v;
-    true
-  })
 }
 
 /// inf 词形符号判定（C# libs/common/RespReadUtils.cs:TryReadInfinity 白名单：inf/+inf/-inf，
@@ -350,20 +339,6 @@ mod tests {
     assert_eq!(strict_f32(b"inf", false), None);
     assert_eq!(strict_f32(b"nan", true), None);
     assert_eq!(strict_f32(b"1e3", false), Some(1000.0));
-  }
-
-  #[test]
-  fn test_try_parse_float_adapters() {
-    let mut v = 0.0f64;
-    assert!(try_parse_f64(b"2.5", &mut v));
-    assert_eq!(v, 2.5);
-    // 词形 inf/nan 一律拒绝
-    assert!(!try_parse_f64(b"inf", &mut v));
-    assert!(!try_parse_f64(b"nan", &mut v));
-    // 溢出 ±inf 保留
-    v = 0.0;
-    assert!(try_parse_f64(b"1e999", &mut v));
-    assert!(v.is_infinite());
   }
 
   #[test]

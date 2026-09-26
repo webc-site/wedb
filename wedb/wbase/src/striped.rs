@@ -222,7 +222,7 @@ where
 
   /// 尝试获取指定条带下标对应的共享读锁（掩码回绕）
   #[inline]
-  pub fn try_read_at(&self, index: usize) -> Option<RwLockReadGuard<'_, T>> {
+  fn try_read_at(&self, index: usize) -> Option<RwLockReadGuard<'_, T>> {
     let idx = index & Self::STRIPE_MASK;
     // SAFETY: 经 STRIPE_MASK 截断，严格保证下标在 [0, N) 范围内
     unsafe { self.stripes.get_unchecked(idx) }.try_read()
@@ -242,7 +242,7 @@ where
 
   /// 尝试获取指定条带下标对应的独占写锁（掩码回绕）
   #[inline]
-  pub fn try_write_at(&self, index: usize) -> Option<RwLockWriteGuard<'_, T>> {
+  fn try_write_at(&self, index: usize) -> Option<RwLockWriteGuard<'_, T>> {
     let idx = index & Self::STRIPE_MASK;
     // SAFETY: 经 STRIPE_MASK 截断，严格保证下标在 [0, N) 范围内
     unsafe { self.stripes.get_unchecked(idx) }.try_write()

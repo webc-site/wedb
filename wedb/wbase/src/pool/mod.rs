@@ -94,7 +94,7 @@ pub const DEFAULT_SMALL_BUDGET_BYTES: i64 = 32 << 20;
 pub const DEFAULT_LARGE_BUDGET_BYTES: i64 = 128 << 20;
 
 /// 最小单线程本地保留字节下限 (1 MiB，对标 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:MinThreadLocalBytes)
-pub const MIN_THREAD_LOCAL_BYTES: usize = 1 << 20;
+const MIN_THREAD_LOCAL_BYTES: usize = 1 << 20;
 
 /// 全局条带仓库条带数 (2 的幂，对标 C# DepotStripes)
 pub(crate) const DEPOT_STRIPES: usize = 8;
@@ -394,20 +394,6 @@ impl BufferPool {
   #[must_use]
   pub fn large_reserved_bytes(&self) -> i64 {
     self.large_budget.used()
-  }
-
-  /// 小缓冲总预算上限 (字节)
-  #[inline]
-  #[must_use]
-  pub fn small_budget_bytes(&self) -> i64 {
-    self.small_budget.total()
-  }
-
-  /// 大缓冲总预算上限 (字节)
-  #[inline]
-  #[must_use]
-  pub fn large_budget_bytes(&self) -> i64 {
-    self.large_budget.total()
   }
 
   /// 注册线程本地跨线程收件箱弱引用 (对标 C# `poolShardRegistry.Add` 与 libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:CompactPoolShardRegistryLocked)

@@ -51,10 +51,4 @@ impl Budget {
   pub(crate) fn used(&self) -> i64 {
     self.used.load(Acquire)
   }
-
-  /// 总预算上限字节数
-  #[inline]
-  pub(crate) const fn total(&self) -> i64 {
-    self.total
-  }
 }

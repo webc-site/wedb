@@ -25,7 +25,7 @@ pub const SPIN_LIMIT: u32 = 32;
 pub const YIELD_LIMIT: u32 = 1024;
 
 /// 第三阶段：单次休眠微秒数（50 微秒）
-pub const SLEEP_MICROS: u64 = 50;
+const SLEEP_MICROS: u64 = 50;
 
 /// 第三阶段：休眠时长常量（编译期折叠，避免运行时重复构建）
 pub const SLEEP_DURATION: Duration = Duration::from_micros(SLEEP_MICROS);
