@@ -1,0 +1,38 @@
+# zcode-r21-wbitmap 孤儿导出面收口（task/ing/zcode-r21-wbitmap.md）：
+# C# BitmapManager 的 UpdateBitmap/GetBit 单点位静态辅助，rust 转写版
+# （wbitmap/src/manager.rs）crate 内外生产零调用，仅自测用例、无对照消费，
+# 已连导出面与自测一并删除。
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManager.cs:
+        - UpdateBitmap
+        - GetBit
+  理由: >-
+    rust 会话层单点实现，全量版无生产消费。单位读写内联于
+    wedb/wnode/src/resp/bitmap/bitmap_commands.rs（SETBIT network_string_set_bit
+    按 byte_idx/bit_idx 直取位并置位清位，GETBIT network_string_get_bit 在读闭包内
+    直取位、零全值拷贝），wbitmap 转写版与其构成单点位逻辑双源；删除后 crate 内
+    无对照消费者（原自测仅测自身、不成对拍），按零死代码口径清退，不补实现。
+# bar-r65-wbitmap-audit 导出面孤儿审计（task/ing/wbitmap-manager-export-surface-orphan-audit.md）：
+# C# Length/IsLargeEnough/NewBlockAllocLength 三个 SETBIT 增长面 public 静态，
+# rust 转写版（wbitmap/src/manager.rs）crate 内外生产零调用、仅自测消费，已连
+# 导出面与自测一并删除。
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManager.cs:
+        - Length
+        - IsLargeEnough
+        - NewBlockAllocLength
+  理由: >-
+    有意改道而非漏接（逐调用点亲验）：C# 三者的生产调用全在存储侧 RMW 预 sizing
+    链路——RMWMethods.cs:162（InitialUpdater SETBIT Length）、RMWMethods.cs:572,574
+    （InternalUpdater SETBIT IsLargeEnough+Length）、VarLenInputMethods.cs:119
+    （GetInitialRecordSize SETBIT Length）、VarLenInputMethods.cs:272
+    （GetVarLenRecordSize SETBIT NewBlockAllocLength）。rust 无该存储侧预 sizing
+    设计，SETBIT 整条增长面改由会话层承接：
+    wedb/wnode/src/resp/bitmap/bitmap_commands.rs:54 network_string_set_bit 内联
+    byte_idx=offset/8 判长短（≡IsLargeEnough）并 resize(byte_idx+1)（≡Length，
+    只增不减 ≡NewBlockAllocLength 的 max 语义），BITFIELD 侧分配尺寸单源为
+    wbitmap/src/bitfield/parse.rs new_block_alloc_length_from_type
+    （≡C# NewBlockAllocLengthFromType，wnode slow.rs/bitmap_commands.rs 生产连通）。
+    与 manager.rs 转写版构成第二真值源，按「一处定义」清退孤儿份，保留生产份，
+    并在 bitfield/mod.rs::alloc_length_single_source_parity 补跨载体等价性断言
+    防与独立字节跨度式漂移。行为由 wnode/tests/garnet_bitmap.rs SETBIT 用例覆盖。

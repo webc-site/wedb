@@ -1,0 +1,25 @@
+# AOF 地址向量的独立字节序列化形态不落地（waof-aof-address-monotonic-and-ignore）：
+# C# ToByteArray/FromByteArray 走「长度字节 + BinaryWriter/BinaryReader」，本仓线格式
+# 已由 from_span（裸 8B LE，复制命令面）与 bitcode 结构体编码（复制历史 / 检查点条目
+# 内嵌持久化）两套承接，文本面走 from_string / to_aof_string —— 口径登记于
+# wedb/waof/src/aof/address.rs 文件头（「独立的带长度字节 byte[] 形态无消费面」）
+- 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - ToByteArray
+        - FromByteArray
+  理由: >-
+    带长度字节的 byte[] 形态全仓零消费面：字节线格式由 from_span（裸 8B LE）与
+    bitcode 结构体编码承接，文本面由 from_string / to_aof_string 承接，
+    Serialize / Deserialize 只服务该形态故随之无消费
+
+# SetValueIf（long 与 in AofAddress 两个重载，C# 按槽「等于比较数才换值」）在 rust
+# 无对位需求面：AofAddress 在本仓恒整体持锁访问
+# （wedb/src/server/replication/aof_sync_driver.rs 的 truncated_until:
+# RwLock<AofAddress>），位点推进一律经 monotonic_update / min_exchange 向量单点，
+# 无按槽比较换值与槽级并发写
+- 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - SetValueIf
+  理由: >-
+    AofAddress 整体持锁访问（RwLock 向量的读写锁），不存在按槽比较换值的并发场景；
+    截断/安全水位推进的取大取小判据已单点化于 waof/src/aof/address.rs

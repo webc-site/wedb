@@ -1,0 +1,9 @@
+- 文件:
+    - libs/server/Servers/MetricsApi.cs
+  理由: C# 宿主嵌入门面（GarnetServer.cs:327 构造 Metrics 字段，消费者仅为
+    宿主 API 与 test 嵌入用例，RESP 命令链不经此门面：INFO RESET 走
+    InfoCommand.cs:63 直写 monitor.resetEventFlags，LATENCY RESET 走
+    RespLatencyCommands.cs:122 直写 monitor.resetLatencyMetrics）；rust 侧
+    无宿主嵌入门面形态，INFO/LATENCY 命令直连 wmetric
+    （InfoCommand/RespLatencyCommands → GarnetServerMonitor 复位标志，
+    采样循环 cleanup 承接复位），门面整类不转写

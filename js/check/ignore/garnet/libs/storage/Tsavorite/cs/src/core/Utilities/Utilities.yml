@@ -1,0 +1,85 @@
+# Utilities 域缺失符号甄别（fixloop tsavorite-core-miss）。
+# 判定原则：wbase::pool BufferPool 为 OriginReturn 全量对标（缺失符号优先挂锚），
+# 本文件登记无 rust 对位体的原语与遗留层。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/AsyncCountDown.cs:
+        - Add
+  理由: >-
+    C# ExecutionContext.pendingReads 的在途 IO 计数门（Add/Decrement + 完成
+    事件）；rust compio await 模型无在途挂起计数，读调用直接完成，无计数门。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/CompletionEvent.cs:
+        - Initialize
+        - Set
+        - Dispose
+  理由: >-
+    C# 异步 IO 同步完成事件（AsyncIOContext.completionEvent）；rust await 直接
+    挂起/唤醒（event_listener/oneshot），无完成事件槽位。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.Legacy.cs:
+        - Get
+        - Return
+        - Free
+  理由: >-
+    C# 旧版池遗留分部实现（OriginReturn 已整体取代，仅存量兼容面）；rust
+    wbase/pool 单一 BufferPool 实现即 OriginReturn 全量对标，无遗留层。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:
+        - Reset
+        - CallerLocalBytesForClass
+  理由: >-
+    均为测试观测辅助（Stats.Reset 清零计数器供测量窗口；CallerLocalBytesForClass
+    读调用线程本地链字节数）；rust BufferPool::stats 返回只读快照无计数清零面，
+    本地占用断言经测试直接读 TlsPoolEntry.local_bytes（wbase/src/pool/tls.rs），
+    无独立 API。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/MultiLevelPageArray.cs:
+        - Allocate
+        - TryAllocate
+        - Get
+        - Set
+        - Clear
+  理由: >-
+    C# AllocatorBase.values 的多级页数组（按需分配页槽、多级间接寻址）；rust
+    whlog CircularPageBuffer 构造期一次性预分配全部环形槽位（Box 切片 +
+    raw_pages 裸指针缓存消除多级间接），页读写/清零由 read_page/write_page/
+    clear_page/raw_page_ptr_mut 直接承担（whlog/src/buffer.rs）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/OverflowPool.cs:
+        - TryAdd
+        - Dispose
+  理由: >-
+    C# AllocatorBase.nativeFreePagePool（换页释放页的二级复用池，避免
+    munmap+mmap 重故障）；rust DirectVmBlock RAII 即放即映射（windex/src/ram/
+    direct_vm.rs，mmap/munmap 廉价且 THP 对齐），页复用由 whlog CircularPageBuffer
+    环形槽位承担，无二级页池。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/PageAsyncResultTypes.cs:
+        - Free
+        - Release
+        - Set
+        - Increment
+        - Decrement
+        - Dispose
+  理由: >-
+    C# PageAsyncFlushResult/PageAsyncReadResult 的池化字段方法族（引用计数/归还/
+    结果写入，服务回调驱动 IO 完成模型）；rust 页刷盘记账由 whlog PageFlushRange +
+    PendingFlushList::complete_flush_range 承担（whlog/src/flush.rs， flushed_until
+    连续前缀推进），IO 完成随 compio await 模型消除，无结果对象池。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/SafeConcurrentDictionary.cs:
+        - Clear
+        - TryAdd
+        - TryGetValue
+  理由: >-
+    C# ConcurrentDictionary 防误用包装层；rust 经 wbase::map 直接采用 papaya
+    无锁并发 map/set（transpile 规范统一选型），insert/get/clear 即等价 API
+    （wbase/src/map.rs），无包装层。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/Utility.cs:
+        - NextPowerOf2
+  理由: >-
+    rust 直接复用 std 内建 `next_power_of_two`（wbase/src/align.rs 模块注释
+    单点声明），不重复实现；其余 RoundUp/RoundDown/IsAligned/PreviousPowerOf2/
+    GetHashCode/MonotonicUpdate 均已挂锚（wbase align.rs / whasher / whlog
+    address.rs）。

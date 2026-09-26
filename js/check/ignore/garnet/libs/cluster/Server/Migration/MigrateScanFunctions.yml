@@ -1,0 +1,15 @@
+# C# StoreScan（MigrateSession 内嵌扫描回调类）实现 Tsavorite
+# IScanIteratorFunctions 的三个生命周期钩子；扫描主体 Reader 的映射锚持于
+# wedb/src/server/migration/migrate_driver/live_value.rs read_live_value
+- 文件:
+    - libs/cluster/Server/Migration/MigrateScanFunctions.cs:
+        - OnException
+        - OnStart
+        - OnStop
+  理由: >-
+    无需实现。三件是 IScanIteratorFunctions 接口的强制实现位，体量为字面量
+    真值与空语句体（OnStart 恒返回 true、OnStop 与 OnException 皆空体），
+    不携带任何业务语义；rust 迁移链无游标式存储迭代器可挂该接口——收键改由
+    槽位索引枚举 get_keys_in_slot 与逐键活值读取承担（migrate_driver/slots.rs、
+    migrate_driver/live_value.rs），取消检查与异常传播在驱动循环和停等层
+    （wait_remote / try_recover_from_failure）收口，故无对位面

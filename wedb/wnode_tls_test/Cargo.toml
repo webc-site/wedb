@@ -1,0 +1,22 @@
+[package]
+name = "wnode_tls_test"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode_tls_test"
+description = "TLS integration-test support over wnode: self-signed cert fixture, echo/quit stubs, RESP socket IO"
+keywords = ["tls", "test", "testing", "fixtures"]
+categories = ["development-tools", "development-tools::testing"]
+
+[dependencies]
+aok.workspace = true
+compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
+compio-tls = { workspace = true, default-features = false, features = ["rustls", "ring"] }
+rcgen = "0.14.10"
+wnode = { workspace = true, features = ["tls"] }
+wnode_test.workspace = true
+wtls.workspace = true
+
+[lints]
+workspace = true

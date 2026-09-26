@@ -1,0 +1,1357 @@
+- 文件:
+    - libs/server/Auth/Aad/IssuerSigningTokenProvider.cs
+    - libs/server/Auth/GarnetAadAuthenticator.cs
+  理由: 不实现 Azure Active Directory 微软内部的服务认证
+- 文件:
+    - libs/server/Auth/GarnetAclWithAadAuthenticator.cs:
+        - AuthenticateInternal
+  理由: AAD 组合认证档的内嵌二次校验臂（ACL 定位用户后再过 IGarnetAuthenticator AAD 实例），随 SKILL「不实现 Azure
+    AD」红线整档 不转写；rust 装配只有 ACL 单一认证源（wacl/src/auth/mod.rs 头注）
+- 文件:
+    - libs/server/Resp/ByteArrayComparer.cs
+  理由: Rust 原生 &[u8] / Vec<u8> 支持按字节序列比较与哈希，无需 C# 辅助类
+- 文件:
+    - libs/server/Lua/LuaRunner.cs:
+        - ResetCompilation
+  理由: C# 全仓亦零调用；rust 脚本缓存清理走 SessionScriptCache 自有链，无 runner 复位消费点
+- 文件:
+    - libs/server/Lua/ScriptHashKey.cs:
+        - CopyTo
+  理由: C# 专属机制：ScriptHashKey 是裸指针视图（long* ptr），CopyTo 只服务于「把栈上摘要复制进 pinned
+    堆数组，才能入长生命周期字典」的生命周期弥合（SessionScriptCache.cs:TryLoad、
+    LuaCommands.cs:TryEVAL/NetworkScriptLoad 三处调用点皆为此形态）；rust 移植为内嵌 [u8; 40]
+    定长缓冲的 Copy 值类型，insert(*digest) 值复制即完成同一语义，全仓无
+    「摘要写入外部定长缓冲」的生产消费点，纯测试出口随用例一并删除
+- 文件:
+    - libs/server/Lua/LuaLimitedManagedAllocator.cs:
+        - ContainsRef
+        - GetDataStartRef
+        - GetNextFreeBlockRef
+        - GetPrevFreeBlockRef
+        - GetRefVal
+        - IsValidBlockRef
+        - MoveToHeadOfFreeList
+        - TryCoalesceSingleBlock
+        - UpdateDebugAllocatedBytes
+  理由: C# 遍历/诊断 API 的对标面；rust 分配路径已内联承接（合并循环直调 coalesce_pair、debug_allocated_bytes
+    字段在 alloc/free 直接读写），零引用删除
+- 文件:
+    - libs/server/InputHeader.cs:
+        - CheckExpiry
+        - CheckSetGetFlag
+        - CopyTo
+        - DeserializeFrom
+        - SetExpiredFlag
+        - SetHeader
+        - SetSetGetFlag
+        - ToPointer
+  理由: Rust 统一收敛至 ReplayInput 与 SessionParseState，淘汰 C# 遗留输入结构体； expired/setget
+    标志机制随 wcol 对象信封轨删除（TTL 在 wkv 层裁决）。DeserializeFrom 四结构同面
+    （ObjectInput/StringInput/UnifiedInput/CustomProcedureInput，VectorInput 恒抛
+    NotImplementedException）
+    无逐结构对位口，承载结构自解：ReplayInput/ReplayInputRef::deserialize 组合形态
+    （wnode/src/aof/replay_input.rs:79，模块头自述 C# StringInput 的 AOF 承载形态），
+    参数序列区编解码单点 waof/src/aof/args.rs 的 encode_arg_sequence/decode_arg_slices，
+    存储过程条目 stored_proc_args 对位 C# CustomProcedureInput.DeserializeFrom
+    （wnode/src/aof/replaycoordinator/stored_proc_replay.rs:30）
+- 文件:
+    - libs/server/Resp/Vector/DiskANNService.cs:
+        - ContinueSearch
+  理由: C# 本身抛 NotImplementedException 的未实现 API；rust 侧恒 Err 占位函数 continue_search
+    已按零引用占位红线删除，落地时随链实现
+- 文件:
+    - libs/server/AOF/LegacyRespCommand.cs
+  理由: 彻底移除旧版 v3 命令兼容层映射，无向下兼容包袱
+- 文件:
+    - libs/server/Servers/GarnetServerTcp.cs:
+        - AcceptEventArg_Completed
+        - ActiveClusterSessions
+        - Close
+        - Dispose
+        - GetBufferPoolStats
+        - Purge
+    - libs/server/Servers/GarnetServerBase.cs:
+        - ActiveClusterSessions
+        - AddSession
+        - Close
+        - Dispose
+        - GetSessionProviders
+        - IncrementConnectionsDisposed
+        - IncrementConnectionsReceived
+        - Register
+        - ResetConnectionsDiposed
+        - ResetConnectionsReceived
+        - Start
+        - Unregister
+        - get_conn_active
+    - libs/server/Servers/IGarnetServer.cs
+    - libs/server/Servers/ServerOptions.cs:
+        - MemorySizeBits
+        - NextPowerOf2
+        - PageSizeBits
+        - PreviousPowerOf2
+        - PubSubPageSizeBytes
+        - SegmentSizeBits
+    - libs/server/Servers/GarnetServerOptions.cs:
+        - GetAofDevice
+        - GetAppendOnlyFileDirectory
+        - GetAppendOnlyFileDirectoryName
+        - GetBufferPoolMemoryBudgetBytes
+        - GetCheckpointDirectoryName
+        - GetInitialIORecordSizeBytes
+        - GetInitializedDeviceFactory
+        - GetSettings
+        - GetStoreCheckpointDirectory
+        - Initialize
+        - MaxInlineKeySizeBytes
+        - MaxInlineValueSizeBytes
+        - MemorySizeBits
+        - ReadCachePageSizeBits
+        - ReplicaDisklessSyncFullSyncAofThresholdValue
+  理由: 部分真实淘汰（Tsavorite 设备与位宽算术面）：MemorySizeBits/PageSizeBits/SegmentSizeBits/
+    AofMemorySizeBits/AofSegmentSizeBits/ReadCachePageSizeBits/
+    PubSubPageSizeBytes/NextPowerOf2/PreviousPowerOf2 为 C#
+    ServerOptions.cs:136-207 / 304-330 一类 SizeBits 换算（logsettings 位宽），rust 侧无
+    Tsavorite LogSettings，wedb/wconf/src/size.rs 保留解析、格式化与页尺寸校验核
+    validated_page_size_bits（对位 ValidatedPageSizeBits，MIN_PAGE_SIZE_BYTES 唯一读点，
+    由 wconf hlog 页容量投影与 wnode aof_settings 页旋钮共用；C# 主存页与 read cache 页 在 rust
+    共用同一 hlog 页容量，故 PageSizeBits/ReadCachePageSizeBits 无独立对位函数）；
+    GetAofDevice/GetInitializedDeviceFactory/GetSettings/GetAofSettings/Initialize/
+    GetBufferPoolMemoryBudgetBytes/GetInitialIORecordSizeBytes 为 .NET
+    DeviceFactory 与 BufferPool 装配面，由 RuntimeServerOptions
+    字段直读承接；GetCheckpointDirectoryName/
+    GetStoreCheckpointDirectory/GetAppendOnlyFileDirectoryName/GetAppendOnlyFileDirectory
+    为 C# GarnetServerOptions.cs:685-713 目录推导族，rust 目录推导单点集中在 NodeArgs 与
+    wnode/src/service.rs（checkpoint_dir_of 取数据目录父级拼
+    Store/checkpoints、NodeArgs::wal_dir 与 open_wal 落 <data>/wal），wconf 侧同族
+    getter 仅测试消费且与生产口径漂移（AOF 基目录 C# 用 AppendOnlyFileBaseDirectory 而旧 getter 误借
+    checkpoint_base_directory_str），按不向下兼容、 路径 getter 只留一套轨删除并登记为 rust 缺口。已实现者不入
+    ignore：TryParseSize→wconf/src/size.rs:63、
+    ParseSize→size.rs:22、PrettySize→size.rs:112。
+- 文件:
+    - libs/server/Servers/ServerTcpNetworkHandler.cs
+  理由: C# 空壳构造胶水类（仅一个继承 TcpNetworkHandler<GarnetServerTcp> 的构造器，garnetScan
+    抽取方法集为空，整文件忽略自动淘汰机制不触发）；连接处理器职能由 wnode/src/net/handler/mod.rs 的
+    NetworkHandler 整合承接（该文件 1-3 行文件头自述 1:1 对标 NetworkHandler 与
+    ServerTcpNetworkHandler 属实）， 基类 NetworkHandler.cs、TcpNetworkHandlerBase.cs
+    方法面登记于 common.yml
+- 文件:
+    - libs/server/Servers/RegisterApi.cs
+    - libs/server/Module/ModuleRegistrar.cs
+    - libs/server/Custom/CustomCommandManager.cs:
+        - GetAllCustomCommandsDocs
+        - GetAllCustomCommandsInfos
+        - GetCustomCommandInfoCount
+        - GetCustomGarnetObjectType
+        - GetCustomRespCommand
+        - Match
+        - Register
+        - RegisterModule
+        - RegisterNewType
+        - RegisterType
+        - TryAddModule
+        - TryGetCustomCommand
+        - TryGetCustomCommandDocs
+        - TryGetCustomCommandInfo
+        - TryGetCustomObjectCommand
+        - TryGetCustomObjectSubCommand
+        - TryGetCustomProcedure
+        - TryGetCustomTransactionProcedure
+    - libs/server/Custom/CustomCommandManagerSession.cs:
+        - GetAllCustomCommandsDocs
+        - GetAllCustomCommandsInfos
+        - GetCustomCommandInfoCount
+        - GetCustomGarnetObjectType
+        - GetCustomProcedure
+        - GetCustomRespCommand
+        - GetCustomTransactionProcedure
+        - TryGetCustomCommandDocs
+        - TryGetCustomCommandInfo
+    - libs/server/Custom/CustomCommandRegistration.cs
+    - libs/server/Custom/CustomCommandUtils.cs
+    - libs/server/Custom/CustomObjectBase.cs
+    - libs/server/Custom/CustomObjectFunctions.cs:
+        - AbortWithErrorMessage
+        - AbortWithSyntaxError
+        - AbortWithWrongNumberOfArguments
+        - GetFirstArg
+        - GetNextArg
+        - GetNextString
+        - InitialUpdater
+        - NotFound
+        - Reader
+        - Updater
+    - libs/server/Custom/CustomProcedureBase.cs
+    - libs/server/Custom/CustomProcedureWrapper.cs
+    - libs/server/Custom/CustomRawStringFunctions.cs
+    - libs/server/Custom/CustomRespCommands.cs:
+        - InvokeCustomObjectCommand
+        - InvokeCustomRawStringCommand
+        - ParseCustomObjectCommand
+        - ParseCustomRawStringCommand
+        - RunCustomTxnProcAtReplica
+        - TryCustomProcedure
+        - TryCustomRawStringCommand
+    - libs/server/Custom/ExpandableMap.cs
+    - libs/server/Custom/ObjectInputExtensions.cs
+  理由: 移除动态模块注册管理层与占位辅助类（RegisterApi / CustomCommandManager 整类删除， 不转写，C# 侧 17
+    函数皆为运行时 id 分配 + 字典回查的注册表 CRUD），扩展采用编译期静态特性与静态枚举分发： 命令面在
+    wext_roaring（roaring_bitmap_commands.rs:104 match_command、:54 COMMAND_INFOS、
+    :94 OBJECT_TAG 单点），事务过程面已整体清理不转写（RUNTXP 仅保校验三门＋无条件
+    NO_TRANSACTION_PROCEDURE，见 wnode/src/resp/txn_resp_commands.rs network_runtxp；
+    原事务过程静态承接段作废，TryTransactionProc 另条登记于下一块）
+- 文件:
+    - libs/server/Custom/CustomRespCommands.cs:
+        - TryTransactionProc
+  理由: 唯一调用链经过程注册查找（GetCustomTransactionProcedure 已登 server.yml:159/:167、
+    RunTransactionProc 已登 TransactionManager.cs.yml:10-11），宿主不可达致四观测钩无承载
+    （LatencyMetrics Start/Stop 包夹 TX_PROC_LAT 与两事务计数 incr 皆仅存在于函数体内），
+    函数整体不转写
+- 文件:
+    - libs/server/UnifiedOutput.cs:
+        - ConvertToHeap
+        - FromPinnedPointer
+  理由: C# UnifiedOutput 的堆提升/钉定指针输出通道由 wcol ObjectOutput（输出对象面）与
+    wnode/src/resp/resp_server_session_output.rs（dcurr/dend 对应 output Vec<u8>
+    len/capacity 模型）承接，钉定指针在 rust 侧无对应物
+- 文件:
+    - libs/server/Auth/Settings/AadAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/AclAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/NoAuthSettings.cs:
+        - Dispose
+    - libs/server/Auth/Settings/PasswordAuthenticationSettings.cs:
+        - Dispose
+    - libs/server/Objects/Types/ObjectOutput.cs:
+        - ConvertToHeap
+    - libs/server/Resp/AsyncProcessor.cs
+    - libs/server/Resp/BasicCommands.cs:
+        - GetPendingScratchOutput
+    - libs/server/Resp/Parser/ParseUtils.cs:
+        - ReadBool
+        - ReadDouble
+        - ReadFloat
+        - ReadInt
+        - ReadLong
+        - ReadString
+        - TryReadBool
+        - TryReadLong
+    - libs/server/Resp/Parser/RespCommandHashLookup.cs
+    - libs/server/Resp/Parser/RespCommandHashLookupData.cs
+    - libs/server/Resp/Parser/RespCommandSimdPatterns.cs
+    - libs/server/Resp/Parser/SessionParseState.cs:
+        - DeserializeFrom
+        - EnsureCapacity
+        - GetBool
+        - GetDouble
+        - GetFloat
+        - GetInt
+        - GetLong
+        - GetString
+        - InitializeWithArguments
+        - SetArgument
+        - SetArguments
+        - TryGetBool
+        - TryGetDouble
+        - TryGetFloat
+        - TryGetLong
+    - libs/server/Resp/RespCommandArgument.cs:
+        - Write
+    - libs/server/Resp/RespCommandKeySpecification.cs:
+        - Write
+    - libs/server/Resp/RespServerSession.cs:
+        - CreateConsistentReadApi
+        - CreateDatabaseSession
+        - DebugSend
+        - GetObjectOutput
+        - GetUnifiedOutput
+        - SwitchActiveDatabaseSession
+        - TryGetOrSetDatabaseSession
+        - TrySwapDatabaseSessions
+        - Write
+    - libs/server/Resp/RespServerSessionOutput.cs:
+        - TryWriteBulkString
+        - TryWriteDirect
+        - WriteDirectLargeRespString
+    - libs/server/Resp/SessionLogger.cs:
+        - BeginScope
+        - Log
+    - libs/server/Storage/Functions/FunctionsState.cs:
+        - CopyDefaultResp
+        - CopyRespNumber
+        - GetCustomCommandFunctions
+        - GetCustomObjectFactory
+        - GetCustomObjectSubCommandFunctions
+    - libs/server/Storage/Functions/GarnetRecordTriggers.cs:
+        - OnDisposeDiskRecord
+        - OnEvict
+        - OnRecovery
+    - libs/server/Storage/Functions/MainStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/MainStore/DeleteMethods.cs:
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/MainStore/MainSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/MainStore/PrivateMethods.cs:
+        - CopyRespTo
+        - CopyRespToWithInput
+        - CopyRespWithEtagData
+        - CopyTo
+        - EvaluateExpireCopyUpdate
+        - EvaluateExpireInPlace
+        - GetBitFieldArguments
+        - IsValidNumber
+        - TryCopyUpdateNumber
+        - TryCopyValueLengthToOutput
+        - TryInPlaceUpdateNumber
+        - WriteLogDelete
+        - WriteLogUpsert
+        - WriteValAndEtagToDst
+    - libs/server/Storage/Functions/MainStore/ReadMethods.cs:
+        - CheckRecordTypeMismatch
+    - libs/server/Storage/Functions/MainStore/ReadMethods.Etags.cs
+    - libs/server/Storage/Functions/MainStore/RMWMethods.cs:
+        - InPlaceUpdaterWorker
+        - NeedCopyUpdate
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/MainStore/RMWMethods.Etags.cs
+    - libs/server/Storage/Functions/MainStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/MainStore/VarLenInputMethods.cs:
+        - GetUpsertFieldInfo
+    - libs/server/Storage/Functions/ObjectStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:
+        - InitialDeleter
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/ObjectStore/PrivateMethods.cs:
+        - GetCustomObjectCommand
+        - IncorrectObjectType
+        - WriteLogDelete
+        - WriteLogUpsert
+    - libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:
+        - NeedCopyUpdate
+        - PostCopyUpdater
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/ObjectStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/ObjectStore/VarLenInputMethods.cs
+    - libs/server/Storage/Functions/SessionFunctionsUtils.cs
+    - libs/server/Storage/Functions/SimpleGarnetObjectSessionFunctions.cs:
+        - InPlaceWriter
+        - InitialWriter
+    - libs/server/Storage/Functions/UnifiedStore/CallbackMethods.cs
+    - libs/server/Storage/Functions/UnifiedStore/DeleteMethods.cs:
+        - InitialDeleter
+        - PostDeleteOperation
+        - PostInitialDeleter
+    - libs/server/Storage/Functions/UnifiedStore/PrivateMethods.cs:
+        - EvaluateExpireCopyUpdate
+        - EvaluateExpireInPlace
+        - WriteLogDelete
+        - WriteLogUpsert
+    - libs/server/Storage/Functions/UnifiedStore/RMWMethods.cs:
+        - HandleExpireCopyUpdate
+        - HandleExpireInPlaceUpdate
+        - HandlePersistCopyUpdate
+        - HandlePersistInPlaceUpdate
+        - NeedCopyUpdate
+        - PostCopyUpdater
+        - PostInitialUpdater
+        - PostRMWOperation
+    - libs/server/Storage/Functions/UnifiedStore/UnifiedSessionFunctions.cs:
+        - ConvertOutputToHeap
+        - PostBatchKeyConsistentReadCallback
+        - PostSingleKeyConsistentReadCallback
+        - PreBatchKeyConsistentReadCallback
+    - libs/server/Storage/Functions/UnifiedStore/UpsertMethods.cs
+    - libs/server/Storage/Functions/UnifiedStore/VarLenInputMethods.cs:
+        - GetRMWInitialFieldInfo
+        - GetUpsertFieldInfo
+    - libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:
+        - AlignOrPin
+        - AssertAlignment
+        - ConvertOutputToHeap
+        - GetRMWInitialFieldInfo
+        - GetRMWModifiedFieldInfo
+        - GetUpsertFieldInfo
+        - InPlaceWriter
+        - InitialDeleter
+        - InitialWriter
+        - LogRecordOperationsNotExpected
+        - ObjectOperationsNotExpected
+        - PostBatchKeyConsistentReadCallback
+        - PostCopyUpdater
+        - PostDeleteOperation
+        - PostInitialDeleter
+        - PostInitialUpdater
+        - PostInitialWriter
+        - PostRMWOperation
+        - PostSingleKeyConsistentReadCallback
+        - PostUpsertOperation
+        - PreBatchKeyConsistentReadCallback
+        - RMWCompletionCallback
+        - ReadCompletionCallback
+  理由: C# .NET 专属运行时特性与 Tsavorite 回调面，按四类分述（rust 侧等价架构原生实现，逐类已核）：
+    一、[Conditional("DEBUG")] / [UnmanagedCallersOnly] 与 GC
+    钉定指针辅助——ConvertToHeap、
+    FromPinnedPointer、AlignOrPin、AssertAlignment、GetPendingScratchOutput；二、Tsavorite
+    IFunctions
+    回调协议面（InitialDeleter/PostRMWOperation/Reader/Post*KeyConsistentReadCallback/
+    RMWCompletionCallback/ReadCompletionCallback/WriteLogUpsert/WriteLogDelete/EvaluateExpire*
+    等），wkv 存储层以记录级原生接口承接，无逐回调分发层（同族登记另见本文件 ReadMethods/ RMWMethods 块）；三、C#
+    接口枚举器与 ILogger 面（GetEnumerator、BeginScope/Log），rust 以 切片迭代与 wmetric/tracing
+    原生承接；四、SIMD 生成的命令哈希表与 .NET 解析器（
+    RespCommandHashLookup*.cs、RespCommandSimdPatterns.cs、AsyncProcessor.cs），哈希查表
+    语义由 wnode/src/resp/parser/command_table.rs 有序名称表二分（lookup_primary/
+    lookup_subcommand）承接、SIMD 16 字节模式比对由 fast_patterns.rs 标量等价承接 （模式字节逐项对齐
+    RespCommandSimdPatterns.cs），不转写代码生成器产物。本块不含已实现项； DiskANN [LibraryImport]
+    P/Invoke 声明面自本块拆出独立登记（见下一块）；SessionParseState 块十三名逐条判：参数读口族为 类型级架构决策，不设
+    parseState 级读口（wresp/src/session_parse_state.rs:17-19 自述 「参数转数值单点为
+    wbase::num 严格解析面，同一参数不得有两套入口与两种严格性口径」）， GetBool/GetInt/GetLong 直读三兄弟与
+    TryGetLong/TryGetDouble/TryGetFloat/ GetDouble/GetFloat 同因同族（Get 与 TryGet 仅
+    out 形态差）：走 wbase/src/num.rs 的 strict_i64/strict_f64/strict_f32（调用点叙述对位见
+    wnode/src/resp/basic_commands/incr.rs:54、 slow.rs:453），Bool 系走
+    wedb/src/server/cluster_session/replication.rs:751 就地 T/F 判形，GetString 走
+    wresp/src/ext.rs RespSliceExt 的 as_str_safe 字节视图直取 （同族下标壳另见 wnode
+    session_parse_state_extensions 模块头自述），DeserializeFrom 无 parseState 级反序列化口、由
+    ReplayInput 等承载结构自解（见本文件 InputHeader.cs 块理由）；EnsureCapacity 槽位扩容由 initialize
+    与 read 的按需 resize 承接
+    （session_parse_state.rs:46/:140），InitializeWithArguments 参数装入走
+    initialize(count) 加 pub root_buffer
+    字段直填（initialize_with_arg/initialize_with_args
+    已随零消费口删除，session_parse_state.rs:199 自述），SetArgument/SetArguments 槽位写入 走 pub
+    字段与 read()，其 C# 消费域（Vector 假写重放/ObjectStore 双轨/Custom 模块层）
+    均已按块登记不转写。Resp/RespServerSession.cs 九名：数据库会话管理族
+    （CreateDatabaseSession/TryGetOrSetDatabaseSession/SwitchActiveDatabaseSession/
+    TrySwapDatabaseSessions/CreateConsistentReadApi）随 databaseSessions 会话数组删除消失，
+    rust 单日志多库为单存储会话加活动库标量——SELECT 切库单点已锚
+    libs/server/Resp/RespServerSession.cs:TrySwitchActiveDatabaseSession
+    （wnode/src/resp/resp_server_session/core.rs:1055），SWAPDB 由
+    wkv/src/session/swap.rs 的 swap_databases 承接（见本文件 TrySwapDatabases 块）， 一致读由
+    wkv/src/session/consistent_read.rs 会话内上下文承接，不设第二 db 会话； DebugSend
+    为逐字节发送调试变体零承接；GetObjectOutput/GetUnifiedOutput/Write
+    三组为钉定指针输出铸造与存储回调就地写应答重载，由 output Vec 缓冲单点承接 （见本文件 UnifiedOutput.cs
+    块理由）。Storage/Functions/MainStore/PrivateMethods.cs 四名： 数值就地/拷贝更新口
+    TryInPlaceUpdateNumber/TryCopyUpdateNumber 无对位——rust 数值 RMW 走 try_rmw_sync
+    写回完整新值（incr.rs:160），其 rust 侧叙述提及（incr.rs:212） 仅涉 INCRBYFLOAT
+    结果溢出旗标语义面，非同名实现；IsValidNumber 旧值校验由读取闭包 strict_i64
+    就地对位（incr.rs:132、slow.rs:417，拒前导零同语义）； TryCopyValueLengthToOutput 的长度 ASCII
+    写出由命令臂就地 write_resp_int 承接； WriteValAndEtagToDst 的 [etag, value] 数组写出由
+    libs/common/RespWriteUtils.cs:WriteEtagValArray 对位单点承接
+    （wnode/src/resp/basic_etag_commands.rs:37，容量预算与堆回落随 output Vec 增长模型消失）；
+    CopyTo 的 ReadOnlySpan → StringOutput 局部拷贝由 rust 切片 copy_from_slice 原生承接， wkv
+    raw 会话零同名痕迹
+- 文件:
+    - libs/server/Resp/Vector/DiskANNService.cs:
+        - backfill_quant_vectors
+        - build_quant_table
+        - card
+        - check_external_id_valid
+        - check_internal_id_valid
+        - continue_search
+        - create_index
+        - drop_index
+        - search_element
+        - search_vector
+        - set_attribute
+  理由: C# [LibraryImport(DISKANN_GARNET)] 的 P/Invoke 声明面（DiskANNService.cs:345-474
+    共 11 个 partial extern，snake_case 即 C ABI 符号名），rust 侧不经 C ABI：wvector 直接依赖
+    wvector/Cargo.toml:15-20 的 diskann / diskann-providers /
+    diskann-quantization / diskann-utils / diskann-vector 0.59.0 crate，同语义在
+    wvector/src/service.rs 以 PascalCase 托管面转写（create_index 等）。本块与 service.rs
+    的托管面登记不同名、不重叠， 非重复认领；C#
+    托管包装（CreateIndex/DropIndex/SearchVector/SearchElement/
+    BuildQuantizationTable/SetAttribute 等）已由 service.rs 逐函数 /// 映射并从 ignore
+    自动淘汰，其中 6 处映射注释误写为 diskann-garnet/DiskANNService.cs 路径（见
+    task/issue/ignore-honesty-mapping.md）
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - ObtainServerSession
+        - RelocateLegacyObjectSubId
+  理由: C# 需创建 RespServerSession 回放命令，Rust 侧通过 StorageSession/ReplayTarget 直接入库；
+    wedb AOF 头版本恒为 5，无需向下兼容 < v4 历史条目的子操作 id 重映射
+- 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - Deserialize
+        - Serialize
+  理由: 带长度字节的双进制形态零生产消费（C# ToByteArray/FromByteArray 唯一上游 FAILOVER 的字节参数由 rust
+    from_span 裸 8B LE 承接）；AofAddress 编码面收敛为 from_span 与
+    from_string/to_aof_string 两形态
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - CallFromLuaEntered
+  理由: C# 专属：因 P/Invoke 开销过大而手动在托管层缓存 StackTop/curStackSize 的回调入口钩子；Rust 直连 Luau C
+    API 无 P/Invoke 边界惩罚，直接通过 sys::lua_gettop 读栈
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - KnownCallFromLuaEntered
+  理由: C# 专属：已知参数个数时省略 NativeMethods.GetTop P/Invoke 的微优化；Rust 直连 Luau C API
+    无需手动维护托管栈深
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackIndexInBounds
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈下界越界检查辅助方法，基于 C# 托管 StackTop 字段
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackExpected
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈平衡检查辅助方法，核对 NativeMethods.GetTop 与托管 StackTop
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackNotFull
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈容量检查辅助方法，核对托管 curStackSize
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - AssertLuaStackNotEmpty
+  理由: C# 专属：[Conditional("DEBUG")] 私有栈非空检查辅助方法，核对托管 StackTop > 0
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - LuaAtPanic
+  理由: C# 专属：[UnmanagedCallersOnly] 静态蹦床，转发 PanicLogger；Rust 在 context.rs 与
+    state.rs 经 catch_unwind 原生守卫处理
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - LuaAllocateBytes
+  理由: C# 专属：[UnmanagedCallersOnly] 静态蹦床，转发 GCHandle 托管 ILuaAllocator；Rust 以
+    wlua/src/allocator.rs:73 unsafe extern "C" fn alloc_shim 直接充当 lua_Alloc
+    回调（wlua/src/state.rs:96 经 sys::lua_newstate 挂接），无托管句柄蹦床
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.Struct.cs:
+        - TryGetFormat
+  理由: C# Lua 栈格式化参数读取与 ArrayPool 租借辅助，Rust 侧直接借用 &[u8] 切片
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.Struct.cs:
+        - AddAlignmentPadding
+  理由: C# struct.pack 对齐填充局部函数，Rust 侧由 get_to_align 纯函数原生计算
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - luaL_checknumber
+        - luaL_loadbufferx
+        - luaL_loadstring
+        - luaL_newstate
+        - luaL_openlibs
+        - luaL_ref
+        - luaL_unref
+        - lua_atpanic
+        - lua_checkstack
+        - lua_close
+        - lua_createtable
+        - lua_gc
+        - lua_getglobal
+        - lua_gettop
+        - lua_newstate
+        - lua_pcallk
+        - lua_pushboolean
+        - lua_pushcclosure
+        - lua_pushinteger
+        - lua_pushlstring
+        - lua_pushnil
+        - lua_pushnumber
+        - lua_pushvalue
+        - lua_rawgeti
+        - lua_rawlen
+        - lua_rawset
+        - lua_rawseti
+        - lua_setglobal
+        - lua_sethook
+        - lua_settop
+        - lua_toboolean
+        - lua_tolstring
+        - lua_version
+  理由: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 mlua 原生绑定直接封装
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - AtPanic
+        - CheckBuffer
+        - CheckStack
+        - CreateTable
+        - GetTop
+        - NewState
+        - OpenLibs
+        - PushBuffer
+        - SetGlobal
+        - SetHook
+        - SetTop
+  理由: C# .NET 专属托管指针辅助实现，Rust 侧由 LuaStateWrapper 原生切片实现
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - lua_type
+  理由: C# P/Invoke 声明的 Lua C API 底层原生函数，Rust 侧由 sys.rs 声明并由 LuaState::type_name 封装
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - PushCFunction
+  理由: C# P/Invoke 辅助函数（lua_pushcclosure 0 上值包装），Rust 侧由 LuaState::push_cfunction
+    直接封装
+- 文件:
+    - libs/server/Lua/LuaManagedAllocator.cs
+    - libs/server/Lua/LuaLimitedManagedAllocator.cs:
+        - Check
+        - ContainsRef
+        - DebugCheck
+        - Free
+        - GetDataStartRef
+        - GetFreeList
+        - GetNextFreeBlockRef
+        - GetPrevFreeBlockRef
+        - GetRefVal
+        - IsInfallibleAllocation
+        - IsValidBlockRef
+        - MoveToHeadOfFreeList
+        - TryCoalesceSingleBlock
+        - UpdateDebugAllocatedBytes
+    - libs/server/Lua/LuaTrackedAllocator.cs:
+        - AllocateNew
+        - EnterInfallibleAllocationRegion
+        - Free
+        - IsInfallibleAllocation
+        - ResizeAllocation
+        - TryExitInfallibleAllocationRegion
+    - libs/server/Lua/NativeMethods.cs:
+        - AtPanic
+        - CheckBuffer
+        - CheckNumber
+        - CheckStack
+        - Close
+        - CreateTable
+        - GetGlobal
+        - GetTop
+        - KnownStringToBuffer
+        - LoadBuffer
+        - LoadString
+        - NewState
+        - Next
+        - OpenLibs
+        - PCall
+        - Pop
+        - PushBoolean
+        - PushBuffer
+        - PushCFunction
+        - PushInteger
+        - PushNil
+        - PushNumber
+        - PushValue
+        - RawGet
+        - RawGetInteger
+        - RawLen
+        - RawSet
+        - RawSetInteger
+        - Rotate
+        - SetGlobal
+        - SetHook
+        - SetTop
+        - ToBoolean
+        - Type
+        - Unref
+        - Version
+        - luaL_checknumber
+        - luaL_loadbufferx
+        - luaL_loadstring
+        - luaL_newstate
+        - luaL_openlibs
+        - luaL_ref
+        - luaL_unref
+        - lua_atpanic
+        - lua_checkstack
+        - lua_close
+        - lua_createtable
+        - lua_gc
+        - lua_getglobal
+        - lua_gettop
+        - lua_newstate
+        - lua_next
+        - lua_pcallk
+        - lua_pushboolean
+        - lua_pushcclosure
+        - lua_pushinteger
+        - lua_pushlstring
+        - lua_pushnil
+        - lua_pushnumber
+        - lua_pushvalue
+        - lua_rawget
+        - lua_rawgeti
+        - lua_rawlen
+        - lua_rawset
+        - lua_rawseti
+        - lua_rotate
+        - lua_setglobal
+        - lua_sethook
+        - lua_settop
+        - lua_toboolean
+        - lua_tolstring
+        - lua_type
+        - lua_version
+  理由: luau 宿主重写，.NET 托管分配与 NativeMemory 桥无对位：C# 三分配器构建在 .NET 托管堆与 NativeMemory
+    桥上（GC 句柄/钉住/配额记账），rust 宿主为 Luau C API 直连——lua_Alloc 直挂配额在
+    wlua/src/allocator.rs，limited/tracked 形态同构重写于 wlua/src/limited_allocator.rs
+    与 tracked_allocator.rs（实存口
+    MarkFree/MarkInUse/EnterInfallibleAllocationRegion 等已锚），分配器残余
+    Free/Check/AllocateNew/ResizeAllocation 等内部分配面无逐口对位； NativeMethods 为 lua.h
+    P/Invoke 声明桥，rust 侧由 wlua/src/sys.rs 原生 extern 直声明并经 api.rs 封装，跨语言绑定桥本身不转写
+- 文件:
+    - libs/server/TLS/CertificateUtils.cs:
+        - GetMachineCertificateBySubjectName
+        - IsPemFile
+    - libs/server/TLS/GarnetTlsOptions.cs:
+        - ValidateCertificateName
+        - ValidateServerCertificateCallback
+    - libs/server/TLS/ServerCertificateSelector.cs
+  理由: C# .NET SslStream/X509 证书体系，Rust 侧采用 rustls 原生安全传输层
+- 文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.Locking.cs:
+        - PromoteToTail
+  理由: C# 内部私有静态辅助方法（调用 StorageSession.PromoteRangeIndexToTail 发起 RIPROMOTE）；Rust
+    中只读存根在读取与紧缩时由 wkv 引擎闭环自愈，无需外部额外抽象
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - ToReadOnlySpan
+  理由: C# 内存指针转 Span 辅助，Rust 原生切片零拷贝
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - NetworkPurgeBP
+  理由: C# Tsavorite BufferPool 显式内存释放网络命令，Rust 侧缓冲区由全局/线程池分配器原生管理
+- 文件:
+    - libs/server/Resp/PurgeBPCommand.cs:
+        - ClusterPurgeBufferPool
+  理由: C# 集群节点 BufferPool 释放，Rust 侧内存分配器自动管理回收
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SetKeyOverflow
+  理由: C# 迁移分块超限溢出处理，Rust 迁移流式分块无溢出缓冲
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SetValueOverflowDeepCopy
+  理由: C# 迁移值溢出深拷贝，Rust 采用零拷贝分块写入
+- 文件:
+    - libs/server/Storage/Functions/MainStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/ObjectStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/UnifiedStore/DeleteMethods.cs:
+        - InPlaceDeleter
+    - libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:
+        - InPlaceDeleter
+  理由: C# Tsavorite IFunctions 回调接口，Rust 存储层采用墓碑记录（tombstone）实现无锁删除
+- 文件:
+    - libs/server/Storage/Session/ObjectStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O
+    阻塞轮询队列机制（objectContext.CompletePendingWithOutputs(wait: true)）；Rust 采用原生
+    async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending
+    队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/Storage/Session/UnifiedStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O 阻塞轮询队列机制（unified.CompletePendingWithOutputs(wait:
+    true)）；Rust 采用原生 async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的
+    pending 队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/Storage/Session/MainStore/BitmapOps.cs:
+        - ReleaseOverflowBuffers
+  理由: C# StringBitOperation 内用于在 GC 压缩下归还 IMemoryOwner 堆缓冲并释放 MemoryHandle
+    钉住句柄的局部静态辅助函数；Rust 采用 RAII 严格生命周期管理与 Drop 自动回收，无 GC 内存迁移与钉住需求，无需该辅助函数
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - GET_WithPending
+  理由: C# Tsavorite 专有异步 I/O 挂起标记（out bool pending）；Rust 基于原生 async/await 与 compio
+    协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending 队列，无需暴露 pending 状态
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - GET_CompletePending
+  理由: C# Tsavorite 专有异步 I/O 阻塞轮询队列机制（context.CompletePendingWithOutputs）；Rust
+    所有读操作均在 await 点同步闭环完成，无需跨调用轮询完成挂起 I/O
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - ExtractTreePtr
+  理由: C# 专有裸内存指针提取辅助；Rust 采用 Arc<BfTreeService> 引用计数托管并受条带锁保护，不暴露裸指针
+    （wkv/src/range_index/mod.rs:144 tree 字段，树操作面为 wkv/src/ri.rs RiTreeOps 扩展
+    trait）
+- 文件:
+    - libs/server/Storage/Session/MainStore/RangeIndexOps.cs:
+        - WriteScanToOutput
+  理由: C# 专有网络指针直接写入 RESP 协议的内部 helper；Rust Standalone 统一在
+    RespServerSessionRangeIndex 中进行流式类型安全 RESP 响应序列化（流式回调直写 output
+    缓冲加数组头回填，叙述对位见
+    wnode/src/resp/range_index/resp_server_session_range_index.rs:247/:507/:555，
+    无逐批指针写入具名口）
+- 文件:
+    - libs/server/Storage/Session/MainStore/CompletePending.cs
+  理由: "C# Tsavorite 专有异步 I/O
+    阻塞轮询队列机制（stringContext.CompletePendingWithOutputs(wait: true)）；Rust 采用原生
+    async/await 与 compio 协程事件驱动，I/O 调度在 await 点自动挂起与恢复，不存在遗留的 pending
+    队列，无需跨调用轮询完成"
+- 文件:
+    - libs/server/API/GarnetApi.cs
+    - libs/server/API/GarnetApiObjectCommands.cs
+    - libs/server/API/GarnetWatchApi.cs
+    - libs/server/API/IGarnetAdvancedApi.cs
+    - libs/server/API/IGarnetApi.cs
+    - libs/server/ByteArrayWrapper.cs
+    - libs/server/ByteArrayWrapperComparer.cs
+    - libs/server/StringOutput.cs
+  理由: C# 专有接口多态跳板与 GC 钉住包装类，Rust 统一由 StorageSession 原生方法和切片借用直连，无需 OOP 多层跳板与包装类
+- 文件:
+    - libs/server/ArgSlice/ArgSliceVector.cs
+  理由: C# 该类的唯一生产消费点是 cluster 迁移侧 Sketch.cs:17 的键收集去重缓冲；rust 对位
+    wedb/wedb/src/server/migration/sketch.rs 已在模块头显式声明本仓 Sketch 不承载 C#
+    argSliceVector / Keys 的收集去重职责（传输清单由调用方结构承担），接线需求不存在， 整件不转写；原 rust
+    侧同名结构为零消费占位镜像，已删除
+- 文件:
+    - libs/server/Resp/RespCommandKeySpecification.cs:
+        - ExtractKeys
+        - TryGetStartIndex
+  理由: 键规格类的两个提取口在 C# 同面亦无生产调用点（该类的活消费面只有命令信息导出
+    RespCommandsInfo.cs:KeySpecifications /
+    RespCommandInfoSimplifiedStructs.cs:TryGetSimpleKeySpec / CommandInfoUpdater
+    解析器），rust 生产键提取单点为 wnode/src/key_spec.rs 的 extract_keys_from_slice 族（对标
+    libs/server/SessionParseStateExtensions.cs，读
+    wresp::catalog::SimpleRespKeySpec），不留第二套无人调的提取实现； 键规格结构体本身保留于导出面，原
+    wresp::RespCommandKeySpecification 上的 try_get_start_index / extract_keys
+    零消费死码已删除
+- 文件:
+    - libs/server/Objects/List/ListObject.cs:
+        - Nodes
+        - Scan
+  理由: Scan 在 C# 侧直接抛 NotImplementedException（提示列表扫描用 LRANGE），Rust 侧不设列表 Scan
+    虚方法，1:1 保留该占位语义；Nodes 是 C# 侧对 LinkedList<T> 的节点枚举扩展方法，唯一 消费点为
+    ListObjectImpl.cs:330 的 LSET 中间节点定位，Rust 侧链表为连续数组、按下标直取
+    （ListObjectImpl.cs:330 的定位语义由 list_object.rs 的 self.list.get 与
+    list_object_impl.rs 的 LINDEX 臂承接），无节点对象可枚举，不设该扩展位，原 rust 侧同名方法为零消费虚设镜像，已删除
+- 文件:
+    - libs/server/StoreWrapper.cs:
+        - CheckMultiDatabaseCompatibility
+        - EnforceConsistentRead
+        - ExpiredKeyDeletionScanTaskAsync
+        - HasKeysInSlots
+        - HybridLogDistributionScan
+        - StartReplicaTasks
+        - SuspendReplicaOnlyTasksAsync
+  理由: C# 单体服务包装层后台轮询与薄转发面，Rust 侧下沉到 wkv::gc / wcpr / whlog 独立生命周期管理（fn
+    start_replica_tasks / suspend_replica_only_tasks /
+    try_start_expired_key_deletion_task / enforce_consistent_read /
+    get_cluster_endpoint / check_multi_database_compatibility 全仓无命中，已核）；
+    两条薄转发按单点承接保留：C# StoreWrapper.cs:819 HybridLogDistributionScan 本体即
+    databaseManager.CollectHybridLogStats() 一行转发，承接点
+    wnode/src/database/single_database_manager.rs:272；:851 HasKeysInSlots 为
+    StorageSession.ArrayKeyIterationFunctions.HasKeysInSlotsScan 的一次扫描包装，承接点
+    wnode/src/storage/session/common/array_key_iteration_functions.rs:192。已实现者不入
+    ignore：AofSize↔wnode/src/database/garnet_database.rs:96（映射注释已登记于该 fn 上方，
+    其值取自 wnode/src/aof/garnet_append_only_file.rs:210 total_size，即 C# 的
+    Tail-Begin 聚合，唯一消费点 database_manager_base.rs:246 正对 C#
+    SingleDatabaseManager.cs:185）
+- 文件:
+    - libs/server/Module/ModuleRegistrar.cs:
+        - LoadModule
+        - RegisterCommand
+        - RegisterProcedure
+        - RegisterTransaction
+    - libs/server/Module/ModuleUtils.cs
+  理由: C# .NET Assembly 动态反射加载机制，Rust 模块采用静态编译与编译期路由
+- 文件:
+    - libs/server/GarnetCheckpointManager.cs:
+        - SetCurrentSafeAofAddress
+  理由: C# Tsavorite CPR 检查点管理器 AOF 地址维护，Rust 由 wcpr/waof 原生检查点管理
+- 文件:
+    - libs/server/Providers/GarnetProvider.cs:
+        - Dispose
+        - RecoverAsync
+        - Start
+  理由: C# 存储会话与检查点工厂的 .NET 装配面：GarnetProvider.cs:41 Start / :53 Dispose / :47
+    RecoverAsync 是 Tsavorite 存储与恢复任务的生命周期薄壳（Start 触发 checkpoint task、Dispose
+    关会话与设备），rust 侧由 wnode/src/service.rs 的 open_* / open_recovered_* 构造即恢复、Drop
+    即回收（:912 open、:1101 open_recovered、:1324
+    try_start_commit_task）承接，不设同名生命周期方法。会话工厂本体不入 ignore：ISessionProvider.cs:20
+    接口声明的映射注释已登记于 wnode/src/traits.rs:151、GarnetProvider.cs:59 实体工厂的已登记于
+    wnode/src/service.rs:1439，两处均被 check.js 采信；TsavoriteKVProviderBase.cs:48
+    的抽象声明层单列于下一条目
+- 文件:
+    - libs/server/Providers/TsavoriteKVProviderBase.cs:
+        - GetSession
+  理由: C# 会话工厂是三级类继承（ISessionProvider.cs:20 接口声明、TsavoriteKVProviderBase.cs:48
+    泛型抽象声明、GarnetProvider.cs:59 唯一实体实现），rust 侧压平为 SessionProviderFace trait
+    单条声明加各执行域 impl，不设同名抽象中间层。承接点：接口声明语义由 wnode/src/traits.rs:151 的 fn
+    get_session 承担（该处已登记 libs/server/Sessions/ISessionProvider.cs 映射注释），实体工厂语义由
+    wnode/src/service.rs:1439 StorageSessionProvider impl 的 get_session 承担（该处已登记
+    libs/server/Providers/GarnetProvider.cs 映射注释，建连单点调用见
+    wnode/src/net/handler/drive.rs:97）。TsavoriteKVProviderBase 的 store/broker
+    两个受保护字段由 wnode/src/service.rs:825 StorageSessionProvider 结构体承接（:828
+    store、:835 broker）；maxSizeSettings 在 rust 全仓无同名物， C# 侧它只经 GetMaxSizeSettings
+    供网络发送端换算缓冲尺寸（如 ScratchBufferNetworkSender.cs:32），rust 不复现该字段；abstract
+    强制覆写占位在 rust trait 语境下无对应物（trait fn 本身即要求每个 impl 给出实现），故不为其登记注释，
+    以免用注释掩盖真实的架构偏离
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - BeginTransaction
+        - ComputeCustomProcShardedLogAccess
+        - LocksAcquired
+  理由: wkv 纪元会话无 Tsavorite 存储上下文（由 TxnLockTable 承接加锁），且单机无 MultiLog 分片回放
+- 文件:
+    - libs/server/Transaction/TxnClusterSlotCheck.cs:
+        - CopyExistingKeysToScratchBuffer
+  理由: Rust 的 txn_keys 存储自有副本 Box<[u8]>，无接收缓冲指针重分配失效问题
+- 文件:
+    - libs/server/Storage/Functions/UnifiedStore/ReadMethods.cs:
+        - HandleExpireTime
+        - HandleMigrate
+        - HandleObjectFreq
+        - HandleObjectIdleTime
+        - HandleObjectRefCount
+        - HandleRename
+        - HandleTtl
+        - HandleType
+        - Reader
+  理由: C# Tsavorite 读取会话内部子命令解包与元数据回调函数，Rust 侧由 RespServerSession / basic_commands
+    直接调用存储会话原生接口处理，无需保留内部回调分发层
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - Read_RangeIndex
+  理由: C# 侧经 BfTree RangeIndexManager 读索引记录；wkv 将范围索引内置于引擎，由 scan_range 承接，无按键直读入口
+- 文件:
+    - libs/server/Storage/Session/MainStore/VectorStoreOps.cs
+  理由: 向量引擎在 resp/vector 与 objects/vector 独立转写承接，wkv 无底层向量存储原语，StorageSession
+    侧无需维护未挂载的向量存储占位接口
+- 文件:
+    - libs/server/Storage/Session/ObjectStore/Common.cs
+    - libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:
+        - SortedSetRemoveRangeByLex
+        - SortedSetScan
+  理由: wedb 架构中，所有对象命令（Hash/Set/List/ZSet/Geo）已全面统一接入 wcol
+    内存对象信封管线（wnode::resp::objects::*），旧版 Storage/Session/ObjectStore
+    属于弃用的双轨制实现，存储会话层无需维护冗余实现
+- 文件:
+    - libs/server/Storage/Session/ObjectStore/HashOps.cs:
+        - HashCollect
+        - HashDelete
+        - HashExists
+        - HashExpire
+        - HashGet
+        - HashGetAll
+        - HashGetMultiple
+        - HashIncrement
+        - HashKeys
+        - HashLength
+        - HashRandomField
+        - HashSet
+        - HashStrLength
+        - HashTimeToLive
+        - HashVals
+    - libs/server/Storage/Session/ObjectStore/ListOps.cs
+    - libs/server/Storage/Session/ObjectStore/SetOps.cs:
+        - SetAdd
+        - SetDiffStore
+        - SetIntersectLength
+        - SetIntersectStore
+        - SetIsMember
+        - SetLength
+        - SetMembers
+        - SetPop
+        - SetRandomMember
+        - SetRemove
+        - SetUnion
+        - SetUnionStore
+    - libs/server/Storage/Session/ObjectStore/SortedSetOps.cs:
+        - SortedSetAdd
+        - SortedSetCollect
+        - SortedSetCount
+        - SortedSetDifference
+        - SortedSetDifferenceStore
+        - SortedSetExpire
+        - SortedSetIncrement
+        - SortedSetIntersect
+        - SortedSetIntersectLength
+        - SortedSetIntersectStore
+        - SortedSetLength
+        - SortedSetLengthByValue
+        - SortedSetMPop
+        - SortedSetPersist
+        - SortedSetPop
+        - SortedSetRandomMember
+        - SortedSetRange
+        - SortedSetRangeStore
+        - SortedSetRank
+        - SortedSetRemove
+        - SortedSetRemoveRange
+        - SortedSetRemoveRangeByLex
+        - SortedSetRemoveRangeByRank
+        - SortedSetRemoveRangeByScore
+        - SortedSetScan
+        - SortedSetScore
+        - SortedSetScores
+        - SortedSetTimeToLive
+        - SortedSetUnion
+        - SortedSetUnionStore
+    - libs/server/Storage/Session/ObjectStore/SortedSetGeoOps.cs
+    - libs/server/Storage/Session/ObjectStore/AdvancedOps.cs
+  理由: C# StorageSession 对象存包装层六文件（HashOps/ListOps/SetOps/SortedSetOps/
+    SortedSetGeoOps/AdvancedOps 的 Hash*List*Set*SortedSet*Geo* 包装口与
+    RMW_ObjectStore/Read_ObjectStore 收发壳）：包装层语义由 wnode/resp/objects/* 命令层与 wcol
+    对象信封直接承接（结构差异声明见 wedb/wnode/src/resp/garnet_api/objects.rs 文件头），存储会话层无独立对位
+- 文件:
+    - libs/server/Custom/CustomCommandManagerSession.cs
+    - libs/server/Custom/CustomObjectFactory.cs
+    - libs/server/Custom/CustomTransactionProcedure.cs:
+        - AddKey
+        - CreateArgSlice
+        - Finalize
+        - Main
+        - Prepare
+        - RewindScratchBuffer
+  理由: SKILL 删除运行时动态注册，编译期静态分发：CustomCommandManagerSession 的 会话级注册表回查面（Match 与
+    GetCustom* /TryGetCustom* 等九口同面）随管理器 整面消失；CustomObjectFactory 的
+    Create/Deserialize 工厂口由编译期特性构造 （wext_roaring/wext_json 对象 create/deserialize
+    单点）承接； CustomTransactionProcedure 的 Prepare/Main/Finalize 三段式随过程面
+    整体清理不转写（RUNTXP 仅保校验三门＋无条件 RESP_ERR_NO_TRANSACTION_PROCEDURE，
+    wnode txn_resp_commands network_runtxp；原 CreateArgSlice/RewindScratchBuffer
+    两薄壳另行登记，见下方独立条目）；AddKey 锁键登记助手随事务过程机器整删——锁键登记面由
+    MULTI/EXEC 显式 txn_keys + save_key_entry_to_lock
+    单点承接（wtxn txn_key_manager），无自定义过程的 AddKey 消费者
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - GetSlotVerificationInput
+  理由: 单机架构解耦：单机引擎 wedb_standalone 彻底剥离所有集群槽位校验与缓存侵入，槽位路由完整收敛至 wedb::ClusterSession
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - SetInternalWriteSession
+  理由: 内部状态位简化：AOF 回放会话在本域独立构造，无需外部注入会话状态
+- 文件:
+    - libs/server/Cluster/IClusterSession.cs:
+        - NetworkIterativeSlotVerify
+        - NetworkMultiKeySlotVerifyNoResponse
+        - SetInternalWriteSession
+        - WriteCachedSlotVerificationMessage
+  理由: 槽位校验外提为 wedb::slot_verify 无状态计算；迭代式校验族与缓存错误写出随存储过程域
+    清退不转写（C# 唯 CustomTransactionProcedure.AddKey :47 与 TransactionManager 过程链
+    :295/:320 消费，本仓 network_runtxp 已无条件回 NO_TRANSACTION_PROCEDURE），孤儿面已删除
+- 文件:
+    - libs/server/Objects/ItemBroker/CollectionItemBroker.cs:
+        - GetCollectionItemAsync
+        - HandleCollectionUpdateWorker
+        - MoveCollectionItemAsync
+        - ParseScoreOrDefault
+  理由: 内部实现内联与严格类型化解析替代；MoveCollectionItemAsync 的 BLMOVE 语义由 park_broker_wait 登记 +
+    主循环 try_move_next_list_item 即时移动分置承接；GetCollectionItemAsync 为 C# 阻塞组合形态，
+    rust 异步三段式 start_wait/wait_result/finish_wait 承接（计时等待由会话层 select 竞速），
+    组合壳零调用即删
+- 文件:
+    - libs/server/Custom/CustomTransactionProcedure.cs:
+        - CreateArgSlice
+        - RewindScratchBuffer
+  理由: C# scratch 缓冲回退与 PinnedSpanByte 切片铸造，rust 侧切片原生零拷贝无需投影
+- 文件:
+    - libs/server/Objects/Types/ObjectOutput.cs:
+        - FromPinnedPointer
+  理由: Rust ObjectOutput 为托管 Vec 缓冲，无 pinned 指针形态，指针出参经切片/缓冲承接
+- 文件:
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkChannel.cs:
+        - CompleteAndWaitForConsumerTask
+        - DrainPending
+  理由: C# System.Threading.Channels 包装层：rust 侧以 wbase/src/pool/event_queue.rs:111
+    close + :85 drain 组合承接 C# :45 CompleteAndWaitForConsumerTask（关闭后阻塞至消费完成再排空）
+    与 :64 DrainPending 扩展（事件驱动、无 Task 句柄），EventWorkQueue 结构体注释即对标
+    VectorSetCleanupWorkChannel.cs。同目录姊妹类 VectorSetCleanupWorkSet（按键未完成工作集合） 此前由
+    wbase pool 的 EventWorkSet 承接、全仓唯一消费者是内存索引丢弃请求集合，该链已随 rust
+    无主存记录逐出触发面整删，WorkSet 侧改按整文件 ignore 登记（见下条）
+- 文件:
+    - libs/server/Resp/Vector/Cleanup/VectorSetCleanupWorkSet.cs
+  理由: |-
+    C# VectorSetCleanupWorkSet 全仓唯一消费者是 VectorManager 的 requestedDrops（内存索引
+    丢弃请求集合）。该集合的生产点是主存记录逐出触发器（GarnetRecordTriggers 的 OnEvict 臂，
+    见本文件 GarnetRecordTriggers.cs 条目），rust 索引记录驻留 VectorManager 登记表、不入
+    wkv 值域，无逐出事件可投递，请求丢弃链（RESP 侧入口 + 常驻协程 + 锁侧等待口 + wbase pool
+    专属载体）已整删，无待映射面。
+- 文件:
+    - libs/server/Resp/AdminCommands.cs:
+        - NetworkModuleLoad
+        - NetworkRegisterCs
+        - TryImportCommandsData
+        - TryRegisterCustomCommands
+    - libs/server/Resp/RespServerSession.cs:
+        - CanRunModule
+  理由: 不实现 C# 模块动态加载，移除 MODULE LOADCS、REGISTERCS 等相关命令与权限门
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - CreateFunctionsState
+    - libs/server/Databases/IDatabaseManager.cs:
+        - CreateFunctionsState
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - CreateFunctionsState
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - CreateFunctionsState
+    - libs/server/StoreWrapper.cs:
+        - CreateFunctionsState
+  理由: FunctionsState 仅聚合自定义扩展挂载标志（has_custom_commands /
+    has_custom_object_factory），随注册表静态化（扩展编译期在场）失去承载语义，rust 侧 整链删除；wkv 会话直接持
+    watchVersionMap 等真实依赖
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - ExecuteObjectCollection
+        - TakeCheckpointHelperAsync
+        - TryPauseCheckpointsContinuousAsync
+    - libs/server/Databases/IDatabaseManager.cs:
+        - ExecuteObjectCollection
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - AwaitCommitAsync
+        - CopyDatabases
+        - UpdateLastSaveData
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - ExecuteHashCollect
+        - ExecuteObjectCollection
+        - ExecuteSortedSetCollect
+        - StoreExpiredKeyDeletionScan
+  理由: 彻底清理孤儿门面方法与重复转发，AOF/检查点/对象收集/过期扫描统一由原生管理器与底座单通道承接，消除双轨门面；字段级过期由 wcol
+    内存信封内联过期堆与 HCOLLECT/ZCOLLECT 显式命令及 PrimaryTasks 闭环
+- 文件:
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - RunPausedCheckpointsAndReleaseLocksAsync
+        - TryGetDatabasesContentReadLock
+        - TryGetDatabasesContentWriteLock
+  理由: C# 类内自用跨库内容锁原语与私有延续（MultiDatabaseManager.cs:863
+    TryGetDatabasesContentReadLock、:881 TryGetDatabasesContentWriteLock
+    均为公有但仅本类内 :150-:686 自检持锁使用；RunPausedCheckpointsAndReleaseLocksAsync 仅 :217
+    一处调用），rust 单日志多库模型下无跨库内容读写锁：检查点暂停域以
+    wnode/src/database/database_manager_base.rs:90 try_pause_checkpoints / :97
+    resume_checkpoints（db.checkpoint_paused 原子标志）承接，AOF 暂停由同文件 :154
+    store.pause_aof_listeners()（wkv/src/store/event.rs:193）在重放与 检查点操作内就地持有，无独立门面
+- 文件:
+    - libs/server/Databases/DatabaseManagerFactory.cs
+    - libs/server/Databases/MultiDatabaseManager.cs:
+        - AwaitCommitAsync
+        - Clone
+        - CollectHybridLogStats
+        - CommitToAofAsync
+        - CopyDatabases
+        - CreateFunctionsState
+        - Dispose
+        - DoCompactionAsync
+        - EnqueueCommit
+        - ExecuteObjectCollection
+        - ExpiredKeyDeletionScan
+        - FlushDatabase
+        - GetDatabasesSnapshot
+        - GetDbById
+        - GrowIndexesIfNeededAsync
+        - HandleDatabaseAdded
+        - RecoverAOFAsync
+        - RecoverCheckpointAsync
+        - RecoverVectorSets
+        - ReplayAOF
+        - Reset
+        - ResetRevivificationStats
+        - ResumeCheckpoints
+        - RunPausedCheckpointsAndReleaseLocksAsync
+        - StartSizeTrackers
+        - TakeCheckpointAsync
+        - TakeOnDemandCheckpointAsync
+        - TakeOneCheckpointAsync
+        - TaskCheckpointBasedOnAofSizeLimitAsync
+        - TryAddDatabase
+        - TryGetDatabase
+        - TryGetDatabasesContentReadLock
+        - TryGetDatabasesContentWriteLock
+        - TryGetOrAddDatabase
+        - TryGetSavedDatabaseIds
+        - TryPauseCheckpoints
+        - UpdateLastSaveData
+        - WaitForCommitToAofAsync
+  理由: C# 独立 TsavoriteKV 实例多库架构；rust 统一采用共享单日志多库模型（wkv 单 HybridLog 内以 16-bit
+    database ID / tag 隔离），SWAPDB 由 wkv/src/session/swap.rs:swap_databases 全 tag
+    搬移承接，运行时由 SingleDatabaseManager 直接装配，MultiDatabaseManager 与 Factory 无需存在
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - TrySwapDatabases
+  理由: C# IDatabaseManager.cs:229 的 TrySwapDatabases 声明与
+    SingleDatabaseManager.cs:350 的 `=> false` 恒 false 占位（单库模式无交换语义）在 rust
+    manager 层无对应面，manager 三件套（trait 声明、单库占位实现、trait impl
+    转发壳）已作为死代码删除（task/done/rm-swapdb-dead-trio.md）；SWAPDB 真实链不经 manager，由 wkv
+    StoreSession::swap_databases（wkv/src/session/swap.rs:27，对位映射
+    MultiDatabaseManager.cs:674）单点承接，命令面为
+    wnode/src/resp/array_commands.rs:network_swapdb 同步校验段与
+    wnode/src/resp/garnet_api/slow.rs:swap_command_slow 慢路径执行段
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Replication.cs:
+        - ApplyVectorSetAdd
+        - ResetReplayTasksAsync
+        - ShutdownReplayTasks
+        - StartReplicaTaskAsync
+        - StartReplicationReplayTasks
+        - StartReplicationTasksAsync
+        - WaitForVectorOperationsToComplete
+    - libs/server/AOF/AofProcessor.cs:
+        - WaitForVectorOperationsToComplete
+  理由: C# VADD 复制为后台 channel 消费模型（StartReplicationReplayTasks 启动重放任务/
+    StartReplicaTaskAsync 每副本任务/ResetReplayTasksAsync 复位/ShutdownReplayTasks 停机/
+    WaitForVectorOperationsToComplete 等待排空/ApplyVectorSetAdd 消费闭包，AofProcessor 侧
+    同名等待为恢复重放排空）；rust 副本与恢复统一走 AOF 条目顺序同步重放，重放应用族 replay_vector_set_* 与
+    HandleVectorSetRenameCopy 的逐函数认领见 vector_manager_replication.rs
+    文档注释，无后台任务/channel 形态，排空等待随同步应用语义消失
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Index.cs:
+        - SetIndexFlags
+  理由: C# 记录层 Flags 字段直写：仅被 VADDSetFlagsArg 假写重放的 Tsavorite RMW CopyUpdater
+    链（RMWMethods.cs）触达；rust 副本端 RENAME 走登记表快照重放
+    （replay_vector_set_rename，标志不随拷贝迁移），无 flags 假写通道， Index.flags
+    字段在登记表写入路径就地组装，无独立 SetIndexFlags 形态
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Migration.cs:
+        - GetMigratedElementKeySerializationSize
+        - GetMigratedIndexKeySerializationSize
+        - UpdateMigratedElementNamespaces
+  理由: 迁移帧为结构化 MigrationFrame（kind=5/6）：收发两端键序列化/反序列化由 migrate_driver.rs
+    write_vector_set_*_frame / parse_migration_payload kind=5/6 分支认领， 合成写由
+    vector_manager_replication.rs replicate_vector_set_index 与
+    import_migrated_element 的 VADD 合成认领（均见文档注释）；C# 手工 [len][bytes] 布局的存储尺寸预计算
+    （GetMigrated*SerializationSize）随 rust 载荷编码的容量预计算内联消失；
+    UpdateMigratedElementNamespaces 的接收端 namespace 改写随元素帧不带 context 的帧结构消失——
+    上下文重映射由发送端 remap_index_for_migration 单点完成，接收端以已导入索引的 context 插入
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Cleanup.cs:
+        - CheckpointCompleted
+        - DropRequested
+        - OnStop
+        - RunRequestDropTaskAsync
+        - VectorSetPotentiallyDeleted
+        - WaitForDiskANNIndexDrop
+    - libs/server/Resp/Vector/VectorManager.Locking.cs:
+        - NeedsRecreate
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - GetContextState
+  理由: 向量管理器未接线与 Tsavorite 记录层专属逻辑：C# VectorManager.Cleanup.cs:437
+    VectorSetPotentiallyDeleted 与 :459 CheckpointCompleted 是 Tsavorite
+    compaction 记录触发器 + 检查点完成回调链的两环（后者注释即「signalling that Vector Sets passed to
+    VectorSetPotentiallyDeleted should be processed」），wedb 底层基于 wbftree/wcol，无
+    Tsavorite compaction 触发器与检查点活性复查链，rust 全仓无 potentially_deleted /
+    checkpoint_completed 符号；VectorManager.Locking.cs:62 NeedsRecreate
+    的「配置比对后判重建」 语义内联于 wnode/src/resp/vector/vector_manager_locking.rs:352
+    create_or_recreate_under_exclusive（:375 recreate_index_locked 直建，无独立谓词）；:556
+    ReadForDeleteVectorIndex 全仓 rust 零引用；VectorManager.Filter.cs:266
+    EvaluateCandidateFilter 为传给 C ABI 的候选过滤回调（未接线面），rust 后过滤统一走
+    wnode/src/resp/vector/vector_manager_filter.rs:21 apply_post_filter；
+    VectorManager.ContextMetadata.cs:789 GetContextState 仅测试检视用，rust 无对应物。
+    丢弃请求族同理未接线：C# VectorManager.Cleanup.cs:135 RunRequestDropTaskAsync 及其 锁侧等待口
+    :380 DropRequested / :387 WaitForDiskANNIndexDrop 的唯一生产点是主存记录
+    逐出触发器（GarnetRecordTriggers OnEvict 臂），rust 索引记录驻留 VectorManager 登记表、 不入 wkv
+    值域，无逐出事件可投递，请求丢弃链（入口 + 常驻协程 + 等待口 + wbase pool work_set 载体）已整链删除； OnStop
+    为清理游标停机回调（VectorManager.Cleanup.cs:39 空实现，仅 completed/numberOfRecords
+    计数上报位），rust 向量清理扫描驱动至完成即终（wkv/src/session/vector_cleanup.rs），无游标回调形态
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:
+        - IsLargeEnoughForType
+  理由: C# 该谓词仅服务 MainStore RMW BITFIELD 臂的记录级原位增长预检 （MainStore/RMWMethods.cs:612
+    !IsLargeEnoughForType → LengthFromType 长度 zeroInit 扩张 +
+    CanGrowPinnedValue/TrySetContentLengths）；rust BITFIELD 写路径无记录级原位臂，读全值缓冲后由
+    new_block_alloc_length_from_type 计算所需长度并 resize 零初始化补齐
+    （wnode/src/resp/bitmap/bitmap_commands.rs 与
+    wnode/src/resp/basic_commands/slow.rs 三处写臂
+    同构），「值长是否覆盖位域所需」判定被分配尺寸函数吸收，无独立谓词消费点
+- 文件:
+    - libs/server/Resp/MGetReadArgBatch.cs:
+        - GetInput
+        - GetKey
+        - GetOutput
+        - SetOutput
+  理由: C# Tsavorite 批量会话的 MGET 参数批包装；rust MGET 走 wkv 批量读 原生接口，无逐条 AdvanceTo/GetKey
+    参数批形态
+- 文件:
+    - libs/server/Resp/BasicCommands.cs:
+        - NetworkGETAsync
+        - NetworkQUIT
+        - TryGetSimpleCommandInfo
+  理由: GET 异步路径由 compio 原生异步/SG 批量读承接；QUIT 分派在 process_basic_commands
+    内联臂（to_dispose + +OK）；TryGetSimpleCommandInfo 由 prepare_command_keys_context
+    单源承接（COMMAND GETKEYS 族）
+- 文件:
+    - libs/server/Resp/Parser/RespCommand.cs:
+        - SimdFastParse
+  理由: C# 以 SIMD Vector128 一次比对 16 字节命令帧的快速解析例程（:947，含 out count 与 _cachedCmd0/1
+    双槽晋升）；rust 无按名同形解析口，解析分级标量承接——16 字节 模式表（fast_patterns.rs，模式字节逐项对齐
+    RespCommandSimdPatterns.cs）加会话 MRU 双槽缓存，槽 1 命中晋升换位即 C# SimdFastParse 的
+    promote/swap 语义 （wnode/src/resp/parser/resp_command.rs:146
+    MruCommandCache、:163 update、:189 promote）
+- 文件:
+    - libs/server/Resp/Parser/SessionParseState.cs:
+        - InitializeWithArgument
+  理由: 零引用薄包装删除；rust 初始化单点为 wresp SessionParseState 的
+    initialize(count)（槽位组初始化与按需扩容），参数装入走 pub root_buffer 字段直填；
+    initialize_with_arg/initialize_with_args 已随零消费口删除
+    （wresp/src/session_parse_state.rs:199 自述），不再存在 C# 两重载的对应面
+- 文件:
+    - libs/server/Cluster/IClusterFactory.cs
+  理由: rust 采编译期静态注入（ClusterProvider::new 直构 + 宿主 boot.rs 装配），不保留 C#
+    工厂抽象层；CreateClusterProvider 由宿主直构，CreateCheckpointManager 为 .NET DI
+    工厂占位，检查点目录面由 wedb/src/server/replication/checkpoint_store.rs 原生承接
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - RunPostCheckpointCleanup
+  理由: C# 该函数仅执行 ClearSerializedObjectData（清对象存储堆序列化区间），rust 统一检查点模型 无对象序列化 hlog
+    区段，无对位；磁盘快照淘汰按形态二分且两轨互斥（对标 C# GarnetServer.cs 的 removeOutdated =
+    !EnableCluster 分工，其 rust 落点在 wnode 基座 cluster 句柄判据与 wcpr::purge_outdated
+    形态契约文档）——集群形态归复制面 CheckpointStore 读者闸门（delete_outdated_checkpoints 逐 token
+    wcpr::purge_checkpoint）、单机形态归检查点内核尾段按代 回收（第 7 步），两条均不落在本 C# 函数面（原 wnode
+    run_post_checkpoint_cleanup 无条件双轨已整体退役）
+- 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - AnyGreater
+  理由: 逐位比较面在 rust 收敛为 any_lesser 单原语加调用点就地谓词， MinExchange 在 C# 侧亦零消费，两位点均无独立具名对位
+- 文件:
+    - libs/server/AOF/AofProcessor.cs:
+        - BeginReplayOp
+  理由: C# BeginReplayOp 为 unsafe 缓冲区切分与等待向量异步操作完成的内部私有辅助方法；wedb 在
+    AofProcessor::replay_op 中异步解包内联完成，无需裸指针切分辅助
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Callbacks.cs:
+        - AdvanceTo
+        - CompletePending
+        - GetInput
+        - GetKey
+        - GetOutput
+        - MakeVectorElementKey
+        - SetActiveReadGeometry
+        - SetOutput
+        - SetStatus
+        - SlowPath
+  理由: C# VectorReadBatch 为适配 Tsavorite IReadArgBatch 接口的 unsafe 迭代器结构体；wedb 由
+    StoreCallbacks::read_multi 与 TaggedKeyBuf 单点承接，无需 C# 迭代器游标方法
+    （AdvanceTo/GetKey/GetInput/GetOutput/SetOutput/SlowPath 六游标口由 read_multi
+    窗口化内存批量直读与冷候选单次批量收割承接，MakeVectorElementKey 的 命名空间前缀物理键构造由 wval TaggedKeyBuf
+    与 vector_manager_locking.rs:55 registry_key 承接）；SetActiveReadGeometry
+    的按项类型初读尺寸预算由 wkv 冷读侧 探针加精确二次读承接（不消费 length_hint，证据 wnode/src/resp/vector/
+    vector_store_callbacks.rs 模块头自述，对位 C# :312-339）；CompletePending/SetStatus
+    两名为 DiskANN 推送回调的状态位与在途收割口，rust 侧 4 处叙述
+    （vector_store_callbacks.rs:22/:26/:66/:136）均为协议语义佐证，无具名对位口， 在途收割语义由 wvector
+    异步完成面承接
+- 文件:
+    - libs/server/Resp/HyperLogLog/HyperLogLog.cs:
+        - DenseCountNonZero
+  理由: Garnet C# 源码遗留的私有死方法（在 Garnet 仓内无任何调用点）
+- 文件:
+    - libs/server/Servers/StoreApi.cs
+  理由: C# StoreWrapper 的薄 API 包装层（WaitForCommitAsync/CommitAOFAsync/FlushDB 逐行 转发 +
+    PreventRoleChange 可复用角色变更锁壳 + 嵌套 PreventRoleChangeLock），rust 无 中间 API
+    包装类型——主/副本任务与宿主装配直对标 StoreWrapper.cs 承接（wnode primary_tasks.rs
+    等已在册映射），角色变更防护在升降主编排内联
+- 文件:
+    - libs/server/Sessions/ServerSessionBase.cs:
+        - Dispose
+        - TryConsumeMessages
+  理由: C# 服务会话提供者抽象基类壳（TryConsumeMessages/Publish/PatternPublish 纯 abstract +
+    networkSender 字段 + virtual Dispose），rust 无继承基类形态——消费泵单点为
+    wnode/src/traits.rs:38 try_consume_messages_into（已锚
+    IMessageConsumer.cs:TryConsumeMessages， net/handler/drive.rs:163
+    驱动），发布/模式发布投递由 wpubsub/src/subscriber.rs 会话订阅者面 承接，会话生命周期随连接任务所有权收敛
+- 文件:
+    - libs/server/Metrics/GarnetServerMonitor.cs:
+        - Dispose
+    - libs/server/Metrics/SystemMetrics.cs:
+        - GetPerformanceInfo
+  理由: 宿主监控基础设施残余：GarnetServerMonitor.Dispose 为
+    CancellationTokenSource/WaitHandle/GC 句柄三件套释放壳，rust 监视器以 Arc 共享 + Drop
+    析构承接（wmetric/src/garnet_server_monitor.rs），无常驻
+    线程句柄手工注销面；SystemMetrics.GetPerformanceInfo 为 psapi.dll 的 Windows P/Invoke
+    声明（微软平台绑定面），rust 以 /proc 等价读取承接 其余指标（wmetric/src/system_metrics.rs 头注明示），该
+    API 声明不转写

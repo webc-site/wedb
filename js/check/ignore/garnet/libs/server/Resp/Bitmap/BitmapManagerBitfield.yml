@@ -1,0 +1,22 @@
+# zcode-r21-wbitmap 孤儿导出面收口（task/ing/zcode-r21-wbitmap.md）：
+# C# BitFieldExecute_RO 只读签名壳的转写版（wbitmap/src/bitfield/execute.rs）
+# crate 内外生产零调用，已删导出面；位域回读对拍用例改直调同核 get_bitfield。
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:
+        - BitFieldExecute_RO
+  理由: >-
+    rust 会话层单点实现，全量版无生产消费。BITFIELD_RO 子命令在会话层
+    （wnode/src/resp/bitmap/bitmap_commands.rs 与 basic_commands/slow.rs）走写签名
+    bit_field_execute 的 GET 臂，与只读壳共用 get_bitfield 位域读核；只读壳是第二
+    载体，删除不损失行为覆盖。
+# wbitmap 导出面残余（task/ing/wbitmap-length-from-type-orphan-and-islargeenoughfortype.md）：
+# C# IsLargeEnoughForType 仅在存储侧 RMWMethods.cs:612 调用，服务于 BITFIELD 预 sizing。
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:
+        - IsLargeEnoughForType
+  理由: >-
+    有意改道而非漏接（逐调用点亲验）：C# IsLargeEnoughForType 为 LengthFromType(args) <= vlen，
+    仅在存储侧 RMWMethods.cs 用于 BITFIELD 预判长短。rust 无该存储侧预 sizing 设计，
+    BITFIELD 整体改道在会话层/慢路径通过 new_block_alloc_length_from_type
+    （wnode/src/resp/bitmap/bitmap_commands.rs 与 basic_commands/slow.rs）单源判定并扩容，
+    无需另立独立判定函数。

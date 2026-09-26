@@ -1,0 +1,33 @@
+//! 存储引擎底层分层测试聚合（CRUD / 防御语义 / 刷盘驱逐 / 按库清空 / 跨库交换 / 复活与读缓存 / 链首脱钩门归池复核 / 零拷贝批量读 / 碰撞链 / RangeIndex 会话层 / 分层排空信封墓碑 / 启动重建就绪门禁 / 扩容迁移窗会话读写分裂协同回归 / 扩容迁移窗读缓存驱逐双表并洗回归）
+
+mod batch_epoch_pin;
+mod batch_prefix;
+mod cold_tenant_lazy_load;
+mod cold_tree_recycle;
+mod coldread_recheck_budget;
+mod collision_chain;
+mod concurrent_flush;
+mod consistent_read;
+mod crud;
+mod dbmeta_layout;
+mod defense;
+mod elide_gate;
+mod flush_database;
+mod flush_evict;
+mod range_index;
+mod rc_grow_eviction;
+mod read_cache;
+mod rename_semantics;
+mod resize;
+mod reviv;
+mod reviv_pause_drain;
+mod reviv_selfdl_guard;
+mod reviv_watermark;
+mod rmw_window_sorted;
+mod session_split_latch;
+mod swap_database;
+mod tiered_drain_envelope;
+mod tree_cache_budget;
+mod tree_stripe_latch_fuse;
+mod ttl_gate_resize;
+mod vdb_rebuild_gate;

@@ -1,0 +1,14 @@
+# 移植残留死口（task/ing/wtxn-remove-watch-dead.md）：
+# C# WatchedKeysContainer.RemoveWatch（libs/server/Transaction/TxnWatchedKeysContainer.cs:46）
+# 在 garnet 全仓（含 test）零调用方，UNWATCH 在 C# 侧同样走 Reset
+# （RespServerSession 的 UNWATCH 路径调用 watchContainer.Reset），
+# 逐键取消监视的语义在两侧都不存在。rust 曾按 API 形状照抄一份
+# remove_watch，仅测试消费，生产 UNWATCH 走 watch_container.reset()
+# （wedb/wnode/src/resp/txn_resp_commands.rs），与 write_shard_channels
+# 的「两边都没人用」判定同口径，故删除 rust 侧实现，不为映射 C# 保留死口。
+- 文件:
+    - libs/server/Transaction/TxnWatchedKeysContainer.cs:
+        - RemoveWatch
+  理由: C# 同名 API 亦无消费者（全仓含 test 零调用），UNWATCH 两侧均走 Reset，
+    不移植；rust 侧 remove_watch 及其测试一并删除，WATCH 语义只保留
+    add_watch 与 reset 单点机制。

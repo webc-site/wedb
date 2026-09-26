@@ -1,0 +1,23 @@
+//! 集成测试子模块聚合（由 main.rs 以 `mod suite;` 挂载，避免各文件被 Cargo 识别为独立测试二进制）
+#[cfg(feature = "pool")]
+pub mod align;
+#[cfg(feature = "pool")]
+pub mod aligned_buf;
+#[cfg(feature = "future")]
+pub mod future;
+#[cfg(feature = "group-commit")]
+pub mod group_commit;
+#[cfg(feature = "pool")]
+pub mod pool_budget;
+#[cfg(feature = "pool")]
+pub mod pool_cross_thread;
+#[cfg(feature = "pool")]
+pub mod pool_get_return;
+#[cfg(feature = "pool")]
+pub mod pool_ladder;
+#[cfg(feature = "pool")]
+pub mod pool_limited;
+#[cfg(feature = "pool")]
+pub mod pool_stress;
+#[cfg(feature = "pool")]
+pub mod throttle;

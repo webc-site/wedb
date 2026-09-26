@@ -1,0 +1,28 @@
+[package]
+name = "wmetric"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wmetric"
+description = "Metrics, statistics, and slowlog container for wedb"
+keywords = ["metrics", "telemetry", "slowlog", "latency", "statistics"]
+
+[lints]
+workspace = true
+
+[dependencies]
+hdrhistogram = "7"
+itoa.workspace = true
+log.workspace = true
+num_enum.workspace = true
+parking_lot = { workspace = true, features = ["arc_lock"] }
+strum = { workspace = true, features = ["derive"] }
+wbase = { workspace = true, features = ["convert", "num", "time"] }
+wresp.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true
+wbase = { workspace = true, features = ["future", "pool"] }

@@ -1,0 +1,42 @@
+[package]
+name = "wconn"
+version = "0.1.2"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wconn"
+description = "Network connection and session management: RESP protocol parser and client API"
+keywords = ["network", "connection", "session", "resp"]
+categories = ["network-programming", "database-implementations"]
+
+[features]
+default = []
+tls = ["dep:wtls"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
+crossfire.workspace = true
+event-listener.workspace = true
+itoa.workspace = true
+log.workspace = true
+strum = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+wbase = { workspace = true, features = ["endpoint", "pool", "primed"] }
+wtls = { workspace = true, optional = true }
+wresp.workspace = true
+zmij.workspace = true
+
+[dev-dependencies]
+aok.workspace = true
+compio = { workspace = true, features = ["macros", "runtime"] }
+ctor.workspace = true
+log_init.workspace = true
+tempfile.workspace = true
+
+
+[lints]
+workspace = true

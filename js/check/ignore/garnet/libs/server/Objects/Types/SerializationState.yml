@@ -1,0 +1,17 @@
+# 集合对象层收尾（SerializationState.cs:Make）。取证：C# SerializationState 是
+# Tsavorite HeapObjectBase 序列化相位状态机（REST/SERIALIZING/SERIALIZED，
+# libs/server/Objects/Types/SerializationPhase.cs）的 4B「相位 + int」缓存结构体；
+# 全仓 grep 零消费点——引用仅其自身定义文件，HeapObjectBase 实际自持
+# serializationPhaseInt 字段（libs/storage/Tsavorite/cs/src/core/Allocator/
+# HeapObjectBase.cs:21）不经此结构体，C# 本身即死码。rust 侧对象信封按需
+# bitcode 编解码（wcol/src/object_payload.rs obj_encode/obj_decode 单点），
+# 序列化相位缓存机制已随 HeapObjectBase 整档判定不转写
+# （js/check/ignore/storage.yml HeapObjectBase.cs 条目：rust 信封无堆对象
+# 继承树与序列化缓存状态机），无对位物可挂。
+- 文件:
+    - libs/server/Objects/Types/SerializationState.cs:
+        - Make
+  理由: >-
+    C# 全仓零消费死码（序列化相位状态机的缓存结构体，HeapObjectBase 实际
+    自持 serializationPhaseInt 不经此体）；rust 信封按需 bitcode 编解码，
+    无相位状态机，该机制已随 HeapObjectBase 档判定不转写

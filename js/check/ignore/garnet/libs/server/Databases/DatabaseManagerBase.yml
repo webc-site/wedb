@@ -1,0 +1,38 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# DatabaseManagerBase.StartSizeTrackers 是各管理器共用的追踪器启动聚合基类方法，遍历
+# 各库调 CacheSizeTracker.Start；rust 无 LogSizeTracker 对位（详见 SizeTracker/CacheSizeTracker.yml），
+# 追踪器判定不移植后本入口无对应实现。
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，基类的追踪器启动聚合入口 StartSizeTrackers 随之移除。
+
+# DatabaseManagerBase.Dispose / Clone 为抽象声明，实现在 Single/Multi 双轨；
+# rust 折叠单管理器（SingleDatabaseManager）后两者均无对位：
+# - Dispose：管理器持有的 Store/AOF/设备皆为 Arc 共享句柄，停机收尾由
+#   WedbStore / GarnetAppendOnlyFile 各自 Drop（引用计数归零）承接，
+#   wnode StorageSessionProvider::from_parts 装配面无显式 teardown 链；
+# - Clone(enableAof)：C# 唯一调用方是 StoreWrapper 拷贝构造（StoreWrapper.cs:321，
+#   为集群 worker 复制管理器并按 recordToAof 换 AOF 挂载）；rust 单管理器
+#   以 Arc<SingleDatabaseManager> 共享、AOF 挂载为构造期定值（db.aof 缺位
+#   即禁用态），副本引擎重开走 StoreSwapSlot 置换，无需浅拷贝第二实例。
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - Dispose
+        - Clone
+  理由: >-
+    rust 所有权模型：管理器资源由 Arc/Drop 承接无显式 Dispose；Clone 仅服务
+    C# StoreWrapper 拷贝构造的 worker 复制形态，rust 单管理器 Arc 共享 +
+    存储槽置换承接，无第二实例需求。
+
+# DatabaseManagerBase.EnqueueCommit（abstract 声明）：同 IDatabaseManager.EnqueueCommit
+# 条目——rust 提交标记通道经 boot.rs StoreCommitFn 闭包绑 GarnetLog::enqueue_database_commit
+# 单轨承接，基类抽象声明在 rust 折叠单管理器形态下无独立落点；曾转写的同名残桩
+# （签名名实背离、全仓零调用）已删除。
+- 文件:
+    - libs/server/Databases/DatabaseManagerBase.cs:
+        - EnqueueCommit
+  理由: >-
+    abstract 声明随 rust 单轨折叠（同 Dispose/Clone 先例）消亡，真通道已在
+    store_commit 装配面文档化，不另设第二入口。

@@ -1,0 +1,52 @@
+# ObjectSerialization 子域（C# 对象日志专用序列化缓冲）缺失符号甄别
+# （fixloop tsavorite-core-miss）。rust 架构性消除：集合对象以 wcol 信封内联
+# 主日志（bitcode 编码），无独立对象日志，故无对象日志读写缓冲器族。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedObjectSerializer.cs:
+        - Drain
+        - Flush
+        - Read
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogWriter.cs:
+        - DoSerialize
+        - Read
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogReader.cs:
+        - Read
+        - Dispose
+  理由: >-
+    C# 对象日志的分块序列化器与读写器（大对象跨 chunk 写/读、后台线程 DoSerialize
+    消费）；rust 对象信封整包内联单条记录（whlog 单页容量即上限，升阶走 wbftree
+    按成员入表），编码用 bitcode 一趟直编（wcol serialize_to_vec），无分块流与
+    后台序列化线程。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs:
+        - Initialize
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskWriteBuffer.cs:
+        - Dispose
+  理由: >-
+    C# 对象日志专用磁盘读写环形缓冲（手动池化复用）；rust I/O 缓冲统一由 wbase
+    BufferPool 池化 AlignedBuf 承担（OriginReturn 三级缓存全量对标），设备写入
+    走 Device::flush_range_aligned 扇区圆整内核，无专用环形缓冲类。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IStreamBuffer.cs:
+        - Read
+  理由: >-
+    C# 冷读流式缓冲推进接口（DefaultInitialIORecordSize 探针语义的载体）；rust
+    whlog read_disk_record 以 DISK_READ_PROBE_LEN 探针读 + 物理尺寸精确二次读
+    内联同等语义（whlog/src/hlog/io.rs），无缓冲流接口层。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/PinnedMemoryStream.cs:
+        - Dispose
+        - Flush
+        - FlushAsync
+        - Read
+        - ReadAsync
+        - WriteAsync
+  理由: >-
+    C# GC pin 的固定内存流（checkpoint 序列化缓冲流）；rust 无 GC、序列化经
+    bitcode 直编 Vec，持久化缓冲为池化 AlignedBuf，无内存流抽象。

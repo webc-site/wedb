@@ -1,0 +1,35 @@
+[package]
+name = "wtls"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wtls"
+description = "TLS transport layer over rustls: cert loading, server/client config, stream IO"
+keywords = ["tls", "rustls", "network", "security"]
+categories = ["network-programming", "cryptography"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
+rcgen = "0.14.10"
+tempfile.workspace = true
+time = { version = "0.3.55", features = ["parsing"] }
+
+[dependencies]
+arc-swap.workspace = true
+compio = { workspace = true, features = ["net", "io", "runtime", "time"] }
+compio-tls = { workspace = true, default-features = false, features = ["rustls", "ring"] }
+futures-util = { workspace = true, features = ["bilock", "io", "std", "unstable"] }
+log = { workspace = true, features = ["std"] }
+parking_lot.workspace = true
+rustls-pemfile.workspace = true
+wbase = { workspace = true, features = ["primed"] }
+webpki-roots = "1"
+
+
+[lints]
+workspace = true

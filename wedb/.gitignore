@@ -1,0 +1,4 @@
+.codegraph/
+node_modules/
+target/
+check*.log

@@ -1,0 +1,28 @@
+[package]
+name = "whasher"
+version = "0.1.9"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/whasher"
+description = "Hardware-accelerated byte hashing and streaming checksums"
+keywords = ["hash", "gxhash", "checksum", "streaming", "hasher"]
+categories = [ "algorithms" ]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+gxhash = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+
+[lints]
+workspace = true

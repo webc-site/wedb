@@ -1,0 +1,9 @@
+# 随 TaskManager 注册表一并移除判定（fixloop task-manager-single-lifecycle-track）。
+# 任务类型/放置类别是注册表托管面的专属类型域，rust 侧无注册表即无消费者；
+# Primary 类约束语义（仅主角色运行）由 wnode::primary_tasks 域文档与角色位承接。
+# 判定依据同 TaskManager.yml。
+- 文件:
+    - libs/server/TaskManager/TaskType.cs
+  理由: >-
+    注册表专属类型域，随 TaskManager 判定不移植一并移除；Primary/Replica 类别语义
+    由 primary_tasks 角色位承接，见 task/done/task-manager-single-lifecycle-track.md。

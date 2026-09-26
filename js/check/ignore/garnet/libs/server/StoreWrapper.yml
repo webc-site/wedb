@@ -1,0 +1,11 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# StoreWrapper.StartSizeTrackers（:843）转发 databaseManager.StartSizeTrackers，
+# 并在 :72 暴露 sizeTracker 属性；二者均为 CacheSizeTracker 的对外启动/读取面。
+# rust 判定不移植追踪器（无 Tsavorite LogSizeTracker 对位，内存压力由 wcol 分层迟滞
+# 承接，详见 Storage/SizeTracker/CacheSizeTracker.yml），故本启动转发方法移除。
+- 文件:
+    - libs/server/StoreWrapper.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，StoreWrapper 对其启动的转发方法随之移除；
+    sizeTracker 属性同为该追踪器的暴露面，随整类一并移除。

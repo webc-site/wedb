@@ -1,0 +1,13 @@
+# rust 存储会话不设转发包装：会话计数与 pending 延迟计时均为共享句柄直写
+# （命中/pending 计数漏斗在 StorageSession::record_read_outcome 与
+# with_pending_metrics；PENDING_LAT 起停表同在 with_pending_metrics，延迟表由
+# RespServerSession 装配期回挂存储执行域，见该函数文档注释）
+- 文件:
+    - libs/server/Storage/Session/Metrics.cs:
+        - incr_session_notfound
+        - incr_session_pending
+  理由: C# 存储会话指标分部类是 sessionMetrics 转发的逐方法薄壳；rust 收口为
+    共享句柄直写（incr_session_notfound 由 record_read_outcome 未命中臂承接、
+    incr_session_pending 由 with_pending_metrics 承接 StartPendingMetrics 同一
+    映射），StartPendingMetrics 与 StopPendingMetrics 的计数加延迟起停两段语义
+    由 with_pending_metrics 一处承接，转发壳删除

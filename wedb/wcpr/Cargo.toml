@@ -1,0 +1,46 @@
+[package]
+name = "wcpr"
+version = "0.1.4"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wcpr"
+description = "Concurrent Prefix Recovery checkpoints for hybrid-log stores"
+keywords = ["checkpoint", "recovery", "cpr", "storage-engine", "persistence"]
+categories = ["database-implementations", "asynchronous", "concurrency", "filesystem", "caching"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bitcode = { workspace = true }
+wbase = { workspace = true, features = ["base32", "crc", "time"] }
+itoa = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+wdev = { workspace = true }
+wepoch = { workspace = true }
+whlog = { workspace = true }
+windex = { workspace = true }
+parking_lot.workspace = true
+event-listener.workspace = true
+fastrand.workspace = true
+gxhash.workspace = true
+
+[dependencies.compio]
+workspace = true
+features = ["fs", "io", "runtime", "time"]
+
+[dev-dependencies]
+aok = { workspace = true }
+compio = { workspace = true, features = ["macros", "runtime"] }
+ctor = { workspace = true }
+log_init = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

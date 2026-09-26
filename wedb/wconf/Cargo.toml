@@ -1,0 +1,28 @@
+[package]
+name = "wconf"
+version = "0.1.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wconf"
+description = "Configuration options and runtime server configuration for wedb"
+keywords = ["config", "settings", "runtime-configuration", "garnet", "database"]
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags.workspace = true
+clap.workspace = true
+itoa.workspace = true
+log.workspace = true
+num_enum.workspace = true
+strum = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+toml-spanner = { version = "1.0.3", features = ["derive", "to-toml", "from-toml"] }
+wbase = { workspace = true, features = ["cfg", "endpoint"] }
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+log_init.workspace = true

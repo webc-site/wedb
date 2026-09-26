@@ -1,0 +1,19 @@
+name: regress test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "regress/**"
+  pull_request:
+    paths:
+      - "regress/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/rust-test.yml
+    with:
+      dir: regress

@@ -1,0 +1,26 @@
+# 三段式事务过程与提升守卫死代码清理（task/ing/wtxn-drop-dead-txn-proc-chain.md）：
+# 1. PromoteToTransaction: C# 用于 SET 族 WRONGTYPE 覆写原子化，rust 不靠提升守卫，
+#    由 wkv session raw write 同窗读改写清退承接，生产全仓零调用。
+# 2. RunTransactionProc / RunTransactionProcInternal / Log: 动态注册层按 SKILL 删除致链不可达；
+#    三段式事务过程机器全仓生产零调用，彻底清理死链。
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - Log
+        - PromoteToTransaction
+        - RunTransactionProc
+        - RunTransactionProcInternal
+  理由: 动态注册层按 SKILL 删除致链不可达；WRONGTYPE 原子化由 wkv 同窗清退单点承接。
+# 内部事务提升机器余口：TransactionGuard.Dispose 与复数形 AddTransactionStoreTypes
+- 文件:
+    - libs/server/Transaction/TransactionManager.cs:
+        - Dispose
+        - AddTransactionStoreTypes
+  理由: 内部事务提升机器无 rust 对应面。Dispose 是 TransactionGuard 的 RAII 提交口，
+    该守卫仅服务于 PromoteToTransaction（上条已清理），rust 生命周期由
+    TransactionManager::commit / reset 显式收尾承接，无守卫形态。
+    AddTransactionStoreTypes 复数形仅被 ops 层内联提升段（SMOVE / LCS 等
+    AddTransactionStoreTypes + SaveKeyEntryToLock + Run(true)，及 PromoteToTransaction
+    自身）消费；rust 侧这些命令改由 wkv 同窗读改写 + 写回倒序幂等重放承接，无内部
+    事务打包（见 wnode/src/resp/objects/set_commands/write.rs SetMove 写回序注释）。
+    单数 AddTransactionStoreType 由 LockKeys / WATCH 路径保留
+    （wtxn/src/transaction_manager.rs 已锚 AddTransactionStoreType）。

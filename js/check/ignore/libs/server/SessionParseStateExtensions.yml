@@ -1,0 +1,6 @@
+- 理由: TryGetGeoDistanceUnit 活跃实现为 wcol parse_utils 的
+    try_get_geo_distance_unit（GEOADD/GEOSEARCH 族消费）；wnode 解析态扩展域
+    的重复死入口 geo_distance_unit 零调用删除，一处定义
+  文件:
+    - libs/server/SessionParseStateExtensions.cs:
+        - TryGetGeoDistanceUnit

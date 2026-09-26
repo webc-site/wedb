@@ -1,0 +1,29 @@
+# C# StorageSession 主存字符串包装：GETDEL(:190)/APPEND(:459)/SETRANGE(:504)/
+# Increment(:524) 只是把 RespServerSession 已组好的 StringInput 转交
+# MainStore/RMWMethods.cs 的 per-command switch；rust 侧同名命令的唯一实现落在
+# 命令层（resp/key_admin_commands/keys.rs:130 GETDEL、resp/basic_commands/set.rs:229
+# SETRANGE、:607 APPEND、resp/basic_commands/incr.rs INCRBYFLOAT，经 raw 快表
+# C::* 臂直调 wkv 会话原语），mainstore/main_store_ops.rs 的 getdel/append/setrange 与
+# advanced_ops.rs 的 increment_by_float 除 AOF 死臂与单测外全仓零调用，
+# 属第二套手写实现，随 aof_processor StoreRMW 死臂清理同批删除、不留兼容壳
+- 文件:
+    - libs/server/Storage/Session/MainStore/MainStoreOps.cs:
+        - GETDEL
+        - APPEND
+        - SETRANGE
+        - Increment
+  理由: >-
+    无需实现。命令层唯一实现已覆盖四方法的净效果，且写侧值写 + TtlWrite 旁路镜像
+    漏斗（wkv/src/session/raw/mod.rs:177 notify_write_listener）只向 AOF 产
+    StoreUpsert/StoreDelete/StoreRMW 绝对形态，会话层再设手写包装即双口径来源
+
+# C# MainStoreOps.SCAN（:577）本体即恒返 GarnetStatus.OK 的死桩——无任何实现体，
+# 真实 SCAN 语义在 RespServerSession.NetworkSCAN → StorageSession.DbScan
+#（ArrayKeyIterationFunctions.cs:DbScan，游标推进 + MATCH/TYPE 过滤）。rust 对应
+# network_scan（resp/array_commands.rs，parse_scan_filter 校验单源）+ 键枚举单点
+#（DbScan 锚点已挂 storage/session/common/array_key_iteration_functions.rs）。
+- 文件:
+    - libs/server/Storage/Session/MainStore/MainStoreOps.cs:
+        - SCAN
+  理由: C# 本体为恒返 OK 的死方法（`=> GarnetStatus.OK;`），无行为可转写；SCAN
+    真实执行链由 DbScan 承接且锚点已挂，rust 不复制死桩

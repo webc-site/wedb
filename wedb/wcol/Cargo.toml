@@ -1,0 +1,41 @@
+[package]
+name = "wcol"
+version = "0.1.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wcol"
+description = "Collection objects (list/set/hash/zset/geo) and BfTree range-index operator layer for wedb"
+keywords = ["collections", "list", "set", "hash", "zset"]
+categories = ["data-structures", "database-implementations"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+wbase = { workspace = true, features = ["convert", "future", "glob", "map", "num", "supervise", "time"] }
+wval.workspace = true
+wresp.workspace = true
+parking_lot.workspace = true
+bitflags.workspace = true
+zmij.workspace = true
+itoa.workspace = true
+crossfire.workspace = true
+compio = { workspace = true, features = ["time"] }
+event-listener.workspace = true
+bitcode.workspace = true
+fastrand.workspace = true
+strum = { workspace = true, features = ["derive"] }
+arc-swap.workspace = true
+
+
+[dev-dependencies]
+aok.workspace = true
+compio = { workspace = true, features = ["macros", "runtime"] }

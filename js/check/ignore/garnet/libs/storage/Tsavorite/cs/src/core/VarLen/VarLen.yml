@@ -1,0 +1,48 @@
+# VarLen 域缺失符号甄别（fixloop tsavorite-core-miss）。
+# 判定原则：C# VarLen 系为 GC pin 场景的固定内存视图/容器；rust 无 GC，wrecord
+# RecordRef 借用切片 + wbase AlignedBuf RAII + bitcode 编码承担。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs:
+        - Set
+        - AsRef
+        - ToString
+        - Equals
+        - SerializeTo
+        - CopyTo
+  理由: >-
+    C# PinnedSpanByte 为固定指针的 SpanByte 可变视图（pin 句柄随视图生命周期）；
+    rust 无 GC 无 pin，读取以 wrecord RecordRef 借用切片（key()/value()，
+    wrecord/src/record_ref.rs）承担，写入经 record_mut 原位更新原语，序列化经
+    encode_to_slice（wrecord/src/codec.rs）单趟直编，Set/AsRef/ToString/Equals/
+    SerializeTo/CopyTo 随切片语义消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/BorrowedMemoryOwner.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/VarLen/UnmanagedMemoryManager.cs:
+        - Dispose
+  理由: >-
+    C# 拷贝输出的内存租约与非托管 pin 管理器（IDisposable 释放 pin 句柄）；
+    rust 输出为拥有所有权的 RecordOutput（whlog/src/output.rs，池化缓冲 RAII
+    归还），无租约/pin 管理面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteAndMemory.cs:
+        - Dispose
+  理由: >-
+    C# SpanByte（原地）或 Memory（堆拷贝）联合输出类型的资源释放；rust
+    RecordOutput::{Memory,Disk} 枚举（whlog/src/output.rs）拥有数据，RAII
+    自动归还，无 Dispose 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteFunctions.cs:
+        - Reader
+  理由: >-
+    C# 对象日志读取回调（IHeapObject 反序列化构造输出）；rust 对象以信封内联
+    （KeyTag::ObjectEnvelope），读路径 wkv session read 零反序列化直出切片，
+    无对象 Reader 回调面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteHeapContainer.cs:
+        - Initialize
+        - Get
+        - Dispose
+  理由: >-
+    C# checkpoint 对象序列化的堆容器（临时持有序列化输出）；rust checkpoint
+    序列化经 bitcode 直编 Vec（wcol serialize_to_vec），无中间容器类型。

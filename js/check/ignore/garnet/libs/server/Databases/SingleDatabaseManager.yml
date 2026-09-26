@@ -1,0 +1,35 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# SingleDatabaseManager.StartSizeTrackers 调 db.size_tracker.Start，启动主日志/读缓存
+# 内存预算裁剪；rust 无对位件（详见 SizeTracker/CacheSizeTracker.yml），曾转写的
+# start_size_trackers 仅剩 size_tracker.restart() 翻转标志、全仓零调用方，随追踪器删除。
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，其启动入口 StartSizeTrackers 随之移除。
+
+# SingleDatabaseManager.Dispose / Clone 为 C# 双轨实现层的两符号：
+# - Dispose：管理器持有字段皆 Arc 句柄（db / base / 注入门），停机收尾由
+#   WedbStore / GarnetAppendOnlyFile 各自 Drop（引用计数归零）承接，无显式
+#   teardown 面（同 DatabaseManagerBase.Dispose）；
+# - Clone(enableAof)：C# 仅为 StoreWrapper 拷贝构造服务，rust 单管理器 Arc
+#   共享、AOF 构造期定值，无第二实例需求（同 IDatabaseManager.Clone）。
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - Dispose
+        - Clone
+  理由: >-
+    rust 所有权模型：资源收尾由 Arc/Drop 承接无显式 Dispose；Clone 随
+    StoreWrapper 拷贝构造形态一并消亡，单管理器 Arc 共享无复制需求。
+
+# SingleDatabaseManager.EnqueueCommit：C# 落点（SingleDatabaseManager.cs:305-309）
+# 入队提交标记；rust 提交标记面为 StoreCommitFn 闭包通道（boot.rs 装配绑
+# GarnetLog::enqueue_database_commit），曾转写的 rust enqueue_commit(until: u64)
+# 系名实背离孤儿残桩（实现写死 last_save_store_tail_address 死字段、全仓零
+# 调用，C# 该链路绝口不碰此字段），已随 full 检查点残桩清退票删除。
+- 文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - EnqueueCommit
+  理由: >-
+    提交标记入队的 rust 单轨对位在 boot.rs 闭包装配 + GarnetLog 落帧，
+    Single 落点面无独立映射，残桩删除后登记消亡。

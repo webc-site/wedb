@@ -1,0 +1,20 @@
+# C# SubscribeBroker 以 TsavoriteLog 专日志为待投递介质：Publish 入队 aof、
+# 常驻 StartAsync 后台迭代器回调解码 Consume -> Broadcast 分发（Initialize
+# 首次订阅时 Task.Run 拉起）。rust 无该磁盘日志介质，发布路径（本地
+# NetworkPUBLISH 与集群接收端 NetworkClusterPublish）统一收敛为
+# publish_now / publish_shard_now 同步直投至订阅会话 PubSubMailbox 邮箱
+# （对标 C# PublishNow，wedb/wpubsub/src/subscribe_broker.rs），异步介质面
+# 及其宿主消费驱动整体不落地（wpubsub-cluster-publish-unconsumed-pending-
+# queue-drop：原伪异步 pending_queue 无常驻消费者，跨节点消息静默滞留且
+# 无界膨胀，已随队列删除）。
+- 文件:
+    - libs/server/PubSub/SubscribeBroker.cs:
+        - Publish
+        - StartAsync
+        - Consume
+        - Initialize
+  理由: >-
+    Rust PubSub 无 TsavoriteLog 磁盘持久化队列，全部发布路径统一收敛为
+    publish_now / publish_shard_now 无锁内存字典直投至会话 PubSubMailbox；
+    C# Publish/StartAsync/Consume/Initialize 属专日志异步介质面及其常驻
+    消费循环装配，Rust 无对应介质不转写。

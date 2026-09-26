@@ -1,0 +1,11 @@
+# UnifiedOutput.Dispose（C# :40-43）：释放 SpanByteAndMemory 持有的非托管
+# 内存（Tsavorite 输出载体，堆侧 IMemoryOwner 须显式归还）。rust 无该结构：
+# wkv/wnode 读路径统一为托管缓冲（Vec / &[] 切片视图 + 闭包只读 API，
+# doc/zh/transpile「读路径借用零拷贝」），输出字节直接写会话输出缓冲，
+# 内存随缓冲自身释放，不存在非托管输出载荷与显式释放面。
+- 文件:
+    - libs/server/UnifiedOutput.cs:
+        - Dispose
+  理由: >-
+    UnifiedOutput 为 Tsavorite SpanByteAndMemory 非托管输出载体的释放壳；
+    rust 读路径托管缓冲与借用零拷贝下无该结构，Dispose 无可映射面。

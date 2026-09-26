@@ -1,0 +1,51 @@
+# ClientSession 域架构性消除登记（fixloop tsavorite-client-index-anchor）：
+# C# 该目录是 ITsavoriteContext 多态上下文层（BasicContext/UnsafeContext/
+# TransactionalContext/TransactionalUnsafeContext/TransactionalConsistentReadContext
+# 五态 × IUnsafeContext/ITsavoriteContext 接口）+ SessionFunctionsWrapper 回调包装 +
+# NoOpSessionFunctions 空回调集。rust 侧以具体类型 StoreSession 单点承接：
+# 读写删改 RMW 挂在 wkv/src/session/raw/*（Read/Upsert/Delete/RMW/ReadAtAddress/
+# ContainsKeyInMemory/Refresh/BeginUnsafe/UnsafeSuspendThread/Compact/GetKeyHash
+# 均已按变体逐一补锚，见各 rust 单点）；本文件只登记被架构消除的机制面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs:
+        - Dispose
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs:
+        - CompletePending
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs:
+        - CompletePending
+  理由: >-
+    CompletePending 家族排空租约式 pending I/O 上下文（C# 异步多线程 IO 完成端口
+    模型，操作可半途挂起待 CompletePending 收割）；rust 为 compio 单线程 reactor
+    thread-per-core 模型，冷读在调用点内联 await 闭环（read_raw_with_reader 的
+    read_from_disk 即终点），全仓不存在 pending 队列与收割面，机制性消除。
+    ClientSession.Dispose 同为会话释放协议，rust StoreSession 为轻量借用句柄，
+    纪元参与者注销由 wepoch Participant 注册面在 Drop 链承接，无独立 Dispose。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs:
+        - Reader
+        - InPlaceUpdater
+  理由: >-
+    SessionFunctionsWrapper 是 ISessionFunctions 回调集的纪元/事务包装层；rust
+    消灭回调虚表：读侧为 RecordRead trait 闭包（raw/read.rs，一致读前置后置见
+    consistent_read.rs），写侧为 updater/copy 闭包直传 whlog/wkv 内核，包装层无
+    对应物（锁表句柄下发见 wnode/resp/session_dependencies.rs 对该文件 :30 的
+    既有对标）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/ClientSession/NoOpSessionFunctions.cs:
+        - InPlaceUpdater
+        - Reader
+  理由: >-
+    NoOp 空回调集仅服务于 C# 紧缩扫描会话（CompactScan 用 tempKv + NoOp 会话
+    逐条搬运）；rust 紧缩（wcompact compact_scan）以候选元数据表取代临时 KV，
+    记录按地址直读直迁，不存在会话回调注入位，空回调集随之消除。

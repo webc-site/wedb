@@ -1,0 +1,259 @@
+# Index 域（CheckpointManagement/Checkpointing/Common/Interfaces/Recovery/
+# StoreFunctions/Tsavorite 及 Implementation/Locking/Revivification）缺失符号甄别
+# 登记（fixloop tsavorite-client-index-anchor）。原则：已有等价实现的已直接补锚
+# （见 wkv/windex/wreviv/whlog/wbase/wtxn/wcpr/wcompact 各挂点），本文件只登记
+# 平台机制差异、RAII 取代 Dispose、回调接口被闭包/trait 消除、tree-sitter 降级
+# 词法提取伪影四类。
+# --- CheckpointManagement ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs:
+        - Commit
+        - Dispose
+        - ReadInto
+  理由: >-
+    Commit（元数据写 + 提交点）/ReadInto（读入元数据）在 wcpr 折叠为
+    CheckpointMeta::encode/decode（已挂 RecoveryInfo.cs 对应锚）+ create.rs 末段
+    原子 rename 发布；rust 单 token 单 meta 文件模型消灭 C# 的多设备分管提交面。
+    Dispose 由 RAII/函数作用域承接。Purge/PurgeAll 已补锚（manager/mod.rs）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactory.cs:
+        - Get
+        - Delete
+    - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactory.cs:
+        - Get
+        - Delete
+    - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactory.cs:
+        - Delete
+        - Get
+        - Initialize
+  理由: >-
+    IDevice/INamedDeviceFactory 设备工厂抽象层不转写：rust 检查点文件直接经
+    compio fs 路径读写（wcpr index_ckpt/batch、read），无设备接口多态（transpile
+    约定单 wdev SegmentedDevice 后端）；NullNamedDeviceFactory 仅服务 C# CompactScan
+    的 NullDevice 临时 KV，该临时 KV 已被 wcompact 候选表消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs:
+        - Dispose
+        - Reset
+  理由: >-
+    结构体实例重置/释放协议：rust CheckpointMeta 为纯值类型，恢复时整体重新构造，
+    Reset/Dispose 无对应物（Initialize/Checksum 已挂 decode/integrity_digest）。
+# --- Checkpointing ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateTransitions.cs:
+        - Copy
+        - GetHashCode
+  理由: >-
+    SystemState 转移记录的手写 Clone/Equals/GetHashCode 三件套；rust SystemState
+    以 #[derive(Clone, Copy, PartialEq, Eq)] + u64 字直接承接（wkv store/resize.rs
+    ResizePhase 及 wcpr 阶段推进），无逐字段手写体。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineDriver.cs:
+        - MakeTransitionWorker
+  理由: >-
+    C# 以 epoch.BumpCurrentEpoch 动作线程承载阶段转换（MakeTransitionWorker 在
+    他人线程上下文执行 GlobalAfterEnteringState）；rust 阶段推进在持闸门任务的
+    同一栈内顺序展开（create_checkpoint_inner / grow_index），无跨线程动作派发器。
+    TrackLastVersion 已补锚（wcpr create.rs wait_epoch_drain）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotTsavoriteKV.cs:
+        - Reader
+  理由: >-
+    流式快照（边扫 hlog 页边写快照文件的 cursor Reader 回调）不转写：rust 快照
+    为「索引镜像 bitcode 落盘 + 截断点前刷盘」的一致前缀模型（wcpr create.rs），
+    无流式快照会话与 cursor 回调面。
+# --- Common ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/CompletedOutput.cs:
+        - Dispose
+  理由: >-
+    CompletePending 收割的已完成输出容器（与 pending 机制同族）；rust 无 pending
+    队列，操作结果在调用点直接返回，容器不存在。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/ConcurrentCounter.cs:
+        - Increment
+  理由: >-
+    原子计数器薄包装；rust 直接用 std::sync::atomic 原生 AtomicU64/I64
+    fetch_add（whlog 水位、wreviv 计数均为原生原子量），不再封装计数类型。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/HeapContainer.cs:
+        - Get
+        - Initialize
+        - Dispose
+  理由: >-
+    pending I/O 期间堆上暂存 key/input 的容器及池化复用（消除 per-op 分配）；
+    rust 冷读内联 await、栈上缓冲复用（wcompact ScanCursor::buf 同模式），
+    堆容器与池化机制消除。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/KVSettings.cs:
+        - Dispose
+  理由: >-
+    KVSettings.Dispose 释放其持有的日志/对象设备；rust StoreConfig 为纯数据，
+    设备句柄由 WedbStore/WalLog Drop 统一关闭，配置对象不持有可释放资源。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs:
+        - AddressString
+  理由: >-
+    调试用地址格式化；rust 由 wbase::addr 常量（is_read_cache/to_absolute 已挂
+    锚）+ 调用点 {:#x} 格式化承接，无独立格式化函数。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/PendingState.cs:
+        - Dispose
+        - keys
+  理由: >-
+    在途 I/O 的 pending 载荷结构（与 CompletePending 同族机制）；rust 无 pending
+    面故整体消除。`keys` 为 tree-sitter 降级词法提取伪影（字段/局部名误提为
+    方法），非真实方法。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Common/SingleWaiterAutoResetEvent.cs:
+        - WaitAsync
+  理由: >-
+    单等待者自动复位事件原语；rust 由 compio 异步运行时原生设施承接：组提交等待
+    为 wbase::group_commit GroupCommitPipeline::wait（oneshot 通道），状态机屏障为
+    wcpr create.rs wait_epoch_drain 的 crossfire oneshot，无需自研事件类型。
+# --- Interfaces ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IReadArgBatch.cs:
+        - SetStatus
+  理由: >-
+    批量读参数批的逐项状态回写接口；rust 批量读（wkv session/raw/batch.rs，对标
+    ContextReadWithPrefetch）以返回值序收拢结果，无逐项可变状态槽。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctions.cs:
+        - Reader
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctionsWrapper.cs:
+        - Reader
+        - InPlaceUpdater
+        - UnsafeSuspendThread
+    - libs/storage/Tsavorite/cs/src/core/Index/Interfaces/SessionFunctionsBase.cs:
+        - Reader
+        - InPlaceUpdater
+  理由: >-
+    ISessionFunctions 宿主回调接口及其包装/基类层：rust 消灭回调虚表——读侧
+    RecordRead trait（wkv raw/read.rs，单态化静态分发），写侧闭包直传
+    （try_upsert_raw_sync/inplace 内核），一致读前/后置协议为 ConsistentReadFunctions
+    trait（consistent_read.rs 已挂锚）。UnsafeSuspendThread 见 wkv suspend_epoch。
+# --- Recovery ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs:
+        - Dispose
+        - Reset
+  理由: >-
+    Recovery 对象内部扫描缓冲/倒计时的释放与复位（多页异步恢复协调状态）；
+    rust 恢复为 run_recovery_kernel 单趟顺序扫描，局部缓冲随作用域消亡，
+    无跨调用可复位状态。RecoverHybridLogAsync/GetClosestHybridLogCheckpointInfo
+    已分别挂 recover.rs / manager/mod.rs。
+# --- StoreFunctions ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IStoreFunctions.cs:
+        - OnFlush
+        - OnDiskRead
+        - OnRecoverySnapshotRead
+        - PostCopyToTail
+        - OnTruncate
+  理由: >-
+    触发器聚合接口的透传声明（IStoreFunctions : IRecordTriggers 的接口继承面）；
+    rust 无 trait 继承聚合，五个触发点的行为契约直接落在 IRecordTriggers.cs 对应
+    挂点（OnFlush→wkv flush.rs on_flush_pages、OnDiskRead→raw/read.rs
+    read_from_disk、OnRecoverySnapshotRead→wcpr recover.rs run_recovery_kernel、
+    PostCopyToTail→wkv compact.rs append_record、OnTruncate→wkv store/addr.rs
+    after_truncate）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/StoreFunctions.cs:
+        - OnFlush
+        - OnDiskRead
+        - OnRecoverySnapshotRead
+        - PostCopyToTail
+        - OnTruncate
+  理由: >-
+    IStoreFunctions 的无操作默认实现（C# 靠空默认体让无宿主钩子的场景零开销）；
+    rust 触发面为枚举/闭包直挂（StoreEvent、on_flush_pages 等），未注册时零开销
+    跳过由调用点静态保证，不存在默认空实现类型。
+# --- Tsavorite ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs:
+        - Free
+        - Initialize
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs:
+        - Dispose
+        - Compact
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteIterator.cs:
+        - Dispose
+  理由: >-
+    引擎/访问器/迭代器三级 Dispose/Free 与 TsavoriteBase 构造聚合：rust 引擎
+    装配在 WedbStore::open（epoch/index/hlog/read_cache 一次性构造），释放统一由
+    WedbStore Drop 与 ScanIterator Drop 承接，无手写级联释放体。LogAccessor.Compact
+    为紧缩包装入口，rust 紧缩单点在 wcompact LogCompactor（TsavoriteKV.Compact
+    已挂 wkv compact.rs compact）。
+# --- Tsavorite/Implementation ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs:
+        - new
+  理由: >-
+    `new(StatusCode.Found)` 目标类型 new 表达式被降级词法兜底误提为方法名；
+    rust 侧 contains_key_raw 直接返回 bool，无 Status 结构构造面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs:
+        - if
+        - SetPhysicalAddress
+  理由: >-
+    该文件含 unsafe 指针文法，AST 降级后词法兜底把 `if (` 语句与调用点标识符
+    SetPhysicalAddress（真实声明在 RecordSource.cs）误提为方法名，属提取伪影；
+    rust 物理地址换算由 whlog with_memory_record/with_immutable_record 单点承接。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/RecordSource.cs:
+        - append
+        - Set
+  理由: >-
+    `append` 为 ToString 内局部函数（状态名拼接）误提，非方法；`Set` 是
+    RecordSource 中转结构「绑定源分配器 + 换算物理地址」的装填器，rust 无该
+    中转结构——地址换算折叠进 whlog with_*_record（读）与 TryCopyToTail 挂点
+    （写），两者均已挂锚。
+# --- Implementation/Locking ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/ILockTable.cs:
+        - IsLocked
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs:
+        - IsLocked
+        - Dispose
+  理由: >-
+    IsLocked(Shared/Exclusive) 在 C# 全仓仅 Debug.Assert 消费（ISessionLocker/
+    InternalRMW 断言面），rust 锁面由 windex 桶闩 + wtxn TxnLockTable 单向
+    try_lock/unlock 推进，无查询消费方故不设查询原语；Dispose 在 C# 亦为空体
+    （lock table 无托管资源），rust 无 IDisposable 面。TryLock/Unlock/Compare/
+    KeyHashComparer 已挂 wtxn/txn_lock_table.rs 与 txn_key_entry_comparison.rs。
+# --- Implementation/Revivification ---
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/CheckEmptyWorker.cs:
+        - Dispose
+  理由: >-
+    C# 后台空桶检查工作器的释放协议；rust 复活池以 wreviv active_count 严格计数
+    取代 isEmpty 标志与后台检查器（见 wreviv bin.rs take_first_fit 注），工作器
+    线程面不存在。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs:
+        - ToString
+        - GetSegmentStart
+        - Dispose
+  理由: >-
+    ToString 为诊断格式化（rust 由 pool stats()/Debug 承接）；GetSegmentStart 是
+    C# 多段式池（Segments × MallocFixedPageSize）的段内寻址算术，rust wreviv 池为
+    每桶定容槽位 Vec，无分段结构故原语不存在；Dispose 由池 Drop 承接。
+    TryTake/TryTakeFirstFit/TryAdd 已挂 wreviv pool.rs/bin.rs。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs:
+        - Dispose
+  理由: >-
+    管理器释放协议；rust 复活池为 WedbStore 内嵌 RevivPool 值，随引擎 Drop 释放，
+    无独立管理器对象。GetMinRevivifiableAddress/TryAdd/TryTake 已挂
+    wkv store/addr.rs 与 wreviv pool.rs。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs:
+        - Clone
+  理由: >-
+    设置对象克隆协议；rust RevivificationConfig 为 #[derive(Clone)] 纯数据
+    （wkv config.rs，Verify/RevivifiableFraction/DefaultRevivifiableFraction 已挂锚），
+    无手写克隆体。

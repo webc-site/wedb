@@ -1,0 +1,24 @@
+# lua 事务模式虚设链删除（task/done/lua-txn-mode-drop-placeholder.md）：
+# GarnetCallWithTransaction 是 C# txnMode 选下的事务化 redis.call trampoline
+# （LuaRunner.cs:265-272 与 GarnetCallNoTransaction 二选一注册），走
+# transactionalGarnetApi；随 lua 事务模式整链删除不转写。rust 侧
+# garnet_call 恒承 C# 默认非事务形态（GarnetCallNoTransaction，锚注在其上）。
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.cs:
+        - GarnetCallWithTransaction
+  理由: 事务形态 trampoline 依赖 TransactionalContext 内核（wedb 不存在），
+    模式已删不转写；非事务形态由 garnet_call 承接（GarnetCallNoTransaction
+    锚注）。
+
+# Rust 直调 LuaRunner 原生方法，无 C# UnmanagedCallersOnly 静态蹦床
+- 文件:
+    - libs/server/Lua/LuaRunner.Functions.cs:
+        - UnsafeCompileForRunner
+        - UnsafeCompileForSession
+        - UnsafeRunPreambleForRunner
+        - UnsafeRunPreambleForSession
+        - CompileForRunner
+        - CompileForSession
+        - RunPreambleForRunner
+        - RunPreambleForSession
+  理由: Rust 纯安全实现，宿主函数经 register_host_fn 直注册，无 FFI 蹦床层

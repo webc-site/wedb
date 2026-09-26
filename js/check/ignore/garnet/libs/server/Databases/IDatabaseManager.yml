@@ -1,0 +1,36 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# IDatabaseManager.StartSizeTrackers 用于在恢复后启动 CacheSizeTracker 的 Tsavorite
+# LogSizeTracker 裁剪循环；rust 无 LogSizeTracker 对位（内存压力由 wcol 分层迟滞承接，
+# 详见 SizeTracker/CacheSizeTracker.yml），曾按形状转写的 start_size_trackers 仅剩翻转
+# 停止标志、无真实预算与读数消费者，且全仓零调用方，随追踪器一并删除。
+- 文件:
+    - libs/server/Databases/IDatabaseManager.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植（无 Tsavorite LogSizeTracker 对位），trait 的
+    StartSizeTrackers 随之移除，不留虚设实现。
+
+# IDatabaseManager.Clone(enableAof)：浅拷贝管理器并按需换 AOF 挂载；C# 唯一
+# 调用方为 StoreWrapper 拷贝构造（StoreWrapper.cs:321）。rust 折叠单管理器
+# Arc 共享，AOF 挂载构造期定值，无第二实例需求（同 DatabaseManagerBase.Clone）。
+- 文件:
+    - libs/server/Databases/IDatabaseManager.cs:
+        - Clone
+  理由: >-
+    rust 单管理器 Arc 共享 + AOF 构造期定值，无 C# worker 复制形态的浅拷贝
+    需求，接口 Clone 无可映射面。
+
+# IDatabaseManager.EnqueueCommit：C# 提交标记入队通道（集群链，中继于
+# StoreWrapper.cs:EnqueueCommit）；rust 真对位早已另轨装配——boot.rs 将
+# StoreCommitFn 闭包绑到 GarnetLog::enqueue_database_commit（复制域检查点
+# 版本切换标记经 cluster_provider/traits.rs → replication_manager.rs 走此
+# 闭包落帧），StoreWrapper 中继面见 wbase/src/server/replication/store_commit.rs。
+# 曾按名转写的 rust enqueue_commit(until: u64) 与 C# 三参签名（entryType +
+# version + dbId）名实背离、全仓零调用且实现写死字段，系自留未接线残桩，
+# 已随 full 检查点残桩清退票删除，trait 声明面随之移除，不留虚设实现。
+- 文件:
+    - libs/server/Databases/IDatabaseManager.cs:
+        - EnqueueCommit
+  理由: >-
+    提交标记入队通道的 rust 对位在 store_commit.rs 与 boot.rs 闭包装配单轨
+    承接，IDatabaseManager 的抽象声明无可映射面，残桩删除后登记消亡。

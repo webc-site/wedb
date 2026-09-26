@@ -1,0 +1,20 @@
+# lua 事务模式虚设链删除（task/done/lua-txn-mode-drop-placeholder.md）：
+# C# LuaRunner.RunInTransaction（libs/server/Lua/LuaRunner.cs:1334）依赖
+# string/object/unified 三套 TransactionalContext.BeginTransaction 的写缓冲
+# 事务内核，wkv 内核无对应物（全仓 TransactionalContext 零命中），实现等于
+# 为 wedb 重造事务内核，远超 1:1 转写边界；rust 曾转写的 run_in_transaction
+# 只剩「锁 KEYS + 置 Running 态」半截承诺（begin/end 钩子恒空转），属虚设
+# 实现，已整链删除，脚本面只保 C# 默认非事务形态（off 态，连键锁都不上）。
+- 文件:
+    - libs/server/Lua/LuaRunner.cs:
+        - RunInTransaction
+  理由: 依赖的 TransactionalContext 事务内核在 wedb 不存在，事务模式选项
+    整链删除不转写（task/done/lua-txn-mode-drop-placeholder.md），rust 恒
+    C# 默认非事务形态。
+
+# Rust 会话 preamble 由切片直接借用的 run_preamble_for_session_slice 承接
+- 文件:
+    - libs/server/Lua/LuaRunner.cs:
+        - RunPreambleForSession
+  理由: C# RunPreambleForSession 消费 preambleArgs 列表；Rust 已由零拷贝
+    切片借用的 run_preamble_for_session_slice 承接，preambleArgs 字段废弃删除

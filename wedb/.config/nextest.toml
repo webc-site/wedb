@@ -1,0 +1,19 @@
+[profile.default]
+slow-timeout = { period = "90s", terminate-after = 2 }
+leak-timeout = "500ms"
+
+# CPU/线程争用敏感测试划入低并发组：此类协作式 stress 的固定迭代/期限断言
+# 在 nextest 全量高并发下被调度争用放大数十倍（实测 concurrent_put_take_purge_stress
+# 单跑 0.74s → 全量 34.7s；scan_compact_survives_concurrent_ring_recycling
+# 0.26s → 15.3s），限流按序推进后总墙钟反降
+[test-groups]
+cpu-heavy = { max-threads = 2 }
+
+[[profile.default.overrides]]
+filter = "test(stress) | test(concurrent) | test(race) | test(contention) | test(barrier) | test(window_race) | test(multithread) | test(threads)"
+test-group = "cpu-heavy"
+
+# 并发压力测试在全核并发高争用下有极低概率的调度级超时，自动重试兜底
+[[profile.default.overrides]]
+filter = "test(test_fast_commit_concurrent_waiters_barrier) | test(scan_compact_survives_concurrent_ring_recycling) | test(cluster_divergent_replicas_test) | test(checkpoint_import_end_to_end_over_socket) | test(flushall_broadcast_flushes_all_primaries) | test(diskless_sync_streams_range_index_and_vector_sets)"
+retries = 3

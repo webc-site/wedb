@@ -1,0 +1,83 @@
+[package]
+name = "wbase"
+version = "0.1.9"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wbase"
+description = "Cacheline-safe storage primitives: 48-bit log addressing, sector alignment, backoff, varint"
+keywords = ["storage", "primitives", "alignment", "varint", "backoff"]
+categories = ["algorithms", "data-structures", "concurrency", "memory-management", "database-implementations"]
+
+[features]
+default = []
+addr = []
+align = []
+backoff = ["future"]
+base32 = []
+buf = []
+cfg = []
+crc = ["dep:crc32fast"]
+future = []  # 原 compio 驱动口已随同步收割退役,feature 名保留兼容下游
+glob = []
+simd = ["dep:fearless_simd"]
+striped = ["dep:parking_lot", "align"]
+thread = []
+time = ["dep:coarsetime"]
+varint = []
+num = []
+convert = ["time"]
+crc64 = []
+endpoint = []
+primed = ["dep:compio-buf"]
+error = ["dep:thiserror"]
+hash = []
+hash_slot = ["dep:whasher"]
+hex = ["dep:fastrand"]
+group-commit = ["dep:parking_lot", "dep:thiserror", "future", "dep:crossfire"]
+pool = [
+  "align",
+  "thread",
+  "error",
+  "dep:parking_lot",
+  "dep:compio-buf",
+  "dep:gxhash",
+  "dep:crossfire",
+  "dep:event-listener",
+]
+map = ["dep:papaya", "dep:gxhash", "dep:fastrand"]
+set = ["dep:papaya", "dep:gxhash", "dep:fastrand"]
+store_type = []
+supervise = ["dep:log", "dep:parking_lot"]
+
+[dependencies]
+coarsetime = { workspace = true, optional = true }
+compio-buf = { workspace = true, optional = true }
+crc32fast = { workspace = true, optional = true }
+crossfire = { workspace = true, optional = true }
+event-listener = { workspace = true, optional = true }
+fearless_simd = { workspace = true, optional = true }
+gxhash = { workspace = true, optional = true }
+itoa.workspace = true
+papaya = { workspace = true, optional = true }
+parking_lot = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+whasher = { workspace = true, optional = true }
+fastrand = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+strum = { workspace = true, features = ["derive"] }
+num_enum.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+aok.workspace = true
+ctor.workspace = true
+gxhash.workspace = true
+log.workspace = true
+log_init.workspace = true
+
+[lints]
+workspace = true

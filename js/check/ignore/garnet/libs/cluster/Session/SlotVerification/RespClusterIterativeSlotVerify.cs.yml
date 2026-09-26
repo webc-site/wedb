@@ -1,0 +1,13 @@
+# 迭代式槽位校验网络入口随存储过程域清退删除（对照工单 wtxn-slot-verify-hooks-orphan-cleanup）：
+# C# RespClusterIterativeSlotVerify 的 NetworkIterativeSlotVerify / WriteCachedSlotVerificationMessage
+# 唯事务存储过程 Prepare 段消费（TxnKeyManager.VerifyKeyOwnership 逐键登记、TransactionManager
+# 过程链中止臂缓存写出），本仓动态注册过程层已删、RUNTXP 无条件回 NO_TRANSACTION_PROCEDURE，
+# 三钩双侧生产零调用成孤儿，故不转写并删除（活路 EXEC 多键门 NetworkMultiKeySlotVerify 保留）。
+- 文件:
+    - libs/cluster/Session/SlotVerification/RespClusterIterativeSlotVerify.cs:
+        - NetworkIterativeSlotVerify
+        - WriteCachedSlotVerificationMessage
+  理由: 迭代式逐键校验与缓存错误写出随存储过程域清退不转写（C# 唯 CustomTransactionProcedure.AddKey
+    :47 与 TransactionManager 过程链 :295/:320 消费，本仓 network_runtxp 已无条件回
+    NO_TRANSACTION_PROCEDURE），孤儿面已删除；ResetCachedSlotVerificationResult 活锚保留（多键门入口
+    reset_cached_slot_verification_result 重置时序镜像，映射在 wedb cluster_session/slot_verify.rs）

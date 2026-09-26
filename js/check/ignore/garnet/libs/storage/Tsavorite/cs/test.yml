@@ -1,0 +1,223 @@
+# Tsavorite C# 测试装置符号登记（补遗）
+# 已由 rust 测试直接对标的 [Test] 场景一律补锚不登记（wbase/wepoch/wdev/windex/wtxn/
+# wkv/wcpr/whlog/waof/wrecord 各 tests）。此处只登记测试装置件——IFunctions 装置回调、
+# 记账器、故障注入包装、平台桩与测试私有驱动辅助，rust 侧以场景测试内联构造承接，
+# 无逐符号移植面。
+- 文件:
+    - libs/storage/Tsavorite/cs/test/TestUtils.cs:
+        - AsRef
+        - Set
+    - libs/storage/Tsavorite/cs/test/NUnitLoggerProvider.cs:
+        - Dispose
+        - Log
+    - libs/storage/Tsavorite/cs/test/VLVector.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/SectorAlignedBufferPoolStressTests.cs:
+        - at
+    - libs/storage/Tsavorite/cs/test/EpochProtectedVersionScheme.cs:
+        - Copy
+        - GetHashCode
+        - Dispose
+        - Refresh
+    - libs/storage/Tsavorite/cs/test/ObjectTestTypes.cs:
+        - Dispose
+        - Clone
+        - DoSerialize
+        - InPlaceUpdater
+        - Reader
+    - libs/storage/Tsavorite/cs/test/ObjectRecoveryTestTypes.cs:
+        - Dispose
+        - Clone
+        - DoSerialize
+        - Reader
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/RecoveryTestTypes.cs:
+        - Reader
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/SimulatedFlakyDevice.cs:
+        - Initialize
+        - WriteAsync
+        - ReadAsync
+        - Dispose
+  理由: C# 测试工程基建（NUnit 日志器、测试类型装置、故障注入设备、EPVS 测试基建与
+    局部百分位闭包），非产品语义；rust 各 crate tests 直接内联构造等价物，无移植面
+- 文件:
+    - libs/storage/Tsavorite/cs/test/BasicLockTests.cs:
+        - Increment
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/BasicTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/CancellationTests.cs:
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/CompletePendingTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/ExpirationTests.cs:
+        - InPlaceUpdater
+        - Reader
+    - libs/storage/Tsavorite/cs/test/InputOutputParameterTests.cs:
+        - Reader
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/NeedCopyUpdateTests.cs:
+        - Clone
+        - Dispose
+        - DoSerialize
+        - Reader
+    - libs/storage/Tsavorite/cs/test/PostOperationsTests.cs:
+        - Clear
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/StateMachineDriverTests.cs:
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/SharedDirectoryTests.cs:
+        - Initialize
+  理由: C# 顶层 KV 测试的 IFunctions 装置回调与驱动辅助（Interlocked 局部函数、
+    NotImplementedException 桩、SkipReadCacheFunctions 等）；场景 [Test] 已由 rust
+    补锚或按顶层登记豁免——锁语义 windex/tests/index/rcu_and_probe.rs、CRUD 与
+    CopyUpdate wkv/tests/store/crud.rs、过期 wkv/tests/ttl.rs、取消按 rust future
+    drop 即取消、共享目录按 rust 单库单文件设计不适用
+- 文件:
+    - libs/storage/Tsavorite/cs/test/RecordTriggersExtTests.cs:
+        - OnFlush
+        - OnTruncate
+        - PostCopyToTail
+        - OnDiskRead
+        - OnRecoverySnapshotRead
+  理由: 触发器记账器件——前三为类头 XML doc 的 cref 词法提名，后两为空桩 override；
+    触发语义本体由 wkv compact/range_index hea 与 wrecord 各测试断言承接
+    （详见 storage.yml 既有登记块）
+- 文件:
+    - libs/storage/Tsavorite/cs/test/test.epoch/ProtectionTests.cs:
+        - AssertProtectedAt
+    - libs/storage/Tsavorite/cs/test/test.epoch/helpers/EpochProtection.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/test/test.epoch/helpers/EpochTestBase.cs:
+        - JoinAll
+    - libs/storage/Tsavorite/cs/test/test.epoch/helpers/ParkedReaderThread.cs:
+        - Dispose
+  理由: 纪元测试断言辅助与基类装置（RAII Scope、线程汇合、驻留线程）；其断言语义已
+    内联进 wepoch/tests/epoch/protection.rs 各测试（该文件已逐 [Test] 补锚）
+- 文件:
+    - libs/storage/Tsavorite/cs/test/test.hlog/DeviceLogTests.cs:
+        - TsavoriteLogTest1
+    - libs/storage/Tsavorite/cs/test/test.hlog/DeviceTests.cs:
+        - ReadInto
+        - chmod
+    - libs/storage/Tsavorite/cs/test/test.hlog/FlakyDeviceTests.cs:
+        - MetadataReadFailureIsReportedRatherThanReturningGarbage
+        - MetadataReadToleratesEndOfFile
+        - ZeroLengthCommitMetadataIsRejected
+    - libs/storage/Tsavorite/cs/test/test.hlog/InsertAtTailSpanByteStressTests.cs:
+        - InPlaceUpdater
+    - libs/storage/Tsavorite/cs/test/test.hlog/LogCommitFailureTests.cs:
+        - Initialize
+        - WriteAsync
+        - ReadAsync
+        - Dispose
+    - libs/storage/Tsavorite/cs/test/test.hlog/LogTests.cs:
+        - Get
+    - libs/storage/Tsavorite/cs/test/EnqueueTests.cs:
+        - Get
+    - libs/storage/Tsavorite/cs/test/TryEnqueueBasicTests.cs:
+        - Get
+    - libs/storage/Tsavorite/cs/test/EnqueueAndWaitForCommit.cs:
+        - Get
+    - libs/storage/Tsavorite/cs/test/test.hlog/NativeAllocatorStoreTests.cs:
+        - Upsert
+    - libs/storage/Tsavorite/cs/test/test.hlog/SpanByteIterationTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.hlog/SpanByteLogScanTests.cs:
+        - Initialize
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.hlog/SpanByteTests.cs:
+        - Set
+  理由: TsavoriteLog 侧装置件——Azure 设备后端驱动（DeviceLogTests，Azure 存储按
+    规范不实现）、故障注入设备覆盖方法（LogCommitFailureTests 场景由
+    whlog/tests/hlog/commit_failure.rs 承接）、ReadOnlySpanBatch.Get 索引器（waof
+    字节帧直收无条目自序列化协议位）、扫描校验与驱动局部辅助；FlakyDeviceTests
+    元数据三例在 rust 无 DeviceLogCommitCheckpointManager 对应物（wcpr 以整文件
+    JSON 加完整性封签承载，flaky_device.rs 头部已论证），两个扫描失败 [Test] 已补锚
+- 文件:
+    - libs/storage/Tsavorite/cs/test/test.recordops/CopyToTailTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.recordops/DeleteDisposeTests.cs:
+        - OnFlush
+        - OnTruncate
+        - PostCopyToTail
+        - OnDiskRead
+        - OnRecoverySnapshotRead
+        - Reset
+        - InPlaceUpdater
+        - Key
+    - libs/storage/Tsavorite/cs/test/test.recordops/ObjectInlineTests.cs:
+        - InPlaceUpdater
+        - Reader
+        - Set
+    - libs/storage/Tsavorite/cs/test/test.recordops/RecordLifecycleTests.cs:
+        - Dispose
+        - Clone
+        - Snapshot
+        - Clear
+        - Reset
+        - OnFlush
+        - OnDiskRead
+        - OnRecoverySnapshotRead
+        - PostCopyToTail
+        - OnTruncate
+        - Upsert
+  理由: 记录操作测试的记账器与触发钩子（TrackedObject 引用计数、空桩 trigger
+    override、私有驱动辅助）；生命周期与 copy-to-tail 语义由
+    wrecord/tests/record/lifecycle_and_chains.rs 与 wkv/tests/compact 断言直证，
+    不移植记账器装置
+- 文件:
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectAllocatorDeviceFailureTests.cs:
+        - Initialize
+        - TruncateUntilAddress
+        - WriteAsync
+        - ReadAsync
+        - GetFileSize
+        - Reset
+        - Dispose
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectIterationTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectLogCompactionTests.cs:
+        - IsDeleted
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectLogScanTests.cs:
+        - Clone
+        - Dispose
+        - DoSerialize
+        - Reader
+        - Initialize
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectRecoveryTest2.cs:
+        - Read
+    - libs/storage/Tsavorite/cs/test/test.recovery/ObjectRecoveryTest3.cs:
+        - Read
+    - libs/storage/Tsavorite/cs/test/test.recovery/RecoveryCheckTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.recovery/RecoveryTests.cs:
+        - Checkpoint
+        - Read
+        - Recover
+    - libs/storage/Tsavorite/cs/test/test.recovery/SimpleRecoveryTest.cs:
+        - Reader
+        - InPlaceUpdater
+  理由: 恢复测试目录装置件——对象存储设备故障注入包装（场景由 whlog flush_fault 与
+    commit_failure 承接）、扫描计数与校验回调、测试私有读驱动辅助、对象变体紧缩
+    判定（rust 紧缩单域由 wkv compact 墓碑判定承接）；四个恢复 [Test] 已补锚至
+    wkv/tests/checkpoint/recovery.rs 与 wcpr/tests/cpr/token_layout.rs
+- 文件:
+    - libs/storage/Tsavorite/cs/test/test.session/RandomReadCacheTests.cs:
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.session/ReadAddressTests.cs:
+        - Reader
+        - InPlaceUpdater
+        - Flush
+        - Dispose
+    - libs/storage/Tsavorite/cs/test/test.session.context/FunctionPerSessionTests.cs:
+        - InPlaceUpdater
+        - Reader
+    - libs/storage/Tsavorite/cs/test/test.session.context/TransactionalUnsafeContextTests.cs:
+        - GetHashCode
+        - Increment
+        - Decrement
+  理由: 会话侧装置件——读缓存/读地址/每会话回调装置（场景测试已在 storage.yml
+    登记或由 wkv/tests/store/read_cache.rs 承接）、FixedLengthTransactionalKeyStruct
+    的哈希与计数辅助（wtxn/tests/txn_lock_stress.rs 以 colliding_hash 内联承接）

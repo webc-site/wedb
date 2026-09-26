@@ -1,0 +1,28 @@
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - GetDatabaseSessionsSnapshot
+  理由: 刻意不移植：c# 多 database session 映射（databaseSessions.Map 快照）在 rust 已定型为
+    单会话 + active_db_id 切库模型（aof_processor.rs switch_active_database_context，
+    db 切换语义由 wkv 物理键 Ns/Db 前缀承接，见 851292e3 数据隔离说明），
+    AOF 回放（replaycoordinator）按 db id 上下文回放，无需会话数组快照；
+    lua 脚本缓存与库上下文解耦，SWAPDB 换库链无会话侧钩子（task/ing/swapdb-dedup.md）
+- 文件:
+    - libs/server/Resp/IRespSerializable.cs:
+        - ToRespFormat
+    - libs/server/Resp/SessionLogger.cs:
+        - IsEnabled
+    - libs/server/Resp/GarnetDatabaseSession.cs:
+        - Dispose
+    - libs/server/Resp/LocalServerSession.cs:
+        - Dispose
+    - libs/server/Resp/ScriptHashOwner.cs:
+        - Dispose
+  理由: 宿主结构壳，rust 由 wconn 会话与 wresp writer 单源承接（见
+    task/done/resp-writer-single-source.md）：IRespSerializable 的
+    ToRespFormat 序列化接口面收敛为 RespWriter 单点（wresp/src/resp_memory_writer.rs
+    唯一成帧，命令处理器直调 ext 薄壳）；SessionLogger 为会话级 ILogger 转发壳
+    （IsEnabled 单值委托），rust 日志走 log crate 无会话级记录器包装；
+    GarnetDatabaseSession/LocalServerSession 的 Dispose 为宿主生命周期注销壳，
+    rust 会话随连接任务结束 Drop 即回收；ScriptHashOwner 为 IMemoryOwner 钉住
+    哈希内存的 GC 生命周期弥合壳，rust 摘要为内嵌 [u8; 40] Copy 值
+    （wlua/src/hash_key.rs ScriptHashKey），无所有权租借面

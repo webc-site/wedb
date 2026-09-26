@@ -1,0 +1,41 @@
+- 文件:
+    - playground/Bitmap/BitCount.cs
+    - playground/Bitmap/BitOp.cs
+    - playground/Bitmap/Common.cs
+    - playground/Bitmap/MemoryPoolBuffers.cs
+    - playground/Bitmap/Program.cs
+    - playground/CommandInfoUpdater/CommandDocsUpdater.cs
+    - playground/CommandInfoUpdater/CommandInfoUpdater.cs
+    - playground/CommandInfoUpdater/CommonUtils.cs
+    - playground/CommandInfoUpdater/Program.cs
+    - playground/CommandInfoUpdater/RespCommandDocsParser.cs
+    - playground/CommandInfoUpdater/RespCommandInfoParser.cs
+    - playground/CommandInfoUpdater/SupportedCommand.cs
+    - playground/Embedded.perftest/PerformanceTestLoggerProvider.cs
+    - playground/Embedded.perftest/Program.cs
+    - playground/GarnetClientStress/ProgressBar.cs
+    - playground/LightEpochLitmus/helpers/BuggyLightEpoch.cs
+    - playground/LightEpochLitmus/helpers/CoreLayout.cs
+    - playground/LightEpochLitmus/helpers/Emulation.cs
+    - playground/LightEpochLitmus/helpers/PagePool.cs
+    - playground/LightEpochLitmus/helpers/Platform.cs
+    - playground/LightEpochLitmus/helpers/TwoThreadBarrier.cs
+    - playground/LightEpochLitmus/Program.cs
+    - playground/LightEpochLitmus/QuarantineLitmus.cs
+    - playground/MigrateBench/BenchmarkLoggerProvider.cs
+    - playground/MigrateBench/Common.cs
+    - playground/MigrateBench/MigrateRequest.cs
+    - playground/MigrateBench/MigrateSlotWalk.cs
+    - playground/MigrateBench/Program.cs
+    - playground/TstRunner/Program.cs
+  理由: C# 原型实验与演练脚本，非生产运行时代码。BitCount.cs 的 __simd_popcX128 演练副本与生产口
+    libs/server/Resp/Bitmap/BitmapManagerBitCount.yml 侧同名条目分工：生产条目承载分派收口依据
+    （ISA 档位无按宽度降级轴，X128 臂不转写，wbitmap/src/bit_count.rs:8-11 模块头自述），
+    本条登记演练副本的同名 X128 popcount 体——此前仅 rust 注释自称已登记、实际两处 yml 均未
+    收录该路径，属假账补收；__scalar_popc/__simd_popcX256 两名同理：rust 以 u64::count_ones
+    统一承接标量与 SIMD 位计数（wbitmap/src/bit_count.rs:5-7），无逐 ISA 臂转写，
+    演练副本一并登记
+- 文件:
+    - playground/Embedded.perftest/EmbeddedPerformanceTest.cs
+    - playground/LightEpochLitmus/helpers/EpochUnderTest.cs
+  理由: C# 单元与集成测试用例，Rust 侧通过原生 cargo test / 集成测试套件覆盖
