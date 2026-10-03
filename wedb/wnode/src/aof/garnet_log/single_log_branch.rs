@@ -405,12 +405,14 @@ impl GarnetLog {
       self.backpressure_wait_vector(self.all_logs_bitmask());
     }
 
-    if self.using_single_log {
+    // 三拓扑分支共享 AutoCommit 尾（C# 各 Enqueue 臂的 AutoCommit commit 单点）：
+    // 默认拓扑（单物理日志）与单日志分支提前 return 曾跳过提交，FLUSH 族广播
+    // 标记入队后无人 commit（commit_frequency_ms=0 无周期提交兜底），崩溃即丢
+    let address = if self.using_single_log {
       let mut payload = basic_header.to_bytes().to_vec();
       payload.extend_from_slice(extra);
-      return self.get_sub_log(0).enqueue(&payload);
-    }
-    if self.using_single_physical_log {
+      self.get_sub_log(0).enqueue(&payload)?
+    } else if self.using_single_physical_log {
       let mut basic = basic_header;
       basic.set_header_type(AofHeaderType::SingleLogTransactionHeader);
       let txn_header = AofSingleLogTransactionHeader {
@@ -420,31 +422,33 @@ impl GarnetLog {
       };
       let mut payload = txn_header.to_bytes().to_vec();
       payload.extend_from_slice(extra);
-      return self.get_sub_log(0).enqueue(&payload);
-    }
-    let mut basic = basic_header;
-    basic.set_header_type(AofHeaderType::ShardedLogTransactionHeader);
-    let txn_header = AofShardedLogTransactionHeader {
-      sharded: AofShardedHeader {
-        basic,
-        sequence_number: self.next_sequence_number(),
-      },
-      participant_count: (self.physical_sublog_count * self.replay_task_count) as i16,
-      replay_task_access_vector: [0xFF; REPLAY_TASK_ACCESS_VECTOR_BYTES],
+      self.get_sub_log(0).enqueue(&payload)?
+    } else {
+      let mut basic = basic_header;
+      basic.set_header_type(AofHeaderType::ShardedLogTransactionHeader);
+      let txn_header = AofShardedLogTransactionHeader {
+        sharded: AofShardedHeader {
+          basic,
+          sequence_number: self.next_sequence_number(),
+        },
+        participant_count: (self.physical_sublog_count * self.replay_task_count) as i16,
+        replay_task_access_vector: [0xFF; REPLAY_TASK_ACCESS_VECTOR_BYTES],
+      };
+      let physical_sublog_access_vector = self.all_logs_bitmask();
+      let mut payload = txn_header.to_bytes().to_vec();
+      payload.extend_from_slice(extra);
+      let guard = self.lock_sublogs_guard(physical_sublog_access_vector);
+      let mut address = 0;
+      let mut vector = physical_sublog_access_vector;
+      while vector > 0 {
+        let sublog_idx = vector.trailing_zeros() as usize;
+        vector &= vector - 1;
+        address = self.get_sub_log(sublog_idx).enqueue(&payload)?;
+      }
+      // C# finally 释放位：解锁先于 AutoCommit Commit
+      drop(guard);
+      address
     };
-    let physical_sublog_access_vector = self.all_logs_bitmask();
-    let mut payload = txn_header.to_bytes().to_vec();
-    payload.extend_from_slice(extra);
-    let guard = self.lock_sublogs_guard(physical_sublog_access_vector);
-    let mut address = 0;
-    let mut vector = physical_sublog_access_vector;
-    while vector > 0 {
-      let sublog_idx = vector.trailing_zeros() as usize;
-      vector &= vector - 1;
-      address = self.get_sub_log(sublog_idx).enqueue(&payload)?;
-    }
-    // C# finally 释放位：解锁先于 AutoCommit Commit
-    drop(guard);
     if self.auto_commit {
       self.commit();
     }

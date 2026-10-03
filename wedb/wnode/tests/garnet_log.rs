@@ -745,3 +745,33 @@ fn test_sublog_count_bitmask_boundary() {
   );
   assert!(res.is_err(), "65 子日志应拒启");
 }
+
+/// 广播条目三拓扑共享 AutoCommit 尾回归（单日志/单物理分支曾提前 return 跳过
+/// 提交，FLUSH 族广播标记入队后无人 commit——commit_frequency_ms=0 无周期提交
+/// 兜底，空闲期崩溃即丢）：默认 auto_commit 下入队即提交，committed 须无显式
+/// commit 即覆盖各子日志的广播条目
+#[test]
+fn broadcast_entry_auto_commits_on_all_topologies() {
+  // (1,1)=using_single_log、(1,2)=using_single_physical_log、(2,1)=sharded
+  for (sublogs, tasks) in [(1usize, 1i32), (1, 2), (2, 1)] {
+    let log = log_with(sublogs, tasks);
+    let _ = log.enqueue_database_commit(AofEntryType::FlushAll, 7);
+    for i in 0..sublogs {
+      let tail = log.get_tail_address(i);
+      // 提交经常驻提交协程异步生效：有界轮询（回归形态下无人 commit，
+      // 轮询超时即失败，不悬挂）
+      let mut committed = false;
+      for _ in 0..200 {
+        if log.get_sub_log(i).committed_until_address() >= tail {
+          committed = true;
+          break;
+        }
+        thread::sleep(Duration::from_millis(5));
+      }
+      assert!(
+        committed,
+        "拓扑 ({sublogs},{tasks}) 子日志 {i} 广播条目须随 AutoCommit 落提交（不得滞留缓冲）"
+      );
+    }
+  }
+}
