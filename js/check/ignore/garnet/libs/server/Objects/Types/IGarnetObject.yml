@@ -1,0 +1,17 @@
+# task/ing/wnode-scanfam-materialize-dualstate.md：IGarnetObject::scan trait 薄包装删除。
+# 取证：rust 侧 IGarnetObject::scan（对位本文件 Scan 接口声明）全仓零消费点——
+# HSCAN/SSCAN/ZSCAN 应答链经各对象 scan_operate 直入具体类型内核，trait 包装
+# 仅为满足接口形状的转发（hash/set 传 false、zset flatten None 项），无任何
+# 调用方；随 SCAN 族直写改造按零死代码纪律删除（rust_review SKILL「pub API
+# 孤儿定期清理」）。Scan 语义仍由具体类型内核 1:1 承载：
+# wcol hash_object.rs:HashObject::scan / set_object.rs:SetObject::scan /
+# sorted_set_object.rs:SortedSetObject::scan（emit 回调借切片直写形态），
+# 分层态由 wnode exec_tiered_scan 同口径承接，无同名单点可挂
+- 文件:
+    - libs/server/Objects/Types/IGarnetObject.cs:
+        - Scan
+  理由: >-
+    trait 薄包装全仓零消费点，按零死代码纪律删除；Scan 语义由具体类型
+    scan 内核（wcol HashObject::scan / SetObject::scan /
+    SortedSetObject::scan）与分层态 exec_tiered_scan 1:1 承载，不经
+    IGarnetObject 装箱分派，无同名单点可挂

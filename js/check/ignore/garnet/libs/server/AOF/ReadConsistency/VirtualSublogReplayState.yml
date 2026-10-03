@@ -1,0 +1,16 @@
+# VirtualSublogReplayState.cs 缺失符号甄别：草图/前沿/等待队列 13 枚中
+# 12 枚为真实实现缺锚，已补于 wnode/src/aof/readconsistency/
+# virtual_sublog_replay_state.rs（GetSketchSlot/GetFrontierSequenceNumber/
+# GetKeySequenceNumber/PrefetchKeySequenceNumber/UpdateMaxSequenceNumber/
+# UpdateKeySequenceNumber/SignalWaiters/WaitForSequenceNumber/InsertWaiter/
+# RemoveWaiter/UpdateMinWaiterTarget 与嵌套 ReadSessionWaiter.Reset）。
+# 仅余嵌套 ReadSessionWaiter.Dispose（:330 `Signal.Dispose()`）：释放
+# ManualResetEventSlim OS 等待句柄；rust ReadSessionWaiter 的
+# event_listener::Event 零 OS 资源，Arc 引用清零即释放
+- 文件:
+    - libs/server/AOF/ReadConsistency/VirtualSublogReplayState.cs:
+        - Dispose
+  理由: >-
+    嵌套 ReadSessionWaiter.Dispose 仅释放 ManualResetEventSlim 事件句柄；
+    rust ReadSessionWaiter 以 event_listener::Event 承接（零 OS 资源），
+    随 Arc 析构即释放，无显式 dispose 方法与调用面

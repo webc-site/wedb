@@ -1,0 +1,18 @@
+# 一对多合法分形白名单（js/check.js 重复定义豁免）
+# 当同一 C# 函数按 RESP 命令形态或多阶段测试拆分为多个 rust 实现站点时，
+# 在此登记豁免重复定义检查，避免门禁重复定义段长期非空。
+# 禁录入实现缺失符号（实现缺失走文件级 ignore 规则）。
+- 理由: 一对多合法分形白名单
+  one_to_many:
+    - 锚点: libs/server/Objects/ItemBroker/CollectionItemBroker.cs:TryGetNextListResult
+      理由: 一 C# 内核按 RESP 命令形态拆为 try_get_next_list_item 与 try_move_next_list_item 两站点
+    - 锚点: libs/server/Resp/BasicCommands.cs:NetworkSETEX
+      理由: 一 C# 内核按 highPrecision 参数拆为 network_setex 与 network_psetex 两站点
+    - 锚点: libs/server/Resp/Objects/HashCommands.cs:HashSet
+      理由: 一 C# 内核按 HSET/HSETNX/HMSET 命令分支拆为 hash_set/hash_set_nx/hash_set_map 三站点
+    - 锚点: libs/server/Resp/Objects/ListCommands.cs:ListPush
+      理由: 一 C# 内核按 LPUSHX/RPUSHX 拆为 list_push 与 list_push_x 两站点
+    - 锚点: libs/server/Resp/Objects/SetCommands.cs:SetIsMember
+      理由: 一 C# 内核按 SMISMEMBER 多值形态拆为 set_is_member 与 set_multi_is_member 两站点
+    - 锚点: libs/storage/Tsavorite/cs/test/test.hlog/MoreLogCompactionTests.cs:DeleteCompactLookup
+      理由: more_log_compaction_delete_lookup 为主对位，more_log_compaction_scan_mode_stage2_early_termination 为 rust 自有提前终止优化段

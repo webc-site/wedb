@@ -1,0 +1,51 @@
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_are_all_threads_in_next_version
+        - bftree_cpr_snapshot
+        - bftree_create
+        - bftree_delete
+        - bftree_insert
+        - bftree_new_from_cpr_snapshot
+        - bftree_read
+        - bftree_scan_drop
+        - bftree_scan_next
+        - bftree_scan_with_count
+        - bftree_scan_with_end_key
+  理由: C# P/Invoke 原生动态库导入声明，Rust 原生直接依赖并调用 bf_tree crate，无需 FFI 胶水层
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_drop
+  理由: C# P/Invoke 原生动态库导入声明，Rust 原生直接依赖并调用 bf_tree crate，由 Drop trait 自动释放，无需 FFI
+    胶水层
+- 文件:
+    - libs/native/bftree-garnet/NativeBfTreeMethods.cs:
+        - bftree_noop
+  理由: C# P/Invoke 跨语言边界开销微基准测试函数声明，Rust 原生调用无跨语言边界开销，无需实现
+- 文件:
+    - libs/native/bftree-garnet/BfTreeService.cs:
+        - DrainScanIteratorToList
+  理由: C# 内部私有迭代器收集至列表辅助方法，Rust 侧由 scan_with_count / scan_with_end_key 内部复用
+    ScanRecord::sink 承接，无需独立实现
+- 文件:
+    - libs/native/bftree-garnet/BfTreeService.cs:
+        - InsertByPtr
+        - ReadByPtr
+        - ReadByPtrInto
+        - DeleteByPtr
+        - ScanWithCountByPtrCallback
+        - ScanWithEndKeyByPtrCallback
+        - CprSnapshotByPtr
+  理由: C# 静态指针直调重载专为跨语言 FFI 热路径设计（存根持有 nint 免包装开销）；
+    Rust 原生无 FFI 边界，insert/read/read_into/delete/cpr_snapshot 即同一零开销
+    代码路径，ByPtr 重复 API 面已删除（unsafe 裸指针转换零收益）
+- 文件:
+    - libs/native/bftree-garnet/BfTreeService.cs:
+        - Noop
+  理由: C# Noop 专为测量 P/Invoke 跨语言边界开销而设，唯一消费点是 BDN 基准的
+    FFI_Noop 臂（已在 benchmark.yml 登记）；Rust 原生调用无跨语言边界，无对位面，
+    零消费虚设实现已删除
+- 文件:
+    - libs/native/bftree-garnet/BfTreeService.cs:
+        - ScanAll
+  理由: C# ScanAll 为 ScanWithCount(\x00, int.MaxValue) 单行便捷重载，Rust 侧
+    scan_with_count(&[0], usize::MAX) 一行等价，无独立复制面

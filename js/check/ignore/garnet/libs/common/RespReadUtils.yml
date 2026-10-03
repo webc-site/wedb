@@ -1,0 +1,27 @@
+- 文件:
+    - libs/common/RespReadUtils.cs:
+        - TryReadInt32WithLengthHeader
+  理由: C# RespReadUtils.cs:575 的 TryReadInt32WithLengthHeader 仅在基准测试与单元测试
+    （RespReadUtilsTests.cs:128/153）及客户端包装（RespReadResponseUtils.cs:254）出现，
+    全仓服务端生产路径零消费（死码），rust 不移植。
+
+- 文件:
+    - libs/common/RespReadUtils.cs:
+        - TryReadSimpleString
+  理由: C# RespReadUtils.cs:973 的 TryReadSimpleString 服务端唯一生产调用在 LuaRunner.cs:1280；
+    rust 侧已由 wedb/wlua/src/runner/resp_convert.rs:93 以零拷贝切片借用的 try_read_as_span 承接，
+    避免堆分配 String，无需镜像独立 SimpleString 字符串提取器。
+
+- 文件:
+    - libs/common/RespReadUtils.cs:
+        - TryReadIntegerAsString
+        - TryReadIntegerAsSpan
+  理由: C# RespReadUtils.cs:1048/1063 的 TryReadIntegerAsString 与 TryReadIntegerAsSpan 仅供
+    客户端 SDK 与 playground 命令信息解析器消费，生产服务端零调用；rust 侧 RESP 整数解析直接由
+    wresp::read 原生无堆分配函数承担，不转写字符串中间态包装。
+
+- 文件:
+    - libs/common/RespReadUtils.cs:
+        - TryReadString
+  理由: C# RespReadUtils.cs:1186 的 TryReadString 仅被 C# 客户端 GarnetClientSession.cs:625 调用；
+    rust 服务端直接使用 wresp::read 原生字节切片零拷贝借用解析，不实现客户端专属解析辅助函数。

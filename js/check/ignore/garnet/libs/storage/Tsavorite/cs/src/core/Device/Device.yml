@@ -1,0 +1,54 @@
+# Device 域缺失符号甄别（fixloop tsavorite-core-miss）。
+# 判定原则：wdev SegmentedDevice 单设备形态（compio 一线程一 cpu）承担 C#
+# LocalStorage/Managed/Native/RandomAccess/Sharded 多设备分派（DeviceType.yml
+# 已登记无分派面）；Dispose 全部由 RAII 承担。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs:
+        - Close
+  理由: >-
+    C# Close 显式关闭设备句柄；rust 设备句柄缓存（wdev segmented_device/handle.rs
+    进程级共享表）随进程/设备 Drop RAII 释放，无显式 close 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Device/ManagedLocalStorageDevice.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Device/ShardedStorageDevice.cs:
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs:
+        - Dispose
+  理由: >-
+    各设备 Dispose（关闭句柄/释放 native 资源）；rust SegmentedDevice RAII，
+    段文件句柄经 handle 表 Drop 与线程退出回收，无显式 Dispose 面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/LocalMemoryDevice.cs:
+        - ReadAsync
+        - WriteAsync
+        - RemoveSegment
+        - Dispose
+  理由: >-
+    C# 内存仿真设备后端（无磁盘 I/O 的测试设备）；rust 设备形态固定
+    SegmentedDevice 单文件/分段文件设备（DeviceType.yml 已登记无后端分派），
+    测试经临时目录文件设备承担，无内存后端。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/TieredStorageDevice.cs:
+        - Initialize
+        - Dispose
+        - ReadAsync
+        - WriteAsync
+  理由: >-
+    C# 冷热分层设备（按地址段分层路由多设备）；rust 无分层设备形态（存储分层由
+    wcol/wbftree 页缓存承担），无该设备消费面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/AsyncPool.cs:
+        - Get
+        - Return
+        - Dispose
+  理由: >-
+    C# 信号量 + 并发队列的 IO 上下文/缓冲池（同步 Get 阻塞等待）；rust 缓冲统一
+    wbase BufferPool（0 锁三级缓存），IO 上下文随 compio await 模型消除，无
+    信号量池。

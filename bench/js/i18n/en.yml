@@ -1,0 +1,115 @@
+title: Embedded Key-Value Storage Benchmarks
+subtitle: Benchmarking wkv & wbftree against mainstream embedded databases
+system_info_title: System Environment
+cpu: CPU Model
+cores: CPU Cores
+arch: Architecture
+memory: Memory
+disk_type: Disk Type
+os: Operating System
+kernel: Kernel Version
+cores_format: "{physical} Physical / {logical} Logical Cores"
+params_title: Benchmark Parameters
+key_size: Key Size
+value_size: Value Size
+cache_size: Cache Size
+elements: Benchmark Elements
+comparison_title: Performance Comparison
+metric_col: Benchmark
+param_col: Parameter
+val_col: Setting
+hardware_col: Hardware
+spec_col: Specification
+benchmarks:
+  bulk_load: bulk load
+  individual_writes: individual writes
+  batch_writes: batch writes
+  nosync_writes: nosync writes
+  len: len()
+  random_reads: random reads
+  random_range_reads: random range reads
+  random_reads_4: random reads (4 threads)
+  random_reads_8: random reads (8 threads)
+  random_reads_16: random reads (16 threads)
+  random_reads_32: random reads (32 threads)
+  removals: removals
+  uncompacted_size: pre-compaction size
+  compacted_size: compacted size
+  memory: memory usage
+  peak_memory: memory usage
+notes: Performance metrics display relative multiplier in the first line (baseline 1.00X for lowest performance, higher is better) and disk throughput in the second line. Random reads and range scans report median of 3 runs. Cache sizes are configured uniformly where applicable. All write sections except nosync perform durable per-transaction fsync; the nosync section disables per-commit fsync via set_sync(false) and restores durable writes afterwards. The total-records (len) row mixes counting semantics — rocksdb/sqlite/fjall count via full-table or LSM iterator scans, wkv counts via an in-memory hash-index bucket-chain scan, while redb/wbftree read a metadata counter directly; multipliers on this row reflect counting-semantics differences, not engine performance, and must not be read as a performance conclusion. All write sections (bulk load, individual writes, batch writes, nosync, removals) are timed once each with no warmup discard window and no repeated sampling, so the figures include first-touch page-fault and cold-cache effects and are not reproducible means. The wbftree uncompacted-size row uses a page-level write-through caliber with no explicit flush step (upstream bf-tree exposes no page-pool drain API); its size is permanently underreported by a sub-0.2% buffer-tail residue relative to a fully solidified snapshot image, a constant that does not scale with dataset size — interpret cross-engine comparisons accordingly.
+source_code: Benchmark source code located at
+chart:
+  write_section: Write Throughput Comparison (Higher is better)
+  read_section: Read Throughput Comparison (Higher is better)
+  space_section: Storage & Memory Overhead (Lower is better)
+  baseline: Baseline
+  lead: Leader
+  multiplier: Multiplier
+  throughput: Throughput
+params_desc_title: Configuration & Methodology Notes
+params_desc:
+  - label: Key/Value Spec
+    desc: 24B Key / 150B Value, binary keys and serialized payloads.
+  - label: Cache Budget
+    desc: Uniformly configured to 128 MiB, constraining read cache, buffer pool, and write buffer across engines.
+  - label: Workload Scale
+    desc: 6,000,000 records (~1.04 GiB raw writes), data size 10~30x the memory cache budget.
+  - label: Write Scenarios
+    desc: Durable per-transaction writes by default (commit triggers fsync, matching the upstream redb-bench default sync=true); benchmarks evaluate individual, batch (1,000 items/batch), plus a nosync section with per-commit fsync disabled for async throughput comparison, restoring durable writes afterwards.
+  - label: Read Benchmarks
+    desc: 100,000 point lookups and 5,000 range scans (step 10), multi-threaded reads (4~32 threads), reporting median of 3 runs.
+  - label: Disk & Memory
+    desc: Disk usage measures physical file size pre/post compaction; memory records resident physical memory (RSS / Footprint).
+durability_title: Storage Architecture & Durability
+durability_desc: >-
+  Baseline Standard: All database engines perform durable per-transaction writes by default (matching the upstream redb-bench default `sync = true`, every commit triggers a physical fsync); only the nosync section disables per-commit fsync via `set_sync(false)` for async throughput comparison, restoring durable writes afterwards. sqlite's nosync maps to `synchronous = OFF` (no fsync at all), the same semantics as redb `Durability::None`.
+durability_col_engine: Database
+durability_col_arch: Storage Architecture
+durability_col_sync: Default Durability
+durability_col_bulk: Bulk Load Ingestion
+durability_col_nosync: nosync Section (set_sync(false))
+durability_col_verify: Verification & Consistency
+durability_li:
+  - engine: wkv
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wkv
+    arch: Append-Only HybridLog circular buffer (in-memory circular buffer + segmented file storage)
+    sync: Durable by default, flush_all with hardware sync on every commit
+    bulk: Circular buffer streaming pipeline flush, single flush_all and hardware sync on final commit
+    nosync: Writes to HybridLog circular buffer and journal buffer only, no flush on commit, pipeline background page flushing
+    verify: Full CRC32 checksums + Epoch lock-free concurrent safe reclamation
+  - engine: wbftree
+    url: https://github.com/webc-site/wedb/tree/main/wedb/wbftree
+    arch: Cache-Buffer B-Tree architecture
+    sync: Writes to Cache-Buffer pages, dirty pages are written back to the working file page-by-page on write (page-level write-through) without per-commit fsync
+    bulk: Bulk imports persist page-by-page during the load; no explicit flush on completion (upstream bf-tree exposes no page-pool drain API), only a handful of tail mini pages stay unflushed
+    nosync: set_sync switching unsupported, section falls back to default writes and reports N/A
+    verify: Page-level CRC32 checksums + Snapshot read-only isolation
+  - engine: redb
+    url: https://github.com/cberner/redb
+    arch: Copy-on-Write B-Tree (MVCC)
+    sync: Durable by default (redb default Durability), blocking fsync on every commit
+    bulk: Single bulk transaction write, single fsync on final commit
+    nosync: Durability::None, commit skips fsync, data stays in OS kernel buffer cache
+    verify: Built-in page checksums + ACID crash consistency
+  - engine: fjall
+    url: https://github.com/fjall-rs/fjall
+    arch: Single-writer LSM-Tree architecture
+    sync: Durable by default (PersistMode::SyncAll), blocking physical fsync on every commit
+    bulk: Single-writer txn stream append, single fsync on final commit
+    nosync: PersistMode::Buffer, writes to in-memory WAL buffer only without hardware fsync
+    verify: CRC32 block checksums + WAL crash recovery
+  - engine: rocksdb
+    url: https://github.com/facebook/rocksdb
+    arch: LSM-Tree + native WriteBatch atomic commits
+    sync: Durable by default (WriteOptions sync=true), WAL fsync on every commit
+    bulk: WriteBatch stream writes, single sync on final commit
+    nosync: WAL writes without fsync, buffered in OS page cache only
+    verify: Built-in block and WAL checksums
+  - engine: sqlite
+    url: https://www.sqlite.org
+    arch: Standard B-Tree + Write-Ahead Logging (WAL mode)
+    sync: Durable by default (PRAGMA synchronous = FULL), hardware fsync on every WAL commit
+    bulk: Single transaction batch write, fsync on final commit, flushed via wal_checkpoint(TRUNCATE) on completion
+    nosync: PRAGMA synchronous = OFF, no fsync at all, same semantics as redb Durability::None
+    verify: Page-level verification + WAL atomic transaction rollback

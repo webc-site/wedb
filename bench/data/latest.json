@@ -1,0 +1,732 @@
+{
+  "machine": {
+    "cpu_brand": "Apple M2 Max",
+    "physical_cores": 12,
+    "logical_cores": 12,
+    "arch": "aarch64",
+    "total_memory_gib": 64.0,
+    "disk_type": "NVMe SSD",
+    "os_info": "Darwin 26.5.1",
+    "kernel_version": "25.5.0"
+  },
+  "config": {
+    "key_size": 24,
+    "value_size": 150,
+    "cache_size": 134217728,
+    "bulk_elements": 6000000,
+    "individual_writes": 1000,
+    "batch_writes": 100,
+    "batch_size": 1000,
+    "nosync_writes": 50000,
+    "num_reads": 100000,
+    "read_iterations": 3,
+    "num_scans": 5000,
+    "scan_len": 10,
+    "scan_iterations": 3,
+    "removals": 50000,
+    "rng_seed": 3
+  },
+  "engines": [
+    {
+      "name": "wkv",
+      "url": "https://github.com/webc-site/wedb/tree/main/wedb/wkv",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "610 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 1631.6657500000001,
+          "rate": 639836927.3854035
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "792 M/s",
+          "bytes": 174000,
+          "duration_ms": 0.209583,
+          "rate": 830220008.3022001
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "584 M/s",
+          "bytes": 17400000,
+          "duration_ms": 28.412667,
+          "rate": 612402911.7013197
+        },
+        {
+          "key": "nosync_writes",
+          "type": "throughput",
+          "formatted": "582 M/s",
+          "bytes": 8700000,
+          "duration_ms": 14.24675,
+          "rate": 610665590.39781
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "28ms",
+          "duration_ms": 28.037375
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "326 M/s",
+          "bytes": 17400000,
+          "duration_ms": 50.894208000000006,
+          "rate": 341885662.1169937
+        },
+        {
+          "key": "random_range_reads",
+          "type": "na",
+          "formatted": "N/A"
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "63.6 M/s",
+          "bytes": 17400000,
+          "duration_ms": 260.894708,
+          "rate": 66693572.02906546
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "38.0 M/s",
+          "bytes": 17400000,
+          "duration_ms": 436.912375,
+          "rate": 39824919.12709041
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "41.6 M/s",
+          "bytes": 17400000,
+          "duration_ms": 399.10325,
+          "rate": 43597740.68489795
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "40.9 M/s",
+          "bytes": 17400000,
+          "duration_ms": 406.199667,
+          "rate": 42836076.47566092
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "278 M/s",
+          "bytes": 8700000,
+          "duration_ms": 29.814417,
+          "rate": 291805135.7502647
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "1.10 GiB",
+          "bytes": 1184169984
+        },
+        {
+          "key": "compacted_size",
+          "type": "size",
+          "formatted": "1.10 GiB",
+          "bytes": 1184169984
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "236.42 MiB",
+          "bytes": 247906304
+        }
+      ]
+    },
+    {
+      "name": "wbftree",
+      "url": "https://github.com/webc-site/wedb/tree/main/wedb/wbftree",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "127 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 7866.3625,
+          "rate": 132716995.94316941
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "91.2 M/s",
+          "bytes": 174000,
+          "duration_ms": 1.81875,
+          "rate": 95670103.0927835
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "86.5 M/s",
+          "bytes": 17400000,
+          "duration_ms": 191.873834,
+          "rate": 90684590.16668214
+        },
+        {
+          "key": "nosync_writes",
+          "type": "na",
+          "formatted": "N/A"
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "0µs",
+          "duration_ms": 0.000042
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "71.5 M/s",
+          "bytes": 17400000,
+          "duration_ms": 232.094958,
+          "rate": 74969314.93014166
+        },
+        {
+          "key": "random_range_reads",
+          "type": "throughput",
+          "formatted": "618 M/s",
+          "bytes": 8700000,
+          "duration_ms": 13.428459,
+          "rate": 647877764.6787319
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "155 M/s",
+          "bytes": 17400000,
+          "duration_ms": 107.178458,
+          "rate": 162346056.51818576
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "182 M/s",
+          "bytes": 17400000,
+          "duration_ms": 91.129,
+          "rate": 190938120.68606043
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "150 M/s",
+          "bytes": 17400000,
+          "duration_ms": 110.605958,
+          "rate": 157315214.4299496
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "141 M/s",
+          "bytes": 17400000,
+          "duration_ms": 117.903666,
+          "rate": 147578108.3855357
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "171 M/s",
+          "bytes": 8700000,
+          "duration_ms": 48.562166,
+          "rate": 179151811.30924022
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "1.51 GiB",
+          "bytes": 1616834560
+        },
+        {
+          "key": "compacted_size",
+          "type": "na",
+          "formatted": "N/A"
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "154.14 MiB",
+          "bytes": 161628160
+        }
+      ]
+    },
+    {
+      "name": "redb",
+      "url": "https://github.com/cberner/redb",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "30.6 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 32585.914500000003,
+          "rate": 32038382.71901192
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "7.89 M/s",
+          "bytes": 174000,
+          "duration_ms": 21.024042,
+          "rate": 8276239.174179732
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "14.8 M/s",
+          "bytes": 17400000,
+          "duration_ms": 1120.986833,
+          "rate": 15522037.804345915
+        },
+        {
+          "key": "nosync_writes",
+          "type": "throughput",
+          "formatted": "7.85 M/s",
+          "bytes": 8700000,
+          "duration_ms": 1056.945917,
+          "rate": 8231263.170677446
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "1µs",
+          "duration_ms": 0.0015
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "45.3 M/s",
+          "bytes": 17400000,
+          "duration_ms": 366.396708,
+          "rate": 47489509.64919695
+        },
+        {
+          "key": "random_range_reads",
+          "type": "throughput",
+          "formatted": "1.38 G/s",
+          "bytes": 8700000,
+          "duration_ms": 5.868583,
+          "rate": 1482470299.9003336
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "94.0 M/s",
+          "bytes": 17400000,
+          "duration_ms": 176.455166,
+          "rate": 98608617.6700545
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "103 M/s",
+          "bytes": 17400000,
+          "duration_ms": 160.886875,
+          "rate": 108150525.0195207
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "83.8 M/s",
+          "bytes": 17400000,
+          "duration_ms": 198.121792,
+          "rate": 87824765.88945855
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "83.1 M/s",
+          "bytes": 17400000,
+          "duration_ms": 199.56925,
+          "rate": 87187780.68264525
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "5.00 M/s",
+          "bytes": 8700000,
+          "duration_ms": 1658.834,
+          "rate": 5244647.746549685
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "2.01 GiB",
+          "bytes": 2155876352
+        },
+        {
+          "key": "compacted_size",
+          "type": "size",
+          "formatted": "1.55 GiB",
+          "bytes": 1665679360
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "267.77 MiB",
+          "bytes": 280772608
+        }
+      ]
+    },
+    {
+      "name": "fjall",
+      "url": "https://github.com/fjall-rs/fjall",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "150 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 6647.265958,
+          "rate": 157057052.71857575
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "9.84 M/s",
+          "bytes": 174000,
+          "duration_ms": 16.870791,
+          "rate": 10313683.572987182
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "79.8 M/s",
+          "bytes": 17400000,
+          "duration_ms": 207.818,
+          "rate": 83727107.37279736
+        },
+        {
+          "key": "nosync_writes",
+          "type": "throughput",
+          "formatted": "47.4 M/s",
+          "bytes": 8700000,
+          "duration_ms": 175.0795,
+          "rate": 49691711.47964211
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "1579ms",
+          "duration_ms": 1578.873292
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "44.3 M/s",
+          "bytes": 17400000,
+          "duration_ms": 374.513458,
+          "rate": 46460279.673047155
+        },
+        {
+          "key": "random_range_reads",
+          "type": "throughput",
+          "formatted": "177 M/s",
+          "bytes": 8700000,
+          "duration_ms": 46.799125,
+          "rate": 185900911.60892433
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "98.3 M/s",
+          "bytes": 17400000,
+          "duration_ms": 168.738459,
+          "rate": 103118163.47688703
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "142 M/s",
+          "bytes": 17400000,
+          "duration_ms": 116.470708,
+          "rate": 149393785.77487484
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "132 M/s",
+          "bytes": 17400000,
+          "duration_ms": 125.77074999999999,
+          "rate": 138346952.68971524
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "132 M/s",
+          "bytes": 17400000,
+          "duration_ms": 125.861208,
+          "rate": 138247521.03126168
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "214 M/s",
+          "bytes": 8700000,
+          "duration_ms": 38.694582999999994,
+          "rate": 224837673.0148507
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "1.64 GiB",
+          "bytes": 1763918620
+        },
+        {
+          "key": "compacted_size",
+          "type": "size",
+          "formatted": "1.64 GiB",
+          "bytes": 1763918620
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "365.23 MiB",
+          "bytes": 382976000
+        }
+      ]
+    },
+    {
+      "name": "rocksdb",
+      "url": "https://github.com/facebook/rocksdb",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "246 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 4045.533625,
+          "rate": 258062371.19089574
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "53.8 M/s",
+          "bytes": 174000,
+          "duration_ms": 3.0816670000000004,
+          "rate": 56462946.840135545
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "295 M/s",
+          "bytes": 17400000,
+          "duration_ms": 56.333167,
+          "rate": 308876651.6535454
+        },
+        {
+          "key": "nosync_writes",
+          "type": "throughput",
+          "formatted": "50.3 M/s",
+          "bytes": 8700000,
+          "duration_ms": 165.01554199999998,
+          "rate": 52722306.60551962
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "1783ms",
+          "duration_ms": 1782.881833
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "24.7 M/s",
+          "bytes": 17400000,
+          "duration_ms": 671.7359590000001,
+          "rate": 25903034.91553889
+        },
+        {
+          "key": "random_range_reads",
+          "type": "throughput",
+          "formatted": "244 M/s",
+          "bytes": 8700000,
+          "duration_ms": 34.061125,
+          "rate": 255423154.6961529
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "70.1 M/s",
+          "bytes": 17400000,
+          "duration_ms": 236.550333,
+          "rate": 73557283.895263
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "89.1 M/s",
+          "bytes": 17400000,
+          "duration_ms": 186.219833,
+          "rate": 93437952.98108768
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "80.0 M/s",
+          "bytes": 17400000,
+          "duration_ms": 207.527,
+          "rate": 83844511.79846478
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "69.0 M/s",
+          "bytes": 17400000,
+          "duration_ms": 240.389209,
+          "rate": 72382616.80872706
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "308 M/s",
+          "bytes": 8700000,
+          "duration_ms": 26.935875000000003,
+          "rate": 322989321.8616436
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "1.38 GiB",
+          "bytes": 1480523463
+        },
+        {
+          "key": "compacted_size",
+          "type": "size",
+          "formatted": "1.06 GiB",
+          "bytes": 1138976518
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "662.50 MiB",
+          "bytes": 694681600
+        }
+      ]
+    },
+    {
+      "name": "sqlite",
+      "url": "https://www.sqlite.org",
+      "metrics": [
+        {
+          "key": "bulk_load",
+          "type": "throughput",
+          "formatted": "42.9 M/s",
+          "bytes": 1044000000,
+          "duration_ms": 23188.191125,
+          "rate": 45022916.81020462
+        },
+        {
+          "key": "individual_writes",
+          "type": "throughput",
+          "formatted": "3.55 M/s",
+          "bytes": 174000,
+          "duration_ms": 46.72525,
+          "rate": 3723896.608364856
+        },
+        {
+          "key": "batch_writes",
+          "type": "throughput",
+          "formatted": "4.00 M/s",
+          "bytes": 17400000,
+          "duration_ms": 4147.0661660000005,
+          "rate": 4195737.252194109
+        },
+        {
+          "key": "nosync_writes",
+          "type": "throughput",
+          "formatted": "3.45 M/s",
+          "bytes": 8700000,
+          "duration_ms": 2402.456667,
+          "rate": 3621293.2035373105
+        },
+        {
+          "key": "len",
+          "type": "latency",
+          "formatted": "64ms",
+          "duration_ms": 64.444875
+        },
+        {
+          "key": "random_reads",
+          "type": "throughput",
+          "formatted": "42.2 M/s",
+          "bytes": 17400000,
+          "duration_ms": 393.411166,
+          "rate": 44228536.207841136
+        },
+        {
+          "key": "random_range_reads",
+          "type": "throughput",
+          "formatted": "67.7 M/s",
+          "bytes": 8700000,
+          "duration_ms": 122.636667,
+          "rate": 70941262.61601679
+        },
+        {
+          "key": "random_reads_4",
+          "type": "throughput",
+          "formatted": "27.6 M/s",
+          "bytes": 17400000,
+          "duration_ms": 601.7508750000001,
+          "rate": 28915620.60462313
+        },
+        {
+          "key": "random_reads_8",
+          "type": "throughput",
+          "formatted": "19.8 M/s",
+          "bytes": 17400000,
+          "duration_ms": 838.2157500000001,
+          "rate": 20758378.734830502
+        },
+        {
+          "key": "random_reads_16",
+          "type": "throughput",
+          "formatted": "23.4 M/s",
+          "bytes": 17400000,
+          "duration_ms": 709.214833,
+          "rate": 24534173.83615269
+        },
+        {
+          "key": "random_reads_32",
+          "type": "throughput",
+          "formatted": "22.1 M/s",
+          "bytes": 17400000,
+          "duration_ms": 752.477917,
+          "rate": 23123602.177417785
+        },
+        {
+          "key": "removals",
+          "type": "throughput",
+          "formatted": "8.38 M/s",
+          "bytes": 8700000,
+          "duration_ms": 990.245375,
+          "rate": 8785701.22077066
+        },
+        {
+          "key": "uncompacted_size",
+          "type": "size",
+          "formatted": "1.31 GiB",
+          "bytes": 1411788800
+        },
+        {
+          "key": "compacted_size",
+          "type": "size",
+          "formatted": "1.31 GiB",
+          "bytes": 1411788800
+        },
+        {
+          "key": "memory",
+          "type": "size",
+          "formatted": "666.91 MiB",
+          "bytes": 699301888
+        }
+      ]
+    }
+  ]
+}

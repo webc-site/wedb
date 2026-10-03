@@ -1,0 +1,10 @@
+# 降级词法兜底误提：MainStore/RMWMethods.cs 是 tree-sitter AST 断裂文件（unsafe
+# 指针语料），CS_DECL_RX 声明正则把方法体内 5 处 `writer.Dispose()` 调用误提为
+# 方法声明。C# 本文件并无 Dispose 方法定义（RespMemoryWriter 的 Dispose 是
+# using/finally 里的局部清理调用），无映射物可言。
+- 文件:
+    - libs/server/Storage/Functions/MainStore/RMWMethods.cs:
+        - Dispose
+  理由: 词法兜底把 writer.Dispose() 调用误提为声明，C# 文件内无此方法定义，
+    rust 侧 RespMemoryWriter 等价物无独立 Dispose 函数（输出缓冲 RAII/作用域
+    收尾），不虚构锚点

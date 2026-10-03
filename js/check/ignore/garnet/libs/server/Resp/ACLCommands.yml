@@ -1,0 +1,10 @@
+# ACL 文件配置模式按转写规范删除（doc/zh/db.md §3.4：ACL 数据库持久化与
+# 零全局内存——彻底废弃文件配置，ACL 用户以 KeyTag::Acl 存入底层存储）
+- 文件:
+    - libs/server/Resp/ACLCommands.cs:
+        - ValidateACLFileUse
+  理由: >-
+    C# 该门校验 AuthSettings 为 AclAuthenticationSettings 且 AclConfigurationFile
+    非空（ACL 用户面仅文件装载形态可用）；rust ACL 无文件配置概念——用户存
+    wkv KeyTag::Acl 域即时持久化，ACL LOAD/SAVE 为 +OK 空操作
+    （wnode acl_commands.rs），认证设置走 nested_text 节点配置，校验面不存在

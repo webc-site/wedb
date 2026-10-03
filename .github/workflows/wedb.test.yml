@@ -1,0 +1,19 @@
+name: wedb test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "wedb/**"
+  pull_request:
+    paths:
+      - "wedb/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/rust-test.yml
+    with:
+      dir: wedb

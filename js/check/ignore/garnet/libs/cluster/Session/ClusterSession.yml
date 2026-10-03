@@ -1,0 +1,9 @@
+# C# ClusterSession.SetInternalWriteSession（libs/cluster/Session/ClusterSession.cs:45）为
+# 内部重放/恢复会话（AofProcessor 回放、diskless/disk-based 同步编排）免副本重定向与
+# FLUSH 只读门的置位面；rust 的 AOF 回放不经 RESP 分派、直达存储域，门本不设在回放路径
+# 上，豁免在架构层天然成立——生产零置位、零消费，随死 API 清理整链删除
+# （task/ing/internal-write-dead-api-cleanup.md），本门仅拦客户端会话
+- 文件:
+    - libs/cluster/Session/ClusterSession.cs:
+        - SetInternalWriteSession
+  理由: rust 回放不经 RESP 分派、直达存储域，豁免在架构层天然成立，无需对位

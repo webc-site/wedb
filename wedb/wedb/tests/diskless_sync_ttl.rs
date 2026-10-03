@@ -1,0 +1,289 @@
+//! 无盘全量同步快照流 TTL 保留集成测试：发送端 read_live_value 提取真实
+//! 过期时间戳装帧，接收端 cluster_sync_slow 按迁移链同款回填——带 TTL 键
+//! 经 CLUSTER SYNC 全量导入副本后 TTL 保留，无 TTL 键不携带过期
+//!
+//! 对标 C# 快照迭代整记录搬运含过期字段：
+//! - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicationSnapshotIterator.cs:WriteRecord
+//! - libs/cluster/Session/RespClusterReplicationCommands.cs:NetworkClusterSync
+//!
+//! 偏差回指：本档链路对 C# 整记录直拷的有意偏离登记于
+//! doc/zh/deviations.md §96；竞态宗属时窗复现不作锁测，仅以本注释回指条目号。
+
+use std::sync::Arc;
+
+use wbase::{
+  convert::{expire_at_milliseconds_to_ticks, unix_time_in_milliseconds_from_ticks},
+  time::now_ticks,
+};
+use wconn::record::{BatchItem, MigrateVal, encode_migration_payload};
+use wedb::server::{
+  cluster::IClusterProvider,
+  cluster_provider::ClusterProvider,
+  cluster_session::ClusterSession,
+  migration::migrate_driver::{LiveValue, read_live_value},
+};
+use wedb_test::{
+  store_node::{StoreNode, open_store},
+  two_primary_provider as wedb_test_two_primary_provider,
+};
+use wnode::{
+  MessageConsumerFace, RespSessionConsumer,
+  resp::{garnet_api::StoreGarnetApi, resp_server_session::RespServerSessionOptions},
+  storage::session::storage_session::StorageSession,
+};
+use wnode_test::pump;
+use wtxn::{TxnLockTable, WatchVersionMap};
+use wval::KeyTag;
+
+/// 测试节点身份（内部 u128；协议面渲染 32 字符小写 hex）
+const NODE1_HEX: &str = "0000000000000000000000000000de11";
+
+/// 装配双主节点拓扑：node_1（本地）持 0..8192，node_2@7001 持 8192..16384
+///（后半整段远端；不设栅栏超时。装配主体 `wedb_test::two_primary_provider` 单源）
+fn two_primary_provider() -> Arc<ClusterProvider> {
+  wedb_test_two_primary_provider::two_primary_provider(None, 8192, 8192, &[], None)
+}
+
+/// CLUSTER SYNC 二进制安全帧（payload 含内嵌 NUL 与任意字节）
+fn cluster_sync_frame(source_node_id: &str, payload: &[u8]) -> Vec<u8> {
+  let mut frame = format!(
+    "*4\r\n$7\r\nCLUSTER\r\n$4\r\nSYNC\r\n${}\r\n{source_node_id}\r\n${}\r\n",
+    source_node_id.len(),
+    payload.len()
+  )
+  .into_bytes();
+  frame.extend_from_slice(payload);
+  frame.extend_from_slice(b"\r\n");
+  frame
+}
+
+/// 带 TTL 键（string 与 Hash 对象信封）经快照装帧 + CLUSTER SYNC 导入副本后
+/// TTL 保留且值一致；无 TTL 键不携带过期；发送端提取的过期时间戳为源键真值
+#[compio::test]
+async fn diskless_sync_preserves_ttl() {
+  // ===== 副本端：provider + store + 集群会话消费者
+  let cp = two_primary_provider();
+  let StoreNode {
+    _dir,
+    store: replica,
+  } = open_store("diskless_replica.db");
+  cp.set_store(Arc::clone(&replica));
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
+  let mut consumer = RespSessionConsumer::with_cluster(
+    1,
+    RespServerSessionOptions::default(),
+    cluster_session,
+    cp.provider_handle(),
+    Arc::new(StoreGarnetApi::new(replica.new_session().unwrap())),
+  );
+  consumer.attach_transaction_components(Arc::new(WatchVersionMap::new(64)), TxnLockTable::new());
+
+  // ===== 源端：带 TTL string + 带 TTL Hash 信封 + 无 TTL string
+  let StoreNode {
+    _dir,
+    store: source,
+  } = open_store("diskless_source.db");
+  let expire_ms = unix_time_in_milliseconds_from_ticks(now_ticks()) + 60_000;
+  let expire_ticks = expire_at_milliseconds_to_ticks(expire_ms);
+  {
+    let session = source.new_session().unwrap();
+    let batch = session.enter_batch();
+    let storage = StorageSession::new(batch);
+    storage.upsert_string(b"diskless:str", b"v1").await.unwrap();
+    storage
+      .expire_at_ticks(b"diskless:str", expire_ticks)
+      .await
+      .unwrap();
+    storage
+      .upsert_tag(b"diskless:hash", KeyTag::ObjectEnvelope, b"\x03payload")
+      .await
+      .unwrap();
+    storage
+      .expire_at_ticks(b"diskless:hash", expire_ticks)
+      .await
+      .unwrap();
+    storage
+      .upsert_string(b"diskless:plain", b"p1")
+      .await
+      .unwrap();
+  }
+
+  // ===== 发送端形态：read_live_value 提取活值与真实过期时间戳装帧
+  //（与 diskless_replication::replication_snapshot_iterator 快照扫描循环同构）
+  let (str_val, str_expire) = {
+    let session = source.new_session().unwrap();
+    let batch = session.enter_batch();
+    let storage = StorageSession::new_readonly(batch);
+    let (val, expire) = match read_live_value(&storage, None, b"diskless:str")
+      .await
+      .unwrap()
+    {
+      LiveValue::Migratable(val, expire) => (val, expire),
+      _ => panic!("string 键应为可迁移活值"),
+    };
+    assert!(matches!(val, MigrateVal::Str(_)), "string 域读出 string 值");
+    assert_eq!(expire, expire_ticks, "发送端提取源键真实过期时间戳");
+    (val, expire)
+  };
+  let (hash_val, hash_expire) = {
+    let session = source.new_session().unwrap();
+    let batch = session.enter_batch();
+    let storage = StorageSession::new_readonly(batch);
+    let (val, expire) = match read_live_value(&storage, None, b"diskless:hash")
+      .await
+      .unwrap()
+    {
+      LiveValue::Migratable(val, expire) => (val, expire),
+      _ => panic!("合规信封键应为可迁移活值"),
+    };
+    assert!(matches!(val, MigrateVal::Env(_)), "信封域读出整值");
+    assert_eq!(expire, expire_ticks, "信封键同样携带真实过期时间戳");
+    (val, expire)
+  };
+  let plain_expire = {
+    let session = source.new_session().unwrap();
+    let batch = session.enter_batch();
+    let storage = StorageSession::new_readonly(batch);
+    let (_, expire) = match read_live_value(&storage, None, b"diskless:plain")
+      .await
+      .unwrap()
+    {
+      LiveValue::Migratable(val, expire) => (val, expire),
+      _ => panic!("无 TTL string 键应为可迁移活值"),
+    };
+    assert_eq!(expire, 0, "无 TTL 键过期时间戳为 0");
+    expire
+  };
+  // 不存在键分类为 Gone（快照循环跳过，不装帧）
+  {
+    let session = source.new_session().unwrap();
+    let batch = session.enter_batch();
+    let storage = StorageSession::new_readonly(batch);
+    assert!(matches!(
+      read_live_value(&storage, None, b"diskless:missing")
+        .await
+        .unwrap(),
+      LiveValue::Gone
+    ));
+  }
+
+  let items = [
+    BatchItem {
+      key: b"diskless:str",
+      val: str_val,
+      expire_ticks: str_expire,
+    },
+    BatchItem {
+      key: b"diskless:hash",
+      val: hash_val,
+      expire_ticks: hash_expire,
+    },
+    BatchItem {
+      key: b"diskless:plain",
+      val: MigrateVal::Str(b"p1".to_vec()),
+      expire_ticks: plain_expire,
+    },
+  ];
+  let payload = encode_migration_payload(&items);
+
+  // ===== CLUSTER SYNC 导入副本（全 owned 进慢路径执行体，挂 pending_slow
+  // 由消费侧转挂网络泵 await 闭环；本测试以泵位 resolve 收割应答）
+  let (consumed, mut out) = pump(&mut consumer, &cluster_sync_frame(NODE1_HEX, &payload));
+  assert_eq!(consumed, Some(0), "帧应被完整消费");
+  let slow = consumer
+    .take_slow_wait()
+    .expect("CLUSTER SYNC 挂起慢路径执行体");
+  out.extend_from_slice(&slow.resolve().await);
+  assert_eq!(out, b"+OK\r\n");
+
+  // ===== 副本断言：TTL 保留 + 值一致 + 无 TTL 键不携带过期
+  let session = replica.new_session().unwrap();
+  let batch = session.enter_batch();
+  let storage = StorageSession::new_readonly(batch);
+  assert_eq!(
+    storage.read_string(b"diskless:str").await.unwrap(),
+    Some(b"v1".to_vec())
+  );
+  assert_eq!(
+    storage.batch.ttl_of(b"diskless:str").await.unwrap(),
+    Some(expire_ticks),
+    "带 TTL string 键经全量同步后 TTL 保留"
+  );
+  let env = storage
+    .read_tag_with(b"diskless:hash", KeyTag::ObjectEnvelope, |raw| raw.to_vec())
+    .await
+    .unwrap()
+    .unwrap();
+  assert_eq!(env, b"\x03payload", "信封整值一致");
+  assert_eq!(
+    storage.batch.ttl_of(b"diskless:hash").await.unwrap(),
+    Some(expire_ticks),
+    "带 TTL 信封键经全量同步后 TTL 保留"
+  );
+  assert_eq!(
+    storage.read_string(b"diskless:plain").await.unwrap(),
+    Some(b"p1".to_vec())
+  );
+  assert_eq!(
+    storage.batch.ttl_of(b"diskless:plain").await.unwrap(),
+    None,
+    "无 TTL 键不携带过期"
+  );
+}
+
+/// SYNC 承接面信封类型门（帧导入核心统一后 MIGRATE / SYNC 共用）：内层
+/// RangeIndex 标签 (0x05) 的 kind=2 帧显式拒绝且键绝不落库——对标 C#
+/// RespClusterReplicationCommands.cs NetworkClusterSync 对意外 kind 直接抛
+/// 的诚实面（本仓 rust 发送端经 read_live_value 门控不产出该帧，本测试钉
+/// 死防御拒绝面而非旧静默写）
+#[compio::test]
+async fn cluster_sync_rejects_unsupported_envelope() {
+  let cp = two_primary_provider();
+  let StoreNode {
+    _dir,
+    store: replica,
+  } = open_store("diskless_reject.db");
+  cp.set_store(Arc::clone(&replica));
+  let cluster_session: Arc<ClusterSession> = cp.create_cluster_session();
+  let mut consumer = RespSessionConsumer::with_cluster(
+    1,
+    RespServerSessionOptions::default(),
+    cluster_session,
+    cp.provider_handle(),
+    Arc::new(StoreGarnetApi::new(replica.new_session().unwrap())),
+  );
+  consumer.attach_transaction_components(Arc::new(WatchVersionMap::new(64)), TxnLockTable::new());
+
+  let payload = encode_migration_payload(&[BatchItem {
+    key: b"diskless:ri_env",
+    val: MigrateVal::Env(b"\x05payload".to_vec()),
+    expire_ticks: 0,
+  }]);
+  let (consumed, mut out) = pump(&mut consumer, &cluster_sync_frame(NODE1_HEX, &payload));
+  assert_eq!(consumed, Some(0), "帧应被完整消费");
+  // SYNC 转挂起慢路径：泵位 resolve 收割拒绝应答（C# 网络线程同步收割的
+  // compio 挂起承接）
+  let slow = consumer
+    .take_slow_wait()
+    .expect("CLUSTER SYNC 挂起慢路径执行体");
+  out.extend_from_slice(&slow.resolve().await);
+  assert!(
+    String::from_utf8_lossy(&out)
+      .starts_with("-ERR Unsupported migration record kind 2 (envelope type 5)"),
+    "非迁移类型信封经 SYNC 应显式拒绝: {out:?}"
+  );
+
+  // 绝不静默写：键不落库
+  let session = replica.new_session().unwrap();
+  let batch = session.enter_batch();
+  let storage = StorageSession::new_readonly(batch);
+  assert!(
+    storage
+      .read_tag_with(b"diskless:ri_env", KeyTag::ObjectEnvelope, |raw| raw
+        .to_vec())
+      .await
+      .unwrap()
+      .is_none(),
+    "被拒信封不得落库"
+  );
+}

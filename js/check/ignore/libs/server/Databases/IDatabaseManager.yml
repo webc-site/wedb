@@ -1,0 +1,24 @@
+- 理由: >-
+    接口在 rust 无独立落点：wnode/src/database/mod.rs
+    模块头明文合并承接
+    {IDatabaseManager,SingleDatabaseManager,DatabaseManagerBase}.cs；接口成员按既有惯例锚挂具体实现档（database_manager_base.rs
+    / single_database_manager.rs），接口壳不单独转写
+  文件:
+    - libs/server/Databases/IDatabaseManager.cs:
+        - TryGetOrAddDatabase
+        - TryPauseCheckpoints
+        - ResumeCheckpoints
+        - TakeCheckpointAsync
+        - TakeOnDemandCheckpointAsync
+        - TaskCheckpointBasedOnAofSizeLimitAsync
+        - CommitToAofAsync
+        - WaitForCommitToAofAsync
+        - RecoverAOFAsync
+        - ReplayAOF
+        - GrowIndexesIfNeededAsync
+        - Reset
+        - ResetRevivificationStats
+        - GetDatabasesSnapshot
+        - FlushAllDatabases
+        - CollectHybridLogStats
+        - RecoverVectorSets

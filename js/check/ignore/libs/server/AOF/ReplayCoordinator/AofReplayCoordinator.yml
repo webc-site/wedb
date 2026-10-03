@@ -1,0 +1,13 @@
+- 理由: >-
+    SaveTransactionGroupKeysToLock：跨子日志事务组回放定序改由
+    wnode aof_processor process_transaction_group
+    的序列号栅栏（LeaderBarrier
+    get_barrier/try_remove_barrier）承接，C# 逐键锁集形态随
+    rust 事务锁面裁剪刻意不转写（aof_processor.rs
+    明文裁决）。ReplayStoredProc：自定义事务存储过程面随动态注册管理层整体裁撤（transpile
+    SKILL 删除 CustomCommandManager
+    动态注册条款），AofEntryType::StoredProcedure 条目到达即损坏拒收
+  文件:
+    - libs/server/AOF/ReplayCoordinator/AofReplayCoordinator.cs:
+        - SaveTransactionGroupKeysToLock
+        - ReplayStoredProc

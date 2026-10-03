@@ -1,0 +1,25 @@
+# rust 无独立 Read_MainStore 会话层：GET 慢路径（garnet_api.rs exec_slow C::Get 臂）
+# 直连 StorageSession.read_string（已映射 MainStoreOps.cs:GET），ReadWithPrefetch
+# 的批量预取由 wkv ConsistentReadContext.read_batch_with 原语承接
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - Read_MainStore
+  理由: >-
+    C# Read_MainStore 是 RESP GET 慢路径经 StringInput/StringOutput 的会话入口；
+    rust 收敛为 exec_slow 直调 read_string 零拷贝闭包原语，无独立包装层
+
+# C# RMW_MainStore（AdvancedOps.cs:71）只是把 StringInput 转交 MainStore/RMWMethods.cs
+# 的 per-command switch（default 尾部抛 GarnetException("Unsupported operation on
+# input")）；AOF 回放侧 AofProcessor.cs:StoreRMW 只对 VADD/VREM/VSETATTR/RICREATE/
+# RISET/RIDEL 特判，其余一律原样交给 stringContext.RMW，不存在按命令手写的第二套臂
+- 文件:
+    - libs/server/Storage/Session/MainStore/AdvancedOps.cs:
+        - RMW_MainStore
+  理由: >-
+    无需实现。rust 主存写侧唯一出口是 wkv 会话「值写 + TtlWrite 旁路镜像」漏斗
+    （wkv/src/session/raw/mod.rs:177 notify_write_listener →
+    wnode/src/service.rs on_aof_store_event），可产出的 StoreRMW 仅
+    Pexpireat/Persist/Setwithetag/Riset/Ridel/Ricreate/Delifexpim 七形态，
+    Incr/Incrby/Decr/Decrby/Incrbyfloat/Append/Setrange 形态 AOF 永不可达；
+    原 StringRMWOp + rmw_main_store 收口除 AOF 回放自身与单测外全仓零生产者，
+    随 aof_processor StoreRMW 死臂同批删除，不留兼容壳

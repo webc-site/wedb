@@ -1,0 +1,11 @@
+# C# 条目仅实现 IEquatable<PatternSubscriptionEntry>.Equals，判据即
+# pattern 字节序 SequenceEqual；rust 条目入托管并发 map（模式 -> 条目，
+# wedb/wpubsub/src/pattern_subscription_entry.rs），键判等天然吸收条目
+# 判等（模式字节序相等即同键同条目），无须条目级 equals 方法。
+- 文件:
+    - libs/server/PubSub/PatternSubscriptionEntry.cs:
+        - Equals
+  理由: >-
+    C# Equals 判据即 pattern 字节序相等；rust 侧条目以模式为并发 map
+    键，键判等单点承接同一语义（见 pattern_subscription_entry.rs 条目
+    文档注），不另落条目级 equals 面。

@@ -1,0 +1,9 @@
+# C# 的 MainMonitorTaskAsync 体内 ResetLatencySessionMetrics 臂跨线程遍历活跃
+# 会话调 ResetAllLatencyMetrics（时钟推进前清 PriorVersion 槽）。rust 会话延迟
+# 表不入监视器采样面（consumer_registry 文件头「会话延迟指标不入采样面」），
+# 清槽与归并合一由属主线程在下一次触碰延迟表时于版本翻转点就地完成
+# （GarnetLatencyMetricsSession::roll_version → flush），复位结果等价。
+- 文件:
+    - libs/server/Metrics/GarnetServerMonitor.cs:
+        - ResetLatencySessionMetrics
+  理由: 跨线程会话槽复位臂在 rust 归属转移至属主线程版本翻转点，监视器不再触达会话延迟表

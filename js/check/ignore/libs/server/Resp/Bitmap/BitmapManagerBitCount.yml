@@ -1,0 +1,10 @@
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitCount.cs:
+        - __simd_popcX128
+  理由: C# `else if (Ssse3.IsSupported) __simd_popcX128` 是 AVX2 缺失时按向量宽度降级的兜底臂，
+    分派轴是 ISA 指令集档位而非字节区间。rust 侧 SIMD 选型单点为 wbase::simd 的 fearless_simd
+    `dispatch!(Level::new(), ..)`，`Level::new()` 只返回本机最强档（Sse2/Sse4_2/Avx2/Avx512 单令牌），
+    不存在按宽度降级轴；且 bitcount 的 x128/x256 两实现均统一以 `u64::count_ones` 承接
+    （批宽 16/32 仅展开宽度差异，发射指令同源），X128 降级语义已由 __simd_popc_x256 单路承载。
+    原 __simd_popc_x128 全仓零生产调用（仅同文件测试引用），属自造分派形态的死码，一并删除
+    （task/done/bitcount-simd-dispatch-parity.md）

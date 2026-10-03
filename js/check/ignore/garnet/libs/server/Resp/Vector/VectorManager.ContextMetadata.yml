@@ -1,0 +1,26 @@
+# 上下文元数据三分部清理（resp/vector 域缺失符号甄别）
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - UpdateHashSlot
+  理由: >-
+    rust 槽位由 (namespace, db) 唯一确定（wbase::hash_slot::slot_of，定槽不变量
+    「同库恒同槽」，doc/zh/db.md）；VCREATE 时登记的上下文槽位在其生命周期内恒
+    不变——RENAME 不改库即不改槽，集群按 ns->db 整库分片无逐键重挂。C# 键内容
+    CRC16 定槽下跨槽 RENAME 需 UpdateHashSlot（:300 元数据位 + :754 管理器层）
+    改挂槽位簿记的机制位在 rust 架构层消失，无承接函数面。
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - ToString
+  理由: >-
+    C# 注释自述「Just for debugging purposes」的调试格式串；rust ContextMetadata
+    已 derive(Debug)（vector_manager_context_metadata.rs），无生产/测试消费者，
+    不为对齐而手写等价 Display。
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - Dispose
+  理由: >-
+    C# FlushGuard（:405 停发新上下文 + Dispose 清 contextMetadatas/dirty/恢复态
+    再放锁）的 rust 承接是清库换号架构：FLUSHDB/FLUSHALL 分配新虚拟库 ID 并以
+    会话纪元杜绝脏写（wnode service.rs 换号批），旧域上下文由
+    VectorManager::reclaim_registry_domain 逐条走 request_deletion 回收链，
+    无「全局停发锁 + 集中清空」的 RAII 守卫面。

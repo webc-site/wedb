@@ -1,0 +1,4 @@
+[build]
+target-dir = "/tmp/rust_wedb"
+rustflags = ["-C", "target-feature=+aes"]
+

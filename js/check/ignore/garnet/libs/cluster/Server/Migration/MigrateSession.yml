@@ -1,0 +1,6 @@
+# C# MigrateSession.Overlap（:90）全仓 libs + tests 零调用，属 C# 自身死方法
+- 文件:
+    - libs/cluster/Server/Migration/MigrateSession.cs:
+        - Overlap
+  理由: C# 侧即无任何调用方的死方法，rust 转写体 overlap 仅自测引用，
+    随死代码清理一并移除，不保留空壳

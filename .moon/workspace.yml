@@ -1,0 +1,8 @@
+projects:
+  - wedb
+  - bench
+  - regress
+
+vcs:
+  defaultBranch: "main"
+  provider: "github"

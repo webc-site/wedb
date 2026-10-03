@@ -1,0 +1,18 @@
+# CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# C# CacheSizeTracker 的职责是包一层 Tsavorite LogSizeTracker，按内存预算
+# （TargetSize/HighTargetSizeDeltaFraction）驱动主日志与读缓存的淘汰裁剪，
+# 堆字节读数由 Tsavorite 内部经 store.Log.SetLogSizeTracker 记账，AddHeapSize/
+# AddReadCacheHeapSize 仅转调 mainLogTracker.IncrementSize。rust 采用 wkv 信封
+# + 单物理 hlog 模型（对象随 hlog 统一落盘，无独立托管堆），且内存压力控制已由
+# wcol 分层存储的 should_promote/should_demote（按 count/heap_bytes 双门限迟滞）
+# 单点承接（见 doc/zh/collection.md），不存在 Tsavorite LogSizeTracker 对位件。
+# 曾转写的 rust CacheSizeTracker 退化为「原子字节估计器」，其 add_heap_size/
+# add_read_cache_heap_size 写侧全仓零喂入、heap_bytes/read_cache_bytes 读侧零消费者，
+# INFO memory 的 Log.CurrentHeapSizeBytes 在 C# 侧取 db.Store.Log.HeapSizeBytes
+# （非本追踪器），target_size 取 mainLogTracker.TargetSize（rust 无此源），故该
+# 估计器两侧同死且与 C# 非 1:1，按「死代码直接删 / 不移植额外机制」整类移除。
+- 文件:
+    - libs/server/Storage/SizeTracker/CacheSizeTracker.cs
+  理由: >-
+    该类的裁剪职责在 rust 由 wcol 分层迟滞机制单点承接，无 Tsavorite LogSizeTracker
+    对位；已转写的原子估计器两侧零调用且字段与 C# 不对应，整类判定不移植并删除。

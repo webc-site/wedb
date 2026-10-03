@@ -1,0 +1,7 @@
+- 文件:
+    - libs/client/GarnetClientProcessReplies.cs:
+        - ProcessReplyAsNumber
+  理由: C# GarnetClientProcessReplies.cs:68 的 ProcessReplyAsNumber 服务于 C# 客户端 SDK
+    内部数字应答解析（:311/:320 消费）；C# 客户端 SDK (GarnetClient) 不在 rust 内核实现，
+    通用 RESP 客户端由 wedb/wconn 传输层原生承接，同族 CopyErrorToSpan/ProcessReplyAsMemoryByteArray/TryConsumeMessages
+    已在 client.yml 登记不实现口径。
