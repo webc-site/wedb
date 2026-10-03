@@ -8,7 +8,7 @@
 //! 交回调裁决应答。差异面（读块尺寸、应答编排）以参数与回调暴露；外层
 //! accept / spawn 外壳与每连接状态由各册自持。消费面经
 //! `wedb_test::fake_frame_pump` 引用；帧解析单源见
-//! `wedb_test::resp_frame_args`（crate 内路径引用）。
+//! `wtest_base::parse_frame_slices`。
 //!
 
 use compio::{
@@ -16,8 +16,7 @@ use compio::{
   io::{AsyncRead, AsyncWriteExt},
   net::TcpStream,
 };
-
-use crate::resp_frame_args::try_parse_frame_args;
+use wtest_base::parse_frame_slices;
 
 /// 逐帧泵：读尽即返回（连接收口）；回调写败同样收口（拒收断连语义）
 ///
@@ -40,7 +39,7 @@ pub async fn pump_frames(
       _ => break,
     };
     acc.extend_from_slice(&buf[..n]);
-    while let Some((frame_len, args)) = try_parse_frame_args(&acc) {
+    while let Some((frame_len, args)) = parse_frame_slices(&acc) {
       let frame = &acc[..frame_len];
       if let Some(reply) = on_frame(frame, &args).await {
         acc.drain(..frame_len);

@@ -3,7 +3,7 @@
 //! 对齐 C# RespServerSession.TryConsumeMessages 最外层 catch(Exception) →
 //! Dispose 语义：单会话消费路径 panic 只断本连接，服务器进程、accept 泵与
 //! 其他连接全部存活。兜底点在 [`wnode`] 连接泵 process_stream 的
-//! catch_unwind（net/handler/drive.rs），前提是 release profile 撤
+//! catch_unwind（net/handler/drive/mod.rs），前提是 release profile 撤
 //! panic="abort"（wedb/Cargo.toml，unwind 形态下 executor 与本兜底才生效）。
 
 use std::{
@@ -30,9 +30,8 @@ use wnode::{GarnetServer, MessageConsumerFace, SessionProviderFace, WireFormat};
 fn spawn_server<P: SessionProviderFace + 'static>(
   provider: Arc<P>,
 ) -> (Arc<GarnetServer<P>>, String) {
-  let server = Arc::new(
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::clone(&provider)).unwrap(),
-  );
+  let server =
+    Arc::new(GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::clone(&provider)).unwrap());
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap().to_string();
   (server, addr)

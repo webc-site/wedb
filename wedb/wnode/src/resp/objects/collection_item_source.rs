@@ -16,8 +16,8 @@
 //!   同键旋转计划折叠去重为单窗），不可取即整体拒写重试；
 //! - 磁盘候选与活跃分层键同步不可出件，一律按不可取处理；阻塞族命令层
 //!   park 前预探（obj_load_sync_degrades），此类键整体路由慢路径异步臂出件，
-//!   慢路径装载未取到时经经纪等待面闭环（slow.rs BlockWaitFace，C#
-//!   BlockingWait 键态解耦语义）。Degrade 臂以 [`TryGetOutcome::degrade`]
+//!   慢路径装载未取到时经经纪等待面闭环（list_commands/slow/face.rs
+//!   BlockWaitFace，C# BlockingWait 键态解耦语义）。Degrade 臂以 [`TryGetOutcome::degrade`]
 //!   独立标定"键已离开经纪同步服务域"，且经 `is_live_tiered_collection`
 //!   复判成因——唯 Meta 存活分层键（真升阶，同步装载恒 Degrade）送客：
 //!   经纪命中即对该键全队列送空应答清队摘键（客户端空回复重试经预探路由

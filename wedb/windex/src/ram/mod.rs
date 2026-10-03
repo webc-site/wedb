@@ -8,7 +8,7 @@
 //! 位于依赖图最底层、被 Device/Allocator/TsavoriteLog 平行引用的拓扑），
 //! 需要时直接依赖 wbase 的 `pool` / `align` feature。
 //!
-//! 生产链现状：[`DirectVirtualMemory`] 经 [`crate::HashBuckets`] 撑生产哈希索引
+//! 生产链现状：[`DirectVirtualMemory`] 经 `HashBuckets` 撑生产哈希索引
 //! 桶数组——wkv 主索引 HashIndex（wkv/src/store.rs）→ table::HashBuckets →
 //! buckets::HashBuckets::new 即本层 allocate，分配全程接入 [`NativeMemoryTracker`] 记账。
 

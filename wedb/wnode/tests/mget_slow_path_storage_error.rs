@@ -2,8 +2,8 @@
 //!
 //! 票面命题：wkv 批量读口 `session/raw/batch.rs:read_batch_raw_with` 的次序契约是
 //! 「任一磁盘候选收割失败即以 `Err` 中止交付，首个磁盘候选之前的内存项已先行交付、
-//! 无法回滚，调用方须整体丢弃本批部分结果」。慢路径两臂（`array_commands.rs`
-//! 的 `slow::mget_inner`、`garnet_api/slow.rs` 的 `C::Get` 臂）曾未履行该丢弃契约，
+//! 无法回滚，调用方须整体丢弃本批部分结果」。慢路径两臂（`array_commands/slow.rs`
+//! 的 `slow::mget_inner`、`garnet_api/slow/` 的 `C::Get` 臂）曾未履行该丢弃契约，
 //! 直接把错误帧追加在未回滚的 `*N` 数组头与部分元素之后，产出长度与内容不符的
 //! 畸形 bulk/array 帧（MGET）与 N 命令 M+1 帧的缺帧错位（SG GET 流水线）。
 //!

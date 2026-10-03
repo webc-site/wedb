@@ -100,7 +100,10 @@ fn parse_record(record: &waof::WalRecord) -> (Vec<u8>, wnode::ReplayInput) {
 /// 用户键，源端会话域内），断言经 `split_registry_key` 剥域后比对用户键
 fn assert_registry_exactly(vm: &VectorManager, expect_key: &[u8]) {
   let slot_keys = [i32::from(slot_of(0, 0))];
-  let keys = vm.get_vector_set_keys_for_slots(&slot_keys.iter().copied().collect());
+  let keys = vm
+    .get_vector_set_keys_for_slots_with(&slot_keys.iter().copied().collect(), |vns, vdb| {
+      Some(slot_of(vns, vdb))
+    });
   assert_eq!(keys.len(), 1, "登记表应恰有一项：{keys:?}");
   let (domain, user_key) = split_registry_key(&keys[0].0);
   assert_eq!(
@@ -639,7 +642,8 @@ fn rename_onto_vector_set_replay_cleans_displaced() {
       .expect("重放端新名应登记");
     assert_eq!(context_of(&dst_index), ctx_src, "新名应承接源集合上下文");
     let slots: BTreeSet<i32> = [i32::from(slot_of(0, 0))].iter().copied().collect();
-    let keys = recovered.get_vector_set_keys_for_slots(&slots);
+    let keys =
+      recovered.get_vector_set_keys_for_slots_with(&slots, |vns, vdb| Some(slot_of(vns, vdb)));
     assert_eq!(keys.len(), 1, "重放后登记表应恰一项：{keys:?}");
 
     // 被顶上下文自清：request_deletion 已丢弃其 HNSW 内存索引（无泄漏）

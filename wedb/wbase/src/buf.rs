@@ -112,7 +112,7 @@ impl<const CAP: usize> StackHeapBuf<CAP> {
     matches!(self, Self::Heap(..))
   }
 
-  /// 消耗自身转换为 Vec<u8>（若原为堆分配则零额外分配转移所有权）
+  /// 消耗自身转换为 `Vec<u8>`（若原为堆分配则零额外分配转移所有权）
   #[inline]
   pub fn into_vec(self) -> Vec<u8> {
     match self {

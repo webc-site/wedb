@@ -45,7 +45,7 @@ use wtest_base::{FailoverNode, SilentNode, StopWritesNode, resp_frame_str, wait_
 const SLOT0: u16 = slot_of(0, 0);
 
 async fn wait_until(m: &FailoverManager, expect: &str) {
-  m.wait_failover_done().await;
+  wait_failover_done(m).await;
   assert!(
     wait_for(
       || m.get_last_failover_status() == expect,
@@ -92,7 +92,7 @@ fn cluster_replication_simple_failover() -> Void {
       FailoverOption::Takeover,
       Duration::ZERO
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert_eq!(m.get_failover_status(), "no-failover");
     aok::OK
   })
@@ -241,7 +241,7 @@ fn cluster_failover_dedicated_connection_keeps_gossip_store_intact() -> Void {
 
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_millis(80)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     // 停写应答沉默超时 → 本次 failover 放弃
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
 
@@ -265,7 +265,7 @@ fn cluster_failover_control_command_timeout_aborts() -> Void {
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     let start = Instant::now();
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_millis(80)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert!(
@@ -451,7 +451,7 @@ fn cluster_failover_race_picks_fast_replica() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
 
     assert!(fast.takeover_received(), "位点先追平的快副本应当选接管");
@@ -485,7 +485,7 @@ fn cluster_failover_race_overall_timeout() -> Void {
       FailoverOption::Takeover,
       Duration::from_millis(300)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
 
     assert!(
@@ -523,7 +523,7 @@ fn cluster_failover_cluster_timeout_from_provider() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert!(!replica.takeover_received(), "限时小于应答延迟时候选应落选");
     let elapsed = start.elapsed();
     assert!(
@@ -541,7 +541,7 @@ fn cluster_failover_cluster_timeout_from_provider() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert!(replica.takeover_received(), "限时大于应答延迟时候选应当选");
     aok::OK
   })
@@ -616,7 +616,7 @@ fn cluster_failover_primary_sync_timeout_rolls_back_slots() -> Void {
       FailoverOption::Takeover,
       Duration::from_millis(300)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
 
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert!(!slow.takeover_received(), "同步超时不应有副本被接管");
@@ -646,7 +646,7 @@ fn cluster_failover_primary_takeover_rejection_rolls_back_slots() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
 
     assert!(rejector.takeover_received(), "位点追平副本应当选下发接管");
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
@@ -734,7 +734,7 @@ fn cluster_failover_primary_abort_reclaims_slots_and_serves_writes() -> Void {
       "ABORT 后会话自赎须恢复 PRIMARY 并收回 SLOT0"
     );
 
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(fm.get_last_failover_status(), "failover-aborted");
     // 会话失败路径幂等：二次赎回判据拒绝，配置不再漂移
     assert_rolled_back(&cp, epoch_before);
@@ -1298,4 +1298,13 @@ fn race_abort_forms() {
     );
     assert!(start.elapsed() < CoarsetimeDuration::from_secs(5));
   });
+}
+
+/// 已删 `FailoverManager::wait_failover_done` 的测试等价轮询面
+///（is_failover_in_progress 观测终态落账 + 会话收场，5s 超时上限）
+async fn wait_failover_done(m: &FailoverManager) {
+  assert!(
+    wait_for(|| !m.is_failover_in_progress(), Duration::from_secs(5)).await,
+    "failover 未在 5s 内收场"
+  );
 }

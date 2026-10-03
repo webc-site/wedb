@@ -21,7 +21,7 @@
 //! 不影响该判定，不存在「分层键按缺失应答」的第三形态）。
 //!
 //! 分流三条求值路径（同步快路与冷键降级异步重放同款分型）：
-//! - Read 臂：经 try_read_tag_sync / read_tag_with 闭包内借用切片直喂 reader，消除 ObjLoad<Vec<u8>> 中转
+//! - Read 臂：经 try_read_tag_sync / read_tag_with 闭包内借用切片直喂 reader，消除 `ObjLoad<Vec<u8>>` 中转
 //! - RMW 臂：装载 owned Vec 供 Updater 就地改写；与 rmw_helpers 骨架同一套
 //!   写回面保护（装载前 RmwWindow 用户键桶排他闩 + 落笔前 obj_save_recheck
 //!   域归属复验，对标 C# RMWMethods.cs 记录 X 锁内求值，禁第二套裁决）
@@ -325,7 +325,7 @@ fn try_custom_object_multi_read_sync<D: Device>(
   CustomObjOutcome::Done
 }
 
-/// 同步 RMW 臂：装载 owned Vec<u8> 供 Updater 就地改写并按需回写或删空
+/// 同步 RMW 臂：装载 owned `Vec<u8>` 供 Updater 就地改写并按需回写或删空
 ///
 /// C# 对位 libs/server/Storage/Functions/ObjectStore/RMWMethods.cs：NeedInitialUpdate /
 /// InPlaceUpdater / CopyUpdater 四钩子全在记录 X 锁内求值，「装载 → 写回」间隙不存在。
@@ -507,7 +507,7 @@ async fn custom_object_multi_read_async<D: Device>(
   Ok(())
 }
 
-/// 异步 RMW 臂：装载 owned Vec<u8> 供 Updater 就地改写并回写或删空
+/// 异步 RMW 臂：装载 owned `Vec<u8>` 供 Updater 就地改写并回写或删空
 ///
 /// [`try_custom_object_rmw_sync`] 的慢路径对位，同一套写回面保护（票
 /// zcode-r22-wcustom 发现一）：装载前 [`wkv::BatchStoreSession::rmw_window`]

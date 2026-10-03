@@ -160,7 +160,7 @@ pub struct WedbStore<D: Device> {
   /// 物理回收单飞闸：物理回收与紧缩在 GcManager 与常驻 bftree 任务间并发调度，
   /// 用此 Store 级闸门防并发执行
   ///
-  /// [`doc(hidden)`] 测试专用隐藏面：仅 wkv/tests/gc_reclaimer_mount.rs 集成
+  /// `doc(hidden)` 测试专用隐藏面：仅 wkv/tests/gc_reclaimer_mount.rs 集成
   /// 测试直写（在途互斥预置与 RunGuard 复位观测），非公共 API 契约
   #[doc(hidden)]
   pub reclaim_inflight: AtomicBool,
@@ -678,7 +678,7 @@ impl<D: Device> WedbStore<D> {
   /// 绝不灌入内存映射——未访问的冷租户与冷库映射零内存常驻，首次访问经
   /// [`Self::resolve_context`] 点查磁盘装载（doc/zh/db.md「冷租户按需加载与
   /// 零全局常驻内存」）。内存仅重建根域 (0, 0)、近期即将到期的死亡账本
-  /// （[`GcDeadLog`] 小根堆）与分配水位；0x06 成对换号记录仅对根域成对装载，
+  /// （[`crate::vdb::GcDeadLog`] 小根堆）与分配水位；0x06 成对换号记录仅对根域成对装载，
   /// 0x05 落盘水位与映射扫描号取大（收尾 fetch_max 折叠，消隐式落盘依赖）。
   /// 全部记录经 [`DbMetaRecord::decode`] 单点解码后由 [`Self::rebuild_apply_record`]
   /// 按变体分发，长度错位或未知子类型告警留痕、绝不静默吞掉。

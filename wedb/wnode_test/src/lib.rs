@@ -378,7 +378,7 @@ pub async fn drive_pending_parks(
       if let Some(api) = session.garnet_api.clone() {
         let _ = api.exec_auth_acl(session, cmd, &views).await;
       }
-      // 泵侧闭环补计（与产线 drive.rs 同口）：await 完成后、冲出前
+      // 泵侧闭环补计（与产线 drive/consume.rs 同口）：await 完成后、冲出前
       session.account_parked_auth_acl_failure(cmd);
       session.take_output_into(resp_buf, true);
       if session.try_consume_messages().is_some() {
@@ -557,8 +557,7 @@ pub fn start_server<P: SessionProviderFace + 'static>(
   provider: Arc<P>,
 ) -> (Arc<GarnetServer<P>>, SocketAddr) {
   let server = Arc::new(
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 1 << 16, 8, provider)
-      .expect("合法端点构造失败"),
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 1 << 16, provider).expect("合法端点构造失败"),
   );
   server.start(NonZeroUsize::new(1)).expect("server start");
   let addr = server.local_addr().expect("local addr");
@@ -705,7 +704,7 @@ pub async fn cmd(stream: &mut TcpStream, args: &[&[u8]]) -> Vec<u8> {
   read_reply(stream).await
 }
 
-/// 读取 bulk 应答载荷（$N\r\n<body>\r\n；nil 帧返回 None）
+/// 读取 bulk 应答载荷（`$N\r\n<body>\r\n`；nil 帧返回 None）
 pub async fn read_bulk_reply(stream: &mut TcpStream) -> Option<Vec<u8>> {
   let mut acc = Vec::new();
   let mut buf = vec![0u8; 512];
@@ -734,7 +733,7 @@ pub async fn read_bulk_reply(stream: &mut TcpStream) -> Option<Vec<u8>> {
 }
 
 /// 轻量真实段设备子日志：tempdir + `SegmentedDevice` 单文件 + `WalLog`
-/// 默认配置（测试统一走真实设备，杜绝 mock 抽象；目录随 [`TempDir`]
+/// 默认配置（测试统一走真实设备，杜绝 mock 抽象；目录随 `TempDir`
 /// 存活，Drop 自动清理段文件）
 pub fn test_sublog(tag: &str) -> (tempfile::TempDir, Arc<AofSublog>) {
   test_sublog_with_config(tag, WalConfig::default())

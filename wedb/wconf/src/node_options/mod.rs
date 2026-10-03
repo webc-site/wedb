@@ -94,7 +94,7 @@ pub struct NodeArgs {
   #[toml(default = PathBuf::from(DEFAULT_DIR))]
   pub dir: PathBuf,
 
-  /// WAL / AOF 物理日志存储路径（未显式指定时默认为 <dir>/wal）
+  /// WAL / AOF 物理日志存储路径（未显式指定时默认为 `<dir>`/wal）
   #[arg(long)]
   pub wal_dir: Option<PathBuf>,
 
@@ -583,7 +583,7 @@ pub struct NodeArgs {
 
   /// AOF 常驻内存窗口上限（尺寸字符串如 "128m"，就近下取 2 的幂，超出即溢盘；
   /// 对标 C# Options.cs:211-213 AofMemorySize 旗标 `--aof-memory`
-  ///（[MemorySizeValidation]）。缺省唯一真源在 `RuntimeServerOptions::default()`
+  ///（`[MemorySizeValidation]`）。缺省唯一真源在 `RuntimeServerOptions::default()`
   ///（"128m"），NodeArgs 不携带第二套缺省常量；组合互校验（须至少为 aof-page-size
   /// 的两倍）唯一真源在 wnode `AofSettings::from_options`，启动期执行。经
   /// NodeArgs 的 toml 派生自动纳入 TOML 导入/导出面
@@ -592,7 +592,7 @@ pub struct NodeArgs {
 
   /// AOF 日志页容量（尺寸字符串如 "32m"，就近下取 2 的幂；对标 C#
   /// Options.cs:215-217 AofPageSize 旗标 `--aof-page-size`
-  ///（[MemorySizeValidation]）。缺省唯一真源在 RuntimeServerOptions（"32m"）；
+  ///（`[MemorySizeValidation]`）。缺省唯一真源在 RuntimeServerOptions（"32m"）；
   /// 页容量下限由 wconf 页尺寸校验核（`size::validated_page_size_bits`）承担，
   /// 组合互校验（须至少为主存日志页的两倍、且不得大于 aof-segment-size）唯一
   /// 真源在 wnode `AofSettings::from_options`。经 toml 派生自动纳入
@@ -602,7 +602,7 @@ pub struct NodeArgs {
 
   /// AOF 物理段（文件）容量（尺寸字符串如 "1g"，就近下取 2 的幂；段文件创建与
   /// 回收粒度。对标 C# Options.cs:219-221 AofSegmentSize 旗标
-  /// `--aof-segment-size`（[MemorySizeValidation]）。缺省唯一真源在
+  /// `--aof-segment-size`（`[MemorySizeValidation]`）。缺省唯一真源在
   /// RuntimeServerOptions（"1g"）；组合互校验（页不得大于段）唯一真源在 wnode
   /// `AofSettings::from_options`。经 toml 派生自动纳入 TOML 导入/导出面
   #[arg(long = "aof-segment-size")]

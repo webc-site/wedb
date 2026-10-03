@@ -23,6 +23,7 @@ wdev.workspace = true
 wedb.workspace = true
 wkv.workspace = true
 wnode.workspace = true
+wnode_test.workspace = true
 wtest_base.workspace = true
 wtxn.workspace = true
 wval.workspace = true

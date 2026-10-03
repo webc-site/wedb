@@ -12,9 +12,6 @@
 //!    迁移成功后源端逐键严格空化（SLOTS 与 KEYS 两链共用同一接收核，一次闭环即
 //!    覆盖两条链的带外传输面）。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::{diskless_provider::diskless_provider, replica_attach::attach_replica_session};
 
 #[path = "common/diskless_sync_kick.rs"]
@@ -24,7 +21,6 @@ use std::{num::NonZeroUsize, sync::Arc};
 use async_lock::Mutex as AsyncLockMutex;
 use diskless_sync_kick::try_full_sync;
 use parking_lot::Mutex;
-use replica_host::replica_host;
 use wbase::{
   convert::{expire_at_milliseconds_to_ticks, unix_time_in_milliseconds_from_ticks},
   time::now_ticks,
@@ -40,7 +36,7 @@ use wedb::server::{
   sync_transport::transmit_range_index_stream,
   worker::NodeRole,
 };
-use wedb_test::node_storage::open_node;
+use wedb_test::{node_storage::open_node, replica_host::replica_host};
 use wnode::{
   GarnetStatus,
   range_index::{RangeIndexManagerMigration, RangeIndexMigrationReceiveState},

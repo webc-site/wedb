@@ -1,4 +1,4 @@
-//! SCAN 命令参数与类型过滤解析契约测试（array_commands.rs 内联测试迁出）
+//! SCAN 命令参数与类型过滤解析契约测试（array_commands/scan.rs 内联测试迁出）
 
 use wnode::{
   resp::array_commands::parse_scan_filter,

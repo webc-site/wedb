@@ -55,7 +55,7 @@ pub(crate) struct GcDeadGraceEntry {
 
 /// 租户路由快照（槽位级单元格路由表 + 会话引用计数）
 ///
-/// `refs` 为绑定到本租户的活跃会话数：绑定协议（[`VirtualDbManager::bind_route`]）
+/// `refs` 为绑定到本租户的活跃会话数：绑定协议（[`crate::vdb::VirtualDbManager::bind_route`]）
 /// 保证持引用期间快照不被空闲析构摘除，同步读路径因此永远命中在册快照、
 /// 绝不盲分配换号；引用归零后快照进入空闲析构候选，由 GC 轮次摘除释放，
 /// 后续访问经磁盘 DbMeta 点查装载回建（doc/zh/db.md 冷租户条款）

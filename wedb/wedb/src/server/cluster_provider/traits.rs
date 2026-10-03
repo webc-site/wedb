@@ -64,7 +64,7 @@ impl IClusterProvider for ClusterProvider {
   /// libs/server/Cluster/IClusterProvider.cs:SafeTruncateAOF
   ///
   /// PRIMARY：经 AofSyncDriverStore 按全副本最小已发位点安全截断（记账 + 走
-  /// [`GarnetLog::truncate_until_async`] 唯一物理回收真身即时删段，见
+  /// [`wnode::aof::garnet_log::GarnetLog::truncate_until_async`] 唯一物理回收真身即时删段，见
   /// AofSyncDriverStore::safe_truncate_aof）；
   /// REPLICA：物理截断本地 AOF 至指定位点。C# 该分支按 FastAofTruncate 二择
   /// （真 `Log.UnsafeShiftBeginAddress(truncateUntil, truncateLog: true)` 即时删段 /

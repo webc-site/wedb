@@ -287,7 +287,7 @@ impl GarnetLog {
   /// 存储过程条目：单日志 BasicHeader / 单物理多回放轻量事务头 /
   /// 分片事务头逐参与子日志广播（位图逐子日志盖入，参与者计数随行）。
   /// 头与负载以部件表 scatter-write 单次入队（TsavoriteLog.cs:Enqueue 双部件
-  /// 形态），空 body 部件表 [头] 与整包帧字节逐一致。
+  /// 形态），空 body 部件表 \[头\] 与整包帧字节逐一致。
   pub fn enqueue_stored_proc(
     &self,
     op_type: AofEntryType,

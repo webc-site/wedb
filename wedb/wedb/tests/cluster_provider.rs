@@ -11,6 +11,7 @@ use compio::runtime::Runtime;
 use waof::AofAddress;
 use wedb::server::{
   cluster::{CheckpointCallbackFace, IClusterProvider},
+  cluster_manager::ClusterManager,
   cluster_provider::ClusterProvider,
   replication::recovery_status::RecoveryStatus,
   worker::NodeRole,
@@ -23,10 +24,7 @@ use wnode::ClusterProvider as _;
 #[test]
 fn primary_recovering_takes_current_replication_offset() {
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Primary);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
 
   let rm = provider.replication_manager().unwrap();
   let current = AofAddress::create(1, 256);
@@ -52,10 +50,7 @@ fn primary_recovering_takes_current_replication_offset() {
 #[test]
 fn replica_by_config_takes_checkpoint_start_offset() {
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Replica);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
 
   let rm = provider.replication_manager().unwrap();
   let current = AofAddress::create(1, 256);
@@ -82,10 +77,7 @@ fn replica_safe_truncate_physically_shifts_log_begin() {
   use wnode::{GarnetAppendOnlyFile, GarnetLog, RecordShape};
 
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Replica);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
 
   // 轻量真实段设备单子日志 AOF 门面（装配期 set_aof 注入）
   let options = RuntimeServerOptions::default();
@@ -156,10 +148,7 @@ fn replication_info_replica_lag_fields() {
   use wresp::metrics::MetricsItem;
 
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Replica);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
 
   // 轻量真实段设备单子日志 AOF 门面（装配期 set_aof 注入）
   let options = RuntimeServerOptions::default();
@@ -348,4 +337,14 @@ fn repl_attach_timeout_sentinel_and_mapping() {
     None,
     "负数配置应经 seconds_from_time_span 归 0 表现为 None（无限等待）"
   );
+}
+
+/// 已删包装 `ClusterManager::try_set_local_node_role` 的等价直调
+///（配置写锁内角色改写 + 纪元自增，出锁后 flush_config），测试本地装配面
+fn set_local_role(cm: &ClusterManager, role: NodeRole) {
+  cm.current_config
+    .write()
+    .set_local_worker_role(role)
+    .bump_local_node_config_epoch();
+  cm.flush_config();
 }

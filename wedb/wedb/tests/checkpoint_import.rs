@@ -8,10 +8,6 @@
 //!   （快照下发 + BEGIN_REPLICA_RECOVER 往返 + attach 推流）。
 
 use waof::AofAddress;
-
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::primary_assets::primary_assets;
 
 #[path = "common/ckpt_files.rs"]
@@ -26,7 +22,6 @@ use ckpt_files::{
 };
 use ckpt_node::{open_node, wired_provider};
 use compio::runtime::Runtime;
-use replica_host::replica_host;
 use wbftree::{RangeIndexManager, StorageBackendType, TreeTuning};
 use wedb::{
   client::GarnetClient,
@@ -41,7 +36,9 @@ use wedb::{
     worker::NodeRole,
   },
 };
-use wedb_test::{cluster_consumer::cluster_consumer, resp_drive_scratch::drive};
+use wedb_test::{
+  cluster_consumer::cluster_consumer, replica_host::replica_host, resp_drive_scratch::drive,
+};
 use wtest_base::{resp_frame, wait_for};
 
 /// 测试节点身份（内部 u128；协议面渲染 32 字符小写 hex）

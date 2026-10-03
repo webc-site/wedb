@@ -31,7 +31,7 @@ pub const TIERED_DEMOTE_THRESHOLD: usize = 32_768;
 
 /// 集合自适应分层：自动升阶为 BfTree 独立分层树的内存字节高水位阈值（4MB）
 ///
-/// 体积维吃 [`types::GarnetObject::heap_memory_size`]，按其 rust 自定记账口径标定
+/// 体积维吃 [`types::IGarnetObject::heap_memory_size`]，按其 rust 自定记账口径标定
 /// （口径单点见 [`wbase::heap`]，非 .NET GC 绝对值，刻意差异）
 pub const TIERED_PROMOTE_BYTES: usize = 4 * 1024 * 1024;
 

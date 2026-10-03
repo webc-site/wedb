@@ -56,7 +56,9 @@ use wnode::{
   ClusterSessionFace, MessageConsumerFace, RespSessionConsumer,
   resp::resp_server_session::RespServerSessionOptions,
 };
-use wtest_base::{FailoverNode, SilentNode, StopWritesNode, parse_frame_slices, resp_frame_str};
+use wtest_base::{
+  FailoverNode, SilentNode, StopWritesNode, parse_frame_slices, resp_frame_str, wait_for,
+};
 
 const LOCAL_ID: u128 = DE11_NODE_ID;
 const REPLICA_ID: u128 = 0x0000_0000_0000_0000_0000_0000_0000_5107;
@@ -179,7 +181,7 @@ fn primary_failover_drain_failure_issues_zero_takeover() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(fm.get_last_failover_status(), "failover-aborted");
     assert!(
       !fake.takeover_received(),
@@ -215,7 +217,7 @@ fn replica_pause_arm_rejects_absent_or_empty_ack() -> Void {
     let before = snapshot_config(&cp);
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_millis(300)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert_replica_untouched(&cp, &before);
     assert_eq!(
@@ -230,7 +232,7 @@ fn replica_pause_arm_rejects_absent_or_empty_ack() -> Void {
     let before = snapshot_config(&cp);
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_secs(10)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert_replica_untouched(&cp, &before);
     assert!(
@@ -245,7 +247,7 @@ fn replica_pause_arm_rejects_absent_or_empty_ack() -> Void {
     let before = snapshot_config(&cp);
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_secs(10)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert_replica_untouched(&cp, &before);
 
@@ -255,7 +257,7 @@ fn replica_pause_arm_rejects_absent_or_empty_ack() -> Void {
     let before = snapshot_config(&cp);
     let m = Arc::new(FailoverManager::new(Arc::clone(&cp)));
     assert!(m.try_start_replica_failover(FailoverOption::Default, Duration::from_secs(10)));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     assert_eq!(m.get_last_failover_status(), "failover-aborted");
     assert_replica_untouched(&cp, &before);
     aok::OK
@@ -391,4 +393,13 @@ fn assert_replica_untouched(cp: &Arc<ClusterProvider>, before: &ConfigSnapshot) 
   assert_eq!(now.primary_id, before.primary_id, "主指针不得清空");
   assert_eq!(now.slot0_owner, before.slot0_owner, "槽位不得收回本地");
   assert_eq!(now.epoch, before.epoch, "配置纪元不得被接管推进");
+}
+
+/// 已删 `FailoverManager::wait_failover_done` 的测试等价轮询面
+///（is_failover_in_progress 观测终态落账 + 会话收场，5s 超时上限）
+async fn wait_failover_done(m: &FailoverManager) {
+  assert!(
+    wait_for(|| !m.is_failover_in_progress(), Duration::from_secs(5)).await,
+    "failover 未在 5s 内收场"
+  );
 }

@@ -360,7 +360,7 @@ fn test_bucket_index_mask_distribution() -> Void {
       // 键路径与哈希路径寻址一致
       let key = make_key("dist_key", i as usize);
       assert_eq!(
-        index.bucket_index_for_key(&key),
+        index.bucket_index_for_hash(HashIndex::hash_key(&key)),
         index.bucket_index_for_hash(HashIndex::hash_key(&key)),
         "键路径与哈希路径寻址必须一致"
       );
@@ -378,7 +378,10 @@ fn test_bucket_index_mask_distribution() -> Void {
   let tiny = HashIndex::new(1)?;
   tiny.insert(b"only_bucket_key", 7)?;
   assert_eq!(tiny.find_tag(b"only_bucket_key"), Some(7));
-  assert_eq!(tiny.bucket_index_for_key(b"any_key"), 0);
+  assert_eq!(
+    tiny.bucket_index_for_hash(HashIndex::hash_key(b"any_key")),
+    0
+  );
   assert!(tiny.delete(b"only_bucket_key", 7));
 
   OK

@@ -39,7 +39,7 @@ macro_rules! obj_load_or_bail {
   };
 }
 
-/// 装载型写臂双保护·同步档单源（Result<bool> 域快路径专用）：
+/// 装载型写臂双保护·同步档单源（`Result<bool>` 域快路径专用）：
 /// 装载前取 rmw 窗，未取到即走既有 `Ok(false)` 异步重放通道，
 /// 再按 `obj_load_or_bail!` 收四态并绑定对象。
 #[macro_export]
@@ -785,7 +785,7 @@ pub(crate) fn obj_load_sync_degrades<D: Device>(
 
 /// 阻塞族 park 前预探·任一键同步不可出件单点收口（list/zset 两 blocking 臂
 /// 同构收编）：任一键活跃分层态或磁盘候选即真，命令整体不挂经纪、路由慢路径
-/// 异步臂——冷键装载可出件即出件，未取到则经经纪等待面闭环（slow.rs
+/// 异步臂——冷键装载可出件即出件，未取到则经经纪等待面闭环（list_commands/slow/face.rs
 /// `BlockWaitFace`，C# BlockingWait 键态解耦语义的慢路径承接；判定核
 /// [`obj_load_sync_degrades`]）
 #[inline]

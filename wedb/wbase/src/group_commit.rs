@@ -58,7 +58,7 @@ impl Default for GroupCommitPipeline {
 }
 
 /// Leader 身份守卫：[`GroupCommitPipeline::run_leader`] 入口构造，覆盖级联
-/// 循环全部退出形态。panic unwind（工作区 panic 维持 unwind，drive.rs 泵层
+/// 循环全部退出形态。panic unwind（工作区 panic 维持 unwind，drive/mod.rs 泵层
 /// catch_unwind 隔离单会话）或 future 被取消丢弃打断 Leader 刷盘链时，裸
 /// `leading` 恒真——此后全部 `enter` 必入 Follow 臂，Follower 的 tx 存活于
 /// waiters 永不 send，通道中断兜底臂永不触发，写平面永久砖化。Drop 收口

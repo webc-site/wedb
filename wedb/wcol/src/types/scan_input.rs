@@ -197,7 +197,7 @@ pub fn scan_operate_shared(
 ///
 /// GarnetObjectBase 的 Scan 面（protected 组帧段；主体对位锚留 [`scan_operate_shared`] 一处）：
 /// [`read_scan_input`] 解析（错误直接落 RESP 错误帧）→ 调对象抽象成员扫描
-///（[`wcustom::CustomScanMembersFn`] 同构契约，经闭包注入解耦依赖方向）
+///（`wcustom::CustomScanMembersFn` 同构契约，经闭包注入解耦依赖方向）
 /// 收集成员与出页游标 → `*2` + 游标 bulk + 条目数组（空集 `*0\r\n`，对标
 /// C# WriteEmptyArray）；成员扫描 Err（C# NotImplementedException 的错误帧
 /// 裁量，见 doc/zh/deviations.md）→ 错误帧收口，绝无空成功帧

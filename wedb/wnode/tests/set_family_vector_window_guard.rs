@@ -16,7 +16,7 @@
 //! 窗后一次折叠终裁（NX 判在出 nil 登记保留；XX/无条件/KEEPTTL 窗内清退后
 //! 覆写，对位 C# 锁内 DELETE+SET_Conditional 重投终态
 //! BasicCommands.cs:788-796）；案三 blind_write_gate 取窗先行、RI 门与清退
-//! 皆落持窗临界区内，严格对齐 array_commands.rs MSET 慢臂窗内清退单源标准。
+//! 皆落持窗临界区内，严格对齐 array_commands/mset_slow.rs MSET 慢臂窗内清退单源标准。
 //! 对标 C#：向量记录与 String 同驻 MainStore 同槽
 //! （VarLenInputMethods.cs:194 RecordType），NX 存在性与旧记录清退恒在统一
 //! 记录闩临界区内原子执行，绝无窗外裸清退。

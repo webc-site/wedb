@@ -155,7 +155,7 @@ pub trait CprRecover: CprStore {
   /// GarnetRecordTriggers.cs:OnRecoverySnapshotRead），仅驱动方由 core 移
   /// 至宿主，扫描次数与记录语义保持一致。
   ///
-  /// [`run_recovery_kernel`]: super::recover::run_recovery_kernel
+  /// [`run_recovery_kernel`]: recover::run_recovery_kernel
   fn from_recovered(
     recovered: RecoveredCheckpoint<Self::Device>,
     checkpoint_dir: &Path,

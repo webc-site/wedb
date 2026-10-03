@@ -11,12 +11,9 @@
 //! 快照同步后断言快照收敛，再于同步收口后泵第二批（AOF 增量条目回放
 //! 路径）断言增量收敛——全量与增量两条收敛路径对脚本写/事务写分别钉值。
 
-use wedb::server::cluster_provider::ClusterProvider;
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use std::{num::NonZeroUsize, str::from_utf8, sync::Arc, time::Duration};
 
+use wedb::server::cluster_provider::ClusterProvider;
 use wedb_test::{diskless_provider::diskless_provider, node_storage::open_node};
 
 #[path = "common/diskless_sync_kick.rs"]

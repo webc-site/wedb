@@ -200,7 +200,7 @@ pub enum MigrationFrame<'a> {
 pub enum MigrateVal {
   /// string 记录值
   Str(Vec<u8>),
-  /// 对象信封整值（[内层标签][载荷]）
+  /// 对象信封整值（\[内层标签\]\[载荷\]）
   Env(Vec<u8>),
 }
 
@@ -397,9 +397,9 @@ pub fn parse_record(raw: &[u8]) -> Result<MigrationRecord<'_>> {
 /// 解析迁移载荷帧
 ///
 /// 在 garnet 中的相对路径: libs/server/Resp/Vector/VectorManager.Migration.cs:DeserializeMigratedIndexKey
-///（kind=5 分支 [keyLen][key][valLen][val] 前缀段展开）
+///（kind=5 分支 \[keyLen\]\[key\]\[valLen\]\[val\] 前缀段展开）
 /// 在 garnet 中的相对路径: libs/server/Resp/Vector/VectorManager.Migration.cs:DeserializeMigratedElementKey
-///（kind=6 分支 [keyLen][key][elemLen][element][valLen][values][attrLen][attributes] 前缀段展开）
+///（kind=6 分支 \[keyLen\]\[key\]\[elemLen\]\[element\]\[valLen\]\[values\]\[attrLen\]\[attributes\] 前缀段展开）
 pub fn parse_migration_payload(payload: &[u8]) -> Result<(u32, Vec<MigrationFrame<'_>>)> {
   let Some((count_bytes, mut cur_slice)) = payload.split_first_chunk::<4>() else {
     return Err(Error::InvalidRecord("载荷长度不足 4 字节".into()));
@@ -512,7 +512,7 @@ pub fn parse_migration_payload(payload: &[u8]) -> Result<(u32, Vec<MigrationFram
   Ok((record_count, frames))
 }
 
-/// 追加一条完整记录帧（kind + [keyLen][key][valLen][val][expire]）
+/// 追加一条完整记录帧（kind + \[keyLen\]\[key\]\[valLen\]\[val\]\[expire\]）
 ///
 /// 在 garnet 中的相对路径: libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs:WriteOrSendRecordAsync
 /// 在 garnet 中的相对路径: libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs:WriteOrSendRecordSpanAsync
@@ -678,8 +678,8 @@ pub fn encode_vector_set_index_payload(key: &[u8], value: &[u8]) -> Vec<u8> {
 /// 单帧 kind=6 逐条追加，布局见下 garnet 对照）
 ///
 /// 在 garnet 中的相对路径: libs/server/Resp/Vector/VectorManager.Migration.cs:SerializeMigratedElementKey
-///（C# 手工 [nsLen][ns][keyLen][key][valLen][value] 布局在此展开为
-/// [keyLen][key][elemLen][element][valLen][values][attrLen][attributes] 四段；
+///（C# 手工 \[nsLen\]\[ns\]\[keyLen\]\[key\]\[valLen\]\[value\] 布局在此展开为
+/// \[keyLen\]\[key\]\[elemLen\]\[element\]\[valLen\]\[values\]\[attrLen\]\[attributes\] 四段；
 /// namespace 段不随帧传输——上下文重映射由发送端 remap_index_for_migration
 /// 单点完成，接收端以已导入索引的 context 插入；存储尺寸预计算
 /// GetMigratedElementKeySerializationSize 随调用方容量预计算内联消失）

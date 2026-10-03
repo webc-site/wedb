@@ -20,7 +20,7 @@
 //!    [`ReplicationSyncManager`] 入册会话并由 leader 攒批编排：
 //!    REPL_DISKLESS_SYNC_DELAY 窗口内同批副本一次开窗，批内共享一枚快照覆盖
 //!    锚，单遍存储活扫描逐记录锁步扇出全部全量会话（
-//!    [`diskless_replication`] 子模块，对标 C# PrimaryOps/DisklessReplication
+//!    [`super::diskless_replication`] 子模块，对标 C# PrimaryOps/DisklessReplication
 //!    目录拓扑）；逐副本各起一遍全库扫描的旧单副本路线已删除，N=1 走同一
 //!    扇出路径，不留第二套快照架构。
 //! 3. 流式传输: 主端通过 `CLUSTER SYNC` 将全量键值记录（单条或分块 Chunk）流式推送到本批全部副本。

@@ -4,7 +4,7 @@
 //! - 单键读取：read_string_with / read_string 经连接级 wkv 会话附着态触发 pre/post 协议
 //! - 批量读取：read_batch_with 经过 consistent_read_context 触发 pre_batch/post_batch 协议与重试
 //! - 键空间扫描与遍历：db_scan / db_keys / scan_cursor 逐键触发一致读协议
-//! - 附着态派生：is_consistent_read_session / consistent_read_context 自会话附着派生
+//! - 附着态派生：read_session_state / consistent_read_context 自会话附着派生
 //! - 哈希域往返：回放侧写 key 序列号草图（条目键 = 记录物理键域）必须被读侧
 //!   命中，进而驱动跨虚拟子日志新鲜度约束（拒脏读 / 追平放行双臂）
 
@@ -61,7 +61,7 @@ async fn test_storage_session_consistent_read_pipeline() -> aok::Void {
   let ss = StorageSession::new(session.enter_batch());
 
   // 附着态派生一致读会话判定
-  assert!(ss.batch.is_consistent_read_session());
+  assert!(ss.batch.read_session_state().is_some());
   assert!(ss.consistent_read_context().is_some());
 
   // 写入测试数据
@@ -120,7 +120,7 @@ async fn test_storage_session_without_attachment_is_plain() -> aok::Void {
   let ss = StorageSession::new(session.enter_batch());
 
   // 未附着：普通会话形态，读路径直通
-  assert!(!ss.batch.is_consistent_read_session());
+  assert!(!ss.batch.read_session_state().is_some());
   assert!(ss.consistent_read_context().is_none());
   ss.upsert_string(b"plain", b"v").await?;
   assert_eq!(ss.read_string(b"plain").await?, Some(b"v".to_vec()));

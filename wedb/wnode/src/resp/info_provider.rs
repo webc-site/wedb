@@ -3,7 +3,7 @@
 //! C# INFO 数据面直读 storeWrapper / monitor / clusterProvider；rust 会话
 //! 可达面为运行时配置 + 集群会话切面（ROLE 投影）+ 进程级静态量。存储域
 //! 标量段（STORE / PERSISTENCE / MEMORY 的 store_* 项）经会话存储执行域
-//! 句柄的 [`GarnetApi::store_snapshots`] 单一入口填充（wkv
+//! 句柄的 [`crate::resp::garnet_api::GarnetApiFace::store_snapshots`] 单一入口填充（wkv
 //! `WedbStore::store_snapshot` 聚合 + `project_db_snapshot` 全仓唯一投影，
 //! 见 garnet_api 模块）；持久化段随 EnableAOF=false 跳过——wmetric 段
 //! 填充器的缺省形态，绝不虚报计数。扫描族段（KEYSPACE 逐库计数 /
@@ -12,7 +12,7 @@
 //!（any 语义，混合段请求整请求降级，对标 C# 逐段实填），由会话分派门
 //!（resp_server_session core.rs）放行存储漏斗统一挂起慢路径——非扫描面
 //! 在漏斗调度点经 [`InfoSurface`] 同步快照（与快照尾参同渠道同口径），
-//! 扫描行经 [`GarnetApi::exec_slow_info`] 异步产出，两路合成
+//! 扫描行经 [`crate::resp::garnet_api::GarnetApiFace::exec_slow_info`] 异步产出，两路合成
 //! [`InfoSlowSource`] 承接全段集渲染（慢臂无会话可达面）。
 
 use std::{borrow::Cow, sync::OnceLock};
@@ -151,7 +151,7 @@ impl InfoProvider for SessionInfoSource<'_> {
   }
 
   /// 库快照（C# storeWrapper.GetDatabasesSnapshot 的会话侧单一入口：
-  /// 转调存储执行域句柄的 [`GarnetApi::store_snapshots`]；未注入执行域
+  /// 转调存储执行域句柄的 [`crate::resp::garnet_api::GarnetApiFace::store_snapshots`]；未注入执行域
   /// 的裸会话形态回空集，MEMORY/STORE 段按缺省形态呈现，绝不虚报计数）
   fn databases(&self) -> Vec<DbSnapshot> {
     self
@@ -273,7 +273,7 @@ impl InfoProvider for SessionInfoSource<'_> {
   }
 
   /// 缓冲池统计（转调集群提供方，字段名知识只留集群层；此处做一次
-  /// Vec<MetricsItem> 到 Vec<(String, String)> 投影，与 trait 契约一致）
+  /// `Vec<MetricsItem>` 到 `Vec<(String, String)>` 投影，与 trait 契约一致）
   ///
   /// 在 garnet 中的相对路径:libs/cluster/Server/ClusterProvider.cs:GetBufferPoolStats
   fn buffer_pool_stats(&self) -> Vec<(String, String)> {
@@ -391,7 +391,7 @@ pub struct InfoScanResult {
   pub storage_failed: bool,
 }
 
-/// 慢路径 INFO 非扫描面调度点同步快照 ([`GarnetApi::exec_slow_info`]
+/// 慢路径 INFO 非扫描面调度点同步快照 ([`crate::resp::garnet_api::GarnetApiFace::exec_slow_info`]
 /// 的类型化调度参数，与命令名 / resp_version / 快照尾参同渠道同口径：
 /// 慢臂无会话可达面，会话可达事实须在调度点一次性取齐搬入 future）。
 ///

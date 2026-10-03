@@ -18,6 +18,7 @@ use compio::{
 use waof::{AofAddress, AofEntryType};
 use wconf::RuntimeServerOptions;
 use wedb::server::{
+  cluster_manager::ClusterManager,
   cluster_provider::ClusterProvider,
   worker::{LocalWorkerSpec, NodeRole},
 };
@@ -70,10 +71,7 @@ fn append_records(log: &Arc<GarnetLog>, n: usize) {
 #[test]
 fn primary_aof_append_advances_replication_offset() {
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .expect("cluster manager 在场")
-    .try_set_local_node_role(NodeRole::Primary);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
 
   let log = wire_aof(&provider, "primary_live_repl_offset_append");
   let rm = provider.replication_manager().expect("rm 在场");
@@ -117,10 +115,7 @@ fn primary_aof_append_advances_replication_offset() {
 #[test]
 fn replica_offset_still_reads_replayed_field() {
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .expect("cluster manager 在场")
-    .try_set_local_node_role(NodeRole::Replica);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
 
   let log = wire_aof(&provider, "primary_live_repl_offset_replica");
   append_records(&log, 3);
@@ -369,10 +364,7 @@ fn consume_frame(consumer: &mut RespSessionConsumer, frame: &[u8]) -> Vec<u8> {
 #[test]
 fn fail_repl_offset_binary_caughtup_acks_current() -> Void {
   let provider = primary_provider();
-  provider
-    .cluster_manager()
-    .expect("cluster manager 在场")
-    .try_set_local_node_role(NodeRole::Replica);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
   let rm = provider.replication_manager().expect("rm 在场");
   rm.set_current_replication_offset(AofAddress::create(1, 1000));
 
@@ -402,10 +394,7 @@ fn fail_repl_offset_binary_caughtup_acks_current() -> Void {
 fn fail_repl_offset_binary_behind_acks_after_offset_advance() -> Void {
   Runtime::new()?.block_on(async {
     let provider = primary_provider();
-    provider
-      .cluster_manager()
-      .expect("cluster manager 在场")
-      .try_set_local_node_role(NodeRole::Replica);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
     let rm = provider.replication_manager().expect("rm 在场");
     rm.set_current_replication_offset(AofAddress::create(1, 1000));
 
@@ -463,4 +452,14 @@ fn fail_repl_offset_malformed_payload_rejected() -> Void {
     );
   }
   aok::OK
+}
+
+/// 已删包装 `ClusterManager::try_set_local_node_role` 的等价直调
+///（配置写锁内角色改写 + 纪元自增，出锁后 flush_config），测试本地装配面
+fn set_local_role(cm: &ClusterManager, role: NodeRole) {
+  cm.current_config
+    .write()
+    .set_local_worker_role(role)
+    .bump_local_node_config_epoch();
+  cm.flush_config();
 }

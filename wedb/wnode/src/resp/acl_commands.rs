@@ -15,8 +15,9 @@ use std::{borrow::Cow, fmt::Display, mem, sync::Arc};
 
 use wacl::{
   AccessControlList, AclError, AclParser, AclPassword, DEFAULT_USER_NAME, User, UserHandle,
-  ascii_sanitize, parse_user_namespace_with_default,
+  parse_user_namespace_with_default,
 };
+use wbase::ascii_sanitize;
 use wdev::Device;
 use wresp::{
   check_args::{check_arg_count, parse_i64_arg},

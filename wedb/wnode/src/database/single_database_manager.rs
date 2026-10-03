@@ -329,7 +329,7 @@ impl<D: Device> SingleDatabaseManager<D> {
 
   /// 单库恢复向量集合（C# RecoverVectorSets 全对位：扫描回建登记表与
   /// 上下文元数据 → ReconcileRecoveredState 收口 → WaitForQuiescence）  ///
-  /// 全区间扫描恢复出的日志，把 [`KeyTag::VectorRegistry`] 旁路记录按强类型
+  /// 全区间扫描恢复出的日志，把 [`wval::KeyTag::VectorRegistry`] 旁路记录按强类型
   /// 子标签解出后直接喂对应恢复方法暂存（C# 恢复趟 OnRecoverySnapshotRead
   /// 逐记录喂 SanitizeAndTrackIngestedRecordIfApplicable 的 rust 对位形态：
   /// rust 无 Tsavorite 记录头，判别由 VectorRegistrySubTag 承接），再经

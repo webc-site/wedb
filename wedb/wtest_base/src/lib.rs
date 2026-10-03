@@ -20,8 +20,9 @@ pub use config::{test_store_config, test_store_config_with_budget};
 pub use log_capture::{log_capture_mark, log_capture_records_since};
 pub use net::{
   DEFAULT_WAIT_STEP, DEFAULT_WAIT_TIMEOUT, FailoverNode, GossipNode, IntoDuration, SilentNode,
-  StopWritesNode, parse_duration_token, parse_frame, parse_frame_slices, try_parse_duration_token,
-  try_parse_frame, wait_assert_sync, wait_for, wait_for_step, wait_yield_sync,
+  StopWritesNode, bind_blackhole, parse_duration_token, parse_frame, parse_frame_slices,
+  try_parse_duration_token, try_parse_frame, wait_assert_sync, wait_for, wait_for_step,
+  wait_yield_sync,
 };
 pub use store::{open_test_store, open_test_store_with_budget};
 use wresp::ext::RespVecExt;

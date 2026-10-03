@@ -178,7 +178,7 @@ async fn tail_flushdb_replay_swaps_inherited_domain() -> Void {
   // ── 基线段（检查点前）：真映射装载 + 真写入（条目经事件端口真产）──
   let sa = store.new_session()?;
   assert!(sa.set_context(NS_A, DB_A), "主库逻辑域可物化");
-  let (vns, old_vdb) = store.vdb.get_virtual_ids(NS_A, DB_A);
+  let (vns, old_vdb, ..) = store.vdb.get_virtual_ids_with_created(NS_A, DB_A);
   assert!(
     vns > 0 && old_vdb > 0,
     "非零租户须分配到非零虚拟号（本测试形态前提），实际 ({vns}, {old_vdb})"
@@ -188,7 +188,7 @@ async fn tail_flushdb_replay_swaps_inherited_domain() -> Void {
   let sb = store.new_session()?;
   assert!(sb.set_context(NS_B, DB_B));
   sb.upsert(b"keep", b"vk").await?;
-  let (vns_b, vdb_b) = store.vdb.get_virtual_ids(NS_B, DB_B);
+  let (vns_b, vdb_b, ..) = store.vdb.get_virtual_ids_with_created(NS_B, DB_B);
 
   // 基线镜像：检查点覆盖上述数据与 DbMeta 映射记录（从库继承映射体系的载体）
   let token = store
@@ -198,7 +198,7 @@ async fn tail_flushdb_replay_swaps_inherited_domain() -> Void {
 
   // ── 尾部增量段：FLUSHDB 真漏斗 + 清后新号写入 ──
   mgr.flush_database(NS_A, DB_A, false).await?;
-  let (vns_after, new_vdb) = store.vdb.get_virtual_ids(NS_A, DB_A);
+  let (vns_after, new_vdb, ..) = store.vdb.get_virtual_ids_with_created(NS_A, DB_A);
   assert_eq!(vns_after, vns, "FLUSHDB 只换库号，不换命名空间号");
   assert_ne!(new_vdb, old_vdb, "FLUSHDB 须换出新虚拟库号");
   sa.upsert(b"fresh", b"vf").await?;
@@ -304,14 +304,14 @@ async fn full_replay_nonzero_domain_lands_in_entry_domain() -> Void {
 
   let sa = store.new_session()?;
   assert!(sa.set_context(NS_A, DB_A));
-  let (vns, old_vdb) = store.vdb.get_virtual_ids(NS_A, DB_A);
+  let (vns, old_vdb, ..) = store.vdb.get_virtual_ids_with_created(NS_A, DB_A);
   sa.upsert(b"k1", b"v1").await?;
   let sb = store.new_session()?;
   assert!(sb.set_context(NS_B, DB_B));
   sb.upsert(b"keep", b"vk").await?;
-  let (vns_b, vdb_b) = store.vdb.get_virtual_ids(NS_B, DB_B);
+  let (vns_b, vdb_b, ..) = store.vdb.get_virtual_ids_with_created(NS_B, DB_B);
   mgr.flush_database(NS_A, DB_A, false).await?;
-  let new_vdb = store.vdb.get_virtual_ids(NS_A, DB_A).1;
+  let new_vdb = store.vdb.get_virtual_ids_with_created(NS_A, DB_A).1;
   sa.upsert(b"fresh", b"vf").await?;
   let primary_water = water_mark(&store);
   drop(mgr);
@@ -388,13 +388,13 @@ async fn tail_flushns_replay_retires_inherited_namespace() -> Void {
 
   let sa = store.new_session()?;
   assert!(sa.set_context(NS_A, DB_A));
-  let (vns, old_vdb) = store.vdb.get_virtual_ids(NS_A, DB_A);
+  let (vns, old_vdb, ..) = store.vdb.get_virtual_ids_with_created(NS_A, DB_A);
   sa.upsert(b"k1", b"v1").await?;
   sa.upsert(b"k2", b"v2").await?;
   let sb = store.new_session()?;
   assert!(sb.set_context(NS_B, DB_B));
   sb.upsert(b"keep", b"vk").await?;
-  let (vns_b, vdb_b) = store.vdb.get_virtual_ids(NS_B, DB_B);
+  let (vns_b, vdb_b, ..) = store.vdb.get_virtual_ids_with_created(NS_B, DB_B);
   let token = store
     .create_checkpoint(&cp_dir, CheckpointType::Snapshot)
     .await?
@@ -402,7 +402,7 @@ async fn tail_flushns_replay_retires_inherited_namespace() -> Void {
 
   // 非 0 租户 FLUSHALL 真漏斗：整空间换号 + FlushNs(旧 vns, 0) 广播条目
   mgr.flush_namespace(NS_A, false).await?;
-  let (new_vns, new_vdb) = store.vdb.get_virtual_ids(NS_A, DB_A);
+  let (new_vns, new_vdb, ..) = store.vdb.get_virtual_ids_with_created(NS_A, DB_A);
   assert_ne!(new_vns, vns, "FlushNs 须换出新的命名空间虚拟号");
   sa.upsert(b"reborn", b"vr").await?;
   assert_eq!(

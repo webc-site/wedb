@@ -83,7 +83,8 @@ fn restore_payload(val: &[u8]) -> Vec<u8> {
 /// 直驱尾参同域锚（无换号形：与慢臂会话当前解析域一致的 `(vns, vdb)`，
 /// 经 vdb 解析面单源取值，非第二套域身份）
 fn same_domain(store: &Arc<WedbStore<SegmentedDevice>>) -> (u64, u64) {
-  store.vdb.get_virtual_ids(0, 0)
+  let (vns, vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 0);
+  (vns, vdb)
 }
 
 /// 验证点 a（压力 e2e）：环形页翻转风暴下逐笔 RESTORE k{i} ttl=100——

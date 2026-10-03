@@ -18,7 +18,7 @@ use compio_tls::rustls::{
 };
 
 /// 签名校验算法表（ring provider 单例，进程内唯一定义点）：入站
-/// [`crate::server::AnyClientCert`] 与出站 [`crate::client::NoVerify`] 两校验器
+/// `AnyClientCert` 与出站 `NoVerify` 两校验器
 /// 握手签名核验同源共用，避免多份 LazyLock 各自重建 provider
 pub static SIGNATURE_ALGS: LazyLock<WebPkiSupportedAlgorithms> =
   LazyLock::new(|| ring::default_provider().signature_verification_algorithms);
@@ -71,7 +71,7 @@ pub fn certified_key(
 }
 
 /// 证书逐张入根库（load→add→map_err 循环单点）：入站 CA 装载
-/// [`crate::server::ca_roots`] 与出站信任根 [`crate::client::root_store`]
+/// `ca_roots` 与出站信任根 `root_store`
 /// 同形骨架收口，单证非法即整装失败（InvalidData）
 pub fn add_certs(
   roots: &mut RootCertStore,
@@ -85,8 +85,8 @@ pub fn add_certs(
   Ok(())
 }
 
-/// TLS1.2 握手签名核验（入站 [`crate::server::AnyClientCert`] 与出站
-/// [`crate::client::NoVerify`] 两豁免链校验器逐字同构三件套之一，算法表
+/// TLS1.2 握手签名核验（入站 `AnyClientCert` 与出站
+/// `NoVerify` 两豁免链校验器逐字同构三件套之一，算法表
 /// 同源 [`SIGNATURE_ALGS`]）
 #[inline]
 pub fn verify_tls12_signature(

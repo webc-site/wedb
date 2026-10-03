@@ -1,6 +1,6 @@
 //! 主端推流资产装配（primary_assets 叶子单源）
 //!
-//! 消费面经 `wedb_test::primary_assets` 引用（原 common/ #[path] 直挂面已
+//! 消费面经 `wedb_test::primary_assets` 引用（原 common/ `#[path]` 直挂面已
 //! 收口进本 crate；per-binary dead_code 面随 crate 化消解）。
 
 use std::sync::Arc;

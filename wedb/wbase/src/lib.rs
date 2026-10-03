@@ -72,8 +72,6 @@ pub mod ns_prefix;
 pub mod pool;
 #[cfg(feature = "primed")]
 pub mod primed;
-#[cfg(feature = "pool")]
-pub mod throttle;
 
 #[cfg(feature = "simd")]
 pub mod simd;

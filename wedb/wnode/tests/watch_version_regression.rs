@@ -498,7 +498,7 @@ async fn direct_set_domain_write_bumps_logical_slot() {
   drop(batch);
 
   let mut txn = watched(&map, b"dc:key");
-  let (old_vns, old_vdb) = store.vdb.get_virtual_ids(0, 0);
+  let (old_vns, old_vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 0);
   let (vns, new_vdb) = store.flush_database(0, 0).await.unwrap();
   let Some(new_vdb) = new_vdb else {
     panic!("根域映射换号必携旧域")

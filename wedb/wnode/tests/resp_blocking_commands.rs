@@ -103,7 +103,7 @@ impl Client {
     }
     if let Some(mut blocked) = self.consumer.take_blocked_wait() {
       let (cmd, result) = blocked.resolve().await;
-      // 应答字节按序进泵写缓冲（drive.rs 阻塞续驱同形，会话侧无 Vec 形态出口）
+      // 应答字节按序进泵写缓冲（drive/write.rs 阻塞续驱同形，会话侧无 Vec 形态出口）
       self
         .consumer
         .resolve_blocked_wait_into(cmd, result, &mut resp);

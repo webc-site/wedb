@@ -23,16 +23,9 @@
 //! 客户端 TLS 形参取 [`wnode_tls_test::test_client_tls`] 的
 //! ServerCertificateRequired=false 对位臂（证书校验豁免仍为真 TLS 握手）。
 
-use std::result;
-mod common;
-#[path = "common/primary_assets.rs"]
-mod primary_assets_core;
-
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{num::NonZeroUsize, result, sync::Arc, time::Duration};
 
 use aok::Result;
-use common::{ReplicaSessionProvider, open_node, provider_with_role, replica_host};
-use primary_assets_core::primary_assets;
 use waof::AofAddress;
 use wedb::server::{
   cluster_provider::ClusterProvider,
@@ -46,6 +39,11 @@ use wedb::server::{
     sync_metadata::SyncMetadata,
   },
   worker::{NodeRole, Worker},
+};
+use wedb_test::{
+  node_storage::{open_node, provider_with_role},
+  primary_assets::primary_assets,
+  replica_host::{ReplicaSessionProvider, replica_host},
 };
 use wnode::GarnetServer;
 use wnode_tls_test::{start_tls_server, test_client_tls, test_server_tls};

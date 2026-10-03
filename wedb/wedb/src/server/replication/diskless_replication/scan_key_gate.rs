@@ -1,6 +1,6 @@
 //! 无盘全量同步扫描键门（快照活扫描窗口的写栅，TRANSMITTING 键门同款语义）
 //!
-//! 窗口语义（与 [`replication_snapshot_iterator`] 模块头同源陈述）：rust 快照
+//! 窗口语义（与 [`super::replication_snapshot_iterator`] 模块头同源陈述）：rust 快照
 //! 源为活存储 live scan，快照覆盖锚取自键门闭窗排空点的日志尾——「记录效果
 //! 进快照 ⟺ 记录地址 ≤ 锚」须对增量语义记录（ObjectStoreRMW 的 ReplayInput
 //! 载荷，重放非幂等）结构成立，否则锚后写入被快照与 AOF 续推双重应用，主从

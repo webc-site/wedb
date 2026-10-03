@@ -1,11 +1,12 @@
-//! EXISTS / DUMP / RESTORE 类型判定与序列化载荷管理命令（对标 libs/server/Resp/KeyAdminCommands.cs）
+//! DUMP / RESTORE 类型判定与序列化载荷管理命令（对标 libs/server/Resp/KeyAdminCommands.cs；
+//! EXISTS 已移居 [`super::keys::expire`]）
 
 use wbase::{
   convert::expire_after_to_ticks, crc64::hash as rdb_crc64_hash, num::strict_i32, time::now_ticks,
 };
 use wdev::Device;
 use wresp::{
-  check_args::{check_arg_count, unpack_args},
+  check_args::unpack_args,
   cmd_strings as cs,
   cmd_strings::{RESP_ERR_GENERIC, abort_with_error_message, write_error_raw, write_raw},
   ext::RespVecExt,
@@ -183,33 +184,6 @@ impl RespServerSession {
       Ok(UserRead::Deferred) => return Ok(false),
       Err(_) => output.write_resp_error(RESP_ERR_GENERIC),
     }
-    Ok(true)
-  }
-
-  /// libs/server/Resp/KeyAdminCommands.cs:NetworkEXISTS
-  ///
-  /// 多键计数；任一键须异步裁决（磁盘候选/TTL 待裁决）时整体降级，
-  /// 存储错误直接回错，避免计数口径失真
-  pub fn network_exists<'a, D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    store: &wkv::BatchStoreSession<'a, D>,
-    vector: Option<&VectorManager>,
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    check_arg_count!(parse_state, 1.., output, "EXISTS");
-
-    let mut exists_count = 0i64;
-    let prefix = store.session_prefix();
-    let prefix_slice = prefix.as_slice();
-    for key in parse_state {
-      // 三域探针 + 向量登记表第四态（存活观测单点，对标 C# Reader 无类型门）
-      if probe_alive_or_bail!(store, prefix_slice, key, vector, output) {
-        exists_count += 1;
-      }
-    }
-
-    output.write_resp_int(exists_count);
     Ok(true)
   }
 }

@@ -17,6 +17,7 @@ use wedb::server::{
   cluster::IClusterProvider,
   cluster_provider::ClusterProvider,
   cluster_session::ClusterSession,
+  failover::failover_manager::FailoverManager,
   hash_slot::SlotState,
   worker::{LocalWorkerSpec, NodeRole},
 };
@@ -31,7 +32,7 @@ use wnode::{
 };
 use wnode_test::pump_frame;
 use wresp::cmd_strings::RESP_ERR_GENERIC_SYNTAX_ERROR;
-use wtest_base::{resp_frame_str, test_store_config};
+use wtest_base::{resp_frame_str, test_store_config, wait_for};
 
 /// 构造挂接集群切面 + 存储执行域的会话消费者
 fn cluster_consumer(cp: &Arc<ClusterProvider>) -> RespSessionConsumer {
@@ -121,7 +122,7 @@ fn primary_failover_default_timeout_planes() -> Void {
       let frame = resp_frame_str(&args);
       let start = Instant::now();
       assert_eq!(pump_frame(&mut consumer, &frame), b"+OK\r\n", "{args:?}");
-      fm.wait_failover_done().await;
+      wait_failover_done(&fm).await;
       assert_eq!(fm.get_failover_status(), "no-failover");
       assert!(
         start.elapsed() < Duration::from_secs(5),
@@ -151,7 +152,7 @@ fn replica_failover_default_timeout_plane_matches_primary() -> Void {
       let frame = resp_frame_str(&args);
       let start = Instant::now();
       assert_eq!(pump_frame(&mut consumer, &frame), b"+OK\r\n", "{args:?}");
-      fm.wait_failover_done().await;
+      wait_failover_done(&fm).await;
       assert_eq!(fm.get_last_failover_status(), "failover-completed");
       assert!(
         start.elapsed() < Duration::from_secs(5),
@@ -174,7 +175,7 @@ fn primary_failover_max_timeout_constructs_without_panic() -> Void {
     let fm = cp.failover_manager().expect("failover manager 装配");
     let frame = resp_frame_str(&["FAILOVER", "TIMEOUT", "9223372036854775807"]);
     assert_eq!(pump_frame(&mut consumer, &frame), b"+OK\r\n");
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(fm.get_failover_status(), "no-failover");
     aok::OK
   })
@@ -202,7 +203,7 @@ fn primary_failover_takeover_rejected_force_regression_unchanged() -> Void {
       b"+OK\r\n",
       "FORCE 回归不变"
     );
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     aok::OK
   })
 }
@@ -221,7 +222,7 @@ fn replica_failover_force_negative_timeout_unaffected() -> Void {
     let frame = resp_frame_str(&["CLUSTER", "FAILOVER", "FORCE", "-5"]);
     let start = Instant::now();
     assert_eq!(pump_frame(&mut consumer, &frame), b"+OK\r\n");
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(
       fm.get_last_failover_status(),
       "failover-completed",
@@ -257,7 +258,7 @@ fn failover_timeout_beyond_i32_range_accepted() -> Void {
       b"+OK\r\n",
       "超 i32 值域 TIMEOUT 须被 strict_i64 收下（C# 拒收形严禁回改）"
     );
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(fm.get_failover_status(), "no-failover");
     assert!(
       start.elapsed() < Duration::from_secs(5),
@@ -274,8 +275,17 @@ fn failover_timeout_beyond_i32_range_accepted() -> Void {
       b"+OK\r\n",
       "从端秒档超 i32 值域须被 strict_i64 收下"
     );
-    fm.wait_failover_done().await;
+    wait_failover_done(&fm).await;
     assert_eq!(fm.get_last_failover_status(), "failover-completed");
     aok::OK
   })
+}
+
+/// 已删 `FailoverManager::wait_failover_done` 的测试等价轮询面
+///（is_failover_in_progress 观测终态落账 + 会话收场，5s 超时上限）
+async fn wait_failover_done(m: &FailoverManager) {
+  assert!(
+    wait_for(|| !m.is_failover_in_progress(), Duration::from_secs(5)).await,
+    "failover 未在 5s 内收场"
+  );
 }

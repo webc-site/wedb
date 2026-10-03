@@ -1,8 +1,6 @@
 //! gossip 管理器集成测试：配置演化增量判定、MEET 应答验证与失败清理、
 //! 首轮 MEET、广播派发并发隔离（对标 Gossip.cs TryStartGossipTasks /
 //! TryMeetAsync、GarnetServerNode.GetMostRecentConfig / TryGossip）
-#[path = "common/replica_host.rs"]
-mod replica_host;
 
 use std::{
   num::NonZeroUsize,
@@ -18,7 +16,6 @@ use compio::{
   runtime::{Runtime, spawn},
   time::timeout,
 };
-use replica_host::replica_host;
 use wedb::server::{
   cluster_provider::ClusterProvider,
   gossip::{
@@ -27,7 +24,10 @@ use wedb::server::{
   },
   worker::{LOCAL_WORKER_ID, LocalWorkerSpec, NodeRole, Worker},
 };
-use wedb_test::node_storage::{open_node, provider_with_role};
+use wedb_test::{
+  node_storage::{open_node, provider_with_role},
+  replica_host::{ReplicaSessionProvider, replica_host},
+};
 use wnode::GarnetServer;
 use wtest_base::{GossipNode, wait_for};
 
@@ -522,7 +522,7 @@ fn test_add_connection_hands_off_live_instance() -> Void {
 /// WaitForConfigPropagation(2,[0,1,2])）；③ 副本收方点亮的 gossip 首轮
 /// MEET 环把配置推向 P0，全网三节点终见三节点（C# :561-564 逐节点
 /// Nodes.Count == 3）。收方/发起方全走真 socket RESP 面
-/// （tests/common replica_host 单源宿主），非 GossipNode 桩应答
+/// （wedb_test::replica_host 单源宿主），非 GossipNode 桩应答
 #[test]
 fn test_meet_from_replica_propagates_across_three_nodes() -> Void {
   const P0: u128 = 0x0000_0000_0000_0000_0000_0000_0000_0F00;
@@ -530,9 +530,7 @@ fn test_meet_from_replica_propagates_across_three_nodes() -> Void {
   const N2: u128 = 0x0000_0000_0000_0000_0000_0000_0000_0F02;
 
   /// 真宿主装配 + 本地 worker 端口回填真实监听值（对端按配置拨号需真实端点）
-  fn host_and_fix_port(
-    cp: &Arc<ClusterProvider>,
-  ) -> (GarnetServer<replica_host::ReplicaSessionProvider>, u16) {
+  fn host_and_fix_port(cp: &Arc<ClusterProvider>) -> (GarnetServer<ReplicaSessionProvider>, u16) {
     let (server, addr) = replica_host(cp, NonZeroUsize::new(1));
     let port: u16 = addr.rsplit(':').next().unwrap().parse().unwrap();
     cp.cluster_manager()

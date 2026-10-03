@@ -66,8 +66,9 @@ enum IncrementalStep {
 pub struct TxnKeyEntries {
   /// 所属引擎实例的锁表句柄（对标 C# 条目集持 store 事务上下文）
   lock_table: TxnLockTable,
-  /// 待加锁键序列（内联 8 槽位，覆盖绝大多数常规事务，消除堆分配）
-  keys: SmallVec<[TxnKeyEntry; 8]>,
+  /// 待加锁键序列（内联 8 槽位，覆盖绝大多数常规事务，消除堆分配）。
+  /// 直曝字段（条目 [`TxnKeyEntry`] 全 pub 数据行），读面免包装迭代器
+  pub keys: SmallVec<[TxnKeyEntry; 8]>,
   unified_store_key_locked: bool,
   /// 已持有桶记录（内联 4 槽位，覆盖绝大多数事务，消除堆分配）
   held: SmallVec<[LockPlanSlot; 4]>,
@@ -107,14 +108,6 @@ impl TxnKeyEntries {
 
   pub fn count(&self) -> usize {
     self.keys.len()
-  }
-
-  /// 待加锁键条目锁哈希迭代器
-  ///
-  /// 锁轨专用，用于锁表桶定位。
-  #[inline]
-  pub fn key_hashes(&self) -> impl Iterator<Item = i64> + '_ {
-    self.keys.iter().map(|k| k.key_hash)
   }
 
   /// 待加锁键条目裸路由哈希迭代器

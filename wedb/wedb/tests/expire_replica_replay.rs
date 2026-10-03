@@ -14,9 +14,6 @@
 //! （C# 靠条目携带 option 副本重评估达成；rust 靠主端裁决单点达成，殊途同归，
 //! 本用例即该口径的回归栅栏）。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::diskless_provider::diskless_provider;
 
 #[path = "common/diskless_sync_kick.rs"]

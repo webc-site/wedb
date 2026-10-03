@@ -19,7 +19,7 @@
 //!   Garnet 真实应答（+OK / bulk / 整数 / 数组 / 空数组 `*0`）；FLUSHDB 走
 //!   发出即忘口（协议约定无应答），假端对其静默——滞留应答会错位后续帧配对。
 
-use std::{str::from_utf8, time::Duration};
+use std::time::Duration;
 
 use aok::{OK, Void};
 use compio::{
@@ -30,35 +30,7 @@ use compio::{
   time::timeout,
 };
 use wconn::client::GarnetClient;
-
-/// 解析缓冲中首个完整 RESP2 数组帧：返回 (帧总字节数, 全部参数切片)，
-/// 不完整返回 None（RESP2 数组 + bulk string 元素的最小切分骨架）
-fn try_parse_frame_args(buf: &[u8]) -> Option<(usize, Vec<&[u8]>)> {
-  if buf.first() != Some(&b'*') {
-    return None;
-  }
-  let header_end = buf.iter().position(|b| *b == b'\n')? + 1;
-  let argc: usize = from_utf8(&buf[1..header_end - 2]).ok()?.parse().ok()?;
-  let mut pos = header_end;
-  let mut args = Vec::with_capacity(argc);
-  for _ in 0..argc {
-    if buf.get(pos) != Some(&b'$') {
-      return None;
-    }
-    let len_line_end = buf[pos + 1..].iter().position(|b| *b == b'\n')? + pos + 2;
-    let len: usize = from_utf8(&buf[pos + 1..len_line_end - 2])
-      .ok()?
-      .parse()
-      .ok()?;
-    let end = len_line_end + len;
-    if end + 2 > buf.len() {
-      return None;
-    }
-    args.push(&buf[len_line_end..end]);
-    pos = end + 2;
-  }
-  Some((pos, args))
-}
+use wtest_base::parse_frame_slices;
 
 /// 单帧应答分派（按命令名，派发序即前缀序：长名命令先于其子串短名判定）
 fn reply_for(args: &[&[u8]]) -> Option<&'static [u8]> {
@@ -145,7 +117,7 @@ where
       _ => break,
     };
     acc.extend_from_slice(&buf[..n]);
-    while let Some((frame_len, args)) = try_parse_frame_args(&acc) {
+    while let Some((frame_len, args)) = parse_frame_slices(&acc) {
       if let Some(resp) = reply_for(&args) {
         let BufResult(res, _) = sock.write_all(resp.to_vec()).await;
         if res.is_err() {

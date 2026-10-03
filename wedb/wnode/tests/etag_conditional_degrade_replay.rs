@@ -246,7 +246,10 @@ fn slow_pending_tail_heals_committed_value() {
   // 未来过期刻度（now + 100s，.NET Ticks 100ns 单位，与快臂换算同源）；
   // 域锚取慢臂会话同域（无换号形）
   let ticks = now_ticks() + 100 * 10_000_000;
-  let domain = store.vdb.get_virtual_ids(0, 0);
+  let domain = {
+    let (vns, vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 0);
+    (vns, vdb)
+  };
 
   // 1) SETIFMATCH Missing 臂自碰态：快臂对缺失键 given=5 裁决 new_etag=6 后
   //    值腿已同步落库（本夹具以同款普通 SET 复刻「值在、TTL 缺、etag 侧写

@@ -736,7 +736,7 @@ pub mod cluster {
 
   /// 非预期集群命令完整错误帧 `-ERR unexpected cluster command\r\n`
   /// （libs/cluster/CmdStrings.cs 口径；用于
-  /// [`crate::server::replication::cluster_replication_session`] 协议面违规应答）
+  /// `cluster_replication_session` 协议面违规应答）
   pub const ERR_UNEXPECTED_CLUSTER_CMD: &str = "ERR unexpected cluster command";
   /// 畸形 APPENDLOG 帧完整错误帧 `-ERR malformed APPENDLOG frame\r\n`
   /// （libs/cluster/CmdStrings.cs 口径；与 [`ERR_UNEXPECTED_CLUSTER_CMD`] 同域）

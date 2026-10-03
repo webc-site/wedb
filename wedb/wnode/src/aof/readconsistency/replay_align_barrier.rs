@@ -52,7 +52,7 @@ impl Round {
   }
 }
 
-/// 每参与者复用唤醒事件（对标 C# participantEvents[virtualSublogIdx]）。
+/// 每参与者复用唤醒事件（对标 C# participantEvents\[virtualSublogIdx\]）。
 /// 仅属主虚拟子日志回放线程等待与复位，放行者仅置位不复位，零信号遗失风险。
 #[derive(Default)]
 pub struct ParticipantEvent {

@@ -1,9 +1,9 @@
 //! 双主 provider 装配单源（DE11 本地主 + DE12 远端主两 worker 槽位图）
 //!
 //! 收口 9 册逐字同形的 `two_primary_provider` 装配体。语义锚：
-//! - `ClusterProvider::new` 恒装新 [`ClusterManager`]，`cluster_manager()`
+//! - `ClusterProvider::new` 恒装新 `ClusterManager`，`cluster_manager()`
 //!   恒 `Some`（原两形态 `unwrap` / `unwrap_or_else` 兜底死分支同义）；
-//! - worker 表 [0] 保留、[1] 为本地（DE11）、push 后 [2] 为远端（DE12），
+//! - worker 表 \[0\] 保留、\[1\] 为本地（DE11）、push 后 \[2\] 为远端（DE12），
 //!   `workers.len()` 于 push 前取值恒 2，即原各副本的 `remote_worker_id`
 //!   （含 cluster_iterative_slot_verify 硬编码的 `worker_id: 2`）；
 //! - 槽位图 [0, local_end) 填本地 Stable，[remote_tail, CLUSTER_SLOT_COUNT)

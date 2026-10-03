@@ -8,7 +8,7 @@
 //! 信封头解析辅助与装载保存面）。
 //!
 //! 写回面保护统一登记：本域一切「装载 → 求值 → 写回」变更面（[`run_sync_rmw`] /
-//! [`run_async_rmw`] RMW 骨架，及信封计数矫正写回面 [`envelope_length_correct_by`]）
+//! [`run_async_rmw`] RMW 骨架，及信封计数矫正写回面 `envelope_length_correct_by`）
 //! 共用同一套窗口与复验判定——装载前持 [`wkv::RmwWindow`] 用户键桶排他闩挡并发
 //! 同键 RMW 写臂交错顶替，落笔前经 [`obj_save_recheck_sync`] / [`obj_save_recheck_async`]
 //! （object_store_utils 单点裁决核）复验域归属挡对面 DEL / SET 交错，复验不过一律

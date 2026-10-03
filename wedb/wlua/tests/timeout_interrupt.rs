@@ -14,7 +14,7 @@ fn run_tight_loop(state: &mut LuaState) {
   state
     .load_string("local s = 0 for i = 1, 1000000 do s = s + i end return s")
     .unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.check_number(-1), Some(500_000_500_000.0));
   state.clear_stack();
 }
@@ -31,7 +31,7 @@ fn sentinel_slot_interrupts_then_disarm_recovers() {
   state
     .load_string("local i = 0; while true do i = i + 1 end")
     .unwrap();
-  let err = state.pcall(0).unwrap_err();
+  let err = state.pcall_n(0, usize::MAX).unwrap_err();
   assert!(
     err.to_string().contains("exceeded configured timeout"),
     "应抛超时错误: {err:?}"
@@ -41,7 +41,7 @@ fn sentinel_slot_interrupts_then_disarm_recovers() {
   // disarm（C# SetCookie(0) 形态）：同 VM 后续脚本正常跑完。
   slot.store(0, Ordering::Release);
   state.load_string("return 42").unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.check_number(-1), Some(42.0));
   state.clear_stack();
 }

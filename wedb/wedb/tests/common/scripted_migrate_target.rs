@@ -12,7 +12,7 @@
 //! use scripted_migrate_target_core::{ScriptedTargetOptions, scripted_migrate_target};
 //! ```
 //!
-//! 解析依赖 wedb_test::resp_frame_args 单源。不进
+//! 帧解析走 `wtest_base::parse_frame_slices` 单源。不进
 //! common/mod.rs 聚合面——按册直挂裁项，避免不消费册招 per-binary
 //! dead_code（primary_assets 先例警示）。
 
@@ -32,8 +32,7 @@ use compio::{
   runtime::spawn,
 };
 use parking_lot::Mutex;
-use wedb_test::resp_frame_args::try_parse_frame_args;
-use wtest_base::resp_frame;
+use wtest_base::{parse_frame_slices, resp_frame};
 
 /// 假目标端行为差异面（各册按语义取舍；全 Copy 可入 static）
 #[derive(Clone, Copy, Default)]
@@ -107,7 +106,7 @@ pub async fn scripted_migrate_target(
             _ => break,
           };
           acc.extend_from_slice(&buf[..n]);
-          while let Some((frame_len, args)) = try_parse_frame_args(&acc) {
+          while let Some((frame_len, args)) = parse_frame_slices(&acc) {
             // RESERVE 合成就地应答（不弹脚本，见 reserve_reply）；其余帧按脚本弹答
             let is_reserve = opts.reserve_ctx_base.is_some()
               && args.len() >= 4

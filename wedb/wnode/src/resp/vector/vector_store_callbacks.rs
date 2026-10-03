@@ -3,7 +3,7 @@
 //! 将 DiskANN 向量图的向量数据、邻接表（图拓扑）、量化状态、属性和 ID 映射
 //! 通过统一的 `[命名空间字节][键字节]` 物理键落盘到 wkv 存储引擎（Tsavorite 混合日志）。
 //!
-//! C# 批量读构件 [`VectorReadBatch`] 的两项逐次策略在本端口由引擎单点承接，
+//! C# 批量读构件 `VectorReadBatch` 的两项逐次策略在本端口由引擎单点承接，
 //! 故本文件不再自建同名概念：
 //!   * 初读尺寸 `InitialIORecordSize`（同文件 :38-57，配合
 //!     `SetActiveReadGeometry` :312-339 按项类型预算单 IO 尺寸）→ wkv 冷读侧的
@@ -74,8 +74,8 @@
 //! `[session_prefix(vns,db)][KeyTag::Vector]…`（wkv `session/keys.rs:44-55`）
 //! 随**当前连接的 (namespace, active_db)** 落位，逐面对位 C# 每库独立日志；
 //! 登记表记录键自带记录域、上下文元数据键恒用根前缀（本 crate
-//! [`index_registry_physical_key`](vector_registry_recovery::index_registry_physical_key)
-//! / [`metadata_registry_physical_key`](vector_registry_recovery::metadata_registry_physical_key)），
+//! [`index_registry_physical_key`](super::vector_registry_recovery::index_registry_physical_key)
+//! / [`metadata_registry_physical_key`](super::vector_registry_recovery::metadata_registry_physical_key)），
 //! drop 清扫按 context 段全日志匹配（wkv `session/vector_cleanup.rs:65-96`），
 //! 三者皆与绑定域无关。
 

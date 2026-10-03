@@ -2,7 +2,7 @@
 //!（zcode-r126c-hello1 案二 P3）
 //!
 //! 票面命题：HELLO/AUTH/ACL 族经 dispatch_via_garnet_api 预筛停车，应答实际
-//! 组装发生在泵侧异步域（drive.rs auth_fut await），写帧点全为 cs 自由函数
+//! 组装发生在泵侧异步域（drive/consume.rs auth_fut await），写帧点全为 cs 自由函数
 //! 不经会话置位包装；同步段 CommandStats 门扫描时 output 尚无应答、判据恒
 //! 假——calls 计、failed_calls 不计，INFO commandstats 对认证失败族系统性
 //! 少计。收口：停车登记随快照留存本命令应答段起点（输出水位），泵侧 await

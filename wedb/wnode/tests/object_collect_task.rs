@@ -53,7 +53,7 @@ fn frame(args: &[&str]) -> Vec<u8> {
   out.into_bytes()
 }
 
-/// 命令收发（复刻生产泵 [`wnode/src/net/handler/drive.rs`] 消费循环语义：
+/// 命令收发（复刻生产泵 [`wnode/src/net/handler/drive/consume.rs`] 消费循环语义：
 /// 消费一批 → 会话挂起体取走 await 闭环、应答按流水线序并入 → 续消费至
 /// 整帧消化）。HLEN/ZCARD 信封水位越线落物化矫正臂（collection.md §6.3）
 /// 时同步段 `Ok(false)` 挂 SlowWait 停消费（core.rs 游标先推进后 break，

@@ -12,9 +12,9 @@
 //! mod replay_rig;
 //! ```
 //!
-//! 依赖宿主册在场挂载 `replica_host`（crate:: 路径引用）；存储底座与角色
-//! provider 单源已收口至 `wedb_test::{node_storage, diskless_provider,
-//! replica_attach}`。
+//! 宿主服务器装配尾随原 common/replica_host.rs 一并收口至
+//! `wedb_test::replica_host`；存储底座与角色 provider 单源已收口至
+//! `wedb_test::{node_storage, diskless_provider, replica_attach}`。
 
 use std::{num::NonZeroUsize, sync::Arc};
 
@@ -31,10 +31,9 @@ use wedb_test::{
   diskless_provider::diskless_provider,
   node_storage::{self as common, NodeStorage},
   replica_attach::attach_replica_session,
+  replica_host::{ReplicaSessionProvider, replica_host},
 };
 use wnode::{GarnetServer, aof::waof_sublog::single_log_aof};
-
-use crate::replica_host::{ReplicaSessionProvider, replica_host};
 
 /// 副本整套装配束（副本存储节点 / 角色 provider / 复制管理器 /
 /// 宿主服务器 / 监听地址串）；服务器须由调用方持有至用例末并 `dispose`。

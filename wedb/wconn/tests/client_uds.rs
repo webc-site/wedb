@@ -85,7 +85,7 @@ async fn session_roundtrip_over_bare_sock_path_endpoint() -> Void {
     GarnetClientSession::new(path.to_string_lossy().into_owned(), None, None, None, None);
   session.connect_async().await?;
   assert!(session.is_connected(), "UDS 建连后会话连接态应为真");
-  assert_eq!(session.execute_async(&["PING"]).await?, "PONG");
+  assert_eq!(session.execute_cluster_attach_sync(b"meta").await?, "OK");
   OK
 }
 

@@ -4,7 +4,7 @@ impl VirtualDbManager {
   /// FLUSHDB：清空库并换号，返回 (vns, new_vdb, old_vdb_opt)
   ///
   /// 内存换号段真 O(1)：分配新虚拟库号后对目标逻辑库单元格单次
-  /// [`DbRoutingTable::swap_out`] 原子换指，零整表克隆、零 CAS 重试循环，
+  /// [`crate::vdb::DbRoutingTable::swap_out`] 原子换指，零整表克隆、零 CAS 重试循环，
   /// 成本与租户在册库数无关（doc/zh/db.md 1.3「单次 O(1) 原子替换」口径）；
   /// 换出的旧库号登记死亡账本交延时 GC 回收。并发 flush 链式退役：后换出者
   /// 拿到的旧指向即前次换入的新号，逐代判死，杜绝旧号复用撞号。

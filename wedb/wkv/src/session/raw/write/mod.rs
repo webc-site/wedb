@@ -276,7 +276,7 @@ impl<D: Device> StoreSession<D> {
   /// 本口不发任何镜像事件：RMW 增量条目路径（run_sync_rmw 经
   /// `obj_save_sync`）另行显式通知，整值收敛路径（`obj_save_custom_notified` /
   /// 异步档 `obj_save`）由调用方携 addr 借记录值经
-  /// [`WedbStore::notify_envelope_upsert`] 单点入账，杜绝双份。
+  /// [`crate::store::WedbStore::notify_envelope_upsert`] 单点入账，杜绝双份。
   /// `rec_k` 由调用方单次编码（[`Self::session_tag_key_with_prefix`]）复用至
   /// 镜像入账，热路径物理键一次编码零重复。
   /// 调用契约：本口为 unprotected 内核（调用方须已处于纪元保护下，批处理

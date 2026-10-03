@@ -146,7 +146,7 @@ fn test_tls_shutdown_tail_blackhole_kill_disposes_registry_entry() -> aok::Resul
     dir.path().join("node.db"),
     test_store_config(),
   )?);
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider.clone())?
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider.clone())?
     .with_tls_config(test_server_tls()?)
     .with_tls_shutdown_timeout(TEST_SHUTDOWN_TIMEOUT);
   server.start(NonZeroUsize::new(1))?;
@@ -286,7 +286,7 @@ fn test_plain_shutdown_tail_regression() -> aok::Result<()> {
     dir.path().join("node.db"),
     test_store_config(),
   )?);
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider.clone())?;
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider.clone())?;
   server.start(NonZeroUsize::new(1))?;
   let addr = server.local_addr()?;
 

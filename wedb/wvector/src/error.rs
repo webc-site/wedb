@@ -32,7 +32,7 @@ pub enum FsmError {
 pub enum QuantizerError {
   #[error("Quantization training error: {0}")]
   Training(String),
-  /// 分配错误（无 #[from] 显式构造：AllocatorError 的 #[from] 单点留
+  /// 分配错误（无 `#[from]` 显式构造：AllocatorError 的 `#[from]` 单点留
   /// WedbProviderError::AllocFailed，本域四处流入点显式映射，杜绝同源双入口）
   #[error("Quantization alloc error: {0}")]
   Alloc(AllocatorError),
@@ -44,7 +44,7 @@ pub enum QuantizerError {
   NoQuantizer,
   #[error("Got zero dimension")]
   ZeroDim,
-  /// transform 构造错误（无 #[from] 显式构造，唯一构造点 quantization.rs
+  /// transform 构造错误（无 `#[from]` 显式构造，唯一构造点 quantization.rs
   /// MinMax8Bit::new）
   #[error("Transform error: {0}")]
   BadTransform(NewTransformError),

@@ -511,12 +511,6 @@ impl ClusterManager {
     }
   }
 
-  /// libs/cluster/Server/ClusterManagerWorkerState.cs:TryInitializeLocalWorker
-  pub fn try_initialize_local_worker(&self, spec: LocalWorkerSpec) {
-    let mut config = self.current_config.write();
-    config.initialize_local_worker(spec);
-  }
-
   /// libs/cluster/Server/ClusterManager.cs:GetInfo
   ///
   /// cluster_state 恒 ok 与两 messages 计数恒 0 是 C# 原作字面量
@@ -600,17 +594,6 @@ impl ClusterManager {
     }
     self.flush_config();
     true
-  }
-
-  /// libs/cluster/Server/ClusterManager.cs:TrySetLocalNodeRole
-  pub fn try_set_local_node_role(&self, role: NodeRole) {
-    {
-      let mut current = self.current_config.write();
-      current
-        .set_local_worker_role(role)
-        .bump_local_node_config_epoch();
-    }
-    self.flush_config();
   }
 
   /// libs/cluster/Server/ClusterManager.cs:TryResetReplica

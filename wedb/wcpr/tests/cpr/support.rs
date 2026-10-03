@@ -364,7 +364,9 @@ impl MiniStore {
   /// 在指定键的槽位上把地址字段从 `old` 换指 `new`（高 16 位指纹位原样保留，对标
   /// C# HashBucketEntry.cs:49 Address setter 的掩码换写语义）
   fn cas_key_slot(&self, key: &[u8], old: u64, new: u64) -> bool {
-    let bucket = self.index.get_bucket(self.index.bucket_index_for_key(key));
+    let bucket = self
+      .index
+      .get_bucket(self.index.bucket_index_for_hash(HashIndex::hash_key(key)));
     bucket.entries[..HashBucket::DATA_ENTRIES]
       .iter()
       .any(|slot| {

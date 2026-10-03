@@ -28,6 +28,7 @@ use wnode::{
     garnet_api::{GarnetApi, GarnetApiFace, StoreGarnetApi},
     resp_server_session::{
       ConnectionProtectionOption, RespServerSession, RespServerSessionOptions,
+      is_command_arity_valid_checked,
     },
     slow_path::SlowFuture,
   },
@@ -582,19 +583,22 @@ fn database_switch_lifecycle() {
 #[test]
 fn arity_validation_writes_error() {
   let mut s = session(4);
-  assert!(s.is_command_arity_valid("get", 2, 1));
-  assert!(!s.is_command_arity_valid("get", 2, 2));
+  // 纯判定面（生产消费点 custom.rs 分派门同源）
+  assert!(is_command_arity_valid_checked(2, 1));
+  assert!(!is_command_arity_valid_checked(2, 2));
+  // 失败臂错误应答：abort_wrong_num_args 单点写帧（分派门同口径）
+  s.abort_wrong_num_args("get");
   let text = String::from_utf8(drain_output(&mut s)).unwrap();
   assert_eq!(text, "-ERR wrong number of arguments for 'get' command\r\n");
-  assert!(s.is_command_arity_valid("mset", -3, 2));
-  assert!(!s.is_command_arity_valid("mset", -3, 1));
-  assert!(s.is_command_arity_valid("x", 0, 100));
+  assert!(is_command_arity_valid_checked(-3, 2));
+  assert!(!is_command_arity_valid_checked(-3, 1));
+  assert!(is_command_arity_valid_checked(0, 100));
 }
 
 #[test]
 fn latency_metrics_optional_path() {
   let s = session(5);
-  assert!(s.get_latency_metrics().is_none());
+  assert!(s.latency_metrics.is_none());
   // 延迟复位无会话面出口：C# ResetLatencyMetrics 的跨线程复位臂在 rust
   // 归属转移（退役槽由属主线程版本翻转点就地清零，见监视器
   // cleanup_global_latency_metrics 注释），会话不暴露 &self 复位口。

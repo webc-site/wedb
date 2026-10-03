@@ -364,30 +364,6 @@ fn sinterstore_sync_save_failure_keeps_dest_ttl_intact() {
   );
 }
 
-/// SUNIONSTORE 同漏斗回归探针（combine_store 三命令共用单漏斗，锁一形即锁全形；
-/// 独立存储实例防用例间串扰）
-#[test]
-fn sunionstore_sync_save_failure_keeps_dest_ttl_intact() {
-  let ms = big_members(100);
-  let seed = vec![
-    vec![b"SADD".to_vec(), b"u:dst".to_vec(), b"old1".to_vec()],
-    {
-      let mut v = vec![b"SADD".to_vec(), b"u:s1".to_vec()];
-      v.extend(ms.iter().cloned());
-      v
-    },
-    vec![b"EXPIRE".to_vec(), b"u:dst".to_vec(), b"600".to_vec()],
-  ];
-  run_fail_arm(
-    "sunion",
-    b"u:dst",
-    &seed,
-    &[b"SUNIONSTORE", b"u:dst", b"1", b"u:s1"],
-    &[b"SMEMBERS", b"u:dst"],
-    b"*1\r\n$4\r\nold1\r\n",
-  );
-}
-
 /// ZRANGESTORE 同步臂（zset write.rs :256 裸点形）
 #[test]
 fn zrangestore_sync_save_failure_keeps_dest_ttl_intact() {

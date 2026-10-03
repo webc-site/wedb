@@ -383,7 +383,7 @@ impl ClusterSessionFace for ClusterSession {
   /// dispose 本连接 APPENDLOG 初始化帧注册成功时捕获的当时代驱动仓
   /// （ClusterSession.cs:212-219 `replicaReplayDriverStore?.Dispose()`）——
   /// 该代 dispose 排空在册驱动并终止背景重放，ensure_replication 的流活跃
-  /// 判定面（[`ReplicationManager::has_active_replication_stream`] 读当前
+  /// 判定面（[`crate::server::replication::replication_manager::ReplicationManager::has_active_replication_stream`] 读当前
   /// 代）随之复位；换代（切主/重传 reset 换新实例）后旧连接迟到的 dispose
   /// 仅命中已处置的旧实例幂等空转（ReplicaReplayDriverStore.cs:73-95 的
   /// disposed 标志对位），绝不误杀新主连接已注册的新一代驱动

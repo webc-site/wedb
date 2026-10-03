@@ -111,11 +111,6 @@ impl ClientTlsConfig {
     let domain = server_name(&self.target_host, endpoint)?;
     self.connector.connect(&domain, stream).await
   }
-
-  /// SNI 名解析：target_host 优先，空则 endpoint host 段（剥 IPv6 方括号）
-  pub fn resolve_server_name(target_host: &str, endpoint: &str) -> io::Result<String> {
-    server_name(target_host, endpoint)
-  }
 }
 
 /// 出站客户端证书动态解析器：握手期现取共享证书源当前活跃证书
@@ -156,7 +151,9 @@ fn root_store(issuer_path: Option<&Path>) -> io::Result<RootCertStore> {
 }
 
 /// SNI 名解析：target_host 优先，空则 endpoint host 段（剥 IPv6 方括号）
-fn server_name(target_host: &str, endpoint: &str) -> io::Result<String> {
+///
+/// pub 直曝：connect 生产面 + tests/client.rs 解析断言共用（免包装转发层）
+pub fn server_name(target_host: &str, endpoint: &str) -> io::Result<String> {
   let host = if target_host.is_empty() {
     endpoint.rsplit_once(':').map_or(endpoint, |(host, _)| host)
   } else {

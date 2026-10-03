@@ -612,7 +612,7 @@ impl RangeIndexManager {
   /// 刷盘快照的**唯一**命名形态：地址段必带，C# 侧无任何无地址形态。刷盘件只由
   /// [`Self::pre_stage_and_register_pending`] 按存根源记录的精确地址单件消费
   /// (对位 C#「uses the exact source address」)，绝不被目录扫描择优；其余按目录
-  /// 枚举的路径只有截断回收与换代清理两处 (见 [`super::replication`] 的 flush_files)
+  /// 枚举的路径只有截断回收与换代清理两处 (见 `replication::flush_files`)
   pub fn log_flush_path(&self, hash_prefix: &str, logical_address: u64) -> PathBuf {
     let b32 = encode_u64(logical_address);
     let mut s =

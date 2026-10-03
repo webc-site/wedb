@@ -106,8 +106,8 @@ impl<D: Device> WedbStore<D> {
 
   /// 归池前原子密封并按三态结果门控注册复活池——全库「槽位移交 FreeRecordPool」唯一单点
   ///
-  /// 先对槽位头原子置位 SEALED，仅 [`SealOutcome::Sealed`] / [`SealOutcome::AlreadySealed`]
-  /// （槽位已确认 Closed）方按复活下限门槛入池；[`SealOutcome::NotSealable`]（页滑窗
+  /// 先对槽位头原子置位 SEALED，仅 [`whlog::SealOutcome::Sealed`] / [`whlog::SealOutcome::AlreadySealed`]
+  /// （槽位已确认 Closed）方按复活下限门槛入池；[`whlog::SealOutcome::NotSealable`]（页滑窗
   /// 驱逐竞态 / 头部残片，闭合态不可确认）弃归池走 C# Elided 遗弃同款：log 留痕、
   /// 槽位交由截断清退——宁漏回收，绝不冒「未闭合槽位入池 → 复活方原位覆写 →
   /// 在途回溯读者读出撕裂内容」的险。

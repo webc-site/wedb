@@ -13,7 +13,7 @@ pub use access_control_list::{AccessControlList, DEFAULT_USER_NAME};
 pub use acl_exception::AclError;
 pub use acl_parser::AclParser;
 pub use acl_password::AclPassword;
-pub use auth::{GarnetAclAuthenticator, acl_password_check, ascii_sanitize};
+pub use auth::{GarnetAclAuthenticator, acl_password_check};
 pub use command_permission_set::CommandPermissionSet;
 pub use user::{User, parse_user_namespace, parse_user_namespace_with_default, validate_username};
 pub use user_handle::UserHandle;

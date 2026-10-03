@@ -67,7 +67,6 @@ where
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(session_provider),
   )?;
   // 单 worker 收敛（对标 wnode_test::start_server 先例；多核压测形态单独显式注入，

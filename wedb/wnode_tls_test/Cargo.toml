@@ -30,6 +30,7 @@ waof.workspace = true
 wbase = { workspace = true, features = ["hash_slot"] }
 wdev.workspace = true
 wedb = { workspace = true, features = ["tls"] }
+wedb_test.workspace = true
 wkv.workspace = true
 wtest_base.workspace = true
 wtxn.workspace = true

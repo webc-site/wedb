@@ -2,7 +2,7 @@
 //!
 //! 收口 diskless 系九册逐字同形的 `provider_with_role(..., Some(0))` 装配：
 //! 端口与槽位图形态按册参数化，攒批窗恒 Some(0) 关窗。消费面经
-//! `wedb_test::diskless_provider` 引用（原 common/ #[path] 直挂面已收口进
+//! `wedb_test::diskless_provider` 引用（原 common/ `#[path]` 直挂面已收口进
 //! 本 crate）。
 
 use std::sync::Arc;

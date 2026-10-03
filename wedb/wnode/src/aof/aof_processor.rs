@@ -462,7 +462,7 @@ const FLUSH_DOMAIN_LEN: usize = 16;
 ///（恢复路径显式暴露原则，绝不静默按零域清库）。
 ///
 /// 头尺寸经 waof 头面唯一口径 [`AofHeader::skip_header`] 按头型定长，本函数不
-/// 自带第二套帧格式：FLUSH 广播条目在写侧 [`GarnetLog::enqueue_broadcast_entry`]
+/// 自带第二套帧格式：FLUSH 广播条目在写侧 `GarnetLog::enqueue_broadcast_entry`
 /// 按拓扑改写头型（对标 C# GarnetLog.cs:1196-1225——单物理日志 + 多重放任务落
 /// SingleLogTransactionHeader、分片拓扑落 ShardedLogTransactionHeader，仅单日志
 /// 拓扑保持 BasicHeader），载荷起点随头型移动；写侧 C# 把库号放在头字段

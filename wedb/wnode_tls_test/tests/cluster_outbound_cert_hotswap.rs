@@ -68,7 +68,7 @@ fn outbound_cluster_cert_follows_config_set_rotation() -> aok::Result<()> {
     )?
     .with_tls_config(node_tls.clone()),
   );
-  let node = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::clone(&provider))?
+  let node = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::clone(&provider))?
     .with_tls_config(node_tls);
   node.start(NonZeroUsize::new(1))?;
   let node_addr = node.local_addr()?;

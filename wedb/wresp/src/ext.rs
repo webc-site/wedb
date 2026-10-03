@@ -1,4 +1,4 @@
-//! RESP 写出扩展面（Vec<u8> / &[u8] 会话缓冲入口）。
+//! RESP 写出扩展面（`Vec<u8>` / `&[u8]` 会话缓冲入口）。
 //!
 //! null 一族在本 crate 只有 [`RespVecExt::write_resp_null_ver`] 与
 //! [`RespVecExt::write_resp_null_array_ver`] 两个直接入口（二者各持 RESP2/RESP3

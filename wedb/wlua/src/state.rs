@@ -146,11 +146,6 @@ impl LuaState {
     self.get_top() == 0
   }
 
-  /// 保护模式调用：弹出函数与 `nargs` 个参数，压回全部返回值（MULTRET）。
-  pub fn pcall(&mut self, nargs: usize) -> Result<()> {
-    self.pcall_n(nargs, usize::MAX).map(|_| ())
-  }
-
   /// libs/server/Lua/LuaStateWrapper.cs:PCall（状态码出参形态）
   ///
   /// C# `PCall` 返回 `LuaStatus` 供调用方按状态分流（`LuaRunner.cs:

@@ -79,7 +79,7 @@ impl<D: Device> StoreSession<D> {
   /// 据此保持置脏；换入之前的失败（建树 / 流入队 / 换入）原样上抛，旧态零变更。
   ///
   /// `next_expiry` 为灌入批的最早成员到期刻度（调用方单点算好传入：升阶/重灌臂
-  /// 经 wnode [`earliest_expiry`](wnode::resp::objects::tiered_collection_ops) /
+  /// 经 wnode `earliest_expiry` /
   /// 分层到期重灌臂经扫描期已重算的水位；`i64::MAX` = 无成员挂 TTL）。重灌是
   /// 换树不换内容，水位若在重建时归 MAX，成员级 TTL 计数校正（HLEN/ZCARD 的
   /// `now <= next_expiry` 快路径）与周期收集任务会被「无 TTL」假水位骗过，已

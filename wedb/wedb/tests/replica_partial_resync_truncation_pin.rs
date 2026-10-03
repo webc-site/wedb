@@ -67,7 +67,7 @@ async fn spawn_stub_replica(recover_gate: Arc<AtomicBool>, granted_address: i64)
         let (seen, gate) = (Arc::clone(&seen), Arc::clone(&gate));
         spawn(async move {
           // 读循环骨架见 `wedb_test::fake_frame_pump`（RESP2 帧解析单源
-          // resp_frame_args；本册原 owned 载荷面由参数切片直取替代）
+          // wtest_base::parse_frame_slices；本册原 owned 载荷面由参数切片直取替代）
           pump_frames(
             &mut stream,
             4096,

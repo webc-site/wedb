@@ -17,7 +17,7 @@ pub const DEFAULT_DIR: &str = "./data";
 /// `defaultNamingScheme`（仅 CheckpointManager 类型分叉），`Options.cs:790-793`
 /// LogDir/CheckpointDir 单套、`EnableCluster` 不换文件布局，模式切换复用同一
 /// 数据文件。本仓检查点目录默认 `{dir}/Store/checkpoints`（`--checkpoint-dir`
-/// 可改基目录，见 [`NodeArgs::checkpoint_base_dir`]）、WAL 落
+/// 可改基目录，见 `NodeArgs::checkpoint_base_dir`）、WAL 落
 /// `{--wal-dir 或 dir/wal}/wal.log`，皆与模式无关，故数据文件名亦不随模式区分
 /// ——否则集群二进制指向单机遗留目录会新建空数据文件当恢复设备、加载单机检查点
 /// 索引（索引地址指向另一数据文件）、续写同一 wal.log，恢复静默错乱并写坏共享
@@ -77,7 +77,7 @@ pub(crate) const DEFAULT_INDEX_RESIZE_THRESHOLD: i64 = 50;
 /// <=0 = 无限超时哨兵）
 pub const DEFAULT_REPLICA_SYNC_TIMEOUT_SECS: i32 = 5;
 /// 复制同步超时的无限哨兵秒数（u64 槽唯一字面值源）：非正值输入经
-/// [`NodeArgs::runtime_server_options`] 折进本值入槽，消费侧（wedb
+/// `NodeArgs::runtime_server_options` 折进本值入槽，消费侧（wedb
 /// ClusterProvider::replica_sync_timeout）据此判无限折 None，不折
 /// `Duration::from_secs(u64::MAX)`——compio 定时器 `Instant::now() + d`
 /// 于该值即溢出 panic（无限即不挂计时器、永等，对标 `Timeout.InfiniteTimeSpan`）

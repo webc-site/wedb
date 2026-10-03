@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use wbase::{convert::stopwatch::TICKS_PER_MICROSECOND, time::now_stopwatch_ticks};
 use wconf::ServerConfigType;
-use wmetric::{GarnetLatencyMetricsSession, LatencyMetricsType, SessionMetricsHandle};
+use wmetric::{LatencyMetricsType, SessionMetricsHandle};
 
 use super::core::RespServerSession;
 
@@ -20,14 +20,6 @@ impl RespServerSession {
   /// 与 C# null 会话指标同形）
   pub fn attach_session_metrics(&mut self, metrics: Option<Arc<SessionMetricsHandle>>) {
     self.session_metrics = metrics;
-  }
-
-  /// libs/server/Resp/RespServerSession.cs:GetLatencyMetrics
-  ///
-  /// 借用而非克隆：延迟表为本会话独占的拥有型实例，共享出口会把无锁直写
-  /// 降级成写锁竞争
-  pub fn get_latency_metrics(&self) -> Option<&GarnetLatencyMetricsSession> {
-    self.latency_metrics.as_ref()
   }
 
   /// 批次消费入口的延迟/慢日志起始装配（C# TryConsumeMessages:481/:484-489）：

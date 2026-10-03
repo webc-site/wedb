@@ -201,7 +201,7 @@ impl GarnetLog {
   /// libs/server/AOF/GarnetLog.cs:UnsafeShiftBeginAddress（truncateLog: true 形态）
   ///
   /// 全 AOF 域唯一的单子日志物理回收真身：平移子日志 begin 并即时删段。
-  /// 页界/段界钳制与 `min(committed_until)` 一致性全部交由 [`WaofSublog::truncate_until_async`]
+  /// 页界/段界钳制与 `min(committed_until)` 一致性全部交由 [`crate::aof::waof_sublog::WaofSublog::truncate_until_async`]
   /// → `WalLog::truncate` 的 `until` 入参承担（设备面单点，AOF 域不另算页界）；
   /// C# 的 `snapToPageStart` / `truncateLog` 两开关在 rust 单一口径下无存活空间
   /// ——截断恒为物理、页对齐恒由设备负责，故不引入永假形参。

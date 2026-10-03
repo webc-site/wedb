@@ -92,13 +92,9 @@ fn test_garnet_client_and_session_apis() -> Void {
     // 会话透传命令
     let mut session = GarnetClientSession::new(endpoint, None, None, None, None);
     session.connect_async().await?;
-    assert_eq!(session.execute_async(&["PING"]).await?, "PONG");
-    let bytes_res = session.execute_for_bytes_async(&[b"GET", b"k"]).await?;
-    assert_eq!(bytes_res, b"hello");
-    let arr_res = session
-      .execute_for_array_async(&["LRANGE", "list", "0", "-1"])
-      .await?;
-    assert_eq!(arr_res, vec!["a", "b"]);
+    // 会话层存活透传口（CLUSTER ATTACH_SYNC 帧往返；行/bulk/数组三形已由
+    // 上方 GarnetClient 底层执行口断言覆盖）
+    assert_eq!(session.execute_cluster_attach_sync(b"meta").await?, "OK");
 
     info!("GarnetClient 与 GarnetClientSession 执行口链路验证通过");
     aok::Result::<()>::Ok(())

@@ -39,7 +39,7 @@ impl<D: Device> StoreSession<D> {
     self.session_tag_key(KeyTag::String, user_key)
   }
 
-  /// 生成当前会话专属向量存储物理键（定长刚性帧隔离公理：[prefix][KeyTag::Vector][context: 8B be][key]）
+  /// 生成当前会话专属向量存储物理键（定长刚性帧隔离公理：\[prefix\]\[KeyTag::Vector\]\[context: 8B be\]\[key\]）
   #[inline(always)]
   pub fn vector_key(&self, context: u64, key: &[u8]) -> TaggedKeyBuf {
     let prefix = self.session_prefix();

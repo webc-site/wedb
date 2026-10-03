@@ -517,7 +517,7 @@ impl NamespaceDbCodec {
     let prefix = SessionPrefixBuf::new(ns, db);
     Self::encode_with_session_prefix(prefix.as_slice(), tag, payload)
   }
-  /// 基于会话前缀编码向量存储物理键（定长刚性帧隔离公理：[prefix][KeyTag::Vector][context: 8B be][key]）
+  /// 基于会话前缀编码向量存储物理键（定长刚性帧隔离公理：\[prefix\]\[KeyTag::Vector\]\[context: 8B be\]\[key\]）
   #[inline]
   pub fn encode_vector_key_with_prefix(prefix: &[u8], context: u64, key: &[u8]) -> TaggedKeyBuf {
     build_key(&[

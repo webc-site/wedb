@@ -15,7 +15,7 @@ pub const OFFSET_UNIT_BIT: u8 = 1;
 /// 位图负载字节上限（libs/server/Resp/Bitmap/BitmapManager.cs:MaxBitmapPayloadBytes）
 pub const MAX_BITMAP_PAYLOAD_BYTES: i64 = 512 * 1024 * 1024;
 
-/// 编译期位区间掩码表：[start][end] 对应字节内 [start, end) 位的掩码（MSB 序，0 <= start <= end <= 8）
+/// 编译期位区间掩码表：\[start\]\[end\] 对应字节内 \[start, end) 位的掩码（MSB 序，0 <= start <= end <= 8）
 pub const BIT_RANGE_MASKS: [[u8; 9]; 9] = {
   let mut table = [[0u8; 9]; 9];
   let mut s = 0;

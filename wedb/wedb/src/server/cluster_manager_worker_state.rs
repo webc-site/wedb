@@ -123,7 +123,7 @@ impl ClusterManager {
   /// 恢复锁生命周期（对标 C# :204-230 成功路径）：begin_recovery
   /// (ClusterReplicate) 成功后握锁返回、本函数不释放——INITIATE 往返、检查点
   /// 传送、引擎置换全程持锁，收尾统一在 attach 体
-  /// [`finish_replica_sync`](crate::server::replication::assembly::finish_replica_sync)
+  /// `finish_replica_sync`
   /// （C# attach 体 finally 的对偶）。取锁之后的分支（翻转、挂起、清驱动、
   /// flush）无中途 return Err 路径；若日后出现提前返回，必须按 C# :218-224
   /// CAS 重试臂的形态在返回前 end_recovery，禁止裸退漏锁

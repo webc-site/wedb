@@ -166,7 +166,9 @@ impl FixtureStore {
           return;
         };
         // 单桶内定位地址匹配的数据槽位，原位置上 ReadCache 指示位（主地址不变）
-        let bucket = self.index.get_bucket(self.index.bucket_index_for_key(&key));
+        let bucket = self
+          .index
+          .get_bucket(self.index.bucket_index_for_hash(HashIndex::hash_key(&key)));
         for slot in &bucket.entries[..HashBucket::DATA_ENTRIES] {
           let cur = slot.load(Ordering::Acquire);
           if cur & HashBucketEntry::ADDRESS_MASK == main {
@@ -204,7 +206,9 @@ impl FixtureStore {
   /// 返回打标后的槽位地址。
   pub fn arm_read_cache_eviction(&self, key: &[u8]) -> Option<u64> {
     let main = self.index.find_tag(key)?;
-    let bucket = self.index.get_bucket(self.index.bucket_index_for_key(key));
+    let bucket = self
+      .index
+      .get_bucket(self.index.bucket_index_for_hash(HashIndex::hash_key(key)));
     for slot in &bucket.entries[..HashBucket::DATA_ENTRIES] {
       let cur = slot.load(Ordering::Acquire);
       if cur & HashBucketEntry::ADDRESS_MASK == main {

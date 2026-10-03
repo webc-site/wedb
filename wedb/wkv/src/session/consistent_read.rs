@@ -5,6 +5,7 @@
 //! - 读取后：调用 `Session.functions.PostSingleKeyConsistentReadCallback()`
 
 use core::future::Future;
+use std::sync::Arc;
 
 use smallvec::SmallVec;
 use wbase::future::yield_now;
@@ -12,7 +13,7 @@ use wdev::Device;
 use wval::{KeyTag, TaggedKeyBuf};
 
 use crate::{
-  error::Result,
+  error::{self, Result},
   session::{StoreResult, StoreSession},
 };
 
@@ -115,6 +116,87 @@ impl<D: Device> StoreSession<D> {
       .iter()
       .map(|k| Self::session_tag_key_with_prefix(prefix_slice, tag, k.as_ref()))
       .collect()
+  }
+
+  /// 附着副本一致读会话状态机（装配期一次性调用；对标 C#
+  /// NewSession(functions, isConsistentReadSession) 形态——ConsistentReadContext
+  /// 由附着态派生，读漏斗按附着态自动触发协议，调用点零 Option 传染）
+  pub fn with_read_session_state(
+    mut self,
+    state: Option<Arc<dyn ConsistentReadFunctions>>,
+  ) -> Self {
+    self.read_session_state = state;
+    self
+  }
+
+  /// 一致读会话附着态访问口（None = 未附着，读路径直通）
+  #[inline]
+  pub fn read_session_state(&self) -> Option<&Arc<dyn ConsistentReadFunctions>> {
+    self.read_session_state.as_ref()
+  }
+
+  /// 一致读单键协议触发内核（一处定义）：pre 在读前（超时上抛中止），post 在读后
+  /// 推进；未附着零开销直通（读漏斗单点触发面，对标 C# 一致读会话的
+  /// PreSingleKeyConsistentRead/PostSingleKeyConsistentReadCallback 序列）。
+  /// C# 四套 SessionFunctions（Main/Object/Unified/Vector）各自实现的转调壳在
+  /// rust 单轨会话下折叠为本漏斗，四处映射一次挂准：
+  /// libs/server/Storage/Functions/MainStore/MainSessionFunctions.cs:PreSingleKeyConsistentRead
+  /// libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:PreSingleKeyConsistentRead
+  /// libs/server/Storage/Functions/UnifiedStore/UnifiedSessionFunctions.cs:PreSingleKeyConsistentRead
+  /// libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:PreSingleKeyConsistentRead
+  /// 多标签/多探重复触发为良性：post 单调推进，语义仍是「不超过读取时刻的
+  /// 前缀上界」。触发哈希经 `hash` 惰性求值，未附着会话连记录物理键编码都不做
+  #[inline(always)]
+  fn consistent_read_single_key<R>(
+    &self,
+    hash: impl FnOnce() -> i64,
+    f: impl FnOnce() -> R,
+  ) -> error::Result<R> {
+    match self.read_session_state() {
+      Some(fns) => single_key_around(fns.as_ref(), hash(), f),
+      None => Ok(f()),
+    }
+  }
+
+  /// 附着态一致读单键协议触发：前缀取自本会话活跃域
+  ///
+  /// `tag` 为本次读取触碰的记录域，触发哈希经
+  /// [`StoreSession::consistent_read_hash`] 单点取记录物理键域（与回放侧草图
+  /// 入账键同键同哈希）
+  #[inline]
+  pub fn with_session_consistent_read<R>(
+    &self,
+    user_key: &[u8],
+    tag: KeyTag,
+    f: impl FnOnce() -> R,
+  ) -> error::Result<R> {
+    self.consistent_read_single_key(|| self.consistent_read_hash(tag, user_key), f)
+  }
+
+  /// 显式前缀附着态一致读单键协议触发（循环前缀外提对位，语义与
+  /// [`Self::with_session_consistent_read`] 全等；rust 工程优化无 c# 对应：
+  /// 批量命令循环单次外提 `session_prefix()` 消除逐键重读原子变量）
+  #[inline]
+  pub fn with_session_consistent_read_with_prefix<R>(
+    &self,
+    prefix: &[u8],
+    user_key: &[u8],
+    tag: KeyTag,
+    f: impl FnOnce() -> R,
+  ) -> error::Result<R> {
+    self.consistent_read_single_key(
+      || Self::consistent_read_hash_with_prefix(prefix, tag, user_key),
+      f,
+    )
+  }
+
+  /// 创建一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
+  #[inline]
+  pub fn consistent_read<'a, F: ConsistentReadFunctions + ?Sized>(
+    &'a self,
+    functions: &'a F,
+  ) -> ConsistentReadContext<'a, D, F> {
+    ConsistentReadContext::new(self, functions)
   }
 }
 

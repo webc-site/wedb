@@ -592,7 +592,7 @@ fn replica_consistent_read_blocks_until_replay_releases() -> aok::Void {
           ))));
         let ss = StorageSession::new(session.enter_batch());
         assert!(
-          ss.batch.is_consistent_read_session(),
+          ss.batch.read_session_state().is_some(),
           "附着态派生一致读会话"
         );
         // 热身读：与 kq 不同虚拟子日志，走完 pre/post 协议建立会话序列号
@@ -1079,7 +1079,6 @@ fn primary_wire_crc_mismatch_disconnects() -> aok::Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(fixture.session.clone())),
   )?;
   server.start(NonZeroUsize::new(1))?;

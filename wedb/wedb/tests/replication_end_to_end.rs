@@ -77,15 +77,17 @@ fn open_wal_node(tag: &str) -> Result<NodeParts> {
 fn replica_provider(node_id: u128, primary_id: u128) -> Arc<ClusterProvider> {
   let provider = ClusterProvider::new();
   let cm = provider.cluster_manager().expect("cm ready");
-  cm.try_initialize_local_worker(LocalWorkerSpec {
-    node_id,
-    address: "127.0.0.1",
-    port: 7001,
-    config_epoch: 1,
-    role: NodeRole::Replica,
-    replica_of_node_id: Some(primary_id),
-    hostname: None,
-  });
+  cm.current_config
+    .write()
+    .initialize_local_worker(LocalWorkerSpec {
+      node_id,
+      address: "127.0.0.1",
+      port: 7001,
+      config_epoch: 1,
+      role: NodeRole::Replica,
+      replica_of_node_id: Some(primary_id),
+      hostname: None,
+    });
   provider
 }
 
@@ -118,7 +120,6 @@ fn replica_server(
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;

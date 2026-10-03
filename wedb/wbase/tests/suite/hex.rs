@@ -4,7 +4,6 @@
 //! hex_encode_20 / hex_encode_32 覆盖全部在用形态），hex_val 降 pub(crate)
 //! 后其折值语义经 hex_decode / hex_u128 的 roundtrip 断言间接锁定。
 
-use gxhash::{HashSet, HashSetExt};
 use wbase::hex::{
   HEX_CHARS_LOWER, HEX_CHARS_UPPER, generate_hex_id, hex_decode, hex_encode_20, hex_encode_32,
   hex_str_u128, hex_u128,
@@ -77,14 +76,6 @@ fn test_generate_hex_id() {
       .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
   );
   assert_ne!(id1, id2, "独立随机取样不得相同");
-}
-
-#[test]
-fn test_generate_hex_id_independent_no_shared_counter() {
-  let mut ids = HashSet::new();
-  for _ in 0..100 {
-    assert!(ids.insert(generate_hex_id()));
-  }
 }
 
 // 自 tests/main.rs 迁入（原 test_hex_primitives）

@@ -87,7 +87,7 @@ fn default_arm_pairs_vector_manager_and_reclaims_on_flushdb() {
     vadd(&mut stream, b"vs_a").await;
 
     // 清库前 db0 物理域：登记条目在位
-    let (dead_vns, dead_vdb) = provider.store().vdb.get_virtual_ids(0, 0);
+    let (dead_vns, dead_vdb, ..) = provider.store().vdb.get_virtual_ids_with_created(0, 0);
     let dead = SessionPrefixBuf::new(dead_vns, dead_vdb);
     assert_eq!(
       provider
@@ -99,7 +99,7 @@ fn default_arm_pairs_vector_manager_and_reclaims_on_flushdb() {
 
     // FLUSHDB：登记域随换号回收（+OK 在两轮回收扫尾完成后才应答）
     assert_eq!(cmd(&mut stream, &[b"FLUSHDB"]).await, b"+OK\r\n");
-    let (live_vns, live_vdb) = provider.store().vdb.get_virtual_ids(0, 0);
+    let (live_vns, live_vdb, ..) = provider.store().vdb.get_virtual_ids_with_created(0, 0);
     assert_ne!(
       (dead_vns, dead_vdb),
       (live_vns, live_vdb),
@@ -150,7 +150,7 @@ fn default_arm_flushed_registry_not_resurrected_on_recover() {
     .expect("open default arm"),
   );
   // 清库前 db0 物理域（FLUSHDB 后整域退役，域 id 供第二代幽灵断言）
-  let (dead_vns, dead_vdb) = provider.store().vdb.get_virtual_ids(0, 0);
+  let (dead_vns, dead_vdb, ..) = provider.store().vdb.get_virtual_ids_with_created(0, 0);
   let (server, addr) = start_server(Arc::clone(&provider));
   rt.block_on(async {
     let mut stream = TcpStream::connect(addr).await.expect("connect");
@@ -184,7 +184,7 @@ fn default_arm_flushed_registry_not_resurrected_on_recover() {
     provider2.database_manager.try_vector_manager().is_some(),
     "恢复臂 database_manager 须配对向量管理器"
   );
-  let (live_vns, live_vdb) = provider2.store().vdb.get_virtual_ids(0, 0);
+  let (live_vns, live_vdb, ..) = provider2.store().vdb.get_virtual_ids_with_created(0, 0);
   let dead = SessionPrefixBuf::new(dead_vns, dead_vdb);
   let live = SessionPrefixBuf::new(live_vns, live_vdb);
   assert_eq!(

@@ -18,7 +18,7 @@ use compio::{runtime::Runtime, time::sleep};
 use wbase::hash_slot::CLUSTER_SLOT_COUNT;
 use wedb::server::{
   cluster_config::ClusterConfig,
-  cluster_manager::{read_device, write_into},
+  cluster_manager::{ClusterManager, read_device, write_into},
   cluster_provider::ClusterProvider,
   hash_slot::SlotState,
   worker::{LocalWorkerSpec, NodeRole},
@@ -381,7 +381,7 @@ fn test_concurrent_flush_monotonic_disk_epoch() -> Void {
       if i % 2 == 0 {
         cm2.try_bump_cluster_epoch();
       } else {
-        cm2.try_set_local_node_role(NodeRole::Primary);
+        set_local_role(&cm2, NodeRole::Primary);
       }
     }
   });
@@ -445,4 +445,14 @@ fn test_empty_config_boot_persists_node_id() -> Void {
   assert_eq!(restored_node_id, node_id, "孤立节点重启后身份不得漂移");
 
   aok::OK
+}
+
+/// 已删包装 `ClusterManager::try_set_local_node_role` 的等价直调
+///（配置写锁内角色改写 + 纪元自增，出锁后 flush_config），测试本地装配面
+fn set_local_role(cm: &ClusterManager, role: NodeRole) {
+  cm.current_config
+    .write()
+    .set_local_worker_role(role)
+    .bump_local_node_config_epoch();
+  cm.flush_config();
 }

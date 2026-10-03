@@ -21,9 +21,6 @@
 //! 把关恰应用一次；仍非幂等的集合增量（ObjectStoreRMW 的 ReplayInput 载荷）
 //! 由 wnode 对象存重放域测试覆盖。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use wedb_test::{

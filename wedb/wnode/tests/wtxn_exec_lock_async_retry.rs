@@ -75,7 +75,7 @@ fn find_colliding_pair(lock_table: &TxnLockTable) -> (Vec<u8>, Vec<u8>) {
   panic!("未能在时限内找到同桶碰撞键对");
 }
 
-/// 单消费者泵驱至完成（drive.rs 内层循环的测试等价物：消费→阻塞挂起→慢路径
+/// 单消费者泵驱至完成（drive/consume.rs 内层循环的测试等价物：消费→阻塞挂起→慢路径
 /// 挂起→再消费，直至无挂起）。首轮消费返回后触发 `on_first`（A 于此刻已持闩、
 /// B 于此刻已入争用慢臂），供跨协程定序，杜绝依赖墙钟 sleep 的伪竞态。
 async fn pump(

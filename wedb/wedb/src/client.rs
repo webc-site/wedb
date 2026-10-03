@@ -231,7 +231,7 @@ impl GarnetClient {
   /// libs/cluster/Server/Gossip/GarnetClientExtensions.cs:ExecuteClusterFailReplicationOffsetAsync
   ///
   /// 请求载荷为 [`AofAddress::to_aof_binary`] 带 1 字节长度前缀二进制形
-  /// （C# :61 ToByteArray 经 Memory<byte> 参数通道上线同形）；应答为逗号
+  /// （C# :61 ToByteArray 经 `Memory<byte>` 参数通道上线同形）；应答为逗号
   /// 串文本（C# 收端 ToString），借 bytes 通道上线后 from_utf8 收
   pub async fn execute_cluster_fail_replication_offset_async(&self, offset: &AofAddress) -> String {
     let Some(client) = self.client() else {

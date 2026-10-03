@@ -2,12 +2,12 @@
 //!
 //! [`DiskANNService`] 以 `(context)` 为键的并发注册表承接 C#
 //! `DiskANNService`（P/Invoke 薄封装）的语义层：context → 索引实例，
-//! 索引实例为类型擦除的 [`DiskANNIndex<WedbProvider<T>>`]（本地
+//! 索引实例为类型擦除的 `DiskANNIndex<WedbProvider<T>>`（本地
 //! runtime-agnostic diskann 的纯异步 façade，零 `block_on`），数据全部
 //! 经存储回调持久化。
 //!
 //! 生命周期对标 diskann-garnet：
-//! - [`IndexState`]：NoStartPoints → SettingStartPoints → Ready（起点状态机）
+//! - `IndexState`：NoStartPoints → SettingStartPoints → Ready（起点状态机）
 //! - insert：ensure_index_ready_or_init → maybe_set_start_point → 图插入 →
 //!   写属性（空属性跳过；写失败回滚摘除并报 StoreError）→
 //!   量化就绪信号（SuccessStartTraining）
@@ -128,9 +128,9 @@ pub enum DiskAnnInsertResult {
   /// 回滚摘除）。
   ///
   /// C# 属性随原生 insert 一次性落盘，不存在「图已插入、属性单独写失败」
-  /// 的中间可观察态，[`False`] 仅承载插入期拒绝；本变体为 Rust 侧分步
+  /// 的中间可观察态，`False` 仅承载插入期拒绝；本变体为 Rust 侧分步
   /// 写入面独有的独立错误态（本枚举一处产生，消费端一处映射进存储错误
-  /// 通道，严禁折进 [`False`] 误报 Duplicate）。
+  /// 通道，严禁折进 `False` 误报 Duplicate）。
   StoreError = 3,
 }
 

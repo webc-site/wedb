@@ -65,7 +65,7 @@ fn feed(s: &mut RespServerSession, frame: &[u8]) {
 /// 会话双槽直方图样本总数（不装全局监视器、迭代时钟不推进，样本恒驻
 /// 会话槽，直读即为批出口记账）
 fn hist_count(s: &RespServerSession, latency_type: LatencyMetricsType) -> u64 {
-  let entry = &s.get_latency_metrics().unwrap().metrics[latency_type.idx()];
+  let entry = &s.latency_metrics.as_ref().unwrap().metrics[latency_type.idx()];
   entry.latency[0].len() + entry.latency[1].len()
 }
 
@@ -130,7 +130,7 @@ fn fast_commands_stay_in_net_rs_bucket() {
 #[test]
 fn slow_commands_without_latency_monitor_do_not_panic() {
   let (_rt, _api, _store, mut s, _dir) = open_env("lat-admin-off.db", false);
-  assert!(s.get_latency_metrics().is_none());
+  assert!(s.latency_metrics.is_none());
   feed(&mut s, b"*2\r\n$7\r\nSLOWLOG\r\n$3\r\nLEN\r\n");
   assert_eq!(take(&mut s.output), b":0\r\n");
 }

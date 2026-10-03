@@ -30,7 +30,7 @@
 //!   heap_bytes 双维），经分层物化单源通道 [`tiered_materialize_blob`] 构造内存
 //!   对象后判定，绝不新增第二套降阶阈值判断，绝不全树扫体积
 //!   （MetaValue 无体积标量，wval/src/meta.rs）；
-//! - 死亡域守卫：登记域经 [`wkv::VirtualDbManager::is_dead_domain`] 判死即整域
+//! - 死亡域守卫：登记域经 [`wkv::vdb::VirtualDbManager::is_dead_domain`] 判死即整域
 //!   跳过（预筛一处 + 落盘前复判一处）——FLUSHDB/FLUSHNS 换号退役域的残留
 //!   登记绝不写回（换号取数面正常即摘净，残留在换号-回收间隙瞬时存在，启动
 //!   对账 reclaim_dead_domain_bftrees 清残余；登记面先例 wkv store/reclaim.rs

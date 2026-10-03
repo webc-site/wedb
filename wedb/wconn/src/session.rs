@@ -8,10 +8,7 @@ use wtls::ClientTlsConfig;
 
 use crate::{
   Error, Result, network,
-  types::{
-    CHANNEL_CAP, ChannelTx, CommandItem, ReplyTx, roundtrip_array, roundtrip_bytes,
-    roundtrip_frame_str, roundtrip_str,
-  },
+  types::{CHANNEL_CAP, ChannelTx, CommandItem, ReplyTx, roundtrip_frame_str},
 };
 
 /// libs/client/ClientSession/GarnetClientSession.cs:GarnetClientSession
@@ -155,29 +152,6 @@ impl GarnetClientSession {
       Some(&mut self.core.dispose_handle),
     )
     .await
-  }
-
-  /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsync
-  /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteAsyncBatch
-  /// libs/client/ClientSession/GarnetClientSession.cs:Execute
-  /// libs/client/ClientSession/GarnetClientSession.cs:ExecuteBatch
-  ///
-  /// C# ExecuteAsyncBatch(params string[]) 为单命令变长参数入队 + TCS 等待，
-  /// 与 ExecuteAsync 同构 (rust 无 TCS 队列，由 network_loop 按需泵出)，
-  /// 故两者共用此实现；同步 Execute 族（无返回值 / Batch 不等结果）在纯
-  /// 异步 runtime 下分解为等待形态与本形态
-  pub async fn execute_async(&self, command: &[&str]) -> Result<String> {
-    roundtrip_str(self.channel()?, command, None).await
-  }
-
-  /// libs/client/GarnetClientAPI/GarnetClientExecuteAPI.cs:ExecuteForMemoryResultWithCancellationAsync
-  pub async fn execute_for_bytes_async(&self, command: &[&[u8]]) -> Result<Vec<u8>> {
-    roundtrip_bytes(self.channel()?, command, None).await
-  }
-
-  /// libs/client/ClientSession/AsyncGarnetClientSession.cs:ExecuteForArrayAsync
-  pub async fn execute_for_array_async(&self, command: &[&str]) -> Result<Vec<String>> {
-    roundtrip_array(self.channel()?, command, None).await
   }
 
   /// libs/client/ClientSession/GarnetClientSessionReplicationExtensions.cs:ExecuteClusterAppendLogInit

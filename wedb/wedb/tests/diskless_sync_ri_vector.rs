@@ -15,9 +15,6 @@
 //! 装载真实判别 + 成员字节逐字全等、字符串值与 TTL 保留、RI 与升阶键的键级
 //! TTL 保留（本票闭合 kind=4 帧流元携载后新契约）、向量集索引与元素齐。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::{
   diskless_provider::diskless_provider, replica_attach::attach_replica_session,
   seed_tree::seed_tree,
@@ -28,7 +25,6 @@ mod diskless_sync_kick;
 use std::{num::NonZeroUsize, sync::Arc};
 
 use diskless_sync_kick::try_full_sync;
-use replica_host::replica_host;
 use wbase::{
   convert::{expire_at_milliseconds_to_ticks, unix_time_in_milliseconds_from_ticks},
   hash_slot::slot_of,
@@ -37,7 +33,7 @@ use wbase::{
 use wbftree::{BfTreeReadResult, StorageBackendType, TreeTuning};
 use wdev::SegmentedDevice;
 use wedb::server::worker::NodeRole;
-use wedb_test::node_storage::open_node;
+use wedb_test::{node_storage::open_node, replica_host::replica_host};
 use wkv::WedbStore;
 use wnode::{
   resp::vector::{

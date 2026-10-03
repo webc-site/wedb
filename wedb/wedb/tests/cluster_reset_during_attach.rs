@@ -21,12 +21,11 @@
 use std::net::SocketAddr;
 
 use compio::time::sleep;
-use wedb_test::node_storage::{open_node, provider_with_role};
-
-#[path = "common/replica_host.rs"]
-mod replica_host;
-use replica_host::replica_host;
-use wedb_test::replica_attach::attach_replica_session;
+use wedb_test::{
+  node_storage::{open_node, provider_with_role},
+  replica_attach::attach_replica_session,
+  replica_host::replica_host,
+};
 
 #[path = "common/diskless_sync_kick.rs"]
 mod diskless_sync_kick;
@@ -55,9 +54,8 @@ use wedb::server::{
   },
   worker::{LOCAL_WORKER_ID, NodeRole, Worker},
 };
-use wedb_test::resp_frame_args::try_parse_frame_args;
 use wnode::StorageSession;
-use wtest_base::wait_for;
+use wtest_base::{parse_frame_slices, wait_for};
 
 /// 测试节点身份（内部 u128）
 const PRIMARY_ID: u128 = 0x0DE2_0000_0000_0000_0000_0000_0000_0001;
@@ -92,7 +90,7 @@ async fn serve_fake_primary(
       _ => return,
     };
     acc.extend_from_slice(&buf[..n]);
-    while let Some((frame_len, args)) = try_parse_frame_args(&acc) {
+    while let Some((frame_len, args)) = parse_frame_slices(&acc) {
       let is_attach = args.len() >= 2
         && args[0].eq_ignore_ascii_case(b"CLUSTER")
         && args[1].eq_ignore_ascii_case(b"ATTACH_SYNC");

@@ -7,7 +7,6 @@ use std::{
 };
 
 use compio::runtime::spawn;
-use event_listener::Event;
 use parking_lot::RwLock;
 use wbase::supervise::supervise_task;
 
@@ -61,7 +60,6 @@ pub struct FailoverManager {
   current_failover_session: RwLock<Option<FailoverSessionHost>>,
   failover_task_lock: AtomicBool,
   pub last_failover_status: RwLock<FailoverStatus>,
-  event: Event,
 }
 
 impl FailoverManager {
@@ -72,7 +70,6 @@ impl FailoverManager {
       current_failover_session: RwLock::new(None),
       failover_task_lock: AtomicBool::new(false),
       last_failover_status: RwLock::new(FailoverStatus::NoFailover),
-      event: Event::new(),
     }
   }
 
@@ -116,13 +113,13 @@ impl FailoverManager {
   }
 
   /// failover 会话收尾唯一收口（Ok / Err / panic 三态必达）：终态落账 +
-  /// 会话销毁 + 注册表清位 + 任务锁释放 + 等待者唤醒
+  /// 会话销毁 + 注册表清位 + 任务锁释放
   ///
   /// C# 对偶为 Task.Run 体内的
   /// `lastFailoverStatus = success ? COMPLETED : ABORTED` + Dispose + 锁释放；
   /// panic 臂由监督任务体补跑本收尾（`success=false` 即 ABORTED，与 C#
   /// 异常终止同口径），杜绝锁永真、状态永卡 BeginFailover、
-  /// wait_failover_done 永挂
+  /// 轮询观测面永不过收敛
   fn settle_failover(&self, host: FailoverSessionHost, success: bool) {
     *self.last_failover_status.write() = if success {
       FailoverStatus::FailoverCompleted
@@ -132,7 +129,6 @@ impl FailoverManager {
     host.dispose();
     *self.current_failover_session.write() = None;
     self.failover_task_lock.store(false, Ordering::Release);
-    self.event.notify(usize::MAX);
   }
   /// libs/cluster/Server/Failover/FailoverManager.cs:GetFailoverStatus
   pub fn get_failover_status(&self) -> String {
@@ -255,19 +251,5 @@ impl FailoverManager {
     })
     .detach();
     true
-  }
-
-  /// 异步等待当前故障转移任务结束（基于事件驱动，零轮询零空转）
-  pub async fn wait_failover_done(&self) {
-    loop {
-      // 先注册监听再复核标志（与 failover_session race_abort 同纪律）：
-      // settle_failover 的 store(false)+notify 若落在标志读取与监听注册之间，
-      // 后注册的监听器必错过本次通知、等待者将挂到下一轮收尾——注册前置即闭合
-      let listener = self.event.listen();
-      if !self.failover_task_lock.load(Ordering::Acquire) {
-        return;
-      }
-      listener.await;
-    }
   }
 }

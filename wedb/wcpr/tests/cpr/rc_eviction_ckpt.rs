@@ -33,7 +33,7 @@ const EVICT_MARK: &str = "rc:evict:";
 
 /// 在快照重建的索引中按指纹定位该键承载的原始槽位字（含高 16 位指纹位）
 fn snapshot_raw_slot(index: &HashIndex, key: &[u8], tag: u64) -> u64 {
-  let bucket = index.get_bucket(index.bucket_index_for_key(key));
+  let bucket = index.get_bucket(index.bucket_index_for_hash(HashIndex::hash_key(key)));
   bucket.entries[..HashBucket::DATA_ENTRIES]
     .iter()
     .map(|slot| slot.load(Ordering::Acquire))

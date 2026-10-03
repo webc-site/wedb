@@ -9,7 +9,7 @@ use super::user::User;
 /// 与 C# 的形态差异：C# 句柄全局共享，跨线程 CAS 换新（TrySetUser）让全部
 /// 持有者即时见新权限；rust 按转写规范走「存储单点 + 会话本地句柄」——
 /// 句柄连接独占，命令串行处理无并发写者，换代 = 重读存储后整体替换句柄
-/// （[`crate::resp`] 侧 set_user_handle），无共享 CAS 域，故 TrySetUser 不移植。
+/// （`wnode::resp` 侧 `set_user_handle`），无共享 CAS 域，故 TrySetUser 不移植。
 #[derive(Clone)]
 pub struct UserHandle {
   /// 当前指向的用户（对标 C# UserHandle.user 引用）

@@ -74,7 +74,7 @@ pub trait MessageConsumerFace: Send + 'static {
   /// libs/common/Networking/IMessageConsumer.cs:TryConsumeMessages
   ///
   /// 消费会话自有接收缓冲中自上次游标起的完整帧，应答先累积会话 output、
-  /// 由泵经 [`RespServerSession::take_output_into`] 单拷并入 resp_buf
+  /// 由泵经 [`crate::resp::resp_server_session::RespServerSession::take_output_into`] 单拷并入 resp_buf
   ///（非零拷贝；C# 直写网络发送器借出块，rust 以会话私有 output 中转一拷
   /// 承接，契约单点在 take_output_into）
   ///

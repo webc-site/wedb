@@ -34,6 +34,7 @@ use wcol::itembroker::{
 use wconf::RuntimeServerConfig;
 use wdev::SegmentedDevice;
 use whasher::scoped_hash;
+use windex::HashIndex;
 use wkv::WedbStore;
 use wnode::{
   MessageConsumerFace,
@@ -96,7 +97,7 @@ fn exec_embedded_bzpopmin_self_provided_key_no_hang() {
       index.bucket_index_for_hash(scoped_hash(SessionPrefixBuf::ROOT.as_slice(), b"k"));
     assert_ne!(
       scoped_bucket,
-      index.bucket_index_for_key(b"k"),
+      index.bucket_index_for_hash(HashIndex::hash_key(b"k")),
       "夹具前提：本键 scoped 桶与裸哈希桶互异（修复前异桶直取 bypass 形态）"
     );
     {

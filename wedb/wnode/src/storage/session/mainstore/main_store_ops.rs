@@ -3,12 +3,21 @@
 //! 全部落在本域 [`StorageSession`] 上：
 //! 同步快路径优先、磁盘候选/环形缓冲翻转降级 wkv 异步路径（对标 C#
 //! CompletePendingForSession），命中/未命中/pending 计数与 C# 逐点对应。
+//! 另含主存字符串读写回会话面：read_string 族（GET）、upsert_string（SET）、
+//! rmw_string（RMW 写回）、delete_string / take_string（DELETE / GETDEL）。
 
 use std::mem;
+// 删除故障注入（io/Ordering）仅 debug 装配，release 剔除防 unused imports
+#[cfg(debug_assertions)]
+use std::{io, sync::atomic::Ordering};
 
 use wdev::Device;
+use wkv::RmwWindow;
 use wresp::resp_memory_writer::{Resp2, Resp3, RespProtocol, RespWriter};
+use wval::KeyTag;
 
+#[cfg(debug_assertions)]
+use super::super::storage_session::DELETE_FAIL_INJECT;
 use super::super::storage_session::StorageSession;
 
 /// LCS 动态规划返回的三元组：公共子序列长度、回溯得到的匹配段列表
@@ -192,5 +201,107 @@ impl<'a, D: Device> StorageSession<'a, D> {
       }
     }
     result
+  }
+}
+
+impl<'a, D: Device> StorageSession<'a, D> {
+  /// 读字符串键值（零拷贝闭包版：快路径内存直读，磁盘候选异步闭环）
+  ///
+  /// 对标 C# StringBasicContext.Read 内部 CompletePending：`Ok(None)`（磁盘候选）
+  /// 时降级 wkv 异步 `read_with`，对调用方呈现同步闭环语义。
+  pub async fn read_string_with<R>(
+    &self,
+    key: &[u8],
+    f: impl Fn(&[u8]) -> R,
+  ) -> wkv::Result<Option<R>> {
+    self.read_tag_with(key, KeyTag::String, f).await
+  }
+
+  /// 读字符串键值（拷贝版）——测试钩子（#[doc(hidden)]：生产读族一律走
+  /// [`Self::read_string_with`] 零拷贝闭包版，本口仅供 wnode/wedb 集成测试
+  /// 断言直用，60+ 调用点不改写）
+  ///
+  /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:GET
+  #[doc(hidden)]
+  pub async fn read_string(&self, key: &[u8]) -> wkv::Result<Option<Vec<u8>>> {
+    self.read_string_with(key, |v| v.to_vec()).await
+  }
+
+  /// 写字符串键值（SET 语义：同步快路径优先，环形缓冲翻转 / TTL 清除异步闭环）
+  ///
+  /// libs/server/Storage/Session/MainStore/MainStoreOps.cs:SET
+  pub async fn upsert_string(&self, key: &[u8], val: &[u8]) -> wkv::Result<()> {
+    self.upsert_tag(key, KeyTag::String, val).await
+  }
+
+  /// RMW 写回字符串键值（未过期键保留既有 key 级 TTL，已过期键清退残留 TTL
+  /// 后重建无 TTL：同步快路径优先，环形页翻转 / TTL 记录磁盘候选降级
+  /// wkv `upsert_rmw` 异步完整闭环；WATCH 推进由 wkv 用户键写入口收口）
+  ///
+  /// libs/server/Storage/Functions/MainStore/RMWMethods
+  ///
+  /// INCR/DECR 族、INCRBYFLOAT、APPEND、SETRANGE、SETBIT、BITFIELD 写子命令、
+  /// PFADD/PFMERGE 的读改写回写面（lua/事务/AOF 重放共用），对标 C#
+  /// UnifiedStore/VarLenInputMethods 的 HasExpiration 保留语义与
+  /// UnifiedStore/RMWMethods.cs CopyUpdater 的 CheckExpiry → ExpireAndResume
+  /// （过期转 InitialUpdater 重建，初始记录无 Expiration）
+  ///
+  /// 写回目标键由 [`RmwWindow`] 承载：调用方须在装载旧值之前取窗（同步域
+  /// `BatchStoreSession::try_rmw_window`、异步域 `rmw_window`），本入口只在窗口
+  /// 内落笔，故「无锁读旧值 → 盲写绝对值」的两步式在类型面上不可表达
+  pub async fn rmw_string<'k, 'w>(
+    &self,
+    window: &RmwWindow<'w, 'k, D>,
+    val: &[u8],
+  ) -> wkv::Result<()> {
+    match window.try_rmw_sync(val)? {
+      Ok(_) => {}
+      // 降级 wkv 异步闭环（等价于退出批处理纪元后重写；upsert_rmw 内含
+      // 过期残留完整裁决，先 purge 后重建）
+      Err(_) => {
+        self
+          .with_pending_metrics(|| window.upsert_rmw(val))
+          .await
+          .map(|_| ())?;
+      }
+    }
+    Ok(())
+  }
+
+  /// 删除键（同步快路径优先，磁盘异步闭环）
+  ///
+  /// C# 统一存 DELETE（unifiedContext.Delete → Found 判 OK/NOTFOUND）的
+  /// rust 单点：libs/server/Storage/Session/UnifiedStore/UnifiedStoreOps.cs:DELETE
+  pub async fn delete_string(&self, key: &[u8]) -> wkv::Result<bool> {
+    // 故障注入门（测试钩子，一次性）：模拟底层设备写故障，与真实
+    // wdev::Error::OutOfBounds 同型上抛，杜绝测试绕过本统一删除入口
+    #[cfg(debug_assertions)]
+    if DELETE_FAIL_INJECT.swap(false, Ordering::AcqRel) {
+      return Err(wkv::Error::Io(io::Error::other("删除故障注入（测试钩子）")));
+    }
+    match self.batch.try_delete_sync(key)? {
+      // 快路径闭环：版本推进由 wkv 用户键删除入口统一收口（对齐 C#
+      // InitialDeleter 无条件 IncrementVersion，缺席键墓碑同向计入）
+      Ok(deleted) => Ok(deleted),
+      // 降级异步闭环（复合对象元数据 / 环形页翻转 / 冷数据确认）：WATCH
+      // 版本推进已由 wkv collection 层 delete 无条件收口，本层零重复推进
+      Err(_) => self.with_pending_metrics(|| self.batch.delete(key)).await,
+    }
+  }
+
+  /// 取删字符串域键并回传被摘值（GETDEL 读删一体：应答值 = 实际摘除记录的值）
+  ///
+  /// [`Self::delete_string`] 的取值对位：快路径闭环答摘除值（捕获与摘除同一
+  /// 临界区）；降级异步闭环由 wkv `take_string` 同级联收口（WATCH 版本推进
+  /// 单点不重复）
+  pub async fn take_string(&self, key: &[u8]) -> wkv::Result<Option<Vec<u8>>> {
+    match self.batch.try_take_sync(key)? {
+      Ok(taken) => Ok(taken),
+      Err(_) => {
+        self
+          .with_pending_metrics(|| self.batch.take_string(key))
+          .await
+      }
+    }
   }
 }

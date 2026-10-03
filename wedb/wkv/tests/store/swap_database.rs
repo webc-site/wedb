@@ -268,18 +268,18 @@ async fn test_swap_pair_record_survives_rebuild() -> Void {
     let s2 = store.new_session()?;
     s2.set_context(0, 2);
     s2.upsert(b"k2", b"two").await?;
-    v1 = store.vdb.get_virtual_ids(0, 1).1;
-    v2 = store.vdb.get_virtual_ids(0, 2).1;
+    v1 = store.vdb.get_virtual_ids_with_created(0, 1).1;
+    v2 = store.vdb.get_virtual_ids_with_created(0, 2).1;
     assert!(v1 > 0 && v2 > 0 && v1 != v2, "两库建档各持独立非零号");
 
     s1.swap_databases(1, 2).await?;
     assert_eq!(
-      store.vdb.get_virtual_ids(0, 1).1,
+      store.vdb.get_virtual_ids_with_created(0, 1).1,
       v2,
       "内存末态：库 1 指向原库 2 域"
     );
     assert_eq!(
-      store.vdb.get_virtual_ids(0, 2).1,
+      store.vdb.get_virtual_ids_with_created(0, 2).1,
       v1,
       "内存末态：库 2 指向原库 1 域"
     );
@@ -296,8 +296,8 @@ async fn test_swap_pair_record_survives_rebuild() -> Void {
   let store2 = Arc::new(WedbStore::recover(&cpr_dir, cpr_token, Arc::clone(&device)).await?);
   assert_eq!(
     (
-      store2.vdb.get_virtual_ids(0, 1).1,
-      store2.vdb.get_virtual_ids(0, 2).1
+      store2.vdb.get_virtual_ids_with_created(0, 1).1,
+      store2.vdb.get_virtual_ids_with_created(0, 2).1
     ),
     (v2, v1),
     "重建后两库指向 1:1 互换重现，绝无中间态"
@@ -327,7 +327,7 @@ async fn test_swap_pair_record_survives_rebuild() -> Void {
 
   // 重启后新分配号与历史号零撞：FLUSHDB 换号即取新号
   store2.flush_database(0, 1).await?;
-  let nv = store2.vdb.get_virtual_ids(0, 1).1;
+  let nv = store2.vdb.get_virtual_ids_with_created(0, 1).1;
   assert!(
     nv != v1 && nv != v2 && nv > v1.max(v2),
     "重建后换号必取严格新高号（撞号即旧域幽灵复活）"

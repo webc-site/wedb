@@ -2,7 +2,7 @@
 //!
 //! 全仓 `heap_memory_size` 加减运算的唯一具名口径（杜绝跨四对象文件散落的裸魔数 16）。
 //!
-//! C# 侧 [`MemoryUtils`] 为 .NET 托管堆逐对象开销记账：`ByteArrayOverhead=24`、
+//! C# 侧 `MemoryUtils` 为 .NET 托管堆逐对象开销记账：`ByteArrayOverhead=24`、
 //! `ListOverhead=40`、`ListEntryOverhead=48`、`SortedSetOverhead=48`、
 //! `SortedSetEntryOverhead=48`、`DictionaryOverhead=80`、`DictionaryEntryOverhead=64`、
 //! `HashSetOverhead=64`、`HashSetEntryOverhead=40`、`PriorityQueueOverhead=80`、

@@ -27,7 +27,7 @@ use wresp::command::RespCommand;
 use wval::GarnetObjectType;
 
 /// 慢路径存储错误统一应答帧（Err(()) 经 exec_slow `err_frame!` 单源落帧，
-/// 见 wnode/src/resp/garnet_api/slow.rs:72-79 RESP_ERR_SLOW_PATH_STORAGE）
+/// 见 wnode/src/resp/garnet_api/slow/ RESP_ERR_SLOW_PATH_STORAGE）
 const STORAGE_ERR_FRAME: &[u8] = b"-ERR slow path storage error\r\n";
 
 /// 判据恒为「载荷非 8B 大端 f64」：此处构造 16B 非分值载荷，score_of_payload

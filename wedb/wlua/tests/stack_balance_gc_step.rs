@@ -183,7 +183,7 @@ fn gc_step_frees_dead_garbage_under_tracked_quota() {
     "@junk",
   )
   .unwrap();
-  st.pcall(0).unwrap();
+  st.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(st.get_top(), 0);
 
   // 推进增量 GC 至周期完成（GCSTEP 返回 1 = 周期收尾）。垃圾对象可能在
@@ -199,7 +199,7 @@ fn gc_step_frees_dead_garbage_under_tracked_quota() {
   // 回收后配额余量恢复：再次分配 ~150KB 应成功。
   st.load_buffer(b"return #string.rep('y', 150000)", "@alloc")
     .unwrap();
-  st.pcall(0)
+  st.pcall_n(0, usize::MAX)
     .expect("gc_step 回收后仍无法分配（垃圾未释放，伪 OOM）");
   assert_eq!(st.get_top(), 1);
   st.clear_stack();

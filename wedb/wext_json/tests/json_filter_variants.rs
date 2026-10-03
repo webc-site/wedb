@@ -397,3 +397,33 @@ fn mutate_scan_index_wildcard_then_field() {
   assert_eq!(count, 2);
   assert_eq!(root, val(r#"{"x":{"v":9},"y":{"v":9}}"#));
 }
+
+/// 中间层 Scan 多链路由回归（曾误调终结 delete_scan 整棵误删）：
+/// `$..a.b` 只删命中键 b，祖先 a 与兄弟 c 必须存活
+#[test]
+fn delete_scan_multichain_keeps_ancestor_subtree() {
+  let mut root = val(r#"{"a":{"b":1,"c":2},"x":5}"#);
+  let path = JsonPath::parse("$..a.b").unwrap();
+  assert_eq!(path.delete_matches(&mut root), 1);
+  assert_eq!(root, val(r#"{"a":{"c":2},"x":5}"#));
+}
+
+/// 嵌套同名扫描命中：删除不换值，命中子树以本层重入续扫嵌套命中
+///（与 mutate「终结命中严禁重入」相反），两层 b 全删、两层 a 壳全留
+#[test]
+fn delete_scan_multichain_nested_same_name() {
+  let mut root = val(r#"{"a":{"b":1,"a":{"b":2}}}"#);
+  let path = JsonPath::parse("$..a.b").unwrap();
+  assert_eq!(path.delete_matches(&mut root), 2);
+  assert_eq!(root, val(r#"{"a":{"a":{}}}"#));
+}
+
+/// None 档中间层扫描（`$..*.c`）：对象与数组元素逐个命中下传，
+/// 兄弟字段与数组壳存活
+#[test]
+fn delete_scan_multichain_wildcard_then_field() {
+  let mut root = val(r#"{"m":{"c":1,"d":2},"n":[{"c":3}]}"#);
+  let path = JsonPath::parse("$..*.c").unwrap();
+  assert_eq!(path.delete_matches(&mut root), 2);
+  assert_eq!(root, val(r#"{"m":{"d":2},"n":[{}]}"#));
+}

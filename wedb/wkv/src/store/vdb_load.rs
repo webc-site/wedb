@@ -231,7 +231,7 @@ impl<D: Device> WedbStore<D> {
   /// 物理域反查逻辑域在此形态下必无格可查——本入口即该缺口的显式承接。
   ///
   /// 工序：以磁盘 DbMeta 为权威，在**协议层逻辑库地址空间** `0..MAX_DATABASES_MAX`
-  /// 内逐格点查既有 0x02 记录，命中即经 [`VirtualDbManager::insert_db_mapping`]
+  /// 内逐格点查既有 0x02 记录，命中即经 [`crate::vdb::VirtualDbManager::insert_db_mapping`]
   /// 装载在册格（与 [`Self::resolve_db`] 同一装载原语与同一判死门
   /// `is_dead_domain`），全程零取号、零落盘——回放面绝不本地二次映射
   /// （`doc/zh/db.md`「从库完全继承主库的映射体系」）。
@@ -251,7 +251,7 @@ impl<D: Device> WedbStore<D> {
   /// `read_probe` + `drive_mem_read` 同步环即判为不存在（Done(None)），零日志读、
   /// 零 await 落地。
   ///
-  /// 完整枚举成功才落 [`VirtualDbManager::mark_route_authoritative`]：枚举覆盖全部
+  /// 完整枚举成功才落 [`crate::vdb::VirtualDbManager::mark_route_authoritative`]：枚举覆盖全部
   /// 在册库号，此后该租户快照即本运行期权威全量，同一租户至多发生一趟回建，
   /// 后续反查与切库解析一律内存命中；点查硬错误上抛时不落标记，半途态不被误判为
   /// 全量。根域与本机新建租户（`resolve_ns` / `set_context` 首映射）已具权威，
@@ -291,13 +291,13 @@ impl<D: Device> WedbStore<D> {
 
   /// 全量活跃域枚举（跨域扫描原语）：在册租户 × 在册库逐域展开，冷租户先经
   /// [`Self::load_routes_of_vns`] 磁盘回建路由（幂等，已权威零 I/O 直返），
-  /// 换号退役域经 [`VirtualDbManager::is_dead_domain`] 剔除——产出即本节点
+  /// 换号退役域经 [`crate::vdb::VirtualDbManager::is_dead_domain`] 剔除——产出即本节点
   /// 当前持有映射的完整域清单（含仅存向量集登记、数据已被清空的空域）。
   ///
   /// 消费面（无盘全量同步快照扇出）以「窗口外预热 + 窗口内重取」两连调使用：
   /// 首调承担全部磁盘 I/O 把冷路由装载为权威，窗口内二调纯内存命中——窗口
   /// 内绝不磁盘等待。映射权威为磁盘 DbMeta，全新租户路由天然权威全量
-  /// （[`VirtualDbManager::mark_route_authoritative`]），窗口内新建租户无须
+  /// （[`crate::vdb::VirtualDbManager::mark_route_authoritative`]），窗口内新建租户无须
   /// 回建即可枚举
   pub async fn active_domains(self: &Arc<Self>) -> Result<Vec<ActiveDomain>> {
     let tenants: Vec<(u64, u64)> = self

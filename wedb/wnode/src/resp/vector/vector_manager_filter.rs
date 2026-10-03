@@ -8,7 +8,7 @@
 //! `InlineFilterState` + `EvaluateCandidateFilter`）：检索入口编译 FILTER 后把
 //! [`InlineFilterState`] 移入 [`InlineFilterSearchBound`] 包装 future，每次
 //! poll 前重绑线程槽，贪婪图探索（InlineFilterSearch + AdaptiveL）逐候选触发
-//! [`StoreCallbacks::filter`] 回调时经 [`with_inline_filter_state`] 取状态内联
+//! [`wvector::store::StoreCallbacks::filter`] 回调时经 [`with_inline_filter_state`] 取状态内联
 //! 求值，标量过滤高选择性（低命中率）时仍能动态放大探索半径召回满足条件的
 //! 近邻。C# 为纯栈 ref struct + 固定缓冲 + 同步装配窗；rust 状态为自有 Vec
 //! 缓冲，槽位纪律为 poll 边界重绑（同 SlowPollSessionBound 先例：槽内值仅

@@ -36,30 +36,6 @@ pub struct MigratedElement {
 }
 
 impl<S: StoreCallbacks> VectorManager<S> {
-  /// libs/server/Resp/Vector/VectorManager.Migration.cs:GetNamespacesForKeys
-  /// 的槽位扫描对偶：按迁移槽位集合收集向量集键与其索引记录（SLOTS 迁移
-  /// 发现面；registry 上下文命中槽位命名空间全集即收录）。
-  ///
-  /// 返回登记表复合键（含源端会话域）：源端删除与目标端导入分别经
-  /// [`super::vector_manager_locking::split_registry_key`] /
-  /// [`super::vector_manager_locking::domain_prefix`] 单点取域；迁移帧
-  /// 口径恒为剥域用户键（C# 无域前缀，帧面单点剥离）。
-  pub fn get_vector_set_keys_for_slots(
-    &self,
-    hash_slots: &BTreeSet<i32>,
-  ) -> Vec<(Vec<u8>, [u8; INDEX_SIZE_BYTES])> {
-    let contexts = self.get_namespaces_for_hash_slots(hash_slots);
-    self
-      .key_index_registry
-      .pin()
-      .iter()
-      .filter(|(_, bytes)| {
-        Index::from_bytes(bytes.as_slice()).is_some_and(|index| contexts.contains(&index.context))
-      })
-      .map(|(key, bytes)| (key.clone(), *bytes))
-      .collect()
-  }
-
   /// 按槽位集合与动态槽位计算函数发现向量集键与其索引记录（单一真源现算单点）
   ///
   /// `slot_of` 闭包按登记表复合键解出的物理域 (vns, vdb) 现算槽位，覆盖面

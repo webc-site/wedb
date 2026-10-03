@@ -89,7 +89,7 @@ pub struct WaofSublog<D: Device> {
   /// 一次性置位后永久重抛；提交线程 runtime 创建失败 / panic 退出臂同此累计）
   flush_failures: Arc<AtomicU64>,
   /// 提交落盘角色闸的角色位槽（服务装配期经 [`Self::attach_primary_tasks`]
-  /// 注入，与门面/数据库管理器同一 Arc<PrimaryTasks>，勿造第二角色状态源；
+  /// 注入，与门面/数据库管理器同一 `Arc<PrimaryTasks>`，勿造第二角色状态源；
   /// `Arc` 共享给常驻提交协程。None = 裸构造形态恒视为主角色）
   primary_tasks: Arc<OnceLock<Arc<PrimaryTasks>>>,
 }
@@ -133,7 +133,7 @@ impl<D: Device> WaofSublog<D> {
     self.flush_failures.load(Ordering::Relaxed)
   }
 
-  /// 注入角色状态源（装配期一次，与门面/数据库管理器同一 Arc<PrimaryTasks>；
+  /// 注入角色状态源（装配期一次，与门面/数据库管理器同一 `Arc<PrimaryTasks>`；
   /// 重复注入以先到为准）
   pub fn attach_primary_tasks(&self, tasks: Arc<PrimaryTasks>) {
     let _ = self.primary_tasks.set(tasks);

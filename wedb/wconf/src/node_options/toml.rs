@@ -17,8 +17,6 @@ use wbase::cfg::LogCompactionType;
 
 use crate::node_options::{NodeArgs, NodeOptionsError};
 
-/// 出站远端证书校验缺省开（对标 garnet/libs/host/defaults.conf:253
-/// ServerCertificateRequired: true）
 /// 命令行档名解析（对标 C# Options.cs:271 `--compaction-type` 的 Enum.Parse
 /// 忽略大小写语义；复用 wbase::cfg::LogCompactionType::try_parse 单点，非法
 /// 档名在 clap 解析期即拒启）

@@ -702,7 +702,7 @@ impl<D: Device> WedbStore<D> {
   /// 建全库键表」的 O(在册库数 × 日志量) 放大。
   ///
   /// 在册库口径同 C# `GetDatabasesSnapshot`：仅枚举 `ns` 已装载路由表内的逻辑库
-  /// （[`VirtualDbManager::registered_dbs`] 纯内存只读点查），绝不盲分配虚库号、
+  /// （[`crate::vdb::VirtualDbManager::registered_dbs`] 纯内存只读点查），绝不盲分配虚库号、
   /// 绝不落 KeyTag::DbMeta（只读命令的数据面带写副作用即改写存储状态），亦不改
   /// 任何连接会话上下文；冷库（映射在磁盘未装载）不属在册集，与 C# 未实例化库
   /// 同理不出现在快照里。
@@ -716,7 +716,7 @@ impl<D: Device> WedbStore<D> {
   /// tag 碰撞键须经 prev_address 链回溯才能枚举，退化为乱序版日志扫描，故择优
   /// 顺序扫描）：
   /// 1. 顺序扫描 `[begin_address, tail_address)` 全区间（含磁盘冷区，
-  ///    [`HybridLog::scan`] 自动读盘），跳过墓碑与非用户面物理键（仅收
+  ///    [`whlog::HybridLog::scan`] 自动读盘），跳过墓碑与非用户面物理键（仅收
   ///    String/Meta/ObjectEnvelope 标签；集合子键与 TTL 旁路记录不作候选），按
   ///    在册桶收集去重候选 `(vns, vdb, 用户键)`；
   /// 2. 逐候选经会话读路径（哈希索引取最新态，免疫复活导致的地址乱序）复判：

@@ -10,6 +10,7 @@ use compio::runtime::Runtime;
 use parking_lot::Mutex;
 use waof::{AofAddress, AofEntryType};
 use wedb::server::{
+  cluster_manager::ClusterManager,
   cluster_provider::ClusterProvider,
   replication::{CheckpointCallbackFace, StoreCommitFn, recovery_status::RecoveryStatus},
   worker::NodeRole,
@@ -32,10 +33,7 @@ fn primary_checkpoint_flow_wires_cluster_callbacks() {
 
   // 1. 集群装配：ClusterProvider（本地节点设为 PRIMARY）+ commit 回调 + 版本切换回调
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Primary);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
   provider.set_commit_channel(Some(recorder(commit_log.clone())));
   let shift_start = |new: i64| provider.checkpoint_version_shift_start(new);
   let shift_end = |new: i64| provider.checkpoint_version_shift_end(new);
@@ -276,10 +274,7 @@ fn disk_retention_follows_reader_gate() -> aok::Void {
 #[test]
 fn cluster_provider_handle_add_new_checkpoint_entry_forwards_and_truncates() {
   let provider = ClusterProvider::new();
-  provider
-    .cluster_manager()
-    .unwrap()
-    .try_set_local_node_role(NodeRole::Primary);
+  set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
 
   let rm_offset = 512i64;
   let rm = provider.replication_manager().unwrap();
@@ -320,4 +315,14 @@ fn cluster_provider_handle_add_new_checkpoint_entry_forwards_and_truncates() {
       .is_none(),
     "NoopClusterProvider 应继承默认体返回 None"
   );
+}
+
+/// 已删包装 `ClusterManager::try_set_local_node_role` 的等价直调
+///（配置写锁内角色改写 + 纪元自增，出锁后 flush_config），测试本地装配面
+fn set_local_role(cm: &ClusterManager, role: NodeRole) {
+  cm.current_config
+    .write()
+    .set_local_worker_role(role)
+    .bump_local_node_config_epoch();
+  cm.flush_config();
 }

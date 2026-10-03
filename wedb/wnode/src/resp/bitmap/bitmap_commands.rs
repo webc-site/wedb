@@ -253,7 +253,7 @@ impl RespServerSession {
   /// [`ri_write_gate`]：存活 RangeIndex 上拒写，杜绝 String+Meta 双域幽灵
   ///（SETNX/RESTORE 的 RI 半边由 probe_alive Meta 折叠承接）；dest 本键读改写
   /// 窗口先于逐源折叠建立、跨「折叠读 → 求值 → 落笔」全程持有（对标 C#
-  /// StringBitOperation keys[0] Exclusive 自读起罩至 dest SET，杜绝 dest∈srcs
+  /// StringBitOperation keys\[0\] Exclusive 自读起罩至 dest SET，杜绝 dest∈srcs
   /// 自指形折叠读游离窗外被并发已提交写顶掉的非可串行化）。
   pub fn network_string_bit_operation<'a, D: Device>(
     &mut self,
@@ -307,7 +307,7 @@ impl RespServerSession {
     //
     // 逐源「恰一帧」本地累加、收尾一次入账（票
     // wnode-string-bitmap-found-notfound-accounting-matrix，沿 do_network_mget
-    // 先例 resp/array_commands.rs 逐键 None 静默 + 本地累加 + 收尾单点）：
+    // 先例 resp/array_commands/mset_slow.rs 逐键 None 静默 + 本地累加 + 收尾单点）：
     // 循环读口传 None 静默，命中 found / 缺席 notfound 本地累计，成功终态
     // 出帧前一次入账（对位 C# ReadWithUnsafeContext 逐源恰一帧，
     // MainStoreOps.cs:76/:81；dest 不计，C# 仅逐源计数）；WRONGTYPE 与一切

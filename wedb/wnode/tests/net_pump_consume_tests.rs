@@ -51,7 +51,7 @@ use wresp::command::RespCommand;
 /// 起服务器并返回地址（缓冲 4096 放大半包/扩容路径触发概率）
 fn spawn_server<P: SessionProviderFace + 'static>(provider: Arc<P>) -> (GarnetServer<P>, String) {
   let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::clone(&provider)).unwrap();
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::clone(&provider)).unwrap();
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap().to_string();
   (server, addr)
@@ -1121,7 +1121,7 @@ fn pump_shutdown_drains_pending_slow_wait() {
 
 // ---- 停泊-续跑轮 AOF 出网闸（armed 闩）回归 ----
 //
-// 缺陷形态（drive.rs 出网臂漏等）：停泊轮把此前 AOF 相关命令的应答经
+// 缺陷形态（drive/write.rs 出网臂漏等）：停泊轮把此前 AOF 相关命令的应答经
 // resolve_*_wait_into → take_output_into 冲入本泵 resp_pooled 并清空会话
 // output，随后内层重入消费解析流水线后续 PING 等 AOF 无关命令，
 // handle_aof_commit_mode 见 pending_output_len()==0 复位 wait_for_aof_blocking，
@@ -1227,7 +1227,7 @@ impl MessageConsumerFace for ParkResumeAofConsumer {
 
   /// 对标 pump.rs:164-176：先冲出会话 output 至泵缓冲（清空），再把挂起体
   /// 应答字节按流水线顺序直写泵缓冲。停泊-续跑窗内此调用即「应答出会话时点」，
-  /// 本函数的调用点（drive.rs 冲出口⑥）就是 armed 闩触发点
+  /// 本函数的调用点（drive/write.rs 冲出口⑥）就是 armed 闩触发点
   fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
     self.take_output_into(resp_buf);
     resp_buf.extend_from_slice(reply);

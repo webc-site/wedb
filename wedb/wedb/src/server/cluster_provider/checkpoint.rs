@@ -205,7 +205,7 @@ impl ClusterProvider {
   /// 目录/引擎未接线属集群配置态（[`Error::ClusterNotInitialized`]，拓扑收敛
   /// 后可重试）；`create_dir_all` 失败属磁盘 IO 硬错（[`Error::Io`] 透明转发，
   /// 含 path/errno，需人工介入），唯一生产消费点
-  /// [`execute_checkpoint_recv`](crate::server::cluster_session::replication)
+  /// `execute_checkpoint_recv`
   /// 据此分流应答帧，杜绝盘硬错坍缩为 CLUSTERNOTINIT 误导主端与运维
   pub fn checkpoint_import_ctx(&self) -> error::Result<CheckpointImportCtx> {
     let dir = self

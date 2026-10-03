@@ -1572,7 +1572,7 @@ pub async fn run_sampling_rounds(
 }
 
 /// 恢复落点装配宏：`open_test_store` 目标库 + 批纪元 [`StorageSession`] +
-/// 引擎版本推进 + [`ReplayTarget`] 借用装配。storage/target 为借用自持结构，
+/// 引擎版本推进 + [`wnode::aof::aof_processor::ReplayTarget`] 借用装配。storage/target 为借用自持结构，
 /// 必须在同一栈帧内联展开（宏声明绑定到调用方作用域），禁函数化返回。
 ///
 /// 展开绑定：`_dir` / `store` / `storage` / `target`（对标 AOF 恢复族 7 册

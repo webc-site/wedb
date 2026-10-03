@@ -153,7 +153,7 @@ impl RespServerSession {
   /// 阻塞命令的应答直写目标缓冲：该段字节绕过 `output`，故出向量另经
   /// [`Self::account_output`] 单点入账（与冲出口同一份实现，两处量取口径）
   ///
-  /// `account` 为出账判别：外层泵路径（drive.rs 阻塞挂起竞速胜出臂）传
+  /// `account` 为出账判别：外层泵路径（drive/race.rs 阻塞挂起竞速胜出臂）传
   /// true 入本会话活跃面；脚本内挂起续跑（resume_suspended_script）传
   /// false——C# 该形态应答字节只进内嵌 processor 的私有计数句柄
   /// （SessionScriptCache.cs:64，随 Dispose 入 history 不入外层活跃面），

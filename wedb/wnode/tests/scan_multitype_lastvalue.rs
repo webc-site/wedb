@@ -1,7 +1,7 @@
 //! SCAN 键面多 TYPE 词元末值覆盖回归（票 zcode-r161c-scantype §五）
 //!
 //! 修复前分叉：parse_scan_filter 的 TYPE else 臂将 type_unknown 置 true 后
-//! 从不复位，粘滞标志使慢路径早退判（garnet_api/slow.rs C::Scan 臂）先于
+//! 从不复位，粘滞标志使慢路径早退判（garnet_api/slow/ C::Scan 臂）先于
 //! type_filter 消费触发——`SCAN 0 TYPE stream TYPE hash` 回空列表+游标 0，
 //! 而 C# NetworkSCAN 的 typeParameterValue 为局部 ReadOnlySpan 直赋
 //! （ArrayCommands.cs:305-311），末值 hash 传入 DbScan 正常按 HashObject 过滤。

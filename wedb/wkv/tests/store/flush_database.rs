@@ -202,7 +202,7 @@ async fn test_flush_all_databases_serial_gate_and_monotonic_id() -> Void {
   let s = store.new_session()?;
   s.set_context(1, 1);
   s.upsert(b"k1", b"v1").await?;
-  let (vns1, vdb1) = store.vdb.get_virtual_ids(1, 1);
+  let (vns1, vdb1, ..) = store.vdb.get_virtual_ids_with_created(1, 1);
   let id_before = store.vdb.next_virtual_id.load(Relaxed);
   assert!(id_before > 1, "分配水位应已推进");
 
@@ -241,7 +241,7 @@ async fn test_flush_all_databases_serial_gate_and_monotonic_id() -> Void {
 
   // 新分配号严格大于历史一切已发号
   s.set_context(2, 2);
-  let (vns2, vdb2) = store.vdb.get_virtual_ids(2, 2);
+  let (vns2, vdb2, ..) = store.vdb.get_virtual_ids_with_created(2, 2);
   assert!(
     vns2 > vns1.max(vdb1),
     "新租户虚拟命名空间号须严格单调递增，绝不回绕撞号"
@@ -1053,12 +1053,12 @@ async fn test_flush_atomic_batch_survives_rebuild() -> Void {
     let s1 = store.new_session()?;
     s1.set_context(0, 1);
     s1.upsert(b"retired", b"payload").await?;
-    let (_, pre_vdb) = store.vdb.get_virtual_ids(0, 1);
+    let (_, pre_vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 1);
     let (r_vns, r_old) = store.flush_database(0, 1).await?;
     old_vdb = r_old.expect("首轮换号退役既有在用号");
     assert_eq!(r_vns, 0, "根域库换号返回域值 vns=0");
     assert_eq!(old_vdb, pre_vdb, "首轮 FLUSHDB 退役号即换号前在用号");
-    let (_, nv) = store.vdb.get_virtual_ids(0, 1);
+    let (_, nv, ..) = store.vdb.get_virtual_ids_with_created(0, 1);
     new_vdb = nv;
     assert_ne!(old_vdb, new_vdb, "换号后新旧号必不同");
 
@@ -1066,7 +1066,7 @@ async fn test_flush_atomic_batch_survives_rebuild() -> Void {
     let s5 = store.new_session()?;
     assert!(s5.set_context(5, 0), "新租户上下文物化");
     s5.upsert(b"ns5", b"payload").await?;
-    let (ns5_vns, _) = store.vdb.get_virtual_ids(5, 0);
+    let (ns5_vns, ..) = store.vdb.get_virtual_ids_with_created(5, 0);
     vns5 = ns5_vns;
     assert!(vns5 > 0, "新租户分配非零 vns");
     store.flush_namespace(5).await?;
@@ -1113,7 +1113,7 @@ async fn test_flush_atomic_batch_survives_rebuild() -> Void {
   assert!(
     !store2
       .vdb
-      .is_dead_domain(0, store2.vdb.get_virtual_ids(0, 1).1),
+      .is_dead_domain(0, store2.vdb.get_virtual_ids_with_created(0, 1).1),
     "重建后库 1 指向在用的新代域"
   );
 
@@ -1124,7 +1124,7 @@ async fn test_flush_atomic_batch_survives_rebuild() -> Void {
     (0, Some(new_vdb)),
     "二次换号退役首轮新号"
   );
-  let (_, nv2) = store2.vdb.get_virtual_ids(0, 1);
+  let (_, nv2, ..) = store2.vdb.get_virtual_ids_with_created(0, 1);
   assert!(
     nv2 > new_vdb && nv2 != old_vdb,
     "重建后新号不与任何历史号撞"
@@ -1582,7 +1582,7 @@ async fn test_flush_database_commit_swap_failure_rollback() -> Void {
   let s = store.new_session()?;
   s.set_context(TARGET_NS, TARGET_DB);
   s.upsert(b"orig_k", b"orig_v").await?;
-  let (_, old_vdb) = store.vdb.get_virtual_ids(TARGET_NS, TARGET_DB);
+  let (_, old_vdb, ..) = store.vdb.get_virtual_ids_with_created(TARGET_NS, TARGET_DB);
 
   // 激活故障注入：使 commit_swap 失败
   armed.store(true, Relaxed);
@@ -1605,7 +1605,10 @@ async fn test_flush_database_commit_swap_failure_rollback() -> Void {
     "失败回滚后旧域不得登记在 gc_dead 中"
   );
   assert_eq!(
-    store.vdb.get_virtual_ids(TARGET_NS, TARGET_DB).1,
+    store
+      .vdb
+      .get_virtual_ids_with_created(TARGET_NS, TARGET_DB)
+      .1,
     old_vdb,
     "失败回滚后路由槽位换回旧指"
   );

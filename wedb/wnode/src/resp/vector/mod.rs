@@ -7,14 +7,21 @@ pub(crate) const ERR_VECTOR_SET_DISABLED: &[u8] =
 pub(crate) const ERR_MIGRATED_INDEX: &[u8] = RESP_ERR_INVALID_MIGRATED_VECTOR_SET_INDEX.as_bytes();
 
 pub mod resp_server_session_vectors;
+pub mod types;
 pub mod vector_manager;
 pub mod vector_manager_cleanup;
 pub mod vector_manager_context_metadata;
+pub mod vector_manager_element_data;
 pub mod vector_manager_filter;
 pub mod vector_manager_index;
 pub mod vector_manager_locking;
 pub mod vector_manager_migration;
 pub mod vector_manager_quantization;
+pub mod vector_manager_reclaim;
 pub mod vector_manager_replication;
+pub mod vector_manager_similarity;
 pub mod vector_registry_recovery;
 pub mod vector_store_callbacks;
+pub mod vectors_parse;
+pub mod vectors_query;
+pub mod vectors_write;

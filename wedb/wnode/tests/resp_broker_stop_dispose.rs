@@ -2,7 +2,7 @@
 //!
 //! 对标 C# StoreWrapper.Dispose 的 `itemBroker?.Dispose()`
 //!（libs/server/StoreWrapper.cs:916）：stop() 须解除全部挂起阻塞会话（收
-//! 空应答或按 drive.rs 三路竞速的终止广播裁决断连，两种均为既定形态），
+//! 空应答或按 drive/race.rs 三路竞速的终止广播裁决断连，两种均为既定形态），
 //! 置经纪取消位——主循环随 join 排空退出，不再依赖 worker 硬杀；经纪专属
 //! 存储会话（独立纪元参与者）不消亡于 enter_batch 纪元临界段内。
 

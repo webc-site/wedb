@@ -4,7 +4,7 @@
 //! 前置——换库存户（vns）名下零向量集时 target_contexts 为空集，租户过滤器
 //! 退化为全局扫：16384 槽空间多租户 (ns,db) 槽位碰撞是稳态，他租户在用
 //! context 凡盖章槽位与本次换章槽对碰撞即被静默换章并持久化，其向量集在
-//! 发现面（get_namespaces_for_hash_slots / get_vector_set_keys_for_slots）
+//! 发现面（get_namespaces_for_hash_slots / get_vector_set_keys_for_slots_with）
 //! 脱离真槽、转挂他租户槽位（迁移面跨租户错发）。
 //!
 //! 修复契约：过滤器恒生效——换库存户零向量集即空转返回（零向量集租户本无
@@ -80,7 +80,13 @@ async fn swapdb_on_vectorless_tenant_preserves_colliding_tenant_slots() -> Void 
   }
   assert_eq!(resp, b":1\r\n", "VADD 须成功");
 
-  let keys_before = vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot_a)]));
+  let keys_before =
+    vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot_a)]), |vns, vdb| {
+      store
+        .vdb
+        .logic_domain_of(vns, vdb)
+        .map(|(lns, ldb)| slot_of(lns, ldb))
+    });
   assert_eq!(keys_before.len(), 1, "换章前 slot_a 须发现 vs_collision");
   // 发现面快照（值域为在用 context id 集非租户集，前后相等即换章零波及）
   let ctxs_before = vm.get_namespaces_for_hash_slots(&BTreeSet::from([i32::from(slot_a)]));
@@ -102,7 +108,15 @@ async fn swapdb_on_vectorless_tenant_preserves_colliding_tenant_slots() -> Void 
   // 3. 零向量集租户 ns=1 执行 SWAPDB：不得波及 ns0 的在用 context
   vm.swap_database_slots(ns1, ns1, db_a, db_b).await;
 
-  let keys_after = vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot_a)]));
+  // 发现面键集前后逐值不变（现算口径：他租户域映射未被零向量集租户换库波及；
+  // 盖章槽位面由下方在用 context 集前后比对承接）
+  let keys_after =
+    vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot_a)]), |vns, vdb| {
+      store
+        .vdb
+        .logic_domain_of(vns, vdb)
+        .map(|(lns, ldb)| slot_of(lns, ldb))
+    });
   assert_eq!(
     keys_before, keys_after,
     "零向量集租户换库不得改写他租户在用 context 的盖章槽位"

@@ -185,7 +185,7 @@ impl NodeArgs {
   /// 哈希索引内存上限桶数（尺寸向下取 2 的幂再按 64B/桶折算）
   ///
   /// libs/server/Servers/ServerOptions.cs:IndexSizeCachelines
-  ///（adjustedSize / 64，每 cache line 64B 恰为一桶；越出 [<64, >1<<37]
+  ///（adjustedSize / 64，每 cache line 64B 恰为一桶；越出 `[<64, >1<<37]`
   /// 双界即 None，与 C# throw 同口径。拒启单点在 [`NodeArgs::validate`]，
   /// 本处为投影侧兜底：直接经本口取值的调用链不吃 validate 时也不越闸）
   #[must_use]

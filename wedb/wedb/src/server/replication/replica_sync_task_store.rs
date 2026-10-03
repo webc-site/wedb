@@ -21,7 +21,7 @@ pub struct ReplicaSyncSessionTaskStore {
 }
 
 impl ReplicaSyncSessionTaskStore {
-  /// 构造空仓（C# 构造器 sessions[1] / numSessions=0 的无锁等价）
+  /// 构造空仓（C# 构造器 sessions\[1\] / numSessions=0 的无锁等价）
   pub fn new() -> Self {
     Self {
       sessions: new_concurrent_set(),

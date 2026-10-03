@@ -162,7 +162,7 @@ async fn drive_connection(addr: SocketAddr) {
 fn drive_pool_reuses_configured_buffer_size() {
   let provider = Arc::new(PongProvider);
   let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::clone(&provider)).unwrap();
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::clone(&provider)).unwrap();
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap();
   let pool = server.buffer_pool().clone();
@@ -214,7 +214,7 @@ fn drive_pool_reuses_configured_buffer_size() {
 fn handshake_fragment_preserves_pool_quota() {
   let provider = Arc::new(PongProvider);
   let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::clone(&provider)).unwrap();
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::clone(&provider)).unwrap();
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap();
   let pool = server.buffer_pool().clone();

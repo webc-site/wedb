@@ -129,7 +129,7 @@ fn pending_read_records_pending_latency() {
 fn pending_read_without_latency_monitor_is_unchanged() {
   let (rt, api, store, mut s, _dir) = open_env("pending-lat-off.db", false);
   assert!(
-    s.get_latency_metrics().is_none(),
+    s.latency_metrics.is_none(),
     "延迟监视关闭时会话不应持有延迟表"
   );
 

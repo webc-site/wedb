@@ -80,7 +80,7 @@ fn config_set_cert_file_reloads_online() -> aok::Result<()> {
       .with_tls_config(tls.clone()),
     );
     let server =
-      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?.with_tls_config(tls);
+      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls);
     server.start(NonZeroUsize::new(1))?;
     let addr = server.local_addr()?;
 
@@ -157,7 +157,7 @@ fn config_set_cert_rejected_without_tls() -> aok::Result<()> {
     dir.path().join("no-tls.db"),
     session_factory,
   )?);
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?;
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?;
   server.start(NonZeroUsize::new(1))?;
   let addr = server.local_addr()?;
 
@@ -208,7 +208,7 @@ fn cert_refresh_timer_serves_rotated_certificate() -> aok::Result<()> {
       .with_tls_config(tls.clone()),
     );
     let server =
-      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?.with_tls_config(tls);
+      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls);
     server.start(NonZeroUsize::new(1))?;
     let addr = server.local_addr()?;
 
@@ -273,8 +273,8 @@ fn cert_refresh_serves_rotation_assembled_outside_runtime() -> aok::Result<()> {
       )?
       .with_tls_config(tls.clone()),
     );
-    let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?
-      .with_tls_config(tls.clone());
+    let server =
+      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls.clone());
     server.start(NonZeroUsize::new(1))?;
     let addr = server.local_addr()?;
 
@@ -348,8 +348,8 @@ fn cert_refresh_loop_remounts_after_host_runtime_exit() -> aok::Result<()> {
       )?
       .with_tls_config(tls.clone()),
     );
-    let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?
-      .with_tls_config(tls.clone());
+    let server =
+      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls.clone());
     server.start(NonZeroUsize::new(1))?;
     let addr = server.local_addr()?;
 
@@ -379,7 +379,7 @@ fn cert_refresh_loop_remounts_after_host_runtime_exit() -> aok::Result<()> {
       .with_tls_config(tls.clone()),
     );
     let server =
-      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?.with_tls_config(tls);
+      GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls);
     server.start(NonZeroUsize::new(1))?;
     let addr = server.local_addr()?;
 
@@ -453,8 +453,8 @@ fn start_outside_runtime_reports_missing_mount() -> aok::Result<()> {
     )?
     .with_tls_config(tls.clone()),
   );
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?
-    .with_tls_config(tls.clone());
+  let server =
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(tls.clone());
   // 室外 start（wnode_test::start_server 同形制）：失败侧 warn 留痕
   server.start(NonZeroUsize::new(1))?;
   server.stop();

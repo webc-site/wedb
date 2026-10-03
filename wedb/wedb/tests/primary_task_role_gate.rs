@@ -44,19 +44,13 @@ fn suspend_stops_gc_scan_and_resume_restarts() -> aok::Void {
     let tasks: Arc<PrimaryTasks> = Arc::new(PrimaryTasks::default());
     provider.set_primary_tasks(tasks);
     // 挂起（降副本/全量同步前的统一入口）：先降副本，GC 停循环 + 角色位置位
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Replica);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
     provider.suspend_primary_tasks();
     assert!(provider.primary_tasks().unwrap().is_replica());
     assert!(!store.gc_running(), "降副本后 GC 扫描必须停止");
 
     // 恢复（REPLICAOF NO ONE / 接管的统一入口）：先升主，GC 重启 + 角色位复位
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Primary);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
     provider.resume_primary_tasks();
     assert!(!provider.primary_tasks().unwrap().is_replica());
     assert!(store.gc_running(), "升主后 GC 扫描必须恢复");
@@ -77,10 +71,7 @@ fn replica_boot_suspends_primary_tasks() -> aok::Void {
     assert!(store.gc_running());
 
     let provider = ClusterProvider::new();
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Replica);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
     provider.set_store(Arc::clone(&store));
     provider.set_primary_tasks(Arc::new(PrimaryTasks::default()));
 
@@ -229,10 +220,7 @@ fn role_guard_rejects_cross_role_calls() -> aok::Void {
     assert!(store.gc_running(), "主态挂起不得停 GC 扫描");
 
     // 降副本挂起 → 守卫放行（GC 停、任务域挂起）
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Replica);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
     provider.suspend_primary_tasks();
     assert!(provider.primary_tasks().unwrap().is_replica());
     assert!(!store.gc_running(), "副本态挂起必须停 GC 扫描");
@@ -246,10 +234,7 @@ fn role_guard_rejects_cross_role_calls() -> aok::Void {
     assert!(!store.gc_running(), "副本态恢复不得启动 GC 扫描");
 
     // 翻主 resume → 守卫放行（GC 重启、任务域复位）
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Primary);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Primary);
     provider.resume_primary_tasks();
     assert!(!provider.primary_tasks().unwrap().is_replica());
     assert!(store.gc_running(), "升主恢复必须重启 GC 扫描");
@@ -330,10 +315,7 @@ fn suspended_gc_stats_stop_advancing() -> aok::Void {
     let provider = ClusterProvider::new();
     provider.set_store(Arc::clone(&store));
     provider.set_primary_tasks(Arc::new(PrimaryTasks::default()));
-    provider
-      .cluster_manager()
-      .unwrap()
-      .try_set_local_node_role(NodeRole::Replica);
+    set_local_role(&provider.cluster_manager().unwrap(), NodeRole::Replica);
     provider.suspend_primary_tasks();
     assert!(!store.gc_running());
 
@@ -343,4 +325,14 @@ fn suspended_gc_stats_stop_advancing() -> aok::Void {
     Ok::<(), aok::Error>(())
   })?;
   Ok(())
+}
+
+/// 已删包装 `ClusterManager::try_set_local_node_role` 的等价直调
+///（配置写锁内角色改写 + 纪元自增，出锁后 flush_config），测试本地装配面
+fn set_local_role(cm: &ClusterManager, role: NodeRole) {
+  cm.current_config
+    .write()
+    .set_local_worker_role(role)
+    .bump_local_node_config_epoch();
+  cm.flush_config();
 }

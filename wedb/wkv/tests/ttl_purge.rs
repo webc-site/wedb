@@ -113,9 +113,9 @@ async fn purge_with_event_sink_suppresses_writes_and_emits_purge() -> Void {
   assert!(store.set_event_sink(record_sink(Arc::clone(&log))));
   let session = store.new_session()?;
   session.set_context(5, 2);
-  // 事件域判据取映射权威表（vdb.get_virtual_ids），不经会话缓存，
+  // 事件域判据取映射权威表（vdb.get_virtual_ids_with_created），不经会话缓存，
   // 与被测实现（会话 virtual_domain()）不同源，杜绝自证
-  let (vns, vdb) = store.vdb.get_virtual_ids(5, 2);
+  let (vns, vdb, ..) = store.vdb.get_virtual_ids_with_created(5, 2);
   assert_ne!(
     (vns, vdb),
     (5, 2),

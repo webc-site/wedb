@@ -238,7 +238,7 @@ impl RespServerSession {
     )
   }
 
-  /// HSCAN key cursor [MATCH pattern] [COUNT count] [NOVALUES]
+  /// HSCAN key cursor \[MATCH pattern\] \[COUNT count\] \[NOVALUES\]
   ///
   /// HSCAN 分派承接（C# RespServerSession.cs switch 中 HSCAN => ObjectScan
   /// 的 Hash 形态存储接线：装载哈希信封后经 [`Self::object_scan`] 求值）
@@ -276,7 +276,7 @@ impl RespServerSession {
     )
   }
 
-  /// ZSCAN key cursor [MATCH pattern] [COUNT count] [NOVALUES]
+  /// ZSCAN key cursor \[MATCH pattern\] \[COUNT count\] \[NOVALUES\]
   ///
   /// ZSCAN 分派承接（C# RespServerSession.cs switch 中 ZSCAN => ObjectScan
   /// 的 SortedSet 形态存储接线：装载有序集信封后经 [`Self::object_scan`] 求值）
@@ -295,7 +295,7 @@ impl RespServerSession {
     )
   }
 
-  /// COSCAN key cursor [MATCH pattern] [COUNT count] [NOVALUES]
+  /// COSCAN key cursor \[MATCH pattern\] \[COUNT count\] \[NOVALUES\]
   ///
   /// COSCAN 分派承接（对标 C# RespServerSession.cs: COSCAN => ObjectScan(GarnetObjectType.All)）
   ///
@@ -304,7 +304,7 @@ impl RespServerSession {
   /// 严格类型检查对 All 一律 WrongType（HashObject.cs:225-231 / SetObject.cs:126-135）。
   /// String 域命中 → WRONGTYPE；信封域命中按内层标签走扩展标签域求值
   ///（[`coscan_eval`]）；升阶键（Meta 域，仅内置三型可产生）已在
-  /// [`UserRead`] 折叠层归对象键口径，信封确认缺失即 WRONGTYPE；两域皆缺 →
+  /// [`crate::storage::session::common::UserRead`] 折叠层归对象键口径，信封确认缺失即 WRONGTYPE；两域皆缺 →
   /// `[0, 空数组]`（C# NOTFOUND）
   pub fn network_coscan<'a, D: Device>(
     &mut self,

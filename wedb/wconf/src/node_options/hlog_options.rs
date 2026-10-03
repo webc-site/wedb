@@ -90,7 +90,7 @@ pub struct HlogOptions {
   /// 字节总闸；C#RangeIndexManager 无预算机制、CacheSizeTracker 只跟主日志与
   /// 读缓存，本闸为本仓分层架构自研组件，观测面对标 CacheSizeTracker 的
   /// TargetSize 高水位语义，见 doc/zh/collection.md。0 = 不设限，未配置时取
-  /// [`DEFAULT_TREE_CACHE_BUDGET_BYTES`]。启动期一次性注入 RangeIndexManager，
+  /// wkv `DEFAULT_TREE_CACHE_BUDGET_BYTES`（wkv/src/config.rs）。启动期一次性注入 RangeIndexManager，
   /// 不做热更）
   #[arg(id = "tree_cache_budget", long = "tree-cache-budget")]
   #[toml(with = usize_u64)]

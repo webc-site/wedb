@@ -2,8 +2,8 @@
 //!
 //! 收口各 diskless/快照/过期回放系测试逐字同形的装配段：独立存储节点、
 //! 带角色 provider。消费面经 `wedb_test::node_storage` 引用（原
-//! common/mod.rs 聚合根已收口进本 crate）；宿主服务器装配尾仍在
-//! tests/common/replica_host.rs（重 fixture 按册直挂）；测试专属差异面
+//! common/mod.rs 聚合根已收口进本 crate）；宿主服务器装配尾见
+//! `wedb_test::replica_host`（同系 crate 化单源）；测试专属差异面
 //! （节点身份、槽位图形态）以参数暴露，禁全局状态。
 
 use std::sync::Arc;

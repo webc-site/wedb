@@ -144,7 +144,8 @@ pub struct TransactionManager {
   /// [`Self::run_exec`] 的异步臂时，取锁争用会多次复入本方法，此标志杜绝
   /// 重试轮次重复登记 WATCH 键（重复增长键集）与重复消耗全局事务版本。
   /// 由 [`Self::reset`] 复位。
-  exec_lock_armed: bool,
+  /// 锁集登记/版本获取就绪门（争用重试轮门控；直曝字段免包装 getter）
+  pub exec_lock_armed: bool,
   /// 集群模式下 WATCH 键是否已合并进 txn_keys（对标 C# TxnRespCommands.cs:40
   /// SaveKeysToKeyList 单次消费契约）：compio 态外部 EXEC 争用重驱会多次
   /// 复入 network_exec，此标志将「并入过」与「起锁成功（armed）」解耦，
@@ -450,7 +451,7 @@ impl TransactionManager {
   /// 补投终结符的废弃面）
   ///
   /// rust 泵把 EXEC 重放段（Running 直通）命令的挂起交竞速驱动（wnode
-  /// net/handler/drive.rs 的 probe_race 三臂），终止广播或对端脱机胜出即
+  /// net/handler/drive/race.rs 的 probe_race 三臂），终止广播或对端脱机胜出即
   /// RaceEnd::Disposed 丢弃执行体、重放中途废弃：TxnStart 已落 AOF、组内前缀
   /// 写已生效，而尾帧 EXEC 不再被消费、TxnCommit 永不再达，AOF 留孤儿残组。
   /// 本单点对 Running 态事务经既有 `enqueue_txn_marker`（与
@@ -498,12 +499,6 @@ impl TransactionManager {
   #[inline]
   pub fn is_skipping_operations(&self) -> bool {
     matches!(self.state, TxnState::Started | TxnState::Aborted)
-  }
-
-  /// 本笔外部事务的锁集登记/版本获取是否已就绪（对标 C# Run 一次性前置：争用重试轮门控）
-  #[inline]
-  pub fn is_exec_lock_armed(&self) -> bool {
-    self.exec_lock_armed
   }
 
   /// 事务是否只读（C# keyEntries.IsReadOnly 与 txn_keys.is_read_only 同构）

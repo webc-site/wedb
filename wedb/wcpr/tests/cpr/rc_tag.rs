@@ -33,7 +33,7 @@ fn install_broken_rc_entry(store: &MiniStore, p: &Participant, key: &[u8]) -> Vo
     .ok_or_else(|| aok::anyhow!("install_broken_rc_entry: 键不存在: {key:?}"))?;
   let bucket = store
     .index
-    .get_bucket(store.index.bucket_index_for_key(key));
+    .get_bucket(store.index.bucket_index_for_hash(HashIndex::hash_key(key)));
   for slot in &bucket.entries[..HashBucket::DATA_ENTRIES] {
     let cur = slot.load(atomic::Ordering::Acquire);
     if cur & HashBucketEntry::ADDRESS_MASK == main {

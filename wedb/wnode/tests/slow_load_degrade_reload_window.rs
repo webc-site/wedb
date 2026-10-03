@@ -169,7 +169,7 @@ fn host_exec(env: &wnode_test::TestEnv, cmd: RespCommand, args: &[&[u8]]) -> Vec
 
 /// 漏斗面宿主连接：装配常驻 SingleDatabaseManager（无 AOF 形态，对标 C#
 /// !EnableAOF）——FLUSHDB 清库唯一漏斗经常驻 manager 换号，管理面未装配即
-/// 显式回 checkpoint channel not configured（garnet_api/slow.rs 漏斗门禁）
+/// 显式回 checkpoint channel not configured（garnet_api/slow/admin.rs 漏斗门禁）
 fn conn_on_store_funnel(env: &wnode_test::TestEnv) -> Conn {
   let cp_dir = env._dir.path().join("cp-funnel");
   let db = Arc::new(GarnetDatabase::new(

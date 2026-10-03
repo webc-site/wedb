@@ -279,7 +279,7 @@ impl DbMetaRecord {
   ///
   /// 注销只需要键自足信息（值侧 tail_address 已随判死登记入账），角色由键
   /// 子类型甄别——命名空间级注销须连带释放废弃租户路由快照
-  /// （[`VirtualDbManager`] 与 [`crate::gc`] 注销编排共用本判别）
+  /// （[`crate::vdb::VirtualDbManager`] 与 [`crate::gc`] 注销编排共用本判别）
   pub fn dead_tombstone_of(payload: &[u8]) -> Option<(u64, bool)> {
     match VdbMetaSubType::from_u8(payload.first().copied()?)? {
       VdbMetaSubType::GcDeadNs if payload.len() == Self::KEY_GC_DEAD_NS_LEN => {

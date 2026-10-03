@@ -83,7 +83,7 @@ async fn dispose_settles_session_read_pump_on_silent_peer() {
   );
   assert_eq!(pool.free_count(), 1, "接收缓冲必须归池复用");
 
-  let next = timeout(SETTLE_BUDGET, session.execute_async(&["PING"])).await;
+  let next = timeout(SETTLE_BUDGET, session.execute_cluster_attach_sync(b"x")).await;
   assert!(
     matches!(next, Ok(Err(_))),
     "dispose 后后续命令应即刻失败，实际 {next:?}"
@@ -118,7 +118,7 @@ async fn dispose_settles_in_flight_command_as_disconnect() {
     sleep(Duration::from_millis(50)).await;
     late.dispose();
   });
-  let res = timeout(SETTLE_BUDGET, session.execute_async(&["PING"]))
+  let res = timeout(SETTLE_BUDGET, session.execute_cluster_attach_sync(b"x"))
     .await
     .unwrap_or_else(|_| panic!("在途命令未在 {SETTLE_BUDGET:?} 内随拆连收场"));
   discharger.await.unwrap();
@@ -161,7 +161,7 @@ async fn dispose_after_normal_roundtrip_zero_regression() {
 
   for i in 0..8 {
     let resp = session
-      .execute_async(&["PING"])
+      .execute_cluster_attach_sync(b"ping")
       .await
       .unwrap_or_else(|e| panic!("第 {i} 轮正常往返不应回归: {e}"));
     assert_eq!(resp, "PONG", "第 {i} 轮应答文本应逐轮结算");
@@ -176,6 +176,6 @@ async fn dispose_after_normal_roundtrip_zero_regression() {
   );
   assert_eq!(pool.allocated_count(), 1, "零回归：稳态未产生第二块新分配");
 
-  let next = session.execute_async(&["PING"]).await;
+  let next = session.execute_cluster_attach_sync(b"x").await;
   assert!(next.is_err(), "拆连后命令应即刻失败");
 }

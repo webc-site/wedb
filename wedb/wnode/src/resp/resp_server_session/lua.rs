@@ -584,7 +584,7 @@ impl ScriptingApi for RespScriptingApi<'_> {
     session.recv_buffer.extend_from_slice(request);
     session.read_head = 0;
     session.end_read_head = 0;
-    // 消费序与网络泵同构（drive.rs 泵循环的脚本重入投影）：消费 → 水位让渡
+    // 消费序与网络泵同构（drive/consume.rs 泵循环的脚本重入投影）：消费 → 水位让渡
     // 冲出应答后续消费 → 挂起态让渡。
     //
     // 挂起承接（协程化）：C# 侧脚本内命令的磁盘 pending 与阻塞等待都在

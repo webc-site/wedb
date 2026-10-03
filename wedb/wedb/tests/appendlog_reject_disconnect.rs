@@ -46,15 +46,17 @@ const HEAD_PAD_PAYLOAD: usize = 56;
 fn replica_provider() -> Arc<ClusterProvider> {
   let provider = ClusterProvider::new();
   let cm = provider.cluster_manager().expect("cm ready");
-  cm.try_initialize_local_worker(LocalWorkerSpec {
-    node_id: REPLICA_ID,
-    address: "127.0.0.1",
-    port: 7001,
-    config_epoch: 1,
-    role: NodeRole::Replica,
-    replica_of_node_id: Some(PRIMARY_ID),
-    hostname: None,
-  });
+  cm.current_config
+    .write()
+    .initialize_local_worker(LocalWorkerSpec {
+      node_id: REPLICA_ID,
+      address: "127.0.0.1",
+      port: 7001,
+      config_epoch: 1,
+      role: NodeRole::Replica,
+      replica_of_node_id: Some(PRIMARY_ID),
+      hostname: None,
+    });
   provider
 }
 
@@ -134,7 +136,6 @@ fn divergent_appendlog_disconnects_instead_of_error_reply() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;
@@ -177,7 +178,6 @@ fn malformed_negative_array_frame_disconnects() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;
@@ -214,7 +214,6 @@ fn primary_wire_divergent_appendlog_disconnects() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;
@@ -266,7 +265,6 @@ fn negative_sublog_idx_init_frame_disconnects() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;
@@ -302,7 +300,6 @@ fn out_of_range_sublog_idx_init_frame_disconnects() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;
@@ -339,7 +336,6 @@ fn out_of_range_sublog_idx_record_frame_disconnects() -> Void {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(session)),
   )?;
   server.start(NonZeroUsize::new(1))?;

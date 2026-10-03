@@ -845,13 +845,13 @@ impl RespServerSession {
 
   /// ASYNC 参数应用核心（ON/OFF/BARRIER；respProtocolVersion >= 3 才可达）
   ///
-  /// 命令面与参数校验对标 C# NetworkASYNC（其 rust 侧唯一锚点载体是本 impl 的
-  /// `network_async`），但三臂统一回 [`cs::RESP_ERR_ASYNC_REQUIRED`]：本仓不移植
-  /// C# 的异步处理器面（AsyncProcessor 整文件已登记为无需实现，见
-  /// js/check/ignore/server.yml），会话既无 C# useAsync 那样的开关位，也无在途完成
-  /// 通道，照抄 C# 的 ON/OFF 置位与 BARRIER 空等待只会伪造 +OK。
+  /// 命令面与参数校验对标 C# NetworkASYNC（分派锚点为 dispatch.rs 的
+  /// `RespCommand::Async` 臂），但三臂统一回 [`cs::RESP_ERR_ASYNC_REQUIRED`]：
+  /// 本仓不移植 C# 的异步处理器面（AsyncProcessor 整文件已登记为无需实现，见
+  /// js/check/ignore/server.yml），会话既无 C# useAsync 那样的开关位，也无在途
+  /// 完成通道，照抄 C# 的 ON/OFF 置位与 BARRIER 空等待只会伪造 +OK。
   #[inline]
-  pub(crate) fn apply_async_param_impl(
+  pub fn apply_async_param_impl(
     resp_protocol_version: u8,
     parse_state: &[&[u8]],
     output: &mut Vec<u8>,
@@ -874,25 +874,6 @@ impl RespServerSession {
       abort_with_error_message(output, cs::RESP_ERR_GENERIC_SYNTAX_ERROR);
     }
     Ok(true)
-  }
-
-  #[inline]
-  pub(crate) fn apply_async_param(
-    &self,
-    parse_state: &[&[u8]],
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    Self::apply_async_param_impl(self.resp_protocol_version, parse_state, output)
-  }
-
-  /// libs/server/Resp/BasicCommands.cs:NetworkASYNC
-  pub fn network_async<'a, D: Device>(
-    &mut self,
-    parse_state: &[&[u8]],
-    _store: &wkv::BatchStoreSession<'a, D>,
-    output: &mut Vec<u8>,
-  ) -> wresp::Result<bool> {
-    self.apply_async_param(parse_state, output)
   }
 
   /// libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
@@ -925,7 +906,7 @@ impl RespServerSession {
       .await;
     // 冷租户/冷库挂起面：HELLO 应答字节已组入 output 本命令段（start_len 起），
     // 段形态移交 SlowWait（与下方事务守卫臂 truncate 同锚，先例见 AUTH 挂起臂
-    // auth.rs 与 SELECT 挂起臂 array_commands.rs 的最小应答移交）——点查装载并
+    // auth.rs 与 SELECT 挂起臂 array_commands/mset_slow.rs 的最小应答移交）——点查装载并
     // 重放切库后原样应答并物化暂存标量与元数据，挂起期间本批停止消费；装载
     // 失败即弃本段应答，认证态与协议版本/客户端名保持旧值零撕裂。同批前序
     // 流水线应答留在会话缓冲，经泵冲出单点按序落流，严禁整包卷走（连坐丢帧

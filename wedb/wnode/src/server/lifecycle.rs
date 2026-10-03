@@ -105,7 +105,6 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
       id_gen: Arc::clone(&self.session_id_counter),
       provider: Arc::clone(&self.session_provider),
       pool: Arc::clone(&self.buffer_pool),
-      throttle_max: self.network_send_throttle_max,
       conn_limit: self.network_connection_limit,
       #[cfg(feature = "tls")]
       tls_config: self.tls_config.clone(),
@@ -270,7 +269,7 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
   /// **语义边界声明**：`stop` 与 [`Drop`] 仅为连接与内存等资源收口，**不包含 AOF 尾部刷盘**。
   /// 嵌入宿主若需保证未提交帧安全落盘停机，必须调用 [`Self::dispose_async`] 或 [`Self::wait_for_shutdown`]。
   ///
-  /// 三阶段时序对标 C# InternalDispose（servers[i].Close 先于一切通道收敛，
+  /// 三阶段时序对标 C# InternalDispose（servers\[i\].Close 先于一切通道收敛，
   /// subscribeBroker.Dispose 排在 Provider.Dispose 即排空之后）：coordinator.stop
   /// 停监听阻断新连接（Phase 1，必须最前置——收敛窗口内新连接仍可涌入提交
   /// VADD/VREM 而清理通道已闭，写任务静默丢弃成孤儿索引）→ AOF 背压闸门

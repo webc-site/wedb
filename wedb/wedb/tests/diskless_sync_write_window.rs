@@ -17,9 +17,6 @@
 //! - 收敛断言：副本终值 = 主端终值 = 写窗运行体逐轮应答终值（无翻倍、
 //!   无丢失），填充键与锚前预置同步在副本在场。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::diskless_provider::diskless_provider;
 
 #[path = "common/diskless_sync_kick.rs"]

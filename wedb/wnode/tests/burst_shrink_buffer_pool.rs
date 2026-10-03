@@ -42,7 +42,6 @@ fn spawn_server() -> (
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     DEFAULT_BUFFER_SIZE,
-    8,
     Arc::new(provider),
   )
   .unwrap();

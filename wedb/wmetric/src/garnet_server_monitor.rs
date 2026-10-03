@@ -148,12 +148,12 @@ impl GarnetServerMonitor {
     GLOBAL_MONITOR.get().cloned()
   }
 
-  /// 置位 INFO 段复位标志（C# monitor.resetEventFlags[e] = true）
+  /// 置位 INFO 段复位标志（C# monitor.resetEventFlags\[e\] = true）
   pub fn set_info_reset_flag(&self, info_metrics_type: InfoMetricsType) {
     self.reset_event_flags[info_metrics_type.idx()].store(true, Ordering::Relaxed);
   }
 
-  /// 置位延迟类别复位标志（C# monitor.resetLatencyMetrics[e] = true）
+  /// 置位延迟类别复位标志（C# monitor.resetLatencyMetrics\[e\] = true）
   pub fn set_latency_reset_flag(&self, latency_metrics_type: LatencyMetricsType) {
     self.reset_latency_metrics[latency_metrics_type.idx()].store(true, Ordering::Relaxed);
   }

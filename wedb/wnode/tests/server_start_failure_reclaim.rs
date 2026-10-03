@@ -44,12 +44,7 @@ impl SessionProviderFace for NullProvider {
 /// GarnetException，禁静默回退默认端点）
 #[test]
 fn new_rejects_invalid_endpoint() {
-  let err = match GarnetServer::new(
-    &["1.2.3.4:65536".to_string()],
-    4096,
-    8,
-    Arc::new(NullProvider),
-  ) {
+  let err = match GarnetServer::new(&["1.2.3.4:65536".to_string()], 4096, Arc::new(NullProvider)) {
     Ok(_) => panic!("端口越界端点必须拒启"),
     Err(e) => e,
   };
@@ -63,7 +58,7 @@ fn new_rejects_invalid_endpoint() {
 /// 空端点列表拒启（C# Options.cs:796 `endpoints.Length == 0` 臂）
 #[test]
 fn new_rejects_empty_endpoints() {
-  assert!(GarnetServer::new(&[], 4096, 8, Arc::new(NullProvider)).is_err());
+  assert!(GarnetServer::new(&[], 4096, Arc::new(NullProvider)).is_err());
 }
 
 /// localhost 端点自动展开为 IPv4 + IPv6 双回环端点（对标 C# Format.cs:99-100）
@@ -72,7 +67,6 @@ fn new_expands_localhost_to_dual_endpoints() {
   let server = GarnetServer::new(
     &["localhost:6379".to_string()],
     4096,
-    8,
     Arc::new(NullProvider),
   )
   .unwrap();
@@ -94,7 +88,6 @@ fn start_failure_reclaims_all_workers() {
       format!("unix:{}", invalid_uds_path.display()),
     ],
     4096,
-    8,
     Arc::new(NullProvider),
   )
   .unwrap();

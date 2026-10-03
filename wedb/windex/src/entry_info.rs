@@ -12,7 +12,7 @@ use crate::{
 /// （对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs:TryCAS）。
 #[derive(Debug)]
 pub struct HashEntryInfo<'a> {
-  /// 该槽位所属哈希链的首桶（table[bucketIndex]），全程不变——锁仲裁锚点
+  /// 该槽位所属哈希链的首桶（table\[bucketIndex\]），全程不变——锁仲裁锚点
   ///
   /// 对标 libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs:firstBucket：
   /// 桶锁的获取/释放统一作用于主桶（见
@@ -151,7 +151,7 @@ impl<'a> HashEntryInfo<'a> {
   /// 的锁协议本体（LockTable.TryLockExclusive → HashBucket.TryAcquireExclusiveLatch，
   /// 锁的是 `hei.firstBucket` 而非槽位所在桶）。
   /// WHY 主桶：溢出桶第 7 槽位低 48 位承载溢出链指针，若在溢出桶上取闩会与挂链/遍历
-  /// 争用同一字，且按哈希寻址锁（`HashIndex::try_lock_key_hash_exclusive` 取 table[bucketIndex]）
+  /// 争用同一字，且按哈希寻址锁（`HashIndex::try_lock_key_hash_exclusive` 取 table\[bucketIndex\]）
   /// 检查的是主桶——锁错桶等于双方互不知晓，同链互斥彻底失效。
   #[inline]
   pub fn lock_exclusive_guard(&self) -> Option<crate::BucketExclusiveGuard<'a>> {

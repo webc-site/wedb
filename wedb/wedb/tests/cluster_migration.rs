@@ -3164,9 +3164,12 @@ fn vector_set_discovery_for_slots() -> aok::Void {
     );
 
     // 槽位发现：向量集键收录且索引记录在位；string 键不误收
+    //（SLOTS 迁移同口径：仅默认域 (0,0) 收录）
     let mut slots = BTreeSet::new();
     slots.insert(i32::from(SLOT0));
-    let found = vm.get_vector_set_keys_for_slots(&slots);
+    let found = vm.get_vector_set_keys_for_slots_with(&slots, |vns, vdb| {
+      (vns == 0 && vdb == 0).then(|| slot_of(0, 0))
+    });
     assert_eq!(found.len(), 1, "应恰好发现 1 个向量集键");
     // 发现面返回登记表复合键（`registry_key` 单点：源端会话域 + 用户键），
     // 迁移帧口径由驱动侧 registry_user_key 单点剥域
@@ -3182,7 +3185,12 @@ fn vector_set_discovery_for_slots() -> aok::Void {
     // 其它槽不命中
     let mut other = BTreeSet::new();
     other.insert(i32::from(REMOTE_SLOT));
-    assert!(vm.get_vector_set_keys_for_slots(&other).is_empty());
+    assert!(
+      vm.get_vector_set_keys_for_slots_with(&other, |vns, vdb| {
+        (vns == 0 && vdb == 0).then(|| slot_of(0, 0))
+      })
+      .is_empty()
+    );
 
     // 导出面：元素 + 原生向量 + 属性全集
     let elements = vm.export_migration_elements(&index_value).await.unwrap();

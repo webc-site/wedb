@@ -68,13 +68,8 @@ fn client_info_laddr_tls_match_listen_endpoint() -> aok::Result<()> {
   )?);
   // TLS 服务端：rust 的 tls_config 为 server 级。夹具为 wnode_tls_test 进程内单份
   // 自签证书，客户端信任锚同证书
-  let tls_server = GarnetServer::new(
-    &["127.0.0.1:0".to_string()],
-    1 << 16,
-    8,
-    Arc::clone(&provider),
-  )?
-  .with_tls_config(test_server_tls()?);
+  let tls_server = GarnetServer::new(&["127.0.0.1:0".to_string()], 1 << 16, Arc::clone(&provider))?
+    .with_tls_config(test_server_tls()?);
   tls_server.start(NonZeroUsize::new(1))?;
   let tls_addr = tls_server.local_addr()?;
   let connector = test_connector()?;

@@ -19,9 +19,6 @@
 //! 反证基线（revert-proof）：排空返值改回忽略即本轮同步照常成功——Err 断言、
 //! FAILED 断言与副本零键断言同时变红。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::{
   diskless_provider::diskless_provider,
   primary_assets::primary_assets,

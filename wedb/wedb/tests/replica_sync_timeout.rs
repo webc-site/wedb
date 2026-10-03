@@ -25,18 +25,16 @@
 //! 假对端把限时落在停等往返（recover_roundtrip 的 wait_async）上验证超时
 //! 语义本体。
 
-use std::{io, io::ErrorKind, str::from_utf8};
-
-use wedb::server::worker::Worker;
-#[path = "common/replica_net.rs"]
-mod replica_net;
 use std::{
+  io::ErrorKind,
   sync::Arc,
   time::{Duration, Instant},
 };
 
 use aok::Void;
-use compio::{net::TcpListener, runtime::spawn};
+use wedb::server::worker::Worker;
+#[path = "common/replica_net.rs"]
+mod replica_net;
 use replica_net::{client_roundtrip, network_pool};
 use wconf::node_options::INFINITE_SYNC_TIMEOUT_SECS;
 use wedb::server::{
@@ -45,7 +43,7 @@ use wedb::server::{
   worker::NodeRole,
 };
 use wedb_test::{cluster_decorate, cluster_seed::seed_local_worker, start_node};
-use wtest_base::wait_for;
+use wtest_base::{SilentNode, bind_blackhole, wait_for};
 
 /// 测试节点身份（内部 u128；协议面渲染为 32 字符小写 hex）
 const PRIMARY_ID: u128 = 0x0DE3_0000_0000_0000_0000_0000_0000_0001;
@@ -57,101 +55,11 @@ const TIMEOUT_SECS: u64 = 1;
 /// 有界失败上限（超时 1s + 编排余量；超限即视为永久挂起语义回归）
 const FAIL_DEADLINE: Duration = Duration::from_secs(10);
 
-/// 静默黑洞监听器：accept 后套接字只收不发（对端假死形态），返回监听地址
-async fn spawn_silent_listener() -> io::Result<String> {
-  let listener = TcpListener::bind("127.0.0.1:0").await?;
-  let addr = listener.local_addr()?.to_string();
-  // 收下连接即静默滞留，套接字随任务持有至测试收场
-  spawn(async move {
-    let mut held = Vec::new();
-    while let Ok((sock, _)) = listener.accept().await {
-      held.push(sock);
-    }
-  })
-  .detach();
-  Ok(addr)
-}
-
-/// 半活假对端：逐连接应答前 `REPLY_HANDSHAKE_FRAMES` 条完整 RESP 帧（覆盖
-/// wconn 建连握手的 CLIENT SETINFO/SETNAME 两帧），其后帧只收不应——停等
-/// 命令（BEGIN_REPLICA_RECOVER / SNAPSHOT_DATA）永不应答，令主端限时臂必撞
+/// 半活假对端握手额度（覆盖 wconn 建连握手的 CLIENT SETINFO/SETNAME 两帧）：
+/// `SilentNode::bind` 对前 2 个完整 RESP 命令帧各回 `+OK\r\n`，其后帧只收
+/// 不应——停等命令（BEGIN_REPLICA_RECOVER / SNAPSHOT_DATA）永不应答，令主端
+/// 限时臂必撞
 const REPLY_HANDSHAKE_FRAMES: usize = 2;
-
-/// 单条 RESP 帧完整长度（数组帧 `*N` + N 个 bulk；内联行 `\r\n` 兜底）；
-/// 不完整回 None
-fn complete_frame_len(buf: &[u8]) -> Option<usize> {
-  if buf.first() != Some(&b'*') {
-    // 内联命令行：整行即一帧
-    return buf.windows(2).position(|w| w == b"\r\n").map(|pos| pos + 2);
-  }
-  // 数组头行
-  let head_end = buf.windows(2).position(|w| w == b"\r\n")?;
-  let count: usize = from_utf8(&buf[1..head_end]).ok()?.parse().ok()?;
-  let mut cursor = head_end + 2;
-  for _ in 0..count {
-    // 逐 bulk：`$len\r\n` + 载荷 + `\r\n`
-    if buf.get(cursor) != Some(&b'$') {
-      return None;
-    }
-    let len_end = buf[cursor..].windows(2).position(|w| w == b"\r\n")? + cursor;
-    let len: usize = from_utf8(&buf[cursor + 1..len_end]).ok()?.parse().ok()?;
-    let payload_end = len_end + 2 + len + 2;
-    if buf.len() < payload_end {
-      return None;
-    }
-    cursor = payload_end;
-  }
-  Some(cursor)
-}
-
-/// 半活假对端监听器：accept 后逐连接起应答泵，返回监听地址
-async fn spawn_handshake_only_listener() -> io::Result<String> {
-  use compio::{
-    buf::BufResult,
-    io::{AsyncRead, AsyncWriteExt},
-  };
-  let listener = TcpListener::bind("127.0.0.1:0").await?;
-  let addr = listener.local_addr()?.to_string();
-  spawn(async move {
-    while let Ok((sock, _)) = listener.accept().await {
-      spawn(async move {
-        let mut sock = sock;
-        let mut buf: Vec<u8> = Vec::new();
-        let mut answered = 0usize;
-        loop {
-          // 已到齐的帧逐条结算（前 N 条 +OK，其后静默）
-          while let Some(frame_len) = complete_frame_len(&buf) {
-            buf.drain(..frame_len);
-            answered += 1;
-            if answered <= REPLY_HANDSHAKE_FRAMES {
-              let _ = sock.write_all(b"+OK\r\n").await;
-            }
-          }
-          let BufResult(res, ret) = sock.read(vec![0u8; 4096]).await;
-          let Ok(n) = res else {
-            break; // 读臂 IO 错误按断连收场
-          };
-          if n == 0 {
-            break; // 对端断连
-          }
-          buf.extend_from_slice(&ret[..n]);
-        }
-      })
-      .detach();
-    }
-  })
-  .detach();
-  Ok(addr)
-}
-
-/// 黑洞监听器地址拆端口（集群 worker 行 port 字段）
-fn listener_port(addr: &str) -> i32 {
-  addr
-    .rsplit(':')
-    .next()
-    .and_then(|p| p.parse().ok())
-    .unwrap_or(0)
-}
 
 /// 配置钩子折影（boot.rs:307-309 注入口 + flags.rs:54 读取口）：
 /// 测试级小值按秒折 Some；无限哨兵折 None（不挂计时器，绝无
@@ -178,7 +86,7 @@ fn replica_sync_timeout_hook_projects_finite_and_infinite() {
 /// 绝不永久挂起
 #[compio::test]
 async fn tcp_wire_connect_times_out_against_silent_peer() -> Void {
-  let addr = spawn_silent_listener().await?;
+  let addr = bind_blackhole().await.to_string();
 
   let started = Instant::now();
   let err = TcpSessionWire::connect(
@@ -222,7 +130,7 @@ async fn tcp_wire_connect_times_out_against_silent_peer() -> Void {
 #[compio::test]
 async fn replicaof_fails_with_timeout_semantics_against_silent_replica() -> Void {
   // ===== 主端真实节点：超时钩子调到测试级 1 秒；副本端点指向半活假对端
-  let blackhole = spawn_handshake_only_listener().await?;
+  let blackhole = SilentNode::bind(REPLY_HANDSHAKE_FRAMES).await;
   let primary = ClusterProvider::new();
   primary.set_replica_sync_timeout_secs(TIMEOUT_SECS);
   let (pdir, pserver, pprovider, pwal, pport) =
@@ -235,7 +143,7 @@ async fn replicaof_fails_with_timeout_semantics_against_silent_replica() -> Void
     config.workers.push(Worker {
       nodeid: Some(REPLICA_ID),
       address: "127.0.0.1".into(),
-      port: listener_port(&blackhole),
+      port: blackhole.port() as i32,
       config_epoch: 1,
       role: NodeRole::Primary,
       replica_of_node_id: None,

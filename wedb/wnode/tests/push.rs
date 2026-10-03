@@ -37,8 +37,7 @@ fn spawn_server() -> (GarnetServer<StorageSessionProvider<SessionFactory>>, Stri
     StorageSessionProvider::open_with_config(test_store_config(), data_path, factory).unwrap();
   assert!(provider.pubsub.is_some(), "默认装配必须启用发布订阅中枢");
 
-  let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::new(provider)).unwrap();
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::new(provider)).unwrap();
 
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap().to_string();

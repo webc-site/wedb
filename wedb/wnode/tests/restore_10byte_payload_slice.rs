@@ -5,7 +5,7 @@
 //! 长度门（<10 拒）→ footer 版本门 → crc64 门，随后原 `&value[1..value.len()-10]`
 //! 在恰 10 字节形退化为 `&value[1..0]`（起点越终点）触发 checked panic。快臂
 //! network_restore 与慢臂 C::Restore 共用本推导单源，单点双臂皆炸；生产经连接泵
-//! catch_unwind（net/handler/drive.rs）隔离为「本会话断连、应答零回帧」，可重连
+//! catch_unwind（net/handler/drive/mod.rs）隔离为「本会话断连、应答零回帧」，可重连
 //! 重放重复掐断，触审查红线「生产路径严禁未受控 panic」。
 //!
 //! 修复：改 `value.get(1..value.len()-10)` 容错解构，None 落同族

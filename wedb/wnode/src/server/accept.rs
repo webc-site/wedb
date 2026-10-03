@@ -372,7 +372,6 @@ impl AcceptEndpoint for TcpEndpoint {
       peer_source,
       local_endpoint.clone(),
       Arc::clone(&ctx.pool),
-      ctx.throttle_max,
     );
     // 收场尾帧超时界注入（TLS 收场治理面：close_notify 尾帧确定性上界
     // TLS_SHUTDOWN_TIMEOUT；明文臂 shutdown 即刻就绪，包裹零成本）
@@ -544,7 +543,6 @@ impl AcceptEndpoint for UdsEndpoint {
       peer_source,
       local_endpoint.clone(),
       Arc::clone(&ctx.pool),
-      ctx.throttle_max,
     );
     // 预注册 + 终止哨兵（TCP 循环同一收口：C# :256 TryAdd 先于
     // handler.Start，条目即刻入治理面；UDS 无 TLS 握手位）

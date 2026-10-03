@@ -183,6 +183,25 @@ pub fn parse_duration_token(s: &str) -> Duration {
   try_parse_duration_token(s).unwrap_or_else(|| panic!("无法解析的时长表达式: {s}"))
 }
 
+/// 静默黑洞靶端：绑定随机端口，accept 收下连接后只持有、不读不写（对端假死
+/// 形态：CLIENT 握手帧永无应答），回监听地址。accept 循环随测试 runtime 退出
+/// 自动终止；收下的套接字由任务持有至测试收场（连接不关，保持假死在途）。
+///
+/// 「能握手、握完不应答」的半死形态（前 N 帧回 `+OK` 其后静默）走
+/// [`SilentNode`]，本靶端是全静默前身——建连限时/超时语义测试的受控对端
+pub async fn bind_blackhole() -> SocketAddr {
+  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+  let addr = listener.local_addr().unwrap();
+  spawn(async move {
+    let mut held = Vec::new();
+    while let Ok((sock, _)) = listener.accept().await {
+      held.push(sock);
+    }
+  })
+  .detach();
+  addr
+}
+
 /// 握手靶端：逐请求应答式假节点，对前 `ready_replies` 个完整 RESP 命令帧
 /// 各回一个 `+OK\r\n`，此后沉默吞帧
 ///

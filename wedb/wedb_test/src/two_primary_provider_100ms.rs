@@ -4,7 +4,7 @@
 //! reviv_pause_migration_interleave 四册同名 `two_primary_provider` wrapper
 //! 的同参收敛：DE11 本地主持全量槽、DE12 远端主@7001 接管 `remote_slot`
 //! 单槽、100ms 栅栏超时。消费面经 `wedb_test::two_primary_provider_100ms`
-//! 引用（原 common/ #[path] 直挂面已收口进本 crate）。
+//! 引用（原 common/ `#[path]` 直挂面已收口进本 crate）。
 
 use std::sync::Arc;
 

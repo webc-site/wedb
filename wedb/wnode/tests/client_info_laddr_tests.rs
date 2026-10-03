@@ -78,7 +78,6 @@ fn client_info_laddr_tcp_uds_match_listen_endpoint() -> aok::Result<()> {
   let server = Arc::new(GarnetServer::new(
     &["127.0.0.1:0".to_string(), uds_str.clone()],
     1 << 16,
-    8,
     Arc::clone(&provider),
   )?);
   server.start(NonZeroUsize::new(1))?;

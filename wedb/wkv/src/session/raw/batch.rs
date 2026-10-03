@@ -157,6 +157,8 @@ impl<D: Device> StoreSession<D> {
 
       for (i, probe) in probes[..batch_len].iter().enumerate() {
         let item_idx = next_batch_ix + i;
+        // SAFETY: batch_len = min(count - next_batch_ix, PREFETCH_WINDOW)，
+        // i < batch_len ⟹ item_idx < count == keys.len()
         let key = unsafe { keys.get_unchecked(item_idx) }.as_ref();
 
         let disk_mixed = !pending.is_empty();
@@ -194,6 +196,7 @@ impl<D: Device> StoreSession<D> {
       if !pending.is_empty() {
         // 并发收割全部磁盘读（冷路径物化 Vec，规避跨并发闭包共享 FnMut）
         let futs = pending.drain(..).map(|(item_idx, cands)| async move {
+          // SAFETY: item_idx 出自本轮扫描（上界同上），< keys.len()
           let key = unsafe { keys.get_unchecked(item_idx) }.as_ref();
           let val = self
             .read_from_disk(key, cands, |v: &[u8]| v.to_vec())
@@ -250,6 +253,8 @@ impl<D: Device> StoreSession<D> {
       // 3. 执行底层物理同步内存读取
       for (i, probe) in probes[..batch_len].iter().enumerate() {
         let item_idx = next_batch_ix + i;
+        // SAFETY: batch_len = min(count - next_batch_ix, PREFETCH_WINDOW)，
+        // i < batch_len ⟹ item_idx < count == keys.len()
         let key = unsafe { keys.get_unchecked(item_idx) }.as_ref();
 
         match self.try_read_raw_in_memory_with_addr(key, probe.hash, probe.first_addr, |v| {

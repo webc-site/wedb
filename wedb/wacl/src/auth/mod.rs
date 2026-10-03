@@ -16,4 +16,4 @@
 pub mod garnet_acl_authenticator;
 
 pub use garnet_acl_authenticator::{GarnetAclAuthenticator, acl_password_check};
-pub use wbase::ascii_sanitize;
+pub(crate) use wbase::ascii_sanitize;

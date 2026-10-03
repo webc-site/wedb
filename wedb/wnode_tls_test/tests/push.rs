@@ -12,7 +12,7 @@
 //!（libs/common/Networking/NetworkHandler.cs:360 GetNetworkSender），写出为
 //! sslStream.Write + sslStream.Flush（:612-633 SendResponse）。故 SUBSCRIBE 后
 //! 不再发任何输入帧的空闲 TLS 连接也必须即时收到推送帧——rust 侧对应
-//! net/handler/drive.rs 的订阅推送双路等待 + net/stream.rs 的 TLS 读写句柄对。
+//! net/handler/drive/read.rs 的订阅推送双路等待 + net/stream.rs 的 TLS 读写句柄对。
 
 use std::{mem::forget, net::SocketAddr, num::NonZeroUsize, sync::Arc, time::Duration};
 
@@ -64,7 +64,7 @@ fn spawn_tls_server() -> (
 
   let tls_config = test_server_tls().unwrap();
   let connector = Arc::new(test_connector().unwrap());
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::new(provider))
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::new(provider))
     .unwrap()
     .with_tls_config(tls_config);
 

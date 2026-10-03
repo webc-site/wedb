@@ -65,10 +65,9 @@ impl RespServerSession {
       return Ok(true);
     };
     // arity 判定核 is_command_arity_valid_checked 与错误文案单点与本文件
-    // 共享；不复用 core.rs 的 is_command_arity_valid wrapper——其错误帧写
-    // self.output，而本链 output 是 garnet_api::mod.rs dispatch 的
-    // mem::take 缓冲（返回后回填会覆盖 self.output 写入），故副作用三行
-    // 须直写入参缓冲（第二处内联同因，勿再收编）
+    // 共享；错误帧不写 self.output——本链 output 是 garnet_api::mod.rs
+    // dispatch 的 mem::take 缓冲（返回后回填会覆盖 self.output 写入），故
+    // 副作用三行须直写入参缓冲（第二处内联同因，勿再收编）
     if !is_command_arity_valid_checked(custom.arity, self.parse_state.count) {
       cs::abort_with_wrong_number_of_arguments(output, custom.name);
       self.command_error_written = true;

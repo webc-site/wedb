@@ -276,7 +276,7 @@ impl<D: Device> DatabaseManagerBase<D> {
   ///    接管，本步不触发（形态判据同版本切换标记）。
   ///
   /// 两层闸门关系：本方法不含 [`checkpoint_paused`](GarnetDatabase::checkpoint_paused)
-  /// 暂停闸（调用方职责——生产链一律经 [`SingleDatabaseManager::take_checkpoint`]
+  /// 暂停闸（调用方职责——生产链一律经 [`super::single_database_manager::SingleDatabaseManager::take_checkpoint`]
   /// 收口入口或 AOF 限长任务的显式对进入）；wcpr 实例闸 `acquire`（宿主
   /// `WedbStore::ckpt_gate` 持）只串行
   /// 第 5 步 `create_checkpoint_with_token` 内部快照段，罩不住其外的版本推进

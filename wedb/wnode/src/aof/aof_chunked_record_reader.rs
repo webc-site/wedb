@@ -6,7 +6,7 @@
 //!（key → value → input 顺序），完成后交重放分派（不物化连续记录镜像）。
 //!
 //! 线协议（对标 C# TsavoriteLog.Chunked.cs:WriteOneRecord）：每个分块帧均
-//! 携带完整帧头（帧头 + [序列号] + 分块帧头），同一逻辑大记录各帧的
+//! 携带完整帧头（帧头 + \[序列号\] + 分块帧头），同一逻辑大记录各帧的
 //! op_type / key_hash / object_id 完全一致；本读取器统一按帧头解析每条
 //! chunk 记录，以 objectId 在 [`AofChunkedRecordReader::in_progress`] 中
 //! 索引累积（C# ReadChunk 同构），组件边界由声明长度驱动，组件顺序与

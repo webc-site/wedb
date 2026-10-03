@@ -47,7 +47,6 @@ fn test_tls_handshake_timeout_releases_connection_quota() -> aok::Result<()> {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     4096,
-    8,
     Arc::new(RegistryProvider {
       registry: Arc::clone(&registry),
     }),

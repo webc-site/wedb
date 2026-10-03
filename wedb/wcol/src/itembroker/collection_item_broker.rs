@@ -241,7 +241,7 @@ impl TaskSpawner for CompioTaskSpawner {
 ///
 /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:CollectionItemBroker
 pub struct CollectionItemBroker<S, Spawner = CompioTaskSpawner> {
-  /// 事件发送端（对应 Garnet AsyncQueue<CollectionItemBrokerEvent>，
+  /// 事件发送端（对应 Garnet `AsyncQueue<CollectionItemBrokerEvent>`，
   /// libs/server/Objects/ItemBroker/CollectionItemBroker.cs:31；C# AsyncQueue 为
   /// ConcurrentQueue + SemaphoreSlim（libs/storage/Tsavorite/cs/src/core/
   /// Utilities/AsyncQueue.cs:25/:27-28），crossfire mpsc::List 为其零锁等价物，

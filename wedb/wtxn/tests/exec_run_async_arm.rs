@@ -56,12 +56,12 @@ fn run_exec_contended_preserves_keyset_and_retries_to_started() {
     "命令键排队登记 txn_keys，key_entries 延至 run_exec 前置展开"
   );
   assert_eq!(mgr.txn_keys.len(), 1, "命令键排队登记在 txn_keys");
-  assert!(!mgr.is_exec_lock_armed(), "执行前门控未置位");
+  assert!(!mgr.exec_lock_armed, "执行前门控未置位");
 
   // 首轮取闩：同桶被外部排他持有 → Contended，内核不持任何闩、不 reset
   assert_eq!(mgr.run_exec(root().as_slice()), ExecRun::Contended);
   assert_eq!(mgr.state, TxnState::Started, "争用不得改写出 Started 态");
-  assert!(mgr.is_exec_lock_armed(), "首轮争用后门控已置位");
+  assert!(mgr.exec_lock_armed, "首轮争用后门控已置位");
   // 前置已做：命令键 + WATCH 键并入锁集（2）
   let stable_count = mgr.key_entries.count();
   assert_eq!(stable_count, 2, "首轮前置并入 WATCH 键后锁集定型");
@@ -71,7 +71,7 @@ fn run_exec_contended_preserves_keyset_and_retries_to_started() {
   // 复入争用：门控令前置登记只做一次——键集计数与版本跨轮恒定
   assert_eq!(mgr.run_exec(root().as_slice()), ExecRun::Contended);
   assert_eq!(mgr.run_exec(root().as_slice()), ExecRun::Contended);
-  assert!(mgr.is_exec_lock_armed(), "争用重试轮门控保持置位");
+  assert!(mgr.exec_lock_armed, "争用重试轮门控保持置位");
   assert_eq!(
     mgr.key_entries.count(),
     stable_count,
@@ -89,7 +89,7 @@ fn run_exec_contended_preserves_keyset_and_retries_to_started() {
   assert_eq!(mgr.state, TxnState::None);
   assert_eq!(mgr.txn_version, 0, "复位清事务版本");
   assert_eq!(mgr.key_entries.count(), 0, "复位清键集");
-  assert!(!mgr.is_exec_lock_armed(), "复位后门控清除");
+  assert!(!mgr.exec_lock_armed, "复位后门控清除");
   assert!(!mgr.watch_merged_into_txn_keys, "复位后 WATCH 并入门控清除");
 }
 
@@ -119,7 +119,7 @@ fn run_exec_barrier_contended_leaves_exec_lock_unarmed_and_resets_watch_merged_f
   mgr.save_key_entry_to_lock(key, LockType::Exclusive);
   mgr.state = TxnState::Started;
 
-  assert!(!mgr.is_exec_lock_armed());
+  assert!(!mgr.exec_lock_armed);
   assert!(!mgr.watch_merged_into_txn_keys);
 
   // 连续 3 轮屏障争用重驱：run_exec 恒返回 Contended，且 exec_lock_armed 恒为 false！
@@ -131,7 +131,7 @@ fn run_exec_barrier_contended_leaves_exec_lock_unarmed_and_resets_watch_merged_f
     );
     assert_eq!(mgr.state, TxnState::Started);
     assert!(
-      !mgr.is_exec_lock_armed(),
+      !mgr.exec_lock_armed,
       "第 {round} 轮屏障争用下 exec_lock_armed 恒不得置位"
     );
   }
@@ -143,13 +143,13 @@ fn run_exec_barrier_contended_leaves_exec_lock_unarmed_and_resets_watch_merged_f
   barrier_open.store(true, Ordering::Relaxed);
   assert_eq!(mgr.run_exec(root().as_slice()), ExecRun::Started);
   assert_eq!(mgr.state, TxnState::Running);
-  assert!(mgr.is_exec_lock_armed());
+  assert!(mgr.exec_lock_armed);
   assert!(mgr.watch_merged_into_txn_keys);
 
   // 复位：两者均归零
   mgr.reset();
   assert_eq!(mgr.state, TxnState::None);
-  assert!(!mgr.is_exec_lock_armed());
+  assert!(!mgr.exec_lock_armed);
   assert!(!mgr.watch_merged_into_txn_keys);
 }
 

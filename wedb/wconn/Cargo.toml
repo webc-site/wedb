@@ -36,6 +36,7 @@ compio = { workspace = true, features = ["macros", "runtime"] }
 ctor.workspace = true
 log_init.workspace = true
 tempfile.workspace = true
+wtest_base.workspace = true
 
 
 [lints]

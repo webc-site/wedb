@@ -67,7 +67,6 @@ where
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::clone(&session_provider),
   )?;
   server.start(NonZeroUsize::new(1))?;

@@ -4,8 +4,9 @@
 //! 假端点、日志 ctor）只在 `wtest_base`，本 crate 承载需要顶层集群门面的
 //! 测试基建：[`cluster_decorate`] / [`start_node`] 等集群形态起服工具，与
 //! 原 `wedb/tests/common/` `#[path]` 直挂面收口而来的纯 helper 单源
-//! （装配级 fixture——真 socket 宿主、回放装配束、检查点/迁移假端等——
-//! 仍留 `wedb/tests/common/` 按册直挂，见各文件头）。仅集群集成测试
+//! （装配级 fixture——回放装配束、检查点/迁移假端等——仍留
+//! `wedb/tests/common/` 按册直挂；真 socket 宿主 [`replica_host`] 因
+//! wnode_tls_test 同用已随收口迁入本 crate，见各文件头）。仅集群集成测试
 //! （wedb/tests）以 dev-dependencies 形式消费，不进入任何生产链接面；
 //! 更下层 crate 的测试一律改引 `wtest_base`，不得反向依赖本 crate
 //! （杜绝测试链经 wedb 门面拖起整个集群栈）。
@@ -22,7 +23,6 @@ pub mod fake_frame_pump;
 pub mod replica_wire_test_wire;
 
 pub mod resp_drive_scratch;
-pub mod resp_frame_args;
 pub mod resp_pump_scratch;
 pub mod resp_value;
 
@@ -44,6 +44,7 @@ pub mod cluster_consumer_with;
 
 // ===== 副本域装配件 =====
 pub mod replica_attach;
+pub mod replica_host;
 pub mod replica_session_face;
 pub mod seed_tree;
 pub mod sync_meta_seed;

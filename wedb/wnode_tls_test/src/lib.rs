@@ -97,7 +97,7 @@ pub fn server_tls_config(
   )?)
 }
 
-/// TLS 会话工厂装配单源：`GarnetServer::new(127.0.0.1:0, 4096, 8)` +
+/// TLS 会话工厂装配单源：`GarnetServer::new(127.0.0.1:0, 4096)` +
 /// `with_tls_config` + `start` + `local_addr`，返回服务器句柄与监听端点
 #[cfg(feature = "tls")]
 pub fn start_tls_server<P: SessionProviderFace + 'static>(
@@ -106,7 +106,7 @@ pub fn start_tls_server<P: SessionProviderFace + 'static>(
   worker_threads: Option<NonZeroUsize>,
 ) -> aok::Result<(GarnetServer<P>, SocketAddr)> {
   let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)?.with_tls_config(server_tls);
+    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)?.with_tls_config(server_tls);
   server.start(worker_threads)?;
   let addr = server.local_addr()?;
   Ok((server, addr))

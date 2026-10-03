@@ -5,7 +5,7 @@
 //! 核心能力：
 //! 1. 统一多端点监听：支持 TCP（SO_REUSEPORT 端口复用）与 Unix Domain Socket（UdsGuard 自动治理）；
 //! 2. 纯 compio 全异步运行时与多核 Thread-per-Core 驱动（一核心一 Runtime，消除核间锁竞争）；
-//! 3. 统一网络缓冲池与慢客户端流控；
+//! 3. 统一网络缓冲池；
 //! 4. 三阶段优雅停机与安全关停（对标 C# GarnetServer.InternalDispose）：
 //!    - Phase 1: 广播取消令牌，秒级打断所有核心的 accept 阻塞，阻断新连接；
 //!    - Phase 2: 各 worker 线程退出 accept 循环后、运行时析构前排空活跃
@@ -106,7 +106,6 @@ pub struct ServerBootstrap<A, C = NoopClusterProvider> {
   args: A,
   cluster_provider: C,
   network_buffer_size: usize,
-  network_send_throttle_max: usize,
   banner: String,
   /// 外部停机协调器（可选，便于宿主或测试受控关停）
   shutdown_coordinator: Option<ShutdownCoordinator>,
@@ -116,7 +115,7 @@ pub struct ServerBootstrap<A, C = NoopClusterProvider> {
 pub struct GarnetServer<P: SessionProviderFace + 'static> {
   /// 配置的端点列表
   ///
-  /// [`doc(hidden)`] 测试专用隐藏面：localhost 端点双回环展开断言的观测口
+  /// `doc(hidden)` 测试专用隐藏面：localhost 端点双回环展开断言的观测口
   ///（wnode/tests/server_start_failure_reclaim.rs），生产读取面为
   /// [`Self::local_addr`] 与 accept 循环，非公共 API 契约
   #[doc(hidden)]
@@ -125,8 +124,6 @@ pub struct GarnetServer<P: SessionProviderFace + 'static> {
   tcp_addrs: Mutex<Vec<SocketAddr>>,
   /// 网络缓冲池
   buffer_pool: Arc<LimitedFixedBufferPool>,
-  /// 慢客户端最大在途发送数
-  network_send_throttle_max: usize,
   /// 最大并发网络连接数（-1 = 不限；C# 经 GarnetServer.cs:294 传入
   /// GarnetServerTcp 的 networkConnectionLimit，accept 成功分支计量拒绝）
   network_connection_limit: i64,
@@ -166,7 +163,6 @@ struct AcceptContext<P: SessionProviderFace> {
   id_gen: Arc<AtomicU64>,
   provider: Arc<P>,
   pool: Arc<LimitedFixedBufferPool>,
-  throttle_max: usize,
   /// 在途连接容量门（-1 = 不限；C# networkConnectionLimit）
   conn_limit: i64,
   #[cfg(feature = "tls")]
@@ -191,7 +187,6 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
   pub fn new(
     endpoints: &[String],
     network_buffer_size: usize,
-    network_send_throttle_max: usize,
     session_provider: Arc<P>,
   ) -> crate::Result<Self> {
     let mut parsed_endpoints: Vec<ServerEndpoint> = Vec::new();
@@ -208,7 +203,6 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
       endpoints: parsed_endpoints,
       tcp_addrs: Mutex::new(Vec::new()),
       buffer_pool,
-      network_send_throttle_max: network_send_throttle_max.max(1),
       network_connection_limit: -1,
       shutdown_coordinator: ShutdownCoordinator::new(),
       session_provider,
@@ -253,7 +247,7 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
 
   /// 存活 worker 线程句柄计数
   ///
-  /// [`doc(hidden)`] 测试专用隐藏面：start 失败臂资源回收断言的观测口
+  /// `doc(hidden)` 测试专用隐藏面：start 失败臂资源回收断言的观测口
   /// （wnode/tests/server_start_failure_reclaim.rs——start 返回 Err 后
   /// 幽灵 worker 必须清零），生产读取面为 [`Self::stop`] 的收场排纵，
   /// 非公共 API 契约
@@ -292,7 +286,7 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
   /// 异步关停服务器并执行 AOF 刷盘收口（停机尾唯一收口单点）
   ///
   /// 先执行 [`Self::stop`] 关停网络监听、排空活跃连接并释放运行时资源，
-  /// 若存在 AOF 则执行 [`GarnetAppendOnlyFile::dispose_async`] 确保环形缓冲区未提交帧全部落盘。
+  /// 若存在 AOF 则执行 [`crate::aof::garnet_append_only_file::GarnetAppendOnlyFile::dispose_async`] 确保环形缓冲区未提交帧全部落盘。
   ///
   /// 对位 C# GarnetServer 的 InternalDispose 私有臂（C# 侧无 DisposeAsync 同名件，
   /// 私有件不挂锚；同步壳的 C# 同名锚留 [`Self::dispose`] 一处）
@@ -361,7 +355,7 @@ pub(crate) const TLS_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
 /// tls_cert_refresh_freq 注入定时刷新旋钮（Options.cs:330
 /// CertificateRefreshFrequency）
 ///
-/// [`doc(hidden)`] 测试专用隐藏面：证书对 + UDS 组合三臂锁测
+/// `doc(hidden)` 测试专用隐藏面：证书对 + UDS 组合三臂锁测
 ///（wnode/tests/server_start_failure_reclaim.rs 的 tls 特性臂），生产调用点
 /// 为 boot 装配段单点，非公共 API 契约
 #[doc(hidden)]
@@ -397,7 +391,7 @@ pub fn tls_config_from_node(node: &NodeArgs) -> crate::Result<Option<ServerTlsCo
 
 /// 未启用 TLS 特性时的启动门禁：检测到任何 TLS 相关配置参数即显式报错拒绝启动，严禁静默降级为明文
 ///
-/// [`doc(hidden)`] 测试专用隐藏面：TLS 参数拒启四臂锁测
+/// `doc(hidden)` 测试专用隐藏面：TLS 参数拒启四臂锁测
 ///（wnode/tests/server_start_failure_reclaim.rs），生产调用点为
 /// `new` 装配段单点，非公共 API 契约
 #[doc(hidden)]
@@ -420,7 +414,7 @@ const MONITOR_TASK: &str = "server_monitor";
 ///
 /// libs/server/Metrics/GarnetServerMonitor.cs:Start（宿主启动序列
 /// StoreWrapper.Start() → monitor?.Start()，频率 > 0 才拉起后台采样任务）。
-/// 监视器本体已由 [`install_server_monitor`] 进程级安装（dispose 归并直取），
+/// 监视器本体已由 `install_server_monitor` 进程级安装（dispose 归并直取），
 /// 停机协调器充当 C# CancellationToken——stop 即取消采样循环。
 ///
 /// 供装配期宿主调用；对本 crate 集成测试开放拉起入口（监督接线验证，与

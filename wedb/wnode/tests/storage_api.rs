@@ -371,7 +371,7 @@ async fn test_storage_session_advanced_contract_apis() -> aok::Void {
   let ss = storage_session(&session);
 
   // 未附着 wkv 会话一致读态：普通会话形态
-  assert!(!ss.batch.is_consistent_read_session());
+  assert!(!ss.batch.read_session_state().is_some());
   Ok(())
 }
 

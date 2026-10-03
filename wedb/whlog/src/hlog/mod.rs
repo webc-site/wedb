@@ -761,7 +761,7 @@ impl<D: Device> HybridLog<D> {
   ///
   /// 单记录硬上限边界：记录不可跨页，对齐尺寸（含头与填充）超过页容量即在
   /// 写侧拒为 [`Error::RecordTooLarge`]，页容量因此就是单条记录（含对象信封
-  /// 整包内联，见 wkv KeyTag::ObjectEnvelope 与 config.rs 页钳制 [64KB,16MB]）
+  /// 整包内联，见 wkv KeyTag::ObjectEnvelope 与 config.rs 页钳制 \[64KB,16MB\]）
   /// 的容量上限；本版本 C# 无跨页 oversized 路径，对位
   /// libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs:TryAllocate
   /// 的 "Entry does not fit on page" 硬抛，两侧行为一致。
@@ -795,7 +795,7 @@ impl<D: Device> HybridLog<D> {
   /// 共用 record_size 单一公式，只读无副作用）
   ///
   /// 集合信封升阶容量门消费：页容量随内存预算收缩（wkv
-  /// `from_memory_budget_with_keys` 按 budget/64 钳制 [64KB,16MB]），低于升阶
+  /// `from_memory_budget_with_keys` 按 budget/64 钳制 \[64KB,16MB\]），低于升阶
   /// 内存阈（wcol::TIERED_PROMOTE_BYTES = 4MB）的配置下，未达升阶阈的中间信封
   /// 会先撞页上限（写侧 [`Error::RecordTooLarge`]），调用方据此改走既有升阶臂
   ///（wbftree 树按成员逐条入表，无单记录上限）

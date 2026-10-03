@@ -532,7 +532,7 @@ fn vector_set_nsdb_isolation_across_dbs() {
 ///（C# 每库独立日志物理截断的 rust 复合键回收对偶，清库语义不架空）。
 ///
 /// 域口径：wkv 清库为 O(1) 换号，逻辑 db1 在清库前后指向两个物理域，
-/// 断言分别取清库前死域与清库后活域（`store.vdb.get_virtual_ids` 解析），
+/// 断言分别取清库前死域与清库后活域（`store.vdb.get_virtual_ids_with_created` 解析），
 /// 死域整域清零即回收实证，重建键只允许落活域。
 #[test]
 fn vector_set_flushdb_registry_reclaim() {
@@ -556,7 +556,7 @@ fn vector_set_flushdb_registry_reclaim() {
     create_vectorset(&rt, &mut c, b"vs_b");
 
     // 清库前逻辑 db1 的物理域：登记条目正落于此域
-    let (dead_vns, dead_vdb) = store.vdb.get_virtual_ids(0, 1);
+    let (dead_vns, dead_vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 1);
     let dead = SessionPrefixBuf::new(dead_vns, dead_vdb);
     assert!(
       vm.read_stored_index(dead.as_slice(), b"vs_b").is_some(),
@@ -578,7 +578,7 @@ fn vector_set_flushdb_registry_reclaim() {
       roundtrip(&rt, &mut c, &encode_frame(&[b"FLUSHDB"])),
       b"+OK\r\n"
     );
-    let (live_vns, live_vdb) = store.vdb.get_virtual_ids(0, 1);
+    let (live_vns, live_vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 1);
     let live = SessionPrefixBuf::new(live_vns, live_vdb);
     assert_ne!(
       (live_vns, live_vdb),

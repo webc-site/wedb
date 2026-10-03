@@ -316,7 +316,10 @@ fn restore_pending_resume_fault_compensates_fast_arm_value() {
     &[KEY, EXPIRE_SECONDS, &payload],
     TtlResume::Pending(TtlLeg {
       ticks,
-      domain: _store.vdb.get_virtual_ids(0, 0),
+      domain: {
+        let (vns, vdb, ..) = _store.vdb.get_virtual_ids_with_created(0, 0);
+        (vns, vdb)
+      },
     }),
   );
   assert_eq!(

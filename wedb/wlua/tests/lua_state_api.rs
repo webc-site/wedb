@@ -34,7 +34,7 @@ fn load_and_pcall() {
   let mut state = LuaState::new();
   // 返回两个值。
   state.load_string("return 1, 'x'").unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.get_top(), 2);
   assert_eq!(state.check_number(-2), Some(1.0));
   assert_eq!(state.type_name(-1), Some("string"));
@@ -42,7 +42,7 @@ fn load_and_pcall() {
 
   // 运行错误 → 错误串压栈 + 状态非 OK（C# LuaStatus.ErrRun 语义）。
   state.load_string("error('boom')").unwrap();
-  assert!(state.pcall(0).is_err());
+  assert!(state.pcall_n(0, usize::MAX).is_err());
   assert_eq!(state.get_top(), 1);
   // Luau 的错误串可能带位置前缀，仅校验包含错误消息。
   assert!(String::from_utf8_lossy(&state.known_string_to_buffer(-1).unwrap()).contains("boom"));
@@ -268,12 +268,12 @@ fn allocator_quota_stops_runaway_script() {
   state
     .load_string("local t = {} for i = 1, 100000 do t[i] = ('x'):rep(64) end")
     .unwrap();
-  let err = state.pcall(0).unwrap_err();
+  let err = state.pcall_n(0, usize::MAX).unwrap_err();
   assert!(matches!(err, Error::Runtime(_)), "配额拒绝应折算为运行错误");
   state.clear_stack();
   // 配额内小脚本照常执行。
   state.load_string("return 'ok'").unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.known_string_to_buffer(-1).unwrap(), b"ok");
 }
 
@@ -296,7 +296,7 @@ fn host_fn_and_panic_containment() {
   );
 
   state.load_string("return garnet_add(2, 3)").unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.check_number(-1), Some(5.0));
   state.clear_stack();
 
@@ -307,7 +307,7 @@ fn host_fn_and_panic_containment() {
     })
   );
   state.load_string("return garnet_boom()").unwrap();
-  let err = state.pcall(0).unwrap_err();
+  let err = state.pcall_n(0, usize::MAX).unwrap_err();
   assert!(
     err
       .to_string()

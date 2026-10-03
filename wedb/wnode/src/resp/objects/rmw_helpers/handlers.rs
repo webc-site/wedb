@@ -91,7 +91,7 @@ pub struct SyncRmwHandlers<Obj, Op, RunOp, ShouldWrite> {
   pub serialize: fn(&Obj) -> Vec<u8>,
   pub run_op: RunOp,
   pub should_write: ShouldWrite,
-  /// Missing 短路钩子（对位 [`slow_load_eval`] 的 `on_missing` 形制）：`Some`
+  /// Missing 短路钩子（对位 `slow_load_eval` 的 `on_missing` 形制）：`Some`
   /// 且装载为 Missing 时直出常量帧、跳过 `default_obj`+`run_op` 求值与写回
   /// 判定——C# NOTFOUND 恒常量帧形（如 HashCommands.cs:148/:513 空数组），
   /// 杜绝空对象求值在 RESP3 出 `%0` 与 C# `*0` 分叉；缺省 `None` 维持

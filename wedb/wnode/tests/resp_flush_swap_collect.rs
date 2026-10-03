@@ -228,7 +228,7 @@ fn flushall_ns0_session_active_db_consistency() {
   // 2. active_db 仍保持 2，且 active_vdb 必须已重新映射为清库后新分配的虚库号
   assert_eq!(api.session.active_db(), 2);
   let new_vdb = api.session.active_vdb.load(Ordering::Relaxed);
-  let (expected_vns, expected_vdb) = store.vdb.get_virtual_ids(0, 2);
+  let (expected_vns, expected_vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 2);
   assert_eq!(api.session.active_vns.load(Ordering::Relaxed), expected_vns);
   assert_eq!(
     new_vdb, expected_vdb,
@@ -272,7 +272,7 @@ fn flushall_ns0_session_active_db_consistency() {
     gen_after,
     "db 0 下 FLUSHALL 后会话代数同样同步至全局最新代数"
   );
-  let (vns_0, vdb_0) = store.vdb.get_virtual_ids(0, 0);
+  let (vns_0, vdb_0, ..) = store.vdb.get_virtual_ids_with_created(0, 0);
   assert_eq!(api.session.active_vns.load(Ordering::Relaxed), vns_0);
   assert_eq!(api.session.active_vdb.load(Ordering::Relaxed), vdb_0);
 }

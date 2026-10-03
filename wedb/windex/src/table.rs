@@ -70,11 +70,4 @@ impl HashIndex {
   pub fn bucket_index_for_hash(&self, hash: u64) -> usize {
     (hash as usize) & self.mask
   }
-
-  /// 计算键对应的主桶索引下标
-  #[inline]
-  pub fn bucket_index_for_key(&self, key: &[u8]) -> usize {
-    let hash = Self::hash_key(key);
-    (hash as usize) & self.mask
-  }
 }

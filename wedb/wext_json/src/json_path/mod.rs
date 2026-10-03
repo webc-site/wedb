@@ -8,6 +8,9 @@ mod expression;
 mod filter;
 mod parser;
 mod path;
+mod path_delete;
+mod path_mutate;
+mod path_scan;
 
 pub use expression::QueryExpression;
 pub(crate) use expression::val_from_f64;

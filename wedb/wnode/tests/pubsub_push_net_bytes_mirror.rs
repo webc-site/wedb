@@ -43,13 +43,8 @@ fn spawn_server() -> (
     StorageSessionProvider::open_with_config(test_store_config(), data_path, factory).unwrap(),
   );
   let registry = Arc::clone(&provider.registry);
-  let server = GarnetServer::new(
-    &["127.0.0.1:0".to_string()],
-    DEFAULT_BUFFER_SIZE,
-    8,
-    provider,
-  )
-  .unwrap();
+  let server =
+    GarnetServer::new(&["127.0.0.1:0".to_string()], DEFAULT_BUFFER_SIZE, provider).unwrap();
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap();
   // dir 随句柄存活至测试结束（服务器全生命周期数据文件在场）

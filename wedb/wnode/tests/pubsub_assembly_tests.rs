@@ -27,8 +27,7 @@ fn spawn_default_server() -> (GarnetServer<StorageSessionProvider<SessionFactory
     StorageSessionProvider::open_with_config(test_store_config(), data_path, factory).unwrap();
   // 默认装配断言：pubsub 中枢在场（C# DisablePubSub = false 默认启用）
   assert!(provider.pubsub.is_some(), "默认装配必须启用发布订阅中枢");
-  let server =
-    GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, Arc::new(provider)).unwrap();
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, Arc::new(provider)).unwrap();
   server.start(NonZeroUsize::new(1)).unwrap();
   let addr = server.local_addr().unwrap().to_string();
   // dir 随句柄存活至测试结束（服务器全生命周期数据文件在场）

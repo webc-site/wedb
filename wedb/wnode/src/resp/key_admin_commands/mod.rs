@@ -2,9 +2,10 @@
 //!
 //! 目录化拆分：
 //! - [`keys`]：KEYS, RENAME, RENAMENX, EXPIRE, TTL 键名操作与生存期管理
-//! - [`types`]：EXISTS, TYPE, DUMP, RESTORE, OBJECT 类型判定与对象原语
+//!   （子域 keys/rename 搬移、keys/delete 取删、keys/expire 生存期与 EXISTS 计数）
+//! - [`types`]：DUMP, RESTORE 类型判定与序列化载荷
 //!
-//! SCAN / DBSIZE 在 resp/array_commands.rs（C# ArrayCommands.cs 同域）；
+//! SCAN / DBSIZE 在 resp/array_commands/（C# ArrayCommands.cs 同域）；
 //! RANDOMKEY 两侧一致无（C# 全仓无此命令），不实现。
 
 // ============ 族内错误收尾宏单源（keys / types 子域共用，须先于 mod 声明定义；

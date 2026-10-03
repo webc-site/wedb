@@ -64,7 +64,7 @@ fn test_no_second_hex_id_generator_in_repo() {
     "cluster_manager::create_hex_id 必须转调 generate_hex_id()"
   );
 
-  let wmetric_src = include_str!("../../wmetric/src/info/garnet_info_metrics.rs");
+  let wmetric_src = include_str!("../../wmetric/src/info/garnet_info_metrics/tables.rs");
   assert!(
     !wmetric_src.contains("generate_default_hex_id"),
     "wmetric 不得保留 generate_default_hex_id 计数器 xorshift 实现"

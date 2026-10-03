@@ -2,7 +2,7 @@
 //! （task/ing/wnode-exec-replay-suspend-abandon-txnstart-group-residue）
 //!
 //! 缺陷：rust 泵把 EXEC 重放段（[`wtxn::TxnState::Running`] 直通）中命令的挂起
-//! 交 `probe_race` 三臂竞速驱动（wnode/src/net/handler/drive.rs 阻塞/慢/脚本臂），
+//! 交 `probe_race` 三臂竞速驱动（wnode/src/net/handler/drive/race.rs 阻塞/慢/脚本臂），
 //! 终止广播（CLIENT KILL / 停机令牌）或对端 FIN/RST 胜出即 `RaceEnd::Disposed`
 //! 丢弃执行体、重放中途废弃——尾帧 EXEC 不再被消费，`finish_run_postlock` 已落
 //! 的 TxnStart 成孤儿残组：恢复/副本侧 `AofReplayCoordinator` 对无终结符的
@@ -301,7 +301,7 @@ fn client_kill_during_exec_replay_delivers_txn_abort_terminator() {
       "预置：挂起重放段持本事务全部键的 scoped 桶闩（挂起窗=持闩窗）"
     );
 
-    // CLIENT KILL：终止广播胜出泵阻塞臂（drive.rs probe_race → RaceEnd::Disposed）
+    // CLIENT KILL：终止广播胜出泵阻塞臂（drive/race.rs probe_race → RaceEnd::Disposed）
     let mut killer = TcpStream::connect(addr).await.expect("connect killer");
     let victim_addr = victim.local_addr().expect("victim addr").to_string();
     send_cmd(
@@ -405,7 +405,7 @@ fn abandoned_group_recovery_discards_it_and_keeps_later_group() {
     .expect("send abandoning batch");
 
     // 触发废弃：CLIENT KILL 断开挂起重放段连接——终止广播胜出泵阻塞臂竞速
-    // （drive.rs probe_race → RaceEnd::Disposed）即时收口，废弃终结符落 AOF
+    // （drive/race.rs probe_race → RaceEnd::Disposed）即时收口，废弃终结符落 AOF
     let mut killer = TcpStream::connect(addr).await.expect("connect killer");
     let victim_addr = victim.local_addr().expect("victim addr").to_string();
     send_cmd(

@@ -3,9 +3,9 @@
 //!
 //! 对标 Garnet 的单一 AOF 机制：写入端统一经 [`crate::aof::garnet_log::GarnetLog::enqueue`]
 //! （唯一条目编码定义），重放端统一经 [`AofProcessor`]（唯一重放分发），
-//! 磁盘承载为 [`WaofSublog`]（waof `WalLog` 的 GarnetLog 后端适配），
+//! 磁盘承载为 [`crate::aof::waof_sublog::WaofSublog`]（waof `WalLog` 的 GarnetLog 后端适配），
 //! 域装配唯一入口 [`single_log_aof`]（库管理面与数据写入面共享同一物理
-//! 日志实例）。协议载荷为 [`ReplayInput`]（C# StringInput 的
+//! 日志实例）。协议载荷为 [`crate::aof::replay_input::ReplayInput`]（C# StringInput 的
 //! 序列化形态），apply → log 顺序由 wkv 写监听端口固化，条目 store_version
 //! 取写入时存储版本（checkpoint token，重放端跳过低版本条目）。
 

@@ -4,8 +4,8 @@
 //! - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicationSyncManager.cs
 //! - libs/cluster/Server/Replication/PrimaryOps/ReplicaSyncSessionTaskStore.cs
 //!
-//! 会话册子（C# [`ReplicaSyncSessionTaskStore`] 的 diskless 承接面
-//! [`ReplicationSyncManager.GetSessionStore`]）持本批会话数组与 NumSessions，
+//! 会话册子（C# `ReplicaSyncSessionTaskStore` 的 diskless 承接面
+//! `ReplicationSyncManager.GetSessionStore`）持本批会话数组与 NumSessions，
 //! 首入册会话为 leader（C# IsFirst）；syncInProgress 读写锁收敛为册子原子的
 //! `sync_in_progress` 标志：批量开窗（begin_sync_batch）后新 attach 入册拒绝
 //! （C# 读锁排队失败 → RESP_ERR_CREATE_SYNC_SESSION_ERROR 同位语义）。

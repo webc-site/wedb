@@ -1,8 +1,14 @@
 //! 客户端会话层（对标 C# Garnet Tsavorite cs/src/core/ClientSession/ClientSession.cs）
 //!
-//! 三层拆分（纯移动，行为语义不变）：
-//! - `mod.rs`：会话核心——StoreSession/BatchStoreSession 定义、纪元参与者生命周期、
-//!   context（ns/db）管理与 enter_batch（对标 ClientSession 与 IUnsafeContext/UnsafeContext）；
+//! 拆分（纯移动，行为语义不变）：
+//! - `mod.rs`：会话核心——StoreSession 定义、纪元参与者生命周期、
+//!   context（ns/db）管理与 enter_batch（对标 ClientSession 的会话主体）；
+//! - [`batch`]：批处理会话上下文 BatchStoreSession（对标 IUnsafeContext 与
+//!   UnsafeContext 的批量快路径面）；
+//! - [`hooks`]：引擎实例级钩子族（WatchHook/DeleteMissHook/EngineHookSlots 与
+//!   WATCH 版本写面收口，对标 Tsavorite Allocator 单委托字段与 Garnet
+//!   记录触发器挂点）；
+//! - [`dbmeta`]：DbMeta 换号记录持久化批（doc/zh/db.md「即时原子提交」写面单点）；
 //! - [`raw`]：纯引擎 KV 面——一切 `*_raw` 物理键操作、unprotected 变体与批量读
 //!   （对标 ClientSession 的 Upsert/Read/Delete 快慢路径）；
 //! - [`keys`]：键编码域——会话前缀物理键纯函数（对标 C# StorageSession 的键编码）；
@@ -11,34 +17,32 @@
 
 use std::ptr::eq;
 
-use crate::{
-  error,
-  session::consistent_read::single_key_around,
-  vdb::{DbMetaRecord, ROOT_DBMETA_PREFIX},
-};
+use crate::vdb::DbMetaRecord;
+mod batch;
 mod collection;
 pub mod consistent_read;
+mod dbmeta;
+mod hooks;
 mod keys;
 mod raw;
 mod rmw_window;
 mod swap;
 mod vector_cleanup;
 
-use std::{
-  future::Future,
-  ops::Deref,
-  pin::Pin,
-  result::Result as StdResult,
-  sync::{
-    Arc,
-    atomic::{
-      AtomicBool, AtomicU64,
-      Ordering::{Acquire, Relaxed},
-    },
+use std::sync::{
+  Arc,
+  atomic::{
+    AtomicBool, AtomicU64,
+    Ordering::{Acquire, Relaxed},
   },
 };
 
+pub use batch::BatchStoreSession;
 pub use consistent_read::{ConsistentReadContext, ConsistentReadFunctions};
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub use hooks::TEST_COLD_WINDOW_HOOK;
+pub use hooks::{DeleteMissHook, EngineHookSlots, WatchHook};
 use parking_lot::Mutex;
 pub(crate) use raw::CopyToTailOutcome;
 pub use raw::{
@@ -50,161 +54,13 @@ pub use rmw_window::{
   RMW_KEY_LATCH_ATTEMPTS, RMW_PLAN_ACQUIRE_MISS, RMW_PLAN_BUILD_COUNT, RMW_PLAN_PINNED_INDEX,
   RmwWindow, SessionLocking,
 };
-use smallvec::SmallVec;
 #[doc(hidden)]
 pub use vector_cleanup::{CONTEXT_TERM_MASK, matches_vector_context};
 use wdev::Device;
-use wepoch::{EpochGuard, EpochSuspendGuard, Participant};
-use wval::{KeyTag, SessionPrefixBuf};
+use wepoch::{EpochGuard, Participant};
+use wval::SessionPrefixBuf;
 
-use crate::{
-  error::Result,
-  store::{ObjectRmwNotification, TieredCollectionNotification, WedbStore},
-};
-
-/// set_context 冷检窗口测试留钩（一次性）：严格冷检通过后、虚 ID 解析前的
-/// 间隙内回调，供「GC 空闲析构与 set_context 交错」定向用例放大竞态窗口。
-/// 生产路径恒 None，仅一次无争锁读；业务代码禁止触碰
-#[cfg(debug_assertions)]
-#[doc(hidden)]
-pub static TEST_COLD_WINDOW_HOOK: Mutex<Option<Box<dyn FnOnce() + Send>>> = Mutex::new(None);
-
-/// WATCH 推进委托（对位 C# Tsavorite 单委托字段 Allocator/WorkQueueLIFO.cs:17
-/// `readonly Action<T> work`：wkv 不得依赖 wnode，故以 `Arc<dyn Fn>` 承接同一
-/// 抽象度，Send/Sync/Drop 皆由 std 保证，不自立虚表）。
-/// 入参 `(会话逻辑前缀, 用户键)`——版本轨=逻辑域种子（双轨分置：锁轨=物理
-/// 域种子，见 [`StoreSession::session_prefix`] 与 wtxn 锁登记面，禁共口互染）：
-/// C# 版本表按库实例物理隔离（libs/server/GarnetDatabase.cs:156 每库独持
-/// WatchVersionMap），rust 共享单表形态下键身份必须自带归属维度
-/// （doc/zh/db.md 前缀刚性隔离）；该归属维度取**逻辑域**而非换号物理域——
-/// FLUSHDB/FLUSHNS/SWAPDB 换号只换代物理路由、不改逻辑身份，逻辑种子令换号
-/// 前后同逻辑键恒落同槽，对在途 WATCH 复现 C#「改后写必命中同槽必 abort」。
-/// 与 [`DeleteMissHook`] 同形双参，杜绝第二套擦除代码
-type WatchFn = Arc<dyn Fn(&[u8], &[u8]) + Send + Sync>;
-
-/// WATCH 版本推进钩子（收 (会话逻辑前缀, 用户键)——版本轨种子域，宿主上下文
-/// 类型由 std 闭包对象擦除，擦除形态见 [`WatchFn`]）
-///
-/// 对标 C# functionsState.watchVersionMap（libs/server/Transaction/
-/// WatchVersionMap.cs）与存储 functions 面的共享装配：每个写面在完成实际
-/// 写入后回调一次（MainStore/UnifiedStore/ObjectStore 三套 UpsertMethods/
-/// RMWMethods/DeleteMethods 的 InPlaceUpdater/PostInitialWriter/
-/// InitialUpdater/InitialDeleter/PostCopyUpdater 挂点语义）
-pub struct WatchHook(WatchFn);
-
-impl WatchHook {
-  /// 由任意线程安全上下文及静态处理函数构造分发器
-  pub fn new<T: Send + Sync + 'static>(ctx: Arc<T>, handler: fn(&T, &[u8], &[u8])) -> Self {
-    Self(Arc::new(move |prefix: &[u8], key: &[u8]| {
-      handler(&ctx, prefix, key)
-    }))
-  }
-
-  /// 统一调用推进版本（前缀 = 会话逻辑归属域即版本轨种子域，与
-  /// [`Self::new`] 处理器同口径）
-  #[inline(always)]
-  pub fn call(&self, prefix: &[u8], key: &[u8]) {
-    (self.0)(prefix, key);
-  }
-}
-
-/// 用户键删除缺席观测委托（对位 C# Tsavorite 双参单委托字段
-/// Allocator/AllocatorBase.cs:261 `Action<long, long> EvictCallback`）
-///
-/// 异步形态（手动装箱，dyn 面不可用 RPITIT）：宿主观测臂的登记摘除为真
-/// 异步写透（冷区臂 `.await` 引擎异步口，无内联收割），故委托回装箱
-/// future；`Send` 约束与全仓回调契约同型——compio thread-per-core 下
-/// future 只在其所属任务线程上 poll，宿主会话引用经通行证自持，纯为
-/// 类型级要求。
-type DeleteMissFn = Arc<
-  dyn for<'a> Fn(&'a [u8], &'a [u8]) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>
-    + Send
-    + Sync,
->;
-
-/// 用户键删除缺席观测钩子（收 (会话前缀, 用户键)；宿主上下文类型由 std
-/// 闭包对象擦除，与 [`WatchHook`] 同一形态、零第二套擦除代码）
-///
-/// 对标 C# 记录触发器 libs/server/Storage/Functions/GarnetRecordTriggers.cs:OnDispose
-/// 的 `DisposeReason.Deleted` 臂：宿主把值域外的键存在态（如向量集登记表）单列于
-/// 引擎之外，引擎用户键删除双域（String/ObjectEnvelope）判未命中时回调本钩子收口，
-/// 命中即视同删除成功（计数与墓碑口径随存储删除单点统一，RESP 各臂不再各配第二套
-/// 清退判据）。`false` = 宿主域亦无此键（缺席删除维持原口径）
-pub struct DeleteMissHook(DeleteMissFn);
-
-impl DeleteMissHook {
-  /// 由任意闭包构造分发器（闭包返回装箱
-  /// future，借用 `prefix`/`key` 切片：生命周期由调用方 await 点框定；
-  /// 宿主上下文若需持有状态须自行克隆所有权移入闭包）
-  pub fn new<F>(handler: F) -> Self
-  where
-    F: for<'a> Fn(&'a [u8], &'a [u8]) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>>
-      + Send
-      + Sync
-      + 'static,
-  {
-    Self(Arc::new(handler))
-  }
-
-  /// 统一调用缺席观测：返回宿主域是否实际摘除此键（真异步，调用方
-  /// `.await` 闭环；同步快删路径见 `try_delete_sync` 的降级约定。
-  /// 返回 future 借用 `prefix`/`key` 切片，不借用 self）
-  #[inline(always)]
-  pub fn call<'a>(
-    &self,
-    prefix: &'a [u8],
-    key: &'a [u8],
-  ) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
-    (self.0)(prefix, key)
-  }
-}
-
-/// 引擎实例级 OnceLock 钩子在位快照（换引擎「引擎可见即钩子在场」不变量的
-/// 全枚举承载，工单 zcode-r137c-snaplock2 宗一治理臂）：引擎实例级钩子族以
-/// 本结构字段全集承载——宿主钩子束（`wnode` engine_swap_hook_bundle）对换入
-/// 引擎逐件重挂，`wedb` 置换锁测逐字段断言在位。**新增引擎实例级 OnceLock
-/// 钩必须同步扩本枚举**，否则锁测逐字段断言即红，杜绝第四钩再漏。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EngineHookSlots {
-  /// WATCH 版本推进钩子（[`WedbStore::set_watch_hook`]）
-  pub watch_hook: bool,
-  /// 统一存储事件处理器（[`WedbStore::set_event_sink`]，wkv store/event.rs）
-  pub event_sink: bool,
-  /// 用户键删除缺席观测钩子（[`WedbStore::set_delete_miss_hook`]）
-  pub delete_miss_hook: bool,
-}
-
-impl<D: Device> WedbStore<D> {
-  /// 注入 WATCH 版本推进钩子（装配期一次性调用；重复注入返回 false）
-  pub fn set_watch_hook(&self, hook: WatchHook) -> bool {
-    self.watch_hook.set(hook).is_ok()
-  }
-
-  /// 注入用户键删除缺席观测钩子（装配期一次性调用；重复注入返回 false）
-  pub fn set_delete_miss_hook(&self, hook: DeleteMissHook) -> bool {
-    self.delete_miss_hook.set(hook).is_ok()
-  }
-
-  /// 用户键删除缺席观测钩子只读取口（重放端 store_delete String 臂的登记
-  /// 缺席收口承接：物理删除未命中即宿主值域外登记态观测，与在线 DEL 共用
-  /// 同一钩子单点，杜绝第二套登记摘除分派形态）
-  pub fn delete_miss_hook_of(&self) -> Option<&DeleteMissHook> {
-    self.delete_miss_hook.get()
-  }
-
-  /// 引擎实例级钩子三件的在位现态只读枚举（见 [`EngineHookSlots`] 治理契约；
-  /// 数据面零消费，仅宿主换面断言与观测使用）
-  ///
-  /// 测试握手:仅 wedb tests 换面断言消费,生产零调用
-  #[doc(hidden)]
-  pub fn engine_hook_slots(&self) -> EngineHookSlots {
-    EngineHookSlots {
-      watch_hook: self.watch_hook.get().is_some(),
-      event_sink: self.event_sink.get().is_some(),
-      delete_miss_hook: self.delete_miss_hook.get().is_some(),
-    }
-  }
-}
+use crate::{error::Result, store::WedbStore};
 
 /// 客户端并发会话句柄（绑定一个 LightEpoch 参与者）
 ///
@@ -304,84 +160,6 @@ impl<D: Device> StoreSession<D> {
     self
   }
 
-  /// 附着副本一致读会话状态机（装配期一次性调用；对标 C#
-  /// NewSession(functions, isConsistentReadSession) 形态——ConsistentReadContext
-  /// 由附着态派生，读漏斗按附着态自动触发协议，调用点零 Option 传染）
-  pub fn with_read_session_state(
-    mut self,
-    state: Option<Arc<dyn ConsistentReadFunctions>>,
-  ) -> Self {
-    self.read_session_state = state;
-    self
-  }
-
-  /// 一致读会话附着态访问口（None = 未附着，读路径直通）
-  #[inline]
-  pub fn read_session_state(&self) -> Option<&Arc<dyn ConsistentReadFunctions>> {
-    self.read_session_state.as_ref()
-  }
-
-  /// 是否为一致读会话（对标 C# StorageSession.IsConsistentReadSession）
-  #[inline]
-  pub fn is_consistent_read_session(&self) -> bool {
-    self.read_session_state.is_some()
-  }
-
-  /// 一致读单键协议触发内核（一处定义）：pre 在读前（超时上抛中止），post 在读后
-  /// 推进；未附着零开销直通（读漏斗单点触发面，对标 C# 一致读会话的
-  /// PreSingleKeyConsistentRead/PostSingleKeyConsistentReadCallback 序列）。
-  /// C# 四套 SessionFunctions（Main/Object/Unified/Vector）各自实现的转调壳在
-  /// rust 单轨会话下折叠为本漏斗，四处映射一次挂准：
-  /// libs/server/Storage/Functions/MainStore/MainSessionFunctions.cs:PreSingleKeyConsistentRead
-  /// libs/server/Storage/Functions/ObjectStore/ObjectSessionFunctions.cs:PreSingleKeyConsistentRead
-  /// libs/server/Storage/Functions/UnifiedStore/UnifiedSessionFunctions.cs:PreSingleKeyConsistentRead
-  /// libs/server/Storage/Functions/VectorStore/VectorSessionFunctions.cs:PreSingleKeyConsistentRead
-  /// 多标签/多探重复触发为良性：post 单调推进，语义仍是「不超过读取时刻的
-  /// 前缀上界」。触发哈希经 `hash` 惰性求值，未附着会话连记录物理键编码都不做
-  #[inline(always)]
-  fn consistent_read_single_key<R>(
-    &self,
-    hash: impl FnOnce() -> i64,
-    f: impl FnOnce() -> R,
-  ) -> error::Result<R> {
-    match self.read_session_state() {
-      Some(fns) => single_key_around(fns.as_ref(), hash(), f),
-      None => Ok(f()),
-    }
-  }
-
-  /// 附着态一致读单键协议触发：前缀取自本会话活跃域
-  ///
-  /// `tag` 为本次读取触碰的记录域，触发哈希经
-  /// [`StoreSession::consistent_read_hash`] 单点取记录物理键域（与回放侧草图
-  /// 入账键同键同哈希）
-  #[inline]
-  pub fn with_session_consistent_read<R>(
-    &self,
-    user_key: &[u8],
-    tag: KeyTag,
-    f: impl FnOnce() -> R,
-  ) -> error::Result<R> {
-    self.consistent_read_single_key(|| self.consistent_read_hash(tag, user_key), f)
-  }
-
-  /// 显式前缀附着态一致读单键协议触发（循环前缀外提对位，语义与
-  /// [`Self::with_session_consistent_read`] 全等；rust 工程优化无 c# 对应：
-  /// 批量命令循环单次外提 `session_prefix()` 消除逐键重读原子变量）
-  #[inline]
-  pub fn with_session_consistent_read_with_prefix<R>(
-    &self,
-    prefix: &[u8],
-    user_key: &[u8],
-    tag: KeyTag,
-    f: impl FnOnce() -> R,
-  ) -> error::Result<R> {
-    self.consistent_read_single_key(
-      || Self::consistent_read_hash_with_prefix(prefix, tag, user_key),
-      f,
-    )
-  }
-
   /// 置位严格上下文态（RESP 连接会话装配期一次性调用）
   ///
   /// 严格态下 [`Self::set_context`] 在映射未装载时拒绝盲分配并返回 false，
@@ -474,7 +252,7 @@ impl<D: Device> StoreSession<D> {
   ///   内置 GC 死域清扫与过期键逐键删除共用该形态）即原样返回直设值，
   ///   零逻辑解析、零虚号分配、零 DbMeta 落盘；
   /// - 否则走逻辑 → 物理解析：代数命中读缓存，落后才经
-  ///   [`VirtualDbManager::get_virtual_ids_with_created`] 刷新缓存槽，命中
+  ///   [`crate::vdb::VirtualDbManager::get_virtual_ids_with_created`] 刷新缓存槽，命中
   ///   新分配即按 set_context 同款 safe-order 组批落 DbMeta 映射（零 await
   ///   同步臂）。
   ///
@@ -550,7 +328,7 @@ impl<D: Device> StoreSession<D> {
   /// 的换号收敛。
   ///
   /// 返回是否完成上下文物化：严格会话遇冷库（ns 在册而库映射未装载且路由
-  /// 表非权威全量，见 [`VirtualDbManager::is_cold_db`]）时返回 false，不改
+  /// 表非权威全量，见 [`crate::vdb::VirtualDbManager::is_cold_db`]）时返回 false，不改
   /// 会话任何状态、不分配不持久化——冷租户既有映射以磁盘 DbMeta 为权威，
   /// 须先经 [`WedbStore::resolve_context`] 点查装载再重放本调用（点查未命中
   /// 即真新库，由解析面创建并持久化）。ns 未在册即全新租户，同步创建零挂起。
@@ -567,7 +345,7 @@ impl<D: Device> StoreSession<D> {
   ///（wnode core.rs `try_switch_active_database_session` 的 `!set_context`
   /// 分叉暂存）同口径，对标 C# `TryGetOrSetDatabaseSession` success 门。
   ///
-  /// 冷检与解析之间的空闲析构窗口封堵：解析前先经 [`VirtualDbManager::bind_route`]
+  /// 冷检与解析之间的空闲析构窗口封堵：解析前先经 [`crate::vdb::VirtualDbManager::bind_route`]
   /// 钉住租户快照（摘除-回插协议保证持引用期间快照绝不被 GC 摘除），钉住后
   /// 复核冷条件——引用未生效（快照恰在冷检与绑定之间被摘除）或钉到并发回建
   /// 空表时，既有映射仍以磁盘为权威，严格会话同样回退挂起面，绝不盲分配
@@ -829,136 +607,6 @@ impl<D: Device> StoreSession<D> {
   pub fn participant(&self) -> &Participant {
     &self.participant
   }
-
-  /// 创建一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
-  #[inline]
-  pub fn consistent_read<'a, F: ConsistentReadFunctions + ?Sized>(
-    &'a self,
-    functions: &'a F,
-  ) -> ConsistentReadContext<'a, D, F> {
-    ConsistentReadContext::new(self, functions)
-  }
-
-  /// 推进键的 WATCH 版本（写面收口内核，引擎级钩子为空时零开销旁路，内部转发 WatchVersionMap::increment_version）
-  ///
-  /// C# Post RMW 回调族头部的无条件版本推进单点：
-  /// libs/server/Storage/Functions/MainStore/RMWMethods.cs:PostCopyUpdater
-  /// （与 PostInitialUpdater/PostCopyUpdater(Unified) :119 同序——CAS 挂链成功后
-  /// 恰一次 IncrementVersion；RIPROMOTE/向量指针转移臂由 range_index promote
-  /// 与 vector_manager 各自承接，不在本内核射程）
-  ///
-  /// 归属维度收口（双轨分置：版本轨=逻辑域、锁轨=物理域）：本内核单次读取
-  /// [`Self::session_logical_prefix`]（`namespace()`/`active_db()` 逻辑真值的
-  /// 字节投影），连同用户键交钩子——版本表槽位只随逻辑域定址，不随
-  /// FLUSHDB/FLUSHNS/SWAPDB 换号换代，换号后同逻辑键写入的 bump 与在途
-  /// WATCH 冻结槽恒命中（对位 C# 每库版本表实例终身持有、改后写必命中同槽
-  /// 必 abort，libs/server/GarnetDatabase.cs:156）；跨租户/跨库正交性由逻辑
-  /// ns/db 入种子保持，杜绝 C# 每库独持版本表所不存在的跨租户/跨库串扰面
-  #[inline]
-  pub(crate) fn bump_watch_version(&self, user_key: &[u8]) {
-    if let Some(hook) = self.store.watch_hook.get() {
-      hook.call(self.session_logical_prefix().as_slice(), user_key);
-    }
-  }
-
-  /// DbMeta 换号批同步提交内核（固定根域前缀，批内按 safe-order 单点落盘）
-  ///
-  /// 与 [`Self::persist_dbmeta_batch`] 同键布局；返回需降级异步回放的项下标：
-  /// 首条记录即遭遇环形页翻转（整批零写入落地），或第 k 条翻页（前 k 条已
-  /// 落地），从 k 起其后全部记录一并转异步回放，批内相对顺序与 safe-order
-  /// 一致（绝不让旧下标记录越过降级点先行落盘）。引擎硬错误经 `?` 传播：
-  /// 此前已落地的批前缀不回滚，崩溃前缀语义保证最坏旧域泄漏，绝不复活撞号
-  pub fn try_persist_dbmeta_sync(&self, items: &[Option<DbMetaRecord>]) -> Result<Vec<usize>> {
-    let _guard = self.enter_gated();
-    let mut degraded = Vec::new();
-    for (idx, rec) in items.iter().enumerate() {
-      let Some(rec) = rec else { continue };
-      // 一旦有记录降级，其后记录直接并入回放序列，保持批内落盘顺序
-      if !degraded.is_empty() {
-        degraded.push(idx);
-        continue;
-      }
-      match self.try_upsert_tag_sync_unprotected_with_prefix(
-        ROOT_DBMETA_PREFIX.as_slice(),
-        rec.key().as_slice(),
-        KeyTag::DbMeta,
-        rec.value().as_slice(),
-      )? {
-        Ok(_address) => {}
-        Err(_page_id) => degraded.push(idx),
-      }
-    }
-    Ok(degraded)
-  }
-
-  /// 原子批持久化 DbMeta 换号记录（doc/zh/db.md「即时原子提交」写面单点）
-  ///
-  /// items 顺序即落盘 safe-order（新映射 → 旧域退役墓碑 → 分配水位 0x05），
-  /// 批内不合并不重排。换号事务全程持 [`WedbStore::lock_dbmeta`]，杜绝并发
-  /// 换号事务的记录流交错。同步快路径遇页翻转即降级异步回放，回放逐项 await
-  /// 完成后才向调用方返回，命令应答即含全部记录持久化承诺
-  pub async fn persist_dbmeta_batch(&self, items: &[Option<DbMetaRecord>]) -> Result<()> {
-    let degraded = self.try_persist_dbmeta_sync(items)?;
-    if degraded.is_empty() {
-      return Ok(());
-    }
-    log::warn!(
-      "DbMeta 换号批同步快路径翻页，{} 项降级异步回放",
-      degraded.len()
-    );
-    for idx in degraded {
-      let Some(rec) = items[idx].as_ref() else {
-        continue;
-      };
-      let rec_k = Self::session_tag_key_with_prefix(
-        ROOT_DBMETA_PREFIX.as_slice(),
-        KeyTag::DbMeta,
-        rec.key().as_slice(),
-      );
-      self
-        .upsert_raw(rec_k.as_slice(), rec.value().as_slice())
-        .await?;
-    }
-    Ok(())
-  }
-
-  /// 持久化单条 DbMeta 系统元数据（原子批退化形态，safe-order 仅剩本条）
-  pub async fn persist_dbmeta(&self, rec: &DbMetaRecord) -> Result<()> {
-    self.persist_dbmeta_batch(&[Some(*rec)]).await
-  }
-
-  /// 在 min_tail 或其后持久化单条 DbMeta 系统元数据（跳过原位更新，FLUSHALL 重挂专用）
-  pub async fn persist_dbmeta_tail(&self, rec: &DbMetaRecord, min_tail: u64) -> Result<()> {
-    let rec_k = Self::session_tag_key_with_prefix(
-      ROOT_DBMETA_PREFIX.as_slice(),
-      KeyTag::DbMeta,
-      rec.key().as_slice(),
-    );
-    self
-      .upsert_raw_tail(rec_k.as_slice(), rec.value().as_slice(), min_tail)
-      .await?;
-    Ok(())
-  }
-
-  /// 物理删除 DbMeta 系统元数据（快路径优先同步删除，翻页/等待时自动回退异步删除）
-  ///
-  /// 删除对象固定根域前缀（与 persist 批同布局），不随会话活跃上下文漂移
-  pub async fn delete_dbmeta(&self, key: &[u8]) -> Result<()> {
-    let deleted = {
-      let _guard = self.enter_gated();
-      self.try_delete_tag_sync_unprotected_with_prefix(
-        ROOT_DBMETA_PREFIX.as_slice(),
-        key,
-        KeyTag::DbMeta,
-      )?
-    };
-    if deleted.is_err() {
-      let rec_k =
-        Self::session_tag_key_with_prefix(ROOT_DBMETA_PREFIX.as_slice(), KeyTag::DbMeta, key);
-      self.delete_raw(&rec_k).await?;
-    }
-    Ok(())
-  }
 }
 
 impl<D: Device> Drop for StoreSession<D> {
@@ -1001,360 +649,5 @@ impl<D: Device> SessionSlot<D> {
   /// 归还专用会话
   pub(crate) fn restore(&self, session: StoreSession<D>) {
     *self.slot.lock() = Some(session);
-  }
-}
-
-/// 批处理会话上下文（严格对标 C# Garnet IUnsafeContext 与 UnsafeContext）
-///
-/// 在处理网络流水线（Pipeline）批量命令时，外层仅进入并持有一次纪元保护，
-/// 批处理期间的所有内存直读完全跳过原子 enter/exit，
-/// 将纪元保护开销降至绝对零，极大释放多核高并发吞吐。
-pub struct BatchStoreSession<'a, D: Device> {
-  pub session: &'a StoreSession<D>,
-  _guard: EpochGuard<'a>,
-}
-
-impl<'a, D: Device> Deref for BatchStoreSession<'a, D> {
-  type Target = StoreSession<D>;
-
-  #[inline(always)]
-  fn deref(&self) -> &Self::Target {
-    self.session
-  }
-}
-
-impl<'a, D: Device> BatchStoreSession<'a, D> {
-  /// 挂起本批会话的纪元保护窗口（返回的守卫 Drop 时按原重入深度自动重入）
-  ///
-  /// 对标 C# Tsavorite 长 I/O 临界区的 epoch.UnsafeSuspendThread / ResumeThread
-  /// 协议（libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs 的 OnPagesClosed），
-  /// 与会话内前台驱逐窗口的挂起同一内核 wepoch 的 EpochSuspendGuard，全仓只此一处分发。
-  ///
-  /// C# 上下文层 UnsafeSuspendThread 入口族在本 rust 单点的折叠映射：
-  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs:UnsafeSuspendThread
-  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs:UnsafeSuspendThread
-  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs:UnsafeSuspendThread
-  /// - libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs:UnsafeSuspendThread
-  ///
-  /// 用途：批会话存活期内需要驱动「自带纪元排空屏障」的存储级动作（副本重放
-  /// 检查点臂即其一）时，必须先解除自钉再动手——屏障谓词按全局最旧保护纪元
-  /// 判定，批守卫不解除即把该谓词钉死为永假。调用点约定：只在两条记录之间、
-  /// 上一次会话操作已完整落库（记录追加 + 索引插入闭环）处挂起，绝不在单条
-  /// 操作中途挂起（那才是「页已刷、索引未插」的丢失更新窗口）。
-  #[inline]
-  pub fn suspend_epoch(&self) -> EpochSuspendGuard<'_> {
-    EpochSuspendGuard::new(self.session.participant())
-  }
-
-  /// 批会话纪元让步（瞬时挂起窗：立即挂起并即刻按重入深度重入）
-  ///
-  /// [`Self::suspend_epoch`] 的零持有形态——守卫构造即弃：按当前重入深度逐层
-  /// 退出保护区（会话槽位纪元位清 0，`compute_safe_to_reclaim` 扫描不再被本
-  /// 会话钉死），随即按原深度重入（首层经 `enter_with_tid` 现场 CAS 公布
-  /// **最新**全局纪元，补上重入臂不刷新公布纪元的缺口）。
-  ///
-  /// 用途：批守卫必须整轮在场（批内同步快路径依赖保护区前提）而批间存在天然
-  /// 记录边界的长周期消费面——AOF 逐记录重放即其一：每条记录处理入口调用一次，
-  /// 在两条记录之间（上一条已完整落库）给排空屏障一个确定性让步窗，对标 C#
-  /// 重放会话逐记录常规 context 的 enter/exit（Tsavorite 重放不经 UnsafeContext
-  /// 持整轮保护）。调用点约定与 [`Self::suspend_epoch`] 相同：只在两条记录
-  /// 之间让步，绝不在单条操作中途。
-  #[inline]
-  pub fn epoch_yield(&self) {
-    drop(self.suspend_epoch());
-  }
-
-  /// 创建一致读会话上下文（对标 libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs）
-  #[inline]
-  pub fn consistent_read<'b, F: ConsistentReadFunctions + ?Sized>(
-    &'b self,
-    functions: &'b F,
-  ) -> ConsistentReadContext<'b, D, F> {
-    ConsistentReadContext::new(self.session, functions)
-  }
-
-  /// 纯同步快速路径写入当前会话普通字符串键（严格对标 C# UnsafeContext 的 SET 快路径）
-  ///
-  /// 语义与 [`StoreSession::try_upsert_sync`] 完全一致且零 enter() 原子开销：
-  /// - `Ok(Ok(addr))`：纯内存写入成功（原位更新 / 复活 / 盲追加）；
-  /// - `Ok(Err(page_id))`：环形缓冲区翻转（精确 page_id）或 TTL 清除需异步闭环
-  ///   （`u64::MAX`），调用方须先 drop 本守卫再降级 `upsert().await`，随后可重回批处理。
-  #[inline(always)]
-  pub fn try_upsert_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<u64, u64>> {
-    self.session.try_upsert_sync_unprotected(key, val)
-  }
-
-  /// 纯同步快速路径写入当前会话指定标签物理键（零 enter() 原子开销）
-  ///
-  /// 语义与 [`StoreSession::try_upsert_tag_sync`] 完全一致，语义细节见
-  /// [`StoreSession::try_upsert_tag_sync_unprotected`]
-  #[inline(always)]
-  pub fn try_upsert_tag_sync(
-    &self,
-    key: &[u8],
-    tag: KeyTag,
-    val: &[u8],
-  ) -> Result<StdResult<u64, u64>> {
-    self.session.try_upsert_tag_sync_unprotected(key, tag, val)
-  }
-
-  /// 对象信封单次成形快写（零 enter() 原子开销，批处理热路径专用）
-  ///
-  /// 语义与 [`StoreSession::try_upsert_envelope_sync_fill`] 完全一致（批处理
-  /// 纪元已由本守卫持有，直呼 unprotected 内核），返回值语义与其文档一致
-  #[inline(always)]
-  pub fn try_upsert_envelope_sync_fill(
-    &self,
-    key: &[u8],
-    obj_tag: u8,
-    payload: &[u8],
-  ) -> Result<StdResult<u64, u64>> {
-    let rec_k = self.session.session_tag_key(KeyTag::ObjectEnvelope, key);
-    self
-      .session
-      .try_upsert_envelope_sync_fill_with_prefix(key, &rec_k, obj_tag, payload)
-  }
-
-  /// 纯同步快速条件写入当前会话普通字符串键（NX 语义：仅当键不存在时原子写入）
-  #[inline(always)]
-  pub fn try_insert_sync(&self, key: &[u8], val: &[u8]) -> Result<StdResult<bool, u64>> {
-    // 普通字符串即 String 标签特例，收口至同型带标签单源（对位 raw/write 各
-    // 同步口的 String→tag 转发形态），杜绝前缀外提样板的第二套实现
-    self.try_insert_tag_sync(key, KeyTag::String, val)
-  }
-
-  /// 纯同步快速条件写入当前会话指定标签物理键（NX 语义）
-  #[inline(always)]
-  pub fn try_insert_tag_sync(
-    &self,
-    key: &[u8],
-    tag: KeyTag,
-    val: &[u8],
-  ) -> Result<StdResult<bool, u64>> {
-    let prefix = self.session_prefix();
-    self
-      .session
-      .try_insert_tag_sync_unprotected_with_prefix(prefix.as_slice(), key, tag, val)
-  }
-
-  /// 纯同步快速路径删除当前会话指定标签物理键（零 enter() 原子开销）
-  #[inline(always)]
-  pub fn try_delete_tag_sync(&self, key: &[u8], tag: KeyTag) -> Result<StdResult<bool, u64>> {
-    self.session.try_delete_tag_sync_unprotected(key, tag)
-  }
-
-  /// 同步读当前会话普通字符串键快路径（TTL 快门控 + 内存直读，零 enter() 原子开销）
-  ///
-  /// 返回三态见 [`StoreResult`]：
-  /// - `Success(r)`：内存命中，闭包零拷贝消费；
-  /// - `NotFound`：内存中明确不存在（无候选 / 墓碑 / TTL 已到期）；
-  /// - `RecordOnDisk`：须降级全异步 `read_with().await`（数据或 TTL 记录存在磁盘候选，
-  ///   `check_expired` 含磁盘路径与物理清除，绝不跨纪元 await）。
-  #[inline(always)]
-  pub fn try_read_sync<R>(&self, key: &[u8], f: impl FnOnce(&[u8]) -> R) -> Result<StoreResult<R>> {
-    self.session.try_read_sync_unprotected(key, f)
-  }
-
-  /// 同步读当前会话指定标签物理键快路径并披露记录物理尺寸（TTL 同栈门裁决 + 内存直读）
-  ///
-  /// MEMORY USAGE 统计内核：[`Self::try_read_tag_sync`] 的带尺寸对位，三态语义一致
-  #[inline(always)]
-  pub fn try_read_tag_sync_with_size<R>(
-    &self,
-    key: &[u8],
-    tag: KeyTag,
-    f: impl FnOnce(&[u8], usize) -> R,
-  ) -> Result<StoreResult<R>> {
-    self.session.try_read_tag_sync_with_size(key, tag, f)
-  }
-
-  /// 同步读当前会话指定标签物理键快路径（TTL 同栈门裁决 + 内存直读，零 enter() 原子开销）
-  ///
-  /// 返回三态与 [`Self::try_read_sync`] 一致；TTL 门控按用户键同栈裁决
-  /// （无 TTL / 未到期放行，已到期快路径 NOTFOUND），与数据记录标签无关
-  #[inline(always)]
-  pub fn try_read_tag_sync<R>(
-    &self,
-    key: &[u8],
-    tag: KeyTag,
-    f: impl FnOnce(&[u8]) -> R,
-  ) -> Result<StoreResult<R>> {
-    self.session.try_read_tag_sync_unprotected(key, tag, f)
-  }
-
-  /// 纯同步快速路径物理删除当前会话普通字符串键（零 enter() 原子开销）
-  #[inline(always)]
-  pub fn try_delete_sync(&self, key: &[u8]) -> Result<StdResult<bool, u64>> {
-    self.session.try_delete_sync_unprotected(key)
-  }
-
-  /// 写入或更新键值对
-  #[inline(always)]
-  pub async fn upsert(&self, key: &[u8], val: &[u8]) -> Result<u64> {
-    self.session.upsert(key, val).await
-  }
-
-  /// 读取键值对
-  #[inline(always)]
-  pub async fn read(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-    self.session.read(key).await
-  }
-
-  /// 删除键值对
-  #[inline(always)]
-  pub async fn delete(&self, key: &[u8]) -> Result<bool> {
-    self.session.delete(key).await
-  }
-
-  /// 异步读取用户键的 TTL 并判定在指定 ticks 是否已过期（无 TTL 视同未过期）
-  #[inline(always)]
-  pub async fn is_expired_at(&self, user_key: &[u8], now: i64) -> Result<bool> {
-    self.session.is_expired_at(user_key, now).await
-  }
-
-  /// 批量读取当前会话普通字符串记录（12 项流水线预取）
-  #[inline(always)]
-  pub async fn read_batch_with<K, F>(&self, keys: &[K], on_item: F) -> Result<()>
-  where
-    K: AsRef<[u8]>,
-    F: FnMut(usize, Option<&[u8]>),
-  {
-    self.session.read_batch_with(keys, on_item).await
-  }
-
-  /// 纯内存批量直读当前会话普通字符串记录（零堆分配与零异步开销）
-  #[inline(always)]
-  pub fn try_read_batch_in_memory<K, F>(&self, keys: &[K], on_item: F) -> Result<()>
-  where
-    K: AsRef<[u8]>,
-    F: FnMut(usize, Option<&[u8]>),
-  {
-    self.session.try_read_batch_in_memory(keys, on_item)
-  }
-
-  /// 触发对象 RMW 增量日志通知（AOF 入队失败沿写路径上抛拒绝该命令）
-  #[inline(always)]
-  pub fn notify_object_rmw(&self, notif: &ObjectRmwNotification<'_>) -> Result<()> {
-    self
-      .store
-      .notify_object_rmw(self.session.aof_session_id, notif)
-  }
-
-  /// 触发分层稳态写命令镜像通知（AOF 入队失败沿写路径上抛拒绝该命令）
-  #[inline(always)]
-  pub fn notify_tiered_collection_write(
-    &self,
-    notif: &TieredCollectionNotification<'_>,
-  ) -> Result<()> {
-    self
-      .store
-      .notify_tiered_collection_write(self.session.aof_session_id, notif)
-  }
-
-  /// 触发对象信封整值写通知（AOF 入队失败沿写路径上抛拒绝该命令）
-  #[inline(always)]
-  pub fn notify_envelope_upsert(&self, key: &[u8], val: &[u8]) -> Result<()> {
-    self
-      .store
-      .notify_envelope_upsert(self.session.aof_session_id, key, val)
-  }
-
-  /// 推进键的 WATCH 版本（批处理上下文的写面收口出口，供存储层
-  /// TTL 同步快路径等旁路物理键原语的调用方按用户键显式推进，内部转发 bump_watch_version）
-  #[inline(always)]
-  pub fn bump_watch_version(&self, user_key: &[u8]) {
-    self.session.bump_watch_version(user_key);
-  }
-
-  /// 纯同步快速路径物理删除当前会话普通字符串键的显式前缀变体（循环前缀外提
-  /// 对位，语义与 [`Self::try_delete_sync`] 完全一致且零 enter() 原子开销；
-  /// rust 工程优化无 c# 对应）
-  #[inline(always)]
-  pub fn try_delete_sync_with_prefix(
-    &self,
-    prefix: &[u8],
-    key: &[u8],
-  ) -> Result<StdResult<bool, u64>> {
-    self
-      .session
-      .try_delete_sync_unprotected_with_prefix(prefix, key)
-  }
-
-  /// 批量同步快速路径写入当前会话普通字符串键（批量接口单次折叠，transpile
-  /// SKILL 工程准则；rust 工程优化无 c# 对应）
-  ///
-  /// 单次折叠：纪元守卫复用本上下文外层持有（循环零 enter() 原子开销）、
-  /// 会话前缀单次外提（循环零 ns/db 原子变量重读与 Varint 重算）、借用对
-  /// 携带命令序下标排序（键序优先、同键按下标升序的全序，仅重排引用，零 KV
-  /// 拷贝）后顺序写入——同键相邻、去重保末值恒为命令序末值
-  /// （MSET 重复键后者胜语义，先例 ri_set_batch），批量集中命中相邻索引桶
-  /// 压降探针缓存缺失。逐键 WATCH 推进与降级信号语义与逐键
-  /// [`Self::try_upsert_sync`] 循环等价：任一键遇环形页翻转 / TTL 清退
-  /// 异步闭环信号（`Err(page_id)`）立即整体返回，已写键保持（调用方降级
-  /// 慢路径整命令重放幂等），剩余键不写
-  ///
-  /// 折叠先例对标 C# MainStoreOps.cs:MSET_Conditional（全键排他锁内批量
-  /// SET）；rust 主存储为 compio 每核单线程 + epoch 无锁写，无条带锁可
-  /// 分组，折叠收益为纪元/前缀/编码单次化与写入局部性（注释声明与条目
-  /// 「按条带锁分组」的差异）
-  ///
-  /// 调用契约：批量盲写无地址复验，命令层调用方须以键组读改写窗口
-  /// （`try_rmw_window_sorted`）覆盖全部键（快路径 network_mset 先例，
-  /// 票 zcode-r32-rmwmatrix 立项一）
-  #[inline]
-  pub fn try_upsert_batch_sync<I, K, V>(&self, pairs: I) -> Result<StdResult<(), u64>>
-  where
-    I: IntoIterator<Item = (K, V)>,
-    K: AsRef<[u8]>,
-    V: AsRef<[u8]>,
-  {
-    let prefix = self.session.session_prefix();
-    self.try_upsert_batch_sync_with_prefix(prefix.as_slice(), pairs)
-  }
-
-  /// 批量同步快速路径写入当前会话普通字符串键的显式前缀变体（支持复用外层已计算好的会话前缀）
-  pub fn try_upsert_batch_sync_with_prefix<I, K, V>(
-    &self,
-    prefix_slice: &[u8],
-    pairs: I,
-  ) -> Result<StdResult<(), u64>>
-  where
-    I: IntoIterator<Item = (K, V)>,
-    K: AsRef<[u8]>,
-    V: AsRef<[u8]>,
-  {
-    // 栈上固定容量缓冲承接小批次排序（≤8 元素零堆分配，超限自动溢出至堆）；
-    // enumerate 携带命令序下标，与借用对同为栈上三元组，零拷贝不变
-    let mut sorted: SmallVec<[(K, V, usize); 8]> = pairs
-      .into_iter()
-      .enumerate()
-      .map(|(i, (k, v))| (k, v, i))
-      .collect();
-    // 键序优先、同键按命令序下标升序，构成无相等元素的全序；sort_unstable_by
-    // 在全序下结果确定，纯键序比较器不承诺相等键相对顺序的缺陷就此封堵
-    sorted.sort_unstable_by(|a, b| a.0.as_ref().cmp(b.0.as_ref()).then_with(|| a.2.cmp(&b.2)));
-    let mut iter = sorted.into_iter().peekable();
-    while let Some((k, v, _)) = iter.next() {
-      // 相邻去重保末值：全序排序后同键末位恒为命令序末值（MSET 后者胜语义，
-      // 对标 C# ArrayCommands 的 NetworkMSET 与 MainStoreOps 的 SET 条件写折叠
-      // 按命令序逐对 SET）
-      if iter
-        .peek()
-        .is_some_and(|(next_key, ..)| next_key.as_ref() == k.as_ref())
-      {
-        continue;
-      }
-      match self.session.try_upsert_tag_sync_unprotected_with_prefix(
-        prefix_slice,
-        k.as_ref(),
-        KeyTag::String,
-        v.as_ref(),
-      )? {
-        Ok(_) => {}
-        // 环形页翻转 / TTL 清退异步闭环：立即整体降级（page_id 为首个触发键）
-        Err(page_id) => return Ok(Err(page_id)),
-      }
-    }
-    Ok(Ok(()))
   }
 }

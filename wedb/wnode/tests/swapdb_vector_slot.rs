@@ -4,7 +4,7 @@
 //! 1. VADD 落 db A（槽 S1=slot_of(ns, A)）→ SWAPDB A B → 槽翻转至 S2=slot_of(ns, B)；
 //! 2. 槽迁移发现面改现算（单一真源）及在线改章联动：
 //!    - get_namespaces_for_hash_slots 经在线改章命中新槽 S2，旧槽 S1 不再命中；
-//!    - get_vector_set_keys_for_slots 及 get_vector_set_keys_for_slots_with 命中新槽 S2，旧槽 S1 为空；
+//!    - get_vector_set_keys_for_slots_with 命中新槽 S2，旧槽 S1 为空；
 //! 3. 在线改章与 AOF 回放重盖章逐值一致断言；
 //! 4. 重启/恢复前后元数据发现面逐值一致断言。
 
@@ -145,7 +145,15 @@ async fn swapdb_flips_vector_slot_discovery_and_aof_parity() -> Void {
   assert!(!ns_slot0_before.is_empty(), "换库前 slot0 须命中在用上下文");
   assert!(ns_slot1_before.is_empty(), "换库前 slot1 须为空");
 
-  let keys_slot0_before = vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot0)]));
+  // 发现面（单一真源现算：logic_domain_of 反查逻辑域后按槽位过滤；换库前
+  // 恒等映射，与盖章槽位一致）
+  let keys_slot0_before =
+    vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot0)]), |vns, vdb| {
+      store
+        .vdb
+        .logic_domain_of(vns, vdb)
+        .map(|(lns, ldb)| slot_of(lns, ldb))
+    });
   assert_eq!(keys_slot0_before.len(), 1);
   let (_domain, user_key) = split_registry_key(&keys_slot0_before[0].0);
   assert_eq!(user_key, b"vs_swap");
@@ -176,35 +184,26 @@ async fn swapdb_flips_vector_slot_discovery_and_aof_parity() -> Void {
     "翻转后新槽上下文集合须与翻转前旧槽上下文集合逐值一致"
   );
 
-  // 发现面（常规按 slots[] 过滤）
-  let keys_slot0_after = vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot0)]));
-  let keys_slot1_after = vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot1)]));
-  assert!(keys_slot0_after.is_empty(), "换库后按旧槽发现须为空");
-  assert_eq!(keys_slot1_after.len(), 1, "换库后按新槽发现须恰好 1 键");
-  let (_, user_key_after) = split_registry_key(&keys_slot1_after[0].0);
-  assert_eq!(user_key_after, b"vs_swap");
-
-  // 发现面改现算（方案 1 单一真源经 logic_domain_of 现算槽位）
-  let dynamic_found_s1 =
-    vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot1)]), |vns, vdb| {
-      store
-        .vdb
-        .logic_domain_of(vns, vdb)
-        .map(|(lns, ldb)| slot_of(lns, ldb))
-    });
-  let dynamic_found_s0 =
+  // 发现面（单一真源现算：logic_domain_of 反查逻辑域后按槽位过滤——换库后
+  // 物理 (0,0) 反查得逻辑 (0,1)，新槽 slot1 精准命中、旧槽 slot0 恒空）
+  let keys_slot0_after =
     vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot0)]), |vns, vdb| {
       store
         .vdb
         .logic_domain_of(vns, vdb)
         .map(|(lns, ldb)| slot_of(lns, ldb))
     });
-  assert_eq!(
-    dynamic_found_s1.len(),
-    1,
-    "现算发现面按新槽 slot1 须精准命中"
-  );
-  assert!(dynamic_found_s0.is_empty(), "现算发现面按旧槽 slot0 须为空");
+  let keys_slot1_after =
+    vm.get_vector_set_keys_for_slots_with(&BTreeSet::from([i32::from(slot1)]), |vns, vdb| {
+      store
+        .vdb
+        .logic_domain_of(vns, vdb)
+        .map(|(lns, ldb)| slot_of(lns, ldb))
+    });
+  assert!(keys_slot0_after.is_empty(), "换库后按旧槽发现须为空");
+  assert_eq!(keys_slot1_after.len(), 1, "换库后按新槽发现须恰好 1 键");
+  let (_, user_key_after) = split_registry_key(&keys_slot1_after[0].0);
+  assert_eq!(user_key_after, b"vs_swap");
 
   // 4. AOF 回放面逐值一致断言（AOF 回放重盖章与在线改章逐值一致）
   let dir_replay = TempDir::new()?;
@@ -229,7 +228,16 @@ async fn swapdb_flips_vector_slot_discovery_and_aof_parity() -> Void {
     "在线改章与 AOF 回放重盖章须逐值一致！"
   );
 
-  let r_keys_s1 = replayed_vm.get_vector_set_keys_for_slots(&BTreeSet::from([i32::from(slot1)]));
+  // 回放端反查用回放库 rstore 的逻辑域映射（与在线面同口径现算）
+  let r_keys_s1 = replayed_vm.get_vector_set_keys_for_slots_with(
+    &BTreeSet::from([i32::from(slot1)]),
+    |vns, vdb| {
+      rstore
+        .vdb
+        .logic_domain_of(vns, vdb)
+        .map(|(lns, ldb)| slot_of(lns, ldb))
+    },
+  );
   assert_eq!(r_keys_s1.len(), 1, "回放面按新槽 slot1 须恰好发现该键");
   let (_, r_user_key) = split_registry_key(&r_keys_s1[0].0);
   assert_eq!(r_user_key, b"vs_swap");

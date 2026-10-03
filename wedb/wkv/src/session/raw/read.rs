@@ -438,7 +438,7 @@ impl<D: Device> StoreSession<D> {
 
   /// 在已有纪元保护下同步读取当前会话指定标签物理键（TTL 同栈门裁决 + 内存直读，彻底绕过 enter() 原子开销）
   ///
-  /// TTL 门控按用户键（KeyTag::Ttl 旁路记录）同栈裁决（[`crate::ttl::StoreSession::ttl_gate_mem_at`]，
+  /// TTL 门控按用户键（KeyTag::Ttl 旁路记录）同栈裁决（[`crate::StoreSession::ttl_gate_mem_at`]，
   /// 对标 C# libs/server/Storage/Functions/LogRecordUtils.cs:CheckExpiry 在 ReadMethods.cs
   /// 的 Reader 内的内联判定）：
   /// 无 TTL / 未到期 → 内存直读零拷贝放行；已到期 → 快路径直接 NOTFOUND（对应

@@ -58,8 +58,6 @@ pub mod striped;
 pub mod supervise;
 #[cfg(feature = "thread")]
 pub mod thread;
-#[cfg(feature = "pool")]
-pub mod throttle;
 #[cfg(feature = "time")]
 pub mod time;
 #[cfg(feature = "varint")]

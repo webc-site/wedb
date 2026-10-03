@@ -671,14 +671,14 @@ pub const fn is_vector_gate_exempt(cmd: RespCommand) -> bool {
 /// 值域门须逐键裁决的多键命令（全部实参均为键，无成员/数值/方向 token 混入，
 /// 直扫 args 无误判风险），对标 C# 对每个 touched key 的 RecordType 判定：
 /// PFCOUNT key…（HyperLogLogOps.cs:128-175 逐键 GET、:138 次键 WRONGTYPE 即
-/// 整命令 return status）、PFMERGE dest src…（args[0]=dest）、SDIFF/SINTER/SUNION key…、
+/// 整命令 return status）、PFMERGE dest src…（args\[0\]=dest）、SDIFF/SINTER/SUNION key…、
 /// SDIFFSTORE/SINTERSTORE/SUNIONSTORE dest key…。BITOP 族不在本清单：其目的键
 /// 终态与覆写族相同（销毁再写）、与拦拒相反，由位点内源/目分流裁决
 /// （见 [`is_vector_gate_exempt`] BITOP 注记）。其余多键命令（双键 src/dst、
-/// 含成员的 ZADD/SMOVE 等）的 ghost 关键位（目的键 / 首键）恒在 args[0]，由通用
-/// args[0] 门覆盖；numkeys 变体不在此列——SINTERCARD/ZINTERCARD 实参形为
-/// numkeys key [key...] [LIMIT n]，args[0] 恒为 numkeys 数值 token、首键在
-/// args[1]（键段整体位移一位），通用 args[0] 门对其系空探针，键段选取走
+/// 含成员的 ZADD/SMOVE 等）的 ghost 关键位（目的键 / 首键）恒在 args\[0\]，由通用
+/// args\[0\] 门覆盖；numkeys 变体不在此列——SINTERCARD/ZINTERCARD 实参形为
+/// numkeys key \[key...\] \[LIMIT n\]，args\[0\] 恒为 numkeys 数值 token、首键在
+/// args\[1\]（键段整体位移一位），通用 args\[0\] 门对其系空探针，键段选取走
 /// [`vector_gate_numkeys_form`] 单源（票 zcode-r157c-sintercard 头注误锚订正）；
 /// 非目的侧源键命中登记按集合读空处理，属只读边缘
 /// （不产幽灵、不销毁向量），不在本门射程。例外：LCS 的次键位属 C# 整命令硬拒位
@@ -701,8 +701,8 @@ pub const fn vector_gate_scan_all_keys(cmd: RespCommand) -> bool {
 
 /// 值域门须按「args 首部固定键位」逐键裁决的双键命令及其键位数（本档一处定义）
 ///
-/// LCS key1 key2 [LEN | IDX [MINMATCHLEN n] [WITHMATCHLEN]]：两键位恒在 args[0]/
-/// args[1]，其后皆选项 token——直挂 [`vector_gate_scan_all_keys`] 会把 LEN/IDX/
+/// LCS key1 key2 \[LEN | IDX \[MINMATCHLEN n\] \[WITHMATCHLEN\]\]：两键位恒在 args\[0\]/
+/// args\[1\]，其后皆选项 token——直挂 [`vector_gate_scan_all_keys`] 会把 LEN/IDX/
 /// MINMATCHLEN/数字词元当键误检，故不入全扫清单、单列固定键位数。对标 C#
 /// LCSInternal（MainStoreOps.cs:615-629）先 GET key1 后 GET key2、任一撞向量
 /// 记录即整命令 WRONGTYPE（VectorSetWrongTypeTests.cs:628-647 首/次键双向硬测）。
@@ -719,15 +719,15 @@ pub const fn vector_gate_fixed_key_count(cmd: RespCommand) -> Option<usize> {
 /// 值域门须按「numkeys 形键段 args[1..=n]」逐键裁决的命令（键位选取第三形态
 /// 单源，与 [`vector_gate_scan_all_keys`] / [`vector_gate_fixed_key_count`] 互斥）
 ///
-/// SINTERCARD / ZINTERCARD 实参形为 numkeys key [key ...] [LIMIT n]：args[0] 恒为
-/// numkeys 数值 token 非键位，首键在 args[1]——通用 args[0] 门对其系空探针（探的是
+/// SINTERCARD / ZINTERCARD 实参形为 numkeys key \[key ...\] \[LIMIT n\]：args\[0\] 恒为
+/// numkeys 数值 token 非键位，首键在 args\[1\]——通用 args\[0\] 门对其系空探针（探的是
 /// 数值 token，真实键位零消费），登记向量键命中被位内装载臂当 Missing 静默吸收，
 /// C# -WRONGTYPE vs rust 整数应答帧级分叉（票 zcode-r157c-sintercard 案一，格 D
 /// 反向数值名误拒同族）。对标 C# `keys = parseState.Parameters.Slice(1, nKeys)`
 /// （SetCommands.cs:183 SetIntersectLength / SortedSetCommands.cs:1199
 /// SortedSetIntersectLength 同形同缝），任一键位 GET 命中向量记录即整命令回泛型
 /// RESP_ERR_WRONG_TYPE（SetCommands.cs:215-218 / SortedSetCommands.cs:1229-1232）。
-/// 门侧取键纪律：仅当 strict_i32(args[0]) 成功且 ≥1 且键段完整方探 args[1..=n]，
+/// 门侧取键纪律：仅当 strict_i32(args\[0\]) 成功且 ≥1 且键段完整方探 args\[1..=n\]，
 /// 短参/非整数形不探、放行命令位 parse_intersect_card_args 自家裁决（C# 参数
 /// 校验 :162-181 先于 GET，门吞即造新分叉帧，参数校验不双轨）。ZUNION/ZINTER/
 /// ZDIFF/LMPOP/ZMPOP 等其余 numkeys 形命令未逐格拍形，留口另票勿顺手入本清单。

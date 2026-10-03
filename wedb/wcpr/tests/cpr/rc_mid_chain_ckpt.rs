@@ -72,7 +72,7 @@ async fn seed_rc_chain(store: &MiniStore, p: &Participant, gens: usize) -> Resul
     0,
     "前置条件：槽头必须是 ReadCache 形态"
   );
-  let bucket = store.index.bucket_index_for_key(&key);
+  let bucket = store.index.bucket_index_for_hash(HashIndex::hash_key(&key));
   let head = *chain.last().expect("至少一代");
   let slot = store.index.get_bucket(bucket).entries[..HashBucket::DATA_ENTRIES]
     .iter()
@@ -97,7 +97,7 @@ fn slot_address(store: &MiniStore, p: &Participant, key: &[u8]) -> Result<u64> {
 
 /// 在靶桶内自 `after` 下标起按地址定位槽位下标（同指纹碰撞候选并存时唯一可靠的定位方式）
 fn slot_index_of_after(store: &MiniStore, key: &[u8], after: usize, addr: u64) -> usize {
-  let bucket = store.index.bucket_index_for_key(key);
+  let bucket = store.index.bucket_index_for_hash(HashIndex::hash_key(key));
   (after + 1..HashBucket::DATA_ENTRIES)
     .find(|&i| {
       let raw = store.index.get_bucket(bucket).entries[i].load(Ordering::Acquire);
@@ -108,7 +108,10 @@ fn slot_index_of_after(store: &MiniStore, key: &[u8], after: usize, addr: u64) -
 
 /// 在指定键的靶桶坐标取原始槽位字（快照与 live 索引逐槽位同布局）
 fn raw_slot(index: &HashIndex, key: &[u8], slot: usize) -> u64 {
-  index.get_bucket(index.bucket_index_for_key(key)).entries[slot].load(Ordering::Acquire)
+  index
+    .get_bucket(index.bucket_index_for_hash(HashIndex::hash_key(key)))
+    .entries[slot]
+    .load(Ordering::Acquire)
 }
 
 /// 链中段（槽头之更旧一侧）滑出、槽头仍在窗：快照该槽必须折成主日志真身地址且
@@ -138,7 +141,9 @@ async fn mid_chain_eviction_snapshot_keeps_live_key_visible() -> Void {
   let tag = HashBucketEntry::tag_from_hash(HashIndex::hash_key(&chain.key));
   assert_ne!(tag, 0, "前置条件：测试键指纹必须非零");
   store.index.insert_to_bucket(
-    store.index.bucket_index_for_key(&chain.key),
+    store
+      .index
+      .bucket_index_for_hash(HashIndex::hash_key(&chain.key)),
     tag,
     sibling_addr,
   )?;
@@ -211,7 +216,9 @@ async fn mid_chain_eviction_snapshot_keeps_live_key_visible() -> Void {
     "中段滑出必须恰好触发一轮驱逐等待（0 = 仍按链头锚定，>1 = 重探空转）"
   );
   // live 槽位仍指链头（清洗方只缝中段断口），缝链后的再走查零等待收敛到主日志真身
-  let bucket = store.index.bucket_index_for_key(&chain.key);
+  let bucket = store
+    .index
+    .bucket_index_for_hash(HashIndex::hash_key(&chain.key));
   let slot = &store.index.get_bucket(bucket).entries[chain.slot];
   assert_eq!(
     slot.load(Ordering::Acquire) & HashBucketEntry::ADDRESS_MASK,

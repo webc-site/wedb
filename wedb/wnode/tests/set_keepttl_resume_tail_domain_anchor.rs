@@ -145,7 +145,8 @@ fn flushdb_kernel(store: &Arc<WedbStore<SegmentedDevice>>, logic_db: u64, expect
 
 /// 当前会话同域锚（经 vdb 解析面单源取值）
 fn cur_domain(store: &Arc<WedbStore<SegmentedDevice>>) -> (u64, u64) {
-  store.vdb.get_virtual_ids(0, 0)
+  let (vns, vdb, ..) = store.vdb.get_virtual_ids_with_created(0, 0);
+  (vns, vdb)
 }
 
 fn parse_resp_int(resp: &[u8]) -> Option<i64> {

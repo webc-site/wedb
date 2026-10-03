@@ -187,7 +187,7 @@ impl GarnetLog {
   }
 
   /// 注入角色状态源到全部物理子日志（提交落盘角色闸的下游装配；同一
-  /// Arc<PrimaryTasks> 转发，勿造第二角色状态源）。
+  /// `Arc<PrimaryTasks>` 转发，勿造第二角色状态源）。
   pub fn attach_primary_tasks(&self, tasks: Arc<PrimaryTasks>) {
     for sublog in self.sublogs() {
       sublog.attach_primary_tasks(Arc::clone(&tasks));

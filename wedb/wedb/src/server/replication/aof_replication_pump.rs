@@ -59,7 +59,7 @@ pub struct AofReplicationPump {
   throttle_running: Arc<AtomicBool>,
   /// 节流事件触发端（容量为 1，无锁折叠去重）
   ///
-  /// [`doc(hidden)`] 测试专用隐藏面：单趟窗口轮转集成测的泵驱动直驱口
+  /// `doc(hidden)` 测试专用隐藏面：单趟窗口轮转集成测的泵驱动直驱口
   ///（wedb/tests/aof_pump_single_window_rotation.rs），生产触发面为
   /// [`Self::notify`] 单点，非公共 API 契约
   #[doc(hidden)]
@@ -261,7 +261,7 @@ impl Drop for PumpGuard<'_> {
 /// 轮永不被触达（稳态饿死）；起始下标取 store 轮转游标模快照长度并推进，
 /// 多副本按轮公平分时，不引入每副本第二条常驻任务（避免双机制）
 ///
-/// [`doc(hidden)`] 测试专用隐藏面：单趟窗口轮转集成测直驱口
+/// `doc(hidden)` 测试专用隐藏面：单趟窗口轮转集成测直驱口
 ///（wedb/tests/aof_pump_single_window_rotation.rs），生产驱动面为
 /// [`AofReplicationPump::attach_wake`] 信号循环与 [`AofReplicationPump::sync_backlog`]
 /// 补扫两臂，非公共 API 契约

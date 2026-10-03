@@ -12,9 +12,6 @@
 //! 补扫积压）→ 真 socket GarnetServer 副本集群会话承接 → 断言副本恢复位点与
 //! 主端对齐、APPENDLOG 记录帧衔接不再 divergent 断流、复制 ID 收敛、增量续推。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::{diskless_provider::diskless_provider, replica_attach::attach_replica_session};
 
 #[path = "common/diskless_sync_kick.rs"]
@@ -22,9 +19,8 @@ mod diskless_sync_kick;
 use std::{num::NonZeroUsize, time::Duration};
 
 use diskless_sync_kick::try_full_sync;
-use replica_host::replica_host;
 use wedb::server::{replication::recovery_status::RecoveryStatus, worker::NodeRole};
-use wedb_test::node_storage::open_node;
+use wedb_test::{node_storage::open_node, replica_host::replica_host};
 use wtest_base::wait_for;
 
 /// 测试节点身份（内部 u128；协议面渲染 32 字符小写 hex）

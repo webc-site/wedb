@@ -192,15 +192,17 @@ fn ensure_replication_gate_chain() -> Void {
     // 仅随同步建立推进——见副本 APPENDLOG 初始化帧握手挂点）
     provider.set_replication_reestablishment_timeout(60);
     let cm = provider.cluster_manager().unwrap();
-    cm.try_initialize_local_worker(LocalWorkerSpec {
-      node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
-      address: "127.0.0.1",
-      port: 7001,
-      config_epoch: 1,
-      role: NodeRole::Replica,
-      replica_of_node_id: Some(PRIMARY_ID),
-      hostname: None,
-    });
+    cm.current_config
+      .write()
+      .initialize_local_worker(LocalWorkerSpec {
+        node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
+        address: "127.0.0.1",
+        port: 7001,
+        config_epoch: 1,
+        role: NodeRole::Replica,
+        replica_of_node_id: Some(PRIMARY_ID),
+        hostname: None,
+      });
     provider.ensure_replication(Some(PRIMARY_ID));
     assert!(!rm.has_active_replication_stream());
     assert_eq!(
@@ -248,15 +250,17 @@ async fn ensure_replication_window_consumed_at_tail() -> Void {
   let provider = ClusterProvider::new();
   provider.set_replication_reestablishment_timeout(60);
   let cm = provider.cluster_manager().unwrap();
-  cm.try_initialize_local_worker(LocalWorkerSpec {
-    node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
-    address: "127.0.0.1",
-    port: 7001,
-    config_epoch: 1,
-    role: NodeRole::Replica,
-    replica_of_node_id: Some(PRIMARY_ID),
-    hostname: None,
-  });
+  cm.current_config
+    .write()
+    .initialize_local_worker(LocalWorkerSpec {
+      node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
+      address: "127.0.0.1",
+      port: 7001,
+      config_epoch: 1,
+      role: NodeRole::Replica,
+      replica_of_node_id: Some(PRIMARY_ID),
+      hostname: None,
+    });
   let rm = provider.replication_manager().unwrap();
   let attempt_ms = || {
     rm.last_ensure_replication_attempt_ms
@@ -328,15 +332,17 @@ async fn ensure_replication_reconnect_action_face() -> Void {
 
   // 副本角色（of primary_1），无活跃复制流（断链态）
   let cm = provider.cluster_manager().unwrap();
-  cm.try_initialize_local_worker(LocalWorkerSpec {
-    node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
-    address: "127.0.0.1",
-    port: 7001,
-    config_epoch: 1,
-    role: NodeRole::Replica,
-    replica_of_node_id: Some(PRIMARY_ID),
-    hostname: None,
-  });
+  cm.current_config
+    .write()
+    .initialize_local_worker(LocalWorkerSpec {
+      node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
+      address: "127.0.0.1",
+      port: 7001,
+      config_epoch: 1,
+      role: NodeRole::Replica,
+      replica_of_node_id: Some(PRIMARY_ID),
+      hostname: None,
+    });
   let rm = provider.replication_manager().unwrap();
   assert!(!rm.has_active_replication_stream());
 
@@ -391,15 +397,17 @@ async fn recover_replication_resets_aof_sync_driver_store() -> Void {
   let provider = ClusterProvider::new();
   // 副本角色（of PRIMARY_ID；workers 表无该主端条目 = 无主端 endpoint）
   let cm = provider.cluster_manager().unwrap();
-  cm.try_initialize_local_worker(LocalWorkerSpec {
-    node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
-    address: "127.0.0.1",
-    port: 7001,
-    config_epoch: 1,
-    role: NodeRole::Replica,
-    replica_of_node_id: Some(PRIMARY_ID),
-    hostname: None,
-  });
+  cm.current_config
+    .write()
+    .initialize_local_worker(LocalWorkerSpec {
+      node_id: 0x0000_0000_0000_0000_0000_0000_0002_E701,
+      address: "127.0.0.1",
+      port: 7001,
+      config_epoch: 1,
+      role: NodeRole::Replica,
+      replica_of_node_id: Some(PRIMARY_ID),
+      hostname: None,
+    });
 
   // 预置主端残留推流驱动
   let rm = provider.replication_manager().unwrap();
@@ -528,7 +536,7 @@ where
     rm.recover_async(provider.is_primary()).await;
   }
 
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 65536, 100, Arc::clone(&sp))?;
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 65536, Arc::clone(&sp))?;
   server.start(NonZeroUsize::new(1))?;
   let port = server.local_addr()?.port();
   Ok((server, sp, port))

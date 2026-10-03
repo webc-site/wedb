@@ -12,7 +12,7 @@ use std::sync::atomic::Ordering;
 
 use aok::Void;
 use wbase::align::DEFAULT_SECTOR_SIZE;
-use windex::SPLIT_COMPLETED;
+use windex::{HashIndex, SPLIT_COMPLETED};
 use wkv::{StoreResult, store::ResizePhase};
 use wval::KeyTag;
 
@@ -36,7 +36,9 @@ async fn rmw_window_splits_before_latch() -> Void {
   // 用户键与记录键异桶（两基并存结构，持闩期内层读写必落他桶，杜绝自锁互斥假阳性）
   assert_ne!(
     store.active_index().bucket_index_for_hash(user_hash),
-    store.active_index().bucket_index_for_key(&rec_k)
+    store
+      .active_index()
+      .bucket_index_for_hash(HashIndex::hash_key(&rec_k))
   );
 
   stage_resize(&store, true, ResizePhase::InProgressGrow);

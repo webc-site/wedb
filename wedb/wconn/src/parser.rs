@@ -16,7 +16,7 @@ const MAX_NEST_DEPTH: usize = 128;
 /// libs/client/RespReadResponseUtils.cs:RespReadResponseUtils
 ///
 /// 客户端应答解析唯一门面：单行与带长头语义薄委托 wresp::read（对位 C# 门面逐个
-/// 转调 RespReadUtils），仅做 Result<Option<T>> 形态适配（None = 应答未到齐，游标
+/// 转调 RespReadUtils），仅做 `Result<Option<T>>` 形态适配（None = 应答未到齐，游标
 /// 完整回滚）；RESP2/3 行读与扩展元素臂（-/,/#/_ 等）经
 /// [`RespReadResponseUtils::try_read_token_span`] / [`RespReadResponseUtils::try_read_token_line`]
 /// 单点承担

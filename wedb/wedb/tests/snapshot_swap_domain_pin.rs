@@ -29,9 +29,6 @@
 //! 换后域，帧内容与帧戳物理域互串、副本经 DbSwap 回放扳指后两域内容对调级
 //! 永久发散（FLUSHDB 形未读键集 Gone 跳发致旧域投影残缺）。
 
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use wedb_test::diskless_provider::diskless_provider;
 
 #[path = "common/diskless_sync_kick.rs"]
@@ -213,8 +210,8 @@ async fn run_case(tag: &'static str, at: InjectAt, injection: Injection) {
   seed_fixture(&mut seeder);
 
   // 枚举时物理号基线（域钉目标 = 副本旧域探针口径）
-  let (vns1, vdb1) = source.store.vdb.get_virtual_ids(0, 1);
-  let (vns2, vdb2) = source.store.vdb.get_virtual_ids(0, 2);
+  let (vns1, vdb1, ..) = source.store.vdb.get_virtual_ids_with_created(0, 1);
+  let (vns2, vdb2, ..) = source.store.vdb.get_virtual_ids_with_created(0, 2);
   assert_eq!((vns1, vns2), (0, 0), "根租户物理号恒 0");
   assert!(
     vdb1 > 0 && vdb2 > 0 && vdb1 != vdb2,

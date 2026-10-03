@@ -81,7 +81,7 @@ async fn test_cold_db_lazy_load_no_renumber() -> Void {
     let session = store.new_session()?;
     // 非严格会话（内部语义）：映射创建即持久化 DbMeta（磁盘为映射权威）
     session.set_context(5, 3);
-    let ids = store.vdb.get_virtual_ids(5, 3);
+    let ids = store.vdb.get_virtual_ids_with_created(5, 3);
     session.upsert(b"cold:key", b"cold:value").await?;
     store.flush_all().await?;
     let meta = store
@@ -136,7 +136,7 @@ async fn test_route_idle_evict_and_reload() -> Void {
   let (vns0, vdb0) = {
     let session = store.new_session()?;
     session.set_context(7, 0);
-    let ids = store.vdb.get_virtual_ids(7, 0);
+    let ids = store.vdb.get_virtual_ids_with_created(7, 0);
     session.upsert(b"idle:key", b"idle:value").await?;
     assert!(
       store.vdb.db_routing.pin().get(&ids.0).is_some(),
@@ -144,7 +144,7 @@ async fn test_route_idle_evict_and_reload() -> Void {
     );
     // 绑定期间空闲析构被引用拦截（期限已满也不可析构）
     assert!(!store.vdb.evict_idle_route(ids.0), "绑定期间快照不得析构");
-    ids
+    (ids.0, ids.1)
   }; // 会话 Drop：解绑引用归零，登记期限（0 秒即期）
 
   sleep(Duration::from_millis(5)).await;
@@ -189,9 +189,9 @@ async fn test_evict_between_cold_check_and_resolve_no_renumber() -> Void {
   let (vns0, vdb0) = {
     let session = store.new_session()?;
     session.set_context(7, 0);
-    let ids = store.vdb.get_virtual_ids(7, 0);
+    let ids = store.vdb.get_virtual_ids_with_created(7, 0);
     session.upsert(b"race:key", b"race:value").await?;
-    ids
+    (ids.0, ids.1)
   };
   let next_id = store.vdb.next_virtual_id.load(Relaxed);
 

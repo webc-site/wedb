@@ -1,7 +1,7 @@
 //! 优雅停机协调器
 //!
 //! 统一管理工作线程的停机通知，基于 AtomicBool + event_listener::Event 实现 O(1) 广播，
-//! 消除为每个任务创建 bounded_async(1) 与 Mutex<Vec<AsyncTx>> 遍历发送的反模式。
+//! 消除为每个任务创建 bounded_async(1) 与 `Mutex<Vec<AsyncTx>>` 遍历发送的反模式。
 
 use std::sync::{
   Arc,

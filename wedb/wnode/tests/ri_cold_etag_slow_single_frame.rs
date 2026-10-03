@@ -12,7 +12,7 @@
 //! 修复形态：Blocked 改回独立的已应答早停标志 `Ok(false)`（本函数零出帧），
 //! 调用方见 false 即按本命令口径出单 WRONGTYPE 后立即返回；挡写绝不经
 //! `Err(())`（exec_slow 统一应答面会在 WRONGTYPE 之上再叠一帧
-//! RESP_ERR_SLOW_PATH_STORAGE，同一双帧病，garnet_api/slow.rs:225-226）。
+//! RESP_ERR_SLOW_PATH_STORAGE，同一双帧病，garnet_api/slow/）。
 //!
 //! 夹具对标票面「冷装配（RI 元记录刷盘 + 无 String 记录）」：案一同款
 //! 16KB×4 页小环形日志压力翻转（etag_conditional_degrade_replay.rs 同款，

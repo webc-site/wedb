@@ -230,7 +230,7 @@ async fn flushdb_between_reads_zero_ttl_ghost_locked_and_fixed() {
     expire_at_milliseconds_to_ticks(ttl_ms()),
   )
   .await;
-  let old_vdb1 = neg.vdb.get_virtual_ids(0, 1).1;
+  let old_vdb1 = neg.vdb.get_virtual_ids_with_created(0, 1).1;
   {
     let session = neg.new_session().unwrap();
     assert!(session.set_context(0, 1));

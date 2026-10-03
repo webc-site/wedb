@@ -45,7 +45,8 @@ fn test_vdb_active_vns() {
 fn test_vdb_dead_domain_role() {
   let vdb = VirtualDbManager::new();
   // 根命名空间：db0 -> vdb0（初始零号）、db1 -> vdb1（新分配）
-  assert_eq!(vdb.get_virtual_ids(0, 1), (0, 1));
+  let (ids_vns, ids_vdb, ..) = vdb.get_virtual_ids_with_created(0, 1);
+  assert_eq!((ids_vns, ids_vdb), (0, 1));
   assert!(!vdb.is_dead_domain(0, 0));
   assert!(!vdb.is_dead_domain(0, 1));
 
@@ -71,7 +72,8 @@ fn test_vdb_dead_domain_role() {
 #[test]
 fn test_vdb_dead_expired_role_and_time() {
   let vdb = VirtualDbManager::new();
-  assert_eq!(vdb.get_virtual_ids(0, 1), (0, 1));
+  let (ids_vns, ids_vdb, ..) = vdb.get_virtual_ids_with_created(0, 1);
+  assert_eq!((ids_vns, ids_vdb), (0, 1));
   // FLUSHDB(0,0) 以 expired_at=1000 退役 vdb 0：键 0 与在用 vns 0 同号
   let (_, _, Some(old_vdb)) = vdb.flush_db(0, 0, 1000, 0) else {
     unreachable!();
@@ -165,7 +167,7 @@ fn test_vdb_list_active_virtual_dbs() {
   assert_eq!(vdb.list_active_virtual_dbs(), vec![(0, 0)]);
 
   // 访问 ns=10, db=1
-  let (vns10, vdb10_1) = vdb.get_virtual_ids(10, 1);
+  let (vns10, vdb10_1, ..) = vdb.get_virtual_ids_with_created(10, 1);
   let mut list = vdb.list_active_virtual_dbs();
   assert!(list.contains(&(0, 0)));
   assert!(list.contains(&(vns10, vdb10_1)));

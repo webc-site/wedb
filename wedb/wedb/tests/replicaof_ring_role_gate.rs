@@ -14,30 +14,29 @@
 //! - gossip 停摆窗竞态环：次路 REPLICAOF 前台发起被对端承接门 -ERR 拒，
 //!   发起侧经 AllowReplicaResetOnFailure 回滚臂复位 Primary，环拆单向。
 
-use compio::{runtime::Runtime, time::sleep};
-use wedb::error::Error;
-#[path = "common/replica_host.rs"]
-mod replica_host;
-
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
-use replica_host::replica_host;
+use compio::{runtime::Runtime, time::sleep};
 use waof::AofAddress;
 use wbase::hex::hex_str_u128;
 use wdev::SegmentedDevice;
-use wedb::server::{
-  cluster_provider::ClusterProvider,
-  replication::{
-    assembly::{try_replicate_sync_async, wire_replication_data_plane},
-    checkpoint_entry::CheckpointEntry,
-    replicate_sync_options::ReplicateSyncOptions,
-    sync_metadata::SyncMetadata,
+use wedb::{
+  error::Error,
+  server::{
+    cluster_provider::ClusterProvider,
+    replication::{
+      assembly::{try_replicate_sync_async, wire_replication_data_plane},
+      checkpoint_entry::CheckpointEntry,
+      replicate_sync_options::ReplicateSyncOptions,
+      sync_metadata::SyncMetadata,
+    },
+    worker::{LocalWorkerSpec, NodeRole, Worker},
   },
-  worker::{LocalWorkerSpec, NodeRole, Worker},
 };
 use wedb_test::{
   cluster_consumer::cluster_consumer,
   node_storage::{open_node, provider_with_role},
+  replica_host::replica_host,
 };
 use wnode::{MessageConsumerFace, RespSessionConsumer};
 use wtest_base::{resp_frame, wait_for};

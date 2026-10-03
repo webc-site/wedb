@@ -113,6 +113,8 @@ fn bit_pos_byte_search(
     if remainder >= 8 {
       let idx = current_start_offset as usize;
       debug_assert!(idx + 8 <= input.len());
+      // SAFETY: 归一化扫描域保证搜索区间 ⊆ input，remainder ≥ 8
+      // ⟹ idx + 8 ≤ input.len()，8 字节非对齐读界内
       let payload = unsafe {
         (input.as_ptr().add(idx) as *const i64)
           .read_unaligned()
@@ -128,6 +130,8 @@ fn bit_pos_byte_search(
     } else if remainder >= 4 {
       let idx = current_start_offset as usize;
       debug_assert!(idx + 4 <= input.len());
+      // SAFETY: 归一化扫描域保证搜索区间 ⊆ input，remainder ≥ 4
+      // ⟹ idx + 4 ≤ input.len()，4 字节非对齐读界内
       let payload = unsafe {
         (input.as_ptr().add(idx) as *const i32)
           .read_unaligned()

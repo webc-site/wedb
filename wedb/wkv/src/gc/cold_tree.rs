@@ -62,12 +62,11 @@ impl<D: Device> WedbStore<D> {
   /// 读锁 + 写者纪元）互斥安全，纪元延迟 dispose 由同轮
   /// [`WedbStore::drain_bftree_release`] / 收割点承接。
   ///
-  /// 判据探针与治愈快路径 [`heal_stub_in_place`] 同源（哈希索引单槽
+  /// 判据探针与治愈快路径 `heal_stub_in_place` 同源（哈希索引单槽
   /// [`find_tag`] 探针）：RC 链头不可判、Tag 碰撞误探均为性能侧保守偏差
   /// （迟滞窗 + 懒重开兜底，回收非正确性事件）；索引扩容迁移窗探针结果按
   /// 陈旧轮次处理，误摘仅付重开成本，绝不误删数据（delete_file=false 文件保留）。
   ///
-  /// [`heal_stub_in_place`]: crate::range_index::heal::heal_stub_in_place
   /// [`find_tag`]: windex::HashIndex::find_tag
   pub fn recycle_cold_bftrees(&self) -> usize {
     let now = now_ticks();

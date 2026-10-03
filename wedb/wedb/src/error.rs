@@ -95,7 +95,7 @@ pub enum Error {
   /// :180-183，RESP 文案单源在 [`cluster_err_text`] 副本域臂）
   #[error("primary has been assigned slots and cannot be a replica")]
   PrimaryHasAssignedSlots,
-  /// SETSLOT <slot> NODE 处于 IMPORTING 的槽时传入非本地节点 ID（C#
+  /// SETSLOT `<slot>` NODE 处于 IMPORTING 的槽时传入非本地节点 ID（C#
   /// libs/cluster/Server/ClusterManagerSlotState.cs:TryPrepareSlotForOwnershipChange
   /// :356-362；节点在拓扑中合法已知，仅因并非接收命令的本地节点被拒）
   #[error("input nodeid {input} different from local nodeid {local}")]

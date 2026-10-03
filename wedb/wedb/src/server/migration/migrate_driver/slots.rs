@@ -15,10 +15,10 @@ use wnode::{
 };
 
 use super::{
-  keys::{
-    MigrateTransmitEnv, begin_migration_phase, connect_migrate_client, dispose_migration,
-    end_migration_phase, is_timeout_err, max_chunk_of, transmit_keys, try_recover_from_failure,
-    wait_dur,
+  keys::{MigrateTransmitEnv, max_chunk_of, transmit_keys, wait_dur},
+  phase::{
+    begin_migration_phase, connect_migrate_client, dispose_migration, end_migration_phase,
+    is_timeout_err, try_recover_from_failure,
   },
   recover_and_fail,
 };

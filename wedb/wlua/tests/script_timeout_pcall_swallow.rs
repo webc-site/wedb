@@ -60,8 +60,8 @@ fn run_guarded(source: &str) -> (bool, String) {
     state.hook_shared_deadline(registration.shared_deadline());
     registration.arm(now_ms_i64(), TIMEOUT_MILLIS);
     state.load_string(&source).expect("load_string 失败");
-    let (is_err, text) = match state.pcall(0) {
-      Ok(()) => (false, "ok:宿主 pcall 成功返回".to_owned()),
+    let (is_err, text) = match state.pcall_n(0, usize::MAX) {
+      Ok(_) => (false, "ok:宿主 pcall 成功返回".to_owned()),
       Err(err) => (true, err.to_string()),
     };
     registration.disarm();
@@ -172,6 +172,6 @@ fn plain_script_pcall_still_catches_errors() {
   state
     .load_string("local ok = pcall(function() error('boom') end) return ok and 1 or 7")
     .unwrap();
-  state.pcall(0).unwrap();
+  state.pcall_n(0, usize::MAX).unwrap();
   assert_eq!(state.check_number(-1), Some(7.0));
 }

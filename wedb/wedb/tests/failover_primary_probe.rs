@@ -98,7 +98,7 @@ fn primary_probe_skips_offline_replica_and_takes_synced_one() -> Void {
       FailoverOption::Takeover,
       Duration::from_secs(10)
     ));
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
 
     assert!(
@@ -149,7 +149,7 @@ fn primary_probe_abort_interrupts_wait_without_takeover() -> Void {
 
     let start = Instant::now();
     m.try_abort_replica_failover();
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
 
     assert!(
@@ -272,7 +272,7 @@ fn primary_takeover_inflight_abort_interrupts_wait() -> Void {
 
     let start = Instant::now();
     m.try_abort_replica_failover();
-    m.wait_failover_done().await;
+    wait_failover_done(&m).await;
     let elapsed = start.elapsed();
 
     assert!(
@@ -282,4 +282,13 @@ fn primary_takeover_inflight_abort_interrupts_wait() -> Void {
     assert_eq!(m.get_failover_status(), "no-failover");
     aok::OK
   })
+}
+
+/// 已删 `FailoverManager::wait_failover_done` 的测试等价轮询面
+///（is_failover_in_progress 观测终态落账 + 会话收场，5s 超时上限）
+async fn wait_failover_done(m: &FailoverManager) {
+  assert!(
+    wait_for(|| !m.is_failover_in_progress(), Duration::from_secs(5)).await,
+    "failover 未在 5s 内收场"
+  );
 }

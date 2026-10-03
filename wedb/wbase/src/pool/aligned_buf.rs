@@ -16,7 +16,7 @@ use crate::error::{Error, Result};
 
 /// 扇区对齐的堆内存缓冲区
 ///
-/// 可由 [`BufferPool`](crate::BufferPool) 签发：携带池归属与归还清零策略，
+/// 可由 [`BufferPool`](crate::pool::BufferPool) 签发：携带池归属与归还清零策略，
 /// RAII drop 时自动归还入池复用；否则 drop 即释放。
 pub struct AlignedBuf {
   ptr: NonNull<u8>,

@@ -32,18 +32,21 @@
 
 pub mod keys;
 pub mod live_value;
+pub mod phase;
 pub mod slots;
 
-pub use keys::{
-  MigrateTransmitEnv, connect_migrate_client, run_keys_migration_driver, send_payload_and_wait,
-  transmit_keys,
-};
+/// KEYS 驱动执行体（任务注册后的键迁移主状态机），私有子模块，经
+/// [`keys`] 的 run_keys_migration_driver 驱动
+mod keys_execute;
+
+pub use keys::{MigrateTransmitEnv, run_keys_migration_driver, transmit_keys};
 #[doc(hidden)]
 pub use live_value::TEST_LIVE_VALUE_READ_HOOK;
 pub use live_value::{
   LiveKeyKind, LiveValue, UnsupportedKey, collect_vector_set_keys, migratable_object_type,
   probe_live_key_kind, probe_unsupported_keys, read_live_value, unsupported_label,
 };
+pub use phase::{connect_migrate_client, send_payload_and_wait};
 pub use slots::{RevivPauseGuard, run_slots_migration_task, try_add_slots_migration_task};
 
 /// 迁移失败统一收口：recover 后直接 return Err（err 臂带 poisoned 判定，

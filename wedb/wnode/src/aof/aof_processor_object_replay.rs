@@ -2,7 +2,7 @@
 //! ObjectStoreUpsert / ObjectStoreRMW / ObjectStoreDelete 段）。
 //!
 //! C# ObjectStoreRMW 经 Tsavorite objectContext 以 GarnetObjectType 泛型
-//! 多态应用到四内存对象；rust 侧以 [`ReplayObject`] 静态分发承接
+//! 多态应用到四内存对象；rust 侧以 `ReplayObject` 静态分发承接
 //! （信封域读出 → operate → 删空自愈 / 回写信封），无运行时查表。
 //! ObjectStoreRMW 条目两类两域：分层稳态写镜像条目（
 //! StoreEvent::TieredCollectionWrite 入账形态）物理键恒 Meta 域，信封 RMW

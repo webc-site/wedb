@@ -1299,9 +1299,9 @@ async fn hello_setname_non_ascii_rejected() {
 /// test/standalone/Garnet.test/RespTests.cs:AsyncTest1
 #[test]
 fn async_test1() {
-  with_batch(|s, batch| {
+  with_batch(|s, _batch| {
     let mut out = Vec::new();
-    s.network_async(&[b"ON"], batch, &mut out).unwrap();
+    RespServerSession::apply_async_param_impl(s.resp_protocol_version, &[b"ON"], &mut out).unwrap();
     assert_eq!(out, b"-ERR command not supported in RESP2\r\n");
   });
 }
@@ -3055,20 +3055,24 @@ fn object_encoding_types_and_expiration() {
 /// 自述锚：ASYNC 命令在 RESP2 协议下的错误返回行为验证（rust 自有特性，无 C# 对位）
 #[test]
 fn async_command_resp2_and_resp3() {
-  with_batch(|s, batch| {
+  with_batch(|s, _batch| {
     let mut out = Vec::new();
+    // 分派单点 apply_async_param_impl 直调（生产锚在 dispatch.rs Async 臂）
+    let async_call = |s: &RespServerSession, args: &[&[u8]], out: &mut Vec<u8>| {
+      RespServerSession::apply_async_param_impl(s.resp_protocol_version, args, out).unwrap()
+    };
 
     // 默认 RESP2 下：ASYNC ON/OFF/BARRIER 均报错
     assert_eq!(s.resp_protocol_version, 2);
-    s.network_async(&[b"ON"], batch, &mut out).unwrap();
+    async_call(s, &[b"ON"], &mut out);
     assert_eq!(out, b"-ERR command not supported in RESP2\r\n");
 
     out.clear();
-    s.network_async(&[b"OFF"], batch, &mut out).unwrap();
+    async_call(s, &[b"OFF"], &mut out);
     assert_eq!(out, b"-ERR command not supported in RESP2\r\n");
 
     out.clear();
-    s.network_async(&[b"BARRIER"], batch, &mut out).unwrap();
+    async_call(s, &[b"BARRIER"], &mut out);
     assert_eq!(out, b"-ERR command not supported in RESP2\r\n");
 
     // 升级至 RESP3（协议版本直设：HELLO 已 async 化不经同步测试壳，
@@ -3081,26 +3085,25 @@ fn async_command_resp2_and_resp3() {
     let async_required = err_frame(RESP_ERR_ASYNC_REQUIRED);
     for param in [b"ON".as_slice(), b"OFF", b"BARRIER", b"on", b"Barrier"] {
       out.clear();
-      s.network_async(&[param], batch, &mut out).unwrap();
+      async_call(s, &[param], &mut out);
       assert_eq!(out, async_required);
     }
 
     // 非法参数 -> ERR syntax error
     out.clear();
-    s.network_async(&[b"INVALID"], batch, &mut out).unwrap();
+    async_call(s, &[b"INVALID"], &mut out);
     assert_eq!(out, err_frame(RESP_ERR_GENERIC_SYNTAX_ERROR));
 
     // 参数数量错误（0 参或多参）
     out.clear();
-    s.network_async(&[], batch, &mut out).unwrap();
+    async_call(s, &[], &mut out);
     assert_eq!(
       out,
       b"-ERR wrong number of arguments for 'ASYNC' command\r\n"
     );
 
     out.clear();
-    s.network_async(&[b"ON", b"EXTRA"], batch, &mut out)
-      .unwrap();
+    async_call(s, &[b"ON", b"EXTRA"], &mut out);
     assert_eq!(
       out,
       b"-ERR wrong number of arguments for 'ASYNC' command\r\n"

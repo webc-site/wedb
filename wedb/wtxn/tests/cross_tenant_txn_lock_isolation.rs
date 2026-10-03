@@ -173,7 +173,7 @@ fn lock_keys_partitions_key_hashes_by_session_prefix() {
         "排队登记期不得过早冻结物理哈希条目"
       );
       txn.register_run_preamble(session.session_prefix().as_slice(), true);
-      txn.key_entries.key_hashes().collect()
+      txn.key_entries.keys.iter().map(|k| k.key_hash).collect()
     })
     .collect();
 

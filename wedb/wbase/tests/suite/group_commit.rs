@@ -277,7 +277,7 @@ fn test_error_broadcast_releases_leadership() {
 }
 
 /// Leader 身份 Drop 守卫回归：step 闭包内 panic（unwind 打断 Leader 刷盘链，
-/// 对位 drive.rs 泵层 catch_unwind 捕获后的 future 丢弃）——守卫 Drop 须复位
+/// 对位 drive/mod.rs 泵层 catch_unwind 捕获后的 future 丢弃）——守卫 Drop 须复位
 /// leading 并对挂起 Follower 广播中断哨兵（经通道中断兜底臂上抛），后续
 /// enter 能再任 Leader（防单会话 panic 把写平面砖化为全域永久 Follow 挂起）。
 #[test]

@@ -1,7 +1,7 @@
 //! WAIT-FOR-COMMIT 持久性档端到端回归（真实 `StorageSessionProvider` + AOF）
 //!
 //! 对标 C# RespServerSession.cs:1453 `Send` 内 `if (waitForAofBlocking)` →
-//! `storeWrapper.WaitForCommitAsync()`（rust 读点在 `net/handler/drive.rs`
+//! `storeWrapper.WaitForCommitAsync()`（rust 读点在 `net/handler/drive/read.rs`
 //! 出网写出段，等待经 `SessionProviderFace::wait_for_commit_async` 下达
 //! `SingleDatabaseManager::wait_for_commit_to_aof_async`）：
 //!

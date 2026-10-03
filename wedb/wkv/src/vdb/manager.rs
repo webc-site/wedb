@@ -43,7 +43,7 @@ pub struct VirtualDbManager {
   /// 活跃虚空间映射 (反向索引 O(1) 判活): virtual_ns_id -> logic_ns
   pub active_vns: ConcurrentMap<u64, u64>,
 
-  /// 库级路由快照表: virtual_ns_id -> Arc<TenantRouting>
+  /// 库级路由快照表: virtual_ns_id -> `Arc<TenantRouting>`
   pub db_routing: ConcurrentMap<u64, Arc<TenantRouting>>,
 
   /// 全局下一分配 ID
@@ -207,7 +207,7 @@ impl VirtualDbManager {
   /// 单调抬升分配水位（DbMeta 镜像应用面：主库已用的号在本节点绝不再分配）
   ///
   /// 从库应用镜像映射/墓碑记录时折叠值侧新号与键侧死亡旧号（与重建收尾
-  /// [`WedbStore::finish_vdb_rebuild`] 的 `fetch_max(max_vid + 1)` 同口径），
+  /// `WedbStore::finish_vdb_rebuild` 的 `fetch_max(max_vid + 1)` 同口径），
   /// 保证后续本地取号不与主库未来取号撞号
   #[inline]
   pub fn bump_watermark(&self, min_next: u64) {
@@ -319,13 +319,6 @@ impl VirtualDbManager {
     (vns, vdb, ns_created, db_created)
   }
 
-  /// [`Self::get_virtual_ids_with_created`] 的 (vns, vdb) 退化形态（丢弃 created）
-  #[inline]
-  pub fn get_virtual_ids(&self, logic_ns: u64, logic_db: u64) -> (u64, u64) {
-    let (vns, vdb, ..) = self.get_virtual_ids_with_created(logic_ns, logic_db);
-    (vns, vdb)
-  }
-
   /// 同步只读判定 (ns, db) 是否为冷库（严格上下文免盲分配门）
   ///
   /// 冷库 = ns 标量在册（重建装载全部 ns 标量，磁盘有记录必在册，未在册即
@@ -389,7 +382,7 @@ impl VirtualDbManager {
     self.active_vns.pin().get(&vns).copied()
   }
 
-  /// 物理域 → 逻辑域反查单点（[`Self::get_virtual_ids`] 的逆运算，只读）
+  /// 物理域 → 逻辑域反查单点（[`Self::get_virtual_ids_with_created`] 的逆运算，只读）
   ///
   /// 回放面唯一的域反查入口：AOF keyed 条目只带物理前缀 `[vns][vdb]`（入账侧
   /// 键一律是引擎物理键），而库级定槽按逻辑域现算（`doc/zh/db.md` 4.1
@@ -595,7 +588,7 @@ impl VirtualDbManager {
   /// [`Self::get_or_create_db`]、[`Self::flush_db`]、[`Self::flush_ns`] 同走
   /// [`Self::alloc_next_virtual_id`]），故裸 id 命中判定在根域边界失准：
   /// FLUSHDB(0, 0) 退役 vdb 0 后 gc_dead 含键 0，任何 vns=0 的活域都被误判死亡。
-  /// 本判定经 [`GcDeadEntry::vns`] 区分退役角色——vdb 键须为库级退役
+  /// 本判定经 [`crate::vdb::GcDeadEntry::vns`] 区分退役角色——vdb 键须为库级退役
   /// （[`Self::flush_db`] 落 vns = Some）、vns 键须为命名空间级退役
   /// （[`Self::flush_ns`] 落 vns = None），角色不符的裸 id 碰撞不判死
   #[inline]

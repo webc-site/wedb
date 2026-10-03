@@ -67,7 +67,6 @@ async fn test_replication_full_chain_stream() {
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(ReplicaSessionProvider(replica_session.clone())),
   )
   .expect("构造副本服务器");

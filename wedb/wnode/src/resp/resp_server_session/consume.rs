@@ -64,7 +64,7 @@ impl RespServerSession {
   /// 字节（MULTI..EXEC 跨批次）因此驻留接收缓冲，EXEC 据此回退重解析
   /// 排队命令（C# IsSkippingOperations 禁平移同源语义）。
   ///
-  /// 分派经 [`GarnetApi`] 注入面；协议违规以 None 表达（C# 抛
+  /// 分派经 [`crate::resp::garnet_api::GarnetApiFace`] 注入面；协议违规以 None 表达（C# 抛
   /// RespParsingException，catch 块先写 `ERR Protocol Error: {msg}` 到
   /// 累积输出再断连，rust 同序：错误落在 [`Self::output`] 中此前命令
   /// 应答之后，由调用方发出后断连）。

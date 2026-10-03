@@ -237,7 +237,7 @@ impl MessageConsumerFace for RespSessionConsumer {
   }
 
   /// 竞速废弃事务收口转发（锚点 1:1 挂在 trait 契约面
-  /// [`traits::MessageConsumerFace::finish_abandoned_txn`]，单点在会话同名方法）
+  /// [`crate::traits::MessageConsumerFace::finish_abandoned_txn`]，单点在会话同名方法）
   fn finish_abandoned_txn(&mut self) {
     self.session.finish_abandoned_txn();
   }
@@ -317,19 +317,19 @@ impl MessageConsumerFace for RespSessionConsumer {
   }
 
   /// 慢路径应答并入（锚点 1:1 挂在 trait 契约面
-  /// [`traits::MessageConsumerFace::resolve_slow_wait_into`]，本转调位不复挂）
+  /// [`crate::traits::MessageConsumerFace::resolve_slow_wait_into`]，本转调位不复挂）
   fn resolve_slow_wait_into(&mut self, reply: &[u8], resp_buf: &mut Vec<u8>) {
     self.session.resolve_slow_wait_into(reply, resp_buf, true);
   }
 
   /// 脚本内挂起探测（协程化承接，锚点 1:1 挂在 trait 契约面
-  /// [`traits::MessageConsumerFace::has_script_suspend`]）
+  /// [`crate::traits::MessageConsumerFace::has_script_suspend`]）
   fn has_script_suspend(&self) -> bool {
     self.session.has_script_suspend()
   }
 
   /// 挂起脚本续跑执行体（协程化承接，锚点 1:1 挂在 trait 契约面
-  /// [`traits::MessageConsumerFace::resume_suspended_script_fut`]）
+  /// [`crate::traits::MessageConsumerFace::resume_suspended_script_fut`]）
   fn resume_suspended_script_fut<'a>(
     &'a mut self,
     resp_buf: &'a mut Vec<u8>,
@@ -370,7 +370,7 @@ impl MessageConsumerFace for RespSessionConsumer {
   /// 本批 AOF 提交等待标记（C# `RespServerSession.cs` 内 Send 直读的
   /// `waitForAofBlocking` 字段；解析期 `HandleAofCommitMode` 按命令依赖性维护。
   /// 该符号锚点 1:1 挂在 trait 契约面
-  /// [`traits::MessageConsumerFace::wait_for_aof_blocking`]，本转调位不复挂）
+  /// [`crate::traits::MessageConsumerFace::wait_for_aof_blocking`]，本转调位不复挂）
   fn wait_for_aof_blocking(&self) -> bool {
     self.session.wait_for_aof_blocking
   }

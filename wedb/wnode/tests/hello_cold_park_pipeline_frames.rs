@@ -6,7 +6,7 @@
 //! 失效）；且挂起闭环（`resolve_slow_wait_into`）以应答首字节 `-` 判装载
 //! 失败，前序错误帧开头时连坐误跳标量物化。修复为 `output.split_off(start_len)`
 //! 最小移交（与事务守卫臂 truncate 同锚，先例见 AUTH 挂起臂 auth.rs 与
-//! SELECT 挂起臂 array_commands.rs）。
+//! SELECT 挂起臂 array_commands/mod.rs）。
 //!
 //! C# 契约对位：libs/server/Resp/BasicCommands.cs:ProcessHelloCommand
 //!（:1774-1849）应答与同批前序命令回帧共用同一累积缓冲、同步内联出帧，

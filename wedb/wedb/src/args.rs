@@ -36,7 +36,7 @@ pub struct ClusterArgs {
   #[command(flatten)]
   pub node: NodeArgs,
 
-  /// 集群拓扑配置文件存储路径（缺省为 <dir>/nodes.conf）
+  /// 集群拓扑配置文件存储路径（缺省为 `<dir>`/nodes.conf）
   #[arg(long)]
   pub cluster_config_file: Option<String>,
 
@@ -200,7 +200,7 @@ impl Default for ClusterArgs {
 }
 
 impl ClusterArgs {
-  /// 获取集群配置文件存储路径（未指定时默认为 <dir>/nodes.conf）
+  /// 获取集群配置文件存储路径（未指定时默认为 `<dir>`/nodes.conf）
   pub fn cluster_config_path(&self) -> String {
     self.cluster_config_file.as_deref().map_or_else(
       || {

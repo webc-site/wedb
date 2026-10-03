@@ -1,5 +1,5 @@
 //! 分派器（对标 libs/server/Resp/RespServerSession.cs:ProcessBasicCommands /
-//! ProcessArrayCommands / ProcessOtherCommands 三段链 + 经 [`GarnetApi`]
+//! ProcessArrayCommands / ProcessOtherCommands 三段链 + 经 [`crate::resp::garnet_api::GarnetApiFace`]
 //! 注入面的存储分派与 AUTH/HELLO/ACL 停车预筛）。消费主循环见
 //! [`super::consume`]。
 
@@ -39,7 +39,7 @@ impl RespServerSession {
   /// libs/server/Resp/RespServerSession.cs:ProcessBasicCommands
   ///
   /// fast 命令族分派（WARNING: 仅 @fast 命令，慢命令走 OtherCommands）。
-  /// 命令实现位于 resp 命令文件（并行域），经 [`GarnetApi`] 注入面
+  /// 命令实现位于 resp 命令文件（并行域），经 [`crate::resp::garnet_api::GarnetApiFace`] 注入面
   /// 接入；PING/ASKING/QUIT/事务族在会话侧闭环（分派臂只转调，单一实现
   /// 在 basic_commands）。
   pub fn process_basic_commands(&mut self, cmd: RespCommand) -> bool {
@@ -85,7 +85,7 @@ impl RespServerSession {
   /// libs/server/Resp/RespServerSession.cs:ProcessArrayCommands
   ///
   /// @fast 数组族会话级命令（WARNING: 仅 @fast，慢命令走 OtherCommands）；
-  /// 存储面数组命令经 [`GarnetApi`] 注入面承接。
+  /// 存储面数组命令经 [`crate::resp::garnet_api::GarnetApiFace`] 注入面承接。
   pub fn process_array_commands(&mut self, cmd: RespCommand) -> bool {
     match cmd {
       // C# ProcessArrayCommands：WATCH / WATCHMS / WATCHOS

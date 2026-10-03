@@ -58,7 +58,7 @@ fn setup(db: &str) -> RespSessionConsumer {
 
 /// 单命令执行（帧进 → 泵驱动至完成 → 应答出）
 ///
-/// 复刻生产泵 [`wnode/src/net/handler/drive.rs`] 消费循环语义：消费一批 →
+/// 复刻生产泵 [`wnode/src/net/handler/drive/consume.rs`] 消费循环语义：消费一批 →
 /// 会话挂起体（慢路径/升阶异步重放）取走 await 闭环、应答按流水线序并入 →
 /// 续消费直至整帧消化。集合增长越过 wcol 信封→wbftree 硬态边界时写臂转
 /// 「挂起 SlowWait、由网络泵驱动」的异步重放通道（C# 对象恒驻内存无此臂，

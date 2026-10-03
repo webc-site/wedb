@@ -1457,7 +1457,7 @@ fn network_exec_contended_retry_watch_keys_do_not_inflate() {
   assert!(txn.network_exec(&mut session));
   assert_eq!(txn.state, TxnState::Started);
   assert!(txn.watch_merged_into_txn_keys);
-  assert!(txn.is_exec_lock_armed());
+  assert!(txn.exec_lock_armed);
   assert_eq!(txn.txn_keys.len(), 2, "首轮 network_exec 成功并入 WATCH 键");
   assert_key_registered_once(&txn, b"k1", LockType::Exclusive, "首轮并入后");
   assert_key_registered_once(&txn, b"wk1", LockType::Shared, "首轮并入后");
@@ -1491,7 +1491,7 @@ fn network_exec_contended_retry_watch_keys_do_not_inflate() {
   assert_eq!(txn.state, TxnState::None);
   assert_eq!(txn.txn_keys.len(), 0, "提交后 txn_keys 清零");
   assert!(!txn.watch_merged_into_txn_keys, "提交后独立门控复位");
-  assert!(!txn.is_exec_lock_armed(), "提交后门控复位");
+  assert!(!txn.exec_lock_armed, "提交后门控复位");
 }
 
 #[test]
@@ -1546,7 +1546,7 @@ fn network_exec_barrier_contended_retry_watch_keys_do_not_inflate() {
     assert!(txn.network_exec(&mut session));
     assert_eq!(txn.state, TxnState::Started);
     assert!(
-      !txn.is_exec_lock_armed(),
+      !txn.exec_lock_armed,
       "第 {round} 轮屏障争用下 exec_lock_armed 恒为 false"
     );
     assert!(
@@ -1566,7 +1566,7 @@ fn network_exec_barrier_contended_retry_watch_keys_do_not_inflate() {
   barrier_open.store(true, Ordering::Relaxed);
   assert!(txn.network_exec(&mut session));
   assert_eq!(txn.state, TxnState::Running);
-  assert!(txn.is_exec_lock_armed());
+  assert!(txn.exec_lock_armed);
   assert_eq!(txn.txn_keys.len(), 2);
   assert_key_registered_once(&txn, b"k1", LockType::Exclusive, "取锁成功轮");
   assert_key_registered_once(&txn, b"wk1", LockType::Shared, "取锁成功轮");
@@ -1579,7 +1579,7 @@ fn network_exec_barrier_contended_retry_watch_keys_do_not_inflate() {
     !txn.watch_merged_into_txn_keys,
     "提交后 watch_merged_into_txn_keys 复位"
   );
-  assert!(!txn.is_exec_lock_armed(), "提交后 exec_lock_armed 复位");
+  assert!(!txn.exec_lock_armed, "提交后 exec_lock_armed 复位");
 }
 
 #[test]

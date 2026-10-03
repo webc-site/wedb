@@ -8,7 +8,7 @@ pub struct SortedSetComparer;
 
 impl SortedSetComparer {
   /// 分值 + 成员字典序（C#: x.Item1.CompareTo(y.Item1)，同分回退
-  /// ReadOnlySpan<byte>.SequenceCompareTo）
+  /// `ReadOnlySpan<byte>`.SequenceCompareTo）
   ///
   /// 全序口径逐字对位 .NET `Double.CompareTo`（非 total_cmp）：
   /// - `+0.0` 与 `-0.0` 相等（同分回退 member 字节序，不分先后）；

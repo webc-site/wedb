@@ -61,7 +61,7 @@ pub const REDIS_PROTOCOL_VERSION: &str = "7.4.3";
 pub(super) const DEFAULT_RECV_BUFFER_CAPACITY: usize = 1 << 16;
 
 /// 挂起窗探测竞速入向保全水位（票 task/ing/wnode-probe-preserve-unbounded-recv-buffer-oom）：
-/// 泵层探测竞速 `probe_race`（net/handler/drive.rs）竞速期本地累积量达此界即停建
+/// 泵层探测竞速 `probe_race`（net/handler/drive/race.rs）竞速期本地累积量达此界即停建
 /// 探测读，挂起窗单连接驻留封顶。C# 阻塞/慢命令在网络线程内联阻塞
 /// （libs/server/Resp/Objects/ListCommands.cs:283 `Must block as we're on the network
 /// thread` + `AsyncUtils.BlockingWait`），挂起窗无人在场读套接字，对端来字滞留内核
@@ -115,7 +115,7 @@ pub struct RespServerSession {
 
   /// ASKING 跳过计数（C# SessionAsking）
   pub session_asking: u8,
-  /// 当前会话所属命名空间（0 为全局超管空间，连接认证时根据 <ns>#user 绑定）
+  /// 当前会话所属命名空间（0 为全局超管空间，连接认证时根据 `<ns>`#user 绑定）
   pub namespace: u64,
   /// 当前活跃库编号（C# activeDatabaseId）
   pub active_db_id: u64,
@@ -632,18 +632,6 @@ impl RespServerSession {
     }
   }
 
-  /// libs/server/Resp/RespServerSession.cs:IsCommandArityValid
-  ///
-  /// arity = 0 不校验；正值 = 恰好 arity-1 参数；负值 = 至少 -arity-1 参数。
-  /// 失败时按 C# GenericErrWrongNumArgs 写出错误应答。
-  pub fn is_command_arity_valid(&mut self, cmd_name: &str, arity: i32, count: usize) -> bool {
-    if !is_command_arity_valid_checked(arity, count) {
-      self.abort_wrong_num_args(cmd_name);
-      return false;
-    }
-    true
-  }
-
   /// libs/server/Resp/RespServerSession.cs:TrySwitchActiveDatabaseSession
   ///
   /// C# 契约：底层库会话确认就绪（success）后才 `SwitchActiveDatabaseSession`
@@ -763,10 +751,10 @@ impl Default for RespServerSession {
   }
 }
 
-/// 命令 arity 纯判定逻辑（供 is_command_arity_valid 使用）。
+/// 命令 arity 纯判定逻辑（生产消费点：custom.rs 自定义命令分派门）。
 /// arity = 0 不校验；正值 = 恰好 arity-1 参数；
 /// 负值 = 至少 |arity|-1 参数（C# `count < -arity - 1` 为非法）
-pub(super) fn is_command_arity_valid_checked(arity: i32, count: usize) -> bool {
+pub fn is_command_arity_valid_checked(arity: i32, count: usize) -> bool {
   if arity == 0 {
     return true;
   }

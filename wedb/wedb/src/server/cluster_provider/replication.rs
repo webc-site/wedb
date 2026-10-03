@@ -271,7 +271,7 @@ impl ClusterProvider {
   /// 重启后主动发起与 PRIMARY 的首次同步（C# ClusterProvider.cs:89-93
   /// `Start()` 内 `replicationManager.Start()` 段的对偶；同段的
   /// `clusterManager.Start()` 半段由 gossip 挂点承接，二者一并挂在装配尾段
-  /// [`WnodeClusterProvider::start`]）。逐条对标 C# 三分支：
+  /// `WnodeClusterProvider::start`）。逐条对标 C# 三分支：
   /// - 本地角色 REPLICA 且 recover 且已记 primary → 当场经唯一选路口
   ///   [`try_replicate_sync_async`] 发起一次 attach（C# syncOpts:592-599
   ///   NodeId:null、Background:false、Force 取 ReplicaDisklessSync 开关本身、

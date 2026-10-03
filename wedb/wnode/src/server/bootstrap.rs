@@ -11,7 +11,6 @@ impl<A: ServerArgs> ServerBootstrap<A, NoopClusterProvider> {
       args,
       cluster_provider: NoopClusterProvider,
       network_buffer_size: DEFAULT_BUFFER_SIZE,
-      network_send_throttle_max: 8,
       banner: "WeDB 数据库服务".into(),
       shutdown_coordinator: None,
     }
@@ -28,7 +27,6 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
       args: self.args,
       cluster_provider,
       network_buffer_size: self.network_buffer_size,
-      network_send_throttle_max: self.network_send_throttle_max,
       banner: self.banner,
       shutdown_coordinator: self.shutdown_coordinator,
     }
@@ -147,7 +145,6 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
     let cluster_provider = self.cluster_provider;
     let args = self.args;
     let network_buffer_size = self.network_buffer_size;
-    let network_send_throttle_max = self.network_send_throttle_max;
     let shutdown_coordinator = self.shutdown_coordinator;
     let assemble = assemble;
     let cluster_for_assemble = cluster_provider.clone();
@@ -193,13 +190,8 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
           None
         };
 
-      let mut server = GarnetServer::new(
-        &endpoints,
-        network_buffer_size,
-        network_send_throttle_max,
-        session_provider,
-      )?
-      .with_network_connection_limit(network_connection_limit);
+      let mut server = GarnetServer::new(&endpoints, network_buffer_size, session_provider)?
+        .with_network_connection_limit(network_connection_limit);
       if let Some(coord) = shutdown_coordinator {
         server = server.with_shutdown_coordinator(coord);
       }

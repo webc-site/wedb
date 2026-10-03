@@ -3,7 +3,7 @@
 //! 对标 C# ReplicaSyncSession（libs/cluster/Server/Replication/PrimaryOps/
 //! DiskbasedReplication/ReplicaSyncSession.cs）——副本发起同步请求后，
 //! 主端协商同步策略、建立副本发送通道（AofSyncDriver + wire）、挂推流
-//! 泵并补扫存量积压。检查点快照下发段由 [`snapshot_transmission`] 承接
+//! 泵并补扫存量积压。检查点快照下发段由 [`super::snapshot_transmission`] 承接
 //! （SNAPSHOT_DATA 段流 + BEGIN_REPLICA_RECOVER 往返）。对标 C#
 //! AcquireCheckpointEntryAsync 先于快照下发 TryAddReplicationDriver 钉住
 //! 截断线（见 send_checkpoint_and_recover 预锁段），传送+恢复完成后由本

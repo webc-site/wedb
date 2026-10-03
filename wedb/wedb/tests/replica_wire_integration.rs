@@ -28,6 +28,7 @@ use wedb::server::{
   replication::replica_wire::{ShippedState, TcpSessionWire},
 };
 use wedb_test::de11_node_id::DE11_NODE_ID;
+use wtest_base::bind_blackhole;
 
 #[test]
 fn tcp_wire_not_connected() {
@@ -53,16 +54,7 @@ fn tcp_wire_not_connected() {
 /// 握手零往返即成），常驻泵不启动、在途帧置位封死直发臂——溢流只积不排，
 /// 以确定性形态触达条数/字节双封顶
 async fn wire_pumpless_connected(byte_cap: usize) -> TcpSessionWire {
-  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-  let addr = listener.local_addr().unwrap().to_string();
-  // 收下连接即静默（不读不写），套接字随任务滞留至测试收场
-  spawn(async move {
-    let mut held = Vec::new();
-    while let Ok((sock, _)) = listener.accept().await {
-      held.push(sock);
-    }
-  })
-  .detach();
+  let addr = bind_blackhole().await.to_string();
   let mut client = GarnetClientSession::new(addr, None, None, None, None);
   client.connect_async().await.unwrap();
   let node_id = DE11_NODE_ID;
@@ -199,20 +191,6 @@ async fn tcp_wire_disconnect_shuts_down_session_socket() {
   assert!(saw.is_ok(), "对端未在限时内观测到拆连：会话 socket 未收场");
 }
 
-/// 静默副本端点：收下连接即不读不写（CLIENT 握手帧永无应答），回 host:port
-async fn silent_replica_endpoint() -> String {
-  let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-  let addr = listener.local_addr().unwrap().to_string();
-  spawn(async move {
-    let mut held = Vec::new();
-    while let Ok((sock, _)) = listener.accept().await {
-      held.push(sock);
-    }
-  })
-  .detach();
-  addr
-}
-
 /// 复制出站建连限时随活旋钮（本册锁「限时唯 RuntimeServerOptions.
 /// replica_sync_timeout_secs 是从，无常量钉值」）：provider 选项槽折出的
 /// 限时形参在静默端点上即收场窗——甲臂旋钮 1s 必以 TimedOut 收场，乙臂旋钮
@@ -225,7 +203,7 @@ async fn silent_replica_endpoint() -> String {
 #[compio::test]
 async fn replica_sync_timeout_knob_drives_connect_window() {
   let provider = ClusterProvider::new();
-  let addr = silent_replica_endpoint().await;
+  let addr = bind_blackhole().await.to_string();
   let pool = || LimitedFixedBufferPool::new(DEFAULT_BUFFER_SIZE, DEFAULT_MAX_ENTRIES_PER_LEVEL);
 
   provider.set_replica_sync_timeout_secs(1);

@@ -64,7 +64,7 @@ pub fn block_on<F: Future>(f: F) -> F::Output {
 /// 协程协作让步 Future（1:1 对标 C# Task.Yield）。
 ///
 /// 首次 poll 时向上下文注册 waker 并返回 [`Poll::Pending`]，将当前任务重新挂入
-/// 执行器就绪队列；第二次 poll 时返回 [`Poll::Ready(())`] 恢复执行。
+/// 执行器就绪队列；第二次 poll 时返回 [`Poll::Ready`] 恢复执行。
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct YieldNow(pub bool);

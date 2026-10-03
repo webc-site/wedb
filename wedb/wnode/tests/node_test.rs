@@ -61,7 +61,7 @@ async fn assert_pong<S: AsyncRead + AsyncWriteExt>(stream: &mut S) -> Result<(),
 fn start_echo_server<P: SessionProviderFace + 'static>(
   provider: Arc<P>,
 ) -> aok::Result<GarnetServer<P>> {
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider).unwrap();
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider).unwrap();
   server.start(NonZeroUsize::new(1))?;
   Ok(server)
 }
@@ -273,7 +273,7 @@ fn test_garnet_server_uds_lifecycle() -> aok::Result<()> {
   let sock_path = dir.path().join("uds_echo.sock");
   let ep = format!("unix:{}", sock_path.display());
 
-  let server = GarnetServer::new(&[ep], 4096, 8, Arc::new(EchoProvider)).unwrap();
+  let server = GarnetServer::new(&[ep], 4096, Arc::new(EchoProvider)).unwrap();
   server.start(NonZeroUsize::new(1))?;
 
   let rt = Runtime::new()?;
@@ -335,7 +335,7 @@ fn test_network_connection_limit_rejects_excess() -> aok::Result<()> {
   let provider = Arc::new(RegistryProvider {
     registry: Arc::clone(&registry),
   });
-  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, 8, provider)
+  let server = GarnetServer::new(&["127.0.0.1:0".to_string()], 4096, provider)
     .unwrap()
     .with_network_connection_limit(2);
   server.start(NonZeroUsize::new(1))?;

@@ -332,7 +332,7 @@ The lists below mirror each crate's real crate-root `pub use` surface; internal 
 
 ### wbase — L0 primitives
 
-Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), `align` (64B cacheline / sector math), `backoff` (adaptive retry state machine), `base32`, `buf`, `convert`, `crc` (`crc32fast`), `crc64`, `error`, `future`, `glob`, `group-commit`, `hash`, `hash_slot` (slot routing), `hex`, `map` / `set` (`papaya` + `gxhash` concurrent collections), `num`, `pool` (`BufferPool` tiered Direct I/O sector-aligned pools, `AlignedBuf` sector-aligned buffers, the fixed-size network `LimitedFixedBufferPool` with RAII handles `PooledBuffer` / `PooledRefBuffer`, and the derived `throttle` module; mirroring Tsavorite `core/Utilities` and `libs/common/Memory`), `simd`, `store_type`, `striped` (lock striping), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints).
+Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), `align` (64B cacheline / sector math), `backoff` (adaptive retry state machine), `base32`, `buf`, `convert`, `crc` (`crc32fast`), `crc64`, `error`, `future`, `glob`, `group-commit`, `hash`, `hash_slot` (slot routing), `hex`, `map` / `set` (`papaya` + `gxhash` concurrent collections), `num`, `pool` (`BufferPool` tiered Direct I/O sector-aligned pools, `AlignedBuf` sector-aligned buffers, the fixed-size network `LimitedFixedBufferPool` with RAII handles `PooledBuffer` / `PooledRefBuffer`; mirroring Tsavorite `core/Utilities` and `libs/common/Memory`), `simd`, `store_type`, `striped` (lock striping), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints).
 
 ### whasher — hashing and checksums
 
@@ -739,7 +739,7 @@ wedb/
 
 ### wbase —— L0 原语
 
-按特性启用的模块，无 `full` 特性：`addr`（48 位 `LogAddress` 掩码）、`align`（64B 缓存行 / 扇区运算）、`backoff`（自适应重试状态机）、`base32`、`buf`、`convert`、`crc`（`crc32fast`）、`crc64`、`error`、`future`、`glob`、`group-commit`（组提交）、`hash`、`hash_slot`（槽位路由）、`hex`、`map` / `set`（`papaya` + `gxhash` 并发字典与集合）、`num`、`pool`（`BufferPool` 分级 Direct I/O 扇区对齐缓冲池、`AlignedBuf` 扇区对齐缓冲区、`LimitedFixedBufferPool` 固定块网络缓冲池与 RAII 句柄 `PooledBuffer` / `PooledRefBuffer`，并派生 `throttle`）、`simd`、`store_type`、`striped`（锁条带）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）。
+按特性启用的模块，无 `full` 特性：`addr`（48 位 `LogAddress` 掩码）、`align`（64B 缓存行 / 扇区运算）、`backoff`（自适应重试状态机）、`base32`、`buf`、`convert`、`crc`（`crc32fast`）、`crc64`、`error`、`future`、`glob`、`group-commit`（组提交）、`hash`、`hash_slot`（槽位路由）、`hex`、`map` / `set`（`papaya` + `gxhash` 并发字典与集合）、`num`、`pool`（`BufferPool` 分级 Direct I/O 扇区对齐缓冲池、`AlignedBuf` 扇区对齐缓冲区、`LimitedFixedBufferPool` 固定块网络缓冲池与 RAII 句柄 `PooledBuffer` / `PooledRefBuffer`）、`simd`、`store_type`、`striped`（锁条带）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）。
 
 ### whasher —— 哈希与校验和
 

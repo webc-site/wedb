@@ -8,46 +8,29 @@
 //! 数值解析复用 [`wbase::num`] 的 `strict_i32`/`strict_f32`（逐项对齐 C#
 //! `parseState.TryGetInt`/`TryGetFloat` 的严格语义），错误文案与命令应答对齐
 //! C# 字面量。
+//!
+//! 命令体按族拆分：共享取参骨架在 [`super::vectors_parse`]，写命令族
+//! （VADD/VREM/VSETATTR）在 [`super::vectors_write`]，查询命令族（VSIM/
+//! VEMB/VCARD 等）在 [`super::vectors_query`]；本文件保留应答模型、守卫
+//! 裁决与快/慢路径分派骨架。
 
 use core::fmt;
 use std::{borrow::Cow, ops::RangeBounds, sync::Arc};
 
-use wbase::num::{strict_f32, strict_i32};
 use wdev::Device;
 use wresp::{
-  cmd_strings as cs,
   cmd_strings::{RESP_ERR_SLOW_PATH_STORAGE, write_error_raw},
   command::RespCommand,
   ext::is_resp3,
-  options::equals_ignore_case,
   resp_memory_writer::{Resp2, Resp3, RespProtocol as _, RespWriter},
-  wrong_num_args,
 };
 use wval::KeyTag;
-use wvector::{VectorDistanceMetricType, VectorQuantType, VectorValueType, unpack_length_prefixed};
+use wvector::store::StoreCallbacks;
 
 use super::{
   ERR_VECTOR_SET_DISABLED,
-  vector_manager::{
-    ERR_VECTOR_SERVICE_RESPONSE, MAX_EXPLORATION_FACTOR, MAX_FILTERING_SCALE_FACTOR,
-    MAX_RETRIEVE_COUNT, MAX_VECTOR_DIMENSIONS, VectorAddArgs, VectorManager, VectorManagerResult,
-    VectorSearchOptions,
-  },
-  vector_manager_locking::CreateIndexParams,
+  vector_manager::{ERR_VECTOR_SERVICE_RESPONSE, VectorManager},
 };
-
-/// VADD 的 M 取值边界（libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVADD 的 MinM/MaxM）。
-const MIN_M: i32 = 4;
-const MAX_M: i32 = 4_096;
-
-/// VSIM 默认结果数（NetworkVSIM 的 DefaultResultSetSize 语义：count ??= 10）。
-const DEFAULT_VSIM_COUNT: i32 = 10;
-/// VSIM 默认搜索探索因子（count ??= 10 / searchExplorationFactor ??= 100）。
-const DEFAULT_VSIM_EF: i32 = 100;
-/// VSIM 默认过滤过取放大（maxFilteringEffort ??= 16）。
-const DEFAULT_VSIM_FILTER_EF: i32 = 16;
-/// VSIM 默认距离截断上限（对齐 C# RespServerSessionVectors.cs:860 epsilon ?? 2f）。
-const DEFAULT_VSIM_EPSILON: f32 = 2.0;
 
 // ── 错误文案常量（逐字节对齐 C# 字面量；自带 RESP 前缀原样写出） ──
 
@@ -61,30 +44,31 @@ const DEFAULT_VSIM_EPSILON: f32 = 2.0;
 /// wresp 带句点常量按命令分流回写，裁决与对拍口径见 doc/zh/deviations.md §164。
 const ERR_VECTOR_SET_WRONG_TYPE: &[u8] =
   b"WRONGTYPE Operation against a key holding the wrong kind of value";
-const ERR_INVALID_VECTOR_SPEC: &[u8] = b"ERR invalid vector specification";
-const ERR_REDUCE_MUST_BE_POSITIVE: &[u8] = b"REDUCE dimension must be > 0";
-const ERR_REDUCE_EXCEEDS_DIMS: &[u8] = b"ERR REDUCE dimension must be <= vector dimensions";
-const ERR_INVALID_OPTION_AFTER_ELEMENT: &[u8] = b"ERR invalid option after element";
-const ERR_QUANT_SPECIFIED_TWICE: &[u8] = b"Quantization specified multiple times";
-const ERR_EF_RANGE: &[u8] = b"ERR EF must be an integer between 1 and 1000000";
-const ERR_M_RANGE: &[u8] = b"ERR M must be an integer between 4 and 4096";
-const ERR_INVALID_DISTANCE_METRIC: &[u8] = b"ERR invalid XDISTANCE_METRIC";
-const ERR_EMPTY_VECTOR_SET_KEY: &[u8] = b"ERR Vector Set key cannot be empty";
-const ERR_QUANT_MISMATCH: &[u8] = super::vector_manager::ERR_QUANTIZATION_MISMATCH;
-const ERR_FP32_MULTIPLE_OF_4: &[u8] = b"FP32 values must be multiple of 4-bytes in size";
-const ERR_VALUES_COUNT_MUST_BE_POSITIVE: &[u8] = b"VALUES count must > 0";
-const ERR_VALUES_MUST_BE_FLOAT: &[u8] = b"VALUES value must be valid float";
-const ERR_VSIM_EXPECTED_KIND: &[u8] = b"VSIM expected ELE, FP32, or VALUES";
-const ERR_COUNT_RANGE: &[u8] = b"ERR COUNT must be an integer between 0 and 100000000";
-const ERR_EPSILON_MUST_BE_POSITIVE: &[u8] = b"EPSILON must be float > 0";
-const ERR_FILTER_EF_RANGE: &[u8] = b"ERR FILTER-EF must be an integer between 4 and 256";
-const ERR_UNKNOWN_OPTION: &[u8] = b"Unknown option";
+pub(super) const ERR_INVALID_VECTOR_SPEC: &[u8] = b"ERR invalid vector specification";
+pub(super) const ERR_REDUCE_MUST_BE_POSITIVE: &[u8] = b"REDUCE dimension must be > 0";
+pub(super) const ERR_REDUCE_EXCEEDS_DIMS: &[u8] =
+  b"ERR REDUCE dimension must be <= vector dimensions";
+pub(super) const ERR_INVALID_OPTION_AFTER_ELEMENT: &[u8] = b"ERR invalid option after element";
+pub(super) const ERR_QUANT_SPECIFIED_TWICE: &[u8] = b"Quantization specified multiple times";
+pub(super) const ERR_EF_RANGE: &[u8] = b"ERR EF must be an integer between 1 and 1000000";
+pub(super) const ERR_M_RANGE: &[u8] = b"ERR M must be an integer between 4 and 4096";
+pub(super) const ERR_INVALID_DISTANCE_METRIC: &[u8] = b"ERR invalid XDISTANCE_METRIC";
+pub(super) const ERR_EMPTY_VECTOR_SET_KEY: &[u8] = b"ERR Vector Set key cannot be empty";
+pub(super) const ERR_QUANT_MISMATCH: &[u8] = super::vector_manager::ERR_QUANTIZATION_MISMATCH;
+pub(super) const ERR_FP32_MULTIPLE_OF_4: &[u8] = b"FP32 values must be multiple of 4-bytes in size";
+pub(super) const ERR_VALUES_COUNT_MUST_BE_POSITIVE: &[u8] = b"VALUES count must > 0";
+pub(super) const ERR_VALUES_MUST_BE_FLOAT: &[u8] = b"VALUES value must be valid float";
+pub(super) const ERR_VSIM_EXPECTED_KIND: &[u8] = b"VSIM expected ELE, FP32, or VALUES";
+pub(super) const ERR_COUNT_RANGE: &[u8] = b"ERR COUNT must be an integer between 0 and 100000000";
+pub(super) const ERR_EPSILON_MUST_BE_POSITIVE: &[u8] = b"EPSILON must be float > 0";
+pub(super) const ERR_FILTER_EF_RANGE: &[u8] = b"ERR FILTER-EF must be an integer between 4 and 256";
+pub(super) const ERR_UNKNOWN_OPTION: &[u8] = b"Unknown option";
 /// 元素不在集合中（刻意偏差见 `doc/zh/deviations.md` §79：激活 C# 会话层死分支文案，严禁回改）。
 pub(crate) const ERR_ELEMENT_NOT_IN_SET: &[u8] = b"Element not in Vector Set";
-const ERR_VEMB_UNEXPECTED_OPTION: &[u8] = b"Unexpected option to VEMB";
-const ERR_KEY_NOT_FOUND: &[u8] = b"ERR Key not found";
-const ERR_VLINKS_UNEXPECTED_OPTION: &[u8] = b"ERR Unexpected option";
-const ERR_EXPECTED_INTEGER_COUNT: &[u8] = b"ERR expected integer count";
+pub(super) const ERR_VEMB_UNEXPECTED_OPTION: &[u8] = b"Unexpected option to VEMB";
+pub(super) const ERR_KEY_NOT_FOUND: &[u8] = b"ERR Key not found";
+pub(super) const ERR_VLINKS_UNEXPECTED_OPTION: &[u8] = b"ERR Unexpected option";
+pub(super) const ERR_EXPECTED_INTEGER_COUNT: &[u8] = b"ERR expected integer count";
 
 /// 选项重复文案（对齐 C# `"<OPT> specified multiple times"` 字面量）。
 macro_rules! err_dup {
@@ -114,6 +98,10 @@ macro_rules! wna_entry {
     }
   };
 }
+
+pub(super) use dup_flag;
+pub(super) use err_dup;
+pub(super) use wna_entry;
 
 /// 命令应答（RESP 数据模型）。
 ///
@@ -154,7 +142,7 @@ pub enum VectorReply {
 impl VectorReply {
   /// 静态错误文案应答（借用零分配）。
   #[inline]
-  fn err(msg: &'static [u8]) -> Self {
+  pub(super) fn err(msg: &'static [u8]) -> Self {
     Self::Error(Cow::Borrowed(msg))
   }
 
@@ -242,315 +230,15 @@ impl VectorReply {
 
 // ======================== 命令入口解析骨架 ========================
 
-/// VADD 参数个数不足文案（`wrong_num_args!` 编译期展开；入口与取参共用单点）。
-const WNA_VADD: &[u8] = wrong_num_args!("VADD").as_bytes();
-/// VSIM 参数个数不足文案（同上）。
-const WNA_VSIM: &[u8] = wrong_num_args!("VSIM").as_bytes();
-
-/// VADD 默认建索引探索因子（对齐 C# buildExplorationFactor ??= 200）。
-const DEFAULT_VADD_BUILD_EF: i32 = 200;
-/// VADD 默认每层链数（对齐 C# numLinks ??= 16）。
-const DEFAULT_VADD_NUM_LINKS: i32 = 16;
-
-/// 向量取参形态（[`VALUE_KINDS`] 表载荷；ELE 由 VSIM 单独识别，不入表）。
-#[derive(Copy, PartialEq, Clone)]
-enum ValueKind {
-  /// FP32 原始字节
-  Fp32,
-  /// VALUES num v1..vn 文本浮点
-  Values,
-  /// XU8 原始字节
-  Xu8,
-  /// XI8 原始字节
-  Xi8,
-}
-
-/// 格式关键字 → 取参形态（表序即 VADD 原 if-chain 识别序；关键字互斥故顺序无关）。
-const VALUE_KINDS: &[(&[u8], ValueKind)] = &[
-  (b"FP32", ValueKind::Fp32),
-  (b"VALUES", ValueKind::Values),
-  (b"XU8", ValueKind::Xu8),
-  // XB8 为 XU8 的向后兼容别名，推荐 XU8
-  (b"XB8", ValueKind::Xu8),
-  (b"XI8", ValueKind::Xi8),
-];
-
-/// 量化器选项关键字 → 量化类型（表序即原识别序；重复指定判据由调用点承接）。
-const QUANT_OPTS: &[(&[u8], VectorQuantType)] = &[
-  (b"NOQUANT", VectorQuantType::NoQuant),
-  (b"Q8", VectorQuantType::Q8),
-  (b"BIN", VectorQuantType::Bin),
-  (b"XNOQUANT_U8", VectorQuantType::XnoQuantU8),
-  // XPREQ8 为 XNOQUANT_U8 的向后兼容别名，推荐 XNOQUANT_U8
-  (b"XPREQ8", VectorQuantType::XnoQuantU8),
-  (b"XNOQUANT_I8", VectorQuantType::XnoQuantI8),
-  (b"XBIN_I8", VectorQuantType::XbinI8),
-  (b"XBIN_U8", VectorQuantType::XbinU8),
-];
-
-/// 距离度量关键字 → 度量类型（VADD XDISTANCE_METRIC 值参）。
-const METRIC_OPTS: &[(&[u8], VectorDistanceMetricType)] = &[
-  (b"L2", VectorDistanceMetricType::L2),
-  (b"COSINE", VectorDistanceMetricType::Cosine),
-  (b"IP", VectorDistanceMetricType::InnerProduct),
-  (
-    b"XCOSINE_NORMALIZED",
-    VectorDistanceMetricType::XCosineNormalized,
-  ),
-];
-
-/// 编译期选项表命中：`arg` 大小写无关命中表内关键字即取其载荷。
-#[inline]
-fn lookup<T: Copy>(table: &[(&[u8], T)], arg: &[u8]) -> Option<T> {
-  table
-    .iter()
-    .find(|(kw, _)| equals_ignore_case(arg, kw))
-    .map(|(_, v)| *v)
-}
-
-/// 值格式每维字节数（FP32 4 字节，XU8/XI8 单字节）。
-#[inline]
-const fn dim_bytes(value_type: VectorValueType) -> usize {
-  match value_type {
-    VectorValueType::FP32 => 4,
-    _ => 1,
-  }
-}
-
-/// X 系量化器（与 REDUCE 互斥，对齐 C# 调 storageApi 前的 BadParams 判定）。
-#[inline]
-const fn is_x_quant(quant: VectorQuantType) -> bool {
-  matches!(
-    quant,
-    VectorQuantType::XbinU8
-      | VectorQuantType::XbinI8
-      | VectorQuantType::XnoQuantU8
-      | VectorQuantType::XnoQuantI8
-  )
-}
-
 /// 真值应答：RESP3 布尔 / RESP2 整数 1·0（对齐 C# 各命令的 resp3 分派）。
 #[inline]
-fn bool_reply(value: bool, resp3: bool) -> VectorReply {
+pub(super) fn bool_reply(value: bool, resp3: bool) -> VectorReply {
   if resp3 {
     VectorReply::Boolean(value)
   } else {
     VectorReply::Integer(i64::from(value))
   }
 }
-
-/// 检索输出上限：有位图时 popcount，否则全部命中，再与 count 取小（C# 同款）。
-#[inline]
-fn output_limit(total_found: usize, filter_bitmap: &[u8], count: usize) -> usize {
-  if filter_bitmap.is_empty() {
-    return total_found.min(count);
-  }
-  filter_bitmap
-    .iter()
-    .map(|b| b.count_ones() as usize)
-    .sum::<usize>()
-    .min(count)
-}
-
-/// 过滤通过项下标序列（RESP2/RESP3 输出共用骨架）：零压实契约下按原结果
-/// 下标剔除未过项、至多产出 `limit` 项（与逐位 `break`/`continue` 手写循环同序同集）。
-fn passed_indices(
-  total_found: usize,
-  filter_bitmap: &[u8],
-  limit: usize,
-) -> impl Iterator<Item = usize> {
-  let has_filter = !filter_bitmap.is_empty();
-  (0..total_found)
-    .filter(move |&i| !has_filter || (filter_bitmap[i >> 3] >> (i & 7)) & 1 != 0)
-    .take(limit)
-}
-
-/// 向量取参的非法文案集（VADD/VSIM 各成一表，逐字保持原命令文案）。
-struct OperandErrs {
-  /// 关键字后取尽缺参
-  missing: &'static [u8],
-  /// FP32 字节数非每维字节数倍数
-  align: &'static [u8],
-  /// VALUES 数量非法
-  count: &'static [u8],
-  /// VALUES 单值非法
-  float: &'static [u8],
-  /// 格式关键字未知
-  kind: &'static [u8],
-}
-
-/// VADD 向量取参文案（缺参走 wrong-num-args，余下四项原文案统一 invalid spec）。
-const VADD_OPERAND: OperandErrs = OperandErrs {
-  missing: WNA_VADD,
-  align: ERR_INVALID_VECTOR_SPEC,
-  count: ERR_INVALID_VECTOR_SPEC,
-  float: ERR_INVALID_VECTOR_SPEC,
-  kind: ERR_INVALID_VECTOR_SPEC,
-};
-
-/// VSIM 向量取参文案（各色非法文案逐一区别于 VADD，禁合并）。
-const VSIM_OPERAND: OperandErrs = OperandErrs {
-  missing: WNA_VSIM,
-  align: ERR_FP32_MULTIPLE_OF_4,
-  count: ERR_VALUES_COUNT_MUST_BE_POSITIVE,
-  float: ERR_VALUES_MUST_BE_FLOAT,
-  kind: ERR_VSIM_EXPECTED_KIND,
-};
-
-/// 向量取参产出（VADD/VSIM 共用形态）。
-struct Operand<'a> {
-  /// 值格式（ELE 形态为 Invalid）
-  value_type: VectorValueType,
-  /// 向量字节（原始字节借参数缓冲、VALUES 文本浮点落堆；ELE 为空）
-  values: Cow<'a, [u8]>,
-  /// 维度（值格式步长折算）
-  dims: usize,
-  /// ELE 形态的查询元素（仅 VSIM 产出）
-  element: Option<&'a [u8]>,
-}
-
-/// 参数游标：命令入口「识别关键字 → 取值 → 校验 → 前进」骨架的承接。
-/// 缺失/非法应答文案一律由调用点供给，逐字保持各命令原文案。
-struct Cur<'a> {
-  args: &'a [&'a [u8]],
-  ix: usize,
-}
-
-impl<'a> Cur<'a> {
-  #[inline]
-  fn new(args: &'a [&'a [u8]], ix: usize) -> Self {
-    Self { args, ix }
-  }
-
-  /// 当前位置参数（取尽为空切片，永不命中表内关键字）。
-  #[inline]
-  fn peek(&self) -> &'a [u8] {
-    self.args.get(self.ix).copied().unwrap_or_default()
-  }
-
-  /// 剩余参数未取尽（选项循环的续跑判据）。
-  #[inline]
-  fn more(&self) -> bool {
-    self.ix < self.args.len()
-  }
-
-  /// 当前位置是否命中关键字 `kw`（不前进）。
-  #[inline]
-  fn at(&self, kw: &[u8]) -> bool {
-    equals_ignore_case(self.peek(), kw)
-  }
-
-  /// 跳过当前位置（无值参的开关型选项）。
-  #[inline]
-  fn skip(&mut self) {
-    self.ix += 1;
-  }
-
-  /// 取当前参并前进；取尽回空串（C# 对缺参不做显式校验的形态）。
-  #[inline]
-  fn next_or_empty(&mut self) -> &'a [u8] {
-    let arg = self.peek();
-    self.ix += 1;
-    arg
-  }
-
-  /// 取当前参并前进；取尽即回 `missing` 文案应答。
-  fn next(&mut self, missing: &'static [u8]) -> Result<&'a [u8], VectorReply> {
-    let arg = self
-      .args
-      .get(self.ix)
-      .copied()
-      .ok_or_else(|| VectorReply::err(missing))?;
-    self.ix += 1;
-    Ok(arg)
-  }
-
-  /// 取当前关键字后的值参并前进两位；缺失回 `missing`。
-  fn value(&mut self, missing: &'static [u8]) -> Result<&'a [u8], VectorReply> {
-    self.skip();
-    self.next(missing)
-  }
-
-  /// 当前关键字后跟严格 i32 值参：缺失回 `missing`、非法或不满足 `ok` 回
-  /// `bad`（`strict_i32` 对齐 C# `parseState.TryGetInt`，前导零拒收系 rust
-  /// 严格收口，见 doc/zh/deviations.md §32）。
-  #[inline]
-  fn i32_value(
-    &mut self,
-    missing: &'static [u8],
-    ok: impl Fn(i32) -> bool,
-    bad: &'static [u8],
-  ) -> Result<i32, VectorReply> {
-    strict_i32(self.value(missing)?)
-      .filter(|&v| ok(v))
-      .ok_or_else(|| VectorReply::err(bad))
-  }
-
-  /// 当前关键字后跟严格 f32 值参（应答口径同 [`Self::i32_value`]）。
-  #[inline]
-  fn f32_value(
-    &mut self,
-    missing: &'static [u8],
-    ok: impl Fn(f32) -> bool,
-    bad: &'static [u8],
-  ) -> Result<f32, VectorReply> {
-    strict_f32(self.value(missing)?, true)
-      .filter(|&v| ok(v))
-      .ok_or_else(|| VectorReply::err(bad))
-  }
-}
-
-/// VADD 同步解析段的产出（C# NetworkVADD 校验完毕、调 storageApi 前的
-/// 参数快照）：键/元素/属性借参数缓冲，VALUES 文本浮点落堆（Cow），标量
-/// 集为合成默认值后的终值。执行段 [`RespServerSessionVectors::network_vadd_slow`]
-/// 以此取齐 [`CreateIndexParams`] / [`VectorAddArgs`]。
-struct VaddPlan<'a> {
-  /// 集合键（借参数缓冲）
-  key: &'a [u8],
-  /// 元素键（借参数缓冲）
-  element: &'a [u8],
-  /// 向量格式
-  value_type: VectorValueType,
-  /// 向量字节（FP32/XU8/XI8 借参数零拷贝，VALUES 合成落堆）
-  values: Cow<'a, [u8]>,
-  /// 属性（缺省空串）
-  attributes: &'a [u8],
-  /// REDUCE 降维（0 = 无）
-  reduce_dims: u32,
-  /// 量化器（默认 Q8）
-  quant: VectorQuantType,
-  /// 建索探索因子（默认 200）
-  build_ef: u32,
-  /// 每层链数（默认 16）
-  num_links: u32,
-  /// 距离度量（默认 L2）
-  distance_metric: VectorDistanceMetricType,
-  /// 会话库级定槽（doc/zh/db.md 4.1）
-  slot: u16,
-  /// 向量维度（value_type 步长推导，供 manager 校验）
-  dims: u32,
-}
-
-/// VSIM 同步解析段的产出（C# NetworkVSIM 校验完毕、调 storageApi 前的参数
-/// 快照）：键/元素/过滤借参数缓冲，VALUES 文本浮点落堆（Cow），检索标量
-/// 为合成默认值后的终值。执行段 [`RespServerSessionVectors::network_vsim`]
-/// 以此取齐 [`VectorSearchOptions`] 与检索中心。
-struct VsimPlan<'a> {
-  /// 集合键（借参数缓冲）
-  key: &'a [u8],
-  /// ELE 形态的查询元素（Some 即以元素为中心，忽略 `values`）
-  element: Option<&'a [u8]>,
-  /// 查询向量格式
-  value_type: VectorValueType,
-  /// 查询向量字节
-  values: Cow<'a, [u8]>,
-  /// 检索参数（默认值合成后的终值；`count` 即应答上限）
-  search: VectorSearchOptions<'a>,
-  /// WITHSCORES
-  with_scores: bool,
-}
-
-use wvector::store::StoreCallbacks;
 
 use crate::{
   resp::vector::vector_store_callbacks::WedbVectorStoreCallbacks,
@@ -759,7 +447,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// `bad` 文案。返回 Some(应答) 即入口拒止（各命令合法参数个数区间逐一对
   /// 齐 C# 各 NetworkV*）。
   #[inline]
-  fn entry(
+  pub(super) fn entry(
     &self,
     args: &[&[u8]],
     len: impl RangeBounds<usize>,
@@ -774,7 +462,11 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// OK 后合成写注入 AOF 的统一失败口径（对标 C# 各 VectorStoreOps 的
   /// ReplicateVectorSet* 失败臂：记日志并回服务错误帧）。
   #[inline]
-  fn aof_failed<E: fmt::Display>(&self, op: &str, res: Result<(), E>) -> Option<VectorReply> {
+  pub(super) fn aof_failed<E: fmt::Display>(
+    &self,
+    op: &str,
+    res: Result<(), E>,
+  ) -> Option<VectorReply> {
     res
       .map_err(|e| {
         log::error!("network_{op}: 向量 AOF 合成写入队失败: {e}");
@@ -782,865 +474,34 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       })
       .err()
   }
+}
 
-  /// 向量取参骨架（VADD/VSIM 共用）：格式关键字命中 [`VALUE_KINDS`] 后按
-  /// 形态取参——原始字节（FP32/XU8/XI8）零拷贝借接收缓冲参数、VALUES 文本
-  /// 浮点落堆；非法文案一律由 `errs` 供给，逐字保持各命令原文案。
-  /// 维度上限以 usize 比对（上限远小于 isize::MAX，与原 i32/usize 两种
-  /// 写法在全部可达输入上同判）。
-  fn vector_operand<'a>(
-    &self,
-    cur: &mut Cur<'a>,
-    errs: &OperandErrs,
-  ) -> Result<Operand<'a>, VectorReply> {
-    let Some(kind) = lookup(VALUE_KINDS, cur.peek()) else {
-      return Err(VectorReply::err(errs.kind));
-    };
-    if kind == ValueKind::Values {
-      let n = strict_i32(cur.value(errs.missing)?)
-        .filter(|n| *n > 0)
-        .ok_or_else(|| VectorReply::err(errs.count))?;
-      if n as usize > MAX_VECTOR_DIMENSIONS as usize {
-        return Err(self.abort_too_many_dimensions());
-      }
-      if cur.ix + n as usize > cur.args.len() {
-        return Err(VectorReply::err(errs.missing));
-      }
-      let mut floats = Vec::with_capacity(n as usize * 4);
-      for _ in 0..n {
-        let f =
-          strict_f32(cur.next(errs.float)?, true).ok_or_else(|| VectorReply::err(errs.float))?;
-        floats.extend_from_slice(&f.to_le_bytes());
-      }
-      return Ok(Operand {
-        value_type: VectorValueType::FP32,
-        values: Cow::Owned(floats),
-        dims: n as usize,
-        element: None,
-      });
-    }
-    // 原始字节形态：每维字节数由格式定（FP32 另校验 4 字节对齐）
-    let value_type = match kind {
-      ValueKind::Fp32 => VectorValueType::FP32,
-      ValueKind::Xu8 => VectorValueType::XU8,
-      ValueKind::Xi8 => VectorValueType::XI8,
-      ValueKind::Values => VectorValueType::Invalid,
-    };
-    let bytes = cur.value(errs.missing)?;
-    let step = dim_bytes(value_type);
-    if step > 1 && bytes.len() % step != 0 {
-      return Err(VectorReply::err(errs.align));
-    }
-    let dims = bytes.len() / step;
-    if dims > MAX_VECTOR_DIMENSIONS as usize {
-      return Err(self.abort_too_many_dimensions());
-    }
-    Ok(Operand {
-      value_type,
-      values: Cow::Borrowed(bytes),
-      dims,
-      element: None,
-    })
+// ======================== 检索结果序列化 ========================
+
+/// 检索输出上限：有位图时 popcount，否则全部命中，再与 count 取小（C# 同款）。
+#[inline]
+fn output_limit(total_found: usize, filter_bitmap: &[u8], count: usize) -> usize {
+  if filter_bitmap.is_empty() {
+    return total_found.min(count);
   }
+  filter_bitmap
+    .iter()
+    .map(|b| b.count_ones() as usize)
+    .sum::<usize>()
+    .min(count)
+}
 
-  // ======================== VADD ========================
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVADD
-  ///
-  /// `VADD key [REDUCE dim] (FP32 | XU8 | XI8 | VALUES num) vector element
-  ///   [CAS] [NOQUANT | Q8 | BIN | XNOQUANT_U8 | XPREQ8 | XNOQUANT_I8 | XBIN_I8 | XBIN_U8]
-  ///   [EF build-exploration-factor] [SETATTR attributes] [M numlinks]
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVADD
-  ///
-  /// 插入链为存储异步操作（compio 写盘跨 await），本函数 async 化闭环
-  ///（对标 cluster 链 pending_slow 挂起先例与 C# 同步栈 NetworkVADD 的
-  /// rust 快慢分臂对偶）：生产 RESP 臂经 [`Self::network_vector_write_slow`]
-  /// 挂起驱动，直调方（测试 / 复制回放）自持运行时 await。
-  ///
-  /// 库级定槽（doc/zh/db.md 4.1）：`slot` 为调用会话库级槽位
-  ///（`RespServerSession::active_db_slot`），索引登记的槽位随会话所属库，
-  /// 键内容不参与定槽；`resp3` 选择成功/重复应答的布尔或整数形态。
-  pub async fn network_vadd(
-    &self,
-    prefix: &[u8],
-    args: &[&[u8]],
-    slot: u16,
-    resp3: bool,
-  ) -> VectorReply {
-    match self.parse_vadd(args, slot) {
-      Ok(plan) => self.network_vadd_slow(prefix, plan, resp3).await,
-      Err(reply) => reply,
-    }
-  }
-
-  /// VADD 参数解析段（C# NetworkVADD 选项循环的纯解析投影）：零存储触达，
-  /// 校验/默认值合成/维度推导产出 [`VaddPlan`]，错误应答就地返回。
-  ///
-  /// 与执行段 [`Self::network_vadd_slow`] 的拆分线对齐 C# 原序：C# 在调
-  /// storageApi 前完成全部参数校验（X 系量化互斥判定注释「before calling
-  /// storageApi」），拆分后解析期错误不经挂起面，语义与字节面同源。
-  fn parse_vadd<'a>(&self, args: &'a [&'a [u8]], slot: u16) -> Result<VaddPlan<'a>, VectorReply> {
-    if let Some(reply) = self.entry(args, 4.., WNA_VADD) {
-      return Err(reply);
-    }
-
-    let key = args[0];
-    let mut cur = Cur::new(args, 1);
-
-    // REDUCE dim（C# TryGetInt 严格 i32，溢出同非法；缺失/非法/非正统一报
-    // REDUCE 文案；前导零拒收系 rust 严格收口，见 doc/zh/deviations.md §32）
-    let mut reduce_dims = 0u32;
-    if cur.at(b"REDUCE") {
-      reduce_dims = cur.i32_value(
-        ERR_REDUCE_MUST_BE_POSITIVE,
-        |v| v > 0,
-        ERR_REDUCE_MUST_BE_POSITIVE,
-      )? as u32;
-    }
-
-    // 向量格式分派：FP32 / VALUES num / XU8|XB8 / XI8（ELE 归入非法格式文案）
-    let vector = self.vector_operand(&mut cur, &VADD_OPERAND)?;
-    let value_type = vector.value_type;
-    let values = vector.values;
-    if usize::try_from(reduce_dims).unwrap_or(vector.dims + 1) > vector.dims {
-      return Err(VectorReply::err(ERR_REDUCE_EXCEEDS_DIMS));
-    }
-
-    // 元素键
-    let element = cur.next(WNA_VADD)?;
-
-    // 选项循环（C#：元素后顺序未指定，逐一识别）
-    let mut cas_seen = false;
-    let mut quant: Option<VectorQuantType> = None;
-    let mut build_ef: Option<i32> = None;
-    let mut attributes: Option<&[u8]> = None;
-    let mut num_links: Option<i32> = None;
-    let mut distance_metric: Option<VectorDistanceMetricType> = None;
-
-    while cur.more() {
-      // REDUCE 在元素之后无论何种写法均非法
-      if cur.at(b"REDUCE") {
-        return Err(VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT));
-      }
-      // 量化器选项（含 XPREQ8 别名）单表识别，表序即原链式识别序
-      if let Some(quant_type) = lookup(QUANT_OPTS, cur.peek()) {
-        if quant.is_some() {
-          return Err(VectorReply::err(ERR_QUANT_SPECIFIED_TWICE));
-        }
-        quant = Some(quant_type);
-        cur.skip();
-      } else if cur.at(b"CAS") {
-        // CAS 仅识别不处理
-        dup_flag!(cur, &mut cas_seen, "CAS");
-      } else if cur.at(b"EF") {
-        if build_ef.is_some() {
-          return Err(err_dup!("EF"));
-        }
-        build_ef = Some(cur.i32_value(
-          ERR_INVALID_OPTION_AFTER_ELEMENT,
-          |v| v > 0 && v <= MAX_EXPLORATION_FACTOR as i32,
-          ERR_EF_RANGE,
-        )?);
-      } else if cur.at(b"SETATTR") {
-        if attributes.is_some() {
-          return Err(err_dup!("SETATTR"));
-        }
-        attributes = Some(cur.value(ERR_INVALID_OPTION_AFTER_ELEMENT)?);
-      } else if cur.at(b"M") {
-        if num_links.is_some() {
-          return Err(err_dup!("M"));
-        }
-        num_links = Some(cur.i32_value(
-          ERR_INVALID_OPTION_AFTER_ELEMENT,
-          |v| (MIN_M..=MAX_M).contains(&v),
-          ERR_M_RANGE,
-        )?);
-      } else if cur.at(b"XDISTANCE_METRIC") {
-        if distance_metric.is_some() {
-          return Err(err_dup!("XDISTANCE_METRIC"));
-        }
-        let metric = cur.value(ERR_INVALID_OPTION_AFTER_ELEMENT)?;
-        distance_metric = Some(
-          lookup(METRIC_OPTS, metric)
-            .ok_or_else(|| VectorReply::err(ERR_INVALID_DISTANCE_METRIC))?,
-        );
-      } else {
-        return Err(VectorReply::err(ERR_INVALID_OPTION_AFTER_ELEMENT));
-      }
-    }
-
-    if key.is_empty() {
-      return Err(VectorReply::err(ERR_EMPTY_VECTOR_SET_KEY));
-    }
-
-    // 默认值（对齐 C#：Q8 / 200 / 16 / L2）
-    let quant = quant.unwrap_or(VectorQuantType::Q8);
-    let build_ef = build_ef.unwrap_or(DEFAULT_VADD_BUILD_EF) as u32;
-    let num_links = num_links.unwrap_or(DEFAULT_VADD_NUM_LINKS) as u32;
-    let distance_metric = distance_metric.unwrap_or(VectorDistanceMetricType::L2);
-
-    // X 系量化器与 REDUCE 互斥：C# 在调storageApi 前以此判 BadParams（自定义
-    // 文案为空 → 回落 quantization mismatch 文案）
-    if is_x_quant(quant) && reduce_dims != 0 {
-      return Err(VectorReply::err(ERR_QUANT_MISMATCH));
-    }
-
-    Ok(VaddPlan {
-      key,
-      element,
-      value_type,
-      values,
-      attributes: attributes.unwrap_or(b""),
-      reduce_dims,
-      quant,
-      build_ef,
-      num_links,
-      distance_metric,
-      slot,
-      // 向量维度（供 manager 校验；上限校验已收口于取参骨架）
-      dims: vector.dims as u32,
-    })
-  }
-
-  /// VADD 执行段（C# ReadOrCreateVectorIndex → TryAdd → ReplicateVectorSetAdd
-  /// 锁链的投影）。
-  ///
-  /// 共享索引锁在 [`Self::parse_vadd`] 之后的 `read_or_create_vector_index`
-  /// 取得，覆盖 `try_add` 全程（manager 契约「假定索引已锁定」，防并发
-  /// DEL/UNLINK/FLUSHDB 摘除 context）：guard 随本 async 栈帧跨 await 存活。
-  /// 与线程槽守卫「绝不跨 await」纪律分属两轴——每键数据锁的跨 await 由
-  /// 慢路径 [`crate::resp::slow_path::SlowFuture`] 的 Send 承诺承担（compio
-  /// thread-per-core 下 poll 恒在属主任务线程，guard 永不跨线程 move/drop；
-  /// 对标 C# ReadOrCreateVectorIndex 返回锁对象持续至 TryAdd 完成的同一
-  /// 语义），ActiveVectorSessionGuard 则由慢路径 SlowPollSessionBound 包装
-  /// 在每次 poll 边界重绑——同步段收割 inline_wait 移除后，本函数不再内联
-  /// 重入 tick。
-  ///
-  /// 守卫自取得起存活至本函数返回（同 C# VectorStoreOps.cs:192 using 罩
-  /// TryAdd 与 OK 后 ReplicateVectorSetAdd 全程）：并发 DEL/UNLINK/FLUSHDB
-  /// 的排他删除锁（ReadForDeleteVectorIndex）被排挡至写体与 AOF 注入完成，
-  /// 杜绝 service.insert miss 折 Duplicate 伪应答与 Arc 保活孤儿写。
-  async fn network_vadd_slow(&self, prefix: &[u8], plan: VaddPlan<'_>, resp3: bool) -> VectorReply {
-    let VaddPlan {
-      key,
-      element,
-      value_type,
-      values,
-      attributes,
-      reduce_dims,
-      quant,
-      build_ef,
-      num_links,
-      distance_metric,
-      slot,
-      dims,
-    } = plan;
-
-    // 读或创建索引记录（缺失或需重建时按选项建原生索引，对齐 C#
-    // ReadOrCreateVectorIndex）；VADD 写臂取独占形态不降级——同键并发插入
-    // 的存在性预检与图插入跨 await 非原子，独占条带锁即线性化点（见
-    // read_or_create_vector_index_exclusive 文档）
-    let params = CreateIndexParams {
-      hash_slot: slot,
-      dims,
-      reduce_dims,
-      quant,
-      build_exploration_factor: build_ef,
-      num_links,
-      distance_metric,
-    };
-    let (index, _lock) = match self
-      .manager
-      .read_or_create_vector_index_exclusive(prefix, key, Some(&params))
-      .await
-    {
-      Ok(acquired) => acquired,
-      // 按结果码出各自文案（对齐 C#：状态错误帧而非一律分配上限；上下文
-      // 耗尽即 MAX 文案，存储失败/参数拒绝即 Invalid 族文案）
-      Err(result) => return VectorReply::err(result.error_msg()),
-    };
-
-    // 经 manager 执行插入（重复/参数不匹配校验在 try_add 内）
-    let stored = index.to_bytes();
-    let add_args = VectorAddArgs {
-      element,
-      value_type,
-      values: values.as_ref(),
-      attributes,
-      reduce_dims,
-      quant_type: quant,
-      num_links,
-      distance_metric,
-    };
-    match self.manager.try_add(prefix, key, &stored, &add_args).await {
-      Ok(VectorManagerResult::OK) => {
-        // 成功后合成写注入 AOF（对标 C# VectorStoreOps.VectorSetAdd 的
-        // OK-后 ReplicateVectorSetAdd；重复添加幂等跳过，不入日志）
-        if let Some(reply) = self.aof_failed(
-          "vadd",
-          self
-            .manager
-            .replicate_vector_set_add(prefix, key, dims, build_ef, &add_args),
-        ) {
-          return reply;
-        }
-        // 对齐 C#：成功 → RESP3 布尔真 / RESP2 整数 1，重复 → 布尔假 / 整数 0
-        bool_reply(true, resp3)
-      }
-      Ok(VectorManagerResult::Duplicate) => bool_reply(false, resp3),
-      Ok(other) => VectorReply::err(other.error_msg()),
-      Err(e) => VectorReply::Error(e.message.into()),
-    }
-  }
-
-  /// 维度上限错误。
-  fn abort_too_many_dimensions(&self) -> VectorReply {
-    VectorReply::Error(
-      format!("ERR vector exceeds maximum of {MAX_VECTOR_DIMENSIONS} dimensions")
-        .into_bytes()
-        .into(),
-    )
-  }
-
-  // ======================== VSIM ========================
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVSIM
-  ///
-  /// `VSIM key (ELE | FP32 | XU8 | XI8 | VALUES num) (vector | element)
-  ///   [WITHSCORES] [WITHATTRIBS] [COUNT num] [EPSILON delta] [EF factor]
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVSIM
-  ///
-  /// `resp3` 选择应答协议版本。
-  pub async fn network_vsim(&self, prefix: &[u8], args: &[&[u8]], resp3: bool) -> VectorReply {
-    let VsimPlan {
-      key,
-      element,
-      value_type,
-      values,
-      search,
-      with_scores,
-    } = match self.parse_vsim(args) {
-      Ok(plan) => plan,
-      Err(reply) => return reply,
-    };
-
-    // 键不存在：对齐 C# NOTFOUND → 空数组（非错误）。命中走读+重建锁协议
-    //（C# ReadVectorIndex + RecreateIndex）：登记记录 ptr=0 时在独占锁内
-    // 重载原生索引——恢复回建后首次检索即由此装载，非裸读登记表。
-    // 重建臂含登记写透 `.await`（真异步，无内联收割），读路径 async 化
-    let (stored, _index_guard) = match self.manager.read_vector_index(prefix, key).await {
-      (Some(index), guard) => (index.to_bytes(), guard),
-      (None, _) => return VectorReply::Array(Vec::new()),
-    };
-
-    let result = match element {
-      Some(elem) => {
-        self
-          .manager
-          .element_similarity(&stored, elem, &search)
-          .await
-      }
-      None => {
-        self
-          .manager
-          .value_similarity(&stored, value_type, values.as_ref(), &search)
-          .await
-      }
-    };
-
-    let output = match result {
-      Ok(out) => out,
-      Err(e) => return VectorReply::Error(e.message.into()),
-    };
-
-    // 拆包命中
-    let ids: Vec<&[u8]> = unpack_length_prefixed(&output.output_ids);
-    let attrs: Option<Vec<&[u8]>> = search
-      .include_attributes
-      .then(|| unpack_length_prefixed(&output.output_attributes));
-
-    if resp3 {
-      RespServerSessionVectors::write_resp3_result(
-        search.count,
-        &ids,
-        &output.output_distances,
-        &output.filter_bitmap,
-        attrs.as_deref(),
-        with_scores,
-      )
-    } else {
-      RespServerSessionVectors::write_resp2_result(
-        search.count,
-        &ids,
-        &output.output_distances,
-        &output.filter_bitmap,
-        attrs.as_deref(),
-        with_scores,
-      )
-    }
-  }
-
-  /// VSIM 参数解析段（C# NetworkVSIM 校验完毕、调 storageApi 前的纯解析
-  /// 投影）：查询向量取参与选项循环骨架复用 VADD 同款〔
-  /// [`Self::vector_operand`]／[`Cur`]〕，各档非法文案逐字保持原文案。
-  fn parse_vsim<'a>(&self, args: &'a [&'a [u8]]) -> Result<VsimPlan<'a>, VectorReply> {
-    if let Some(reply) = self.entry(args, 3.., WNA_VSIM) {
-      return Err(reply);
-    }
-
-    let key = args[0];
-    let mut cur = Cur::new(args, 1);
-
-    // 查询向量（ELE 形态以既有元素为中心；C# 对缺失的元素参数不做显式
-    // 校验，空切片语义）
-    let vector = if cur.at(b"ELE") {
-      cur.skip();
-      Operand {
-        value_type: VectorValueType::Invalid,
-        values: Cow::Borrowed(&[]),
-        dims: 0,
-        element: Some(cur.next_or_empty()),
-      }
-    } else {
-      self.vector_operand(&mut cur, &VSIM_OPERAND)?
-    };
-
-    // 选项（默认值对齐 C#：count=10 / delta=2 / EF=100 / FILTER-EF=16）
-    let mut with_scores = false;
-    let mut with_attribs = false;
-    let mut count: Option<i32> = None;
-    let mut epsilon: Option<f32> = None;
-    let mut ef: Option<i32> = None;
-    let mut filter: Option<&[u8]> = None;
-    let mut filter_ef: Option<i32> = None;
-    // 对标 C# 仅做选项语法识别，当前执行流未启用真值比较与单线程模式
-    let mut truth_seen = false;
-    let mut no_thread_seen = false;
-
-    while cur.more() {
-      if cur.at(cs::WITHSCORES) {
-        dup_flag!(cur, &mut with_scores, "WITHSCORES");
-      } else if cur.at(b"WITHATTRIBS") {
-        dup_flag!(cur, &mut with_attribs, "WITHATTRIBS");
-      } else if cur.at(cs::COUNT) {
-        if count.is_some() {
-          return Err(err_dup!("COUNT"));
-        }
-        count = Some(cur.i32_value(
-          WNA_VSIM,
-          |v| v >= 0 && v <= MAX_RETRIEVE_COUNT as i32,
-          ERR_COUNT_RANGE,
-        )?);
-      } else if cur.at(b"EPSILON") {
-        if epsilon.is_some() {
-          return Err(err_dup!("EPSILON"));
-        }
-        epsilon = Some(cur.f32_value(WNA_VSIM, |v| v > 0.0, ERR_EPSILON_MUST_BE_POSITIVE)?);
-      } else if cur.at(b"EF") {
-        if ef.is_some() {
-          return Err(err_dup!("EF"));
-        }
-        ef = Some(cur.i32_value(
-          WNA_VSIM,
-          |v| v > 0 && v <= MAX_EXPLORATION_FACTOR as i32,
-          ERR_EF_RANGE,
-        )?);
-      } else if cur.at(b"FILTER") {
-        if filter.is_some() {
-          return Err(err_dup!("FILTER"));
-        }
-        filter = Some(cur.value(WNA_VSIM)?);
-      } else if cur.at(b"FILTER-EF") {
-        if filter_ef.is_some() {
-          return Err(err_dup!("FILTER-EF"));
-        }
-        filter_ef = Some(cur.i32_value(
-          WNA_VSIM,
-          |v| v >= 4 && v <= MAX_FILTERING_SCALE_FACTOR as i32,
-          ERR_FILTER_EF_RANGE,
-        )?);
-      } else if cur.at(b"TRUTH") {
-        // TODO 语义与 C# 一致：仅识别
-        dup_flag!(cur, &mut truth_seen, "TRUTH");
-      } else if cur.at(b"NOTHREAD") {
-        // C# 忽略 NOTHREAD
-        dup_flag!(cur, &mut no_thread_seen, "NOTHREAD");
-      } else {
-        return Err(VectorReply::err(ERR_UNKNOWN_OPTION));
-      }
-    }
-
-    // EPSILON / FILTER-EF 参与检索（对齐 C# 传参语义：maxFilteringEffort ??= 16
-    // 放大过滤候选队列；delta 截断最大距离 —— 缺省对齐 Garnet 2.0f32）
-    Ok(VsimPlan {
-      key,
-      element: vector.element,
-      value_type: vector.value_type,
-      values: vector.values,
-      search: VectorSearchOptions {
-        // 结果数/EF 均经范围校验（>=0），max(0) 为原写法保留
-        count: count.unwrap_or(DEFAULT_VSIM_COUNT).max(0) as usize,
-        search_exploration_factor: ef.unwrap_or(DEFAULT_VSIM_EF).max(0) as usize,
-        filter: filter.unwrap_or(b""),
-        max_filtering_effort: filter_ef.unwrap_or(DEFAULT_VSIM_FILTER_EF).max(0) as usize,
-        delta: epsilon.unwrap_or(DEFAULT_VSIM_EPSILON),
-        include_attributes: with_attribs,
-      },
-      with_scores,
-    })
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVEMB
-  ///
-  /// `VEMB key element [RAW]` → 嵌入向量数组；RAW 时输出
-  /// [量化器名, 原始量化字节, 范数, (Q8 量化范围)]。
-  pub async fn network_vemb(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 2..=3, "VEMB");
-    // RAW 形态：第三参须为 RAW 关键字，其后按 raw 分支取原始量化数据
-    if args.len() == 3 && !equals_ignore_case(args[2], b"RAW") {
-      return VectorReply::err(ERR_VEMB_UNEXPECTED_OPTION);
-    }
-    let raw = args.len() == 3;
-
-    // C#：键/元素缺失统一写空数组。命中走读+重建锁协议（恢复回建后
-    // 首次嵌入读取由此装载原生索引，同 VSIM 口径）
-    let (stored, _index_guard) = match self.manager.read_vector_index(prefix, args[0]).await {
-      (Some(index), guard) => (index.to_bytes(), guard),
-      (None, _) => return VectorReply::Array(Vec::new()),
-    };
-
-    if raw {
-      return match self.manager.try_get_raw_embedding(&stored, args[1]).await {
-        Some((bytes, quant, norm, range)) => {
-          // 量化器名映射：BIN/XBIN_* → bin；Q8/XNOQUANT_* → q8；NOQUANT → fp32
-          let quant_name: &[u8] = match quant {
-            VectorQuantType::Bin | VectorQuantType::XbinI8 | VectorQuantType::XbinU8 => b"bin",
-            VectorQuantType::Q8 | VectorQuantType::XnoQuantU8 | VectorQuantType::XnoQuantI8 => {
-              b"q8"
-            }
-            VectorQuantType::NoQuant => b"fp32",
-            VectorQuantType::Invalid => b"fp32",
-          };
-          let mut items = vec![
-            VectorReply::Simple(quant_name),
-            VectorReply::Bulk(Some(bytes.into())),
-            VectorReply::Double(norm),
-          ];
-          // 仅 Q8 追加量化范围
-          if quant == VectorQuantType::Q8 {
-            items.push(VectorReply::Double(range.unwrap_or(0.0)));
-          }
-          VectorReply::Array(items)
-        }
-        None => VectorReply::Array(Vec::new()),
-      };
-    }
-
-    match self.manager.try_get_embedding(&stored, args[1]).await {
-      Ok(Some(embedding)) => VectorReply::Array(
-        embedding
-          .into_iter()
-          .map(|v| VectorReply::Double(f64::from(v)))
-          .collect(),
-      ),
-      Ok(None) => VectorReply::Array(Vec::new()),
-      // 存在性判定链存储读失败 → ERR 错误帧（禁 nil 假阴性）
-      Err(e) => VectorReply::Error(e.message.into()),
-    }
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVCARD
-  ///
-  /// C# 对位 VectorStoreOps.cs:VectorSetCardinality 锁点 :459——
-  /// `using (ReadVectorIndex)` 共享读锁全程罩住基数读取体；rust 同款：
-  /// 守卫随本 async 栈帧跨 card 读存活，ptr=0 冷记录经独占重建后降级共享
-  /// 命中（懒回建窗静默零答结构性消失）。
-  pub async fn network_vcard(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 1..=1, "VCARD");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      return VectorReply::Integer(0);
-    };
-    VectorReply::Integer(self.manager.service.card(index.context) as i64)
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVDIM
-  ///
-  /// C# 对位 VectorStoreOps.cs:VectorSetDimensions 锁点 :394（using 锁全程
-  /// 持读优化共享锁），rust 同款锁定读面（防删锁与族形欠账一并收口）。
-  pub async fn network_vdim(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 1..=1, "VDIM");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      // 对齐 C# NOTFOUND → "ERR Key not found"
-      return VectorReply::err(ERR_KEY_NOT_FOUND);
-    };
-    VectorReply::Integer(i64::from(index.dimensions))
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVGETATTR
-  ///
-  /// C# 对位 VectorStoreOps.cs:VectorSetGetAttribute 锁点 :565（using 锁
-  /// 全程罩住属性读取体），rust 同款：守卫随本 async 栈帧跨属性读 await
-  /// 存活。
-  pub async fn network_vgetattr(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 2..=2, "VGETATTR");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      // 对齐 C# NOTFOUND → null
-      return VectorReply::Bulk(None);
-    };
-    match self
-      .manager
-      .fetch_single_vector_element_attributes(&index.to_bytes(), args[1])
-      .await
-    {
-      Some(attr) => VectorReply::Bulk(Some(attr.into())),
-      None => VectorReply::Bulk(None),
-    }
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVINFO
-  ///
-  /// `VINFO key` → 14 项元信息（quant-type/distance-metric/input-vector-dimensions/
-  /// reduced-dimensions/build-exploration-factor/num-links/size）。
-  ///
-  /// C# 对位 VectorStoreOps.cs:VectorSetInfo 锁点 :428（using 锁全程罩住
-  /// 元信息与 size 读取体）；rust 同款：size 臂走 service.card 需原生索引
-  /// 在位，锁定读面使 ptr=0 冷记录先重建后应答（懒回建窗 size=0 静默零答
-  /// 结构性消失）。
-  pub async fn network_vinfo(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 1..=1, "VINFO");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      // 对齐 C# NOTFOUND → null 数组
-      return VectorReply::NullArray;
-    };
-    // 对齐 C# 小写枚举名（Invalid 在 C# 侧抛异常；此处防御性报错）
-    let quant: &[u8] = match index.quant_type {
-      VectorQuantType::NoQuant => b"f32",
-      VectorQuantType::Bin => b"bin",
-      VectorQuantType::Q8 => b"q8",
-      VectorQuantType::XnoQuantU8 => b"xnoquant_u8",
-      VectorQuantType::XnoQuantI8 => b"xnoquant_i8",
-      VectorQuantType::XbinI8 => b"xbin_i8",
-      VectorQuantType::XbinU8 => b"xbin_u8",
-      VectorQuantType::Invalid => return VectorReply::err(b"ERR Invalid VectorQuantType"),
-    };
-    let metric: &[u8] = match index.distance_metric {
-      VectorDistanceMetricType::Cosine => b"cosine",
-      VectorDistanceMetricType::InnerProduct => b"inner-product",
-      VectorDistanceMetricType::L2 => b"l2",
-      VectorDistanceMetricType::XCosineNormalized => b"cosine-normalized",
-    };
-    let bulk_int = |v: u32| VectorReply::BulkInt(i64::from(v));
-    VectorReply::Array(vec![
-      VectorReply::Simple(b"quant-type"),
-      VectorReply::Simple(quant),
-      VectorReply::Simple(b"distance-metric"),
-      VectorReply::Simple(metric),
-      VectorReply::Simple(b"input-vector-dimensions"),
-      bulk_int(index.dimensions),
-      VectorReply::Simple(b"reduced-dimensions"),
-      bulk_int(index.reduce_dims),
-      VectorReply::Simple(b"build-exploration-factor"),
-      bulk_int(index.build_exploration_factor),
-      VectorReply::Simple(b"num-links"),
-      bulk_int(index.num_links),
-      VectorReply::Simple(b"size"),
-      // C# :1616 WriteInt64AsBulkString(size)；基数为 u64 计数，转 i64 与本文件
-      // VCARD（:980 `card(..) as i64`）同口径
-      VectorReply::BulkInt(self.manager.service.card(index.context) as i64),
-    ])
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVISMEMBER
-  ///
-  /// `VISMEMBER key element`（RESP3 以布尔应答）。C# 对位
-  /// VectorStoreOps.cs:VectorSetIsMember 锁点 :484——守卫随本 async 栈帧
-  /// 跨成员读 await 存活。
-  pub async fn network_vismember(&self, prefix: &[u8], args: &[&[u8]], resp3: bool) -> VectorReply {
-    wna_entry!(self, args, 2..=2, "VISMEMBER");
-    let member = match self.manager.read_vector_index(prefix, args[0]).await {
-      (Some(index), _guard) => {
-        match self.manager.is_member(&index.to_bytes(), args[1]).await {
-          Ok(member) => member,
-          // 存在性判定链存储读失败 → ERR 错误帧（禁 false 假阴性应答）
-          Err(e) => return VectorReply::Error(e.message.into()),
-        }
-      }
-      (None, _) => false,
-    };
-    bool_reply(member, resp3)
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVLINKS
-  ///
-  /// `VLINKS key element [WITHSCORES]`。C# 侧输出为 TODO（恒 +OK）；
-  /// 此处返回层 0 邻接的实际元素（超集语义），键/元素缺失写 null。
-  /// WITHSCORES 透传已算距离（id/score 扁平成对，形同 VSIM RESP2
-  /// WITHSCORES 布局，零新机制）；悬垂邻接（VREM 删除窗/半途失败残留的
-  /// fsm 空闲 id）已在 neighbors 遍历臂跳过，存活成员恒回 Array 非 null。
-  /// C# 对位 VectorStoreOps.cs:VectorSetLinks 锁点 :512——守卫随本 async
-  /// 栈帧跨邻接读 await 存活。
-  pub async fn network_vlinks(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 2..=3, "VLINKS");
-    let with_scores = if args.len() == 3 {
-      if !equals_ignore_case(args[2], cs::WITHSCORES) {
-        return VectorReply::err(ERR_VLINKS_UNEXPECTED_OPTION);
-      }
-      true
-    } else {
-      false
-    };
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      return VectorReply::Bulk(None);
-    };
-    match self.manager.service.links_of(index.context, args[1]).await {
-      Some(links) => {
-        let mut items = Vec::with_capacity(links.len() * (1 + usize::from(with_scores)));
-        for (id, score) in links {
-          items.push(VectorReply::Bulk(Some(id.into())));
-          if with_scores {
-            items.push(VectorReply::Double(f64::from(score)));
-          }
-        }
-        VectorReply::Array(items)
-      }
-      None => VectorReply::Bulk(None),
-    }
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVRANDMEMBER
-  ///
-  /// C# 侧输出为 TODO（恒 +OK）；此处返回实际取样元素（超集语义）。
-  /// C# 对位 VectorStoreOps.cs:VectorSetRandomMembers 锁点 :541——守卫随
-  /// 本 async 栈帧跨取样 await 存活。
-  ///
-  /// count 钳制：正数取 min(count, card)（C# 少取合法契约），负数归零回空
-  /// 数组；会话层单点钳制，service.sample 不设第二道门。
-  pub async fn network_vrandmember(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 1..=2, "VRANDMEMBER");
-    let count = match args.get(1) {
-      Some(raw) => {
-        let Some(v) = strict_i32(raw) else {
-          return VectorReply::err(ERR_EXPECTED_INTEGER_COUNT);
-        };
-        v
-      }
-      None => 1,
-    };
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      // 对齐 C# NOTFOUND：指定 count → 空数组；未指定 → null
-      return if args.len() == 2 {
-        VectorReply::Array(Vec::new())
-      } else {
-        VectorReply::Bulk(None)
-      };
-    };
-    // 钳制：正 count 取 min(count, card)。C# VectorStoreOps.cs:VectorSetRandomMembers
-    // 为零分配 TODO 桩，接口注释钉 "It is OK to fetch fewer than the requested
-    // number of elements"（IGarnetApi.cs:2154，少取合法），card 即天然上界；
-    // 不钳则 sample 按 count 两笔 vec 预分配（12B/ID，i32::MAX ≈ 25.7GB）分配
-    // 失败直接 abort 进程（拒绝服务面），同族 VSIM COUNT 有 MAX_RETRIEVE_COUNT
-    // 门，本命令以 card 承担对称防御。负 count 归零维持回空数组现状；
-    // card 直读标量零成本。
-    let count = (count.max(0) as usize).min(self.manager.service.card(index.context) as usize);
-    let samples = self.manager.service.sample(index.context, count).await;
-    // 未指定 count（默认 1）回 bulk 单元素/缺集 null；显式 count 恒走数组臂。
-    // 判定钉在 args.len() 上——count 已被钳制 shadow，card=0 时 min(1,0)=0
-    // 不得误改此臂语义（空集仍回 null，与钳制前一致）。
-    if args.len() == 1 {
-      return match samples.into_iter().next() {
-        Some(s) => VectorReply::Bulk(Some(s.into())),
-        None => VectorReply::Bulk(None),
-      };
-    }
-    VectorReply::Array(
-      samples
-        .into_iter()
-        .map(|v| VectorReply::Bulk(Some(v.into())))
-        .collect(),
-    )
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVREM
-  ///
-  /// C# 对位 VectorStoreOps.cs:VectorSetRemove 锁点 :225，锁内 :227-234
-  /// 原文自陈 "After a successful read we remove the vector while holding a
-  /// shared lock / That lock prevents deletion, but everything else can
-  /// proceed in parallel"——共享守卫全程罩住 TryRemove 写体与 OK 后合成
-  /// 复制注入；rust 同款：守卫随本 async 栈帧跨 `try_remove` / AOF 注入
-  /// 存活，DEL 独占臂被排挡至写体完成，杜绝「remove 落已弃上下文 + AOF
-  /// 注入穿透删除锁」的主从发散竞态（manager 契约：try_remove 假定调用方
-  /// 已持共享读守卫）。
-  pub async fn network_vrem(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
-    wna_entry!(self, args, 2..=2, "VREM");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      return VectorReply::Integer(0);
-    };
-    match self
-      .manager
-      .try_remove(prefix, args[0], &index.to_bytes(), args[1])
-      .await
-    {
-      Ok(VectorManagerResult::OK) => {
-        // 成功后合成写注入 AOF（对标 C# VectorStoreOps.VectorSetRemove 的
-        // OK-后 ReplicateVectorSetRemove）
-        if let Some(reply) = self.aof_failed(
-          "vrem",
-          self
-            .manager
-            .replicate_vector_set_remove(prefix, args[0], args[1]),
-        ) {
-          return reply;
-        }
-        VectorReply::Integer(1)
-      }
-      // 缺元素 → 0（对标 C#「非 OK→0」，缺席语义不变）
-      Ok(_) => VectorReply::Integer(0),
-      // 存储读失败 → ERR 错误帧、不写 AOF（禁故障窗假成功 0/1 应答与存储分叉）
-      Err(e) => VectorReply::Error(e.message.into()),
-    }
-  }
-
-  /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVSETATTR
-  ///
-  /// `VSETATTR key element attributes`（RESP3 以布尔应答；缺失元素 → 假 / 0，非错误）。
-  ///
-  /// 属性写为存储异步操作（compio 写盘跨 await），本函数 async 化闭环
-  ///（对标 cluster 链 pending_slow 挂起先例）：生产 RESP 臂经
-  /// [`Self::network_vector_write_slow`] 挂起驱动，直调方（测试 / 复制回放）
-  /// 自持运行时 await。C# 对位 VectorStoreOps.cs:VectorSetSetAttribute
-  /// 锁点 :262——`using (ReadVectorIndex)` 共享锁全程罩住 TrySetAttribute
-  /// 写体（该臂无自陈注释，锁域即证据）；rust 同款：守卫随本 async 栈帧
-  /// 跨 `try_set_attribute` / AOF 注入存活，与 VREM 臂共享读防删排挡归一
-  ///（manager 契约：try_set_attribute 假定调用方已持共享读守卫）。
-  pub async fn network_vsetattr(&self, prefix: &[u8], args: &[&[u8]], resp3: bool) -> VectorReply {
-    wna_entry!(self, args, 3..=3, "VSETATTR");
-    let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      return bool_reply(false, resp3);
-    };
-    match self
-      .manager
-      .try_set_attribute(prefix, args[0], &index.to_bytes(), args[1], args[2])
-      .await
-    {
-      // 成功后合成写注入 AOF（对标 C# VectorStoreOps.VectorSetSetAttribute
-      // 的成功后 ReplicateVectorSetSetAttribute）
-      Ok(true) => {
-        if let Some(reply) = self.aof_failed(
-          "vsetattr",
-          self
-            .manager
-            .replicate_vector_set_set_attribute(prefix, args[0], args[1], args[2]),
-        ) {
-          return reply;
-        }
-        bool_reply(true, resp3)
-      }
-      // 缺元素/缺席 → 假（0）不变（对标 C#）
-      Ok(false) => bool_reply(false, resp3),
-      // 存储读写故障 → ERR 错误帧、不写 AOF（禁假阴性应答与存储分叉）
-      Err(e) => VectorReply::Error(e.message.into()),
-    }
-  }
+/// 过滤通过项下标序列（RESP2/RESP3 输出共用骨架）：零压实契约下按原结果
+/// 下标剔除未过项、至多产出 `limit` 项（与逐位 `break`/`continue` 手写循环同序同集）。
+fn passed_indices(
+  total_found: usize,
+  filter_bitmap: &[u8],
+  limit: usize,
+) -> impl Iterator<Item = usize> {
+  let has_filter = !filter_bitmap.is_empty();
+  (0..total_found)
+    .filter(move |&i| !has_filter || (filter_bitmap[i >> 3] >> (i & 7)) & 1 != 0)
+    .take(limit)
 }
 
 impl RespServerSessionVectors {

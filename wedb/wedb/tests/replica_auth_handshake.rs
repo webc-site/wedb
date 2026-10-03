@@ -101,7 +101,6 @@ where
   let server = GarnetServer::new(
     &["127.0.0.1:0".to_string()],
     65536,
-    100,
     Arc::new(session_provider),
   )?;
   // 单 worker 收敛（wedb_test::start_node 同款，防 CI 全核 worker 线程爆炸）

@@ -607,11 +607,14 @@ async fn seed_vector_set(
   );
 }
 
-/// 向量集登记表发现（源端零删直证件）
+/// 向量集登记表发现（源端零删直证件；SLOTS 迁移同口径：仅默认域 (0,0) 收录）
 fn vector_registered(vm: &Arc<VectorManager>) -> usize {
   let mut slots = BTreeSet::new();
   slots.insert(i32::from(SLOT0));
-  vm.get_vector_set_keys_for_slots(&slots).len()
+  vm.get_vector_set_keys_for_slots_with(&slots, |vns, vdb| {
+    (vns == 0 && vdb == 0).then(|| slot_of(0, 0))
+  })
+  .len()
 }
 
 /// SLOTS 链向量集带外子链 TRANSMITTING 栅栏判败：槽内仅向量集键（扫描空批
