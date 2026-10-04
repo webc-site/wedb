@@ -1,0 +1,33 @@
+[package]
+name = "wedb-bench"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+publish = false
+description = "redb 同构评测 harness：BenchDatabase trait 家族、18 段 workload 与 markdown 结果表"
+
+[features]
+default = ["hash", "bftree"]
+# hash = wkv 混合日志 KV 引擎
+hash = ["dep:wkv", "dep:wdev", "dep:wbase", "dep:compio"]
+# bftree = wbftree 有序索引引擎
+bftree = ["dep:wbftree", "dep:wbase"]
+
+[dependencies]
+wbase = { path = "../../../wedb/wbase", features = ["map"], optional = true }
+wkv = { path = "../../../wedb/wkv", optional = true }
+wdev = { path = "../../../wedb/wdev", optional = true }
+wbftree = { path = "../../../wedb/wbftree", optional = true }
+compio = { version = "0.19.2", optional = true, features = ["runtime", "time"] }
+comfy-table = "8.0.1"
+byte-unit = "5.2.6"
+fastrand = "2.5.0"
+walkdir = "2.5.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sysinfo = "0.39.6"
+libc = "0.2.190"
+
+[[bench]]
+name = "wedb_benchmark"
+harness = false
