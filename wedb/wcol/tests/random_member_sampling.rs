@@ -389,3 +389,107 @@ fn negative_count_streamed_reply_header_matches_items() {
   }
   assert_eq!(srandmember(&mut set, BIG_COUNT, 7).len(), 50_000);
 }
+
+/// 大基数负 count 放回臂的计算放大收口（逐下标 element_at/nth 线性扫描 →
+/// 采样域借用视图 O(1) 直取）：6 万短成员 × |count| 20 万，旧形态每下标 O(n/2)
+/// 共约 6×10^9 迭代步（debug 下分钟级，compio thread-per-core 下独占工作核），
+/// 视图形态 O(n+k) 亚秒——5 秒宽松上界旧形态必超
+#[test]
+fn large_negative_count_completes_within_linear_time_bound() {
+  use std::time::{Duration, Instant};
+
+  const N: usize = 60_000;
+  const BIG_COUNT: i32 = -200_000;
+  let members: Vec<Vec<u8>> = (0..N).map(|i| format!("m{i:05}").into_bytes()).collect();
+  let slices = slices_of(&members);
+  let universe: HashSet<&Vec<u8>> = members.iter().collect();
+
+  let mut hash = hash_with(&slices);
+  let t = Instant::now();
+  let reply = hrandfield(&mut hash, BIG_COUNT, 7);
+  let elapsed = t.elapsed();
+  assert_eq!(reply.len(), 200_000, "HRANDFIELD 负 count 条数恒等 |count|");
+  assert!(
+    reply.iter().all(|m| universe.contains(m)),
+    "放回臂应答成员必须全部属于集合"
+  );
+  assert!(
+    elapsed < Duration::from_secs(5),
+    "HRANDFIELD 逐下标线性扫描形态必超 5 秒上界: {elapsed:?}"
+  );
+
+  let mut zset = zset_with(&slices);
+  let t = Instant::now();
+  let reply = zrandmember(&mut zset, BIG_COUNT, 7);
+  let elapsed = t.elapsed();
+  assert_eq!(reply.len(), 200_000, "ZRANDMEMBER 负 count 条数恒等 |count|");
+  assert!(reply.iter().all(|m| universe.contains(m)));
+  assert!(
+    elapsed < Duration::from_secs(5),
+    "ZRANDMEMBER 逐下标线性扫描形态必超 5 秒上界: {elapsed:?}"
+  );
+
+  let mut set = SetObject::new();
+  for m in &slices {
+    set.add(m);
+  }
+  let t = Instant::now();
+  let reply = srandmember(&mut set, BIG_COUNT, 7);
+  let elapsed = t.elapsed();
+  assert_eq!(reply.len(), 200_000, "SRANDMEMBER 负 count 条数恒等 |count|");
+  assert!(reply.iter().all(|m| universe.contains(m)));
+  assert!(
+    elapsed < Duration::from_secs(5),
+    "SRANDMEMBER 逐下标线性扫描形态必超 5 秒上界: {elapsed:?}"
+  );
+}
+
+/// 大基数正 count 两分派臂语义不回退：count=n 走全量洗牌臂（互异且条数=n）、
+/// count 远小于 0.1n 走拒绝采样臂（互异且全属集合）——借用视图的采样域
+/// 仍为全集迭代序，下标语义与逐下标 nth 形态逐位等价
+#[test]
+fn large_positive_count_distinct_across_dispatch_arms() {
+  const N: usize = 60_000;
+  let members: Vec<Vec<u8>> = (0..N).map(|i| format!("m{i:05}").into_bytes()).collect();
+  let slices = slices_of(&members);
+  let universe: HashSet<&Vec<u8>> = members.iter().collect();
+
+  let assert_distinct = |name: &str, reply: Vec<Vec<u8>>, expect_len: usize| {
+    assert_eq!(reply.len(), expect_len, "{name} 条数漂移");
+    assert!(
+      reply.iter().all(|m| universe.contains(m)),
+      "{name} 应答成员越出集合"
+    );
+    let mut distinct = reply;
+    distinct.sort();
+    distinct.dedup();
+    assert_eq!(distinct.len(), expect_len, "{name} 正 count 必须互异");
+  };
+
+  let mut hash = hash_with(&slices);
+  assert_distinct("HRANDFIELD 洗牌臂", hrandfield(&mut hash, N as i32, 11), N);
+  assert_distinct("HRANDFIELD 拒绝采样臂", hrandfield(&mut hash, 100, 13), 100);
+
+  let mut zset = zset_with(&slices);
+  assert_distinct(
+    "ZRANDMEMBER 洗牌臂",
+    zrandmember(&mut zset, N as i32, 11),
+    N,
+  );
+  assert_distinct(
+    "ZRANDMEMBER 拒绝采样臂",
+    zrandmember(&mut zset, 100, 13),
+    100,
+  );
+
+  let mut set = SetObject::new();
+  for m in &slices {
+    set.add(m);
+  }
+  assert_distinct("SRANDMEMBER 洗牌臂", srandmember(&mut set, N as i32, 11), N);
+  assert_distinct(
+    "SRANDMEMBER 拒绝采样臂",
+    srandmember(&mut set, 100, 13),
+    100,
+  );
+}

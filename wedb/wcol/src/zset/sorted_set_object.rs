@@ -701,25 +701,6 @@ impl SortedSetObject {
     self.ledger.get_time(key).unwrap_or(-1)
   }
 
-  /// 按字典迭代序取第 index 个成员（越界返回 None；调用方须先 purge）
-  ///
-  /// libs/server/Objects/SortedSet/SortedSetObject.cs:ElementAt
-  /// （C# 越界抛 ArgumentOutOfRangeException，Rust 以 None 表达；
-  /// C# 返回 KeyValuePair<byte[], double> 即字典内的引用，故成员名回借用切片，
-  /// 采样路径零拷贝直写 RESP）
-  ///
-  /// 刻意差异（对位 C# 的过滤臂删除）：与 hash 侧 element_at 同窗同理——
-  /// C# 迭代臂逐项重采样过滤与声明数错位即断流；rust 消费点全部前置
-  /// purge_expired_len，此处不再二次重采样（修复型偏离，doc/zh/deviations.md
-  /// 「成员级 TTL 容器读臂两次时钟采样」条）
-  pub fn element_at(&self, index: usize) -> Option<(&[u8], f64)> {
-    self
-      .sorted_set_dict
-      .iter()
-      .nth(index)
-      .map(|(k, v)| (&**k, *v))
-  }
-
   /// 条目内存记账（add=false 回收）
   ///
   /// libs/server/Objects/SortedSet/SortedSetObject.cs:UpdateSize
