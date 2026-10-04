@@ -104,7 +104,7 @@ fn parse_bytes(data: &mut &[u8]) -> Result<Option<Result<Vec<u8>>>> {
     |b| Ok(b.unwrap_or_default().to_vec()),
     |data| {
       Ok(
-        RespReadResponseUtils::try_read_byte_slice_array_with_length_header(data)?.map(|a| {
+        RespReadResponseUtils::try_read_byte_slice_array_with_length_header(data, 1)?.map(|a| {
           Ok(
             a.and_then(|v| v.first().copied())
               .unwrap_or_default()
@@ -129,7 +129,7 @@ fn parse_scalar(data: &mut &[u8]) -> Result<Option<Result<String>>> {
     // 标量分支遇到数组应答：返回首元素（对标 C# ProcessReplyAsString case '*'）
     |data| {
       Ok(
-        match RespReadResponseUtils::try_read_byte_slice_array_with_length_header(data)? {
+        match RespReadResponseUtils::try_read_byte_slice_array_with_length_header(data, 1)? {
           None => None,
           Some(None) => Some(Ok(String::new())),
           Some(Some(arr)) => Some(Ok(bulk_text(arr.first().copied())?)),
