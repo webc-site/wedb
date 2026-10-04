@@ -55,6 +55,7 @@ const USAGE: &str = "用法：wedb-bench [选项]
   --json FILE        写出合并后的机读结果
   --commit SHA       标注提交（默认取 GITHUB_SHA）
   --branch NAME      标注分支（默认取 GITHUB_REF_NAME）
+  --version VER      标注版本身份（CI 传 git describe --tags --always）
   --list             列出已编译的引擎列
 ";
 
@@ -74,6 +75,7 @@ pub struct Args {
   pub help: bool,
   pub commit: Option<String>,
   pub branch: Option<String>,
+  pub version: Option<String>,
   pub only: Vec<String>,
 }
 
@@ -133,6 +135,7 @@ pub fn parse_args(argv: &[String]) -> Result<Args, String> {
       }
       "--commit" => args.commit = Some(take_value(argv, &mut index, "--commit")?),
       "--branch" => args.branch = Some(take_value(argv, &mut index, "--branch")?),
+      "--version" => args.version = Some(take_value(argv, &mut index, "--version")?),
       "--quick" => args.quick = true,
       "--list" => args.list = true,
       "--help" | "-h" => args.help = true,
@@ -401,6 +404,7 @@ pub fn run_parent(specs: &[EngineSpec], args: &Args) -> Result<(), String> {
     generated_at_unix: JsonRun::unix_now(),
     commit: env_or("GITHUB_SHA", args.commit.clone(), "local"),
     branch: env_or("GITHUB_REF_NAME", args.branch.clone(), "local"),
+    version: env_or("WEDB_BENCH_VERSION", args.version.clone(), ""),
     platform: machine.platform.clone(),
     machine,
     workload: workload.clone(),

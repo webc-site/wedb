@@ -115,18 +115,37 @@ impl RespReadResponseUtils {
     })
   }
 
-  /// 二进制安全的 RESP 数组零拷贝解析：元素为 bulk string 字节切片引用
+  /// 二进制安全的 RESP 数组零拷贝解析：元素为字节切片引用
   ///
-  /// 集群复制帧（CLUSTER APPENDLOG 载荷）为原始二进制，不能经 UTF-8 字符串
-  /// 路径解码；仅接受 bulk string 元素（发送端 RespWriteUtils.TryWriteArrayItem /
-  /// TryWriteBulkString 的数组元素形态），直接借用输入缓冲区切片，杜绝堆分配。
-  /// 本臂元素仅 `$`（无嵌套集合递归臂，不涉 [`MAX_NEST_DEPTH`] 深面），
-  /// 顶层层数直传 1 过骨架熔断即可
+  /// 服务面：Str/Bytes 标量应答形的数组臂取首元素与集群复制帧（CLUSTER
+  /// APPENDLOG 载荷）还原。元素臂对位 C# 客户端门面
+  /// RespReadResponseUtils.TryReadStringArrayWithLengthHeader（注意是 client 件
+  /// 非 common 件：common 件同名走 TryReadUnsignedLengthHeader 不容 `$-1`），
+  /// 并对齐 [`Self::try_read_string_array_with_length_header`] 的 RESP3 扩展形态：
+  /// - `$` 含 null bulk（`$-1` → 空切片：对位客户端门面 TryReadStringWithLengthHeader
+  ///   置 null 返回 true，完整帧消费不判半包——flatten 成 None 会被骨架误判
+  ///   元素未到齐，null 元素帧成永久半包死等）
+  /// - `+ : - , #` 行读借用行体零拷贝（C# else 臂按整数行读，rust 扩 RESP3 行集）
+  /// - `_` RESP3 null → 空切片
+  /// - `* ~ >` 嵌套集合仅消费帧、元素记空切片（C# MemoryPool 重载无嵌套臂，
+  ///   字符串重载为 Join 臂；此臂为 rust 侧 RESP3 扩展偏差，经 `depth` 受
+  ///   [`MAX_NEST_DEPTH`] 熔断）
+  /// - 其余按非预期标记 Err 断连
   pub fn try_read_byte_slice_array_with_length_header<'a>(
     ptr: &mut &'a [u8],
+    depth: usize,
   ) -> Result<Option<Option<Vec<&'a [u8]>>>> {
-    Self::read_array_with(ptr, 1, |ptr| {
-      Ok(Self::try_read_byte_slice_with_length_header(ptr)?.flatten())
+    Self::read_array_with(ptr, depth, |ptr| match ptr[0] {
+      b'$' => Ok(Self::try_read_byte_slice_with_length_header(ptr)?.map(|b| b.unwrap_or_default())),
+      // 简单串/整数/错误行/RESP3 浮点与布尔共用行读取路径，借用行体零拷贝
+      b'+' | b':' | b'-' | b',' | b'#' => Ok(Self::try_read_token_span(ptr, ptr[0])?),
+      // RESP3 null: _\r\n → 空切片
+      b'_' => Ok(Self::try_read_token_span(ptr, b'_')?.map(|_| &[][..])),
+      // 嵌套集合仅消费帧：内容不保留（元素记空切片），内层 None 即元素未到齐
+      b'*' | b'~' | b'>' => Ok(
+        Self::try_read_byte_slice_array_with_length_header(ptr, depth + 1)?.map(|_| &[][..]),
+      ),
+      b => Err(Self::unexpected_token(b)),
     })
   }
 
