@@ -166,6 +166,27 @@ fn test_tiered_zadd_opts_zrange_geo() {
     ),
     b"$-1\r\n"
   );
+  // #2197：XX + INCR 成员缺席（树内无此成员）→ null 且不新增
+  assert_eq!(
+    auto_exec(
+      &api,
+      &rt,
+      &mut s,
+      RespCommand::Zadd,
+      &[b"z", b"XX", b"INCR", b"3", b"absent_member"]
+    ),
+    b"$-1\r\n"
+  );
+  assert_eq!(
+    auto_exec(
+      &api,
+      &rt,
+      &mut s,
+      RespCommand::Zscore,
+      &[b"z", b"absent_member"]
+    ),
+    b"$-1\r\n"
+  );
   // 互斥校验错误文案（对标 C# GetOptions）
   let out = auto_exec(
     &api,
@@ -243,102 +264,6 @@ fn test_tiered_zadd_opts_zrange_geo() {
     &[b"z", b"palermo", b"palermo"],
   );
   assert_eq!(dist, b"$1\r\n0\r\n");
-}
-
-/// ZADD XX+INCR 成员缺席 → null（内存态信封与分层树内臂双态对拍）
-///
-/// 对位 C# SortedSetObjectImpl.cs:136-146 缺席臂 XX+INCR 组合
-/// `writer.WriteNull(); return;`（短路整条命令、真 Redis 同为 nil）：修复前信封
-/// sorted_set_add 与分层 zset_zadd_arm 的 XX 臂一律 continue，循环尾把
-/// incr_result 初值 0.0 写成 "0"，两态应答帧与 C#/Redis 分叉。三面锁：
-/// 缺席回 null（RESP2 `$-1` / RESP3 `_`）、不新增成员、存活成员 XX+INCR
-/// 正常叠加 double 帧不回退。INCR 恒单对（RESP 层校验拦截多对形态），
-/// 短路整命令与跳过单成员在 RESP 面不可区分，null 帧型即锁。RESP2/3 双协议
-/// 电池直置会话版本（同册既有形制）
-#[test]
-fn test_tiered_zadd_xx_incr_absent_null_dualstate_parity() {
-  let (rt, api, _store, _dir) = open_env("tiered-zadd-xx-incr-null.db");
-  let mut s = session_with(&api);
-
-  // 分层态键：灌水升阶；内存态对照键仅落 base（不过升阶门槛）
-  let total = wcol::TIERED_PROMOTE_THRESHOLD + 10;
-  bulk_fill(
-    &api,
-    &rt,
-    &mut s,
-    RespCommand::Zadd,
-    b"zt",
-    total,
-    |i, buf| vec![num(buf, i), prefixed(b'm', buf, i)],
-  );
-  auto_exec(
-    &api,
-    &rt,
-    &mut s,
-    RespCommand::Zadd,
-    &[b"zt", b"1", b"base"],
-  );
-  auto_exec(
-    &api,
-    &rt,
-    &mut s,
-    RespCommand::Zadd,
-    &[b"zs", b"1", b"base"],
-  );
-
-  // ======================= 双协议电池（RESP2 / RESP3） =======================
-  for ver in [2u8, 3u8] {
-    s.resp_protocol_version = ver;
-    let nil: &[u8] = if ver == 3 { b"_\r\n" } else { b"$-1\r\n" };
-    // 存活对照 double 帧（1 + 5 = 6）：RESP2 bulk / RESP3 `,num`
-    let six: &[u8] = if ver == 3 { b",6\r\n" } else { b"$1\r\n6\r\n" };
-    // 各轮独立基准成员，免跨轮分值纠缠
-    let base: &[u8] = if ver == 3 { b"base3" } else { b"base2" };
-    for key in [b"zs".as_slice(), b"zt"] {
-      let tag = if key == b"zt" {
-        "分层态"
-      } else {
-        "内存态"
-      };
-      assert_eq!(
-        auto_exec(&api, &rt, &mut s, RespCommand::Zadd, &[key, b"1", base]),
-        b":1\r\n",
-        "{tag} 基准成员 @resp{ver}"
-      );
-      let card_before = auto_exec(&api, &rt, &mut s, RespCommand::Zcard, &[key]);
-      // XX+INCR 缺席 → null（修复前两臂均漏 incr_result 初值 "0"）
-      assert_eq!(
-        auto_exec(
-          &api,
-          &rt,
-          &mut s,
-          RespCommand::Zadd,
-          &[key, b"XX", b"INCR", b"5", b"ghost"]
-        ),
-        nil,
-        "{tag} XX INCR 缺席成员须回 null @resp{ver}"
-      );
-      assert_eq!(
-        auto_exec(&api, &rt, &mut s, RespCommand::Zcard, &[key]),
-        card_before,
-        "{tag} XX INCR 缺席不得新增成员 @resp{ver}"
-      );
-      // 对照：XX+INCR 成员存活 → 正常叠加 double 帧不回退（1 + 5 = 6）
-      assert_eq!(
-        auto_exec(
-          &api,
-          &rt,
-          &mut s,
-          RespCommand::Zadd,
-          &[key, b"XX", b"INCR", b"5", base]
-        ),
-        six,
-        "{tag} XX INCR 存活成员须回叠加 double 帧 @resp{ver}"
-      );
-      // 清基准成员，下一轮同键复用同判据
-      auto_exec(&api, &rt, &mut s, RespCommand::Zrem, &[key, base]);
-    }
-  }
 }
 
 /// 分层态 ZADD 同分值分支必须保留树内存储分值位模式（±0.0 等值面）

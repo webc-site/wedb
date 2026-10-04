@@ -383,6 +383,17 @@ pub static META: [ConfigMeta; RuntimeServerConfig::TABLE_SIZE] = [
     ConfigTimeUnit::None,
     fmt_fast_aof_truncate,
   ),
+  // 36: MaxClients（PR #2157）：进程级连接准入上限，-1 = 不限；写穿到
+  // accept 在途容量门（对标 RuntimeServerConfig.cs:193 的 MAXCLIENTS 元数据）
+  ConfigMeta::runtime(
+    "maxclients",
+    ConfigKind::INT32,
+    -1,
+    i32::MAX as i64,
+    None,
+    ConfigTimeUnit::None,
+    Some(RuntimeServerConfig::apply_max_clients_update),
+  ),
 ];
 
 /// 参数名（含别名）→ 类型的静态查找表：编译期自 `META` 规范名与 `RUNTIME_TYPES`
@@ -410,7 +421,7 @@ pub static NAME_LOOKUP: [(&[u8], ServerConfigType); RUNTIME_TYPES.len() + 1] = b
 /// 本表处理的全部类型（可设置 + 只读），供 CONFIG GET *。纯编译期常量，零运行时分配。
 ///
 /// libs/server/Config/RuntimeServerConfig.cs:BuildRuntimeTypes
-pub static RUNTIME_TYPES: [ServerConfigType; 33] = [
+pub static RUNTIME_TYPES: [ServerConfigType; 34] = [
   ServerConfigType::Timeout,
   ServerConfigType::Save,
   ServerConfigType::AppendOnly,
@@ -444,6 +455,7 @@ pub static RUNTIME_TYPES: [ServerConfigType; 33] = [
   ServerConfigType::AofCommitWait,
   ServerConfigType::AofSizeLimit,
   ServerConfigType::FastAofTruncate,
+  ServerConfigType::MaxClients,
 ];
 
 /// 进程级共享默认配置（无服务器注入时会话的回落源）。C# 侧恒由
@@ -459,7 +471,7 @@ impl RuntimeServerConfig {
   /// 取最大判别值 + 1，无需哨兵成员，枚举空洞亦可安全下标。
   #[inline]
   pub const fn compute_table_size() -> usize {
-    (ServerConfigType::FastAofTruncate as u16 + 1) as usize
+    (ServerConfigType::MaxClients as u16 + 1) as usize
   }
 
   const TABLE_SIZE: usize = Self::compute_table_size();
@@ -566,6 +578,12 @@ impl RuntimeServerConfig {
       (
         ServerConfigType::ExpiredKeyDeletionScanFreq,
         i64::from(o.expired_key_deletion_scan_frequency_secs),
+      ),
+      // maxclients 播种（PR #2157，对标 RuntimeServerConfig.cs:267
+      // `values[(int)ServerConfigType.MAXCLIENTS] = o.NetworkConnectionLimit`）
+      (
+        ServerConfigType::MaxClients,
+        i64::from(o.network_connection_limit),
       ),
     ];
     for (t, v) in seeds {
@@ -892,6 +910,17 @@ impl RuntimeServerConfig {
     let compaction_type = LogCompactionType::from_raw(new_value)
       .ok_or(ConfigError::EnumOutOfRange { raw: new_value })?;
     Ok(Some(ConfigReconcile::CompactionType { compaction_type }))
+  }
+
+  /// maxclients 变更落点（PR #2157，对标 RuntimeServerConfig.cs
+  /// ApplyMaxClientsUpdate）：把新上限写进 accept 路径逐连接咨询的共享
+  /// 连接上限。调低不断既有连接（容量门只拒新连接，同 Redis）；-1 即不限
+  fn apply_max_clients_update(
+    &self,
+    _old_value: i64,
+    new_value: i64,
+  ) -> Result<Option<ConfigReconcile>, ConfigError> {
+    Ok(Some(ConfigReconcile::MaxClients { limit: new_value }))
   }
 
   /// libs/server/Config/RuntimeServerConfig.cs:Name

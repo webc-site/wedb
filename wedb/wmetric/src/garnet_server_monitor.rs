@@ -84,8 +84,7 @@ pub struct ServerSample {
   pub total_connections_received: i64,
   /// 已释放的连接数。
   pub total_connections_disposed: i64,
-  /// 容量门拒连数（INFO STATS `rejected_connections` 行的采样输入，
-  /// C# MainMonitorTaskAsync 逐服务器累加 TotalConnectionsRejected 的承接）。
+  /// 因连接上限被拒的连接数（PR #2157，C# TotalConnectionsRejected）。
   pub total_connections_rejected: i64,
   /// 活跃连接数。
   pub total_connections_active: i64,
@@ -355,10 +354,8 @@ impl GarnetServerMonitor {
 
       state.global_metrics.total_connections_received = 0;
       state.global_metrics.total_connections_disposed = 0;
-      // rejected_connections 不在此显式清零（C# CleanupGlobalStats 同位无此行）：
-      // 复位仅下沉到服务器域计数（ConsumerRegistry::reset_connection_totals
-      // 承接 C# ResetConnectionsRejected 归零），全局投影由下一采样轮以复位后
-      // 的服务器计数覆盖——显式清零反成第二复位口径
+      // 拒绝计数复位到 0（C# ResetConnectionsRejected：拒绝不追踪活跃种群）
+      state.global_metrics.rejected_connections = 0;
       if let Some(global_session) = &mut state.global_metrics.global_session_metrics {
         global_session.reset();
       }

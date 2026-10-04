@@ -124,7 +124,7 @@ fn race_window_load(
   let mut global_handle = None;
   let mut load_out = Vec::new();
   let (_, created) = cache
-    .try_load_runner(
+    .try_get_or_create_runner_from_source(
       source,
       digest,
       &mut global_handle,

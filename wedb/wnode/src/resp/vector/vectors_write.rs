@@ -314,6 +314,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// 存活，DEL 独占臂被排挡至写体完成，杜绝「remove 落已弃上下文 + AOF
   /// 注入穿透删除锁」的主从发散竞态（manager 契约：try_remove 假定调用方
   /// 已持共享读守卫）。
+  ///
   pub async fn network_vrem(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
     wna_entry!(self, args, 2..=2, "VREM");
     let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {

@@ -124,7 +124,7 @@ store.update_gc_config(|gc| {
   gc.scan_interval_ms = 60_000;
   gc.compaction_max_segments = 16;
 });
-let stats = store.gc_stats();
+let stats: Option<wkv::GcStatsSnapshot> = store.gc_stats();
 ```
 
 Compaction copies live records down the log and physically deletes reclaimed segment files.
@@ -286,21 +286,21 @@ The lists below mirror each crate's real crate-root `pub use` surface; internal 
   - Address observability: `tail_address`, `read_only_address`, `head_address`, `begin_address`, `safe_read_only_address`, `shift_read_only_address`, `shift_head_address`, `shift_begin_address`, `truncate`.
   - `keyspace_stats(ns)` — INFO KEYSPACE single kernel: read-only pass over the tenant's registered databases, one bucketed scan, per-db `(db, live keys, keys with TTL)`.
   - `entry_count()`, `hlog()`, `expired_key_deletion_scan`, `hash_distribution_dump`, `revivification_dump`.
-- `StoreConfig` — index buckets, page size, page count, mutable fraction, max sessions, range index dir, revivification / read cache switches, `GcConfig`. Constructors: `auto()`, `auto_with_budget(bytes)`, `new(...)`, `minimal()`, `recommended_index_size(expected_keys)`; builders `with_max_sessions`, `with_revivification`, `with_revivifiable_fraction`, `with_read_cache`, `with_read_cache_pages`, `with_range_index_dir`, `with_copy_reads_to_tail`, `with_tree_cache_budget`.
-- Config constants: `DEFAULT_DB_GC_RECLAIM_DELAY_SECS`, `DEFAULT_GC_MAX_BATCH_DELETES`, `DEFAULT_GC_MAX_SEGMENTS`, `INDEX_BUCKET_BYTES`, `INDEX_BUCKET_DATA_SLOTS`, `MAX_INDEX_SIZE`, `MIN_ADAPTIVE_BUDGET_BYTES`, `MIN_INDEX_SIZE`.
+- `StoreConfig` — index buckets, page size, page count, mutable fraction, max sessions, range index dir, revivification / read cache switches, `GcConfig`. Constructors: `auto()`, `auto_with_budget(bytes)`, `new(...)`, `minimal()`, `recommended_index_size(expected_keys)`; builders `with_max_sessions`, `with_revivification`, `with_revivifiable_fraction`, `with_read_cache`, `with_read_cache_pages`, `with_range_index_dir`, `with_copy_reads_to_tail`.
+- Config constants: `DEFAULT_INDEX_SIZE`, `MIN_INDEX_SIZE`, `MAX_INDEX_SIZE`, `INDEX_BUCKET_BYTES`, `INDEX_BUCKET_DATA_SLOTS`, `DEFAULT_MAX_SESSIONS`, `DEFAULT_MEMORY_PERCENT`, `MIN_MEMORY_BUDGET_BYTES`, `MAX_DEFAULT_MEMORY_BUDGET_BYTES`, `MIN_ADAPTIVE_BUDGET_BYTES`, `DEFAULT_REVIVIFIABLE_FRACTION`, `DEFAULT_GC_MAX_SEGMENTS`, `DEFAULT_GC_MAX_BATCH_DELETES`.
 - `StoreSession<D>` — session-scoped operations:
   - `upsert` / `read` / `read_with` / `delete` / `contains_key` / `read_batch_with` / `read_batch_raw_with` — tagged user-key CRUD; `upsert_raw` / `read_raw` / `read_raw_with` / `delete_raw` / `contains_key_raw` / `read_record(addr)` operate on physical keys.
   - `try_upsert_sync`, `try_read_sync`, `try_rmw_sync`, `try_read_batch_in_memory` — fast paths that skip flush waits; `*_unprotected` and `*_with_prefix` variants serve batch contexts and prefix hoisting.
-  - `expire_at(key, ms, TtlOpt)` / `persist(key)` / `ttl_of(key)` — Redis-semantics record TTL; TTL predicates `is_expired` / `is_expired_or_now` and the `TtlGate` tri-state gate.
+  - `expire_at(key, ms, TtlOpt)` / `persist(key)` / `ttl_of(key)` — Redis-semantics record TTL; TTL predicates `is_expired`, `is_expired_or_now`, `TtlCarrier`, `TtlGate`.
   - `set_context(ns, db)`, `set_strict_context`, `set_active_db`, `namespace()`, `active_db()` — multi-tenant routing; `session_prefix()` exposes the fixed-length zero-allocation prefix.
-  - `copy_reads_to_tail()` — reader for the Garnet-aligned read-promotion switch; the switch itself is config-side via `StoreConfig::with_copy_reads_to_tail` (elision is unconditional, cf. C# Helpers.CanElide)
+  - `set_copy_reads_to_tail` — Garnet-aligned read promotion switch (elision is unconditional, cf. C# Helpers.CanElide)
   - `enter_batch()` — `BatchStoreSession` groups writes into one epoch window.
   - `load_meta`, `persist_dbmeta` / `try_persist_dbmeta_sync`, `check_object_meta_fast` — collection metadata and envelope fast checks.
   - `range_index_create(key, StorageBackendType, TreeTuning)` / `range_index_set` / `range_index_set_batch` / `range_index_get` / `range_index_get_with` / `range_index_del` / `range_index_scan_stream` / `range_index_range_stream` / `range_index_exists` / `range_index_count` / `range_index_config` / `range_index_metrics` — BfTree range index operations.
-- Range-index aspects: `RangeIndexError`, `SwapInWindowGuard`, `TreeGuard`, `validate_bftree_record`.
+- Range-index aspects: `RangeIndexError`, `RangeIndexMetrics`, `TreeGuard` / `TreeReadGuard` / `TreeWriteGuard`, `encode_meta_stub_record`, `validate_bftree_record`.
 - Checkpoint maintenance — `wcpr::list_checkpoints`, `wcpr::find_latest_checkpoint`, `wcpr::purge_checkpoint(dir, token)`, `wcpr::purge_all`, `wcpr::purge_outdated`. Checkpointing and recovery are directly provided as intrinsic methods on `WedbStore`.
-- GC surface: `GcManager`, `GcConfig`, `spawn_bftree_reclaimer`; the GC handle, stats snapshot and run guard are internal gc-module types, reached via the `start_gc` / `gc_stats` methods above.
-- Engine types: `StoreResult`, `RecordRead`, `DeleteMissHook`, `WatchHook`, `ConsistentReadContext`, `ConsistentReadFunctions`, `StoreEvent`, `StoreEventSink`, `ObjectRmwNotification`, `HybridLogScanMetrics`, `ReadCache`, `RcVisit`, `CollectionError` / `Error` / `Result`.
+- GC surface: `GcManager`, `GcHandle`, `GcStatsSnapshot`, `GcConfig`, `RunGuard`.
+- Engine types: the `WedbStore` trait with its `DefaultWedbStore` implementation, `StoreResult`, `RecordRead`, `DeleteMissHook`, `WatchHook`, `ConsistentReadContext`, `ConsistentReadFunctions`, `StoreEvent`, `StoreEventSink`, `ObjectRmwNotification`, `HybridLogScanMetrics`, `ReadCache`, `RcVisit`, `WedbCompactionFunctions`, `CollectionError` / `CollectionResult` / `Error` / `Result`.
 
 ### wbase — L0 primitives
 
@@ -328,7 +328,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 - `RecordHeader` constants — `HEADER_SIZE` (16B), `RECORD_ALIGNMENT`, `SEALED_BIT`, `TOMBSTONE_BIT`, `HEADER_READ_CACHE_BIT`, `IN_NEW_VERSION_BIT`, `MAX_FILLER_BYTES`, `PAD_KEY_LEN`.
 - `RecordRef` / `RecordMut` — zero-copy read / write views over log memory.
-- `record_size`, `checked_record_size`, `encode_to_slice`, `MAX_KEY_LEN` — encode records into log slots.
+- `record_size`, `checked_record_size`, `encode_to_slice`, `try_encode_to_vec`, `MAX_KEY_LEN` — encode records into log slots.
 
 ### wval — value layer
 
@@ -340,7 +340,7 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 ### windex — lock-free hash index and direct virtual memory
 
-- `HashIndex` — `new(num_buckets)` fixed bucket table; `find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`, `lookup_candidates(_by_hash)`, `insert_to_bucket`, `find_or_create_tag_by_hash_with_min_addr`, `update_address`, `delete`, `bucket_index_for_hash`, `try_lock_key_hash_exclusive`, `prefetch_batch_probes`, `hash_key`, `clear`.
+- `HashIndex` — `new(num_buckets)` fixed bucket table; `find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`, `lookup_candidates(_by_hash)`, `insert_to_bucket`, `find_or_create_tag_by_hash_with_min_addr`, `update_address`, `delete`, `bucket_index_for_key` / `bucket_index_for_hash`, `try_lock_key_hash_exclusive`, `prefetch_batch_probes`, `hash_key`, `clear`.
 - `HashBuckets`, `PrefetchProbe`, `HashBucket` (`ENTRIES_PER_BUCKET`, `DATA_ENTRIES`, `OVERFLOW_INDEX`), `HashBucketEntry`, `HashEntryInfo`, `CandidateAddresses` (inline candidate list with `push` / `retain` / `iter` / `as_slice`).
 - `OverflowPool`, `KeyLatch`, `BucketExclusiveGuard` / `BucketSharedGuard`, `prefetch_read_l1`, `PREFETCH_WINDOW`.
 - Online growth: `split_chunk`, `split_single_bucket`, `chunk_count`, `chunk_offset_for_hash`, `CHUNK_SIZE` / `CHUNK_BITS`, `SPLIT_UNSTARTED` / `SPLIT_IN_PROGRESS` / `SPLIT_COMPLETED`.
@@ -354,8 +354,8 @@ Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), 
 
 ### wreviv — free slot recycling
 
-- `FreeRecordPool` — size-binned pools (`DEFAULT_BIN_SIZES`), `put(address, size, min_address)` / `take(required_size, min_address)` / `purge_below(min_address)` / `pause` / `resume` / `is_enabled` / `find_bin_index` / `clear` / `is_empty`.
-- `FreeRecordBin`, `FreeRecord`, `SetStatus`, `USE_FIRST_FIT`, `BEST_FIT_SCAN_ALL`; cumulative counters are pub atomic fields on `FreeRecordPool` — `put_count` / `take_count` / `hit_count` / `drop_count` — cleared via `reset_stats()`.
+- `FreeRecordPool` — size-binned pools (`DEFAULT_BIN_SIZES`), `put(address, size, min_address)` / `take(required_size, min_address)` / `purge_below(min_address)` / `stats()` / `pause` / `resume` / `is_enabled` / `find_bin_index` / `clear` / `is_empty`.
+- `FreeRecordBin`, `FreeRecord`, `SetStatus`, `USE_FIRST_FIT`, `BEST_FIT_SCAN_ALL`, `RevivStats` (`hit_rate()`).
 
 ### wbftree — BfTree range index
 

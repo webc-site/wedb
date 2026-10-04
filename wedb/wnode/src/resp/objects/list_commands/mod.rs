@@ -162,7 +162,8 @@ pub(crate) fn list_save_or_gc(
 ///
 /// - 只读操作不落库；
 /// - 错误回复（WRONGTYPE 标志或 `-` 行）无状态变更，不落库（防幻键）；
-/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
+/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定
+///   矩阵；#2192 起 LSET 入 NeedToCreate=false 集）；
 /// - 仅回填 result1 的操作以变更计数为准；LSET 以 +OK 负载为准。
 pub(crate) fn should_write_back(
   op: ListOperation,

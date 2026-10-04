@@ -154,7 +154,7 @@ impl LuaCommands {
         let source = global_script_handle.script_data().to_vec();
         let options = ctx.runner_options();
         let mut load_out = Vec::new();
-        let loaded = ctx.session_cache.try_load_runner(
+        let loaded = ctx.session_cache.try_get_or_create_runner_from_source(
           &source,
           &script_key,
           &mut handle,
@@ -207,7 +207,7 @@ impl LuaCommands {
 
     // 脚本源直传参数视图（零拷贝；C# script = ref parseState.GetArgSliceByRef(0)）。
     let script = ctx.args[0];
-    let Some(on_stack_script_key) = Self::load_script_registered(ctx, script) else {
+    let Some(on_stack_script_key) = Self::try_get_or_create_script_runner(ctx, script) else {
       return true;
     };
 
@@ -215,13 +215,17 @@ impl LuaCommands {
     true
   }
 
-  /// 脚本装载 + 全局登记共用骨架（TryEVAL / NetworkScriptLoad 两处同形收口，
-  /// 对标 C# TryLoad + TryAdd 双写形态）：源码直传编译进会话缓存；TryLoad
-  /// 新铸共享句柄时经 [`StoreScriptCache::try_add_or_toss`] 单点登记全局字典。
+  /// libs/server/Lua/LuaCommands.cs:TryGetOrCreateScriptRunner
+  ///
+  /// 脚本装载 + 全局登记单点（TryEVAL / NetworkScriptLoad 两处同形收口，
+  /// C# #2138 收拢的共用形态）：全局命中 → 会话装载复用；未命中 → 源码经
+  /// [`SessionScriptCache::try_get_or_create_runner_from_source`] 编译装载，
+  /// TryLoad 新铸共享句柄时经 [`StoreScriptCache::try_add_or_toss`] 单点
+  /// 登记全局字典。
   ///
   /// 返回 `Some(digest)` 脚本已就绪（含会话缓存命中复用）；`None` = TryLoad
   /// 失败，错误应答已写入 `ctx.out`（C# TryLoad 自带写错，调用方只透传缓冲）。
-  fn load_script_registered<S: ScriptingApi>(
+  fn try_get_or_create_script_runner<S: ScriptingApi>(
     ctx: &mut LuaSessionContext<'_, S>,
     source: &[u8],
   ) -> Option<ScriptHashKey> {
@@ -229,7 +233,7 @@ impl LuaCommands {
     let mut session_script_handle = ctx.store_cache.try_get(&digest);
     let options = ctx.runner_options();
     let mut load_out = Vec::new();
-    let loaded = ctx.session_cache.try_load_runner(
+    let loaded = ctx.session_cache.try_get_or_create_runner_from_source(
       source,
       &digest,
       &mut session_script_handle,
@@ -325,7 +329,7 @@ impl LuaCommands {
 
     // 脚本源直传参数视图（零拷贝；C# NetworkScriptLoad 直读 parseState 位）。
     let source = ctx.args[0];
-    let Some(digest) = Self::load_script_registered(ctx, source) else {
+    let Some(digest) = Self::try_get_or_create_script_runner(ctx, source) else {
       return true;
     };
 
@@ -445,6 +449,17 @@ impl LuaCommands {
       // Note we DON'T dispose the script handle because this is just the session cache
       ctx.session_cache.remove_runner(script_key);
     }
+  }
+
+  /// libs/server/Lua/LuaCommands.cs:WriteLuaCompilationError
+  ///
+  /// 编译错误应答成帧单点（"Compilation error: {error}"）。C# 挂在
+  /// RespServerSession 上由 SessionScriptCache 调用；rust 无会话类型内嵌，
+  /// 由缓存前置门（try_get_or_create_runner_from_source 的
+  /// try_compile_source 失败臂）直写 `out` 缓冲。
+  pub(crate) fn write_lua_compilation_error(out: &mut Vec<u8>, error: &str) {
+    let resp = RespOut::session(out, 2);
+    RespWriter::new_ref(resp.buf).write_error(&format!("Compilation error: {error}"));
   }
 
   /// AbortWithWrongNumberOfArguments（resp 域形态，文案对齐）。

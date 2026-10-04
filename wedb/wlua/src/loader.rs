@@ -11,6 +11,8 @@ use std::sync::OnceLock;
 use parking_lot::Mutex;
 use wbase::map::HashSet;
 
+use crate::state::text_source_error;
+
 /// 生成 loader block 的缓存（对标 LoaderBlockCache）。
 struct LoaderBlockCache {
   allowed_functions: HashSet<String>,
@@ -479,12 +481,18 @@ impl LuaRunnerLoader {
     final_loader_block
   }
 
-  /// libs/server/Lua/LuaRunner.Loader.cs:CompileSource
+  /// libs/server/Lua/LuaRunner.Loader.cs:TryCompileSource
   ///
-  /// luau 无 string.dump，编译在装载入 VM 时进行（见 `runner.compile_for_session`）。
-  /// 此处零开销原样返回源码，避免在装载前分配丢弃冗余临时 VM。
-  #[inline]
-  pub fn compile_source(source: &[u8]) -> Vec<u8> {
-    source.to_vec()
+  /// C# #2138：脚本入缓存前先行编译，外部输入 text-only，失败以错误文案
+  /// 上抛（不再以原样源码回退）。Luau 无 string.dump，无字节码产物可缓存
+  /// ——本口为源码直存 seam + text-only 前置门（[`crate::state::
+  /// text_source_error`] 单点，外部字节码 / NUL 在构造 VM 前即拒），
+  /// 语法级编译延迟至装载（compile_for_session → load_sandboxed →
+  /// load_buffer，装载门同源复用）。
+  pub fn try_compile_source(source: &[u8]) -> Result<Vec<u8>, &'static str> {
+    match text_source_error(source) {
+      Some(err) => Err(err),
+      None => Ok(source.to_vec()),
+    }
   }
 }

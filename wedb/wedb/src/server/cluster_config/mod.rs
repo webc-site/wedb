@@ -25,9 +25,7 @@ use crate::server::{hash_slot::HashSlot, worker::Worker};
 
 /// worker 宣告地址 + 端口换算为 `SocketAddr`；地址非法（含 0 号位 "unassigned"）
 /// 返回 None。收敛 cluster_config 域内 5 处 `address.parse().ok() → SocketAddr::new(ip, port as u16)`
-/// 的地址解析与端口换算成对样板（语义逐字节等价：地址按 `IpAddr` 解析、端口 `as u16`；
-/// 端口域 0..=65535 由序列化器解码门前置保证，见 serializer `from_byte_array`，
-/// 本地写入面仅收监听器合法端口，`as u16` 换算恒安全）
+/// 的地址解析与端口换算成对样板（语义逐字节等价：地址按 `IpAddr` 解析、端口 `as u16`）
 fn socket_of(w: &Worker) -> Option<SocketAddr> {
   let ip = w.address.parse().ok()?;
   Some(SocketAddr::new(ip, w.port as u16))

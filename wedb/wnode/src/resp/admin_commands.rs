@@ -74,6 +74,9 @@ macro_rules! run_collect_keys {
       };
 
       sink_buf.clear();
+      // 每键新挂 ObjectOutput（对标 #2200 C# 多键循环逐键 `new ObjectOutput()`：
+      // 一键置位的 RemoveKey/WrongType 标志不得携带到下一键；本宏 mount 于
+      // for 体内，构造上即逐键新建）
       let mut out_sink = ObjectOutput::mount(&mut sink_buf);
       $operate(&mut obj, $self.resp_protocol_version, &mut out_sink);
       if !obj_writeback_recheck_sync($store, key, true) {

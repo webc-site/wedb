@@ -180,7 +180,6 @@ pub(super) async fn create_index_impl<T: ToDistanceComputer, S: StoreCallbacks>(
       quant_type,
       dims,
       state: AtomicUsize::new(state),
-      insert_gate: AsyncMutex::new(()),
     }),
     quant_needed,
   ))

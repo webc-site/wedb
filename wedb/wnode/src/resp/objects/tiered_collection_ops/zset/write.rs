@@ -139,10 +139,9 @@ pub(super) async fn zset_zadd_arm<D: Device>(
 
     match alive_score {
       None => {
-        // 真新成员 / 已到期旧记录：XX 置位则不新增（到期视同不存在）；
-        // XX+INCR 组合 C# SortedSetObjectImpl.cs:136-146 为 WriteNull+return
-        // 短路整条命令，后续 score-member 对不再处理——先入账再出 null 帧
-        //（此臂零树写、new_members 不变，与 NaN / NX+INCR 提前出口同形）
+        // 真新成员 / 已到期旧记录：XX 置位则不新增（到期视同不存在）；INCR
+        // 形态成员缺席直出 null 终止（对标 #2197，C# SortedSetAdd WriteNull
+        // 分支——继续遍历会使 INCR 尾帧误报未消费的 incrResult 初值 0）
         if options.contains(SortedSetAddOption::XX) {
           if options.contains(SortedSetAddOption::INCR) {
             commit_new_members!();

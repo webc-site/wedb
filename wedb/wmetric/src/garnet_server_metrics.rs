@@ -15,13 +15,13 @@ use super::{
 pub struct GarnetServerMetrics {
   /// 收到的连接总数。
   pub total_connections_received: i64,
+  /// 因连接上限（maxclients）被拒的连接数（PR #2157，C#
+  /// totalConnectionsRejected）
+  pub rejected_connections: i64,
   /// 已释放的连接总数。
   pub total_connections_disposed: i64,
   /// 活跃连接总数。
   pub total_connections_active: i64,
-  /// 容量门拒连总数（仅计「在途连接已达配置上限被拒」，跨监听器求和的
-  /// 进程级观测量；C# GarnetServerMetrics.cs:20 rejected_connections 文档口径）。
-  pub rejected_connections: i64,
 
   /// 瞬时命令吞吐（命令/s）。
   pub instantaneous_cmd_per_sec: f64,
@@ -54,9 +54,9 @@ impl GarnetServerMetrics {
   pub fn new(track_stats: bool, track_latency: bool, track_command_stats: bool) -> Self {
     Self {
       total_connections_received: 0,
+      rejected_connections: 0,
       total_connections_disposed: 0,
       total_connections_active: 0,
-      rejected_connections: 0,
       instantaneous_cmd_per_sec: 0.0,
       instantaneous_net_input_tpt: 0.0,
       instantaneous_net_output_tpt: 0.0,

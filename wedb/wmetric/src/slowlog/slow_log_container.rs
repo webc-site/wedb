@@ -28,17 +28,11 @@ pub struct SlowLogContainer {
 
 impl SlowLogContainer {
   /// libs/server/Metrics/Slowlog/SlowLogContainer.cs:SlowLogContainer（构造）。
-  ///
-  /// 缓冲以 [`VecDeque::new`] 惰性分配、随入队几何增长——严禁改回
-  /// `VecDeque::with_capacity(size)` 按上限即刻预分配：slowlog-max-len 允许
-  /// 配到 2^31-1 量级，预分配形启动即巨量分配 abort；C# 侧 ConcurrentQueue
-  /// 无预分配容量概念（段链懒增长），`size` 仅作逻辑裁剪上限，本形态与其
-  /// 懒增长语义逐位对齐（满容稳态后条目驻留量封顶于 size，与环形裁剪一致）。
   pub fn new(size: i32) -> Self {
     let cap = size.max(0) as usize;
     Self {
       size: cap,
-      log_entries: Mutex::new(VecDeque::new()),
+      log_entries: Mutex::new(VecDeque::with_capacity(cap)),
       id: AtomicI64::new(0),
     }
   }
@@ -52,9 +46,7 @@ impl SlowLogContainer {
 
   /// libs/server/Metrics/Slowlog/SlowLogContainer.cs:Add
   ///
-  /// 以自动分配 id 入库，满容时先出后入环形裁剪；缓冲维持构造口
-  /// 惰性分配约定（见 [`Self::new`] 文注），push_back 按需几何增长，
-  /// 满容稳态条目驻留量封顶于 size，绝无按上限预分配。
+  /// 以自动分配 id 入库，满容时先出后入环形裁剪，零动态扩容。
   /// 容量为 0 直接短路，零锁且不消耗自增 id；取号在临界区内完成，
   /// 与 push_back 原子绑定，物理顺序与 id 单调严格一致。
   pub fn add(&self, mut entry: SlowLogEntry) {

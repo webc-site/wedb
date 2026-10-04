@@ -416,6 +416,33 @@ fn can_field_persist_and_get_time_to_live() {
   });
 }
 
+/// test/standalone/Garnet.test.collections/RespHashTests.cs:HDELAndHPERSISTOnMissingKeyDoNotCreateKey
+/// （#2192：GarnetObject.NeedToCreate 对 HDEL/HPERSIST 置 false，缺键不建
+/// 空对象；rust 侧由 should_write_back 的 `!existed && 空` 防幻键门等价承接）
+#[test]
+fn hdel_and_hpersist_on_missing_key_do_not_create_key() {
+  with_batch(|s, batch| {
+    let key = b"user:user1";
+
+    // HDEL 缺键 → :0 且零键创建
+    let mut out = Vec::new();
+    s.hash_delete(&[key, b"field1"], batch, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // HPERSIST 缺键 → 每字段 -2（NoSuchField）且零键创建
+    out.clear();
+    s.hash_persist(&[key, b"FIELDS", b"1", b"field1"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"*1\r\n:-2\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+  });
+}
+
 /// test/standalone/Garnet.test.collections/RespHashTests.cs:CanDoHRANDFIELDCommandLC
 #[test]
 fn can_do_hrandfield_command_lc() {

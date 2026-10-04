@@ -672,6 +672,40 @@ pub fn latest_checkpoint_meta(checkpoint_dir: impl AsRef<Path>) -> Option<(u128,
   Some((token, meta))
 }
 
+/// 清理指定 Token 的**日志侧**检查点工件：meta 提交标记与其临时件、RangeIndex
+/// 快照子目录（RI 快照树随日志检查点一并传输与恢复，见快照下发段
+/// `enumerate_checkpoint_snapshots` 按 hlog token 枚举）
+///
+/// 对标 C# 复制域检查点淘汰的单侧删除面（上游 c323bbf7a / #2144 修订后
+/// CheckpointStore.DeleteOutdatedCheckpoints 的 DeleteLogCheckpoint 臂）：日志侧
+/// 工件随 hlog token 淘汰无条件回收；索引侧工件
+/// （[`purge_index_checkpoint_artifacts`]）仅在无更迭条目共享引用时回收，两臂独立裁决
+///
+/// 无返回值：删除全程经 [`rm_path_best_effort`] 吞错（best-effort 清理合同，
+/// 对标 C# `Purge` 不上抛删除失败），调用方无错误可感知，签名不持 `Result`。
+pub fn purge_log_checkpoint_artifacts(checkpoint_dir: impl AsRef<Path>, token: u128) {
+  let dir = checkpoint_dir.as_ref();
+  for f in [meta_filename(token), meta_tmp_filename(token)] {
+    rm_path_best_effort(&dir.join(f));
+  }
+  rm_path_best_effort(&dir.join(token_to_base32(token).as_str()));
+}
+
+/// 清理指定 Token 的**索引侧**检查点工件：索引快照与其临时件
+///
+/// 对标 C# 复制域检查点淘汰的索引臂（上游 c323bbf7a / #2144 修订后
+/// CheckpointStore.DeleteOutdatedCheckpoints 的 DeleteIndexCheckpoint 臂：共享
+/// index token 被更迭条目引用时仅跳过本次删除、淘汰链继续推进，由最终唯一
+/// 持有者淘汰时统一回收）
+///
+/// 无返回值：删除全程经 [`rm_path_best_effort`] 吞错，签名不持 `Result`。
+pub fn purge_index_checkpoint_artifacts(checkpoint_dir: impl AsRef<Path>, token: u128) {
+  let dir = checkpoint_dir.as_ref();
+  for f in [index_filename(token), index_tmp_filename(token)] {
+    rm_path_best_effort(&dir.join(f));
+  }
+}
+
 /// 清理指定 Token 的快照物理文件（包含 meta 与 ckpt 文件及临时文件，彻底回收 token 子目录）
 /// 对标 C# Tsavorite CheckpointManager.Purge(Guid)
 ///
@@ -679,27 +713,17 @@ pub fn latest_checkpoint_meta(checkpoint_dir: impl AsRef<Path>) -> Option<(u128,
 /// - libs/storage/Tsavorite/cs/src/core/Index/Recovery/ICheckpointManager.cs:Purge
 /// - libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs:Purge
 ///
+/// 全量口径 = 日志侧 + 索引侧两臂一并回收；复制域淘汰按共享引用分侧裁决时
+/// 直接消费两个分侧原语。
+///
 /// unlink/rmdir 为纯元数据 syscall（compio-fs 0.12.1 未提供 remove_dir_all 异步原语），
 /// 保持同步实现，与 wdev/wbftree 的目录维护路径一致。
 ///
 /// 无返回值：删除全程经 [`rm_path_best_effort`] 吞错（best-effort 清理合同，
 /// 对标 C# `Purge` 不上抛删除失败），调用方无错误可感知，签名不持 `Result`。
 pub fn purge_checkpoint(checkpoint_dir: impl AsRef<Path>, token: u128) {
-  let dir = checkpoint_dir.as_ref();
-  let b32 = token_to_base32(token);
-
-  // 清理 Base32 命名快照文件与临时文件
-  let files = [
-    meta_filename(token),
-    index_filename(token),
-    meta_tmp_filename(token),
-    index_tmp_filename(token),
-  ];
-  for f in &files {
-    rm_path_best_effort(&dir.join(f));
-  }
-  // 清理 Base32 命名的子目录
-  rm_path_best_effort(&dir.join(b32.as_str()));
+  purge_log_checkpoint_artifacts(&checkpoint_dir, token);
+  purge_index_checkpoint_artifacts(&checkpoint_dir, token);
 }
 
 /// RangeIndex 快照子目录名：真源在 wbftree（`wbftree/src/manager/mod.rs` 的

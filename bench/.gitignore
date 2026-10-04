@@ -1,9 +1,8 @@
-/target/
-/bench/target/
-data/*.json
-.benchmark/
-*.redb
+node_modules/
+target/
+.bench_run/
 *.wkv
 *.bftree
+*.redb
 *.sqlite*
-.bench_run/
+*.db

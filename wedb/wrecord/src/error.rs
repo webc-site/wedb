@@ -13,9 +13,8 @@ pub enum Error {
   #[error("逻辑地址超出 48 位限制 (最大 256TB): {0:#x}")]
   AddressOverflow(u64),
 
-  /// 键长度超出 24 位位段上限（[`crate::MAX_KEY_LEN`] = `PAD_KEY_LEN - 1` =
-  /// 2^24 - 2：24 位位段顶值全 1 保留为换页填充 Pad 哨兵，与合法键长值域互斥）
-  #[error("键长度超出 24 位位段上限 (最大 {max} 字节): {0}", max = crate::MAX_KEY_LEN)]
+  /// 键长度超出 u32 上限
+  #[error("键长度超出 u32 上限: {0}")]
   KeyLengthOverflow(usize),
 
   /// 值长度超出 u32 上限

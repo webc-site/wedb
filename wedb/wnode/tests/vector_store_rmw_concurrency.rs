@@ -25,15 +25,6 @@
 //! 各 spawn 线程）经 [`OwnedActiveVectorSession`] 各自绑定专用会话；条带锁挂在
 //! 跨执行域共享的同一份回调句柄上，故本测试同时自证「会话私有化不削弱同键
 //! 原子窗口」——丢条带锁则写丢失、丢私有化则编译不过或回调臂缺绑报错。
-//!
-//! 第三条用例的同集合并发图插入由 wvector 服务层每 context 插入闸线性化
-//!（`wvector/src/service/mod.rs` 的 `Index::insert_gate`：webc-diskann
-//! `add_edge_and_prune` 的「锁外读邻接 → 锁外剪枝 → 条带锁内整写覆盖」窗
-//! 在同集合并发构建时按构造丢回边，图碎裂成弱连通碎片后自召回漏评——
-//! 条带锁只保单记录 rmw 原子，罩不住跨记录读—算—写全程；活路径同键 VADD
-//! 本就由 wnode 写臂每键独占锁串行，本闸承接绕过命令层的直调面）。撤闸
-//! 复现特征：card 与映射完好、失败元素所在连通体远小于全集、L=64 漏评而
-//! 大探索因子命中。
 
 use std::{sync::Arc, thread};
 
@@ -298,10 +289,6 @@ fn recall_all(service: &VecService) {
 /// 标记、邻接表经 `rmw_iid` 追加，同键 RMW 非原子时内部 ID 重复分配、全精度
 /// 向量互相覆盖、图遍历断链。断言全部元素 `card` 一致、外部 id 映射完整、
 /// 逐向量以自身查询零距离召回自身，且 drop/recreate 恢复后同判据成立。
-///
-/// 并发线性化落点见模块头第三条注记：同集合插入由服务层
-/// `Index::insert_gate` 串行，测试形态（4 执行域直调 `DiskANNService::insert`
-/// 同一 Vector Set）即该闸的回归守卫。
 #[test]
 fn concurrent_insert_keeps_count_mapping_and_recall() {
   let dir = tempdir().unwrap();

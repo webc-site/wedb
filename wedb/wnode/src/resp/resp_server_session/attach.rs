@@ -291,7 +291,15 @@ impl RespServerSession {
   /// 注入网络监听层缓冲池句柄（DEBUG PURGEBP ServerListener 的会话侧
   /// 清理源；C# 经 `storeWrapper.Servers` 直调 `GarnetServerTcp.Purge()`，
   /// rust 侧由泵装配 `NetworkHandler::set_session` 单点注入）
+  ///
+  /// 预算参与面（PR #2157）：会话自有接收缓冲随连接生命周期计入进程级
+  /// 活跃缓冲预算（对标 C# 接收缓冲为池条目、借出即计数）——明文 TCP 下
+  /// C# 每连接计接收 + send 两块，rust 对位为会话接收缓冲 + 池借 send 块；
+  /// 归还配对点在 [`Self::dispose`]（连接收场）
   pub fn attach_buffer_pool(&mut self, pool: Arc<LimitedFixedBufferPool>) {
+    if let Some(b) = pool.budget() {
+      b.on_buffer_acquired();
+    }
     self.listener_buffer_pool = Some(pool);
   }
 

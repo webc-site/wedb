@@ -14,8 +14,8 @@ use wconf::{
 fn table_size() {
   // 槽位表尺寸锚点：槽位数 = 最大判别值 + 1（含 None/All/SlaveReadOnly 空槽）。
   // 新增或删除 CONFIG 旋钮必须同步本基线——刻意写死数字作漂移绊线。
-  assert_eq!(RuntimeServerConfig::compute_table_size(), 36);
-  assert_eq!(RuntimeServerConfig::meta().len(), 36);
+  assert_eq!(RuntimeServerConfig::compute_table_size(), 37);
+  assert_eq!(RuntimeServerConfig::meta().len(), 37);
 }
 
 #[test]

@@ -121,6 +121,26 @@ impl<D: Device> StoreSession<D> {
       .max(self.store.min_revivifiable_address())
   }
 
+  /// 版本推进窗口期取槽下界抬升单点（对标上游 eaf45c5b5 修订后的
+  /// libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/BlockAllocate.cs:63-71：
+  /// `Ctx.IsInV1` 抬升臂置于两条复用臂之前）：窗口开启时下界抬升至本轮检查点
+  /// 模糊区地板 startLogicalAddress（[`whlog::HybridLog::version_shift_floor`]）。
+  ///
+  /// 覆盖面收口（上游修订前仅罩池取臂，暂存重试复用臂可于地板之下整头覆写
+  /// ——「窗口开启前暂存、窗口内以 (v+1) 重试」的分配恰双算：字节落快照物理
+  /// 收录面（addr < index_start 不在 undoNextVersion 回滚窗），AOF 条目版本戳
+  /// 恒 > covered 必重放）：暂存重试复用臂（`RetryAlloc::allocate_or_reuse`）
+  /// 与池取臂（[`Self::try_allocate_or_append_record_sync`]）同经本单点抬升。
+  /// 低于地板的槽位仅跳过让位/弃置归池不清零，窗口关闭后照常取用
+  #[inline]
+  pub(crate) fn reviv_floor_window_lifted(&self, min_eligible_addr: u64) -> u64 {
+    if self.store.is_version_shift_open() {
+      min_eligible_addr.max(self.store.version_shift_floor())
+    } else {
+      min_eligible_addr
+    }
+  }
+
   /// 纯同步尝试分配空闲槽位或追加 Tail（严格对标 C# Garnet BlockAllocate.cs & InternalUpsert.cs）
   /// - Ok(Ok((addr, frame_size, ver))): 纯内存就地分配或追加成功，frame_size 为本帧实际
   ///   足印（复活池槽位为整槽扣除切出归池 pad 块后的本帧尺寸，尾部追加为对齐逻辑
@@ -161,20 +181,16 @@ impl<D: Device> StoreSession<D> {
     // 未启用（--reviv 关）与暂停窗口（检查点封印 / 迁移搬迁）合一，下游不再并列配置开关
     if self.store.reviv_pool.is_enabled() {
       let rec_size = record_size(key.len(), val.val_len());
-      // 版本推进窗口期取槽下界抬升（1:1 对标 C# BlockAllocate.cs:71-77：`Ctx.IsInV1`
+      // 版本推进窗口期取槽下界抬升（对标 C# BlockAllocate.cs:63-71：`Ctx.IsInV1`
       // 期把 minRevivAddress 抬升至本轮检查点 startLogicalAddress，自由表绝不发出
       // 地板之下槽位）：池槽若在窗口期于地板之下被整头覆写为携带纪元位的新记录，
       // 该效果落进快照物理收录面（addr < index_start 不在 undoNextVersion 回滚窗）
       // 而 AOF 条目版本戳恒 > covered 必重放——同一效果恰双算。抬升后低于地板的
       // 槽位仅跳过让位不清零（待窗口关闭后照常取用，淘汰仍归水位线与 purge）。
-      // 单一抬升点收口于本取槽下界（与 C# 同位：重试复用臂 BlockAllocate.cs:64
-      // 维持抬升前下界口径，入池侧不设对称门），链内复活臂与原位冻结门另经
+      // 暂存重试复用臂同窗抬升（上游 eaf45c5b5 修订），收口于
+      // [`Self::reviv_floor_window_lifted`] 单点；链内复活臂与原位冻结门另经
       // whlog 窗口谓词承接，无第二套机制
-      let min_eligible_addr = if self.store.is_version_shift_open() {
-        min_eligible_addr.max(self.store.version_shift_floor())
-      } else {
-        min_eligible_addr
-      };
+      let min_eligible_addr = self.reviv_floor_window_lifted(min_eligible_addr);
       // 优先从 FreeRecordPool 提取最适配的空闲槽位并就地复活写入
       // （双下界：min_revivifiable_address 为全局永久淘汰水位，min_eligible_addr 为
       // 本次申请链首下界，二者在池内分档处置——低于水位清零淘汰、低于下界仅跳过）

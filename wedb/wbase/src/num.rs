@@ -92,7 +92,7 @@ pub fn strict_f32(raw: &[u8], can_be_infinite: bool) -> Option<f32> {
 }
 
 /// 严格整数文法单点（对标 C# RespReadUtils.TryReadInt64Safe allowLeadingZeros:false
-/// 与整段消费；现版 garnet ParseUtils 显式 allowLeadingZeros:false，两侧文法全等，见
+/// 与整段消费；C# TryReadInt32Safe 虽声明 allowLeadingZeros 但未消费系死参，见
 /// doc/zh/deviations.md §32）：可选 `+`/`-` 号，首数字 '0' 且仍有后续数字即拒绝
 /// （"0"/"-0" 合法，"007" 非法），非数字字节与超 u64 幅值拒绝；返回（十进制幅值,
 /// 是否负号），值域门另由调用方按目标宽度判定
@@ -153,7 +153,7 @@ pub fn strict_u64(raw: &[u8]) -> Option<u64> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DbIndexError {
   /// 非纯数字、空串、符号后无数字、尾随垃圾或超出 int32 值域（C# TryGetInt 失败档）；
-  /// 前导零两侧同拒（现版 garnet ParseUtils 显式 allowLeadingZeros:false，两侧文法全等，见 doc/zh/deviations.md §32）
+  /// 前导零拒绝系 rust 严格收口（C# TryGetInt 因 TryReadInt32Safe 死参实际放行 007，见 doc/zh/deviations.md §32）
   NotInteger,
   /// int32 域内的负整数（C# 解析成功后 `index < 0` 范围门档）
   OutOfRange,
@@ -163,13 +163,13 @@ pub enum DbIndexError {
 ///
 /// 对标 libs/server/Resp/Parser/SessionParseState.cs:TryGetInt →
 /// libs/server/Resp/Parser/ParseUtils.cs:TryReadInt（转调
-/// libs/common/RespReadUtils.cs 严格 int32 文法，显式 allowLeadingZeros:false +
+/// libs/common/RespReadUtils.cs:TryReadInt32Safe，allowLeadingZeros:false +
 /// 整段消费）：C# 侧库号只有 int32 一档，超范围字面量（如 `3000000000`）在
 /// C# 属「不是整数」而非「库号越界」，故值域必须先过 [`strict_i32`] 再判负，
 /// 不得放宽到 u64：
 /// - [`strict_i32`] 失败（非纯数字、空串、符号后无数字、尾随垃圾、超 int32 值域；
-///   前导零两侧同拒——现版 garnet ParseUtils 显式 allowLeadingZeros:false，
-///   两侧文法全等，见 doc/zh/deviations.md §32；`-2147483648` 是 C# 合法 int，`-2147483649` 起非法）
+///   前导零拒绝系 rust 收口，C# TryGetInt 因 TryReadInt32Safe 死参实际放行 007，
+///   见 doc/zh/deviations.md §32；`-2147483648` 是 C# 合法 int，`-2147483649` 起非法）
 ///   → `DbIndexError::NotInteger`
 /// - int32 域内负数（`-0` 归零除外）→ `DbIndexError::OutOfRange`
 /// - 0..=i32::MAX → `Ok(i32)`

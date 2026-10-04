@@ -12,6 +12,7 @@ use std::{io, pin::pin, sync::Arc};
 use compio::runtime::Cancelled;
 use futures_util::future::{Either, select};
 use log::{debug, error};
+use wbase::pool::BufferKind;
 
 use super::{
   super::NetworkHandler,
@@ -53,9 +54,10 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
     // 对偶——握手期挂起读同样可被 CLIENT KILL / 停机排空秒断；哑桩形态
     // None 不挂取消）
     let kill_token = self.kill_token.clone();
-    // 池基准规格（随 network_buffer_size 配置经 buffer_size 访问器单点取得）：
-    // 握手段低水位收敛与响应缓冲借出/复位共用的唯一借还锚点
-    let buffer_size = self.buffer_pool.buffer_size();
+    // send 借出基准规格（PR #2157 预算钳制施加面：C# BaseSendBufferSize =
+    // budget.ClampSendBufferSize(configuredSendBufferSize)，连接建立读点取值；
+    // 预算缺省即池 send 规格原值，随 network_buffer_size 配置单点取得）
+    let buffer_size = self.buffer_pool.send_base_size();
     // 握手/读取段共用泵环境（散参聚合载体见 [`PumpEnv`]）
     let env = PumpEnv {
       session_provider: &session_provider,
@@ -74,7 +76,7 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
     // 先消费缓冲中现有完整帧（含握手批迁移字节），再读取下一批网络字节
     // 池化发送缓冲（容量为池基准规格，连接生命周期内复用，RAII 自动归还
     // 句柄；零 Arc 开销借用）
-    let mut resp_pooled = self.buffer_pool.get_ref(buffer_size);
+    let mut resp_pooled = self.buffer_pool.get_ref_kind(buffer_size, BufferKind::Send);
     'drive: while let Some(session) = self.session.as_mut() {
       // ── 消费驱动段 ──
       // 按轮循环（C# Process 满刷循环的泵投影：会话累计应答达水位在命令
@@ -330,13 +332,8 @@ impl<C: MessageConsumerFace> NetworkHandler<C> {
           }
           // 镜像按发出字节口径累计（含违规批终局应答；发出即计）
           written += resp_pooled.len();
-          let Some(write_res) = pooled_write(
-            WriteStream::Owned(stream),
-            &mut resp_pooled,
-            &kill_token,
-            buffer_size,
-          )
-          .await
+          let Some(write_res) =
+            pooled_write(WriteStream::Owned(stream), &mut resp_pooled, &kill_token).await
           else {
             break 'drive;
           };

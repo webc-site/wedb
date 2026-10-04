@@ -920,7 +920,9 @@ async fn eval_script_blpop_blocked_wait_handoff() {
   assert_eq!(llen_buf, b":0\r\n");
 }
 
-/// 自述回归：Lua 脚本输入拒绝预编译字节码（rust 自有回归，无 C# 假锚）
+/// 回归：Lua 脚本输入拒绝预编译字节码，且不入全局缓存
+/// （test/standalone/Garnet.test.scripting/LuaScriptTests.cs:ScriptInputsRejectPrecompiledLuaBytecode，
+/// 上游 #2138；测试体先于 C# 修复落地，本轮补锚对齐）
 #[test]
 fn script_inputs_reject_precompiled_lua_bytecode() {
   let (_dir, store) = open_test_store("lua-reject-bytecode.db").expect("open test store");
@@ -987,7 +989,9 @@ fn script_inputs_reject_precompiled_lua_bytecode() {
   );
 }
 
-/// 自述回归：EVAL 使用完整源码长度含中间 null 字符（rust 自有回归，无 C# 假锚）
+/// 回归：EVAL 使用完整源码长度，含中间 NUL 的脚本报编译错误而非截断
+/// （test/standalone/Garnet.test.scripting/LuaScriptTests.cs:EvalUsesFullSourceLength，
+/// 上游 #2138；测试体先于 C# 修复落地，本轮补锚对齐）
 #[test]
 fn eval_uses_full_source_length() {
   let (_dir, store) = open_test_store("lua-full-source-len.db").expect("open test store");

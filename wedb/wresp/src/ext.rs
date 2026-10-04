@@ -95,7 +95,7 @@ pub trait RespSliceExt {
   /// doc/zh/deviations.md §110（严禁调用点散改回改，收口只许本单点升格）
   fn as_str_safe(&self) -> &str;
   /// 严格解析：参数整体须为合法整数（对标 C# parseState.TryGetLong，
-  /// allowLeadingZeros: false；现版 garnet ParseUtils 显式 allowLeadingZeros:false，两侧文法全等，见 doc/zh/deviations.md §32），失败返回 None
+  /// allowLeadingZeros: false；C# TryGetInt 因死参放行 007，rust 统一严格收口拒前导零，见 doc/zh/deviations.md §32），失败返回 None
   fn try_parse_i64(&self) -> Option<i64>;
 }
 

@@ -425,7 +425,7 @@ pub(crate) async fn string_slow(
       let Some([key, start_raw, end_raw]) = arity(parse_state, cmd_name, output) else {
         return Ok(());
       };
-      // start/end 须可解析为整数（溢出走 not-integer 对齐 C# TryGetInt；前导零拒收与现 C# ParseUtils.TryReadInt allowLeadingZeros:false 全等，见 doc/zh/deviations.md §32），否则报 not-integer
+      // start/end 须可解析为整数（溢出走 not-integer 对齐 C# TryGetInt；前导零拒收系 rust 严格收口，见 doc/zh/deviations.md §32），否则报 not-integer
       let Some(start) = parse_i32_arg(start_raw, output).map(i64::from) else {
         return Ok(());
       };

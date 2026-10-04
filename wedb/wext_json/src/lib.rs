@@ -8,5 +8,5 @@ pub use error::{
 };
 pub use json_commands::{COMMAND_INFOS, JsonCommand, JsonCommands, is_command_registered};
 pub(crate) use json_object::heap_estimate;
-pub use json_object::{GarnetJsonObject, SetResult, check_depth};
+pub use json_object::{GarnetJsonObject, SetResult};
 pub use json_path::{JsonPath, PathFilter, QueryExpression};

@@ -123,31 +123,3 @@ fn cmsgpack_unpack_error_handling() {
   let res = compile_and_run(&mut runner).unwrap();
   assert_eq!(res, RespObject::Integer(0));
 }
-
-#[test]
-fn cjson_decode_depth_gate_rejects_overshoot() {
-  // §206 深度安全门（doc/zh/deviations.md §206）：sonic Value 快路无深度门，
-  // cjson.decode 先过 wext_json 单趟预扫，255 层内收、256 层起归
-  // too-many-nested 错形（脚本构造 300 层字符串，门先于解析零递归任栈安全）
-  let deep = "[".repeat(300);
-  let mut runner = new_runner(&format!(
-    r#"
-    local ok, err = pcall(function() return cjson.decode('{deep}') end)
-    if ok then return 1 end
-    if string.find(err, "too many nested", 1, true) then return 2 end
-    return 3
-    "#
-  ));
-  let res = compile_and_run(&mut runner).unwrap();
-  assert_eq!(
-    res,
-    RespObject::Integer(2),
-    "超门解码须归 too-many-nested 错形"
-  );
-
-  // 界内形照常解码（嵌套数组，门不误伤；元素用字符串避开既有整数标量
-  // as_f64 解局面——该面与本门无关）
-  let mut runner = new_runner(r#"return #cjson.decode('[["a"], ["b", ["c"]]]')"#);
-  let res = compile_and_run(&mut runner).unwrap();
-  assert_eq!(res, RespObject::Integer(2));
-}

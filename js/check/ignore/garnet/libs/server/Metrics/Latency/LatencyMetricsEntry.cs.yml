@@ -3,4 +3,6 @@
 # 已内聚至 garnet_latency_metrics.rs。
 - 文件:
     - libs/server/Metrics/Latency/LatencyMetricsEntry.cs
-  理由: Rust 扁平化直方图向量，C# 单字段包装结构体在 Rust 侧无对应物
+  理由: >-
+    Rust 扁平化直方图向量，C# 单字段包装结构体在 Rust 侧无对应物；
+    Allocate/Release 懒分配面属 PR #2157 延迟直方图内存臂，不在本票范围

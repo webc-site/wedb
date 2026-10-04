@@ -349,11 +349,25 @@ fn test_network_connection_limit_rejects_excess() -> aok::Result<()> {
     let mut c2 = TcpStream::connect(addr).await?;
     assert_pong(&mut c2).await?;
 
-    // 第三条：connect 后不做任何写，读侧见立即 EOF（超限臂只关不发，
-    // 客户端无任何 RESP 应答可读）
+    // 第三条：connect 后不做任何写，先读拒绝帧再读 EOF（PR #2157
+    // RejectConnection：明文对端尽力写出 -ERR max number of clients reached
+    // 后优雅关闭，拒绝可诊断而非无解释复位）
     let mut c3 = TcpStream::connect(addr).await?;
-    let BufResult(res, _) = c3.read(vec![0u8; 16]).await;
-    assert_eq!(res?, 0, "超限连接须被即刻关闭（EOF）");
+    let mut acc = Vec::new();
+    loop {
+      let BufResult(res, read_buf) = c3.read(vec![0u8; 64]).await;
+      let n = res?;
+      if n == 0 {
+        break;
+      }
+      acc.extend_from_slice(&read_buf[..n]);
+    }
+    assert!(
+      acc.starts_with(b"-ERR max number of clients reached\r\n"),
+      "超限连接须先收拒绝帧后关闭（现 {acc:?}）"
+    );
+    // 拒绝计数只随容量门拒绝臂递增
+    assert_eq!(registry.total_connections_rejected(), 1);
 
     // 释放一条（客户端关闭 → 泵注销 + 守卫归零），轮询等在途归位后
     // 新连接可再进：证明计数随生命周期配对回收、无泄漏漂移

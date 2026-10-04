@@ -116,8 +116,11 @@ fn test_node_args_defaults() {
   assert_eq!(args.max_databases, 16);
   assert_eq!(args.object_scan_count_limit, 1000);
   assert_eq!(args.metrics_sampling_frequency_secs, 0);
-  // C# defaults.conf:304 NetworkConnectionLimit = -1：连接上限默认不限
-  assert_eq!(args.network_connection_limit, -1);
+  // 上游 PR #2157 后 defaults.conf:309 NetworkConnectionLimit = 10000
+  //（对齐 Redis maxclients 默认）；-1 显式不限
+  assert_eq!(args.network_connection_limit, 10000);
+  // 网络缓冲内存预算默认未显式配置（装配侧回落 1GiB；C# defaults.conf:342 "1g"）
+  assert_eq!(args.network_buffer_memory_budget, None);
   // C# 默认链：EnableLua=false、LuaScriptTimeoutMs=0（无限）。
   assert!(!args.enable_lua);
   assert_eq!(args.lua_script_timeout_ms, 0);
@@ -661,6 +664,44 @@ fn test_config_file_kebab_field_override() {
   assert_eq!(args.slow_log_max_entries, 8192);
 }
 
+/// 网络缓冲内存预算三面：CLI 显式项、toml 蛇形覆盖、非法串拒启、字节投影
+///（PR #2157，C# Options.cs:433 --network-buffer-memory-budget
+/// [MemorySizeValidation]；None 回落默认 1GiB、0 禁用）
+#[test]
+fn test_network_buffer_memory_budget_surfaces() {
+  let args = NodeArgs::try_parse_from(["wedb", "--network-buffer-memory-budget", "512m"]).unwrap();
+  assert_eq!(
+    args.network_buffer_memory_budget_bytes(),
+    Some(512 * 1024 * 1024)
+  );
+
+  let args = merged(
+    "net-budget",
+    "network_buffer_memory_budget = \"128k\"\n",
+    &[],
+  );
+  assert_eq!(args.network_buffer_memory_budget_bytes(), Some(128 * 1024));
+
+  // 0 = 禁用自适应（字节投影为 Some(0)，装配侧判 <=0 即不装配）
+  let args = merged(
+    "net-budget-off",
+    "network_buffer_memory_budget = \"0\"\n",
+    &[],
+  );
+  assert_eq!(args.network_buffer_memory_budget_bytes(), Some(0));
+
+  // 未配置 → None（装配侧回落 1GiB）
+  let args = merged("net-budget-default", "", &[]);
+  assert_eq!(args.network_buffer_memory_budget_bytes(), None);
+
+  // 非法尺寸串拒启（C# [MemorySizeValidation] 正则 ^\d+([KkMmGg][Bb]?)?$）
+  let err = NodeArgs::from_args_iter(["wedb", "--network-buffer-memory-budget", "1z"]).unwrap_err();
+  assert!(
+    matches!(err, NodeOptionsError::InvalidSizeStr("network-buffer-memory-budget", ref v) if v == "1z"),
+    "意外错误形态：{err:?}"
+  );
+}
+
 /// 连接上限三面：CLI 显式项、toml snake_case 覆盖、越界拒启
 ///（C# Options.cs:398 IntRangeValidation(-1, int.MaxValue) 的启动期拒绝面）
 #[test]
@@ -668,9 +709,11 @@ fn test_network_connection_limit_surfaces() {
   let args = NodeArgs::try_parse_from(["wedb", "--network-connection-limit", "512"]).unwrap();
   assert_eq!(args.network_connection_limit, 512);
 
-  // toml 蛇形键覆盖（-1 显式不限与 C# defaults.conf 同形态）
+  // toml 蛇形键覆盖（-1 显式不限；缺省 10000）
   let args = merged("net-limit", "network_connection_limit = 32\n", &[]);
   assert_eq!(args.network_connection_limit, 32);
+  let args = merged("net-limit-unlim", "network_connection_limit = -1\n", &[]);
+  assert_eq!(args.network_connection_limit, -1);
 
   // 越界（< -1）拒启；validate 在 from_args_iter 分层合并末端才跑
   let err = NodeArgs::from_args_iter(["wedb", "--network-connection-limit", "-2"]).unwrap_err();

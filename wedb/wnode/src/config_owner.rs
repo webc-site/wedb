@@ -16,7 +16,7 @@ use wkv::WedbStore;
 
 use crate::{
   aof::garnet_append_only_file::GarnetAppendOnlyFile, cluster_provider::ClusterProviderHandle,
-  primary_tasks::PrimaryTasks,
+  primary_tasks::PrimaryTasks, servers::consumer_registry::ConsumerRegistry,
 };
 
 /// 执行 CONFIG SET 产出的调停消息（对标 StoreWrapper.ReconcilePrimaryTask
@@ -100,6 +100,18 @@ pub fn apply_config_reconcile<D>(
         store.reconcile_gc_scan(true, Some(scan_frequency_secs as u64 * 1000));
       } else {
         store.reconcile_gc_scan(false, None);
+      }
+    }
+
+    // maxclients 变更落点（PR #2157，对标 RuntimeServerConfig.cs
+    // ApplyMaxClientsUpdate 把新上限写进监听器共享的 ConnectionLimit）：写穿
+    // 进程级注册表的连接上限原子槽——accept 容量门逐连接咨询同一原子，无需
+    // 重启与生命周期任务。调低不断既有连接、只拒新连接（同 Redis）；-1 即
+    // 不限。C# 经 config.owner.Servers 逐监听器赋值（共享单实例下幂等），
+    // rust 以 ConsumerRegistry::global() 进程级安装面直达
+    ConfigReconcile::MaxClients { limit } => {
+      if let Some(registry) = ConsumerRegistry::global() {
+        registry.set_connection_limit(limit);
       }
     }
 

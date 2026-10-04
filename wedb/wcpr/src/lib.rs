@@ -78,8 +78,13 @@ pub use manager::{
 // purge_checkpoint 清理单 Token 文件集；purge_all 全量含残留清扫
 // （对标 C# CheckpointManager Purge/PurgeAll）；purge_outdated 保留最新 keep 个
 // （对标 C# 检查点管理器 removeOutdated 环，仅无复制域接管的单机形态用，
-// 集群轨归 CheckpointStore 读者闸门）
-pub use manager::{purge_all, purge_checkpoint, purge_outdated};
+// 集群轨归 CheckpointStore 读者闸门）；分侧原语 purge_log_checkpoint_artifacts /
+// purge_index_checkpoint_artifacts 供复制域淘汰按共享引用独立裁决（对标 C#
+// DeleteLogCheckpoint / DeleteIndexCheckpoint 两臂）
+pub use manager::{
+  purge_all, purge_checkpoint, purge_index_checkpoint_artifacts, purge_log_checkpoint_artifacts,
+  purge_outdated,
+};
 #[doc(hidden)]
 pub use meta::parse_token;
 // ===================== 元数据类型 =====================

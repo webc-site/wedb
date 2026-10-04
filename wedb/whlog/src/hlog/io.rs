@@ -315,17 +315,6 @@ impl<D: Device> HybridLog<D> {
   /// 记录在设备上永久缺失」。硬件持久化屏障（fsync）仍由调用方 [Self::sync] 承担
   /// （compio 线程每核模型下 sync 仅覆盖同线程 I/O）。
   ///
-  /// # 刷盘写序（在途写互斥，对标 AllocatorBase.cs:AsyncFlushPagesForReadOnly
-  /// :2210-2214 部分页片段串行契约）
-  /// 封印排空之后、第二次钳制之前入 [`HybridLog::flush_gate`] 异步闸，守卫存活至
-  /// 函数末尾，覆盖拷贝 → 写入 → 错误回填/短路 → 记账 → 唤醒全部尾段。不变式：
-  /// 同一时刻至多一个设备写在途，后入闸者恒在先者的写完成后才拷贝页内容——故
-  /// 重叠整页写的后写者必为新内容，旧拷贝（封印上界较早，[t1, 页尾) 可为零或在途
-  /// 半截）绝无机会在 flushed_until 已推进后落盘回写陈旧字节。对位 C# 以
-  /// PendingFlush + AsyncFlushPageCallback 回调链实现的「同页写恒串行」；rust 多
-  /// 驱动（组提交/驱逐/紧缩补刷）并发直入本内核，收敛为单把异步闸等价承接。闸内
-  /// 不等纪元（封印排空在闸外完成）、不等 flush_event（notify 非阻塞），无死锁环。
-  ///
   /// 性能设计：
   /// - 刷盘写内核（池借还、扇区界圆整、尾补零、write_aligned 下发与短写校验）单源在
   ///   [Device::flush_range_aligned]，本函数仅提供页表→连续字节的填充闭包；
@@ -365,10 +354,6 @@ impl<D: Device> HybridLog<D> {
     // 不参与封印：其字节仍随整页写入设备，但不计入承诺，后续请求自该页起点整体重写
     let sealed_until = seal_bound.min(self.addresses.tail());
     self.seal_read_only_and_drain(sealed_until).await;
-
-    // 刷盘写序闸（不变式见方法文档「刷盘写序」）：封印排空在闸外，持闸后不再等待
-    // 纪元与 flush_event；守卫存活至函数末尾，覆盖拷贝→写入→回填/短路→记账→唤醒
-    let _gate = self.flush_gate.lock().await;
 
     // await 纪元排空期间并发任务可能已推进落盘，重新按最新 flushed_until 钳制
     let merged_range = self.clamp_flush_range(merged_range);

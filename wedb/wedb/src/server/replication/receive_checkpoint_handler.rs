@@ -337,10 +337,7 @@ pub struct ReceiveCheckpointHandler {
   /// 闸门随会话净态——复位点见 [`Self::reset`]（C# 每轮 attach 全新处理器），
   /// 跨会话的设备损坏屏障在 ClusterProvider 管理面，二者不得互串
   device_contaminated: AtomicBool,
-  /// STORE_HLOG 段写脏标记：段写进入 await 前置位（取消安全——写提交 compio
-  /// 驱动后取消落在挂起点时，设备写可能已落地而活跃槽随未来体弃置，本标记
-  /// 是 [`Self::reset`] 上报半写、升级管理面屏障的唯一在册判据）；恢复成功
-  /// 前若被中断复位，判定设备已污染
+  /// STORE_HLOG 段写脏标记：收到过 STORE_HLOG 段写，但在恢复成功前若被中断复位，判定设备已污染
   hlog_dirty: AtomicBool,
 }
 
@@ -571,17 +568,13 @@ impl ReceiveCheckpointHandler {
         "start_address must be non-negative: {start_address}"
       ))
     })?;
-    // 取消安全：入 await 前先置脏——STORE_HLOG 设备写一旦提交 compio 驱动即
-    // 可能已落地覆盖在线引擎，而会话断连取消落在挂起点时活跃槽随未来体弃置、
-    // 成功臂置脏永不可达，reset() 将漏判半写、漏升级管理面屏障；失败臂本就
-    // 改置 device_contaminated，成功路径此置位与原成功臂重复，行为零变化
-    if file_type == CheckpointFileType::StoreHlog {
-      self.hlog_dirty.store(true, Ordering::Release);
-    }
     let res = sink.write_chunk(start_address, data).await;
     let mut guard = self.active_sink.lock();
     match res {
       Ok(()) => {
+        if file_type == CheckpointFileType::StoreHlog {
+          self.hlog_dirty.store(true, Ordering::Release);
+        }
         *guard = Some(sink);
         Ok(())
       }

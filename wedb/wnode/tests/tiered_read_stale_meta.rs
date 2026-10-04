@@ -23,11 +23,6 @@
 //!
 //! 并发形态：真实多线程 × 独立 compio Runtime × [`std::sync::Barrier`] 起跑
 //! 对齐，逐应答断言不变量，join 后终态一致性收口——无 sleep、无调度碰运气。
-//!
-//! 预算假设（负载敏感面登记，见 [`exec_read_poll`] 头注）：全量并发背景负载
-//! 下读链闩/复验预算可能耗尽，产品按 fail-loud 契约回忙拒帧交客户端重试；
-//! 轮询读经 [`exec_read_poll`] 有界重发承接，预算内重试成功不判失败——
-//! 本文件忙拒契约断言只锁确定性 claim 窗（场景四 HGETALL），不锁超载窗。
 
 use std::{
   str::from_utf8,
@@ -150,42 +145,6 @@ fn assert_not_err(resp: &[u8], ctx: &str) {
   );
 }
 
-/// 负载敏感轮询读的忙拒帧重发预算（单发吃帧后的重发上限；隔离跑零耗尽）
-const POLL_BUSY_RETRIES: usize = 8;
-
-/// 忙拒帧判定（闩预算耗尽统一漏斗，pair_bucket_order_latch is_busy 同款判据）
-fn is_busy_frame(resp: &[u8]) -> bool {
-  resp.starts_with(b"-ERR") && String::from_utf8_lossy(resp).contains("slow path storage error")
-}
-
-/// 负载敏感轮询读的有界重试单点（预算假设登记）
-///
-/// 全量并发背景负载下，慢路径读链三处可重试预算可能耗尽——取树闩 try+让核环
-///（wkv TREE_LATCH_YIELD_BUDGET，预算耗尽回 MigrationBusy 存储忙）、路由装载
-/// 与锁内刷新的 raw 读复验环（预算耗尽回 LockTimeout）——产品按 fail-loud
-/// 契约统一折叠为 `-ERR slow path storage error` 交客户端重试收敛（C#
-/// CompletePending 就地重放语义的 rust thread-per-core 对位：绝不内联重试
-/// 停摆 reactor，zcode-r135c-lockorder 案二保险丝裁决；读臂 MigrationBusy
-/// 快照回退仅覆盖迁移 claim 判定面，锁预算耗尽面无树守卫可回退）。单发
-/// 轮询读在超载窗偶发吃帧（终门第 25 轮第 3 跑全量复现：增长窗 LRANGE /
-/// LINDEX），本 helper 对忙拒帧就地重发，[`POLL_BUSY_RETRIES`] 次内成功即过；
-/// 忙拒帧系 fail-closed（命令未施加），重发语义安全；非忙拒帧原样交回，
-/// 断言面不放宽
-async fn exec_read_poll(c: &mut Conn, cmd: RespCommand, args: &[&[u8]], ctx: &str) -> Vec<u8> {
-  let mut out = c.exec(cmd, args).await;
-  let mut round = 0usize;
-  while is_busy_frame(&out) {
-    round += 1;
-    assert!(
-      round <= POLL_BUSY_RETRIES,
-      "{ctx} 忙拒帧有界重试 {POLL_BUSY_RETRIES} 次仍耗尽（存储忙非瞬态，另案）: {}",
-      String::from_utf8_lossy(&out)
-    );
-    out = c.exec(cmd, args).await;
-  }
-  out
-}
-
 /// 场景一（核心竞态压测）：并发 LPOP（物化降级换树回写 meta）× LRANGE 0 -1
 /// 轮询——任一交错下 LRANGE 都不得收存储错误帧，元素必属已知字母表；
 /// 终态「已弹出集合 ∪ 剩余列表 == 全部灌入元素」逐元素闭合
@@ -212,9 +171,7 @@ fn concurrent_lpop_lrange_never_storage_error() {
         barrier.wait();
         for _ in 0..POPS {
           // 保底不删空（删空自愈会回收分层态，压测对象是分层稳态读面）
-          let len =
-            reply_int(&exec_read_poll(&mut c, RespCommand::Llen, &[b"lq"], "LPOP 前置 LLEN").await)
-              .unwrap();
+          let len = reply_int(&c.exec(RespCommand::Llen, &[b"lq"]).await).unwrap();
           if len <= 8 {
             for k in 0..REFILL {
               let v = format!("r{refills}-{k}").into_bytes();
@@ -241,13 +198,7 @@ fn concurrent_lpop_lrange_never_storage_error() {
       rt.block_on(async {
         barrier.wait();
         for i in 0..READS {
-          let out = exec_read_poll(
-            &mut c,
-            RespCommand::Lrange,
-            &[b"lq", b"0", b"-1"],
-            "并发 LPOP 压测窗内 LRANGE",
-          )
-          .await;
+          let out = c.exec(RespCommand::Lrange, &[b"lq", b"0", b"-1"]).await;
           assert_not_err(&out, "并发 LPOP 压测窗内 LRANGE");
           let items = reply_array(&out).unwrap_or_else(|| {
             panic!(
@@ -334,23 +285,11 @@ fn growth_window_count_matches_content() {
         rt.block_on(async {
           barrier.wait();
           for _ in 0..ROUNDS {
-            let l1 = reply_int(
-              &exec_read_poll(&mut c, RespCommand::Llen, &[b"ll"], "增长窗先采样 LLEN").await,
-            )
-            .unwrap();
-            let out = exec_read_poll(
-              &mut c,
-              RespCommand::Lrange,
-              &[b"ll", b"0", b"-1"],
-              "增长窗 LRANGE",
-            )
-            .await;
+            let l1 = reply_int(&c.exec(RespCommand::Llen, &[b"ll"]).await).unwrap();
+            let out = c.exec(RespCommand::Lrange, &[b"ll", b"0", b"-1"]).await;
             assert_not_err(&out, "增长窗 LRANGE");
             let items = reply_array(&out).unwrap();
-            let l2 = reply_int(
-              &exec_read_poll(&mut c, RespCommand::Llen, &[b"ll"], "增长窗后采样 LLEN").await,
-            )
-            .unwrap();
+            let l2 = reply_int(&c.exec(RespCommand::Llen, &[b"ll"]).await).unwrap();
             assert!(
               (l1 as usize..=l2 as usize).contains(&items.len()),
               "LRANGE 条数 {} 越出先采样 LLEN {l1} 与后采样 LLEN {l2} 的单调界",
@@ -395,18 +334,11 @@ fn growth_window_count_matches_content() {
         rt.block_on(async {
           barrier.wait();
           for _ in 0..ROUNDS {
-            let c1 = reply_int(
-              &exec_read_poll(&mut c, RespCommand::Scard, &[b"ss"], "增长窗先采样 SCARD").await,
-            )
-            .unwrap();
-            let out =
-              exec_read_poll(&mut c, RespCommand::Smembers, &[b"ss"], "增长窗 SMEMBERS").await;
+            let c1 = reply_int(&c.exec(RespCommand::Scard, &[b"ss"]).await).unwrap();
+            let out = c.exec(RespCommand::Smembers, &[b"ss"]).await;
             assert_not_err(&out, "增长窗 SMEMBERS");
             let members = reply_array(&out).unwrap();
-            let c2 = reply_int(
-              &exec_read_poll(&mut c, RespCommand::Scard, &[b"ss"], "增长窗后采样 SCARD").await,
-            )
-            .unwrap();
+            let c2 = reply_int(&c.exec(RespCommand::Scard, &[b"ss"]).await).unwrap();
             assert!(
               (c1 as usize..=c2 as usize).contains(&members.len()),
               "SMEMBERS 成员数 {} 越出 SCARD 先后采样界 [{c1}, {c2}]",
@@ -418,13 +350,7 @@ fn growth_window_count_matches_content() {
               assert!(distinct.insert(m.clone()), "SMEMBERS 重复成员 {m:?}");
             }
             // 抽样域：count>0 出帧 ≤ count 且恒属已知成员（钳 min(count, size)）
-            let out = exec_read_poll(
-              &mut c,
-              RespCommand::Srandmember,
-              &[b"ss", b"5"],
-              "增长窗 SRANDMEMBER",
-            )
-            .await;
+            let out = c.exec(RespCommand::Srandmember, &[b"ss", b"5"]).await;
             assert_not_err(&out, "增长窗 SRANDMEMBER");
             let sample = reply_array(&out).unwrap();
             assert!(sample.len() <= 5);
@@ -496,20 +422,16 @@ fn lindex_never_false_null_in_growth_window() {
         while probe < total {
           rounds += 1;
           assert!(rounds < 200_000, "LINDEX 探测推进失活（写者停滞）");
-          let len =
-            reply_int(&exec_read_poll(&mut c, RespCommand::Llen, &[b"li"], "增长窗 LLEN").await)
-              .unwrap();
+          let len = reply_int(&c.exec(RespCommand::Llen, &[b"li"]).await).unwrap();
           if len as u64 <= probe {
             continue;
           }
-          let probe_key = probe.to_string().into_bytes();
-          let out = exec_read_poll(
-            &mut c,
-            RespCommand::Lindex,
-            &[b"li", &probe_key],
-            "增长窗 LINDEX",
-          )
-          .await;
+          let out = c
+            .exec(
+              RespCommand::Lindex,
+              &[b"li", &probe.to_string().into_bytes()],
+            )
+            .await;
           assert_not_err(&out, "增长窗 LINDEX");
           let expected = if probe < SEED {
             format!("e{probe}")

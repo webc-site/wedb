@@ -9,8 +9,9 @@
 //! rust 侧投影唯一落点为 [`wnode::ServerBootstrap::run_async`] 直读
 //! `NodeArgs::network_connection_limit`：宿主零逐字段装配，任何经标准
 //! ServerBootstrap 引导的启动路径（嵌入式/集成测试）配置必须直达网络层。
-//! limit=2 时前两条 PING→PONG 正常、第三条被即刻关闭（客户端见 EOF，
-//! 非错误应答）；超限拒绝刚发生即 stop，连接持有者存活下须有界时间内
+//! limit=2 时前两条 PING→PONG 正常、第三条被拒：明文对端先收到
+//! `-ERR max number of clients reached` 错误帧再关闭（PR #2157 拒绝告知），
+//! 断连不解释形态已由拒绝帧取代；超限拒绝刚发生即 stop，连接持有者存活下须有界时间内
 //! 全量收敛优雅退出（回归 task/done/
 //! wnode-accept-loop-shutdown-wake-race-after-connlimit-reject.md）。
 
@@ -56,9 +57,7 @@ impl SessionProviderFace for RegistryProvider {
 }
 
 /// ServerBootstrap 从 NodeArgs 投影连接上限直达网络容量门：
-/// limit=2 时第三条连接被即刻关闭（EOF），宿主侧未做任何逐字段装配；
-/// 超限臂同步递增拒连计数（INFO STATS rejected_connections 数据源，
-/// C# RejectConnection → IncrementConnectionsRejected 对位）
+/// limit=2 时第三条连接被即刻关闭（EOF），宿主侧未做任何逐字段装配
 #[test]
 fn test_bootstrap_projects_network_connection_limit() -> aok::Result<()> {
   // 探测空闲端口（run_async 内部构造 GarnetServer 不外露绑定地址，
@@ -78,19 +77,17 @@ fn test_bootstrap_projects_network_connection_limit() -> aok::Result<()> {
     ..Default::default()
   };
 
-  // 注册表句柄外提一份到本线程，停机收敛后断言拒连计数
-  let registry = Arc::new(ConsumerRegistry::new());
   let coordinator = ShutdownCoordinator::new();
   let coord_for_thread = coordinator.clone();
   // 停机收敛经 channel 有界断言：若唤醒丢失回归则确定性失败而非无限死等
   let (done_tx, done_rx) = sync_channel::<WnodeResult<()>>(0);
-  let reg_for_thread = Arc::clone(&registry);
   let handle = spawn(move || {
     let res = ServerBootstrap::new(node)
       .with_shutdown_coordinator(coord_for_thread)
-      .run_async(move |_args, _noop| {
-        let registry = Arc::clone(&reg_for_thread);
-        async move { Ok(Arc::new(RegistryProvider { registry })) }
+      .run_async(|_args, _noop| async {
+        Ok(Arc::new(RegistryProvider {
+          registry: Arc::new(ConsumerRegistry::new()),
+        }))
       });
     let _ = done_tx.send(res);
   });
@@ -118,11 +115,23 @@ fn test_bootstrap_projects_network_connection_limit() -> aok::Result<()> {
     let BufResult(res, read_buf) = c2.read(vec![0u8; 128]).await;
     assert_eq!(&read_buf[..res?], b"+PONG\r\n");
 
-    // 第 3 条：connect 后不做任何写，读侧见立即 EOF（超限臂只关不发，
-    // 客户端无任何 RESP 应答可读——C# GarnetServerTcp.cs:302-307）
+    // 第 3 条：connect 后不做任何写，先读拒绝帧再读 EOF（PR #2157
+    // RejectConnection：明文对端尽力写出错误帧后优雅关闭——失败可诊断
+    // 而非无解释复位；TLS 对端只关闭不写，见 connection_limit_admission）
     let mut c3 = TcpStream::connect(("127.0.0.1", port)).await?;
-    let BufResult(res, _) = c3.read(vec![0u8; 16]).await;
-    assert_eq!(res?, 0, "超限连接须被即刻关闭（EOF）");
+    let mut acc = Vec::new();
+    loop {
+      let BufResult(res, read_buf) = c3.read(vec![0u8; 64]).await;
+      let n = res?;
+      if n == 0 {
+        break;
+      }
+      acc.extend_from_slice(&read_buf[..n]);
+    }
+    assert!(
+      acc.starts_with(b"-ERR max number of clients reached\r\n"),
+      "超限连接须先收拒绝帧后关闭（现 {acc:?}）"
+    );
 
     // 超限拒绝刚发生、连接持有者全部存活，立即受控停机：
     // ShutdownCoordinator::wait 的 50ms 超时兜底保证 accept 哨兵与
@@ -141,12 +150,5 @@ fn test_bootstrap_projects_network_connection_limit() -> aok::Result<()> {
     .map_err(|_| Error::other("优雅关停未在时限内收敛（疑似跨线程唤醒丢失致永久挂起）"))?;
   assert!(res.is_ok(), "服务应优雅退出: {res:?}");
   let _ = handle.join();
-  // 拒连计数端到端（run_async 返回即 worker join，计数写入跨线程可见）：
-  // 仅第三条超限连接被拒，received 前移口径下三条全计
-  assert_eq!(
-    registry.total_connections_rejected(),
-    1,
-    "超限臂须恰好递增一次拒连计数"
-  );
   Ok(())
 }

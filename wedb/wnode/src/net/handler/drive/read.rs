@@ -47,7 +47,7 @@ pub(super) async fn read_segment<C: MessageConsumerFace, P: SessionProviderFace<
     session_provider,
     sender_id,
     kill_token,
-    buffer_size,
+    ..
   } = *env;
   let Some(session) = session_slot.as_mut() else {
     return Ok(false);
@@ -126,13 +126,8 @@ pub(super) async fn read_segment<C: MessageConsumerFace, P: SessionProviderFace<
                 Ok(Ok(_)) => {}
               }
             }
-            let Some(write_res) = pooled_write(
-              WriteStream::Shared(stream),
-              resp_pooled,
-              kill_token,
-              buffer_size,
-            )
-            .await
+            let Some(write_res) =
+              pooled_write(WriteStream::Shared(stream), resp_pooled, kill_token).await
             else {
               break ReadEnd::Cancelled;
             };

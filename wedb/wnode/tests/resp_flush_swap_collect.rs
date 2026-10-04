@@ -24,7 +24,7 @@ use wnode::{
   servers::consumer_registry::ConsumerRegistry,
 };
 use wnode_test::{err_frame, pump, roundtrip_frame as roundtrip};
-use wresp::cmd_strings::RESP_ERR_GENERIC_SYNTAX_ERROR;
+use wresp::cmd_strings::{RESP_ERR_GENERIC_SYNTAX_ERROR, RESP_ERR_WRONG_TYPE};
 use wtest_base::{resp_frame_str, test_store_config};
 
 /// SWAPDB 族测试串行锁：会话门控测试须在进程级注册表上登记 2 个活跃条目，
@@ -873,4 +873,284 @@ fn envelope_field_ttl_length_purges_and_self_heals() {
     b":0\r\n",
     "zset 全成员到期 ZCARD 触发删空自愈"
   );
+}
+
+// ——— #2200 HCOLLECT/ZCOLLECT 多键收集「每 key 新 ObjectOutput」对拍 ———
+// （C# 修复：Common.cs/HashOps.cs/SortedSetOps.cs 多键循环共用单个
+// ObjectOutput，一键置位的 RemoveKey/WrongType 标志泄漏到下一键；rust 侧
+// run_collect_keys! 每 for 迭代 ObjectOutput::mount 新建、object_collect_all
+// 每键独立调用，构造上即无泄漏面——以下三条对拍测试锁行为）
+
+/// test/standalone/Garnet.test.collections/RespHashTests.cs:HashCollectKeepsLiveFieldsOfEveryKey
+/// （#2200：显式多键 HCOLLECT 与 `*` 全库收集，每键独立收集——剔空键回收、
+/// 部分过期键存活字段保留，前一键的删空/错型裁决不波及后键）
+#[test]
+fn hash_collect_keeps_live_fields_of_every_key() {
+  let rt = Runtime::new().unwrap();
+  let mut c = consumer();
+
+  // emptied* 仅 1 字段（到期即剔空），partial* 2 字段（field1 到期、field2 存活）
+  for i in 0..3 {
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&["HSET", &format!("emptied{i}"), "field1", "value1"])
+      ),
+      b":1\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "HSET",
+          &format!("partial{i}"),
+          "field1",
+          "value1",
+          "field2",
+          "value2"
+        ])
+      ),
+      b":2\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "HPEXPIRE",
+          &format!("emptied{i}"),
+          "100",
+          "FIELDS",
+          "1",
+          "field1"
+        ])
+      ),
+      b"*1\r\n:1\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "HPEXPIRE",
+          &format!("partial{i}"),
+          "100",
+          "FIELDS",
+          "1",
+          "field1"
+        ])
+      ),
+      b"*1\r\n:1\r\n"
+    );
+  }
+  sleep(Duration::from_millis(200));
+
+  // 显式双键：emptied0（剔空 → 键回收）+ partial0（field2 存活）
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &resp_frame_str(&["HCOLLECT", "emptied0", "partial0"])
+    ),
+    b"+OK\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, &resp_frame_str(&["EXISTS", "emptied0"])),
+    b":0\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, &resp_frame_str(&["HLEN", "partial0"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(
+      &rt,
+      &mut c,
+      &resp_frame_str(&["HGET", "partial0", "field2"])
+    ),
+    b"$6\r\nvalue2\r\n"
+  );
+
+  // `*` 全库收集：余下 emptied1/2 回收、partial1/2 存活字段保留
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, b"*2\r\n$8\r\nHCOLLECT\r\n$1\r\n*\r\n"),
+    b"+OK\r\n"
+  );
+  for i in 1..3 {
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["EXISTS", &format!("emptied{i}")])
+      ),
+      b":0\r\n"
+    );
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["HLEN", &format!("partial{i}")])
+      ),
+      b":1\r\n"
+    );
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["HGET", &format!("partial{i}"), "field2"])
+      ),
+      b"$6\r\nvalue2\r\n"
+    );
+  }
+}
+
+/// test/standalone/Garnet.test.collections/RespHashTests.cs:HashCollectRemovesEmptiedKeyAfterWrongTypeKey
+/// （#2200：WRONGTYPE 键置位错误标志后，后续剔空键仍被收集回收——
+/// rust 侧 wrong_type 记账与逐键收集互不携带）
+#[test]
+fn hash_collect_removes_emptied_key_after_wrong_type_key() {
+  let mut c = consumer();
+
+  assert_eq!(
+    roundtrip(&mut c, &resp_frame_str(&["SET", "mystring", "value"])),
+    b"+OK\r\n"
+  );
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &resp_frame_str(&["HSET", "myhash", "field1", "value1"])
+    ),
+    b":1\r\n"
+  );
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &resp_frame_str(&["HPEXPIRE", "myhash", "100", "FIELDS", "1", "field1"])
+    ),
+    b"*1\r\n:1\r\n"
+  );
+  sleep(Duration::from_millis(200));
+
+  // WRONGTYPE 记为最终错误，但 myhash 仍被收集剔空回收
+  assert_eq!(
+    roundtrip(&mut c, &resp_frame_str(&["HCOLLECT", "mystring", "myhash"])),
+    err_frame(RESP_ERR_WRONG_TYPE)
+  );
+  assert_eq!(
+    roundtrip(&mut c, &resp_frame_str(&["EXISTS", "myhash"])),
+    b":0\r\n"
+  );
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:SortedSetCollectKeepsLiveMembersOfEveryKey
+/// （#2200：ZCOLLECT 显式多键与 `*` 全库两形态，同 hash 面对拍）
+#[test]
+fn sorted_set_collect_keeps_live_members_of_every_key() {
+  let rt = Runtime::new().unwrap();
+  let mut c = consumer();
+
+  for i in 0..3 {
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&["ZADD", &format!("zemptied{i}"), "1", "member1"])
+      ),
+      b":1\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "ZADD",
+          &format!("zpartial{i}"),
+          "1",
+          "member1",
+          "2",
+          "member2"
+        ])
+      ),
+      b":2\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "ZPEXPIRE",
+          &format!("zemptied{i}"),
+          "100",
+          "MEMBERS",
+          "1",
+          "member1"
+        ])
+      ),
+      b"*1\r\n:1\r\n"
+    );
+    assert_eq!(
+      roundtrip(
+        &mut c,
+        &resp_frame_str(&[
+          "ZPEXPIRE",
+          &format!("zpartial{i}"),
+          "100",
+          "MEMBERS",
+          "1",
+          "member1"
+        ])
+      ),
+      b"*1\r\n:1\r\n"
+    );
+  }
+  sleep(Duration::from_millis(200));
+
+  assert_eq!(
+    roundtrip(
+      &mut c,
+      &resp_frame_str(&["ZCOLLECT", "zemptied0", "zpartial0"])
+    ),
+    b"+OK\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, &resp_frame_str(&["EXISTS", "zemptied0"])),
+    b":0\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, &resp_frame_str(&["ZCARD", "zpartial0"])),
+    b":1\r\n"
+  );
+  assert_eq!(
+    slow_roundtrip(
+      &rt,
+      &mut c,
+      &resp_frame_str(&["ZSCORE", "zpartial0", "member2"])
+    ),
+    b"$1\r\n2\r\n"
+  );
+
+  assert_eq!(
+    slow_roundtrip(&rt, &mut c, b"*2\r\n$8\r\nZCOLLECT\r\n$1\r\n*\r\n"),
+    b"+OK\r\n"
+  );
+  for i in 1..3 {
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["EXISTS", &format!("zemptied{i}")])
+      ),
+      b":0\r\n"
+    );
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["ZCARD", &format!("zpartial{i}")])
+      ),
+      b":1\r\n"
+    );
+    assert_eq!(
+      slow_roundtrip(
+        &rt,
+        &mut c,
+        &resp_frame_str(&["ZSCORE", &format!("zpartial{i}"), "member2"])
+      ),
+      b"$1\r\n2\r\n"
+    );
+  }
 }

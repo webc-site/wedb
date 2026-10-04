@@ -142,6 +142,41 @@ fn basic_rpush_and_linsert() {
   });
 }
 
+/// test/standalone/Garnet.test.collections/RespListTests.cs:LSETOnMissingKeyDoesNotCreateKey
+/// （#2192：GarnetObject.NeedToCreate 对 LSET 置 false，缺键不建空对象；
+/// rust 侧由 list_set 空表 error 帧 + should_write 负载 '+' 门等价承接）
+#[test]
+fn lset_on_missing_key_does_not_create_key() {
+  with_batch(|s, batch| {
+    let key = b"mylist";
+
+    // LSET 缺键 → "ERR no such key" 且零键创建
+    let mut out = Vec::new();
+    s.list_set(&[key, b"0", b"one"], batch, &mut out).unwrap();
+    assert_eq!(out, b"-ERR no such key\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // 既有 NeedToCreate=false 族对照组：LPUSHX/RPUSHX/LINSERT 缺键回 0 不建键
+    out.clear();
+    s.list_push_x(&[key, b"one"], batch, &mut out, true)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.list_push_x(&[key, b"one"], batch, &mut out, false)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.list_insert(&[key, b"BEFORE", b"pivot", b"one"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+  });
+}
+
 /// test/standalone/Garnet.test.collections/RespListTests.cs:BasicRPUSHAndLREM
 #[test]
 fn basic_rpush_and_lrem() {

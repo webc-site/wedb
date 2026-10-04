@@ -27,7 +27,6 @@ wrecord = { workspace = true }
 wbase = { workspace = true, features = ["addr", "align", "backoff", "cfg", "pool", "thread"] }
 zmij = { workspace = true }
 event-listener.workspace = true
-async-lock.workspace = true
 
 [dependencies.compio]
 workspace = true

@@ -27,7 +27,6 @@ use std::{
 };
 
 use diskann_vector::distance::Metric;
-use async_lock::Mutex as AsyncMutex;
 use wbase::{future::yield_now, map::ConcurrentMap};
 use webc_diskann::{
   ANNResult,
@@ -98,22 +97,6 @@ pub struct Index<S: StoreCallbacks> {
   dims: usize,
   /// 就绪状态标记（IndexState 值）。
   state: AtomicUsize,
-  /// 本集合的插入线性化闸（每 context 一把，任务态锁，可跨 await 持有）。
-  ///
-  /// 图插入链（存在性预检 → set_element 四记录 → 图搜索/剪枝/回边）跨多个
-  /// await 且非原子：webc-diskann `add_edge_and_prune` 的「读邻接（锁外）→
-  /// 剪枝（锁外）→ set_neighbors 整写覆盖（条带锁内）」窗在同源邻接被并发
-  /// 改写时按构造丢边（后写者以陈旧读基值覆盖先写者刚提交的回边），图
-  /// 被打碎成弱连通碎片后自召回漏评。条带锁只能保证单记录 rmw 原子，罩
-  /// 不住跨记录的读—算—写全程，故本集合的插入必须在更上层串行：
-  ///   * 活路径（VADD 命令）已由 wnode 写臂每键独占锁线性化
-  ///     （`read_or_create_vector_index_exclusive` 全程持锁，见
-  ///     wnode vector_manager_locking.rs 写臂专用形态文档），本闸对其
-  ///     零吞吐影响（同键 VADD 本就不交叠）；
-  ///   * 绕过命令层的调用面（迁移导入 `import_migrated_element` 直调
-  ///     `try_add`、测试直调 `DiskANNService::insert`）由本闸承接同一
-  ///     线性化纪律，杜绝无锁并发图构建。
-  insert_gate: AsyncMutex<()>,
 }
 
 impl<S: StoreCallbacks> Index<S> {
@@ -278,12 +261,6 @@ impl<S: StoreCallbacks> DiskANNService<S> {
 
     // 存在性判定读失败＝故障窗内无从判存，禁折「不存在」放行重复插入，
     // 走独立存储错误态（应答 ERR、不写 AOF）
-    //
-    // 插入线性化闸先于存在性预检取得、罩至属性写完成（见
-    // [`Index::insert_gate`] 文档）：预检 → 图插入 → 属性全程同锁，绕过
-    // 命令层独占锁的调用面（迁移导入/测试直调）同键插入在此串行，杜绝
-    // 无锁并发图构建打碎图拓扑
-    let _gate = index.insert_gate.lock().await;
     match index.inner.external_id_exists(&ctx, &id).await {
       Ok(true) => return DiskAnnInsertResult::False,
       Err(_) => return DiskAnnInsertResult::StoreError,
@@ -726,4 +703,5 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     let out = output.into_search_output();
     out.iter().map(|(id, _)| id.to_vec()).collect()
   }
+
 }

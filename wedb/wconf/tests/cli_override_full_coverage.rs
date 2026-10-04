@@ -63,6 +63,8 @@ fn full_cli_args() -> Vec<&'static str> {
     "5",
     "--network-connection-limit",
     "100",
+    "--network-buffer-memory-budget",
+    "512m",
     "--aof",
     "true",
     "--disable-pubsub",

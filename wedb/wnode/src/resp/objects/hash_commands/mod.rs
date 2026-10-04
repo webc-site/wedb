@@ -69,7 +69,8 @@ pub(crate) fn hash_load_sync(
 ///   时豁免拒写——剔除矫正必固化（HINCRBY 族存量解析错臂；本豁免为 hash 面
 ///   自有裁决，zset 面同款门已裁无需固化，见 deviations §142），错误帧应答
 ///   字节不变；
-/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
+/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定
+///   矩阵；#2192 起 HDEL/HPERSIST 入 NeedToCreate=false 集）；
 /// - 仅回填 result1 的删除/排他写入操作（HDEL/HSETNX）以变更计数为准：HSETNX
 ///   字段已存在（set == 0）零变异不落库不广播，杜绝全量重序列化写放大与 AOF
 ///   增量污染；TTL 惰性剔除（装载即剔除或操作前堆序剔除，mutated_by_ttl）

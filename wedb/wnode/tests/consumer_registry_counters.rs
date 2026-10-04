@@ -5,8 +5,6 @@
 //! consumer_registry_lifecycle.rs（经 #[doc(hidden)] 测试专用口），src 内联
 //! 测模块已清空。
 
-use std::sync::Arc;
-
 use wnode::{
   servers::{ClientView, ConsumerRegistry},
   session_parse_state_extensions::ClientType,
@@ -117,25 +115,19 @@ fn monitor_sample_carries_counters_and_bytes() {
   let sample = registry.monitor_sample();
   assert_eq!(sample.total_connections_received, 1);
   assert_eq!(sample.total_connections_disposed, 0);
-  assert_eq!(sample.total_connections_rejected, 0);
   assert_eq!(sample.total_connections_active, 1);
   assert_eq!(sample.sessions.len(), 1);
   assert_eq!(sample.sessions[0].metrics.get_total_net_input_bytes(), 128);
   assert_eq!(sample.sessions[0].metrics.get_total_net_output_bytes(), 64);
 }
 
-/// INFO RESET STATS 连接计数复位（C# ResetConnectionsReceived 语义；
-/// rejected 承接 ResetConnectionsRejected——不追踪存活总体恒归零）
+/// INFO RESET STATS 连接计数复位（C# ResetConnectionsReceived 语义）
 #[test]
 fn reset_totals_keeps_active() {
-  let registry = Arc::new(ConsumerRegistry::new());
+  let registry = ConsumerRegistry::new();
   registry.register(1, "a".into(), String::new());
   registry.register(2, "b".into(), String::new());
   registry.unregister(1);
-  // 容量门拒连一枚（limit=0 恒拒）制造复位前存量
-  assert!(registry.try_acquire_connection(0).is_none());
-  assert_eq!(registry.total_connections_rejected(), 1);
   registry.reset_connection_totals();
   assert_eq!(registry.connection_totals(), (1, 0, 1));
-  assert_eq!(registry.total_connections_rejected(), 0);
 }

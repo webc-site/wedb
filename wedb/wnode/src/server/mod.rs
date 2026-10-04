@@ -56,10 +56,10 @@ use log::{debug, info, warn};
 use parking_lot::Mutex;
 use wbase::{
   endpoint::ip_is_loopback,
-  pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool},
+  pool::{DEFAULT_BUFFER_SIZE, LimitedFixedBufferPool, NetworkBufferBudget, NetworkBufferSettings},
   supervise::supervise_task,
 };
-use wconf::{NodeArgs, ServerArgs};
+use wconf::{DEFAULT_NETWORK_BUFFER_MEMORY_BUDGET, NodeArgs, ServerArgs};
 use wmetric::GarnetServerMonitor;
 #[cfg(feature = "tls")]
 use wtls::ServerTlsConfig;
@@ -81,6 +81,19 @@ use crate::{
   signal::wait_shutdown_signal,
   traits::{MessageConsumerFace, PeerSource, SessionProviderFace},
 };
+
+/// receive 缓冲可被预算钳制到的最小基准规格（C# DefaultNetworkReceiveBufferMinSize
+/// = 1 << 14；预算启用时同时是池最小规格级——被钳到派生最小规格之下的缓冲会
+/// 落在所有规格级之外、被弃置而非回收）
+const NETWORK_RECEIVE_BUFFER_MIN_SIZE: usize = 1 << 14;
+/// send 缓冲可被钳制到的最小基准规格（C# DefaultNetworkSendBufferMinSize
+/// = 1 << 16，相对其 128K 基准恰为折半；rust 基准 64K 取同比折半 32K，
+/// 保住「send 先绑定、receive 继续下探」的同形自适应面。高于接收地板——
+/// 过小 send 缓冲会把超大应答推向池租借路径）
+const NETWORK_SEND_BUFFER_MIN_SIZE: usize = 1 << 15;
+/// receive 缓冲池化最大规格（C# DefaultMaxReceiveBufferSize = 1 << 20：更高
+/// 负载仍按需增长，仅规格级上界）
+const NETWORK_MAX_RECEIVE_BUFFER_SIZE: usize = 1 << 20;
 
 /// 端点列表为空的拒启错误文本（C# Options.cs:796 `endpoints.Length == 0` 臂；
 /// run_async 与 GarnetServer::new 两处判空共用，禁文本二写）
@@ -163,8 +176,6 @@ struct AcceptContext<P: SessionProviderFace> {
   id_gen: Arc<AtomicU64>,
   provider: Arc<P>,
   pool: Arc<LimitedFixedBufferPool>,
-  /// 在途连接容量门（-1 = 不限；C# networkConnectionLimit）
-  conn_limit: i64,
   #[cfg(feature = "tls")]
   tls_config: Option<ServerTlsConfig>,
   /// TLS 握手超时（生产默认 [`TLS_HANDSHAKE_TIMEOUT`]；集成测试经
@@ -229,6 +240,39 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
   /// opts.NetworkConnectionLimit 传入 GarnetServerTcp 构造的装配位）
   pub fn with_network_connection_limit(mut self, limit: i64) -> Self {
     self.network_connection_limit = limit;
+    self
+  }
+
+  /// 装配进程级网络缓冲预算（PR #2157，对标 GarnetServerOptions
+  /// .GetNetworkBufferBudget + GetNetworkBufferSettings 的装配段：一份预算
+  /// 全监听器共享，上限真正进程级而非每端点一份）。`bytes` 为 None 时回落
+  /// 默认 1GiB、≤ 0 禁用；启用时池最小规格级下探接收地板（否则被钳到派生
+  /// 最小规格之下的缓冲落在所有规格级之外、被弃置而非回收），层级按
+  /// 16K..1M 推导。须在 [`Self::start`] 前调用（start 后连接已持旧池句柄）
+  pub fn with_network_buffer_budget_bytes(mut self, bytes: Option<i64>) -> Self {
+    let budget_bytes = bytes.unwrap_or(DEFAULT_NETWORK_BUFFER_MEMORY_BUDGET);
+    let budget = if budget_bytes > 0 {
+      Some(Arc::new(NetworkBufferBudget::new(
+        budget_bytes,
+        self.buffer_pool.buffer_size(),
+        NETWORK_RECEIVE_BUFFER_MIN_SIZE,
+        NETWORK_SEND_BUFFER_MIN_SIZE,
+      )))
+    } else {
+      None
+    };
+    let min_alloc = if budget.is_some() {
+      NETWORK_RECEIVE_BUFFER_MIN_SIZE
+    } else {
+      0
+    };
+    let settings = NetworkBufferSettings {
+      send_buffer_size: self.buffer_pool.buffer_size(),
+      initial_receive_buffer_size: self.buffer_pool.buffer_size(),
+      max_receive_buffer_size: NETWORK_MAX_RECEIVE_BUFFER_SIZE,
+      min_allocation_size: min_alloc,
+    };
+    self.buffer_pool = settings.create_buffer_pool(0, 0, budget);
     self
   }
 

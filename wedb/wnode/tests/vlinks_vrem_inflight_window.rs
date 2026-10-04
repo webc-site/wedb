@@ -250,7 +250,6 @@ fn vlinks_survivor_array_during_vrem_inflight_window() {
       !items.contains(&e2_reply),
       "窗内悬空邻居必须跳过回显: {items:?}"
     );
-
     // ── 放行门闸：VREM 边回收完成，闭合结局 Integer(1) ──
     drop(hold);
     let removed = vrem_thread.join().unwrap();

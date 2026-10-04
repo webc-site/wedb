@@ -7,7 +7,10 @@ use std::{
 
 use compio::fs::read;
 use log::{info, trace, warn};
-use wcpr::{CheckpointMeta, list_all_checkpoint_tokens, purge_checkpoint};
+use wcpr::{
+  CheckpointMeta, list_all_checkpoint_tokens, purge_checkpoint, purge_index_checkpoint_artifacts,
+  purge_log_checkpoint_artifacts,
+};
 
 use crate::{
   error::Result,
@@ -212,10 +215,17 @@ impl CheckpointStore {
   ///
   /// 安全清理并淘汰过期的检查点条目：读者闸门（try_suspend_readers +
   /// can_delete_token 两道共享 token 判定）通过后，内存出链且检查点目录
-  /// 内对应 token 物理删除（C# :182/:186 DeleteLogCheckpoint / DeleteIndexCheckpoint
-  /// 对位）。wcpr 统一检查点模型单 token 一套文件，hlog/index 判定同序
-  /// 保留、删除一次 purge 全清；增量继承形态 index token 异于 hlog 时补删
-  /// 一次。purge_checkpoint 为 best-effort 删除，wcpr 内部吞错、不阻断
+  /// 内对应 token 分侧物理删除（C# :182/:186 DeleteLogCheckpoint /
+  /// DeleteIndexCheckpoint 对位；wcpr 分侧原语 purge_log_checkpoint_artifacts /
+  /// purge_index_checkpoint_artifacts）。purge 为 best-effort 删除，wcpr
+  /// 内部吞错、不阻断
+  ///
+  /// 共享索引不阻断淘汰链（对标上游 c323bbf7a / #2144 修订）：hlog token 可删即
+  /// 出链推进，index token 不可删（被更迭条目共享引用）时仅跳过本次 index 物理删除、
+  /// **绝不 break**——旧形态在此提前断链，日志型检查点（增量继承共享 index token）
+  /// 链上首个条目即命中共享判定，整条淘汰链永久停摆，日志快照随打点次数单调累积。
+  /// 被跳过删除的共享 index 工件由最终唯一持有者（链上最后一个引用它的条目）淘汰时
+  /// 统一回收
   pub fn delete_outdated_checkpoints(&mut self) {
     if self.entries.len() <= 1 {
       return;
@@ -232,21 +242,20 @@ impl CheckpointStore {
       if !self.can_delete_token(remove_count, CheckpointFileType::StoreHlog) {
         break;
       }
-      if !self.can_delete_token(remove_count, CheckpointFileType::StoreIndex) {
-        break;
-      }
 
       warn!(
         "Deleting outdated checkpoint with version {}",
         curr.metadata.store_version
       );
       if let Some(dir) = &self.checkpoint_dir {
+        // hlog token 判定已过：日志侧工件（meta + RangeIndex 快照子目录）无条件回收
+        // （对标 C# :182 DeleteLogCheckpoint；分侧原语见 wcpr purge_log_checkpoint_artifacts）
         let hlog = curr.metadata.store_hlog_token;
-        // best-effort 清理：wcpr 内部吞错，删除失败无错误可感知
-        purge_checkpoint(dir, hlog);
-        let index = curr.metadata.store_index_token;
-        if index != hlog {
-          purge_checkpoint(dir, index);
+        purge_log_checkpoint_artifacts(dir, hlog);
+        // index token 仅在无共享引用时可删；共享（增量继承形态）仅跳过本次删除、
+        // 淘汰链继续推进至更旧条目（对标上游 c323bbf7a / #2144 修订，见方法头注释）
+        if self.can_delete_token(remove_count, CheckpointFileType::StoreIndex) {
+          purge_index_checkpoint_artifacts(dir, curr.metadata.store_index_token);
         }
       }
       remove_count += 1;

@@ -26,11 +26,6 @@ impl GarnetInfoMetrics {
     let mut server_items = vec![
       MetricsItem::new("garnet_version", facts.version),
       MetricsItem::new("server_name", "garnet"),
-      // os 行与 C# :60 `Environment.OSVersion.ToString()`（"Unix 15.x" 形）
-      // 值形分叉：rust 取 std 稳定面 env::consts::OS 短词形（"macos"/
-      // "linux"/"windows"），平台内核版本细粒度无 RuntimeInformation 对位
-      // 直表物，redis 兼容客户端只读该行展示不解析（值形非契约面），
-      // 登记锚 deviations.md §207
       MetricsItem::new("os", env::consts::OS),
       MetricsItem::from_usize(
         "processor_count",

@@ -380,9 +380,9 @@ impl SortedSetObject {
       {
         // 新增成员
         None => {
-          // XX 时不新增；XX+INCR 组合 C# SortedSetObjectImpl.cs:136-146 为
-          // WriteNull+return 短路整条命令（非仅跳过本成员），后续 score-member
-          // 对不再处理——真 Redis 同为 nil
+          // XX 时不新增；INCR 形态成员缺席直出 null 终止（对标 #2197，
+          // C# SortedSetAdd WriteNull 分支——继续遍历会使 INCR 尾帧误报
+          // 未消费的 incrResult 初值 0）
           if options.contains(SortedSetAddOption::XX) {
             if options.contains(SortedSetAddOption::INCR) {
               write_null(output, resp_protocol_version);
@@ -904,20 +904,15 @@ impl SortedSetObject {
 
     // 随机下标采样共用单源（count > 0 不放回 / 负 count 可重复，
     // 与 HRANDFIELD、SRANDMEMBER 同口，见 pick_k_random_indexes 的 k/n 阈值分派）；
-    // 采样域借用视图一次构建（n 长度、与对象本体同阶，不随客户端 k 增长），
-    // 消除逐下标 element_at 的 O(idx) 线性扫描（k 个下标合计 O(k·n)，
-    // compio thread-per-core 下单命令独占工作核；C# 侧 Dictionary 上
-    // Enumerable.ElementAt 同为 O(index)，此为其非放大形态）；
     // 下标流式 sink 直写应答：负 count 的 |k| 与基数脱钩，放回臂零存储
     //（C# new int[indexCount] 为连接级 OOM 面，预分配即 GB 级单命令分配）
-    let view: Vec<_> = self.sorted_set_dict.iter().collect();
     pick_k_random_indexes(
       sorted_set_count.max(0) as usize,
       index_count,
       seed,
       count > 0,
       |idx| {
-        let Some((element, score)) = view.get(idx) else {
+        let Some((element, score)) = self.element_at(idx) else {
           return;
         };
 
@@ -926,7 +921,7 @@ impl SortedSetObject {
           with_scores,
           resp_protocol_version,
           element,
-          |out| write_double_numeric(out, **score, resp_protocol_version),
+          |out| write_double_numeric(out, score, resp_protocol_version),
         );
       },
     );

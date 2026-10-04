@@ -139,9 +139,6 @@ pub(super) const STATS_ROWS: &[(&str, StatsRowFn)] = &[
   ("total_connections_disposed", |name, g| {
     MetricsItem::from_i64(name, g.total_connections_disposed)
   }),
-  // 行位对齐 C# GarnetInfoMetrics.cs:194（total_connections_disposed 之后）；
-  // 数据源为容量门拒连计数（wnode ConsumerRegistry 容量门超限臂递增，
-  // 经监视器采样轮并入全局快照）
   ("rejected_connections", |name, g| {
     MetricsItem::from_i64(name, g.rejected_connections)
   }),

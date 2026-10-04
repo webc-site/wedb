@@ -73,4 +73,8 @@ pub enum ServerConfigType {
   AofCommitWait = 33,
   AofSizeLimit = 34,
   FastAofTruncate = 35,
+
+  // 进程级连接准入上限（PR #2157）：maxclients 运行时项，写穿到 accept
+  // 在途容量门的共享原子槽。
+  MaxClients = 36,
 }

@@ -331,9 +331,8 @@ async fn run_plain_regression(addr: SocketAddr, provider: &Arc<TestProvider>) ->
   if !wait_pred(|| registry.active_consumers().len() == 1).await {
     return Err(Error::other("QUIT 后条目未注销（收场序回归）"));
   }
-  // unregister 两步非原子（entries.remove → disposed 计数），条目收敛后
-  // 计数可在抢占窗内短暂滞后——disposed 观测同样走收敛轮询
-  if !wait_pred(|| registry.connection_totals().1 == disposed_before + 1).await {
+  let (_, disposed_mid, _) = registry.connection_totals();
+  if disposed_mid != disposed_before + 1 {
     return Err(Error::other("QUIT 后 disposed 未跟进（收场序回归）"));
   }
 
@@ -347,7 +346,8 @@ async fn run_plain_regression(addr: SocketAddr, provider: &Arc<TestProvider>) ->
   if !wait_pred(|| registry.active_consumers().len() == 1).await {
     return Err(Error::other("EOF 后条目未注销（收场序回归）"));
   }
-  if !wait_pred(|| registry.connection_totals().1 == disposed_before + 2).await {
+  let (_, disposed_end, _) = registry.connection_totals();
+  if disposed_end != disposed_before + 2 {
     return Err(Error::other("EOF 后 disposed 未跟进（收场序回归）"));
   }
 

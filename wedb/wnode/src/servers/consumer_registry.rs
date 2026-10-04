@@ -388,17 +388,21 @@ pub struct ConsumerRegistry {
   total_connections_received: AtomicI64,
   /// 已释放的连接总数（C# totalConnectionsDisposed）
   total_connections_disposed: AtomicI64,
-  /// 容量门拒连总数（C# totalConnectionsRejected，GarnetServerBase.cs:60）：
-  /// 仅计「在途连接已达配置上限被拒」的连接，别无他因——装配期夭折或
-  /// handler 构造失败不算拒连（C# IncrementConnectionsRejected 文档口径）；
-  /// INFO STATS `rejected_connections` 行数据源
-  total_connections_rejected: AtomicI64,
   /// 在途网络连接计数（C# activeHandlerCount）：accept 成功即刻递增（先于
   /// handler 装配与 register），连接任务结束经 [`ConnectionGuard`] Drop 归零。
   /// 与 entries.len()（枚举在途量）同宿主单点，承接 accept 容量门；生产读取
   /// 面为 [`ConsumerRegistry::dispose_active_handlers`] 的排空判据（C#
   /// DisposeActiveHandlers 轮询 activeHandlerCount 归零的对偶）
   active_handler_count: AtomicI64,
+  /// 进程级连接准入上限（PR #2157，C# ConnectionLimit.limit 的 rust 承载：
+  /// volatile int，CONFIG SET maxclients 写穿）；-1 = 不限。在途计数为
+  /// 单一真源（对位 C# 以各监听器 activeHandlerCount 求和而非独立第二计数
+  /// ——第二计数须在每条 accept/拒绝/装配失败/注销路径维护，漏一条即单向
+  /// 棘轮、拒一切连接直至重启），上限原子只存上限本身
+  connection_limit: AtomicI64,
+  /// 因达到连接上限被拒的连接总数（C# totalConnectionsRejected：只计容量
+  /// 门拒绝——装配期死套接字与 handler 构造失败不是拒绝）
+  total_connections_rejected: AtomicI64,
 }
 
 /// 在途连接守卫（RAII）：accept 成功时经 [`ConsumerRegistry::try_acquire_connection`]
@@ -430,8 +434,9 @@ impl ConsumerRegistry {
       entries: new_concurrent_map(),
       total_connections_received: AtomicI64::new(0),
       total_connections_disposed: AtomicI64::new(0),
-      total_connections_rejected: AtomicI64::new(0),
       active_handler_count: AtomicI64::new(0),
+      connection_limit: AtomicI64::new(-1),
+      total_connections_rejected: AtomicI64::new(0),
     }
   }
 
@@ -445,10 +450,12 @@ impl ConsumerRegistry {
   /// 放行建 handler；超限臂（GarnetServerTcp.cs:302-307）先 `Decrement` 再
   /// `AcceptSocket.Dispose()`——即刻关闭新连接且不写任何 RESP 应答。rust 对偶：
   /// 超限回退计数返回 None（调用方 drop stream 即关闭），放行返回 RAII 守卫
-  /// （Drop 归零，覆盖 handler 构造失败臂）。limit 取 -1 与现状逐字节一致。
-  /// 超限臂同时递增拒连计数（C# RejectConnection → IncrementConnectionsRejected
-  /// 对位，本函数即容量门唯一拒连点）
-  pub fn try_acquire_connection(self: &Arc<Self>, limit: i64) -> Option<ConnectionGuard> {
+  /// （Drop 归零，覆盖 handler 构造失败臂）。limit 取 -1 与现状逐字节一致
+  pub fn try_acquire_connection(self: &Arc<Self>) -> Option<ConnectionGuard> {
+    // 上限读一次快照（C# IsWithinLimit 的 `var current = limit` 同形）：
+    // 判定天然竞态——两监听器可同见余量并同接入，超冲上界为监听器数且自愈，
+    // 相对把进程每次 accept 串在一把锁后是正确取舍
+    let limit = self.connection_limit.load(Ordering::Acquire);
     let n = self.active_handler_count.fetch_add(1, Ordering::AcqRel) + 1;
     if limit == -1 || n <= limit {
       Some(ConnectionGuard {
@@ -456,11 +463,34 @@ impl ConsumerRegistry {
       })
     } else {
       self.active_handler_count.fetch_sub(1, Ordering::AcqRel);
-      self
-        .total_connections_rejected
-        .fetch_add(1, Ordering::Relaxed);
       None
     }
+  }
+
+  /// 进程级连接准入上限写穿（PR #2157，C# ConnectionLimit.Limit 的 setter：
+  /// CONFIG SET maxclients 调停与启动装配的唯一写口）。调低不断既有连接，
+  /// 容量门只拒新连接（同 Redis）；-1 即不限
+  pub fn set_connection_limit(&self, limit: i64) {
+    self.connection_limit.store(limit, Ordering::Release);
+  }
+
+  /// 当前进程级连接准入上限
+  pub fn connection_limit(&self) -> i64 {
+    self.connection_limit.load(Ordering::Acquire)
+  }
+
+  /// 拒绝连接计数（PR #2157，C# IncrementConnectionsRejected：仅在容量门
+  /// 拒绝分支调用——装配期套接字死亡与 handler 构造失败不是拒绝，计数在
+  /// 其所针对的 incident 中保持可信）
+  pub fn note_connection_rejected(&self) {
+    self
+      .total_connections_rejected
+      .fetch_add(1, Ordering::Relaxed);
+  }
+
+  /// 因连接上限被拒的连接总数（C# TotalConnectionsRejected）
+  pub fn total_connections_rejected(&self) -> i64 {
+    self.total_connections_rejected.load(Ordering::Relaxed)
   }
 
   /// 进程级安装（覆盖式；测试与单机形态均可安装）。CLIENT 族命令与 dispose 归并经
@@ -601,25 +631,14 @@ impl ConsumerRegistry {
     self.active_handler_count.load(Ordering::Acquire)
   }
 
-  /// 容量门拒连计数直读（C# TotalConnectionsRejected 探针）
-  ///
-  /// [`doc(hidden)`] 测试专用隐藏面：容量门拒连断言观测口
-  /// （wnode/tests/consumer_registry_lifecycle.rs /
-  /// tests/bootstrap_network_connection_limit.rs），生产读取面为
-  /// [`ConsumerRegistry::monitor_sample`]，非公共 API 契约
-  #[doc(hidden)]
-  pub fn total_connections_rejected(&self) -> i64 {
-    self.total_connections_rejected.load(Ordering::Acquire)
-  }
-
   /// INFO RESET STATS 的连接计数复位（C# ResetConnectionsReceived /
-  /// ResetConnectionsDiposed：received 置当前活跃数，disposed 清零；
-  /// 另承接 ResetConnectionsRejected——拒绝计数不追踪存活总体，恒归零，
-  /// 与 received 复位到活跃数不同，C# GarnetServerBase.cs:145 文档口径）
+  /// ResetConnectionsDiposed：received 置当前活跃数，disposed 清零）
   pub fn reset_connection_totals(&self) {
+    // 拒绝计数同轮复位到 0（C# ResetConnectionsRejected：拒绝不追踪任何
+    // 活跃种群，与 received 复位到活跃数不同）
+    self.total_connections_rejected.store(0, Ordering::Relaxed);
     let active = self.entries.pin().len() as i64;
     self.total_connections_disposed.store(0, Ordering::Relaxed);
-    self.total_connections_rejected.store(0, Ordering::Relaxed);
     self
       .total_connections_received
       .store(active, Ordering::Relaxed);

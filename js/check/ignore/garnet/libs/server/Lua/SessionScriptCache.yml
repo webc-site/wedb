@@ -1,0 +1,18 @@
+# C# #2138 为承接「字节码缓存生命周期」把装载拆成三口：FromSource（编译
+# 源码）/ FromCachedScript（全局缓存句柄装载）/ FromGeneratedBytecode（内部
+# 生成字节码装载，binary-only 模式）。Luau 无 string.dump，rust 无字节码缓存
+# 形态——全局句柄存源码文本，EVALSHA 命中全局缓存路径与源码路径同经
+# try_get_or_create_runner_from_source 单口装载，「只信内部产物」语义由
+# 双层门承接：缓存入口前置门（LuaRunnerLoader::try_compile_source）+
+# 装载门（LuaState::load_buffer 的 text-only 检查，luau_load 仅吃同函数
+# luau_compile 产物，无外部字节码反序列化入口）。三口拆分在 rust 为恒同
+# 路径，不设虚设分层。
+- 文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - TryGetOrCreateRunnerFromCachedScript
+        - TryCompileSourceAndCreateRunner
+        - TryGetOrCreateRunnerFromGeneratedBytecode
+  理由: >-
+    字节码缓存形态不存在（Luau 无 string.dump）：编译前置门内联于
+    try_get_or_create_runner_from_source（锚注其上），缓存装载与源码装载
+    同口，无生成字节码可装载；外部字节码在任何入口均被 text-only 门拒绝。

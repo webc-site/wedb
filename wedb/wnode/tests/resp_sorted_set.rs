@@ -133,6 +133,58 @@ fn add_with_options() {
     out.clear();
     s.sorted_set_length(&[key], batch, &mut out).unwrap();
     assert_eq!(out, b":10\r\n");
+
+    // #2197：XX + INCR 成员缺席 → null 且不新增（C# AddWithOptions 断言块）
+    out.clear();
+    s.sorted_set_add(&[key, b"XX", b"INCR", b"3.5", b"z"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b"$-1\r\n");
+    out.clear();
+    s.sorted_set_score(&[key, b"z"], batch, &mut out).unwrap();
+    assert_eq!(out, b"$-1\r\n");
+
+    // #2197：XX + INCR 缺键（对象缺席走 default_obj 空集）→ null 且零键创建
+    out.clear();
+    s.sorted_set_add(
+      &[b"SortedSet_Add_4", b"XX", b"INCR", b"3.5", b"a"],
+      batch,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"$-1\r\n");
+    out.clear();
+    s.network_exists(&[b"SortedSet_Add_4"], batch, None, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+  });
+}
+
+/// test/standalone/Garnet.test.collections/RespSortedSetTests.cs:AddWithXXOnMissingKeyDoesNotCreateKey
+/// （#2194：对象 RMW 在新对象上留空不建 key——C# NeedInitialUpdate 的
+/// HasRemoveKey 门，rust 由 should_write_back 的 `!existed && 空` 防幻键门
+/// 等价承接）
+#[test]
+fn add_with_xx_on_missing_key_does_not_create_key() {
+  with_batch(|s, batch| {
+    let key = b"SortedSet_AddXX";
+
+    // ZADD key XX 1 m1（SortedSetWhen.Exists）→ :0 且零键创建
+    let mut out = Vec::new();
+    s.sorted_set_add(&[key, b"XX", b"1", b"m1"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
+
+    // ZADD key XX CH 1 m1 → :0 且零键创建
+    out.clear();
+    s.sorted_set_add(&[key, b"XX", b"CH", b"1", b"m1"], batch, &mut out)
+      .unwrap();
+    assert_eq!(out, b":0\r\n");
+    out.clear();
+    s.network_exists(&[key], batch, None, &mut out).unwrap();
+    assert_eq!(out, b":0\r\n");
   });
 }
 

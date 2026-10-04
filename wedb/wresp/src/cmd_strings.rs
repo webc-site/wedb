@@ -49,11 +49,6 @@ pub const PUBSUB_PSUBSCRIBE_FRAME_PREFIX: &[u8] = b"*3\r\n$10\r\npsubscribe\r\n"
 pub const PUBSUB_UNSUBSCRIBE_FRAME_PREFIX: &[u8] = b"*3\r\n$11\r\nunsubscribe\r\n";
 /// SUNSUBSCRIBE ack 头（`libs/server/Resp/PubSubCommands.cs` NetworkSUNSUBSCRIBE 分支）
 pub const PUBSUB_SUNSUBSCRIBE_FRAME_PREFIX: &[u8] = b"*3\r\n$12\r\nsunsubscribe\r\n";
-/// 槽迁移强制退订通知头 RESP2（Redis pubsub.c addReplyPubsubUnsubscribed RESP2 臂）
-pub const PUBSUB_PUSH_SUNSUBSCRIBE_PREFIX_RESP2: &[u8] = b"*3\r\n$12\r\nsunsubscribe\r\n";
-/// 槽迁移强制退订通知头 RESP3（Redis pubsub.c addReplyPubsubUnsubscribed RESP3 臂：
-/// addReplyPushLen —— 该通知 C# 无对位，帧形对齐源为 redis unstable，见 deviations §6/§209）
-pub const PUBSUB_PUSH_SUNSUBSCRIBE_PREFIX_RESP3: &[u8] = b">3\r\n$12\r\nsunsubscribe\r\n";
 /// PUNSUBSCRIBE ack 头（`libs/server/Resp/PubSubCommands.cs` NetworkPUNSUBSCRIBE 分支）
 pub const PUBSUB_PUNSUBSCRIBE_FRAME_PREFIX: &[u8] = b"*3\r\n$12\r\npunsubscribe\r\n";
 /// 频道消息 push 头 RESP2（`libs/server/Resp/PubSubCommands.cs` Publish）

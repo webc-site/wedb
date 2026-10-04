@@ -103,31 +103,30 @@ enum Admission {
   Rejected,
 }
 
+/// 因连接上限被拒时回写对端的 RESP 错误帧（PR #2157，C#
+/// GarnetServerTcp.cs:MaxClientsReachedError——逐字节对齐 Redis 线上文本，
+/// 既有客户端错误处理不变即适用）
+static MAX_CLIENTS_REACHED_ERROR: &[u8] = b"-ERR max number of clients reached\r\n";
+
 /// accept 成功后的接入计量与在途容量门收口（TCP/UDS 双循环共用；C#
 /// GarnetServerTcp.cs:236-241 容量门 accept 成功即刻计量、:302-307 超限臂
-/// 即刻关闭新连接且不写任何 RESP 应答）：received 计数前移（容量门前——
-/// TLS 握手失败、容量门拒绝、发字即断的短命连接全部进统计；C# :288 计数点
-/// 在 TryAdd 后 rust 前移一档，r14-conn.md:11「容量门拒绝除外」括注不采纳，
-/// 维持现计数，裁决归属 deviations §101）→ 容量门；超限臂 disposed 配对
-/// 递增（rust received 前移后的配对点，C# 超限不计 received 故无此步）、
-/// 拒连计数在 [`ConsumerRegistry::try_acquire_connection`] 超限臂内递增
-/// （C# RejectConnection → IncrementConnectionsRejected 对位，INFO STATS
-/// `rejected_connections` 行数据源）并 debug 留痕。守卫由调用方 move 进
-/// 连接任务随其结束（正常收尾/TLS 握手失败）Drop 归零
-fn admit_connection(
-  registry: &Option<Arc<ConsumerRegistry>>,
-  conn_limit: i64,
-  target: impl fmt::Display,
-) -> Admission {
+/// 即刻关闭新连接）：received 计数前移（容量门前——TLS 握手失败、容量门
+/// 拒绝、发字即断的短命连接全部进统计；C# :288 计数点在 TryAdd 后 rust
+/// 前移一档，r14-conn.md:11「容量门拒绝除外」括注不采纳，维持现计数，
+/// 裁决归属 deviations §101）→ 容量门；超限臂 rejected 计数（PR #2157 只在
+/// 容量门分支计，装配期死套接字与 handler 构造失败不是拒绝）、disposed
+/// 配对递增（rust received 前移后的配对点）并 debug 留痕。守卫由调用方
+/// move 进连接任务随其结束（正常收尾/TLS 握手失败）Drop 归零
+fn admit_connection(registry: &Option<Arc<ConsumerRegistry>>) -> Admission {
   let Some(registry) = registry.as_ref() else {
     return Admission::Passed(None);
   };
   registry.note_connection_received();
-  match registry.try_acquire_connection(conn_limit) {
+  match registry.try_acquire_connection() {
     Some(guard) => Admission::Passed(Some(guard)),
     None => {
+      registry.note_connection_rejected();
       registry.note_connection_disposed();
-      debug!("{target} 在途连接达上限 {conn_limit}，关闭新连接");
       Admission::Rejected
     }
   }
@@ -202,6 +201,15 @@ trait AcceptEndpoint: Sized {
   /// 容量门通过后的套接字配置（TCP nodelay/保活；UDS 无操作）
   fn configure(&self, accepted: &Self::Accepted);
 
+  /// 容量门拒绝后的对端告知与关闭（PR #2157，C# RejectConnection）：非 TLS
+  /// 对端写出 [`MAX_CLIENTS_REACHED_ERROR`] 后优雅关闭——失败可诊断而非无解
+  /// 复位；TLS 对端只关闭不写（对端只发了 ClientHello，明文错误帧是协议
+  /// 违例，会以握手失败浮出、把运维指向证书而非容量，rejected_connections
+  /// 度量即 TLS 形态的全部补救）。写为 detach 任务尽力而为、非阻塞：达限
+  /// 意味着服务器已在连接压力下，阻塞写会串行化拒绝并放大过载；优雅关闭
+  /// 由 Drop 收场（内核冲刷已排队字节后再 FIN）
+  fn reject(&self, accepted: Self::Accepted, tls: bool);
+
   /// 停机取消退出的 debug 留痕（双端点文案形态各异，保持原样不归一）
   fn log_cancel_exit(&self);
 
@@ -247,9 +255,17 @@ async fn run_accept_loop<P: SessionProviderFace + 'static, E: AcceptEndpoint>(
         let registry = ctx.provider.consumer_registry();
         // received 前移与在途容量门单源收口（C# 对位、计数口径与 deviations
         // §101 裁决归属见 admit_connection 文档）
-        let guard = match admit_connection(&registry, ctx.conn_limit, endpoint.target()) {
+        let guard = match admit_connection(&registry) {
           Admission::Passed(guard) => guard,
-          Admission::Rejected => continue,
+          #[cfg_attr(not(feature = "tls"), allow(unused_variables))]
+          Admission::Rejected => {
+            #[cfg(feature = "tls")]
+            let tls = ctx.tls_config.is_some();
+            #[cfg(not(feature = "tls"))]
+            let tls = false;
+            endpoint.reject(accepted, tls);
+            continue;
+          }
         };
         // 容量门通过后的套接字配置（TCP nodelay/保活，C#:249；UDS 无操作）
         endpoint.configure(&accepted);
@@ -339,6 +355,22 @@ impl AcceptEndpoint for TcpEndpoint {
   fn configure(&self, accepted: &Self::Accepted) {
     // 接入侧装配 nodelay + 默认保活（C#:249 仅 NoDelay，保活为 rust 自有面）
     let _ = configure_socket(&accepted.stream);
+  }
+
+  fn reject(&self, accepted: Self::Accepted, tls: bool) {
+    let TcpAccepted { mut stream, .. } = accepted;
+    debug!(
+      "Worker-{} 在途连接达上限，关闭新连接（TLS 对端不回写错误帧）",
+      self.core_id
+    );
+    if tls {
+      return; // 拒绝计数已是 TLS 形态的全部补救
+    }
+    spawn(async move {
+      use compio::io::AsyncWriteExt;
+      let _ = stream.write_all(MAX_CLIENTS_REACHED_ERROR.to_vec()).await;
+    })
+    .detach();
   }
 
   fn log_cancel_exit(&self) {
@@ -507,6 +539,16 @@ impl AcceptEndpoint for UdsEndpoint {
   }
 
   fn configure(&self, _accepted: &Self::Accepted) {}
+
+  fn reject(&self, accepted: Self::Accepted, _tls: bool) {
+    let UdsAccepted { mut stream } = accepted;
+    debug!("UDS 在途连接达上限，关闭新连接");
+    spawn(async move {
+      use compio::io::AsyncWriteExt;
+      let _ = stream.write_all(MAX_CLIENTS_REACHED_ERROR.to_vec()).await;
+    })
+    .detach();
+  }
 
   fn log_cancel_exit(&self) {
     debug!("UDS 接收循环收到停机取消信号，退出");

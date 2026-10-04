@@ -1,4 +1,3 @@
 [build]
-target-dir = "/tmp/rust_wedb"
+target-dir = "/Users/z/git/db/wedb/.rs-targets/sync-2026-10-02"
 rustflags = ["-C", "target-feature=+aes"]
-

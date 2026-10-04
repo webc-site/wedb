@@ -186,18 +186,6 @@ impl ClusterConfig {
       return Err(Error::MissingWorkers);
     }
 
-    // 宣告端口域校验先于任何入库：负数或 >65535 的端口放行后会在端点换算
-    // socket_of 的 `as u16` 静默回绕（-1→65535、70000→4464），对端按回绕值
-    // 拨号失联且无从排查（C# 同场景 IPEndPoint 构造抛 ArgumentOutOfRange）
-    if let Some(port) = wire
-      .workers
-      .iter()
-      .map(|w| w.port)
-      .find(|port| !(0..=65535).contains(port))
-    {
-      return Err(Error::WorkerPort(port));
-    }
-
     let mut slot_map = Box::new([HashSlot::default(); CLUSTER_SLOT_COUNT]);
     // worker_id 越界校验先于槽位展开：越界 id 若入库，CLUSTER SLOTS 与
     // 副本读路径（is_local_expensive）按属主下标直取 workers 会 panic，

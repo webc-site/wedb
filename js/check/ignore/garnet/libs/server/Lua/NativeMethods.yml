@@ -6,3 +6,14 @@
     rust 侧压栈不手写容量预检（Luau VM 自扩栈，栈满即报 error），该 extern 绑定
     在本仓零读者；绑定本身即死码，按"无消费即删、不留 never-used"纪律删除，
     其余 Lua C API 绑定照常保留。
+
+# C# #2138 text/binary 双口 P/Invoke（luaL_loadbufferx + mode "t"/"b"）
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - LoadTextBuffer
+        - LoadBinaryBuffer
+  理由: >-
+    P/Invoke 分层不存在：rust 直连 luau_compile/luau_load（sys.rs）。mode 门
+    语义由 LuaState::load_buffer 单口承接（锚注 LuaStateWrapper 双口）——
+    入口 text-only 前置检查承接 "t" 模式（外部字节码拒绝），"b" 模式结构性
+    收窄为仅装载同函数内 luau_compile 即时产物，无外部字节码反序列化入口。

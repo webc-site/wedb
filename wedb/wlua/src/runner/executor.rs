@@ -17,7 +17,7 @@ use super::{
   ERR_LUA_INVOKE_FAILED, ERR_PREFIX, ERR_UNEXPECTED_RESPONSE, LuaRunner, RespObject, RespOut,
   ScriptSessionPtr, host::CallbackGuard, resp_convert::resp_out_error,
 };
-use crate::{api::ScriptingApi, state::Deadline, strings::ConstantStrings, sys};
+use crate::{LuaState, api::ScriptingApi, state::Deadline, strings::ConstantStrings, sys};
 
 impl LuaRunner {
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:CompileForRunner
@@ -68,7 +68,7 @@ impl LuaRunner {
     );
 
     if !self.state.push_ref(self.load_sandboxed_registry_index) {
-      resp_out_error(out, ConstantStrings::OUT_OF_MEMORY);
+      Self::write_out_of_memory_error(out);
       return;
     }
     self.state.push_buffer(&self.source);
@@ -86,16 +86,14 @@ impl LuaRunner {
         self.host.function_registry_index = index;
       } else {
         // Uh-oh, couldn't save the function under the registry
-        resp_out_error(out, ConstantStrings::OUT_OF_MEMORY);
+        Self::write_out_of_memory_error(out);
       }
     } else {
-      let err_str = if self.state.get_top() >= 1
-        && let Some(buff) = self.state.known_string_to_buffer(1)
-      {
-        // We control the definition of load_sandboxed, so we know this will be the error
-        format!("Compilation error: {}", String::from_utf8_lossy(&buff))
-      } else {
-        "Compilation error, cause unknown".to_string()
+      // We control the definition of load_sandboxed, so we know this will be the error
+      //（C# CompileCommon 原位双形态：已知错冒号连接、未知错逗号文案，1:1 保留）
+      let err_str = match Self::error_from_stack_top(&mut self.state) {
+        Some(error) => format!("Compilation error: {error}"),
+        None => "Compilation error, cause unknown".to_string(),
       };
 
       out.clear();
@@ -105,6 +103,23 @@ impl LuaRunner {
     // C# 形态中 CompileCommon 以 C 函数返回 0，帧内栈槽随帧丢弃；
     // Rust 栈镜像持久，需显式清空。
     self.state.clear_stack();
+  }
+
+  /// libs/server/Lua/LuaRunner.Loader.cs:GetErrorFromStackTop
+  ///
+  /// 栈顶错误文案回读（C# 返回串，非串回退 "cause unknown"；rust 以
+  /// None 上交、由调用方持有回退文案，承接 CompileCommon 的双形态文案）。
+  fn error_from_stack_top(state: &mut LuaState) -> Option<String> {
+    state
+      .known_string_to_buffer(1)
+      .map(|buff| String::from_utf8_lossy(&buff).into_owned())
+  }
+
+  /// libs/server/Lua/LuaRunner.Functions.cs:WriteOutOfMemoryError
+  ///
+  /// Lua VM 内存耗尽应答单点（#2138 抽取去重，压栈/注册两臂共用）。
+  fn write_out_of_memory_error(out: &mut Vec<u8>) {
+    resp_out_error(out, ConstantStrings::OUT_OF_MEMORY);
   }
 
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.cs:RunForSession

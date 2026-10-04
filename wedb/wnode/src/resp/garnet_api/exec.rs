@@ -14,7 +14,6 @@ use wmetric::{DbSnapshot, InfoCommand, PendingLatencyMeter};
 use wresp::{
   cmd_strings::{RESP_ERR_ASYNC_REQUIRED, write_error_raw},
   command::{RespCommand, is_vector_set_command},
-  ext::is_resp3,
   metrics::InfoMetricsType,
 };
 use wtxn::TxnState;
@@ -102,7 +101,7 @@ impl<D: Device> GarnetApiFace for StoreGarnetApi<D> {
     if is_vector_set_command(cmd)
       && let Some(vectors) = &self.vector_session
     {
-      let resp3 = is_resp3(session.resp_protocol_version);
+      let resp3 = session.resp_protocol_version == 3;
       // 向量集命令前置守卫（读写分臂，对标 C# RespServerSessionVectors.cs:
       // 501/944/1360/1362/1417/1453/1489/1534/1573/1664/1717/1786 等）：
       // 键驻留 wkv 值域即拒绝，杜绝与既有非向量键并行建向量集产生双域键或非向量键读命令误报

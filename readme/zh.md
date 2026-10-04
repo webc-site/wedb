@@ -6,17 +6,6 @@ WeDB 是基于 Rust 2024 构建的极致性能 Redis 兼容分布式缓存与持
 
 ---
 
-- [架构拓扑与 Garnet 模块对标](#架构拓扑与-garnet-模块对标)
-  - [对标 Garnet 模块矩阵](#对标-garnet-模块矩阵)
-- [核心解耦架构](#核心解耦架构)
-  - [1. 单机与集群彻底物理剥离](#1-单机与集群彻底物理剥离)
-  - [2. 底座职责极致纯化（`wnode` 与 `waof`）](#2-底座职责极致纯化wnode-与-waof)
-- [极致性能技术选型](#极致性能技术选型)
-- [快速开始与验证](#快速开始与验证)
-  - [编译与检查](#编译与检查)
-  - [启动单机节点](#启动单机节点)
-  - [启动分布式集群节点](#启动分布式集群节点)
-
 ## 架构拓扑与 Garnet 模块对标
 
 ```mermaid
@@ -148,37 +137,6 @@ graph TD
 ## 快速开始与验证
 
 分章文档：[性能评测](https://github.com/webc-site/wedb/tree/main/readme/zh/bench.md)。
-
-<!-- WEDB-BENCH:BEGIN 由 node js/readme.js 生成，请勿手改 -->
-> 最新一轮：`local`（`local`），2026-10-04 UTC。
-
-## macos-arm64 — Apple M2 Max（12 逻辑核 / 64.0 GiB 内存）
-
-|                                   | hash      | bftree    | fjall      | rocksdb       | sqlite    |
-|-----------------------------------|-----------|-----------|------------|---------------|-----------|
-| bulk load (key/s)                 | **3.34M** | 970K      | 865K       | 340K          | 363K      |
-| individual writes (txn/s)         | 308       | **876K**  | 218        | 32.4K         | 16.1K     |
-| small batch writes (key/s)        | 233K      | **1.07M** | 142K       | 393K          | 67.8K     |
-| sorted inserts (key/s)            | **3.06M** | 1.31M     | 695K       | 2.64M         | 484K      |
-| nosync writes (txn/s)             | **5.92M** | N/A       | 594K       | 156K          | 32.9K     |
-| len()                             | 20ms      | **0ms**   | 44ms       | 47ms          | **0ms**   |
-| random reads (key/s)              | **8.38M** | 732K      | 1.29M      | 719K          | 580K      |
-| random range reads (scan/s)       | **341K**  | 243K      | 310K       | 266K          | 122K      |
-| random reads (4 threads) (key/s)  | **11.5M** | 982K      | 2.45M      | 1.94M         | 270K      |
-| random reads (8 threads) (key/s)  | **20.0M** | 1.16M     | 3.30M      | 3.02M         | 200K      |
-| random reads (16 threads) (key/s) | **18.2M** | 991K      | 2.20M      | 3.84M         | 171K      |
-| random reads (32 threads) (key/s) | **19.0M** | 987K      | 2.01M      | 4.59M         | 168K      |
-| removals (key/s)                  | **4.01M** | 1.79M     | 972K       | 256K          | 385K      |
-| retain (key/s)                    | N/A       | **976K**  | 513K       | 265K          | 226K      |
-| extract_if (key/s)                | N/A       | **658K**  | 565K       | 314K          | 146K      |
-| pop (key/s)                       | N/A       | 456K      | **1.24M**  | 1.69K         | 247K      |
-| uncompacted size                  | 64.00 MiB | 74.82 MiB | 104.75 MiB | **28.47 MiB** | 88.42 MiB |
-| compacted size                    | 72.01 MiB | 32.29 MiB | 86.37 MiB  | **22.46 MiB** | 26.35 MiB |
-
-- 备注：负载按 0.02× 缩放，非 redb 标准档
-
-
-<!-- WEDB-BENCH:END -->
 
 ### 编译与检查
 

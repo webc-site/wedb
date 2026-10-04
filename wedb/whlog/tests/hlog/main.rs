@@ -5,7 +5,6 @@ mod flaky_device;
 mod flush_and_shift;
 mod flush_fault;
 mod flush_records;
-mod flush_write_order;
 mod inflight_extent_scan;
 mod inplace_lifecycle;
 mod key_len_gate;

@@ -53,6 +53,12 @@ pub enum ConfigReconcile {
   /// rust 特有投影消息（同上，对标每轮 `GetEnum<LogCompactionType>
   /// (COMPACTION_TYPE)` 现取）。`compaction_type` 为刚写入槽位的新值。
   CompactionType { compaction_type: LogCompactionType },
+
+  /// maxclients 变更落点消息（PR #2157，对标 RuntimeServerConfig.cs
+  /// ApplyMaxClientsUpdate 把新上限写进 accept 路径逐连接咨询的
+  /// ConnectionLimit）。`limit` 为刚写入槽位的新值（-1 = 不限）；调低调
+  /// 低不断既有连接、只拒新连接（同 Redis）。
+  MaxClients { limit: i64 },
 }
 
 /// 更新动作：CONFIG SET 在校验通过、新值已写入槽位之后执行。

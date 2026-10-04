@@ -87,6 +87,10 @@ pub fn run_id() -> &'static str {
 /// rust 宿主全连接共享单池，恒 i = 0 一行）
 const SERVER_SOCKET_ROW: &str = "server_socket_0";
 
+/// INFO BPSTATS 的网络缓冲预算行名（C# GarnetInfoMetrics.cs:421
+/// "network_buffer_budget"）
+const NETWORK_BUFFER_BUDGET_ROW: &str = "network_buffer_budget";
+
 /// 运行 ID 解析（对标 C# libs/server/StoreWrapper.cs:176 RunId => enableCluster ? clusterProvider.GetRunId() : runId）。
 /// 集群态为提供方运行时串（Owned），单机态零拷贝借进程级常量（Borrowed）
 #[inline]
@@ -300,7 +304,15 @@ impl InfoProvider for SessionInfoSource<'_> {
       .session
       .listener_buffer_pool
       .as_ref()
-      .map(|pool| vec![(SERVER_SOCKET_ROW.to_string(), pool.get_stats())])
+      .map(|pool| {
+        let mut rows = vec![(SERVER_SOCKET_ROW.to_string(), pool.get_stats())];
+        // 网络缓冲预算行（PR #2157，C# GarnetInfoMetrics.cs:421：预算启用时
+        // server_socket 行后追加 network_buffer_budget 行；预算缺省不出行）
+        if let Some(b) = pool.budget() {
+          rows.push((NETWORK_BUFFER_BUDGET_ROW.to_string(), b.get_stats()));
+        }
+        rows
+      })
       .unwrap_or_default()
   }
 

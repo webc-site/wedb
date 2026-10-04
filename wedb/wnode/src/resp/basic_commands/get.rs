@@ -217,8 +217,7 @@ impl RespServerSession {
       return Ok(true);
     };
     // 对标 C#：start/end 须可解析为整数（溢出走 not-integer 对标 C# TryGetInt；
-    // 前导零拒收与现 C# ParseUtils.TryReadInt allowLeadingZeros:false 全等，
-    // 旧注「死参放行 007」前提已失效，见 doc/zh/deviations.md §32），否则报 not-integer
+    // 前导零拒收系 rust 严格收口，C# TryGetInt 因 TryReadInt32Safe 死参实际放行 007，见 doc/zh/deviations.md §32），否则报 not-integer
     let Some(start) = parse_i32_arg(start_raw, output).map(i64::from) else {
       return Ok(true);
     };

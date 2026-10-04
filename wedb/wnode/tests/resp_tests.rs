@@ -538,17 +538,115 @@ fn set_expiry_high_precision() {
   });
 }
 
-/// SET/SETEX/PSETEX 族的过期越界拒绝且不断链（C# 语料仅 GETEX 臂有对应测试
-/// GetExpiryOutOfRangeIsRejectedWithoutKillingSession，SET 臂为 rust 侧补充，
-/// 不挂 C# 测试锚）
+/// test/standalone/Garnet.test/RespTests.cs:SetExpiryAcceptsInt64Value（#2130）
 ///
-/// 值域两段式对齐 C# TryGetLong（BasicCommands.cs:541/:653）+ TryGetAbsoluteExpiryTicks
-/// （:856）gate：非整数（非数字字面量 / 超 i64 幅值）即 not-integer（解析先于
-/// <=0 校验）；i64 域内负数与超绝对过期 gate 的大值（gate = (i64::MAX - now) /
-/// 刻度，秒域 ≈8.6e11 / 毫秒域 ≈8.6e14）均走 invalid-expire 门
+/// SET/SETEX/PSETEX 过期参数 int64 口径（C# TryGetLong）受理：超 int32 幅值
+/// 仍可落 TTL；PTTL 断言窗 (expected-10s, expected] 对标 C# AssertLargeTtl
+#[test]
+fn set_expiry_accepts_int64_value() {
+  const LARGE_MILLISECONDS: i64 = 4_294_967_296; // 2^32 ms，超 int32
+  const LARGE_SECONDS: i64 = 3_000_000_000;
+
+  with_batch(|s, batch| {
+    // PTTL ∈ (expected_ms - 10_000, expected_ms]（毫秒口径，对标 C# 断言窗）
+    let assert_large_ttl = |key: &[u8], expected_ms: i64| {
+      let ttl = ttl_of_sync(batch, key).unwrap().value().unwrap().unwrap();
+      let remaining_ms = (ttl - now_ticks()) / TICKS_PER_MILLISECOND;
+      assert!(
+        remaining_ms > expected_ms - 10_000,
+        "{key:?} PTTL={remaining_ms} 须大于 {expected_ms}-10s"
+      );
+      assert!(
+        remaining_ms <= expected_ms,
+        "{key:?} PTTL={remaining_ms} 不得越期望值"
+      );
+    };
+
+    let mut out = Vec::new();
+    s.network_setexnx(
+      &[b"set-px", b"value", b"PX", b"4294967296"],
+      batch,
+      None,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    assert_large_ttl(b"set-px", LARGE_MILLISECONDS);
+
+    out.clear();
+    let large_sec = LARGE_SECONDS.to_string();
+    s.network_setexnx(
+      &[b"set-ex", b"value", b"EX", large_sec.as_bytes()],
+      batch,
+      None,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    assert_large_ttl(b"set-ex", LARGE_SECONDS * 1000);
+
+    out.clear();
+    s.network_setex(
+      &[b"setex", large_sec.as_bytes(), b"value"],
+      batch,
+      None,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    assert_large_ttl(b"setex", LARGE_SECONDS * 1000);
+
+    out.clear();
+    s.network_psetex(&[b"psetex", b"4294967296", b"value"], batch, None, &mut out)
+      .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    assert_large_ttl(b"psetex", LARGE_MILLISECONDS);
+
+    out.clear();
+    s.network_setexnx(
+      &[b"set-nx", b"value", b"PX", b"4294967296", b"NX"],
+      batch,
+      None,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"+OK\r\n");
+    assert_large_ttl(b"set-nx", LARGE_MILLISECONDS);
+
+    // XX + GET：回旧值且新 TTL 生效
+    s.network_set(&[b"set-xx-get", b"old-value"], batch, None, &mut out)
+      .unwrap();
+    out.clear();
+    s.network_setexnx(
+      &[
+        b"set-xx-get",
+        b"new-value",
+        b"PX",
+        b"4294967296",
+        b"XX",
+        b"GET",
+      ],
+      batch,
+      None,
+      &mut out,
+    )
+    .unwrap();
+    assert_eq!(out, b"$9\r\nold-value\r\n");
+    assert_large_ttl(b"set-xx-get", LARGE_MILLISECONDS);
+  });
+}
+
+/// test/standalone/Garnet.test/RespTests.cs:SetExpiryOutOfRangeIsRejectedWithoutKillingSession
+/// （#2130）
+///
+/// int64 口径受理后的溢出门（C# TryGetAbsoluteExpiryTicks）：换算越
+/// i64::MAX 绝对刻度 → invalid expire in 'set' command，且原值保留零写入；
+/// 负数（int64 域内）仍走同一 invalid-expire 门（C# expiry <= 0 校验在
+/// TryGetLong 之后）；越 i64 幅值才走 not-integer（rust 侧补充，C# Safe
+/// 变体同形）
 #[test]
 fn set_expiry_out_of_range_is_rejected_without_killing_session() {
-  const KEY: &[u8] = b"set_expiry_out_of_range";
+  const KEY: &[u8] = b"SetExpiryOutOfRange";
   const NOT_INT: &[u8] = b"-ERR value is not an integer or out of range.\r\n";
   const INVALID_EXP: &[u8] = b"-ERR invalid expire time in 'set' command\r\n";
 
@@ -558,11 +656,18 @@ fn set_expiry_out_of_range_is_rejected_without_killing_session() {
       .unwrap();
     assert_eq!(out, b"+OK\r\n");
 
-    let gate_seconds = (i64::MAX - now_ticks()) / TICKS_PER_SECOND;
-    let beyond_gate_sec_str = (gate_seconds + 1).to_string();
+    let overflow_seconds = ((i64::MAX - now_ticks()) / TICKS_PER_SECOND) + 1;
+    let overflow_sec_str = overflow_seconds.to_string();
     let max_i64_str = i64::MAX.to_string();
 
-    let mut assert_invalid_exp = |cmd: &[&[u8]], is_setex: bool| {
+    // 断言臂：命令应答 invalid-expire 帧且原值保留零写入（对标 C#
+    // AssertInvalidExpiry 局部函数；is_setex 区分 SETEX/PSETEX 与 SET 选项形）
+    fn assert_invalid_expiry(
+      s: &mut RespServerSession,
+      batch: &wnode_test::Batch<'_>,
+      cmd: &[&[u8]],
+      is_setex: bool,
+    ) {
       let mut out = Vec::new();
       if is_setex {
         s.network_setex(cmd, batch, None, &mut out).unwrap();
@@ -573,115 +678,63 @@ fn set_expiry_out_of_range_is_rejected_without_killing_session() {
       let mut get_out = Vec::new();
       s.network_get(&[KEY], batch, &mut get_out).unwrap();
       assert_eq!(get_out, b"$8\r\noriginal\r\n");
-    };
+    }
 
-    // SET KEY replacement EX gate+1（i64 可解析、超绝对过期 gate → invalid-expire）
-    assert_invalid_exp(
-      &[KEY, b"replacement", b"EX", beyond_gate_sec_str.as_bytes()],
+    // SET KEY replacement EX overflowSeconds（换算溢出 → invalid expire）
+    assert_invalid_expiry(
+      s,
+      batch,
+      &[KEY, b"replacement", b"EX", overflow_sec_str.as_bytes()],
       false,
     );
 
-    // SET KEY replacement PX i64::MAX（同 gate 裁决 → invalid-expire）
-    assert_invalid_exp(&[KEY, b"replacement", b"PX", max_i64_str.as_bytes()], false);
+    // SET KEY replacement PX i64::MAX（换算溢出 → invalid expire）
+    assert_invalid_expiry(
+      s,
+      batch,
+      &[KEY, b"replacement", b"PX", max_i64_str.as_bytes()],
+      false,
+    );
 
-    // SETEX KEY gate+1 replacement（同门）
-    assert_invalid_exp(&[KEY, beyond_gate_sec_str.as_bytes(), b"replacement"], true);
+    // SETEX KEY overflowSeconds replacement（换算溢出 → invalid expire）
+    assert_invalid_expiry(
+      s,
+      batch,
+      &[KEY, overflow_sec_str.as_bytes(), b"replacement"],
+      true,
+    );
 
-    // PSETEX KEY i64::MAX replacement（同门）
-    out.clear();
+    // PSETEX KEY i64::MAX replacement（换算溢出 → invalid expire）
+    let mut psetex_out = Vec::new();
     s.network_psetex(
       &[KEY, max_i64_str.as_bytes(), b"replacement"],
       batch,
       None,
-      &mut out,
+      &mut psetex_out,
     )
     .unwrap();
-    assert_eq!(out.as_slice(), INVALID_EXP);
+    assert_eq!(psetex_out.as_slice(), INVALID_EXP);
     let mut get_out = Vec::new();
     s.network_get(&[KEY], batch, &mut get_out).unwrap();
     assert_eq!(get_out, b"$8\r\noriginal\r\n");
 
-    // 非整数（非数字字面量 / 超 i64 幅值）仍走 not-integer 门（TryGetLong 先于 <=0）
-    out.clear();
-    s.network_setexnx(&[KEY, b"replacement", b"EX", b"abc"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out.as_slice(), NOT_INT);
-    out.clear();
-    s.network_setex(
-      &[KEY, b"99999999999999999999999", b"replacement"],
+    // int64 域内负数仍走 invalid-expire 门（C# expiry <= 0 校验在 TryGetLong 之后）
+    assert_invalid_expiry(s, batch, &[KEY, b"replacement", b"EX", b"-5"], false);
+    assert_invalid_expiry(s, batch, &[KEY, b"-5", b"replacement"], true);
+
+    // 越 i64 幅值 → not-integer（TryGetLong 解析失败先于值域校验）
+    let mut out = Vec::new();
+    s.network_setexnx(
+      &[KEY, b"replacement", b"EX", b"9223372036854775808"],
       batch,
       None,
       &mut out,
     )
     .unwrap();
     assert_eq!(out.as_slice(), NOT_INT);
-
-    // i64 域内负数仍走 invalid-expire 门（C# expiry <= 0 校验在 TryGetLong 之后）
-    let mut out = Vec::new();
-    s.network_setexnx(&[KEY, b"replacement", b"EX", b"-5"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out.as_slice(), INVALID_EXP);
-    out.clear();
-    s.network_setex(&[KEY, b"-5", b"replacement"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out.as_slice(), INVALID_EXP);
-  });
-}
-
-/// SETEX/PSETEX 过期参数 i64 值域（C# BasicCommands.cs:541 NetworkSETEX
-/// TryGetLong：越 i32 的合法值受理并落 TTL；超界大值由两段式 gate 兜底，
-/// 见 set_expiry_out_of_range_is_rejected_without_killing_session）
-#[test]
-fn setex_expiry_beyond_int32_accepted_with_ttl() {
-  with_batch(|s, batch| {
-    let mut out = Vec::new();
-    // SETEX 2147483648 秒（≈68 年，i32 上界外、gate 内）受理并落 TTL
-    s.network_setex(&[b"se", b"2147483648", b"v"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out, b"+OK\r\n");
-    let ttl = ttl_of_sync(batch, b"se").unwrap().value().unwrap().unwrap();
-    assert!(ttl > now_ticks() + 2_147_483_647 * TICKS_PER_SECOND);
-
-    // PSETEX 2147483648 毫秒（≈24.8 天，i32 上界外）受理并落 TTL
-    out.clear();
-    s.network_psetex(&[b"pe", b"2147483648", b"v"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out, b"+OK\r\n");
-    let ttl = ttl_of_sync(batch, b"pe").unwrap().value().unwrap().unwrap();
-    assert!(ttl > now_ticks() + 2_147_483_647 * TICKS_PER_MILLISECOND);
-  });
-}
-
-/// SET EX/PX 过期参数 i64 值域（C# BasicCommands.cs:653 NetworkSETEXNX
-/// TryGetLong：EX/PX 同根一处解析，越 i32 的合法值受理并落 TTL）；EXPIRE 族
-/// （KeyAdminCommands.cs TryGetLong）long 值域同谱
-#[test]
-fn set_ex_px_beyond_int32_accepted_with_ttl() {
-  with_batch(|s, batch| {
-    let mut out = Vec::new();
-    // EX 2147483648（≈68 年，i32 上界外、gate 内）受理并落 TTL
-    s.network_setexnx(&[b"k", b"v", b"EX", b"2147483648"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out, b"+OK\r\n");
-    let ttl = ttl_of_sync(batch, b"k").unwrap().value().unwrap().unwrap();
-    assert!(ttl > now_ticks() + 2_147_483_647 * TICKS_PER_SECOND);
-
-    // PX 2147483648（≈24.8 天，i32 上界外）受理并落 TTL
-    out.clear();
-    s.network_setexnx(&[b"k", b"v", b"PX", b"2147483648"], batch, None, &mut out)
-      .unwrap();
-    assert_eq!(out, b"+OK\r\n");
-    let ttl = ttl_of_sync(batch, b"k").unwrap().value().unwrap().unwrap();
-    assert!(ttl > now_ticks() + 2_147_483_647 * TICKS_PER_MILLISECOND);
-
-    // EXPIRE 族走 long 值域（C# TryGetLong），2147483648 仍受理
-    out.clear();
-    s.network_set(&[b"ek", b"v"], batch, None, &mut out)
-      .unwrap();
-    out.clear();
-    s.network_expire(ExpireCmd::Expire, &[b"ek", b"2147483648"], batch, &mut out)
-      .unwrap();
-    assert_eq!(out, b":1\r\n");
+    let mut get_out = Vec::new();
+    s.network_get(&[KEY], batch, &mut get_out).unwrap();
+    assert_eq!(get_out, b"$8\r\noriginal\r\n");
   });
 }
 
@@ -1323,7 +1376,7 @@ fn can_select_command() {
     assert_eq!(out, b"-ERR DB index is out of range.\r\n");
 
     // 线面值域按 C# TryGetInt（SessionParseState.cs:TryGetInt →
-    // ParseUtils.cs:TryReadInt，int32 档 + 整段消费；现版 garnet ParseUtils 显式 allowLeadingZeros:false，两侧文法全等，见 doc/zh/deviations.md §32）逐组对位：
+    // ParseUtils.cs:TryReadInt，int32 档 + 整段消费；前导零拒收系 rust 严格收口，C# 死参放行 007，见 doc/zh/deviations.md §32）逐组对位：
     // 超 int32 属「不是整数」档，int32 域内负数与域内越界属「库号越界」档
     for (raw, want) in [
       // i32 上界本身合法，落 MaxDatabases 门

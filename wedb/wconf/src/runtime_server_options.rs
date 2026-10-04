@@ -7,7 +7,7 @@ use crate::node_options::{
   DEFAULT_AOF_TAIL_WITNESS_FREQ_MS, DEFAULT_CLUSTER_REPLICATION_REESTABLISHMENT_TIMEOUT,
   DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS,
   DEFAULT_EXPIRED_OBJECT_COLLECTION_FREQUENCY_SECS, DEFAULT_HLOG_PAGE_SIZE, DEFAULT_MAX_DATABASES,
-  DEFAULT_OBJECT_SCAN_COUNT_LIMIT, DEFAULT_ON_DEMAND_CHECKPOINT,
+  DEFAULT_NETWORK_CONNECTION_LIMIT, DEFAULT_OBJECT_SCAN_COUNT_LIMIT, DEFAULT_ON_DEMAND_CHECKPOINT,
   DEFAULT_REPLICA_ATTACH_TIMEOUT_SECS, DEFAULT_REPLICA_SYNC_DELAY_MS,
   DEFAULT_REPLICA_SYNC_TIMEOUT_SECS, DEFAULT_SLOW_LOG_MAX_ENTRIES, DEFAULT_SLOW_LOG_THRESHOLD,
   DEFAULT_VECTOR_SET_QUANTIZATION_TASK_COUNT, INFINITE_SYNC_TIMEOUT_SECS,
@@ -105,6 +105,10 @@ pub struct RuntimeServerOptions {
   pub expired_object_collection_frequency_secs: i32,
   /// libs/server/Servers/GarnetServerOptions.cs:ExpiredKeyDeletionScanFrequencySecs（默认 -1：禁用）。
   pub expired_key_deletion_scan_frequency_secs: i32,
+  /// libs/server/Servers/GarnetServerOptions.cs:NetworkConnectionLimit
+  ///（PR #2157 默认 10000 对齐 Redis maxclients；-1 = 不限）：进程级连接
+  /// 准入上限，播种 MAXCLIENTS 运行时槽位（CONFIG GET/SET 面）
+  pub network_connection_limit: i32,
 
   // —— 启动播种、CONFIG 只读回显字段（启动期经选项装配物理层；CONFIG GET 经
   // 选项直读回显，无运行时槽位）——
@@ -224,6 +228,7 @@ impl Default for RuntimeServerOptions {
       commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
       expired_object_collection_frequency_secs: DEFAULT_EXPIRED_OBJECT_COLLECTION_FREQUENCY_SECS,
       expired_key_deletion_scan_frequency_secs: DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS,
+      network_connection_limit: DEFAULT_NETWORK_CONNECTION_LIMIT,
       enable_aof: false,
       hlog_page_size: DEFAULT_HLOG_PAGE_SIZE,
       max_databases: DEFAULT_MAX_DATABASES,

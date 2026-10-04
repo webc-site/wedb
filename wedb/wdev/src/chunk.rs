@@ -144,4 +144,23 @@ impl Iterator for SegmentChunks {
 
     Some(Ok(chunk))
   }
+
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    if self.buf_pos >= self.total_len {
+      return (0, Some(0));
+    }
+    let remaining_bytes = self.total_len - self.buf_pos;
+    let off_in_seg = self.curr_offset & self.mask;
+    let first_chunk = usize::try_from(self.segment_size - off_in_seg).unwrap_or(usize::MAX);
+    if remaining_bytes <= first_chunk {
+      (1, Some(1))
+    } else {
+      let rem_after_first = remaining_bytes - first_chunk;
+      let additional = (rem_after_first as u64).div_ceil(self.segment_size) as usize;
+      let count = 1 + additional;
+      (count, Some(count))
+    }
+  }
 }
+
+impl ExactSizeIterator for SegmentChunks {}

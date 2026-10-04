@@ -4,7 +4,10 @@
 use std::{iter::once, str};
 
 use wbase::map::HashSet;
-use wlua::{LuaLoggingMode, LuaMemoryManagementMode, LuaOptions, LuaRunner, RespObject};
+use wlua::{
+  LuaLoggingMode, LuaMemoryManagementMode, LuaOptions, LuaRunner, RespObject,
+  loader::LuaRunnerLoader,
+};
 
 const EXPORTED_FUNCS: &[(&str, &[&str])] = &[
   (
@@ -126,6 +129,43 @@ fn assert_is_nil(resp: &RespObject, msg: &str) {
 
 fn assert_is_not_nil(resp: &RespObject, msg: &str) {
   assert_ne!(resp_as_str(resp), "nil", "{msg}");
+}
+
+/// test/standalone/Garnet.test.scripting/LuaScriptRunnerTests.cs:TryCompileSourceRejectsBinaryAndInvalidInput
+///
+/// 编译边界三态（上游 #2138 拒不可信 Lua 字节码）。C# 侧 TryCompileSource
+/// 即时产出字节码（\x1bLua 头）并打 GarnetGeneratedBinary 标；Luau 无
+/// string.dump，产物不出 VM——rust 对标面 = 缓存入口前置门
+/// （LuaRunnerLoader::try_compile_source）+ 装载期编译（compile_for_runner）：
+/// - 合法源码 → 编译成功（C# 以产物字节码头锁定，rust 以编译成功锁定）
+/// - 外部字节码（\x1b chunk 魔术头）→ 前置门拒绝，报 "binary chunk"
+/// - 非法源码 → 编译拒绝，报解析错误
+#[test]
+fn try_compile_source_rejects_binary_and_invalid_input() {
+  // Valid source is compiled explicitly（前置门放行 + 装载编译成功）
+  assert_eq!(
+    LuaRunnerLoader::try_compile_source(b"return 1").unwrap(),
+    b"return 1".to_vec()
+  );
+  let mut runner = new_runner("return 1");
+  let mut out = Vec::new();
+  assert!(runner.compile_for_runner(&mut out).is_ok());
+
+  // Externally provided bytecode must not be accepted as source
+  // (\x1bLua = Lua chunk 魔术头，C# 侧产物头同源)
+  let binary_chunk = b"\x1bLua\x54\x00\x19\x93\r\n\x1a\n";
+  let gate_err = LuaRunnerLoader::try_compile_source(binary_chunk).unwrap_err();
+  assert!(gate_err.contains("binary chunk"), "got {gate_err}");
+  let opts = LuaOptions::default();
+  let mut runner = LuaRunner::with_options(&opts, binary_chunk, "0.0.0.0").unwrap();
+  let mut out = Vec::new();
+  let err = runner.compile_for_runner(&mut out).unwrap_err();
+  assert!(err.contains("binary chunk"), "got {err}");
+
+  // Invalid source must report an error（Luau 解析诊断承接 C# unexpected symbol）
+  let mut runner = new_runner("return )");
+  let err = compile_and_run(&mut runner).unwrap_err();
+  assert!(err.contains("Expected identifier"), "got {err}");
 }
 
 /// test/standalone/Garnet.test.scripting/LuaScriptRunnerTests.cs:CannotRunUnsafeScript

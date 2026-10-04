@@ -436,7 +436,7 @@ fn sintercard_limit_align() {
       .unwrap();
     assert_eq!(out, b"-ERR LIMIT can't be negative\r\n");
 
-    // LIMIT 负溢出超 i32 下界：C# RespReadUtils.TryReadInt overflow → 非整数错误
+    // LIMIT 负溢出超 i32 下界：C# TryReadInt32Safe overflow → 非整数错误
     out.clear();
     s.set_intersect_length(
       a![b"2", b"ic1", b"ic2", b"LIMIT", b"-3000000000"],
@@ -446,7 +446,7 @@ fn sintercard_limit_align() {
     .unwrap();
     assert_eq!(out, b"-ERR value is not an integer or out of range.\r\n");
 
-    // LIMIT 超 i32 上界：C# RespReadUtils.TryReadInt 失败 → 非整数错误
+    // LIMIT 超 i32 上界：C# TryReadInt32Safe 失败 → 非整数错误
     out.clear();
     s.set_intersect_length(
       a![b"2", b"ic1", b"ic2", b"LIMIT", b"99999999999"],

@@ -35,7 +35,6 @@ impl InfoProvider for MockInfoProvider {
       total_connections_active: 5,
       total_connections_received: 10,
       total_connections_disposed: 5,
-      rejected_connections: 3,
       ..Default::default()
     })
   }
@@ -116,22 +115,5 @@ fn test_get_info_metrics_multi() {
     stats_items
       .iter()
       .any(|item| item.name == "total_connections_active" && item.value == "5")
-  );
-  // 拒连行渲染（容量门拒连计数经快照透出 INFO STATS）
-  assert!(
-    stats_items
-      .iter()
-      .any(|item| item.name == "rejected_connections" && item.value == "3")
-  );
-  // 行位锁定 C# GarnetInfoMetrics.cs:194：rejected_connections 紧随
-  // total_connections_disposed 之后
-  let disposed_idx = stats_items
-    .iter()
-    .position(|item| item.name == "total_connections_disposed")
-    .expect("disposed 行在位");
-  assert_eq!(
-    stats_items[disposed_idx + 1].name,
-    "rejected_connections",
-    "rejected_connections 行位须紧随 total_connections_disposed"
   );
 }

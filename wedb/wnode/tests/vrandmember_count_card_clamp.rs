@@ -11,7 +11,6 @@
 //! sample 按 count 两笔 vec 预分配（12B/ID，`VRANDMEMBER key 2147483647`
 //! ≈ 25.7GB + 8.6GB），分配失败默认 abort 整进程（拒绝服务面）；同族
 //! VSIM COUNT 有 MAX_RETRIEVE_COUNT 门，本命令以 card 承担对称防御。
-
 use std::{fs::remove_dir_all, sync::Arc};
 
 use wbase::hash_slot::slot_of;

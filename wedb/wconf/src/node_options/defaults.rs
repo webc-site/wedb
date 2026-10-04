@@ -52,9 +52,16 @@ pub const DEFAULT_EXPIRED_OBJECT_COLLECTION_FREQUENCY_SECS: i32 = 0;
 pub const DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS: i32 = -1;
 /// 默认指标监视器采样周期秒数（0 = 禁用采样任务）
 pub(crate) const DEFAULT_METRICS_SAMPLING_FREQUENCY_SECS: u64 = 0;
-/// 默认最大并发网络连接数（-1 = 不限；对标 defaults.conf:304
-/// NetworkConnectionLimit = -1 与 GarnetServerOptions.cs:347）
-pub(crate) const DEFAULT_NETWORK_CONNECTION_LIMIT: i32 = -1;
+/// 默认最大并发网络连接数（对标上游 PR #2157 后 defaults.conf:309
+/// NetworkConnectionLimit = 10000 与 GarnetServerOptions.cs:362
+/// DefaultNetworkConnectionLimit = 10000——对齐 Redis maxclients 默认；
+/// -1 = 不限，运行时经 CONFIG SET maxclients 可调）
+pub const DEFAULT_NETWORK_CONNECTION_LIMIT: i32 = 10000;
+/// 默认网络缓冲内存预算字节（对标 GarnetServerOptions.cs
+/// DefaultNetworkBufferMemoryBudget = 1L << 30 与 defaults.conf:342 "1g"：
+/// 连接少时宽松、每连接全额基准规格；预算 ÷ 活跃缓冲数低于基准规格时新
+/// 缓冲基准向下适配（接收地板 16K）。0 = 禁用自适应）
+pub const DEFAULT_NETWORK_BUFFER_MEMORY_BUDGET: i64 = 1 << 30;
 /// 日志文件刷盘间隔毫秒数（0 = 逐行立即刷盘；对标 C#
 /// GarnetServer.cs:128 `builder.AddFile(serverSettings.FileLogger)` 省略
 /// flushInterval 形参，取 FileLoggerProvider.cs:26 `int flushInterval = default`

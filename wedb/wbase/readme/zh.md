@@ -13,42 +13,12 @@
 
 ## 模块划分与特性（按需启用，无 full）
 
-模块即特性，路径即 `wbase::<module>`；`ascii` / `heap` / `keyfmt` / `ns_prefix` 四者无条件编译。下表 32 模块对照 `src/lib.rs` 的 `pub mod`，职责取自各模块 `//!` 头。
-
-| 特性名 | 模块路径 | 职责说明 | 外部依赖 |
-| :--- | :--- | :--- | :--- |
-| （无条件） | `wbase::ascii` | ASCII 规范化与折叠原语（对标 C# `ASCIIEncoding.GetString`） | 无（纯标准库） |
-| `addr` | `wbase::addr` | 48 位逻辑/物理地址掩码、ReadCache 标记、`LogAddress` 强类型封装 | 无（纯标准库位运算） |
-| `align` | `wbase::align` | 64B 缓存行、512B/4096B 扇区对齐校验与防溢出计算 | 无（纯标准库位运算） |
-| `backoff` | `wbase::backoff` | 三阶自适应退避状态机（自旋 → yield 让核 → 微秒休眠） | 无（支持异步 reactor 让渡） |
-| `base32` | `wbase::base32` | 零堆分配、保序小写 Base32（RFC 4648 Base32hex）编解码，面向快照与刷盘文件名 | 无（纯标准库） |
-| `buf` | `wbase::buf` | 栈优先 / 堆回退双态字节缓冲（`StackHeapBuf` 常量泛型） | 无（纯标准库） |
-| `cfg` | `wbase::cfg` | 跨 crate 基座配置：互不应依赖的消费方共用的判据（紧缩档位、逻辑库界限） | 无（纯标准库） |
-| `convert` | `wbase::convert` | 数据原语换算（对标 `libs/common/ConvertUtils.cs`，时间面统一 coarsetime） | 级联 `time` |
-| `crc` | `wbase::crc` | 高吞吐 CRC32 校验和（硬件指令加速），WAL / 检查点封签 / 段完整性单点 | `crc32fast` |
-| `crc64` | `wbase::crc64` | CRC64 查表实现，逐位兼容 Garnet `Crc64.cs` | 无（纯标准库查表） |
-| `endpoint` | `wbase::endpoint` | 套接字端点判定单源：Unix 域套接字路径形态与 typed 回环判定 | 无（纯标准库） |
-| `error` | `wbase::error` | 公共错误类型定义 | `thiserror` |
-| `future` | `wbase::future` | 异步协程协作原语与 Future 辅助（`block_on` 纯 park 驱动器） | 无（纯标准库） |
-| `glob` | `wbase::glob` | 无分配 Glob 通配符匹配（非递归贪心 FSM，O(N) 典型复杂度，对齐 Redis 规范） | 无（纯标准库） |
-| `group_commit` | `wbase::group_commit` | Group Commit 公共流水线骨架：协商 / Follower 登记 / Leader 级联循环 | `parking_lot`、`thiserror`、`crossfire` |
-| `hash` | `wbase::hash` | 逐位兼容哈希算法库（精确移植 Garnet `HashUtils.cs`） | 无（纯标准库） |
-| （无条件） | `wbase::heap` | 集合对象堆内存记账常量：`heap_memory_size` 加减运算唯一具名口径 | 无（纯标准库） |
-| `hash_slot` | `wbase::hash_slot` | 集群槽位内核：`Slot = Mixer(namespace, active_db)` | `whasher` |
-| `hex` | `wbase::hex` | 十六进制编解码微工具单点 | `fastrand` |
-| （无条件） | `wbase::keyfmt` | 日志面键预览单点：错误臂键打印统一截断 | 无（纯标准库） |
-| `map` | `wbase::map` | 并发字典与集合（`ConcurrentMap` / `ConcurrentSet`，`set` 特性与 `map` 共启本模块） | `papaya`、`gxhash`、`fastrand` |
-| `num` | `wbase::num` | 严格数字语法解析与转换（对标 `NumUtils.cs`） | 无（纯标准库） |
-| （无条件） | `wbase::ns_prefix` | 会话域隔离前缀编解码（多租户 ns + db 前缀，wedb 自有架构） | 无（纯标准库） |
-| `pool` | `wbase::pool` | 扇区对齐缓冲池：Origin-Return 三级缓存、`AlignedBuf`、网络 `LimitedFixedBufferPool` | `parking_lot`、`compio-buf`、`gxhash`、`crossfire` |
-| `primed` | `wbase::primed` | TLS 追加读缓冲空闲段初始化契约与记忆化清零缓冲 | `compio-buf` |
-| `simd` | `wbase::simd` | SIMD 硬件向量化切片比对（键查找、版本链追溯、去重） | `fearless_simd` |
-| `striped` | `wbase::striped` | 键哈希分段 / 条带读写锁（128B `CachePadded` 槽位） | `parking_lot`，级联 `align` |
-| `thread` | `wbase::thread` | 高吞吐 TLS 全局唯一单调递增线程标识 `current_thread_id()` | 无（TLS 寄存器级访问） |
-| `time` | `wbase::time` | 时间戳工具（coarsetime / VDSO，`now_ms` / `now_ticks`） | `coarsetime` |
-| `store_type` | `wbase::store_type` | 存储面分类枚举（对标 `StoreType.cs:StoreType`） | `num_enum`、`strum` |
-| `supervise` | `wbase::supervise` | 后台任务 panic 监督单点（`catch_unwind` 全仓一处封装） | `log`、`parking_lot` |
-| `varint` | `wbase::varint` | 保序变长整数编解码原语（OPPV，面向有序复合键） | 无（纯标准库） |
+| 特性名    | 模块路径         | 职责说明                                                        | 外部依赖                    |
+| :-------- | :--------------- | :-------------------------------------------------------------- | :-------------------------- |
+| `addr`    | `wbase::addr`    | 48 位逻辑/物理地址掩码、ReadCache 标记、`LogAddress` 强类型封装 | 无（纯标准库位运算）        |
+| `align`   | `wbase::align`   | 64B 缓存行、512B/4096B 扇区对齐校验与防溢出计算                 | 无（纯标准库位运算）        |
+| `backoff` | `wbase::backoff` | 三阶自适应退避状态机（自旋 → yield 让核 → 微秒休眠）            | 无（支持异步 reactor 让渡） |
+| `thread`  | `wbase::thread`  | 高吞吐 TLS 全局唯一单调递增线程标识 `current_thread_id()`       | 无（TLS 寄存器级访问）      |
 
 ## 核心 API 与原语
 

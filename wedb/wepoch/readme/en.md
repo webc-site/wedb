@@ -2,21 +2,21 @@
 
 ## Introduction
 
-wepoch provides Garnet Tsavorite-style lock-free epoch protection: it manages epoch lifecycle for concurrent participants, decides when memory can be safely reclaimed (SMR), and offers structured suspend/drain coordination.
+wepoch provides Garnet Tsavorite-style lock-free epoch protection: it manages epoch lifecycle for concurrent participants, decides when memory can be safely reclaimed (SMR), and offers epoch-protected scratch user words.
 
 Both the participant entry and the manager are 64-byte cacheline aligned to eliminate false sharing; layouts are pinned by compile-time const asserts.
 
 ## Module Layout
 
-- `entry`: `EpochEntry`, a 64B cacheline-aligned epoch entry (8B epoch + 8B thread_id + 4B reentrant + 1B reserved + 3B padding = 24B payload in a 64B cacheline)
+- `entry`: `EpochEntry`, a 64B cacheline-aligned epoch entry (8B epoch + 8B thread_id + 4B reentrant + 1B reserved + 3B padding + 40B user words = 64B)
 - `epoch`: `LightEpoch` manager, `Participant`, RAII guards, per-thread TLS state
 - `error`: error types
 
 ## Core API
 
-- `LightEpoch`: `register` (→ `Result<Participant>`) / `resume` / `suspend` / `bump_current_epoch` / `bump_current_epoch_action[_relaxed]` / `compute_safe_to_reclaim_epoch` / `is_safe_to_reclaim` / `drain` / `bump_and_wait` / `wait_condition_sync/async` / `thread_protected`（另有 `try_suspend` / `protect_and_drain` / `safe_to_reclaim_epoch` / `entry_count` 等 debug 门控诊断面）
+- `LightEpoch`: `register` / `resume` / `suspend` / `protect_and_drain` / `bump_epoch` / `safe_to_reclaim_epoch` / `drain` / `bump_and_wait`; `DEFAULT_MAX_THREADS = 128`
 - `Participant`: `enter` / `refresh` / `exit`
-- `EpochSuspendGuard`: RAII suspend-depth guard (`wait_condition_*` companion), release restores original depth
+- `current_thread_id()`: globally unique nonzero per-thread id (basis of TLS slot binding)
 - `EpochGuard`: RAII protection entry, exits automatically on Drop
 - `ProtectedScope`: RAII protection suspension (`!Send + !Sync`, must not cross threads)
 - `EpochEntry`: participant entry (owns a full 64B cacheline)

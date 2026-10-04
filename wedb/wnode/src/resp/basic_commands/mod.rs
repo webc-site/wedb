@@ -973,7 +973,7 @@ pub(crate) struct HelloArgs<'a> {
 pub(crate) enum HelloParseError<'a> {
   /// 参数超上界（C# :1441-1445 count > 6 wrong arity 门）
   TooManyArgs,
-  /// 协议版本位非整数（C# NetworkHELLO TryGetInt 门）
+  /// 协议版本位非整数（C# :1455-1458 TryGetInt 门）
   ProtocolNotInteger,
   /// 协议版本越界 2..=3（C# :1460-1463）
   UnsupportedProtocolVersion,
@@ -1010,7 +1010,7 @@ pub(crate) fn parse_hello_args<'a>(
   }
 
   let mut token_idx = 0usize;
-  // 校验协议版本（溢出走 not-integer 对标 C# NetworkHELLO TryGetInt；前导零拒收与现 C# ParseUtils.TryReadInt allowLeadingZeros:false 全等，旧注「死参放行 007」前提已失效，见 doc/zh/deviations.md §32）
+  // 校验协议版本（溢出走 not-integer 对标 C# TryGetInt；前导零拒收系 rust 严格文法收口，C# TryGetInt 因死参放行 007 落 unsupported version 门，见 doc/zh/deviations.md §32）
   let Some(local_resp_protocol_version) = strict_i32(parse_state[token_idx]) else {
     return Err(HelloParseError::ProtocolNotInteger);
   };

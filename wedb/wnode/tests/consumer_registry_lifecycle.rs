@@ -38,47 +38,39 @@ fn wait_terminate_returns_when_already_terminated() {
   rt.block_on(entry.wait_terminate());
 }
 
-/// 在途守卫容量门（C# GarnetServerTcp.cs:236-241/302-307 语义）：
-/// limit=2 时第三条拒绝，释放后可再进；Drop 配对归零；
-/// 拒连计数（INFO STATS rejected_connections 数据源，C#
-/// RejectConnection → IncrementConnectionsRejected 对位）仅在拒绝臂递增
+/// 在途守卫容量门（C# GarnetServerTcp.cs:236-241/302-307 语义；PR #2157 后
+/// 上限驻注册表原子槽，set_connection_limit 写入）：
+/// limit=2 时第三条拒绝并计数 rejected，释放后可再进；Drop 配对归零
 #[test]
 fn connection_guard_enforces_limit() {
   let registry = Arc::new(ConsumerRegistry::new());
-  let g1 = registry.try_acquire_connection(2).unwrap();
-  let g2 = registry.try_acquire_connection(2).unwrap();
+  registry.set_connection_limit(2);
+  let g1 = registry.try_acquire_connection().unwrap();
+  let g2 = registry.try_acquire_connection().unwrap();
   assert_eq!(registry.active_handler_count(), 2);
-  // 放行臂不递增拒连计数
-  assert_eq!(registry.total_connections_rejected(), 0);
-  // 超限拒绝：计数即刻回退，不留在途泄漏
-  assert!(registry.try_acquire_connection(2).is_none());
+  // 超限拒绝：在途计数即刻回退，不留在途泄漏（拒绝计数在 accept 层
+  // admit_connection 的拒绝分支计，容量门本体不重复计——见
+  // connection_limit_admission.rs 端到端锁档）
+  assert!(registry.try_acquire_connection().is_none());
   assert_eq!(registry.active_handler_count(), 2);
-  // 拒绝臂递增拒连计数，且后续拒绝继续累加
-  assert_eq!(registry.total_connections_rejected(), 1);
-  assert!(registry.try_acquire_connection(2).is_none());
-  assert_eq!(registry.total_connections_rejected(), 2);
-  // INFO RESET STATS 复位对（C# ResetConnectionsRejected：不追踪存活
-  // 总体，恒归零）
-  registry.reset_connection_totals();
   assert_eq!(registry.total_connections_rejected(), 0);
 
   drop(g1);
   assert_eq!(registry.active_handler_count(), 1);
   // 断言产生的临时守卫语句结束即释放，计数回到 1
-  assert!(registry.try_acquire_connection(2).is_some());
-  // 释放后额度复用的放行臂不回补拒连计数
-  assert_eq!(registry.total_connections_rejected(), 0);
+  assert!(registry.try_acquire_connection().is_some());
   drop(g2);
   // 全部释放归零（无漂移），额度可复用
   assert_eq!(registry.active_handler_count(), 0);
 }
 
-/// limit=-1 不限（与现状逐字节一致：恒放行），拒连计数零递增
+/// limit=-1 不限（缺省形态恒放行、拒绝计数恒 0）；运行时写穿调升调低同源
 #[test]
 fn connection_guard_unlimited_when_minus_one() {
   let registry = Arc::new(ConsumerRegistry::new());
+  assert_eq!(registry.connection_limit(), -1);
   let guards: Vec<_> = (0..64)
-    .map(|_| registry.try_acquire_connection(-1).unwrap())
+    .map(|_| registry.try_acquire_connection().unwrap())
     .collect();
   assert_eq!(registry.active_handler_count(), 64);
   assert_eq!(registry.total_connections_rejected(), 0);
@@ -94,7 +86,7 @@ fn connection_guard_concurrent_no_drift() {
     .map(|_| {
       let reg = Arc::clone(&registry);
       thread::spawn(move || {
-        let held: Vec<_> = (0..50).map(|_| reg.try_acquire_connection(-1)).collect();
+        let held: Vec<_> = (0..50).map(|_| reg.try_acquire_connection()).collect();
         drop(held);
       })
     })
@@ -146,7 +138,7 @@ fn dispose_waits_for_in_flight_count_drain() {
   rt.block_on(async move {
     // 先取在途守卫（未注册条目）使 count==1 确定性在册，再启动 dispose——
     // 旧形延后 acquire 靠竞速覆盖：dispose 先行收敛则守卫从未与排水窗重叠
-    let guard = Arc::clone(&reg).try_acquire_connection(-1);
+    let guard = Arc::clone(&reg).try_acquire_connection();
     assert!(guard.is_some(), "在途守卫必须可取（装配前提）");
     assert_eq!(reg.active_handler_count(), 1, "守卫在册即 count==1");
     // 模拟 accept 与 register 间隙的在途连接收场：短延后释放守卫

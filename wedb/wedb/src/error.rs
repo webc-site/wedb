@@ -40,11 +40,6 @@ pub enum Error {
   /// RLE 槽位段指向不存在的 worker 下标（越界属主会击穿槽位投影方法）
   #[error("slot segment references unknown worker id: {0}")]
   SlotWorkerId(u16),
-  /// 配置载荷 worker 宣告端口越界（负数或 >65535；放行会在端点换算
-  /// `as u16` 静默回绕成非法可达端点，C# 同场景 IPEndPoint 构造抛
-  /// ArgumentOutOfRange fail-loud）
-  #[error("cluster config worker port out of 0..=65535 range: {0}")]
-  WorkerPort(i32),
   /// 集群 worker 尚未初始化（无本地节点）
   #[error("workers not initialized")]
   NoWorkers,

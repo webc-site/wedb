@@ -13,6 +13,14 @@ pub enum Error {
   #[error("缓冲区长度不足: 期望至少 {expected} 字节，实际仅 {actual} 字节")]
   BufferTooShort { expected: usize, actual: usize },
 
+  /// 值长度超出 u32 上限
+  #[error("值长度超出 u32 上限: {0}")]
+  ValueLengthOverflow(usize),
+
+  /// 编码总长度溢出 usize 寻址空间
+  #[error("编码总大小溢出 usize 寻址空间")]
+  RecordSizeOverflow,
+
   /// 非法或未知的键命名空间标签
   #[error("非法或未知的键标签字节: {0:#x}")]
   InvalidKeyTag(u8),
@@ -29,6 +37,10 @@ pub enum Error {
   /// 绝不静默折叠为 Compact——缺数据优于错数据）
   #[error("非法或未知的存储编码字节: {0:#x}")]
   InvalidStorageEncoding(u8),
+
+  /// 参数非法
+  #[error("参数非法: {0}")]
+  InvalidArgument(&'static str),
 
   /// 变长整型编码非规范或存在冗余/非法前缀
   #[error("变长整型编码非规范或存在冗余/非法前缀")]

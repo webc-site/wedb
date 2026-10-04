@@ -137,6 +137,9 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
     // (-1, int.MaxValue)，defaults.conf:304 默认 -1 不限；经 GarnetServer.cs:294
     // 传入 GarnetServerTcp 的同一装配位）
     let network_connection_limit = i64::from(node_args.network_connection_limit);
+    // 网络缓冲内存预算（PR #2157，C# GarnetServerOptions.GetNetworkBufferBudget
+    // 装配段：None 回落默认 1GiB、0 禁用自适应；一份预算全监听器共享）
+    let network_buffer_budget_bytes = node_args.network_buffer_memory_budget_bytes();
     // QuietMode 启动静默（C# Options.cs:363-364 QuietMode；消费门禁
     // GarnetServer.cs:174 横幅与 :535 `* Ready to accept connections` 就绪文本）：
     // 置位即不输出监听就绪横幅
@@ -191,7 +194,8 @@ impl<A: ServerArgs, C: ClusterProvider + Clone> ServerBootstrap<A, C> {
         };
 
       let mut server = GarnetServer::new(&endpoints, network_buffer_size, session_provider)?
-        .with_network_connection_limit(network_connection_limit);
+        .with_network_connection_limit(network_connection_limit)
+        .with_network_buffer_budget_bytes(network_buffer_budget_bytes);
       if let Some(coord) = shutdown_coordinator {
         server = server.with_shutdown_coordinator(coord);
       }

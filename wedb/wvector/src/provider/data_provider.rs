@@ -597,6 +597,7 @@ impl<T: ToDistanceComputer, S: StoreCallbacks> WedbProvider<T, S> {
 
     true
   }
+
 }
 
 impl<T: ToDistanceComputer, S: StoreCallbacks> DataProvider for WedbProvider<T, S> {

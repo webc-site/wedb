@@ -70,6 +70,18 @@ pub(super) const DEFAULT_RECV_BUFFER_CAPACITY: usize = 1 << 16;
 /// 「单连接挂起窗驻留硬顶」形态。与出向 OUTPUT_WATERMARK_BYTES 同量级但语义独立
 pub const PROBE_PRESERVE_WATERMARK: usize = 1 << 17;
 
+/// 会话缓冲 trim 间隔批数（PR #2157，C# RespServerSession.cs:442-446
+/// SessionTrimInterval = 64）：为一条宽命令长出的缓冲因此在两个间隔内释放；
+/// 每批都需要该容量的会话至多每两个间隔重分配一次。批边界驱动单个倒计数，
+/// 无论多少缓冲设帽，批边界只付一次递减
+pub const SESSION_TRIM_INTERVAL: u32 = 64;
+
+/// 解析态根缓冲可无限期保留的参数容量上限（C# GarnetServerOptions.cs
+/// DefaultSessionParseStateMaxRetainedArgs = 1024——C# 侧降为非 CLI 的
+/// options 属性，rust 取同值常量；远高于常规命令元数，常规负载永不触发
+/// 收缩路径）
+pub const SESSION_PARSE_STATE_MAX_RETAINED_ARGS: usize = 1024;
+
 /// 输出缓冲默认驻留容量（在 garnet 中的相对路径:libs/common/Networking/GarnetTcpNetworkSender.cs:GarnetTcpNetworkSender
 /// ——C# 发送侧水位即构造传入的 NetworkBufferSettings.sendBufferSize；rust 会话以
 /// 平铺 Vec 承载 output，初始构造回归此水位；与接收水位同为 64KB 但语义独立，C# 两域各为独立配置，禁止混用）
@@ -159,6 +171,12 @@ pub struct RespServerSession {
 
   /// 解析态（C# parseState）
   pub parse_state: SessionParseState,
+  /// 距下次会话缓冲 trim 的剩余批数（PR #2157，C# sessionTrimCountdown）：
+  /// 批边界单次递减 + 可预测分支，冷 trim 每 64 批一次
+  pub(super) session_trim_countdown: u32,
+  /// 上次 trim 观察到的解析态根缓冲容量（C# parseStateLengthAtLastTrim）：
+  /// 未增长即「容量没在挣钱」的需求信号
+  pub(super) parse_state_len_at_last_trim: usize,
   /// 接收缓冲（C# recvBufferPtr 固定接收缓冲的托管等价；parser 分片读写）
   pub recv_buffer: Vec<u8>,
   /// 接收缓冲空闲段初始化代际（TLS 读整段清零随缓冲付一次的跨读记忆，
@@ -427,6 +445,8 @@ impl RespServerSession {
       latency_metrics,
       pending_latency,
       parse_state: SessionParseState::new(),
+      session_trim_countdown: SESSION_TRIM_INTERVAL,
+      parse_state_len_at_last_trim: 0,
       recv_buffer: Vec::with_capacity(DEFAULT_RECV_BUFFER_CAPACITY),
       recv_prime_key: None,
       bytes_read: 0,
@@ -492,6 +512,17 @@ impl RespServerSession {
     //（GetDefaultUserHandle 兜底）；ACL 档挂载前为空操作
     session.authenticate_user(options.default_user.as_bytes(), &[]);
     session
+  }
+
+  /// 接收缓冲基准规格（PR #2157 预算钳制施加面，C# BaseReceiveBufferSize =
+  /// `budget.ClampReceiveBufferSize(configuredReceiveBufferSize)`）：预算缺省
+  /// 或未挂池即配置驻留水位原样返回，零行为变化
+  #[inline]
+  pub(super) fn recv_base_capacity(&self) -> usize {
+    match &self.listener_buffer_pool {
+      Some(p) => p.recv_base_size(DEFAULT_RECV_BUFFER_CAPACITY),
+      None => DEFAULT_RECV_BUFFER_CAPACITY,
+    }
   }
 
   /// 当前认证用户名（C# `targetSession._userHandle?.User.Name` 的直读投影；
@@ -583,6 +614,16 @@ impl RespServerSession {
       cluster.dispose();
     }
     self.cluster_provider = None;
+    // 会话接收缓冲的预算归还配对点（attach_buffer_pool 入账的对偶；连接
+    // 收场即释放一个活跃缓冲计数）
+    if let Some(b) = self
+      .listener_buffer_pool
+      .take()
+      .as_ref()
+      .and_then(|p| p.budget())
+    {
+      b.on_buffer_released();
+    }
     // 在途事务废弃收口（事务收口单点的会话析构侧调用面）：泵三臂之外的全部
     // 退出路径——QUIT / 对端 EOF / 协议违规 / 致命断连 / 停机排空 / 收场尾巴
     // ——都汇聚到本 dispose，Running 态事务在此补投 AOF 废弃终结符后复位，

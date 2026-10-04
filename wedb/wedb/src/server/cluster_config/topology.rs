@@ -234,50 +234,20 @@ impl ClusterConfig {
 
   /// libs/cluster/Server/ClusterConfig.cs:MergeWorkerInfo
   ///
-  /// 原地合并单个 worker。epoch 三分支语义对齐 C#（ClusterConfig.cs:1143-1166）：
-  /// - 更低 epoch 拒绝（C#:1143）
-  /// - 等值 epoch 仅 owner（条目即发送方自身，判定来源见 [`Self::merge`]）
-  ///   可替换端点三字段 address/port/hostname（C#:1150-1166）：节点以相同
-  ///   epoch 重启且宣告端点漂移后的自愈通道；非 owner（第三方转述）一律
-  ///   拒绝（C#:1152-1154「仅 owner 可替换已知端点」，本版 Worker 无
-  ///   ClusterAddress 对等端点字段、端点恒已知，恒拒即该臂的忠实形态）；
-  ///   端点全等零变化快速返回（C#:1155-1158）。等值路径只覆盖端点，role/
-  ///   replica_of/epoch 不随等值 gossip 传播，replication_offset 保留本地值
-  /// - 更高 epoch 落 C#:1168 break → 1186-1195 全字段更新路径，仅复制
-  ///   7 个元数据字段（不含 replication_offset——副本位点不随 gossip 传播）
-  ///
-  /// 未知节点无条件追加（C#:1175-1197，owner 判定不约束追加臂）。
-  /// 返回是否发生变化。
+  /// 原地合并单个 worker：同名节点仅在 epoch 严格更大时更新，否则追加。
+  /// 返回是否发生变化。对齐 C# 仅复制 7 个元数据字段（不含
+  /// replication_offset——副本位点不随 gossip 传播）。
   /// C# 版每次调用重建 workers 数组，本版配合 [`Self::merge`] 只克隆一次
-  fn merge_worker_info(&mut self, worker: &Worker, is_worker_owner: bool) -> bool {
+  fn merge_worker_info(&mut self, worker: &Worker) -> bool {
     let Some(node_id) = worker.nodeid else {
       return false;
     };
     if let Some((i, _)) = self.worker_by_node_id(node_id) {
-      let local_epoch = self.workers[i].config_epoch;
-      if worker.config_epoch < local_epoch {
+      if worker.config_epoch <= self.workers[i].config_epoch {
         return false;
       }
-      if worker.config_epoch == local_epoch {
-        if !is_worker_owner {
-          return false;
-        }
-        // 端点全等即零变化（C#:1155-1158），避免无谓触发落盘
-        let local = &self.workers[i];
-        if local.address == worker.address
-          && local.port == worker.port
-          && local.hostname == worker.hostname
-        {
-          return false;
-        }
-        let w = &mut self.workers[i];
-        w.address.clone_from(&worker.address);
-        w.port = worker.port;
-        w.hostname.clone_from(&worker.hostname);
-        return true;
-      }
-      // 更高 epoch：对齐 C# 仅覆盖 7 个元数据字段，replication_offset
-      // 保留本地值（副本位点不随 gossip 传播）
+      // 对齐 C#：仅覆盖 7 个元数据字段，replication_offset 保留本地值
+      // （副本位点不随 gossip 传播）
       let local_offset = self.workers[i].replication_offset;
       self.workers[i].clone_from(worker);
       self.workers[i].replication_offset = local_offset;
@@ -309,17 +279,14 @@ impl ClusterConfig {
     // 点查在册判定：一次 pin 覆盖整轮枚举，锁-free，无需持任何外层锁
     let ban_list = worker_ban_list.pin();
 
-    for (idx, worker) in sender_config.workers.iter().enumerate().skip(1) {
+    for worker in sender_config.workers.iter().skip(1) {
       let Some(sid) = worker.nodeid else {
         continue;
       };
       if local_id == Some(sid) || ban_list.contains_key(&sid) {
         continue;
       }
-      // isWorkerOwner 判据（C# ClusterConfig.cs:1129 `i == LOCAL_WORKER_ID`）：
-      // 线格式自 1 号本地位起序列化，发送方配置内 1 号位恒为发送方自身条目，
-      // 唯有它对自己等值 epoch 的端点漂移有发言权
-      changed |= merged.merge_worker_info(worker, idx == LOCAL_WORKER_ID);
+      changed |= merged.merge_worker_info(worker);
     }
 
     changed |= merged.merge_slot_map(sender_config);

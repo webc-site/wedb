@@ -275,20 +275,6 @@ impl TransactionManager {
   /// 完整前置（与 C# `Run` 同构）；门控位与屏障注册均由 [`Self::reset`] 随事务
   /// 代际清除。
   ///
-  /// 复入轮前缀复验（rust 自研收口，C# 结构性免疫——C# 锁身份是 store 裸键哈希
-  /// 无代际维度，换号不改锁身份，取锁重试无论何时成功持锁桶与数据桶恒同身份）：
-  /// 争用让步窗内会话域换代（FLUSHDB/SWAPDB 物理前缀变）则入参 `lock_prefix`
-  /// 异于 [`Self::lock_prefix`] 锚定值，旧代桶计划不得跨代取锁（否则取锁成功到
-  /// 重放首条命令补锁点之间存在无保护写窗），重走首轮同款门序：注销旧票据 →
-  /// 重取屏障 → 放尽旧代锁集 → [`Self::register_run_preamble`] 重展开。注销先于
-  /// 重取屏障：旧票据在册会阻塞 PREPARE_GROW 扩容排空，自持自等成死锁；屏障
-  /// 争用回 [`ExecRun::Contended`] 时票据已注销、锁集未动，复入幂等（take 空、
-  /// 比对仍异源）。异源复入轮必来自上轮 Contended（持锁则已 Running 不复入），
-  /// 零闩在座，`end_txn` 的「桶闩尽释后注销」契约恒满足。WATCH 键与排队键经
-  /// [`Self::watch_container`] / [`Self::txn_keys`] 跨轮保全重展开（不走
-  /// [`Self::reset`] 全量复位——其清 `txn_keys` 丢排队键面）；旧版本号未入账
-  /// AOF（TxnStart 在锁后才写），重取无残组。
-  ///
   /// `lock_prefix` 口径同 [`Self::run`]（EXEC 时刻会话物理前缀，锁轨现算种子；
   /// 复入轮宿主会话域未变则逐轮同值，首轮门控下仅消费一次）。
   pub fn run_exec(&mut self, lock_prefix: &[u8]) -> ExecRun {
@@ -298,19 +284,6 @@ impl TransactionManager {
       }
       self.register_run_preamble(lock_prefix, false);
       self.exec_lock_armed = true;
-    } else if self
-      .lock_prefix
-      .as_deref()
-      .is_some_and(|anchor| anchor != lock_prefix)
-    {
-      if let Some(barrier) = self.txn_barrier.take() {
-        barrier.end_txn();
-      }
-      if !self.try_acquire_barrier() {
-        return ExecRun::Contended;
-      }
-      self.key_entries.unlock_all_keys();
-      self.register_run_preamble(lock_prefix, false);
     }
     if !self.key_entries.try_lock_all_keys_once() {
       return ExecRun::Contended;

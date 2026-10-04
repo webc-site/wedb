@@ -31,6 +31,8 @@ pub mod hash_slot;
 #[cfg(feature = "hex")]
 pub mod hex;
 pub mod keyfmt;
+#[cfg(feature = "pool")]
+pub mod net_budget;
 pub mod ns_prefix;
 #[cfg(feature = "num")]
 pub mod num;

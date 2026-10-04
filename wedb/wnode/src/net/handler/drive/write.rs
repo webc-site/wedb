@@ -39,7 +39,6 @@ pub(super) async fn pooled_write(
   stream: WriteStream<'_>,
   resp_pooled: &mut PooledRefBuffer<'_>,
   kill_token: &Option<CancelToken>,
-  buffer_size: usize,
 ) -> Option<io::Result<()>> {
   let payload = resp_pooled
     .take_buffer()
@@ -53,8 +52,13 @@ pub(super) async fn pooled_write(
     Ok(pair) => pair,
   };
   reclaimed.clear();
-  shrink_to_base(&mut reclaimed, buffer_size);
+  // 低水位基准按池现值活算（PR #2157 预算钳制施加面，C# BaseSendBufferSize
+  // 每读点内联钳制 + ReturnBuffer 压力期弃置超目标 send 块的收敛对位）：
+  // 预算缺省即池 send 规格原值，零行为变化
+  shrink_to_base(&mut reclaimed, resp_pooled.base_size());
   resp_pooled.set_buffer(reclaimed);
+  // 块容量已变（借出期扩容 / 收口缩容）：活跃字节记账重对齐
+  resp_pooled.resync_live_bytes();
   Some(write_res)
 }
 

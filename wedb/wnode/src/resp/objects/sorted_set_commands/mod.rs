@@ -122,7 +122,9 @@ pub(crate) fn zset_save_or_gc(
 ///   ZADD 族数据段错臂出帧前序合法对已就地改 obj（对象层无回滚臂），随本门
 ///   整体丢弃（原子性收口，见 deviations §142，禁按 C# 部分提交形回改）；
 ///   缺键不建键（防幻键）；
-/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定矩阵）；
+/// - 缺失键操作后仍为空则保持缺失（对齐 GarnetObject.NeedToCreate 初值判定
+///   矩阵与 #2194 NeedInitialUpdate 的 HasRemoveKey 门：新对象留空不建 key，
+///   如 ZADD XX 于缺键）；
 /// - 仅回填 result1 的操作（ZREM/ZREMRANGEBYLEX/ZREMRANGEBYRANK/ZREMRANGEBYSCORE/
 ///   ZPOPMIN/ZPOPMAX）以移除计数为准：零变更（命中 0 条 / 弹出 0 条）不落库
 ///   不广播，杜绝全量重序列化写放大与 AOF 增量污染；TTL 惰性剔除（装载即剔除

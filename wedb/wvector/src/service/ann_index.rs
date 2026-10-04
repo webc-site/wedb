@@ -170,6 +170,7 @@ pub(crate) trait AsyncDynIndex: Send + Sync {
     output: &'a mut SearchResults<'_>,
   ) -> impl Future<Output = bool> + Send + 'a;
 
+
   /// 外部 ID 解析为内部 ID。
   fn internal_id_of(
     &self,
@@ -410,6 +411,7 @@ impl<T: ToDistanceComputer, S: StoreCallbacks> AsyncDynIndex for DiskANNIndex<We
       .random_members(context, count, output)
       .await
   }
+
 
   async fn internal_id_of(&self, context: &Context, id: &VectorSetId) -> Option<u32> {
     self.inner.provider().to_internal_id(context, id).await.ok()

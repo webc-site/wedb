@@ -12,7 +12,7 @@
 use std::{str::from_utf8, thread::Builder};
 
 use sonic_rs::{JsonContainerTrait, JsonValueTrait, Value};
-use wext_json::{Error, GarnetJsonObject, JsonCommand, JsonPath, SetResult};
+use wext_json::{GarnetJsonObject, JsonCommand, JsonPath, SetResult};
 use wresp::options::ExistOptions;
 
 /// 剥掉 RESP bulk string 帧头取回 JSON 文本，并解析为 Value（解析成功即帧合法性证明）。
@@ -186,20 +186,16 @@ fn multi_path_key_escapes_special_chars() {
   assert_eq!(map.get(&k2), Some(&two), "含反斜杠路径须以原文为键");
 }
 
-// ===================== e) 解析深度接受带（§161 宽向分叉 + §206 安全门复合锁） =====================
+// ===================== e) 解析深度接受带（§161 宽向分叉锁） =====================
 //
 // 对位 C#：`garnet/modules/GarnetJSON/GarnetJsonObject.cs` 四处 `JsonNode.Parse`
 // 不带 options，吃 System.Text.Json 默认 MaxDepth=64，>64 层抛 JsonException 收
-// 错误帧。rust wext_json 深度裁决为复合形（登记 doc/zh/deviations.md §161/§206）：
-// sonic `Value` 原生快路（registry sonic-rs 0.5.10 value/de.rs:62
-// `deserialize_newtype_struct(TOKEN,..)`）绕过 serde/de.rs:23 MAX_ALLOWED_DEPTH=255
-// 且 parse_dom → dispatch_value ↔ parse_array/parse_object 互递归无门，2MB 栈
-//（compio worker 缺省）约 16000 层即栈溢出进程 abort——§206 安全修复于解析
-// 入口加 O(n) 单趟字节状态机预扫（json_object.rs check_depth），上限
-// MAX_JSON_DEPTH=255 与 sonic 通用路门值同值对齐，越门错误与解析失败同形。
-// 三向锁死：① 64/65 层宽向收（C# 65 起拒）保留——§161 语境不变，严禁按 C#
-// 64 回改门值；② 255 层界内收；③ 256 层起拒——严禁拆门回无界接受（回改即
-// 复活栈溢出 abort 面，破 ②③ 断言）。
+// 错误帧。rust wext_json 侧无独立深度门——深度可解析性全由 `parse_dom` 的
+// sonic `Value` 原生快路承载，而该快路（registry sonic-rs 0.5.10
+// value/de.rs:62 `deserialize_newtype_struct(TOKEN,..)`）绕过 serde/de.rs:23
+// MAX_ALLOWED_DEPTH=255，故实测 rust 对 64/65 乃至数千层载荷一律收（宽向），
+// 登记全文见 doc/zh/deviations.md §161。**严禁按 C# 64 在 SET/GET 热路径加
+// O(n) 深度预扫回改**（回改即破此处断言，且无 255 门可依，属双错）。
 
 /// 构造 n 层对象嵌套载荷 `{"a":{"a":...{"a":1}...}}`（真实递归路径，非数组快路）。
 fn nest_obj(n: usize) -> Vec<u8> {
@@ -236,24 +232,6 @@ fn assert_set_get_accepts(depth: usize) {
   assert!(got.is_array(), "GET 单根路径须回带 [] 包裹的 [根]");
 }
 
-/// 断言某深度载荷被 §206 深度门拒收，错误与解析失败同形（Error::SyntaxError）。
-/// 门先于 sonic 递归（check_depth 超门即刻返回），拒臂零递归，任栈安全。
-fn assert_parse_rejects(depth: usize) {
-  let payload = nest_obj(depth);
-  let mut obj = GarnetJsonObject::create();
-  let err = obj
-    .set(b"$", &payload, ExistOptions::None)
-    .expect_err("{depth} 层载荷 SET 侧须被 §206 深度门拒收");
-  assert!(
-    matches!(err, Error::SyntaxError),
-    "{depth} 层越门错误须同解析失败形（SyntaxError），实回 {err}"
-  );
-  assert!(
-    GarnetJsonObject::from_slice(&payload).is_err(),
-    "{depth} 层载荷 from_slice 须被 §206 深度门拒收"
-  );
-}
-
 /// C# 界带 64/65 层：C# 于 65 层起拒，rust wext_json 一律收（SET/GET 双臂）——
 /// 深链落在此域内，默认测试线程栈安全（实测约 180 层以内不触栈崩）。
 #[test]
@@ -262,25 +240,23 @@ fn depth_64_65_csharp_reject_band_rust_accepts_set_get() {
   assert_set_get_accepts(65);
 }
 
-/// §206 门界带锁：255 层界内收（SET/GET 双臂全链），256/300 层起门拒（错误与
-/// 解析失败同形）。收臂深链解析/序列化递归在缺省测试线程栈有崩阈（约 180–200），
-/// 沿用大栈线程执行规避**崩溃面**（另轴，非契约放宽）；拒臂门先于递归，缺省
-/// 栈安全。
+/// rust 界带订正锁：议题初判「sonic 255 承载、256 拒」经现码亲验不成立——
+/// 255/256/300 层载荷 from_slice+set 全部 Ok，钉住「Value 快路绕过
+/// MAX_ALLOWED_DEPTH、无逻辑 255 门」之真形。深链超默认栈崩阈（约 180–200），
+/// 故在大栈线程内执行以规避**崩溃面**（另轴，非契约放宽），锁的是应答收/拒形。
 #[test]
-fn depth_gate_255_boundary_accepts_over_rejects() {
-  // 拒臂先跑（零递归，任栈安全）
-  assert_parse_rejects(256);
-  assert_parse_rejects(300);
-  // 收臂：255 层恰在门界内（MAX_JSON_DEPTH=255 含边），大栈线程执行
+fn depth_255_256_300_no_sonic_gate_rust_accepts() {
   let child = Builder::new()
     .stack_size(256 * 1024 * 1024)
     .spawn(|| {
-      assert_set_get_accepts(255);
+      for depth in [255usize, 256, 300] {
+        assert_set_get_accepts(depth);
+      }
     })
     .expect("spawn 大栈线程失败");
   child
     .join()
-    .expect("255 层须界内接受；线程 panic 即 §206 门界走样（255 须含边收）");
+    .expect("255/256/300 层应全被 rust 接受；线程 panic 即深度门被误加，须查 §161");
 }
 
 // ===================== f) JSON.GET 选项带值收尾无路径（§15 f) 收口分叉锁） =====================

@@ -28,10 +28,28 @@ use super::{
 
 /// 超时中断错误文案（run_common 对 "ERR " 前缀原样透传）。
 pub const TIMEOUT_ERROR: &[u8] = b"ERR Lua script exceeded configured timeout";
-/// 拒绝二进制 chunk 错误文案（对标 C# text-only 模式）。
+/// 拒绝二进制 chunk 错误文案（对标 C# text-only 模式，#2138）。
 pub(crate) const ERR_TEXT_ONLY_MODE: &str = "cannot load binary chunk in a text-only mode";
 /// 源代码含 NUL 截断防护错误文案。
 pub(crate) const ERR_NULL_BYTE: &str = "unexpected character near '\\0'";
+
+/// text-only 前置门单点（对标 C# `luaL_loadbufferx` mode="t" 语义，#2138）。
+///
+/// - `\x1b` = Lua/Luau 字节码 chunk 魔术头：外部字节码一律拒绝；
+/// - NUL 在 Luau 源码中非法：前置报解析错，杜绝按 C 串截断类歧义。
+///
+/// 供 [`LuaState::load_buffer`]（装载门）与
+/// [`crate::loader::LuaRunnerLoader::try_compile_source`]（缓存入口门）
+/// 共用，双层门对位 C# TryCompileSource 前置编译 + load mode "t" 装载。
+pub(crate) fn text_source_error(buffer: &[u8]) -> Option<&'static str> {
+  if buffer.starts_with(b"\x1b") {
+    return Some(ERR_TEXT_ONLY_MODE);
+  }
+  if buffer.contains(&0) {
+    return Some(ERR_NULL_BYTE);
+  }
+  None
+}
 
 /// 超时截止槽（`0` = 空闲；`>0` = 已设截止，单调毫秒；
 /// [`TIMEOUT_TRIGGERED`](crate::timeout::TIMEOUT_TRIGGERED) = 到期已激活）。
@@ -407,15 +425,19 @@ impl LuaState {
     self.try_exit_infallible_allocation_region()
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:LoadBuffer
+  /// libs/server/Lua/LuaStateWrapper.cs:LoadTextBuffer
+  /// libs/server/Lua/LuaStateWrapper.cs:LoadBinaryBuffer
+  ///
+  /// C# #2138 拆 text/binary 双口（mode "t"/"b"）拒不可信字节码；rust 单口
+  /// 承接双语义：入口前置门（[`text_source_error`]）承接 "t" 模式——外部
+  /// 输入仅文本，字节码 chunk 头即拒；随后 `luau_compile` 源码 → `luau_load`
+  /// 即时装载，"b" 模式结构性收窄——全仓唯一 `luau_load` 调用点仅吃本函数
+  /// 内 `luau_compile` 产物，无外部字节码反序列化入口。
   ///
   /// 编译缓冲为函数并压栈；编译/装载失败弹出错误串并返回 Err。
   pub fn load_buffer(&mut self, buffer: &[u8], chunk_name: &str) -> Result<()> {
-    if buffer.starts_with(b"\x1b") {
-      return Err(runtime(ERR_TEXT_ONLY_MODE));
-    }
-    if buffer.contains(&0) {
-      return Err(runtime(ERR_NULL_BYTE));
+    if let Some(err) = text_source_error(buffer) {
+      return Err(runtime(err));
     }
     let Ok(chunk_name) = CString::new(chunk_name) else {
       return Err(Error::Misuse("chunk name contains NUL"));
@@ -450,7 +472,11 @@ impl LuaState {
     Err(runtime(message))
   }
 
-  /// libs/server/Lua/LuaStateWrapper.cs:LoadString
+  /// `load_buffer` 的 `&str` 便捷面（chunk 名 "=load_string"）。
+  ///
+  /// C# LuaStateWrapper 的 LoadString 已随 #2138 并入 LoadTextBuffer；本口
+  /// 无生产调用面（宿主 garnet_loadstring 直用 load_buffer），仅 tests 直驱。
+  #[doc(hidden)]
   pub fn load_string(&mut self, source: &str) -> Result<()> {
     self.load_buffer(source.as_bytes(), "=load_string")
   }

@@ -162,6 +162,12 @@ impl<'a, D: Device> RetryAlloc<'a, D> {
   /// 次序）：AOF 镜像由提交方在索引 CAS 成功后恰发一次，CAS 败帧的暂存复用/
   /// 弃置重试均不产生镜像条目
   ///
+  /// 版本推进窗口期抬升（对标上游 eaf45c5b5 对 BlockAllocate.cs:63-71 的修订）：
+  /// 暂存于窗口开启前的低址分配，重试时不得于模糊区地板之下整头覆写为携带纪元位
+  /// 的新记录——该字节会落进快照物理收录面（addr < index_start 不在
+  /// undoNextVersion 回滚窗），AOF 条目版本戳恒 > covered 必重放，同一效果恰双算。
+  /// 抬升经 [`StoreSession::reviv_floor_window_lifted`] 单点，与池取臂同源同判据
+  ///
   /// 返回三元组的 ver 为复用落笔/分配成功点单读传导的 AOF 版本戳（读点下移，
   /// 见 [`whlog::HybridLog::append`] 方法文档），与记录头纪元位同源同点
   #[inline(always)]
@@ -174,6 +180,7 @@ impl<'a, D: Device> RetryAlloc<'a, D> {
     min_head_addr: u64,
     min_eligible_addr: u64,
   ) -> Result<StdResult<(u64, u32, i64), u64>> {
+    let min_eligible_addr = self.session.reviv_floor_window_lifted(min_eligible_addr);
     let rec_size = record_size(key.len(), val.val_len()) as u32;
     if let Some((addr, size)) = self.alloc.take() {
       if addr >= min_eligible_addr && addr >= min_head_addr && size >= rec_size {
@@ -1120,4 +1127,100 @@ enum TailDeleteOutcome {
   Deleted(Option<Vec<u8>>),
   /// CAS 落败（败帧已回复活池），交调用方刷新重试
   CasLoss,
+}
+
+#[cfg(test)]
+mod retry_reuse_window_floor_tests {
+  //! 重试复用臂窗口期地板抬升回归（上游 eaf45c5b5 对 BlockAllocate.cs:63-71 的修订）
+  //!
+  //! C# 修订前 `Ctx.IsInV1` 抬升臂仅罩自由表取臂（GetAllocationForRetry 之后），
+  //! 「窗口开启前暂存、窗口内以 (v+1) 重试」的分配可于模糊区地板之下整头覆写——
+  //! 字节落快照物理收录面（addr < index_start 不在 undoNextVersion 回滚窗），
+  //! AOF 条目版本戳恒 > covered 必重放，同一效果恰双算。池取臂回归见
+  //! tests/checkpoint/reviv_window_floor.rs（zcode-r42-whlogfix），本组补重试复用臂。
+
+  use std::{fs::create_dir_all, sync::Arc};
+
+  use aok::{OK, Void};
+  use wdev::SegmentedDevice;
+  use wreviv::FreeRecord;
+
+  use super::*;
+  use crate::{StoreConfig, WedbStore};
+
+  const K: &[u8] = b"reviv:retry:k";
+  const V: &[u8] = &[b'v'; 512];
+
+  fn slot_in_pool(store: &WedbStore<SegmentedDevice>, addr: u64) -> bool {
+    store
+      .reviv_pool
+      .bins
+      .iter()
+      .flat_map(|bin| bin.slots.iter())
+      .any(|slot| !slot.is_empty() && FreeRecord::unpack(slot.raw()).0 == addr)
+  }
+
+  /// 暂存于开窗前的低址分配，开窗后重试：抬升生效时不得复用，须弃置归池并落
+  /// 尾部追加面（addr >= floor）；开窗前同形暂存照常复用（对照组）
+  #[compio::test]
+  async fn window_lift_covers_retry_reuse_arm() -> Void {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("retry_reuse_floor.db");
+    create_dir_all(dir.path()).unwrap();
+
+    let config = StoreConfig::new(1024, 4 * 1024, 16, 0.5)
+      .unwrap()
+      .with_revivification(true);
+    let device = Arc::new(SegmentedDevice::single_file(&db_path).unwrap());
+    let store = Arc::new(WedbStore::open(config, Arc::clone(&device)).unwrap());
+    let session = store.new_session().unwrap();
+
+    // 垫高尾部：K 的槽位稳居复活水位之上（用例结构前提，同池取臂回归）
+    session
+      .upsert(b"reviv:retry:pad", &[b'P'; 1200])
+      .await
+      .unwrap();
+    let addr1 = session.upsert(K, V).await.unwrap();
+    let frame = record_size(K.len(), V.len()) as u32;
+
+    // 对照组（窗口关闭）：暂存复用臂照常命中低址槽位
+    let head = store.head_address();
+    {
+      let mut ra = RetryAlloc::new(&session);
+      ra.alloc = Some((addr1, frame));
+      let (addr, ..) = ra
+        .allocate_or_reuse(K, V, 0, false, head, ra.chain_floor(0, true))
+        .unwrap()
+        .unwrap();
+      assert_eq!(addr, addr1, "窗口关闭期暂存复用臂必须命中暂存槽位");
+    }
+
+    // 开窗：地板 = 开窗瞬间 tail，必须越过暂存槽位（跨轮低地址形态）
+    let floor = store.begin_version_shift(1);
+    assert!(
+      floor > addr1,
+      "结构前提: 地板必须越过暂存槽位: floor={floor:#x} addr1={addr1:#x}"
+    );
+
+    // 修订面：窗口期重试不得复用地板之下暂存槽位——弃置归池、落尾部追加面
+    let head = store.head_address();
+    let (addr, ..) = {
+      let mut ra = RetryAlloc::new(&session);
+      ra.alloc = Some((addr1, frame));
+      ra.allocate_or_reuse(K, V, 0, false, head, ra.chain_floor(0, true))
+        .unwrap()
+        .unwrap()
+    };
+    assert!(
+      addr >= floor && addr != addr1,
+      "窗口期暂存复用必须越过地板落尾部追加: addr={addr:#x} floor={floor:#x}"
+    );
+    assert!(
+      slot_in_pool(&store, addr1),
+      "被弃置的低址暂存槽位须归池（窗口关闭后他链仍可取用），不得就地清退"
+    );
+
+    store.end_version_shift();
+    OK
+  }
 }

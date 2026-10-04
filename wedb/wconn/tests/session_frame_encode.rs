@@ -1,7 +1,7 @@
 //! 会话复制帧编码测试（归位自 wconn::session 内联测试，仅依赖 pub API）
 //!
 //! 覆盖 attach_sync 帧布局、append_log 帧编码与二进制数组解析往返、半包
-//! 不消费、null/整数行元素整帧消费各面。
+//! 不消费三面。
 
 use wconn::{parser::RespReadResponseUtils, session::encode_attach_sync_frame};
 use wresp::ext::RespVecExt;
@@ -37,7 +37,7 @@ fn append_log_frame_roundtrip() {
   frame.write_resp_bulk_string(payload);
 
   let mut data = frame.as_slice();
-  let parsed = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data, 1)
+  let parsed = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data)
     .expect("parse ok")
     .expect("complete");
   let items = parsed.expect("non-null");
@@ -64,45 +64,7 @@ fn byte_slice_array_partial_frame_not_consumed() {
   let partial = &frame[..frame.len() - 2];
 
   let mut data = partial;
-  let res = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data, 1);
+  let res = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data);
   assert!(matches!(res, Ok(None)));
   assert_eq!(data.len(), partial.len(), "不完整帧游标应回滚");
-}
-
-/// null bulk 元素（$-1，MGET 缺失键应答形）容为空切片：整帧完整消费，
-/// 不再被 flatten 成 None 误判半包（旧实现会致读泵游标永久停在帧头死等）
-#[test]
-fn byte_slice_array_null_bulk_element_consumed() {
-  let mut data: &[u8] = b"*2\r\n$-1\r\n$1\r\na\r\n";
-  let parsed = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data, 1)
-    .expect("parse ok")
-    .expect("complete");
-  let items = parsed.expect("non-null");
-  assert_eq!(items, [b"".as_slice(), b"a".as_slice()]);
-  assert!(data.is_empty(), "含 null 元素的整帧应被完整消费");
-}
-
-/// RESP3 null 元素（_\r\n）同形：容为空切片，整帧完整消费
-#[test]
-fn byte_slice_array_resp3_null_element_consumed() {
-  let mut data: &[u8] = b"*1\r\n_\r\n";
-  let parsed = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data, 1)
-    .expect("parse ok")
-    .expect("complete");
-  let items = parsed.expect("non-null");
-  assert_eq!(items, [b"".as_slice()]);
-  assert!(data.is_empty(), "含 RESP3 null 元素的整帧应被完整消费");
-}
-
-/// 非 bulk 行元素（: 整数行，SMISMEMBER 应答形）按行读借用行体：整帧完整消费，
-/// 不再因首字节非 '$' 掷 UnexpectedToken 拆连接
-#[test]
-fn byte_slice_array_integer_element_consumed() {
-  let mut data: &[u8] = b"*2\r\n:1\r\n:0\r\n";
-  let parsed = RespReadResponseUtils::try_read_byte_slice_array_with_length_header(&mut data, 1)
-    .expect("parse ok")
-    .expect("complete");
-  let items = parsed.expect("non-null");
-  assert_eq!(items, [b"1".as_slice(), b"0".as_slice()]);
-  assert!(data.is_empty(), "整数行元素整帧应被完整消费");
 }

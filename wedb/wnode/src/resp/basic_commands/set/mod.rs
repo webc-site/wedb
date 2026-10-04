@@ -779,13 +779,11 @@ impl RespServerSession {
 }
 
 /// SET 族过期数值整数校验单源（SETEX/PSETEX 的 [`parse_setex_args`] 与 SET 选项
-/// EX/PX 的 [`parse_set_options`] 共用；对标 C# NetworkSETEX（BasicCommands.cs:541）
-/// 与 NetworkSETEXNX（:653）的 TryGetLong i64 口径）：非整数（含越 i64 幅值；
-/// 前导零拒收与现 C# ParseUtils.TryReadLong allowLeadingZeros:false 全等）写
-/// not-integer，非正写 invalid-expire-in-set；i64 内超绝对过期 gate 的大值由
-/// 调用点 [`try_get_absolute_expiry_ticks`]（对标 :856 TryGetAbsoluteExpiryTicks）
-/// 同帧裁决 invalid-expire（C# 错误文案恒 'set'，SETEX/PSETEX 不换名）。
-/// 返回已校验正值（秒或毫秒），失败已落帧返回 None
+/// EX/PX 的 [`parse_set_options`] 共用；对标 C# BasicCommands.cs:539/:653 的
+/// TryGetLong int64 口径，#2130 起对齐）：非整数（含越 i64 幅值；前导零拒收系
+/// rust 严格收口，C# Safe 变体同样拒收，见 doc/zh/deviations.md §32）写
+/// not-integer，非正写 invalid-expire-in-set；返回已校验正值（秒或毫秒），
+/// 溢出上限的换算门在 [`try_get_absolute_expiry_ticks`]（invalid-expire 帧）
 #[inline]
 fn parse_set_expiry(raw: &[u8], output: &mut Vec<u8>) -> Option<i64> {
   let v = parse_i64_arg(raw, output)?;
@@ -799,10 +797,8 @@ fn parse_set_expiry(raw: &[u8], output: &mut Vec<u8>) -> Option<i64> {
 /// NetworkSETEX / NetworkPSETEX 的参数推导单源（快慢路径共用；解析失败时
 /// 已写出错误应答并返回 None，返回 `(key, expiry 秒或毫秒正数, val)`）
 ///
-/// 对标 C# BasicCommands.cs:541 NetworkSETEX：过期须为整数（TryGetLong i64 口径，
-/// 溢出走 not-integer；前导零拒收与现 C# ParseUtils.TryReadInt/TryReadLong
-/// allowLeadingZeros:false 全等，旧注「C# 死参放行 007」前提已随上游
-/// allowLeadingZeros 实参化失效）且 > 0
+/// 对标 C# BasicCommands.cs:542 NetworkSETEX：过期须为整数（TryGetLong int64
+/// 口径，#2130；前导零拒收对齐 C# Safe 变体，见 doc/zh/deviations.md §32）且 > 0
 pub(crate) fn parse_setex_args<'p>(
   cmd_name: &str,
   parse_state: &[&'p [u8]],
@@ -816,10 +812,8 @@ pub(crate) fn parse_setex_args<'p>(
 /// NetworkSetRange 的参数推导单源（快慢路径共用；解析失败时已写出错误应答
 /// 并返回 None，返回 `(key, offset, val)`，offset 已换算 usize 非负值域）
 ///
-/// 对标 C#：偏移须为可解析整数（溢出走 not-integer 对标 C# BasicCommands.cs:452
-/// NetworkSetRange 的 TryGetInt i32 口径；前导零拒收与现 C# ParseUtils.TryReadInt
-/// allowLeadingZeros:false 全等，旧注「死参放行 007」前提已失效，见
-/// doc/zh/deviations.md §32），
+/// 对标 C#：偏移须为可解析整数（溢出走 not-integer 对标 C# TryGetInt 口径；
+/// 前导零拒收系 rust 严格收口，C# TryGetInt 因死参放行 007，见 doc/zh/deviations.md §32），
 /// 负值越界报错，offset + value 不得越过 512MB 负载上限（u64 口径，杜绝 usize 溢出 panic）
 pub(crate) fn parse_setrange_args<'p>(
   parse_state: &[&'p [u8]],
@@ -969,10 +963,8 @@ pub(crate) fn parse_set_options<'p>(
           return None;
         };
         token_idx += 1;
-        // 过期数值整数校验（TryGetLong i64 域 not-integer / 非正 invalid-expire）
-        // 归 [`parse_set_expiry`] 单源，与 parse_setex_args 同谱；i64 内超绝对
-        // 过期 gate 的裁决在调用点 [`try_get_absolute_expiry_ticks`]（快慢双臂
-        // 与 C# NetworkSET_EX/NetworkSET_Conditional 同位）
+        // 过期数值整数校验（int64 域 not-integer / 非正 invalid-expire）归
+        // [`parse_set_expiry`] 单源，与 parse_setex_args 同谱
         expiry = parse_set_expiry(raw, output)?;
         exp_high_precision = exp_option == ExpirationOption::Px;
       }

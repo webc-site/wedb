@@ -133,8 +133,8 @@ pub struct GlobalMetricsSnapshot {
   pub total_connections_received: i64,
   /// 已释放的连接数。
   pub total_connections_disposed: i64,
-  /// 容量门拒连数（INFO STATS `rejected_connections` 行；C# 直读
-  /// globalMetrics.rejected_connections 的快照承接）。
+  /// 因连接上限（maxclients）被拒的连接数（PR #2157，C#
+  /// TotalConnectionsRejected → INFO STATS rejected_connections 行）。
   pub rejected_connections: i64,
   /// 瞬时命令吞吐。
   pub instantaneous_cmd_per_sec: f64,

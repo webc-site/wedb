@@ -9,6 +9,7 @@ use std::sync::{
 use wbase::map::{HashMap, HashSet};
 
 use crate::{
+  commands::LuaCommands,
   hash_key::ScriptHashKey,
   loader::LuaRunnerLoader,
   options::{LuaLoggingMode, LuaMemoryManagementMode, LuaOptions},
@@ -210,13 +211,19 @@ impl SessionScriptCache {
       .map(|entry| &mut entry.runner)
   }
 
-  /// libs/server/Lua/SessionScriptCache.cs:TryLoad
+  /// libs/server/Lua/SessionScriptCache.cs:TryGetOrCreateRunnerFromSource
   ///
-  /// 编译脚本并载入会话缓存；命中即复用。必要时返回新建的共享句柄供
+  /// 编译源码文本并载入会话缓存；命中即复用。必要时返回新建的共享句柄供
   /// 调用方登记进全局缓存（`digest_on_heap` 对标形态）。
   /// 失败时错误以 RESP error 写入 `out` 并返回 None。
   /// 构造失败仅日志留痕，out 不写错误帧（对位 C# catch 臂形态）。
-  pub fn try_load_runner(
+  ///
+  /// C# #2138 另拆 FromCachedScript / FromGeneratedBytecode 两口承接字节码
+  /// 缓存生命周期；rust 无字节码缓存——全局句柄存源码文本，EVALSHA 命中
+  /// 全局缓存路径同样经本口装载，「只信内部产物」语义由双层门承接：
+  /// 入口前置门（[`LuaRunnerLoader::try_compile_source`]）+ 装载门
+  /// （`LuaState::load_buffer` 的 text-only 检查），外部字节码无任何入口。
+  pub fn try_get_or_create_runner_from_source(
     &mut self,
     source: &[u8],
     digest: &ScriptHashKey,
@@ -244,8 +251,16 @@ impl SessionScriptCache {
       self.script_cache.remove(digest);
     }
 
-    // CompileSource：luau 无 string.dump，编译在装载时进行，源码直存。
-    let compiled_source = LuaRunnerLoader::compile_source(source);
+    // C# TryCompileSourceAndCreateRunner：编译前置门——外部字节码 / NUL
+    // 在构造 VM 前即拒（免为垃圾输入白分配 VM），错误经编译错误单点
+    // （LuaCommands::write_lua_compilation_error）以 RESP error 写出。
+    let compiled_source = match LuaRunnerLoader::try_compile_source(source) {
+      Ok(source) => source,
+      Err(error) => {
+        LuaCommands::write_lua_compilation_error(out, error);
+        return None;
+      }
+    };
 
     // runner 构造失败（VM/空间/模式矛盾类 Err）：对位 C# TryLoad 的
     // catch (Exception ex) 臂（SessionScriptCache.cs:227 LogError），

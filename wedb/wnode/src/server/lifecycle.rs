@@ -105,7 +105,6 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
       id_gen: Arc::clone(&self.session_id_counter),
       provider: Arc::clone(&self.session_provider),
       pool: Arc::clone(&self.buffer_pool),
-      conn_limit: self.network_connection_limit,
       #[cfg(feature = "tls")]
       tls_config: self.tls_config.clone(),
       #[cfg(feature = "tls")]
@@ -145,6 +144,14 @@ impl<P: SessionProviderFace + 'static> GarnetServer<P> {
     let nthreads = worker_threads
       .unwrap_or_else(|| available_parallelism().unwrap_or(const { NonZeroUsize::new(1).unwrap() }))
       .get();
+
+    // 连接上限启动投影（PR #2157，C# GarnetServer.cs:289 把 opts
+    // .NetworkConnectionLimit 装进 ConnectionLimit 后逐监听器 Register 的
+    // rust 对位：注册表内共享原子单一真源，accept 容量门与 CONFIG SET
+    // maxclients 调停同源读写）
+    if let Some(registry) = self.session_provider.consumer_registry() {
+      registry.set_connection_limit(self.network_connection_limit);
+    }
 
     for endpoint in &self.endpoints {
       let res = match endpoint {

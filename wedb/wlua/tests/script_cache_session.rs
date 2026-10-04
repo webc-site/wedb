@@ -30,7 +30,7 @@ fn load_get_and_digest() {
   let mut out = Vec::new();
   assert!(
     cache
-      .try_load_runner(script, &hash, &mut handle, &options, &mut out)
+      .try_get_or_create_runner_from_source(script, &hash, &mut handle, &options, &mut out)
       .is_some()
   );
   assert!(
@@ -59,9 +59,13 @@ fn timeout_assembly_and_unregister_on_clear() {
   let mut handle = None;
   let mut out = Vec::new();
   let digest = SessionScriptCache::get_script_digest(b"return 1");
-  let Some((runner, _)) =
-    cache.try_load_runner(b"return 1", &digest, &mut handle, &options, &mut out)
-  else {
+  let Some((runner, _)) = cache.try_get_or_create_runner_from_source(
+    b"return 1",
+    &digest,
+    &mut handle,
+    &options,
+    &mut out,
+  ) else {
     panic!("装载失败: {out:?}");
   };
   let _ = runner;
@@ -102,7 +106,7 @@ fn timeout_assembly_and_unregister_on_clear() {
   let digest = SessionScriptCache::get_script_digest(b"return 2");
   assert!(
     cache
-      .try_load_runner(b"return 2", &digest, &mut handle, &options, &mut out)
+      .try_get_or_create_runner_from_source(b"return 2", &digest, &mut handle, &options, &mut out)
       .is_some()
   );
   assert_eq!(manager.active_count(), 1);
@@ -130,7 +134,7 @@ fn lua_script_handle_lifecycle() {
 #[test]
 fn load_runner_init_failure_writes_no_frame() {
   // Native + 限额矛盾直构（绕开 LuaOptions 归一路径）：new 返 Err，
-  // try_load_runner 仅日志留痕后返 None——out 零字节、缓存与句柄零变更
+  // try_get_or_create_runner_from_source 仅日志留痕后返 None——out 零字节、缓存与句柄零变更
   // （对位 C# catch 臂：LogError 后返 false，dcurr 无写）。
   let options = RunnerCreateOptions {
     mem_mode: Some(LuaMemoryManagementMode::Native),
@@ -143,7 +147,7 @@ fn load_runner_init_failure_writes_no_frame() {
   let mut out = Vec::new();
   assert!(
     cache
-      .try_load_runner(b"return 1", &hash, &mut handle, &options, &mut out)
+      .try_get_or_create_runner_from_source(b"return 1", &hash, &mut handle, &options, &mut out)
       .is_none()
   );
   assert!(out.is_empty(), "构造失败不得写应答帧: {out:?}");

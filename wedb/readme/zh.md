@@ -124,7 +124,7 @@ store.update_gc_config(|gc| {
   gc.scan_interval_ms = 60_000;
   gc.compaction_max_segments = 16;
 });
-let stats = store.gc_stats();
+let stats: Option<wkv::GcStatsSnapshot> = store.gc_stats();
 ```
 
 紧缩把存活记录前移，物理删除回收后的段文件。
@@ -286,21 +286,21 @@ wedb/
   - 地址观测：`tail_address`、`read_only_address`、`head_address`、`begin_address`、`safe_read_only_address`、`shift_read_only_address`、`shift_head_address`、`shift_begin_address`、`truncate`。
   - `keyspace_stats(ns)`——INFO KEYSPACE 统计单内核：只读遍历该租户在册库、一趟分桶扫描，按库返回 `(库号, 存活键数, 带 TTL 键数)`。
   - `entry_count()`、`hlog()`、`expired_key_deletion_scan`、`hash_distribution_dump`、`revivification_dump`。
-- `StoreConfig`——索引桶数、页大小、页数、可变区占比、最大会话数、范围索引目录、复活 / 读缓存开关、`GcConfig`。构造器：`auto()`、`auto_with_budget(bytes)`、`new(...)`、`minimal()`、`recommended_index_size(expected_keys)`；建造器 `with_max_sessions`、`with_revivification`、`with_revivifiable_fraction`、`with_read_cache`、`with_read_cache_pages`、`with_range_index_dir`、`with_copy_reads_to_tail`、`with_tree_cache_budget`。
-- 配置常量：`DEFAULT_DB_GC_RECLAIM_DELAY_SECS`、`DEFAULT_GC_MAX_BATCH_DELETES`、`DEFAULT_GC_MAX_SEGMENTS`、`INDEX_BUCKET_BYTES`、`INDEX_BUCKET_DATA_SLOTS`、`MAX_INDEX_SIZE`、`MIN_ADAPTIVE_BUDGET_BYTES`、`MIN_INDEX_SIZE`。
+- `StoreConfig`——索引桶数、页大小、页数、可变区占比、最大会话数、范围索引目录、复活 / 读缓存开关、`GcConfig`。构造器：`auto()`、`auto_with_budget(bytes)`、`new(...)`、`minimal()`、`recommended_index_size(expected_keys)`；建造器 `with_max_sessions`、`with_revivification`、`with_revivifiable_fraction`、`with_read_cache`、`with_read_cache_pages`、`with_range_index_dir`、`with_copy_reads_to_tail`。
+- 配置常量：`DEFAULT_INDEX_SIZE`、`MIN_INDEX_SIZE`、`MAX_INDEX_SIZE`、`INDEX_BUCKET_BYTES`、`INDEX_BUCKET_DATA_SLOTS`、`DEFAULT_MAX_SESSIONS`、`DEFAULT_MEMORY_PERCENT`、`MIN_MEMORY_BUDGET_BYTES`、`MAX_DEFAULT_MEMORY_BUDGET_BYTES`、`MIN_ADAPTIVE_BUDGET_BYTES`、`DEFAULT_REVIVIFIABLE_FRACTION`、`DEFAULT_GC_MAX_SEGMENTS`、`DEFAULT_GC_MAX_BATCH_DELETES`。
 - `StoreSession<D>`——会话级操作：
   - `upsert` / `read` / `read_with` / `delete` / `contains_key` / `read_batch_with` / `read_batch_raw_with`——带标签用户键 CRUD；`upsert_raw` / `read_raw` / `read_raw_with` / `delete_raw` / `contains_key_raw` / `read_record(addr)` 直接操作物理键。
   - `try_upsert_sync`、`try_read_sync`、`try_rmw_sync`、`try_read_batch_in_memory`——跳过刷盘等待的快路径；`*_unprotected` 与 `*_with_prefix` 变体服务批处理与前缀外提。
-  - `expire_at(key, ms, TtlOpt)` / `persist(key)` / `ttl_of(key)`——Redis 语义记录级 TTL；TTL 判定面 `is_expired` / `is_expired_or_now` 与 `TtlGate` 三态门。
+  - `expire_at(key, ms, TtlOpt)` / `persist(key)` / `ttl_of(key)`——Redis 语义记录级 TTL；TTL 判定面 `is_expired`、`is_expired_or_now`、`TtlCarrier`、`TtlGate`。
   - `set_context(ns, db)`、`set_strict_context`、`set_active_db`、`namespace()`、`active_db()`——多租户路由；`session_prefix()` 输出定长零分配前缀。
-  - `copy_reads_to_tail()`——对标 Garnet 的冷读提升开关读取口；开关本体在配置侧，经 `StoreConfig::with_copy_reads_to_tail` 设置（脱钩判定无条件，对标 C# Helpers.CanElide 无开关）
+  - `set_copy_reads_to_tail`——对标 Garnet 的冷读提升开关（脱钩判定无条件，对标 C# Helpers.CanElide 无开关）
   - `enter_batch()`——`BatchStoreSession` 将写入聚合到同一纪元窗口。
   - `load_meta`、`persist_dbmeta` / `try_persist_dbmeta_sync`、`check_object_meta_fast`——集合元数据与信封快检。
   - `range_index_create(key, StorageBackendType, TreeTuning)` / `range_index_set` / `range_index_set_batch` / `range_index_get` / `range_index_get_with` / `range_index_del` / `range_index_scan_stream` / `range_index_range_stream` / `range_index_exists` / `range_index_count` / `range_index_config` / `range_index_metrics`——BfTree 范围索引操作。
-- 范围索引切面：`RangeIndexError`、`SwapInWindowGuard`、`TreeGuard`、`validate_bftree_record`。
+- 范围索引切面：`RangeIndexError`、`RangeIndexMetrics`、`TreeGuard` / `TreeReadGuard` / `TreeWriteGuard`、`encode_meta_stub_record`、`validate_bftree_record`。
 - 检查点维护——`wcpr::list_checkpoints`、`wcpr::find_latest_checkpoint`、`wcpr::purge_checkpoint(dir, token)`、`wcpr::purge_all`、`wcpr::purge_outdated`。快照与恢复直接由 `WedbStore` 固有方法承载。
-- GC 面：`GcManager`、`GcConfig`、`spawn_bftree_reclaimer`；GC 句柄、统计快照与在途守卫为 gc 模块内部类型，经上述 `start_gc` / `gc_stats` 等方法触达。
-- 引擎面类型：`StoreResult`、`RecordRead`、`DeleteMissHook`、`WatchHook`、`ConsistentReadContext`、`ConsistentReadFunctions`、`StoreEvent`、`StoreEventSink`、`ObjectRmwNotification`、`HybridLogScanMetrics`、`ReadCache`、`RcVisit`、`CollectionError` / `Error` / `Result`。
+- GC 面：`GcManager`、`GcHandle`、`GcStatsSnapshot`、`GcConfig`、`RunGuard`。
+- 引擎面类型：`WedbStore` trait 与 `DefaultWedbStore` 实现、`StoreResult`、`RecordRead`、`DeleteMissHook`、`WatchHook`、`ConsistentReadContext`、`ConsistentReadFunctions`、`StoreEvent`、`StoreEventSink`、`ObjectRmwNotification`、`HybridLogScanMetrics`、`ReadCache`、`RcVisit`、`WedbCompactionFunctions`、`CollectionError` / `CollectionResult` / `Error` / `Result`。
 
 ### wbase —— L0 原语
 
@@ -328,7 +328,7 @@ wedb/
 
 - `RecordHeader` 常量——`HEADER_SIZE`（16B）、`RECORD_ALIGNMENT`、`SEALED_BIT`、`TOMBSTONE_BIT`、`HEADER_READ_CACHE_BIT`、`IN_NEW_VERSION_BIT`、`MAX_FILLER_BYTES`、`PAD_KEY_LEN`。
 - `RecordRef` / `RecordMut`——日志内存上的零拷贝读 / 写视图。
-- `record_size`、`checked_record_size`、`encode_to_slice`、`MAX_KEY_LEN`——把记录编码进日志槽位。
+- `record_size`、`checked_record_size`、`encode_to_slice`、`try_encode_to_vec`、`MAX_KEY_LEN`——把记录编码进日志槽位。
 
 ### wval —— 值层
 
@@ -340,7 +340,7 @@ wedb/
 
 ### windex —— 无锁哈希索引与直接虚拟内存
 
-- `HashIndex`——`new(num_buckets)` 定长桶表；`find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`、`lookup_candidates(_by_hash)`、`insert_to_bucket`、`find_or_create_tag_by_hash_with_min_addr`、`update_address`、`delete`、`bucket_index_for_hash`、`try_lock_key_hash_exclusive`、`prefetch_batch_probes`、`hash_key`、`clear`。
+- `HashIndex`——`new(num_buckets)` 定长桶表；`find_tag` / `find_tag_by_hash` / `find_tag_entry_by_hash_with_min_addr`、`lookup_candidates(_by_hash)`、`insert_to_bucket`、`find_or_create_tag_by_hash_with_min_addr`、`update_address`、`delete`、`bucket_index_for_key` / `bucket_index_for_hash`、`try_lock_key_hash_exclusive`、`prefetch_batch_probes`、`hash_key`、`clear`。
 - `HashBuckets`、`PrefetchProbe`、`HashBucket`（`ENTRIES_PER_BUCKET`、`DATA_ENTRIES`、`OVERFLOW_INDEX`）、`HashBucketEntry`、`HashEntryInfo`、`CandidateAddresses`（内联候选地址表，`push` / `retain` / `iter` / `as_slice`）。
 - `OverflowPool`、`KeyLatch`、`BucketExclusiveGuard` / `BucketSharedGuard`、`prefetch_read_l1`、`PREFETCH_WINDOW`。
 - 在线扩容：`split_chunk`、`split_single_bucket`、`chunk_count`、`chunk_offset_for_hash`、`CHUNK_SIZE` / `CHUNK_BITS`、`SPLIT_UNSTARTED` / `SPLIT_IN_PROGRESS` / `SPLIT_COMPLETED`。
@@ -354,8 +354,8 @@ wedb/
 
 ### wreviv —— 空闲槽位回收
 
-- `FreeRecordPool`——按尺寸分桶（`DEFAULT_BIN_SIZES`）、`put(address, size, min_address)` / `take(required_size, min_address)` / `purge_below(min_address)` / `pause` / `resume` / `is_enabled` / `find_bin_index` / `clear` / `is_empty`。
-- `FreeRecordBin`、`FreeRecord`、`SetStatus`、`USE_FIRST_FIT`、`BEST_FIT_SCAN_ALL`；累计计数为 `FreeRecordPool` 的 pub 原子字段——`put_count` / `take_count` / `hit_count` / `drop_count`，经 `reset_stats()` 清零。
+- `FreeRecordPool`——按尺寸分桶（`DEFAULT_BIN_SIZES`）、`put(address, size, min_address)` / `take(required_size, min_address)` / `purge_below(min_address)` / `stats()` / `pause` / `resume` / `is_enabled` / `find_bin_index` / `clear` / `is_empty`。
+- `FreeRecordBin`、`FreeRecord`、`SetStatus`、`USE_FIRST_FIT`、`BEST_FIT_SCAN_ALL`、`RevivStats`（`hit_rate()`）。
 
 ### wbftree —— BfTree 范围索引
 

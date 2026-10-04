@@ -3398,7 +3398,7 @@ fn info_stats_body(rt: &Runtime, consumer: &mut RespSessionConsumer) -> String {
 /// INFO STATS 集群缺省形态（三 metrics 开关全关，监视器缺席）gossip 11 行整段在场：
 /// C# PopulateStatsInfo 的 clusterEnabled 单门无条件并入，metricsDisabled 仅逐行
 /// 折零不折行（GarnetInfoMetrics.cs:212-219 + ClusterProvider.cs:313-330），缺省
-/// 配置集群节点应答 29 行（18 基础零值 + 11 gossip 零值，对标
+/// 配置集群节点应答 28 行（17 基础零值 + 11 gossip 零值，对标
 /// test/standalone/Garnet.test/RespInfoTests.cs 的会话级 INFO 形态）；监视器在位
 /// 形态 gossip 行如实读数，既有真实值行路径回归不破
 #[test]
@@ -3430,10 +3430,13 @@ fn cluster_info_stats_gossip_rows_without_monitor() {
       "监视器缺席形态缺 gossip 零值行 {name}: {body}"
     );
   }
-  // 段体 29 行：18 基础 + 11 gossip（段头一行不计；§205 事务两行随 TryTransactionProc
-  // 裁剪；rejected_connections 行对位 C# GarnetInfoMetrics.cs:194）
+  // 段体 29 行：17 基础 + 11 gossip + 1 rejected_connections（PR #2157 新增
+  // INFO STATS 行，C# TotalConnectionsRejected → rejected_connections）
   let lines = body.split("\r\n").filter(|l| !l.is_empty()).count() - 1;
-  assert_eq!(lines, 29, "STATS 段行数应为 18 基础 + 11 gossip: {body}");
+  assert_eq!(
+    lines, 29,
+    "STATS 段行数应为 17 基础 + 11 gossip + 1 拒绝计数: {body}"
+  );
 
   // 段二：监视器在位（进程级槽首装即赢）——metrics_disabled 判据随监视器快照
   // 在场翻转，gossip 行如实读数（GossipStats 真实计数直出）

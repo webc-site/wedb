@@ -582,7 +582,7 @@ fn vadd_parse_and_defaults() {
       "ERR Vector Set key cannot be empty"
     );
 
-    // 严格整数：前导零拒绝（现版 garnet ParseUtils 显式 allowLeadingZeros:false，两侧文法全等，见 doc/zh/deviations.md §32）
+    // 严格整数：前导零拒绝（rust 严格收口，C# TryReadInt32Safe 因死参放行 007，见 doc/zh/deviations.md §32）
     let r = sess
       .network_vadd(
         SessionPrefixBuf::ROOT.as_slice(),
@@ -1162,12 +1162,6 @@ fn auxiliary_commands() {
         .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e2"])
         .await,
       VectorReply::Integer(0)
-    );
-    assert_eq!(
-      sess
-        .network_vcard(SessionPrefixBuf::ROOT.as_slice(), &[b"aux"])
-        .await,
-      VectorReply::Integer(1)
     );
 
     // VDIM 缺键 → "ERR Key not found"

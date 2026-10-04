@@ -106,6 +106,8 @@ impl NodeArgs {
       tls_cert_refresh_freq,
       threads,
       network_connection_limit,
+      network_buffer_memory_budget,
+      network_buffer_memory_budget,
       aof,
       disable_pubsub,
       recover,

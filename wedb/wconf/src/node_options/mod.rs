@@ -45,16 +45,16 @@ pub use defaults::{
   DEFAULT_CLUSTER_REPLICATION_REESTABLISHMENT_TIMEOUT, DEFAULT_DIR,
   DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS,
   DEFAULT_EXPIRED_OBJECT_COLLECTION_FREQUENCY_SECS, DEFAULT_LOG_FLUSH_INTERVAL,
-  DEFAULT_MAX_DATABASES, DEFAULT_OBJECT_SCAN_COUNT_LIMIT, DEFAULT_ON_DEMAND_CHECKPOINT,
-  DEFAULT_PORT, DEFAULT_REPLICA_ATTACH_TIMEOUT_SECS, DEFAULT_REPLICA_SYNC_DELAY_MS,
+  DEFAULT_MAX_DATABASES, DEFAULT_NETWORK_BUFFER_MEMORY_BUDGET, DEFAULT_NETWORK_CONNECTION_LIMIT,
+  DEFAULT_OBJECT_SCAN_COUNT_LIMIT, DEFAULT_ON_DEMAND_CHECKPOINT, DEFAULT_PORT,
+  DEFAULT_REPLICA_ATTACH_TIMEOUT_SECS, DEFAULT_REPLICA_SYNC_DELAY_MS,
   DEFAULT_REPLICA_SYNC_TIMEOUT_SECS, DEFAULT_RESP_VERSION, DEFAULT_SLOW_LOG_MAX_ENTRIES,
   DEFAULT_SLOW_LOG_THRESHOLD, DEFAULT_VECTOR_SET_QUANTIZATION_TASK_COUNT,
   INFINITE_SYNC_TIMEOUT_SECS,
 };
 pub(crate) use defaults::{
   DEFAULT_INDEX_RESIZE_FREQUENCY_SECS, DEFAULT_INDEX_RESIZE_THRESHOLD,
-  DEFAULT_METRICS_SAMPLING_FREQUENCY_SECS, DEFAULT_NETWORK_CONNECTION_LIMIT,
-  DEFAULT_PROTECTED_MODE,
+  DEFAULT_METRICS_SAMPLING_FREQUENCY_SECS, DEFAULT_PROTECTED_MODE,
 };
 
 /// 统一节点基础参数配置
@@ -180,12 +180,15 @@ pub struct NodeArgs {
   #[toml(with = usize_u64)]
   pub threads: Option<usize>,
 
-  /// 最大并发网络连接数（-1 = 不限；对标 C# Options.cs:399 键
-  /// network-connection-limit、IntRangeValidation(-1, int.MaxValue) 与
-  /// defaults.conf:304 默认 -1；accept 成功即刻计量在途数，超限臂即刻
-  /// 关闭新连接且不写任何 RESP 应答，为 FD/内存耗尽的平台侧护栏）。
-  /// 纯启动期旋钮：C# ServerConfigType 枚举不含此项（非 CONFIG GET/SET
-  /// 运行时项），自动纳入 TOML 导入/导出面
+  /// 最大并发网络连接数（-1 = 不限；对标 C# Options.cs:401-403 键
+  /// network-connection-limit、IntRangeValidation(-1, int.MaxValue) 与上游
+  /// PR #2157 后 defaults.conf:309 默认 10000（对齐 Redis maxclients）；
+  /// 全监听器共享进程级上限，accept 成功即刻计量在途数，超限臂计数
+  /// rejected_connections 并向明文对端写出
+  /// `-ERR max number of clients reached` 后关闭（TLS 对端仅计数——明文
+  /// 错误帧对只发了 ClientHello 的对端是协议违例）。运行时经
+  /// CONFIG SET maxclients 可调：调低不断既有连接、只拒新连接（同 Redis）；
+  /// 副本与 gossip 链路一并计入。自动纳入 TOML 导入/导出面
   #[arg(
     long = "network-connection-limit",
     default_value_t = DEFAULT_NETWORK_CONNECTION_LIMIT,
@@ -193,6 +196,17 @@ pub struct NodeArgs {
   )]
   #[toml(default = DEFAULT_NETWORK_CONNECTION_LIMIT)]
   pub network_connection_limit: i32,
+
+  /// 网络缓冲内存预算（对标 C# Options.cs:433-435 键
+  /// network-buffer-memory-budget、[MemorySizeValidation]，defaults.conf:342
+  /// 默认 "1g"，GarnetServerOptions.cs DefaultNetworkBufferMemoryBudget =
+  /// 1L << 30）：活跃客户端连接网络缓冲的进程级预算，全监听器共享。连接
+  /// 少时宽松、每连接全额基准规格；预算 ÷ 活跃缓冲数低于基准规格时新缓冲
+  /// 基准向下适配至 16K 接收地板，使总量贴住预算。按需增长永不钳制——
+  /// 大请求不受影响。0 = 禁用自适应（单连接规格不设界）。例：1g、512m
+  #[arg(long = "network-buffer-memory-budget")]
+  #[toml(default)]
+  pub network_buffer_memory_budget: Option<String>,
 
   /// 是否启用 AOF 持久化日志（对标 C# Options.cs:209 EnableAOF）
   #[arg(long, default_value_t = false, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
@@ -678,6 +692,7 @@ impl Default for NodeArgs {
       tls_cert_refresh_freq: 0,
       threads: None,
       network_connection_limit: DEFAULT_NETWORK_CONNECTION_LIMIT,
+      network_buffer_memory_budget: None,
       aof: false,
       disable_pubsub: false,
       recover: false,

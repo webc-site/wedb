@@ -11,9 +11,7 @@ use wbase::cfg::{MAX_DATABASES_MAX, MAX_DATABASES_MIN};
 
 use crate::{
   lua_option_modes::LuaMemoryManagementMode,
-  node_options::{
-    DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS, DEFAULT_NETWORK_CONNECTION_LIMIT, NodeArgs,
-  },
+  node_options::{DEFAULT_EXPIRED_KEY_DELETION_SCAN_FREQUENCY_SECS, NodeArgs},
   size::{is_flag_size_str, previous_power_of_2, try_parse_size},
 };
 
@@ -363,6 +361,13 @@ impl NodeArgs {
       ("aof-memory", self.aof_memory_size.as_deref()),
       ("aof-page-size", self.aof_page_size.as_deref()),
       ("aof-segment-size", self.aof_segment_size.as_deref()),
+      // 网络缓冲内存预算（C# Options.cs:433 [MemorySizeValidation(false)]，
+      // PR #2157）：入口侧旗标级可解析性定界，语义分派（0 = 禁用）在装配侧
+      // wnode 网络预算装配单点
+      (
+        "network-buffer-memory-budget",
+        self.network_buffer_memory_budget.as_deref(),
+      ),
     ] {
       if let Some(text) = raw
         && (!is_flag_size_str(text) || try_parse_size(text).is_none())
@@ -381,11 +386,13 @@ impl NodeArgs {
       MAX_DATABASES_MIN,
       MAX_DATABASES_MAX,
     )?;
-    // C# Options.cs:398 IntRangeValidation(-1, int.MaxValue)
+    // C# Options.cs:401 IntRangeValidation(-1, int.MaxValue)：下界 -1（不限）
+    // 固定，与缺省值 10000（PR #2157 对齐 Redis）无关——下界误绑缺省即把
+    // 调低上限的合法配置误拒
     check_range(
       "network-connection-limit",
       self.network_connection_limit,
-      DEFAULT_NETWORK_CONNECTION_LIMIT,
+      -1,
       i32::MAX,
     )?;
     // C# Options.cs:691 IntRangeValidation(-1, int.MaxValue)：-1 以下无

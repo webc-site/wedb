@@ -6,4 +6,8 @@
     - libs/server/Metrics/Latency/GarnetLatencyMetricsSession.cs:
         - Reset
         - ResetAll
-  理由: 会话延迟槽属主独占，退役槽在版本翻转点归并即清零，跨线程复位臂无对应物
+        - Release
+  理由: >-
+    会话延迟槽属主独占，退役槽在版本翻转点归并即清零，跨线程复位臂无对应物；
+    Release 属 PR #2157 延迟直方图内存臂（首记才分配 + 静默窗回收），不在本票
+    （预算/上限/准入）范围，rust 沿现有每会话固定槽形态，待后续票

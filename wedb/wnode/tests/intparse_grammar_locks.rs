@@ -1,6 +1,6 @@
 //! 严格整数文法锁（工单 zcode-r31-intparse / doc/zh/deviations.md §32b）
 //!
-//! C# int32 档 RespReadUtils.TryReadInt（现版 ParseUtils 显式 allowLeadingZeros:false）
+//! C# int32 档 RespReadUtils.TryReadInt32Safe 存在 allowLeadingZeros 死参
 //! （参数声明但未消费），导致 SessionParseState.TryGetInt 全消费点实际放行
 //! "007"/"+007" 形态。Rust 全域维持严格十进制整数文法（`wbase/src/num.rs:scan_digits`
 //! 单点收口，与 C# 自家 i64 档同口径），全消费点恒定拒绝前导零。
@@ -106,7 +106,7 @@ fn getrange_leading_zero_grammar_lock() {
   });
 }
 
-/// 5. SET k v EX 007 前导零文法锁（对标 BasicCommands.cs:653 TryGetInt）
+/// 5. SET k v EX 007 前导零文法锁（对标 BasicCommands.cs:653 TryGetLong，#2130 起 int64 口径、前导零同拒）
 #[test]
 fn set_ex_leading_zero_grammar_lock() {
   with_batch(|s, batch| {
@@ -125,7 +125,7 @@ fn set_ex_leading_zero_grammar_lock() {
   });
 }
 
-/// 6. SETEX k 007 v 前导零文法锁（对标 BasicCommands.cs:542 TryGetInt）
+/// 6. SETEX k 007 v 前导零文法锁（对标 BasicCommands.cs:542 TryGetLong，#2130 起 int64 口径、前导零同拒）
 #[test]
 fn setex_leading_zero_grammar_lock() {
   with_batch(|s, batch| {

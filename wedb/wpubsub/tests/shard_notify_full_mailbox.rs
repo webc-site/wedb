@@ -39,7 +39,6 @@ struct MockSession {
   output: Vec<u8>,
   is_subscription: bool,
   clustered: bool,
-  resp3: bool,
 }
 
 impl MockSession {
@@ -49,7 +48,6 @@ impl MockSession {
       output: Vec::new(),
       is_subscription: false,
       clustered: false,
-      resp3: false,
     }
   }
 }
@@ -69,10 +67,6 @@ impl PubSubSessionCommands for MockSession {
 
   fn has_cluster_session(&self) -> bool {
     self.clustered
-  }
-
-  fn resp_protocol_version(&self) -> u8 {
-    if self.resp3 { 3 } else { 2 }
   }
 }
 
@@ -198,33 +192,4 @@ fn slot_migration_notify_bounded_abandon_is_observable_and_hang_scoped() {
   assert_eq!(mailbox.drain_into(&mut buf), 1);
   assert_eq!(buf[0].kind, PubSubMessageKind::ShardUnsubscribe);
   assert_eq!(buf[0].channel.as_ref(), b"0:s2");
-}
-
-/// RESP3 通知帧形对齐 Redis pubsub.c addReplyPubsubUnsubscribed：槽迁移
-/// 强制退订通知对 RESP3 客户端走 `>3` push 形（out-of-band 通知，严格
-/// RESP3 解析器不把它错路为同步应答；对齐源声明 deviations §6）
-#[test]
-fn slot_migration_notify_uses_resp3_push_form() {
-  let broker = Arc::new(SubscribeBroker::new());
-  let mut wire = PubSubSession::with_mailbox_capacity(Some(broker.clone()), CAPACITY);
-  let mut session = MockSession::new(9);
-  session.clustered = true;
-  session.resp3 = true;
-  assert!(session.network_subscribe(&mut wire, true, &[b"s1"]));
-  session.output.clear();
-
-  // 只灌 1 帧留一空位：通知免放弃臂直接入列（本用例钉帧形，放弃臂由
-  // 上两用例承担）
-  assert_eq!(broker.publish_shard_now(b"0:s1", b"fill1"), 1);
-  let notify = broker.shard_slot_migrated_out(SLOT);
-  assert_eq!(notify, 1);
-
-  session.drain_pubsub_frames(&mut wire);
-  let out = String::from_utf8_lossy(&session.output);
-  assert!(
-    out.contains(">3\r\n$12\r\nsunsubscribe\r\n$2\r\ns1\r\n:0\r\n"),
-    "RESP3 强制退订通知须为 >3 push 形：{out}"
-  );
-  assert_eq!(wire.num_active_channels, 0);
-  assert!(!session.is_subscription, "活跃计数归零即订阅旗收口");
 }

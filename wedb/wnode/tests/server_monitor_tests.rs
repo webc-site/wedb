@@ -94,8 +94,6 @@ async fn monitor_sampling_loop_rolls_metrics() -> aok::Result<()> {
     ),
     (1, 0, 1)
   );
-  // 拒连计数零拒场景恒 0（快照接线：ServerSample → 全局指标 → INFO STATS）
-  assert_eq!(snap.rejected_connections, 0);
   // 2048B / (1s × 1KiB) = 2.0；1024B → 1.0（C# byteUnit 换算）
   assert_eq!(snap.instantaneous_net_input_tpt, 2.0);
   assert_eq!(snap.instantaneous_net_output_tpt, 1.0);

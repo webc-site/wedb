@@ -46,7 +46,8 @@ pub use self::{
   attach::RespServerSessionOptions,
   core::{
     EtagResume, MsetnxResume, PROBE_PRESERVE_WATERMARK, REDIS_PROTOCOL_VERSION, RespServerSession,
-    TtlLeg, TtlResume, is_command_arity_valid_checked,
+    SESSION_PARSE_STATE_MAX_RETAINED_ARGS, SESSION_TRIM_INTERVAL, TtlLeg, TtlResume,
+    is_command_arity_valid_checked,
   },
   custom::CustomCommandRef,
   parse::GET_COMMAND_RESP_PREFIX,

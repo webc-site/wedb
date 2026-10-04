@@ -27,6 +27,8 @@ mod depot;
 mod event_queue;
 mod inbox;
 pub mod limited;
+pub mod net_budget;
+pub mod settings;
 mod tls;
 
 use std::{
@@ -52,7 +54,9 @@ pub use limited::{
   DEFAULT_BUFFER_SIZE, DEFAULT_MAX_ENTRIES_PER_LEVEL, DEFAULT_NUM_LEVELS, LimitedFixedBufferPool,
   PooledRefBuffer,
 };
+pub use net_budget::{BufferKind, NetworkBufferBudget};
 use parking_lot::Mutex;
+pub use settings::NetworkBufferSettings;
 pub(crate) use tls::TLS_POOLS;
 
 use crate::{

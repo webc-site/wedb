@@ -377,8 +377,9 @@ fn test_checkpoint_store_reader_suspension_and_token_pruning() {
   let e2 = CheckpointEntry::new(m2);
   store.add_checkpoint_entry(e2, false); // full_checkpoint = false, 继承 index token
 
-  // 此时 index token 被共享，因此检查点 1 无法被淘汰（即使无读者）
-  assert_eq!(store.entry_count(), 2);
+  // index token 被共享不阻断淘汰链（上游 c323bbf7a / #2144）：检查点 1 照常
+  // 淘汰出链（hlog 工件独立裁决），共享 index 工件留待最终唯一持有者回收
+  assert_eq!(store.entry_count(), 1);
 
   // 检查点 3: 全量检查点，生成新的 index token 0x444
   let mut m3 = CheckpointMetadata::new(1);

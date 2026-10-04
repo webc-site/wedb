@@ -8,10 +8,7 @@ use super::{
   expression::{QueryExpression, QueryOperand, QueryOperator, compile_regex, val_from_f64},
   filter::PathFilter,
 };
-use crate::{
-  error::{ERR_PATH_OPEN_INDEXER, Error, Result},
-  json_object::check_depth,
-};
+use crate::error::{ERR_PATH_OPEN_INDEXER, Error, Result};
 
 /// JSONPath 解析器状态机
 ///
@@ -839,11 +836,6 @@ impl<'a> JsonPathParser<'a> {
     }
 
     self.pos = inner;
-    // 深度安全门（doc/zh/deviations.md §206）：过滤器数组字面量与载荷同走 sonic
-    // `Value` 快路（无 255 深度门、互递归无界），先过 O(n) 单趟预扫再交解析，
-    // 越门与本处解析失败同形上抛（InvalidPath）
-    check_depth(&self.bytes[start..inner])
-      .map_err(|_| Error::InvalidPath("Invalid array literal".to_string()))?;
     // C# 用 JsonNode.Parse 严格 JSON 解析，非法文本抛 JsonException；
     // rust 侧 sonic_rs 同源严格，错误映射为 InvalidPath 上抛。
     let v: Value = sonic_rs::from_str(&self.expression[start..inner])

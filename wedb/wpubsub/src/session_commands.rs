@@ -550,12 +550,6 @@ pub trait PubSubSessionCommands {
         cs::PUBSUB_PUSH_SMSG_PREFIX_RESP2,
       )
     };
-    // 槽迁移强制退订通知头（borrow 铁律：前缀选择一律先于 out 借用）
-    let sunsub_prefix = if is_resp3(self.resp_protocol_version()) {
-      cs::PUBSUB_PUSH_SUNSUBSCRIBE_PREFIX_RESP3
-    } else {
-      cs::PUBSUB_PUSH_SUNSUBSCRIBE_PREFIX_RESP2
-    };
     let out = self.output_mut();
     for message in messages {
       // 隔离键剥离失败（他 ns 残留消息/前缀失配）→ 安全丢弃该帧：
@@ -585,14 +579,13 @@ pub trait PubSubSessionCommands {
           out.write_resp_bulk_string(&message.value);
         }
         PubSubMessageKind::ShardUnsubscribe => {
-          // 槽迁移强制退订通知：头 + 裸名 + 剩余计数。帧形对齐源为 Redis
-          // pubsub.c addReplyPubsubUnsubscribed（该通知 C# garnet 无对位，
-          // deviations §6 声明对齐 redis unstable）：RESP2 `*3` 数组、
-          // RESP3 `>3` push——严格 RESP3 解析器把流内裸数组当同步应答错路，
-          // out-of-band 通知必须走 push 形。数据臂 smessage 同走 >N push 帧。
+          // 槽迁移强制退订通知：帧形与 SUNSUBSCRIBE 应答同构（头 + 裸名 +
+          // 剩余计数）。刻意不随 is_resp3 切 push 帧：SSUBSCRIBE/SUNSUBSCRIBE
+          // 确认族在 RESP2/RESP3 均为数组形（C# garnet 无 sunsubscribe 通知
+          // 对位，Redis 确认帧语义同源），数据臂 smessage 才走 >N push 帧。
           // 活跃计数由本 drain 臂本地递减——槽事件钩只在 broker/迁移线程投递
           // 通知，绝不跨线程直改会话状态（守会话单写者）
-          out.extend_from_slice(sunsub_prefix);
+          out.extend_from_slice(cs::PUBSUB_SUNSUBSCRIBE_FRAME_PREFIX);
           out.write_resp_bulk_string(channel);
           active -= 1;
           out.write_resp_int(i64::from(active));

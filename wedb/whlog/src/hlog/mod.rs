@@ -161,17 +161,6 @@ pub struct HybridLog<D: Device> {
   pub buffer: CircularPageBuffer,
   /// 换页互斥锁（仅在页内空间不足触发换页时获取，页内追加完全无锁并发，对标 Garnet HandlePageOverflow）
   page_turn_lock: Mutex<()>,
-  /// 刷盘写序异步闸（跨 await 在途写互斥，仅 [crate::hlog::io] 刷盘内核
-  /// [Self::flush_sealed_page_range] 尾段全程持有，不进追加/读取 CRUD 热路径）
-  ///
-  /// 对标 AllocatorBase.cs:AsyncFlushPagesForReadOnly :2210-2214 串行契约：部分页
-  /// 片段必须等待前一相邻刷盘完成，否则前片段尾扇区（未完成）会覆盖后片段同扇区
-  /// （已完成）——C# 以每页 PendingFlush 入队 + AsyncFlushPageCallback 回调链
-  /// RemoveNextAdjacent 逐片段串行发起实现「同页设备写恒按地址次序、后写者恒为
-  /// 新内容」；rust 侧多驱动（组提交/驱逐/紧缩补刷）并发直入同一内核，无回调链
-  /// 可挂，收敛为内核内的单把异步互斥闸等价承接该不变式（同一时刻至多一个设备
-  /// 写在途）。闸内不等纪元、不等 flush_event，杜绝死锁环。
-  flush_gate: async_lock::Mutex<()>,
   /// 待刷盘区间贪心合并队列（对标 Garnet PendingFlushList.cs）
   pub pending_flush: PendingFlushList,
   /// 页面刷盘完成事件（支持多协程等待落盘被动唤醒，对标 Garnet flushEvent）
@@ -379,7 +368,6 @@ impl<D: Device> HybridLog<D> {
       addresses,
       buffer,
       page_turn_lock: Mutex::new(()),
-      flush_gate: async_lock::Mutex::new(()),
       pending_flush: PendingFlushList::new(),
       flush_event: Event::new(),
       version_shift: Arc::new(AtomicU64::new(0)),

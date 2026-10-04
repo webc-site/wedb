@@ -102,6 +102,9 @@ impl NodeArgs {
     // → RuntimeServerConfig.cs:264 槽位播种 → StoreWrapper.cs:994-999
     // TryStartExpiredKeyDeletionTask 的启动期唯一写入路径
     opts.expired_key_deletion_scan_frequency_secs = self.expired_key_deletion_scan_frequency_secs;
+    // C# Options.cs:986 NetworkConnectionLimit → MAXCLIENTS 槽位播种（PR #2157：
+    // 运行时经 CONFIG SET maxclients 可调，调停直达 accept 容量门）
+    opts.network_connection_limit = self.network_connection_limit;
     // C# Options.cs:934 WaitForCommit → GarnetServerOptions.WaitForCommit 投影
     opts.wait_for_commit = self.aof_commit_wait;
     // C# Options.cs:991-992 FastAofTruncate / OnDemandCheckpoint 投影（rust 不接
@@ -168,6 +171,20 @@ impl NodeArgs {
       .aof_size_limit_enforce_frequency_secs
       .min(i32::MAX as u64) as i32;
     opts
+  }
+
+  /// 网络缓冲内存预算字节（PR #2157；未配置或空串返回 None——装配侧回落
+  /// 默认 1GiB，0 = 禁用自适应；解析失败亦 None，启动期拒启已由 validate 单点把守）
+  ///
+  /// 对标 C# GarnetServerOptions.cs:GetNetworkBufferBudget 的
+  /// `string.IsNullOrEmpty(NetworkBufferMemoryBudget) ? DefaultNetworkBufferMemoryBudget : ParseSize(...)`
+  #[must_use]
+  pub fn network_buffer_memory_budget_bytes(&self) -> Option<i64> {
+    let raw = self
+      .network_buffer_memory_budget
+      .as_deref()
+      .filter(|s| !s.is_empty())?;
+    try_parse_size(raw)
   }
 
   /// AOF 体积限额字节（配置尺寸向下取 2 的幂；未配置或解析失败返回 None）

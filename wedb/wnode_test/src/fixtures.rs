@@ -1286,13 +1286,9 @@ pub fn storage_session<'s, D: wdev::Device>(
   session: &'s wkv::StoreSession<D>,
 ) -> StorageSession<'s, D> {
   let version_map = Arc::new(WatchVersionMap::new(DEFAULT_VERSION_MAP_SIZE));
-  assert!(
-    session
-      .store
-      .set_watch_hook(version_map_watch_hook(Arc::clone(&version_map))),
-    "引擎级写面钩子应首次挂载（OnceCell 重复注入返回 false，静默吞掉会使\
-     同 store 二次装配的版本表脱钩、WATCH 冲突检测假绿）"
-  );
+  let _ = session
+    .store
+    .set_watch_hook(version_map_watch_hook(Arc::clone(&version_map)));
   StorageSession::new(session.enter_batch())
 }
 

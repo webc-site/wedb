@@ -923,7 +923,7 @@ pub fn write_zset_entries(
   // 有序视图单次遍历流式写出：免 collect 与逐元素 clone
   let n = obj.sorted_set.len();
   // C# :966/:1135/:1446：头长 RESP2+WITHSCORES 为扁平 2n，RESP3 为 n
-  output.write_resp_array_len(if with_scores && !is_resp3(resp_version) {
+  output.write_resp_array_len(if with_scores && resp_version < 3 {
     n * 2
   } else {
     n

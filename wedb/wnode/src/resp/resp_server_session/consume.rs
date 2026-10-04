@@ -2,13 +2,17 @@
 //! ProcessMessages：接收缓冲游标模型、批纪元快照、门链分派与批收口平移）。
 //! 分派器臂见 [`super::dispatch`]。
 
+use smallvec::SmallVec;
 use wresp::{
+  argslice::ArgSlice,
   cmd_strings::{self as cs},
   command::{RespCommand, one_if_read, one_if_write},
 };
 use wtxn::{TransactionManager, TxnState};
 
-use super::core::{DEFAULT_RECV_BUFFER_CAPACITY, RespServerSession};
+use super::core::{
+  RespServerSession, SESSION_PARSE_STATE_MAX_RETAINED_ARGS, SESSION_TRIM_INTERVAL,
+};
 use crate::{
   cluster_session::SlotVerifyGate,
   resp::{acl_commands::AclGateVerdict, parser::resp_command::is_allowed_in_subscription_mode},
@@ -135,11 +139,15 @@ impl RespServerSession {
         .is_some_and(TransactionManager::is_skipping_operations)
       && !self.output_watermark_yield
     {
+      // 本批收口的接收基准规格（PR #2157 预算钳制施加面，C#
+      // BaseReceiveBufferSize = budget.ClampReceiveBufferSize(configured)：
+      // 预算缺省即默认驻留水位，零行为变化）
+      let recv_base = self.recv_base_capacity();
       if self.read_head >= self.bytes_read {
         // 整段消费完毕：缓冲清零复位（C# ShiftTransportReceiveBuffer 的
-        // bytesLeft == 0 形态）；超大批次容量释放，回归默认驻留水位
-        if self.recv_buffer.capacity() > DEFAULT_RECV_BUFFER_CAPACITY {
-          self.recv_buffer = Vec::with_capacity(DEFAULT_RECV_BUFFER_CAPACITY);
+        // bytesLeft == 0 形态）；超大批次容量释放，回归基准驻留水位
+        if self.recv_buffer.capacity() > recv_base {
+          self.recv_buffer = Vec::with_capacity(recv_base);
           // 换缓冲实例：初始化代际一并失效（新分配禁复用旧代际）
           self.recv_prime_key = None;
         } else {
@@ -163,20 +171,49 @@ impl RespServerSession {
         self.read_head = 0;
         self.end_read_head = 0;
         // 超大批次后的容量收敛（C# ShrinkNetworkReceiveBuffer 的对偶：
-        // 平移后残余回落默认水位内即收缩，防大容量常驻）
-        if self.recv_buffer.capacity() > DEFAULT_RECV_BUFFER_CAPACITY
-          && remaining <= DEFAULT_RECV_BUFFER_CAPACITY
-        {
-          self.recv_buffer.shrink_to(DEFAULT_RECV_BUFFER_CAPACITY);
+        // 平移后残余回落基准水位内即收缩，防大容量常驻）
+        if self.recv_buffer.capacity() > recv_base && remaining <= recv_base {
+          self.recv_buffer.shrink_to(recv_base);
         }
       }
     }
     self.exit_and_return_response_object();
 
+    // 批边界：无参数指针跨界存活，为一条异常宽命令长出的超帽会话缓冲在此
+    // 释放（PR #2157，C# finally 块 `--sessionTrimCountdown` 单递减——读解析
+    // 态本体在本方法逐批执行会可测劣化代码生成，倒计数驻会话标量）
+    self.session_trim_countdown -= 1;
+    if self.session_trim_countdown == 0 {
+      self.trim_session_buffers();
+    }
+
     if let Some(metrics) = &self.session_metrics {
       metrics.incr_total_net_input_bytes(newly_consumed as u64);
     }
     Some(self.bytes_read.saturating_sub(self.read_head))
+  }
+
+  /// 释放自上次 trim 以来一直高于帽且未增长的会话缓冲（PR #2157，C#
+  /// RespServerSession.cs:457 TrimSessionBuffers）：解析态根缓冲随客户端
+  /// 发过的最宽命令定容并钉死连接终身，一条超高元命令即永久放大会话、
+  /// 成本随连接数伸缩。仅当容量高于帽且未比上次 trim 增长时释放——每批
+  /// 都需要该容量的会话保留其缓冲。冷构造：每 64 批达一次
+  fn trim_session_buffers(&mut self) {
+    self.session_trim_countdown = SESSION_TRIM_INTERVAL;
+
+    let length = self.parse_state.root_buffer.len();
+    if length > SESSION_PARSE_STATE_MAX_RETAINED_ARGS && length <= self.parse_state_len_at_last_trim
+    {
+      // C# parseState.ShrinkRootBuffer(threshold)：计数清零、根缓冲重配至帽
+      //（保留帽容量而非全释放——C# 同款重分配 retainedCount 数组）。批边界
+      // 调用无存活参数指针，重配安全
+      self.parse_state.count = 0;
+      self.parse_state.offset = 0;
+      let mut fresh = SmallVec::new();
+      fresh.resize(SESSION_PARSE_STATE_MAX_RETAINED_ARGS, ArgSlice::new(0, 0));
+      self.parse_state.root_buffer = fresh;
+    }
+    self.parse_state_len_at_last_trim = self.parse_state.root_buffer.len();
   }
 
   /// libs/server/Resp/RespServerSession.cs:ProcessMessages
