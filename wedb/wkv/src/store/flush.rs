@@ -181,7 +181,8 @@ impl<D: Device> GroupCommitStep for FlushStep<'_, D> {
     // (1) 增量页刷盘：仅从当前 flushed_until 所在页刷到 target 所在页，
     // 彻底杜绝从 head 到 tail 的全量重复扫描与重复页写锁占用。
     // step 只做增量区间换算，落盘与 OnFlush 触发一律经 store::flush_pages_range
-    // 单点（页序守卫在其内部同口径覆盖），杜绝在此另加直连 hlog 的快路径
+    // 单点（页序守卫由 whlog 刷盘内核 flush_gate 异步闸承接，同页重叠写在内核内
+    // 串行），杜绝在此另加直连 hlog 的快路径
     let flushed = self.store.hlog.flushed_until_address();
     if target > flushed {
       let start_page = self.store.hlog.config.page_id(flushed);

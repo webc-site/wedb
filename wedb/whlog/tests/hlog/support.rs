@@ -14,10 +14,20 @@ use wdev::{Device, Error, Result as DeviceResult, SegmentedDevice};
 ///
 /// - `MODE_NORMAL`: 正常透传底层设备；
 /// - `MODE_FAIL`: 返回 I/O 错误（模拟写入失败）；
-/// - `MODE_SHORT`: 返回「短写成功」但实际不落盘（模拟设备跨段写入慢路径的部分成功）。
+/// - `MODE_SHORT`: 返回「短写成功」但实际不落盘（模拟设备跨段写入慢路径的部分成功）；
+/// - 另有独立于模式的一次性写前挂起握手（`arm_stall` / `is_stalled` /
+///   `release_stall`）：布防后的首个 write_aligned 在内层写之前 await 放行事件，
+///   把「拷贝已成形、设备写在途」的窗口钉死为确定性交错（复用 event_listener，
+///   与错误模式正交可叠加）。
 pub(crate) struct FaultDevice {
   inner: SegmentedDevice,
   mode: AtomicU8,
+  /// 一次性挂起布防（写序闸测试握手）
+  stall_armed: AtomicBool,
+  /// 已扣停在写前窗口的标志（测试据此确认挂起窗口就位）
+  stall_parked: AtomicBool,
+  /// 放行通道（listener 先于 parked 置位注册，notify 必达）
+  release: event_listener::Event,
 }
 
 pub(crate) const MODE_NORMAL: u8 = 0;
@@ -31,6 +41,9 @@ impl FaultDevice {
     Self {
       inner,
       mode: AtomicU8::new(MODE_NORMAL),
+      stall_armed: AtomicBool::new(false),
+      stall_parked: AtomicBool::new(false),
+      release: event_listener::Event::new(),
     }
   }
 
@@ -38,6 +51,24 @@ impl FaultDevice {
   #[inline]
   pub(crate) fn set_mode(&self, mode: u8) {
     self.mode.store(mode, Ordering::Relaxed);
+  }
+
+  /// 布防一次性写前挂起：下一次 write_aligned 在内层写之前扣停至放行
+  #[inline]
+  pub(crate) fn arm_stall(&self) {
+    self.stall_armed.store(true, Ordering::Release);
+  }
+
+  /// 是否已有写扣停在写前窗口（挂起窗口就位）
+  #[inline]
+  pub(crate) fn is_stalled(&self) -> bool {
+    self.stall_parked.load(Ordering::Acquire)
+  }
+
+  /// 放行扣停中的写（无扣停者时无害空操作）
+  #[inline]
+  pub(crate) fn release_stall(&self) {
+    self.release.notify(1);
   }
 }
 
@@ -63,6 +94,14 @@ impl Device for FaultDevice {
   }
 
   async fn write_aligned(&self, offset: u64, buf: AlignedBuf) -> (DeviceResult<usize>, AlignedBuf) {
+    // 一次性写前挂起（握手语义见结构体文档）：listener 先注册再宣告扣停，
+    // 测试侧 is_stalled() 观察到 true 时 notify 必达，无丢失窗口
+    if self.stall_armed.swap(false, Ordering::AcqRel) {
+      let listener = self.release.listen();
+      self.stall_parked.store(true, Ordering::Release);
+      listener.await;
+      self.stall_parked.store(false, Ordering::Release);
+    }
     match self.mode.load(Ordering::Relaxed) {
       MODE_FAIL => (
         Err(Error::ReadOnly {
