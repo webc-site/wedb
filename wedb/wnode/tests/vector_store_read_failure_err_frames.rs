@@ -187,7 +187,7 @@ fn vrem_vis_member_storage_failure_err_not_folded() {
     // VREM 正常缺元素 → :0（非错误）
     assert_eq!(
       sess
-        .network_vrem(root().as_slice(), &[b"vk", b"zz"])
+        .network_vrem(root().as_slice(), &[b"vk", b"zz"], false)
         .await,
       VectorReply::Integer(0)
     );
@@ -196,7 +196,7 @@ fn vrem_vis_member_storage_failure_err_not_folded() {
     fault.arm_fsm();
     // VREM 存活元素：禁折叠假成功 :0，须 ERR 错误帧、不写 AOF
     match sess
-      .network_vrem(root().as_slice(), &[b"vk", b"e1"])
+      .network_vrem(root().as_slice(), &[b"vk", b"e1"], false)
       .await
     {
       VectorReply::Error(msg) => assert!(msg.starts_with(b"ERR"), "错误帧文案: {msg:?}"),
@@ -228,13 +228,13 @@ fn vrem_vis_member_storage_failure_err_not_folded() {
     );
     assert_eq!(
       sess
-        .network_vrem(root().as_slice(), &[b"vk", b"e1"])
+        .network_vrem(root().as_slice(), &[b"vk", b"e1"], false)
         .await,
       VectorReply::Integer(1)
     );
     assert_eq!(
       sess
-        .network_vrem(root().as_slice(), &[b"vk", b"e1"])
+        .network_vrem(root().as_slice(), &[b"vk", b"e1"], false)
         .await,
       VectorReply::Integer(0)
     );

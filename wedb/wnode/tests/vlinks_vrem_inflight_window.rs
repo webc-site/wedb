@@ -212,7 +212,7 @@ fn vlinks_survivor_array_during_vrem_inflight_window() {
       let sess = RespServerSessionVectors::new(v_mgr);
       let rt = Runtime::new().unwrap();
       rt.block_on(async move {
-        match sess.network_vrem(root, &[b"vk", b"e2"]).await {
+        match sess.network_vrem(root, &[b"vk", b"e2"], false).await {
           VectorReply::Integer(v) => v,
           other => panic!("VREM 应答形态异常: {other:?}"),
         }
@@ -240,27 +240,29 @@ fn vlinks_survivor_array_during_vrem_inflight_window() {
       "删除体应在窗内已完成"
     );
     // 核心：存活成员 e1 VLINKS 恒 Array 非 null（同刻共享锁读态交错，修复前
-    // 悬空 iid 经 `?` 上抛折 null 毒化整包），悬空邻居 e2 跳过回显
-    let reply = sess.network_vlinks(root, &[b"vk", b"e1"]).await;
+    // 悬空 iid 经 `?` 上抛折 null 毒化整包），悬空邻居 e2 跳过回显。
+    // 嵌套契约（7398c0625 #2184）：每邻居单元素数组 [id]，e2 检查入巢比对
+    let reply = sess.network_vlinks(root, &[b"vk", b"e1"], false).await;
     let VectorReply::Array(items) = reply else {
       panic!("VREM 在飞窗存活成员 VLINKS 必为 Array 非 null: {reply:?}");
     };
-    let e2_reply = VectorReply::Bulk(Some(b"e2".to_vec().into()));
+    let e2_link = VectorReply::Array(vec![VectorReply::Bulk(Some(b"e2".to_vec().into()))]);
     assert!(
-      !items.contains(&e2_reply),
+      !items.contains(&e2_link),
       "窗内悬空邻居必须跳过回显: {items:?}"
     );
-    // ── 放行门闸：VREM 边回收完成，闭合结局 Integer(1) ──
+
+    // ── 放行门闸：VREM 边回收完成，闭合结局布尔真（resp2=false → :1）──
     drop(hold);
     let removed = vrem_thread.join().unwrap();
     assert_eq!(removed, 1, "门闸放行后 VREM 必须完整收口");
 
     // 收口后 e1 回显仍健康（无 e2、非 null），计数收敛
-    let reply = sess.network_vlinks(root, &[b"vk", b"e1"]).await;
+    let reply = sess.network_vlinks(root, &[b"vk", b"e1"], false).await;
     let VectorReply::Array(items) = reply else {
       panic!("收口后 VLINKS 必为 Array: {reply:?}");
     };
-    assert!(!items.contains(&e2_reply), "收口后 e2 不得回显: {items:?}");
+    assert!(!items.contains(&e2_link), "收口后 e2 不得回显: {items:?}");
     assert_eq!(vm.service.card(context), 1);
 
     let _ = remove_dir_all(dir.path());

@@ -514,7 +514,7 @@ async fn vector_replication_aof_failure_aborts_commands() {
 
   // 4. VREM 合成写失败 ⇒ 返回错误帧
   let vrem_args: Vec<&[u8]> = vec![b"vs_pre", b"e1"];
-  let reply = session.network_vrem(prefix, &vrem_args).await;
+  let reply = session.network_vrem(prefix, &vrem_args, false).await;
   assert!(
     matches!(reply, VectorReply::Error(_)),
     "AOF 入队失败必须使 VREM 返回错误帧"

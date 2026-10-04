@@ -109,8 +109,6 @@ pub(super) use wna_entry;
 /// （存储读出值、非常量错误）经 `Cow<'static, [u8]>` 落堆：
 /// 检索命中 id/属性的源缓冲（`SimilarityOutput`）为函数局部量，应答归还
 /// 后即释放，故借用上限为 'static，非静态载荷一律 Owned。
-/// 整型标量不入 `Bulk`：一律走 [`VectorReply::BulkInt`]，帧字节由 wresp 单点在
-/// 编码期以 itoa 栈上缓冲产出，构造期零堆分配。
 #[derive(Debug, PartialEq)]
 pub enum VectorReply {
   /// 简单字符串（+...，载荷恒为编译期常量文案）。
@@ -121,12 +119,6 @@ pub enum VectorReply {
   Integer(i64),
   /// 批量字符串（None = NULL）。
   Bulk(Option<Cow<'static, [u8]>>),
-  /// 整数值批量字符串（`$<len>\r\n<digits>\r\n`）。
-  ///
-  /// 对标 C# RespServerSessionVectors.cs:1608-1616 `WriteInt32AsBulkString` /
-  /// `WriteInt64AsBulkString`：应答面把整型标量按 bulk 串交付的命令（VINFO 的
-  /// 维度/参数/基数）一律用本变体，不得再 `to_string().into_bytes()` 造临时堆物。
-  BulkInt(i64),
   /// 数组。
   Array(Vec<VectorReply>),
   /// 空（NULL）数组：RESP2 `*-1\r\n`、RESP3 `_\r\n`（帧型由 wresp Resp2/Resp3 单点承载）。
@@ -160,9 +152,6 @@ impl VectorReply {
         Some(v) => w.write_bulk_string(v),
         None => Resp2::write_null(w.buf_mut()),
       },
-      // 整型 bulk 臂：帧字节由 wresp 单点（RespWriteUtils.cs:542,565 对位）产出，
-      // RESP3 同型（该臂在 encode_resp3 落 `other => encode_resp2` 兜底，无第二份帧）
-      VectorReply::BulkInt(i) => w.write_integer_as_bulk_string(*i),
       VectorReply::NullArray => Resp2::write_null_array(w.buf_mut()),
       // RESP2 口径 map 头即双倍长度数组（C# TryWriteMapLength resp2 分支）
       VectorReply::Map(pairs) => {
@@ -352,7 +341,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
           RespCommand::Vgetattr => self.network_vgetattr(prefix, args).await,
           RespCommand::Vinfo => self.network_vinfo(prefix, args).await,
           RespCommand::Vismember => self.network_vismember(prefix, args, resp3).await,
-          RespCommand::Vlinks => self.network_vlinks(prefix, args).await,
+          RespCommand::Vlinks => self.network_vlinks(prefix, args, resp3).await,
           RespCommand::Vrandmember => self.network_vrandmember(prefix, args).await,
           _ => unreachable!("is_vector_read_command 钉住慢路径分派集"),
         };
@@ -428,7 +417,7 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
           RespCommand::Vsetattr => self.network_vsetattr(prefix, args, resp3).await,
           // VREM 挂起化（元素删除为存储异步回调，登记写透 async 化后快
           // 路径不再承接）归本臂真读复判后闭环
-          RespCommand::Vrem => self.network_vrem(prefix, args).await,
+          RespCommand::Vrem => self.network_vrem(prefix, args, resp3).await,
           _ => unreachable!("is_vector_set_command 钉住写族慢路径分派集"),
         };
         reply.encode_resp(output, resp3);
@@ -564,7 +553,9 @@ impl RespServerSessionVectors {
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:WriteRESP2Result
   ///
   /// RESP2：扁平数组（WITHSCORES 时 id/score 成对；WITHATTRIBS 附加属性；
-  /// 二者齐备时长度为三倍），空属性写空 bulk 字符串。
+  /// 二者齐备时长度为三倍），空属性写 NULL（RespServerSessionVectors.cs:1234-1239
+  /// `if (attr.IsEmpty) WriteNull()`，7398c0625 #2184 定形——修复前写空 bulk
+  /// 串，与 RESP3 侧空属性 NULL 语义分裂）。
   pub fn write_resp2_result(
     count: usize,
     ids: &[&[u8]],
@@ -588,8 +579,17 @@ impl RespServerSessionVectors {
           distances.get(result_index).copied().unwrap_or(0.0),
         )));
       }
-      if with_attribs && let Some(attr) = attributes.and_then(|attrs| attrs.get(result_index)) {
-        items.push(VectorReply::Bulk(Some(attr.to_vec().into())));
+      if with_attribs {
+        let attr = attributes
+          .and_then(|attrs| attrs.get(result_index))
+          .copied()
+          .unwrap_or(&[]);
+        items.push(if attr.is_empty() {
+          // 空属性写 NULL（与 RESP3 侧同语义，帧型由 encode_resp2 落 `$-1`）
+          VectorReply::Bulk(None)
+        } else {
+          VectorReply::Bulk(Some(attr.to_vec().into()))
+        });
       }
     }
     VectorReply::Array(items)

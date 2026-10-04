@@ -13,10 +13,10 @@ use wvector::{
 
 use super::{
   resp_server_session_vectors::{
-    ERR_COUNT_RANGE, ERR_EF_RANGE, ERR_EPSILON_MUST_BE_POSITIVE, ERR_EXPECTED_INTEGER_COUNT,
-    ERR_FILTER_EF_RANGE, ERR_KEY_NOT_FOUND, ERR_UNKNOWN_OPTION, ERR_VEMB_UNEXPECTED_OPTION,
-    ERR_VLINKS_UNEXPECTED_OPTION, RespServerSessionVectors, VectorReply, bool_reply, dup_flag,
-    err_dup, wna_entry,
+    ERR_COUNT_RANGE, ERR_EF_RANGE, ERR_EPSILON_MUST_BE_POSITIVE,
+    ERR_EXPECTED_INTEGER_COUNT, ERR_FILTER_EF_RANGE, ERR_KEY_NOT_FOUND, ERR_UNKNOWN_OPTION,
+    ERR_VEMB_UNEXPECTED_OPTION, ERR_VLINKS_UNEXPECTED_OPTION, RespServerSessionVectors,
+    VectorReply, bool_reply, dup_flag, err_dup, wna_entry,
   },
   vector_manager::{
     MAX_EXPLORATION_FACTOR, MAX_FILTERING_SCALE_FACTOR, MAX_RETRIEVE_COUNT, VectorSearchOptions,
@@ -344,8 +344,12 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVINFO
   ///
-  /// `VINFO key` → 14 项元信息（quant-type/distance-metric/input-vector-dimensions/
-  /// reduced-dimensions/build-exploration-factor/num-links/size）。
+  /// `VINFO key` → 7 键值元信息映射（quant-type/distance-metric/
+  /// input-vector-dimensions/reduced-dimensions/build-exploration-factor/
+  /// num-links/size），数值字段为纯整数（RespServerSessionVectors.cs:1597-1620
+  /// `WriteMapLength(7)` + `WriteInt32`/`WriteInt64`，7398c0625 #2184 定形；
+  /// RESP2 侧 map 头退化为 14 项键值交错扁平数组，wresp Resp2
+  /// `write_map_len` 单点承接）。
   ///
   /// C# 对位 VectorStoreOps.cs:VectorSetInfo 锁点 :428（using 锁全程罩住
   /// 元信息与 size 读取体）；rust 同款：size 臂走 service.card 需原生索引
@@ -374,24 +378,35 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       VectorDistanceMetricType::L2 => b"l2",
       VectorDistanceMetricType::XCosineNormalized => b"cosine-normalized",
     };
-    let bulk_int = |v: u32| VectorReply::BulkInt(i64::from(v));
-    VectorReply::Array(vec![
-      VectorReply::Simple(b"quant-type"),
-      VectorReply::Simple(quant),
-      VectorReply::Simple(b"distance-metric"),
-      VectorReply::Simple(metric),
-      VectorReply::Simple(b"input-vector-dimensions"),
-      bulk_int(index.dimensions),
-      VectorReply::Simple(b"reduced-dimensions"),
-      bulk_int(index.reduce_dims),
-      VectorReply::Simple(b"build-exploration-factor"),
-      bulk_int(index.build_exploration_factor),
-      VectorReply::Simple(b"num-links"),
-      bulk_int(index.num_links),
-      VectorReply::Simple(b"size"),
-      // C# :1616 WriteInt64AsBulkString(size)；基数为 u64 计数，转 i64 与本文件
-      // VCARD（:980 `card(..) as i64`）同口径
-      VectorReply::BulkInt(self.manager.service.card(index.context) as i64),
+    let int = |v: u32| VectorReply::Integer(i64::from(v));
+    // 与 C# 逐键对齐（Simple 键 + Integer 值；基数为 u64 计数，转 i64 与本
+    // 文件 VCARD（`card(..) as i64`）同口径）
+    VectorReply::Map(vec![
+      (
+        VectorReply::Simple(b"quant-type"),
+        VectorReply::Simple(quant),
+      ),
+      (
+        VectorReply::Simple(b"distance-metric"),
+        VectorReply::Simple(metric),
+      ),
+      (
+        VectorReply::Simple(b"input-vector-dimensions"),
+        int(index.dimensions),
+      ),
+      (
+        VectorReply::Simple(b"reduced-dimensions"),
+        int(index.reduce_dims),
+      ),
+      (
+        VectorReply::Simple(b"build-exploration-factor"),
+        int(index.build_exploration_factor),
+      ),
+      (VectorReply::Simple(b"num-links"), int(index.num_links)),
+      (
+        VectorReply::Simple(b"size"),
+        VectorReply::Integer(self.manager.service.card(index.context) as i64),
+      ),
     ])
   }
 
@@ -417,14 +432,20 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVLINKS
   ///
-  /// `VLINKS key element [WITHSCORES]`。C# 侧输出为 TODO（恒 +OK）；
-  /// 此处返回层 0 邻接的实际元素（超集语义），键/元素缺失写 null。
-  /// WITHSCORES 透传已算距离（id/score 扁平成对，形同 VSIM RESP2
-  /// WITHSCORES 布局，零新机制）；悬垂邻接（VREM 删除窗/半途失败残留的
-  /// fsm 空闲 id）已在 neighbors 遍历臂跳过，存活成员恒回 Array 非 null。
-  /// C# 对位 VectorStoreOps.cs:VectorSetLinks 锁点 :512——守卫随本 async
-  /// 栈帧跨邻接读 await 存活。
-  pub async fn network_vlinks(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
+  /// `VLINKS key element [WITHSCORES]`。返回层 0 邻接的实际元素，键/元素
+  /// 缺失写 null（C# VectorSetLinks NOTFOUND → WriteNull）。回复契约按 C#
+  /// 邻居分组嵌套形态（RespServerSessionVectors.cs:1673-1786，080b05de1
+  /// 定形、7398c0625 #2184 协议测试锁定）：
+  ///
+  /// - 无 WITHSCORES：每邻居一个单元素数组 `[id]`；
+  /// - WITHSCORES：RESP2 每邻居一个二元素数组 `[id, score]`、RESP3 每邻居
+  ///   一个单键值映射 `{id: score}`；分数为 Double（RESP2 退化 bulk 串）。
+  ///
+  /// WITHSCORES 透传已算距离（分数非接受即丢）；悬垂邻接（VREM 删除窗/
+  /// 半途失败残留的 fsm 空闲 id）已在 neighbors 遍历臂跳过，存活成员恒回
+  /// Array 非 null。C# 对位 VectorStoreOps.cs:VectorSetLinks 锁点 :512——
+  /// 守卫随本 async 栈帧跨邻接读 await 存活。
+  pub async fn network_vlinks(&self, prefix: &[u8], args: &[&[u8]], resp3: bool) -> VectorReply {
     wna_entry!(self, args, 2..=3, "VLINKS");
     let with_scores = if args.len() == 3 {
       if !equals_ignore_case(args[2], cs::WITHSCORES) {
@@ -439,12 +460,19 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
     };
     match self.manager.service.links_of(index.context, args[1]).await {
       Some(links) => {
-        let mut items = Vec::with_capacity(links.len() * (1 + usize::from(with_scores)));
+        let mut items = Vec::with_capacity(links.len());
         for (id, score) in links {
-          items.push(VectorReply::Bulk(Some(id.into())));
-          if with_scores {
-            items.push(VectorReply::Double(f64::from(score)));
-          }
+          items.push(if with_scores {
+            let id = VectorReply::Bulk(Some(id.into()));
+            let score = VectorReply::Double(f64::from(score));
+            if resp3 {
+              VectorReply::Map(vec![(id, score)])
+            } else {
+              VectorReply::Array(vec![id, score])
+            }
+          } else {
+            VectorReply::Array(vec![VectorReply::Bulk(Some(id.into()))])
+          });
         }
         VectorReply::Array(items)
       }
@@ -504,4 +532,5 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         .collect(),
     )
   }
+
 }

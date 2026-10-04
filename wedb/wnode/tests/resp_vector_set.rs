@@ -1014,29 +1014,37 @@ fn auxiliary_commands() {
     // VLINKS（缺失元素 → null）
     assert!(matches!(
       sess
-        .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e1"])
+        .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e1"], false)
         .await,
       VectorReply::Array(_)
     ));
     assert_eq!(
       sess
-        .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"ghost"])
+        .network_vlinks(
+          SessionPrefixBuf::ROOT.as_slice(),
+          &[b"aux", b"ghost"],
+          false
+        )
         .await,
       VectorReply::Bulk(None)
     );
     assert_eq!(
       err_text(
         sess
-          .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e1", b"BAD"])
+          .network_vlinks(
+            SessionPrefixBuf::ROOT.as_slice(),
+            &[b"aux", b"e1", b"BAD"],
+            false,
+          )
           .await
       ),
       "ERR Unexpected option"
     );
 
-    // VLINKS WITHSCORES：id/score 扁平成对（形同 VSIM RESP2 布局），元素
-    // 集不变；分数透传遍历臂已算距离，非接受即丢
+    // VLINKS WITHSCORES：C# 邻居分组嵌套形态（每邻居一数组 [id, score]），
+    // 元素集不变；分数透传遍历臂已算距离，非接受即丢
     let plain = sess
-      .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e1"])
+      .network_vlinks(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e1"], false)
       .await;
     let VectorReply::Array(plain_items) = plain else {
       panic!("存活元素 VLINKS 必为 Array");
@@ -1045,6 +1053,7 @@ fn auxiliary_commands() {
       .network_vlinks(
         SessionPrefixBuf::ROOT.as_slice(),
         &[b"aux", b"e1", b"WITHSCORES"],
+        false,
       )
       .await;
     let VectorReply::Array(scored_items) = scored else {
@@ -1052,19 +1061,26 @@ fn auxiliary_commands() {
     };
     assert_eq!(
       scored_items.len(),
-      plain_items.len() * 2,
-      "WITHSCORES 应 id/score 成对"
+      plain_items.len(),
+      "WITHSCORES 应逐邻居同数"
     );
-    for pair in scored_items.chunks(2) {
+    // 无分数形：每邻居单元素数组 [id]；分数形：每邻居二元素数组 [id, score]
+    for (link, scoreless) in scored_items.iter().zip(&plain_items) {
+      let VectorReply::Array(pair) = link else {
+        panic!("WITHSCORES 每邻居必为嵌套数组: {link:?}");
+      };
+      let VectorReply::Array(single) = scoreless else {
+        panic!("无分数每邻居必为单元素嵌套数组: {scoreless:?}");
+      };
+      assert_eq!(pair.len(), 2, "嵌套数组应 [id, score]: {pair:?}");
+      assert_eq!(single.len(), 1, "单元素数组应 [id]: {single:?}");
       assert!(
         matches!(pair[0], VectorReply::Bulk(Some(_))),
-        "成对首位应为元素 id: {:?}",
-        pair[0]
+        "嵌套首位应为元素 id: {pair:?}"
       );
       assert!(
         matches!(pair[1], VectorReply::Double(_)),
-        "成对次位应为分数: {:?}",
-        pair[1]
+        "嵌套次位应为分数: {pair:?}"
       );
     }
 
@@ -1096,53 +1112,42 @@ fn auxiliary_commands() {
       VectorReply::Bulk(None)
     );
 
-    // VINFO（对齐 C# 布局：14 项 + 小写枚举名）
+    // VINFO（对齐 C# 7398c0625 契约：7 键值 map + 纯整数字段；RESP2 退化
+    // 14 项键值交错扁平数组）
     let info = sess
       .network_vinfo(SessionPrefixBuf::ROOT.as_slice(), &[b"aux"])
       .await;
     let mut encoded = Vec::new();
     info.encode_resp2(&mut encoded);
     let text = s(&encoded);
-    assert!(text.starts_with("*14\r\n"), "VINFO 14 项: {text}");
+    assert!(
+      text.starts_with("*14\r\n"),
+      "VINFO RESP2 扁平 14 项: {text}"
+    );
     assert!(text.contains("input-vector-dimensions"));
     assert!(text.contains("reduced-dimensions"));
     assert!(text.contains("f32"));
     assert!(text.contains("l2"));
-    // 整型五字段（aux 索引：dimensions 2 / reduce_dims 0 / BEF 64 / num_links 8 /
-    // 基数 2）收口到 VectorReply::BulkInt 后的逐位帧型。
+    // 逐位帧型（aux 索引：dimensions 2 / reduce_dims 0 / BEF 64 / num_links 8 /
+    // 基数 2）：键 Simple、数值纯整数 `:n`
     assert_eq!(
       text,
       "*14\r\n+quant-type\r\n+f32\r\n+distance-metric\r\n+l2\r\n\
-     +input-vector-dimensions\r\n$1\r\n2\r\n+reduced-dimensions\r\n$1\r\n0\r\n\
-     +build-exploration-factor\r\n$2\r\n64\r\n+num-links\r\n$1\r\n8\r\n\
-     +size\r\n$1\r\n2\r\n"
+     +input-vector-dimensions\r\n:2\r\n+reduced-dimensions\r\n:0\r\n\
+     +build-exploration-factor\r\n:64\r\n+num-links\r\n:8\r\n\
+     +size\r\n:2\r\n"
     );
-    // 与收口前的老写法（`to_string().into_bytes()` 落 Bulk）逐位等帧，RESP2/RESP3 双版本
-    let legacy = VectorReply::Array(vec![
-      VectorReply::Simple(b"quant-type"),
-      VectorReply::Simple(b"f32"),
-      VectorReply::Simple(b"distance-metric"),
-      VectorReply::Simple(b"l2"),
-      VectorReply::Simple(b"input-vector-dimensions"),
-      VectorReply::Bulk(Some(b"2".to_vec().into())),
-      VectorReply::Simple(b"reduced-dimensions"),
-      VectorReply::Bulk(Some(b"0".to_vec().into())),
-      VectorReply::Simple(b"build-exploration-factor"),
-      VectorReply::Bulk(Some(b"64".to_vec().into())),
-      VectorReply::Simple(b"num-links"),
-      VectorReply::Bulk(Some(b"8".to_vec().into())),
-      VectorReply::Simple(b"size"),
-      VectorReply::Bulk(Some(b"2".to_vec().into())),
-    ]);
-    let mut legacy2 = Vec::new();
-    legacy.encode_resp2(&mut legacy2);
-    assert_eq!(encoded, legacy2, "VINFO RESP2 整型帧与旧写法不等价");
+    // RESP3 map 形态：`%7` 头 + 键值对，数值同为整数
     let mut encoded3 = Vec::new();
     info.encode_resp3(&mut encoded3);
-    let mut legacy3 = Vec::new();
-    legacy.encode_resp3(&mut legacy3);
-    assert_eq!(encoded3, legacy3, "VINFO RESP3 整型帧与旧写法不等价");
-    assert_eq!(encoded3, encoded, "VINFO 整型 bulk 帧不随协议版本变体");
+    assert_eq!(
+      s(&encoded3),
+      "%7\r\n+quant-type\r\n+f32\r\n+distance-metric\r\n+l2\r\n\
+     +input-vector-dimensions\r\n:2\r\n+reduced-dimensions\r\n:0\r\n\
+     +build-exploration-factor\r\n:64\r\n+num-links\r\n:8\r\n\
+     +size\r\n:2\r\n",
+      "VINFO RESP3 map 帧型"
+    );
     assert_eq!(
       sess
         .network_vinfo(SessionPrefixBuf::ROOT.as_slice(), &[b"ghost"])
@@ -1150,18 +1155,24 @@ fn auxiliary_commands() {
       VectorReply::NullArray
     );
 
-    // VREM
+    // VREM（resp2=false：整数 1/0 契约；resp3 布尔形由 vector_set_protocol.rs 锁定）
     assert_eq!(
       sess
-        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e2"])
+        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e2"], false)
         .await,
       VectorReply::Integer(1)
     );
     assert_eq!(
       sess
-        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e2"])
+        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"aux", b"e2"], false)
         .await,
       VectorReply::Integer(0)
+    );
+    assert_eq!(
+      sess
+        .network_vcard(SessionPrefixBuf::ROOT.as_slice(), &[b"aux"])
+        .await,
+      VectorReply::Integer(1)
     );
 
     // VDIM 缺键 → "ERR Key not found"
@@ -1208,7 +1219,7 @@ async fn disabled_and_reply_encoding() {
       .network_vcard(SessionPrefixBuf::ROOT.as_slice(), &[b"k"])
       .await,
     sess
-      .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"k", b"e"])
+      .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &[b"k", b"e"], false)
       .await,
   ] {
     assert!(matches!(r, VectorReply::Error(_)), "未启用应拒绝");
@@ -1308,6 +1319,20 @@ fn result_writers_honor_bitmap_and_count() {
   let mut encoded = Vec::new();
   out.encode_resp3(&mut encoded);
   assert_eq!(s(&encoded), "%1\r\n$1\r\ne\r\n*2\r\n,0.5\r\n_\r\n");
+
+  // RESP2 空属性同语义写 NULL（7398c0625 #2184：WriteRESP2Result
+  // `if (attr.IsEmpty) WriteNull()`，修复前误写空 bulk 串）→ 帧型 `$-1`
+  let out = RespServerSessionVectors::write_resp2_result(
+    10,
+    &[b"e".as_slice()],
+    &[0.5],
+    &[],
+    Some(&attrs_one),
+    true,
+  );
+  let mut encoded = Vec::new();
+  out.encode_resp2(&mut encoded);
+  assert_eq!(s(&encoded), "*3\r\n$1\r\ne\r\n$3\r\n0.5\r\n$-1\r\n");
 
   // count 截断
   let out = RespServerSessionVectors::write_resp2_result(1, &ids, &distances, &[], None, false);
@@ -2062,7 +2087,8 @@ fn vadd_reduce_dims_physical_matches_vinfo() {
       assert_eq!(f, Some(DIMS * 4), "iid {id} 全精度记录维持全维");
     }
 
-    // 协议面：VINFO reduced-dimensions 回显与底层真实规格同值（非虚报）
+    // 协议面：VINFO reduced-dimensions 回显与底层真实规格同值（非虚报；
+    // 7398c0625 契约下数值字段为纯整数帧）
     let mut encoded = Vec::new();
     sess
       .network_vinfo(SessionPrefixBuf::ROOT.as_slice(), &[b"kr"])
@@ -2070,7 +2096,7 @@ fn vadd_reduce_dims_physical_matches_vinfo() {
       .encode_resp2(&mut encoded);
     let text = s(&encoded);
     assert!(
-      text.contains("+reduced-dimensions\r\n$1\r\n8\r\n"),
+      text.contains("+reduced-dimensions\r\n:8\r\n"),
       "VINFO 应回显降维 8: {text}"
     );
   })

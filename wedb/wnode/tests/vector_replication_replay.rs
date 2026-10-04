@@ -182,7 +182,7 @@ async fn vector_writes_replay_to_fresh_manager() {
   assert_eq!(
     as_int(
       &session
-        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &vrem_args)
+        .network_vrem(SessionPrefixBuf::ROOT.as_slice(), &vrem_args, false)
         .await
     ),
     1,

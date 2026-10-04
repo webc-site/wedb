@@ -315,10 +315,13 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
   /// 注入穿透删除锁」的主从发散竞态（manager 契约：try_remove 假定调用方
   /// 已持共享读守卫）。
   ///
-  pub async fn network_vrem(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
+  /// 应答契约（7398c0625 #2184）：C# 以 WriteBoolean 分派——RESP3 `#t`/`#f`
+  /// 布尔、RESP2 `:1`/`:0` 整数（RespServerSessionVectors.cs:192-213 与
+  /// :1893-1896），`resp3` 选择形态。
+  pub async fn network_vrem(&self, prefix: &[u8], args: &[&[u8]], resp3: bool) -> VectorReply {
     wna_entry!(self, args, 2..=2, "VREM");
     let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
-      return VectorReply::Integer(0);
+      return bool_reply(false, resp3);
     };
     match self
       .manager
@@ -336,10 +339,10 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         ) {
           return reply;
         }
-        VectorReply::Integer(1)
+        bool_reply(true, resp3)
       }
-      // 缺元素 → 0（对标 C#「非 OK→0」，缺席语义不变）
-      Ok(_) => VectorReply::Integer(0),
+      // 缺元素 → 假/0（对标 C#「非 OK→WriteBoolean(false)」，缺席语义不变）
+      Ok(_) => bool_reply(false, resp3),
       // 存储读失败 → ERR 错误帧、不写 AOF（禁故障窗假成功 0/1 应答与存储分叉）
       Err(e) => VectorReply::Error(e.message.into()),
     }
