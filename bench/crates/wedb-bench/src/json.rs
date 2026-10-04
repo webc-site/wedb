@@ -116,6 +116,10 @@ pub struct JsonRun {
   pub generated_at_unix: u64,
   pub commit: String,
   pub branch: String,
+  /// 版本身份（CI 传 `git describe --tags --always`）：没打过 tag 时就是短 sha，
+  /// 打 tag 后同一字段自动升级成人能读的版号，站点不必改口径
+  #[serde(default)]
+  pub version: String,
   pub platform: String,
   pub machine: MachineInfo,
   pub workload: Workload,

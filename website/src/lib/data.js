@@ -79,6 +79,13 @@ export function shortCommit(commit) {
   return commit && commit !== "local" ? commit.slice(0, 7) : "本地";
 }
 
+/// 版本标注：CI 记进机读结果的 version 优先（有 tag 就是 vX.Y.Z），
+/// 本地跑或历史里没这个字段时退回 commit 短哈希
+export function versionLabel(run) {
+  if (!run) return "—";
+  return run.version || shortCommit(run.commit);
+}
+
 /// 趋势轴上的版本日期：光有 commit 认不出版本先后
 export function formatDay(unix) {
   if (!unix) return "—";

@@ -150,7 +150,7 @@ graph TD
 分章文档：[性能评测](https://github.com/webc-site/wedb/tree/main/readme/zh/bench.md)。
 
 <!-- WEDB-BENCH:BEGIN 由 node js/readme.js 生成，请勿手改 -->
-> 最新一轮：commit `local`（`local`），2026-10-04 UTC。
+> 最新一轮：`local`（`local`），2026-10-04 UTC。
 
 ## macos-arm64 — Apple M2 Max（12 逻辑核 / 64.0 GiB 内存）
 
