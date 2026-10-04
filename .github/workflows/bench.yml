@@ -184,6 +184,32 @@ jobs:
             $runs
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Refresh README bench tables
+        # 只在主分支推送那轮回写：workflow_dispatch 的手动冒烟档（0.02×）不该污染 README
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          node js/readme.js --report report.json --tables summary.md --skip-missing
+          rc=$?
+          set -e
+          if [ "$rc" = 3 ]; then
+            echo "本轮没有代表平台（linux-arm64）的结果，README 保持原样。" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [ "$rc" = 0 ] || exit "$rc"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md readme/
+          if git diff --cached --quiet; then
+            echo "README 表格数字没有变化，不回写。" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "README 评测表刷新（${GITHUB_SHA:0:7}）[skip ci]"
+          git push origin HEAD:main
+          echo "README 评测表已回写 main（${GITHUB_SHA:0:7}）" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Upload combined report
         uses: actions/upload-artifact@v7
         with:

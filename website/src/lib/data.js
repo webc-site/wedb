@@ -57,11 +57,17 @@ export function rowsByName(run) {
 
 /// 图表口径：只画吞吐段（key/s · txn/s · scan/s）。时延和占用绝对量级不同，
 /// 混进同一根轴会互相压扁，留在表格里对比。
+/// 选项按各列并集取：某一段在参考列里是 N/A 时，别列的实测值仍然要能选出来
 export function throughputOptions(run) {
-  const engine = run?.engines.find((item) => item.status === "ok") ?? run?.engines[0];
-  return (engine?.rows ?? [])
-    .filter((row) => row.kind === "throughput")
-    .map((row) => ({ key: row.key, label: `${row.name} (${row.unit})`, unit: row.unit }));
+  const seen = new Map();
+  for (const engine of run?.engines ?? []) {
+    for (const row of engine.rows) {
+      if (row.kind === "throughput" && !seen.has(row.key)) {
+        seen.set(row.key, { key: row.key, label: `${row.name} (${row.unit})`, unit: row.unit });
+      }
+    }
+  }
+  return [...seen.values()];
 }
 
 /// 吞吐单元格的可比数值；非吞吐（时延/占用/N-A）一律不进图

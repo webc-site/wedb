@@ -1,6 +1,6 @@
 {
-  "name": "wedb · 评测台",
-  "short_name": "wedb",
+  "name": "WeDB Bench",
+  "short_name": "WeDB Bench",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

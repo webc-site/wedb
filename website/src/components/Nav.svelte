@@ -6,7 +6,7 @@
   <div class="wrap nav-inner">
     <a class="nav-brand" href={repo}>
       <img src="./favicon.svg" alt="" width="22" height="22" />
-      <span>wedb · 评测台</span>
+      <span>WeDB Bench</span>
     </a>
     <div class="nav-links">
       <a href="#latest">最新表格</a>
