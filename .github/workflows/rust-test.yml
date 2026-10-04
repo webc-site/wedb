@@ -43,12 +43,21 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # @stable 每次解析当时最新的稳定版；把实际版本打进日志，
+      # 红灯要和编译器版本一起看（新版本可能带来新的 lint/优化退化）
+      - name: Toolchain version
+        run: rustc -vV && cargo -V
+
       - uses: Swatinem/rust-cache@v2
         with:
           # 仓库无根 Cargo.toml：wedb / node / cluster / regress 各自独立 workspace，
           # 缓存须指向对应组件目录，否则保存缓存时 cargo metadata 在仓库根失败
           workspaces: ${{ inputs.dir }}
           cache-on-failure: true
+          # 一个组件一族缓存（key 是 rust-cache 加在自动 job 级键上的额外标识），
+          # 缓存列表里按 `test-<dir>` 认领；4 组件 × 4 镜像已经贴着 10 GiB 配额，
+          # 攒旧的过期整族由 cache-gc.yml 按年龄回收
+          key: test-${{ inputs.dir }}
 
       - uses: taiki-e/install-action@v2
         with:

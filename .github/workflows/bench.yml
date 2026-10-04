@@ -82,13 +82,23 @@ jobs:
           fetch-tags: true
 
       - name: Setup Rust
+        # @stable 每次解析当时的最新稳定版；下一步把实际版本打进日志，
+        # 表格数字要和编译器版本一起看（codegen 变了吞吐就会漂）
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Toolchain version
+        run: rustc -vV && cargo -V
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: bench
           cache-on-failure: true
+          # key 是 rust-cache 加在自动 job 级缓存键上的额外标识：缓存列表里能一眼
+          # 认出是哪一列（一格约 1 GB，20 格贴着 10 GiB 配额，靠名字才敢下手清）。
+          # rust-cache v2 自己不限份数，攒多了只会让 GitHub 盲踢 LRU，
+          # 过期整族由 cache-gc.yml 按年龄回收
+          key: bench-${{ matrix.engine }}
 
       # librocksdb-sys 的 build.rs 无条件跑 bindgen，需要 libclang；其余列不引原生依赖
       - name: Install libclang (Linux · rocksdb)
@@ -159,6 +169,8 @@ jobs:
         with:
           workspaces: bench
           cache-on-failure: true
+          # 汇总 job 只编 benchreport 一个二进制，独立一族小缓存，不踩矩阵那几族
+          key: bench-report
 
       - name: Download column results
         uses: actions/download-artifact@v7

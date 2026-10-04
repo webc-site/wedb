@@ -55,6 +55,10 @@ jobs:
         with:
           workspaces: bench
           cache-on-failure: true
+          # 站点这条只编 benchreport（release），跑在 arm64 runner 上，
+          # 与 bench.yml 汇总 job（x64）的 bench-report 族本来就命中不了彼此，各留一族；
+          # key 是 rust-cache 加在自动 job 级键上的额外标识，过期缓存由 cache-gc.yml 收
+          key: website
 
       - name: Build benchreport
         run: cargo build -p wedb-bench --no-default-features --release --bin benchreport
